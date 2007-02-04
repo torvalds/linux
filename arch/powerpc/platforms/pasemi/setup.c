@@ -82,7 +82,7 @@ void __init pas_setup_arch(void)
 	conswitchp = &dummy_con;
 #endif
 
-	printk(KERN_DEBUG "Using default idle loop\n");
+	pasemi_idle_init();
 }
 
 /* No legacy IO on our parts */

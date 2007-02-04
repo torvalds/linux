@@ -43,6 +43,8 @@ extern void __setup_cpu_745x(unsigned long offset, struct cpu_spec* spec);
 #ifdef CONFIG_PPC64
 extern void __setup_cpu_ppc970(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_ppc970MP(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_pa6t(unsigned long offset, struct cpu_spec* spec);
+extern void __restore_cpu_pa6t(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_ppc970(void);
 #endif /* CONFIG_PPC64 */
 
@@ -369,6 +371,8 @@ static struct cpu_spec cpu_specs[] = {
 		.dcache_bsize		= 64,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_PA6T,
+		.cpu_setup		= __setup_cpu_pa6t,
+		.cpu_restore		= __restore_cpu_pa6t,
 		.platform		= "pa6t",
 	},
 	{	/* default match */
