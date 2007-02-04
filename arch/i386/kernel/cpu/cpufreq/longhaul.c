@@ -56,6 +56,7 @@
 /* Flags */
 #define USE_ACPI_C3		(1 << 1)
 #define USE_NORTHBRIDGE		(1 << 2)
+#define USE_VT8235		(1 << 3)
 
 static int cpu_model;
 static unsigned int numscales=16;
@@ -544,10 +545,39 @@ static int enable_arbiter_disable(void)
 	if (dev != NULL) {
 		/* Enable access to port 0x22 */
 		pci_read_config_byte(dev, reg, &pci_cmd);
-		if ( !(pci_cmd & 1<<7) ) {
+		if (!(pci_cmd & 1<<7)) {
 			pci_cmd |= 1<<7;
 			pci_write_config_byte(dev, reg, pci_cmd);
+			pci_read_config_byte(dev, reg, &pci_cmd);
+			if (!(pci_cmd & 1<<7)) {
+				printk(KERN_ERR PFX
+					"Can't enable access to port 0x22.\n");
+				return 0;
+			}
 		}
+		return 1;
+	}
+	return 0;
+}
+
+static int longhaul_setup_vt8235(void)
+{
+	struct pci_dev *dev;
+	u8 pci_cmd;
+
+	/* Find VT8235 southbridge */
+	dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235, NULL);
+	if (dev != NULL) {
+		/* Set transition time to max */
+		pci_read_config_byte(dev, 0xec, &pci_cmd);
+		pci_cmd &= ~(1 << 2);
+		pci_write_config_byte(dev, 0xec, pci_cmd);
+		pci_read_config_byte(dev, 0xe4, &pci_cmd);
+		pci_cmd &= ~(1 << 7);
+		pci_write_config_byte(dev, 0xe4, pci_cmd);
+		pci_read_config_byte(dev, 0xe5, &pci_cmd);
+		pci_cmd |= 1 << 7;
+		pci_write_config_byte(dev, 0xe5, pci_cmd);
 		return 1;
 	}
 	return 0;
@@ -558,6 +588,7 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	struct cpuinfo_x86 *c = cpu_data;
 	char *cpuname=NULL;
 	int ret;
+	int vt8235_present;
 
 	/* Check what we have on this motherboard */
 	switch (c->x86_model) {
@@ -641,12 +672,16 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		break;
 	};
 
+	/* Doesn't hurt */
+	vt8235_present = longhaul_setup_vt8235();
+
 	/* Find ACPI data for processor */
-	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-			    &longhaul_walk_callback, NULL, (void *)&pr);
+	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
+				ACPI_UINT32_MAX, &longhaul_walk_callback,
+				NULL, (void *)&pr);
 
 	/* Check ACPI support for C3 state */
-	if ((pr != NULL) && (longhaul_version == TYPE_POWERSAVER)) {
+	if (pr != NULL && longhaul_version == TYPE_POWERSAVER) {
 		cx = &pr->power.states[ACPI_STATE_C3];
 		if (cx->address > 0 && cx->latency <= 1000) {
 			longhaul_flags |= USE_ACPI_C3;
@@ -658,8 +693,11 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		longhaul_flags |= USE_NORTHBRIDGE;
 		goto print_support_type;
 	}
-
-	/* No ACPI C3 or we can't use it */
+	/* Use VT8235 southbridge if present */
+	if (longhaul_version == TYPE_POWERSAVER && vt8235_present) {
+		longhaul_flags |= USE_VT8235;
+		goto print_support_type;
+	}
 	/* Check ACPI support for bus master arbiter disable */
 	if ((pr == NULL) || !(pr->flags.bm_control)) {
 		printk(KERN_ERR PFX
@@ -668,18 +706,18 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	}
 
 print_support_type:
-	if (!(longhaul_flags & USE_NORTHBRIDGE)) {
-		printk (KERN_INFO PFX "Using ACPI support.\n");
-	} else {
+	if (longhaul_flags & USE_NORTHBRIDGE)
 		printk (KERN_INFO PFX "Using northbridge support.\n");
-	}
+	else if (longhaul_flags & USE_VT8235)
+		printk (KERN_INFO PFX "Using VT8235 support.\n");
+	else
+		printk (KERN_INFO PFX "Using ACPI support.\n");
 
 	ret = longhaul_get_ranges();
 	if (ret != 0)
 		return ret;
 
-	if ((longhaul_version==TYPE_LONGHAUL_V2 || longhaul_version==TYPE_POWERSAVER) &&
-		 (scale_voltage != 0))
+	if ((longhaul_version != TYPE_LONGHAUL_V1) && (scale_voltage != 0))
 		longhaul_setup_voltagescaling();
 
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
