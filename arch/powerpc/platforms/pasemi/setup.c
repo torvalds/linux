@@ -38,21 +38,13 @@
 
 #include "pasemi.h"
 
+static void __iomem *reset_reg;
+
 static void pas_restart(char *cmd)
 {
-	printk("restart unimplemented, looping...\n");
-	for (;;) ;
-}
-
-static void pas_power_off(void)
-{
-	printk("power off unimplemented, looping...\n");
-	for (;;) ;
-}
-
-static void pas_halt(void)
-{
-	pas_power_off();
+	printk("Restarting...\n");
+	while (1)
+		out_le32(reset_reg, 0x6000000);
 }
 
 #ifdef CONFIG_SMP
@@ -81,6 +73,10 @@ void __init pas_setup_arch(void)
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
+
+	/* Remap SDC register for doing reset */
+	/* XXXOJN This should maybe come out of the device tree */
+	reset_reg = ioremap(0xfc101100, 4);
 
 	pasemi_idle_init();
 }
@@ -211,8 +207,6 @@ define_machine(pas) {
 	.init_IRQ		= pas_init_IRQ,
 	.get_irq		= mpic_get_irq,
 	.restart		= pas_restart,
-	.power_off		= pas_power_off,
-	.halt			= pas_halt,
 	.get_boot_time		= pas_get_boot_time,
 	.calibrate_decr		= generic_calibrate_decr,
 	.check_legacy_ioport    = pas_check_legacy_ioport,
