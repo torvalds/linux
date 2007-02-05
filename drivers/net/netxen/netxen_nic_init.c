@@ -110,6 +110,7 @@ static void crb_addr_transform_setup(void)
 	crb_addr_transform(CAM);
 	crb_addr_transform(C2C1);
 	crb_addr_transform(C2C0);
+	crb_addr_transform(SMB);
 }
 
 int netxen_init_firmware(struct netxen_adapter *adapter)
@@ -543,9 +544,13 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 		}
 		for (i = 0; i < n; i++) {
 
-			off =
-			    netxen_decode_crb_addr((unsigned long)buf[i].addr) +
-			    NETXEN_PCI_CRBSPACE;
+			off = netxen_decode_crb_addr((unsigned long)buf[i].addr);
+			if (off == NETXEN_ADDR_ERROR) {
+				printk(KERN_ERR"CRB init value out of range %lx\n",
+					buf[i].addr);
+				continue;
+			}
+			off += NETXEN_PCI_CRBSPACE;
 			/* skipping cold reboot MAGIC */
 			if (off == NETXEN_CAM_RAM(0x1fc))
 				continue;
@@ -662,6 +667,7 @@ void netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 	int loops = 0;
 
 	if (!pegtune_val) {
+		val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
 		while (val != PHAN_INITIALIZE_COMPLETE && loops < 200000) {
 			udelay(100);
 			schedule();
