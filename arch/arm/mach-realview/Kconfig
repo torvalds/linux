@@ -10,6 +10,7 @@ config MACH_REALVIEW_EB
 config REALVIEW_MPCORE
 	bool "Support MPcore tile"
 	depends on MACH_REALVIEW_EB
+	select CACHE_L2X0
 	help
 	  Enable support for the MPCore tile on the Realview platform.
 	  Since there are device address and interrupt differences, a
