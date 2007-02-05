@@ -42,6 +42,18 @@ struct mem_chunk {
 
 extern struct mem_chunk memory_chunk[];
 
+#ifdef CONFIG_S390_SWITCH_AMODE
+extern unsigned int switch_amode;
+#else
+#define switch_amode	(0)
+#endif
+
+#ifdef CONFIG_S390_EXEC_PROTECT
+extern unsigned int s390_noexec;
+#else
+#define s390_noexec	(0)
+#endif
+
 /*
  * Machine features detected in head.S
  */

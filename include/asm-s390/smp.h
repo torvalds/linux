@@ -110,7 +110,7 @@ smp_call_function_on(void (*func) (void *info), void *info,
 static inline void smp_send_stop(void)
 {
 	/* Disable all interrupts/machine checks */
-	__load_psw_mask(PSW_KERNEL_BITS & ~PSW_MASK_MCHECK);
+	__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
 }
 
 #define smp_cpu_not_running(cpu)	1

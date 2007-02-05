@@ -144,7 +144,7 @@ static void default_idle(void)
 
 	trace_hardirqs_on();
 	/* Wait for external, I/O or machine check interrupt. */
-	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_WAIT |
+	__load_psw_mask(psw_kernel_bits | PSW_MASK_WAIT |
 			PSW_MASK_IO | PSW_MASK_EXT);
 }
 
@@ -190,7 +190,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	struct pt_regs regs;
 
 	memset(&regs, 0, sizeof(regs));
-	regs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_IO | PSW_MASK_EXT;
+	regs.psw.mask = psw_kernel_bits | PSW_MASK_IO | PSW_MASK_EXT;
 	regs.psw.addr = (unsigned long) kernel_thread_starter | PSW_ADDR_AMODE;
 	regs.gprs[9] = (unsigned long) fn;
 	regs.gprs[10] = (unsigned long) arg;

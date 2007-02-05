@@ -82,7 +82,7 @@ static inline pmd_t *vmem_pmd_alloc(void)
 	if (!pmd)
 		return NULL;
 	for (i = 0; i < PTRS_PER_PMD; i++)
-		pmd_clear(pmd + i);
+		pmd_clear_kernel(pmd + i);
 	return pmd;
 }
 
@@ -97,7 +97,7 @@ static inline pte_t *vmem_pte_alloc(void)
 		return NULL;
 	pte_val(empty_pte) = _PAGE_TYPE_EMPTY;
 	for (i = 0; i < PTRS_PER_PTE; i++)
-		set_pte(pte + i, empty_pte);
+		pte[i] = empty_pte;
 	return pte;
 }
 
@@ -119,7 +119,7 @@ static int vmem_add_range(unsigned long start, unsigned long size)
 			pm_dir = vmem_pmd_alloc();
 			if (!pm_dir)
 				goto out;
-			pgd_populate(&init_mm, pg_dir, pm_dir);
+			pgd_populate_kernel(&init_mm, pg_dir, pm_dir);
 		}
 
 		pm_dir = pmd_offset(pg_dir, address);
@@ -132,7 +132,7 @@ static int vmem_add_range(unsigned long start, unsigned long size)
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
 		pte = pfn_pte(address >> PAGE_SHIFT, PAGE_KERNEL);
-		set_pte(pt_dir, pte);
+		*pt_dir = pte;
 	}
 	ret = 0;
 out:
@@ -161,7 +161,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 		if (pmd_none(*pm_dir))
 			continue;
 		pt_dir = pte_offset_kernel(pm_dir, address);
-		set_pte(pt_dir, pte);
+		*pt_dir = pte;
 	}
 	flush_tlb_kernel_range(start, start + size);
 }
@@ -191,7 +191,7 @@ static int vmem_add_mem_map(unsigned long start, unsigned long size)
 			pm_dir = vmem_pmd_alloc();
 			if (!pm_dir)
 				goto out;
-			pgd_populate(&init_mm, pg_dir, pm_dir);
+			pgd_populate_kernel(&init_mm, pg_dir, pm_dir);
 		}
 
 		pm_dir = pmd_offset(pg_dir, address);
@@ -210,7 +210,7 @@ static int vmem_add_mem_map(unsigned long start, unsigned long size)
 			if (!new_page)
 				goto out;
 			pte = pfn_pte(new_page >> PAGE_SHIFT, PAGE_KERNEL);
-			set_pte(pt_dir, pte);
+			*pt_dir = pte;
 		}
 	}
 	ret = 0;

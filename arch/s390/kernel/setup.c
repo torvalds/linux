@@ -50,6 +50,13 @@
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/sections.h>
+#include <asm/compat.h>
+
+long psw_kernel_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_PRIMARY |
+			   PSW_MASK_MCHECK | PSW_DEFAULT_KEY);
+long psw_user_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME |
+			   PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
+			   PSW_MASK_PSTATE | PSW_DEFAULT_KEY);
 
 /*
  * User copy operations.
@@ -383,6 +390,84 @@ static int __init early_parse_ipldelay(char *p)
 }
 early_param("ipldelay", early_parse_ipldelay);
 
+#ifdef CONFIG_S390_SWITCH_AMODE
+unsigned int switch_amode = 0;
+EXPORT_SYMBOL_GPL(switch_amode);
+
+static inline void set_amode_and_uaccess(unsigned long user_amode,
+					 unsigned long user32_amode)
+{
+	psw_user_bits = PSW_BASE_BITS | PSW_MASK_DAT | user_amode |
+			PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
+			PSW_MASK_PSTATE | PSW_DEFAULT_KEY;
+#ifdef CONFIG_COMPAT
+	psw_user32_bits = PSW_BASE32_BITS | PSW_MASK_DAT | user_amode |
+			  PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
+			  PSW_MASK_PSTATE | PSW_DEFAULT_KEY;
+	psw32_user_bits = PSW32_BASE_BITS | PSW32_MASK_DAT | user32_amode |
+			  PSW32_MASK_IO | PSW32_MASK_EXT | PSW32_MASK_MCHECK |
+			  PSW32_MASK_PSTATE;
+#endif
+	psw_kernel_bits = PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME |
+			  PSW_MASK_MCHECK | PSW_DEFAULT_KEY;
+
+	if (MACHINE_HAS_MVCOS) {
+		printk("mvcos available.\n");
+		memcpy(&uaccess, &uaccess_mvcos_switch, sizeof(uaccess));
+	} else {
+		printk("mvcos not available.\n");
+		memcpy(&uaccess, &uaccess_pt, sizeof(uaccess));
+	}
+}
+
+/*
+ * Switch kernel/user addressing modes?
+ */
+static int __init early_parse_switch_amode(char *p)
+{
+	switch_amode = 1;
+	return 0;
+}
+early_param("switch_amode", early_parse_switch_amode);
+
+#else /* CONFIG_S390_SWITCH_AMODE */
+static inline void set_amode_and_uaccess(unsigned long user_amode,
+					 unsigned long user32_amode)
+{
+}
+#endif /* CONFIG_S390_SWITCH_AMODE */
+
+#ifdef CONFIG_S390_EXEC_PROTECT
+unsigned int s390_noexec = 0;
+EXPORT_SYMBOL_GPL(s390_noexec);
+
+/*
+ * Enable execute protection?
+ */
+static int __init early_parse_noexec(char *p)
+{
+	if (!strncmp(p, "off", 3))
+		return 0;
+	switch_amode = 1;
+	s390_noexec = 1;
+	return 0;
+}
+early_param("noexec", early_parse_noexec);
+#endif /* CONFIG_S390_EXEC_PROTECT */
+
+static void setup_addressing_mode(void)
+{
+	if (s390_noexec) {
+		printk("S390 execute protection active, ");
+		set_amode_and_uaccess(PSW_ASC_SECONDARY, PSW32_ASC_SECONDARY);
+		return;
+	}
+	if (switch_amode) {
+		printk("S390 address spaces switched, ");
+		set_amode_and_uaccess(PSW_ASC_PRIMARY, PSW32_ASC_PRIMARY);
+	}
+}
+
 static void __init
 setup_lowcore(void)
 {
@@ -399,19 +484,21 @@ setup_lowcore(void)
 	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
-	lc->external_new_psw.mask = PSW_KERNEL_BITS;
+	if (switch_amode)
+		lc->restart_psw.mask |= PSW_ASC_HOME;
+	lc->external_new_psw.mask = psw_kernel_bits;
 	lc->external_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_IO | PSW_MASK_EXT;
+	lc->svc_new_psw.mask = psw_kernel_bits | PSW_MASK_IO | PSW_MASK_EXT;
 	lc->svc_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) system_call;
-	lc->program_new_psw.mask = PSW_KERNEL_BITS;
+	lc->program_new_psw.mask = psw_kernel_bits;
 	lc->program_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long)pgm_check_handler;
 	lc->mcck_new_psw.mask =
-		PSW_KERNEL_BITS & ~PSW_MASK_MCHECK & ~PSW_MASK_DAT;
+		psw_kernel_bits & ~PSW_MASK_MCHECK & ~PSW_MASK_DAT;
 	lc->mcck_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = PSW_KERNEL_BITS;
+	lc->io_new_psw.mask = psw_kernel_bits;
 	lc->io_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) io_int_handler;
 	lc->ipl_device = S390_lowcore.ipl_device;
 	lc->jiffy_timer = -1LL;
@@ -645,6 +732,7 @@ setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	setup_memory_end();
+	setup_addressing_mode();
 	setup_memory();
 	setup_resources();
 	setup_lowcore();

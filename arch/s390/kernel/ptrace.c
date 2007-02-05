@@ -230,9 +230,9 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		 */
 		if (addr == (addr_t) &dummy->regs.psw.mask &&
 #ifdef CONFIG_COMPAT
-		    data != PSW_MASK_MERGE(PSW_USER32_BITS, data) &&
+		    data != PSW_MASK_MERGE(psw_user32_bits, data) &&
 #endif
-		    data != PSW_MASK_MERGE(PSW_USER_BITS, data))
+		    data != PSW_MASK_MERGE(psw_user_bits, data))
 			/* Invalid psw mask. */
 			return -EINVAL;
 #ifndef CONFIG_64BIT
@@ -393,7 +393,7 @@ peek_user_emu31(struct task_struct *child, addr_t addr, addr_t data)
 		if (addr == (addr_t) &dummy32->regs.psw.mask) {
 			/* Fake a 31 bit psw mask. */
 			tmp = (__u32)(task_pt_regs(child)->psw.mask >> 32);
-			tmp = PSW32_MASK_MERGE(PSW32_USER_BITS, tmp);
+			tmp = PSW32_MASK_MERGE(psw32_user_bits, tmp);
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Fake a 31 bit psw address. */
 			tmp = (__u32) task_pt_regs(child)->psw.addr |
@@ -468,11 +468,11 @@ poke_user_emu31(struct task_struct *child, addr_t addr, addr_t data)
 		 */
 		if (addr == (addr_t) &dummy32->regs.psw.mask) {
 			/* Build a 64 bit psw mask from 31 bit mask. */
-			if (tmp != PSW32_MASK_MERGE(PSW32_USER_BITS, tmp))
+			if (tmp != PSW32_MASK_MERGE(psw32_user_bits, tmp))
 				/* Invalid psw mask. */
 				return -EINVAL;
 			task_pt_regs(child)->psw.mask =
-				PSW_MASK_MERGE(PSW_USER32_BITS, (__u64) tmp << 32);
+				PSW_MASK_MERGE(psw_user32_bits, (__u64) tmp << 32);
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Build a 64 bit psw address from 31 bit address. */
 			task_pt_regs(child)->psw.addr =

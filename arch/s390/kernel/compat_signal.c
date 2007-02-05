@@ -298,7 +298,7 @@ static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 	_s390_regs_common32 regs32;
 	int err, i;
 
-	regs32.psw.mask = PSW32_MASK_MERGE(PSW32_USER_BITS,
+	regs32.psw.mask = PSW32_MASK_MERGE(psw32_user_bits,
 					   (__u32)(regs->psw.mask >> 32));
 	regs32.psw.addr = PSW32_ADDR_AMODE31 | (__u32) regs->psw.addr;
 	for (i = 0; i < NUM_GPRS; i++)

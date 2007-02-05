@@ -162,6 +162,44 @@ static size_t clear_user_mvcos(size_t size, void __user *to)
 	return size;
 }
 
+static size_t strnlen_user_mvcos(size_t count, const char __user *src)
+{
+	char buf[256];
+	int rc;
+	size_t done, len, len_str;
+
+	done = 0;
+	do {
+		len = min(count - done, (size_t) 256);
+		rc = uaccess.copy_from_user(len, src + done, buf);
+		if (unlikely(rc == len))
+			return 0;
+		len -= rc;
+		len_str = strnlen(buf, len);
+		done += len_str;
+	} while ((len_str == len) && (done < count));
+	return done + 1;
+}
+
+static size_t strncpy_from_user_mvcos(size_t count, const char __user *src,
+				      char *dst)
+{
+	int rc;
+	size_t done, len, len_str;
+
+	done = 0;
+	do {
+		len = min(count - done, (size_t) 4096);
+		rc = uaccess.copy_from_user(len, src + done, dst);
+		if (unlikely(rc == len))
+			return -EFAULT;
+		len -= rc;
+		len_str = strnlen(dst, len);
+		done += len_str;
+	} while ((len_str == len) && (done < count));
+	return done;
+}
+
 struct uaccess_ops uaccess_mvcos = {
 	.copy_from_user = copy_from_user_mvcos_check,
 	.copy_from_user_small = copy_from_user_std,
@@ -174,3 +212,18 @@ struct uaccess_ops uaccess_mvcos = {
 	.futex_atomic_op = futex_atomic_op_std,
 	.futex_atomic_cmpxchg = futex_atomic_cmpxchg_std,
 };
+
+#ifdef CONFIG_S390_SWITCH_AMODE
+struct uaccess_ops uaccess_mvcos_switch = {
+	.copy_from_user = copy_from_user_mvcos,
+	.copy_from_user_small = copy_from_user_mvcos,
+	.copy_to_user = copy_to_user_mvcos,
+	.copy_to_user_small = copy_to_user_mvcos,
+	.copy_in_user = copy_in_user_mvcos,
+	.clear_user = clear_user_mvcos,
+	.strnlen_user = strnlen_user_mvcos,
+	.strncpy_from_user = strncpy_from_user_mvcos,
+	.futex_atomic_op = futex_atomic_op_pt,
+	.futex_atomic_cmpxchg = futex_atomic_cmpxchg_pt,
+};
+#endif

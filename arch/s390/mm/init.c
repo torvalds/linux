@@ -104,7 +104,7 @@ static void __init setup_ro_region(void)
 		pmd = pmd_offset(pgd, address);
 		pte = pte_offset_kernel(pmd, address);
 		new_pte = mk_pte_phys(address, __pgprot(_PAGE_RO));
-		set_pte(pte, new_pte);
+		*pte = new_pte;
 	}
 }
 
@@ -124,11 +124,11 @@ void __init paging_init(void)
 #ifdef CONFIG_64BIT
 	pgdir_k = (__pa(swapper_pg_dir) & PAGE_MASK) | _KERN_REGION_TABLE;
 	for (i = 0; i < PTRS_PER_PGD; i++)
-		pgd_clear(pg_dir + i);
+		pgd_clear_kernel(pg_dir + i);
 #else
 	pgdir_k = (__pa(swapper_pg_dir) & PAGE_MASK) | _KERNSEG_TABLE;
 	for (i = 0; i < PTRS_PER_PGD; i++)
-		pmd_clear((pmd_t *)(pg_dir + i));
+		pmd_clear_kernel((pmd_t *)(pg_dir + i));
 #endif
 	vmem_map_init();
 	setup_ro_region();

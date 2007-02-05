@@ -244,7 +244,7 @@ static inline void do_wait_for_stop(void)
 void smp_send_stop(void)
 {
 	/* Disable all interrupts/machine checks */
-	__load_psw_mask(PSW_KERNEL_BITS & ~PSW_MASK_MCHECK);
+	__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
 
         /* write magic number to zero page (absolute 0) */
 	lowcore_ptr[smp_processor_id()]->panic_magic = __PANIC_MAGIC;

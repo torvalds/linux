@@ -220,7 +220,8 @@ struct _lowcore
 	__u32        kernel_asce;              /* 0xc4c */
 	__u32        user_asce;                /* 0xc50 */
 	__u32        panic_stack;              /* 0xc54 */
-	__u8         pad10[0xc60-0xc58];       /* 0xc58 */
+	__u32	     user_exec_asce;	       /* 0xc58 */
+	__u8	     pad10[0xc60-0xc5c];       /* 0xc5c */
 	/* entry.S sensitive area start */
 	struct       cpuinfo_S390 cpu_data;    /* 0xc60 */
 	__u32        ipl_device;               /* 0xc7c */
@@ -310,7 +311,8 @@ struct _lowcore
 	__u64        kernel_asce;              /* 0xd58 */
 	__u64        user_asce;                /* 0xd60 */
 	__u64        panic_stack;              /* 0xd68 */
-	__u8         pad10[0xd80-0xd70];       /* 0xd70 */
+	__u64	     user_exec_asce;	       /* 0xd70 */
+	__u8	     pad10[0xd80-0xd78];       /* 0xd78 */
 	/* entry.S sensitive area start */
 	struct       cpuinfo_S390 cpu_data;    /* 0xd80 */
 	__u32        ipl_device;               /* 0xdb8 */
