@@ -193,11 +193,19 @@ extern unsigned int user_debug;
 #endif
 
 #if __LINUX_ARM_ARCH__ >= 6
-#define mb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" \
-                                   : : "r" (0) : "memory")
+#define isb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c5, 4" \
+				    : : "r" (0) : "memory")
+#define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \
+				    : : "r" (0) : "memory")
+#define dmb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" \
+				    : : "r" (0) : "memory")
 #else
-#define mb() __asm__ __volatile__ ("" : : : "memory")
+#define isb() __asm__ __volatile__ ("" : : : "memory")
+#define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \
+				    : : "r" (0) : "memory")
+#define dmb() __asm__ __volatile__ ("" : : : "memory")
 #endif
+#define mb() dmb()
 #define rmb() mb()
 #define wmb() mb()
 #define read_barrier_depends() do { } while(0)
