@@ -93,7 +93,7 @@ chsc_get_sch_desc_irq(struct subchannel *sch, void *page)
 		u16 sch;	  /* subchannel */
 		u8 chpid[8];	  /* chpids 0-7 */
 		u16 fla[8];	  /* full link addresses 0-7 */
-	} *ssd_area;
+	} __attribute__ ((packed)) *ssd_area;
 
 	ssd_area = page;
 
@@ -444,7 +444,7 @@ __get_chpid_from_lir(void *data)
 		u32 andesc[28];
 		/* incident-specific information */
 		u32 isinfo[28];
-	} *lir;
+	} __attribute__ ((packed)) *lir;
 
 	lir = data;
 	if (!(lir->iq&0x80))
@@ -483,7 +483,7 @@ chsc_process_crw(void)
 		u32 reserved6;
 		u32 ccdf[96];	/* content-code dependent field */
 		/* ccdf has to be big enough for a link-incident record */
-	} *sei_area;
+	} __attribute__ ((packed)) *sei_area;
 
 	if (!sei_page)
 		return 0;
@@ -1040,7 +1040,7 @@ __chsc_do_secm(struct channel_subsystem *css, int enable, void *page)
 		u32 : 4;
 		u32 fmt : 4;
 		u32 : 16;
-	} *secm_area;
+	} __attribute__ ((packed)) *secm_area;
 	int ret, ccode;
 
 	secm_area = page;
@@ -1251,7 +1251,7 @@ chsc_determine_channel_path_description(int chpid,
 		struct chsc_header response;
 		u32 zeroes2;
 		struct channel_path_desc desc;
-	} *scpd_area;
+	} __attribute__ ((packed)) *scpd_area;
 
 	scpd_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scpd_area)
@@ -1348,7 +1348,7 @@ chsc_get_channel_measurement_chars(struct channel_path *chp)
 		u32 cmg : 8;
 		u32 zeroes3;
 		u32 data[NR_MEASUREMENT_CHARS];
-	} *scmc_area;
+	} __attribute__ ((packed)) *scmc_area;
 
 	scmc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scmc_area)
@@ -1515,7 +1515,7 @@ chsc_enable_facility(int operation_code)
 		u32 reserved5:4;
 		u32 format2:4;
 		u32 reserved6:24;
-	} *sda_area;
+	} __attribute__ ((packed)) *sda_area;
 
 	sda_area = (void *)get_zeroed_page(GFP_KERNEL|GFP_DMA);
 	if (!sda_area)
@@ -1567,7 +1567,7 @@ chsc_determine_css_characteristics(void)
 		u32 reserved4;
 		u32 general_char[510];
 		u32 chsc_char[518];
-	} *scsc_area;
+	} __attribute__ ((packed)) *scsc_area;
 
 	scsc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scsc_area) {

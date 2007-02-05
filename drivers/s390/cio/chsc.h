@@ -10,17 +10,17 @@
 struct chsc_header {
 	u16 length;
 	u16 code;
-};
+} __attribute__ ((packed));
 
 #define NR_MEASUREMENT_CHARS 5
 struct cmg_chars {
 	u32 values[NR_MEASUREMENT_CHARS];
-};
+} __attribute__ ((packed));
 
 #define NR_MEASUREMENT_ENTRIES 8
 struct cmg_entry {
 	u32 values[NR_MEASUREMENT_ENTRIES];
-};
+} __attribute__ ((packed));
 
 struct channel_path_desc {
 	u8 flags;
@@ -31,7 +31,7 @@ struct channel_path_desc {
 	u8 zeroes;
 	u8 chla;
 	u8 chpp;
-};
+} __attribute__ ((packed));
 
 struct channel_path {
 	int id;
