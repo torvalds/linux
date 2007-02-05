@@ -230,7 +230,7 @@ dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const ch
 					   SEGMENT_SHARED);
 		if (rc < 0) {
 			BUG_ON(rc == -EINVAL);
-			if (rc == -EIO || rc == -ENOENT)
+			if (rc != -EAGAIN)
 				goto removeseg;
 		} else {
 			dev_info->is_shared = 1;
@@ -253,7 +253,7 @@ dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const ch
 					   SEGMENT_EXCLUSIVE);
 		if (rc < 0) {
 			BUG_ON(rc == -EINVAL);
-			if (rc == -EIO || rc == -ENOENT)
+			if (rc != -EAGAIN)
 				goto removeseg;
 		} else {
 			dev_info->is_shared = 0;
