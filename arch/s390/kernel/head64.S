@@ -81,7 +81,6 @@ startup_continue:
 	aghi	%r1,1			# size is one more than end
 	larl	%r2,memory_chunk
 	stg	%r1,8(%r2)		# store size of chunk
-	j	.Ldonemem
 
 .Lslowmemdetect:
 	l	%r2,.Lrcp-.LPG1(%r13)	# Read SCP forced command word
@@ -156,6 +155,11 @@ startup_continue:
 #
 # find memory chunks.
 #
+	larl	%r9,memory_chunk	# skip tprot loop if diag260
+	lg	%r9,8(%r9)		# memory detection was successful
+	ltgr	%r9,%r9
+	jne	.Ldonemem
+
 	lgr	%r9,%r3			# end of mem
 	larl	%r1,.Lchkmem		# set program check address
 	stg	%r1,__LC_PGM_NEW_PSW+8
