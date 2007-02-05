@@ -3,7 +3,7 @@
  *    basic function of the tape device driver
  *
  *  S390 and zSeries version
- *    Copyright (C) 2001,2005 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2001,2006
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *		 Michael Holzheu <holzheu@de.ibm.com>
  *		 Tuan Ngo-Anh <ngoanh@de.ibm.com>
@@ -26,9 +26,11 @@
 #include "tape_std.h"
 
 #define PRINTK_HEADER "TAPE_CORE: "
+#define LONG_BUSY_TIMEOUT 180 /* seconds */
 
 static void __tape_do_irq (struct ccw_device *, unsigned long, struct irb *);
 static void tape_delayed_next_request(struct work_struct *);
+static void tape_long_busy_timeout(unsigned long data);
 
 /*
  * One list to contain all tape devices of all disciplines, so
@@ -69,7 +71,9 @@ const char *tape_op_verbose[TO_SIZE] =
 	[TO_LOAD] = "LOA",	[TO_READ_CONFIG] = "RCF",
 	[TO_READ_ATTMSG] = "RAT",
 	[TO_DIS] = "DIS",	[TO_ASSIGN] = "ASS",
-	[TO_UNASSIGN] = "UAS"
+	[TO_UNASSIGN] = "UAS",  [TO_CRYPT_ON] = "CON",
+	[TO_CRYPT_OFF] = "COF",	[TO_KEKL_SET] = "KLS",
+	[TO_KEKL_QUERY] = "KLQ",
 };
 
 static inline int
@@ -345,6 +349,9 @@ tape_generic_online(struct tape_device *device,
 		DBF_LH(3, "Tapestate not INIT (%d)\n", device->tape_state);
 		return -EINVAL;
 	}
+
+	init_timer(&device->lb_timeout);
+	device->lb_timeout.function = tape_long_busy_timeout;
 
 	/* Let the discipline have a go at the device. */
 	device->discipline = discipline;
@@ -801,6 +808,22 @@ tape_delayed_next_request(struct work_struct *work)
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 }
 
+static void tape_long_busy_timeout(unsigned long data)
+{
+	struct tape_request *request;
+	struct tape_device *device;
+
+	device = (struct tape_device *) data;
+	spin_lock_irq(get_ccwdev_lock(device->cdev));
+	request = list_entry(device->req_queue.next, struct tape_request, list);
+	if (request->status != TAPE_REQUEST_LONG_BUSY)
+		BUG();
+	DBF_LH(6, "%08x: Long busy timeout.\n", device->cdev_id);
+	__tape_start_next_request(device);
+	device->lb_timeout.data = (unsigned long) tape_put_device(device);
+	spin_unlock_irq(get_ccwdev_lock(device->cdev));
+}
+
 static inline void
 __tape_end_request(
 	struct tape_device *	device,
@@ -1094,7 +1117,22 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	/* May be an unsolicited irq */
 	if(request != NULL)
 		request->rescnt = irb->scsw.count;
-
+	else if ((irb->scsw.dstat == 0x85 || irb->scsw.dstat == 0x80) &&
+		 !list_empty(&device->req_queue)) {
+		/* Not Ready to Ready after long busy ? */
+		struct tape_request *req;
+		req = list_entry(device->req_queue.next,
+				 struct tape_request, list);
+		if (req->status == TAPE_REQUEST_LONG_BUSY) {
+			DBF_EVENT(3, "(%08x): del timer\n", device->cdev_id);
+			if (del_timer(&device->lb_timeout)) {
+				device->lb_timeout.data = (unsigned long)
+					tape_put_device(device);
+				__tape_start_next_request(device);
+			}
+			return;
+		}
+	}
 	if (irb->scsw.dstat != 0x0c) {
 		/* Set the 'ONLINE' flag depending on sense byte 1 */
 		if(*(((__u8 *) irb->ecw) + 1) & SENSE_DRIVE_ONLINE)
@@ -1141,6 +1179,15 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			__tape_end_request(device, request, rc);
 			break;
 		case TAPE_IO_PENDING:
+			break;
+		case TAPE_IO_LONG_BUSY:
+			device->lb_timeout.data =
+				(unsigned long)tape_get_device_reference(device);
+			device->lb_timeout.expires = jiffies +
+				LONG_BUSY_TIMEOUT * HZ;
+			DBF_EVENT(3, "(%08x): add timer\n", device->cdev_id);
+			add_timer(&device->lb_timeout);
+			request->status = TAPE_REQUEST_LONG_BUSY;
 			break;
 		case TAPE_IO_RETRY:
 			rc = __tape_start_io(device, request);
