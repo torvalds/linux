@@ -612,3 +612,7 @@ config NEEDS_SYSCALL_FOR_CMPXCHG
 config OUTER_CACHE
 	bool
 	default n
+
+config CACHE_L2X0
+	bool
+	select OUTER_CACHE
