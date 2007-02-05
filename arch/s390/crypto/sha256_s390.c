@@ -4,7 +4,7 @@
  * s390 implementation of the SHA256 Secure Hash Algorithm.
  *
  * s390 Version:
- *   Copyright (C) 2005 IBM Deutschland GmbH, IBM Corporation
+ *   Copyright IBM Corp. 2005,2007
  *   Author(s): Jan Glauber (jang@de.ibm.com)
  *
  * Derived from "crypto/sha256.c"
@@ -143,15 +143,10 @@ static struct crypto_alg alg = {
 
 static int init(void)
 {
-	int ret;
-
 	if (!crypt_s390_func_available(KIMD_SHA_256))
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
-	ret = crypto_register_alg(&alg);
-	if (ret != 0)
-		printk(KERN_INFO "crypt_s390: sha256_s390 couldn't be loaded.");
-	return ret;
+	return crypto_register_alg(&alg);
 }
 
 static void __exit fini(void)

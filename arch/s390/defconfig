@@ -724,9 +724,7 @@ CONFIG_CRYPTO_MANAGER=y
 # CONFIG_CRYPTO_MD4 is not set
 # CONFIG_CRYPTO_MD5 is not set
 # CONFIG_CRYPTO_SHA1 is not set
-# CONFIG_CRYPTO_SHA1_S390 is not set
 # CONFIG_CRYPTO_SHA256 is not set
-# CONFIG_CRYPTO_SHA256_S390 is not set
 # CONFIG_CRYPTO_SHA512 is not set
 # CONFIG_CRYPTO_WP512 is not set
 # CONFIG_CRYPTO_TGR192 is not set
@@ -735,12 +733,10 @@ CONFIG_CRYPTO_ECB=m
 CONFIG_CRYPTO_CBC=y
 # CONFIG_CRYPTO_LRW is not set
 # CONFIG_CRYPTO_DES is not set
-# CONFIG_CRYPTO_DES_S390 is not set
 # CONFIG_CRYPTO_BLOWFISH is not set
 # CONFIG_CRYPTO_TWOFISH is not set
 # CONFIG_CRYPTO_SERPENT is not set
 # CONFIG_CRYPTO_AES is not set
-# CONFIG_CRYPTO_AES_S390 is not set
 # CONFIG_CRYPTO_CAST5 is not set
 # CONFIG_CRYPTO_CAST6 is not set
 # CONFIG_CRYPTO_TEA is not set
@@ -755,6 +751,10 @@ CONFIG_CRYPTO_CBC=y
 #
 # Hardware crypto devices
 #
+# CONFIG_CRYPTO_SHA1_S390 is not set
+# CONFIG_CRYPTO_SHA256_S390 is not set
+# CONFIG_CRYPTO_DES_S390 is not set
+# CONFIG_CRYPTO_AES_S390 is not set
 
 #
 # Library routines
