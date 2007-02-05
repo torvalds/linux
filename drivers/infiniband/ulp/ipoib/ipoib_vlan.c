@@ -115,6 +115,8 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 
 	ipoib_create_debug_files(priv->dev);
 
+	if (ipoib_cm_add_mode_attr(priv->dev))
+		goto sysfs_failed;
 	if (ipoib_add_pkey_attr(priv->dev))
 		goto sysfs_failed;
 
