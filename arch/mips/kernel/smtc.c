@@ -1159,7 +1159,7 @@ void smtc_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 	 * It would be nice to be able to use a spinlock here,
 	 * but this is invoked from within TLB flush routines
 	 * that protect themselves with DVPE, so if a lock is
-         * held by another TC, it'll never be freed.
+	 * held by another TC, it'll never be freed.
 	 *
 	 * DVPE/DMT must not be done with interrupts enabled,
 	 * so even so most callers will already have disabled
