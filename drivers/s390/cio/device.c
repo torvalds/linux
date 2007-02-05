@@ -234,11 +234,8 @@ chpids_show (struct device * dev, struct device_attribute *attr, char * buf)
 	ssize_t ret = 0;
 	int chp;
 
-	if (ssd)
-		for (chp = 0; chp < 8; chp++)
-			ret += sprintf (buf+ret, "%02x ", ssd->chpid[chp]);
-	else
-		ret += sprintf (buf, "n/a");
+	for (chp = 0; chp < 8; chp++)
+		ret += sprintf (buf+ret, "%02x ", ssd->chpid[chp]);
 	ret += sprintf (buf+ret, "\n");
 	return min((ssize_t)PAGE_SIZE, ret);
 }
