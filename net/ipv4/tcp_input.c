@@ -951,16 +951,43 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		tp->fackets_out = 0;
 	prior_fackets = tp->fackets_out;
 
+	/* Check for D-SACK. */
+	if (before(ntohl(sp[0].start_seq), TCP_SKB_CB(ack_skb)->ack_seq)) {
+		dup_sack = 1;
+		tp->rx_opt.sack_ok |= 4;
+		NET_INC_STATS_BH(LINUX_MIB_TCPDSACKRECV);
+	} else if (num_sacks > 1 &&
+			!after(ntohl(sp[0].end_seq), ntohl(sp[1].end_seq)) &&
+			!before(ntohl(sp[0].start_seq), ntohl(sp[1].start_seq))) {
+		dup_sack = 1;
+		tp->rx_opt.sack_ok |= 4;
+		NET_INC_STATS_BH(LINUX_MIB_TCPDSACKOFORECV);
+	}
+
+	/* D-SACK for already forgotten data...
+	 * Do dumb counting. */
+	if (dup_sack &&
+			!after(ntohl(sp[0].end_seq), prior_snd_una) &&
+			after(ntohl(sp[0].end_seq), tp->undo_marker))
+		tp->undo_retrans--;
+
+	/* Eliminate too old ACKs, but take into
+	 * account more or less fresh ones, they can
+	 * contain valid SACK info.
+	 */
+	if (before(TCP_SKB_CB(ack_skb)->ack_seq, prior_snd_una - tp->max_window))
+		return 0;
+
 	/* SACK fastpath:
 	 * if the only SACK change is the increase of the end_seq of
 	 * the first block then only apply that SACK block
 	 * and use retrans queue hinting otherwise slowpath */
 	flag = 1;
-	for (i = 0; i< num_sacks; i++) {
-		__u32 start_seq = ntohl(sp[i].start_seq);
-		__u32 end_seq =	 ntohl(sp[i].end_seq);
+	for (i = 0; i < num_sacks; i++) {
+		__be32 start_seq = sp[i].start_seq;
+		__be32 end_seq = sp[i].end_seq;
 
-		if (i == 0){
+		if (i == 0) {
 			if (tp->recv_sack_cache[i].start_seq != start_seq)
 				flag = 0;
 		} else {
@@ -970,37 +997,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		}
 		tp->recv_sack_cache[i].start_seq = start_seq;
 		tp->recv_sack_cache[i].end_seq = end_seq;
-
-		/* Check for D-SACK. */
-		if (i == 0) {
-			u32 ack = TCP_SKB_CB(ack_skb)->ack_seq;
-
-			if (before(start_seq, ack)) {
-				dup_sack = 1;
-				tp->rx_opt.sack_ok |= 4;
-				NET_INC_STATS_BH(LINUX_MIB_TCPDSACKRECV);
-			} else if (num_sacks > 1 &&
-				   !after(end_seq, ntohl(sp[1].end_seq)) &&
-				   !before(start_seq, ntohl(sp[1].start_seq))) {
-				dup_sack = 1;
-				tp->rx_opt.sack_ok |= 4;
-				NET_INC_STATS_BH(LINUX_MIB_TCPDSACKOFORECV);
-			}
-
-			/* D-SACK for already forgotten data...
-			 * Do dumb counting. */
-			if (dup_sack &&
-			    !after(end_seq, prior_snd_una) &&
-			    after(end_seq, tp->undo_marker))
-				tp->undo_retrans--;
-
-			/* Eliminate too old ACKs, but take into
-			 * account more or less fresh ones, they can
-			 * contain valid SACK info.
-			 */
-			if (before(ack, prior_snd_una - tp->max_window))
-				return 0;
-		}
 	}
 
 	first_sack_index = 0;
