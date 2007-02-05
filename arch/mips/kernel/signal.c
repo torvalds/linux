@@ -201,9 +201,7 @@ int install_sigtramp(unsigned int __user *tramp, unsigned int syscall)
  */
 
 #ifdef CONFIG_TRAD_SIGNALS
-save_static_function(sys_sigsuspend);
-__attribute_used__ noinline static int
-_sys_sigsuspend(nabi_no_regargs struct pt_regs regs)
+asmlinkage int sys_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	sigset_t newset;
 	sigset_t __user *uset;
@@ -226,9 +224,7 @@ _sys_sigsuspend(nabi_no_regargs struct pt_regs regs)
 }
 #endif
 
-save_static_function(sys_rt_sigsuspend);
-__attribute_used__ noinline static int
-_sys_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
+asmlinkage int sys_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	sigset_t newset;
 	sigset_t __user *unewset;
@@ -307,9 +303,7 @@ asmlinkage int sys_sigaltstack(nabi_no_regargs struct pt_regs regs)
 }
 
 #ifdef CONFIG_TRAD_SIGNALS
-save_static_function(sys_sigreturn);
-__attribute_used__ noinline static void
-_sys_sigreturn(nabi_no_regargs struct pt_regs regs)
+asmlinkage void sys_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct sigframe __user *frame;
 	sigset_t blocked;
@@ -344,9 +338,7 @@ badframe:
 }
 #endif /* CONFIG_TRAD_SIGNALS */
 
-save_static_function(sys_rt_sigreturn);
-__attribute_used__ noinline static void
-_sys_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
+asmlinkage void sys_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct rt_sigframe __user *frame;
 	sigset_t set;

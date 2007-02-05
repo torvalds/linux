@@ -308,9 +308,7 @@ static inline int get_sigset(sigset_t *kbuf, const compat_sigset_t __user *ubuf)
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 
-save_static_function(sys32_sigsuspend);
-__attribute_used__ noinline static int
-_sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
+asmlinkage int sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	compat_sigset_t __user *uset;
 	sigset_t newset;
@@ -332,9 +330,7 @@ _sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	return -ERESTARTNOHAND;
 }
 
-save_static_function(sys32_rt_sigsuspend);
-__attribute_used__ noinline static int
-_sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
+asmlinkage int sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	compat_sigset_t __user *uset;
 	sigset_t newset;
@@ -495,9 +491,7 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
 	return err;
 }
 
-save_static_function(sys32_sigreturn);
-__attribute_used__ noinline static void
-_sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
+asmlinkage void sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct sigframe __user *frame;
 	sigset_t blocked;
@@ -531,9 +525,7 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-save_static_function(sys32_rt_sigreturn);
-__attribute_used__ noinline static void
-_sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
+asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct rt_sigframe32 __user *frame;
 	mm_segment_t old_fs;

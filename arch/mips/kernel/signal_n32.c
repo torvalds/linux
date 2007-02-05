@@ -87,9 +87,7 @@ struct rt_sigframe_n32 {
 
 extern void sigset_from_compat (sigset_t *set, compat_sigset_t *compat);
 
-save_static_function(sysn32_rt_sigsuspend);
-__attribute_used__ noinline static int
-_sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
+asmlinkage int sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	compat_sigset_t __user *unewset;
 	compat_sigset_t uset;
@@ -119,9 +117,7 @@ _sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	return -ERESTARTNOHAND;
 }
 
-save_static_function(sysn32_rt_sigreturn);
-__attribute_used__ noinline static void
-_sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
+asmlinkage void sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct rt_sigframe_n32 __user *frame;
 	sigset_t set;
