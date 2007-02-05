@@ -483,7 +483,7 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-static inline int handle_signal(unsigned long sig, siginfo_t *info,
+static int handle_signal(unsigned long sig, siginfo_t *info,
 	struct k_sigaction *ka, sigset_t *oldset, struct pt_regs *regs)
 {
 	int ret;
