@@ -59,7 +59,8 @@ static volatile enum sclp_init_state_t {
 /* Internal state: is a request active at the sclp? */
 static volatile enum sclp_running_state_t {
 	sclp_running_state_idle,
-	sclp_running_state_running
+	sclp_running_state_running,
+	sclp_running_state_reset_pending
 } sclp_running_state = sclp_running_state_idle;
 
 /* Internal state: is a read request pending? */
@@ -88,7 +89,7 @@ static volatile enum sclp_mask_state_t {
 
 /* Timeout intervals in seconds.*/
 #define SCLP_BUSY_INTERVAL	10
-#define SCLP_RETRY_INTERVAL	15
+#define SCLP_RETRY_INTERVAL	30
 
 static void sclp_process_queue(void);
 static int sclp_init_mask(int calculate);
@@ -113,19 +114,17 @@ service_call(sclp_cmdw_t command, void *sccb)
 	return 0;
 }
 
-/* Request timeout handler. Restart the request queue. If DATA is non-zero,
- * force restart of running request. */
-static void
-sclp_request_timeout(unsigned long data)
-{
-	unsigned long flags;
+static inline void __sclp_make_read_req(void);
 
-	if (data) {
-		spin_lock_irqsave(&sclp_lock, flags);
-		sclp_running_state = sclp_running_state_idle;
-		spin_unlock_irqrestore(&sclp_lock, flags);
+static void
+__sclp_queue_read_req(void)
+{
+	if (sclp_reading_state == sclp_reading_state_idle) {
+		sclp_reading_state = sclp_reading_state_reading;
+		__sclp_make_read_req();
+		/* Add request to head of queue */
+		list_add(&sclp_read_req.list, &sclp_req_queue);
 	}
-	sclp_process_queue();
 }
 
 /* Set up request retry timer. Called while sclp_lock is locked. */
@@ -138,6 +137,29 @@ __sclp_set_request_timer(unsigned long time, void (*function)(unsigned long),
 	sclp_request_timer.data = data;
 	sclp_request_timer.expires = jiffies + time;
 	add_timer(&sclp_request_timer);
+}
+
+/* Request timeout handler. Restart the request queue. If DATA is non-zero,
+ * force restart of running request. */
+static void
+sclp_request_timeout(unsigned long data)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sclp_lock, flags);
+	if (data) {
+		if (sclp_running_state == sclp_running_state_running) {
+			/* Break running state and queue NOP read event request
+			 * to get a defined interface state. */
+			__sclp_queue_read_req();
+			sclp_running_state = sclp_running_state_idle;
+		}
+	} else {
+		__sclp_set_request_timer(SCLP_BUSY_INTERVAL * HZ,
+					 sclp_request_timeout, 0);
+	}
+	spin_unlock_irqrestore(&sclp_lock, flags);
+	sclp_process_queue();
 }
 
 /* Try to start a request. Return zero if the request was successfully
@@ -191,7 +213,15 @@ sclp_process_queue(void)
 		rc = __sclp_start_request(req);
 		if (rc == 0)
 			break;
-		/* Request failed. */
+		/* Request failed */
+		if (req->start_count > 1) {
+			/* Cannot abort already submitted request - could still
+			 * be active at the SCLP */
+			__sclp_set_request_timer(SCLP_BUSY_INTERVAL * HZ,
+						 sclp_request_timeout, 0);
+			break;
+		}
+		/* Post-processing for aborted request */
 		list_del(&req->list);
 		if (req->callback) {
 			spin_unlock_irqrestore(&sclp_lock, flags);
@@ -221,7 +251,8 @@ sclp_add_request(struct sclp_req *req)
 	list_add_tail(&req->list, &sclp_req_queue);
 	rc = 0;
 	/* Start if request is first in list */
-	if (req->list.prev == &sclp_req_queue) {
+	if (sclp_running_state == sclp_running_state_idle &&
+	    req->list.prev == &sclp_req_queue) {
 		rc = __sclp_start_request(req);
 		if (rc)
 			list_del(&req->list);
@@ -334,6 +365,8 @@ sclp_interrupt_handler(__u16 code)
 	finished_sccb = S390_lowcore.ext_params & 0xfffffff8;
 	evbuf_pending = S390_lowcore.ext_params & 0x3;
 	if (finished_sccb) {
+		del_timer(&sclp_request_timer);
+		sclp_running_state = sclp_running_state_reset_pending;
 		req = __sclp_find_req(finished_sccb);
 		if (req) {
 			/* Request post-processing */
@@ -348,13 +381,8 @@ sclp_interrupt_handler(__u16 code)
 		sclp_running_state = sclp_running_state_idle;
 	}
 	if (evbuf_pending && sclp_receive_mask != 0 &&
-	    sclp_reading_state == sclp_reading_state_idle &&
-	    sclp_activation_state == sclp_activation_state_active ) {
-		sclp_reading_state = sclp_reading_state_reading;
-		__sclp_make_read_req();
-		/* Add request to head of queue */
-		list_add(&sclp_read_req.list, &sclp_req_queue);
-	}
+	    sclp_activation_state == sclp_activation_state_active)
+		__sclp_queue_read_req();
 	spin_unlock(&sclp_lock);
 	sclp_process_queue();
 }
