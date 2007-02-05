@@ -492,9 +492,6 @@ static void __init setup_memory_end(void)
 	}
 	if (!memory_end)
 		memory_end = memory_size;
-	if (real_size > memory_end)
-		printk("More memory detected than supported. Unused: %luk\n",
-		       (real_size - memory_end) >> 10);
 }
 
 static void __init

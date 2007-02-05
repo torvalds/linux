@@ -175,8 +175,6 @@ void __init mem_init(void)
 	printk("Write protected kernel read-only data: %#lx - %#lx\n",
 	       (unsigned long)&__start_rodata,
 	       PFN_ALIGN((unsigned long)&__end_rodata) - 1);
-	printk("Virtual memmap size: %ldk\n",
-	       (max_pfn * sizeof(struct page)) >> 10);
 }
 
 void free_initmem(void)
