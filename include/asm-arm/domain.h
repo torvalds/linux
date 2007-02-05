@@ -57,6 +57,7 @@
 	__asm__ __volatile__(				\
 	"mcr	p15, 0, %0, c3, c0	@ set domain"	\
 	  : : "r" (x));					\
+	isb();						\
 	} while (0)
 
 #define modify_domain(dom,type)					\
