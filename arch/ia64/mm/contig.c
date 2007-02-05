@@ -177,7 +177,7 @@ find_memory (void)
 
 #ifdef CONFIG_CRASH_DUMP
 	/* If we are doing a crash dump, we still need to know the real mem
-	 * size before original memory map is * reset. */
+	 * size before original memory map is reset. */
 	saved_max_pfn = max_pfn;
 #endif
 }
