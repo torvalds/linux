@@ -490,8 +490,15 @@ static void illegal_op(struct pt_regs * regs, long interruption_code)
 #endif
 		} else
 			signal = SIGILL;
-	} else
-		signal = SIGILL;
+	} else {
+		/*
+		 * If we get an illegal op in kernel mode, send it through the
+		 * kprobes notifier. If kprobes doesn't pick it up, SIGILL
+		 */
+		if (notify_die(DIE_BPT, "bpt", regs, interruption_code,
+			       3, SIGTRAP) != NOTIFY_STOP)
+			signal = SIGILL;
+	}
 
 #ifdef CONFIG_MATHEMU
         if (signal == SIGFPE)
