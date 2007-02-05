@@ -42,8 +42,8 @@ static void reg_write(struct ak4114 *ak4114, unsigned char reg, unsigned char va
 	ak4114->write(ak4114->private_data, reg, val);
 	if (reg <= AK4114_REG_INT1_MASK)
 		ak4114->regmap[reg] = val;
-	else if (reg >= AK4114_REG_RXCSB0 && reg <= AK4114_REG_TXCSB4)
-		ak4114->txcsb[reg-AK4114_REG_RXCSB0] = val;
+	else if (reg >= AK4114_REG_TXCSB0 && reg <= AK4114_REG_TXCSB4)
+		ak4114->txcsb[reg-AK4114_REG_TXCSB0] = val;
 }
 
 static inline unsigned char reg_read(struct ak4114 *ak4114, unsigned char reg)
@@ -127,7 +127,8 @@ void snd_ak4114_reg_write(struct ak4114 *chip, unsigned char reg, unsigned char 
 	if (reg <= AK4114_REG_INT1_MASK)
 		reg_write(chip, reg, (chip->regmap[reg] & ~mask) | val);
 	else if (reg >= AK4114_REG_TXCSB0 && reg <= AK4114_REG_TXCSB4)
-		reg_write(chip, reg, (chip->txcsb[reg] & ~mask) | val);
+		reg_write(chip, reg,
+			  (chip->txcsb[reg-AK4114_REG_TXCSB0] & ~mask) | val);
 }
 
 void snd_ak4114_reinit(struct ak4114 *chip)
