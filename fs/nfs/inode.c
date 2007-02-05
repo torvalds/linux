@@ -240,6 +240,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 
 	if (inode->i_state & I_NEW) {
 		struct nfs_inode *nfsi = NFS_I(inode);
+		unsigned long now = jiffies;
 
 		/* We set i_ino for the few things that still rely on it,
 		 * such as stat(2) */
@@ -276,7 +277,8 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 			init_special_inode(inode, inode->i_mode, fattr->rdev);
 
 		nfsi->read_cache_jiffies = fattr->time_start;
-		nfsi->last_updated = jiffies;
+		nfsi->last_updated = now;
+		nfsi->cache_change_attribute = now;
 		inode->i_atime = fattr->atime;
 		inode->i_mtime = fattr->mtime;
 		inode->i_ctime = fattr->ctime;
@@ -295,7 +297,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 			inode->i_blocks = fattr->du.nfs2.blocks;
 		}
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
-		nfsi->attrtimeo_timestamp = jiffies;
+		nfsi->attrtimeo_timestamp = now;
 		memset(nfsi->cookieverf, 0, sizeof(nfsi->cookieverf));
 		nfsi->access_cache = RB_ROOT;
 
@@ -788,20 +790,21 @@ void nfs_end_data_update(struct inode *inode)
 static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
+	unsigned long now = jiffies;
 
 	/* If we have atomic WCC data, we may update some attributes */
 	if ((fattr->valid & NFS_ATTR_WCC) != 0) {
 		if (timespec_equal(&inode->i_ctime, &fattr->pre_ctime)) {
 			memcpy(&inode->i_ctime, &fattr->ctime, sizeof(inode->i_ctime));
-			nfsi->cache_change_attribute = jiffies;
+			nfsi->cache_change_attribute = now;
 		}
 		if (timespec_equal(&inode->i_mtime, &fattr->pre_mtime)) {
 			memcpy(&inode->i_mtime, &fattr->mtime, sizeof(inode->i_mtime));
-			nfsi->cache_change_attribute = jiffies;
+			nfsi->cache_change_attribute = now;
 		}
 		if (inode->i_size == fattr->pre_size && nfsi->npages == 0) {
 			inode->i_size = fattr->size;
-			nfsi->cache_change_attribute = jiffies;
+			nfsi->cache_change_attribute = now;
 		}
 	}
 }
@@ -1132,7 +1135,6 @@ struct inode *nfs_alloc_inode(struct super_block *sb)
 		return NULL;
 	nfsi->flags = 0UL;
 	nfsi->cache_validity = 0UL;
-	nfsi->cache_change_attribute = jiffies;
 #ifdef CONFIG_NFS_V3_ACL
 	nfsi->acl_access = ERR_PTR(-EAGAIN);
 	nfsi->acl_default = ERR_PTR(-EAGAIN);
