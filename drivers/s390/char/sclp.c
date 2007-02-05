@@ -402,6 +402,7 @@ sclp_sync_wait(void)
 	unsigned long flags;
 	unsigned long cr0, cr0_sync;
 	u64 timeout;
+	int irq_context;
 
 	/* We'll be disabling timer interrupts, so we need a custom timeout
 	 * mechanism */
@@ -414,7 +415,9 @@ sclp_sync_wait(void)
 	}
 	local_irq_save(flags);
 	/* Prevent bottom half from executing once we force interrupts open */
-	local_bh_disable();
+	irq_context = in_interrupt();
+	if (!irq_context)
+		local_bh_disable();
 	/* Enable service-signal interruption, disable timer interrupts */
 	trace_hardirqs_on();
 	__ctl_store(cr0, 0, 0);
@@ -435,7 +438,8 @@ sclp_sync_wait(void)
 	}
 	local_irq_disable();
 	__ctl_load(cr0, 0, 0);
-	_local_bh_enable();
+	if (!irq_context)
+		_local_bh_enable();
 	local_irq_restore(flags);
 }
 
