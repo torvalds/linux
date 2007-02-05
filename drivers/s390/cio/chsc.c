@@ -967,8 +967,8 @@ static struct bin_attribute chp_measurement_attr = {
 static void
 chsc_remove_chp_cmg_attr(struct channel_path *chp)
 {
-	sysfs_remove_bin_file(&chp->dev.kobj, &chp_measurement_chars_attr);
-	sysfs_remove_bin_file(&chp->dev.kobj, &chp_measurement_attr);
+	device_remove_bin_file(&chp->dev, &chp_measurement_chars_attr);
+	device_remove_bin_file(&chp->dev, &chp_measurement_attr);
 }
 
 static int
@@ -976,14 +976,12 @@ chsc_add_chp_cmg_attr(struct channel_path *chp)
 {
 	int ret;
 
-	ret = sysfs_create_bin_file(&chp->dev.kobj,
-				    &chp_measurement_chars_attr);
+	ret = device_create_bin_file(&chp->dev, &chp_measurement_chars_attr);
 	if (ret)
 		return ret;
-	ret = sysfs_create_bin_file(&chp->dev.kobj, &chp_measurement_attr);
+	ret = device_create_bin_file(&chp->dev, &chp_measurement_attr);
 	if (ret)
-		sysfs_remove_bin_file(&chp->dev.kobj,
-				      &chp_measurement_chars_attr);
+		device_remove_bin_file(&chp->dev, &chp_measurement_chars_attr);
 	return ret;
 }
 
