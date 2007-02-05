@@ -34,12 +34,14 @@ enum ipl_type {
 	IPL_TYPE_UNKNOWN = 2,
 	IPL_TYPE_CCW	 = 4,
 	IPL_TYPE_FCP	 = 8,
+	IPL_TYPE_NSS	 = 16,
 };
 
 #define IPL_NONE_STR	 "none"
 #define IPL_UNKNOWN_STR  "unknown"
 #define IPL_CCW_STR	 "ccw"
 #define IPL_FCP_STR	 "fcp"
+#define IPL_NSS_STR	 "nss"
 
 static char *ipl_type_str(enum ipl_type type)
 {
@@ -50,6 +52,8 @@ static char *ipl_type_str(enum ipl_type type)
 		return IPL_CCW_STR;
 	case IPL_TYPE_FCP:
 		return IPL_FCP_STR;
+	case IPL_TYPE_NSS:
+		return IPL_NSS_STR;
 	case IPL_TYPE_UNKNOWN:
 	default:
 		return IPL_UNKNOWN_STR;
@@ -64,6 +68,7 @@ enum ipl_method {
 	IPL_METHOD_FCP_RO_DIAG,
 	IPL_METHOD_FCP_RW_DIAG,
 	IPL_METHOD_FCP_RO_VM,
+	IPL_METHOD_NSS,
 };
 
 enum shutdown_action {
@@ -114,10 +119,13 @@ enum diag308_rc {
 static int diag308_set_works = 0;
 
 static int reipl_capabilities = IPL_TYPE_UNKNOWN;
+
 static enum ipl_type reipl_type = IPL_TYPE_UNKNOWN;
 static enum ipl_method reipl_method = IPL_METHOD_NONE;
 static struct ipl_parameter_block *reipl_block_fcp;
 static struct ipl_parameter_block *reipl_block_ccw;
+
+static char reipl_nss_name[NSS_NAME_SIZE + 1];
 
 static int dump_capabilities = IPL_TYPE_NONE;
 static enum ipl_type dump_type = IPL_TYPE_NONE;
@@ -173,6 +181,24 @@ static struct subsys_attribute sys_##_prefix##_##_name##_attr =		\
 			sys_##_prefix##_##_name##_show,			\
 			sys_##_prefix##_##_name##_store);
 
+#define DEFINE_IPL_ATTR_STR_RW(_prefix, _name, _fmt_out, _fmt_in, _value)\
+static ssize_t sys_##_prefix##_##_name##_show(struct subsystem *subsys,	\
+		char *page)						\
+{									\
+	return sprintf(page, _fmt_out, _value);				\
+}									\
+static ssize_t sys_##_prefix##_##_name##_store(struct subsystem *subsys,\
+		const char *buf, size_t len)				\
+{									\
+	if (sscanf(buf, _fmt_in, _value) != 1)				\
+		return -EINVAL;						\
+	return len;							\
+}									\
+static struct subsys_attribute sys_##_prefix##_##_name##_attr =		\
+	__ATTR(_name,(S_IRUGO | S_IWUSR),				\
+			sys_##_prefix##_##_name##_show,			\
+			sys_##_prefix##_##_name##_store);
+
 static void make_attrs_ro(struct attribute **attrs)
 {
 	while (*attrs) {
@@ -189,6 +215,8 @@ static enum ipl_type ipl_get_type(void)
 {
 	struct ipl_parameter_block *ipl = IPL_PARMBLOCK_START;
 
+	if (ipl_flags & IPL_NSS_VALID)
+		return IPL_TYPE_NSS;
 	if (!(ipl_flags & IPL_DEVNO_VALID))
 		return IPL_TYPE_UNKNOWN;
 	if (!(ipl_flags & IPL_PARMBLOCK_VALID))
@@ -324,6 +352,20 @@ static struct attribute_group ipl_ccw_attr_group = {
 	.attrs = ipl_ccw_attrs,
 };
 
+/* NSS ipl device attributes */
+
+DEFINE_IPL_ATTR_RO(ipl_nss, name, "%s\n", kernel_nss_name);
+
+static struct attribute *ipl_nss_attrs[] = {
+	&sys_ipl_type_attr.attr,
+	&sys_ipl_nss_name_attr.attr,
+	NULL,
+};
+
+static struct attribute_group ipl_nss_attr_group = {
+	.attrs = ipl_nss_attrs,
+};
+
 /* UNKNOWN ipl device attributes */
 
 static struct attribute *ipl_unknown_attrs[] = {
@@ -432,6 +474,21 @@ static struct attribute_group reipl_ccw_attr_group = {
 	.attrs = reipl_ccw_attrs,
 };
 
+
+/* NSS reipl device attributes */
+
+DEFINE_IPL_ATTR_STR_RW(reipl_nss, name, "%s\n", "%s\n", reipl_nss_name);
+
+static struct attribute *reipl_nss_attrs[] = {
+	&sys_reipl_nss_name_attr.attr,
+	NULL,
+};
+
+static struct attribute_group reipl_nss_attr_group = {
+	.name  = IPL_NSS_STR,
+	.attrs = reipl_nss_attrs,
+};
+
 /* reipl type */
 
 static int reipl_set_type(enum ipl_type type)
@@ -454,6 +511,9 @@ static int reipl_set_type(enum ipl_type type)
 		else
 			reipl_method = IPL_METHOD_FCP_RO_DIAG;
 		break;
+	case IPL_TYPE_NSS:
+		reipl_method = IPL_METHOD_NSS;
+		break;
 	default:
 		reipl_method = IPL_METHOD_NONE;
 	}
@@ -475,6 +535,8 @@ static ssize_t reipl_type_store(struct subsystem *subsys, const char *buf,
 		rc = reipl_set_type(IPL_TYPE_CCW);
 	else if (strncmp(buf, IPL_FCP_STR, strlen(IPL_FCP_STR)) == 0)
 		rc = reipl_set_type(IPL_TYPE_FCP);
+	else if (strncmp(buf, IPL_NSS_STR, strlen(IPL_NSS_STR)) == 0)
+		rc = reipl_set_type(IPL_TYPE_NSS);
 	return (rc != 0) ? rc : len;
 }
 
@@ -647,6 +709,10 @@ void do_reipl(void)
 	case IPL_METHOD_FCP_RO_VM:
 		__cpcmd("IPL", NULL, 0, NULL);
 		break;
+	case IPL_METHOD_NSS:
+		sprintf(buf, "IPL %s", reipl_nss_name);
+		__cpcmd(buf, NULL, 0, NULL);
+		break;
 	case IPL_METHOD_NONE:
 	default:
 		if (MACHINE_IS_VM)
@@ -733,6 +799,10 @@ static int __init ipl_init(void)
 	case IPL_TYPE_FCP:
 		rc = ipl_register_fcp_files();
 		break;
+	case IPL_TYPE_NSS:
+		rc = sysfs_create_group(&ipl_subsys.kset.kobj,
+					&ipl_nss_attr_group);
+		break;
 	default:
 		rc = sysfs_create_group(&ipl_subsys.kset.kobj,
 					&ipl_unknown_attr_group);
@@ -753,6 +823,20 @@ static void __init reipl_probe(void)
 	if (diag308(DIAG308_STORE, buffer) == DIAG308_RC_OK)
 		diag308_set_works = 1;
 	free_page((unsigned long)buffer);
+}
+
+static int __init reipl_nss_init(void)
+{
+	int rc;
+
+	if (!MACHINE_IS_VM)
+		return 0;
+	rc = sysfs_create_group(&reipl_subsys.kset.kobj, &reipl_nss_attr_group);
+	if (rc)
+		return rc;
+	strncpy(reipl_nss_name, kernel_nss_name, NSS_NAME_SIZE + 1);
+	reipl_capabilities |= IPL_TYPE_NSS;
+	return 0;
 }
 
 static int __init reipl_ccw_init(void)
@@ -835,6 +919,9 @@ static int __init reipl_init(void)
 	if (rc)
 		return rc;
 	rc = reipl_fcp_init();
+	if (rc)
+		return rc;
+	rc = reipl_nss_init();
 	if (rc)
 		return rc;
 	rc = reipl_set_type(ipl_get_type());

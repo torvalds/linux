@@ -31,11 +31,6 @@ SECTIONS
 
   _etext = .;			/* End of text section */
 
-  . = ALIGN(16);		/* Exception table */
-  __start___ex_table = .;
-  __ex_table : { *(__ex_table) }
-  __stop___ex_table = .;
-
   RODATA
 
 #ifdef CONFIG_SHARED_KERNEL
@@ -43,6 +38,11 @@ SECTIONS
 
   _eshared = .;			/* End of shareable data */
 #endif
+
+  . = ALIGN(16);		/* Exception table */
+  __start___ex_table = .;
+  __ex_table : { *(__ex_table) }
+  __stop___ex_table = .;
 
   .data : {			/* Data */
 	*(.data)

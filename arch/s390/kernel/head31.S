@@ -51,20 +51,12 @@ startup_continue:
 	st	%r15,__LC_KERNEL_STACK	# set end of kernel stack
 	ahi	%r15,-96
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
-
-	l	%r14,.Lipl_save_parameters-.LPG1(%r13)
+#
+# Save ipl parameters, clear bss memory, initialize storage key for kernel pages,
+# and create a kernel NSS if the SAVESYS= parm is defined
+#
+	l	%r14,.Lstartup_init-.LPG1(%r13)
 	basr	%r14,%r14
-#
-# clear bss memory
-#
-	l	%r2,.Lbss_bgn-.LPG1(%r13) # start of bss
-	l	%r3,.Lbss_end-.LPG1(%r13) # end of bss
-	sr	%r3,%r2			# length of bss
-	sr	%r4,%r4
-	sr	%r5,%r5			# set src,length and pad to zero
-	sr	%r0,%r0
-	mvcle	%r2,%r4,0		# clear mem
-	jo	.-4			# branch back, if not finish
 
 	l	%r2,.Lrcp-.LPG1(%r13)	# Read SCP forced command word
 .Lservicecall:
@@ -125,10 +117,10 @@ startup_continue:
 	b	.Lfchunk-.LPG1(%r13)
 
 	.align 4
-.Lipl_save_parameters:
-	.long	ipl_save_parameters
 .Linittu:
 	.long	init_thread_union
+.Lstartup_init:
+	.long	startup_init
 .Lpmask:
 	.byte	0
 	.align	8
@@ -206,20 +198,6 @@ startup_continue:
 	jl	.Lloop
 .Ldonemem:
 	l	%r12,.Lmflags-.LPG1(%r13) # get address of machine_flags
-#
-# find out if we are running under VM
-#
-	stidp	__LC_CPUID		# store cpuid
-	tm	__LC_CPUID,0xff		# running under VM ?
-	bno	.Lnovm-.LPG1(%r13)
-	oi	3(%r12),1		# set VM flag
-.Lnovm:
-	lh	%r0,__LC_CPUID+4	# get cpu version
-	chi	%r0,0x7490		# running on a P/390 ?
-	bne	.Lnop390-.LPG1(%r13)
-	oi	3(%r12),4		# set P/390 flag
-.Lnop390:
-
 #
 # find out if we have an IEEE fpu
 #

@@ -58,18 +58,11 @@ startup_continue:
 	stg	%r15,__LC_KERNEL_STACK	# set end of kernel stack
 	aghi	%r15,-160
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
-
-	brasl	%r14,ipl_save_parameters
 #
-# clear bss memory
+# Save ipl parameters, clear bss memory, initialize storage key for kernel pages,
+# and create a kernel NSS if the SAVESYS= parm is defined
 #
-	larl	%r2,__bss_start 	# start of bss segment
-	larl	%r3,_end		# end of bss segment
-	sgr	%r3,%r2 		# length of bss
-	sgr	%r4,%r4 		#
-	sgr	%r5,%r5 		# set src,length and pad to zero
-	mvcle	%r2,%r4,0		# clear mem
-	jo	.-4			# branch back, if not finish
+	brasl	%r14,startup_init
 					# set program check new psw mask
 	mvc	__LC_PGM_NEW_PSW(8),.Lpcmsk-.LPG1(%r13)
 	larl	%r1,.Lslowmemdetect	# set program check address
@@ -78,6 +71,10 @@ startup_continue:
 	diag	%r0,%r1,0x260		# get memory size of virtual machine
 	cgr	%r0,%r1			# different? -> old detection routine
 	jne	.Lslowmemdetect
+	larl	%r3,ipl_flags
+	llgt	%r3,0(%r3)
+	chi	%r3,4			# ipled from an kernel NSS
+	je	.Lslowmemdetect
 	aghi	%r1,1			# size is one more than end
 	larl	%r2,memory_chunk
 	stg	%r1,8(%r2)		# store size of chunk
@@ -225,19 +222,6 @@ startup_continue:
 .Ldonemem:
 
 	larl	%r12,machine_flags
-#
-# find out if we are running under VM
-#
-	stidp	__LC_CPUID		# store cpuid
-	tm	__LC_CPUID,0xff 	# running under VM ?
-	bno	0f-.LPG1(%r13)
-	oi	7(%r12),1		# set VM flag
-0:	lh	%r0,__LC_CPUID+4	# get cpu version
-	chi	%r0,0x7490		# running on a P/390 ?
-	bne	1f-.LPG1(%r13)
-	oi	7(%r12),4		# set P/390 flag
-1:
-
 #
 # find out if we have the MVPG instruction
 #

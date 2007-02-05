@@ -156,12 +156,18 @@ struct ipl_parameter_block {
 extern u32 ipl_flags;
 extern u16 ipl_devno;
 
-void do_reipl(void);
+extern void do_reipl(void);
+extern void ipl_save_parameters(void);
 
 enum {
 	IPL_DEVNO_VALID	= 1,
 	IPL_PARMBLOCK_VALID = 2,
+	IPL_NSS_VALID = 4,
 };
+
+#define NSS_NAME_SIZE	8
+
+extern char kernel_nss_name[];
 
 #define IPL_PARMBLOCK_START	((struct ipl_parameter_block *) \
 				 IPL_PARMBLOCK_ORIGIN)
