@@ -111,7 +111,7 @@ err_injection_tool.c:
 #define	ERR_DATA_BUFFER_SIZE 	3	// Three 8-byte.
 #define PARA_FIELD_NUM		5
 #define MASK_SIZE		(NR_CPUS/64)
-#define PATH_FORMAT "/sys/devices/system/node/node0/cpu%d/err_inject/"
+#define PATH_FORMAT "/sys/devices/system/cpu/cpu%d/err_inject/"
 
 int sched_setaffinity(pid_t pid, unsigned int len, unsigned long *mask);
 
