@@ -87,16 +87,10 @@ module_param(dapm_status, int, 0);
 MODULE_PARM_DESC(dapm_status, "enable DPM sysfs entries");
 
 /* create a new dapm widget */
-static struct snd_soc_dapm_widget *dapm_cnew_widget(
+static inline struct snd_soc_dapm_widget *dapm_cnew_widget(
 	const struct snd_soc_dapm_widget *_widget)
 {
-	struct snd_soc_dapm_widget* widget;
-	widget = kmalloc(sizeof(struct snd_soc_dapm_widget), GFP_KERNEL);
-	if (!widget)
-		return NULL;
-
-	memcpy(widget, _widget, sizeof(struct snd_soc_dapm_widget));
-	return widget;
+	return kmemdup(_widget, sizeof(*_widget), GFP_KERNEL);
 }
 
 /* set up initial codec paths */
