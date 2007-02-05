@@ -357,7 +357,11 @@ static void cfq_resort_rr_list(struct cfq_queue *cfqq, int preempted)
 	struct cfq_data *cfqd = cfqq->cfqd;
 	struct list_head *list;
 
-	BUG_ON(!cfq_cfqq_on_rr(cfqq));
+	/*
+	 * Resorting requires the cfqq to be on the RR list already.
+	 */
+	if (!cfq_cfqq_on_rr(cfqq))
+		return;
 
 	list_del(&cfqq->cfq_list);
 
@@ -642,8 +646,7 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	else
 		cfqq->slice_left = 0;
 
-	if (cfq_cfqq_on_rr(cfqq))
-		cfq_resort_rr_list(cfqq, preempted);
+	cfq_resort_rr_list(cfqq, preempted);
 
 	if (cfqq == cfqd->active_queue)
 		cfqd->active_queue = NULL;
@@ -1238,9 +1241,7 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq)
 	cfqq->org_ioprio = cfqq->ioprio;
 	cfqq->org_ioprio_class = cfqq->ioprio_class;
 
-	if (cfq_cfqq_on_rr(cfqq))
-		cfq_resort_rr_list(cfqq, 0);
-
+	cfq_resort_rr_list(cfqq, 0);
 	cfq_clear_cfqq_prio_changed(cfqq);
 }
 
@@ -1691,8 +1692,7 @@ static void cfq_completed_request(request_queue_t *q, struct request *rq)
 	if (!cfq_class_idle(cfqq))
 		cfqd->last_end_request = now;
 
-	if (!cfq_cfqq_dispatched(cfqq) && cfq_cfqq_on_rr(cfqq))
-		cfq_resort_rr_list(cfqq, 0);
+	cfq_resort_rr_list(cfqq, 0);
 
 	if (sync)
 		RQ_CIC(rq)->last_end_request = now;
@@ -1742,8 +1742,7 @@ static void cfq_prio_boost(struct cfq_queue *cfqq)
 	/*
 	 * refile between round-robin lists if we moved the priority class
 	 */
-	if ((ioprio_class != cfqq->ioprio_class || ioprio != cfqq->ioprio) &&
-	    cfq_cfqq_on_rr(cfqq))
+	if ((ioprio_class != cfqq->ioprio_class || ioprio != cfqq->ioprio))
 		cfq_resort_rr_list(cfqq, 0);
 }
 
