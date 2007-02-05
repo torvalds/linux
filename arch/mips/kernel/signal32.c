@@ -104,8 +104,6 @@ typedef struct compat_siginfo {
 #define __NR_O32_rt_sigreturn		4193
 #define __NR_O32_restart_syscall	4253
 
-#define DEBUG_SIG 0
-
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 /* 32-bit compatibility types */
@@ -640,11 +638,10 @@ int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	regs->regs[31] = (unsigned long) frame->sf_code;
 	regs->cp0_epc = regs->regs[25] = (unsigned long) ka->sa.sa_handler;
 
-#if DEBUG_SIG
-	printk("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%p\n",
+	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
 	       current->comm, current->pid,
-	       frame, regs->cp0_epc, frame->sf_code);
-#endif
+	       frame, regs->cp0_epc, regs->regs[31]);
+
 	return 0;
 
 give_sigsegv:
@@ -701,11 +698,10 @@ int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	regs->regs[31] = (unsigned long) frame->rs_code;
 	regs->cp0_epc = regs->regs[25] = (unsigned long) ka->sa.sa_handler;
 
-#if DEBUG_SIG
-	printk("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%p\n",
+	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
 	       current->comm, current->pid,
-	       frame, regs->cp0_epc, frame->rs_code);
-#endif
+	       frame, regs->cp0_epc, regs->regs[31]);
+
 	return 0;
 
 give_sigsegv:
