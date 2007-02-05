@@ -33,6 +33,8 @@
 #include <asm/fpu.h>
 #include <asm/war.h>
 
+#include "signal-common.h"
+
 #define SI_PAD_SIZE32   ((SI_MAX_SIZE/sizeof(int)) - 3)
 
 typedef struct compat_siginfo {
@@ -604,32 +606,6 @@ out:
 	return err;
 }
 
-/*
- * Determine which stack to use..
- */
-static inline void __user *get_sigframe(struct k_sigaction *ka,
-					struct pt_regs *regs,
-					size_t frame_size)
-{
-	unsigned long sp;
-
-	/* Default to using normal stack */
-	sp = regs->regs[29];
-
-	/*
-	 * FPU emulator may have it's own trampoline active just
-	 * above the user stack, 16-bytes before the next lowest
-	 * 16 byte boundary.  Try to avoid trashing it.
-	 */
-	sp -= 32;
-
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags (sp) == 0))
-		sp = current->sas_ss_sp + current->sas_ss_size;
-
-	return (void __user *)((sp - frame_size) & ALMASK);
-}
-
 int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set)
 {
@@ -640,15 +616,7 @@ int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
 
-	/*
-	 * Set up the return code ...
-	 *
-	 *         li      v0, __NR_O32_sigreturn
-	 *         syscall
-	 */
-	err |= __put_user(0x24020000 + __NR_O32_sigreturn, frame->sf_code + 0);
-	err |= __put_user(0x0000000c                     , frame->sf_code + 1);
-	flush_cache_sigtramp((unsigned long) frame->sf_code);
+	err |= install_sigtramp(frame->sf_code, __NR_O32_sigreturn);
 
 	err |= setup_sigcontext32(regs, &frame->sf_sc);
 	err |= __copy_to_user(&frame->sf_mask, set, sizeof(*set));
@@ -695,17 +663,7 @@ int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
 
-	/* Set up to return from userspace.  If provided, use a stub already
-	   in userspace.  */
-	/*
-	 * Set up the return code ...
-	 *
-	 *         li      v0, __NR_O32_rt_sigreturn
-	 *         syscall
-	 */
-	err |= __put_user(0x24020000 + __NR_O32_rt_sigreturn, frame->rs_code + 0);
-	err |= __put_user(0x0000000c                      , frame->rs_code + 1);
-	flush_cache_sigtramp((unsigned long) frame->rs_code);
+	err |= install_sigtramp(frame->rs_code, __NR_O32_rt_sigreturn);
 
 	/* Convert (siginfo_t -> compat_siginfo_t) and copy to user. */
 	err |= copy_siginfo_to_user32(&frame->rs_info, info);
