@@ -41,12 +41,12 @@ config SATA_SVW
 	  If unsure, say N.
 
 config ATA_PIIX
-	tristate "Intel PIIX/ICH SATA support"
+	tristate "Intel ESB, ICH, PIIX3, PIIX4 PATA/SATA support"
 	depends on PCI
 	help
 	  This option enables support for ICH5/6/7/8 Serial ATA
-	  and support for PATA on the Intel PIIX3/PIIX4/ICH series
-	  PATA host controllers.
+	  and support for PATA on the Intel ESB/ICH/PIIX3/PIIX4 series
+	  host controllers.
 
 	  If unsure, say N.
 
