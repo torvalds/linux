@@ -525,7 +525,11 @@ arch_initcall(machine_check_init);
 static int __init
 machine_check_crw_init (void)
 {
-	kthread_run(s390_collect_crw_info, &m_sem, "kmcheck");
+	struct task_struct *task;
+
+	task = kthread_run(s390_collect_crw_info, &m_sem, "kmcheck");
+	if (IS_ERR(task))
+		return PTR_ERR(task);
 	ctl_set_bit(14, 28);	/* enable channel report MCH */
 	return 0;
 }
