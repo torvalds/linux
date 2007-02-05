@@ -67,15 +67,15 @@ unsigned int ipi_timer_latch[NR_CPUS];
 
 #define IPIBUF_PER_CPU 4
 
-struct smtc_ipi_q IPIQ[NR_CPUS];
-struct smtc_ipi_q freeIPIq;
+static struct smtc_ipi_q IPIQ[NR_CPUS];
+static struct smtc_ipi_q freeIPIq;
 
 
 /* Forward declarations */
 
 void ipi_decode(struct smtc_ipi *);
-void post_direct_ipi(int cpu, struct smtc_ipi *pipi);
-void setup_cross_vpe_interrupts(void);
+static void post_direct_ipi(int cpu, struct smtc_ipi *pipi);
+static void setup_cross_vpe_interrupts(void);
 void init_smtc_stats(void);
 
 /* Global SMTC Status */
@@ -190,7 +190,7 @@ void __init sanitize_tlb_entries(void)
  * Configure shared TLB - VPC configuration bit must be set by caller
  */
 
-void smtc_configure_tlb(void)
+static void smtc_configure_tlb(void)
 {
 	int i,tlbsiz,vpes;
 	unsigned long mvpconf0;
@@ -638,7 +638,7 @@ int setup_irq_smtc(unsigned int irq, struct irqaction * new,
  * the VPE.
  */
 
-void smtc_ipi_qdump(void)
+static void smtc_ipi_qdump(void)
 {
 	int i;
 
@@ -749,7 +749,7 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 /*
  * Send IPI message to Halted TC, TargTC/TargVPE already having been set
  */
-void post_direct_ipi(int cpu, struct smtc_ipi *pipi)
+static void post_direct_ipi(int cpu, struct smtc_ipi *pipi)
 {
 	struct pt_regs *kstack;
 	unsigned long tcstatus;
@@ -968,7 +968,7 @@ static void ipi_irq_dispatch(void)
 
 static struct irqaction irq_ipi;
 
-void setup_cross_vpe_interrupts(void)
+static void setup_cross_vpe_interrupts(void)
 {
 	if (!cpu_has_vint)
 		panic("SMTC Kernel requires Vectored Interupt support");
@@ -1264,7 +1264,7 @@ void smtc_flush_tlb_asid(unsigned long asid)
  * Support for single-threading cache flush operations.
  */
 
-int halt_state_save[NR_CPUS];
+static int halt_state_save[NR_CPUS];
 
 /*
  * To really, really be sure that nothing is being done
