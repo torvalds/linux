@@ -182,69 +182,8 @@ dasd_log_sense(struct dasd_ccw_req *cqr, struct irb *irb)
 		device->discipline->dump_sense(device, cqr, irb);
 }
 
-void
-dasd_log_ccw(struct dasd_ccw_req * cqr, int caller, __u32 cpa)
-{
-	struct dasd_device *device;
-	struct dasd_ccw_req *lcqr;
-	struct ccw1 *ccw;
-	int cplength;
-
-	device = cqr->device;
-	/* log the channel program */
-	for (lcqr = cqr; lcqr != NULL; lcqr = lcqr->refers) {
-		DEV_MESSAGE(KERN_ERR, device,
-			    "(%s) ERP chain report for req: %p",
-			    caller == 0 ? "EXAMINE" : "ACTION", lcqr);
-		hex_dump_memory(device, lcqr, sizeof(struct dasd_ccw_req));
-
-		cplength = 1;
-		ccw = lcqr->cpaddr;
-		while (ccw++->flags & (CCW_FLAG_DC | CCW_FLAG_CC))
-			cplength++;
-
-		if (cplength > 40) {	/* log only parts of the CP */
-			DEV_MESSAGE(KERN_ERR, device, "%s",
-				    "Start of channel program:");
-			hex_dump_memory(device, lcqr->cpaddr,
-					40*sizeof(struct ccw1));
-
-			DEV_MESSAGE(KERN_ERR, device, "%s",
-				    "End of channel program:");
-			hex_dump_memory(device, lcqr->cpaddr + cplength - 10,
-					10*sizeof(struct ccw1));
-		} else {	/* log the whole CP */
-			DEV_MESSAGE(KERN_ERR, device, "%s",
-				    "Channel program (complete):");
-			hex_dump_memory(device, lcqr->cpaddr,
-					cplength*sizeof(struct ccw1));
-		}
-
-		if (lcqr != cqr)
-			continue;
-
-		/*
-		 * Log bytes arround failed CCW but only if we did
-		 * not log the whole CP of the CCW is outside the
-		 * logged CP.
-		 */
-		if (cplength > 40 ||
-		    ((addr_t) cpa < (addr_t) lcqr->cpaddr &&
-		     (addr_t) cpa > (addr_t) (lcqr->cpaddr + cplength + 4))) {
-
-			DEV_MESSAGE(KERN_ERR, device,
-				    "Failed CCW (%p) (area):",
-				    (void *) (long) cpa);
-			hex_dump_memory(device, cqr->cpaddr - 10,
-					20*sizeof(struct ccw1));
-		}
-	}
-
-}				/* end log_erp_chain */
-
 EXPORT_SYMBOL(dasd_default_erp_action);
 EXPORT_SYMBOL(dasd_default_erp_postaction);
 EXPORT_SYMBOL(dasd_alloc_erp_request);
 EXPORT_SYMBOL(dasd_free_erp_request);
 EXPORT_SYMBOL(dasd_log_sense);
-EXPORT_SYMBOL(dasd_log_ccw);
