@@ -184,7 +184,7 @@ int install_sigtramp(unsigned int __user *tramp, unsigned int syscall)
 	 */
 
 	err = __put_user(0x24020000 + syscall, tramp + 0);
-	err |= __put_user(0x0000000c          , tramp + 1);
+	err |= __put_user(0x0000000c         , tramp + 1);
 	if (ICACHE_REFILLS_WORKAROUND_WAR) {
 		err |= __put_user(0, tramp + 2);
 		err |= __put_user(0, tramp + 3);
@@ -400,7 +400,7 @@ int setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
 
-	install_sigtramp(frame->sf_code, __NR_sigreturn);
+	err |= install_sigtramp(frame->sf_code, __NR_sigreturn);
 
 	err |= setup_sigcontext(regs, &frame->sf_sc);
 	err |= __copy_to_user(&frame->sf_mask, set, sizeof(*set));
@@ -447,7 +447,7 @@ int setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
 
-	install_sigtramp(frame->rs_code, __NR_rt_sigreturn);
+	err |= install_sigtramp(frame->rs_code, __NR_rt_sigreturn);
 
 	/* Create siginfo.  */
 	err |= copy_siginfo_to_user(&frame->rs_info, info);
