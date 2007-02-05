@@ -79,6 +79,7 @@ crash_save_this_cpu()
 	final_note(buf);
 }
 
+#ifdef CONFIG_SMP
 static int
 kdump_wait_cpu_freeze(void)
 {
@@ -91,6 +92,7 @@ kdump_wait_cpu_freeze(void)
 	}
 	return 1;
 }
+#endif
 
 void
 machine_crash_shutdown(struct pt_regs *pt)
@@ -132,11 +134,12 @@ kdump_cpu_freeze(struct unw_frame_info *info, void *arg)
 	atomic_inc(&kdump_cpu_freezed);
 	kdump_status[cpuid] = 1;
 	mb();
-	if (cpuid == 0) {
-		for (;;)
-			cpu_relax();
-	} else
+#ifdef CONFIG_HOTPLUG_CPU
+	if (cpuid != 0)
 		ia64_jump_to_sal(&sal_boot_rendez_state[cpuid]);
+#endif
+	for (;;)
+		cpu_relax();
 }
 
 static int

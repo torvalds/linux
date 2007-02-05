@@ -70,12 +70,14 @@ void machine_kexec_cleanup(struct kimage *image)
 
 void machine_shutdown(void)
 {
+#ifdef CONFIG_HOTPLUG_CPU
 	int cpu;
 
 	for_each_online_cpu(cpu) {
 		if (cpu != smp_processor_id())
 			cpu_down(cpu);
 	}
+#endif
 	kexec_disable_iosapic();
 }
 
