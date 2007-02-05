@@ -14,6 +14,7 @@
 #include <linux/kexec.h>
 #include <linux/cpu.h>
 #include <linux/irq.h>
+#include <linux/efi.h>
 #include <asm/mmu_context.h>
 #include <asm/setup.h>
 #include <asm/delay.h>
@@ -85,7 +86,6 @@ void machine_shutdown(void)
  * Do not allocate memory (or fail in any way) in machine_kexec().
  * We are past the point of no return, committed to rebooting now.
  */
-extern void *efi_get_pal_addr(void);
 static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 {
 	struct kimage *image = arg;
