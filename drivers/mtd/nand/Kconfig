@@ -223,7 +223,7 @@ config MTD_NAND_SHARPSL
 
 config MTD_NAND_CAFE
        tristate "NAND support for OLPC CAFÉ chip"
-       depends on PCI
+       depends on MTD_NAND && PCI
        help
 	 Use NAND flash attached to the CAFÉ chip designed for the $100
 	 laptop.
