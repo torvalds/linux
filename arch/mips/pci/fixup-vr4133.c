@@ -17,6 +17,7 @@
  */
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/kernel.h>
 
 #include <asm/io.h>
 #include <asm/i8259.h>
@@ -143,7 +144,7 @@ int rockhopper_get_irq(struct pci_dev *dev, u8 pin, u8 slot)
 	if (bus == NULL)
 		return -1;
 
-	for (i = 0; i < sizeof (int_map) / sizeof (int_map[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(int_map); i++) {
 		if (int_map[i].bus == bus->number && int_map[i].slot == slot) {
 			int line;
 			for (line = 0; line < 4; line++)
