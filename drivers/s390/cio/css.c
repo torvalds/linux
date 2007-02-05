@@ -108,9 +108,6 @@ css_subchannel_release(struct device *dev)
 	}
 }
 
-extern int css_get_ssd_info(struct subchannel *sch);
-
-
 int css_sch_device_register(struct subchannel *sch)
 {
 	int ret;
@@ -417,7 +414,7 @@ static void reprobe_all(struct work_struct *unused)
 		      need_reprobe);
 }
 
-DECLARE_WORK(css_reprobe_work, reprobe_all);
+static DECLARE_WORK(css_reprobe_work, reprobe_all);
 
 /* Schedule reprobing of all unregistered subchannels. */
 void css_schedule_reprobe(void)

@@ -245,7 +245,7 @@ static struct notifier_block nohz_idle_nb = {
 	.notifier_call = nohz_idle_notify,
 };
 
-void __init nohz_init(void)
+static void __init nohz_init(void)
 {
 	if (register_idle_notifier(&nohz_idle_nb))
 		panic("Couldn't register idle notifier");
@@ -270,8 +270,6 @@ void init_cpu_timer(void)
         cr0 |= 0x800;
 	__ctl_load(cr0, 0, 0);
 }
-
-extern void vtime_init(void);
 
 static cycle_t read_tod_clock(void)
 {

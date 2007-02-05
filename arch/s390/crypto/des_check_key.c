@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/crypto.h>
+#include "crypto_des.h"
 
 #define ROR(d,c,o)	((d) = (d) >> (c) | (d) << (o))
 

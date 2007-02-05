@@ -37,6 +37,7 @@
  */
 debug_info_t *dasd_debug_area;
 struct dasd_discipline *dasd_diag_discipline_pointer;
+void dasd_int_handler(struct ccw_device *, unsigned long, struct irb *);
 
 MODULE_AUTHOR("Holger Smolinski <Holger.Smolinski@de.ibm.com>");
 MODULE_DESCRIPTION("Linux on S/390 DASD device driver,"
@@ -51,7 +52,6 @@ static int  dasd_alloc_queue(struct dasd_device * device);
 static void dasd_setup_queue(struct dasd_device * device);
 static void dasd_free_queue(struct dasd_device * device);
 static void dasd_flush_request_queue(struct dasd_device *);
-static void dasd_int_handler(struct ccw_device *, unsigned long, struct irb *);
 static int dasd_flush_ccw_queue(struct dasd_device *, int);
 static void dasd_tasklet(struct dasd_device *);
 static void do_kick_device(struct work_struct *);

@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <asm/uaccess.h>
 #include <asm/futex.h>
+#include "uaccess.h"
 
 #ifndef __s390x__
 #define AHI	"ahi"
@@ -27,10 +28,7 @@
 #define SLR	"slgr"
 #endif
 
-extern size_t copy_from_user_std(size_t, const void __user *, void *);
-extern size_t copy_to_user_std(size_t, void __user *, const void *);
-
-size_t copy_from_user_mvcos(size_t size, const void __user *ptr, void *x)
+static size_t copy_from_user_mvcos(size_t size, const void __user *ptr, void *x)
 {
 	register unsigned long reg0 asm("0") = 0x81UL;
 	unsigned long tmp1, tmp2;
@@ -69,14 +67,14 @@ size_t copy_from_user_mvcos(size_t size, const void __user *ptr, void *x)
 	return size;
 }
 
-size_t copy_from_user_mvcos_check(size_t size, const void __user *ptr, void *x)
+static size_t copy_from_user_mvcos_check(size_t size, const void __user *ptr, void *x)
 {
 	if (size <= 256)
 		return copy_from_user_std(size, ptr, x);
 	return copy_from_user_mvcos(size, ptr, x);
 }
 
-size_t copy_to_user_mvcos(size_t size, void __user *ptr, const void *x)
+static size_t copy_to_user_mvcos(size_t size, void __user *ptr, const void *x)
 {
 	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
@@ -105,14 +103,16 @@ size_t copy_to_user_mvcos(size_t size, void __user *ptr, const void *x)
 	return size;
 }
 
-size_t copy_to_user_mvcos_check(size_t size, void __user *ptr, const void *x)
+static size_t copy_to_user_mvcos_check(size_t size, void __user *ptr,
+				       const void *x)
 {
 	if (size <= 256)
 		return copy_to_user_std(size, ptr, x);
 	return copy_to_user_mvcos(size, ptr, x);
 }
 
-size_t copy_in_user_mvcos(size_t size, void __user *to, const void __user *from)
+static size_t copy_in_user_mvcos(size_t size, void __user *to,
+				 const void __user *from)
 {
 	register unsigned long reg0 asm("0") = 0x810081UL;
 	unsigned long tmp1, tmp2;
@@ -134,7 +134,7 @@ size_t copy_in_user_mvcos(size_t size, void __user *to, const void __user *from)
 	return size;
 }
 
-size_t clear_user_mvcos(size_t size, void __user *to)
+static size_t clear_user_mvcos(size_t size, void __user *to)
 {
 	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
@@ -162,11 +162,6 @@ size_t clear_user_mvcos(size_t size, void __user *to)
 	return size;
 }
 
-extern size_t strnlen_user_std(size_t, const char __user *);
-extern size_t strncpy_from_user_std(size_t, const char __user *, char *);
-extern int futex_atomic_op(int, int __user *, int, int *);
-extern int futex_atomic_cmpxchg(int __user *, int, int);
-
 struct uaccess_ops uaccess_mvcos = {
 	.copy_from_user = copy_from_user_mvcos_check,
 	.copy_from_user_small = copy_from_user_std,
@@ -176,6 +171,6 @@ struct uaccess_ops uaccess_mvcos = {
 	.clear_user = clear_user_mvcos,
 	.strnlen_user = strnlen_user_std,
 	.strncpy_from_user = strncpy_from_user_std,
-	.futex_atomic_op = futex_atomic_op,
-	.futex_atomic_cmpxchg = futex_atomic_cmpxchg,
+	.futex_atomic_op = futex_atomic_op_std,
+	.futex_atomic_cmpxchg = futex_atomic_cmpxchg_std,
 };

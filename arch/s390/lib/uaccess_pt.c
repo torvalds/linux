@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <asm/uaccess.h>
 #include <asm/futex.h>
+#include "uaccess.h"
 
 static inline int __handle_fault(struct mm_struct *mm, unsigned long address,
 				 int write_access)

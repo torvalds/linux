@@ -137,7 +137,7 @@ tapechar_check_idalbuffer(struct tape_device *device, size_t block_size)
 /*
  * Tape device read function
  */
-ssize_t
+static ssize_t
 tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 {
 	struct tape_device *device;
@@ -201,7 +201,7 @@ tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 /*
  * Tape device write function
  */
-ssize_t
+static ssize_t
 tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t *ppos)
 {
 	struct tape_device *device;
@@ -291,7 +291,7 @@ tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t 
 /*
  * Character frontend tape device open function.
  */
-int
+static int
 tapechar_open (struct inode *inode, struct file *filp)
 {
 	struct tape_device *device;
@@ -326,7 +326,7 @@ tapechar_open (struct inode *inode, struct file *filp)
  * Character frontend tape device release function.
  */
 
-int
+static int
 tapechar_release(struct inode *inode, struct file *filp)
 {
 	struct tape_device *device;

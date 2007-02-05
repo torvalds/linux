@@ -43,7 +43,7 @@ MODULE_LICENSE("GPL");
 #define DIAG_MAX_RETRIES	32
 #define DIAG_TIMEOUT		50 * HZ
 
-struct dasd_discipline dasd_diag_discipline;
+static struct dasd_discipline dasd_diag_discipline;
 
 struct dasd_diag_private {
 	struct dasd_diag_characteristics rdc_data;
@@ -576,7 +576,7 @@ dasd_diag_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 		    "dump sense not available for DIAG data");
 }
 
-struct dasd_discipline dasd_diag_discipline = {
+static struct dasd_discipline dasd_diag_discipline = {
 	.owner = THIS_MODULE,
 	.name = "DIAG",
 	.ebcname = "DIAG",

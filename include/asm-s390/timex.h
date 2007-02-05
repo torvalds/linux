@@ -32,4 +32,6 @@ static inline cycles_t get_cycles(void)
 	return (cycles_t) get_clock() >> 2;
 }
 
+void init_cpu_timer(void);
+
 #endif

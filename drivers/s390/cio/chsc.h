@@ -47,6 +47,9 @@ struct channel_path {
 extern void s390_process_css( void );
 extern void chsc_validate_chpids(struct subchannel *);
 extern void chpid_is_actually_online(int);
+extern int css_get_ssd_info(struct subchannel *);
+extern int chsc_process_crw(void);
+extern int chp_process_crw(int, int);
 
 struct css_general_char {
 	u64 : 41;

@@ -52,7 +52,7 @@ extern int sysctl_userprocess_debug;
 extern void die(const char *,struct pt_regs *,long);
 
 #ifdef CONFIG_KPROBES
-ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
+static ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
 int register_page_fault_notifier(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_register(&notify_page_fault_chain, nb);
@@ -452,8 +452,7 @@ void pfault_fini(void)
 		: : "a" (&refbk), "m" (refbk) : "cc");
 }
 
-asmlinkage void
-pfault_interrupt(__u16 error_code)
+static void pfault_interrupt(__u16 error_code)
 {
 	struct task_struct *tsk;
 	__u16 subcode;

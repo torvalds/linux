@@ -126,7 +126,7 @@ confused:
 static inline int
 blacklist_parse_parameters (char *str, range_action action)
 {
-	unsigned int from, to, from_id0, to_id0, from_ssid, to_ssid;
+	int from, to, from_id0, to_id0, from_ssid, to_ssid;
 
 	while (*str != 0 && *str != '\n') {
 		range_action ra = action;

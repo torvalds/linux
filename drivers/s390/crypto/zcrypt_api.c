@@ -791,7 +791,7 @@ static long trans_xcRB32(struct file *filp, unsigned int cmd,
 	return rc;
 }
 
-long zcrypt_compat_ioctl(struct file *filp, unsigned int cmd,
+static long zcrypt_compat_ioctl(struct file *filp, unsigned int cmd,
 			 unsigned long arg)
 {
 	if (cmd == ICARSAMODEXPO)
@@ -943,7 +943,7 @@ static int zcrypt_status_read(char *resp_buff, char **start, off_t offset,
 	zcrypt_qdepth_mask(workarea);
 	len += sprinthx("Waiting work element counts",
 			resp_buff+len, workarea, AP_DEVICES);
-	zcrypt_perdev_reqcnt((unsigned int *) workarea);
+	zcrypt_perdev_reqcnt((int *) workarea);
 	len += sprinthx4("Per-device successfully completed request counts",
 			 resp_buff+len,(unsigned int *) workarea, AP_DEVICES);
 	*eof = 1;

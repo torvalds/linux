@@ -121,7 +121,7 @@ MODULE_LICENSE("GPL");
 #define DEBUG
 #endif
 
- char debug_buffer[255];
+static char debug_buffer[255];
 /**
  * Debug Facility Stuff
  */

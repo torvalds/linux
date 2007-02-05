@@ -669,7 +669,7 @@ static const struct tty_operations sclp_vt220_ops = {
 /*
  * Register driver with SCLP and Linux and initialize internal tty structures.
  */
-int __init
+static int __init
 sclp_vt220_tty_init(void)
 {
 	struct tty_driver *driver;

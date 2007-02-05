@@ -2053,7 +2053,7 @@ out_free_ndev:
 	return ret;
 }
 
-DRIVER_ATTR(connection, 0200, NULL, conn_write);
+static DRIVER_ATTR(connection, 0200, NULL, conn_write);
 
 static ssize_t
 remove_write (struct device_driver *drv, const char *buf, size_t count)
@@ -2112,7 +2112,7 @@ remove_write (struct device_driver *drv, const char *buf, size_t count)
         return -EINVAL;
 }
 
-DRIVER_ATTR(remove, 0200, NULL, remove_write);
+static DRIVER_ATTR(remove, 0200, NULL, remove_write);
 
 static void
 netiucv_banner(void)

@@ -25,6 +25,7 @@
 #include <linux/bootmem.h>
 #include <linux/pfn.h>
 #include <linux/poison.h>
+#include <linux/initrd.h>
 
 #include <asm/processor.h>
 #include <asm/system.h>
@@ -106,8 +107,6 @@ static void __init setup_ro_region(void)
 		set_pte(pte, new_pte);
 	}
 }
-
-extern void vmem_map_init(void);
 
 /*
  * paging_init() sets up the page tables

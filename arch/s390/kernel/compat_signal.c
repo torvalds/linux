@@ -275,8 +275,8 @@ sys32_sigaltstack(const stack_t32 __user *uss, stack_t32 __user *uoss,
 	}
 
 	set_fs (KERNEL_DS);
-	ret = do_sigaltstack((stack_t __user *) (uss ? &kss : NULL),
-			     (stack_t __user *) (uoss ? &koss : NULL),
+	ret = do_sigaltstack((stack_t __force __user *) (uss ? &kss : NULL),
+			     (stack_t __force __user *) (uoss ? &koss : NULL),
 			     regs->gprs[15]);
 	set_fs (old_fs);
 
@@ -401,7 +401,7 @@ asmlinkage long sys32_rt_sigreturn(struct pt_regs *regs)
 		goto badframe; 
 
 	set_fs (KERNEL_DS);
-	do_sigaltstack((stack_t __user *)&st, NULL, regs->gprs[15]);
+	do_sigaltstack((stack_t __force __user *)&st, NULL, regs->gprs[15]);
 	set_fs (old_fs);
 
 	return regs->gprs[2];

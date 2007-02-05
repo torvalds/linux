@@ -469,7 +469,7 @@ zfcp_hba_dbf_view_format(debug_info_t * id, struct debug_view *view,
 	return len;
 }
 
-struct debug_view zfcp_hba_dbf_view = {
+static struct debug_view zfcp_hba_dbf_view = {
 	"structured",
 	NULL,
 	&zfcp_dbf_view_header,
@@ -693,7 +693,7 @@ zfcp_san_dbf_view_format(debug_info_t * id, struct debug_view *view,
 	return len;
 }
 
-struct debug_view zfcp_san_dbf_view = {
+static struct debug_view zfcp_san_dbf_view = {
 	"structured",
 	NULL,
 	&zfcp_dbf_view_header,
@@ -884,7 +884,7 @@ zfcp_scsi_dbf_view_format(debug_info_t * id, struct debug_view *view,
 	return len;
 }
 
-struct debug_view zfcp_scsi_dbf_view = {
+static struct debug_view zfcp_scsi_dbf_view = {
 	"structured",
 	NULL,
 	&zfcp_dbf_view_header,

@@ -168,7 +168,7 @@ dasd_calc_metrics(char *page, char **start, off_t off,
 }
 
 static inline char *
-dasd_statistics_array(char *str, int *array, int shift)
+dasd_statistics_array(char *str, unsigned int *array, int shift)
 {
 	int i;
 

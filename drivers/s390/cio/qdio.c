@@ -66,7 +66,6 @@ MODULE_LICENSE("GPL");
 /******************** HERE WE GO ***********************************/
 
 static const char version[] = "QDIO base support version 2";
-extern struct bus_type ccw_bus_type;
 
 static int qdio_performance_stats = 0;
 static int proc_perf_file_registration;
@@ -3014,7 +3013,7 @@ qdio_allocate(struct qdio_initialize *init_data)
 	return 0;
 }
 
-int qdio_fill_irq(struct qdio_initialize *init_data)
+static int qdio_fill_irq(struct qdio_initialize *init_data)
 {
 	int i;
 	char dbf_text[15];

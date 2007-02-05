@@ -38,6 +38,7 @@
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/pfn.h>
+#include <linux/reboot.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -117,7 +118,7 @@ void __devinit cpu_init (void)
  */
 char vmhalt_cmd[128] = "";
 char vmpoff_cmd[128] = "";
-char vmpanic_cmd[128] = "";
+static char vmpanic_cmd[128] = "";
 
 static inline void strncpy_skip_quote(char *dst, char *src, int n)
 {
@@ -275,10 +276,6 @@ static void __init conmode_default(void)
 }
 
 #ifdef CONFIG_SMP
-extern void machine_restart_smp(char *);
-extern void machine_halt_smp(void);
-extern void machine_power_off_smp(void);
-
 void (*_machine_restart)(char *command) = machine_restart_smp;
 void (*_machine_halt)(void) = machine_halt_smp;
 void (*_machine_power_off)(void) = machine_power_off_smp;

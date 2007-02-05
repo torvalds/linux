@@ -25,7 +25,7 @@
 #include <asm/irq_regs.h>
 
 static ext_int_info_t ext_int_info_timer;
-DEFINE_PER_CPU(struct vtimer_queue, virt_cpu_timer);
+static DEFINE_PER_CPU(struct vtimer_queue, virt_cpu_timer);
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 /*

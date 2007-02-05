@@ -30,6 +30,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/moduleloader.h>
 
 #if 0
 #define DEBUGP printk

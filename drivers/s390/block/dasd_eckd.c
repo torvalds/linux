@@ -548,7 +548,7 @@ dasd_eckd_read_conf(struct dasd_device *device)
 /*
  * Build CP for Perform Subsystem Function - SSC.
  */
-struct dasd_ccw_req *
+static struct dasd_ccw_req *
 dasd_eckd_build_psf_ssc(struct dasd_device *device)
 {
        struct dasd_ccw_req *cqr;

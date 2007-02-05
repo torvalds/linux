@@ -13,21 +13,17 @@
 #include <linux/errno.h>
 #include <linux/workqueue.h>
 #include <linux/time.h>
+#include <linux/device.h>
 #include <linux/kthread.h>
 
 #include <asm/lowcore.h>
-
+#include <asm/cio.h>
+#include "cio/cio.h"
+#include "cio/chsc.h"
+#include "cio/css.h"
 #include "s390mach.h"
 
 static struct semaphore m_sem;
-
-extern int css_process_crw(int, int);
-extern int chsc_process_crw(void);
-extern int chp_process_crw(int, int);
-extern void css_reiterate_subchannels(void);
-
-extern struct workqueue_struct *slow_path_wq;
-extern struct work_struct slow_path_work;
 
 static NORET_TYPE void
 s390_handle_damage(char *msg)

@@ -27,9 +27,9 @@
 /* data block size for all key lengths */
 #define AES_BLOCK_SIZE		16
 
-int has_aes_128 = 0;
-int has_aes_192 = 0;
-int has_aes_256 = 0;
+static int has_aes_128 = 0;
+static int has_aes_192 = 0;
+static int has_aes_256 = 0;
 
 struct s390_aes_ctx {
 	u8 iv[AES_BLOCK_SIZE];

@@ -892,7 +892,7 @@ ccw_device_online_timeout(struct ccw_device *cdev, enum dev_event dev_event)
 /*
  * Got an interrupt for a basic sense.
  */
-void
+static void
 ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 {
 	struct irb *irb;

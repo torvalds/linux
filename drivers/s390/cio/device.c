@@ -138,7 +138,6 @@ struct bus_type ccw_bus_type;
 
 static int io_subchannel_probe (struct subchannel *);
 static int io_subchannel_remove (struct subchannel *);
-void io_subchannel_irq (struct device *);
 static int io_subchannel_notify(struct device *, int);
 static void io_subchannel_verify(struct device *);
 static void io_subchannel_ioterm(struct device *);

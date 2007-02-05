@@ -998,7 +998,7 @@ struct device_attribute dev_attr_##_id = {				     \
 	.store	= _store,						     \
 };
 
-int
+static int
 qeth_check_layer2(struct qeth_card *card)
 {
 	if (card->options.layer2)

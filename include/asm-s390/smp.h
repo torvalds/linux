@@ -31,6 +31,10 @@ typedef struct
 	__u16      cpu;
 } sigp_info;
 
+extern void machine_restart_smp(char *);
+extern void machine_halt_smp(void);
+extern void machine_power_off_smp(void);
+
 extern void smp_setup_cpu_possible_map(void);
 extern int smp_call_function_on(void (*func) (void *info), void *info,
 				int nonatomic, int wait, int cpu);
