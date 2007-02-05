@@ -129,7 +129,7 @@ char vmhalt_cmd[128] = "";
 char vmpoff_cmd[128] = "";
 static char vmpanic_cmd[128] = "";
 
-static inline void strncpy_skip_quote(char *dst, char *src, int n)
+static void strncpy_skip_quote(char *dst, char *src, int n)
 {
         int sx, dx;
 
@@ -396,8 +396,8 @@ early_param("ipldelay", early_parse_ipldelay);
 unsigned int switch_amode = 0;
 EXPORT_SYMBOL_GPL(switch_amode);
 
-static inline void set_amode_and_uaccess(unsigned long user_amode,
-					 unsigned long user32_amode)
+static void set_amode_and_uaccess(unsigned long user_amode,
+				  unsigned long user32_amode)
 {
 	psw_user_bits = PSW_BASE_BITS | PSW_MASK_DAT | user_amode |
 			PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |

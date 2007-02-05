@@ -152,25 +152,6 @@ dasd_default_erp_postaction(struct dasd_ccw_req * cqr)
 
 }				/* end default_erp_postaction */
 
-/*
- * Print the hex dump of the memory used by a request. This includes
- * all error recovery ccws that have been chained in from of the
- * real request.
- */
-static inline void
-hex_dump_memory(struct dasd_device *device, void *data, int len)
-{
-	int *pint;
-
-	pint = (int *) data;
-	while (len > 0) {
-		DEV_MESSAGE(KERN_ERR, device, "%p: %08x %08x %08x %08x",
-			    pint, pint[0], pint[1], pint[2], pint[3]);
-		pint += 4;
-		len -= 16;
-	}
-}
-
 void
 dasd_log_sense(struct dasd_ccw_req *cqr, struct irb *irb)
 {

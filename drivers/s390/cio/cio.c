@@ -122,7 +122,7 @@ cio_get_options (struct subchannel *sch)
  * Use tpi to get a pending interrupt, call the interrupt handler and
  * return a pointer to the subchannel structure.
  */
-static inline int
+static int
 cio_tpi(void)
 {
 	struct tpi_info *tpi_info;
@@ -152,7 +152,7 @@ cio_tpi(void)
 	return 1;
 }
 
-static inline int
+static int
 cio_start_handle_notoper(struct subchannel *sch, __u8 lpm)
 {
 	char dbf_text[15];
@@ -832,7 +832,7 @@ cio_get_console_subchannel(void)
 }
 
 #endif
-static inline int
+static int
 __disable_subchannel_easy(struct subchannel_id schid, struct schib *schib)
 {
 	int retry, cc;
@@ -863,7 +863,7 @@ static void udelay_reset(unsigned long usecs)
 	} while (((end_cc - start_cc)/4096) < usecs);
 }
 
-static inline int
+static int
 __clear_subchannel_easy(struct subchannel_id schid)
 {
 	int retry;

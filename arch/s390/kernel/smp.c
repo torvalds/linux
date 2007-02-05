@@ -194,7 +194,7 @@ int smp_call_function_on(void (*func) (void *info), void *info,
 }
 EXPORT_SYMBOL(smp_call_function_on);
 
-static inline void do_send_stop(void)
+static void do_send_stop(void)
 {
         int cpu, rc;
 
@@ -208,7 +208,7 @@ static inline void do_send_stop(void)
 	}
 }
 
-static inline void do_store_status(void)
+static void do_store_status(void)
 {
         int cpu, rc;
 
@@ -224,7 +224,7 @@ static inline void do_store_status(void)
         }
 }
 
-static inline void do_wait_for_stop(void)
+static void do_wait_for_stop(void)
 {
 	int cpu;
 
@@ -534,7 +534,7 @@ smp_put_cpu(int cpu)
 	spin_unlock_irqrestore(&smp_reserve_lock, flags);
 }
 
-static inline int
+static int
 cpu_stopped(int cpu)
 {
 	__u32 status;

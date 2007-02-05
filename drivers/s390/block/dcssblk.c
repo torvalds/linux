@@ -102,7 +102,7 @@ dcssblk_release_segment(struct device *dev)
  * device needs to be enqueued before the semaphore is
  * freed.
  */
-static inline int
+static int
 dcssblk_assign_free_minor(struct dcssblk_dev_info *dev_info)
 {
 	int minor, found;

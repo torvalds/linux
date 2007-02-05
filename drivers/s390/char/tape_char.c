@@ -89,22 +89,7 @@ tapechar_cleanup_device(struct tape_device *device)
 	device->nt = NULL;
 }
 
-/*
- * Terminate write command (we write two TMs and skip backward over last)
- * This ensures that the tape is always correctly terminated.
- * When the user writes afterwards a new file, he will overwrite the
- * second TM and therefore one TM will remain to separate the
- * two files on the tape...
- */
-static inline void
-tapechar_terminate_write(struct tape_device *device)
-{
-	if (tape_mtop(device, MTWEOF, 1) == 0 &&
-	    tape_mtop(device, MTWEOF, 1) == 0)
-		tape_mtop(device, MTBSR, 1);
-}
-
-static inline int
+static int
 tapechar_check_idalbuffer(struct tape_device *device, size_t block_size)
 {
 	struct idal_buffer *new;

@@ -206,7 +206,7 @@ ccw_device_handle_oper(struct ccw_device *cdev)
  * been varied online on the SE so we have to find out by magic (i. e. driving
  * the channel subsystem to device selection and updating our path masks).
  */
-static inline void
+static void
 __recover_lost_chpids(struct subchannel *sch, int old_lpm)
 {
 	int mask, i;
@@ -387,7 +387,7 @@ ccw_device_done(struct ccw_device *cdev, int state)
 		put_device (&cdev->dev);
 }
 
-static inline int cmp_pgid(struct pgid *p1, struct pgid *p2)
+static int cmp_pgid(struct pgid *p1, struct pgid *p2)
 {
 	char *c1;
 	char *c2;

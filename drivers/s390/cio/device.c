@@ -548,13 +548,13 @@ static struct attribute_group ccwdev_attr_group = {
 	.attrs = ccwdev_attrs,
 };
 
-static inline int
+static int
 device_add_files (struct device *dev)
 {
 	return sysfs_create_group(&dev->kobj, &ccwdev_attr_group);
 }
 
-static inline void
+static void
 device_remove_files(struct device *dev)
 {
 	sysfs_remove_group(&dev->kobj, &ccwdev_attr_group);

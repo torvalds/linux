@@ -91,7 +91,7 @@ static char *segtype_string[] = { "SW", "EW", "SR", "ER", "SN", "EN", "SC",
  * Create the 8 bytes, ebcdic VM segment name from
  * an ascii name.
  */
-static void inline
+static void
 dcss_mkname(char *name, char *dcss_name)
 {
 	int i;

@@ -445,7 +445,7 @@ sclp_sync_wait(void)
 EXPORT_SYMBOL(sclp_sync_wait);
 
 /* Dispatch changes in send and receive mask to registered listeners. */
-static inline void
+static void
 sclp_dispatch_state_change(void)
 {
 	struct list_head *l;

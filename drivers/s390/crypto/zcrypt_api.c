@@ -833,8 +833,8 @@ static struct miscdevice zcrypt_misc_device = {
  */
 static struct proc_dir_entry *zcrypt_entry;
 
-static inline int sprintcl(unsigned char *outaddr, unsigned char *addr,
-			   unsigned int len)
+static int sprintcl(unsigned char *outaddr, unsigned char *addr,
+		    unsigned int len)
 {
 	int hl, i;
 
@@ -845,8 +845,8 @@ static inline int sprintcl(unsigned char *outaddr, unsigned char *addr,
 	return hl;
 }
 
-static inline int sprintrw(unsigned char *outaddr, unsigned char *addr,
-			   unsigned int len)
+static int sprintrw(unsigned char *outaddr, unsigned char *addr,
+		    unsigned int len)
 {
 	int hl, inl, c, cx;
 
@@ -865,8 +865,8 @@ static inline int sprintrw(unsigned char *outaddr, unsigned char *addr,
 	return hl;
 }
 
-static inline int sprinthx(unsigned char *title, unsigned char *outaddr,
-			   unsigned char *addr, unsigned int len)
+static int sprinthx(unsigned char *title, unsigned char *outaddr,
+		    unsigned char *addr, unsigned int len)
 {
 	int hl, inl, r, rx;
 
@@ -885,8 +885,8 @@ static inline int sprinthx(unsigned char *title, unsigned char *outaddr,
 	return hl;
 }
 
-static inline int sprinthx4(unsigned char *title, unsigned char *outaddr,
-			    unsigned int *array, unsigned int len)
+static int sprinthx4(unsigned char *title, unsigned char *outaddr,
+		     unsigned int *array, unsigned int len)
 {
 	int hl, r;
 

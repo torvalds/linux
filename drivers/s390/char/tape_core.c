@@ -76,7 +76,7 @@ const char *tape_op_verbose[TO_SIZE] =
 	[TO_KEKL_QUERY] = "KLQ",
 };
 
-static inline int
+static int
 busid_to_int(char *bus_id)
 {
 	int	dec;
@@ -256,7 +256,7 @@ tape_med_state_set(struct tape_device *device, enum tape_medium_state newstate)
 /*
  * Stop running ccw. Has to be called with the device lock held.
  */
-static inline int
+static int
 __tape_cancel_io(struct tape_device *device, struct tape_request *request)
 {
 	int retries;
@@ -392,7 +392,7 @@ out:
 	return rc;
 }
 
-static inline void
+static void
 tape_cleanup_device(struct tape_device *device)
 {
 	tapeblock_cleanup_device(device);
@@ -570,7 +570,7 @@ tape_generic_probe(struct ccw_device *cdev)
 	return ret;
 }
 
-static inline void
+static void
 __tape_discard_requests(struct tape_device *device)
 {
 	struct tape_request *	request;
@@ -710,7 +710,7 @@ tape_free_request (struct tape_request * request)
 	kfree(request);
 }
 
-static inline int
+static int
 __tape_start_io(struct tape_device *device, struct tape_request *request)
 {
 	int rc;
@@ -740,7 +740,7 @@ __tape_start_io(struct tape_device *device, struct tape_request *request)
 	return rc;
 }
 
-static inline void
+static void
 __tape_start_next_request(struct tape_device *device)
 {
 	struct list_head *l, *n;
@@ -824,7 +824,7 @@ static void tape_long_busy_timeout(unsigned long data)
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 }
 
-static inline void
+static void
 __tape_end_request(
 	struct tape_device *	device,
 	struct tape_request *	request,
@@ -901,7 +901,7 @@ tape_dump_sense_dbf(struct tape_device *device, struct tape_request *request,
  * and starts it if the tape is idle. Has to be called with
  * the device lock held.
  */
-static inline int
+static int
 __tape_start_request(struct tape_device *device, struct tape_request *request)
 {
 	int rc;

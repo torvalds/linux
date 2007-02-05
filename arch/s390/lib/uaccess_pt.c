@@ -15,8 +15,8 @@
 #include <asm/futex.h>
 #include "uaccess.h"
 
-static inline int __handle_fault(struct mm_struct *mm, unsigned long address,
-				 int write_access)
+static int __handle_fault(struct mm_struct *mm, unsigned long address,
+			  int write_access)
 {
 	struct vm_area_struct *vma;
 	int ret = -EFAULT;
@@ -81,8 +81,8 @@ out_sigbus:
 	return ret;
 }
 
-static inline size_t __user_copy_pt(unsigned long uaddr, void *kptr,
-				    size_t n, int write_user)
+static size_t __user_copy_pt(unsigned long uaddr, void *kptr,
+			     size_t n, int write_user)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long offset, pfn, done, size;
@@ -139,7 +139,7 @@ fault:
  * Do DAT for user address by page table walk, return kernel address.
  * This function needs to be called with current->mm->page_table_lock held.
  */
-static inline unsigned long __dat_user_addr(unsigned long uaddr)
+static unsigned long __dat_user_addr(unsigned long uaddr)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long pfn, ret;

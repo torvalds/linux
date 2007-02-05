@@ -134,44 +134,7 @@ ceil_quot(unsigned int d1, unsigned int d2)
 	return (d1 + (d2 - 1)) / d2;
 }
 
-static inline int
-bytes_per_record(struct dasd_eckd_characteristics *rdc, int kl, int dl)
-{
-	unsigned int fl1, fl2, int1, int2;
-	int bpr;
-
-	switch (rdc->formula) {
-	case 0x01:
-		fl1 = round_up_multiple(ECKD_F2(rdc) + dl, ECKD_F1(rdc));
-		fl2 = round_up_multiple(kl ? ECKD_F2(rdc) + kl : 0,
-					ECKD_F1(rdc));
-		bpr = fl1 + fl2;
-		break;
-	case 0x02:
-		int1 = ceil_quot(dl + ECKD_F6(rdc), ECKD_F5(rdc) << 1);
-		int2 = ceil_quot(kl + ECKD_F6(rdc), ECKD_F5(rdc) << 1);
-		fl1 = round_up_multiple(ECKD_F1(rdc) * ECKD_F2(rdc) + dl +
-					ECKD_F6(rdc) + ECKD_F4(rdc) * int1,
-					ECKD_F1(rdc));
-		fl2 = round_up_multiple(ECKD_F1(rdc) * ECKD_F3(rdc) + kl +
-					ECKD_F6(rdc) + ECKD_F4(rdc) * int2,
-					ECKD_F1(rdc));
-		bpr = fl1 + fl2;
-		break;
-	default:
-		bpr = 0;
-		break;
-	}
-	return bpr;
-}
-
-static inline unsigned int
-bytes_per_track(struct dasd_eckd_characteristics *rdc)
-{
-	return *(unsigned int *) (rdc->byte_per_track) >> 8;
-}
-
-static inline unsigned int
+static unsigned int
 recs_per_track(struct dasd_eckd_characteristics * rdc,
 	       unsigned int kl, unsigned int dl)
 {
@@ -204,7 +167,7 @@ recs_per_track(struct dasd_eckd_characteristics * rdc,
 	return 0;
 }
 
-static inline int
+static int
 check_XRC (struct ccw1         *de_ccw,
            struct DE_eckd_data *data,
            struct dasd_device  *device)
@@ -230,7 +193,7 @@ check_XRC (struct ccw1         *de_ccw,
 	return rc;
 }
 
-static inline int
+static int
 define_extent(struct ccw1 * ccw, struct DE_eckd_data * data, int trk,
 	      int totrk, int cmd, struct dasd_device * device)
 {
@@ -317,7 +280,7 @@ define_extent(struct ccw1 * ccw, struct DE_eckd_data * data, int trk,
 	return rc;
 }
 
-static inline void
+static void
 locate_record(struct ccw1 *ccw, struct LO_eckd_data *data, int trk,
 	      int rec_on_trk, int no_rec, int cmd,
 	      struct dasd_device * device, int reclen)
@@ -1617,7 +1580,7 @@ dasd_eckd_ioctl(struct dasd_device *device, unsigned int cmd, void __user *argp)
  * Dump the range of CCWs into 'page' buffer
  * and return number of printed chars.
  */
-static inline int
+static int
 dasd_eckd_dump_ccw_range(struct ccw1 *from, struct ccw1 *to, char *page)
 {
 	int len, count;

@@ -277,7 +277,7 @@ out_unreg:
 	return 0;
 }
 
-static inline void
+static void
 s390_set_chpid_offline( __u8 chpid)
 {
 	char dbf_txt[15];
@@ -338,7 +338,7 @@ s390_process_res_acc_sch(struct res_acc_data *res_data, struct subchannel *sch)
 	return 0x80 >> chp;
 }
 
-static inline int
+static int
 s390_process_res_acc_new_sch(struct subchannel_id schid)
 {
 	struct schib schib;
@@ -594,7 +594,7 @@ int chsc_process_crw(void)
 	return ret;
 }
 
-static inline int
+static int
 __chp_add_new_sch(struct subchannel_id schid)
 {
 	struct schib schib;
@@ -701,7 +701,7 @@ chp_process_crw(int chpid, int on)
 	return chp_add(chpid);
 }
 
-static inline int check_for_io_on_path(struct subchannel *sch, int index)
+static int check_for_io_on_path(struct subchannel *sch, int index)
 {
 	int cc;
 
@@ -733,7 +733,7 @@ static void terminate_internal_io(struct subchannel *sch)
 		sch->driver->termination(&sch->dev);
 }
 
-static inline void
+static void
 __s390_subchannel_vary_chpid(struct subchannel *sch, __u8 chpid, int on)
 {
 	int chp, old_lpm;

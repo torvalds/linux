@@ -30,7 +30,7 @@ struct channel_subsystem *css[__MAX_CSSID + 1];
 
 int css_characteristics_avail = 0;
 
-inline int
+int
 for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
 {
 	struct subchannel_id schid;
@@ -184,7 +184,7 @@ get_subchannel_by_schid(struct subchannel_id schid)
 	return dev ? to_subchannel(dev) : NULL;
 }
 
-static inline int css_get_subchannel_status(struct subchannel *sch)
+static int css_get_subchannel_status(struct subchannel *sch)
 {
 	struct schib schib;
 
@@ -575,7 +575,7 @@ css_cm_enable_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(cm_enable, 0644, css_cm_enable_show, css_cm_enable_store);
 
-static inline int __init setup_css(int nr)
+static int __init setup_css(int nr)
 {
 	u32 tod_high;
 	int ret;

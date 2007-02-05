@@ -483,7 +483,7 @@ unsigned int dasd_profile_level = DASD_PROFILE_OFF;
 /*
  * Add profiling information for cqr before execution.
  */
-static inline void
+static void
 dasd_profile_start(struct dasd_device *device, struct dasd_ccw_req * cqr,
 		   struct request *req)
 {
@@ -505,7 +505,7 @@ dasd_profile_start(struct dasd_device *device, struct dasd_ccw_req * cqr,
 /*
  * Add profiling information for cqr after execution.
  */
-static inline void
+static void
 dasd_profile_end(struct dasd_device *device, struct dasd_ccw_req * cqr,
 		 struct request *req)
 {
@@ -1102,7 +1102,7 @@ __dasd_process_erp(struct dasd_device *device, struct dasd_ccw_req *cqr)
 /*
  * Process ccw request queue.
  */
-static inline void
+static void
 __dasd_process_ccw_queue(struct dasd_device * device,
 			 struct list_head *final_queue)
 {
@@ -1181,7 +1181,7 @@ dasd_end_request_cb(struct dasd_ccw_req * cqr, void *data)
 /*
  * Fetch requests from the block device queue.
  */
-static inline void
+static void
 __dasd_process_blk_queue(struct dasd_device * device)
 {
 	request_queue_t *queue;
@@ -1267,7 +1267,7 @@ __dasd_process_blk_queue(struct dasd_device * device)
  * Take a look at the first request on the ccw queue and check
  * if it reached its expire time. If so, terminate the IO.
  */
-static inline void
+static void
 __dasd_check_expire(struct dasd_device * device)
 {
 	struct dasd_ccw_req *cqr;
@@ -1298,7 +1298,7 @@ __dasd_check_expire(struct dasd_device * device)
  * Take a look at the first request on the ccw queue and check
  * if it needs to be started.
  */
-static inline void
+static void
 __dasd_start_head(struct dasd_device * device)
 {
 	struct dasd_ccw_req *cqr;

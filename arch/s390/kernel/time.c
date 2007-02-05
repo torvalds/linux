@@ -166,7 +166,7 @@ int sysctl_hz_timer = 1;
  * Stop the HZ tick on the current CPU.
  * Only cpu_idle may call this function.
  */
-static inline void stop_hz_timer(void)
+static void stop_hz_timer(void)
 {
 	unsigned long flags;
 	unsigned long seq, next;
@@ -210,7 +210,7 @@ static inline void stop_hz_timer(void)
  * Start the HZ tick on the current CPU.
  * Only cpu_idle may call this function.
  */
-static inline void start_hz_timer(void)
+static void start_hz_timer(void)
 {
 	BUG_ON(!in_interrupt());
 

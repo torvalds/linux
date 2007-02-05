@@ -245,7 +245,7 @@ cmm_set_timeout(long nr, long seconds)
 	cmm_set_timer();
 }
 
-static inline int
+static int
 cmm_skip_blanks(char *cp, char **endp)
 {
 	char *str;
