@@ -895,11 +895,11 @@ static int stsch_reset(struct subchannel_id schid, volatile struct schib *addr)
 	int rc;
 
 	pgm_check_occured = 0;
-	s390_reset_pgm_handler = cio_reset_pgm_check_handler;
+	s390_base_pgm_handler_fn = cio_reset_pgm_check_handler;
 	rc = stsch(schid, addr);
-	s390_reset_pgm_handler = NULL;
+	s390_base_pgm_handler_fn = NULL;
 
-	/* The program check handler could have changed pgm_check_occured */
+	/* The program check handler could have changed pgm_check_occured. */
 	barrier();
 
 	if (pgm_check_occured)
@@ -957,7 +957,7 @@ static void css_reset(void)
 	/* Reset subchannels. */
 	for_each_subchannel(__shutdown_subchannel_easy,  NULL);
 	/* Reset channel paths. */
-	s390_reset_mcck_handler = s390_reset_chpids_mcck_handler;
+	s390_base_mcck_handler_fn = s390_reset_chpids_mcck_handler;
 	/* Enable channel report machine checks. */
 	__ctl_set_bit(14, 28);
 	/* Temporarily reenable machine checks. */
@@ -982,7 +982,7 @@ static void css_reset(void)
 	local_mcck_disable();
 	/* Disable channel report machine checks. */
 	__ctl_clear_bit(14, 28);
-	s390_reset_mcck_handler = NULL;
+	s390_base_mcck_handler_fn = NULL;
 }
 
 static struct reset_call css_reset_call = {

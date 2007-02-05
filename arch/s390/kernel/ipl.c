@@ -20,14 +20,13 @@
 #include <asm/cio.h>
 #include <asm/ebcdic.h>
 #include <asm/reset.h>
+#include <asm/sclp.h>
 
 #define IPL_PARM_BLOCK_VERSION 0
-#define LOADPARM_LEN 8
 
-extern char s390_readinfo_sccb[];
-#define SCCB_VALID (*((__u16*)&s390_readinfo_sccb[6]) == 0x0010)
-#define SCCB_LOADPARM (&s390_readinfo_sccb[24])
-#define SCCB_FLAG (s390_readinfo_sccb[91])
+#define SCCB_VALID (s390_readinfo_sccb.header.response_code == 0x10)
+#define SCCB_LOADPARM (&s390_readinfo_sccb.loadparm)
+#define SCCB_FLAG (s390_readinfo_sccb.flags)
 
 enum ipl_type {
 	IPL_TYPE_NONE	 = 1,
@@ -1080,8 +1079,6 @@ static void do_reset_calls(void)
 		reset->fn();
 }
 
-extern void reset_mcck_handler(void);
-extern void reset_pgm_handler(void);
 extern __u32 dump_prefix_page;
 
 void s390_reset_system(void)
@@ -1105,12 +1102,12 @@ void s390_reset_system(void)
 	/* Set new machine check handler */
 	S390_lowcore.mcck_new_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
 	S390_lowcore.mcck_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) &reset_mcck_handler;
+		PSW_ADDR_AMODE | (unsigned long) s390_base_mcck_handler;
 
 	/* Set new program check handler */
 	S390_lowcore.program_new_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
 	S390_lowcore.program_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) &reset_pgm_handler;
+		PSW_ADDR_AMODE | (unsigned long) s390_base_pgm_handler;
 
 	do_reset_calls();
 }

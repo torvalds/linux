@@ -96,8 +96,8 @@ static int sclp_init_mask(int calculate);
 static int sclp_init(void);
 
 /* Perform service call. Return 0 on success, non-zero otherwise. */
-static int
-service_call(sclp_cmdw_t command, void *sccb)
+int
+sclp_service_call(sclp_cmdw_t command, void *sccb)
 {
 	int cc;
 
@@ -173,7 +173,7 @@ __sclp_start_request(struct sclp_req *req)
 	if (sclp_running_state != sclp_running_state_idle)
 		return 0;
 	del_timer(&sclp_request_timer);
-	rc = service_call(req->command, req->sccb);
+	rc = sclp_service_call(req->command, req->sccb);
 	req->start_count++;
 
 	if (rc == 0) {
@@ -325,7 +325,7 @@ __sclp_make_read_req(void)
 	sccb = (struct sccb_header *) sclp_read_sccb;
 	clear_page(sccb);
 	memset(&sclp_read_req, 0, sizeof(struct sclp_req));
-	sclp_read_req.command = SCLP_CMDW_READDATA;
+	sclp_read_req.command = SCLP_CMDW_READ_EVENT_DATA;
 	sclp_read_req.status = SCLP_REQ_QUEUED;
 	sclp_read_req.start_count = 0;
 	sclp_read_req.callback = sclp_read_cb;
@@ -628,7 +628,7 @@ __sclp_make_init_req(u32 receive_mask, u32 send_mask)
 	sccb = (struct init_sccb *) sclp_init_sccb;
 	clear_page(sccb);
 	memset(&sclp_init_req, 0, sizeof(struct sclp_req));
-	sclp_init_req.command = SCLP_CMDW_WRITEMASK;
+	sclp_init_req.command = SCLP_CMDW_WRITE_EVENT_MASK;
 	sclp_init_req.status = SCLP_REQ_FILLED;
 	sclp_init_req.start_count = 0;
 	sclp_init_req.callback = NULL;
@@ -831,7 +831,7 @@ sclp_check_interface(void)
 	for (retry = 0; retry <= SCLP_INIT_RETRY; retry++) {
 		__sclp_make_init_req(0, 0);
 		sccb = (struct init_sccb *) sclp_init_req.sccb;
-		rc = service_call(sclp_init_req.command, sccb);
+		rc = sclp_service_call(sclp_init_req.command, sccb);
 		if (rc == -EIO)
 			break;
 		sclp_init_req.status = SCLP_REQ_RUNNING;

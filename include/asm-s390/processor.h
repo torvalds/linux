@@ -331,6 +331,18 @@ static inline void disabled_wait(unsigned long code)
 }
 
 /*
+ * Basic Machine Check/Program Check Handler.
+ */
+
+extern void s390_base_mcck_handler(void);
+extern void s390_base_pgm_handler(void);
+extern void s390_base_ext_handler(void);
+
+extern void (*s390_base_mcck_handler_fn)(void);
+extern void (*s390_base_pgm_handler_fn)(void);
+extern void (*s390_base_ext_handler_fn)(void);
+
+/*
  * CPU idle notifier chain.
  */
 #define CPU_IDLE	0
