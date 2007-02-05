@@ -311,12 +311,21 @@ static inline void rt6_probe(struct rt6_info *rt)
 static int inline rt6_check_dev(struct rt6_info *rt, int oif)
 {
 	struct net_device *dev = rt->rt6i_dev;
-	if (!oif || dev->ifindex == oif)
+	int ret = 0;
+
+	if (!oif)
 		return 2;
-	if ((dev->flags & IFF_LOOPBACK) &&
-	    rt->rt6i_idev && rt->rt6i_idev->dev->ifindex == oif)
-		return 1;
-	return 0;
+	if (dev->flags & IFF_LOOPBACK) {
+		if (!WARN_ON(rt->rt6i_idev == NULL) &&
+		    rt->rt6i_idev->dev->ifindex == oif)
+			ret = 1;
+		else
+			return 0;
+	}
+	if (dev->ifindex == oif)
+		return 2;
+
+	return ret;
 }
 
 static int inline rt6_check_neigh(struct rt6_info *rt)
