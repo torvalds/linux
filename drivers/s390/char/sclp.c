@@ -433,7 +433,6 @@ sclp_sync_wait(void)
 		    get_clock() > timeout &&
 		    del_timer(&sclp_request_timer))
 			sclp_request_timer.function(sclp_request_timer.data);
-		barrier();
 		cpu_relax();
 	}
 	local_irq_disable();

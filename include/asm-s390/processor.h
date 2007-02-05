@@ -201,9 +201,8 @@ unsigned long get_wchan(struct task_struct *p);
 static inline void cpu_relax(void)
 {
 	if (MACHINE_HAS_DIAG44)
-		asm volatile("diag 0,0,68" : : : "memory");
-	else
-		barrier();
+		asm volatile("diag 0,0,68");
+	barrier();
 }
 
 /*
