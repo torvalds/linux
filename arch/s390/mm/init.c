@@ -26,7 +26,6 @@
 #include <linux/pfn.h>
 #include <linux/poison.h>
 #include <linux/initrd.h>
-
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -96,8 +95,8 @@ static void __init setup_ro_region(void)
 	pte_t new_pte;
 	unsigned long address, end;
 
-	address = ((unsigned long)&__start_rodata) & PAGE_MASK;
-	end = PFN_ALIGN((unsigned long)&__end_rodata);
+	address = ((unsigned long)&_stext) & PAGE_MASK;
+	end = PFN_ALIGN((unsigned long)&_eshared);
 
 	for (; address < end; address += PAGE_SIZE) {
 		pgd = pgd_offset_k(address);
@@ -173,8 +172,8 @@ void __init mem_init(void)
                 datasize >>10,
                 initsize >> 10);
 	printk("Write protected kernel read-only data: %#lx - %#lx\n",
-	       (unsigned long)&__start_rodata,
-	       PFN_ALIGN((unsigned long)&__end_rodata) - 1);
+	       (unsigned long)&_stext,
+	       PFN_ALIGN((unsigned long)&_eshared) - 1);
 }
 
 void free_initmem(void)

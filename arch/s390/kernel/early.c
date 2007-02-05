@@ -27,7 +27,6 @@
 #define DEFSYS_CMD_SIZE		96
 #define SAVESYS_CMD_SIZE	32
 
-extern int _eshared;
 char kernel_nss_name[NSS_NAME_SIZE + 1];
 
 #ifdef CONFIG_SHARED_KERNEL

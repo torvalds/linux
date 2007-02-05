@@ -155,15 +155,34 @@ void __kprobes get_instruction_type(struct arch_specific_insn *ainsn)
 static int __kprobes swap_instruction(void *aref)
 {
 	struct ins_replace_args *args = aref;
+	u32 *addr;
+	u32 instr;
 	int err = -EFAULT;
 
+	/*
+	 * Text segment is read-only, hence we use stura to bypass dynamic
+	 * address translation to exchange the instruction. Since stura
+	 * always operates on four bytes, but we only want to exchange two
+	 * bytes do some calculations to get things right. In addition we
+	 * shall not cross any page boundaries (vmalloc area!) when writing
+	 * the new instruction.
+	 */
+	addr = (u32 *)ALIGN((unsigned long)args->ptr, 4);
+	if ((unsigned long)args->ptr & 2)
+		instr = ((*addr) & 0xffff0000) | args->new;
+	else
+		instr = ((*addr) & 0x0000ffff) | args->new << 16;
+
 	asm volatile(
-		"0: mvc  0(2,%2),0(%3)\n"
-		"1: la   %0,0\n"
+		"	lra	%1,0(%1)\n"
+		"0:	stura	%2,%1\n"
+		"1:	la	%0,0\n"
 		"2:\n"
 		EX_TABLE(0b,2b)
-		: "+d" (err), "=m" (*args->ptr)
-		: "a" (args->ptr), "a" (&args->new), "m" (args->new));
+		: "+d" (err)
+		: "a" (addr), "d" (instr)
+		: "memory", "cc");
+
 	return err;
 }
 
