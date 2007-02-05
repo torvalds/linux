@@ -204,37 +204,39 @@ recs_per_track(struct dasd_eckd_characteristics * rdc,
 	return 0;
 }
 
-static inline void
+static inline int
 check_XRC (struct ccw1         *de_ccw,
            struct DE_eckd_data *data,
            struct dasd_device  *device)
 {
         struct dasd_eckd_private *private;
+	int rc;
 
         private = (struct dasd_eckd_private *) device->private;
+	if (!private->rdc_data.facilities.XRC_supported)
+		return 0;
 
         /* switch on System Time Stamp - needed for XRC Support */
-        if (private->rdc_data.facilities.XRC_supported) {
+	data->ga_extended |= 0x08; /* switch on 'Time Stamp Valid'   */
+	data->ga_extended |= 0x02; /* switch on 'Extended Parameter' */
 
-                data->ga_extended |= 0x08; /* switch on 'Time Stamp Valid'   */
-                data->ga_extended |= 0x02; /* switch on 'Extended Parameter' */
+	rc = get_sync_clock(&data->ep_sys_time);
+	/* Ignore return code if sync clock is switched off. */
+	if (rc == -ENOSYS || rc == -EACCES)
+		rc = 0;
 
-                data->ep_sys_time = get_clock ();
+	de_ccw->count = sizeof (struct DE_eckd_data);
+	de_ccw->flags |= CCW_FLAG_SLI;
+	return rc;
+}
 
-                de_ccw->count = sizeof (struct DE_eckd_data);
-		de_ccw->flags |= CCW_FLAG_SLI;
-        }
-
-        return;
-
-} /* end check_XRC */
-
-static inline void
+static inline int
 define_extent(struct ccw1 * ccw, struct DE_eckd_data * data, int trk,
 	      int totrk, int cmd, struct dasd_device * device)
 {
 	struct dasd_eckd_private *private;
 	struct ch_t geo, beg, end;
+	int rc = 0;
 
 	private = (struct dasd_eckd_private *) device->private;
 
@@ -263,12 +265,12 @@ define_extent(struct ccw1 * ccw, struct DE_eckd_data * data, int trk,
 	case DASD_ECKD_CCW_WRITE_KD_MT:
 		data->mask.perm = 0x02;
 		data->attributes.operation = private->attrib.operation;
-                check_XRC (ccw, data, device);
+		rc = check_XRC (ccw, data, device);
 		break;
 	case DASD_ECKD_CCW_WRITE_CKD:
 	case DASD_ECKD_CCW_WRITE_CKD_MT:
 		data->attributes.operation = DASD_BYPASS_CACHE;
-                check_XRC (ccw, data, device);
+		rc = check_XRC (ccw, data, device);
 		break;
 	case DASD_ECKD_CCW_ERASE:
 	case DASD_ECKD_CCW_WRITE_HOME_ADDRESS:
@@ -276,7 +278,7 @@ define_extent(struct ccw1 * ccw, struct DE_eckd_data * data, int trk,
 		data->mask.perm = 0x3;
 		data->mask.auth = 0x1;
 		data->attributes.operation = DASD_BYPASS_CACHE;
-                check_XRC (ccw, data, device);
+		rc = check_XRC (ccw, data, device);
 		break;
 	default:
 		DEV_MESSAGE(KERN_ERR, device, "unknown opcode 0x%x", cmd);
@@ -312,6 +314,7 @@ define_extent(struct ccw1 * ccw, struct DE_eckd_data * data, int trk,
 	data->beg_ext.head = beg.head;
 	data->end_ext.cyl = end.cyl;
 	data->end_ext.head = end.head;
+	return rc;
 }
 
 static inline void
@@ -1200,7 +1203,12 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 		return cqr;
 	ccw = cqr->cpaddr;
 	/* First ccw is define extent. */
-	define_extent(ccw++, cqr->data, first_trk, last_trk, cmd, device);
+	if (define_extent(ccw++, cqr->data, first_trk,
+			  last_trk, cmd, device) == -EAGAIN) {
+		/* Clock not in sync and XRC is enabled. Try again later. */
+		dasd_sfree_request(cqr, device);
+		return ERR_PTR(-EAGAIN);
+	}
 	/* Build locate_record+read/write/ccws. */
 	idaws = (unsigned long *) (cqr->data + sizeof(struct DE_eckd_data));
 	LO_data = (struct LO_eckd_data *) (idaws + cidaw);

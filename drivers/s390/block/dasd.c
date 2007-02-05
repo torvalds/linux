@@ -1232,6 +1232,19 @@ __dasd_process_blk_queue(struct dasd_device * device)
 		if (IS_ERR(cqr)) {
 			if (PTR_ERR(cqr) == -ENOMEM)
 				break;	/* terminate request queue loop */
+			if (PTR_ERR(cqr) == -EAGAIN) {
+				/*
+				 * The current request cannot be build right
+				 * now, we have to try later. If this request
+				 * is the head-of-queue we stop the device
+				 * for 1/2 second.
+				 */
+				if (!list_empty(&device->ccw_queue))
+					break;
+				device->stopped |= DASD_STOPPED_PENDING;
+				dasd_set_timer(device, HZ/2);
+				break;
+			}
 			DBF_DEV_EVENT(DBF_ERR, device,
 				      "CCW creation failed (rc=%ld) "
 				      "on request %p",
