@@ -609,3 +609,6 @@ config NEEDS_SYSCALL_FOR_CMPXCHG
 	  Forget about fast user space cmpxchg support.
 	  It is just not possible.
 
+config OUTER_CACHE
+	bool
+	default n
