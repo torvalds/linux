@@ -50,6 +50,7 @@ struct cpuinfo_S390
         unsigned long pgtable_cache_sz;
 };
 
+extern void s390_adjust_jiffies(void);
 extern void print_cpu_info(struct cpuinfo_S390 *);
 
 /* Lazy FPU handling on uni-processor */

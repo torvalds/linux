@@ -52,12 +52,12 @@
 })
 
 #define udiv_qrnnd(q, r, n1, n0, d)			\
-  do { unsigned long __r;				\
+  do { unsigned int __r;				\
     (q) = __udiv_qrnnd (&__r, (n1), (n0), (d));		\
     (r) = __r;						\
   } while (0)
-extern unsigned long __udiv_qrnnd (unsigned long *, unsigned long,
-				   unsigned long , unsigned long);
+extern unsigned long __udiv_qrnnd (unsigned int *, unsigned int,
+				   unsigned int , unsigned int);
 
 #define UDIV_NEEDS_NORMALIZATION 0
 

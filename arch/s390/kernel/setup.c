@@ -938,6 +938,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
         struct cpuinfo_S390 *cpuinfo;
 	unsigned long n = (unsigned long) v - 1;
 
+	s390_adjust_jiffies();
 	preempt_disable();
 	if (!n) {
 		seq_printf(m, "vendor_id       : IBM/S390\n"
