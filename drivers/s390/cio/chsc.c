@@ -608,7 +608,7 @@ __chp_add_new_sch(struct subchannel_id schid)
 	struct schib schib;
 	int ret;
 
-	if (stsch(schid, &schib))
+	if (stsch_err(schid, &schib))
 		/* We're through */
 		return need_rescan ? -EAGAIN : -ENXIO;
 

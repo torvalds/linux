@@ -296,7 +296,7 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 		/* Will be done on the slow path. */
 		return -EAGAIN;
 	}
-	if (stsch(schid, &schib) || !schib.pmcw.dnv) {
+	if (stsch_err(schid, &schib) || !schib.pmcw.dnv) {
 		/* Unusable - ignore. */
 		return 0;
 	}
