@@ -35,7 +35,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_mpiix"
-#define DRV_VERSION "0.7.4"
+#define DRV_VERSION "0.7.5"
 
 enum {
 	IDETIM = 0x6C,		/* IDE control register */
@@ -49,12 +49,9 @@ enum {
 static int mpiix_pre_reset(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	static const struct pci_bits mpiix_enable_bits[] = {
-		{ 0x6D, 1, 0x80, 0x80 },
-		{ 0x6F, 1, 0x80, 0x80 }
-	};
+	static const struct pci_bits mpiix_enable_bits = { 0x6D, 1, 0x80, 0x80 };
 
-	if (!pci_test_config_bits(pdev, &mpiix_enable_bits[ap->port_no]))
+	if (!pci_test_config_bits(pdev, &mpiix_enable_bits))
 		return -ENOENT;
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
@@ -219,6 +216,7 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!(idetim & ENABLED))
 		return -ENODEV;
 
+	/* See if it's primary or secondary channel... */
 	if (!(idetim & SECONDARY)) {
 		irq = 14;
 		cmd_addr = devm_ioport_map(&dev->dev, 0x1F0, 8);
@@ -243,10 +241,11 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	probe.port_ops = &mpiix_port_ops;
 	probe.sht = &mpiix_sht;
 	probe.pio_mask = 0x1F;
-	probe.irq = irq;
 	probe.irq_flags = SA_SHIRQ;
 	probe.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
 	probe.n_ports = 1;
+
+	probe.irq = irq;
 	probe.port[0].cmd_addr = cmd_addr;
 	probe.port[0].ctl_addr = ctl_addr;
 	probe.port[0].altstatus_addr = ctl_addr;
