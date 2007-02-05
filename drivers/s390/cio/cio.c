@@ -585,7 +585,7 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 		 * This device must not be known to Linux. So we simply
 		 * say that there is no device and return ENODEV.
 		 */
-		CIO_MSG_EVENT(0, "Blacklisted device detected "
+		CIO_MSG_EVENT(4, "Blacklisted device detected "
 			      "at devno %04X, subchannel set %x\n",
 			      sch->schib.pmcw.dev, sch->schid.ssid);
 		err = -ENODEV;
