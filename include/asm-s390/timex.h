@@ -62,6 +62,18 @@ static inline unsigned long long get_clock (void)
 	return clk;
 }
 
+static inline void get_clock_extended(void *dest)
+{
+	typedef struct { unsigned long long clk[2]; } __clock_t;
+
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
+	asm volatile("stcke %0" : "=Q" (*((__clock_t *)dest)) : : "cc");
+#else /* __GNUC__ */
+	asm volatile("stcke 0(%1)" : "=m" (*((__clock_t *)dest))
+				   : "a" ((__clock_t *)dest) : "cc");
+#endif /* __GNUC__ */
+}
+
 static inline cycles_t get_cycles(void)
 {
 	return (cycles_t) get_clock() >> 2;

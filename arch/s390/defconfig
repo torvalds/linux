@@ -757,6 +757,7 @@ CONFIG_CRYPTO_CBC=y
 # CONFIG_CRYPTO_SHA256_S390 is not set
 # CONFIG_CRYPTO_DES_S390 is not set
 # CONFIG_CRYPTO_AES_S390 is not set
+CONFIG_S390_PRNG=m
 
 #
 # Library routines
