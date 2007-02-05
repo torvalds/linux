@@ -998,6 +998,11 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		tp->recv_sack_cache[i].start_seq = start_seq;
 		tp->recv_sack_cache[i].end_seq = end_seq;
 	}
+	/* Clear the rest of the cache sack blocks so they won't match mistakenly. */
+	for (; i < ARRAY_SIZE(tp->recv_sack_cache); i++) {
+		tp->recv_sack_cache[i].start_seq = 0;
+		tp->recv_sack_cache[i].end_seq = 0;
+	}
 
 	first_sack_index = 0;
 	if (flag)
