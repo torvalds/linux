@@ -936,13 +936,16 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned char *ptr = ack_skb->h.raw + TCP_SKB_CB(ack_skb)->sacked;
 	struct tcp_sack_block_wire *sp = (struct tcp_sack_block_wire *)(ptr+2);
+	struct sk_buff *cached_skb;
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
 	int reord = tp->packets_out;
 	int prior_fackets;
 	u32 lost_retrans = 0;
 	int flag = 0;
 	int dup_sack = 0;
+	int cached_fack_count;
 	int i;
+	int first_sack_index;
 
 	if (!tp->sacked_out)
 		tp->fackets_out = 0;
@@ -1000,6 +1003,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		}
 	}
 
+	first_sack_index = 0;
 	if (flag)
 		num_sacks = 1;
 	else {
@@ -1016,6 +1020,10 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 					tmp = sp[j];
 					sp[j] = sp[j+1];
 					sp[j+1] = tmp;
+
+					/* Track where the first SACK block goes to */
+					if (j == first_sack_index)
+						first_sack_index = j+1;
 				}
 
 			}
@@ -1025,20 +1033,22 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	/* clear flag as used for different purpose in following code */
 	flag = 0;
 
+	/* Use SACK fastpath hint if valid */
+	cached_skb = tp->fastpath_skb_hint;
+	cached_fack_count = tp->fastpath_cnt_hint;
+	if (!cached_skb) {
+		cached_skb = sk->sk_write_queue.next;
+		cached_fack_count = 0;
+	}
+
 	for (i=0; i<num_sacks; i++, sp++) {
 		struct sk_buff *skb;
 		__u32 start_seq = ntohl(sp->start_seq);
 		__u32 end_seq = ntohl(sp->end_seq);
 		int fack_count;
 
-		/* Use SACK fastpath hint if valid */
-		if (tp->fastpath_skb_hint) {
-			skb = tp->fastpath_skb_hint;
-			fack_count = tp->fastpath_cnt_hint;
-		} else {
-			skb = sk->sk_write_queue.next;
-			fack_count = 0;
-		}
+		skb = cached_skb;
+		fack_count = cached_fack_count;
 
 		/* Event "B" in the comment above. */
 		if (after(end_seq, tp->high_seq))
@@ -1048,8 +1058,12 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			int in_sack, pcount;
 			u8 sacked;
 
-			tp->fastpath_skb_hint = skb;
-			tp->fastpath_cnt_hint = fack_count;
+			cached_skb = skb;
+			cached_fack_count = fack_count;
+			if (i == first_sack_index) {
+				tp->fastpath_skb_hint = skb;
+				tp->fastpath_cnt_hint = fack_count;
+			}
 
 			/* The retransmission queue is always in order, so
 			 * we can short-circuit the walk early.
