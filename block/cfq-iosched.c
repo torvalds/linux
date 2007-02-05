@@ -146,9 +146,9 @@ struct cfq_queue {
 	/* fifo list of requests in sort_list */
 	struct list_head fifo;
 
-	unsigned long slice_start;
 	unsigned long slice_end;
 	unsigned long slice_left;
+	unsigned long service_last;
 
 	/* number of requests that are on the dispatch list */
 	int on_dispatch[2];
@@ -355,7 +355,8 @@ cfq_find_next_rq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 static void cfq_resort_rr_list(struct cfq_queue *cfqq, int preempted)
 {
 	struct cfq_data *cfqd = cfqq->cfqd;
-	struct list_head *list;
+	struct list_head *list, *n;
+	struct cfq_queue *__cfqq;
 
 	/*
 	 * Resorting requires the cfqq to be on the RR list already.
@@ -383,15 +384,13 @@ static void cfq_resort_rr_list(struct cfq_queue *cfqq, int preempted)
 			list = &cfqd->rr_list[cfqq->ioprio];
 	}
 
-	/*
-	 * If this queue was preempted or is new (never been serviced), let
-	 * it be added first for fairness but beind other new queues.
-	 * Otherwise, just add to the back  of the list.
-	 */
 	if (preempted || cfq_cfqq_queue_new(cfqq)) {
-		struct list_head *n = list;
-		struct cfq_queue *__cfqq;
-
+		/*
+		 * If this queue was preempted or is new (never been serviced),
+		 * let it be added first for fairness but beind other new
+		 * queues.
+		 */
+		n = list;
 		while (n->next != list) {
 			__cfqq = list_entry_cfqq(n->next);
 			if (!cfq_cfqq_queue_new(__cfqq))
@@ -399,11 +398,32 @@ static void cfq_resort_rr_list(struct cfq_queue *cfqq, int preempted)
 
 			n = n->next;
 		}
+		list_add_tail(&cfqq->cfq_list, n);
+	} else if (!cfq_cfqq_class_sync(cfqq)) {
+		/*
+		 * async queue always goes to the end. this wont be overly
+		 * unfair to writes, as the sort of the sync queue wont be
+		 * allowed to pass the async queue again.
+		 */
+		list_add_tail(&cfqq->cfq_list, list);
+	} else {
+		/*
+		 * sort by last service, but don't cross a new or async
+		 * queue. we don't cross a new queue because it hasn't been
+		 * service before, and we don't cross an async queue because
+		 * it gets added to the end on expire.
+		 */
+		n = list;
+		while ((n = n->prev) != list) {
+			struct cfq_queue *__cfqq = list_entry_cfqq(n);
 
-		list = n;
+			if (!cfq_cfqq_class_sync(cfqq) || !__cfqq->service_last)
+				break;
+			if (time_before(__cfqq->service_last, cfqq->service_last))
+				break;
+		}
+		list_add(&cfqq->cfq_list, n);
 	}
-
-	list_add_tail(&cfqq->cfq_list, list);
 }
 
 /*
@@ -608,7 +628,6 @@ __cfq_set_active_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 		 */
 		del_timer(&cfqd->idle_class_timer);
 
-		cfqq->slice_start = jiffies;
 		cfqq->slice_end = 0;
 		cfqq->slice_left = 0;
 		cfq_clear_cfqq_must_alloc_slice(cfqq);
@@ -1688,6 +1707,7 @@ static void cfq_completed_request(request_queue_t *q, struct request *rq)
 	WARN_ON(!cfqq->on_dispatch[sync]);
 	cfqd->rq_in_driver--;
 	cfqq->on_dispatch[sync]--;
+	cfqq->service_last = now;
 
 	if (!cfq_class_idle(cfqq))
 		cfqd->last_end_request = now;
