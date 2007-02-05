@@ -377,7 +377,7 @@ source "arch/arm/mach-aaec2000/Kconfig"
 
 source "arch/arm/mach-realview/Kconfig"
 
-source "arch/arm/mach-at91rm9200/Kconfig"
+source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-netx/Kconfig"
 
