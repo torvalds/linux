@@ -722,8 +722,13 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 			spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
 			dprintk("CPU already managed, adding link\n");
-			sysfs_create_link(&sys_dev->kobj,
-					  &managed_policy->kobj, "cpufreq");
+			ret = sysfs_create_link(&sys_dev->kobj,
+						&managed_policy->kobj,
+						"cpufreq");
+			if (ret) {
+				mutex_unlock(&policy->lock);
+				goto err_out_driver_exit;
+			}
 
 			cpufreq_debug_enable_ratelimit();
 			mutex_unlock(&policy->lock);
@@ -770,8 +775,12 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 		dprintk("CPU %u already managed, adding link\n", j);
 		cpufreq_cpu_get(cpu);
 		cpu_sys_dev = get_cpu_sysdev(j);
-		sysfs_create_link(&cpu_sys_dev->kobj, &policy->kobj,
-				  "cpufreq");
+		ret = sysfs_create_link(&cpu_sys_dev->kobj, &policy->kobj,
+					"cpufreq");
+		if (ret) {
+			mutex_unlock(&policy->lock);
+			goto err_out_unregister;
+		}
 	}
 
 	policy->governor = NULL; /* to assure that the starting sequence is

@@ -132,8 +132,10 @@ int v9fs_mux_global_init(void)
 		v9fs_mux_poll_tasks[i].task = NULL;
 
 	v9fs_mux_wq = create_workqueue("v9fs");
-	if (!v9fs_mux_wq)
+	if (!v9fs_mux_wq) {
+		printk(KERN_WARNING "v9fs: mux: creating workqueue failed\n");
 		return -ENOMEM;
+	}
 
 	return 0;
 }

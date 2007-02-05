@@ -56,11 +56,6 @@ static unsigned int hid_mousepoll_interval;
 module_param_named(mousepoll, hid_mousepoll_interval, uint, 0644);
 MODULE_PARM_DESC(mousepoll, "Polling interval of mice");
 
-static int usbhid_pb_fnmode = 1;
-module_param_named(pb_fnmode, usbhid_pb_fnmode, int, 0644);
-MODULE_PARM_DESC(pb_fnmode,
-		"Mode of fn key on PowerBooks (0 = disabled, 1 = fkeyslast, 2 = fkeysfirst)");
-
 /*
  * Input submission and I/O error handler.
  */
@@ -582,7 +577,6 @@ void usbhid_init_reports(struct hid_device *hid)
 }
 
 #define USB_VENDOR_ID_GTCO		0x078c
-#define USB_VENDOR_ID_GTCO_IPANEL_1	0x08ca
 #define USB_VENDOR_ID_GTCO_IPANEL_2     0x5543
 #define USB_DEVICE_ID_GTCO_90		0x0090
 #define USB_DEVICE_ID_GTCO_100		0x0100
@@ -629,7 +623,6 @@ void usbhid_init_reports(struct hid_device *hid)
 #define USB_DEVICE_ID_GTCO_1004		0x1004
 #define USB_DEVICE_ID_GTCO_1005		0x1005
 #define USB_DEVICE_ID_GTCO_1006		0x1006
-#define USB_DEVICE_ID_GTCO_10		0x0010
 #define USB_DEVICE_ID_GTCO_8		0x0008
 #define USB_DEVICE_ID_GTCO_d            0x000d
 
@@ -883,7 +876,6 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1004, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1005, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1006, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_GTCO_IPANEL_1, USB_DEVICE_ID_GTCO_10, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_GTCO_IPANEL_2, USB_DEVICE_ID_GTCO_8, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_GTCO_IPANEL_2, USB_DEVICE_ID_GTCO_d, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_IMATION, USB_DEVICE_ID_DISC_STAKKA, HID_QUIRK_IGNORE },
@@ -1249,10 +1241,6 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->hiddev_hid_event = hiddev_hid_event;
 	hid->hiddev_report_event = hiddev_report_event;
 #endif
-#ifdef CONFIG_USB_HIDINPUT_POWERBOOK
-	hid->pb_fnmode = usbhid_pb_fnmode;
-#endif
-
 	return hid;
 
 fail:

@@ -71,7 +71,7 @@ int ps3_free_io_irq(unsigned int virq)
 
 	result = lv1_destruct_io_irq_outlet(virq_to_hw(virq));
 
-	if (!result)
+	if (result)
 		pr_debug("%s:%d: lv1_destruct_io_irq_outlet failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 

@@ -61,7 +61,7 @@
 #define			AT91_PMC_CSS_PLLA		(2 << 0)
 #define			AT91_PMC_CSS_PLLB		(3 << 0)
 #define		AT91_PMC_PRES		(7 <<  2)		/* Master Clock Prescaler */
-#define 		AT91_PMC_PRES_1			(0 << 2)
+#define			AT91_PMC_PRES_1			(0 << 2)
 #define			AT91_PMC_PRES_2			(1 << 2)
 #define			AT91_PMC_PRES_4			(2 << 2)
 #define			AT91_PMC_PRES_8			(3 << 2)

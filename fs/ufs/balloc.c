@@ -227,24 +227,27 @@ failed:
  * We can come here from ufs_writepage or ufs_prepare_write,
  * locked_page is argument of these functions, so we already lock it.
  */
-static void ufs_change_blocknr(struct inode *inode, unsigned int baseblk,
+static void ufs_change_blocknr(struct inode *inode, unsigned int beg,
 			       unsigned int count, unsigned int oldb,
 			       unsigned int newb, struct page *locked_page)
 {
-	unsigned int blk_per_page = 1 << (PAGE_CACHE_SHIFT - inode->i_blkbits);
-	struct address_space *mapping = inode->i_mapping;
-	pgoff_t index, cur_index = locked_page->index;
-	unsigned int i, j;
+	const unsigned mask = (1 << (PAGE_CACHE_SHIFT - inode->i_blkbits)) - 1;
+	struct address_space * const mapping = inode->i_mapping;
+	pgoff_t index, cur_index;
+	unsigned end, pos, j;
 	struct page *page;
 	struct buffer_head *head, *bh;
 
 	UFSD("ENTER, ino %lu, count %u, oldb %u, newb %u\n",
 	      inode->i_ino, count, oldb, newb);
 
+	BUG_ON(!locked_page);
 	BUG_ON(!PageLocked(locked_page));
 
-	for (i = 0; i < count; i += blk_per_page) {
-		index = (baseblk+i) >> (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	cur_index = locked_page->index;
+
+	for (end = count + beg; beg < end; beg = (beg | mask) + 1) {
+		index = beg >> (PAGE_CACHE_SHIFT - inode->i_blkbits);
 
 		if (likely(cur_index != index)) {
 			page = ufs_get_locked_page(mapping, index);
@@ -253,21 +256,32 @@ static void ufs_change_blocknr(struct inode *inode, unsigned int baseblk,
 		} else
 			page = locked_page;
 
-		j = i;
 		head = page_buffers(page);
 		bh = head;
+		pos = beg & mask;
+		for (j = 0; j < pos; ++j)
+			bh = bh->b_this_page;
+		j = 0;
 		do {
-			if (likely(bh->b_blocknr == j + oldb && j < count)) {
-				unmap_underlying_metadata(bh->b_bdev,
-							  bh->b_blocknr);
-				bh->b_blocknr = newb + j++;
-				mark_buffer_dirty(bh);
+			if (buffer_mapped(bh)) {
+				pos = bh->b_blocknr - oldb;
+				if (pos < count) {
+					UFSD(" change from %llu to %llu\n",
+					     (unsigned long long)pos + oldb,
+					     (unsigned long long)pos + newb);
+					bh->b_blocknr = newb + pos;
+					unmap_underlying_metadata(bh->b_bdev,
+								  bh->b_blocknr);
+					mark_buffer_dirty(bh);
+					++j;
+				}
 			}
 
 			bh = bh->b_this_page;
 		} while (bh != head);
 
-		set_page_dirty(page);
+		if (j)
+			set_page_dirty(page);
 
 		if (likely(cur_index != index))
 			ufs_put_locked_page(page);
@@ -415,14 +429,14 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 	}
 	result = ufs_alloc_fragments (inode, cgno, goal, request, err);
 	if (result) {
+		ufs_clear_frags(inode, result + oldcount, newcount - oldcount,
+				locked_page != NULL);
 		ufs_change_blocknr(inode, fragment - oldcount, oldcount, tmp,
 				   result, locked_page);
 
 		*p = cpu_to_fs32(sb, result);
 		*err = 0;
 		UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
-		ufs_clear_frags(inode, result + oldcount, newcount - oldcount,
-				locked_page != NULL);
 		unlock_super(sb);
 		if (newcount < request)
 			ufs_free_fragments (inode, result + newcount, request - newcount);

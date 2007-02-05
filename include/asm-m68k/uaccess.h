@@ -7,6 +7,7 @@
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/types.h>
+#include <linux/sched.h>
 #include <asm/segment.h>
 
 #define VERIFY_READ	0

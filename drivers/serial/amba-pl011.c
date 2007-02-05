@@ -661,6 +661,8 @@ static int __init pl011_console_setup(struct console *co, char *options)
 	if (co->index >= UART_NR)
 		co->index = 0;
 	uap = amba_ports[co->index];
+	if (!uap)
+		return -ENODEV;
 
 	uap->port.uartclk = clk_get_rate(uap->clk);
 

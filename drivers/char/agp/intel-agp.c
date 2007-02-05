@@ -1955,6 +1955,15 @@ static int agp_intel_resume(struct pci_dev *pdev)
 
 	pci_restore_state(pdev);
 
+	/* We should restore our graphics device's config space,
+	 * as host bridge (00:00) resumes before graphics device (02:00),
+	 * then our access to its pci space can work right.
+	 */
+	if (intel_i810_private.i810_dev)
+		pci_restore_state(intel_i810_private.i810_dev);
+	if (intel_i830_private.i830_dev)
+		pci_restore_state(intel_i830_private.i830_dev);
+
 	if (bridge->driver == &intel_generic_driver)
 		intel_configure();
 	else if (bridge->driver == &intel_850_driver)

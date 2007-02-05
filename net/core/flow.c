@@ -231,22 +231,16 @@ nocache:
 
 		err = resolver(key, family, dir, &obj, &obj_ref);
 
-		if (fle) {
-			if (err) {
-				/* Force security policy check on next lookup */
-				*head = fle->next;
-				flow_entry_kill(cpu, fle);
-			} else {
-				fle->genid = atomic_read(&flow_cache_genid);
+		if (fle && !err) {
+			fle->genid = atomic_read(&flow_cache_genid);
 
-				if (fle->object)
-					atomic_dec(fle->object_ref);
+			if (fle->object)
+				atomic_dec(fle->object_ref);
 
-				fle->object = obj;
-				fle->object_ref = obj_ref;
-				if (obj)
-					atomic_inc(fle->object_ref);
-			}
+			fle->object = obj;
+			fle->object_ref = obj_ref;
+			if (obj)
+				atomic_inc(fle->object_ref);
 		}
 		local_bh_enable();
 

@@ -139,13 +139,16 @@ struct tc {
 	struct list_head list;
 };
 
-struct vpecontrol_ {
+struct {
 	/* Virtual processing elements */
 	struct list_head vpe_list;
 
 	/* Thread contexts */
 	struct list_head tc_list;
-} vpecontrol;
+} vpecontrol = {
+	.vpe_list = LIST_HEAD_INIT(vpecontrol.vpe_list),
+	.tc_list = LIST_HEAD_INIT(vpecontrol.tc_list)
+};
 
 static void release_progmem(void *ptr);
 /* static __attribute_used__ void dump_vpe(struct vpe * v); */
@@ -1388,8 +1391,6 @@ static int __init vpe_module_init(void)
 
 	/* dump_mtregs(); */
 
-	INIT_LIST_HEAD(&vpecontrol.vpe_list);
-	INIT_LIST_HEAD(&vpecontrol.tc_list);
 
 	val = read_c0_mvpconf0();
 	for (i = 0; i < ((val & MVPCONF0_PTC) + 1); i++) {

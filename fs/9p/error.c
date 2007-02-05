@@ -83,6 +83,7 @@ int v9fs_errstr2errno(char *errstr, int len)
 
 	if (errno == 0) {
 		/* TODO: if error isn't found, add it dynamically */
+		errstr[len] = 0;
 		printk(KERN_ERR "%s: errstr :%s: not found\n", __FUNCTION__,
 		       errstr);
 		errno = 1;

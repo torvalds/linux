@@ -6,6 +6,7 @@
 #if defined(CONFIG_IP_NF_CONNTRACK) || defined(CONFIG_IP_NF_CONNTRACK_MODULE)
 
 #include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <linux/socket.h>
 
 #ifdef CONFIG_IP_NF_CONNTRACK_MARK
 static inline u_int32_t *nf_ct_get_mark(const struct sk_buff *skb,

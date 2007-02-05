@@ -1796,7 +1796,7 @@ static int ata_eh_suspend(struct ata_port *ap, struct ata_device **r_failed_dev)
 		*r_failed_dev = dev;
 
 	DPRINTK("EXIT\n");
-	return 0;
+	return rc;
 }
 
 /**

@@ -57,6 +57,7 @@ void s3c2410_gpio_cfgpin(unsigned int pin, unsigned int function)
 	case S3C2410_GPIO_SFN2:
 	case S3C2410_GPIO_SFN3:
 		if (pin < S3C2410_GPIO_BANKB) {
+			function -= 1;
 			function &= 1;
 			function <<= S3C2410_GPIO_OFFSET(pin);
 		} else {
@@ -83,15 +84,18 @@ EXPORT_SYMBOL(s3c2410_gpio_cfgpin);
 unsigned int s3c2410_gpio_getcfg(unsigned int pin)
 {
 	void __iomem *base = S3C24XX_GPIO_BASE(pin);
-	unsigned long mask;
+	unsigned long val = __raw_readl(base);
 
 	if (pin < S3C2410_GPIO_BANKB) {
-		mask = 1 << S3C2410_GPIO_OFFSET(pin);
+		val >>= S3C2410_GPIO_OFFSET(pin);
+		val &= 1;
+		val += 1;
 	} else {
-		mask = 3 << S3C2410_GPIO_OFFSET(pin)*2;
+		val >>= S3C2410_GPIO_OFFSET(pin)*2;
+		val &= 3;
 	}
 
-	return __raw_readl(base) & mask;
+	return val | S3C2410_GPIO_INPUT;
 }
 
 EXPORT_SYMBOL(s3c2410_gpio_getcfg);

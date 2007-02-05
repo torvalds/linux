@@ -25,6 +25,7 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/idr.h>
+#include <asm/semaphore.h>
 
 #include "debug.h"
 #include "v9fs.h"
@@ -84,6 +85,7 @@ struct v9fs_fid *v9fs_fid_create(struct v9fs_session_info *v9ses, int fid)
 	new->iounit = 0;
 	new->rdir_pos = 0;
 	new->rdir_fcall = NULL;
+	init_MUTEX(&new->lock);
 	INIT_LIST_HEAD(&new->list);
 
 	return new;
@@ -102,11 +104,11 @@ void v9fs_fid_destroy(struct v9fs_fid *fid)
 }
 
 /**
- * v9fs_fid_lookup - retrieve the right fid from a  particular dentry
+ * v9fs_fid_lookup - return a locked fid from a dentry
  * @dentry: dentry to look for fid in
- * @type: intent of lookup (operation or traversal)
  *
- * find a fid in the dentry
+ * find a fid in the dentry, obtain its semaphore and return a reference to it.
+ * code calling lookup is responsible for releasing lock
  *
  * TODO: only match fids that have the same uid as current user
  *
@@ -124,7 +126,68 @@ struct v9fs_fid *v9fs_fid_lookup(struct dentry *dentry)
 
 	if (!return_fid) {
 		dprintk(DEBUG_ERROR, "Couldn't find a fid in dentry\n");
+		return_fid = ERR_PTR(-EBADF);
 	}
 
+	if(down_interruptible(&return_fid->lock))
+		return ERR_PTR(-EINTR);
+
 	return return_fid;
+}
+
+/**
+ * v9fs_fid_clone - lookup the fid for a dentry, clone a private copy and release it
+ * @dentry: dentry to look for fid in
+ *
+ * find a fid in the dentry and then clone to a new private fid
+ *
+ * TODO: only match fids that have the same uid as current user
+ *
+ */
+
+struct v9fs_fid *v9fs_fid_clone(struct dentry *dentry)
+{
+	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	struct v9fs_fid *base_fid, *new_fid = ERR_PTR(-EBADF);
+	struct v9fs_fcall *fcall = NULL;
+	int fid, err;
+
+	base_fid = v9fs_fid_lookup(dentry);
+
+	if(IS_ERR(base_fid))
+		return base_fid;
+
+	if(base_fid) {  /* clone fid */
+		fid = v9fs_get_idpool(&v9ses->fidpool);
+		if (fid < 0) {
+			eprintk(KERN_WARNING, "newfid fails!\n");
+			new_fid = ERR_PTR(-ENOSPC);
+			goto Release_Fid;
+		}
+
+		err = v9fs_t_walk(v9ses, base_fid->fid, fid, NULL, &fcall);
+		if (err < 0) {
+			dprintk(DEBUG_ERROR, "clone walk didn't work\n");
+			v9fs_put_idpool(fid, &v9ses->fidpool);
+			new_fid = ERR_PTR(err);
+			goto Free_Fcall;
+		}
+		new_fid = v9fs_fid_create(v9ses, fid);
+		if (new_fid == NULL) {
+			dprintk(DEBUG_ERROR, "out of memory\n");
+			new_fid = ERR_PTR(-ENOMEM);
+		}
+Free_Fcall:
+		kfree(fcall);
+	}
+
+Release_Fid:
+	up(&base_fid->lock);
+	return new_fid;
+}
+
+void v9fs_fid_clunk(struct v9fs_session_info *v9ses, struct v9fs_fid *fid)
+{
+	v9fs_t_clunk(v9ses, fid->fid);
+	v9fs_fid_destroy(fid);
 }

@@ -719,7 +719,7 @@ static struct pci_driver driver = {
 	.probe		= pdc202xx_init_one,
 };
 
-static int pdc202xx_ide_init(void)
+static int __init pdc202xx_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

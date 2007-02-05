@@ -1989,6 +1989,10 @@ static struct node *fib_trie_get_next(struct fib_trie_iter *iter)
 	unsigned cindex = iter->index;
 	struct tnode *p;
 
+	/* A single entry routing table */
+	if (!tn)
+		return NULL;
+
 	pr_debug("get_next iter={node=%p index=%d depth=%d}\n",
 		 iter->tnode, iter->index, iter->depth);
 rescan:
@@ -2037,11 +2041,18 @@ static struct node *fib_trie_get_first(struct fib_trie_iter *iter,
 	if(!iter)
 		return NULL;
 
-	if (n && IS_TNODE(n)) {
-		iter->tnode = (struct tnode *) n;
-		iter->trie = t;
-		iter->index = 0;
-		iter->depth = 1;
+	if (n) {
+		if (IS_TNODE(n)) {
+			iter->tnode = (struct tnode *) n;
+			iter->trie = t;
+			iter->index = 0;
+			iter->depth = 1;
+		} else {
+			iter->tnode = NULL;
+			iter->trie  = t;
+			iter->index = 0;
+			iter->depth = 0;
+		}
 		return n;
 	}
 	return NULL;
@@ -2279,16 +2290,17 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		return 0;
 
+	if (!NODE_PARENT(n)) {
+		if (iter->trie == trie_local)
+			seq_puts(seq, "<local>:\n");
+		else
+			seq_puts(seq, "<main>:\n");
+	}
+
 	if (IS_TNODE(n)) {
 		struct tnode *tn = (struct tnode *) n;
 		__be32 prf = htonl(MASK_PFX(tn->key, tn->pos));
 
-		if (!NODE_PARENT(n)) {
-			if (iter->trie == trie_local)
-				seq_puts(seq, "<local>:\n");
-			else
-				seq_puts(seq, "<main>:\n");
-		} 
 		seq_indent(seq, iter->depth-1);
 		seq_printf(seq, "  +-- %d.%d.%d.%d/%d %d %d %d\n",
 			   NIPQUAD(prf), tn->pos, tn->bits, tn->full_children, 

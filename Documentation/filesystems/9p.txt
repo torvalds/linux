@@ -73,8 +73,22 @@ OPTIONS
 RESOURCES
 =========
 
-The Linux version of the 9p server is now maintained under the npfs project
-on sourceforge (http://sourceforge.net/projects/npfs).
+Our current recommendation is to use Inferno (http://www.vitanuova.com/inferno)
+as the 9p server.  You can start a 9p server under Inferno by issuing the
+following command:
+   ; styxlisten -A tcp!*!564 export '#U*'
+
+The -A specifies an unauthenticated export.  The 564 is the port # (you may
+have to choose a higher port number if running as a normal user).  The '#U*'
+specifies exporting the root of the Linux name space.  You may specify a
+subset of the namespace by extending the path: '#U*'/tmp would just export
+/tmp.  For more information, see the Inferno manual pages covering styxlisten
+and export.
+
+A Linux version of the 9p server is now maintained under the npfs project
+on sourceforge (http://sourceforge.net/projects/npfs).  There is also a
+more stable single-threaded version of the server (named spfs) available from
+the same CVS repository.
 
 There are user and developer mailing lists available through the v9fs project
 on sourceforge (http://sourceforge.net/projects/v9fs).
@@ -96,5 +110,5 @@ STATUS
 
 The 2.6 kernel support is working on PPC and x86.
 
-PLEASE USE THE SOURCEFORGE BUG-TRACKER TO REPORT PROBLEMS.
+PLEASE USE THE KERNEL BUGZILLA TO REPORT PROBLEMS. (http://bugzilla.kernel.org)
 

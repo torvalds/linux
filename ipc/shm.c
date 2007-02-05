@@ -279,7 +279,7 @@ static int newseg (struct ipc_namespace *ns, key_t key, int shmflg, size_t size)
 	if (size < SHMMIN || size > ns->shm_ctlmax)
 		return -EINVAL;
 
-	if (ns->shm_tot + numpages >= ns->shm_ctlall)
+	if (ns->shm_tot + numpages > ns->shm_ctlall)
 		return -ENOSPC;
 
 	shp = ipc_rcu_alloc(sizeof(*shp));

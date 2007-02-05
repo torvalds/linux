@@ -74,6 +74,7 @@ enum {
 static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static u32 svia_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void svia_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
+static void svia_noop_freeze(struct ata_port *ap);
 static void vt6420_error_handler(struct ata_port *ap);
 
 static const struct pci_device_id svia_pci_tbl[] = {
@@ -128,7 +129,7 @@ static const struct ata_port_operations vt6420_sata_ops = {
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_pio_data_xfer,
 
-	.freeze			= ata_bmdma_freeze,
+	.freeze			= svia_noop_freeze,
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= vt6420_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
@@ -202,6 +203,15 @@ static void svia_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 	if (sc_reg > SCR_CONTROL)
 		return;
 	outl(val, ap->ioaddr.scr_addr + (4 * sc_reg));
+}
+
+static void svia_noop_freeze(struct ata_port *ap)
+{
+	/* Some VIA controllers choke if ATA_NIEN is manipulated in
+	 * certain way.  Leave it alone and just clear pending IRQ.
+	 */
+	ata_chk_status(ap);
+	ata_bmdma_irq_clear(ap);
 }
 
 /**

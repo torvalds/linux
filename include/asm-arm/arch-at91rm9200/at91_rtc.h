@@ -21,21 +21,21 @@
 #define		AT91_RTC_UPDCAL		(1 <<  1)		/* Update Request Calendar Register */
 #define		AT91_RTC_TIMEVSEL	(3 <<  8)		/* Time Event Selection */
 #define			AT91_RTC_TIMEVSEL_MINUTE	(0 << 8)
-#define 		AT91_RTC_TIMEVSEL_HOUR		(1 << 8)
-#define 		AT91_RTC_TIMEVSEL_DAY24		(2 << 8)
-#define 		AT91_RTC_TIMEVSEL_DAY12		(3 << 8)
+#define			AT91_RTC_TIMEVSEL_HOUR		(1 << 8)
+#define			AT91_RTC_TIMEVSEL_DAY24		(2 << 8)
+#define			AT91_RTC_TIMEVSEL_DAY12		(3 << 8)
 #define		AT91_RTC_CALEVSEL	(3 << 16)		/* Calendar Event Selection */
-#define 		AT91_RTC_CALEVSEL_WEEK		(0 << 16)
-#define 		AT91_RTC_CALEVSEL_MONTH		(1 << 16)
-#define 		AT91_RTC_CALEVSEL_YEAR		(2 << 16)
+#define			AT91_RTC_CALEVSEL_WEEK		(0 << 16)
+#define			AT91_RTC_CALEVSEL_MONTH		(1 << 16)
+#define			AT91_RTC_CALEVSEL_YEAR		(2 << 16)
 
 #define	AT91_RTC_MR		(AT91_RTC + 0x04)	/* Mode Register */
-#define 	AT91_RTC_HRMOD		(1 <<  0)		/* 12/24 Hour Mode */
+#define			AT91_RTC_HRMOD		(1 <<  0)		/* 12/24 Hour Mode */
 
 #define	AT91_RTC_TIMR		(AT91_RTC + 0x08)	/* Time Register */
 #define		AT91_RTC_SEC		(0x7f <<  0)		/* Current Second */
 #define		AT91_RTC_MIN		(0x7f <<  8)		/* Current Minute */
-#define		AT91_RTC_HOUR 		(0x3f << 16)		/* Current Hour */
+#define		AT91_RTC_HOUR		(0x3f << 16)		/* Current Hour */
 #define		AT91_RTC_AMPM		(1    << 22)		/* Ante Meridiem Post Meridiem Indicator */
 
 #define	AT91_RTC_CALR		(AT91_RTC + 0x0c)	/* Calendar Register */

@@ -173,7 +173,7 @@ static void __cpuinit geode_configure(void)
 	ccr4 = getCx86(CX86_CCR4);
 	ccr4 |= 0x38;		/* FPU fast, DTE cache, Mem bypass */
 	
-	setCx86(CX86_CCR4, ccr4);
+	setCx86(CX86_CCR3, ccr3);
 	
 	set_cx86_memwb();
 	set_cx86_reorder();	

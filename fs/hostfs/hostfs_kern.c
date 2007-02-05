@@ -755,7 +755,7 @@ int hostfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 		goto out_put;
 
 	init_special_inode(inode, mode, dev);
-	err = do_mknod(name, mode, dev);
+	err = do_mknod(name, mode, MAJOR(dev), MINOR(dev));
 	if(err)
 		goto out_free;
 

@@ -133,8 +133,8 @@ static struct s3c24xx_dma_map __initdata s3c2412_dma_mappings[] = {
 static void s3c2412_dma_select(struct s3c2410_dma_chan *chan,
 			       struct s3c24xx_dma_map *map)
 {
-	writel(chan->regs + S3C2412_DMA_DMAREQSEL,
-	       map->channels[0] | S3C2412_DMAREQSEL_HW);
+	writel(map->channels[0] | S3C2412_DMAREQSEL_HW,
+	       chan->regs + S3C2412_DMA_DMAREQSEL);
 }
 
 static struct s3c24xx_dma_selection __initdata s3c2412_dma_sel = {

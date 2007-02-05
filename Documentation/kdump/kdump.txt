@@ -17,7 +17,7 @@ You can use common Linux commands, such as cp and scp, to copy the
 memory image to a dump file on the local disk, or across the network to
 a remote system.
 
-Kdump and kexec are currently supported on the x86, x86_64, ppc64 and IA64
+Kdump and kexec are currently supported on the x86, x86_64, ppc64 and ia64
 architectures.
 
 When the system kernel boots, it reserves a small section of memory for
@@ -61,7 +61,12 @@ Install kexec-tools
 
 2) Download the kexec-tools user-space package from the following URL:
 
-http://www.kernel.org/pub/linux/kernel/people/horms/kexec-tools/kexec-tools-testing-20061214.tar.gz
+http://www.kernel.org/pub/linux/kernel/people/horms/kexec-tools/kexec-tools-testing.tar.gz
+
+This is a symlink to the latest version, which at the time of writing is
+20061214, the only release of kexec-tools-testing so far. As other versions
+are made released, the older onese will remain available at
+http://www.kernel.org/pub/linux/kernel/people/horms/kexec-tools/
 
 Note: Latest kexec-tools-testing git tree is available at
 
@@ -71,11 +76,11 @@ http://www.kernel.org/git/?p=linux/kernel/git/horms/kexec-tools-testing.git;a=su
 
 3) Unpack the tarball with the tar command, as follows:
 
-   tar xvpzf kexec-tools-testing-20061214.tar.gz
+   tar xvpzf kexec-tools-testing.tar.gz
 
-4) Change to the kexec-tools-1.101 directory, as follows:
+4) Change to the kexec-tools directory, as follows:
 
-   cd kexec-tools-testing-20061214
+   cd kexec-tools-testing-VERSION
 
 5) Configure the package, as follows:
 
@@ -224,7 +229,23 @@ Dump-capture kernel config options (Arch Dependent, ppc64)
 
 Dump-capture kernel config options (Arch Dependent, ia64)
 ----------------------------------------------------------
-(To be filled)
+
+- No specific options are required to create a dump-capture kernel
+  for ia64, other than those specified in the arch idependent section
+  above. This means that it is possible to use the system kernel
+  as a dump-capture kernel if desired.
+
+  The crashkernel region can be automatically placed by the system
+  kernel at run time. This is done by specifying the base address as 0,
+  or omitting it all together.
+
+  crashkernel=256M@0
+  or
+  crashkernel=256M
+
+  If the start address is specified, note that the start address of the
+  kernel will be aligned to 64Mb, so if the start address is not then
+  any space below the alignment point will be wasted.
 
 
 Boot into System Kernel
@@ -242,6 +263,10 @@ Boot into System Kernel
    On x86 and x86_64, use "crashkernel=64M@16M".
 
    On ppc64, use "crashkernel=128M@32M".
+
+   On ia64, 256M@256M is a generous value that typically works.
+   The region may be automatically placed on ia64, see the
+   dump-capture kernel config option notes above.
 
 Load the Dump-capture Kernel
 ============================
@@ -261,7 +286,8 @@ For x86_64:
 For ppc64:
 	- Use vmlinux
 For ia64:
-	(To be filled)
+	- Use vmlinux or vmlinuz.gz
+
 
 If you are using a uncompressed vmlinux image then use following command
 to load dump-capture kernel.
@@ -277,17 +303,18 @@ to load dump-capture kernel.
    --initrd=<initrd-for-dump-capture-kernel> \
    --append="root=<root-dev> <arch-specific-options>"
 
+Please note, that --args-linux does not need to be specified for ia64.
+It is planned to make this a no-op on that architecture, but for now
+it should be omitted
+
 Following are the arch specific command line options to be used while
 loading dump-capture kernel.
 
-For i386 and x86_64:
+For i386, x86_64 and ia64:
 	"init 1 irqpoll maxcpus=1"
 
 For ppc64:
 	"init 1 maxcpus=1 noirqdistrib"
-
-For IA64
-	(To be filled)
 
 
 Notes on loading the dump-capture kernel:

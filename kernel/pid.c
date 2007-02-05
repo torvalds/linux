@@ -197,7 +197,7 @@ fastcall void free_pid(struct pid *pid)
 	hlist_del_rcu(&pid->pid_chain);
 	spin_unlock_irqrestore(&pidmap_lock, flags);
 
-	free_pidmap(current->nsproxy->pid_ns, pid->nr);
+	free_pidmap(&init_pid_ns, pid->nr);
 	call_rcu(&pid->rcu, delayed_put_pid);
 }
 

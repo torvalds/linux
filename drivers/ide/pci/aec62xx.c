@@ -441,7 +441,7 @@ static struct pci_driver driver = {
 	.probe		= aec62xx_init_one,
 };
 
-static int aec62xx_ide_init(void)
+static int __init aec62xx_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

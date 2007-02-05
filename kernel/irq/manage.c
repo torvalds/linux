@@ -315,6 +315,9 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 			/* Undo nested disables: */
 			desc->depth = 1;
 	}
+	/* Reset broken irq detection when installing new handler */
+	desc->irq_count = 0;
+	desc->irqs_unhandled = 0;
 	spin_unlock_irqrestore(&desc->lock, flags);
 
 	new->irq = irq;
