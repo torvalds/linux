@@ -280,6 +280,7 @@ config ARCH_PXA
 	bool "PXA2xx-based"
 	depends on MMU
 	select ARCH_MTD_XIP
+	select GENERIC_TIME
 	help
 	  Support for Intel's PXA2XX processor line.
 
