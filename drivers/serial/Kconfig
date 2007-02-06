@@ -262,7 +262,8 @@ config SERIAL_AMBA_PL010
 	select SERIAL_CORE
 	help
 	  This selects the ARM(R) AMBA(R) PrimeCell PL010 UART.  If you have
-	  an Integrator/AP or Integrator/PP2 platform, say Y or M here.
+	  an Integrator/AP or Integrator/PP2 platform, or if you have a
+	  Cirrus Logic EP93xx CPU, say Y or M here.
 
 	  If unsure, say N.
 
