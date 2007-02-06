@@ -33,7 +33,7 @@ setup_iso_buffer(struct fw_iso_context *ctx, size_t size,
 		 enum dma_data_direction direction)
 {
 	struct page *page;
-	int i;
+	int i, j;
 	void *p;
 
 	ctx->buffer_size = PAGE_ALIGN(size);
@@ -42,24 +42,33 @@ setup_iso_buffer(struct fw_iso_context *ctx, size_t size,
 
 	ctx->buffer = vmalloc_32_user(ctx->buffer_size);
 	if (ctx->buffer == NULL)
-		return -ENOMEM;
+		goto fail_buffer_alloc;
 
 	ctx->page_count = ctx->buffer_size >> PAGE_SHIFT;
 	ctx->pages =
 	    kzalloc(ctx->page_count * sizeof(ctx->pages[0]), GFP_KERNEL);
-	if (ctx->pages == NULL) {
-		vfree(ctx->buffer);
-		return -ENOMEM;
-	}
+	if (ctx->pages == NULL)
+		goto fail_pages_alloc;
 
 	p = ctx->buffer;
 	for (i = 0; i < ctx->page_count; i++, p += PAGE_SIZE) {
 		page = vmalloc_to_page(p);
 		ctx->pages[i] = dma_map_page(ctx->card->device,
 					     page, 0, PAGE_SIZE, direction);
+		if (dma_mapping_error(ctx->pages[i]))
+			goto fail_mapping;
 	}
 
 	return 0;
+
+ fail_mapping:
+	for (j = 0; j < i; j++)
+		dma_unmap_page(ctx->card->device, ctx->pages[j],
+			       PAGE_SIZE, DMA_TO_DEVICE);
+ fail_pages_alloc:
+	vfree(ctx->buffer);
+ fail_buffer_alloc:
+	return -ENOMEM;
 }
 
 static void destroy_iso_buffer(struct fw_iso_context *ctx)

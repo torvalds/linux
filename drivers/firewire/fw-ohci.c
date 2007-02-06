@@ -431,7 +431,7 @@ at_context_setup_packet(struct at_context *ctx, struct list_head *list)
 						     packet->payload,
 						     packet->payload_length,
 						     DMA_TO_DEVICE);
-		if (packet->payload_bus == 0) {
+		if (dma_mapping_error(packet->payload_bus)) {
 			complete_transmission(packet, RCODE_SEND_ERROR, list);
 			return;
 		}
@@ -590,7 +590,7 @@ at_context_init(struct at_context *ctx, struct fw_ohci *ohci, u32 regs)
 	ctx->descriptor_bus =
 		dma_map_single(ohci->card.device, &ctx->d,
 			       sizeof ctx->d, DMA_TO_DEVICE);
-	if (ctx->descriptor_bus == 0)
+	if (dma_mapping_error(ctx->descriptor_bus))
 		return -ENOMEM;
 
 	ctx->regs = regs;
@@ -1159,16 +1159,14 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	tasklet_init(&ctx->tasklet, tasklet, (unsigned long)ctx);
 
 	ctx->buffer = kmalloc(ISO_BUFFER_SIZE, GFP_KERNEL);
-	if (ctx->buffer == NULL) {
-		spin_lock_irqsave(&ohci->lock, flags);
-		*mask |= 1 << index;
-		spin_unlock_irqrestore(&ohci->lock, flags);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (ctx->buffer == NULL)
+		goto buffer_alloc_failed;
 
 	ctx->buffer_bus =
 	    dma_map_single(card->device, ctx->buffer,
 			   ISO_BUFFER_SIZE, DMA_TO_DEVICE);
+	if (dma_mapping_error(ctx->buffer_bus))
+		goto buffer_map_failed;
 
 	ctx->head_descriptor      = ctx->buffer;
 	ctx->prev_descriptor      = ctx->buffer;
@@ -1187,6 +1185,15 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	ctx->head_descriptor++;
 
 	return &ctx->base;
+
+ buffer_map_failed:
+	kfree(ctx->buffer);
+ buffer_alloc_failed:
+	spin_lock_irqsave(&ohci->lock, flags);
+	*mask |= 1 << index;
+	spin_unlock_irqrestore(&ohci->lock, flags);
+
+	return ERR_PTR(-ENOMEM);
 }
 
 static int ohci_send_iso(struct fw_iso_context *base, s32 cycle)

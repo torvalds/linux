@@ -411,13 +411,13 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	orb->base.request_bus =
 		dma_map_single(device->card->device, &orb->request,
 			       sizeof orb->request, DMA_TO_DEVICE);
-	if (orb->base.request_bus == 0)
+	if (dma_mapping_error(orb->base.request_bus))
 		goto out;
 
 	orb->response_bus =
 		dma_map_single(device->card->device, &orb->response,
 			       sizeof orb->response, DMA_FROM_DEVICE);
-	if (orb->response_bus == 0)
+	if (dma_mapping_error(orb->response_bus))
 		goto out;
 
 	orb->request.response.high    = 0;
@@ -963,22 +963,20 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	 * transfer direction not handled. */
 	if (cmd->sc_data_direction == DMA_BIDIRECTIONAL) {
 		fw_error("Cannot handle DMA_BIDIRECTIONAL - rejecting command");
-		cmd->result = DID_ERROR << 16;
-		done(cmd);
-		return 0;
+		goto fail_alloc;
 	}
 
 	orb = kzalloc(sizeof *orb, GFP_ATOMIC);
 	if (orb == NULL) {
 		fw_notify("failed to alloc orb\n");
-		cmd->result = DID_NO_CONNECT << 16;
-		done(cmd);
-		return 0;
+		goto fail_alloc;
 	}
 
 	orb->base.request_bus =
 		dma_map_single(device->card->device, &orb->request,
 			       sizeof orb->request, DMA_TO_DEVICE);
+	if (dma_mapping_error(orb->base.request_bus))
+		goto fail_mapping;
 
 	orb->unit = unit;
 	orb->done = done;
@@ -1009,9 +1007,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 		 * could we get the scsi or blk layer to do that by
 		 * reporting our max supported block size? */
 		fw_error("command > 64k\n");
-		cmd->result = DID_ERROR << 16;
-		done(cmd);
-		return 0;
+		goto fail_bufflen;
 	} else if (cmd->request_bufflen > 0) {
 		sbp2_command_orb_map_buffer(orb);
 	}
@@ -1027,6 +1023,16 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	sbp2_send_orb(&orb->base, unit, sd->node_id, sd->generation,
 		      sd->command_block_agent_address + SBP2_ORB_POINTER);
 
+	return 0;
+
+ fail_bufflen:
+	dma_unmap_single(device->card->device, orb->base.request_bus,
+			 sizeof orb->request, DMA_TO_DEVICE);
+ fail_mapping:
+	kfree(orb);
+ fail_alloc:
+	cmd->result = DID_ERROR << 16;
+	done(cmd);
 	return 0;
 }
 
