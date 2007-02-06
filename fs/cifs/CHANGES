@@ -1,6 +1,8 @@
 Version 1.47
 ------------
 Fix oops in list_del during mount caused by unaligned string.
+Seek to SEEK_END forces check for update of file size for non-cached
+files.
 
 Version 1.46
 ------------
