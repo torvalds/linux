@@ -676,28 +676,6 @@ static __inline__ int atomic_postincrement(unsigned int *pv)
 	return result;
 }
 
-/* No longer used in IPI dispatch, but retained for future recycling */
-
-static __inline__ int atomic_postclear(unsigned int *pv)
-{
-	unsigned long result;
-
-	unsigned long temp;
-
-	__asm__ __volatile__(
-	"1:	ll	%0, %2					\n"
-	"	or	%1, $0, $0				\n"
-	"	sc	%1, %2					\n"
-	"	beqz	%1, 1b					\n"
-	"	sync						\n"
-	: "=&r" (result), "=&r" (temp), "=m" (*pv)
-	: "m" (*pv)
-	: "memory");
-
-	return result;
-}
-
-
 void smtc_send_ipi(int cpu, int type, unsigned int action)
 {
 	int tcstatus;
