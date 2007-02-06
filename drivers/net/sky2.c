@@ -2266,8 +2266,8 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 
 		pci_err = sky2_pci_read16(hw, PCI_STATUS);
 		if (net_ratelimit())
-			printk(KERN_ERR PFX "%s: pci hw error (0x%x)\n",
-			       pci_name(hw->pdev), pci_err);
+			dev_err(&hw->pdev->dev, "PCI hardware error (0x%x)\n",
+			        pci_err);
 
 		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		sky2_pci_write16(hw, PCI_STATUS,
@@ -2282,8 +2282,8 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 		pex_err = sky2_pci_read32(hw, PEX_UNC_ERR_STAT);
 
 		if (net_ratelimit())
-			printk(KERN_ERR PFX "%s: pci express error (0x%x)\n",
-			       pci_name(hw->pdev), pex_err);
+			dev_err(&hw->pdev->dev, "PCI Express error (0x%x)\n",
+				pex_err);
 
 		/* clear the interrupt */
 		sky2_write32(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
@@ -2479,8 +2479,8 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 
 	hw->chip_id = sky2_read8(hw, B2_CHIP_ID);
 	if (hw->chip_id < CHIP_ID_YUKON_XL || hw->chip_id > CHIP_ID_YUKON_FE) {
-		printk(KERN_ERR PFX "%s: unsupported chip type 0x%x\n",
-		       pci_name(hw->pdev), hw->chip_id);
+		dev_err(&hw->pdev->dev, "unsupported chip type 0x%x\n",
+			hw->chip_id);
 		return -EOPNOTSUPP;
 	}
 
@@ -2488,9 +2488,9 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 
 	/* This rev is really old, and requires untested workarounds */
 	if (hw->chip_id == CHIP_ID_YUKON_EC && hw->chip_rev == CHIP_REV_YU_EC_A1) {
-		printk(KERN_ERR PFX "%s: unsupported revision Yukon-%s (0x%x) rev %d\n",
-		       pci_name(hw->pdev), yukon2_name[hw->chip_id - CHIP_ID_YUKON_XL],
-		       hw->chip_id, hw->chip_rev);
+		dev_err(&hw->pdev->dev, "unsupported revision Yukon-%s (0x%x) rev %d\n",
+			yukon2_name[hw->chip_id - CHIP_ID_YUKON_XL],
+			hw->chip_id, hw->chip_rev);
 		return -EOPNOTSUPP;
 	}
 
@@ -3298,7 +3298,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	struct net_device *dev = alloc_etherdev(sizeof(*sky2));
 
 	if (!dev) {
-		printk(KERN_ERR "sky2 etherdev alloc failed");
+		dev_err(&hw->pdev->dev, "etherdev alloc failed");
 		return NULL;
 	}
 
@@ -3415,8 +3415,7 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 
 	err = request_irq(pdev->irq, sky2_test_intr, 0, DRV_NAME, hw);
 	if (err) {
-		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
-		       pci_name(pdev), pdev->irq);
+		dev_err(&pdev->dev, "cannot assign irq %d\n", pdev->irq);
 		return err;
 	}
 
@@ -3427,9 +3426,8 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 
 	if (!hw->msi) {
 		/* MSI test failed, go back to INTx mode */
-		printk(KERN_INFO PFX "%s: No interrupt generated using MSI, "
-		       "switching to INTx mode.\n",
-		       pci_name(pdev));
+		dev_info(&pdev->dev, "No interrupt generated using MSI, "
+			 "switching to INTx mode.\n");
 
 		err = -EOPNOTSUPP;
 		sky2_write8(hw, B0_CTST, CS_CL_SW_IRQ);
@@ -3464,15 +3462,13 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR PFX "%s cannot enable PCI device\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "cannot enable PCI device\n");
 		goto err_out;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		printk(KERN_ERR PFX "%s cannot obtain PCI resources\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "cannot obtain PCI resources\n");
 		goto err_out;
 	}
 
@@ -3483,16 +3479,14 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		using_dac = 1;
 		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
 		if (err < 0) {
-			printk(KERN_ERR PFX "%s unable to obtain 64 bit DMA "
-			       "for consistent allocations\n", pci_name(pdev));
+			dev_err(&pdev->dev, "unable to obtain 64 bit DMA "
+				"for consistent allocations\n");
 			goto err_out_free_regions;
 		}
-
 	} else {
 		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (err) {
-			printk(KERN_ERR PFX "%s no usable DMA configuration\n",
-			       pci_name(pdev));
+			dev_err(&pdev->dev, "no usable DMA configuration\n");
 			goto err_out_free_regions;
 		}
 	}
@@ -3502,8 +3496,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	err = -ENOMEM;
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 	if (!hw) {
-		printk(KERN_ERR PFX "%s: cannot allocate hardware struct\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "cannot allocate hardware struct\n");
 		goto err_out_free_regions;
 	}
 
@@ -3511,8 +3504,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
 	if (!hw->regs) {
-		printk(KERN_ERR PFX "%s: cannot map device registers\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "cannot map device registers\n");
 		goto err_out_free_hw;
 	}
 
@@ -3538,7 +3530,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_out_iounmap;
 
-	printk(KERN_INFO PFX "v%s addr 0x%llx irq %d Yukon-%s (0x%x) rev %d\n",
+	dev_info(&pdev->dev, "v%s addr 0x%llx irq %d Yukon-%s (0x%x) rev %d\n",
 	       DRV_VERSION, (unsigned long long)pci_resource_start(pdev, 0),
 	       pdev->irq, yukon2_name[hw->chip_id - CHIP_ID_YUKON_XL],
 	       hw->chip_id, hw->chip_rev);
@@ -3561,16 +3553,14 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	err = register_netdev(dev);
 	if (err) {
-		printk(KERN_ERR PFX "%s: cannot register net device\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "cannot register net device\n");
 		goto err_out_free_netdev;
 	}
 
 	err = request_irq(pdev->irq,  sky2_intr, hw->msi ? 0 : IRQF_SHARED,
 			  dev->name, hw);
 	if (err) {
-		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
-		       pci_name(pdev), pdev->irq);
+		dev_err(&pdev->dev, "cannot assign irq %d\n", pdev->irq);
 		goto err_out_unregister;
 	}
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
@@ -3581,18 +3571,15 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		struct net_device *dev1;
 
 		dev1 = sky2_init_netdev(hw, 1, using_dac, wol_default);
-		if (!dev1) {
-			printk(KERN_WARNING PFX
-			       "allocation of second port failed\n");
-		}
-		else if (!(err = register_netdev(dev1)))
-			sky2_show_addr(dev1);
-		else {
-			printk(KERN_WARNING PFX
-			       "register of second port failed (%d)\n", err);
+		if (!dev1)
+			dev_warn(&pdev->dev, "allocation for second device failed\n");
+		else if ((err = register_netdev(dev1))) {
+			dev_warn(&pdev->dev,
+				 "register of second port failed (%d)\n", err);
 			hw->dev[1] = NULL;
 			free_netdev(dev1);
-		}
+		} else
+			sky2_show_addr(dev1);
 	}
 
 	setup_timer(&hw->idle_timer, sky2_idle, (unsigned long) hw);
@@ -3730,7 +3717,7 @@ static int sky2_resume(struct pci_dev *pdev)
 	sky2_idle_start(hw);
 	return 0;
 out:
-	printk(KERN_ERR PFX "%s: resume failed (%d)\n", pci_name(pdev), err);
+	dev_err(&pdev->dev, "resume failed (%d)\n", err);
 	pci_disable_device(pdev);
 	return err;
 }
