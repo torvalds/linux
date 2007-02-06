@@ -175,6 +175,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		afinfo = xfrm_state_get_afinfo(dst_prev->xfrm->props.family);
 		if (!afinfo) {
 			dst = *dst_p;
+			err = -EAFNOSUPPORT;
 			goto error;
 		}
 		dst_prev->output = afinfo->output;
