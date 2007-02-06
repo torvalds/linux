@@ -695,7 +695,7 @@ static void dump_tclist(void)
 }
 
 /* We are prepared so configure and start the VPE... */
-int vpe_run(struct vpe * v)
+static int vpe_run(struct vpe * v)
 {
 	struct vpe_notifications *n;
 	unsigned long val, dmt_flag;
@@ -832,7 +832,7 @@ static int find_vpe_symbols(struct vpe * v, Elf_Shdr * sechdrs,
  * contents of the program (p)buffer performing relocatations/etc, free's it
  * when finished.
  */
-int vpe_elfload(struct vpe * v)
+static int vpe_elfload(struct vpe * v)
 {
 	Elf_Ehdr *hdr;
 	Elf_Shdr *sechdrs;
