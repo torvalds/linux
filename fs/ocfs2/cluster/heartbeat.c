@@ -1335,6 +1335,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	ret = wait_event_interruptible(o2hb_steady_queue,
 				atomic_read(&reg->hr_steady_iterations) == 0);
 	if (ret) {
+		/* We got interrupted (hello ptrace!).  Clean up */
 		spin_lock(&o2hb_live_lock);
 		hb_task = reg->hr_task;
 		reg->hr_task = NULL;
@@ -1345,7 +1346,16 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 		goto out;
 	}
 
-	ret = count;
+	/* Ok, we were woken.  Make sure it wasn't by drop_item() */
+	spin_lock(&o2hb_live_lock);
+	hb_task = reg->hr_task;
+	spin_unlock(&o2hb_live_lock);
+
+	if (hb_task)
+		ret = count;
+	else
+		ret = -EIO;
+
 out:
 	if (filp)
 		fput(filp);
@@ -1522,6 +1532,15 @@ static void o2hb_heartbeat_group_drop_item(struct config_group *group,
 
 	if (hb_task)
 		kthread_stop(hb_task);
+
+	/*
+	 * If we're racing a dev_write(), we need to wake them.  They will
+	 * check reg->hr_task
+	 */
+	if (atomic_read(&reg->hr_steady_iterations) != 0) {
+		atomic_set(&reg->hr_steady_iterations, 0);
+		wake_up(&o2hb_steady_queue);
+	}
 
 	config_item_put(item);
 }
