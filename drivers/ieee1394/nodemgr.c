@@ -258,7 +258,6 @@ static struct device_driver nodemgr_mid_layer_driver = {
 struct device nodemgr_dev_template_host = {
 	.bus		= &ieee1394_bus_type,
 	.release	= nodemgr_release_host,
-	.driver		= &nodemgr_mid_layer_driver,
 };
 
 
@@ -1850,22 +1849,31 @@ int init_ieee1394_nodemgr(void)
 
 	error = class_register(&nodemgr_ne_class);
 	if (error)
-		return error;
-
+		goto fail_ne;
 	error = class_register(&nodemgr_ud_class);
-	if (error) {
-		class_unregister(&nodemgr_ne_class);
-		return error;
-	}
+	if (error)
+		goto fail_ud;
 	error = driver_register(&nodemgr_mid_layer_driver);
+	if (error)
+		goto fail_ml;
+	/* This driver is not used if nodemgr is off (disable_nodemgr=1). */
+	nodemgr_dev_template_host.driver = &nodemgr_mid_layer_driver;
+
 	hpsb_register_highlevel(&nodemgr_highlevel);
 	return 0;
+
+fail_ml:
+	class_unregister(&nodemgr_ud_class);
+fail_ud:
+	class_unregister(&nodemgr_ne_class);
+fail_ne:
+	return error;
 }
 
 void cleanup_ieee1394_nodemgr(void)
 {
 	hpsb_unregister_highlevel(&nodemgr_highlevel);
-
+	driver_unregister(&nodemgr_mid_layer_driver);
 	class_unregister(&nodemgr_ud_class);
 	class_unregister(&nodemgr_ne_class);
 }
