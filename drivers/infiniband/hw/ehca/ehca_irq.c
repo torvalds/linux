@@ -756,6 +756,8 @@ void ehca_destroy_comp_pool(void)
 		if (cpu_online(i))
 			destroy_comp_task(pool, i);
 	}
+	free_percpu(pool->cpu_comp_tasks);
+	kfree(pool);
 #endif
 
 	return;
