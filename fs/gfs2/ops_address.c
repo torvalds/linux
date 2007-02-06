@@ -170,7 +170,8 @@ out_ignore:
  * and write whole extents at once. This is a big reduction in the
  * number of I/O requests we send and the bmap calls we make in this case.
  */
-int gfs2_writepages(struct address_space *mapping, struct writeback_control *wbc)
+static int gfs2_writepages(struct address_space *mapping,
+			   struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
