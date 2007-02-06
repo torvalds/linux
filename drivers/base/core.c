@@ -677,8 +677,7 @@ int device_add(struct device *dev)
 		goto BusError;
 	if (!dev->uevent_suppress)
 		kobject_uevent(&dev->kobj, KOBJ_ADD);
-	if ((error = bus_attach_device(dev)))
-		goto AttachError;
+	bus_attach_device(dev);
 	if (parent)
 		klist_add_tail(&dev->knode_parent, &parent->klist_children);
 
@@ -697,8 +696,6 @@ int device_add(struct device *dev)
 	kfree(class_name);
 	put_device(dev);
 	return error;
- AttachError:
-	bus_remove_device(dev);
  BusError:
 	device_pm_remove(dev);
  PMError:

@@ -447,7 +447,7 @@ out_put:
  *	- Add device to bus's list of devices.
  *	- Try to attach to driver.
  */
-int bus_attach_device(struct device * dev)
+void bus_attach_device(struct device * dev)
 {
 	struct bus_type *bus = dev->bus;
 	int ret = 0;
@@ -456,13 +456,12 @@ int bus_attach_device(struct device * dev)
 		dev->is_registered = 1;
 		if (bus->drivers_autoprobe)
 			ret = device_attach(dev);
-		if (ret >= 0) {
+		WARN_ON(ret < 0);
+		if (ret >= 0)
 			klist_add_tail(&dev->knode_bus, &bus->klist_devices);
-			ret = 0;
-		} else
+		else
 			dev->is_registered = 0;
 	}
-	return ret;
 }
 
 /**
@@ -669,8 +668,6 @@ static int __must_check bus_rescan_devices_helper(struct device *dev,
 		ret = device_attach(dev);
 		if (dev->parent)
 			up(&dev->parent->sem);
-		if (ret > 0)
-			ret = 0;
 	}
 	return ret < 0 ? ret : 0;
 }
