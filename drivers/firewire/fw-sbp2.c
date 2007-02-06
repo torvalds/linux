@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
+#include <linux/timer.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -58,12 +59,16 @@ struct sbp2_device {
 	int address_high;
 	int generation;
 
+	/* Timer for flushing ORBs. */
+	struct timer_list orb_timer;
+
 	struct work_struct work;
 	struct Scsi_Host *scsi_host;
 };
 
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
 #define SBP2_MAX_SECTORS		255	/* Max sectors supported */
+#define SBP2_ORB_TIMEOUT		2000	/* Timeout in ms */
 
 #define SBP2_ORB_NULL			0x80000000
 
@@ -327,6 +332,9 @@ sbp2_send_orb(struct sbp2_orb *orb, struct fw_unit *unit,
 	list_add_tail(&orb->link, &sd->orb_list);
 	spin_unlock_irqrestore(&device->card->lock, flags);
 
+	mod_timer(&sd->orb_timer,
+		  jiffies + DIV_ROUND_UP(SBP2_ORB_TIMEOUT * HZ, 1000));
+
 	fw_send_request(device->card, &orb->t, TCODE_WRITE_BLOCK_REQUEST,
 			node_id, generation,
 			device->node->max_speed, offset,
@@ -356,6 +364,13 @@ static void sbp2_cancel_orbs(struct fw_unit *unit)
 	}
 }
 
+static void orb_timer_callback(unsigned long data)
+{
+	struct sbp2_device *sd = (struct sbp2_device *)data;
+
+	sbp2_cancel_orbs(sd->unit);
+}
+
 static void
 complete_management_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 {
@@ -374,7 +389,6 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	struct fw_device *device = fw_device(unit->device.parent);
 	struct sbp2_device *sd = unit->device.driver_data;
 	struct sbp2_management_orb *orb;
-	unsigned long timeout;
 	int retval = -ENOMEM;
 
 	orb = kzalloc(sizeof *orb, GFP_ATOMIC);
@@ -426,7 +440,7 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	sbp2_send_orb(&orb->base, unit,
 		      node_id, generation, sd->management_agent_address);
 
-	timeout = wait_for_completion_timeout(&orb->done, 10 * HZ);
+	wait_for_completion(&orb->done);
 
 	/* FIXME: Handle bus reset race here. */
 
@@ -437,7 +451,7 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 		goto out;
 	}
 
-	if (timeout == 0) {
+	if (orb->base.rcode == RCODE_CANCELLED) {
 		fw_error("orb reply timed out, rcode=0x%02x\n",
 			 orb->base.rcode);
 		goto out;
@@ -516,6 +530,7 @@ static int sbp2_probe(struct device *dev)
 	unit->device.driver_data = sd;
 	sd->unit = unit;
 	INIT_LIST_HEAD(&sd->orb_list);
+	setup_timer(&sd->orb_timer, orb_timer_callback, (unsigned long)sd);
 
 	sd->address_handler.length = 0x100;
 	sd->address_handler.address_callback = sbp2_status_write;
@@ -583,6 +598,7 @@ static int sbp2_probe(struct device *dev)
 	if (sbp2_send_management_orb(unit, node_id, generation,
 				     SBP2_LOGIN_REQUEST, lun, &response) < 0) {
 		fw_core_remove_address_handler(&sd->address_handler);
+		del_timer_sync(&sd->orb_timer);
 		kfree(sd);
 		return -EBUSY;
 	}
@@ -618,6 +634,7 @@ static int sbp2_probe(struct device *dev)
 					 SBP2_LOGOUT_REQUEST, sd->login_id,
 					 NULL);
 		fw_core_remove_address_handler(&sd->address_handler);
+		del_timer_sync(&sd->orb_timer);
 		kfree(sd);
 		return retval;
 	}
@@ -634,6 +651,7 @@ static int sbp2_remove(struct device *dev)
 				 SBP2_LOGOUT_REQUEST, sd->login_id, NULL);
 
 	remove_scsi_devices(unit);
+	del_timer_sync(&sd->orb_timer);
 
 	fw_core_remove_address_handler(&sd->address_handler);
 	kfree(sd);
