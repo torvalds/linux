@@ -640,7 +640,8 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	spin_unlock_irqrestore(&card->lock, flags);
 
 	if (&t->link == &card->transaction_list) {
-		fw_notify("Unsolicited response\n");
+		fw_notify("Unsolicited response (source %x, tlabel %x)\n",
+			  source, tlabel);
 		return;
 	}
 

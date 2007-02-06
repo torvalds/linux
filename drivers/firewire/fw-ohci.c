@@ -55,17 +55,20 @@ struct descriptor {
 	__le16 transfer_status;
 } __attribute__((aligned(16)));
 
+struct ar_buffer {
+	struct descriptor descriptor;
+	struct ar_buffer *next;
+	__le32 data[0];
+};
+
 struct ar_context {
 	struct fw_ohci *ohci;
-	struct descriptor descriptor;
-	__le32 buffer[512];
-	dma_addr_t descriptor_bus;
-	dma_addr_t buffer_bus;
-
+	struct ar_buffer *current_buffer;
+	struct ar_buffer *last_buffer;
+	void *pointer;
 	u32 command_ptr;
 	u32 control_set;
 	u32 control_clear;
-
 	struct tasklet_struct tasklet;
 };
 
@@ -169,8 +172,7 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define OHCI_LOOP_COUNT			500
 #define OHCI1394_PCI_HCI_Control	0x40
 #define SELF_ID_BUF_SIZE		0x800
-
-#define MAX_STOP_CONTEXT_LOOPS		1000
+#define OHCI_TCODE_PHY_PACKET		0x0e
 
 static char ohci_driver_name[] = KBUILD_MODNAME;
 
@@ -213,66 +215,97 @@ ohci_update_phy_reg(struct fw_card *card, int addr,
 	return 0;
 }
 
-static void ar_context_run(struct ar_context *ctx)
+static int ar_context_add_page(struct ar_context *ctx)
 {
-	reg_write(ctx->ohci, ctx->command_ptr, ctx->descriptor_bus | 1);
-	reg_write(ctx->ohci, ctx->control_set, CONTEXT_RUN);
+	struct device *dev = ctx->ohci->card.device;
+	struct ar_buffer *ab;
+	dma_addr_t ab_bus;
+	size_t offset;
+
+	ab = (struct ar_buffer *) __get_free_page(GFP_ATOMIC);
+	if (ab == NULL)
+		return -ENOMEM;
+
+	ab_bus = dma_map_single(dev, ab, PAGE_SIZE, DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(ab_bus)) {
+		free_page((unsigned long) ab);
+		return -ENOMEM;
+	}
+
+	memset(&ab->descriptor, 0, sizeof ab->descriptor);
+	ab->descriptor.control        = cpu_to_le16(descriptor_input_more |
+						    descriptor_status |
+						    descriptor_branch_always);
+	offset = offsetof(struct ar_buffer, data);
+	ab->descriptor.req_count      = cpu_to_le16(PAGE_SIZE - offset);
+	ab->descriptor.data_address   = cpu_to_le32(ab_bus + offset);
+	ab->descriptor.res_count      = cpu_to_le16(PAGE_SIZE - offset);
+	ab->descriptor.branch_address = 0;
+
+	dma_sync_single_for_device(dev, ab_bus, PAGE_SIZE, DMA_BIDIRECTIONAL);
+
+	ctx->last_buffer->descriptor.branch_address = ab_bus | 1;
+	ctx->last_buffer->next = ab;
+	ctx->last_buffer = ab;
+
+	reg_write(ctx->ohci, ctx->control_set, CONTEXT_WAKE);
 	flush_writes(ctx->ohci);
+
+	return 0;
 }
 
-static void ar_context_tasklet(unsigned long data)
+static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 {
-	struct ar_context *ctx = (struct ar_context *)data;
 	struct fw_ohci *ohci = ctx->ohci;
 	struct fw_packet p;
 	u32 status, length, tcode;
-	int i;
 
-	/* FIXME: We stop and restart the ar context here, what if we
-	 * stop while a receive is in progress? Maybe we could just
-	 * loop the context back to itself and use it in buffer fill
-	 * mode as intended... */
-	reg_write(ctx->ohci, ctx->control_clear, CONTEXT_RUN);
-
-	/* FIXME: What to do about evt_* errors? */
-	length    = le16_to_cpu(ctx->descriptor.req_count) -
-		le16_to_cpu(ctx->descriptor.res_count) - 4;
-	status    = le32_to_cpu(ctx->buffer[length / 4]);
-
-	p.ack        = ((status >> 16) & 0x1f) - 16;
-	p.speed      = (status >> 21) & 0x7;
-	p.timestamp  = status & 0xffff;
-	p.generation = ohci->request_generation;
-
-	p.header[0] = le32_to_cpu(ctx->buffer[0]);
-	p.header[1] = le32_to_cpu(ctx->buffer[1]);
-	p.header[2] = le32_to_cpu(ctx->buffer[2]);
+	p.header[0] = le32_to_cpu(buffer[0]);
+	p.header[1] = le32_to_cpu(buffer[1]);
+	p.header[2] = le32_to_cpu(buffer[2]);
 
 	tcode = (p.header[0] >> 4) & 0x0f;
 	switch (tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
 	case TCODE_READ_QUADLET_RESPONSE:
-		p.header[3] = ctx->buffer[3];
+		p.header[3] = (__force __u32) buffer[3];
 		p.header_length = 16;
+		p.payload_length = 0;
+		break;
+
+	case TCODE_READ_BLOCK_REQUEST :
+		p.header[3] = le32_to_cpu(buffer[3]);
+		p.header_length = 16;
+		p.payload_length = 0;
 		break;
 
 	case TCODE_WRITE_BLOCK_REQUEST:
-	case TCODE_READ_BLOCK_REQUEST :
 	case TCODE_READ_BLOCK_RESPONSE:
 	case TCODE_LOCK_REQUEST:
 	case TCODE_LOCK_RESPONSE:
-		p.header[3] = le32_to_cpu(ctx->buffer[3]);
+		p.header[3] = le32_to_cpu(buffer[3]);
 		p.header_length = 16;
+		p.payload_length = p.header[3] >> 16;
 		break;
 
 	case TCODE_WRITE_RESPONSE:
 	case TCODE_READ_QUADLET_REQUEST:
+	case OHCI_TCODE_PHY_PACKET:
 		p.header_length = 12;
+		p.payload_length = 0;
 		break;
 	}
 
-	p.payload = (void *) ctx->buffer + p.header_length;
-	p.payload_length = length - p.header_length;
+	p.payload = (void *) buffer + p.header_length;
+
+	/* FIXME: What to do about evt_* errors? */
+	length = (p.header_length + p.payload_length + 3) / 4;
+	status = le32_to_cpu(buffer[length]);
+
+	p.ack        = ((status >> 16) & 0x1f) - 16;
+	p.speed      = (status >> 21) & 0x7;
+	p.timestamp  = status & 0xffff;
+	p.generation = ohci->request_generation;
 
 	/* The OHCI bus reset handler synthesizes a phy packet with
 	 * the new generation number when a bus reset happens (see
@@ -283,69 +316,84 @@ static void ar_context_tasklet(unsigned long data)
 	 * request. */
 
 	if (p.ack + 16 == 0x09)
-		ohci->request_generation = (ctx->buffer[2] >> 16) & 0xff;
+		ohci->request_generation = (buffer[2] >> 16) & 0xff;
 	else if (ctx == &ohci->ar_request_ctx)
 		fw_core_handle_request(&ohci->card, &p);
 	else
 		fw_core_handle_response(&ohci->card, &p);
 
-	ctx->descriptor.data_address = cpu_to_le32(ctx->buffer_bus);
-	ctx->descriptor.req_count    = cpu_to_le16(sizeof ctx->buffer);
-	ctx->descriptor.res_count    = cpu_to_le16(sizeof ctx->buffer);
+	return buffer + length + 1;
+}
 
-	dma_sync_single_for_device(ohci->card.device, ctx->descriptor_bus,
-				   sizeof ctx->descriptor_bus, DMA_TO_DEVICE);
+static void ar_context_tasklet(unsigned long data)
+{
+	struct ar_context *ctx = (struct ar_context *)data;
+	struct fw_ohci *ohci = ctx->ohci;
+	struct ar_buffer *ab;
+	struct descriptor *d;
+	void *buffer, *end;
 
-	/* Make sure the active bit is 0 before we reprogram the DMA. */
-	for (i = 0; i < MAX_STOP_CONTEXT_LOOPS; i++)
-		if (!(reg_read(ctx->ohci,
-			       ctx->control_clear) & CONTEXT_ACTIVE))
-			break;
-	if (i == MAX_STOP_CONTEXT_LOOPS)
-		fw_error("Failed to stop ar context\n");
+	ab = ctx->current_buffer;
+	d = &ab->descriptor;
 
-	ar_context_run(ctx);
+	if (d->res_count == 0) {
+		size_t size, rest, offset;
+
+		/* This descriptor is finished and we may have a
+		 * packet split across this and the next buffer. We
+		 * reuse the page for reassembling the split packet. */
+
+		offset = offsetof(struct ar_buffer, data);
+		dma_unmap_single(ohci->card.device,
+				 ab->descriptor.data_address - offset,
+				 PAGE_SIZE, DMA_BIDIRECTIONAL);
+
+		buffer = ab;
+		ab = ab->next;
+		d = &ab->descriptor;
+		size = buffer + PAGE_SIZE - ctx->pointer;
+		rest = le16_to_cpu(d->req_count) - le16_to_cpu(d->res_count);
+		memmove(buffer, ctx->pointer, size);
+		memcpy(buffer + size, ab->data, rest);
+		ctx->current_buffer = ab;
+		ctx->pointer = (void *) ab->data + rest;
+		end = buffer + size + rest;
+
+		while (buffer < end)
+			buffer = handle_ar_packet(ctx, buffer);
+
+		free_page((unsigned long)buffer);
+		ar_context_add_page(ctx);
+	} else {
+		buffer = ctx->pointer;
+		ctx->pointer = end =
+			(void *) ab + PAGE_SIZE - le16_to_cpu(d->res_count);
+
+		while (buffer < end)
+			buffer = handle_ar_packet(ctx, buffer);
+	}
 }
 
 static int
 ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci, u32 control_set)
 {
-	ctx->descriptor_bus =
-		dma_map_single(ohci->card.device, &ctx->descriptor,
-			       sizeof ctx->descriptor, DMA_TO_DEVICE);
-	if (ctx->descriptor_bus == 0)
-		return -ENOMEM;
-
-	if (ctx->descriptor_bus & 0xf)
-		fw_notify("descriptor not 16-byte aligned: 0x%08lx\n",
-			  (unsigned long)ctx->descriptor_bus);
-
-	ctx->buffer_bus =
-		dma_map_single(ohci->card.device, ctx->buffer,
-			       sizeof ctx->buffer, DMA_FROM_DEVICE);
-
-	if (ctx->buffer_bus == 0) {
-		dma_unmap_single(ohci->card.device, ctx->descriptor_bus,
-				 sizeof ctx->descriptor, DMA_TO_DEVICE);
-		return -ENOMEM;
-	}
-
-	memset(&ctx->descriptor, 0, sizeof ctx->descriptor);
-	ctx->descriptor.control      = cpu_to_le16(descriptor_input_more |
-						   descriptor_status |
-						   descriptor_branch_always);
-	ctx->descriptor.req_count    = cpu_to_le16(sizeof ctx->buffer);
-	ctx->descriptor.data_address = cpu_to_le32(ctx->buffer_bus);
-	ctx->descriptor.res_count    = cpu_to_le16(sizeof ctx->buffer);
+	struct ar_buffer ab;
 
 	ctx->control_set   = control_set;
 	ctx->control_clear = control_set + 4;
 	ctx->command_ptr   = control_set + 12;
 	ctx->ohci          = ohci;
-
+	ctx->last_buffer   = &ab;
 	tasklet_init(&ctx->tasklet, ar_context_tasklet, (unsigned long)ctx);
 
-	ar_context_run(ctx);
+	ar_context_add_page(ctx);
+	ar_context_add_page(ctx);
+	ctx->current_buffer = ab.next;
+	ctx->pointer = ctx->current_buffer->data;
+
+	reg_write(ctx->ohci, ctx->command_ptr, ab.descriptor.branch_address);
+	reg_write(ctx->ohci, ctx->control_set, CONTEXT_RUN);
+	flush_writes(ctx->ohci);
 
 	return 0;
 }
