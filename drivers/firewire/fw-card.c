@@ -367,9 +367,9 @@ void
 fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 		   struct device *device)
 {
-	static int index;
+	static atomic_t index = ATOMIC_INIT(-1);
 
-	card->index = index++;
+	card->index = atomic_inc_return(&index);
 	card->driver = driver;
 	card->device = device;
 	card->current_tlabel = 0;

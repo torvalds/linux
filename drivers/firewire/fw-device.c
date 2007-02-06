@@ -434,7 +434,7 @@ static void fw_device_shutdown(struct work_struct *work)
 
 static void fw_device_init(struct work_struct *work)
 {
-	static int serial;
+	static atomic_t serial = ATOMIC_INIT(-1);
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
 
@@ -460,7 +460,7 @@ static void fw_device_init(struct work_struct *work)
 	device->device.release = fw_device_release;
 	device->device.parent = device->card->device;
 	snprintf(device->device.bus_id, sizeof device->device.bus_id,
-		 "fw%d", serial++);
+		 "fw%d", atomic_inc_return(&serial));
 
 	if (alloc_chrdev_region(&device->device.devt, 0, 1, "fw")) {
 		fw_error("Failed to register char device region.\n");
