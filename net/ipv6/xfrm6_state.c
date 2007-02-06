@@ -171,6 +171,7 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.init_tempsel		= __xfrm6_init_tempsel,
 	.tmpl_sort		= __xfrm6_tmpl_sort,
 	.state_sort		= __xfrm6_state_sort,
+	.output			= xfrm6_output,
 };
 
 void __init xfrm6_state_init(void)

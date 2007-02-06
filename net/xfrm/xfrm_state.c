@@ -183,9 +183,6 @@ static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 
 int __xfrm_state_delete(struct xfrm_state *x);
 
-static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family);
-static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
-
 int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
 void km_state_expired(struct xfrm_state *x, int hard, u32 pid);
 
@@ -1458,7 +1455,7 @@ int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo)
 }
 EXPORT_SYMBOL(xfrm_state_unregister_afinfo);
 
-static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family)
+struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family)
 {
 	struct xfrm_state_afinfo *afinfo;
 	if (unlikely(family >= NPROTO))
@@ -1470,10 +1467,13 @@ static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family)
 	return afinfo;
 }
 
-static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo)
+void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo)
 {
 	read_unlock(&xfrm_state_afinfo_lock);
 }
+
+EXPORT_SYMBOL(xfrm_state_get_afinfo);
+EXPORT_SYMBOL(xfrm_state_put_afinfo);
 
 /* Temporarily located here until net/xfrm/xfrm_tunnel.c is created */
 void xfrm_state_delete_tunnel(struct xfrm_state *x)
