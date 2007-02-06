@@ -160,7 +160,7 @@ static int __init tc_init(void)
 		tc_bus.resource[0].start = tc_bus.slot_base;
 		tc_bus.resource[0].end = tc_bus.slot_base +
 					 (tc_bus.info.slot_size << 20) *
-					 tc_bus.num_tcslots;
+					 tc_bus.num_tcslots - 1;
 		tc_bus.resource[0].name = tc_bus.name;
 		tc_bus.resource[0].flags = IORESOURCE_MEM;
 		if (request_resource(&iomem_resource,
@@ -172,7 +172,7 @@ static int __init tc_init(void)
 			tc_bus.resource[1].start = tc_bus.ext_slot_base;
 			tc_bus.resource[1].end = tc_bus.ext_slot_base +
 						 tc_bus.ext_slot_size *
-						 tc_bus.num_tcslots;
+						 tc_bus.num_tcslots - 1;
 			tc_bus.resource[1].name = tc_bus.name;
 			tc_bus.resource[1].flags = IORESOURCE_MEM;
 			if (request_resource(&iomem_resource,
