@@ -651,53 +651,62 @@ static unsigned int nv_adma_tf_to_cpb(struct ata_taskfile *tf, __le16 *cpb)
 	return idx;
 }
 
-static void nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
+static int nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 {
 	struct nv_adma_port_priv *pp = ap->private_data;
-	int complete = 0, have_err = 0;
 	u8 flags = pp->cpb[cpb_num].resp_flags;
 
 	VPRINTK("CPB %d, flags=0x%x\n", cpb_num, flags);
 
+	if (unlikely((force_err ||
+		     flags & (NV_CPB_RESP_ATA_ERR |
+			      NV_CPB_RESP_CMD_ERR |
+			      NV_CPB_RESP_CPB_ERR)))) {
+		struct ata_eh_info *ehi = &ap->eh_info;
+		int freeze = 0;
+
+		ata_ehi_clear_desc(ehi);
+		ata_ehi_push_desc(ehi, "CPB resp_flags 0x%x", flags );
+		if (flags & NV_CPB_RESP_ATA_ERR) {
+			ata_ehi_push_desc(ehi, ": ATA error");
+			ehi->err_mask |= AC_ERR_DEV;
+		} else if (flags & NV_CPB_RESP_CMD_ERR) {
+			ata_ehi_push_desc(ehi, ": CMD error");
+			ehi->err_mask |= AC_ERR_DEV;
+		} else if (flags & NV_CPB_RESP_CPB_ERR) {
+			ata_ehi_push_desc(ehi, ": CPB error");
+			ehi->err_mask |= AC_ERR_SYSTEM;
+			freeze = 1;
+		} else {
+			/* notifier error, but no error in CPB flags? */
+			ehi->err_mask |= AC_ERR_OTHER;
+			freeze = 1;
+		}
+		/* Kill all commands. EH will determine what actually failed. */
+		if (freeze)
+			ata_port_freeze(ap);
+		else
+			ata_port_abort(ap);
+		return 1;
+	}
+
 	if (flags & NV_CPB_RESP_DONE) {
-		VPRINTK("CPB flags done, flags=0x%x\n", flags);
-		complete = 1;
-	}
-	if (flags & NV_CPB_RESP_ATA_ERR) {
-		ata_port_printk(ap, KERN_ERR, "CPB flags ATA err, flags=0x%x\n", flags);
-		have_err = 1;
-		complete = 1;
-	}
-	if (flags & NV_CPB_RESP_CMD_ERR) {
-		ata_port_printk(ap, KERN_ERR, "CPB flags CMD err, flags=0x%x\n", flags);
-		have_err = 1;
-		complete = 1;
-	}
-	if (flags & NV_CPB_RESP_CPB_ERR) {
-		ata_port_printk(ap, KERN_ERR, "CPB flags CPB err, flags=0x%x\n", flags);
-		have_err = 1;
-		complete = 1;
-	}
-	if(complete || force_err)
-	{
 		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, cpb_num);
-		if(likely(qc)) {
-			u8 ata_status = 0;
-			/* Only use the ATA port status for non-NCQ commands.
+		VPRINTK("CPB flags done, flags=0x%x\n", flags);
+		if (likely(qc)) {
+			/* Grab the ATA port status for non-NCQ commands.
 			   For NCQ commands the current status may have nothing to do with
 			   the command just completed. */
-			if(qc->tf.protocol != ATA_PROT_NCQ)
-				ata_status = readb(pp->ctl_block + (ATA_REG_STATUS * 4));
-
-			if(have_err || force_err)
-				ata_status |= ATA_ERR;
-
-			qc->err_mask |= ac_err_mask(ata_status);
+			if (qc->tf.protocol != ATA_PROT_NCQ) {
+				u8 ata_status = readb(pp->ctl_block + (ATA_REG_STATUS * 4));
+				qc->err_mask |= ac_err_mask(ata_status);
+			}
 			DPRINTK("Completing qc from tag %d with err_mask %u\n",cpb_num,
 				qc->err_mask);
 			ata_qc_complete(qc);
 		}
 	}
+	return 0;
 }
 
 static int nv_host_intr(struct ata_port *ap, u8 irq_stat)
@@ -741,7 +750,6 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			void __iomem *mmio = pp->ctl_block;
 			u16 status;
 			u32 gen_ctl;
-			int have_global_err = 0;
 			u32 notifier, notifier_error;
 
 			/* if in ATA register mode, use standard ata interrupt handler */
@@ -777,42 +785,50 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			readw(mmio + NV_ADMA_STAT); /* flush posted write */
 			rmb();
 
-			/* freeze if hotplugged */
-			if (unlikely(status & (NV_ADMA_STAT_HOTPLUG | NV_ADMA_STAT_HOTUNPLUG))) {
-				ata_port_printk(ap, KERN_NOTICE, "Hotplug event, freezing\n");
+			handled++; /* irq handled if we got here */
+
+			/* freeze if hotplugged or controller error */
+			if (unlikely(status & (NV_ADMA_STAT_HOTPLUG |
+					       NV_ADMA_STAT_HOTUNPLUG |
+					       NV_ADMA_STAT_TIMEOUT))) {
+				struct ata_eh_info *ehi = &ap->eh_info;
+
+				ata_ehi_clear_desc(ehi);
+				ata_ehi_push_desc(ehi, "ADMA status 0x%08x", status );
+				if (status & NV_ADMA_STAT_TIMEOUT) {
+					ehi->err_mask |= AC_ERR_SYSTEM;
+					ata_ehi_push_desc(ehi, ": timeout");
+				} else if (status & NV_ADMA_STAT_HOTPLUG) {
+					ata_ehi_hotplugged(ehi);
+					ata_ehi_push_desc(ehi, ": hotplug");
+				} else if (status & NV_ADMA_STAT_HOTUNPLUG) {
+					ata_ehi_hotplugged(ehi);
+					ata_ehi_push_desc(ehi, ": hot unplug");
+				}
 				ata_port_freeze(ap);
-				handled++;
 				continue;
 			}
 
-			if (status & NV_ADMA_STAT_TIMEOUT) {
-				ata_port_printk(ap, KERN_ERR, "timeout, stat=0x%x\n", status);
-				have_global_err = 1;
-			}
-			if (status & NV_ADMA_STAT_CPBERR) {
-				ata_port_printk(ap, KERN_ERR, "CPB error, stat=0x%x\n", status);
-				have_global_err = 1;
-			}
-			if ((status & NV_ADMA_STAT_DONE) || have_global_err) {
+			if (status & (NV_ADMA_STAT_DONE |
+				      NV_ADMA_STAT_CPBERR)) {
 				/** Check CPBs for completed commands */
 
-				if(ata_tag_valid(ap->active_tag))
+				if (ata_tag_valid(ap->active_tag)) {
 					/* Non-NCQ command */
-					nv_adma_check_cpb(ap, ap->active_tag, have_global_err ||
-						(notifier_error & (1 << ap->active_tag)));
-				else {
-					int pos;
+					nv_adma_check_cpb(ap, ap->active_tag,
+						notifier_error & (1 << ap->active_tag));
+				} else {
+					int pos, error = 0;
 					u32 active = ap->sactive;
-					while( (pos = ffs(active)) ) {
+
+					while ((pos = ffs(active)) && !error) {
 						pos--;
-						nv_adma_check_cpb(ap, pos, have_global_err ||
-							(notifier_error & (1 << pos)) );
+						error = nv_adma_check_cpb(ap, pos,
+							notifier_error & (1 << pos) );
 						active &= ~(1 << pos );
 					}
 				}
 			}
-
-			handled++; /* irq handled if we got here */
 		}
 	}
 
@@ -1372,27 +1388,8 @@ static void nv_adma_error_handler(struct ata_port *ap)
 		int i;
 		u16 tmp;
 
-		u32 notifier = readl(mmio + NV_ADMA_NOTIFIER);
-		u32 notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);
-		u32 gen_ctl = readl(pp->gen_block + NV_ADMA_GEN_CTL);
-		u32 status = readw(mmio + NV_ADMA_STAT);
-
-		ata_port_printk(ap, KERN_ERR, "EH in ADMA mode, notifier 0x%X "
-			"notifier_error 0x%X gen_ctl 0x%X status 0x%X\n",
-			notifier, notifier_error, gen_ctl, status);
-
-		for( i=0;i<NV_ADMA_MAX_CPBS;i++) {
-			struct nv_adma_cpb *cpb = &pp->cpb[i];
-			if( cpb->ctl_flags || cpb->resp_flags )
-				ata_port_printk(ap, KERN_ERR,
-					"CPB %d: ctl_flags 0x%x, resp_flags 0x%x\n",
-					i, cpb->ctl_flags, cpb->resp_flags);
-		}
-
 		/* Push us back into port register mode for error handling. */
 		nv_adma_register_mode(ap);
-
-		ata_port_printk(ap, KERN_ERR, "Resetting port\n");
 
 		/* Mark all of the CPBs as invalid to prevent them from being executed */
 		for( i=0;i<NV_ADMA_MAX_CPBS;i++)
