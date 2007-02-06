@@ -291,11 +291,13 @@
 #define __NR_sync_file_range		1300
 #define __NR_tee			1301
 #define __NR_vmsplice			1302
+/* 1303 reserved for move_pages */
+#define __NR_getcpu			1304
 
 #ifdef __KERNEL__
 
 
-#define NR_syscalls			279 /* length of syscall table */
+#define NR_syscalls			281 /* length of syscall table */
 
 #define __ARCH_WANT_SYS_RT_SIGACTION
 
