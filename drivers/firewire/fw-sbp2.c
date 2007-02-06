@@ -62,7 +62,8 @@ struct sbp2_device {
 	/* Timer for flushing ORBs. */
 	struct timer_list orb_timer;
 
-	struct work_struct work;
+	int retries;
+	struct delayed_work work;
 	struct Scsi_Host *scsi_host;
 };
 
@@ -511,6 +512,75 @@ static int sbp2_agent_reset(struct fw_unit *unit)
 
 static int add_scsi_devices(struct fw_unit *unit);
 static void remove_scsi_devices(struct fw_unit *unit);
+static void sbp2_reconnect(struct work_struct *work);
+
+static void sbp2_login(struct work_struct *work)
+{
+	struct sbp2_device *sd =
+		container_of(work, struct sbp2_device, work.work);
+	struct fw_unit *unit = sd->unit;
+	struct fw_device *device = fw_device(unit->device.parent);
+	struct sbp2_login_response response;
+	int generation, node_id, local_node_id, lun, retval;
+
+	/* FIXME: Make this work for multi-lun devices. */
+	lun = 0;
+
+	generation    = device->card->generation;
+	node_id       = device->node->node_id;
+	local_node_id = device->card->local_node->node_id;
+
+	if (sbp2_send_management_orb(unit, node_id, generation,
+				     SBP2_LOGIN_REQUEST, lun, &response) < 0) {
+		if (sd->retries++ < 5) {
+			fw_error("login attempt %d for %s failed, "
+				 "rescheduling\n",
+				 sd->retries, unit->device.bus_id);
+			schedule_delayed_work(&sd->work, DIV_ROUND_UP(HZ, 5));
+		} else {
+			fw_error("failed to login to %s\n",
+				 unit->device.bus_id);
+			remove_scsi_devices(unit);
+		}
+		return;
+	}
+
+	sd->generation   = generation;
+	sd->node_id      = node_id;
+	sd->address_high = local_node_id << 16;
+
+	/* Get command block agent offset and login id. */
+	sd->command_block_agent_address =
+		((u64) response.command_block_agent.high << 32) |
+		response.command_block_agent.low;
+	sd->login_id = login_response_get_login_id(response);
+
+	fw_notify("logged in to sbp2 unit %s\n", unit->device.bus_id);
+	fw_notify(" - management_agent_address: 0x%012llx\n",
+		  (unsigned long long) sd->management_agent_address);
+	fw_notify(" - command_block_agent_address: 0x%012llx\n",
+		  (unsigned long long) sd->command_block_agent_address);
+	fw_notify(" - status write address: 0x%012llx\n",
+		  (unsigned long long) sd->address_handler.offset);
+
+#if 0
+	/* FIXME: The linux1394 sbp2 does this last step. */
+	sbp2_set_busy_timeout(scsi_id);
+#endif
+
+	INIT_DELAYED_WORK(&sd->work, sbp2_reconnect);
+	sbp2_agent_reset(unit);
+
+	retval = add_scsi_devices(unit);
+	if (retval < 0) {
+		sbp2_send_management_orb(unit, sd->node_id, sd->generation,
+					 SBP2_LOGOUT_REQUEST, sd->login_id,
+					 NULL);
+		/* Set this back to sbp2_login so we fall back and
+		 * retry login on bus reset. */
+		INIT_DELAYED_WORK(&sd->work, sbp2_login);
+	}
+}
 
 static int sbp2_probe(struct device *dev)
 {
@@ -518,9 +588,7 @@ static int sbp2_probe(struct device *dev)
 	struct fw_device *device = fw_device(unit->device.parent);
 	struct sbp2_device *sd;
 	struct fw_csr_iterator ci;
-	int i, key, value, lun, retval;
-	int node_id, generation, local_node_id;
-	struct sbp2_login_response response;
+	int i, key, value;
 	u32 model, firmware_revision;
 
 	sd = kzalloc(sizeof *sd, GFP_KERNEL);
@@ -586,58 +654,10 @@ static int sbp2_probe(struct device *dev)
 			  unit->device.bus_id,
 			  sd->workarounds, firmware_revision, model);
 
-	/* FIXME: Make this work for multi-lun devices. */
-	lun = 0;
-
-	generation    = device->card->generation;
-	node_id       = device->node->node_id;
-	local_node_id = device->card->local_node->node_id;
-
-	/* FIXME: We should probably do this from a keventd callback
-	 * and handle retries by rescheduling the work. */
-	if (sbp2_send_management_orb(unit, node_id, generation,
-				     SBP2_LOGIN_REQUEST, lun, &response) < 0) {
-		fw_core_remove_address_handler(&sd->address_handler);
-		del_timer_sync(&sd->orb_timer);
-		kfree(sd);
-		return -EBUSY;
-	}
-
-	sd->generation   = generation;
-	sd->node_id      = node_id;
-	sd->address_high = local_node_id << 16;
-
-	/* Get command block agent offset and login id. */
-	sd->command_block_agent_address =
-		((u64) response.command_block_agent.high << 32) |
-		response.command_block_agent.low;
-	sd->login_id = login_response_get_login_id(response);
-
-	fw_notify("logged in to sbp2 unit %s\n", unit->device.bus_id);
-	fw_notify(" - management_agent_address: 0x%012llx\n",
-		  (unsigned long long) sd->management_agent_address);
-	fw_notify(" - command_block_agent_address: 0x%012llx\n",
-		  (unsigned long long) sd->command_block_agent_address);
-	fw_notify(" - status write address: 0x%012llx\n",
-		  (unsigned long long) sd->address_handler.offset);
-
-#if 0
-	/* FIXME: The linux1394 sbp2 does this last step. */
-	sbp2_set_busy_timeout(scsi_id);
-#endif
-
-	sbp2_agent_reset(unit);
-
-	retval = add_scsi_devices(unit);
-	if (retval < 0) {
-		sbp2_send_management_orb(unit, sd->node_id, sd->generation,
-					 SBP2_LOGOUT_REQUEST, sd->login_id,
-					 NULL);
-		fw_core_remove_address_handler(&sd->address_handler);
-		del_timer_sync(&sd->orb_timer);
-		kfree(sd);
-		return retval;
-	}
+	/* We schedule work to do the login so we can easily
+	 * reschedule retries. */
+	INIT_DELAYED_WORK(&sd->work, sbp2_login);
+	schedule_delayed_work(&sd->work, 0);
 
 	return 0;
 }
@@ -663,28 +683,41 @@ static int sbp2_remove(struct device *dev)
 
 static void sbp2_reconnect(struct work_struct *work)
 {
-	struct sbp2_device *sd = container_of(work, struct sbp2_device, work);
+	struct sbp2_device *sd =
+		container_of(work, struct sbp2_device, work.work);
 	struct fw_unit *unit = sd->unit;
 	struct fw_device *device = fw_device(unit->device.parent);
 	int generation, node_id, local_node_id;
-
-	fw_notify("in sbp2_reconnect, reconnecting to unit %s\n",
-		  unit->device.bus_id);
 
 	generation    = device->card->generation;
 	node_id       = device->node->node_id;
 	local_node_id = device->card->local_node->node_id;
 
-	sbp2_send_management_orb(unit, node_id, generation,
-				 SBP2_RECONNECT_REQUEST, sd->login_id, NULL);
-
-	/* FIXME: handle reconnect failures. */
-
-	sbp2_cancel_orbs(unit);
+	if (sbp2_send_management_orb(unit, node_id, generation,
+				     SBP2_RECONNECT_REQUEST,
+				     sd->login_id, NULL) < 0) {
+		if (sd->retries++ < 5) {
+			fw_error("reconnect attempt %d for %s failed, "
+				 "rescheduling\n",
+				 sd->retries, unit->device.bus_id);
+		} else {
+			fw_error("failed to reconnect to %s\n",
+				 unit->device.bus_id);
+			/* Fall back and try to log in again. */
+			sd->retries = 0;
+			INIT_DELAYED_WORK(&sd->work, sbp2_login);
+		}
+		schedule_delayed_work(&sd->work, DIV_ROUND_UP(HZ, 5));
+		return;
+	}
 
 	sd->generation   = generation;
 	sd->node_id      = node_id;
 	sd->address_high = local_node_id << 16;
+
+	fw_notify("reconnected to unit %s\n", unit->device.bus_id);
+	sbp2_agent_reset(unit);
+	sbp2_cancel_orbs(unit);
 }
 
 static void sbp2_update(struct fw_unit *unit)
@@ -692,10 +725,9 @@ static void sbp2_update(struct fw_unit *unit)
 	struct fw_device *device = fw_device(unit->device.parent);
 	struct sbp2_device *sd = unit->device.driver_data;
 
+	sd->retries = 0;
 	fw_device_enable_phys_dma(device);
-
-	INIT_WORK(&sd->work, sbp2_reconnect);
-	schedule_work(&sd->work);
+	schedule_delayed_work(&sd->work, 0);
 }
 
 #define SBP2_UNIT_SPEC_ID_ENTRY	0x0000609e
@@ -1056,6 +1088,9 @@ static int add_scsi_devices(struct fw_unit *unit)
 	struct sbp2_device *sd = unit->device.driver_data;
 	int retval, lun;
 
+	if (sd->scsi_host != NULL)
+		return 0;
+
 	sd->scsi_host = scsi_host_alloc(&scsi_driver_template,
 					sizeof(unsigned long));
 	if (sd->scsi_host == NULL) {
@@ -1088,8 +1123,11 @@ static void remove_scsi_devices(struct fw_unit *unit)
 {
 	struct sbp2_device *sd = unit->device.driver_data;
 
-	scsi_remove_host(sd->scsi_host);
-	scsi_host_put(sd->scsi_host);
+	if (sd->scsi_host != NULL) {
+		scsi_remove_host(sd->scsi_host);
+		scsi_host_put(sd->scsi_host);
+	}
+	sd->scsi_host = NULL;
 }
 
 MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
