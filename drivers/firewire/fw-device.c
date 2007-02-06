@@ -152,7 +152,7 @@ fw_unit_uevent(struct device *dev, char **envp, int num_envp,
 }
 
 struct bus_type fw_bus_type = {
-	.name = "fw",
+	.name = "firewire",
 	.match = fw_unit_match,
 	.uevent = fw_unit_uevent,
 };
