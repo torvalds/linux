@@ -475,9 +475,6 @@ static struct of_platform_driver of_pci_phb_driver = {
        .name = "of-pci",
        .match_table = of_pci_phb_ids,
        .probe = of_pci_phb_probe,
-       .driver = {
-	       .multithread_probe = 1,
-       },
 };
 
 static __init int of_pci_phb_init(void)
