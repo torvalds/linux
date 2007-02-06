@@ -419,9 +419,13 @@ spider_net_prepare_rx_descr(struct spider_net_card *card,
 		card->spider_stats.rx_iommu_map_error++;
 		descr->dmac_cmd_status = SPIDER_NET_DESCR_NOT_IN_USE;
 	} else {
+		descr->next_descr_addr = 0;
 		wmb();
 		descr->dmac_cmd_status = SPIDER_NET_DESCR_CARDOWNED |
 					 SPIDER_NET_DMAC_NOINTR_COMPLETE;
+
+		wmb();
+		descr->prev->next_descr_addr = descr->bus_addr;
 	}
 
 	return 0;
@@ -1650,7 +1654,6 @@ int
 spider_net_open(struct net_device *netdev)
 {
 	struct spider_net_card *card = netdev_priv(netdev);
-	struct spider_net_descr *descr;
 	int result;
 
 	result = spider_net_init_chain(card, &card->tx_chain);
@@ -1661,13 +1664,6 @@ spider_net_open(struct net_device *netdev)
 	result = spider_net_init_chain(card, &card->rx_chain);
 	if (result)
 		goto alloc_rx_failed;
-
-	/* Make a ring of of bus addresses */
-	descr = card->rx_chain.ring;
-	do {
-		descr->next_descr_addr = descr->next->bus_addr;
-		descr = descr->next;
-	} while (descr != card->rx_chain.ring);
 
 	/* Allocate rx skbs */
 	if (spider_net_alloc_rx_skbs(card))
