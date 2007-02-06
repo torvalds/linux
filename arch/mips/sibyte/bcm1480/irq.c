@@ -82,7 +82,7 @@ extern char sb1250_duart_present[];
 #endif
 
 static struct irq_chip bcm1480_irq_type = {
-	.typename = "BCM1480-IMR",
+	.name = "BCM1480-IMR",
 	.ack = ack_bcm1480_irq,
 	.mask = disable_bcm1480_irq,
 	.mask_ack = ack_bcm1480_irq,

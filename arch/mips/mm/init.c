@@ -341,7 +341,6 @@ static int __init page_is_ram(unsigned long pagenr)
 void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
-	unsigned long max_dma, low;
 #ifndef CONFIG_FLATMEM
 	unsigned long zholes_size[MAX_NR_ZONES] = { 0, };
 	unsigned long i, j, pfn;
@@ -354,19 +353,19 @@ void __init paging_init(void)
 #endif
 	kmap_coherent_init();
 
-	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-	low = max_low_pfn;
-
 #ifdef CONFIG_ISA
-	if (low < max_dma)
-		zones_size[ZONE_DMA] = low;
-	else {
-		zones_size[ZONE_DMA] = max_dma;
-		zones_size[ZONE_NORMAL] = low - max_dma;
-	}
-#else
-	zones_size[ZONE_DMA] = low;
+	if (max_low_pfn >= MAX_DMA_PFN)
+		if (min_low_pfn >= MAX_DMA_PFN) {
+			zones_size[ZONE_DMA] = 0;
+			zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
+		} else {
+			zones_size[ZONE_DMA] = MAX_DMA_PFN - min_low_pfn;
+			zones_size[ZONE_NORMAL] = max_low_pfn - MAX_DMA_PFN;
+		}
+	else
 #endif
+	zones_size[ZONE_DMA] = max_low_pfn - min_low_pfn;
+
 #ifdef CONFIG_HIGHMEM
 	zones_size[ZONE_HIGHMEM] = highend_pfn - highstart_pfn;
 
@@ -467,7 +466,7 @@ void __init mem_init(void)
 }
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
-static void free_init_pages(char *what, unsigned long begin, unsigned long end)
+void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 {
 	unsigned long pfn;
 
@@ -493,18 +492,25 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-extern unsigned long prom_free_prom_memory(void);
-
 void free_initmem(void)
 {
-	unsigned long freed;
-
-	freed = prom_free_prom_memory();
-	if (freed)
-		printk(KERN_INFO "Freeing firmware memory: %ldkb freed\n",
-		       freed >> 10);
-
+	prom_free_prom_memory();
 	free_init_pages("unused kernel memory",
 			__pa_symbol(&__init_begin),
 			__pa_symbol(&__init_end));
 }
+
+unsigned long pgd_current[NR_CPUS];
+/*
+ * On 64-bit we've got three-level pagetables with a slightly
+ * different layout ...
+ */
+#define __page_aligned(order) __attribute__((__aligned__(PAGE_SIZE<<order)))
+pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned(PGD_ORDER);
+#ifdef CONFIG_64BIT
+#ifdef MODULE_START
+pgd_t module_pg_dir[PTRS_PER_PGD] __page_aligned(PGD_ORDER);
+#endif
+pmd_t invalid_pmd_table[PTRS_PER_PMD] __page_aligned(PMD_ORDER);
+#endif
+pte_t invalid_pte_table[PTRS_PER_PTE] __page_aligned(PTE_ORDER);

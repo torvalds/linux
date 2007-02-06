@@ -35,7 +35,6 @@
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/mips_mt.h>
-#include <asm/mips-boards/maltaint.h>  /* This is f*cking wrong */
 
 #define MIPS_CPU_IPI_RESCHED_IRQ 0
 #define MIPS_CPU_IPI_CALL_IRQ 1
@@ -108,12 +107,12 @@ void __init sanitize_tlb_entries(void)
 
 static void ipi_resched_dispatch(void)
 {
-	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_IPI_RESCHED_IRQ);
+	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ);
 }
 
 static void ipi_call_dispatch(void)
 {
-	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_IPI_CALL_IRQ);
+	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ);
 }
 
 static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
@@ -270,8 +269,8 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
 		set_vi_handler(MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
 	}
 
-	cpu_ipi_resched_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_RESCHED_IRQ;
-	cpu_ipi_call_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_CALL_IRQ;
+	cpu_ipi_resched_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ;
+	cpu_ipi_call_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ;
 
 	setup_irq(cpu_ipi_resched_irq, &irq_resched);
 	setup_irq(cpu_ipi_call_irq, &irq_call);

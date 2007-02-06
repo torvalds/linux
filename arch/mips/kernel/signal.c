@@ -89,7 +89,7 @@ _sys_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	spin_lock_irq(&current->sighand->siglock);
 	current->saved_sigmask = current->blocked;
 	current->blocked = newset;
-        recalc_sigpending();
+	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
 	current->state = TASK_INTERRUPTIBLE;
@@ -124,7 +124,7 @@ asmlinkage int sys_sigaction(int sig, const struct sigaction __user *act,
 
 	if (!ret && oact) {
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)))
-                        return -EFAULT;
+			return -EFAULT;
 		err |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
 		err |= __put_user(old_ka.sa.sa_handler, &oact->sa_handler);
 		err |= __put_user(old_ka.sa.sa_mask.sig[0], oact->sa_mask.sig);
@@ -304,7 +304,7 @@ int setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, frame->regs[31]);
 #endif
-        return 0;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(signr, current);

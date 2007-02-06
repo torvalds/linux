@@ -92,7 +92,7 @@ static void toshiba_rbtx4938_irq_ioc_disable(unsigned int irq);
 
 #define TOSHIBA_RBTX4938_IOC_NAME "RBTX4938-IOC"
 static struct irq_chip toshiba_rbtx4938_irq_ioc_type = {
-	.typename = TOSHIBA_RBTX4938_IOC_NAME,
+	.name = TOSHIBA_RBTX4938_IOC_NAME,
 	.ack = toshiba_rbtx4938_irq_ioc_disable,
 	.mask = toshiba_rbtx4938_irq_ioc_disable,
 	.mask_ack = toshiba_rbtx4938_irq_ioc_disable,

@@ -25,6 +25,8 @@
 #ifndef _MIPS_MALTAINT_H
 #define _MIPS_MALTAINT_H
 
+#include <irq.h>
+
 /*
  * Interrupts 0..15 are used for Malta ISA compatible interrupts
  */
@@ -33,7 +35,7 @@
 /*
  * Interrupts 16..23 are used for Malta CPU interrupts (nonEIC mode)
  */
-#define MIPSCPU_INT_BASE	16
+#define MIPSCPU_INT_BASE	MIPS_CPU_IRQ_BASE
 
 /* CPU interrupt offsets */
 #define MIPSCPU_INT_SW0		0

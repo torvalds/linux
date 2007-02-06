@@ -204,8 +204,7 @@ void __init prom_init(void)
 	add_memory_region(0x0, memsz, BOOT_MEM_RAM);
 }
 
-unsigned long __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
 	/* Nothing to do! */
-	return 0;
 }
