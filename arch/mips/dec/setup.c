@@ -53,6 +53,8 @@ unsigned long dec_kn_slot_base, dec_kn_slot_size;
 EXPORT_SYMBOL(dec_kn_slot_base);
 EXPORT_SYMBOL(dec_kn_slot_size);
 
+int dec_tc_bus;
+
 spinlock_t ioasic_ssr_lock;
 
 volatile u32 *ioasic_base;
