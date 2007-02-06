@@ -15,6 +15,7 @@
 #define __ASM_IBM4XX_H__
 
 #include <asm/types.h>
+#include <asm/dcr.h>
 
 #ifdef CONFIG_40x
 

@@ -44,6 +44,7 @@
 #include <asm/btext.h>
 #include <asm/div64.h>
 #include <asm/signal.h>
+#include <asm/dcr.h>
 
 #ifdef  CONFIG_8xx
 #include <asm/commproc.h>

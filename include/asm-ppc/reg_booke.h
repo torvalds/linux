@@ -9,8 +9,6 @@
 #ifndef __ASM_PPC_REG_BOOKE_H__
 #define __ASM_PPC_REG_BOOKE_H__
 
-#include <asm/dcr.h>
-
 #ifndef __ASSEMBLY__
 /* Performance Monitor Registers */
 #define mfpmr(rn)	({unsigned int rval; \
