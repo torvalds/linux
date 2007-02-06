@@ -483,6 +483,7 @@ fw_core_handle_bus_reset(struct fw_card *card,
 	card->generation = generation;
 	memcpy(card->self_ids, self_ids, self_id_count * 4);
 	card->reset_jiffies = jiffies;
+	schedule_delayed_work(&card->work, 0);
 
 	local_node = build_tree(card);
 
@@ -497,8 +498,6 @@ fw_core_handle_bus_reset(struct fw_card *card,
 	} else {
 		update_tree(card, local_node);
 	}
-
-	schedule_delayed_work(&card->work, 0);
 
 	spin_unlock_irqrestore(&card->lock, flags);
 }
