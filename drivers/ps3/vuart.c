@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 #include <asm/ps3.h>
 
 #include <asm/firmware.h>
@@ -567,6 +568,44 @@ int ps3_vuart_read(struct ps3_vuart_port_device *dev, void* buf,
 	return 0;
 }
 
+int ps3_vuart_read_async(struct ps3_vuart_port_device *dev, work_func_t func,
+	unsigned int bytes)
+{
+	unsigned long flags;
+
+	if(dev->priv->work.trigger) {
+		dev_dbg(&dev->core, "%s:%d: warning, multiple calls\n",
+			__func__, __LINE__);
+		return -EAGAIN;
+	}
+
+	BUG_ON(!bytes);
+
+	PREPARE_WORK(&dev->priv->work.work, func);
+
+	spin_lock_irqsave(&dev->priv->work.lock, flags);
+	if(dev->priv->rx_list.bytes_held >= bytes) {
+		dev_dbg(&dev->core, "%s:%d: schedule_work %xh bytes\n",
+			__func__, __LINE__, bytes);
+		schedule_work(&dev->priv->work.work);
+		spin_unlock_irqrestore(&dev->priv->work.lock, flags);
+		return 0;
+	}
+
+	dev->priv->work.trigger = bytes;
+	spin_unlock_irqrestore(&dev->priv->work.lock, flags);
+
+	dev_dbg(&dev->core, "%s:%d: waiting for %u(%xh) bytes\n", __func__,
+		__LINE__, bytes, bytes);
+
+	return 0;
+}
+
+void ps3_vuart_cancel_async(struct ps3_vuart_port_device *dev)
+{
+	dev->priv->work.trigger = 0;
+}
+
 /**
  * ps3_vuart_handle_interrupt_tx - third stage transmit interrupt handler
  *
@@ -674,6 +713,15 @@ static int ps3_vuart_handle_interrupt_rx(struct ps3_vuart_port_device *dev)
 	dev_dbg(&dev->core, "%s:%d: buf_%lu: queued %lxh bytes\n",
 		__func__, __LINE__, lb->dbg_number, bytes);
 
+	spin_lock_irqsave(&dev->priv->work.lock, flags);
+	if(dev->priv->work.trigger
+		&& dev->priv->rx_list.bytes_held >= dev->priv->work.trigger) {
+		dev_dbg(&dev->core, "%s:%d: schedule_work %lxh bytes\n",
+			__func__, __LINE__, dev->priv->work.trigger);
+		dev->priv->work.trigger = 0;
+		schedule_work(&dev->priv->work.work);
+	}
+	spin_unlock_irqrestore(&dev->priv->work.lock, flags);
 	return 0;
 }
 
@@ -838,6 +886,11 @@ static int ps3_vuart_probe(struct device *_dev)
 
 	INIT_LIST_HEAD(&dev->priv->rx_list.head);
 	spin_lock_init(&dev->priv->rx_list.lock);
+
+	INIT_WORK(&dev->priv->work.work, NULL);
+	spin_lock_init(&dev->priv->work.lock);
+	dev->priv->work.trigger = 0;
+	dev->priv->work.dev = dev;
 
 	if (++vuart_bus_priv.use_count == 1) {
 

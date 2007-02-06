@@ -31,6 +31,13 @@ struct ps3_vuart_stats {
 	unsigned long disconnect_interrupts;
 };
 
+struct ps3_vuart_work {
+	struct work_struct work;
+	unsigned long trigger;
+	spinlock_t lock;
+	struct ps3_vuart_port_device* dev; /* to convert work to device */
+};
+
 /**
  * struct ps3_vuart_port_priv - private vuart device data.
  */
@@ -49,6 +56,7 @@ struct ps3_vuart_port_priv {
 		struct list_head head;
 	} rx_list;
 	struct ps3_vuart_stats stats;
+	struct ps3_vuart_work work;
 };
 
 /**
@@ -71,10 +79,6 @@ struct ps3_vuart_port_driver {
 int ps3_vuart_port_driver_register(struct ps3_vuart_port_driver *drv);
 void ps3_vuart_port_driver_unregister(struct ps3_vuart_port_driver *drv);
 
-int ps3_vuart_write(struct ps3_vuart_port_device *dev,
-	const void* buf, unsigned int bytes);
-int ps3_vuart_read(struct ps3_vuart_port_device *dev, void* buf,
-	unsigned int bytes);
 static inline struct ps3_vuart_port_driver *to_ps3_vuart_port_driver(
 	struct device_driver *_drv)
 {
@@ -85,5 +89,22 @@ static inline struct ps3_vuart_port_device *to_ps3_vuart_port_device(
 {
 	return container_of(_dev, struct ps3_vuart_port_device, core);
 }
+static inline struct ps3_vuart_port_device *ps3_vuart_work_to_port_device(
+	struct work_struct *_work)
+{
+	struct ps3_vuart_work *vw = container_of(_work, struct ps3_vuart_work,
+		work);
+	return vw->dev;
+}
+
+int ps3_vuart_write(struct ps3_vuart_port_device *dev, const void* buf,
+	unsigned int bytes);
+int ps3_vuart_read(struct ps3_vuart_port_device *dev, void* buf,
+	unsigned int bytes);
+int ps3_vuart_read_async(struct ps3_vuart_port_device *dev, work_func_t func,
+	unsigned int bytes);
+void ps3_vuart_cancel_async(struct ps3_vuart_port_device *dev);
+void ps3_vuart_clear_rx_bytes(struct ps3_vuart_port_device *dev,
+	unsigned int bytes);
 
 #endif
