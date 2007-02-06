@@ -910,7 +910,7 @@ static int init_section_ref_ok(const char *name)
 		".opd",   /* see comment [OPD] at exit_section_ref_ok() */
 		".toc1",  /* used by ppc64 */
 		".stab",
-		".rodata",
+		".data.rel.ro", /* used by parisc64 */
 		".parainstructions",
 		".text.lock",
 		"__bug_table", /* used by powerpc for BUG() */
@@ -933,6 +933,7 @@ static int init_section_ref_ok(const char *name)
 		".eh_frame",
 		".debug",
 		".parainstructions",
+		".rodata",
 		NULL
 	};
 	/* part of section name */
