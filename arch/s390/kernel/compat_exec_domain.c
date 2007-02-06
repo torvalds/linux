@@ -12,10 +12,9 @@
 #include <linux/personality.h>
 #include <linux/sched.h>
 
-struct exec_domain s390_exec_domain;
+static struct exec_domain s390_exec_domain;
 
-static int __init
-s390_init (void)
+static int __init s390_init (void)
 {
 	s390_exec_domain.name = "Linux/s390";
 	s390_exec_domain.handler = NULL;

@@ -5,6 +5,8 @@
 #include <linux/types.h>
 #include <linux/keyboard.h>
 #include <linux/kd.h>
+#include <linux/kbd_kern.h>
+#include <linux/kbd_diacr.h>
 
 u_short plain_map[NR_KEYS] = {
 	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,

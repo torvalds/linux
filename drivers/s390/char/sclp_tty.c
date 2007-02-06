@@ -721,7 +721,7 @@ static const struct tty_operations sclp_ops = {
 	.ioctl = sclp_tty_ioctl,
 };
 
-int __init
+static int __init
 sclp_tty_init(void)
 {
 	struct tty_driver *driver;

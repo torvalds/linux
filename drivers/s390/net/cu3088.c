@@ -57,7 +57,7 @@ static struct ccw_device_id cu3088_ids[] = {
 
 static struct ccw_driver cu3088_driver;
 
-struct device *cu3088_root_dev;
+static struct device *cu3088_root_dev;
 
 static ssize_t
 group_write(struct device_driver *drv, const char *buf, size_t count)

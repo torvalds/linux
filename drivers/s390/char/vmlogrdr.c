@@ -128,9 +128,8 @@ static iucv_interrupt_ops_t vmlogrdr_iucvops = {
 	.MessagePending     = vmlogrdr_iucv_MessagePending,
 };
 
-
-DECLARE_WAIT_QUEUE_HEAD(conn_wait_queue);
-DECLARE_WAIT_QUEUE_HEAD(read_wait_queue);
+static DECLARE_WAIT_QUEUE_HEAD(conn_wait_queue);
+static DECLARE_WAIT_QUEUE_HEAD(read_wait_queue);
 
 /*
  * pointer to system service private structure
