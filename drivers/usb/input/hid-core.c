@@ -35,6 +35,7 @@
 
 #include <linux/hid.h>
 #include <linux/hiddev.h>
+#include <linux/hid-debug.h>
 #include "usbhid.h"
 
 /*
@@ -219,23 +220,6 @@ static void hid_irq_in(struct urb *urb)
 		}
 	}
 }
-
-/*
- * Find a report field with a specified HID usage.
- */
-#if 0
-struct hid_field *hid_find_field_by_usage(struct hid_device *hid, __u32 wanted_usage, int type)
-{
-	struct hid_report *report;
-	int i;
-
-	list_for_each_entry(report, &hid->report_enum[type].report_list, list)
-		for (i = 0; i < report->maxfield; i++)
-			if (report->field[i]->logical == wanted_usage)
-				return report->field[i];
-	return NULL;
-}
-#endif  /*  0  */
 
 static int hid_submit_out(struct hid_device *hid)
 {
@@ -501,7 +485,7 @@ static int hid_get_class_descriptor(struct usb_device *dev, int ifnum,
 {
 	int result, retries = 4;
 
-	memset(buf,0,size);	// Make sure we parse really received data
+	memset(buf, 0, size);
 
 	do {
 		result = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
@@ -526,18 +510,6 @@ void usbhid_close(struct hid_device *hid)
 
 	if (!--hid->open)
 		usb_kill_urb(usbhid->urbin);
-}
-
-static int hidinput_open(struct input_dev *dev)
-{
-	struct hid_device *hid = dev->private;
-	return usbhid_open(hid);
-}
-
-static void hidinput_close(struct input_dev *dev)
-{
-	struct hid_device *hid = dev->private;
-	usbhid_close(hid);
 }
 
 #define USB_VENDOR_ID_PANJIT		0x134c
@@ -770,6 +742,7 @@ void usbhid_init_reports(struct hid_device *hid)
 #define USB_DEVICE_ID_APPLE_GEYSER4_JIS	0x021c
 #define USB_DEVICE_ID_APPLE_FOUNTAIN_TP_ONLY	0x030a
 #define USB_DEVICE_ID_APPLE_GEYSER1_TP_ONLY	0x030b
+#define USB_DEVICE_ID_APPLE_IR		0x8240
 
 #define USB_VENDOR_ID_CHERRY		0x046a
 #define USB_DEVICE_ID_CHERRY_CYMOTION	0x0023
@@ -791,6 +764,9 @@ void usbhid_init_reports(struct hid_device *hid)
 
 #define USB_VENDOR_ID_IMATION		0x0718
 #define USB_DEVICE_ID_DISC_STAKKA	0xd000
+
+#define USB_VENDOR_ID_PANTHERLORD	0x0810
+#define USB_DEVICE_ID_PANTHERLORD_TWIN_USB_JOYSTICK	0x0001
 
 /*
  * Alphabetically sorted blacklist by quirk type.
@@ -946,19 +922,21 @@ static const struct hid_blacklist {
 
 	{ USB_VENDOR_ID_CHERRY, USB_DEVICE_ID_CHERRY_CYMOTION, HID_QUIRK_CYMOTION },
 
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_ANSI, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_ISO, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_ANSI, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_ISO, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_POWERBOOK_ISO_KEYBOARD},
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_JIS, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_ANSI, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_ISO, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_POWERBOOK_ISO_KEYBOARD},
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_JIS, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_ANSI, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_ISO, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_POWERBOOK_ISO_KEYBOARD},
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_JIS, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_TP_ONLY, HID_QUIRK_POWERBOOK_HAS_FN },
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER1_TP_ONLY, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_ANSI, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_ISO, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_ANSI, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_ISO, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE | HID_QUIRK_POWERBOOK_ISO_KEYBOARD},
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_JIS, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_ANSI, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_ISO, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE | HID_QUIRK_POWERBOOK_ISO_KEYBOARD},
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_JIS, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_ANSI, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_ISO, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE | HID_QUIRK_POWERBOOK_ISO_KEYBOARD},
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_JIS, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_TP_ONLY, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER1_TP_ONLY, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
+
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_IR, HID_QUIRK_IGNORE },
 
 	{ USB_VENDOR_ID_PANJIT, 0x0001, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_PANJIT, 0x0002, HID_QUIRK_IGNORE },
@@ -968,6 +946,8 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_TURBOX_KEYBOARD, HID_QUIRK_NOGET },
 
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_USB_RECEIVER, HID_QUIRK_BAD_RELATIVE_KEYS },
+
+	{ USB_VENDOR_ID_PANTHERLORD, USB_DEVICE_ID_PANTHERLORD_TWIN_USB_JOYSTICK, HID_QUIRK_MULTI_INPUT | HID_QUIRK_SKIP_OUTPUT_REPORTS },
 
 	{ 0, 0 }
 };
@@ -1063,6 +1043,11 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 
 	if (quirks & HID_QUIRK_IGNORE)
 		return NULL;
+
+	if ((quirks & HID_QUIRK_IGNORE_MOUSE) &&
+		(interface->desc.bInterfaceProtocol == USB_INTERFACE_PROTOCOL_MOUSE))
+			return NULL;
+
 
 	if (usb_get_extra_descriptor(interface, HID_DT_HID, &hdesc) &&
 	    (!interface->desc.bNumEndpoints ||
@@ -1235,8 +1220,8 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	usbhid->urbctrl->transfer_dma = usbhid->ctrlbuf_dma;
 	usbhid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
 	hid->hidinput_input_event = usb_hidinput_input_event;
-	hid->hidinput_open = hidinput_open;
-	hid->hidinput_close = hidinput_close;
+	hid->hid_open = usbhid_open;
+	hid->hid_close = usbhid_close;
 #ifdef CONFIG_USB_HIDDEV
 	hid->hiddev_hid_event = hiddev_hid_event;
 	hid->hiddev_report_event = hiddev_report_event;
@@ -1315,11 +1300,7 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		return -ENODEV;
 	}
 
-	/* This only gets called when we are a single-input (most of the
-	 * time). IOW, not a HID_QUIRK_MULTI_INPUT. The hid_ff_init() is
-	 * only useful in this case, and not for multi-input quirks. */
-	if ((hid->claimed & HID_CLAIMED_INPUT) &&
-			!(hid->quirks & HID_QUIRK_MULTI_INPUT))
+	if ((hid->claimed & HID_CLAIMED_INPUT))
 		hid_ff_init(hid);
 
 	printk(KERN_INFO);
