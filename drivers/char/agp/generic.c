@@ -112,9 +112,8 @@ void agp_alloc_page_array(size_t size, struct agp_memory *mem)
 	mem->memory = NULL;
 	mem->vmalloc_flag = 0;
 
-	if (size <= 2*PAGE_SIZE) {
+	if (size <= 2*PAGE_SIZE)
 		mem->memory = kmalloc(size, GFP_KERNEL | __GFP_NORETRY);
-	}
 	if (mem->memory == NULL) {
 		mem->memory = vmalloc(size);
 		mem->vmalloc_flag = 1;
@@ -138,12 +137,10 @@ static struct agp_memory *agp_create_user_memory(unsigned long num_agp_pages)
 	struct agp_memory *new;
 	unsigned long alloc_size = num_agp_pages*sizeof(struct page *);
 
-	new = kmalloc(sizeof(struct agp_memory), GFP_KERNEL);
-
+	new = kzalloc(sizeof(struct agp_memory), GFP_KERNEL);
 	if (new == NULL)
 		return NULL;
 
-	memset(new, 0, sizeof(struct agp_memory));
 	new->key = agp_get_key();
 
 	if (new->key < 0) {
@@ -161,7 +158,6 @@ static struct agp_memory *agp_create_user_memory(unsigned long num_agp_pages)
 	new->num_scratch_pages = 0;
 	return new;
 }
-
 
 struct agp_memory *agp_create_memory(int scratch_pages)
 {
@@ -1071,9 +1067,8 @@ int agp_generic_insert_memory(struct agp_memory * mem, off_t pg_start, int type)
 	num_entries -= agp_memory_reserved/PAGE_SIZE;
 	if (num_entries < 0) num_entries = 0;
 
-	if (type != mem->type) {
+	if (type != mem->type)
 		return -EINVAL;
-	}
 
 	mask_type = bridge->driver->agp_type_to_mask_type(bridge, type);
 	if (mask_type != 0) {
@@ -1143,13 +1138,11 @@ int agp_generic_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 }
 EXPORT_SYMBOL(agp_generic_remove_memory);
 
-
 struct agp_memory *agp_generic_alloc_by_type(size_t page_count, int type)
 {
 	return NULL;
 }
 EXPORT_SYMBOL(agp_generic_alloc_by_type);
-
 
 void agp_generic_free_by_type(struct agp_memory *curr)
 {
@@ -1170,9 +1163,8 @@ struct agp_memory *agp_generic_alloc_user(size_t page_count, int type)
 	if (new == NULL)
 		return NULL;
 
-	for (i = 0; i < page_count; i++) {
+	for (i = 0; i < page_count; i++)
 		new->memory[i] = 0;
-	}
 	new->page_count = 0;
 	new->type = type;
 	new->num_scratch_pages = pages;
@@ -1180,7 +1172,6 @@ struct agp_memory *agp_generic_alloc_user(size_t page_count, int type)
 	return new;
 }
 EXPORT_SYMBOL(agp_generic_alloc_user);
-
 
 /*
  * Basic Page Allocation Routines -

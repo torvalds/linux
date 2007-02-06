@@ -89,7 +89,6 @@ static struct _intel_i810_private {
 	int num_dcache_entries;
 } intel_i810_private;
 
-
 static int intel_i810_fetch_size(void)
 {
 	u32 smram_miscc;
