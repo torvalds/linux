@@ -18,7 +18,7 @@
  * 20001005	- Initialization fixes for 2.4.0-test9
  * 			  Florian Lohoff <flo@rfc822.org>
  *
- *	Copyright (C) 2002, 2003, 2005  Maciej W. Rozycki
+ *	Copyright (C) 2002, 2003, 2005, 2006  Maciej W. Rozycki
  */
 
 #include <linux/kernel.h>
@@ -30,6 +30,7 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/stat.h>
+#include <linux/tc.h>
 
 #include <asm/dma.h>
 #include <asm/irq.h>
@@ -42,7 +43,6 @@
 #include <asm/dec/ioasic_ints.h>
 #include <asm/dec/machtype.h>
 #include <asm/dec/system.h>
-#include <asm/dec/tc.h>
 
 #define DEC_SCSI_SREG 0
 #define DEC_SCSI_DMAREG 0x40000
@@ -98,51 +98,33 @@ static irqreturn_t scsi_dma_merr_int(int, void *);
 static irqreturn_t scsi_dma_err_int(int, void *);
 static irqreturn_t scsi_dma_int(int, void *);
 
-static int dec_esp_detect(struct scsi_host_template * tpnt);
-
-static int dec_esp_release(struct Scsi_Host *shost)
-{
-	if (shost->irq)
-		free_irq(shost->irq, NULL);
-	if (shost->io_port && shost->n_io_port)
-		release_region(shost->io_port, shost->n_io_port);
-	scsi_unregister(shost);
-	return 0;
-}
-
-static struct scsi_host_template driver_template = {
-	.proc_name		= "dec_esp",
-	.proc_info		= esp_proc_info,
+static struct scsi_host_template dec_esp_template = {
+	.module			= THIS_MODULE,
 	.name			= "NCR53C94",
-	.detect			= dec_esp_detect,
-	.slave_alloc		= esp_slave_alloc,
-	.slave_destroy		= esp_slave_destroy,
-	.release		= dec_esp_release,
 	.info			= esp_info,
 	.queuecommand		= esp_queue,
 	.eh_abort_handler	= esp_abort,
 	.eh_bus_reset_handler	= esp_reset,
+	.slave_alloc		= esp_slave_alloc,
+	.slave_destroy		= esp_slave_destroy,
+	.proc_info		= esp_proc_info,
+	.proc_name		= "dec_esp",
 	.can_queue		= 7,
-	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 1,
 	.use_clustering		= DISABLE_CLUSTERING,
 };
 
-
-#include "scsi_module.c"
+static struct NCR_ESP *dec_esp_platform;
 
 /***************************************************************** Detection */
-static int dec_esp_detect(struct scsi_host_template * tpnt)
+static int dec_esp_platform_probe(void)
 {
 	struct NCR_ESP *esp;
-	struct ConfigDev *esp_dev;
-	int slot;
-	unsigned long mem_start;
+	int err = 0;
 
 	if (IOASIC) {
-		esp_dev = 0;
-		esp = esp_allocate(tpnt, (void *) esp_dev);
+		esp = esp_allocate(&dec_esp_template, NULL, 1);
 
 		/* Do command transfer with programmed I/O */
 		esp->do_pio_cmds = 1;
@@ -200,111 +182,174 @@ static int dec_esp_detect(struct scsi_host_template * tpnt)
 		/* Check for differential SCSI-bus */
 		esp->diff = 0;
 
+		err = request_irq(esp->irq, esp_intr, IRQF_DISABLED,
+				  "ncr53c94", esp->ehost);
+		if (err)
+			goto err_alloc;
+		err = request_irq(dec_interrupt[DEC_IRQ_ASC_MERR],
+				  scsi_dma_merr_int, IRQF_DISABLED,
+				  "ncr53c94 error", esp->ehost);
+		if (err)
+			goto err_irq;
+		err = request_irq(dec_interrupt[DEC_IRQ_ASC_ERR],
+				  scsi_dma_err_int, IRQF_DISABLED,
+				  "ncr53c94 overrun", esp->ehost);
+		if (err)
+			goto err_irq_merr;
+		err = request_irq(dec_interrupt[DEC_IRQ_ASC_DMA], scsi_dma_int,
+				  IRQF_DISABLED, "ncr53c94 dma", esp->ehost);
+		if (err)
+			goto err_irq_err;
+
 		esp_initialize(esp);
 
-		if (request_irq(esp->irq, esp_intr, IRQF_DISABLED,
-				"ncr53c94", esp->ehost))
-			goto err_dealloc;
-		if (request_irq(dec_interrupt[DEC_IRQ_ASC_MERR],
-				scsi_dma_merr_int, IRQF_DISABLED,
-				"ncr53c94 error", esp->ehost))
-			goto err_free_irq;
-		if (request_irq(dec_interrupt[DEC_IRQ_ASC_ERR],
-				scsi_dma_err_int, IRQF_DISABLED,
-				"ncr53c94 overrun", esp->ehost))
-			goto err_free_irq_merr;
-		if (request_irq(dec_interrupt[DEC_IRQ_ASC_DMA],
-				scsi_dma_int, IRQF_DISABLED,
-				"ncr53c94 dma", esp->ehost))
-			goto err_free_irq_err;
-
-	}
-
-	if (TURBOCHANNEL) {
-		while ((slot = search_tc_card("PMAZ-AA")) >= 0) {
-			claim_tc_card(slot);
-
-			esp_dev = 0;
-			esp = esp_allocate(tpnt, (void *) esp_dev);
-
-			mem_start = get_tc_base_addr(slot);
-
-			/* Store base addr into esp struct */
-			esp->slot = CPHYSADDR(mem_start);
-
-			esp->dregs = 0;
-			esp->eregs = (void *)CKSEG1ADDR(mem_start +
-							DEC_SCSI_SREG);
-			esp->do_pio_cmds = 1;
-
-			/* Set the command buffer */
-			esp->esp_command = (volatile unsigned char *) pmaz_cmd_buffer;
-
-			/* get virtual dma address for command buffer */
-			esp->esp_command_dvma = virt_to_phys(pmaz_cmd_buffer);
-
-			esp->cfreq = get_tc_speed();
-
-			esp->irq = get_tc_irq_nr(slot);
-
-			/* Required functions */
-			esp->dma_bytes_sent = &dma_bytes_sent;
-			esp->dma_can_transfer = &dma_can_transfer;
-			esp->dma_dump_state = &dma_dump_state;
-			esp->dma_init_read = &pmaz_dma_init_read;
-			esp->dma_init_write = &pmaz_dma_init_write;
-			esp->dma_ints_off = &pmaz_dma_ints_off;
-			esp->dma_ints_on = &pmaz_dma_ints_on;
-			esp->dma_irq_p = &dma_irq_p;
-			esp->dma_ports_p = &dma_ports_p;
-			esp->dma_setup = &pmaz_dma_setup;
-
-			/* Optional functions */
-			esp->dma_barrier = 0;
-			esp->dma_drain = &pmaz_dma_drain;
-			esp->dma_invalidate = 0;
-			esp->dma_irq_entry = 0;
-			esp->dma_irq_exit = 0;
-			esp->dma_poll = 0;
-			esp->dma_reset = 0;
-			esp->dma_led_off = 0;
-			esp->dma_led_on = 0;
-
-			esp->dma_mmu_get_scsi_one = pmaz_dma_mmu_get_scsi_one;
-			esp->dma_mmu_get_scsi_sgl = 0;
-			esp->dma_mmu_release_scsi_one = 0;
-			esp->dma_mmu_release_scsi_sgl = 0;
-			esp->dma_advance_sg = 0;
-
- 			if (request_irq(esp->irq, esp_intr, IRQF_DISABLED,
- 					 "PMAZ_AA", esp->ehost)) {
- 				esp_deallocate(esp);
- 				release_tc_card(slot);
- 				continue;
- 			}
-			esp->scsi_id = 7;
-			esp->diff = 0;
-			esp_initialize(esp);
+		err = scsi_add_host(esp->ehost, NULL);
+		if (err) {
+			printk(KERN_ERR "ESP: Unable to register adapter\n");
+			goto err_irq_dma;
 		}
+
+		scsi_scan_host(esp->ehost);
+
+		dec_esp_platform = esp;
 	}
 
-	if(nesps) {
-		printk("ESP: Total of %d ESP hosts found, %d actually in use.\n", nesps, esps_in_use);
-		esps_running = esps_in_use;
-		return esps_in_use;
-	}
 	return 0;
 
-err_free_irq_err:
-	free_irq(dec_interrupt[DEC_IRQ_ASC_ERR], scsi_dma_err_int);
-err_free_irq_merr:
-	free_irq(dec_interrupt[DEC_IRQ_ASC_MERR], scsi_dma_merr_int);
-err_free_irq:
-	free_irq(esp->irq, esp_intr);
-err_dealloc:
+err_irq_dma:
+	free_irq(dec_interrupt[DEC_IRQ_ASC_DMA], esp->ehost);
+err_irq_err:
+	free_irq(dec_interrupt[DEC_IRQ_ASC_ERR], esp->ehost);
+err_irq_merr:
+	free_irq(dec_interrupt[DEC_IRQ_ASC_MERR], esp->ehost);
+err_irq:
+	free_irq(esp->irq, esp->ehost);
+err_alloc:
 	esp_deallocate(esp);
-	return 0;
+	scsi_host_put(esp->ehost);
+	return err;
 }
+
+static int __init dec_esp_probe(struct device *dev)
+{
+	struct NCR_ESP *esp;
+	resource_size_t start, len;
+	int err;
+
+	esp = esp_allocate(&dec_esp_template,  NULL, 1);
+
+	dev_set_drvdata(dev, esp);
+
+	start = to_tc_dev(dev)->resource.start;
+	len = to_tc_dev(dev)->resource.end - start + 1;
+
+	if (!request_mem_region(start, len, dev->bus_id)) {
+		printk(KERN_ERR "%s: Unable to reserve MMIO resource\n",
+		       dev->bus_id);
+		err = -EBUSY;
+		goto err_alloc;
+	}
+
+	/* Store base addr into esp struct.  */
+	esp->slot = start;
+
+	esp->dregs = 0;
+	esp->eregs = (void *)CKSEG1ADDR(start + DEC_SCSI_SREG);
+	esp->do_pio_cmds = 1;
+
+	/* Set the command buffer.  */
+	esp->esp_command = (volatile unsigned char *)pmaz_cmd_buffer;
+
+	/* Get virtual dma address for command buffer.  */
+	esp->esp_command_dvma = virt_to_phys(pmaz_cmd_buffer);
+
+	esp->cfreq = tc_get_speed(to_tc_dev(dev)->bus);
+
+	esp->irq = to_tc_dev(dev)->interrupt;
+
+	/* Required functions.  */
+	esp->dma_bytes_sent = &dma_bytes_sent;
+	esp->dma_can_transfer = &dma_can_transfer;
+	esp->dma_dump_state = &dma_dump_state;
+	esp->dma_init_read = &pmaz_dma_init_read;
+	esp->dma_init_write = &pmaz_dma_init_write;
+	esp->dma_ints_off = &pmaz_dma_ints_off;
+	esp->dma_ints_on = &pmaz_dma_ints_on;
+	esp->dma_irq_p = &dma_irq_p;
+	esp->dma_ports_p = &dma_ports_p;
+	esp->dma_setup = &pmaz_dma_setup;
+
+	/* Optional functions.  */
+	esp->dma_barrier = 0;
+	esp->dma_drain = &pmaz_dma_drain;
+	esp->dma_invalidate = 0;
+	esp->dma_irq_entry = 0;
+	esp->dma_irq_exit = 0;
+	esp->dma_poll = 0;
+	esp->dma_reset = 0;
+	esp->dma_led_off = 0;
+	esp->dma_led_on = 0;
+
+	esp->dma_mmu_get_scsi_one = pmaz_dma_mmu_get_scsi_one;
+	esp->dma_mmu_get_scsi_sgl = 0;
+	esp->dma_mmu_release_scsi_one = 0;
+	esp->dma_mmu_release_scsi_sgl = 0;
+	esp->dma_advance_sg = 0;
+
+	err = request_irq(esp->irq, esp_intr, IRQF_DISABLED, "PMAZ_AA",
+			  esp->ehost);
+	if (err) {
+		printk(KERN_ERR "%s: Unable to get IRQ %d\n",
+		       dev->bus_id, esp->irq);
+		goto err_resource;
+	}
+
+	esp->scsi_id = 7;
+	esp->diff = 0;
+	esp_initialize(esp);
+
+	err = scsi_add_host(esp->ehost, dev);
+	if (err) {
+		printk(KERN_ERR "%s: Unable to register adapter\n",
+		       dev->bus_id);
+		goto err_irq;
+	}
+
+	scsi_scan_host(esp->ehost);
+
+	return 0;
+
+err_irq:
+	free_irq(esp->irq, esp->ehost);
+
+err_resource:
+	release_mem_region(start, len);
+
+err_alloc:
+	esp_deallocate(esp);
+	scsi_host_put(esp->ehost);
+	return err;
+}
+
+static void __exit dec_esp_platform_remove(void)
+{
+	struct NCR_ESP *esp = dec_esp_platform;
+
+	free_irq(esp->irq, esp->ehost);
+	esp_deallocate(esp);
+	scsi_host_put(esp->ehost);
+	dec_esp_platform = NULL;
+}
+
+static void __exit dec_esp_remove(struct device *dev)
+{
+	struct NCR_ESP *esp = dev_get_drvdata(dev);
+
+	free_irq(esp->irq, esp->ehost);
+	esp_deallocate(esp);
+	scsi_host_put(esp->ehost);
+}
+
 
 /************************************************************* DMA Functions */
 static irqreturn_t scsi_dma_merr_int(int irq, void *dev_id)
@@ -576,3 +621,67 @@ static void pmaz_dma_mmu_get_scsi_one(struct NCR_ESP *esp, struct scsi_cmnd * sp
 {
 	sp->SCp.ptr = (char *)virt_to_phys(sp->request_buffer);
 }
+
+
+#ifdef CONFIG_TC
+static int __init dec_esp_tc_probe(struct device *dev);
+static int __exit dec_esp_tc_remove(struct device *dev);
+
+static const struct tc_device_id dec_esp_tc_table[] = {
+        { "DEC     ", "PMAZ-AA " },
+        { }
+};
+MODULE_DEVICE_TABLE(tc, dec_esp_tc_table);
+
+static struct tc_driver dec_esp_tc_driver = {
+        .id_table       = dec_esp_tc_table,
+        .driver         = {
+                .name   = "dec_esp",
+                .bus    = &tc_bus_type,
+                .probe  = dec_esp_tc_probe,
+                .remove = __exit_p(dec_esp_tc_remove),
+        },
+};
+
+static int __init dec_esp_tc_probe(struct device *dev)
+{
+	int status = dec_esp_probe(dev);
+	if (!status)
+		get_device(dev);
+	return status;
+}
+
+static int __exit dec_esp_tc_remove(struct device *dev)
+{
+	put_device(dev);
+	dec_esp_remove(dev);
+	return 0;
+}
+#endif
+
+static int __init dec_esp_init(void)
+{
+	int status;
+
+	status = tc_register_driver(&dec_esp_tc_driver);
+	if (!status)
+		dec_esp_platform_probe();
+
+	if (nesps) {
+		pr_info("ESP: Total of %d ESP hosts found, "
+			"%d actually in use.\n", nesps, esps_in_use);
+		esps_running = esps_in_use;
+	}
+
+	return status;
+}
+
+static void __exit dec_esp_exit(void)
+{
+	dec_esp_platform_remove();
+	tc_unregister_driver(&dec_esp_tc_driver);
+}
+
+
+module_init(dec_esp_init);
+module_exit(dec_esp_exit);
