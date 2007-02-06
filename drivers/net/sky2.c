@@ -1895,8 +1895,9 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
 		return -EINVAL;
 
+	/* TSO on Yukon Ultra and MTU > 1500 not supported */
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U && new_mtu > ETH_DATA_LEN)
-		return -EINVAL;
+		dev->features &= ~NETIF_F_TSO;
 
 	if (!netif_running(dev)) {
 		dev->mtu = new_mtu;
@@ -3350,11 +3351,9 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 
 	sky2->port = port;
 
-	if (hw->chip_id != CHIP_ID_YUKON_EC_U)
-		dev->features |= NETIF_F_TSO;
+	dev->features |= NETIF_F_TSO | NETIF_F_IP_CSUM | NETIF_F_SG;
 	if (highmem)
 		dev->features |= NETIF_F_HIGHDMA;
-	dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 
 #ifdef SKY2_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
