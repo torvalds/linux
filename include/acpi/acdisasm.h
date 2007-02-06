@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,9 +97,11 @@ typedef const struct acpi_dmtable_info {
 #define ACPI_DMT_CHKSUM                 20
 #define ACPI_DMT_SPACEID                21
 #define ACPI_DMT_GAS                    22
-#define ACPI_DMT_MADT                   23
-#define ACPI_DMT_SRAT                   24
-#define ACPI_DMT_EXIT                   25
+#define ACPI_DMT_DMAR                   23
+#define ACPI_DMT_MADT                   24
+#define ACPI_DMT_SRAT                   25
+#define ACPI_DMT_EXIT                   26
+#define ACPI_DMT_SIG                    27
 
 typedef
 void (*ACPI_TABLE_HANDLER) (struct acpi_table_header * table);
@@ -108,6 +110,7 @@ struct acpi_dmtable_data {
 	char *signature;
 	struct acpi_dmtable_info *table_info;
 	ACPI_TABLE_HANDLER table_handler;
+	char *name;
 };
 
 struct acpi_op_walk_info {
@@ -139,7 +142,9 @@ extern const char *acpi_gbl_match_ops[];
 
 extern struct acpi_dmtable_info acpi_dm_table_info_asf0[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf1[];
+extern struct acpi_dmtable_info acpi_dm_table_info_asf1a[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf2[];
+extern struct acpi_dmtable_info acpi_dm_table_info_asf2a[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf3[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf4[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf_hdr[];
@@ -147,6 +152,11 @@ extern struct acpi_dmtable_info acpi_dm_table_info_boot[];
 extern struct acpi_dmtable_info acpi_dm_table_info_cpep[];
 extern struct acpi_dmtable_info acpi_dm_table_info_cpep0[];
 extern struct acpi_dmtable_info acpi_dm_table_info_dbgp[];
+extern struct acpi_dmtable_info acpi_dm_table_info_dmar[];
+extern struct acpi_dmtable_info acpi_dm_table_info_dmar_hdr[];
+extern struct acpi_dmtable_info acpi_dm_table_info_dmar_scope[];
+extern struct acpi_dmtable_info acpi_dm_table_info_dmar0[];
+extern struct acpi_dmtable_info acpi_dm_table_info_dmar1[];
 extern struct acpi_dmtable_info acpi_dm_table_info_ecdt[];
 extern struct acpi_dmtable_info acpi_dm_table_info_facs[];
 extern struct acpi_dmtable_info acpi_dm_table_info_fadt1[];
@@ -200,6 +210,8 @@ void acpi_dm_line_header2(u32 offset, u32 byte_length, char *name, u32 value);
 void acpi_dm_dump_asf(struct acpi_table_header *table);
 
 void acpi_dm_dump_cpep(struct acpi_table_header *table);
+
+void acpi_dm_dump_dmar(struct acpi_table_header *table);
 
 void acpi_dm_dump_fadt(struct acpi_table_header *table);
 
@@ -314,7 +326,7 @@ acpi_dm_resource_template(struct acpi_op_walk_info *info,
 			  union acpi_parse_object *op,
 			  u8 * byte_data, u32 byte_count);
 
-u8 acpi_dm_is_resource_template(union acpi_parse_object *op);
+acpi_status acpi_dm_is_resource_template(union acpi_parse_object *op);
 
 void acpi_dm_indent(u32 level);
 

@@ -58,8 +58,8 @@ void __init clustered_apic_check(void)
 	 * Some x86_64 machines use physical APIC mode regardless of how many
 	 * procs/clusters are present (x86_64 ES7000 is an example).
 	 */
-	if (acpi_fadt.revision > FADT2_REVISION_ID)
-		if (acpi_fadt.force_apic_physical_destination_mode) {
+	if (acpi_gbl_FADT.header.revision > FADT2_REVISION_ID)
+		if (acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL) {
 			genapic = &apic_cluster;
 			goto print;
 		}

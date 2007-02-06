@@ -125,7 +125,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 		/* Used to clear all duty_value bits */
 		duty_mask = pr->throttling.state_count - 1;
 
-		duty_mask <<= acpi_fadt.duty_offset;
+		duty_mask <<= acpi_gbl_FADT.duty_offset;
 		duty_mask = ~duty_mask;
 	}
 
@@ -208,7 +208,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 		return 0;
 	}
 
-	pr->throttling.state_count = 1 << acpi_fadt.duty_width;
+	pr->throttling.state_count = 1 << acpi_gbl_FADT.duty_width;
 
 	/*
 	 * Compute state values. Note that throttling displays a linear power/

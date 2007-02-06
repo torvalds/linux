@@ -56,6 +56,25 @@ static inline u64 sal_get_pcibus_info(u64 segment, u64 busnum, u64 address)
 	return ret_stuff.v0;
 }
 
+/*
+ * Retrieve the pci device information given the bus and device|function number.
+ */
+static inline u64
+sal_get_pcidev_info(u64 segment, u64 bus_number, u64 devfn, u64 pci_dev,
+		    u64 sn_irq_info)
+{
+	struct ia64_sal_retval ret_stuff;
+	ret_stuff.status = 0;
+	ret_stuff.v0 = 0;
+
+	SAL_CALL_NOLOCK(ret_stuff,
+			(u64) SN_SAL_IOIF_GET_PCIDEV_INFO,
+			(u64) segment, (u64) bus_number, (u64) devfn,
+			(u64) pci_dev,
+			sn_irq_info, 0, 0);
+	return ret_stuff.v0;
+}
+
 
 /*
  * sn_fixup_ionodes() - This routine initializes the HUB data structure for
@@ -172,18 +191,40 @@ sn_pci_window_fixup(struct pci_dev *dev, unsigned int count,
 }
 
 /*
- * sn_more_slot_fixup() - We are not running with an ACPI capable PROM,
+ * sn_io_slot_fixup() -   We are not running with an ACPI capable PROM,
  *			  and need to convert the pci_dev->resource
  *			  'start' and 'end' addresses to mapped addresses,
  *			  and setup the pci_controller->window array entries.
  */
 void
-sn_more_slot_fixup(struct pci_dev *dev, struct pcidev_info *pcidev_info)
+sn_io_slot_fixup(struct pci_dev *dev)
 {
 	unsigned int count = 0;
 	int idx;
 	s64 pci_addrs[PCI_ROM_RESOURCE + 1];
 	unsigned long addr, end, size, start;
+	struct pcidev_info *pcidev_info;
+	struct sn_irq_info *sn_irq_info;
+	int status;
+
+	pcidev_info = kzalloc(sizeof(struct pcidev_info), GFP_KERNEL);
+	if (!pcidev_info)
+		panic("%s: Unable to alloc memory for pcidev_info", __FUNCTION__);
+
+	sn_irq_info = kzalloc(sizeof(struct sn_irq_info), GFP_KERNEL);
+	if (!sn_irq_info)
+		panic("%s: Unable to alloc memory for sn_irq_info", __FUNCTION__);
+
+	/* Call to retrieve pci device information needed by kernel. */
+	status = sal_get_pcidev_info((u64) pci_domain_nr(dev),
+		(u64) dev->bus->number,
+		dev->devfn,
+		(u64) __pa(pcidev_info),
+		(u64) __pa(sn_irq_info));
+
+	if (status)
+		BUG(); /* Cannot get platform pci device information */
+
 
 	/* Copy over PIO Mapped Addresses */
 	for (idx = 0; idx <= PCI_ROM_RESOURCE; idx++) {
@@ -219,7 +260,11 @@ sn_more_slot_fixup(struct pci_dev *dev, struct pcidev_info *pcidev_info)
 	 */
 	if (count > 0)
 		sn_pci_window_fixup(dev, count, pci_addrs);
+
+	sn_pci_fixup_slot(dev, pcidev_info, sn_irq_info);
 }
+
+EXPORT_SYMBOL(sn_io_slot_fixup);
 
 /*
  * sn_pci_controller_fixup() - This routine sets up a bus's resources
@@ -272,9 +317,6 @@ sn_bus_fixup(struct pci_bus *bus)
 {
 	struct pci_dev *pci_dev = NULL;
 	struct pcibus_bussoft *prom_bussoft_ptr;
-	extern void sn_common_bus_fixup(struct pci_bus *,
-					struct pcibus_bussoft *);
-
 
 	if (!bus->parent) {  /* If root bus */
 		prom_bussoft_ptr = PCI_CONTROLLER(bus)->platform_data;
@@ -291,7 +333,7 @@ sn_bus_fixup(struct pci_bus *bus)
 					   prom_bussoft_ptr->bs_legacy_mem);
         }
         list_for_each_entry(pci_dev, &bus->devices, bus_list) {
-                sn_pci_fixup_slot(pci_dev);
+                sn_io_slot_fixup(pci_dev);
         }
 
 }

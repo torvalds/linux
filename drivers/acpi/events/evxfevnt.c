@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@
 #include <acpi/acpi.h>
 #include <acpi/acevents.h>
 #include <acpi/acnamesp.h>
+#include <acpi/actables.h>
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evxfevnt")
@@ -65,12 +66,13 @@ acpi_status acpi_enable(void)
 
 	ACPI_FUNCTION_TRACE(acpi_enable);
 
-	/* Make sure we have the FADT */
+	/* ACPI tables must be present */
 
-	if (!acpi_gbl_FADT) {
-		ACPI_WARNING((AE_INFO, "No FADT information present!"));
+	if (!acpi_tb_tables_loaded()) {
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
+
+	/* Check current mode */
 
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_ACPI) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
@@ -110,11 +112,6 @@ acpi_status acpi_disable(void)
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE(acpi_disable);
-
-	if (!acpi_gbl_FADT) {
-		ACPI_WARNING((AE_INFO, "No FADT information present!"));
-		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
-	}
 
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_LEGACY) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
@@ -169,7 +166,7 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 	 */
 	status =
 	    acpi_set_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, 1, ACPI_MTX_LOCK);
+			      enable_register_id, 1);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -178,7 +175,7 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 
 	status =
 	    acpi_get_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, &value, ACPI_MTX_LOCK);
+			      enable_register_id, &value);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -368,14 +365,14 @@ acpi_status acpi_disable_event(u32 event, u32 flags)
 	 */
 	status =
 	    acpi_set_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, 0, ACPI_MTX_LOCK);
+			      enable_register_id, 0);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
 	status =
 	    acpi_get_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, &value, ACPI_MTX_LOCK);
+			      enable_register_id, &value);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -421,7 +418,7 @@ acpi_status acpi_clear_event(u32 event)
 	 */
 	status =
 	    acpi_set_register(acpi_gbl_fixed_event_info[event].
-			      status_register_id, 1, ACPI_MTX_LOCK);
+			      status_register_id, 1);
 
 	return_ACPI_STATUS(status);
 }
@@ -510,7 +507,7 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 
 	status =
 	    acpi_get_register(acpi_gbl_fixed_event_info[event].
-			      status_register_id, event_status, ACPI_MTX_LOCK);
+			      status_register_id, event_status);
 
 	return_ACPI_STATUS(status);
 }

@@ -190,7 +190,7 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 		/* Invoke C3 */
 		inb(cx_address);
 		/* Dummy op - must do something useless after P_LVL3 read */
-		t = inl(acpi_fadt.xpm_tmr_blk.address);
+		t = inl(acpi_gbl_FADT.xpm_timer_block.address);
 	}
 	/* Disable bus ratio bit */
 	local_irq_disable();
@@ -250,8 +250,7 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 		outb(3, 0x22);
 	} else if ((pr != NULL) && pr->flags.bm_control) {
  		/* Disable bus master arbitration */
-		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1,
-				  ACPI_MTX_DO_NOT_LOCK);
+		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1);
 	}
 	switch (longhaul_version) {
 
@@ -281,8 +280,7 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	case TYPE_POWERSAVER:
 		if (longhaul_flags & USE_ACPI_C3) {
 			/* Don't allow wakeup */
-			acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0,
-					  ACPI_MTX_DO_NOT_LOCK);
+			acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0);
 			do_powersaver(cx->address, clock_ratio_index);
 		} else {
 			do_powersaver(0, clock_ratio_index);
@@ -295,8 +293,7 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 		outb(0, 0x22);
 	} else if ((pr != NULL) && pr->flags.bm_control) {
 		/* Enable bus master arbitration */
-		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0,
-				  ACPI_MTX_DO_NOT_LOCK);
+		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0);
 	}
 	outb(pic2_mask,0xA1);	/* restore mask */
 	outb(pic1_mask,0x21);
@@ -414,7 +411,7 @@ static int __init longhaul_get_ranges(void)
 	highest_speed = calc_speed(maxmult);
 	lowest_speed = calc_speed(minmult);
 	dprintk ("FSB:%dMHz  Lowest speed: %s   Highest speed:%s\n", fsb,
-		 print_speed(lowest_speed/1000), 
+		 print_speed(lowest_speed/1000),
 		 print_speed(highest_speed/1000));
 
 	if (lowest_speed == highest_speed) {
@@ -498,7 +495,7 @@ static void __init longhaul_setup_voltagescaling(void)
 		maxvid.mV/1000, maxvid.mV%1000,
 		minvid.mV/1000, minvid.mV%1000,
 		numvscales);
-	
+
 	j = 0;
 	while (longhaul_table[j].frequency != CPUFREQ_TABLE_END) {
 		speed = longhaul_table[j].frequency;

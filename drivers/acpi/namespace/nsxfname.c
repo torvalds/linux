@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,38 +84,41 @@ acpi_get_handle(acpi_handle parent,
 	/* Convert a parent handle to a prefix node */
 
 	if (parent) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-		if (ACPI_FAILURE(status)) {
-			return (status);
-		}
-
 		prefix_node = acpi_ns_map_handle_to_node(parent);
 		if (!prefix_node) {
-			(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 			return (AE_BAD_PARAMETER);
 		}
-
-		status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-		if (ACPI_FAILURE(status)) {
-			return (status);
-		}
-	}
-
-	/* Special case for root, since we can't search for it */
-
-	if (ACPI_STRCMP(pathname, ACPI_NS_ROOT_PATH) == 0) {
-		*ret_handle =
-		    acpi_ns_convert_entry_to_handle(acpi_gbl_root_node);
-		return (AE_OK);
 	}
 
 	/*
-	 *  Find the Node and convert to a handle
+	 * Valid cases are:
+	 * 1) Fully qualified pathname
+	 * 2) Parent + Relative pathname
+	 *
+	 * Error for <null Parent + relative path>
 	 */
-	status = acpi_ns_get_node(prefix_node, pathname, ACPI_NS_NO_UPSEARCH,
-				  &node);
+	if (acpi_ns_valid_root_prefix(pathname[0])) {
 
-	*ret_handle = NULL;
+		/* Pathname is fully qualified (starts with '\') */
+
+		/* Special case for root-only, since we can't search for it */
+
+		if (!ACPI_STRCMP(pathname, ACPI_NS_ROOT_PATH)) {
+			*ret_handle =
+			    acpi_ns_convert_entry_to_handle(acpi_gbl_root_node);
+			return (AE_OK);
+		}
+	} else if (!prefix_node) {
+
+		/* Relative path with null prefix is disallowed */
+
+		return (AE_BAD_PARAMETER);
+	}
+
+	/* Find the Node and convert to a handle */
+
+	status =
+	    acpi_ns_get_node(prefix_node, pathname, ACPI_NS_NO_UPSEARCH, &node);
 	if (ACPI_SUCCESS(status)) {
 		*ret_handle = acpi_ns_convert_entry_to_handle(node);
 	}

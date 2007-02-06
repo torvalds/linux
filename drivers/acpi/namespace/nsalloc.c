@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,9 @@ ACPI_MODULE_NAME("nsalloc")
 struct acpi_namespace_node *acpi_ns_create_node(u32 name)
 {
 	struct acpi_namespace_node *node;
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+	u32 temp;
+#endif
 
 	ACPI_FUNCTION_TRACE(ns_create_node);
 
@@ -70,6 +73,15 @@ struct acpi_namespace_node *acpi_ns_create_node(u32 name)
 	}
 
 	ACPI_MEM_TRACKING(acpi_gbl_ns_node_list->total_allocated++);
+
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+	temp =
+	    acpi_gbl_ns_node_list->total_allocated -
+	    acpi_gbl_ns_node_list->total_freed;
+	if (temp > acpi_gbl_ns_node_list->max_occupied) {
+		acpi_gbl_ns_node_list->max_occupied = temp;
+	}
+#endif
 
 	node->name.integer = name;
 	ACPI_SET_DESCRIPTOR_TYPE(node, ACPI_DESC_TYPE_NAMED);

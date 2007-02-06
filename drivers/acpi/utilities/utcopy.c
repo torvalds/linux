@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -717,6 +717,15 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		 * to the object pointed to by the reference
 		 */
 		acpi_ut_add_reference(source_desc->reference.object);
+		break;
+
+	case ACPI_TYPE_REGION:
+		/*
+		 * We copied the Region Handler, so we now must add a reference
+		 */
+		if (dest_desc->region.handler) {
+			acpi_ut_add_reference(dest_desc->region.handler);
+		}
 		break;
 
 	default:

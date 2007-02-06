@@ -117,6 +117,19 @@ void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 
 EXPORT_SYMBOL(acpi_pci_unregister_driver);
 
+acpi_handle acpi_get_pci_rootbridge_handle(unsigned int seg, unsigned int bus)
+{
+	struct acpi_pci_root *tmp;
+	
+	list_for_each_entry(tmp, &acpi_pci_roots, node) {
+		if ((tmp->id.segment == (u16) seg) && (tmp->id.bus == (u16) bus))
+			return tmp->device->handle;
+	}
+	return NULL;		
+}
+
+EXPORT_SYMBOL_GPL(acpi_get_pci_rootbridge_handle);
+
 static acpi_status
 get_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 {
@@ -152,6 +165,21 @@ static acpi_status try_get_root_bridge_busnr(acpi_handle handle, int *busnum)
 	return AE_OK;
 }
 
+static void acpi_pci_bridge_scan(struct acpi_device *device)
+{
+	int status;
+	struct acpi_device *child = NULL;
+
+	if (device->flags.bus_address)
+		if (device->parent && device->parent->ops.bind) {
+			status = device->parent->ops.bind(device);
+			if (!status) {
+				list_for_each_entry(child, &device->children, node)
+					acpi_pci_bridge_scan(child);
+			}
+		}
+}
+
 static int acpi_pci_root_add(struct acpi_device *device)
 {
 	int result = 0;
@@ -160,6 +188,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	acpi_status status = AE_OK;
 	unsigned long value = 0;
 	acpi_handle handle = NULL;
+	struct acpi_device *child;
 
 
 	if (!device)
@@ -175,9 +204,6 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	acpi_driver_data(device) = root;
 
-	/*
-	 * TBD: Doesn't the bus driver automatically set this?
-	 */
 	device->ops.bind = acpi_pci_bind;
 
 	/* 
@@ -298,6 +324,12 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	if (ACPI_SUCCESS(status))
 		result = acpi_pci_irq_add_prt(device->handle, root->id.segment,
 					      root->id.bus);
+
+	/*
+	 * Scan and bind all _ADR-Based Devices
+	 */
+	list_for_each_entry(child, &device->children, node)
+		acpi_pci_bridge_scan(child);
 
       end:
 	if (result) {

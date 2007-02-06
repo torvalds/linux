@@ -372,10 +372,8 @@ static int read_log(struct tpm_bios_log *log)
 	}
 
 	/* Find TCPA entry in RSDT (ACPI_LOGICAL_ADDRESSING) */
-	status = acpi_get_firmware_table(ACPI_TCPA_SIG, 1,
-					 ACPI_LOGICAL_ADDRESSING,
-					 (struct acpi_table_header **)
-					 &buff);
+	status = acpi_get_table(ACPI_SIG_TCPA, 1,
+				(struct acpi_table_header **)&buff);
 
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_ERR "%s: ERROR - Could not get TCPA table\n",
@@ -409,7 +407,7 @@ static int read_log(struct tpm_bios_log *log)
 
 	log->bios_event_log_end = log->bios_event_log + len;
 
-	acpi_os_map_memory(start, len, (void *) &virt);
+	virt = acpi_os_map_memory(start, len);
 
 	memcpy(log->bios_event_log, virt, len);
 

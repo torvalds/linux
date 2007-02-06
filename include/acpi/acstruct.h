@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -139,7 +139,8 @@ struct acpi_init_walk_info {
 	u16 buffer_init;
 	u16 package_init;
 	u16 object_count;
-	struct acpi_table_desc *table_desc;
+	acpi_owner_id owner_id;
+	acpi_native_uint table_index;
 };
 
 struct acpi_get_devices_info {

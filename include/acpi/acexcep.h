@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -178,8 +178,10 @@
 #define AE_CTRL_BREAK                   (acpi_status) (0x0009 | AE_CODE_CONTROL)
 #define AE_CTRL_CONTINUE                (acpi_status) (0x000A | AE_CODE_CONTROL)
 #define AE_CTRL_SKIP                    (acpi_status) (0x000B | AE_CODE_CONTROL)
+#define AE_CTRL_PARSE_CONTINUE          (acpi_status) (0x000C | AE_CODE_CONTROL)
+#define AE_CTRL_PARSE_PENDING           (acpi_status) (0x000D | AE_CODE_CONTROL)
 
-#define AE_CODE_CTRL_MAX                0x000B
+#define AE_CODE_CTRL_MAX                0x000D
 
 #ifdef DEFINE_ACPI_GLOBALS
 
@@ -291,7 +293,9 @@ char const *acpi_gbl_exception_names_ctrl[] = {
 	"AE_CTRL_TRANSFER",
 	"AE_CTRL_BREAK",
 	"AE_CTRL_CONTINUE",
-	"AE_CTRL_SKIP"
+	"AE_CTRL_SKIP",
+	"AE_CTRL_PARSE_CONTINUE",
+	"AE_CTRL_PARSE_PENDING"
 };
 
 #endif				/* ACPI GLOBALS */

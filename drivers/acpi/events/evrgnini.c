@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,11 @@
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evrgnini")
 
+/* Local prototypes */
+static u8 acpi_ev_match_pci_root_bridge(char *id);
+
+static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node);
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ev_system_memory_region_setup
@@ -62,6 +67,7 @@ ACPI_MODULE_NAME("evrgnini")
  * DESCRIPTION: Setup a system_memory operation region
  *
  ******************************************************************************/
+
 acpi_status
 acpi_ev_system_memory_region_setup(acpi_handle handle,
 				   u32 function,
@@ -168,9 +174,9 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	union acpi_operand_object *handler_obj;
 	struct acpi_namespace_node *parent_node;
 	struct acpi_namespace_node *pci_root_node;
+	struct acpi_namespace_node *pci_device_node;
 	union acpi_operand_object *region_obj =
 	    (union acpi_operand_object *)handle;
-	struct acpi_device_id object_hID;
 
 	ACPI_FUNCTION_TRACE(ev_pci_config_region_setup);
 
@@ -215,45 +221,30 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 
 		pci_root_node = parent_node;
 		while (pci_root_node != acpi_gbl_root_node) {
-			status =
-			    acpi_ut_execute_HID(pci_root_node, &object_hID);
-			if (ACPI_SUCCESS(status)) {
-				/*
-				 * Got a valid _HID string, check if this is a PCI root.
-				 * New for ACPI 3.0: check for a PCI Express root also.
-				 */
-				if (!
-				    (ACPI_STRNCMP
-				     (object_hID.value, PCI_ROOT_HID_STRING,
-				      sizeof(PCI_ROOT_HID_STRING)))
-				    ||
-				    !(ACPI_STRNCMP
-				      (object_hID.value,
-				       PCI_EXPRESS_ROOT_HID_STRING,
-				       sizeof(PCI_EXPRESS_ROOT_HID_STRING)))) {
 
-					/* Install a handler for this PCI root bridge */
+			/* Get the _HID/_CID in order to detect a root_bridge */
 
-					status =
-					    acpi_install_address_space_handler((acpi_handle) pci_root_node, ACPI_ADR_SPACE_PCI_CONFIG, ACPI_DEFAULT_HANDLER, NULL, NULL);
-					if (ACPI_FAILURE(status)) {
-						if (status == AE_SAME_HANDLER) {
-							/*
-							 * It is OK if the handler is already installed on the root
-							 * bridge.  Still need to return a context object for the
-							 * new PCI_Config operation region, however.
-							 */
-							status = AE_OK;
-						} else {
-							ACPI_EXCEPTION((AE_INFO,
-									status,
-									"Could not install PciConfig handler for Root Bridge %4.4s",
-									acpi_ut_get_node_name
-									(pci_root_node)));
-						}
+			if (acpi_ev_is_pci_root_bridge(pci_root_node)) {
+
+				/* Install a handler for this PCI root bridge */
+
+				status = acpi_install_address_space_handler((acpi_handle) pci_root_node, ACPI_ADR_SPACE_PCI_CONFIG, ACPI_DEFAULT_HANDLER, NULL, NULL);
+				if (ACPI_FAILURE(status)) {
+					if (status == AE_SAME_HANDLER) {
+						/*
+						 * It is OK if the handler is already installed on the root
+						 * bridge.  Still need to return a context object for the
+						 * new PCI_Config operation region, however.
+						 */
+						status = AE_OK;
+					} else {
+						ACPI_EXCEPTION((AE_INFO, status,
+								"Could not install PciConfig handler for Root Bridge %4.4s",
+								acpi_ut_get_node_name
+								(pci_root_node)));
 					}
-					break;
 				}
+				break;
 			}
 
 			pci_root_node = acpi_ns_get_parent_node(pci_root_node);
@@ -282,14 +273,25 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	/*
 	 * For PCI_Config space access, we need the segment, bus,
 	 * device and function numbers.  Acquire them here.
+	 *
+	 * Find the parent device object. (This allows the operation region to be
+	 * within a subscope under the device, such as a control method.)
 	 */
+	pci_device_node = region_obj->region.node;
+	while (pci_device_node && (pci_device_node->type != ACPI_TYPE_DEVICE)) {
+		pci_device_node = acpi_ns_get_parent_node(pci_device_node);
+	}
+
+	if (!pci_device_node) {
+		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
+	}
 
 	/*
 	 * Get the PCI device and function numbers from the _ADR object
 	 * contained in the parent's scope.
 	 */
 	status =
-	    acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR, parent_node,
+	    acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR, pci_device_node,
 					    &pci_value);
 
 	/*
@@ -325,6 +327,91 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 
 	*region_context = pci_id;
 	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ev_match_pci_root_bridge
+ *
+ * PARAMETERS:  Id              - The HID/CID in string format
+ *
+ * RETURN:      TRUE if the Id is a match for a PCI/PCI-Express Root Bridge
+ *
+ * DESCRIPTION: Determine if the input ID is a PCI Root Bridge ID.
+ *
+ ******************************************************************************/
+
+static u8 acpi_ev_match_pci_root_bridge(char *id)
+{
+
+	/*
+	 * Check if this is a PCI root.
+	 * ACPI 3.0+: check for a PCI Express root also.
+	 */
+	if (!(ACPI_STRNCMP(id,
+			   PCI_ROOT_HID_STRING,
+			   sizeof(PCI_ROOT_HID_STRING))) ||
+	    !(ACPI_STRNCMP(id,
+			   PCI_EXPRESS_ROOT_HID_STRING,
+			   sizeof(PCI_EXPRESS_ROOT_HID_STRING)))) {
+		return (TRUE);
+	}
+
+	return (FALSE);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ev_is_pci_root_bridge
+ *
+ * PARAMETERS:  Node            - Device node being examined
+ *
+ * RETURN:      TRUE if device is a PCI/PCI-Express Root Bridge
+ *
+ * DESCRIPTION: Determine if the input device represents a PCI Root Bridge by
+ *              examining the _HID and _CID for the device.
+ *
+ ******************************************************************************/
+
+static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
+{
+	acpi_status status;
+	struct acpi_device_id hid;
+	struct acpi_compatible_id_list *cid;
+	acpi_native_uint i;
+
+	/*
+	 * Get the _HID and check for a PCI Root Bridge
+	 */
+	status = acpi_ut_execute_HID(node, &hid);
+	if (ACPI_FAILURE(status)) {
+		return (FALSE);
+	}
+
+	if (acpi_ev_match_pci_root_bridge(hid.value)) {
+		return (TRUE);
+	}
+
+	/*
+	 * The _HID did not match.
+	 * Get the _CID and check for a PCI Root Bridge
+	 */
+	status = acpi_ut_execute_CID(node, &cid);
+	if (ACPI_FAILURE(status)) {
+		return (FALSE);
+	}
+
+	/* Check all _CIDs in the returned list */
+
+	for (i = 0; i < cid->count; i++) {
+		if (acpi_ev_match_pci_root_bridge(cid->id[i].value)) {
+			ACPI_FREE(cid);
+			return (TRUE);
+		}
+	}
+
+	ACPI_FREE(cid);
+	return (FALSE);
 }
 
 /*******************************************************************************
@@ -431,6 +518,9 @@ acpi_ev_default_region_setup(acpi_handle handle,
  *              example, PCI regions must have an _ADR object that contains
  *              a PCI address in the scope of the definition.  This address is
  *              required to perform an access to PCI config space.
+ *
+ * MUTEX:       Interpreter should be unlocked, because we may run the _REG
+ *              method for this region.
  *
  ******************************************************************************/
 

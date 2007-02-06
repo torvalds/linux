@@ -872,9 +872,8 @@ static int __init acpi_ec_get_real_ecdt(void)
 	acpi_status status;
 	struct acpi_table_ecdt *ecdt_ptr;
 
-	status = acpi_get_firmware_table("ECDT", 1, ACPI_LOGICAL_ADDRESSING,
-					 (struct acpi_table_header **)
-					 &ecdt_ptr);
+	status = acpi_get_table(ACPI_SIG_ECDT, 1,
+				(struct acpi_table_header **)&ecdt_ptr);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -891,14 +890,14 @@ static int __init acpi_ec_get_real_ecdt(void)
 	if (acpi_ec_mode == EC_INTR) {
 		init_waitqueue_head(&ec_ecdt->wait);
 	}
-	ec_ecdt->command_addr = ecdt_ptr->ec_control.address;
-	ec_ecdt->data_addr = ecdt_ptr->ec_data.address;
-	ec_ecdt->gpe = ecdt_ptr->gpe_bit;
+	ec_ecdt->command_addr = ecdt_ptr->control.address;
+	ec_ecdt->data_addr = ecdt_ptr->data.address;
+	ec_ecdt->gpe = ecdt_ptr->gpe;
 	/* use the GL just to be safe */
 	ec_ecdt->global_lock = TRUE;
 	ec_ecdt->uid = ecdt_ptr->uid;
 
-	status = acpi_get_handle(NULL, ecdt_ptr->ec_id, &ec_ecdt->handle);
+	status = acpi_get_handle(NULL, ecdt_ptr->id, &ec_ecdt->handle);
 	if (ACPI_FAILURE(status)) {
 		goto error;
 	}

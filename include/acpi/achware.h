@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,8 +61,6 @@
 /*
  * hwacpi - high level functions
  */
-acpi_status acpi_hw_initialize(void);
-
 acpi_status acpi_hw_set_mode(u32 mode);
 
 u32 acpi_hw_get_mode(void);
@@ -84,7 +82,7 @@ acpi_hw_low_level_read(u32 width,
 acpi_status
 acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address *reg);
 
-acpi_status acpi_hw_clear_acpi_status(u32 flags);
+acpi_status acpi_hw_clear_acpi_status(void);
 
 /*
  * hwgpe - GPE support
