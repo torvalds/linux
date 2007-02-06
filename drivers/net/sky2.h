@@ -371,12 +371,9 @@ enum {
 
 /*	B2_CHIP_ID		 8 bit 	Chip Identification Number */
 enum {
-	CHIP_ID_GENESIS	   = 0x0a, /* Chip ID for GENESIS */
-	CHIP_ID_YUKON	   = 0xb0, /* Chip ID for YUKON */
-	CHIP_ID_YUKON_LITE = 0xb1, /* Chip ID for YUKON-Lite (Rev. A1-A3) */
-	CHIP_ID_YUKON_LP   = 0xb2, /* Chip ID for YUKON-LP */
 	CHIP_ID_YUKON_XL   = 0xb3, /* Chip ID for YUKON-2 XL */
 	CHIP_ID_YUKON_EC_U = 0xb4, /* Chip ID for YUKON-2 EC Ultra */
+	CHIP_ID_YUKON_EX   = 0xb5, /* Chip ID for YUKON-2 Extreme */
 	CHIP_ID_YUKON_EC   = 0xb6, /* Chip ID for YUKON-2 EC */
  	CHIP_ID_YUKON_FE   = 0xb7, /* Chip ID for YUKON-2 FE */
 
@@ -766,6 +763,24 @@ enum {
 
 	POLL_LIST_ADDR_LO= 0x0e28,/* 32 bit	Poll. List Start Addr (low) */
 	POLL_LIST_ADDR_HI= 0x0e2c,/* 32 bit	Poll. List Start Addr (high) */
+};
+
+enum {
+	SMB_CFG		 = 0x0e40, /* 32 bit	SMBus Config Register */
+	SMB_CSR		 = 0x0e44, /* 32 bit	SMBus Control/Status Register */
+};
+
+enum {
+	CPU_WDOG	 = 0x0e48, /* 32 bit	Watchdog Register  */
+	CPU_CNTR	 = 0x0e4C, /* 32 bit	Counter Register  */
+	CPU_TIM		 = 0x0e50,/* 32 bit	Timer Compare Register  */
+	CPU_AHB_ADDR	 = 0x0e54, /* 32 bit	CPU AHB Debug  Register  */
+	CPU_AHB_WDATA	 = 0x0e58, /* 32 bit	CPU AHB Debug  Register  */
+	CPU_AHB_RDATA	 = 0x0e5C, /* 32 bit	CPU AHB Debug  Register  */
+	HCU_MAP_BASE	 = 0x0e60, /* 32 bit	Reset Mapping Base */
+	CPU_AHB_CTRL	 = 0x0e64, /* 32 bit	CPU AHB Debug  Register  */
+	HCU_CCSR	 = 0x0e68, /* 32 bit	CPU Control and Status Register */
+	HCU_HCSR	 = 0x0e6C, /* 32 bit	Host Control and Status Register */
 };
 
 /* ASF Subsystem Registers (Yukon-2 only) */
@@ -1648,6 +1663,39 @@ enum {
 enum {
 	Y2_ASF_CLR_ASFI = 1<<1,	/* Clear host IRQ */
 	Y2_ASF_HOST_IRQ = 1<<0,	/* Issue an IRQ to HOST system */
+};
+/*	HCU_CCSR	CPU Control and Status Register */
+enum {
+	HCU_CCSR_SMBALERT_MONITOR= 1<<27, /* SMBALERT pin monitor */
+	HCU_CCSR_CPU_SLEEP	= 1<<26, /* CPU sleep status */
+	/* Clock Stretching Timeout */
+	HCU_CCSR_CS_TO		= 1<<25,
+	HCU_CCSR_WDOG		= 1<<24, /* Watchdog Reset */
+
+	HCU_CCSR_CLR_IRQ_HOST	= 1<<17, /* Clear IRQ_HOST */
+	HCU_CCSR_SET_IRQ_HCU	= 1<<16, /* Set IRQ_HCU */
+
+	HCU_CCSR_AHB_RST	= 1<<9, /* Reset AHB bridge */
+	HCU_CCSR_CPU_RST_MODE	= 1<<8, /* CPU Reset Mode */
+
+	HCU_CCSR_SET_SYNC_CPU	= 1<<5,
+	HCU_CCSR_CPU_CLK_DIVIDE_MSK = 3<<3,/* CPU Clock Divide */
+	HCU_CCSR_CPU_CLK_DIVIDE_BASE= 1<<3,
+	HCU_CCSR_OS_PRSNT	= 1<<2, /* ASF OS Present */
+/* Microcontroller State */
+	HCU_CCSR_UC_STATE_MSK	= 3,
+	HCU_CCSR_UC_STATE_BASE	= 1<<0,
+	HCU_CCSR_ASF_RESET	= 0,
+	HCU_CCSR_ASF_HALTED	= 1<<1,
+	HCU_CCSR_ASF_RUNNING	= 1<<0,
+};
+
+/*	HCU_HCSR	Host Control and Status Register */
+enum {
+	HCU_HCSR_SET_IRQ_CPU	= 1<<16, /* Set IRQ_CPU */
+
+	HCU_HCSR_CLR_IRQ_HCU	= 1<<1, /* Clear IRQ_HCU */
+	HCU_HCSR_SET_IRQ_HOST	= 1<<0,	/* Set IRQ_HOST */
 };
 
 /*	STAT_CTRL		32 bit	Status BMU control register (Yukon-2 only) */

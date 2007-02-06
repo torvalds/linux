@@ -140,7 +140,7 @@ static const u32 portirq_msk[] = { Y2_IS_PORT_1, Y2_IS_PORT_2 };
 static const char *yukon2_name[] = {
 	"XL",		/* 0xb3 */
 	"EC Ultra", 	/* 0xb4 */
-	"UNKNOWN",	/* 0xb5 */
+	"Extreme",	/* 0xb5 */
 	"EC",		/* 0xb6 */
 	"FE",		/* 0xb7 */
 };
@@ -211,7 +211,7 @@ static void sky2_power_on(struct sky2_hw *hw)
 	else
 		sky2_write8(hw, B2_Y2_CLK_GATE, 0);
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX) {
 		u32 reg1;
 
 		sky2_pci_write32(hw, PCI_DEV_REG3, 0);
@@ -289,8 +289,10 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 	struct sky2_port *sky2 = netdev_priv(hw->dev[port]);
 	u16 ctrl, ct1000, adv, pg, ledctrl, ledover, reg;
 
-	if (sky2->autoneg == AUTONEG_ENABLE &&
-	    !(hw->chip_id == CHIP_ID_YUKON_XL || hw->chip_id == CHIP_ID_YUKON_EC_U)) {
+	if (sky2->autoneg == AUTONEG_ENABLE
+	    && !(hw->chip_id == CHIP_ID_YUKON_XL
+		 || hw->chip_id == CHIP_ID_YUKON_EC_U
+		 || hw->chip_id == CHIP_ID_YUKON_EX)) {
 		u16 ectrl = gm_phy_read(hw, port, PHY_MARV_EXT_CTRL);
 
 		ectrl &= ~(PHY_M_EC_M_DSC_MSK | PHY_M_EC_S_DSC_MSK |
@@ -317,8 +319,10 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 			/* enable automatic crossover */
 			ctrl |= PHY_M_PC_MDI_XMODE(PHY_M_PC_ENA_AUTO);
 
-			if (sky2->autoneg == AUTONEG_ENABLE &&
-			    (hw->chip_id == CHIP_ID_YUKON_XL || hw->chip_id == CHIP_ID_YUKON_EC_U)) {
+			if (sky2->autoneg == AUTONEG_ENABLE
+			    && (hw->chip_id == CHIP_ID_YUKON_XL
+				|| hw->chip_id == CHIP_ID_YUKON_EC_U
+				|| hw->chip_id == CHIP_ID_YUKON_EX)) {
 				ctrl &= ~PHY_M_PC_DSC_MSK;
 				ctrl |= PHY_M_PC_DSC(2) | PHY_M_PC_DOWN_S_ENA;
 			}
@@ -473,7 +477,9 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		/* restore page register */
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, pg);
 		break;
+
 	case CHIP_ID_YUKON_EC_U:
+	case CHIP_ID_YUKON_EX:
 		pg = gm_phy_read(hw, port, PHY_MARV_EXT_ADR);
 
 		/* select page 3 to access LED control register */
@@ -515,7 +521,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 
 		/* set page register to 0 */
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, pg);
-	} else {
+	} else if (hw->chip_id != CHIP_ID_YUKON_EX) {
 		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
 
 		if (sky2->autoneg == AUTONEG_DISABLE || sky2->speed == SPEED_100) {
@@ -727,7 +733,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_CLR);
 	sky2_write16(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_OPER_ON);
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX) {
 		sky2_write8(hw, SK_REG(port, RX_GMF_LP_THR), 768/8);
 		sky2_write8(hw, SK_REG(port, RX_GMF_UP_THR), 1024/8);
 		if (hw->dev[port]->mtu > ETH_DATA_LEN) {
@@ -1687,7 +1693,9 @@ static void sky2_link_up(struct sky2_port *sky2)
 	sky2_write8(hw, SK_REG(port, LNK_LED_REG),
 		    LINKLED_ON | LINKLED_BLINK_OFF | LINKLED_LINKSYNC_OFF);
 
-	if (hw->chip_id == CHIP_ID_YUKON_XL || hw->chip_id == CHIP_ID_YUKON_EC_U) {
+	if (hw->chip_id == CHIP_ID_YUKON_XL
+	    || hw->chip_id == CHIP_ID_YUKON_EC_U
+	    || hw->chip_id == CHIP_ID_YUKON_EX) {
 		u16 pg = gm_phy_read(hw, port, PHY_MARV_EXT_ADR);
 		u16 led = PHY_M_LEDC_LOS_CTRL(1);	/* link active */
 
@@ -1780,14 +1788,16 @@ static int sky2_autoneg_done(struct sky2_port *sky2, u16 aux)
 	sky2->duplex = (aux & PHY_M_PS_FULL_DUP) ? DUPLEX_FULL : DUPLEX_HALF;
 
 	/* Pause bits are offset (9..8) */
-	if (hw->chip_id == CHIP_ID_YUKON_XL || hw->chip_id == CHIP_ID_YUKON_EC_U)
+	if (hw->chip_id == CHIP_ID_YUKON_XL
+	    || hw->chip_id == CHIP_ID_YUKON_EC_U
+	    || hw->chip_id == CHIP_ID_YUKON_EX)
 		aux >>= 6;
 
 	sky2->flow_status = sky2_flow(aux & PHY_M_PS_RX_P_EN,
 				      aux & PHY_M_PS_TX_P_EN);
 
 	if (sky2->duplex == DUPLEX_HALF && sky2->speed < SPEED_1000
-	    && hw->chip_id != CHIP_ID_YUKON_EC_U)
+	    && !(hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX))
 		sky2->flow_status = FC_NONE;
 
 	if (aux & PHY_M_PS_RX_P_EN)
@@ -2442,6 +2452,7 @@ static inline u32 sky2_mhz(const struct sky2_hw *hw)
 	switch (hw->chip_id) {
 	case CHIP_ID_YUKON_EC:
 	case CHIP_ID_YUKON_EC_U:
+	case CHIP_ID_YUKON_EX:
 		return 125;	/* 125 Mhz */
 	case CHIP_ID_YUKON_FE:
 		return 100;	/* 100 Mhz */
@@ -2474,6 +2485,14 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 		return -EOPNOTSUPP;
 	}
 
+	if (hw->chip_id == CHIP_ID_YUKON_EX)
+		dev_warn(&hw->pdev->dev, "this driver not yet tested on this chip type\n"
+			 "Please report success or failure to <netdev@vger.kernel.org>\n");
+
+	/* Make sure and enable all clocks */
+	if (hw->chip_id == CHIP_ID_YUKON_EX || hw->chip_id == CHIP_ID_YUKON_EC_U)
+		sky2_pci_write32(hw, PCI_DEV_REG3, 0);
+
 	hw->chip_rev = (sky2_read8(hw, B2_MAC_CFG) & CFG_CHIP_R_MSK) >> 4;
 
 	/* This rev is really old, and requires untested workarounds */
@@ -2502,7 +2521,13 @@ static void sky2_reset(struct sky2_hw *hw)
 
 	/* disable ASF */
 	if (hw->chip_id <= CHIP_ID_YUKON_EC) {
-		sky2_write8(hw, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
+		if (hw->chip_id == CHIP_ID_YUKON_EX) {
+			status = sky2_read16(hw, HCU_CCSR);
+			status &= ~(HCU_CCSR_AHB_RST | HCU_CCSR_CPU_RST_MODE |
+				    HCU_CCSR_UC_STATE_MSK);
+			sky2_write16(hw, HCU_CCSR, status);
+		} else
+			sky2_write8(hw, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
 		sky2_write16(hw, B0_CTST, Y2_ASF_DISABLE);
 	}
 
