@@ -394,7 +394,8 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 static int nfs_create_rpc_client(struct nfs_client *clp, int proto,
 						unsigned int timeo,
 						unsigned int retrans,
-						rpc_authflavor_t flavor)
+						rpc_authflavor_t flavor,
+						int flags)
 {
 	struct rpc_timeout	timeparms;
 	struct rpc_clnt		*clnt = NULL;
@@ -407,6 +408,7 @@ static int nfs_create_rpc_client(struct nfs_client *clp, int proto,
 		.program	= &nfs_program,
 		.version	= clp->rpc_ops->version,
 		.authflavor	= flavor,
+		.flags		= flags,
 	};
 
 	if (!IS_ERR(clp->cl_rpcclient))
@@ -548,7 +550,7 @@ static int nfs_init_client(struct nfs_client *clp, const struct nfs_mount_data *
 	 * - RFC 2623, sec 2.3.2
 	 */
 	error = nfs_create_rpc_client(clp, proto, data->timeo, data->retrans,
-			RPC_AUTH_UNIX);
+					RPC_AUTH_UNIX, 0);
 	if (error < 0)
 		goto error;
 	nfs_mark_client_ready(clp, NFS_CS_READY);
@@ -868,7 +870,8 @@ static int nfs4_init_client(struct nfs_client *clp,
 	/* Check NFS protocol revision and initialize RPC op vector */
 	clp->rpc_ops = &nfs_v4_clientops;
 
-	error = nfs_create_rpc_client(clp, proto, timeo, retrans, authflavour);
+	error = nfs_create_rpc_client(clp, proto, timeo, retrans, authflavour,
+					RPC_CLNT_CREATE_DISCRTRY);
 	if (error < 0)
 		goto error;
 	memcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
