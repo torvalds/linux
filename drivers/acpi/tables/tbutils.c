@@ -97,15 +97,15 @@ acpi_tb_print_table_header(acpi_physical_address address,
 
 		/* FACS only has signature and length fields of common table header */
 
-		ACPI_INFO((AE_INFO, "%4.4s @ 0x%p/0x%04X",
-			   header->signature, ACPI_CAST_PTR(void, address),
+		ACPI_INFO((AE_INFO, "%4.4s %08lX, %04X",
+			   header->signature, (unsigned long)address,
 			   header->length));
 	} else if (ACPI_COMPARE_NAME(header->signature, ACPI_SIG_RSDP)) {
 
 		/* RSDP has no common fields */
 
-		ACPI_INFO((AE_INFO, "RSDP @ 0x%p/0x%04X (v%3.3d %6.6s)",
-			   ACPI_CAST_PTR(void, address),
+		ACPI_INFO((AE_INFO, "RSDP %08lX, %04X (r%d %6.6s)",
+			   (unsigned long)address,
 			   (ACPI_CAST_PTR(struct acpi_table_rsdp, header)->
 			    revision >
 			    0) ? ACPI_CAST_PTR(struct acpi_table_rsdp,
@@ -118,8 +118,8 @@ acpi_tb_print_table_header(acpi_physical_address address,
 		/* Standard ACPI table with full common header */
 
 		ACPI_INFO((AE_INFO,
-			   "%4.4s @ 0x%p/0x%04X (v%3.3d %6.6s %8.8s 0x%08X %4.4s 0x%08X)",
-			   header->signature, ACPI_CAST_PTR(void, address),
+			   "%4.4s %08lX, %04X (r%d %6.6s %8.8s %8X %4.4s %8X)",
+			   header->signature, (unsigned long)address,
 			   header->length, header->revision, header->oem_id,
 			   header->oem_table_id, header->oem_revision,
 			   header->asl_compiler_id,
