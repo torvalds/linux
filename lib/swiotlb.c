@@ -558,25 +558,6 @@ swiotlb_map_single(struct device *hwdev, void *ptr, size_t size, int dir)
 }
 
 /*
- * Since DMA is i-cache coherent, any (complete) pages that were written via
- * DMA can be marked as "clean" so that lazy_mmu_prot_update() doesn't have to
- * flush them when they get mapped into an executable vm-area.
- */
-static void
-mark_clean(void *addr, size_t size)
-{
-	unsigned long pg_addr, end;
-
-	pg_addr = PAGE_ALIGN((unsigned long) addr);
-	end = (unsigned long) addr + size;
-	while (pg_addr + PAGE_SIZE <= end) {
-		struct page *page = virt_to_page(pg_addr);
-		set_bit(PG_arch_1, &page->flags);
-		pg_addr += PAGE_SIZE;
-	}
-}
-
-/*
  * Unmap a single streaming mode DMA translation.  The dma_addr and size must
  * match what was provided for in a previous swiotlb_map_single call.  All
  * other usages are undefined.
@@ -594,7 +575,7 @@ swiotlb_unmap_single(struct device *hwdev, dma_addr_t dev_addr, size_t size,
 	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
 		unmap_single(hwdev, dma_addr, size, dir);
 	else if (dir == DMA_FROM_DEVICE)
-		mark_clean(dma_addr, size);
+		dma_mark_clean(dma_addr, size);
 }
 
 /*
@@ -617,7 +598,7 @@ swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
 	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
 		sync_single(hwdev, dma_addr, size, dir, target);
 	else if (dir == DMA_FROM_DEVICE)
-		mark_clean(dma_addr, size);
+		dma_mark_clean(dma_addr, size);
 }
 
 void
@@ -648,7 +629,7 @@ swiotlb_sync_single_range(struct device *hwdev, dma_addr_t dev_addr,
 	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
 		sync_single(hwdev, dma_addr, size, dir, target);
 	else if (dir == DMA_FROM_DEVICE)
-		mark_clean(dma_addr, size);
+		dma_mark_clean(dma_addr, size);
 }
 
 void
@@ -698,7 +679,6 @@ swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
 		dev_addr = virt_to_phys(addr);
 		if (swiotlb_force || address_needs_mapping(hwdev, dev_addr)) {
 			void *map = map_single(hwdev, addr, sg->length, dir);
-			sg->dma_address = virt_to_bus(map);
 			if (!map) {
 				/* Don't panic here, we expect map_sg users
 				   to do proper error handling. */
@@ -707,6 +687,7 @@ swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
 				sg[0].dma_length = 0;
 				return 0;
 			}
+			sg->dma_address = virt_to_bus(map);
 		} else
 			sg->dma_address = dev_addr;
 		sg->dma_length = sg->length;
@@ -730,7 +711,7 @@ swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
 		if (sg->dma_address != SG_ENT_PHYS_ADDRESS(sg))
 			unmap_single(hwdev, (void *) phys_to_virt(sg->dma_address), sg->dma_length, dir);
 		else if (dir == DMA_FROM_DEVICE)
-			mark_clean(SG_ENT_VIRT_ADDRESS(sg), sg->dma_length);
+			dma_mark_clean(SG_ENT_VIRT_ADDRESS(sg), sg->dma_length);
 }
 
 /*
@@ -752,6 +733,8 @@ swiotlb_sync_sg(struct device *hwdev, struct scatterlist *sg,
 		if (sg->dma_address != SG_ENT_PHYS_ADDRESS(sg))
 			sync_single(hwdev, (void *) sg->dma_address,
 				    sg->dma_length, dir, target);
+		else if (dir == DMA_FROM_DEVICE)
+			dma_mark_clean(SG_ENT_VIRT_ADDRESS(sg), sg->dma_length);
 }
 
 void
@@ -783,7 +766,7 @@ swiotlb_dma_mapping_error(dma_addr_t dma_addr)
 int
 swiotlb_dma_supported (struct device *hwdev, u64 mask)
 {
-	return (virt_to_phys (io_tlb_end) - 1) <= mask;
+	return virt_to_phys(io_tlb_end - 1) <= mask;
 }
 
 EXPORT_SYMBOL(swiotlb_init);
