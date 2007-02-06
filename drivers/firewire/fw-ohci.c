@@ -55,6 +55,11 @@ struct descriptor {
 	__le16 transfer_status;
 } __attribute__((aligned(16)));
 
+#define control_set(regs)	(regs)
+#define control_clear(regs)	((regs) + 4)
+#define command_ptr(regs)	((regs) + 12)
+#define context_match(regs)	((regs) + 16)
+
 struct ar_buffer {
 	struct descriptor descriptor;
 	struct ar_buffer *next;
@@ -66,9 +71,7 @@ struct ar_context {
 	struct ar_buffer *current_buffer;
 	struct ar_buffer *last_buffer;
 	void *pointer;
-	u32 command_ptr;
-	u32 control_set;
-	u32 control_clear;
+	u32 regs;
 	struct tasklet_struct tasklet;
 };
 
@@ -85,9 +88,7 @@ struct at_context {
 		struct descriptor last;
 	} d;
 
-	u32 command_ptr;
-	u32 control_set;
-	u32 control_clear;
+	u32 regs;
 
 	struct tasklet_struct tasklet;
 };
@@ -102,10 +103,7 @@ struct at_context {
 struct iso_context {
 	struct fw_iso_context base;
 	struct tasklet_struct tasklet;
-	u32 control_set;
-	u32 control_clear;
-	u32 command_ptr;
-	u32 context_match;
+	u32 regs;
 
 	struct descriptor *buffer;
 	dma_addr_t buffer_bus;
@@ -248,7 +246,7 @@ static int ar_context_add_page(struct ar_context *ctx)
 	ctx->last_buffer->next = ab;
 	ctx->last_buffer = ab;
 
-	reg_write(ctx->ohci, ctx->control_set, CONTEXT_WAKE);
+	reg_write(ctx->ohci, control_set(ctx->regs), CONTEXT_WAKE);
 	flush_writes(ctx->ohci);
 
 	return 0;
@@ -375,15 +373,13 @@ static void ar_context_tasklet(unsigned long data)
 }
 
 static int
-ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci, u32 control_set)
+ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci, u32 regs)
 {
 	struct ar_buffer ab;
 
-	ctx->control_set   = control_set;
-	ctx->control_clear = control_set + 4;
-	ctx->command_ptr   = control_set + 12;
-	ctx->ohci          = ohci;
-	ctx->last_buffer   = &ab;
+	ctx->regs        = regs;
+	ctx->ohci        = ohci;
+	ctx->last_buffer = &ab;
 	tasklet_init(&ctx->tasklet, ar_context_tasklet, (unsigned long)ctx);
 
 	ar_context_add_page(ctx);
@@ -391,8 +387,8 @@ ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci, u32 control_set)
 	ctx->current_buffer = ab.next;
 	ctx->pointer = ctx->current_buffer->data;
 
-	reg_write(ctx->ohci, ctx->command_ptr, ab.descriptor.branch_address);
-	reg_write(ctx->ohci, ctx->control_set, CONTEXT_RUN);
+	reg_write(ctx->ohci, command_ptr(ctx->regs), ab.descriptor.branch_address);
+	reg_write(ctx->ohci, control_set(ctx->regs), CONTEXT_RUN);
 	flush_writes(ctx->ohci);
 
 	return 0;
@@ -489,9 +485,9 @@ at_context_setup_packet(struct at_context *ctx, struct list_head *list)
 
 	/* FIXME: Document how the locking works. */
 	if (ohci->generation == packet->generation) {
-		reg_write(ctx->ohci, ctx->command_ptr,
+		reg_write(ctx->ohci, command_ptr(ctx->regs),
 			  ctx->descriptor_bus | z);
-		reg_write(ctx->ohci, ctx->control_set,
+		reg_write(ctx->ohci, control_set(ctx->regs),
 			  CONTEXT_RUN | CONTEXT_WAKE);
 	} else {
 		/* We dont return error codes from this function; all
@@ -505,9 +501,9 @@ static void at_context_stop(struct at_context *ctx)
 {
 	u32 reg;
 
-	reg_write(ctx->ohci, ctx->control_clear, CONTEXT_RUN);
+	reg_write(ctx->ohci, control_clear(ctx->regs), CONTEXT_RUN);
 
-	reg = reg_read(ctx->ohci, ctx->control_set);
+	reg = reg_read(ctx->ohci, control_set(ctx->regs));
 	if (reg & CONTEXT_ACTIVE)
 		fw_notify("Tried to stop context, but it is still active "
 			  "(0x%08x).\n", reg);
@@ -578,7 +574,7 @@ static void at_context_tasklet(unsigned long data)
 }
 
 static int
-at_context_init(struct at_context *ctx, struct fw_ohci *ohci, u32 control_set)
+at_context_init(struct at_context *ctx, struct fw_ohci *ohci, u32 regs)
 {
 	INIT_LIST_HEAD(&ctx->list);
 
@@ -588,10 +584,8 @@ at_context_init(struct at_context *ctx, struct fw_ohci *ohci, u32 control_set)
 	if (ctx->descriptor_bus == 0)
 		return -ENOMEM;
 
-	ctx->control_set   = control_set;
-	ctx->control_clear = control_set + 4;
-	ctx->command_ptr   = control_set + 12;
-	ctx->ohci          = ohci;
+	ctx->regs = regs;
+	ctx->ohci = ohci;
 
 	tasklet_init(&ctx->tasklet, at_context_tasklet, (unsigned long)ctx);
 
