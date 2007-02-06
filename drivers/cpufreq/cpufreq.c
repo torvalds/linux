@@ -415,12 +415,10 @@ static ssize_t store_##file_name					\
 	if (ret != 1)							\
 		return -EINVAL;						\
 									\
-	lock_cpu_hotplug();						\
 	mutex_lock(&policy->lock);					\
 	ret = __cpufreq_set_policy(policy, &new_policy);		\
 	policy->user_policy.object = policy->object;			\
 	mutex_unlock(&policy->lock);					\
-	unlock_cpu_hotplug();						\
 									\
 	return ret ? ret : count;					\
 }
@@ -479,8 +477,6 @@ static ssize_t store_scaling_governor (struct cpufreq_policy * policy,
 						&new_policy.governor))
 		return -EINVAL;
 
-	lock_cpu_hotplug();
-
 	/* Do not use cpufreq_set_policy here or the user_policy.max
 	   will be wrongly overridden */
 	mutex_lock(&policy->lock);
@@ -489,8 +485,6 @@ static ssize_t store_scaling_governor (struct cpufreq_policy * policy,
 	policy->user_policy.policy = policy->policy;
 	policy->user_policy.governor = policy->governor;
 	mutex_unlock(&policy->lock);
-
-	unlock_cpu_hotplug();
 
 	if (ret)
 		return ret;
@@ -1278,7 +1272,6 @@ EXPORT_SYMBOL(cpufreq_unregister_notifier);
  *********************************************************************/
 
 
-/* Must be called with lock_cpu_hotplug held */
 int __cpufreq_driver_target(struct cpufreq_policy *policy,
 			    unsigned int target_freq,
 			    unsigned int relation)
@@ -1304,13 +1297,11 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 	if (!policy)
 		return -EINVAL;
 
-	lock_cpu_hotplug();
 	mutex_lock(&policy->lock);
 
 	ret = __cpufreq_driver_target(policy, target_freq, relation);
 
 	mutex_unlock(&policy->lock);
-	unlock_cpu_hotplug();
 
 	cpufreq_cpu_put(policy);
 	return ret;
@@ -1338,7 +1329,6 @@ int cpufreq_driver_getavg(struct cpufreq_policy *policy)
 EXPORT_SYMBOL_GPL(cpufreq_driver_getavg);
 
 /*
- * Locking: Must be called with the lock_cpu_hotplug() lock held
  * when "event" is CPUFREQ_GOV_LIMITS
  */
 
@@ -1433,7 +1423,6 @@ EXPORT_SYMBOL(cpufreq_get_policy);
 /*
  * data   : current policy.
  * policy : policy to be set.
- * Locking: Must be called with the lock_cpu_hotplug() lock held
  */
 static int __cpufreq_set_policy(struct cpufreq_policy *data,
 				struct cpufreq_policy *policy)
@@ -1539,8 +1528,6 @@ int cpufreq_set_policy(struct cpufreq_policy *policy)
 	if (!data)
 		return -EINVAL;
 
-	lock_cpu_hotplug();
-
 	/* lock this CPU */
 	mutex_lock(&data->lock);
 
@@ -1552,7 +1539,6 @@ int cpufreq_set_policy(struct cpufreq_policy *policy)
 
 	mutex_unlock(&data->lock);
 
-	unlock_cpu_hotplug();
 	cpufreq_cpu_put(data);
 
 	return ret;
@@ -1576,7 +1562,6 @@ int cpufreq_update_policy(unsigned int cpu)
 	if (!data)
 		return -ENODEV;
 
-	lock_cpu_hotplug();
 	mutex_lock(&data->lock);
 
 	dprintk("updating policy for CPU %u\n", cpu);
@@ -1603,7 +1588,6 @@ int cpufreq_update_policy(unsigned int cpu)
 	ret = __cpufreq_set_policy(data, &policy);
 
 	mutex_unlock(&data->lock);
-	unlock_cpu_hotplug();
 	cpufreq_cpu_put(data);
 	return ret;
 }
