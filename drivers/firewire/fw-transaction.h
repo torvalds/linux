@@ -391,6 +391,8 @@ struct fw_card_driver {
 
 	void (*send_request) (struct fw_card *card, struct fw_packet *packet);
 	void (*send_response) (struct fw_card *card, struct fw_packet *packet);
+	/* Calling cancel is valid once a packet has been submitted. */
+	int (*cancel_packet) (struct fw_card *card, struct fw_packet *packet);
 
 	/* Allow the specified node ID to do direct DMA out and in of
 	 * host memory.  The card will disable this for all node when
@@ -420,6 +422,9 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 		unsigned long long offset,
 		void *data, size_t length,
 		fw_transaction_callback_t callback, void *callback_data);
+
+int fw_cancel_transaction(struct fw_card *card,
+			  struct fw_transaction *transaction);
 
 void fw_flush_transactions(struct fw_card *card);
 

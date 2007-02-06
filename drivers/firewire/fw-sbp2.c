@@ -348,6 +348,9 @@ static void sbp2_cancel_orbs(struct fw_unit *unit)
 	spin_unlock_irqrestore(&device->card->lock, flags);
 
 	list_for_each_entry_safe(orb, next, &list, link) {
+		if (fw_cancel_transaction(device->card, &orb->t) == 0)
+			continue;
+
 		orb->rcode = RCODE_CANCELLED;
 		orb->callback(orb, NULL);
 	}

@@ -475,6 +475,12 @@ dummy_send_response(struct fw_card *card, struct fw_packet *packet)
 }
 
 static int
+dummy_cancel_packet(struct fw_card *card, struct fw_packet *packet)
+{
+	return -ENOENT;
+}
+
+static int
 dummy_enable_phys_dma(struct fw_card *card,
 		      int node_id, int generation)
 {
@@ -487,6 +493,7 @@ static struct fw_card_driver dummy_driver = {
 	.update_phy_reg  = dummy_update_phy_reg,
 	.set_config_rom  = dummy_set_config_rom,
 	.send_request    = dummy_send_request,
+	.cancel_packet   = dummy_cancel_packet,
 	.send_response   = dummy_send_response,
 	.enable_phys_dma = dummy_enable_phys_dma,
 };

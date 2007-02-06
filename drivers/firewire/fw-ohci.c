@@ -79,6 +79,7 @@ struct at_context {
 	struct fw_ohci *ohci;
 	dma_addr_t descriptor_bus;
 	dma_addr_t buffer_bus;
+	struct fw_packet *current_packet;
 
 	struct list_head list;
 
@@ -489,6 +490,7 @@ at_context_setup_packet(struct at_context *ctx, struct list_head *list)
 			  ctx->descriptor_bus | z);
 		reg_write(ctx->ohci, control_set(ctx->regs),
 			  CONTEXT_RUN | CONTEXT_WAKE);
+		ctx->current_packet = packet;
 	} else {
 		/* We dont return error codes from this function; all
 		 * transmission errors are reported through the
@@ -523,6 +525,12 @@ static void at_context_tasklet(unsigned long data)
 	packet = fw_packet(ctx->list.next);
 
 	at_context_stop(ctx);
+
+	/* If the head of the list isn't the packet that just got
+	 * transmitted, the packet got cancelled before we finished
+	 * transmitting it. */
+	if (ctx->current_packet != packet)
+		goto skip_to_next;
 
 	if (packet->payload_length > 0) {
 		dma_unmap_single(ohci->card.device, packet->payload_bus,
@@ -564,6 +572,7 @@ static void at_context_tasklet(unsigned long data)
 	} else
 		complete_transmission(packet, evt - 16, &list);
 
+ skip_to_next:
 	/* If more packets are queued, set up the next one. */
 	if (!list_empty(&ctx->list))
 		at_context_setup_packet(ctx, &list);
@@ -1012,6 +1021,29 @@ static void ohci_send_response(struct fw_card *card, struct fw_packet *packet)
 	at_context_transmit(&ohci->at_response_ctx, packet);
 }
 
+static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
+{
+	struct fw_ohci *ohci = fw_ohci(card);
+	LIST_HEAD(list);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ohci->lock, flags);
+
+	if (packet->ack == 0) {
+		fw_notify("cancelling packet %p (header[0]=%08x)\n",
+			  packet, packet->header[0]);
+
+		complete_transmission(packet, RCODE_CANCELLED, &list);
+	}
+
+	spin_unlock_irqrestore(&ohci->lock, flags);
+
+	do_packet_callbacks(ohci, &list);
+
+	/* Return success if we actually cancelled something. */
+	return list_empty(&list) ? -ENOENT : 0;
+}
+
 static int
 ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 {
@@ -1339,6 +1371,7 @@ static const struct fw_card_driver ohci_driver = {
 	.set_config_rom		= ohci_set_config_rom,
 	.send_request		= ohci_send_request,
 	.send_response		= ohci_send_response,
+	.cancel_packet		= ohci_cancel_packet,
 	.enable_phys_dma	= ohci_enable_phys_dma,
 
 	.allocate_iso_context	= ohci_allocate_iso_context,

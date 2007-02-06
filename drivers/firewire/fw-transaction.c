@@ -59,19 +59,51 @@
 #define phy_config_root_id(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))
 #define phy_identifier(id)		((id) << 30)
 
-static void
-close_transaction(struct fw_transaction *t, struct fw_card *card, int rcode,
-		  u32 * payload, size_t length)
+static int
+close_transaction(struct fw_transaction *transaction,
+		  struct fw_card *card, int rcode,
+		  u32 *payload, size_t length)
 {
+	struct fw_transaction *t;
 	unsigned long flags;
 
 	spin_lock_irqsave(&card->lock, flags);
-	card->tlabel_mask &= ~(1 << t->tlabel);
-	list_del(&t->link);
+	list_for_each_entry(t, &card->transaction_list, link) {
+		if (t == transaction) {
+			list_del(&t->link);
+			card->tlabel_mask &= ~(1 << t->tlabel);
+			break;
+		}
+	}
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	t->callback(card, rcode, payload, length, t->callback_data);
+	if (&t->link != &card->transaction_list) {
+		t->callback(card, rcode, payload, length, t->callback_data);
+		return 0;
+	}
+
+	return -ENOENT;
 }
+
+/* Only valid for transactions that are potentially pending (ie have
+ * been sent). */
+int
+fw_cancel_transaction(struct fw_card *card,
+		      struct fw_transaction *transaction)
+{
+	/* Cancel the packet transmission if it's still queued.  That
+	 * will call the packet transmission callback which cancels
+	 * the transaction. */
+
+	if (card->driver->cancel_packet(card, &transaction->packet) == 0)
+		return 0;
+
+	/* If the request packet has already been sent, we need to see
+	 * if the transaction is still pending and remove it in that case. */
+
+	return close_transaction(transaction, card, RCODE_CANCELLED, NULL, 0);
+}
+EXPORT_SYMBOL(fw_cancel_transaction);
 
 static void
 transmit_complete_callback(struct fw_packet *packet,
@@ -162,6 +194,7 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 
 	packet->speed = speed;
 	packet->generation = generation;
+	packet->ack = 0;
 }
 
 /**
@@ -298,8 +331,14 @@ void fw_flush_transactions(struct fw_card *card)
 	card->tlabel_mask = 0;
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	list_for_each_entry_safe(t, next, &list, link)
+	list_for_each_entry_safe(t, next, &list, link) {
+		card->driver->cancel_packet(card, &t->packet);
+
+		/* At this point cancel_packet will never call the
+		 * transaction callback, since we just took all the
+		 * transactions out of the list.  So do it here.*/
 		t->callback(card, RCODE_CANCELLED, NULL, 0, t->callback_data);
+	}
 }
 
 static struct fw_address_handler *
@@ -531,6 +570,7 @@ allocate_request(struct fw_packet *p)
 	request->response.speed = p->speed;
 	request->response.timestamp = t;
 	request->response.generation = p->generation;
+	request->response.ack = 0;
 	request->response.callback = free_response_callback;
 	request->ack = p->ack;
 	request->length = length;
