@@ -1343,13 +1343,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			"inaccurate.\n", bond_dev->name, slave_dev->name);
 	}
 
-	new_slave = kmalloc(sizeof(struct slave), GFP_KERNEL);
+	new_slave = kzalloc(sizeof(struct slave), GFP_KERNEL);
 	if (!new_slave) {
 		res = -ENOMEM;
 		goto err_undo_flags;
 	}
-
-	memset(new_slave, 0, sizeof(struct slave));
 
 	/* save slave's original flags before calling
 	 * netdev_set_master and dev_open
