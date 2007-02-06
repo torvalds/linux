@@ -1,7 +1,7 @@
 /*						-*- c-basic-offset: 8 -*-
  * fw-sbp2.c -- SBP2 driver (SCSI over IEEE1394)
  *
- * Copyright (C) 2005-2006  Kristian Hoegsberg <krh@bitplanet.net>
+ * Copyright (C) 2005-2007  Kristian Hoegsberg <krh@bitplanet.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+/* The basic structure of this driver is based the old storage driver,
+ * drivers/ieee1394/sbp2.c, originally written by
+ *     James Goodwin <jamesg@filanet.com>
+ * with later contributions and ongoing maintenance from
+ *     Ben Collins <bcollins@debian.org>,
+ *     Stefan Richter <stefanr@s5r6.in-berlin.de>
+ * and many others.
  */
 
 #include <linux/kernel.h>
