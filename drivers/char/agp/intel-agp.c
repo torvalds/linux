@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/pagemap.h>
 #include <linux/agp_backend.h>
 #include "agp.h"
@@ -846,7 +847,7 @@ static int intel_i915_remove_entries(struct agp_memory *mem,off_t pg_start,
  */
 static int intel_i9xx_fetch_size(void)
 {
-	int num_sizes = sizeof(intel_i830_sizes) / sizeof(*intel_i830_sizes);
+	int num_sizes = ARRAY_SIZE(intel_i830_sizes);
 	int aper_size; /* size in megabytes */
 	int i;
 
