@@ -99,7 +99,7 @@ config USB_USBNET_MII
 
 config USB_USBNET
 	tristate "Multi-purpose USB Networking Framework"
-	select MII if USBNET_MII != n
+	select MII if USB_USBNET_MII != n
 	---help---
 	  This driver supports several kinds of network links over USB,
 	  with "minidrivers" built around a common network driver core
