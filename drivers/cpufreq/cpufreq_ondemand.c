@@ -437,8 +437,14 @@ static void do_dbs_timer(struct work_struct *work)
 
 	delay -= jiffies % delay;
 
-	if (!dbs_info->enable)
+	if (lock_policy_rwsem_write(cpu) < 0)
 		return;
+
+	if (!dbs_info->enable) {
+		unlock_policy_rwsem_write(cpu);
+		return;
+	}
+
 	/* Common NORMAL_SAMPLE setup */
 	dbs_info->sample_type = DBS_NORMAL_SAMPLE;
 	if (!dbs_tuners_ins.powersave_bias ||
@@ -455,6 +461,7 @@ static void do_dbs_timer(struct work_struct *work)
 	                        	CPUFREQ_RELATION_H);
 	}
 	queue_delayed_work_on(cpu, kondemand_wq, &dbs_info->work, delay);
+	unlock_policy_rwsem_write(cpu);
 }
 
 static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
@@ -463,6 +470,7 @@ static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 	int delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
 	delay -= jiffies % delay;
 
+ 	dbs_info->enable = 1;
 	ondemand_powersave_bias_init();
 	dbs_info->sample_type = DBS_NORMAL_SAMPLE;
 	INIT_DELAYED_WORK_NAR(&dbs_info->work, do_dbs_timer);
@@ -474,7 +482,6 @@ static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
 {
 	dbs_info->enable = 0;
 	cancel_delayed_work(&dbs_info->work);
-	flush_workqueue(kondemand_wq);
 }
 
 static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
@@ -503,21 +510,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 		mutex_lock(&dbs_mutex);
 		dbs_enable++;
-		if (dbs_enable == 1) {
-			kondemand_wq = create_workqueue("kondemand");
-			if (!kondemand_wq) {
-				printk(KERN_ERR
-					 "Creation of kondemand failed\n");
-				dbs_enable--;
-				mutex_unlock(&dbs_mutex);
-				return -ENOSPC;
-			}
-		}
 
 		rc = sysfs_create_group(&policy->kobj, &dbs_attr_group);
 		if (rc) {
-			if (dbs_enable == 1)
-				destroy_workqueue(kondemand_wq);
 			dbs_enable--;
 			mutex_unlock(&dbs_mutex);
 			return rc;
@@ -532,7 +527,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			j_dbs_info->prev_cpu_wall = get_jiffies_64();
 		}
 		this_dbs_info->cpu = cpu;
-		this_dbs_info->enable = 1;
 		/*
 		 * Start the timerschedule work, when this governor
 		 * is used for first time
@@ -562,9 +556,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		dbs_timer_exit(this_dbs_info);
 		sysfs_remove_group(&policy->kobj, &dbs_attr_group);
 		dbs_enable--;
-		if (dbs_enable == 0)
-			destroy_workqueue(kondemand_wq);
-
 		mutex_unlock(&dbs_mutex);
 
 		break;
@@ -593,12 +584,18 @@ static struct cpufreq_governor cpufreq_gov_dbs = {
 
 static int __init cpufreq_gov_dbs_init(void)
 {
+	kondemand_wq = create_workqueue("kondemand");
+	if (!kondemand_wq) {
+		printk(KERN_ERR "Creation of kondemand failed\n");
+		return -EFAULT;
+	}
 	return cpufreq_register_governor(&cpufreq_gov_dbs);
 }
 
 static void __exit cpufreq_gov_dbs_exit(void)
 {
 	cpufreq_unregister_governor(&cpufreq_gov_dbs);
+	destroy_workqueue(kondemand_wq);
 }
 
 
@@ -610,3 +607,4 @@ MODULE_LICENSE("GPL");
 
 module_init(cpufreq_gov_dbs_init);
 module_exit(cpufreq_gov_dbs_exit);
+
