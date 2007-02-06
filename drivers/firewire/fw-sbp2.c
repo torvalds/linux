@@ -830,7 +830,7 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 		 * or when sending the write (less likely). */
 		fw_notify("no command orb status, rcode=%d\n",
 			  orb->base.rcode);
-		result = DID_ERROR;
+		result = DID_BUS_BUSY;
 	}
 
 	dma_unmap_single(device->card->device, orb->base.request_bus,
