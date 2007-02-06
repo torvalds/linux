@@ -185,9 +185,9 @@ struct cpu_cache_fns {
 	void (*coherent_user_range)(unsigned long, unsigned long);
 	void (*flush_kern_dcache_page)(void *);
 
-	void (*dma_inv_range)(unsigned long, unsigned long);
-	void (*dma_clean_range)(unsigned long, unsigned long);
-	void (*dma_flush_range)(unsigned long, unsigned long);
+	void (*dma_inv_range)(const void *, const void *);
+	void (*dma_clean_range)(const void *, const void *);
+	void (*dma_flush_range)(const void *, const void *);
 };
 
 struct outer_cache_fns {
@@ -246,9 +246,9 @@ extern void __cpuc_flush_dcache_page(void *);
 #define dmac_clean_range		__glue(_CACHE,_dma_clean_range)
 #define dmac_flush_range		__glue(_CACHE,_dma_flush_range)
 
-extern void dmac_inv_range(unsigned long, unsigned long);
-extern void dmac_clean_range(unsigned long, unsigned long);
-extern void dmac_flush_range(unsigned long, unsigned long);
+extern void dmac_inv_range(const void *, const void *);
+extern void dmac_clean_range(const void *, const void *);
+extern void dmac_flush_range(const void *, const void *);
 
 #endif
 
