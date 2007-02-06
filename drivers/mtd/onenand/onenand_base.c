@@ -1186,6 +1186,13 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 		return -EINVAL;
 	}
 
+	/* For compatibility with NAND: Do not allow write past end of page */
+	if (column + len > oobsize) {
+		DEBUG(MTD_DEBUG_LEVEL0, "onenand_write_oob: "
+		      "Attempt to write past end of page\n");
+		return -EINVAL;
+	}
+
 	/* Do not allow reads past end of device */
 	if (unlikely(to >= mtd->size ||
 		     column + len > ((mtd->size >> this->page_shift) -
