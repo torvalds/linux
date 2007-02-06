@@ -2250,6 +2250,8 @@ void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
 	size_t sg_len = 0, len_complete = 0;
 	struct page *page;
 
+	WARN_ON(!irqs_disabled());
+
 	for (i = 0; i < sg_count; i++) {
 		len_complete = sg_len; /* Complete sg-entries */
 		sg_len += sg[i].length;
