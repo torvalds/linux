@@ -153,6 +153,13 @@ static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int c
 	i_size_write(inode, end);
 }
 
+/* A writeback failed: mark the page as bad, and invalidate the page cache */
+static void nfs_set_pageerror(struct page *page)
+{
+	SetPageError(page);
+	nfs_zap_mapping(page->mapping->host, page->mapping);
+}
+
 /* We can set the PG_uptodate flag if we see that a write request
  * covers the full page.
  */
@@ -714,7 +721,7 @@ int nfs_updatepage(struct file *file, struct page *page,
         dprintk("NFS:      nfs_updatepage returns %d (isize %Ld)\n",
 			status, (long long)i_size_read(inode));
 	if (status < 0)
-		ClearPageUptodate(page);
+		nfs_set_pageerror(page);
 	return status;
 }
 
@@ -976,8 +983,7 @@ static void nfs_writeback_done_partial(struct rpc_task *task, void *calldata)
 		return;
 
 	if (task->tk_status < 0) {
-		ClearPageUptodate(page);
-		SetPageError(page);
+		nfs_set_pageerror(page);
 		req->wb_context->error = task->tk_status;
 		dprintk(", error = %d\n", task->tk_status);
 	} else {
@@ -1034,8 +1040,7 @@ static void nfs_writeback_done_full(struct rpc_task *task, void *calldata)
 			(long long)req_offset(req));
 
 		if (task->tk_status < 0) {
-			ClearPageUptodate(page);
-			SetPageError(page);
+			nfs_set_pageerror(page);
 			req->wb_context->error = task->tk_status;
 			end_page_writeback(page);
 			nfs_inode_remove_request(req);
