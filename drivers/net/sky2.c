@@ -567,6 +567,73 @@ static void sky2_phy_reinit(struct sky2_port *sky2)
 	spin_unlock_bh(&sky2->phy_lock);
 }
 
+/* Put device in state to listen for Wake On Lan */
+static void sky2_wol_init(struct sky2_port *sky2)
+{
+	struct sky2_hw *hw = sky2->hw;
+	unsigned port = sky2->port;
+	enum flow_control save_mode;
+	u16 ctrl;
+	u32 reg1;
+
+	/* Bring hardware out of reset */
+	sky2_write16(hw, B0_CTST, CS_RST_CLR);
+	sky2_write16(hw, SK_REG(port, GMAC_LINK_CTRL), GMLC_RST_CLR);
+
+	sky2_write8(hw, SK_REG(port, GPHY_CTRL), GPC_RST_CLR);
+	sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_RST_CLR);
+
+	/* Force to 10/100
+	 * sky2_reset will re-enable on resume
+	 */
+	save_mode = sky2->flow_mode;
+	ctrl = sky2->advertising;
+
+	sky2->advertising &= ~(ADVERTISED_1000baseT_Half|ADVERTISED_1000baseT_Full);
+	sky2->flow_mode = FC_NONE;
+	sky2_phy_power(hw, port, 1);
+	sky2_phy_reinit(sky2);
+
+	sky2->flow_mode = save_mode;
+	sky2->advertising = ctrl;
+
+	/* Set GMAC to no flow control and auto update for speed/duplex */
+	gma_write16(hw, port, GM_GP_CTRL,
+		    GM_GPCR_FC_TX_DIS|GM_GPCR_TX_ENA|GM_GPCR_RX_ENA|
+		    GM_GPCR_DUP_FULL|GM_GPCR_FC_RX_DIS|GM_GPCR_AU_FCT_DIS);
+
+	/* Set WOL address */
+	memcpy_toio(hw->regs + WOL_REGS(port, WOL_MAC_ADDR),
+		    sky2->netdev->dev_addr, ETH_ALEN);
+
+	/* Turn on appropriate WOL control bits */
+	sky2_write16(hw, WOL_REGS(port, WOL_CTRL_STAT), WOL_CTL_CLEAR_RESULT);
+	ctrl = 0;
+	if (sky2->wol & WAKE_PHY)
+		ctrl |= WOL_CTL_ENA_PME_ON_LINK_CHG|WOL_CTL_ENA_LINK_CHG_UNIT;
+	else
+		ctrl |= WOL_CTL_DIS_PME_ON_LINK_CHG|WOL_CTL_DIS_LINK_CHG_UNIT;
+
+	if (sky2->wol & WAKE_MAGIC)
+		ctrl |= WOL_CTL_ENA_PME_ON_MAGIC_PKT|WOL_CTL_ENA_MAGIC_PKT_UNIT;
+	else
+		ctrl |= WOL_CTL_DIS_PME_ON_MAGIC_PKT|WOL_CTL_DIS_MAGIC_PKT_UNIT;;
+
+	ctrl |= WOL_CTL_DIS_PME_ON_PATTERN|WOL_CTL_DIS_PATTERN_UNIT;
+	sky2_write16(hw, WOL_REGS(port, WOL_CTRL_STAT), ctrl);
+
+	/* Turn on legacy PCI-Express PME mode */
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
+	reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
+	reg1 |= PCI_Y2_PME_LEGACY;
+	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
+
+	/* block receiver */
+	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
+
+}
+
 static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 {
 	struct sky2_port *sky2 = netdev_priv(hw->dev[port]);
@@ -2404,11 +2471,9 @@ static inline u32 sky2_clk2us(const struct sky2_hw *hw, u32 clk)
 }
 
 
-static int sky2_reset(struct sky2_hw *hw)
+static int __devinit sky2_init(struct sky2_hw *hw)
 {
-	u16 status;
 	u8 t8;
-	int i;
 
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
 
@@ -2428,6 +2493,22 @@ static int sky2_reset(struct sky2_hw *hw)
 		       hw->chip_id, hw->chip_rev);
 		return -EOPNOTSUPP;
 	}
+
+	hw->pmd_type = sky2_read8(hw, B2_PMD_TYP);
+	hw->ports = 1;
+	t8 = sky2_read8(hw, B2_Y2_HW_RES);
+	if ((t8 & CFG_DUAL_MAC_MSK) == CFG_DUAL_MAC_MSK) {
+		if (!(sky2_read8(hw, B2_Y2_CLK_GATE) & Y2_STATUS_LNK2_INAC))
+			++hw->ports;
+	}
+
+	return 0;
+}
+
+static void sky2_reset(struct sky2_hw *hw)
+{
+	u16 status;
+	int i;
 
 	/* disable ASF */
 	if (hw->chip_id <= CHIP_ID_YUKON_EC) {
@@ -2452,14 +2533,6 @@ static int sky2_reset(struct sky2_hw *hw)
 	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP))
 		sky2_pci_write32(hw, PEX_UNC_ERR_STAT, 0xffffffffUL);
 
-
-	hw->pmd_type = sky2_read8(hw, B2_PMD_TYP);
-	hw->ports = 1;
-	t8 = sky2_read8(hw, B2_Y2_HW_RES);
-	if ((t8 & CFG_DUAL_MAC_MSK) == CFG_DUAL_MAC_MSK) {
-		if (!(sky2_read8(hw, B2_Y2_CLK_GATE) & Y2_STATUS_LNK2_INAC))
-			++hw->ports;
-	}
 
 	sky2_power_on(hw);
 
@@ -2544,7 +2617,37 @@ static int sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
 	sky2_write8(hw, STAT_LEV_TIMER_CTRL, TIM_START);
 	sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_START);
+}
 
+static inline u8 sky2_wol_supported(const struct sky2_hw *hw)
+{
+	return sky2_is_copper(hw) ? (WAKE_PHY | WAKE_MAGIC) : 0;
+}
+
+static void sky2_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	const struct sky2_port *sky2 = netdev_priv(dev);
+
+	wol->supported = sky2_wol_supported(sky2->hw);
+	wol->wolopts = sky2->wol;
+}
+
+static int sky2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+
+	if (wol->wolopts & ~sky2_wol_supported(sky2->hw))
+		return -EOPNOTSUPP;
+
+	sky2->wol = wol->wolopts;
+
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U)
+		sky2_write32(hw, B0_CTST, sky2->wol
+			     ? Y2_HW_WOL_ON : Y2_HW_WOL_OFF);
+
+	if (!netif_running(dev))
+		sky2_wol_init(sky2);
 	return 0;
 }
 
@@ -3156,7 +3259,9 @@ static void sky2_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 static const struct ethtool_ops sky2_ethtool_ops = {
 	.get_settings = sky2_get_settings,
 	.set_settings = sky2_set_settings,
-	.get_drvinfo = sky2_get_drvinfo,
+	.get_drvinfo  = sky2_get_drvinfo,
+	.get_wol      = sky2_get_wol,
+	.set_wol      = sky2_set_wol,
 	.get_msglevel = sky2_get_msglevel,
 	.set_msglevel = sky2_set_msglevel,
 	.nway_reset   = sky2_nway_reset,
@@ -3186,7 +3291,8 @@ static const struct ethtool_ops sky2_ethtool_ops = {
 
 /* Initialize network device */
 static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
-						     unsigned port, int highmem)
+						     unsigned port,
+						     int highmem, int wol)
 {
 	struct sky2_port *sky2;
 	struct net_device *dev = alloc_etherdev(sizeof(*sky2));
@@ -3234,6 +3340,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	sky2->speed = -1;
 	sky2->advertising = sky2_supported_modes(hw);
 	sky2->rx_csum = 1;
+	sky2->wol = wol;
 
 	spin_lock_init(&sky2->phy_lock);
 	sky2->tx_pending = TX_DEF_PENDING;
@@ -3336,12 +3443,24 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 	return err;
 }
 
+static int __devinit pci_wake_enabled(struct pci_dev *dev)
+{
+	int pm  = pci_find_capability(dev, PCI_CAP_ID_PM);
+	u16 value;
+
+	if (!pm)
+		return 0;
+	if (pci_read_config_word(dev, pm + PCI_PM_CTRL, &value))
+		return 0;
+	return value & PCI_PM_CTRL_PME_ENABLE;
+}
+
 static int __devinit sky2_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct sky2_hw *hw;
-	int err, using_dac = 0;
+	int err, using_dac = 0, wol_default;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -3378,6 +3497,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		}
 	}
 
+	wol_default = pci_wake_enabled(pdev) ? WAKE_MAGIC : 0;
+
 	err = -ENOMEM;
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 	if (!hw) {
@@ -3413,7 +3534,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	if (!hw->st_le)
 		goto err_out_iounmap;
 
-	err = sky2_reset(hw);
+	err = sky2_init(hw);
 	if (err)
 		goto err_out_iounmap;
 
@@ -3422,7 +3543,9 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	       pdev->irq, yukon2_name[hw->chip_id - CHIP_ID_YUKON_XL],
 	       hw->chip_id, hw->chip_rev);
 
-	dev = sky2_init_netdev(hw, 0, using_dac);
+	sky2_reset(hw);
+
+	dev = sky2_init_netdev(hw, 0, using_dac, wol_default);
 	if (!dev) {
 		err = -ENOMEM;
 		goto err_out_free_pci;
@@ -3457,7 +3580,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	if (hw->ports > 1) {
 		struct net_device *dev1;
 
-		dev1 = sky2_init_netdev(hw, 1, using_dac);
+		dev1 = sky2_init_netdev(hw, 1, using_dac, wol_default);
 		if (!dev1) {
 			printk(KERN_WARNING PFX
 			       "allocation of second port failed\n");
@@ -3544,23 +3667,29 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct sky2_hw *hw = pci_get_drvdata(pdev);
-	int i;
+	int i, wol = 0;
 
 	del_timer_sync(&hw->idle_timer);
 	netif_poll_disable(hw->dev[0]);
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
+		struct sky2_port *sky2 = netdev_priv(dev);
 
-		if (netif_running(dev)) {
+		if (netif_running(dev))
 			sky2_down(dev);
-			netif_device_detach(dev);
-		}
+
+		if (sky2->wol)
+			sky2_wol_init(sky2);
+
+		wol |= sky2->wol;
 	}
 
 	sky2_write32(hw, B0_IMSK, 0);
 	sky2_power_aux(hw);
+
 	pci_save_state(pdev);
+	pci_enable_wake(pdev, pci_choose_state(pdev, state), wol);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
 	return 0;
@@ -3580,18 +3709,13 @@ static int sky2_resume(struct pci_dev *pdev)
 		goto out;
 
 	pci_enable_wake(pdev, PCI_D0, 0);
-
-	err = sky2_reset(hw);
-	if (err)
-		goto out;
+	sky2_reset(hw);
 
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 		if (netif_running(dev)) {
-			netif_device_attach(dev);
-
 			err = sky2_up(dev);
 			if (err) {
 				printk(KERN_ERR PFX "%s: could not up: %d\n",
@@ -3612,6 +3736,35 @@ out:
 }
 #endif
 
+static void sky2_shutdown(struct pci_dev *pdev)
+{
+	struct sky2_hw *hw = pci_get_drvdata(pdev);
+	int i, wol = 0;
+
+	del_timer_sync(&hw->idle_timer);
+	netif_poll_disable(hw->dev[0]);
+
+	for (i = 0; i < hw->ports; i++) {
+		struct net_device *dev = hw->dev[i];
+		struct sky2_port *sky2 = netdev_priv(dev);
+
+		if (sky2->wol) {
+			wol = 1;
+			sky2_wol_init(sky2);
+		}
+	}
+
+	if (wol)
+		sky2_power_aux(hw);
+
+	pci_enable_wake(pdev, PCI_D3hot, wol);
+	pci_enable_wake(pdev, PCI_D3cold, wol);
+
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+
+}
+
 static struct pci_driver sky2_driver = {
 	.name = DRV_NAME,
 	.id_table = sky2_id_table,
@@ -3621,6 +3774,7 @@ static struct pci_driver sky2_driver = {
 	.suspend = sky2_suspend,
 	.resume = sky2_resume,
 #endif
+	.shutdown = sky2_shutdown,
 };
 
 static int __init sky2_init_module(void)

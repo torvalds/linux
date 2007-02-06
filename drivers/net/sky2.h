@@ -32,6 +32,7 @@ enum pci_dev_reg_1 {
 	PCI_Y2_PHY1_COMA = 1<<28, /* Set PHY 1 to Coma Mode (YUKON-2) */
 	PCI_Y2_PHY2_POWD = 1<<27, /* Set PHY 2 to Power Down (YUKON-2) */
 	PCI_Y2_PHY1_POWD = 1<<26, /* Set PHY 1 to Power Down (YUKON-2) */
+	PCI_Y2_PME_LEGACY= 1<<15, /* PCI Express legacy power management mode */
 };
 
 enum pci_dev_reg_2 {
@@ -837,33 +838,27 @@ enum {
 	GMAC_LINK_CTRL	= 0x0f10,/* 16 bit	Link Control Reg */
 
 /* Wake-up Frame Pattern Match Control Registers (YUKON only) */
-
-	WOL_REG_OFFS	= 0x20,/* HW-Bug: Address is + 0x20 against spec. */
-
 	WOL_CTRL_STAT	= 0x0f20,/* 16 bit	WOL Control/Status Reg */
 	WOL_MATCH_CTL	= 0x0f22,/*  8 bit	WOL Match Control Reg */
 	WOL_MATCH_RES	= 0x0f23,/*  8 bit	WOL Match Result Reg */
 	WOL_MAC_ADDR	= 0x0f24,/* 32 bit	WOL MAC Address */
-	WOL_PATT_PME	= 0x0f2a,/*  8 bit	WOL PME Match Enable (Yukon-2) */
-	WOL_PATT_ASFM	= 0x0f2b,/*  8 bit	WOL ASF Match Enable (Yukon-2) */
 	WOL_PATT_RPTR	= 0x0f2c,/*  8 bit	WOL Pattern Read Pointer */
 
 /* WOL Pattern Length Registers (YUKON only) */
-
 	WOL_PATT_LEN_LO	= 0x0f30,/* 32 bit	WOL Pattern Length 3..0 */
 	WOL_PATT_LEN_HI	= 0x0f34,/* 24 bit	WOL Pattern Length 6..4 */
 
 /* WOL Pattern Counter Registers (YUKON only) */
-
-
 	WOL_PATT_CNT_0	= 0x0f38,/* 32 bit	WOL Pattern Counter 3..0 */
 	WOL_PATT_CNT_4	= 0x0f3c,/* 24 bit	WOL Pattern Counter 6..4 */
 };
+#define WOL_REGS(port, x)	(x + (port)*0x80)
 
 enum {
 	WOL_PATT_RAM_1	= 0x1000,/*  WOL Pattern RAM Link 1 */
 	WOL_PATT_RAM_2	= 0x1400,/*  WOL Pattern RAM Link 2 */
 };
+#define WOL_PATT_RAM_BASE(port)	(WOL_PATT_RAM_1 + (port)*0x400)
 
 enum {
 	BASE_GMAC_1	= 0x2800,/* GMAC 1 registers */
@@ -1715,14 +1710,17 @@ enum {
 	GM_IS_RX_COMPL	= 1<<0,	/* Frame Reception Complete */
 
 #define GMAC_DEF_MSK     GM_IS_TX_FF_UR
+};
 
 /*	GMAC_LINK_CTRL	16 bit	GMAC Link Control Reg (YUKON only) */
-						/* Bits 15.. 2:	reserved */
+enum {						/* Bits 15.. 2:	reserved */
 	GMLC_RST_CLR	= 1<<1,	/* Clear GMAC Link Reset */
 	GMLC_RST_SET	= 1<<0,	/* Set   GMAC Link Reset */
+};
 
 
 /*	WOL_CTRL_STAT	16 bit	WOL Control/Status Reg */
+enum {
 	WOL_CTL_LINK_CHG_OCC		= 1<<15,
 	WOL_CTL_MAGIC_PKT_OCC		= 1<<14,
 	WOL_CTL_PATTERN_OCC		= 1<<13,
@@ -1740,17 +1738,6 @@ enum {
 	WOL_CTL_ENA_PATTERN_UNIT	= 1<<1,
 	WOL_CTL_DIS_PATTERN_UNIT	= 1<<0,
 };
-
-#define WOL_CTL_DEFAULT				\
-	(WOL_CTL_DIS_PME_ON_LINK_CHG |	\
-	WOL_CTL_DIS_PME_ON_PATTERN |	\
-	WOL_CTL_DIS_PME_ON_MAGIC_PKT |	\
-	WOL_CTL_DIS_LINK_CHG_UNIT |		\
-	WOL_CTL_DIS_PATTERN_UNIT |		\
-	WOL_CTL_DIS_MAGIC_PKT_UNIT)
-
-/*	WOL_MATCH_CTL	 8 bit	WOL Match Control Reg */
-#define WOL_CTL_PATT_ENA(x)	(1 << (x))
 
 
 /* Control flags */
@@ -1875,6 +1862,7 @@ struct sky2_port {
 	u8		     autoneg;	/* AUTONEG_ENABLE, AUTONEG_DISABLE */
 	u8		     duplex;	/* DUPLEX_HALF, DUPLEX_FULL */
 	u8		     rx_csum;
+	u8		     wol;
  	enum flow_control    flow_mode;
  	enum flow_control    flow_status;
 
