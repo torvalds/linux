@@ -64,9 +64,6 @@
 /* Prints the ioctl in a human-readable format */
 extern void v4l_printk_ioctl(unsigned int cmd);
 
-/* Prints the ioctl and arg in a human-readable format */
-extern void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg);
-
 /* Use this macro for non-I2C drivers. Pass the driver name as the first arg. */
 #define v4l_print_ioctl(name, cmd)  		 \
 	do {  					 \
