@@ -60,12 +60,9 @@ static DEFINE_RWLOCK(tcp_lock);
     If it's non-zero, we mark only out of window RST segments as INVALID. */
 int nf_ct_tcp_be_liberal __read_mostly = 0;
 
-/* When connection is picked up from the middle, how many packets are required
-   to pass in each direction when we assume we are in sync - if any side uses
-   window scaling, we lost the game. 
-   If it is set to zero, we disable picking up already established 
+/* If it is set to zero, we disable picking up already established
    connections. */
-int nf_ct_tcp_loose __read_mostly = 3;
+int nf_ct_tcp_loose __read_mostly = 1;
 
 /* Max number of the retransmitted packets without receiving an (acceptable) 
    ACK from the destination. If this number is reached, a shorter timer 
@@ -650,11 +647,10 @@ static int tcp_in_window(struct ip_ct_tcp *state,
 	    	before(sack, receiver->td_end + 1),
 	    	after(ack, receiver->td_end - MAXACKWINDOW(sender)));
 
-	if (sender->loose || receiver->loose ||
-	    (before(seq, sender->td_maxend + 1) &&
-	     after(end, sender->td_end - receiver->td_maxwin - 1) &&
-	     before(sack, receiver->td_end + 1) &&
-	     after(ack, receiver->td_end - MAXACKWINDOW(sender)))) {
+	if (before(seq, sender->td_maxend + 1) &&
+	    after(end, sender->td_end - receiver->td_maxwin - 1) &&
+	    before(sack, receiver->td_end + 1) &&
+	    after(ack, receiver->td_end - MAXACKWINDOW(sender))) {
 	    	/*
 		 * Take into account window scaling (RFC 1323).
 		 */
@@ -699,15 +695,13 @@ static int tcp_in_window(struct ip_ct_tcp *state,
 				state->retrans = 0;
 			}
 		}
-		/*
-		 * Close the window of disabled window tracking :-)
-		 */
-		if (sender->loose)
-			sender->loose--;
-
 		res = 1;
 	} else {
-		if (LOG_INVALID(IPPROTO_TCP))
+		res = 0;
+		if (sender->flags & IP_CT_TCP_FLAG_BE_LIBERAL ||
+		    nf_ct_tcp_be_liberal)
+			res = 1;
+		if (!res && LOG_INVALID(IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 			"nf_ct_tcp: %s ",
 			before(seq, sender->td_maxend + 1) ?
@@ -718,8 +712,6 @@ static int tcp_in_window(struct ip_ct_tcp *state,
 			: "ACK is over the upper bound (ACKed data not seen yet)"
 			: "SEQ is under the lower bound (already ACKed data retransmitted)"
 			: "SEQ is over the upper bound (over the window of the receiver)");
-
-		res = nf_ct_tcp_be_liberal;
   	}
   
 	DEBUGP("tcp_in_window: res=%i sender end=%u maxend=%u maxwin=%u "
@@ -1063,8 +1055,6 @@ static int tcp_new(struct nf_conn *conntrack,
 
 		tcp_options(skb, dataoff, th, &conntrack->proto.tcp.seen[0]);
 		conntrack->proto.tcp.seen[1].flags = 0;
-		conntrack->proto.tcp.seen[0].loose = 
-		conntrack->proto.tcp.seen[1].loose = 0;
 	} else if (nf_ct_tcp_loose == 0) {
 		/* Don't try to pick up connections. */
 		return 0;
@@ -1085,11 +1075,11 @@ static int tcp_new(struct nf_conn *conntrack,
 			conntrack->proto.tcp.seen[0].td_maxwin;
 		conntrack->proto.tcp.seen[0].td_scale = 0;
 
-		/* We assume SACK. Should we assume window scaling too? */
+		/* We assume SACK and liberal window checking to handle
+		 * window scaling */
 		conntrack->proto.tcp.seen[0].flags =
-		conntrack->proto.tcp.seen[1].flags = IP_CT_TCP_FLAG_SACK_PERM;
-		conntrack->proto.tcp.seen[0].loose = 
-		conntrack->proto.tcp.seen[1].loose = nf_ct_tcp_loose;
+		conntrack->proto.tcp.seen[1].flags = IP_CT_TCP_FLAG_SACK_PERM |
+						     IP_CT_TCP_FLAG_BE_LIBERAL;
 	}
     
 	conntrack->proto.tcp.seen[1].td_end = 0;
