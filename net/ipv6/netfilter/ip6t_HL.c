@@ -52,8 +52,7 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 			break;
 	}
 
-	if (new_hl != ip6h->hop_limit)
-		ip6h->hop_limit = new_hl;
+	ip6h->hop_limit = new_hl;
 
 	return IP6T_CONTINUE;
 }

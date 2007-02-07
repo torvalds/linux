@@ -47,9 +47,7 @@ static unsigned int target(struct sk_buff **pskb, const struct net_device *in,
 		BUG();
 	}
 
-	if ((*pskb)->secmark != secmark)
-		(*pskb)->secmark = secmark;
-
+	(*pskb)->secmark = secmark;
 	return XT_CONTINUE;
 }
 
