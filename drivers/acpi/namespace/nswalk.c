@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -126,7 +126,7 @@ struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type,
  * PARAMETERS:  Type                - acpi_object_type to search for
  *              start_node          - Handle in namespace where search begins
  *              max_depth           - Depth to which search is to reach
- *              unlock_before_callback- Whether to unlock the NS before invoking
+ *              Flags               - Whether to unlock the NS before invoking
  *                                    the callback routine
  *              user_function       - Called when an object of "Type" is found
  *              Context             - Passed to user function
@@ -153,7 +153,7 @@ acpi_status
 acpi_ns_walk_namespace(acpi_object_type type,
 		       acpi_handle start_node,
 		       u32 max_depth,
-		       u8 unlock_before_callback,
+		       u32 flags,
 		       acpi_walk_callback user_function,
 		       void *context, void **return_value)
 {
@@ -193,20 +193,34 @@ acpi_ns_walk_namespace(acpi_object_type type,
 		    acpi_ns_get_next_node(ACPI_TYPE_ANY, parent_node,
 					  child_node);
 		if (child_node) {
-			/*
-			 * Found node, Get the type if we are not
-			 * searching for ANY
-			 */
+
+			/* Found next child, get the type if we are not searching for ANY */
+
 			if (type != ACPI_TYPE_ANY) {
 				child_type = child_node->type;
 			}
 
-			if (child_type == type) {
+			/*
+			 * Ignore all temporary namespace nodes (created during control
+			 * method execution) unless told otherwise. These temporary nodes
+			 * can cause a race condition because they can be deleted during the
+			 * execution of the user function (if the namespace is unlocked before
+			 * invocation of the user function.) Only the debugger namespace dump
+			 * will examine the temporary nodes.
+			 */
+			if ((child_node->flags & ANOBJ_TEMPORARY) &&
+			    !(flags & ACPI_NS_WALK_TEMP_NODES)) {
+				status = AE_CTRL_DEPTH;
+			}
+
+			/* Type must match requested type */
+
+			else if (child_type == type) {
 				/*
-				 * Found a matching node, invoke the user
-				 * callback function
+				 * Found a matching node, invoke the user callback function.
+				 * Unlock the namespace if flag is set.
 				 */
-				if (unlock_before_callback) {
+				if (flags & ACPI_NS_WALK_UNLOCK) {
 					mutex_status =
 					    acpi_ut_release_mutex
 					    (ACPI_MTX_NAMESPACE);
@@ -216,10 +230,11 @@ acpi_ns_walk_namespace(acpi_object_type type,
 					}
 				}
 
-				status = user_function(child_node, level,
-						       context, return_value);
+				status =
+				    user_function(child_node, level, context,
+						  return_value);
 
-				if (unlock_before_callback) {
+				if (flags & ACPI_NS_WALK_UNLOCK) {
 					mutex_status =
 					    acpi_ut_acquire_mutex
 					    (ACPI_MTX_NAMESPACE);
@@ -251,20 +266,17 @@ acpi_ns_walk_namespace(acpi_object_type type,
 			}
 
 			/*
-			 * Depth first search:
-			 * Attempt to go down another level in the namespace
-			 * if we are allowed to.  Don't go any further if we
-			 * have reached the caller specified maximum depth
-			 * or if the user function has specified that the
-			 * maximum depth has been reached.
+			 * Depth first search: Attempt to go down another level in the
+			 * namespace if we are allowed to.  Don't go any further if we have
+			 * reached the caller specified maximum depth or if the user
+			 * function has specified that the maximum depth has been reached.
 			 */
 			if ((level < max_depth) && (status != AE_CTRL_DEPTH)) {
 				if (acpi_ns_get_next_node
 				    (ACPI_TYPE_ANY, child_node, NULL)) {
-					/*
-					 * There is at least one child of this
-					 * node, visit the onde
-					 */
+
+					/* There is at least one child of this node, visit it */
+
 					level++;
 					parent_node = child_node;
 					child_node = NULL;
@@ -272,9 +284,8 @@ acpi_ns_walk_namespace(acpi_object_type type,
 			}
 		} else {
 			/*
-			 * No more children of this node (acpi_ns_get_next_node
-			 * failed), go back upwards in the namespace tree to
-			 * the node's parent.
+			 * No more children of this node (acpi_ns_get_next_node failed), go
+			 * back upwards in the namespace tree to the node's parent.
 			 */
 			level--;
 			child_node = parent_node;

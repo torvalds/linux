@@ -20,7 +20,8 @@
 #include "xtalk/hubdev.h"
 
 int
-sal_pcibr_slot_enable(struct pcibus_info *soft, int device, void *resp)
+sal_pcibr_slot_enable(struct pcibus_info *soft, int device, void *resp,
+                      char **ssdt)
 {
 	struct ia64_sal_retval ret_stuff;
 	u64 busnum;
@@ -32,7 +33,8 @@ sal_pcibr_slot_enable(struct pcibus_info *soft, int device, void *resp)
 	segment = soft->pbi_buscommon.bs_persist_segment;
 	busnum = soft->pbi_buscommon.bs_persist_busnum;
 	SAL_CALL_NOLOCK(ret_stuff, (u64) SN_SAL_IOIF_SLOT_ENABLE, segment,
-			busnum, (u64) device, (u64) resp, 0, 0, 0);
+			busnum, (u64) device, (u64) resp, (u64)ia64_tpa(ssdt),
+			0, 0);
 
 	return (int)ret_stuff.v0;
 }

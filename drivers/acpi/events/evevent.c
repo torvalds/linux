@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,13 +69,6 @@ acpi_status acpi_ev_initialize_events(void)
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ev_initialize_events);
-
-	/* Make sure we have ACPI tables */
-
-	if (!acpi_gbl_DSDT) {
-		ACPI_WARNING((AE_INFO, "No ACPI tables present!"));
-		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
-	}
 
 	/*
 	 * Initialize the Fixed and General Purpose Events. This is done prior to
@@ -211,8 +204,7 @@ static acpi_status acpi_ev_fixed_event_initialize(void)
 		if (acpi_gbl_fixed_event_info[i].enable_register_id != 0xFF) {
 			status =
 			    acpi_set_register(acpi_gbl_fixed_event_info[i].
-					      enable_register_id, 0,
-					      ACPI_MTX_LOCK);
+					      enable_register_id, 0);
 			if (ACPI_FAILURE(status)) {
 				return (status);
 			}
@@ -298,7 +290,7 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 	/* Clear the status bit */
 
 	(void)acpi_set_register(acpi_gbl_fixed_event_info[event].
-				status_register_id, 1, ACPI_MTX_DO_NOT_LOCK);
+				status_register_id, 1);
 
 	/*
 	 * Make sure we've got a handler.  If not, report an error.
@@ -306,8 +298,7 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 	 */
 	if (NULL == acpi_gbl_fixed_event_handlers[event].handler) {
 		(void)acpi_set_register(acpi_gbl_fixed_event_info[event].
-					enable_register_id, 0,
-					ACPI_MTX_DO_NOT_LOCK);
+					enable_register_id, 0);
 
 		ACPI_ERROR((AE_INFO,
 			    "No installed handler for fixed event [%08X]",

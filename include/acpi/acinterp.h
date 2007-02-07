@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -277,12 +277,6 @@ acpi_status acpi_ex_system_do_suspend(acpi_integer time);
 
 acpi_status acpi_ex_system_do_stall(u32 time);
 
-acpi_status
-acpi_ex_system_acquire_mutex(union acpi_operand_object *time,
-			     union acpi_operand_object *obj_desc);
-
-acpi_status acpi_ex_system_release_mutex(union acpi_operand_object *obj_desc);
-
 acpi_status acpi_ex_system_signal_event(union acpi_operand_object *obj_desc);
 
 acpi_status
@@ -451,9 +445,13 @@ acpi_ex_copy_integer_to_buffer_field(union acpi_operand_object *source_desc,
 /*
  * exutils - interpreter/scanner utilities
  */
-acpi_status acpi_ex_enter_interpreter(void);
+void acpi_ex_enter_interpreter(void);
 
 void acpi_ex_exit_interpreter(void);
+
+void acpi_ex_reacquire_interpreter(void);
+
+void acpi_ex_relinquish_interpreter(void);
 
 void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc);
 

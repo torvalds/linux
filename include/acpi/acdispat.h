@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -210,7 +210,7 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state);
  * dsinit
  */
 acpi_status
-acpi_ds_initialize_objects(struct acpi_table_desc *table_desc,
+acpi_ds_initialize_objects(acpi_native_uint table_index,
 			   struct acpi_namespace_node *start_node);
 
 /*

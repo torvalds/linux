@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,118 +44,13 @@
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acevents.h>
+#include <acpi/actables.h>
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utinit")
 
 /* Local prototypes */
-static void
-acpi_ut_fadt_register_error(char *register_name, u32 value, u8 offset);
-
 static void acpi_ut_terminate(void);
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_fadt_register_error
- *
- * PARAMETERS:  register_name           - Pointer to string identifying register
- *              Value                   - Actual register contents value
- *              Offset                  - Byte offset in the FADT
- *
- * RETURN:      AE_BAD_VALUE
- *
- * DESCRIPTION: Display failure message
- *
- ******************************************************************************/
-
-static void
-acpi_ut_fadt_register_error(char *register_name, u32 value, u8 offset)
-{
-
-	ACPI_WARNING((AE_INFO,
-		      "Invalid FADT value %s=%X at offset %X FADT=%p",
-		      register_name, value, offset, acpi_gbl_FADT));
-}
-
-/******************************************************************************
- *
- * FUNCTION:    acpi_ut_validate_fadt
- *
- * PARAMETERS:  None
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Validate various ACPI registers in the FADT
- *
- ******************************************************************************/
-
-acpi_status acpi_ut_validate_fadt(void)
-{
-
-	/*
-	 * Verify Fixed ACPI Description Table fields,
-	 * but don't abort on any problems, just display error
-	 */
-	if (acpi_gbl_FADT->pm1_evt_len < 4) {
-		acpi_ut_fadt_register_error("PM1_EVT_LEN",
-					    (u32) acpi_gbl_FADT->pm1_evt_len,
-					    ACPI_FADT_OFFSET(pm1_evt_len));
-	}
-
-	if (!acpi_gbl_FADT->pm1_cnt_len) {
-		acpi_ut_fadt_register_error("PM1_CNT_LEN", 0,
-					    ACPI_FADT_OFFSET(pm1_cnt_len));
-	}
-
-	if (!acpi_gbl_FADT->xpm1a_evt_blk.address) {
-		acpi_ut_fadt_register_error("X_PM1a_EVT_BLK", 0,
-					    ACPI_FADT_OFFSET(xpm1a_evt_blk.
-							     address));
-	}
-
-	if (!acpi_gbl_FADT->xpm1a_cnt_blk.address) {
-		acpi_ut_fadt_register_error("X_PM1a_CNT_BLK", 0,
-					    ACPI_FADT_OFFSET(xpm1a_cnt_blk.
-							     address));
-	}
-
-	if (!acpi_gbl_FADT->xpm_tmr_blk.address) {
-		acpi_ut_fadt_register_error("X_PM_TMR_BLK", 0,
-					    ACPI_FADT_OFFSET(xpm_tmr_blk.
-							     address));
-	}
-
-	if ((acpi_gbl_FADT->xpm2_cnt_blk.address &&
-	     !acpi_gbl_FADT->pm2_cnt_len)) {
-		acpi_ut_fadt_register_error("PM2_CNT_LEN",
-					    (u32) acpi_gbl_FADT->pm2_cnt_len,
-					    ACPI_FADT_OFFSET(pm2_cnt_len));
-	}
-
-	if (acpi_gbl_FADT->pm_tm_len < 4) {
-		acpi_ut_fadt_register_error("PM_TM_LEN",
-					    (u32) acpi_gbl_FADT->pm_tm_len,
-					    ACPI_FADT_OFFSET(pm_tm_len));
-	}
-
-	/* Length of GPE blocks must be a multiple of 2 */
-
-	if (acpi_gbl_FADT->xgpe0_blk.address &&
-	    (acpi_gbl_FADT->gpe0_blk_len & 1)) {
-		acpi_ut_fadt_register_error("(x)GPE0_BLK_LEN",
-					    (u32) acpi_gbl_FADT->gpe0_blk_len,
-					    ACPI_FADT_OFFSET(gpe0_blk_len));
-	}
-
-	if (acpi_gbl_FADT->xgpe1_blk.address &&
-	    (acpi_gbl_FADT->gpe1_blk_len & 1)) {
-		acpi_ut_fadt_register_error("(x)GPE1_BLK_LEN",
-					    (u32) acpi_gbl_FADT->gpe1_blk_len,
-					    ACPI_FADT_OFFSET(gpe1_blk_len));
-	}
-
-	return (AE_OK);
-}
 
 /******************************************************************************
  *
@@ -178,7 +73,6 @@ static void acpi_ut_terminate(void)
 
 	ACPI_FUNCTION_TRACE(ut_terminate);
 
-	/* Free global tables, etc. */
 	/* Free global GPE blocks and related info structures */
 
 	gpe_xrupt_info = acpi_gbl_gpe_xrupt_list_head;
@@ -238,6 +132,10 @@ void acpi_ut_subsystem_shutdown(void)
 	/* Close the Namespace */
 
 	acpi_ns_terminate();
+
+	/* Delete the ACPI tables */
+
+	acpi_tb_terminate();
 
 	/* Close the globals */
 
