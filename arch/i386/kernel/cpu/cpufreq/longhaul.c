@@ -358,22 +358,15 @@ static int __init longhaul_get_ranges(void)
 	 * C3 is booting at max anyway. */
 	maxmult = mult;
 	/* Get min multiplier */
-	switch (longhaul_version) {
-	case TYPE_LONGHAUL_V1:
-	case TYPE_LONGHAUL_V2:
-		minmult = 30;
+	switch (cpu_model) {
+	case CPU_NEHEMIAH:
+		minmult = 50;
 		break;
-
-	case TYPE_POWERSAVER:
-		/* Ezra-T */
-		if (cpu_model == CPU_EZRA_T)
-			minmult = 30;
-		/* Nehemiah */
-		else if (cpu_model == CPU_NEHEMIAH)
-			minmult = 50;
-		/* Nehemiah C */
-		else if (cpu_model == CPU_NEHEMIAH_C)
-			minmult = 40;
+	case CPU_NEHEMIAH_C:
+		minmult = 40;
+		break;
+	default:
+		minmult = 30;
 		break;
 	}
 
