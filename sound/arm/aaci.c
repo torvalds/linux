@@ -65,10 +65,12 @@ static void aaci_ac97_select_codec(struct aaci *aaci, struct snd_ac97 *ac97)
  *  SI1TxEn, SI2TxEn and SI12TxEn bits are set in the AACI_MAINCR
  *  register.
  */
-static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short val)
+static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
+			    unsigned short val)
 {
 	struct aaci *aaci = ac97->private_data;
 	u32 v;
+	int timeout = 5000;
 
 	if (ac97->num >= 4)
 		return;
@@ -89,7 +91,11 @@ static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned 
 	 */
 	do {
 		v = readl(aaci->base + AACI_SLFR);
-	} while (v & (SLFR_1TXB|SLFR_2TXB));
+	} while ((v & (SLFR_1TXB|SLFR_2TXB)) && timeout--);
+
+	if (!timeout)
+		dev_err(&aaci->dev->dev,
+			"timeout waiting for write to complete\n");
 
 	mutex_unlock(&aaci->ac97_sem);
 }
@@ -101,6 +107,8 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	struct aaci *aaci = ac97->private_data;
 	u32 v;
+	int timeout = 5000;
+	int retries = 10;
 
 	if (ac97->num >= 4)
 		return ~0;
@@ -119,7 +127,13 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	 */
 	do {
 		v = readl(aaci->base + AACI_SLFR);
-	} while (v & SLFR_1TXB);
+	} while ((v & SLFR_1TXB) && timeout--);
+
+	if (!timeout) {
+		dev_err(&aaci->dev->dev, "timeout on slot 1 TX busy\n");
+		v = ~0;
+		goto out;
+	}
 
 	/*
 	 * Give the AC'97 codec more than enough time
@@ -130,21 +144,35 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	/*
 	 * Wait for slot 2 to indicate data.
 	 */
+	timeout = 5000;
 	do {
 		cond_resched();
 		v = readl(aaci->base + AACI_SLFR) & (SLFR_1RXV|SLFR_2RXV);
-	} while (v != (SLFR_1RXV|SLFR_2RXV));
+	} while ((v != (SLFR_1RXV|SLFR_2RXV)) && timeout--);
 
-	v = readl(aaci->base + AACI_SL1RX) >> 12;
-	if (v == reg) {
-		v = readl(aaci->base + AACI_SL2RX) >> 4;
-	} else {
-		dev_err(&aaci->dev->dev,
-			"wrong ac97 register read back (%x != %x)\n",
-			v, reg);
+	if (!timeout) {
+		dev_err(&aaci->dev->dev, "timeout on RX valid\n");
 		v = ~0;
+		goto out;
 	}
 
+	do {
+		v = readl(aaci->base + AACI_SL1RX) >> 12;
+		if (v == reg) {
+			v = readl(aaci->base + AACI_SL2RX) >> 4;
+			break;
+		} else if (--retries) {
+			dev_warn(&aaci->dev->dev,
+				 "ac97 read back fail.  retry\n");
+			continue;
+		} else {
+			dev_warn(&aaci->dev->dev,
+				"wrong ac97 register read back (%x != %x)\n",
+				v, reg);
+			v = ~0;
+		}
+	} while (retries);
+ out:
 	mutex_unlock(&aaci->ac97_sem);
 	return v;
 }
