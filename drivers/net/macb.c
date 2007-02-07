@@ -1046,6 +1046,14 @@ static int __devinit macb_probe(struct platform_device *pdev)
 
 	spin_lock_init(&bp->lock);
 
+#if defined(CONFIG_ARCH_AT91)
+	bp->pclk = clk_get(&pdev->dev, "macb_clk");
+	if (IS_ERR(bp->pclk)) {
+		dev_err(&pdev->dev, "failed to get macb_clk\n");
+		goto err_out_free_dev;
+	}
+	clk_enable(bp->pclk);
+#else
 	bp->pclk = clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(bp->pclk)) {
 		dev_err(&pdev->dev, "failed to get pclk\n");
@@ -1059,6 +1067,7 @@ static int __devinit macb_probe(struct platform_device *pdev)
 
 	clk_enable(bp->pclk);
 	clk_enable(bp->hclk);
+#endif
 
 	bp->regs = ioremap(regs->start, regs->end - regs->start + 1);
 	if (!bp->regs) {
@@ -1119,9 +1128,17 @@ static int __devinit macb_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	if (pdata && pdata->is_rmii)
+#if defined(CONFIG_ARCH_AT91)
+		macb_writel(bp, USRIO, (MACB_BIT(RMII) | MACB_BIT(CLKEN)) );
+#else
 		macb_writel(bp, USRIO, 0);
+#endif
 	else
+#if defined(CONFIG_ARCH_AT91)
+		macb_writel(bp, USRIO, MACB_BIT(CLKEN));
+#else
 		macb_writel(bp, USRIO, MACB_BIT(MII));
+#endif
 
 	bp->tx_pending = DEF_TX_RING_PENDING;
 
@@ -1148,9 +1165,11 @@ err_out_free_irq:
 err_out_iounmap:
 	iounmap(bp->regs);
 err_out_disable_clocks:
+#ifndef CONFIG_ARCH_AT91
 	clk_disable(bp->hclk);
-	clk_disable(bp->pclk);
 	clk_put(bp->hclk);
+#endif
+	clk_disable(bp->pclk);
 err_out_put_pclk:
 	clk_put(bp->pclk);
 err_out_free_dev:
@@ -1173,9 +1192,11 @@ static int __devexit macb_remove(struct platform_device *pdev)
 		unregister_netdev(dev);
 		free_irq(dev->irq, dev);
 		iounmap(bp->regs);
+#ifndef CONFIG_ARCH_AT91
 		clk_disable(bp->hclk);
-		clk_disable(bp->pclk);
 		clk_put(bp->hclk);
+#endif
+		clk_disable(bp->pclk);
 		clk_put(bp->pclk);
 		free_netdev(dev);
 		platform_set_drvdata(pdev, NULL);

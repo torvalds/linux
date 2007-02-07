@@ -190,7 +190,7 @@ config MII
 
 config MACB
 	tristate "Atmel MACB support"
-	depends on NET_ETHERNET && AVR32
+	depends on NET_ETHERNET && (AVR32 || ARCH_AT91SAM9260 || ARCH_AT91SAM9263)
 	select MII
 	help
 	  The Atmel MACB ethernet interface is found on many AT32 and AT91
