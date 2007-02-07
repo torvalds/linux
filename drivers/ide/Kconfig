@@ -742,6 +742,11 @@ config BLK_DEV_VIA82CXXX
 	  This allows the kernel to change PIO, DMA and UDMA speeds and to
 	  configure the chip to optimum performance.
 
+config BLK_DEV_TC86C001
+	tristate "Toshiba TC86C001 support"
+	help
+	This driver adds support for Toshiba TC86C001 GOKU-S chip.
+
 endif
 
 config BLK_DEV_IDE_PMAC
