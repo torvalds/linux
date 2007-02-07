@@ -240,13 +240,16 @@ struct backlight_device *backlight_device_register(const char *name,
 
 	rc = class_device_register(&new_bd->class_dev);
 	if (unlikely(rc)) {
-error:		kfree(new_bd);
+		kfree(new_bd);
 		return ERR_PTR(rc);
 	}
 
 	rc = backlight_register_fb(new_bd);
-	if (unlikely(rc))
-		goto error;
+	if (rc) {
+		class_device_unregister(&new_bd->class_dev);
+		return ERR_PTR(rc);
+	}
+
 
 	for (i = 0; i < ARRAY_SIZE(bl_class_device_attributes); i++) {
 		rc = class_device_create_file(&new_bd->class_dev,

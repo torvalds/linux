@@ -206,14 +206,15 @@ struct lcd_device *lcd_device_register(const char *name, void *devdata,
 
 	rc = class_device_register(&new_ld->class_dev);
 	if (unlikely(rc)) {
-error:		kfree(new_ld);
+		kfree(new_ld);
 		return ERR_PTR(rc);
 	}
 
 	rc = lcd_register_fb(new_ld);
-
-	if (unlikely(rc))
-		goto error;
+	if (rc) {
+		class_device_unregister(&new_ld->class_dev);
+		return ERR_PTR(rc);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(lcd_class_device_attributes); i++) {
 		rc = class_device_create_file(&new_ld->class_dev,
