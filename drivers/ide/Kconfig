@@ -606,6 +606,11 @@ config BLK_DEV_PIIX
 	  the kernel to change PIO, DMA and UDMA speeds and to configure
 	  the chip to optimum performance.
 
+config BLK_DEV_IT8213
+	tristate "IT8213 IDE support"
+	help
+	 This driver adds support for the ITE 8213 IDE controller.
+
 config BLK_DEV_IT821X
 	tristate "IT821X IDE support"
 	help
