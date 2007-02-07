@@ -86,8 +86,6 @@ static LIST_HEAD(cx8800_devlist);
 /* ------------------------------------------------------------------- */
 /* static data                                                         */
 
-v4l2_std_id radionorms[] = { 0 };
-
 static struct cx8800_fmt formats[] = {
 	{
 		.name     = "8 bpp, gray",
