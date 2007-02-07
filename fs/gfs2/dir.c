@@ -131,7 +131,7 @@ static int gfs2_dir_write_stuffed(struct gfs2_inode *ip, const char *buf,
 	memcpy(dibh->b_data + offset + sizeof(struct gfs2_dinode), buf, size);
 	if (ip->i_di.di_size < offset + size)
 		ip->i_di.di_size = offset + size;
-	ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
 	gfs2_dinode_out(ip, dibh->b_data);
 
 	brelse(dibh);
@@ -229,7 +229,7 @@ out:
 
 	if (ip->i_di.di_size < offset + copied)
 		ip->i_di.di_size = offset + copied;
-	ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
@@ -1198,12 +1198,11 @@ static int compare_dents(const void *a, const void *b)
  */
 
 static int do_filldir_main(struct gfs2_inode *dip, u64 *offset,
-			   void *opaque, gfs2_filldir_t filldir,
+			   void *opaque, filldir_t filldir,
 			   const struct gfs2_dirent **darr, u32 entries,
 			   int *copied)
 {
 	const struct gfs2_dirent *dent, *dent_next;
-	struct gfs2_inum_host inum;
 	u64 off, off_next;
 	unsigned int x, y;
 	int run = 0;
@@ -1240,11 +1239,9 @@ static int do_filldir_main(struct gfs2_inode *dip, u64 *offset,
 			*offset = off;
 		}
 
-		gfs2_inum_in(&inum, (char *)&dent->de_inum);
-
 		error = filldir(opaque, (const char *)(dent + 1),
 				be16_to_cpu(dent->de_name_len),
-				off, &inum,
+				off, be64_to_cpu(dent->de_inum.no_addr),
 				be16_to_cpu(dent->de_type));
 		if (error)
 			return 1;
@@ -1262,8 +1259,8 @@ static int do_filldir_main(struct gfs2_inode *dip, u64 *offset,
 }
 
 static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
-			      gfs2_filldir_t filldir, int *copied,
-			      unsigned *depth, u64 leaf_no)
+			      filldir_t filldir, int *copied, unsigned *depth,
+			      u64 leaf_no)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct buffer_head *bh;
@@ -1343,7 +1340,7 @@ out:
  */
 
 static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
-		      gfs2_filldir_t filldir)
+		      filldir_t filldir)
 {
 	struct gfs2_inode *dip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -1402,7 +1399,7 @@ out:
 }
 
 int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
-		  gfs2_filldir_t filldir)
+		  filldir_t filldir)
 {
 	struct gfs2_inode *dip = GFS2_I(inode);
 	struct dirent_gather g;
@@ -1568,7 +1565,7 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 				break;
 			gfs2_trans_add_bh(ip->i_gl, bh, 1);
 			ip->i_di.di_entries++;
-			ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
+			ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
 			gfs2_dinode_out(ip, bh->b_data);
 			brelse(bh);
 			error = 0;
@@ -1654,7 +1651,7 @@ int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *name)
 		gfs2_consist_inode(dip);
 	gfs2_trans_add_bh(dip->i_gl, bh, 1);
 	dip->i_di.di_entries--;
-	dip->i_inode.i_mtime.tv_sec = dip->i_inode.i_ctime.tv_sec = get_seconds();
+	dip->i_inode.i_mtime = dip->i_inode.i_ctime = CURRENT_TIME_SEC;
 	gfs2_dinode_out(dip, bh->b_data);
 	brelse(bh);
 	mark_inode_dirty(&dip->i_inode);
@@ -1702,7 +1699,7 @@ int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 		gfs2_trans_add_bh(dip->i_gl, bh, 1);
 	}
 
-	dip->i_inode.i_mtime.tv_sec = dip->i_inode.i_ctime.tv_sec = get_seconds();
+	dip->i_inode.i_mtime = dip->i_inode.i_ctime = CURRENT_TIME_SEC;
 	gfs2_dinode_out(dip, bh->b_data);
 	brelse(bh);
 	return 0;

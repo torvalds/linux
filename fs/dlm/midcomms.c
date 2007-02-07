@@ -82,7 +82,7 @@ int dlm_process_incoming_buffer(int nodeid, const void *base,
 		if (msglen < sizeof(struct dlm_header))
 			break;
 		err = -E2BIG;
-		if (msglen > dlm_config.buffer_size) {
+		if (msglen > dlm_config.ci_buffer_size) {
 			log_print("message size %d from %d too big, buf len %d",
 				  msglen, nodeid, len);
 			break;
@@ -103,7 +103,7 @@ int dlm_process_incoming_buffer(int nodeid, const void *base,
 
 		if (msglen > sizeof(__tmp) &&
 		    msg == (struct dlm_header *) __tmp) {
-			msg = kmalloc(dlm_config.buffer_size, GFP_KERNEL);
+			msg = kmalloc(dlm_config.ci_buffer_size, GFP_KERNEL);
 			if (msg == NULL)
 				return ret;
 		}

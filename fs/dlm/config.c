@@ -54,6 +54,11 @@ static struct config_item *make_node(struct config_group *, const char *);
 static void drop_node(struct config_group *, struct config_item *);
 static void release_node(struct config_item *);
 
+static ssize_t show_cluster(struct config_item *i, struct configfs_attribute *a,
+			    char *buf);
+static ssize_t store_cluster(struct config_item *i,
+			     struct configfs_attribute *a,
+			     const char *buf, size_t len);
 static ssize_t show_comm(struct config_item *i, struct configfs_attribute *a,
 			 char *buf);
 static ssize_t store_comm(struct config_item *i, struct configfs_attribute *a,
@@ -72,6 +77,101 @@ static ssize_t node_nodeid_read(struct node *nd, char *buf);
 static ssize_t node_nodeid_write(struct node *nd, const char *buf, size_t len);
 static ssize_t node_weight_read(struct node *nd, char *buf);
 static ssize_t node_weight_write(struct node *nd, const char *buf, size_t len);
+
+struct cluster {
+	struct config_group group;
+	unsigned int cl_tcp_port;
+	unsigned int cl_buffer_size;
+	unsigned int cl_rsbtbl_size;
+	unsigned int cl_lkbtbl_size;
+	unsigned int cl_dirtbl_size;
+	unsigned int cl_recover_timer;
+	unsigned int cl_toss_secs;
+	unsigned int cl_scan_secs;
+	unsigned int cl_log_debug;
+};
+
+enum {
+	CLUSTER_ATTR_TCP_PORT = 0,
+	CLUSTER_ATTR_BUFFER_SIZE,
+	CLUSTER_ATTR_RSBTBL_SIZE,
+	CLUSTER_ATTR_LKBTBL_SIZE,
+	CLUSTER_ATTR_DIRTBL_SIZE,
+	CLUSTER_ATTR_RECOVER_TIMER,
+	CLUSTER_ATTR_TOSS_SECS,
+	CLUSTER_ATTR_SCAN_SECS,
+	CLUSTER_ATTR_LOG_DEBUG,
+};
+
+struct cluster_attribute {
+	struct configfs_attribute attr;
+	ssize_t (*show)(struct cluster *, char *);
+	ssize_t (*store)(struct cluster *, const char *, size_t);
+};
+
+static ssize_t cluster_set(struct cluster *cl, unsigned int *cl_field,
+			   unsigned int *info_field, int check_zero,
+			   const char *buf, size_t len)
+{
+	unsigned int x;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	x = simple_strtoul(buf, NULL, 0);
+
+	if (check_zero && !x)
+		return -EINVAL;
+
+	*cl_field = x;
+	*info_field = x;
+
+	return len;
+}
+
+#define __CONFIGFS_ATTR(_name,_mode,_read,_write) {                           \
+	.attr   = { .ca_name = __stringify(_name),                            \
+		    .ca_mode = _mode,                                         \
+		    .ca_owner = THIS_MODULE },                                \
+	.show   = _read,                                                      \
+	.store  = _write,                                                     \
+}
+
+#define CLUSTER_ATTR(name, check_zero)                                        \
+static ssize_t name##_write(struct cluster *cl, const char *buf, size_t len)  \
+{                                                                             \
+	return cluster_set(cl, &cl->cl_##name, &dlm_config.ci_##name,         \
+			   check_zero, buf, len);                             \
+}                                                                             \
+static ssize_t name##_read(struct cluster *cl, char *buf)                     \
+{                                                                             \
+	return snprintf(buf, PAGE_SIZE, "%u\n", cl->cl_##name);               \
+}                                                                             \
+static struct cluster_attribute cluster_attr_##name =                         \
+__CONFIGFS_ATTR(name, 0644, name##_read, name##_write)
+
+CLUSTER_ATTR(tcp_port, 1);
+CLUSTER_ATTR(buffer_size, 1);
+CLUSTER_ATTR(rsbtbl_size, 1);
+CLUSTER_ATTR(lkbtbl_size, 1);
+CLUSTER_ATTR(dirtbl_size, 1);
+CLUSTER_ATTR(recover_timer, 1);
+CLUSTER_ATTR(toss_secs, 1);
+CLUSTER_ATTR(scan_secs, 1);
+CLUSTER_ATTR(log_debug, 0);
+
+static struct configfs_attribute *cluster_attrs[] = {
+	[CLUSTER_ATTR_TCP_PORT] = &cluster_attr_tcp_port.attr,
+	[CLUSTER_ATTR_BUFFER_SIZE] = &cluster_attr_buffer_size.attr,
+	[CLUSTER_ATTR_RSBTBL_SIZE] = &cluster_attr_rsbtbl_size.attr,
+	[CLUSTER_ATTR_LKBTBL_SIZE] = &cluster_attr_lkbtbl_size.attr,
+	[CLUSTER_ATTR_DIRTBL_SIZE] = &cluster_attr_dirtbl_size.attr,
+	[CLUSTER_ATTR_RECOVER_TIMER] = &cluster_attr_recover_timer.attr,
+	[CLUSTER_ATTR_TOSS_SECS] = &cluster_attr_toss_secs.attr,
+	[CLUSTER_ATTR_SCAN_SECS] = &cluster_attr_scan_secs.attr,
+	[CLUSTER_ATTR_LOG_DEBUG] = &cluster_attr_log_debug.attr,
+	NULL,
+};
 
 enum {
 	COMM_ATTR_NODEID = 0,
@@ -152,10 +252,6 @@ struct clusters {
 	struct configfs_subsystem subsys;
 };
 
-struct cluster {
-	struct config_group group;
-};
-
 struct spaces {
 	struct config_group ss_group;
 };
@@ -197,6 +293,8 @@ static struct configfs_group_operations clusters_ops = {
 
 static struct configfs_item_operations cluster_ops = {
 	.release = release_cluster,
+	.show_attribute = show_cluster,
+	.store_attribute = store_cluster,
 };
 
 static struct configfs_group_operations spaces_ops = {
@@ -237,6 +335,7 @@ static struct config_item_type clusters_type = {
 
 static struct config_item_type cluster_type = {
 	.ct_item_ops = &cluster_ops,
+	.ct_attrs = cluster_attrs,
 	.ct_owner = THIS_MODULE,
 };
 
@@ -316,6 +415,16 @@ static struct config_group *make_cluster(struct config_group *g,
 	cl->group.default_groups[0] = &sps->ss_group;
 	cl->group.default_groups[1] = &cms->cs_group;
 	cl->group.default_groups[2] = NULL;
+
+	cl->cl_tcp_port = dlm_config.ci_tcp_port;
+	cl->cl_buffer_size = dlm_config.ci_buffer_size;
+	cl->cl_rsbtbl_size = dlm_config.ci_rsbtbl_size;
+	cl->cl_lkbtbl_size = dlm_config.ci_lkbtbl_size;
+	cl->cl_dirtbl_size = dlm_config.ci_dirtbl_size;
+	cl->cl_recover_timer = dlm_config.ci_recover_timer;
+	cl->cl_toss_secs = dlm_config.ci_toss_secs;
+	cl->cl_scan_secs = dlm_config.ci_scan_secs;
+	cl->cl_log_debug = dlm_config.ci_log_debug;
 
 	space_list = &sps->ss_group;
 	comm_list = &cms->cs_group;
@@ -508,6 +617,25 @@ void dlm_config_exit(void)
 /*
  * Functions for user space to read/write attributes
  */
+
+static ssize_t show_cluster(struct config_item *i, struct configfs_attribute *a,
+			    char *buf)
+{
+	struct cluster *cl = to_cluster(i);
+	struct cluster_attribute *cla =
+			container_of(a, struct cluster_attribute, attr);
+	return cla->show ? cla->show(cl, buf) : 0;
+}
+
+static ssize_t store_cluster(struct config_item *i,
+			     struct configfs_attribute *a,
+			     const char *buf, size_t len)
+{
+	struct cluster *cl = to_cluster(i);
+	struct cluster_attribute *cla =
+		container_of(a, struct cluster_attribute, attr);
+	return cla->store ? cla->store(cl, buf, len) : -EINVAL;
+}
 
 static ssize_t show_comm(struct config_item *i, struct configfs_attribute *a,
 			 char *buf)
@@ -775,15 +903,17 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 #define DEFAULT_RECOVER_TIMER      5
 #define DEFAULT_TOSS_SECS         10
 #define DEFAULT_SCAN_SECS          5
+#define DEFAULT_LOG_DEBUG          0
 
 struct dlm_config_info dlm_config = {
-	.tcp_port = DEFAULT_TCP_PORT,
-	.buffer_size = DEFAULT_BUFFER_SIZE,
-	.rsbtbl_size = DEFAULT_RSBTBL_SIZE,
-	.lkbtbl_size = DEFAULT_LKBTBL_SIZE,
-	.dirtbl_size = DEFAULT_DIRTBL_SIZE,
-	.recover_timer = DEFAULT_RECOVER_TIMER,
-	.toss_secs = DEFAULT_TOSS_SECS,
-	.scan_secs = DEFAULT_SCAN_SECS
+	.ci_tcp_port = DEFAULT_TCP_PORT,
+	.ci_buffer_size = DEFAULT_BUFFER_SIZE,
+	.ci_rsbtbl_size = DEFAULT_RSBTBL_SIZE,
+	.ci_lkbtbl_size = DEFAULT_LKBTBL_SIZE,
+	.ci_dirtbl_size = DEFAULT_DIRTBL_SIZE,
+	.ci_recover_timer = DEFAULT_RECOVER_TIMER,
+	.ci_toss_secs = DEFAULT_TOSS_SECS,
+	.ci_scan_secs = DEFAULT_SCAN_SECS,
+	.ci_log_debug = DEFAULT_LOG_DEBUG
 };
 

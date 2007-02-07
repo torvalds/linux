@@ -41,6 +41,7 @@
 #include <asm/uaccess.h>
 
 #include <linux/dlm.h>
+#include "config.h"
 
 #define DLM_LOCKSPACE_LEN	64
 
@@ -69,12 +70,12 @@ struct dlm_mhandle;
 #define log_error(ls, fmt, args...) \
 	printk(KERN_ERR "dlm: %s: " fmt "\n", (ls)->ls_name , ##args)
 
-#define DLM_LOG_DEBUG
-#ifdef DLM_LOG_DEBUG
-#define log_debug(ls, fmt, args...) log_error(ls, fmt, ##args)
-#else
-#define log_debug(ls, fmt, args...)
-#endif
+#define log_debug(ls, fmt, args...) \
+do { \
+	if (dlm_config.ci_log_debug) \
+		printk(KERN_DEBUG "dlm: %s: " fmt "\n", \
+		       (ls)->ls_name , ##args); \
+} while (0)
 
 #define DLM_ASSERT(x, do) \
 { \
@@ -309,8 +310,8 @@ static inline int rsb_flag(struct dlm_rsb *r, enum rsb_flags flag)
 
 /* dlm_header is first element of all structs sent between nodes */
 
-#define DLM_HEADER_MAJOR	0x00020000
-#define DLM_HEADER_MINOR	0x00000001
+#define DLM_HEADER_MAJOR	0x00030000
+#define DLM_HEADER_MINOR	0x00000000
 
 #define DLM_MSG			1
 #define DLM_RCOM		2
@@ -386,6 +387,8 @@ struct dlm_rcom {
 	uint32_t		rc_type;	/* DLM_RCOM_ */
 	int			rc_result;	/* multi-purpose */
 	uint64_t		rc_id;		/* match reply with request */
+	uint64_t		rc_seq;		/* sender's ls_recover_seq */
+	uint64_t		rc_seq_reply;	/* remote ls_recover_seq */
 	char			rc_buf[0];
 };
 
@@ -523,6 +526,7 @@ struct dlm_user_proc {
 	spinlock_t		asts_spin;
 	struct list_head	locks;
 	spinlock_t		locks_spin;
+	struct list_head	unlocking;
 	wait_queue_head_t	wait;
 };
 
