@@ -292,15 +292,15 @@
 #define __NR_mq_getsetattr      (__NR_mq_open+5)
 #define __NR_kexec_load		283
 #define __NR_waitid		284
-/* #define __NR_sys_setaltroot	285 */
-#define __NR_add_key		286
-#define __NR_request_key	287
-#define __NR_keyctl		288
-#define __NR_ioprio_set		289
-#define __NR_ioprio_get		290
-#define __NR_inotify_init	291
-#define __NR_inotify_add_watch	292
-#define __NR_inotify_rm_watch	293
+#define __NR_add_key		285
+#define __NR_request_key	286
+#define __NR_keyctl		287
+#define __NR_ioprio_set		288
+#define __NR_ioprio_get		289
+#define __NR_inotify_init	290
+#define __NR_inotify_add_watch	291
+#define __NR_inotify_rm_watch	292
+/* 293 is unused */
 #define __NR_migrate_pages	294
 #define __NR_openat		295
 #define __NR_mkdirat		296
