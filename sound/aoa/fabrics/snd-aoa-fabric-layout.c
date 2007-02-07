@@ -1077,8 +1077,6 @@ static int aoa_fabric_layout_suspend(struct soundbus_dev *sdev, pm_message_t sta
 {
 	struct layout_dev *ldev = sdev->ofdev.dev.driver_data;
 
-	printk("aoa_fabric_layout_suspend()\n");
-
 	if (ldev->gpio.methods && ldev->gpio.methods->all_amps_off)
 		ldev->gpio.methods->all_amps_off(&ldev->gpio);
 
@@ -1088,8 +1086,6 @@ static int aoa_fabric_layout_suspend(struct soundbus_dev *sdev, pm_message_t sta
 static int aoa_fabric_layout_resume(struct soundbus_dev *sdev)
 {
 	struct layout_dev *ldev = sdev->ofdev.dev.driver_data;
-
-	printk("aoa_fabric_layout_resume()\n");
 
 	if (ldev->gpio.methods && ldev->gpio.methods->all_amps_off)
 		ldev->gpio.methods->all_amps_restore(&ldev->gpio);
