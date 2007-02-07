@@ -66,3 +66,11 @@ config BACKLIGHT_HP680
 	  If you have a HP Jornada 680, say y to enable the
 	  backlight driver.
 
+config BACKLIGHT_PROGEAR
+	tristate "Frontpath ProGear Backlight Driver"
+	depends on BACKLIGHT_DEVICE && PCI && X86
+	default n
+	help
+	  If you have a Frontpath ProGear say Y to enable the
+	  backlight driver.
+
