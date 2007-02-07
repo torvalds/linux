@@ -260,7 +260,8 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
 }
 
-static unsigned int init_chipset_tc86c001(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_tc86c001(struct pci_dev *dev,
+							const char *name)
 {
 	int err = pci_request_region(dev, 5, name);
 
