@@ -676,7 +676,9 @@ static void mptspi_dv_device(struct _MPT_SCSI_HOST *hd,
 		return;
 	}
 
+	hd->spi_pending |= (1 << sdev->id);
 	spi_dv_device(sdev);
+	hd->spi_pending &= ~(1 << sdev->id);
 
 	if (sdev->channel == 1 &&
 	    mptscsih_quiesce_raid(hd, 0, vtarget->channel, vtarget->id) < 0)
@@ -1202,11 +1204,27 @@ mptspi_dv_renegotiate_work(struct work_struct *work)
 		container_of(work, struct work_queue_wrapper, work);
 	struct _MPT_SCSI_HOST *hd = wqw->hd;
 	struct scsi_device *sdev;
+	struct scsi_target *starget;
+	struct _CONFIG_PAGE_SCSI_DEVICE_1 pg1;
+	u32 nego;
 
 	kfree(wqw);
 
-	shost_for_each_device(sdev, hd->ioc->sh)
-		mptspi_dv_device(hd, sdev);
+	if (hd->spi_pending) {
+		shost_for_each_device(sdev, hd->ioc->sh) {
+			if  (hd->spi_pending & (1 << sdev->id))
+				continue;
+			starget = scsi_target(sdev);
+			nego = mptspi_getRP(starget);
+			pg1.RequestedParameters = cpu_to_le32(nego);
+			pg1.Reserved = 0;
+			pg1.Configuration = 0;
+			mptspi_write_spi_device_pg1(starget, &pg1);
+		}
+	} else {
+		shost_for_each_device(sdev, hd->ioc->sh)
+			mptspi_dv_device(hd, sdev);
+	}
 }
 
 static void
@@ -1452,6 +1470,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_waitqueue_head(&hd->scandv_waitq);
 	hd->scandv_wait_done = 0;
 	hd->last_queue_full = 0;
+	hd->spi_pending = 0;
 
 	/* Some versions of the firmware don't support page 0; without
 	 * that we can't get the parameters */
