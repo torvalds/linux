@@ -45,12 +45,6 @@
 #include <media/video-buf-dvb.h>
 #endif
 
-#ifndef TRUE
-# define TRUE (1==1)
-#endif
-#ifndef FALSE
-# define FALSE (1==0)
-#endif
 #define UNSET (-1U)
 
 /* ----------------------------------------------------------- */
