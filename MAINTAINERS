@@ -679,6 +679,11 @@ L:	linux-hams@vger.kernel.org
 W:	http://www.linux-ax25.org/
 S:	Maintained
 
+BACKLIGHT CLASS/SUBSYSTEM
+P:	Richard Purdie
+M:	rpurdie@rpsys.net
+S:	Maintained
+
 BAYCOM/HDLCDRV DRIVERS FOR AX.25
 P:	Thomas Sailer
 M:	t.sailer@alumni.ethz.ch
