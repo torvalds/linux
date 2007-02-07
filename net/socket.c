@@ -1194,6 +1194,7 @@ asmlinkage long sys_socketpair(int family, int type, int protocol,
 {
 	struct socket *sock1, *sock2;
 	int fd1, fd2, err;
+	struct file *newfile1, *newfile2;
 
 	/*
 	 * Obtain the first socket and check if the underlying protocol
@@ -1212,18 +1213,37 @@ asmlinkage long sys_socketpair(int family, int type, int protocol,
 	if (err < 0)
 		goto out_release_both;
 
-	fd1 = fd2 = -1;
-
-	err = sock_map_fd(sock1);
-	if (err < 0)
+	fd1 = sock_alloc_fd(&newfile1);
+	if (unlikely(fd1 < 0))
 		goto out_release_both;
-	fd1 = err;
 
-	err = sock_map_fd(sock2);
-	if (err < 0)
-		goto out_close_1;
-	fd2 = err;
+	fd2 = sock_alloc_fd(&newfile2);
+	if (unlikely(fd2 < 0)) {
+		put_filp(newfile1);
+		put_unused_fd(fd1);
+		goto out_release_both;
+	}
 
+	err = sock_attach_fd(sock1, newfile1);
+	if (unlikely(err < 0)) {
+		goto out_fd2;
+	}
+
+	err = sock_attach_fd(sock2, newfile2);
+	if (unlikely(err < 0)) {
+		fput(newfile1);
+		goto out_fd1;
+	}
+
+	err = audit_fd_pair(fd1, fd2);
+	if (err < 0) {
+		fput(newfile1);
+		fput(newfile2);
+		goto out_fd;
+	}
+
+	fd_install(fd1, newfile1);
+	fd_install(fd2, newfile2);
 	/* fd1 and fd2 may be already another descriptors.
 	 * Not kernel problem.
 	 */
@@ -1238,17 +1258,23 @@ asmlinkage long sys_socketpair(int family, int type, int protocol,
 	sys_close(fd1);
 	return err;
 
-out_close_1:
-	sock_release(sock2);
-	sys_close(fd1);
-	return err;
-
 out_release_both:
 	sock_release(sock2);
 out_release_1:
 	sock_release(sock1);
 out:
 	return err;
+
+out_fd2:
+	put_filp(newfile1);
+	sock_release(sock1);
+out_fd1:
+	put_filp(newfile2);
+	sock_release(sock2);
+out_fd:
+	put_unused_fd(fd1);
+	put_unused_fd(fd2);
+	goto out;
 }
 
 /*
