@@ -1842,6 +1842,7 @@ static int inet6_addr_add(int ifindex, struct in6_addr *pfx, int plen,
 	struct inet6_dev *idev;
 	struct net_device *dev;
 	int scope;
+	u32 flags = RTF_EXPIRES;
 
 	ASSERT_RTNL();
 
@@ -1857,9 +1858,10 @@ static int inet6_addr_add(int ifindex, struct in6_addr *pfx, int plen,
 
 	scope = ipv6_addr_scope(pfx);
 
-	if (valid_lft == INFINITY_LIFE_TIME)
+	if (valid_lft == INFINITY_LIFE_TIME) {
 		ifa_flags |= IFA_F_PERMANENT;
-	else if (valid_lft >= 0x7FFFFFFF/HZ)
+		flags = 0;
+	} else if (valid_lft >= 0x7FFFFFFF/HZ)
 		valid_lft = 0x7FFFFFFF/HZ;
 
 	if (prefered_lft == 0)
@@ -1877,6 +1879,8 @@ static int inet6_addr_add(int ifindex, struct in6_addr *pfx, int plen,
 		ifp->tstamp = jiffies;
 		spin_unlock_bh(&ifp->lock);
 
+		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, dev,
+				      jiffies_to_clock_t(valid_lft * HZ), flags);
 		addrconf_dad_start(ifp, 0);
 		in6_ifa_put(ifp);
 		addrconf_verify(0);
@@ -2056,6 +2060,7 @@ static void addrconf_add_linklocal(struct inet6_dev *idev, struct in6_addr *addr
 
 	ifp = ipv6_add_addr(idev, addr, 64, IFA_LINK, IFA_F_PERMANENT);
 	if (!IS_ERR(ifp)) {
+		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, idev->dev, 0, 0);
 		addrconf_dad_start(ifp, 0);
 		in6_ifa_put(ifp);
 	}
@@ -2469,10 +2474,6 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 	struct net_device *dev = idev->dev;
 
 	addrconf_join_solict(dev, &ifp->addr);
-
-	if (ifp->prefix_len != 128 && (ifp->flags&IFA_F_PERMANENT))
-		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, dev, 0,
-					flags);
 
 	net_srandom(ifp->addr.s6_addr32[3]);
 
@@ -2904,12 +2905,15 @@ inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 static int inet6_addr_modify(struct inet6_ifaddr *ifp, u8 ifa_flags,
 			     u32 prefered_lft, u32 valid_lft)
 {
+	u32 flags = RTF_EXPIRES;
+
 	if (!valid_lft || (prefered_lft > valid_lft))
 		return -EINVAL;
 
-	if (valid_lft == INFINITY_LIFE_TIME)
+	if (valid_lft == INFINITY_LIFE_TIME) {
 		ifa_flags |= IFA_F_PERMANENT;
-	else if (valid_lft >= 0x7FFFFFFF/HZ)
+		flags = 0;
+	} else if (valid_lft >= 0x7FFFFFFF/HZ)
 		valid_lft = 0x7FFFFFFF/HZ;
 
 	if (prefered_lft == 0)
@@ -2928,6 +2932,8 @@ static int inet6_addr_modify(struct inet6_ifaddr *ifp, u8 ifa_flags,
 	if (!(ifp->flags&IFA_F_TENTATIVE))
 		ipv6_ifa_notify(0, ifp);
 
+	addrconf_prefix_route(&ifp->addr, ifp->prefix_len, ifp->idev->dev,
+			      jiffies_to_clock_t(valid_lft * HZ), flags);
 	addrconf_verify(0);
 
 	return 0;
