@@ -271,6 +271,13 @@ config BLK_DEV_IDESCSI
 	  If both this SCSI emulation and native ATAPI support are compiled
 	  into the kernel, the native support will be used.
 
+config BLK_DEV_IDEACPI
+	bool "IDE ACPI support"
+	depends on ACPI
+	---help---
+	  Implement ACPI support for generic IDE devices. On modern
+	  machines ACPI support is required to properly handle ACPI S3 states.
+
 config IDE_TASK_IOCTL
 	bool "IDE Taskfile Access"
 	help
