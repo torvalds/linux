@@ -13,14 +13,14 @@
 #include <asm/io.h>
 
 #define PFC_PHCR	0xa400010eUL
-#define INTC_ICR1	0xffd00000UL
+#define INTC_ICR1	0xa4000010UL
 #define INTC_IPRC	0xa4000016UL
 
 static struct ipr_data shmin_ipr_map[] = {
-	{ .irq=32, .addr=INTC_IPRC, .shift= 0, .priority=0 }, 
-	{ .irq=33, .addr=INTC_IPRC, .shift= 4, .priority=0 }, 
-	{ .irq=34, .addr=INTC_IPRC, .shift= 8, .priority=8 }, 
-	{ .irq=35, .addr=INTC_IPRC, .shift=12, .priority=0 }, 
+	{ .irq=32, .addr=INTC_IPRC, .shift= 0, .priority=0 },
+	{ .irq=33, .addr=INTC_IPRC, .shift= 4, .priority=0 },
+	{ .irq=34, .addr=INTC_IPRC, .shift= 8, .priority=8 },
+	{ .irq=35, .addr=INTC_IPRC, .shift=12, .priority=0 },
 };
 
 static void __init init_shmin_irq(void)
