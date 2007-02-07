@@ -164,10 +164,11 @@ static inline void aaci_chan_wait_ready(struct aaci_runtime *aacirun)
 /*
  * Interrupt support.
  */
-static void aaci_fifo_irq(struct aaci *aaci, u32 mask)
+static void aaci_fifo_irq(struct aaci *aaci, int channel, u32 mask)
 {
 	if (mask & ISR_URINTR) {
-		writel(ICLR_TXUEC1, aaci->base + AACI_INTCLR);
+		dev_dbg(&aaci->dev->dev, "TX underrun on chan %d\n", channel);
+		writel(ICLR_TXUEC1 << channel, aaci->base + AACI_INTCLR);
 	}
 
 	if (mask & ISR_TXINTR) {
@@ -233,7 +234,7 @@ static irqreturn_t aaci_irq(int irq, void *devid)
 		u32 m = mask;
 		for (i = 0; i < 4; i++, m >>= 7) {
 			if (m & 0x7f) {
-				aaci_fifo_irq(aaci, m);
+				aaci_fifo_irq(aaci, i, m);
 			}
 		}
 	}
