@@ -33,6 +33,7 @@
 
 #include <linux/list.h>
 #include <linux/usb.h>
+#include <linux/i2c.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <linux/videodev2.h>
@@ -396,8 +397,11 @@ struct usb_usbvision {
 
 	/* Device structure */
 	struct usb_device *dev;
+	/* usb transfer */
+	int num_alt;		/* Number of alternative settings */
+	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
 	unsigned char iface;						/* Video interface number */
-	unsigned char ifaceAltActive, ifaceAltInactive;			/* Alt settings */
+	unsigned char ifaceAlt;			/* Alt settings */
 	unsigned char Vin_Reg2_Preset;
 	struct semaphore lock;
 	struct timer_list powerOffTimer;
@@ -502,6 +506,7 @@ int usbvision_setup(struct usb_usbvision *usbvision,int format);
 int usbvision_init_isoc(struct usb_usbvision *usbvision);
 int usbvision_restart_isoc(struct usb_usbvision *usbvision);
 void usbvision_stop_isoc(struct usb_usbvision *usbvision);
+int usbvision_set_alternate(struct usb_usbvision *dev);
 
 int usbvision_set_audio(struct usb_usbvision *usbvision, int AudioChannel);
 int usbvision_audio_off(struct usb_usbvision *usbvision);

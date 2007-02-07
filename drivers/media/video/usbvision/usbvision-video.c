@@ -230,7 +230,7 @@ static ssize_t show_hue(struct class_device *cd, char *buf)
 	ctrl.value = 0;
 	if(usbvision->user)
 		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
-	return sprintf(buf, "%d\n", ctrl.value >> 8);
+	return sprintf(buf, "%d\n", ctrl.value);
 }
 static CLASS_DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
 
@@ -243,7 +243,7 @@ static ssize_t show_contrast(struct class_device *cd, char *buf)
 	ctrl.value = 0;
 	if(usbvision->user)
 		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
-	return sprintf(buf, "%d\n", ctrl.value >> 8);
+	return sprintf(buf, "%d\n", ctrl.value);
 }
 static CLASS_DEVICE_ATTR(contrast, S_IRUGO, show_contrast, NULL);
 
@@ -256,7 +256,7 @@ static ssize_t show_brightness(struct class_device *cd, char *buf)
 	ctrl.value = 0;
 	if(usbvision->user)
 		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
-	return sprintf(buf, "%d\n", ctrl.value >> 8);
+	return sprintf(buf, "%d\n", ctrl.value);
 }
 static CLASS_DEVICE_ATTR(brightness, S_IRUGO, show_brightness, NULL);
 
@@ -269,7 +269,7 @@ static ssize_t show_saturation(struct class_device *cd, char *buf)
 	ctrl.value = 0;
 	if(usbvision->user)
 		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
-	return sprintf(buf, "%d\n", ctrl.value >> 8);
+	return sprintf(buf, "%d\n", ctrl.value);
 }
 static CLASS_DEVICE_ATTR(saturation, S_IRUGO, show_saturation, NULL);
 
@@ -776,8 +776,8 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		case VIDIOC_G_CTRL:
 		{
 			struct v4l2_control *ctrl = arg;
-			PDEBUG(DBG_IOCTL,"VIDIOC_G_CTRL id=%x value=%x",ctrl->id,ctrl->value);
 			call_i2c_clients(usbvision, VIDIOC_G_CTRL, ctrl);
+			PDEBUG(DBG_IOCTL,"VIDIOC_G_CTRL id=%x value=%x",ctrl->id,ctrl->value);
 			return 0;
 		}
 		case VIDIOC_S_CTRL:
@@ -1243,6 +1243,13 @@ static int usbvision_radio_open(struct inode *inode, struct file *file)
 			}
 		}
 
+		/* Alternate interface 1 is is the biggest frame size */
+		errCode = usbvision_set_alternate(usbvision);
+		if (errCode < 0) {
+			usbvision->last_error = errCode;
+			return -EBUSY;
+		}
+
 		// If so far no errors then we shall start the radio
 		usbvision->radio = 1;
 		call_i2c_clients(usbvision,AUDC_SET_RADIO,&usbvision->tuner_type);
@@ -1273,6 +1280,11 @@ static int usbvision_radio_close(struct inode *inode, struct file *file)
 	PDEBUG(DBG_IO, "");
 
 	down(&usbvision->lock);
+
+	/* Set packet size to 0 */
+	usbvision->ifaceAlt=0;
+	errCode = usb_set_interface(usbvision->dev, usbvision->iface,
+				    usbvision->ifaceAlt);
 
 	usbvision_audio_off(usbvision);
 	usbvision->radio=0;
@@ -1765,15 +1777,17 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
  */
 static int __devinit usbvision_probe(struct usb_interface *intf, const struct usb_device_id *devid)
 {
-	struct usb_device *dev = interface_to_usbdev(intf);
+	struct usb_device *dev = usb_get_dev(interface_to_usbdev(intf));
+	struct usb_interface *uif;
 	__u8 ifnum = intf->altsetting->desc.bInterfaceNumber;
 	const struct usb_host_interface *interface;
 	struct usb_usbvision *usbvision = NULL;
 	const struct usb_endpoint_descriptor *endpoint;
-	int model;
+	int model,i;
 
 	PDEBUG(DBG_PROBE, "VID=%#04x, PID=%#04x, ifnum=%u",
 					dev->descriptor.idVendor, dev->descriptor.idProduct, ifnum);
+
 	/* Is it an USBVISION video dev? */
 	model = 0;
 	for(model = 0; usbvision_device_data[model].idVendor; model++) {
@@ -1800,7 +1814,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 	endpoint = &interface->endpoint[1].desc;
 	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_ISOC) {
 		err("%s: interface %d. has non-ISO endpoint!", __FUNCTION__, ifnum);
-		err("%s: Endpoint attribures %d", __FUNCTION__, endpoint->bmAttributes);
+		err("%s: Endpoint attributes %d", __FUNCTION__, endpoint->bmAttributes);
 		return -ENODEV;
 	}
 	if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) {
@@ -1827,6 +1841,28 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 
 	down(&usbvision->lock);
 
+	/* compute alternate max packet sizes */
+	uif = dev->actconfig->interface[0];
+
+	usbvision->num_alt=uif->num_altsetting;
+	PDEBUG(DBG_PROBE, "Alternate settings: %i",usbvision->num_alt);
+	usbvision->alt_max_pkt_size = kmalloc(32*
+					      usbvision->num_alt,GFP_KERNEL);
+	if (usbvision->alt_max_pkt_size == NULL) {
+		err("usbvision: out of memory!\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < usbvision->num_alt ; i++) {
+		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
+				      wMaxPacketSize);
+		usbvision->alt_max_pkt_size[i] =
+			(tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+		PDEBUG(DBG_PROBE, "Alternate setting %i, max size= %i",i,
+		       usbvision->alt_max_pkt_size[i]);
+	}
+
+
 	usbvision->nr = usbvision_nr++;
 
 	usbvision->have_tuner = usbvision_device_data[model].Tuner;
@@ -1839,8 +1875,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 	usbvision->DevModel = model;
 	usbvision->remove_pending = 0;
 	usbvision->iface = ifnum;
-	usbvision->ifaceAltInactive = 0;
-	usbvision->ifaceAltActive = 1;
+	usbvision->ifaceAlt = 0;
 	usbvision->video_endp = endpoint->bEndpointAddress;
 	usbvision->isocPacketSize = 0;
 	usbvision->usb_bandwidth = 0;

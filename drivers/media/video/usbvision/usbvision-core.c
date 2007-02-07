@@ -2361,6 +2361,32 @@ int usbvision_setup(struct usb_usbvision *usbvision,int format)
 	return USBVISION_IS_OPERATIONAL(usbvision);
 }
 
+int usbvision_set_alternate(struct usb_usbvision *dev)
+{
+	int errCode, prev_alt = dev->ifaceAlt;
+	int i;
+
+	dev->ifaceAlt=0;
+	for(i=0;i< dev->num_alt; i++)
+		if(dev->alt_max_pkt_size[i]>dev->alt_max_pkt_size[dev->ifaceAlt])
+			dev->ifaceAlt=i;
+
+	if (dev->ifaceAlt != prev_alt) {
+		dev->isocPacketSize = dev->alt_max_pkt_size[dev->ifaceAlt];
+		PDEBUG(DBG_FUNC,"setting alternate %d with wMaxPacketSize=%u", dev->ifaceAlt,dev->isocPacketSize);
+		errCode = usb_set_interface(dev->dev, dev->iface, dev->ifaceAlt);
+		if (errCode < 0) {
+			err ("cannot change alternate number to %d (error=%i)",
+							dev->ifaceAlt, errCode);
+			return errCode;
+		}
+	}
+
+	PDEBUG(DBG_ISOC, "ISO Packet Length:%d", dev->isocPacketSize);
+
+	return 0;
+}
+
 /*
  * usbvision_init_isoc()
  *
@@ -2378,15 +2404,13 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 	scratch_reset(usbvision);
 
 	/* Alternate interface 1 is is the biggest frame size */
-	errCode = usb_set_interface(dev, usbvision->iface, usbvision->ifaceAltActive);
+	errCode = usbvision_set_alternate(usbvision);
 	if (errCode < 0) {
 		usbvision->last_error = errCode;
 		return -EBUSY;
 	}
 
 	regValue = (16 - usbvision_read_reg(usbvision, USBVISION_ALTER_REG)) & 0x0F;
-	usbvision->isocPacketSize = (regValue == 0) ? 0 : (regValue * 64) - 1;
-	PDEBUG(DBG_ISOC, "ISO Packet Length:%d", usbvision->isocPacketSize);
 
 	usbvision->usb_bandwidth = regValue >> 1;
 	PDEBUG(DBG_ISOC, "USB Bandwidth Usage: %dMbit/Sec", usbvision->usb_bandwidth);
@@ -2472,8 +2496,9 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 	if (!usbvision->remove_pending) {
 
 		/* Set packet size to 0 */
+		usbvision->ifaceAlt=0;
 		errCode = usb_set_interface(usbvision->dev, usbvision->iface,
-				      usbvision->ifaceAltInactive);
+					    usbvision->ifaceAlt);
 		if (errCode < 0) {
 			err("%s: usb_set_interface() failed: error %d", __FUNCTION__, errCode);
 			usbvision->last_error = errCode;
