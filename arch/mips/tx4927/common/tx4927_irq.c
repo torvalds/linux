@@ -120,7 +120,7 @@ static void tx4927_irq_pic_disable(unsigned int irq);
 
 #define TX4927_CP0_NAME "TX4927-CP0"
 static struct irq_chip tx4927_irq_cp0_type = {
-	.typename	= TX4927_CP0_NAME,
+	.name		= TX4927_CP0_NAME,
 	.ack		= tx4927_irq_cp0_disable,
 	.mask		= tx4927_irq_cp0_disable,
 	.mask_ack	= tx4927_irq_cp0_disable,
@@ -129,7 +129,7 @@ static struct irq_chip tx4927_irq_cp0_type = {
 
 #define TX4927_PIC_NAME "TX4927-PIC"
 static struct irq_chip tx4927_irq_pic_type = {
-	.typename	= TX4927_PIC_NAME,
+	.name		= TX4927_PIC_NAME,
 	.ack		= tx4927_irq_pic_disable,
 	.mask		= tx4927_irq_pic_disable,
 	.mask_ack	= tx4927_irq_pic_disable,

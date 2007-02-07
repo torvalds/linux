@@ -1781,9 +1781,9 @@ done:
 	return 1;
 }
 
-extern void pnpide_init(void);
-extern void pnpide_exit(void);
-extern void h8300_ide_init(void);
+extern void __init pnpide_init(void);
+extern void __exit pnpide_exit(void);
+extern void __init h8300_ide_init(void);
 
 /*
  * probe_for_hwifs() finds/initializes "known" IDE interfaces
@@ -2088,7 +2088,7 @@ int __init init_module (void)
 	return ide_init();
 }
 
-void cleanup_module (void)
+void __exit cleanup_module (void)
 {
 	int index;
 

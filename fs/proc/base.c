@@ -2328,13 +2328,23 @@ static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldi
 {
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
-	struct task_struct *leader = get_proc_task(inode);
+	struct task_struct *leader = NULL;
 	struct task_struct *task;
 	int retval = -ENOENT;
 	ino_t ino;
 	int tid;
 	unsigned long pos = filp->f_pos;  /* avoiding "long long" filp->f_pos */
 
+	task = get_proc_task(inode);
+	if (!task)
+		goto out_no_task;
+	rcu_read_lock();
+	if (pid_alive(task)) {
+		leader = task->group_leader;
+		get_task_struct(leader);
+	}
+	rcu_read_unlock();
+	put_task_struct(task);
 	if (!leader)
 		goto out_no_task;
 	retval = 0;

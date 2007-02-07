@@ -55,7 +55,8 @@ static int ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int
 	struct ipt_target *target;
 	int ret = 0;
 
-	target = xt_find_target(AF_INET, t->u.user.name, t->u.user.revision);
+	target = xt_request_find_target(AF_INET, t->u.user.name,
+					t->u.user.revision);
 	if (!target)
 		return -ENOENT;
 
@@ -63,9 +64,10 @@ static int ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int
 
 	ret = xt_check_target(target, AF_INET, t->u.target_size - sizeof(*t),
 			      table, hook, 0, 0);
-	if (ret)
+	if (ret) {
+		module_put(t->u.kernel.target->me);
 		return ret;
-
+	}
 	if (t->u.kernel.target->checkentry
 	    && !t->u.kernel.target->checkentry(table, NULL,
 		    			       t->u.kernel.target, t->data,

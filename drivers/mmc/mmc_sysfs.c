@@ -199,7 +199,7 @@ void mmc_init_card(struct mmc_card *card, struct mmc_host *host)
 	memset(card, 0, sizeof(struct mmc_card));
 	card->host = host;
 	device_initialize(&card->dev);
-	card->dev.parent = mmc_dev(host);
+	card->dev.parent = mmc_classdev(host);
 	card->dev.bus = &mmc_bus_type;
 	card->dev.release = mmc_release_card;
 }

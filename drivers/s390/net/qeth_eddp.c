@@ -49,7 +49,7 @@ qeth_eddp_check_buffers_for_context(struct qeth_qdio_out_q *queue,
 	return buffers_needed;
 }
 
-static inline void
+static void
 qeth_eddp_free_context(struct qeth_eddp_context *ctx)
 {
 	int i;
@@ -91,7 +91,7 @@ qeth_eddp_buf_release_contexts(struct qeth_qdio_out_buffer *buf)
 	}
 }
 
-static inline int
+static int
 qeth_eddp_buf_ref_context(struct qeth_qdio_out_buffer *buf,
 			  struct qeth_eddp_context *ctx)
 {
@@ -196,7 +196,7 @@ out:
 	return flush_cnt;
 }
 
-static inline void
+static void
 qeth_eddp_create_segment_hdrs(struct qeth_eddp_context *ctx,
 			      struct qeth_eddp_data *eddp, int data_len)
 {
@@ -256,7 +256,7 @@ qeth_eddp_create_segment_hdrs(struct qeth_eddp_context *ctx,
 	ctx->offset += eddp->thl;
 }
 
-static inline void
+static void
 qeth_eddp_copy_data_tcp(char *dst, struct qeth_eddp_data *eddp, int len,
 			__wsum *hcsum)
 {
@@ -302,7 +302,7 @@ qeth_eddp_copy_data_tcp(char *dst, struct qeth_eddp_data *eddp, int len,
 	}
 }
 
-static inline void
+static void
 qeth_eddp_create_segment_data_tcp(struct qeth_eddp_context *ctx,
 				  struct qeth_eddp_data *eddp, int data_len,
 				  __wsum hcsum)
@@ -349,7 +349,7 @@ qeth_eddp_create_segment_data_tcp(struct qeth_eddp_context *ctx,
 	((struct tcphdr *)eddp->th_in_ctx)->check = csum_fold(hcsum);
 }
 
-static inline __wsum
+static __wsum
 qeth_eddp_check_tcp4_hdr(struct qeth_eddp_data *eddp, int data_len)
 {
 	__wsum phcsum; /* pseudo header checksum */
@@ -363,7 +363,7 @@ qeth_eddp_check_tcp4_hdr(struct qeth_eddp_data *eddp, int data_len)
 	return csum_partial((u8 *)&eddp->th, eddp->thl, phcsum);
 }
 
-static inline __wsum
+static __wsum
 qeth_eddp_check_tcp6_hdr(struct qeth_eddp_data *eddp, int data_len)
 {
 	__be32 proto;
@@ -381,7 +381,7 @@ qeth_eddp_check_tcp6_hdr(struct qeth_eddp_data *eddp, int data_len)
 	return phcsum;
 }
 
-static inline struct qeth_eddp_data *
+static struct qeth_eddp_data *
 qeth_eddp_create_eddp_data(struct qeth_hdr *qh, u8 *nh, u8 nhl, u8 *th, u8 thl)
 {
 	struct qeth_eddp_data *eddp;
@@ -399,7 +399,7 @@ qeth_eddp_create_eddp_data(struct qeth_hdr *qh, u8 *nh, u8 nhl, u8 *th, u8 thl)
 	return eddp;
 }
 
-static inline void
+static void
 __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 			     struct qeth_eddp_data *eddp)
 {
@@ -464,7 +464,7 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 	}
 }
 
-static inline int
+static int
 qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 			   struct sk_buff *skb, struct qeth_hdr *qhdr)
 {
@@ -505,7 +505,7 @@ qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 	return 0;
 }
 
-static inline void
+static void
 qeth_eddp_calc_num_pages(struct qeth_eddp_context *ctx, struct sk_buff *skb,
 			 int hdr_len)
 {
@@ -529,7 +529,7 @@ qeth_eddp_calc_num_pages(struct qeth_eddp_context *ctx, struct sk_buff *skb,
 			    (skb_shinfo(skb)->gso_segs + 1);
 }
 
-static inline struct qeth_eddp_context *
+static struct qeth_eddp_context *
 qeth_eddp_create_context_generic(struct qeth_card *card, struct sk_buff *skb,
 				 int hdr_len)
 {
@@ -581,7 +581,7 @@ qeth_eddp_create_context_generic(struct qeth_card *card, struct sk_buff *skb,
 	return ctx;
 }
 
-static inline struct qeth_eddp_context *
+static struct qeth_eddp_context *
 qeth_eddp_create_context_tcp(struct qeth_card *card, struct sk_buff *skb,
 			     struct qeth_hdr *qhdr)
 {
@@ -625,5 +625,3 @@ qeth_eddp_create_context(struct qeth_card *card, struct sk_buff *skb,
 	}
 	return NULL;
 }
-
-

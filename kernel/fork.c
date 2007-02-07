@@ -1313,7 +1313,7 @@ noinline struct pt_regs * __devinit __attribute__((weak)) idle_regs(struct pt_re
 	return regs;
 }
 
-struct task_struct * __devinit fork_idle(int cpu)
+struct task_struct * __cpuinit fork_idle(int cpu)
 {
 	struct task_struct *task;
 	struct pt_regs regs;

@@ -153,7 +153,7 @@ static inline int c2_poll_one(struct c2_dev *c2dev,
 
 	entry->status = c2_cqe_status_to_openib(c2_wr_get_result(ce));
 	entry->wr_id = ce->hdr.context;
-	entry->qp_num = ce->handle;
+	entry->qp = &qp->ibqp;
 	entry->wc_flags = 0;
 	entry->slid = 0;
 	entry->sl = 0;

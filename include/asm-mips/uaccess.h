@@ -488,7 +488,8 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 })
 
 /*
- * __copy_from_user: - Copy a block of data from user space, with less checking. * @to:   Destination address, in kernel space.
+ * __copy_from_user: - Copy a block of data from user space, with less checking.
+ * @to:   Destination address, in kernel space.
  * @from: Source address, in user space.
  * @n:    Number of bytes to copy.
  *

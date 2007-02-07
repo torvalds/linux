@@ -2,7 +2,7 @@
  *  drivers/s390/char/tape_3590.h
  *    tape device discipline for 3590 tapes.
  *
- *    Copyright (C) IBM Corp. 2001,2006
+ *    Copyright IBM Corp. 2001,2006
  *    Author(s): Stefan Bader <shbader@de.ibm.com>
  *		 Michael Holzheu <holzheu@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -38,15 +38,21 @@
 #define MSENSE_UNASSOCIATED	 0x00
 #define MSENSE_ASSOCIATED_MOUNT	 0x01
 #define MSENSE_ASSOCIATED_UMOUNT 0x02
+#define MSENSE_CRYPT_MASK	 0x00000010
 
 #define TAPE_3590_MAX_MSG	 0xb0
 
 /* Datatypes */
 
 struct tape_3590_disc_data {
-	unsigned char modeset_byte;
+	struct tape390_crypt_info crypt_info;
 	int read_back_op;
 };
+
+#define TAPE_3590_CRYPT_INFO(device) \
+	((struct tape_3590_disc_data*)(device->discdata))->crypt_info
+#define TAPE_3590_READ_BACK_OP(device) \
+	((struct tape_3590_disc_data*)(device->discdata))->read_back_op
 
 struct tape_3590_sense {
 
@@ -118,7 +124,48 @@ struct tape_3590_sense {
 struct tape_3590_med_sense {
 	unsigned int macst:4;
 	unsigned int masst:4;
-	char pad[127];
+	char pad1[7];
+	unsigned int flags;
+	char pad2[116];
+} __attribute__ ((packed));
+
+/* Datastructures for 3592 encryption support */
+
+struct tape3592_kekl {
+	__u8 flags;
+	char label[64];
+} __attribute__ ((packed));
+
+struct tape3592_kekl_pair {
+	__u8 count;
+	struct tape3592_kekl kekl[2];
+} __attribute__ ((packed));
+
+struct tape3592_kekl_query_data {
+	__u16 len;
+	__u8  fmt;
+	__u8  mc;
+	__u32 id;
+	__u8  flags;
+	struct tape3592_kekl_pair kekls;
+	char reserved[116];
+} __attribute__ ((packed));
+
+struct tape3592_kekl_query_order {
+	__u8 code;
+	__u8 flags;
+	char reserved1[2];
+	__u8 max_count;
+	char reserved2[35];
+} __attribute__ ((packed));
+
+struct tape3592_kekl_set_order {
+	__u8 code;
+	__u8 flags;
+	char reserved1[2];
+	__u8 op;
+	struct tape3592_kekl_pair kekls;
+	char reserved2[120];
 } __attribute__ ((packed));
 
 #endif /* _TAPE_3590_H */

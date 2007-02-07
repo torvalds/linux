@@ -117,7 +117,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *mem_ptr1 = NULL;
 	void __iomem *mem_ptr2 = NULL;
 
-	u8 *db_ptr = NULL;
+	u8 __iomem *db_ptr = NULL;
 	unsigned long mem_base, mem_len, db_base, db_len;
 	int pci_using_dac, i, err;
 	int ring;
@@ -191,7 +191,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		db_len);
 
 	db_ptr = ioremap(db_base, NETXEN_DB_MAPSIZE_BYTES);
-	if (db_ptr == 0UL) {
+	if (!db_ptr) {
 		printk(KERN_ERR "%s: Failed to allocate doorbell map.",
 		       netxen_nic_driver_name);
 		err = -EIO;
@@ -818,7 +818,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* Take skb->data itself */
 	pbuf = &adapter->cmd_buf_arr[producer];
 	if ((netdev->features & NETIF_F_TSO) && skb_shinfo(skb)->gso_size > 0) {
-		pbuf->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
+		pbuf->mss = skb_shinfo(skb)->gso_size;
 		hwdesc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
 	} else {
 		pbuf->mss = 0;
@@ -882,7 +882,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			hwdesc->addr_buffer3 = cpu_to_le64(temp_dma);
 			break;
 		case 3:
-			hwdesc->buffer4_length = temp_len;
+			hwdesc->buffer4_length = cpu_to_le16(temp_len);
 			hwdesc->addr_buffer4 = cpu_to_le64(temp_dma);
 			break;
 		}

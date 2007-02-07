@@ -418,7 +418,6 @@ struct scsi_qla_host {
 	 * concurrently.
 	 */
 	struct mutex  mbox_sem;
-	wait_queue_head_t mailbox_wait_queue;
 
 	/* temporary mailbox status registers */
 	volatile uint8_t mbox_status_count;

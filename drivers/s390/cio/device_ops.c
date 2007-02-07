@@ -302,7 +302,7 @@ ccw_device_wake_up(struct ccw_device *cdev, unsigned long ip, struct irb *irb)
 	wake_up(&cdev->private->wait_q);
 }
 
-static inline int
+static int
 __ccw_device_retry_loop(struct ccw_device *cdev, struct ccw1 *ccw, long magic, __u8 lpm)
 {
 	int ret;

@@ -66,7 +66,7 @@ bad_lkey:
 	wc.vendor_err = 0;
 	wc.byte_len = 0;
 	wc.imm_data = 0;
-	wc.qp_num = qp->ibqp.qp_num;
+	wc.qp = &qp->ibqp;
 	wc.src_qp = 0;
 	wc.wc_flags = 0;
 	wc.pkey_index = 0;
@@ -255,7 +255,7 @@ static void ipath_ud_loopback(struct ipath_qp *sqp,
 	wc->status = IB_WC_SUCCESS;
 	wc->opcode = IB_WC_RECV;
 	wc->vendor_err = 0;
-	wc->qp_num = qp->ibqp.qp_num;
+	wc->qp = &qp->ibqp;
 	wc->src_qp = sqp->ibqp.qp_num;
 	/* XXX do we know which pkey matched? Only needed for GSI. */
 	wc->pkey_index = 0;
@@ -474,7 +474,7 @@ done:
 		wc.vendor_err = 0;
 		wc.opcode = IB_WC_SEND;
 		wc.byte_len = len;
-		wc.qp_num = qp->ibqp.qp_num;
+		wc.qp = &qp->ibqp;
 		wc.src_qp = 0;
 		wc.wc_flags = 0;
 		/* XXX initialize other fields? */
@@ -651,7 +651,7 @@ void ipath_ud_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	wc.status = IB_WC_SUCCESS;
 	wc.opcode = IB_WC_RECV;
 	wc.vendor_err = 0;
-	wc.qp_num = qp->ibqp.qp_num;
+	wc.qp = &qp->ibqp;
 	wc.src_qp = src_qp;
 	/* XXX do we know which pkey matched? Only needed for GSI. */
 	wc.pkey_index = 0;

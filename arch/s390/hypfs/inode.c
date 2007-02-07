@@ -19,7 +19,6 @@
 #include <linux/module.h>
 #include <asm/ebcdic.h>
 #include "hypfs.h"
-#include "hypfs_diag.h"
 
 #define HYPFS_MAGIC 0x687970	/* ASCII 'hyp' */
 #define TMP_SIZE 64		/* size of temporary buffers */
@@ -192,7 +191,10 @@ static ssize_t hypfs_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		goto out;
 	}
 	hypfs_delete_tree(sb->s_root);
-	rc = hypfs_diag_create_files(sb, sb->s_root);
+	if (MACHINE_IS_VM)
+		rc = hypfs_vm_create_files(sb, sb->s_root);
+	else
+		rc = hypfs_diag_create_files(sb, sb->s_root);
 	if (rc) {
 		printk(KERN_ERR "hypfs: Update failed\n");
 		hypfs_delete_tree(sb->s_root);
@@ -289,7 +291,10 @@ static int hypfs_fill_super(struct super_block *sb, void *data, int silent)
 		rc = -ENOMEM;
 		goto err_alloc;
 	}
-	rc = hypfs_diag_create_files(sb, root_dentry);
+	if (MACHINE_IS_VM)
+		rc = hypfs_vm_create_files(sb, root_dentry);
+	else
+		rc = hypfs_diag_create_files(sb, root_dentry);
 	if (rc)
 		goto err_tree;
 	sbi->update_file = hypfs_create_update_file(sb, root_dentry);
@@ -462,11 +467,15 @@ static int __init hypfs_init(void)
 {
 	int rc;
 
-	if (MACHINE_IS_VM)
-		return -ENODATA;
-	if (hypfs_diag_init()) {
-		rc = -ENODATA;
-		goto fail_diag;
+	if (MACHINE_IS_VM) {
+		if (hypfs_vm_init())
+			/* no diag 2fc, just exit */
+			return -ENODATA;
+	} else {
+		if (hypfs_diag_init()) {
+			rc = -ENODATA;
+			goto fail_diag;
+		}
 	}
 	kset_set_kset_s(&s390_subsys, hypervisor_subsys);
 	rc = subsystem_register(&s390_subsys);
@@ -480,7 +489,8 @@ static int __init hypfs_init(void)
 fail_filesystem:
 	subsystem_unregister(&s390_subsys);
 fail_sysfs:
-	hypfs_diag_exit();
+	if (!MACHINE_IS_VM)
+		hypfs_diag_exit();
 fail_diag:
 	printk(KERN_ERR "hypfs: Initialization failed with rc = %i.\n", rc);
 	return rc;
@@ -488,7 +498,8 @@ fail_diag:
 
 static void __exit hypfs_exit(void)
 {
-	hypfs_diag_exit();
+	if (!MACHINE_IS_VM)
+		hypfs_diag_exit();
 	unregister_filesystem(&hypfs_type);
 	subsystem_unregister(&s390_subsys);
 }

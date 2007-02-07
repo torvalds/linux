@@ -112,7 +112,7 @@ msc_bind_eic_interrupt (unsigned int irq, unsigned int set)
 }
 
 struct irq_chip msc_levelirq_type = {
-	.typename = "SOC-it-Level",
+	.name = "SOC-it-Level",
 	.ack = level_mask_and_ack_msc_irq,
 	.mask = mask_msc_irq,
 	.mask_ack = level_mask_and_ack_msc_irq,
@@ -122,7 +122,7 @@ struct irq_chip msc_levelirq_type = {
 };
 
 struct irq_chip msc_edgeirq_type = {
-	.typename = "SOC-it-Edge",
+	.name = "SOC-it-Edge",
 	.ack = edge_mask_and_ack_msc_irq,
 	.mask = mask_msc_irq,
 	.mask_ack = edge_mask_and_ack_msc_irq,

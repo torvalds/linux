@@ -139,7 +139,7 @@ static void end_eisa1_irq(unsigned int irq)
 }
 
 static struct irq_chip ip22_eisa1_irq_type = {
-	.typename	= "IP22 EISA",
+	.name		= "IP22 EISA",
 	.startup	= startup_eisa1_irq,
 	.ack		= mask_and_ack_eisa1_irq,
 	.mask		= disable_eisa1_irq,
@@ -194,7 +194,7 @@ static void end_eisa2_irq(unsigned int irq)
 }
 
 static struct irq_chip ip22_eisa2_irq_type = {
-	.typename	= "IP22 EISA",
+	.name		= "IP22 EISA",
 	.startup	= startup_eisa2_irq,
 	.ack		= mask_and_ack_eisa2_irq,
 	.mask		= disable_eisa2_irq,

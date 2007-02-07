@@ -661,9 +661,11 @@ static void quirk_via_bridge(struct pci_dev *dev)
 	/* See what bridge we have and find the device ranges */
 	switch (dev->device) {
 	case PCI_DEVICE_ID_VIA_82C686:
-		/* 82C686 is special */
-		via_vlink_dev_lo = 7;
-		via_vlink_dev_hi = 7;
+		/* The VT82C686 is special, it attaches to PCI and can have
+		   any device number. All its subdevices are functions of
+		   that single device. */
+		via_vlink_dev_lo = PCI_SLOT(dev->devfn);
+		via_vlink_dev_hi = PCI_SLOT(dev->devfn);
 		break;
 	case PCI_DEVICE_ID_VIA_8237:
 	case PCI_DEVICE_ID_VIA_8237A:
@@ -1260,8 +1262,8 @@ static void quirk_jmicron_dualfn(struct pci_dev *pdev)
 			pci_read_config_dword(pdev, 0x40, &conf);
 			/* Enable dual function mode, AHCI on fn 0, IDE fn1 */
 			/* Set the class codes correctly and then direct IDE 0 */
-			conf &= ~0x000F0200;	/* Clear bit 9 and 16-19 */
-			conf |=  0x00C20002;	/* Set bit 1, 17, 22, 23 */
+			conf &= ~0x000FF200; /* Clear bit 9 and 12-19 */
+			conf |=  0x00C2A102; /* Set 1, 8, 13, 15, 17, 22, 23 */
 			pci_write_config_dword(pdev, 0x40, conf);
 
 			/* Reconfigure so that the PCI scanner discovers the

@@ -181,7 +181,7 @@ static void disable_rt_irq(unsigned int irq)
 }
 
 static struct irq_chip rt_irq_type = {
-	.typename	= "SN HUB RT timer",
+	.name		= "SN HUB RT timer",
 	.ack		= disable_rt_irq,
 	.mask		= disable_rt_irq,
 	.mask_ack	= disable_rt_irq,

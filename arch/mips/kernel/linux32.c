@@ -194,15 +194,15 @@ sysn32_waitid(int which, compat_pid_t pid,
 }
 
 struct sysinfo32 {
-        s32 uptime;
-        u32 loads[3];
-        u32 totalram;
-        u32 freeram;
-        u32 sharedram;
-        u32 bufferram;
-        u32 totalswap;
-        u32 freeswap;
-        u16 procs;
+	s32 uptime;
+	u32 loads[3];
+	u32 totalram;
+	u32 freeram;
+	u32 sharedram;
+	u32 bufferram;
+	u32 totalswap;
+	u32 freeswap;
+	u16 procs;
 	u32 totalhigh;
 	u32 freehigh;
 	u32 mem_unit;
@@ -558,7 +558,7 @@ extern asmlinkage long sys_ustat(dev_t dev, struct ustat __user * ubuf);
 asmlinkage int sys32_ustat(dev_t dev, struct ustat32 __user * ubuf32)
 {
 	int err;
-        struct ustat tmp;
+	struct ustat tmp;
 	struct ustat32 tmp32;
 	mm_segment_t old_fs = get_fs();
 
@@ -569,11 +569,11 @@ asmlinkage int sys32_ustat(dev_t dev, struct ustat32 __user * ubuf32)
 	if (err)
 		goto out;
 
-        memset(&tmp32,0,sizeof(struct ustat32));
-        tmp32.f_tfree = tmp.f_tfree;
-        tmp32.f_tinode = tmp.f_tinode;
+	memset(&tmp32,0,sizeof(struct ustat32));
+	tmp32.f_tfree = tmp.f_tfree;
+	tmp32.f_tinode = tmp.f_tinode;
 
-        err = copy_to_user(ubuf32,&tmp32,sizeof(struct ustat32)) ? -EFAULT : 0;
+	err = copy_to_user(ubuf32,&tmp32,sizeof(struct ustat32)) ? -EFAULT : 0;
 
 out:
 	return err;

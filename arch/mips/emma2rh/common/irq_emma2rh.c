@@ -57,7 +57,7 @@ static void emma2rh_irq_disable(unsigned int irq)
 }
 
 struct irq_chip emma2rh_irq_controller = {
-	.typename = "emma2rh_irq",
+	.name = "emma2rh_irq",
 	.ack = emma2rh_irq_disable,
 	.mask = emma2rh_irq_disable,
 	.mask_ack = emma2rh_irq_disable,

@@ -15,7 +15,7 @@
 #include <asm/uaccess.h>
 #include <asm/lowcore.h>
 
-#include "sfp-util.h"
+#include <asm/sfp-util.h>
 #include <math-emu/soft-fp.h>
 #include <math-emu/single.h>
 #include <math-emu/double.h>

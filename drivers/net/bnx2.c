@@ -57,8 +57,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.5.4"
-#define DRV_MODULE_RELDATE	"January 24, 2007"
+#define DRV_MODULE_VERSION	"1.5.5"
+#define DRV_MODULE_RELDATE	"February 1, 2007"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -1354,6 +1354,14 @@ bnx2_init_copper_phy(struct bnx2 *bp)
 		bnx2_write_phy(bp, 0x17, 0x401f);
 		bnx2_write_phy(bp, 0x15, 0x14e2);
 		bnx2_write_phy(bp, 0x18, 0x0400);
+	}
+
+	if (bp->phy_flags & PHY_DIS_EARLY_DAC_FLAG) {
+		bnx2_write_phy(bp, MII_BNX2_DSP_ADDRESS,
+			       MII_BNX2_DSP_EXPAND_REG | 0x8);
+		bnx2_read_phy(bp, MII_BNX2_DSP_RW_PORT, &val);
+		val &= ~(1 << 8);
+		bnx2_write_phy(bp, MII_BNX2_DSP_RW_PORT, val);
 	}
 
 	if (bp->dev->mtu > 1500) {
@@ -5918,6 +5926,8 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	} else if (CHIP_NUM(bp) == CHIP_NUM_5706 ||
 		   CHIP_NUM(bp) == CHIP_NUM_5708)
 		bp->phy_flags |= PHY_CRC_FIX_FLAG;
+	else if (CHIP_ID(bp) == CHIP_ID_5709_A0)
+		bp->phy_flags |= PHY_DIS_EARLY_DAC_FLAG;
 
 	if ((CHIP_ID(bp) == CHIP_ID_5708_A0) ||
 	    (CHIP_ID(bp) == CHIP_ID_5708_B0) ||
