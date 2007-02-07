@@ -176,28 +176,25 @@ static void zfcp_fsf_req_dismiss(struct zfcp_adapter *adapter,
 /**
  * zfcp_fsf_req_dismiss_all - dismiss all remaining fsf requests
  */
-int zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
+void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
 {
 	struct zfcp_fsf_req *request, *tmp;
 	unsigned long flags;
+	LIST_HEAD(remove_queue);
 	unsigned int i, counter;
 
 	spin_lock_irqsave(&adapter->req_list_lock, flags);
 	atomic_set(&adapter->reqs_active, 0);
-	for (i=0; i<REQUEST_LIST_SIZE; i++) {
-		if (list_empty(&adapter->req_list[i]))
-			continue;
+	for (i=0; i<REQUEST_LIST_SIZE; i++)
+		list_splice_init(&adapter->req_list[i], &remove_queue);
 
-		counter = 0;
-		list_for_each_entry_safe(request, tmp,
-					 &adapter->req_list[i], list) {
-			zfcp_fsf_req_dismiss(adapter, request, counter);
-			counter++;
-		}
-	}
 	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
 
-	return 0;
+	counter = 0;
+	list_for_each_entry_safe(request, tmp, &remove_queue, list) {
+		zfcp_fsf_req_dismiss(adapter, request, counter);
+		counter++;
+	}
 }
 
 /*
