@@ -89,14 +89,6 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 #define GEMTEK_PCI_RANGE_HIGH (108*16000)
 #endif
 
-#ifndef TRUE
-#define TRUE (1)
-#endif
-
-#ifndef FALSE
-#define FALSE (0)
-#endif
-
 struct gemtek_pci_card {
 	struct video_device *videodev;
 
@@ -146,12 +138,12 @@ static void __gemtek_pci_cmd( u16 value, u32 port, u8 *last_byte, int keep )
 
 static inline void gemtek_pci_nil( u32 port, u8 *last_byte )
 {
-	__gemtek_pci_cmd( 0x00, port, last_byte, FALSE );
+	__gemtek_pci_cmd( 0x00, port, last_byte, false );
 }
 
 static inline void gemtek_pci_cmd( u16 cmd, u32 port, u8 *last_byte )
 {
-	__gemtek_pci_cmd( cmd, port, last_byte, TRUE );
+	__gemtek_pci_cmd( cmd, port, last_byte, true );
 }
 
 static void gemtek_pci_setfrequency( struct gemtek_pci_card *card, unsigned long frequency )
@@ -184,14 +176,14 @@ static void gemtek_pci_setfrequency( struct gemtek_pci_card *card, unsigned long
 static inline void gemtek_pci_mute( struct gemtek_pci_card *card )
 {
 	outb( 0x1f, card->iobase );
-	card->mute = TRUE;
+	card->mute = true;
 }
 
 static inline void gemtek_pci_unmute( struct gemtek_pci_card *card )
 {
 	if ( card->mute ) {
 		gemtek_pci_setfrequency( card, card->current_frequency );
-		card->mute = FALSE;
+		card->mute = false;
 	}
 }
 
@@ -259,7 +251,7 @@ static int gemtek_pci_do_ioctl(struct inode *inode, struct file *file,
 
 			gemtek_pci_setfrequency( card, f->frequency );
 			card->current_frequency = f->frequency;
-			card->mute = FALSE;
+			card->mute = false;
 			return 0;
 		}
 		case VIDIOC_QUERYCTRL:
