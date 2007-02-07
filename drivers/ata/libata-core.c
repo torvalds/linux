@@ -1597,10 +1597,10 @@ int ata_dev_configure(struct ata_device *dev)
 		dev->n_sectors = ata_id_n_sectors(id);
 
 		/* SCSI only uses 4-char revisions, dump full 8 chars from ATA */
-		ata_id_c_string(dev->id, fwrevbuf, ATA_ID_FW_REV_OFS,
+		ata_id_c_string(dev->id, fwrevbuf, ATA_ID_FW_REV,
 				sizeof(fwrevbuf));
 
-		ata_id_c_string(dev->id, modelbuf, ATA_ID_PROD_OFS,
+		ata_id_c_string(dev->id, modelbuf, ATA_ID_PROD,
 				sizeof(modelbuf));
 
 		if (dev->id[59] & 0x100)
