@@ -43,7 +43,7 @@ void coldfire_pit_tick(void)
 
 /***************************************************************************/
 
-void coldfire_pit_init(irqreturn_t (*handler)(int, void *, struct pt_regs *))
+void coldfire_pit_init(irq_handler_t handler)
 {
 	volatile unsigned char *icrp;
 	volatile unsigned long *imrp;
