@@ -172,13 +172,18 @@ syscall_error_cont:
 	stdcx.	r0,0,r1			/* to clear the reservation */
 	andi.	r6,r8,MSR_PR
 	ld	r4,_LINK(r1)
+	/*
+	 * Clear RI before restoring r13.  If we are returning to
+	 * userspace and we take an exception after restoring r13,
+	 * we end up corrupting the userspace r13 value.
+	 */
+	li	r12,MSR_RI
+	andc	r11,r10,r12
+	mtmsrd	r11,1			/* clear MSR.RI */
 	beq-	1f
 	ACCOUNT_CPU_USER_EXIT(r11, r12)
 	ld	r13,GPR13(r1)	/* only restore r13 if returning to usermode */
 1:	ld	r2,GPR2(r1)
-	li	r12,MSR_RI
-	andc	r11,r10,r12
-	mtmsrd	r11,1			/* clear MSR.RI */
 	ld	r1,GPR1(r1)
 	mtlr	r4
 	mtcr	r5
@@ -488,42 +493,44 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif
 	stb	r5,PACASOFTIRQEN(r13)
 
-	ld	r3,_MSR(r1)
-	andi.	r0,r3,MSR_RI
-	beq-	unrecov_restore
-
 	/* extract EE bit and use it to restore paca->hard_enabled */
+	ld	r3,_MSR(r1)
 	rldicl	r4,r3,49,63		/* r0 = (r3 >> 15) & 1 */
 	stb	r4,PACAHARDIRQEN(r13)
 
-	andi.	r0,r3,MSR_PR
+	ld	r4,_CTR(r1)
+	ld	r0,_LINK(r1)
+	mtctr	r4
+	mtlr	r0
+	ld	r4,_XER(r1)
+	mtspr	SPRN_XER,r4
+
+	REST_8GPRS(5, r1)
+
+	andi.	r0,r3,MSR_RI
+	beq-	unrecov_restore
+
+	stdcx.	r0,0,r1		/* to clear the reservation */
+
+	/*
+	 * Clear RI before restoring r13.  If we are returning to
+	 * userspace and we take an exception after restoring r13,
+	 * we end up corrupting the userspace r13 value.
+	 */
+	mfmsr	r4
+	andc	r4,r4,r0	/* r0 contains MSR_RI here */
+	mtmsrd	r4,1
 
 	/*
 	 * r13 is our per cpu area, only restore it if we are returning to
 	 * userspace
 	 */
+	andi.	r0,r3,MSR_PR
 	beq	1f
-	ACCOUNT_CPU_USER_EXIT(r3, r4)
+	ACCOUNT_CPU_USER_EXIT(r2, r4)
 	REST_GPR(13, r1)
 1:
-	ld	r3,_CTR(r1)
-	ld	r0,_LINK(r1)
-	mtctr	r3
-	mtlr	r0
-	ld	r3,_XER(r1)
-	mtspr	SPRN_XER,r3
-
-	REST_8GPRS(5, r1)
-
-	stdcx.	r0,0,r1		/* to clear the reservation */
-
-	mfmsr	r0
-	li	r2, MSR_RI
-	andc	r0,r0,r2
-	mtmsrd	r0,1
-
-	ld	r0,_MSR(r1)
-	mtspr	SPRN_SRR1,r0
+	mtspr	SPRN_SRR1,r3
 
 	ld	r2,_CCR(r1)
 	mtcrf	0xFF,r2
