@@ -471,8 +471,11 @@ static struct nf_logger ipt_log_logger ={
 
 static int __init ipt_log_init(void)
 {
-	if (ipt_register_target(&ipt_log_reg))
-		return -EINVAL;
+	int ret;
+
+	ret = ipt_register_target(&ipt_log_reg);
+	if (ret < 0)
+		return ret;
 	if (nf_log_register(PF_INET, &ipt_log_logger) < 0) {
 		printk(KERN_WARNING "ipt_LOG: not logging via system console "
 		       "since somebody else already registered for PF_INET\n");

@@ -379,7 +379,7 @@ static struct nf_logger ipt_ulog_logger = {
 
 static int __init ipt_ulog_init(void)
 {
-	int i;
+	int ret, i;
 
 	DEBUGP("ipt_ULOG: init module\n");
 
@@ -400,9 +400,10 @@ static int __init ipt_ulog_init(void)
 	if (!nflognl)
 		return -ENOMEM;
 
-	if (ipt_register_target(&ipt_ulog_reg) != 0) {
+	ret = ipt_register_target(&ipt_ulog_reg);
+	if (ret < 0) {
 		sock_release(nflognl->sk_socket);
-		return -EINVAL;
+		return ret;
 	}
 	if (nflog)
 		nf_log_register(PF_INET, &ipt_ulog_logger);

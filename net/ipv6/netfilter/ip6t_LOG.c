@@ -482,8 +482,11 @@ static struct nf_logger ip6t_logger = {
 
 static int __init ip6t_log_init(void)
 {
-	if (ip6t_register_target(&ip6t_log_reg))
-		return -EINVAL;
+	int ret;
+
+	ret = ip6t_register_target(&ip6t_log_reg);
+	if (ret < 0)
+		return ret;
 	if (nf_log_register(PF_INET6, &ip6t_logger) < 0) {
 		printk(KERN_WARNING "ip6t_LOG: not logging via system console "
 		       "since somebody else already registered for PF_INET6\n");
