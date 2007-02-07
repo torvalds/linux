@@ -39,6 +39,11 @@
 		reg = <00000000 10000000>;	// 256MB at 0
 	};
 
+	bcsr@e2400000 {
+		device_type = "board-control";
+		reg = <e2400000 8000>;
+	};
+
 	soc8349@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -103,6 +108,7 @@
 			#size-cells = <0>;
 			interrupt-parent = <700>;
 			interrupts = <26 2>;
+			dr_mode = "otg";
 			phy_type = "ulpi";
 		};
 
