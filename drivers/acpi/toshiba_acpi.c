@@ -125,7 +125,7 @@ static int write_acpi_int(const char *methodName, int val)
 	union acpi_object in_objs[1];
 	acpi_status status;
 
-	params.count = sizeof(in_objs) / sizeof(in_objs[0]);
+	params.count = ARRAY_SIZE(in_objs);
 	params.pointer = in_objs;
 	in_objs[0].type = ACPI_TYPE_INTEGER;
 	in_objs[0].integer.value = val;
