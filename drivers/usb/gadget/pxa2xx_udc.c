@@ -156,7 +156,7 @@ static int is_vbus_present(void)
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
 
 	if (mach->gpio_vbus)
-		return pxa_gpio_get(mach->gpio_vbus);
+		return udc_gpio_get(mach->gpio_vbus);
 	if (mach->udc_is_connected)
 		return mach->udc_is_connected();
 	return 1;
@@ -168,7 +168,7 @@ static void pullup_off(void)
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
 
 	if (mach->gpio_pullup)
-		pxa_gpio_set(mach->gpio_pullup, 0);
+		udc_gpio_set(mach->gpio_pullup, 0);
 	else if (mach->udc_command)
 		mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
 }
@@ -178,7 +178,7 @@ static void pullup_on(void)
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
 
 	if (mach->gpio_pullup)
-		pxa_gpio_set(mach->gpio_pullup, 1);
+		udc_gpio_set(mach->gpio_pullup, 1);
 	else if (mach->udc_command)
 		mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
 }
@@ -1756,7 +1756,7 @@ lubbock_vbus_irq(int irq, void *_dev)
 static irqreturn_t udc_vbus_irq(int irq, void *_dev)
 {
 	struct pxa2xx_udc	*dev = _dev;
-	int			vbus = pxa_gpio_get(dev->mach->gpio_vbus);
+	int			vbus = udc_gpio_get(dev->mach->gpio_vbus);
 
 	pxa2xx_udc_vbus_session(&dev->gadget, vbus);
 	return IRQ_HANDLED;
@@ -2546,15 +2546,13 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	dev->dev = &pdev->dev;
 	dev->mach = pdev->dev.platform_data;
 	if (dev->mach->gpio_vbus) {
-		vbus_irq = IRQ_GPIO(dev->mach->gpio_vbus & GPIO_MD_MASK_NR);
-		pxa_gpio_mode((dev->mach->gpio_vbus & GPIO_MD_MASK_NR)
-				| GPIO_IN);
+		udc_gpio_init_vbus(dev->mach->gpio_vbus);
+		vbus_irq = udc_gpio_to_irq(dev->mach->gpio_vbus);
 		set_irq_type(vbus_irq, IRQT_BOTHEDGE);
 	} else
 		vbus_irq = 0;
 	if (dev->mach->gpio_pullup)
-		pxa_gpio_mode((dev->mach->gpio_pullup & GPIO_MD_MASK_NR)
-				| GPIO_OUT | GPIO_DFLT_LOW);
+		udc_gpio_init_pullup(dev->mach->gpio_pullup);
 
 	init_timer(&dev->timer);
 	dev->timer.function = udc_watchdog;
