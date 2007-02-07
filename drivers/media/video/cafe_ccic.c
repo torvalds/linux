@@ -1195,7 +1195,7 @@ static int cafe_vidioc_reqbufs(struct file *filp, void *priv,
 		struct v4l2_requestbuffers *req)
 {
 	struct cafe_camera *cam = filp->private_data;
-	int ret;
+	int ret = 0;  /* Silence warning */
 
 	/*
 	 * Make sure it's something we can do.  User pointers could be
