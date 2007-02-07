@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 0.44	May 20, 2006
+ * linux/drivers/ide/pci/hpt366.c		Version 0.45	May 27, 2006
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
@@ -79,6 +79,7 @@
  * - prefix the driver startup messages with the real chip name
  * - claim the extra 240 bytes of I/O space for all chips
  * - optimize the rate masking/filtering and the drive list lookup code
+ * - use pci_get_slot() to get to the function 1 of HPT36x/374
  *		<source@mvista.com>
  *
  */
@@ -1416,24 +1417,24 @@ static void __devinit init_iops_hpt366(ide_hwif_t *hwif)
 
 static int __devinit init_setup_hpt374(struct pci_dev *dev, ide_pci_device_t *d)
 {
-	struct pci_dev *findev = NULL;
+	struct pci_dev *dev2;
 
 	if (PCI_FUNC(dev->devfn) & 1)
 		return -ENODEV;
 
-	while ((findev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, findev)) != NULL) {
-		if ((findev->vendor == dev->vendor) &&
-		    (findev->device == dev->device) &&
-		    ((findev->devfn - dev->devfn) == 1) &&
-		    (PCI_FUNC(findev->devfn) & 1)) {
-			if (findev->irq != dev->irq) {
-				/* FIXME: we need a core pci_set_interrupt() */
-				findev->irq = dev->irq;
-				printk(KERN_WARNING "%s: pci-config space interrupt "
-					"fixed.\n", d->name);
-			}
-			return ide_setup_pci_devices(dev, findev, d);
+	if ((dev2 = pci_get_slot(dev->bus, dev->devfn + 1)) != NULL) {
+		int ret;
+
+		if (dev2->irq != dev->irq) {
+			/* FIXME: we need a core pci_set_interrupt() */
+			dev2->irq = dev->irq;
+			printk(KERN_WARNING "%s: PCI config space interrupt "
+			       "fixed.\n", d->name);
 		}
+		ret = ide_setup_pci_devices(dev, dev2, d);
+		if (ret < 0)
+			pci_dev_put(dev2);
+		return ret;
 	}
 	return ide_setup_pci_device(dev, d);
 }
@@ -1491,8 +1492,8 @@ static int __devinit init_setup_hpt302(struct pci_dev *dev, ide_pci_device_t *d)
 
 static int __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d)
 {
-	struct pci_dev *findev = NULL;
-	u8 rev = 0, pin1 = 0, pin2 = 0;
+	struct pci_dev *dev2;
+	u8 rev = 0;
 	static char   *chipset_names[] = { "HPT366", "HPT366",  "HPT368",
 					   "HPT370", "HPT370A", "HPT372",
 					   "HPT372N" };
@@ -1512,21 +1513,21 @@ static int __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d)
 
 	d->channels = 1;
 
-	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin1);
-	while ((findev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, findev)) != NULL) {
-		if ((findev->vendor == dev->vendor) &&
-		    (findev->device == dev->device) &&
-		    ((findev->devfn - dev->devfn) == 1) &&
-		    (PCI_FUNC(findev->devfn) & 1)) {
-			pci_read_config_byte(findev, PCI_INTERRUPT_PIN, &pin2);
-			if ((pin1 != pin2) && (dev->irq == findev->irq)) {
-				d->bootable = ON_BOARD;
-				printk("%s: onboard version of chipset, "
-					"pin1=%d pin2=%d\n", d->name,
-					pin1, pin2);
-			}
-			return ide_setup_pci_devices(dev, findev, d);
+	if ((dev2 = pci_get_slot(dev->bus, dev->devfn + 1)) != NULL) {
+	  	u8  pin1 = 0, pin2 = 0;
+		int ret;
+
+		pci_read_config_byte(dev,  PCI_INTERRUPT_PIN, &pin1);
+		pci_read_config_byte(dev2, PCI_INTERRUPT_PIN, &pin2);
+		if (pin1 != pin2 && dev->irq == dev2->irq) {
+			d->bootable = ON_BOARD;
+			printk("%s: onboard version of chipset, pin1=%d pin2=%d\n",
+			       d->name, pin1, pin2);
 		}
+		ret = ide_setup_pci_devices(dev, dev2, d);
+		if (ret < 0)
+			pci_dev_put(dev2);
+		return ret;
 	}
 init_single:
 	return ide_setup_pci_device(dev, d);
