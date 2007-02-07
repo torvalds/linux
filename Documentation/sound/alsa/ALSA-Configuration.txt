@@ -785,6 +785,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  asus-dig	ASUS with SPDIF out
 	  asus-dig2	ASUS with SPDIF out (using GPIO2)
 	  uniwill	3-jack
+	  fujitsu	Fujitsu Laptops (Pi1536)
 	  F1734		2-jack
 	  lg		LG laptop (m1 express dual)
 	  lg-lw		LG LW20/LW25 laptop
