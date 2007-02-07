@@ -636,6 +636,29 @@ static void onenand_update_bufferram(struct mtd_info *mtd, loff_t addr,
 }
 
 /**
+ * onenand_invalidate_bufferram - [GENERIC] Invalidate BufferRAM information
+ * @param mtd		MTD data structure
+ * @param addr		start address to invalidate
+ * @param len		length to invalidate
+ *
+ * Invalidate BufferRAM information
+ */
+static void onenand_invalidate_bufferram(struct mtd_info *mtd, loff_t addr,
+		unsigned int len)
+{
+	struct onenand_chip *this = mtd->priv;
+	int i;
+	loff_t end_addr = addr + len;
+
+	/* Invalidate BufferRAM */
+	for (i = 0; i < MAX_BUFFERRAM; i++) {
+		loff_t buf_addr = this->bufferram[i].blockpage << this->page_shift;
+		if (buf_addr >= addr && buf_addr < end_addr)
+			this->bufferram[i].blockpage = -1;
+	}
+}
+
+/**
  * onenand_get_device - [GENERIC] Get chip for selected access
  * @param mtd		MTD device structure
  * @param new_state	the state which is requested
@@ -1475,6 +1498,8 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 		}
 
 		this->command(mtd, ONENAND_CMD_ERASE, addr, block_size);
+
+		onenand_invalidate_bufferram(mtd, addr, block_size);
 
 		ret = this->wait(mtd, FL_ERASING);
 		/* Check, if it is write protected */
