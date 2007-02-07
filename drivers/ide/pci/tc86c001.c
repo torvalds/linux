@@ -298,7 +298,7 @@ static struct pci_driver driver = {
 	.probe		= tc86c001_init_one
 };
 
-static int tc86c001_ide_init(void)
+static int __init tc86c001_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }
