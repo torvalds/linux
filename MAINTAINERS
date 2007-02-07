@@ -1114,7 +1114,7 @@ S:	Supported
 DAVICOM FAST ETHERNET (DMFE) NETWORK DRIVER
 P:	Tobias Ringstrom
 M:	tori@unhappy.mine.nu
-L:	linux-kernel@vger.kernel.org
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 DOCBOOK FOR DOCUMENTATION
@@ -2361,7 +2361,7 @@ S:	Maintained
 NETWORKING [WIRELESS]
 P:	John W. Linville
 M:	linville@tuxdriver.com
-L:	netdev@vger.kernel.org
+L:	linux-wireless@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git
 S:	Maintained
 
