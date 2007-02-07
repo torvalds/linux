@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/param.h>
+#include <linux/interrupt.h>
 #include <asm/machdep.h>
 #include <asm/dma.h>
 
@@ -27,7 +28,7 @@ unsigned int dma_device_address[MAX_M68K_DMA_CHANNELS];
 /***************************************************************************/
 
 void coldfire_pit_tick(void);
-void coldfire_pit_init(irqreturn_t (*handler)(int, void *, struct pt_regs *));
+void coldfire_pit_init(irq_handler_t handler);
 unsigned long coldfire_pit_offset(void);
 void coldfire_trap_init(void);
 void coldfire_reset(void);
