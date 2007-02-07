@@ -39,10 +39,6 @@ extern void jfs_proc_clean(void);
 /*
  *	assert with traditional printf/panic
  */
-#ifdef CONFIG_KERNEL_ASSERTS
-/* kgdb stuff */
-#define assert(p) KERNEL_ASSERT(#p, p)
-#else
 #define assert(p) do {	\
 	if (!(p)) {	\
 		printk(KERN_CRIT "BUG at %s:%d assert(%s)\n",	\
@@ -50,7 +46,6 @@ extern void jfs_proc_clean(void);
 		BUG();	\
 	}		\
 } while (0)
-#endif
 
 /*
  *	debug ON
