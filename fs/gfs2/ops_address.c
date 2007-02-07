@@ -360,8 +360,10 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME|LM_FLAG_TRY_1CB, &ip->i_gh);
 	error = gfs2_glock_nq_atime(&ip->i_gh);
 	if (unlikely(error)) {
-		if (error == GLR_TRYFAILED)
+		if (error == GLR_TRYFAILED) {
+			unlock_page(page);
 			error = AOP_TRUNCATED_PAGE;
+		}
 		goto out_uninit;
 	}
 
