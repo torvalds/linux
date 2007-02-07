@@ -535,34 +535,40 @@ static void emulate_single_step(struct pt_regs *regs)
 	}
 }
 
-static void parse_fpe(struct pt_regs *regs)
+static inline int __parse_fpscr(unsigned long fpscr)
 {
-	int code = 0;
-	unsigned long fpscr;
-
-	flush_fp_to_thread(current);
-
-	fpscr = current->thread.fpscr.val;
+	int ret = 0;
 
 	/* Invalid operation */
 	if ((fpscr & FPSCR_VE) && (fpscr & FPSCR_VX))
-		code = FPE_FLTINV;
+		ret = FPE_FLTINV;
 
 	/* Overflow */
 	else if ((fpscr & FPSCR_OE) && (fpscr & FPSCR_OX))
-		code = FPE_FLTOVF;
+		ret = FPE_FLTOVF;
 
 	/* Underflow */
 	else if ((fpscr & FPSCR_UE) && (fpscr & FPSCR_UX))
-		code = FPE_FLTUND;
+		ret = FPE_FLTUND;
 
 	/* Divide by zero */
 	else if ((fpscr & FPSCR_ZE) && (fpscr & FPSCR_ZX))
-		code = FPE_FLTDIV;
+		ret = FPE_FLTDIV;
 
 	/* Inexact result */
 	else if ((fpscr & FPSCR_XE) && (fpscr & FPSCR_XX))
-		code = FPE_FLTRES;
+		ret = FPE_FLTRES;
+
+	return ret;
+}
+
+static void parse_fpe(struct pt_regs *regs)
+{
+	int code = 0;
+
+	flush_fp_to_thread(current);
+
+	code = __parse_fpscr(current->thread.fpscr.val);
 
 	_exception(SIGFPE, regs, code, regs->nip);
 }
@@ -773,10 +779,21 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	 * hardware people - not sure if it can happen on any illegal
 	 * instruction or only on FP instructions, whether there is a
 	 * pattern to occurences etc. -dgibson 31/Mar/2003 */
-	if (do_mathemu(regs) == 0) {
+	switch (do_mathemu(regs)) {
+	case 0:
 		emulate_single_step(regs);
 		return;
+	case 1: {
+			int code = 0;
+			code = __parse_fpscr(current->thread.fpscr.val);
+			_exception(SIGFPE, regs, code, regs->nip);
+			return;
+		}
+	case -EFAULT:
+		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
+		return;
 	}
+	/* fall through on any other errors */
 #endif /* CONFIG_MATH_EMULATION */
 
 	/* Try to emulate it if we should. */
@@ -892,18 +909,39 @@ void SoftwareEmulation(struct pt_regs *regs)
 
 #ifdef CONFIG_MATH_EMULATION
 	errcode = do_mathemu(regs);
+
+	switch (errcode) {
+	case 0:
+		emulate_single_step(regs);
+		return;
+	case 1: {
+			int code = 0;
+			code = __parse_fpscr(current->thread.fpscr.val);
+			_exception(SIGFPE, regs, code, regs->nip);
+			return;
+		}
+	case -EFAULT:
+		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
+		return;
+	default:
+		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
+		return;
+	}
+
 #else
 	errcode = Soft_emulate_8xx(regs);
-#endif
-	if (errcode) {
-		if (errcode > 0)
-			_exception(SIGFPE, regs, 0, 0);
-		else if (errcode == -EFAULT)
-			_exception(SIGSEGV, regs, 0, 0);
-		else
-			_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-	} else
+	switch (errcode) {
+	case 0:
 		emulate_single_step(regs);
+		return;
+	case 1:
+		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
+		return;
+	case -EFAULT:
+		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
+		return;
+	}
+#endif
 }
 #endif /* CONFIG_8xx */
 
