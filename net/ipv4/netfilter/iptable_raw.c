@@ -79,7 +79,7 @@ static struct
 	}
 };
 
-static struct ipt_table packet_raw = { 
+static struct xt_table packet_raw = {
 	.name = "raw", 
 	.valid_hooks =  RAW_VALID_HOOKS, 
 	.lock = RW_LOCK_UNLOCKED, 

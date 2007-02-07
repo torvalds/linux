@@ -216,7 +216,7 @@ ipt_do_table(struct sk_buff **pskb,
 	     unsigned int hook,
 	     const struct net_device *in,
 	     const struct net_device *out,
-	     struct ipt_table *table)
+	     struct xt_table *table)
 {
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	u_int16_t offset;
@@ -818,7 +818,7 @@ get_counters(const struct xt_table_info *t,
 	}
 }
 
-static inline struct xt_counters * alloc_counters(struct ipt_table *table)
+static inline struct xt_counters * alloc_counters(struct xt_table *table)
 {
 	unsigned int countersize;
 	struct xt_counters *counters;
@@ -843,7 +843,7 @@ static inline struct xt_counters * alloc_counters(struct ipt_table *table)
 
 static int
 copy_entries_to_user(unsigned int total_size,
-		     struct ipt_table *table,
+		     struct xt_table *table,
 		     void __user *userptr)
 {
 	unsigned int off, num;
@@ -1046,7 +1046,7 @@ static int compat_table_info(struct xt_table_info *info,
 static int get_info(void __user *user, int *len, int compat)
 {
 	char name[IPT_TABLE_MAXNAMELEN];
-	struct ipt_table *t;
+	struct xt_table *t;
 	int ret;
 
 	if (*len != sizeof(struct ipt_getinfo)) {
@@ -1107,7 +1107,7 @@ get_entries(struct ipt_get_entries __user *uptr, int *len)
 {
 	int ret;
 	struct ipt_get_entries get;
-	struct ipt_table *t;
+	struct xt_table *t;
 
 	if (*len < sizeof(get)) {
 		duprintf("get_entries: %u < %d\n", *len,
@@ -1151,7 +1151,7 @@ __do_replace(const char *name, unsigned int valid_hooks,
 		void __user *counters_ptr)
 {
 	int ret;
-	struct ipt_table *t;
+	struct xt_table *t;
 	struct xt_table_info *oldinfo;
 	struct xt_counters *counters;
 	void *loc_cpu_old_entry;
@@ -1302,7 +1302,7 @@ do_add_counters(void __user *user, unsigned int len, int compat)
 	char *name;
 	int size;
 	void *ptmp;
-	struct ipt_table *t;
+	struct xt_table *t;
 	struct xt_table_info *private;
 	int ret = 0;
 	void *loc_cpu_entry;
@@ -1795,7 +1795,7 @@ struct compat_ipt_get_entries
 };
 
 static int compat_copy_entries_to_user(unsigned int total_size,
-		     struct ipt_table *table, void __user *userptr)
+		     struct xt_table *table, void __user *userptr)
 {
 	unsigned int off, num;
 	struct compat_ipt_entry e;
@@ -1869,7 +1869,7 @@ compat_get_entries(struct compat_ipt_get_entries __user *uptr, int *len)
 {
 	int ret;
 	struct compat_ipt_get_entries get;
-	struct ipt_table *t;
+	struct xt_table *t;
 
 
 	if (*len < sizeof(get)) {
@@ -2052,7 +2052,7 @@ int ipt_register_table(struct xt_table *table, const struct ipt_replace *repl)
 	return 0;
 }
 
-void ipt_unregister_table(struct ipt_table *table)
+void ipt_unregister_table(struct xt_table *table)
 {
 	struct xt_table_info *private;
 	void *loc_cpu_entry;

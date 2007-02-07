@@ -86,7 +86,7 @@ static struct
     }
 };
 
-static struct ipt_table nat_table = {
+static struct xt_table nat_table = {
 	.name		= "nat",
 	.valid_hooks	= NAT_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
