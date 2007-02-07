@@ -15,6 +15,7 @@
 #include <net/checksum.h>
 #include <net/ipv6.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/netfilter_ipv6/ip6t_ah.h>
 
@@ -118,8 +119,9 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ip6t_match ah_match = {
+static struct xt_match ah_match = {
 	.name		= "ah",
+	.family		= AF_INET6,
 	.match		= match,
 	.matchsize	= sizeof(struct ip6t_ah),
 	.checkentry	= checkentry,
@@ -128,12 +130,12 @@ static struct ip6t_match ah_match = {
 
 static int __init ip6t_ah_init(void)
 {
-	return ip6t_register_match(&ah_match);
+	return xt_register_match(&ah_match);
 }
 
 static void __exit ip6t_ah_fini(void)
 {
-	ip6t_unregister_match(&ah_match);
+	xt_unregister_match(&ah_match);
 }
 
 module_init(ip6t_ah_init);

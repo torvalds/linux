@@ -507,7 +507,7 @@ check_entry(struct ipt_entry *e, const char *name)
 static inline int check_match(struct ipt_entry_match *m, const char *name,
 				const struct ipt_ip *ip, unsigned int hookmask)
 {
-	struct ipt_match *match;
+	struct xt_match *match;
 	int ret;
 
 	match = m->u.kernel.match;
@@ -531,7 +531,7 @@ find_check_match(struct ipt_entry_match *m,
 	    unsigned int hookmask,
 	    unsigned int *i)
 {
-	struct ipt_match *match;
+	struct xt_match *match;
 	int ret;
 
 	match = try_then_request_module(xt_find_match(AF_INET, m->u.user.name,
@@ -557,7 +557,7 @@ err:
 static inline int check_target(struct ipt_entry *e, const char *name)
 {
  	struct ipt_entry_target *t;
- 	struct ipt_target *target;
+	struct xt_target *target;
  	int ret;
 
 	t = ipt_get_target(e);
@@ -580,7 +580,7 @@ find_check_entry(struct ipt_entry *e, const char *name, unsigned int size,
 	    unsigned int *i)
 {
 	struct ipt_entry_target *t;
-	struct ipt_target *target;
+	struct xt_target *target;
 	int ret;
 	unsigned int j;
 
@@ -1437,7 +1437,7 @@ compat_check_calc_match(struct ipt_entry_match *m,
 	    unsigned int hookmask,
 	    int *size, int *i)
 {
-	struct ipt_match *match;
+	struct xt_match *match;
 
 	match = try_then_request_module(xt_find_match(AF_INET, m->u.user.name,
 						   m->u.user.revision),
@@ -1466,7 +1466,7 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 			   const char *name)
 {
 	struct ipt_entry_target *t;
-	struct ipt_target *target;
+	struct xt_target *target;
 	unsigned int entry_offset;
 	int ret, off, h, j;
 
@@ -1550,7 +1550,7 @@ static int compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 	struct xt_table_info *newinfo, unsigned char *base)
 {
 	struct ipt_entry_target *t;
-	struct ipt_target *target;
+	struct xt_target *target;
 	struct ipt_entry *de;
 	unsigned int origsize;
 	int ret, h;
@@ -2124,7 +2124,7 @@ icmp_checkentry(const char *tablename,
 }
 
 /* The built-in targets: standard (NULL) and error. */
-static struct ipt_target ipt_standard_target = {
+static struct xt_target ipt_standard_target = {
 	.name		= IPT_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
 	.family		= AF_INET,
@@ -2135,7 +2135,7 @@ static struct ipt_target ipt_standard_target = {
 #endif
 };
 
-static struct ipt_target ipt_error_target = {
+static struct xt_target ipt_error_target = {
 	.name		= IPT_ERROR_TARGET,
 	.target		= ipt_error,
 	.targetsize	= IPT_FUNCTION_MAXNAMELEN,
@@ -2158,7 +2158,7 @@ static struct nf_sockopt_ops ipt_sockopts = {
 #endif
 };
 
-static struct ipt_match icmp_matchstruct = {
+static struct xt_match icmp_matchstruct = {
 	.name		= "icmp",
 	.match		= icmp_match,
 	.matchsize	= sizeof(struct ipt_icmp),

@@ -530,7 +530,7 @@ check_match(struct ip6t_entry_match *m,
 	    unsigned int hookmask,
 	    unsigned int *i)
 {
-	struct ip6t_match *match;
+	struct xt_match *match;
 	int ret;
 
 	match = try_then_request_module(xt_find_match(AF_INET6, m->u.user.name,
@@ -564,14 +564,14 @@ err:
 	return ret;
 }
 
-static struct ip6t_target ip6t_standard_target;
+static struct xt_target ip6t_standard_target;
 
 static inline int
 check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
 	    unsigned int *i)
 {
 	struct ip6t_entry_target *t;
-	struct ip6t_target *target;
+	struct xt_target *target;
 	int ret;
 	unsigned int j;
 
@@ -1348,13 +1348,13 @@ icmp6_checkentry(const char *tablename,
 }
 
 /* The built-in targets: standard (NULL) and error. */
-static struct ip6t_target ip6t_standard_target = {
+static struct xt_target ip6t_standard_target = {
 	.name		= IP6T_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
 	.family		= AF_INET6,
 };
 
-static struct ip6t_target ip6t_error_target = {
+static struct xt_target ip6t_error_target = {
 	.name		= IP6T_ERROR_TARGET,
 	.target		= ip6t_error,
 	.targetsize	= IP6T_FUNCTION_MAXNAMELEN,
@@ -1371,7 +1371,7 @@ static struct nf_sockopt_ops ip6t_sockopts = {
 	.get		= do_ip6t_get_ctl,
 };
 
-static struct ip6t_match icmp6_matchstruct = {
+static struct xt_match icmp6_matchstruct = {
 	.name		= "icmp6",
 	.match		= &icmp6_match,
 	.matchsize	= sizeof(struct ip6t_icmp),

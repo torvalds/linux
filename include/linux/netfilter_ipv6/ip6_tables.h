@@ -286,16 +286,6 @@ ip6t_get_target(struct ip6t_entry *e)
 #include <linux/init.h>
 extern void ip6t_init(void) __init;
 
-#define ip6t_register_target(tgt) 		\
-({	(tgt)->family = AF_INET6;		\
- 	xt_register_target(tgt); })
-#define ip6t_unregister_target(tgt) xt_unregister_target(tgt)
-
-#define ip6t_register_match(match)		\
-({	(match)->family = AF_INET6;		\
-	xt_register_match(match); })
-#define ip6t_unregister_match(match) xt_unregister_match(match)
-
 extern int ip6t_register_table(struct ip6t_table *table,
 			       const struct ip6t_replace *repl);
 extern void ip6t_unregister_table(struct ip6t_table *table);

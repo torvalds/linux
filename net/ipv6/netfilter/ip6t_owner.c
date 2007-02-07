@@ -16,6 +16,7 @@
 
 #include <linux/netfilter_ipv6/ip6t_owner.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
+#include <linux/netfilter/x_tables.h>
 
 MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
 MODULE_DESCRIPTION("IP6 tables owner matching module");
@@ -69,8 +70,9 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ip6t_match owner_match = {
+static struct xt_match owner_match = {
 	.name		= "owner",
+	.family		= AF_INET6,
 	.match		= match,
 	.matchsize	= sizeof(struct ip6t_owner_info),
 	.hooks		= (1 << NF_IP6_LOCAL_OUT) | (1 << NF_IP6_POST_ROUTING),
@@ -80,12 +82,12 @@ static struct ip6t_match owner_match = {
 
 static int __init ip6t_owner_init(void)
 {
-	return ip6t_register_match(&owner_match);
+	return xt_register_match(&owner_match);
 }
 
 static void __exit ip6t_owner_fini(void)
 {
-	ip6t_unregister_match(&owner_match);
+	xt_unregister_match(&owner_match);
 }
 
 module_init(ip6t_owner_init);

@@ -12,7 +12,7 @@
 #include <linux/ip.h>
 #include <net/checksum.h>
 
-#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ipt_TTL.h>
 
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
@@ -59,7 +59,7 @@ ipt_ttl_target(struct sk_buff **pskb,
 		iph->ttl = new_ttl;
 	}
 
-	return IPT_CONTINUE;
+	return XT_CONTINUE;
 }
 
 static int ipt_ttl_checkentry(const char *tablename,
@@ -80,8 +80,9 @@ static int ipt_ttl_checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ipt_target ipt_TTL = { 
+static struct xt_target ipt_TTL = {
 	.name 		= "TTL",
+	.family		= AF_INET,
 	.target 	= ipt_ttl_target, 
 	.targetsize	= sizeof(struct ipt_TTL_info),
 	.table		= "mangle",
@@ -91,12 +92,12 @@ static struct ipt_target ipt_TTL = {
 
 static int __init ipt_ttl_init(void)
 {
-	return ipt_register_target(&ipt_TTL);
+	return xt_register_target(&ipt_TTL);
 }
 
 static void __exit ipt_ttl_fini(void)
 {
-	ipt_unregister_target(&ipt_TTL);
+	xt_unregister_target(&ipt_TTL);
 }
 
 module_init(ipt_ttl_init);
