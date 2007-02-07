@@ -54,7 +54,7 @@ static int zl10353_single_write(struct dvb_frontend *fe, u8 reg, u8 val)
 	return 0;
 }
 
-int zl10353_write(struct dvb_frontend *fe, u8 *ibuf, int ilen)
+static int zl10353_write(struct dvb_frontend *fe, u8 *ibuf, int ilen)
 {
 	int err, i;
 	for (i = 0; i < ilen - 1; i++)
