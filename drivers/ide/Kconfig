@@ -167,6 +167,13 @@ config BLK_DEV_IDECS
 	  Support for Compact Flash cards, outboard IDE disks, tape drives,
 	  and CD-ROM drives connected through a PCMCIA card.
 
+config BLK_DEV_DELKIN
+	tristate "Cardbus IDE support (Delkin/ASKA/Workbit)"
+	depends on CARDBUS && PCI
+	help
+	  Support for Delkin, ASKA, and Workbit Cardbus CompactFlash
+	  Adapters.  This may also work for similar SD and XD adapters.
+
 config BLK_DEV_IDECD
 	tristate "Include IDE/ATAPI CDROM support"
 	---help---
