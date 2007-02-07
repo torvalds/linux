@@ -481,6 +481,7 @@ config SH_PCLK_FREQ
 
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"
+	default 0
 	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
 	help
 	  MD2 - MD0 pin setting.
