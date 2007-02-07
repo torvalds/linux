@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.00	Jun 25, 2006
+ * linux/drivers/ide/pci/hpt366.c		Version 1.01	Dec 23, 2006
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
@@ -107,7 +107,8 @@
  *   frequency
  * - switch to using the  DPLL clock and enable UltraATA/133 mode by default on
  *   anything  newer than HPT370/A
- * - fold PCI clock detection and DPLL setup code into init_chipset_hpt366();
+ * - fold PCI clock detection and DPLL setup code into init_chipset_hpt366(),
+ *   also fixing the interchanged 25/40 MHz PCI clock cases for HPT36x chips;
  *   unify HPT36x/37x timing setup code and the speedproc handlers by joining
  *   the register setting lists into the table indexed by the clock selected
  *	Sergei Shtylyov, <sshtylyov@ru.mvista.com> or <source@mvista.com>
@@ -1125,11 +1126,14 @@ static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev, const cha
 		switch((itr1 >> 8) & 0x07) {
 			case 0x09:
 				pci_clk = 40;
+				break;
 			case 0x05:
 				pci_clk = 25;
+				break;
 			case 0x07:
 			default:
 				pci_clk = 33;
+				break;
 		}
 	}
 
