@@ -532,9 +532,10 @@ void ide_acpi_get_timing(ide_hwif_t *hwif)
 	    out_obj->buffer.length != sizeof(struct GTM_buffer)) {
 		kfree(output.pointer);
 		printk(KERN_ERR
-		       "%s: unexpected _GTM length (0x%x)[should be 0x%x] or addr (0x%p)\n",
-		       __FUNCTION__, out_obj->buffer.length,
-		       sizeof(struct GTM_buffer), out_obj->buffer.pointer);
+			"%s: unexpected _GTM length (0x%x)[should be 0x%zx] or "
+			"addr (0x%p)\n",
+			__FUNCTION__, out_obj->buffer.length,
+			sizeof(struct GTM_buffer), out_obj->buffer.pointer);
 		return;
 	}
 
