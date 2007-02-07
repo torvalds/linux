@@ -264,16 +264,18 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 	if (type == 6580) {
 		ae.port_ops = &qdi6580_port_ops;
 		ae.pio_mask = 0x1F;
+		ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
 	} else {
 		ae.port_ops = &qdi6500_port_ops;
 		ae.pio_mask = 0x07;	/* Actually PIO3 !IORDY is possible */
+		ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST |
+				ATA_FLAG_NO_IORDY;
 	}
 
 	ae.sht = &qdi_sht;
 	ae.n_ports = 1;
 	ae.irq = irq;
 	ae.irq_flags = 0;
-	ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
 	ae.port[0].cmd_addr = io_addr;
 	ae.port[0].altstatus_addr = ctl_addr;
 	ae.port[0].ctl_addr = ctl_addr;
