@@ -949,44 +949,29 @@ static ctl_table brnf_net_table[] = {
 };
 #endif
 
-int br_netfilter_init(void)
+int __init br_netfilter_init(void)
 {
-	int i;
+	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(br_nf_ops); i++) {
-		int ret;
-
-		if ((ret = nf_register_hook(&br_nf_ops[i])) >= 0)
-			continue;
-
-		while (i--)
-			nf_unregister_hook(&br_nf_ops[i]);
-
+	ret = nf_register_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+	if (ret < 0)
 		return ret;
-	}
-
 #ifdef CONFIG_SYSCTL
 	brnf_sysctl_header = register_sysctl_table(brnf_net_table, 0);
 	if (brnf_sysctl_header == NULL) {
 		printk(KERN_WARNING
 		       "br_netfilter: can't register to sysctl.\n");
-		for (i = 0; i < ARRAY_SIZE(br_nf_ops); i++)
-			nf_unregister_hook(&br_nf_ops[i]);
-		return -EFAULT;
+		nf_unregister_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+		return -ENOMEM;
 	}
 #endif
-
 	printk(KERN_NOTICE "Bridge firewalling registered\n");
-
 	return 0;
 }
 
 void br_netfilter_fini(void)
 {
-	int i;
-
-	for (i = ARRAY_SIZE(br_nf_ops) - 1; i >= 0; i--)
-		nf_unregister_hook(&br_nf_ops[i]);
+	nf_unregister_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
 #ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(brnf_sysctl_header);
 #endif
