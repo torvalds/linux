@@ -54,16 +54,6 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "set this to 1 (and RTFM) if you want to help "
 			"the development of this driver");
 
-static int sony_backlight_update_status(struct backlight_device *bd);
-static int sony_backlight_get_brightness(struct backlight_device *bd);
-static struct backlight_device *sony_backlight_device;
-static struct backlight_properties sony_backlight_properties = {
-	.owner		= THIS_MODULE,
-	.update_status	= sony_backlight_update_status,
-	.get_brightness	= sony_backlight_get_brightness,
-	.max_brightness	= SONY_MAX_BRIGHTNESS - 1,
-};
-
 static ssize_t sony_acpi_show(struct device *, struct device_attribute *, char *);
 static ssize_t sony_acpi_store(struct device *, struct device_attribute *, const char *, size_t);
 
@@ -137,6 +127,9 @@ static struct sony_acpi_value sony_acpi_values[] = {
 static acpi_handle sony_acpi_handle;
 static struct acpi_device *sony_acpi_acpi_device = NULL;
 
+/*
+ * acpi_evaluate_object wrappers
+ */
 static int acpi_callgetfunc(acpi_handle handle, char *name, int *result)
 {
 	struct acpi_buffer output;
@@ -335,25 +328,37 @@ static void sony_snc_pf_remove(void)
 	platform_driver_unregister(&sncpf_driver);
 }
 
-static int sony_acpi_resume(struct acpi_device *device)
+/*
+ * Backlight device
+ */
+static int sony_backlight_update_status(struct backlight_device *bd)
 {
-	struct sony_acpi_value *item;
-
-	for (item = sony_acpi_values; item->name; item++) {
-		int ret;
-
-		if (!item->valid)
-			continue;
-		ret = acpi_callsetfunc(sony_acpi_handle, *item->acpiset,
-					item->value, NULL);
-		if (ret < 0) {
-			printk("%s: %d\n", __FUNCTION__, ret);
-			break;
-		}
-	}
-	return 0;
+	return acpi_callsetfunc(sony_acpi_handle, "SBRT",
+				bd->props->brightness + 1,
+				NULL);
 }
 
+static int sony_backlight_get_brightness(struct backlight_device *bd)
+{
+	int value;
+
+	if (acpi_callgetfunc(sony_acpi_handle, "GBRT", &value))
+		return 0;
+	/* brightness levels are 1-based, while backlight ones are 0-based */
+	return value - 1;
+}
+
+static struct backlight_device *sony_backlight_device;
+static struct backlight_properties sony_backlight_properties = {
+	.owner		= THIS_MODULE,
+	.update_status	= sony_backlight_update_status,
+	.get_brightness	= sony_backlight_get_brightness,
+	.max_brightness	= SONY_MAX_BRIGHTNESS - 1,
+};
+
+/*
+ * ACPI callbacks
+ */
 static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
 {
 	if (debug)
@@ -374,6 +379,28 @@ static acpi_status sony_walk_callback(acpi_handle handle, u32 level,
 	       (u32) operand->method.param_count);
 
 	return AE_OK;
+}
+
+/*
+ * ACPI device
+ */
+static int sony_acpi_resume(struct acpi_device *device)
+{
+	struct sony_acpi_value *item;
+
+	for (item = sony_acpi_values; item->name; item++) {
+		int ret;
+
+		if (!item->valid)
+			continue;
+		ret = acpi_callsetfunc(sony_acpi_handle, *item->acpiset,
+					item->value, NULL);
+		if (ret < 0) {
+			printk("%s: %d\n", __FUNCTION__, ret);
+			break;
+		}
+	}
+	return 0;
 }
 
 static int sony_acpi_add(struct acpi_device *device)
@@ -459,23 +486,6 @@ static int sony_acpi_remove(struct acpi_device *device, int type)
 	printk(KERN_INFO ACPI_SNC_DRIVER_NAME " successfully removed\n");
 
 	return 0;
-}
-
-static int sony_backlight_update_status(struct backlight_device *bd)
-{
-	return acpi_callsetfunc(sony_acpi_handle, "SBRT",
-				bd->props->brightness + 1,
-				NULL);
-}
-
-static int sony_backlight_get_brightness(struct backlight_device *bd)
-{
-	int value;
-
-	if (acpi_callgetfunc(sony_acpi_handle, "GBRT", &value))
-		return 0;
-	/* brightness levels are 1-based, while backlight ones are 0-based */
-	return value - 1;
 }
 
 static struct acpi_driver sony_acpi_driver = {
