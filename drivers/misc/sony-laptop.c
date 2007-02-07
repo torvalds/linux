@@ -356,7 +356,7 @@ static int sony_acpi_add(struct acpi_device *device)
 					NULL, &sony_backlight_properties);
 
 	        if (IS_ERR(sony_backlight_device)) {
-        	        printk(LOG_PFX "unable to register backlight device\n");
+			printk(LOG_PFX "unable to register backlight device\n");
 			sony_backlight_device = NULL;
 		}
 		else

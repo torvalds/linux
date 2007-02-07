@@ -252,21 +252,6 @@ config ACPI_TOSHIBA
 	  If you have a legacy free Toshiba laptop (such as the Libretto L1
 	  series), say Y.
 
-config ACPI_SONY
-	tristate "Sony Laptop Extras"
-	depends on X86 && ACPI
-	select BACKLIGHT_CLASS_DEVICE
-	default m
-	  ---help---
-	  This mini-driver drives the ACPI SNC device present in the
-	  ACPI BIOS of the Sony Vaio laptops.
-
-	  It gives access to some extra laptop functionalities. In
-	  its current form, the only thing this driver does is letting
-	  the user set or query the screen brightness.
-
-	  Read <file:Documentation/acpi/sony_acpi.txt> for more information.
-
 config ACPI_CUSTOM_DSDT
 	bool "Include Custom DSDT"
 	depends on !STANDALONE
