@@ -276,9 +276,6 @@ extern int ipt_register_table(struct xt_table *table,
 			      const struct ipt_replace *repl);
 extern void ipt_unregister_table(struct xt_table *table);
 
-/* net/sched/ipt.c: Gimme access to your targets!  Gets target->me. */
-extern struct xt_target *ipt_find_target(const char *name, u8 revision);
-
 /* Standard entry. */
 struct ipt_standard
 {
