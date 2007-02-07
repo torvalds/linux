@@ -421,6 +421,7 @@ struct usb_usbvision {
 	wait_queue_head_t wait_stream;					/* Processes waiting */
 	struct usbvision_frame *curFrame;				// pointer to current frame, set by usbvision_find_header
 	struct usbvision_frame frame[USBVISION_NUMFRAMES];		// frame buffer
+	int num_frames;							// number of frames allocated
 	struct usbvision_sbuf sbuf[USBVISION_NUMSBUF];			// S buffering
 	volatile int remove_pending;					/* If set then about to exit */
 
@@ -490,7 +491,7 @@ int usbvision_read_reg(struct usb_usbvision *usbvision, unsigned char reg);
 int usbvision_write_reg(struct usb_usbvision *usbvision, unsigned char reg,
 			unsigned char value);
 
-int usbvision_frames_alloc(struct usb_usbvision *usbvision);
+int usbvision_frames_alloc(struct usb_usbvision *usbvision, int number_of_frames);
 void usbvision_frames_free(struct usb_usbvision *usbvision);
 int usbvision_scratch_alloc(struct usb_usbvision *usbvision);
 void usbvision_scratch_free(struct usb_usbvision *usbvision);

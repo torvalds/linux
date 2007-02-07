@@ -391,19 +391,14 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 	if (usbvision->user)
 		errCode = -EBUSY;
 	else {
-		/* Allocate memory for the frame buffers */
-		errCode = usbvision_frames_alloc(usbvision);
-		if(!errCode) {
-			/* Allocate memory for the scratch ring buffer */
-			errCode = usbvision_scratch_alloc(usbvision);
-			if ((!errCode) && (isocMode==ISOC_MODE_COMPRESS)) {
-				/* Allocate intermediate decompression buffers only if needed */
-				errCode = usbvision_decompress_alloc(usbvision);
-			}
+		/* Allocate memory for the scratch ring buffer */
+		errCode = usbvision_scratch_alloc(usbvision);
+		if (isocMode==ISOC_MODE_COMPRESS) {
+			/* Allocate intermediate decompression buffers only if needed */
+			errCode = usbvision_decompress_alloc(usbvision);
 		}
 		if (errCode) {
 			/* Deallocate all buffers if trouble */
-			usbvision_frames_free(usbvision);
 			usbvision_scratch_free(usbvision);
 			usbvision_decompress_free(usbvision);
 		}
@@ -476,6 +471,7 @@ static int usbvision_v4l2_close(struct inode *inode, struct file *file)
 
 	usbvision_decompress_free(usbvision);
 	usbvision_frames_free(usbvision);
+	usbvision_empty_framequeues(usbvision);
 	usbvision_scratch_free(usbvision);
 
 	usbvision->user--;
@@ -809,7 +805,9 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 				    return ret;
 			}
 
+			usbvision_frames_free(usbvision);
 			usbvision_empty_framequeues(usbvision);
+			vr->count = usbvision_frames_alloc(usbvision,vr->count);
 
 			usbvision->curFrame = NULL;
 
@@ -826,7 +824,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			if(vb->type != V4L2_CAP_VIDEO_CAPTURE) {
 				return -EINVAL;
 			}
-			if(vb->index>=USBVISION_NUMFRAMES)  {
+			if(vb->index>=usbvision->num_frames)  {
 				return -EINVAL;
 			}
 			// Updating the corresponding frame state
@@ -840,7 +838,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 				vb->flags |= V4L2_BUF_FLAG_MAPPED;
 			vb->memory = V4L2_MEMORY_MMAP;
 
-			vb->m.offset = vb->index*usbvision->max_frame_size;
+			vb->m.offset = vb->index*PAGE_ALIGN(usbvision->max_frame_size);
 
 			vb->memory = V4L2_MEMORY_MMAP;
 			vb->field = V4L2_FIELD_NONE;
@@ -859,7 +857,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			if(vb->type != V4L2_CAP_VIDEO_CAPTURE) {
 				return -EINVAL;
 			}
-			if(vb->index>=USBVISION_NUMFRAMES)  {
+			if(vb->index>=usbvision->num_frames)  {
 				return -EINVAL;
 			}
 
@@ -1029,6 +1027,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 						if ((ret = usbvision_stream_interrupt(usbvision)))
 							return ret;
 					}
+					usbvision_frames_free(usbvision);
 					usbvision_empty_framequeues(usbvision);
 
 					usbvision->curFrame = NULL;
@@ -1075,12 +1074,24 @@ static ssize_t usbvision_v4l2_read(struct file *file, char __user *buf,
 	if (!USBVISION_IS_OPERATIONAL(usbvision) || (buf == NULL))
 		return -EFAULT;
 
-	/* no stream is running, make it running ! */
-	usbvision->streaming = Stream_On;
-	call_i2c_clients(usbvision,VIDIOC_STREAMON , NULL);
+	/* This entry point is compatible with the mmap routines so that a user can do either
+	   VIDIOC_QBUF/VIDIOC_DQBUF to get frames or call read on the device. */
+	if(!usbvision->num_frames) {
+		/* First, allocate some frames to work with if this has not been done with
+		 VIDIOC_REQBUF */
+		usbvision_frames_free(usbvision);
+		usbvision_empty_framequeues(usbvision);
+		usbvision_frames_alloc(usbvision,USBVISION_NUMFRAMES);
+	}
 
-	/* First, enqueue as many frames as possible (like a user of VIDIOC_QBUF would do) */
-	for(i=0;i<USBVISION_NUMFRAMES;i++) {
+	if(usbvision->streaming != Stream_On) {
+		/* no stream is running, make it running ! */
+		usbvision->streaming = Stream_On;
+		call_i2c_clients(usbvision,VIDIOC_STREAMON , NULL);
+	}
+
+	/* Then, enqueue as many frames as possible (like a user of VIDIOC_QBUF would do) */
+	for(i=0;i<usbvision->num_frames;i++) {
 		frame = &usbvision->frame[i];
 		if(frame->grabstate == FrameState_Unused) {
 			/* Mark it as ready and enqueue frame */
@@ -1157,6 +1168,8 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 	struct video_device *dev = video_devdata(file);
 	struct usb_usbvision *usbvision = (struct usb_usbvision *) video_get_drvdata(dev);
 
+	PDEBUG(DBG_MMAP, "mmap");
+
 	down(&usbvision->lock);
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision)) {
@@ -1165,16 +1178,16 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	if (!(vma->vm_flags & VM_WRITE) ||
-	    size != PAGE_ALIGN(usbvision->curwidth*usbvision->curheight*usbvision->palette.bytes_per_pixel)) {
+	    size != PAGE_ALIGN(usbvision->max_frame_size)) {
 		up(&usbvision->lock);
 		return -EINVAL;
 	}
 
-	for (i = 0; i < USBVISION_NUMFRAMES; i++) {
-		if (((usbvision->max_frame_size*i) >> PAGE_SHIFT) == vma->vm_pgoff)
+	for (i = 0; i < usbvision->num_frames; i++) {
+		if (((PAGE_ALIGN(usbvision->max_frame_size)*i) >> PAGE_SHIFT) == vma->vm_pgoff)
 			break;
 	}
-	if (i == USBVISION_NUMFRAMES) {
+	if (i == usbvision->num_frames) {
 		PDEBUG(DBG_MMAP, "mmap: user supplied mapping address is out of range");
 		up(&usbvision->lock);
 		return -EINVAL;

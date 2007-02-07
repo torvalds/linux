@@ -1852,28 +1852,33 @@ int usbvision_set_output(struct usb_usbvision *usbvision, int width,
 
 /*
  * usbvision_frames_alloc
- * allocate the maximum frames this driver can manage
+ * allocate the required frames
  */
-int usbvision_frames_alloc(struct usb_usbvision *usbvision)
+int usbvision_frames_alloc(struct usb_usbvision *usbvision, int number_of_frames)
 {
 	int i;
 
-	/* Allocate memory for the frame buffers */
-	usbvision->max_frame_size = MAX_FRAME_SIZE;
-	usbvision->fbuf_size = USBVISION_NUMFRAMES * usbvision->max_frame_size;
-	usbvision->fbuf = usbvision_rvmalloc(usbvision->fbuf_size);
+	/*needs to be page aligned cause the buffers can be mapped individually! */
+	usbvision->max_frame_size =  PAGE_ALIGN(usbvision->curwidth *
+						usbvision->curheight *
+						usbvision->palette.bytes_per_pixel);
 
-	if(usbvision->fbuf == NULL) {
-		err("%s: unable to allocate %d bytes for fbuf ",
-		    __FUNCTION__, usbvision->fbuf_size);
-		return -ENOMEM;
+	/* Try to do my best to allocate the frames the user want in the remaining memory */
+	usbvision->num_frames = number_of_frames;
+	while (usbvision->num_frames > 0) {
+		usbvision->fbuf_size = usbvision->num_frames * usbvision->max_frame_size;
+		if((usbvision->fbuf = usbvision_rvmalloc(usbvision->fbuf_size))) {
+			break;
+		}
+		usbvision->num_frames--;
 	}
+
 	spin_lock_init(&usbvision->queue_lock);
 	init_waitqueue_head(&usbvision->wait_frame);
 	init_waitqueue_head(&usbvision->wait_stream);
 
 	/* Allocate all buffers */
-	for (i = 0; i < USBVISION_NUMFRAMES; i++) {
+	for (i = 0; i < usbvision->num_frames; i++) {
 		usbvision->frame[i].index = i;
 		usbvision->frame[i].grabstate = FrameState_Unused;
 		usbvision->frame[i].data = usbvision->fbuf +
@@ -1887,7 +1892,8 @@ int usbvision_frames_alloc(struct usb_usbvision *usbvision)
 		usbvision->frame[i].height = usbvision->curheight;
 		usbvision->frame[i].bytes_read = 0;
 	}
-	return 0;
+	PDEBUG(DBG_FUNC, "allocated %d frames (%d bytes per frame)",usbvision->num_frames,usbvision->max_frame_size);
+	return usbvision->num_frames;
 }
 
 /*
@@ -1897,9 +1903,13 @@ int usbvision_frames_alloc(struct usb_usbvision *usbvision)
 void usbvision_frames_free(struct usb_usbvision *usbvision)
 {
 	/* Have to free all that memory */
+	PDEBUG(DBG_FUNC, "free %d frames",usbvision->num_frames);
+
 	if (usbvision->fbuf != NULL) {
 		usbvision_rvfree(usbvision->fbuf, usbvision->fbuf_size);
 		usbvision->fbuf = NULL;
+
+		usbvision->num_frames = 0;
 	}
 }
 /*
@@ -2490,6 +2500,7 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 	RESTRICT_TO_RANGE(channel, 0, usbvision->video_inputs);
 	usbvision->ctl_input = channel;
 	  route.input = SAA7115_COMPOSITE1;
+	  route.output = 0;
 	  call_i2c_clients(usbvision, VIDIOC_INT_S_VIDEO_ROUTING,&route);
 	  call_i2c_clients(usbvision, VIDIOC_S_INPUT, &usbvision->ctl_input);
 
