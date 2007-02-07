@@ -144,12 +144,18 @@ static int __init irlan_init(void)
 	/* Register with IrLMP as a client */
 	ckey = irlmp_register_client(hints, &irlan_client_discovery_indication,
 				     NULL, NULL);
-	
+	if (!ckey)
+		goto err_ckey;
+
 	/* Register with IrLMP as a service */
- 	skey = irlmp_register_service(hints);
+	skey = irlmp_register_service(hints);
+	if (!skey)
+		goto err_skey;
 
 	/* Start the master IrLAN instance (the only one for now) */
- 	new = irlan_open(DEV_ADDR_ANY, DEV_ADDR_ANY);
+	new = irlan_open(DEV_ADDR_ANY, DEV_ADDR_ANY);
+	if (!new)
+		goto err_open;
 
 	/* The master will only open its (listen) control TSAP */
 	irlan_provider_open_ctrl_tsap(new);
@@ -158,6 +164,17 @@ static int __init irlan_init(void)
 	irlmp_discovery_request(DISCOVERY_DEFAULT_SLOTS);
 
 	return 0;
+
+err_open:
+	irlmp_unregister_service(skey);
+err_skey:
+	irlmp_unregister_client(ckey);
+err_ckey:
+#ifdef CONFIG_PROC_FS
+	remove_proc_entry("irlan", proc_irda);
+#endif /* CONFIG_PROC_FS */
+
+	return -ENOMEM;
 }
 
 static void __exit irlan_cleanup(void) 
