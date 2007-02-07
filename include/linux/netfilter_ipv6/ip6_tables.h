@@ -104,6 +104,25 @@ struct ip6t_entry
 	unsigned char elems[0];
 };
 
+/* Standard entry */
+struct ip6t_standard
+{
+	struct ip6t_entry entry;
+	struct ip6t_standard_target target;
+};
+
+struct ip6t_error_target
+{
+	struct ip6t_entry_target target;
+	char errorname[IP6T_FUNCTION_MAXNAMELEN];
+};
+
+struct ip6t_error
+{
+	struct ip6t_entry entry;
+	struct ip6t_error_target target;
+};
+
 /*
  * New IP firewall options for [gs]etsockopt at the RAW IP level.
  * Unlike BSD Linux inherits IP options so you don't have to use
