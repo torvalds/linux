@@ -61,10 +61,6 @@ unsigned long memory_limit;
 extern void hash_preload(struct mm_struct *mm, unsigned long ea,
 			 unsigned long access, unsigned long trap);
 
-/*
- * This is called by /dev/mem to know if a given address has to
- * be mapped non-cacheable or not
- */
 int page_is_ram(unsigned long pfn)
 {
 	unsigned long paddr = (pfn << PAGE_SHIFT);
