@@ -245,9 +245,9 @@ static void clear_subscriber_list(struct snd_seq_client *client,
 				list_del(&subs->dest_list);
 			else
 				list_del(&subs->src_list);
+			up_write(&agrp->list_mutex);
 			unsubscribe_port(c, aport, agrp, &subs->info, 1);
 			kfree(subs);
-			up_write(&agrp->list_mutex);
 			snd_seq_port_unlock(aport);
 			snd_seq_client_unlock(c);
 		}
