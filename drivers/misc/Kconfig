@@ -98,7 +98,8 @@ config SONY_LAPTOP
 
 	  It gives access to some extra laptop functionalities. In
 	  its current form, the only thing this driver does is letting
-	  the user set or query the screen brightness.
+	  the user set or query the screen brightness and remove/apply
+	  power to some devices.
 
 	  Read <file:Documentation/acpi/sony_acpi.txt> for more information.
 
