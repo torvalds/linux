@@ -907,7 +907,7 @@ static struct pci_driver driver = {
 	.probe		= alim15x3_init_one,
 };
 
-static int ali15x3_ide_init(void)
+static int __init ali15x3_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

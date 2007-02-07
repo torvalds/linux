@@ -242,7 +242,8 @@ repeat:
 			goal = tmp + uspi->s_fpb;
 		tmp = ufs_new_fragments (inode, p, fragment - blockoff, 
 					 goal, required + blockoff,
-					 err, locked_page);
+					 err,
+					 phys != NULL ? locked_page : NULL);
 	}
 	/*
 	 * We will extend last allocated block
@@ -250,7 +251,7 @@ repeat:
 	else if (lastblock == block) {
 		tmp = ufs_new_fragments(inode, p, fragment - (blockoff - lastblockoff),
 					fs32_to_cpu(sb, *p), required +  (blockoff - lastblockoff),
-					err, locked_page);
+					err, phys != NULL ? locked_page : NULL);
 	} else /* (lastblock > block) */ {
 	/*
 	 * We will allocate new block before last allocated block
@@ -261,7 +262,8 @@ repeat:
 				goal = tmp + uspi->s_fpb;
 		}
 		tmp = ufs_new_fragments(inode, p, fragment - blockoff,
-					goal, uspi->s_fpb, err, locked_page);
+					goal, uspi->s_fpb, err,
+					phys != NULL ? locked_page : NULL);
 	}
 	if (!tmp) {
 		if ((!blockoff && *p) || 
@@ -438,9 +440,11 @@ int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head
 	 * it much more readable:
 	 */
 #define GET_INODE_DATABLOCK(x) \
-	ufs_inode_getfrag(inode, x, fragment, 1, &err, &phys, &new, bh_result->b_page)
+	ufs_inode_getfrag(inode, x, fragment, 1, &err, &phys, &new,\
+			  bh_result->b_page)
 #define GET_INODE_PTR(x) \
-	ufs_inode_getfrag(inode, x, fragment, uspi->s_fpb, &err, NULL, NULL, NULL)
+	ufs_inode_getfrag(inode, x, fragment, uspi->s_fpb, &err, NULL, NULL,\
+			  bh_result->b_page)
 #define GET_INDIRECT_DATABLOCK(x) \
 	ufs_inode_getblock(inode, bh, x, fragment,	\
 			  &err, &phys, &new, bh_result->b_page)

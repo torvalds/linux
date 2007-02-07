@@ -15,6 +15,27 @@
 
 #include <asm/hazards.h>
 
+/*
+ * CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY does prompt replay of deferred IPIs,
+ * at the cost of branch and call overhead on each local_irq_restore()
+ */
+
+#ifdef CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY
+
+extern void smtc_ipi_replay(void);
+
+#define irq_restore_epilog(flags)				\
+do {								\
+	if (!(flags & 0x0400))					\
+		smtc_ipi_replay();				\
+} while (0)
+
+#else
+
+#define irq_restore_epilog(ignore) do { } while (0)
+
+#endif /* CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY */
+
 __asm__ (
 	"	.macro	raw_local_irq_enable				\n"
 	"	.set	push						\n"
@@ -193,6 +214,7 @@ do {									\
 		: "=r" (__tmp1)						\
 		: "0" (flags)						\
 		: "memory");						\
+	irq_restore_epilog(flags);					\
 } while(0)
 
 static inline int raw_irqs_disabled_flags(unsigned long flags)

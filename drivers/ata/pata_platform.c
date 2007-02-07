@@ -30,7 +30,7 @@ static int pio_mask = 1;
  * Provide our own set_mode() as we don't want to change anything that has
  * already been configured..
  */
-static void pata_platform_set_mode(struct ata_port *ap)
+static int pata_platform_set_mode(struct ata_port *ap, struct ata_device **unused)
 {
 	int i;
 
@@ -44,6 +44,7 @@ static void pata_platform_set_mode(struct ata_port *ap)
 			dev->flags |= ATA_DFLAG_PIO;
 		}
 	}
+	return 0;
 }
 
 static void pata_platform_host_stop(struct ata_host *host)

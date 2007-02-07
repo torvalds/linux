@@ -519,7 +519,7 @@ static struct pci_driver driver = {
 	.probe		= cy82c693_init_one,
 };
 
-static int cy82c693_ide_init(void)
+static int __init cy82c693_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

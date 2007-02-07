@@ -60,7 +60,7 @@
 #define LINK_HZ			(HZ/2)
 
 MODULE_DESCRIPTION("SysKonnect Gigabit Ethernet driver");
-MODULE_AUTHOR("Stephen Hemminger <shemminger@osdl.org>");
+MODULE_AUTHOR("Stephen Hemminger <shemminger@linux-foundation.org>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 

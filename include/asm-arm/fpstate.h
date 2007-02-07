@@ -35,6 +35,9 @@ struct vfp_hard_struct {
 	 */
 	__u32 fpinst;
 	__u32 fpinst2;
+#ifdef CONFIG_SMP
+	__u32 cpu;
+#endif
 };
 
 union vfp_state {

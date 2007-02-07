@@ -72,9 +72,9 @@ static void pptp_nat_expected(struct nf_conn *ct,
 		DEBUGP("we are PAC->PNS\n");
 		/* build tuple for PNS->PAC */
 		t.src.l3num = AF_INET;
-		t.src.u3.ip = master->tuplehash[exp->dir].tuple.src.u3.ip;
+		t.src.u3.ip = master->tuplehash[!exp->dir].tuple.src.u3.ip;
 		t.src.u.gre.key = nat_pptp_info->pns_call_id;
-		t.dst.u3.ip = master->tuplehash[exp->dir].tuple.dst.u3.ip;
+		t.dst.u3.ip = master->tuplehash[!exp->dir].tuple.dst.u3.ip;
 		t.dst.u.gre.key = nat_pptp_info->pac_call_id;
 		t.dst.protonum = IPPROTO_GRE;
 	}

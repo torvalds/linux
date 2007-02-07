@@ -122,6 +122,9 @@ static void migrate_irqs(void)
 	for (irq=0; irq < NR_IRQS; irq++) {
 		desc = irq_desc + irq;
 
+		if (desc->status == IRQ_DISABLED)
+			continue;
+
 		/*
 		 * No handling for now.
 		 * TBD: Implement a disable function so we can now

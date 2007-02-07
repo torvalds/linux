@@ -41,7 +41,7 @@ static inline void setup_timer(struct timer_list * timer,
 	init_timer(timer);
 }
 
-/***
+/**
  * timer_pending - is a timer pending?
  * @timer: the timer in question
  *
@@ -63,7 +63,7 @@ extern int mod_timer(struct timer_list *timer, unsigned long expires);
 
 extern unsigned long next_timer_interrupt(void);
 
-/***
+/**
  * add_timer - start a timer
  * @timer: the timer to be added
  *

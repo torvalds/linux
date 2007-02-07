@@ -968,7 +968,7 @@ static struct pci_driver driver = {
 	.probe		= sis5513_init_one,
 };
 
-static int sis5513_ide_init(void)
+static int __init sis5513_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

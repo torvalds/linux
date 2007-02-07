@@ -492,7 +492,7 @@ static struct pci_driver driver = {
 	.probe		= sl82c105_init_one,
 };
 
-static int sl82c105_ide_init(void)
+static int __init sl82c105_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

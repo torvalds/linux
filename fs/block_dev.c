@@ -129,6 +129,46 @@ blkdev_get_block(struct inode *inode, sector_t iblock,
 	return 0;
 }
 
+static int
+blkdev_get_blocks(struct inode *inode, sector_t iblock,
+		struct buffer_head *bh, int create)
+{
+	sector_t end_block = max_block(I_BDEV(inode));
+	unsigned long max_blocks = bh->b_size >> inode->i_blkbits;
+
+	if ((iblock + max_blocks) > end_block) {
+		max_blocks = end_block - iblock;
+		if ((long)max_blocks <= 0) {
+			if (create)
+				return -EIO;	/* write fully beyond EOF */
+			/*
+			 * It is a read which is fully beyond EOF.  We return
+			 * a !buffer_mapped buffer
+			 */
+			max_blocks = 0;
+		}
+	}
+
+	bh->b_bdev = I_BDEV(inode);
+	bh->b_blocknr = iblock;
+	bh->b_size = max_blocks << inode->i_blkbits;
+	if (max_blocks)
+		set_buffer_mapped(bh);
+	return 0;
+}
+
+static ssize_t
+blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
+			loff_t offset, unsigned long nr_segs)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+
+	return blockdev_direct_IO_no_locking(rw, iocb, inode, I_BDEV(inode),
+				iov, offset, nr_segs, blkdev_get_blocks, NULL);
+}
+
+#if 0
 static int blk_end_aio(struct bio *bio, unsigned int bytes_done, int error)
 {
 	struct kiocb *iocb = bio->bi_private;
@@ -146,7 +186,7 @@ static int blk_end_aio(struct bio *bio, unsigned int bytes_done, int error)
 		iocb->ki_nbytes = -EIO;
 
 	if (atomic_dec_and_test(bio_count)) {
-		if (iocb->ki_nbytes < 0)
+		if ((long)iocb->ki_nbytes < 0)
 			aio_complete(iocb, iocb->ki_nbytes, 0);
 		else
 			aio_complete(iocb, iocb->ki_left, 0);
@@ -188,6 +228,12 @@ static struct page *blk_get_page(unsigned long addr, size_t count, int rw,
 		pvec->idx = 0;
 	}
 	return pvec->page[pvec->idx++];
+}
+
+/* return a page back to pvec array */
+static void blk_unget_page(struct page *page, struct pvec *pvec)
+{
+	pvec->page[--pvec->idx] = page;
 }
 
 static ssize_t
@@ -278,6 +324,8 @@ same_bio:
 				count = min(count, nbytes);
 				goto same_bio;
 			}
+		} else {
+			blk_unget_page(page, &pvec);
 		}
 
 		/* bio is ready, submit it */
@@ -315,6 +363,7 @@ backout:
 		return PTR_ERR(page);
 	goto completion;
 }
+#endif
 
 static int blkdev_writepage(struct page *page, struct writeback_control *wbc)
 {

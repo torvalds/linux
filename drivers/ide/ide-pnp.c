@@ -73,3 +73,8 @@ void __init pnpide_init(void)
 {
 	pnp_register_driver(&idepnp_driver);
 }
+
+void __exit pnpide_exit(void)
+{
+	pnp_unregister_driver(&idepnp_driver);
+}

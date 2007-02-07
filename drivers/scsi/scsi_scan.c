@@ -1453,6 +1453,12 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	struct device *parent = &shost->shost_gendev;
 	struct scsi_target *starget;
 
+	if (strncmp(scsi_scan_type, "none", 4) == 0)
+		return ERR_PTR(-ENODEV);
+
+	if (!shost->async_scan)
+		scsi_complete_async_scans();
+
 	starget = scsi_alloc_target(parent, channel, id);
 	if (!starget)
 		return ERR_PTR(-ENOMEM);

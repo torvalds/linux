@@ -1,7 +1,7 @@
 /*
  *  Interrupt handing routines for NEC VR4100 series.
  *
- *  Copyright (C) 2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2005-2007  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -73,13 +73,19 @@ static void irq_dispatch(unsigned int irq)
 	if (cascade->get_irq != NULL) {
 		unsigned int source_irq = irq;
 		desc = irq_desc + source_irq;
-		desc->chip->ack(source_irq);
+		if (desc->chip->mask_ack)
+			desc->chip->mask_ack(source_irq);
+		else {
+			desc->chip->mask(source_irq);
+			desc->chip->ack(source_irq);
+		}
 		irq = cascade->get_irq(irq);
 		if (irq < 0)
 			atomic_inc(&irq_err_count);
 		else
 			irq_dispatch(irq);
-		desc->chip->end(source_irq);
+		if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
+			desc->chip->unmask(source_irq);
 	} else
 		do_IRQ(irq);
 }

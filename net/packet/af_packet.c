@@ -359,6 +359,10 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	if (dev == NULL)
 		goto out_unlock;
 	
+	err = -ENETDOWN;
+	if (!(dev->flags & IFF_UP))
+		goto out_unlock;
+
 	/*
 	 *	You may not queue a frame bigger than the mtu. This is the lowest level
 	 *	raw protocol and you must do your own fragmentation at this level.
@@ -407,10 +411,6 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	if (err)
 		goto out_free;
 
-	err = -ENETDOWN;
-	if (!(dev->flags & IFF_UP))
-		goto out_free;
-
 	/*
 	 *	Now send it
 	 */
@@ -428,24 +428,18 @@ out_unlock:
 }
 #endif
 
-static inline int run_filter(struct sk_buff *skb, struct sock *sk,
-							unsigned *snaplen)
+static inline unsigned int run_filter(struct sk_buff *skb, struct sock *sk,
+				      unsigned int res)
 {
 	struct sk_filter *filter;
-	int err = 0;
 
 	rcu_read_lock_bh();
 	filter = rcu_dereference(sk->sk_filter);
-	if (filter != NULL) {
-		err = sk_run_filter(skb, filter->insns, filter->len);
-		if (!err)
-			err = -EPERM;
-		else if (*snaplen > err)
-			*snaplen = err;
-	}
+	if (filter != NULL)
+		res = sk_run_filter(skb, filter->insns, filter->len);
 	rcu_read_unlock_bh();
 
-	return err;
+	return res;
 }
 
 /*
@@ -467,7 +461,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 	struct packet_sock *po;
 	u8 * skb_head = skb->data;
 	int skb_len = skb->len;
-	unsigned snaplen;
+	unsigned int snaplen, res;
 
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		goto drop;
@@ -495,8 +489,11 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 
 	snaplen = skb->len;
 
-	if (run_filter(skb, sk, &snaplen) < 0)
+	res = run_filter(skb, sk, snaplen);
+	if (!res)
 		goto drop_n_restore;
+	if (snaplen > res)
+		snaplen = res;
 
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
 	    (unsigned)sk->sk_rcvbuf)
@@ -568,7 +565,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	struct tpacket_hdr *h;
 	u8 * skb_head = skb->data;
 	int skb_len = skb->len;
-	unsigned snaplen;
+	unsigned int snaplen, res;
 	unsigned long status = TP_STATUS_LOSING|TP_STATUS_USER;
 	unsigned short macoff, netoff;
 	struct sk_buff *copy_skb = NULL;
@@ -592,8 +589,11 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 
 	snaplen = skb->len;
 
-	if (run_filter(skb, sk, &snaplen) < 0)
+	res = run_filter(skb, sk, snaplen);
+	if (!res)
 		goto drop_n_restore;
+	if (snaplen > res)
+		snaplen = res;
 
 	if (sk->sk_type == SOCK_DGRAM) {
 		macoff = netoff = TPACKET_ALIGN(TPACKET_HDRLEN) + 16;
@@ -738,6 +738,10 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (sock->type == SOCK_RAW)
 		reserve = dev->hard_header_len;
 
+	err = -ENETDOWN;
+	if (!(dev->flags & IFF_UP))
+		goto out_unlock;
+
 	err = -EMSGSIZE;
 	if (len > dev->mtu+reserve)
 		goto out_unlock;
@@ -769,10 +773,6 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb->protocol = proto;
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
-
-	err = -ENETDOWN;
-	if (!(dev->flags & IFF_UP))
-		goto out_free;
 
 	/*
 	 *	Now send it

@@ -989,8 +989,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 		      int classzone_idx, int alloc_flags)
 {
 	/* free_pages my go negative - that's OK */
-	unsigned long min = mark;
-	long free_pages = z->free_pages - (1 << order) + 1;
+	long min = mark, free_pages = z->free_pages - (1 << order) + 1;
 	int o;
 
 	if (alloc_flags & ALLOC_HIGH)

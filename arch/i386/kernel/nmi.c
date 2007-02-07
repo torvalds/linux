@@ -310,13 +310,7 @@ static int __init setup_nmi_watchdog(char *str)
 
 	if ((nmi >= NMI_INVALID) || (nmi < NMI_NONE))
 		return 0;
-	/*
-	 * If any other x86 CPU has a local APIC, then
-	 * please test the NMI stuff there and send me the
-	 * missing bits. Right now Intel P6/P4 and AMD K7 only.
-	 */
-	if ((nmi == NMI_LOCAL_APIC) && (nmi_known_cpu() == 0))
-		return 0;  /* no lapic support */
+
 	nmi_watchdog = nmi;
 	return 1;
 }

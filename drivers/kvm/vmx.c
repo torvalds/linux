@@ -1116,6 +1116,8 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 
 		if (rdmsr_safe(index, &data_low, &data_high) < 0)
 			continue;
+		if (wrmsr_safe(index, data_low, data_high) < 0)
+			continue;
 		data = data_low | ((u64)data_high << 32);
 		vcpu->host_msrs[j].index = index;
 		vcpu->host_msrs[j].reserved = 0;
@@ -1717,7 +1719,8 @@ again:
 	vmcs_writel(HOST_GS_BASE, segment_base(gs_sel));
 #endif
 
-	do_interrupt_requests(vcpu, kvm_run);
+	if (!vcpu->mmio_read_completed)
+		do_interrupt_requests(vcpu, kvm_run);
 
 	if (vcpu->guest_debug.enabled)
 		kvm_guest_debug_pre(vcpu);
