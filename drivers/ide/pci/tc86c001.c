@@ -204,7 +204,7 @@ fast_ata_pio:
 	return 0;
 }
 
-void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
+static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 {
 	unsigned long sc_base	= pci_resource_start(hwif->pci_dev, 5);
 	u16 scr1		= hwif->INW(sc_base + 0x00);;
