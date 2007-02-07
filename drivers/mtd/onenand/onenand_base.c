@@ -1051,40 +1051,37 @@ static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
         }
 
 	column = to & (mtd->writesize - 1);
-	subpage = column || (len & (mtd->writesize - 1));
 
 	/* Grab the lock and see if the device is available */
 	onenand_get_device(mtd, FL_WRITING);
 
 	/* Loop until all data write */
 	while (written < len) {
-		int bytes = mtd->writesize;
-		int thislen = min_t(int, bytes, len - written);
+		int thislen = min_t(int, mtd->writesize - column, len - written);
 		u_char *wbuf = (u_char *) buf;
 
 		cond_resched();
 
-		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, bytes);
+		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, thislen);
 
 		/* Partial page write */
+		subpage = thislen < mtd->writesize;
 		if (subpage) {
-			bytes = min_t(int, bytes - column, (int) len);
 			memset(this->page_buf, 0xff, mtd->writesize);
-			memcpy(this->page_buf + column, buf, bytes);
+			memcpy(this->page_buf + column, buf, thislen);
 			wbuf = this->page_buf;
-			/* Even though partial write, we need page size */
-			thislen = mtd->writesize;
 		}
 
-		this->write_bufferram(mtd, ONENAND_DATARAM, wbuf, 0, thislen);
+		this->write_bufferram(mtd, ONENAND_DATARAM, wbuf, 0, mtd->writesize);
 		this->write_bufferram(mtd, ONENAND_SPARERAM, ffchars, 0, mtd->oobsize);
 
 		this->command(mtd, ONENAND_CMD_PROG, to, mtd->writesize);
 
-		/* In partial page write we don't update bufferram */
-		onenand_update_bufferram(mtd, to, !subpage);
-
 		ret = this->wait(mtd, FL_WRITING);
+
+		/* In partial page write we don't update bufferram */
+		onenand_update_bufferram(mtd, to, !ret && !subpage);
+
 		if (ret) {
 			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write: write filaed %d\n", ret);
 			break;
@@ -1098,6 +1095,7 @@ static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
 		}
 
 		written += thislen;
+
 		if (written == len)
 			break;
 
