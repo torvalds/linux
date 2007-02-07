@@ -739,20 +739,7 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	extern int do_mathemu(struct pt_regs *regs);
 
 	/* We can now get here via a FP Unavailable exception if the core
-	 * has no FPU, in that case no reason flags will be set */
-#ifdef CONFIG_MATH_EMULATION
-	/* (reason & REASON_ILLEGAL) would be the obvious thing here,
-	 * but there seems to be a hardware bug on the 405GP (RevD)
-	 * that means ESR is sometimes set incorrectly - either to
-	 * ESR_DST (!?) or 0.  In the process of chasing this with the
-	 * hardware people - not sure if it can happen on any illegal
-	 * instruction or only on FP instructions, whether there is a
-	 * pattern to occurences etc. -dgibson 31/Mar/2003 */
-	if (!(reason & REASON_TRAP) && do_mathemu(regs) == 0) {
-		emulate_single_step(regs);
-		return;
-	}
-#endif /* CONFIG_MATH_EMULATION */
+	 * has no FPU, in that case the reason flags will be 0 */
 
 	if (reason & REASON_FP) {
 		/* IEEE FP exception */
@@ -777,6 +764,20 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	}
 
 	local_irq_enable();
+
+#ifdef CONFIG_MATH_EMULATION
+	/* (reason & REASON_ILLEGAL) would be the obvious thing here,
+	 * but there seems to be a hardware bug on the 405GP (RevD)
+	 * that means ESR is sometimes set incorrectly - either to
+	 * ESR_DST (!?) or 0.  In the process of chasing this with the
+	 * hardware people - not sure if it can happen on any illegal
+	 * instruction or only on FP instructions, whether there is a
+	 * pattern to occurences etc. -dgibson 31/Mar/2003 */
+	if (do_mathemu(regs) == 0) {
+		emulate_single_step(regs);
+		return;
+	}
+#endif /* CONFIG_MATH_EMULATION */
 
 	/* Try to emulate it if we should. */
 	if (reason & (REASON_ILLEGAL | REASON_PRIVILEGED)) {
