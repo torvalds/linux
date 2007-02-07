@@ -57,7 +57,7 @@ endef
 # See documentation in Documentation/kbuild/makefiles.txt
 
 # checker-shell
-# Usage: option = $(call checker-shell, $(CC)...-o $$OUT, option-ok, otherwise)
+# Usage: option = $(call checker-shell,$(CC)...-o $$OUT,option-ok,otherwise)
 # Exit code chooses option. $$OUT is safe location for needless output.
 define checker-shell
   $(shell set -e; \
@@ -74,23 +74,23 @@ define checker-shell
 endef
 
 # as-option
-# Usage: cflags-y += $(call as-option, -Wa$(comma)-isa=foo,)
-as-option = $(call checker-shell, \
-   $(CC) $(CFLAGS) $(1) -c -xassembler /dev/null -o $$OUT, $(1), $(2))
+# Usage: cflags-y += $(call as-option,-Wa$(comma)-isa=foo,)
+as-option = $(call checker-shell,\
+   $(CC) $(CFLAGS) $(1) -c -xassembler /dev/null -o $$OUT,$(1),$(2))
 
 # as-instr
-# Usage: cflags-y += $(call as-instr, instr, option1, option2)
-as-instr = $(call checker-shell, \
-   printf "$(1)" | $(CC) $(AFLAGS) -c -xassembler -o $$OUT -, $(2), $(3))
+# Usage: cflags-y += $(call as-instr,instr,option1,option2)
+as-instr = $(call checker-shell,\
+   printf "$(1)" | $(CC) $(AFLAGS) -c -xassembler -o $$OUT -,$(2),$(3))
 
 # cc-option
-# Usage: cflags-y += $(call cc-option, -march=winchip-c6, -march=i586)
-cc-option = $(call checker-shell, \
-   $(CC) $(CFLAGS) $(if $(3),$(3),$(1)) -S -xc /dev/null -o $$OUT, $(1), $(2))
+# Usage: cflags-y += $(call cc-option,-march=winchip-c6,-march=i586)
+cc-option = $(call checker-shell,\
+   $(CC) $(CFLAGS) $(if $(3),$(3),$(1)) -S -xc /dev/null -o $$OUT,$(1),$(2))
 
 # cc-option-yn
-# Usage: flag := $(call cc-option-yn, -march=winchip-c6)
-cc-option-yn = $(call cc-option, "y", "n", $(1))
+# Usage: flag := $(call cc-option-yn,-march=winchip-c6)
+cc-option-yn = $(call cc-option,"y","n",$(1))
 
 # cc-option-align
 # Prefix align with either -falign or -malign
@@ -98,7 +98,7 @@ cc-option-align = $(subst -functions=0,,\
    $(call cc-option,-falign-functions=0,-malign-functions=0))
 
 # cc-version
-# Usage gcc-ver := $(call cc-version, $(CC))
+# Usage gcc-ver := $(call cc-version,$(CC))
 cc-version = $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh $(CC))
 
 # cc-ifversion
@@ -107,8 +107,8 @@ cc-ifversion = $(shell [ $(call cc-version, $(CC)) $(1) $(2) ] && echo $(3))
 
 # ld-option
 # Usage: ldflags += $(call ld-option, -Wl$(comma)--hash-style=both)
-ld-option = $(call checker-shell, \
-   $(CC) $(1) -nostdlib -xc /dev/null -o $$OUT, $(1), $(2))
+ld-option = $(call checker-shell,\
+   $(CC) $(1) -nostdlib -xc /dev/null -o $$OUT,$(1),$(2))
 
 ######
 
@@ -120,22 +120,22 @@ build := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj
 # Prefix -I with $(srctree) if it is not an absolute path,
 # add original to the end
 addtree = $(if \
-	$(filter-out -I/%, $(1)), $(patsubst -I%,-I$(srctree)/%,$(1))) $(1)
+	$(filter-out -I/%,$(1)),$(patsubst -I%,-I$(srctree)/%,$(1))) $(1)
 
 # Find all -I options and call addtree
-flags = $(foreach o,$($(1)), \
-	$(if $(filter -I%,$(o)), $(call addtree, $(o)), $(o)))
+flags = $(foreach o,$($(1)),\
+	$(if $(filter -I%,$(o)),$(call addtree,$(o)),$(o)))
 
 # echo command.
 # Short version is used, if $(quiet) equals `quiet_', otherwise full one.
-echo-cmd = $(if $($(quiet)cmd_$(1)), \
+echo-cmd = $(if $($(quiet)cmd_$(1)),\
 	echo '  $(call escsq,$($(quiet)cmd_$(1)))$(echo-why)';)
 
 # printing commands
 cmd = @$(echo-cmd) $(cmd_$(1))
 
 # Add $(obj)/ for paths that are not absolute
-objectify = $(foreach o,$(1), $(if $(filter /%,$(o)), $(o), $(obj)/$(o)))
+objectify = $(foreach o,$(1),$(if $(filter /%,$(o)),$(o),$(obj)/$(o)))
 
 ###
 # if_changed      - execute command if any prerequisite is newer than
