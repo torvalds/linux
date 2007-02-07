@@ -379,15 +379,20 @@ static __devinit u8 hpt_revision(struct pci_dev *dev)
 	switch(dev->device) {
 		/* Remap new 372N onto 372 */
 		case PCI_DEVICE_ID_TTI_HPT372N:
-			rev = PCI_DEVICE_ID_TTI_HPT372; break;
+			rev = PCI_DEVICE_ID_TTI_HPT372;
+			break;
 		case PCI_DEVICE_ID_TTI_HPT374:
-			rev = PCI_DEVICE_ID_TTI_HPT374; break;
+			rev = PCI_DEVICE_ID_TTI_HPT374;
+			break;
 		case PCI_DEVICE_ID_TTI_HPT371:
-			rev = PCI_DEVICE_ID_TTI_HPT371; break;
+			rev = PCI_DEVICE_ID_TTI_HPT371;
+			break;
 		case PCI_DEVICE_ID_TTI_HPT302:
-			rev = PCI_DEVICE_ID_TTI_HPT302; break;
+			rev = PCI_DEVICE_ID_TTI_HPT302;
+			break;
 		case PCI_DEVICE_ID_TTI_HPT372:
-			rev = PCI_DEVICE_ID_TTI_HPT372; break;
+			rev = PCI_DEVICE_ID_TTI_HPT372;
+			break;
 		default:
 			break;
 	}
@@ -439,7 +444,7 @@ static u8 hpt3xx_ratefilter(ide_drive_t *drive, u8 speed)
 				goto check_bad_ata33;
 			/* fall thru */
 		case 0x02:
-			speed = min(speed, (u8)XFER_UDMA_4);
+			speed = min_t(u8, speed, XFER_UDMA_4);
 	/*
 	 * CHECK ME, Does this need to be set to 5 ??
 	 */
@@ -449,13 +454,13 @@ static u8 hpt3xx_ratefilter(ide_drive_t *drive, u8 speed)
 			    !check_in_drive_list(drive, bad_ata66_4))
 				goto check_bad_ata33;
 
-			speed = min(speed, (u8)XFER_UDMA_3);
+			speed = min_t(u8, speed, XFER_UDMA_3);
 			if (HPT366_ALLOW_ATA66_3 &&
 			    !check_in_drive_list(drive, bad_ata66_3))
 				goto check_bad_ata33;
 			/* fall thru */
 		case 0x01:
-			speed = min(speed, (u8)XFER_UDMA_2);
+			speed = min_t(u8, speed, XFER_UDMA_2);
 
 		check_bad_ata33:
  			if (info->revision >= 4)
@@ -465,7 +470,7 @@ static u8 hpt3xx_ratefilter(ide_drive_t *drive, u8 speed)
 			/* fall thru */
 		case 0x00:
 		default:
-			speed = min(speed, (u8)XFER_MW_DMA_2);
+			speed = min_t(u8, speed, XFER_MW_DMA_2);
 			break;
 	}
 	return speed;
