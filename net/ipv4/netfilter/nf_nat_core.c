@@ -254,8 +254,9 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	if (maniptype == IP_NAT_MANIP_SRC) {
 		if (find_appropriate_src(orig_tuple, tuple, range)) {
 			DEBUGP("get_unique_tuple: Found current src map\n");
-			if (!nf_nat_used_tuple(tuple, ct))
-				return;
+			if (!(range->flags & IP_NAT_RANGE_PROTO_RANDOM))
+				if (!nf_nat_used_tuple(tuple, ct))
+					return;
 		}
 	}
 
@@ -268,6 +269,13 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	   the range to make a unique tuple. */
 
 	proto = nf_nat_proto_find_get(orig_tuple->dst.protonum);
+
+	/* Change protocol info to have some randomization */
+	if (range->flags & IP_NAT_RANGE_PROTO_RANDOM) {
+		proto->unique_tuple(tuple, range, maniptype, ct);
+		nf_nat_proto_put(proto);
+		return;
+	}
 
 	/* Only bother mapping if it's not already in range and unique */
 	if ((!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED) ||
