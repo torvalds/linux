@@ -564,6 +564,13 @@ static void pdc_thaw(struct ata_port *ap)
 	readl(mmio + PDC_CTLSTAT); /* flush */
 }
 
+static int pdc_pre_reset(struct ata_port *ap)
+{
+	if (!sata_scr_valid(ap))
+		pdc_pata_cbl_detect(ap);
+	return ata_std_prereset(ap);
+}
+
 static void pdc_error_handler(struct ata_port *ap)
 {
 	ata_reset_fn_t hardreset;
@@ -576,7 +583,7 @@ static void pdc_error_handler(struct ata_port *ap)
 		hardreset = sata_std_hardreset;
 
 	/* perform recovery */
-	ata_do_eh(ap, ata_std_prereset, ata_std_softreset, hardreset,
+	ata_do_eh(ap, pdc_pre_reset, ata_std_softreset, hardreset,
 		  ata_std_postreset);
 }
 
