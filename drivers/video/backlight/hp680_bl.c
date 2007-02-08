@@ -28,7 +28,6 @@
 static int hp680bl_suspended;
 static int current_intensity = 0;
 static DEFINE_SPINLOCK(bl_lock);
-static struct backlight_device *hp680_backlight_device;
 
 static void hp680bl_send_intensity(struct backlight_device *bd)
 {
@@ -66,17 +65,21 @@ static void hp680bl_send_intensity(struct backlight_device *bd)
 
 
 #ifdef CONFIG_PM
-static int hp680bl_suspend(struct platform_device *dev, pm_message_t state)
+static int hp680bl_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct backlight_device *bd = platform_get_drvdata(pdev);
+
 	hp680bl_suspended = 1;
-	hp680bl_send_intensity(hp680_backlight_device);
+	hp680bl_send_intensity(bd);
 	return 0;
 }
 
-static int hp680bl_resume(struct platform_device *dev)
+static int hp680bl_resume(struct platform_device *pdev)
 {
+	struct backlight_device *bd = platform_get_drvdata(pdev);
+
 	hp680bl_suspended = 0;
-	hp680bl_send_intensity(hp680_backlight_device);
+	hp680bl_send_intensity(bd);
 	return 0;
 }
 #else
@@ -101,26 +104,32 @@ static struct backlight_properties hp680bl_data = {
 	.update_status  = hp680bl_set_intensity,
 };
 
-static int __init hp680bl_probe(struct platform_device *dev)
+static int __init hp680bl_probe(struct platform_device *pdev)
 {
-	hp680_backlight_device = backlight_device_register ("hp680-bl",
-		&dev->dev, NULL, &hp680bl_data);
-	if (IS_ERR (hp680_backlight_device))
-		return PTR_ERR (hp680_backlight_device);
+	struct backlight_device *bd;
 
-	hp680_backlight_device->props->brightness = HP680_DEFAULT_INTENSITY;
-	hp680bl_send_intensity(hp680_backlight_device);
+	bd = backlight_device_register ("hp680-bl", &pdev->dev, NULL,
+		    &hp680bl_data);
+	if (IS_ERR(bd))
+		return PTR_ERR(bd);
+
+	platform_set_drvdata(pdev, bd);
+
+	bd->props->brightness = HP680_DEFAULT_INTENSITY;
+	hp680bl_send_intensity(bd);
 
 	return 0;
 }
 
-static int hp680bl_remove(struct platform_device *dev)
+static int hp680bl_remove(struct platform_device *pdev)
 {
+	struct backlight_device *bd = platform_get_drvdata(pdev);
+
 	hp680bl_data.brightness = 0;
 	hp680bl_data.power = 0;
-	hp680bl_send_intensity(hp680_backlight_device);
+	hp680bl_send_intensity(bd);
 
-	backlight_device_unregister(hp680_backlight_device);
+	backlight_device_unregister(bd);
 
 	return 0;
 }
