@@ -60,17 +60,16 @@ endef
 # Usage: option = $(call checker-shell,$(CC)...-o $$OUT,option-ok,otherwise)
 # Exit code chooses option. $$OUT is safe location for needless output.
 define checker-shell
+ $(strip
   $(shell set -e; \
     DIR=$(KBUILD_EXTMOD); \
     cd $${DIR:-$(objtree)}; \
     OUT=$$PWD/.$$$$.null; \
-    \
-    ln -s /dev/null $$OUT; \
     if $(1) >/dev/null 2>&1; \
       then echo "$(2)"; \
       else echo "$(3)"; \
     fi; \
-    rm -f $$OUT)
+    rm -f $$OUT))
 endef
 
 # as-option
