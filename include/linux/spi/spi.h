@@ -170,7 +170,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * message's completion function when the transaction completes.
  */
 struct spi_master {
-	struct device		dev;
+	struct class_device	cdev;
 
 	/* other than negative (== assign one dynamically), bus_num is fully
 	 * board-specific.  usually that simplifies to being SOC-specific.
@@ -216,17 +216,17 @@ struct spi_master {
 
 static inline void *spi_master_get_devdata(struct spi_master *master)
 {
-	return dev_get_drvdata(&master->dev);
+	return class_get_devdata(&master->cdev);
 }
 
 static inline void spi_master_set_devdata(struct spi_master *master, void *data)
 {
-	dev_set_drvdata(&master->dev, data);
+	class_set_devdata(&master->cdev, data);
 }
 
 static inline struct spi_master *spi_master_get(struct spi_master *master)
 {
-	if (!master || !get_device(&master->dev))
+	if (!master || !class_device_get(&master->cdev))
 		return NULL;
 	return master;
 }
@@ -234,7 +234,7 @@ static inline struct spi_master *spi_master_get(struct spi_master *master)
 static inline void spi_master_put(struct spi_master *master)
 {
 	if (master)
-		put_device(&master->dev);
+		class_device_put(&master->cdev);
 }
 
 
