@@ -68,6 +68,7 @@ typedef	void fastcall (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_MOVE_PENDING	0x40000000	/* need to re-target IRQ destination */
 
 struct proc_dir_entry;
+struct msi_desc;
 
 /**
  * struct irq_chip - hardware interrupt chip descriptor
@@ -148,6 +149,7 @@ struct irq_chip {
 struct irq_desc {
 	irq_flow_handler_t	handle_irq;
 	struct irq_chip		*chip;
+	struct msi_desc		*msi_desc;
 	void			*handler_data;
 	void			*chip_data;
 	struct irqaction	*action;	/* IRQ action list */
@@ -373,10 +375,12 @@ extern int set_irq_chip(unsigned int irq, struct irq_chip *chip);
 extern int set_irq_data(unsigned int irq, void *data);
 extern int set_irq_chip_data(unsigned int irq, void *data);
 extern int set_irq_type(unsigned int irq, unsigned int type);
+extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
 
 #define get_irq_chip(irq)	(irq_desc[irq].chip)
 #define get_irq_chip_data(irq)	(irq_desc[irq].chip_data)
 #define get_irq_data(irq)	(irq_desc[irq].handler_data)
+#define get_irq_msi(irq)	(irq_desc[irq].msi_desc)
 
 #endif /* CONFIG_GENERIC_HARDIRQS */
 

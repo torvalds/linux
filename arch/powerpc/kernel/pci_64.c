@@ -381,8 +381,6 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 
 	pci_device_add(dev, bus);
 
-	/* XXX pci_scan_msi_device(dev); */
-
 	return dev;
 }
 EXPORT_SYMBOL(of_create_pci_dev);

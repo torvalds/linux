@@ -3584,7 +3584,7 @@ e1000_update_stats(struct e1000_adapter *adapter)
 	 */
 	if (adapter->link_speed == 0)
 		return;
-	if (pdev->error_state && pdev->error_state != pci_channel_io_normal)
+	if (pci_channel_offline(pdev))
 		return;
 
 	spin_lock_irqsave(&adapter->stats_lock, flags);

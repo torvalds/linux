@@ -575,3 +575,7 @@ void pci_iounmap(struct pci_dev *dev, void __iomem * addr)
 
 EXPORT_SYMBOL(pci_iomap);
 EXPORT_SYMBOL(pci_iounmap);
+
+/* FIXME: Some boxes have multiple ISA bridges! */
+struct pci_dev *isa_bridge;
+EXPORT_SYMBOL(isa_bridge);

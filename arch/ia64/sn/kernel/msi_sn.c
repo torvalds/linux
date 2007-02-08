@@ -59,13 +59,12 @@ void sn_teardown_msi_irq(unsigned int irq)
 	sn_intr_free(nasid, widget, sn_irq_info);
 	sn_msi_info[irq].sn_irq_info = NULL;
 
-	return;
+	destroy_irq(irq);
 }
 
-int sn_setup_msi_irq(unsigned int irq, struct pci_dev *pdev)
+int sn_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *entry)
 {
 	struct msi_msg msg;
-	struct msi_desc *entry;
 	int widget;
 	int status;
 	nasid_t nasid;
@@ -73,8 +72,8 @@ int sn_setup_msi_irq(unsigned int irq, struct pci_dev *pdev)
 	struct sn_irq_info *sn_irq_info;
 	struct pcibus_bussoft *bussoft = SN_PCIDEV_BUSSOFT(pdev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
+	int irq;
 
-	entry = get_irq_data(irq);
 	if (!entry->msi_attrib.is_64)
 		return -EINVAL;
 
@@ -84,6 +83,11 @@ int sn_setup_msi_irq(unsigned int irq, struct pci_dev *pdev)
 	if (provider == NULL || provider->dma_map_consistent == NULL)
 		return -EINVAL;
 
+	irq = create_irq();
+	if (irq < 0)
+		return irq;
+
+	set_irq_msi(irq, entry);
 	/*
 	 * Set up the vector plumbing.  Let the prom (via sn_intr_alloc)
 	 * decide which cpu to direct this msi at by default.
@@ -95,12 +99,15 @@ int sn_setup_msi_irq(unsigned int irq, struct pci_dev *pdev)
 			SWIN_WIDGETNUM(bussoft->bs_base);
 
 	sn_irq_info = kzalloc(sizeof(struct sn_irq_info), GFP_KERNEL);
-	if (! sn_irq_info)
+	if (! sn_irq_info) {
+		destroy_irq(irq);
 		return -ENOMEM;
+	}
 
 	status = sn_intr_alloc(nasid, widget, sn_irq_info, irq, -1, -1);
 	if (status) {
 		kfree(sn_irq_info);
+		destroy_irq(irq);
 		return -ENOMEM;
 	}
 
@@ -121,6 +128,7 @@ int sn_setup_msi_irq(unsigned int irq, struct pci_dev *pdev)
 	if (! bus_addr) {
 		sn_intr_free(nasid, widget, sn_irq_info);
 		kfree(sn_irq_info);
+		destroy_irq(irq);
 		return -ENOMEM;
 	}
 
@@ -139,7 +147,7 @@ int sn_setup_msi_irq(unsigned int irq, struct pci_dev *pdev)
 	write_msi_msg(irq, &msg);
 	set_irq_chip_and_handler(irq, &sn_msi_chip, handle_edge_irq);
 
-	return 0;
+	return irq;
 }
 
 #ifdef CONFIG_SMP
