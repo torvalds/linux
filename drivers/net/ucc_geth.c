@@ -4072,6 +4072,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	static int mii_mng_configured = 0;
 	const phandle *ph;
 	const unsigned int *prop;
+	const void *mac_addr;
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
 
@@ -4197,7 +4198,12 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 
 	ugeth->ug_info = ug_info;
 	ugeth->dev = dev;
-	memcpy(dev->dev_addr, get_property(np, "mac-address", NULL), 6);
+
+	mac_addr = get_property(np, "mac-address", NULL);
+	if (mac_addr == NULL)
+		mac_addr = get_property(np, "local-mac-address", NULL);
+	if (mac_addr)
+		memcpy(dev->dev_addr, mac_addr, 6);
 
 	return 0;
 }
