@@ -109,7 +109,7 @@ static void __init eb9200_board_init(void)
 	at91_add_device_spi(NULL, 0);
 	/* MMC */
 	/* only supports 1 or 4 bit interface, not wired through to SPI */
-	at91_add_device_mmc(&eb9200_mmc_data);
+	at91_add_device_mmc(0, &eb9200_mmc_data);
 }
 
 MACHINE_START(ATEB9200, "Embest ATEB9200")

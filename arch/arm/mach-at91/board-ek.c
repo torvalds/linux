@@ -154,7 +154,7 @@ static void __init ek_board_init(void)
 #else
 	/* MMC */
 	at91_set_gpio_output(AT91_PIN_PB22, 1);	/* this MMC card slot can optionally use SPI signaling (CS3). */
-	at91_add_device_mmc(&ek_mmc_data);
+	at91_add_device_mmc(0, &ek_mmc_data);
 #endif
 	/* NOR Flash */
 	platform_device_register(&ek_flash);

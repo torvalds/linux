@@ -194,7 +194,7 @@ static void __init dk_board_init(void)
 #else
 	/* MMC */
 	at91_set_gpio_output(AT91_PIN_PB7, 1);	/* this MMC card slot can optionally use SPI signaling (CS3). */
-	at91_add_device_mmc(&dk_mmc_data);
+	at91_add_device_mmc(0, &dk_mmc_data);
 #endif
 	/* NAND */
 	at91_add_device_nand(&dk_nand_data);

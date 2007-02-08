@@ -60,7 +60,7 @@ struct at91_mmc_data {
 	u8		wp_pin;		/* (SD) writeprotect detect */
 	u8		vcc_pin;	/* power switching (high == on) */
 };
-extern void __init at91_add_device_mmc(struct at91_mmc_data *data);
+extern void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data);
 
  /* Ethernet */
 struct at91_eth_data {
@@ -76,6 +76,7 @@ extern void __init at91_add_device_eth(struct at91_eth_data *data);
  /* USB Host */
 struct at91_usbh_data {
 	u8		ports;		/* number of ports on root hub */
+	u8		vbus_pin[];	/* port power-control pin */
 };
 extern void __init at91_add_device_usbh(struct at91_usbh_data *data);
 

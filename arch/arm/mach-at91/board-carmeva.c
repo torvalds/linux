@@ -134,7 +134,7 @@ static void __init carmeva_board_init(void)
 	/* Compact Flash */
 //	at91_add_device_cf(&carmeva_cf_data);
 	/* MMC */
-	at91_add_device_mmc(&carmeva_mmc_data);
+	at91_add_device_mmc(0, &carmeva_mmc_data);
 }
 
 MACHINE_START(CARMEVA, "Carmeva")

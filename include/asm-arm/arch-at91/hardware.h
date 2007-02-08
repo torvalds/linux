@@ -28,15 +28,15 @@
 
 
 /*
- * Remap the peripherals from address 0xFFFA0000 .. 0xFFFFFFFF
- * to 0xFEFA0000 .. 0xFF000000.  (384Kb)
+ * Remap the peripherals from address 0xFFF78000 .. 0xFFFFFFFF
+ * to 0xFEF78000 .. 0xFF000000.  (5444Kb)
  */
-#define AT91_IO_PHYS_BASE	0xFFFA0000
+#define AT91_IO_PHYS_BASE	0xFFF78000
 #define AT91_IO_SIZE		(0xFFFFFFFF - AT91_IO_PHYS_BASE + 1)
 #define AT91_IO_VIRT_BASE	(0xFF000000 - AT91_IO_SIZE)
 
  /* Convert a physical IO address to virtual IO address */
-#define AT91_IO_P2V(x)	((x) - AT91_IO_PHYS_BASE + AT91_IO_VIRT_BASE)
+#define AT91_IO_P2V(x)		((x) - AT91_IO_PHYS_BASE + AT91_IO_VIRT_BASE)
 
 /*
  * Virtual to Physical Address mapping for IO devices.

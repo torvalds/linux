@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-at91/board-ek.c
+ * linux/arch/arm/mach-at91/board-sam9261ek.c
  *
  *  Copyright (C) 2005 SAN People
  *  Copyright (C) 2006 Atmel
@@ -243,7 +243,7 @@ static void __init ek_board_init(void)
 	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
 #else
 	/* MMC */
-	at91_add_device_mmc(&ek_mmc_data);
+	at91_add_device_mmc(0, &ek_mmc_data);
 #endif
 }
 

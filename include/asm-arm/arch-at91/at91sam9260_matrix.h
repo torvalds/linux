@@ -18,7 +18,7 @@
 #define AT91_MATRIX_MCFG2	(AT91_MATRIX + 0x08)	/* Master Configuration Register 2 */
 #define AT91_MATRIX_MCFG3	(AT91_MATRIX + 0x0C)	/* Master Configuration Register 3 */
 #define AT91_MATRIX_MCFG4	(AT91_MATRIX + 0x10)	/* Master Configuration Register 4 */
-#define AT91_MATRIX_MCFG5	(AT91_MATRIX + 0x04)	/* Master Configuration Register 5 */
+#define AT91_MATRIX_MCFG5	(AT91_MATRIX + 0x14)	/* Master Configuration Register 5 */
 #define		AT91_MATRIX_ULBT		(7 << 0)	/* Undefined Length Burst Type */
 #define			AT91_MATRIX_ULBT_INFINITE	(0 << 0)
 #define			AT91_MATRIX_ULBT_SINGLE		(1 << 0)

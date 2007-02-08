@@ -315,7 +315,7 @@ static struct platform_device at91rm9200_mmc_device = {
 	.num_resources	= ARRAY_SIZE(mmc_resources),
 };
 
-void __init at91_add_device_mmc(struct at91_mmc_data *data)
+void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data)
 {
 	if (!data)
 		return;
@@ -361,7 +361,7 @@ void __init at91_add_device_mmc(struct at91_mmc_data *data)
 	platform_device_register(&at91rm9200_mmc_device);
 }
 #else
-void __init at91_add_device_mmc(struct at91_mmc_data *data) {}
+void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data) {}
 #endif
 
 

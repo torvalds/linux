@@ -37,8 +37,8 @@
  * IRQ interrupt symbols are the AT91xxx_ID_* symbols
  * for IRQs handled directly through the AIC, or else the AT91_PIN_*
  * symbols in gpio.h for ones handled indirectly as GPIOs.
- * We make provision for 4 banks of GPIO.
+ * We make provision for 5 banks of GPIO.
  */
-#define	NR_IRQS		(NR_AIC_IRQS + (4 * 32))
+#define	NR_IRQS		(NR_AIC_IRQS + (5 * 32))
 
 #endif

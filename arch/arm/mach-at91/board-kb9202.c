@@ -122,7 +122,7 @@ static void __init kb9202_board_init(void)
 	/* USB Device */
 	at91_add_device_udc(&kb9202_udc_data);
 	/* MMC */
-	at91_add_device_mmc(&kb9202_mmc_data);
+	at91_add_device_mmc(0, &kb9202_mmc_data);
 	/* I2C */
 	at91_add_device_i2c();
 	/* SPI */

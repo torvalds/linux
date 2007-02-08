@@ -130,7 +130,7 @@ static void __init csb337_board_init(void)
 	/* SPI */
 	at91_add_device_spi(csb337_spi_devices, ARRAY_SIZE(csb337_spi_devices));
 	/* MMC */
-	at91_add_device_mmc(&csb337_mmc_data);
+	at91_add_device_mmc(0, &csb337_mmc_data);
 }
 
 MACHINE_START(CSB337, "Cogent CSB337")
