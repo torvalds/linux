@@ -204,7 +204,6 @@ struct av7110 {
 	struct task_struct *arm_thread;
 	wait_queue_head_t   arm_wait;
 	u16		    arm_loops;
-	int		    arm_rmmod;
 
 	void		   *debi_virt;
 	dma_addr_t	    debi_bus;
