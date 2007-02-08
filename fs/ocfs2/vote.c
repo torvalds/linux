@@ -887,7 +887,7 @@ static inline int ocfs2_translate_response(int response)
 
 static int ocfs2_handle_response_message(struct o2net_msg *msg,
 					 u32 len,
-					 void *data)
+					 void *data, void **ret_data)
 {
 	unsigned int response_id, node_num;
 	int response_status;
@@ -943,7 +943,7 @@ bail:
 
 static int ocfs2_handle_vote_message(struct o2net_msg *msg,
 				     u32 len,
-				     void *data)
+				     void *data, void **ret_data)
 {
 	int status;
 	struct ocfs2_super *osb = data;
@@ -1007,7 +1007,7 @@ int ocfs2_register_net_handlers(struct ocfs2_super *osb)
 					osb->net_key,
 					sizeof(struct ocfs2_response_msg),
 					ocfs2_handle_response_message,
-					osb, &osb->osb_net_handlers);
+					osb, NULL, &osb->osb_net_handlers);
 	if (status) {
 		mlog_errno(status);
 		goto bail;
@@ -1017,7 +1017,7 @@ int ocfs2_register_net_handlers(struct ocfs2_super *osb)
 					osb->net_key,
 					sizeof(struct ocfs2_vote_msg),
 					ocfs2_handle_vote_message,
-					osb, &osb->osb_net_handlers);
+					osb, NULL, &osb->osb_net_handlers);
 	if (status) {
 		mlog_errno(status);
 		goto bail;

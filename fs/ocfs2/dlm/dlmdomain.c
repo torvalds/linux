@@ -48,6 +48,36 @@
 #define MLOG_MASK_PREFIX (ML_DLM|ML_DLM_DOMAIN)
 #include "cluster/masklog.h"
 
+/*
+ * ocfs2 node maps are array of long int, which limits to send them freely
+ * across the wire due to endianness issues. To workaround this, we convert
+ * long ints to byte arrays. Following 3 routines are helper functions to
+ * set/test/copy bits within those array of bytes
+ */
+static inline void byte_set_bit(u8 nr, u8 map[])
+{
+	map[nr >> 3] |= (1UL << (nr & 7));
+}
+
+static inline int byte_test_bit(u8 nr, u8 map[])
+{
+	return ((1UL << (nr & 7)) & (map[nr >> 3])) != 0;
+}
+
+static inline void byte_copymap(u8 dmap[], unsigned long smap[],
+			unsigned int sz)
+{
+	unsigned int nn;
+
+	if (!sz)
+		return;
+
+	memset(dmap, 0, ((sz + 7) >> 3));
+	for (nn = 0 ; nn < sz; nn++)
+		if (test_bit(nn, smap))
+			byte_set_bit(nn, dmap);
+}
+
 static void dlm_free_pagevec(void **vec, int pages)
 {
 	while (pages--)
@@ -95,10 +125,14 @@ static DECLARE_WAIT_QUEUE_HEAD(dlm_domain_events);
 
 #define DLM_DOMAIN_BACKOFF_MS 200
 
-static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data);
-static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data);
-static int dlm_cancel_join_handler(struct o2net_msg *msg, u32 len, void *data);
-static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data);
+static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
+				  void **ret_data);
+static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data,
+				     void **ret_data);
+static int dlm_cancel_join_handler(struct o2net_msg *msg, u32 len, void *data,
+				   void **ret_data);
+static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data,
+				   void **ret_data);
 
 static void dlm_unregister_domain_handlers(struct dlm_ctxt *dlm);
 
@@ -125,10 +159,10 @@ void __dlm_insert_lockres(struct dlm_ctxt *dlm,
 	hlist_add_head(&res->hash_node, bucket);
 }
 
-struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
-						const char *name,
-						unsigned int len,
-						unsigned int hash)
+struct dlm_lock_resource * __dlm_lookup_lockres_full(struct dlm_ctxt *dlm,
+						     const char *name,
+						     unsigned int len,
+						     unsigned int hash)
 {
 	struct hlist_head *bucket;
 	struct hlist_node *list;
@@ -152,6 +186,37 @@ struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
 		return res;
 	}
 	return NULL;
+}
+
+/* intended to be called by functions which do not care about lock
+ * resources which are being purged (most net _handler functions).
+ * this will return NULL for any lock resource which is found but
+ * currently in the process of dropping its mastery reference.
+ * use __dlm_lookup_lockres_full when you need the lock resource
+ * regardless (e.g. dlm_get_lock_resource) */
+struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
+						const char *name,
+						unsigned int len,
+						unsigned int hash)
+{
+	struct dlm_lock_resource *res = NULL;
+
+	mlog_entry("%.*s\n", len, name);
+
+	assert_spin_locked(&dlm->spinlock);
+
+	res = __dlm_lookup_lockres_full(dlm, name, len, hash);
+	if (res) {
+		spin_lock(&res->spinlock);
+		if (res->state & DLM_LOCK_RES_DROPPING_REF) {
+			spin_unlock(&res->spinlock);
+			dlm_lockres_put(res);
+			return NULL;
+		}
+		spin_unlock(&res->spinlock);
+	}
+
+	return res;
 }
 
 struct dlm_lock_resource * dlm_lookup_lockres(struct dlm_ctxt *dlm,
@@ -330,43 +395,60 @@ static void dlm_complete_dlm_shutdown(struct dlm_ctxt *dlm)
 	wake_up(&dlm_domain_events);
 }
 
-static void dlm_migrate_all_locks(struct dlm_ctxt *dlm)
+static int dlm_migrate_all_locks(struct dlm_ctxt *dlm)
 {
-	int i;
+	int i, num, n, ret = 0;
 	struct dlm_lock_resource *res;
+	struct hlist_node *iter;
+	struct hlist_head *bucket;
+	int dropped;
 
 	mlog(0, "Migrating locks from domain %s\n", dlm->name);
-restart:
+
+	num = 0;
 	spin_lock(&dlm->spinlock);
 	for (i = 0; i < DLM_HASH_BUCKETS; i++) {
-		while (!hlist_empty(dlm_lockres_hash(dlm, i))) {
-			res = hlist_entry(dlm_lockres_hash(dlm, i)->first,
-					  struct dlm_lock_resource, hash_node);
-			/* need reference when manually grabbing lockres */
+redo_bucket:
+		n = 0;
+		bucket = dlm_lockres_hash(dlm, i);
+		iter = bucket->first;
+		while (iter) {
+			n++;
+			res = hlist_entry(iter, struct dlm_lock_resource,
+					  hash_node);
 			dlm_lockres_get(res);
-			/* this should unhash the lockres
-			 * and exit with dlm->spinlock */
-			mlog(0, "purging res=%p\n", res);
-			if (dlm_lockres_is_dirty(dlm, res)) {
-				/* HACK!  this should absolutely go.
-				 * need to figure out why some empty
-				 * lockreses are still marked dirty */
-				mlog(ML_ERROR, "lockres %.*s dirty!\n",
-				     res->lockname.len, res->lockname.name);
+			/* migrate, if necessary.  this will drop the dlm
+			 * spinlock and retake it if it does migration. */
+			dropped = dlm_empty_lockres(dlm, res);
 
-				spin_unlock(&dlm->spinlock);
-				dlm_kick_thread(dlm, res);
-				wait_event(dlm->ast_wq, !dlm_lockres_is_dirty(dlm, res));
-				dlm_lockres_put(res);
-				goto restart;
-			}
-			dlm_purge_lockres(dlm, res);
+			spin_lock(&res->spinlock);
+			__dlm_lockres_calc_usage(dlm, res);
+			iter = res->hash_node.next;
+			spin_unlock(&res->spinlock);
+
 			dlm_lockres_put(res);
+
+			cond_resched_lock(&dlm->spinlock);
+
+			if (dropped)
+				goto redo_bucket;
 		}
+		num += n;
+		mlog(0, "%s: touched %d lockreses in bucket %d "
+		     "(tot=%d)\n", dlm->name, n, i, num);
 	}
 	spin_unlock(&dlm->spinlock);
+	wake_up(&dlm->dlm_thread_wq);
 
+	/* let the dlm thread take care of purging, keep scanning until
+	 * nothing remains in the hash */
+	if (num) {
+		mlog(0, "%s: %d lock resources in hash last pass\n",
+		     dlm->name, num);
+		ret = -EAGAIN;
+	}
 	mlog(0, "DONE Migrating locks from domain %s\n", dlm->name);
+	return ret;
 }
 
 static int dlm_no_joining_node(struct dlm_ctxt *dlm)
@@ -418,7 +500,8 @@ static void __dlm_print_nodes(struct dlm_ctxt *dlm)
 	printk("\n");
 }
 
-static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data)
+static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data,
+				   void **ret_data)
 {
 	struct dlm_ctxt *dlm = data;
 	unsigned int node;
@@ -571,7 +654,9 @@ void dlm_unregister_domain(struct dlm_ctxt *dlm)
 		/* We changed dlm state, notify the thread */
 		dlm_kick_thread(dlm, NULL);
 
-		dlm_migrate_all_locks(dlm);
+		while (dlm_migrate_all_locks(dlm)) {
+			mlog(0, "%s: more migration to do\n", dlm->name);
+		}
 		dlm_mark_domain_leaving(dlm);
 		dlm_leave_domain(dlm);
 		dlm_complete_dlm_shutdown(dlm);
@@ -580,11 +665,13 @@ void dlm_unregister_domain(struct dlm_ctxt *dlm)
 }
 EXPORT_SYMBOL_GPL(dlm_unregister_domain);
 
-static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data)
+static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
+				  void **ret_data)
 {
 	struct dlm_query_join_request *query;
 	enum dlm_query_join_response response;
 	struct dlm_ctxt *dlm = NULL;
+	u8 nodenum;
 
 	query = (struct dlm_query_join_request *) msg->buf;
 
@@ -608,6 +695,28 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	spin_lock(&dlm_domain_lock);
 	dlm = __dlm_lookup_domain_full(query->domain, query->name_len);
+	if (!dlm)
+		goto unlock_respond;
+
+	/*
+	 * There is a small window where the joining node may not see the
+	 * node(s) that just left but still part of the cluster. DISALLOW
+	 * join request if joining node has different node map.
+	 */
+	nodenum=0;
+	while (nodenum < O2NM_MAX_NODES) {
+		if (test_bit(nodenum, dlm->domain_map)) {
+			if (!byte_test_bit(nodenum, query->node_map)) {
+				mlog(0, "disallow join as node %u does not "
+				     "have node %u in its nodemap\n",
+				     query->node_idx, nodenum);
+				response = JOIN_DISALLOW;
+				goto unlock_respond;
+			}
+		}
+		nodenum++;
+	}
+
 	/* Once the dlm ctxt is marked as leaving then we don't want
 	 * to be put in someone's domain map. 
 	 * Also, explicitly disallow joining at certain troublesome
@@ -626,15 +735,15 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data)
 			/* Disallow parallel joins. */
 			response = JOIN_DISALLOW;
 		} else if (dlm->reco.state & DLM_RECO_STATE_ACTIVE) {
-			mlog(ML_NOTICE, "node %u trying to join, but recovery "
+			mlog(0, "node %u trying to join, but recovery "
 			     "is ongoing.\n", bit);
 			response = JOIN_DISALLOW;
 		} else if (test_bit(bit, dlm->recovery_map)) {
-			mlog(ML_NOTICE, "node %u trying to join, but it "
+			mlog(0, "node %u trying to join, but it "
 			     "still needs recovery.\n", bit);
 			response = JOIN_DISALLOW;
 		} else if (test_bit(bit, dlm->domain_map)) {
-			mlog(ML_NOTICE, "node %u trying to join, but it "
+			mlog(0, "node %u trying to join, but it "
 			     "is still in the domain! needs recovery?\n",
 			     bit);
 			response = JOIN_DISALLOW;
@@ -649,6 +758,7 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data)
 
 		spin_unlock(&dlm->spinlock);
 	}
+unlock_respond:
 	spin_unlock(&dlm_domain_lock);
 
 respond:
@@ -657,7 +767,8 @@ respond:
 	return response;
 }
 
-static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data)
+static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data,
+				     void **ret_data)
 {
 	struct dlm_assert_joined *assert;
 	struct dlm_ctxt *dlm = NULL;
@@ -694,7 +805,8 @@ static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data)
 	return 0;
 }
 
-static int dlm_cancel_join_handler(struct o2net_msg *msg, u32 len, void *data)
+static int dlm_cancel_join_handler(struct o2net_msg *msg, u32 len, void *data,
+				   void **ret_data)
 {
 	struct dlm_cancel_join *cancel;
 	struct dlm_ctxt *dlm = NULL;
@@ -795,6 +907,9 @@ static int dlm_request_join(struct dlm_ctxt *dlm,
 	join_msg.node_idx = dlm->node_num;
 	join_msg.name_len = strlen(dlm->name);
 	memcpy(join_msg.domain, dlm->name, join_msg.name_len);
+
+	/* copy live node map to join message */
+	byte_copymap(join_msg.node_map, dlm->live_nodes_map, O2NM_MAX_NODES);
 
 	status = o2net_send_message(DLM_QUERY_JOIN_MSG, DLM_MOD_KEY, &join_msg,
 				    sizeof(join_msg), node, &retval);
@@ -1036,98 +1151,106 @@ static int dlm_register_domain_handlers(struct dlm_ctxt *dlm)
 	status = o2net_register_handler(DLM_MASTER_REQUEST_MSG, dlm->key,
 					sizeof(struct dlm_master_request),
 					dlm_master_request_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_ASSERT_MASTER_MSG, dlm->key,
 					sizeof(struct dlm_assert_master),
 					dlm_assert_master_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, dlm_assert_master_post_handler,
+					&dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_CREATE_LOCK_MSG, dlm->key,
 					sizeof(struct dlm_create_lock),
 					dlm_create_lock_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_CONVERT_LOCK_MSG, dlm->key,
 					DLM_CONVERT_LOCK_MAX_LEN,
 					dlm_convert_lock_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_UNLOCK_LOCK_MSG, dlm->key,
 					DLM_UNLOCK_LOCK_MAX_LEN,
 					dlm_unlock_lock_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_PROXY_AST_MSG, dlm->key,
 					DLM_PROXY_AST_MAX_LEN,
 					dlm_proxy_ast_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_EXIT_DOMAIN_MSG, dlm->key,
 					sizeof(struct dlm_exit_domain),
 					dlm_exit_domain_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
+	if (status)
+		goto bail;
+
+	status = o2net_register_handler(DLM_DEREF_LOCKRES_MSG, dlm->key,
+					sizeof(struct dlm_deref_lockres),
+					dlm_deref_lockres_handler,
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_MIGRATE_REQUEST_MSG, dlm->key,
 					sizeof(struct dlm_migrate_request),
 					dlm_migrate_request_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_MIG_LOCKRES_MSG, dlm->key,
 					DLM_MIG_LOCKRES_MAX_LEN,
 					dlm_mig_lockres_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_MASTER_REQUERY_MSG, dlm->key,
 					sizeof(struct dlm_master_requery),
 					dlm_master_requery_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_LOCK_REQUEST_MSG, dlm->key,
 					sizeof(struct dlm_lock_request),
 					dlm_request_all_locks_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_RECO_DATA_DONE_MSG, dlm->key,
 					sizeof(struct dlm_reco_data_done),
 					dlm_reco_data_done_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_BEGIN_RECO_MSG, dlm->key,
 					sizeof(struct dlm_begin_reco),
 					dlm_begin_reco_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_FINALIZE_RECO_MSG, dlm->key,
 					sizeof(struct dlm_finalize_reco),
 					dlm_finalize_reco_handler,
-					dlm, &dlm->dlm_domain_handlers);
+					dlm, NULL, &dlm->dlm_domain_handlers);
 	if (status)
 		goto bail;
 
@@ -1141,6 +1264,8 @@ bail:
 static int dlm_join_domain(struct dlm_ctxt *dlm)
 {
 	int status;
+	unsigned int backoff;
+	unsigned int total_backoff = 0;
 
 	BUG_ON(!dlm);
 
@@ -1172,15 +1297,24 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 	}
 
 	do {
-		unsigned int backoff;
 		status = dlm_try_to_join_domain(dlm);
 
 		/* If we're racing another node to the join, then we
 		 * need to back off temporarily and let them
 		 * complete. */
+#define	DLM_JOIN_TIMEOUT_MSECS	90000
 		if (status == -EAGAIN) {
 			if (signal_pending(current)) {
 				status = -ERESTARTSYS;
+				goto bail;
+			}
+
+			if (total_backoff >
+			    msecs_to_jiffies(DLM_JOIN_TIMEOUT_MSECS)) {
+				status = -ERESTARTSYS;
+				mlog(ML_NOTICE, "Timed out joining dlm domain "
+				     "%s after %u msecs\n", dlm->name,
+				     jiffies_to_msecs(total_backoff));
 				goto bail;
 			}
 
@@ -1193,6 +1327,7 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 			 */
 			backoff = (unsigned int)(jiffies & 0x3);
 			backoff *= DLM_DOMAIN_BACKOFF_MS;
+			total_backoff += backoff;
 			mlog(0, "backoff %d\n", backoff);
 			msleep(backoff);
 		}
@@ -1421,21 +1556,21 @@ static int dlm_register_net_handlers(void)
 	status = o2net_register_handler(DLM_QUERY_JOIN_MSG, DLM_MOD_KEY,
 					sizeof(struct dlm_query_join_request),
 					dlm_query_join_handler,
-					NULL, &dlm_join_handlers);
+					NULL, NULL, &dlm_join_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_ASSERT_JOINED_MSG, DLM_MOD_KEY,
 					sizeof(struct dlm_assert_joined),
 					dlm_assert_joined_handler,
-					NULL, &dlm_join_handlers);
+					NULL, NULL, &dlm_join_handlers);
 	if (status)
 		goto bail;
 
 	status = o2net_register_handler(DLM_CANCEL_JOIN_MSG, DLM_MOD_KEY,
 					sizeof(struct dlm_cancel_join),
 					dlm_cancel_join_handler,
-					NULL, &dlm_join_handlers);
+					NULL, NULL, &dlm_join_handlers);
 
 bail:
 	if (status < 0)

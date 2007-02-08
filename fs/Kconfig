@@ -426,7 +426,6 @@ config OCFS2_FS
 	select CONFIGFS_FS
 	select JBD
 	select CRC32
-	select INET
 	help
 	  OCFS2 is a general purpose extent based shared disk cluster file
 	  system with many similarities to ext3. It supports 64 bit inode
