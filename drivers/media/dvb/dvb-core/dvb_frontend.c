@@ -525,7 +525,7 @@ static int dvb_frontend_thread(void *data)
 
 	while (1) {
 		up(&fepriv->sem);	    /* is locked when we enter the thread... */
-
+restart:
 		timeout = wait_event_interruptible_timeout(fepriv->wait_queue,
 			dvb_frontend_should_wakeup(fe) || kthread_should_stop(),
 			fepriv->delay);
@@ -536,7 +536,7 @@ static int dvb_frontend_thread(void *data)
 		}
 
 		if (try_to_freeze())
-			continue;
+			goto restart;
 
 		if (down_interruptible(&fepriv->sem))
 			break;
