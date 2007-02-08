@@ -86,10 +86,6 @@ static int __init leds_init(void)
 	if (!at91_leds_timer || !at91_leds_cpu)
 		return -ENODEV;
 
-	/* Enable PIO to access the LEDs */
-	at91_set_gpio_output(at91_leds_timer, 1);
-	at91_set_gpio_output(at91_leds_cpu, 1);
-
 	leds_event = at91_leds_event;
 
 	leds_event(led_start);
