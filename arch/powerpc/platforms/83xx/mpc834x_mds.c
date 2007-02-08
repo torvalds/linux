@@ -1,7 +1,7 @@
 /*
- * arch/powerpc/platforms/83xx/mpc834x_sys.c
+ * arch/powerpc/platforms/83xx/mpc834x_mds.c
  *
- * MPC834x SYS board specific routines
+ * MPC834x MDS board specific routines
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
@@ -103,8 +103,8 @@ static int mpc834x_usb_cfg(void)
 		return -1;
 
 	/*
-	 * if SYS board is plug into PIB board,
-	 * force to use the PHY on SYS board
+	 * if MDS board is plug into PIB board,
+	 * force to use the PHY on MDS board
 	 */
 	bcsr5 = in_8(bcsr_regs + 5);
 	if (!(bcsr5 & BCSR5_INT_USB))
@@ -118,12 +118,12 @@ static int mpc834x_usb_cfg(void)
  * Setup the architecture
  *
  */
-static void __init mpc834x_sys_setup_arch(void)
+static void __init mpc834x_mds_setup_arch(void)
 {
 	struct device_node *np;
 
 	if (ppc_md.progress)
-		ppc_md.progress("mpc834x_sys_setup_arch()", 0);
+		ppc_md.progress("mpc834x_mds_setup_arch()", 0);
 
 	np = of_find_node_by_type(NULL, "cpu");
 	if (np != 0) {
@@ -152,7 +152,7 @@ static void __init mpc834x_sys_setup_arch(void)
 #endif
 }
 
-static void __init mpc834x_sys_init_IRQ(void)
+static void __init mpc834x_mds_init_IRQ(void)
 {
 	struct device_node *np;
 
@@ -192,7 +192,7 @@ late_initcall(mpc834x_rtc_hookup);
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
-static int __init mpc834x_sys_probe(void)
+static int __init mpc834x_mds_probe(void)
 {
 	/* We always match for now, eventually we should look at the flat
 	   dev tree to ensure this is the board we are suppose to run on
@@ -200,11 +200,11 @@ static int __init mpc834x_sys_probe(void)
 	return 1;
 }
 
-define_machine(mpc834x_sys) {
-	.name			= "MPC834x SYS",
-	.probe			= mpc834x_sys_probe,
-	.setup_arch		= mpc834x_sys_setup_arch,
-	.init_IRQ		= mpc834x_sys_init_IRQ,
+define_machine(mpc834x_mds) {
+	.name			= "MPC834x MDS",
+	.probe			= mpc834x_mds_probe,
+	.setup_arch		= mpc834x_mds_setup_arch,
+	.init_IRQ		= mpc834x_mds_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.restart		= mpc83xx_restart,
 	.time_init		= mpc83xx_time_init,

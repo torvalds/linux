@@ -3,7 +3,7 @@ menu "Platform support"
 
 choice
 	prompt "Machine Type"
-	default MPC834x_SYS
+	default MPC834x_MDS
 
 config MPC8313_RDB
 	bool "Freescale MPC8313 RDB"
@@ -18,13 +18,13 @@ config MPC832x_MDS
 	help
 	  This option enables support for the MPC832x MDS evaluation board.
 
-config MPC834x_SYS
-	bool "Freescale MPC834x SYS"
+config MPC834x_MDS
+	bool "Freescale MPC834x MDS"
 	select DEFAULT_UIMAGE
 	help
-	  This option enables support for the MPC 834x SYS evaluation board.
+	  This option enables support for the MPC 834x MDS evaluation board.
 
-	  Be aware that PCI buses can only function when SYS board is plugged
+	  Be aware that PCI buses can only function when MDS board is plugged
 	  into the PIB (Platform IO Board) board from Freescale which provide
 	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
 	  responsibility.
@@ -63,7 +63,7 @@ config MPC834x
 	bool
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
-	default y if MPC834x_SYS || MPC834x_ITX
+	default y if MPC834x_MDS || MPC834x_ITX
 
 config PPC_MPC836x
 	bool
