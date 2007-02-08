@@ -251,7 +251,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 					PVR2_TRACE_ERROR_LEGS,
 					"***WARNING*** device's encoder"
 					" appears to be stuck"
-					" (status=0%08x)",rdData[0]);
+					" (status=0x%08x)",rdData[0]);
 			}
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
