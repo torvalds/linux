@@ -2059,7 +2059,7 @@ static int determine_firmware(struct net_device *dev)
 	int err;
 	struct comp_id nic_id, sta_id;
 	unsigned int firmver;
-	char tmp[SYMBOL_MAX_VER_LEN+1];
+	char tmp[SYMBOL_MAX_VER_LEN+1] __attribute__((aligned(2)));
 
 	/* Get the hardware version */
 	err = HERMES_READ_RECORD(hw, USER_BAP, HERMES_RID_NICID, &nic_id);

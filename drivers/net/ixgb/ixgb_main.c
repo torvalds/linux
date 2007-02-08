@@ -456,9 +456,7 @@ ixgb_probe(struct pci_dev *pdev,
 			   NETIF_F_HW_VLAN_TX |
 			   NETIF_F_HW_VLAN_RX |
 			   NETIF_F_HW_VLAN_FILTER;
-#ifdef NETIF_F_TSO
 	netdev->features |= NETIF_F_TSO;
-#endif
 #ifdef NETIF_F_LLTX
 	netdev->features |= NETIF_F_LLTX;
 #endif
@@ -1176,7 +1174,6 @@ ixgb_watchdog(unsigned long data)
 static int
 ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 {
-#ifdef NETIF_F_TSO
 	struct ixgb_context_desc *context_desc;
 	unsigned int i;
 	uint8_t ipcss, ipcso, tucss, tucso, hdr_len;
@@ -1233,7 +1230,6 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 
 		return 1;
 	}
-#endif
 
 	return 0;
 }

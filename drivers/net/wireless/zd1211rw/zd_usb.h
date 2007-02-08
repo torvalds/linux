@@ -25,7 +25,6 @@
 #include <linux/usb.h>
 
 #include "zd_def.h"
-#include "zd_types.h"
 
 enum devicetype {
 	DEVICE_ZD1211  = 0,
@@ -181,15 +180,14 @@ struct zd_usb_tx {
 	spinlock_t lock;
 };
 
-/* Contains the usb parts. The structure doesn't require a lock, because intf
- * and fw_base_offset, will not be changed after initialization.
+/* Contains the usb parts. The structure doesn't require a lock because intf
+ * will not be changed after initialization.
  */
 struct zd_usb {
 	struct zd_usb_interrupt intr;
 	struct zd_usb_rx rx;
 	struct zd_usb_tx tx;
 	struct usb_interface *intf;
-	u16 fw_base_offset;
 };
 
 #define zd_usb_dev(usb) (&usb->intf->dev)

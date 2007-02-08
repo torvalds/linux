@@ -21,7 +21,9 @@
 
 #define OPCODE_UPDATE_NCB_IOCB      0xF0
 #define OPCODE_IB_MAC_IOCB          0xF9
+#define OPCODE_IB_3032_MAC_IOCB     0x09
 #define OPCODE_IB_IP_IOCB           0xFA
+#define OPCODE_IB_3032_IP_IOCB      0x0A
 #define OPCODE_IB_TCP_IOCB          0xFB
 #define OPCODE_DUMP_PROTO_IOCB      0xFE
 #define OPCODE_BUFFER_ALERT_IOCB    0xFB
@@ -37,18 +39,23 @@
 struct ob_mac_iocb_req {
 	u8 opcode;
 	u8 flags;
-#define OB_MAC_IOCB_REQ_MA  0xC0
-#define OB_MAC_IOCB_REQ_F   0x20
-#define OB_MAC_IOCB_REQ_X   0x10
+#define OB_MAC_IOCB_REQ_MA  0xe0
+#define OB_MAC_IOCB_REQ_F   0x10
+#define OB_MAC_IOCB_REQ_X   0x08
 #define OB_MAC_IOCB_REQ_D   0x02
 #define OB_MAC_IOCB_REQ_I   0x01
-	__le16 reserved0;
+	u8 flags1;
+#define OB_3032MAC_IOCB_REQ_IC	0x04
+#define OB_3032MAC_IOCB_REQ_TC	0x02
+#define OB_3032MAC_IOCB_REQ_UC	0x01
+	u8 reserved0;
 
 	__le32 transaction_id;
 	__le16 data_len;
-	__le16 reserved1;
+	u8 ip_hdr_off;
+	u8 ip_hdr_len;
+	__le32 reserved1;
 	__le32 reserved2;
-	__le32 reserved3;
 	__le32 buf_addr0_low;
 	__le32 buf_addr0_high;
 	__le32 buf_0_len;
@@ -58,8 +65,8 @@ struct ob_mac_iocb_req {
 	__le32 buf_addr2_low;
 	__le32 buf_addr2_high;
 	__le32 buf_2_len;
+	__le32 reserved3;
 	__le32 reserved4;
-	__le32 reserved5;
 };
 /*
  * The following constants define control bits for buffer
@@ -74,6 +81,7 @@ struct ob_mac_iocb_rsp {
 	u8 opcode;
 	u8 flags;
 #define OB_MAC_IOCB_RSP_P   0x08
+#define OB_MAC_IOCB_RSP_L   0x04
 #define OB_MAC_IOCB_RSP_S   0x02
 #define OB_MAC_IOCB_RSP_I   0x01
 
@@ -85,6 +93,7 @@ struct ob_mac_iocb_rsp {
 
 struct ib_mac_iocb_rsp {
 	u8 opcode;
+#define IB_MAC_IOCB_RSP_V   0x80
 	u8 flags;
 #define IB_MAC_IOCB_RSP_S   0x80
 #define IB_MAC_IOCB_RSP_H1  0x40
@@ -138,6 +147,7 @@ struct ob_ip_iocb_req {
 struct ob_ip_iocb_rsp {
 	u8 opcode;
 	u8 flags;
+#define OB_MAC_IOCB_RSP_H       0x10
 #define OB_MAC_IOCB_RSP_E       0x08
 #define OB_MAC_IOCB_RSP_L       0x04
 #define OB_MAC_IOCB_RSP_S       0x02
@@ -220,6 +230,10 @@ struct ob_tcp_iocb_rsp {
 
 struct ib_ip_iocb_rsp {
 	u8 opcode;
+#define IB_IP_IOCB_RSP_3032_V   0x80
+#define IB_IP_IOCB_RSP_3032_O   0x40
+#define IB_IP_IOCB_RSP_3032_I   0x20
+#define IB_IP_IOCB_RSP_3032_R   0x10
 	u8 flags;
 #define IB_IP_IOCB_RSP_S        0x80
 #define IB_IP_IOCB_RSP_H1       0x40
@@ -230,6 +244,12 @@ struct ib_ip_iocb_rsp {
 
 	__le16 length;
 	__le16 checksum;
+#define IB_IP_IOCB_RSP_3032_ICE		0x01
+#define IB_IP_IOCB_RSP_3032_CE		0x02
+#define IB_IP_IOCB_RSP_3032_NUC		0x04
+#define IB_IP_IOCB_RSP_3032_UDP		0x08
+#define IB_IP_IOCB_RSP_3032_TCP		0x10
+#define IB_IP_IOCB_RSP_3032_IPE		0x20
 	__le16 reserved;
 #define IB_IP_IOCB_RSP_R        0x01
 	__le32 ial_low;
@@ -524,6 +544,21 @@ enum {
 	IP_ADDR_INDEX_REG_FUNC_2_SEC = 0x0005,
 	IP_ADDR_INDEX_REG_FUNC_3_PRI = 0x0006,
 	IP_ADDR_INDEX_REG_FUNC_3_SEC = 0x0007,
+	IP_ADDR_INDEX_REG_6 = 0x0008,
+	IP_ADDR_INDEX_REG_OFFSET_MASK = 0x0030,
+	IP_ADDR_INDEX_REG_E = 0x0040, 
+};
+enum {
+	QL3032_PORT_CONTROL_DS = 0x0001,
+	QL3032_PORT_CONTROL_HH = 0x0002,
+	QL3032_PORT_CONTROL_EIv6 = 0x0004,
+	QL3032_PORT_CONTROL_EIv4 = 0x0008,
+	QL3032_PORT_CONTROL_ET = 0x0010,
+	QL3032_PORT_CONTROL_EF = 0x0020,
+	QL3032_PORT_CONTROL_DRM = 0x0040,
+	QL3032_PORT_CONTROL_RLB = 0x0080,
+	QL3032_PORT_CONTROL_RCB = 0x0100,
+	QL3032_PORT_CONTROL_KIE = 0x0200,
 };
 
 enum {
@@ -657,7 +692,8 @@ struct ql3xxx_port_registers {
 	u32 internalRamWDataReg;
 	u32 reclaimedBufferAddrRegLow;
 	u32 reclaimedBufferAddrRegHigh;
-	u32 reserved[2];
+	u32 tcpConfiguration;
+	u32 functionControl;
 	u32 fpgaRevID;
 	u32 localRamAddr;
 	u32 localRamDataAutoIncr;
@@ -963,6 +999,7 @@ struct eeprom_data {
 
 #define QL3XXX_VENDOR_ID    0x1077
 #define QL3022_DEVICE_ID    0x3022
+#define QL3032_DEVICE_ID    0x3032
 
 /* MTU & Frame Size stuff */
 #define NORMAL_MTU_SIZE 		ETH_DATA_LEN
@@ -1038,11 +1075,41 @@ struct ql_rcv_buf_cb {
 	int index;
 };
 
+/*
+ * Original IOCB has 3 sg entries:
+ * first points to skb-data area
+ * second points to first frag
+ * third points to next oal.
+ * OAL has 5 entries:
+ * 1 thru 4 point to frags
+ * fifth points to next oal.
+ */ 
+#define MAX_OAL_CNT ((MAX_SKB_FRAGS-1)/4 + 1)
+
+struct oal_entry {
+	u32 dma_lo;
+	u32 dma_hi;
+	u32 len;
+#define OAL_LAST_ENTRY   0x80000000	/* Last valid buffer in list. */
+#define OAL_CONT_ENTRY   0x40000000	/* points to an OAL. (continuation) */
+	u32 reserved;
+};
+
+struct oal {
+	struct oal_entry oal_entry[5];
+};
+
+struct map_list {
+	 DECLARE_PCI_UNMAP_ADDR(mapaddr);
+	 DECLARE_PCI_UNMAP_LEN(maplen);
+};
+
 struct ql_tx_buf_cb {
 	struct sk_buff *skb;
 	struct ob_mac_iocb_req *queue_entry ;
-	 DECLARE_PCI_UNMAP_ADDR(mapaddr);
-	 DECLARE_PCI_UNMAP_LEN(maplen);
+	int seg_count;
+	struct oal *oal;
+	struct map_list map[MAX_SKB_FRAGS+1]; 
 };
 
 /* definitions for type field */
@@ -1189,6 +1256,7 @@ struct ql3_adapter {
 	struct delayed_work reset_work;
 	struct delayed_work tx_timeout_work;
 	u32 max_frame_size;
+	u32 device_id;
 };
 
 #endif				/* _QLA3XXX_H_ */

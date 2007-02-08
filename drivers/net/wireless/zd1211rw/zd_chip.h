@@ -18,7 +18,6 @@
 #ifndef _ZD_CHIP_H
 #define _ZD_CHIP_H
 
-#include "zd_types.h"
 #include "zd_rf.h"
 #include "zd_usb.h"
 
@@ -26,6 +25,37 @@
  * (BBP). It appears that the ZD1211 wraps the old ZD1205 with USB glue and
  * adds a processor for handling the USB protocol.
  */
+
+/* Address space */
+enum {
+	/* CONTROL REGISTERS */
+	CR_START			= 0x9000,
+
+
+	/* FIRMWARE */
+	FW_START			= 0xee00,
+
+
+	/* EEPROM */
+	E2P_START			= 0xf800,
+	E2P_LEN				= 0x800,
+
+	/* EEPROM layout */
+	E2P_LOAD_CODE_LEN		= 0xe,		/* base 0xf800 */
+	E2P_LOAD_VECT_LEN		= 0x9,		/* base 0xf80e */
+	/* E2P_DATA indexes into this */
+	E2P_DATA_LEN			= 0x7e,		/* base 0xf817 */
+	E2P_BOOT_CODE_LEN		= 0x760,	/* base 0xf895 */
+	E2P_INTR_VECT_LEN		= 0xb,		/* base 0xfff5 */
+
+	/* Some precomputed offsets into the EEPROM */
+	E2P_DATA_OFFSET			= E2P_LOAD_CODE_LEN + E2P_LOAD_VECT_LEN,
+	E2P_BOOT_CODE_OFFSET		= E2P_DATA_OFFSET + E2P_DATA_LEN,
+};
+
+#define CTL_REG(offset) ((zd_addr_t)(CR_START + (offset)))
+#define E2P_DATA(offset) ((zd_addr_t)(E2P_START + E2P_DATA_OFFSET + (offset)))
+#define FWRAW_DATA(offset) ((zd_addr_t)(FW_START + (offset)))
 
 /* 8-bit hardware registers */
 #define CR0   CTL_REG(0x0000)
@@ -302,7 +332,7 @@
 
 #define CR_MAX_PHY_REG 255
 
-/* Taken from the ZYDAS driver, not all of them are relevant for the ZSD1211
+/* Taken from the ZYDAS driver, not all of them are relevant for the ZD1211
  * driver.
  */
 
@@ -594,79 +624,69 @@
 /*
  * Upper 16 bit contains the regulatory domain.
  */
-#define E2P_SUBID		E2P_REG(0x00)
-#define E2P_POD			E2P_REG(0x02)
-#define E2P_MAC_ADDR_P1		E2P_REG(0x04)
-#define E2P_MAC_ADDR_P2		E2P_REG(0x06)
-#define E2P_PWR_CAL_VALUE1	E2P_REG(0x08)
-#define E2P_PWR_CAL_VALUE2	E2P_REG(0x0a)
-#define E2P_PWR_CAL_VALUE3	E2P_REG(0x0c)
-#define E2P_PWR_CAL_VALUE4      E2P_REG(0x0e)
-#define E2P_PWR_INT_VALUE1	E2P_REG(0x10)
-#define E2P_PWR_INT_VALUE2	E2P_REG(0x12)
-#define E2P_PWR_INT_VALUE3	E2P_REG(0x14)
-#define E2P_PWR_INT_VALUE4	E2P_REG(0x16)
+#define E2P_SUBID		E2P_DATA(0x00)
+#define E2P_POD			E2P_DATA(0x02)
+#define E2P_MAC_ADDR_P1		E2P_DATA(0x04)
+#define E2P_MAC_ADDR_P2		E2P_DATA(0x06)
+#define E2P_PWR_CAL_VALUE1	E2P_DATA(0x08)
+#define E2P_PWR_CAL_VALUE2	E2P_DATA(0x0a)
+#define E2P_PWR_CAL_VALUE3	E2P_DATA(0x0c)
+#define E2P_PWR_CAL_VALUE4      E2P_DATA(0x0e)
+#define E2P_PWR_INT_VALUE1	E2P_DATA(0x10)
+#define E2P_PWR_INT_VALUE2	E2P_DATA(0x12)
+#define E2P_PWR_INT_VALUE3	E2P_DATA(0x14)
+#define E2P_PWR_INT_VALUE4	E2P_DATA(0x16)
 
 /* Contains a bit for each allowed channel. It gives for Europe (ETSI 0x30)
  * also only 11 channels. */
-#define E2P_ALLOWED_CHANNEL	E2P_REG(0x18)
+#define E2P_ALLOWED_CHANNEL	E2P_DATA(0x18)
 
-#define E2P_PHY_REG		E2P_REG(0x1a)
-#define E2P_DEVICE_VER		E2P_REG(0x20)
-#define E2P_36M_CAL_VALUE1	E2P_REG(0x28)
-#define E2P_36M_CAL_VALUE2      E2P_REG(0x2a)
-#define E2P_36M_CAL_VALUE3      E2P_REG(0x2c)
-#define E2P_36M_CAL_VALUE4	E2P_REG(0x2e)
-#define E2P_11A_INT_VALUE1	E2P_REG(0x30)
-#define E2P_11A_INT_VALUE2	E2P_REG(0x32)
-#define E2P_11A_INT_VALUE3	E2P_REG(0x34)
-#define E2P_11A_INT_VALUE4	E2P_REG(0x36)
-#define E2P_48M_CAL_VALUE1	E2P_REG(0x38)
-#define E2P_48M_CAL_VALUE2	E2P_REG(0x3a)
-#define E2P_48M_CAL_VALUE3	E2P_REG(0x3c)
-#define E2P_48M_CAL_VALUE4	E2P_REG(0x3e)
-#define E2P_48M_INT_VALUE1	E2P_REG(0x40)
-#define E2P_48M_INT_VALUE2	E2P_REG(0x42)
-#define E2P_48M_INT_VALUE3	E2P_REG(0x44)
-#define E2P_48M_INT_VALUE4	E2P_REG(0x46)
-#define E2P_54M_CAL_VALUE1	E2P_REG(0x48)	/* ??? */
-#define E2P_54M_CAL_VALUE2	E2P_REG(0x4a)
-#define E2P_54M_CAL_VALUE3	E2P_REG(0x4c)
-#define E2P_54M_CAL_VALUE4	E2P_REG(0x4e)
-#define E2P_54M_INT_VALUE1	E2P_REG(0x50)
-#define E2P_54M_INT_VALUE2	E2P_REG(0x52)
-#define E2P_54M_INT_VALUE3	E2P_REG(0x54)
-#define E2P_54M_INT_VALUE4	E2P_REG(0x56)
+#define E2P_PHY_REG		E2P_DATA(0x1a)
+#define E2P_DEVICE_VER		E2P_DATA(0x20)
+#define E2P_36M_CAL_VALUE1	E2P_DATA(0x28)
+#define E2P_36M_CAL_VALUE2      E2P_DATA(0x2a)
+#define E2P_36M_CAL_VALUE3      E2P_DATA(0x2c)
+#define E2P_36M_CAL_VALUE4	E2P_DATA(0x2e)
+#define E2P_11A_INT_VALUE1	E2P_DATA(0x30)
+#define E2P_11A_INT_VALUE2	E2P_DATA(0x32)
+#define E2P_11A_INT_VALUE3	E2P_DATA(0x34)
+#define E2P_11A_INT_VALUE4	E2P_DATA(0x36)
+#define E2P_48M_CAL_VALUE1	E2P_DATA(0x38)
+#define E2P_48M_CAL_VALUE2	E2P_DATA(0x3a)
+#define E2P_48M_CAL_VALUE3	E2P_DATA(0x3c)
+#define E2P_48M_CAL_VALUE4	E2P_DATA(0x3e)
+#define E2P_48M_INT_VALUE1	E2P_DATA(0x40)
+#define E2P_48M_INT_VALUE2	E2P_DATA(0x42)
+#define E2P_48M_INT_VALUE3	E2P_DATA(0x44)
+#define E2P_48M_INT_VALUE4	E2P_DATA(0x46)
+#define E2P_54M_CAL_VALUE1	E2P_DATA(0x48)	/* ??? */
+#define E2P_54M_CAL_VALUE2	E2P_DATA(0x4a)
+#define E2P_54M_CAL_VALUE3	E2P_DATA(0x4c)
+#define E2P_54M_CAL_VALUE4	E2P_DATA(0x4e)
+#define E2P_54M_INT_VALUE1	E2P_DATA(0x50)
+#define E2P_54M_INT_VALUE2	E2P_DATA(0x52)
+#define E2P_54M_INT_VALUE3	E2P_DATA(0x54)
+#define E2P_54M_INT_VALUE4	E2P_DATA(0x56)
 
-/* All 16 bit values */
-#define FW_FIRMWARE_VER         FW_REG(0)
-/* non-zero if USB high speed connection */
-#define FW_USB_SPEED            FW_REG(1)
-#define FW_FIX_TX_RATE          FW_REG(2)
-/* Seems to be able to control LEDs over the firmware */
-#define FW_LINK_STATUS          FW_REG(3)
-#define FW_SOFT_RESET           FW_REG(4)
-#define FW_FLASH_CHK            FW_REG(5)
+/* This word contains the base address of the FW_REG_ registers below */
+#define FWRAW_REGS_ADDR		FWRAW_DATA(0x1d)
 
+/* All 16 bit values, offset from the address in FWRAW_REGS_ADDR */
+enum {
+	FW_REG_FIRMWARE_VER	= 0,
+	/* non-zero if USB high speed connection */
+	FW_REG_USB_SPEED	= 1,
+	FW_REG_FIX_TX_RATE	= 2,
+	/* Seems to be able to control LEDs over the firmware */
+	FW_REG_LED_LINK_STATUS	= 3,
+	FW_REG_SOFT_RESET	= 4,
+	FW_REG_FLASH_CHK	= 5,
+};
+
+/* Values for FW_LINK_STATUS */
 #define FW_LINK_OFF		0x0
 #define FW_LINK_TX		0x1
 /* 0x2 - link led on? */
-
-enum {
-	CR_BASE_OFFSET			= 0x9000,
-	FW_START_OFFSET			= 0xee00,
-	FW_BASE_ADDR_OFFSET		= FW_START_OFFSET + 0x1d,
-	EEPROM_START_OFFSET		= 0xf800,
-	EEPROM_SIZE			= 0x800, /* words */
-	LOAD_CODE_SIZE			= 0xe, /* words */
-	LOAD_VECT_SIZE			= 0x10000 - 0xfff7, /* words */
-	EEPROM_REGS_OFFSET		= LOAD_CODE_SIZE + LOAD_VECT_SIZE,
-	EEPROM_REGS_SIZE		= 0x7e, /* words */
-	E2P_BASE_OFFSET			= EEPROM_START_OFFSET +
-		                          EEPROM_REGS_OFFSET,
-};
-
-#define FW_REG_TABLE_ADDR	USB_ADDR(FW_START_OFFSET + 0x1d)
 
 enum {
 	/* indices for ofdm_cal_values */
@@ -679,6 +699,8 @@ struct zd_chip {
 	struct zd_usb usb;
 	struct zd_rf rf;
 	struct mutex mutex;
+	/* Base address of FW_REG_ registers */
+	zd_addr_t fw_regs_base;
 	u8 e2p_mac[ETH_ALEN];
 	/* EepSetPoint in the vendor driver */
 	u8 pwr_cal_values[E2P_CHANNEL_COUNT];

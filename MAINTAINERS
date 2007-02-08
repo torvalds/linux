@@ -598,6 +598,16 @@ M:	ecashin@coraid.com
 W:	http://www.coraid.com/support/linux
 S:	Supported
 
+ATL1 ETHERNET DRIVER
+P:	Jay Cliburn
+M:	jcliburn@gmail.com
+P:	Chris Snook
+M:	csnook@redhat.com
+L:	atl1-devel@lists.sourceforge.net
+W:	http://sourceforge.net/projects/atl1
+W:	http://atl1.sourceforge.net
+S:	Maintained
+
 ATM
 P:	Chas Williams
 M:	chas@cmf.nrl.navy.mil
@@ -2485,6 +2495,12 @@ L:	orinoco-devel@lists.sourceforge.net
 W:	http://www.nongnu.org/orinoco/
 S:	Maintained
 
+PA SEMI ETHERNET DRIVER
+P:	Olof Johansson
+M:	olof@lixom.net
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 PARALLEL PORT SUPPORT
 P:	Phil Blundell
 M:	philb@gnu.org
@@ -2654,7 +2670,7 @@ S:	Supported
 
 PRISM54 WIRELESS DRIVER
 P:	Prism54 Development Team
-M:	prism54-private@prism54.org
+M:	developers@islsm.org
 L:	netdev@vger.kernel.org
 W:	http://prism54.org
 S:	Maintained

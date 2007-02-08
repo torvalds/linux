@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/crc32.h>
+#include <linux/bitrev.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
@@ -80,19 +81,6 @@ static int mace_set_address(struct net_device *dev, void *addr);
 static irqreturn_t mace_interrupt(int irq, void *dev_id);
 static irqreturn_t mace_dma_intr(int irq, void *dev_id);
 static void mace_tx_timeout(struct net_device *dev);
-
-/* Bit-reverse one byte of an ethernet hardware address. */
-
-static int bitrev(int b)
-{
-	int d = 0, i;
-
-	for (i = 0; i < 8; ++i, b >>= 1) {
-		d = (d << 1) | (b & 1);
-	}
-
-	return d;
-}
 
 /*
  * Load a receive DMA channel with a base address and ring length
@@ -219,12 +207,12 @@ struct net_device *mace_probe(int unit)
 	addr = (void *)MACE_PROM;
 
 	for (j = 0; j < 6; ++j) {
-		u8 v=bitrev(addr[j<<4]);
+		u8 v = bitrev8(addr[j<<4]);
 		checksum ^= v;
 		dev->dev_addr[j] = v;
 	}
 	for (; j < 8; ++j) {
-		checksum ^= bitrev(addr[j<<4]);
+		checksum ^= bitrev8(addr[j<<4]);
 	}
 
 	if (checksum != 0xFF) {

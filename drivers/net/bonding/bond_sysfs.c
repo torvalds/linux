@@ -1372,6 +1372,21 @@ int bond_create_sysfs(void)
 		return -ENODEV;
 
 	ret = class_create_file(netdev_class, &class_attr_bonding_masters);
+	/*
+	 * Permit multiple loads of the module by ignoring failures to
+	 * create the bonding_masters sysfs file.  Bonding devices
+	 * created by second or subsequent loads of the module will
+	 * not be listed in, or controllable by, bonding_masters, but
+	 * will have the usual "bonding" sysfs directory.
+	 *
+	 * This is done to preserve backwards compatibility for
+	 * initscripts/sysconfig, which load bonding multiple times to
+	 * configure multiple bonding devices.
+	 */
+	if (ret == -EEXIST) {
+		netdev_class = NULL;
+		return 0;
+	}
 
 	return ret;
 

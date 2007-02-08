@@ -333,3 +333,10 @@ Why:	Unmaintained for years, superceded by JFFS2 for years.
 Who:	Jeff Garzik <jeff@garzik.org>
 
 ---------------------------
+
+What:   sk98lin network driver
+When:   July 2007
+Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
+	replaced by the skge driver. 
+Who:    Stephen Hemminger <shemminger@osdl.org>
+
