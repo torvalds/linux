@@ -63,6 +63,7 @@ int sysctl_x25_call_request_timeout    = X25_DEFAULT_T21;
 int sysctl_x25_reset_request_timeout   = X25_DEFAULT_T22;
 int sysctl_x25_clear_request_timeout   = X25_DEFAULT_T23;
 int sysctl_x25_ack_holdback_timeout    = X25_DEFAULT_T2;
+int sysctl_x25_forward                 = 0;
 
 HLIST_HEAD(x25_list);
 DEFINE_RWLOCK(x25_list_lock);
@@ -884,7 +885,8 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	 */
 	if (sk == NULL) {
 		skb_push(skb, addr_len + X25_STD_MIN_LEN);
-		if (x25_forward_call(&dest_addr, nb, skb, lci) > 0)
+		if (sysctl_x25_forward &&
+				x25_forward_call(&dest_addr, nb, skb, lci) > 0)
 		{
 			/* Call was forwarded, dont process it any more */
 			kfree_skb(skb);
