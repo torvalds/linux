@@ -131,4 +131,11 @@
 #define			AT91_SMC_PS_16			(2 << 28)
 #define			AT91_SMC_PS_32			(3 << 28)
 
+#if defined(AT91_SMC1)		/* The AT91SAM9263 has 2 Static Memory contollers */
+#define AT91_SMC1_SETUP(n)	(AT91_SMC1 + 0x00 + ((n)*0x10))	/* Setup Register for CS n */
+#define AT91_SMC1_PULSE(n)	(AT91_SMC1 + 0x04 + ((n)*0x10))	/* Pulse Register for CS n */
+#define AT91_SMC1_CYCLE(n)	(AT91_SMC1 + 0x08 + ((n)*0x10))	/* Cycle Register for CS n */
+#define AT91_SMC1_MODE(n)	(AT91_SMC1 + 0x0c + ((n)*0x10))	/* Mode Register for CS n */
+#endif
+
 #endif

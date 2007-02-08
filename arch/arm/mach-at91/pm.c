@@ -80,6 +80,8 @@ static int at91_pm_verify_clocks(void)
 #warning "Check SAM9260 USB clocks"
 	} else if (cpu_is_at91sam9261()) {
 #warning "Check SAM9261 USB clocks"
+	} else if (cpu_is_at91sam9263()) {
+#warning "Check SAM9263 USB clocks"
 	}
 
 #ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS

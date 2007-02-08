@@ -598,7 +598,7 @@ int __init at91_clock_init(unsigned long main_clock)
 		udpck.pmc_mask = AT91RM9200_PMC_UDP;
 		at91_sys_write(AT91_PMC_SCDR, AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP);
 		at91_sys_write(AT91_PMC_SCER, AT91RM9200_PMC_MCKUDP);
-	} else if (cpu_is_at91sam9260()) {
+	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9263()) {
 		uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
 		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
 		at91_sys_write(AT91_PMC_SCDR, AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP);

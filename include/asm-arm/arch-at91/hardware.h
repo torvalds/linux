@@ -22,6 +22,8 @@
 #include <asm/arch/at91sam9260.h>
 #elif defined(CONFIG_ARCH_AT91SAM9261)
 #include <asm/arch/at91sam9261.h>
+#elif defined(CONFIG_ARCH_AT91SAM9263)
+#include <asm/arch/at91sam9263.h>
 #else
 #error "Unsupported AT91 processor"
 #endif

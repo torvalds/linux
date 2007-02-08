@@ -14,6 +14,9 @@ config ARCH_AT91SAM9260
 config ARCH_AT91SAM9261
 	bool "AT91SAM9261"
 
+config ARCH_AT91SAM9263
+	bool "AT91SAM9263"
+
 endchoice
 
 # ----------------------------------------------------------

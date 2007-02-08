@@ -20,6 +20,7 @@
 #define ARCH_ID_AT91RM9200	0x09290780
 #define ARCH_ID_AT91SAM9260	0x019803a0
 #define ARCH_ID_AT91SAM9261	0x019703a0
+#define ARCH_ID_AT91SAM9263	0x019607a0
 
 
 static inline unsigned long at91_cpu_identify(void)
@@ -44,6 +45,12 @@ static inline unsigned long at91_cpu_identify(void)
 #define cpu_is_at91sam9261()	(at91_cpu_identify() == ARCH_ID_AT91SAM9261)
 #else
 #define cpu_is_at91sam9261()	(0)
+#endif
+
+#ifdef CONFIG_ARCH_AT91SAM9263
+#define cpu_is_at91sam9263()	(at91_cpu_identify() == ARCH_ID_AT91SAM9263)
+#else
+#define cpu_is_at91sam9263()	(0)
 #endif
 
 #endif
