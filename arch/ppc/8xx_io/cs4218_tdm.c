@@ -1379,7 +1379,6 @@ static void cs_nosound(unsigned long xx)
 }
 
 static DEFINE_TIMER(beep_timer, cs_nosound, 0, 0);
-};
 
 static void cs_mksound(unsigned int hz, unsigned int ticks)
 {
