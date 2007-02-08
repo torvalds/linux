@@ -9,7 +9,23 @@
 #define _LINUX_LCD_H
 
 #include <linux/device.h>
+#include <linux/mutex.h>
 #include <linux/notifier.h>
+
+/* Notes on locking:
+ *
+ * lcd_device->sem is an internal backlight lock protecting the props
+ * field and no code outside the core should need to touch it.
+ *
+ * Access to set_power() is serialised by the update_lock mutex since
+ * most drivers seem to need this and historically get it wrong.
+ *
+ * Most drivers don't need locking on their get_power() method.
+ * If yours does, you need to implement it in the driver. You can use the
+ * update_lock mutex if appropriate.
+ *
+ * Any other use of the locks below is probably wrong.
+ */
 
 struct lcd_device;
 struct fb_info;
@@ -39,11 +55,21 @@ struct lcd_device {
 	struct semaphore sem;
 	/* If this is NULL, the backing module is unloaded */
 	struct lcd_properties *props;
+	/* Serialise access to set_power method */
+	struct mutex update_lock;
 	/* The framebuffer notifier block */
 	struct notifier_block fb_notif;
 	/* The class device structure */
 	struct class_device class_dev;
 };
+
+static inline void lcd_set_power(struct lcd_device *ld, int power)
+{
+	mutex_lock(&ld->update_lock);
+	if (ld->props && ld->props->set_power)
+		ld->props->set_power(ld, power);
+	mutex_unlock(&ld->update_lock);
+}
 
 extern struct lcd_device *lcd_device_register(const char *name,
 	void *devdata, struct lcd_properties *lp);

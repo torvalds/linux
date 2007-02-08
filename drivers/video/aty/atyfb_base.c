@@ -2188,10 +2188,8 @@ static void aty_bl_set_power(struct fb_info *info, int power)
 	mutex_lock(&info->bl_mutex);
 
 	if (info->bl_dev) {
-		down(&info->bl_dev->sem);
 		info->bl_dev->props->power = power;
 		__aty_bl_update_status(info->bl_dev);
-		up(&info->bl_dev->sem);
 	}
 
 	mutex_unlock(&info->bl_mutex);
@@ -2224,11 +2222,9 @@ static void aty_bl_init(struct atyfb_par *par)
 		0xFF * FB_BACKLIGHT_MAX / MAX_LEVEL);
 	mutex_unlock(&info->bl_mutex);
 
-	down(&bd->sem);
 	bd->props->brightness = aty_bl_data.max_brightness;
 	bd->props->power = FB_BLANK_UNBLANK;
-	bd->props->update_status(bd);
-	up(&bd->sem);
+	backlight_update_status(bd);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	mutex_lock(&pmac_backlight_mutex);

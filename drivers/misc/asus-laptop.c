@@ -348,13 +348,8 @@ static void lcd_blank(int blank)
 	struct backlight_device *bd = asus_backlight_device;
 
 	if (bd) {
-		down(&bd->sem);
-		if (likely(bd->props)) {
-			bd->props->power = blank;
-			if (likely(bd->props->update_status))
-				bd->props->update_status(bd);
-		}
-		up(&bd->sem);
+		bd->props->power = blank;
+		backlight_update_status(bd);
 	}
 }
 
@@ -1028,14 +1023,9 @@ static int asus_backlight_init(struct device *dev)
 
 		asus_backlight_device = bd;
 
-		down(&bd->sem);
-		if (likely(bd->props)) {
-			bd->props->brightness = read_brightness(NULL);
-			bd->props->power = FB_BLANK_UNBLANK;
-			if (likely(bd->props->update_status))
-				bd->props->update_status(bd);
-		}
-		up(&bd->sem);
+		bd->props->brightness = read_brightness(NULL);
+		bd->props->power = FB_BLANK_UNBLANK;
+		backlight_update_status(bd);
 	}
 	return 0;
 }

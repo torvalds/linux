@@ -189,11 +189,9 @@ static void appledisplay_work(struct work_struct *work)
 		container_of(work, struct appledisplay, work.work);
 	int retval;
 
-	up(&pdata->bd->sem);
 	retval = appledisplay_bl_get_brightness(pdata->bd);
 	if (retval >= 0)
 		pdata->bd->props->brightness = retval;
-	down(&pdata->bd->sem);
 
 	/* Poll again in about 125ms if there's still a button pressed */
 	if (pdata->button_pressed)
@@ -288,9 +286,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	}
 
 	/* Try to get brightness */
-	up(&pdata->bd->sem);
 	brightness = appledisplay_bl_get_brightness(pdata->bd);
-	down(&pdata->bd->sem);
 
 	if (brightness < 0) {
 		retval = brightness;
@@ -299,9 +295,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	}
 
 	/* Set brightness in backlight device */
-	up(&pdata->bd->sem);
 	pdata->bd->props->brightness = brightness;
-	down(&pdata->bd->sem);
 
 	/* save our data pointer in the interface device */
 	usb_set_intfdata(iface, pdata);

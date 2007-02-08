@@ -166,11 +166,9 @@ void __init pmu_backlight_init()
 				pmu_backlight_data.max_brightness / 15);
 	}
 
-	down(&bd->sem);
 	bd->props->brightness = level;
 	bd->props->power = FB_BLANK_UNBLANK;
-	bd->props->update_status(bd);
-	up(&bd->sem);
+	backlight_update_status(bd);
 
 	mutex_lock(&pmac_backlight_mutex);
 	if (!pmac_backlight)

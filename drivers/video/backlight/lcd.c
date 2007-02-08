@@ -198,6 +198,7 @@ struct lcd_device *lcd_device_register(const char *name, void *devdata,
 		return ERR_PTR(-ENOMEM);
 
 	init_MUTEX(&new_ld->sem);
+	mutex_init(&new_ld->update_lock);
 	new_ld->props = lp;
 	memset(&new_ld->class_dev, 0, sizeof(new_ld->class_dev));
 	new_ld->class_dev.class = &lcd_class;

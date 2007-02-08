@@ -37,8 +37,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 		if (!bd->props->check_fb ||
 		    bd->props->check_fb(evdata->info)) {
 			bd->props->fb_blank = *(int *)evdata->data;
-			if (bd->props && bd->props->update_status)
-				bd->props->update_status(bd);
+			backlight_update_status(bd);
 		}
 	up(&bd->sem);
 	return 0;
@@ -97,8 +96,7 @@ static ssize_t backlight_store_power(struct class_device *cdev, const char *buf,
 	if (bd->props) {
 		pr_debug("backlight: set power to %d\n", power);
 		bd->props->power = power;
-		if (bd->props->update_status)
-			bd->props->update_status(bd);
+		backlight_update_status(bd);
 		rc = count;
 	}
 	up(&bd->sem);
@@ -140,8 +138,7 @@ static ssize_t backlight_store_brightness(struct class_device *cdev, const char 
 			pr_debug("backlight: set brightness to %d\n",
 				 brightness);
 			bd->props->brightness = brightness;
-			if (bd->props->update_status)
-				bd->props->update_status(bd);
+			backlight_update_status(bd);
 			rc = count;
 		}
 	}
@@ -230,6 +227,7 @@ struct backlight_device *backlight_device_register(const char *name,
 	if (!new_bd)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_init(&new_bd->update_lock);
 	init_MUTEX(&new_bd->sem);
 	new_bd->props = bp;
 	memset(&new_bd->class_dev, 0, sizeof(new_bd->class_dev));

@@ -9,7 +9,23 @@
 #define _LINUX_BACKLIGHT_H
 
 #include <linux/device.h>
+#include <linux/mutex.h>
 #include <linux/notifier.h>
+
+/* Notes on locking:
+ *
+ * backlight_device->sem is an internal backlight lock protecting the props
+ * field and no code outside the core should need to touch it.
+ *
+ * Access to update_status() is serialised by the update_lock mutex since
+ * most drivers seem to need this and historically get it wrong.
+ *
+ * Most drivers don't need locking on their get_brightness() method.
+ * If yours does, you need to implement it in the driver. You can use the
+ * update_lock mutex if appropriate.
+ *
+ * Any other use of the locks below is probably wrong.
+ */
 
 struct backlight_device;
 struct fb_info;
@@ -44,11 +60,21 @@ struct backlight_device {
 	struct semaphore sem;
 	/* If this is NULL, the backing module is unloaded */
 	struct backlight_properties *props;
+	/* Serialise access to update_status method */
+	struct mutex update_lock;
 	/* The framebuffer notifier block */
 	struct notifier_block fb_notif;
 	/* The class device structure */
 	struct class_device class_dev;
 };
+
+static inline void backlight_update_status(struct backlight_device *bd)
+{
+	mutex_lock(&bd->update_lock);
+	if (bd->props && bd->props->update_status)
+		bd->props->update_status(bd);
+	mutex_unlock(&bd->update_lock);
+}
 
 extern struct backlight_device *backlight_device_register(const char *name,
 	struct device *dev,void *devdata,struct backlight_properties *bp);

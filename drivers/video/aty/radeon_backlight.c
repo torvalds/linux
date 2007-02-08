@@ -194,11 +194,9 @@ void radeonfb_bl_init(struct radeonfb_info *rinfo)
 		217 * FB_BACKLIGHT_MAX / MAX_RADEON_LEVEL);
 	mutex_unlock(&rinfo->info->bl_mutex);
 
-	down(&bd->sem);
 	bd->props->brightness = radeon_bl_data.max_brightness;
 	bd->props->power = FB_BLANK_UNBLANK;
-	bd->props->update_status(bd);
-	up(&bd->sem);
+	backlight_update_status(bd);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	mutex_lock(&pmac_backlight_mutex);
