@@ -1460,6 +1460,24 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x2609, quirk_intel_pcie_pm);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x260a, quirk_intel_pcie_pm);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x260b, quirk_intel_pcie_pm);
 
+/*
+ * Toshiba TC86C001 IDE controller reports the standard 8-byte BAR0 size
+ * but the PIO transfers won't work if BAR0 falls at the odd 8 bytes.
+ * Re-allocate the region if needed...
+ */
+static void __init quirk_tc86c001_ide(struct pci_dev *dev)
+{
+	struct resource *r = &dev->resource[0];
+
+	if (r->start & 0x8) {
+		r->start = 0;
+		r->end = 0xf;
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TOSHIBA_2,
+			 PCI_DEVICE_ID_TOSHIBA_TC86C001_IDE,
+			 quirk_tc86c001_ide);
+
 static void __devinit quirk_netmos(struct pci_dev *dev)
 {
 	unsigned int num_parallel = (dev->subsystem_device & 0xf0) >> 4;
