@@ -828,9 +828,7 @@ int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat)
 		mutex_unlock(&crypt_stat->cs_tfm_mutex);
 		goto out;
 	}
-	crypto_blkcipher_set_flags(crypt_stat->tfm,
-				   (ECRYPTFS_DEFAULT_CHAINING_MODE
-				    | CRYPTO_TFM_REQ_WEAK_KEY));
+	crypto_blkcipher_set_flags(crypt_stat->tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 	mutex_unlock(&crypt_stat->cs_tfm_mutex);
 	rc = 0;
 out:
