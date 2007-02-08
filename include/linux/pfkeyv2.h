@@ -251,7 +251,8 @@ struct sadb_x_sec_ctx {
 #define SADB_X_SPDEXPIRE	21
 #define SADB_X_SPDDELETE2	22
 #define SADB_X_NAT_T_NEW_MAPPING	23
-#define SADB_MAX		23
+#define SADB_X_MIGRATE		24
+#define SADB_MAX		24
 
 /* Security Association flags */
 #define SADB_SAFLAGS_PFS	1
