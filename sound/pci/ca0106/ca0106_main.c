@@ -1618,6 +1618,8 @@ static int __devinit snd_ca0106_probe(struct pci_dev *pci,
 	snd_ca0106_proc_init(chip);
 #endif
 
+	snd_card_set_dev(card, &pci->dev);
+
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);
 		return err;
