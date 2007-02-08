@@ -17,40 +17,25 @@
 #include <linux/module.h>
 
 #include <asm/processor.h>
+#include <asm/cputable.h>
 #include <asm/pmc.h>
 
+#ifndef MMCR0_PMA0
+#define MMCR0_PMA0	0
+#endif
+
+static void dummy_perf(struct pt_regs *regs)
+{
 #if defined(CONFIG_FSL_BOOKE) && !defined(CONFIG_E200)
-static void dummy_perf(struct pt_regs *regs)
-{
-	unsigned int pmgc0 = mfpmr(PMRN_PMGC0);
-
-	pmgc0 &= ~PMGC0_PMIE;
-	mtpmr(PMRN_PMGC0, pmgc0);
-}
+	mtpmr(PMRN_PMGC0, mfpmr(PMRN_PMGC0) & ~PMGC0_PMIE);
 #elif defined(CONFIG_PPC64) || defined(CONFIG_6xx)
-
-#ifndef MMCR0_PMAO
-#define MMCR0_PMAO	0
-#endif
-
-/* Ensure exceptions are disabled */
-static void dummy_perf(struct pt_regs *regs)
-{
-	unsigned int mmcr0 = mfspr(SPRN_MMCR0);
-
-	mmcr0 &= ~(MMCR0_PMXE|MMCR0_PMAO);
-	mtspr(SPRN_MMCR0, mmcr0);
-}
+	if (cur_cpu_spec->pmc_type == PPC_PMC_IBM)
+		mtspr(SPRN_MMCR0, mfspr(SPRN_MMCR0) & ~(MMCR0_PMXE|MMCR0_PMA0));
 #else
-/* Ensure exceptions are disabled */
-static void dummy_perf(struct pt_regs *regs)
-{
-	unsigned int mmcr0 = mfspr(SPRN_MMCR0);
-
-	mmcr0 &= ~(MMCR0_PMXE);
-	mtspr(SPRN_MMCR0, mmcr0);
-}
+	mtspr(SPRN_MMCR0, mfspr(SPRN_MMCR0) & ~MMCR0_PMXE);
 #endif
+}
+
 
 static DEFINE_SPINLOCK(pmc_owner_lock);
 static void *pmc_owner_caller; /* mostly for debugging */

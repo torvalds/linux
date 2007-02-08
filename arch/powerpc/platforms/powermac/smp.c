@@ -795,7 +795,6 @@ static void __devinit smp_core99_kick_cpu(int nr)
 		ppc_md.progress("smp_core99_kick_cpu", 0x346);
 
 	local_irq_save(flags);
-	local_irq_disable();
 
 	/* Save reset vector */
 	save_vector = *vector;

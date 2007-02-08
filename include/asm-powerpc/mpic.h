@@ -103,21 +103,6 @@
 #define MPIC_MAX_ISU		32
 
 /*
- * Special vector numbers (internal use only)
- */
-#define MPIC_VEC_SPURRIOUS	255
-#define MPIC_VEC_IPI_3		254
-#define MPIC_VEC_IPI_2		253
-#define MPIC_VEC_IPI_1		252
-#define MPIC_VEC_IPI_0		251
-
-/* unused */
-#define MPIC_VEC_TIMER_3	250
-#define MPIC_VEC_TIMER_2	249
-#define MPIC_VEC_TIMER_1	248
-#define MPIC_VEC_TIMER_0	247
-
-/*
  * Tsi108 implementation of MPIC has many differences from the original one
  */
 
@@ -276,6 +261,13 @@ struct mpic
 	unsigned char		*senses;
 	unsigned int		senses_count;
 
+	/* vector numbers used for internal sources (ipi/timers) */
+	unsigned int		ipi_vecs[4];
+	unsigned int		timer_vecs[4];
+
+	/* Spurious vector to program into unused sources */
+	unsigned int		spurious_vec;
+
 #ifdef CONFIG_MPIC_BROKEN_U3
 	/* The fixup table */
 	struct mpic_irq_fixup	*fixups;
@@ -332,6 +324,8 @@ struct mpic
 #define MPIC_NO_PTHROU_DIS		0x00000040
 /* DCR based MPIC */
 #define MPIC_USES_DCR			0x00000080
+/* MPIC has 11-bit vector fields (or larger) */
+#define MPIC_LARGE_VECTORS		0x00000100
 
 /* MPIC HW modification ID */
 #define MPIC_REGSET_MASK		0xf0000000

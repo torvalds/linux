@@ -22,7 +22,6 @@
 #include <linux/io.h>
 
 #include <asm/lmb.h>
-#include <asm/ps3.h>
 
 #include "platform.h"
 
@@ -59,18 +58,11 @@ struct os_area_header {
 	u32 ldr_format;
 	u32 ldr_size;
 	u32 _reserved_2[6];
-} __attribute__ ((packed));
+};
 
 enum {
 	PARAM_BOOT_FLAG_GAME_OS = 0,
 	PARAM_BOOT_FLAG_OTHER_OS = 1,
-};
-
-enum {
-	PARAM_AV_MULTI_OUT_NTSC = 0,
-	PARAM_AV_MULTI_OUT_PAL_RGB = 1,
-	PARAM_AV_MULTI_OUT_PAL_YCBCR = 2,
-	PARAM_AV_MULTI_OUT_SECAM = 3,
 };
 
 enum {
@@ -114,7 +106,7 @@ struct os_area_params {
 	u8 dns_primary[4];
 	u8 dns_secondary[4];
 	u8 _reserved_5[8];
-} __attribute__ ((packed));
+};
 
 /**
  * struct saved_params - Static working copies of data from the 'Other OS' area.
@@ -257,3 +249,13 @@ u64 ps3_os_area_rtc_diff(void)
 {
 	return saved_params.rtc_diff ? saved_params.rtc_diff : 946684800UL;
 }
+
+/**
+ * ps3_os_area_get_av_multi_out - Returns the default video mode.
+ */
+
+enum ps3_param_av_multi_out ps3_os_area_get_av_multi_out(void)
+{
+    return saved_params.av_multi_out;
+}
+EXPORT_SYMBOL_GPL(ps3_os_area_get_av_multi_out);

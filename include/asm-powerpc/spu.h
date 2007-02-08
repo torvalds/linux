@@ -104,6 +104,7 @@
 
 struct spu_context;
 struct spu_runqueue;
+struct device_node;
 
 struct spu {
 	const char *name;
@@ -142,7 +143,19 @@ struct spu {
 	char irq_c1[8];
 	char irq_c2[8];
 
+	u64 spe_id;
+
 	void* pdata; /* platform private data */
+
+	/* of based platforms only */
+	struct device_node *devnode;
+
+	/* native only */
+	struct spu_priv1 __iomem *priv1;
+
+	/* beat only */
+	u64 shadow_int_mask_RW[3];
+
 	struct sys_device sysdev;
 };
 

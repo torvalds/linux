@@ -25,9 +25,10 @@
 #include <linux/err.h>
 
 #include <asm/udbg.h>
-#include <asm/ps3.h>
 #include <asm/lv1call.h>
 #include <asm/firmware.h>
+
+#include "platform.h"
 
 #define dump_mmio_region(_a) _dump_mmio_region(_a, __func__, __LINE__)
 static void _dump_mmio_region(const struct ps3_mmio_region* r,
@@ -50,7 +51,7 @@ int ps3_mmio_region_create(struct ps3_mmio_region *r)
 	if (result) {
 		pr_debug("%s:%d: lv1_map_device_mmio_region failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
-		r->lpar_addr = r->len = r->bus_addr = 0;
+		r->lpar_addr = 0;
 	}
 
 	dump_mmio_region(r);
@@ -62,13 +63,13 @@ int ps3_free_mmio_region(struct ps3_mmio_region *r)
 	int result;
 
 	result = lv1_unmap_device_mmio_region(r->did.bus_id, r->did.dev_id,
-		r->bus_addr);
+		r->lpar_addr);
 
 	if (result)
 		pr_debug("%s:%d: lv1_unmap_device_mmio_region failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 
-	r->lpar_addr = r->len = r->bus_addr = 0;
+	r->lpar_addr = 0;
 	return result;
 }
 
@@ -158,7 +159,7 @@ static int ps3_system_bus_remove(struct device *_dev)
 }
 
 struct bus_type ps3_system_bus_type = {
-        .name = "ps3_system_bus",
+	.name = "ps3_system_bus",
 	.match = ps3_system_bus_match,
 	.probe = ps3_system_bus_probe,
 	.remove = ps3_system_bus_remove,
@@ -271,10 +272,29 @@ static void ps3_unmap_single(struct device *_dev, dma_addr_t dma_addr,
 static int ps3_map_sg(struct device *_dev, struct scatterlist *sg, int nents,
 	enum dma_data_direction direction)
 {
+	struct ps3_system_bus_device *dev = to_ps3_system_bus_device(_dev);
+	int i;
+
 #if defined(CONFIG_PS3_DYNAMIC_DMA)
 	BUG_ON("do");
+	return -EPERM;
+#else
+	for (i = 0; i < nents; i++, sg++) {
+		int result = ps3_dma_map(dev->d_region,
+			page_to_phys(sg->page) + sg->offset, sg->length,
+			&sg->dma_address);
+
+		if (result) {
+			pr_debug("%s:%d: ps3_dma_map failed (%d)\n",
+				__func__, __LINE__, result);
+			return -EINVAL;
+		}
+
+		sg->dma_length = sg->length;
+	}
+
+	return nents;
 #endif
-	return 0;
 }
 
 static void ps3_unmap_sg(struct device *_dev, struct scatterlist *sg,
@@ -287,7 +307,7 @@ static void ps3_unmap_sg(struct device *_dev, struct scatterlist *sg,
 
 static int ps3_dma_supported(struct device *_dev, u64 mask)
 {
-	return 1;
+	return mask >= DMA_32BIT_MASK;
 }
 
 static struct dma_mapping_ops ps3_dma_ops = {

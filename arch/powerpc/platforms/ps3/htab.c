@@ -23,7 +23,6 @@
 #include <asm/machdep.h>
 #include <asm/lmb.h>
 #include <asm/udbg.h>
-#include <asm/ps3.h>
 #include <asm/lv1call.h>
 
 #include "platform.h"

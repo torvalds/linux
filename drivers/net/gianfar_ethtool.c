@@ -42,8 +42,6 @@
 
 #include "gianfar.h"
 
-#define is_power_of_2(x)        ((x) != 0 && (((x) & ((x) - 1)) == 0))
-
 extern void gfar_start(struct net_device *dev);
 extern int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit);
 

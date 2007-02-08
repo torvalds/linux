@@ -44,6 +44,7 @@ typedef unsigned int kprobe_opcode_t;
 #define IS_TDI(instr)		(((instr) & 0xfc000000) == 0x08000000)
 #define IS_TWI(instr)		(((instr) & 0xfc000000) == 0x0c000000)
 
+#ifdef CONFIG_PPC64
 /*
  * 64bit powerpc uses function descriptors.
  * Handle cases where:
@@ -67,9 +68,13 @@ typedef unsigned int kprobe_opcode_t;
 }
 
 #define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)((func_descr_t *)pentry)
-
 #define is_trap(instr)	(IS_TW(instr) || IS_TD(instr) || \
 			IS_TWI(instr) || IS_TDI(instr))
+#else
+/* Use stock kprobe_lookup_name since ppc32 doesn't use function descriptors */
+#define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)(pentry)
+#define is_trap(instr)	(IS_TW(instr) || IS_TWI(instr))
+#endif
 
 #define ARCH_SUPPORTS_KRETPROBES
 #define  ARCH_INACTIVE_KPROBE_COUNT 1

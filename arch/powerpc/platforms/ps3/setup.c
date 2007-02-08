@@ -41,10 +41,18 @@
 #define DBG(fmt...) do{if(0)printk(fmt);}while(0)
 #endif
 
-static void ps3_show_cpuinfo(struct seq_file *m)
+int ps3_get_firmware_version(union ps3_firmware_version *v)
 {
-	seq_printf(m, "machine\t\t: %s\n", ppc_md.name);
+	int result = lv1_get_version_info(&v->raw);
+
+	if (result) {
+		v->raw = 0;
+		return -1;
+	}
+
+	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_get_firmware_version);
 
 static void ps3_power_save(void)
 {
@@ -74,7 +82,13 @@ static void ps3_panic(char *str)
 
 static void __init ps3_setup_arch(void)
 {
+	union ps3_firmware_version v;
+
 	DBG(" -> %s:%d\n", __func__, __LINE__);
+
+	ps3_get_firmware_version(&v);
+	printk(KERN_INFO "PS3 firmware version %u.%u.%u\n", v.major, v.minor,
+		v.rev);
 
 	ps3_spu_set_platform();
 	ps3_map_htab();
@@ -156,7 +170,6 @@ define_machine(ps3) {
 	.name				= "PS3",
 	.probe				= ps3_probe,
 	.setup_arch			= ps3_setup_arch,
-	.show_cpuinfo			= ps3_show_cpuinfo,
 	.init_IRQ			= ps3_init_IRQ,
 	.panic				= ps3_panic,
 	.get_boot_time			= ps3_get_boot_time,

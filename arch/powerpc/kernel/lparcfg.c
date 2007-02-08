@@ -439,6 +439,10 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 
 	ssize_t retval = -ENOMEM;
 
+	if (!firmware_has_feature(FW_FEATURE_SPLPAR) ||
+			firmware_has_feature(FW_FEATURE_ISERIES))
+		return -EINVAL;
+
 	kbuf = kmalloc(count, GFP_KERNEL);
 	if (!kbuf)
 		goto out;
@@ -517,7 +521,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 			     size_t count, loff_t * off)
 {
-	return count;
+	return -EINVAL;
 }
 
 #endif				/* CONFIG_PPC_PSERIES */
@@ -570,6 +574,7 @@ static int lparcfg_open(struct inode *inode, struct file *file)
 struct file_operations lparcfg_fops = {
 	.owner		= THIS_MODULE,
 	.read		= seq_read,
+	.write		= lparcfg_write,
 	.open		= lparcfg_open,
 	.release	= single_release,
 };
@@ -581,10 +586,8 @@ int __init lparcfg_init(void)
 
 	/* Allow writing if we have FW_FEATURE_SPLPAR */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR) &&
-			!firmware_has_feature(FW_FEATURE_ISERIES)) {
-		lparcfg_fops.write = lparcfg_write;
+			!firmware_has_feature(FW_FEATURE_ISERIES))
 		mode |= S_IWUSR;
-	}
 
 	ent = create_proc_entry("ppc64/lparcfg", mode, NULL);
 	if (ent) {
