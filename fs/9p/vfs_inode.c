@@ -585,16 +585,13 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		inode = NULL;
-		goto clean_up_fids;
+		v9fs_fid_destroy(vfid);
+		goto error;
 	}
 
 	dentry->d_op = &v9fs_dentry_operations;
 	d_instantiate(dentry, inode);
 	return 0;
-
-clean_up_fids:
-	if (vfid)
-		v9fs_fid_destroy(vfid);
 
 clean_up_dfid:
 	v9fs_fid_clunk(v9ses, dfid);
