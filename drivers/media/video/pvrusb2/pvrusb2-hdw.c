@@ -1209,7 +1209,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 {
 	const struct firmware *fw_entry = NULL;
 	void  *fw_ptr;
-	unsigned int pipe, fw_len, fw_done;
+	unsigned int pipe, fw_len, fw_done, bcnt, icnt;
 	int actual_length;
 	int ret = 0;
 	int fwidx;
@@ -1265,11 +1265,11 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 
 	fw_len = fw_entry->size;
 
-	if (fw_len % FIRMWARE_CHUNK_SIZE) {
+	if (fw_len % sizeof(u32)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "size of %s firmware"
-			   " must be a multiple of 8192B",
-			   fw_files[fwidx]);
+			   " must be a multiple of %u bytes",
+			   fw_files[fwidx],sizeof(u32));
 		release_firmware(fw_entry);
 		return -1;
 	}
@@ -1284,18 +1284,21 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 
 	pipe = usb_sndbulkpipe(hdw->usb_dev, PVR2_FIRMWARE_ENDPOINT);
 
-	for (fw_done = 0 ; (fw_done < fw_len) && !ret ;
-	     fw_done += FIRMWARE_CHUNK_SIZE ) {
-		int i;
-		memcpy(fw_ptr, fw_entry->data + fw_done, FIRMWARE_CHUNK_SIZE);
-		/* Usbsnoop log  shows that we must swap bytes... */
-		for (i = 0; i < FIRMWARE_CHUNK_SIZE/4 ; i++)
-			((u32 *)fw_ptr)[i] = ___swab32(((u32 *)fw_ptr)[i]);
+	fw_done = 0;
+	for (fw_done = 0; fw_done < fw_len;) {
+		bcnt = fw_len - fw_done;
+		if (bcnt > FIRMWARE_CHUNK_SIZE) bcnt = FIRMWARE_CHUNK_SIZE;
+		memcpy(fw_ptr, fw_entry->data + fw_done, bcnt);
+		/* Usbsnoop log shows that we must swap bytes... */
+		for (icnt = 0; icnt < bcnt/4 ; icnt++)
+			((u32 *)fw_ptr)[icnt] =
+				___swab32(((u32 *)fw_ptr)[icnt]);
 
-		ret |= usb_bulk_msg(hdw->usb_dev, pipe, fw_ptr,
-				    FIRMWARE_CHUNK_SIZE,
+		ret |= usb_bulk_msg(hdw->usb_dev, pipe, fw_ptr,bcnt,
 				    &actual_length, HZ);
-		ret |= (actual_length != FIRMWARE_CHUNK_SIZE);
+		ret |= (actual_length != bcnt);
+		if (ret) break;
+		fw_done += bcnt;
 	}
 
 	trace_firmware("upload of %s : %i / %i ",
