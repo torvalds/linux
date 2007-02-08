@@ -61,17 +61,21 @@ static int corgibl_send_intensity(struct backlight_device *bd)
 }
 
 #ifdef CONFIG_PM
-static int corgibl_suspend(struct platform_device *dev, pm_message_t state)
+static int corgibl_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct backlight_device *bd = platform_get_drvdata(pdev);
+
 	corgibl_flags |= CORGIBL_SUSPENDED;
-	corgibl_send_intensity(corgi_backlight_device);
+	corgibl_send_intensity(bd);
 	return 0;
 }
 
-static int corgibl_resume(struct platform_device *dev)
+static int corgibl_resume(struct platform_device *pdev)
 {
+	struct backlight_device *bd = platform_get_drvdata(pdev);
+
 	corgibl_flags &= ~CORGIBL_SUSPENDED;
-	corgibl_send_intensity(corgi_backlight_device);
+	corgibl_send_intensity(bd);
 	return 0;
 }
 #else
@@ -82,12 +86,6 @@ static int corgibl_resume(struct platform_device *dev)
 static int corgibl_get_intensity(struct backlight_device *bd)
 {
 	return corgibl_intensity;
-}
-
-static int corgibl_set_intensity(struct backlight_device *bd)
-{
-	corgibl_send_intensity(corgi_backlight_device);
-	return 0;
 }
 
 /*
@@ -107,7 +105,7 @@ EXPORT_SYMBOL(corgibl_limit_intensity);
 
 static struct backlight_properties corgibl_data = {
 	.get_brightness = corgibl_get_intensity,
-	.update_status  = corgibl_set_intensity,
+	.update_status  = corgibl_send_intensity,
 };
 
 static int corgibl_probe(struct platform_device *pdev)
@@ -124,6 +122,8 @@ static int corgibl_probe(struct platform_device *pdev)
 	if (IS_ERR (corgi_backlight_device))
 		return PTR_ERR (corgi_backlight_device);
 
+	platform_set_drvdata(pdev, corgi_backlight_device);
+
 	corgibl_data.power = FB_BLANK_UNBLANK;
 	corgibl_data.brightness = machinfo->default_intensity;
 	corgibl_send_intensity(corgi_backlight_device);
@@ -132,13 +132,15 @@ static int corgibl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int corgibl_remove(struct platform_device *dev)
+static int corgibl_remove(struct platform_device *pdev)
 {
+	struct backlight_device *bd = platform_get_drvdata(pdev);
+
 	corgibl_data.power = 0;
 	corgibl_data.brightness = 0;
-	corgibl_send_intensity(corgi_backlight_device);
+	corgibl_send_intensity(bd);
 
-	backlight_device_unregister(corgi_backlight_device);
+	backlight_device_unregister(bd);
 
 	printk("Corgi Backlight Driver Unloaded\n");
 	return 0;
