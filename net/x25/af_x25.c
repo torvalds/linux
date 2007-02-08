@@ -846,7 +846,7 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	struct x25_address source_addr, dest_addr;
 	struct x25_facilities facilities;
 	struct x25_dte_facilities dte_facilities;
-	int len, rc;
+	int len, addr_len, rc;
 
 	/*
 	 *	Remove the LCI and frame type.
@@ -857,7 +857,8 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	 *	Extract the X.25 addresses and convert them to ASCII strings,
 	 *	and remove them.
 	 */
-	skb_pull(skb, x25_addr_ntoa(skb->data, &source_addr, &dest_addr));
+	addr_len = x25_addr_ntoa(skb->data, &source_addr, &dest_addr);
+	skb_pull(skb, addr_len);
 
 	/*
 	 *	Get the length of the facilities, skip past them for the moment
@@ -873,11 +874,27 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	sk = x25_find_listener(&source_addr,skb);
 	skb_push(skb,len);
 
+	if (sk != NULL && sk_acceptq_is_full(sk)) {
+		goto out_sock_put;
+	}
+
 	/*
-	 *	We can't accept the Call Request.
+	 *	We dont have any listeners for this incoming call.
+	 *	Try forwarding it.
 	 */
-	if (sk == NULL || sk_acceptq_is_full(sk))
-		goto out_clear_request;
+	if (sk == NULL) {
+		skb_push(skb, addr_len + X25_STD_MIN_LEN);
+		if (x25_forward_call(&dest_addr, nb, skb, lci) > 0)
+		{
+			/* Call was forwarded, dont process it any more */
+			kfree_skb(skb);
+			rc = 1;
+			goto out;
+		} else {
+			/* No listeners, can't forward, clear the call */
+			goto out_clear_request;
+		}
+	}
 
 	/*
 	 *	Try to reach a compromise on the requested facilities.
@@ -1598,6 +1615,9 @@ void x25_kill_by_neigh(struct x25_neigh *nb)
 			x25_disconnect(s, ENETUNREACH, 0, 0);
 
 	write_unlock_bh(&x25_list_lock);
+
+	/* Remove any related forwards */
+	x25_clear_forward_by_dev(nb->dev);
 }
 
 static int __init x25_init(void)
