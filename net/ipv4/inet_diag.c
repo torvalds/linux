@@ -778,7 +778,7 @@ next_normal:
 			struct inet_timewait_sock *tw;
 
 			inet_twsk_for_each(tw, node,
-				    &hashinfo->ehash[i + hashinfo->ehash_size].chain) {
+				    &head->twchain) {
 
 				if (num < s_num)
 					goto next_dying;

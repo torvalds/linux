@@ -2051,7 +2051,7 @@ static void *established_get_first(struct seq_file *seq)
 		}
 		st->state = TCP_SEQ_STATE_TIME_WAIT;
 		inet_twsk_for_each(tw, node,
-				   &tcp_hashinfo.ehash[st->bucket + tcp_hashinfo.ehash_size].chain) {
+				   &tcp_hashinfo.ehash[st->bucket].twchain) {
 			if (tw->tw_family != st->family) {
 				continue;
 			}
@@ -2107,7 +2107,7 @@ get_tw:
 	}
 
 	st->state = TCP_SEQ_STATE_TIME_WAIT;
-	tw = tw_head(&tcp_hashinfo.ehash[st->bucket + tcp_hashinfo.ehash_size].chain);
+	tw = tw_head(&tcp_hashinfo.ehash[st->bucket].twchain);
 	goto get_tw;
 found:
 	cur = sk;
