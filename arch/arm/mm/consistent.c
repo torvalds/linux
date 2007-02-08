@@ -485,7 +485,7 @@ void consistent_sync(const void *start, size_t size, int direction)
 {
 	const void *end = start + size;
 
-	BUG_ON(!virt_addr_valid(start) || !virt_addr_valid(end));
+	BUG_ON(!virt_addr_valid(start) || !virt_addr_valid(end - 1));
 
 	switch (direction) {
 	case DMA_FROM_DEVICE:		/* invalidate only */
