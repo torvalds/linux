@@ -90,13 +90,15 @@ static int skel_open(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
-	/* prevent the device from being autosuspended */
-	retval = usb_autopm_get_interface(interface);
-	if (retval)
-		goto exit;
-
 	/* increment our usage count for the device */
 	kref_get(&dev->kref);
+
+	/* prevent the device from being autosuspended */
+	retval = usb_autopm_get_interface(interface);
+	if (retval) {
+		kref_put(&dev->kref, skel_delete);
+		goto exit;
+	}
 
 	/* save our object in the file's private structure */
 	file->private_data = dev;
