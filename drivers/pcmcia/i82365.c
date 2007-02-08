@@ -1298,7 +1298,7 @@ static int __init init_i82365(void)
     
     /* register sockets with the pcmcia core */
     for (i = 0; i < sockets; i++) {
-	    socket[i].socket.dev.dev = &i82365_device->dev;
+	    socket[i].socket.dev.parent = &i82365_device->dev;
 	    socket[i].socket.ops = &pcic_operations;
 	    socket[i].socket.resource_ops = &pccard_nonstatic_ops;
 	    socket[i].socket.owner = THIS_MODULE;

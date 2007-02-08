@@ -126,6 +126,7 @@ struct device_driver {
 	struct klist_node	knode_bus;
 
 	struct module		* owner;
+	const char 		* mod_name;	/* used for built-in modules */
 
 	int	(*probe)	(struct device * dev);
 	int	(*remove)	(struct device * dev);
@@ -327,6 +328,13 @@ extern struct class_device *class_device_create(struct class *cls,
 					__attribute__((format(printf,5,6)));
 extern void class_device_destroy(struct class *cls, dev_t devt);
 
+struct device_type {
+	struct device_attribute *attrs;
+	int (*uevent)(struct device *dev, char **envp, int num_envp,
+		      char *buffer, int buffer_size);
+	void (*release)(struct device *dev);
+};
+
 /* interface for exporting device attributes */
 struct device_attribute {
 	struct attribute	attr;
@@ -355,6 +363,7 @@ struct device {
 
 	struct kobject kobj;
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
+	struct device_type	*type;
 	unsigned		is_registered:1;
 	struct device_attribute uevent_attr;
 	struct device_attribute *devt_attr;
@@ -390,9 +399,10 @@ struct device {
 
 	/* class_device migration path */
 	struct list_head	node;
-	struct class		*class;		/* optional*/
+	struct class		*class;
 	dev_t			devt;		/* dev_t, creates the sysfs "dev" */
 	struct attribute_group	**groups;	/* optional groups */
+	int			uevent_suppress;
 
 	void	(*release)(struct device * dev);
 };

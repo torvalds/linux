@@ -750,7 +750,8 @@ EXPORT_SYMBOL_GPL(usb_deregister_device_driver);
  * usb_register_dev() to enable that functionality.  This function no longer
  * takes care of that.
  */
-int usb_register_driver(struct usb_driver *new_driver, struct module *owner)
+int usb_register_driver(struct usb_driver *new_driver, struct module *owner,
+			const char *mod_name)
 {
 	int retval = 0;
 
@@ -763,6 +764,7 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner)
 	new_driver->drvwrap.driver.probe = usb_probe_interface;
 	new_driver->drvwrap.driver.remove = usb_unbind_interface;
 	new_driver->drvwrap.driver.owner = owner;
+	new_driver->drvwrap.driver.mod_name = mod_name;
 	spin_lock_init(&new_driver->dynids.lock);
 	INIT_LIST_HEAD(&new_driver->dynids.list);
 

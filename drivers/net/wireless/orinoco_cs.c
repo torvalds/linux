@@ -332,7 +332,7 @@ orinoco_cs_config(struct pcmcia_device *link)
 
 	/* Finally, report what we've done */
 	printk(KERN_DEBUG "%s: " DRIVER_NAME " at %s, irq %d, io "
-	       "0x%04x-0x%04x\n", dev->name, dev->class_dev.dev->bus_id,
+	       "0x%04x-0x%04x\n", dev->name, dev->dev.parent->bus_id,
 	       link->irq.AssignedIRQ, link->io.BasePort1,
 	       link->io.BasePort1 + link->io.NumPorts1 - 1);
 

@@ -479,7 +479,7 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 	/* this task is the only thing to touch the SPI bits */
 	bitbang->busy = 0;
 	bitbang->workqueue = create_singlethread_workqueue(
-			bitbang->master->cdev.dev->bus_id);
+			bitbang->master->dev.parent->bus_id);
 	if (bitbang->workqueue == NULL) {
 		status = -EBUSY;
 		goto err1;
@@ -513,14 +513,14 @@ int spi_bitbang_stop(struct spi_bitbang *bitbang)
 	while (!list_empty(&bitbang->queue) && limit--) {
 		spin_unlock_irq(&bitbang->lock);
 
-		dev_dbg(bitbang->master->cdev.dev, "wait for queue\n");
+		dev_dbg(&bitbang->master->dev, "wait for queue\n");
 		msleep(10);
 
 		spin_lock_irq(&bitbang->lock);
 	}
 	spin_unlock_irq(&bitbang->lock);
 	if (!list_empty(&bitbang->queue)) {
-		dev_err(bitbang->master->cdev.dev, "queue didn't empty\n");
+		dev_err(&bitbang->master->dev, "queue didn't empty\n");
 		return -EBUSY;
 	}
 

@@ -422,7 +422,8 @@ static struct kobj_type pci_driver_kobj_type = {
  * If no error occurred, the driver remains registered even if 
  * no device was claimed during registration.
  */
-int __pci_register_driver(struct pci_driver *drv, struct module *owner)
+int __pci_register_driver(struct pci_driver *drv, struct module *owner,
+			  const char *mod_name)
 {
 	int error;
 
@@ -430,6 +431,7 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.owner = owner;
+	drv->driver.mod_name = mod_name;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 
 	if (pci_multithread_probe)
