@@ -1514,8 +1514,9 @@ asmlinkage long sys_sendto(int fd, void __user *buff, size_t len,
 	struct file *sock_file;
 
 	sock_file = fget_light(fd, &fput_needed);
+	err = -EBADF;
 	if (!sock_file)
-		return -EBADF;
+		goto out;
 
 	sock = sock_from_file(sock_file, &err);
 	if (!sock)
@@ -1542,6 +1543,7 @@ asmlinkage long sys_sendto(int fd, void __user *buff, size_t len,
 
 out_put:
 	fput_light(sock_file, fput_needed);
+out:
 	return err;
 }
 
@@ -1573,12 +1575,13 @@ asmlinkage long sys_recvfrom(int fd, void __user *ubuf, size_t size,
 	int fput_needed;
 
 	sock_file = fget_light(fd, &fput_needed);
+	err = -EBADF;
 	if (!sock_file)
-		return -EBADF;
+		goto out;
 
 	sock = sock_from_file(sock_file, &err);
 	if (!sock)
-		goto out;
+		goto out_put;
 
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
@@ -1597,8 +1600,9 @@ asmlinkage long sys_recvfrom(int fd, void __user *ubuf, size_t size,
 		if (err2 < 0)
 			err = err2;
 	}
-out:
+out_put:
 	fput_light(sock_file, fput_needed);
+out:
 	return err;
 }
 
