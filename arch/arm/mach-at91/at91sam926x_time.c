@@ -30,7 +30,6 @@
  * Returns number of microseconds since last timer interrupt.  Note that interrupts
  * will have been disabled by do_gettimeofday()
  *  'LATCH' is hwclock ticks (see CLOCK_TICK_RATE in timex.h) per jiffy.
- *  'tick' is usecs per jiffy (linux/timex.h).
  */
 static unsigned long at91sam926x_gettimeoffset(void)
 {
@@ -39,7 +38,7 @@ static unsigned long at91sam926x_gettimeoffset(void)
 
 	elapsed = (PIT_PICNT(t) * LATCH) + PIT_CPIV(t);		/* hardware clock cycles */
 
-	return (unsigned long)(elapsed * 1000000) / LATCH;
+	return (unsigned long)(elapsed * jiffies_to_usecs(1)) / LATCH;
 }
 
 /*
