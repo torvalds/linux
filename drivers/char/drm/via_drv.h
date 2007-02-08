@@ -29,10 +29,10 @@
 
 #define DRIVER_NAME		"via"
 #define DRIVER_DESC		"VIA Unichrome / Pro"
-#define DRIVER_DATE		"20060529"
+#define DRIVER_DATE		"20061227"
 
 #define DRIVER_MAJOR		2
-#define DRIVER_MINOR		10
+#define DRIVER_MINOR		11
 #define DRIVER_PATCHLEVEL	0
 
 #include "via_verifier.h"
@@ -79,7 +79,7 @@ typedef struct drm_via_private {
 	char pci_buf[VIA_PCI_BUF_SIZE];
 	const uint32_t *fire_offsets[VIA_FIRE_BUF_SIZE];
 	uint32_t num_fire_offsets;
-	int pro_group_a;
+	int chipset;
 	drm_via_irq_t via_irqs[VIA_NUM_IRQS];
 	unsigned num_irqs;
 	maskarray_t *irq_masks;
@@ -96,8 +96,9 @@ typedef struct drm_via_private {
 } drm_via_private_t;
 
 enum via_family {
-	VIA_OTHER = 0,
-	VIA_PRO_GROUP_A,
+  VIA_OTHER = 0,     /* Baseline */
+  VIA_PRO_GROUP_A,   /* Another video engine and DMA commands */
+  VIA_DX9_0          /* Same video as pro_group_a, but 3D is unsupported */
 };
 
 /* VIA MMIO register access */
