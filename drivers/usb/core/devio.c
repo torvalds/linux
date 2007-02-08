@@ -857,11 +857,11 @@ static int proc_setintf(struct dev_state *ps, void __user *arg)
 
 static int proc_setconfig(struct dev_state *ps, void __user *arg)
 {
-	unsigned int u;
+	int u;
 	int status = 0;
  	struct usb_host_config *actconfig;
 
-	if (get_user(u, (unsigned int __user *)arg))
+	if (get_user(u, (int __user *)arg))
 		return -EFAULT;
 
  	actconfig = ps->dev->actconfig;

@@ -63,7 +63,7 @@ set_bConfigurationValue(struct device *dev, struct device_attribute *attr,
 	struct usb_device	*udev = to_usb_device(dev);
 	int			config, value;
 
-	if (sscanf(buf, "%u", &config) != 1 || config > 255)
+	if (sscanf(buf, "%d", &config) != 1 || config < -1 || config > 255)
 		return -EINVAL;
 	usb_lock_device(udev);
 	value = usb_set_configuration(udev, config);

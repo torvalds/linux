@@ -184,7 +184,7 @@ static void generic_disconnect(struct usb_device *udev)
 	/* if this is only an unbind, not a physical disconnect, then
 	 * unconfigure the device */
 	if (udev->actconfig)
-		usb_set_configuration(udev, 0);
+		usb_set_configuration(udev, -1);
 
 	usb_remove_sysfs_dev_files(udev);
 }
