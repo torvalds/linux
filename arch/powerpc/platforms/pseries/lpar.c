@@ -516,7 +516,7 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 {
 	unsigned long i, pix, rc;
-	unsigned long flags;
+	unsigned long flags = 0;
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
 	int lock_tlbie = !cpu_has_feature(CPU_FTR_LOCKLESS_TLBIE);
 	unsigned long param[9];
@@ -540,16 +540,22 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 				hash = ~hash;
 			slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 			slot += hidx & _PTEIDX_GROUP_IX;
-			param[pix] = HBR_REQUEST | HBR_AVPN | slot;
-			param[pix+1] = hpte_encode_v(va, psize) & HPTE_V_AVPN;
-			pix += 2;
-			if (pix == 8) {
-				rc = plpar_hcall9(H_BULK_REMOVE, param,
+			if (!firmware_has_feature(FW_FEATURE_BULK_REMOVE)) {
+				pSeries_lpar_hpte_invalidate(slot, va, psize,
+							     local);
+			} else {
+				param[pix] = HBR_REQUEST | HBR_AVPN | slot;
+				param[pix+1] = hpte_encode_v(va, psize) &
+					HPTE_V_AVPN;
+				pix += 2;
+				if (pix == 8) {
+					rc = plpar_hcall9(H_BULK_REMOVE, param,
 						param[0], param[1], param[2],
 						param[3], param[4], param[5],
 						param[6], param[7]);
-				BUG_ON(rc != H_SUCCESS);
-				pix = 0;
+					BUG_ON(rc != H_SUCCESS);
+					pix = 0;
+				}
 			}
 		} pte_iterate_hashed_end();
 	}
