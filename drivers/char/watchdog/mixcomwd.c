@@ -56,11 +56,13 @@ static int mixcomwd_ioports[] = { 0x180, 0x280, 0x380, 0x000 };
 #define FLASHCOM_WATCHDOG_OFFSET 0x4
 #define FLASHCOM_ID 0x18
 
+static void mixcomwd_timerfun(unsigned long d);
+
 static unsigned long mixcomwd_opened; /* long req'd for setbit --RR */
 
 static int watchdog_port;
 static int mixcomwd_timer_alive;
-static DEFINE_TIMER(mixcomwd_timer, NULL, 0, 0);
+static DEFINE_TIMER(mixcomwd_timer, mixcomwd_timerfun, 0, 0);
 static char expect_close;
 
 static int nowayout = WATCHDOG_NOWAYOUT;
@@ -77,7 +79,7 @@ static void mixcomwd_timerfun(unsigned long d)
 {
 	mixcomwd_ping();
 
-	mod_timer(&mixcomwd_timer,jiffies+ 5*HZ);
+	mod_timer(&mixcomwd_timer, jiffies + 5 * HZ);
 }
 
 /*
@@ -114,12 +116,8 @@ static int mixcomwd_release(struct inode *inode, struct file *file)
 			printk(KERN_ERR "mixcomwd: release called while internal timer alive");
 			return -EBUSY;
 		}
-		init_timer(&mixcomwd_timer);
-		mixcomwd_timer.expires=jiffies + 5 * HZ;
-		mixcomwd_timer.function=mixcomwd_timerfun;
-		mixcomwd_timer.data=0;
 		mixcomwd_timer_alive=1;
-		add_timer(&mixcomwd_timer);
+		mod_timer(&mixcomwd_timer, jiffies + 5 * HZ);
 	} else {
 		printk(KERN_CRIT "mixcomwd: WDT device closed unexpectedly.  WDT will not stop!\n");
 	}
@@ -285,7 +283,7 @@ static void __exit mixcomwd_exit(void)
 		if(mixcomwd_timer_alive) {
 			printk(KERN_WARNING "mixcomwd: I quit now, hardware will"
 			       " probably reboot!\n");
-			del_timer(&mixcomwd_timer);
+			del_timer_sync(&mixcomwd_timer);
 			mixcomwd_timer_alive=0;
 		}
 	}

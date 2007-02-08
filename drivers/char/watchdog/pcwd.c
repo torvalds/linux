@@ -843,9 +843,7 @@ static int __devinit pcwatchdog_init(int base_addr)
 	/* clear the "card caused reboot" flag */
 	pcwd_clear_status();
 
-	init_timer(&pcwd_private.timer);
-	pcwd_private.timer.function = pcwd_timer_ping;
-	pcwd_private.timer.data = 0;
+	setup_timer(&pcwd_private.timer, pcwd_timer_ping, 0);
 
 	/*  Disable the board  */
 	pcwd_stop();

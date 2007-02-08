@@ -121,7 +121,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" _
 static __u16 __iomem *wdtmrctl;
 
 static void wdt_timer_ping(unsigned long);
-static struct timer_list timer;
+static DEFINE_TIMER(timer, wdt_timer_ping, 0, 0);
 static unsigned long next_heartbeat;
 static unsigned long wdt_is_open;
 static char wdt_expect_close;
@@ -145,8 +145,7 @@ static void wdt_timer_ping(unsigned long data)
 		spin_unlock(&wdt_spinlock);
 
 		/* Re-set the timer interval */
-		timer.expires = jiffies + WDT_INTERVAL;
-		add_timer(&timer);
+		mod_timer(&timer, jiffies + WDT_INTERVAL);
 	} else {
 		printk(KERN_WARNING PFX "Heartbeat lost! Will not ping the watchdog\n");
 	}
@@ -179,8 +178,7 @@ static int wdt_startup(void)
 	next_heartbeat = jiffies + (timeout * HZ);
 
 	/* Start the timer */
-	timer.expires = jiffies + WDT_INTERVAL;
-	add_timer(&timer);
+	mod_timer(&timer, jiffies + WDT_INTERVAL);
 
 	/* Start the watchdog */
 	wdt_config(WDT_ENB | WDT_WRST_ENB | WDT_EXP_SEL_04);
@@ -388,10 +386,6 @@ static int __init sc520_wdt_init(void)
 	int rc = -EBUSY;
 
 	spin_lock_init(&wdt_spinlock);
-
-	init_timer(&timer);
-	timer.function = wdt_timer_ping;
-	timer.data = 0;
 
 	/* Check that the timeout value is within it's range ; if not reset to the default */
 	if (wdt_set_heartbeat(timeout)) {
