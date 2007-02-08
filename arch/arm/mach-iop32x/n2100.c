@@ -120,6 +120,20 @@ static struct hw_pci n2100_pci __initdata = {
 	.map_irq	= n2100_pci_map_irq,
 };
 
+/*
+ * Both r8169 chips on the n2100 exhibit PCI parity problems.  Set
+ * the ->broken_parity_status flag for both ports so that the r8169
+ * driver knows it should ignore error interrupts.
+ */
+static void n2100_fixup_r8169(struct pci_dev *dev)
+{
+	if (dev->bus->number == 0 &&
+	    (dev->devfn == PCI_DEVFN(1, 0) ||
+	     dev->devfn == PCI_DEVFN(2, 0)))
+		dev->broken_parity_status = 1;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_REALTEK, PCI_ANY_ID, n2100_fixup_r8169);
+
 static int __init n2100_pci_init(void)
 {
 	if (machine_is_n2100())
