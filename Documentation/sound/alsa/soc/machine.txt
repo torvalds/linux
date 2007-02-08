@@ -64,7 +64,7 @@ static struct snd_soc_dai_link corgi_dai = {
 	.cpu_dai = &pxa_i2s_dai,
 	.codec_dai = &wm8731_dai,
 	.init = corgi_wm8731_init,
-	.config_sysclk = corgi_config_sysclk,
+	.ops = &corgi_ops,
 };
 
 struct snd_soc_machine then sets up the machine with it's DAI's. e.g.
@@ -74,7 +74,6 @@ static struct snd_soc_machine snd_soc_machine_corgi = {
 	.name = "Corgi",
 	.dai_link = &corgi_dai,
 	.num_links = 1,
-	.ops = &corgi_ops,
 };
 
 

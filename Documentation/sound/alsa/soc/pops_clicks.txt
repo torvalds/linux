@@ -2,14 +2,14 @@ Audio Pops and Clicks
 =====================
 
 Pops and clicks are unwanted audio artifacts caused by the powering up and down
-of components within the audio subsystem. This is noticable on PC's when an audio
-module is either loaded or unloaded (at module load time the sound card is
+of components within the audio subsystem. This is noticable on PC's when an
+audio module is either loaded or unloaded (at module load time the sound card is
 powered up and causes a popping noise on the speakers).
 
-Pops and clicks can be more frequent on portable systems with DAPM. This is because
-the components within the subsystem are being dynamically powered depending on
-the audio usage and this can subsequently cause a small pop or click every time a
-component power state is changed.
+Pops and clicks can be more frequent on portable systems with DAPM. This is
+because the components within the subsystem are being dynamically powered
+depending on the audio usage and this can subsequently cause a small pop or
+click every time a component power state is changed.
 
 
 Minimising Playback Pops and Clicks
