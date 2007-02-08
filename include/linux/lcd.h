@@ -14,7 +14,7 @@
 
 /* Notes on locking:
  *
- * lcd_device->sem is an internal backlight lock protecting the props
+ * lcd_device->props_lock is an internal backlight lock protecting the props
  * field and no code outside the core should need to touch it.
  *
  * Access to set_power() is serialised by the update_lock mutex since
@@ -52,7 +52,7 @@ struct lcd_device {
 	/* This protects the 'props' field. If 'props' is NULL, the driver that
 	   registered this device has been unloaded, and if class_get_devdata()
 	   points to something in the body of that driver, it is also invalid. */
-	struct semaphore sem;
+	struct mutex props_lock;
 	/* If this is NULL, the backing module is unloaded */
 	struct lcd_properties *props;
 	/* Serialise access to set_power method */

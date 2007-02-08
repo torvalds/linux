@@ -31,11 +31,11 @@ static int fb_notifier_callback(struct notifier_block *self,
 		return 0;
 
 	ld = container_of(self, struct lcd_device, fb_notif);
-	down(&ld->sem);
+	mutex_lock(&ld->props_lock);
 	if (ld->props)
 		if (!ld->props->check_fb || ld->props->check_fb(evdata->info))
 			ld->props->set_power(ld, *(int *)evdata->data);
-	up(&ld->sem);
+	mutex_unlock(&ld->props_lock);
 	return 0;
 }
 
@@ -66,12 +66,12 @@ static ssize_t lcd_show_power(struct class_device *cdev, char *buf)
 	int rc;
 	struct lcd_device *ld = to_lcd_device(cdev);
 
-	down(&ld->sem);
+	mutex_lock(&ld->props_lock);
 	if (ld->props && ld->props->get_power)
 		rc = sprintf(buf, "%d\n", ld->props->get_power(ld));
 	else
 		rc = -ENXIO;
-	up(&ld->sem);
+	mutex_unlock(&ld->props_lock);
 
 	return rc;
 }
@@ -89,13 +89,13 @@ static ssize_t lcd_store_power(struct class_device *cdev, const char *buf, size_
 	if (size != count)
 		return -EINVAL;
 
-	down(&ld->sem);
+	mutex_lock(&ld->props_lock);
 	if (ld->props && ld->props->set_power) {
 		pr_debug("lcd: set power to %d\n", power);
 		ld->props->set_power(ld, power);
 		rc = count;
 	}
-	up(&ld->sem);
+	mutex_unlock(&ld->props_lock);
 
 	return rc;
 }
@@ -105,10 +105,10 @@ static ssize_t lcd_show_contrast(struct class_device *cdev, char *buf)
 	int rc = -ENXIO;
 	struct lcd_device *ld = to_lcd_device(cdev);
 
-	down(&ld->sem);
+	mutex_lock(&ld->props_lock);
 	if (ld->props && ld->props->get_contrast)
 		rc = sprintf(buf, "%d\n", ld->props->get_contrast(ld));
-	up(&ld->sem);
+	mutex_unlock(&ld->props_lock);
 
 	return rc;
 }
@@ -126,13 +126,13 @@ static ssize_t lcd_store_contrast(struct class_device *cdev, const char *buf, si
 	if (size != count)
 		return -EINVAL;
 
-	down(&ld->sem);
+	mutex_lock(&ld->props_lock);
 	if (ld->props && ld->props->set_contrast) {
 		pr_debug("lcd: set contrast to %d\n", contrast);
 		ld->props->set_contrast(ld, contrast);
 		rc = count;
 	}
-	up(&ld->sem);
+	mutex_unlock(&ld->props_lock);
 
 	return rc;
 }
@@ -142,10 +142,10 @@ static ssize_t lcd_show_max_contrast(struct class_device *cdev, char *buf)
 	int rc = -ENXIO;
 	struct lcd_device *ld = to_lcd_device(cdev);
 
-	down(&ld->sem);
+	mutex_lock(&ld->props_lock);
 	if (ld->props)
 		rc = sprintf(buf, "%d\n", ld->props->max_contrast);
-	up(&ld->sem);
+	mutex_unlock(&ld->props_lock);
 
 	return rc;
 }
@@ -197,7 +197,7 @@ struct lcd_device *lcd_device_register(const char *name, void *devdata,
 	if (!new_ld)
 		return ERR_PTR(-ENOMEM);
 
-	init_MUTEX(&new_ld->sem);
+	mutex_init(&new_ld->props_lock);
 	mutex_init(&new_ld->update_lock);
 	new_ld->props = lp;
 	memset(&new_ld->class_dev, 0, sizeof(new_ld->class_dev));
@@ -253,9 +253,9 @@ void lcd_device_unregister(struct lcd_device *ld)
 		class_device_remove_file(&ld->class_dev,
 					 &lcd_class_device_attributes[i]);
 
-	down(&ld->sem);
+	mutex_lock(&ld->props_lock);
 	ld->props = NULL;
-	up(&ld->sem);
+	mutex_unlock(&ld->props_lock);
 	lcd_unregister_fb(ld);
 	class_device_unregister(&ld->class_dev);
 }
