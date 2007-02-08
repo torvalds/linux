@@ -65,10 +65,10 @@
 #include <asm/i8259.h>
 #include <asm/udbg.h>
 #include <asm/smp.h>
+#include <asm/firmware.h>
 
 #include "plpar_wrappers.h"
-#include "ras.h"
-#include "firmware.h"
+#include "pseries.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

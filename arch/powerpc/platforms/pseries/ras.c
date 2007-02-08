@@ -51,7 +51,7 @@
 #include <asm/udbg.h>
 #include <asm/firmware.h>
 
-#include "ras.h"
+#include "pseries.h"
 
 static unsigned char ras_log_buf[RTAS_ERROR_LOG_MAX];
 static DEFINE_SPINLOCK(ras_log_buf_lock);
