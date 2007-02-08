@@ -104,7 +104,6 @@ static int nvidia_bl_get_brightness(struct backlight_device *bd)
 }
 
 static struct backlight_properties nvidia_bl_data = {
-	.owner		= THIS_MODULE,
 	.get_brightness = nvidia_bl_get_brightness,
 	.update_status	= nvidia_bl_update_status,
 	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),

@@ -196,7 +196,6 @@ static struct backlight_device *asus_backlight_device;
 static int read_brightness(struct backlight_device *bd);
 static int update_bl_status(struct backlight_device *bd);
 static struct backlight_properties asusbl_data = {
-	.owner = THIS_MODULE,
 	.get_brightness = read_brightness,
 	.update_status = update_bl_status,
 	.max_brightness = 15,

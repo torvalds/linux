@@ -106,7 +106,6 @@ EXPORT_SYMBOL(corgibl_limit_intensity);
 
 
 static struct backlight_properties corgibl_data = {
-	.owner          = THIS_MODULE,
 	.get_brightness = corgibl_get_intensity,
 	.update_status  = corgibl_set_intensity,
 };

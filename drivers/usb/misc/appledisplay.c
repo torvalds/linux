@@ -178,7 +178,6 @@ static int appledisplay_bl_get_brightness(struct backlight_device *bd)
 }
 
 static struct backlight_properties appledisplay_bl_data = {
-	.owner		= THIS_MODULE,
 	.get_brightness	= appledisplay_bl_get_brightness,
 	.update_status	= appledisplay_bl_update_status,
 	.max_brightness	= 0xFF

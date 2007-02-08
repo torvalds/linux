@@ -161,7 +161,6 @@ static int bl_update_status(struct backlight_device *b)
 }
 
 static struct backlight_properties msibl_props = {
-	.owner		= THIS_MODULE,
 	.get_brightness = bl_get_brightness,
 	.update_status  = bl_update_status,
 	.max_brightness = MSI_LCD_LEVEL_MAX-1,

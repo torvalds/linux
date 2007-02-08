@@ -347,7 +347,6 @@ static int riva_bl_get_brightness(struct backlight_device *bd)
 }
 
 static struct backlight_properties riva_bl_data = {
-	.owner    = THIS_MODULE,
 	.get_brightness = riva_bl_get_brightness,
 	.update_status	= riva_bl_update_status,
 	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),

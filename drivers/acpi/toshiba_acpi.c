@@ -534,7 +534,6 @@ static acpi_status __exit remove_device(void)
 }
 
 static struct backlight_properties toshiba_backlight_data = {
-        .owner          = THIS_MODULE,
         .get_brightness = get_lcd,
         .update_status  = set_lcd_status,
         .max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1,

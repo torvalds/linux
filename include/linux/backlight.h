@@ -17,9 +17,6 @@ struct fb_info;
 /* This structure defines all the properties of a backlight
    (usually attached to a LCD). */
 struct backlight_properties {
-	/* Owner module */
-	struct module *owner;
-
 	/* Notify the backlight driver some property has changed */
 	int (*update_status)(struct backlight_device *);
 	/* Return the current backlight brightness (accounting for power,

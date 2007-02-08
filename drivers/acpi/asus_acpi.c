@@ -1353,7 +1353,6 @@ static int asus_hotk_remove(struct acpi_device *device, int type)
 }
 
 static struct backlight_properties asus_backlight_data = {
-        .owner          = THIS_MODULE,
         .get_brightness = read_brightness,
         .update_status  = set_brightness_status,
         .max_brightness = 15,

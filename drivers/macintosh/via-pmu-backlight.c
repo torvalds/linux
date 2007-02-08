@@ -111,7 +111,6 @@ static int pmu_backlight_get_brightness(struct backlight_device *bd)
 }
 
 static struct backlight_properties pmu_backlight_data = {
-	.owner		= THIS_MODULE,
 	.get_brightness	= pmu_backlight_get_brightness,
 	.update_status	= pmu_backlight_update_status,
 	.max_brightness	= (FB_BACKLIGHT_LEVELS - 1),

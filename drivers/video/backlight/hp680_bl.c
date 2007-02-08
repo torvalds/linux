@@ -96,7 +96,6 @@ static int hp680bl_get_intensity(struct backlight_device *bd)
 }
 
 static struct backlight_properties hp680bl_data = {
-	.owner		= THIS_MODULE,
 	.max_brightness = HP680_MAX_INTENSITY,
 	.get_brightness = hp680bl_get_intensity,
 	.update_status  = hp680bl_set_intensity,

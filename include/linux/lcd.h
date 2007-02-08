@@ -16,8 +16,6 @@ struct fb_info;
 
 /* This structure defines all the properties of a LCD flat panel. */
 struct lcd_properties {
-	/* Owner module */
-	struct module *owner;
 	/* Get the LCD panel power status (0: full on, 1..3: controller
 	   power on, flat panel power off, 4: full off), see FB_BLANK_XXX */
 	int (*get_power)(struct lcd_device *);

@@ -142,7 +142,6 @@ static int locomolcd_get_intensity(struct backlight_device *bd)
 }
 
 static struct backlight_properties locomobl_data = {
-	.owner		= THIS_MODULE,
 	.get_brightness = locomolcd_get_intensity,
 	.update_status  = locomolcd_set_intensity,
 	.max_brightness = 4,

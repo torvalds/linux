@@ -621,7 +621,6 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 			kfree(name);
 			return;
 		}
-		acpi_video_data->owner = THIS_MODULE;
 		acpi_video_data->get_brightness =
 			acpi_video_get_brightness;
 		acpi_video_data->update_status =

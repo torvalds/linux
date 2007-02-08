@@ -1705,7 +1705,6 @@ static int brightness_update_status(struct backlight_device *bd)
 }
 
 static struct backlight_properties ibm_backlight_data = {
-        .owner          = THIS_MODULE,
         .get_brightness = brightness_get,
         .update_status  = brightness_update_status,
         .max_brightness = 7,

@@ -2178,7 +2178,6 @@ static int aty_bl_get_brightness(struct backlight_device *bd)
 }
 
 static struct backlight_properties aty_bl_data = {
-	.owner	  = THIS_MODULE,
 	.get_brightness = aty_bl_get_brightness,
 	.update_status	= aty_bl_update_status,
 	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),

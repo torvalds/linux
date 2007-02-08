@@ -56,7 +56,6 @@ static int progearbl_get_intensity(struct backlight_device *bd)
 }
 
 static struct backlight_properties progearbl_data = {
-	.owner = THIS_MODULE,
 	.get_brightness = progearbl_get_intensity,
 	.update_status = progearbl_set_intensity,
 };

@@ -399,7 +399,6 @@ static int sony_backlight_get_brightness(struct backlight_device *bd)
 
 static struct backlight_device *sony_backlight_device;
 static struct backlight_properties sony_backlight_properties = {
-	.owner = THIS_MODULE,
 	.update_status = sony_backlight_update_status,
 	.get_brightness = sony_backlight_get_brightness,
 	.max_brightness = SONY_MAX_BRIGHTNESS - 1,
