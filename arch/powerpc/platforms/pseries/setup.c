@@ -55,7 +55,6 @@
 #include <asm/dma.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
-#include <asm/kexec.h>
 #include <asm/time.h>
 #include <asm/nvram.h>
 #include "xics.h"
@@ -219,42 +218,6 @@ static void pseries_lpar_enable_pmcs(void)
 		get_lppaca()->pmcregs_in_use = 1;
 }
 
-#ifdef CONFIG_KEXEC
-static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
-{
-	/* Don't risk a hypervisor call if we're crashing */
-	if (firmware_has_feature(FW_FEATURE_SPLPAR) && !crash_shutdown) {
-		unsigned long addr;
-
-		addr = __pa(get_slb_shadow());
-		if (unregister_slb_shadow(hard_smp_processor_id(), addr))
-			printk("SLB shadow buffer deregistration of "
-			       "cpu %u (hw_cpu_id %d) failed\n",
-			       smp_processor_id(),
-			       hard_smp_processor_id());
-
-		addr = __pa(get_lppaca());
-		if (unregister_vpa(hard_smp_processor_id(), addr)) {
-			printk("VPA deregistration of cpu %u (hw_cpu_id %d) "
-					"failed\n", smp_processor_id(),
-					hard_smp_processor_id());
-		}
-	}
-}
-
-static void pseries_kexec_cpu_down_mpic(int crash_shutdown, int secondary)
-{
-	pseries_kexec_cpu_down(crash_shutdown, secondary);
-	mpic_teardown_this_cpu(secondary);
-}
-
-static void pseries_kexec_cpu_down_xics(int crash_shutdown, int secondary)
-{
-	pseries_kexec_cpu_down(crash_shutdown, secondary);
-	xics_teardown_cpu(secondary);
-}
-#endif /* CONFIG_KEXEC */
-
 static void __init pseries_discover_pic(void)
 {
 	struct device_node *np;
@@ -267,16 +230,12 @@ static void __init pseries_discover_pic(void)
 			pSeries_mpic_node = of_node_get(np);
 			ppc_md.init_IRQ       = pseries_mpic_init_IRQ;
 			ppc_md.get_irq        = mpic_get_irq;
-#ifdef CONFIG_KEXEC
-			ppc_md.kexec_cpu_down = pseries_kexec_cpu_down_mpic;
-#endif
+			setup_kexec_cpu_down_mpic();
 			smp_init_pseries_mpic();
 			return;
 		} else if (strstr(typep, "ppc-xicp")) {
 			ppc_md.init_IRQ       = xics_init_IRQ;
-#ifdef CONFIG_KEXEC
-			ppc_md.kexec_cpu_down = pseries_kexec_cpu_down_xics;
-#endif
+			setup_kexec_cpu_down_xics();
 			smp_init_pseries_xics();
 			return;
 		}
@@ -548,9 +507,4 @@ define_machine(pseries) {
 	.check_legacy_ioport	= pSeries_check_legacy_ioport,
 	.system_reset_exception = pSeries_system_reset_exception,
 	.machine_check_exception = pSeries_machine_check_exception,
-#ifdef CONFIG_KEXEC
-	.machine_kexec		= default_machine_kexec,
-	.machine_kexec_prepare	= default_machine_kexec_prepare,
-	.machine_crash_shutdown	= default_machine_crash_shutdown,
-#endif
 };
