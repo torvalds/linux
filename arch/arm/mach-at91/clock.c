@@ -525,27 +525,6 @@ fail:
 	return 0;
 }
 
-/*
- * Several unused clocks may be active.  Turn them off.
- */
-static void __init at91_periphclk_reset(void)
-{
-	unsigned long reg;
-	struct clk *clk;
-
-	reg = at91_sys_read(AT91_PMC_PCSR);
-
-	list_for_each_entry(clk, &clocks, node) {
-		if (clk->mode != pmc_periph_mode)
-			continue;
-
-		if (clk->users > 0)
-			reg &= ~clk->pmc_mask;
-	}
-
-	at91_sys_write(AT91_PMC_PCDR, reg);
-}
-
 static struct clk *const standard_pmc_clocks[] __initdata = {
 	/* four primary clocks */
 	&clk32k,
@@ -586,7 +565,7 @@ int __init at91_clock_init(unsigned long main_clock)
 		pr_info("Clocks: PLLA overclocked, %ld MHz\n", plla.rate_hz / 1000000);
 
 	/*
-	 * USB clock init:  choose 48 MHz PLLB value, turn all clocks off,
+	 * USB clock init:  choose 48 MHz PLLB value,
 	 * disable 48MHz clock during usb peripheral suspend.
 	 *
 	 * REVISIT:  assumes MCK doesn't derive from PLLB!
@@ -596,16 +575,10 @@ int __init at91_clock_init(unsigned long main_clock)
 	if (cpu_is_at91rm9200()) {
 		uhpck.pmc_mask = AT91RM9200_PMC_UHP;
 		udpck.pmc_mask = AT91RM9200_PMC_UDP;
-		at91_sys_write(AT91_PMC_SCDR, AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP);
 		at91_sys_write(AT91_PMC_SCER, AT91RM9200_PMC_MCKUDP);
-	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9263()) {
+	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263()) {
 		uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
 		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
-		at91_sys_write(AT91_PMC_SCDR, AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP);
-	} else if (cpu_is_at91sam9261()) {
-		uhpck.pmc_mask = (AT91SAM926x_PMC_UHP | AT91_PMC_HCK0);
-		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
-		at91_sys_write(AT91_PMC_SCDR, AT91SAM926x_PMC_UHP | AT91_PMC_HCK0 | AT91SAM926x_PMC_UDP);
 	}
 	at91_sys_write(AT91_CKGR_PLLBR, 0);
 
@@ -634,11 +607,34 @@ int __init at91_clock_init(unsigned long main_clock)
 		(unsigned) main_clock / 1000000,
 		((unsigned) main_clock % 1000000) / 1000);
 
-	/* disable all programmable clocks */
-	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK0 | AT91_PMC_PCK1 | AT91_PMC_PCK2 | AT91_PMC_PCK3);
+	return 0;
+}
 
-	/* disable all other unused peripheral clocks */
-	at91_periphclk_reset();
+/*
+ * Several unused clocks may be active.  Turn them off.
+ */
+static int __init at91_clock_reset(void)
+{
+	unsigned long pcdr = 0;
+	unsigned long scdr = 0;
+	struct clk *clk;
+
+	list_for_each_entry(clk, &clocks, node) {
+		if (clk->users > 0)
+			continue;
+
+		if (clk->mode == pmc_periph_mode)
+			pcdr |= clk->pmc_mask;
+
+		if (clk->mode == pmc_sys_mode)
+			scdr |= clk->pmc_mask;
+
+		pr_debug("Clocks: disable unused %s\n", clk->name);
+	}
+
+	at91_sys_write(AT91_PMC_PCDR, pcdr);
+	at91_sys_write(AT91_PMC_SCDR, scdr);
 
 	return 0;
 }
+late_initcall(at91_clock_reset);
