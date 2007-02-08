@@ -37,7 +37,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 		if (!bd->props->check_fb ||
 		    bd->props->check_fb(evdata->info)) {
 			bd->props->fb_blank = *(int *)evdata->data;
-			if (likely(bd->props && bd->props->update_status))
+			if (bd->props && bd->props->update_status)
 				bd->props->update_status(bd);
 		}
 	up(&bd->sem);
@@ -73,7 +73,7 @@ static ssize_t backlight_show_power(struct class_device *cdev, char *buf)
 	struct backlight_device *bd = to_backlight_device(cdev);
 
 	down(&bd->sem);
-	if (likely(bd->props))
+	if (bd->props)
 		rc = sprintf(buf, "%d\n", bd->props->power);
 	up(&bd->sem);
 
@@ -94,10 +94,10 @@ static ssize_t backlight_store_power(struct class_device *cdev, const char *buf,
 		return -EINVAL;
 
 	down(&bd->sem);
-	if (likely(bd->props)) {
+	if (bd->props) {
 		pr_debug("backlight: set power to %d\n", power);
 		bd->props->power = power;
-		if (likely(bd->props->update_status))
+		if (bd->props->update_status)
 			bd->props->update_status(bd);
 		rc = count;
 	}
@@ -112,7 +112,7 @@ static ssize_t backlight_show_brightness(struct class_device *cdev, char *buf)
 	struct backlight_device *bd = to_backlight_device(cdev);
 
 	down(&bd->sem);
-	if (likely(bd->props))
+	if (bd->props)
 		rc = sprintf(buf, "%d\n", bd->props->brightness);
 	up(&bd->sem);
 
@@ -133,14 +133,14 @@ static ssize_t backlight_store_brightness(struct class_device *cdev, const char 
 		return -EINVAL;
 
 	down(&bd->sem);
-	if (likely(bd->props)) {
+	if (bd->props) {
 		if (brightness > bd->props->max_brightness)
 			rc = -EINVAL;
 		else {
 			pr_debug("backlight: set brightness to %d\n",
 				 brightness);
 			bd->props->brightness = brightness;
-			if (likely(bd->props->update_status))
+			if (bd->props->update_status)
 				bd->props->update_status(bd);
 			rc = count;
 		}
@@ -156,7 +156,7 @@ static ssize_t backlight_show_max_brightness(struct class_device *cdev, char *bu
 	struct backlight_device *bd = to_backlight_device(cdev);
 
 	down(&bd->sem);
-	if (likely(bd->props))
+	if (bd->props)
 		rc = sprintf(buf, "%d\n", bd->props->max_brightness);
 	up(&bd->sem);
 
@@ -170,7 +170,7 @@ static ssize_t backlight_show_actual_brightness(struct class_device *cdev,
 	struct backlight_device *bd = to_backlight_device(cdev);
 
 	down(&bd->sem);
-	if (likely(bd->props && bd->props->get_brightness))
+	if (bd->props && bd->props->get_brightness)
 		rc = sprintf(buf, "%d\n", bd->props->get_brightness(bd));
 	up(&bd->sem);
 
@@ -227,7 +227,7 @@ struct backlight_device *backlight_device_register(const char *name,
 	pr_debug("backlight_device_alloc: name=%s\n", name);
 
 	new_bd = kmalloc(sizeof(struct backlight_device), GFP_KERNEL);
-	if (unlikely(!new_bd))
+	if (!new_bd)
 		return ERR_PTR(-ENOMEM);
 
 	init_MUTEX(&new_bd->sem);
@@ -239,7 +239,7 @@ struct backlight_device *backlight_device_register(const char *name,
 	class_set_devdata(&new_bd->class_dev, devdata);
 
 	rc = class_device_register(&new_bd->class_dev);
-	if (unlikely(rc)) {
+	if (rc) {
 		kfree(new_bd);
 		return ERR_PTR(rc);
 	}
@@ -254,7 +254,7 @@ struct backlight_device *backlight_device_register(const char *name,
 	for (i = 0; i < ARRAY_SIZE(bl_class_device_attributes); i++) {
 		rc = class_device_create_file(&new_bd->class_dev,
 					      &bl_class_device_attributes[i]);
-		if (unlikely(rc)) {
+		if (rc) {
 			while (--i >= 0)
 				class_device_remove_file(&new_bd->class_dev,
 							 &bl_class_device_attributes[i]);
