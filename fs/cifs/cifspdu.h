@@ -796,6 +796,8 @@ typedef struct smb_com_openx_rsp {
 	__u16  ByteCount;
 } __attribute__((packed)) OPENX_RSP; 
 
+/* For encoding of POSIX Open Request - see trans2 function 0x209 data struct */
+
 /* Legacy write request for older servers */
 typedef struct smb_com_writex_req {
         struct smb_hdr hdr;     /* wct = 12 */
@@ -2095,6 +2097,19 @@ struct cifs_posix_acl { /* access conrol list  (ACL) */
 #define CIFS_POSIX_ACL_READ	     0x04 */
 
 /* end of POSIX ACL definitions */
+
+typedef struct {
+	__u32 OpenFlags; /* same as NT CreateX */
+	__u32 PosixOpenFlags;
+	__u32 Mode;
+	__u16 Level; /* reply level requested (see QPathInfo levels) */
+	__u16 Pad;  /* reserved - MBZ */
+} __attribute__((packed)) OPEN_PSX_REQ; /* level 0x209 SetPathInfo data */
+
+typedef struct {
+	/* reply varies based on requested level */
+} __atribute__((packed)) OPEN_PSX_RSP; /* level 0x209 SetPathInfo data */
+
 
 struct file_internal_info {
 	__u64  UniqueId; /* inode number */

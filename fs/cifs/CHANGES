@@ -1,6 +1,8 @@
 Version 1.47
 ------------
 Fix oops in list_del during mount caused by unaligned string.
+Fix file corruption which could occur on some large file
+copies caused by writepages page i/o completion bug.
 Seek to SEEK_END forces check for update of file size for non-cached
 files.
 
