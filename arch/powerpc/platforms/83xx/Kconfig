@@ -5,6 +5,12 @@ choice
 	prompt "Machine Type"
 	default MPC834x_SYS
 
+config MPC8313_RDB
+	bool "Freescale MPC8313 RDB"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC8313 RDB board.
+
 config MPC832x_MDS
 	bool "Freescale MPC832x MDS"
 	select DEFAULT_UIMAGE
@@ -40,6 +46,12 @@ config MPC8360E_PB
 	  This option enables support for the MPC836x EMDS Processor Board.
 
 endchoice
+
+config PPC_MPC831x
+	bool
+	select PPC_UDBG_16550
+	select PPC_INDIRECT_PCI
+	default y if MPC8313_RDB
 
 config PPC_MPC832x
 	bool
