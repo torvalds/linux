@@ -1709,75 +1709,13 @@ static void adjust_link(struct net_device *dev)
 		if (mii_info->speed != ugeth->oldspeed) {
 			switch (mii_info->speed) {
 			case 1000:
-#ifdef CONFIG_PPC_MPC836x
-/* FIXME: This code is for 100Mbs BUG fixing,
-remove this when it is fixed!!! */
-				if (ugeth->ug_info->enet_interface ==
-				    ENET_1000_GMII)
-				/* Run the commands which initialize the PHY */
-				{
-					tempval =
-					    (u32) mii_info->mdio_read(ugeth->
-						dev, mii_info->mii_id, 0x1b);
-					tempval |= 0x000f;
-					mii_info->mdio_write(ugeth->dev,
-						mii_info->mii_id, 0x1b,
-						(u16) tempval);
-					tempval =
-					    (u32) mii_info->mdio_read(ugeth->
-						dev, mii_info->mii_id,
-						MII_BMCR);
-					mii_info->mdio_write(ugeth->dev,
-						mii_info->mii_id, MII_BMCR,
-						(u16) (tempval | BMCR_RESET));
-				} else if (ugeth->ug_info->enet_interface ==
-					   ENET_1000_RGMII)
-				/* Run the commands which initialize the PHY */
-				{
-					tempval =
-					    (u32) mii_info->mdio_read(ugeth->
-						dev, mii_info->mii_id, 0x1b);
-					tempval = (tempval & ~0x000f) | 0x000b;
-					mii_info->mdio_write(ugeth->dev,
-						mii_info->mii_id, 0x1b,
-						(u16) tempval);
-					tempval =
-					    (u32) mii_info->mdio_read(ugeth->
-						dev, mii_info->mii_id,
-						MII_BMCR);
-					mii_info->mdio_write(ugeth->dev,
-						mii_info->mii_id, MII_BMCR,
-						(u16) (tempval | BMCR_RESET));
-				}
-				msleep(4000);
-#endif				/* CONFIG_MPC8360 */
-				adjust_enet_interface(ugeth);
+				ugeth->ug_info->enet_interface = ENET_1000_RGMII;
 				break;
 			case 100:
-			case 10:
-#ifdef CONFIG_PPC_MPC836x
-/* FIXME: This code is for 100Mbs BUG fixing,
-remove this lines when it will be fixed!!! */
 				ugeth->ug_info->enet_interface = ENET_100_RGMII;
-				tempval =
-				    (u32) mii_info->mdio_read(ugeth->dev,
-							      mii_info->mii_id,
-							      0x1b);
-				tempval = (tempval & ~0x000f) | 0x000b;
-				mii_info->mdio_write(ugeth->dev,
-						     mii_info->mii_id, 0x1b,
-						     (u16) tempval);
-				tempval =
-				    (u32) mii_info->mdio_read(ugeth->dev,
-							      mii_info->mii_id,
-							      MII_BMCR);
-				mii_info->mdio_write(ugeth->dev,
-						     mii_info->mii_id, MII_BMCR,
-						     (u16) (tempval |
-							    BMCR_RESET));
-				msleep(4000);
-#endif				/* CONFIG_MPC8360 */
-				adjust_enet_interface(ugeth);
+				break;
+			case 10:
+				ugeth->ug_info->enet_interface = ENET_10_RGMII;
 				break;
 			default:
 				ugeth_warn
@@ -1785,6 +1723,7 @@ remove this lines when it will be fixed!!! */
 				     dev->name, mii_info->speed);
 				break;
 			}
+			adjust_enet_interface(ugeth);
 
 			ugeth_info("%s: Speed %dBT", dev->name,
 				   mii_info->speed);
