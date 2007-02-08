@@ -3004,6 +3004,8 @@ S:	Maintained
 SONY VAIO CONTROL DEVICE DRIVER
 P:	Stelian Pop
 M:	stelian@popies.net
+P:	Mattia Dongili
+M:	malattia@linux.it
 W:	http://popies.net/sonypi/
 S:	Maintained
 
