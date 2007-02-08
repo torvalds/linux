@@ -17,4 +17,12 @@ struct pt_regs;
 extern int pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
 
+#ifdef CONFIG_SMP
+extern void smp_init_pseries_mpic(void);
+extern void smp_init_pseries_xics(void);
+#else
+static inline smp_init_pseries_mpic(void) { };
+static inline smp_init_pseries_xics(void) { };
+#endif
+
 #endif /* _PSERIES_PSERIES_H */

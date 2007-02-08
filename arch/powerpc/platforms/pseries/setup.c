@@ -77,8 +77,6 @@
 #endif
 
 /* move those away to a .h */
-extern void smp_init_pseries_mpic(void);
-extern void smp_init_pseries_xics(void);
 extern void find_udbg_vterm(void);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
@@ -272,18 +270,14 @@ static void __init pseries_discover_pic(void)
 #ifdef CONFIG_KEXEC
 			ppc_md.kexec_cpu_down = pseries_kexec_cpu_down_mpic;
 #endif
-#ifdef CONFIG_SMP
 			smp_init_pseries_mpic();
-#endif
 			return;
 		} else if (strstr(typep, "ppc-xicp")) {
 			ppc_md.init_IRQ       = xics_init_IRQ;
 #ifdef CONFIG_KEXEC
 			ppc_md.kexec_cpu_down = pseries_kexec_cpu_down_xics;
 #endif
-#ifdef CONFIG_SMP
 			smp_init_pseries_xics();
-#endif
 			return;
 		}
 	}
