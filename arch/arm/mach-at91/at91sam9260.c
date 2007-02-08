@@ -107,6 +107,21 @@ static struct clk spi1_clk = {
 	.pmc_mask	= 1 << AT91SAM9260_ID_SPI1,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
+static struct clk tc0_clk = {
+	.name		= "tc0_clk",
+	.pmc_mask	= 1 << AT91SAM9260_ID_TC0,
+	.type		= CLK_TYPE_PERIPHERAL,
+};
+static struct clk tc1_clk = {
+	.name		= "tc1_clk",
+	.pmc_mask	= 1 << AT91SAM9260_ID_TC1,
+	.type		= CLK_TYPE_PERIPHERAL,
+};
+static struct clk tc2_clk = {
+	.name		= "tc2_clk",
+	.pmc_mask	= 1 << AT91SAM9260_ID_TC2,
+	.type		= CLK_TYPE_PERIPHERAL,
+};
 static struct clk ohci_clk = {
 	.name		= "ohci_clk",
 	.pmc_mask	= 1 << AT91SAM9260_ID_UHP,
@@ -137,6 +152,21 @@ static struct clk usart5_clk = {
 	.pmc_mask	= 1 << AT91SAM9260_ID_US5,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
+static struct clk tc3_clk = {
+	.name		= "tc3_clk",
+	.pmc_mask	= 1 << AT91SAM9260_ID_TC3,
+	.type		= CLK_TYPE_PERIPHERAL,
+};
+static struct clk tc4_clk = {
+	.name		= "tc4_clk",
+	.pmc_mask	= 1 << AT91SAM9260_ID_TC4,
+	.type		= CLK_TYPE_PERIPHERAL,
+};
+static struct clk tc5_clk = {
+	.name		= "tc5_clk",
+	.pmc_mask	= 1 << AT91SAM9260_ID_TC5,
+	.type		= CLK_TYPE_PERIPHERAL,
+};
 
 static struct clk *periph_clocks[] __initdata = {
 	&pioA_clk,
@@ -152,14 +182,18 @@ static struct clk *periph_clocks[] __initdata = {
 	&spi0_clk,
 	&spi1_clk,
 	// ssc
-	// tc0 .. tc2
+	&tc0_clk,
+	&tc1_clk,
+	&tc2_clk,
 	&ohci_clk,
 	&ether_clk,
 	&isi_clk,
 	&usart3_clk,
 	&usart4_clk,
 	&usart5_clk,
-	// tc3 .. tc5
+	&tc3_clk,
+	&tc4_clk,
+	&tc5_clk,
 	// irq0 .. irq2
 };
 
