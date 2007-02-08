@@ -2464,5 +2464,6 @@ restore_state:
 
 	return err;
 }
+EXPORT_SYMBOL(xfrm_migrate);
 #endif
 
