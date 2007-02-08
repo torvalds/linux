@@ -577,7 +577,7 @@ static int onenand_write_bufferram(struct mtd_info *mtd, int area,
 static int onenand_check_bufferram(struct mtd_info *mtd, loff_t addr)
 {
 	struct onenand_chip *this = mtd->priv;
-	int blockpage;
+	int blockpage, found = 0;
 	unsigned int i;
 
 	blockpage = (int) (addr >> this->page_shift);
@@ -585,16 +585,24 @@ static int onenand_check_bufferram(struct mtd_info *mtd, loff_t addr)
 	/* Is there valid data? */
 	i = ONENAND_CURRENT_BUFFERRAM(this);
 	if (this->bufferram[i].blockpage == blockpage)
-		return 1;
-
-	/* Check another BufferRAM */
-	i = ONENAND_NEXT_BUFFERRAM(this);
-	if (this->bufferram[i].blockpage == blockpage) {
-		ONENAND_SET_NEXT_BUFFERRAM(this);
-		return 1;
+		found = 1;
+	else {
+		/* Check another BufferRAM */
+		i = ONENAND_NEXT_BUFFERRAM(this);
+		if (this->bufferram[i].blockpage == blockpage) {
+			ONENAND_SET_NEXT_BUFFERRAM(this);
+			found = 1;
+		}
 	}
 
-	return 0;
+	if (found && ONENAND_IS_DDP(this)) {
+		/* Select DataRAM for DDP */
+		int block = (int) (addr >> this->erase_shift);
+		int value = onenand_bufferram_address(this, block);
+		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
+	}
+
+	return found;
 }
 
 /**
