@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
@@ -112,6 +113,42 @@ static struct spi_board_info csb337_spi_devices[] = {
 	},
 };
 
+#define CSB_FLASH_BASE	AT91_CHIPSELECT_0
+#define CSB_FLASH_SIZE	0x800000
+
+static struct mtd_partition csb_flash_partitions[] = {
+	{
+		.name		= "uMON flash",
+		.offset		= 0,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= MTD_WRITEABLE,	/* read only */
+	}
+};
+
+static struct physmap_flash_data csb_flash_data = {
+	.width		= 2,
+	.parts		= csb_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(csb_flash_partitions),
+};
+
+static struct resource csb_flash_resources[] = {
+	{
+		.start	= CSB_FLASH_BASE,
+		.end	= CSB_FLASH_BASE + CSB_FLASH_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device csb_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+				.platform_data = &csb_flash_data,
+			},
+	.resource	= csb_flash_resources,
+	.num_resources	= ARRAY_SIZE(csb_flash_resources),
+};
+
 static void __init csb337_board_init(void)
 {
 	/* Serial */
@@ -131,6 +168,8 @@ static void __init csb337_board_init(void)
 	at91_add_device_spi(csb337_spi_devices, ARRAY_SIZE(csb337_spi_devices));
 	/* MMC */
 	at91_add_device_mmc(0, &csb337_mmc_data);
+	/* NOR flash */
+	platform_device_register(&csb_flash);
 }
 
 MACHINE_START(CSB337, "Cogent CSB337")

@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
@@ -81,6 +82,42 @@ static struct at91_udc_data __initdata csb637_udc_data = {
 	.pullup_pin   = AT91_PIN_PB1,
 };
 
+#define CSB_FLASH_BASE	AT91_CHIPSELECT_0
+#define CSB_FLASH_SIZE	0x1000000
+
+static struct mtd_partition csb_flash_partitions[] = {
+	{
+		.name		= "uMON flash",
+		.offset		= 0,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= MTD_WRITEABLE,	/* read only */
+	}
+};
+
+static struct physmap_flash_data csb_flash_data = {
+	.width		= 2,
+	.parts		= csb_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(csb_flash_partitions),
+};
+
+static struct resource csb_flash_resources[] = {
+	{
+		.start	= CSB_FLASH_BASE,
+		.end	= CSB_FLASH_BASE + CSB_FLASH_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device csb_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+				.platform_data = &csb_flash_data,
+			},
+	.resource	= csb_flash_resources,
+	.num_resources	= ARRAY_SIZE(csb_flash_resources),
+};
+
 static void __init csb637_board_init(void)
 {
 	/* Serial */
@@ -95,6 +132,8 @@ static void __init csb637_board_init(void)
 	at91_add_device_i2c();
 	/* SPI */
 	at91_add_device_spi(NULL, 0);
+	/* NOR flash */
+	platform_device_register(&csb_flash);
 }
 
 MACHINE_START(CSB637, "Cogent CSB637")
