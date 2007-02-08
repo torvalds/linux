@@ -636,15 +636,15 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		switch (c->x86_mask) {
 		case 0 ... 1:
 			cpu_model = CPU_NEHEMIAH;
-			cpuname = "C3 'Nehemiah A' [C5N]";
+			cpuname = "C3 'Nehemiah A' [C5XLOE]";
 			break;
 		case 2 ... 4:
 			cpu_model = CPU_NEHEMIAH;
-			cpuname = "C3 'Nehemiah B' [C5N]";
+			cpuname = "C3 'Nehemiah B' [C5XLOH]";
 			break;
 		case 5 ... 15:
 			cpu_model = CPU_NEHEMIAH_C;
-			cpuname = "C3 'Nehemiah C' [C5N]";
+			cpuname = "C3 'Nehemiah C' [C5P]";
 			break;
 		}
 		break;
