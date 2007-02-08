@@ -352,3 +352,15 @@ config USB_APPLETOUCH
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called appletouch.
+
+config USB_GTCO
+        tristate "GTCO CalComp/InterWrite USB Support"
+        depends on USB && INPUT
+        ---help---
+          Say Y here if you want to use the USB version of the GTCO
+          CalComp/InterWrite Tablet.  Make sure to say Y to "Mouse support"
+          (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
+          (CONFIG_INPUT_EVDEV) as well.
+
+          To compile this driver as a module, choose M here: the
+          module will be called gtco.

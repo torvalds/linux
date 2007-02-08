@@ -168,9 +168,13 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 			space, "", qh, qtype,
 			le32_to_cpu(qh->link), le32_to_cpu(element));
 	if (qh->type == USB_ENDPOINT_XFER_ISOC)
-		out += sprintf(out, "%*s    period %d frame %x desc [%p]\n",
-				space, "", qh->period, qh->iso_frame,
-				qh->iso_packet_desc);
+		out += sprintf(out, "%*s    period %d phase %d load %d us, "
+				"frame %x desc [%p]\n",
+				space, "", qh->period, qh->phase, qh->load,
+				qh->iso_frame, qh->iso_packet_desc);
+	else if (qh->type == USB_ENDPOINT_XFER_INT)
+		out += sprintf(out, "%*s    period %d phase %d load %d us\n",
+				space, "", qh->period, qh->phase, qh->load);
 
 	if (element & UHCI_PTR_QH)
 		out += sprintf(out, "%*s  Element points to QH (bug?)\n", space, "");
@@ -208,7 +212,7 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 					space, "", nurbs);
 	}
 
-	if (qh->udev) {
+	if (qh->dummy_td) {
 		out += sprintf(out, "%*s  Dummy TD\n", space, "");
 		out += uhci_show_td(qh->dummy_td, out, len - (out - buf), 0);
 	}
@@ -347,31 +351,80 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 	struct uhci_qh *qh;
 	struct uhci_td *td;
 	struct list_head *tmp, *head;
+	int nframes, nerrs;
 
 	out += uhci_show_root_hub_state(uhci, out, len - (out - buf));
 	out += sprintf(out, "HC status\n");
 	out += uhci_show_status(uhci, out, len - (out - buf));
+
+	out += sprintf(out, "Periodic load table\n");
+	for (i = 0; i < MAX_PHASE; ++i) {
+		out += sprintf(out, "\t%d", uhci->load[i]);
+		if (i % 8 == 7)
+			*out++ = '\n';
+	}
+	out += sprintf(out, "Total: %d, #INT: %d, #ISO: %d\n",
+			uhci->total_load,
+			uhci_to_hcd(uhci)->self.bandwidth_int_reqs,
+			uhci_to_hcd(uhci)->self.bandwidth_isoc_reqs);
 	if (debug <= 1)
 		return out - buf;
 
 	out += sprintf(out, "Frame List\n");
+	nframes = 10;
+	nerrs = 0;
 	for (i = 0; i < UHCI_NUMFRAMES; ++i) {
-		td = uhci->frame_cpu[i];
-		if (!td)
-			continue;
+		__le32 link, qh_dma;
 
-		out += sprintf(out, "- Frame %d\n", i); \
-		if (td->dma_handle != (dma_addr_t)uhci->frame[i])
-			out += sprintf(out, "    frame list does not match td->dma_handle!\n");
+		j = 0;
+		td = uhci->frame_cpu[i];
+		link = uhci->frame[i];
+		if (!td)
+			goto check_link;
+
+		if (nframes > 0) {
+			out += sprintf(out, "- Frame %d -> (%08x)\n",
+					i, le32_to_cpu(link));
+			j = 1;
+		}
 
 		head = &td->fl_list;
 		tmp = head;
 		do {
 			td = list_entry(tmp, struct uhci_td, fl_list);
 			tmp = tmp->next;
-			out += uhci_show_td(td, out, len - (out - buf), 4);
+			if (cpu_to_le32(td->dma_handle) != link) {
+				if (nframes > 0)
+					out += sprintf(out, "    link does "
+						"not match list entry!\n");
+				else
+					++nerrs;
+			}
+			if (nframes > 0)
+				out += uhci_show_td(td, out,
+						len - (out - buf), 4);
+			link = td->link;
 		} while (tmp != head);
+
+check_link:
+		qh_dma = uhci_frame_skel_link(uhci, i);
+		if (link != qh_dma) {
+			if (nframes > 0) {
+				if (!j) {
+					out += sprintf(out,
+						"- Frame %d -> (%08x)\n",
+						i, le32_to_cpu(link));
+					j = 1;
+				}
+				out += sprintf(out, "   link does not match "
+					"QH (%08x)!\n", le32_to_cpu(qh_dma));
+			} else
+				++nerrs;
+		}
+		nframes -= j;
 	}
+	if (nerrs > 0)
+		out += sprintf(out, "Skipped %d bad links\n", nerrs);
 
 	out += sprintf(out, "Skeleton QHs\n");
 

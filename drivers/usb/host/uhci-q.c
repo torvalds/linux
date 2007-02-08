@@ -248,16 +248,26 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 	INIT_LIST_HEAD(&qh->node);
 
 	if (udev) {		/* Normal QH */
-		qh->dummy_td = uhci_alloc_td(uhci);
-		if (!qh->dummy_td) {
-			dma_pool_free(uhci->qh_pool, qh, dma_handle);
-			return NULL;
+		qh->type = hep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+		if (qh->type != USB_ENDPOINT_XFER_ISOC) {
+			qh->dummy_td = uhci_alloc_td(uhci);
+			if (!qh->dummy_td) {
+				dma_pool_free(uhci->qh_pool, qh, dma_handle);
+				return NULL;
+			}
 		}
 		qh->state = QH_STATE_IDLE;
 		qh->hep = hep;
 		qh->udev = udev;
 		hep->hcpriv = qh;
-		qh->type = hep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+
+		if (qh->type == USB_ENDPOINT_XFER_INT ||
+				qh->type == USB_ENDPOINT_XFER_ISOC)
+			qh->load = usb_calc_bus_time(udev->speed,
+					usb_endpoint_dir_in(&hep->desc),
+					qh->type == USB_ENDPOINT_XFER_ISOC,
+					le16_to_cpu(hep->desc.wMaxPacketSize))
+				/ 1000 + 1;
 
 	} else {		/* Skeleton QH */
 		qh->state = QH_STATE_ACTIVE;
@@ -275,7 +285,8 @@ static void uhci_free_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	list_del(&qh->node);
 	if (qh->udev) {
 		qh->hep->hcpriv = NULL;
-		uhci_free_td(uhci, qh->dummy_td);
+		if (qh->dummy_td)
+			uhci_free_td(uhci, qh->dummy_td);
 	}
 	dma_pool_free(uhci->qh_pool, qh, qh->dma_handle);
 }
@@ -327,7 +338,7 @@ static int uhci_cleanup_queue(struct uhci_hcd *uhci, struct uhci_qh *qh,
 		goto done;
 	qh->element = UHCI_PTR_TERM;
 
-	/* Control pipes have to worry about toggles */
+	/* Control pipes don't have to worry about toggles */
 	if (qh->type == USB_ENDPOINT_XFER_CONTROL)
 		goto done;
 
@@ -491,6 +502,121 @@ static void uhci_make_qh_idle(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	/* If anyone is waiting for a QH to become idle, wake them up */
 	if (uhci->num_waiting)
 		wake_up_all(&uhci->waitqh);
+}
+
+/*
+ * Find the highest existing bandwidth load for a given phase and period.
+ */
+static int uhci_highest_load(struct uhci_hcd *uhci, int phase, int period)
+{
+	int highest_load = uhci->load[phase];
+
+	for (phase += period; phase < MAX_PHASE; phase += period)
+		highest_load = max_t(int, highest_load, uhci->load[phase]);
+	return highest_load;
+}
+
+/*
+ * Set qh->phase to the optimal phase for a periodic transfer and
+ * check whether the bandwidth requirement is acceptable.
+ */
+static int uhci_check_bandwidth(struct uhci_hcd *uhci, struct uhci_qh *qh)
+{
+	int minimax_load;
+
+	/* Find the optimal phase (unless it is already set) and get
+	 * its load value. */
+	if (qh->phase >= 0)
+		minimax_load = uhci_highest_load(uhci, qh->phase, qh->period);
+	else {
+		int phase, load;
+		int max_phase = min_t(int, MAX_PHASE, qh->period);
+
+		qh->phase = 0;
+		minimax_load = uhci_highest_load(uhci, qh->phase, qh->period);
+		for (phase = 1; phase < max_phase; ++phase) {
+			load = uhci_highest_load(uhci, phase, qh->period);
+			if (load < minimax_load) {
+				minimax_load = load;
+				qh->phase = phase;
+			}
+		}
+	}
+
+	/* Maximum allowable periodic bandwidth is 90%, or 900 us per frame */
+	if (minimax_load + qh->load > 900) {
+		dev_dbg(uhci_dev(uhci), "bandwidth allocation failed: "
+				"period %d, phase %d, %d + %d us\n",
+				qh->period, qh->phase, minimax_load, qh->load);
+		return -ENOSPC;
+	}
+	return 0;
+}
+
+/*
+ * Reserve a periodic QH's bandwidth in the schedule
+ */
+static void uhci_reserve_bandwidth(struct uhci_hcd *uhci, struct uhci_qh *qh)
+{
+	int i;
+	int load = qh->load;
+	char *p = "??";
+
+	for (i = qh->phase; i < MAX_PHASE; i += qh->period) {
+		uhci->load[i] += load;
+		uhci->total_load += load;
+	}
+	uhci_to_hcd(uhci)->self.bandwidth_allocated =
+			uhci->total_load / MAX_PHASE;
+	switch (qh->type) {
+	case USB_ENDPOINT_XFER_INT:
+		++uhci_to_hcd(uhci)->self.bandwidth_int_reqs;
+		p = "INT";
+		break;
+	case USB_ENDPOINT_XFER_ISOC:
+		++uhci_to_hcd(uhci)->self.bandwidth_isoc_reqs;
+		p = "ISO";
+		break;
+	}
+	qh->bandwidth_reserved = 1;
+	dev_dbg(uhci_dev(uhci),
+			"%s dev %d ep%02x-%s, period %d, phase %d, %d us\n",
+			"reserve", qh->udev->devnum,
+			qh->hep->desc.bEndpointAddress, p,
+			qh->period, qh->phase, load);
+}
+
+/*
+ * Release a periodic QH's bandwidth reservation
+ */
+static void uhci_release_bandwidth(struct uhci_hcd *uhci, struct uhci_qh *qh)
+{
+	int i;
+	int load = qh->load;
+	char *p = "??";
+
+	for (i = qh->phase; i < MAX_PHASE; i += qh->period) {
+		uhci->load[i] -= load;
+		uhci->total_load -= load;
+	}
+	uhci_to_hcd(uhci)->self.bandwidth_allocated =
+			uhci->total_load / MAX_PHASE;
+	switch (qh->type) {
+	case USB_ENDPOINT_XFER_INT:
+		--uhci_to_hcd(uhci)->self.bandwidth_int_reqs;
+		p = "INT";
+		break;
+	case USB_ENDPOINT_XFER_ISOC:
+		--uhci_to_hcd(uhci)->self.bandwidth_isoc_reqs;
+		p = "ISO";
+		break;
+	}
+	qh->bandwidth_reserved = 0;
+	dev_dbg(uhci_dev(uhci),
+			"%s dev %d ep%02x-%s, period %d, phase %d, %d us\n",
+			"release", qh->udev->devnum,
+			qh->hep->desc.bEndpointAddress, p,
+			qh->period, qh->phase, load);
 }
 
 static inline struct urb_priv *uhci_alloc_urb_priv(struct uhci_hcd *uhci,
@@ -796,7 +922,6 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	wmb();
 	qh->dummy_td->status |= __constant_cpu_to_le32(TD_CTRL_ACTIVE);
 	qh->dummy_td = td;
-	qh->period = urb->interval;
 
 	usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe),
 			usb_pipeout(urb->pipe), toggle);
@@ -827,28 +952,42 @@ static inline int uhci_submit_bulk(struct uhci_hcd *uhci, struct urb *urb,
 static int uhci_submit_interrupt(struct uhci_hcd *uhci, struct urb *urb,
 		struct uhci_qh *qh)
 {
-	int exponent;
+	int ret;
 
 	/* USB 1.1 interrupt transfers only involve one packet per interval.
 	 * Drivers can submit URBs of any length, but longer ones will need
 	 * multiple intervals to complete.
 	 */
 
-	/* Figure out which power-of-two queue to use */
-	for (exponent = 7; exponent >= 0; --exponent) {
-		if ((1 << exponent) <= urb->interval)
-			break;
-	}
-	if (exponent < 0)
-		return -EINVAL;
-	urb->interval = 1 << exponent;
+	if (!qh->bandwidth_reserved) {
+		int exponent;
 
-	if (qh->period == 0)
+		/* Figure out which power-of-two queue to use */
+		for (exponent = 7; exponent >= 0; --exponent) {
+			if ((1 << exponent) <= urb->interval)
+				break;
+		}
+		if (exponent < 0)
+			return -EINVAL;
+		qh->period = 1 << exponent;
 		qh->skel = uhci->skelqh[UHCI_SKEL_INDEX(exponent)];
-	else if (qh->period != urb->interval)
-		return -EINVAL;		/* Can't change the period */
 
-	return uhci_submit_common(uhci, urb, qh);
+		/* For now, interrupt phase is fixed by the layout
+		 * of the QH lists. */
+		qh->phase = (qh->period / 2) & (MAX_PHASE - 1);
+		ret = uhci_check_bandwidth(uhci, qh);
+		if (ret)
+			return ret;
+	} else if (qh->period > urb->interval)
+		return -EINVAL;		/* Can't decrease the period */
+
+	ret = uhci_submit_common(uhci, urb, qh);
+	if (ret == 0) {
+		urb->interval = qh->period;
+		if (!qh->bandwidth_reserved)
+			uhci_reserve_bandwidth(uhci, qh);
+	}
+	return ret;
 }
 
 /*
@@ -995,15 +1134,32 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 		return -EFBIG;
 
 	/* Check the period and figure out the starting frame number */
-	if (qh->period == 0) {
+	if (!qh->bandwidth_reserved) {
+		qh->period = urb->interval;
 		if (urb->transfer_flags & URB_ISO_ASAP) {
+			qh->phase = -1;		/* Find the best phase */
+			i = uhci_check_bandwidth(uhci, qh);
+			if (i)
+				return i;
+
+			/* Allow a little time to allocate the TDs */
 			uhci_get_current_frame_number(uhci);
-			urb->start_frame = uhci->frame_number + 10;
+			frame = uhci->frame_number + 10;
+
+			/* Move forward to the first frame having the
+			 * correct phase */
+			urb->start_frame = frame + ((qh->phase - frame) &
+					(qh->period - 1));
 		} else {
 			i = urb->start_frame - uhci->last_iso_frame;
 			if (i <= 0 || i >= UHCI_NUMFRAMES)
 				return -EINVAL;
+			qh->phase = urb->start_frame & (qh->period - 1);
+			i = uhci_check_bandwidth(uhci, qh);
+			if (i)
+				return i;
 		}
+
 	} else if (qh->period != urb->interval) {
 		return -EINVAL;		/* Can't change the period */
 
@@ -1049,9 +1205,6 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	/* Set the interrupt-on-completion flag on the last packet. */
 	td->status |= __constant_cpu_to_le32(TD_CTRL_IOC);
 
-	qh->skel = uhci->skel_iso_qh;
-	qh->period = urb->interval;
-
 	/* Add the TDs to the frame list */
 	frame = urb->start_frame;
 	list_for_each_entry(td, &urbp->td_list, list) {
@@ -1065,6 +1218,9 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 		qh->iso_status = 0;
 	}
 
+	qh->skel = uhci->skel_iso_qh;
+	if (!qh->bandwidth_reserved)
+		uhci_reserve_bandwidth(uhci, qh);
 	return 0;
 }
 
@@ -1119,7 +1275,6 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 	unsigned long flags;
 	struct urb_priv *urbp;
 	struct uhci_qh *qh;
-	int bustime;
 
 	spin_lock_irqsave(&uhci->lock, flags);
 
@@ -1149,35 +1304,11 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 		ret = uhci_submit_bulk(uhci, urb, qh);
 		break;
 	case USB_ENDPOINT_XFER_INT:
-		if (list_empty(&qh->queue)) {
-			bustime = usb_check_bandwidth(urb->dev, urb);
-			if (bustime < 0)
-				ret = bustime;
-			else {
-				ret = uhci_submit_interrupt(uhci, urb, qh);
-				if (ret == 0)
-					usb_claim_bandwidth(urb->dev, urb, bustime, 0);
-			}
-		} else {	/* inherit from parent */
-			struct urb_priv *eurbp;
-
-			eurbp = list_entry(qh->queue.prev, struct urb_priv,
-					node);
-			urb->bandwidth = eurbp->urb->bandwidth;
-			ret = uhci_submit_interrupt(uhci, urb, qh);
-		}
+		ret = uhci_submit_interrupt(uhci, urb, qh);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		urb->error_count = 0;
-		bustime = usb_check_bandwidth(urb->dev, urb);
-		if (bustime < 0) {
-			ret = bustime;
-			break;
-		}
-
 		ret = uhci_submit_isochronous(uhci, urb, qh);
-		if (ret == 0)
-			usb_claim_bandwidth(urb->dev, urb, bustime, 1);
 		break;
 	}
 	if (ret != 0)
@@ -1274,24 +1405,6 @@ __acquires(uhci->lock)
 
 	uhci_free_urb_priv(uhci, urbp);
 
-	switch (qh->type) {
-	case USB_ENDPOINT_XFER_ISOC:
-		/* Release bandwidth for Interrupt or Isoc. transfers */
-		if (urb->bandwidth)
-			usb_release_bandwidth(urb->dev, urb, 1);
-		break;
-	case USB_ENDPOINT_XFER_INT:
-		/* Release bandwidth for Interrupt or Isoc. transfers */
-		/* Make sure we don't release if we have a queued URB */
-		if (list_empty(&qh->queue) && urb->bandwidth)
-			usb_release_bandwidth(urb->dev, urb, 0);
-		else
-			/* bandwidth was passed on to queued URB, */
-			/* so don't let usb_unlink_urb() release it */
-			urb->bandwidth = 0;
-		break;
-	}
-
 	spin_unlock(&uhci->lock);
 	usb_hcd_giveback_urb(uhci_to_hcd(uhci), urb);
 	spin_lock(&uhci->lock);
@@ -1300,9 +1413,8 @@ __acquires(uhci->lock)
 	 * reserved bandwidth. */
 	if (list_empty(&qh->queue)) {
 		uhci_unlink_qh(uhci, qh);
-
-		/* Bandwidth stuff not yet implemented */
-		qh->period = 0;
+		if (qh->bandwidth_reserved)
+			uhci_release_bandwidth(uhci, qh);
 	}
 }
 

@@ -398,6 +398,9 @@ static int usblp_open(struct inode *inode, struct file *file)
 	retval = 0;
 #endif
 
+	retval = usb_autopm_get_interface(intf);
+	if (retval < 0)
+		goto out;
 	usblp->used = 1;
 	file->private_data = usblp;
 
@@ -442,6 +445,7 @@ static int usblp_release(struct inode *inode, struct file *file)
 	usblp->used = 0;
 	if (usblp->present) {
 		usblp_unlink_urbs(usblp);
+		usb_autopm_put_interface(usblp->intf);
 	} else 		/* finish cleanup from disconnect */
 		usblp_cleanup (usblp);
 	mutex_unlock (&usblp_mutex);
@@ -1203,14 +1207,9 @@ static int usblp_suspend (struct usb_interface *intf, pm_message_t message)
 {
 	struct usblp *usblp = usb_get_intfdata (intf);
 
-	/* this races against normal access and open */
-	mutex_lock (&usblp_mutex);
-	mutex_lock (&usblp->mut);
 	/* we take no more IO */
 	usblp->sleeping = 1;
 	usblp_unlink_urbs(usblp);
-	mutex_unlock (&usblp->mut);
-	mutex_unlock (&usblp_mutex);
 
 	return 0;
 }
@@ -1220,14 +1219,8 @@ static int usblp_resume (struct usb_interface *intf)
 	struct usblp *usblp = usb_get_intfdata (intf);
 	int r;
 
-	mutex_lock (&usblp_mutex);
-	mutex_lock (&usblp->mut);
-
 	usblp->sleeping = 0;
 	r = handle_bidir (usblp);
-
-	mutex_unlock (&usblp->mut);
-	mutex_unlock (&usblp_mutex);
 
 	return r;
 }
@@ -1251,6 +1244,7 @@ static struct usb_driver usblp_driver = {
 	.suspend =	usblp_suspend,
 	.resume =	usblp_resume,
 	.id_table =	usblp_ids,
+	.supports_autosuspend =	1,
 };
 
 static int __init usblp_init(void)

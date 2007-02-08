@@ -544,22 +544,3 @@ static struct platform_driver ohci_hcd_omap_driver = {
 	},
 };
 
-static int __init ohci_hcd_omap_init (void)
-{
-	printk (KERN_DEBUG "%s: " DRIVER_INFO " (OMAP)\n", hcd_name);
-	if (usb_disabled())
-		return -ENODEV;
-
-	pr_debug("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
-		sizeof (struct ed), sizeof (struct td));
-
-	return platform_driver_register(&ohci_hcd_omap_driver);
-}
-
-static void __exit ohci_hcd_omap_cleanup (void)
-{
-	platform_driver_unregister(&ohci_hcd_omap_driver);
-}
-
-module_init (ohci_hcd_omap_init);
-module_exit (ohci_hcd_omap_cleanup);

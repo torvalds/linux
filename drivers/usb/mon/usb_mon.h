@@ -17,9 +17,11 @@
 struct mon_bus {
 	struct list_head bus_link;
 	spinlock_t lock;
+	struct usb_bus *u_bus;
+
+	int text_inited;
 	struct dentry *dent_s;		/* Debugging file */
 	struct dentry *dent_t;		/* Text interface file */
-	struct usb_bus *u_bus;
 	int uses_dma;
 
 	/* Ref */
@@ -48,13 +50,35 @@ struct mon_reader {
 void mon_reader_add(struct mon_bus *mbus, struct mon_reader *r);
 void mon_reader_del(struct mon_bus *mbus, struct mon_reader *r);
 
+struct mon_bus *mon_bus_lookup(unsigned int num);
+
+int /*bool*/ mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus);
+void mon_text_del(struct mon_bus *mbus);
+// void mon_bin_add(struct mon_bus *);
+
+int __init mon_text_init(void);
+void __exit mon_text_exit(void);
+int __init mon_bin_init(void);
+void __exit mon_bin_exit(void);
+
 /*
- */
+ * DMA interface.
+ *
+ * XXX The vectored side needs a serious re-thinking. Abstracting vectors,
+ * like in Paolo's original patch, produces a double pkmap. We need an idea.
+*/
 extern char mon_dmapeek(unsigned char *dst, dma_addr_t dma_addr, int len);
 
+struct mon_reader_bin;
+extern void mon_dmapeek_vec(const struct mon_reader_bin *rp,
+    unsigned int offset, dma_addr_t dma_addr, unsigned int len);
+extern unsigned int mon_copy_to_buff(const struct mon_reader_bin *rp,
+    unsigned int offset, const unsigned char *from, unsigned int len);
+
+/*
+ */
 extern struct mutex mon_lock;
 
-extern const struct file_operations mon_fops_text;
 extern const struct file_operations mon_fops_stat;
 
 #endif /* __USB_MON_H */

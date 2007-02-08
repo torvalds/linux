@@ -117,6 +117,7 @@ static struct usb_serial_driver empeg_device = {
 		.name =		"empeg",
 	},
 	.id_table =		id_table,
+	.usb_driver = 		&empeg_driver,
 	.num_interrupt_in =	0,
 	.num_bulk_in =		1,
 	.num_bulk_out =		1,

@@ -39,7 +39,7 @@
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
 #include <linux/clk.h>
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 
 #include <asm/byteorder.h>
@@ -1807,16 +1807,13 @@ static int at91udc_suspend(struct platform_device *pdev, pm_message_t mesg)
 			|| !wake
 			|| at91_suspend_entering_slow_clock()) {
 		pullup(udc, 0);
-		disable_irq_wake(udc->udp_irq);
+		wake = 0;
 	} else
 		enable_irq_wake(udc->udp_irq);
 
-	if (udc->board.vbus_pin > 0) {
-		if (wake)
-			enable_irq_wake(udc->board.vbus_pin);
-		else
-			disable_irq_wake(udc->board.vbus_pin);
-	}
+	udc->active_suspend = wake;
+	if (udc->board.vbus_pin > 0 && wake)
+		enable_irq_wake(udc->board.vbus_pin);
 	return 0;
 }
 
@@ -1824,8 +1821,14 @@ static int at91udc_resume(struct platform_device *pdev)
 {
 	struct at91_udc *udc = platform_get_drvdata(pdev);
 
+	if (udc->board.vbus_pin > 0 && udc->active_suspend)
+		disable_irq_wake(udc->board.vbus_pin);
+
 	/* maybe reconnect to host; if so, clocks on */
-	pullup(udc, 1);
+	if (udc->active_suspend)
+		disable_irq_wake(udc->udp_irq);
+	else
+		pullup(udc, 1);
 	return 0;
 }
 #else

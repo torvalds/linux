@@ -179,6 +179,9 @@ static inline void usb_set_serial_data (struct usb_serial *serial, void *data)
  *	memory structure allocation at this point in time.
  * @shutdown: pointer to the driver's shutdown function.  This will be
  *	called when the device is removed from the system.
+ * @usb_driver: pointer to the struct usb_driver that controls this
+ *	device.  This is necessary to allow dynamic ids to be added to
+ *	the driver from sysfs.
  *
  * This structure is defines a USB Serial driver.  It provides all of
  * the information that the USB serial core code needs.  If the function
@@ -202,6 +205,8 @@ struct usb_serial_driver {
 
 	struct list_head	driver_list;
 	struct device_driver	driver;
+	struct usb_driver	*usb_driver;
+	struct usb_dynids	dynids;
 
 	int (*probe) (struct usb_serial *serial, const struct usb_device_id *id);
 	int (*attach) (struct usb_serial *serial);

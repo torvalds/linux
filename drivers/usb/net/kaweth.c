@@ -179,6 +179,7 @@ static struct usb_driver kaweth_driver = {
 	.suspend =	kaweth_suspend,
 	.resume =	kaweth_resume,
 	.id_table =     usb_klsi_table,
+	.supports_autosuspend =	1,
 };
 
 typedef __u8 eth_addr_t[6];
@@ -225,6 +226,7 @@ struct kaweth_device
 	struct delayed_work lowmem_work;
 
 	struct usb_device *dev;
+	struct usb_interface *intf;
 	struct net_device *net;
 	wait_queue_head_t term_wait;
 
@@ -662,9 +664,14 @@ static int kaweth_open(struct net_device *net)
 
 	dbg("Opening network device.");
 
+	res = usb_autopm_get_interface(kaweth->intf);
+	if (res) {
+		err("Interface cannot be resumed.");
+		return -EIO;
+	}
 	res = kaweth_resubmit_rx_urb(kaweth, GFP_KERNEL);
 	if (res)
-		return -EIO;
+		goto err_out;
 
 	usb_fill_int_urb(
 		kaweth->irq_urb,
@@ -681,7 +688,7 @@ static int kaweth_open(struct net_device *net)
 	res = usb_submit_urb(kaweth->irq_urb, GFP_KERNEL);
 	if (res) {
 		usb_kill_urb(kaweth->rx_urb);
-		return -EIO;
+		goto err_out;
 	}
 	kaweth->opened = 1;
 
@@ -689,10 +696,14 @@ static int kaweth_open(struct net_device *net)
 
 	kaweth_async_set_rx_mode(kaweth);
 	return 0;
+
+err_out:
+	usb_autopm_enable(kaweth->intf);
+	return -EIO;
 }
 
 /****************************************************************
- *     kaweth_close
+ *     kaweth_kill_urbs
  ****************************************************************/
 static void kaweth_kill_urbs(struct kaweth_device *kaweth)
 {
@@ -724,17 +735,29 @@ static int kaweth_close(struct net_device *net)
 
 	kaweth->status &= ~KAWETH_STATUS_CLOSING;
 
+	usb_autopm_enable(kaweth->intf);
+
 	return 0;
 }
 
 static void kaweth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
+	struct kaweth_device *kaweth = netdev_priv(dev);
 
 	strlcpy(info->driver, driver_name, sizeof(info->driver));
+	usb_make_path(kaweth->dev, info->bus_info, sizeof (info->bus_info));
+}
+
+static u32 kaweth_get_link(struct net_device *dev)
+{
+	struct kaweth_device *kaweth = netdev_priv(dev);
+
+	return kaweth->linkstate;
 }
 
 static struct ethtool_ops ops = {
-	.get_drvinfo = kaweth_get_drvinfo
+	.get_drvinfo	= kaweth_get_drvinfo,
+	.get_link	= kaweth_get_link
 };
 
 /****************************************************************
@@ -908,6 +931,7 @@ static int kaweth_suspend(struct usb_interface *intf, pm_message_t message)
 	struct kaweth_device *kaweth = usb_get_intfdata(intf);
 	unsigned long flags;
 
+	dbg("Suspending device");
 	spin_lock_irqsave(&kaweth->device_lock, flags);
 	kaweth->status |= KAWETH_STATUS_SUSPENDING;
 	spin_unlock_irqrestore(&kaweth->device_lock, flags);
@@ -924,6 +948,7 @@ static int kaweth_resume(struct usb_interface *intf)
 	struct kaweth_device *kaweth = usb_get_intfdata(intf);
 	unsigned long flags;
 
+	dbg("Resuming device");
 	spin_lock_irqsave(&kaweth->device_lock, flags);
 	kaweth->status &= ~KAWETH_STATUS_SUSPENDING;
 	spin_unlock_irqrestore(&kaweth->device_lock, flags);
@@ -1085,6 +1110,8 @@ err_fw:
 	}
 
 	dbg("Initializing net device.");
+
+	kaweth->intf = intf;
 
 	kaweth->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!kaweth->tx_urb)
@@ -1265,7 +1292,7 @@ static int kaweth_internal_control_msg(struct usb_device *usb_dev,
 {
         struct urb *urb;
         int retv;
-        int length;
+        int length = 0; /* shut up GCC */
 
         urb = usb_alloc_urb(0, GFP_NOIO);
         if (!urb)

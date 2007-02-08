@@ -266,6 +266,7 @@ struct hid_item {
 #define HID_QUIRK_BAD_RELATIVE_KEYS		0x00010000
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00020000
 #define HID_QUIRK_IGNORE_MOUSE			0x00040000
+#define HID_QUIRK_SONY_PS3_CONTROLLER		0x00080000
 
 /*
  * This is the global environment of the parser. This information is
