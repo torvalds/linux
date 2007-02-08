@@ -272,7 +272,9 @@ static void kvm_free_physmem(struct kvm *kvm)
 
 static void kvm_free_vcpu(struct kvm_vcpu *vcpu)
 {
+	vcpu_load(vcpu->kvm, vcpu_slot(vcpu));
 	kvm_mmu_destroy(vcpu);
+	vcpu_put(vcpu);
 	kvm_arch_ops->vcpu_free(vcpu);
 }
 
@@ -1224,6 +1226,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_IA32_APICBASE:
 		data = vcpu->apic_base;
 		break;
+	case MSR_IA32_MISC_ENABLE:
+		data = vcpu->ia32_misc_enable_msr;
+		break;
 #ifdef CONFIG_X86_64
 	case MSR_EFER:
 		data = vcpu->shadow_efer;
@@ -1294,6 +1299,9 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		break;
 	case MSR_IA32_APICBASE:
 		vcpu->apic_base = data;
+		break;
+	case MSR_IA32_MISC_ENABLE:
+		vcpu->ia32_misc_enable_msr = data;
 		break;
 	default:
 		printk(KERN_ERR "kvm: unhandled wrmsr: 0x%x\n", msr);
@@ -1597,6 +1605,10 @@ static u32 msrs_to_save[] = {
 };
 
 static unsigned num_msrs_to_save;
+
+static u32 emulated_msrs[] = {
+	MSR_IA32_MISC_ENABLE,
+};
 
 static __init void kvm_init_msr_list(void)
 {
@@ -1923,7 +1935,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		if (copy_from_user(&msr_list, user_msr_list, sizeof msr_list))
 			goto out;
 		n = msr_list.nmsrs;
-		msr_list.nmsrs = num_msrs_to_save;
+		msr_list.nmsrs = num_msrs_to_save + ARRAY_SIZE(emulated_msrs);
 		if (copy_to_user(user_msr_list, &msr_list, sizeof msr_list))
 			goto out;
 		r = -E2BIG;
@@ -1932,6 +1944,11 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_to_user(user_msr_list->indices, &msrs_to_save,
 				 num_msrs_to_save * sizeof(u32)))
+			goto out;
+		if (copy_to_user(user_msr_list->indices
+				 + num_msrs_to_save * sizeof(u32),
+				 &emulated_msrs,
+				 ARRAY_SIZE(emulated_msrs) * sizeof(u32)))
 			goto out;
 		r = 0;
 		break;

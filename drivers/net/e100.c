@@ -2718,12 +2718,11 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
 
-#ifdef CONFIG_E100_NAPI
 	if (netif_running(netdev))
 		netif_poll_disable(nic->netdev);
-#endif
 	del_timer_sync(&nic->watchdog);
 	netif_carrier_off(nic->netdev);
+	netif_device_detach(netdev);
 
 	pci_save_state(pdev);
 
@@ -2736,6 +2735,7 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 	}
 
 	pci_disable_device(pdev);
+	free_irq(pdev->irq, netdev);
 	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
@@ -2759,16 +2759,13 @@ static int e100_resume(struct pci_dev *pdev)
 }
 #endif /* CONFIG_PM */
 
-
 static void e100_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
 
-#ifdef CONFIG_E100_NAPI
 	if (netif_running(netdev))
 		netif_poll_disable(nic->netdev);
-#endif
 	del_timer_sync(&nic->watchdog);
 	netif_carrier_off(nic->netdev);
 

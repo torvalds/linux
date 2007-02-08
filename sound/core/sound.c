@@ -238,7 +238,7 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 {
 	int minor;
 	struct snd_minor *preg;
-	struct device *device = NULL;
+	struct device *device = snd_card_get_device_link(card);
 
 	snd_assert(name, return -EINVAL);
 	preg = kmalloc(sizeof *preg, GFP_KERNEL);
@@ -263,8 +263,6 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 		return minor;
 	}
 	snd_minors[minor] = preg;
-	if (card)
-		device = card->dev;
 	preg->dev = device_create(sound_class, device, MKDEV(major, minor),
 				  "%s", name);
 	if (preg->dev)

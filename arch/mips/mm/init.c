@@ -501,7 +501,8 @@ void free_initmem(void)
 
 	freed = prom_free_prom_memory();
 	if (freed)
-		printk(KERN_INFO "Freeing firmware memory: %ldk freed\n",freed);
+		printk(KERN_INFO "Freeing firmware memory: %ldkb freed\n",
+		       freed >> 10);
 
 	free_init_pages("unused kernel memory",
 			__pa_symbol(&__init_begin),

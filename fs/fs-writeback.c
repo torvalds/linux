@@ -251,8 +251,19 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 		WARN_ON(inode->i_state & I_WILL_FREE);
 
 	if ((wbc->sync_mode != WB_SYNC_ALL) && (inode->i_state & I_LOCK)) {
+		struct address_space *mapping = inode->i_mapping;
+		int ret;
+
 		list_move(&inode->i_list, &inode->i_sb->s_dirty);
-		return 0;
+
+		/*
+		 * Even if we don't actually write the inode itself here,
+		 * we can at least start some of the data writeout..
+		 */
+		spin_unlock(&inode_lock);
+		ret = do_writepages(mapping, wbc);
+		spin_lock(&inode_lock);
+		return ret;
 	}
 
 	/*

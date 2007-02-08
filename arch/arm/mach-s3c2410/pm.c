@@ -451,15 +451,14 @@ static void s3c2410_pm_check_resume_pin(unsigned int pin, unsigned int irqoffs)
 		irqstate = s3c_irqwake_eintmask & (1L<<irqoffs);
 
 	pinstate = s3c2410_gpio_getcfg(pin);
-	pinstate >>= S3C2410_GPIO_OFFSET(pin)*2;
 
 	if (!irqstate) {
-		if (pinstate == 0x02)
+		if (pinstate == S3C2410_GPIO_IRQ)
 			DBG("Leaving IRQ %d (pin %d) enabled\n", irq, pin);
 	} else {
-		if (pinstate == 0x02) {
+		if (pinstate == S3C2410_GPIO_IRQ) {
 			DBG("Disabling IRQ %d (pin %d)\n", irq, pin);
-			s3c2410_gpio_cfgpin(pin, 0x00);
+			s3c2410_gpio_cfgpin(pin, S3C2410_GPIO_INPUT);
 		}
 	}
 }

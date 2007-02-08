@@ -124,7 +124,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 
 		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-		err = icsk->icsk_af_ops->queue_xmit(skb, sk, 0);
+		err = icsk->icsk_af_ops->queue_xmit(skb, 0);
 		return net_xmit_eval(err);
 	}
 	return -ENOBUFS;
@@ -396,7 +396,7 @@ int dccp_send_reset(struct sock *sk, enum dccp_reset_codes code)
 						      code);
 		if (skb != NULL) {
 			memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-			err = inet_csk(sk)->icsk_af_ops->queue_xmit(skb, sk, 0);
+			err = inet_csk(sk)->icsk_af_ops->queue_xmit(skb, 0);
 			return net_xmit_eval(err);
 		}
 	}

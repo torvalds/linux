@@ -273,8 +273,8 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 {
 	int rc = 0;
 	u8 scsi_cmd[MAX_COMMAND_SIZE];
-	u8 args[7];
-	struct scsi_sense_hdr sshdr;
+	u8 args[7], *sensebuf = NULL;
+	int cmd_result;
 
 	if (arg == NULL)
 		return -EINVAL;
@@ -282,10 +282,14 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	if (copy_from_user(args, arg, sizeof(args)))
 		return -EFAULT;
 
+	sensebuf = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_NOIO);
+	if (!sensebuf)
+		return -ENOMEM;
+
 	memset(scsi_cmd, 0, sizeof(scsi_cmd));
 	scsi_cmd[0]  = ATA_16;
 	scsi_cmd[1]  = (3 << 1); /* Non-data */
-	/* scsi_cmd[2] is already 0 -- no off.line, cc, or data xfer */
+	scsi_cmd[2]  = 0x20;     /* cc but no off.line or data xfer */
 	scsi_cmd[4]  = args[1];
 	scsi_cmd[6]  = args[2];
 	scsi_cmd[8]  = args[3];
@@ -295,11 +299,46 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 
 	/* Good values for timeout and retries?  Values below
 	   from scsi_ioctl_send_command() for default case... */
-	if (scsi_execute_req(scsidev, scsi_cmd, DMA_NONE, NULL, 0, &sshdr,
-			     (10*HZ), 5))
-		rc = -EIO;
+	cmd_result = scsi_execute(scsidev, scsi_cmd, DMA_NONE, NULL, 0,
+				sensebuf, (10*HZ), 5, 0);
 
-	/* Need code to retrieve data from check condition? */
+	if (driver_byte(cmd_result) == DRIVER_SENSE) {/* sense data available */
+		u8 *desc = sensebuf + 8;
+		cmd_result &= ~(0xFF<<24); /* DRIVER_SENSE is not an error */
+
+		/* If we set cc then ATA pass-through will cause a
+		 * check condition even if no error. Filter that. */
+		if (cmd_result & SAM_STAT_CHECK_CONDITION) {
+			struct scsi_sense_hdr sshdr;
+			scsi_normalize_sense(sensebuf, SCSI_SENSE_BUFFERSIZE,
+						&sshdr);
+			if (sshdr.sense_key==0 &&
+				sshdr.asc==0 && sshdr.ascq==0)
+				cmd_result &= ~SAM_STAT_CHECK_CONDITION;
+		}
+
+		/* Send userspace ATA registers */
+		if (sensebuf[0] == 0x72 &&	/* format is "descriptor" */
+				desc[0] == 0x09) {/* code is "ATA Descriptor" */
+			args[0] = desc[13];	/* status */
+			args[1] = desc[3];	/* error */
+			args[2] = desc[5];	/* sector count (0:7) */
+			args[3] = desc[7];	/* lbal */
+			args[4] = desc[9];	/* lbam */
+			args[5] = desc[11];	/* lbah */
+			args[6] = desc[12];	/* select */
+			if (copy_to_user(arg, args, sizeof(args)))
+				rc = -EFAULT;
+		}
+	}
+
+	if (cmd_result) {
+		rc = -EIO;
+		goto error;
+	}
+
+ error:
+	kfree(sensebuf);
 	return rc;
 }
 
@@ -372,7 +411,7 @@ struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 		if (cmd->use_sg) {
 			qc->__sg = (struct scatterlist *) cmd->request_buffer;
 			qc->n_elem = cmd->use_sg;
-		} else {
+		} else if (cmd->request_bufflen) {
 			qc->__sg = &qc->sgent;
 			qc->n_elem = 1;
 		}
@@ -983,11 +1022,10 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 		}
 
 		tf->command = ATA_CMD_VERIFY;	/* READ VERIFY */
-	} else {
-		tf->nsect = 0;	/* time period value (0 implies now) */
-		tf->command = ATA_CMD_STANDBY;
-		/* Consider: ATA STANDBY IMMEDIATE command */
-	}
+	} else
+		/* Issue ATA STANDBY IMMEDIATE command */
+		tf->command = ATA_CMD_STANDBYNOW1;
+
 	/*
 	 * Standby and Idle condition timers could be implemented but that
 	 * would require libata to implement the Power condition mode page

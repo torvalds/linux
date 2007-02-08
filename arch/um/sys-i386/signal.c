@@ -219,7 +219,8 @@ int setup_signal_stack_sc(unsigned long stack_top, int sig,
 	unsigned long save_sp = PT_REGS_SP(regs);
 	int err = 0;
 
-	stack_top &= -8UL;
+	/* This is the same calculation as i386 - ((sp + 4) & 15) == 0 */
+	stack_top = ((stack_top + 4) & -16UL) - 4;
 	frame = (struct sigframe __user *) stack_top - 1;
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return 1;

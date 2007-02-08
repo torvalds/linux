@@ -63,13 +63,15 @@ struct guest_walker {
 	pt_element_t *ptep;
 	pt_element_t inherited_ar;
 	gfn_t gfn;
+	u32 error_code;
 };
 
 /*
  * Fetch a guest pte for a guest virtual address
  */
-static void FNAME(walk_addr)(struct guest_walker *walker,
-			     struct kvm_vcpu *vcpu, gva_t addr)
+static int FNAME(walk_addr)(struct guest_walker *walker,
+			    struct kvm_vcpu *vcpu, gva_t addr,
+			    int write_fault, int user_fault, int fetch_fault)
 {
 	hpa_t hpa;
 	struct kvm_memory_slot *slot;
@@ -86,7 +88,7 @@ static void FNAME(walk_addr)(struct guest_walker *walker,
 		walker->ptep = &vcpu->pdptrs[(addr >> 30) & 3];
 		root = *walker->ptep;
 		if (!(root & PT_PRESENT_MASK))
-			return;
+			goto not_present;
 		--walker->level;
 	}
 #endif
@@ -111,11 +113,23 @@ static void FNAME(walk_addr)(struct guest_walker *walker,
 		ASSERT(((unsigned long)walker->table & PAGE_MASK) ==
 		       ((unsigned long)ptep & PAGE_MASK));
 
-		if (is_present_pte(*ptep) && !(*ptep &  PT_ACCESSED_MASK))
-			*ptep |= PT_ACCESSED_MASK;
-
 		if (!is_present_pte(*ptep))
-			break;
+			goto not_present;
+
+		if (write_fault && !is_writeble_pte(*ptep))
+			if (user_fault || is_write_protection(vcpu))
+				goto access_error;
+
+		if (user_fault && !(*ptep & PT_USER_MASK))
+			goto access_error;
+
+#if PTTYPE == 64
+		if (fetch_fault && is_nx(vcpu) && (*ptep & PT64_NX_MASK))
+			goto access_error;
+#endif
+
+		if (!(*ptep & PT_ACCESSED_MASK))
+			*ptep |= PT_ACCESSED_MASK; 	/* avoid rmw */
 
 		if (walker->level == PT_PAGE_TABLE_LEVEL) {
 			walker->gfn = (*ptep & PT_BASE_ADDR_MASK)
@@ -146,6 +160,23 @@ static void FNAME(walk_addr)(struct guest_walker *walker,
 	}
 	walker->ptep = ptep;
 	pgprintk("%s: pte %llx\n", __FUNCTION__, (u64)*ptep);
+	return 1;
+
+not_present:
+	walker->error_code = 0;
+	goto err;
+
+access_error:
+	walker->error_code = PFERR_PRESENT_MASK;
+
+err:
+	if (write_fault)
+		walker->error_code |= PFERR_WRITE_MASK;
+	if (user_fault)
+		walker->error_code |= PFERR_USER_MASK;
+	if (fetch_fault)
+		walker->error_code |= PFERR_FETCH_MASK;
+	return 0;
 }
 
 static void FNAME(release_walker)(struct guest_walker *walker)
@@ -274,7 +305,7 @@ static int FNAME(fix_write_pf)(struct kvm_vcpu *vcpu,
 	struct kvm_mmu_page *page;
 
 	if (is_writeble_pte(*shadow_ent))
-		return 0;
+		return !user || (*shadow_ent & PT_USER_MASK);
 
 	writable_shadow = *shadow_ent & PT_SHADOW_WRITABLE_MASK;
 	if (user) {
@@ -347,8 +378,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 			       u32 error_code)
 {
 	int write_fault = error_code & PFERR_WRITE_MASK;
-	int pte_present = error_code & PFERR_PRESENT_MASK;
 	int user_fault = error_code & PFERR_USER_MASK;
+	int fetch_fault = error_code & PFERR_FETCH_MASK;
 	struct guest_walker walker;
 	u64 *shadow_pte;
 	int fixed;
@@ -365,19 +396,20 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	/*
 	 * Look up the shadow pte for the faulting address.
 	 */
-	FNAME(walk_addr)(&walker, vcpu, addr);
-	shadow_pte = FNAME(fetch)(vcpu, addr, &walker);
+	r = FNAME(walk_addr)(&walker, vcpu, addr, write_fault, user_fault,
+			     fetch_fault);
 
 	/*
 	 * The page is not mapped by the guest.  Let the guest handle it.
 	 */
-	if (!shadow_pte) {
-		pgprintk("%s: not mapped\n", __FUNCTION__);
-		inject_page_fault(vcpu, addr, error_code);
+	if (!r) {
+		pgprintk("%s: guest page fault\n", __FUNCTION__);
+		inject_page_fault(vcpu, addr, walker.error_code);
 		FNAME(release_walker)(&walker);
 		return 0;
 	}
 
+	shadow_pte = FNAME(fetch)(vcpu, addr, &walker);
 	pgprintk("%s: shadow pte %p %llx\n", __FUNCTION__,
 		 shadow_pte, *shadow_pte);
 
@@ -399,22 +431,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	 * mmio: emulate if accessible, otherwise its a guest fault.
 	 */
 	if (is_io_pte(*shadow_pte)) {
-		if (may_access(*shadow_pte, write_fault, user_fault))
-			return 1;
-		pgprintk("%s: io work, no access\n", __FUNCTION__);
-		inject_page_fault(vcpu, addr,
-				  error_code | PFERR_PRESENT_MASK);
-		kvm_mmu_audit(vcpu, "post page fault (io)");
-		return 0;
-	}
-
-	/*
-	 * pte not present, guest page fault.
-	 */
-	if (pte_present && !fixed && !write_pt) {
-		inject_page_fault(vcpu, addr, error_code);
-		kvm_mmu_audit(vcpu, "post page fault (guest)");
-		return 0;
+		return 1;
 	}
 
 	++kvm_stat.pf_fixed;
@@ -429,7 +446,7 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 	pt_element_t guest_pte;
 	gpa_t gpa;
 
-	FNAME(walk_addr)(&walker, vcpu, vaddr);
+	FNAME(walk_addr)(&walker, vcpu, vaddr, 0, 0, 0);
 	guest_pte = *walker.ptep;
 	FNAME(release_walker)(&walker);
 

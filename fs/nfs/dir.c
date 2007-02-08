@@ -532,7 +532,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	lock_kernel();
 
-	res = nfs_revalidate_mapping(inode, filp->f_mapping);
+	res = nfs_revalidate_mapping_nolock(inode, filp->f_mapping);
 	if (res < 0) {
 		unlock_kernel();
 		return res;

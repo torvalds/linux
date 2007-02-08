@@ -585,6 +585,12 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_
 		goto done;
 	}
 
+	if (la->l2_psm > 0 && btohs(la->l2_psm) < 0x1001 &&
+				!capable(CAP_NET_BIND_SERVICE)) {
+		err = -EACCES;
+		goto done;
+	}
+		
 	write_lock_bh(&l2cap_sk_list.lock);
 
 	if (la->l2_psm && __l2cap_get_sock_by_addr(la->l2_psm, &la->l2_bdaddr)) {
@@ -2150,8 +2156,8 @@ static ssize_t l2cap_sysfs_show(struct class *dev, char *buf)
 
 		str += sprintf(str, "%s %s %d %d 0x%4.4x 0x%4.4x %d %d 0x%x\n",
 				batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
-				sk->sk_state, pi->psm, pi->scid, pi->dcid, pi->imtu,
-				pi->omtu, pi->link_mode);
+				sk->sk_state, btohs(pi->psm), pi->scid, pi->dcid,
+				pi->imtu, pi->omtu, pi->link_mode);
 	}
 
 	read_unlock_bh(&l2cap_sk_list.lock);

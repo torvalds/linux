@@ -3649,8 +3649,6 @@ static void ipmi_timeout_handler(long timeout_period)
 	unsigned long        flags;
 	int                  i;
 
-	INIT_LIST_HEAD(&timeouts);
-
 	rcu_read_lock();
 	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
 		/* See if any waiting messages need to be processed. */
@@ -3671,6 +3669,7 @@ static void ipmi_timeout_handler(long timeout_period)
 		/* Go through the seq table and find any messages that
 		   have timed out, putting them in the timeouts
 		   list. */
+		INIT_LIST_HEAD(&timeouts);
 		spin_lock_irqsave(&intf->seq_lock, flags);
 		for (i = 0; i < IPMI_IPMB_NUM_SEQ; i++)
 			check_msg_timeout(intf, &(intf->seq_table[i]),

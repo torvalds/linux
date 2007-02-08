@@ -700,7 +700,6 @@ static void nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 static int nv_host_intr(struct ata_port *ap, u8 irq_stat)
 {
 	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
-	int handled;
 
 	/* freeze if hotplugged */
 	if (unlikely(irq_stat & (NV_INT_ADDED | NV_INT_REMOVED))) {
@@ -719,13 +718,7 @@ static int nv_host_intr(struct ata_port *ap, u8 irq_stat)
 	}
 
 	/* handle interrupt */
-	handled = ata_host_intr(ap, qc);
-	if (unlikely(!handled)) {
-		/* spurious, clear it */
-		ata_check_status(ap);
-	}
-
-	return 1;
+	return ata_host_intr(ap, qc);
 }
 
 static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
@@ -752,6 +745,11 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			if (pp->flags & NV_ADMA_PORT_REGISTER_MODE) {
 				u8 irq_stat = readb(host->mmio_base + NV_INT_STATUS_CK804)
 					>> (NV_INT_PORT_SHIFT * i);
+				if(ata_tag_valid(ap->active_tag))
+					/** NV_INT_DEV indication seems unreliable at times
+					    at least in ADMA mode. Force it on always when a
+					    command is active, to prevent losing interrupts. */
+					irq_stat |= NV_INT_DEV;
 				handled += nv_host_intr(ap, irq_stat);
 				continue;
 			}

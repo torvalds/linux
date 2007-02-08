@@ -278,8 +278,8 @@ IF SOMETHING GOES WRONG:
    the file MAINTAINERS to see if there is a particular person associated
    with the part of the kernel that you are having trouble with. If there
    isn't anyone listed there, then the second best thing is to mail
-   them to me (torvalds@osdl.org), and possibly to any other relevant
-   mailing-list or to the newsgroup.
+   them to me (torvalds@linux-foundation.org), and possibly to any other
+   relevant mailing-list or to the newsgroup.
 
  - In all bug-reports, *please* tell what kernel you are talking about,
    how to duplicate the problem, and what your setup is (use your common

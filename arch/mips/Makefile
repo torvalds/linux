@@ -623,7 +623,7 @@ LDFLAGS			+= -m $(ld-emul)
 
 ifdef CONFIG_MIPS
 CHECKFLAGS += $(shell $(CC) $(CFLAGS) -dM -E -xc /dev/null | \
-	egrep -vw '__GNUC_(MAJOR|MINOR|PATCHLEVEL)__' | \
+	egrep -vw '__GNUC_(|MINOR_|PATCHLEVEL_)_' | \
 	sed -e 's/^\#define /-D/' -e "s/ /='/" -e "s/$$/'/")
 ifdef CONFIG_64BIT
 CHECKFLAGS		+= -m64

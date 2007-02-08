@@ -1845,7 +1845,7 @@ static u16 __devinit read_bia (const hrz_dev * dev, u16 addr)
 
 /********** initialise a card **********/
 
-static int __init hrz_init (hrz_dev * dev) {
+static int __devinit hrz_init (hrz_dev * dev) {
   int onefivefive;
   
   u16 chan;

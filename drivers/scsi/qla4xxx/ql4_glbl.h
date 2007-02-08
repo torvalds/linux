@@ -76,4 +76,5 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host * ha,
 extern int ql4xextended_error_logging;
 extern int ql4xdiscoverywait;
 extern int ql4xdontresethba;
+extern int ql4_mod_unload;
 #endif /* _QLA4x_GBL_H */

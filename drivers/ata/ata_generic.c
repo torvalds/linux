@@ -64,6 +64,7 @@ static void generic_error_handler(struct ata_port *ap)
 /**
  *	generic_set_mode	-	mode setting
  *	@ap: interface to set up
+ *	@unused: returned device on error
  *
  *	Use a non standard set_mode function. We don't want to be tuned.
  *	The BIOS configured everything. Our job is not to fiddle. We
@@ -71,7 +72,7 @@ static void generic_error_handler(struct ata_port *ap)
  *	and respect them.
  */
 
-static void generic_set_mode(struct ata_port *ap)
+static int generic_set_mode(struct ata_port *ap, struct ata_device **unused)
 {
 	int dma_enabled = 0;
 	int i;
@@ -82,7 +83,7 @@ static void generic_set_mode(struct ata_port *ap)
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
-		if (ata_dev_enabled(dev)) {
+		if (ata_dev_ready(dev)) {
 			/* We don't really care */
 			dev->pio_mode = XFER_PIO_0;
 			dev->dma_mode = XFER_MW_DMA_0;
@@ -99,6 +100,7 @@ static void generic_set_mode(struct ata_port *ap)
 			}
 		}
 	}
+	return 0;
 }
 
 static struct scsi_host_template generic_sht = {

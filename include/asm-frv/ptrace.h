@@ -12,9 +12,11 @@
 #define _ASM_PTRACE_H
 
 #include <asm/registers.h>
+#ifdef __KERNEL__
 #include <asm/irq_regs.h>
 
 #define in_syscall(regs) (((regs)->tbr & TBR_TT) == TBR_TT_TRAP0)
+#endif
 
 
 #define PT_PSR		0
@@ -60,6 +62,7 @@
 #define PTRACE_GETFDPIC_EXEC	0	/* [addr] request the executable loadmap */
 #define PTRACE_GETFDPIC_INTERP	1	/* [addr] request the interpreter loadmap */
 
+#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
 /*
@@ -74,6 +77,7 @@ register struct pt_regs *__frame asm("gr28");
 extern unsigned long user_stack(const struct pt_regs *);
 extern void show_regs(struct pt_regs *);
 #define profile_pc(regs) ((regs)->pc)
+#endif
 
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_PTRACE_H */

@@ -650,19 +650,18 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	struct xfrm_policy *pol;
 	struct xfrm_policy *delpol;
 	struct hlist_head *chain;
-	struct hlist_node *entry, *newpos, *last;
+	struct hlist_node *entry, *newpos;
 	struct dst_entry *gc_list;
 
 	write_lock_bh(&xfrm_policy_lock);
 	chain = policy_hash_bysel(&policy->selector, policy->family, dir);
 	delpol = NULL;
 	newpos = NULL;
-	last = NULL;
 	hlist_for_each_entry(pol, entry, chain, bydst) {
-		if (!delpol &&
-		    pol->type == policy->type &&
+		if (pol->type == policy->type &&
 		    !selector_cmp(&pol->selector, &policy->selector) &&
-		    xfrm_sec_ctx_match(pol->security, policy->security)) {
+		    xfrm_sec_ctx_match(pol->security, policy->security) &&
+		    !WARN_ON(delpol)) {
 			if (excl) {
 				write_unlock_bh(&xfrm_policy_lock);
 				return -EEXIST;
@@ -671,17 +670,12 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 			if (policy->priority > pol->priority)
 				continue;
 		} else if (policy->priority >= pol->priority) {
-			last = &pol->bydst;
+			newpos = &pol->bydst;
 			continue;
 		}
-		if (!newpos)
-			newpos = &pol->bydst;
 		if (delpol)
 			break;
-		last = &pol->bydst;
 	}
-	if (!newpos)
-		newpos = last;
 	if (newpos)
 		hlist_add_after(newpos, &policy->bydst);
 	else

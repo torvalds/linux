@@ -43,6 +43,8 @@ static int is_safe_abs_reloc(const char* sym_name)
 			/* Match found */
 			return 1;
 	}
+	if (strncmp(sym_name, "__crc_", 6) == 0)
+		return 1;
 	return 0;
 }
 

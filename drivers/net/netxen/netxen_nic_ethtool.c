@@ -218,7 +218,7 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	__le32 status;
+	__u32 status;
 
 	/* read which mode */
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
@@ -226,7 +226,7 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (adapter->phy_write
 		    && adapter->phy_write(adapter, port->portnum,
 					  NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-					  (__le32) ecmd->autoneg) != 0)
+					  ecmd->autoneg) != 0)
 			return -EIO;
 		else
 			port->link_autoneg = ecmd->autoneg;
@@ -279,7 +279,7 @@ static int netxen_nic_get_regs_len(struct net_device *dev)
 }
 
 struct netxen_niu_regs {
-	__le32 reg[NETXEN_NIC_REGS_COUNT];
+	__u32 reg[NETXEN_NIC_REGS_COUNT];
 };
 
 static struct netxen_niu_regs niu_registers[] = {
@@ -372,7 +372,7 @@ netxen_nic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	__le32 mode, *regs_buff = p;
+	__u32 mode, *regs_buff = p;
 	void __iomem *addr;
 	int i, window;
 
@@ -415,7 +415,7 @@ static u32 netxen_nic_get_link(struct net_device *dev)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	__le32 status;
+	__u32 status;
 
 	/* read which mode */
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
@@ -482,13 +482,13 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	__le32 val;
+	__u32 val;
 
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
 		/* get flow control settings */
 		netxen_nic_read_w0(adapter,
 				   NETXEN_NIU_GB_MAC_CONFIG_0(port->portnum),
-				   (u32 *) & val);
+				   &val);
 		pause->rx_pause = netxen_gb_get_rx_flowctl(val);
 		pause->tx_pause = netxen_gb_get_tx_flowctl(val);
 		/* get autoneg settings */
@@ -502,7 +502,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	__le32 val;
+	__u32 val;
 	unsigned int autoneg;
 
 	/* read mode */
@@ -522,13 +522,13 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 
 		netxen_nic_write_w0(adapter,
 				    NETXEN_NIU_GB_MAC_CONFIG_0(port->portnum),
-				    *(u32 *) (&val));
+				    *&val);
 		/* set autoneg */
 		autoneg = pause->autoneg;
 		if (adapter->phy_write
 		    && adapter->phy_write(adapter, port->portnum,
 					  NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-					  (__le32) autoneg) != 0)
+					  autoneg) != 0)
 			return -EIO;
 		else {
 			port->link_autoneg = pause->autoneg;
@@ -543,7 +543,7 @@ static int netxen_nic_reg_test(struct net_device *dev)
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
 	u32 data_read, data_written, save;
-	__le32 mode;
+	__u32 mode;
 
 	/* 
 	 * first test the "Read Only" registers by writing which mode

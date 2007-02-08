@@ -184,6 +184,17 @@ static int imx_set_target(struct cpufreq_policy *policy,
 	long sysclk;
 	unsigned int bclk_div = 1;
 
+	/*
+	 * Some governors do not respects CPU and policy lower limits
+	 * which leads to bad things (division by zero etc), ensure
+	 * that such things do not happen.
+	 */
+	if(target_freq < policy->cpuinfo.min_freq)
+		target_freq = policy->cpuinfo.min_freq;
+
+	if(target_freq < policy->min)
+		target_freq = policy->min;
+
 	freq = target_freq * 1000;
 
 	pr_debug(KERN_DEBUG "imx: requested frequency %ld Hz, mpctl0 at boot 0x%08x\n",
@@ -258,7 +269,8 @@ static int __init imx_cpufreq_driver_init(struct cpufreq_policy *policy)
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	policy->cpuinfo.min_freq = 8000;
 	policy->cpuinfo.max_freq = 200000;
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
+	 /* Manual states, that PLL stabilizes in two CLK32 periods */
+	policy->cpuinfo.transition_latency = 4 * 1000000000LL / CLK32;
 	return 0;
 }
 

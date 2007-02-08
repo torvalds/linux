@@ -6288,6 +6288,10 @@ struct l2_fhdr {
 
 #define BCM5708S_TX_ACTL3			0x17
 
+#define MII_BNX2_DSP_RW_PORT			0x15
+#define MII_BNX2_DSP_ADDRESS			0x17
+#define MII_BNX2_DSP_EXPAND_REG			 0x0f00
+
 #define MIN_ETHERNET_PACKET_SIZE	60
 #define MAX_ETHERNET_PACKET_SIZE	1514
 #define MAX_ETHERNET_JUMBO_PACKET_SIZE	9014
@@ -6489,6 +6493,7 @@ struct bnx2 {
 #define PHY_INT_MODE_MASK_FLAG		0x300
 #define PHY_INT_MODE_AUTO_POLLING_FLAG	0x100
 #define PHY_INT_MODE_LINK_READY_FLAG	0x200
+#define PHY_DIS_EARLY_DAC_FLAG		0x400
 
 	u32			chip_id;
 	/* chip num:16-31, rev:12-15, metal:4-11, bond_id:0-3 */
@@ -6512,6 +6517,7 @@ struct bnx2 {
 #define CHIP_ID_5708_A0			0x57080000
 #define CHIP_ID_5708_B0			0x57081000
 #define CHIP_ID_5708_B1			0x57081010
+#define CHIP_ID_5709_A0			0x57090000
 
 #define CHIP_BOND_ID(bp)		(((bp)->chip_id) & 0xf)
 

@@ -135,7 +135,7 @@ static void sil680_error_handler(struct ata_port *ap)
 static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	static u16 speed_p[5] = { 0x328A, 0x2283, 0x1104, 0x10C3, 0x10C1 };
-	static u16 speed_t[5] = { 0x328A, 0x1281, 0x1281, 0x10C3, 0x10C1 };
+	static u16 speed_t[5] = { 0x328A, 0x2283, 0x1281, 0x10C3, 0x10C1 };
 
 	unsigned long tfaddr = sil680_selreg(ap, 0x02);
 	unsigned long addr = sil680_seldev(ap, adev, 0x04);

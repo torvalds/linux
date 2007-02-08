@@ -47,6 +47,7 @@
  * Power off function, if any
  */
 void (*pm_power_off)(void) = machine_power_off;
+EXPORT_SYMBOL(pm_power_off);
 
 void
 cpu_idle(void)

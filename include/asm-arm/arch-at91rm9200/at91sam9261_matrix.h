@@ -15,7 +15,7 @@
 
 #define AT91_MATRIX_MCFG	(AT91_MATRIX + 0x00)	/* Master Configuration Register */
 #define		AT91_MATRIX_RCB0	(1 << 0)		/* Remap Command for AHB Master 0 (ARM926EJ-S Instruction Master) */
-#define		AT01_MATRIX_RCB1	(1 << 1)		/* Remap Command for AHB Master 1 (ARM926EJ-S Data Master) */
+#define		AT91_MATRIX_RCB1	(1 << 1)		/* Remap Command for AHB Master 1 (ARM926EJ-S Data Master) */
 
 #define AT91_MATRIX_SCFG0	(AT91_MATRIX + 0x04)	/* Slave Configuration Register 0 */
 #define AT91_MATRIX_SCFG1	(AT91_MATRIX + 0x08)	/* Slave Configuration Register 1 */
@@ -43,8 +43,8 @@
 
 #define AT91_MATRIX_EBICSA	(AT91_MATRIX + 0x30)	/* EBI Chip Select Assignment Register */
 #define		AT91_MATRIX_CS1A		(1 << 1)	/* Chip Select 1 Assignment */
-#define 		AT91_MATRIX_CS1A_SMC		(0 << 1)
-#define 		AT91_MATRIX_CS1A_SDRAMC		(1 << 1)
+#define			AT91_MATRIX_CS1A_SMC		(0 << 1)
+#define			AT91_MATRIX_CS1A_SDRAMC		(1 << 1)
 #define		AT91_MATRIX_CS3A		(1 << 3)	/* Chip Select 3 Assignment */
 #define			AT91_MATRIX_CS3A_SMC		(0 << 3)
 #define			AT91_MATRIX_CS3A_SMC_SMARTMEDIA	(1 << 3)

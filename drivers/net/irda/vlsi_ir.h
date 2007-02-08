@@ -41,39 +41,6 @@
 #define PCI_CLASS_SUBCLASS_MASK		0xffff
 #endif
 
-/* in recent 2.5 interrupt handlers have non-void return value */
-#ifndef IRQ_RETVAL
-typedef void irqreturn_t;
-#define IRQ_NONE
-#define IRQ_HANDLED
-#define IRQ_RETVAL(x)
-#endif
-
-/* some stuff need to check kernelversion. Not all 2.5 stuff was present
- * in early 2.5.x - the test is merely to separate 2.4 from 2.5
- */
-#include <linux/version.h>
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-
-/* PDE() introduced in 2.5.4 */
-#ifdef CONFIG_PROC_FS
-#define PDE(inode) ((inode)->i_private)
-#endif
-
-/* irda crc16 calculation exported in 2.5.42 */
-#define irda_calc_crc16(fcs,buf,len)	(GOOD_FCS)
-
-/* we use this for unified pci device name access */
-#define PCIDEV_NAME(pdev)	((pdev)->name)
-
-#else /* 2.5 or later */
-
-/* whatever we get from the associated struct device - bus:slot:dev.fn id */
-#define PCIDEV_NAME(pdev)	(pci_name(pdev))
-
-#endif
-
 /* ================================================================ */
 
 /* non-standard PCI registers */

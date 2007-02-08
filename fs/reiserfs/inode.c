@@ -1125,6 +1125,7 @@ static void init_inode(struct inode *inode, struct treepath *path)
 	REISERFS_I(inode)->i_prealloc_count = 0;
 	REISERFS_I(inode)->i_trans_id = 0;
 	REISERFS_I(inode)->i_jl = NULL;
+	mutex_init(&(REISERFS_I(inode)->i_mmap));
 	reiserfs_init_acl_access(inode);
 	reiserfs_init_acl_default(inode);
 	reiserfs_init_xattr_rwsem(inode);
@@ -1832,6 +1833,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	REISERFS_I(inode)->i_attrs =
 	    REISERFS_I(dir)->i_attrs & REISERFS_INHERIT_MASK;
 	sd_attrs_to_i_attrs(REISERFS_I(inode)->i_attrs, inode);
+	mutex_init(&(REISERFS_I(inode)->i_mmap));
 	reiserfs_init_acl_access(inode);
 	reiserfs_init_acl_default(inode);
 	reiserfs_init_xattr_rwsem(inode);

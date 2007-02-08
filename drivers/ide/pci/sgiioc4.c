@@ -762,8 +762,7 @@ static struct ioc4_submodule ioc4_ide_submodule = {
 /*	.is_remove = ioc4_ide_remove_one,	*/
 };
 
-static int __devinit
-ioc4_ide_init(void)
+static int __init ioc4_ide_init(void)
 {
 	return ioc4_register_submodule(&ioc4_ide_submodule);
 }

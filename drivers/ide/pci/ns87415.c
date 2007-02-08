@@ -302,7 +302,7 @@ static struct pci_driver driver = {
 	.probe		= ns87415_init_one,
 };
 
-static int ns87415_ide_init(void)
+static int __init ns87415_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

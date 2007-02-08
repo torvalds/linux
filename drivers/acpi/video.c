@@ -1677,8 +1677,6 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 	struct acpi_video_device *video_device = data;
 	struct acpi_device *device = NULL;
 
-
-	printk("video device notify\n");
 	if (!video_device)
 		return;
 

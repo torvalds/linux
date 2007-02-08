@@ -143,8 +143,8 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		ses = list_entry(tmp, struct cifsSesInfo, cifsSessionList);
 		if((ses->serverDomain == NULL) || (ses->serverOS == NULL) ||
 		   (ses->serverNOS == NULL)) {
-			buf += sprintf("\nentry for %s not fully displayed\n\t",
-					ses->serverName);
+			buf += sprintf(buf, "\nentry for %s not fully "
+					"displayed\n\t", ses->serverName);
 			
 		} else {
 			length =

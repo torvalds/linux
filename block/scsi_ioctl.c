@@ -223,7 +223,7 @@ static int verify_command(struct file *file, unsigned char *cmd)
 static int sg_io(struct file *file, request_queue_t *q,
 		struct gendisk *bd_disk, struct sg_io_hdr *hdr)
 {
-	unsigned long start_time;
+	unsigned long start_time, timeout;
 	int writing = 0, ret = 0;
 	struct request *rq;
 	char sense[SCSI_SENSE_BUFFERSIZE];
@@ -271,7 +271,8 @@ static int sg_io(struct file *file, request_queue_t *q,
 
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 
-	rq->timeout = jiffies_to_msecs(hdr->timeout);
+	timeout = msecs_to_jiffies(hdr->timeout);
+	rq->timeout = (timeout < INT_MAX) ? timeout : INT_MAX;
 	if (!rq->timeout)
 		rq->timeout = q->sg_timeout;
 	if (!rq->timeout)

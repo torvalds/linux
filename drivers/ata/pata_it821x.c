@@ -476,6 +476,7 @@ static unsigned int it821x_passthru_qc_issue_prot(struct ata_queued_cmd *qc)
 /**
  *	it821x_smart_set_mode	-	mode setting
  *	@ap: interface to set up
+ *	@unused: device that failed (error only)
  *
  *	Use a non standard set_mode function. We don't want to be tuned.
  *	The BIOS configured everything. Our job is not to fiddle. We
@@ -483,7 +484,7 @@ static unsigned int it821x_passthru_qc_issue_prot(struct ata_queued_cmd *qc)
  *	and respect them.
  */
 
-static void it821x_smart_set_mode(struct ata_port *ap)
+static int it821x_smart_set_mode(struct ata_port *ap, struct ata_device **unused)
 {
 	int dma_enabled = 0;
 	int i;
@@ -512,6 +513,7 @@ static void it821x_smart_set_mode(struct ata_port *ap)
 			}
 		}
 	}
+	return 0;
 }
 
 /**

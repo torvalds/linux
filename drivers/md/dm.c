@@ -1116,7 +1116,8 @@ static int __bind(struct mapped_device *md, struct dm_table *t)
 	if (size != get_capacity(md->disk))
 		memset(&md->geometry, 0, sizeof(md->geometry));
 
-	__set_size(md, size);
+	if (md->suspended_bdev)
+		__set_size(md, size);
 	if (size == 0)
 		return 0;
 
@@ -1264,6 +1265,11 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 	if (!dm_suspended(md))
 		goto out;
 
+	/* without bdev, the device size cannot be changed */
+	if (!md->suspended_bdev)
+		if (get_capacity(md->disk) != dm_table_get_size(table))
+			goto out;
+
 	__unbind(md);
 	r = __bind(md, table);
 
@@ -1341,11 +1347,14 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	/* This does not get reverted if there's an error later. */
 	dm_table_presuspend_targets(map);
 
-	md->suspended_bdev = bdget_disk(md->disk, 0);
-	if (!md->suspended_bdev) {
-		DMWARN("bdget failed in dm_suspend");
-		r = -ENOMEM;
-		goto flush_and_out;
+	/* bdget() can stall if the pending I/Os are not flushed */
+	if (!noflush) {
+		md->suspended_bdev = bdget_disk(md->disk, 0);
+		if (!md->suspended_bdev) {
+			DMWARN("bdget failed in dm_suspend");
+			r = -ENOMEM;
+			goto flush_and_out;
+		}
 	}
 
 	/*
@@ -1473,8 +1482,10 @@ int dm_resume(struct mapped_device *md)
 
 	unlock_fs(md);
 
-	bdput(md->suspended_bdev);
-	md->suspended_bdev = NULL;
+	if (md->suspended_bdev) {
+		bdput(md->suspended_bdev);
+		md->suspended_bdev = NULL;
+	}
 
 	clear_bit(DMF_SUSPENDED, &md->flags);
 

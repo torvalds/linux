@@ -408,6 +408,15 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 #include <asm-generic/pgtable-nopud.h>
 
+#ifdef CONFIG_HIGHMEM
+/* Clear a kernel PTE and flush it from the TLB */
+#define kpte_clear_flush(ptep, vaddr)					\
+do {									\
+	pte_clear(&init_mm, vaddr, ptep);				\
+	__flush_tlb_one(vaddr);						\
+} while (0)
+#endif
+
 #endif
 #endif
 

@@ -1066,8 +1066,8 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	short length = skb->len;
 	dev->trans_start = jiffies;
 
-	DEB(DEB_STARTTX,printk(KERN_DEBUG "%s: i596_start_xmit(%x,%x) called\n", dev->name,
-				skb->len, (unsigned int)skb->data));
+	DEB(DEB_STARTTX,printk(KERN_DEBUG "%s: i596_start_xmit(%x,%p) called\n",
+				dev->name, skb->len, skb->data));
 
 	if (skb->len < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
@@ -1246,7 +1246,8 @@ struct net_device * __init i82596_probe(int unit)
 	dev->priv = (void *)(dev->mem_start);
 
 	lp = dev->priv;
-	DEB(DEB_INIT,printk(KERN_DEBUG "%s: lp at 0x%08lx (%d bytes), lp->scb at 0x%08lx\n",
+	DEB(DEB_INIT,printk(KERN_DEBUG "%s: lp at 0x%08lx (%zd bytes), "
+			"lp->scb at 0x%08lx\n",
 			dev->name, (unsigned long)lp,
 			sizeof(struct i596_private), (unsigned long)&lp->scb));
 	memset((void *) lp, 0, sizeof(struct i596_private));

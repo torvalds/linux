@@ -134,6 +134,7 @@ sctp_state_fn_t sctp_sf_violation;
 sctp_state_fn_t sctp_sf_discard_chunk;
 sctp_state_fn_t sctp_sf_do_5_2_1_siminit;
 sctp_state_fn_t sctp_sf_do_5_2_2_dupinit;
+sctp_state_fn_t sctp_sf_do_5_2_3_initack;
 sctp_state_fn_t sctp_sf_do_5_2_4_dupcook;
 sctp_state_fn_t sctp_sf_unk_chunk;
 sctp_state_fn_t sctp_sf_do_8_5_1_E_sa;

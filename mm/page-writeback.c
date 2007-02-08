@@ -133,11 +133,9 @@ get_dirty_limits(long *pbackground, long *pdirty,
 
 #ifdef CONFIG_HIGHMEM
 	/*
-	 * If this mapping can only allocate from low memory,
-	 * we exclude high memory from our count.
+	 * We always exclude high memory from our count.
 	 */
-	if (mapping && !(mapping_gfp_mask(mapping) & __GFP_HIGHMEM))
-		available_memory -= totalhigh_pages;
+	available_memory -= totalhigh_pages;
 #endif
 
 
@@ -526,28 +524,25 @@ static struct notifier_block __cpuinitdata ratelimit_nb = {
 };
 
 /*
- * If the machine has a large highmem:lowmem ratio then scale back the default
- * dirty memory thresholds: allowing too much dirty highmem pins an excessive
- * number of buffer_heads.
+ * Called early on to tune the page writeback dirty limits.
+ *
+ * We used to scale dirty pages according to how total memory
+ * related to pages that could be allocated for buffers (by
+ * comparing nr_free_buffer_pages() to vm_total_pages.
+ *
+ * However, that was when we used "dirty_ratio" to scale with
+ * all memory, and we don't do that any more. "dirty_ratio"
+ * is now applied to total non-HIGHPAGE memory (by subtracting
+ * totalhigh_pages from vm_total_pages), and as such we can't
+ * get into the old insane situation any more where we had
+ * large amounts of dirty pages compared to a small amount of
+ * non-HIGHMEM memory.
+ *
+ * But we might still want to scale the dirty_ratio by how
+ * much memory the box has..
  */
 void __init page_writeback_init(void)
 {
-	long buffer_pages = nr_free_buffer_pages();
-	long correction;
-
-	correction = (100 * 4 * buffer_pages) / vm_total_pages;
-
-	if (correction < 100) {
-		dirty_background_ratio *= correction;
-		dirty_background_ratio /= 100;
-		vm_dirty_ratio *= correction;
-		vm_dirty_ratio /= 100;
-
-		if (dirty_background_ratio <= 0)
-			dirty_background_ratio = 1;
-		if (vm_dirty_ratio <= 0)
-			vm_dirty_ratio = 1;
-	}
 	mod_timer(&wb_timer, jiffies + dirty_writeback_interval);
 	writeback_set_ratelimit();
 	register_cpu_notifier(&ratelimit_nb);

@@ -318,3 +318,10 @@ Why:	/proc/acpi/button has been replaced by events to the input layer
 Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
+
+What:	JFFS (version 1)
+When:	2.6.21
+Why:	Unmaintained for years, superceded by JFFS2 for years.
+Who:	Jeff Garzik <jeff@garzik.org>
+
+---------------------------

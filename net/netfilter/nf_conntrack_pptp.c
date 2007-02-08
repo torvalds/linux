@@ -113,7 +113,7 @@ static void pptp_expectfn(struct nf_conn *ct,
 
 	rcu_read_lock();
 	nf_nat_pptp_expectfn = rcu_dereference(nf_nat_pptp_hook_expectfn);
-	if (nf_nat_pptp_expectfn && ct->status & IPS_NAT_MASK)
+	if (nf_nat_pptp_expectfn && ct->master->status & IPS_NAT_MASK)
 		nf_nat_pptp_expectfn(ct, exp);
 	else {
 		struct nf_conntrack_tuple inv_t;
