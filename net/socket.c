@@ -407,24 +407,11 @@ int sock_map_fd(struct socket *sock)
 
 static struct socket *sock_from_file(struct file *file, int *err)
 {
-	struct inode *inode;
-	struct socket *sock;
-
 	if (file->f_op == &socket_file_ops)
 		return file->private_data;	/* set in sock_map_fd */
 
-	inode = file->f_path.dentry->d_inode;
-	if (!S_ISSOCK(inode->i_mode)) {
-		*err = -ENOTSOCK;
-		return NULL;
-	}
-
-	sock = SOCKET_I(inode);
-	if (sock->file != file) {
-		printk(KERN_ERR "socki_lookup: socket file changed!\n");
-		sock->file = file;
-	}
-	return sock;
+	*err = -ENOTSOCK;
+	return NULL;
 }
 
 /**
