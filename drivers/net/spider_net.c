@@ -1907,7 +1907,7 @@ spider_net_stop(struct net_device *netdev)
 	spider_net_write_reg(card, SPIDER_NET_GHIINT2MSK, 0);
 
 	/* free_irq(netdev->irq, netdev);*/
-	free_irq(to_pci_dev(netdev->class_dev.dev)->irq, netdev);
+	free_irq(to_pci_dev(netdev->dev.parent)->irq, netdev);
 
 	spider_net_write_reg(card, SPIDER_NET_GDTDMACCNTR,
 			     SPIDER_NET_DMA_TX_FEND_VALUE);
