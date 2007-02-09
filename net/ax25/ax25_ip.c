@@ -55,46 +55,46 @@ int ax25_hard_header(struct sk_buff *skb, struct net_device *dev, unsigned short
 	if (type == ETH_P_AX25)
 		return 0;
 
-  	/* header is an AX.25 UI frame from us to them */
- 	buff = skb_push(skb, AX25_HEADER_LEN);
-  	*buff++ = 0x00;	/* KISS DATA */
+	/* header is an AX.25 UI frame from us to them */
+	buff = skb_push(skb, AX25_HEADER_LEN);
+	*buff++ = 0x00;	/* KISS DATA */
 
 	if (daddr != NULL)
 		memcpy(buff, daddr, dev->addr_len);	/* Address specified */
 
-  	buff[6] &= ~AX25_CBIT;
-  	buff[6] &= ~AX25_EBIT;
-  	buff[6] |= AX25_SSSID_SPARE;
-  	buff    += AX25_ADDR_LEN;
+	buff[6] &= ~AX25_CBIT;
+	buff[6] &= ~AX25_EBIT;
+	buff[6] |= AX25_SSSID_SPARE;
+	buff    += AX25_ADDR_LEN;
 
-  	if (saddr != NULL)
-  		memcpy(buff, saddr, dev->addr_len);
-  	else
-  		memcpy(buff, dev->dev_addr, dev->addr_len);
+	if (saddr != NULL)
+		memcpy(buff, saddr, dev->addr_len);
+	else
+		memcpy(buff, dev->dev_addr, dev->addr_len);
 
-  	buff[6] &= ~AX25_CBIT;
-  	buff[6] |= AX25_EBIT;
-  	buff[6] |= AX25_SSSID_SPARE;
-  	buff    += AX25_ADDR_LEN;
+	buff[6] &= ~AX25_CBIT;
+	buff[6] |= AX25_EBIT;
+	buff[6] |= AX25_SSSID_SPARE;
+	buff    += AX25_ADDR_LEN;
 
-  	*buff++  = AX25_UI;	/* UI */
+	*buff++  = AX25_UI;	/* UI */
 
-  	/* Append a suitable AX.25 PID */
-  	switch (type) {
-  	case ETH_P_IP:
-  		*buff++ = AX25_P_IP;
- 		break;
-  	case ETH_P_ARP:
-  		*buff++ = AX25_P_ARP;
-  		break;
-  	default:
-  		printk(KERN_ERR "AX.25: ax25_hard_header - wrong protocol type 0x%2.2x\n", type);
-  		*buff++ = 0;
-  		break;
- 	}
+	/* Append a suitable AX.25 PID */
+	switch (type) {
+	case ETH_P_IP:
+		*buff++ = AX25_P_IP;
+		break;
+	case ETH_P_ARP:
+		*buff++ = AX25_P_ARP;
+		break;
+	default:
+		printk(KERN_ERR "AX.25: ax25_hard_header - wrong protocol type 0x%2.2x\n", type);
+		*buff++ = 0;
+		break;
+	}
 
 	if (daddr != NULL)
-	  	return AX25_HEADER_LEN;
+		return AX25_HEADER_LEN;
 
 	return -AX25_HEADER_LEN;	/* Unfinished header */
 }
@@ -114,8 +114,8 @@ int ax25_rebuild_header(struct sk_buff *skb)
 	dst = (ax25_address *)(bp + 1);
 	src = (ax25_address *)(bp + 8);
 
-  	if (arp_find(bp + 1, skb))
-  		return 1;
+	if (arp_find(bp + 1, skb))
+		return 1;
 
 	route = ax25_get_route(dst, NULL);
 	if (route) {
@@ -127,8 +127,8 @@ int ax25_rebuild_header(struct sk_buff *skb)
 	if (dev == NULL)
 		dev = skb->dev;
 
-        if ((ax25_dev = ax25_dev_ax25dev(dev)) == NULL) {
-                goto put;
+	if ((ax25_dev = ax25_dev_ax25dev(dev)) == NULL) {
+		goto put;
 	}
 
 	if (bp[16] == AX25_P_IP) {
@@ -175,8 +175,8 @@ int ax25_rebuild_header(struct sk_buff *skb)
 			ourskb->nh.raw = ourskb->data;
 
 			ax25=ax25_send_frame(
-			    ourskb, 
-			    ax25_dev->values[AX25_VALUES_PACLEN], 
+			    ourskb,
+			    ax25_dev->values[AX25_VALUES_PACLEN],
 			    &src_c,
 			    &dst_c, digipeat, dev);
 			if (ax25) {
@@ -186,13 +186,13 @@ int ax25_rebuild_header(struct sk_buff *skb)
 		}
 	}
 
-  	bp[7]  &= ~AX25_CBIT;
-  	bp[7]  &= ~AX25_EBIT;
-  	bp[7]  |= AX25_SSSID_SPARE;
+	bp[7]  &= ~AX25_CBIT;
+	bp[7]  &= ~AX25_EBIT;
+	bp[7]  |= AX25_SSSID_SPARE;
 
-  	bp[14] &= ~AX25_CBIT;
-  	bp[14] |= AX25_EBIT;
-  	bp[14] |= AX25_SSSID_SPARE;
+	bp[14] &= ~AX25_CBIT;
+	bp[14] |= AX25_EBIT;
+	bp[14] |= AX25_SSSID_SPARE;
 
 	skb_pull(skb, AX25_KISS_HEADER_LEN);
 
@@ -211,7 +211,7 @@ put:
 	if (route)
 		ax25_put_route(route);
 
-  	return 1;
+	return 1;
 }
 
 #else	/* INET */

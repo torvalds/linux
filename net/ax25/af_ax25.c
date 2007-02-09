@@ -263,9 +263,9 @@ static void ax25_destroy_timer(unsigned long data)
 {
 	ax25_cb *ax25=(ax25_cb *)data;
 	struct sock *sk;
-	
+
 	sk=ax25->sk;
-	
+
 	bh_lock_sock(sk);
 	sock_hold(sk);
 	ax25_destroy_socket(ax25);
@@ -369,57 +369,57 @@ static int ax25_ctl_ioctl(const unsigned int cmd, void __user *arg)
 		ax25_disconnect(ax25, ENETRESET);
 		break;
 
-  	case AX25_WINDOW:
-  		if (ax25->modulus == AX25_MODULUS) {
-  			if (ax25_ctl.arg < 1 || ax25_ctl.arg > 7)
-  				return -EINVAL;
-  		} else {
-  			if (ax25_ctl.arg < 1 || ax25_ctl.arg > 63)
-  				return -EINVAL;
-  		}
-  		ax25->window = ax25_ctl.arg;
-  		break;
+	case AX25_WINDOW:
+		if (ax25->modulus == AX25_MODULUS) {
+			if (ax25_ctl.arg < 1 || ax25_ctl.arg > 7)
+				return -EINVAL;
+		} else {
+			if (ax25_ctl.arg < 1 || ax25_ctl.arg > 63)
+				return -EINVAL;
+		}
+		ax25->window = ax25_ctl.arg;
+		break;
 
-  	case AX25_T1:
+	case AX25_T1:
 		if (ax25_ctl.arg < 1)
-  			return -EINVAL;
-  		ax25->rtt = (ax25_ctl.arg * HZ) / 2;
-  		ax25->t1  = ax25_ctl.arg * HZ;
-  		break;
-
-  	case AX25_T2:
-  		if (ax25_ctl.arg < 1)
-  			return -EINVAL;
-  		ax25->t2 = ax25_ctl.arg * HZ;
-  		break;
-
-  	case AX25_N2:
-  		if (ax25_ctl.arg < 1 || ax25_ctl.arg > 31)
 			return -EINVAL;
-  		ax25->n2count = 0;
-  		ax25->n2 = ax25_ctl.arg;
-  		break;
+		ax25->rtt = (ax25_ctl.arg * HZ) / 2;
+		ax25->t1  = ax25_ctl.arg * HZ;
+		break;
 
-  	case AX25_T3:
-  		if (ax25_ctl.arg < 0)
-  			return -EINVAL;
-  		ax25->t3 = ax25_ctl.arg * HZ;
-  		break;
+	case AX25_T2:
+		if (ax25_ctl.arg < 1)
+			return -EINVAL;
+		ax25->t2 = ax25_ctl.arg * HZ;
+		break;
 
-  	case AX25_IDLE:
-  		if (ax25_ctl.arg < 0)
-  			return -EINVAL;
-  		ax25->idle = ax25_ctl.arg * 60 * HZ;
-  		break;
+	case AX25_N2:
+		if (ax25_ctl.arg < 1 || ax25_ctl.arg > 31)
+			return -EINVAL;
+		ax25->n2count = 0;
+		ax25->n2 = ax25_ctl.arg;
+		break;
 
-  	case AX25_PACLEN:
-  		if (ax25_ctl.arg < 16 || ax25_ctl.arg > 65535)
-  			return -EINVAL;
-  		ax25->paclen = ax25_ctl.arg;
-  		break;
+	case AX25_T3:
+		if (ax25_ctl.arg < 0)
+			return -EINVAL;
+		ax25->t3 = ax25_ctl.arg * HZ;
+		break;
 
-  	default:
-  		return -EINVAL;
+	case AX25_IDLE:
+		if (ax25_ctl.arg < 0)
+			return -EINVAL;
+		ax25->idle = ax25_ctl.arg * 60 * HZ;
+		break;
+
+	case AX25_PACLEN:
+		if (ax25_ctl.arg < 16 || ax25_ctl.arg > 65535)
+			return -EINVAL;
+		ax25->paclen = ax25_ctl.arg;
+		break;
+
+	default:
+		return -EINVAL;
 	  }
 
 	return 0;
@@ -1209,7 +1209,7 @@ static int __must_check ax25_connect(struct socket *sock,
 
 	if (sk->sk_type == SOCK_SEQPACKET &&
 	    (ax25t=ax25_find_cb(&ax25->source_addr, &fsa->fsa_ax25.sax25_call, digi,
-		    	 ax25->ax25_dev->dev))) {
+			 ax25->ax25_dev->dev))) {
 		kfree(digi);
 		err = -EADDRINUSE;		/* Already such a connection */
 		ax25_cb_put(ax25t);
@@ -1456,7 +1456,7 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 		err = -EMSGSIZE;
 		goto out;
 	}
-		
+
 	if (usax != NULL) {
 		if (usax->sax25_family != AF_AX25) {
 			err = -EINVAL;
@@ -1470,8 +1470,8 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 		else if (addr_len != sizeof(struct full_sockaddr_ax25)) {
 			/* support for old structure may go away some time */
 			if ((addr_len < sizeof(struct sockaddr_ax25) + sizeof(ax25_address) * 6) ||
-		    	    (addr_len > sizeof(struct full_sockaddr_ax25))) {
-		    		err = -EINVAL;
+			    (addr_len > sizeof(struct full_sockaddr_ax25))) {
+				err = -EINVAL;
 				goto out;
 			}
 
@@ -1624,7 +1624,7 @@ static int ax25_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	/* Now we can treat all alike */
 	skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
-	                        flags & MSG_DONTWAIT, &err);
+				flags & MSG_DONTWAIT, &err);
 	if (skb == NULL)
 		goto out;
 
@@ -1869,7 +1869,7 @@ static void *ax25_info_next(struct seq_file *seq, void *v, loff_t *pos)
 	return hlist_entry( ((struct ax25_cb *)v)->ax25_node.next,
 			    struct ax25_cb, ax25_node);
 }
-	
+
 static void ax25_info_stop(struct seq_file *seq, void *v)
 {
 	spin_unlock_bh(&ax25_list_lock);

@@ -164,7 +164,7 @@ static void *ax25_uid_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	++*pos;
 
 	return hlist_entry(((ax25_uid_assoc *)v)->uid_node.next,
-	                   ax25_uid_assoc, uid_node);
+			   ax25_uid_assoc, uid_node);
 }
 
 static void ax25_uid_seq_stop(struct seq_file *seq, void *v)
