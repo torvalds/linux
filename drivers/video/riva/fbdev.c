@@ -352,18 +352,6 @@ static struct backlight_properties riva_bl_data = {
 	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
 };
 
-static void riva_bl_set_power(struct fb_info *info, int power)
-{
-	mutex_lock(&info->bl_mutex);
-
-	if (info->bl_dev) {
-		info->bl_dev->props->power = power;
-		__riva_bl_update_status(info->bl_dev);
-	}
-
-	mutex_unlock(&info->bl_mutex);
-}
-
 static void riva_bl_init(struct riva_par *par)
 {
 	struct fb_info *info = pci_get_drvdata(par->pdev);
@@ -442,7 +430,6 @@ static void riva_bl_exit(struct riva_par *par)
 #else
 static inline void riva_bl_init(struct riva_par *par) {}
 static inline void riva_bl_exit(struct riva_par *par) {}
-static inline void riva_bl_set_power(struct fb_info *info, int power) {}
 #endif /* CONFIG_FB_RIVA_BACKLIGHT */
 
 /* ------------------------------------------------------------------------- *
@@ -1342,8 +1329,6 @@ static int rivafb_blank(int blank, struct fb_info *info)
 
 	SEQout(par, 0x01, tmp);
 	CRTCout(par, 0x1a, vesa);
-
-	riva_bl_set_power(info, blank);
 
 	NVTRACE_LEAVE();
 

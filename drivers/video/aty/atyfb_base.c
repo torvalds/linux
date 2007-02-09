@@ -2183,18 +2183,6 @@ static struct backlight_properties aty_bl_data = {
 	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
 };
 
-static void aty_bl_set_power(struct fb_info *info, int power)
-{
-	mutex_lock(&info->bl_mutex);
-
-	if (info->bl_dev) {
-		info->bl_dev->props->power = power;
-		__aty_bl_update_status(info->bl_dev);
-	}
-
-	mutex_unlock(&info->bl_mutex);
-}
-
 static void aty_bl_init(struct atyfb_par *par)
 {
 	struct fb_info *info = pci_get_drvdata(par->pdev);
@@ -2809,8 +2797,6 @@ static int atyfb_blank(int blank, struct fb_info *info)
 		return 0;
 
 #ifdef CONFIG_FB_ATY_BACKLIGHT
-	if (machine_is(powermac) && blank > FB_BLANK_NORMAL)
-		aty_bl_set_power(info, FB_BLANK_POWERDOWN);
 #elif defined(CONFIG_FB_ATY_GENERIC_LCD)
 	if (par->lcd_table && blank > FB_BLANK_NORMAL &&
 	    (aty_ld_lcd(LCD_GEN_CNTL, par) & LCD_ON)) {
@@ -2841,8 +2827,6 @@ static int atyfb_blank(int blank, struct fb_info *info)
 	aty_st_le32(CRTC_GEN_CNTL, gen_cntl, par);
 
 #ifdef CONFIG_FB_ATY_BACKLIGHT
-	if (machine_is(powermac) && blank <= FB_BLANK_NORMAL)
-		aty_bl_set_power(info, FB_BLANK_UNBLANK);
 #elif defined(CONFIG_FB_ATY_GENERIC_LCD)
 	if (par->lcd_table && blank <= FB_BLANK_NORMAL &&
 	    (aty_ld_lcd(LCD_GEN_CNTL, par) & LCD_ON)) {

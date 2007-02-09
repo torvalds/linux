@@ -2209,11 +2209,6 @@ static int aty128fb_blank(int blank, struct fb_info *fb)
 	if (par->lock_blank || par->asleep)
 		return 0;
 
-#ifdef CONFIG_FB_ATY128_BACKLIGHT
-	if (machine_is(powermac) && blank)
-		aty128_bl_set_power(fb, FB_BLANK_POWERDOWN);
-#endif
-
 	if (blank & FB_BLANK_VSYNC_SUSPEND)
 		state |= 2;
 	if (blank & FB_BLANK_HSYNC_SUSPEND)
@@ -2227,11 +2222,6 @@ static int aty128fb_blank(int blank, struct fb_info *fb)
 		aty128_set_crt_enable(par, par->crt_on && !blank);
 		aty128_set_lcd_enable(par, par->lcd_on && !blank);
 	}
-
-#ifdef CONFIG_FB_ATY128_BACKLIGHT
-	if (machine_is(powermac) && !blank)
-		aty128_bl_set_power(fb, FB_BLANK_UNBLANK);
-#endif
 
 	return 0;
 }
