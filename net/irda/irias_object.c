@@ -57,8 +57,8 @@ static char *strndup(char *str, size_t max)
 		len = max;
 
 	/* Allocate new string */
-        new_str = kmalloc(len + 1, GFP_ATOMIC);
-        if (new_str == NULL) {
+	new_str = kmalloc(len + 1, GFP_ATOMIC);
+	if (new_str == NULL) {
 		IRDA_WARNING("%s: Unable to kmalloc!\n", __FUNCTION__);
 		return NULL;
 	}
@@ -78,7 +78,7 @@ static char *strndup(char *str, size_t max)
  */
 struct ias_object *irias_new_object( char *name, int id)
 {
-        struct ias_object *obj;
+	struct ias_object *obj;
 
 	IRDA_DEBUG( 4, "%s()\n", __FUNCTION__);
 

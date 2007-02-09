@@ -1,5 +1,5 @@
 /*********************************************************************
- *                
+ *
  * Filename:      irttp.c
  * Version:       1.2
  * Description:   Tiny Transport Protocol (TTP) implementation
@@ -8,18 +8,18 @@
  * Created at:    Sun Aug 31 20:14:31 1997
  * Modified at:   Wed Jan  5 11:31:27 2000
  * Modified by:   Dag Brattli <dagb@cs.uit.no>
- * 
- *     Copyright (c) 1998-2000 Dag Brattli <dagb@cs.uit.no>, 
+ *
+ *     Copyright (c) 1998-2000 Dag Brattli <dagb@cs.uit.no>,
  *     All Rights Reserved.
  *     Copyright (c) 2000-2003 Jean Tourrilhes <jt@hpl.hp.com>
- *     
- *     This program is free software; you can redistribute it and/or 
- *     modify it under the terms of the GNU General Public License as 
- *     published by the Free Software Foundation; either version 2 of 
+ *
+ *     This program is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of
  *     the License, or (at your option) any later version.
  *
  *     Neither Dag Brattli nor University of Tromsø admit liability nor
- *     provide warranty for any of this software. This material is 
+ *     provide warranty for any of this software. This material is
  *     provided "AS-IS" and at no charge.
  *
  ********************************************************************/
@@ -42,17 +42,17 @@ static struct irttp_cb *irttp;
 
 static void __irttp_close_tsap(struct tsap_cb *self);
 
-static int irttp_data_indication(void *instance, void *sap, 
+static int irttp_data_indication(void *instance, void *sap,
 				 struct sk_buff *skb);
-static int irttp_udata_indication(void *instance, void *sap, 
+static int irttp_udata_indication(void *instance, void *sap,
 				  struct sk_buff *skb);
-static void irttp_disconnect_indication(void *instance, void *sap,  
+static void irttp_disconnect_indication(void *instance, void *sap,
 					LM_REASON reason, struct sk_buff *);
-static void irttp_connect_indication(void *instance, void *sap, 
+static void irttp_connect_indication(void *instance, void *sap,
 				     struct qos_info *qos, __u32 max_sdu_size,
 				     __u8 header_size, struct sk_buff *skb);
-static void irttp_connect_confirm(void *instance, void *sap, 
-				  struct qos_info *qos, __u32 max_sdu_size, 
+static void irttp_connect_confirm(void *instance, void *sap,
+				  struct qos_info *qos, __u32 max_sdu_size,
 				  __u8 header_size, struct sk_buff *skb);
 static void irttp_run_tx_queue(struct tsap_cb *self);
 static void irttp_run_rx_queue(struct tsap_cb *self);
@@ -61,7 +61,7 @@ static void irttp_flush_queues(struct tsap_cb *self);
 static void irttp_fragment_skb(struct tsap_cb *self, struct sk_buff *skb);
 static struct sk_buff *irttp_reassemble_skb(struct tsap_cb *self);
 static void irttp_todo_expired(unsigned long data);
-static int irttp_param_max_sdu_size(void *instance, irda_param_t *param, 
+static int irttp_param_max_sdu_size(void *instance, irda_param_t *param,
 				    int get);
 
 static void irttp_flow_indication(void *instance, void *sap, LOCAL_FLOW flow);
@@ -109,7 +109,7 @@ int __init irttp_init(void)
  *    Called by module destruction/cleanup code
  *
  */
-void __exit irttp_cleanup(void) 
+void __exit irttp_cleanup(void)
 {
 	/* Check for main structure */
 	IRDA_ASSERT(irttp->magic == TTP_MAGIC, return;);
@@ -865,7 +865,7 @@ static int irttp_udata_indication(void *instance, void *sap,
 		err = self->notify.udata_indication(self->notify.instance,
 						    self,skb);
 		/* Same comment as in irttp_do_data_indication() */
-		if (!err) 
+		if (!err)
 			return 0;
 	}
 	/* Either no handler, or handler returns an error */
@@ -940,7 +940,7 @@ static int irttp_data_indication(void *instance, void *sap,
 
 	/*
 	 * If the peer device has given us some credits and we didn't have
-         * anyone from before, then we need to shedule the tx queue.
+	 * anyone from before, then we need to shedule the tx queue.
 	 * We need to do that because our Tx have stopped (so we may not
 	 * get any LAP flow indication) and the user may be stopped as
 	 * well. - Jean II
@@ -1798,14 +1798,14 @@ static void *irttp_seq_start(struct seq_file *seq, loff_t *pos)
 	spin_lock_irq(&irttp->tsaps->hb_spinlock);
 	iter->id = 0;
 
-	for (self = (struct tsap_cb *) hashbin_get_first(irttp->tsaps); 
+	for (self = (struct tsap_cb *) hashbin_get_first(irttp->tsaps);
 	     self != NULL;
 	     self = (struct tsap_cb *) hashbin_get_next(irttp->tsaps)) {
 		if (iter->id == *pos)
 			break;
 		++iter->id;
 	}
-		
+
 	return self;
 }
 

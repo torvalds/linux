@@ -414,7 +414,7 @@ static void irlap_recv_discovery_xid_rsp(struct irlap_cb *self,
 		IRDA_ERROR("%s: frame to short!\n", __FUNCTION__);
 		return;
 	}
-		
+
 	xid = (struct xid_frame *) skb->data;
 
 	info->daddr = le32_to_cpu(xid->saddr);
@@ -485,7 +485,7 @@ static void irlap_recv_discovery_xid_cmd(struct irlap_cb *self,
 		IRDA_ERROR("%s: frame to short!\n", __FUNCTION__);
 		return;
 	}
-	
+
 	xid = (struct xid_frame *) skb->data;
 
 	info->daddr = le32_to_cpu(xid->saddr);
@@ -524,7 +524,7 @@ static void irlap_recv_discovery_xid_cmd(struct irlap_cb *self,
 	 */
 	if (info->s == 0xff) {
 		/* Check if things are sane at this point... */
-		if((discovery_info == NULL) || 
+		if((discovery_info == NULL) ||
 		   !pskb_may_pull(skb, 3)) {
 			IRDA_ERROR("%s: discovery frame to short!\n",
 				   __FUNCTION__);
