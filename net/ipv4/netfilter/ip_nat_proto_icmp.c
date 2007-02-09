@@ -45,7 +45,7 @@ icmp_unique_tuple(struct ip_conntrack_tuple *tuple,
 
 	for (i = 0; i < range_size; i++, id++) {
 		tuple->src.u.icmp.id = htons(ntohs(range->min.icmp.id) +
-		                             (id % range_size));
+					     (id % range_size));
 		if (!ip_nat_used_tuple(tuple, conntrack))
 			return 1;
 	}

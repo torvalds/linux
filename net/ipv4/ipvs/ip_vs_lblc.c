@@ -118,7 +118,7 @@ static ctl_table vs_vars_table[] = {
 		.procname	= "lblc_expiration",
 		.data		= &sysctl_ip_vs_lblc_expiration,
 		.maxlen		= sizeof(int),
-		.mode		= 0644, 
+		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{ .ctl_name = 0 }
@@ -128,7 +128,7 @@ static ctl_table vs_table[] = {
 	{
 		.ctl_name	= NET_IPV4_VS,
 		.procname	= "vs",
-		.mode		= 0555, 
+		.mode		= 0555,
 		.child		= vs_vars_table
 	},
 	{ .ctl_name = 0 }
@@ -137,7 +137,7 @@ static ctl_table vs_table[] = {
 static ctl_table ipvs_ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4,
-		.procname	= "ipv4", 
+		.procname	= "ipv4",
 		.mode		= 0555,
 		.child		= vs_table
 	},
@@ -147,8 +147,8 @@ static ctl_table ipvs_ipv4_table[] = {
 static ctl_table lblc_root_table[] = {
 	{
 		.ctl_name	= CTL_NET,
-		.procname	= "net", 
-		.mode		= 0555, 
+		.procname	= "net",
+		.mode		= 0555,
 		.child		= ipvs_ipv4_table
 	},
 	{ .ctl_name = 0 }
@@ -288,7 +288,7 @@ static inline void ip_vs_lblc_full_check(struct ip_vs_lblc_table *tbl)
 
 		write_lock(&tbl->lock);
 		list_for_each_entry_safe(en, nxt, &tbl->bucket[j], list) {
-			if (time_before(now, 
+			if (time_before(now,
 					en->lastuse + sysctl_ip_vs_lblc_expiration))
 				continue;
 

@@ -88,8 +88,8 @@ static unsigned int help(struct sk_buff **pskb,
 	DEBUGP("ip_nat_irc: Inserting '%s' == %u.%u.%u.%u, port %u\n",
 	       buffer, NIPQUAD(exp->tuple.src.ip), port);
 
-	ret = ip_nat_mangle_tcp_packet(pskb, exp->master, ctinfo, 
-				       matchoff, matchlen, buffer, 
+	ret = ip_nat_mangle_tcp_packet(pskb, exp->master, ctinfo,
+				       matchoff, matchlen, buffer,
 				       strlen(buffer));
 	if (ret != NF_ACCEPT)
 		ip_conntrack_unexpect_related(exp);

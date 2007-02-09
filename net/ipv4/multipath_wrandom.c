@@ -142,7 +142,7 @@ out:
 	return weight;
 }
 
-static void wrandom_init_state(void) 
+static void wrandom_init_state(void)
 {
 	int i;
 
@@ -287,7 +287,7 @@ static void __multipath_free(struct rcu_head *head)
 
 static void __multipath_free_dst(struct rcu_head *head)
 {
-  	struct multipath_dest *dst = container_of(head,
+	struct multipath_dest *dst = container_of(head,
 						  struct multipath_dest,
 						  rcu);
 	kfree(dst);

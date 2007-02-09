@@ -92,13 +92,13 @@ target(struct sk_buff **pskb,
 static struct xt_target target_module = {
 	.name 		= MODULENAME,
 	.family		= AF_INET,
-	.target 	= target, 
+	.target 	= target,
 	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
 	.table		= "nat",
 	.hooks		= (1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_POST_ROUTING) |
 			  (1 << NF_IP_LOCAL_OUT),
 	.checkentry 	= check,
-    	.me 		= THIS_MODULE 
+	.me 		= THIS_MODULE
 };
 
 static int __init ipt_netmap_init(void)

@@ -134,7 +134,7 @@ static void drr_select_route(const struct flowi *flp,
 			     struct rtable *first, struct rtable **rp)
 {
 	struct rtable *nh, *result, *cur_min;
-	int min_usecount = -1; 
+	int min_usecount = -1;
 	int devidx = -1;
 	int cur_min_devidx = -1;
 
@@ -161,7 +161,7 @@ static void drr_select_route(const struct flowi *flp,
 			 */
 			devidx = __multipath_finddev(nh_ifidx);
 			if (devidx == -1) {
-				/* add the interface to the array 
+				/* add the interface to the array
 				 * SMP safe
 				 */
 				spin_lock_bh(&state_lock);

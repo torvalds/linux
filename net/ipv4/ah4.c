@@ -91,7 +91,7 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->check = 0;
 
 	ahp = x->data;
-	ah->hdrlen  = (XFRM_ALIGN8(sizeof(struct ip_auth_hdr) + 
+	ah->hdrlen  = (XFRM_ALIGN8(sizeof(struct ip_auth_hdr) +
 				   ahp->icv_trunc_len) >> 2) - 2;
 
 	ah->reserved = 0;
@@ -135,9 +135,9 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 	ah = (struct ip_auth_hdr*)skb->data;
 	ahp = x->data;
 	ah_hlen = (ah->hdrlen + 2) << 2;
-	
+
 	if (ah_hlen != XFRM_ALIGN8(sizeof(struct ip_auth_hdr) + ahp->icv_full_len) &&
-	    ah_hlen != XFRM_ALIGN8(sizeof(struct ip_auth_hdr) + ahp->icv_trunc_len)) 
+	    ah_hlen != XFRM_ALIGN8(sizeof(struct ip_auth_hdr) + ahp->icv_trunc_len))
 		goto out;
 
 	if (!pskb_may_pull(skb, ah_hlen))
@@ -166,9 +166,9 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 		if (ip_clear_mutable_options(iph, &dummy))
 			goto out;
 	}
-        {
+	{
 		u8 auth_data[MAX_AH_AUTH_LEN];
-		
+
 		memcpy(auth_data, ah->auth_data, ahp->icv_trunc_len);
 		skb_push(skb, ihl);
 		err = ah_mac_digest(ahp, skb, ah->auth_data);
@@ -237,7 +237,7 @@ static int ah_init_state(struct xfrm_state *x)
 	ahp->tfm = tfm;
 	if (crypto_hash_setkey(tfm, ahp->key, ahp->key_len))
 		goto error;
-	
+
 	/*
 	 * Lookup the algorithm description maintained by xfrm_algo,
 	 * verify crypto transform properties, and store information
@@ -254,16 +254,16 @@ static int ah_init_state(struct xfrm_state *x)
 		       aalg_desc->uinfo.auth.icv_fullbits/8);
 		goto error;
 	}
-	
+
 	ahp->icv_full_len = aalg_desc->uinfo.auth.icv_fullbits/8;
 	ahp->icv_trunc_len = aalg_desc->uinfo.auth.icv_truncbits/8;
-	
+
 	BUG_ON(ahp->icv_trunc_len > MAX_AH_AUTH_LEN);
-	
+
 	ahp->work_icv = kmalloc(ahp->icv_full_len, GFP_KERNEL);
 	if (!ahp->work_icv)
 		goto error;
-	
+
 	x->props.header_len = XFRM_ALIGN8(sizeof(struct ip_auth_hdr) + ahp->icv_trunc_len);
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct iphdr);

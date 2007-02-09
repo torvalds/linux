@@ -64,7 +64,7 @@ static __inline__ int tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
 	return (seq == e_win && seq == end_seq);
 }
 
-/* 
+/*
  * * Main purpose of TIME-WAIT state is to close connection gracefully,
  *   when one of ends sits in LAST-ACK or CLOSING retransmitting FIN
  *   (and, probably, tail of data) and one or more our ACKs are lost.
@@ -176,13 +176,13 @@ kill_with_rst:
 	 *	"When a connection is [...] on TIME-WAIT state [...]
 	 *	[a TCP] MAY accept a new SYN from the remote TCP to
 	 *	reopen the connection directly, if it:
-	 *	
+	 *
 	 *	(1)  assigns its initial sequence number for the new
 	 *	connection to be larger than the largest sequence
 	 *	number it used on the previous connection incarnation,
 	 *	and
 	 *
-	 *	(2)  returns to TIME-WAIT state if the SYN turns out 
+	 *	(2)  returns to TIME-WAIT state if the SYN turns out
 	 *	to be an old duplicate".
 	 */
 
@@ -266,9 +266,9 @@ kill:
 	return TCP_TW_SUCCESS;
 }
 
-/* 
+/*
  * Move a socket to time-wait or dead fin-wait-2 state.
- */ 
+ */
 void tcp_time_wait(struct sock *sk, int state, int timeo)
 {
 	struct inet_timewait_sock *tw = NULL;
@@ -481,7 +481,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 	return newsk;
 }
 
-/* 
+/*
  *	Process an incoming packet for SYN_RECV sockets represented
  *	as a request_sock.
  */

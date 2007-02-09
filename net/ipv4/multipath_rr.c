@@ -58,7 +58,7 @@ static void rr_select_route(const struct flowi *flp,
 	 */
 	result = NULL;
 	for (nh = rcu_dereference(first); nh;
- 	     nh = rcu_dereference(nh->u.rt_next)) {
+	     nh = rcu_dereference(nh->u.rt_next)) {
 		if ((nh->u.dst.flags & DST_BALANCED) != 0 &&
 		    multipath_comparekeys(&nh->fl, flp)) {
 			nh->u.dst.lastuse = jiffies;

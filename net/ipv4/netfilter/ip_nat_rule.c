@@ -112,7 +112,7 @@ static unsigned int ipt_snat_target(struct sk_buff **pskb,
 
 	/* Connection must be valid and new. */
 	IP_NF_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED
-	                    || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
+			    || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
 	IP_NF_ASSERT(out);
 
 	return ip_nat_setup_info(ct, &mr->range[0], hooknum);
@@ -223,8 +223,8 @@ alloc_null_binding(struct ip_conntrack *conntrack,
 
 unsigned int
 alloc_null_binding_confirmed(struct ip_conntrack *conntrack,
-                             struct ip_nat_info *info,
-                             unsigned int hooknum)
+			     struct ip_nat_info *info,
+			     unsigned int hooknum)
 {
 	__be32 ip
 		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC

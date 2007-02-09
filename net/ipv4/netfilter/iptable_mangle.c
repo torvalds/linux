@@ -58,7 +58,7 @@ static struct
 	      { { { { IPT_ALIGN(sizeof(struct ipt_standard_target)), "" } }, { } },
 		-NF_ACCEPT - 1 } },
 	    /* LOCAL_IN */
- 	    { { { { 0 }, { 0 }, { 0 }, { 0 }, "", "", { 0 }, { 0 }, 0, 0, 0 },
+	    { { { { 0 }, { 0 }, { 0 }, { 0 }, "", "", { 0 }, { 0 }, 0, 0, 0 },
 		0,
 		sizeof(struct ipt_entry),
 		sizeof(struct ipt_standard),
@@ -66,7 +66,7 @@ static struct
 	      { { { { IPT_ALIGN(sizeof(struct ipt_standard_target)), "" } }, { } },
 		-NF_ACCEPT - 1 } },
 	    /* FORWARD */
- 	    { { { { 0 }, { 0 }, { 0 }, { 0 }, "", "", { 0 }, { 0 }, 0, 0, 0 },
+	    { { { { 0 }, { 0 }, { 0 }, { 0 }, "", "", { 0 }, { 0 }, 0, 0, 0 },
 		0,
 		sizeof(struct ipt_entry),
 		sizeof(struct ipt_standard),
@@ -166,7 +166,7 @@ static struct nf_hook_ops ipt_ops[] = {
 		.hook		= ipt_route_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_PRE_ROUTING, 
+		.hooknum	= NF_IP_PRE_ROUTING,
 		.priority	= NF_IP_PRI_MANGLE,
 	},
 	{

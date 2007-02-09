@@ -215,7 +215,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (padlen+2 >= elen)
 		goto out;
 
-	/* ... check padding bits here. Silly. :-) */ 
+	/* ... check padding bits here. Silly. :-) */
 
 	iph = skb->nh.iph;
 	ihl = iph->ihl * 4;
@@ -236,7 +236,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 			ipaddr.a4 = iph->saddr;
 			km_new_mapping(x, &ipaddr, uh->source);
-				
+
 			/* XXX: perhaps add an extra
 			 * policy check here, to see
 			 * if we should allow or
@@ -245,7 +245,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 			 * address/port.
 			 */
 		}
-	
+
 		/*
 		 * 2) ignore UDP/TCP checksums in case
 		 *    of NAT-T in Transport Mode, or
@@ -284,7 +284,7 @@ static u32 esp4_get_max_size(struct xfrm_state *x, int mtu)
 		mtu = ALIGN(mtu + 2, 4) + blksize - 4;
 		break;
 	case XFRM_MODE_BEET:
- 		/* The worst case. */
+		/* The worst case. */
 		enclen = IPV4_BEET_PHMAXLEN;
 		mtu = ALIGN(mtu + enclen + 2, blksize);
 		break;

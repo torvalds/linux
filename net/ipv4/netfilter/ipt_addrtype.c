@@ -40,7 +40,7 @@ static int match(const struct sk_buff *skb,
 		ret &= match_type(iph->saddr, info->source)^info->invert_source;
 	if (info->dest)
 		ret &= match_type(iph->daddr, info->dest)^info->invert_dest;
-	
+
 	return ret;
 }
 

@@ -2,7 +2,7 @@
    but required by, the NAT layer; it can also be used by an iptables
    extension. */
 
-/* (C) 1999-2001 Paul `Rusty' Russell  
+/* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -99,7 +99,7 @@ __ip_ct_deliver_cached_events(struct ip_conntrack_ecache *ecache)
 void ip_ct_deliver_cached_events(const struct ip_conntrack *ct)
 {
 	struct ip_conntrack_ecache *ecache;
-	
+
 	local_bh_disable();
 	ecache = &__get_cpu_var(ip_conntrack_ecache);
 	if (ecache->ct == ct)
@@ -147,9 +147,9 @@ static u_int32_t __hash_conntrack(const struct ip_conntrack_tuple *tuple,
 			    unsigned int size, unsigned int rnd)
 {
 	return (jhash_3words((__force u32)tuple->src.ip,
-	                     ((__force u32)tuple->dst.ip ^ tuple->dst.protonum),
-	                     (tuple->src.u.all | (tuple->dst.u.all << 16)),
-	                     rnd) % size);
+			     ((__force u32)tuple->dst.ip ^ tuple->dst.protonum),
+			     (tuple->src.u.all | (tuple->dst.u.all << 16)),
+			     rnd) % size);
 }
 
 static u_int32_t
@@ -219,7 +219,7 @@ struct ip_conntrack_expect *
 __ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple)
 {
 	struct ip_conntrack_expect *i;
-	
+
 	list_for_each_entry(i, &ip_conntrack_expect_list, list) {
 		if (ip_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask))
 			return i;
@@ -232,7 +232,7 @@ struct ip_conntrack_expect *
 ip_conntrack_expect_find_get(const struct ip_conntrack_tuple *tuple)
 {
 	struct ip_conntrack_expect *i;
-	
+
 	read_lock_bh(&ip_conntrack_lock);
 	i = __ip_conntrack_expect_find(tuple);
 	if (i)
@@ -398,7 +398,7 @@ ip_conntrack_find_get(const struct ip_conntrack_tuple *tuple,
 
 static void __ip_conntrack_hash_insert(struct ip_conntrack *ct,
 					unsigned int hash,
-					unsigned int repl_hash) 
+					unsigned int repl_hash)
 {
 	ct->id = ++ip_conntrack_next_id;
 	list_add(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list,
@@ -446,15 +446,15 @@ __ip_conntrack_confirm(struct sk_buff **pskb)
 	/* IP_NF_ASSERT(atomic_read(&ct->ct_general.use) == 1); */
 
 	/* No external references means noone else could have
-           confirmed us. */
+	   confirmed us. */
 	IP_NF_ASSERT(!is_confirmed(ct));
 	DEBUGP("Confirming conntrack %p\n", ct);
 
 	write_lock_bh(&ip_conntrack_lock);
 
 	/* See if there's one in the list already, including reverse:
-           NAT could have grabbed it without realizing, since we're
-           not in the hash.  If there is, we lost race. */
+	   NAT could have grabbed it without realizing, since we're
+	   not in the hash.  If there is, we lost race. */
 	list_for_each_entry(h, &ip_conntrack_hash[hash], list)
 		if (ip_ct_tuple_equal(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 				      &h->tuple))
@@ -602,7 +602,7 @@ ip_conntrack_proto_find_get(u_int8_t protocol)
 			p = &ip_conntrack_generic_protocol;
 	}
 	preempt_enable();
-	
+
 	return p;
 }
 
@@ -746,7 +746,7 @@ resolve_normal_ct(struct sk_buff *skb,
 
 	IP_NF_ASSERT((skb->nh.iph->frag_off & htons(IP_OFFSET)) == 0);
 
-	if (!ip_ct_get_tuple(skb->nh.iph, skb, skb->nh.iph->ihl*4, 
+	if (!ip_ct_get_tuple(skb->nh.iph, skb, skb->nh.iph->ihl*4,
 				&tuple,proto))
 		return NULL;
 
@@ -771,7 +771,7 @@ resolve_normal_ct(struct sk_buff *skb,
 		if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
 			DEBUGP("ip_conntrack_in: normal packet for %p\n",
 			       ct);
-		        *ctinfo = IP_CT_ESTABLISHED;
+			*ctinfo = IP_CT_ESTABLISHED;
 		} else if (test_bit(IPS_EXPECTED_BIT, &ct->status)) {
 			DEBUGP("ip_conntrack_in: related packet for %p\n",
 			       ct);
@@ -822,7 +822,7 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 	if ((*pskb)->pkt_type == PACKET_BROADCAST) {
 		printk("Broadcast packet!\n");
 		return NF_ACCEPT;
-	} else if (((*pskb)->nh.iph->daddr & htonl(0x000000FF)) 
+	} else if (((*pskb)->nh.iph->daddr & htonl(0x000000FF))
 		   == htonl(0x000000FF)) {
 		printk("Should bcast: %u.%u.%u.%u->%u.%u.%u.%u (sk=%p, ptype=%u)\n",
 		       NIPQUAD((*pskb)->nh.iph->saddr),
@@ -836,7 +836,7 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 	/* It may be an special packet, error, unclean...
 	 * inverse of the return code tells to the netfilter
 	 * core what to do with the packet. */
-	if (proto->error != NULL 
+	if (proto->error != NULL
 	    && (ret = proto->error(*pskb, &ctinfo, hooknum)) <= 0) {
 		CONNTRACK_STAT_INC(error);
 		CONNTRACK_STAT_INC(invalid);
@@ -876,7 +876,7 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 int invert_tuplepr(struct ip_conntrack_tuple *inverse,
 		   const struct ip_conntrack_tuple *orig)
 {
-	return ip_ct_invert_tuple(inverse, orig, 
+	return ip_ct_invert_tuple(inverse, orig,
 				  __ip_conntrack_proto_find(orig->dst.protonum));
 }
 
@@ -885,7 +885,7 @@ static inline int expect_clash(const struct ip_conntrack_expect *a,
 			       const struct ip_conntrack_expect *b)
 {
 	/* Part covered by intersection of masks must be unequal,
-           otherwise they clash */
+	   otherwise they clash */
 	struct ip_conntrack_tuple intersect_mask
 		= { { a->mask.src.ip & b->mask.src.ip,
 		      { a->mask.src.u.all & b->mask.src.u.all } },
@@ -923,7 +923,7 @@ void ip_conntrack_unexpect_related(struct ip_conntrack_expect *exp)
 }
 
 /* We don't increase the master conntrack refcount for non-fulfilled
- * conntracks. During the conntrack destruction, the expectations are 
+ * conntracks. During the conntrack destruction, the expectations are
  * always killed before the conntrack itself */
 struct ip_conntrack_expect *ip_conntrack_expect_alloc(struct ip_conntrack *me)
 {
@@ -1012,7 +1012,7 @@ int ip_conntrack_expect_related(struct ip_conntrack_expect *expect)
 	}
 
 	/* Will be over limit? */
-	if (expect->master->helper->max_expected && 
+	if (expect->master->helper->max_expected &&
 	    expect->master->expecting >= expect->master->helper->max_expected)
 		evict_oldest_expect(expect->master);
 
@@ -1021,7 +1021,7 @@ int ip_conntrack_expect_related(struct ip_conntrack_expect *expect)
 	ret = 0;
 out:
 	write_unlock_bh(&ip_conntrack_lock);
- 	return ret;
+	return ret;
 }
 
 /* Alter reply tuple (maybe alter helper).  This is for NAT, and is
@@ -1069,7 +1069,7 @@ static inline void unhelp(struct ip_conntrack_tuple_hash *i,
 			  const struct ip_conntrack_helper *me)
 {
 	if (tuplehash_to_ctrack(i)->helper == me) {
- 		ip_conntrack_event(IPCT_HELPER, tuplehash_to_ctrack(i));
+		ip_conntrack_event(IPCT_HELPER, tuplehash_to_ctrack(i));
 		tuplehash_to_ctrack(i)->helper = NULL;
 	}
 }
@@ -1105,8 +1105,8 @@ void ip_conntrack_helper_unregister(struct ip_conntrack_helper *me)
 }
 
 /* Refresh conntrack for this many jiffies and do accounting if do_acct is 1 */
-void __ip_ct_refresh_acct(struct ip_conntrack *ct, 
-		        enum ip_conntrack_info ctinfo,
+void __ip_ct_refresh_acct(struct ip_conntrack *ct,
+			enum ip_conntrack_info ctinfo,
 			const struct sk_buff *skb,
 			unsigned long extra_jiffies,
 			int do_acct)
@@ -1140,7 +1140,7 @@ void __ip_ct_refresh_acct(struct ip_conntrack *ct,
 #ifdef CONFIG_IP_NF_CT_ACCT
 	if (do_acct) {
 		ct->counters[CTINFO2DIR(ctinfo)].packets++;
-		ct->counters[CTINFO2DIR(ctinfo)].bytes += 
+		ct->counters[CTINFO2DIR(ctinfo)].bytes +=
 						ntohs(skb->nh.iph->tot_len);
 		if ((ct->counters[CTINFO2DIR(ctinfo)].packets & 0x80000000)
 		    || (ct->counters[CTINFO2DIR(ctinfo)].bytes & 0x80000000))
@@ -1194,7 +1194,7 @@ ip_ct_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
 	skb_orphan(skb);
 
-	local_bh_disable(); 
+	local_bh_disable();
 	skb = ip_defrag(skb, user);
 	local_bh_enable();
 
@@ -1211,7 +1211,7 @@ static void ip_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb)
 
 	/* This ICMP is in reverse direction to the packet which caused it */
 	ct = ip_conntrack_get(skb, &ctinfo);
-	
+
 	if (CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL)
 		ctinfo = IP_CT_RELATED + IP_CT_IS_REPLY;
 	else
@@ -1279,7 +1279,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_conntrack_tuple_hash *h;
 	struct ip_conntrack_tuple tuple;
-	
+
 	IP_CT_TUPLE_U_BLANK(&tuple);
 	tuple.src.ip = inet->rcv_saddr;
 	tuple.src.u.tcp.port = inet->sport;
@@ -1347,7 +1347,7 @@ static void free_conntrack_hash(struct list_head *hash, int vmalloced,int size)
 	if (vmalloced)
 		vfree(hash);
 	else
-		free_pages((unsigned long)hash, 
+		free_pages((unsigned long)hash,
 			   get_order(sizeof(struct list_head) * size));
 }
 
@@ -1358,8 +1358,8 @@ void ip_conntrack_cleanup(void)
 	ip_ct_attach = NULL;
 
 	/* This makes sure all current packets have passed through
-           netfilter framework.  Roll on, two-stage module
-           delete... */
+	   netfilter framework.  Roll on, two-stage module
+	   delete... */
 	synchronize_net();
 
 	ip_ct_event_cache_flush();
@@ -1385,11 +1385,11 @@ static struct list_head *alloc_hashtable(int size, int *vmalloced)
 	struct list_head *hash;
 	unsigned int i;
 
-	*vmalloced = 0; 
-	hash = (void*)__get_free_pages(GFP_KERNEL, 
+	*vmalloced = 0;
+	hash = (void*)__get_free_pages(GFP_KERNEL,
 				       get_order(sizeof(struct list_head)
 						 * size));
-	if (!hash) { 
+	if (!hash) {
 		*vmalloced = 1;
 		printk(KERN_WARNING"ip_conntrack: falling back to vmalloc.\n");
 		hash = vmalloc(sizeof(struct list_head) * size);
@@ -1422,7 +1422,7 @@ static int set_hashsize(const char *val, struct kernel_param *kp)
 	if (!hash)
 		return -ENOMEM;
 
-	/* We have to rehash for the new table anyway, so we also can 
+	/* We have to rehash for the new table anyway, so we also can
 	 * use a new random seed */
 	get_random_bytes(&rnd, 4);
 
@@ -1460,7 +1460,7 @@ int __init ip_conntrack_init(void)
 
 	/* Idea from tcp.c: use 1/16384 of memory.  On i386: 32MB
 	 * machine has 256 buckets.  >= 1GB machines have 8192 buckets. */
- 	if (!ip_conntrack_htable_size) {
+	if (!ip_conntrack_htable_size) {
 		ip_conntrack_htable_size
 			= (((num_physpages << PAGE_SHIFT) / 16384)
 			   / sizeof(struct list_head));
@@ -1490,8 +1490,8 @@ int __init ip_conntrack_init(void)
 	}
 
 	ip_conntrack_cachep = kmem_cache_create("ip_conntrack",
-	                                        sizeof(struct ip_conntrack), 0,
-	                                        0, NULL, NULL);
+						sizeof(struct ip_conntrack), 0,
+						0, NULL, NULL);
 	if (!ip_conntrack_cachep) {
 		printk(KERN_ERR "Unable to create ip_conntrack slab cache\n");
 		goto err_free_hash;

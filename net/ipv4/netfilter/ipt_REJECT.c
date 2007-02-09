@@ -57,7 +57,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	oth = skb_header_pointer(oldskb, oldskb->nh.iph->ihl * 4,
 				 sizeof(_otcph), &_otcph);
 	if (oth == NULL)
- 		return;
+		return;
 
 	/* No RST for RST. */
 	if (oth->rst)
@@ -145,7 +145,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 
 	/* Adjust IP checksum */
 	nskb->nh.iph->check = 0;
-	nskb->nh.iph->check = ip_fast_csum((unsigned char *)nskb->nh.iph, 
+	nskb->nh.iph->check = ip_fast_csum((unsigned char *)nskb->nh.iph,
 					   nskb->nh.iph->ihl);
 
 	/* "Never happens" */
@@ -165,7 +165,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 static inline void send_unreach(struct sk_buff *skb_in, int code)
 {
 	icmp_send(skb_in, ICMP_DEST_UNREACH, code, 0);
-}	
+}
 
 static unsigned int reject(struct sk_buff **pskb,
 			   const struct net_device *in,
@@ -177,33 +177,33 @@ static unsigned int reject(struct sk_buff **pskb,
 	const struct ipt_reject_info *reject = targinfo;
 
 	/* Our naive response construction doesn't deal with IP
-           options, and probably shouldn't try. */
+	   options, and probably shouldn't try. */
 	if ((*pskb)->nh.iph->ihl<<2 != sizeof(struct iphdr))
 		return NF_DROP;
 
 	/* WARNING: This code causes reentry within iptables.
 	   This means that the iptables jump stack is now crap.  We
 	   must return an absolute verdict. --RR */
-    	switch (reject->with) {
-    	case IPT_ICMP_NET_UNREACHABLE:
-    		send_unreach(*pskb, ICMP_NET_UNREACH);
-    		break;
-    	case IPT_ICMP_HOST_UNREACHABLE:
-    		send_unreach(*pskb, ICMP_HOST_UNREACH);
-    		break;
-    	case IPT_ICMP_PROT_UNREACHABLE:
-    		send_unreach(*pskb, ICMP_PROT_UNREACH);
-    		break;
-    	case IPT_ICMP_PORT_UNREACHABLE:
-    		send_unreach(*pskb, ICMP_PORT_UNREACH);
-    		break;
-    	case IPT_ICMP_NET_PROHIBITED:
-    		send_unreach(*pskb, ICMP_NET_ANO);
-    		break;
+	switch (reject->with) {
+	case IPT_ICMP_NET_UNREACHABLE:
+		send_unreach(*pskb, ICMP_NET_UNREACH);
+		break;
+	case IPT_ICMP_HOST_UNREACHABLE:
+		send_unreach(*pskb, ICMP_HOST_UNREACH);
+		break;
+	case IPT_ICMP_PROT_UNREACHABLE:
+		send_unreach(*pskb, ICMP_PROT_UNREACH);
+		break;
+	case IPT_ICMP_PORT_UNREACHABLE:
+		send_unreach(*pskb, ICMP_PORT_UNREACH);
+		break;
+	case IPT_ICMP_NET_PROHIBITED:
+		send_unreach(*pskb, ICMP_NET_ANO);
+		break;
 	case IPT_ICMP_HOST_PROHIBITED:
-    		send_unreach(*pskb, ICMP_HOST_ANO);
-    		break;
-    	case IPT_ICMP_ADMIN_PROHIBITED:
+		send_unreach(*pskb, ICMP_HOST_ANO);
+		break;
+	case IPT_ICMP_ADMIN_PROHIBITED:
 		send_unreach(*pskb, ICMP_PKT_FILTERED);
 		break;
 	case IPT_TCP_RESET:
@@ -222,7 +222,7 @@ static int check(const char *tablename,
 		 void *targinfo,
 		 unsigned int hook_mask)
 {
- 	const struct ipt_reject_info *rejinfo = targinfo;
+	const struct ipt_reject_info *rejinfo = targinfo;
 	const struct ipt_entry *e = e_void;
 
 	if (rejinfo->with == IPT_ICMP_ECHOREPLY) {

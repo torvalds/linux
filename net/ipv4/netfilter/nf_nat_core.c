@@ -452,8 +452,8 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 		     (*pskb)->nfctinfo == IP_CT_RELATED+IP_CT_IS_REPLY);
 
 	/* Redirects on non-null nats must be dropped, else they'll
-           start talking to each other without our translation, and be
-           confused... --RR */
+	   start talking to each other without our translation, and be
+	   confused... --RR */
 	if (inside->icmp.type == ICMP_REDIRECT) {
 		/* If NAT isn't finished, assume it and drop. */
 		if ((ct->status & IPS_NAT_DONE_MASK) != IPS_NAT_DONE_MASK)
@@ -469,13 +469,13 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 	if (!nf_ct_get_tuple(*pskb,
 			     (*pskb)->nh.iph->ihl*4 + sizeof(struct icmphdr),
 			     (*pskb)->nh.iph->ihl*4 +
-	                     sizeof(struct icmphdr) + inside->ip.ihl*4,
-	                     (u_int16_t)AF_INET,
-	                     inside->ip.protocol,
-	                     &inner,
-	                     l3proto,
+			     sizeof(struct icmphdr) + inside->ip.ihl*4,
+			     (u_int16_t)AF_INET,
+			     inside->ip.protocol,
+			     &inner,
+			     l3proto,
 			     __nf_ct_l4proto_find((u_int16_t)PF_INET,
-			     			  inside->ip.protocol)))
+						  inside->ip.protocol)))
 		return 0;
 
 	/* Change inner back to look like incoming packet.  We do the

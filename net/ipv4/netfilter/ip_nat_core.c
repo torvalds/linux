@@ -120,7 +120,7 @@ static int
 in_range(const struct ip_conntrack_tuple *tuple,
 	 const struct ip_nat_range *range)
 {
-	struct ip_nat_protocol *proto = 
+	struct ip_nat_protocol *proto =
 				__ip_nat_proto_find(tuple->dst.protonum);
 
 	/* If we are supposed to map IPs, then we must be in the
@@ -443,8 +443,8 @@ int ip_nat_icmp_reply_translation(struct ip_conntrack *ct,
 		     (*pskb)->nfctinfo == IP_CT_RELATED+IP_CT_IS_REPLY);
 
 	/* Redirects on non-null nats must be dropped, else they'll
-           start talking to each other without our translation, and be
-           confused... --RR */
+	   start talking to each other without our translation, and be
+	   confused... --RR */
 	if (inside->icmp.type == ICMP_REDIRECT) {
 		/* If NAT isn't finished, assume it and drop. */
 		if ((ct->status & IPS_NAT_DONE_MASK) != IPS_NAT_DONE_MASK)
@@ -458,8 +458,8 @@ int ip_nat_icmp_reply_translation(struct ip_conntrack *ct,
 	       *pskb, manip, dir == IP_CT_DIR_ORIGINAL ? "ORIG" : "REPLY");
 
 	if (!ip_ct_get_tuple(&inside->ip, *pskb, (*pskb)->nh.iph->ihl*4 +
-	                     sizeof(struct icmphdr) + inside->ip.ihl*4,
-	                     &inner,
+			     sizeof(struct icmphdr) + inside->ip.ihl*4,
+			     &inner,
 			     __ip_conntrack_proto_find(inside->ip.protocol)))
 		return 0;
 
@@ -537,7 +537,7 @@ EXPORT_SYMBOL(ip_nat_protocol_unregister);
 #if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
     defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
 int
-ip_nat_port_range_to_nfattr(struct sk_buff *skb, 
+ip_nat_port_range_to_nfattr(struct sk_buff *skb,
 			    const struct ip_nat_range *range)
 {
 	NFA_PUT(skb, CTA_PROTONAT_PORT_MIN, sizeof(__be16),
@@ -555,21 +555,21 @@ int
 ip_nat_port_nfattr_to_range(struct nfattr *tb[], struct ip_nat_range *range)
 {
 	int ret = 0;
-	
+
 	/* we have to return whether we actually parsed something or not */
 
 	if (tb[CTA_PROTONAT_PORT_MIN-1]) {
 		ret = 1;
-		range->min.tcp.port = 
+		range->min.tcp.port =
 			*(__be16 *)NFA_DATA(tb[CTA_PROTONAT_PORT_MIN-1]);
 	}
-	
+
 	if (!tb[CTA_PROTONAT_PORT_MAX-1]) {
-		if (ret) 
+		if (ret)
 			range->max.tcp.port = range->min.tcp.port;
 	} else {
 		ret = 1;
-		range->max.tcp.port = 
+		range->max.tcp.port =
 			*(__be16 *)NFA_DATA(tb[CTA_PROTONAT_PORT_MAX-1]);
 	}
 
