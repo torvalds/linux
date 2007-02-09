@@ -153,7 +153,7 @@ static int inet_csk_diag_fill(struct sock *sk,
 rtattr_failure:
 nlmsg_failure:
 	skb_trim(skb, b - skb->data);
-	return -1;
+	return -EMSGSIZE;
 }
 
 static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
@@ -209,7 +209,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 	return skb->len;
 nlmsg_failure:
 	skb_trim(skb, previous_tail - skb->data);
-	return -1;
+	return -EMSGSIZE;
 }
 
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
@@ -274,11 +274,14 @@ static int inet_diag_get_exact(struct sk_buff *in_skb,
 	if (!rep)
 		goto out;
 
-	if (sk_diag_fill(sk, rep, req->idiag_ext,
-			 NETLINK_CB(in_skb).pid,
-			 nlh->nlmsg_seq, 0, nlh) <= 0)
-		BUG();
-
+	err = sk_diag_fill(sk, rep, req->idiag_ext,
+			   NETLINK_CB(in_skb).pid,
+			   nlh->nlmsg_seq, 0, nlh);
+	if (err < 0) {
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(rep);
+		goto out;
+	}
 	err = netlink_unicast(idiagnl, rep, NETLINK_CB(in_skb).pid,
 			      MSG_DONTWAIT);
 	if (err > 0)
@@ -775,7 +778,7 @@ next_normal:
 			struct inet_timewait_sock *tw;
 
 			inet_twsk_for_each(tw, node,
-				    &hashinfo->ehash[i + hashinfo->ehash_size].chain) {
+				    &head->twchain) {
 
 				if (num < s_num)
 					goto next_dying;

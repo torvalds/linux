@@ -33,6 +33,7 @@ header-y += xt_tcpmss.h
 header-y += xt_tcpudp.h
 header-y += xt_SECMARK.h
 header-y += xt_CONNSECMARK.h
+header-y += xt_TCPMSS.h
 
 unifdef-y += nf_conntrack_common.h
 unifdef-y += nf_conntrack_ftp.h

@@ -9,12 +9,13 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 
-#include <linux/netfilter_ipv6/ip6_tables.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6t_HL.h>
 
 MODULE_AUTHOR("Maciej Soltysiak <solt@dns.toxicfilms.tv>");
-MODULE_DESCRIPTION("IP tables Hop Limit modification module");
+MODULE_DESCRIPTION("IP6 tables Hop Limit modification module");
 MODULE_LICENSE("GPL");
 
 static unsigned int ip6t_hl_target(struct sk_buff **pskb, 
@@ -52,10 +53,9 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 			break;
 	}
 
-	if (new_hl != ip6h->hop_limit)
-		ip6h->hop_limit = new_hl;
+	ip6h->hop_limit = new_hl;
 
-	return IP6T_CONTINUE;
+	return XT_CONTINUE;
 }
 
 static int ip6t_hl_checkentry(const char *tablename,
@@ -79,8 +79,9 @@ static int ip6t_hl_checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ip6t_target ip6t_HL = { 
+static struct xt_target ip6t_HL = {
 	.name 		= "HL", 
+	.family		= AF_INET6,
 	.target		= ip6t_hl_target, 
 	.targetsize	= sizeof(struct ip6t_HL_info),
 	.table		= "mangle",
@@ -90,12 +91,12 @@ static struct ip6t_target ip6t_HL = {
 
 static int __init ip6t_hl_init(void)
 {
-	return ip6t_register_target(&ip6t_HL);
+	return xt_register_target(&ip6t_HL);
 }
 
 static void __exit ip6t_hl_fini(void)
 {
-	ip6t_unregister_target(&ip6t_HL);
+	xt_unregister_target(&ip6t_HL);
 }
 
 module_init(ip6t_hl_init);

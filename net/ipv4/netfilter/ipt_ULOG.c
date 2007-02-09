@@ -57,7 +57,7 @@
 #include <linux/mm.h>
 #include <linux/moduleparam.h>
 #include <linux/netfilter.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ipt_ULOG.h>
 #include <net/sock.h>
 #include <linux/bitops.h>
@@ -132,7 +132,6 @@ static void ulog_send(unsigned int nlgroupnum)
 	ub->qlen = 0;
 	ub->skb = NULL;
 	ub->lastnlh = NULL;
-
 }
 
 
@@ -314,7 +313,7 @@ static unsigned int ipt_ulog_target(struct sk_buff **pskb,
 
 	ipt_ulog_packet(hooknum, *pskb, in, out, loginfo, NULL);
  
- 	return IPT_CONTINUE;
+	return XT_CONTINUE;
 }
  
 static void ipt_logfn(unsigned int pf,
@@ -363,8 +362,9 @@ static int ipt_ulog_checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ipt_target ipt_ulog_reg = {
+static struct xt_target ipt_ulog_reg = {
 	.name		= "ULOG",
+	.family		= AF_INET,
 	.target		= ipt_ulog_target,
 	.targetsize	= sizeof(struct ipt_ulog_info),
 	.checkentry	= ipt_ulog_checkentry,
@@ -379,7 +379,7 @@ static struct nf_logger ipt_ulog_logger = {
 
 static int __init ipt_ulog_init(void)
 {
-	int i;
+	int ret, i;
 
 	DEBUGP("ipt_ULOG: init module\n");
 
@@ -400,9 +400,10 @@ static int __init ipt_ulog_init(void)
 	if (!nflognl)
 		return -ENOMEM;
 
-	if (ipt_register_target(&ipt_ulog_reg) != 0) {
+	ret = xt_register_target(&ipt_ulog_reg);
+	if (ret < 0) {
 		sock_release(nflognl->sk_socket);
-		return -EINVAL;
+		return ret;
 	}
 	if (nflog)
 		nf_log_register(PF_INET, &ipt_ulog_logger);
@@ -419,7 +420,7 @@ static void __exit ipt_ulog_fini(void)
 
 	if (nflog)
 		nf_log_unregister_logger(&ipt_ulog_logger);
-	ipt_unregister_target(&ipt_ulog_reg);
+	xt_unregister_target(&ipt_ulog_reg);
 	sock_release(nflognl->sk_socket);
 
 	/* remove pending timers and free allocated skb's */
@@ -435,7 +436,6 @@ static void __exit ipt_ulog_fini(void)
 			ub->skb = NULL;
 		}
 	}
-
 }
 
 module_init(ipt_ulog_init);

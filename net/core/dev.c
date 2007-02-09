@@ -3247,7 +3247,7 @@ void synchronize_net(void)
  *	unregister_netdev() instead of this.
  */
 
-int unregister_netdevice(struct net_device *dev)
+void unregister_netdevice(struct net_device *dev)
 {
 	struct net_device *d, **dp;
 
@@ -3258,7 +3258,9 @@ int unregister_netdevice(struct net_device *dev)
 	if (dev->reg_state == NETREG_UNINITIALIZED) {
 		printk(KERN_DEBUG "unregister_netdevice: device %s/%p never "
 				  "was registered\n", dev->name, dev);
-		return -ENODEV;
+
+		WARN_ON(1);
+		return;
 	}
 
 	BUG_ON(dev->reg_state != NETREG_REGISTERED);
@@ -3280,11 +3282,7 @@ int unregister_netdevice(struct net_device *dev)
 			break;
 		}
 	}
-	if (!d) {
-		printk(KERN_ERR "unregister net_device: '%s' not found\n",
-		       dev->name);
-		return -ENODEV;
-	}
+	BUG_ON(!d);
 
 	dev->reg_state = NETREG_UNREGISTERING;
 
@@ -3316,7 +3314,6 @@ int unregister_netdevice(struct net_device *dev)
 	synchronize_net();
 
 	dev_put(dev);
-	return 0;
 }
 
 /**

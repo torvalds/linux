@@ -815,7 +815,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
+	if ((err = xfrm_lookup(&dst, &fl, sk, 1)) < 0)
 		goto out;
 
 	if (hlimit < 0) {
@@ -1094,10 +1094,19 @@ static void rawv6_close(struct sock *sk, long timeout)
 
 static int rawv6_init_sk(struct sock *sk)
 {
-	if (inet_sk(sk)->num == IPPROTO_ICMPV6) {
-		struct raw6_sock *rp = raw6_sk(sk);
+	struct raw6_sock *rp = raw6_sk(sk);
+
+	switch (inet_sk(sk)->num) {
+	case IPPROTO_ICMPV6:
 		rp->checksum = 1;
 		rp->offset   = 2;
+		break;
+	case IPPROTO_MH:
+		rp->checksum = 1;
+		rp->offset   = 4;
+		break;
+	default:
+		break;
 	}
 	return(0);
 }

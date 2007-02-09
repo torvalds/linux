@@ -16,6 +16,7 @@
 
 #include <asm/byteorder.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/netfilter_ipv6/ip6t_rt.h>
 
@@ -221,8 +222,9 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ip6t_match rt_match = {
+static struct xt_match rt_match = {
 	.name		= "rt",
+	.family		= AF_INET6,
 	.match		= match,
 	.matchsize	= sizeof(struct ip6t_rt),
 	.checkentry	= checkentry,
@@ -231,12 +233,12 @@ static struct ip6t_match rt_match = {
 
 static int __init ip6t_rt_init(void)
 {
-	return ip6t_register_match(&rt_match);
+	return xt_register_match(&rt_match);
 }
 
 static void __exit ip6t_rt_fini(void)
 {
-	ip6t_unregister_match(&rt_match);
+	xt_unregister_match(&rt_match);
 }
 
 module_init(ip6t_rt_init);

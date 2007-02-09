@@ -22,6 +22,7 @@
 #include <net/tcp.h>
 #include <net/route.h>
 #include <net/dst.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_REJECT.h>
 #ifdef CONFIG_BRIDGE_NETFILTER
@@ -116,7 +117,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 
 	/* Adjust TCP checksum */
 	tcph->check = 0;
-	tcph->check = tcp_v4_check(tcph, sizeof(struct tcphdr),
+	tcph->check = tcp_v4_check(sizeof(struct tcphdr),
 				   nskb->nh.iph->saddr,
 				   nskb->nh.iph->daddr,
 				   csum_partial((char *)tcph,
@@ -230,7 +231,7 @@ static int check(const char *tablename,
 	} else if (rejinfo->with == IPT_TCP_RESET) {
 		/* Must specify that it's a TCP packet */
 		if (e->ip.proto != IPPROTO_TCP
-		    || (e->ip.invflags & IPT_INV_PROTO)) {
+		    || (e->ip.invflags & XT_INV_PROTO)) {
 			DEBUGP("REJECT: TCP_RESET invalid for non-tcp\n");
 			return 0;
 		}
@@ -238,8 +239,9 @@ static int check(const char *tablename,
 	return 1;
 }
 
-static struct ipt_target ipt_reject_reg = {
+static struct xt_target ipt_reject_reg = {
 	.name		= "REJECT",
+	.family		= AF_INET,
 	.target		= reject,
 	.targetsize	= sizeof(struct ipt_reject_info),
 	.table		= "filter",
@@ -251,12 +253,12 @@ static struct ipt_target ipt_reject_reg = {
 
 static int __init ipt_reject_init(void)
 {
-	return ipt_register_target(&ipt_reject_reg);
+	return xt_register_target(&ipt_reject_reg);
 }
 
 static void __exit ipt_reject_fini(void)
 {
-	ipt_unregister_target(&ipt_reject_reg);
+	xt_unregister_target(&ipt_reject_reg);
 }
 
 module_init(ipt_reject_init);

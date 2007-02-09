@@ -3117,7 +3117,7 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(struct ifaddrmsg), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	put_ifaddrmsg(nlh, ifa->prefix_len, ifa->flags, rt_scope(ifa->scope),
 		      ifa->idev->dev->ifindex);
@@ -3137,8 +3137,10 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 	}
 
 	if (nla_put(skb, IFA_ADDRESS, 16, &ifa->addr) < 0 ||
-	    put_cacheinfo(skb, ifa->cstamp, ifa->tstamp, preferred, valid) < 0)
-		return nlmsg_cancel(skb, nlh);
+	    put_cacheinfo(skb, ifa->cstamp, ifa->tstamp, preferred, valid) < 0) {
+		nlmsg_cancel(skb, nlh);
+		return -EMSGSIZE;
+	}
 
 	return nlmsg_end(skb, nlh);
 }
@@ -3155,13 +3157,15 @@ static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(struct ifaddrmsg), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	put_ifaddrmsg(nlh, 128, IFA_F_PERMANENT, scope, ifindex);
 	if (nla_put(skb, IFA_MULTICAST, 16, &ifmca->mca_addr) < 0 ||
 	    put_cacheinfo(skb, ifmca->mca_cstamp, ifmca->mca_tstamp,
-			  INFINITY_LIFE_TIME, INFINITY_LIFE_TIME) < 0)
-		return nlmsg_cancel(skb, nlh);
+			  INFINITY_LIFE_TIME, INFINITY_LIFE_TIME) < 0) {
+		nlmsg_cancel(skb, nlh);
+		return -EMSGSIZE;
+	}
 
 	return nlmsg_end(skb, nlh);
 }
@@ -3178,13 +3182,15 @@ static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(struct ifaddrmsg), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	put_ifaddrmsg(nlh, 128, IFA_F_PERMANENT, scope, ifindex);
 	if (nla_put(skb, IFA_ANYCAST, 16, &ifaca->aca_addr) < 0 ||
 	    put_cacheinfo(skb, ifaca->aca_cstamp, ifaca->aca_tstamp,
-			  INFINITY_LIFE_TIME, INFINITY_LIFE_TIME) < 0)
-		return nlmsg_cancel(skb, nlh);
+			  INFINITY_LIFE_TIME, INFINITY_LIFE_TIME) < 0) {
+		nlmsg_cancel(skb, nlh);
+		return -EMSGSIZE;
+	}
 
 	return nlmsg_end(skb, nlh);
 }
@@ -3334,9 +3340,12 @@ static int inet6_rtm_getaddr(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 
 	err = inet6_fill_ifaddr(skb, ifa, NETLINK_CB(in_skb).pid,
 				nlh->nlmsg_seq, RTM_NEWADDR, 0);
-	/* failure implies BUG in inet6_ifaddr_msgsize() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in inet6_ifaddr_msgsize() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout_ifa;
+	}
 	err = rtnl_unicast(skb, NETLINK_CB(in_skb).pid);
 errout_ifa:
 	in6_ifa_put(ifa);
@@ -3354,9 +3363,12 @@ static void inet6_ifa_notify(int event, struct inet6_ifaddr *ifa)
 		goto errout;
 
 	err = inet6_fill_ifaddr(skb, ifa, 0, 0, event, 0);
-	/* failure implies BUG in inet6_ifaddr_msgsize() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in inet6_ifaddr_msgsize() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, 0, RTNLGRP_IPV6_IFADDR, NULL, GFP_ATOMIC);
 errout:
 	if (err < 0)
@@ -3426,7 +3438,7 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*hdr), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	hdr = nlmsg_data(nlh);
 	hdr->ifi_family = AF_INET6;
@@ -3469,7 +3481,8 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
@@ -3507,9 +3520,12 @@ void inet6_ifinfo_notify(int event, struct inet6_dev *idev)
 		goto errout;
 
 	err = inet6_fill_ifinfo(skb, idev, 0, 0, event, 0);
-	/* failure implies BUG in inet6_if_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in inet6_if_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, 0, RTNLGRP_IPV6_IFADDR, NULL, GFP_ATOMIC);
 errout:
 	if (err < 0)
@@ -3533,7 +3549,7 @@ static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*pmsg), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	pmsg = nlmsg_data(nlh);
 	pmsg->prefix_family = AF_INET6;
@@ -3558,7 +3574,8 @@ static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 static void inet6_prefix_notify(int event, struct inet6_dev *idev, 
@@ -3572,9 +3589,12 @@ static void inet6_prefix_notify(int event, struct inet6_dev *idev,
 		goto errout;
 
 	err = inet6_fill_prefix(skb, idev, pinfo, 0, 0, event, 0);
-	/* failure implies BUG in inet6_prefix_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in inet6_prefix_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, 0, RTNLGRP_IPV6_PREFIX, NULL, GFP_ATOMIC);
 errout:
 	if (err < 0)

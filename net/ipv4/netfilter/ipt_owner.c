@@ -15,7 +15,7 @@
 #include <net/sock.h>
 
 #include <linux/netfilter_ipv4/ipt_owner.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter/x_tables.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
@@ -68,8 +68,9 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ipt_match owner_match = {
+static struct xt_match owner_match = {
 	.name		= "owner",
+	.family		= AF_INET,
 	.match		= match,
 	.matchsize	= sizeof(struct ipt_owner_info),
 	.hooks		= (1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_POST_ROUTING),
@@ -79,12 +80,12 @@ static struct ipt_match owner_match = {
 
 static int __init ipt_owner_init(void)
 {
-	return ipt_register_match(&owner_match);
+	return xt_register_match(&owner_match);
 }
 
 static void __exit ipt_owner_fini(void)
 {
-	ipt_unregister_match(&owner_match);
+	xt_unregister_match(&owner_match);
 }
 
 module_init(ipt_owner_init);

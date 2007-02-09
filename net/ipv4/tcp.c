@@ -2415,10 +2415,11 @@ void __init tcp_init(void)
 					&tcp_hashinfo.ehash_size,
 					NULL,
 					0);
-	tcp_hashinfo.ehash_size = (1 << tcp_hashinfo.ehash_size) >> 1;
-	for (i = 0; i < (tcp_hashinfo.ehash_size << 1); i++) {
+	tcp_hashinfo.ehash_size = 1 << tcp_hashinfo.ehash_size;
+	for (i = 0; i < tcp_hashinfo.ehash_size; i++) {
 		rwlock_init(&tcp_hashinfo.ehash[i].lock);
 		INIT_HLIST_HEAD(&tcp_hashinfo.ehash[i].chain);
+		INIT_HLIST_HEAD(&tcp_hashinfo.ehash[i].twchain);
 	}
 
 	tcp_hashinfo.bhash =
@@ -2475,7 +2476,7 @@ void __init tcp_init(void)
 
 	printk(KERN_INFO "TCP: Hash tables configured "
 	       "(established %d bind %d)\n",
-	       tcp_hashinfo.ehash_size << 1, tcp_hashinfo.bhash_size);
+	       tcp_hashinfo.ehash_size, tcp_hashinfo.bhash_size);
 
 	tcp_register_congestion_control(&tcp_reno);
 }

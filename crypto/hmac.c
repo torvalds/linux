@@ -172,15 +172,16 @@ static int hmac_digest(struct hash_desc *pdesc, struct scatterlist *sg,
 
 static int hmac_init_tfm(struct crypto_tfm *tfm)
 {
+	struct crypto_hash *hash;
 	struct crypto_instance *inst = (void *)tfm->__crt_alg;
 	struct crypto_spawn *spawn = crypto_instance_ctx(inst);
 	struct hmac_ctx *ctx = hmac_ctx(__crypto_hash_cast(tfm));
 
-	tfm = crypto_spawn_tfm(spawn);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
+	hash = crypto_spawn_hash(spawn);
+	if (IS_ERR(hash))
+		return PTR_ERR(hash);
 
-	ctx->child = crypto_hash_cast(tfm);
+	ctx->child = hash;
 	return 0;
 }
 

@@ -252,10 +252,13 @@ struct xfrm_state_afinfo {
 						xfrm_address_t *daddr, xfrm_address_t *saddr);
 	int			(*tmpl_sort)(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n);
 	int			(*state_sort)(struct xfrm_state **dst, struct xfrm_state **src, int n);
+	int			(*output)(struct sk_buff *skb);
 };
 
 extern int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo);
 extern int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo);
+extern struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family);
+extern void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
 
 extern void xfrm_state_delete_tunnel(struct xfrm_state *x);
 
@@ -359,6 +362,19 @@ struct xfrm_policy
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
 };
 
+struct xfrm_migrate {
+	xfrm_address_t		old_daddr;
+	xfrm_address_t		old_saddr;
+	xfrm_address_t		new_daddr;
+	xfrm_address_t		new_saddr;
+	u8			proto;
+	u8			mode;
+	u16			reserved;
+	u32			reqid;
+	u16			old_family;
+	u16			new_family;
+};
+
 #define XFRM_KM_TIMEOUT                30
 /* which seqno */
 #define XFRM_REPLAY_SEQ		1
@@ -385,6 +401,7 @@ struct xfrm_mgr
 	int			(*new_mapping)(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport);
 	int			(*notify_policy)(struct xfrm_policy *x, int dir, struct km_event *c);
 	int			(*report)(u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr);
+	int			(*migrate)(struct xfrm_selector *sel, u8 dir, u8 type, struct xfrm_migrate *m, int num_bundles);
 };
 
 extern int xfrm_register_km(struct xfrm_mgr *km);
@@ -985,6 +1002,16 @@ extern int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
 			  struct flowi *fl, int family, int strict);
 extern void xfrm_init_pmtu(struct dst_entry *dst);
 
+#ifdef CONFIG_XFRM_MIGRATE
+extern int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
+		      struct xfrm_migrate *m, int num_bundles);
+extern struct xfrm_state * xfrm_migrate_state_find(struct xfrm_migrate *m);
+extern struct xfrm_state * xfrm_state_migrate(struct xfrm_state *x,
+					      struct xfrm_migrate *m);
+extern int xfrm_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
+			struct xfrm_migrate *m, int num_bundles);
+#endif
+
 extern wait_queue_head_t km_waitq;
 extern int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport);
 extern void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid);
@@ -1050,5 +1077,25 @@ static inline void xfrm_aevent_doreplay(struct xfrm_state *x)
 		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 }
 
+#ifdef CONFIG_XFRM_MIGRATE
+static inline struct xfrm_algo *xfrm_algo_clone(struct xfrm_algo *orig)
+{
+	return (struct xfrm_algo *)kmemdup(orig, sizeof(*orig) + orig->alg_key_len, GFP_KERNEL);
+}
+
+static inline void xfrm_states_put(struct xfrm_state **states, int n)
+{
+	int i;
+	for (i = 0; i < n; i++)
+		xfrm_state_put(*(states + i));
+}
+
+static inline void xfrm_states_delete(struct xfrm_state **states, int n)
+{
+	int i;
+	for (i = 0; i < n; i++)
+		xfrm_state_delete(*(states + i));
+}
+#endif
 
 #endif	/* _NET_XFRM_H */
