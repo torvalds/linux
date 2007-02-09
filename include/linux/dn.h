@@ -113,7 +113,7 @@ struct accessdata_dn
  * DECnet logical link information structure
  */
 struct linkinfo_dn {
-        __le16  idn_segsize;    /* Segment size for link */
+        __u16  idn_segsize;    /* Segment size for link */
         __u8   idn_linkstate;  /* Logical link state    */
 };
 
