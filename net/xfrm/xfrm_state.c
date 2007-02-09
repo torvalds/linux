@@ -227,7 +227,7 @@ static inline unsigned long make_jiffies(long secs)
 	if (secs >= (MAX_SCHEDULE_TIMEOUT-1)/HZ)
 		return MAX_SCHEDULE_TIMEOUT-1;
 	else
-	        return secs*HZ;
+		return secs*HZ;
 }
 
 static void xfrm_timer_handler(unsigned long data)
@@ -523,7 +523,7 @@ static void xfrm_hash_grow_check(int have_hash_collision)
 }
 
 struct xfrm_state *
-xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr, 
+xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		struct flowi *fl, struct xfrm_tmpl *tmpl,
 		struct xfrm_policy *pol, int *err,
 		unsigned short family)
@@ -534,7 +534,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 	int acquire_in_progress = 0;
 	int error = 0;
 	struct xfrm_state *best = NULL;
-	
+
 	spin_lock_bh(&xfrm_state_lock);
 	hlist_for_each_entry(x, entry, xfrm_state_bydst+h, bydst) {
 		if (x->props.family == family &&
@@ -570,7 +570,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 				acquire_in_progress = 1;
 			} else if (x->km.state == XFRM_STATE_ERROR ||
 				   x->km.state == XFRM_STATE_EXPIRED) {
- 				if (xfrm_selector_match(&x->sel, fl, family) &&
+				if (xfrm_selector_match(&x->sel, fl, family) &&
 				    security_xfrm_state_pol_flow_match(x, pol, fl))
 					error = -ESRCH;
 			}
@@ -866,7 +866,7 @@ struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 	}
 	x->props.calgo = orig->props.calgo;
 
-        if (orig->encap) {
+	if (orig->encap) {
 		x->encap = kmemdup(orig->encap, sizeof(*x->encap), GFP_KERNEL);
 		if (!x->encap)
 			goto error;
@@ -947,7 +947,7 @@ struct xfrm_state * xfrm_migrate_state_find(struct xfrm_migrate *m)
 		}
 	}
 
-        return NULL;
+	return NULL;
 }
 EXPORT_SYMBOL(xfrm_migrate_state_find);
 
@@ -1121,8 +1121,8 @@ xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr,
 EXPORT_SYMBOL(xfrm_state_lookup_byaddr);
 
 struct xfrm_state *
-xfrm_find_acq(u8 mode, u32 reqid, u8 proto, 
-	      xfrm_address_t *daddr, xfrm_address_t *saddr, 
+xfrm_find_acq(u8 mode, u32 reqid, u8 proto,
+	      xfrm_address_t *daddr, xfrm_address_t *saddr,
 	      int create, unsigned short family)
 {
 	struct xfrm_state *x;
@@ -1738,7 +1738,7 @@ error:
 }
 
 EXPORT_SYMBOL(xfrm_init_state);
- 
+
 void __init xfrm_state_init(void)
 {
 	unsigned int sz;

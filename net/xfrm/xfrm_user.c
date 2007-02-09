@@ -48,7 +48,7 @@ static int verify_one_alg(struct rtattr **xfrma, enum xfrm_attr_type_t type)
 
 	algp = RTA_DATA(rt);
 
-	len -= (algp->alg_key_len + 7U) / 8; 
+	len -= (algp->alg_key_len + 7U) / 8;
 	if (len < 0)
 		return -EINVAL;
 
@@ -1107,7 +1107,7 @@ static int copy_sec_ctx(struct xfrm_sec_ctx *s, struct sk_buff *skb)
 	uctx->ctx_alg = s->ctx_alg;
 	uctx->ctx_len = s->ctx_len;
 	memcpy(uctx + 1, s->ctx_str, s->ctx_len);
- 	return 0;
+	return 0;
 
  rtattr_failure:
 	return -1;
@@ -2467,7 +2467,7 @@ static int __init xfrm_user_init(void)
 	printk(KERN_INFO "Initializing XFRM netlink socket\n");
 
 	nlsk = netlink_kernel_create(NETLINK_XFRM, XFRMNLGRP_MAX,
-	                             xfrm_netlink_rcv, THIS_MODULE);
+				     xfrm_netlink_rcv, THIS_MODULE);
 	if (nlsk == NULL)
 		return -ENOMEM;
 	rcu_assign_pointer(xfrm_nl, nlsk);

@@ -1,4 +1,4 @@
-/* 
+/*
  * xfrm_policy.c
  *
  * Changes:
@@ -151,7 +151,7 @@ retry:
 	return type;
 }
 
-int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, 
+int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl,
 		    unsigned short family)
 {
 	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
@@ -262,7 +262,7 @@ static inline unsigned long make_jiffies(long secs)
 	if (secs >= (MAX_SCHEDULE_TIMEOUT-1)/HZ)
 		return MAX_SCHEDULE_TIMEOUT-1;
 	else
-	        return secs*HZ;
+		return secs*HZ;
 }
 
 static void xfrm_policy_timer(unsigned long data)
@@ -1024,17 +1024,17 @@ end:
 static inline int policy_to_flow_dir(int dir)
 {
 	if (XFRM_POLICY_IN == FLOW_DIR_IN &&
- 	    XFRM_POLICY_OUT == FLOW_DIR_OUT &&
- 	    XFRM_POLICY_FWD == FLOW_DIR_FWD)
- 		return dir;
- 	switch (dir) {
- 	default:
- 	case XFRM_POLICY_IN:
- 		return FLOW_DIR_IN;
- 	case XFRM_POLICY_OUT:
- 		return FLOW_DIR_OUT;
- 	case XFRM_POLICY_FWD:
- 		return FLOW_DIR_FWD;
+	    XFRM_POLICY_OUT == FLOW_DIR_OUT &&
+	    XFRM_POLICY_FWD == FLOW_DIR_FWD)
+		return dir;
+	switch (dir) {
+	default:
+	case XFRM_POLICY_IN:
+		return FLOW_DIR_IN;
+	case XFRM_POLICY_OUT:
+		return FLOW_DIR_OUT;
+	case XFRM_POLICY_FWD:
+		return FLOW_DIR_FWD;
 	};
 }
 
@@ -1044,9 +1044,9 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(struct sock *sk, int dir, struc
 
 	read_lock_bh(&xfrm_policy_lock);
 	if ((pol = sk->sk_policy[dir]) != NULL) {
- 		int match = xfrm_selector_match(&pol->selector, fl,
+		int match = xfrm_selector_match(&pol->selector, fl,
 						sk->sk_family);
- 		int err = 0;
+		int err = 0;
 
 		if (match) {
 			err = security_xfrm_policy_lookup(pol, fl->secid,
@@ -1511,7 +1511,7 @@ restart:
 	}
 	*dst_p = dst;
 	dst_release(dst_orig);
- 	xfrm_pols_put(pols, npols);
+	xfrm_pols_put(pols, npols);
 	return 0;
 
 error:
@@ -1546,7 +1546,7 @@ xfrm_secpath_reject(int idx, struct sk_buff *skb, struct flowi *fl)
  */
 
 static inline int
-xfrm_state_ok(struct xfrm_tmpl *tmpl, struct xfrm_state *x, 
+xfrm_state_ok(struct xfrm_tmpl *tmpl, struct xfrm_state *x,
 	      unsigned short family)
 {
 	if (xfrm_state_kern(x))
@@ -1619,7 +1619,7 @@ static inline int secpath_has_nontransport(struct sec_path *sp, int k, int *idxp
 	return 0;
 }
 
-int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb, 
+int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 			unsigned short family)
 {
 	struct xfrm_policy *pol;
@@ -2243,7 +2243,7 @@ static int xfrm_migrate_selector_match(struct xfrm_selector *sel_cmp,
 	if (sel_cmp->proto == IPSEC_ULPROTO_ANY) {
 		if (sel_tgt->family == sel_cmp->family &&
 		    xfrm_addr_cmp(&sel_tgt->daddr, &sel_cmp->daddr,
-			          sel_cmp->family) == 0 &&
+				  sel_cmp->family) == 0 &&
 		    xfrm_addr_cmp(&sel_tgt->saddr, &sel_cmp->saddr,
 				  sel_cmp->family) == 0 &&
 		    sel_tgt->prefixlen_d == sel_cmp->prefixlen_d &&
