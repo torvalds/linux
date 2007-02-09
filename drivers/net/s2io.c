@@ -7298,7 +7298,7 @@ static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro)
 {
 	struct iphdr *ip = lro->iph;
 	struct tcphdr *tcp = lro->tcph;
-	u16 nchk;
+	__sum16 nchk;
 	struct stat_block *statinfo = sp->mac_control.stats_info;
 	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __FUNCTION__);
 
