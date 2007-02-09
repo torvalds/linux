@@ -502,9 +502,6 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (host_encrypt)
 			ieee80211_encrypt_fragment(ieee, skb_frag, hdr_len);
 		else if (host_build_iv) {
-			struct ieee80211_crypt_data *crypt;
-
-			crypt = ieee->crypt[ieee->tx_keyidx];
 			atomic_inc(&crypt->refcnt);
 			if (crypt->ops->build_iv)
 				crypt->ops->build_iv(skb_frag, hdr_len,
