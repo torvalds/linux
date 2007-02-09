@@ -62,7 +62,7 @@ static struct kvm_stats_debugfs_item {
 	{ "halt_exits", &kvm_stat.halt_exits },
 	{ "request_irq", &kvm_stat.request_irq_exits },
 	{ "irq_exits", &kvm_stat.irq_exits },
-	{ 0, 0 }
+	{ NULL, NULL }
 };
 
 static struct dentry *debugfs_dir;
@@ -205,7 +205,7 @@ static struct kvm_vcpu *vcpu_load(struct kvm *kvm, int vcpu_slot)
 	mutex_lock(&vcpu->mutex);
 	if (unlikely(!vcpu->vmcs)) {
 		mutex_unlock(&vcpu->mutex);
-		return 0;
+		return NULL;
 	}
 	return kvm_arch_ops->vcpu_load(vcpu);
 }
@@ -257,9 +257,9 @@ static void kvm_free_physmem_slot(struct kvm_memory_slot *free,
 	if (!dont || free->dirty_bitmap != dont->dirty_bitmap)
 		vfree(free->dirty_bitmap);
 
-	free->phys_mem = 0;
+	free->phys_mem = NULL;
 	free->npages = 0;
-	free->dirty_bitmap = 0;
+	free->dirty_bitmap = NULL;
 }
 
 static void kvm_free_physmem(struct kvm *kvm)
@@ -267,7 +267,7 @@ static void kvm_free_physmem(struct kvm *kvm)
 	int i;
 
 	for (i = 0; i < kvm->nmemslots; ++i)
-		kvm_free_physmem_slot(&kvm->memslots[i], 0);
+		kvm_free_physmem_slot(&kvm->memslots[i], NULL);
 }
 
 static void kvm_free_vcpu(struct kvm_vcpu *vcpu)
@@ -640,11 +640,11 @@ raced:
 
 	/* Deallocate if slot is being removed */
 	if (!npages)
-		new.phys_mem = 0;
+		new.phys_mem = NULL;
 
 	/* Free page dirty bitmap if unneeded */
 	if (!(new.flags & KVM_MEM_LOG_DIRTY_PAGES))
-		new.dirty_bitmap = 0;
+		new.dirty_bitmap = NULL;
 
 	r = -ENOMEM;
 
@@ -799,14 +799,14 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 		    && gfn < memslot->base_gfn + memslot->npages)
 			return memslot;
 	}
-	return 0;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(gfn_to_memslot);
 
 void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
-	struct kvm_memory_slot *memslot = 0;
+	struct kvm_memory_slot *memslot = NULL;
 	unsigned long rel_gfn;
 
 	for (i = 0; i < kvm->nmemslots; ++i) {
@@ -2015,7 +2015,7 @@ static int kvm_reboot(struct notifier_block *notifier, unsigned long val,
 		 * in vmx root mode.
 		 */
 		printk(KERN_INFO "kvm: exiting hardware virtualization\n");
-		on_each_cpu(kvm_arch_ops->hardware_disable, 0, 0, 1);
+		on_each_cpu(kvm_arch_ops->hardware_disable, NULL, 0, 1);
 	}
 	return NOTIFY_OK;
 }
@@ -2029,7 +2029,7 @@ static __init void kvm_init_debug(void)
 {
 	struct kvm_stats_debugfs_item *p;
 
-	debugfs_dir = debugfs_create_dir("kvm", 0);
+	debugfs_dir = debugfs_create_dir("kvm", NULL);
 	for (p = debugfs_entries; p->name; ++p)
 		p->dentry = debugfs_create_u32(p->name, 0444, debugfs_dir,
 					       p->data);
@@ -2070,7 +2070,7 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 	if (r < 0)
 	    return r;
 
-	on_each_cpu(kvm_arch_ops->hardware_enable, 0, 0, 1);
+	on_each_cpu(kvm_arch_ops->hardware_enable, NULL, 0, 1);
 	register_reboot_notifier(&kvm_reboot_notifier);
 
 	kvm_chardev_ops.owner = module;
@@ -2085,7 +2085,7 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 
 out_free:
 	unregister_reboot_notifier(&kvm_reboot_notifier);
-	on_each_cpu(kvm_arch_ops->hardware_disable, 0, 0, 1);
+	on_each_cpu(kvm_arch_ops->hardware_disable, NULL, 0, 1);
 	kvm_arch_ops->hardware_unsetup();
 	return r;
 }
@@ -2095,7 +2095,7 @@ void kvm_exit_arch(void)
 	misc_deregister(&kvm_dev);
 
 	unregister_reboot_notifier(&kvm_reboot_notifier);
-	on_each_cpu(kvm_arch_ops->hardware_disable, 0, 0, 1);
+	on_each_cpu(kvm_arch_ops->hardware_disable, NULL, 0, 1);
 	kvm_arch_ops->hardware_unsetup();
 	kvm_arch_ops = NULL;
 }

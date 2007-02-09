@@ -274,7 +274,7 @@ static void svm_hardware_disable(void *garbage)
 		wrmsrl(MSR_VM_HSAVE_PA, 0);
 		rdmsrl(MSR_EFER, efer);
 		wrmsrl(MSR_EFER, efer & ~MSR_EFER_SVME_MASK);
-		per_cpu(svm_data, raw_smp_processor_id()) = 0;
+		per_cpu(svm_data, raw_smp_processor_id()) = NULL;
 		__free_page(svm_data->save_area);
 		kfree(svm_data);
 	}
@@ -642,7 +642,7 @@ static struct vmcb_seg *svm_seg(struct kvm_vcpu *vcpu, int seg)
 	case VCPU_SREG_LDTR: return &save->ldtr;
 	}
 	BUG();
-	return 0;
+	return NULL;
 }
 
 static u64 svm_get_segment_base(struct kvm_vcpu *vcpu, int seg)
@@ -934,7 +934,7 @@ static int io_get_override(struct kvm_vcpu *vcpu,
 		return 0;
 
 	*addr_override = 0;
-	*seg = 0;
+	*seg = NULL;
 	for (i = 0; i < ins_length; i++)
 		switch (inst[i]) {
 		case 0xf0:
@@ -1087,7 +1087,7 @@ static int cpuid_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 static int emulate_on_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	if (emulate_instruction(vcpu, 0, 0, 0) != EMULATE_DONE)
+	if (emulate_instruction(vcpu, NULL, 0, 0) != EMULATE_DONE)
 		printk(KERN_ERR "%s: failed\n", __FUNCTION__);
 	return 1;
 }
