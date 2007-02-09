@@ -3,7 +3,7 @@
  *
  *	This is ALPHA test software. This code may break your machine,
  *	randomly fail to work with new releases, misbehave and/or generally
- *	screw up. It might even work. 
+ *	screw up. It might even work.
  *
  *	This code REQUIRES 2.1.15 or higher
  *
@@ -15,7 +15,7 @@
  *
  *	History
  *	X.25 001	Split from x25_subr.c
- *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities 
+ *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities
  *					  negotiation.
  *	apr/14/05	Shaun Pereira - Allow fast select with no restriction
  *					on response.
@@ -125,8 +125,8 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 			break;
 		case X25_FAC_CLASS_D:
 			switch (*p) {
-	 		case X25_FAC_CALLING_AE:
-	 			if (p[1] > X25_MAX_DTE_FACIL_LEN)
+			case X25_FAC_CALLING_AE:
+				if (p[1] > X25_MAX_DTE_FACIL_LEN)
 					break;
 				dte_facs->calling_len = p[2];
 				memcpy(dte_facs->calling_ae, &p[3], p[1] - 1);
@@ -293,7 +293,7 @@ int x25_negotiate_facilities(struct sk_buff *skb, struct sock *sk,
 }
 
 /*
- *	Limit values of certain facilities according to the capability of the 
+ *	Limit values of certain facilities according to the capability of the
  *      currently attached x25 link.
  */
 void x25_limit_facilities(struct x25_facilities *facilities,
