@@ -1375,7 +1375,7 @@ iscsi_tcp_mtask_xmit(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask)
 	}
 
 	BUG_ON(tcp_mtask->xmstate != XMSTATE_IDLE);
-	if (mtask->hdr->itt == cpu_to_be32(ISCSI_RESERVED_TAG)) {
+	if (mtask->hdr->itt == RESERVED_ITT) {
 		struct iscsi_session *session = conn->session;
 
 		spin_lock_bh(&session->lock);
