@@ -13,7 +13,6 @@
 
 
 #include <linux/tifm.h>
-#include <linux/mmc/protocol.h>
 #include <linux/mmc/host.h>
 #include <linux/highmem.h>
 #include <linux/scatterlist.h>

@@ -33,7 +33,6 @@
 #include <linux/pnp.h>
 #include <linux/highmem.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/protocol.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>

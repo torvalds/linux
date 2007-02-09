@@ -15,7 +15,6 @@
 #include <linux/dma-mapping.h>
 
 #include <linux/mmc/host.h>
-#include <linux/mmc/protocol.h>
 
 #include <asm/scatterlist.h>
 

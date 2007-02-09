@@ -22,7 +22,6 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/protocol.h>
 #include <linux/mmc/card.h>
 #include <linux/clk.h>
 

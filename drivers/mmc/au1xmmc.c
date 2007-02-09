@@ -42,7 +42,6 @@
 #include <linux/dma-mapping.h>
 
 #include <linux/mmc/host.h>
-#include <linux/mmc/protocol.h>
 #include <asm/io.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
