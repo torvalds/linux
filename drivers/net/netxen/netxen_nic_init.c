@@ -1246,7 +1246,7 @@ int netxen_process_cmd_ring(unsigned long data)
 	 * the netdev which is associated with that device.
 	 */
 
-	consumer = *(adapter->cmd_consumer);
+	consumer = le32_to_cpu(*(adapter->cmd_consumer));
 	if (last_consumer == consumer) {	/* Ring is empty    */
 		DPRINTK(INFO, "last_consumer %d == consumer %d\n",
 			last_consumer, consumer);
@@ -1340,7 +1340,7 @@ int netxen_process_cmd_ring(unsigned long data)
 	if (adapter->last_cmd_consumer == consumer &&
 	    (((adapter->cmd_producer + 1) %
 	      adapter->max_tx_desc_count) == adapter->last_cmd_consumer)) {
-		consumer = *(adapter->cmd_consumer);
+		consumer = le32_to_cpu(*(adapter->cmd_consumer));
 	}
 	done = (adapter->last_cmd_consumer == consumer);
 

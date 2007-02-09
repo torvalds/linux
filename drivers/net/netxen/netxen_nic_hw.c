@@ -420,6 +420,7 @@ static int netxen_get_flash_block(struct netxen_adapter *adapter, int base,
 	for (i = 0; i < size / sizeof(u32); i++) {
 		if (netxen_rom_fast_read(adapter, addr, ptr32) == -1)
 			return -1;
+		*ptr32 = cpu_to_le32(*ptr32);
 		ptr32++;
 		addr += sizeof(u32);
 	}
@@ -428,6 +429,7 @@ static int netxen_get_flash_block(struct netxen_adapter *adapter, int base,
 
 		if (netxen_rom_fast_read(adapter, addr, &local) == -1)
 			return -1;
+		local = cpu_to_le32(local);
 		memcpy(ptr32, &local, (char *)buf + size - (char *)ptr32);
 	}
 
