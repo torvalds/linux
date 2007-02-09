@@ -895,7 +895,7 @@ struct aarp_iter_state {
 
 /*
  * Get the aarp entry that is in the chain described
- * by the iterator. 
+ * by the iterator.
  * If pos is set then skip till that index.
  * pos = 1 is the first entry
  */
@@ -905,7 +905,7 @@ static struct aarp_entry *iter_next(struct aarp_iter_state *iter, loff_t *pos)
 	struct aarp_entry **table = iter->table;
 	loff_t off = 0;
 	struct aarp_entry *entry;
-	
+
  rescan:
 	while(ct < AARP_HASH_SIZE) {
 		for (entry = table[ct]; entry; entry = entry->next) {
@@ -950,9 +950,9 @@ static void *aarp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	++*pos;
 
 	/* first line after header */
-	if (v == SEQ_START_TOKEN) 
+	if (v == SEQ_START_TOKEN)
 		entry = iter_next(iter, NULL);
-		
+
 	/* next entry in current bucket */
 	else if (entry->next)
 		entry = entry->next;
@@ -986,7 +986,7 @@ static int aarp_seq_show(struct seq_file *seq, void *v)
 	unsigned long now = jiffies;
 
 	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, 
+		seq_puts(seq,
 			 "Address  Interface   Hardware Address"
 			 "   Expires LastSend  Retry Status\n");
 	else {
@@ -1014,7 +1014,7 @@ static int aarp_seq_show(struct seq_file *seq, void *v)
 			   : (iter->table == unresolved) ? "unresolved"
 			   : (iter->table == proxies) ? "proxies"
 			   : "unknown");
-	}				 
+	}
 	return 0;
 }
 
@@ -1030,7 +1030,7 @@ static int aarp_seq_open(struct inode *inode, struct file *file)
 	struct seq_file *seq;
 	int rc = -ENOMEM;
 	struct aarp_iter_state *s = kmalloc(sizeof(*s), GFP_KERNEL);
-       
+
 	if (!s)
 		goto out;
 
