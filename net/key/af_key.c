@@ -152,7 +152,7 @@ static int pfkey_create(struct socket *sock, int protocol)
 	sk = sk_alloc(PF_KEY, GFP_KERNEL, &key_proto, 1);
 	if (sk == NULL)
 		goto out;
-	
+
 	sock->ops = &pfkey_ops;
 	sock_init_data(sock, sk);
 
@@ -487,7 +487,7 @@ static int parse_exthdrs(struct sk_buff *skb, struct sadb_msg *hdr, void **ext_h
 			    ext_type == SADB_X_EXT_NAT_T_OA) {
 				if (verify_address_len(p))
 					return -EINVAL;
-			}				
+			}
 			if (ext_type == SADB_X_EXT_SEC_CTX) {
 				if (verify_sec_ctx_len(p))
 					return -EINVAL;
@@ -556,12 +556,12 @@ static int pfkey_sadb_addr2xfrm_addr(struct sadb_address *addr,
 {
 	switch (((struct sockaddr*)(addr + 1))->sa_family) {
 	case AF_INET:
-		xaddr->a4 = 
+		xaddr->a4 =
 			((struct sockaddr_in *)(addr + 1))->sin_addr.s_addr;
 		return AF_INET;
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case AF_INET6:
-		memcpy(xaddr->a6, 
+		memcpy(xaddr->a6,
 		       &((struct sockaddr_in6 *)(addr + 1))->sin6_addr,
 		       sizeof(struct in6_addr));
 		return AF_INET6;
@@ -659,11 +659,11 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 
 	/* base, SA, (lifetime (HSC),) address(SD), (address(P),)
 	   key(AE), (identity(SD),) (sensitivity)> */
-	size = sizeof(struct sadb_msg) +sizeof(struct sadb_sa) + 
+	size = sizeof(struct sadb_msg) +sizeof(struct sadb_sa) +
 		sizeof(struct sadb_lifetime) +
 		((hsc & 1) ? sizeof(struct sadb_lifetime) : 0) +
 		((hsc & 2) ? sizeof(struct sadb_lifetime) : 0) +
-			sizeof(struct sadb_address)*2 + 
+			sizeof(struct sadb_address)*2 +
 				sockaddr_size*2 +
 					sizeof(struct sadb_x_sa2);
 
@@ -685,13 +685,13 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 
 	if (add_keys) {
 		if (x->aalg && x->aalg->alg_key_len) {
-			auth_key_size = 
-				PFKEY_ALIGN8((x->aalg->alg_key_len + 7) / 8); 
+			auth_key_size =
+				PFKEY_ALIGN8((x->aalg->alg_key_len + 7) / 8);
 			size += sizeof(struct sadb_key) + auth_key_size;
 		}
 		if (x->ealg && x->ealg->alg_key_len) {
-			encrypt_key_size = 
-				PFKEY_ALIGN8((x->ealg->alg_key_len+7) / 8); 
+			encrypt_key_size =
+				PFKEY_ALIGN8((x->ealg->alg_key_len+7) / 8);
 			size += sizeof(struct sadb_key) + encrypt_key_size;
 		}
 	}
@@ -758,7 +758,7 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 
 	/* hard time */
 	if (hsc & 2) {
-		lifetime = (struct sadb_lifetime *)  skb_put(skb, 
+		lifetime = (struct sadb_lifetime *)  skb_put(skb,
 							     sizeof(struct sadb_lifetime));
 		lifetime->sadb_lifetime_len =
 			sizeof(struct sadb_lifetime)/sizeof(uint64_t);
@@ -770,7 +770,7 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 	}
 	/* soft time */
 	if (hsc & 1) {
-		lifetime = (struct sadb_lifetime *)  skb_put(skb, 
+		lifetime = (struct sadb_lifetime *)  skb_put(skb,
 							     sizeof(struct sadb_lifetime));
 		lifetime->sadb_lifetime_len =
 			sizeof(struct sadb_lifetime)/sizeof(uint64_t);
@@ -791,16 +791,16 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 	lifetime->sadb_lifetime_addtime = x->curlft.add_time;
 	lifetime->sadb_lifetime_usetime = x->curlft.use_time;
 	/* src address */
-	addr = (struct sadb_address*) skb_put(skb, 
+	addr = (struct sadb_address*) skb_put(skb,
 					      sizeof(struct sadb_address)+sockaddr_size);
-	addr->sadb_address_len = 
+	addr->sadb_address_len =
 		(sizeof(struct sadb_address)+sockaddr_size)/
 			sizeof(uint64_t);
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
-	/* "if the ports are non-zero, then the sadb_address_proto field, 
-	   normally zero, MUST be filled in with the transport 
+	/* "if the ports are non-zero, then the sadb_address_proto field,
+	   normally zero, MUST be filled in with the transport
 	   protocol's number." - RFC2367 */
-	addr->sadb_address_proto = 0; 
+	addr->sadb_address_proto = 0;
 	addr->sadb_address_reserved = 0;
 	if (x->props.family == AF_INET) {
 		addr->sadb_address_prefixlen = 32;
@@ -813,29 +813,29 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 	}
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	else if (x->props.family == AF_INET6) {
- 		addr->sadb_address_prefixlen = 128;
+		addr->sadb_address_prefixlen = 128;
 
 		sin6 = (struct sockaddr_in6 *) (addr + 1);
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = 0;
 		sin6->sin6_flowinfo = 0;
- 		memcpy(&sin6->sin6_addr, x->props.saddr.a6,
+		memcpy(&sin6->sin6_addr, x->props.saddr.a6,
 		       sizeof(struct in6_addr));
 		sin6->sin6_scope_id = 0;
- 	}
+	}
 #endif
 	else
 		BUG();
 
 	/* dst address */
-	addr = (struct sadb_address*) skb_put(skb, 
+	addr = (struct sadb_address*) skb_put(skb,
 					      sizeof(struct sadb_address)+sockaddr_size);
-	addr->sadb_address_len = 
+	addr->sadb_address_len =
 		(sizeof(struct sadb_address)+sockaddr_size)/
 			sizeof(uint64_t);
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_DST;
-	addr->sadb_address_proto = 0; 
-	addr->sadb_address_prefixlen = 32; /* XXX */ 
+	addr->sadb_address_proto = 0;
+	addr->sadb_address_prefixlen = 32; /* XXX */
 	addr->sadb_address_reserved = 0;
 	if (x->props.family == AF_INET) {
 		sin = (struct sockaddr_in *) (addr + 1);
@@ -845,9 +845,9 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
 
 		if (x->sel.saddr.a4 != x->props.saddr.a4) {
-			addr = (struct sadb_address*) skb_put(skb, 
+			addr = (struct sadb_address*) skb_put(skb,
 				sizeof(struct sadb_address)+sockaddr_size);
-			addr->sadb_address_len = 
+			addr->sadb_address_len =
 				(sizeof(struct sadb_address)+sockaddr_size)/
 				sizeof(uint64_t);
 			addr->sadb_address_exttype = SADB_EXT_ADDRESS_PROXY;
@@ -876,9 +876,9 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 
 		if (memcmp (x->sel.saddr.a6, x->props.saddr.a6,
 			    sizeof(struct in6_addr))) {
-			addr = (struct sadb_address *) skb_put(skb, 
+			addr = (struct sadb_address *) skb_put(skb,
 				sizeof(struct sadb_address)+sockaddr_size);
-			addr->sadb_address_len = 
+			addr->sadb_address_len =
 				(sizeof(struct sadb_address)+sockaddr_size)/
 				sizeof(uint64_t);
 			addr->sadb_address_exttype = SADB_EXT_ADDRESS_PROXY;
@@ -902,7 +902,7 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 
 	/* auth key */
 	if (add_keys && auth_key_size) {
-		key = (struct sadb_key *) skb_put(skb, 
+		key = (struct sadb_key *) skb_put(skb,
 						  sizeof(struct sadb_key)+auth_key_size);
 		key->sadb_key_len = (sizeof(struct sadb_key) + auth_key_size) /
 			sizeof(uint64_t);
@@ -913,14 +913,14 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 	}
 	/* encrypt key */
 	if (add_keys && encrypt_key_size) {
-		key = (struct sadb_key *) skb_put(skb, 
+		key = (struct sadb_key *) skb_put(skb,
 						  sizeof(struct sadb_key)+encrypt_key_size);
-		key->sadb_key_len = (sizeof(struct sadb_key) + 
+		key->sadb_key_len = (sizeof(struct sadb_key) +
 				     encrypt_key_size) / sizeof(uint64_t);
 		key->sadb_key_exttype = SADB_EXT_KEY_ENCRYPT;
 		key->sadb_key_bits = x->ealg->alg_key_len;
 		key->sadb_key_reserved = 0;
-		memcpy(key + 1, x->ealg->alg_key, 
+		memcpy(key + 1, x->ealg->alg_key,
 		       (x->ealg->alg_key_len+7)/8);
 	}
 
@@ -979,17 +979,17 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 	return skb;
 }
 
-static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr, 
+static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr,
 						void **ext_hdrs)
 {
-	struct xfrm_state *x; 
+	struct xfrm_state *x;
 	struct sadb_lifetime *lifetime;
 	struct sadb_sa *sa;
 	struct sadb_key *key;
 	struct sadb_x_sec_ctx *sec_ctx;
 	uint16_t proto;
 	int err;
-	
+
 
 	sa = (struct sadb_sa *) ext_hdrs[SADB_EXT_SA-1];
 	if (!sa ||
@@ -1022,7 +1022,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr,
    SADB_SASTATE_MATURE and the kernel MUST return an error if this is
    not true.
 
-           However, KAME setkey always uses SADB_SASTATE_LARVAL.
+	   However, KAME setkey always uses SADB_SASTATE_LARVAL.
 	   Hence, we have to _ignore_ sadb_sa_state, which is also reasonable.
 	 */
 	if (sa->sadb_sa_auth > SADB_AALG_MAX ||
@@ -1144,13 +1144,13 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr,
 	}
 	/* x->algo.flags = sa->sadb_sa_flags; */
 
-	x->props.family = pfkey_sadb_addr2xfrm_addr((struct sadb_address *) ext_hdrs[SADB_EXT_ADDRESS_SRC-1], 
+	x->props.family = pfkey_sadb_addr2xfrm_addr((struct sadb_address *) ext_hdrs[SADB_EXT_ADDRESS_SRC-1],
 						    &x->props.saddr);
 	if (!x->props.family) {
 		err = -EAFNOSUPPORT;
 		goto out;
 	}
-	pfkey_sadb_addr2xfrm_addr((struct sadb_address *) ext_hdrs[SADB_EXT_ADDRESS_DST-1], 
+	pfkey_sadb_addr2xfrm_addr((struct sadb_address *) ext_hdrs[SADB_EXT_ADDRESS_DST-1],
 				  &x->id.daddr);
 
 	if (ext_hdrs[SADB_X_EXT_SA2-1]) {
@@ -1410,7 +1410,7 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 	struct km_event c;
 
 	xfrm_probe_algs();
-	
+
 	x = pfkey_msg2xfrm_state(hdr, ext_hdrs);
 	if (IS_ERR(x))
 		return PTR_ERR(x);
@@ -1530,13 +1530,13 @@ static struct sk_buff *compose_sadb_supported(struct sadb_msg *orig,
 		auth_len *= sizeof(struct sadb_alg);
 		auth_len += sizeof(struct sadb_supported);
 	}
-	
+
 	enc_len = xfrm_count_enc_supported();
 	if (enc_len) {
 		enc_len *= sizeof(struct sadb_alg);
 		enc_len += sizeof(struct sadb_supported);
 	}
-	
+
 	len = enc_len + auth_len + sizeof(struct sadb_msg);
 
 	skb = alloc_skb(len + 16, allocation);
@@ -1605,7 +1605,7 @@ static int pfkey_register(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 	}
 
 	xfrm_probe_algs();
-	
+
 	supp_skb = compose_sadb_supported(hdr, GFP_KERNEL);
 	if (!supp_skb) {
 		if (hdr->sadb_msg_satype != SADB_SATYPE_UNSPEC)
@@ -1856,7 +1856,7 @@ static int pfkey_xfrm_policy2msg_size(struct xfrm_policy *xp)
 
 	return sizeof(struct sadb_msg) +
 		(sizeof(struct sadb_lifetime) * 3) +
-		(sizeof(struct sadb_address) * 2) + 
+		(sizeof(struct sadb_address) * 2) +
 		(sockaddr_size * 2) +
 		sizeof(struct sadb_x_policy) +
 		(xp->xfrm_nr * sizeof(struct sadb_x_ipsecrequest)) +
@@ -1904,9 +1904,9 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 	memset(hdr, 0, size);	/* XXX do we need this ? */
 
 	/* src address */
-	addr = (struct sadb_address*) skb_put(skb, 
+	addr = (struct sadb_address*) skb_put(skb,
 					      sizeof(struct sadb_address)+sockaddr_size);
-	addr->sadb_address_len = 
+	addr->sadb_address_len =
 		(sizeof(struct sadb_address)+sockaddr_size)/
 			sizeof(uint64_t);
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
@@ -1936,14 +1936,14 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 		BUG();
 
 	/* dst address */
-	addr = (struct sadb_address*) skb_put(skb, 
+	addr = (struct sadb_address*) skb_put(skb,
 					      sizeof(struct sadb_address)+sockaddr_size);
 	addr->sadb_address_len =
 		(sizeof(struct sadb_address)+sockaddr_size)/
 			sizeof(uint64_t);
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_DST;
 	addr->sadb_address_proto = pfkey_proto_from_xfrm(xp->selector.proto);
-	addr->sadb_address_prefixlen = xp->selector.prefixlen_d; 
+	addr->sadb_address_prefixlen = xp->selector.prefixlen_d;
 	addr->sadb_address_reserved = 0;
 	if (xp->family == AF_INET) {
 		sin = (struct sockaddr_in *) (addr + 1);
@@ -1967,7 +1967,7 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 		BUG();
 
 	/* hard time */
-	lifetime = (struct sadb_lifetime *)  skb_put(skb, 
+	lifetime = (struct sadb_lifetime *)  skb_put(skb,
 						     sizeof(struct sadb_lifetime));
 	lifetime->sadb_lifetime_len =
 		sizeof(struct sadb_lifetime)/sizeof(uint64_t);
@@ -1977,7 +1977,7 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 	lifetime->sadb_lifetime_addtime = xp->lft.hard_add_expires_seconds;
 	lifetime->sadb_lifetime_usetime = xp->lft.hard_use_expires_seconds;
 	/* soft time */
-	lifetime = (struct sadb_lifetime *)  skb_put(skb, 
+	lifetime = (struct sadb_lifetime *)  skb_put(skb,
 						     sizeof(struct sadb_lifetime));
 	lifetime->sadb_lifetime_len =
 		sizeof(struct sadb_lifetime)/sizeof(uint64_t);
@@ -1987,7 +1987,7 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 	lifetime->sadb_lifetime_addtime = xp->lft.soft_add_expires_seconds;
 	lifetime->sadb_lifetime_usetime = xp->lft.soft_use_expires_seconds;
 	/* current time */
-	lifetime = (struct sadb_lifetime *)  skb_put(skb, 
+	lifetime = (struct sadb_lifetime *)  skb_put(skb,
 						     sizeof(struct sadb_lifetime));
 	lifetime->sadb_lifetime_len =
 		sizeof(struct sadb_lifetime)/sizeof(uint64_t);
@@ -2019,8 +2019,8 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 		req_size = sizeof(struct sadb_x_ipsecrequest);
 		if (t->mode == XFRM_MODE_TUNNEL)
 			req_size += ((t->encap_family == AF_INET ?
-		       		     sizeof(struct sockaddr_in) :
-		       		     sizeof(struct sockaddr_in6)) * 2);
+				     sizeof(struct sockaddr_in) :
+				     sizeof(struct sockaddr_in6)) * 2);
 		else
 			size -= 2*socklen;
 		rq = (void*)skb_put(skb, req_size);
@@ -2150,7 +2150,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 		      XFRM_POLICY_BLOCK : XFRM_POLICY_ALLOW);
 	xp->priority = pol->sadb_x_policy_priority;
 
-	sa = ext_hdrs[SADB_EXT_ADDRESS_SRC-1], 
+	sa = ext_hdrs[SADB_EXT_ADDRESS_SRC-1],
 	xp->family = pfkey_sadb_addr2xfrm_addr(sa, &xp->selector.saddr);
 	if (!xp->family) {
 		err = -EINVAL;
@@ -2163,7 +2163,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	if (xp->selector.sport)
 		xp->selector.sport_mask = htons(0xffff);
 
-	sa = ext_hdrs[SADB_EXT_ADDRESS_DST-1], 
+	sa = ext_hdrs[SADB_EXT_ADDRESS_DST-1],
 	pfkey_sadb_addr2xfrm_addr(sa, &xp->selector.daddr);
 	xp->selector.prefixlen_d = sa->sadb_address_prefixlen;
 
@@ -2224,7 +2224,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 
 	if (hdr->sadb_msg_type == SADB_X_SPDUPDATE)
 		c.event = XFRM_MSG_UPDPOLICY;
-	else 
+	else
 		c.event = XFRM_MSG_NEWPOLICY;
 
 	c.seq = hdr->sadb_msg_seq;
@@ -2261,7 +2261,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 
 	memset(&sel, 0, sizeof(sel));
 
-	sa = ext_hdrs[SADB_EXT_ADDRESS_SRC-1], 
+	sa = ext_hdrs[SADB_EXT_ADDRESS_SRC-1],
 	sel.family = pfkey_sadb_addr2xfrm_addr(sa, &sel.saddr);
 	sel.prefixlen_s = sa->sadb_address_prefixlen;
 	sel.proto = pfkey_proto_to_xfrm(sa->sadb_address_proto);
@@ -2269,7 +2269,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	if (sel.sport)
 		sel.sport_mask = htons(0xffff);
 
-	sa = ext_hdrs[SADB_EXT_ADDRESS_DST-1], 
+	sa = ext_hdrs[SADB_EXT_ADDRESS_DST-1],
 	pfkey_sadb_addr2xfrm_addr(sa, &sel.daddr);
 	sel.prefixlen_d = sa->sadb_address_prefixlen;
 	sel.proto = pfkey_proto_to_xfrm(sa->sadb_address_proto);
@@ -2743,15 +2743,15 @@ static int count_esp_combs(struct xfrm_tmpl *t)
 		struct xfrm_algo_desc *ealg = xfrm_ealg_get_byidx(i);
 		if (!ealg)
 			break;
-			
+
 		if (!(ealg_tmpl_set(t, ealg) && ealg->available))
 			continue;
-			
+
 		for (k = 1; ; k++) {
 			struct xfrm_algo_desc *aalg = xfrm_aalg_get_byidx(k);
 			if (!aalg)
 				break;
-				
+
 			if (aalg_tmpl_set(t, aalg) && aalg->available)
 				sz += sizeof(struct sadb_comb);
 		}
@@ -2806,10 +2806,10 @@ static void dump_esp_combs(struct sk_buff *skb, struct xfrm_tmpl *t)
 		struct xfrm_algo_desc *ealg = xfrm_ealg_get_byidx(i);
 		if (!ealg)
 			break;
-	
+
 		if (!(ealg_tmpl_set(t, ealg) && ealg->available))
 			continue;
-			
+
 		for (k = 1; ; k++) {
 			struct sadb_comb *c;
 			struct xfrm_algo_desc *aalg = xfrm_aalg_get_byidx(k);
@@ -2941,7 +2941,7 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 	struct sadb_x_sec_ctx *sec_ctx;
 	struct xfrm_sec_ctx *xfrm_ctx;
 	int ctx_size = 0;
-	
+
 	sockaddr_size = pfkey_sockaddr_size(x->props.family);
 	if (!sockaddr_size)
 		return -EINVAL;
@@ -2950,7 +2950,7 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 		(sizeof(struct sadb_address) * 2) +
 		(sockaddr_size * 2) +
 		sizeof(struct sadb_x_policy);
-	
+
 	if (x->id.proto == IPPROTO_AH)
 		size += count_ah_combs(t);
 	else if (x->id.proto == IPPROTO_ESP)
@@ -2964,7 +2964,7 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 	skb =  alloc_skb(size + 16, GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
-	
+
 	hdr = (struct sadb_msg *) skb_put(skb, sizeof(struct sadb_msg));
 	hdr->sadb_msg_version = PF_KEY_V2;
 	hdr->sadb_msg_type = SADB_ACQUIRE;
@@ -2976,9 +2976,9 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 	hdr->sadb_msg_pid = 0;
 
 	/* src address */
-	addr = (struct sadb_address*) skb_put(skb, 
+	addr = (struct sadb_address*) skb_put(skb,
 					      sizeof(struct sadb_address)+sockaddr_size);
-	addr->sadb_address_len = 
+	addr->sadb_address_len =
 		(sizeof(struct sadb_address)+sockaddr_size)/
 			sizeof(uint64_t);
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
@@ -3008,9 +3008,9 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 #endif
 	else
 		BUG();
-	
+
 	/* dst address */
-	addr = (struct sadb_address*) skb_put(skb, 
+	addr = (struct sadb_address*) skb_put(skb,
 					      sizeof(struct sadb_address)+sockaddr_size);
 	addr->sadb_address_len =
 		(sizeof(struct sadb_address)+sockaddr_size)/
@@ -3019,7 +3019,7 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 	addr->sadb_address_proto = 0;
 	addr->sadb_address_reserved = 0;
 	if (x->props.family == AF_INET) {
-		addr->sadb_address_prefixlen = 32; 
+		addr->sadb_address_prefixlen = 32;
 
 		sin = (struct sockaddr_in *) (addr + 1);
 		sin->sin_family = AF_INET;
@@ -3029,7 +3029,7 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 	}
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	else if (x->props.family == AF_INET6) {
-		addr->sadb_address_prefixlen = 128; 
+		addr->sadb_address_prefixlen = 128;
 
 		sin6 = (struct sockaddr_in6 *) (addr + 1);
 		sin6->sin6_family = AF_INET6;
@@ -3074,7 +3074,7 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 }
 
 static struct xfrm_policy *pfkey_compile_policy(struct sock *sk, int opt,
-                                                u8 *data, int len, int *dir)
+						u8 *data, int len, int *dir)
 {
 	struct xfrm_policy *xp;
 	struct sadb_x_policy *pol = (struct sadb_x_policy*)data;
@@ -3193,17 +3193,17 @@ static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, 
 	 * HDR | SA | ADDRESS_SRC (old addr) | NAT_T_SPORT (old port) |
 	 * ADDRESS_DST (new addr) | NAT_T_DPORT (new port)
 	 */
-	
+
 	size = sizeof(struct sadb_msg) +
 		sizeof(struct sadb_sa) +
 		(sizeof(struct sadb_address) * 2) +
 		(sockaddr_size * 2) +
 		(sizeof(struct sadb_x_nat_t_port) * 2);
-	
+
 	skb =  alloc_skb(size + 16, GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
-	
+
 	hdr = (struct sadb_msg *) skb_put(skb, sizeof(struct sadb_msg));
 	hdr->sadb_msg_version = PF_KEY_V2;
 	hdr->sadb_msg_type = SADB_X_NAT_T_NEW_MAPPING;
@@ -3228,7 +3228,7 @@ static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, 
 	/* ADDRESS_SRC (old addr) */
 	addr = (struct sadb_address*)
 		skb_put(skb, sizeof(struct sadb_address)+sockaddr_size);
-	addr->sadb_address_len = 
+	addr->sadb_address_len =
 		(sizeof(struct sadb_address)+sockaddr_size)/
 			sizeof(uint64_t);
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
@@ -3269,7 +3269,7 @@ static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, 
 	/* ADDRESS_DST (new addr) */
 	addr = (struct sadb_address*)
 		skb_put(skb, sizeof(struct sadb_address)+sockaddr_size);
-	addr->sadb_address_len = 
+	addr->sadb_address_len =
 		(sizeof(struct sadb_address)+sockaddr_size)/
 			sizeof(uint64_t);
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_DST;
@@ -3674,7 +3674,7 @@ static int pfkey_read_proc(char *buffer, char **start, off_t offset,
 			       );
 
 		buffer[len++] = '\n';
-		
+
 		pos = begin + len;
 		if (pos < offset) {
 			len = 0;
