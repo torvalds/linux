@@ -22,7 +22,6 @@
 #include "sdhci.h"
 
 #define DRIVER_NAME "sdhci"
-#define DRIVER_VERSION "0.12"
 
 #define BUGMAIL "<sdhci-devel@list.drzeus.cx>"
 
@@ -1528,8 +1527,7 @@ static struct pci_driver sdhci_driver = {
 static int __init sdhci_drv_init(void)
 {
 	printk(KERN_INFO DRIVER_NAME
-		": Secure Digital Host Controller Interface driver, "
-		DRIVER_VERSION "\n");
+		": Secure Digital Host Controller Interface driver\n");
 	printk(KERN_INFO DRIVER_NAME ": Copyright(c) Pierre Ossman\n");
 
 	return pci_register_driver(&sdhci_driver);
@@ -1551,7 +1549,6 @@ module_param(debug_quirks, uint, 0444);
 
 MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Secure Digital Host Controller Interface driver");
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
 MODULE_PARM_DESC(debug_nodma, "Forcefully disable DMA transfers. (default 0)");
