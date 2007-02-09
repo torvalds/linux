@@ -1,5 +1,5 @@
 /*
- * bios-less APM driver for ARM Linux 
+ * bios-less APM driver for ARM Linux
  *  Jamey Hicks <jamey@crl.dec.com>
  *  adapted from the APM BIOS driver for Linux by Stephen Rothwell (sfr@linuxcare.com)
  *
@@ -19,6 +19,7 @@
 #include <linux/capability.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
+#include <linux/apm-emulation.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -27,7 +28,6 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 
-#include <asm/apm.h> /* apm_power_info */
 #include <asm/system.h>
 
 /*
@@ -225,7 +225,7 @@ static void apm_suspend(void)
 	list_for_each_entry(as, &apm_user_list, list) {
 		if (as->suspend_state == SUSPEND_WAIT ||
 		    as->suspend_state == SUSPEND_ACKED) {
-	  		as->suspend_result = err;
+			as->suspend_result = err;
 			as->suspend_state = SUSPEND_DONE;
 		}
 	}
@@ -529,7 +529,7 @@ static int apm_get_info(char *buf, char **start, off_t fpos, int length)
 		     info.battery_flag, info.battery_life,
 		     info.time, units);
 
- 	return ret;
+	return ret;
 }
 #endif
 

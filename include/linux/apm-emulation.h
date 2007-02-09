@@ -7,11 +7,9 @@
  * based on arch/arm/kernel/apm.c
  * factor out the information needed by architectures to provide
  * apm status
- *
- *
  */
-#ifndef MIPS_ASM_SA1100_APM_H
-#define MIPS_ASM_SA1100_APM_H
+#ifndef __LINUX_APM_EMULATION_H
+#define __LINUX_APM_EMULATION_H
 
 #include <linux/apm_bios.h>
 
@@ -61,4 +59,4 @@ extern void (*apm_get_power_status)(struct apm_power_info *);
  */
 void apm_queue_event(apm_event_t event);
 
-#endif
+#endif /* __LINUX_APM_EMULATION_H */
