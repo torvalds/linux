@@ -52,7 +52,7 @@ extern void ia64_dump_cpu_regs(void *);
 static DEFINE_PER_CPU(struct elf_prstatus, elf_prstatus);
 
 void
-crash_save_this_cpu()
+crash_save_this_cpu(void)
 {
 	void *buf;
 	unsigned long cfm, sof, sol;
