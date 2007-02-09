@@ -3293,6 +3293,11 @@ L:	vtun@office.satix.net
 W:	http://vtun.sourceforge.net/tun
 S:	Maintained
 
+TURBOCHANNEL SUBSYSTEM
+P:	Maciej W. Rozycki
+M:	macro@linux-mips.org
+S:	Maintained
+
 U14-34F SCSI DRIVER
 P:	Dario Ballabio
 M:	ballabio_dario@emc.com

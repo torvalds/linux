@@ -122,7 +122,7 @@ static int mca_esp_detect(struct scsi_host_template *tpnt)
 		if ((slot = mca_find_adapter(*id_to_check, 0)) !=
 		  MCA_NOTFOUND) 
 		{
-			esp = esp_allocate(tpnt, (void *) NULL);
+			esp = esp_allocate(tpnt, NULL, 0);
 
 			pos[0] = mca_read_stored_pos(slot, 2);
 			pos[1] = mca_read_stored_pos(slot, 3);
