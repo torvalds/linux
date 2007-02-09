@@ -1351,7 +1351,7 @@ static void *rose_info_start(struct seq_file *seq, loff_t *pos)
 	spin_lock_bh(&rose_list_lock);
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
-	
+
 	i = 1;
 	sk_for_each(s, node, &rose_list) {
 		if (i == *pos)
@@ -1365,10 +1365,10 @@ static void *rose_info_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
 
-	return (v == SEQ_START_TOKEN) ? sk_head(&rose_list) 
+	return (v == SEQ_START_TOKEN) ? sk_head(&rose_list)
 		: sk_next((struct sock *)v);
 }
-	
+
 static void rose_info_stop(struct seq_file *seq, void *v)
 {
 	spin_unlock_bh(&rose_list_lock);
@@ -1379,7 +1379,7 @@ static int rose_info_show(struct seq_file *seq, void *v)
 	char buf[11];
 
 	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, 
+		seq_puts(seq,
 			 "dest_addr  dest_call src_addr   src_call  dev   lci neigh st vs vr va   t  t1  t2  t3  hb    idle Snd-Q Rcv-Q inode\n");
 
 	else {
@@ -1392,7 +1392,7 @@ static int rose_info_show(struct seq_file *seq, void *v)
 			devname = "???";
 		else
 			devname = dev->name;
-		
+
 		seq_printf(seq, "%-10s %-9s ",
 			rose2asc(&rose->dest_addr),
 			ax2asc(buf, &rose->dest_call));
@@ -1520,7 +1520,7 @@ static int __init rose_proto_init(void)
 		char name[IFNAMSIZ];
 
 		sprintf(name, "rose%d", i);
-		dev = alloc_netdev(sizeof(struct net_device_stats), 
+		dev = alloc_netdev(sizeof(struct net_device_stats),
 				   name, rose_setup);
 		if (!dev) {
 			printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate memory\n");
