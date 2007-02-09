@@ -19,10 +19,10 @@ obj-$(CONFIG_CPU_S3C2400)	+= s3c2400-gpio.o
 # S3C2410 support files
 
 obj-$(CONFIG_CPU_S3C2410)	+= s3c2410.o
-obj-$(CONFIG_CPU_S3C2410)	+= s3c2410-gpio.o
 obj-$(CONFIG_CPU_S3C2410)	+= s3c2410-irq.o
 
 obj-$(CONFIG_S3C2410_PM)	+= s3c2410-pm.o s3c2410-sleep.o
+obj-$(CONFIG_S3C2410_GPIO)	+= s3c2410-gpio.o
 obj-$(CONFIG_CPU_S3C2410_DMA)	+= s3c2410-dma.o
 
 # Power Management support
@@ -54,7 +54,6 @@ obj-$(CONFIG_S3C2410_CLOCK)	+= s3c2410-clock.o
 obj-$(CONFIG_CPU_S3C2440)	+= s3c2440.o s3c2440-dsc.o
 obj-$(CONFIG_CPU_S3C2440)	+= s3c2440-irq.o
 obj-$(CONFIG_CPU_S3C2440)	+= s3c2440-clock.o
-obj-$(CONFIG_CPU_S3C2440)	+= s3c2410-gpio.o
 obj-$(CONFIG_S3C2440_DMA)	+= s3c2440-dma.o
 
 # S3C2442 support

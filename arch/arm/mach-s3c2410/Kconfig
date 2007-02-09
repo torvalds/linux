@@ -158,6 +158,11 @@ config S3C2410_CLOCK
 	help
 	  Clock code for the S3C2410, and similar processors
 
+config S3C2410_GPIO
+	bool
+	help
+	  GPIO code for S3C2410 and similar processors
+
 config S3C2410_PM
 	bool
 	help
@@ -174,6 +179,7 @@ config CPU_S3C2410
 	bool
 	depends on ARCH_S3C2410
 	select S3C2410_CLOCK
+	select S3C2410_GPIO
 	select S3C2410_PM if PM
 	help
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
@@ -223,6 +229,7 @@ config CPU_S3C2440
 	depends on ARCH_S3C2410
 	select S3C2410_CLOCK
 	select S3C2410_PM if PM
+	select S3C2410_GPIO
 	select S3C2440_DMA if S3C2410_DMA
 	select CPU_S3C244X
 	help
@@ -232,6 +239,7 @@ config CPU_S3C2442
 	bool
 	depends on ARCH_S3C2420
 	select S3C2410_CLOCK
+	select S3C2410_GPIO
 	select S3C2410_PM if PM
 	select CPU_S3C244X
 	help
