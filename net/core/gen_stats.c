@@ -57,7 +57,7 @@ gnet_stats_start_copy_compat(struct sk_buff *skb, int type, int tc_stats_type,
 	int xstats_type, spinlock_t *lock, struct gnet_dump *d)
 {
 	memset(d, 0, sizeof(*d));
-	
+
 	spin_lock_bh(lock);
 	d->lock = lock;
 	if (type)

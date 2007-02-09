@@ -36,7 +36,7 @@
 
 
 /*
- *	Only allow a user to send credentials, that they could set with 
+ *	Only allow a user to send credentials, that they could set with
  *	setu(g)id.
  */
 
@@ -79,11 +79,11 @@ static int scm_fp_copy(struct cmsghdr *cmsg, struct scm_fp_list **fplp)
 
 	if (fpl->count + num > SCM_MAX_FD)
 		return -EINVAL;
-	
+
 	/*
 	 *	Verify the descriptors and increment the usage count.
 	 */
-	 
+
 	for (i=0; i< num; i++)
 	{
 		int fd = fdp[i];
@@ -123,7 +123,7 @@ int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 		/* The first check was omitted in <= 2.2.5. The reasoning was
 		   that parser checks cmsg_len in any case, so that
 		   additional check would be work duplication.
-		   But if cmsg_level is not SOL_SOCKET, we do not check 
+		   But if cmsg_level is not SOL_SOCKET, we do not check
 		   for too short ancillary data object at all! Oops.
 		   OK, let's add it...
 		 */
@@ -159,7 +159,7 @@ int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 		p->fp = NULL;
 	}
 	return 0;
-	
+
 error:
 	scm_destroy(p);
 	return err;
@@ -189,7 +189,7 @@ int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 
 	err = -EFAULT;
 	if (copy_to_user(cm, &cmhdr, sizeof cmhdr))
-		goto out; 
+		goto out;
 	if (copy_to_user(CMSG_DATA(cm), data, cmlen - sizeof(struct cmsghdr)))
 		goto out;
 	cmlen = CMSG_SPACE(len);
