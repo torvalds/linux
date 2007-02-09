@@ -192,10 +192,17 @@ config S3C2412_PM
 	help
 	  Internal config node to apply S3C2412 power management
 
+config S3C2412_DMA
+	bool
+	depends on CPU_S3C2412
+	help
+	  Internal config node for S3C2412 DMA support
+
 config CPU_S3C2412
 	bool
 	depends on ARCH_S3C2410
 	select S3C2412_PM if PM
+	select S3C2412_DMA if S3C2410_DMA
 	help
 	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
 
@@ -205,11 +212,18 @@ config CPU_S3C244X
 	help
 	  Support for S3C2440 and S3C2442 Samsung Mobile CPU based systems.
 
+config S3C2440_DMA
+	bool
+	depends on ARCH_S3C2410 && CPU_S3C24405B
+	help
+	  Support for S3C2440 specific DMA code5A
+
 config CPU_S3C2440
 	bool
 	depends on ARCH_S3C2410
 	select S3C2410_CLOCK
 	select S3C2410_PM if PM
+	select S3C2440_DMA if S3C2410_DMA
 	select CPU_S3C244X
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
@@ -271,7 +285,6 @@ config S3C2410_DMA_DEBUG
 	  Note, it is easy to create and fill the log buffer in a small
 	  amount of time, as well as using an significant percentage of
 	  the CPU time doing so.
-
 
 config S3C2410_PM_DEBUG
 	bool "S3C2410 PM Suspend debug"

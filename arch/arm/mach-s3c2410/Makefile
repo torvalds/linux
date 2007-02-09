@@ -9,8 +9,6 @@ obj-y			:= cpu.o irq.o time.o gpio.o clock.o devs.o
 obj-m			:=
 obj-n			:=
 obj-			:=
-obj-dma-y		:=
-obj-dma-n		:=
 
 # DMA
 obj-$(CONFIG_S3C2410_DMA)	+= dma.o
@@ -37,9 +35,9 @@ obj-$(CONFIG_PM_H1940)		+= pm-h1940.o
 obj-$(CONFIG_CPU_S3C2412)	+= s3c2412.o
 obj-$(CONFIG_CPU_S3C2412)	+= s3c2412-irq.o
 obj-$(CONFIG_CPU_S3C2412)	+= s3c2412-clock.o
-obj-dma-$(CONFIG_CPU_S3C2412)	+= s3c2412-dma.o
 
 obj-$(CONFIG_S3C2412_PM)	+= s3c2412-pm.o
+obj-$(CONFIG_S3C2412_DMA)	+= s3c2412-dma.o
 
 #
 # S3C244X support
@@ -57,7 +55,7 @@ obj-$(CONFIG_CPU_S3C2440)	+= s3c2440.o s3c2440-dsc.o
 obj-$(CONFIG_CPU_S3C2440)	+= s3c2440-irq.o
 obj-$(CONFIG_CPU_S3C2440)	+= s3c2440-clock.o
 obj-$(CONFIG_CPU_S3C2440)	+= s3c2410-gpio.o
-obj-dma-$(CONFIG_CPU_S3C2440)	+= s3c2440-dma.o
+obj-$(CONFIG_S3C2440_DMA)	+= s3c2440-dma.o
 
 # S3C2442 support
 
@@ -67,10 +65,6 @@ obj-$(CONFIG_CPU_S3C2442)	+= s3c2442-clock.o
 # bast extras
 
 obj-$(CONFIG_BAST_PC104_IRQ)	+= bast-irq.o
-
-# merge in dma objects
-
-obj-y				+= $(obj-dma-y)
 
 # machine specific support
 
