@@ -58,7 +58,7 @@
  *	providing that certain rules are followed:
  *
  *	SK_CONN, SK_DATA, can be set or cleared at any time.
- *		after a set, svc_sock_enqueue must be called.	
+ *		after a set, svc_sock_enqueue must be called.
  *		after a clear, the socket must be read/accepted
  *		 if this succeeds, it must be set again.
  *	SK_CLOSE can set at any time. It is never cleared.
@@ -252,7 +252,7 @@ svc_sock_enqueue(struct svc_sock *svsk)
 			svsk->sk_sk, rqstp);
 		svc_thread_dequeue(pool, rqstp);
 		if (rqstp->rq_sock)
-			printk(KERN_ERR 
+			printk(KERN_ERR
 				"svc_sock_enqueue: server %p, rq_sock=%p!\n",
 				rqstp, rqstp->rq_sock);
 		rqstp->rq_sock = svsk;
@@ -484,7 +484,7 @@ svc_sendto(struct svc_rqst *rqstp, struct xdr_buf *xdr)
 	if (xdr->tail[0].iov_len) {
 		result = kernel_sendpage(sock, rqstp->rq_respages[0],
 					     ((unsigned long)xdr->tail[0].iov_base)
-					        & (PAGE_SIZE-1),
+						& (PAGE_SIZE-1),
 					     xdr->tail[0].iov_len, 0);
 
 		if (result > 0)
@@ -711,7 +711,7 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 		tv.tv_sec = xtime.tv_sec;
 		tv.tv_usec = xtime.tv_nsec / NSEC_PER_USEC;
 		skb_set_timestamp(skb, &tv);
-		/* Don't enable netstamp, sunrpc doesn't 
+		/* Don't enable netstamp, sunrpc doesn't
 		   need that much accuracy */
 	}
 	skb_get_timestamp(skb, &svsk->sk_sk->sk_stamp);
@@ -743,7 +743,7 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 			return 0;
 		}
 		local_bh_enable();
-		skb_free_datagram(svsk->sk_sk, skb); 
+		skb_free_datagram(svsk->sk_sk, skb);
 	} else {
 		/* we can use it in-place */
 		rqstp->rq_arg.head[0].iov_base = skb->data + sizeof(struct udphdr);
@@ -794,7 +794,7 @@ svc_udp_init(struct svc_sock *svsk)
 	svsk->sk_sendto = svc_udp_sendto;
 
 	/* initialise setting must have enough space to
-	 * receive and respond to one request.  
+	 * receive and respond to one request.
 	 * svc_udp_recvfrom will re-adjust if necessary
 	 */
 	svc_sock_setbufsize(svsk->sk_sock,
@@ -923,7 +923,7 @@ svc_tcp_accept(struct svc_sock *svsk)
 	if (ntohs(sin.sin_port) >= 1024) {
 		dprintk(KERN_WARNING
 			"%s: connect from unprivileged port: %u.%u.%u.%u:%d\n",
-			serv->sv_name, 
+			serv->sv_name,
 			NIPQUAD(sin.sin_addr.s_addr), ntohs(sin.sin_port));
 	}
 
@@ -1038,7 +1038,7 @@ svc_tcp_recvfrom(struct svc_rqst *rqstp)
 		 * on the number of threads which will access the socket.
 		 *
 		 * rcvbuf just needs to be able to hold a few requests.
-		 * Normally they will be removed from the queue 
+		 * Normally they will be removed from the queue
 		 * as soon a a complete request arrives.
 		 */
 		svc_sock_setbufsize(svsk->sk_sock,
@@ -1063,7 +1063,7 @@ svc_tcp_recvfrom(struct svc_rqst *rqstp)
 
 		if (len < want) {
 			dprintk("svc: short recvfrom while reading record length (%d of %lu)\n",
-			        len, want);
+				len, want);
 			svc_sock_received(svsk);
 			return -EAGAIN; /* record header not complete */
 		}
@@ -1221,7 +1221,7 @@ svc_tcp_init(struct svc_sock *svsk)
 		tp->nonagle = 1;        /* disable Nagle's algorithm */
 
 		/* initialise setting must have enough space to
-		 * receive and respond to one request.  
+		 * receive and respond to one request.
 		 * svc_tcp_recvfrom will re-adjust if necessary
 		 */
 		svc_sock_setbufsize(svsk->sk_sock,
@@ -1230,7 +1230,7 @@ svc_tcp_init(struct svc_sock *svsk)
 
 		set_bit(SK_CHNGBUF, &svsk->sk_flags);
 		set_bit(SK_DATA, &svsk->sk_flags);
-		if (sk->sk_state != TCP_ESTABLISHED) 
+		if (sk->sk_state != TCP_ESTABLISHED)
 			set_bit(SK_CLOSE, &svsk->sk_flags);
 	}
 }
@@ -1246,7 +1246,7 @@ svc_sock_update_bufs(struct svc_serv *serv)
 
 	spin_lock_bh(&serv->sv_lock);
 	list_for_each(le, &serv->sv_permsocks) {
-		struct svc_sock *svsk = 
+		struct svc_sock *svsk =
 			list_entry(le, struct svc_sock, sk_list);
 		set_bit(SK_CHNGBUF, &svsk->sk_flags);
 	}
@@ -1278,11 +1278,11 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 		rqstp, timeout);
 
 	if (rqstp->rq_sock)
-		printk(KERN_ERR 
+		printk(KERN_ERR
 			"svc_recv: service %p, socket not NULL!\n",
 			 rqstp);
 	if (waitqueue_active(&rqstp->rq_wait))
-		printk(KERN_ERR 
+		printk(KERN_ERR
 			"svc_recv: service %p, wait queue active!\n",
 			 rqstp);
 
@@ -1371,7 +1371,7 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 	return len;
 }
 
-/* 
+/*
  * Drop request
  */
 void
@@ -1651,7 +1651,7 @@ svc_delete_socket(struct svc_sock *svsk)
 
 	if (!test_and_set_bit(SK_DETACHED, &svsk->sk_flags))
 		list_del_init(&svsk->sk_list);
-    	/*
+	/*
 	 * We used to delete the svc_sock from whichever list
 	 * it's sk_ready node was on, but we don't actually
 	 * need to.  This is because the only time we're called
@@ -1697,7 +1697,7 @@ svc_makesock(struct svc_serv *serv, int protocol, unsigned short port)
 }
 
 /*
- * Handle defer and revisit of requests 
+ * Handle defer and revisit of requests
  */
 
 static void svc_revisit(struct cache_deferred_req *dreq, int too_many)
@@ -1776,7 +1776,7 @@ static int svc_deferred_recv(struct svc_rqst *rqstp)
 static struct svc_deferred_req *svc_deferred_dequeue(struct svc_sock *svsk)
 {
 	struct svc_deferred_req *dr = NULL;
-	
+
 	if (!test_bit(SK_DEFERRED, &svsk->sk_flags))
 		return NULL;
 	spin_lock_bh(&svsk->sk_defer_lock);
