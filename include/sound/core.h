@@ -242,7 +242,7 @@ static inline int snd_register_device(int type, struct snd_card *card, int dev,
 {
 	return snd_register_device_for_dev(type, card, dev, f_ops,
 					   private_data, name,
-					   card ? card->dev : NULL);
+					   snd_card_get_device_link(card));
 }
 
 int snd_unregister_device(int type, struct snd_card *card, int dev);

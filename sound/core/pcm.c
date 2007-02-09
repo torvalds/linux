@@ -968,7 +968,7 @@ static int snd_pcm_dev_register(struct snd_device *device)
 		 * if possible */
 		dev = pcm->dev;
 		if (!dev)
-			dev = pcm->card ? pcm->card->dev : NULL;
+			dev = snd_card_get_device_link(pcm->card);
 		/* register pcm */
 		err = snd_register_device_for_dev(devtype, pcm->card,
 						  pcm->device,
