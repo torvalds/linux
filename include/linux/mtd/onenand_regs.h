@@ -3,7 +3,8 @@
  *
  *  OneNAND Register header file
  *
- *  Copyright (C) 2005-2006 Samsung Electronics
+ *  Copyright (C) 2005-2007 Samsung Electronics
+ *  Kyungmin Park <kyungmin.park@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -80,9 +81,11 @@
 #define ONENAND_VERSION_PROCESS_SHIFT	(8)
 
 /*
- * Start Address 1 F100h (R/W)
+ * Start Address 1 F100h (R/W) & Start Address 2 F101h (R/W)
  */
 #define ONENAND_DDP_SHIFT		(15)
+#define ONENAND_DDP_CHIP0		(0)
+#define ONENAND_DDP_CHIP1		(1 << ONENAND_DDP_SHIFT)
 
 /*
  * Start Address 8 F107h (R/W)
