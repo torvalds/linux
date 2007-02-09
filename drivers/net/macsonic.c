@@ -49,6 +49,7 @@
 #include <linux/skbuff.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/bitrev.h>
 
 #include <asm/bootinfo.h>
 #include <asm/system.h>
