@@ -276,7 +276,7 @@ static int bay_add(acpi_handle handle, int id)
 	/*
 	 * Initialize bay device structure
 	 */
-	new_bay = kzalloc(GFP_ATOMIC, sizeof(*new_bay));
+	new_bay = kzalloc(sizeof(*new_bay), GFP_ATOMIC);
 	INIT_LIST_HEAD(&new_bay->list);
 	new_bay->handle = handle;
 	new_bay->name = (char *)nbuffer.pointer;
