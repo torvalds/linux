@@ -1,6 +1,6 @@
 /*
  * net/tipc/config.c: TIPC configuration management code
- * 
+ *
  * Copyright (c) 2002-2006, Ericsson AB
  * Copyright (c) 2004-2006, Wind River Systems
  * All rights reserved.
@@ -86,7 +86,7 @@ struct sk_buff *tipc_cfg_reply_alloc(int payload_size)
 	return buf;
 }
 
-int tipc_cfg_append_tlv(struct sk_buff *buf, int tlv_type, 
+int tipc_cfg_append_tlv(struct sk_buff *buf, int tlv_type,
 			void *tlv_data, int tlv_data_size)
 {
 	struct tlv_desc *tlv = (struct tlv_desc *)buf->tail;
@@ -112,7 +112,7 @@ struct sk_buff *tipc_cfg_reply_unsigned_type(u16 tlv_type, u32 value)
 	buf = tipc_cfg_reply_alloc(TLV_SPACE(sizeof(value)));
 	if (buf) {
 		value_net = htonl(value);
-		tipc_cfg_append_tlv(buf, tlv_type, &value_net, 
+		tipc_cfg_append_tlv(buf, tlv_type, &value_net,
 				    sizeof(value_net));
 	}
 	return buf;
@@ -182,7 +182,7 @@ int tipc_cfg_cmd(const struct tipc_cmd_msg * msg,
 
 static void cfg_cmd_event(struct tipc_cmd_msg *msg,
 			  char *data,
-			  u32 sz,        
+			  u32 sz,
 			  struct tipc_portid const *orig)
 {
 	int rv = -EINVAL;
@@ -192,7 +192,7 @@ static void cfg_cmd_event(struct tipc_cmd_msg *msg,
 
 	msg->cmd = ntohl(msg->cmd);
 
-	cfg_prepare_res_msg(msg->cmd, msg->usr_handle, rv, &rmsg, msg_sect, 
+	cfg_prepare_res_msg(msg->cmd, msg->usr_handle, rv, &rmsg, msg_sect,
 			    data, 0);
 	if (ntohl(msg->magic) != TIPC_MAGIC)
 		goto exit;
@@ -295,7 +295,7 @@ static struct sk_buff *cfg_set_own_addr(void)
 						   " (cannot change node address once assigned)");
 	tipc_own_addr = addr;
 
-	/* 
+	/*
 	 * Must release all spinlocks before calling start_net() because
 	 * Linux version of TIPC calls eth_media_start() which calls
 	 * register_netdevice_notifier() which may block!
@@ -619,7 +619,7 @@ static void cfg_named_msg_event(void *userdata,
 				struct sk_buff **buf,
 				const unchar *msg,
 				u32 size,
-				u32 importance, 
+				u32 importance,
 				struct tipc_portid const *orig,
 				struct tipc_name_seq const *dest)
 {
@@ -640,7 +640,7 @@ static void cfg_named_msg_event(void *userdata,
 	/* Generate reply for request (if can't, return request) */
 
 	rep_buf = tipc_cfg_do_cmd(orig->node,
-				  ntohs(req_hdr->tcm_type), 
+				  ntohs(req_hdr->tcm_type),
 				  msg + sizeof(*req_hdr),
 				  size - sizeof(*req_hdr),
 				  BUF_HEADROOM + MAX_H_SIZE + sizeof(*rep_hdr));

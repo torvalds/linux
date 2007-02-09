@@ -1,6 +1,6 @@
 /*
  * net/tipc/bcast.h: Include file for TIPC broadcast code
- * 
+ *
  * Copyright (c) 2003-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -102,7 +102,7 @@ static inline void tipc_nmap_add(struct node_map *nm_ptr, u32 node)
 	}
 }
 
-/** 
+/**
  * nmap_remove - remove a node from a node map
  */
 
@@ -190,7 +190,7 @@ static inline void tipc_port_list_add(struct port_list *pl_ptr, u32 port)
 
 /**
  * port_list_free - free dynamically created entries in port_list chain
- * 
+ *
  * Note: First item is on stack, so it doesn't need to be released
  */
 

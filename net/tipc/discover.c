@@ -1,6 +1,6 @@
 /*
  * net/tipc/discover.c
- * 
+ *
  * Copyright (c) 2003-2006, Ericsson AB
  * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
@@ -56,10 +56,10 @@
 #define  CHECK_LINK_COUNT      306
 #endif
 
-/* 
+/*
  * TODO: Most of the inter-cluster setup stuff should be
  * rewritten, and be made conformant with specification.
- */ 
+ */
 
 
 /**
@@ -80,10 +80,10 @@ struct link_req {
 
 
 #if 0
-int disc_create_link(const struct tipc_link_create *argv) 
+int disc_create_link(const struct tipc_link_create *argv)
 {
-	/* 
-	 * Code for inter cluster link setup here 
+	/*
+	 * Code for inter cluster link setup here
 	 */
 	return TIPC_OK;
 }
@@ -93,16 +93,16 @@ int disc_create_link(const struct tipc_link_create *argv)
  * disc_lost_link(): A link has lost contact
  */
 
-void tipc_disc_link_event(u32 addr, char *name, int up) 
+void tipc_disc_link_event(u32 addr, char *name, int up)
 {
 	if (in_own_cluster(addr))
 		return;
-	/* 
-	 * Code for inter cluster link setup here 
+	/*
+	 * Code for inter cluster link setup here
 	 */
 }
 
-/** 
+/**
  * tipc_disc_init_msg - initialize a link setup message
  * @type: message type (request or response)
  * @req_links: number of links associated with message
@@ -210,7 +210,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf)
 			dbg("creating link\n");
 			link = tipc_link_create(b_ptr, orig, &media_addr);
 			if (!link) {
-				spin_unlock_bh(&n_ptr->lock);                
+				spin_unlock_bh(&n_ptr->lock);
 				return;
 			}
 		}
@@ -224,10 +224,10 @@ void tipc_disc_recv_msg(struct sk_buff *buf)
 			warn("Resetting link <%s>, peer interface address changed\n",
 			     link->name);
 			memcpy(addr, &media_addr, sizeof(*addr));
-			tipc_link_reset(link);     
+			tipc_link_reset(link);
 		}
 		link_fully_up = (link->state == WORKING_WORKING);
-		spin_unlock_bh(&n_ptr->lock);                
+		spin_unlock_bh(&n_ptr->lock);
 		if ((type == DSC_RESP_MSG) || link_fully_up)
 			return;
 		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, 1, orig, b_ptr);
@@ -244,23 +244,23 @@ void tipc_disc_recv_msg(struct sk_buff *buf)
  * @req: ptr to link request structure
  */
 
-void tipc_disc_stop_link_req(struct link_req *req) 
+void tipc_disc_stop_link_req(struct link_req *req)
 {
 	if (!req)
 		return;
-		
+
 	k_cancel_timer(&req->timer);
 	k_term_timer(&req->timer);
 	buf_discard(req->buf);
 	kfree(req);
-} 
+}
 
 /**
  * tipc_disc_update_link_req - update frequency of periodic link setup requests
  * @req: ptr to link request structure
  */
 
-void tipc_disc_update_link_req(struct link_req *req) 
+void tipc_disc_update_link_req(struct link_req *req)
 {
 	if (!req)
 		return;
@@ -278,16 +278,16 @@ void tipc_disc_update_link_req(struct link_req *req)
 	} else {
 		/* leave timer "as is" if haven't yet reached a "normal" rate */
 	}
-} 
+}
 
 /**
  * disc_timeout - send a periodic link setup request
  * @req: ptr to link request structure
- * 
+ *
  * Called whenever a link setup request timer associated with a bearer expires.
  */
 
-static void disc_timeout(struct link_req *req) 
+static void disc_timeout(struct link_req *req)
 {
 	spin_lock_bh(&req->bearer->publ.lock);
 
@@ -300,7 +300,7 @@ static void disc_timeout(struct link_req *req)
 		req->timer_intv *= 2;
 		if (req->timer_intv > TIPC_LINK_REQ_FAST)
 			req->timer_intv = TIPC_LINK_REQ_FAST;
-		if ((req->timer_intv == TIPC_LINK_REQ_FAST) && 
+		if ((req->timer_intv == TIPC_LINK_REQ_FAST) &&
 		    (req->bearer->nodes.count))
 			req->timer_intv = TIPC_LINK_REQ_SLOW;
 	}
@@ -315,14 +315,14 @@ static void disc_timeout(struct link_req *req)
  * @dest: destination address for request messages
  * @dest_domain: network domain of node(s) which should respond to message
  * @req_links: max number of desired links
- * 
+ *
  * Returns pointer to link request structure, or NULL if unable to create.
  */
 
-struct link_req *tipc_disc_init_link_req(struct bearer *b_ptr, 
+struct link_req *tipc_disc_init_link_req(struct bearer *b_ptr,
 					 const struct tipc_media_addr *dest,
 					 u32 dest_domain,
-					 u32 req_links) 
+					 u32 req_links)
 {
 	struct link_req *req;
 
@@ -342,5 +342,5 @@ struct link_req *tipc_disc_init_link_req(struct bearer *b_ptr,
 	k_init_timer(&req->timer, (Handler)disc_timeout, (unsigned long)req);
 	k_start_timer(&req->timer, req->timer_intv);
 	return req;
-} 
+}
 

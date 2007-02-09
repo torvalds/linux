@@ -1,6 +1,6 @@
 /*
  * net/tipc/name_table.h: Include file for TIPC name table code
- * 
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2004-2005, Wind River Systems
  * All rights reserved.
@@ -64,7 +64,7 @@ struct port_list;
  * @node_list: next matching name seq publication with >= node scope
  * @cluster_list: next matching name seq publication with >= cluster scope
  * @zone_list: next matching name seq publication with >= zone scope
- * 
+ *
  * Note that the node list, cluster list, and zone list are circular lists.
  */
 
@@ -89,16 +89,16 @@ extern rwlock_t tipc_nametbl_lock;
 
 struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space);
 u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *node);
-int tipc_nametbl_mc_translate(u32 type, u32 lower, u32 upper, u32 limit, 
+int tipc_nametbl_mc_translate(u32 type, u32 lower, u32 upper, u32 limit,
 			 struct port_list *dports);
-int tipc_nametbl_publish_rsv(u32 ref, unsigned int scope, 
+int tipc_nametbl_publish_rsv(u32 ref, unsigned int scope,
 			struct tipc_name_seq const *seq);
 struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 				    u32 scope, u32 port_ref, u32 key);
 int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key);
 struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
 					u32 scope, u32 node, u32 ref, u32 key);
-struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower, 
+struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
 					u32 node, u32 ref, u32 key);
 void tipc_nametbl_subscribe(struct subscription *s);
 void tipc_nametbl_unsubscribe(struct subscription *s);

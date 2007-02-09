@@ -1,6 +1,6 @@
 /*
  * net/tipc/net.h: Include file for TIPC network routing code
- * 
+ *
  * Copyright (c) 1995-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -43,7 +43,7 @@ struct _zone;
  * struct network - TIPC network structure
  * @zones: array of pointers to all zones within network
  */
- 
+
 struct network {
 	struct _zone **zones;
 };

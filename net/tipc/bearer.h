@@ -1,6 +1,6 @@
 /*
  * net/tipc/bearer.h: Include file for TIPC bearer code
- * 
+ *
  * Copyright (c) 1996-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -58,14 +58,14 @@
  * @type_id: TIPC media identifier [defined in tipc_bearer.h]
  * @name: media name
  */
- 
+
 struct media {
-	int (*send_msg)(struct sk_buff *buf, 
+	int (*send_msg)(struct sk_buff *buf,
 			struct tipc_bearer *b_ptr,
 			struct tipc_media_addr *dest);
 	int (*enable_bearer)(struct tipc_bearer *b_ptr);
 	void (*disable_bearer)(struct tipc_bearer *b_ptr);
-	char *(*addr2str)(struct tipc_media_addr *a, 
+	char *(*addr2str)(struct tipc_media_addr *a,
 			  char *str_buf, int str_size);
 	struct tipc_media_addr bcast_addr;
 	int bcast;
@@ -91,7 +91,7 @@ struct media {
  * @net_plane: network plane ('A' through 'H') currently associated with bearer
  * @nodes: indicates which nodes in cluster can be reached through bearer
  */
- 
+
 struct bearer {
 	struct tipc_bearer publ;
 	struct media *media;
@@ -131,21 +131,21 @@ void tipc_bearer_lock_push(struct bearer *b_ptr);
 
 
 /**
- * tipc_bearer_send- sends buffer to destination over bearer 
- * 
+ * tipc_bearer_send- sends buffer to destination over bearer
+ *
  * Returns true (1) if successful, or false (0) if unable to send
- * 
+ *
  * IMPORTANT:
  * The media send routine must not alter the buffer being passed in
  * as it may be needed for later retransmission!
- * 
- * If the media send routine returns a non-zero value (indicating that 
+ *
+ * If the media send routine returns a non-zero value (indicating that
  * it was unable to send the buffer), it must:
  *   1) mark the bearer as blocked,
  *   2) call tipc_continue() once the bearer is able to send again.
  * Media types that are unable to meet these two critera must ensure their
  * send routine always returns success -- even if the buffer was not sent --
- * and let TIPC's link code deal with the undelivered message. 
+ * and let TIPC's link code deal with the undelivered message.
  */
 
 static inline int tipc_bearer_send(struct bearer *b_ptr, struct sk_buff *buf,

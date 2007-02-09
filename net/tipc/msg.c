@@ -1,6 +1,6 @@
 /*
  * net/tipc/msg.c: TIPC message header routines
- *     
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
