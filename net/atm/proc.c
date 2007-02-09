@@ -86,7 +86,7 @@ static int __vcc_walk(struct sock **sock, int family, int *bucket, loff_t l)
 				break;
 		}
 		l--;
-	} 
+	}
 try_again:
 	for (; sk; sk = sk_next(sk)) {
 		l -= compare_family(sk, family);
@@ -205,7 +205,7 @@ static void vcc_info(struct seq_file *seq, struct atm_vcc *vcc)
 	seq_printf(seq, "%p ", vcc);
 	if (!vcc->dev)
 		seq_printf(seq, "Unassigned    ");
-	else 
+	else
 		seq_printf(seq, "%3d %3d %5d ", vcc->dev->number, vcc->vpi,
 			vcc->vci);
 	switch (sk->sk_family) {
@@ -249,7 +249,7 @@ static int atm_dev_seq_show(struct seq_file *seq, void *v)
 	static char atm_dev_banner[] =
 		"Itf Type    ESI/\"MAC\"addr "
 		"AAL(TX,err,RX,err,drop) ...               [refcnt]\n";
- 
+
 	if (v == (void *)1)
 		seq_puts(seq, atm_dev_banner);
 	else {
@@ -257,21 +257,21 @@ static int atm_dev_seq_show(struct seq_file *seq, void *v)
 
 		atm_dev_info(seq, dev);
 	}
- 	return 0;
+	return 0;
 }
- 
+
 static struct seq_operations atm_dev_seq_ops = {
 	.start	= atm_dev_seq_start,
 	.next	= atm_dev_seq_next,
 	.stop	= atm_dev_seq_stop,
 	.show	= atm_dev_seq_show,
 };
- 
+
 static int atm_dev_seq_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &atm_dev_seq_ops);
 }
- 
+
 static struct file_operations devices_seq_fops = {
 	.open		= atm_dev_seq_open,
 	.read		= seq_read,
@@ -281,7 +281,7 @@ static struct file_operations devices_seq_fops = {
 
 static int pvc_seq_show(struct seq_file *seq, void *v)
 {
-	static char atm_pvc_banner[] = 
+	static char atm_pvc_banner[] =
 		"Itf VPI VCI   AAL RX(PCR,Class) TX(PCR,Class)\n";
 
 	if (v == (void *)1)
@@ -316,31 +316,31 @@ static struct file_operations pvc_seq_fops = {
 
 static int vcc_seq_show(struct seq_file *seq, void *v)
 {
- 	if (v == (void *)1) {
- 		seq_printf(seq, sizeof(void *) == 4 ? "%-8s%s" : "%-16s%s",
- 			"Address ", "Itf VPI VCI   Fam Flags Reply "
- 			"Send buffer     Recv buffer      [refcnt]\n");
- 	} else {
- 		struct vcc_state *state = seq->private;
- 		struct atm_vcc *vcc = atm_sk(state->sk);
-  
- 		vcc_info(seq, vcc);
- 	}
-  	return 0;
+	if (v == (void *)1) {
+		seq_printf(seq, sizeof(void *) == 4 ? "%-8s%s" : "%-16s%s",
+			"Address ", "Itf VPI VCI   Fam Flags Reply "
+			"Send buffer     Recv buffer      [refcnt]\n");
+	} else {
+		struct vcc_state *state = seq->private;
+		struct atm_vcc *vcc = atm_sk(state->sk);
+
+		vcc_info(seq, vcc);
+	}
+	return 0;
 }
-  
+
 static struct seq_operations vcc_seq_ops = {
- 	.start	= vcc_seq_start,
- 	.next	= vcc_seq_next,
- 	.stop	= vcc_seq_stop,
- 	.show	= vcc_seq_show,
+	.start	= vcc_seq_start,
+	.next	= vcc_seq_next,
+	.stop	= vcc_seq_stop,
+	.show	= vcc_seq_show,
 };
- 
+
 static int vcc_seq_open(struct inode *inode, struct file *file)
 {
- 	return __vcc_seq_open(inode, file, 0, &vcc_seq_ops);
+	return __vcc_seq_open(inode, file, 0, &vcc_seq_ops);
 }
- 
+
 static struct file_operations vcc_seq_fops = {
 	.open		= vcc_seq_open,
 	.read		= seq_read,
@@ -350,7 +350,7 @@ static struct file_operations vcc_seq_fops = {
 
 static int svc_seq_show(struct seq_file *seq, void *v)
 {
-	static char atm_svc_banner[] = 
+	static char atm_svc_banner[] =
 		"Itf VPI VCI           State      Remote\n";
 
 	if (v == (void *)1)
@@ -472,7 +472,7 @@ static void atm_proc_dirs_remove(void)
 	static struct atm_proc_entry *e;
 
 	for (e = atm_proc_ents; e->name; e++) {
-		if (e->dirent) 
+		if (e->dirent)
 			remove_proc_entry(e->name, atm_proc_root);
 	}
 	remove_proc_entry("net/atm", NULL);

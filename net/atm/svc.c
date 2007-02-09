@@ -89,7 +89,7 @@ static int svc_release(struct socket *sock)
 		clear_bit(ATM_VF_READY, &vcc->flags);
 		/* VCC pointer is used as a reference, so we must not free it
 		   (thereby subjecting it to re-use) before all pending connections
-	           are closed */
+		   are closed */
 		svc_disconnect(vcc);
 		vcc_release(sock);
 	}
@@ -144,7 +144,7 @@ static int svc_bind(struct socket *sock,struct sockaddr *sockaddr,
 		error = -EUNATCH;
 		goto out;
 	}
-        if (!sk->sk_err)
+	if (!sk->sk_err)
 		set_bit(ATM_VF_BOUND,&vcc->flags);
 	error = -sk->sk_err;
 out:
@@ -229,7 +229,7 @@ static int svc_connect(struct socket *sock,struct sockaddr *sockaddr,
 			 * This is tricky:
 			 *   Kernel ---close--> Demon
 			 *   Kernel <--close--- Demon
-		         * or
+			 * or
 			 *   Kernel ---close--> Demon
 			 *   Kernel <--error--- Demon
 			 * or
@@ -470,13 +470,13 @@ static int svc_setsockopt(struct socket *sock, int level, int optname,
 			}
 			set_bit(ATM_VF_HASSAP, &vcc->flags);
 			break;
- 		case SO_MULTIPOINT:
+		case SO_MULTIPOINT:
 			if (level != SOL_ATM || optlen != sizeof(int)) {
 				error = -EINVAL;
 				goto out;
 			}
- 			if (get_user(value, (int __user *) optval)) {
- 				error = -EFAULT;
+			if (get_user(value, (int __user *) optval)) {
+				error = -EFAULT;
 				goto out;
 			}
 			if (value == 1) {
@@ -486,7 +486,7 @@ static int svc_setsockopt(struct socket *sock, int level, int optname,
 			} else {
 				error = -EINVAL;
 			}
-  			break;
+			break;
 		default:
 			error = vcc_setsockopt(sock, level, optname,
 					       optval, optlen);
@@ -539,7 +539,7 @@ static int svc_addparty(struct socket *sock, struct sockaddr *sockaddr,
 	set_bit(ATM_VF_WAITING, &vcc->flags);
 	prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 	sigd_enq(vcc, as_addparty, NULL, NULL,
-	         (struct sockaddr_atmsvc *) sockaddr);
+		 (struct sockaddr_atmsvc *) sockaddr);
 	if (flags & O_NONBLOCK) {
 		finish_wait(sk->sk_sleep, &wait);
 		error = -EINPROGRESS;
@@ -587,26 +587,26 @@ out:
 
 static int svc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
- 	int error, ep_ref;
- 	struct sockaddr_atmsvc sa;
+	int error, ep_ref;
+	struct sockaddr_atmsvc sa;
 	struct atm_vcc *vcc = ATM_SD(sock);
-  
+
 	switch (cmd) {
- 		case ATM_ADDPARTY:
- 			if (!test_bit(ATM_VF_SESSION, &vcc->flags))
- 				return -EINVAL;
- 			if (copy_from_user(&sa, (void __user *) arg, sizeof(sa)))
+		case ATM_ADDPARTY:
+			if (!test_bit(ATM_VF_SESSION, &vcc->flags))
+				return -EINVAL;
+			if (copy_from_user(&sa, (void __user *) arg, sizeof(sa)))
 				return -EFAULT;
- 			error = svc_addparty(sock, (struct sockaddr *) &sa, sizeof(sa), 0);
- 			break;
- 		case ATM_DROPPARTY:
- 			if (!test_bit(ATM_VF_SESSION, &vcc->flags))
- 				return -EINVAL;
- 			if (copy_from_user(&ep_ref, (void __user *) arg, sizeof(int)))
+			error = svc_addparty(sock, (struct sockaddr *) &sa, sizeof(sa), 0);
+			break;
+		case ATM_DROPPARTY:
+			if (!test_bit(ATM_VF_SESSION, &vcc->flags))
+				return -EINVAL;
+			if (copy_from_user(&ep_ref, (void __user *) arg, sizeof(int)))
 				return -EFAULT;
- 			error = svc_dropparty(sock, ep_ref);
- 			break;
-  		default:
+			error = svc_dropparty(sock, ep_ref);
+			break;
+		default:
 			error = vcc_ioctl(sock, cmd, arg);
 	}
 

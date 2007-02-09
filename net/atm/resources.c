@@ -142,8 +142,8 @@ void atm_dev_deregister(struct atm_dev *dev)
 	set_bit(ATM_DF_REMOVED, &dev->flags);
 
 	/*
-	 * if we remove current device from atm_devs list, new device 
-	 * with same number can appear, such we need deregister proc, 
+	 * if we remove current device from atm_devs list, new device
+	 * with same number can appear, such we need deregister proc,
 	 * release async all vccs and remove them from vccs list too
 	 */
 	mutex_lock(&atm_dev_mutex);
@@ -228,7 +228,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 				*tmp_p++ = dev->number;
 			}
 			mutex_unlock(&atm_dev_mutex);
-		        error = ((copy_to_user(buf, tmp_buf, size)) ||
+			error = ((copy_to_user(buf, tmp_buf, size)) ||
 					put_user(size, &iobuf->length))
 						? -EFAULT : 0;
 			kfree(tmp_buf);
@@ -247,7 +247,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 	if (!(dev = try_then_request_module(atm_dev_lookup(number),
 					    "atm-device-%d", number)))
 		return -ENODEV;
-	
+
 	switch (cmd) {
 		case ATM_GETTYPE:
 			size = strlen(dev->type) + 1;
@@ -390,7 +390,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 				goto done;
 			}
 	}
-	
+
 	if (size)
 		error = put_user(size, &sioc->length)
 			? -EFAULT : 0;
@@ -414,15 +414,15 @@ static __inline__ void *dev_get_idx(loff_t left)
 
 void *atm_dev_seq_start(struct seq_file *seq, loff_t *pos)
 {
- 	mutex_lock(&atm_dev_mutex);
+	mutex_lock(&atm_dev_mutex);
 	return *pos ? dev_get_idx(*pos) : (void *) 1;
 }
 
 void atm_dev_seq_stop(struct seq_file *seq, void *v)
 {
- 	mutex_unlock(&atm_dev_mutex);
+	mutex_unlock(&atm_dev_mutex);
 }
- 
+
 void *atm_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;

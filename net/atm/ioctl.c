@@ -76,7 +76,7 @@ int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 				}
 				skb = skb_peek(&sk->sk_receive_queue);
 				error = put_user(skb ? skb->len : 0,
-					 	 (int __user *)argp) ? -EFAULT : 0;
+						 (int __user *)argp) ? -EFAULT : 0;
 				goto done;
 			}
 		case SIOCGSTAMP: /* borrowed from IP */

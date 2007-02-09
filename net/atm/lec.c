@@ -1,5 +1,5 @@
 /*
- * lec.c: Lan Emulation driver 
+ * lec.c: Lan Emulation driver
  *
  * Marko Kiiskila <mkiiskila@yahoo.com>
  */
@@ -1457,7 +1457,7 @@ static void lane2_associate_ind(struct net_device *dev, u8 *mac_addr,
 static void lec_arp_check_expire(struct work_struct *work);
 static void lec_arp_expire_arp(unsigned long data);
 
-/* 
+/*
  * Arp table funcs
  */
 
@@ -1473,9 +1473,9 @@ static void lec_arp_init(struct lec_priv *priv)
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
 		INIT_HLIST_HEAD(&priv->lec_arp_tables[i]);
 	}
-        INIT_HLIST_HEAD(&priv->lec_arp_empty_ones);
-        INIT_HLIST_HEAD(&priv->lec_no_forward);
-        INIT_HLIST_HEAD(&priv->mcast_fwds);
+	INIT_HLIST_HEAD(&priv->lec_arp_empty_ones);
+	INIT_HLIST_HEAD(&priv->lec_no_forward);
+	INIT_HLIST_HEAD(&priv->mcast_fwds);
 	spin_lock_init(&priv->lec_arp_lock);
 	INIT_DELAYED_WORK(&priv->lec_arp_work, lec_arp_check_expire);
 	schedule_delayed_work(&priv->lec_arp_work, LEC_ARP_REFRESH_INTERVAL);
@@ -1770,7 +1770,7 @@ static void lec_arp_destroy(struct lec_priv *priv)
 	spin_unlock_irqrestore(&priv->lec_arp_lock, flags);
 }
 
-/* 
+/*
  * Find entry by mac_address
  */
 static struct lec_arp_table *lec_arp_find(struct lec_priv *priv,
@@ -1949,7 +1949,7 @@ restart:
 
 /*
  * Try to find vcc where mac_address is attached.
- * 
+ *
  */
 static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 				       unsigned char *mac_to_find, int is_rdesc,
@@ -2075,7 +2075,7 @@ lec_addr_delete(struct lec_priv *priv, unsigned char *atm_addr,
 }
 
 /*
- * Notifies:  Response to arp_request (atm_addr != NULL) 
+ * Notifies:  Response to arp_request (atm_addr != NULL)
  */
 static void
 lec_arp_update(struct lec_priv *priv, unsigned char *mac_addr,
@@ -2176,7 +2176,7 @@ out:
 }
 
 /*
- * Notifies: Vcc setup ready 
+ * Notifies: Vcc setup ready
  */
 static void
 lec_vcc_added(struct lec_priv *priv, struct atmlec_ioc *ioc_data,
@@ -2380,7 +2380,7 @@ lec_set_flush_tran_id(struct lec_priv *priv,
 			if (!memcmp(atm_addr, entry->atm_addr, ATM_ESA_LEN)) {
 				entry->flush_tran_id = tran_id;
 				DPRINTK("Set flush transaction id to %lx for %p\n",
-				        tran_id, entry);
+					tran_id, entry);
 			}
 		}
 	spin_unlock_irqrestore(&priv->lec_arp_lock, flags);
