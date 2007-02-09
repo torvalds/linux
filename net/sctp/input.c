@@ -226,7 +226,7 @@ int sctp_rcv(struct sk_buff *skb)
 	nf_reset(skb);
 
 	if (sk_filter(sk, skb))
-                goto discard_release;
+		goto discard_release;
 
 	/* Create an SCTP packet structure. */
 	chunk = sctp_chunkify(skb, asoc, sk);
@@ -293,11 +293,11 @@ discard_release:
 int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct sctp_chunk *chunk = SCTP_INPUT_CB(skb)->chunk;
- 	struct sctp_inq *inqueue = &chunk->rcvr->inqueue;
- 	struct sctp_ep_common *rcvr = NULL;
+	struct sctp_inq *inqueue = &chunk->rcvr->inqueue;
+	struct sctp_ep_common *rcvr = NULL;
 	int backloged = 0;
 
- 	rcvr = chunk->rcvr;
+	rcvr = chunk->rcvr;
 
 	/* If the rcvr is dead then the association or endpoint
 	 * has been deleted and we can safely drop the chunk
@@ -347,7 +347,7 @@ done:
 	else
 		BUG();
 
-        return 0;
+	return 0;
 }
 
 static void sctp_add_backlog(struct sock *sk, struct sk_buff *skb)
@@ -399,7 +399,7 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 	 * Normally, if PMTU discovery is disabled, an ICMP Fragmentation
 	 * Needed will never be sent, but if a message was sent before
 	 * PMTU discovery was disabled that was larger than the PMTU, it
-	 * would not be fragmented, so it must be re-transmitted fragmented.	 
+	 * would not be fragmented, so it must be re-transmitted fragmented.
 	 */
 	sctp_retransmit(&asoc->outqueue, t, SCTP_RTXR_PMTUD);
 }
@@ -416,8 +416,8 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
  *
  */
 void sctp_icmp_proto_unreachable(struct sock *sk,
-                           struct sctp_association *asoc,
-                           struct sctp_transport *t)
+			   struct sctp_association *asoc,
+			   struct sctp_transport *t)
 {
 	SCTP_DEBUG_PRINTK("%s\n",  __FUNCTION__);
 

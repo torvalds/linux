@@ -191,7 +191,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 		queue = &sk->sk_receive_queue;
 	} else if (ulpq->pd_mode) {
 		if (event->msg_flags & MSG_NOTIFICATION)
-		       	queue = &sctp_sk(sk)->pd_lobby;
+			queue = &sctp_sk(sk)->pd_lobby;
 		else {
 			clear_pd = event->msg_flags & MSG_EOR;
 			queue = &sk->sk_receive_queue;
@@ -298,32 +298,32 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff_head *qu
 	 */
 	if (last)
 		last->next = pos;
- 	else {
- 		if (skb_cloned(f_frag)) {
- 			/* This is a cloned skb, we can't just modify
- 			 * the frag_list.  We need a new skb to do that.
- 			 * Instead of calling skb_unshare(), we'll do it
- 			 * ourselves since we need to delay the free.
- 			 */
- 			new = skb_copy(f_frag, GFP_ATOMIC);
- 			if (!new)
- 				return NULL;	/* try again later */
+	else {
+		if (skb_cloned(f_frag)) {
+			/* This is a cloned skb, we can't just modify
+			 * the frag_list.  We need a new skb to do that.
+			 * Instead of calling skb_unshare(), we'll do it
+			 * ourselves since we need to delay the free.
+			 */
+			new = skb_copy(f_frag, GFP_ATOMIC);
+			if (!new)
+				return NULL;	/* try again later */
 
- 			sctp_skb_set_owner_r(new, f_frag->sk);
+			sctp_skb_set_owner_r(new, f_frag->sk);
 
- 			skb_shinfo(new)->frag_list = pos;
- 		} else
- 			skb_shinfo(f_frag)->frag_list = pos;
- 	}
+			skb_shinfo(new)->frag_list = pos;
+		} else
+			skb_shinfo(f_frag)->frag_list = pos;
+	}
 
 	/* Remove the first fragment from the reassembly queue.  */
 	__skb_unlink(f_frag, queue);
 
- 	/* if we did unshare, then free the old skb and re-assign */
- 	if (new) {
- 		kfree_skb(f_frag);
- 		f_frag = new;
- 	}
+	/* if we did unshare, then free the old skb and re-assign */
+	if (new) {
+		kfree_skb(f_frag);
+		f_frag = new;
+	}
 
 	while (pos) {
 
@@ -335,7 +335,7 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff_head *qu
 
 		/* Remove the fragment from the reassembly queue.  */
 		__skb_unlink(pos, queue);
-	
+
 		/* Break if we have reached the last fragment.  */
 		if (pos == l_frag)
 			break;
@@ -624,7 +624,7 @@ static inline void sctp_ulpq_store_ordered(struct sctp_ulpq *ulpq,
 
 	sid = event->stream;
 	ssn = event->ssn;
-	
+
 	cevent = (struct sctp_ulpevent *) pos->cb;
 	csid = cevent->stream;
 	cssn = cevent->ssn;
@@ -718,11 +718,11 @@ static inline void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq)
 		if (cssn != sctp_ssn_peek(in, csid))
 			break;
 
-		/* Found it, so mark in the ssnmap. */	       
+		/* Found it, so mark in the ssnmap. */
 		sctp_ssn_next(in, csid);
 
 		__skb_unlink(pos, &ulpq->lobby);
-		if (!event) {						
+		if (!event) {
 			/* Create a temporary list to collect chunks on.  */
 			event = sctp_skb2event(pos);
 			__skb_queue_tail(&temp, sctp_event2skb(event));
@@ -755,7 +755,7 @@ void sctp_ulpq_skip(struct sctp_ulpq *ulpq, __u16 sid, __u16 ssn)
 	sctp_ssn_skip(in, sid, ssn);
 
 	/* Go find any other chunks that were waiting for
-	 * ordering and deliver them if needed. 
+	 * ordering and deliver them if needed.
 	 */
 	sctp_ulpq_reap_ordered(ulpq);
 	return;
@@ -849,7 +849,7 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 	if (chunk) {
 		needed = ntohs(chunk->chunk_hdr->length);
 		needed -= sizeof(sctp_data_chunk_t);
-	} else 
+	} else
 		needed = SCTP_DEFAULT_MAXWINDOW;
 
 	freed = 0;
@@ -866,7 +866,7 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 		tsn = ntohl(chunk->subh.data_hdr->tsn);
 		sctp_tsnmap_mark(&asoc->peer.tsn_map, tsn);
 		sctp_ulpq_tail_data(ulpq, chunk, gfp);
-		
+
 		sctp_ulpq_partial_delivery(ulpq, chunk, gfp);
 	}
 
