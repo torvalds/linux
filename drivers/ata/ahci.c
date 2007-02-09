@@ -1173,7 +1173,7 @@ static void ahci_host_intr(struct ata_port *ap)
 		 * dangerous, we need to know more about them.  Print
 		 * more of it.
 		 */
-		const u32 *f = pp->rx_fis + RX_FIS_SDB;
+		const __le32 *f = pp->rx_fis + RX_FIS_SDB;
 
 		ata_port_printk(ap, KERN_INFO, "Spurious SDB FIS during NCQ "
 				"issue=0x%x SAct=0x%x FIS=%08x:%08x%s\n",
