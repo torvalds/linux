@@ -397,9 +397,23 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 	cfi_fixup(mtd, fixup_table);
 
 	for (i=0; i< cfi->numchips; i++) {
-		cfi->chips[i].word_write_time = 1<<cfi->cfiq->WordWriteTimeoutTyp;
-		cfi->chips[i].buffer_write_time = 1<<cfi->cfiq->BufWriteTimeoutTyp;
-		cfi->chips[i].erase_time = 1000<<cfi->cfiq->BlockEraseTimeoutTyp;
+		if (cfi->cfiq->WordWriteTimeoutTyp)
+			cfi->chips[i].word_write_time =
+				1<<cfi->cfiq->WordWriteTimeoutTyp;
+		else
+			cfi->chips[i].word_write_time = 50000;
+
+		if (cfi->cfiq->BufWriteTimeoutTyp)
+			cfi->chips[i].buffer_write_time =
+				1<<cfi->cfiq->BufWriteTimeoutTyp;
+		/* No default; if it isn't specified, we won't use it */
+
+		if (cfi->cfiq->BlockEraseTimeoutTyp)
+			cfi->chips[i].erase_time =
+				1000<<cfi->cfiq->BlockEraseTimeoutTyp;
+		else
+			cfi->chips[i].erase_time = 2000000;
+
 		cfi->chips[i].ref_point_counter = 0;
 		init_waitqueue_head(&(cfi->chips[i].wq));
 	}
