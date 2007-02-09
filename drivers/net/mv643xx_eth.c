@@ -2780,7 +2780,6 @@ static const struct ethtool_ops mv643xx_ethtool_ops = {
 	.get_link               = mv643xx_eth_get_link,
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
-	.get_strings            = mv643xx_get_strings,
 	.get_stats_count        = mv643xx_get_stats_count,
 	.get_ethtool_stats      = mv643xx_get_ethtool_stats,
 	.get_strings            = mv643xx_get_strings,
