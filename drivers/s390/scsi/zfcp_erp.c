@@ -838,8 +838,6 @@ zfcp_erp_action_exists(struct zfcp_erp_action *erp_action)
  *		and does appropriate preparations (dismiss fsf request, ...)
  *
  * locks:	called under erp_lock (disabled interrupts)
- *
- * returns:	0
  */
 static void
 zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
