@@ -109,18 +109,6 @@ static struct backlight_properties nvidia_bl_data = {
 	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
 };
 
-void nvidia_bl_set_power(struct fb_info *info, int power)
-{
-	mutex_lock(&info->bl_mutex);
-
-	if (info->bl_dev) {
-		info->bl_dev->props->power = power;
-		__nvidia_bl_update_status(info->bl_dev);
-	}
-
-	mutex_unlock(&info->bl_mutex);
-}
-
 void nvidia_bl_init(struct nvidia_par *par)
 {
 	struct fb_info *info = pci_get_drvdata(par->pci_dev);

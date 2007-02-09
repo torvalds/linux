@@ -938,8 +938,6 @@ static int nvidiafb_blank(int blank, struct fb_info *info)
 	NVWriteSeq(par, 0x01, tmp);
 	NVWriteCrtc(par, 0x1a, vesa);
 
-	nvidia_bl_set_power(info, blank);
-
 	NVTRACE_LEAVE();
 
 	return 0;
