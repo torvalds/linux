@@ -486,6 +486,7 @@ int ehea_destroy_qp(struct ehea_qp *qp)
 	if (!qp)
 		return 0;
 
+	ehea_h_disable_and_get_hea(qp->adapter->handle, qp->fw_handle);
 	hret = ehea_h_free_resource(qp->adapter->handle, qp->fw_handle);
 	if (hret != H_SUCCESS) {
 		ehea_error("destroy_qp failed");
@@ -581,4 +582,45 @@ out:
 	return ret;
 }
 
+void print_error_data(u64 *data)
+{
+	int length;
+	u64 type = EHEA_BMASK_GET(ERROR_DATA_TYPE, data[2]);
+	u64 resource = data[1];
 
+	length = EHEA_BMASK_GET(ERROR_DATA_LENGTH, data[0]);
+
+	if (length > EHEA_PAGESIZE)
+		length = EHEA_PAGESIZE;
+
+	if (type == 0x8) /* Queue Pair */
+		ehea_error("QP (resource=%lX) state: AER=0x%lX, AERR=0x%lX, "
+			   "port=%lX", resource, data[6], data[12], data[22]);
+
+	ehea_dump(data, length, "error data");
+}
+
+void ehea_error_data(struct ehea_adapter *adapter, u64 res_handle)
+{
+	unsigned long ret;
+	u64 *rblock;
+
+	rblock = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!rblock) {
+		ehea_error("Cannot allocate rblock memory.");
+		return;
+	}
+
+	ret = ehea_h_error_data(adapter->handle,
+				res_handle,
+				rblock);
+
+	if (ret == H_R_STATE)
+		ehea_error("No error data is available: %lX.", res_handle);
+	else if (ret == H_SUCCESS)
+		print_error_data(rblock);
+	else
+		ehea_error("Error data could not be fetched: %lX", res_handle);
+
+	kfree(rblock);
+}

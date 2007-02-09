@@ -180,6 +180,9 @@ struct ehea_eqe {
 	u64 entry;
 };
 
+#define ERROR_DATA_LENGTH  EHEA_BMASK_IBM(52,63)
+#define ERROR_DATA_TYPE    EHEA_BMASK_IBM(0,7)
+
 static inline void *hw_qeit_calc(struct hw_queue *queue, u64 q_offset)
 {
 	struct ehea_page *current_page;
@@ -354,5 +357,7 @@ struct ehea_qp *ehea_create_qp(struct ehea_adapter * adapter, u32 pd,
 int ehea_destroy_qp(struct ehea_qp *qp);
 
 int ehea_reg_mr_adapter(struct ehea_adapter *adapter);
+
+void ehea_error_data(struct ehea_adapter *adapter, u64 res_handle);
 
 #endif	/* __EHEA_QMR_H__ */

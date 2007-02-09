@@ -76,7 +76,7 @@ void ehea_dump(void *adr, int len, char *msg) {
 	int x;
 	unsigned char *deb = adr;
 	for (x = 0; x < len; x += 16) {
-		printk(DRV_NAME "%s adr=%p ofs=%04x %016lx %016lx\n", msg,
+		printk(DRV_NAME " %s adr=%p ofs=%04x %016lx %016lx\n", msg,
 			  deb, x, *((u64*)&deb[0]), *((u64*)&deb[8]));
 		deb += 16;
 	}
@@ -555,6 +555,7 @@ static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param)
 {
 	struct ehea_port *port = param;
 	struct ehea_eqe *eqe;
+	struct ehea_qp *qp;
 	u32 qp_token;
 
 	eqe = ehea_poll_eq(port->qp_eq);
@@ -563,8 +564,13 @@ static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param)
 		qp_token = EHEA_BMASK_GET(EHEA_EQE_QP_TOKEN, eqe->entry);
 		ehea_error("QP aff_err: entry=0x%lx, token=0x%x",
 			   eqe->entry, qp_token);
+
+		qp = port->port_res[qp_token].qp;
+		ehea_error_data(port->adapter, qp->fw_handle);
 		eqe = ehea_poll_eq(port->qp_eq);
 	}
+
+	queue_work(port->adapter->ehea_wq, &port->reset_task);
 
 	return IRQ_HANDLED;
 }
