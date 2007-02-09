@@ -130,7 +130,7 @@ static struct tcf_ext_map rsvp_ext_map = {
 	else if (r > 0)					\
 		return r;				\
 }
-	
+
 static int rsvp_classify(struct sk_buff *skb, struct tcf_proto *tp,
 			 struct tcf_result *res)
 {
@@ -347,7 +347,7 @@ static int tunnel_bts(struct rsvp_head *data)
 {
 	int n = data->tgenerator>>5;
 	u32 b = 1<<(data->tgenerator&0x1F);
-	
+
 	if (data->tmap[n]&b)
 		return 0;
 	data->tmap[n] |= b;
@@ -547,7 +547,7 @@ insert:
 	s->next = *sp;
 	wmb();
 	*sp = s;
-	
+
 	goto insert;
 
 errout:
@@ -654,7 +654,7 @@ static int __init init_rsvp(void)
 	return register_tcf_proto_ops(&RSVP_OPS);
 }
 
-static void __exit exit_rsvp(void) 
+static void __exit exit_rsvp(void)
 {
 	unregister_tcf_proto_ops(&RSVP_OPS);
 }

@@ -7,7 +7,7 @@
  * 		2 of the License.
  *
  *  		Many of the algorithms and ideas for this came from
- *		NIST Net which is not copyrighted. 
+ *		NIST Net which is not copyrighted.
  *
  * Authors:	Stephen Hemminger <shemminger@osdl.org>
  *		Catalin(ux aka Dino) BOIE <catab at umbrella dot ro>
@@ -114,7 +114,7 @@ static unsigned long get_crandom(struct crndstate *state)
  * std deviation sigma.  Uses table lookup to approximate the desired
  * distribution, and a uniformly-distributed pseudo-random source.
  */
-static long tabledist(unsigned long mu, long sigma, 
+static long tabledist(unsigned long mu, long sigma,
 		      struct crndstate *state, const struct disttable *dist)
 {
 	long t, x;
@@ -126,7 +126,7 @@ static long tabledist(unsigned long mu, long sigma,
 	rnd = get_crandom(state);
 
 	/* default uniform distribution */
-	if (dist == NULL) 
+	if (dist == NULL)
 		return (rnd % (2*sigma)) - sigma + mu;
 
 	t = dist->table[rnd % dist->size];
@@ -218,7 +218,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		++q->counter;
 		ret = q->qdisc->enqueue(skb, q->qdisc);
 	} else {
-		/* 
+		/*
 		 * Do re-ordering by putting one out of N packets at the front
 		 * of the queue.
 		 */
@@ -323,7 +323,7 @@ static void netem_reset(struct Qdisc *sch)
 /* Pass size change message down to embedded FIFO */
 static int set_fifo_limit(struct Qdisc *q, int limit)
 {
-        struct rtattr *rta;
+	struct rtattr *rta;
 	int ret = -ENOMEM;
 
 	/* Hack to avoid sending change message to non-FIFO */
@@ -333,9 +333,9 @@ static int set_fifo_limit(struct Qdisc *q, int limit)
 	rta = kmalloc(RTA_LENGTH(sizeof(struct tc_fifo_qopt)), GFP_KERNEL);
 	if (rta) {
 		rta->rta_type = RTM_NEWQDISC;
-		rta->rta_len = RTA_LENGTH(sizeof(struct tc_fifo_qopt)); 
+		rta->rta_len = RTA_LENGTH(sizeof(struct tc_fifo_qopt));
 		((struct tc_fifo_qopt *)RTA_DATA(rta))->limit = limit;
-		
+
 		ret = q->ops->change(q, rta);
 		kfree(rta);
 	}
@@ -364,7 +364,7 @@ static int get_dist_table(struct Qdisc *sch, const struct rtattr *attr)
 	d->size = n;
 	for (i = 0; i < n; i++)
 		d->table[i] = data[i];
-	
+
 	spin_lock_bh(&sch->dev->queue_lock);
 	d = xchg(&q->delay_dist, d);
 	spin_unlock_bh(&sch->dev->queue_lock);
@@ -419,7 +419,7 @@ static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 	struct netem_sched_data *q = qdisc_priv(sch);
 	struct tc_netem_qopt *qopt;
 	int ret;
-	
+
 	if (opt == NULL || RTA_PAYLOAD(opt) < sizeof(*qopt))
 		return -EINVAL;
 
@@ -429,7 +429,7 @@ static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 		pr_debug("netem: can't set fifo limit\n");
 		return ret;
 	}
-	
+
 	q->latency = qopt->latency;
 	q->jitter = qopt->jitter;
 	q->limit = qopt->limit;
@@ -445,10 +445,10 @@ static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 
 	/* Handle nested options after initial queue options.
 	 * Should have put all options in nested format but too late now.
-	 */ 
+	 */
 	if (RTA_PAYLOAD(opt) > sizeof(*qopt)) {
 		struct rtattr *tb[TCA_NETEM_MAX];
-		if (rtattr_parse(tb, TCA_NETEM_MAX, 
+		if (rtattr_parse(tb, TCA_NETEM_MAX,
 				 RTA_DATA(opt) + sizeof(*qopt),
 				 RTA_PAYLOAD(opt) - sizeof(*qopt)))
 			return -EINVAL;
@@ -681,7 +681,7 @@ static void netem_put(struct Qdisc *sch, unsigned long arg)
 {
 }
 
-static int netem_change_class(struct Qdisc *sch, u32 classid, u32 parentid, 
+static int netem_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 			    struct rtattr **tca, unsigned long *arg)
 {
 	return -ENOSYS;

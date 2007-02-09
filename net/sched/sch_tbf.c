@@ -276,7 +276,7 @@ static void tbf_reset(struct Qdisc* sch)
 static struct Qdisc *tbf_create_dflt_qdisc(struct Qdisc *sch, u32 limit)
 {
 	struct Qdisc *q;
-        struct rtattr *rta;
+	struct rtattr *rta;
 	int ret;
 
 	q = qdisc_create_dflt(sch->dev, &bfifo_qdisc_ops,
@@ -285,7 +285,7 @@ static struct Qdisc *tbf_create_dflt_qdisc(struct Qdisc *sch, u32 limit)
 		rta = kmalloc(RTA_LENGTH(sizeof(struct tc_fifo_qopt)), GFP_KERNEL);
 		if (rta) {
 			rta->rta_type = RTM_NEWQDISC;
-			rta->rta_len = RTA_LENGTH(sizeof(struct tc_fifo_qopt)); 
+			rta->rta_len = RTA_LENGTH(sizeof(struct tc_fifo_qopt));
 			((struct tc_fifo_qopt *)RTA_DATA(rta))->limit = limit;
 
 			ret = q->ops->change(q, rta);
@@ -475,7 +475,7 @@ static void tbf_put(struct Qdisc *sch, unsigned long arg)
 {
 }
 
-static int tbf_change_class(struct Qdisc *sch, u32 classid, u32 parentid, 
+static int tbf_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 			    struct rtattr **tca, unsigned long *arg)
 {
 	return -ENOSYS;

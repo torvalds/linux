@@ -53,7 +53,7 @@
 	Queuing using Deficit Round Robin", Proc. SIGCOMM 95.
 
 
-	This is not the thing that is usually called (W)FQ nowadays. 
+	This is not the thing that is usually called (W)FQ nowadays.
 	It does not use any timestamp mechanism, but instead
 	processes queues in round-robin order.
 
@@ -63,7 +63,7 @@
 
 	DRAWBACKS:
 
-	- "Stochastic" -> It is not 100% fair. 
+	- "Stochastic" -> It is not 100% fair.
 	When hash collisions occur, several flows are considered as one.
 
 	- "Round-robin" -> It introduces larger delays than virtual clock
@@ -501,7 +501,7 @@ static int __init sfq_module_init(void)
 {
 	return register_qdisc(&sfq_qdisc_ops);
 }
-static void __exit sfq_module_exit(void) 
+static void __exit sfq_module_exit(void)
 {
 	unregister_qdisc(&sfq_qdisc_ops);
 }

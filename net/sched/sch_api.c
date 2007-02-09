@@ -389,7 +389,7 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 	struct Qdisc *q = *old;
 
 
-	if (parent == NULL) { 
+	if (parent == NULL) {
 		if (q && q->flags&TCQ_F_INGRESS) {
 			*old = dev_graft_qdisc(dev, q);
 		} else {
@@ -596,7 +596,7 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 				q = qdisc_leaf(p, clid);
 			} else { /* ingress */
 				q = dev->qdisc_ingress;
-                        }
+			}
 		} else {
 			q = dev->qdisc_sleeping;
 		}
@@ -743,7 +743,7 @@ create_n_graft:
 		return -ENOENT;
 	if (clid == TC_H_INGRESS)
 		q = qdisc_create(dev, tcm->tcm_parent, tca, &err);
-        else
+	else
 		q = qdisc_create(dev, tcm->tcm_handle, tca, &err);
 	if (q == NULL) {
 		if (err == -EAGAIN)
@@ -808,10 +808,10 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 #endif
 	    gnet_stats_copy_queue(&d, &q->qstats) < 0)
 		goto rtattr_failure;
-	
+
 	if (gnet_stats_finish_copy(&d) < 0)
 		goto rtattr_failure;
-	
+
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
 
@@ -954,7 +954,7 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	}
 
 	/* OK. Locate qdisc */
-	if ((q = qdisc_lookup(dev, qid)) == NULL) 
+	if ((q = qdisc_lookup(dev, qid)) == NULL)
 		return -ENOENT;
 
 	/* An check that it supports classes */
@@ -978,7 +978,7 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 			goto out;
 	} else {
 		switch (n->nlmsg_type) {
-		case RTM_NEWTCLASS:	
+		case RTM_NEWTCLASS:
 			err = -EEXIST;
 			if (n->nlmsg_flags&NLM_F_EXCL)
 				goto out;
@@ -1162,7 +1162,7 @@ reclassify:
 				skb->tc_verd = SET_TC_VERD(skb->tc_verd,verd);
 				goto reclassify;
 			} else {
-				if (skb->tc_verd) 
+				if (skb->tc_verd)
 					skb->tc_verd = SET_TC_VERD(skb->tc_verd,0);
 				return err;
 			}
@@ -1200,7 +1200,7 @@ static struct file_operations psched_fops = {
 	.read  = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
-};	
+};
 #endif
 
 #ifdef CONFIG_NET_SCH_CLK_CPU
