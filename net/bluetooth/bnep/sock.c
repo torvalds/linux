@@ -1,4 +1,4 @@
-/* 
+/*
    BNEP implementation for Linux Bluetooth stack (BlueZ).
    Copyright (C) 2001-2002 Inventel Systemes
    Written 2001-2002 by
@@ -14,19 +14,19 @@
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
    IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
+   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
+   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS,
+   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS
    SOFTWARE IS DISCLAIMED.
 */
 
 /*
  * $Id: sock.c,v 1.4 2002/08/04 21:23:58 maxk Exp $
- */ 
+ */
 
 #include <linux/module.h>
 
@@ -89,7 +89,7 @@ static int bnep_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 
 		if (copy_from_user(&ca, argp, sizeof(ca)))
 			return -EFAULT;
-	
+
 		nsock = sockfd_lookup(ca.sock, &err);
 		if (!nsock)
 			return err;
@@ -101,20 +101,20 @@ static int bnep_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 
 		err = bnep_add_connection(&ca, nsock);
 		if (!err) {
-    			if (copy_to_user(argp, &ca, sizeof(ca)))
+			if (copy_to_user(argp, &ca, sizeof(ca)))
 				err = -EFAULT;
 		} else
 			fput(nsock->file);
 
 		return err;
-	
+
 	case BNEPCONNDEL:
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
 
 		if (copy_from_user(&cd, argp, sizeof(cd)))
 			return -EFAULT;
-	
+
 		return bnep_del_connection(&cd);
 
 	case BNEPGETCONNLIST:
@@ -123,7 +123,7 @@ static int bnep_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 
 		if (cl.cnum <= 0)
 			return -EINVAL;
-	
+
 		err = bnep_get_connlist(&cl);
 		if (!err && copy_to_user(argp, &cl, sizeof(cl)))
 			return -EFAULT;
@@ -163,7 +163,7 @@ static int bnep_sock_compat_ioctl(struct socket *sock, unsigned int cmd, unsigne
 
 		if (cl.cnum <= 0)
 			return -EINVAL;
-	
+
 		err = bnep_get_connlist(&cl);
 
 		if (!err && put_user(cl.cnum, (uint32_t __user *) arg))
