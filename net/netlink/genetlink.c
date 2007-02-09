@@ -310,7 +310,7 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (nlh->nlmsg_type < NLMSG_MIN_TYPE)
 		goto ignore;
 
-       	family = genl_family_find_byid(nlh->nlmsg_type);
+	family = genl_family_find_byid(nlh->nlmsg_type);
 	if (family == NULL) {
 		err = -ENOENT;
 		goto errout;

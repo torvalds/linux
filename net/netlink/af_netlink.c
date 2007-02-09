@@ -8,7 +8,7 @@
  *		modify it under the terms of the GNU General Public License
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
- * 
+ *
  * Tue Jun 26 14:36:48 MEST 2001 Herbert "herp" Rosmanith
  *                               added netlink_proto_exit
  * Tue Jan 22 18:32:44 BRST 2002 Arnaldo C. de Melo <acme@conectiva.com.br>
@@ -470,7 +470,7 @@ static int netlink_release(struct socket *sock)
 					  };
 		atomic_notifier_call_chain(&netlink_chain,
 				NETLINK_URELEASE, &n);
-	}	
+	}
 
 	module_put(nlk->module);
 
@@ -528,11 +528,11 @@ retry:
 	return err;
 }
 
-static inline int netlink_capable(struct socket *sock, unsigned int flag) 
-{ 
+static inline int netlink_capable(struct socket *sock, unsigned int flag)
+{
 	return (nl_table[sock->sk->sk_protocol].nl_nonroot & flag) ||
 	       capable(CAP_NET_ADMIN);
-} 
+}
 
 static void
 netlink_update_subscriptions(struct sock *sk, unsigned int subscriptions)
@@ -574,7 +574,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr, int addr_len
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct sockaddr_nl *nladdr = (struct sockaddr_nl *)addr;
 	int err;
-	
+
 	if (nladdr->nl_family != AF_NETLINK)
 		return -EINVAL;
 
@@ -605,9 +605,9 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr, int addr_len
 
 	netlink_table_grab();
 	netlink_update_subscriptions(sk, nlk->subscriptions +
-	                                 hweight32(nladdr->nl_groups) -
-	                                 hweight32(nlk->groups[0]));
-	nlk->groups[0] = (nlk->groups[0] & ~0xffffffffUL) | nladdr->nl_groups; 
+					 hweight32(nladdr->nl_groups) -
+					 hweight32(nlk->groups[0]));
+	nlk->groups[0] = (nlk->groups[0] & ~0xffffffffUL) | nladdr->nl_groups;
 	netlink_update_listeners(sk);
 	netlink_table_ungrab();
 
@@ -652,7 +652,7 @@ static int netlink_getname(struct socket *sock, struct sockaddr *addr, int *addr
 	struct sock *sk = sock->sk;
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct sockaddr_nl *nladdr=(struct sockaddr_nl *)addr;
-	
+
 	nladdr->nl_family = AF_NETLINK;
 	nladdr->nl_pad = 0;
 	*addr_len = sizeof(*nladdr);
@@ -999,7 +999,7 @@ void netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
 }
 
 static int netlink_setsockopt(struct socket *sock, int level, int optname,
-                              char __user *optval, int optlen)
+			      char __user *optval, int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct netlink_sock *nlk = nlk_sk(sk);
@@ -1054,7 +1054,7 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 }
 
 static int netlink_getsockopt(struct socket *sock, int level, int optname,
-                              char __user *optval, int __user *optlen)
+			      char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
 	struct netlink_sock *nlk = nlk_sk(sk);
@@ -1257,15 +1257,15 @@ static void netlink_data_ready(struct sock *sk, int len)
 }
 
 /*
- *	We export these functions to other modules. They provide a 
+ *	We export these functions to other modules. They provide a
  *	complete set of kernel non-blocking support for message
  *	queueing.
  */
 
 struct sock *
 netlink_kernel_create(int unit, unsigned int groups,
-                      void (*input)(struct sock *sk, int len),
-                      struct module *module)
+		      void (*input)(struct sock *sk, int len),
+		      struct module *module)
 {
 	struct socket *sock;
 	struct sock *sk;
@@ -1317,10 +1317,10 @@ out_sock_release:
 }
 
 void netlink_set_nonroot(int protocol, unsigned int flags)
-{ 
-	if ((unsigned int)protocol < MAX_LINKS) 
+{
+	if ((unsigned int)protocol < MAX_LINKS)
 		nl_table[protocol].nl_nonroot = flags;
-} 
+}
 
 static void netlink_destroy_callback(struct netlink_callback *cb)
 {
@@ -1341,7 +1341,7 @@ static int netlink_dump(struct sock *sk)
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
 	int len, err = -ENOBUFS;
-	
+
 	skb = sock_rmalloc(sk, NLMSG_GOODSIZE, 0, GFP_KERNEL);
 	if (!skb)
 		goto errout;
@@ -1626,7 +1626,7 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	if (v == SEQ_START_TOKEN)
 		return netlink_seq_socket_idx(seq, 0);
-		
+
 	s = sk_next(v);
 	if (s)
 		return s;
@@ -1732,7 +1732,7 @@ int netlink_unregister_notifier(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_unregister(&netlink_chain, nb);
 }
-                
+
 static const struct proto_ops netlink_ops = {
 	.family =	PF_NETLINK,
 	.owner =	THIS_MODULE,
@@ -1808,7 +1808,7 @@ static int __init netlink_proto_init(void)
 #ifdef CONFIG_PROC_FS
 	proc_net_fops_create("netlink", 0, &netlink_seq_fops);
 #endif
-	/* The netlink device handler may be needed early. */ 
+	/* The netlink device handler may be needed early. */
 	rtnetlink_init();
 out:
 	return err;
