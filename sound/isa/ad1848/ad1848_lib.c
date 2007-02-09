@@ -1223,9 +1223,9 @@ int snd_ad1848_add_ctl_elem(struct snd_ad1848 *chip,
 
 EXPORT_SYMBOL(snd_ad1848_add_ctl_elem);
 
-static DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
 
 static struct ad1848_mix_elem snd_ad1848_controls[] = {
 AD1848_DOUBLE("PCM Playback Switch", 0, AD1848_LEFT_OUTPUT, AD1848_RIGHT_OUTPUT, 7, 7, 1, 1),

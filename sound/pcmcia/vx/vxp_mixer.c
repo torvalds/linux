@@ -64,7 +64,7 @@ static int vx_mic_level_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 	return 0;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_mic, -21, 3, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_mic, -21, 3, 0);
 
 static struct snd_kcontrol_new vx_control_mic_level = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,

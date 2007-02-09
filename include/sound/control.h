@@ -49,7 +49,7 @@ struct snd_kcontrol_new {
 	snd_kcontrol_put_t *put;
 	union {
 		snd_kcontrol_tlv_rw_t *c;
-		unsigned int *p;
+		const unsigned int *p;
 	} tlv;
 	unsigned long private_value;
 };
@@ -69,7 +69,7 @@ struct snd_kcontrol {
 	snd_kcontrol_put_t *put;
 	union {
 		snd_kcontrol_tlv_rw_t *c;
-		unsigned int *p;
+		const unsigned int *p;
 	} tlv;
 	unsigned long private_value;
 	void *private_data;
@@ -108,7 +108,6 @@ typedef int (*snd_kctl_ioctl_func_t) (struct snd_card * card,
 
 void snd_ctl_notify(struct snd_card * card, unsigned int mask, struct snd_ctl_elem_id * id);
 
-struct snd_kcontrol *snd_ctl_new(struct snd_kcontrol * kcontrol, unsigned int access);
 struct snd_kcontrol *snd_ctl_new1(const struct snd_kcontrol_new * kcontrolnew, void * private_data);
 void snd_ctl_free_one(struct snd_kcontrol * kcontrol);
 int snd_ctl_add(struct snd_card * card, struct snd_kcontrol * kcontrol);

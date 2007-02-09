@@ -375,6 +375,7 @@
 #define AC97_SCAP_DETECT_BY_VENDOR (1<<8) /* use vendor registers for read tests */
 #define AC97_SCAP_NO_SPDIF	(1<<9)	/* don't build SPDIF controls */
 #define AC97_SCAP_EAPD_LED	(1<<10)	/* EAPD as mute LED */
+#define AC97_SCAP_POWER_SAVE	(1<<11)	/* capable for aggresive power-saving */
 
 /* ac97->flags */
 #define AC97_HAS_PC_BEEP	(1<<0)	/* force PC Speaker usage */
@@ -425,6 +426,7 @@ struct snd_ac97_build_ops {
 
 struct snd_ac97_bus_ops {
 	void (*reset) (struct snd_ac97 *ac97);
+	void (*warm_reset)(struct snd_ac97 *ac97);
 	void (*write) (struct snd_ac97 *ac97, unsigned short reg, unsigned short val);
 	unsigned short (*read) (struct snd_ac97 *ac97, unsigned short reg);
 	void (*wait) (struct snd_ac97 *ac97);
@@ -501,6 +503,7 @@ struct snd_ac97 {
 			unsigned short id[3];		// codec IDs (lower 16-bit word)
 			unsigned short pcmreg[3];	// PCM registers
 			unsigned short codec_cfg[3];	// CODEC_CFG bits
+			unsigned char swap_mic_linein;	// AD1986/AD1986A only
 		} ad18xx;
 		unsigned int dev_flags;		/* device specific */
 	} spec;
@@ -510,7 +513,6 @@ struct snd_ac97 {
 
 #ifdef CONFIG_SND_AC97_POWER_SAVE
 	unsigned int power_up;	/* power states */
-	struct workqueue_struct *power_workq;
 	struct delayed_work power_work;
 #endif
 	struct device dev;

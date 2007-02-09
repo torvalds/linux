@@ -109,4 +109,15 @@ config SND_MPU401
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-mpu401.
 
+config SND_PORTMAN2X4
+	tristate "Portman 2x4 driver"
+	depends on SND && PARPORT
+	select SND_RAWMIDI
+	help
+	  Say Y here to include support for Midiman Portman 2x4 parallel
+	  port MIDI device.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-portman2x4.
+
 endmenu

@@ -781,6 +781,11 @@ int snd_interval_list(struct snd_interval *i, unsigned int count, unsigned int *
 {
         unsigned int k;
 	int changed = 0;
+
+	if (!count) {
+		i->empty = 1;
+		return -EINVAL;
+	}
         for (k = 0; k < count; k++) {
 		if (mask && !(mask & (1 << k)))
 			continue;

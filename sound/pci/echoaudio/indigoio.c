@@ -50,6 +50,7 @@
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/control.h>
+#include <sound/tlv.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/asoundef.h>

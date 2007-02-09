@@ -39,7 +39,7 @@ static int set_phantom_power(struct echoaudio *chip, char on);
 static int write_control_reg(struct echoaudio *chip, u32 ctl, u32 frq,
 			     char force);
 
-#include <linux/irq.h>
+#include <linux/interrupt.h>
 
 static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {

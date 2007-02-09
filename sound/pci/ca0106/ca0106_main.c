@@ -1382,7 +1382,6 @@ static int __devinit snd_ca0106_create(int dev, struct snd_card *card,
 	snd_ca0106_ptr_write(chip, SPDIF_SELECT1, 0, 0xf);
 	snd_ca0106_ptr_write(chip, SPDIF_SELECT2, 0, 0x000f0000); /* 0x0b000000 for digital, 0x000b0000 for analog, from win2000 drivers. Use 0x000f0000 for surround71 */
 	chip->spdif_enable = 0; /* Set digital SPDIF output off */
-	chip->capture_source = 3; /* Set CAPTURE_SOURCE */
 	//snd_ca0106_ptr_write(chip, 0x45, 0, 0); /* Analogue out */
 	//snd_ca0106_ptr_write(chip, 0x45, 0, 0xf00); /* Digital out */
 
@@ -1402,8 +1401,22 @@ static int __devinit snd_ca0106_create(int dev, struct snd_card *card,
 		snd_ca0106_ptr_write(chip, PLAYBACK_VOLUME1, ch, 0xffffffff); /* Mute */
 		snd_ca0106_ptr_write(chip, PLAYBACK_VOLUME2, ch, 0xffffffff); /* Mute */
 	}
-        snd_ca0106_ptr_write(chip, CAPTURE_SOURCE, 0x0, 0x333300e4); /* Select MIC, Line in, TAD in, AUX in */
-	chip->capture_source = 3; /* Set CAPTURE_SOURCE */
+	if (chip->details->i2c_adc == 1) {
+	        /* Select MIC, Line in, TAD in, AUX in */
+	        snd_ca0106_ptr_write(chip, CAPTURE_SOURCE, 0x0, 0x333300e4);
+		/* Default to CAPTURE_SOURCE to i2s in */
+		chip->capture_source = 3;
+	} else if (chip->details->ac97 == 1) {
+	        /* Default to AC97 in */
+	        snd_ca0106_ptr_write(chip, CAPTURE_SOURCE, 0x0, 0x444400e4);
+		/* Default to CAPTURE_SOURCE to AC97 in */
+		chip->capture_source = 4;
+	} else {
+	        /* Select MIC, Line in, TAD in, AUX in */
+	        snd_ca0106_ptr_write(chip, CAPTURE_SOURCE, 0x0, 0x333300e4);
+		/* Default to Set CAPTURE_SOURCE to i2s in */
+		chip->capture_source = 3;
+	}
 
         if (chip->details->gpio_type == 2) { /* The SB0438 use GPIO differently. */
 		/* FIXME: Still need to find out what the other GPIO bits do. E.g. For digital spdif out. */
@@ -1604,6 +1617,8 @@ static int __devinit snd_ca0106_probe(struct pci_dev *pci,
 #ifdef CONFIG_PROC_FS
 	snd_ca0106_proc_init(chip);
 #endif
+
+	snd_card_set_dev(card, &pci->dev);
 
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);

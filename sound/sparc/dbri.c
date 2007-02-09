@@ -678,7 +678,7 @@ static s32 *dbri_cmdlock(struct snd_dbri * dbri, int len)
  * The JUMP cmd points to the new cmd string.
  * It also releases the cmdlock spinlock.
  *
- * Lock must not be held before calling this.
+ * Lock must be held before calling this.
  */
 static void dbri_cmdsend(struct snd_dbri * dbri, s32 * cmd,int len)
 {

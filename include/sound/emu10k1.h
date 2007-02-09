@@ -188,7 +188,35 @@
 #define HCFG_LEGACYINT		0x00200000	/* 1 = legacy event captured. Write 1 to clear.	*/
 						/* NOTE: The rest of the bits in this register	*/
 						/* _are_ relevant under Linux.			*/
-#define HCFG_CODECFORMAT_MASK	0x00070000	/* CODEC format					*/
+#define HCFG_PUSH_BUTTON_ENABLE 0x00100000	/* Enables Volume Inc/Dec and Mute functions    */
+#define HCFG_BAUD_RATE		0x00080000	/* 0 = 48kHz, 1 = 44.1kHz			*/
+#define HCFG_EXPANDED_MEM	0x00040000	/* 1 = any 16M of 4G addr, 0 = 32M of 2G addr	*/
+#define HCFG_CODECFORMAT_MASK	0x00030000	/* CODEC format					*/
+
+/* Specific to Alice2, CA0102 */
+#define HCFG_CODECFORMAT_AC97_1	0x00000000	/* AC97 CODEC format -- Ver 1.03		*/
+#define HCFG_CODECFORMAT_AC97_2	0x00010000	/* AC97 CODEC format -- Ver 2.1			*/
+#define HCFG_AUTOMUTE_ASYNC	0x00008000	/* When set, the async sample rate convertors	*/
+						/* will automatically mute their output when	*/
+						/* they are not rate-locked to the external	*/
+						/* async audio source  				*/
+#define HCFG_AUTOMUTE_SPDIF	0x00004000	/* When set, the async sample rate convertors	*/
+						/* will automatically mute their output when	*/
+						/* the SPDIF V-bit indicates invalid audio	*/
+#define HCFG_EMU32_SLAVE	0x00002000	/* 0 = Master, 1 = Slave. Slave for EMU1010	*/
+#define HCFG_SLOW_RAMP		0x00001000	/* Increases Send Smoothing time constant	*/
+/* 0x00000800 not used on Alice2 */
+#define HCFG_PHASE_TRACK_MASK	0x00000700	/* When set, forces corresponding input to	*/
+						/* phase track the previous input.		*/
+						/* I2S0 can phase track the last S/PDIF input	*/
+#define HCFG_I2S_ASRC_ENABLE	0x00000070	/* When set, enables asynchronous sample rate   */
+						/* conversion for the corresponding		*/
+ 						/* I2S format input				*/
+/* Rest of HCFG 0x0000000f same as below. LOCKSOUNDCACHE etc.  */
+
+
+
+/* Older chips */
 #define HCFG_CODECFORMAT_AC97	0x00000000	/* AC97 CODEC format -- Primary Output		*/
 #define HCFG_CODECFORMAT_I2S	0x00010000	/* I2S CODEC format -- Secondary (Rear) Output	*/
 #define HCFG_GPINPUT0		0x00004000	/* External pin112				*/
@@ -432,12 +460,15 @@
 #define FXRT_CHANNELC		0x0f000000	/* Effects send bus number for channel's effects send C	*/
 #define FXRT_CHANNELD		0xf0000000	/* Effects send bus number for channel's effects send D	*/
 
+#define A_HR			0x0b	/* High Resolution. 24bit playback from host to DSP. */
 #define MAPA			0x0c		/* Cache map A						*/
 
 #define MAPB			0x0d		/* Cache map B						*/
 
 #define MAP_PTE_MASK		0xffffe000	/* The 19 MSBs of the PTE indexed by the PTI		*/
 #define MAP_PTI_MASK		0x00001fff	/* The 13 bit index to one of the 8192 PTE dwords      	*/
+
+/* 0x0e, 0x0f: Not used */
 
 #define ENVVOL			0x10		/* Volume envelope register				*/
 #define ENVVOL_MASK		0x0000ffff	/* Current value of volume envelope state variable	*/  
@@ -527,7 +558,7 @@
 						/* NOTE: All channels contain internal variables; do	*/
 						/* not write to these locations.			*/
 
-/* 1f something */
+/* 0x1f: not used */
 
 #define CD0			0x20		/* Cache data 0 register				*/
 #define CD1			0x21		/* Cache data 1 register				*/
@@ -597,6 +628,8 @@
 #define FXWC_SPDIFLEFT          (1<<22)		/* 0x00400000 */
 #define FXWC_SPDIFRIGHT         (1<<23)		/* 0x00800000 */
 
+#define A_TBLSZ	`		0x43	/* Effects Tank Internal Table Size. Only low byte or register used */
+
 #define TCBS			0x44		/* Tank cache buffer size register			*/
 #define TCBS_MASK		0x00000007	/* Tank cache buffer size field				*/
 #define TCBS_BUFFSIZE_16K	0x00000000
@@ -617,7 +650,7 @@
 #define FXBA			0x47		/* FX Buffer Address */
 #define FXBA_MASK		0xfffff000	/* 20 bit base address					*/
 
-/* 0x48 something - word access, defaults to 3f */
+#define A_HWM			0x48	/* High PCI Water Mark - word access, defaults to 3f */
 
 #define MICBS			0x49		/* Microphone buffer size register			*/
 
@@ -661,12 +694,27 @@
 #define ADCBS_BUFSIZE_57344	0x0000001e
 #define ADCBS_BUFSIZE_65536	0x0000001f
 
+/* Current Send B, A Amounts */
+#define A_CSBA			0x4c
+
+/* Current Send D, C Amounts */
+#define A_CSDC			0x4d
+
+/* Current Send F, E Amounts */
+#define A_CSFE			0x4e
+
+/* Current Send H, G Amounts */
+#define A_CSHG			0x4f
+
 
 #define CDCS			0x50		/* CD-ROM digital channel status register	*/
 
 #define GPSCS			0x51		/* General Purpose SPDIF channel status register*/
 
 #define DBG			0x52		/* DO NOT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP */
+
+/* S/PDIF Input C Channel Status */
+#define A_SPSC			0x52
 
 #define REG53			0x53		/* DO NOT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP */
 
@@ -708,6 +756,8 @@
 #define SPCS_NOTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = not audio		*/
 #define SPCS_PROFESSIONAL	0x00000001	/* 0 = Consumer (IEC-958), 1 = pro (AES3-1992)	*/
 
+/* 0x57: Not used */
+
 /* The 32-bit CLIx and SOLx registers all have one bit per channel control/status      		*/
 #define CLIEL			0x58		/* Channel loop interrupt enable low register	*/
 
@@ -732,6 +782,9 @@
 #define AC97SLOT_REAR_LEFT	0x02		/* Rear right */
 #define AC97SLOT_CNTR		0x10            /* Center enable */
 #define AC97SLOT_LFE		0x20            /* LFE enable */
+
+/* PCB Revision */
+#define A_PCB			0x5f
 
 // NOTE: 0x60,61,62: 64-bit
 #define CDSRCS			0x60		/* CD-ROM Sample Rate Converter status register	*/
@@ -780,9 +833,18 @@
 
 #define HLIPH			0x69		/* Channel half loop interrupt pending high register	*/
 
-// 0x6a,6b,6c used for some recording
-// 0x6d unused
-// 0x6e,6f - tanktable base / offset
+/* S/PDIF Host Record Index (bypasses SRC) */
+#define A_SPRI			0x6a
+/* S/PDIF Host Record Address */
+#define A_SPRA			0x6b
+/* S/PDIF Host Record Control */
+#define A_SPRC			0x6c
+/* Delayed Interrupt Counter & Enable */
+#define A_DICE			0x6d
+/* Tank Table Base */
+#define A_TTB			0x6e
+/* Tank Delay Offset */
+#define A_TDOF			0x6f
 
 /* This is the MPU port on the card (via the game port)						*/
 #define A_MUDATA1		0x70
@@ -800,6 +862,7 @@
 #define A_FXWC1			0x74            /* Selects 0x7f-0x60 for FX recording           */
 #define A_FXWC2			0x75		/* Selects 0x9f-0x80 for FX recording           */
 
+/* Extended Hardware Control */
 #define A_SPDIF_SAMPLERATE	0x76		/* Set the sample rate of SPDIF output		*/
 #define A_SAMPLE_RATE		0x76		/* Various sample rate settings. */
 #define A_SAMPLE_RATE_NOT_USED  0x0ffc111e	/* Bits that are not used and cannot be set. 	*/
@@ -822,8 +885,20 @@
 #define A_PCM_96000		0x00004000
 #define A_PCM_44100		0x00008000
 
-/* 0x77,0x78,0x79 "something i2s-related" - default to 0x01080000 on my audigy 2 ZS --rlrevell	*/
-/* 0x7a, 0x7b - lookup tables */
+/* I2S0 Sample Rate Tracker Status */
+#define A_SRT3			0x77
+
+/* I2S1 Sample Rate Tracker Status */
+#define A_SRT4			0x78
+
+/* I2S2 Sample Rate Tracker Status */
+#define A_SRT5			0x79
+/* - default to 0x01080000 on my audigy 2 ZS --rlrevell	*/
+
+/* Tank Table DMA Address */
+#define A_TTDA			0x7a
+/* Tank Table DMA Data */
+#define A_TTDD			0x7b
 
 #define A_FXRT2			0x7c
 #define A_FXRT_CHANNELE		0x0000003f	/* Effects send bus number for channel's effects send E	*/
@@ -845,7 +920,7 @@
 #define A_FXRT_CHANNELC		0x003f0000
 #define A_FXRT_CHANNELD		0x3f000000
 
-
+/* 0x7f: Not used */
 /* Each FX general purpose register is 32 bits in length, all bits are used			*/
 #define FXGPREGBASE		0x100		/* FX general purpose registers base       	*/
 #define A_FXGPREGBASE		0x400		/* Audigy GPRs, 0x400 to 0x5ff			*/
@@ -886,6 +961,293 @@
 #define A_HIWORD_RESULT_MASK	0x007ff000
 #define A_HIWORD_OPA_MASK	0x000007ff
 
+/************************************************************************************************/
+/* EMU1010m HANA FPGA registers									*/
+/************************************************************************************************/
+#define EMU_HANA_DESTHI		0x00	/* 0000xxx  3 bits Link Destination */
+#define EMU_HANA_DESTLO		0x01	/* 00xxxxx  5 bits */
+#define EMU_HANA_SRCHI		0x02	/* 0000xxx  3 bits Link Source */
+#define EMU_HANA_SRCLO		0x03	/* 00xxxxx  5 bits */
+#define EMU_HANA_DOCK_PWR	0x04	/* 000000x  1 bits Audio Dock power */
+#define EMU_HANA_DOCK_PWR_ON		0x01 /* Audio Dock power on */
+#define EMU_HANA_WCLOCK		0x05	/* 0000xxx  3 bits Word Clock source select  */
+					/* Must be written after power on to reset DLL */
+					/* One is unable to detect the Audio dock without this */
+#define EMU_HANA_WCLOCK_SRC_MASK	0x07
+#define EMU_HANA_WCLOCK_INT_48K		0x00
+#define EMU_HANA_WCLOCK_INT_44_1K	0x01
+#define EMU_HANA_WCLOCK_HANA_SPDIF_IN	0x02
+#define EMU_HANA_WCLOCK_HANA_ADAT_IN	0x03
+#define EMU_HANA_WCLOCK_SYNC_BNCN	0x04
+#define EMU_HANA_WCLOCK_2ND_HANA	0x05
+#define EMU_HANA_WCLOCK_SRC_RESERVED	0x06
+#define EMU_HANA_WCLOCK_OFF		0x07 /* For testing, forces fallback to DEFCLOCK */
+#define EMU_HANA_WCLOCK_MULT_MASK	0x18
+#define EMU_HANA_WCLOCK_1X		0x00
+#define EMU_HANA_WCLOCK_2X		0x08
+#define EMU_HANA_WCLOCK_4X		0x10
+#define EMU_HANA_WCLOCK_MULT_RESERVED	0x18
+
+#define EMU_HANA_DEFCLOCK	0x06	/* 000000x  1 bits Default Word Clock  */
+#define EMU_HANA_DEFCLOCK_48K		0x00
+#define EMU_HANA_DEFCLOCK_44_1K		0x01
+
+#define EMU_HANA_UNMUTE		0x07	/* 000000x  1 bits Mute all audio outputs  */
+#define EMU_MUTE			0x00
+#define EMU_UNMUTE			0x01
+
+#define EMU_HANA_FPGA_CONFIG	0x08	/* 00000xx  2 bits Config control of FPGAs  */
+#define EMU_HANA_FPGA_CONFIG_AUDIODOCK	0x01 /* Set in order to program FPGA on Audio Dock */
+#define EMU_HANA_FPGA_CONFIG_HANA	0x02 /* Set in order to program FPGA on Hana */
+
+#define EMU_HANA_IRQ_ENABLE	0x09	/* 000xxxx  4 bits IRQ Enable  */
+#define EMU_HANA_IRQ_WCLK_CHANGED	0x01
+#define EMU_HANA_IRQ_ADAT		0x02
+#define EMU_HANA_IRQ_DOCK		0x04
+#define EMU_HANA_IRQ_DOCK_LOST		0x08
+
+#define EMU_HANA_SPDIF_MODE	0x0a	/* 00xxxxx  5 bits SPDIF MODE  */
+#define EMU_HANA_SPDIF_MODE_TX_COMSUMER	0x00
+#define EMU_HANA_SPDIF_MODE_TX_PRO	0x01
+#define EMU_HANA_SPDIF_MODE_TX_NOCOPY	0x02
+#define EMU_HANA_SPDIF_MODE_RX_COMSUMER	0x00
+#define EMU_HANA_SPDIF_MODE_RX_PRO	0x04
+#define EMU_HANA_SPDIF_MODE_RX_NOCOPY	0x08
+#define EMU_HANA_SPDIF_MODE_RX_INVALID	0x10
+
+#define EMU_HANA_OPTICAL_TYPE	0x0b	/* 00000xx  2 bits ADAT or SPDIF in/out  */
+#define EMU_HANA_OPTICAL_IN_SPDIF	0x00
+#define EMU_HANA_OPTICAL_IN_ADAT	0x01
+#define EMU_HANA_OPTICAL_OUT_SPDIF	0x00
+#define EMU_HANA_OPTICAL_OUT_ADAT	0x02
+
+#define EMU_HANA_MIDI_IN		0x0c	/* 000000x  1 bit  Control MIDI  */
+#define EMU_HANA_MIDI_IN_FROM_HAMOA	0x00 /* HAMOA MIDI in to Alice 2 MIDI B */
+#define EMU_HANA_MIDI_IN_FROM_DOCK	0x01 /* Audio Dock MIDI in to Alice 2 MIDI B */
+
+#define EMU_HANA_DOCK_LEDS_1	0x0d	/* 000xxxx  4 bit  Audio Dock LEDs  */
+#define EMU_HANA_DOCK_LEDS_1_MIDI1	0x01	/* MIDI 1 LED on */
+#define EMU_HANA_DOCK_LEDS_1_MIDI2	0x02	/* MIDI 2 LED on */
+#define EMU_HANA_DOCK_LEDS_1_SMPTE_IN	0x04	/* SMPTE IN LED on */
+#define EMU_HANA_DOCK_LEDS_1_SMPTE_OUT	0x08	/* SMPTE OUT LED on */
+
+#define EMU_HANA_DOCK_LEDS_2	0x0e	/* 0xxxxxx  6 bit  Audio Dock LEDs  */
+#define EMU_HANA_DOCK_LEDS_2_44K	0x01	/* 44.1 kHz LED on */
+#define EMU_HANA_DOCK_LEDS_2_48K	0x02	/* 48 kHz LED on */
+#define EMU_HANA_DOCK_LEDS_2_96K	0x04	/* 96 kHz LED on */
+#define EMU_HANA_DOCK_LEDS_2_192K	0x08	/* 192 kHz LED on */
+#define EMU_HANA_DOCK_LEDS_2_LOCK	0x10	/* LOCK LED on */
+#define EMU_HANA_DOCK_LEDS_2_EXT	0x20	/* EXT LED on */
+
+#define EMU_HANA_DOCK_LEDS_3	0x0f	/* 0xxxxxx  6 bit  Audio Dock LEDs  */
+#define EMU_HANA_DOCK_LEDS_3_CLIP_A	0x01	/* Mic A Clip LED on */
+#define EMU_HANA_DOCK_LEDS_3_CLIP_B	0x02	/* Mic B Clip LED on */
+#define EMU_HANA_DOCK_LEDS_3_SIGNAL_A	0x04	/* Signal A Clip LED on */
+#define EMU_HANA_DOCK_LEDS_3_SIGNAL_B	0x08	/* Signal B Clip LED on */
+#define EMU_HANA_DOCK_LEDS_3_MANUAL_CLIP	0x10	/* Manual Clip detection */
+#define EMU_HANA_DOCK_LEDS_3_MANUAL_SIGNAL	0x20	/* Manual Signal detection */
+
+#define EMU_HANA_ADC_PADS	0x10	/* 0000xxx  3 bit  Audio Dock ADC 14dB pads */
+#define EMU_HANA_DOCK_ADC_PAD1	0x01	/* 14dB Attenuation on Audio Dock ADC 1 */
+#define EMU_HANA_DOCK_ADC_PAD2	0x02	/* 14dB Attenuation on Audio Dock ADC 2 */
+#define EMU_HANA_DOCK_ADC_PAD3	0x04	/* 14dB Attenuation on Audio Dock ADC 3 */
+#define EMU_HANA_0202_ADC_PAD1	0x08	/* 14dB Attenuation on 0202 ADC 1 */
+
+#define EMU_HANA_DOCK_MISC	0x11	/* 0xxxxxx  6 bit  Audio Dock misc bits */
+#define EMU_HANA_DOCK_DAC1_MUTE	0x01	/* DAC 1 Mute */
+#define EMU_HANA_DOCK_DAC2_MUTE	0x02	/* DAC 2 Mute */
+#define EMU_HANA_DOCK_DAC3_MUTE	0x04	/* DAC 3 Mute */
+#define EMU_HANA_DOCK_DAC4_MUTE	0x08	/* DAC 4 Mute */
+#define EMU_HANA_DOCK_PHONES_192_DAC1	0x00	/* DAC 1 Headphones source at 192kHz */
+#define EMU_HANA_DOCK_PHONES_192_DAC2	0x10	/* DAC 2 Headphones source at 192kHz */
+#define EMU_HANA_DOCK_PHONES_192_DAC3	0x20	/* DAC 3 Headphones source at 192kHz */
+#define EMU_HANA_DOCK_PHONES_192_DAC4	0x30	/* DAC 4 Headphones source at 192kHz */
+
+#define EMU_HANA_MIDI_OUT	0x12	/* 00xxxxx  5 bit  Source for each MIDI out port */
+#define EMU_HANA_MIDI_OUT_0202	0x01 /* 0202 MIDI from Alice 2. 0 = A, 1 = B */
+#define EMU_HANA_MIDI_OUT_DOCK1	0x02 /* Audio Dock MIDI1 front, from Alice 2. 0 = A, 1 = B */
+#define EMU_HANA_MIDI_OUT_DOCK2	0x04 /* Audio Dock MIDI2 rear, from Alice 2. 0 = A, 1 = B */
+#define EMU_HANA_MIDI_OUT_SYNC2	0x08 /* Sync card. Not the actual MIDI out jack. 0 = A, 1 = B */
+#define EMU_HANA_MIDI_OUT_LOOP	0x10 /* 0 = bits (3:0) normal. 1 = MIDI loopback enabled. */
+
+#define EMU_HANA_DAC_PADS	0x13	/* 00xxxxx  5 bit  DAC 14dB attenuation pads */
+#define EMU_HANA_DOCK_DAC_PAD1	0x01	/* 14dB Attenuation on AudioDock DAC 1. Left and Right */
+#define EMU_HANA_DOCK_DAC_PAD2	0x02	/* 14dB Attenuation on AudioDock DAC 2. Left and Right */
+#define EMU_HANA_DOCK_DAC_PAD3	0x04	/* 14dB Attenuation on AudioDock DAC 3. Left and Right */
+#define EMU_HANA_DOCK_DAC_PAD4	0x08	/* 14dB Attenuation on AudioDock DAC 4. Left and Right */
+#define EMU_HANA_0202_DAC_PAD1	0x10	/* 14dB Attenuation on 0202 DAC 1. Left and Right */
+
+/* 0x14 - 0x1f Unused R/W registers */
+#define EMU_HANA_IRQ_STATUS	0x20	/* 000xxxx  4 bits IRQ Status  */
+#if 0  /* Already defined for reg 0x09 IRQ_ENABLE */
+#define EMU_HANA_IRQ_WCLK_CHANGED	0x01
+#define EMU_HANA_IRQ_ADAT		0x02
+#define EMU_HANA_IRQ_DOCK		0x04
+#define EMU_HANA_IRQ_DOCK_LOST		0x08
+#endif
+
+#define EMU_HANA_OPTION_CARDS	0x21	/* 000xxxx  4 bits Presence of option cards */
+#define EMU_HANA_OPTION_HAMOA	0x01	/* HAMOA card present */
+#define EMU_HANA_OPTION_SYNC	0x02	/* Sync card present */
+#define EMU_HANA_OPTION_DOCK_ONLINE	0x04	/* Audio Dock online and FPGA configured */
+#define EMU_HANA_OPTION_DOCK_OFFLINE	0x08	/* Audio Dock online and FPGA not configured */
+
+#define EMU_HANA_ID		0x22	/* 1010101  7 bits ID byte & 0x7f = 0x55 */
+
+#define EMU_HANA_MAJOR_REV	0x23	/* 0000xxx  3 bit  Hana FPGA Major rev */
+#define EMU_HANA_MINOR_REV	0x24	/* 0000xxx  3 bit  Hana FPGA Minor rev */
+
+#define EMU_DOCK_MAJOR_REV	0x25	/* 0000xxx  3 bit  Audio Dock FPGA Major rev */
+#define EMU_DOCK_MINOR_REV	0x26	/* 0000xxx  3 bit  Audio Dock FPGA Minor rev */
+
+#define EMU_DOCK_BOARD_ID	0x27	/* 00000xx  2 bits Audio Dock ID pins */
+#define EMU_DOCK_BOARD_ID0	0x00	/* ID bit 0 */
+#define EMU_DOCK_BOARD_ID1	0x03	/* ID bit 1 */
+
+#define EMU_HANA_WC_SPDIF_HI	0x28	/* 0xxxxxx  6 bit  SPDIF IN Word clock, upper 6 bits */
+#define EMU_HANA_WC_SPDIF_LO	0x29	/* 0xxxxxx  6 bit  SPDIF IN Word clock, lower 6 bits */
+
+#define EMU_HANA_WC_ADAT_HI	0x2a	/* 0xxxxxx  6 bit  ADAT IN Word clock, upper 6 bits */
+#define EMU_HANA_WC_ADAT_LO	0x2b	/* 0xxxxxx  6 bit  ADAT IN Word clock, lower 6 bits */
+
+#define EMU_HANA_WC_BNC_LO	0x2c	/* 0xxxxxx  6 bit  BNC IN Word clock, lower 6 bits */
+#define EMU_HANA_WC_BNC_HI	0x2d	/* 0xxxxxx  6 bit  BNC IN Word clock, upper 6 bits */
+
+#define EMU_HANA2_WC_SPDIF_HI	0x2e	/* 0xxxxxx  6 bit  HANA2 SPDIF IN Word clock, upper 6 bits */
+#define EMU_HANA2_WC_SPDIF_LO	0x2f	/* 0xxxxxx  6 bit  HANA2 SPDIF IN Word clock, lower 6 bits */
+/* 0x30 - 0x3f Unused Read only registers */
+
+/************************************************************************************************/
+/* EMU1010m HANA Destinations									*/
+/************************************************************************************************/
+#define EMU_DST_ALICE2_EMU32_0	0x000f	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_1	0x0000	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_2	0x0001	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_3	0x0002	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_4	0x0003	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_5	0x0004	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_6	0x0005	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_7	0x0006	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_8	0x0007	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_9	0x0008	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_A	0x0009	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_B	0x000a	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_C	0x000b	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_D	0x000c	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_E	0x000d	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_ALICE2_EMU32_F	0x000e	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+#define EMU_DST_DOCK_DAC1_LEFT1	0x0100	/* Audio Dock DAC1 Left, 1st or 48kHz only */
+#define EMU_DST_DOCK_DAC1_LEFT2	0x0101	/* Audio Dock DAC1 Left, 2nd or 96kHz */
+#define EMU_DST_DOCK_DAC1_LEFT3	0x0102	/* Audio Dock DAC1 Left, 3rd or 192kHz */
+#define EMU_DST_DOCK_DAC1_LEFT4	0x0103	/* Audio Dock DAC1 Left, 4th or 192kHz */
+#define EMU_DST_DOCK_DAC1_RIGHT1	0x0104	/* Audio Dock DAC1 Right, 1st or 48kHz only */
+#define EMU_DST_DOCK_DAC1_RIGHT2	0x0105	/* Audio Dock DAC1 Right, 2nd or 96kHz */
+#define EMU_DST_DOCK_DAC1_RIGHT3	0x0106	/* Audio Dock DAC1 Right, 3rd or 192kHz */
+#define EMU_DST_DOCK_DAC1_RIGHT4	0x0107	/* Audio Dock DAC1 Right, 4th or 192kHz */
+#define EMU_DST_DOCK_DAC2_LEFT1	0x0108	/* Audio Dock DAC2 Left, 1st or 48kHz only */
+#define EMU_DST_DOCK_DAC2_LEFT2	0x0109	/* Audio Dock DAC2 Left, 2nd or 96kHz */
+#define EMU_DST_DOCK_DAC2_LEFT3	0x010a	/* Audio Dock DAC2 Left, 3rd or 192kHz */
+#define EMU_DST_DOCK_DAC2_LEFT4	0x010b	/* Audio Dock DAC2 Left, 4th or 192kHz */
+#define EMU_DST_DOCK_DAC2_RIGHT1	0x010c	/* Audio Dock DAC2 Right, 1st or 48kHz only */
+#define EMU_DST_DOCK_DAC2_RIGHT2	0x010d	/* Audio Dock DAC2 Right, 2nd or 96kHz */
+#define EMU_DST_DOCK_DAC2_RIGHT3	0x010e	/* Audio Dock DAC2 Right, 3rd or 192kHz */
+#define EMU_DST_DOCK_DAC2_RIGHT4	0x010f	/* Audio Dock DAC2 Right, 4th or 192kHz */
+#define EMU_DST_DOCK_DAC3_LEFT1	0x0110	/* Audio Dock DAC1 Left, 1st or 48kHz only */
+#define EMU_DST_DOCK_DAC3_LEFT2	0x0111	/* Audio Dock DAC1 Left, 2nd or 96kHz */
+#define EMU_DST_DOCK_DAC3_LEFT3	0x0112	/* Audio Dock DAC1 Left, 3rd or 192kHz */
+#define EMU_DST_DOCK_DAC3_LEFT4	0x0113	/* Audio Dock DAC1 Left, 4th or 192kHz */
+#define EMU_DST_DOCK_PHONES_LEFT1	0x0112	/* Audio Dock PHONES Left, 1st or 48kHz only */
+#define EMU_DST_DOCK_PHONES_LEFT2	0x0113	/* Audio Dock PHONES Left, 2nd or 96kHz */
+#define EMU_DST_DOCK_DAC3_RIGHT1	0x0114	/* Audio Dock DAC1 Right, 1st or 48kHz only */
+#define EMU_DST_DOCK_DAC3_RIGHT2	0x0115	/* Audio Dock DAC1 Right, 2nd or 96kHz */
+#define EMU_DST_DOCK_DAC3_RIGHT3	0x0116	/* Audio Dock DAC1 Right, 3rd or 192kHz */
+#define EMU_DST_DOCK_DAC3_RIGHT4	0x0117	/* Audio Dock DAC1 Right, 4th or 192kHz */
+#define EMU_DST_DOCK_PHONES_RIGHT1	0x0116	/* Audio Dock PHONES Right, 1st or 48kHz only */
+#define EMU_DST_DOCK_PHONES_RIGHT2	0x0117	/* Audio Dock PHONES Right, 2nd or 96kHz */
+#define EMU_DST_DOCK_DAC4_LEFT1	0x0118	/* Audio Dock DAC2 Left, 1st or 48kHz only */
+#define EMU_DST_DOCK_DAC4_LEFT2	0x0119	/* Audio Dock DAC2 Left, 2nd or 96kHz */
+#define EMU_DST_DOCK_DAC4_LEFT3	0x011a	/* Audio Dock DAC2 Left, 3rd or 192kHz */
+#define EMU_DST_DOCK_DAC4_LEFT4	0x011b	/* Audio Dock DAC2 Left, 4th or 192kHz */
+#define EMU_DST_DOCK_SPDIF_LEFT1	0x011a	/* Audio Dock SPDIF Left, 1st or 48kHz only */
+#define EMU_DST_DOCK_SPDIF_LEFT2	0x011b	/* Audio Dock SPDIF Left, 2nd or 96kHz */
+#define EMU_DST_DOCK_DAC4_RIGHT1	0x011c	/* Audio Dock DAC2 Right, 1st or 48kHz only */
+#define EMU_DST_DOCK_DAC4_RIGHT2	0x011d	/* Audio Dock DAC2 Right, 2nd or 96kHz */
+#define EMU_DST_DOCK_DAC4_RIGHT3	0x011e	/* Audio Dock DAC2 Right, 3rd or 192kHz */
+#define EMU_DST_DOCK_DAC4_RIGHT4	0x011f	/* Audio Dock DAC2 Right, 4th or 192kHz */
+#define EMU_DST_DOCK_SPDIF_RIGHT1	0x011e	/* Audio Dock SPDIF Right, 1st or 48kHz only */
+#define EMU_DST_DOCK_SPDIF_RIGHT2	0x011f	/* Audio Dock SPDIF Right, 2nd or 96kHz */
+#define EMU_DST_HANA_SPDIF_LEFT1	0x0200	/* Hana SPDIF Left, 1st or 48kHz only */
+#define EMU_DST_HANA_SPDIF_LEFT2	0x0202	/* Hana SPDIF Left, 2nd or 96kHz */
+#define EMU_DST_HANA_SPDIF_RIGHT1	0x0201	/* Hana SPDIF Right, 1st or 48kHz only */
+#define EMU_DST_HANA_SPDIF_RIGHT2	0x0203	/* Hana SPDIF Right, 2nd or 96kHz */
+#define EMU_DST_HAMOA_DAC_LEFT1	0x0300	/* Hamoa DAC Left, 1st or 48kHz only */
+#define EMU_DST_HAMOA_DAC_LEFT2	0x0302	/* Hamoa DAC Left, 2nd or 96kHz */
+#define EMU_DST_HAMOA_DAC_LEFT3	0x0304	/* Hamoa DAC Left, 3rd or 192kHz */
+#define EMU_DST_HAMOA_DAC_LEFT4	0x0306	/* Hamoa DAC Left, 4th or 192kHz */
+#define EMU_DST_HAMOA_DAC_RIGHT1	0x0301	/* Hamoa DAC Right, 1st or 48kHz only */
+#define EMU_DST_HAMOA_DAC_RIGHT2	0x0303	/* Hamoa DAC Right, 2nd or 96kHz */
+#define EMU_DST_HAMOA_DAC_RIGHT3	0x0305	/* Hamoa DAC Right, 3rd or 192kHz */
+#define EMU_DST_HAMOA_DAC_RIGHT4	0x0307	/* Hamoa DAC Right, 4th or 192kHz */
+#define EMU_DST_HANA_ADAT	0x0400	/* Hana ADAT 8 channel out +0 to +7 */
+#define EMU_DST_ALICE_I2S0_LEFT		0x0500	/* Alice2 I2S0 Left */
+#define EMU_DST_ALICE_I2S0_RIGHT	0x0501	/* Alice2 I2S0 Right */
+#define EMU_DST_ALICE_I2S1_LEFT		0x0600	/* Alice2 I2S1 Left */
+#define EMU_DST_ALICE_I2S1_RIGHT	0x0601	/* Alice2 I2S1 Right */
+#define EMU_DST_ALICE_I2S2_LEFT		0x0700	/* Alice2 I2S2 Left */
+#define EMU_DST_ALICE_I2S2_RIGHT	0x0701	/* Alice2 I2S2 Right */
+
+/************************************************************************************************/
+/* EMU1010m HANA Sources									*/
+/************************************************************************************************/
+#define EMU_SRC_SILENCE		0x0000	/* Silence */
+#define EMU_SRC_DOCK_MIC_A1	0x0100	/* Audio Dock Mic A, 1st or 48kHz only */
+#define EMU_SRC_DOCK_MIC_A2	0x0101	/* Audio Dock Mic A, 2nd or 96kHz */
+#define EMU_SRC_DOCK_MIC_A3	0x0102	/* Audio Dock Mic A, 3rd or 192kHz */
+#define EMU_SRC_DOCK_MIC_A4	0x0103	/* Audio Dock Mic A, 4th or 192kHz */
+#define EMU_SRC_DOCK_MIC_B1	0x0104	/* Audio Dock Mic B, 1st or 48kHz only */
+#define EMU_SRC_DOCK_MIC_B2	0x0105	/* Audio Dock Mic B, 2nd or 96kHz */
+#define EMU_SRC_DOCK_MIC_B3	0x0106	/* Audio Dock Mic B, 3rd or 192kHz */
+#define EMU_SRC_DOCK_MIC_B4	0x0107	/* Audio Dock Mic B, 4th or 192kHz */
+#define EMU_SRC_DOCK_ADC1_LEFT1	0x0108	/* Audio Dock ADC1 Left, 1st or 48kHz only */
+#define EMU_SRC_DOCK_ADC1_LEFT2	0x0109	/* Audio Dock ADC1 Left, 2nd or 96kHz */
+#define EMU_SRC_DOCK_ADC1_LEFT3	0x010a	/* Audio Dock ADC1 Left, 3rd or 192kHz */
+#define EMU_SRC_DOCK_ADC1_LEFT4	0x010b	/* Audio Dock ADC1 Left, 4th or 192kHz */
+#define EMU_SRC_DOCK_ADC1_RIGHT1	0x010c	/* Audio Dock ADC1 Right, 1st or 48kHz only */
+#define EMU_SRC_DOCK_ADC1_RIGHT2	0x010d	/* Audio Dock ADC1 Right, 2nd or 96kHz */
+#define EMU_SRC_DOCK_ADC1_RIGHT3	0x010e	/* Audio Dock ADC1 Right, 3rd or 192kHz */
+#define EMU_SRC_DOCK_ADC1_RIGHT4	0x010f	/* Audio Dock ADC1 Right, 4th or 192kHz */
+#define EMU_SRC_DOCK_ADC2_LEFT1	0x0110	/* Audio Dock ADC2 Left, 1st or 48kHz only */
+#define EMU_SRC_DOCK_ADC2_LEFT2	0x0111	/* Audio Dock ADC2 Left, 2nd or 96kHz */
+#define EMU_SRC_DOCK_ADC2_LEFT3	0x0112	/* Audio Dock ADC2 Left, 3rd or 192kHz */
+#define EMU_SRC_DOCK_ADC2_LEFT4	0x0113	/* Audio Dock ADC2 Left, 4th or 192kHz */
+#define EMU_SRC_DOCK_ADC2_RIGHT1	0x0114	/* Audio Dock ADC2 Right, 1st or 48kHz only */
+#define EMU_SRC_DOCK_ADC2_RIGHT2	0x0115	/* Audio Dock ADC2 Right, 2nd or 96kHz */
+#define EMU_SRC_DOCK_ADC2_RIGHT3	0x0116	/* Audio Dock ADC2 Right, 3rd or 192kHz */
+#define EMU_SRC_DOCK_ADC2_RIGHT4	0x0117	/* Audio Dock ADC2 Right, 4th or 192kHz */
+#define EMU_SRC_DOCK_ADC3_LEFT1	0x0118	/* Audio Dock ADC3 Left, 1st or 48kHz only */
+#define EMU_SRC_DOCK_ADC3_LEFT2	0x0119	/* Audio Dock ADC3 Left, 2nd or 96kHz */
+#define EMU_SRC_DOCK_ADC3_LEFT3	0x011a	/* Audio Dock ADC3 Left, 3rd or 192kHz */
+#define EMU_SRC_DOCK_ADC3_LEFT4	0x011b	/* Audio Dock ADC3 Left, 4th or 192kHz */
+#define EMU_SRC_DOCK_ADC3_RIGHT1	0x011c	/* Audio Dock ADC3 Right, 1st or 48kHz only */
+#define EMU_SRC_DOCK_ADC3_RIGHT2	0x011d	/* Audio Dock ADC3 Right, 2nd or 96kHz */
+#define EMU_SRC_DOCK_ADC3_RIGHT3	0x011e	/* Audio Dock ADC3 Right, 3rd or 192kHz */
+#define EMU_SRC_DOCK_ADC3_RIGHT4	0x011f	/* Audio Dock ADC3 Right, 4th or 192kHz */
+#define EMU_SRC_HAMOA_ADC_LEFT1	0x0200	/* Hamoa ADC Left, 1st or 48kHz only */
+#define EMU_SRC_HAMOA_ADC_LEFT2	0x0202	/* Hamoa ADC Left, 2nd or 96kHz */
+#define EMU_SRC_HAMOA_ADC_LEFT3	0x0204	/* Hamoa ADC Left, 3rd or 192kHz */
+#define EMU_SRC_HAMOA_ADC_LEFT4	0x0206	/* Hamoa ADC Left, 4th or 192kHz */
+#define EMU_SRC_HAMOA_ADC_RIGHT1	0x0201	/* Hamoa ADC Right, 1st or 48kHz only */
+#define EMU_SRC_HAMOA_ADC_RIGHT2	0x0203	/* Hamoa ADC Right, 2nd or 96kHz */
+#define EMU_SRC_HAMOA_ADC_RIGHT3	0x0205	/* Hamoa ADC Right, 3rd or 192kHz */
+#define EMU_SRC_HAMOA_ADC_RIGHT4	0x0207	/* Hamoa ADC Right, 4th or 192kHz */
+#define EMU_SRC_ALICE_EMU32A		0x0300	/* Alice2 EMU32a 16 outputs. +0 to +0xf */
+#define EMU_SRC_ALICE_EMU32B		0x0310	/* Alice2 EMU32b 16 outputs. +0 to +0xf */
+#define EMU_SRC_HANA_ADAT	0x0400	/* Hana ADAT 8 channel in +0 to +7 */
+#define EMU_SRC_HANA_SPDIF_LEFT1	0x0500	/* Hana SPDIF Left, 1st or 48kHz only */
+#define EMU_SRC_HANA_SPDIF_LEFT2	0x0502	/* Hana SPDIF Left, 2nd or 96kHz */
+#define EMU_SRC_HANA_SPDIF_RIGHT1	0x0501	/* Hana SPDIF Right, 1st or 48kHz only */
+#define EMU_SRC_HANA_SPDIF_RIGHT2	0x0503	/* Hana SPDIF Right, 2nd or 96kHz */
+/* 0x600 and 0x700 no used */
 
 /* ------------------- STRUCTURES -------------------- */
 
@@ -1063,13 +1425,21 @@ struct snd_emu_chip_details {
 	unsigned char spdif_bug;    /* Has Spdif phasing bug */
 	unsigned char ac97_chip;    /* Has an AC97 chip: 1 = mandatory, 2 = optional */
 	unsigned char ecard;        /* APS EEPROM */
-	unsigned char emu1212m;     /* EMU 1212m card */
+	unsigned char emu1010;     /* EMU 1010m card */
 	unsigned char spi_dac;      /* SPI interface for DAC */
 	unsigned char i2c_adc;      /* I2C interface for ADC */
 	unsigned char adc_1361t;    /* Use Philips 1361T ADC */
 	const char *driver;
 	const char *name;
 	const char *id;		/* for backward compatibility - can be NULL if not needed */
+};
+
+struct snd_emu1010 {
+	unsigned int output_source[64];
+	unsigned int input_source[64];
+	unsigned int adc_pads; /* bit mask */
+	unsigned int dac_pads; /* bit mask */
+	unsigned int internal_clock; /* 44100 or 48000 */
 };
 
 struct snd_emu10k1 {
@@ -1079,6 +1449,7 @@ struct snd_emu10k1 {
 	unsigned int tos_link: 1,		/* tos link detected */
 		rear_ac97: 1,			/* rear channels are on AC'97 */
 		enable_ir: 1;
+	unsigned int support_tlv :1;
 	/* Contains profile of card capabilities */
 	const struct snd_emu_chip_details *card_capabilities;
 	unsigned int audigy;			/* is Audigy? */
@@ -1104,6 +1475,8 @@ struct snd_emu10k1 {
 	spinlock_t memblk_lock;
 
 	unsigned int spdif_bits[3];		/* s/pdif out setup */
+	unsigned int i2c_capture_source;
+	u8 i2c_capture_volume[4][2];
 
 	struct snd_emu10k1_fx8010 fx8010;		/* FX8010 info */
 	int gpr_base;
@@ -1132,6 +1505,7 @@ struct snd_emu10k1 {
 	int p16v_device_offset;
 	u32 p16v_capture_source;
 	u32 p16v_capture_channel;
+        struct snd_emu1010 emu1010;
 	struct snd_emu10k1_pcm_mixer pcm_mixer[32];
 	struct snd_emu10k1_pcm_mixer efx_pcm_mixer[NUM_EFX_PLAYBACK];
 	struct snd_kcontrol *ctl_send_routing;
@@ -1208,6 +1582,10 @@ void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned i
 unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn);
 void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
 int snd_emu10k1_spi_write(struct snd_emu10k1 * emu, unsigned int data);
+int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
+int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, int reg, int value);
+int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, int reg, int *value);
+int snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 * emu, int dst, int src);
 unsigned int snd_emu10k1_efx_read(struct snd_emu10k1 *emu, unsigned int pc);
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb);
 void snd_emu10k1_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb);
@@ -1524,11 +1902,20 @@ struct snd_emu10k1_fx8010_control_gpr {
 	unsigned int value[32];		/* initial values */
 	unsigned int min;		/* minimum range */
 	unsigned int max;		/* maximum range */
-	union {
-		snd_kcontrol_tlv_rw_t *c;
-		unsigned int *p;
-	} tlv;
 	unsigned int translation;	/* translation type (EMU10K1_GPR_TRANSLATION*) */
+	const unsigned int *tlv;
+};
+
+/* old ABI without TLV support */
+struct snd_emu10k1_fx8010_control_old_gpr {
+	struct snd_ctl_elem_id id;
+	unsigned int vcount;
+	unsigned int count;
+	unsigned short gpr[32];
+	unsigned int value[32];
+	unsigned int min;
+	unsigned int max;
+	unsigned int translation;
 };
 
 struct snd_emu10k1_fx8010_code {
@@ -1579,6 +1966,8 @@ struct snd_emu10k1_fx8010_pcm_rec {
 	unsigned int res2;		/* reserved */
 };
 
+#define SNDRV_EMU10K1_VERSION		SNDRV_PROTOCOL_VERSION(1, 0, 1)
+
 #define SNDRV_EMU10K1_IOCTL_INFO	_IOR ('H', 0x10, struct snd_emu10k1_fx8010_info)
 #define SNDRV_EMU10K1_IOCTL_CODE_POKE	_IOW ('H', 0x11, struct snd_emu10k1_fx8010_code)
 #define SNDRV_EMU10K1_IOCTL_CODE_PEEK	_IOWR('H', 0x12, struct snd_emu10k1_fx8010_code)
@@ -1587,6 +1976,7 @@ struct snd_emu10k1_fx8010_pcm_rec {
 #define SNDRV_EMU10K1_IOCTL_TRAM_PEEK	_IOWR('H', 0x22, struct snd_emu10k1_fx8010_tram)
 #define SNDRV_EMU10K1_IOCTL_PCM_POKE	_IOW ('H', 0x30, struct snd_emu10k1_fx8010_pcm_rec)
 #define SNDRV_EMU10K1_IOCTL_PCM_PEEK	_IOWR('H', 0x31, struct snd_emu10k1_fx8010_pcm_rec)
+#define SNDRV_EMU10K1_IOCTL_PVERSION	_IOR ('H', 0x40, int)
 #define SNDRV_EMU10K1_IOCTL_STOP	_IO  ('H', 0x80)
 #define SNDRV_EMU10K1_IOCTL_CONTINUE	_IO  ('H', 0x81)
 #define SNDRV_EMU10K1_IOCTL_ZERO_TRAM_COUNTER _IO ('H', 0x82)
