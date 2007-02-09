@@ -1338,6 +1338,12 @@ int patch_conexant(struct snd_ac97 * ac97)
 	return 0;
 }
 
+int patch_cx20551(struct snd_ac97 *ac97)
+{
+	snd_ac97_update_bits(ac97, 0x5c, 0x01, 0x01);
+	return 0;
+}
+
 /*
  * Analog Device AD18xx, AD19xx codecs
  */
