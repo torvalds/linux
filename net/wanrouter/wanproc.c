@@ -37,10 +37,10 @@
 
 #define PROT_DECODE(prot) ((prot == WANCONFIG_FR) ? " FR" :\
 			      (prot == WANCONFIG_X25) ? " X25" : \
-			         (prot == WANCONFIG_PPP) ? " PPP" : \
+				 (prot == WANCONFIG_PPP) ? " PPP" : \
 				    (prot == WANCONFIG_CHDLC) ? " CHDLC": \
 				       (prot == WANCONFIG_MPPP) ? " MPPP" : \
-				           " Unknown" )
+					   " Unknown" )
 
 /****** Function Prototypes *************************************************/
 
