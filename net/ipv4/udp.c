@@ -120,7 +120,7 @@ static inline int __udp_lib_lport_inuse(__u16 num, struct hlist_head udptable[])
 	struct hlist_node *node;
 
 	sk_for_each(sk, node, &udptable[num & (UDP_HTABLE_SIZE - 1)])
-		if (inet_sk(sk)->num == num)
+		if (sk->sk_hash == num)
 			return 1;
 	return 0;
 }
@@ -191,7 +191,7 @@ gotit:
 		head = &udptable[snum & (UDP_HTABLE_SIZE - 1)];
 
 		sk_for_each(sk2, node, head)
-			if (inet_sk(sk2)->num == snum                        &&
+			if (sk2->sk_hash == snum                             &&
 			    sk2 != sk                                        &&
 			    (!sk2->sk_reuse        || !sk->sk_reuse)         &&
 			    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if
@@ -200,6 +200,7 @@ gotit:
 				goto fail;
 	}
 	inet_sk(sk)->num = snum;
+	sk->sk_hash = snum;
 	if (sk_unhashed(sk)) {
 		head = &udptable[snum & (UDP_HTABLE_SIZE - 1)];
 		sk_add_node(sk, head);
@@ -247,7 +248,7 @@ static struct sock *__udp4_lib_lookup(__be32 saddr, __be16 sport,
 	sk_for_each(sk, node, &udptable[hnum & (UDP_HTABLE_SIZE - 1)]) {
 		struct inet_sock *inet = inet_sk(sk);
 
-		if (inet->num == hnum && !ipv6_only_sock(sk)) {
+		if (sk->sk_hash == hnum && !ipv6_only_sock(sk)) {
 			int score = (sk->sk_family == PF_INET ? 1 : 0);
 			if (inet->rcv_saddr) {
 				if (inet->rcv_saddr != daddr)
@@ -296,7 +297,7 @@ static inline struct sock *udp_v4_mcast_next(struct sock *sk,
 	sk_for_each_from(s, node) {
 		struct inet_sock *inet = inet_sk(s);
 
-		if (inet->num != hnum					||
+		if (s->sk_hash != hnum					||
 		    (inet->daddr && inet->daddr != rmt_addr)		||
 		    (inet->dport != rmt_port && inet->dport)		||
 		    (inet->rcv_saddr && inet->rcv_saddr != loc_addr)	||

@@ -71,7 +71,7 @@ static struct sock *__udp6_lib_lookup(struct in6_addr *saddr, __be16 sport,
 	sk_for_each(sk, node, &udptable[hnum & (UDP_HTABLE_SIZE - 1)]) {
 		struct inet_sock *inet = inet_sk(sk);
 
-		if (inet->num == hnum && sk->sk_family == PF_INET6) {
+		if (sk->sk_hash == hnum && sk->sk_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
 			int score = 0;
 			if (inet->dport) {
@@ -309,7 +309,7 @@ static struct sock *udp_v6_mcast_next(struct sock *sk,
 	sk_for_each_from(s, node) {
 		struct inet_sock *inet = inet_sk(s);
 
-		if (inet->num == num && s->sk_family == PF_INET6) {
+		if (s->sk_hash == num && s->sk_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(s);
 			if (inet->dport) {
 				if (inet->dport != rmt_port)
