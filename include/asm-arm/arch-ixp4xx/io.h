@@ -238,9 +238,6 @@ __ixp4xx_readsl(const volatile void __iomem *bus_addr, u32 *vaddr, u32 count)
 #define memcpy_fromio(a,c,l)		_memcpy_fromio((a),(c),(l))
 #define memcpy_toio(c,a,l)		_memcpy_toio((c),(a),(l))
 
-#define eth_io_copy_and_sum(s,c,l,b) \
-				eth_copy_and_sum((s),__mem_pci(c),(l),(b))
-
 static inline int
 check_signature(const unsigned char __iomem *bus_addr, const unsigned char *signature,
 		int length)

@@ -248,12 +248,6 @@ void memset_io(volatile void __iomem *a, int b, size_t c);
  */
 #define __ISA_IO_base ((char __iomem *)(PAGE_OFFSET))
 
-/*
- * Again, x86-64 does not require mem IO specific function.
- */
-
-#define eth_io_copy_and_sum(a,b,c,d)		eth_copy_and_sum((a),(void *)(b),(c),(d))
-
 /* Nothing to do */
 
 #define dma_cache_inv(_start,_size)		do { } while (0)
