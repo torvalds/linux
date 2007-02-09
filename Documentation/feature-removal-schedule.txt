@@ -186,18 +186,6 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
 
 ---------------------------
 
-What:	find_trylock_page
-When:	January 2007
-Why:	The interface no longer has any callers left in the kernel. It
-	is an odd interface (compared with other find_*_page functions), in
-	that it does not take a refcount to the page, only the page lock.
-	It should be replaced with find_get_page or find_lock_page if possible.
-	This feature removal can be reevaluated if users of the interface
-	cannot cleanly use something else.
-Who:	Nick Piggin <npiggin@suse.de>
-
----------------------------
-
 What:	Interrupt only SA_* flags
 When:	Januar 2007
 Why:	The interrupt related SA_* flags are replaced by IRQF_* to move them
