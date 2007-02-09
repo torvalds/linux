@@ -194,6 +194,7 @@ int ps3_alloc_io_irq(enum ps3_cpu_binding cpu, unsigned int interrupt_id,
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_alloc_io_irq);
 
 int ps3_free_io_irq(unsigned int virq)
 {
@@ -209,6 +210,7 @@ int ps3_free_io_irq(unsigned int virq)
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_free_io_irq);
 
 /**
  * ps3_alloc_event_irq - Allocate a virq for use with a system event.
