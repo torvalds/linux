@@ -68,12 +68,6 @@ static inline void set_fs(mm_segment_t s)
 
 #define access_ok(type, addr, size) (likely(__range_ok(addr, size) == 0))
 
-static inline int
-verify_area(int type, const void __user *addr, unsigned long size)
-{
-	return access_ok(type, addr, size) ? 0 : -EFAULT;
-}
-
 /* Generic arbitrary sized copy. Return the number of bytes NOT copied */
 extern __kernel_size_t __copy_user(void *to, const void *from,
 				   __kernel_size_t n);

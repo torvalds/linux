@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
+#include <linux/kernel.h>
 
 #include <asm/sections.h>
 #include <asm/processor.h>
@@ -174,8 +175,7 @@ static int __init parse_tag_mem_range(struct tag *tag,
 	 * Copy the data so the bootmem init code doesn't need to care
 	 * about it.
 	 */
-	if (mem_range_next_free >=
-	    (sizeof(mem_range_cache) / sizeof(mem_range_cache[0])))
+	if (mem_range_next_free >= ARRAY_SIZE(mem_range_cache))
 		panic("Physical memory map too complex!\n");
 
 	new = &mem_range_cache[mem_range_next_free++];

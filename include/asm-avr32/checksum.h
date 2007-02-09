@@ -38,7 +38,7 @@ __wsum csum_partial_copy_generic(const void *src, void *dst, int len,
  *	passed in an incorrect kernel address to one of these functions.
  *
  *	If you use these functions directly please don't forget the
- *	verify_area().
+ *	access_ok().
  */
 static inline
 __wsum csum_partial_copy_nocheck(const void *src, void *dst,
