@@ -330,10 +330,10 @@ static int rxrpc_incoming_msg(struct rxrpc_transport *trans,
 	msg->state = RXRPC_MSG_RECEIVED;
 	skb_get_timestamp(pkt, &msg->stamp);
 	if (msg->stamp.tv_sec == 0) {
-		do_gettimeofday(&msg->stamp); 
-		if (pkt->sk) 
+		do_gettimeofday(&msg->stamp);
+		if (pkt->sk)
 			sock_enable_timestamp(pkt->sk);
-	} 
+	}
 	msg->seq = ntohl(msg->hdr.seq);
 
 	/* attach the packet */
