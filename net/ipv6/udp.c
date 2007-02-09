@@ -1,9 +1,9 @@
 /*
  *	UDP over IPv6
- *	Linux INET6 implementation 
+ *	Linux INET6 implementation
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	Based on linux/ipv4/udp.c
  *
@@ -67,7 +67,7 @@ static struct sock *__udp6_lib_lookup(struct in6_addr *saddr, __be16 sport,
 	unsigned short hnum = ntohs(dport);
 	int badness = -1;
 
- 	read_lock(&udp_hash_lock);
+	read_lock(&udp_hash_lock);
 	sk_for_each(sk, node, &udptable[hnum & (UDP_HTABLE_SIZE - 1)]) {
 		struct inet_sock *inet = inet_sk(sk);
 
@@ -105,7 +105,7 @@ static struct sock *__udp6_lib_lookup(struct in6_addr *saddr, __be16 sport,
 	}
 	if (result)
 		sock_hold(result);
- 	read_unlock(&udp_hash_lock);
+	read_unlock(&udp_hash_lock);
 	return result;
 }
 
@@ -120,13 +120,13 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
-  	struct sk_buff *skb;
+	struct sk_buff *skb;
 	size_t copied;
 	int err, copy_only, is_udplite = IS_UDPLITE(sk);
 
-  	if (addr_len)
-  		*addr_len=sizeof(struct sockaddr_in6);
-  
+	if (addr_len)
+		*addr_len=sizeof(struct sockaddr_in6);
+
 	if (flags & MSG_ERRQUEUE)
 		return ipv6_recv_error(sk, msg, len);
 
@@ -135,11 +135,11 @@ try_again:
 	if (!skb)
 		goto out;
 
- 	copied = skb->len - sizeof(struct udphdr);
-  	if (copied > len) {
-  		copied = len;
-  		msg->msg_flags |= MSG_TRUNC;
-  	}
+	copied = skb->len - sizeof(struct udphdr);
+	if (copied > len) {
+		copied = len;
+		msg->msg_flags |= MSG_TRUNC;
+	}
 
 	/*
 	 * 	Decide whether to checksum and/or copy data.
@@ -168,7 +168,7 @@ try_again:
 	/* Copy the address. */
 	if (msg->msg_name) {
 		struct sockaddr_in6 *sin6;
-	  
+
 		sin6 = (struct sockaddr_in6 *) msg->msg_name;
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = skb->h.uh->source;
@@ -191,7 +191,7 @@ try_again:
 	} else {
 		if (np->rxopt.all)
 			datagram_recv_ctl(sk, msg, skb);
-  	}
+	}
 
 	err = copied;
 	if (flags & MSG_TRUNC)
@@ -339,7 +339,7 @@ static struct sock *udp_v6_mcast_next(struct sock *sk,
  * so we don't need to lock the hashes.
  */
 static int __udp6_lib_mcast_deliver(struct sk_buff *skb, struct in6_addr *saddr,
-		           struct in6_addr *daddr, struct hlist_head udptable[])
+			   struct in6_addr *daddr, struct hlist_head udptable[])
 {
 	struct sock *sk, *sk2;
 	const struct udphdr *uh = skb->h.uh;
@@ -379,7 +379,7 @@ static inline int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh)
 	}
 	if (skb->ip_summed == CHECKSUM_COMPLETE &&
 	    !csum_ipv6_magic(&skb->nh.ipv6h->saddr, &skb->nh.ipv6h->daddr,
-		    	     skb->len, IPPROTO_UDP, skb->csum             ))
+			     skb->len, IPPROTO_UDP, skb->csum             ))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
@@ -396,7 +396,7 @@ int __udp6_lib_rcv(struct sk_buff **pskb, struct hlist_head udptable[],
 {
 	struct sk_buff *skb = *pskb;
 	struct sock *sk;
-  	struct udphdr *uh;
+	struct udphdr *uh;
 	struct net_device *dev = skb->dev;
 	struct in6_addr *saddr, *daddr;
 	u32 ulen = 0;
@@ -437,15 +437,15 @@ int __udp6_lib_rcv(struct sk_buff **pskb, struct hlist_head udptable[],
 			goto discard;
 	}
 
-	/* 
-	 *	Multicast receive code 
+	/*
+	 *	Multicast receive code
 	 */
 	if (ipv6_addr_is_multicast(daddr))
 		return __udp6_lib_mcast_deliver(skb, saddr, daddr, udptable);
 
 	/* Unicast */
 
-	/* 
+	/*
 	 * check socket cache ... must talk to Alan about his plans
 	 * for sock caches... i'll skip this for now.
 	 */
@@ -465,21 +465,21 @@ int __udp6_lib_rcv(struct sk_buff **pskb, struct hlist_head udptable[],
 		kfree_skb(skb);
 		return(0);
 	}
-	
+
 	/* deliver */
-	
+
 	udpv6_queue_rcv_skb(sk, skb);
 	sock_put(sk);
 	return(0);
 
-short_packet:	
+short_packet:
 	LIMIT_NETDEBUG(KERN_DEBUG "UDP%sv6: short packet: %d/%u\n",
 		       is_udplite? "-Lite" : "",  ulen, skb->len);
 
 discard:
 	UDP6_INC_STATS_BH(UDP_MIB_INERRORS, is_udplite);
 	kfree_skb(skb);
-	return(0);	
+	return(0);
 }
 
 static __inline__ int udpv6_rcv(struct sk_buff **pskb)
@@ -498,7 +498,7 @@ static void udp_v6_flush_pending_frames(struct sock *sk)
 		up->len = 0;
 		up->pending = 0;
 		ip6_flush_pending_frames(sk);
-        }
+	}
 }
 
 /*
@@ -594,7 +594,7 @@ int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -EDESTADDRREQ;
 		daddr = &np->daddr;
-	} else 
+	} else
 		daddr = NULL;
 
 	if (daddr) {
@@ -620,7 +620,7 @@ do_udp_sendmsg:
 	   */
 	if (len > INT_MAX - sizeof(struct udphdr))
 		return -EMSGSIZE;
-	
+
 	if (up->pending) {
 		/*
 		 * There are pending frames.
@@ -713,7 +713,7 @@ do_udp_sendmsg:
 	if (ipv6_addr_any(&fl.fl6_src) && !ipv6_addr_any(&np->saddr))
 		ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 	fl.fl_ip_sport = inet->sport;
-	
+
 	/* merge ip6_build_xmit from ip6_output */
 	if (opt && opt->srcrt) {
 		struct rt0_hdr *rt0 = (struct rt0_hdr *) opt->srcrt;
@@ -911,7 +911,7 @@ static void udp6_sock_seq_show(struct seq_file *seq, struct sock *sp, int bucket
 		   src->s6_addr32[2], src->s6_addr32[3], srcp,
 		   dest->s6_addr32[0], dest->s6_addr32[1],
 		   dest->s6_addr32[2], dest->s6_addr32[3], destp,
-		   sp->sk_state, 
+		   sp->sk_state,
 		   atomic_read(&sp->sk_wmem_alloc),
 		   atomic_read(&sp->sk_rmem_alloc),
 		   0, 0L, 0,

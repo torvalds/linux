@@ -64,7 +64,7 @@ int inet6_add_protocol(struct inet6_protocol *prot, unsigned char protocol)
 /*
  *	Remove a protocol from the hash tables.
  */
- 
+
 int inet6_del_protocol(struct inet6_protocol *prot, unsigned char protocol)
 {
 	int ret, hash = protocol & (MAX_INET_PROTOS - 1);

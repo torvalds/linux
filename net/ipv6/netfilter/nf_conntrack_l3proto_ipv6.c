@@ -349,7 +349,7 @@ static ctl_table nf_ct_ipv6_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
-        { .ctl_name = 0 }
+	{ .ctl_name = 0 }
 };
 #endif
 
@@ -386,7 +386,7 @@ static int ipv6_nfattr_to_tuple(struct nfattr *tb[],
 	if (nfattr_bad_size(tb, CTA_IP_MAX, cta_min_ip))
 		return -EINVAL;
 
-	memcpy(&t->src.u3.ip6, NFA_DATA(tb[CTA_IP_V6_SRC-1]), 
+	memcpy(&t->src.u3.ip6, NFA_DATA(tb[CTA_IP_V6_SRC-1]),
 	       sizeof(u_int32_t) * 4);
 	memcpy(&t->dst.u3.ip6, NFA_DATA(tb[CTA_IP_V6_DST-1]),
 	       sizeof(u_int32_t) * 4);

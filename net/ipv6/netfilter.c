@@ -91,7 +91,7 @@ __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 		if (hook != NF_IP6_PRE_ROUTING && hook != NF_IP6_LOCAL_IN)
 			break;
 		if (!csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
-			    	     skb->len - dataoff, protocol,
+				     skb->len - dataoff, protocol,
 				     csum_sub(skb->csum,
 					      skb_checksum(skb, 0,
 							   dataoff, 0)))) {
@@ -106,7 +106,7 @@ __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 					     protocol,
 					     csum_sub(0,
 						      skb_checksum(skb, 0,
-							           dataoff, 0))));
+								   dataoff, 0))));
 		csum = __skb_checksum_complete(skb);
 	}
 	return csum;

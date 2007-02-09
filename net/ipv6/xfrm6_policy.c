@@ -8,7 +8,7 @@
  * 		IPv6 support
  * 	YOSHIFUJI Hideaki
  * 		Split up af-specific portion
- * 
+ *
  */
 
 #include <linux/compiler.h>
@@ -247,9 +247,9 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		x->u.rt6.rt6i_metric   = rt0->rt6i_metric;
 		x->u.rt6.rt6i_node     = rt0->rt6i_node;
 		x->u.rt6.rt6i_gateway  = rt0->rt6i_gateway;
-		memcpy(&x->u.rt6.rt6i_gateway, &rt0->rt6i_gateway, sizeof(x->u.rt6.rt6i_gateway)); 
+		memcpy(&x->u.rt6.rt6i_gateway, &rt0->rt6i_gateway, sizeof(x->u.rt6.rt6i_gateway));
 		x->u.rt6.rt6i_dst      = rt0->rt6i_dst;
-		x->u.rt6.rt6i_src      = rt0->rt6i_src;	
+		x->u.rt6.rt6i_src      = rt0->rt6i_src;
 		x->u.rt6.rt6i_idev     = rt0->rt6i_idev;
 		in6_dev_hold(rt0->rt6i_idev);
 		__xfrm6_bundle_len_dec(&header_len, &nfheader_len, x->u.dst.xfrm);

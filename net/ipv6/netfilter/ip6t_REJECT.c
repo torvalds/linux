@@ -189,23 +189,23 @@ static unsigned int reject6_target(struct sk_buff **pskb,
 	/* WARNING: This code causes reentry within ip6tables.
 	   This means that the ip6tables jump stack is now crap.  We
 	   must return an absolute verdict. --RR */
-    	switch (reject->with) {
-    	case IP6T_ICMP6_NO_ROUTE:
-    		send_unreach(*pskb, ICMPV6_NOROUTE, hooknum);
-    		break;
-    	case IP6T_ICMP6_ADM_PROHIBITED:
-    		send_unreach(*pskb, ICMPV6_ADM_PROHIBITED, hooknum);
-    		break;
-    	case IP6T_ICMP6_NOT_NEIGHBOUR:
-    		send_unreach(*pskb, ICMPV6_NOT_NEIGHBOUR, hooknum);
-    		break;
-    	case IP6T_ICMP6_ADDR_UNREACH:
-    		send_unreach(*pskb, ICMPV6_ADDR_UNREACH, hooknum);
-    		break;
-    	case IP6T_ICMP6_PORT_UNREACH:
-    		send_unreach(*pskb, ICMPV6_PORT_UNREACH, hooknum);
-    		break;
-    	case IP6T_ICMP6_ECHOREPLY:
+	switch (reject->with) {
+	case IP6T_ICMP6_NO_ROUTE:
+		send_unreach(*pskb, ICMPV6_NOROUTE, hooknum);
+		break;
+	case IP6T_ICMP6_ADM_PROHIBITED:
+		send_unreach(*pskb, ICMPV6_ADM_PROHIBITED, hooknum);
+		break;
+	case IP6T_ICMP6_NOT_NEIGHBOUR:
+		send_unreach(*pskb, ICMPV6_NOT_NEIGHBOUR, hooknum);
+		break;
+	case IP6T_ICMP6_ADDR_UNREACH:
+		send_unreach(*pskb, ICMPV6_ADDR_UNREACH, hooknum);
+		break;
+	case IP6T_ICMP6_PORT_UNREACH:
+		send_unreach(*pskb, ICMPV6_PORT_UNREACH, hooknum);
+		break;
+	case IP6T_ICMP6_ECHOREPLY:
 		/* Do nothing */
 		break;
 	case IP6T_TCP_RESET:
@@ -226,7 +226,7 @@ static int check(const char *tablename,
 		 void *targinfo,
 		 unsigned int hook_mask)
 {
- 	const struct ip6t_reject_info *rejinfo = targinfo;
+	const struct ip6t_reject_info *rejinfo = targinfo;
 	const struct ip6t_entry *e = entry;
 
 	if (rejinfo->with == IP6T_ICMP6_ECHOREPLY) {

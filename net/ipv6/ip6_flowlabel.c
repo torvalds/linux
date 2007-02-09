@@ -228,10 +228,10 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions * opt_space,
 					 struct ipv6_txoptions * fopt)
 {
 	struct ipv6_txoptions * fl_opt = fl->opt;
-	
+
 	if (fopt == NULL || fopt->opt_flen == 0)
 		return fl_opt;
-	
+
 	if (fl_opt != NULL) {
 		opt_space->hopopt = fl_opt->hopopt;
 		opt_space->dst0opt = fl_opt->dst0opt;

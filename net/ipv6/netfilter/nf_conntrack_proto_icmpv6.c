@@ -104,9 +104,9 @@ static int icmpv6_packet(struct nf_conn *ct,
 		       unsigned int hooknum)
 {
 	/* Try to delete connection immediately after all replies:
-           won't actually vanish as we still have skb, and del_timer
-           means this will only run once even if count hits zero twice
-           (theoretically possible with SMP) */
+	   won't actually vanish as we still have skb, and del_timer
+	   means this will only run once even if count hits zero twice
+	   (theoretically possible with SMP) */
 	if (CTINFO2DIR(ctinfo) == IP_CT_DIR_REPLY) {
 		if (atomic_dec_and_test(&ct->proto.icmp.count)
 		    && del_timer(&ct->timeout))

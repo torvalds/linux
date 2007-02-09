@@ -145,7 +145,7 @@ static void dump_packet(const struct nf_loginfo *info,
 							&_ahdr);
 				if (ah == NULL) {
 					/*
-					 * Max length: 26 "INCOMPLETE [65535 	
+					 * Max length: 26 "INCOMPLETE [65535
 					 *  bytes] )"
 					 */
 					printk("INCOMPLETE [%u bytes] )",
@@ -387,7 +387,7 @@ ip6t_log_packet(unsigned int pf,
 		loginfo = &default_loginfo;
 
 	spin_lock_bh(&log_lock);
-	printk("<%d>%sIN=%s OUT=%s ", loginfo->u.log.level, 
+	printk("<%d>%sIN=%s OUT=%s ", loginfo->u.log.level,
 		prefix,
 		in ? in->name : "",
 		out ? out->name : "");
@@ -442,7 +442,7 @@ ip6t_log_target(struct sk_buff **pskb,
 	li.u.log.logflags = loginfo->logflags;
 
 	ip6t_log_packet(PF_INET6, hooknum, *pskb, in, out, &li,
-	                loginfo->prefix);
+			loginfo->prefix);
 	return XT_CONTINUE;
 }
 
@@ -470,9 +470,9 @@ static int ip6t_log_checkentry(const char *tablename,
 static struct xt_target ip6t_log_reg = {
 	.name 		= "LOG",
 	.family		= AF_INET6,
-	.target 	= ip6t_log_target, 
+	.target 	= ip6t_log_target,
 	.targetsize	= sizeof(struct ip6t_log_info),
-	.checkentry	= ip6t_log_checkentry, 
+	.checkentry	= ip6t_log_checkentry,
 	.me 		= THIS_MODULE,
 };
 

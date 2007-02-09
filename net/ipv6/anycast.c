@@ -1,6 +1,6 @@
 /*
  *	Anycast support for IPv6
- *	Linux INET6 implementation 
+ *	Linux INET6 implementation
  *
  *	Authors:
  *	David L Stevens (dlstevens@us.ibm.com)
@@ -397,7 +397,7 @@ static int ipv6_dev_ac_dec(struct net_device *dev, struct in6_addr *addr)
 	in6_dev_put(idev);
 	return ret;
 }
-	
+
 /*
  *	check if the interface has this anycast address
  */
