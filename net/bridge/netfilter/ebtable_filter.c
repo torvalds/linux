@@ -51,10 +51,10 @@ static int check(const struct ebt_table_info *info, unsigned int valid_hooks)
 }
 
 static struct ebt_table frame_filter =
-{ 
+{
 	.name		= "filter",
 	.table		= &initial_table,
-	.valid_hooks	= FILTER_VALID_HOOKS, 
+	.valid_hooks	= FILTER_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
 	.check		= check,
 	.me		= THIS_MODULE,

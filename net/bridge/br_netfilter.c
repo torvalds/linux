@@ -68,7 +68,7 @@ static __be16 inline vlan_proto(const struct sk_buff *skb)
 
 #define IS_VLAN_IP(skb) \
 	(skb->protocol == htons(ETH_P_8021Q) && \
- 	 vlan_proto(skb) == htons(ETH_P_IP) && 	\
+	 vlan_proto(skb) == htons(ETH_P_IP) && 	\
 	 brnf_filter_vlan_tagged)
 
 #define IS_VLAN_IPV6(skb) \
@@ -124,7 +124,7 @@ static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)
 
 static inline void nf_bridge_save_header(struct sk_buff *skb)
 {
-        int header_size = ETH_HLEN;
+	int header_size = ETH_HLEN;
 
 	if (skb->protocol == htons(ETH_P_8021Q))
 		header_size += VLAN_HLEN;
@@ -139,7 +139,7 @@ static inline void nf_bridge_save_header(struct sk_buff *skb)
 int nf_bridge_copy_header(struct sk_buff *skb)
 {
 	int err;
-        int header_size = ETH_HLEN;
+	int header_size = ETH_HLEN;
 
 	if (skb->protocol == htons(ETH_P_8021Q))
 		header_size += VLAN_HLEN;
@@ -836,10 +836,10 @@ static unsigned int ip_sabotage_in(unsigned int hook, struct sk_buff **pskb,
  * For br_nf_post_routing, we need (prio = NF_BR_PRI_LAST), because
  * ip_refrag() can return NF_STOLEN. */
 static struct nf_hook_ops br_nf_ops[] = {
-	{ .hook = br_nf_pre_routing, 
-	  .owner = THIS_MODULE, 
-	  .pf = PF_BRIDGE, 
-	  .hooknum = NF_BR_PRE_ROUTING, 
+	{ .hook = br_nf_pre_routing,
+	  .owner = THIS_MODULE,
+	  .pf = PF_BRIDGE,
+	  .hooknum = NF_BR_PRE_ROUTING,
 	  .priority = NF_BR_PRI_BRNF, },
 	{ .hook = br_nf_local_in,
 	  .owner = THIS_MODULE,
