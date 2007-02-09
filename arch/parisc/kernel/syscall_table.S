@@ -282,7 +282,7 @@
 	 * to worry about faulting trying to copy in a larger 64-bit
 	 * struct from a 32-bit user-space app.
 	 */
-	ENTRY_SAME(rt_sigqueueinfo)
+	ENTRY_COMP(rt_sigqueueinfo)
 	ENTRY_COMP(rt_sigsuspend)
 	ENTRY_SAME(chown)		/* 180 */
 	/* setsockopt() used by iptables: SO_SET_REPLACE/SO_SET_ADD_COUNTERS */
