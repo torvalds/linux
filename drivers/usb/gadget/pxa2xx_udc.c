@@ -56,7 +56,7 @@
 #include <asm/arch/pxa-regs.h>
 #endif
 
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 
 #include <asm/arch/udc.h>

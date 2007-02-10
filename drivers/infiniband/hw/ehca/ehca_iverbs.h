@@ -171,14 +171,6 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 void ehca_poll_eqs(unsigned long data);
 
-int ehca_mmap_nopage(u64 foffset,u64 length,void **mapped,
-		     struct vm_area_struct **vma);
-
-int ehca_mmap_register(u64 physical,void **mapped,
-		       struct vm_area_struct **vma);
-
-int ehca_munmap(unsigned long addr, size_t len);
-
 #ifdef CONFIG_PPC_64K_PAGES
 void *ehca_alloc_fw_ctrlblock(gfp_t flags);
 void ehca_free_fw_ctrlblock(void *ptr);

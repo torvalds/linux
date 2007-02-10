@@ -199,10 +199,8 @@ EXPORT_SYMBOL(vio_unregister_driver);
 /* vio_dev refcount hit 0 */
 static void __devinit vio_dev_release(struct device *dev)
 {
-	if (dev->archdata.of_node) {
-		/* XXX should free TCE table */
-		of_node_put(dev->archdata.of_node);
-	}
+	/* XXX should free TCE table */
+	of_node_put(dev->archdata.of_node);
 	kfree(to_vio_dev(dev));
 }
 

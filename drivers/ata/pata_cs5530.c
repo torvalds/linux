@@ -37,6 +37,13 @@
 #define DRV_NAME	"pata_cs5530"
 #define DRV_VERSION	"0.7.1"
 
+static void __iomem *cs5530_port_base(struct ata_port *ap)
+{
+	unsigned long bmdma = (unsigned long)ap->ioaddr.bmdma_addr;
+
+	return (void __iomem *)((bmdma & ~0x0F) + 0x20 + 0x10 * ap->port_no);
+}
+
 /**
  *	cs5530_set_piomode		-	PIO setup
  *	@ap: ATA interface
@@ -52,19 +59,19 @@ static void cs5530_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		{0x00009172, 0x00012171, 0x00020080, 0x00032010, 0x00040010},
 		{0xd1329172, 0x71212171, 0x30200080, 0x20102010, 0x00100010}
 	};
-	unsigned long base = ( ap->ioaddr.bmdma_addr & ~0x0F) + 0x20 + 0x10 * ap->port_no;
+	void __iomem *base = cs5530_port_base(ap);
 	u32 tuning;
 	int format;
 
 	/* Find out which table to use */
-	tuning = inl(base + 0x04);
+	tuning = ioread32(base + 0x04);
 	format = (tuning & 0x80000000UL) ? 1 : 0;
 
 	/* Now load the right timing register */
 	if (adev->devno)
 		base += 0x08;
 
-	outl(cs5530_pio_timings[format][adev->pio_mode - XFER_PIO_0], base);
+	iowrite32(cs5530_pio_timings[format][adev->pio_mode - XFER_PIO_0], base);
 }
 
 /**
@@ -79,12 +86,12 @@ static void cs5530_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 static void cs5530_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-	unsigned long base = ( ap->ioaddr.bmdma_addr & ~0x0F) + 0x20 + 0x10 * ap->port_no;
+	void __iomem *base = cs5530_port_base(ap);
 	u32 tuning, timing = 0;
 	u8 reg;
 
 	/* Find out which table to use */
-	tuning = inl(base + 0x04);
+	tuning = ioread32(base + 0x04);
 
 	switch(adev->dma_mode) {
 		case XFER_UDMA_0:
@@ -105,20 +112,20 @@ static void cs5530_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	/* Merge in the PIO format bit */
 	timing |= (tuning & 0x80000000UL);
 	if (adev->devno == 0) /* Master */
-		outl(timing, base + 0x04);
+		iowrite32(timing, base + 0x04);
 	else {
 		if (timing & 0x00100000)
 			tuning |= 0x00100000;	/* UDMA for both */
 		else
 			tuning &= ~0x00100000;	/* MWDMA for both */
-		outl(tuning, base + 0x04);
-		outl(timing, base + 0x0C);
+		iowrite32(tuning, base + 0x04);
+		iowrite32(timing, base + 0x0C);
 	}
 
 	/* Set the DMA capable bit in the BMDMA area */
-	reg = inb(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
+	reg = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 	reg |= (1 << (5 + adev->devno));
-	outb(reg, ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
+	iowrite8(reg, ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 
 	/* Remember the last DMA setup we did */
 
@@ -210,14 +217,14 @@ static struct ata_port_operations cs5530_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= cs5530_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct dmi_system_id palmax_dmi_table[] = {
@@ -247,7 +254,7 @@ static int cs5530_is_palmax(void)
  *	Perform the chip initialisation work that is shared between both
  *	setup and resume paths
  */
- 
+
 static int cs5530_init_chip(void)
 {
 	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL, *dev = NULL;
@@ -357,11 +364,11 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &cs5530_port_ops
 	};
 	static struct ata_port_info *port_info[2] = { &info, &info };
-	
+
 	/* Chip initialisation */
 	if (cs5530_init_chip())
 		return -ENODEV;
-		
+
 	if (cs5530_is_palmax())
 		port_info[1] = &info_palmax_secondary;
 
@@ -376,7 +383,7 @@ static int cs5530_reinit_one(struct pci_dev *pdev)
 		BUG();
 	return ata_pci_device_resume(pdev);
 }
-	
+
 static const struct pci_device_id cs5530[] = {
 	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5530_IDE), },
 

@@ -1334,8 +1334,7 @@ err_no_interrupt:
 static void amd8111e_poll(struct net_device *dev)
 {
 	unsigned long flags;
-	local_save_flags(flags);
-	local_irq_disable();
+	local_irq_save(flags);
 	amd8111e_interrupt(0, dev);
 	local_irq_restore(flags);
 }

@@ -20,7 +20,6 @@
 #define LM_FLAG_ANY		0x00000008
 #define LM_FLAG_PRIORITY	0x00000010 */
 
-#define GL_LOCAL_EXCL		0x00000020
 #define GL_ASYNC		0x00000040
 #define GL_EXACT		0x00000080
 #define GL_SKIP			0x00000100
@@ -83,16 +82,10 @@ void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 void gfs2_holder_reinit(unsigned int state, unsigned flags,
 			struct gfs2_holder *gh);
 void gfs2_holder_uninit(struct gfs2_holder *gh);
-
-void gfs2_glock_xmote_th(struct gfs2_glock *gl, unsigned int state, int flags);
-void gfs2_glock_drop_th(struct gfs2_glock *gl);
-
 int gfs2_glock_nq(struct gfs2_holder *gh);
 int gfs2_glock_poll(struct gfs2_holder *gh);
 int gfs2_glock_wait(struct gfs2_holder *gh);
 void gfs2_glock_dq(struct gfs2_holder *gh);
-
-int gfs2_glock_be_greedy(struct gfs2_glock *gl, unsigned int time);
 
 void gfs2_glock_dq_uninit(struct gfs2_holder *gh);
 int gfs2_glock_nq_num(struct gfs2_sbd *sdp,
@@ -102,10 +95,6 @@ int gfs2_glock_nq_num(struct gfs2_sbd *sdp,
 int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs);
-
-void gfs2_glock_prefetch_num(struct gfs2_sbd *sdp, u64 number,
-			     const struct gfs2_glock_operations *glops,
-			     unsigned int state, int flags);
 
 /**
  * gfs2_glock_nq_init - intialize a holder and enqueue it on a glock

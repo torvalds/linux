@@ -16,30 +16,13 @@ struct inode;
 struct gfs2_inode;
 struct gfs2_inum;
 
-/**
- * gfs2_filldir_t - Report a directory entry to the caller of gfs2_dir_read()
- * @opaque: opaque data used by the function
- * @name: the name of the directory entry
- * @length: the length of the name
- * @offset: the entry's offset in the directory
- * @inum: the inode number the entry points to
- * @type: the type of inode the entry points to
- *
- * Returns: 0 on success, 1 if buffer full
- */
-
-typedef int (*gfs2_filldir_t) (void *opaque,
-			      const char *name, unsigned int length,
-			      u64 offset,
-			      struct gfs2_inum_host *inum, unsigned int type);
-
 int gfs2_dir_search(struct inode *dir, const struct qstr *filename,
 		    struct gfs2_inum_host *inum, unsigned int *type);
 int gfs2_dir_add(struct inode *inode, const struct qstr *filename,
 		 const struct gfs2_inum_host *inum, unsigned int type);
 int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *filename);
-int gfs2_dir_read(struct inode *inode, u64 * offset, void *opaque,
-		  gfs2_filldir_t filldir);
+int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
+		  filldir_t filldir);
 int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 		   struct gfs2_inum_host *new_inum, unsigned int new_type);
 

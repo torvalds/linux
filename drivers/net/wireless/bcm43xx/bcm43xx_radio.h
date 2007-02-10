@@ -65,6 +65,22 @@ void bcm43xx_radio_init2060(struct bcm43xx_private *bcm);
 void bcm43xx_radio_turn_on(struct bcm43xx_private *bcm);
 void bcm43xx_radio_turn_off(struct bcm43xx_private *bcm);
 
+static inline
+int bcm43xx_is_hw_radio_enabled(struct bcm43xx_private *bcm)
+{
+	/* function to return state of hardware enable of radio
+	 * returns 0 if radio disabled, 1 if radio enabled
+	 */
+	if (bcm->current_core->rev >= 3)
+		return ((bcm43xx_read32(bcm, BCM43xx_MMIO_RADIO_HWENABLED_HI)
+					& BCM43xx_MMIO_RADIO_HWENABLED_HI_MASK)
+					== 0) ? 1 : 0;
+	else
+		return ((bcm43xx_read16(bcm, BCM43xx_MMIO_RADIO_HWENABLED_LO)
+					& BCM43xx_MMIO_RADIO_HWENABLED_LO_MASK)
+					== 0) ? 0 : 1;
+}
+
 int bcm43xx_radio_selectchannel(struct bcm43xx_private *bcm, u8 channel,
 				int synthetic_pu_workaround);
 

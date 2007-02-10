@@ -102,7 +102,7 @@ void __init time_init_hook(void)
  *	along the MCA bus.  Use this to hook into that chain if you will need
  *	it.
  **/
-void __init mca_nmi_hook(void)
+void mca_nmi_hook(void)
 {
 	/* If I recall correctly, there's a whole bunch of other things that
 	 * we can do to check for NMI problems, but that's all I know about

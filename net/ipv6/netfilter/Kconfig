@@ -114,6 +114,14 @@ config IP6_NF_MATCH_AH
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP6_NF_MATCH_MH
+	tristate "MH match support"
+	depends on IP6_NF_IPTABLES
+	help
+	  This module allows one to match MH packets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config IP6_NF_MATCH_EUI64
 	tristate "EUI64 address check"
 	depends on IP6_NF_IPTABLES

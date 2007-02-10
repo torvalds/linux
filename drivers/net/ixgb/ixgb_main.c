@@ -456,9 +456,7 @@ ixgb_probe(struct pci_dev *pdev,
 			   NETIF_F_HW_VLAN_TX |
 			   NETIF_F_HW_VLAN_RX |
 			   NETIF_F_HW_VLAN_FILTER;
-#ifdef NETIF_F_TSO
 	netdev->features |= NETIF_F_TSO;
-#endif
 #ifdef NETIF_F_LLTX
 	netdev->features |= NETIF_F_LLTX;
 #endif
@@ -1176,7 +1174,6 @@ ixgb_watchdog(unsigned long data)
 static int
 ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 {
-#ifdef NETIF_F_TSO
 	struct ixgb_context_desc *context_desc;
 	unsigned int i;
 	uint8_t ipcss, ipcso, tucss, tucso, hdr_len;
@@ -1233,7 +1230,6 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 
 		return 1;
 	}
-#endif
 
 	return 0;
 }
@@ -1609,7 +1605,7 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 
 	/* Prevent stats update while adapter is being reset */
-	if (pdev->error_state && pdev->error_state != pci_channel_io_normal)
+	if (pci_channel_offline(pdev))
 		return;
 
 	if((netdev->flags & IFF_PROMISC) || (netdev->flags & IFF_ALLMULTI) ||

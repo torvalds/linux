@@ -189,7 +189,7 @@ static int hidp_sock_compat_ioctl(struct socket *sock, unsigned int cmd, unsigne
 
 		uca = compat_alloc_user_space(sizeof(*uca));
 
-		if (copy_from_user(&ca, (void *) arg, sizeof(ca)))
+		if (copy_from_user(&ca, (void __user *) arg, sizeof(ca)))
 			return -EFAULT;
 
 		if (put_user(ca.ctrl_sock, &uca->ctrl_sock) ||

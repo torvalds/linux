@@ -212,7 +212,7 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	write_lock(&head->lock);
 
 	/* Check TIME-WAIT sockets first. */
-	sk_for_each(sk2, node, &(head + hinfo->ehash_size)->chain) {
+	sk_for_each(sk2, node, &head->twchain) {
 		tw = inet_twsk(sk2);
 
 		if (INET_TW_MATCH(sk2, hash, acookie, saddr, daddr, ports, dif)) {

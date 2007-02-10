@@ -34,6 +34,7 @@
 #include <asm/ia32.h>
 #include <asm/irq.h>
 #include <asm/kdebug.h>
+#include <asm/kexec.h>
 #include <asm/pgalloc.h>
 #include <asm/processor.h>
 #include <asm/sal.h>
@@ -801,6 +802,21 @@ cpu_halt (void)
 
 	while (1)
 		ia64_pal_halt(min_power_state);
+}
+
+void machine_shutdown(void)
+{
+#ifdef CONFIG_HOTPLUG_CPU
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		if (cpu != smp_processor_id())
+			cpu_down(cpu);
+	}
+#endif
+#ifdef CONFIG_KEXEC
+	kexec_disable_iosapic();
+#endif
 }
 
 void

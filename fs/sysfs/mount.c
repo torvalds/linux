@@ -8,6 +8,7 @@
 #include <linux/mount.h>
 #include <linux/pagemap.h>
 #include <linux/init.h>
+#include <asm/semaphore.h>
 
 #include "sysfs.h"
 
@@ -18,9 +19,12 @@ struct vfsmount *sysfs_mount;
 struct super_block * sysfs_sb = NULL;
 struct kmem_cache *sysfs_dir_cachep;
 
+static void sysfs_clear_inode(struct inode *inode);
+
 static struct super_operations sysfs_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= sysfs_delete_inode,
+	.clear_inode	= sysfs_clear_inode,
 };
 
 static struct sysfs_dirent sysfs_root = {
@@ -30,6 +34,11 @@ static struct sysfs_dirent sysfs_root = {
 	.s_type		= SYSFS_ROOT,
 	.s_iattr	= NULL,
 };
+
+static void sysfs_clear_inode(struct inode *inode)
+{
+	kfree(inode->i_private);
+}
 
 static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 {

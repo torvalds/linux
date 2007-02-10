@@ -446,7 +446,8 @@ excess_failures:
 	 */
 	printk(KERN_ERR
 	   "EEH: PCI device at location=%s driver=%s pci addr=%s \n"
-		"has failed %d times and has been permanently disabled. \n"
+		"has failed %d times in the last hour "
+		"and has been permanently disabled. \n"
 		"Please try reseating this device or replacing it.\n",
 		location, drv_str, pci_str, frozen_pdn->eeh_freeze_count);
 	goto perm_error;

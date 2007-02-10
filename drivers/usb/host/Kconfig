@@ -67,6 +67,11 @@ config USB_EHCI_TT_NEWSCHED
 
 	  If unsure, say N.
 
+config USB_EHCI_BIG_ENDIAN_MMIO
+	bool
+	depends on USB_EHCI_HCD
+	default n
+
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
 	depends on USB
@@ -101,21 +106,48 @@ config USB_OHCI_HCD_PPC_SOC
 	bool "OHCI support for on-chip PPC USB controller"
 	depends on USB_OHCI_HCD && (STB03xxx || PPC_MPC52xx)
 	default y
-	select USB_OHCI_BIG_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_DESC
+	select USB_OHCI_BIG_ENDIAN_MMIO
 	---help---
 	  Enables support for the USB controller on the MPC52xx or
 	  STB03xxx processor chip.  If unsure, say Y.
 
+config USB_OHCI_HCD_PPC_OF
+	bool "OHCI support for PPC USB controller on OF platform bus"
+	depends on USB_OHCI_HCD && PPC_OF
+	default y
+	---help---
+	  Enables support for the USB controller PowerPC present on the
+	  OpenFirmware platform bus.
+
+config USB_OHCI_HCD_PPC_OF_BE
+	bool "Support big endian HC"
+	depends on USB_OHCI_HCD_PPC_OF
+	default y
+	select USB_OHCI_BIG_ENDIAN_DESC
+	select USB_OHCI_BIG_ENDIAN_MMIO
+
+config USB_OHCI_HCD_PPC_OF_LE
+	bool "Support little endian HC"
+	depends on USB_OHCI_HCD_PPC_OF
+	default n
+	select USB_OHCI_LITTLE_ENDIAN
+
 config USB_OHCI_HCD_PCI
 	bool "OHCI support for PCI-bus USB controllers"
-	depends on USB_OHCI_HCD && PCI && (STB03xxx || PPC_MPC52xx)
+	depends on USB_OHCI_HCD && PCI && (STB03xxx || PPC_MPC52xx || USB_OHCI_HCD_PPC_OF)
 	default y
 	select USB_OHCI_LITTLE_ENDIAN
 	---help---
 	  Enables support for PCI-bus plug-in USB controller cards.
 	  If unsure, say Y.
 
-config USB_OHCI_BIG_ENDIAN
+config USB_OHCI_BIG_ENDIAN_DESC
+	bool
+	depends on USB_OHCI_HCD
+	default n
+
+config USB_OHCI_BIG_ENDIAN_MMIO
 	bool
 	depends on USB_OHCI_HCD
 	default n

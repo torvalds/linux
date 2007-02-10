@@ -27,7 +27,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 
 #include "gadget_chips.h"

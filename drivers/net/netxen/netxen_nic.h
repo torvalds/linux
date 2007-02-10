@@ -63,11 +63,14 @@
 
 #include "netxen_nic_hw.h"
 
-#define NETXEN_NIC_BUILD_NO     "2"
 #define _NETXEN_NIC_LINUX_MAJOR 3
 #define _NETXEN_NIC_LINUX_MINOR 3
 #define _NETXEN_NIC_LINUX_SUBVERSION 3
-#define NETXEN_NIC_LINUX_VERSIONID  "3.3.3" "-" NETXEN_NIC_BUILD_NO
+#define NETXEN_NIC_LINUX_VERSIONID  "3.3.3"
+
+#define NUM_FLASH_SECTORS (64)
+#define FLASH_SECTOR_SIZE (64 * 1024)
+#define FLASH_TOTAL_SIZE  (NUM_FLASH_SECTORS * FLASH_SECTOR_SIZE)
 
 #define RCV_DESC_RINGSIZE	\
 	(sizeof(struct rcv_desc) * adapter->max_rx_desc_count)
@@ -85,6 +88,7 @@
 #define NETXEN_RCV_PRODUCER_OFFSET	0
 #define NETXEN_RCV_PEG_DB_ID		2
 #define NETXEN_HOST_DUMMY_DMA_SIZE 1024
+#define FLASH_SUCCESS 0
 
 #define ADDR_IN_WINDOW1(off)	\
 	((off > NETXEN_CRB_PCIX_HOST2) && (off < NETXEN_CRB_MAX)) ? 1 : 0
@@ -239,49 +243,39 @@ extern unsigned long long netxen_dma_mask;
 
 typedef u32 netxen_ctx_msg;
 
-#define _netxen_set_bits(config_word, start, bits, val)	{\
-	unsigned long long mask = (((1ULL << (bits)) - 1) << (start));	\
-	unsigned long long value = (val);	\
-	(config_word) &= ~mask;	\
-	(config_word) |= (((value) << (start)) & mask); \
-}
-
 #define netxen_set_msg_peg_id(config_word, val)	\
-	_netxen_set_bits(config_word, 0, 2, val)
+	((config_word) &= ~3, (config_word) |= val & 3)
 #define netxen_set_msg_privid(config_word)	\
-	set_bit(2, (unsigned long*)&config_word)
+	((config_word) |= 1 << 2)
 #define netxen_set_msg_count(config_word, val)	\
-	_netxen_set_bits(config_word, 3, 15, val)
+	((config_word) &= ~(0x7fff<<3), (config_word) |= (val & 0x7fff) << 3)
 #define netxen_set_msg_ctxid(config_word, val)	\
-	_netxen_set_bits(config_word, 18, 10, val)
+	((config_word) &= ~(0x3ff<<18), (config_word) |= (val & 0x3ff) << 18)
 #define netxen_set_msg_opcode(config_word, val)	\
-	_netxen_set_bits(config_word, 28, 4, val)
+	((config_word) &= ~(0xf<<24), (config_word) |= (val & 0xf) << 24)
 
 struct netxen_rcv_context {
-	u32 rcv_ring_addr_lo;
-	u32 rcv_ring_addr_hi;
-	u32 rcv_ring_size;
-	u32 rsrvd;
+	__le64 rcv_ring_addr;
+	__le32 rcv_ring_size;
+	__le32 rsrvd;
 };
 
 struct netxen_ring_ctx {
 
 	/* one command ring */
-	u64 cmd_consumer_offset;
-	u32 cmd_ring_addr_lo;
-	u32 cmd_ring_addr_hi;
-	u32 cmd_ring_size;
-	u32 rsrvd;
+	__le64 cmd_consumer_offset;
+	__le64 cmd_ring_addr;
+	__le32 cmd_ring_size;
+	__le32 rsrvd;
 
 	/* three receive rings */
 	struct netxen_rcv_context rcv_ctx[3];
 
 	/* one status ring */
-	u32 sts_ring_addr_lo;
-	u32 sts_ring_addr_hi;
-	u32 sts_ring_size;
+	__le64 sts_ring_addr;
+	__le32 sts_ring_size;
 
-	u32 ctx_id;
+	__le32 ctx_id;
 } __attribute__ ((aligned(64)));
 
 /*
@@ -305,81 +299,85 @@ struct netxen_ring_ctx {
 	((cmd_desc)->port_ctxid |= ((var) & 0x0F))
 
 #define netxen_set_cmd_desc_flags(cmd_desc, val)	\
-	_netxen_set_bits((cmd_desc)->flags_opcode, 0, 7, val)
+	((cmd_desc)->flags_opcode &= ~cpu_to_le16(0x7f), \
+	(cmd_desc)->flags_opcode |= cpu_to_le16((val) & 0x7f))
 #define netxen_set_cmd_desc_opcode(cmd_desc, val)	\
-	_netxen_set_bits((cmd_desc)->flags_opcode, 7, 6, val)
+	((cmd_desc)->flags_opcode &= ~cpu_to_le16(0x3f<<7), \
+	(cmd_desc)->flags_opcode |= cpu_to_le16((val) & (0x3f<<7)))
 
 #define netxen_set_cmd_desc_num_of_buff(cmd_desc, val)	\
-	_netxen_set_bits((cmd_desc)->num_of_buffers_total_length, 0, 8, val);
+	((cmd_desc)->num_of_buffers_total_length &= ~cpu_to_le32(0xff), \
+	(cmd_desc)->num_of_buffers_total_length |= cpu_to_le32((val) & 0xff))
 #define netxen_set_cmd_desc_totallength(cmd_desc, val)	\
-	_netxen_set_bits((cmd_desc)->num_of_buffers_total_length, 8, 24, val);
+	((cmd_desc)->num_of_buffers_total_length &= cpu_to_le32(0xff), \
+	(cmd_desc)->num_of_buffers_total_length |= cpu_to_le32(val << 24))
 
 #define netxen_get_cmd_desc_opcode(cmd_desc)	\
-	(((cmd_desc)->flags_opcode >> 7) & 0x003F)
+	((le16_to_cpu((cmd_desc)->flags_opcode) >> 7) & 0x003F)
 #define netxen_get_cmd_desc_totallength(cmd_desc)	\
-	(((cmd_desc)->num_of_buffers_total_length >> 8) & 0x0FFFFFF)
+	(le32_to_cpu((cmd_desc)->num_of_buffers_total_length) >> 8)
 
 struct cmd_desc_type0 {
 	u8 tcp_hdr_offset;	/* For LSO only */
 	u8 ip_hdr_offset;	/* For LSO only */
 	/* Bit pattern: 0-6 flags, 7-12 opcode, 13-15 unused */
-	u16 flags_opcode;
+	__le16 flags_opcode;
 	/* Bit pattern: 0-7 total number of segments,
 	   8-31 Total size of the packet */
-	u32 num_of_buffers_total_length;
+	__le32 num_of_buffers_total_length;
 	union {
 		struct {
-			u32 addr_low_part2;
-			u32 addr_high_part2;
+			__le32 addr_low_part2;
+			__le32 addr_high_part2;
 		};
-		u64 addr_buffer2;
+		__le64 addr_buffer2;
 	};
 
-	u16 reference_handle;	/* changed to u16 to add mss */
-	u16 mss;		/* passed by NDIS_PACKET for LSO */
+	__le16 reference_handle;	/* changed to u16 to add mss */
+	__le16 mss;		/* passed by NDIS_PACKET for LSO */
 	/* Bit pattern 0-3 port, 0-3 ctx id */
 	u8 port_ctxid;
 	u8 total_hdr_length;	/* LSO only : MAC+IP+TCP Hdr size */
-	u16 conn_id;		/* IPSec offoad only */
+	__le16 conn_id;		/* IPSec offoad only */
 
 	union {
 		struct {
-			u32 addr_low_part3;
-			u32 addr_high_part3;
+			__le32 addr_low_part3;
+			__le32 addr_high_part3;
 		};
-		u64 addr_buffer3;
+		__le64 addr_buffer3;
 	};
 	union {
 		struct {
-			u32 addr_low_part1;
-			u32 addr_high_part1;
+			__le32 addr_low_part1;
+			__le32 addr_high_part1;
 		};
-		u64 addr_buffer1;
+		__le64 addr_buffer1;
 	};
 
-	u16 buffer1_length;
-	u16 buffer2_length;
-	u16 buffer3_length;
-	u16 buffer4_length;
+	__le16 buffer1_length;
+	__le16 buffer2_length;
+	__le16 buffer3_length;
+	__le16 buffer4_length;
 
 	union {
 		struct {
-			u32 addr_low_part4;
-			u32 addr_high_part4;
+			__le32 addr_low_part4;
+			__le32 addr_high_part4;
 		};
-		u64 addr_buffer4;
+		__le64 addr_buffer4;
 	};
 
-	u64 unused;
+	__le64 unused;
 
 } __attribute__ ((aligned(64)));
 
 /* Note: sizeof(rcv_desc) should always be a mutliple of 2 */
 struct rcv_desc {
-	u16 reference_handle;
-	u16 reserved;
-	u32 buffer_length;	/* allocated buffer length (usually 2K) */
-	u64 addr_buffer;
+	__le16 reference_handle;
+	__le16 reserved;
+	__le32 buffer_length;	/* allocated buffer length (usually 2K) */
+	__le64 addr_buffer;
 };
 
 /* opcode field in status_desc */
@@ -405,36 +403,36 @@ struct rcv_desc {
 	(((status_desc)->lro & 0x80) >> 7)
 
 #define netxen_get_sts_port(status_desc)	\
-	((status_desc)->status_desc_data & 0x0F)
+	(le64_to_cpu((status_desc)->status_desc_data) & 0x0F)
 #define netxen_get_sts_status(status_desc)	\
-	(((status_desc)->status_desc_data >> 4) & 0x0F)
+	((le64_to_cpu((status_desc)->status_desc_data) >> 4) & 0x0F)
 #define netxen_get_sts_type(status_desc)	\
-	(((status_desc)->status_desc_data >> 8) & 0x0F)
+	((le64_to_cpu((status_desc)->status_desc_data) >> 8) & 0x0F)
 #define netxen_get_sts_totallength(status_desc)	\
-	(((status_desc)->status_desc_data >> 12) & 0xFFFF)
+	((le64_to_cpu((status_desc)->status_desc_data) >> 12) & 0xFFFF)
 #define netxen_get_sts_refhandle(status_desc)	\
-	(((status_desc)->status_desc_data >> 28) & 0xFFFF)
+	((le64_to_cpu((status_desc)->status_desc_data) >> 28) & 0xFFFF)
 #define netxen_get_sts_prot(status_desc)	\
-	(((status_desc)->status_desc_data >> 44) & 0x0F)
+	((le64_to_cpu((status_desc)->status_desc_data) >> 44) & 0x0F)
 #define netxen_get_sts_owner(status_desc)	\
-	(((status_desc)->status_desc_data >> 56) & 0x03)
+	((le64_to_cpu((status_desc)->status_desc_data) >> 56) & 0x03)
 #define netxen_get_sts_opcode(status_desc)	\
-	(((status_desc)->status_desc_data >> 58) & 0x03F)
+	((le64_to_cpu((status_desc)->status_desc_data) >> 58) & 0x03F)
 
 #define netxen_clear_sts_owner(status_desc)	\
 	((status_desc)->status_desc_data &=	\
-	~(((unsigned long long)3) << 56 ))
+	~cpu_to_le64(((unsigned long long)3) << 56 ))
 #define netxen_set_sts_owner(status_desc, val)	\
 	((status_desc)->status_desc_data |=	\
-	(((unsigned long long)((val) & 0x3)) << 56 ))
+	cpu_to_le64(((unsigned long long)((val) & 0x3)) << 56 ))
 
 struct status_desc {
 	/* Bit pattern: 0-3 port, 4-7 status, 8-11 type, 12-27 total_length
 	   28-43 reference_handle, 44-47 protocol, 48-52 unused
 	   53-55 desc_cnt, 56-57 owner, 58-63 opcode
 	 */
-	u64 status_desc_data;
-	u32 hash_value;
+	__le64 status_desc_data;
+	__le32 hash_value;
 	u8 hash_type;
 	u8 msg_type;
 	u8 unused;
@@ -1005,9 +1003,9 @@ void netxen_niu_gbe_set_mii_mode(struct netxen_adapter *adapter, int port,
 void netxen_niu_gbe_set_gmii_mode(struct netxen_adapter *adapter, int port,
 				  long enable);
 int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy, long reg,
-			    __le32 * readval);
+			    __u32 * readval);
 int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter, long phy,
-			     long reg, __le32 val);
+			     long reg, __u32 val);
 
 /* Functions available from netxen_nic_hw.c */
 int netxen_nic_set_mtu_xgb(struct netxen_port *port, int new_mtu);
@@ -1034,6 +1032,15 @@ void netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
 void netxen_load_firmware(struct netxen_adapter *adapter);
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose);
 int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp);
+int netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr, 
+				u8 *bytes, size_t size);
+int netxen_rom_fast_write_words(struct netxen_adapter *adapter, int addr, 
+				u8 *bytes, size_t size);
+int netxen_flash_unlock(struct netxen_adapter *adapter);
+int netxen_backup_crbinit(struct netxen_adapter *adapter);
+int netxen_flash_erase_secondary(struct netxen_adapter *adapter);
+int netxen_flash_erase_primary(struct netxen_adapter *adapter);
+
 int netxen_rom_fast_write(struct netxen_adapter *adapter, int addr, int data);
 int netxen_rom_se(struct netxen_adapter *adapter, int addr);
 int netxen_do_rom_se(struct netxen_adapter *adapter, int addr);

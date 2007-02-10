@@ -670,15 +670,6 @@ config RADSTONE_PPC7D
 config PAL4
 	bool "SBS-Palomar4"
 
-config GEMINI
-	bool "Synergy-Gemini"
-	depends on BROKEN
-	select PPC_INDIRECT_PCI
-	help
-	  Select Gemini if configuring for a Synergy Microsystems' Gemini
-	  series Single Board Computer.  More information is available at:
-	  <http://www.synergymicro.com/PressRel/97_10_15.html>.
-
 config EST8260
 	bool "EST8260"
 	---help---

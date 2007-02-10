@@ -119,7 +119,7 @@ static struct
 	}
 };
 
-static struct ipt_table nat_table = {
+static struct xt_table nat_table = {
 	.name		= "nat",
 	.valid_hooks	= NAT_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
@@ -226,6 +226,10 @@ static int ipt_dnat_checkentry(const char *tablename,
 		printk("DNAT: multiple ranges no longer supported\n");
 		return 0;
 	}
+	if (mr->range[0].flags & IP_NAT_RANGE_PROTO_RANDOM) {
+		printk("DNAT: port randomization not supported\n");
+		return 0;
+	}
 	return 1;
 }
 
@@ -290,7 +294,7 @@ int nf_nat_rule_find(struct sk_buff **pskb,
 	return ret;
 }
 
-static struct ipt_target ipt_snat_reg = {
+static struct xt_target ipt_snat_reg = {
 	.name		= "SNAT",
 	.target		= ipt_snat_target,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),

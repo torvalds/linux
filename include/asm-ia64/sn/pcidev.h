@@ -70,10 +70,16 @@ extern void sn_irq_fixup(struct pci_dev *pci_dev,
 			 struct sn_irq_info *sn_irq_info);
 extern void sn_irq_unfixup(struct pci_dev *pci_dev);
 extern struct pcidev_info * sn_pcidev_info_get(struct pci_dev *);
+extern void sn_bus_fixup(struct pci_bus *);
+extern void sn_acpi_bus_fixup(struct pci_bus *);
+extern void sn_common_bus_fixup(struct pci_bus *, struct pcibus_bussoft *);
 extern void sn_bus_store_sysdata(struct pci_dev *dev);
 extern void sn_bus_free_sysdata(void);
 extern void sn_generate_path(struct pci_bus *pci_bus, char *address);
-extern void sn_pci_fixup_slot(struct pci_dev *dev);
+extern void sn_io_slot_fixup(struct pci_dev *);
+extern void sn_acpi_slot_fixup(struct pci_dev *);
+extern void sn_pci_fixup_slot(struct pci_dev *dev, struct pcidev_info *,
+			      struct sn_irq_info *);
 extern void sn_pci_unfixup_slot(struct pci_dev *dev);
 extern void sn_irq_lh_init(void);
 #endif				/* _ASM_IA64_SN_PCI_PCIDEV_H */

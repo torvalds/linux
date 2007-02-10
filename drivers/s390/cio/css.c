@@ -30,7 +30,7 @@ struct channel_subsystem *css[__MAX_CSSID + 1];
 
 int css_characteristics_avail = 0;
 
-inline int
+int
 for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
 {
 	struct subchannel_id schid;
@@ -108,9 +108,6 @@ css_subchannel_release(struct device *dev)
 	}
 }
 
-extern int css_get_ssd_info(struct subchannel *sch);
-
-
 int css_sch_device_register(struct subchannel *sch)
 {
 	int ret;
@@ -187,7 +184,7 @@ get_subchannel_by_schid(struct subchannel_id schid)
 	return dev ? to_subchannel(dev) : NULL;
 }
 
-static inline int css_get_subchannel_status(struct subchannel *sch)
+static int css_get_subchannel_status(struct subchannel *sch)
 {
 	struct schib schib;
 
@@ -299,7 +296,7 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 		/* Will be done on the slow path. */
 		return -EAGAIN;
 	}
-	if (stsch(schid, &schib) || !schib.pmcw.dnv) {
+	if (stsch_err(schid, &schib) || !schib.pmcw.dnv) {
 		/* Unusable - ignore. */
 		return 0;
 	}
@@ -417,7 +414,7 @@ static void reprobe_all(struct work_struct *unused)
 		      need_reprobe);
 }
 
-DECLARE_WORK(css_reprobe_work, reprobe_all);
+static DECLARE_WORK(css_reprobe_work, reprobe_all);
 
 /* Schedule reprobing of all unregistered subchannels. */
 void css_schedule_reprobe(void)
@@ -578,7 +575,7 @@ css_cm_enable_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(cm_enable, 0644, css_cm_enable_show, css_cm_enable_store);
 
-static inline int __init setup_css(int nr)
+static int __init setup_css(int nr)
 {
 	u32 tod_high;
 	int ret;

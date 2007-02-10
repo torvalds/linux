@@ -21,22 +21,22 @@
 
 #include "zfcp_ext.h"
 
-static inline void zfcp_qdio_sbal_limit(struct zfcp_fsf_req *, int);
+static void zfcp_qdio_sbal_limit(struct zfcp_fsf_req *, int);
 static inline volatile struct qdio_buffer_element *zfcp_qdio_sbale_get
 	(struct zfcp_qdio_queue *, int, int);
 static inline volatile struct qdio_buffer_element *zfcp_qdio_sbale_resp
 	(struct zfcp_fsf_req *, int, int);
-static inline volatile struct qdio_buffer_element *zfcp_qdio_sbal_chain
+static volatile struct qdio_buffer_element *zfcp_qdio_sbal_chain
 	(struct zfcp_fsf_req *, unsigned long);
-static inline volatile struct qdio_buffer_element *zfcp_qdio_sbale_next
+static volatile struct qdio_buffer_element *zfcp_qdio_sbale_next
 	(struct zfcp_fsf_req *, unsigned long);
-static inline int zfcp_qdio_sbals_zero(struct zfcp_qdio_queue *, int, int);
+static int zfcp_qdio_sbals_zero(struct zfcp_qdio_queue *, int, int);
 static inline int zfcp_qdio_sbals_wipe(struct zfcp_fsf_req *);
-static inline void zfcp_qdio_sbale_fill
+static void zfcp_qdio_sbale_fill
 	(struct zfcp_fsf_req *, unsigned long, void *, int);
-static inline int zfcp_qdio_sbals_from_segment
+static int zfcp_qdio_sbals_from_segment
 	(struct zfcp_fsf_req *, unsigned long, void *, unsigned long);
-static inline int zfcp_qdio_sbals_from_buffer
+static int zfcp_qdio_sbals_from_buffer
 	(struct zfcp_fsf_req *, unsigned long, void *, unsigned long, int);
 
 static qdio_handler_t zfcp_qdio_request_handler;
@@ -201,7 +201,7 @@ zfcp_qdio_allocate(struct zfcp_adapter *adapter)
  * returns:	error flag
  *
  */
-static inline int
+static int
 zfcp_qdio_handler_error_check(struct zfcp_adapter *adapter, unsigned int status,
 			      unsigned int qdio_error, unsigned int siga_error,
 			      int first_element, int elements_processed)
@@ -462,7 +462,7 @@ zfcp_qdio_sbale_get(struct zfcp_qdio_queue *queue, int sbal, int sbale)
  * zfcp_qdio_sbale_req - return pointer to SBALE of request_queue for
  *	a struct zfcp_fsf_req
  */
-inline volatile struct qdio_buffer_element *
+volatile struct qdio_buffer_element *
 zfcp_qdio_sbale_req(struct zfcp_fsf_req *fsf_req, int sbal, int sbale)
 {
 	return zfcp_qdio_sbale_get(&fsf_req->adapter->request_queue,
@@ -484,7 +484,7 @@ zfcp_qdio_sbale_resp(struct zfcp_fsf_req *fsf_req, int sbal, int sbale)
  * zfcp_qdio_sbale_curr - return current SBALE on request_queue for
  *	a struct zfcp_fsf_req
  */
-inline volatile struct qdio_buffer_element *
+volatile struct qdio_buffer_element *
 zfcp_qdio_sbale_curr(struct zfcp_fsf_req *fsf_req)
 {
 	return zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr,
@@ -499,7 +499,7 @@ zfcp_qdio_sbale_curr(struct zfcp_fsf_req *fsf_req)
  *
  * Note: We can assume at least one free SBAL in the request_queue when called.
  */
-static inline void
+static void
 zfcp_qdio_sbal_limit(struct zfcp_fsf_req *fsf_req, int max_sbals)
 {
 	int count = atomic_read(&fsf_req->adapter->request_queue.free_count);
@@ -517,7 +517,7 @@ zfcp_qdio_sbal_limit(struct zfcp_fsf_req *fsf_req, int max_sbals)
  *
  * This function changes sbal_curr, sbale_curr, sbal_number of fsf_req.
  */
-static inline volatile struct qdio_buffer_element *
+static volatile struct qdio_buffer_element *
 zfcp_qdio_sbal_chain(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
 {
 	volatile struct qdio_buffer_element *sbale;
@@ -554,7 +554,7 @@ zfcp_qdio_sbal_chain(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
 /**
  * zfcp_qdio_sbale_next - switch to next SBALE, chain SBALs if needed
  */
-static inline volatile struct qdio_buffer_element *
+static volatile struct qdio_buffer_element *
 zfcp_qdio_sbale_next(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
 {
 	if (fsf_req->sbale_curr == ZFCP_LAST_SBALE_PER_SBAL)
@@ -569,7 +569,7 @@ zfcp_qdio_sbale_next(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
  * zfcp_qdio_sbals_zero - initialize SBALs between first and last in queue
  *	with zero from
  */
-static inline int
+static int
 zfcp_qdio_sbals_zero(struct zfcp_qdio_queue *queue, int first, int last)
 {
 	struct qdio_buffer **buf = queue->buffer;
@@ -603,7 +603,7 @@ zfcp_qdio_sbals_wipe(struct zfcp_fsf_req *fsf_req)
  * zfcp_qdio_sbale_fill - set address and lenght in current SBALE
  *	on request_queue
  */
-static inline void
+static void
 zfcp_qdio_sbale_fill(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
 		     void *addr, int length)
 {
@@ -624,7 +624,7 @@ zfcp_qdio_sbale_fill(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
  * Alignment and length of the segment determine how many SBALEs are needed
  * for the memory segment.
  */
-static inline int
+static int
 zfcp_qdio_sbals_from_segment(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
 			     void *start_addr, unsigned long total_length)
 {
@@ -659,7 +659,7 @@ zfcp_qdio_sbals_from_segment(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
  * @sg_count: number of elements in scatter-gather list
  * @max_sbals: upper bound for number of SBALs to be used
  */
-inline int
+int
 zfcp_qdio_sbals_from_sg(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
                         struct scatterlist *sg,	int sg_count, int max_sbals)
 {
@@ -707,7 +707,7 @@ out:
  * @length: length of buffer
  * @max_sbals: upper bound for number of SBALs to be used
  */
-static inline int
+static int
 zfcp_qdio_sbals_from_buffer(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
 			    void *buffer, unsigned long length, int max_sbals)
 {
@@ -728,7 +728,7 @@ zfcp_qdio_sbals_from_buffer(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
  * @scsi_cmnd: either scatter-gather list or buffer contained herein is used
  *	to fill SBALs
  */
-inline int
+int
 zfcp_qdio_sbals_from_scsicmnd(struct zfcp_fsf_req *fsf_req,
 			      unsigned long sbtype, struct scsi_cmnd *scsi_cmnd)
 {

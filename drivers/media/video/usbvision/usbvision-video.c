@@ -1072,7 +1072,7 @@ static int usbvision_v4l2_ioctl(struct inode *inode, struct file *file,
 }
 
 
-static ssize_t usbvision_v4l2_read(struct file *file, char *buf,
+static ssize_t usbvision_v4l2_read(struct file *file, char __user *buf,
 		      size_t count, loff_t *ppos)
 {
 	struct video_device *dev = video_devdata(file);

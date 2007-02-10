@@ -106,7 +106,7 @@ struct controller {
 };
 
 /* Define AMD SHPC ID  */
-#define PCI_DEVICE_ID_AMD_GOLAM_7450	0x7450 
+#define PCI_DEVICE_ID_AMD_GOLAM_7450	0x7450
 #define PCI_DEVICE_ID_AMD_POGO_7458	0x7458
 
 /* AMD PCIX bridge registers */
@@ -221,7 +221,7 @@ enum ctrl_offsets {
 };
 
 static inline struct slot *get_slot(struct hotplug_slot *hotplug_slot)
-{ 
+{
 	return hotplug_slot->private;
 }
 

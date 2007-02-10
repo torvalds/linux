@@ -32,6 +32,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <linux/pci.h>
 #include <asm/io.h>
@@ -94,17 +95,7 @@ static const char netxen_nic_gstrings_test[][ETH_GSTRING_LEN] = {
 
 static int netxen_nic_get_eeprom_len(struct net_device *dev)
 {
-	struct netxen_port *port = netdev_priv(dev);
-	struct netxen_adapter *adapter = port->adapter;
-	int n;
-
-	if ((netxen_rom_fast_read(adapter, 0, &n) == 0)
-	    && (n & NETXEN_ROM_ROUNDUP)) {
-		n &= ~NETXEN_ROM_ROUNDUP;
-		if (n < NETXEN_MAX_EEPROM_LEN)
-			return n;
-	}
-	return 0;
+	return FLASH_TOTAL_SIZE;
 }
 
 static void
@@ -218,7 +209,7 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	__le32 status;
+	__u32 status;
 
 	/* read which mode */
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
@@ -226,7 +217,7 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (adapter->phy_write
 		    && adapter->phy_write(adapter, port->portnum,
 					  NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-					  (__le32) ecmd->autoneg) != 0)
+					  ecmd->autoneg) != 0)
 			return -EIO;
 		else
 			port->link_autoneg = ecmd->autoneg;
@@ -279,7 +270,7 @@ static int netxen_nic_get_regs_len(struct net_device *dev)
 }
 
 struct netxen_niu_regs {
-	__le32 reg[NETXEN_NIC_REGS_COUNT];
+	__u32 reg[NETXEN_NIC_REGS_COUNT];
 };
 
 static struct netxen_niu_regs niu_registers[] = {
@@ -372,7 +363,7 @@ netxen_nic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	__le32 mode, *regs_buff = p;
+	__u32 mode, *regs_buff = p;
 	void __iomem *addr;
 	int i, window;
 
@@ -415,7 +406,7 @@ static u32 netxen_nic_get_link(struct net_device *dev)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	__le32 status;
+	__u32 status;
 
 	/* read which mode */
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
@@ -440,16 +431,90 @@ netxen_nic_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
 	int offset;
+	int ret;
 
 	if (eeprom->len == 0)
 		return -EINVAL;
 
 	eeprom->magic = (port->pdev)->vendor | ((port->pdev)->device << 16);
-	for (offset = 0; offset < eeprom->len; offset++)
-		if (netxen_rom_fast_read
-		    (adapter, (8 * offset) + 8, (int *)eeprom->data) == -1)
-			return -EIO;
+	offset = eeprom->offset;
+
+	ret = netxen_rom_fast_read_words(adapter, offset, bytes, 
+						eeprom->len);
+	if (ret < 0)
+		return ret;
+
 	return 0;
+}
+
+static int
+netxen_nic_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
+			u8 * bytes)
+{
+	struct netxen_port *port = netdev_priv(dev);
+	struct netxen_adapter *adapter = port->adapter;
+	int offset = eeprom->offset;
+	static int flash_start;
+	static int ready_to_flash;
+	int ret;
+
+	if (flash_start == 0) {
+		ret = netxen_flash_unlock(adapter);
+		if (ret < 0) {
+			printk(KERN_ERR "%s: Flash unlock failed.\n",
+				netxen_nic_driver_name);
+			return ret;
+		}
+		printk(KERN_INFO "%s: flash unlocked. \n", 
+			netxen_nic_driver_name);
+		ret = netxen_flash_erase_secondary(adapter);
+		if (ret != FLASH_SUCCESS) {
+			printk(KERN_ERR "%s: Flash erase failed.\n", 
+				netxen_nic_driver_name);
+			return ret;
+		}
+		printk(KERN_INFO "%s: secondary flash erased successfully.\n", 
+			netxen_nic_driver_name);
+		flash_start = 1;
+		return 0;
+	}
+
+	if (offset == BOOTLD_START) {
+		ret = netxen_flash_erase_primary(adapter);
+		if (ret != FLASH_SUCCESS) {
+			printk(KERN_ERR "%s: Flash erase failed.\n", 
+				netxen_nic_driver_name);
+			return ret;
+		}
+
+		ret = netxen_rom_se(adapter, USER_START);
+		if (ret != FLASH_SUCCESS)
+			return ret;
+		ret = netxen_rom_se(adapter, FIXED_START);
+		if (ret != FLASH_SUCCESS)
+			return ret;
+
+		printk(KERN_INFO "%s: primary flash erased successfully\n", 
+			netxen_nic_driver_name);
+
+		ret = netxen_backup_crbinit(adapter);
+		if (ret != FLASH_SUCCESS) {
+			printk(KERN_ERR "%s: CRBinit backup failed.\n", 
+				netxen_nic_driver_name);
+			return ret;
+		}
+		printk(KERN_INFO "%s: CRBinit backup done.\n", 
+			netxen_nic_driver_name);
+		ready_to_flash = 1;
+	}
+
+	if (!ready_to_flash) {
+		printk(KERN_ERR "%s: Invalid write sequence, returning...\n",
+			netxen_nic_driver_name);
+		return -EINVAL;
+	}
+
+	return netxen_rom_fast_write_words(adapter, offset, bytes, eeprom->len);
 }
 
 static void
@@ -482,13 +547,13 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	__le32 val;
+	__u32 val;
 
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
 		/* get flow control settings */
 		netxen_nic_read_w0(adapter,
 				   NETXEN_NIU_GB_MAC_CONFIG_0(port->portnum),
-				   (u32 *) & val);
+				   &val);
 		pause->rx_pause = netxen_gb_get_rx_flowctl(val);
 		pause->tx_pause = netxen_gb_get_tx_flowctl(val);
 		/* get autoneg settings */
@@ -502,7 +567,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
-	__le32 val;
+	__u32 val;
 	unsigned int autoneg;
 
 	/* read mode */
@@ -522,13 +587,13 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 
 		netxen_nic_write_w0(adapter,
 				    NETXEN_NIU_GB_MAC_CONFIG_0(port->portnum),
-				    *(u32 *) (&val));
+				    *&val);
 		/* set autoneg */
 		autoneg = pause->autoneg;
 		if (adapter->phy_write
 		    && adapter->phy_write(adapter, port->portnum,
 					  NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-					  (__le32) autoneg) != 0)
+					  autoneg) != 0)
 			return -EIO;
 		else {
 			port->link_autoneg = pause->autoneg;
@@ -543,7 +608,7 @@ static int netxen_nic_reg_test(struct net_device *dev)
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
 	u32 data_read, data_written, save;
-	__le32 mode;
+	__u32 mode;
 
 	/* 
 	 * first test the "Read Only" registers by writing which mode
@@ -721,6 +786,7 @@ struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_link = netxen_nic_get_link,
 	.get_eeprom_len = netxen_nic_get_eeprom_len,
 	.get_eeprom = netxen_nic_get_eeprom,
+	.set_eeprom = netxen_nic_set_eeprom,
 	.get_ringparam = netxen_nic_get_ringparam,
 	.get_pauseparam = netxen_nic_get_pauseparam,
 	.set_pauseparam = netxen_nic_set_pauseparam,

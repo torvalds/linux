@@ -107,6 +107,12 @@ static void __init lite52xx_setup_arch(void)
 	mpc52xx_setup_cpu();	/* Generic */
 	lite52xx_setup_cpu();	/* Platorm specific */
 
+#ifdef CONFIG_PCI
+	np = of_find_node_by_type(np, "pci");
+	if (np)
+		mpc52xx_add_bridge(np);
+#endif
+
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start)
 		ROOT_DEV = Root_RAM0;

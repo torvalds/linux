@@ -1647,16 +1647,6 @@ static int sd_probe(struct device *dev)
 	if (error)
 		goto out_put;
 
-	class_device_initialize(&sdkp->cdev);
-	sdkp->cdev.dev = &sdp->sdev_gendev;
-	sdkp->cdev.class = &sd_disk_class;
-	strncpy(sdkp->cdev.class_id, sdp->sdev_gendev.bus_id, BUS_ID_SIZE);
-
-	if (class_device_add(&sdkp->cdev))
-		goto out_put;
-
-	get_device(&sdp->sdev_gendev);
-
 	sdkp->device = sdp;
 	sdkp->driver = &sd_template;
 	sdkp->disk = gd;
@@ -1669,6 +1659,16 @@ static int sd_probe(struct device *dev)
 		else
 			sdp->timeout = SD_MOD_TIMEOUT;
 	}
+
+	class_device_initialize(&sdkp->cdev);
+	sdkp->cdev.dev = &sdp->sdev_gendev;
+	sdkp->cdev.class = &sd_disk_class;
+	strncpy(sdkp->cdev.class_id, sdp->sdev_gendev.bus_id, BUS_ID_SIZE);
+
+	if (class_device_add(&sdkp->cdev))
+		goto out_put;
+
+	get_device(&sdp->sdev_gendev);
 
 	gd->major = sd_major((index & 0xf0) >> 4);
 	gd->first_minor = ((index & 0xf) << 4) | (index & 0xfff00);

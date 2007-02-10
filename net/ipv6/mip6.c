@@ -89,7 +89,6 @@ static int mip6_mh_len(int type)
 int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 {
 	struct ip6_mh *mh;
-	int mhlen;
 
 	if (!pskb_may_pull(skb, (skb->h.raw - skb->data) + 8) ||
 	    !pskb_may_pull(skb, (skb->h.raw - skb->data) + ((skb->h.raw[1] + 1) << 3)))
@@ -102,31 +101,6 @@ int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 			       mh->ip6mh_hdrlen, mip6_mh_len(mh->ip6mh_type));
 		mip6_param_prob(skb, 0, (&mh->ip6mh_hdrlen) - skb->nh.raw);
 		return -1;
-	}
-	mhlen = (mh->ip6mh_hdrlen + 1) << 3;
-
-	if (skb->ip_summed == CHECKSUM_COMPLETE) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		if (csum_ipv6_magic(&skb->nh.ipv6h->saddr,
-				    &skb->nh.ipv6h->daddr,
-				    mhlen, IPPROTO_MH,
-				    skb->csum)) {
-			LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH hw checksum failed\n");
-			skb->ip_summed = CHECKSUM_NONE;
-		}
-	}
-	if (skb->ip_summed == CHECKSUM_NONE) {
-		if (csum_ipv6_magic(&skb->nh.ipv6h->saddr,
-				    &skb->nh.ipv6h->daddr,
-				    mhlen, IPPROTO_MH,
-				    skb_checksum(skb, 0, mhlen, 0))) {
-			LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH checksum failed "
-				       "[" NIP6_FMT " > " NIP6_FMT "]\n",
-				       NIP6(skb->nh.ipv6h->saddr),
-				       NIP6(skb->nh.ipv6h->daddr));
-			return -1;
-		}
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
 	if (mh->ip6mh_proto != IPPROTO_NONE) {

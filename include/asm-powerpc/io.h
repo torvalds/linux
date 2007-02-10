@@ -732,6 +732,12 @@ static inline void * bus_to_virt(unsigned long address)
 
 #endif /* CONFIG_PPC32 */
 
+/* access ports */
+#define setbits32(_addr, _v) out_be32((_addr), in_be32(_addr) |  (_v))
+#define clrbits32(_addr, _v) out_be32((_addr), in_be32(_addr) & ~(_v))
+
+#define setbits16(_addr, _v) out_be16((_addr), in_be16(_addr) |  (_v))
+#define clrbits16(_addr, _v) out_be16((_addr), in_be16(_addr) & ~(_v))
 
 #endif /* __KERNEL__ */
 

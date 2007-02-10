@@ -413,8 +413,6 @@ struct ensoniq {
 	} u;
 
 	struct pci_dev *pci;
-	unsigned short subsystem_vendor_id;
-	unsigned short subsystem_device_id;
 	struct snd_card *card;
 	struct snd_pcm *pcm1;	/* DAC1/ADC PCM */
 	struct snd_pcm *pcm2;	/* DAC2 PCM */
@@ -1607,11 +1605,26 @@ static void snd_ensoniq_mixer_free_ac97(struct snd_ac97 *ac97)
 	ensoniq->u.es1371.ac97 = NULL;
 }
 
-static struct {
+struct es1371_quirk {
 	unsigned short vid;		/* vendor ID */
 	unsigned short did;		/* device ID */
 	unsigned char rev;		/* revision */
-} es1371_spdif_present[] __devinitdata = {
+};
+
+static int __devinit es1371_quirk_lookup(struct ensoniq *ensoniq,
+					 struct es1371_quirk *list)
+{
+	while (list->vid != (unsigned short)PCI_ANY_ID) {
+		if (ensoniq->pci->vendor == list->vid &&
+		    ensoniq->pci->device == list->did &&
+		    ensoniq->rev == list->rev)
+			return 1;
+		list++;
+	}
+	return 0;
+}
+
+static struct es1371_quirk es1371_spdif_present[] __devinitdata = {
 	{ .vid = PCI_VENDOR_ID_ENSONIQ, .did = PCI_DEVICE_ID_ENSONIQ_CT5880, .rev = CT5880REV_CT5880_C },
 	{ .vid = PCI_VENDOR_ID_ENSONIQ, .did = PCI_DEVICE_ID_ENSONIQ_CT5880, .rev = CT5880REV_CT5880_D },
 	{ .vid = PCI_VENDOR_ID_ENSONIQ, .did = PCI_DEVICE_ID_ENSONIQ_CT5880, .rev = CT5880REV_CT5880_E },
@@ -1620,12 +1633,19 @@ static struct {
 	{ .vid = PCI_ANY_ID, .did = PCI_ANY_ID }
 };
 
-static int snd_ensoniq_1371_mixer(struct ensoniq * ensoniq, int has_spdif, int has_line)
+static struct snd_pci_quirk ens1373_line_quirk[] __devinitdata = {
+	SND_PCI_QUIRK_ID(0x1274, 0x2000), /* GA-7DXR */
+	SND_PCI_QUIRK_ID(0x1458, 0xa000), /* GA-8IEXP */
+	{ } /* end */
+};
+
+static int __devinit snd_ensoniq_1371_mixer(struct ensoniq *ensoniq,
+					    int has_spdif, int has_line)
 {
 	struct snd_card *card = ensoniq->card;
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
-	int err, idx;
+	int err;
 	static struct snd_ac97_bus_ops ops = {
 		.write = snd_es1371_codec_write,
 		.read = snd_es1371_codec_read,
@@ -1641,33 +1661,28 @@ static int snd_ensoniq_1371_mixer(struct ensoniq * ensoniq, int has_spdif, int h
 	ac97.scaps = AC97_SCAP_AUDIO;
 	if ((err = snd_ac97_mixer(pbus, &ac97, &ensoniq->u.es1371.ac97)) < 0)
 		return err;
-	for (idx = 0; es1371_spdif_present[idx].vid != (unsigned short)PCI_ANY_ID; idx++)
-		if ((ensoniq->pci->vendor == es1371_spdif_present[idx].vid &&
-		     ensoniq->pci->device == es1371_spdif_present[idx].did &&
-		     ensoniq->rev == es1371_spdif_present[idx].rev) || has_spdif > 0) {
-		    	struct snd_kcontrol *kctl;
-			int i, index = 0; 
+	if (has_spdif > 0 ||
+	    (!has_spdif && es1371_quirk_lookup(ensoniq, es1371_spdif_present))) {
+		struct snd_kcontrol *kctl;
+		int i, index = 0;
 
-                        if (has_spdif < 0)
-                                break;
+		ensoniq->spdif_default = ensoniq->spdif_stream =
+			SNDRV_PCM_DEFAULT_CON_SPDIF;
+		outl(ensoniq->spdif_default, ES_REG(ensoniq, CHANNEL_STATUS));
 
-			ensoniq->spdif_default = ensoniq->spdif_stream =
-				SNDRV_PCM_DEFAULT_CON_SPDIF;
-			outl(ensoniq->spdif_default, ES_REG(ensoniq, CHANNEL_STATUS));
+		if (ensoniq->u.es1371.ac97->ext_id & AC97_EI_SPDIF)
+			index++;
 
-		    	if (ensoniq->u.es1371.ac97->ext_id & AC97_EI_SPDIF)
-			    	index++;
-
-			for (i = 0; i < (int)ARRAY_SIZE(snd_es1371_mixer_spdif); i++) {
-				kctl = snd_ctl_new1(&snd_es1371_mixer_spdif[i], ensoniq);
-				if (! kctl)
-					return -ENOMEM;
-				kctl->id.index = index;
-				if ((err = snd_ctl_add(card, kctl)) < 0)
-					return err;
-			}
-			break;
+		for (i = 0; i < ARRAY_SIZE(snd_es1371_mixer_spdif); i++) {
+			kctl = snd_ctl_new1(&snd_es1371_mixer_spdif[i], ensoniq);
+			if (!kctl)
+				return -ENOMEM;
+			kctl->id.index = index;
+			err = snd_ctl_add(card, kctl);
+			if (err < 0)
+				return err;
 		}
+	}
 	if (ensoniq->u.es1371.ac97->ext_id & AC97_EI_SDAC) {
 		/* mirror rear to front speakers */
 		ensoniq->cssr &= ~(ES_1373_REAR_BIT27|ES_1373_REAR_BIT24);
@@ -1676,12 +1691,10 @@ static int snd_ensoniq_1371_mixer(struct ensoniq * ensoniq, int has_spdif, int h
 		if (err < 0)
 			return err;
 	}
-	if (((ensoniq->subsystem_vendor_id == 0x1274) &&
-	    (ensoniq->subsystem_device_id == 0x2000)) || /* GA-7DXR */
-	    ((ensoniq->subsystem_vendor_id == 0x1458) &&
-	    (ensoniq->subsystem_device_id == 0xa000)) || /* GA-8IEXP */
-	    has_line > 0) {
-		 err = snd_ctl_add(card, snd_ctl_new1(&snd_ens1373_line, ensoniq));
+	if (has_line > 0 ||
+	    snd_pci_quirk_lookup(ensoniq->pci, ens1373_line_quirk)) {
+		 err = snd_ctl_add(card, snd_ctl_new1(&snd_ens1373_line,
+						      ensoniq));
 		 if (err < 0)
 			 return err;
 	}
@@ -1956,21 +1969,15 @@ static int snd_ensoniq_dev_free(struct snd_device *device)
 }
 
 #ifdef CHIP1371
-static struct {
-	unsigned short svid;		/* subsystem vendor ID */
-	unsigned short sdid;		/* subsystem device ID */
-} es1371_amplifier_hack[] = {
-	{ .svid = 0x107b, .sdid = 0x2150 },	/* Gateway Solo 2150 */
-	{ .svid = 0x13bd, .sdid = 0x100c },	/* EV1938 on Mebius PC-MJ100V */
-	{ .svid = 0x1102, .sdid = 0x5938 },	/* Targa Xtender300 */
-	{ .svid = 0x1102, .sdid = 0x8938 },	/* IPC Topnote G notebook */
-	{ .svid = PCI_ANY_ID, .sdid = PCI_ANY_ID }
+static struct snd_pci_quirk es1371_amplifier_hack[] __devinitdata = {
+	SND_PCI_QUIRK_ID(0x107b, 0x2150),	/* Gateway Solo 2150 */
+	SND_PCI_QUIRK_ID(0x13bd, 0x100c),	/* EV1938 on Mebius PC-MJ100V */
+	SND_PCI_QUIRK_ID(0x1102, 0x5938),	/* Targa Xtender300 */
+	SND_PCI_QUIRK_ID(0x1102, 0x8938),	/* IPC Topnote G notebook */
+	{ } /* end */
 };
-static struct {
-	unsigned short vid;		/* vendor ID */
-	unsigned short did;		/* device ID */
-	unsigned char rev;		/* revision */
-} es1371_ac97_reset_hack[] = {
+
+static struct es1371_quirk es1371_ac97_reset_hack[] = {
 	{ .vid = PCI_VENDOR_ID_ENSONIQ, .did = PCI_DEVICE_ID_ENSONIQ_CT5880, .rev = CT5880REV_CT5880_C },
 	{ .vid = PCI_VENDOR_ID_ENSONIQ, .did = PCI_DEVICE_ID_ENSONIQ_CT5880, .rev = CT5880REV_CT5880_D },
 	{ .vid = PCI_VENDOR_ID_ENSONIQ, .did = PCI_DEVICE_ID_ENSONIQ_CT5880, .rev = CT5880REV_CT5880_E },
@@ -1984,7 +1991,6 @@ static void snd_ensoniq_chip_init(struct ensoniq *ensoniq)
 {
 #ifdef CHIP1371
 	int idx;
-	struct pci_dev *pci = ensoniq->pci;
 #endif
 	/* this code was part of snd_ensoniq_create before intruduction
 	  * of suspend/resume
@@ -1999,16 +2005,12 @@ static void snd_ensoniq_chip_init(struct ensoniq *ensoniq)
 	outl(ensoniq->ctrl, ES_REG(ensoniq, CONTROL));
 	outl(ensoniq->sctrl, ES_REG(ensoniq, SERIAL));
 	outl(0, ES_REG(ensoniq, 1371_LEGACY));
-	for (idx = 0; es1371_ac97_reset_hack[idx].vid != (unsigned short)PCI_ANY_ID; idx++)
-		if (pci->vendor == es1371_ac97_reset_hack[idx].vid &&
-		    pci->device == es1371_ac97_reset_hack[idx].did &&
-		    ensoniq->rev == es1371_ac97_reset_hack[idx].rev) {
-			outl(ensoniq->cssr, ES_REG(ensoniq, STATUS));
-			/* need to delay around 20ms(bleech) to give
-			some CODECs enough time to wakeup */
-			msleep(20);
-			break;
-		}
+	if (es1371_quirk_lookup(ensoniq, es1371_ac97_reset_hack)) {
+	    outl(ensoniq->cssr, ES_REG(ensoniq, STATUS));
+	    /* need to delay around 20ms(bleech) to give
+	       some CODECs enough time to wakeup */
+	    msleep(20);
+	}
 	/* AC'97 warm reset to start the bitclk */
 	outl(ensoniq->ctrl | ES_1371_SYNC_RES, ES_REG(ensoniq, CONTROL));
 	inl(ES_REG(ensoniq, CONTROL));
@@ -2112,11 +2114,7 @@ static int __devinit snd_ensoniq_create(struct snd_card *card,
 				     struct ensoniq ** rensoniq)
 {
 	struct ensoniq *ensoniq;
-	unsigned short cmdw;
 	unsigned char cmdb;
-#ifdef CHIP1371
-	int idx;
-#endif
 	int err;
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_ensoniq_dev_free,
@@ -2159,10 +2157,6 @@ static int __devinit snd_ensoniq_create(struct snd_card *card,
 	pci_set_master(pci);
 	pci_read_config_byte(pci, PCI_REVISION_ID, &cmdb);
 	ensoniq->rev = cmdb;
-	pci_read_config_word(pci, PCI_SUBSYSTEM_VENDOR_ID, &cmdw);
-	ensoniq->subsystem_vendor_id = cmdw;
-	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &cmdw);
-	ensoniq->subsystem_device_id = cmdw;
 #ifdef CHIP1370
 #if 0
 	ensoniq->ctrl = ES_1370_CDC_EN | ES_1370_SERR_DISABLE |
@@ -2175,19 +2169,11 @@ static int __devinit snd_ensoniq_create(struct snd_card *card,
 	ensoniq->ctrl = 0;
 	ensoniq->sctrl = 0;
 	ensoniq->cssr = 0;
-	for (idx = 0; es1371_amplifier_hack[idx].svid != (unsigned short)PCI_ANY_ID; idx++)
-		if (ensoniq->subsystem_vendor_id == es1371_amplifier_hack[idx].svid &&
-		    ensoniq->subsystem_device_id == es1371_amplifier_hack[idx].sdid) {
-			ensoniq->ctrl |= ES_1371_GPIO_OUT(1);	/* turn amplifier on */
-			break;
-		}
-	for (idx = 0; es1371_ac97_reset_hack[idx].vid != (unsigned short)PCI_ANY_ID; idx++)
-		if (pci->vendor == es1371_ac97_reset_hack[idx].vid &&
-		    pci->device == es1371_ac97_reset_hack[idx].did &&
-		    ensoniq->rev == es1371_ac97_reset_hack[idx].rev) {
-			ensoniq->cssr |= ES_1371_ST_AC97_RST;
-			break;
-		}
+	if (snd_pci_quirk_lookup(pci, es1371_amplifier_hack))
+		ensoniq->ctrl |= ES_1371_GPIO_OUT(1);	/* turn amplifier on */
+
+	if (es1371_quirk_lookup(ensoniq, es1371_ac97_reset_hack))
+		ensoniq->cssr |= ES_1371_ST_AC97_RST;
 #endif
 
 	snd_ensoniq_chip_init(ensoniq);

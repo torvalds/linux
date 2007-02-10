@@ -68,104 +68,182 @@ int ehca_dealloc_ucontext(struct ib_ucontext *context)
 	return 0;
 }
 
-struct page *ehca_nopage(struct vm_area_struct *vma,
-			 unsigned long address, int *type)
+static void ehca_mm_open(struct vm_area_struct *vma)
 {
-	struct page *mypage = NULL;
-	u64 fileoffset = vma->vm_pgoff << PAGE_SHIFT;
-	u32 idr_handle = fileoffset >> 32;
-	u32 q_type = (fileoffset >> 28) & 0xF;	  /* CQ, QP,...        */
-	u32 rsrc_type = (fileoffset >> 24) & 0xF; /* sq,rq,cmnd_window */
-	u32 cur_pid = current->tgid;
-	unsigned long flags;
-	struct ehca_cq *cq;
-	struct ehca_qp *qp;
-	struct ehca_pd *pd;
-	u64 offset;
-	void *vaddr;
+	u32 *count = (u32*)vma->vm_private_data;
+	if (!count) {
+		ehca_gen_err("Invalid vma struct vm_start=%lx vm_end=%lx",
+			     vma->vm_start, vma->vm_end);
+		return;
+	}
+	(*count)++;
+	if (!(*count))
+		ehca_gen_err("Use count overflow vm_start=%lx vm_end=%lx",
+			     vma->vm_start, vma->vm_end);
+	ehca_gen_dbg("vm_start=%lx vm_end=%lx count=%x",
+		     vma->vm_start, vma->vm_end, *count);
+}
 
-	switch (q_type) {
-	case 1: /* CQ */
-		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-		cq = idr_find(&ehca_cq_idr, idr_handle);
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+static void ehca_mm_close(struct vm_area_struct *vma)
+{
+	u32 *count = (u32*)vma->vm_private_data;
+	if (!count) {
+		ehca_gen_err("Invalid vma struct vm_start=%lx vm_end=%lx",
+			     vma->vm_start, vma->vm_end);
+		return;
+	}
+	(*count)--;
+	ehca_gen_dbg("vm_start=%lx vm_end=%lx count=%x",
+		     vma->vm_start, vma->vm_end, *count);
+}
 
-		/* make sure this mmap really belongs to the authorized user */
-		if (!cq) {
-			ehca_gen_err("cq is NULL ret=NOPAGE_SIGBUS");
-			return NOPAGE_SIGBUS;
+static struct vm_operations_struct vm_ops = {
+	.open =	ehca_mm_open,
+	.close = ehca_mm_close,
+};
+
+static int ehca_mmap_fw(struct vm_area_struct *vma, struct h_galpas *galpas,
+			u32 *mm_count)
+{
+	int ret;
+	u64 vsize, physical;
+
+	vsize = vma->vm_end - vma->vm_start;
+	if (vsize != EHCA_PAGESIZE) {
+		ehca_gen_err("invalid vsize=%lx", vma->vm_end - vma->vm_start);
+		return -EINVAL;
+	}
+
+	physical = galpas->user.fw_handle;
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	ehca_gen_dbg("vsize=%lx physical=%lx", vsize, physical);
+	/* VM_IO | VM_RESERVED are set by remap_pfn_range() */
+	ret = remap_pfn_range(vma, vma->vm_start, physical >> PAGE_SHIFT,
+			      vsize, vma->vm_page_prot);
+	if (unlikely(ret)) {
+		ehca_gen_err("remap_pfn_range() failed ret=%x", ret);
+		return -ENOMEM;
+	}
+
+	vma->vm_private_data = mm_count;
+	(*mm_count)++;
+	vma->vm_ops = &vm_ops;
+
+	return 0;
+}
+
+static int ehca_mmap_queue(struct vm_area_struct *vma, struct ipz_queue *queue,
+			   u32 *mm_count)
+{
+	int ret;
+	u64 start, ofs;
+	struct page *page;
+
+	vma->vm_flags |= VM_RESERVED;
+	start = vma->vm_start;
+	for (ofs = 0; ofs < queue->queue_length; ofs += PAGE_SIZE) {
+		u64 virt_addr = (u64)ipz_qeit_calc(queue, ofs);
+		page = virt_to_page(virt_addr);
+		ret = vm_insert_page(vma, start, page);
+		if (unlikely(ret)) {
+			ehca_gen_err("vm_insert_page() failed rc=%x", ret);
+			return ret;
 		}
+		start +=  PAGE_SIZE;
+	}
+	vma->vm_private_data = mm_count;
+	(*mm_count)++;
+	vma->vm_ops = &vm_ops;
 
-		if (cq->ownpid != cur_pid) {
+	return 0;
+}
+
+static int ehca_mmap_cq(struct vm_area_struct *vma, struct ehca_cq *cq,
+			u32 rsrc_type)
+{
+	int ret;
+
+	switch (rsrc_type) {
+	case 1: /* galpa fw handle */
+		ehca_dbg(cq->ib_cq.device, "cq_num=%x fw", cq->cq_number);
+		ret = ehca_mmap_fw(vma, &cq->galpas, &cq->mm_count_galpa);
+		if (unlikely(ret)) {
 			ehca_err(cq->ib_cq.device,
-				 "Invalid caller pid=%x ownpid=%x",
-				 cur_pid, cq->ownpid);
-			return NOPAGE_SIGBUS;
-		}
-
-		if (rsrc_type == 2) {
-			ehca_dbg(cq->ib_cq.device, "cq=%p cq queuearea", cq);
-			offset = address - vma->vm_start;
-			vaddr = ipz_qeit_calc(&cq->ipz_queue, offset);
-			ehca_dbg(cq->ib_cq.device, "offset=%lx vaddr=%p",
-				 offset, vaddr);
-			mypage = virt_to_page(vaddr);
+				 "ehca_mmap_fw() failed rc=%x cq_num=%x",
+				 ret, cq->cq_number);
+			return ret;
 		}
 		break;
 
-	case 2: /* QP */
-		spin_lock_irqsave(&ehca_qp_idr_lock, flags);
-		qp = idr_find(&ehca_qp_idr, idr_handle);
-		spin_unlock_irqrestore(&ehca_qp_idr_lock, flags);
-
-		/* make sure this mmap really belongs to the authorized user */
-		if (!qp) {
-			ehca_gen_err("qp is NULL ret=NOPAGE_SIGBUS");
-			return NOPAGE_SIGBUS;
-		}
-
-		pd = container_of(qp->ib_qp.pd, struct ehca_pd, ib_pd);
-		if (pd->ownpid != cur_pid) {
-			ehca_err(qp->ib_qp.device,
-				 "Invalid caller pid=%x ownpid=%x",
-				 cur_pid, pd->ownpid);
-			return NOPAGE_SIGBUS;
-		}
-
-		if (rsrc_type == 2) {	/* rqueue */
-			ehca_dbg(qp->ib_qp.device, "qp=%p qp rqueuearea", qp);
-			offset = address - vma->vm_start;
-			vaddr = ipz_qeit_calc(&qp->ipz_rqueue, offset);
-			ehca_dbg(qp->ib_qp.device, "offset=%lx vaddr=%p",
-				 offset, vaddr);
-			mypage = virt_to_page(vaddr);
-		} else if (rsrc_type == 3) {	/* squeue */
-			ehca_dbg(qp->ib_qp.device, "qp=%p qp squeuearea", qp);
-			offset = address - vma->vm_start;
-			vaddr = ipz_qeit_calc(&qp->ipz_squeue, offset);
-			ehca_dbg(qp->ib_qp.device, "offset=%lx vaddr=%p",
-				 offset, vaddr);
-			mypage = virt_to_page(vaddr);
+	case 2: /* cq queue_addr */
+		ehca_dbg(cq->ib_cq.device, "cq_num=%x queue", cq->cq_number);
+		ret = ehca_mmap_queue(vma, &cq->ipz_queue, &cq->mm_count_queue);
+		if (unlikely(ret)) {
+			ehca_err(cq->ib_cq.device,
+				 "ehca_mmap_queue() failed rc=%x cq_num=%x",
+				 ret, cq->cq_number);
+			return ret;
 		}
 		break;
 
 	default:
-		ehca_gen_err("bad queue type %x", q_type);
-		return NOPAGE_SIGBUS;
+		ehca_err(cq->ib_cq.device, "bad resource type=%x cq_num=%x",
+			 rsrc_type, cq->cq_number);
+		return -EINVAL;
 	}
 
-	if (!mypage) {
-		ehca_gen_err("Invalid page adr==NULL ret=NOPAGE_SIGBUS");
-		return NOPAGE_SIGBUS;
-	}
-	get_page(mypage);
-
-	return mypage;
+	return 0;
 }
 
-static struct vm_operations_struct ehcau_vm_ops = {
-	.nopage = ehca_nopage,
-};
+static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
+			u32 rsrc_type)
+{
+	int ret;
+
+	switch (rsrc_type) {
+	case 1: /* galpa fw handle */
+		ehca_dbg(qp->ib_qp.device, "qp_num=%x fw", qp->ib_qp.qp_num);
+		ret = ehca_mmap_fw(vma, &qp->galpas, &qp->mm_count_galpa);
+		if (unlikely(ret)) {
+			ehca_err(qp->ib_qp.device,
+				 "remap_pfn_range() failed ret=%x qp_num=%x",
+				 ret, qp->ib_qp.qp_num);
+			return -ENOMEM;
+		}
+		break;
+
+	case 2: /* qp rqueue_addr */
+		ehca_dbg(qp->ib_qp.device, "qp_num=%x rqueue",
+			 qp->ib_qp.qp_num);
+		ret = ehca_mmap_queue(vma, &qp->ipz_rqueue, &qp->mm_count_rqueue);
+		if (unlikely(ret)) {
+			ehca_err(qp->ib_qp.device,
+				 "ehca_mmap_queue(rq) failed rc=%x qp_num=%x",
+				 ret, qp->ib_qp.qp_num);
+			return ret;
+		}
+		break;
+
+	case 3: /* qp squeue_addr */
+		ehca_dbg(qp->ib_qp.device, "qp_num=%x squeue",
+			 qp->ib_qp.qp_num);
+		ret = ehca_mmap_queue(vma, &qp->ipz_squeue, &qp->mm_count_squeue);
+		if (unlikely(ret)) {
+			ehca_err(qp->ib_qp.device,
+				 "ehca_mmap_queue(sq) failed rc=%x qp_num=%x",
+				 ret, qp->ib_qp.qp_num);
+			return ret;
+		}
+		break;
+
+	default:
+		ehca_err(qp->ib_qp.device, "bad resource type=%x qp=num=%x",
+			 rsrc_type, qp->ib_qp.qp_num);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
@@ -175,7 +253,6 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	u32 rsrc_type = (fileoffset >> 24) & 0xF; /* sq,rq,cmnd_window */
 	u32 cur_pid = current->tgid;
 	u32 ret;
-	u64 vsize, physical;
 	unsigned long flags;
 	struct ehca_cq *cq;
 	struct ehca_qp *qp;
@@ -201,44 +278,12 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		if (!cq->ib_cq.uobject || cq->ib_cq.uobject->context != context)
 			return -EINVAL;
 
-		switch (rsrc_type) {
-		case 1: /* galpa fw handle */
-			ehca_dbg(cq->ib_cq.device, "cq=%p cq triggerarea", cq);
-			vma->vm_flags |= VM_RESERVED;
-			vsize = vma->vm_end - vma->vm_start;
-			if (vsize != EHCA_PAGESIZE) {
-				ehca_err(cq->ib_cq.device, "invalid vsize=%lx",
-					 vma->vm_end - vma->vm_start);
-				return -EINVAL;
-			}
-
-			physical = cq->galpas.user.fw_handle;
-			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-			vma->vm_flags |= VM_IO | VM_RESERVED;
-
-			ehca_dbg(cq->ib_cq.device,
-				 "vsize=%lx physical=%lx", vsize, physical);
-			ret = remap_pfn_range(vma, vma->vm_start,
-					      physical >> PAGE_SHIFT, vsize,
-					      vma->vm_page_prot);
-			if (ret) {
-				ehca_err(cq->ib_cq.device,
-					 "remap_pfn_range() failed ret=%x",
-					 ret);
-				return -ENOMEM;
-			}
-			break;
-
-		case 2: /* cq queue_addr */
-			ehca_dbg(cq->ib_cq.device, "cq=%p cq q_addr", cq);
-			vma->vm_flags |= VM_RESERVED;
-			vma->vm_ops = &ehcau_vm_ops;
-			break;
-
-		default:
-			ehca_err(cq->ib_cq.device, "bad resource type %x",
-				 rsrc_type);
-			return -EINVAL;
+		ret = ehca_mmap_cq(vma, cq, rsrc_type);
+		if (unlikely(ret)) {
+			ehca_err(cq->ib_cq.device,
+				 "ehca_mmap_cq() failed rc=%x cq_num=%x",
+				 ret, cq->cq_number);
+			return ret;
 		}
 		break;
 
@@ -262,50 +307,12 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		if (!qp->ib_qp.uobject || qp->ib_qp.uobject->context != context)
 			return -EINVAL;
 
-		switch (rsrc_type) {
-		case 1: /* galpa fw handle */
-			ehca_dbg(qp->ib_qp.device, "qp=%p qp triggerarea", qp);
-			vma->vm_flags |= VM_RESERVED;
-			vsize = vma->vm_end - vma->vm_start;
-			if (vsize != EHCA_PAGESIZE) {
-				ehca_err(qp->ib_qp.device, "invalid vsize=%lx",
-					 vma->vm_end - vma->vm_start);
-				return -EINVAL;
-			}
-
-			physical = qp->galpas.user.fw_handle;
-			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-			vma->vm_flags |= VM_IO | VM_RESERVED;
-
-			ehca_dbg(qp->ib_qp.device, "vsize=%lx physical=%lx",
-				 vsize, physical);
-			ret = remap_pfn_range(vma, vma->vm_start,
-					      physical >> PAGE_SHIFT, vsize,
-					      vma->vm_page_prot);
-			if (ret) {
-				ehca_err(qp->ib_qp.device,
-					 "remap_pfn_range() failed ret=%x",
-					 ret);
-				return -ENOMEM;
-			}
-			break;
-
-		case 2: /* qp rqueue_addr */
-			ehca_dbg(qp->ib_qp.device, "qp=%p qp rqueue_addr", qp);
-			vma->vm_flags |= VM_RESERVED;
-			vma->vm_ops = &ehcau_vm_ops;
-			break;
-
-		case 3: /* qp squeue_addr */
-			ehca_dbg(qp->ib_qp.device, "qp=%p qp squeue_addr", qp);
-			vma->vm_flags |= VM_RESERVED;
-			vma->vm_ops = &ehcau_vm_ops;
-			break;
-
-		default:
-			ehca_err(qp->ib_qp.device, "bad resource type %x",
-				 rsrc_type);
-			return -EINVAL;
+		ret = ehca_mmap_qp(vma, qp, rsrc_type);
+		if (unlikely(ret)) {
+			ehca_err(qp->ib_qp.device,
+				 "ehca_mmap_qp() failed rc=%x qp_num=%x",
+				 ret, qp->ib_qp.qp_num);
+			return ret;
 		}
 		break;
 
@@ -315,78 +322,4 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	}
 
 	return 0;
-}
-
-int ehca_mmap_nopage(u64 foffset, u64 length, void **mapped,
-		     struct vm_area_struct **vma)
-{
-	down_write(&current->mm->mmap_sem);
-	*mapped = (void*)do_mmap(NULL,0, length, PROT_WRITE,
-				 MAP_SHARED | MAP_ANONYMOUS,
-				 foffset);
-	up_write(&current->mm->mmap_sem);
-	if (!(*mapped)) {
-		ehca_gen_err("couldn't mmap foffset=%lx length=%lx",
-			     foffset, length);
-		return -EINVAL;
-	}
-
-	*vma = find_vma(current->mm, (u64)*mapped);
-	if (!(*vma)) {
-		down_write(&current->mm->mmap_sem);
-		do_munmap(current->mm, 0, length);
-		up_write(&current->mm->mmap_sem);
-		ehca_gen_err("couldn't find vma queue=%p", *mapped);
-		return -EINVAL;
-	}
-	(*vma)->vm_flags |= VM_RESERVED;
-	(*vma)->vm_ops = &ehcau_vm_ops;
-
-	return 0;
-}
-
-int ehca_mmap_register(u64 physical, void **mapped,
-		       struct vm_area_struct **vma)
-{
-	int ret;
-	unsigned long vsize;
-	/* ehca hw supports only 4k page */
-	ret = ehca_mmap_nopage(0, EHCA_PAGESIZE, mapped, vma);
-	if (ret) {
-		ehca_gen_err("could'nt mmap physical=%lx", physical);
-		return ret;
-	}
-
-	(*vma)->vm_flags |= VM_RESERVED;
-	vsize = (*vma)->vm_end - (*vma)->vm_start;
-	if (vsize != EHCA_PAGESIZE) {
-		ehca_gen_err("invalid vsize=%lx",
-			     (*vma)->vm_end - (*vma)->vm_start);
-		return -EINVAL;
-	}
-
-	(*vma)->vm_page_prot = pgprot_noncached((*vma)->vm_page_prot);
-	(*vma)->vm_flags |= VM_IO | VM_RESERVED;
-
-	ret = remap_pfn_range((*vma), (*vma)->vm_start,
-			      physical >> PAGE_SHIFT, vsize,
-			      (*vma)->vm_page_prot);
-	if (ret) {
-		ehca_gen_err("remap_pfn_range() failed ret=%x", ret);
-		return -ENOMEM;
-	}
-
-	return 0;
-
-}
-
-int ehca_munmap(unsigned long addr, size_t len) {
-	int ret = 0;
-	struct mm_struct *mm = current->mm;
-	if (mm) {
-		down_write(&mm->mmap_sem);
-		ret = do_munmap(mm, addr, len);
-		up_write(&mm->mmap_sem);
-	}
-	return ret;
 }

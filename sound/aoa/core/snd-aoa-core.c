@@ -82,7 +82,7 @@ void aoa_codec_unregister(struct aoa_codec *codec)
 }
 EXPORT_SYMBOL_GPL(aoa_codec_unregister);
 
-int aoa_fabric_register(struct aoa_fabric *new_fabric)
+int aoa_fabric_register(struct aoa_fabric *new_fabric, struct device *dev)
 {
 	struct aoa_codec *c;
 	int err;
@@ -98,7 +98,7 @@ int aoa_fabric_register(struct aoa_fabric *new_fabric)
 	if (!new_fabric)
 		return -EINVAL;
 
-	err = aoa_alsa_init(new_fabric->name, new_fabric->owner);
+	err = aoa_alsa_init(new_fabric->name, new_fabric->owner, dev);
 	if (err)
 		return err;
 

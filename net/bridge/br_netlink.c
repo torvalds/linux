@@ -45,7 +45,7 @@ static int br_fill_ifinfo(struct sk_buff *skb, const struct net_bridge_port *por
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*hdr), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	hdr = nlmsg_data(nlh);
 	hdr->ifi_family = AF_BRIDGE;
@@ -72,7 +72,8 @@ static int br_fill_ifinfo(struct sk_buff *skb, const struct net_bridge_port *por
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 /*
@@ -89,9 +90,12 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 		goto errout;
 
 	err = br_fill_ifinfo(skb, port, 0, 0, event, 0);
-	/* failure implies BUG in br_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in br_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, 0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
 errout:
 	if (err < 0)

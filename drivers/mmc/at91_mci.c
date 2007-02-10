@@ -823,6 +823,9 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 	mmc->caps = MMC_CAP_BYTEBLOCK;
 
+	mmc->max_blk_size = 4095;
+	mmc->max_blk_count = mmc->max_req_size;
+
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
 	host->buffer = NULL;

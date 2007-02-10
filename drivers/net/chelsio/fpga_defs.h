@@ -98,9 +98,9 @@
 #define A_MI0_DATA_INT 0xb10
 
 /* GMAC registers */
-#define A_GMAC_MACID_LO 0x28
-#define A_GMAC_MACID_HI 0x2c
-#define A_GMAC_CSR 0x30
+#define A_GMAC_MACID_LO	0x28
+#define A_GMAC_MACID_HI	0x2c
+#define A_GMAC_CSR	0x30
 
 #define S_INTERFACE    0
 #define M_INTERFACE    0x3

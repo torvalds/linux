@@ -293,4 +293,6 @@ struct pci_dev *alpha_gendev_to_pci(struct device *dev);
 #define IOBASE_ROOT_BUS		5
 #define IOBASE_FROM_HOSE	0x10000
 
+extern struct pci_dev *isa_bridge;
+
 #endif /* __ALPHA_PCI_H */

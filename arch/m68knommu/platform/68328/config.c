@@ -34,7 +34,7 @@
 
 /***************************************************************************/
 
-void m68328_timer_init(irqreturn_t (*timer_routine) (int, void *, struct pt_regs *));
+void m68328_timer_init(irq_handler_t timer_routine);
 void m68328_timer_tick(void);
 unsigned long m68328_timer_gettimeoffset(void);
 void m68328_timer_gettod(int *year, int *mon, int *day, int *hour, int *min, int *sec);

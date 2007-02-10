@@ -77,7 +77,7 @@ that the file size is not excessive for your favourite editor.
 
 The '1t' type data consists of a stream of events, such as URB submission,
 URB callback, submission error. Every event is a text line, which consists
-of whitespace separated words. The number of position of words may depend
+of whitespace separated words. The number or position of words may depend
 on the event type, but there is a set of words, common for all types.
 
 Here is the list of words, from left to right:
@@ -170,4 +170,152 @@ dd65f0e8 4128379808 C Bo:005:02 0 31 >
 
 * Raw binary format and API
 
-TBD
+The overall architecture of the API is about the same as the one above,
+only the events are delivered in binary format. Each event is sent in
+the following structure (its name is made up, so that we can refer to it):
+
+struct usbmon_packet {
+	u64 id;			/*  0: URB ID - from submission to callback */
+	unsigned char type;	/*  8: Same as text; extensible. */
+	unsigned char xfer_type; /*    ISO (0), Intr, Control, Bulk (3) */
+	unsigned char epnum;	/*     Endpoint number and transfer direction */
+	unsigned char devnum;	/*     Device address */
+	u16 busnum;		/* 12: Bus number */
+	char flag_setup;	/* 14: Same as text */
+	char flag_data;		/* 15: Same as text; Binary zero is OK. */
+	s64 ts_sec;		/* 16: gettimeofday */
+	s32 ts_usec;		/* 24: gettimeofday */
+	int status;		/* 28: */
+	unsigned int length;	/* 32: Length of data (submitted or actual) */
+	unsigned int len_cap;	/* 36: Delivered length */
+	unsigned char setup[8];	/* 40: Only for Control 'S' */
+};				/* 48 bytes total */
+
+These events can be received from a character device by reading with read(2),
+with an ioctl(2), or by accessing the buffer with mmap.
+
+The character device is usually called /dev/usbmonN, where N is the USB bus
+number. Number zero (/dev/usbmon0) is special and means "all buses".
+However, this feature is not implemented yet. Note that specific naming
+policy is set by your Linux distribution.
+
+If you create /dev/usbmon0 by hand, make sure that it is owned by root
+and has mode 0600. Otherwise, unpriviledged users will be able to snoop
+keyboard traffic.
+
+The following ioctl calls are available, with MON_IOC_MAGIC 0x92:
+
+ MON_IOCQ_URB_LEN, defined as _IO(MON_IOC_MAGIC, 1)
+
+This call returns the length of data in the next event. Note that majority of
+events contain no data, so if this call returns zero, it does not mean that
+no events are available.
+
+ MON_IOCG_STATS, defined as _IOR(MON_IOC_MAGIC, 3, struct mon_bin_stats)
+
+The argument is a pointer to the following structure:
+
+struct mon_bin_stats {
+	u32 queued;
+	u32 dropped;
+};
+
+The member "queued" refers to the number of events currently queued in the
+buffer (and not to the number of events processed since the last reset).
+
+The member "dropped" is the number of events lost since the last call
+to MON_IOCG_STATS.
+
+ MON_IOCT_RING_SIZE, defined as _IO(MON_IOC_MAGIC, 4)
+
+This call sets the buffer size. The argument is the size in bytes.
+The size may be rounded down to the next chunk (or page). If the requested
+size is out of [unspecified] bounds for this kernel, the call fails with
+-EINVAL.
+
+ MON_IOCQ_RING_SIZE, defined as _IO(MON_IOC_MAGIC, 5)
+
+This call returns the current size of the buffer in bytes.
+
+ MON_IOCX_GET, defined as _IOW(MON_IOC_MAGIC, 6, struct mon_get_arg)
+
+This call waits for events to arrive if none were in the kernel buffer,
+then returns the first event. Its argument is a pointer to the following
+structure:
+
+struct mon_get_arg {
+	struct usbmon_packet *hdr;
+	void *data;
+	size_t alloc;		/* Length of data (can be zero) */
+};
+
+Before the call, hdr, data, and alloc should be filled. Upon return, the area
+pointed by hdr contains the next event structure, and the data buffer contains
+the data, if any. The event is removed from the kernel buffer.
+
+ MON_IOCX_MFETCH, defined as _IOWR(MON_IOC_MAGIC, 7, struct mon_mfetch_arg)
+
+This ioctl is primarily used when the application accesses the buffer
+with mmap(2). Its argument is a pointer to the following structure:
+
+struct mon_mfetch_arg {
+	uint32_t *offvec;	/* Vector of events fetched */
+	uint32_t nfetch;	/* Number of events to fetch (out: fetched) */
+	uint32_t nflush;	/* Number of events to flush */
+};
+
+The ioctl operates in 3 stages.
+
+First, it removes and discards up to nflush events from the kernel buffer.
+The actual number of events discarded is returned in nflush.
+
+Second, it waits for an event to be present in the buffer, unless the pseudo-
+device is open with O_NONBLOCK.
+
+Third, it extracts up to nfetch offsets into the mmap buffer, and stores
+them into the offvec. The actual number of event offsets is stored into
+the nfetch.
+
+ MON_IOCH_MFLUSH, defined as _IO(MON_IOC_MAGIC, 8)
+
+This call removes a number of events from the kernel buffer. Its argument
+is the number of events to remove. If the buffer contains fewer events
+than requested, all events present are removed, and no error is reported.
+This works when no events are available too.
+
+ FIONBIO
+
+The ioctl FIONBIO may be implemented in the future, if there's a need.
+
+In addition to ioctl(2) and read(2), the special file of binary API can
+be polled with select(2) and poll(2). But lseek(2) does not work.
+
+* Memory-mapped access of the kernel buffer for the binary API
+
+The basic idea is simple:
+
+To prepare, map the buffer by getting the current size, then using mmap(2).
+Then, execute a loop similar to the one written in pseudo-code below:
+
+   struct mon_mfetch_arg fetch;
+   struct usbmon_packet *hdr;
+   int nflush = 0;
+   for (;;) {
+      fetch.offvec = vec; // Has N 32-bit words
+      fetch.nfetch = N;   // Or less than N
+      fetch.nflush = nflush;
+      ioctl(fd, MON_IOCX_MFETCH, &fetch);   // Process errors, too
+      nflush = fetch.nfetch;       // This many packets to flush when done
+      for (i = 0; i < nflush; i++) {
+         hdr = (struct ubsmon_packet *) &mmap_area[vec[i]];
+         if (hdr->type == '@')     // Filler packet
+            continue;
+         caddr_t data = &mmap_area[vec[i]] + 64;
+         process_packet(hdr, data);
+      }
+   }
+
+Thus, the main idea is to execute only one ioctl per N events.
+
+Although the buffer is circular, the returned headers and data do not cross
+the end of the buffer, so the above pseudo-code does not need any gathering.

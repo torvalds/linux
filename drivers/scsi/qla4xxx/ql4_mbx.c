@@ -29,18 +29,30 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	u_long wait_count;
 	uint32_t intr_status;
 	unsigned long flags = 0;
-	DECLARE_WAITQUEUE(wait, current);
-
-	mutex_lock(&ha->mbox_sem);
-
-	/* Mailbox code active */
-	set_bit(AF_MBOX_COMMAND, &ha->flags);
 
 	/* Make sure that pointers are valid */
 	if (!mbx_cmd || !mbx_sts) {
 		DEBUG2(printk("scsi%ld: %s: Invalid mbx_cmd or mbx_sts "
 			      "pointer\n", ha->host_no, __func__));
-		goto mbox_exit;
+		return status;
+	}
+	/* Mailbox code active */
+	wait_count = MBOX_TOV * 100;
+
+	while (wait_count--) {
+		mutex_lock(&ha->mbox_sem);
+		if (!test_bit(AF_MBOX_COMMAND, &ha->flags)) {
+			set_bit(AF_MBOX_COMMAND, &ha->flags);
+			mutex_unlock(&ha->mbox_sem);
+			break;
+		}
+		mutex_unlock(&ha->mbox_sem);
+		if (!wait_count) {
+			DEBUG2(printk("scsi%ld: %s: mbox_sem failed\n",
+				ha->host_no, __func__));
+			return status;
+		}
+		msleep(10);
 	}
 
 	/* To prevent overwriting mailbox registers for a command that has
@@ -73,8 +85,6 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	/* Wait for completion */
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	add_wait_queue(&ha->mailbox_wait_queue, &wait);
 
 	/*
 	 * If we don't want status, don't wait for the mailbox command to
@@ -83,8 +93,6 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	 */
 	if (outCount == 0) {
 		status = QLA_SUCCESS;
-		set_current_state(TASK_RUNNING);
-		remove_wait_queue(&ha->mailbox_wait_queue, &wait);
 		goto mbox_exit;
 	}
 	/* Wait for command to complete */
@@ -108,8 +116,6 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		msleep(10);
 	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&ha->mailbox_wait_queue, &wait);
 
 	/* Check for mailbox timeout. */
 	if (!test_bit(AF_MBOX_COMMAND_DONE, &ha->flags)) {
@@ -155,9 +161,10 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 mbox_exit:
+	mutex_lock(&ha->mbox_sem);
 	clear_bit(AF_MBOX_COMMAND, &ha->flags);
-	clear_bit(AF_MBOX_COMMAND_DONE, &ha->flags);
 	mutex_unlock(&ha->mbox_sem);
+	clear_bit(AF_MBOX_COMMAND_DONE, &ha->flags);
 
 	return status;
 }

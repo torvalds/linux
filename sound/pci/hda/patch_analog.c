@@ -782,54 +782,63 @@ static struct hda_channel_mode ad1986a_modes[3] = {
 
 /* eapd initialization */
 static struct hda_verb ad1986a_eapd_init_verbs[] = {
-	{0x1b, AC_VERB_SET_EAPD_BTLENABLE, 0x00},
+	{0x1b, AC_VERB_SET_EAPD_BTLENABLE, 0x00 },
 	{}
 };
 
-/* models */
-enum { AD1986A_6STACK, AD1986A_3STACK, AD1986A_LAPTOP, AD1986A_LAPTOP_EAPD };
+/* Ultra initialization */
+static struct hda_verb ad1986a_ultra_init[] = {
+	/* eapd initialization */
+	{ 0x1b, AC_VERB_SET_EAPD_BTLENABLE, 0x00 },
+	/* CLFE -> Mic in */
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x2 },
+	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	{ 0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080 },
+	{ } /* end */
+};
 
-static struct hda_board_config ad1986a_cfg_tbl[] = {
-	{ .modelname = "6stack",	.config = AD1986A_6STACK },
-	{ .modelname = "3stack",	.config = AD1986A_3STACK },
-	{ .pci_subvendor = 0x10de, .pci_subdevice = 0xcb84,
-	  .config = AD1986A_3STACK }, /* ASUS A8N-VM CSM */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x817f,
-	  .config = AD1986A_3STACK }, /* ASUS P5P-L2 */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x81b3,
-	  .config = AD1986A_3STACK }, /* ASUS P5RD2-VM / P5GPL-X SE */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x81cb,
-	  .config = AD1986A_3STACK }, /* ASUS M2NPV-VM */
-	{ .modelname = "laptop",	.config = AD1986A_LAPTOP },
-	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc01e,
-	  .config = AD1986A_LAPTOP }, /* FSC V2060 */
-	{ .pci_subvendor = 0x17c0, .pci_subdevice = 0x2017,
-	  .config = AD1986A_LAPTOP }, /* Samsung M50 */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x818f,
-	  .config = AD1986A_LAPTOP }, /* ASUS P5GV-MX */
-	{ .modelname = "laptop-eapd",	.config = AD1986A_LAPTOP_EAPD },
-	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc023,
-	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung X60 Chane */
-	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc024,
-	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung R65-T2300 Charis */
-	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc026,
-	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung X11-T2300 Culesa */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1153,
-	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS M9 */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1213,
-	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS A6J */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x11f7,
-	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS U5A */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1263,
-	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS U5F */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1297,
-	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS Z62F */
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x12b3,
-	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS V1j */
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30af,
-	  .config = AD1986A_LAPTOP_EAPD }, /* HP Compaq Presario B2800 */
-	{ .pci_subvendor = 0x17aa, .pci_subdevice = 0x2066,
-	  .config = AD1986A_LAPTOP_EAPD }, /* Lenovo 3000 N100-07684JU */
+/* models */
+enum {
+	AD1986A_6STACK,
+	AD1986A_3STACK,
+	AD1986A_LAPTOP,
+	AD1986A_LAPTOP_EAPD,
+	AD1986A_ULTRA,
+	AD1986A_MODELS
+};
+
+static const char *ad1986a_models[AD1986A_MODELS] = {
+	[AD1986A_6STACK]	= "6stack",
+	[AD1986A_3STACK]	= "3stack",
+	[AD1986A_LAPTOP]	= "laptop",
+	[AD1986A_LAPTOP_EAPD]	= "laptop-eapd",
+	[AD1986A_ULTRA]		= "ultra",
+};
+
+static struct snd_pci_quirk ad1986a_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x103c, 0x30af, "HP B2800", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x10de, 0xcb84, "ASUS A8N-VM", AD1986A_3STACK),
+	SND_PCI_QUIRK(0x1043, 0x1153, "ASUS M9", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x1043, 0x1213, "ASUS A6J", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x1043, 0x11f7, "ASUS U5A", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x1043, 0x1263, "ASUS U5F", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x1043, 0x1297, "ASUS Z62F", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x1043, 0x12b3, "ASUS V1j", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x1043, 0x1302, "ASUS W3j", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x1043, 0x817f, "ASUS P5", AD1986A_3STACK),
+	SND_PCI_QUIRK(0x1043, 0x818f, "ASUS P5", AD1986A_LAPTOP),
+	SND_PCI_QUIRK(0x1043, 0x81b3, "ASUS P5", AD1986A_3STACK),
+	SND_PCI_QUIRK(0x1043, 0x81cb, "ASUS M2N", AD1986A_3STACK),
+	SND_PCI_QUIRK(0x1043, 0x8234, "ASUS M2N", AD1986A_3STACK),
+	SND_PCI_QUIRK(0x144d, 0xc01e, "FSC V2060", AD1986A_LAPTOP),
+	SND_PCI_QUIRK(0x144d, 0xc023, "Samsung X60", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x144d, 0xc024, "Samsung R65", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x144d, 0xc026, "Samsung X11", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x144d, 0xc504, "Samsung Q35", AD1986A_3STACK),
+	SND_PCI_QUIRK(0x144d, 0xc027, "Samsung Q1", AD1986A_ULTRA),
+	SND_PCI_QUIRK(0x17aa, 0x1017, "Lenovo A60", AD1986A_3STACK),
+	SND_PCI_QUIRK(0x17aa, 0x2066, "Lenovo N100", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x17c0, 0x2017, "Samsung M50", AD1986A_LAPTOP),
 	{}
 };
 
@@ -861,7 +870,9 @@ static int patch_ad1986a(struct hda_codec *codec)
 	codec->patch_ops = ad198x_patch_ops;
 
 	/* override some parameters */
-	board_config = snd_hda_check_board_config(codec, ad1986a_cfg_tbl);
+	board_config = snd_hda_check_board_config(codec, AD1986A_MODELS,
+						  ad1986a_models,
+						  ad1986a_cfg_tbl);
 	switch (board_config) {
 	case AD1986A_3STACK:
 		spec->num_mixers = 2;
@@ -890,6 +901,15 @@ static int patch_ad1986a(struct hda_codec *codec)
 		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
 		spec->multiout.dig_out_nid = 0;
 		spec->input_mux = &ad1986a_laptop_eapd_capture_source;
+		break;
+	case AD1986A_ULTRA:
+		spec->mixers[0] = ad1986a_laptop_eapd_mixers;
+		spec->num_init_verbs = 2;
+		spec->init_verbs[1] = ad1986a_ultra_init;
+		spec->multiout.max_channels = 2;
+		spec->multiout.num_dacs = 1;
+		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
+		spec->multiout.dig_out_nid = 0;
 		break;
 	}
 
@@ -1391,20 +1411,27 @@ static struct hda_input_mux ad1981_thinkpad_capture_source = {
 };
 
 /* models */
-enum { AD1981_BASIC, AD1981_HP, AD1981_THINKPAD };
+enum {
+	AD1981_BASIC,
+	AD1981_HP,
+	AD1981_THINKPAD,
+	AD1981_MODELS
+};
 
-static struct hda_board_config ad1981_cfg_tbl[] = {
-	{ .modelname = "hp", .config = AD1981_HP },
+static const char *ad1981_models[AD1981_MODELS] = {
+	[AD1981_HP]		= "hp",
+	[AD1981_THINKPAD]	= "thinkpad",
+	[AD1981_BASIC]		= "basic",
+};
+
+static struct snd_pci_quirk ad1981_cfg_tbl[] = {
 	/* All HP models */
-	{ .pci_subvendor = 0x103c, .config = AD1981_HP },
-	{ .pci_subvendor = 0x30b0, .pci_subdevice = 0x103c,
-	  .config = AD1981_HP }, /* HP nx6320 (reversed SSID, H/W bug) */
-	{ .modelname = "thinkpad", .config = AD1981_THINKPAD },
+	SND_PCI_QUIRK(0x103c, 0, "HP nx", AD1981_HP),
+	/* HP nx6320 (reversed SSID, H/W bug) */
+	SND_PCI_QUIRK(0x30b0, 0x103c, "HP nx6320", AD1981_HP),
 	/* Lenovo Thinkpad T60/X60/Z6xx */
-	{ .pci_subvendor = 0x17aa, .config = AD1981_THINKPAD },
-	{ .pci_subvendor = 0x1014, .pci_subdevice = 0x0597,
-	  .config = AD1981_THINKPAD }, /* Z60m/t */
-	{ .modelname = "basic", .config = AD1981_BASIC },
+	SND_PCI_QUIRK(0x17aa, 0, "Lenovo Thinkpad", AD1981_THINKPAD),
+	SND_PCI_QUIRK(0x1014, 0x0597, "Lenovo Z60", AD1981_THINKPAD),
 	{}
 };
 
@@ -1437,7 +1464,9 @@ static int patch_ad1981(struct hda_codec *codec)
 	codec->patch_ops = ad198x_patch_ops;
 
 	/* override some parameters */
-	board_config = snd_hda_check_board_config(codec, ad1981_cfg_tbl);
+	board_config = snd_hda_check_board_config(codec, AD1981_MODELS,
+						  ad1981_models,
+						  ad1981_cfg_tbl);
 	switch (board_config) {
 	case AD1981_HP:
 		spec->mixers[0] = ad1981_hp_mixers;
@@ -2565,15 +2594,14 @@ static int ad1988_auto_init(struct hda_codec *codec)
 /*
  */
 
-static struct hda_board_config ad1988_cfg_tbl[] = {
-	{ .modelname = "6stack",	.config = AD1988_6STACK },
-	{ .modelname = "6stack-dig",	.config = AD1988_6STACK_DIG },
-	{ .modelname = "3stack",	.config = AD1988_3STACK },
-	{ .modelname = "3stack-dig",	.config = AD1988_3STACK_DIG },
-	{ .modelname = "laptop",	.config = AD1988_LAPTOP },
-	{ .modelname = "laptop-dig",	.config = AD1988_LAPTOP_DIG },
-	{ .modelname = "auto",		.config = AD1988_AUTO },
-	{}
+static const char *ad1988_models[AD1988_MODEL_LAST] = {
+	[AD1988_6STACK]		= "6stack",
+	[AD1988_6STACK_DIG]	= "6stack-dig",
+	[AD1988_3STACK]		= "3stack",
+	[AD1988_3STACK_DIG]	= "3stack-dig",
+	[AD1988_LAPTOP]		= "laptop",
+	[AD1988_LAPTOP_DIG]	= "laptop-dig",
+	[AD1988_AUTO]		= "auto",
 };
 
 static int patch_ad1988(struct hda_codec *codec)
@@ -2591,8 +2619,9 @@ static int patch_ad1988(struct hda_codec *codec)
 	if (is_rev2(codec))
 		snd_printk(KERN_INFO "patch_analog: AD1988A rev.2 is detected, enable workarounds\n");
 
-	board_config = snd_hda_check_board_config(codec, ad1988_cfg_tbl);
-	if (board_config < 0 || board_config >= AD1988_MODEL_LAST) {
+	board_config = snd_hda_check_board_config(codec, AD1988_MODEL_LAST,
+						  ad1988_models, NULL);
+	if (board_config < 0) {
 		printk(KERN_INFO "hda_codec: Unknown model for AD1988, trying auto-probe from BIOS...\n");
 		board_config = AD1988_AUTO;
 	}

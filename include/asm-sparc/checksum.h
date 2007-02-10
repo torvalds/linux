@@ -151,7 +151,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 			     "xnor\t%%g0, %0, %0"
 			     : "=r" (sum), "=&r" (iph)
 			     : "r" (ihl), "1" (iph)
-			     : "g2", "g3", "g4", "cc");
+			     : "g2", "g3", "g4", "cc", "memory");
 	return sum;
 }
 

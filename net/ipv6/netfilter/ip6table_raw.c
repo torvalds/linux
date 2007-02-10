@@ -14,25 +14,6 @@
 #define DEBUGP(x, args...)
 #endif
 
-/* Standard entry. */
-struct ip6t_standard
-{
-	struct ip6t_entry entry;
-	struct ip6t_standard_target target;
-};
-
-struct ip6t_error_target
-{
-	struct ip6t_entry_target target;
-	char errorname[IP6T_FUNCTION_MAXNAMELEN];
-};
-
-struct ip6t_error
-{
-	struct ip6t_entry entry;
-	struct ip6t_error_target target;
-};
-
 static struct
 {
 	struct ip6t_replace repl;

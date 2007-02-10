@@ -269,7 +269,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 			"acc=%x, error=%d\n",
 			dentry->d_parent->d_name.name,
 			dentry->d_name.name,
-			access, (error >> 24));
+			access, ntohl(error));
 	}
 out:
 	if (exp && !IS_ERR(exp))

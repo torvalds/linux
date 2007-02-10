@@ -209,7 +209,7 @@ static void dev_watchdog(unsigned long arg)
 				       dev->name);
 				dev->tx_timeout(dev);
 			}
-			if (!mod_timer(&dev->watchdog_timer, jiffies + dev->watchdog_timeo))
+			if (!mod_timer(&dev->watchdog_timer, round_jiffies(jiffies + dev->watchdog_timeo)))
 				dev_hold(dev);
 		}
 	}

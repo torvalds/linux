@@ -9,12 +9,14 @@
  * ipt_ECN.c,v 1.5 2002/08/18 19:36:51 laforge Exp
 */
 
+#include <linux/in.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <net/checksum.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_ECN.h>
 
@@ -95,7 +97,7 @@ target(struct sk_buff **pskb,
 		if (!set_ect_tcp(pskb, einfo))
 			return NF_DROP;
 
-	return IPT_CONTINUE;
+	return XT_CONTINUE;
 }
 
 static int
@@ -119,7 +121,7 @@ checkentry(const char *tablename,
 		return 0;
 	}
 	if ((einfo->operation & (IPT_ECN_OP_SET_ECE|IPT_ECN_OP_SET_CWR))
-	    && (e->ip.proto != IPPROTO_TCP || (e->ip.invflags & IPT_INV_PROTO))) {
+	    && (e->ip.proto != IPPROTO_TCP || (e->ip.invflags & XT_INV_PROTO))) {
 		printk(KERN_WARNING "ECN: cannot use TCP operations on a "
 		       "non-tcp rule\n");
 		return 0;
@@ -127,8 +129,9 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ipt_target ipt_ecn_reg = {
+static struct xt_target ipt_ecn_reg = {
 	.name		= "ECN",
+	.family		= AF_INET,
 	.target		= target,
 	.targetsize	= sizeof(struct ipt_ECN_info),
 	.table		= "mangle",
@@ -138,12 +141,12 @@ static struct ipt_target ipt_ecn_reg = {
 
 static int __init ipt_ecn_init(void)
 {
-	return ipt_register_target(&ipt_ecn_reg);
+	return xt_register_target(&ipt_ecn_reg);
 }
 
 static void __exit ipt_ecn_fini(void)
 {
-	ipt_unregister_target(&ipt_ecn_reg);
+	xt_unregister_target(&ipt_ecn_reg);
 }
 
 module_init(ipt_ecn_init);

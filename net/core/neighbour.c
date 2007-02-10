@@ -696,7 +696,10 @@ next_elt:
 	if (!expire)
 		expire = 1;
 
- 	mod_timer(&tbl->gc_timer, now + expire);
+	if (expire>HZ)
+		mod_timer(&tbl->gc_timer, round_jiffies(now + expire));
+	else
+		mod_timer(&tbl->gc_timer, now + expire);
 
 	write_unlock(&tbl->lock);
 }
@@ -1637,7 +1640,7 @@ static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndtmsg), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	ndtmsg = nlmsg_data(nlh);
 
@@ -1706,7 +1709,8 @@ static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
 
 nla_put_failure:
 	read_unlock_bh(&tbl->lock);
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 static int neightbl_fill_param_info(struct sk_buff *skb,
@@ -1720,7 +1724,7 @@ static int neightbl_fill_param_info(struct sk_buff *skb,
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndtmsg), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	ndtmsg = nlmsg_data(nlh);
 
@@ -1737,7 +1741,8 @@ static int neightbl_fill_param_info(struct sk_buff *skb,
 	return nlmsg_end(skb, nlh);
 errout:
 	read_unlock_bh(&tbl->lock);
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
  
 static inline struct neigh_parms *lookup_neigh_params(struct neigh_table *tbl,
@@ -1955,7 +1960,7 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndm), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	ndm = nlmsg_data(nlh);
 	ndm->ndm_family	 = neigh->ops->family;
@@ -1987,7 +1992,8 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 
@@ -2429,9 +2435,12 @@ static void __neigh_notify(struct neighbour *n, int type, int flags)
 		goto errout;
 
 	err = neigh_fill_info(skb, n, 0, 0, type, flags);
-	/* failure implies BUG in neigh_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in neigh_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
 errout:
 	if (err < 0)

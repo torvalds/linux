@@ -79,7 +79,7 @@ static void __init mpc834x_sys_setup_arch(void)
 #endif
 }
 
-void __init mpc834x_sys_init_IRQ(void)
+static void __init mpc834x_sys_init_IRQ(void)
 {
 	struct device_node *np;
 

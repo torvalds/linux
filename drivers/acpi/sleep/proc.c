@@ -73,7 +73,7 @@ acpi_system_write_sleep(struct file *file,
 static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 {
 	u32 sec, min, hr;
-	u32 day, mo, yr;
+	u32 day, mo, yr, cent = 0;
 	unsigned char rtc_control = 0;
 	unsigned long flags;
 
@@ -87,20 +87,19 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 	rtc_control = CMOS_READ(RTC_CONTROL);
 
 	/* If we ever get an FACP with proper values... */
-	if (acpi_gbl_FADT->day_alrm)
+	if (acpi_gbl_FADT.day_alarm)
 		/* ACPI spec: only low 6 its should be cared */
-		day = CMOS_READ(acpi_gbl_FADT->day_alrm) & 0x3F;
+		day = CMOS_READ(acpi_gbl_FADT.day_alarm) & 0x3F;
 	else
 		day = CMOS_READ(RTC_DAY_OF_MONTH);
-	if (acpi_gbl_FADT->mon_alrm)
-		mo = CMOS_READ(acpi_gbl_FADT->mon_alrm);
+	if (acpi_gbl_FADT.month_alarm)
+		mo = CMOS_READ(acpi_gbl_FADT.month_alarm);
 	else
 		mo = CMOS_READ(RTC_MONTH);
-	if (acpi_gbl_FADT->century)
-		yr = CMOS_READ(acpi_gbl_FADT->century) * 100 +
-		    CMOS_READ(RTC_YEAR);
-	else
-		yr = CMOS_READ(RTC_YEAR);
+	if (acpi_gbl_FADT.century)
+		cent = CMOS_READ(acpi_gbl_FADT.century);
+
+	yr = CMOS_READ(RTC_YEAR);
 
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
@@ -111,10 +110,11 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 		BCD_TO_BIN(day);
 		BCD_TO_BIN(mo);
 		BCD_TO_BIN(yr);
+		BCD_TO_BIN(cent);
 	}
 
 	/* we're trusting the FADT (see above) */
-	if (!acpi_gbl_FADT->century)
+	if (!acpi_gbl_FADT.century)
 		/* If we're not trusting the FADT, we should at least make it
 		 * right for _this_ century... ehm, what is _this_ century?
 		 *
@@ -134,6 +134,8 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 		 *
 		 */
 		yr += 2000;
+	else
+		yr += cent * 100;
 
 	seq_printf(seq, "%4.4u-", yr);
 	(mo > 12) ? seq_puts(seq, "**-") : seq_printf(seq, "%2.2u-", mo);
@@ -317,12 +319,12 @@ acpi_system_write_alarm(struct file *file,
 	 * offsets into the CMOS RAM here -- which for some reason are pointing
 	 * to the RTC area of memory.
 	 */
-	if (acpi_gbl_FADT->day_alrm)
-		CMOS_WRITE(day, acpi_gbl_FADT->day_alrm);
-	if (acpi_gbl_FADT->mon_alrm)
-		CMOS_WRITE(mo, acpi_gbl_FADT->mon_alrm);
-	if (acpi_gbl_FADT->century)
-		CMOS_WRITE(yr / 100, acpi_gbl_FADT->century);
+	if (acpi_gbl_FADT.day_alarm)
+		CMOS_WRITE(day, acpi_gbl_FADT.day_alarm);
+	if (acpi_gbl_FADT.month_alarm)
+		CMOS_WRITE(mo, acpi_gbl_FADT.month_alarm);
+	if (acpi_gbl_FADT.century)
+		CMOS_WRITE(yr / 100, acpi_gbl_FADT.century);
 	/* enable the rtc alarm interrupt */
 	rtc_control |= RTC_AIE;
 	CMOS_WRITE(rtc_control, RTC_CONTROL);

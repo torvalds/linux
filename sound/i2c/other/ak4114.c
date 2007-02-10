@@ -42,8 +42,8 @@ static void reg_write(struct ak4114 *ak4114, unsigned char reg, unsigned char va
 	ak4114->write(ak4114->private_data, reg, val);
 	if (reg <= AK4114_REG_INT1_MASK)
 		ak4114->regmap[reg] = val;
-	else if (reg >= AK4114_REG_RXCSB0 && reg <= AK4114_REG_TXCSB4)
-		ak4114->txcsb[reg-AK4114_REG_RXCSB0] = val;
+	else if (reg >= AK4114_REG_TXCSB0 && reg <= AK4114_REG_TXCSB4)
+		ak4114->txcsb[reg-AK4114_REG_TXCSB0] = val;
 }
 
 static inline unsigned char reg_read(struct ak4114 *ak4114, unsigned char reg)
@@ -66,10 +66,8 @@ static void snd_ak4114_free(struct ak4114 *chip)
 {
 	chip->init = 1;	/* don't schedule new work */
 	mb();
-	if (chip->workqueue != NULL) {
-		flush_workqueue(chip->workqueue);
-		destroy_workqueue(chip->workqueue);
-	}
+	cancel_delayed_work(&chip->work);
+	flush_scheduled_work();
 	kfree(chip);
 }
 
@@ -82,7 +80,7 @@ static int snd_ak4114_dev_free(struct snd_device *device)
 
 int snd_ak4114_create(struct snd_card *card,
 		      ak4114_read_t *read, ak4114_write_t *write,
-		      unsigned char pgm[7], unsigned char txcsb[5],
+		      const unsigned char pgm[7], const unsigned char txcsb[5],
 		      void *private_data, struct ak4114 **r_ak4114)
 {
 	struct ak4114 *chip;
@@ -100,17 +98,12 @@ int snd_ak4114_create(struct snd_card *card,
 	chip->read = read;
 	chip->write = write;
 	chip->private_data = private_data;
+	INIT_DELAYED_WORK(&chip->work, ak4114_stats);
 
 	for (reg = 0; reg < 7; reg++)
 		chip->regmap[reg] = pgm[reg];
 	for (reg = 0; reg < 5; reg++)
 		chip->txcsb[reg] = txcsb[reg];
-
-	chip->workqueue = create_workqueue("snd-ak4114");
-	if (chip->workqueue == NULL) {
-		kfree(chip);
-		return -ENOMEM;
-	}
 
 	snd_ak4114_reinit(chip);
 
@@ -134,7 +127,8 @@ void snd_ak4114_reg_write(struct ak4114 *chip, unsigned char reg, unsigned char 
 	if (reg <= AK4114_REG_INT1_MASK)
 		reg_write(chip, reg, (chip->regmap[reg] & ~mask) | val);
 	else if (reg >= AK4114_REG_TXCSB0 && reg <= AK4114_REG_TXCSB4)
-		reg_write(chip, reg, (chip->txcsb[reg] & ~mask) | val);
+		reg_write(chip, reg,
+			  (chip->txcsb[reg-AK4114_REG_TXCSB0] & ~mask) | val);
 }
 
 void snd_ak4114_reinit(struct ak4114 *chip)
@@ -143,7 +137,7 @@ void snd_ak4114_reinit(struct ak4114 *chip)
 
 	chip->init = 1;
 	mb();
-	flush_workqueue(chip->workqueue);
+	flush_scheduled_work();
 	/* bring the chip to reset state and powerdown state */
 	reg_write(chip, AK4114_REG_PWRDN, old & ~(AK4114_RST|AK4114_PWN));
 	udelay(200);
@@ -158,8 +152,7 @@ void snd_ak4114_reinit(struct ak4114 *chip)
 	reg_write(chip, AK4114_REG_PWRDN, old | AK4114_RST | AK4114_PWN);
 	/* bring up statistics / event queing */
 	chip->init = 0;
-	INIT_DELAYED_WORK(&chip->work, ak4114_stats);
-	queue_delayed_work(chip->workqueue, &chip->work, HZ / 10);
+	schedule_delayed_work(&chip->work, HZ / 10);
 }
 
 static unsigned int external_rate(unsigned char rcs1)
@@ -568,7 +561,7 @@ static void ak4114_stats(struct work_struct *work)
 	if (chip->init)
 		return;
 	snd_ak4114_check_rate_and_errors(chip, 0);
-	queue_delayed_work(chip->workqueue, &chip->work, HZ / 10);
+	schedule_delayed_work(&chip->work, HZ / 10);
 }
 
 EXPORT_SYMBOL(snd_ak4114_create);

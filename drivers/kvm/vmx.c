@@ -98,7 +98,7 @@ static struct vmx_msr_entry *find_msr_entry(struct kvm_vcpu *vcpu, u32 msr)
 	for (i = 0; i < vcpu->nmsrs; ++i)
 		if (vcpu->guest_msrs[i].index == msr)
 			return &vcpu->guest_msrs[i];
-	return 0;
+	return NULL;
 }
 
 static void vmcs_clear(struct vmcs *vmcs)
@@ -1115,6 +1115,8 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 		int j = vcpu->nmsrs;
 
 		if (rdmsr_safe(index, &data_low, &data_high) < 0)
+			continue;
+		if (wrmsr_safe(index, data_low, data_high) < 0)
 			continue;
 		data = data_low | ((u64)data_high << 32);
 		vcpu->host_msrs[j].index = index;

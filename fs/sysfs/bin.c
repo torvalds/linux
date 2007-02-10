@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 
 #include <asm/uaccess.h>
+#include <asm/semaphore.h>
 
 #include "sysfs.h"
 
@@ -146,7 +147,7 @@ static int open(struct inode * inode, struct file * file)
  Error:
 	module_put(attr->attr.owner);
  Done:
-	if (error && kobj)
+	if (error)
 		kobject_put(kobj);
 	return error;
 }
@@ -157,8 +158,7 @@ static int release(struct inode * inode, struct file * file)
 	struct bin_attribute * attr = to_bin_attr(file->f_path.dentry);
 	u8 * buffer = file->private_data;
 
-	if (kobj) 
-		kobject_put(kobj);
+	kobject_put(kobj);
 	module_put(attr->attr.owner);
 	kfree(buffer);
 	return 0;

@@ -1178,6 +1178,7 @@ module_exit(ieee1394_cleanup);
 /** hosts.c **/
 EXPORT_SYMBOL(hpsb_alloc_host);
 EXPORT_SYMBOL(hpsb_add_host);
+EXPORT_SYMBOL(hpsb_resume_host);
 EXPORT_SYMBOL(hpsb_remove_host);
 EXPORT_SYMBOL(hpsb_update_config_rom_image);
 
@@ -1195,10 +1196,6 @@ EXPORT_SYMBOL(hpsb_selfid_complete);
 EXPORT_SYMBOL(hpsb_packet_sent);
 EXPORT_SYMBOL(hpsb_packet_received);
 EXPORT_SYMBOL_GPL(hpsb_disable_irm);
-#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
-EXPORT_SYMBOL(hpsb_send_phy_config);
-EXPORT_SYMBOL(hpsb_send_packet_and_wait);
-#endif
 
 /** ieee1394_transactions.c **/
 EXPORT_SYMBOL(hpsb_get_tlabel);
@@ -1229,20 +1226,12 @@ EXPORT_SYMBOL(hpsb_set_hostinfo_key);
 EXPORT_SYMBOL(hpsb_get_hostinfo_bykey);
 EXPORT_SYMBOL(hpsb_set_hostinfo);
 EXPORT_SYMBOL(highlevel_host_reset);
-#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
-EXPORT_SYMBOL(highlevel_add_host);
-EXPORT_SYMBOL(highlevel_remove_host);
-#endif
 
 /** nodemgr.c **/
 EXPORT_SYMBOL(hpsb_node_fill_packet);
 EXPORT_SYMBOL(hpsb_node_write);
 EXPORT_SYMBOL(__hpsb_register_protocol);
 EXPORT_SYMBOL(hpsb_unregister_protocol);
-#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
-EXPORT_SYMBOL(ieee1394_bus_type);
-EXPORT_SYMBOL(nodemgr_for_each_host);
-#endif
 
 /** csr.c **/
 EXPORT_SYMBOL(hpsb_update_config_rom);
@@ -1287,13 +1276,3 @@ EXPORT_SYMBOL(csr1212_read);
 EXPORT_SYMBOL(csr1212_parse_keyval);
 EXPORT_SYMBOL(_csr1212_read_keyval);
 EXPORT_SYMBOL(_csr1212_destroy_keyval);
-#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
-EXPORT_SYMBOL(csr1212_create_csr);
-EXPORT_SYMBOL(csr1212_init_local_csr);
-EXPORT_SYMBOL(csr1212_new_immediate);
-EXPORT_SYMBOL(csr1212_associate_keyval);
-EXPORT_SYMBOL(csr1212_new_string_descriptor_leaf);
-EXPORT_SYMBOL(csr1212_destroy_csr);
-EXPORT_SYMBOL(csr1212_generate_csr_image);
-EXPORT_SYMBOL(csr1212_parse_csr);
-#endif

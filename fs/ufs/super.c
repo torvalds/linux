@@ -649,7 +649,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		kmalloc (sizeof(struct ufs_sb_private_info), GFP_KERNEL);
 	if (!uspi)
 		goto failed;
-
+	uspi->s_dirblksize = UFS_SECTOR_SIZE;
 	super_block_offset=UFS_SBLOCK;
 
 	/* Keep 2Gig file limit. Some UFS variants need to override 
@@ -718,6 +718,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		break;
 	
 	case UFS_MOUNT_UFSTYPE_NEXTSTEP:
+		/*TODO: check may be we need set special dir block size?*/
 		UFSD("ufstype=nextstep\n");
 		uspi->s_fsize = block_size = 1024;
 		uspi->s_fmask = ~(1024 - 1);
@@ -733,6 +734,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		break;
 	
 	case UFS_MOUNT_UFSTYPE_NEXTSTEP_CD:
+		/*TODO: check may be we need set special dir block size?*/
 		UFSD("ufstype=nextstep-cd\n");
 		uspi->s_fsize = block_size = 2048;
 		uspi->s_fmask = ~(2048 - 1);
@@ -754,6 +756,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_fshift = 10;
 		uspi->s_sbsize = super_block_size = 2048;
 		uspi->s_sbbase = 0;
+		uspi->s_dirblksize = 1024;
 		flags |= UFS_DE_44BSD | UFS_UID_44BSD | UFS_ST_44BSD | UFS_CG_44BSD;
 		if (!(sb->s_flags & MS_RDONLY)) {
 			if (!silent)

@@ -126,7 +126,7 @@ int __init cyber_esp_detect(struct scsi_host_template *tpnt)
 					   sizeof(struct ESP_regs));
 			return 0;
 		}
-		esp = esp_allocate(tpnt, (void *)board+CYBER_ESP_ADDR);
+		esp = esp_allocate(tpnt, (void *)board + CYBER_ESP_ADDR, 0);
 
 		/* Do command transfer with programmed I/O */
 		esp->do_pio_cmds = 1;

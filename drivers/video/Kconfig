@@ -1444,8 +1444,8 @@ config FB_PMAG_AA
 	  used mainly in the MIPS-based DECstation series.
 
 config FB_PMAG_BA
-	bool "PMAG-BA TURBOchannel framebuffer support"
-	depends on (FB = y) && TC
+	tristate "PMAG-BA TURBOchannel framebuffer support"
+	depends on FB && TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
@@ -1454,8 +1454,8 @@ config FB_PMAG_BA
 	  used mainly in the MIPS-based DECstation series.
 
 config FB_PMAGB_B
-	bool "PMAGB-B TURBOchannel framebuffer support"
-	depends on (FB = y) && TC
+	tristate "PMAGB-B TURBOchannel framebuffer support"
+	depends on TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT

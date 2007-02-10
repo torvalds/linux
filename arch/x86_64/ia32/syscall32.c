@@ -18,68 +18,34 @@ extern unsigned char syscall32_syscall[], syscall32_syscall_end[];
 extern unsigned char syscall32_sysenter[], syscall32_sysenter_end[];
 extern int sysctl_vsyscall32;
 
-char *syscall32_page; 
+static struct page *syscall32_pages[1];
 static int use_sysenter = -1;
-
-static struct page *
-syscall32_nopage(struct vm_area_struct *vma, unsigned long adr, int *type)
-{
-	struct page *p = virt_to_page(adr - vma->vm_start + syscall32_page);
-	get_page(p);
-	return p;
-}
-
-/* Prevent VMA merging */
-static void syscall32_vma_close(struct vm_area_struct *vma)
-{
-}
-
-static struct vm_operations_struct syscall32_vm_ops = {
-	.close = syscall32_vma_close,
-	.nopage = syscall32_nopage,
-};
 
 struct linux_binprm;
 
 /* Setup a VMA at program startup for the vsyscall page */
 int syscall32_setup_pages(struct linux_binprm *bprm, int exstack)
 {
-	int npages = (VSYSCALL32_END - VSYSCALL32_BASE) >> PAGE_SHIFT;
-	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
 	int ret;
 
-	vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
-	if (!vma)
-		return -ENOMEM;
-
-	memset(vma, 0, sizeof(struct vm_area_struct));
-	/* Could randomize here */
-	vma->vm_start = VSYSCALL32_BASE;
-	vma->vm_end = VSYSCALL32_END;
-	/* MAYWRITE to allow gdb to COW and set breakpoints */
-	vma->vm_flags = VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYEXEC|VM_MAYWRITE;
+	down_write(&mm->mmap_sem);
 	/*
+	 * MAYWRITE to allow gdb to COW and set breakpoints
+	 *
 	 * Make sure the vDSO gets into every core dump.
 	 * Dumping its contents makes post-mortem fully interpretable later
 	 * without matching up the same kernel and hardware config to see
 	 * what PC values meant.
 	 */
-	vma->vm_flags |= VM_ALWAYSDUMP;
-	vma->vm_flags |= mm->def_flags;
-	vma->vm_page_prot = protection_map[vma->vm_flags & 7];
-	vma->vm_ops = &syscall32_vm_ops;
-	vma->vm_mm = mm;
-
-	down_write(&mm->mmap_sem);
-	if ((ret = insert_vm_struct(mm, vma))) {
-		up_write(&mm->mmap_sem);
-		kmem_cache_free(vm_area_cachep, vma);
-		return ret;
-	}
-	mm->total_vm += npages;
+	/* Could randomize here */
+	ret = install_special_mapping(mm, VSYSCALL32_BASE, PAGE_SIZE,
+				      VM_READ|VM_EXEC|
+				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
+				      VM_ALWAYSDUMP,
+				      syscall32_pages);
 	up_write(&mm->mmap_sem);
-	return 0;
+	return ret;
 }
 
 const char *arch_vma_name(struct vm_area_struct *vma)
@@ -92,9 +58,10 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 
 static int __init init_syscall32(void)
 { 
-	syscall32_page = (void *)get_zeroed_page(GFP_KERNEL); 
+	char *syscall32_page = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!syscall32_page) 
 		panic("Cannot allocate syscall32 page"); 
+	syscall32_pages[0] = virt_to_page(syscall32_page);
  	if (use_sysenter > 0) {
  		memcpy(syscall32_page, syscall32_sysenter,
  		       syscall32_sysenter_end - syscall32_sysenter);

@@ -402,6 +402,7 @@ static struct snd_card *snd_wavefront_card_new(int dev)
 	init_waitqueue_head(&acard->wavefront.interrupt_sleeper);
 	spin_lock_init(&acard->wavefront.midi.open);
 	spin_lock_init(&acard->wavefront.midi.virtual);
+	acard->wavefront.card = card;
 	card->private_free = snd_wavefront_free;
 
 	return card;

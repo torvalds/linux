@@ -999,7 +999,8 @@ ip6ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				break;
 			dev = t->dev;
 		}
-		err = unregister_netdevice(dev);
+		err = 0;
+		unregister_netdevice(dev);
 		break;
 	default:
 		err = -EINVAL;

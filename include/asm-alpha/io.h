@@ -525,15 +525,6 @@ extern void outsw (unsigned long port, const void *src, unsigned long count);
 extern void outsl (unsigned long port, const void *src, unsigned long count);
 
 /*
- * XXX - We don't have csum_partial_copy_fromio() yet, so we cheat here and 
- * just copy it. The net code will then do the checksum later. Presently 
- * only used by some shared memory 8390 Ethernet cards anyway.
- */
-
-#define eth_io_copy_and_sum(skb,src,len,unused) \
-  memcpy_fromio((skb)->data,src,len)
-
-/*
  * The Alpha Jensen hardware for some rather strange reason puts
  * the RTC clock at 0x170 instead of 0x70. Probably due to some
  * misguided idea about using 0x70 for NMI stuff.

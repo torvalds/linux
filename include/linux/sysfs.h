@@ -11,10 +11,12 @@
 #define _SYSFS_H_
 
 #include <linux/compiler.h>
+#include <linux/list.h>
 #include <asm/atomic.h>
 
 struct kobject;
 struct module;
+struct nameidata;
 
 struct attribute {
 	const char		* name;
@@ -88,13 +90,13 @@ struct sysfs_dirent {
 #ifdef CONFIG_SYSFS
 
 extern int __must_check
-sysfs_create_dir(struct kobject *);
+sysfs_create_dir(struct kobject *, struct dentry *);
 
 extern void
 sysfs_remove_dir(struct kobject *);
 
 extern int __must_check
-sysfs_rename_dir(struct kobject *, const char *new_name);
+sysfs_rename_dir(struct kobject *, struct dentry *, const char *new_name);
 
 extern int __must_check
 sysfs_move_dir(struct kobject *, struct kobject *);
@@ -126,11 +128,17 @@ int __must_check sysfs_create_group(struct kobject *,
 void sysfs_remove_group(struct kobject *, const struct attribute_group *);
 void sysfs_notify(struct kobject * k, char *dir, char *attr);
 
+
+extern int sysfs_make_shadowed_dir(struct kobject *kobj,
+	void * (*follow_link)(struct dentry *, struct nameidata *));
+extern struct dentry *sysfs_create_shadow_dir(struct kobject *kobj);
+extern void sysfs_remove_shadow_dir(struct dentry *dir);
+
 extern int __must_check sysfs_init(void);
 
 #else /* CONFIG_SYSFS */
 
-static inline int sysfs_create_dir(struct kobject * k)
+static inline int sysfs_create_dir(struct kobject * k, struct dentry *shadow)
 {
 	return 0;
 }
@@ -140,7 +148,9 @@ static inline void sysfs_remove_dir(struct kobject * k)
 	;
 }
 
-static inline int sysfs_rename_dir(struct kobject * k, const char *new_name)
+static inline int sysfs_rename_dir(struct kobject * k,
+					struct dentry *new_parent,
+					const char *new_name)
 {
 	return 0;
 }
@@ -202,6 +212,12 @@ static inline void sysfs_remove_group(struct kobject * k, const struct attribute
 
 static inline void sysfs_notify(struct kobject * k, char *dir, char *attr)
 {
+}
+
+static inline int sysfs_make_shadowed_dir(struct kobject *kobj,
+	void * (*follow_link)(struct dentry *, struct nameidata *))
+{
+	return 0;
 }
 
 static inline int __must_check sysfs_init(void)

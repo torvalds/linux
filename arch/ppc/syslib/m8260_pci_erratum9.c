@@ -105,7 +105,8 @@ void idma_pci9_init(void)
 	idma_reg[IDMA_CHAN].idmr = 0;		/* mask all IDMA interrupts */
 	idma_reg[IDMA_CHAN].idsr = 0xff;	/* clear all event flags */
 
-	printk("<4>Using IDMA%d for MPC8260 device erratum PCI 9 workaround\n",
+	printk(KERN_WARNING
+		"Using IDMA%d for MPC8260 device erratum PCI 9 workaround\n",
 		IDMA_CHAN + 1);
 
 	return;

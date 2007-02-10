@@ -89,15 +89,15 @@ static inline int phy_unlock(struct netxen_adapter *adapter)
  *
  */
 int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy,
-			    long reg, __le32 * readval)
+			    long reg, __u32 * readval)
 {
 	long timeout = 0;
 	long result = 0;
 	long restore = 0;
-	__le32 address;
-	__le32 command;
-	__le32 status;
-	__le32 mac_cfg0;
+	__u32 address;
+	__u32 command;
+	__u32 status;
+	__u32 mac_cfg0;
 
 	if (phy_lock(adapter) != 0) {
 		return -1;
@@ -112,7 +112,7 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy,
 				  &mac_cfg0, 4))
 		return -EIO;
 	if (netxen_gb_get_soft_reset(mac_cfg0)) {
-		__le32 temp;
+		__u32 temp;
 		temp = 0;
 		netxen_gb_tx_reset_pb(temp);
 		netxen_gb_rx_reset_pb(temp);
@@ -184,15 +184,15 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy,
  *
  */
 int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
-			     long phy, long reg, __le32 val)
+			     long phy, long reg, __u32 val)
 {
 	long timeout = 0;
 	long result = 0;
 	long restore = 0;
-	__le32 address;
-	__le32 command;
-	__le32 status;
-	__le32 mac_cfg0;
+	__u32 address;
+	__u32 command;
+	__u32 status;
+	__u32 mac_cfg0;
 
 	/*
 	 * MII mgmt all goes through port 0 MAC interface, so it
@@ -203,7 +203,7 @@ int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
 				  &mac_cfg0, 4))
 		return -EIO;
 	if (netxen_gb_get_soft_reset(mac_cfg0)) {
-		__le32 temp;
+		__u32 temp;
 		temp = 0;
 		netxen_gb_tx_reset_pb(temp);
 		netxen_gb_rx_reset_pb(temp);
@@ -269,7 +269,7 @@ int netxen_niu_gbe_enable_phy_interrupts(struct netxen_adapter *adapter,
 					 int port)
 {
 	int result = 0;
-	__le32 enable = 0;
+	__u32 enable = 0;
 	netxen_set_phy_int_link_status_changed(enable);
 	netxen_set_phy_int_autoneg_completed(enable);
 	netxen_set_phy_int_speed_changed(enable);
@@ -402,7 +402,7 @@ void netxen_niu_gbe_set_gmii_mode(struct netxen_adapter *adapter,
 int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
 {
 	int result = 0;
-	__le32 status;
+	__u32 status;
 	if (adapter->disable_phy_interrupts)
 		adapter->disable_phy_interrupts(adapter, port);
 	mdelay(2);
@@ -410,7 +410,7 @@ int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
 	if (0 ==
 	    netxen_niu_gbe_phy_read(adapter, port,
 				    NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-				    (__le32 *) & status)) {
+				    &status)) {
 		if (netxen_get_phy_link(status)) {
 			if (netxen_get_phy_speed(status) == 2) {
 				netxen_niu_gbe_set_gmii_mode(adapter, port, 1);
@@ -489,7 +489,7 @@ int netxen_niu_gbe_handle_phy_interrupt(struct netxen_adapter *adapter,
 					int port, long enable)
 {
 	int result = 0;
-	__le32 int_src;
+	__u32 int_src;
 
 	printk(KERN_INFO PFX "NETXEN: Handling PHY interrupt on port %d"
 	       " (device enable = %d)\n", (int)port, (int)enable);
@@ -530,7 +530,7 @@ int netxen_niu_gbe_handle_phy_interrupt(struct netxen_adapter *adapter,
 			printk(KERN_INFO PFX "autoneg_error ");
 		if ((netxen_get_phy_int_speed_changed(int_src))
 		    || (netxen_get_phy_int_link_status_changed(int_src))) {
-			__le32 status;
+			__u32 status;
 
 			printk(KERN_INFO PFX
 			       "speed_changed or link status changed");
@@ -583,9 +583,9 @@ int netxen_niu_gbe_handle_phy_interrupt(struct netxen_adapter *adapter,
 int netxen_niu_macaddr_get(struct netxen_adapter *adapter,
 			   int phy, netxen_ethernet_macaddr_t * addr)
 {
-	u64 result = 0;
-	__le32 stationhigh;
-	__le32 stationlow;
+	u32 stationhigh;
+	u32 stationlow;
+	u8 val[8];
 
 	if (addr == NULL)
 		return -EINVAL;
@@ -598,10 +598,10 @@ int netxen_niu_macaddr_get(struct netxen_adapter *adapter,
 	if (netxen_nic_hw_read_wx(adapter, NETXEN_NIU_GB_STATION_ADDR_1(phy),
 				  &stationlow, 4))
 		return -EIO;
+	((__le32 *)val)[1] = cpu_to_le32(stationhigh);
+	((__le32 *)val)[0] = cpu_to_le32(stationlow);
 
-	result = (u64) netxen_gb_get_stationaddress_low(stationlow);
-	result |= (u64) stationhigh << 16;
-	memcpy(*addr, &result, sizeof(netxen_ethernet_macaddr_t));
+	memcpy(addr, val + 2, 6);
 
 	return 0;
 }
@@ -613,24 +613,25 @@ int netxen_niu_macaddr_get(struct netxen_adapter *adapter,
 int netxen_niu_macaddr_set(struct netxen_port *port,
 			   netxen_ethernet_macaddr_t addr)
 {
-	__le32 temp = 0;
+	u8 temp[4];
+	u32 val;
 	struct netxen_adapter *adapter = port->adapter;
 	int phy = port->portnum;
 	unsigned char mac_addr[6];
 	int i;
 
 	for (i = 0; i < 10; i++) {
-		memcpy(&temp, addr, 2);
-		temp <<= 16;
+		temp[0] = temp[1] = 0;
+		memcpy(temp + 2, addr, 2);
+		val = le32_to_cpu(*(__le32 *)temp);
 		if (netxen_nic_hw_write_wx
-		    (adapter, NETXEN_NIU_GB_STATION_ADDR_1(phy), &temp, 4))
+		    (adapter, NETXEN_NIU_GB_STATION_ADDR_1(phy), &val, 4))
 			return -EIO;
 
-		temp = 0;
-
-		memcpy(&temp, ((u8 *) addr) + 2, sizeof(__le32));
+		memcpy(temp, ((u8 *) addr) + 2, sizeof(__le32));
+		val = le32_to_cpu(*(__le32 *)temp);
 		if (netxen_nic_hw_write_wx
-		    (adapter, NETXEN_NIU_GB_STATION_ADDR_0(phy), &temp, 4))
+		    (adapter, NETXEN_NIU_GB_STATION_ADDR_0(phy), &val, 4))
 			return -2;
 
 		netxen_niu_macaddr_get(adapter, phy,
@@ -659,9 +660,9 @@ int netxen_niu_macaddr_set(struct netxen_port *port,
 int netxen_niu_enable_gbe_port(struct netxen_adapter *adapter,
 			       int port, netxen_niu_gbe_ifmode_t mode)
 {
-	__le32 mac_cfg0;
-	__le32 mac_cfg1;
-	__le32 mii_cfg;
+	__u32 mac_cfg0;
+	__u32 mac_cfg1;
+	__u32 mii_cfg;
 
 	if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
 		return -EINVAL;
@@ -736,7 +737,7 @@ int netxen_niu_enable_gbe_port(struct netxen_adapter *adapter,
 /* Disable a GbE interface */
 int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter, int port)
 {
-	__le32 mac_cfg0;
+	__u32 mac_cfg0;
 
 	if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
 		return -EINVAL;
@@ -752,7 +753,7 @@ int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter, int port)
 /* Disable an XG interface */
 int netxen_niu_disable_xg_port(struct netxen_adapter *adapter, int port)
 {
-	__le32 mac_cfg;
+	__u32 mac_cfg;
 
 	if (port != 0)
 		return -EINVAL;
@@ -769,7 +770,7 @@ int netxen_niu_disable_xg_port(struct netxen_adapter *adapter, int port)
 int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter, int port,
 				    netxen_niu_prom_mode_t mode)
 {
-	__le32 reg;
+	__u32 reg;
 
 	if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
 		return -EINVAL;
@@ -826,22 +827,21 @@ int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter, int port,
 int netxen_niu_xg_macaddr_set(struct netxen_port *port,
 			      netxen_ethernet_macaddr_t addr)
 {
-	__le32 temp = 0;
+	u8 temp[4];
+	u32 val;
 	struct netxen_adapter *adapter = port->adapter;
 
-	memcpy(&temp, addr, 2);
-	temp = cpu_to_le32(temp);
-	temp <<= 16;
+	temp[0] = temp[1] = 0;
+	memcpy(temp + 2, addr, 2);
+	val = le32_to_cpu(*(__le32 *)temp);
 	if (netxen_nic_hw_write_wx(adapter, NETXEN_NIU_XGE_STATION_ADDR_0_1,
-				   &temp, 4))
+				   &val, 4))
 		return -EIO;
 
-	temp = 0;
-
 	memcpy(&temp, ((u8 *) addr) + 2, sizeof(__le32));
-	temp = cpu_to_le32(temp);
+	val = le32_to_cpu(*(__le32 *)temp);
 	if (netxen_nic_hw_write_wx(adapter, NETXEN_NIU_XGE_STATION_ADDR_0_HI,
-				   &temp, 4))
+				   &val, 4))
 		return -EIO;
 
 	return 0;
@@ -854,9 +854,9 @@ int netxen_niu_xg_macaddr_set(struct netxen_port *port,
 int netxen_niu_xg_macaddr_get(struct netxen_adapter *adapter, int phy,
 			      netxen_ethernet_macaddr_t * addr)
 {
-	__le32 stationhigh;
-	__le32 stationlow;
-	u64 result;
+	u32 stationhigh;
+	u32 stationlow;
+	u8 val[8];
 
 	if (addr == NULL)
 		return -EINVAL;
@@ -869,10 +869,10 @@ int netxen_niu_xg_macaddr_get(struct netxen_adapter *adapter, int phy,
 	if (netxen_nic_hw_read_wx(adapter, NETXEN_NIU_XGE_STATION_ADDR_0_1,
 				  &stationlow, 4))
 		return -EIO;
+	((__le32 *)val)[1] = cpu_to_le32(stationhigh);
+	((__le32 *)val)[0] = cpu_to_le32(stationlow);
 
-	result = ((u64) stationlow) >> 16;
-	result |= (u64) stationhigh << 16;
-	memcpy(*addr, &result, sizeof(netxen_ethernet_macaddr_t));
+	memcpy(addr, val + 2, 6);
 
 	return 0;
 }
@@ -880,7 +880,7 @@ int netxen_niu_xg_macaddr_get(struct netxen_adapter *adapter, int phy,
 int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
 				       int port, netxen_niu_prom_mode_t mode)
 {
-	__le32 reg;
+	__u32 reg;
 
 	if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
 		return -EINVAL;

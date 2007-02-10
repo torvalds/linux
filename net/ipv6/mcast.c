@@ -1582,6 +1582,8 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 			skb = add_grhead(skb, pmc, type, &pgr);
 			first = 0;
 		}
+		if (!skb)
+			return NULL;
 		psrc = (struct in6_addr *)skb_put(skb, sizeof(*psrc));
 		*psrc = psf->sf_addr;
 		scount++; stotal++;

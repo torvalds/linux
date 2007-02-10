@@ -287,10 +287,8 @@ out:
  *
  * Returns: errno
  */
-
 int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 {
-	struct gfs2_sbd *sdp = ip->i_inode.i_sb->s_fs_info;
 	struct buffer_head *dibh;
 	u32 nlink;
 	int error;
@@ -315,42 +313,34 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	else
 		drop_nlink(&ip->i_inode);
 
-	ip->i_inode.i_ctime.tv_sec = get_seconds();
+	ip->i_inode.i_ctime = CURRENT_TIME_SEC;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 	mark_inode_dirty(&ip->i_inode);
 
-	if (ip->i_inode.i_nlink == 0) {
-		struct gfs2_rgrpd *rgd;
-		struct gfs2_holder ri_gh, rg_gh;
-
-		error = gfs2_rindex_hold(sdp, &ri_gh);
-		if (error)
-			goto out;
-		error = -EIO;
-		rgd = gfs2_blk2rgrpd(sdp, ip->i_num.no_addr);
-		if (!rgd)
-			goto out_norgrp;
-		error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, &rg_gh);
-		if (error)
-			goto out_norgrp;
-
+	if (ip->i_inode.i_nlink == 0)
 		gfs2_unlink_di(&ip->i_inode); /* mark inode unlinked */
-		gfs2_glock_dq_uninit(&rg_gh);
-out_norgrp:
-		gfs2_glock_dq_uninit(&ri_gh);
-	}
-out:
+
 	return error;
 }
 
 struct inode *gfs2_lookup_simple(struct inode *dip, const char *name)
 {
 	struct qstr qstr;
+	struct inode *inode;
 	gfs2_str2qstr(&qstr, name);
-	return gfs2_lookupi(dip, &qstr, 1, NULL);
+	inode = gfs2_lookupi(dip, &qstr, 1, NULL);
+	/* gfs2_lookupi has inconsistent callers: vfs
+	 * related routines expect NULL for no entry found,
+	 * gfs2_lookup_simple callers expect ENOENT
+	 * and do not check for NULL.
+	 */
+	if (inode == NULL)
+		return ERR_PTR(-ENOENT);
+	else
+		return inode;
 }
 
 
@@ -361,8 +351,10 @@ struct inode *gfs2_lookup_simple(struct inode *dip, const char *name)
  * @is_root: If 1, ignore the caller's permissions
  * @i_gh: An uninitialized holder for the new inode glock
  *
- * There will always be a vnode (Linux VFS inode) for the d_gh inode unless
- * @is_root is true.
+ * This can be called via the VFS filldir function when NFS is doing
+ * a readdirplus and the inode which its intending to stat isn't
+ * already in cache. In this case we must not take the directory glock
+ * again, since the readdir call will have already taken that lock.
  *
  * Returns: errno
  */
@@ -375,8 +367,9 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 	struct gfs2_holder d_gh;
 	struct gfs2_inum_host inum;
 	unsigned int type;
-	int error = 0;
+	int error;
 	struct inode *inode = NULL;
+	int unlock = 0;
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -388,9 +381,12 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 		return dir;
 	}
 
-	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
-	if (error)
-		return ERR_PTR(error);
+	if (gfs2_glock_is_locked_by_me(dip->i_gl) == 0) {
+		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
+		if (error)
+			return ERR_PTR(error);
+		unlock = 1;
+	}
 
 	if (!is_root) {
 		error = permission(dir, MAY_EXEC, NULL);
@@ -405,10 +401,11 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 	inode = gfs2_inode_lookup(sb, &inum, type);
 
 out:
-	gfs2_glock_dq_uninit(&d_gh);
+	if (unlock)
+		gfs2_glock_dq_uninit(&d_gh);
 	if (error == -ENOENT)
 		return NULL;
-	return inode;
+	return inode ? inode : ERR_PTR(error);
 }
 
 static int pick_formal_ino_1(struct gfs2_sbd *sdp, u64 *formal_ino)

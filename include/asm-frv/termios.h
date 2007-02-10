@@ -69,6 +69,8 @@ struct termio {
 #define N_SYNC_PPP	14
 #define N_HCI		15  /* Bluetooth HCI UART */
 
+#ifdef __KERNEL__
 #include <asm-generic/termios.h>
+#endif
 
 #endif /* _ASM_TERMIOS_H */

@@ -1,0 +1,5 @@
+unifdef-y += audio.h
+unifdef-y += cdc.h
+unifdef-y += ch9.h
+unifdef-y += midi.h
+

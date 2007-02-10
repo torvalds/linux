@@ -1854,7 +1854,7 @@ int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
 
 		memset(inbox + 256, 0, 256);
 
-		MTHCA_PUT(inbox, in_wc->qp_num,     MAD_IFC_MY_QPN_OFFSET);
+		MTHCA_PUT(inbox, in_wc->qp->qp_num, MAD_IFC_MY_QPN_OFFSET);
 		MTHCA_PUT(inbox, in_wc->src_qp,     MAD_IFC_RQPN_OFFSET);
 
 		val = in_wc->sl << 4;

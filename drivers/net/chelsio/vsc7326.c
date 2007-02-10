@@ -226,22 +226,21 @@ static void run_table(adapter_t *adapter, struct init_table *ib, int len)
 		if (ib[i].addr == INITBLOCK_SLEEP) {
 			udelay( ib[i].data );
 			CH_ERR("sleep %d us\n",ib[i].data);
-		} else {
+		} else
 			vsc_write( adapter, ib[i].addr, ib[i].data );
-		}
 	}
 }
 
 static int bist_rd(adapter_t *adapter, int moduleid, int address)
 {
-	int data=0;
-	u32 result=0;
+	int data = 0;
+	u32 result = 0;
 
-	if(	(address != 0x0) &&
-		(address != 0x1) &&
-		(address != 0x2) &&
-		(address != 0xd) &&
-		(address != 0xe))
+	if ((address != 0x0) &&
+	    (address != 0x1) &&
+	    (address != 0x2) &&
+	    (address != 0xd) &&
+	    (address != 0xe))
 			CH_ERR("No bist address: 0x%x\n", address);
 
 	data = ((0x00 << 24) | ((address & 0xff) << 16) | (0x00 << 8) |
@@ -251,27 +250,27 @@ static int bist_rd(adapter_t *adapter, int moduleid, int address)
 	udelay(10);
 
 	vsc_read(adapter, REG_RAM_BIST_RESULT, &result);
-	if((result & (1<<9)) != 0x0)
+	if ((result & (1 << 9)) != 0x0)
 		CH_ERR("Still in bist read: 0x%x\n", result);
-	else if((result & (1<<8)) != 0x0)
+	else if ((result & (1 << 8)) != 0x0)
 		CH_ERR("bist read error: 0x%x\n", result);
 
-	return(result & 0xff);
+	return (result & 0xff);
 }
 
 static int bist_wr(adapter_t *adapter, int moduleid, int address, int value)
 {
-	int data=0;
-	u32 result=0;
+	int data = 0;
+	u32 result = 0;
 
-	if(	(address != 0x0) &&
-		(address != 0x1) &&
-		(address != 0x2) &&
-		(address != 0xd) &&
-		(address != 0xe))
+	if ((address != 0x0) &&
+	    (address != 0x1) &&
+	    (address != 0x2) &&
+	    (address != 0xd) &&
+	    (address != 0xe))
 			CH_ERR("No bist address: 0x%x\n", address);
 
-	if( value>255 )
+	if (value > 255)
 		CH_ERR("Suspicious write out of range value: 0x%x\n", value);
 
 	data = ((0x01 << 24) | ((address & 0xff) << 16) | (value << 8) |
@@ -281,12 +280,12 @@ static int bist_wr(adapter_t *adapter, int moduleid, int address, int value)
 	udelay(5);
 
 	vsc_read(adapter, REG_RAM_BIST_CMD, &result);
-	if((result & (1<<27)) != 0x0)
+	if ((result & (1 << 27)) != 0x0)
 		CH_ERR("Still in bist write: 0x%x\n", result);
-	else if((result & (1<<26)) != 0x0)
+	else if ((result & (1 << 26)) != 0x0)
 		CH_ERR("bist write error: 0x%x\n", result);
 
-	return(0);
+	return 0;
 }
 
 static int run_bist(adapter_t *adapter, int moduleid)
@@ -295,7 +294,7 @@ static int run_bist(adapter_t *adapter, int moduleid)
 	(void) bist_wr(adapter,moduleid, 0x00, 0x02);
 	(void) bist_wr(adapter,moduleid, 0x01, 0x01);
 
-	return(0);
+	return 0;
 }
 
 static int check_bist(adapter_t *adapter, int moduleid)
@@ -309,27 +308,26 @@ static int check_bist(adapter_t *adapter, int moduleid)
 	if ((result & 3) != 0x3)
 		CH_ERR("Result: 0x%x  BIST error in ram %d, column: 0x%04x\n",
 			result, moduleid, column);
-	return(0);
+	return 0;
 }
 
 static int enable_mem(adapter_t *adapter, int moduleid)
 {
 	/*enable mem*/
 	(void) bist_wr(adapter,moduleid, 0x00, 0x00);
-	return(0);
+	return 0;
 }
 
 static int run_bist_all(adapter_t *adapter)
 {
-	int port=0;
-	u32 val=0;
+	int port = 0;
+	u32 val = 0;
 
 	vsc_write(adapter, REG_MEM_BIST, 0x5);
 	vsc_read(adapter, REG_MEM_BIST, &val);
 
-	for(port=0; port<12; port++){
+	for (port = 0; port < 12; port++)
 		vsc_write(adapter, REG_DEV_SETUP(port), 0x0);
-	}
 
 	udelay(300);
 	vsc_write(adapter, REG_SPI4_MISC, 0x00040409);
@@ -352,13 +350,13 @@ static int run_bist_all(adapter_t *adapter)
 	udelay(300);
 	vsc_write(adapter, REG_SPI4_MISC, 0x60040400);
 	udelay(300);
-	for(port=0; port<12; port++){
+	for (port = 0; port < 12; port++)
 		vsc_write(adapter, REG_DEV_SETUP(port), 0x1);
-	}
+
 	udelay(300);
 	vsc_write(adapter, REG_MEM_BIST, 0x0);
 	mdelay(10);
-	return(0);
+	return 0;
 }
 
 static int mac_intr_handler(struct cmac *mac)
@@ -591,40 +589,46 @@ static void rmon_update(struct cmac *mac, unsigned int addr, u64 *stat)
 
 static void port_stats_update(struct cmac *mac)
 {
-	int port = mac->instance->index;
+	struct {
+		unsigned int reg;
+		unsigned int offset;
+	} hw_stats[] = {
 
-	/* Rx stats */
+#define HW_STAT(reg, stat_name) \
+	{ reg, (&((struct cmac_statistics *)NULL)->stat_name) - (u64 *)NULL }
+
+		/* Rx stats */
+		HW_STAT(RxUnicast, RxUnicastFramesOK),
+		HW_STAT(RxMulticast, RxMulticastFramesOK),
+		HW_STAT(RxBroadcast, RxBroadcastFramesOK),
+		HW_STAT(Crc, RxFCSErrors),
+		HW_STAT(RxAlignment, RxAlignErrors),
+		HW_STAT(RxOversize, RxFrameTooLongErrors),
+		HW_STAT(RxPause, RxPauseFrames),
+		HW_STAT(RxJabbers, RxJabberErrors),
+		HW_STAT(RxFragments, RxRuntErrors),
+		HW_STAT(RxUndersize, RxRuntErrors),
+		HW_STAT(RxSymbolCarrier, RxSymbolErrors),
+		HW_STAT(RxSize1519ToMax, RxJumboFramesOK),
+
+		/* Tx stats (skip collision stats as we are full-duplex only) */
+		HW_STAT(TxUnicast, TxUnicastFramesOK),
+		HW_STAT(TxMulticast, TxMulticastFramesOK),
+		HW_STAT(TxBroadcast, TxBroadcastFramesOK),
+		HW_STAT(TxPause, TxPauseFrames),
+		HW_STAT(TxUnderrun, TxUnderrun),
+		HW_STAT(TxSize1519ToMax, TxJumboFramesOK),
+	}, *p = hw_stats;
+	unsigned int port = mac->instance->index;
+	u64 *stats = (u64 *)&mac->stats;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(hw_stats); i++)
+		rmon_update(mac, CRA(0x4, port, p->reg), stats + p->offset);
+
+	rmon_update(mac, REG_TX_OK_BYTES(port), &mac->stats.TxOctetsOK);
 	rmon_update(mac, REG_RX_OK_BYTES(port), &mac->stats.RxOctetsOK);
 	rmon_update(mac, REG_RX_BAD_BYTES(port), &mac->stats.RxOctetsBad);
-	rmon_update(mac, REG_RX_UNICAST(port), &mac->stats.RxUnicastFramesOK);
-	rmon_update(mac, REG_RX_MULTICAST(port),
-		    &mac->stats.RxMulticastFramesOK);
-	rmon_update(mac, REG_RX_BROADCAST(port),
-		    &mac->stats.RxBroadcastFramesOK);
-	rmon_update(mac, REG_CRC(port), &mac->stats.RxFCSErrors);
-	rmon_update(mac, REG_RX_ALIGNMENT(port), &mac->stats.RxAlignErrors);
-	rmon_update(mac, REG_RX_OVERSIZE(port),
-		    &mac->stats.RxFrameTooLongErrors);
-	rmon_update(mac, REG_RX_PAUSE(port), &mac->stats.RxPauseFrames);
-	rmon_update(mac, REG_RX_JABBERS(port), &mac->stats.RxJabberErrors);
-	rmon_update(mac, REG_RX_FRAGMENTS(port), &mac->stats.RxRuntErrors);
-	rmon_update(mac, REG_RX_UNDERSIZE(port), &mac->stats.RxRuntErrors);
-	rmon_update(mac, REG_RX_SYMBOL_CARRIER(port),
-		    &mac->stats.RxSymbolErrors);
-	rmon_update(mac, REG_RX_SIZE_1519_TO_MAX(port),
-            &mac->stats.RxJumboFramesOK);
-
-	/* Tx stats (skip collision stats as we are full-duplex only) */
-	rmon_update(mac, REG_TX_OK_BYTES(port), &mac->stats.TxOctetsOK);
-	rmon_update(mac, REG_TX_UNICAST(port), &mac->stats.TxUnicastFramesOK);
-	rmon_update(mac, REG_TX_MULTICAST(port),
-		    &mac->stats.TxMulticastFramesOK);
-	rmon_update(mac, REG_TX_BROADCAST(port),
-		    &mac->stats.TxBroadcastFramesOK);
-	rmon_update(mac, REG_TX_PAUSE(port), &mac->stats.TxPauseFrames);
-	rmon_update(mac, REG_TX_UNDERRUN(port), &mac->stats.TxUnderrun);
-	rmon_update(mac, REG_TX_SIZE_1519_TO_MAX(port),
-            &mac->stats.TxJumboFramesOK);
 }
 
 /*
@@ -686,7 +690,8 @@ static struct cmac *vsc7326_mac_create(adapter_t *adapter, int index)
 	int i;
 
 	mac = kzalloc(sizeof(*mac) + sizeof(cmac_instance), GFP_KERNEL);
-	if (!mac) return NULL;
+	if (!mac)
+		return NULL;
 
 	mac->ops = &vsc7326_ops;
 	mac->instance = (cmac_instance *)(mac + 1);

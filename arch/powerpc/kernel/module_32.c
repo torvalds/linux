@@ -224,7 +224,12 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			/* Low half of the symbol */
 			*(uint16_t *)location = value;
 			break;
-		
+
+		case R_PPC_ADDR16_HI:
+			/* Higher half of the symbol */
+			*(uint16_t *)location = (value >> 16);
+			break;
+
 		case R_PPC_ADDR16_HA:
 			/* Sign-adjusted lower 16 bits: PPC ELF ABI says:
 			   (((x >> 16) + ((x & 0x8000) ? 1 : 0))) & 0xFFFF.

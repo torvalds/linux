@@ -95,27 +95,27 @@ asmlinkage void plat_irq_dispatch(void)
 	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
 
 	if (pending & CAUSEF_IP7)
-		do_IRQ(7);
+		do_IRQ(TIMER_IRQ);
 	else if (pending & 0x7800) {
 		if (pending & CAUSEF_IP3)
-			irq_dispatch(3);
+			irq_dispatch(INT1_IRQ);
 		else if (pending & CAUSEF_IP4)
-			irq_dispatch(4);
+			irq_dispatch(INT2_IRQ);
 		else if (pending & CAUSEF_IP5)
-			irq_dispatch(5);
+			irq_dispatch(INT3_IRQ);
 		else if (pending & CAUSEF_IP6)
-			irq_dispatch(6);
+			irq_dispatch(INT4_IRQ);
 	} else if (pending & CAUSEF_IP2)
-		irq_dispatch(2);
+		irq_dispatch(INT0_IRQ);
 	else if (pending & CAUSEF_IP0)
-		do_IRQ(0);
+		do_IRQ(MIPS_SOFTINT0_IRQ);
 	else if (pending & CAUSEF_IP1)
-		do_IRQ(1);
+		do_IRQ(MIPS_SOFTINT1_IRQ);
 	else
 		spurious_interrupt();
 }
 
 void __init arch_init_irq(void)
 {
-	mips_cpu_irq_init(MIPS_CPU_IRQ_BASE);
+	mips_cpu_irq_init();
 }

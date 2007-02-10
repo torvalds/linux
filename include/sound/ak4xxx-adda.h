@@ -50,6 +50,8 @@ struct snd_akm4xxx_adc_channel {
 	char *name;		/* capture gain volume label */
 	char *switch_name;	/* capture switch */
 	unsigned int num_channels;
+	char *selector_name;	/* capture source select label */
+	const char **input_names; /* capture source names (NULL terminated) */
 };
 
 struct snd_akm4xxx {
@@ -69,8 +71,8 @@ struct snd_akm4xxx {
 	} type;
 
 	/* (array) information of combined codecs */
-	struct snd_akm4xxx_dac_channel *dac_info;
-	struct snd_akm4xxx_adc_channel *adc_info;
+	const struct snd_akm4xxx_dac_channel *dac_info;
+	const struct snd_akm4xxx_adc_channel *adc_info;
 
 	struct snd_ak4xxx_ops ops;
 };

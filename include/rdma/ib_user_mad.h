@@ -98,7 +98,7 @@ struct ib_user_mad_hdr {
  */
 struct ib_user_mad {
 	struct ib_user_mad_hdr hdr;
-	__u8	data[0];
+	__u64	data[0];
 };
 
 /**

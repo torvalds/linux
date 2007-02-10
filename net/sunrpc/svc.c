@@ -386,7 +386,7 @@ svc_destroy(struct svc_serv *serv)
 		svsk = list_entry(serv->sv_tempsocks.next,
 				  struct svc_sock,
 				  sk_list);
-		svc_delete_socket(svsk);
+		svc_close_socket(svsk);
 	}
 	if (serv->sv_shutdown)
 		serv->sv_shutdown(serv);
@@ -395,7 +395,7 @@ svc_destroy(struct svc_serv *serv)
 		svsk = list_entry(serv->sv_permsocks.next,
 				  struct svc_sock,
 				  sk_list);
-		svc_delete_socket(svsk);
+		svc_close_socket(svsk);
 	}
 	
 	cache_clean_deferred(serv);

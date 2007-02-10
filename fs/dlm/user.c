@@ -180,6 +180,14 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 	    ua->lksb.sb_status == -EAGAIN && !list_empty(&lkb->lkb_ownqueue))
 		remove_ownqueue = 1;
 
+	/* unlocks or cancels of waiting requests need to be removed from the
+	   proc's unlocking list, again there must be a better way...  */
+
+	if (ua->lksb.sb_status == -DLM_EUNLOCK ||
+	    (ua->lksb.sb_status == -DLM_ECANCEL &&
+	     lkb->lkb_grmode == DLM_LOCK_IV))
+		remove_ownqueue = 1;
+
 	/* We want to copy the lvb to userspace when the completion
 	   ast is read if the status is 0, the lock has an lvb and
 	   lvb_ops says we should.  We could probably have set_lvb_lock()
@@ -523,6 +531,7 @@ static int device_open(struct inode *inode, struct file *file)
 	proc->lockspace = ls->ls_local_handle;
 	INIT_LIST_HEAD(&proc->asts);
 	INIT_LIST_HEAD(&proc->locks);
+	INIT_LIST_HEAD(&proc->unlocking);
 	spin_lock_init(&proc->asts_spin);
 	spin_lock_init(&proc->locks_spin);
 	init_waitqueue_head(&proc->wait);

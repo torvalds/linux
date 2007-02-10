@@ -615,20 +615,28 @@ static acpi_status
 find_dock_devices(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	acpi_status status;
-	acpi_handle tmp;
+	acpi_handle tmp, parent;
 	struct dock_station *ds = context;
 	struct dock_dependent_device *dd;
 
 	status = acpi_bus_get_ejd(handle, &tmp);
-	if (ACPI_FAILURE(status))
-		return AE_OK;
+	if (ACPI_FAILURE(status)) {
+		/* try the parent device as well */
+		status = acpi_get_parent(handle, &parent);
+		if (ACPI_FAILURE(status))
+			goto fdd_out;
+		/* see if parent is dependent on dock */
+		status = acpi_bus_get_ejd(parent, &tmp);
+		if (ACPI_FAILURE(status))
+			goto fdd_out;
+	}
 
 	if (tmp == ds->handle) {
 		dd = alloc_dock_dependent_device(handle);
 		if (dd)
 			add_dock_dependent_device(ds, dd);
 	}
-
+fdd_out:
 	return AE_OK;
 }
 

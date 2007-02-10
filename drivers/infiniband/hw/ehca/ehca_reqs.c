@@ -579,7 +579,7 @@ poll_cq_one_read_cqe:
 	} else
 		wc->status = IB_WC_SUCCESS;
 
-	wc->qp_num = cqe->local_qp_number;
+	wc->qp = NULL;
 	wc->byte_len = cqe->nr_bytes_transferred;
 	wc->pkey_index = cqe->pkey_index;
 	wc->slid = cqe->rlid;

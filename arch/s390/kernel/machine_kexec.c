@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/delay.h>
+#include <linux/reboot.h>
 #include <asm/cio.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>

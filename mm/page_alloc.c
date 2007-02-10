@@ -989,8 +989,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 		      int classzone_idx, int alloc_flags)
 {
 	/* free_pages my go negative - that's OK */
-	unsigned long min = mark;
-	long free_pages = z->free_pages - (1 << order) + 1;
+	long min = mark, free_pages = z->free_pages - (1 << order) + 1;
 	int o;
 
 	if (alloc_flags & ALLOC_HIGH)
@@ -1580,8 +1579,8 @@ void show_free_areas(void)
 
 	get_zone_counts(&active, &inactive, &free);
 
-	printk("Active:%lu inactive:%lu dirty:%lu writeback:%lu "
-		"unstable:%lu free:%u slab:%lu mapped:%lu pagetables:%lu\n",
+	printk("Active:%lu inactive:%lu dirty:%lu writeback:%lu unstable:%lu\n"
+		" free:%u slab:%lu mapped:%lu pagetables:%lu bounce:%lu\n",
 		active,
 		inactive,
 		global_page_state(NR_FILE_DIRTY),
@@ -1591,7 +1590,8 @@ void show_free_areas(void)
 		global_page_state(NR_SLAB_RECLAIMABLE) +
 			global_page_state(NR_SLAB_UNRECLAIMABLE),
 		global_page_state(NR_FILE_MAPPED),
-		global_page_state(NR_PAGETABLE));
+		global_page_state(NR_PAGETABLE),
+		global_page_state(NR_BOUNCE));
 
 	for_each_zone(zone) {
 		int i;

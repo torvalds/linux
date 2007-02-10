@@ -86,8 +86,12 @@ static void driver_sysfs_remove(struct device *dev)
  */
 int device_bind_driver(struct device *dev)
 {
-	driver_bound(dev);
-	return driver_sysfs_add(dev);
+	int ret;
+
+	ret = driver_sysfs_add(dev);
+	if (!ret)
+		driver_bound(dev);
+	return ret;
 }
 
 struct stupid_thread_structure {
@@ -108,6 +112,7 @@ static int really_probe(void *void_data)
 	atomic_inc(&probe_count);
 	pr_debug("%s: Probing driver %s with device %s\n",
 		 drv->bus->name, drv->name, dev->bus_id);
+	WARN_ON(!list_empty(&dev->devres_head));
 
 	dev->driver = drv;
 	if (driver_sysfs_add(dev)) {
@@ -133,21 +138,21 @@ static int really_probe(void *void_data)
 	goto done;
 
 probe_failed:
+	devres_release_all(dev);
 	driver_sysfs_remove(dev);
 	dev->driver = NULL;
 
-	if (ret == -ENODEV || ret == -ENXIO) {
-		/* Driver matched, but didn't support device
-		 * or device not found.
-		 * Not an error; keep going.
-		 */
-		ret = 0;
-	} else {
+	if (ret != -ENODEV && ret != -ENXIO) {
 		/* driver matched but the probe failed */
 		printk(KERN_WARNING
 		       "%s: probe of %s failed with error %d\n",
 		       drv->name, dev->bus_id, ret);
 	}
+	/*
+	 * Ignore errors returned by ->probe so that the next driver can try
+	 * its luck.
+	 */
+	ret = 0;
 done:
 	kfree(data);
 	atomic_dec(&probe_count);
@@ -324,6 +329,7 @@ static void __device_release_driver(struct device * dev)
 			dev->bus->remove(dev);
 		else if (drv->remove)
 			drv->remove(dev);
+		devres_release_all(dev);
 		dev->driver = NULL;
 		put_driver(drv);
 	}

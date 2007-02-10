@@ -20,10 +20,12 @@
 #ifndef _MIPS_SEADINT_H
 #define _MIPS_SEADINT_H
 
+#include <irq.h>
+
 /*
  * Interrupts 0..7 are used for SEAD CPU interrupts
  */
-#define MIPSCPU_INT_BASE	0
+#define MIPSCPU_INT_BASE	MIPS_CPU_IRQ_BASE
 
 #define MIPSCPU_INT_UART0	2
 #define MIPSCPU_INT_UART1	3

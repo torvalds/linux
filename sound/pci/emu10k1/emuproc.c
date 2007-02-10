@@ -3,6 +3,9 @@
  *                   Creative Labs, Inc.
  *  Routines for control of EMU10K1 chips / proc interface routines
  *
+ *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
+ *  	Added EMU 1010 support.
+ *
  *  BUGS:
  *    --
  *
@@ -255,7 +258,7 @@ static void snd_emu10k1_proc_rates_read(struct snd_info_entry *entry,
 	unsigned int val, tmp, n;
 	val = snd_emu10k1_ptr20_read(emu, CAPTURE_RATE_STATUS, 0);
 	tmp = (val >> 16) & 0x8;
-	for (n=0;n<4;n++) {
+	for (n = 0; n < 4; n++) {
 		tmp = val >> (16 + (n*4));
 		if (tmp & 0x8) snd_iprintf(buffer, "Channel %d: Rate=%d\n", n, samplerate[tmp & 0x7]);
 		else snd_iprintf(buffer, "Channel %d: No input\n", n);
@@ -372,6 +375,27 @@ static void snd_emu10k1_proc_voices_read(struct snd_info_entry *entry,
 }
 
 #ifdef CONFIG_SND_DEBUG
+static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
+				     struct snd_info_buffer *buffer)
+{
+	struct snd_emu10k1 *emu = entry->private_data;
+	unsigned long value;
+	unsigned long flags;
+	unsigned long regs;
+	int i;
+	snd_iprintf(buffer, "EMU1010 Registers:\n\n");
+
+	for(i = 0; i < 0x30; i+=1) {
+		spin_lock_irqsave(&emu->emu_lock, flags);
+		regs=i+0x40; /* 0x40 upwards are registers. */
+		outl(regs, emu->port + A_IOCFG);
+		outl(regs | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+		value = inl(emu->port + A_IOCFG);
+		spin_unlock_irqrestore(&emu->emu_lock, flags);
+		snd_iprintf(buffer, "%02X: %08lX, %02lX\n", i, value, (value >> 8) & 0x7f);
+	}
+}
+
 static void snd_emu_proc_io_reg_read(struct snd_info_entry *entry,
 				     struct snd_info_buffer *buffer)
 {
@@ -398,7 +422,7 @@ static void snd_emu_proc_io_reg_write(struct snd_info_entry *entry,
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%x %x", &reg, &val) != 2)
 			continue;
-		if ((reg < 0x40) && (reg >=0) && (val <= 0xffffffff) ) {
+		if ((reg < 0x40) && (reg >= 0) && (val <= 0xffffffff) ) {
 			spin_lock_irqsave(&emu->emu_lock, flags);
 			outl(val, emu->port + (reg & 0xfffffffc));
 			spin_unlock_irqrestore(&emu->emu_lock, flags);
@@ -474,7 +498,7 @@ static void snd_emu_proc_ptr_reg_write(struct snd_info_entry *entry,
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%x %x %x", &reg, &channel_id, &val) != 3)
 			continue;
-		if ((reg < 0xa0) && (reg >=0) && (val <= 0xffffffff) && (channel_id >=0) && (channel_id <= 3) )
+		if ((reg < 0xa0) && (reg >= 0) && (val <= 0xffffffff) && (channel_id >= 0) && (channel_id <= 3) )
 			snd_ptr_write(emu, iobase, reg, channel_id, val);
 	}
 }
@@ -531,6 +555,10 @@ int __devinit snd_emu10k1_proc_init(struct snd_emu10k1 * emu)
 {
 	struct snd_info_entry *entry;
 #ifdef CONFIG_SND_DEBUG
+	if ((emu->card_capabilities->emu1010) &&
+	     snd_card_proc_new(emu->card, "emu1010_regs", &entry)) {
+		snd_info_set_text_ops(entry, emu, snd_emu_proc_emu1010_reg_read);
+	}
 	if (! snd_card_proc_new(emu->card, "io_regs", &entry)) {
 		snd_info_set_text_ops(entry, emu, snd_emu_proc_io_reg_read);
 		entry->c.text.write = snd_emu_proc_io_reg_write;

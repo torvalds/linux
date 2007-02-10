@@ -381,8 +381,6 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 
 	pci_device_add(dev, bus);
 
-	/* XXX pci_scan_msi_device(dev); */
-
 	return dev;
 }
 EXPORT_SYMBOL(of_create_pci_dev);
@@ -1325,7 +1323,6 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 	DBG(" -> mapped to linux irq %d\n", virq);
 
 	pci_dev->irq = virq;
-	pci_write_config_byte(pci_dev, PCI_INTERRUPT_LINE, virq);
 
 	return 0;
 }

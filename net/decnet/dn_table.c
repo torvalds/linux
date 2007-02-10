@@ -350,7 +350,7 @@ static int dn_fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 nlmsg_failure:
 rtattr_failure:
         skb_trim(skb, b - skb->data);
-        return -1;
+        return -EMSGSIZE;
 }
 
 
@@ -368,9 +368,12 @@ static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, u32 tb_id,
         err = dn_fib_dump_info(skb, pid, nlh->nlmsg_seq, event, tb_id,
 			       f->fn_type, f->fn_scope, &f->fn_key, z,
 			       DN_FIB_INFO(f), 0);
-	/* failure implies BUG in dn_fib_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in dn_fib_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, pid, RTNLGRP_DECnet_ROUTE, nlh, GFP_KERNEL);
 errout:
 	if (err < 0)

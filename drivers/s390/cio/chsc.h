@@ -10,17 +10,17 @@
 struct chsc_header {
 	u16 length;
 	u16 code;
-};
+} __attribute__ ((packed));
 
 #define NR_MEASUREMENT_CHARS 5
 struct cmg_chars {
 	u32 values[NR_MEASUREMENT_CHARS];
-};
+} __attribute__ ((packed));
 
 #define NR_MEASUREMENT_ENTRIES 8
 struct cmg_entry {
 	u32 values[NR_MEASUREMENT_ENTRIES];
-};
+} __attribute__ ((packed));
 
 struct channel_path_desc {
 	u8 flags;
@@ -31,7 +31,7 @@ struct channel_path_desc {
 	u8 zeroes;
 	u8 chla;
 	u8 chpp;
-};
+} __attribute__ ((packed));
 
 struct channel_path {
 	int id;
@@ -47,6 +47,9 @@ struct channel_path {
 extern void s390_process_css( void );
 extern void chsc_validate_chpids(struct subchannel *);
 extern void chpid_is_actually_online(int);
+extern int css_get_ssd_info(struct subchannel *);
+extern int chsc_process_crw(void);
+extern int chp_process_crw(int, int);
 
 struct css_general_char {
 	u64 : 41;

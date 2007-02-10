@@ -4560,7 +4560,7 @@ zfcp_fsf_req_sbal_check(unsigned long *flags,
 /*
  * set qtcb pointer in fsf_req and initialize QTCB
  */
-static inline void
+static void
 zfcp_fsf_req_qtcb_init(struct zfcp_fsf_req *fsf_req)
 {
 	if (likely(fsf_req->qtcb != NULL)) {

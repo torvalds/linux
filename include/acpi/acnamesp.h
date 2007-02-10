@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,9 +65,13 @@
 #define ACPI_NS_ERROR_IF_FOUND      0x08
 #define ACPI_NS_PREFIX_IS_SCOPE     0x10
 #define ACPI_NS_EXTERNAL            0x20
+#define ACPI_NS_TEMPORARY           0x40
 
-#define ACPI_NS_WALK_UNLOCK         TRUE
-#define ACPI_NS_WALK_NO_UNLOCK      FALSE
+/* Flags for acpi_ns_walk_namespace */
+
+#define ACPI_NS_WALK_NO_UNLOCK      0
+#define ACPI_NS_WALK_UNLOCK         0x01
+#define ACPI_NS_WALK_TEMP_NODES     0x02
 
 /*
  * nsinit - Namespace initialization
@@ -82,7 +86,7 @@ acpi_status acpi_ns_initialize_devices(void);
 acpi_status acpi_ns_load_namespace(void);
 
 acpi_status
-acpi_ns_load_table(struct acpi_table_desc *table_desc,
+acpi_ns_load_table(acpi_native_uint table_index,
 		   struct acpi_namespace_node *node);
 
 /*
@@ -92,7 +96,7 @@ acpi_status
 acpi_ns_walk_namespace(acpi_object_type type,
 		       acpi_handle start_object,
 		       u32 max_depth,
-		       u8 unlock_before_callback,
+		       u32 flags,
 		       acpi_walk_callback user_function,
 		       void *context, void **return_value);
 
@@ -106,11 +110,12 @@ struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type,
  * nsparse - table parsing
  */
 acpi_status
-acpi_ns_parse_table(struct acpi_table_desc *table_desc,
-		    struct acpi_namespace_node *scope);
+acpi_ns_parse_table(acpi_native_uint table_index,
+		    struct acpi_namespace_node *start_node);
 
 acpi_status
-acpi_ns_one_complete_parse(u8 pass_number, struct acpi_table_desc *table_desc);
+acpi_ns_one_complete_parse(acpi_native_uint pass_number,
+			   acpi_native_uint table_index);
 
 /*
  * nsaccess - Top-level namespace access

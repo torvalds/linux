@@ -164,14 +164,14 @@ static struct ata_port_operations simple_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer_noirq,
+	.data_xfer	= ata_data_xfer_noirq,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct ata_port_operations legacy_port_ops = {
@@ -189,14 +189,14 @@ static struct ata_port_operations legacy_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer_noirq,
+	.data_xfer	= ata_data_xfer_noirq,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -257,31 +257,33 @@ static void pdc_data_xfer_vlb(struct ata_device *adev, unsigned char *buf, unsig
 		local_irq_save(flags);
 
 		/* Perform the 32bit I/O synchronization sequence */
-		inb(ap->ioaddr.nsect_addr);
-		inb(ap->ioaddr.nsect_addr);
-		inb(ap->ioaddr.nsect_addr);
+		ioread8(ap->ioaddr.nsect_addr);
+		ioread8(ap->ioaddr.nsect_addr);
+		ioread8(ap->ioaddr.nsect_addr);
 
 		/* Now the data */
 
 		if (write_data)
-			outsl(ap->ioaddr.data_addr, buf, buflen >> 2);
+			iowrite32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 		else
-			insl(ap->ioaddr.data_addr, buf, buflen >> 2);
+			ioread32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 
 		if (unlikely(slop)) {
 			u32 pad;
 			if (write_data) {
 				memcpy(&pad, buf + buflen - slop, slop);
-				outl(le32_to_cpu(pad), ap->ioaddr.data_addr);
+				pad = le32_to_cpu(pad);
+				iowrite32(pad, ap->ioaddr.data_addr);
 			} else {
-				pad = cpu_to_le16(inl(ap->ioaddr.data_addr));
+				pad = ioread32(ap->ioaddr.data_addr);
+				pad = cpu_to_le16(pad);
 				memcpy(buf + buflen - slop, &pad, slop);
 			}
 		}
 		local_irq_restore(flags);
 	}
 	else
-		ata_pio_data_xfer_noirq(adev, buf, buflen, write_data);
+		ata_data_xfer_noirq(adev, buf, buflen, write_data);
 }
 
 static struct ata_port_operations pdc20230_port_ops = {
@@ -303,10 +305,10 @@ static struct ata_port_operations pdc20230_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -332,8 +334,8 @@ static void ht6560a_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	inb(0x3E6);
 	inb(0x3E6);
 
-	outb(recover << 4 | active, ap->ioaddr.device_addr);
-	inb(ap->ioaddr.status_addr);
+	iowrite8(recover << 4 | active, ap->ioaddr.device_addr);
+	ioread8(ap->ioaddr.status_addr);
 }
 
 static struct ata_port_operations ht6560a_port_ops = {
@@ -351,14 +353,14 @@ static struct ata_port_operations ht6560a_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,	/* Check vlb/noirq */
+	.data_xfer	= ata_data_xfer,	/* Check vlb/noirq */
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -387,7 +389,7 @@ static void ht6560b_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	inb(0x3E6);
 	inb(0x3E6);
 
-	outb(recover << 4 | active, ap->ioaddr.device_addr);
+	iowrite8(recover << 4 | active, ap->ioaddr.device_addr);
 
 	if (adev->class != ATA_DEV_ATA) {
 		u8 rconf = inb(0x3E6);
@@ -396,7 +398,7 @@ static void ht6560b_set_piomode(struct ata_port *ap, struct ata_device *adev)
 			outb(rconf, 0x3E6);
 		}
 	}
-	inb(ap->ioaddr.status_addr);
+	ioread8(ap->ioaddr.status_addr);
 }
 
 static struct ata_port_operations ht6560b_port_ops = {
@@ -414,14 +416,14 @@ static struct ata_port_operations ht6560b_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,	/* FIXME: Check 32bit and noirq */
+	.data_xfer	= ata_data_xfer,	/* FIXME: Check 32bit and noirq */
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -464,12 +466,12 @@ static void opti82c611a_set_piomode(struct ata_port *ap, struct ata_device *adev
 	u8 rc;
 
 	/* Enter configuration mode */
-	inw(ap->ioaddr.error_addr);
-	inw(ap->ioaddr.error_addr);
-	outb(3, ap->ioaddr.nsect_addr);
+	ioread16(ap->ioaddr.error_addr);
+	ioread16(ap->ioaddr.error_addr);
+	iowrite8(3, ap->ioaddr.nsect_addr);
 
 	/* Read VLB clock strapping */
-	clock = 1000000000 / khz[inb(ap->ioaddr.lbah_addr) & 0x03];
+	clock = 1000000000 / khz[ioread8(ap->ioaddr.lbah_addr) & 0x03];
 
 	/* Get the timing data in cycles */
 	ata_timing_compute(adev, adev->pio_mode, &t, clock, 1000);
@@ -487,33 +489,33 @@ static void opti82c611a_set_piomode(struct ata_port *ap, struct ata_device *adev
 	setup = FIT(t.setup, 1, 4) - 1;
 
 	/* Select the right timing bank for write timing */
-	rc = inb(ap->ioaddr.lbal_addr);
+	rc = ioread8(ap->ioaddr.lbal_addr);
 	rc &= 0x7F;
 	rc |= (adev->devno << 7);
-	outb(rc, ap->ioaddr.lbal_addr);
+	iowrite8(rc, ap->ioaddr.lbal_addr);
 
 	/* Write the timings */
-	outb(active << 4 | recover, ap->ioaddr.error_addr);
+	iowrite8(active << 4 | recover, ap->ioaddr.error_addr);
 
 	/* Select the right bank for read timings, also
 	   load the shared timings for address */
-	rc = inb(ap->ioaddr.device_addr);
+	rc = ioread8(ap->ioaddr.device_addr);
 	rc &= 0xC0;
 	rc |= adev->devno;	/* Index select */
 	rc |= (setup << 4) | 0x04;
-	outb(rc, ap->ioaddr.device_addr);
+	iowrite8(rc, ap->ioaddr.device_addr);
 
 	/* Load the read timings */
-	outb(active << 4 | recover, ap->ioaddr.data_addr);
+	iowrite8(active << 4 | recover, ap->ioaddr.data_addr);
 
 	/* Ensure the timing register mode is right */
-	rc = inb (ap->ioaddr.lbal_addr);
+	rc = ioread8(ap->ioaddr.lbal_addr);
 	rc &= 0x73;
 	rc |= 0x84;
-	outb(rc, ap->ioaddr.lbal_addr);
+	iowrite8(rc, ap->ioaddr.lbal_addr);
 
 	/* Exit command mode */
-	outb(0x83,  ap->ioaddr.nsect_addr);
+	iowrite8(0x83,  ap->ioaddr.nsect_addr);
 }
 
 
@@ -532,14 +534,14 @@ static struct ata_port_operations opti82c611a_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -563,9 +565,9 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	sysclk = opti_syscfg(0xAC) & 0xC0;	/* BIOS set */
 
 	/* Enter configuration mode */
-	inw(ap->ioaddr.error_addr);
-	inw(ap->ioaddr.error_addr);
-	outb(3, ap->ioaddr.nsect_addr);
+	ioread16(ap->ioaddr.error_addr);
+	ioread16(ap->ioaddr.error_addr);
+	iowrite8(3, ap->ioaddr.nsect_addr);
 
 	/* Read VLB clock strapping */
 	clock = 1000000000 / khz[sysclk];
@@ -586,33 +588,33 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	setup = FIT(t.setup, 1, 4) - 1;
 
 	/* Select the right timing bank for write timing */
-	rc = inb(ap->ioaddr.lbal_addr);
+	rc = ioread8(ap->ioaddr.lbal_addr);
 	rc &= 0x7F;
 	rc |= (adev->devno << 7);
-	outb(rc, ap->ioaddr.lbal_addr);
+	iowrite8(rc, ap->ioaddr.lbal_addr);
 
 	/* Write the timings */
-	outb(active << 4 | recover, ap->ioaddr.error_addr);
+	iowrite8(active << 4 | recover, ap->ioaddr.error_addr);
 
 	/* Select the right bank for read timings, also
 	   load the shared timings for address */
-	rc = inb(ap->ioaddr.device_addr);
+	rc = ioread8(ap->ioaddr.device_addr);
 	rc &= 0xC0;
 	rc |= adev->devno;	/* Index select */
 	rc |= (setup << 4) | 0x04;
-	outb(rc, ap->ioaddr.device_addr);
+	iowrite8(rc, ap->ioaddr.device_addr);
 
 	/* Load the read timings */
-	outb(active << 4 | recover, ap->ioaddr.data_addr);
+	iowrite8(active << 4 | recover, ap->ioaddr.data_addr);
 
 	/* Ensure the timing register mode is right */
-	rc = inb (ap->ioaddr.lbal_addr);
+	rc = ioread8(ap->ioaddr.lbal_addr);
 	rc &= 0x73;
 	rc |= 0x84;
-	outb(rc, ap->ioaddr.lbal_addr);
+	iowrite8(rc, ap->ioaddr.lbal_addr);
 
 	/* Exit command mode */
-	outb(0x83,  ap->ioaddr.nsect_addr);
+	iowrite8(0x83,  ap->ioaddr.nsect_addr);
 
 	/* We need to know this for quad device on the MVB */
 	ap->host->private_data = ap;
@@ -662,14 +664,14 @@ static struct ata_port_operations opti82c46x_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= opti82c46x_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 
@@ -689,21 +691,26 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	struct legacy_data *ld = &legacy_data[nr_legacy_host];
 	struct ata_probe_ent ae;
 	struct platform_device *pdev;
-	int ret = -EBUSY;
 	struct ata_port_operations *ops = &legacy_port_ops;
+	void __iomem *io_addr, *ctrl_addr;
 	int pio_modes = pio_mask;
 	u32 mask = (1 << port);
-
-	if (request_region(io, 8, "pata_legacy") == NULL)
-		return -EBUSY;
-	if (request_region(ctrl, 1, "pata_legacy") == NULL)
-		goto fail_io;
+	int ret;
 
 	pdev = platform_device_register_simple(DRV_NAME, nr_legacy_host, NULL, 0);
-	if (IS_ERR(pdev)) {
-		ret = PTR_ERR(pdev);
-		goto fail_dev;
-	}
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	ret = -EBUSY;
+	if (devm_request_region(&pdev->dev, io, 8, "pata_legacy") == NULL ||
+	    devm_request_region(&pdev->dev, ctrl, 1, "pata_legacy") == NULL)
+		goto fail;
+
+	ret = -ENOMEM;
+	io_addr = devm_ioport_map(&pdev->dev, io, 8);
+	ctrl_addr = devm_ioport_map(&pdev->dev, ctrl, 1);
+	if (!io_addr || !ctrl_addr)
+		goto fail;
 
 	if (ht6560a & mask) {
 		ops = &ht6560a_port_ops;
@@ -770,27 +777,22 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	ae.irq = irq;
 	ae.irq_flags = 0;
 	ae.port_flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST;
-	ae.port[0].cmd_addr = io;
-	ae.port[0].altstatus_addr = ctrl;
-	ae.port[0].ctl_addr =	ctrl;
+	ae.port[0].cmd_addr = io_addr;
+	ae.port[0].altstatus_addr = ctrl_addr;
+	ae.port[0].ctl_addr = ctrl_addr;
 	ata_std_ports(&ae.port[0]);
 	ae.private_data = ld;
 
-	ret = ata_device_add(&ae);
-	if (ret == 0) {
-		ret = -ENODEV;
+	ret = -ENODEV;
+	if (!ata_device_add(&ae))
 		goto fail;
-	}
+
 	legacy_host[nr_legacy_host++] = dev_get_drvdata(&pdev->dev);
 	ld->platform_dev = pdev;
 	return 0;
 
 fail:
 	platform_device_unregister(pdev);
-fail_dev:
-	release_region(ctrl, 1);
-fail_io:
-	release_region(io, 8);
 	return ret;
 }
 
@@ -923,15 +925,11 @@ static __exit void legacy_exit(void)
 
 	for (i = 0; i < nr_legacy_host; i++) {
 		struct legacy_data *ld = &legacy_data[i];
-		struct ata_port *ap =legacy_host[i]->ports[0];
-		unsigned long io = ap->ioaddr.cmd_addr;
-		unsigned long ctrl = ap->ioaddr.ctl_addr;
-		ata_host_remove(legacy_host[i]);
+
+		ata_host_detach(legacy_host[i]);
 		platform_device_unregister(ld->platform_dev);
 		if (ld->timing)
 			release_region(ld->timing, 2);
-		release_region(io, 8);
-		release_region(ctrl, 1);
 	}
 }
 

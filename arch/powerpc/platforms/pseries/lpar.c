@@ -502,23 +502,70 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 	BUG_ON(lpar_rc != H_SUCCESS);
 }
 
+/* Flag bits for H_BULK_REMOVE */
+#define HBR_REQUEST	0x4000000000000000UL
+#define HBR_RESPONSE	0x8000000000000000UL
+#define HBR_END		0xc000000000000000UL
+#define HBR_AVPN	0x0200000000000000UL
+#define HBR_ANDCOND	0x0100000000000000UL
+
 /*
  * Take a spinlock around flushes to avoid bouncing the hypervisor tlbie
  * lock.
  */
 static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 {
-	int i;
+	unsigned long i, pix, rc;
 	unsigned long flags = 0;
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
 	int lock_tlbie = !cpu_has_feature(CPU_FTR_LOCKLESS_TLBIE);
+	unsigned long param[9];
+	unsigned long va;
+	unsigned long hash, index, shift, hidx, slot;
+	real_pte_t pte;
+	int psize;
 
 	if (lock_tlbie)
 		spin_lock_irqsave(&pSeries_lpar_tlbie_lock, flags);
 
-	for (i = 0; i < number; i++)
-		flush_hash_page(batch->vaddr[i], batch->pte[i],
-				batch->psize, local);
+	psize = batch->psize;
+	pix = 0;
+	for (i = 0; i < number; i++) {
+		va = batch->vaddr[i];
+		pte = batch->pte[i];
+		pte_iterate_hashed_subpages(pte, psize, va, index, shift) {
+			hash = hpt_hash(va, shift);
+			hidx = __rpte_to_hidx(pte, index);
+			if (hidx & _PTEIDX_SECONDARY)
+				hash = ~hash;
+			slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+			slot += hidx & _PTEIDX_GROUP_IX;
+			if (!firmware_has_feature(FW_FEATURE_BULK_REMOVE)) {
+				pSeries_lpar_hpte_invalidate(slot, va, psize,
+							     local);
+			} else {
+				param[pix] = HBR_REQUEST | HBR_AVPN | slot;
+				param[pix+1] = hpte_encode_v(va, psize) &
+					HPTE_V_AVPN;
+				pix += 2;
+				if (pix == 8) {
+					rc = plpar_hcall9(H_BULK_REMOVE, param,
+						param[0], param[1], param[2],
+						param[3], param[4], param[5],
+						param[6], param[7]);
+					BUG_ON(rc != H_SUCCESS);
+					pix = 0;
+				}
+			}
+		} pte_iterate_hashed_end();
+	}
+	if (pix) {
+		param[pix] = HBR_END;
+		rc = plpar_hcall9(H_BULK_REMOVE, param, param[0], param[1],
+				  param[2], param[3], param[4], param[5],
+				  param[6], param[7]);
+		BUG_ON(rc != H_SUCCESS);
+	}
 
 	if (lock_tlbie)
 		spin_unlock_irqrestore(&pSeries_lpar_tlbie_lock, flags);

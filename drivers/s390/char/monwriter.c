@@ -67,8 +67,8 @@ static int monwrite_diag(struct monwrite_hdr *myhdr, char *buffer, int fcn)
 	return -EINVAL;
 }
 
-static inline struct mon_buf *monwrite_find_hdr(struct mon_private *monpriv,
-						struct monwrite_hdr *monhdr)
+static struct mon_buf *monwrite_find_hdr(struct mon_private *monpriv,
+					 struct monwrite_hdr *monhdr)
 {
 	struct mon_buf *entry, *next;
 

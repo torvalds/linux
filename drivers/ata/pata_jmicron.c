@@ -161,16 +161,16 @@ static const struct ata_port_operations jmicron_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	/* IRQ-related hooks */
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
 
 	/* Generic PATA PCI ATA helpers */
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
 };
 
 
@@ -204,20 +204,12 @@ static int jmicron_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 
 	u32 reg;
 
-	if (id->driver_data != 368) {
-		/* Put the controller into AHCI mode in case the AHCI driver
-		   has not yet been loaded. This can be done with either
-		   function present */
+	/* PATA controller is fn 1, AHCI is fn 0 */
+	if (id->driver_data != 368 && PCI_FUNC(pdev->devfn) != 1)
+		return -ENODEV;
 
-		/* FIXME: We may want a way to override this in future */
-		pci_write_config_byte(pdev, 0x41, 0xa1);
-
-		/* PATA controller is fn 1, AHCI is fn 0 */
-		if (PCI_FUNC(pdev->devfn) != 1)
-			return -ENODEV;
-	}
-	if ( id->driver_data == 365 || id->driver_data == 366) {
-		/* The 365/66 have two PATA channels, redirect the second */
+	/* The 365/66 have two PATA channels, redirect the second */
+	if (id->driver_data == 365 || id->driver_data == 366) {
 		pci_read_config_dword(pdev, 0x80, &reg);
 		reg |= (1 << 24);	/* IDE1 to PATA IDE secondary */
 		pci_write_config_dword(pdev, 0x80, reg);
@@ -229,7 +221,7 @@ static int jmicron_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 static int jmicron_reinit_one(struct pci_dev *pdev)
 {
 	u32 reg;
-	
+
 	switch(pdev->device) {
 		case PCI_DEVICE_ID_JMICRON_JMB368:
 			break;

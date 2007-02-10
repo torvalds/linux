@@ -548,6 +548,7 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	target->tx_head	 = 0;
 	target->tx_tail  = 0;
 
+	target->qp_in_error = 0;
 	ret = srp_connect_target(target);
 	if (ret)
 		goto err;
@@ -878,6 +879,7 @@ static void srp_completion(struct ib_cq *cq, void *target_ptr)
 			printk(KERN_ERR PFX "failed %s status %d\n",
 			       wc.wr_id & SRP_OP_RECV ? "receive" : "send",
 			       wc.status);
+			target->qp_in_error = 1;
 			break;
 		}
 
@@ -1337,6 +1339,8 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 
 	printk(KERN_ERR "SRP abort called\n");
 
+	if (target->qp_in_error)
+		return FAILED;
 	if (srp_find_req(target, scmnd, &req))
 		return FAILED;
 	if (srp_send_tsk_mgmt(target, req, SRP_TSK_ABORT_TASK))
@@ -1365,6 +1369,8 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 
 	printk(KERN_ERR "SRP reset_device called\n");
 
+	if (target->qp_in_error)
+		return FAILED;
 	if (srp_find_req(target, scmnd, &req))
 		return FAILED;
 	if (srp_send_tsk_mgmt(target, req, SRP_TSK_LUN_RESET))
@@ -1801,6 +1807,7 @@ static ssize_t srp_create_target(struct class_device *class_dev,
 		goto err_free;
 	}
 
+	target->qp_in_error = 0;
 	ret = srp_connect_target(target);
 	if (ret) {
 		printk(KERN_ERR PFX "Connection failed\n");

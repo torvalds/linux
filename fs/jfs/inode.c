@@ -182,9 +182,9 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 	 * Take appropriate lock on inode
 	 */
 	if (create)
-		IWRITE_LOCK(ip);
+		IWRITE_LOCK(ip, RDWRLOCK_NORMAL);
 	else
-		IREAD_LOCK(ip);
+		IREAD_LOCK(ip, RDWRLOCK_NORMAL);
 
 	if (((lblock64 << ip->i_sb->s_blocksize_bits) < ip->i_size) &&
 	    (!xtLookup(ip, lblock64, xlen, &xflag, &xaddr, &xlen, 0)) &&
@@ -359,7 +359,7 @@ void jfs_truncate(struct inode *ip)
 
 	nobh_truncate_page(ip->i_mapping, ip->i_size);
 
-	IWRITE_LOCK(ip);
+	IWRITE_LOCK(ip, RDWRLOCK_NORMAL);
 	jfs_truncate_nolock(ip, ip->i_size);
 	IWRITE_UNLOCK(ip);
 }

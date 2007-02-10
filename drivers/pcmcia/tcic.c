@@ -512,7 +512,7 @@ static int __init init_tcic(void)
     for (i = 0; i < sockets; i++) {
 	    socket_table[i].socket.ops = &tcic_operations;
 	    socket_table[i].socket.resource_ops = &pccard_nonstatic_ops;
-	    socket_table[i].socket.dev.dev = &tcic_device.dev;
+	    socket_table[i].socket.dev.parent = &tcic_device.dev;
 	    ret = pcmcia_register_socket(&socket_table[i].socket);
 	    if (ret && i)
 		    pcmcia_unregister_socket(&socket_table[0].socket);

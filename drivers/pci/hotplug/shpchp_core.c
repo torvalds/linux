@@ -401,10 +401,6 @@ static int __init shpcd_init(void)
 {
 	int retval = 0;
 
-#ifdef CONFIG_HOTPLUG_PCI_SHPC_POLL_EVENT_MODE
-	shpchp_poll_mode = 1;
-#endif
-
 	retval = pci_register_driver(&shpc_driver);
 	dbg("%s: pci_register_driver = %d\n", __FUNCTION__, retval);
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");

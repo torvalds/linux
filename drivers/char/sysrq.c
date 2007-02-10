@@ -215,7 +215,7 @@ static void sysrq_handle_showstate_blocked(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_showstate_blocked_op = {
 	.handler	= sysrq_handle_showstate_blocked,
-	.help_msg	= "showBlockedTasks",
+	.help_msg	= "shoW-blocked-tasks",
 	.action_msg	= "Show Blocked State",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -315,15 +315,16 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	&sysrq_loglevel_op,		/* 9 */
 
 	/*
-	 * Don't use for system provided sysrqs, it is handled specially on
-	 * sparc and will never arrive
+	 * a: Don't use for system provided sysrqs, it is handled specially on
+	 * sparc and will never arrive.
 	 */
 	NULL,				/* a */
 	&sysrq_reboot_op,		/* b */
-	&sysrq_crashdump_op,		/* c */
+	&sysrq_crashdump_op,		/* c & ibm_emac driver debug */
 	&sysrq_showlocks_op,		/* d */
 	&sysrq_term_op,			/* e */
 	&sysrq_moom_op,			/* f */
+	/* g: May be registered by ppc for kgdb */
 	NULL,				/* g */
 	NULL,				/* h */
 	&sysrq_kill_op,			/* i */
@@ -332,18 +333,19 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	NULL,				/* l */
 	&sysrq_showmem_op,		/* m */
 	&sysrq_unrt_op,			/* n */
-	/* This will often be registered as 'Off' at init time */
+	/* o: This will often be registered as 'Off' at init time */
 	NULL,				/* o */
 	&sysrq_showregs_op,		/* p */
 	NULL,				/* q */
-	&sysrq_unraw_op,			/* r */
+	&sysrq_unraw_op,		/* r */
 	&sysrq_sync_op,			/* s */
 	&sysrq_showstate_op,		/* t */
 	&sysrq_mountro_op,		/* u */
-	/* May be assigned at init time by SMP VOYAGER */
+	/* v: May be registered at init time by SMP VOYAGER */
 	NULL,				/* v */
-	NULL,				/* w */
-	&sysrq_showstate_blocked_op,	/* x */
+	&sysrq_showstate_blocked_op,	/* w */
+	/* x: May be registered on ppc/powerpc for xmon */
+	NULL,				/* x */
 	NULL,				/* y */
 	NULL				/* z */
 };

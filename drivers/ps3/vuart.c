@@ -783,8 +783,8 @@ static int ps3_vuart_probe(struct device *_dev)
 
 	vuart_private.in_use++;
 	if (vuart_private.in_use == 1) {
-		result = ps3_alloc_vuart_irq((void*)&vuart_private.bmp.status,
-			&vuart_private.virq);
+		result = ps3_alloc_vuart_irq(PS3_BINDING_CPU_ANY,
+			(void*)&vuart_private.bmp.status, &vuart_private.virq);
 
 		if (result) {
 			dev_dbg(&dev->core,

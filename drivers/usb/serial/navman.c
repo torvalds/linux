@@ -119,6 +119,7 @@ static struct usb_serial_driver navman_device = {
 		.name =		"navman",
 	},
 	.id_table =		id_table,
+	.usb_driver =		&navman_driver,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
 	.num_bulk_out =		NUM_DONT_CARE,

@@ -144,7 +144,7 @@ static void end_cpu_irq(unsigned int irq)
 }
 
 static struct irq_chip ip32_cpu_interrupt = {
-	.typename = "IP32 CPU",
+	.name = "IP32 CPU",
 	.ack = disable_cpu_irq,
 	.mask = disable_cpu_irq,
 	.mask_ack = disable_cpu_irq,
@@ -193,7 +193,7 @@ static void end_crime_irq(unsigned int irq)
 }
 
 static struct irq_chip ip32_crime_interrupt = {
-	.typename = "IP32 CRIME",
+	.name = "IP32 CRIME",
 	.ack = mask_and_ack_crime_irq,
 	.mask = disable_crime_irq,
 	.mask_ack = mask_and_ack_crime_irq,
@@ -234,7 +234,7 @@ static void end_macepci_irq(unsigned int irq)
 }
 
 static struct irq_chip ip32_macepci_interrupt = {
-	.typename = "IP32 MACE PCI",
+	.name = "IP32 MACE PCI",
 	.ack = disable_macepci_irq,
 	.mask = disable_macepci_irq,
 	.mask_ack = disable_macepci_irq,
@@ -347,7 +347,7 @@ static void end_maceisa_irq(unsigned irq)
 }
 
 static struct irq_chip ip32_maceisa_interrupt = {
-	.typename = "IP32 MACE ISA",
+	.name = "IP32 MACE ISA",
 	.ack = mask_and_ack_maceisa_irq,
 	.mask = disable_maceisa_irq,
 	.mask_ack = mask_and_ack_maceisa_irq,
@@ -379,7 +379,7 @@ static void end_mace_irq(unsigned int irq)
 }
 
 static struct irq_chip ip32_mace_interrupt = {
-	.typename = "IP32 MACE",
+	.name = "IP32 MACE",
 	.ack = disable_mace_irq,
 	.mask = disable_mace_irq,
 	.mask_ack = disable_mace_irq,

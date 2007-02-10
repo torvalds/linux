@@ -33,7 +33,6 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
-#include <asm/io.h>
 
 #define DRV_NAME	"pata_pdc2027x"
 #define DRV_VERSION	"0.74-ac5"
@@ -46,6 +45,8 @@
 #endif
 
 enum {
+	PDC_MMIO_BAR		= 5,
+
 	PDC_UDMA_100		= 0,
 	PDC_UDMA_133		= 1,
 
@@ -62,7 +63,6 @@ enum {
 };
 
 static int pdc2027x_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
-static void pdc2027x_remove_one(struct pci_dev *pdev);
 static void pdc2027x_error_handler(struct ata_port *ap);
 static void pdc2027x_set_piomode(struct ata_port *ap, struct ata_device *adev);
 static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev);
@@ -123,7 +123,7 @@ static struct pci_driver pdc2027x_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= pdc2027x_pci_tbl,
 	.probe			= pdc2027x_init_one,
-	.remove			= __devexit_p(pdc2027x_remove_one),
+	.remove			= ata_pci_remove_one,
 };
 
 static struct scsi_host_template pdc2027x_sht = {
@@ -160,7 +160,7 @@ static struct ata_port_operations pdc2027x_pata100_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_mmio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
@@ -169,10 +169,10 @@ static struct ata_port_operations pdc2027x_pata100_ops = {
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_pci_host_stop,
 };
 
 static struct ata_port_operations pdc2027x_pata133_ops = {
@@ -194,7 +194,7 @@ static struct ata_port_operations pdc2027x_pata133_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_mmio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
@@ -203,10 +203,10 @@ static struct ata_port_operations pdc2027x_pata133_ops = {
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_pci_host_stop,
 };
 
 static struct ata_port_info pdc2027x_port_info[] = {
@@ -245,7 +245,7 @@ MODULE_DEVICE_TABLE(pci, pdc2027x_pci_tbl);
  */
 static inline void __iomem *port_mmio(struct ata_port *ap, unsigned int offset)
 {
-	return ap->host->mmio_base + ap->port_no * 0x100 + offset;
+	return ap->host->iomap[PDC_MMIO_BAR] + ap->port_no * 0x100 + offset;
 }
 
 /**
@@ -526,18 +526,19 @@ static int pdc2027x_check_atapi_dma(struct ata_queued_cmd *qc)
 
 static long pdc_read_counter(struct ata_probe_ent *probe_ent)
 {
+	void __iomem *mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
 	long counter;
 	int retry = 1;
 	u32 bccrl, bccrh, bccrlv, bccrhv;
 
 retry:
-	bccrl = readl(probe_ent->mmio_base + PDC_BYTE_COUNT) & 0xffff;
-	bccrh = readl(probe_ent->mmio_base + PDC_BYTE_COUNT + 0x100) & 0xffff;
+	bccrl = readl(mmio_base + PDC_BYTE_COUNT) & 0xffff;
+	bccrh = readl(mmio_base + PDC_BYTE_COUNT + 0x100) & 0xffff;
 	rmb();
 
 	/* Read the counter values again for verification */
-	bccrlv = readl(probe_ent->mmio_base + PDC_BYTE_COUNT) & 0xffff;
-	bccrhv = readl(probe_ent->mmio_base + PDC_BYTE_COUNT + 0x100) & 0xffff;
+	bccrlv = readl(mmio_base + PDC_BYTE_COUNT) & 0xffff;
+	bccrhv = readl(mmio_base + PDC_BYTE_COUNT + 0x100) & 0xffff;
 	rmb();
 
 	counter = (bccrh << 15) | bccrl;
@@ -568,7 +569,7 @@ retry:
  */
 static void pdc_adjust_pll(struct ata_probe_ent *probe_ent, long pll_clock, unsigned int board_idx)
 {
-
+	void __iomem *mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
 	u16 pll_ctl;
 	long pll_clock_khz = pll_clock / 1000;
 	long pout_required = board_idx? PDC_133_MHZ:PDC_100_MHZ;
@@ -587,7 +588,7 @@ static void pdc_adjust_pll(struct ata_probe_ent *probe_ent, long pll_clock, unsi
 	/* Show the current clock value of PLL control register
 	 * (maybe already configured by the firmware)
 	 */
-	pll_ctl = readw(probe_ent->mmio_base + PDC_PLL_CTL);
+	pll_ctl = readw(mmio_base + PDC_PLL_CTL);
 
 	PDPRINTK("pll_ctl[%X]\n", pll_ctl);
 #endif
@@ -627,8 +628,8 @@ static void pdc_adjust_pll(struct ata_probe_ent *probe_ent, long pll_clock, unsi
 
 	PDPRINTK("Writing pll_ctl[%X]\n", pll_ctl);
 
-	writew(pll_ctl, probe_ent->mmio_base + PDC_PLL_CTL);
-	readw(probe_ent->mmio_base + PDC_PLL_CTL); /* flush */
+	writew(pll_ctl, mmio_base + PDC_PLL_CTL);
+	readw(mmio_base + PDC_PLL_CTL); /* flush */
 
 	/* Wait the PLL circuit to be stable */
 	mdelay(30);
@@ -638,7 +639,7 @@ static void pdc_adjust_pll(struct ata_probe_ent *probe_ent, long pll_clock, unsi
 	 *  Show the current clock value of PLL control register
 	 * (maybe configured by the firmware)
 	 */
-	pll_ctl = readw(probe_ent->mmio_base + PDC_PLL_CTL);
+	pll_ctl = readw(mmio_base + PDC_PLL_CTL);
 
 	PDPRINTK("pll_ctl[%X]\n", pll_ctl);
 #endif
@@ -654,6 +655,7 @@ static void pdc_adjust_pll(struct ata_probe_ent *probe_ent, long pll_clock, unsi
  */
 static long pdc_detect_pll_input_clock(struct ata_probe_ent *probe_ent)
 {
+	void __iomem *mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
 	u32 scr;
 	long start_count, end_count;
 	long pll_clock;
@@ -662,10 +664,10 @@ static long pdc_detect_pll_input_clock(struct ata_probe_ent *probe_ent)
 	start_count = pdc_read_counter(probe_ent);
 
 	/* Start the test mode */
-	scr = readl(probe_ent->mmio_base + PDC_SYS_CTL);
+	scr = readl(mmio_base + PDC_SYS_CTL);
 	PDPRINTK("scr[%X]\n", scr);
-	writel(scr | (0x01 << 14), probe_ent->mmio_base + PDC_SYS_CTL);
-	readl(probe_ent->mmio_base + PDC_SYS_CTL); /* flush */
+	writel(scr | (0x01 << 14), mmio_base + PDC_SYS_CTL);
+	readl(mmio_base + PDC_SYS_CTL); /* flush */
 
 	/* Let the counter run for 100 ms. */
 	mdelay(100);
@@ -674,10 +676,10 @@ static long pdc_detect_pll_input_clock(struct ata_probe_ent *probe_ent)
 	end_count = pdc_read_counter(probe_ent);
 
 	/* Stop the test mode */
-	scr = readl(probe_ent->mmio_base + PDC_SYS_CTL);
+	scr = readl(mmio_base + PDC_SYS_CTL);
 	PDPRINTK("scr[%X]\n", scr);
-	writel(scr & ~(0x01 << 14), probe_ent->mmio_base + PDC_SYS_CTL);
-	readl(probe_ent->mmio_base + PDC_SYS_CTL); /* flush */
+	writel(scr & ~(0x01 << 14), mmio_base + PDC_SYS_CTL);
+	readl(mmio_base + PDC_SYS_CTL); /* flush */
 
 	/* calculate the input clock in Hz */
 	pll_clock = (start_count - end_count) * 10;
@@ -722,7 +724,7 @@ static int pdc_hardware_init(struct pci_dev *pdev, struct ata_probe_ent *pe, uns
  * @port: ata ioports to setup
  * @base: base address
  */
-static void pdc_ata_setup_port(struct ata_ioports *port, unsigned long base)
+static void pdc_ata_setup_port(struct ata_ioports *port, void __iomem *base)
 {
 	port->cmd_addr		=
 	port->data_addr		= base;
@@ -755,47 +757,36 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 	static int printed_version;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
 
-	struct ata_probe_ent *probe_ent = NULL;
-	unsigned long base;
+	struct ata_probe_ent *probe_ent;
 	void __iomem *mmio_base;
 	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
-	rc = pci_request_regions(pdev, DRV_NAME);
+	rc = pcim_iomap_regions(pdev, 1 << PDC_MMIO_BAR, DRV_NAME);
 	if (rc)
-		goto err_out;
+		return rc;
 
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 
 	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 
 	/* Prepare the probe entry */
-	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL) {
-		rc = -ENOMEM;
-		goto err_out_regions;
-	}
+	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
+	if (probe_ent == NULL)
+		return -ENOMEM;
 
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
-
-	mmio_base = pci_iomap(pdev, 5, 0);
-	if (!mmio_base) {
-		rc = -ENOMEM;
-		goto err_out_free_ent;
-	}
-
-	base = (unsigned long) mmio_base;
 
 	probe_ent->sht		= pdc2027x_port_info[board_idx].sht;
 	probe_ent->port_flags	= pdc2027x_port_info[board_idx].flags;
@@ -806,12 +797,14 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 
        	probe_ent->irq = pdev->irq;
        	probe_ent->irq_flags = SA_SHIRQ;
-	probe_ent->mmio_base = mmio_base;
+	probe_ent->iomap = pcim_iomap_table(pdev);
 
-	pdc_ata_setup_port(&probe_ent->port[0], base + 0x17c0);
-	probe_ent->port[0].bmdma_addr = base + 0x1000;
-	pdc_ata_setup_port(&probe_ent->port[1], base + 0x15c0);
-	probe_ent->port[1].bmdma_addr = base + 0x1008;
+	mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
+
+	pdc_ata_setup_port(&probe_ent->port[0], mmio_base + 0x17c0);
+	probe_ent->port[0].bmdma_addr = mmio_base + 0x1000;
+	pdc_ata_setup_port(&probe_ent->port[1], mmio_base + 0x15c0);
+	probe_ent->port[1].bmdma_addr = mmio_base + 0x1008;
 
 	probe_ent->n_ports = 2;
 
@@ -820,32 +813,13 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 
 	/* initialize adapter */
 	if (pdc_hardware_init(pdev, probe_ent, board_idx) != 0)
-		goto err_out_free_ent;
+		return -EIO;
 
-	ata_device_add(probe_ent);
-	kfree(probe_ent);
+	if (!ata_device_add(probe_ent))
+		return -ENODEV;
 
+	devm_kfree(&pdev->dev, probe_ent);
 	return 0;
-
-err_out_free_ent:
-	kfree(probe_ent);
-err_out_regions:
-	pci_release_regions(pdev);
-err_out:
-	pci_disable_device(pdev);
-	return rc;
-}
-
-/**
- * pdc2027x_remove_one - Called to remove a single instance of the
- * adapter.
- *
- * @dev: The PCI device to remove.
- * FIXME: module load/unload not working yet
- */
-static void __devexit pdc2027x_remove_one(struct pci_dev *pdev)
-{
-	ata_pci_remove_one(pdev);
 }
 
 /**

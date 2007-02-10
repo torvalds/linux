@@ -572,7 +572,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	p_dev->func   = function;
 
 	p_dev->dev.bus = &pcmcia_bus_type;
-	p_dev->dev.parent = s->dev.dev;
+	p_dev->dev.parent = s->dev.parent;
 	p_dev->dev.release = pcmcia_release_dev;
 	bus_id_len = sprintf (p_dev->dev.bus_id, "%d.%d", p_dev->socket->sock, p_dev->device_no);
 
@@ -1328,10 +1328,10 @@ static struct pcmcia_callback pcmcia_bus_callback = {
 	.resume = pcmcia_bus_resume,
 };
 
-static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev,
+static int __devinit pcmcia_bus_add_socket(struct device *dev,
 					   struct class_interface *class_intf)
 {
-	struct pcmcia_socket *socket = class_get_devdata(class_dev);
+	struct pcmcia_socket *socket = dev_get_drvdata(dev);
 	int ret;
 
 	socket = pcmcia_get_socket(socket);
@@ -1364,10 +1364,10 @@ static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev,
 	return 0;
 }
 
-static void pcmcia_bus_remove_socket(struct class_device *class_dev,
+static void pcmcia_bus_remove_socket(struct device *dev,
 				     struct class_interface *class_intf)
 {
-	struct pcmcia_socket *socket = class_get_devdata(class_dev);
+	struct pcmcia_socket *socket = dev_get_drvdata(dev);
 
 	if (!socket)
 		return;
@@ -1389,8 +1389,8 @@ static void pcmcia_bus_remove_socket(struct class_device *class_dev,
 /* the pcmcia_bus_interface is used to handle pcmcia socket devices */
 static struct class_interface pcmcia_bus_interface = {
 	.class = &pcmcia_socket_class,
-	.add = &pcmcia_bus_add_socket,
-	.remove = &pcmcia_bus_remove_socket,
+	.add_dev = &pcmcia_bus_add_socket,
+	.remove_dev = &pcmcia_bus_remove_socket,
 };
 
 

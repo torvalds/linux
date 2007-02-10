@@ -149,7 +149,8 @@ static int cbe_nr_iommus;
 static void invalidate_tce_cache(struct cbe_iommu *iommu, unsigned long *pte,
 		long n_ptes)
 {
-	unsigned long *reg, val;
+	unsigned long __iomem *reg;
+	unsigned long val;
 	long n;
 
 	reg = iommu->xlate_regs + IOC_IOPT_CacheInvd;
@@ -592,7 +593,7 @@ static void __init cell_iommu_init_one(struct device_node *np, unsigned long off
 	/* Init base fields */
 	i = cbe_nr_iommus++;
 	iommu = &iommus[i];
-	iommu->stab = 0;
+	iommu->stab = NULL;
 	iommu->nid = nid;
 	snprintf(iommu->name, sizeof(iommu->name), "iommu%d", i);
 	INIT_LIST_HEAD(&iommu->windows);

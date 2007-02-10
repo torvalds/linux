@@ -2627,7 +2627,7 @@ static int snd_trident_vol_control_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_gvol, -6375, 25, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_gvol, -6375, 25, 0);
 
 static int snd_trident_vol_control_put(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
@@ -2844,7 +2844,7 @@ static int snd_trident_pcm_rvol_control_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_crvol, -3175, 25, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_crvol, -3175, 25, 1);
 
 static struct snd_kcontrol_new snd_trident_pcm_rvol_control __devinitdata =
 {

@@ -48,7 +48,6 @@ static u8 pcmcia_used_irq[NR_IRQS];
 
 #ifdef DEBUG
 extern int ds_pc_debug;
-#define cs_socket_name(skt)    ((skt)->dev.class_id)
 
 #define ds_dbg(skt, lvl, fmt, arg...) do {			\
 	if (ds_pc_debug >= lvl)					\

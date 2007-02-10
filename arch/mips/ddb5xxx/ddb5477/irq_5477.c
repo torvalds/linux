@@ -82,7 +82,7 @@ vrc5477_irq_end(unsigned int irq)
 }
 
 struct irq_chip vrc5477_irq_controller = {
-	.typename = "vrc5477_irq",
+	.name = "vrc5477_irq",
 	.ack = vrc5477_irq_ack,
 	.mask = vrc5477_irq_disable,
 	.mask_ack = vrc5477_irq_ack,

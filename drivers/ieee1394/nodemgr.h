@@ -70,7 +70,6 @@ struct unit_directory {
 
 	quadlet_t vendor_id;
 	struct csr1212_keyval *vendor_name_kv;
-	const char *vendor_oui;
 
 	quadlet_t model_id;
 	struct csr1212_keyval *model_name_kv;
@@ -93,7 +92,6 @@ struct unit_directory {
 struct node_entry {
 	u64 guid;			/* GUID of this node */
 	u32 guid_vendor_id;		/* Top 24bits of guid */
-	const char *guid_vendor_oui;	/* OUI name of guid vendor id */
 
 	struct hpsb_host *host;		/* Host this node is attached to */
 	nodeid_t nodeid;		/* NodeID */
@@ -104,7 +102,6 @@ struct node_entry {
 	/* The following is read from the config rom */
 	u32 vendor_id;
 	struct csr1212_keyval *vendor_name_kv;
-	const char *vendor_oui;
 
 	u32 capabilities;
 

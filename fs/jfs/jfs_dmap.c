@@ -337,7 +337,7 @@ int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
 	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct bmap *bmp = JFS_SBI(ip->i_sb)->bmap;
 
-	IREAD_LOCK(ipbmap);
+	IREAD_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 	/* block to be freed better be within the mapsize. */
 	if (unlikely((blkno == 0) || (blkno + nblocks > bmp->db_mapsize))) {
@@ -733,7 +733,7 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	 * allocation group size, try to allocate anywhere.
 	 */
 	if (l2nb > bmp->db_agl2size) {
-		IWRITE_LOCK(ipbmap);
+		IWRITE_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 		rc = dbAllocAny(bmp, nblocks, l2nb, results);
 
@@ -774,7 +774,7 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	 * the hint using a tiered strategy.
 	 */
 	if (nblocks <= BPERDMAP) {
-		IREAD_LOCK(ipbmap);
+		IREAD_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 		/* get the buffer for the dmap containing the hint.
 		 */
@@ -844,7 +844,7 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	/* try to satisfy the allocation request with blocks within
 	 * the same allocation group as the hint.
 	 */
-	IWRITE_LOCK(ipbmap);
+	IWRITE_LOCK(ipbmap, RDWRLOCK_DMAP);
 	if ((rc = dbAllocAG(bmp, agno, nblocks, l2nb, results)) != -ENOSPC)
 		goto write_unlock;
 
@@ -856,7 +856,7 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	 * Let dbNextAG recommend a preferred allocation group
 	 */
 	agno = dbNextAG(ipbmap);
-	IWRITE_LOCK(ipbmap);
+	IWRITE_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 	/* Try to allocate within this allocation group.  if that fails, try to
 	 * allocate anywhere in the map.
@@ -900,7 +900,7 @@ int dbAllocExact(struct inode *ip, s64 blkno, int nblocks)
 	s64 lblkno;
 	struct metapage *mp;
 
-	IREAD_LOCK(ipbmap);
+	IREAD_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 	/*
 	 * validate extent request:
@@ -1050,7 +1050,7 @@ static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
 	 */
 	extblkno = lastblkno + 1;
 
-	IREAD_LOCK(ipbmap);
+	IREAD_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 	/* better be within the file system */
 	bmp = sbi->bmap;
@@ -3116,7 +3116,7 @@ int dbAllocBottomUp(struct inode *ip, s64 blkno, s64 nblocks)
 	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct bmap *bmp = JFS_SBI(ip->i_sb)->bmap;
 
-	IREAD_LOCK(ipbmap);
+	IREAD_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 	/* block to be allocated better be within the mapsize. */
 	ASSERT(nblocks <= bmp->db_mapsize - blkno);
