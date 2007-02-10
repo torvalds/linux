@@ -244,7 +244,7 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 
 		sum_forward_deps += count_forward_deps(class);
 	}
-#ifdef CONFIG_LOCKDEP_DEBUG
+#ifdef CONFIG_DEBUG_LOCKDEP
 	DEBUG_LOCKS_WARN_ON(debug_atomic_read(&nr_unused_locks) != nr_unused);
 #endif
 	seq_printf(m, " lock-classes:                  %11lu [max: %lu]\n",
