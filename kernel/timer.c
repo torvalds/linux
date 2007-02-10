@@ -1392,17 +1392,16 @@ asmlinkage long sys_gettid(void)
 }
 
 /**
- * sys_sysinfo - fill in sysinfo struct
+ * do_sysinfo - fill in sysinfo struct
  * @info: pointer to buffer to fill
  */ 
-asmlinkage long sys_sysinfo(struct sysinfo __user *info)
+int do_sysinfo(struct sysinfo *info)
 {
-	struct sysinfo val;
 	unsigned long mem_total, sav_total;
 	unsigned int mem_unit, bitcount;
 	unsigned long seq;
 
-	memset((char *)&val, 0, sizeof(struct sysinfo));
+	memset(info, 0, sizeof(struct sysinfo));
 
 	do {
 		struct timespec tp;
@@ -1422,17 +1421,17 @@ asmlinkage long sys_sysinfo(struct sysinfo __user *info)
 			tp.tv_nsec = tp.tv_nsec - NSEC_PER_SEC;
 			tp.tv_sec++;
 		}
-		val.uptime = tp.tv_sec + (tp.tv_nsec ? 1 : 0);
+		info->uptime = tp.tv_sec + (tp.tv_nsec ? 1 : 0);
 
-		val.loads[0] = avenrun[0] << (SI_LOAD_SHIFT - FSHIFT);
-		val.loads[1] = avenrun[1] << (SI_LOAD_SHIFT - FSHIFT);
-		val.loads[2] = avenrun[2] << (SI_LOAD_SHIFT - FSHIFT);
+		info->loads[0] = avenrun[0] << (SI_LOAD_SHIFT - FSHIFT);
+		info->loads[1] = avenrun[1] << (SI_LOAD_SHIFT - FSHIFT);
+		info->loads[2] = avenrun[2] << (SI_LOAD_SHIFT - FSHIFT);
 
-		val.procs = nr_threads;
+		info->procs = nr_threads;
 	} while (read_seqretry(&xtime_lock, seq));
 
-	si_meminfo(&val);
-	si_swapinfo(&val);
+	si_meminfo(info);
+	si_swapinfo(info);
 
 	/*
 	 * If the sum of all the available memory (i.e. ram + swap)
@@ -1443,11 +1442,11 @@ asmlinkage long sys_sysinfo(struct sysinfo __user *info)
 	 *  -Erik Andersen <andersee@debian.org>
 	 */
 
-	mem_total = val.totalram + val.totalswap;
-	if (mem_total < val.totalram || mem_total < val.totalswap)
+	mem_total = info->totalram + info->totalswap;
+	if (mem_total < info->totalram || mem_total < info->totalswap)
 		goto out;
 	bitcount = 0;
-	mem_unit = val.mem_unit;
+	mem_unit = info->mem_unit;
 	while (mem_unit > 1) {
 		bitcount++;
 		mem_unit >>= 1;
@@ -1459,22 +1458,31 @@ asmlinkage long sys_sysinfo(struct sysinfo __user *info)
 
 	/*
 	 * If mem_total did not overflow, multiply all memory values by
-	 * val.mem_unit and set it to 1.  This leaves things compatible
+	 * info->mem_unit and set it to 1.  This leaves things compatible
 	 * with 2.2.x, and also retains compatibility with earlier 2.4.x
 	 * kernels...
 	 */
 
-	val.mem_unit = 1;
-	val.totalram <<= bitcount;
-	val.freeram <<= bitcount;
-	val.sharedram <<= bitcount;
-	val.bufferram <<= bitcount;
-	val.totalswap <<= bitcount;
-	val.freeswap <<= bitcount;
-	val.totalhigh <<= bitcount;
-	val.freehigh <<= bitcount;
+	info->mem_unit = 1;
+	info->totalram <<= bitcount;
+	info->freeram <<= bitcount;
+	info->sharedram <<= bitcount;
+	info->bufferram <<= bitcount;
+	info->totalswap <<= bitcount;
+	info->freeswap <<= bitcount;
+	info->totalhigh <<= bitcount;
+	info->freehigh <<= bitcount;
 
- out:
+out:
+	return 0;
+}
+
+asmlinkage long sys_sysinfo(struct sysinfo __user *info)
+{
+	struct sysinfo val;
+
+	do_sysinfo(&val);
+
 	if (copy_to_user(info, &val, sizeof(struct sysinfo)))
 		return -EFAULT;
 

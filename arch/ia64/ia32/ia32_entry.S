@@ -326,7 +326,7 @@ ia32_syscall_table:
 	data8 sys_ni_syscall
 	data8 compat_sys_wait4
 	data8 sys_swapoff	  /* 115 */
-	data8 sys32_sysinfo
+	data8 compat_sys_sysinfo
 	data8 sys32_ipc
 	data8 sys_fsync
 	data8 sys32_sigreturn

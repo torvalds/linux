@@ -313,6 +313,9 @@ static inline int __attribute__ ((format (printf, 1, 2))) pr_debug(const char * 
 	(void)__tmp; \
 })
 
+struct sysinfo;
+extern int do_sysinfo(struct sysinfo *info);
+
 #endif /* __KERNEL__ */
 
 #define SI_LOAD_SHIFT	16
