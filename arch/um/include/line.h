@@ -35,7 +35,6 @@ struct line {
 	spinlock_t count_lock;
 	int valid;
 
-	struct mutex open_mutex;
 	char *init_str;
 	int init_pri;
 	struct list_head chan_list;
