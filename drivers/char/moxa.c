@@ -102,18 +102,12 @@ static struct moxa_isa_board_conf moxa_isa_boards[] =
 /*       {MOXA_BOARD_C218_ISA,8,0xDC000}, */
 };
 
-struct moxa_pci_devinfo {
-	ushort busNum;
-	ushort devNum;
-	struct pci_dev *pdev;
-};
-
 struct moxa_board_conf {
 	int boardType;
 	int numPorts;
 	unsigned long baseAddr;
 	int busType;
-	struct moxa_pci_devinfo pciInfo;
+	struct pci_dev *pdev;
 };
 
 static struct moxa_board_conf moxa_boards[MAX_BOARDS];
@@ -284,11 +278,8 @@ static int moxa_get_PCI_conf(struct pci_dev *p, int board_type,
 		break;
 	}
 	board->busType = MOXA_BUS_TYPE_PCI;
-	board->pciInfo.busNum = p->bus->number;
-	board->pciInfo.devNum = p->devfn >> 3;
-	board->pciInfo.pdev = p;
 	/* don't lose the reference in the next pci_get_device iteration */
-	pci_dev_get(p);
+	board->pdev = pci_dev_get(p);
 
 	return (0);
 }
@@ -437,7 +428,7 @@ static void __exit moxa_exit(void)
 		if (moxaBaseAddr[i])
 			iounmap(moxaBaseAddr[i]);
 		if (moxa_boards[i].busType == MOXA_BUS_TYPE_PCI)
-			pci_dev_put(moxa_boards[i].pciInfo.pdev);
+			pci_dev_put(moxa_boards[i].pdev);
 	}
 
 	if (verbose)
