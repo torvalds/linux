@@ -122,7 +122,7 @@ static ssize_t snapshot_write(struct file *filp, const char __user *buf,
 	return res;
 }
 
-static inline int snapshot_suspend(void)
+static int snapshot_suspend(void)
 {
 	int error;
 
@@ -151,7 +151,7 @@ static inline int snapshot_suspend(void)
 	return error;
 }
 
-static inline int snapshot_restore(void)
+static int snapshot_restore(void)
 {
 	int error;
 
