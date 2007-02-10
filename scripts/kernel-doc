@@ -1433,7 +1433,7 @@ sub create_parameterlist($$$) {
 	} elsif ($arg =~ m/\(.*\*/) {
 	    # pointer-to-function
 	    $arg =~ tr/#/,/;
-	    $arg =~ m/[^\(]+\(\*([^\)]+)\)/;
+	    $arg =~ m/[^\(]+\(\*\s*([^\)]+)\)/;
 	    $param = $1;
 	    $type = $arg;
 	    $type =~ s/([^\(]+\(\*)$param/$1/;
@@ -1536,7 +1536,7 @@ sub dump_function($$) {
     $prototype =~ s/^__always_inline +//;
     $prototype =~ s/^noinline +//;
     $prototype =~ s/__devinit +//;
-    $prototype =~ s/^#define +//; #ak added
+    $prototype =~ s/^#define\s+//; #ak added
     $prototype =~ s/__attribute__ \(\([a-z,]*\)\)//;
 
     # Yes, this truly is vile.  We are looking for:
