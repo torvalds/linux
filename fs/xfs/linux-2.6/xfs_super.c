@@ -553,7 +553,6 @@ vfs_sync_worker(
 		error = bhv_vfs_sync(vfsp, SYNC_FSDATA | SYNC_BDFLUSH | \
 					SYNC_ATTR | SYNC_REFCACHE, NULL);
 	vfsp->vfs_sync_seq++;
-	wmb();
 	wake_up(&vfsp->vfs_wait_single_sync_task);
 }
 
