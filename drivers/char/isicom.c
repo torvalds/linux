@@ -564,6 +564,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 	port = card->ports + channel;
 	if (!(port->flags & ASYNC_INITIALIZED)) {
 		outw(0x0000, base+0x04); /* enable interrupts */
+		spin_unlock(&card->card_lock);
 		return IRQ_HANDLED;
 	}
 
@@ -678,6 +679,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		tty_flip_buffer_push(tty);
 	}
 	outw(0x0000, base+0x04); /* enable interrupts */
+	spin_unlock(&card->card_lock);
 
 	return IRQ_HANDLED;
 }
