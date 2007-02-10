@@ -902,8 +902,7 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 	if (!info->xmit.buf)
 		return 0;
 
-	local_save_flags(flags);
-	local_irq_disable();
+	local_irq_save(flags);
 	while (1) {
 		c = CIRC_SPACE_TO_END(info->xmit.head,
 				      info->xmit.tail,
