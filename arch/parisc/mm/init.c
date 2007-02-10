@@ -808,9 +808,7 @@ void __init paging_init(void)
 	for (i = 0; i < npmem_ranges; i++) {
 		unsigned long zones_size[MAX_NR_ZONES] = { 0, };
 
-		/* We have an IOMMU, so all memory can go into a single
-		   ZONE_DMA zone. */
-		zones_size[ZONE_DMA] = pmem_ranges[i].pages;
+		zones_size[ZONE_NORMAL] = pmem_ranges[i].pages;
 
 #ifdef CONFIG_DISCONTIGMEM
 		/* Need to initialize the pfnnid_map before we can initialize
