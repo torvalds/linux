@@ -237,8 +237,6 @@ struct mxser_port {
 	long realbaud;
 	int type;		/* UART type */
 	int flags;		/* defined in tty.h */
-	long session;		/* Session of opening process */
-	long pgrp;		/* pgrp of opening process */
 
 	int x_char;		/* xon/xoff character */
 	int IER;		/* Interrupt Enable Register */
@@ -267,14 +265,12 @@ struct mxser_port {
 	int xmit_cnt;
 
 	struct ktermios normal_termios;
-	struct ktermios callout_termios;
 
 	struct mxser_mon mon_data;
 
 	spinlock_t slock;
 	struct work_struct tqueue;
 	wait_queue_head_t open_wait;
-	wait_queue_head_t close_wait;
 	wait_queue_head_t delta_msr_wait;
 };
 
@@ -936,17 +932,6 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	if (retval)
 		return retval;
 
-	if ((info->count == 1) && (info->flags & ASYNC_SPLIT_TERMIOS)) {
-		if (tty->driver->subtype == SERIAL_TYPE_NORMAL)
-			*tty->termios = info->normal_termios;
-		else
-			*tty->termios = info->callout_termios;
-		mxser_change_speed(info, NULL);
-	}
-
-	info->session = process_session(current);
-	info->pgrp = process_group(current);
-
 	/* unmark here for very high baud rate (ex. 921600 bps) used */
 	tty->low_latency = 1;
 	return 0;
@@ -1053,8 +1038,6 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	}
 
 	info->flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
-	wake_up_interruptible(&info->close_wait);
-
 }
 
 static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int count)
@@ -2420,7 +2403,6 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 		INIT_WORK(&info->tqueue, mxser_do_softint);
 		info->normal_termios = mxvar_sdriver->init_termios;
 		init_waitqueue_head(&info->open_wait);
-		init_waitqueue_head(&info->close_wait);
 		init_waitqueue_head(&info->delta_msr_wait);
 		memset(&info->mon_data, 0, sizeof(struct mxser_mon));
 		info->err_shadow = 0;
