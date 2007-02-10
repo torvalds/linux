@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and 
+ * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and
  * James Leu (jleu@mindspring.net).
  * Copyright (C) 2001 by various other people who didn't put their name here.
  * Licensed under the GPL.
@@ -91,8 +91,8 @@ irqreturn_t uml_net_interrupt(int irq, void *dev_id)
 	spin_lock(&lp->lock);
 	while((err = uml_net_rx(dev)) > 0) ;
 	if(err < 0) {
-		printk(KERN_ERR 
-		       "Device '%s' read returned %d, shutting it down\n", 
+		printk(KERN_ERR
+		       "Device '%s' read returned %d, shutting it down\n",
 		       dev->name, err);
 		/* dev_close can't be called in interrupt context, and takes
 		 * again lp->lock.
@@ -159,7 +159,7 @@ out:
 static int uml_net_close(struct net_device *dev)
 {
 	struct uml_net_private *lp = dev->priv;
-	
+
 	netif_stop_queue(dev);
 
 	free_irq(dev->irq, dev);
@@ -194,7 +194,7 @@ static int uml_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* this is normally done in the interrupt when tx finishes */
 		netif_wake_queue(dev);
-	} 
+	}
 	else if(len == 0){
 		netif_start_queue(dev);
 		lp->stats.tx_dropped++;
@@ -333,7 +333,7 @@ static int eth_configure(int n, void *init, char *mac,
 	struct uml_net_private *lp;
 	int save, err, size;
 
-	size = transport->private_size + sizeof(struct uml_net_private) + 
+	size = transport->private_size + sizeof(struct uml_net_private) +
 		sizeof(((struct uml_net_private *) 0)->user);
 
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
@@ -438,7 +438,7 @@ static int eth_configure(int n, void *init, char *mac,
 	lp->tl.function = uml_net_user_timer_expire;
 	memcpy(lp->mac, device->mac, sizeof(lp->mac));
 
-	if (transport->user->init) 
+	if (transport->user->init)
 		(*transport->user->init)(&lp->user, dev);
 
 	set_ether_mac(dev, device->mac);
@@ -463,35 +463,33 @@ static struct uml_net *find_device(int n)
 	return(device);
 }
 
-static int eth_parse(char *str, int *index_out, char **str_out)
+static int eth_parse(char *str, int *index_out, char **str_out,
+		     char **error_out)
 {
 	char *end;
-	int n;
+	int n, err = -EINVAL;;
 
 	n = simple_strtoul(str, &end, 0);
 	if(end == str){
-		printk(KERN_ERR "eth_setup: Failed to parse '%s'\n", str);
-		return(1);
+		*error_out = "Bad device number";
+		return err;
 	}
-	if(n < 0){
-		printk(KERN_ERR "eth_setup: device %d is negative\n", n);
-		return(1);
-	}
+
 	str = end;
 	if(*str != '='){
-		printk(KERN_ERR 
-		       "eth_setup: expected '=' after device number\n");
-		return(1);
+		*error_out = "Expected '=' after device number";
+		return err;
 	}
+
 	str++;
 	if(find_device(n)){
-		printk(KERN_ERR "eth_setup: Device %d already configured\n",
-		       n);
-		return(1);
+		*error_out = "Device already configured";
+		return err;
 	}
-	if(index_out) *index_out = n;
+
+	*index_out = n;
 	*str_out = str;
-	return(0);
+	return 0;
 }
 
 struct eth_init {
@@ -581,11 +579,15 @@ static int eth_setup_common(char *str, int index)
 static int eth_setup(char *str)
 {
 	struct eth_init *new;
+	char *error;
 	int n, err;
 
-	err = eth_parse(str, &n, &str);
-	if(err)
+	err = eth_parse(str, &n, &str, &error);
+	if(err){
+		printk(KERN_ERR "eth_setup - Couldn't parse '%s' : %s\n",
+		       str, error);
 		return 1;
+	}
 
 	new = alloc_bootmem(sizeof(*new));
 	if (new == NULL){
@@ -619,26 +621,30 @@ static int eth_init(void)
 		if(eth_setup_common(eth->init, eth->index))
 			list_del(&eth->list);
 	}
-	
+
 	return(1);
 }
 __initcall(eth_init);
 #endif
 
-static int net_config(char *str)
+static int net_config(char *str, char **error_out)
 {
 	int n, err;
 
-	err = eth_parse(str, &n, &str);
-	if(err) return(err);
+	err = eth_parse(str, &n, &str, error_out);
+	if(err)
+		return err;
 
+	/* This string is broken up and the pieces used by the underlying
+	 * driver.  So, it is freed only if eth_setup_common fails.
+	 */
 	str = kstrdup(str, GFP_KERNEL);
 	if(str == NULL){
-		printk(KERN_ERR "net_config failed to strdup string\n");
-		return(-1);
+	        *error_out = "net_config failed to strdup string";
+		return -ENOMEM;
 	}
 	err = !eth_setup_common(str, n);
-	if(err) 
+	if(err)
 		kfree(str);
 	return(err);
 }
@@ -658,7 +664,7 @@ static int net_id(char **str, int *start_out, int *end_out)
         return n;
 }
 
-static int net_remove(int n)
+static int net_remove(int n, char **error_out)
 {
 	struct uml_net *device;
 	struct net_device *dev;
@@ -727,7 +733,7 @@ struct notifier_block uml_inetaddr_notifier = {
 static int uml_net_init(void)
 {
 	struct list_head *ele;
-	struct uml_net_private *lp;	
+	struct uml_net_private *lp;
 	struct in_device *ip;
 	struct in_ifaddr *in;
 
@@ -747,7 +753,7 @@ static int uml_net_init(void)
 			uml_inetaddr_event(NULL, NETDEV_UP, in);
 			in = in->ifa_next;
 		}
-	}	
+	}
 
 	return(0);
 }
@@ -783,8 +789,8 @@ struct sk_buff *ether_adjust_skb(struct sk_buff *skb, int extra)
 	return(skb);
 }
 
-void iter_addresses(void *d, void (*cb)(unsigned char *, unsigned char *, 
-					void *), 
+void iter_addresses(void *d, void (*cb)(unsigned char *, unsigned char *,
+					void *),
 		    void *arg)
 {
 	struct net_device *dev = d;
@@ -809,11 +815,11 @@ int dev_netmask(void *d, void *m)
 	struct in_ifaddr *in;
 	__be32 *mask_out = m;
 
-	if(ip == NULL) 
+	if(ip == NULL)
 		return(1);
 
 	in = ip->ifa_list;
-	if(in == NULL) 
+	if(in == NULL)
 		return(1);
 
 	*mask_out = in->ifa_mask;
@@ -835,7 +841,7 @@ void free_output_buffer(void *buffer)
 	free_pages((unsigned long) buffer, 0);
 }
 
-int tap_setup_common(char *str, char *type, char **dev_name, char **mac_out, 
+int tap_setup_common(char *str, char *type, char **dev_name, char **mac_out,
 		     char **gate_addr)
 {
 	char *remain;
@@ -854,14 +860,3 @@ unsigned short eth_protocol(struct sk_buff *skb)
 {
 	return(eth_type_trans(skb, skb->dev));
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

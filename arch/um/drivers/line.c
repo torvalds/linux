@@ -549,14 +549,16 @@ void close_lines(struct line *lines, int nlines)
 		close_chan(&lines[i].chan_list, 0);
 }
 
-static void setup_one_line(struct line *lines, int n, char *init, int init_prio)
+static int setup_one_line(struct line *lines, int n, char *init, int init_prio,
+			  char **error_out)
 {
 	struct line *line = &lines[n];
+	int err = -EINVAL;
 
 	spin_lock(&line->count_lock);
 
 	if(line->tty != NULL){
-		printk("line_setup - device %d is open\n", n);
+		*error_out = "Device is already open";
 		goto out;
 	}
 
@@ -569,18 +571,22 @@ static void setup_one_line(struct line *lines, int n, char *init, int init_prio)
 			line->valid = 1;
 		}
 	}
+	err = 0;
 out:
 	spin_unlock(&line->count_lock);
+	return err;
 }
 
 /* Common setup code for both startup command line and mconsole initialization.
  * @lines contains the array (of size @num) to modify;
  * @init is the setup string;
+ * @error_out is an error string in the case of failure;
  */
 
-int line_setup(struct line *lines, unsigned int num, char *init)
+int line_setup(struct line *lines, unsigned int num, char *init,
+	       char **error_out)
 {
-	int i, n;
+	int i, n, err;
 	char *end;
 
 	if(*init == '=') {
@@ -591,52 +597,56 @@ int line_setup(struct line *lines, unsigned int num, char *init)
 	else {
 		n = simple_strtoul(init, &end, 0);
 		if(*end != '='){
-			printk(KERN_ERR "line_setup failed to parse \"%s\"\n",
-			       init);
-			return 0;
+			*error_out = "Couldn't parse device number";
+			return -EINVAL;
 		}
 		init = end;
 	}
 	init++;
 
 	if (n >= (signed int) num) {
-		printk("line_setup - %d out of range ((0 ... %d) allowed)\n",
-		       n, num - 1);
-		return 0;
+		*error_out = "Device number out of range";
+		return -EINVAL;
 	}
-	else if (n >= 0)
-		setup_one_line(lines, n, init, INIT_ONE);
+	else if (n >= 0){
+		err = setup_one_line(lines, n, init, INIT_ONE, error_out);
+		if(err)
+			return err;
+	}
 	else {
-		for(i = 0; i < num; i++)
-			setup_one_line(lines, i, init, INIT_ALL);
+		for(i = 0; i < num; i++){
+			err = setup_one_line(lines, i, init, INIT_ALL,
+					     error_out);
+			if(err)
+				return err;
+		}
 	}
 	return n == -1 ? num : n;
 }
 
 int line_config(struct line *lines, unsigned int num, char *str,
-		const struct chan_opts *opts)
+		const struct chan_opts *opts, char **error_out)
 {
 	struct line *line;
 	char *new;
 	int n;
 
 	if(*str == '='){
-		printk("line_config - can't configure all devices from "
-		       "mconsole\n");
-		return 1;
+		*error_out = "Can't configure all devices from mconsole";
+		return -EINVAL;
 	}
 
 	new = kstrdup(str, GFP_KERNEL);
 	if(new == NULL){
-		printk("line_config - kstrdup failed\n");
-		return 1;
+		*error_out = "Failed to allocate memory";
+		return -ENOMEM;
 	}
-	n = line_setup(lines, num, new);
+	n = line_setup(lines, num, new, error_out);
 	if(n < 0)
-		return 1;
+		return n;
 
 	line = &lines[n];
-	return parse_chan_pair(line->init_str, line, n, opts);
+	return parse_chan_pair(line->init_str, line, n, opts, error_out);
 }
 
 int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
@@ -685,13 +695,13 @@ int line_id(char **str, int *start_out, int *end_out)
         return n;
 }
 
-int line_remove(struct line *lines, unsigned int num, int n)
+int line_remove(struct line *lines, unsigned int num, int n, char **error_out)
 {
 	int err;
 	char config[sizeof("conxxxx=none\0")];
 
 	sprintf(config, "%d=none", n);
-	err = line_setup(lines, num, config);
+	err = line_setup(lines, num, config, error_out);
 	if(err >= 0)
 		err = 0;
 	return err;
@@ -740,6 +750,7 @@ static LIST_HEAD(winch_handlers);
 void lines_init(struct line *lines, int nlines, struct chan_opts *opts)
 {
 	struct line *line;
+	char *error;
 	int i;
 
 	for(i = 0; i < nlines; i++){
@@ -754,8 +765,9 @@ void lines_init(struct line *lines, int nlines, struct chan_opts *opts)
 		if(line->init_str == NULL)
 			printk("lines_init - kstrdup returned NULL\n");
 
-		if(parse_chan_pair(line->init_str, line, i, opts)){
-			printk("parse_chan_pair failed for device %d\n", i);
+		if(parse_chan_pair(line->init_str, line, i, opts, &error)){
+			printk("parse_chan_pair failed for device %d : %s\n",
+			       i, error);
 			line->valid = 0;
 		}
 	}

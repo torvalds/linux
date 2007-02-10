@@ -52,9 +52,9 @@ static struct chan_opts opts = {
 	.in_kernel 	= 1,
 };
 
-static int con_config(char *str);
+static int con_config(char *str, char **error_out);
 static int con_get_config(char *dev, char *str, int size, char **error_out);
-static int con_remove(int n);
+static int con_remove(int n, char **con_remove);
 
 static struct line_driver driver = {
 	.name 			= "UML console",
@@ -87,9 +87,9 @@ static struct line vts[MAX_TTYS] = { LINE_INIT(CONFIG_CON_ZERO_CHAN, &driver),
 				     [ 1 ... MAX_TTYS - 1 ] =
 				     LINE_INIT(CONFIG_CON_CHAN, &driver) };
 
-static int con_config(char *str)
+static int con_config(char *str, char **error_out)
 {
-	return line_config(vts, ARRAY_SIZE(vts), str, &opts);
+	return line_config(vts, ARRAY_SIZE(vts), str, &opts, error_out);
 }
 
 static int con_get_config(char *dev, char *str, int size, char **error_out)
@@ -97,9 +97,9 @@ static int con_get_config(char *dev, char *str, int size, char **error_out)
 	return line_get_config(dev, vts, ARRAY_SIZE(vts), str, size, error_out);
 }
 
-static int con_remove(int n)
+static int con_remove(int n, char **error_out)
 {
-	return line_remove(vts, ARRAY_SIZE(vts), n);
+	return line_remove(vts, ARRAY_SIZE(vts), n, error_out);
 }
 
 static int con_open(struct tty_struct *tty, struct file *filp)
@@ -192,7 +192,15 @@ __uml_exitcall(console_exit);
 
 static int console_chan_setup(char *str)
 {
-	return line_setup(vts, ARRAY_SIZE(vts), str);
+	char *error;
+	int ret;
+
+	ret = line_setup(vts, ARRAY_SIZE(vts), str, &error);
+	if(ret < 0)
+		printk(KERN_ERR "Failed to set up console with "
+		       "configuration string \"%s\" : %s\n", str, error);
+
+	return 1;
 }
 __setup("con", console_chan_setup);
 __channel_help(console_chan_setup, "con");

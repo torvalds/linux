@@ -46,9 +46,9 @@ static struct chan_opts opts = {
 	.in_kernel 	= 1,
 };
 
-static int ssl_config(char *str);
+static int ssl_config(char *str, char **error_out);
 static int ssl_get_config(char *dev, char *str, int size, char **error_out);
-static int ssl_remove(int n);
+static int ssl_remove(int n, char **error_out);
 
 static struct line_driver driver = {
 	.name 			= "UML serial line",
@@ -80,9 +80,10 @@ static struct line serial_lines[NR_PORTS] =
 
 static struct lines lines = LINES_INIT(NR_PORTS);
 
-static int ssl_config(char *str)
+static int ssl_config(char *str, char **error_out)
 {
-	return line_config(serial_lines, ARRAY_SIZE(serial_lines), str, &opts);
+	return line_config(serial_lines, ARRAY_SIZE(serial_lines), str, &opts,
+			   error_out);
 }
 
 static int ssl_get_config(char *dev, char *str, int size, char **error_out)
@@ -91,9 +92,10 @@ static int ssl_get_config(char *dev, char *str, int size, char **error_out)
 			       size, error_out);
 }
 
-static int ssl_remove(int n)
+static int ssl_remove(int n, char **error_out)
 {
-	return line_remove(serial_lines, ARRAY_SIZE(serial_lines), n);
+	return line_remove(serial_lines, ARRAY_SIZE(serial_lines), n,
+			   error_out);
 }
 
 static int ssl_open(struct tty_struct *tty, struct file *filp)
@@ -212,7 +214,15 @@ __uml_exitcall(ssl_exit);
 
 static int ssl_chan_setup(char *str)
 {
-	return line_setup(serial_lines, ARRAY_SIZE(serial_lines), str);
+	char *error;
+	int ret;
+
+	ret = line_setup(serial_lines, ARRAY_SIZE(serial_lines), str, &error);
+	if(ret < 0)
+		printk(KERN_ERR "Failed to set up serial line with "
+		       "configuration string \"%s\" : %s\n", str, error);
+
+	return 1;
 }
 
 __setup("ssl", ssl_chan_setup);

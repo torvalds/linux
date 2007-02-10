@@ -18,10 +18,10 @@ struct mconsole_entry {
 struct mc_device {
 	struct list_head list;
 	char *name;
-	int (*config)(char *);
+	int (*config)(char *, char **);
 	int (*get_config)(char *, char *, int, char **);
         int (*id)(char **, int *, int *);
-	int (*remove)(int);
+	int (*remove)(int, char **);
 };
 
 #define CONFIG_CHUNK(str, size, current, chunk, end) \
@@ -50,14 +50,3 @@ static inline void mconsole_register_dev(struct mc_device *new)
 #endif
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

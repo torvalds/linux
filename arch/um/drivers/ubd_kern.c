@@ -286,7 +286,7 @@ static int parse_unit(char **ptr)
  * otherwise, the str pointer is used (and owned) inside ubd_devs array, so it
  * should not be freed on exit.
  */
-static int ubd_setup_common(char *str, int *index_out)
+static int ubd_setup_common(char *str, int *index_out, char **error_out)
 {
 	struct ubd *ubd_dev;
 	struct openflags flags = global_openflags;
@@ -302,56 +302,54 @@ static int ubd_setup_common(char *str, int *index_out)
 		str++;
 		if(!strcmp(str, "sync")){
 			global_openflags = of_sync(global_openflags);
-			return(0);
+			return 0;
 		}
 		major = simple_strtoul(str, &end, 0);
 		if((*end != '\0') || (end == str)){
-			printk(KERN_ERR
-			       "ubd_setup : didn't parse major number\n");
-			return(1);
+			*error_out = "Didn't parse major number";
+			return -EINVAL;
 		}
 
-		err = 1;
- 		mutex_lock(&ubd_lock);
- 		if(fake_major != MAJOR_NR){
- 			printk(KERN_ERR "Can't assign a fake major twice\n");
- 			goto out1;
- 		}
+		err = -EINVAL;
+		mutex_lock(&ubd_lock);
+		if(fake_major != MAJOR_NR){
+			*error_out = "Can't assign a fake major twice";
+			goto out1;
+		}
 
- 		fake_major = major;
+		fake_major = major;
 
 		printk(KERN_INFO "Setting extra ubd major number to %d\n",
 		       major);
- 		err = 0;
- 	out1:
- 		mutex_unlock(&ubd_lock);
-		return(err);
+		err = 0;
+	out1:
+		mutex_unlock(&ubd_lock);
+		return err;
 	}
 
 	n = parse_unit(&str);
 	if(n < 0){
-		printk(KERN_ERR "ubd_setup : couldn't parse unit number "
-		       "'%s'\n", str);
-		return(1);
+		*error_out = "Couldn't parse device number";
+		return -EINVAL;
 	}
 	if(n >= MAX_DEV){
-		printk(KERN_ERR "ubd_setup : index %d out of range "
-		       "(%d devices, from 0 to %d)\n", n, MAX_DEV, MAX_DEV - 1);
-		return(1);
+		*error_out = "Device number out of range";
+		return 1;
 	}
 
-	err = 1;
+	err = -EBUSY;
 	mutex_lock(&ubd_lock);
 
 	ubd_dev = &ubd_devs[n];
 	if(ubd_dev->file != NULL){
-		printk(KERN_ERR "ubd_setup : device already configured\n");
+		*error_out = "Device is already configured";
 		goto out;
 	}
 
 	if (index_out)
 		*index_out = n;
 
+	err = -EINVAL;
 	for (i = 0; i < sizeof("rscd="); i++) {
 		switch (*str) {
 		case 'r':
@@ -370,47 +368,54 @@ static int ubd_setup_common(char *str, int *index_out)
 			str++;
 			goto break_loop;
 		default:
-			printk(KERN_ERR "ubd_setup : Expected '=' or flag letter (r, s, c, or d)\n");
+			*error_out = "Expected '=' or flag letter "
+				"(r, s, c, or d)";
 			goto out;
 		}
 		str++;
 	}
 
-        if (*str == '=')
-		printk(KERN_ERR "ubd_setup : Too many flags specified\n");
-        else
-		printk(KERN_ERR "ubd_setup : Expected '='\n");
+	if (*str == '=')
+		*error_out = "Too many flags specified";
+	else
+		*error_out = "Missing '='";
 	goto out;
 
 break_loop:
-	err = 0;
 	backing_file = strchr(str, ',');
 
-	if (!backing_file) {
+	if (backing_file == NULL)
 		backing_file = strchr(str, ':');
-	}
 
-	if(backing_file){
-		if(ubd_dev->no_cow)
-			printk(KERN_ERR "Can't specify both 'd' and a "
-			       "cow file\n");
+	if(backing_file != NULL){
+		if(ubd_dev->no_cow){
+			*error_out = "Can't specify both 'd' and a cow file";
+			goto out;
+		}
 		else {
 			*backing_file = '\0';
 			backing_file++;
 		}
 	}
+	err = 0;
 	ubd_dev->file = str;
 	ubd_dev->cow.file = backing_file;
 	ubd_dev->boot_openflags = flags;
 out:
 	mutex_unlock(&ubd_lock);
-	return(err);
+	return err;
 }
 
 static int ubd_setup(char *str)
 {
-	ubd_setup_common(str, NULL);
-	return(1);
+	char *error;
+	int err;
+
+	err = ubd_setup_common(str, NULL, &error);
+	if(err)
+		printk(KERN_ERR "Failed to initialize device with \"%s\" : "
+		       "%s\n", str, error);
+	return 1;
 }
 
 __setup("ubd", ubd_setup);
@@ -422,7 +427,7 @@ __uml_help(ubd_setup,
 "    use either a ':' or a ',': the first one allows writing things like;\n"
 "	ubd0=~/Uml/root_cow:~/Uml/root_backing_file\n"
 "    while with a ',' the shell would not expand the 2nd '~'.\n"
-"    When using only one filename, UML will detect whether to thread it like\n"
+"    When using only one filename, UML will detect whether to treat it like\n"
 "    a COW file or a backing file. To override this detection, add the 'd'\n"
 "    flag:\n"
 "	ubd0d=BackingFile\n"
@@ -668,18 +673,19 @@ static int ubd_disk_register(int major, u64 size, int unit,
 
 #define ROUND_BLOCK(n) ((n + ((1 << 9) - 1)) & (-1 << 9))
 
-static int ubd_add(int n)
+static int ubd_add(int n, char **error_out)
 {
 	struct ubd *ubd_dev = &ubd_devs[n];
-	int err;
+	int err = 0;
 
-	err = -ENODEV;
 	if(ubd_dev->file == NULL)
 		goto out;
 
 	err = ubd_file_size(ubd_dev, &ubd_dev->size);
-	if(err < 0)
+	if(err < 0){
+		*error_out = "Couldn't determine size of device's file";
 		goto out;
+	}
 
 	ubd_dev->size = ROUND_BLOCK(ubd_dev->size);
 
@@ -701,28 +707,31 @@ out:
 	return err;
 }
 
-static int ubd_config(char *str)
+static int ubd_config(char *str, char **error_out)
 {
 	int n, ret;
 
+	/* This string is possibly broken up and stored, so it's only
+	 * freed if ubd_setup_common fails, or if only general options
+	 * were set.
+	 */
 	str = kstrdup(str, GFP_KERNEL);
 	if (str == NULL) {
-		printk(KERN_ERR "ubd_config failed to strdup string\n");
-		ret = 1;
-		goto out;
+		*error_out = "Failed to allocate memory";
+		return -ENOMEM;
 	}
-	ret = ubd_setup_common(str, &n);
-	if (ret) {
-		ret = -1;
+
+	ret = ubd_setup_common(str, &n, error_out);
+	if (ret)
 		goto err_free;
-	}
+
 	if (n == -1) {
 		ret = 0;
 		goto err_free;
 	}
 
  	mutex_lock(&ubd_lock);
-	ret = ubd_add(n);
+	ret = ubd_add(n, error_out);
 	if (ret)
 		ubd_devs[n].file = NULL;
  	mutex_unlock(&ubd_lock);
@@ -777,7 +786,7 @@ static int ubd_id(char **str, int *start_out, int *end_out)
         return n;
 }
 
-static int ubd_remove(int n)
+static int ubd_remove(int n, char **error_out)
 {
 	struct ubd *ubd_dev;
 	int err = -ENODEV;
@@ -815,7 +824,9 @@ out:
 	return err;
 }
 
-/* All these are called by mconsole in process context and without ubd-specific locks. */
+/* All these are called by mconsole in process context and without
+ * ubd-specific locks.
+ */
 static struct mc_device ubd_mc = {
 	.name		= "ubd",
 	.config		= ubd_config,
@@ -851,7 +862,8 @@ static struct platform_driver ubd_driver = {
 
 static int __init ubd_init(void)
 {
-        int i;
+	char *error;
+	int i, err;
 
 	if (register_blkdev(MAJOR_NR, "ubd"))
 		return -1;
@@ -870,8 +882,12 @@ static int __init ubd_init(void)
 			return -1;
 	}
 	platform_driver_register(&ubd_driver);
-	for (i = 0; i < MAX_DEV; i++)
-		ubd_add(i);
+	for (i = 0; i < MAX_DEV; i++){
+		err = ubd_add(i, &error);
+		if(err)
+			printk(KERN_ERR "Failed to initialize ubd device %d :"
+			       "%s\n", i, error);
+	}
 	return 0;
 }
 
