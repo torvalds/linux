@@ -136,9 +136,6 @@ const struct consw *conswitchp;
 #define DEFAULT_BELL_PITCH	750
 #define DEFAULT_BELL_DURATION	(HZ/8)
 
-extern void vcs_make_sysfs(struct tty_struct *tty);
-extern void vcs_remove_sysfs(struct tty_struct *tty);
-
 struct vc vc_cons [MAX_NR_CONSOLES];
 
 #ifndef VT_SINGLE_DRIVER
