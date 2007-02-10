@@ -349,7 +349,7 @@ xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
 		error = xfs_attr_shortform_to_leaf(&args);
 		if (!error) {
 			error = xfs_bmap_finish(&args.trans, args.flist,
-						*args.firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -976,7 +976,7 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 		error = xfs_attr_leaf_to_node(args);
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -1077,7 +1077,6 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 			if (!error) {
 				error = xfs_bmap_finish(&args->trans,
 							args->flist,
-							*args->firstblock,
 							&committed);
 			}
 			if (error) {
@@ -1155,7 +1154,7 @@ xfs_attr_leaf_removename(xfs_da_args_t *args)
 		/* bp is gone due to xfs_da_shrink_inode */
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -1310,7 +1309,6 @@ restart:
 			if (!error) {
 				error = xfs_bmap_finish(&args->trans,
 							args->flist,
-							*args->firstblock,
 							&committed);
 			}
 			if (error) {
@@ -1350,7 +1348,7 @@ restart:
 		error = xfs_da_split(state);
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -1462,7 +1460,6 @@ restart:
 			if (!error) {
 				error = xfs_bmap_finish(&args->trans,
 							args->flist,
-							*args->firstblock,
 							&committed);
 			}
 			if (error) {
@@ -1597,7 +1594,7 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 		error = xfs_da_join(state);
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -1649,7 +1646,6 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 			if (!error) {
 				error = xfs_bmap_finish(&args->trans,
 							args->flist,
-							*args->firstblock,
 							&committed);
 			}
 			if (error) {
@@ -2093,7 +2089,7 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 				  args->flist, NULL);
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -2249,7 +2245,7 @@ xfs_attr_rmtval_remove(xfs_da_args_t *args)
 				    NULL, &done);
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);

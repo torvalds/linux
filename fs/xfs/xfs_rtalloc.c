@@ -147,7 +147,7 @@ xfs_growfs_rt_alloc(
 		/*
 		 * Free any blocks freed up in the transaction, then commit.
 		 */
-		error = xfs_bmap_finish(&tp, &flist, firstblock, &committed);
+		error = xfs_bmap_finish(&tp, &flist, &committed);
 		if (error)
 			goto error_exit;
 		xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);

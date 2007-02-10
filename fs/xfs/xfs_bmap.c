@@ -4080,7 +4080,7 @@ xfs_bmap_add_attrfork(
 		} else
 			XFS_SB_UNLOCK(mp, s);
 	}
-	if ((error = xfs_bmap_finish(&tp, &flist, firstblock, &committed)))
+	if ((error = xfs_bmap_finish(&tp, &flist, &committed)))
 		goto error2;
 	error = xfs_trans_commit(tp, XFS_TRANS_PERM_LOG_RES, NULL);
 	ASSERT(ip->i_df.if_ext_max ==
@@ -4213,7 +4213,6 @@ int						/* error */
 xfs_bmap_finish(
 	xfs_trans_t		**tp,		/* transaction pointer addr */
 	xfs_bmap_free_t		*flist,		/* i/o: list extents to free */
-	xfs_fsblock_t		firstblock,	/* controlled ag for allocs */
 	int			*committed)	/* xact committed or not */
 {
 	xfs_efd_log_item_t	*efd;		/* extent free data */

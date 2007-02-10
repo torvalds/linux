@@ -1699,8 +1699,7 @@ xfs_itruncate_finish(
 		 * Duplicate the transaction that has the permanent
 		 * reservation and commit the old transaction.
 		 */
-		error = xfs_bmap_finish(tp, &free_list, first_block,
-					&committed);
+		error = xfs_bmap_finish(tp, &free_list, &committed);
 		ntp = *tp;
 		if (error) {
 			/*
