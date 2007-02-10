@@ -195,10 +195,9 @@ static struct backlight_device *asus_backlight_device;
  */
 static int read_brightness(struct backlight_device *bd);
 static int update_bl_status(struct backlight_device *bd);
-static struct backlight_properties asusbl_data = {
+static struct backlight_ops asusbl_ops = {
 	.get_brightness = read_brightness,
 	.update_status = update_bl_status,
-	.max_brightness = 15,
 };
 
 /* These functions actually update the LED's, and are called from a
@@ -348,7 +347,7 @@ static void lcd_blank(int blank)
 	struct backlight_device *bd = asus_backlight_device;
 
 	if (bd) {
-		bd->props->power = blank;
+		bd->props.power = blank;
 		backlight_update_status(bd);
 	}
 }
@@ -381,13 +380,13 @@ static int set_brightness(struct backlight_device *bd, int value)
 static int update_bl_status(struct backlight_device *bd)
 {
 	int rv;
-	int value = bd->props->brightness;
+	int value = bd->props.brightness;
 
 	rv = set_brightness(bd, value);
 	if (rv)
 		return rv;
 
-	value = (bd->props->power == FB_BLANK_UNBLANK) ? 1 : 0;
+	value = (bd->props.power == FB_BLANK_UNBLANK) ? 1 : 0;
 	return set_lcd_state(value);
 }
 
@@ -1013,7 +1012,7 @@ static int asus_backlight_init(struct device *dev)
 
 	if (brightness_set_handle && lcd_switch_handle) {
 		bd = backlight_device_register(ASUS_HOTK_FILE, dev,
-					       NULL, &asusbl_data);
+					       NULL, &asusbl_ops);
 		if (IS_ERR(bd)) {
 			printk(ASUS_ERR
 			       "Could not register asus backlight device\n");
@@ -1023,8 +1022,9 @@ static int asus_backlight_init(struct device *dev)
 
 		asus_backlight_device = bd;
 
-		bd->props->brightness = read_brightness(NULL);
-		bd->props->power = FB_BLANK_UNBLANK;
+		bd->props.max_brightness = 15;
+		bd->props.brightness = read_brightness(NULL);
+		bd->props.power = FB_BLANK_UNBLANK;
 		backlight_update_status(bd);
 	}
 	return 0;

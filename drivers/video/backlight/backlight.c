@@ -35,14 +35,14 @@ static int fb_notifier_callback(struct notifier_block *self,
 		return 0;
 
 	bd = container_of(self, struct backlight_device, fb_notif);
-	mutex_lock(&bd->props_lock);
-	if (bd->props)
-		if (!bd->props->check_fb ||
-		    bd->props->check_fb(evdata->info)) {
-			bd->props->fb_blank = *(int *)evdata->data;
+	mutex_lock(&bd->ops_lock);
+	if (bd->ops)
+		if (!bd->ops->check_fb ||
+		    bd->ops->check_fb(evdata->info)) {
+			bd->props.fb_blank = *(int *)evdata->data;
 			backlight_update_status(bd);
 		}
-	mutex_unlock(&bd->props_lock);
+	mutex_unlock(&bd->ops_lock);
 	return 0;
 }
 
@@ -71,15 +71,9 @@ static inline void backlight_unregister_fb(struct backlight_device *bd)
 
 static ssize_t backlight_show_power(struct class_device *cdev, char *buf)
 {
-	int rc = -ENXIO;
 	struct backlight_device *bd = to_backlight_device(cdev);
 
-	mutex_lock(&bd->props_lock);
-	if (bd->props)
-		rc = sprintf(buf, "%d\n", bd->props->power);
-	mutex_unlock(&bd->props_lock);
-
-	return rc;
+	return sprintf(buf, "%d\n", bd->props.power);
 }
 
 static ssize_t backlight_store_power(struct class_device *cdev, const char *buf, size_t count)
@@ -95,29 +89,23 @@ static ssize_t backlight_store_power(struct class_device *cdev, const char *buf,
 	if (size != count)
 		return -EINVAL;
 
-	mutex_lock(&bd->props_lock);
-	if (bd->props) {
+	mutex_lock(&bd->ops_lock);
+	if (bd->ops) {
 		pr_debug("backlight: set power to %d\n", power);
-		bd->props->power = power;
+		bd->props.power = power;
 		backlight_update_status(bd);
 		rc = count;
 	}
-	mutex_unlock(&bd->props_lock);
+	mutex_unlock(&bd->ops_lock);
 
 	return rc;
 }
 
 static ssize_t backlight_show_brightness(struct class_device *cdev, char *buf)
 {
-	int rc = -ENXIO;
 	struct backlight_device *bd = to_backlight_device(cdev);
 
-	mutex_lock(&bd->props_lock);
-	if (bd->props)
-		rc = sprintf(buf, "%d\n", bd->props->brightness);
-	mutex_unlock(&bd->props_lock);
-
-	return rc;
+	return sprintf(buf, "%d\n", bd->props.brightness);
 }
 
 static ssize_t backlight_store_brightness(struct class_device *cdev, const char *buf, size_t count)
@@ -133,34 +121,28 @@ static ssize_t backlight_store_brightness(struct class_device *cdev, const char 
 	if (size != count)
 		return -EINVAL;
 
-	mutex_lock(&bd->props_lock);
-	if (bd->props) {
-		if (brightness > bd->props->max_brightness)
+	mutex_lock(&bd->ops_lock);
+	if (bd->ops) {
+		if (brightness > bd->props.max_brightness)
 			rc = -EINVAL;
 		else {
 			pr_debug("backlight: set brightness to %d\n",
 				 brightness);
-			bd->props->brightness = brightness;
+			bd->props.brightness = brightness;
 			backlight_update_status(bd);
 			rc = count;
 		}
 	}
-	mutex_unlock(&bd->props_lock);
+	mutex_unlock(&bd->ops_lock);
 
 	return rc;
 }
 
 static ssize_t backlight_show_max_brightness(struct class_device *cdev, char *buf)
 {
-	int rc = -ENXIO;
 	struct backlight_device *bd = to_backlight_device(cdev);
 
-	mutex_lock(&bd->props_lock);
-	if (bd->props)
-		rc = sprintf(buf, "%d\n", bd->props->max_brightness);
-	mutex_unlock(&bd->props_lock);
-
-	return rc;
+	return sprintf(buf, "%d\n", bd->props.max_brightness);
 }
 
 static ssize_t backlight_show_actual_brightness(struct class_device *cdev,
@@ -169,10 +151,10 @@ static ssize_t backlight_show_actual_brightness(struct class_device *cdev,
 	int rc = -ENXIO;
 	struct backlight_device *bd = to_backlight_device(cdev);
 
-	mutex_lock(&bd->props_lock);
-	if (bd->props && bd->props->get_brightness)
-		rc = sprintf(buf, "%d\n", bd->props->get_brightness(bd));
-	mutex_unlock(&bd->props_lock);
+	mutex_lock(&bd->ops_lock);
+	if (bd->ops && bd->ops->get_brightness)
+		rc = sprintf(buf, "%d\n", bd->ops->get_brightness(bd));
+	mutex_unlock(&bd->ops_lock);
 
 	return rc;
 }
@@ -211,7 +193,7 @@ static const struct class_device_attribute bl_class_device_attributes[] = {
  *   respective framebuffer device).
  * @devdata: an optional pointer to be stored in the class_device. The
  *   methods may retrieve it by using class_get_devdata(&bd->class_dev).
- * @bp: the backlight properties structure.
+ * @ops: the backlight operations structure.
  *
  * Creates and registers new backlight class_device. Returns either an
  * ERR_PTR() or a pointer to the newly allocated device.
@@ -219,21 +201,20 @@ static const struct class_device_attribute bl_class_device_attributes[] = {
 struct backlight_device *backlight_device_register(const char *name,
 	struct device *dev,
 	void *devdata,
-	struct backlight_properties *bp)
+	struct backlight_ops *ops)
 {
 	int i, rc;
 	struct backlight_device *new_bd;
 
 	pr_debug("backlight_device_alloc: name=%s\n", name);
 
-	new_bd = kmalloc(sizeof(struct backlight_device), GFP_KERNEL);
+	new_bd = kzalloc(sizeof(struct backlight_device), GFP_KERNEL);
 	if (!new_bd)
 		return ERR_PTR(-ENOMEM);
 
 	mutex_init(&new_bd->update_lock);
-	mutex_init(&new_bd->props_lock);
-	new_bd->props = bp;
-	memset(&new_bd->class_dev, 0, sizeof(new_bd->class_dev));
+	mutex_init(&new_bd->ops_lock);
+	new_bd->ops = ops;
 	new_bd->class_dev.class = &backlight_class;
 	new_bd->class_dev.dev = dev;
 	strlcpy(new_bd->class_dev.class_id, name, KOBJ_NAME_LEN);
@@ -302,9 +283,9 @@ void backlight_device_unregister(struct backlight_device *bd)
 		class_device_remove_file(&bd->class_dev,
 					 &bl_class_device_attributes[i]);
 
-	mutex_lock(&bd->props_lock);
-	bd->props = NULL;
-	mutex_unlock(&bd->props_lock);
+	mutex_lock(&bd->ops_lock);
+	bd->ops = NULL;
+	mutex_unlock(&bd->ops_lock);
 
 	backlight_unregister_fb(bd);
 

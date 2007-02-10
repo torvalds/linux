@@ -35,11 +35,11 @@ static struct pci_dev *sb_dev = NULL;
 
 static int progearbl_set_intensity(struct backlight_device *bd)
 {
-	int intensity = bd->props->brightness;
+	int intensity = bd->props.brightness;
 
-	if (bd->props->power != FB_BLANK_UNBLANK)
+	if (bd->props.power != FB_BLANK_UNBLANK)
 		intensity = 0;
-	if (bd->props->fb_blank != FB_BLANK_UNBLANK)
+	if (bd->props.fb_blank != FB_BLANK_UNBLANK)
 		intensity = 0;
 
 	pci_write_config_byte(pmu_dev, PMU_LPCR, intensity + HW_LEVEL_MIN);
@@ -55,7 +55,7 @@ static int progearbl_get_intensity(struct backlight_device *bd)
 	return intensity - HW_LEVEL_MIN;
 }
 
-static struct backlight_properties progearbl_data = {
+static struct backlight_ops progearbl_ops = {
 	.get_brightness = progearbl_get_intensity,
 	.update_status = progearbl_set_intensity,
 };
@@ -84,15 +84,15 @@ static int progearbl_probe(struct platform_device *pdev)
 
 	progear_backlight_device = backlight_device_register("progear-bl",
 							     &pdev->dev, NULL,
-							     &progearbl_data);
+							     &progearbl_ops);
 	if (IS_ERR(progear_backlight_device))
 		return PTR_ERR(progear_backlight_device);
 
 	platform_set_drvdata(pdev, progear_backlight_device);
 
-	progearbl_data.power = FB_BLANK_UNBLANK;
-	progearbl_data.brightness = HW_LEVEL_MAX - HW_LEVEL_MIN;
-	progearbl_data.max_brightness = HW_LEVEL_MAX - HW_LEVEL_MIN;
+	progear_backlight_device->props.power = FB_BLANK_UNBLANK;
+	progear_backlight_device->props.brightness = HW_LEVEL_MAX - HW_LEVEL_MIN;
+	progear_backlight_device->props.max_brightness = HW_LEVEL_MAX - HW_LEVEL_MIN;
 	progearbl_set_intensity(progear_backlight_device);
 
 	return 0;

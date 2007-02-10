@@ -44,7 +44,7 @@ DEFINE_MUTEX(pmac_backlight_mutex);
 
 /* Main backlight storage
  *
- * Backlight drivers in this variable are required to have the "props"
+ * Backlight drivers in this variable are required to have the "ops"
  * attribute set and to have an update_status function.
  *
  * We can only store one backlight here, but since Apple laptops have only one
@@ -103,7 +103,7 @@ static void pmac_backlight_key_worker(struct work_struct *work)
 		struct backlight_properties *props;
 		int brightness;
 
-		props = pmac_backlight->props;
+		props = &pmac_backlight->props;
 
 		brightness = props->brightness +
 			((pmac_backlight_key_queued?-1:1) *
@@ -141,7 +141,7 @@ static int __pmac_backlight_set_legacy_brightness(int brightness)
 	if (pmac_backlight) {
 		struct backlight_properties *props;
 
-		props = pmac_backlight->props;
+		props = &pmac_backlight->props;
 		props->brightness = brightness *
 			(props->max_brightness + 1) /
 			(OLD_BACKLIGHT_MAX + 1);
@@ -190,7 +190,7 @@ int pmac_backlight_get_legacy_brightness()
 	if (pmac_backlight) {
 		struct backlight_properties *props;
 
-		props = pmac_backlight->props;
+		props = &pmac_backlight->props;
 
 		result = props->brightness *
 			(OLD_BACKLIGHT_MAX + 1) /

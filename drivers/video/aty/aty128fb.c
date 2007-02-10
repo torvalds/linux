@@ -1695,8 +1695,6 @@ static int __devinit aty128fb_setup(char *options)
 #ifdef CONFIG_FB_ATY128_BACKLIGHT
 #define MAX_LEVEL 0xFF
 
-static struct backlight_properties aty128_bl_data;
-
 static int aty128_bl_get_level_brightness(struct aty128fb_par *par,
 		int level)
 {
@@ -1730,12 +1728,12 @@ static int aty128_bl_update_status(struct backlight_device *bd)
 	unsigned int reg = aty_ld_le32(LVDS_GEN_CNTL);
 	int level;
 
-	if (bd->props->power != FB_BLANK_UNBLANK ||
-	    bd->props->fb_blank != FB_BLANK_UNBLANK ||
+	if (bd->props.power != FB_BLANK_UNBLANK ||
+	    bd->props.fb_blank != FB_BLANK_UNBLANK ||
 	    !par->lcd_on)
 		level = 0;
 	else
-		level = bd->props->brightness;
+		level = bd->props.brightness;
 
 	reg |= LVDS_BL_MOD_EN | LVDS_BLON;
 	if (level > 0) {
@@ -1779,19 +1777,18 @@ static int aty128_bl_update_status(struct backlight_device *bd)
 
 static int aty128_bl_get_brightness(struct backlight_device *bd)
 {
-	return bd->props->brightness;
+	return bd->props.brightness;
 }
 
-static struct backlight_properties aty128_bl_data = {
+static struct backlight_ops aty128_bl_data = {
 	.get_brightness	= aty128_bl_get_brightness,
 	.update_status	= aty128_bl_update_status,
-	.max_brightness	= (FB_BACKLIGHT_LEVELS - 1),
 };
 
 static void aty128_bl_set_power(struct fb_info *info, int power)
 {
 	if (info->bl_dev) {
-		info->bl_dev->props->power = power;
+		info->bl_dev->props.power = power;
 		backlight_update_status(info->bl_dev);
 	}
 }
@@ -1825,8 +1822,9 @@ static void aty128_bl_init(struct aty128fb_par *par)
 		 63 * FB_BACKLIGHT_MAX / MAX_LEVEL,
 		219 * FB_BACKLIGHT_MAX / MAX_LEVEL);
 
-	bd->props->brightness = aty128_bl_data.max_brightness;
-	bd->props->power = FB_BLANK_UNBLANK;
+	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
+	bd->props.brightness = bd->props.max_brightness;
+	bd->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
 
 	printk("aty128: Backlight initialized (%s)\n", name);

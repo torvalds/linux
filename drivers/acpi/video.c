@@ -169,7 +169,6 @@ struct acpi_video_device {
 	struct acpi_device *dev;
 	struct acpi_video_device_brightness *brightness;
 	struct backlight_device *backlight;
-	struct backlight_properties *data;
 };
 
 /* bus */
@@ -286,12 +285,17 @@ static int acpi_video_get_brightness(struct backlight_device *bd)
 
 static int acpi_video_set_brightness(struct backlight_device *bd)
 {
-	int request_level = bd->props->brightness;
+	int request_level = bd->props.brightness;
 	struct acpi_video_device *vd =
 		(struct acpi_video_device *)class_get_devdata(&bd->class_dev);
 	acpi_video_device_lcd_set_level(vd, request_level);
 	return 0;
 }
+
+static struct backlight_ops acpi_backlight_ops = {
+	.get_brightness = acpi_video_get_brightness,
+	.update_status  = acpi_video_set_brightness,
+};
 
 /* --------------------------------------------------------------------------
                                Video Management
@@ -608,30 +612,18 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		unsigned long tmp;
 		static int count = 0;
 		char *name;
-		struct backlight_properties *acpi_video_data;
-
 		name = kzalloc(MAX_NAME_LEN, GFP_KERNEL);
 		if (!name)
 			return;
 
-		acpi_video_data = kzalloc(
-			sizeof(struct backlight_properties),
-			GFP_KERNEL);
-		if (!acpi_video_data){
-			kfree(name);
-			return;
-		}
-		acpi_video_data->get_brightness =
-			acpi_video_get_brightness;
-		acpi_video_data->update_status =
-			acpi_video_set_brightness;
 		sprintf(name, "acpi_video%d", count++);
-		device->data = acpi_video_data;
-		acpi_video_data->max_brightness = max_level;
 		acpi_video_device_lcd_get_level_current(device, &tmp);
-		acpi_video_data->brightness = (int)tmp;
 		device->backlight = backlight_device_register(name,
-			NULL, device, acpi_video_data);
+			NULL, device, &acpi_backlight_ops);
+		device->backlight->props.max_brightness = max_level;
+		device->backlight->props.brightness = (int)tmp;
+		backlight_update_status(device->backlight);
+
 		kfree(name);
 	}
 	return;
@@ -1676,10 +1668,7 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 	status = acpi_remove_notify_handler(device->dev->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_video_device_notify);
-	if (device->backlight){
-		backlight_device_unregister(device->backlight);
-		kfree(device->data);
-	}
+	backlight_device_unregister(device->backlight);
 	return 0;
 }
 

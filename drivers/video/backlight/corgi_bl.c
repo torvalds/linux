@@ -34,11 +34,11 @@ static unsigned long corgibl_flags;
 static int corgibl_send_intensity(struct backlight_device *bd)
 {
 	void (*corgi_kick_batt)(void);
-	int intensity = bd->props->brightness;
+	int intensity = bd->props.brightness;
 
-	if (bd->props->power != FB_BLANK_UNBLANK)
+	if (bd->props.power != FB_BLANK_UNBLANK)
 		intensity = 0;
-	if (bd->props->fb_blank != FB_BLANK_UNBLANK)
+	if (bd->props.fb_blank != FB_BLANK_UNBLANK)
 		intensity = 0;
 	if (corgibl_flags & CORGIBL_SUSPENDED)
 		intensity = 0;
@@ -103,7 +103,7 @@ void corgibl_limit_intensity(int limit)
 EXPORT_SYMBOL(corgibl_limit_intensity);
 
 
-static struct backlight_properties corgibl_data = {
+static struct backlight_ops corgibl_ops = {
 	.get_brightness = corgibl_get_intensity,
 	.update_status  = corgibl_send_intensity,
 };
@@ -113,19 +113,19 @@ static int corgibl_probe(struct platform_device *pdev)
 	struct corgibl_machinfo *machinfo = pdev->dev.platform_data;
 
 	bl_machinfo = machinfo;
-	corgibl_data.max_brightness = machinfo->max_intensity;
 	if (!machinfo->limit_mask)
 		machinfo->limit_mask = -1;
 
 	corgi_backlight_device = backlight_device_register ("corgi-bl",
-		&pdev->dev, NULL, &corgibl_data);
+		&pdev->dev, NULL, &corgibl_ops);
 	if (IS_ERR (corgi_backlight_device))
 		return PTR_ERR (corgi_backlight_device);
 
 	platform_set_drvdata(pdev, corgi_backlight_device);
 
-	corgibl_data.power = FB_BLANK_UNBLANK;
-	corgibl_data.brightness = machinfo->default_intensity;
+	corgi_backlight_device->props.max_brightness = machinfo->max_intensity;
+	corgi_backlight_device->props.power = FB_BLANK_UNBLANK;
+	corgi_backlight_device->props.brightness = machinfo->default_intensity;
 	corgibl_send_intensity(corgi_backlight_device);
 
 	printk("Corgi Backlight Driver Initialized.\n");

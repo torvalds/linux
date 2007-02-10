@@ -308,11 +308,11 @@ static int riva_bl_update_status(struct backlight_device *bd)
 	U032 tmp_pcrt, tmp_pmc;
 	int level;
 
-	if (bd->props->power != FB_BLANK_UNBLANK ||
-	    bd->props->fb_blank != FB_BLANK_UNBLANK)
+	if (bd->props.power != FB_BLANK_UNBLANK ||
+	    bd->props.fb_blank != FB_BLANK_UNBLANK)
 		level = 0;
 	else
-		level = bd->props->brightness;
+		level = bd->props.brightness;
 
 	tmp_pmc = par->riva.PMC[0x10F0/4] & 0x0000FFFF;
 	tmp_pcrt = par->riva.PCRTC0[0x081C/4] & 0xFFFFFFFC;
@@ -329,13 +329,12 @@ static int riva_bl_update_status(struct backlight_device *bd)
 
 static int riva_bl_get_brightness(struct backlight_device *bd)
 {
-	return bd->props->brightness;
+	return bd->props.brightness;
 }
 
-static struct backlight_properties riva_bl_data = {
+static struct backlight_ops riva_bl_ops = {
 	.get_brightness = riva_bl_get_brightness,
 	.update_status	= riva_bl_update_status,
-	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
 };
 
 static void riva_bl_init(struct riva_par *par)
@@ -355,7 +354,7 @@ static void riva_bl_init(struct riva_par *par)
 
 	snprintf(name, sizeof(name), "rivabl%d", info->node);
 
-	bd = backlight_device_register(name, info->dev, par, &riva_bl_data);
+	bd = backlight_device_register(name, info->dev, par, &riva_bl_ops);
 	if (IS_ERR(bd)) {
 		info->bl_dev = NULL;
 		printk(KERN_WARNING "riva: Backlight registration failed\n");
@@ -367,8 +366,9 @@ static void riva_bl_init(struct riva_par *par)
 		MIN_LEVEL * FB_BACKLIGHT_MAX / MAX_LEVEL,
 		FB_BACKLIGHT_MAX);
 
-	bd->props->brightness = riva_bl_data.max_brightness;
-	bd->props->power = FB_BLANK_UNBLANK;
+	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
+	bd->props.brightness = riva_bl_data.max_brightness;
+	bd->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
 
 	printk("riva: Backlight initialized (%s)\n", name);

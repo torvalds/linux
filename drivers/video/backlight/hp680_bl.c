@@ -33,11 +33,11 @@ static void hp680bl_send_intensity(struct backlight_device *bd)
 {
 	unsigned long flags;
 	u16 v;
-	int intensity = bd->props->brightness;
+	int intensity = bd->props.brightness;
 
-	if (bd->props->power != FB_BLANK_UNBLANK)
+	if (bd->props.power != FB_BLANK_UNBLANK)
 		intensity = 0;
-	if (bd->props->fb_blank != FB_BLANK_UNBLANK)
+	if (bd->props.fb_blank != FB_BLANK_UNBLANK)
 		intensity = 0;
 	if (hp680bl_suspended)
 		intensity = 0;
@@ -98,8 +98,7 @@ static int hp680bl_get_intensity(struct backlight_device *bd)
 	return current_intensity;
 }
 
-static struct backlight_properties hp680bl_data = {
-	.max_brightness = HP680_MAX_INTENSITY,
+static struct backlight_ops hp680bl_ops = {
 	.get_brightness = hp680bl_get_intensity,
 	.update_status  = hp680bl_set_intensity,
 };
@@ -109,13 +108,14 @@ static int __init hp680bl_probe(struct platform_device *pdev)
 	struct backlight_device *bd;
 
 	bd = backlight_device_register ("hp680-bl", &pdev->dev, NULL,
-		    &hp680bl_data);
+		    &hp680bl_ops);
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);
 
 	platform_set_drvdata(pdev, bd);
 
-	bd->props->brightness = HP680_DEFAULT_INTENSITY;
+	bd->props.max_brightness = HP680_MAX_INTENSITY;
+	bd->props.brightness = HP680_DEFAULT_INTENSITY;
 	hp680bl_send_intensity(bd);
 
 	return 0;

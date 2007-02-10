@@ -19,8 +19,6 @@
 
 #define MAX_RADEON_LEVEL 0xFF
 
-static struct backlight_properties radeon_bl_data;
-
 struct radeon_bl_privdata {
 	struct radeonfb_info *rinfo;
 	uint8_t negative;
@@ -61,11 +59,11 @@ static int radeon_bl_update_status(struct backlight_device *bd)
 	 * backlight. This provides some greater power saving and the display
 	 * is useless without backlight anyway.
 	 */
-        if (bd->props->power != FB_BLANK_UNBLANK ||
-	    bd->props->fb_blank != FB_BLANK_UNBLANK)
+        if (bd->props.power != FB_BLANK_UNBLANK ||
+	    bd->props.fb_blank != FB_BLANK_UNBLANK)
 		level = 0;
 	else
-		level = bd->props->brightness;
+		level = bd->props.brightness;
 
 	del_timer_sync(&rinfo->lvds_timer);
 	radeon_engine_idle();
@@ -126,13 +124,12 @@ static int radeon_bl_update_status(struct backlight_device *bd)
 
 static int radeon_bl_get_brightness(struct backlight_device *bd)
 {
-	return bd->props->brightness;
+	return bd->props.brightness;
 }
 
-static struct backlight_properties radeon_bl_data = {
+static struct backlight_ops radeon_bl_data = {
 	.get_brightness = radeon_bl_get_brightness,
 	.update_status	= radeon_bl_update_status,
-	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
 };
 
 void radeonfb_bl_init(struct radeonfb_info *rinfo)
@@ -188,8 +185,9 @@ void radeonfb_bl_init(struct radeonfb_info *rinfo)
 		 63 * FB_BACKLIGHT_MAX / MAX_RADEON_LEVEL,
 		217 * FB_BACKLIGHT_MAX / MAX_RADEON_LEVEL);
 
-	bd->props->brightness = radeon_bl_data.max_brightness;
-	bd->props->power = FB_BLANK_UNBLANK;
+	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
+	bd->props.brightness = bd->props.max_brightness;
+	bd->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
 
 	printk("radeonfb: Backlight initialized (%s)\n", name);

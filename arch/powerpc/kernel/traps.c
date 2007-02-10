@@ -107,7 +107,7 @@ int die(const char *str, struct pt_regs *regs, long err)
 	if (machine_is(powermac) && pmac_backlight) {
 		struct backlight_properties *props;
 
-		props = pmac_backlight->props;
+		props = &pmac_backlight->props;
 		props->brightness = props->max_brightness;
 		props->power = FB_BLANK_UNBLANK;
 		backlight_update_status(pmac_backlight);

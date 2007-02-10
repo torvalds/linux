@@ -54,11 +54,11 @@ static int nvidia_bl_update_status(struct backlight_device *bd)
 	if (!par->FlatPanel)
 		return 0;
 
-	if (bd->props->power != FB_BLANK_UNBLANK ||
-	    bd->props->fb_blank != FB_BLANK_UNBLANK)
+	if (bd->props.power != FB_BLANK_UNBLANK ||
+	    bd->props.fb_blank != FB_BLANK_UNBLANK)
 		level = 0;
 	else
-		level = bd->props->brightness;
+		level = bd->props.brightness;
 
 	tmp_pmc = NV_RD32(par->PMC, 0x10F0) & 0x0000FFFF;
 	tmp_pcrt = NV_RD32(par->PCRTC0, 0x081C) & 0xFFFFFFFC;
@@ -81,13 +81,12 @@ static int nvidia_bl_update_status(struct backlight_device *bd)
 
 static int nvidia_bl_get_brightness(struct backlight_device *bd)
 {
-	return bd->props->brightness;
+	return bd->props.brightness;
 }
 
-static struct backlight_properties nvidia_bl_data = {
+static struct backlight_ops nvidia_bl_ops = {
 	.get_brightness = nvidia_bl_get_brightness,
 	.update_status	= nvidia_bl_update_status,
-	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
 };
 
 void nvidia_bl_init(struct nvidia_par *par)
@@ -107,7 +106,7 @@ void nvidia_bl_init(struct nvidia_par *par)
 
 	snprintf(name, sizeof(name), "nvidiabl%d", info->node);
 
-	bd = backlight_device_register(name, info->dev, par, &nvidia_bl_data);
+	bd = backlight_device_register(name, info->dev, par, &nvidia_bl_ops);
 	if (IS_ERR(bd)) {
 		info->bl_dev = NULL;
 		printk(KERN_WARNING "nvidia: Backlight registration failed\n");
@@ -119,8 +118,9 @@ void nvidia_bl_init(struct nvidia_par *par)
 		0x158 * FB_BACKLIGHT_MAX / MAX_LEVEL,
 		0x534 * FB_BACKLIGHT_MAX / MAX_LEVEL);
 
-	bd->props->brightness = nvidia_bl_data.max_brightness;
-	bd->props->power = FB_BLANK_UNBLANK;
+	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
+	bd->props.brightness = nvidia_bl_data.max_brightness;
+	bd->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
 
 	printk("nvidia: Backlight initialized (%s)\n", name);

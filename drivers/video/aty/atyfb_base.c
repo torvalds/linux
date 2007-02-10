@@ -2114,8 +2114,6 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 #ifdef CONFIG_FB_ATY_BACKLIGHT
 #define MAX_LEVEL 0xFF
 
-static struct backlight_properties aty_bl_data;
-
 static int aty_bl_get_level_brightness(struct atyfb_par *par, int level)
 {
 	struct fb_info *info = pci_get_drvdata(par->pdev);
@@ -2139,11 +2137,11 @@ static int aty_bl_update_status(struct backlight_device *bd)
 	unsigned int reg = aty_ld_lcd(LCD_MISC_CNTL, par);
 	int level;
 
-	if (bd->props->power != FB_BLANK_UNBLANK ||
-	    bd->props->fb_blank != FB_BLANK_UNBLANK)
+	if (bd->props.power != FB_BLANK_UNBLANK ||
+	    bd->props.fb_blank != FB_BLANK_UNBLANK)
 		level = 0;
 	else
-		level = bd->props->brightness;
+		level = bd->props.brightness;
 
 	reg |= (BLMOD_EN | BIASMOD_EN);
 	if (level > 0) {
@@ -2160,13 +2158,12 @@ static int aty_bl_update_status(struct backlight_device *bd)
 
 static int aty_bl_get_brightness(struct backlight_device *bd)
 {
-	return bd->props->brightness;
+	return bd->props.brightness;
 }
 
-static struct backlight_properties aty_bl_data = {
+static struct backlight_ops aty_bl_data = {
 	.get_brightness = aty_bl_get_brightness,
 	.update_status	= aty_bl_update_status,
-	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
 };
 
 static void aty_bl_init(struct atyfb_par *par)
@@ -2194,8 +2191,9 @@ static void aty_bl_init(struct atyfb_par *par)
 		0x3F * FB_BACKLIGHT_MAX / MAX_LEVEL,
 		0xFF * FB_BACKLIGHT_MAX / MAX_LEVEL);
 
-	bd->props->brightness = aty_bl_data.max_brightness;
-	bd->props->power = FB_BLANK_UNBLANK;
+	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
+	bd->props.brightness = bd->props.max_brightness;
+	bd->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
 
 	printk("aty: Backlight initialized (%s)\n", name);
