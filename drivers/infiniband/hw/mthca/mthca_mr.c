@@ -765,7 +765,7 @@ void mthca_arbel_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr)
 int mthca_init_mr_table(struct mthca_dev *dev)
 {
 	unsigned long addr;
-	int err, i;
+	int mpts, mtts, err, i;
 
 	err = mthca_alloc_init(&dev->mr_table.mpt_alloc,
 			       dev->limits.num_mpts,
@@ -799,13 +799,21 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 			err = -EINVAL;
 			goto err_fmr_mpt;
 		}
+		mpts = mtts = 1 << i;
+	} else {
+		mpts = dev->limits.num_mtt_segs;
+		mtts = dev->limits.num_mpts;
+	}
+
+	if (!mthca_is_memfree(dev) &&
+	    (dev->mthca_flags & MTHCA_FLAG_FMR)) {
 
 		addr = pci_resource_start(dev->pdev, 4) +
 			((pci_resource_len(dev->pdev, 4) - 1) &
 			 dev->mr_table.mpt_base);
 
 		dev->mr_table.tavor_fmr.mpt_base =
-			ioremap(addr, (1 << i) * sizeof(struct mthca_mpt_entry));
+			ioremap(addr, mpts * sizeof(struct mthca_mpt_entry));
 
 		if (!dev->mr_table.tavor_fmr.mpt_base) {
 			mthca_warn(dev, "MPT ioremap for FMR failed.\n");
@@ -818,19 +826,21 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 			 dev->mr_table.mtt_base);
 
 		dev->mr_table.tavor_fmr.mtt_base =
-			ioremap(addr, (1 << i) * MTHCA_MTT_SEG_SIZE);
+			ioremap(addr, mtts * MTHCA_MTT_SEG_SIZE);
 		if (!dev->mr_table.tavor_fmr.mtt_base) {
 			mthca_warn(dev, "MTT ioremap for FMR failed.\n");
 			err = -ENOMEM;
 			goto err_fmr_mtt;
 		}
+	}
 
-		err = mthca_buddy_init(&dev->mr_table.tavor_fmr.mtt_buddy, i);
+	if (dev->limits.fmr_reserved_mtts) {
+		err = mthca_buddy_init(&dev->mr_table.tavor_fmr.mtt_buddy, fls(mtts - 1));
 		if (err)
 			goto err_fmr_mtt_buddy;
 
 		/* Prevent regular MRs from using FMR keys */
-		err = mthca_buddy_alloc(&dev->mr_table.mtt_buddy, i);
+		err = mthca_buddy_alloc(&dev->mr_table.mtt_buddy, fls(mtts - 1));
 		if (err)
 			goto err_reserve_fmr;
 
