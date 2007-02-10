@@ -20,7 +20,7 @@ struct mc_device {
 	char *name;
 	int (*config)(char *, char **);
 	int (*get_config)(char *, char *, int, char **);
-        int (*id)(char **, int *, int *);
+	int (*id)(char **, int *, int *);
 	int (*remove)(int, char **);
 };
 
