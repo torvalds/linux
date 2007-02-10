@@ -169,7 +169,7 @@ static int option_server_mode;
 
 int pmu_battery_count;
 int pmu_cur_battery;
-unsigned int pmu_power_flags;
+unsigned int pmu_power_flags = PMU_PWR_AC_PRESENT;
 struct pmu_battery_info pmu_batteries[PMU_MAX_BATTERIES];
 static int query_batt_timer = BATTERY_POLLING_COUNT;
 static struct adb_request batt_req;
