@@ -6,12 +6,15 @@
 #include <asm/page.h>
 
 OUTPUT_ARCH(m32r)
-ENTRY(startup_32)
 #if defined(__LITTLE_ENDIAN__)
        jiffies = jiffies_64;
 #else
        jiffies = jiffies_64 + 4;
 #endif
+
+kernel_entry = boot - 0x80000000;
+ENTRY(kernel_entry)
+
 SECTIONS
 {
   . = CONFIG_MEMORY_START + __PAGE_OFFSET;
