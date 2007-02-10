@@ -352,6 +352,8 @@ struct pnp_protocol {
 	(dev) = protocol_to_pnp_dev((dev)->protocol_list.next))
 
 
+extern struct bus_type pnp_bus_type;
+
 #if defined(CONFIG_PNP)
 
 /* device management */
