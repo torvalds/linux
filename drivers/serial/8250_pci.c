@@ -679,6 +679,13 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_PLX,
+		.device		= PCI_DEVICE_ID_PLX_9030,
+		.subvendor	= PCI_SUBVENDOR_ID_PERLE,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_default_setup,
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_PLX,
 		.device		= PCI_DEVICE_ID_PLX_9050,
 		.subvendor	= PCI_SUBVENDOR_ID_EXSYS,
 		.subdevice	= PCI_SUBDEVICE_ID_EXSYS_4055,
@@ -2378,6 +2385,15 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,	/* 135a.0811 */
 		pbn_b2_2_115200 },
 
+	/*
+	 * Perle PCI-RAS cards
+	 */
+	{       PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9030,
+		PCI_SUBVENDOR_ID_PERLE, PCI_SUBDEVICE_ID_PCI_RAS4,
+		0, 0, pbn_b2_4_921600 },
+	{       PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9030,
+		PCI_SUBVENDOR_ID_PERLE, PCI_SUBDEVICE_ID_PCI_RAS8,
+		0, 0, pbn_b2_8_921600 },
 	/*
 	 * These entries match devices with class COMMUNICATION_SERIAL,
 	 * COMMUNICATION_MODEM or COMMUNICATION_MULTISERIAL
