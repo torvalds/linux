@@ -872,10 +872,10 @@ xfs_statvfs(
  *		       this by simply making sure the log gets flushed
  *		       if SYNC_BDFLUSH is set, and by actually writing it
  *		       out otherwise.
- *	SYNC_DIO_WAIT - The caller wants us to wait for all direct I/Os
- *		       as well to ensure all data I/O completes before we
- *		       return. Forms the drain side of the write barrier needed
- *		       to safely quiesce the filesystem.
+ *	SYNC_IOWAIT  - The caller wants us to wait for all data I/O to complete
+ *		       before we return (including direct I/O). Forms the drain
+ *		       side of the write barrier needed to safely quiesce the
+ *		       filesystem.
  *
  */
 /*ARGSUSED*/
@@ -1174,10 +1174,11 @@ xfs_sync_inodes(
 
 		}
 		/*
-		 * When freezing, we need to wait ensure direct I/O is complete
-		 * as well to ensure all data modification is complete here
+		 * When freezing, we need to wait ensure all I/O (including direct
+		 * I/O) is complete to ensure no further data modification can take
+		 * place after this point
 		 */
-		if (flags & SYNC_DIO_WAIT)
+		if (flags & SYNC_IOWAIT)
 			vn_iowait(vp);
 
 		if (flags & SYNC_BDFLUSH) {
@@ -1975,7 +1976,7 @@ xfs_freeze(
 	/* flush inodes and push all remaining buffers out to disk */
 	xfs_quiesce_fs(mp);
 
-	BUG_ON(atomic_read(&mp->m_active_trans) > 0);
+	ASSERT_ALWAYS(atomic_read(&mp->m_active_trans) == 0);
 
 	/* Push the superblock and write an unmount record */
 	xfs_log_unmount_write(mp);

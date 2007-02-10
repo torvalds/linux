@@ -667,7 +667,7 @@ xfs_fs_sync_super(
 		 * occur here so don't bother flushing the buftarg (i.e
 		 * SYNC_QUIESCE) because it'll just get dirty again.
 		 */
-		flags = SYNC_FSDATA | SYNC_DELWRI | SYNC_WAIT | SYNC_DIO_WAIT;
+		flags = SYNC_FSDATA | SYNC_DELWRI | SYNC_WAIT | SYNC_IOWAIT;
 	} else
 		flags = SYNC_FSDATA | (wait ? SYNC_WAIT : 0);
 
