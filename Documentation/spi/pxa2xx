@@ -102,7 +102,7 @@ struct pxa2xx_spi_chip {
 	u8 tx_threshold;
 	u8 rx_threshold;
 	u8 dma_burst_size;
-	u32 timeout_microsecs;
+	u32 timeout;
 	u8 enable_loopback;
 	void (*cs_control)(u32 command);
 };
@@ -121,7 +121,7 @@ the PXA2xx "Developer Manual" sections on the DMA controller and SSP Controllers
 to determine the correct value. An SSP configured for byte-wide transfers would
 use a value of 8.
 
-The "pxa2xx_spi_chip.timeout_microsecs" fields is used to efficiently handle
+The "pxa2xx_spi_chip.timeout" fields is used to efficiently handle
 trailing bytes in the SSP receiver fifo.  The correct value for this field is
 dependent on the SPI bus speed ("spi_board_info.max_speed_hz") and the specific
 slave device.  Please note that the PXA2xx SSP 1 does not support trailing byte
@@ -162,18 +162,18 @@ static void cs8405a_cs_control(u32 command)
 }
 
 static struct pxa2xx_spi_chip cs8415a_chip_info = {
-	.tx_threshold = 12, /* SSP hardward FIFO threshold */
-	.rx_threshold = 4, /* SSP hardward FIFO threshold */
+	.tx_threshold = 8, /* SSP hardward FIFO threshold */
+	.rx_threshold = 8, /* SSP hardward FIFO threshold */
 	.dma_burst_size = 8, /* Byte wide transfers used so 8 byte bursts */
-	.timeout_microsecs = 64, /* Wait at least 64usec to handle trailing */
+	.timeout = 235, /* See Intel documentation */
 	.cs_control = cs8415a_cs_control, /* Use external chip select */
 };
 
 static struct pxa2xx_spi_chip cs8405a_chip_info = {
-	.tx_threshold = 12, /* SSP hardward FIFO threshold */
-	.rx_threshold = 4, /* SSP hardward FIFO threshold */
+	.tx_threshold = 8, /* SSP hardward FIFO threshold */
+	.rx_threshold = 8, /* SSP hardward FIFO threshold */
 	.dma_burst_size = 8, /* Byte wide transfers used so 8 byte bursts */
-	.timeout_microsecs = 64, /* Wait at least 64usec to handle trailing */
+	.timeout = 235, /* See Intel documentation */
 	.cs_control = cs8405a_cs_control, /* Use external chip select */
 };
 

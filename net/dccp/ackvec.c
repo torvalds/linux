@@ -223,7 +223,7 @@ static inline int dccp_ackvec_set_buf_head_state(struct dccp_ackvec *av,
 			gap = -new_head;
 		}
 		new_head += DCCP_MAX_ACKVEC_LEN;
-	} 
+	}
 
 	av->dccpav_buf_head = new_head;
 
@@ -336,7 +336,7 @@ out_duplicate:
 void dccp_ackvector_print(const u64 ackno, const unsigned char *vector, int len)
 {
 	dccp_pr_debug_cat("ACK vector len=%d, ackno=%llu |", len,
-			 		(unsigned long long)ackno);
+			 (unsigned long long)ackno);
 
 	while (len--) {
 		const u8 state = (*vector & DCCP_ACKVEC_STATE_MASK) >> 6;

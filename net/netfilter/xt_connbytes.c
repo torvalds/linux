@@ -52,6 +52,8 @@ match(const struct sk_buff *skb,
 {
 	const struct xt_connbytes_info *sinfo = matchinfo;
 	u_int64_t what = 0;	/* initialize to make gcc happy */
+	u_int64_t bytes = 0;
+	u_int64_t pkts = 0;
 	const struct ip_conntrack_counter *counters;
 
 	if (!(counters = nf_ct_get_counters(skb)))
@@ -89,29 +91,22 @@ match(const struct sk_buff *skb,
 	case XT_CONNBYTES_AVGPKT:
 		switch (sinfo->direction) {
 		case XT_CONNBYTES_DIR_ORIGINAL:
-			what = div64_64(counters[IP_CT_DIR_ORIGINAL].bytes,
-					counters[IP_CT_DIR_ORIGINAL].packets);
+			bytes = counters[IP_CT_DIR_ORIGINAL].bytes;
+			pkts  = counters[IP_CT_DIR_ORIGINAL].packets;
 			break;
 		case XT_CONNBYTES_DIR_REPLY:
-			what = div64_64(counters[IP_CT_DIR_REPLY].bytes,
-					counters[IP_CT_DIR_REPLY].packets);
+			bytes = counters[IP_CT_DIR_REPLY].bytes;
+			pkts  = counters[IP_CT_DIR_REPLY].packets;
 			break;
 		case XT_CONNBYTES_DIR_BOTH:
-			{
-				u_int64_t bytes;
-				u_int64_t pkts;
-				bytes = counters[IP_CT_DIR_ORIGINAL].bytes +
-					counters[IP_CT_DIR_REPLY].bytes;
-				pkts = counters[IP_CT_DIR_ORIGINAL].packets+
-					counters[IP_CT_DIR_REPLY].packets;
-
-				/* FIXME_THEORETICAL: what to do if sum
-				 * overflows ? */
-
-				what = div64_64(bytes, pkts);
-			}
+			bytes = counters[IP_CT_DIR_ORIGINAL].bytes +
+				counters[IP_CT_DIR_REPLY].bytes;
+			pkts  = counters[IP_CT_DIR_ORIGINAL].packets +
+				counters[IP_CT_DIR_REPLY].packets;
 			break;
 		}
+		if (pkts != 0)
+			what = div64_64(bytes, pkts);
 		break;
 	}
 
@@ -139,7 +134,19 @@ static int check(const char *tablename,
 	    sinfo->direction != XT_CONNBYTES_DIR_BOTH)
 		return 0;
 
+	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
+		printk(KERN_WARNING "can't load conntrack support for "
+				    "proto=%d\n", match->family);
+		return 0;
+	}
+
 	return 1;
+}
+
+static void
+destroy(const struct xt_match *match, void *matchinfo)
+{
+	nf_ct_l3proto_module_put(match->family);
 }
 
 static struct xt_match xt_connbytes_match[] = {
@@ -148,6 +155,7 @@ static struct xt_match xt_connbytes_match[] = {
 		.family		= AF_INET,
 		.checkentry	= check,
 		.match		= match,
+		.destroy	= destroy,
 		.matchsize	= sizeof(struct xt_connbytes_info),
 		.me		= THIS_MODULE
 	},
@@ -156,6 +164,7 @@ static struct xt_match xt_connbytes_match[] = {
 		.family		= AF_INET6,
 		.checkentry	= check,
 		.match		= match,
+		.destroy	= destroy,
 		.matchsize	= sizeof(struct xt_connbytes_info),
 		.me		= THIS_MODULE
 	},

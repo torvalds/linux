@@ -100,7 +100,7 @@ int __init blz2060_esp_detect(struct scsi_host_template *tpnt)
 	    unsigned long board = z->resource.start;
 	    if (request_mem_region(board+BLZ2060_ESP_ADDR,
 				   sizeof(struct ESP_regs), "NCR53C9x")) {
-		esp = esp_allocate(tpnt, (void *)board+BLZ2060_ESP_ADDR);
+		esp = esp_allocate(tpnt, (void *)board + BLZ2060_ESP_ADDR, 0);
 
 		/* Do command transfer with programmed I/O */
 		esp->do_pio_cmds = 1;

@@ -191,10 +191,10 @@ static int ICACRT_msg_to_type4CRT_msg(struct zcrypt_device *zdev,
  *
  * Returns 0 on success or -EFAULT.
  */
-static inline int convert_type84(struct zcrypt_device *zdev,
-				 struct ap_message *reply,
-				 char __user *outputdata,
-				 unsigned int outputdatalength)
+static int convert_type84(struct zcrypt_device *zdev,
+			  struct ap_message *reply,
+			  char __user *outputdata,
+			  unsigned int outputdatalength)
 {
 	struct type84_hdr *t84h = reply->message;
 	char *data;
@@ -279,7 +279,7 @@ static long zcrypt_pcica_modexpo(struct zcrypt_device *zdev,
 	struct completion work;
 	int rc;
 
-	ap_msg.message = (void *) kmalloc(PCICA_MAX_MESSAGE_SIZE, GFP_KERNEL);
+	ap_msg.message = kmalloc(PCICA_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
@@ -321,7 +321,7 @@ static long zcrypt_pcica_modexpo_crt(struct zcrypt_device *zdev,
 	struct completion work;
 	int rc;
 
-	ap_msg.message = (void *) kmalloc(PCICA_MAX_MESSAGE_SIZE, GFP_KERNEL);
+	ap_msg.message = kmalloc(PCICA_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +

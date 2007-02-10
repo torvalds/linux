@@ -88,13 +88,13 @@ ENTRY(cpu_arm720_switch_mm)
 		mov	pc, lr
 
 /*
- * Function: arm720_set_pte(pte_t *ptep, pte_t pte)
+ * Function: arm720_set_pte_ext(pte_t *ptep, pte_t pte, unsigned int ext)
  * Params  : r0 = Address to set
  *	   : r1 = value to set
  * Purpose : Set a PTE and flush it out of any WB cache
  */
 		.align	5
-ENTRY(cpu_arm720_set_pte)
+ENTRY(cpu_arm720_set_pte_ext)
 #ifdef CONFIG_MMU
 		str	r1, [r0], #-2048		@ linux version
 
@@ -204,7 +204,7 @@ ENTRY(arm720_processor_functions)
 		.word	cpu_arm720_do_idle
 		.word	cpu_arm720_dcache_clean_area
 		.word	cpu_arm720_switch_mm
-		.word	cpu_arm720_set_pte
+		.word	cpu_arm720_set_pte_ext
 		.size	arm720_processor_functions, . - arm720_processor_functions
 
 		.section ".rodata"

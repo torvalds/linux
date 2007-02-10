@@ -24,8 +24,6 @@
 #include <linux/nfsd/nfsd.h>
 
 #define NFSDDBG_FACILITY		NFSDDBG_FH
-#define NFSD_PARANOIA 1
-/* #define NFSD_DEBUG_VERBOSE 1 */
 
 
 static int nfsd_nr_verified;
@@ -169,9 +167,11 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 			exp = exp_find(rqstp->rq_client, 0, tfh, &rqstp->rq_chandle);
 		}
 
-		error = nfserr_dropit;
-		if (IS_ERR(exp) && PTR_ERR(exp) == -EAGAIN)
+		if (IS_ERR(exp) && (PTR_ERR(exp) == -EAGAIN
+				|| PTR_ERR(exp) == -ETIMEDOUT)) {
+			error = nfserrno(PTR_ERR(exp));
 			goto out;
+		}
 
 		error = nfserr_stale; 
 		if (!exp || IS_ERR(exp))
@@ -228,13 +228,12 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 				error = nfserrno(PTR_ERR(dentry));
 			goto out;
 		}
-#ifdef NFSD_PARANOIA
+
 		if (S_ISDIR(dentry->d_inode->i_mode) &&
 		    (dentry->d_flags & DCACHE_DISCONNECTED)) {
 			printk("nfsd: find_fh_dentry returned a DISCONNECTED directory: %s/%s\n",
 			       dentry->d_parent->d_name.name, dentry->d_name.name);
 		}
-#endif
 
 		fhp->fh_dentry = dentry;
 		fhp->fh_export = exp;
@@ -265,12 +264,13 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 	/* Finally, check access permissions. */
 	error = nfsd_permission(exp, dentry, access);
 
-#ifdef NFSD_PARANOIA_EXTREME
 	if (error) {
-		printk("fh_verify: %s/%s permission failure, acc=%x, error=%d\n",
-		       dentry->d_parent->d_name.name, dentry->d_name.name, access, (error >> 24));
+		dprintk("fh_verify: %s/%s permission failure, "
+			"acc=%x, error=%d\n",
+			dentry->d_parent->d_name.name,
+			dentry->d_name.name,
+			access, ntohl(error));
 	}
-#endif
 out:
 	if (exp && !IS_ERR(exp))
 		exp_put(exp);

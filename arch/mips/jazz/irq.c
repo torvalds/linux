@@ -40,7 +40,7 @@ void disable_r4030_irq(unsigned int irq)
 }
 
 static struct irq_chip r4030_irq_type = {
-	.typename = "R4030",
+	.name = "R4030",
 	.ack = disable_r4030_irq,
 	.mask = disable_r4030_irq,
 	.mask_ack = disable_r4030_irq,

@@ -163,6 +163,10 @@ static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 			kick_thread = 1;
 		}
 	}
+	/* reduce the inflight count, this may result in the lockres
+	 * being purged below during calc_usage */
+	if (lock->ml.node == dlm->node_num)
+		dlm_lockres_drop_inflight_ref(dlm, res);
 
 	spin_unlock(&res->spinlock);
 	wake_up(&res->wq);
@@ -408,13 +412,13 @@ struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
 	struct dlm_lock *lock;
 	int kernel_allocated = 0;
 
-	lock = kcalloc(1, sizeof(*lock), GFP_NOFS);
+	lock = kzalloc(sizeof(*lock), GFP_NOFS);
 	if (!lock)
 		return NULL;
 
 	if (!lksb) {
 		/* zero memory only if kernel-allocated */
-		lksb = kcalloc(1, sizeof(*lksb), GFP_NOFS);
+		lksb = kzalloc(sizeof(*lksb), GFP_NOFS);
 		if (!lksb) {
 			kfree(lock);
 			return NULL;
@@ -437,7 +441,8 @@ struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
  *   held on exit:  none
  * returns: DLM_NORMAL, DLM_SYSERR, DLM_IVLOCKID, DLM_NOTQUEUED
  */
-int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data)
+int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
+			    void **ret_data)
 {
 	struct dlm_ctxt *dlm = data;
 	struct dlm_create_lock *create = (struct dlm_create_lock *)msg->buf;

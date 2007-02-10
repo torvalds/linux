@@ -16,8 +16,8 @@
 
 #include <linux/crypto.h>
 #include <linux/errno.h>
+#include <linux/hardirq.h>
 #include <linux/kernel.h>
-#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/seq_file.h>
@@ -314,6 +314,9 @@ static int blkcipher_walk_first(struct blkcipher_desc *desc,
 	struct crypto_blkcipher *tfm = desc->tfm;
 	unsigned int alignmask = crypto_blkcipher_alignmask(tfm);
 
+	if (WARN_ON_ONCE(in_irq()))
+		return -EDEADLK;
+
 	walk->nbytes = walk->total;
 	if (unlikely(!walk->total))
 		return 0;
@@ -346,7 +349,8 @@ static int setkey(struct crypto_tfm *tfm, const u8 *key,
 	return cipher->setkey(tfm, key, keylen);
 }
 
-static unsigned int crypto_blkcipher_ctxsize(struct crypto_alg *alg)
+static unsigned int crypto_blkcipher_ctxsize(struct crypto_alg *alg, u32 type,
+					     u32 mask)
 {
 	struct blkcipher_alg *cipher = &alg->cra_blkcipher;
 	unsigned int len = alg->cra_ctxsize;
@@ -359,7 +363,7 @@ static unsigned int crypto_blkcipher_ctxsize(struct crypto_alg *alg)
 	return len;
 }
 
-static int crypto_init_blkcipher_ops(struct crypto_tfm *tfm)
+static int crypto_init_blkcipher_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 {
 	struct blkcipher_tfm *crt = &tfm->crt_blkcipher;
 	struct blkcipher_alg *alg = &tfm->__crt_alg->cra_blkcipher;

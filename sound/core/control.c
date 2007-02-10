@@ -108,7 +108,6 @@ static void snd_ctl_empty_read_queue(struct snd_ctl_file * ctl)
 static int snd_ctl_release(struct inode *inode, struct file *file)
 {
 	unsigned long flags;
-	struct list_head *list;
 	struct snd_card *card;
 	struct snd_ctl_file *ctl;
 	struct snd_kcontrol *control;
@@ -122,12 +121,10 @@ static int snd_ctl_release(struct inode *inode, struct file *file)
 	list_del(&ctl->list);
 	write_unlock_irqrestore(&card->ctl_files_rwlock, flags);
 	down_write(&card->controls_rwsem);
-	list_for_each(list, &card->controls) {
-		control = snd_kcontrol(list);
+	list_for_each_entry(control, &card->controls, list)
 		for (idx = 0; idx < control->count; idx++)
 			if (control->vd[idx].owner == ctl)
 				control->vd[idx].owner = NULL;
-	}
 	up_write(&card->controls_rwsem);
 	snd_ctl_empty_read_queue(ctl);
 	kfree(ctl);
@@ -140,7 +137,6 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 		    struct snd_ctl_elem_id *id)
 {
 	unsigned long flags;
-	struct list_head *flist;
 	struct snd_ctl_file *ctl;
 	struct snd_kctl_event *ev;
 	
@@ -149,14 +145,11 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
 	card->mixer_oss_change_count++;
 #endif
-	list_for_each(flist, &card->ctl_files) {
-		struct list_head *elist;
-		ctl = snd_ctl_file(flist);
+	list_for_each_entry(ctl, &card->ctl_files, list) {
 		if (!ctl->subscribed)
 			continue;
 		spin_lock_irqsave(&ctl->read_lock, flags);
-		list_for_each(elist, &ctl->events) {
-			ev = snd_kctl_event(elist);
+		list_for_each_entry(ev, &ctl->events, list) {
 			if (ev->id.numid == id->numid) {
 				ev->mask |= mask;
 				goto _found;
@@ -190,7 +183,8 @@ EXPORT_SYMBOL(snd_ctl_notify);
  *
  * Returns the pointer of the new instance, or NULL on failure.
  */
-struct snd_kcontrol *snd_ctl_new(struct snd_kcontrol *control, unsigned int access)
+static struct snd_kcontrol *snd_ctl_new(struct snd_kcontrol *control,
+					unsigned int access)
 {
 	struct snd_kcontrol *kctl;
 	unsigned int idx;
@@ -207,8 +201,6 @@ struct snd_kcontrol *snd_ctl_new(struct snd_kcontrol *control, unsigned int acce
 		kctl->vd[idx].access = access;
 	return kctl;
 }
-
-EXPORT_SYMBOL(snd_ctl_new);
 
 /**
  * snd_ctl_new1 - create a control instance from the template
@@ -277,11 +269,9 @@ EXPORT_SYMBOL(snd_ctl_free_one);
 static unsigned int snd_ctl_hole_check(struct snd_card *card,
 				       unsigned int count)
 {
-	struct list_head *list;
 	struct snd_kcontrol *kctl;
 
-	list_for_each(list, &card->controls) {
-		kctl = snd_kcontrol(list);
+	list_for_each_entry(kctl, &card->controls, list) {
 		if ((kctl->id.numid <= card->last_numid &&
 		     kctl->id.numid + kctl->count > card->last_numid) ||
 		    (kctl->id.numid <= card->last_numid + count - 1 &&
@@ -498,12 +488,10 @@ EXPORT_SYMBOL(snd_ctl_rename_id);
  */
 struct snd_kcontrol *snd_ctl_find_numid(struct snd_card *card, unsigned int numid)
 {
-	struct list_head *list;
 	struct snd_kcontrol *kctl;
 
 	snd_assert(card != NULL && numid != 0, return NULL);
-	list_for_each(list, &card->controls) {
-		kctl = snd_kcontrol(list);
+	list_for_each_entry(kctl, &card->controls, list) {
 		if (kctl->id.numid <= numid && kctl->id.numid + kctl->count > numid)
 			return kctl;
 	}
@@ -527,14 +515,12 @@ EXPORT_SYMBOL(snd_ctl_find_numid);
 struct snd_kcontrol *snd_ctl_find_id(struct snd_card *card,
 				     struct snd_ctl_elem_id *id)
 {
-	struct list_head *list;
 	struct snd_kcontrol *kctl;
 
 	snd_assert(card != NULL && id != NULL, return NULL);
 	if (id->numid != 0)
 		return snd_ctl_find_numid(card, id->numid);
-	list_for_each(list, &card->controls) {
-		kctl = snd_kcontrol(list);
+	list_for_each_entry(kctl, &card->controls, list) {
 		if (kctl->id.iface != id->iface)
 			continue;
 		if (kctl->id.device != id->device)
@@ -1182,7 +1168,6 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 {
 	struct snd_ctl_file *ctl;
 	struct snd_card *card;
-	struct list_head *list;
 	struct snd_kctl_ioctl *p;
 	void __user *argp = (void __user *)arg;
 	int __user *ip = argp;
@@ -1232,8 +1217,7 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 #endif
 	}
 	down_read(&snd_ioctl_rwsem);
-	list_for_each(list, &snd_control_ioctls) {
-		p = list_entry(list, struct snd_kctl_ioctl, list);
+	list_for_each_entry(p, &snd_control_ioctls, list) {
 		err = p->fioctl(card, ctl, cmd, arg);
 		if (err != -ENOIOCTLCMD) {
 			up_read(&snd_ioctl_rwsem);
@@ -1275,7 +1259,7 @@ static ssize_t snd_ctl_read(struct file *file, char __user *buffer,
 			schedule();
 			remove_wait_queue(&ctl->change_sleep, &wait);
 			if (signal_pending(current))
-				return result > 0 ? result : -ERESTARTSYS;
+				return -ERESTARTSYS;
 			spin_lock_irq(&ctl->read_lock);
 		}
 		kev = snd_kctl_event(ctl->events.next);
@@ -1357,13 +1341,11 @@ EXPORT_SYMBOL(snd_ctl_register_ioctl_compat);
 static int _snd_ctl_unregister_ioctl(snd_kctl_ioctl_func_t fcn,
 				     struct list_head *lists)
 {
-	struct list_head *list;
 	struct snd_kctl_ioctl *p;
 
 	snd_assert(fcn != NULL, return -EINVAL);
 	down_write(&snd_ioctl_rwsem);
-	list_for_each(list, lists) {
-		p = list_entry(list, struct snd_kctl_ioctl, list);
+	list_for_each_entry(p, lists, list) {
 		if (p->fioctl == fcn) {
 			list_del(&p->list);
 			up_write(&snd_ioctl_rwsem);
@@ -1453,7 +1435,6 @@ static int snd_ctl_dev_register(struct snd_device *device)
 static int snd_ctl_dev_disconnect(struct snd_device *device)
 {
 	struct snd_card *card = device->device_data;
-	struct list_head *flist;
 	struct snd_ctl_file *ctl;
 	int err, cardnum;
 
@@ -1462,8 +1443,7 @@ static int snd_ctl_dev_disconnect(struct snd_device *device)
 	snd_assert(cardnum >= 0 && cardnum < SNDRV_CARDS, return -ENXIO);
 
 	down_read(&card->controls_rwsem);
-	list_for_each(flist, &card->ctl_files) {
-		ctl = snd_ctl_file(flist);
+	list_for_each_entry(ctl, &card->ctl_files, list) {
 		wake_up(&ctl->change_sleep);
 		kill_fasync(&ctl->fasync, SIGIO, POLL_ERR);
 	}

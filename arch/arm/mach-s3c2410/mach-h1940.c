@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/serial_core.h>
 #include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
@@ -36,8 +37,6 @@
 #include <asm/arch/h1940.h>
 #include <asm/arch/h1940-latch.h>
 #include <asm/arch/fb.h>
-
-#include <linux/serial_core.h>
 
 #include "clock.h"
 #include "devs.h"

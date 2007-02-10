@@ -35,7 +35,7 @@
 #ifdef	CONFIG_FSL_BOOKE
 #define WDT_PERIOD_DEFAULT 63	/* Ex. wdt_period=28 bus=333Mhz , reset=~40sec */
 #else
-#define WDT_PERIOD_DEFAULT 4	/* Refer to the PPC40x and PPC4xx manuals */
+#define WDT_PERIOD_DEFAULT 3	/* Refer to the PPC40x and PPC4xx manuals */
 #endif				/* for timing information */
 
 u32 booke_wdt_enabled = 0;
@@ -48,24 +48,26 @@ u32 booke_wdt_period = WDT_PERIOD_DEFAULT;
 #endif
 
 /*
+ * booke_wdt_ping:
+ */
+static __inline__ void booke_wdt_ping(void)
+{
+	mtspr(SPRN_TSR, TSR_ENW|TSR_WIS);
+}
+
+/*
  * booke_wdt_enable:
  */
 static __inline__ void booke_wdt_enable(void)
 {
 	u32 val;
 
+	/* clear status before enabling watchdog */
+	booke_wdt_ping();
 	val = mfspr(SPRN_TCR);
 	val |= (TCR_WIE|TCR_WRC(WRC_CHIP)|WDTP(booke_wdt_period));
 
 	mtspr(SPRN_TCR, val);
-}
-
-/*
- * booke_wdt_ping:
- */
-static __inline__ void booke_wdt_ping(void)
-{
-	mtspr(SPRN_TSR, TSR_ENW|TSR_WIS);
 }
 
 /*

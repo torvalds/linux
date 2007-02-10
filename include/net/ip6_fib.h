@@ -50,9 +50,9 @@ struct fib6_node
 	struct fib6_node	*parent;
 	struct fib6_node	*left;
 	struct fib6_node	*right;
-
+#ifdef CONFIG_IPV6_SUBTREES
 	struct fib6_node	*subtree;
-
+#endif
 	struct rt6_info		*leaf;
 
 	__u16			fn_bit;		/* bit key */

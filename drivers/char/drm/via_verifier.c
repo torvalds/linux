@@ -306,6 +306,7 @@ static __inline__ int finish_current_sequence(drm_via_state_t * cur_seq)
 			unsigned long lo = ~0, hi = 0, tmp;
 			uint32_t *addr, *pitch, *height, tex;
 			unsigned i;
+			int npot;
 
 			if (end > 9)
 				end = 9;
@@ -316,12 +317,15 @@ static __inline__ int finish_current_sequence(drm_via_state_t * cur_seq)
 			    &(cur_seq->t_addr[tex = cur_seq->texture][start]);
 			pitch = &(cur_seq->pitch[tex][start]);
 			height = &(cur_seq->height[tex][start]);
-
+			npot = cur_seq->tex_npot[tex];
 			for (i = start; i <= end; ++i) {
 				tmp = *addr++;
 				if (tmp < lo)
 					lo = tmp;
-				tmp += (*height++ << *pitch++);
+				if (i == 0 && npot)
+					tmp += (*height++ * *pitch++);
+				else
+					tmp += (*height++ << *pitch++);
 				if (tmp > hi)
 					hi = tmp;
 			}
@@ -443,13 +447,21 @@ investigate_hazard(uint32_t cmd, hazard_t hz, drm_via_state_t * cur_seq)
 		return 0;
 	case check_texture_addr3:
 		cur_seq->unfinished = tex_address;
-		tmp = ((cmd >> 24) - 0x2B);
-		cur_seq->pitch[cur_seq->texture][tmp] =
-		    (cmd & 0x00F00000) >> 20;
-		if (!tmp && (cmd & 0x000FFFFF)) {
-			DRM_ERROR
-			    ("Unimplemented texture level 0 pitch mode.\n");
-			return 2;
+		tmp = ((cmd >> 24) - HC_SubA_HTXnL0Pit);
+		if (tmp == 0 &&
+		    (cmd & HC_HTXnEnPit_MASK)) {
+			cur_seq->pitch[cur_seq->texture][tmp] =
+				(cmd & HC_HTXnLnPit_MASK);
+			cur_seq->tex_npot[cur_seq->texture] = 1;
+		} else {
+			cur_seq->pitch[cur_seq->texture][tmp] =
+				(cmd & HC_HTXnLnPitE_MASK) >> HC_HTXnLnPitE_SHIFT;
+			cur_seq->tex_npot[cur_seq->texture] = 0;
+			if (cmd & 0x000FFFFF) {
+				DRM_ERROR
+					("Unimplemented texture level 0 pitch mode.\n");
+				return 2;
+			}
 		}
 		return 0;
 	case check_texture_addr4:
@@ -961,7 +973,13 @@ via_verify_command_stream(const uint32_t * buf, unsigned int size,
 	uint32_t cmd;
 	const uint32_t *buf_end = buf + (size >> 2);
 	verifier_state_t state = state_command;
-	int pro_group_a = dev_priv->pro_group_a;
+	int cme_video;
+	int supported_3d;
+
+	cme_video = (dev_priv->chipset == VIA_PRO_GROUP_A ||
+		     dev_priv->chipset == VIA_DX9_0);
+
+	supported_3d = dev_priv->chipset != VIA_DX9_0;
 
 	hc_state->dev = dev;
 	hc_state->unfinished = no_sequence;
@@ -986,17 +1004,21 @@ via_verify_command_stream(const uint32_t * buf, unsigned int size,
 			state = via_check_vheader6(&buf, buf_end);
 			break;
 		case state_command:
-			if (HALCYON_HEADER2 == (cmd = *buf))
+			if ((HALCYON_HEADER2 == (cmd = *buf)) &&
+			    supported_3d)
 				state = state_header2;
 			else if ((cmd & HALCYON_HEADER1MASK) == HALCYON_HEADER1)
 				state = state_header1;
-			else if (pro_group_a
+			else if (cme_video
 				 && (cmd & VIA_VIDEOMASK) == VIA_VIDEO_HEADER5)
 				state = state_vheader5;
-			else if (pro_group_a
+			else if (cme_video
 				 && (cmd & VIA_VIDEOMASK) == VIA_VIDEO_HEADER6)
 				state = state_vheader6;
-			else {
+			else if ((cmd == HALCYON_HEADER2) && !supported_3d) {
+				DRM_ERROR("Accelerated 3D is not supported on this chipset yet.\n");
+				state = state_error;
+			} else {
 				DRM_ERROR
 				    ("Invalid / Unimplemented DMA HEADER command. 0x%x\n",
 				     cmd);

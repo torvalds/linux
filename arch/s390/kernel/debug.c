@@ -120,7 +120,7 @@ struct debug_view debug_hex_ascii_view = {
 	NULL
 };
 
-struct debug_view debug_level_view = {
+static struct debug_view debug_level_view = {
 	"level",
 	&debug_prolog_level_fn,
 	NULL,
@@ -129,7 +129,7 @@ struct debug_view debug_level_view = {
 	NULL
 };
 
-struct debug_view debug_pages_view = {
+static struct debug_view debug_pages_view = {
 	"pages",
 	&debug_prolog_pages_fn,
 	NULL,
@@ -138,7 +138,7 @@ struct debug_view debug_pages_view = {
 	NULL
 };
 
-struct debug_view debug_flush_view = {
+static struct debug_view debug_flush_view = {
         "flush",
         NULL,
         NULL,
@@ -156,14 +156,14 @@ struct debug_view debug_sprintf_view = {
 	NULL
 };
 
-
+/* used by dump analysis tools to determine version of debug feature */
 unsigned int debug_feature_version = __DEBUG_FEATURE_VERSION;
 
 /* static globals */
 
 static debug_info_t *debug_area_first = NULL;
 static debug_info_t *debug_area_last = NULL;
-DECLARE_MUTEX(debug_lock);
+static DECLARE_MUTEX(debug_lock);
 
 static int initialized;
 
@@ -191,13 +191,13 @@ debug_areas_alloc(int pages_per_area, int nr_areas)
 	debug_entry_t*** areas;
 	int i,j;
 
-	areas = (debug_entry_t ***) kmalloc(nr_areas *
+	areas = kmalloc(nr_areas *
 					sizeof(debug_entry_t**),
 					GFP_KERNEL);
 	if (!areas)
 		goto fail_malloc_areas;
 	for (i = 0; i < nr_areas; i++) {
-		areas[i] = (debug_entry_t**) kmalloc(pages_per_area *
+		areas[i] = kmalloc(pages_per_area *
 				sizeof(debug_entry_t*),GFP_KERNEL);
 		if (!areas[i]) {
 			goto fail_malloc_areas2;
@@ -242,7 +242,7 @@ debug_info_alloc(char *name, int pages_per_area, int nr_areas, int buf_size,
 
 	/* alloc everything */
 
-	rc = (debug_info_t*) kmalloc(sizeof(debug_info_t), GFP_KERNEL);
+	rc = kmalloc(sizeof(debug_info_t), GFP_KERNEL);
 	if(!rc)
 		goto fail_malloc_rc;
 	rc->active_entries = kcalloc(nr_areas, sizeof(int), GFP_KERNEL);
@@ -603,13 +603,13 @@ debug_open(struct inode *inode, struct file *file)
 	debug_info_t *debug_info, *debug_info_snapshot;
 
 	down(&debug_lock);
-	debug_info = file->f_dentry->d_inode->i_private;
+	debug_info = file->f_path.dentry->d_inode->i_private;
 	/* find debug view */
 	for (i = 0; i < DEBUG_MAX_VIEWS; i++) {
 		if (!debug_info->views[i])
 			continue;
 		else if (debug_info->debugfs_entries[i] ==
-			 file->f_dentry) {
+			 file->f_path.dentry) {
 			goto found;	/* found view ! */
 		}
 	}
@@ -634,7 +634,7 @@ found:
 		rc = -ENOMEM;
 		goto out;
 	}
-	p_info = (file_private_info_t *) kmalloc(sizeof(file_private_info_t),
+	p_info = kmalloc(sizeof(file_private_info_t),
 						GFP_KERNEL);
 	if(!p_info){
 		if(debug_info_snapshot)
@@ -905,7 +905,7 @@ static struct ctl_table s390dbf_dir_table[] = {
 	{ .ctl_name = 0 }
 };
 
-struct ctl_table_header *s390dbf_sysctl_header;
+static struct ctl_table_header *s390dbf_sysctl_header;
 
 void
 debug_stop_all(void)
@@ -1300,8 +1300,7 @@ out:
  * flushes debug areas
  */
  
-void
-debug_flush(debug_info_t* id, int area)
+static void debug_flush(debug_info_t* id, int area)
 {
         unsigned long flags;
         int i,j;
@@ -1511,8 +1510,7 @@ out:
 /*
  * clean up module
  */
-void
-__exit debug_exit(void)
+static void __exit debug_exit(void)
 {
 	debugfs_remove(debug_debugfs_root_entry);
 	unregister_sysctl_table(s390dbf_sysctl_header);

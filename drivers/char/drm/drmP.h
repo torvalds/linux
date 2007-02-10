@@ -97,6 +97,7 @@
 #define DRIVER_IRQ_VBL     0x100
 #define DRIVER_DMA_QUEUE   0x200
 #define DRIVER_FB_DMA      0x400
+#define DRIVER_IRQ_VBL2    0x800
 
 /***********************************************************************/
 /** \name Begin the DRM... */
@@ -430,7 +431,8 @@ typedef struct drm_device_dma {
 	enum {
 		_DRM_DMA_USE_AGP = 0x01,
 		_DRM_DMA_USE_SG = 0x02,
-		_DRM_DMA_USE_FB = 0x04
+		_DRM_DMA_USE_FB = 0x04,
+		_DRM_DMA_USE_PCI_RO = 0x08
 	} flags;
 
 } drm_device_dma_t;
@@ -530,11 +532,13 @@ typedef struct drm_mm_node {
 	int free;
 	unsigned long start;
 	unsigned long size;
+	struct drm_mm *mm;
 	void *private;
 } drm_mm_node_t;
 
 typedef struct drm_mm {
-	drm_mm_node_t root_node;
+	struct list_head fl_entry;
+	struct list_head ml_entry;
 } drm_mm_t;
 
 /**
@@ -559,9 +563,9 @@ struct drm_driver {
 	int (*context_dtor) (struct drm_device * dev, int context);
 	int (*kernel_context_switch) (struct drm_device * dev, int old,
 				      int new);
-	void (*kernel_context_switch_unlock) (struct drm_device * dev,
-					      drm_lock_t *lock);
+	void (*kernel_context_switch_unlock) (struct drm_device * dev);
 	int (*vblank_wait) (struct drm_device * dev, unsigned int *sequence);
+	int (*vblank_wait2) (struct drm_device * dev, unsigned int *sequence);
 	int (*dri_library_name) (struct drm_device *dev, char *buf);
 
 	/**
@@ -708,9 +712,13 @@ typedef struct drm_device {
 
 	wait_queue_head_t vbl_queue;	/**< VBLANK wait queue */
 	atomic_t vbl_received;
+	atomic_t vbl_received2;		/**< number of secondary VBLANK interrupts */
 	spinlock_t vbl_lock;
 	drm_vbl_sig_t vbl_sigs;		/**< signal list to send on VBLANK */
+	drm_vbl_sig_t vbl_sigs2;	/**< signals to send on secondary VBLANK */
 	unsigned int vbl_pending;
+	spinlock_t tasklet_lock;	/**< For drm_locked_tasklet */
+	void (*locked_tasklet_func)(struct drm_device *dev);
 
 	/*@} */
 	cycles_t ctx_start;
@@ -738,6 +746,15 @@ typedef struct drm_device {
 	drm_local_map_t *agp_buffer_map;
 	unsigned int agp_buffer_token;
 	drm_head_t primary;		/**< primary screen head */
+
+	/** \name Drawable information */
+	/*@{ */
+	spinlock_t drw_lock;
+	unsigned int drw_bitfield_length;
+	u32 *drw_bitfield;
+	unsigned int drw_info_length;
+	drm_drawable_info_t **drw_info;
+	/*@} */
 } drm_device_t;
 
 static __inline__ int drm_core_check_feature(struct drm_device *dev,
@@ -828,9 +845,6 @@ extern void drm_mem_init(void);
 extern int drm_mem_info(char *buf, char **start, off_t offset,
 			int request, int *eof, void *data);
 extern void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area);
-extern void *drm_ioremap(unsigned long offset, unsigned long size,
-			 drm_device_t * dev);
-extern void drm_ioremapfree(void *pt, unsigned long size, drm_device_t * dev);
 
 extern DRM_AGP_MEM *drm_alloc_agp(drm_device_t * dev, int pages, u32 type);
 extern int drm_free_agp(DRM_AGP_MEM * handle, int pages);
@@ -885,6 +899,10 @@ extern int drm_adddraw(struct inode *inode, struct file *filp,
 		       unsigned int cmd, unsigned long arg);
 extern int drm_rmdraw(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg);
+extern int drm_update_drawable_info(struct inode *inode, struct file *filp,
+		       unsigned int cmd, unsigned long arg);
+extern drm_drawable_info_t *drm_get_drawable_info(drm_device_t *dev,
+						  drm_drawable_t id);
 
 				/* Authentication IOCTL support (drm_auth.h) */
 extern int drm_getmagic(struct inode *inode, struct file *filp,
@@ -949,6 +967,7 @@ extern int drm_wait_vblank(struct inode *inode, struct file *filp,
 			   unsigned int cmd, unsigned long arg);
 extern int drm_vblank_wait(drm_device_t * dev, unsigned int *vbl_seq);
 extern void drm_vbl_send_signals(drm_device_t * dev);
+extern void drm_locked_tasklet(drm_device_t *dev, void(*func)(drm_device_t*));
 
 				/* AGP/GART support (drm_agpsupport.h) */
 extern drm_agp_head_t *drm_agp_init(drm_device_t * dev);
@@ -1033,33 +1052,18 @@ extern void drm_sysfs_device_remove(struct class_device *class_dev);
 extern drm_mm_node_t *drm_mm_get_block(drm_mm_node_t * parent,
 				       unsigned long size,
 				       unsigned alignment);
-extern void drm_mm_put_block(drm_mm_t *mm, drm_mm_node_t *cur);
+void drm_mm_put_block(drm_mm_node_t * cur);
 extern drm_mm_node_t *drm_mm_search_free(const drm_mm_t *mm, unsigned long size,
 					 unsigned alignment, int best_match);
 extern int drm_mm_init(drm_mm_t *mm, unsigned long start, unsigned long size);
 extern void drm_mm_takedown(drm_mm_t *mm);
+extern int drm_mm_clean(drm_mm_t *mm);
+extern unsigned long drm_mm_tail_space(drm_mm_t *mm);
+extern int drm_mm_remove_space_from_tail(drm_mm_t *mm, unsigned long size);
+extern int drm_mm_add_space_to_tail(drm_mm_t *mm, unsigned long size);
 
-/* Inline replacements for DRM_IOREMAP macros */
-static __inline__ void drm_core_ioremap(struct drm_map *map,
-					struct drm_device *dev)
-{
-	map->handle = drm_ioremap(map->offset, map->size, dev);
-}
-
-#if 0
-static __inline__ void drm_core_ioremap_nocache(struct drm_map *map,
-						struct drm_device *dev)
-{
-	map->handle = drm_ioremap_nocache(map->offset, map->size, dev);
-}
-#endif  /*  0  */
-
-static __inline__ void drm_core_ioremapfree(struct drm_map *map,
-					    struct drm_device *dev)
-{
-	if (map->handle && map->size)
-		drm_ioremapfree(map->handle, map->size, dev);
-}
+extern void drm_core_ioremap(struct drm_map *map, struct drm_device *dev);
+extern void drm_core_ioremapfree(struct drm_map *map, struct drm_device *dev);
 
 static __inline__ struct drm_map *drm_core_findmap(struct drm_device *dev,
 						   unsigned int token)
@@ -1121,10 +1125,6 @@ extern void *drm_calloc(size_t nmemb, size_t size, int area);
 
 extern unsigned long drm_core_get_map_ofs(drm_map_t * map);
 extern unsigned long drm_core_get_reg_ofs(struct drm_device *dev);
-
-#ifndef pci_pretty_name
-#define pci_pretty_name(dev) ""
-#endif
 
 #endif				/* __KERNEL__ */
 #endif

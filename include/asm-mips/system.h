@@ -19,7 +19,6 @@
 #include <asm/barrier.h>
 #include <asm/cpu-features.h>
 #include <asm/dsp.h>
-#include <asm/ptrace.h>
 #include <asm/war.h>
 
 
@@ -335,14 +334,6 @@ extern void *set_vi_handler (int n, void *addr);
 extern void *set_except_vector(int n, void *addr);
 extern unsigned long ebase;
 extern void per_cpu_trap_init(void);
-
-extern NORET_TYPE void die(const char *, struct pt_regs *);
-
-static inline void die_if_kernel(const char *str, struct pt_regs *regs)
-{
-	if (unlikely(!user_mode(regs)))
-		die(str, regs);
-}
 
 extern int stop_a_enabled;
 

@@ -11,7 +11,7 @@
 #ifndef _XTENSA_PARAM_H
 #define _XTENSA_PARAM_H
 
-#include <xtensa/config/core.h>
+#include <asm/variant/core.h>
 
 #ifdef __KERNEL__
 # define HZ		100		/* internal timer frequency */

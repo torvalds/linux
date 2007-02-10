@@ -154,6 +154,26 @@ static int __init noalign_setup(char *__unused)
 }
 __setup("noalign", noalign_setup);
 
+#ifndef CONFIG_SMP
+void adjust_cr(unsigned long mask, unsigned long set)
+{
+	unsigned long flags;
+
+	mask &= ~CR_A;
+
+	set &= mask;
+
+	local_irq_save(flags);
+
+	cr_no_alignment = (cr_no_alignment & ~mask) | set;
+	cr_alignment = (cr_alignment & ~mask) | set;
+
+	set_cr((get_cr() & ~mask) | set);
+
+	local_irq_restore(flags);
+}
+#endif
+
 struct mem_types {
 	unsigned int	prot_pte;
 	unsigned int	prot_l1;
@@ -294,12 +314,6 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_DEVICE].prot_pte |= L_PTE_BUFFERABLE;
 		mem_types[MT_DEVICE].prot_sect |= PMD_SECT_BUFFERED;
 
-		/*
-		 * User pages need to be mapped with the ASID
-		 * (iow, non-global)
-		 */
-		user_pgprot |= L_PTE_ASID;
-
 #ifdef CONFIG_SMP
 		/*
 		 * Mark memory with the "shared" attribute for SMP systems
@@ -408,7 +422,7 @@ alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pg
 	}
 	ptep = pte_offset_kernel(pmdp, virt);
 
-	set_pte(ptep, pfn_pte(phys >> PAGE_SHIFT, prot));
+	set_pte_ext(ptep, pfn_pte(phys >> PAGE_SHIFT, prot), 0);
 }
 
 /*

@@ -238,7 +238,7 @@ static void edge_tty_recv(struct device *dev, struct tty_struct *tty, unsigned c
 static void stop_read(struct edgeport_port *edge_port);
 static int restart_read(struct edgeport_port *edge_port);
 
-static void edge_set_termios (struct usb_serial_port *port, struct termios *old_termios);
+static void edge_set_termios (struct usb_serial_port *port, struct ktermios *old_termios);
 static void edge_send(struct usb_serial_port *port);
 
 /* circular buffer */
@@ -2361,7 +2361,7 @@ static int restart_read(struct edgeport_port *edge_port)
 	return status;
 }
 
-static void change_port_settings (struct edgeport_port *edge_port, struct termios *old_termios)
+static void change_port_settings (struct edgeport_port *edge_port, struct ktermios *old_termios)
 {
 	struct ump_uart_config *config;
 	struct tty_struct *tty;
@@ -2512,7 +2512,7 @@ static void change_port_settings (struct edgeport_port *edge_port, struct termio
 	return;
 }
 
-static void edge_set_termios (struct usb_serial_port *port, struct termios *old_termios)
+static void edge_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	struct tty_struct *tty = port->tty;
@@ -2811,7 +2811,7 @@ static struct edge_buf *edge_buf_alloc(unsigned int size)
 	if (size == 0)
 		return NULL;
 
-	eb = (struct edge_buf *)kmalloc(sizeof(struct edge_buf), GFP_KERNEL);
+	eb = kmalloc(sizeof(struct edge_buf), GFP_KERNEL);
 	if (eb == NULL)
 		return NULL;
 
@@ -2979,6 +2979,7 @@ static struct usb_serial_driver edgeport_1port_device = {
 		.name		= "edgeport_ti_1",
 	},
 	.description		= "Edgeport TI 1 port adapter",
+	.usb_driver		= &io_driver,
 	.id_table		= edgeport_1port_id_table,
 	.num_interrupt_in	= 1,
 	.num_bulk_in		= 1,
@@ -3009,6 +3010,7 @@ static struct usb_serial_driver edgeport_2port_device = {
 		.name		= "edgeport_ti_2",
 	},
 	.description		= "Edgeport TI 2 port adapter",
+	.usb_driver		= &io_driver,
 	.id_table		= edgeport_2port_id_table,
 	.num_interrupt_in	= 1,
 	.num_bulk_in		= 2,

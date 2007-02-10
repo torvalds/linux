@@ -50,9 +50,19 @@ struct o2net_msg
 	__u8  buf[0];
 };
 
-typedef int (o2net_msg_handler_func)(struct o2net_msg *msg, u32 len, void *data);
+typedef int (o2net_msg_handler_func)(struct o2net_msg *msg, u32 len, void *data,
+				     void **ret_data);
+typedef void (o2net_post_msg_handler_func)(int status, void *data,
+					   void *ret_data);
 
 #define O2NET_MAX_PAYLOAD_BYTES  (4096 - sizeof(struct o2net_msg))
+
+/* same as hb delay, we're waiting for another node to recognize our hb */
+#define O2NET_RECONNECT_DELAY_MS_DEFAULT	2000
+
+#define O2NET_KEEPALIVE_DELAY_MS_DEFAULT	5000
+#define O2NET_IDLE_TIMEOUT_MS_DEFAULT		10000
+
 
 /* TODO: figure this out.... */
 static inline int o2net_link_down(int err, struct socket *sock)
@@ -92,6 +102,7 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *vec,
 
 int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 			   o2net_msg_handler_func *func, void *data,
+			   o2net_post_msg_handler_func *post_func,
 			   struct list_head *unreg_list);
 void o2net_unregister_handler_list(struct list_head *list);
 
@@ -101,6 +112,7 @@ void o2net_unregister_hb_callbacks(void);
 int o2net_start_listening(struct o2nm_node *node);
 void o2net_stop_listening(struct o2nm_node *node);
 void o2net_disconnect_node(struct o2nm_node *node);
+int o2net_num_connected_peers(void);
 
 int o2net_init(void);
 void o2net_exit(void);

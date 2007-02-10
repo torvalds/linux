@@ -3867,7 +3867,7 @@ int __devinit snd_cs46xx_create(struct snd_card *card,
 		}
 	}
 
-	if (request_irq(pci->irq, snd_cs46xx_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(pci->irq, snd_cs46xx_interrupt, IRQF_SHARED,
 			"CS46XX", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_cs46xx_free(chip);

@@ -116,7 +116,7 @@ struct r3964_message;
 
 struct r3964_client_info {
 	spinlock_t     lock;
-	pid_t          pid;
+	struct pid    *pid;
 	unsigned int   sig_flags;
 
 	struct r3964_client_info *next;

@@ -2,7 +2,8 @@
 # S/390 character devices
 #
 
-obj-y += ctrlchar.o keyboard.o defkeymap.o
+obj-y += ctrlchar.o keyboard.o defkeymap.o sclp.o sclp_rw.o sclp_quiesce.o \
+	 sclp_info.o
 
 obj-$(CONFIG_TN3270) += raw3270.o
 obj-$(CONFIG_TN3270_CONSOLE) += con3270.o
@@ -11,7 +12,6 @@ obj-$(CONFIG_TN3270_FS) += fs3270.o
 
 obj-$(CONFIG_TN3215) += con3215.o
 
-obj-$(CONFIG_SCLP) += sclp.o sclp_rw.o sclp_quiesce.o
 obj-$(CONFIG_SCLP_TTY) += sclp_tty.o
 obj-$(CONFIG_SCLP_CONSOLE) += sclp_con.o
 obj-$(CONFIG_SCLP_VT220_TTY) += sclp_vt220.o

@@ -68,7 +68,7 @@ static int ocfs2_file_open(struct inode *inode, struct file *file)
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
 	mlog_entry("(0x%p, 0x%p, '%.*s')\n", inode, file,
-		   file->f_dentry->d_name.len, file->f_dentry->d_name.name);
+		   file->f_path.dentry->d_name.len, file->f_path.dentry->d_name.name);
 
 	spin_lock(&oi->ip_lock);
 
@@ -98,8 +98,8 @@ static int ocfs2_file_release(struct inode *inode, struct file *file)
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
 	mlog_entry("(0x%p, 0x%p, '%.*s')\n", inode, file,
-		       file->f_dentry->d_name.len,
-		       file->f_dentry->d_name.name);
+		       file->f_path.dentry->d_name.len,
+		       file->f_path.dentry->d_name.name);
 
 	spin_lock(&oi->ip_lock);
 	if (!--oi->ip_open_count)
@@ -149,9 +149,28 @@ int ocfs2_should_update_atime(struct inode *inode,
 	    ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode)))
 		return 0;
 
+	/*
+	 * We can be called with no vfsmnt structure - NFSD will
+	 * sometimes do this.
+	 *
+	 * Note that our action here is different than touch_atime() -
+	 * if we can't tell whether this is a noatime mount, then we
+	 * don't know whether to trust the value of s_atime_quantum.
+	 */
+	if (vfsmnt == NULL)
+		return 0;
+
 	if ((vfsmnt->mnt_flags & MNT_NOATIME) ||
 	    ((vfsmnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode)))
 		return 0;
+
+	if (vfsmnt->mnt_flags & MNT_RELATIME) {
+		if ((timespec_compare(&inode->i_atime, &inode->i_mtime) <= 0) ||
+		    (timespec_compare(&inode->i_atime, &inode->i_ctime) <= 0))
+			return 1;
+
+		return 0;
+	}
 
 	now = CURRENT_TIME;
 	if ((now.tv_sec - inode->i_atime.tv_sec <= osb->s_atime_quantum))
@@ -958,8 +977,6 @@ int ocfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 	}
 
 	ret = generic_permission(inode, mask, NULL);
-	if (ret)
-		mlog_errno(ret);
 
 	ocfs2_meta_unlock(inode, 0);
 out:
@@ -1131,13 +1148,13 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 {
 	int ret, rw_level, have_alloc_sem = 0;
 	struct file *filp = iocb->ki_filp;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	int appending = filp->f_flags & O_APPEND ? 1 : 0;
 
 	mlog_entry("(0x%p, %u, '%.*s')\n", filp,
 		   (unsigned int)nr_segs,
-		   filp->f_dentry->d_name.len,
-		   filp->f_dentry->d_name.name);
+		   filp->f_path.dentry->d_name.len,
+		   filp->f_path.dentry->d_name.name);
 
 	/* happy write of zero bytes */
 	if (iocb->ki_left == 0)
@@ -1159,7 +1176,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		goto out;
 	}
 
-	ret = ocfs2_prepare_inode_for_write(filp->f_dentry, &iocb->ki_pos,
+	ret = ocfs2_prepare_inode_for_write(filp->f_path.dentry, &iocb->ki_pos,
 					    iocb->ki_left, appending);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -1207,12 +1224,12 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 				       unsigned int flags)
 {
 	int ret;
-	struct inode *inode = out->f_dentry->d_inode;
+	struct inode *inode = out->f_path.dentry->d_inode;
 
 	mlog_entry("(0x%p, 0x%p, %u, '%.*s')\n", out, pipe,
 		   (unsigned int)len,
-		   out->f_dentry->d_name.len,
-		   out->f_dentry->d_name.name);
+		   out->f_path.dentry->d_name.len,
+		   out->f_path.dentry->d_name.name);
 
 	inode_double_lock(inode, pipe->inode);
 
@@ -1222,7 +1239,7 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 		goto out;
 	}
 
-	ret = ocfs2_prepare_inode_for_write(out->f_dentry, ppos, len, 0);
+	ret = ocfs2_prepare_inode_for_write(out->f_path.dentry, ppos, len, 0);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out_unlock;
@@ -1247,12 +1264,12 @@ static ssize_t ocfs2_file_splice_read(struct file *in,
 				      unsigned int flags)
 {
 	int ret = 0;
-	struct inode *inode = in->f_dentry->d_inode;
+	struct inode *inode = in->f_path.dentry->d_inode;
 
 	mlog_entry("(0x%p, 0x%p, %u, '%.*s')\n", in, pipe,
 		   (unsigned int)len,
-		   in->f_dentry->d_name.len,
-		   in->f_dentry->d_name.name);
+		   in->f_path.dentry->d_name.len,
+		   in->f_path.dentry->d_name.name);
 
 	/*
 	 * See the comment in ocfs2_file_aio_read()
@@ -1278,12 +1295,12 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 {
 	int ret = 0, rw_level = -1, have_alloc_sem = 0, lock_level = 0;
 	struct file *filp = iocb->ki_filp;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 
 	mlog_entry("(0x%p, %u, '%.*s')\n", filp,
 		   (unsigned int)nr_segs,
-		   filp->f_dentry->d_name.len,
-		   filp->f_dentry->d_name.name);
+		   filp->f_path.dentry->d_name.len,
+		   filp->f_path.dentry->d_name.name);
 
 	if (!inode) {
 		ret = -EINVAL;

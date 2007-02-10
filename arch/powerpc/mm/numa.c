@@ -295,6 +295,63 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 	return lmb_end_of_DRAM() - start;
 }
 
+/*
+ * Extract NUMA information from the ibm,dynamic-reconfiguration-memory
+ * node.  This assumes n_mem_{addr,size}_cells have been set.
+ */
+static void __init parse_drconf_memory(struct device_node *memory)
+{
+	const unsigned int *lm, *dm, *aa;
+	unsigned int ls, ld, la;
+	unsigned int n, aam, aalen;
+	unsigned long lmb_size, size;
+	int nid, default_nid = 0;
+	unsigned int start, ai, flags;
+
+	lm = get_property(memory, "ibm,lmb-size", &ls);
+	dm = get_property(memory, "ibm,dynamic-memory", &ld);
+	aa = get_property(memory, "ibm,associativity-lookup-arrays", &la);
+	if (!lm || !dm || !aa ||
+	    ls < sizeof(unsigned int) || ld < sizeof(unsigned int) ||
+	    la < 2 * sizeof(unsigned int))
+		return;
+
+	lmb_size = read_n_cells(n_mem_size_cells, &lm);
+	n = *dm++;		/* number of LMBs */
+	aam = *aa++;		/* number of associativity lists */
+	aalen = *aa++;		/* length of each associativity list */
+	if (ld < (n * (n_mem_addr_cells + 4) + 1) * sizeof(unsigned int) ||
+	    la < (aam * aalen + 2) * sizeof(unsigned int))
+		return;
+
+	for (; n != 0; --n) {
+		start = read_n_cells(n_mem_addr_cells, &dm);
+		ai = dm[2];
+		flags = dm[3];
+		dm += 4;
+		/* 0x80 == reserved, 0x8 = assigned to us */
+		if ((flags & 0x80) || !(flags & 0x8))
+			continue;
+		nid = default_nid;
+		/* flags & 0x40 means associativity index is invalid */
+		if (min_common_depth > 0 && min_common_depth <= aalen &&
+		    (flags & 0x40) == 0 && ai < aam) {
+			/* this is like of_node_to_nid_single */
+			nid = aa[ai * aalen + min_common_depth - 1];
+			if (nid == 0xffff || nid >= MAX_NUMNODES)
+				nid = default_nid;
+		}
+		node_set_online(nid);
+
+		size = numa_enforce_memory_limit(start, lmb_size);
+		if (!size)
+			continue;
+
+		add_active_range(nid, start >> PAGE_SHIFT,
+				 (start >> PAGE_SHIFT) + (size >> PAGE_SHIFT));
+	}
+}
+
 static int __init parse_numa_properties(void)
 {
 	struct device_node *cpu = NULL;
@@ -384,6 +441,14 @@ new_range:
 		if (--ranges)
 			goto new_range;
 	}
+
+	/*
+	 * Now do the same thing for each LMB listed in the ibm,dynamic-memory
+	 * property in the ibm,dynamic-reconfiguration-memory node.
+	 */
+	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (memory)
+		parse_drconf_memory(memory);
 
 	return 0;
 }

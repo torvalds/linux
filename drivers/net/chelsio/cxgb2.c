@@ -69,14 +69,14 @@ static inline void cancel_mac_stats_update(struct adapter *ap)
 	cancel_delayed_work(&ap->stats_update_task);
 }
 
-#define MAX_CMDQ_ENTRIES 16384
-#define MAX_CMDQ1_ENTRIES 1024
-#define MAX_RX_BUFFERS 16384
-#define MAX_RX_JUMBO_BUFFERS 16384
+#define MAX_CMDQ_ENTRIES	16384
+#define MAX_CMDQ1_ENTRIES	1024
+#define MAX_RX_BUFFERS		16384
+#define MAX_RX_JUMBO_BUFFERS	16384
 #define MAX_TX_BUFFERS_HIGH	16384U
 #define MAX_TX_BUFFERS_LOW	1536U
 #define MAX_TX_BUFFERS		1460U
-#define MIN_FL_ENTRIES 32
+#define MIN_FL_ENTRIES		32
 
 #define DFLT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK | \
 			 NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP |\
@@ -143,7 +143,7 @@ static void link_report(struct port_info *p)
 			case SPEED_100:   s = "100Mbps"; break;
 		}
 
-	printk(KERN_INFO "%s: link up, %s, %s-duplex\n",
+		printk(KERN_INFO "%s: link up, %s, %s-duplex\n",
 		       p->dev->name, s,
 		       p->link_config.duplex == DUPLEX_FULL ? "full" : "half");
 	}
@@ -220,9 +220,8 @@ static int cxgb_up(struct adapter *adapter)
 
 	t1_interrupts_clear(adapter);
 
-	adapter->params.has_msi = !disable_msi && pci_enable_msi(adapter->pdev) == 0;
-	err = request_irq(adapter->pdev->irq,
-			  t1_select_intr_handler(adapter),
+	adapter->params.has_msi = !disable_msi && !pci_enable_msi(adapter->pdev);
+	err = request_irq(adapter->pdev->irq, t1_interrupt,
 			  adapter->params.has_msi ? 0 : IRQF_SHARED,
 			  adapter->name, adapter);
 	if (err) {
@@ -234,7 +233,7 @@ static int cxgb_up(struct adapter *adapter)
 
 	t1_sge_start(adapter->sge);
 	t1_interrupts_enable(adapter);
- out_err:
+out_err:
 	return err;
 }
 
@@ -455,51 +454,21 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	const struct cmac_statistics *s;
 	const struct sge_intr_counts *t;
 	struct sge_port_stats ss;
+	unsigned int len;
 
 	s = mac->ops->statistics_update(mac, MAC_STATS_UPDATE_FULL);
 
-	*data++ = s->TxOctetsOK;
-	*data++ = s->TxOctetsBad;
-	*data++ = s->TxUnicastFramesOK;
-	*data++ = s->TxMulticastFramesOK;
-	*data++ = s->TxBroadcastFramesOK;
-	*data++ = s->TxPauseFrames;
-	*data++ = s->TxFramesWithDeferredXmissions;
-	*data++ = s->TxLateCollisions;
-	*data++ = s->TxTotalCollisions;
-	*data++ = s->TxFramesAbortedDueToXSCollisions;
-	*data++ = s->TxUnderrun;
-	*data++ = s->TxLengthErrors;
-	*data++ = s->TxInternalMACXmitError;
-	*data++ = s->TxFramesWithExcessiveDeferral;
-	*data++ = s->TxFCSErrors;
+	len = sizeof(u64)*(&s->TxFCSErrors + 1 - &s->TxOctetsOK);
+	memcpy(data, &s->TxOctetsOK, len);
+	data += len;
 
-	*data++ = s->RxOctetsOK;
-	*data++ = s->RxOctetsBad;
-	*data++ = s->RxUnicastFramesOK;
-	*data++ = s->RxMulticastFramesOK;
-	*data++ = s->RxBroadcastFramesOK;
-	*data++ = s->RxPauseFrames;
-	*data++ = s->RxFCSErrors;
-	*data++ = s->RxAlignErrors;
-	*data++ = s->RxSymbolErrors;
-	*data++ = s->RxDataErrors;
-	*data++ = s->RxSequenceErrors;
-	*data++ = s->RxRuntErrors;
-	*data++ = s->RxJabberErrors;
-	*data++ = s->RxInternalMACRcvError;
-	*data++ = s->RxInRangeLengthErrors;
-	*data++ = s->RxOutOfRangeLengthField;
-	*data++ = s->RxFrameTooLongErrors;
+	len = sizeof(u64)*(&s->RxFrameTooLongErrors + 1 - &s->RxOctetsOK);
+	memcpy(data, &s->RxOctetsOK, len);
+	data += len;
 
 	t1_sge_get_port_stats(adapter->sge, dev->if_port, &ss);
-	*data++ = ss.rx_packets;
-	*data++ = ss.rx_cso_good;
-	*data++ = ss.tx_packets;
-	*data++ = ss.tx_cso;
-	*data++ = ss.tx_tso;
-	*data++ = ss.vlan_xtract;
-	*data++ = ss.vlan_insert;
+	memcpy(data, &ss, sizeof(ss));
+	data += sizeof(ss);
 
 	t = t1_sge_get_intr_counts(adapter->sge);
 	*data++ = t->rx_drops;
@@ -750,7 +719,7 @@ static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 		return -EINVAL;
 
 	if (adapter->flags & FULL_INIT_DONE)
-	return -EBUSY;
+		return -EBUSY;
 
 	adapter->params.sge.freelQ_size[!jumbo_fl] = e->rx_pending;
 	adapter->params.sge.freelQ_size[jumbo_fl] = e->rx_jumbo_pending;
@@ -764,19 +733,8 @@ static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
 	struct adapter *adapter = dev->priv;
 
-	/*
-	 * If RX coalescing is requested we use NAPI, otherwise interrupts.
-	 * This choice can be made only when all ports and the TOE are off.
-	 */
-	if (adapter->open_device_map == 0)
-		adapter->params.sge.polling = c->use_adaptive_rx_coalesce;
-
-	if (adapter->params.sge.polling) {
-		adapter->params.sge.rx_coalesce_usecs = 0;
-	} else {
-		adapter->params.sge.rx_coalesce_usecs = c->rx_coalesce_usecs;
-	}
- 	adapter->params.sge.coalesce_enable = c->use_adaptive_rx_coalesce;
+	adapter->params.sge.rx_coalesce_usecs = c->rx_coalesce_usecs;
+	adapter->params.sge.coalesce_enable = c->use_adaptive_rx_coalesce;
 	adapter->params.sge.sample_interval_usecs = c->rate_sample_interval;
 	t1_sge_set_coalesce_params(adapter->sge, &adapter->params.sge);
 	return 0;
@@ -794,9 +752,9 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 
 static int get_eeprom_len(struct net_device *dev)
 {
- 	struct adapter *adapter = dev->priv;
+	struct adapter *adapter = dev->priv;
 
- 	return t1_is_asic(adapter) ? EEPROM_SIZE : 0;
+	return t1_is_asic(adapter) ? EEPROM_SIZE : 0;
 }
 
 #define EEPROM_MAGIC(ap) \
@@ -860,7 +818,7 @@ static int t1_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 		u32 val;
 
 		if (!phy->mdio_read)
-	    return -EOPNOTSUPP;
+			return -EOPNOTSUPP;
 		phy->mdio_read(adapter, data->phy_id, 0, data->reg_num & 0x1f,
 			       &val);
 		data->val_out = val;
@@ -872,7 +830,7 @@ static int t1_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 		if (!capable(CAP_NET_ADMIN))
 		    return -EPERM;
 		if (!phy->mdio_write)
-	    return -EOPNOTSUPP;
+			return -EOPNOTSUPP;
 		phy->mdio_write(adapter, data->phy_id, 0, data->reg_num & 0x1f,
 			        data->val_in);
 		break;
@@ -891,9 +849,9 @@ static int t1_change_mtu(struct net_device *dev, int new_mtu)
 	struct cmac *mac = adapter->port[dev->if_port].mac;
 
 	if (!mac->ops->set_mtu)
-	return -EOPNOTSUPP;
+		return -EOPNOTSUPP;
 	if (new_mtu < 68)
-	return -EINVAL;
+		return -EINVAL;
 	if ((ret = mac->ops->set_mtu(mac, new_mtu)))
 		return ret;
 	dev->mtu = new_mtu;
@@ -944,7 +902,7 @@ static void t1_netpoll(struct net_device *dev)
 	struct adapter *adapter = dev->priv;
 
 	local_irq_save(flags);
-	t1_select_intr_handler(adapter)(adapter->pdev->irq, adapter);
+	t1_interrupt(adapter->pdev->irq, adapter);
 	local_irq_restore(flags);
 }
 #endif
@@ -1165,7 +1123,10 @@ static int __devinit init_one(struct pci_dev *pdev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 		netdev->poll_controller = t1_netpoll;
 #endif
+#ifdef CONFIG_CHELSIO_T1_NAPI
 		netdev->weight = 64;
+		netdev->poll = t1_poll;
+#endif
 
 		SET_ETHTOOL_OPS(netdev, &t1_ethtool_ops);
 	}
@@ -1220,9 +1181,9 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	return 0;
 
- out_release_adapter_res:
+out_release_adapter_res:
 	t1_free_sw_modules(adapter);
- out_free_dev:
+out_free_dev:
 	if (adapter) {
 		if (adapter->regs)
 			iounmap(adapter->regs);
@@ -1231,7 +1192,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 				free_netdev(adapter->port[i].dev);
 	}
 	pci_release_regions(pdev);
- out_disable_pdev:
+out_disable_pdev:
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	return err;
@@ -1282,28 +1243,27 @@ static int t1_clock(struct adapter *adapter, int mode)
 	int M_MEM_VAL;
 
 	enum {
-		M_CORE_BITS = 9,
-		T_CORE_VAL = 0,
-		T_CORE_BITS = 2,
-		N_CORE_VAL = 0,
-		N_CORE_BITS = 2,
-		M_MEM_BITS = 9,
-		T_MEM_VAL = 0,
-		T_MEM_BITS = 2,
-		N_MEM_VAL = 0,
-		N_MEM_BITS = 2,
-		NP_LOAD = 1 << 17,
-		S_LOAD_MEM = 1 << 5,
-		S_LOAD_CORE = 1 << 6,
-		S_CLOCK = 1 << 3
+		M_CORE_BITS	= 9,
+		T_CORE_VAL	= 0,
+		T_CORE_BITS	= 2,
+		N_CORE_VAL	= 0,
+		N_CORE_BITS	= 2,
+		M_MEM_BITS	= 9,
+		T_MEM_VAL	= 0,
+		T_MEM_BITS	= 2,
+		N_MEM_VAL	= 0,
+		N_MEM_BITS	= 2,
+		NP_LOAD		= 1 << 17,
+		S_LOAD_MEM	= 1 << 5,
+		S_LOAD_CORE	= 1 << 6,
+		S_CLOCK		= 1 << 3
 	};
 
 	if (!t1_is_T1B(adapter))
 		return -ENODEV;	/* Can't re-clock this chip. */
 
-	if (mode & 2) {
+	if (mode & 2)
 		return 0;	/* show current mode. */
-	}
 
 	if ((adapter->t1powersave & 1) == (mode & 1))
 		return -EALREADY;	/* ASIC already running in mode. */
@@ -1395,26 +1355,26 @@ static inline void t1_sw_reset(struct pci_dev *pdev)
 static void __devexit remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	struct adapter *adapter = dev->priv;
+	int i;
 
-	if (dev) {
-		int i;
-		struct adapter *adapter = dev->priv;
-
-		for_each_port(adapter, i)
-			if (test_bit(i, &adapter->registered_device_map))
-				unregister_netdev(adapter->port[i].dev);
-
-		t1_free_sw_modules(adapter);
-		iounmap(adapter->regs);
-		while (--i >= 0)
-			if (adapter->port[i].dev)
-				free_netdev(adapter->port[i].dev);
-
-		pci_release_regions(pdev);
-		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
-		t1_sw_reset(pdev);
+	for_each_port(adapter, i) {
+		if (test_bit(i, &adapter->registered_device_map))
+			unregister_netdev(adapter->port[i].dev);
 	}
+
+	t1_free_sw_modules(adapter);
+	iounmap(adapter->regs);
+
+	while (--i >= 0) {
+		if (adapter->port[i].dev)
+			free_netdev(adapter->port[i].dev);
+	}
+
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
+	t1_sw_reset(pdev);
 }
 
 static struct pci_driver driver = {

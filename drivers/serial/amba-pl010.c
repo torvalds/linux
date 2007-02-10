@@ -345,8 +345,8 @@ static void pl010_shutdown(struct uart_port *port)
 }
 
 static void
-pl010_set_termios(struct uart_port *port, struct termios *termios,
-		     struct termios *old)
+pl010_set_termios(struct uart_port *port, struct ktermios *termios,
+		     struct ktermios *old)
 {
 	unsigned int lcr_h, old_cr;
 	unsigned long flags;
@@ -589,6 +589,8 @@ static int __init pl010_console_setup(struct console *co, char *options)
 	 */
 	if (co->index >= UART_NR)
 		co->index = 0;
+	if (!amba_ports[co->index])
+		return -ENODEV;
 	port = &amba_ports[co->index]->port;
 
 	if (options)

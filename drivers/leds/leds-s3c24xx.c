@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/leds-gpio.h>
 

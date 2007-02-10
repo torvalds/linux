@@ -173,7 +173,6 @@ static int com20020_probe(struct pcmcia_device *p_dev)
     p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
     p_dev->conf.IntType = INT_MEMORY_AND_IO;
-    p_dev->conf.Present = PRESENT_OPTION;
 
     p_dev->irq.Instance = info->dev = dev;
     p_dev->priv = info;

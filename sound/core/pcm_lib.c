@@ -79,19 +79,17 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 			runtime->silence_filled -= frames;
 			if ((snd_pcm_sframes_t)runtime->silence_filled < 0) {
 				runtime->silence_filled = 0;
-				runtime->silence_start = (ofs + frames) - runtime->buffer_size;
+				runtime->silence_start = new_hw_ptr;
 			} else {
-				runtime->silence_start = ofs - runtime->silence_filled;
+				runtime->silence_start = ofs;
 			}
-			if ((snd_pcm_sframes_t)runtime->silence_start < 0)
-				runtime->silence_start += runtime->boundary;
 		}
 		frames = runtime->buffer_size - runtime->silence_filled;
 	}
 	snd_assert(frames <= runtime->buffer_size, return);
 	if (frames == 0)
 		return;
-	ofs = (runtime->silence_start + runtime->silence_filled) % runtime->buffer_size;
+	ofs = runtime->silence_start % runtime->buffer_size;
 	while (frames > 0) {
 		transfer = ofs + frames > runtime->buffer_size ? runtime->buffer_size - ofs : frames;
 		if (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED ||
@@ -783,6 +781,11 @@ int snd_interval_list(struct snd_interval *i, unsigned int count, unsigned int *
 {
         unsigned int k;
 	int changed = 0;
+
+	if (!count) {
+		i->empty = 1;
+		return -EINVAL;
+	}
         for (k = 0; k < count; k++) {
 		if (mask && !(mask & (1 << k)))
 			continue;

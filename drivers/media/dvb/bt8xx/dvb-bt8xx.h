@@ -37,7 +37,7 @@
 #include "cx24110.h"
 #include "or51211.h"
 #include "lgdt330x.h"
-#include "lg_h06xf.h"
+#include "lgh06xf.h"
 #include "zl10353.h"
 
 struct dvb_bt8xx_card {

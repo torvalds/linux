@@ -352,7 +352,7 @@ static struct platform_device vr1000_led2 = {
 
 static struct platform_device vr1000_led3 = {
 	.name		= "s3c24xx_led",
-	.id		= 1,
+	.id		= 3,
 	.dev		= {
 		.platform_data	= &vr1000_led3_pdata,
 	},

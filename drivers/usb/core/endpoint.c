@@ -268,6 +268,7 @@ static void ep_device_release(struct device *dev)
 	struct ep_device *ep_dev = to_ep_device(dev);
 
 	dev_dbg(dev, "%s called for %s\n", __FUNCTION__, dev->bus_id);
+	endpoint_free_minor(ep_dev);
 	kfree(ep_dev);
 }
 
@@ -349,7 +350,6 @@ void usb_remove_ep_files(struct usb_host_endpoint *endpoint)
 		sprintf(name, "ep_%02x", endpoint->desc.bEndpointAddress);
 		sysfs_remove_link(&ep_dev->dev.parent->kobj, name);
 		sysfs_remove_group(&ep_dev->dev.kobj, &ep_dev_attr_grp);
-		endpoint_free_minor(ep_dev);
 		device_unregister(&ep_dev->dev);
 		endpoint->ep_dev = NULL;
 		destroy_endpoint_class();

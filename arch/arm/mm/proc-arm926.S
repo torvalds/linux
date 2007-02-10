@@ -348,12 +348,12 @@ ENTRY(cpu_arm926_switch_mm)
 	mov	pc, lr
 
 /*
- * cpu_arm926_set_pte(ptep, pte)
+ * cpu_arm926_set_pte_ext(ptep, pte, ext)
  *
  * Set a PTE and flush it out
  */
 	.align	5
-ENTRY(cpu_arm926_set_pte)
+ENTRY(cpu_arm926_set_pte_ext)
 #ifdef CONFIG_MMU
 	str	r1, [r0], #-2048		@ linux version
 
@@ -439,7 +439,7 @@ arm926_processor_functions:
 	.word	cpu_arm926_do_idle
 	.word	cpu_arm926_dcache_clean_area
 	.word	cpu_arm926_switch_mm
-	.word	cpu_arm926_set_pte
+	.word	cpu_arm926_set_pte_ext
 	.size	arm926_processor_functions, . - arm926_processor_functions
 
 	.section ".rodata"
@@ -480,7 +480,7 @@ __arm926_proc_info:
 	b	__arm926_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
-	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_VFP|HWCAP_EDSP|HWCAP_JAVA
+	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP|HWCAP_JAVA
 	.long	cpu_arm926_name
 	.long	arm926_processor_functions
 	.long	v4wbi_tlb_fns

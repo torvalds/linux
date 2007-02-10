@@ -103,7 +103,7 @@ DEFINE_MUTEX(acpi_link_lock);
 static acpi_status
 acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 {
-	struct acpi_pci_link *link = (struct acpi_pci_link *)context;
+	struct acpi_pci_link *link = context;
 	u32 i = 0;
 
 
@@ -307,11 +307,10 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 	if (!link || !irq)
 		return -EINVAL;
 
-	resource = kmalloc(sizeof(*resource) + 1, irqs_disabled() ? GFP_ATOMIC: GFP_KERNEL);
+	resource = kzalloc(sizeof(*resource) + 1, irqs_disabled() ? GFP_ATOMIC: GFP_KERNEL);
 	if (!resource)
 		return -ENOMEM;
 
-	memset(resource, 0, sizeof(*resource) + 1);
 	buffer.length = sizeof(*resource) + 1;
 	buffer.pointer = resource;
 
@@ -514,7 +513,7 @@ int __init acpi_irq_penalty_init(void)
 		}
 	}
 	/* Add a penalty for the SCI */
-	acpi_irq_penalty[acpi_fadt.sci_int] += PIRQ_PENALTY_PCI_USING;
+	acpi_irq_penalty[acpi_gbl_FADT.sci_interrupt] += PIRQ_PENALTY_PCI_USING;
 
 	return 0;
 }
@@ -613,7 +612,7 @@ acpi_pci_link_allocate_irq(acpi_handle handle,
 		return -1;
 	}
 
-	link = (struct acpi_pci_link *)acpi_driver_data(device);
+	link = acpi_driver_data(device);
 	if (!link) {
 		printk(KERN_ERR PREFIX "Invalid link context\n");
 		return -1;
@@ -668,7 +667,7 @@ int acpi_pci_link_free_irq(acpi_handle handle)
 		return -1;
 	}
 
-	link = (struct acpi_pci_link *)acpi_driver_data(device);
+	link = acpi_driver_data(device);
 	if (!link) {
 		printk(KERN_ERR PREFIX "Invalid link context\n");
 		return -1;
@@ -718,10 +717,9 @@ static int acpi_pci_link_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	link = kmalloc(sizeof(struct acpi_pci_link), GFP_KERNEL);
+	link = kzalloc(sizeof(struct acpi_pci_link), GFP_KERNEL);
 	if (!link)
 		return -ENOMEM;
-	memset(link, 0, sizeof(struct acpi_pci_link));
 
 	link->device = device;
 	strcpy(acpi_device_name(device), ACPI_PCI_LINK_DEVICE_NAME);
@@ -787,7 +785,7 @@ static int irqrouter_resume(struct sys_device *dev)
 
 
 	/* Make sure SCI is enabled again (Apple firmware bug?) */
-	acpi_set_register(ACPI_BITREG_SCI_ENABLE, 1, ACPI_MTX_DO_NOT_LOCK);
+	acpi_set_register(ACPI_BITREG_SCI_ENABLE, 1);
 
 	list_for_each(node, &acpi_link.entries) {
 		link = list_entry(node, struct acpi_pci_link, node);
@@ -808,7 +806,7 @@ static int acpi_pci_link_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	link = (struct acpi_pci_link *)acpi_driver_data(device);
+	link = acpi_driver_data(device);
 
 	mutex_lock(&acpi_link_lock);
 	list_del(&link->node);

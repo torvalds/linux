@@ -79,7 +79,7 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	struct buffer_head * bh, * tmp;
 	struct ocfs2_dir_entry * de;
 	int err;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct super_block * sb = inode->i_sb;
 	unsigned int ra_sectors = 16;
 	int lock_level = 0;

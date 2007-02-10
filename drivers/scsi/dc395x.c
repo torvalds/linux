@@ -4319,7 +4319,7 @@ static int __devinit adapter_sg_tables_alloc(struct AdapterCtlBlk *acb)
 
 	dprintkdbg(DBG_1, "Allocate %i pages for SG tables\n", pages);
 	while (pages--) {
-		ptr = (struct SGentry *)kmalloc(PAGE_SIZE, GFP_KERNEL);
+		ptr = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		if (!ptr) {
 			adapter_sg_tables_free(acb);
 			return 1;

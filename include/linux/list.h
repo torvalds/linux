@@ -227,13 +227,13 @@ static inline void list_replace_init(struct list_head *old,
 	INIT_LIST_HEAD(old);
 }
 
-/*
+/**
  * list_replace_rcu - replace old entry by new one
  * @old : the element to be replaced
  * @new : the new element to insert
  *
- * The old entry will be replaced with the new entry atomically.
- * Note: 'old' should not be empty.
+ * The @old entry will be replaced with the @new entry atomically.
+ * Note: @old should not be empty.
  */
 static inline void list_replace_rcu(struct list_head *old,
 				struct list_head *new)
@@ -680,12 +680,12 @@ static inline void hlist_del_init(struct hlist_node *n)
 	}
 }
 
-/*
+/**
  * hlist_replace_rcu - replace old entry by new one
  * @old : the element to be replaced
  * @new : the new element to insert
  *
- * The old entry will be replaced with the new entry atomically.
+ * The @old entry will be replaced with the @new entry atomically.
  */
 static inline void hlist_replace_rcu(struct hlist_node *old,
 					struct hlist_node *new)

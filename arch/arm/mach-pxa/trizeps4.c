@@ -393,10 +393,6 @@ static struct pxafb_mach_info sharp_lcd = {
     .pxafb_backlight_power = board_backlight_power,
 };
 
-static void __init trizeps4_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi)
-{
-}
-
 static void __init trizeps4_init(void)
 {
 	platform_add_devices(trizeps4_devices, ARRAY_SIZE(trizeps4_devices));
@@ -469,7 +465,6 @@ MACHINE_START(TRIZEPS4, "Keith und Koep Trizeps IV module")
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= TRIZEPS4_SDRAM_BASE + 0x100,
-	.fixup		= trizeps4_fixup,
 	.init_machine	= trizeps4_init,
 	.map_io		= trizeps4_map_io,
 	.init_irq	= pxa_init_irq,

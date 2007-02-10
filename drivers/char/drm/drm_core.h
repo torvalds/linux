@@ -24,11 +24,11 @@
 
 #define CORE_NAME		"drm"
 #define CORE_DESC		"DRM shared core routines"
-#define CORE_DATE		"20051102"
+#define CORE_DATE		"20060810"
 
 #define DRM_IF_MAJOR	1
-#define DRM_IF_MINOR	2
+#define DRM_IF_MINOR	3
 
 #define CORE_MAJOR	1
-#define CORE_MINOR	0
-#define CORE_PATCHLEVEL 1
+#define CORE_MINOR	1
+#define CORE_PATCHLEVEL 0

@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/irqflags.h>
 #include <linux/bottom_half.h>
+#include <linux/device.h>
 #include <asm/atomic.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
@@ -82,6 +83,11 @@ extern irqreturn_t no_action(int cpl, void *dev_id);
 extern int request_irq(unsigned int, irq_handler_t handler,
 		       unsigned long, const char *, void *);
 extern void free_irq(unsigned int, void *);
+
+extern int devm_request_irq(struct device *dev, unsigned int irq,
+			    irq_handler_t handler, unsigned long irqflags,
+			    const char *devname, void *dev_id);
+extern void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id);
 
 /*
  * On lockdep we dont want to enable hardirqs in hardirq
@@ -231,7 +237,8 @@ enum
 	NET_TX_SOFTIRQ,
 	NET_RX_SOFTIRQ,
 	BLOCK_SOFTIRQ,
-	TASKLET_SOFTIRQ
+	TASKLET_SOFTIRQ,
+	SCHED_SOFTIRQ,
 };
 
 /* softirq mask and active fields moved to irq_cpustat_t in

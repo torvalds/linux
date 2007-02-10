@@ -19,7 +19,7 @@ static int do_mod_firmware_load(const char *fn, char **fp)
 		printk(KERN_INFO "Unable to load '%s'.\n", fn);
 		return 0;
 	}
-	l = filp->f_dentry->d_inode->i_size;
+	l = filp->f_path.dentry->d_inode->i_size;
 	if (l <= 0 || l > 131072)
 	{
 		printk(KERN_INFO "Invalid firmware '%s'\n", fn);

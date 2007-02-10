@@ -273,7 +273,6 @@ struct nfs4_stateid {
 	((err) != nfserr_stale_stateid) &&      \
 	((err) != nfserr_bad_stateid))
 
-extern __be32 nfsd4_renew(clientid_t *clid);
 extern __be32 nfs4_preprocess_stateid_op(struct svc_fh *current_fh,
 		stateid_t *stateid, int flags, struct file **filp);
 extern void nfs4_lock_state(void);

@@ -135,7 +135,7 @@ static void sil680_error_handler(struct ata_port *ap)
 static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	static u16 speed_p[5] = { 0x328A, 0x2283, 0x1104, 0x10C3, 0x10C1 };
-	static u16 speed_t[5] = { 0x328A, 0x1281, 0x1281, 0x10C3, 0x10C1 };
+	static u16 speed_t[5] = { 0x328A, 0x2283, 0x1281, 0x10C3, 0x10C1 };
 
 	unsigned long tfaddr = sil680_selreg(ap, 0x02);
 	unsigned long addr = sil680_seldev(ap, adev, 0x04);
@@ -252,14 +252,14 @@ static struct ata_port_operations sil680_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /**
@@ -270,7 +270,7 @@ static struct ata_port_operations sil680_port_ops = {
  *	is powered up on boot and when we resume in case we resumed from RAM.
  *	Returns the final clock settings.
  */
- 
+
 static u8 sil680_init_chip(struct pci_dev *pdev)
 {
 	u32 class_rev	= 0;

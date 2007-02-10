@@ -201,7 +201,7 @@ static u8 * prism2_read_pda(struct net_device *dev)
 		0x7f0002 /* Intel PRO/Wireless 2011B (PCI) */,
 	};
 
-	buf = (u8 *) kmalloc(PRISM2_PDA_SIZE, GFP_KERNEL);
+	buf = kmalloc(PRISM2_PDA_SIZE, GFP_KERNEL);
 	if (buf == NULL)
 		return NULL;
 

@@ -73,9 +73,8 @@ static int mv88e1xxx_interrupt_enable(struct cphy *cphy)
 
 		t1_tpi_read(cphy->adapter, A_ELMER0_INT_ENABLE, &elmer);
 		elmer |= ELMER0_GP_BIT1;
-		if (is_T2(cphy->adapter)) {
-		    elmer |= ELMER0_GP_BIT2|ELMER0_GP_BIT3|ELMER0_GP_BIT4;
-                }
+		if (is_T2(cphy->adapter))
+		    elmer |= ELMER0_GP_BIT2 | ELMER0_GP_BIT3 | ELMER0_GP_BIT4;
 		t1_tpi_write(cphy->adapter, A_ELMER0_INT_ENABLE, elmer);
 	}
 	return 0;
@@ -92,9 +91,8 @@ static int mv88e1xxx_interrupt_disable(struct cphy *cphy)
 
 		t1_tpi_read(cphy->adapter, A_ELMER0_INT_ENABLE, &elmer);
 		elmer &= ~ELMER0_GP_BIT1;
-		if (is_T2(cphy->adapter)) {
+		if (is_T2(cphy->adapter))
 		    elmer &= ~(ELMER0_GP_BIT2|ELMER0_GP_BIT3|ELMER0_GP_BIT4);
-                }
 		t1_tpi_write(cphy->adapter, A_ELMER0_INT_ENABLE, elmer);
 	}
 	return 0;
@@ -112,9 +110,8 @@ static int mv88e1xxx_interrupt_clear(struct cphy *cphy)
 	if (t1_is_asic(cphy->adapter)) {
 		t1_tpi_read(cphy->adapter, A_ELMER0_INT_CAUSE, &elmer);
 		elmer |= ELMER0_GP_BIT1;
-		if (is_T2(cphy->adapter)) {
+		if (is_T2(cphy->adapter))
 		    elmer |= ELMER0_GP_BIT2|ELMER0_GP_BIT3|ELMER0_GP_BIT4;
-                }
 		t1_tpi_write(cphy->adapter, A_ELMER0_INT_CAUSE, elmer);
 	}
 	return 0;
@@ -300,7 +297,7 @@ static int mv88e1xxx_interrupt_handler(struct cphy *cphy)
 
 	/*
 	 * Loop until cause reads zero. Need to handle bouncing interrupts.
-         */
+	 */
 	while (1) {
 		u32 cause;
 
@@ -308,15 +305,16 @@ static int mv88e1xxx_interrupt_handler(struct cphy *cphy)
 				MV88E1XXX_INTERRUPT_STATUS_REGISTER,
 				&cause);
 		cause &= INTR_ENABLE_MASK;
-		if (!cause) break;
+		if (!cause)
+			break;
 
 		if (cause & MV88E1XXX_INTR_LINK_CHNG) {
 			(void) simple_mdio_read(cphy,
 				MV88E1XXX_SPECIFIC_STATUS_REGISTER, &status);
 
-			if (status & MV88E1XXX_INTR_LINK_CHNG) {
+			if (status & MV88E1XXX_INTR_LINK_CHNG)
 				cphy->state |= PHY_LINK_UP;
-			} else {
+			else {
 				cphy->state &= ~PHY_LINK_UP;
 				if (cphy->state & PHY_AUTONEG_EN)
 					cphy->state &= ~PHY_AUTONEG_RDY;
@@ -360,7 +358,8 @@ static struct cphy *mv88e1xxx_phy_create(adapter_t *adapter, int phy_addr,
 {
 	struct cphy *cphy = kzalloc(sizeof(*cphy), GFP_KERNEL);
 
-	if (!cphy) return NULL;
+	if (!cphy)
+		return NULL;
 
 	cphy_init(cphy, adapter, phy_addr, &mv88e1xxx_ops, mdio_ops);
 
@@ -377,11 +376,11 @@ static struct cphy *mv88e1xxx_phy_create(adapter_t *adapter, int phy_addr,
 	}
 	(void) mv88e1xxx_downshift_set(cphy, 1);   /* Enable downshift */
 
-        /* LED */
+	/* LED */
 	if (is_T2(adapter)) {
 		(void) simple_mdio_write(cphy,
 				MV88E1XXX_LED_CONTROL_REGISTER, 0x1);
-        }
+	}
 
 	return cphy;
 }

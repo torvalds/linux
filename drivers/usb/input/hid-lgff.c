@@ -29,9 +29,10 @@
 
 #include <linux/input.h>
 #include <linux/usb.h>
-#include "hid.h"
+#include <linux/hid.h>
+#include "usbhid.h"
 
-struct device_type {
+struct dev_type {
 	u16 idVendor;
 	u16 idProduct;
 	const signed short *ff;
@@ -47,7 +48,7 @@ static const signed short ff_joystick[] = {
 	-1
 };
 
-static const struct device_type devices[] = {
+static const struct dev_type devices[] = {
 	{ 0x046d, 0xc211, ff_rumble },
 	{ 0x046d, 0xc219, ff_rumble },
 	{ 0x046d, 0xc283, ff_joystick },
@@ -76,7 +77,7 @@ static int hid_lgff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 		report->field[0]->value[2] = x;
 		report->field[0]->value[3] = y;
 		dbg("(x, y)=(%04x, %04x)", x, y);
-		hid_submit_report(hid, report, USB_DIR_OUT);
+		usbhid_submit_report(hid, report, USB_DIR_OUT);
 		break;
 
 	case FF_RUMBLE:
@@ -91,7 +92,7 @@ static int hid_lgff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 		report->field[0]->value[2] = left;
 		report->field[0]->value[3] = right;
 		dbg("(left, right)=(%04x, %04x)", left, right);
-		hid_submit_report(hid, report, USB_DIR_OUT);
+		usbhid_submit_report(hid, report, USB_DIR_OUT);
 		break;
 	}
 	return 0;

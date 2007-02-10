@@ -841,7 +841,7 @@ static void nfs3_proc_commit_setup(struct nfs_write_data *data, int how)
 static int
 nfs3_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	return nlmclnt_proc(filp->f_dentry->d_inode, cmd, fl);
+	return nlmclnt_proc(filp->f_path.dentry->d_inode, cmd, fl);
 }
 
 const struct nfs_rpc_ops nfs_v3_clientops = {

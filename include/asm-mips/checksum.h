@@ -29,31 +29,38 @@
  */
 __wsum csum_partial(const void *buff, int len, __wsum sum);
 
+__wsum __csum_partial_copy_user(const void *src, void *dst,
+				int len, __wsum sum, int *err_ptr);
+
 /*
  * this is a new version of the above that records errors it finds in *errp,
  * but continues and zeros the rest of the buffer.
  */
-__wsum csum_partial_copy_from_user(const void __user *src,
-					 void *dst, int len,
-					 __wsum sum, int *errp);
+static inline
+__wsum csum_partial_copy_from_user(const void __user *src, void *dst, int len,
+				   __wsum sum, int *err_ptr)
+{
+	might_sleep();
+	return __csum_partial_copy_user((__force void *)src, dst,
+					len, sum, err_ptr);
+}
 
 /*
  * Copy and checksum to user
  */
 #define HAVE_CSUM_COPY_USER
-static inline __wsum csum_and_copy_to_user (const void *src, void __user *dst,
-						  int len, __wsum sum,
-						  int *err_ptr)
+static inline
+__wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
+			     __wsum sum, int *err_ptr)
 {
 	might_sleep();
-	sum = csum_partial(src, len, sum);
-
-	if (copy_to_user(dst, src, len)) {
+	if (access_ok(VERIFY_WRITE, dst, len))
+		return __csum_partial_copy_user(src, (__force void *)dst,
+						len, sum, err_ptr);
+	if (len)
 		*err_ptr = -EFAULT;
-		return (__force __wsum)-1;
-	}
 
-	return sum;
+	return (__force __wsum)-1; /* invalid checksum */
 }
 
 /*
@@ -152,7 +159,8 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr,
 #endif
 	"	.set	pop"
 	: "=r" (sum)
-	: "0" (daddr), "r"(saddr),
+	: "0" ((__force unsigned long)daddr),
+	  "r" ((__force unsigned long)saddr),
 #ifdef __MIPSEL__
 	  "r" ((proto + len) << 8),
 #else

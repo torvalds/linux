@@ -36,7 +36,7 @@
 
 /* Have we found an MP table */
 int smp_found_config;
-unsigned int __initdata maxcpus = NR_CPUS;
+unsigned int __cpuinitdata maxcpus = NR_CPUS;
 
 /*
  * Various Linux-internal data structures created from the
@@ -102,9 +102,9 @@ static int __init mpf_checksum(unsigned char *mp, int len)
  */
 
 static int mpc_record; 
-static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY] __initdata;
+static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY] __cpuinitdata;
 
-static void __devinit MP_processor_info (struct mpc_config_processor *m)
+static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 {
  	int ver, apicid;
 	physid_mask_t phys_cpu;
@@ -822,7 +822,7 @@ void __init mp_register_lapic_address(u64 address)
 	Dprintk("Boot CPU = %d\n", boot_cpu_physical_apicid);
 }
 
-void __devinit mp_register_lapic (u8 id, u8 enabled)
+void __cpuinit mp_register_lapic (u8 id, u8 enabled)
 {
 	struct mpc_config_processor processor;
 	int boot_cpu = 0;
@@ -1057,7 +1057,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	static int		gsi_to_irq[MAX_GSI_NUM];
 
 	/* Don't set up the ACPI SCI because it's already set up */
-	if (acpi_fadt.sci_int == gsi)
+	if (acpi_gbl_FADT.sci_interrupt == gsi)
 		return gsi;
 
 	ioapic = mp_find_ioapic(gsi);
@@ -1114,7 +1114,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 			/*
 			 * Don't assign IRQ used by ACPI SCI
 			 */
-			if (gsi == acpi_fadt.sci_int)
+			if (gsi == acpi_gbl_FADT.sci_interrupt)
 				gsi = pci_irq++;
 			gsi_to_irq[irq] = gsi;
 		} else {

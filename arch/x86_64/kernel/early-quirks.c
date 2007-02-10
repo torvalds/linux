@@ -32,7 +32,7 @@ static void via_bugs(void)
 
 static int nvidia_hpet_detected __initdata;
 
-static int __init nvidia_hpet_check(unsigned long phys, unsigned long size)
+static int __init nvidia_hpet_check(struct acpi_table_header *header)
 {
 	nvidia_hpet_detected = 1;
 	return 0;
@@ -53,7 +53,7 @@ static void nvidia_bugs(void)
 		return;
 
 	nvidia_hpet_detected = 0;
-	acpi_table_parse(ACPI_HPET, nvidia_hpet_check);
+	acpi_table_parse(ACPI_SIG_HPET, nvidia_hpet_check);
 	if (nvidia_hpet_detected == 0) {
 		acpi_skip_timer_override = 1;
 		printk(KERN_INFO "Nvidia board "
@@ -69,6 +69,11 @@ static void nvidia_bugs(void)
 
 static void ati_bugs(void)
 {
+	if (timer_over_8254 == 1) {
+		timer_over_8254 = 0;
+		printk(KERN_INFO
+	 	"ATI board detected. Disabling timer routing over 8254.\n");
+	}
 }
 
 static void intel_bugs(void)

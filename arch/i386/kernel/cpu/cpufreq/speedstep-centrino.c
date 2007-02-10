@@ -36,6 +36,7 @@
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "speedstep-centrino", msg)
 
+#define INTEL_MSR_RANGE	(0xffff)
 
 struct cpu_id
 {
@@ -379,6 +380,7 @@ static int centrino_cpu_early_init_acpi(void)
 }
 
 
+#ifdef CONFIG_SMP
 /*
  * Some BIOSes do SW_ANY coordination internally, either set it up in hw
  * or do it in BIOS firmware and won't inform about it to OS. If not
@@ -392,7 +394,6 @@ static int sw_any_bug_found(struct dmi_system_id *d)
 	return 0;
 }
 
-
 static struct dmi_system_id sw_any_bug_dmi_table[] = {
 	{
 		.callback = sw_any_bug_found,
@@ -405,7 +406,7 @@ static struct dmi_system_id sw_any_bug_dmi_table[] = {
 	},
 	{ }
 };
-
+#endif
 
 /*
  * centrino_cpu_init_acpi - register with ACPI P-States library
@@ -463,8 +464,9 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 	}
 
 	for (i=0; i<p->state_count; i++) {
-		if (p->states[i].control != p->states[i].status) {
-			dprintk("Different control (%llu) and status values (%llu)\n",
+		if ((p->states[i].control & INTEL_MSR_RANGE) !=
+		    (p->states[i].status & INTEL_MSR_RANGE)) {
+			dprintk("Different MSR bits in control (%llu) and status (%llu)\n",
 				p->states[i].control, p->states[i].status);
 			result = -EINVAL;
 			goto err_unreg;
@@ -500,7 +502,7 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
         }
 
         for (i=0; i<p->state_count; i++) {
-		centrino_model[cpu]->op_points[i].index = p->states[i].control;
+		centrino_model[cpu]->op_points[i].index = p->states[i].control & INTEL_MSR_RANGE;
 		centrino_model[cpu]->op_points[i].frequency = p->states[i].core_frequency * 1000;
 		dprintk("adding state %i with frequency %u and control value %04x\n", 
 			i, centrino_model[cpu]->op_points[i].frequency, centrino_model[cpu]->op_points[i].index);
@@ -531,6 +533,9 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 
 	/* notify BIOS that we exist */
 	acpi_processor_notify_smm(THIS_MODULE);
+	printk("speedstep-centrino with X86_SPEEDSTEP_CENTRINO_ACPI "
+	       "config is deprecated.\n "
+	       "Use X86_ACPI_CPUFREQ (acpi-cpufreq) instead.\n" );
 
 	return 0;
 

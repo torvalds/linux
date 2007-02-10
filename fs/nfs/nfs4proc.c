@@ -1877,7 +1877,7 @@ static int nfs4_proc_unlink_setup(struct rpc_message *msg, struct dentry *dir,
 	struct nfs_server *server = NFS_SERVER(dir->d_inode);
 	struct unlink_desc *up;
 
-	up = (struct unlink_desc *) kmalloc(sizeof(*up), GFP_KERNEL);
+	up = kmalloc(sizeof(*up), GFP_KERNEL);
 	if (!up)
 		return -ENOMEM;
 	

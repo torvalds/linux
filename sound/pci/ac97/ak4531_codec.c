@@ -267,9 +267,9 @@ static int snd_ak4531_put_input_sw(struct snd_kcontrol *kcontrol, struct snd_ctl
 	return change;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_master, -6200, 200, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_mono, -2800, 400, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_input, -5000, 200, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_master, -6200, 200, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_mono, -2800, 400, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_input, -5000, 200, 0);
 
 static struct snd_kcontrol_new snd_ak4531_controls[] = {
 

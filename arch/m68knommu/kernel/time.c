@@ -23,6 +23,7 @@
 
 #include <asm/machdep.h>
 #include <asm/io.h>
+#include <asm/irq_regs.h>
 
 #define	TICK_SIZE (tick_nsec / 1000)
 
@@ -38,7 +39,7 @@ static inline int set_rtc_mmss(unsigned long nowtime)
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
+static irqreturn_t timer_interrupt(int irq, void *dummy)
 {
 	/* last time the cmos clock got updated */
 	static long last_rtc_update=0;
@@ -51,7 +52,7 @@ static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 
 	do_timer(1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 	if (current->pid)
 		profile_tick(CPU_PROFILING);

@@ -26,6 +26,7 @@
 
 /* The base address of the last MMCONFIG device accessed */
 static u32 mmcfg_last_accessed_device;
+static int mmcfg_last_accessed_cpu;
 
 static DECLARE_BITMAP(fallback_slots, MAX_CHECK_BUS*32);
 
@@ -35,7 +36,7 @@ static DECLARE_BITMAP(fallback_slots, MAX_CHECK_BUS*32);
 static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 {
 	int cfg_num = -1;
-	struct acpi_table_mcfg_config *cfg;
+	struct acpi_mcfg_allocation *cfg;
 
 	if (seg == 0 && bus < MAX_CHECK_BUS &&
 	    test_bit(PCI_SLOT(devfn) + 32*bus, fallback_slots))
@@ -47,11 +48,11 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 			break;
 		}
 		cfg = &pci_mmcfg_config[cfg_num];
-		if (cfg->pci_segment_group_number != seg)
+		if (cfg->pci_segment != seg)
 			continue;
 		if ((cfg->start_bus_number <= bus) &&
 		    (cfg->end_bus_number >= bus))
-			return cfg->base_address;
+			return cfg->address;
 	}
 
 	/* Handle more broken MCFG tables on Asus etc.
@@ -59,9 +60,9 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
  	   this applies to all busses. */
 	cfg = &pci_mmcfg_config[0];
 	if (pci_mmcfg_config_num == 1 &&
-		cfg->pci_segment_group_number == 0 &&
+		cfg->pci_segment == 0 &&
 		(cfg->start_bus_number | cfg->end_bus_number) == 0)
-		return cfg->base_address;
+		return cfg->address;
 
 	/* Fall back to type 0 */
 	return 0;
@@ -73,8 +74,11 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 static void pci_exp_set_dev_base(unsigned int base, int bus, int devfn)
 {
 	u32 dev_base = base | (bus << 20) | (devfn << 12);
-	if (dev_base != mmcfg_last_accessed_device) {
+	int cpu = smp_processor_id();
+	if (dev_base != mmcfg_last_accessed_device ||
+	    cpu != mmcfg_last_accessed_cpu) {
 		mmcfg_last_accessed_device = dev_base;
+		mmcfg_last_accessed_cpu = cpu;
 		set_fixmap_nocache(FIX_PCIE_MCFG, dev_base);
 	}
 }
@@ -121,7 +125,7 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 	unsigned long flags;
 	u32 base;
 
-	if ((bus > 255) || (devfn > 255) || (reg > 4095)) 
+	if ((bus > 255) || (devfn > 255) || (reg > 4095))
 		return -EINVAL;
 
 	base = get_base_addr(seg, bus, devfn);
@@ -195,19 +199,19 @@ void __init pci_mmcfg_init(int type)
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return;
 
-	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
+	acpi_table_parse(ACPI_SIG_MCFG, acpi_parse_mcfg);
 	if ((pci_mmcfg_config_num == 0) ||
 	    (pci_mmcfg_config == NULL) ||
-	    (pci_mmcfg_config[0].base_address == 0))
+	    (pci_mmcfg_config[0].address == 0))
 		return;
 
 	/* Only do this check when type 1 works. If it doesn't work
 	   assume we run on a Mac and always use MCFG */
-	if (type == 1 && !e820_all_mapped(pci_mmcfg_config[0].base_address,
-			pci_mmcfg_config[0].base_address + MMCONFIG_APER_MIN,
+	if (type == 1 && !e820_all_mapped(pci_mmcfg_config[0].address,
+			pci_mmcfg_config[0].address + MMCONFIG_APER_MIN,
 			E820_RESERVED)) {
-		printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %x is not E820-reserved\n",
-				pci_mmcfg_config[0].base_address);
+		printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %lx is not E820-reserved\n",
+				(unsigned long)pci_mmcfg_config[0].address);
 		printk(KERN_ERR "PCI: Not using MMCONFIG.\n");
 		return;
 	}

@@ -35,27 +35,13 @@ struct rgb {
 };
 
 struct bayL0 {
-#ifdef __BIG_ENDIAN
-	u8 r;
-	u8 g;
-#elif __LITTLE_ENDIAN
 	u8 g;
 	u8 r;
-#else
-#error not byte order defined
-#endif
 };
 
 struct bayL1 {
-#ifdef __BIG_ENDIAN
-	u8 g;
-	u8 b;
-#elif __LITTLE_ENDIAN
 	u8 b;
 	u8 g;
-#else
-#error not byte order defined
-#endif
 };
 
 struct cam_size {

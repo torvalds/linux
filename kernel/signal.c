@@ -24,6 +24,9 @@
 #include <linux/signal.h>
 #include <linux/capability.h>
 #include <linux/freezer.h>
+#include <linux/pid_namespace.h>
+#include <linux/nsproxy.h>
+
 #include <asm/param.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -583,7 +586,7 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	error = -EPERM;
 	if ((info == SEND_SIG_NOINFO || (!is_si_special(info) && SI_FROMUSER(info)))
 	    && ((sig != SIGCONT) ||
-		(current->signal->session != t->signal->session))
+		(process_session(current) != process_session(t)))
 	    && (current->euid ^ t->suid) && (current->euid ^ t->uid)
 	    && (current->uid ^ t->suid) && (current->uid ^ t->uid)
 	    && !capable(CAP_KILL))
@@ -1702,7 +1705,9 @@ finish_stop(int stop_count)
 		read_unlock(&tasklist_lock);
 	}
 
-	schedule();
+	do {
+		schedule();
+	} while (try_to_freeze());
 	/*
 	 * Now we don't run again until continued.
 	 */
@@ -1877,8 +1882,12 @@ relock:
 		if (sig_kernel_ignore(signr)) /* Default is nothing. */
 			continue;
 
-		/* Init gets no signals it doesn't want.  */
-		if (current == child_reaper)
+		/*
+		 * Init of a pid space gets no signals it doesn't want from
+		 * within that pid space. It can of course get signals from
+		 * its parent pid space.
+		 */
+		if (current == child_reaper(current))
 			continue;
 
 		if (sig_kernel_stop(signr)) {

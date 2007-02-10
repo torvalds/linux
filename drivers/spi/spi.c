@@ -366,7 +366,6 @@ spi_alloc_master(struct device *dev, unsigned size)
 
 	class_device_initialize(&master->cdev);
 	master->cdev.class = &spi_master_class;
-	kobj_set_kset_s(&master->cdev, spi_master_class.subsys);
 	master->cdev.dev = get_device(dev);
 	spi_master_set_devdata(master, &master[1]);
 
@@ -466,14 +465,20 @@ EXPORT_SYMBOL_GPL(spi_unregister_master);
  */
 struct spi_master *spi_busnum_to_master(u16 bus_num)
 {
-	char			name[9];
-	struct kobject		*bus;
+	struct class_device	*cdev;
+	struct spi_master	*master = NULL;
+	struct spi_master	*m;
 
-	snprintf(name, sizeof name, "spi%u", bus_num);
-	bus = kset_find_obj(&spi_master_class.subsys.kset, name);
-	if (bus)
-		return container_of(bus, struct spi_master, cdev.kobj);
-	return NULL;
+	down(&spi_master_class.sem);
+	list_for_each_entry(cdev, &spi_master_class.children, node) {
+		m = container_of(cdev, struct spi_master, cdev);
+		if (m->bus_num == bus_num) {
+			master = spi_master_get(m);
+			break;
+		}
+	}
+	up(&spi_master_class.sem);
+	return master;
 }
 EXPORT_SYMBOL_GPL(spi_busnum_to_master);
 

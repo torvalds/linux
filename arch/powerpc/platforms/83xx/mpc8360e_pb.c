@@ -31,6 +31,7 @@
 #include <linux/initrd.h>
 
 #include <asm/of_device.h>
+#include <asm/of_platform.h>
 #include <asm/system.h>
 #include <asm/atomic.h>
 #include <asm/time.h>
@@ -108,7 +109,7 @@ static void __init mpc8360_sys_setup_arch(void)
 #ifdef CONFIG_QUICC_ENGINE
 	qe_reset();
 
-	if ((np = of_find_node_by_name(np, "par_io")) != NULL) {
+	if ((np = of_find_node_by_name(NULL, "par_io")) != NULL) {
 		par_io_init(np);
 		of_node_put(np);
 
@@ -158,7 +159,7 @@ static int __init mpc8360_declare_of_platform_devices(void)
 }
 device_initcall(mpc8360_declare_of_platform_devices);
 
-void __init mpc8360_sys_init_IRQ(void)
+static void __init mpc8360_sys_init_IRQ(void)
 {
 
 	struct device_node *np;

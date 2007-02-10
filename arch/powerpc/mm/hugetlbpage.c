@@ -744,7 +744,8 @@ static int htlb_check_hinted_area(unsigned long addr, unsigned long len)
 	struct vm_area_struct *vma;
 
 	vma = find_vma(current->mm, addr);
-	if (!vma || ((addr + len) <= vma->vm_start))
+	if (TASK_SIZE - len >= addr &&
+	    (!vma || ((addr + len) <= vma->vm_start)))
 		return 0;
 
 	return -ENOMEM;
@@ -815,6 +816,8 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		return -EINVAL;
 	if (len & ~HPAGE_MASK)
 		return -EINVAL;
+	if (len > TASK_SIZE)
+		return -ENOMEM;
 
 	if (!cpu_has_feature(CPU_FTR_16M_PAGE))
 		return -EINVAL;
@@ -823,9 +826,6 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	BUG_ON((addr + len)  < addr);
 
 	if (test_thread_flag(TIF_32BIT)) {
-		/* Paranoia, caller should have dealt with this */
-		BUG_ON((addr + len) > 0x100000000UL);
-
 		curareas = current->mm->context.low_htlb_areas;
 
 		/* First see if we can use the hint address */
@@ -1014,7 +1014,6 @@ repeat:
 
 		/* Primary is full, try the secondary */
 		if (unlikely(slot == -1)) {
-			new_pte |= _PAGE_F_SECOND;
 			hpte_group = ((~hash & htab_hash_mask) *
 				      HPTES_PER_GROUP) & ~0x7UL; 
 			slot = ppc_md.hpte_insert(hpte_group, va, pa, rflags,
@@ -1033,7 +1032,7 @@ repeat:
 		if (unlikely(slot == -2))
 			panic("hash_huge_page: pte_insert failed\n");
 
-		new_pte |= (slot << 12) & _PAGE_F_GIX;
+		new_pte |= (slot << 12) & (_PAGE_F_SECOND | _PAGE_F_GIX);
 	}
 
 	/*

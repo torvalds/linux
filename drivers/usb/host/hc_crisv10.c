@@ -365,7 +365,7 @@ static inline struct urb *urb_list_first(int epid)
 /* Adds an urb_entry last in the list for this epid. */
 static inline void urb_list_add(struct urb *urb, int epid)
 {
-	urb_entry_t *urb_entry = (urb_entry_t *)kmalloc(sizeof(urb_entry_t), KMALLOC_FLAG);
+	urb_entry_t *urb_entry = kmalloc(sizeof(urb_entry_t), KMALLOC_FLAG);
 	assert(urb_entry);
 
 	urb_entry->urb = urb;

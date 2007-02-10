@@ -7,12 +7,12 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
 
 #include <asm/checksum.h>
 #include <asm/uaccess.h>
-#include <asm/delay.h>
 
 /*
  * GCC functions
@@ -29,6 +29,7 @@ EXPORT_SYMBOL(__avr32_asr64);
  */
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);
+EXPORT_SYMBOL(clear_page);
 
 /*
  * Userspace access stuff.

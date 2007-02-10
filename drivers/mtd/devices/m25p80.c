@@ -437,7 +437,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		 * or JEDEC get-id commands.  Try them ...
 		 */
 		DEBUG(MTD_DEBUG_LEVEL1, "%s: no chip id\n",
-				flash->spi->dev.bus_id);
+				spi->dev.bus_id);
 		return -ENODEV;
 	}
 
@@ -447,7 +447,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	}
 	if (i == ARRAY_SIZE(m25p_data)) {
 		DEBUG(MTD_DEBUG_LEVEL1, "%s: unrecognized id %s\n",
-				flash->spi->dev.bus_id, data->type);
+				spi->dev.bus_id, data->type);
 		return -ENODEV;
 	}
 

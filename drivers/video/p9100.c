@@ -297,7 +297,8 @@ static int __devinit p9100_init_one(struct of_device *op)
 	all->info.screen_base = of_ioremap(&op->resource[2], 0,
 					   all->par.fbsize, "p9100 ram");
 	if (!all->info.screen_base) {
-		of_iounmap(all->par.regs, sizeof(struct p9100_regs));
+		of_iounmap(&op->resource[0],
+			   all->par.regs, sizeof(struct p9100_regs));
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -306,8 +307,10 @@ static int __devinit p9100_init_one(struct of_device *op)
 	p9100_blank(0, &all->info);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		of_iounmap(all->par.regs, sizeof(struct p9100_regs));
-		of_iounmap(all->info.screen_base, all->par.fbsize);
+		of_iounmap(&op->resource[0],
+			   all->par.regs, sizeof(struct p9100_regs));
+		of_iounmap(&op->resource[2],
+			   all->info.screen_base, all->par.fbsize);
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -317,8 +320,10 @@ static int __devinit p9100_init_one(struct of_device *op)
 	err = register_framebuffer(&all->info);
 	if (err < 0) {
 		fb_dealloc_cmap(&all->info.cmap);
-		of_iounmap(all->par.regs, sizeof(struct p9100_regs));
-		of_iounmap(all->info.screen_base, all->par.fbsize);
+		of_iounmap(&op->resource[0],
+			   all->par.regs, sizeof(struct p9100_regs));
+		of_iounmap(&op->resource[2],
+			   all->info.screen_base, all->par.fbsize);
 		kfree(all);
 		return err;
 	}
@@ -340,19 +345,19 @@ static int __devinit p9100_probe(struct of_device *dev, const struct of_device_i
 	return p9100_init_one(op);
 }
 
-static int __devexit p9100_remove(struct of_device *dev)
+static int __devexit p9100_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&dev->dev);
+	struct all_info *all = dev_get_drvdata(&op->dev);
 
 	unregister_framebuffer(&all->info);
 	fb_dealloc_cmap(&all->info.cmap);
 
-	of_iounmap(all->par.regs, sizeof(struct p9100_regs));
-	of_iounmap(all->info.screen_base, all->par.fbsize);
+	of_iounmap(&op->resource[0], all->par.regs, sizeof(struct p9100_regs));
+	of_iounmap(&op->resource[2], all->info.screen_base, all->par.fbsize);
 
 	kfree(all);
 
-	dev_set_drvdata(&dev->dev, NULL);
+	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

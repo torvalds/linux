@@ -4,6 +4,12 @@ MPC52xx Device Tree Bindings
 (c) 2006 Secret Lab Technologies Ltd
 Grant Likely <grant.likely at secretlab.ca>
 
+********** DRAFT ***********
+* WARNING: Do not depend on the stability of these bindings just yet.
+* The MPC5200 device tree conventions are still in flux
+* Keep an eye on the linuxppc-dev mailing list for more details
+********** DRAFT ***********
+
 I - Introduction
 ================
 Boards supported by the arch/powerpc architecture require device tree be
@@ -157,8 +163,8 @@ rtc@<addr>	rtc		*-rtc		Real time clock
 mscan@<addr>	mscan		*-mscan		CAN bus controller
 pci@<addr>	pci		*-pci		PCI bridge
 serial@<addr>	serial		*-psc-uart	PSC in serial mode
-i2s@<addr>	i2s		*-psc-i2s	PSC in i2s mode
-ac97@<addr>	ac97		*-psc-ac97	PSC in ac97 mode
+i2s@<addr>	sound		*-psc-i2s	PSC in i2s mode
+ac97@<addr>	sound		*-psc-ac97	PSC in ac97 mode
 spi@<addr>	spi		*-psc-spi	PSC in spi mode
 irda@<addr>	irda		*-psc-irda	PSC in IrDA mode
 spi@<addr>	spi		*-spi		MPC52xx spi device

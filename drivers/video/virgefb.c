@@ -1799,7 +1799,7 @@ int __init virgefb_init(void)
 		#warning release resources
 		printk(KERN_ERR "virgefb.c: register_framebuffer failed\n");
 		DPRINTK("EXIT\n");
-		return -EINVAL;
+		goto out_unmap;
 	}
 
 	printk(KERN_INFO "fb%d: %s frame buffer device, using %ldK of video memory\n",
@@ -1809,6 +1809,21 @@ int __init virgefb_init(void)
 
 	DPRINTK("EXIT\n");
 	return 0;
+
+out_unmap:
+	if (board_addr >= 0x01000000) {
+		if (v_ram)
+			iounmap((void*)v_ram);
+		if (vgaio_regs)
+			iounmap(vgaio_regs);
+		if (mmio_regs)
+			iounmap(mmio_regs);
+		if (vcode_switch_base)
+			iounmap((void*)vcode_switch_base);
+		v_ram = vcode_switch_base = 0;
+		vgaio_regs = mmio_regs = NULL;
+	}
+	return -EINVAL;
 }
 
 

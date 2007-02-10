@@ -187,6 +187,12 @@ int noautodma = 1;
 
 EXPORT_SYMBOL(noautodma);
 
+#ifdef CONFIG_BLK_DEV_IDEACPI
+int ide_noacpi = 0;
+int ide_noacpitfs = 1;
+int ide_noacpionboot = 1;
+#endif
+
 /*
  * This is declared extern in ide.h, for access by other IDE modules:
  */
@@ -1214,9 +1220,14 @@ EXPORT_SYMBOL(system_bus_clock);
 static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
 	ide_drive_t *drive = dev->driver_data;
+	ide_hwif_t *hwif = HWIF(drive);
 	struct request rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
+
+	/* Call ACPI _GTM only once */
+	if (!(drive->dn % 2))
+		ide_acpi_get_timing(hwif);
 
 	memset(&rq, 0, sizeof(rq));
 	memset(&rqpm, 0, sizeof(rqpm));
@@ -1235,9 +1246,16 @@ static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 static int generic_ide_resume(struct device *dev)
 {
 	ide_drive_t *drive = dev->driver_data;
+	ide_hwif_t *hwif = HWIF(drive);
 	struct request rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
+
+	/* Call ACPI _STM only once */
+	if (!(drive->dn % 2))
+		ide_acpi_push_timing(hwif);
+
+	ide_acpi_exec_tfs(drive);
 
 	memset(&rq, 0, sizeof(rq));
 	memset(&rqpm, 0, sizeof(rqpm));
@@ -1543,6 +1561,24 @@ static int __init ide_setup(char *s)
 	}
 #endif /* CONFIG_BLK_DEV_IDEPCI */
 
+#ifdef CONFIG_BLK_DEV_IDEACPI
+	if (!strcmp(s, "ide=noacpi")) {
+		//printk(" : Disable IDE ACPI support.\n");
+		ide_noacpi = 1;
+		return 1;
+	}
+	if (!strcmp(s, "ide=acpigtf")) {
+		//printk(" : Enable IDE ACPI _GTF support.\n");
+		ide_noacpitfs = 0;
+		return 1;
+	}
+	if (!strcmp(s, "ide=acpionboot")) {
+		//printk(" : Call IDE ACPI methods on boot.\n");
+		ide_noacpionboot = 0;
+		return 1;
+	}
+#endif /* CONFIG_BLK_DEV_IDEACPI */
+
 	/*
 	 * Look for drive options:  "hdx="
 	 */
@@ -1781,8 +1817,9 @@ done:
 	return 1;
 }
 
-extern void pnpide_init(void);
-extern void h8300_ide_init(void);
+extern void __init pnpide_init(void);
+extern void __exit pnpide_exit(void);
+extern void __init h8300_ide_init(void);
 
 /*
  * probe_for_hwifs() finds/initializes "known" IDE interfaces
@@ -2087,12 +2124,16 @@ int __init init_module (void)
 	return ide_init();
 }
 
-void cleanup_module (void)
+void __exit cleanup_module (void)
 {
 	int index;
 
 	for (index = 0; index < MAX_HWIFS; ++index)
 		ide_unregister(index);
+
+#ifdef CONFIG_BLK_DEV_IDEPNP
+	pnpide_exit();
+#endif
 
 #ifdef CONFIG_PROC_FS
 	proc_ide_destroy();

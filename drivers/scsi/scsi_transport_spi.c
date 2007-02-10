@@ -122,7 +122,7 @@ static int spi_execute(struct scsi_device *sdev, const void *cmd,
 			if (!sshdr)
 				sshdr = &sshdr_tmp;
 
-			if (scsi_normalize_sense(sense, sizeof(*sense),
+			if (scsi_normalize_sense(sense, SCSI_SENSE_BUFFERSIZE,
 						 sshdr)
 			    && sshdr->sense_key == UNIT_ATTENTION)
 				continue;

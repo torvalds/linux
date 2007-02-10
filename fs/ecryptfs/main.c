@@ -35,6 +35,7 @@
 #include <linux/pagemap.h>
 #include <linux/key.h>
 #include <linux/parser.h>
+#include <linux/fs_stack.h>
 #include "ecryptfs_kernel.h"
 
 /**
@@ -112,10 +113,10 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 		d_add(dentry, inode);
 	else
 		d_instantiate(dentry, inode);
-	ecryptfs_copy_attr_all(inode, lower_inode);
+	fsstack_copy_attr_all(inode, lower_inode, NULL);
 	/* This size will be overwritten for real files w/ headers and
 	 * other metadata */
-	ecryptfs_copy_inode_size(inode, lower_inode);
+	fsstack_copy_inode_size(inode, lower_inode);
 out:
 	return rc;
 }

@@ -17,6 +17,7 @@
  *
  */
 #include <linux/slab.h>
+#include <linux/err.h>
 #include <linux/blkdev.h>
 #include <linux/jffs.h>
 #include "jffs_fm.h"
@@ -104,7 +105,7 @@ jffs_build_begin(struct jffs_control *c, int unit)
 
 	mtd = get_mtd_device(NULL, unit);
 
-	if (!mtd) {
+	if (IS_ERR(mtd)) {
 		kfree(fmc);
 		DJM(no_jffs_fmcontrol--);
 		return NULL;

@@ -8,7 +8,7 @@
 #include <asm/cacheflush.h>
 
 #ifndef ARCH_HAS_FLUSH_ANON_PAGE
-static inline void flush_anon_page(struct page *page, unsigned long vmaddr)
+static inline void flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
 {
 }
 #endif
@@ -96,7 +96,10 @@ static inline void memclear_highpage_flush(struct page *page, unsigned int offse
 	kunmap_atomic(kaddr, KM_USER0);
 }
 
-static inline void copy_user_highpage(struct page *to, struct page *from, unsigned long vaddr)
+#ifndef __HAVE_ARCH_COPY_USER_HIGHPAGE
+
+static inline void copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma)
 {
 	char *vfrom, *vto;
 
@@ -108,6 +111,8 @@ static inline void copy_user_highpage(struct page *to, struct page *from, unsign
 	/* Make sure this page is cleared on other CPU's too before using it */
 	smp_wmb();
 }
+
+#endif
 
 static inline void copy_highpage(struct page *to, struct page *from)
 {

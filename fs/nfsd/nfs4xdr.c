@@ -1845,15 +1845,11 @@ nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
 
 	exp_get(exp);
 	if (d_mountpoint(dentry)) {
-		if (nfsd_cross_mnt(cd->rd_rqstp, &dentry, &exp)) {
-		/*
-		 * -EAGAIN is the only error returned from
-		 * nfsd_cross_mnt() and it indicates that an
-		 * up-call has  been initiated to fill in the export
-		 * options on exp.  When the answer comes back,
-		 * this call will be retried.
-		 */
-			nfserr = nfserr_dropit;
+		int err;
+
+		err = nfsd_cross_mnt(cd->rd_rqstp, &dentry, &exp);
+		if (err) {
+			nfserr = nfserrno(err);
 			goto out_put;
 		}
 
@@ -1884,9 +1880,10 @@ nfsd4_encode_rdattr_error(__be32 *p, int buflen, __be32 nfserr)
 }
 
 static int
-nfsd4_encode_dirent(struct readdir_cd *ccd, const char *name, int namlen,
-		    loff_t offset, ino_t ino, unsigned int d_type)
+nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
+		    loff_t offset, u64 ino, unsigned int d_type)
 {
+	struct readdir_cd *ccd = ccdv;
 	struct nfsd4_readdir *cd = container_of(ccd, struct nfsd4_readdir, common);
 	int buflen;
 	__be32 *p = cd->buffer;

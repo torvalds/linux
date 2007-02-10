@@ -1591,11 +1591,10 @@ hfc4s8s_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hfc4s8s_param *driver_data = (hfc4s8s_param *) ent->driver_data;
 	hfc4s8s_hw *hw;
 
-	if (!(hw = kmalloc(sizeof(hfc4s8s_hw), GFP_ATOMIC))) {
+	if (!(hw = kzalloc(sizeof(hfc4s8s_hw), GFP_ATOMIC))) {
 		printk(KERN_ERR "No kmem for HFC-4S/8S card\n");
 		return (err);
 	}
-	memset(hw, 0, sizeof(hfc4s8s_hw));
 
 	hw->pdev = pdev;
 	err = pci_enable_device(pdev);

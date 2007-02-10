@@ -804,19 +804,19 @@ unwrap_integ_data(struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 
 	integ_len = svc_getnl(&buf->head[0]);
 	if (integ_len & 3)
-		goto out;
+		return stat;
 	if (integ_len > buf->len)
-		goto out;
+		return stat;
 	if (xdr_buf_subsegment(buf, &integ_buf, 0, integ_len))
 		BUG();
 	/* copy out mic... */
 	if (read_u32_from_xdr_buf(buf, integ_len, &mic.len))
 		BUG();
 	if (mic.len > RPC_MAX_AUTH_SIZE)
-		goto out;
+		return stat;
 	mic.data = kmalloc(mic.len, GFP_KERNEL);
 	if (!mic.data)
-		goto out;
+		return stat;
 	if (read_bytes_from_xdr_buf(buf, integ_len + 4, mic.data, mic.len))
 		goto out;
 	maj_stat = gss_verify_mic(ctx, &integ_buf, &mic);
@@ -826,6 +826,7 @@ unwrap_integ_data(struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 		goto out;
 	stat = 0;
 out:
+	kfree(mic.data);
 	return stat;
 }
 
@@ -1065,7 +1066,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 		}
 		switch(cache_check(&rsi_cache, &rsip->h, &rqstp->rq_chandle)) {
 		case -EAGAIN:
-			goto drop;
+		case -ETIMEDOUT:
 		case -ENOENT:
 			goto drop;
 		case 0:

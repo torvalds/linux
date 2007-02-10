@@ -19,7 +19,8 @@ for real time and multimedia traffic.
 
 It has a base protocol and pluggable congestion control IDs (CCIDs).
 
-It is at experimental RFC status and the homepage for DCCP as a protocol is at:
+It is at proposed standard RFC status and the homepage for DCCP as a protocol
+is at:
 	http://www.read.cs.ucla.edu/dccp/
 
 Missing features
@@ -33,9 +34,6 @@ The known bugs are at:
 
 Socket options
 ==============
-
-DCCP_SOCKOPT_PACKET_SIZE is used for CCID3 to set default packet size for
-calculations.
 
 DCCP_SOCKOPT_SERVICE sets the service. The specification mandates use of
 service codes (RFC 4340, sec. 8.1.2); if this socket option is not set,

@@ -351,7 +351,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 
 		while (seqp != hctx->ccid2hctx_seqh) {
 			ccid2_pr_debug("out seq=%llu acked=%d time=%lu\n",
-			       	       (unsigned long long)seqp->ccid2s_seq,
+				       (unsigned long long)seqp->ccid2s_seq,
 				       seqp->ccid2s_acked, seqp->ccid2s_sent);
 			seqp = seqp->ccid2s_next;
 		}
@@ -473,7 +473,7 @@ static inline void ccid2_new_ack(struct sock *sk,
 		/* first measurement */
 		if (hctx->ccid2hctx_srtt == -1) {
 			ccid2_pr_debug("R: %lu Time=%lu seq=%llu\n",
-			       	       r, jiffies,
+				       r, jiffies,
 				       (unsigned long long)seqp->ccid2s_seq);
 			ccid2_change_srtt(hctx, r);
 			hctx->ccid2hctx_rttvar = r >> 1;
@@ -518,8 +518,8 @@ static inline void ccid2_new_ack(struct sock *sk,
 		hctx->ccid2hctx_lastrtt = jiffies;
 
 		ccid2_pr_debug("srtt: %ld rttvar: %ld rto: %ld (HZ=%d) R=%lu\n",
-		       	       hctx->ccid2hctx_srtt, hctx->ccid2hctx_rttvar,
-		       	       hctx->ccid2hctx_rto, HZ, r);
+			       hctx->ccid2hctx_srtt, hctx->ccid2hctx_rttvar,
+			       hctx->ccid2hctx_rto, HZ, r);
 		hctx->ccid2hctx_sent = 0;
 	}
 
@@ -667,9 +667,9 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 				/* new packet received or marked */
 				if (state != DCCP_ACKVEC_STATE_NOT_RECEIVED &&
 				    !seqp->ccid2s_acked) {
-				    	if (state ==
+					if (state ==
 					    DCCP_ACKVEC_STATE_ECN_MARKED) {
-					    	ccid2_congestion_event(hctx,
+						ccid2_congestion_event(hctx,
 								       seqp);
 					} else
 						ccid2_new_ack(sk, seqp,

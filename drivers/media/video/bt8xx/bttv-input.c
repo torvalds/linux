@@ -259,24 +259,59 @@ static void bttv_rc5_timer_keyup(unsigned long data)
 
 /* ---------------------------------------------------------------------- */
 
+static void bttv_ir_start(struct bttv *btv, struct bttv_ir *ir)
+{
+	if (ir->polling) {
+		init_timer(&ir->timer);
+		ir->timer.function = bttv_input_timer;
+		ir->timer.data     = (unsigned long)btv;
+		ir->timer.expires  = jiffies + HZ;
+		add_timer(&ir->timer);
+	} else if (ir->rc5_gpio) {
+		/* set timer_end for code completion */
+		init_timer(&ir->timer_end);
+		ir->timer_end.function = bttv_rc5_timer_end;
+		ir->timer_end.data = (unsigned long)ir;
+
+		init_timer(&ir->timer_keyup);
+		ir->timer_keyup.function = bttv_rc5_timer_keyup;
+		ir->timer_keyup.data = (unsigned long)ir;
+	}
+}
+
+static void bttv_ir_stop(struct bttv *btv)
+{
+	if (btv->remote->polling) {
+		del_timer_sync(&btv->remote->timer);
+		flush_scheduled_work();
+	}
+
+	if (btv->remote->rc5_gpio) {
+		u32 gpio;
+
+		del_timer_sync(&btv->remote->timer_end);
+		flush_scheduled_work();
+
+		gpio = bttv_gpio_read(&btv->c);
+		bttv_gpio_write(&btv->c, gpio & ~(1 << 4));
+	}
+}
+
 int bttv_input_init(struct bttv *btv)
 {
 	struct bttv_ir *ir;
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	struct input_dev *input_dev;
 	int ir_type = IR_TYPE_OTHER;
+	int err = -ENOMEM;
 
 	if (!btv->has_remote)
 		return -ENODEV;
 
 	ir = kzalloc(sizeof(*ir),GFP_KERNEL);
 	input_dev = input_allocate_device();
-	if (!ir || !input_dev) {
-		kfree(ir);
-		input_free_device(input_dev);
-		return -ENOMEM;
-	}
-	memset(ir,0,sizeof(*ir));
+	if (!ir || !input_dev)
+		goto err_out_free;
 
 	/* detect & configure */
 	switch (btv->c.type) {
@@ -348,10 +383,9 @@ int bttv_input_init(struct bttv *btv)
 		break;
 	}
 	if (NULL == ir_codes) {
-		dprintk(KERN_INFO "Ooops: IR config error [card=%d]\n",btv->c.type);
-		kfree(ir);
-		input_free_device(input_dev);
-		return -ENODEV;
+		dprintk(KERN_INFO "Ooops: IR config error [card=%d]\n", btv->c.type);
+		err = -ENODEV;
+		goto err_out_free;
 	}
 
 	if (ir->rc5_gpio) {
@@ -389,32 +423,26 @@ int bttv_input_init(struct bttv *btv)
 	input_dev->cdev.dev = &btv->c.pci->dev;
 
 	btv->remote = ir;
-	if (ir->polling) {
-		init_timer(&ir->timer);
-		ir->timer.function = bttv_input_timer;
-		ir->timer.data     = (unsigned long)btv;
-		ir->timer.expires  = jiffies + HZ;
-		add_timer(&ir->timer);
-	} else if (ir->rc5_gpio) {
-		/* set timer_end for code completion */
-		init_timer(&ir->timer_end);
-		ir->timer_end.function = bttv_rc5_timer_end;
-		ir->timer_end.data = (unsigned long)ir;
-
-		init_timer(&ir->timer_keyup);
-		ir->timer_keyup.function = bttv_rc5_timer_keyup;
-		ir->timer_keyup.data = (unsigned long)ir;
-	}
+	bttv_ir_start(btv, ir);
 
 	/* all done */
-	input_register_device(btv->remote->dev);
-	printk(DEVNAME ": %s detected at %s\n",ir->name,ir->phys);
+	err = input_register_device(btv->remote->dev);
+	if (err)
+		goto err_out_stop;
 
 	/* the remote isn't as bouncy as a keyboard */
 	ir->dev->rep[REP_DELAY] = repeat_delay;
 	ir->dev->rep[REP_PERIOD] = repeat_period;
 
 	return 0;
+
+ err_out_stop:
+	bttv_ir_stop(btv);
+	btv->remote = NULL;
+ err_out_free:
+	input_free_device(input_dev);
+	kfree(ir);
+	return err;
 }
 
 void bttv_input_fini(struct bttv *btv)
@@ -422,22 +450,7 @@ void bttv_input_fini(struct bttv *btv)
 	if (btv->remote == NULL)
 		return;
 
-	if (btv->remote->polling) {
-		del_timer_sync(&btv->remote->timer);
-		flush_scheduled_work();
-	}
-
-
-	if (btv->remote->rc5_gpio) {
-		u32 gpio;
-
-		del_timer_sync(&btv->remote->timer_end);
-		flush_scheduled_work();
-
-		gpio = bttv_gpio_read(&btv->c);
-		bttv_gpio_write(&btv->c, gpio & ~(1 << 4));
-	}
-
+	bttv_ir_stop(btv);
 	input_unregister_device(btv->remote->dev);
 	kfree(btv->remote);
 	btv->remote = NULL;

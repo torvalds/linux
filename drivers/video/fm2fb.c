@@ -283,6 +283,7 @@ static int __devinit fm2fb_probe(struct zorro_dev *z,
 
 	if (register_framebuffer(info) < 0) {
 		fb_dealloc_cmap(&info->cmap);
+		iounmap(info->screen_base);
 		framebuffer_release(info);
 		zorro_release_device(z);
 		return -EINVAL;

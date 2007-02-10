@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 
 #include <asm/io.h>
+#include <irq.h>
 
 /* i8259A PIC registers */
 #define PIC_MASTER_CMD		0x20
@@ -41,8 +42,6 @@ extern void enable_8259A_irq(unsigned int irq);
 extern void disable_8259A_irq(unsigned int irq);
 
 extern void init_i8259_irqs(void);
-
-#define I8259A_IRQ_BASE	0
 
 /*
  * Do the traditional i8259 interrupt polling thing.  This is for the few

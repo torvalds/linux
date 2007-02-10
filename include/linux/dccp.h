@@ -176,20 +176,20 @@ enum {
 };
 
 /* DCCP features (RFC 4340 section 6.4) */
- enum {
- 	DCCPF_RESERVED = 0,
- 	DCCPF_CCID = 1,
+enum {
+	DCCPF_RESERVED = 0,
+	DCCPF_CCID = 1,
 	DCCPF_SHORT_SEQNOS = 2,		/* XXX: not yet implemented */
- 	DCCPF_SEQUENCE_WINDOW = 3,
+	DCCPF_SEQUENCE_WINDOW = 3,
 	DCCPF_ECN_INCAPABLE = 4,	/* XXX: not yet implemented */
- 	DCCPF_ACK_RATIO = 5,
- 	DCCPF_SEND_ACK_VECTOR = 6,
- 	DCCPF_SEND_NDP_COUNT = 7,
+	DCCPF_ACK_RATIO = 5,
+	DCCPF_SEND_ACK_VECTOR = 6,
+	DCCPF_SEND_NDP_COUNT = 7,
 	DCCPF_MIN_CSUM_COVER = 8,
 	DCCPF_DATA_CHECKSUM = 9,	/* XXX: not yet implemented */
- 	/* 10-127 reserved */
- 	DCCPF_MIN_CCID_SPECIFIC = 128,
- 	DCCPF_MAX_CCID_SPECIFIC = 255,
+	/* 10-127 reserved */
+	DCCPF_MIN_CCID_SPECIFIC = 128,
+	DCCPF_MAX_CCID_SPECIFIC = 255,
 };
 
 /* this structure is argument to DCCP_SOCKOPT_CHANGE_X */
@@ -427,7 +427,7 @@ struct dccp_service_list {
 };
 
 #define DCCP_SERVICE_INVALID_VALUE htonl((__u32)-1)
-#define DCCP_SERVICE_CODE_IS_ABSENT 		 0
+#define DCCP_SERVICE_CODE_IS_ABSENT		0
 
 static inline int dccp_list_has_service(const struct dccp_service_list *sl,
 					const __be32 service)
@@ -436,7 +436,7 @@ static inline int dccp_list_has_service(const struct dccp_service_list *sl,
 		u32 i = sl->dccpsl_nr;
 		while (i--)
 			if (sl->dccpsl_list[i] == service)
-				return 1; 
+				return 1;
 	}
 	return 0;
 }
@@ -511,7 +511,7 @@ struct dccp_sock {
 	__u8				dccps_hc_tx_insert_options:1;
 	struct timer_list		dccps_xmit_timer;
 };
- 
+
 static inline struct dccp_sock *dccp_sk(const struct sock *sk)
 {
 	return (struct dccp_sock *)sk;

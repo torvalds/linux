@@ -184,7 +184,7 @@ static int locomolcd_probe(struct locomo_dev *ldev)
 
 	local_irq_restore(flags);
 
-	locomolcd_bl_device = backlight_device_register("locomo-bl", NULL, &locomobl_data);
+	locomolcd_bl_device = backlight_device_register("locomo-bl", &ldev->dev, NULL, &locomobl_data);
 
 	if (IS_ERR (locomolcd_bl_device))
 		return PTR_ERR (locomolcd_bl_device);
@@ -199,6 +199,10 @@ static int locomolcd_probe(struct locomo_dev *ldev)
 static int locomolcd_remove(struct locomo_dev *dev)
 {
 	unsigned long flags;
+
+	locomobl_data.brightness = 0;
+	locomobl_data.power = 0;
+	locomolcd_set_intensity(locomolcd_bl_device);
 
 	backlight_device_unregister(locomolcd_bl_device);
 	local_irq_save(flags);

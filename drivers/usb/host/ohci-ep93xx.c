@@ -169,7 +169,7 @@ static int ohci_hcd_ep93xx_drv_remove(struct platform_device *pdev)
 static int ohci_hcd_ep93xx_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-	struct ochi_hcd *ohci = hcd_to_ohci(hcd);
+	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
@@ -204,7 +204,7 @@ static int ohci_hcd_ep93xx_drv_resume(struct platform_device *pdev)
 static struct platform_driver ohci_hcd_ep93xx_driver = {
 	.probe		= ohci_hcd_ep93xx_drv_probe,
 	.remove		= ohci_hcd_ep93xx_drv_remove,
-	.shutdown 	= usb_hcd_platform_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= ohci_hcd_ep93xx_drv_suspend,
 	.resume		= ohci_hcd_ep93xx_drv_resume,
@@ -214,15 +214,3 @@ static struct platform_driver ohci_hcd_ep93xx_driver = {
 	},
 };
 
-static int __init ohci_hcd_ep93xx_init(void)
-{
-	return platform_driver_register(&ohci_hcd_ep93xx_driver);
-}
-
-static void __exit ohci_hcd_ep93xx_cleanup(void)
-{
-	platform_driver_unregister(&ohci_hcd_ep93xx_driver);
-}
-
-module_init(ohci_hcd_ep93xx_init);
-module_exit(ohci_hcd_ep93xx_cleanup);

@@ -13,7 +13,7 @@
 #include <linux/completion.h>
 #include <linux/personality.h>
 #include <linux/tty.h>
-#include <linux/namespace.h>
+#include <linux/mnt_namespace.h>
 #include <linux/key.h>
 #include <linux/security.h>
 #include <linux/cpu.h>
@@ -22,6 +22,7 @@
 #include <linux/file.h>
 #include <linux/binfmts.h>
 #include <linux/nsproxy.h>
+#include <linux/pid_namespace.h>
 #include <linux/ptrace.h>
 #include <linux/profile.h>
 #include <linux/mount.h>
@@ -48,7 +49,6 @@
 #include <asm/mmu_context.h>
 
 extern void sem_exit (void);
-extern struct task_struct *child_reaper;
 
 static void exit_mm(struct task_struct * tsk);
 
@@ -189,21 +189,18 @@ repeat:
 int session_of_pgrp(int pgrp)
 {
 	struct task_struct *p;
-	int sid = -1;
+	int sid = 0;
 
 	read_lock(&tasklist_lock);
-	do_each_task_pid(pgrp, PIDTYPE_PGID, p) {
-		if (p->signal->session > 0) {
-			sid = p->signal->session;
-			goto out;
-		}
-	} while_each_task_pid(pgrp, PIDTYPE_PGID, p);
-	p = find_task_by_pid(pgrp);
-	if (p)
-		sid = p->signal->session;
-out:
+
+	p = find_task_by_pid_type(PIDTYPE_PGID, pgrp);
+	if (p == NULL)
+		p = find_task_by_pid(pgrp);
+	if (p != NULL)
+		sid = process_session(p);
+
 	read_unlock(&tasklist_lock);
-	
+
 	return sid;
 }
 
@@ -225,8 +222,8 @@ static int will_become_orphaned_pgrp(int pgrp, struct task_struct *ignored_task)
 				|| p->exit_state
 				|| is_init(p->real_parent))
 			continue;
-		if (process_group(p->real_parent) != pgrp
-			    && p->real_parent->signal->session == p->signal->session) {
+		if (process_group(p->real_parent) != pgrp &&
+		    process_session(p->real_parent) == process_session(p)) {
 			ret = 0;
 			break;
 		}
@@ -260,7 +257,8 @@ static int has_stopped_jobs(int pgrp)
 }
 
 /**
- * reparent_to_init - Reparent the calling kernel thread to the init task.
+ * reparent_to_init - Reparent the calling kernel thread to the init task
+ * of the pid space that the thread belongs to.
  *
  * If a kernel thread is launched as a result of a system call, or if
  * it ever exits, it should generally reparent itself to init so that
@@ -278,8 +276,8 @@ static void reparent_to_init(void)
 	ptrace_unlink(current);
 	/* Reparent to init */
 	remove_parent(current);
-	current->parent = child_reaper;
-	current->real_parent = child_reaper;
+	current->parent = child_reaper(current);
+	current->real_parent = child_reaper(current);
 	add_parent(current);
 
 	/* Set the exit signal to SIGCHLD so we signal init on exit */
@@ -302,9 +300,9 @@ void __set_special_pids(pid_t session, pid_t pgrp)
 {
 	struct task_struct *curr = current->group_leader;
 
-	if (curr->signal->session != session) {
+	if (process_session(curr) != session) {
 		detach_pid(curr, PIDTYPE_SID);
-		curr->signal->session = session;
+		set_signal_session(curr->signal, session);
 		attach_pid(curr, PIDTYPE_SID, session);
 	}
 	if (process_group(curr) != pgrp) {
@@ -314,7 +312,7 @@ void __set_special_pids(pid_t session, pid_t pgrp)
 	}
 }
 
-void set_special_pids(pid_t session, pid_t pgrp)
+static void set_special_pids(pid_t session, pid_t pgrp)
 {
 	write_lock_irq(&tasklist_lock);
 	__set_special_pids(session, pgrp);
@@ -384,9 +382,7 @@ void daemonize(const char *name, ...)
 	exit_mm(current);
 
 	set_special_pids(1, 1);
-	mutex_lock(&tty_mutex);
-	current->signal->tty = NULL;
-	mutex_unlock(&tty_mutex);
+	proc_clear_tty(current);
 
 	/* Block and flush all signals */
 	sigfillset(&blocked);
@@ -429,7 +425,7 @@ static void close_files(struct files_struct * files)
 	for (;;) {
 		unsigned long set;
 		i = j * __NFDBITS;
-		if (i >= fdt->max_fdset || i >= fdt->max_fds)
+		if (i >= fdt->max_fds)
 			break;
 		set = fdt->open_fds->fds_bits[j++];
 		while (set) {
@@ -470,9 +466,7 @@ void fastcall put_files_struct(struct files_struct *files)
 		 * you can free files immediately.
 		 */
 		fdt = files_fdtable(files);
-		if (fdt == &files->fdtab)
-			fdt->free_files = files;
-		else
+		if (fdt != &files->fdtab)
 			kmem_cache_free(files_cachep, files);
 		free_fdtable(fdt);
 	}
@@ -603,10 +597,6 @@ choose_new_parent(struct task_struct *p, struct task_struct *reaper)
 static void
 reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 {
-	/* We don't want people slaying init.  */
-	if (p->exit_signal != -1)
-		p->exit_signal = SIGCHLD;
-
 	if (p->pdeath_signal)
 		/* We already hold the tasklist_lock here.  */
 		group_send_sig_info(p->pdeath_signal, SEND_SIG_NOINFO, p);
@@ -626,13 +616,7 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 		p->parent = p->real_parent;
 		add_parent(p);
 
-		/* If we'd notified the old parent about this child's death,
-		 * also notify the new parent.
-		 */
-		if (p->exit_state == EXIT_ZOMBIE && p->exit_signal != -1 &&
-		    thread_group_empty(p))
-			do_notify_parent(p, p->exit_signal);
-		else if (p->state == TASK_TRACED) {
+		if (p->state == TASK_TRACED) {
 			/*
 			 * If it was at a trace stop, turn it into
 			 * a normal stop since it's no longer being
@@ -642,6 +626,23 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 		}
 	}
 
+	/* If this is a threaded reparent there is no need to
+	 * notify anyone anything has happened.
+	 */
+	if (p->real_parent->group_leader == father->group_leader)
+		return;
+
+	/* We don't want people slaying init.  */
+	if (p->exit_signal != -1)
+		p->exit_signal = SIGCHLD;
+
+	/* If we'd notified the old parent about this child's death,
+	 * also notify the new parent.
+	 */
+	if (!traced && p->exit_state == EXIT_ZOMBIE &&
+	    p->exit_signal != -1 && thread_group_empty(p))
+		do_notify_parent(p, p->exit_signal);
+
 	/*
 	 * process group orphan check
 	 * Case ii: Our child is in a different pgrp
@@ -649,10 +650,11 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 	 * outside, so the child pgrp is now orphaned.
 	 */
 	if ((process_group(p) != process_group(father)) &&
-	    (p->signal->session == father->signal->session)) {
+	    (process_session(p) == process_session(father))) {
 		int pgrp = process_group(p);
 
-		if (will_become_orphaned_pgrp(pgrp, NULL) && has_stopped_jobs(pgrp)) {
+		if (will_become_orphaned_pgrp(pgrp, NULL) &&
+		    has_stopped_jobs(pgrp)) {
 			__kill_pg_info(SIGHUP, SEND_SIG_PRIV, pgrp);
 			__kill_pg_info(SIGCONT, SEND_SIG_PRIV, pgrp);
 		}
@@ -663,7 +665,8 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
  * When we die, we re-parent all our children.
  * Try to give them to another thread in our thread
  * group, and if no such member exists, give it to
- * the global child reaper process (ie "init")
+ * the child reaper process (ie "init") in our pid
+ * space.
  */
 static void
 forget_original_parent(struct task_struct *father, struct list_head *to_release)
@@ -674,7 +677,7 @@ forget_original_parent(struct task_struct *father, struct list_head *to_release)
 	do {
 		reaper = next_thread(reaper);
 		if (reaper == father) {
-			reaper = child_reaper;
+			reaper = child_reaper(father);
 			break;
 		}
 	} while (reaper->exit_state);
@@ -786,7 +789,7 @@ static void exit_notify(struct task_struct *tsk)
 	t = tsk->real_parent;
 	
 	if ((process_group(t) != process_group(tsk)) &&
-	    (t->signal->session == tsk->signal->session) &&
+	    (process_session(t) == process_session(tsk)) &&
 	    will_become_orphaned_pgrp(process_group(tsk), tsk) &&
 	    has_stopped_jobs(process_group(tsk))) {
 		__kill_pg_info(SIGHUP, SEND_SIG_PRIV, process_group(tsk));
@@ -860,8 +863,13 @@ fastcall NORET_TYPE void do_exit(long code)
 		panic("Aiee, killing interrupt handler!");
 	if (unlikely(!tsk->pid))
 		panic("Attempted to kill the idle task!");
-	if (unlikely(tsk == child_reaper))
-		panic("Attempted to kill init!");
+	if (unlikely(tsk == child_reaper(tsk))) {
+		if (tsk->nsproxy->pid_ns != &init_pid_ns)
+			tsk->nsproxy->pid_ns->child_reaper = init_pid_ns.child_reaper;
+		else
+			panic("Attempted to kill init!");
+	}
+
 
 	if (unlikely(current->ptrace & PT_TRACE_EXIT)) {
 		current->ptrace_message = code;
@@ -930,8 +938,8 @@ fastcall NORET_TYPE void do_exit(long code)
 
 	tsk->exit_code = code;
 	proc_exit_connector(tsk);
-	exit_notify(tsk);
 	exit_task_namespaces(tsk);
+	exit_notify(tsk);
 #ifdef CONFIG_NUMA
 	mpol_free(tsk->mempolicy);
 	tsk->mempolicy = NULL;

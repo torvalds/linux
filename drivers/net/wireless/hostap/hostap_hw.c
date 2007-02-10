@@ -2252,7 +2252,7 @@ static int hostap_tx_compl_read(local_info_t *local, int error,
 	if (txdesc->sw_support) {
 		len = le16_to_cpu(txdesc->data_len);
 		if (len < PRISM2_DATA_MAXLEN) {
-			*payload = (char *) kmalloc(len, GFP_ATOMIC);
+			*payload = kmalloc(len, GFP_ATOMIC);
 			if (*payload == NULL ||
 			    hfa384x_from_bap(dev, BAP0, *payload, len)) {
 				PDEBUG(DEBUG_EXTRA, "%s: could not read TX "

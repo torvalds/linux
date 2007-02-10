@@ -358,6 +358,7 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 		for (;;) {
 			struct arpt_standard_target *t
 				= (void *)arpt_get_target(e);
+			int visited = e->comefrom & (1 << hook);
 
 			if (e->comefrom & (1 << NF_ARP_NUMHOOKS)) {
 				printk("arptables: loop hook %u pos %u %08X.\n",
@@ -368,11 +369,11 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 				|= ((1 << hook) | (1 << NF_ARP_NUMHOOKS));
 
 			/* Unconditional return/END. */
-			if (e->target_offset == sizeof(struct arpt_entry)
+			if ((e->target_offset == sizeof(struct arpt_entry)
 			    && (strcmp(t->target.u.user.name,
 				       ARPT_STANDARD_TARGET) == 0)
 			    && t->verdict < 0
-			    && unconditional(&e->arp)) {
+			    && unconditional(&e->arp)) || visited) {
 				unsigned int oldpos, size;
 
 				if (t->verdict < -NF_MAX_VERDICT - 1) {

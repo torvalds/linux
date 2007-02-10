@@ -148,6 +148,8 @@ struct smc911x_local {
 	int tx_throttle;
 	spinlock_t lock;
 
+	struct net_device *netdev;
+
 #ifdef SMC_USE_DMA
 	/* DMA needs the physical address of the chip */
 	u_long physaddr;
@@ -948,10 +950,11 @@ static void smc911x_phy_check_media(struct net_device *dev, int init)
  * of autonegotiation.)  If the RPC ANEG bit is cleared, the selection
  * is controlled by the RPC SPEED and RPC DPLX bits.
  */
-static void smc911x_phy_configure(void *data)
+static void smc911x_phy_configure(struct work_struct *work)
 {
-	struct net_device *dev = data;
-	struct smc911x_local *lp = netdev_priv(dev);
+	struct smc911x_local *lp = container_of(work, struct smc911x_local,
+						phy_configure);
+	struct net_device *dev = lp->netdev;
 	unsigned long ioaddr = dev->base_addr;
 	int phyaddr = lp->mii.phy_id;
 	int my_phy_caps; /* My PHY capabilities */
@@ -965,11 +968,11 @@ static void smc911x_phy_configure(void *data)
 	 * We should not be called if phy_type is zero.
 	 */
 	if (lp->phy_type == 0)
-		 goto smc911x_phy_configure_exit;
+		 goto smc911x_phy_configure_exit_nolock;
 
 	if (smc911x_phy_reset(dev, phyaddr)) {
 		printk("%s: PHY reset timed out\n", dev->name);
-		goto smc911x_phy_configure_exit;
+		goto smc911x_phy_configure_exit_nolock;
 	}
 	spin_lock_irqsave(&lp->lock, flags);
 
@@ -1038,6 +1041,7 @@ static void smc911x_phy_configure(void *data)
 
 smc911x_phy_configure_exit:
 	spin_unlock_irqrestore(&lp->lock, flags);
+smc911x_phy_configure_exit_nolock:
 	lp->work_pending = 0;
 }
 
@@ -1331,7 +1335,7 @@ smc911x_rx_dma_irq(int dma, void *data)
 static void smc911x_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	smc911x_interrupt(dev->irq, dev, NULL);
+	smc911x_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif
@@ -1495,6 +1499,8 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 static int
 smc911x_open(struct net_device *dev)
 {
+	struct smc911x_local *lp = netdev_priv(dev);
+
 	DBG(SMC_DEBUG_FUNC, "%s: --> %s\n", dev->name, __FUNCTION__);
 
 	/*
@@ -1511,7 +1517,7 @@ smc911x_open(struct net_device *dev)
 	smc911x_reset(dev);
 
 	/* Configure the PHY, initialize the link state */
-	smc911x_phy_configure(dev);
+	smc911x_phy_configure(&lp->phy_configure);
 
 	/* Turn on Tx + Rx */
 	smc911x_enable(dev);
@@ -1653,7 +1659,7 @@ smc911x_ethtool_getdrvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	strncpy(info->driver, CARDNAME, sizeof(info->driver));
 	strncpy(info->version, version, sizeof(info->version));
-	strncpy(info->bus_info, dev->class_dev.dev->bus_id, sizeof(info->bus_info));
+	strncpy(info->bus_info, dev->dev.parent->bus_id, sizeof(info->bus_info));
 }
 
 static int smc911x_ethtool_nwayreset(struct net_device *dev)
@@ -2060,7 +2066,7 @@ static int __init smc911x_probe(struct net_device *dev, unsigned long ioaddr)
 	dev->poll_controller = smc911x_poll_controller;
 #endif
 
-	INIT_WORK(&lp->phy_configure, smc911x_phy_configure, dev);
+	INIT_WORK(&lp->phy_configure, smc911x_phy_configure);
 	lp->mii.phy_id_mask = 0x1f;
 	lp->mii.reg_num_mask = 0x1f;
 	lp->mii.force_media = 0;
@@ -2154,6 +2160,7 @@ static int smc911x_drv_probe(struct platform_device *pdev)
 {
 	struct net_device *ndev;
 	struct resource *res;
+	struct smc911x_local *lp;
 	unsigned int *addr;
 	int ret;
 
@@ -2183,6 +2190,8 @@ static int smc911x_drv_probe(struct platform_device *pdev)
 
 	ndev->dma = (unsigned char)-1;
 	ndev->irq = platform_get_irq(pdev, 0);
+	lp = netdev_priv(ndev);
+	lp->netdev = ndev;
 
 	addr = ioremap(res->start, SMC911X_IO_EXTENT);
 	if (!addr) {
@@ -2204,7 +2213,6 @@ out:
 	}
 #ifdef SMC_USE_DMA
 	else {
-		struct smc911x_local *lp = netdev_priv(ndev);
 		lp->physaddr = res->start;
 		lp->dev = &pdev->dev;
 	}
@@ -2275,7 +2283,7 @@ static int smc911x_drv_resume(struct platform_device *dev)
 			smc911x_reset(ndev);
 			smc911x_enable(ndev);
 			if (lp->phy_type != 0)
-				smc911x_phy_configure(ndev);
+				smc911x_phy_configure(&lp->phy_configure);
 			netif_device_attach(ndev);
 		}
 	}

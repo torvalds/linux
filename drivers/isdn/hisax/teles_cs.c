@@ -137,9 +137,8 @@ static int teles_probe(struct pcmcia_device *link)
     DEBUG(0, "teles_attach()\n");
 
     /* Allocate space for private device-specific data */
-    local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+    local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local) return -ENOMEM;
-    memset(local, 0, sizeof(local_info_t));
     local->cardnr = -1;
 
     local->p_dev = link;

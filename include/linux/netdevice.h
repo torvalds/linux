@@ -193,13 +193,20 @@ struct hh_cache
 {
 	struct hh_cache *hh_next;	/* Next entry			     */
 	atomic_t	hh_refcnt;	/* number of users                   */
-	__be16		hh_type;	/* protocol identifier, f.e ETH_P_IP
+/*
+ * We want hh_output, hh_len, hh_lock and hh_data be a in a separate
+ * cache line on SMP.
+ * They are mostly read, but hh_refcnt may be changed quite frequently,
+ * incurring cache line ping pongs.
+ */
+	__be16		hh_type ____cacheline_aligned_in_smp;
+					/* protocol identifier, f.e ETH_P_IP
                                          *  NOTE:  For VLANs, this will be the
                                          *  encapuslated type. --BLG
                                          */
 	u16		hh_len;		/* length of header */
 	int		(*hh_output)(struct sk_buff *skb);
-	rwlock_t	hh_lock;
+	seqlock_t	hh_lock;
 
 	/* cached hardware header; allow for machine alignment needs.        */
 #define HH_DATA_MOD	16
@@ -522,10 +529,11 @@ struct net_device
 	struct net_bridge_port	*br_port;
 
 	/* class/net/name entry */
-	struct class_device	class_dev;
+	struct device		dev;
 	/* space for optional statistics and wireless sysfs groups */
 	struct attribute_group  *sysfs_groups[3];
 };
+#define to_net_dev(d) container_of(d, struct net_device, dev)
 
 #define	NETDEV_ALIGN		32
 #define	NETDEV_ALIGN_CONST	(NETDEV_ALIGN - 1)
@@ -541,7 +549,7 @@ static inline void *netdev_priv(struct net_device *dev)
 /* Set the sysfs physical device reference for the network logical device
  * if set prior to registration will cause a symlink during initialization.
  */
-#define SET_NETDEV_DEV(net, pdev)	((net)->class_dev.dev = (pdev))
+#define SET_NETDEV_DEV(net, pdev)	((net)->dev.parent = (pdev))
 
 struct packet_type {
 	__be16			type;	/* This is really htons(ether_type). */
@@ -581,7 +589,7 @@ extern int		dev_open(struct net_device *dev);
 extern int		dev_close(struct net_device *dev);
 extern int		dev_queue_xmit(struct sk_buff *skb);
 extern int		register_netdevice(struct net_device *dev);
-extern int		unregister_netdevice(struct net_device *dev);
+extern void		unregister_netdevice(struct net_device *dev);
 extern void		free_netdev(struct net_device *dev);
 extern void		synchronize_net(void);
 extern int 		register_netdevice_notifier(struct notifier_block *nb);
@@ -899,6 +907,7 @@ static inline void netif_poll_disable(struct net_device *dev)
 
 static inline void netif_poll_enable(struct net_device *dev)
 {
+	smp_mb__before_clear_bit();
 	clear_bit(__LINK_STATE_RX_SCHED, &dev->state);
 }
 

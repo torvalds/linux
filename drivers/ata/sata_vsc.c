@@ -50,6 +50,8 @@
 #define DRV_VERSION	"2.0"
 
 enum {
+	VSC_MMIO_BAR			= 0,
+
 	/* Interrupt register offsets (from chip base address) */
 	VSC_SATA_INT_STAT_OFFSET	= 0x00,
 	VSC_SATA_INT_MASK_OFFSET	= 0x04,
@@ -96,7 +98,6 @@ enum {
 			      VSC_SATA_INT_PHY_CHANGE),
 };
 
-
 #define is_vsc_sata_int_err(port_idx, int_status) \
 	 (int_status & (VSC_SATA_INT_ERROR << (8 * port_idx)))
 
@@ -105,7 +106,7 @@ static u32 vsc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
 	if (sc_reg > SCR_CONTROL)
 		return 0xffffffffU;
-	return readl((void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	return readl(ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 
@@ -114,7 +115,7 @@ static void vsc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
 {
 	if (sc_reg > SCR_CONTROL)
 		return;
-	writel(val, (void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	writel(val, ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 
@@ -123,7 +124,7 @@ static void vsc_intr_mask_update(struct ata_port *ap, u8 ctl)
 	void __iomem *mask_addr;
 	u8 mask;
 
-	mask_addr = ap->host->mmio_base +
+	mask_addr = ap->host->iomap[VSC_MMIO_BAR] +
 		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
 	mask = readb(mask_addr);
 	if (ctl & ATA_NIEN)
@@ -149,11 +150,16 @@ static void vsc_sata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 		vsc_intr_mask_update(ap, tf->ctl & ATA_NIEN);
 	}
 	if (is_addr && (tf->flags & ATA_TFLAG_LBA48)) {
-		writew(tf->feature | (((u16)tf->hob_feature) << 8), ioaddr->feature_addr);
-		writew(tf->nsect | (((u16)tf->hob_nsect) << 8), ioaddr->nsect_addr);
-		writew(tf->lbal | (((u16)tf->hob_lbal) << 8), ioaddr->lbal_addr);
-		writew(tf->lbam | (((u16)tf->hob_lbam) << 8), ioaddr->lbam_addr);
-		writew(tf->lbah | (((u16)tf->hob_lbah) << 8), ioaddr->lbah_addr);
+		writew(tf->feature | (((u16)tf->hob_feature) << 8),
+		       ioaddr->feature_addr);
+		writew(tf->nsect | (((u16)tf->hob_nsect) << 8),
+		       ioaddr->nsect_addr);
+		writew(tf->lbal | (((u16)tf->hob_lbal) << 8),
+		       ioaddr->lbal_addr);
+		writew(tf->lbam | (((u16)tf->hob_lbam) << 8),
+		       ioaddr->lbam_addr);
+		writew(tf->lbah | (((u16)tf->hob_lbah) << 8),
+		       ioaddr->lbah_addr);
 	} else if (is_addr) {
 		writew(tf->feature, ioaddr->feature_addr);
 		writew(tf->nsect, ioaddr->nsect_addr);
@@ -212,7 +218,8 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance)
 
 	spin_lock(&host->lock);
 
-	int_status = readl(host->mmio_base + VSC_SATA_INT_STAT_OFFSET);
+	int_status = readl(host->iomap[VSC_MMIO_BAR] +
+			   VSC_SATA_INT_STAT_OFFSET);
 
 	for (i = 0; i < host->n_ports; i++) {
 		if (int_status & ((u32) 0xFF << (8 * i))) {
@@ -296,21 +303,22 @@ static const struct ata_port_operations vsc_sata_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_mmio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 	.irq_handler		= vsc_sata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
 	.scr_read		= vsc_sata_scr_read,
 	.scr_write		= vsc_sata_scr_write,
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_pci_host_stop,
 };
 
-static void __devinit vsc_sata_setup_port(struct ata_ioports *port, unsigned long base)
+static void __devinit vsc_sata_setup_port(struct ata_ioports *port,
+					  void __iomem *base)
 {
 	port->cmd_addr		= base + VSC_SATA_TF_CMD_OFFSET;
 	port->data_addr		= base + VSC_SATA_TF_DATA_OFFSET;
@@ -335,63 +343,54 @@ static void __devinit vsc_sata_setup_port(struct ata_ioports *port, unsigned lon
 static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
-	struct ata_probe_ent *probe_ent = NULL;
-	unsigned long base;
-	int pci_dev_busy = 0;
+	struct ata_probe_ent *probe_ent;
 	void __iomem *mmio_base;
 	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
 	/*
 	 * Check if we have needed resource mapped.
 	 */
-	if (pci_resource_len(pdev, 0) == 0) {
-		rc = -ENODEV;
-		goto err_out;
-	}
+	if (pci_resource_len(pdev, 0) == 0)
+		return -ENODEV;
 
-	rc = pci_request_regions(pdev, DRV_NAME);
-	if (rc) {
-		pci_dev_busy = 1;
-		goto err_out;
-	}
+	rc = pcim_iomap_regions(pdev, 1 << VSC_MMIO_BAR, DRV_NAME);
+	if (rc == -EBUSY)
+		pcim_pin_device(pdev);
+	if (rc)
+		return rc;
 
 	/*
 	 * Use 32 bit DMA mask, because 64 bit address support is poor.
 	 */
 	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 	rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL) {
-		rc = -ENOMEM;
-		goto err_out_regions;
-	}
-	memset(probe_ent, 0, sizeof(*probe_ent));
+	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
+	if (probe_ent == NULL)
+		return -ENOMEM;
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
-
-	mmio_base = pci_iomap(pdev, 0, 0);
-	if (mmio_base == NULL) {
-		rc = -ENOMEM;
-		goto err_out_free_ent;
-	}
-	base = (unsigned long) mmio_base;
 
 	/*
 	 * Due to a bug in the chip, the default cache line size can't be used
 	 */
 	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, 0x80);
+
+	if (pci_enable_msi(pdev) == 0)
+		pci_intx(pdev, 0);
+	else
+		probe_ent->irq_flags = IRQF_SHARED;
 
 	probe_ent->sht = &vsc_sata_sht;
 	probe_ent->port_flags = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
@@ -399,8 +398,7 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	probe_ent->port_ops = &vsc_sata_ops;
 	probe_ent->n_ports = 4;
 	probe_ent->irq = pdev->irq;
-	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->mmio_base = mmio_base;
+	probe_ent->iomap = pcim_iomap_table(pdev);
 
 	/* We don't care much about the PIO/UDMA masks, but the core won't like us
 	 * if we don't fill these
@@ -409,11 +407,13 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	probe_ent->mwdma_mask = 0x07;
 	probe_ent->udma_mask = 0x7f;
 
+	mmio_base = probe_ent->iomap[VSC_MMIO_BAR];
+
 	/* We have 4 ports per PCI function */
-	vsc_sata_setup_port(&probe_ent->port[0], base + 1 * VSC_SATA_PORT_OFFSET);
-	vsc_sata_setup_port(&probe_ent->port[1], base + 2 * VSC_SATA_PORT_OFFSET);
-	vsc_sata_setup_port(&probe_ent->port[2], base + 3 * VSC_SATA_PORT_OFFSET);
-	vsc_sata_setup_port(&probe_ent->port[3], base + 4 * VSC_SATA_PORT_OFFSET);
+	vsc_sata_setup_port(&probe_ent->port[0], mmio_base + 1 * VSC_SATA_PORT_OFFSET);
+	vsc_sata_setup_port(&probe_ent->port[1], mmio_base + 2 * VSC_SATA_PORT_OFFSET);
+	vsc_sata_setup_port(&probe_ent->port[2], mmio_base + 3 * VSC_SATA_PORT_OFFSET);
+	vsc_sata_setup_port(&probe_ent->port[3], mmio_base + 4 * VSC_SATA_PORT_OFFSET);
 
 	pci_set_master(pdev);
 
@@ -425,20 +425,11 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	 */
 	pci_write_config_dword(pdev, 0x98, 0);
 
-	/* FIXME: check ata_device_add return value */
-	ata_device_add(probe_ent);
-	kfree(probe_ent);
+	if (!ata_device_add(probe_ent))
+		return -ENODEV;
 
+	devm_kfree(&pdev->dev, probe_ent);
 	return 0;
-
-err_out_free_ent:
-	kfree(probe_ent);
-err_out_regions:
-	pci_release_regions(pdev);
-err_out:
-	if (!pci_dev_busy)
-		pci_disable_device(pdev);
-	return rc;
 }
 
 static const struct pci_device_id vsc_sata_pci_tbl[] = {

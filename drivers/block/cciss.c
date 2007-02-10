@@ -225,6 +225,8 @@ static inline CommandList_struct *removeQ(CommandList_struct **Qptr,
 
 #include "cciss_scsi.c"		/* For SCSI tape support */
 
+#define RAID_UNKNOWN 6
+
 #ifdef CONFIG_PROC_FS
 
 /*
@@ -232,7 +234,6 @@ static inline CommandList_struct *removeQ(CommandList_struct **Qptr,
  */
 #define ENG_GIG 1000000000
 #define ENG_GIG_FACTOR (ENG_GIG/512)
-#define RAID_UNKNOWN 6
 static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
 	"UNKNOWN"
 };
@@ -535,7 +536,7 @@ static int do_ioctl(struct file *f, unsigned cmd, unsigned long arg)
 {
 	int ret;
 	lock_kernel();
-	ret = cciss_ioctl(f->f_dentry->d_inode, f, cmd, arg);
+	ret = cciss_ioctl(f->f_path.dentry->d_inode, f, cmd, arg);
 	unlock_kernel();
 	return ret;
 }
@@ -1039,7 +1040,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 				status = -ENOMEM;
 				goto cleanup1;
 			}
-			buff_size = (int *)kmalloc(MAXSGENTRIES * sizeof(int),
+			buff_size = kmalloc(MAXSGENTRIES * sizeof(int),
 						   GFP_KERNEL);
 			if (!buff_size) {
 				status = -ENOMEM;
@@ -1907,6 +1908,7 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 			       "does not support reading geometry\n");
 			drv->heads = 255;
 			drv->sectors = 32;	// Sectors per track
+			drv->raid_level = RAID_UNKNOWN;
 		} else {
 			drv->heads = inq_buff->data_byte[6];
 			drv->sectors = inq_buff->data_byte[7];
@@ -2491,7 +2493,7 @@ static void do_cciss_request(request_queue_t *q)
 	c->Request.Type.Type = TYPE_CMD;	// It is a command.
 	c->Request.Type.Attribute = ATTR_SIMPLE;
 	c->Request.Type.Direction =
-	    (rq_data_dir(creq) == READ) ? h->cciss_read : h->cciss_write;
+	    (rq_data_dir(creq) == READ) ? XFER_READ : XFER_WRITE;
 	c->Request.Timeout = 0;	// Don't time out
 	c->Request.CDB[0] =
 	    (rq_data_dir(creq) == READ) ? h->cciss_read : h->cciss_write;
@@ -2837,7 +2839,7 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	if (err) {
 		printk(KERN_ERR "cciss: Cannot obtain PCI resources, "
 		       "aborting\n");
-		goto err_out_disable_pdev;
+		return err;
 	}
 
 	subsystem_vendor_id = pdev->subsystem_vendor;
@@ -2865,7 +2867,7 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 #ifdef CCISS_DEBUG
 	printk("address 0 = %x\n", c->paddr);
 #endif				/* CCISS_DEBUG */
-	c->vaddr = remap_pci_mem(c->paddr, 200);
+	c->vaddr = remap_pci_mem(c->paddr, 0x250);
 
 	/* Wait for the board to become ready.  (PCI hotplug needs this.)
 	 * We poll for up to 120 secs, once per 100ms. */
@@ -3004,11 +3006,12 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	}
 	return 0;
 
-      err_out_free_res:
+err_out_free_res:
+	/*
+	 * Deliberately omit pci_disable_device(): it does something nasty to
+	 * Smart Array controllers that pci_enable_device does not undo
+	 */
 	pci_release_regions(pdev);
-
-      err_out_disable_pdev:
-	pci_disable_device(pdev);
 	return err;
 }
 
@@ -3382,8 +3385,11 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 		if (drv->queue)
 			blk_cleanup_queue(drv->queue);
 	}
+	/*
+	 * Deliberately omit pci_disable_device(): it does something nasty to
+	 * Smart Array controllers that pci_enable_device does not undo
+	 */
 	pci_release_regions(pdev);
-	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	free_hba(i);
 	return -1;
@@ -3452,8 +3458,11 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 #ifdef CONFIG_CISS_SCSI_TAPE
 	kfree(hba[i]->scsi_rejects.complete);
 #endif
+	/*
+	 * Deliberately omit pci_disable_device(): it does something nasty to
+	 * Smart Array controllers that pci_enable_device does not undo
+	 */
 	pci_release_regions(pdev);
-	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	free_hba(i);
 }

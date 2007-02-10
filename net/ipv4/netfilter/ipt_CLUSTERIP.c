@@ -26,6 +26,7 @@
 
 #include <linux/netfilter_arp.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_CLUSTERIP.h>
 #include <net/netfilter/nf_conntrack_compat.h>
@@ -247,6 +248,7 @@ clusterip_hashfn(struct sk_buff *skb, struct clusterip_config *config)
 	switch (iph->protocol) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
+	case IPPROTO_UDPLITE:
 	case IPPROTO_SCTP:
 	case IPPROTO_DCCP:
 	case IPPROTO_ICMP:
@@ -329,7 +331,7 @@ target(struct sk_buff **pskb,
 	if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP
 	    && (ctinfo == IP_CT_RELATED 
 		|| ctinfo == IP_CT_RELATED+IP_CT_IS_REPLY))
-		return IPT_CONTINUE;
+		return XT_CONTINUE;
 
 	/* ip_conntrack_icmp guarantees us that we only have ICMP_ECHO, 
 	 * TIMESTAMP, INFO_REQUEST or ADDRESS type icmp packets from here
@@ -367,7 +369,7 @@ target(struct sk_buff **pskb,
 	 * actually a unicast IP packet. TCP doesn't like PACKET_MULTICAST */
 	(*pskb)->pkt_type = PACKET_HOST;
 
-	return IPT_CONTINUE;
+	return XT_CONTINUE;
 }
 
 static int
@@ -447,6 +449,12 @@ checkentry(const char *tablename,
 		cipinfo->config = config;
 	}
 
+	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+		printk(KERN_WARNING "can't load conntrack support for "
+				    "proto=%d\n", target->family);
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -460,10 +468,13 @@ static void destroy(const struct xt_target *target, void *targinfo)
 	clusterip_config_entry_put(cipinfo->config);
 
 	clusterip_config_put(cipinfo->config);
+
+	nf_ct_l3proto_module_put(target->family);
 }
 
-static struct ipt_target clusterip_tgt = {
+static struct xt_target clusterip_tgt = {
 	.name		= "CLUSTERIP",
+	.family		= AF_INET,
 	.target		= target,
 	.targetsize	= sizeof(struct ipt_clusterip_tgt_info),
 	.checkentry	= checkentry,
@@ -683,7 +694,7 @@ static ssize_t clusterip_proc_write(struct file *file, const char __user *input,
 {
 #define PROC_WRITELEN	10
 	char buffer[PROC_WRITELEN+1];
-	struct proc_dir_entry *pde = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	struct clusterip_config *c = pde->data;
 	unsigned long nodenum;
 
@@ -719,7 +730,7 @@ static int __init ipt_clusterip_init(void)
 {
 	int ret;
 
-	ret = ipt_register_target(&clusterip_tgt);
+	ret = xt_register_target(&clusterip_tgt);
 	if (ret < 0)
 		return ret;
 
@@ -745,7 +756,7 @@ cleanup_hook:
 	nf_unregister_hook(&cip_arp_ops);
 #endif /* CONFIG_PROC_FS */
 cleanup_target:
-	ipt_unregister_target(&clusterip_tgt);
+	xt_unregister_target(&clusterip_tgt);
 	return ret;
 }
 
@@ -757,7 +768,7 @@ static void __exit ipt_clusterip_fini(void)
 	remove_proc_entry(clusterip_procdir->name, clusterip_procdir->parent);
 #endif
 	nf_unregister_hook(&cip_arp_ops);
-	ipt_unregister_target(&clusterip_tgt);
+	xt_unregister_target(&clusterip_tgt);
 }
 
 module_init(ipt_clusterip_init);

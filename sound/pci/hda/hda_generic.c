@@ -485,8 +485,9 @@ static const char *get_input_type(struct hda_gnode *node, unsigned int *pinctl)
 			return "Front Aux";
 		return "Aux";
 	case AC_JACK_MIC_IN:
-		if (node->pin_caps &
-		    (AC_PINCAP_VREF_80 << AC_PINCAP_VREF_SHIFT))
+		if (pinctl &&
+		    (node->pin_caps &
+		     (AC_PINCAP_VREF_80 << AC_PINCAP_VREF_SHIFT)))
 			*pinctl |= AC_PINCTL_VREF_80;
 		if ((location & 0x0f) == AC_JACK_LOC_FRONT)
 			return "Front Mic";

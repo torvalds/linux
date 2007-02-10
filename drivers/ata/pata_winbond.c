@@ -5,7 +5,7 @@
  *    Support for the Winbond 83759A when operating in advanced mode.
  *    Multichip mode is not currently supported.
  */
- 
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -69,7 +69,7 @@ static void winbond_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	int timing = 0x88 + (ap->port_no * 4) + (adev->devno * 2);
 
 	reg = winbond_readcfg(winbond->config, 0x81);
-	
+
 	/* Get the timing data in cycles */
 	if (reg & 0x40)		/* Fast VLB bus, assume 50MHz */
 		ata_timing_compute(adev, adev->pio_mode, &t, 20000, 1000);
@@ -80,9 +80,9 @@ static void winbond_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	recovery = (FIT(t.recover, 1, 15) + 1) & 0x0F;
 	timing = (active << 4) | recovery;
 	winbond_writecfg(winbond->config, timing, reg);
-	
+
 	/* Load the setup timing */
-	
+
 	reg = 0x35;
 	if (adev->class != ATA_DEV_ATA)
 		reg |= 0x08;	/* FIFO off */
@@ -100,22 +100,24 @@ static void winbond_data_xfer(struct ata_device *adev, unsigned char *buf, unsig
 
 	if (ata_id_has_dword_io(adev->id)) {
 		if (write_data)
-			outsl(ap->ioaddr.data_addr, buf, buflen >> 2);
+			iowrite32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 		else
-			insl(ap->ioaddr.data_addr, buf, buflen >> 2);
+			ioread32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 
 		if (unlikely(slop)) {
 			u32 pad;
 			if (write_data) {
 				memcpy(&pad, buf + buflen - slop, slop);
-				outl(le32_to_cpu(pad), ap->ioaddr.data_addr);
+				pad = le32_to_cpu(pad);
+				iowrite32(pad, ap->ioaddr.data_addr);
 			} else {
-				pad = cpu_to_le16(inl(ap->ioaddr.data_addr));
+				pad = ioread32(ap->ioaddr.data_addr);
+				pad = cpu_to_le16(pad);
 				memcpy(buf + buflen - slop, &pad, slop);
 			}
 		}
 	} else
-		ata_pio_data_xfer(adev, buf, buflen, write_data);
+		ata_data_xfer(adev, buf, buflen, write_data);
 }
 
 static struct scsi_host_template winbond_sht = {
@@ -158,10 +160,10 @@ static struct ata_port_operations winbond_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /**
@@ -194,20 +196,29 @@ static __init int winbond_init_one(unsigned long port)
 	winbond_writecfg(port, 0x85, reg);
 
 	reg = winbond_readcfg(port, 0x81);
-	
+
 	if (!(reg & 0x03))		/* Disabled */
 		return 0;
 
 	for (i = 0; i < 2 ; i ++) {
+		unsigned long cmd_port = 0x1F0 - (0x80 * i);
+		void __iomem *cmd_addr, *ctl_addr;
 
-		if (reg & (1 << i)) {		
+		if (reg & (1 << i)) {
 			/*
 			 *	Fill in a probe structure first of all
 			 */
 
 			pdev = platform_device_register_simple(DRV_NAME, nr_winbond_host, NULL, 0);
-			if (pdev == NULL)
+			if (IS_ERR(pdev))
+				return PTR_ERR(pdev);
+
+			cmd_addr = devm_ioport_map(&pdev->dev, cmd_port, 8);
+			ctl_addr = devm_ioport_map(&pdev->dev, cmd_port + 0x0206, 1);
+			if (!cmd_addr || !ctl_addr) {
+				platform_device_unregister(pdev);
 				return -ENOMEM;
+			}
 
 			memset(&ae, 0, sizeof(struct ata_probe_ent));
 			INIT_LIST_HEAD(&ae.node);
@@ -217,14 +228,14 @@ static __init int winbond_init_one(unsigned long port)
 			ae.pio_mask = 0x1F;
 
 			ae.sht = &winbond_sht;
-	
+
 			ae.n_ports = 1;
 			ae.irq = 14 + i;
 			ae.irq_flags = 0;
 			ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
-			ae.port[0].cmd_addr = 0x1F0 - (0x80 * i);
-			ae.port[0].altstatus_addr = ae.port[0].cmd_addr + 0x0206;
-			ae.port[0].ctl_addr = ae.port[0].altstatus_addr;
+			ae.port[0].cmd_addr = cmd_addr;
+			ae.port[0].altstatus_addr = ctl_addr;
+			ae.port[0].ctl_addr = ctl_addr;
 			ata_std_ports(&ae.port[0]);
 			/*
 			 *	Hook in a private data structure per channel
@@ -257,7 +268,7 @@ static __init int winbond_init(void)
 
 	int ct = 0;
 	int i;
-	
+
 	if (probe_winbond == 0)
 		return -ENODEV;
 
@@ -288,7 +299,7 @@ static __exit void winbond_exit(void)
 	int i;
 
 	for (i = 0; i < nr_winbond_host; i++) {
-		ata_host_remove(winbond_host[i]);
+		ata_host_detach(winbond_host[i]);
 		release_region(winbond_data[i].config, 2);
 		platform_device_unregister(winbond_data[i].platform_dev);
 	}

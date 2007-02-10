@@ -414,6 +414,7 @@ hashlimit_init_dst(struct xt_hashlimit_htable *hinfo, struct dsthash_dst *dst,
 	switch (nexthdr) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
+	case IPPROTO_UDPLITE:
 	case IPPROTO_SCTP:
 	case IPPROTO_DCCP:
 		ports = skb_header_pointer(skb, protoff, sizeof(_ports),
@@ -745,7 +746,7 @@ static int __init xt_hashlimit_init(void)
 	}
 	hashlimit_procdir6 = proc_mkdir("ip6t_hashlimit", proc_net);
 	if (!hashlimit_procdir6) {
-		printk(KERN_ERR "xt_hashlimit: tnable to create proc dir "
+		printk(KERN_ERR "xt_hashlimit: unable to create proc dir "
 				"entry\n");
 		goto err4;
 	}

@@ -1,13 +1,14 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.44	March 20, 2003
+ *  linux/drivers/ide/pci/piix.c	Version 0.46	December 3, 2006
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
+ *  Copyright (C) 2006 MontaVista Software, Inc. <source@mvista.com>
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *
- *  PIO mode setting function for Intel chipsets.  
+ *  PIO mode setting function for Intel chipsets.
  *  For use instead of BIOS settings.
  *
  * 40-41
@@ -25,7 +26,7 @@
  * sitre = word42 & 0x4000; secondary
  *
  * 44 8421|8421    hdd|hdb
- * 
+ *
  * 48 8421         hdd|hdc|hdb|hda udma enabled
  *
  *    0001         hda
@@ -162,7 +163,7 @@ static u8 piix_ratemask (ide_drive_t *drive)
 	 *	if the drive cannot see an 80pin cable.
 	 */
 	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
+		mode = min_t(u8, mode, 1);
 	return mode;
 }
 
@@ -215,7 +216,7 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-	int is_slave		= (&hwif->drives[1] == drive);
+	int is_slave		= drive->dn & 1;
 	int master_port		= hwif->channel ? 0x42 : 0x40;
 	int slave_port		= 0x44;
 	unsigned long flags;
@@ -224,7 +225,7 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 	static DEFINE_SPINLOCK(tune_lock);
 	int control = 0;
 
-				 /* ISP  RTC */
+				     /* ISP  RTC */
 	static const u8 timings[][2]= {
 					{ 0, 0 },
 					{ 0, 0 },
@@ -232,7 +233,7 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 					{ 2, 1 },
 					{ 2, 3 }, };
 
-	pio = ide_get_best_pio_mode(drive, pio, 5, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
 
 	/*
 	 * Master vs slave is synchronized above us but the slave register is
@@ -242,25 +243,24 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 	spin_lock_irqsave(&tune_lock, flags);
 	pci_read_config_word(dev, master_port, &master_data);
 
-	if (pio >= 2)
+	if (pio > 1)
 		control |= 1;	/* Programmable timing on */
 	if (drive->media == ide_disk)
 		control |= 4;	/* Prefetch, post write */
-	if (pio >= 3)
+	if (pio > 2)
 		control |= 2;	/* IORDY */
 	if (is_slave) {
-		master_data = master_data | 0x4000;
+		master_data |=  0x4000;
+		master_data &= ~0x0070;
 		if (pio > 1) {
 			/* enable PPE, IE and TIME */
 			master_data = master_data | (control << 4);
-		} else {
-			master_data &= ~0x0070;
 		}
 		pci_read_config_byte(dev, slave_port, &slave_data);
 		slave_data = slave_data & (hwif->channel ? 0x0f : 0xf0);
 		slave_data = slave_data | (((timings[pio][0] << 2) | timings[pio][1]) << (hwif->channel ? 4 : 0));
 	} else {
-		master_data = master_data & 0xccf8;
+		master_data &= ~0x3307;
 		if (pio > 1) {
 			/* enable PPE, IE and TIME */
 			master_data = master_data | control;
@@ -353,56 +353,24 @@ static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 }
 
 /**
- *	piix_faulty_dma0		-	check for DMA0 errata
- *	@hwif: IDE interface to check
- *
- *	If an ICH/ICH0/ICH2 interface is is operating in multi-word
- *	DMA mode with 600nS cycle time the IDE PIO prefetch buffer will
- *	inadvertently provide an extra piece of secondary data to the primary
- *	device resulting in data corruption.
- *
- *	With such a device this test function returns true. This allows
- *	our tuning code to follow Intel recommendations and use PIO on
- *	such devices.
- */
- 
-static int piix_faulty_dma0(ide_hwif_t *hwif)
-{
-	switch(hwif->pci_dev->device)
-	{
-		case PCI_DEVICE_ID_INTEL_82801AA_1:	/* ICH */
-		case PCI_DEVICE_ID_INTEL_82801AB_1:	/* ICH0 */
-		case PCI_DEVICE_ID_INTEL_82801BA_8:	/* ICH2 */
-		case PCI_DEVICE_ID_INTEL_82801BA_9:	/* ICH2 */
-			return 1;
-	}
-	return 0;
-}
-
-/**
  *	piix_config_drive_for_dma	-	configure drive for DMA
  *	@drive: IDE drive to configure
  *
  *	Set up a PIIX interface channel for the best available speed.
- *	We prefer UDMA if it is available and then MWDMA. If DMA is 
- *	not available we switch to PIO and return 0. 
+ *	We prefer UDMA if it is available and then MWDMA.  If DMA is
+ *	not available we switch to PIO and return 0.
  */
  
 static int piix_config_drive_for_dma (ide_drive_t *drive)
 {
 	u8 speed = ide_dma_speed(drive, piix_ratemask(drive));
-	
-	/* Some ICH devices cannot support DMA mode 0 */
-	if(speed == XFER_MW_DMA_0 && piix_faulty_dma0(HWIF(drive)))
-		speed = 0;
 
-	/* If no DMA speed was available or the chipset has DMA bugs
-	   then disable DMA and use PIO */
-	   
-	if (!speed || no_piix_dma) {
-		u8 tspeed = ide_get_best_pio_mode(drive, 255, 5, NULL);
-		speed = piix_dma_2_pio(XFER_PIO_0 + tspeed);
-	}
+	/*
+	 * If no DMA speed was available or the chipset has DMA bugs
+	 * then disable DMA and use PIO
+	 */
+	if (!speed || no_piix_dma)
+		return 0;
 
 	(void) piix_tune_chipset(drive, speed);
 	return ide_dma_enable(drive);
@@ -425,17 +393,16 @@ static int piix_config_drive_xfer_rate (ide_drive_t *drive)
 
 	if ((id->capability & 1) && drive->autodma) {
 
-		if (ide_use_dma(drive)) {
-			if (piix_config_drive_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
+		if (ide_use_dma(drive) && piix_config_drive_for_dma(drive))
+			return hwif->ide_dma_on(drive);
 
 		goto fast_ata_pio;
 
 	} else if ((id->capability & 8) || (id->field_valid & 2)) {
 fast_ata_pio:
 		/* Find best PIO mode. */
-		hwif->tuneproc(drive, 255);
+		(void) hwif->speedproc(drive, XFER_PIO_0 +
+				       ide_get_best_pio_mode(drive, 255, 4, NULL));
 		return hwif->ide_dma_off_quietly(drive);
 	}
 	/* IORDY not supported */
@@ -505,6 +472,10 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		/* This is a painful system best to let it self tune for now */
 		return;
 	}
+	/* ESB2 appears to generate spurious DMA interrupts in PIO mode
+	   when in native mode */
+	if (hwif->pci_dev->device == PCI_DEVICE_ID_INTEL_ESB2_18)
+		hwif->atapi_irq_bogon = 1;
 
 	hwif->autodma = 0;
 	hwif->tuneproc = &piix_tune_drive;
@@ -567,13 +538,19 @@ static ide_pci_device_t piix_pci_info[] __devinitdata = {
 	/*  0 */ DECLARE_PIIX_DEV("PIIXa"),
 	/*  1 */ DECLARE_PIIX_DEV("PIIXb"),
 
-	{	/* 2 */
+	/*  2 */
+	{	/*
+		 * MPIIX actually has only a single IDE channel mapped to
+		 * the primary or secondary ports depending on the value
+		 * of the bit 14 of the IDETIM register at offset 0x6c
+		 */
 		.name		= "MPIIX",
 		.init_hwif	= init_hwif_piix,
 		.channels	= 2,
 		.autodma	= NODMA,
-		.enablebits	= {{0x6D,0x80,0x80}, {0x6F,0x80,0x80}},
+		.enablebits	= {{0x6d,0xc0,0x80}, {0x6d,0xc0,0xc0}},
 		.bootable	= ON_BOARD,
+		.flags		= IDEPCI_FLAG_ISA_PORTS
 	},
 
 	/*  3 */ DECLARE_PIIX_DEV("PIIX3"),

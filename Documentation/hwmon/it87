@@ -9,8 +9,7 @@ Supported chips:
                http://www.ite.com.tw/
   * IT8712F
     Prefix: 'it8712'
-    Addresses scanned: I2C 0x2d
-                       from Super I/O config space (8 I/O ports)
+    Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: Publicly available at the ITE website
                http://www.ite.com.tw/
   * IT8716F
@@ -52,6 +51,18 @@ Module Parameters
   Force PWM polarity to active high (DANGEROUS). Some chips are
   misconfigured by BIOS - PWM values would be inverted. This option tries
   to fix this. Please contact your BIOS manufacturer and ask him for fix.
+
+
+Hardware Interfaces
+-------------------
+
+All the chips suported by this driver are LPC Super-I/O chips, accessed
+through the LPC bus (ISA-like I/O ports). The IT8712F additionally has an
+SMBus interface to the hardware monitoring functions. This driver no
+longer supports this interface though, as it is slower and less reliable
+than the ISA access, and was only available on a small number of
+motherboard models.
+
 
 Description
 -----------

@@ -403,8 +403,10 @@ static int __devinit cg3_init_one(struct of_device *op)
 		cg3_do_default_mode(&all->par);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		of_iounmap(all->par.regs, sizeof(struct cg3_regs));
-		of_iounmap(all->info.screen_base, all->par.fbsize);
+		of_iounmap(&op->resource[0],
+			   all->par.regs, sizeof(struct cg3_regs));
+		of_iounmap(&op->resource[0],
+			   all->info.screen_base, all->par.fbsize);
 		kfree(all);
 		return -ENOMEM;
 	}
@@ -415,8 +417,10 @@ static int __devinit cg3_init_one(struct of_device *op)
 	err = register_framebuffer(&all->info);
 	if (err < 0) {
 		fb_dealloc_cmap(&all->info.cmap);
-		of_iounmap(all->par.regs, sizeof(struct cg3_regs));
-		of_iounmap(all->info.screen_base, all->par.fbsize);
+		of_iounmap(&op->resource[0],
+			   all->par.regs, sizeof(struct cg3_regs));
+		of_iounmap(&op->resource[0],
+			   all->info.screen_base, all->par.fbsize);
 		kfree(all);
 		return err;
 	}
@@ -436,19 +440,19 @@ static int __devinit cg3_probe(struct of_device *dev, const struct of_device_id 
 	return cg3_init_one(op);
 }
 
-static int __devexit cg3_remove(struct of_device *dev)
+static int __devexit cg3_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&dev->dev);
+	struct all_info *all = dev_get_drvdata(&op->dev);
 
 	unregister_framebuffer(&all->info);
 	fb_dealloc_cmap(&all->info.cmap);
 
-	of_iounmap(all->par.regs, sizeof(struct cg3_regs));
-	of_iounmap(all->info.screen_base, all->par.fbsize);
+	of_iounmap(&op->resource[0], all->par.regs, sizeof(struct cg3_regs));
+	of_iounmap(&op->resource[0], all->info.screen_base, all->par.fbsize);
 
 	kfree(all);
 
-	dev_set_drvdata(&dev->dev, NULL);
+	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

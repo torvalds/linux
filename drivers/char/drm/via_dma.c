@@ -190,6 +190,11 @@ static int via_initialize(drm_device_t * dev,
 		return DRM_ERR(EFAULT);
 	}
 
+	if (dev_priv->chipset == VIA_DX9_0) {
+		DRM_ERROR("AGP DMA is not supported on this chip\n");
+		return DRM_ERR(EINVAL);
+	}
+
 	dev_priv->ring.map.offset = dev->agp->base + init->offset;
 	dev_priv->ring.map.size = init->size;
 	dev_priv->ring.map.type = 0;
@@ -480,6 +485,7 @@ static int via_hook_segment(drm_via_private_t * dev_priv,
 			VIA_WRITE(VIA_REG_TRANSET, (HC_ParaType_PreCR << 16));
 			VIA_WRITE(VIA_REG_TRANSPACE, pause_addr_hi);
 			VIA_WRITE(VIA_REG_TRANSPACE, pause_addr_lo);
+			VIA_READ(VIA_REG_TRANSPACE);
 		}
 	}
 	return paused;
@@ -557,8 +563,9 @@ static void via_cmdbuf_start(drm_via_private_t * dev_priv)
 
 	VIA_WRITE(VIA_REG_TRANSPACE, pause_addr_hi);
 	VIA_WRITE(VIA_REG_TRANSPACE, pause_addr_lo);
-
+	DRM_WRITEMEMORYBARRIER();
 	VIA_WRITE(VIA_REG_TRANSPACE, command | HC_HAGPCMNT_MASK);
+	VIA_READ(VIA_REG_TRANSPACE);
 }
 
 static void via_pad_cache(drm_via_private_t * dev_priv, int qwords)

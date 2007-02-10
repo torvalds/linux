@@ -677,10 +677,10 @@ static const __u8 acm_tty_size[] = {
 	5, 6, 7, 8
 };
 
-static void acm_tty_set_termios(struct tty_struct *tty, struct termios *termios_old)
+static void acm_tty_set_termios(struct tty_struct *tty, struct ktermios *termios_old)
 {
 	struct acm *acm = tty->driver_data;
-	struct termios *termios = tty->termios;
+	struct ktermios *termios = tty->termios;
 	struct usb_cdc_line_coding newline;
 	int newctrl = acm->ctrlout;
 

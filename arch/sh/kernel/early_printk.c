@@ -144,16 +144,16 @@ static struct console *early_console =
 	;
 
 static int __initdata keep_early;
+static int early_console_initialized;
 
-int __init setup_early_printk(char *opt)
+int __init setup_early_printk(char *buf)
 {
-	char *space;
-	char buf[256];
+	if (!buf)
+		return 0;
 
-	strlcpy(buf, opt, sizeof(buf));
-	space = strchr(buf, ' ');
-	if (space)
-		*space = 0;
+	if (early_console_initialized)
+		return 0;
+	early_console_initialized = 1;
 
 	if (strstr(buf, "keep"))
 		keep_early = 1;
@@ -175,12 +175,14 @@ int __init setup_early_printk(char *opt)
 	if (likely(early_console))
 		register_console(early_console);
 
-	return 1;
+	return 0;
 }
-__setup("earlyprintk=", setup_early_printk);
+early_param("earlyprintk", setup_early_printk);
 
 void __init disable_early_printk(void)
 {
+	if (!early_console_initialized || !early_console)
+		return;
 	if (!keep_early) {
 		printk("disabling early console\n");
 		unregister_console(early_console);

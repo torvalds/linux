@@ -147,7 +147,7 @@ static int spufs_arch_notes_size(void)
 	struct fdtable *fdt = files_fdtable(current->files);
 	int size = 0, fd;
 
-	for (fd = 0; fd < fdt->max_fdset && fd < fdt->max_fds; fd++) {
+	for (fd = 0; fd < fdt->max_fds; fd++) {
 		if (FD_ISSET(fd, fdt->open_fds)) {
 			struct file *file = fcheck(fd);
 

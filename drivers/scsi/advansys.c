@@ -18215,6 +18215,7 @@ AdvInquiryHandling(
 }
 MODULE_LICENSE("Dual BSD/GPL");
 
+#ifdef CONFIG_PCI
 /* PCI Devices supported by this driver */
 static struct pci_device_id advansys_pci_tbl[] __devinitdata = {
 	{ PCI_VENDOR_ID_ASP, PCI_DEVICE_ID_ASP_1200A,
@@ -18232,4 +18233,4 @@ static struct pci_device_id advansys_pci_tbl[] __devinitdata = {
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, advansys_pci_tbl);
-
+#endif /* CONFIG_PCI */

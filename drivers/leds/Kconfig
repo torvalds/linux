@@ -12,7 +12,7 @@ config NEW_LEDS
 
 config LEDS_CLASS
 	tristate "LED Class Support"
-	depends NEW_LEDS
+	depends on NEW_LEDS
 	help
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
@@ -21,28 +21,28 @@ comment "LED drivers"
 
 config LEDS_CORGI
 	tristate "LED Support for the Sharp SL-C7x0 series"
-	depends LEDS_CLASS && PXA_SHARP_C7xx
+	depends on LEDS_CLASS && PXA_SHARP_C7xx
 	help
 	  This option enables support for the LEDs on Sharp Zaurus
 	  SL-C7x0 series (C700, C750, C760, C860).
 
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
-	depends LEDS_CLASS && SHARP_LOCOMO
+	depends on LEDS_CLASS && SHARP_LOCOMO
 	help
 	  This option enables support for the LEDs on Sharp Locomo.
 	  Zaurus models SL-5500 and SL-5600.
 
 config LEDS_SPITZ
 	tristate "LED Support for the Sharp SL-Cxx00 series"
-	depends LEDS_CLASS && PXA_SHARP_Cxx00
+	depends on LEDS_CLASS && PXA_SHARP_Cxx00
 	help
 	  This option enables support for the LEDs on Sharp Zaurus
 	  SL-Cxx00 series (C1000, C3000, C3100).
 
 config LEDS_IXP4XX
 	tristate "LED Support for GPIO connected LEDs on IXP4XX processors"
-	depends LEDS_CLASS && ARCH_IXP4XX
+	depends on LEDS_CLASS && ARCH_IXP4XX
 	help
 	  This option enables support for the LEDs connected to GPIO
 	  outputs of the Intel IXP4XX processors.  To be useful the
@@ -51,7 +51,7 @@ config LEDS_IXP4XX
 
 config LEDS_TOSA
 	tristate "LED Support for the Sharp SL-6000 series"
-	depends LEDS_CLASS && PXA_SHARPSL
+	depends on LEDS_CLASS && PXA_SHARPSL
 	help
 	  This option enables support for the LEDs on Sharp Zaurus
 	  SL-6000 series.
@@ -65,7 +65,7 @@ config LEDS_S3C24XX
 
 config LEDS_AMS_DELTA
 	tristate "LED Support for the Amstrad Delta (E3)"
-	depends LEDS_CLASS && MACH_AMS_DELTA
+	depends on LEDS_CLASS && MACH_AMS_DELTA
 	help
 	  This option enables support for the LEDs on Amstrad Delta (E3).
 
@@ -86,7 +86,7 @@ comment "LED Triggers"
 
 config LEDS_TRIGGERS
 	bool "LED Trigger support"
-	depends NEW_LEDS
+	depends on NEW_LEDS
 	help
 	  This option enables trigger support for the leds class.
 	  These triggers allow kernel events to drive the LEDs and can
@@ -94,21 +94,21 @@ config LEDS_TRIGGERS
 
 config LEDS_TRIGGER_TIMER
 	tristate "LED Timer Trigger"
-	depends LEDS_TRIGGERS
+	depends on LEDS_TRIGGERS
 	help
 	  This allows LEDs to be controlled by a programmable timer
 	  via sysfs. If unsure, say Y.
 
 config LEDS_TRIGGER_IDE_DISK
 	bool "LED IDE Disk Trigger"
-	depends LEDS_TRIGGERS && BLK_DEV_IDEDISK
+	depends on LEDS_TRIGGERS && BLK_DEV_IDEDISK
 	help
 	  This allows LEDs to be controlled by IDE disk activity.
 	  If unsure, say Y.
 
 config LEDS_TRIGGER_HEARTBEAT
 	tristate "LED Heartbeat Trigger"
-	depends LEDS_TRIGGERS
+	depends on LEDS_TRIGGERS
 	help
 	  This allows LEDs to be controlled by a CPU load average.
 	  The flash frequency is a hyperbolic function of the 1-minute

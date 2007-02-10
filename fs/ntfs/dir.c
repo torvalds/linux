@@ -1,7 +1,7 @@
 /**
  * dir.c - NTFS kernel directory operations. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2005 Anton Altaparmakov
+ * Copyright (c) 2001-2007 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -1101,7 +1101,7 @@ static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	s64 ia_pos, ia_start, prev_ia_pos, bmp_pos;
 	loff_t fpos, i_size;
-	struct inode *bmp_vi, *vdir = filp->f_dentry->d_inode;
+	struct inode *bmp_vi, *vdir = filp->f_path.dentry->d_inode;
 	struct super_block *sb = vdir->i_sb;
 	ntfs_inode *ndir = NTFS_I(vdir);
 	ntfs_volume *vol = NTFS_SB(sb);
@@ -1136,9 +1136,9 @@ static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (fpos == 1) {
 		ntfs_debug("Calling filldir for .. with len 2, fpos 0x1, "
 				"inode 0x%lx, DT_DIR.",
-				(unsigned long)parent_ino(filp->f_dentry));
+				(unsigned long)parent_ino(filp->f_path.dentry));
 		rc = filldir(dirent, "..", 2, fpos,
-				parent_ino(filp->f_dentry), DT_DIR);
+				parent_ino(filp->f_path.dentry), DT_DIR);
 		if (rc)
 			goto done;
 		fpos++;
@@ -1249,16 +1249,12 @@ skip_index_root:
 	/* Get the offset into the index allocation attribute. */
 	ia_pos = (s64)fpos - vol->mft_record_size;
 	ia_mapping = vdir->i_mapping;
-	bmp_vi = ndir->itype.index.bmp_ino;
-	if (unlikely(!bmp_vi)) {
-		ntfs_debug("Inode 0x%lx, regetting index bitmap.", vdir->i_ino);
-		bmp_vi = ntfs_attr_iget(vdir, AT_BITMAP, I30, 4);
-		if (IS_ERR(bmp_vi)) {
-			ntfs_error(sb, "Failed to get bitmap attribute.");
-			err = PTR_ERR(bmp_vi);
-			goto err_out;
-		}
-		ndir->itype.index.bmp_ino = bmp_vi;
+	ntfs_debug("Inode 0x%lx, getting index bitmap.", vdir->i_ino);
+	bmp_vi = ntfs_attr_iget(vdir, AT_BITMAP, I30, 4);
+	if (IS_ERR(bmp_vi)) {
+		ntfs_error(sb, "Failed to get bitmap attribute.");
+		err = PTR_ERR(bmp_vi);
+		goto err_out;
 	}
 	bmp_mapping = bmp_vi->i_mapping;
 	/* Get the starting bitmap bit position and sanity check it. */
@@ -1266,7 +1262,7 @@ skip_index_root:
 	if (unlikely(bmp_pos >> 3 >= i_size_read(bmp_vi))) {
 		ntfs_error(sb, "Current index allocation position exceeds "
 				"index bitmap size.");
-		goto err_out;
+		goto iput_err_out;
 	}
 	/* Get the starting bit position in the current bitmap page. */
 	cur_bmp_pos = bmp_pos & ((PAGE_CACHE_SIZE * 8) - 1);
@@ -1282,7 +1278,7 @@ get_next_bmp_page:
 		ntfs_error(sb, "Reading index bitmap failed.");
 		err = PTR_ERR(bmp_page);
 		bmp_page = NULL;
-		goto err_out;
+		goto iput_err_out;
 	}
 	bmp = (u8*)page_address(bmp_page);
 	/* Find next index block in use. */
@@ -1429,6 +1425,7 @@ find_next_index_buffer:
 			/* @ia_page is already unlocked in this case. */
 			ntfs_unmap_page(ia_page);
 			ntfs_unmap_page(bmp_page);
+			iput(bmp_vi);
 			goto abort;
 		}
 	}
@@ -1439,6 +1436,7 @@ unm_EOD:
 		ntfs_unmap_page(ia_page);
 	}
 	ntfs_unmap_page(bmp_page);
+	iput(bmp_vi);
 EOD:
 	/* We are finished, set fpos to EOD. */
 	fpos = i_size + vol->mft_record_size;
@@ -1455,8 +1453,11 @@ done:
 	filp->f_pos = fpos;
 	return 0;
 err_out:
-	if (bmp_page)
+	if (bmp_page) {
 		ntfs_unmap_page(bmp_page);
+iput_err_out:
+		iput(bmp_vi);
+	}
 	if (ia_page) {
 		unlock_page(ia_page);
 		ntfs_unmap_page(ia_page);
@@ -1529,14 +1530,22 @@ static int ntfs_dir_open(struct inode *vi, struct file *filp)
 static int ntfs_dir_fsync(struct file *filp, struct dentry *dentry,
 		int datasync)
 {
-	struct inode *vi = dentry->d_inode;
-	ntfs_inode *ni = NTFS_I(vi);
+	struct inode *bmp_vi, *vi = dentry->d_inode;
 	int err, ret;
+	ntfs_attr na;
 
 	ntfs_debug("Entering for inode 0x%lx.", vi->i_ino);
 	BUG_ON(!S_ISDIR(vi->i_mode));
-	if (NInoIndexAllocPresent(ni) && ni->itype.index.bmp_ino)
-		write_inode_now(ni->itype.index.bmp_ino, !datasync);
+	/* If the bitmap attribute inode is in memory sync it, too. */
+	na.mft_no = vi->i_ino;
+	na.type = AT_BITMAP;
+	na.name = I30;
+	na.name_len = 4;
+	bmp_vi = ilookup5(vi->i_sb, vi->i_ino, (test_t)ntfs_test_inode, &na);
+	if (bmp_vi) {
+ 		write_inode_now(bmp_vi, !datasync);
+		iput(bmp_vi);
+	}
 	ret = ntfs_write_inode(vi, 1);
 	write_inode_now(vi, !datasync);
 	err = sync_blockdev(vi->i_sb->s_bdev);

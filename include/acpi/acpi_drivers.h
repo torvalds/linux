@@ -36,13 +36,14 @@
 
 /* _HID definitions */
 
-#define ACPI_POWER_HID			"ACPI_PWR"
-#define ACPI_PROCESSOR_HID		"ACPI_CPU"
-#define ACPI_SYSTEM_HID			"ACPI_SYS"
-#define ACPI_THERMAL_HID		"ACPI_THM"
-#define ACPI_BUTTON_HID_POWERF		"ACPI_FPB"
-#define ACPI_BUTTON_HID_SLEEPF		"ACPI_FSB"
-
+#define ACPI_POWER_HID			"power_resource"
+#define ACPI_PROCESSOR_HID		"ACPI0007"
+#define ACPI_SYSTEM_HID			"acpi_system"
+#define ACPI_THERMAL_HID		"thermal"
+#define ACPI_BUTTON_HID_POWERF		"button_power"
+#define ACPI_BUTTON_HID_SLEEPF		"button_sleep"
+#define ACPI_VIDEO_HID			"video"
+#define ACPI_BAY_HID			"bay"
 /* --------------------------------------------------------------------------
                                        PCI
    -------------------------------------------------------------------------- */

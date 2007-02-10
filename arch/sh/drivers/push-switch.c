@@ -14,7 +14,7 @@
 #include <asm/push-switch.h>
 
 #define DRV_NAME "push-switch"
-#define DRV_VERSION "0.1.0"
+#define DRV_VERSION "0.1.1"
 
 static ssize_t switch_show(struct device *dev,
 			   struct device_attribute *attr,
@@ -32,10 +32,10 @@ static void switch_timer(unsigned long data)
 	schedule_work(&psw->work);
 }
 
-static void switch_work_handler(void *data)
+static void switch_work_handler(struct work_struct *work)
 {
-	struct platform_device *pdev = data;
-	struct push_switch *psw = platform_get_drvdata(pdev);
+	struct push_switch *psw = container_of(work, struct push_switch, work);
+	struct platform_device *pdev = psw->pdev;
 
 	psw->state = 0;
 
@@ -76,11 +76,14 @@ static int switch_drv_probe(struct platform_device *pdev)
 		}
 	}
 
-	INIT_WORK(&psw->work, switch_work_handler, pdev);
+	INIT_WORK(&psw->work, switch_work_handler);
 	init_timer(&psw->debounce);
 
 	psw->debounce.function = switch_timer;
 	psw->debounce.data = (unsigned long)psw;
+
+	/* Workqueue API brain-damage */
+	psw->pdev = pdev;
 
 	platform_set_drvdata(pdev, psw);
 

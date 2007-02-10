@@ -112,6 +112,8 @@ u32 mpc83xx_spi_tx_buf_##type(struct mpc83xx_spi *mpc83xx_spi)	\
 {								\
 	u32 data;						\
 	const type * tx = mpc83xx_spi->tx;			\
+	if (!tx)						\
+		return 0;					\
 	data = *tx++;						\
 	mpc83xx_spi->tx = tx;					\
 	return data;						\

@@ -42,7 +42,7 @@ static struct semaphore zisofs_zlib_semaphore;
  */
 static int zisofs_readpage(struct file *file, struct page *page)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct address_space *mapping = inode->i_mapping;
 	unsigned int maxpage, xpage, fpage, blockindex;
 	unsigned long offset;

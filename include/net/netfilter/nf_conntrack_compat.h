@@ -6,6 +6,7 @@
 #if defined(CONFIG_IP_NF_CONNTRACK) || defined(CONFIG_IP_NF_CONNTRACK_MODULE)
 
 #include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <linux/socket.h>
 
 #ifdef CONFIG_IP_NF_CONNTRACK_MARK
 static inline u_int32_t *nf_ct_get_mark(const struct sk_buff *skb,
@@ -62,6 +63,16 @@ static inline int nf_ct_get_ctinfo(const struct sk_buff *skb,
 {
 	struct ip_conntrack *ct = ip_conntrack_get(skb, ctinfo);
 	return (ct != NULL);
+}
+
+static inline int nf_ct_l3proto_try_module_get(unsigned short l3proto)
+{
+	need_conntrack();
+	return l3proto == PF_INET ? 0 : -1;
+}
+
+static inline void nf_ct_l3proto_module_put(unsigned short l3proto)
+{
 }
 
 #else /* CONFIG_IP_NF_CONNTRACK */

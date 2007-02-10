@@ -33,19 +33,6 @@ config USB_DEVICEFS
 
 	  Most users want to say Y here.
 
-config USB_BANDWIDTH
-	bool "Enforce USB bandwidth allocation (EXPERIMENTAL)"
-	depends on USB && EXPERIMENTAL
-	help
-	  If you say Y here, the USB subsystem enforces USB bandwidth
-	  allocation and will prevent some device opens from succeeding
-	  if they would cause USB bandwidth usage to go above 90% of
-	  the bus bandwidth.
-
-	  If you say N here, these conditions will cause warning messages
-	  about USB bandwidth usage to be logged and some devices or
-	  drivers may not work correctly.
-
 config USB_DYNAMIC_MINORS
 	bool "Dynamic USB minor allocation (EXPERIMENTAL)"
 	depends on USB && EXPERIMENTAL
@@ -71,22 +58,6 @@ config USB_SUSPEND
 	  could wake the system from states like suspend-to-RAM.
 
 	  If you are unsure about this, say N here.
-
-config USB_MULTITHREAD_PROBE
-	bool "USB Multi-threaded probe (EXPERIMENTAL)"
-	depends on USB && EXPERIMENTAL
-	default n
-	help
-	  Say Y here if you want the USB core to spawn a new thread for
-	  every USB device that is probed.  This can cause a small speedup
-	  in boot times on systems with a lot of different USB devices.
-
-	  This option should be safe to enable, but if any odd probing
-	  problems are found, please disable it, or dynamically turn it
-	  off in the /sys/module/usbcore/parameters/multithread_probe
-	  file
-
-	  When in doubt, say N.
 
 config USB_OTG
 	bool

@@ -86,7 +86,7 @@ struct hidp_connadd_req {
 	int   intr_sock;	// Connteted interrupt socket
 	__u16 parser;
 	__u16 rd_size;
-	__u8 *rd_data;
+	__u8 __user *rd_data;
 	__u8  country;
 	__u8  subclass;
 	__u16 vendor;

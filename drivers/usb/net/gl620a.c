@@ -70,168 +70,14 @@
 	(((GL_MAX_PACKET_LEN + 4) * GL_MAX_TRANSMIT_PACKETS) + 4)
 
 struct gl_packet {
-	u32		packet_length;
+	__le32		packet_length;
 	char		packet_data [1];
 };
 
 struct gl_header {
-	u32			packet_count;
+	__le32			packet_count;
 	struct gl_packet	packets;
 };
-
-#ifdef	GENELINK_ACK
-
-// FIXME:  this code is incomplete, not debugged; it doesn't
-// handle interrupts correctly; it should use the generic
-// status IRQ code (which didn't exist back in 2001).
-
-struct gl_priv {
-	struct urb	*irq_urb;
-	char		irq_buf [INTERRUPT_BUFSIZE];
-};
-
-static inline int gl_control_write(struct usbnet *dev, u8 request, u16 value)
-{
-	int retval;
-
-	retval = usb_control_msg(dev->udev,
-		      usb_sndctrlpipe(dev->udev, 0),
-		      request,
-		      USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-		      value,
-		      0,			// index
-		      0,			// data buffer
-		      0,			// size
-		      USB_CTRL_SET_TIMEOUT);
-	return retval;
-}
-
-static void gl_interrupt_complete(struct urb *urb)
-{
-	int status = urb->status;
-
-	switch (status) {
-	case 0:
-		/* success */
-		break;
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-				__FUNCTION__, status);
-		return;
-	default:
-		dbg("%s - nonzero urb status received: %d",
-				__FUNCTION__, urb->status);
-	}
-
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status)
-		err("%s - usb_submit_urb failed with result %d",
-		     __FUNCTION__, status);
-}
-
-static int gl_interrupt_read(struct usbnet *dev)
-{
-	struct gl_priv	*priv = dev->priv_data;
-	int		retval;
-
-	// issue usb interrupt read
-	if (priv && priv->irq_urb) {
-		// submit urb
-		if ((retval = usb_submit_urb(priv->irq_urb, GFP_KERNEL)) != 0)
-			dbg("gl_interrupt_read: submit fail - %X...", retval);
-		else
-			dbg("gl_interrupt_read: submit success...");
-	}
-
-	return 0;
-}
-
-// check whether another side is connected
-static int genelink_check_connect(struct usbnet *dev)
-{
-	int			retval;
-
-	dbg("genelink_check_connect...");
-
-	// detect whether another side is connected
-	if ((retval = gl_control_write(dev, GENELINK_CONNECT_WRITE, 0)) != 0) {
-		dbg("%s: genelink_check_connect write fail - %X",
-			dev->net->name, retval);
-		return retval;
-	}
-
-	// usb interrupt read to ack another side
-	if ((retval = gl_interrupt_read(dev)) != 0) {
-		dbg("%s: genelink_check_connect read fail - %X",
-			dev->net->name, retval);
-		return retval;
-	}
-
-	dbg("%s: genelink_check_connect read success", dev->net->name);
-	return 0;
-}
-
-// allocate and initialize the private data for genelink
-static int genelink_init(struct usbnet *dev)
-{
-	struct gl_priv *priv;
-
-	// allocate the private data structure
-	if ((priv = kmalloc(sizeof *priv, GFP_KERNEL)) == 0) {
-		dbg("%s: cannot allocate private data per device",
-			dev->net->name);
-		return -ENOMEM;
-	}
-
-	// allocate irq urb
-	if ((priv->irq_urb = usb_alloc_urb(0, GFP_KERNEL)) == 0) {
-		dbg("%s: cannot allocate private irq urb per device",
-			dev->net->name);
-		kfree(priv);
-		return -ENOMEM;
-	}
-
-	// fill irq urb
-	usb_fill_int_urb(priv->irq_urb, dev->udev,
-		usb_rcvintpipe(dev->udev, GENELINK_INTERRUPT_PIPE),
-		priv->irq_buf, INTERRUPT_BUFSIZE,
-		gl_interrupt_complete, 0,
-		GENELINK_INTERRUPT_INTERVAL);
-
-	// set private data pointer
-	dev->priv_data = priv;
-
-	return 0;
-}
-
-// release the private data
-static int genelink_free(struct usbnet *dev)
-{
-	struct gl_priv	*priv = dev->priv_data;
-
-	if (!priv)
-		return 0;
-
-// FIXME:  can't cancel here; it's synchronous, and
-// should have happened earlier in any case (interrupt
-// handling needs to be generic)
-
-	// cancel irq urb first
-	usb_kill_urb(priv->irq_urb);
-
-	// free irq urb
-	usb_free_urb(priv->irq_urb);
-
-	// free the private data structure
-	kfree(priv);
-
-	return 0;
-}
-
-#endif
 
 static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
@@ -239,15 +85,14 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	struct gl_packet	*packet;
 	struct sk_buff		*gl_skb;
 	u32			size;
+	u32			count;
 
 	header = (struct gl_header *) skb->data;
 
 	// get the packet count of the received skb
-	le32_to_cpus(&header->packet_count);
-	if ((header->packet_count > GL_MAX_TRANSMIT_PACKETS)
-			|| (header->packet_count < 0)) {
-		dbg("genelink: invalid received packet count %d",
-			header->packet_count);
+	count = le32_to_cpu(header->packet_count);
+	if (count > GL_MAX_TRANSMIT_PACKETS) {
+		dbg("genelink: invalid received packet count %u", count);
 		return 0;
 	}
 
@@ -257,7 +102,7 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	// decrement the length for the packet count size 4 bytes
 	skb_pull(skb, 4);
 
-	while (header->packet_count > 1) {
+	while (count > 1) {
 		// get the packet length
 		size = le32_to_cpu(packet->packet_length);
 
@@ -278,9 +123,8 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		}
 
 		// advance to the next packet
-		packet = (struct gl_packet *)
-			&packet->packet_data [size];
-		header->packet_count--;
+		packet = (struct gl_packet *)&packet->packet_data[size];
+		count--;
 
 		// shift the data pointer to the next gl_packet
 		skb_pull(skb, size + 4);
@@ -303,8 +147,8 @@ genelink_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	int	length = skb->len;
 	int	headroom = skb_headroom(skb);
 	int	tailroom = skb_tailroom(skb);
-	u32	*packet_count;
-	u32	*packet_len;
+	__le32	*packet_count;
+	__le32	*packet_len;
 
 	// FIXME:  magic numbers, bleech
 	padlen = ((skb->len + (4 + 4*1)) % 64) ? 0 : 1;
@@ -326,7 +170,7 @@ genelink_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	}
 
 	// attach the packet count to the header
-	packet_count = (u32 *) skb_push(skb, (4 + 4*1));
+	packet_count = (__le32 *) skb_push(skb, (4 + 4*1));
 	packet_len = packet_count + 1;
 
 	*packet_count = cpu_to_le32(1);

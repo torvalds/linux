@@ -305,7 +305,7 @@ lookup_protocol:
 		sk->sk_reuse = 1;
 
 	inet = inet_sk(sk);
-	inet->is_icsk = INET_PROTOSW_ICSK & answer_flags;
+	inet->is_icsk = (INET_PROTOSW_ICSK & answer_flags) != 0;
 
 	if (SOCK_RAW == sock->type) {
 		inet->num = protocol;
@@ -1007,7 +1007,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 			       RT_CONN_FLAGS(sk),
 			       sk->sk_bound_dev_if,
 			       sk->sk_protocol,
-			       inet->sport, inet->dport, sk);
+			       inet->sport, inet->dport, sk, 0);
 	if (err)
 		return err;
 

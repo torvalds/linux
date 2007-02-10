@@ -217,7 +217,7 @@ static int sctp_gen_sack(struct sctp_association *asoc, int force,
 
 		asoc->peer.sack_needed = 0;
 
-		error = sctp_outq_tail(&asoc->outqueue, sack);
+		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(sack));
 
 		/* Stop the SACK timer.  */
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
@@ -621,7 +621,13 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	/* The receiver of the HEARTBEAT ACK should also perform an
 	 * RTT measurement for that destination transport address
 	 * using the time value carried in the HEARTBEAT ACK chunk.
+	 * If the transport's rto_pending variable has been cleared,
+	 * it was most likely due to a retransmit.  However, we want
+	 * to re-enable it to properly update the rto.
 	 */
+	if (t->rto_pending == 0)
+		t->rto_pending = 1;
+
 	hbinfo = (sctp_sender_hb_info_t *) chunk->skb->data;
 	sctp_transport_update_rto(t, (jiffies - hbinfo->sent_at));
 

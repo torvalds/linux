@@ -211,14 +211,14 @@ static int __devinit voodoo3_probe(struct pci_dev *dev, const struct pci_device_
 		return retval;
 	retval = i2c_bit_add_bus(&voodoo3_ddc_adapter);
 	if (retval)
-		i2c_bit_del_bus(&voodoo3_i2c_adapter);
+		i2c_del_adapter(&voodoo3_i2c_adapter);
 	return retval;
 }
 
 static void __devexit voodoo3_remove(struct pci_dev *dev)
 {
-	i2c_bit_del_bus(&voodoo3_i2c_adapter);
- 	i2c_bit_del_bus(&voodoo3_ddc_adapter);
+	i2c_del_adapter(&voodoo3_i2c_adapter);
+	i2c_del_adapter(&voodoo3_ddc_adapter);
 	iounmap(ioaddr);
 }
 

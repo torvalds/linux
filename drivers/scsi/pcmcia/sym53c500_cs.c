@@ -545,8 +545,6 @@ SYM53C500_release(struct pcmcia_device *link)
 	*/
 	if (shost->irq)
 		free_irq(shost->irq, shost);
-	if (shost->dma_channel != 0xff)
-		free_dma(shost->dma_channel);
 	if (shost->io_port && shost->n_io_port)
 		release_region(shost->io_port, shost->n_io_port);
 
@@ -895,7 +893,6 @@ SYM53C500_probe(struct pcmcia_device *link)
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
-	link->conf.Present = PRESENT_OPTION;
 
 	return SYM53C500_config(link);
 } /* SYM53C500_attach */

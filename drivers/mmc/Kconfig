@@ -111,7 +111,7 @@ config MMC_IMX
 
 config MMC_TIFM_SD
 	tristate "TI Flash Media MMC/SD Interface support  (EXPERIMENTAL)"
-	depends on MMC && EXPERIMENTAL
+	depends on MMC && EXPERIMENTAL && PCI
 	select TIFM_CORE
 	help
 	  Say Y here if you want to be able to access MMC/SD cards with

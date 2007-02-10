@@ -150,8 +150,7 @@ const struct pci_device_id *pci_match_id(const struct pci_device_id *ids,
 }
 
 /**
- * pci_match_device - Tell if a PCI device structure has a matching
- *                    PCI device id structure
+ * pci_match_device - Tell if a PCI device structure has a matching PCI device id structure
  * @drv: the PCI driver to match against
  * @dev: the PCI device structure to match against
  *
@@ -162,14 +161,9 @@ const struct pci_device_id *pci_match_id(const struct pci_device_id *ids,
 const struct pci_device_id *pci_match_device(struct pci_driver *drv,
 					     struct pci_dev *dev)
 {
-	const struct pci_device_id *id;
 	struct pci_dynid *dynid;
 
-	id = pci_match_id(drv->id_table, dev);
-	if (id)
-		return id;
-
-	/* static ids didn't match, lets look at the dynamic ones */
+	/* Look at the dynamic ids first, before the static ones */
 	spin_lock(&drv->dynids.lock);
 	list_for_each_entry(dynid, &drv->dynids.list, node) {
 		if (pci_match_one_device(&dynid->id, dev)) {
@@ -178,7 +172,8 @@ const struct pci_device_id *pci_match_device(struct pci_driver *drv,
 		}
 	}
 	spin_unlock(&drv->dynids.lock);
-	return NULL;
+
+	return pci_match_id(drv->id_table, dev);
 }
 
 static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
@@ -329,8 +324,7 @@ static int pci_default_resume(struct pci_dev *pci_dev)
 	/* restore the PCI config space */
 	pci_restore_state(pci_dev);
 	/* if the device was enabled before suspend, reenable */
-	if (atomic_read(&pci_dev->enable_cnt))
-		retval = __pci_enable_device(pci_dev);
+	retval = __pci_reenable_device(pci_dev);
 	/* if the device was busmaster before the suspend, make it busmaster again */
 	if (pci_dev->is_busmaster)
 		pci_set_master(pci_dev);
@@ -356,6 +350,8 @@ static int pci_device_resume_early(struct device * dev)
 	int error = 0;
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	struct pci_driver * drv = pci_dev->driver;
+
+	pci_fixup_device(pci_fixup_resume, pci_dev);
 
 	if (drv && drv->resume_early)
 		error = drv->resume_early(pci_dev);
@@ -425,7 +421,8 @@ static struct kobj_type pci_driver_kobj_type = {
  * If no error occurred, the driver remains registered even if 
  * no device was claimed during registration.
  */
-int __pci_register_driver(struct pci_driver *drv, struct module *owner)
+int __pci_register_driver(struct pci_driver *drv, struct module *owner,
+			  const char *mod_name)
 {
 	int error;
 
@@ -433,6 +430,7 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.owner = owner;
+	drv->driver.mod_name = mod_name;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 
 	if (pci_multithread_probe)

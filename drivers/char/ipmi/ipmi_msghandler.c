@@ -53,10 +53,10 @@
 static struct ipmi_recv_msg *ipmi_alloc_recv_msg(void);
 static int ipmi_init_msghandler(void);
 
-static int initialized = 0;
+static int initialized;
 
 #ifdef CONFIG_PROC_FS
-static struct proc_dir_entry *proc_ipmi_root = NULL;
+static struct proc_dir_entry *proc_ipmi_root;
 #endif /* CONFIG_PROC_FS */
 
 /* Remain in auto-maintenance mode for this amount of time (in ms). */
@@ -2142,8 +2142,7 @@ cleanup_bmc_device(struct kref *ref)
 	bmc = container_of(ref, struct bmc_device, refcount);
 
 	remove_files(bmc);
-	if (bmc->dev)
-		platform_device_unregister(bmc->dev);
+	platform_device_unregister(bmc->dev);
 	kfree(bmc);
 }
 
@@ -2341,8 +2340,7 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 
 		while (ipmi_find_bmc_prod_dev_id(&ipmidriver,
 						 bmc->id.product_id,
-						 bmc->id.device_id))
-		{
+						 bmc->id.device_id)) {
 			if (!warn_printed) {
 				printk(KERN_WARNING PFX
 				       "This machine has two different BMCs"
@@ -3651,8 +3649,6 @@ static void ipmi_timeout_handler(long timeout_period)
 	unsigned long        flags;
 	int                  i;
 
-	INIT_LIST_HEAD(&timeouts);
-
 	rcu_read_lock();
 	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
 		/* See if any waiting messages need to be processed. */
@@ -3673,6 +3669,7 @@ static void ipmi_timeout_handler(long timeout_period)
 		/* Go through the seq table and find any messages that
 		   have timed out, putting them in the timeouts
 		   list. */
+		INIT_LIST_HEAD(&timeouts);
 		spin_lock_irqsave(&intf->seq_lock, flags);
 		for (i = 0; i < IPMI_IPMB_NUM_SEQ; i++)
 			check_msg_timeout(intf, &(intf->seq_table[i]),
@@ -4043,7 +4040,7 @@ static void send_panic_events(char *str)
 }
 #endif /* CONFIG_IPMI_PANIC_EVENT */
 
-static int has_panicked = 0;
+static int has_panicked;
 
 static int panic_event(struct notifier_block *this,
 		       unsigned long         event,

@@ -96,7 +96,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			/* Note:  PS.EXCM is not set while user task is running;
 			 * its being set in regs is for exception handling
 			 * convenience.  */
-			tmp = (regs->ps & ~XCHAL_PS_EXCM_MASK);
+			tmp = (regs->ps & ~(1 << PS_EXCM_BIT));
 			break;
 		case REG_WB:
 			tmp = regs->windowbase;
@@ -332,12 +332,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 void do_syscall_trace(void)
 {
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
-
-	if (!(current->ptrace & PT_PTRACED))
-		return;
-
 	/*
 	 * The 0x80 provides a way for the tracing parent to distinguish
 	 * between a syscall stop and SIGTRAP delivery
@@ -354,3 +348,23 @@ void do_syscall_trace(void)
 		current->exit_code = 0;
 	}
 }
+
+void do_syscall_trace_enter(struct pt_regs *regs)
+{
+	if (test_thread_flag(TIF_SYSCALL_TRACE)
+			&& (current->ptrace & PT_PTRACED))
+		do_syscall_trace();
+
+#if 0
+	if (unlikely(current->audit_context))
+		audit_syscall_entry(current, AUDIT_ARCH_XTENSA..);
+#endif
+}
+
+void do_syscall_trace_leave(struct pt_regs *regs)
+{
+	if ((test_thread_flag(TIF_SYSCALL_TRACE))
+			&& (current->ptrace & PT_PTRACED))
+		do_syscall_trace();
+}
+

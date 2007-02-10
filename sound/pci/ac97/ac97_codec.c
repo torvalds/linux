@@ -111,7 +111,7 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 { 0x41445372, 0xffffffff, "AD1981A",		patch_ad1981a,	NULL },
 { 0x41445374, 0xffffffff, "AD1981B",		patch_ad1981b,	NULL },
 { 0x41445375, 0xffffffff, "AD1985",		patch_ad1985,	NULL },
-{ 0x41445378, 0xffffffff, "AD1986",		patch_ad1985,	NULL },
+{ 0x41445378, 0xffffffff, "AD1986",		patch_ad1986,	NULL },
 { 0x414c4300, 0xffffff00, "ALC100,100P", 	NULL,		NULL },
 { 0x414c4710, 0xfffffff0, "ALC200,200P",	NULL,		NULL },
 { 0x414c4721, 0xffffffff, "ALC650D",		NULL,	NULL }, /* already patched */
@@ -129,9 +129,9 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 { 0x434d4941, 0xffffffff, "CMI9738",		patch_cm9738,	NULL },
 { 0x434d4961, 0xffffffff, "CMI9739",		patch_cm9739,	NULL },
 { 0x434d4969, 0xffffffff, "CMI9780",		patch_cm9780,	NULL },
-{ 0x434d4978, 0xffffffff, "CMI9761",		patch_cm9761,	NULL },
-{ 0x434d4982, 0xffffffff, "CMI9761",		patch_cm9761,	NULL },
-{ 0x434d4983, 0xffffffff, "CMI9761",		patch_cm9761,	NULL },
+{ 0x434d4978, 0xffffffff, "CMI9761A",		patch_cm9761,	NULL },
+{ 0x434d4982, 0xffffffff, "CMI9761B",		patch_cm9761,	NULL },
+{ 0x434d4983, 0xffffffff, "CMI9761A+",		patch_cm9761,	NULL },
 { 0x43525900, 0xfffffff8, "CS4297",		NULL,		NULL },
 { 0x43525910, 0xfffffff8, "CS4297A",		patch_cirrus_spdif,	NULL },
 { 0x43525920, 0xfffffff8, "CS4298",		patch_cirrus_spdif,		NULL },
@@ -194,6 +194,13 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 
 
 static void update_power_regs(struct snd_ac97 *ac97);
+#ifdef CONFIG_SND_AC97_POWER_SAVE
+#define ac97_is_power_save_mode(ac97) \
+	((ac97->scaps & AC97_SCAP_POWER_SAVE) && power_save)
+#else
+#define ac97_is_power_save_mode(ac97) 0
+#endif
+
 
 /*
  *  I/O routines
@@ -382,7 +389,7 @@ int snd_ac97_update_bits_nolock(struct snd_ac97 *ac97, unsigned short reg,
 	unsigned short old, new;
 
 	old = snd_ac97_read_cache(ac97, reg);
-	new = (old & ~mask) | value;
+	new = (old & ~mask) | (value & mask);
 	change = old != new;
 	if (change) {
 		ac97->regs[reg] = new;
@@ -399,7 +406,7 @@ static int snd_ac97_ad18xx_update_pcm_bits(struct snd_ac97 *ac97, int codec, uns
 
 	mutex_lock(&ac97->page_mutex);
 	old = ac97->spec.ad18xx.pcmreg[codec];
-	new = (old & ~mask) | value;
+	new = (old & ~mask) | (value & mask);
 	change = old != new;
 	if (change) {
 		mutex_lock(&ac97->reg_mutex);
@@ -982,8 +989,8 @@ static int snd_ac97_free(struct snd_ac97 *ac97)
 {
 	if (ac97) {
 #ifdef CONFIG_SND_AC97_POWER_SAVE
-		if (ac97->power_workq)
-			destroy_workqueue(ac97->power_workq);
+		cancel_delayed_work(&ac97->power_work);
+		flush_scheduled_work();
 #endif
 		snd_ac97_proc_done(ac97);
 		if (ac97->bus)
@@ -1184,13 +1191,13 @@ static int snd_ac97_cmute_new_stereo(struct snd_card *card, char *name, int reg,
 /*
  * set dB information
  */
-static DECLARE_TLV_DB_SCALE(db_scale_4bit, -4500, 300, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_5bit, -4650, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_4bit, -4500, 300, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit, -4650, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
 
-static unsigned int *find_db_scale(unsigned int maxval)
+static const unsigned int *find_db_scale(unsigned int maxval)
 {
 	switch (maxval) {
 	case 0x0f: return db_scale_4bit;
@@ -1200,8 +1207,8 @@ static unsigned int *find_db_scale(unsigned int maxval)
 	return NULL;
 }
 
-static void set_tlv_db_scale(struct snd_kcontrol *kctl, unsigned int *tlv)
-{	
+static void set_tlv_db_scale(struct snd_kcontrol *kctl, const unsigned int *tlv)
+{
 	kctl->tlv.p = tlv;
 	if (tlv)
 		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
@@ -1989,7 +1996,6 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	mutex_init(&ac97->reg_mutex);
 	mutex_init(&ac97->page_mutex);
 #ifdef CONFIG_SND_AC97_POWER_SAVE
-	ac97->power_workq = create_workqueue("ac97");
 	INIT_DELAYED_WORK(&ac97->power_work, do_update_power);
 #endif
 
@@ -2275,15 +2281,13 @@ static void snd_ac97_powerdown(struct snd_ac97 *ac97)
 	udelay(100);
 	power |= AC97_PD_PR2 | AC97_PD_PR3;	/* Analog Mixer powerdown */
 	snd_ac97_write(ac97, AC97_POWERDOWN, power);
-#ifdef CONFIG_SND_AC97_POWER_SAVE
-	if (power_save) {
+	if (ac97_is_power_save_mode(ac97)) {
 		udelay(100);
 		/* AC-link powerdown, internal Clk disable */
 		/* FIXME: this may cause click noises on some boards */
 		power |= AC97_PD_PR4 | AC97_PD_PR5;
 		snd_ac97_write(ac97, AC97_POWERDOWN, power);
 	}
-#endif
 }
 
 
@@ -2337,14 +2341,16 @@ int snd_ac97_update_power(struct snd_ac97 *ac97, int reg, int powerup)
 		}
 	}
 
-	if (power_save && !powerup && ac97->power_workq)
+	if (ac97_is_power_save_mode(ac97) && !powerup)
 		/* adjust power-down bits after two seconds delay
 		 * (for avoiding loud click noises for many (OSS) apps
 		 *  that open/close frequently)
 		 */
-		queue_delayed_work(ac97->power_workq, &ac97->power_work, HZ*2);
-	else
+		schedule_delayed_work(&ac97->power_work, HZ*2);
+	else {
+		cancel_delayed_work(&ac97->power_work);
 		update_power_regs(ac97);
+	}
 
 	return 0;
 }
@@ -2357,19 +2363,15 @@ static void update_power_regs(struct snd_ac97 *ac97)
 	unsigned int power_up, bits;
 	int i;
 
+	power_up = (1 << PWIDX_FRONT) | (1 << PWIDX_ADC);
+	power_up |= (1 << PWIDX_MIC);
+	if (ac97->scaps & AC97_SCAP_SURROUND_DAC)
+		power_up |= (1 << PWIDX_SURR);
+	if (ac97->scaps & AC97_SCAP_CENTER_LFE_DAC)
+		power_up |= (1 << PWIDX_CLFE);
 #ifdef CONFIG_SND_AC97_POWER_SAVE
-	if (power_save)
+	if (ac97_is_power_save_mode(ac97))
 		power_up = ac97->power_up;
-	else {
-#endif
-		power_up = (1 << PWIDX_FRONT) | (1 << PWIDX_ADC);
-		power_up |= (1 << PWIDX_MIC);
-		if (ac97->scaps & AC97_SCAP_SURROUND_DAC)
-			power_up |= (1 << PWIDX_SURR);
-		if (ac97->scaps & AC97_SCAP_CENTER_LFE_DAC)
-			power_up |= (1 << PWIDX_CLFE);
-#ifdef CONFIG_SND_AC97_POWER_SAVE
-	}
 #endif
 	if (power_up) {
 		if (ac97->regs[AC97_POWERDOWN] & AC97_PD_PR2) {
@@ -2414,6 +2416,10 @@ void snd_ac97_suspend(struct snd_ac97 *ac97)
 		return;
 	if (ac97->build_ops->suspend)
 		ac97->build_ops->suspend(ac97);
+#ifdef CONFIG_SND_AC97_POWER_SAVE
+	cancel_delayed_work(&ac97->power_work);
+	flush_scheduled_work();
+#endif
 	snd_ac97_powerdown(ac97);
 }
 

@@ -117,7 +117,7 @@ int __init pluto_detect(struct scsi_host_template *tpnt)
 #endif
 			return 0;
 	}
-	fcs = (struct ctrl_inquiry *) kmalloc (sizeof (struct ctrl_inquiry) * fcscount, GFP_DMA);
+	fcs = kmalloc(sizeof (struct ctrl_inquiry) * fcscount, GFP_DMA);
 	if (!fcs) {
 		printk ("PLUTO: Not enough memory to probe\n");
 		return 0;

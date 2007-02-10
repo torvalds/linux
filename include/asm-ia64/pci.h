@@ -78,9 +78,6 @@ pcibios_penalize_isa_irq (int irq, int active)
 #define pci_dac_dma_sync_single_for_cpu(dev,dma_addr,len,dir)	do { } while (0)
 #define pci_dac_dma_sync_single_for_device(dev,dma_addr,len,dir)	do { mb(); } while (0)
 
-#define sg_dma_len(sg)		((sg)->dma_length)
-#define sg_dma_address(sg)	((sg)->dma_address)
-
 #ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,
@@ -169,5 +166,11 @@ pcibios_select_root(struct pci_dev *pdev, struct resource *res)
 }
 
 #define pcibios_scan_all_fns(a, b)	0
+
+#define HAVE_ARCH_PCI_GET_LEGACY_IDE_IRQ
+static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
+{
+	return channel ? 15 : 14;
+}
 
 #endif /* _ASM_IA64_PCI_H */

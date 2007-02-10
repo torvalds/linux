@@ -40,8 +40,6 @@
 #include <asm/prom.h>
 #include <asm/udbg.h>
 #include <sysdev/fsl_soc.h>
-#include <asm/qe.h>
-#include <asm/qe_ic.h>
 #include <asm/of_platform.h>
 
 #include <asm/mpc52xx.h>
@@ -109,6 +107,12 @@ static void __init lite52xx_setup_arch(void)
 	mpc52xx_setup_cpu();	/* Generic */
 	lite52xx_setup_cpu();	/* Platorm specific */
 
+#ifdef CONFIG_PCI
+	np = of_find_node_by_type(np, "pci");
+	if (np)
+		mpc52xx_add_bridge(np);
+#endif
+
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start)
 		ROOT_DEV = Root_RAM0;
@@ -155,6 +159,7 @@ define_machine(lite52xx) {
 	.name 		= "lite52xx",
 	.probe 		= lite52xx_probe,
 	.setup_arch 	= lite52xx_setup_arch,
+	.init		= mpc52xx_declare_of_platform_devices,
 	.init_IRQ 	= mpc52xx_init_irq,
 	.get_irq 	= mpc52xx_get_irq,
 	.show_cpuinfo	= lite52xx_show_cpuinfo,

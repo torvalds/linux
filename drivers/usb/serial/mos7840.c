@@ -1931,7 +1931,7 @@ static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
  *****************************************************************************/
 
 static void mos7840_change_port_settings(struct moschip_port *mos7840_port,
-					 struct termios *old_termios)
+					 struct ktermios *old_termios)
 {
 	struct tty_struct *tty;
 	int baud;
@@ -2118,7 +2118,7 @@ static void mos7840_change_port_settings(struct moschip_port *mos7840_port,
  *****************************************************************************/
 
 static void mos7840_set_termios(struct usb_serial_port *port,
-				struct termios *old_termios)
+				struct ktermios *old_termios)
 {
 	int status;
 	unsigned int cflag;
@@ -2458,12 +2458,6 @@ static int mos7840_ioctl(struct usb_serial_port *port, struct file *file,
 			return -EINVAL;
 		}
 		tty_ldisc_deref(ld);
-		return 0;
-
-	case TCGETS:
-		if (kernel_termios_to_user_termios
-		    ((struct termios __user *)argp, tty->termios))
-			return -EFAULT;
 		return 0;
 
 	case TIOCSERGETLSR:
@@ -2840,12 +2834,21 @@ static void mos7840_shutdown(struct usb_serial *serial)
 
 }
 
+static struct usb_driver io_driver = {
+	.name = "mos7840",
+	.probe = usb_serial_probe,
+	.disconnect = usb_serial_disconnect,
+	.id_table = moschip_id_table_combined,
+	.no_dynamic_id = 1,
+};
+
 static struct usb_serial_driver moschip7840_4port_device = {
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = "mos7840",
 		   },
 	.description = DRIVER_DESC,
+	.usb_driver = &io_driver,
 	.id_table = moschip_port_id_table,
 	.num_interrupt_in = 1,	//NUM_DONT_CARE,//1,
 #ifdef check
@@ -2873,13 +2876,6 @@ static struct usb_serial_driver moschip7840_4port_device = {
 	.shutdown = mos7840_shutdown,
 	.read_bulk_callback = mos7840_bulk_in_callback,
 	.read_int_callback = mos7840_interrupt_callback,
-};
-
-static struct usb_driver io_driver = {
-	.name = "mos7840",
-	.probe = usb_serial_probe,
-	.disconnect = usb_serial_disconnect,
-	.id_table = moschip_id_table_combined,
 };
 
 /****************************************************************************

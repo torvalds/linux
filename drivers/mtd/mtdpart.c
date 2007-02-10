@@ -94,7 +94,7 @@ static int part_read_oob(struct mtd_info *mtd, loff_t from,
 
 	if (from >= mtd->size)
 		return -EINVAL;
-	if (from + ops->len > mtd->size)
+	if (ops->datbuf && from + ops->len > mtd->size)
 		return -EINVAL;
 	res = part->master->read_oob(part->master, from + part->offset, ops);
 
@@ -161,7 +161,7 @@ static int part_write_oob(struct mtd_info *mtd, loff_t to,
 
 	if (to >= mtd->size)
 		return -EINVAL;
-	if (to + ops->len > mtd->size)
+	if (ops->datbuf && to + ops->len > mtd->size)
 		return -EINVAL;
 	return part->master->write_oob(part->master, to + part->offset, ops);
 }
@@ -323,14 +323,13 @@ int add_mtd_partitions(struct mtd_info *master,
 	for (i = 0; i < nbparts; i++) {
 
 		/* allocate the partition structure */
-		slave = kmalloc (sizeof(*slave), GFP_KERNEL);
+		slave = kzalloc (sizeof(*slave), GFP_KERNEL);
 		if (!slave) {
 			printk ("memory allocation error while creating partitions for \"%s\"\n",
 				master->name);
 			del_mtd_partitions(master);
 			return -ENOMEM;
 		}
-		memset(slave, 0, sizeof(*slave));
 		list_add(&slave->list, &mtd_partitions);
 
 		/* set up the MTD object for this partition */
@@ -341,6 +340,7 @@ int add_mtd_partitions(struct mtd_info *master,
 		slave->mtd.oobsize = master->oobsize;
 		slave->mtd.ecctype = master->ecctype;
 		slave->mtd.eccsize = master->eccsize;
+		slave->mtd.subpage_sft = master->subpage_sft;
 
 		slave->mtd.name = parts[i].name;
 		slave->mtd.bank_size = master->bank_size;

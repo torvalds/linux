@@ -35,7 +35,6 @@
 #include <linux/delay.h>
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
-#include "netxen_nic_ioctl.h"
 #include "netxen_nic_phan_reg.h"
 
 struct crb_addr_pair {
@@ -111,6 +110,7 @@ static void crb_addr_transform_setup(void)
 	crb_addr_transform(CAM);
 	crb_addr_transform(C2C1);
 	crb_addr_transform(C2C0);
+	crb_addr_transform(SMB);
 }
 
 int netxen_init_firmware(struct netxen_adapter *adapter)
@@ -277,6 +277,7 @@ unsigned long netxen_decode_crb_addr(unsigned long addr)
 
 static long rom_max_timeout = 10000;
 static long rom_lock_timeout = 1000000;
+static long rom_write_timeout = 700;
 
 static inline int rom_lock(struct netxen_adapter *adapter)
 {
@@ -405,7 +406,7 @@ do_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp)
 {
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ADDRESS, addr);
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 3);
-	udelay(100);		/* prevent bursting on CRB */
+	udelay(70);		/* prevent bursting on CRB */
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_INSTR_OPCODE, 0xb);
 	if (netxen_wait_rom_done(adapter)) {
@@ -414,11 +415,44 @@ do_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp)
 	}
 	/* reset abyte_cnt and dummy_byte_cnt */
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 0);
-	udelay(100);		/* prevent bursting on CRB */
+	udelay(70);		/* prevent bursting on CRB */
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
 
 	*valp = netxen_nic_reg_read(adapter, NETXEN_ROMUSB_ROM_RDATA);
 	return 0;
+}
+
+static inline int 
+do_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
+			u8 *bytes, size_t size)
+{
+	int addridx;
+	int ret = 0;
+
+	for (addridx = addr; addridx < (addr + size); addridx += 4) {
+		ret = do_rom_fast_read(adapter, addridx, (int *)bytes);
+		if (ret != 0)
+			break;
+		bytes += 4;
+	}
+
+	return ret;
+}
+
+int
+netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr, 
+				u8 *bytes, size_t size)
+{
+	int ret;
+
+	ret = rom_lock(adapter);
+	if (ret < 0)
+		return ret;
+
+	ret = do_rom_fast_read_words(adapter, addr, bytes, size);
+
+	netxen_rom_unlock(adapter);
+	return ret;
 }
 
 int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp)
@@ -444,6 +478,152 @@ int netxen_rom_fast_write(struct netxen_adapter *adapter, int addr, int data)
 	netxen_rom_unlock(adapter);
 	return ret;
 }
+
+static inline int do_rom_fast_write_words(struct netxen_adapter *adapter, 
+						int addr, u8 *bytes, size_t size)
+{
+	int addridx = addr;
+	int ret = 0;
+
+	while (addridx < (addr + size)) {
+		int last_attempt = 0;
+		int timeout = 0;
+		int data;
+
+		data = *(u32*)bytes;
+
+		ret = do_rom_fast_write(adapter, addridx, data);
+		if (ret < 0)
+			return ret;
+			
+		while(1) {
+			int data1;
+
+			do_rom_fast_read(adapter, addridx, &data1);
+			if (data1 == data)
+				break;
+
+			if (timeout++ >= rom_write_timeout) {
+				if (last_attempt++ < 4) {
+					ret = do_rom_fast_write(adapter, 
+								addridx, data);
+					if (ret < 0)
+						return ret;
+				}
+				else {
+					printk(KERN_INFO "Data write did not "
+					   "succeed at address 0x%x\n", addridx);
+					break;
+				}
+			}
+		}
+
+		bytes += 4;
+		addridx += 4;
+	}
+
+	return ret;
+}
+
+int netxen_rom_fast_write_words(struct netxen_adapter *adapter, int addr, 
+					u8 *bytes, size_t size)
+{
+	int ret = 0;
+
+	ret = rom_lock(adapter);
+	if (ret < 0)
+		return ret;
+
+	ret = do_rom_fast_write_words(adapter, addr, bytes, size);
+	netxen_rom_unlock(adapter);
+
+	return ret;
+}
+
+int netxen_rom_wrsr(struct netxen_adapter *adapter, int data)
+{
+	int ret;
+
+	ret = netxen_rom_wren(adapter);
+	if (ret < 0)
+		return ret;
+
+	netxen_crb_writelit_adapter(adapter, NETXEN_ROMUSB_ROM_WDATA, data);
+	netxen_crb_writelit_adapter(adapter, 
+					NETXEN_ROMUSB_ROM_INSTR_OPCODE, 0x1);
+
+	ret = netxen_wait_rom_done(adapter);
+	if (ret < 0)
+		return ret;
+
+	return netxen_rom_wip_poll(adapter);
+}
+
+int netxen_rom_rdsr(struct netxen_adapter *adapter)
+{
+	int ret;
+
+	ret = rom_lock(adapter);
+	if (ret < 0)
+		return ret;
+
+	ret = netxen_do_rom_rdsr(adapter);
+	netxen_rom_unlock(adapter);
+	return ret;
+}
+
+int netxen_backup_crbinit(struct netxen_adapter *adapter)
+{
+	int ret = FLASH_SUCCESS;
+	int val;
+	char *buffer = kmalloc(FLASH_SECTOR_SIZE, GFP_KERNEL);
+
+	if (!buffer)
+		return -ENOMEM;	
+	/* unlock sector 63 */
+	val = netxen_rom_rdsr(adapter);
+	val = val & 0xe3;
+	ret = netxen_rom_wrsr(adapter, val);
+	if (ret != FLASH_SUCCESS)
+		goto out_kfree;
+
+	ret = netxen_rom_wip_poll(adapter);
+	if (ret != FLASH_SUCCESS)
+		goto out_kfree;
+
+	/* copy  sector 0 to sector 63 */
+	ret = netxen_rom_fast_read_words(adapter, CRBINIT_START, 
+						buffer, FLASH_SECTOR_SIZE);
+	if (ret != FLASH_SUCCESS)
+		goto out_kfree;
+
+	ret = netxen_rom_fast_write_words(adapter, FIXED_START, 
+						buffer, FLASH_SECTOR_SIZE);
+	if (ret != FLASH_SUCCESS)
+		goto out_kfree;
+
+	/* lock sector 63 */
+	val = netxen_rom_rdsr(adapter);
+	if (!(val & 0x8)) {
+		val |= (0x1 << 2);
+		/* lock sector 63 */
+		if (netxen_rom_wrsr(adapter, val) == 0) {
+			ret = netxen_rom_wip_poll(adapter);
+			if (ret != FLASH_SUCCESS)
+				goto out_kfree;
+
+			/* lock SR writes */
+			ret = netxen_rom_wip_poll(adapter);
+			if (ret != FLASH_SUCCESS)
+				goto out_kfree;
+		}
+	}
+
+out_kfree:
+	kfree(buffer);
+	return ret;
+}
+
 int netxen_do_rom_se(struct netxen_adapter *adapter, int addr)
 {
 	netxen_rom_wren(adapter);
@@ -458,6 +638,27 @@ int netxen_do_rom_se(struct netxen_adapter *adapter, int addr)
 	return netxen_rom_wip_poll(adapter);
 }
 
+void check_erased_flash(struct netxen_adapter *adapter, int addr)
+{
+	int i;
+	int val;
+	int count = 0, erased_errors = 0;
+	int range;
+
+	range = (addr == USER_START) ? FIXED_START : addr + FLASH_SECTOR_SIZE;
+	
+	for (i = addr; i < range; i += 4) {
+		netxen_rom_fast_read(adapter, i, &val);
+		if (val != 0xffffffff)
+			erased_errors++;
+		count++;
+	}
+
+	if (erased_errors)
+		printk(KERN_INFO "0x%x out of 0x%x words fail to be erased "
+			"for sector address: %x\n", erased_errors, count, addr);
+}
+
 int netxen_rom_se(struct netxen_adapter *adapter, int addr)
 {
 	int ret = 0;
@@ -466,6 +667,68 @@ int netxen_rom_se(struct netxen_adapter *adapter, int addr)
 	}
 	ret = netxen_do_rom_se(adapter, addr);
 	netxen_rom_unlock(adapter);
+	msleep(30);
+	check_erased_flash(adapter, addr);
+
+	return ret;
+}
+
+int
+netxen_flash_erase_sections(struct netxen_adapter *adapter, int start, int end)
+{
+	int ret = FLASH_SUCCESS;
+	int i;
+
+	for (i = start; i < end; i++) {
+		ret = netxen_rom_se(adapter, i * FLASH_SECTOR_SIZE);
+		if (ret)
+			break;
+		ret = netxen_rom_wip_poll(adapter);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
+}
+
+int
+netxen_flash_erase_secondary(struct netxen_adapter *adapter)
+{
+	int ret = FLASH_SUCCESS;
+	int start, end;
+
+	start = SECONDARY_START / FLASH_SECTOR_SIZE;
+	end   = USER_START / FLASH_SECTOR_SIZE;
+	ret = netxen_flash_erase_sections(adapter, start, end);
+
+	return ret;
+}
+
+int
+netxen_flash_erase_primary(struct netxen_adapter *adapter)
+{
+	int ret = FLASH_SUCCESS;
+	int start, end;
+
+	start = PRIMARY_START / FLASH_SECTOR_SIZE;
+	end   = SECONDARY_START / FLASH_SECTOR_SIZE;
+	ret = netxen_flash_erase_sections(adapter, start, end);
+
+	return ret;
+}
+
+int netxen_flash_unlock(struct netxen_adapter *adapter)
+{
+	int ret = 0;
+
+	ret = netxen_rom_wrsr(adapter, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = netxen_rom_wren(adapter);
+	if (ret < 0)
+		return ret;
+
 	return ret;
 }
 
@@ -544,9 +807,13 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 		}
 		for (i = 0; i < n; i++) {
 
-			off =
-			    netxen_decode_crb_addr((unsigned long)buf[i].addr) +
-			    NETXEN_PCI_CRBSPACE;
+			off = netxen_decode_crb_addr((unsigned long)buf[i].addr);
+			if (off == NETXEN_ADDR_ERROR) {
+				printk(KERN_ERR"CRB init value out of range %lx\n",
+					buf[i].addr);
+				continue;
+			}
+			off += NETXEN_PCI_CRBSPACE;
 			/* skipping cold reboot MAGIC */
 			if (off == NETXEN_CAM_RAM(0x1fc))
 				continue;
@@ -663,6 +930,7 @@ void netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 	int loops = 0;
 
 	if (!pegtune_val) {
+		val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
 		while (val != PHAN_INITIALIZE_COMPLETE && loops < 200000) {
 			udelay(100);
 			schedule();
@@ -691,8 +959,7 @@ int netxen_nic_rx_has_work(struct netxen_adapter *adapter)
 		desc_head = recv_ctx->rcv_status_desc_head;
 		desc = &desc_head[consumer];
 
-		if (((le16_to_cpu(netxen_get_sts_owner(desc)))
-		     & STATUS_OWNER_HOST))
+		if (netxen_get_sts_owner(desc) & STATUS_OWNER_HOST)
 			return 1;
 	}
 
@@ -788,11 +1055,11 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	struct netxen_port *port = adapter->port[netxen_get_sts_port(desc)];
 	struct pci_dev *pdev = port->pdev;
 	struct net_device *netdev = port->netdev;
-	int index = le16_to_cpu(netxen_get_sts_refhandle(desc));
+	int index = netxen_get_sts_refhandle(desc);
 	struct netxen_recv_context *recv_ctx = &(adapter->recv_ctx[ctxid]);
 	struct netxen_rx_buffer *buffer;
 	struct sk_buff *skb;
-	u32 length = le16_to_cpu(netxen_get_sts_totallength(desc));
+	u32 length = netxen_get_sts_totallength(desc);
 	u32 desc_ctx;
 	struct netxen_rcv_desc_ctx *rcv_desc;
 	int ret;
@@ -919,9 +1186,7 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 	 */
 	while (count < max) {
 		desc = &desc_head[consumer];
-		if (!
-		    (le16_to_cpu(netxen_get_sts_owner(desc)) &
-		     STATUS_OWNER_HOST)) {
+		if (!(netxen_get_sts_owner(desc) & STATUS_OWNER_HOST)) {
 			DPRINTK(ERR, "desc %p ownedby %x\n", desc,
 				netxen_get_sts_owner(desc));
 			break;
@@ -1023,7 +1288,7 @@ int netxen_process_cmd_ring(unsigned long data)
 			     && netif_carrier_ok(port->netdev))
 		    && ((jiffies - port->netdev->trans_start) >
 			port->netdev->watchdog_timeo)) {
-			SCHEDULE_WORK(&port->adapter->tx_timeout_task);
+			SCHEDULE_WORK(&port->tx_timeout_task);
 		}
 
 		last_consumer = get_next_index(last_consumer,
@@ -1138,13 +1403,13 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 		 */
 		dma = pci_map_single(pdev, skb->data, rcv_desc->dma_size,
 				     PCI_DMA_FROMDEVICE);
-		pdesc->addr_buffer = dma;
+		pdesc->addr_buffer = cpu_to_le64(dma);
 		buffer->skb = skb;
 		buffer->state = NETXEN_BUFFER_BUSY;
 		buffer->dma = dma;
 		/* make a rcv descriptor  */
-		pdesc->reference_handle = buffer->ref_handle;
-		pdesc->buffer_length = rcv_desc->dma_size;
+		pdesc->reference_handle = cpu_to_le16(buffer->ref_handle);
+		pdesc->buffer_length = cpu_to_le32(rcv_desc->dma_size);
 		DPRINTK(INFO, "done writing descripter\n");
 		producer =
 		    get_next_index(producer, rcv_desc->max_rx_desc_count);
@@ -1232,8 +1497,8 @@ void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, uint32_t ctx,
 					     PCI_DMA_FROMDEVICE);
 
 		/* make a rcv descriptor  */
-		pdesc->reference_handle = le16_to_cpu(buffer->ref_handle);
-		pdesc->buffer_length = le16_to_cpu(rcv_desc->dma_size);
+		pdesc->reference_handle = cpu_to_le16(buffer->ref_handle);
+		pdesc->buffer_length = cpu_to_le32(rcv_desc->dma_size);
 		pdesc->addr_buffer = cpu_to_le64(buffer->dma);
 		DPRINTK(INFO, "done writing descripter\n");
 		producer =
@@ -1273,52 +1538,6 @@ int netxen_nic_tx_has_work(struct netxen_adapter *adapter)
 	return 0;
 }
 
-int
-netxen_nic_fill_statistics(struct netxen_adapter *adapter,
-			   struct netxen_port *port,
-			   struct netxen_statistics *netxen_stats)
-{
-	void __iomem *addr;
-
-	if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
-		netxen_nic_pci_change_crbwindow(adapter, 0);
-		NETXEN_NIC_LOCKED_READ_REG(NETXEN_NIU_XGE_TX_BYTE_CNT,
-					   &(netxen_stats->tx_bytes));
-		NETXEN_NIC_LOCKED_READ_REG(NETXEN_NIU_XGE_TX_FRAME_CNT,
-					   &(netxen_stats->tx_packets));
-		NETXEN_NIC_LOCKED_READ_REG(NETXEN_NIU_XGE_RX_BYTE_CNT,
-					   &(netxen_stats->rx_bytes));
-		NETXEN_NIC_LOCKED_READ_REG(NETXEN_NIU_XGE_RX_FRAME_CNT,
-					   &(netxen_stats->rx_packets));
-		NETXEN_NIC_LOCKED_READ_REG(NETXEN_NIU_XGE_AGGR_ERROR_CNT,
-					   &(netxen_stats->rx_errors));
-		NETXEN_NIC_LOCKED_READ_REG(NETXEN_NIU_XGE_CRC_ERROR_CNT,
-					   &(netxen_stats->rx_crc_errors));
-		NETXEN_NIC_LOCKED_READ_REG(NETXEN_NIU_XGE_OVERSIZE_FRAME_ERR,
-					   &(netxen_stats->
-					     rx_long_length_error));
-		NETXEN_NIC_LOCKED_READ_REG(NETXEN_NIU_XGE_UNDERSIZE_FRAME_ERR,
-					   &(netxen_stats->
-					     rx_short_length_error));
-
-		netxen_nic_pci_change_crbwindow(adapter, 1);
-	} else {
-		spin_lock_bh(&adapter->tx_lock);
-		netxen_stats->tx_bytes = port->stats.txbytes;
-		netxen_stats->tx_packets = port->stats.xmitedframes +
-		    port->stats.xmitfinished;
-		netxen_stats->rx_bytes = port->stats.rxbytes;
-		netxen_stats->rx_packets = port->stats.no_rcv;
-		netxen_stats->rx_errors = port->stats.rcvdbadskb;
-		netxen_stats->tx_errors = port->stats.nocmddescriptor;
-		netxen_stats->rx_short_length_error = port->stats.uplcong;
-		netxen_stats->rx_long_length_error = port->stats.uphcong;
-		netxen_stats->rx_crc_errors = 0;
-		netxen_stats->rx_mac_errors = 0;
-		spin_unlock_bh(&adapter->tx_lock);
-	}
-	return 0;
-}
 
 void netxen_nic_clear_stats(struct netxen_adapter *adapter)
 {
@@ -1332,193 +1551,3 @@ void netxen_nic_clear_stats(struct netxen_adapter *adapter)
 	}
 }
 
-int
-netxen_nic_clear_statistics(struct netxen_adapter *adapter,
-			    struct netxen_port *port)
-{
-	int data = 0;
-
-	netxen_nic_pci_change_crbwindow(adapter, 0);
-
-	netxen_nic_locked_write_reg(adapter, NETXEN_NIU_XGE_TX_BYTE_CNT, &data);
-	netxen_nic_locked_write_reg(adapter, NETXEN_NIU_XGE_TX_FRAME_CNT,
-				    &data);
-	netxen_nic_locked_write_reg(adapter, NETXEN_NIU_XGE_RX_BYTE_CNT, &data);
-	netxen_nic_locked_write_reg(adapter, NETXEN_NIU_XGE_RX_FRAME_CNT,
-				    &data);
-	netxen_nic_locked_write_reg(adapter, NETXEN_NIU_XGE_AGGR_ERROR_CNT,
-				    &data);
-	netxen_nic_locked_write_reg(adapter, NETXEN_NIU_XGE_CRC_ERROR_CNT,
-				    &data);
-	netxen_nic_locked_write_reg(adapter, NETXEN_NIU_XGE_OVERSIZE_FRAME_ERR,
-				    &data);
-	netxen_nic_locked_write_reg(adapter, NETXEN_NIU_XGE_UNDERSIZE_FRAME_ERR,
-				    &data);
-
-	netxen_nic_pci_change_crbwindow(adapter, 1);
-	netxen_nic_clear_stats(adapter);
-	return 0;
-}
-
-int
-netxen_nic_do_ioctl(struct netxen_adapter *adapter, void *u_data,
-		    struct netxen_port *port)
-{
-	struct netxen_nic_ioctl_data data;
-	struct netxen_nic_ioctl_data *up_data;
-	int retval = 0;
-	struct netxen_statistics netxen_stats;
-
-	up_data = (void *)u_data;
-
-	DPRINTK(INFO, "doing ioctl for %p\n", adapter);
-	if (copy_from_user(&data, (void __user *)up_data, sizeof(data))) {
-		/* evil user tried to crash the kernel */
-		DPRINTK(ERR, "bad copy from userland: %d\n", (int)sizeof(data));
-		retval = -EFAULT;
-		goto error_out;
-	}
-
-	/* Shouldn't access beyond legal limits of  "char u[64];" member */
-	if (!data.ptr && (data.size > sizeof(data.u))) {
-		/* evil user tried to crash the kernel */
-		DPRINTK(ERR, "bad size: %d\n", data.size);
-		retval = -EFAULT;
-		goto error_out;
-	}
-
-	switch (data.cmd) {
-	case netxen_nic_cmd_pci_read:
-		if ((retval = netxen_nic_hw_read_ioctl(adapter, data.off,
-						       &(data.u), data.size)))
-			goto error_out;
-		if (copy_to_user
-		    ((void __user *)&(up_data->u), &(data.u), data.size)) {
-			DPRINTK(ERR, "bad copy to userland: %d\n",
-				(int)sizeof(data));
-			retval = -EFAULT;
-			goto error_out;
-		}
-		data.rv = 0;
-		break;
-
-	case netxen_nic_cmd_pci_write:
-		if ((retval = netxen_nic_hw_write_ioctl(adapter, data.off,
-							&(data.u), data.size)))
-			goto error_out;
-		data.rv = 0;
-		break;
-
-	case netxen_nic_cmd_pci_mem_read:
-		if (netxen_nic_pci_mem_read_ioctl(adapter, data.off, &(data.u),
-						  data.size)) {
-			DPRINTK(ERR, "Failed to read the data.\n");
-			retval = -EFAULT;
-			goto error_out;
-		}
-		if (copy_to_user
-		    ((void __user *)&(up_data->u), &(data.u), data.size)) {
-			DPRINTK(ERR, "bad copy to userland: %d\n",
-				(int)sizeof(data));
-			retval = -EFAULT;
-			goto error_out;
-		}
-		data.rv = 0;
-		break;
-
-	case netxen_nic_cmd_pci_mem_write:
-		if ((retval = netxen_nic_pci_mem_write_ioctl(adapter, data.off,
-							     &(data.u),
-							     data.size)))
-			goto error_out;
-		data.rv = 0;
-		break;
-
-	case netxen_nic_cmd_pci_config_read:
-		switch (data.size) {
-		case 1:
-			data.rv = pci_read_config_byte(adapter->ahw.pdev,
-						       data.off,
-						       (char *)&(data.u));
-			break;
-		case 2:
-			data.rv = pci_read_config_word(adapter->ahw.pdev,
-						       data.off,
-						       (short *)&(data.u));
-			break;
-		case 4:
-			data.rv = pci_read_config_dword(adapter->ahw.pdev,
-							data.off,
-							(u32 *) & (data.u));
-			break;
-		}
-		if (copy_to_user
-		    ((void __user *)&(up_data->u), &(data.u), data.size)) {
-			DPRINTK(ERR, "bad copy to userland: %d\n",
-				(int)sizeof(data));
-			retval = -EFAULT;
-			goto error_out;
-		}
-		break;
-
-	case netxen_nic_cmd_pci_config_write:
-		switch (data.size) {
-		case 1:
-			data.rv = pci_write_config_byte(adapter->ahw.pdev,
-							data.off,
-							*(char *)&(data.u));
-			break;
-		case 2:
-			data.rv = pci_write_config_word(adapter->ahw.pdev,
-							data.off,
-							*(short *)&(data.u));
-			break;
-		case 4:
-			data.rv = pci_write_config_dword(adapter->ahw.pdev,
-							 data.off,
-							 *(u32 *) & (data.u));
-			break;
-		}
-		break;
-
-	case netxen_nic_cmd_get_stats:
-		data.rv =
-		    netxen_nic_fill_statistics(adapter, port, &netxen_stats);
-		if (copy_to_user
-		    ((void __user *)(up_data->ptr), (void *)&netxen_stats,
-		     sizeof(struct netxen_statistics))) {
-			DPRINTK(ERR, "bad copy to userland: %d\n",
-				(int)sizeof(netxen_stats));
-			retval = -EFAULT;
-			goto error_out;
-		}
-		up_data->rv = data.rv;
-		break;
-
-	case netxen_nic_cmd_clear_stats:
-		data.rv = netxen_nic_clear_statistics(adapter, port);
-		up_data->rv = data.rv;
-		break;
-
-	case netxen_nic_cmd_get_version:
-		if (copy_to_user
-		    ((void __user *)&(up_data->u), NETXEN_NIC_LINUX_VERSIONID,
-		     sizeof(NETXEN_NIC_LINUX_VERSIONID))) {
-			DPRINTK(ERR, "bad copy to userland: %d\n",
-				(int)sizeof(data));
-			retval = -EFAULT;
-			goto error_out;
-		}
-		break;
-
-	default:
-		DPRINTK(INFO, "bad command %d for %p\n", data.cmd, adapter);
-		retval = -EOPNOTSUPP;
-		goto error_out;
-	}
-	put_user(data.rv, (&(up_data->rv)));
-	DPRINTK(INFO, "done ioctl for %p well.\n", adapter);
-
-      error_out:
-	return retval;
-}

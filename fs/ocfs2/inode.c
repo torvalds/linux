@@ -146,7 +146,6 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, int flags)
 	if (is_bad_inode(inode)) {
 		iput(inode);
 		inode = ERR_PTR(-ESTALE);
-		mlog_errno(PTR_ERR(inode));
 		goto bail;
 	}
 
@@ -155,8 +154,7 @@ bail:
 		mlog(0, "returning inode with number %llu\n",
 		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 		mlog_exit_ptr(inode);
-	} else
-		mlog_errno(PTR_ERR(inode));
+	}
 
 	return inode;
 }
@@ -247,7 +245,7 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	 * today.  change if needed. */
 	if (!OCFS2_IS_VALID_DINODE(fe) ||
 	    !(fe->i_flags & cpu_to_le32(OCFS2_VALID_FL))) {
-		mlog(ML_ERROR, "Invalid dinode: i_ino=%lu, i_blkno=%llu, "
+		mlog(0, "Invalid dinode: i_ino=%lu, i_blkno=%llu, "
 		     "signature = %.*s, flags = 0x%x\n",
 		     inode->i_ino,
 		     (unsigned long long)le64_to_cpu(fe->i_blkno), 7,
@@ -423,7 +421,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	 * cluster lock before trusting anything anyway.
 	 */
 	can_lock = !(args->fi_flags & OCFS2_FI_FLAG_SYSFILE)
-		&& !(args->fi_flags & OCFS2_FI_FLAG_NOLOCK);
+		&& !(args->fi_flags & OCFS2_FI_FLAG_NOLOCK)
+		&& !ocfs2_mount_local(osb);
 
 	/*
 	 * To maintain backwards compatibility with older versions of
@@ -477,11 +476,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	    S_ISBLK(le16_to_cpu(fe->i_mode)))
     		inode->i_rdev = huge_decode_dev(le64_to_cpu(fe->id1.dev1.i_rdev));
 
-	if (ocfs2_populate_inode(inode, fe, 0) < 0) {
-		mlog(ML_ERROR, "populate failed! i_blkno=%llu, i_ino=%lu\n",
-		     (unsigned long long)fe->i_blkno, inode->i_ino);
+	if (ocfs2_populate_inode(inode, fe, 0) < 0)
 		goto bail;
-	}
 
 	BUG_ON(args->fi_blkno != le64_to_cpu(fe->i_blkno));
 

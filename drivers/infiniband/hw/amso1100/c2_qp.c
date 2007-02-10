@@ -161,8 +161,10 @@ int c2_qp_modify(struct c2_dev *c2dev, struct c2_qp *qp,
 
 	if (attr_mask & IB_QP_STATE) {
 		/* Ensure the state is valid */
-		if (attr->qp_state < 0 || attr->qp_state > IB_QPS_ERR)
-			return -EINVAL;
+		if (attr->qp_state < 0 || attr->qp_state > IB_QPS_ERR) {
+			err = -EINVAL;
+			goto bail0;
+		}
 
 		wr.next_qp_state = cpu_to_be32(to_c2_state(attr->qp_state));
 
@@ -184,9 +186,10 @@ int c2_qp_modify(struct c2_dev *c2dev, struct c2_qp *qp,
 		if (attr->cur_qp_state != IB_QPS_RTR &&
 		    attr->cur_qp_state != IB_QPS_RTS &&
 		    attr->cur_qp_state != IB_QPS_SQD &&
-		    attr->cur_qp_state != IB_QPS_SQE)
-			return -EINVAL;
-		else
+		    attr->cur_qp_state != IB_QPS_SQE) {
+			err = -EINVAL;
+			goto bail0;
+		} else
 			wr.next_qp_state =
 			    cpu_to_be32(to_c2_state(attr->cur_qp_state));
 

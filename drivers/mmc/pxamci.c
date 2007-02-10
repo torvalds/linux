@@ -171,7 +171,7 @@ static void pxamci_start_cmd(struct pxamci_host *host, struct mmc_command *cmd, 
 
 #define RSP_TYPE(x)	((x) & ~(MMC_RSP_BUSY|MMC_RSP_OPCODE))
 	switch (RSP_TYPE(mmc_resp_type(cmd))) {
-	case RSP_TYPE(MMC_RSP_R1): /* r1, r1b, r6 */
+	case RSP_TYPE(MMC_RSP_R1): /* r1, r1b, r6, r7 */
 		cmdat |= CMDAT_RESP_SHORT;
 		break;
 	case RSP_TYPE(MMC_RSP_R3):
@@ -355,7 +355,7 @@ static int pxamci_get_ro(struct mmc_host *mmc)
 	struct pxamci_host *host = mmc_priv(mmc);
 
 	if (host->pdata && host->pdata->get_ro)
-		return host->pdata->get_ro(mmc->dev);
+		return host->pdata->get_ro(mmc_dev(mmc));
 	/* Host doesn't support read only detection so assume writeable */
 	return 0;
 }
@@ -383,7 +383,7 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->power_mode = ios->power_mode;
 
 		if (host->pdata && host->pdata->setpower)
-			host->pdata->setpower(mmc->dev, ios->vdd);
+			host->pdata->setpower(mmc_dev(mmc), ios->vdd);
 
 		if (ios->power_mode == MMC_POWER_ON)
 			host->cmdat |= CMDAT_INIT;
@@ -449,6 +449,16 @@ static int pxamci_probe(struct platform_device *pdev)
 	 * Our hardware DMA can handle a maximum of one page per SG entry.
 	 */
 	mmc->max_seg_size = PAGE_SIZE;
+
+	/*
+	 * Block length register is 10 bits.
+	 */
+	mmc->max_blk_size = 1023;
+
+	/*
+	 * Block count register is 16 bits.
+	 */
+	mmc->max_blk_count = 65535;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;

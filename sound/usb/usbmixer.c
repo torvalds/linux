@@ -1526,7 +1526,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, unsi
 		namelist[i] = kmalloc(MAX_ITEM_NAME_LEN, GFP_KERNEL);
 		if (! namelist[i]) {
 			snd_printk(KERN_ERR "cannot malloc\n");
-			while (--i > 0)
+			while (i--)
 				kfree(namelist[i]);
 			kfree(namelist);
 			kfree(cval);

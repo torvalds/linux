@@ -60,6 +60,11 @@ Randy Dunlap, Georg Acher, Deti Fliegl, Thomas Sailer, Roman Weissgaerber, \
 Alan Stern"
 #define DRIVER_DESC "USB Universal Host Controller Interface driver"
 
+/* for flakey hardware, ignore overcurrent indicators */
+static int ignore_oc;
+module_param(ignore_oc, bool, S_IRUGO);
+MODULE_PARM_DESC(ignore_oc, "ignore hardware overcurrent indications");
+
 /*
  * debug = 0, no debugging messages
  * debug = 1, dump failed URBs except for stalls
@@ -86,6 +91,34 @@ static struct kmem_cache *uhci_up_cachep;	/* urb_priv */
 static void suspend_rh(struct uhci_hcd *uhci, enum uhci_rh_state new_state);
 static void wakeup_rh(struct uhci_hcd *uhci);
 static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
+
+/*
+ * Calculate the link pointer DMA value for the first Skeleton QH in a frame.
+ */
+static __le32 uhci_frame_skel_link(struct uhci_hcd *uhci, int frame)
+{
+	int skelnum;
+
+	/*
+	 * The interrupt queues will be interleaved as evenly as possible.
+	 * There's not much to be done about period-1 interrupts; they have
+	 * to occur in every frame.  But we can schedule period-2 interrupts
+	 * in odd-numbered frames, period-4 interrupts in frames congruent
+	 * to 2 (mod 4), and so on.  This way each frame only has two
+	 * interrupt QHs, which will help spread out bandwidth utilization.
+	 *
+	 * ffs (Find First bit Set) does exactly what we need:
+	 * 1,3,5,...  => ffs = 0 => use skel_int2_qh = skelqh[8],
+	 * 2,6,10,... => ffs = 1 => use skel_int4_qh = skelqh[7], etc.
+	 * ffs >= 7 => not on any high-period queue, so use
+	 *	skel_int1_qh = skelqh[9].
+	 * Add in UHCI_NUMFRAMES to insure at least one bit is set.
+	 */
+	skelnum = 8 - (int) __ffs(frame | UHCI_NUMFRAMES);
+	if (skelnum <= 1)
+		skelnum = 9;
+	return UHCI_PTR_QH | cpu_to_le32(uhci->skelqh[skelnum]->dma_handle);
+}
 
 #include "uhci-debug.c"
 #include "uhci-q.c"
@@ -169,6 +202,11 @@ static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 {
 	int port;
 
+	/* If we have to ignore overcurrent events then almost by definition
+	 * we can't depend on resume-detect interrupts. */
+	if (ignore_oc)
+		return 1;
+
 	switch (to_pci_dev(uhci_dev(uhci))->vendor) {
 	    default:
 		break;
@@ -199,24 +237,16 @@ static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 
 static int remote_wakeup_is_broken(struct uhci_hcd *uhci)
 {
-	static struct dmi_system_id broken_wakeup_table[] = {
-		{
-			.ident = "Asus A7V8X",
-			.matches = {
-				DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK"),
-				DMI_MATCH(DMI_BOARD_NAME, "A7V8X"),
-				DMI_MATCH(DMI_BOARD_VERSION, "REV 1.xx"),
-			}
-		},
-		{ }
-	};
 	int port;
+	char *sys_info;
+	static char bad_Asus_board[] = "A7V8X";
 
 	/* One of Asus's motherboards has a bug which causes it to
 	 * wake up immediately from suspend-to-RAM if any of the ports
 	 * are connected.  In such cases we will not set EGSM.
 	 */
-	if (dmi_check_system(broken_wakeup_table)) {
+	sys_info = dmi_get_system_info(DMI_BOARD_NAME);
+	if (sys_info && !strcmp(sys_info, bad_Asus_board)) {
 		for (port = 0; port < uhci->rh_numports; ++port) {
 			if (inw(uhci->io_addr + USBPORTSC1 + port * 2) &
 					USBPORTSC_CCS)
@@ -255,7 +285,9 @@ __acquires(uhci->lock)
 	int_enable = USBINTR_RESUME;
 	if (remote_wakeup_is_broken(uhci))
 		egsm_enable = 0;
-	if (resume_detect_interrupts_are_broken(uhci) || !egsm_enable)
+	if (resume_detect_interrupts_are_broken(uhci) || !egsm_enable ||
+			!device_may_wakeup(
+				&uhci_to_hcd(uhci)->self.root_hub->dev))
 		uhci->working_RD = int_enable = 0;
 
 	outw(int_enable, uhci->io_addr + USBINTR);
@@ -627,32 +659,11 @@ static int uhci_start(struct usb_hcd *hcd)
 	/*
 	 * Fill the frame list: make all entries point to the proper
 	 * interrupt queue.
-	 *
-	 * The interrupt queues will be interleaved as evenly as possible.
-	 * There's not much to be done about period-1 interrupts; they have
-	 * to occur in every frame.  But we can schedule period-2 interrupts
-	 * in odd-numbered frames, period-4 interrupts in frames congruent
-	 * to 2 (mod 4), and so on.  This way each frame only has two
-	 * interrupt QHs, which will help spread out bandwidth utilization.
 	 */
 	for (i = 0; i < UHCI_NUMFRAMES; i++) {
-		int irq;
-
-		/*
-		 * ffs (Find First bit Set) does exactly what we need:
-		 * 1,3,5,...  => ffs = 0 => use skel_int2_qh = skelqh[8],
-		 * 2,6,10,... => ffs = 1 => use skel_int4_qh = skelqh[7], etc.
-		 * ffs >= 7 => not on any high-period queue, so use
-		 *	skel_int1_qh = skelqh[9].
-		 * Add UHCI_NUMFRAMES to insure at least one bit is set.
-		 */
-		irq = 8 - (int) __ffs(i + UHCI_NUMFRAMES);
-		if (irq <= 1)
-			irq = 9;
 
 		/* Only place we don't use the frame list routines */
-		uhci->frame[i] = UHCI_PTR_QH |
-				cpu_to_le32(uhci->skelqh[irq]->dma_handle);
+		uhci->frame[i] = uhci_frame_skel_link(uhci, i);
 	}
 
 	/*
@@ -921,7 +932,8 @@ static int __init uhci_hcd_init(void)
 {
 	int retval = -ENOMEM;
 
-	printk(KERN_INFO DRIVER_DESC " " DRIVER_VERSION "\n");
+	printk(KERN_INFO DRIVER_DESC " " DRIVER_VERSION "%s\n",
+			ignore_oc ? ", overcurrent ignored" : "");
 
 	if (usb_disabled())
 		return -ENODEV;

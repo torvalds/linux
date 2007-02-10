@@ -244,6 +244,7 @@ struct v4l2_pix_format
 #define V4L2_PIX_FMT_YYUV    v4l2_fourcc('Y','Y','U','V') /* 16  YUV 4:2:2     */
 #define V4L2_PIX_FMT_HI240   v4l2_fourcc('H','I','2','4') /*  8  8-bit color   */
 #define V4L2_PIX_FMT_HM12    v4l2_fourcc('H','M','1','2') /*  8  YUV 4:2:0 16x16 macroblocks */
+#define V4L2_PIX_FMT_RGB444  v4l2_fourcc('R','4','4','4') /* 16  xxxxrrrr ggggbbbb */
 
 /* see http://www.siliconimaging.com/RGB%20Bayer.htm */
 #define V4L2_PIX_FMT_SBGGR8  v4l2_fourcc('B','A','8','1') /*  8  BGBG.. GRGR.. */
@@ -660,6 +661,15 @@ typedef __u64 v4l2_std_id;
 /* ATSC/HDTV */
 #define V4L2_STD_ATSC_8_VSB     ((v4l2_std_id)0x01000000)
 #define V4L2_STD_ATSC_16_VSB    ((v4l2_std_id)0x02000000)
+
+/* FIXME:
+   Although std_id is 64 bits, there is an issue on PPC32 architecture that
+   makes switch(__u64) to break. So, there's a hack on v4l2-common.c rounding
+   this value to 32 bits.
+   As, currently, the max value is for V4L2_STD_ATSC_16_VSB (30 bits wide),
+   it should work fine. However, if needed to add more than two standards,
+   v4l2-common.c should be fixed.
+ */
 
 /* some merged standards */
 #define V4L2_STD_MN	(V4L2_STD_PAL_M|V4L2_STD_PAL_N|V4L2_STD_PAL_Nc|V4L2_STD_NTSC)

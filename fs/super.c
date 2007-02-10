@@ -570,7 +570,7 @@ static void mark_files_ro(struct super_block *sb)
 
 	file_list_lock();
 	list_for_each_entry(f, &sb->s_files, f_u.fu_list) {
-		if (S_ISREG(f->f_dentry->d_inode->i_mode) && file_count(f))
+		if (S_ISREG(f->f_path.dentry->d_inode->i_mode) && file_count(f))
 			f->f_mode &= ~FMODE_WRITE;
 	}
 	file_list_unlock();
@@ -753,9 +753,9 @@ int get_sb_bdev(struct file_system_type *fs_type,
 	 * will protect the lockfs code from trying to start a snapshot
 	 * while we are mounting
 	 */
-	mutex_lock(&bdev->bd_mount_mutex);
+	down(&bdev->bd_mount_sem);
 	s = sget(fs_type, test_bdev_super, set_bdev_super, bdev);
-	mutex_unlock(&bdev->bd_mount_mutex);
+	up(&bdev->bd_mount_sem);
 	if (IS_ERR(s))
 		goto error_s;
 

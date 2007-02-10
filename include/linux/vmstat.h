@@ -10,8 +10,9 @@
 /*
  * Light weight per cpu counter implementation.
  *
- * Counters should only be incremented and no critical kernel component
- * should rely on the counter values.
+ * Counters should only be incremented.  You need to set EMBEDDED
+ * to disable VM_EVENT_COUNTERS.  Things like procps (vmstat,
+ * top, etc) use /proc/vmstat and depend on these counters.
  *
  * Counters are handled completely inline. On many platforms the code
  * generated will simply be the increment of a global address.
@@ -73,7 +74,13 @@ static inline void count_vm_events(enum vm_event_item item, long delta)
 }
 
 extern void all_vm_events(unsigned long *);
+#ifdef CONFIG_HOTPLUG
 extern void vm_events_fold_cpu(int cpu);
+#else
+static inline void vm_events_fold_cpu(int cpu)
+{
+}
+#endif
 
 #else
 

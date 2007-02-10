@@ -1539,7 +1539,7 @@ static void rc_hangup(struct tty_struct * tty)
 	wake_up_interruptible(&port->open_wait);
 }
 
-static void rc_set_termios(struct tty_struct * tty, struct termios * old_termios)
+static void rc_set_termios(struct tty_struct * tty, struct ktermios * old_termios)
 {
 	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
 	unsigned long flags;
@@ -1614,6 +1614,8 @@ static inline int rc_init_drivers(void)
 	riscom_driver->init_termios = tty_std_termios;
 	riscom_driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	riscom_driver->init_termios.c_ispeed = 9600;
+	riscom_driver->init_termios.c_ospeed = 9600;
 	riscom_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(riscom_driver, &riscom_ops);
 	if ((error = tty_register_driver(riscom_driver)))  {

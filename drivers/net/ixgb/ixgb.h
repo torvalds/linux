@@ -61,9 +61,7 @@
 #include <net/pkt_sched.h>
 #include <linux/list.h>
 #include <linux/reboot.h>
-#ifdef NETIF_F_TSO
 #include <net/checksum.h>
-#endif
 
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
@@ -171,6 +169,7 @@ struct ixgb_adapter {
 
 	/* TX */
 	struct ixgb_desc_ring tx_ring ____cacheline_aligned_in_smp;
+	unsigned int restart_queue;
 	unsigned long timeo_start;
 	uint32_t tx_cmd_type;
 	uint64_t hw_csum_tx_good;

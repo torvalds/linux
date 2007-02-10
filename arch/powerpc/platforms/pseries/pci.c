@@ -77,7 +77,7 @@ void __init pSeries_final_fixup(void)
 
 /*
  * Assume the winbond 82c105 is the IDE controller on a
- * p610.  We should probably be more careful in case
+ * p610/p615/p630. We should probably be more careful in case
  * someone tries to plug in a similar adapter.
  */
 static void fixup_winbond_82c105(struct pci_dev* dev)

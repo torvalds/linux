@@ -13,7 +13,6 @@
  */
 
 #include <linux/module.h>
-#include <asm/div64.h>
 #include "../../dccp.h"
 #include "tfrc.h"
 
@@ -616,15 +615,12 @@ static inline u32 tfrc_binsearch(u32 fval, u8 small)
  *  @R: RTT                  scaled by 1000000   (i.e., microseconds)
  *  @p: loss ratio estimate  scaled by 1000000
  *  Returns X_calc           in bytes per second (not scaled).
- *
- * Note: DO NOT alter this code unless you run test cases against it,
- *       as the code has been optimized to stop underflow/overflow.
  */
 u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 {
-	int index;
+	u16 index;
 	u32 f;
-	u64 tmp1, tmp2;
+	u64 result;
 
 	/* check against invalid parameters and divide-by-zero   */
 	BUG_ON(p >  1000000);		/* p must not exceed 100%   */
@@ -650,15 +646,17 @@ u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 		f = tfrc_calc_x_lookup[index][0];
 	}
 
-	/* The following computes X = s/(R*f(p)) in bytes per second. Since f(p)
-	 * and R are both scaled by 1000000, we need to multiply by 1000000^2.
-	 * ==> DO NOT alter this unless you test against overflow on 32 bit   */
-	tmp1 = ((u64)s * 100000000);
-	tmp2 = ((u64)R * (u64)f);
-	do_div(tmp2, 10000);
-	do_div(tmp1, tmp2); 
-
-	return (u32)tmp1; 
+	/*
+	 * Compute X = s/(R*f(p)) in bytes per second.
+	 * Since f(p) and R are both scaled by 1000000, we need to multiply by
+	 * 1000000^2. To avoid overflow, the result is computed in two stages.
+	 * This works under almost all reasonable operational conditions, for a
+	 * wide range of parameters. Yet, should some strange combination of
+	 * parameters result in overflow, the use of scaled_div32 will catch
+	 * this and return UINT_MAX - which is a logically adequate consequence.
+	 */
+	result = scaled_div(s, R);
+	return scaled_div32(result, f);
 }
 
 EXPORT_SYMBOL_GPL(tfrc_calc_x);

@@ -59,7 +59,7 @@ static int  keyspan_ioctl		(struct usb_serial_port *port,
 					 unsigned int cmd,
 					 unsigned long arg);
 static void keyspan_set_termios		(struct usb_serial_port *port,
-					 struct termios *old);
+					 struct ktermios *old);
 static void keyspan_break_ctl		(struct usb_serial_port *port,
 					 int break_state);
 static int  keyspan_tiocmget		(struct usb_serial_port *port,
@@ -229,7 +229,6 @@ struct ezusb_hex_record {
 #define	keyspan_usa28_product_id		0x010f
 #define	keyspan_usa28x_product_id		0x0110
 #define	keyspan_usa28xa_product_id		0x0115
-#define	keyspan_usa28xb_product_id		0x0110
 #define	keyspan_usa49w_product_id		0x010a
 #define	keyspan_usa49wlc_product_id		0x012a
 
@@ -511,7 +510,6 @@ static struct usb_device_id keyspan_ids_combined[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28x_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xa_product_id) },
-	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xb_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49w_product_id)},
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49wlc_product_id)},
 	{ } /* Terminating entry */
@@ -559,7 +557,6 @@ static struct usb_device_id keyspan_2port_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28x_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xa_product_id) },
-	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xb_product_id) },
 	{ } /* Terminating entry */
 };
 
@@ -576,6 +573,7 @@ static struct usb_serial_driver keyspan_pre_device = {
 		.name		= "keyspan_no_firm",
 	},
 	.description		= "Keyspan - (without firmware)",
+	.usb_driver		= &keyspan_driver,
 	.id_table		= keyspan_pre_ids,
 	.num_interrupt_in	= NUM_DONT_CARE,
 	.num_bulk_in		= NUM_DONT_CARE,
@@ -590,6 +588,7 @@ static struct usb_serial_driver keyspan_1port_device = {
 		.name		= "keyspan_1",
 	},
 	.description		= "Keyspan 1 port adapter",
+	.usb_driver		= &keyspan_driver,
 	.id_table		= keyspan_1port_ids,
 	.num_interrupt_in	= NUM_DONT_CARE,
 	.num_bulk_in		= NUM_DONT_CARE,
@@ -617,6 +616,7 @@ static struct usb_serial_driver keyspan_2port_device = {
 		.name		= "keyspan_2",
 	},
 	.description		= "Keyspan 2 port adapter",
+	.usb_driver		= &keyspan_driver,
 	.id_table		= keyspan_2port_ids,
 	.num_interrupt_in	= NUM_DONT_CARE,
 	.num_bulk_in		= NUM_DONT_CARE,
@@ -644,6 +644,7 @@ static struct usb_serial_driver keyspan_4port_device = {
 		.name		= "keyspan_4",
 	},
 	.description		= "Keyspan 4 port adapter",
+	.usb_driver		= &keyspan_driver,
 	.id_table		= keyspan_4port_ids,
 	.num_interrupt_in	= NUM_DONT_CARE,
 	.num_bulk_in		= 5,

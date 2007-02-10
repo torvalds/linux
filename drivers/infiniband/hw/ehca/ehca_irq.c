@@ -138,7 +138,7 @@ int ehca_error_data(struct ehca_shca *shca, void *data,
 	u64 *rblock;
 	unsigned long block_count;
 
-	rblock = ehca_alloc_fw_ctrlblock();
+	rblock = ehca_alloc_fw_ctrlblock(GFP_ATOMIC);
 	if (!rblock) {
 		ehca_err(&shca->ib_device, "Cannot allocate rblock memory.");
 		ret = -ENOMEM;
@@ -440,7 +440,8 @@ void ehca_tasklet_eq(unsigned long data)
 					cq = idr_find(&ehca_cq_idr, token);
 
 					if (cq == NULL) {
-						spin_unlock(&ehca_cq_idr_lock);
+						spin_unlock_irqrestore(&ehca_cq_idr_lock,
+								       flags);
 						break;
 					}
 

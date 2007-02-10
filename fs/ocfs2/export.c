@@ -60,14 +60,11 @@ static struct dentry *ocfs2_get_dentry(struct super_block *sb, void *vobjp)
 
 	inode = ocfs2_iget(OCFS2_SB(sb), handle->ih_blkno, 0);
 
-	if (IS_ERR(inode)) {
-		mlog_errno(PTR_ERR(inode));
+	if (IS_ERR(inode))
 		return (void *)inode;
-	}
 
 	if (handle->ih_generation != inode->i_generation) {
 		iput(inode);
-		mlog_errno(-ESTALE);
 		return ERR_PTR(-ESTALE);
 	}
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -140,8 +140,6 @@ u8 acpi_ut_valid_object_type(acpi_object_type type);
 acpi_status acpi_ut_hardware_initialize(void);
 
 void acpi_ut_subsystem_shutdown(void);
-
-acpi_status acpi_ut_validate_fadt(void);
 
 /*
  * utclib - Local implementations of C library functions
@@ -453,6 +451,8 @@ acpi_ut_short_divide(acpi_integer in_dividend,
 /*
  * utmisc
  */
+const char *acpi_ut_validate_exception(acpi_status status);
+
 u8 acpi_ut_is_aml_table(struct acpi_table_header *table);
 
 acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id);
@@ -470,7 +470,7 @@ void acpi_ut_print_string(char *string, u8 max_length);
 
 u8 acpi_ut_valid_acpi_name(u32 name);
 
-acpi_name acpi_ut_repair_name(acpi_name name);
+acpi_name acpi_ut_repair_name(char *name);
 
 u8 acpi_ut_valid_acpi_char(char character, acpi_native_uint position);
 

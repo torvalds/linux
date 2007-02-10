@@ -41,8 +41,10 @@
 static unsigned int def_sampling_rate;
 #define MIN_SAMPLING_RATE_RATIO			(2)
 /* for correct statistics, we need at least 10 ticks between each measure */
-#define MIN_STAT_SAMPLING_RATE			(MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10))
-#define MIN_SAMPLING_RATE			(def_sampling_rate / MIN_SAMPLING_RATE_RATIO)
+#define MIN_STAT_SAMPLING_RATE 			\
+			(MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10))
+#define MIN_SAMPLING_RATE			\
+			(def_sampling_rate / MIN_SAMPLING_RATE_RATIO)
 #define MAX_SAMPLING_RATE			(500 * def_sampling_rate)
 #define DEF_SAMPLING_RATE_LATENCY_MULTIPLIER	(1000)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000)
@@ -206,7 +208,8 @@ static ssize_t store_sampling_rate(struct cpufreq_policy *unused,
 	ret = sscanf(buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
-	if (ret != 1 || input > MAX_SAMPLING_RATE || input < MIN_SAMPLING_RATE) {
+	if (ret != 1 || input > MAX_SAMPLING_RATE
+		     || input < MIN_SAMPLING_RATE) {
 		mutex_unlock(&dbs_mutex);
 		return -EINVAL;
 	}
@@ -397,8 +400,15 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	 * policy. To be safe, we focus 10 points under the threshold.
 	 */
 	if (load < (dbs_tuners_ins.up_threshold - 10)) {
-		unsigned int freq_next = (policy->cur * load) /
+		unsigned int freq_next, freq_cur;
+
+		freq_cur = cpufreq_driver_getavg(policy);
+		if (!freq_cur)
+			freq_cur = policy->cur;
+
+		freq_next = (freq_cur * load) /
 			(dbs_tuners_ins.up_threshold - 10);
+
 		if (!dbs_tuners_ins.powersave_bias) {
 			__cpufreq_driver_target(policy, freq_next,
 					CPUFREQ_RELATION_L);
@@ -472,6 +482,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	unsigned int cpu = policy->cpu;
 	struct cpu_dbs_info_s *this_dbs_info;
 	unsigned int j;
+	int rc;
 
 	this_dbs_info = &per_cpu(cpu_dbs_info, cpu);
 
@@ -494,12 +505,23 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		if (dbs_enable == 1) {
 			kondemand_wq = create_workqueue("kondemand");
 			if (!kondemand_wq) {
-				printk(KERN_ERR "Creation of kondemand failed\n");
+				printk(KERN_ERR
+					 "Creation of kondemand failed\n");
 				dbs_enable--;
 				mutex_unlock(&dbs_mutex);
 				return -ENOSPC;
 			}
 		}
+
+		rc = sysfs_create_group(&policy->kobj, &dbs_attr_group);
+		if (rc) {
+			if (dbs_enable == 1)
+				destroy_workqueue(kondemand_wq);
+			dbs_enable--;
+			mutex_unlock(&dbs_mutex);
+			return rc;
+		}
+
 		for_each_cpu_mask(j, policy->cpus) {
 			struct cpu_dbs_info_s *j_dbs_info;
 			j_dbs_info = &per_cpu(cpu_dbs_info, j);
@@ -509,7 +531,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			j_dbs_info->prev_cpu_wall = get_jiffies_64();
 		}
 		this_dbs_info->enable = 1;
-		sysfs_create_group(&policy->kobj, &dbs_attr_group);
 		/*
 		 * Start the timerschedule work, when this governor
 		 * is used for first time

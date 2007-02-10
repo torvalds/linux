@@ -24,8 +24,6 @@
 #include "pci.h"
 #include "msi.h"
 
-static DEFINE_SPINLOCK(msi_lock);
-static struct msi_desc* msi_desc[NR_IRQS] = { [0 ... NR_IRQS-1] = NULL };
 static struct kmem_cache* msi_cachep;
 
 static int pci_msi_enable = 1;
@@ -44,13 +42,13 @@ static void msi_set_mask_bit(unsigned int irq, int flag)
 {
 	struct msi_desc *entry;
 
-	entry = msi_desc[irq];
+	entry = get_irq_msi(irq);
 	BUG_ON(!entry || !entry->dev);
 	switch (entry->msi_attrib.type) {
 	case PCI_CAP_ID_MSI:
 		if (entry->msi_attrib.maskbit) {
-			int		pos;
-			u32		mask_bits;
+			int pos;
+			u32 mask_bits;
 
 			pos = (long)entry->mask_base;
 			pci_read_config_dword(entry->dev, pos, &mask_bits);
@@ -74,7 +72,7 @@ static void msi_set_mask_bit(unsigned int irq, int flag)
 
 void read_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
-	struct msi_desc *entry = get_irq_data(irq);
+	struct msi_desc *entry = get_irq_msi(irq);
 	switch(entry->msi_attrib.type) {
 	case PCI_CAP_ID_MSI:
 	{
@@ -113,7 +111,7 @@ void read_msi_msg(unsigned int irq, struct msi_msg *msg)
 
 void write_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
-	struct msi_desc *entry = get_irq_data(irq);
+	struct msi_desc *entry = get_irq_msi(irq);
 	switch (entry->msi_attrib.type) {
 	case PCI_CAP_ID_MSI:
 	{
@@ -162,19 +160,13 @@ void unmask_msi_irq(unsigned int irq)
 }
 
 static int msi_free_irq(struct pci_dev* dev, int irq);
+
 static int msi_init(void)
 {
 	static int status = -ENOMEM;
 
 	if (!status)
 		return status;
-
-	if (pci_msi_quirk) {
-		pci_msi_enable = 0;
-		printk(KERN_WARNING "PCI: MSI quirk detected. MSI disabled.\n");
-		status = -EINVAL;
-		return status;
-	}
 
 	status = msi_cache_init();
 	if (status < 0) {
@@ -198,46 +190,6 @@ static struct msi_desc* alloc_msi_entry(void)
 	entry->dev = NULL;
 
 	return entry;
-}
-
-static void attach_msi_entry(struct msi_desc *entry, int irq)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&msi_lock, flags);
-	msi_desc[irq] = entry;
-	spin_unlock_irqrestore(&msi_lock, flags);
-}
-
-static int create_msi_irq(void)
-{
-	struct msi_desc *entry;
-	int irq;
-
-	entry = alloc_msi_entry();
-	if (!entry)
-		return -ENOMEM;
-
-	irq = create_irq();
-	if (irq < 0) {
-		kmem_cache_free(msi_cachep, entry);
-		return -EBUSY;
-	}
-
-	set_irq_data(irq, entry);
-
-	return irq;
-}
-
-static void destroy_msi_irq(unsigned int irq)
-{
-	struct msi_desc *entry;
-
-	entry = get_irq_data(irq);
-	set_irq_chip(irq, NULL);
-	set_irq_data(irq, NULL);
-	destroy_irq(irq);
-	kmem_cache_free(msi_cachep, entry);
 }
 
 static void enable_msi_mode(struct pci_dev *dev, int pos, int type)
@@ -278,36 +230,8 @@ void disable_msi_mode(struct pci_dev *dev, int pos, int type)
 	pci_intx(dev, 1);  /* enable intx */
 }
 
-static int msi_lookup_irq(struct pci_dev *dev, int type)
-{
-	int irq;
-	unsigned long flags;
-
-	spin_lock_irqsave(&msi_lock, flags);
-	for (irq = 0; irq < NR_IRQS; irq++) {
-		if (!msi_desc[irq] || msi_desc[irq]->dev != dev ||
-			msi_desc[irq]->msi_attrib.type != type ||
-			msi_desc[irq]->msi_attrib.default_irq != dev->irq)
-			continue;
-		spin_unlock_irqrestore(&msi_lock, flags);
-		/* This pre-assigned MSI irq for this device
-		   already exits. Override dev->irq with this irq */
-		dev->irq = irq;
-		return 0;
-	}
-	spin_unlock_irqrestore(&msi_lock, flags);
-
-	return -EACCES;
-}
-
-void pci_scan_msi_device(struct pci_dev *dev)
-{
-	if (!dev)
-		return;
-}
-
 #ifdef CONFIG_PM
-int pci_save_msi_state(struct pci_dev *dev)
+static int __pci_save_msi_state(struct pci_dev *dev)
 {
 	int pos, i = 0;
 	u16 control;
@@ -345,7 +269,7 @@ int pci_save_msi_state(struct pci_dev *dev)
 	return 0;
 }
 
-void pci_restore_msi_state(struct pci_dev *dev)
+static void __pci_restore_msi_state(struct pci_dev *dev)
 {
 	int i = 0, pos;
 	u16 control;
@@ -373,13 +297,15 @@ void pci_restore_msi_state(struct pci_dev *dev)
 	kfree(save_state);
 }
 
-int pci_save_msix_state(struct pci_dev *dev)
+static int __pci_save_msix_state(struct pci_dev *dev)
 {
 	int pos;
-	int temp;
 	int irq, head, tail = 0;
 	u16 control;
 	struct pci_cap_saved_state *save_state;
+
+	if (!dev->msix_enabled)
+		return 0;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
 	if (pos <= 0 || dev->no_msi)
@@ -398,37 +324,45 @@ int pci_save_msix_state(struct pci_dev *dev)
 	*((u16 *)&save_state->data[0]) = control;
 
 	/* save the table */
-	temp = dev->irq;
-	if (msi_lookup_irq(dev, PCI_CAP_ID_MSIX)) {
-		kfree(save_state);
-		return -EINVAL;
-	}
-
-	irq = head = dev->irq;
+	irq = head = dev->first_msi_irq;
 	while (head != tail) {
 		struct msi_desc *entry;
 
-		entry = msi_desc[irq];
+		entry = get_irq_msi(irq);
 		read_msi_msg(irq, &entry->msg_save);
 
-		tail = msi_desc[irq]->link.tail;
+		tail = entry->link.tail;
 		irq = tail;
 	}
-	dev->irq = temp;
 
 	save_state->cap_nr = PCI_CAP_ID_MSIX;
 	pci_add_saved_cap(dev, save_state);
 	return 0;
 }
 
-void pci_restore_msix_state(struct pci_dev *dev)
+int pci_save_msi_state(struct pci_dev *dev)
+{
+	int rc;
+
+	rc = __pci_save_msi_state(dev);
+	if (rc)
+		return rc;
+
+	rc = __pci_save_msix_state(dev);
+
+	return rc;
+}
+
+static void __pci_restore_msix_state(struct pci_dev *dev)
 {
 	u16 save;
 	int pos;
 	int irq, head, tail = 0;
 	struct msi_desc *entry;
-	int temp;
 	struct pci_cap_saved_state *save_state;
+
+	if (!dev->msix_enabled)
+		return;
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_MSIX);
 	if (!save_state)
@@ -442,23 +376,25 @@ void pci_restore_msix_state(struct pci_dev *dev)
 		return;
 
 	/* route the table */
-	temp = dev->irq;
-	if (msi_lookup_irq(dev, PCI_CAP_ID_MSIX))
-		return;
-	irq = head = dev->irq;
+	irq = head = dev->first_msi_irq;
 	while (head != tail) {
-		entry = msi_desc[irq];
+		entry = get_irq_msi(irq);
 		write_msi_msg(irq, &entry->msg_save);
 
-		tail = msi_desc[irq]->link.tail;
+		tail = entry->link.tail;
 		irq = tail;
 	}
-	dev->irq = temp;
 
 	pci_write_config_word(dev, msi_control_reg(pos), save);
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSIX);
 }
-#endif
+
+void pci_restore_msi_state(struct pci_dev *dev)
+{
+	__pci_restore_msi_state(dev);
+	__pci_restore_msix_state(dev);
+}
+#endif	/* CONFIG_PM */
 
 /**
  * msi_capability_init - configure device's MSI capability structure
@@ -471,7 +407,6 @@ void pci_restore_msix_state(struct pci_dev *dev)
  **/
 static int msi_capability_init(struct pci_dev *dev)
 {
-	int status;
 	struct msi_desc *entry;
 	int pos, irq;
 	u16 control;
@@ -479,13 +414,10 @@ static int msi_capability_init(struct pci_dev *dev)
    	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	pci_read_config_word(dev, msi_control_reg(pos), &control);
 	/* MSI Entry Initialization */
-	irq = create_msi_irq();
-	if (irq < 0)
-		return irq;
+	entry = alloc_msi_entry();
+	if (!entry)
+		return -ENOMEM;
 
-	entry = get_irq_data(irq);
-	entry->link.head = irq;
-	entry->link.tail = irq;
 	entry->msi_attrib.type = PCI_CAP_ID_MSI;
 	entry->msi_attrib.is_64 = is_64bit_address(control);
 	entry->msi_attrib.entry_nr = 0;
@@ -511,13 +443,16 @@ static int msi_capability_init(struct pci_dev *dev)
 			maskbits);
 	}
 	/* Configure MSI capability structure */
-	status = arch_setup_msi_irq(irq, dev);
-	if (status < 0) {
-		destroy_msi_irq(irq);
-		return status;
+	irq = arch_setup_msi_irq(dev, entry);
+	if (irq < 0) {
+		kmem_cache_free(msi_cachep, entry);
+		return irq;
 	}
+	entry->link.head = irq;
+	entry->link.tail = irq;
+	dev->first_msi_irq = irq;
+	set_irq_msi(irq, entry);
 
-	attach_msi_entry(entry, irq);
 	/* Set MSI enabled bits	 */
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSI);
 
@@ -539,7 +474,6 @@ static int msix_capability_init(struct pci_dev *dev,
 				struct msix_entry *entries, int nvec)
 {
 	struct msi_desc *head = NULL, *tail = NULL, *entry = NULL;
-	int status;
 	int irq, pos, i, j, nr_entries, temp = 0;
 	unsigned long phys_addr;
 	u32 table_offset;
@@ -562,13 +496,11 @@ static int msix_capability_init(struct pci_dev *dev,
 
 	/* MSI-X Table Initialization */
 	for (i = 0; i < nvec; i++) {
-		irq = create_msi_irq();
-		if (irq < 0)
+		entry = alloc_msi_entry();
+		if (!entry)
 			break;
 
-		entry = get_irq_data(irq);
  		j = entries[i].entry;
- 		entries[i].vector = irq;
 		entry->msi_attrib.type = PCI_CAP_ID_MSIX;
 		entry->msi_attrib.is_64 = 1;
 		entry->msi_attrib.entry_nr = j;
@@ -577,6 +509,14 @@ static int msix_capability_init(struct pci_dev *dev,
 		entry->msi_attrib.pos = pos;
 		entry->dev = dev;
 		entry->mask_base = base;
+
+		/* Configure MSI-X capability structure */
+		irq = arch_setup_msi_irq(dev, entry);
+		if (irq < 0) {
+			kmem_cache_free(msi_cachep, entry);
+			break;
+		}
+ 		entries[i].vector = irq;
 		if (!head) {
 			entry->link.head = irq;
 			entry->link.tail = irq;
@@ -589,14 +529,8 @@ static int msix_capability_init(struct pci_dev *dev,
 		}
 		temp = irq;
 		tail = entry;
-		/* Configure MSI-X capability structure */
-		status = arch_setup_msi_irq(irq, dev);
-		if (status < 0) {
-			destroy_msi_irq(irq);
-			break;
-		}
 
-		attach_msi_entry(entry, irq);
+		set_irq_msi(irq, entry);
 	}
 	if (i != nvec) {
 		int avail = i - 1;
@@ -613,6 +547,7 @@ static int msix_capability_init(struct pci_dev *dev,
 			avail = -EBUSY;
 		return avail;
 	}
+	dev->first_msi_irq = entries[0].vector;
 	/* Set MSI-X enabled bits */
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSIX);
 
@@ -660,12 +595,10 @@ int pci_msi_supported(struct pci_dev * dev)
  **/
 int pci_enable_msi(struct pci_dev* dev)
 {
-	int pos, temp, status;
+	int pos, status;
 
 	if (pci_msi_supported(dev) < 0)
 		return -EINVAL;
-
-	temp = dev->irq;
 
 	status = msi_init();
 	if (status < 0)
@@ -675,15 +608,14 @@ int pci_enable_msi(struct pci_dev* dev)
 	if (!pos)
 		return -EINVAL;
 
-	WARN_ON(!msi_lookup_irq(dev, PCI_CAP_ID_MSI));
+	WARN_ON(!!dev->msi_enabled);
 
 	/* Check whether driver already requested for MSI-X irqs */
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
-	if (pos > 0 && !msi_lookup_irq(dev, PCI_CAP_ID_MSIX)) {
+	if (pos > 0 && dev->msix_enabled) {
 			printk(KERN_INFO "PCI: %s: Can't enable MSI.  "
-			       "Device already has MSI-X irq assigned\n",
+			       "Device already has MSI-X enabled\n",
 			       pci_name(dev));
-			dev->irq = temp;
 			return -EINVAL;
 	}
 	status = msi_capability_init(dev);
@@ -695,11 +627,13 @@ void pci_disable_msi(struct pci_dev* dev)
 	struct msi_desc *entry;
 	int pos, default_irq;
 	u16 control;
-	unsigned long flags;
 
 	if (!pci_msi_enable)
 		return;
 	if (!dev)
+		return;
+
+	if (!dev->msi_enabled)
 		return;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
@@ -710,28 +644,26 @@ void pci_disable_msi(struct pci_dev* dev)
 	if (!(control & PCI_MSI_FLAGS_ENABLE))
 		return;
 
+
 	disable_msi_mode(dev, pos, PCI_CAP_ID_MSI);
 
-	spin_lock_irqsave(&msi_lock, flags);
-	entry = msi_desc[dev->irq];
+	entry = get_irq_msi(dev->first_msi_irq);
 	if (!entry || !entry->dev || entry->msi_attrib.type != PCI_CAP_ID_MSI) {
-		spin_unlock_irqrestore(&msi_lock, flags);
 		return;
 	}
-	if (irq_has_action(dev->irq)) {
-		spin_unlock_irqrestore(&msi_lock, flags);
+	if (irq_has_action(dev->first_msi_irq)) {
 		printk(KERN_WARNING "PCI: %s: pci_disable_msi() called without "
 		       "free_irq() on MSI irq %d\n",
-		       pci_name(dev), dev->irq);
-		BUG_ON(irq_has_action(dev->irq));
+		       pci_name(dev), dev->first_msi_irq);
+		BUG_ON(irq_has_action(dev->first_msi_irq));
 	} else {
 		default_irq = entry->msi_attrib.default_irq;
-		spin_unlock_irqrestore(&msi_lock, flags);
-		msi_free_irq(dev, dev->irq);
+		msi_free_irq(dev, dev->first_msi_irq);
 
 		/* Restore dev->irq to its default pin-assertion irq */
 		dev->irq = default_irq;
 	}
+	dev->first_msi_irq = 0;
 }
 
 static int msi_free_irq(struct pci_dev* dev, int irq)
@@ -739,27 +671,20 @@ static int msi_free_irq(struct pci_dev* dev, int irq)
 	struct msi_desc *entry;
 	int head, entry_nr, type;
 	void __iomem *base;
-	unsigned long flags;
 
-	arch_teardown_msi_irq(irq);
-
-	spin_lock_irqsave(&msi_lock, flags);
-	entry = msi_desc[irq];
+	entry = get_irq_msi(irq);
 	if (!entry || entry->dev != dev) {
-		spin_unlock_irqrestore(&msi_lock, flags);
 		return -EINVAL;
 	}
 	type = entry->msi_attrib.type;
 	entry_nr = entry->msi_attrib.entry_nr;
 	head = entry->link.head;
 	base = entry->mask_base;
-	msi_desc[entry->link.head]->link.tail = entry->link.tail;
-	msi_desc[entry->link.tail]->link.head = entry->link.head;
-	entry->dev = NULL;
-	msi_desc[irq] = NULL;
-	spin_unlock_irqrestore(&msi_lock, flags);
+	get_irq_msi(entry->link.head)->link.tail = entry->link.tail;
+	get_irq_msi(entry->link.tail)->link.head = entry->link.head;
 
-	destroy_msi_irq(irq);
+	arch_teardown_msi_irq(irq);
+	kmem_cache_free(msi_cachep, entry);
 
 	if (type == PCI_CAP_ID_MSIX) {
 		writel(1, base + entry_nr * PCI_MSIX_ENTRY_SIZE +
@@ -790,7 +715,7 @@ static int msi_free_irq(struct pci_dev* dev, int irq)
 int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 {
 	int status, pos, nr_entries;
-	int i, j, temp;
+	int i, j;
 	u16 control;
 
 	if (!entries || pci_msi_supported(dev) < 0)
@@ -818,16 +743,14 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 				return -EINVAL;	/* duplicate entry */
 		}
 	}
-	temp = dev->irq;
-	WARN_ON(!msi_lookup_irq(dev, PCI_CAP_ID_MSIX));
+	WARN_ON(!!dev->msix_enabled);
 
 	/* Check whether driver already requested for MSI irq */
    	if (pci_find_capability(dev, PCI_CAP_ID_MSI) > 0 &&
-		!msi_lookup_irq(dev, PCI_CAP_ID_MSI)) {
+		dev->msi_enabled) {
 		printk(KERN_INFO "PCI: %s: Can't enable MSI-X.  "
 		       "Device already has an MSI irq assigned\n",
 		       pci_name(dev));
-		dev->irq = temp;
 		return -EINVAL;
 	}
 	status = msix_capability_init(dev, entries, nvec);
@@ -836,12 +759,16 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 
 void pci_disable_msix(struct pci_dev* dev)
 {
-	int pos, temp;
+	int irq, head, tail = 0, warning = 0;
+	int pos;
 	u16 control;
 
 	if (!pci_msi_enable)
 		return;
 	if (!dev)
+		return;
+
+	if (!dev->msix_enabled)
 		return;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
@@ -854,31 +781,23 @@ void pci_disable_msix(struct pci_dev* dev)
 
 	disable_msi_mode(dev, pos, PCI_CAP_ID_MSIX);
 
-	temp = dev->irq;
-	if (!msi_lookup_irq(dev, PCI_CAP_ID_MSIX)) {
-		int irq, head, tail = 0, warning = 0;
-		unsigned long flags;
-
-		irq = head = dev->irq;
-		dev->irq = temp;			/* Restore pin IRQ */
-		while (head != tail) {
-			spin_lock_irqsave(&msi_lock, flags);
-			tail = msi_desc[irq]->link.tail;
-			spin_unlock_irqrestore(&msi_lock, flags);
-			if (irq_has_action(irq))
-				warning = 1;
-			else if (irq != head)	/* Release MSI-X irq */
-				msi_free_irq(dev, irq);
-			irq = tail;
-		}
-		msi_free_irq(dev, irq);
-		if (warning) {
-			printk(KERN_WARNING "PCI: %s: pci_disable_msix() called without "
-			       "free_irq() on all MSI-X irqs\n",
-			       pci_name(dev));
-			BUG_ON(warning > 0);
-		}
+	irq = head = dev->first_msi_irq;
+	while (head != tail) {
+		tail = get_irq_msi(irq)->link.tail;
+		if (irq_has_action(irq))
+			warning = 1;
+		else if (irq != head)	/* Release MSI-X irq */
+			msi_free_irq(dev, irq);
+		irq = tail;
 	}
+	msi_free_irq(dev, irq);
+	if (warning) {
+		printk(KERN_WARNING "PCI: %s: pci_disable_msix() called without "
+			"free_irq() on all MSI-X irqs\n",
+			pci_name(dev));
+		BUG_ON(warning > 0);
+	}
+	dev->first_msi_irq = 0;
 }
 
 /**
@@ -892,35 +811,26 @@ void pci_disable_msix(struct pci_dev* dev)
  **/
 void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 {
-	int pos, temp;
-	unsigned long flags;
-
 	if (!pci_msi_enable || !dev)
  		return;
 
-	temp = dev->irq;		/* Save IOAPIC IRQ */
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
-	if (pos > 0 && !msi_lookup_irq(dev, PCI_CAP_ID_MSI)) {
-		if (irq_has_action(dev->irq)) {
+	if (dev->msi_enabled) {
+		if (irq_has_action(dev->first_msi_irq)) {
 			printk(KERN_WARNING "PCI: %s: msi_remove_pci_irq_vectors() "
 			       "called without free_irq() on MSI irq %d\n",
-			       pci_name(dev), dev->irq);
-			BUG_ON(irq_has_action(dev->irq));
+			       pci_name(dev), dev->first_msi_irq);
+			BUG_ON(irq_has_action(dev->first_msi_irq));
 		} else /* Release MSI irq assigned to this device */
-			msi_free_irq(dev, dev->irq);
-		dev->irq = temp;		/* Restore IOAPIC IRQ */
+			msi_free_irq(dev, dev->first_msi_irq);
 	}
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
-	if (pos > 0 && !msi_lookup_irq(dev, PCI_CAP_ID_MSIX)) {
+	if (dev->msix_enabled) {
 		int irq, head, tail = 0, warning = 0;
 		void __iomem *base = NULL;
 
-		irq = head = dev->irq;
+		irq = head = dev->first_msi_irq;
 		while (head != tail) {
-			spin_lock_irqsave(&msi_lock, flags);
-			tail = msi_desc[irq]->link.tail;
-			base = msi_desc[irq]->mask_base;
-			spin_unlock_irqrestore(&msi_lock, flags);
+			tail = get_irq_msi(irq)->link.tail;
+			base = get_irq_msi(irq)->mask_base;
 			if (irq_has_action(irq))
 				warning = 1;
 			else if (irq != head) /* Release MSI-X irq */
@@ -935,7 +845,6 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 			       pci_name(dev));
 			BUG_ON(warning > 0);
 		}
-		dev->irq = temp;		/* Restore IOAPIC IRQ */
 	}
 }
 

@@ -440,7 +440,6 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(const struct sctp_endpoint *ep,
 {
 	struct sctp_chunk *chunk = arg;
 	sctp_init_chunk_t *initchunk;
-	__u32 init_tag;
 	struct sctp_chunk *err_chunk;
 	struct sctp_packet *packet;
 	sctp_error_t error;
@@ -461,24 +460,6 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(const struct sctp_endpoint *ep,
 
 	/* Grab the INIT header.  */
 	chunk->subh.init_hdr = (sctp_inithdr_t *) chunk->skb->data;
-
-	init_tag = ntohl(chunk->subh.init_hdr->init_tag);
-
-	/* Verification Tag: 3.3.3
-	 *   If the value of the Initiate Tag in a received INIT ACK
-	 *   chunk is found to be 0, the receiver MUST treat it as an
-	 *   error and close the association by transmitting an ABORT.
-	 */
-	if (!init_tag) {
-		struct sctp_chunk *reply = sctp_make_abort(asoc, chunk, 0);
-		if (!reply)
-			goto nomem;
-
-		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(reply));
-		return sctp_stop_t1_and_abort(commands, SCTP_ERROR_INV_PARAM,
-					      ECONNREFUSED, asoc,
-					      chunk->transport);
-	}
 
 	/* Verify the INIT chunk before processing it. */
 	err_chunk = NULL;
@@ -550,9 +531,6 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(const struct sctp_endpoint *ep,
 			SCTP_CHUNK(err_chunk));
 
 	return SCTP_DISPOSITION_CONSUME;
-
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
 }
 
 /*
@@ -688,12 +666,12 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 		goto nomem_ev;
 
 	/* Sockets API Draft Section 5.3.1.6 	
-	 * When a peer sends a Adaption Layer Indication parameter , SCTP
+	 * When a peer sends a Adaptation Layer Indication parameter , SCTP
 	 * delivers this notification to inform the application that of the
-	 * peers requested adaption layer.
+	 * peers requested adaptation layer.
 	 */
-	if (new_asoc->peer.adaption_ind) {
-		ai_ev = sctp_ulpevent_make_adaption_indication(new_asoc,
+	if (new_asoc->peer.adaptation_ind) {
+		ai_ev = sctp_ulpevent_make_adaptation_indication(new_asoc,
 							    GFP_ATOMIC);
 		if (!ai_ev)
 			goto nomem_aiev;
@@ -820,12 +798,12 @@ sctp_disposition_t sctp_sf_do_5_1E_ca(const struct sctp_endpoint *ep,
 	sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP, SCTP_ULPEVENT(ev));
 
 	/* Sockets API Draft Section 5.3.1.6
-	 * When a peer sends a Adaption Layer Indication parameter , SCTP
+	 * When a peer sends a Adaptation Layer Indication parameter , SCTP
 	 * delivers this notification to inform the application that of the
-	 * peers requested adaption layer.
+	 * peers requested adaptation layer.
 	 */
-	if (asoc->peer.adaption_ind) {
-		ev = sctp_ulpevent_make_adaption_indication(asoc, GFP_ATOMIC);
+	if (asoc->peer.adaptation_ind) {
+		ev = sctp_ulpevent_make_adaptation_indication(asoc, GFP_ATOMIC);
 		if (!ev)
 			goto nomem;
 
@@ -1553,6 +1531,28 @@ sctp_disposition_t sctp_sf_do_5_2_2_dupinit(const struct sctp_endpoint *ep,
 }
 
 
+/*
+ * Unexpected INIT-ACK handler.
+ *
+ * Section 5.2.3
+ * If an INIT ACK received by an endpoint in any state other than the
+ * COOKIE-WAIT state, the endpoint should discard the INIT ACK chunk.
+ * An unexpected INIT ACK usually indicates the processing of an old or
+ * duplicated INIT chunk.
+*/
+sctp_disposition_t sctp_sf_do_5_2_3_initack(const struct sctp_endpoint *ep,
+					    const struct sctp_association *asoc,
+					    const sctp_subtype_t type,
+					    void *arg, sctp_cmd_seq_t *commands)
+{
+	/* Per the above section, we'll discard the chunk if we have an
+	 * endpoint.  If this is an OOTB INIT-ACK, treat it as such.
+	 */
+        if (ep == sctp_sk((sctp_get_ctl_sock()))->ep)
+		return sctp_sf_ootb(ep, asoc, type, arg, commands);
+	else
+		return sctp_sf_discard_chunk(ep, asoc, type, arg, commands);
+}
 
 /* Unexpected COOKIE-ECHO handler for peer restart (Table 2, action 'A')
  *
@@ -1698,12 +1698,12 @@ static sctp_disposition_t sctp_sf_do_dupcook_b(const struct sctp_endpoint *ep,
 	sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP, SCTP_ULPEVENT(ev));
 
 	/* Sockets API Draft Section 5.3.1.6
-	 * When a peer sends a Adaption Layer Indication parameter , SCTP
+	 * When a peer sends a Adaptation Layer Indication parameter , SCTP
 	 * delivers this notification to inform the application that of the
-	 * peers requested adaption layer.
+	 * peers requested adaptation layer.
 	 */
-	if (asoc->peer.adaption_ind) {
-		ev = sctp_ulpevent_make_adaption_indication(asoc, GFP_ATOMIC);
+	if (asoc->peer.adaptation_ind) {
+		ev = sctp_ulpevent_make_adaptation_indication(asoc, GFP_ATOMIC);
 		if (!ev)
 			goto nomem_ev;
 
@@ -1791,12 +1791,12 @@ static sctp_disposition_t sctp_sf_do_dupcook_d(const struct sctp_endpoint *ep,
 			goto nomem;
 
 		/* Sockets API Draft Section 5.3.1.6
-		 * When a peer sends a Adaption Layer Indication parameter,
+		 * When a peer sends a Adaptation Layer Indication parameter,
 		 * SCTP delivers this notification to inform the application
-		 * that of the peers requested adaption layer.
+		 * that of the peers requested adaptation layer.
 		 */
-		if (asoc->peer.adaption_ind) {
-			ai_ev = sctp_ulpevent_make_adaption_indication(asoc,
+		if (asoc->peer.adaptation_ind) {
+			ai_ev = sctp_ulpevent_make_adaptation_indication(asoc,
 								 GFP_ATOMIC);
 			if (!ai_ev)
 				goto nomem;

@@ -36,6 +36,9 @@ obj-$(CONFIG_DVB_USB_DIGITV) += dvb-usb-digitv.o
 dvb-usb-cxusb-objs = cxusb.o
 obj-$(CONFIG_DVB_USB_CXUSB) += dvb-usb-cxusb.o
 
+dvb-usb-ttusb2-objs = ttusb2.o
+obj-$(CONFIG_DVB_USB_TTUSB2) += dvb-usb-ttusb2.o
+
 dvb-usb-dib0700-objs = dib0700_core.o dib0700_devices.o
 obj-$(CONFIG_DVB_USB_DIB0700) += dvb-usb-dib0700.o
 

@@ -1013,7 +1013,7 @@ int ehca_reg_mr_rpages(struct ehca_shca *shca,
 	u32 i;
 	u64 *kpage;
 
-	kpage = ehca_alloc_fw_ctrlblock();
+	kpage = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!kpage) {
 		ehca_err(&shca->ib_device, "kpage alloc failed");
 		ret = -ENOMEM;
@@ -1124,7 +1124,7 @@ inline int ehca_rereg_mr_rereg1(struct ehca_shca *shca,
 	ehca_mrmw_map_acl(acl, &hipz_acl);
 	ehca_mrmw_set_pgsize_hipz_acl(&hipz_acl);
 
-	kpage = ehca_alloc_fw_ctrlblock();
+	kpage = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!kpage) {
 		ehca_err(&shca->ib_device, "kpage alloc failed");
 		ret = -ENOMEM;

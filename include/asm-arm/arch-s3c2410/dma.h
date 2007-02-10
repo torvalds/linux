@@ -14,7 +14,7 @@
 #define __ASM_ARCH_DMA_H __FILE__
 
 #include <linux/sysdev.h>
-#include "hardware.h"
+#include <asm/hardware.h>
 
 /*
  * This is the maximum DMA address(physical address) that can be DMAd to.

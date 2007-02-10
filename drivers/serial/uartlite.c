@@ -214,8 +214,8 @@ static void ulite_shutdown(struct uart_port *port)
 	free_irq(port->irq, port);
 }
 
-static void ulite_set_termios(struct uart_port *port, struct termios *termios,
-			      struct termios *old)
+static void ulite_set_termios(struct uart_port *port, struct ktermios *termios,
+			      struct ktermios *old)
 {
 	unsigned long flags;
 	unsigned int baud;
@@ -256,7 +256,7 @@ static void ulite_release_port(struct uart_port *port)
 {
 	release_mem_region(port->mapbase, ULITE_REGION);
 	iounmap(port->membase);
-	port->membase = 0;
+	port->membase = NULL;
 }
 
 static int ulite_request_port(struct uart_port *port)
@@ -278,8 +278,8 @@ static int ulite_request_port(struct uart_port *port)
 
 static void ulite_config_port(struct uart_port *port, int flags)
 {
-	ulite_request_port(port);
-	port->type = PORT_UARTLITE;
+	if (!ulite_request_port(port))
+		port->type = PORT_UARTLITE;
 }
 
 static int ulite_verify_port(struct uart_port *port, struct serial_struct *ser)
@@ -438,7 +438,7 @@ static int __devinit ulite_probe(struct platform_device *pdev)
 	port->iotype	= UPIO_MEM;
 	port->iobase	= 1; /* mark port in use */
 	port->mapbase	= res->start;
-	port->membase	= 0;
+	port->membase	= NULL;
 	port->ops	= &ulite_ops;
 	port->irq	= res2->start;
 	port->flags	= UPF_BOOT_AUTOCONF;
@@ -462,7 +462,7 @@ static int ulite_remove(struct platform_device *pdev)
 		uart_remove_one_port(&ulite_uart_driver, port);
 
 	/* mark port as free */
-	port->membase = 0;
+	port->membase = NULL;
 
 	return 0;
 }

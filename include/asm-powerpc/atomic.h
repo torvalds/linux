@@ -207,7 +207,8 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 
 /*
  * Atomically test *v and decrement if it is greater than 0.
- * The function returns the old value of *v minus 1.
+ * The function returns the old value of *v minus 1, even if
+ * the atomic variable, v, was not decremented.
  */
 static __inline__ int atomic_dec_if_positive(atomic_t *v)
 {
@@ -216,14 +217,15 @@ static __inline__ int atomic_dec_if_positive(atomic_t *v)
 	__asm__ __volatile__(
 	LWSYNC_ON_SMP
 "1:	lwarx	%0,0,%1		# atomic_dec_if_positive\n\
-	addic.	%0,%0,-1\n\
+	cmpwi	%0,1\n\
+	addi	%0,%0,-1\n\
 	blt-	2f\n"
 	PPC405_ERR77(0,%1)
 "	stwcx.	%0,0,%1\n\
 	bne-	1b"
 	ISYNC_ON_SMP
 	"\n\
-2:"	: "=&r" (t)
+2:"	: "=&b" (t)
 	: "r" (&v->counter)
 	: "cc", "memory");
 

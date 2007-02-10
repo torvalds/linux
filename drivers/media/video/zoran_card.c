@@ -849,7 +849,7 @@ zoran_register_i2c (struct zoran *zr)
 static void
 zoran_unregister_i2c (struct zoran *zr)
 {
-	i2c_bit_del_bus((&zr->i2c_adapter));
+	i2c_del_adapter(&zr->i2c_adapter);
 }
 
 /* Check a zoran_params struct for correctness, insert default params */

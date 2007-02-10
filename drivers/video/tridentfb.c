@@ -1130,7 +1130,8 @@ static int __devinit trident_pci_probe(struct pci_dev * dev, const struct pci_de
 	
 	if (!request_mem_region(tridentfb_fix.smem_start, tridentfb_fix.smem_len, "tridentfb")) {
 		debug("request_mem_region failed!\n");
-		return -1;
+		err = -1;
+		goto out_unmap;
 	}
 
 	fb_info.screen_base = ioremap_nocache(tridentfb_fix.smem_start,
@@ -1139,7 +1140,8 @@ static int __devinit trident_pci_probe(struct pci_dev * dev, const struct pci_de
 	if (!fb_info.screen_base) {
 		release_mem_region(tridentfb_fix.smem_start, tridentfb_fix.smem_len);
 		debug("ioremap failed\n");
-		return -1;
+		err = -1;
+		goto out_unmap;
 	}
 
 	output("%s board found\n", pci_name(dev));
@@ -1162,8 +1164,10 @@ static int __devinit trident_pci_probe(struct pci_dev * dev, const struct pci_de
 #endif
 	fb_info.pseudo_palette = pseudo_pal;
 
-	if (!fb_find_mode(&default_var,&fb_info,mode,NULL,0,NULL,bpp))
-		return -EINVAL;
+	if (!fb_find_mode(&default_var,&fb_info,mode,NULL,0,NULL,bpp)) {
+		err = -EINVAL;
+		goto out_unmap;
+	}
 	fb_alloc_cmap(&fb_info.cmap,256,0);
 	if (defaultaccel && acc)
 		default_var.accel_flags |= FB_ACCELF_TEXT;
@@ -1174,12 +1178,20 @@ static int __devinit trident_pci_probe(struct pci_dev * dev, const struct pci_de
 	fb_info.device = &dev->dev;
 	if (register_framebuffer(&fb_info) < 0) {
 		printk(KERN_ERR "tridentfb: could not register Trident framebuffer\n");
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_unmap;
 	}
 	output("fb%d: %s frame buffer device %dx%d-%dbpp\n",
 	   fb_info.node, fb_info.fix.id,default_var.xres,
 	   default_var.yres,default_var.bits_per_pixel);
 	return 0;
+
+out_unmap:
+	if (default_par.io_virt)
+		iounmap(default_par.io_virt);
+	if (fb_info.screen_base)
+		iounmap(fb_info.screen_base);
+	return err;
 }
 
 static void __devexit trident_pci_remove(struct pci_dev * dev)

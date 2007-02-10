@@ -121,10 +121,9 @@ static int avmcs_probe(struct pcmcia_device *p_dev)
     p_dev->conf.Present = PRESENT_OPTION;
 
     /* Allocate space for private device-specific data */
-    local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+    local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local)
         goto err;
-    memset(local, 0, sizeof(local_info_t));
     p_dev->priv = local;
 
     return avmcs_config(p_dev);

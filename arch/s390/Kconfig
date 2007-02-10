@@ -22,11 +22,15 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
-config GENERIC_HWEIGHT
+config ARCH_HAS_ILOG2_U32
 	bool
-	default y
+	default n
 
-config GENERIC_CALIBRATE_DELAY
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
+config GENERIC_HWEIGHT
 	bool
 	default y
 
@@ -125,6 +129,31 @@ config SYSVIPC_COMPAT
 config AUDIT_ARCH
 	bool
 	default y
+
+config S390_SWITCH_AMODE
+	bool "Switch kernel/user addressing modes"
+	help
+	  This option allows to switch the addressing modes of kernel and user
+	  space. The kernel parameter switch_amode=on will enable this feature,
+	  default is disabled. Enabling this (via kernel parameter) on machines
+	  earlier than IBM System z9-109 EC/BC will reduce system performance.
+
+	  Note that this option will also be selected by selecting the execute
+	  protection option below. Enabling the execute protection via the
+	  noexec kernel parameter will also switch the addressing modes,
+	  independent of the switch_amode kernel parameter.
+
+
+config S390_EXEC_PROTECT
+	bool "Data execute protection"
+	select S390_SWITCH_AMODE
+	help
+	  This option allows to enable a buffer overflow protection for user
+	  space programs and it also selects the addressing mode option above.
+	  The kernel parameter noexec=on will enable this feature and also
+	  switch the addressing modes, default is disabled. Enabling this (via
+	  kernel parameter) on machines earlier than IBM System z9-109 EC/BC
+	  will reduce system performance.
 
 comment "Code generation options"
 
@@ -233,7 +262,13 @@ config WARN_STACK_SIZE
 	  This allows you to specify the maximum frame size a function may
 	  have without the compiler complaining about it.
 
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 source "mm/Kconfig"
+
+config HOLES_IN_ZONE
+	def_bool y
 
 comment "I/O subsystem configuration"
 
@@ -257,14 +292,6 @@ config QDIO
 	  module will be called qdio.
 
 	  If unsure, say Y.
-
-config QDIO_PERF_STATS
-	bool "Performance statistics in /proc"
-	depends on QDIO
-	help
-	  Say Y here to get performance statistics in /proc/qdio_perf
-
-	  If unsure, say N.
 
 config QDIO_DEBUG
 	bool "Extended debugging information"
@@ -401,7 +428,7 @@ config APPLDATA_BASE
 
 config APPLDATA_MEM
 	tristate "Monitor memory management statistics"
-	depends on APPLDATA_BASE
+	depends on APPLDATA_BASE && VM_EVENT_COUNTERS
 	help
 	  This provides memory management related data to the Linux - VM Monitor
 	  Stream, like paging/swapping rate, memory utilisation, etc.

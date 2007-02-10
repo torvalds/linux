@@ -537,6 +537,8 @@ static int already_uses(struct module *a, struct module *b)
 static int use_module(struct module *a, struct module *b)
 {
 	struct module_use *use;
+	int no_warn;
+
 	if (b == NULL || already_uses(a, b)) return 1;
 
 	if (!strong_try_module_get(b))
@@ -552,6 +554,7 @@ static int use_module(struct module *a, struct module *b)
 
 	use->module_which_uses = a;
 	list_add(&use->list, &b->modules_which_use_me);
+	no_warn = sysfs_create_link(b->holders_dir, &a->mkobj.kobj, a->name);
 	return 1;
 }
 
@@ -569,6 +572,7 @@ static void module_unload_free(struct module *mod)
 				module_put(i);
 				list_del(&use->list);
 				kfree(use);
+				sysfs_remove_link(i->holders_dir, mod->name);
 				/* There can be at most one match. */
 				break;
 			}
@@ -824,9 +828,34 @@ static inline void module_unload_init(struct module *mod)
 }
 #endif /* CONFIG_MODULE_UNLOAD */
 
+static ssize_t show_initstate(struct module_attribute *mattr,
+			   struct module *mod, char *buffer)
+{
+	const char *state = "unknown";
+
+	switch (mod->state) {
+	case MODULE_STATE_LIVE:
+		state = "live";
+		break;
+	case MODULE_STATE_COMING:
+		state = "coming";
+		break;
+	case MODULE_STATE_GOING:
+		state = "going";
+		break;
+	}
+	return sprintf(buffer, "%s\n", state);
+}
+
+static struct module_attribute initstate = {
+	.attr = { .name = "initstate", .mode = 0444, .owner = THIS_MODULE },
+	.show = show_initstate,
+};
+
 static struct module_attribute *modinfo_attrs[] = {
 	&modinfo_version,
 	&modinfo_srcversion,
+	&initstate,
 #ifdef CONFIG_MODULE_UNLOAD
 	&refcnt,
 #endif
@@ -1081,9 +1110,7 @@ static void module_remove_modinfo_attrs(struct module *mod)
 	kfree(mod->modinfo_attrs);
 }
 
-static int mod_sysfs_setup(struct module *mod,
-			   struct kernel_param *kparam,
-			   unsigned int num_params)
+static int mod_sysfs_init(struct module *mod)
 {
 	int err;
 
@@ -1100,19 +1127,30 @@ static int mod_sysfs_setup(struct module *mod,
 	kobj_set_kset_s(&mod->mkobj, module_subsys);
 	mod->mkobj.mod = mod;
 
-	/* delay uevent until full sysfs population */
 	kobject_init(&mod->mkobj.kobj);
+
+out:
+	return err;
+}
+
+static int mod_sysfs_setup(struct module *mod,
+			   struct kernel_param *kparam,
+			   unsigned int num_params)
+{
+	int err;
+
+	/* delay uevent until full sysfs population */
 	err = kobject_add(&mod->mkobj.kobj);
 	if (err)
 		goto out;
 
-	mod->drivers_dir = kobject_add_dir(&mod->mkobj.kobj, "drivers");
-	if (!mod->drivers_dir)
+	mod->holders_dir = kobject_add_dir(&mod->mkobj.kobj, "holders");
+	if (!mod->holders_dir)
 		goto out_unreg;
 
 	err = module_param_sysfs_setup(mod, kparam, num_params);
 	if (err)
-		goto out_unreg_drivers;
+		goto out_unreg_holders;
 
 	err = module_add_modinfo_attrs(mod);
 	if (err)
@@ -1121,10 +1159,10 @@ static int mod_sysfs_setup(struct module *mod,
 	kobject_uevent(&mod->mkobj.kobj, KOBJ_ADD);
 	return 0;
 
-out_unreg_drivers:
-	kobject_unregister(mod->drivers_dir);
 out_unreg_param:
 	module_param_sysfs_remove(mod);
+out_unreg_holders:
+	kobject_unregister(mod->holders_dir);
 out_unreg:
 	kobject_del(&mod->mkobj.kobj);
 	kobject_put(&mod->mkobj.kobj);
@@ -1136,7 +1174,10 @@ static void mod_kobject_remove(struct module *mod)
 {
 	module_remove_modinfo_attrs(mod);
 	module_param_sysfs_remove(mod);
-	kobject_unregister(mod->drivers_dir);
+	if (mod->mkobj.drivers_dir)
+		kobject_unregister(mod->mkobj.drivers_dir);
+	if (mod->holders_dir)
+		kobject_unregister(mod->holders_dir);
 
 	kobject_unregister(&mod->mkobj.kobj);
 }
@@ -1741,6 +1782,10 @@ static struct module *load_module(void __user *umod,
 	/* Now we've moved module, initialize linked lists, etc. */
 	module_unload_init(mod);
 
+	/* Initialize kobject, so we can reference it. */
+	if (mod_sysfs_init(mod) != 0)
+		goto cleanup;
+
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
 
@@ -2300,26 +2345,78 @@ void print_modules(void)
 	printk("\n");
 }
 
+static char *make_driver_name(struct device_driver *drv)
+{
+	char *driver_name;
+
+	driver_name = kmalloc(strlen(drv->name) + strlen(drv->bus->name) + 2,
+			      GFP_KERNEL);
+	if (!driver_name)
+		return NULL;
+
+	sprintf(driver_name, "%s:%s", drv->bus->name, drv->name);
+	return driver_name;
+}
+
+static void module_create_drivers_dir(struct module_kobject *mk)
+{
+	if (!mk || mk->drivers_dir)
+		return;
+
+	mk->drivers_dir = kobject_add_dir(&mk->kobj, "drivers");
+}
+
 void module_add_driver(struct module *mod, struct device_driver *drv)
 {
+	char *driver_name;
 	int no_warn;
+	struct module_kobject *mk = NULL;
 
-	if (!mod || !drv)
+	if (!drv)
+		return;
+
+	if (mod)
+		mk = &mod->mkobj;
+	else if (drv->mod_name) {
+		struct kobject *mkobj;
+
+		/* Lookup built-in module entry in /sys/modules */
+		mkobj = kset_find_obj(&module_subsys.kset, drv->mod_name);
+		if (mkobj)
+			mk = container_of(mkobj, struct module_kobject, kobj);
+	}
+
+	if (!mk)
 		return;
 
 	/* Don't check return codes; these calls are idempotent */
-	no_warn = sysfs_create_link(&drv->kobj, &mod->mkobj.kobj, "module");
-	no_warn = sysfs_create_link(mod->drivers_dir, &drv->kobj, drv->name);
+	no_warn = sysfs_create_link(&drv->kobj, &mk->kobj, "module");
+	driver_name = make_driver_name(drv);
+	if (driver_name) {
+		module_create_drivers_dir(mk);
+		no_warn = sysfs_create_link(mk->drivers_dir, &drv->kobj,
+					    driver_name);
+		kfree(driver_name);
+	}
 }
 EXPORT_SYMBOL(module_add_driver);
 
 void module_remove_driver(struct device_driver *drv)
 {
+	char *driver_name;
+
 	if (!drv)
 		return;
+
 	sysfs_remove_link(&drv->kobj, "module");
-	if (drv->owner && drv->owner->drivers_dir)
-		sysfs_remove_link(drv->owner->drivers_dir, drv->name);
+	if (drv->owner && drv->owner->mkobj.drivers_dir) {
+		driver_name = make_driver_name(drv);
+		if (driver_name) {
+			sysfs_remove_link(drv->owner->mkobj.drivers_dir,
+					  driver_name);
+			kfree(driver_name);
+		}
+	}
 }
 EXPORT_SYMBOL(module_remove_driver);
 

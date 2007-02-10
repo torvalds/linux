@@ -577,9 +577,10 @@ void neigh_destroy(struct neighbour *neigh)
 	while ((hh = neigh->hh) != NULL) {
 		neigh->hh = hh->hh_next;
 		hh->hh_next = NULL;
-		write_lock_bh(&hh->hh_lock);
+
+		write_seqlock_bh(&hh->hh_lock);
 		hh->hh_output = neigh_blackhole;
-		write_unlock_bh(&hh->hh_lock);
+		write_sequnlock_bh(&hh->hh_lock);
 		if (atomic_dec_and_test(&hh->hh_refcnt))
 			kfree(hh);
 	}
@@ -695,7 +696,10 @@ next_elt:
 	if (!expire)
 		expire = 1;
 
- 	mod_timer(&tbl->gc_timer, now + expire);
+	if (expire>HZ)
+		mod_timer(&tbl->gc_timer, round_jiffies(now + expire));
+	else
+		mod_timer(&tbl->gc_timer, now + expire);
 
 	write_unlock(&tbl->lock);
 }
@@ -897,9 +901,9 @@ static void neigh_update_hhs(struct neighbour *neigh)
 
 	if (update) {
 		for (hh = neigh->hh; hh; hh = hh->hh_next) {
-			write_lock_bh(&hh->hh_lock);
+			write_seqlock_bh(&hh->hh_lock);
 			update(hh, neigh->dev, neigh->ha);
-			write_unlock_bh(&hh->hh_lock);
+			write_sequnlock_bh(&hh->hh_lock);
 		}
 	}
 }
@@ -1089,7 +1093,7 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 			break;
 
 	if (!hh && (hh = kzalloc(sizeof(*hh), GFP_ATOMIC)) != NULL) {
-		rwlock_init(&hh->hh_lock);
+		seqlock_init(&hh->hh_lock);
 		hh->hh_type = protocol;
 		atomic_set(&hh->hh_refcnt, 0);
 		hh->hh_next = NULL;
@@ -1636,7 +1640,7 @@ static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndtmsg), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	ndtmsg = nlmsg_data(nlh);
 
@@ -1705,7 +1709,8 @@ static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
 
 nla_put_failure:
 	read_unlock_bh(&tbl->lock);
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 static int neightbl_fill_param_info(struct sk_buff *skb,
@@ -1719,7 +1724,7 @@ static int neightbl_fill_param_info(struct sk_buff *skb,
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndtmsg), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	ndtmsg = nlmsg_data(nlh);
 
@@ -1736,7 +1741,8 @@ static int neightbl_fill_param_info(struct sk_buff *skb,
 	return nlmsg_end(skb, nlh);
 errout:
 	read_unlock_bh(&tbl->lock);
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
  
 static inline struct neigh_parms *lookup_neigh_params(struct neigh_table *tbl,
@@ -1954,7 +1960,7 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndm), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	ndm = nlmsg_data(nlh);
 	ndm->ndm_family	 = neigh->ops->family;
@@ -1986,7 +1992,8 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 
@@ -2428,9 +2435,12 @@ static void __neigh_notify(struct neighbour *n, int type, int flags)
 		goto errout;
 
 	err = neigh_fill_info(skb, n, 0, 0, type, flags);
-	/* failure implies BUG in neigh_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in neigh_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
 errout:
 	if (err < 0)

@@ -28,7 +28,7 @@ void vfp_testing_entry(void);
 void vfp_support_entry(void);
 
 void (*vfp_vector)(void) = vfp_testing_entry;
-union vfp_state *last_VFP_context;
+union vfp_state *last_VFP_context[NR_CPUS];
 
 /*
  * Dual-use variable.
@@ -41,13 +41,35 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 {
 	struct thread_info *thread = v;
 	union vfp_state *vfp;
+	__u32 cpu = thread->cpu;
 
 	if (likely(cmd == THREAD_NOTIFY_SWITCH)) {
+		u32 fpexc = fmrx(FPEXC);
+
+#ifdef CONFIG_SMP
+		/*
+		 * On SMP, if VFP is enabled, save the old state in
+		 * case the thread migrates to a different CPU. The
+		 * restoring is done lazily.
+		 */
+		if ((fpexc & FPEXC_ENABLE) && last_VFP_context[cpu]) {
+			vfp_save_state(last_VFP_context[cpu], fpexc);
+			last_VFP_context[cpu]->hard.cpu = cpu;
+		}
+		/*
+		 * Thread migration, just force the reloading of the
+		 * state on the new CPU in case the VFP registers
+		 * contain stale data.
+		 */
+		if (thread->vfpstate.hard.cpu != cpu)
+			last_VFP_context[cpu] = NULL;
+#endif
+
 		/*
 		 * Always disable VFP so we can lazily save/restore the
 		 * old state.
 		 */
-		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
+		fmxr(FPEXC, fpexc & ~FPEXC_ENABLE);
 		return NOTIFY_DONE;
 	}
 
@@ -68,8 +90,8 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 	}
 
 	/* flush and release case: Per-thread VFP cleanup. */
-	if (last_VFP_context == vfp)
-		last_VFP_context = NULL;
+	if (last_VFP_context[cpu] == vfp)
+		last_VFP_context[cpu] = NULL;
 
 	return NOTIFY_DONE;
 }
@@ -263,13 +285,36 @@ void VFP9_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	if (exceptions)
 		vfp_raise_exceptions(exceptions, trigger, orig_fpscr, regs);
 }
- 
+
+static void vfp_enable(void *unused)
+{
+	u32 access = get_copro_access();
+
+	/*
+	 * Enable full access to VFP (cp10 and cp11)
+	 */
+	set_copro_access(access | CPACC_FULL(10) | CPACC_FULL(11));
+}
+
+#include <linux/smp.h>
+
 /*
  * VFP support code initialisation.
  */
 static int __init vfp_init(void)
 {
 	unsigned int vfpsid;
+	unsigned int cpu_arch = cpu_architecture();
+	u32 access = 0;
+
+	if (cpu_arch >= CPU_ARCH_ARMv6) {
+		access = get_copro_access();
+
+		/*
+		 * Enable full access to VFP (cp10 and cp11)
+		 */
+		set_copro_access(access | CPACC_FULL(10) | CPACC_FULL(11));
+	}
 
 	/*
 	 * First check that there is a VFP that we can use.
@@ -277,13 +322,22 @@ static int __init vfp_init(void)
 	 * we just need to read the VFPSID register.
 	 */
 	vfpsid = fmrx(FPSID);
+	barrier();
 
 	printk(KERN_INFO "VFP support v0.3: ");
 	if (VFP_arch) {
 		printk("not present\n");
+
+		/*
+		 * Restore the copro access register.
+		 */
+		if (cpu_arch >= CPU_ARCH_ARMv6)
+			set_copro_access(access);
 	} else if (vfpsid & FPSID_NODOUBLE) {
 		printk("no double precision support\n");
 	} else {
+		smp_call_function(vfp_enable, NULL, 1, 1);
+
 		VFP_arch = (vfpsid & FPSID_ARCH_MASK) >> FPSID_ARCH_BIT;  /* Extract the architecture version */
 		printk("implementor %02x architecture %d part %02x variant %x rev %x\n",
 			(vfpsid & FPSID_IMPLEMENTER_MASK) >> FPSID_IMPLEMENTER_BIT,
@@ -291,9 +345,16 @@ static int __init vfp_init(void)
 			(vfpsid & FPSID_PART_MASK) >> FPSID_PART_BIT,
 			(vfpsid & FPSID_VARIANT_MASK) >> FPSID_VARIANT_BIT,
 			(vfpsid & FPSID_REV_MASK) >> FPSID_REV_BIT);
+
 		vfp_vector = vfp_support_entry;
 
 		thread_register_notifier(&vfp_notifier_block);
+
+		/*
+		 * We detected VFP, and the support code is
+		 * in place; report VFP support to userspace.
+		 */
+		elf_hwcap |= HWCAP_VFP;
 	}
 	return 0;
 }

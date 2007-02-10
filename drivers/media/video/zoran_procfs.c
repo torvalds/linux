@@ -144,7 +144,7 @@ static int zoran_open(struct inode *inode, struct file *file)
 static ssize_t zoran_write(struct file *file, const char __user *buffer,
 			size_t count, loff_t *ppos)
 {
-	struct zoran *zr = PDE(file->f_dentry->d_inode)->data;
+	struct zoran *zr = PDE(file->f_path.dentry->d_inode)->data;
 	char *string, *sp;
 	char *line, *ldelim, *varname, *svar, *tdelim;
 
@@ -165,7 +165,7 @@ static ssize_t zoran_write(struct file *file, const char __user *buffer,
 	}
 	string[count] = 0;
 	dprintk(4, KERN_INFO "%s: write_proc: name=%s count=%zu zr=%p\n",
-		ZR_DEVNAME(zr), file->f_dentry->d_name.name, count, zr);
+		ZR_DEVNAME(zr), file->f_path.dentry->d_name.name, count, zr);
 	ldelim = " \t\n";
 	tdelim = "=";
 	line = strpbrk(sp, ldelim);

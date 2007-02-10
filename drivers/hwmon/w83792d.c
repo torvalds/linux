@@ -3,7 +3,7 @@
                 monitoring
     Copyright (C) 2004, 2005 Winbond Electronics Corp.
                         Chunhao Huang <DZShen@Winbond.com.tw>,
-                        Rudolf Marek <r.marek@sh.cvut.cz>
+                        Rudolf Marek <r.marek@assembler.cz>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

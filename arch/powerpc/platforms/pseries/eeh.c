@@ -337,6 +337,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 			printk (KERN_ERR "EEH: Device driver ignored %d bad reads, panicing\n",
 			        pdn->eeh_check_count);
 			dump_stack();
+			msleep(5000);
 			
 			/* re-read the slot reset state */
 			if (read_slot_reset_state(pdn, rets) != 0)
@@ -746,6 +747,7 @@ struct eeh_early_enable_info {
 /* Enable eeh for the given device node. */
 static void *early_enable_eeh(struct device_node *dn, void *data)
 {
+	unsigned int rets[3];
 	struct eeh_early_enable_info *info = data;
 	int ret;
 	const char *status = get_property(dn, "status", NULL);
@@ -802,16 +804,14 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 		                regs[0], info->buid_hi, info->buid_lo,
 		                EEH_ENABLE);
 
+		enable = 0;
 		if (ret == 0) {
-			eeh_subsystem_enabled = 1;
-			pdn->eeh_mode |= EEH_MODE_SUPPORTED;
 			pdn->eeh_config_addr = regs[0];
 
 			/* If the newer, better, ibm,get-config-addr-info is supported, 
 			 * then use that instead. */
 			pdn->eeh_pe_config_addr = 0;
 			if (ibm_get_config_addr_info != RTAS_UNKNOWN_SERVICE) {
-				unsigned int rets[2];
 				ret = rtas_call (ibm_get_config_addr_info, 4, 2, rets, 
 					pdn->eeh_config_addr, 
 					info->buid_hi, info->buid_lo,
@@ -819,6 +819,20 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 				if (ret == 0)
 					pdn->eeh_pe_config_addr = rets[0];
 			}
+
+			/* Some older systems (Power4) allow the
+			 * ibm,set-eeh-option call to succeed even on nodes
+			 * where EEH is not supported. Verify support
+			 * explicitly. */
+			ret = read_slot_reset_state(pdn, rets);
+			if ((ret == 0) && (rets[1] == 1))
+				enable = 1;
+		}
+
+		if (enable) {
+			eeh_subsystem_enabled = 1;
+			pdn->eeh_mode |= EEH_MODE_SUPPORTED;
+
 #ifdef DEBUG
 			printk(KERN_DEBUG "EEH: %s: eeh enabled, config=%x pe_config=%x\n",
 			       dn->full_name, pdn->eeh_config_addr, pdn->eeh_pe_config_addr);

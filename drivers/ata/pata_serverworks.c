@@ -218,25 +218,18 @@ static unsigned long serverworks_osb4_filter(const struct ata_port *ap, struct a
 static unsigned long serverworks_csb_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
 {
 	const char *p;
-	char model_num[40];
-	int len, i;
+	char model_num[ATA_ID_PROD_LEN + 1];
+	int i;
 
 	/* Disk, UDMA */
 	if (adev->class != ATA_DEV_ATA)
 		return ata_pci_default_filter(ap, adev, mask);
 
 	/* Actually do need to check */
-	ata_id_string(adev->id, model_num, ATA_ID_PROD_OFS, sizeof(model_num));
-	/* Precuationary - why not do this in the libata core ?? */
+	ata_id_c_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 
-	len = strlen(model_num);
-	while ((len > 0) && (model_num[len - 1] == ' ')) {
-		len--;
-		model_num[len] = 0;
-	}
-
-	for(i = 0; (p = csb_bad_ata100[i]) != NULL; i++) {
-		if (!strncmp(p, model_num, len))
+	for (i = 0; (p = csb_bad_ata100[i]) != NULL; i++) {
+		if (!strcmp(p, model_num))
 			mask &= ~(0x1F << ATA_SHIFT_UDMA);
 	}
 	return ata_pci_default_filter(ap, adev, mask);
@@ -355,14 +348,14 @@ static struct ata_port_operations serverworks_osb4_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct ata_port_operations serverworks_csb_port_ops = {
@@ -390,14 +383,14 @@ static struct ata_port_operations serverworks_csb_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static int serverworks_fixup_osb4(struct pci_dev *pdev)
@@ -559,7 +552,7 @@ static int serverworks_reinit_one(struct pci_dev *pdev)
 {
 	/* Force master latency timer to 64 PCI clocks */
 	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x40);
-	
+
 	switch (pdev->device)
 	{
 		case PCI_DEVICE_ID_SERVERWORKS_OSB4IDE:

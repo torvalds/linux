@@ -110,6 +110,11 @@ MODULE_DEVICE_TABLE(pci, b44_pci_tbl);
 
 static void b44_halt(struct b44 *);
 static void b44_init_rings(struct b44 *);
+
+#define B44_FULL_RESET		1
+#define B44_FULL_RESET_SKIP_PHY	2
+#define B44_PARTIAL_RESET	3
+
 static void b44_init_hw(struct b44 *, int);
 
 static int dma_desc_align_mask;
@@ -716,7 +721,7 @@ static void b44_recycle_rx(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 	struct ring_info *src_map, *dest_map;
 	struct rx_header *rh;
 	int dest_idx;
-	u32 ctrl;
+	__le32 ctrl;
 
 	dest_idx = dest_idx_unmasked & (B44_RX_RING_SIZE - 1);
 	dest_desc = &bp->rx_ring[dest_idx];
@@ -752,7 +757,7 @@ static void b44_recycle_rx(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 		                             dest_idx * sizeof(dest_desc),
 		                             DMA_BIDIRECTIONAL);
 
-	pci_dma_sync_single_for_device(bp->pdev, src_desc->addr,
+	pci_dma_sync_single_for_device(bp->pdev, le32_to_cpu(src_desc->addr),
 				       RX_PKT_BUF_SZ,
 				       PCI_DMA_FROMDEVICE);
 }
@@ -778,7 +783,7 @@ static int b44_rx(struct b44 *bp, int budget)
 					    RX_PKT_BUF_SZ,
 					    PCI_DMA_FROMDEVICE);
 		rh = (struct rx_header *) skb->data;
-		len = cpu_to_le16(rh->len);
+		len = le16_to_cpu(rh->len);
 		if ((len > (RX_PKT_BUF_SZ - bp->rx_offset)) ||
 		    (rh->flags & cpu_to_le16(RX_FLAG_ERRORS))) {
 		drop_it:
@@ -794,7 +799,7 @@ static int b44_rx(struct b44 *bp, int budget)
 			do {
 				udelay(2);
 				barrier();
-				len = cpu_to_le16(rh->len);
+				len = le16_to_cpu(rh->len);
 			} while (len == 0 && i++ < 5);
 			if (len == 0)
 				goto drop_it;
@@ -879,12 +884,14 @@ static int b44_poll(struct net_device *netdev, int *budget)
 	}
 
 	if (bp->istat & ISTAT_ERRORS) {
-		spin_lock_irq(&bp->lock);
+		unsigned long flags;
+
+		spin_lock_irqsave(&bp->lock, flags);
 		b44_halt(bp);
 		b44_init_rings(bp);
-		b44_init_hw(bp, 1);
+		b44_init_hw(bp, B44_FULL_RESET_SKIP_PHY);
 		netif_wake_queue(bp->dev);
-		spin_unlock_irq(&bp->lock);
+		spin_unlock_irqrestore(&bp->lock, flags);
 		done = 1;
 	}
 
@@ -952,7 +959,7 @@ static void b44_tx_timeout(struct net_device *dev)
 
 	b44_halt(bp);
 	b44_init_rings(bp);
-	b44_init_hw(bp, 1);
+	b44_init_hw(bp, B44_FULL_RESET);
 
 	spin_unlock_irq(&bp->lock);
 
@@ -1069,7 +1076,7 @@ static int b44_change_mtu(struct net_device *dev, int new_mtu)
 	b44_halt(bp);
 	dev->mtu = new_mtu;
 	b44_init_rings(bp);
-	b44_init_hw(bp, 1);
+	b44_init_hw(bp, B44_FULL_RESET);
 	spin_unlock_irq(&bp->lock);
 
 	b44_enable_ints(bp);
@@ -1366,12 +1373,12 @@ static int b44_set_mac_addr(struct net_device *dev, void *p)
  * packet processing.  Invoked with bp->lock held.
  */
 static void __b44_set_rx_mode(struct net_device *);
-static void b44_init_hw(struct b44 *bp, int full_reset)
+static void b44_init_hw(struct b44 *bp, int reset_kind)
 {
 	u32 val;
 
 	b44_chip_reset(bp);
-	if (full_reset) {
+	if (reset_kind == B44_FULL_RESET) {
 		b44_phy_reset(bp);
 		b44_setup_phy(bp);
 	}
@@ -1388,7 +1395,10 @@ static void b44_init_hw(struct b44 *bp, int full_reset)
 	bw32(bp, B44_TXMAXLEN, bp->dev->mtu + ETH_HLEN + 8 + RX_HEADER_LEN);
 
 	bw32(bp, B44_TX_WMARK, 56); /* XXX magic */
-	if (full_reset) {
+	if (reset_kind == B44_PARTIAL_RESET) {
+		bw32(bp, B44_DMARX_CTRL, (DMARX_CTRL_ENABLE |
+				      (bp->rx_offset << DMARX_CTRL_ROSHIFT)));
+	} else {
 		bw32(bp, B44_DMATX_CTRL, DMATX_CTRL_ENABLE);
 		bw32(bp, B44_DMATX_ADDR, bp->tx_ring_dma + bp->dma_offset);
 		bw32(bp, B44_DMARX_CTRL, (DMARX_CTRL_ENABLE |
@@ -1399,9 +1409,6 @@ static void b44_init_hw(struct b44 *bp, int full_reset)
 		bp->rx_prod = bp->rx_pending;
 
 		bw32(bp, B44_MIB_CTRL, MIB_CTRL_CLR_ON_READ);
-	} else {
-		bw32(bp, B44_DMARX_CTRL, (DMARX_CTRL_ENABLE |
-				      (bp->rx_offset << DMARX_CTRL_ROSHIFT)));
 	}
 
 	val = br32(bp, B44_ENET_CTRL);
@@ -1418,7 +1425,7 @@ static int b44_open(struct net_device *dev)
 		goto out;
 
 	b44_init_rings(bp);
-	b44_init_hw(bp, 1);
+	b44_init_hw(bp, B44_FULL_RESET);
 
 	b44_check_phy(bp);
 
@@ -1627,7 +1634,7 @@ static int b44_close(struct net_device *dev)
 	netif_poll_enable(dev);
 
 	if (bp->flags & B44_FLAG_WOL_ENABLE) {
-		b44_init_hw(bp, 0);
+		b44_init_hw(bp, B44_PARTIAL_RESET);
 		b44_setup_wol(bp);
 	}
 
@@ -1903,7 +1910,7 @@ static int b44_set_ringparam(struct net_device *dev,
 
 	b44_halt(bp);
 	b44_init_rings(bp);
-	b44_init_hw(bp, 1);
+	b44_init_hw(bp, B44_FULL_RESET);
 	netif_wake_queue(bp->dev);
 	spin_unlock_irq(&bp->lock);
 
@@ -1946,7 +1953,7 @@ static int b44_set_pauseparam(struct net_device *dev,
 	if (bp->flags & B44_FLAG_PAUSE_AUTO) {
 		b44_halt(bp);
 		b44_init_rings(bp);
-		b44_init_hw(bp, 1);
+		b44_init_hw(bp, B44_FULL_RESET);
 	} else {
 		__b44_set_flow_ctrl(bp, bp->flags);
 	}
@@ -2054,7 +2061,7 @@ out:
 static int b44_read_eeprom(struct b44 *bp, u8 *data)
 {
 	long i;
-	u16 *ptr = (u16 *) data;
+	__le16 *ptr = (__le16 *) data;
 
 	for (i = 0; i < 128; i += 2)
 		ptr[i / 2] = cpu_to_le16(readw(bp->regs + 4096 + i));
@@ -2302,7 +2309,7 @@ static int b44_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	free_irq(dev->irq, dev);
 	if (bp->flags & B44_FLAG_WOL_ENABLE) {
-		b44_init_hw(bp, 0);
+		b44_init_hw(bp, B44_PARTIAL_RESET);
 		b44_setup_wol(bp);
 	}
 	pci_disable_device(pdev);
@@ -2313,21 +2320,32 @@ static int b44_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct b44 *bp = netdev_priv(dev);
+	int rc = 0;
 
 	pci_restore_state(pdev);
-	pci_enable_device(pdev);
+	rc = pci_enable_device(pdev);
+	if (rc) {
+		printk(KERN_ERR PFX "%s: pci_enable_device failed\n",
+			dev->name);
+		return rc;
+	}
+
 	pci_set_master(pdev);
 
 	if (!netif_running(dev))
 		return 0;
 
-	if (request_irq(dev->irq, b44_interrupt, IRQF_SHARED, dev->name, dev))
+	rc = request_irq(dev->irq, b44_interrupt, IRQF_SHARED, dev->name, dev);
+	if (rc) {
 		printk(KERN_ERR PFX "%s: request_irq failed\n", dev->name);
+		pci_disable_device(pdev);
+		return rc;
+	}
 
 	spin_lock_irq(&bp->lock);
 
 	b44_init_rings(bp);
-	b44_init_hw(bp, 1);
+	b44_init_hw(bp, B44_FULL_RESET);
 	netif_device_attach(bp->dev);
 	spin_unlock_irq(&bp->lock);
 

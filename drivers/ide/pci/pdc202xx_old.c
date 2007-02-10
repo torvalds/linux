@@ -123,26 +123,6 @@ static u8 pdc202xx_ratemask (ide_drive_t *drive)
 	return mode;
 }
 
-static int check_in_drive_lists (ide_drive_t *drive, const char **list)
-{
-	struct hd_driveid *id = drive->id;
-
-	if (pdc_quirk_drives == list) {
-		while (*list) {
-			if (strstr(id->model, *list++)) {
-				return 2;
-			}
-		}
-	} else {
-		while (*list) {
-			if (!strcmp(*list++,id->model)) {
-				return 1;
-			}
-		}
-	}
-	return 0;
-}
-
 static int pdc202xx_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
@@ -377,7 +357,12 @@ fast_ata_pio:
 
 static int pdc202xx_quirkproc (ide_drive_t *drive)
 {
-	return ((int) check_in_drive_lists(drive, pdc_quirk_drives));
+	const char **list, *model = drive->id->model;
+
+	for (list = pdc_quirk_drives; *list != NULL; list++)
+		if (strstr(model, *list) != NULL)
+			return 2;
+	return 0;
 }
 
 static void pdc202xx_old_ide_dma_start(ide_drive_t *drive)
@@ -719,7 +704,7 @@ static struct pci_driver driver = {
 	.probe		= pdc202xx_init_one,
 };
 
-static int pdc202xx_ide_init(void)
+static int __init pdc202xx_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }

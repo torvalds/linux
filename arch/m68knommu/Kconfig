@@ -25,6 +25,14 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default n
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 config GENERIC_FIND_NEXT_BIT
 	bool
 	default y

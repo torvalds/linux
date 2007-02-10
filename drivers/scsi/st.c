@@ -922,7 +922,7 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 	struct st_modedef *STm;
 	struct st_partstat *STps;
 	char *name = tape_name(STp);
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	int mode = TAPE_MODE(inode);
 
 	STp->ready = ST_READY;
@@ -2816,15 +2816,18 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 
 		if (cmd_in == MTWEOF &&
 		    cmdstatp->have_sense &&
-		    (cmdstatp->flags & SENSE_EOM) &&
-		    (cmdstatp->sense_hdr.sense_key == NO_SENSE ||
-		     cmdstatp->sense_hdr.sense_key == RECOVERED_ERROR) &&
-		    undone == 0) {
-			ioctl_result = 0;	/* EOF written successfully at EOM */
-			if (fileno >= 0)
-				fileno++;
+		    (cmdstatp->flags & SENSE_EOM)) {
+			if (cmdstatp->sense_hdr.sense_key == NO_SENSE ||
+			    cmdstatp->sense_hdr.sense_key == RECOVERED_ERROR) {
+				ioctl_result = 0;	/* EOF(s) written successfully at EOM */
+				STps->eof = ST_NOEOF;
+			} else {  /* Writing EOF(s) failed */
+				if (fileno >= 0)
+					fileno -= undone;
+				if (undone < arg)
+					STps->eof = ST_NOEOF;
+			}
 			STps->drv_file = fileno;
-			STps->eof = ST_NOEOF;
 		} else if ((cmd_in == MTFSF) || (cmd_in == MTFSFM)) {
 			if (fileno >= 0)
 				STps->drv_file = fileno - undone;

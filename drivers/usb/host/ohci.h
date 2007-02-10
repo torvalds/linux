@@ -1,9 +1,9 @@
 /*
  * OHCI HCD (Host Controller Driver) for USB.
- * 
+ *
  * (C) Copyright 1999 Roman Weissgaerber <weissg@vienna.at>
  * (C) Copyright 2000-2002 David Brownell <dbrownell@users.sourceforge.net>
- * 
+ *
  * This file is licenced under the GPL.
  */
 
@@ -14,7 +14,7 @@
  */
 typedef __u32 __bitwise __hc32;
 typedef __u16 __bitwise __hc16;
- 
+
 /*
  * OHCI Endpoint Descriptor (ED) ... holds TD queue
  * See OHCI spec, section 4.2
@@ -24,7 +24,7 @@ typedef __u16 __bitwise __hc16;
  */
 struct ed {
 	/* first fields are hardware-specified */
-	__hc32			hwINFO;       	/* endpoint config bitmap */
+	__hc32			hwINFO;      /* endpoint config bitmap */
 	/* info bits defined by hcd */
 #define ED_DEQUEUE	(1 << 27)
 	/* info bits defined by the hardware */
@@ -52,11 +52,11 @@ struct ed {
 	 * usually:  OPER --> UNLINK --> (IDLE | OPER) --> ...
 	 */
 	u8			state;		/* ED_{IDLE,UNLINK,OPER} */
-#define ED_IDLE 	0x00		/* NOT linked to HC */
-#define ED_UNLINK 	0x01		/* being unlinked from hc */
+#define ED_IDLE		0x00		/* NOT linked to HC */
+#define ED_UNLINK	0x01		/* being unlinked from hc */
 #define ED_OPER		0x02		/* IS linked to hc */
 
-	u8			type; 		/* PIPE_{BULK,...} */
+	u8			type;		/* PIPE_{BULK,...} */
 
 	/* periodic scheduling params (for intr and iso) */
 	u8			branch;
@@ -70,7 +70,7 @@ struct ed {
 
 #define ED_MASK	((u32)~0x0f)		/* strip hw status in low addr bits */
 
- 
+
 /*
  * OHCI Transfer Descriptor (TD) ... one per transfer segment
  * See OHCI spec, sections 4.3.1 (general = control/bulk/interrupt)
@@ -107,22 +107,22 @@ struct td {
 
 	/* (no hwINFO #defines yet for iso tds) */
 
-  	__hc32		hwCBP;		/* Current Buffer Pointer (or 0) */
-  	__hc32		hwNextTD;	/* Next TD Pointer */
-  	__hc32		hwBE;		/* Memory Buffer End Pointer */
+	__hc32		hwCBP;		/* Current Buffer Pointer (or 0) */
+	__hc32		hwNextTD;	/* Next TD Pointer */
+	__hc32		hwBE;		/* Memory Buffer End Pointer */
 
 	/* PSW is only for ISO.  Only 1 PSW entry is used, but on
 	 * big-endian PPC hardware that's the second entry.
 	 */
 #define MAXPSW	2
-  	__hc16		hwPSW [MAXPSW];
+	__hc16		hwPSW [MAXPSW];
 
 	/* rest are purely for the driver's use */
-  	__u8		index;
-  	struct ed	*ed;
-  	struct td	*td_hash;	/* dma-->td hashtable */
-  	struct td	*next_dl_td;
-  	struct urb	*urb;
+	__u8		index;
+	struct ed	*ed;
+	struct td	*td_hash;	/* dma-->td hashtable */
+	struct td	*next_dl_td;
+	struct urb	*urb;
 
 	dma_addr_t	td_dma;		/* addr of this TD */
 	dma_addr_t	data_dma;	/* addr of data it points to */
@@ -152,8 +152,8 @@ struct td {
 #define TD_NOTACCESSED     0x0F
 
 
-/* map OHCI TD status codes (CC) to errno values */ 
-static const int cc_to_error [16] = { 
+/* map OHCI TD status codes (CC) to errno values */
+static const int cc_to_error [16] = {
 	/* No  Error  */               0,
 	/* CRC Error  */               -EILSEQ,
 	/* Bit Stuff  */               -EPROTO,
@@ -169,7 +169,7 @@ static const int cc_to_error [16] = {
 	/* BufferOver */               -ECOMM,
 	/* BuffUnder  */               -ENOSR,
 	/* (for HCD)  */               -EALREADY,
-	/* (for HCD)  */               -EALREADY 
+	/* (for HCD)  */               -EALREADY
 };
 
 
@@ -182,7 +182,7 @@ struct ohci_hcca {
 #define NUM_INTS 32
 	__hc32	int_table [NUM_INTS];	/* periodic schedule */
 
-	/* 
+	/*
 	 * OHCI defines u16 frame_no, followed by u16 zero pad.
 	 * Since some processors can't do 16 bit bus accesses,
 	 * portable access must be a 32 bits wide.
@@ -262,10 +262,10 @@ struct ohci_regs {
  * HcCommandStatus (cmdstatus) register masks
  */
 #define OHCI_HCR	(1 << 0)	/* host controller reset */
-#define OHCI_CLF  	(1 << 1)	/* control list filled */
-#define OHCI_BLF  	(1 << 2)	/* bulk list filled */
-#define OHCI_OCR  	(1 << 3)	/* ownership change request */
-#define OHCI_SOC  	(3 << 16)	/* scheduling overrun count */
+#define OHCI_CLF	(1 << 1)	/* control list filled */
+#define OHCI_BLF	(1 << 2)	/* bulk list filled */
+#define OHCI_OCR	(1 << 3)	/* ownership change request */
+#define OHCI_SOC	(3 << 16)	/* scheduling overrun count */
 
 /*
  * masks used with interrupt registers:
@@ -285,20 +285,20 @@ struct ohci_regs {
 
 
 /* OHCI ROOT HUB REGISTER MASKS */
- 
+
 /* roothub.portstatus [i] bits */
-#define RH_PS_CCS            0x00000001   	/* current connect status */
-#define RH_PS_PES            0x00000002   	/* port enable status*/
-#define RH_PS_PSS            0x00000004   	/* port suspend status */
-#define RH_PS_POCI           0x00000008   	/* port over current indicator */
-#define RH_PS_PRS            0x00000010  	/* port reset status */
-#define RH_PS_PPS            0x00000100   	/* port power status */
-#define RH_PS_LSDA           0x00000200    	/* low speed device attached */
-#define RH_PS_CSC            0x00010000 	/* connect status change */
-#define RH_PS_PESC           0x00020000   	/* port enable status change */
-#define RH_PS_PSSC           0x00040000    	/* port suspend status change */
-#define RH_PS_OCIC           0x00080000    	/* over current indicator change */
-#define RH_PS_PRSC           0x00100000   	/* port reset status change */
+#define RH_PS_CCS            0x00000001		/* current connect status */
+#define RH_PS_PES            0x00000002		/* port enable status*/
+#define RH_PS_PSS            0x00000004		/* port suspend status */
+#define RH_PS_POCI           0x00000008		/* port over current indicator */
+#define RH_PS_PRS            0x00000010		/* port reset status */
+#define RH_PS_PPS            0x00000100		/* port power status */
+#define RH_PS_LSDA           0x00000200		/* low speed device attached */
+#define RH_PS_CSC            0x00010000		/* connect status change */
+#define RH_PS_PESC           0x00020000		/* port enable status change */
+#define RH_PS_PSSC           0x00040000		/* port suspend status change */
+#define RH_PS_OCIC           0x00080000		/* over current indicator change */
+#define RH_PS_PRSC           0x00100000		/* port reset status change */
 
 /* roothub.status bits */
 #define RH_HS_LPS	     0x00000001		/* local power status */
@@ -333,7 +333,7 @@ typedef struct urb_priv {
 } urb_priv_t;
 
 #define TD_HASH_SIZE    64    /* power'o'two */
-// sizeof (struct td) ~= 64 == 2^6 ... 
+// sizeof (struct td) ~= 64 == 2^6 ...
 #define TD_HASH_FUNC(td_dma) ((td_dma ^ (td_dma >> 6)) % TD_HASH_SIZE)
 
 
@@ -364,11 +364,11 @@ struct ohci_hcd {
 
 	struct ed		*ed_bulktail;		/* last in bulk list */
 	struct ed		*ed_controltail;	/* last in ctrl list */
- 	struct ed		*periodic [NUM_INTS];	/* shadow int_table */
+	struct ed		*periodic [NUM_INTS];	/* shadow int_table */
 
 	/*
 	 * OTG controllers and transceivers need software interaction;
-	 * other external transceivers should be software-transparent 
+	 * other external transceivers should be software-transparent
 	 */
 	struct otg_transceiver	*transceiver;
 
@@ -385,7 +385,7 @@ struct ohci_hcd {
 	 */
 	int			num_ports;
 	int			load [NUM_INTS];
-	u32 			hc_control;	/* copy of hc control reg */
+	u32			hc_control;	/* copy of hc control reg */
 	unsigned long		next_statechange;	/* suspend/resume */
 	u32			fminterval;		/* saved register */
 	unsigned		autostop:1;	/* rh auto stopping/stopped */
@@ -394,8 +394,9 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_AMD756	0x01			/* erratum #4 */
 #define	OHCI_QUIRK_SUPERIO	0x02			/* natsemi */
 #define	OHCI_QUIRK_INITRESET	0x04			/* SiS, OPTi, ... */
-#define	OHCI_BIG_ENDIAN		0x08			/* big endian HC */
-#define	OHCI_QUIRK_ZFMICRO	0x10			/* Compaq ZFMicro chipset*/
+#define	OHCI_QUIRK_BE_DESC	0x08			/* BE descriptors */
+#define	OHCI_QUIRK_BE_MMIO	0x10			/* BE registers */
+#define	OHCI_QUIRK_ZFMICRO	0x20			/* Compaq ZFMicro chipset*/
 	// there are also chip quirks/bugs in init logic
 
 };
@@ -439,117 +440,164 @@ static inline struct usb_hcd *ohci_to_hcd (const struct ohci_hcd *ohci)
  * a minority (notably the IBM STB04XXX and the Motorola MPC5200
  * processors) implement them in big endian format.
  *
+ * In addition some more exotic implementations like the Toshiba
+ * Spider (aka SCC) cell southbridge are "mixed" endian, that is,
+ * they have a different endianness for registers vs. in-memory
+ * descriptors.
+ *
  * This attempts to support either format at compile time without a
  * runtime penalty, or both formats with the additional overhead
  * of checking a flag bit.
+ *
+ * That leads to some tricky Kconfig rules howevber. There are
+ * different defaults based on some arch/ppc platforms, though
+ * the basic rules are:
+ *
+ * Controller type              Kconfig options needed
+ * ---------------              ----------------------
+ * little endian                CONFIG_USB_OHCI_LITTLE_ENDIAN
+ *
+ * fully big endian             CONFIG_USB_OHCI_BIG_ENDIAN_DESC _and_
+ *                              CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
+ *
+ * mixed endian                 CONFIG_USB_OHCI_LITTLE_ENDIAN _and_
+ *                              CONFIG_USB_OHCI_BIG_ENDIAN_{MMIO,DESC}
+ *
+ * (If you have a mixed endian controller, you -must- also define
+ * CONFIG_USB_OHCI_LITTLE_ENDIAN or things will not work when building
+ * both your mixed endian and a fully big endian controller support in
+ * the same kernel image).
  */
 
-#ifdef CONFIG_USB_OHCI_BIG_ENDIAN
-
+#ifdef CONFIG_USB_OHCI_BIG_ENDIAN_DESC
 #ifdef CONFIG_USB_OHCI_LITTLE_ENDIAN
-#define big_endian(ohci)	(ohci->flags & OHCI_BIG_ENDIAN) /* either */
+#define big_endian_desc(ohci)	(ohci->flags & OHCI_QUIRK_BE_DESC)
 #else
-#define big_endian(ohci)	1		/* only big endian */
+#define big_endian_desc(ohci)	1		/* only big endian */
+#endif
+#else
+#define big_endian_desc(ohci)	0		/* only little endian */
+#endif
+
+#ifdef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
+#ifdef CONFIG_USB_OHCI_LITTLE_ENDIAN
+#define big_endian_mmio(ohci)	(ohci->flags & OHCI_QUIRK_BE_MMIO)
+#else
+#define big_endian_mmio(ohci)	1		/* only big endian */
+#endif
+#else
+#define big_endian_mmio(ohci)	0		/* only little endian */
 #endif
 
 /*
  * Big-endian read/write functions are arch-specific.
  * Other arches can be added if/when they're needed.
+ *
+ * REVISIT: arch/powerpc now has readl/writel_be, so the
+ * definition below can die once the STB04xxx support is
+ * finally ported over.
  */
-#if defined(CONFIG_PPC)
+#if defined(CONFIG_PPC) && !defined(CONFIG_PPC_MERGE)
 #define readl_be(addr)		in_be32((__force unsigned *)addr)
 #define writel_be(val, addr)	out_be32((__force unsigned *)addr, val)
 #endif
 
-static inline unsigned int ohci_readl (const struct ohci_hcd *ohci,
-							__hc32 __iomem * regs)
+static inline unsigned int _ohci_readl (const struct ohci_hcd *ohci,
+					__hc32 __iomem * regs)
 {
-	return big_endian(ohci) ? readl_be (regs) : readl ((__force u32 *)regs);
+#ifdef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
+	return big_endian_mmio(ohci) ?
+		readl_be (regs) :
+		readl (regs);
+#else
+	return readl (regs);
+#endif
 }
 
-static inline void ohci_writel (const struct ohci_hcd *ohci,
-				const unsigned int val, __hc32 __iomem *regs)
+static inline void _ohci_writel (const struct ohci_hcd *ohci,
+				 const unsigned int val, __hc32 __iomem *regs)
 {
-	big_endian(ohci) ? writel_be (val, regs) :
-			   writel (val, (__force u32 *)regs);
+#ifdef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
+	big_endian_mmio(ohci) ?
+		writel_be (val, regs) :
+		writel (val, regs);
+#else
+		writel (val, regs);
+#endif
 }
-
-#else	/* !CONFIG_USB_OHCI_BIG_ENDIAN */
-
-#define big_endian(ohci)	0		/* only little endian */
 
 #ifdef CONFIG_ARCH_LH7A404
-	/* Marc Singer: at the time this code was written, the LH7A404
-	 * had a problem reading the USB host registers.  This
-	 * implementation of the ohci_readl function performs the read
-	 * twice as a work-around.
-	 */
-static inline unsigned int
-ohci_readl (const struct ohci_hcd *ohci, const __hc32 *regs)
-{
-	*(volatile __force unsigned int*) regs;
-	return *(volatile __force unsigned int*) regs;
-}
+/* Marc Singer: at the time this code was written, the LH7A404
+ * had a problem reading the USB host registers.  This
+ * implementation of the ohci_readl function performs the read
+ * twice as a work-around.
+ */
+#define ohci_readl(o,r)		(_ohci_readl(o,r),_ohci_readl(o,r))
+#define ohci_writel(o,v,r)	_ohci_writel(o,v,r)
 #else
-	/* Standard version of ohci_readl uses standard, platform
-	 * specific implementation. */
-static inline unsigned int
-ohci_readl (const struct ohci_hcd *ohci, __hc32 __iomem * regs)
-{
-	return readl(regs);
-}
+#define ohci_readl(o,r)		_ohci_readl(o,r)
+#define ohci_writel(o,v,r)	_ohci_writel(o,v,r)
 #endif
 
-static inline void ohci_writel (const struct ohci_hcd *ohci,
-				const unsigned int val, __hc32 __iomem *regs)
-{
-	writel (val, regs);
-}
-
-#endif	/* !CONFIG_USB_OHCI_BIG_ENDIAN */
 
 /*-------------------------------------------------------------------------*/
 
 /* cpu to ohci */
 static inline __hc16 cpu_to_hc16 (const struct ohci_hcd *ohci, const u16 x)
 {
-	return big_endian(ohci) ? (__force __hc16)cpu_to_be16(x) : (__force __hc16)cpu_to_le16(x);
+	return big_endian_desc(ohci) ?
+		(__force __hc16)cpu_to_be16(x) :
+		(__force __hc16)cpu_to_le16(x);
 }
 
 static inline __hc16 cpu_to_hc16p (const struct ohci_hcd *ohci, const u16 *x)
 {
-	return big_endian(ohci) ? cpu_to_be16p(x) : cpu_to_le16p(x);
+	return big_endian_desc(ohci) ?
+		cpu_to_be16p(x) :
+		cpu_to_le16p(x);
 }
 
 static inline __hc32 cpu_to_hc32 (const struct ohci_hcd *ohci, const u32 x)
 {
-	return big_endian(ohci) ? (__force __hc32)cpu_to_be32(x) : (__force __hc32)cpu_to_le32(x);
+	return big_endian_desc(ohci) ?
+		(__force __hc32)cpu_to_be32(x) :
+		(__force __hc32)cpu_to_le32(x);
 }
 
 static inline __hc32 cpu_to_hc32p (const struct ohci_hcd *ohci, const u32 *x)
 {
-	return big_endian(ohci) ? cpu_to_be32p(x) : cpu_to_le32p(x);
+	return big_endian_desc(ohci) ?
+		cpu_to_be32p(x) :
+		cpu_to_le32p(x);
 }
 
 /* ohci to cpu */
 static inline u16 hc16_to_cpu (const struct ohci_hcd *ohci, const __hc16 x)
 {
-	return big_endian(ohci) ? be16_to_cpu((__force __be16)x) : le16_to_cpu((__force __le16)x);
+	return big_endian_desc(ohci) ?
+		be16_to_cpu((__force __be16)x) :
+		le16_to_cpu((__force __le16)x);
 }
 
 static inline u16 hc16_to_cpup (const struct ohci_hcd *ohci, const __hc16 *x)
 {
-	return big_endian(ohci) ? be16_to_cpup((__force __be16 *)x) : le16_to_cpup((__force __le16 *)x);
+	return big_endian_desc(ohci) ?
+		be16_to_cpup((__force __be16 *)x) :
+		le16_to_cpup((__force __le16 *)x);
 }
 
 static inline u32 hc32_to_cpu (const struct ohci_hcd *ohci, const __hc32 x)
 {
-	return big_endian(ohci) ? be32_to_cpu((__force __be32)x) : le32_to_cpu((__force __le32)x);
+	return big_endian_desc(ohci) ?
+		be32_to_cpu((__force __be32)x) :
+		le32_to_cpu((__force __le32)x);
 }
 
 static inline u32 hc32_to_cpup (const struct ohci_hcd *ohci, const __hc32 *x)
 {
-	return big_endian(ohci) ? be32_to_cpup((__force __be32 *)x) : le32_to_cpup((__force __le32 *)x);
+	return big_endian_desc(ohci) ?
+		be32_to_cpup((__force __be32 *)x) :
+		le32_to_cpup((__force __le32 *)x);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -557,6 +605,9 @@ static inline u32 hc32_to_cpup (const struct ohci_hcd *ohci, const __hc32 *x)
 /* HCCA frame number is 16 bits, but is accessed as 32 bits since not all
  * hardware handles 16 bit reads.  That creates a different confusion on
  * some big-endian SOC implementations.  Same thing happens with PSW access.
+ *
+ * FIXME: Deal with that as a runtime quirk when STB03xxx is ported over
+ * to arch/powerpc
  */
 
 #ifdef CONFIG_STB03xxx
@@ -568,7 +619,7 @@ static inline u32 hc32_to_cpup (const struct ohci_hcd *ohci, const __hc32 *x)
 static inline u16 ohci_frame_no(const struct ohci_hcd *ohci)
 {
 	u32 tmp;
-	if (big_endian(ohci)) {
+	if (big_endian_desc(ohci)) {
 		tmp = be32_to_cpup((__force __be32 *)&ohci->hcca->frame_no);
 		tmp >>= OHCI_BE_FRAME_NO_SHIFT;
 	} else
@@ -580,7 +631,7 @@ static inline u16 ohci_frame_no(const struct ohci_hcd *ohci)
 static inline __hc16 *ohci_hwPSWp(const struct ohci_hcd *ohci,
                                  const struct td *td, int index)
 {
-	return (__hc16 *)(big_endian(ohci) ?
+	return (__hc16 *)(big_endian_desc(ohci) ?
 			&td->hwPSW[index ^ 1] : &td->hwPSW[index]);
 }
 
@@ -598,11 +649,11 @@ static inline void disable (struct ohci_hcd *ohci)
 }
 
 #define	FI			0x2edf		/* 12000 bits per frame (-1) */
-#define	FSMP(fi) 		(0x7fff & ((6 * ((fi) - 210)) / 7))
+#define	FSMP(fi)		(0x7fff & ((6 * ((fi) - 210)) / 7))
 #define	FIT			(1 << 31)
 #define LSTHRESH		0x628		/* lowspeed bit threshold */
 
-static void periodic_reinit (struct ohci_hcd *ohci)
+static inline void periodic_reinit (struct ohci_hcd *ohci)
 {
 	u32	fi = ohci->fminterval & 0x03fff;
 	u32	fit = ohci_readl(ohci, &ohci->regs->fminterval) & FIT;
@@ -626,11 +677,11 @@ static void periodic_reinit (struct ohci_hcd *ohci)
 			temp = ohci_readl (hc, &hc->regs->roothub.register); \
 	temp; })
 
-static u32 roothub_a (struct ohci_hcd *hc)
+static inline u32 roothub_a (struct ohci_hcd *hc)
 	{ return read_roothub (hc, a, 0xfc0fe000); }
 static inline u32 roothub_b (struct ohci_hcd *hc)
 	{ return ohci_readl (hc, &hc->regs->roothub.b); }
 static inline u32 roothub_status (struct ohci_hcd *hc)
 	{ return ohci_readl (hc, &hc->regs->roothub.status); }
-static u32 roothub_portstatus (struct ohci_hcd *hc, int i)
+static inline u32 roothub_portstatus (struct ohci_hcd *hc, int i)
 	{ return read_roothub (hc, portstatus [i], 0xffe0fce0); }

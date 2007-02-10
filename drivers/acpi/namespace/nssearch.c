@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -321,7 +321,8 @@ acpi_ns_search_and_enter(u32 target_name,
 	 * even though there are a few bad names.
 	 */
 	if (!acpi_ut_valid_acpi_name(target_name)) {
-		target_name = acpi_ut_repair_name(target_name);
+		target_name =
+		    acpi_ut_repair_name(ACPI_CAST_PTR(char, &target_name));
 
 		/* Report warning only if in strict mode or debug mode */
 
@@ -400,6 +401,10 @@ acpi_ns_search_and_enter(u32 target_name,
 		new_node->flags |= ANOBJ_IS_EXTERNAL;
 	}
 #endif
+
+	if (flags & ACPI_NS_TEMPORARY) {
+		new_node->flags |= ANOBJ_TEMPORARY;
+	}
 
 	/* Install the new object into the parent's list of children */
 

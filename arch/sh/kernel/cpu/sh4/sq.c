@@ -111,8 +111,9 @@ static int __sq_remap(struct sq_mapping *map, unsigned long flags)
 
 	vma->phys_addr = map->addr;
 
-	if (remap_area_pages((unsigned long)vma->addr, vma->phys_addr,
-			     map->size, flags)) {
+	if (ioremap_page_range((unsigned long)vma->addr,
+			       (unsigned long)vma->addr + map->size,
+			       vma->phys_addr, __pgprot(flags))) {
 		vunmap(vma->addr);
 		return -EAGAIN;
 	}
@@ -176,7 +177,7 @@ unsigned long sq_remap(unsigned long phys, unsigned int size,
 
 	map->sq_addr = P4SEG_STORE_QUE + (page << PAGE_SHIFT);
 
-	ret = __sq_remap(map, flags);
+	ret = __sq_remap(map, pgprot_val(PAGE_KERNEL_NOCACHE) | flags);
 	if (unlikely(ret != 0))
 		goto out;
 

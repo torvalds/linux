@@ -44,8 +44,11 @@ typedef struct {
 #define SEQLOCK_UNLOCKED \
 		 __SEQLOCK_UNLOCKED(old_style_seqlock_init)
 
-#define seqlock_init(x) \
-		do { *(x) = (seqlock_t) __SEQLOCK_UNLOCKED(x); } while (0)
+#define seqlock_init(x)					\
+	do {						\
+		(x)->sequence = 0;			\
+		spin_lock_init(&(x)->lock);		\
+	} while (0)
 
 #define DEFINE_SEQLOCK(x) \
 		seqlock_t x = __SEQLOCK_UNLOCKED(x)

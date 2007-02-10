@@ -957,7 +957,7 @@ static int get_far_parent(struct tree_balance *p_s_tb,
 {
 	struct buffer_head *p_s_parent;
 	INITIALIZE_PATH(s_path_to_neighbor_father);
-	struct path *p_s_path = p_s_tb->tb_path;
+	struct treepath *p_s_path = p_s_tb->tb_path;
 	struct cpu_key s_lr_father_key;
 	int n_counter,
 	    n_position = INT_MAX,
@@ -1074,7 +1074,7 @@ static int get_far_parent(struct tree_balance *p_s_tb,
  */
 static int get_parents(struct tree_balance *p_s_tb, int n_h)
 {
-	struct path *p_s_path = p_s_tb->tb_path;
+	struct treepath *p_s_path = p_s_tb->tb_path;
 	int n_position,
 	    n_ret_value,
 	    n_path_offset = PATH_H_PATH_OFFSET(p_s_tb->tb_path, n_h);
@@ -1885,7 +1885,7 @@ static int check_balance(int mode,
 static int get_direct_parent(struct tree_balance *p_s_tb, int n_h)
 {
 	struct buffer_head *p_s_bh;
-	struct path *p_s_path = p_s_tb->tb_path;
+	struct treepath *p_s_path = p_s_tb->tb_path;
 	int n_position,
 	    n_path_offset = PATH_H_PATH_OFFSET(p_s_tb->tb_path, n_h);
 

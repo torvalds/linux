@@ -668,7 +668,7 @@ void __init register_bootmem_low_pages(unsigned long max_low_pfn)
 	}
 }
 
-void __init register_memory(void)
+void __init e820_register_memory(void)
 {
 	unsigned long gapstart, gapsize, round;
 	unsigned long long last;

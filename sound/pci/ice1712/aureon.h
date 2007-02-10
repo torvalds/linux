@@ -28,15 +28,17 @@
 				       "{Terratec,Aureon 7.1 Space},"\
 				       "{Terratec,Aureon 7.1 Universe}," \
 					"{AudioTrak,Prodigy 7.1}," \
-					"{AudioTrak,Prodigy 7.1 LT},"
+					"{AudioTrak,Prodigy 7.1 LT},"\
+					"{AudioTrak,Prodigy 7.1 XT},"
 
 #define VT1724_SUBDEVICE_AUREON51_SKY	0x3b154711	/* Aureon 5.1 Sky */
 #define VT1724_SUBDEVICE_AUREON71_SPACE	0x3b154511	/* Aureon 7.1 Space */
 #define VT1724_SUBDEVICE_AUREON71_UNIVERSE	0x3b155311	/* Aureon 7.1 Universe */
 #define VT1724_SUBDEVICE_PRODIGY71	0x33495345	/* PRODIGY 7.1 */
 #define VT1724_SUBDEVICE_PRODIGY71LT	0x32315441	/* PRODIGY 7.1 LT */
+#define VT1724_SUBDEVICE_PRODIGY71XT	0x36315441	/* PRODIGY 7.1 XT*/
 
-extern struct snd_ice1712_card_info  snd_vt1724_aureon_cards[];
+extern const struct snd_ice1712_card_info  snd_vt1724_aureon_cards[];
 
 /* GPIO bits */
 #define AUREON_CS8415_CS	(1 << 22)

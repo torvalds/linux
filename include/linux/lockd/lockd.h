@@ -191,7 +191,7 @@ __be32		  nlmsvc_cancel_blocked(struct nlm_file *, struct nlm_lock *);
 unsigned long	  nlmsvc_retry_blocked(void);
 void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
 					nlm_host_match_fn_t match);
-void		  nlmsvc_grant_reply(struct nlm_cookie *, u32);
+void		  nlmsvc_grant_reply(struct nlm_cookie *, __be32);
 
 /*
  * File handling for the server personality
@@ -206,7 +206,7 @@ void		  nlmsvc_invalidate_all(void);
 static __inline__ struct inode *
 nlmsvc_file_inode(struct nlm_file *file)
 {
-	return file->f_file->f_dentry->d_inode;
+	return file->f_file->f_path.dentry->d_inode;
 }
 
 /*

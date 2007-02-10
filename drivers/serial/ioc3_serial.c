@@ -950,7 +950,7 @@ static void transmit_chars(struct uart_port *the_port)
  */
 static void
 ioc3_change_speed(struct uart_port *the_port,
-		  struct termios *new_termios, struct termios *old_termios)
+		  struct ktermios *new_termios, struct ktermios *old_termios)
 {
 	struct ioc3_port *port = get_ioc3_port(the_port);
 	unsigned int cflag;
@@ -1853,7 +1853,7 @@ static int ic3_startup(struct uart_port *the_port)
  */
 static void
 ic3_set_termios(struct uart_port *the_port,
-		struct termios *termios, struct termios *old_termios)
+		struct ktermios *termios, struct ktermios *old_termios)
 {
 	unsigned long port_flags;
 

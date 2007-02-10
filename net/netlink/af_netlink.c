@@ -472,8 +472,7 @@ static int netlink_release(struct socket *sock)
 				NETLINK_URELEASE, &n);
 	}	
 
-	if (nlk->module)
-		module_put(nlk->module);
+	module_put(nlk->module);
 
 	netlink_table_grab();
 	if (nlk->flags & NETLINK_KERNEL_SOCKET) {
@@ -699,7 +698,7 @@ static struct sock *netlink_getsockbypid(struct sock *ssk, u32 pid)
 
 struct sock *netlink_getsockbyfilp(struct file *filp)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct sock *sock;
 
 	if (!S_ISSOCK(inode->i_mode))

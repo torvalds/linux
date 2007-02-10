@@ -1253,7 +1253,7 @@ static char * ap_auth_make_challenge(struct ap_data *ap)
 			return NULL;
 	}
 
-	tmpbuf = (char *) kmalloc(WLAN_AUTH_CHALLENGE_LEN, GFP_ATOMIC);
+	tmpbuf = kmalloc(WLAN_AUTH_CHALLENGE_LEN, GFP_ATOMIC);
 	if (tmpbuf == NULL) {
 		PDEBUG(DEBUG_AP, "AP: kmalloc failed for challenge\n");
 		return NULL;

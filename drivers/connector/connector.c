@@ -135,17 +135,15 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
 	spin_lock_bh(&dev->cbdev->queue_lock);
 	list_for_each_entry(__cbq, &dev->cbdev->queue_list, callback_entry) {
 		if (cn_cb_equal(&__cbq->id.id, &msg->id)) {
-			if (likely(!test_bit(WORK_STRUCT_PENDING,
-					     &__cbq->work.work.management) &&
+			if (likely(!work_pending(&__cbq->work) &&
 					__cbq->data.ddata == NULL)) {
 				__cbq->data.callback_priv = msg;
 
 				__cbq->data.ddata = data;
 				__cbq->data.destruct_data = destruct_data;
 
-				if (queue_delayed_work(
-					    dev->cbdev->cn_queue,
-					    &__cbq->work, 0))
+				if (queue_work(dev->cbdev->cn_queue,
+							&__cbq->work))
 					err = 0;
 			} else {
 				struct cn_callback_data *d;
@@ -159,12 +157,11 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
 					d->destruct_data = destruct_data;
 					d->free = __cbq;
 
-					INIT_DELAYED_WORK(&__cbq->work,
-							  &cn_queue_wrapper);
+					INIT_WORK(&__cbq->work,
+							&cn_queue_wrapper);
 					
-					if (queue_delayed_work(
-						    dev->cbdev->cn_queue,
-						    &__cbq->work, 0))
+					if (queue_work(dev->cbdev->cn_queue,
+						    &__cbq->work))
 						err = 0;
 					else {
 						kfree(__cbq);

@@ -200,7 +200,7 @@ static void *mppe_alloc(unsigned char *options, int optlen)
 	    || options[0] != CI_MPPE || options[1] != CILEN_MPPE)
 		goto out;
 
-	state = (struct ppp_mppe_state *) kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc(sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		goto out;
 

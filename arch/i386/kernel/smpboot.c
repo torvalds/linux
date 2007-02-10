@@ -69,9 +69,7 @@ static int __devinitdata smp_b_stepping;
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
-#ifdef CONFIG_X86_HT
 EXPORT_SYMBOL(smp_num_siblings);
-#endif
 
 /* Last level cache ID of each logical CPU */
 int cpu_llc_id[NR_CPUS] __cpuinitdata = {[0 ... NR_CPUS-1] = BAD_APICID};
@@ -161,7 +159,7 @@ void __init smp_alloc_memory(void)
  * a given CPU
  */
 
-static void __devinit smp_store_cpu_info(int id)
+static void __cpuinit smp_store_cpu_info(int id)
 {
 	struct cpuinfo_x86 *c = cpu_data + id;
 
@@ -229,7 +227,7 @@ static struct {
 	atomic_t count_start;
 	atomic_t count_stop;
 	unsigned long long values[NR_CPUS];
-} tsc __initdata = {
+} tsc __cpuinitdata = {
 	.start_flag = ATOMIC_INIT(0),
 	.count_start = ATOMIC_INIT(0),
 	.count_stop = ATOMIC_INIT(0),
@@ -334,7 +332,7 @@ static void __init synchronize_tsc_bp(void)
 		printk("passed.\n");
 }
 
-static void __init synchronize_tsc_ap(void)
+static void __cpuinit synchronize_tsc_ap(void)
 {
 	int i;
 
@@ -366,7 +364,7 @@ extern void calibrate_delay(void);
 
 static atomic_t init_deasserted;
 
-static void __devinit smp_callin(void)
+static void __cpuinit smp_callin(void)
 {
 	int cpuid, phys_id;
 	unsigned long timeout;
@@ -540,7 +538,7 @@ set_cpu_sibling_map(int cpu)
 /*
  * Activate a secondary processor.
  */
-static void __devinit start_secondary(void *unused)
+static void __cpuinit start_secondary(void *unused)
 {
 	/*
 	 * Don't put *anything* before secondary_cpu_init(), SMP
@@ -597,6 +595,12 @@ static void __devinit start_secondary(void *unused)
  */
 void __devinit initialize_secondary(void)
 {
+	/*
+	 * switch to the per CPU GDT we already set up
+	 * in do_boot_cpu()
+	 */
+	cpu_set_gdt(current_thread_info()->cpu);
+
 	/*
 	 * We don't actually need to load the full TSS,
 	 * basically just the stack pointer and the eip.
@@ -933,7 +937,7 @@ static inline struct task_struct * alloc_idle_task(int cpu)
 #define alloc_idle_task(cpu) fork_idle(cpu)
 #endif
 
-static int __devinit do_boot_cpu(int apicid, int cpu)
+static int __cpuinit do_boot_cpu(int apicid, int cpu)
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
  * (ie clustered apic addressing mode), this is a LOGICAL apic ID.
@@ -973,9 +977,6 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 	printk("Booting processor %d/%d eip %lx\n", cpu, apicid, start_eip);
 	/* Stack for startup_32 can be just as for start_secondary onwards */
 	stack_start.esp = (void *) idle->thread.esp;
-
-	start_pda = cpu_pda(cpu);
-	cpu_gdt_descr = per_cpu(cpu_gdt_descr, cpu);
 
 	irq_ctx_init(cpu);
 
@@ -1118,7 +1119,7 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 
 	/* init low mem mapping */
 	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
-			KERNEL_PGD_PTRS);
+			min_t(unsigned long, KERNEL_PGD_PTRS, USER_PGD_PTRS));
 	flush_tlb_all();
 	schedule_work(&info.task);
 	wait_for_completion(&done);
@@ -1434,7 +1435,7 @@ void __cpu_die(unsigned int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-int __devinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu)
 {
 #ifdef CONFIG_HOTPLUG_CPU
 	int ret=0;

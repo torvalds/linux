@@ -45,7 +45,7 @@ void enable_lasat_irq(unsigned int irq_nr)
 }
 
 static struct irq_chip lasat_irq_type = {
-	.typename = "Lasat",
+	.name = "Lasat",
 	.ack = disable_lasat_irq,
 	.mask = disable_lasat_irq,
 	.mask_ack = disable_lasat_irq,

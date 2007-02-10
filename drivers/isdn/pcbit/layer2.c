@@ -100,7 +100,7 @@ pcbit_l2_write(struct pcbit_dev *dev, ulong msg, ushort refnum,
 		dev_kfree_skb(skb);
 		return -1;
 	}
-	if ((frame = (struct frame_buf *) kmalloc(sizeof(struct frame_buf),
+	if ((frame = kmalloc(sizeof(struct frame_buf),
 						  GFP_ATOMIC)) == NULL) {
 		printk(KERN_WARNING "pcbit_2_write: kmalloc failed\n");
 		dev_kfree_skb(skb);
@@ -369,13 +369,12 @@ pcbit_receive(struct pcbit_dev *dev)
 			kfree(dev->read_frame);
 			dev->read_frame = NULL;
 		}
-		frame = kmalloc(sizeof(struct frame_buf), GFP_ATOMIC);
+		frame = kzalloc(sizeof(struct frame_buf), GFP_ATOMIC);
 
 		if (frame == NULL) {
 			printk(KERN_WARNING "kmalloc failed\n");
 			return;
 		}
-		memset(frame, 0, sizeof(struct frame_buf));
 
 		cpu = pcbit_readb(dev);
 		proc = pcbit_readb(dev);

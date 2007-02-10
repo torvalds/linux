@@ -776,7 +776,7 @@ static int ocfs2_local_alloc_reserve_for_window(struct ocfs2_super *osb,
 {
 	int status;
 
-	*ac = kcalloc(1, sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
+	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
 	if (!(*ac)) {
 		status = -ENOMEM;
 		mlog_errno(status);

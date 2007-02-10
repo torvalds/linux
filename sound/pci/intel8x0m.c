@@ -196,12 +196,8 @@ struct intel8x0m {
 
 	int irq;
 
-	unsigned int mmio;
-	unsigned long addr;
-	void __iomem *remap_addr;
-	unsigned int bm_mmio;
-	unsigned long bmaddr;
-	void __iomem *remap_bmaddr;
+	void __iomem *addr;
+	void __iomem *bmaddr;
 
 	struct pci_dev *pci;
 	struct snd_card *card;
@@ -253,72 +249,48 @@ MODULE_DEVICE_TABLE(pci, snd_intel8x0m_ids);
  *  Lowlevel I/O - busmaster
  */
 
-static u8 igetbyte(struct intel8x0m *chip, u32 offset)
+static inline u8 igetbyte(struct intel8x0m *chip, u32 offset)
 {
-	if (chip->bm_mmio)
-		return readb(chip->remap_bmaddr + offset);
-	else
-		return inb(chip->bmaddr + offset);
+	return ioread8(chip->bmaddr + offset);
 }
 
-static u16 igetword(struct intel8x0m *chip, u32 offset)
+static inline u16 igetword(struct intel8x0m *chip, u32 offset)
 {
-	if (chip->bm_mmio)
-		return readw(chip->remap_bmaddr + offset);
-	else
-		return inw(chip->bmaddr + offset);
+	return ioread16(chip->bmaddr + offset);
 }
 
-static u32 igetdword(struct intel8x0m *chip, u32 offset)
+static inline u32 igetdword(struct intel8x0m *chip, u32 offset)
 {
-	if (chip->bm_mmio)
-		return readl(chip->remap_bmaddr + offset);
-	else
-		return inl(chip->bmaddr + offset);
+	return ioread32(chip->bmaddr + offset);
 }
 
-static void iputbyte(struct intel8x0m *chip, u32 offset, u8 val)
+static inline void iputbyte(struct intel8x0m *chip, u32 offset, u8 val)
 {
-	if (chip->bm_mmio)
-		writeb(val, chip->remap_bmaddr + offset);
-	else
-		outb(val, chip->bmaddr + offset);
+	iowrite8(val, chip->bmaddr + offset);
 }
 
-static void iputword(struct intel8x0m *chip, u32 offset, u16 val)
+static inline void iputword(struct intel8x0m *chip, u32 offset, u16 val)
 {
-	if (chip->bm_mmio)
-		writew(val, chip->remap_bmaddr + offset);
-	else
-		outw(val, chip->bmaddr + offset);
+	iowrite16(val, chip->bmaddr + offset);
 }
 
-static void iputdword(struct intel8x0m *chip, u32 offset, u32 val)
+static inline void iputdword(struct intel8x0m *chip, u32 offset, u32 val)
 {
-	if (chip->bm_mmio)
-		writel(val, chip->remap_bmaddr + offset);
-	else
-		outl(val, chip->bmaddr + offset);
+	iowrite32(val, chip->bmaddr + offset);
 }
 
 /*
  *  Lowlevel I/O - AC'97 registers
  */
 
-static u16 iagetword(struct intel8x0m *chip, u32 offset)
+static inline u16 iagetword(struct intel8x0m *chip, u32 offset)
 {
-	if (chip->mmio)
-		return readw(chip->remap_addr + offset);
-	else
-		return inw(chip->addr + offset);
+	return ioread16(chip->addr + offset);
 }
 
-static void iaputword(struct intel8x0m *chip, u32 offset, u16 val)
+static inline void iaputword(struct intel8x0m *chip, u32 offset, u16 val)
 {
-	if (chip->mmio)
-		writew(val, chip->remap_addr + offset);
-	else
-		outw(val, chip->addr + offset);
+	iowrite16(val, chip->addr + offset);
 }
 
 /*
@@ -858,7 +830,7 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0m *chip, int ac97_clock)
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
 	ac97.private_free = snd_intel8x0_mixer_free_ac97;
-	ac97.scaps = AC97_SCAP_SKIP_AUDIO;
+	ac97.scaps = AC97_SCAP_SKIP_AUDIO | AC97_SCAP_POWER_SAVE;
 
 	glob_sta = igetdword(chip, ICHREG(GLOB_STA));
 
@@ -1019,10 +991,10 @@ static int snd_intel8x0_free(struct intel8x0m *chip)
       __hw_end:
 	if (chip->bdbars.area)
 		snd_dma_free_pages(&chip->bdbars);
-	if (chip->remap_addr)
-		iounmap(chip->remap_addr);
-	if (chip->remap_bmaddr)
-		iounmap(chip->remap_bmaddr);
+	if (chip->addr)
+		pci_iounmap(chip->pci, chip->addr);
+	if (chip->bmaddr)
+		pci_iounmap(chip->pci, chip->bmaddr);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
 	pci_release_regions(chip->pci);
@@ -1071,7 +1043,7 @@ static int intel8x0m_resume(struct pci_dev *pci)
 	}
 	pci_set_master(pci);
 	if (request_irq(pci->irq, snd_intel8x0_interrupt,
-			IRQF_DISABLED|IRQF_SHARED, card->shortname, chip)) {
+			IRQF_SHARED, card->shortname, chip)) {
 		printk(KERN_ERR "intel8x0m: unable to grab IRQ %d, "
 		       "disabling device\n", pci->irq);
 		snd_card_disconnect(card);
@@ -1173,39 +1145,31 @@ static int __devinit snd_intel8x0m_create(struct snd_card *card,
 
 	if (device_type == DEVICE_ALI) {
 		/* ALI5455 has no ac97 region */
-		chip->bmaddr = pci_resource_start(pci, 0);
+		chip->bmaddr = pci_iomap(pci, 0, 0);
 		goto port_inited;
 	}
 
-	if (pci_resource_flags(pci, 2) & IORESOURCE_MEM) {	/* ICH4 and Nforce */
-		chip->mmio = 1;
-		chip->addr = pci_resource_start(pci, 2);
-		chip->remap_addr = ioremap_nocache(chip->addr,
-						   pci_resource_len(pci, 2));
-		if (chip->remap_addr == NULL) {
-			snd_printk(KERN_ERR "AC'97 space ioremap problem\n");
-			snd_intel8x0_free(chip);
-			return -EIO;
-		}
-	} else {
-		chip->addr = pci_resource_start(pci, 0);
+	if (pci_resource_flags(pci, 2) & IORESOURCE_MEM) /* ICH4 and Nforce */
+		chip->addr = pci_iomap(pci, 2, 0);
+	else
+		chip->addr = pci_iomap(pci, 0, 0);
+	if (!chip->addr) {
+		snd_printk(KERN_ERR "AC'97 space ioremap problem\n");
+		snd_intel8x0_free(chip);
+		return -EIO;
 	}
-	if (pci_resource_flags(pci, 3) & IORESOURCE_MEM) {	/* ICH4 */
-		chip->bm_mmio = 1;
-		chip->bmaddr = pci_resource_start(pci, 3);
-		chip->remap_bmaddr = ioremap_nocache(chip->bmaddr,
-						     pci_resource_len(pci, 3));
-		if (chip->remap_bmaddr == NULL) {
-			snd_printk(KERN_ERR "Controller space ioremap problem\n");
-			snd_intel8x0_free(chip);
-			return -EIO;
-		}
-	} else {
-		chip->bmaddr = pci_resource_start(pci, 1);
+	if (pci_resource_flags(pci, 3) & IORESOURCE_MEM) /* ICH4 */
+		chip->bmaddr = pci_iomap(pci, 3, 0);
+	else
+		chip->bmaddr = pci_iomap(pci, 1, 0);
+	if (!chip->bmaddr) {
+		snd_printk(KERN_ERR "Controller space ioremap problem\n");
+		snd_intel8x0_free(chip);
+		return -EIO;
 	}
 
  port_inited:
-	if (request_irq(pci->irq, snd_intel8x0_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(pci->irq, snd_intel8x0_interrupt, IRQF_SHARED,
 			card->shortname, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_intel8x0_free(chip);
@@ -1339,8 +1303,8 @@ static int __devinit snd_intel8x0m_probe(struct pci_dev *pci,
 	
 	snd_intel8x0m_proc_init(chip);
 
-	sprintf(card->longname, "%s at 0x%lx, irq %i",
-		card->shortname, chip->addr, chip->irq);
+	sprintf(card->longname, "%s at irq %i",
+		card->shortname, chip->irq);
 
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);

@@ -372,14 +372,14 @@ static void run_pre_handler(unsigned int virt_irq)
 	}
 }
 
-static struct hw_interrupt_type sun4u_irq = {
+static struct irq_chip sun4u_irq = {
 	.typename	= "sun4u",
 	.enable		= sun4u_irq_enable,
 	.disable	= sun4u_irq_disable,
 	.end		= sun4u_irq_end,
 };
 
-static struct hw_interrupt_type sun4u_irq_ack = {
+static struct irq_chip sun4u_irq_ack = {
 	.typename	= "sun4u+ack",
 	.enable		= sun4u_irq_enable,
 	.disable	= sun4u_irq_disable,
@@ -387,14 +387,14 @@ static struct hw_interrupt_type sun4u_irq_ack = {
 	.end		= sun4u_irq_end,
 };
 
-static struct hw_interrupt_type sun4v_irq = {
+static struct irq_chip sun4v_irq = {
 	.typename	= "sun4v",
 	.enable		= sun4v_irq_enable,
 	.disable	= sun4v_irq_disable,
 	.end		= sun4v_irq_end,
 };
 
-static struct hw_interrupt_type sun4v_irq_ack = {
+static struct irq_chip sun4v_irq_ack = {
 	.typename	= "sun4v+ack",
 	.enable		= sun4v_irq_enable,
 	.disable	= sun4v_irq_disable,
@@ -491,22 +491,6 @@ unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino)
 
 out:
 	return bucket->virt_irq;
-}
-
-void hw_resend_irq(struct hw_interrupt_type *handler, unsigned int virt_irq)
-{
-	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
-	unsigned long pstate;
-	unsigned int *ent;
-
-	__asm__ __volatile__("rdpr %%pstate, %0" : "=r" (pstate));
-	__asm__ __volatile__("wrpr %0, %1, %%pstate"
-			     : : "r" (pstate), "i" (PSTATE_IE));
-	ent = irq_work(smp_processor_id());
-	bucket->irq_chain = *ent;
-	*ent = __irq(bucket);
-	set_softint(1 << PIL_DEVICE_IRQ);
-	__asm__ __volatile__("wrpr %0, 0x0, %%pstate" : : "r" (pstate));
 }
 
 void ack_bad_irq(unsigned int virt_irq)

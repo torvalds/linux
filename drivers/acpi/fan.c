@@ -48,8 +48,8 @@ MODULE_LICENSE("GPL");
 
 static int acpi_fan_add(struct acpi_device *device);
 static int acpi_fan_remove(struct acpi_device *device, int type);
-static int acpi_fan_suspend(struct acpi_device *device, int state);
-static int acpi_fan_resume(struct acpi_device *device, int state);
+static int acpi_fan_suspend(struct acpi_device *device, pm_message_t state);
+static int acpi_fan_resume(struct acpi_device *device);
 
 static struct acpi_driver acpi_fan_driver = {
 	.name = ACPI_FAN_DRIVER_NAME,
@@ -99,8 +99,8 @@ acpi_fan_write_state(struct file *file, const char __user * buffer,
 		     size_t count, loff_t * ppos)
 {
 	int result = 0;
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct acpi_fan *fan = (struct acpi_fan *)m->private;
+	struct seq_file *m = file->private_data;
+	struct acpi_fan *fan = m->private;
 	char state_string[12] = { '\0' };
 
 
@@ -186,10 +186,9 @@ static int acpi_fan_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	fan = kmalloc(sizeof(struct acpi_fan), GFP_KERNEL);
+	fan = kzalloc(sizeof(struct acpi_fan), GFP_KERNEL);
 	if (!fan)
 		return -ENOMEM;
-	memset(fan, 0, sizeof(struct acpi_fan));
 
 	fan->device = device;
 	strcpy(acpi_device_name(device), "Fan");
@@ -229,7 +228,7 @@ static int acpi_fan_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	fan = (struct acpi_fan *)acpi_driver_data(device);
+	fan = acpi_driver_data(device);
 
 	acpi_fan_remove_fs(device);
 
@@ -238,7 +237,7 @@ static int acpi_fan_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int acpi_fan_suspend(struct acpi_device *device, int state)
+static int acpi_fan_suspend(struct acpi_device *device, pm_message_t state)
 {
 	if (!device)
 		return -EINVAL;
@@ -248,7 +247,7 @@ static int acpi_fan_suspend(struct acpi_device *device, int state)
 	return AE_OK;
 }
 
-static int acpi_fan_resume(struct acpi_device *device, int state)
+static int acpi_fan_resume(struct acpi_device *device)
 {
 	int result = 0;
 	int power_state = 0;

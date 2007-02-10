@@ -927,7 +927,7 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-  struct mychip *chip = (struct mychip *)card->private_data;
+  struct mychip *chip = card->private_data;
 ]]>
             </programlisting>
           </informalexample>
@@ -1095,7 +1095,7 @@
 
           /* release the irq */
           if (chip->irq >= 0)
-                  free_irq(chip->irq, (void *)chip);
+                  free_irq(chip->irq, chip);
           /* release the i/o ports & memory */
           pci_release_regions(chip->pci);
           /* disable the PCI entry */
@@ -1148,7 +1148,7 @@
           }
           chip->port = pci_resource_start(pci, 0);
           if (request_irq(pci->irq, snd_mychip_interrupt,
-                          IRQF_DISABLED|IRQF_SHARED, "My Chip", chip)) {
+                          IRQF_SHARED, "My Chip", chip)) {
                   printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
                   snd_mychip_free(chip);
                   return -EBUSY;
@@ -1360,8 +1360,7 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  static irqreturn_t snd_mychip_interrupt(int irq, void *dev_id,
-                                          struct pt_regs *regs)
+  static irqreturn_t snd_mychip_interrupt(int irq, void *dev_id)
   {
           struct mychip *chip = dev_id;
           ....
@@ -1387,7 +1386,7 @@
           <programlisting>
 <![CDATA[
   if (chip->irq >= 0)
-          free_irq(chip->irq, (void *)chip);
+          free_irq(chip->irq, chip);
 ]]>
           </programlisting>
         </informalexample>
@@ -2127,7 +2126,7 @@
 	accessible via <constant>substream-&gt;runtime</constant>.
 	This runtime pointer holds the various information; it holds
 	the copy of hw_params and sw_params configurations, the buffer
-	pointers, mmap records, spinlocks, etc.  Almost everyhing you
+	pointers, mmap records, spinlocks, etc.  Almost everything you
 	need for controlling the PCM can be found there.
 	</para>
 
@@ -2340,7 +2339,7 @@ struct _snd_pcm_runtime {
 
 	<para>
 	  When the PCM substreams can be synchronized (typically,
-	synchorinized start/stop of a playback and a capture streams),
+	synchronized start/stop of a playback and a capture streams),
 	you can give <constant>SNDRV_PCM_INFO_SYNC_START</constant>,
 	too.  In this case, you'll need to check the linked-list of
 	PCM substreams in the trigger callback.  This will be
@@ -3062,8 +3061,7 @@ struct _snd_pcm_runtime {
 	    <title>Interrupt Handler Case #1</title>
             <programlisting>
 <![CDATA[
-  static irqreturn_t snd_mychip_interrupt(int irq, void *dev_id,
-                                          struct pt_regs *regs)
+  static irqreturn_t snd_mychip_interrupt(int irq, void *dev_id)
   {
           struct mychip *chip = dev_id;
           spin_lock(&chip->lock);
@@ -3106,8 +3104,7 @@ struct _snd_pcm_runtime {
 	    <title>Interrupt Handler Case #2</title>
             <programlisting>
 <![CDATA[
-  static irqreturn_t snd_mychip_interrupt(int irq, void *dev_id,
-                                          struct pt_regs *regs)
+  static irqreturn_t snd_mychip_interrupt(int irq, void *dev_id)
   {
           struct mychip *chip = dev_id;
           spin_lock(&chip->lock);
@@ -3247,7 +3244,7 @@ struct _snd_pcm_runtime {
         You can even define your own constraint rules.
         For example, let's suppose my_chip can manage a substream of 1 channel
         if and only if the format is S16_LE, otherwise it supports any format
-        specified in the <structname>snd_pcm_hardware</structname> stucture (or in any
+        specified in the <structname>snd_pcm_hardware</structname> structure (or in any
         other constraint_list). You can build a rule like this:
 
         <example>
@@ -3691,16 +3688,6 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          Here, the chip instance is retrieved via
-        <function>snd_kcontrol_chip()</function> macro.  This macro
-        just accesses to kcontrol-&gt;private_data. The
-        kcontrol-&gt;private_data field is 
-        given as the argument of <function>snd_ctl_new()</function>
-        (see the later subsection
-        <link linkend="control-interface-constructor"><citetitle>Constructor</citetitle></link>).
-        </para>
-
-        <para>
 	The <structfield>value</structfield> field is depending on
         the type of control as well as on info callback.  For example,
 	the sb driver uses this field to store the register offset,
@@ -3780,7 +3767,7 @@ struct _snd_pcm_runtime {
         <para>
 	Like <structfield>get</structfield> callback,
 	when the control has more than one elements,
-	all elemehts must be evaluated in this callback, too.
+	all elements must be evaluated in this callback, too.
         </para>
       </section>
 
@@ -5541,12 +5528,12 @@ struct _snd_pcm_runtime {
   #ifdef CONFIG_PM
   static int snd_my_suspend(struct pci_dev *pci, pm_message_t state)
   {
-          .... /* do things for suspsend */
+          .... /* do things for suspend */
           return 0;
   }
   static int snd_my_resume(struct pci_dev *pci)
   {
-          .... /* do things for suspsend */
+          .... /* do things for suspend */
           return 0;
   }
   #endif
@@ -6111,7 +6098,7 @@ struct _snd_pcm_runtime {
 <!-- ****************************************************** -->
 <!-- Acknowledgments  -->
 <!-- ****************************************************** -->
-  <chapter id="acknowledments">
+  <chapter id="acknowledgments">
     <title>Acknowledgments</title>
     <para>
       I would like to thank Phil Kerr for his help for improvement and

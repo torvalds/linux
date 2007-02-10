@@ -79,18 +79,29 @@ debug_kernel_sw:
 	.align	2
 3:	.long	kgdb_handle_exception
 #endif /* CONFIG_SH_KGDB */
-
+#ifdef CONFIG_SH_STANDARD_BIOS
+	bra	debug_kernel_fw
+	 nop
+#endif
 #endif /* CONFIG_SH_STANDARD_BIOS || CONFIG_SH_KGDB */
-
 
 	.align	2
 debug_trap:	
 #if defined(CONFIG_SH_STANDARD_BIOS) || defined(CONFIG_SH_KGDB)
+	mov	r8, r0
+	shlr2	r0
+	cmp/eq	#0x3f, r0		! sh_bios() trap
+	bf	1f
+#ifdef CONFIG_SH_KGDB
+	cmp/eq	#0xff, r0		! XXX: KGDB trap, fix for SH-2.
+	bf	1f
+#endif
 	mov	#OFF_SR, r0
 	mov.l	@(r0,r15), r0		! get status register
 	shll	r0
 	shll	r0			! kernel space?
 	bt/s	debug_kernel
+1:
 #endif
 	 mov.l	@r15, r0		! Restore R0 value
 	mov.l	1f, r8

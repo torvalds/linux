@@ -241,7 +241,7 @@ static u32 __user *create_aout_tables(char __user *p, struct linux_binprm *bprm)
 			get_user(c,p++);
 		} while (c);
 	}
-	put_user(NULL,argv);
+	put_user(0, argv);
 	current->mm->arg_end = current->mm->env_start = (unsigned long) p;
 	while (envc-->0) {
 		char c;
@@ -250,7 +250,7 @@ static u32 __user *create_aout_tables(char __user *p, struct linux_binprm *bprm)
 			get_user(c,p++);
 		} while (c);
 	}
-	put_user(NULL,envp);
+	put_user(0, envp);
 	current->mm->env_end = (unsigned long) p;
 	return sp;
 }
@@ -272,7 +272,7 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	if ((N_MAGIC(ex) != ZMAGIC && N_MAGIC(ex) != OMAGIC &&
 	     N_MAGIC(ex) != QMAGIC && N_MAGIC(ex) != NMAGIC) ||
 	    N_TRSIZE(ex) || N_DRSIZE(ex) ||
-	    i_size_read(bprm->file->f_dentry->d_inode) < ex.a_text+ex.a_data+N_SYMSIZE(ex)+N_TXTOFF(ex)) {
+	    i_size_read(bprm->file->f_path.dentry->d_inode) < ex.a_text+ex.a_data+N_SYMSIZE(ex)+N_TXTOFF(ex)) {
 		return -ENOEXEC;
 	}
 
@@ -357,7 +357,7 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		{
 			printk(KERN_WARNING 
 			       "fd_offset is not page aligned. Please convert program: %s\n",
-			       bprm->file->f_dentry->d_name.name);
+			       bprm->file->f_path.dentry->d_name.name);
 			error_time = jiffies;
 		}
 #endif
@@ -440,7 +440,7 @@ static int load_aout_library(struct file *file)
 	int retval;
 	struct exec ex;
 
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 
 	retval = -ENOEXEC;
 	error = kernel_read(file, 0, (char *) &ex, sizeof(ex));
@@ -471,7 +471,7 @@ static int load_aout_library(struct file *file)
 		{
 			printk(KERN_WARNING 
 			       "N_TXTOFF is not page aligned. Please convert library: %s\n",
-			       file->f_dentry->d_name.name);
+			       file->f_path.dentry->d_name.name);
 			error_time = jiffies;
 		}
 #endif

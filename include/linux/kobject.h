@@ -74,9 +74,13 @@ extern void kobject_init(struct kobject *);
 extern void kobject_cleanup(struct kobject *);
 
 extern int __must_check kobject_add(struct kobject *);
+extern int __must_check kobject_shadow_add(struct kobject *, struct dentry *);
 extern void kobject_del(struct kobject *);
 
 extern int __must_check kobject_rename(struct kobject *, const char *new_name);
+extern int __must_check kobject_shadow_rename(struct kobject *kobj,
+						struct dentry *new_parent,
+						const char *new_name);
 extern int __must_check kobject_move(struct kobject *, struct kobject *);
 
 extern int __must_check kobject_register(struct kobject *);
@@ -265,8 +269,8 @@ extern int __must_check subsys_create_file(struct subsystem * ,
 					struct subsys_attribute *);
 
 #if defined(CONFIG_HOTPLUG)
-void kobject_uevent(struct kobject *kobj, enum kobject_action action);
-void kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
+int kobject_uevent(struct kobject *kobj, enum kobject_action action);
+int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			char *envp[]);
 
 int add_uevent_var(char **envp, int num_envp, int *cur_index,
@@ -274,11 +278,12 @@ int add_uevent_var(char **envp, int num_envp, int *cur_index,
 			const char *format, ...)
 	__attribute__((format (printf, 7, 8)));
 #else
-static inline void kobject_uevent(struct kobject *kobj, enum kobject_action action) { }
-static inline void kobject_uevent_env(struct kobject *kobj,
+static inline int kobject_uevent(struct kobject *kobj, enum kobject_action action)
+{ return 0; }
+static inline int kobject_uevent_env(struct kobject *kobj,
 				      enum kobject_action action,
 				      char *envp[])
-{ }
+{ return 0; }
 
 static inline int add_uevent_var(char **envp, int num_envp, int *cur_index,
 				      char *buffer, int buffer_size, int *cur_len, 

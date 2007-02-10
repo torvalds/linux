@@ -5,7 +5,7 @@
  * (C) Copyright 2000-2002 David Brownell <dbrownell@users.sourceforge.net>
  * (C) Copyright 2002 Hewlett-Packard Company
  * (C) Copyright 2003-2005 MontaVista Software Inc.
- * 
+ *
  * Bus Glue for PPC On-Chip OHCI driver
  * Tested on Freescale MPC5200 and IBM STB04xxx
  *
@@ -72,7 +72,7 @@ static int usb_hcd_ppc_soc_probe(const struct hc_driver *driver,
 	}
 
 	ohci = hcd_to_ohci(hcd);
-	ohci->flags |= OHCI_BIG_ENDIAN;
+	ohci->flags |= OHCI_QUIRK_BE_MMIO | OHCI_QUIRK_BE_DESC;
 	ohci_hcd_init(ohci);
 
 	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED);
@@ -85,7 +85,7 @@ static int usb_hcd_ppc_soc_probe(const struct hc_driver *driver,
  err2:
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
  err1:
- 	usb_put_hcd(hcd);
+	usb_put_hcd(hcd);
 	return retval;
 }
 
@@ -148,7 +148,7 @@ static const struct hc_driver ohci_ppc_soc_hc_driver = {
 	 */
 	.start =		ohci_ppc_soc_start,
 	.stop =			ohci_stop,
-	.shutdown = 		ohci_shutdown,
+	.shutdown =		ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -197,7 +197,7 @@ static int ohci_hcd_ppc_soc_drv_remove(struct platform_device *pdev)
 static struct platform_driver ohci_hcd_ppc_soc_driver = {
 	.probe		= ohci_hcd_ppc_soc_drv_probe,
 	.remove		= ohci_hcd_ppc_soc_drv_remove,
-	.shutdown 	= usb_hcd_platform_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 #ifdef	CONFIG_PM
 	/*.suspend	= ohci_hcd_ppc_soc_drv_suspend,*/
 	/*.resume	= ohci_hcd_ppc_soc_drv_resume,*/
@@ -208,19 +208,3 @@ static struct platform_driver ohci_hcd_ppc_soc_driver = {
 	},
 };
 
-static int __init ohci_hcd_ppc_soc_init(void)
-{
-	pr_debug(DRIVER_INFO " (PPC SOC)\n");
-	pr_debug("block sizes: ed %d td %d\n", sizeof(struct ed),
-							sizeof(struct td));
-
-	return platform_driver_register(&ohci_hcd_ppc_soc_driver);
-}
-
-static void __exit ohci_hcd_ppc_soc_cleanup(void)
-{
-	platform_driver_unregister(&ohci_hcd_ppc_soc_driver);
-}
-
-module_init(ohci_hcd_ppc_soc_init);
-module_exit(ohci_hcd_ppc_soc_cleanup);

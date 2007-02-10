@@ -33,7 +33,17 @@
 #include <int.h>
 #include <cm.h>
 
-extern unsigned int mips_hpt_frequency;
+static unsigned long cpj;
+
+static cycle_t hpt_read(void)
+{
+	return read_c0_count2();
+}
+
+static void timer_ack(void)
+{
+	write_c0_compare(cpj);
+}
 
 /*
  * pnx8550_time_init() - it does the following things:
@@ -68,26 +78,47 @@ void pnx8550_time_init(void)
 	 * HZ timer interrupts per second.
 	 */
 	mips_hpt_frequency = 27UL * ((1000000UL * n)/(m * pow2p));
+	cpj = (mips_hpt_frequency + HZ / 2) / HZ;
+	write_c0_count(0);
+	timer_ack();
+
+	/* Setup Timer 2 */
+	write_c0_count2(0);
+	write_c0_compare2(0xffffffff);
+
+	clocksource_mips.read = hpt_read;
+	mips_timer_ack = timer_ack;
 }
+
+static irqreturn_t monotonic_interrupt(int irq, void *dev_id)
+{
+	/* Timer 2 clear interrupt */
+	write_c0_compare2(-1);
+	return IRQ_HANDLED;
+}
+
+static struct irqaction monotonic_irqaction = {
+	.handler = monotonic_interrupt,
+	.flags = IRQF_DISABLED,
+	.name = "Monotonic timer",
+};
 
 void __init plat_timer_setup(struct irqaction *irq)
 {
 	int configPR;
 
 	setup_irq(PNX8550_INT_TIMER1, irq);
+	setup_irq(PNX8550_INT_TIMER2, &monotonic_irqaction);
 
-	/* Start timer1 */
+	/* Timer 1 start */
 	configPR = read_c0_config7();
 	configPR &= ~0x00000008;
 	write_c0_config7(configPR);
 
-	/* Timer 2 stop */
+	/* Timer 2 start */
 	configPR = read_c0_config7();
-	configPR |= 0x00000010;
+	configPR &= ~0x00000010;
 	write_c0_config7(configPR);
-
-	write_c0_count2(0);
-	write_c0_compare2(0xffffffff);
 
 	/* Timer 3 stop */
 	configPR = read_c0_config7();

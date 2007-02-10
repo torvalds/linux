@@ -482,12 +482,13 @@ smb_put_super(struct super_block *sb)
 	smb_close_socket(server);
 
 	if (server->conn_pid)
-		kill_proc(server->conn_pid, SIGTERM, 1);
+		kill_pid(server->conn_pid, SIGTERM, 1);
 
 	kfree(server->ops);
 	smb_unload_nls(server);
 	sb->s_fs_info = NULL;
 	smb_unlock_server(server);
+	put_pid(server->conn_pid);
 	kfree(server);
 }
 
@@ -530,7 +531,7 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 	INIT_LIST_HEAD(&server->xmitq);
 	INIT_LIST_HEAD(&server->recvq);
 	server->conn_error = 0;
-	server->conn_pid = 0;
+	server->conn_pid = NULL;
 	server->state = CONN_INVALID; /* no connection yet */
 	server->generation = 0;
 

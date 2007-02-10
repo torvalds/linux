@@ -58,10 +58,7 @@ static struct sysrq_key_op sysrq_xmon_op =
 void
 xmon_map_scc(void)
 {
-#if defined(CONFIG_GEMINI)
-	/* should already be mapped by the kernel boot */
-	sccd = (volatile unsigned char *) 0xffeffb08;
-#elif defined(CONFIG_405GP)
+#if defined(CONFIG_405GP)
 	sccd = (volatile unsigned char *)0xef600300;
 #elif defined(CONFIG_440EP)
 	sccd = (volatile unsigned char *) ioremap(PPC440EP_UART0_ADDR, 8);

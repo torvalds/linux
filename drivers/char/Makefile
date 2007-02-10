@@ -31,6 +31,7 @@ obj-$(CONFIG_MOXA_INTELLIO)	+= moxa.o
 obj-$(CONFIG_A2232)		+= ser_a2232.o generic_serial.o
 obj-$(CONFIG_ATARI_DSP56K)	+= dsp56k.o
 obj-$(CONFIG_MOXA_SMARTIO)	+= mxser.o
+obj-$(CONFIG_MOXA_SMARTIO_NEW)	+= mxser_new.o
 obj-$(CONFIG_COMPUTONE)		+= ip2/
 obj-$(CONFIG_RISCOM8)		+= riscom8.o
 obj-$(CONFIG_ISI)		+= isicom.o
@@ -44,6 +45,7 @@ obj-$(CONFIG_RIO)		+= rio/ generic_serial.o
 obj-$(CONFIG_HVC_CONSOLE)	+= hvc_vio.o hvsi.o
 obj-$(CONFIG_HVC_ISERIES)	+= hvc_iseries.o
 obj-$(CONFIG_HVC_RTAS)		+= hvc_rtas.o
+obj-$(CONFIG_HVC_BEAT)		+= hvc_beat.o
 obj-$(CONFIG_HVC_DRIVER)	+= hvc_console.o
 obj-$(CONFIG_RAW_DRIVER)	+= raw.o
 obj-$(CONFIG_SGI_SNSC)		+= snsc.o snsc_event.o
@@ -57,6 +59,8 @@ obj-$(CONFIG_BRIQ_PANEL)	+= briq_panel.o
 
 obj-$(CONFIG_PRINTER)		+= lp.o
 obj-$(CONFIG_TIPAR)		+= tipar.o
+
+obj-$(CONFIG_APM_EMULATION)	+= apm-emulation.o
 
 obj-$(CONFIG_DTLK)		+= dtlk.o
 obj-$(CONFIG_R3964)		+= n_r3964.o

@@ -40,6 +40,7 @@
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
+#include <linux/pci_ids.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
@@ -210,15 +211,16 @@ struct u132 {
 * these cannot be inlines because we need the structure offset!!
 * Does anyone have a better way?????
 */
+#define ftdi_read_pcimem(pdev, member, data) usb_ftdi_elan_read_pcimem(pdev, \
+        offsetof(struct ohci_regs, member), 0, data);
+#define ftdi_write_pcimem(pdev, member, data) usb_ftdi_elan_write_pcimem(pdev, \
+        offsetof(struct ohci_regs, member), 0, data);
 #define u132_read_pcimem(u132, member, data) \
         usb_ftdi_elan_read_pcimem(u132->platform_dev, offsetof(struct \
         ohci_regs, member), 0, data);
 #define u132_write_pcimem(u132, member, data) \
         usb_ftdi_elan_write_pcimem(u132->platform_dev, offsetof(struct \
         ohci_regs, member), 0, data);
-#define u132_write_pcimem_byte(u132, member, data) \
-        usb_ftdi_elan_write_pcimem(u132->platform_dev, offsetof(struct \
-        ohci_regs, member), 0x0e, data);
 static inline struct u132 *udev_to_u132(struct u132_udev *udev)
 {
         u8 udev_number = udev->udev_number;
@@ -1574,59 +1576,12 @@ static char *hcfs2string(int state)
         return "?";
 }
 
-static int u132_usb_reset(struct u132 *u132)
-{
-        int retval;
-        retval = u132_read_pcimem(u132, control, &u132->hc_control);
-        if (retval)
-                return retval;
-        u132->hc_control &= OHCI_CTRL_RWC;
-        retval = u132_write_pcimem(u132, control, u132->hc_control);
-        if (retval)
-                return retval;
-        return 0;
-}
-
 static int u132_init(struct u132 *u132)
 {
         int retval;
         u32 control;
         u132_disable(u132);
-        u132->next_statechange =
-                jiffies; /* SMM owns the HC? not for long! */  {
-                u32 control;
-                retval = u132_read_pcimem(u132, control, &control);
-                if (retval)
-                        return retval;
-                if (control & OHCI_CTRL_IR) {
-                        u32 temp = 50;
-                        retval = u132_write_pcimem(u132, intrenable,
-                                OHCI_INTR_OC);
-                        if (retval)
-                                return retval;
-                        retval = u132_write_pcimem_byte(u132, cmdstatus,
-                                OHCI_OCR);
-                        if (retval)
-                                return retval;
-                      check:{
-                                retval = u132_read_pcimem(u132, control,
-                                        &control);
-                                if (retval)
-                                        return retval;
-                        }
-                        if (control & OHCI_CTRL_IR) {
-                                msleep(10);
-                                if (--temp == 0) {
-                                        dev_err(&u132->platform_dev->dev, "USB "
-                                                "HC takeover failed!(BIOS/SMM b"
-                                                "ug) control=%08X\n", control);
-                                        return -EBUSY;
-                                }
-                                goto check;
-                        }
-                        u132_usb_reset(u132);
-                }
-        }
+        u132->next_statechange = jiffies;
         retval = u132_write_pcimem(u132, intrdisable, OHCI_INTR_MIE);
         if (retval)
                 return retval;
@@ -1725,7 +1680,7 @@ static int u132_run(struct u132 *u132)
       retry:retval = u132_read_pcimem(u132, cmdstatus, &status);
         if (retval)
                 return retval;
-        retval = u132_write_pcimem_byte(u132, cmdstatus, OHCI_HCR);
+        retval = u132_write_pcimem(u132, cmdstatus, OHCI_HCR);
         if (retval)
                 return retval;
       extra:{
@@ -1782,7 +1737,7 @@ static int u132_run(struct u132 *u132)
         retval = u132_write_pcimem(u132, control, u132->hc_control);
         if (retval)
                 return retval;
-        retval = u132_write_pcimem_byte(u132, cmdstatus, OHCI_BLF);
+        retval = u132_write_pcimem(u132, cmdstatus, OHCI_BLF);
         if (retval)
                 return retval;
         retval = u132_read_pcimem(u132, cmdstatus, &cmdstatus);
@@ -1839,8 +1794,8 @@ static void u132_hcd_stop(struct usb_hcd *hcd)
 {
         struct u132 *u132 = hcd_to_u132(hcd);
         if (u132->going > 1) {
-                dev_err(&u132->platform_dev->dev, "device has been removed %d\n"
-                        , u132->going);
+                dev_err(&u132->platform_dev->dev, "u132 device %p(hcd=%p) has b"
+                        "een removed %d\n", u132, hcd, u132->going);
         } else if (u132->going > 0) {
                 dev_err(&u132->platform_dev->dev, "device hcd=%p is being remov"
                         "ed\n", hcd);
@@ -2545,8 +2500,9 @@ static void u132_endpoint_disable(struct usb_hcd *hcd,
 {
         struct u132 *u132 = hcd_to_u132(hcd);
         if (u132->going > 2) {
-                dev_err(&u132->platform_dev->dev, "device has been removed %d\n"
-                        , u132->going);
+                dev_err(&u132->platform_dev->dev, "u132 device %p(hcd=%p hep=%p"
+                        ") has been removed %d\n", u132, hcd, hep,
+                        u132->going);
         } else {
                 struct u132_endp *endp = hep->hcpriv;
                 if (endp)
@@ -2790,7 +2746,6 @@ static int u132_hub_status_data(struct usb_hcd *hcd, char *buf)
         } else if (u132->going > 0) {
                 dev_err(&u132->platform_dev->dev, "device hcd=%p is being remov"
                         "ed\n", hcd);
-                dump_stack();
                 return -ESHUTDOWN;
         } else {
                 int i, changed = 0, length = 1;
@@ -3034,12 +2989,15 @@ static int __devexit u132_remove(struct platform_device *pdev)
         struct usb_hcd *hcd = platform_get_drvdata(pdev);
         if (hcd) {
                 struct u132 *u132 = hcd_to_u132(hcd);
-                dump_stack();
                 if (u132->going++ > 1) {
+                        dev_err(&u132->platform_dev->dev, "already being remove"
+				"d\n");
                         return -ENODEV;
                 } else {
                         int rings = MAX_U132_RINGS;
                         int endps = MAX_U132_ENDPS;
+                        dev_err(&u132->platform_dev->dev, "removing device u132"
+				".%d\n", u132->sequence_num);
                         msleep(100);
                         down(&u132->sw_lock);
                         u132_monitor_cancel_work(u132);
@@ -3121,10 +3079,24 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
 static int __devinit u132_probe(struct platform_device *pdev)
 {
         struct usb_hcd *hcd;
+        int retval;
+        u32 control;
+        u32 rh_a = -1;
+        u32 num_ports;
         msleep(100);
         if (u132_exiting > 0) {
                 return -ENODEV;
-        }                        /* refuse to confuse usbcore */
+        }
+        retval = ftdi_write_pcimem(pdev, intrdisable, OHCI_INTR_MIE);
+        if (retval)
+                return retval;
+        retval = ftdi_read_pcimem(pdev, control, &control);
+        if (retval)
+                return retval;
+        retval = ftdi_read_pcimem(pdev, roothub.a, &rh_a);
+        if (retval)
+                return retval;
+        num_ports = rh_a & RH_A_NDP;        /* refuse to confuse usbcore */
         if (pdev->dev.dma_mask) {
                 return -EINVAL;
         }

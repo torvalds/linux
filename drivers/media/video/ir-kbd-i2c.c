@@ -305,15 +305,14 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	int ir_type;
 	struct IR_i2c *ir;
 	struct input_dev *input_dev;
+	int err;
 
 	ir = kzalloc(sizeof(struct IR_i2c),GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!ir || !input_dev) {
-		input_free_device(input_dev);
-		kfree(ir);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_out_free;
 	}
-	memset(ir,0,sizeof(*ir));
 
 	ir->c = client_template;
 	ir->input = input_dev;
@@ -355,32 +354,34 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		break;
 	case 0x7a:
 	case 0x47:
+	case 0x71:
 		/* Handled by saa7134-input */
 		name        = "SAA713x remote";
 		ir_type     = IR_TYPE_OTHER;
 		break;
 	default:
 		/* shouldn't happen */
-		printk(DEVNAME ": Huh? unknown i2c address (0x%02x)?\n",addr);
-		kfree(ir);
-		return -1;
+		printk(DEVNAME ": Huh? unknown i2c address (0x%02x)?\n", addr);
+		err = -ENODEV;
+		goto err_out_free;
 	}
 
 	/* Sets name */
 	snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (%s)", name);
-	ir->ir_codes=ir_codes;
+	ir->ir_codes = ir_codes;
 
 	/* register i2c device
 	 * At device register, IR codes may be changed to be
 	 * board dependent.
 	 */
-	i2c_attach_client(&ir->c);
+	err = i2c_attach_client(&ir->c);
+	if (err)
+		goto err_out_free;
 
 	/* If IR not supported or disabled, unregisters driver */
 	if (ir->get_key == NULL) {
-		i2c_detach_client(&ir->c);
-		kfree(ir);
-		return -1;
+		err = -ENODEV;
+		goto err_out_detach;
 	}
 
 	/* Phys addr can only be set after attaching (for ir->c.dev.bus_id) */
@@ -389,15 +390,17 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		 ir->c.dev.bus_id);
 
 	/* init + register input device */
-	ir_input_init(input_dev,&ir->ir,ir_type,ir->ir_codes);
+	ir_input_init(input_dev, &ir->ir, ir_type, ir->ir_codes);
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->name       = ir->c.name;
 	input_dev->phys       = ir->phys;
 
-	/* register event device */
-	input_register_device(ir->input);
+	err = input_register_device(ir->input);
+	if (err)
+		goto err_out_detach;
+
 	printk(DEVNAME ": %s detected at %s [%s]\n",
-	       ir->input->name,ir->input->phys,adap->name);
+	       ir->input->name, ir->input->phys, adap->name);
 
 	/* start polling via eventd */
 	INIT_WORK(&ir->work, ir_work);
@@ -407,6 +410,13 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	schedule_work(&ir->work);
 
 	return 0;
+
+ err_out_detach:
+	i2c_detach_client(&ir->c);
+ err_out_free:
+	input_free_device(input_dev);
+	kfree(ir);
+	return err;
 }
 
 static int ir_detach(struct i2c_client *client)
@@ -414,7 +424,7 @@ static int ir_detach(struct i2c_client *client)
 	struct IR_i2c *ir = i2c_get_clientdata(client);
 
 	/* kill outstanding polls */
-	del_timer(&ir->timer);
+	del_timer_sync(&ir->timer);
 	flush_scheduled_work();
 
 	/* unregister devices */
@@ -439,7 +449,7 @@ static int ir_probe(struct i2c_adapter *adap)
 	*/
 
 	static const int probe_bttv[] = { 0x1a, 0x18, 0x4b, 0x64, 0x30, -1};
-	static const int probe_saa7134[] = { 0x7a, 0x47, -1 };
+	static const int probe_saa7134[] = { 0x7a, 0x47, 0x71, -1 };
 	static const int probe_em28XX[] = { 0x30, 0x47, -1 };
 	const int *probe = NULL;
 	struct i2c_client c;

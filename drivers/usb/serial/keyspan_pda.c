@@ -365,7 +365,7 @@ static void keyspan_pda_break_ctl (struct usb_serial_port *port, int break_state
 
 
 static void keyspan_pda_set_termios (struct usb_serial_port *port, 
-				     struct termios *old_termios)
+				     struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	unsigned int cflag = port->tty->termios->c_cflag;
@@ -793,6 +793,7 @@ static struct usb_serial_driver keyspan_pda_fake_device = {
 		.name =		"keyspan_pda_pre",
 	},
 	.description =		"Keyspan PDA - (prerenumeration)",
+	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_fake,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -809,6 +810,7 @@ static struct usb_serial_driver xircom_pgs_fake_device = {
 		.name =		"xircom_no_firm",
 	},
 	.description =		"Xircom / Entregra PGS - (prerenumeration)",
+	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_fake_xircom,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -824,6 +826,7 @@ static struct usb_serial_driver keyspan_pda_device = {
 		.name =		"keyspan_pda",
 	},
 	.description =		"Keyspan PDA",
+	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_std,
 	.num_interrupt_in =	1,
 	.num_bulk_in =		0,

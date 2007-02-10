@@ -34,6 +34,7 @@
 #define QDIO_QETH_QFMT 0
 #define QDIO_ZFCP_QFMT 1
 #define QDIO_IQDIO_QFMT 2
+#define QDIO_IQDIO_QFMT_ASYNCH 3
 
 struct qdio_buffer_element{
 	unsigned int flags;

@@ -54,6 +54,10 @@ enum {
 	MTHCA_CQ_ENTRY_SIZE = 0x20
 };
 
+enum {
+	MTHCA_ATOMIC_BYTE_LEN = 8
+};
+
 /*
  * Must be packed because start is 64 bits but only aligned to 32 bits.
  */
@@ -530,7 +534,7 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 		}
 	}
 
-	entry->qp_num = (*cur_qp)->qpn;
+	entry->qp = &(*cur_qp)->ibqp;
 
 	if (is_send) {
 		wq = &(*cur_qp)->sq;
@@ -599,11 +603,11 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 			break;
 		case MTHCA_OPCODE_ATOMIC_CS:
 			entry->opcode    = IB_WC_COMP_SWAP;
-			entry->byte_len  = be32_to_cpu(cqe->byte_cnt);
+			entry->byte_len  = MTHCA_ATOMIC_BYTE_LEN;
 			break;
 		case MTHCA_OPCODE_ATOMIC_FA:
 			entry->opcode    = IB_WC_FETCH_ADD;
-			entry->byte_len  = be32_to_cpu(cqe->byte_cnt);
+			entry->byte_len  = MTHCA_ATOMIC_BYTE_LEN;
 			break;
 		case MTHCA_OPCODE_BIND_MW:
 			entry->opcode    = IB_WC_BIND_MW;

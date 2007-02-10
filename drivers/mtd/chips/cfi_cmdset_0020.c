@@ -172,7 +172,7 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
 	int i,j;
 	unsigned long devsize = (1<<cfi->cfiq->DevSize) * cfi->interleave;
 
-	mtd = kmalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
 	//printk(KERN_DEBUG "number of CFI chips: %d\n", cfi->numchips);
 
 	if (!mtd) {
@@ -181,7 +181,6 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
 		return NULL;
 	}
 
-	memset(mtd, 0, sizeof(*mtd));
 	mtd->priv = map;
 	mtd->type = MTD_NORFLASH;
 	mtd->size = devsize * cfi->numchips;

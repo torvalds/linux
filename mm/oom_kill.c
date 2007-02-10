@@ -61,12 +61,6 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	}
 
 	/*
-	 * swapoff can easily use up all memory, so kill those first.
-	 */
-	if (p->flags & PF_SWAPOFF)
-		return ULONG_MAX;
-
-	/*
 	 * The memory size of the process is the basis for the badness.
 	 */
 	points = mm->total_vm;
@@ -75,6 +69,12 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	 * After this unlock we can no longer dereference local variable `mm'
 	 */
 	task_unlock(p);
+
+	/*
+	 * swapoff can easily use up all memory, so kill those first.
+	 */
+	if (p->flags & PF_SWAPOFF)
+		return ULONG_MAX;
 
 	/*
 	 * Processes which fork a lot of child processes are likely
@@ -174,10 +174,15 @@ static inline int constrained_alloc(struct zonelist *zonelist, gfp_t gfp_mask)
 {
 #ifdef CONFIG_NUMA
 	struct zone **z;
-	nodemask_t nodes = node_online_map;
+	nodemask_t nodes;
+	int node;
+	/* node has memory ? */
+	for_each_online_node(node)
+		if (NODE_DATA(node)->node_present_pages)
+			node_set(node, nodes);
 
 	for (z = zonelist->zones; *z; z++)
-		if (cpuset_zone_allowed(*z, gfp_mask))
+		if (cpuset_zone_allowed_softwall(*z, gfp_mask))
 			node_clear(zone_to_nid(*z), nodes);
 		else
 			return CONSTRAINT_CPUSET;

@@ -1052,7 +1052,7 @@ void __init detect_calgary(void)
 	void *tbl;
 	int calgary_found = 0;
 	unsigned long ptr;
-	int offset;
+	unsigned int offset, prev_offset;
 	int ret;
 
 	/*
@@ -1068,29 +1068,36 @@ void __init detect_calgary(void)
 	if (!early_pci_allowed())
 		return;
 
+	printk(KERN_DEBUG "Calgary: detecting Calgary via BIOS EBDA area\n");
+
 	ptr = (unsigned long)phys_to_virt(get_bios_ebda());
 
 	rio_table_hdr = NULL;
+	prev_offset = 0;
 	offset = 0x180;
-	while (offset) {
+	/*
+	 * The next offset is stored in the 1st word.
+	 * Only parse up until the offset increases:
+	 */
+	while (offset > prev_offset) {
 		/* The block id is stored in the 2nd word */
 		if (*((unsigned short *)(ptr + offset + 2)) == 0x4752){
 			/* set the pointer past the offset & block id */
 			rio_table_hdr = (struct rio_table_hdr *)(ptr + offset + 4);
 			break;
 		}
-		/* The next offset is stored in the 1st word. 0 means no more */
+		prev_offset = offset;
 		offset = *((unsigned short *)(ptr + offset));
 	}
 	if (!rio_table_hdr) {
-		printk(KERN_ERR "Calgary: Unable to locate "
-				"Rio Grande Table in EBDA - bailing!\n");
+		printk(KERN_DEBUG "Calgary: Unable to locate Rio Grande table "
+		       "in EBDA - bailing!\n");
 		return;
 	}
 
 	ret = build_detail_arrays();
 	if (ret) {
-		printk(KERN_ERR "Calgary: build_detail_arrays ret %d\n", ret);
+		printk(KERN_DEBUG "Calgary: build_detail_arrays ret %d\n", ret);
 		return;
 	}
 
@@ -1122,6 +1129,9 @@ void __init detect_calgary(void)
 			}
 		}
 	}
+
+	printk(KERN_DEBUG "Calgary: finished detection, Calgary %s\n",
+	       calgary_found ? "found" : "not found");
 
 	if (calgary_found) {
 		iommu_detected = 1;

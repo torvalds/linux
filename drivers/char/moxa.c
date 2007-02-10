@@ -234,7 +234,7 @@ static void moxa_put_char(struct tty_struct *, unsigned char);
 static int moxa_ioctl(struct tty_struct *, struct file *, unsigned int, unsigned long);
 static void moxa_throttle(struct tty_struct *);
 static void moxa_unthrottle(struct tty_struct *);
-static void moxa_set_termios(struct tty_struct *, struct termios *);
+static void moxa_set_termios(struct tty_struct *, struct ktermios *);
 static void moxa_stop(struct tty_struct *);
 static void moxa_start(struct tty_struct *);
 static void moxa_hangup(struct tty_struct *);
@@ -261,7 +261,7 @@ static void MoxaPortEnable(int);
 static void MoxaPortDisable(int);
 static long MoxaPortGetMaxBaud(int);
 static long MoxaPortSetBaud(int, long);
-static int MoxaPortSetTermio(int, struct termios *, speed_t);
+static int MoxaPortSetTermio(int, struct ktermios *, speed_t);
 static int MoxaPortGetLineOut(int, int *, int *);
 static void MoxaPortLineCtrl(int, int, int);
 static void MoxaPortFlowCtrl(int, int, int, int, int, int);
@@ -355,6 +355,8 @@ static int __init moxa_init(void)
 	moxaDriver->init_termios.c_oflag = 0;
 	moxaDriver->init_termios.c_cflag = B9600 | CS8 | CREAD | CLOCAL | HUPCL;
 	moxaDriver->init_termios.c_lflag = 0;
+	moxaDriver->init_termios.c_ispeed = 9600;
+	moxaDriver->init_termios.c_ospeed = 9600;
 	moxaDriver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(moxaDriver, &moxa_ops);
 
@@ -864,7 +866,7 @@ static void moxa_unthrottle(struct tty_struct *tty)
 }
 
 static void moxa_set_termios(struct tty_struct *tty,
-			     struct termios *old_termios)
+			     struct ktermios *old_termios)
 {
 	struct moxa_str *ch = (struct moxa_str *) tty->driver_data;
 
@@ -978,7 +980,7 @@ static void moxa_poll(unsigned long ignored)
 
 static void set_tty_param(struct tty_struct *tty)
 {
-	register struct termios *ts;
+	register struct ktermios *ts;
 	struct moxa_str *ch;
 	int rts, cts, txflow, rxflow, xany;
 
@@ -1149,7 +1151,7 @@ static void shut_down(struct moxa_str *ch)
 static void receive_data(struct moxa_str *ch)
 {
 	struct tty_struct *tp;
-	struct termios *ts;
+	struct ktermios *ts;
 	unsigned long flags;
 
 	ts = NULL;
@@ -1912,9 +1914,9 @@ int MoxaPortsOfCard(int cardno)
  *
  *      Function 12:    Configure the port.
  *      Syntax:
- *      int  MoxaPortSetTermio(int port, struct termios *termio, speed_t baud);
+ *      int  MoxaPortSetTermio(int port, struct ktermios *termio, speed_t baud);
  *           int port           : port number (0 - 127)
- *           struct termios * termio : termio structure pointer
+ *           struct ktermios * termio : termio structure pointer
  *	     speed_t baud	: baud rate
  *
  *           return:    -1      : this port is invalid or termio == NULL
@@ -2195,7 +2197,7 @@ long MoxaPortSetBaud(int port, long baud)
 	return (baud);
 }
 
-int MoxaPortSetTermio(int port, struct termios *termio, speed_t baud)
+int MoxaPortSetTermio(int port, struct ktermios *termio, speed_t baud)
 {
 	void __iomem *ofsAddr;
 	tcflag_t cflag;

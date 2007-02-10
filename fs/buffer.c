@@ -35,6 +35,7 @@
 #include <linux/hash.h>
 #include <linux/suspend.h>
 #include <linux/buffer_head.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/bio.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
@@ -179,7 +180,7 @@ int fsync_bdev(struct block_device *bdev)
  * freeze_bdev  --  lock a filesystem and force it into a consistent state
  * @bdev:	blockdevice to lock
  *
- * This takes the block device bd_mount_mutex to make sure no new mounts
+ * This takes the block device bd_mount_sem to make sure no new mounts
  * happen on bdev until thaw_bdev() is called.
  * If a superblock is found on this device, we take the s_umount semaphore
  * on it to make sure nobody unmounts until the snapshot creation is done.
@@ -188,7 +189,7 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 {
 	struct super_block *sb;
 
-	mutex_lock(&bdev->bd_mount_mutex);
+	down(&bdev->bd_mount_sem);
 	sb = get_super(bdev);
 	if (sb && !(sb->s_flags & MS_RDONLY)) {
 		sb->s_frozen = SB_FREEZE_WRITE;
@@ -230,7 +231,7 @@ void thaw_bdev(struct block_device *bdev, struct super_block *sb)
 		drop_super(sb);
 	}
 
-	mutex_unlock(&bdev->bd_mount_mutex);
+	up(&bdev->bd_mount_sem);
 }
 EXPORT_SYMBOL(thaw_bdev);
 
@@ -724,20 +725,21 @@ int __set_page_dirty_buffers(struct page *page)
 	}
 	spin_unlock(&mapping->private_lock);
 
-	if (!TestSetPageDirty(page)) {
-		write_lock_irq(&mapping->tree_lock);
-		if (page->mapping) {	/* Race with truncate? */
-			if (mapping_cap_account_dirty(mapping))
-				__inc_zone_page_state(page, NR_FILE_DIRTY);
-			radix_tree_tag_set(&mapping->page_tree,
-						page_index(page),
-						PAGECACHE_TAG_DIRTY);
+	if (TestSetPageDirty(page))
+		return 0;
+
+	write_lock_irq(&mapping->tree_lock);
+	if (page->mapping) {	/* Race with truncate? */
+		if (mapping_cap_account_dirty(mapping)) {
+			__inc_zone_page_state(page, NR_FILE_DIRTY);
+			task_io_account_write(PAGE_CACHE_SIZE);
 		}
-		write_unlock_irq(&mapping->tree_lock);
-		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-		return 1;
+		radix_tree_tag_set(&mapping->page_tree,
+				page_index(page), PAGECACHE_TAG_DIRTY);
 	}
-	return 0;
+	write_unlock_irq(&mapping->tree_lock);
+	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+	return 1;
 }
 EXPORT_SYMBOL(__set_page_dirty_buffers);
 
@@ -2842,18 +2844,24 @@ int try_to_free_buffers(struct page *page)
 
 	spin_lock(&mapping->private_lock);
 	ret = drop_buffers(page, &buffers_to_free);
+
+	/*
+	 * If the filesystem writes its buffers by hand (eg ext3)
+	 * then we can have clean buffers against a dirty page.  We
+	 * clean the page here; otherwise the VM will never notice
+	 * that the filesystem did any IO at all.
+	 *
+	 * Also, during truncate, discard_buffer will have marked all
+	 * the page's buffers clean.  We discover that here and clean
+	 * the page also.
+	 *
+	 * private_lock must be held over this entire operation in order
+	 * to synchronise against __set_page_dirty_buffers and prevent the
+	 * dirty bit from being lost.
+	 */
+	if (ret)
+		cancel_dirty_page(page, PAGE_CACHE_SIZE);
 	spin_unlock(&mapping->private_lock);
-	if (ret) {
-		/*
-		 * If the filesystem writes its buffers by hand (eg ext3)
-		 * then we can have clean buffers against a dirty page.  We
-		 * clean the page here; otherwise later reattachment of buffers
-		 * could encounter a non-uptodate page, which is unresolvable.
-		 * This only applies in the rare case where try_to_free_buffers
-		 * succeeds but the page is not freed.
-		 */
-		clear_page_dirty(page);
-	}
 out:
 	if (buffers_to_free) {
 		struct buffer_head *bh = buffers_to_free;

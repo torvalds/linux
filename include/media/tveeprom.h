@@ -3,7 +3,7 @@
 
 struct tveeprom {
 	u32 has_radio;
-	u32 has_ir;     /* 0: no IR, 1: IR present, 2: unknown */
+	u32 has_ir;     /* bit 0: IR receiver present, bit 1: IR transmitter (blaster) present. -1 == unknown */
 	u32 has_MAC_address; /* 0: no MAC, 1: MAC present, 2: unknown */
 
 	u32 tuner_type;

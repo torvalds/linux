@@ -63,22 +63,18 @@ checkentry(const char *tablename,
 		printk(KERN_WARNING "connmark: only support 32bit mark\n");
 		return 0;
 	}
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
-		printk(KERN_WARNING "can't load nf_conntrack support for "
+		printk(KERN_WARNING "can't load conntrack support for "
 				    "proto=%d\n", match->family);
 		return 0;
 	}
-#endif
 	return 1;
 }
 
 static void
 destroy(const struct xt_match *match, void *matchinfo)
 {
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	nf_ct_l3proto_module_put(match->family);
-#endif
 }
 
 #ifdef CONFIG_COMPAT
@@ -140,7 +136,6 @@ static struct xt_match xt_connmark_match[] = {
 
 static int __init xt_connmark_init(void)
 {
-	need_conntrack();
 	return xt_register_matches(xt_connmark_match,
 				   ARRAY_SIZE(xt_connmark_match));
 }

@@ -37,7 +37,7 @@ int register_external_interrupt(__u16 code, ext_int_handler_t handler)
         ext_int_info_t *p;
         int index;
 
-	p = (ext_int_info_t *) kmalloc(sizeof(ext_int_info_t), GFP_ATOMIC);
+	p = kmalloc(sizeof(ext_int_info_t), GFP_ATOMIC);
         if (p == NULL)
                 return -ENOMEM;
         p->code = code;
@@ -125,14 +125,12 @@ void do_extint(struct pt_regs *regs, unsigned short code)
 		 * Make sure that the i/o interrupt did not "overtake"
 		 * the last HZ timer interrupt.
 		 */
-		account_ticks();
+		account_ticks(S390_lowcore.int_clock);
 	kstat_cpu(smp_processor_id()).irqs[EXTERNAL_INTERRUPT]++;
         index = ext_hash(code);
 	for (p = ext_int_hash[index]; p; p = p->next) {
-		if (likely(p->code == code)) {
-			if (likely(p->handler))
-				p->handler(code);
-		}
+		if (likely(p->code == code))
+			p->handler(code);
 	}
 	irq_exit();
 	set_irq_regs(old_regs);

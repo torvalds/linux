@@ -600,7 +600,7 @@ int main(int ac, char **av)
 			input_mode = ask_silent;
 			valid_stdin = 1;
 		}
-	} else if (sym_change_count) {
+	} else if (conf_get_changed()) {
 		name = getenv("KCONFIG_NOSILENTUPDATE");
 		if (name && *name) {
 			fprintf(stderr, _("\n*** Kernel configuration requires explicit update.\n\n"));

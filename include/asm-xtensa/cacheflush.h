@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * (C) 2001 - 2005 Tensilica Inc.
+ * (C) 2001 - 2006 Tensilica Inc.
  */
 
 #ifndef _XTENSA_CACHEFLUSH_H
@@ -75,6 +75,7 @@ extern void __flush_invalidate_dcache_range(unsigned long, unsigned long);
 
 #define flush_cache_all()		__flush_invalidate_cache_all();
 #define flush_cache_mm(mm)		__flush_invalidate_cache_all();
+#define flush_cache_dup_mm(mm)		__flush_invalidate_cache_all();
 
 #define flush_cache_vmap(start,end)	__flush_invalidate_cache_all();
 #define flush_cache_vunmap(start,end)	__flush_invalidate_cache_all();
@@ -88,6 +89,7 @@ extern void flush_cache_page(struct vm_area_struct*, unsigned long, unsigned lon
 
 #define flush_cache_all()				do { } while (0)
 #define flush_cache_mm(mm)				do { } while (0)
+#define flush_cache_dup_mm(mm)				do { } while (0)
 
 #define flush_cache_vmap(start,end)			do { } while (0)
 #define flush_cache_vunmap(start,end)			do { } while (0)

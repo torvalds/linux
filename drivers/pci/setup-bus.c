@@ -41,7 +41,7 @@
  * have a P2P bridge below a cardbus bridge, we need 4K.
  */
 #define CARDBUS_IO_SIZE		(256)
-#define CARDBUS_MEM_SIZE	(32*1024*1024)
+#define CARDBUS_MEM_SIZE	(64*1024*1024)
 
 static void __devinit
 pbus_assign_resources_sorted(struct pci_bus *bus)

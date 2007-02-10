@@ -68,7 +68,6 @@ struct bridge_skb_cb {
 	} daddr;
 };
 
-extern int brnf_deferred_hooks;
 #else
 #define nf_bridge_maybe_copy_header(skb)	(0)
 #define nf_bridge_pad(skb)			(0)

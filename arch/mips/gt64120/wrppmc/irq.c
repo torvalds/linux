@@ -63,7 +63,7 @@ void gt64120_init_pic(void)
 void __init arch_init_irq(void)
 {
 	/* IRQ 0 - 7 are for MIPS common irq_cpu controller */
-	mips_cpu_irq_init(0);
+	mips_cpu_irq_init();
 
 	gt64120_init_pic();
 }

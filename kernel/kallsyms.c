@@ -31,14 +31,14 @@
 #endif
 
 /* These will be re-linked against their real values during the second link stage */
-extern unsigned long kallsyms_addresses[] __attribute__((weak));
-extern unsigned long kallsyms_num_syms __attribute__((weak,section("data")));
-extern u8 kallsyms_names[] __attribute__((weak));
+extern const unsigned long kallsyms_addresses[] __attribute__((weak));
+extern const unsigned long kallsyms_num_syms __attribute__((weak));
+extern const u8 kallsyms_names[] __attribute__((weak));
 
-extern u8 kallsyms_token_table[] __attribute__((weak));
-extern u16 kallsyms_token_index[] __attribute__((weak));
+extern const u8 kallsyms_token_table[] __attribute__((weak));
+extern const u16 kallsyms_token_index[] __attribute__((weak));
 
-extern unsigned long kallsyms_markers[] __attribute__((weak));
+extern const unsigned long kallsyms_markers[] __attribute__((weak));
 
 static inline int is_kernel_inittext(unsigned long addr)
 {
@@ -84,7 +84,7 @@ static int is_ksym_addr(unsigned long addr)
 static unsigned int kallsyms_expand_symbol(unsigned int off, char *result)
 {
 	int len, skipped_first = 0;
-	u8 *tptr, *data;
+	const u8 *tptr, *data;
 
 	/* get the compressed symbol length from the first symbol byte */
 	data = &kallsyms_names[off];
@@ -132,7 +132,7 @@ static char kallsyms_get_symbol_type(unsigned int off)
  * kallsyms array */
 static unsigned int get_symbol_offset(unsigned long pos)
 {
-	u8 *name;
+	const u8 *name;
 	int i;
 
 	/* use the closest marker we have. We have markers every 256 positions,

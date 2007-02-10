@@ -104,7 +104,7 @@ static struct async_struct *IRQ_ports;
 
 static unsigned char current_ctl_bits;
 
-static void change_speed(struct async_struct *info, struct termios *old);
+static void change_speed(struct async_struct *info, struct ktermios *old);
 static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
 
 
@@ -694,7 +694,7 @@ static void shutdown(struct async_struct * info)
  * the specified baud rate for a serial port.
  */
 static void change_speed(struct async_struct *info,
-			 struct termios *old_termios)
+			 struct ktermios *old_termios)
 {
 	int	quot = 0, baud_base, baud;
 	unsigned cflag, cval = 0;
@@ -1365,7 +1365,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 	return 0;
 }
 
-static void rs_set_termios(struct tty_struct *tty, struct termios *old_termios)
+static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct async_struct *info = (struct async_struct *)tty->driver_data;
 	unsigned long flags;

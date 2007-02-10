@@ -308,141 +308,160 @@ e1000_phy_init_script(struct e1000_hw *hw)
 int32_t
 e1000_set_mac_type(struct e1000_hw *hw)
 {
-    DEBUGFUNC("e1000_set_mac_type");
+	DEBUGFUNC("e1000_set_mac_type");
 
-    switch (hw->device_id) {
-    case E1000_DEV_ID_82542:
-        switch (hw->revision_id) {
-        case E1000_82542_2_0_REV_ID:
-            hw->mac_type = e1000_82542_rev2_0;
-            break;
-        case E1000_82542_2_1_REV_ID:
-            hw->mac_type = e1000_82542_rev2_1;
-            break;
-        default:
-            /* Invalid 82542 revision ID */
-            return -E1000_ERR_MAC_TYPE;
-        }
-        break;
-    case E1000_DEV_ID_82543GC_FIBER:
-    case E1000_DEV_ID_82543GC_COPPER:
-        hw->mac_type = e1000_82543;
-        break;
-    case E1000_DEV_ID_82544EI_COPPER:
-    case E1000_DEV_ID_82544EI_FIBER:
-    case E1000_DEV_ID_82544GC_COPPER:
-    case E1000_DEV_ID_82544GC_LOM:
-        hw->mac_type = e1000_82544;
-        break;
-    case E1000_DEV_ID_82540EM:
-    case E1000_DEV_ID_82540EM_LOM:
-    case E1000_DEV_ID_82540EP:
-    case E1000_DEV_ID_82540EP_LOM:
-    case E1000_DEV_ID_82540EP_LP:
-        hw->mac_type = e1000_82540;
-        break;
-    case E1000_DEV_ID_82545EM_COPPER:
-    case E1000_DEV_ID_82545EM_FIBER:
-        hw->mac_type = e1000_82545;
-        break;
-    case E1000_DEV_ID_82545GM_COPPER:
-    case E1000_DEV_ID_82545GM_FIBER:
-    case E1000_DEV_ID_82545GM_SERDES:
-        hw->mac_type = e1000_82545_rev_3;
-        break;
-    case E1000_DEV_ID_82546EB_COPPER:
-    case E1000_DEV_ID_82546EB_FIBER:
-    case E1000_DEV_ID_82546EB_QUAD_COPPER:
-        hw->mac_type = e1000_82546;
-        break;
-    case E1000_DEV_ID_82546GB_COPPER:
-    case E1000_DEV_ID_82546GB_FIBER:
-    case E1000_DEV_ID_82546GB_SERDES:
-    case E1000_DEV_ID_82546GB_PCIE:
-    case E1000_DEV_ID_82546GB_QUAD_COPPER:
-    case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
-        hw->mac_type = e1000_82546_rev_3;
-        break;
-    case E1000_DEV_ID_82541EI:
-    case E1000_DEV_ID_82541EI_MOBILE:
-    case E1000_DEV_ID_82541ER_LOM:
-        hw->mac_type = e1000_82541;
-        break;
-    case E1000_DEV_ID_82541ER:
-    case E1000_DEV_ID_82541GI:
-    case E1000_DEV_ID_82541GI_LF:
-    case E1000_DEV_ID_82541GI_MOBILE:
-        hw->mac_type = e1000_82541_rev_2;
-        break;
-    case E1000_DEV_ID_82547EI:
-    case E1000_DEV_ID_82547EI_MOBILE:
-        hw->mac_type = e1000_82547;
-        break;
-    case E1000_DEV_ID_82547GI:
-        hw->mac_type = e1000_82547_rev_2;
-        break;
-    case E1000_DEV_ID_82571EB_COPPER:
-    case E1000_DEV_ID_82571EB_FIBER:
-    case E1000_DEV_ID_82571EB_SERDES:
-    case E1000_DEV_ID_82571EB_QUAD_COPPER:
-    case E1000_DEV_ID_82571EB_QUAD_COPPER_LOWPROFILE:
-            hw->mac_type = e1000_82571;
-        break;
-    case E1000_DEV_ID_82572EI_COPPER:
-    case E1000_DEV_ID_82572EI_FIBER:
-    case E1000_DEV_ID_82572EI_SERDES:
-    case E1000_DEV_ID_82572EI:
-        hw->mac_type = e1000_82572;
-        break;
-    case E1000_DEV_ID_82573E:
-    case E1000_DEV_ID_82573E_IAMT:
-    case E1000_DEV_ID_82573L:
-        hw->mac_type = e1000_82573;
-        break;
-    case E1000_DEV_ID_80003ES2LAN_COPPER_SPT:
-    case E1000_DEV_ID_80003ES2LAN_SERDES_SPT:
-    case E1000_DEV_ID_80003ES2LAN_COPPER_DPT:
-    case E1000_DEV_ID_80003ES2LAN_SERDES_DPT:
-        hw->mac_type = e1000_80003es2lan;
-        break;
-    case E1000_DEV_ID_ICH8_IGP_M_AMT:
-    case E1000_DEV_ID_ICH8_IGP_AMT:
-    case E1000_DEV_ID_ICH8_IGP_C:
-    case E1000_DEV_ID_ICH8_IFE:
-    case E1000_DEV_ID_ICH8_IFE_GT:
-    case E1000_DEV_ID_ICH8_IFE_G:
-    case E1000_DEV_ID_ICH8_IGP_M:
-        hw->mac_type = e1000_ich8lan;
-        break;
-    default:
-        /* Should never have loaded on this device */
-        return -E1000_ERR_MAC_TYPE;
-    }
+	switch (hw->device_id) {
+	case E1000_DEV_ID_82542:
+		switch (hw->revision_id) {
+		case E1000_82542_2_0_REV_ID:
+			hw->mac_type = e1000_82542_rev2_0;
+			break;
+		case E1000_82542_2_1_REV_ID:
+			hw->mac_type = e1000_82542_rev2_1;
+			break;
+		default:
+			/* Invalid 82542 revision ID */
+			return -E1000_ERR_MAC_TYPE;
+		}
+		break;
+	case E1000_DEV_ID_82543GC_FIBER:
+	case E1000_DEV_ID_82543GC_COPPER:
+		hw->mac_type = e1000_82543;
+		break;
+	case E1000_DEV_ID_82544EI_COPPER:
+	case E1000_DEV_ID_82544EI_FIBER:
+	case E1000_DEV_ID_82544GC_COPPER:
+	case E1000_DEV_ID_82544GC_LOM:
+		hw->mac_type = e1000_82544;
+		break;
+	case E1000_DEV_ID_82540EM:
+	case E1000_DEV_ID_82540EM_LOM:
+	case E1000_DEV_ID_82540EP:
+	case E1000_DEV_ID_82540EP_LOM:
+	case E1000_DEV_ID_82540EP_LP:
+		hw->mac_type = e1000_82540;
+		break;
+	case E1000_DEV_ID_82545EM_COPPER:
+	case E1000_DEV_ID_82545EM_FIBER:
+		hw->mac_type = e1000_82545;
+		break;
+	case E1000_DEV_ID_82545GM_COPPER:
+	case E1000_DEV_ID_82545GM_FIBER:
+	case E1000_DEV_ID_82545GM_SERDES:
+		hw->mac_type = e1000_82545_rev_3;
+		break;
+	case E1000_DEV_ID_82546EB_COPPER:
+	case E1000_DEV_ID_82546EB_FIBER:
+	case E1000_DEV_ID_82546EB_QUAD_COPPER:
+		hw->mac_type = e1000_82546;
+		break;
+	case E1000_DEV_ID_82546GB_COPPER:
+	case E1000_DEV_ID_82546GB_FIBER:
+	case E1000_DEV_ID_82546GB_SERDES:
+	case E1000_DEV_ID_82546GB_PCIE:
+	case E1000_DEV_ID_82546GB_QUAD_COPPER:
+	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
+		hw->mac_type = e1000_82546_rev_3;
+		break;
+	case E1000_DEV_ID_82541EI:
+	case E1000_DEV_ID_82541EI_MOBILE:
+	case E1000_DEV_ID_82541ER_LOM:
+		hw->mac_type = e1000_82541;
+		break;
+	case E1000_DEV_ID_82541ER:
+	case E1000_DEV_ID_82541GI:
+	case E1000_DEV_ID_82541GI_LF:
+	case E1000_DEV_ID_82541GI_MOBILE:
+		hw->mac_type = e1000_82541_rev_2;
+		break;
+	case E1000_DEV_ID_82547EI:
+	case E1000_DEV_ID_82547EI_MOBILE:
+		hw->mac_type = e1000_82547;
+		break;
+	case E1000_DEV_ID_82547GI:
+		hw->mac_type = e1000_82547_rev_2;
+		break;
+	case E1000_DEV_ID_82571EB_COPPER:
+	case E1000_DEV_ID_82571EB_FIBER:
+	case E1000_DEV_ID_82571EB_SERDES:
+	case E1000_DEV_ID_82571EB_QUAD_COPPER:
+	case E1000_DEV_ID_82571EB_QUAD_COPPER_LOWPROFILE:
+		hw->mac_type = e1000_82571;
+		break;
+	case E1000_DEV_ID_82572EI_COPPER:
+	case E1000_DEV_ID_82572EI_FIBER:
+	case E1000_DEV_ID_82572EI_SERDES:
+	case E1000_DEV_ID_82572EI:
+		hw->mac_type = e1000_82572;
+		break;
+	case E1000_DEV_ID_82573E:
+	case E1000_DEV_ID_82573E_IAMT:
+	case E1000_DEV_ID_82573L:
+		hw->mac_type = e1000_82573;
+		break;
+	case E1000_DEV_ID_80003ES2LAN_COPPER_SPT:
+	case E1000_DEV_ID_80003ES2LAN_SERDES_SPT:
+	case E1000_DEV_ID_80003ES2LAN_COPPER_DPT:
+	case E1000_DEV_ID_80003ES2LAN_SERDES_DPT:
+		hw->mac_type = e1000_80003es2lan;
+		break;
+	case E1000_DEV_ID_ICH8_IGP_M_AMT:
+	case E1000_DEV_ID_ICH8_IGP_AMT:
+	case E1000_DEV_ID_ICH8_IGP_C:
+	case E1000_DEV_ID_ICH8_IFE:
+	case E1000_DEV_ID_ICH8_IFE_GT:
+	case E1000_DEV_ID_ICH8_IFE_G:
+	case E1000_DEV_ID_ICH8_IGP_M:
+		hw->mac_type = e1000_ich8lan;
+		break;
+	default:
+		/* Should never have loaded on this device */
+		return -E1000_ERR_MAC_TYPE;
+	}
 
-    switch (hw->mac_type) {
-    case e1000_ich8lan:
-        hw->swfwhw_semaphore_present = TRUE;
-        hw->asf_firmware_present = TRUE;
-        break;
-    case e1000_80003es2lan:
-        hw->swfw_sync_present = TRUE;
-        /* fall through */
-    case e1000_82571:
-    case e1000_82572:
-    case e1000_82573:
-        hw->eeprom_semaphore_present = TRUE;
-        /* fall through */
-    case e1000_82541:
-    case e1000_82547:
-    case e1000_82541_rev_2:
-    case e1000_82547_rev_2:
-        hw->asf_firmware_present = TRUE;
-        break;
-    default:
-        break;
-    }
+	switch (hw->mac_type) {
+	case e1000_ich8lan:
+		hw->swfwhw_semaphore_present = TRUE;
+		hw->asf_firmware_present = TRUE;
+		break;
+	case e1000_80003es2lan:
+		hw->swfw_sync_present = TRUE;
+		/* fall through */
+	case e1000_82571:
+	case e1000_82572:
+	case e1000_82573:
+		hw->eeprom_semaphore_present = TRUE;
+		/* fall through */
+	case e1000_82541:
+	case e1000_82547:
+	case e1000_82541_rev_2:
+	case e1000_82547_rev_2:
+		hw->asf_firmware_present = TRUE;
+		break;
+	default:
+		break;
+	}
 
-    return E1000_SUCCESS;
+	/* The 82543 chip does not count tx_carrier_errors properly in
+	 * FD mode
+	 */
+	if (hw->mac_type == e1000_82543)
+		hw->bad_tx_carr_stats_fd = TRUE;
+
+	/* capable of receiving management packets to the host */
+	if (hw->mac_type >= e1000_82571)
+		hw->has_manc2h = TRUE;
+
+	/* In rare occasions, ESB2 systems would end up started without
+	 * the RX unit being turned on.
+	 */
+	if (hw->mac_type == e1000_80003es2lan)
+		hw->rx_needs_kicking = TRUE;
+
+	if (hw->mac_type > e1000_82544)
+		hw->has_smbus = TRUE;
+
+	return E1000_SUCCESS;
 }
 
 /*****************************************************************************
@@ -6575,7 +6594,7 @@ e1000_get_bus_info(struct e1000_hw *hw)
     switch (hw->mac_type) {
     case e1000_82542_rev2_0:
     case e1000_82542_rev2_1:
-        hw->bus_type = e1000_bus_type_unknown;
+        hw->bus_type = e1000_bus_type_pci;
         hw->bus_speed = e1000_bus_speed_unknown;
         hw->bus_width = e1000_bus_width_unknown;
         break;
@@ -7817,9 +7836,8 @@ e1000_enable_mng_pass_thru(struct e1000_hw *hw)
             fwsm = E1000_READ_REG(hw, FWSM);
             factps = E1000_READ_REG(hw, FACTPS);
 
-            if (((fwsm & E1000_FWSM_MODE_MASK) ==
-                (e1000_mng_mode_pt << E1000_FWSM_MODE_SHIFT)) &&
-                (factps & E1000_FACTPS_MNGCG))
+            if ((((fwsm & E1000_FWSM_MODE_MASK) >> E1000_FWSM_MODE_SHIFT) ==
+                   e1000_mng_mode_pt) && !(factps & E1000_FACTPS_MNGCG))
                 return TRUE;
         } else
             if ((manc & E1000_MANC_SMBUS_EN) && !(manc & E1000_MANC_ASF_EN))

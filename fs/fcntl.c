@@ -77,10 +77,9 @@ repeat:
 		start = files->next_fd;
 
 	newfd = start;
-	if (start < fdt->max_fdset) {
+	if (start < fdt->max_fds)
 		newfd = find_next_zero_bit(fdt->open_fds->fds_bits,
-			fdt->max_fdset, start);
-	}
+					   fdt->max_fds, start);
 	
 	error = -EMFILE;
 	if (newfd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
@@ -204,7 +203,7 @@ asmlinkage long sys_dup(unsigned int fildes)
 
 static int setfl(int fd, struct file * filp, unsigned long arg)
 {
-	struct inode * inode = filp->f_dentry->d_inode;
+	struct inode * inode = filp->f_path.dentry->d_inode;
 	int error = 0;
 
 	/*

@@ -29,7 +29,6 @@
 #define __LIBATA_H__
 
 #define DRV_NAME	"libata"
-#define DRV_VERSION	"2.00"	/* must be exactly four chars */
 
 struct ata_scsi_args {
 	struct ata_device	*dev;
@@ -135,5 +134,8 @@ extern void ata_qc_schedule_eh(struct ata_queued_cmd *qc);
 
 /* libata-sff.c */
 extern u8 ata_irq_on(struct ata_port *ap);
+
+/* pata_sis.c */
+extern struct ata_port_info sis_info133;
 
 #endif /* __LIBATA_H__ */

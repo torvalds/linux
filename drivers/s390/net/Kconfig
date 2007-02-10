@@ -22,16 +22,6 @@ config CTC
 	  available.  This option is also available as a module which will be
 	  called ctc.ko.  If you do not know what it is, it's safe to say "Y".
 
-config IUCV
-	tristate "IUCV support (VM only)"
-	help
-	  Select this option if you want to use inter-user communication
-	  under VM or VIF. If unsure, say "Y" to enable a fast communication
-	  link between VM guests. At boot time the user ID of the guest needs
-	  to be passed to the kernel. Note that both kernels need to be
-	  compiled with this option and both need to be booted with the user ID
-	  of the other VM guest.
-
 config NETIUCV
 	tristate "IUCV network device support (VM only)"
 	depends on IUCV && NETDEVICES

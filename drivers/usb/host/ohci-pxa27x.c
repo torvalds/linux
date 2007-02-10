@@ -47,7 +47,7 @@ static int pxa27x_ohci_select_pmm( int mode )
 	switch ( mode ) {
 	case PMM_NPS_MODE:
 		UHCRHDA |= RH_A_NPS;
-		break; 
+		break;
 	case PMM_GLOBAL_MODE:
 		UHCRHDA &= ~(RH_A_NPS & RH_A_PSM);
 		break;
@@ -60,7 +60,7 @@ static int pxa27x_ohci_select_pmm( int mode )
 		break;
 	default:
 		printk( KERN_ERR
-			"Invalid mode %d, set to non-power switch mode.\n", 
+			"Invalid mode %d, set to non-power switch mode.\n",
 			mode );
 
 		UHCRHDA |= RH_A_NPS;
@@ -270,7 +270,7 @@ static const struct hc_driver ohci_pxa27x_hc_driver = {
 	 */
 	.start =		ohci_pxa27x_start,
 	.stop =			ohci_stop,
-	.shutdown = 		ohci_shutdown,
+	.shutdown =		ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -359,9 +359,9 @@ static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
 static struct platform_driver ohci_hcd_pxa27x_driver = {
 	.probe		= ohci_hcd_pxa27x_drv_probe,
 	.remove		= ohci_hcd_pxa27x_drv_remove,
-	.shutdown 	= usb_hcd_platform_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 #ifdef CONFIG_PM
-	.suspend	= ohci_hcd_pxa27x_drv_suspend, 
+	.suspend	= ohci_hcd_pxa27x_drv_suspend,
 	.resume		= ohci_hcd_pxa27x_drv_resume,
 #endif
 	.driver		= {
@@ -369,19 +369,3 @@ static struct platform_driver ohci_hcd_pxa27x_driver = {
 	},
 };
 
-static int __init ohci_hcd_pxa27x_init (void)
-{
-	pr_debug (DRIVER_INFO " (pxa27x)");
-	pr_debug ("block sizes: ed %d td %d\n",
-		sizeof (struct ed), sizeof (struct td));
-
-	return platform_driver_register(&ohci_hcd_pxa27x_driver);
-}
-
-static void __exit ohci_hcd_pxa27x_cleanup (void)
-{
-	platform_driver_unregister(&ohci_hcd_pxa27x_driver);
-}
-
-module_init (ohci_hcd_pxa27x_init);
-module_exit (ohci_hcd_pxa27x_cleanup);

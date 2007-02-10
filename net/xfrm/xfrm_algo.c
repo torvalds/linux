@@ -266,6 +266,23 @@ static struct xfrm_algo_desc ealg_list[] = {
         }
 },
 {
+	.name = "cbc(camellia)",
+
+	.uinfo = {
+		.encr = {
+			.blockbits = 128,
+			.defkeybits = 128,
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_CAMELLIACBC,
+		.sadb_alg_ivlen = 8,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256
+	}
+},
+{
         .name = "cbc(twofish)",
         .compat = "twofish",
                  
@@ -399,7 +416,8 @@ static struct xfrm_algo_desc *xfrm_get_byname(struct xfrm_algo_desc *list,
 		if (!probe)
 			break;
 
-		status = crypto_has_alg(name, type, mask | CRYPTO_ALG_ASYNC);
+		status = crypto_has_alg(list[i].name, type,
+					mask | CRYPTO_ALG_ASYNC);
 		if (!status)
 			break;
 

@@ -208,7 +208,7 @@ static void cfg_cmd_event(struct tipc_cmd_msg *msg,
 
 			if (mng.link_subscriptions > 64)
 				break;
-			sub = (struct subscr_data *)kmalloc(sizeof(*sub),
+			sub = kmalloc(sizeof(*sub),
 							    GFP_ATOMIC);
 			if (sub == NULL) {
 				warn("Memory squeeze; dropped remote link subscription\n");

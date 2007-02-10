@@ -478,7 +478,7 @@ static void atmel_serial_pm(struct uart_port *port, unsigned int state, unsigned
 /*
  * Change the port parameters
  */
-static void atmel_set_termios(struct uart_port *port, struct termios * termios, struct termios * old)
+static void atmel_set_termios(struct uart_port *port, struct ktermios * termios, struct ktermios * old)
 {
 	unsigned long flags;
 	unsigned int mode, imr, quot, baud;
@@ -689,9 +689,9 @@ static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port, struct
 	struct atmel_uart_data *data = pdev->dev.platform_data;
 
 	port->iotype	= UPIO_MEM;
-	port->flags     = UPF_BOOT_AUTOCONF;
+	port->flags	= UPF_BOOT_AUTOCONF;
 	port->ops	= &atmel_pops;
-	port->fifosize  = 1;
+	port->fifosize	= 1;
 	port->line	= pdev->id;
 	port->dev	= &pdev->dev;
 
@@ -890,7 +890,6 @@ static int atmel_serial_suspend(struct platform_device *pdev, pm_message_t state
 	if (device_may_wakeup(&pdev->dev) && !at91_suspend_entering_slow_clock())
 		enable_irq_wake(port->irq);
 	else {
-		disable_irq_wake(port->irq);
 		uart_suspend_port(&atmel_uart, port);
 		atmel_port->suspended = 1;
 	}
@@ -907,6 +906,8 @@ static int atmel_serial_resume(struct platform_device *pdev)
 		uart_resume_port(&atmel_uart, port);
 		atmel_port->suspended = 0;
 	}
+	else
+		disable_irq_wake(port->irq);
 
 	return 0;
 }

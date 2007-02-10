@@ -157,7 +157,7 @@ ASMMACRO(back_to_back_c0_hazard,
  * processors.
  */
 ASMMACRO(mtc0_tlbw_hazard,
-	nop
+	nop; nop
 	)
 ASMMACRO(tlbw_use_hazard,
 	nop; nop; nop

@@ -27,16 +27,13 @@
 #define SSP1_SerClkDiv(x) (((CLOCK_SPEED_HZ/2/(x+1))<<8)&0x0000ff00)
 #define SSP2_SerClkDiv(x) (((CLOCK_SPEED_HZ/(x+1))<<8)&0x000fff00)
 #define SSP3_SerClkDiv(x) (((CLOCK_SPEED_HZ/(x+1))<<8)&0x000fff00)
-#define SSP_TIMEOUT_SCALE (2712)
 #elif defined(CONFIG_PXA27x)
 #define CLOCK_SPEED_HZ 13000000
 #define SSP1_SerClkDiv(x) (((CLOCK_SPEED_HZ/(x+1))<<8)&0x000fff00)
 #define SSP2_SerClkDiv(x) (((CLOCK_SPEED_HZ/(x+1))<<8)&0x000fff00)
 #define SSP3_SerClkDiv(x) (((CLOCK_SPEED_HZ/(x+1))<<8)&0x000fff00)
-#define SSP_TIMEOUT_SCALE (769)
 #endif
 
-#define SSP_TIMEOUT(x) ((x*10000)/SSP_TIMEOUT_SCALE)
 #define SSP1_VIRT ((void *)(io_p2v(__PREG(SSCR0_P(1)))))
 #define SSP2_VIRT ((void *)(io_p2v(__PREG(SSCR0_P(2)))))
 #define SSP3_VIRT ((void *)(io_p2v(__PREG(SSCR0_P(3)))))
@@ -63,7 +60,7 @@ struct pxa2xx_spi_chip {
 	u8 tx_threshold;
 	u8 rx_threshold;
 	u8 dma_burst_size;
-	u32 timeout_microsecs;
+	u32 timeout;
 	u8 enable_loopback;
 	void (*cs_control)(u32 command);
 };

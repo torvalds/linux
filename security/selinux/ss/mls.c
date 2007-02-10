@@ -270,7 +270,7 @@ int mls_context_to_sid(char oldc,
 		if (!defcon)
 			goto out;
 
-		rc = mls_copy_context(context, defcon);
+		rc = mls_context_cpy(context, defcon);
 		goto out;
 	}
 
@@ -395,26 +395,6 @@ int mls_from_string(char *str, struct context *context, gfp_t gfp_mask)
 		rc = mls_context_to_sid(':', &tmpstr, context,
 		                        NULL, SECSID_NULL);
 		kfree(freestr);
-	}
-
-	return rc;
-}
-
-/*
- * Copies the effective MLS range from `src' into `dst'.
- */
-static inline int mls_scopy_context(struct context *dst,
-                                    struct context *src)
-{
-	int l, rc = 0;
-
-	/* Copy the MLS range from the source context */
-	for (l = 0; l < 2; l++) {
-		dst->range.level[l].sens = src->range.level[0].sens;
-		rc = ebitmap_cpy(&dst->range.level[l].cat,
-				 &src->range.level[0].cat);
-		if (rc)
-			break;
 	}
 
 	return rc;
@@ -552,19 +532,19 @@ int mls_compute_sid(struct context *scontext,
 	case AVTAB_CHANGE:
 		if (tclass == SECCLASS_PROCESS)
 			/* Use the process MLS attributes. */
-			return mls_copy_context(newcontext, scontext);
+			return mls_context_cpy(newcontext, scontext);
 		else
 			/* Use the process effective MLS attributes. */
-			return mls_scopy_context(newcontext, scontext);
+			return mls_context_cpy_low(newcontext, scontext);
 	case AVTAB_MEMBER:
 		/* Only polyinstantiate the MLS attributes if
 		   the type is being polyinstantiated */
 		if (newcontext->type != tcontext->type) {
 			/* Use the process effective MLS attributes. */
-			return mls_scopy_context(newcontext, scontext);
+			return mls_context_cpy_low(newcontext, scontext);
 		} else {
 			/* Use the related object MLS attributes. */
-			return mls_copy_context(newcontext, tcontext);
+			return mls_context_cpy(newcontext, tcontext);
 		}
 	default:
 		return -EINVAL;

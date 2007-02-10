@@ -14,6 +14,36 @@
 #include <linux/io.h>
 #include <asm/sci.h>
 
+static struct resource rtc_resources[] = {
+	[0] = {
+		.start	= 0xffc80000,
+		.end	= 0xffc80000 + 0x58 - 1,
+		.flags	= IORESOURCE_IO,
+	},
+	[1] = {
+		/* Period IRQ */
+		.start	= 21,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		/* Carry IRQ */
+		.start	= 22,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		/* Alarm IRQ */
+		.start	= 20,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device rtc_device = {
+	.name		= "sh-rtc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(rtc_resources),
+	.resource	= rtc_resources,
+};
+
 static struct plat_sci_port sci_platform_data[] = {
 	{
 		.mapbase	= 0xffe00000,
@@ -39,6 +69,7 @@ static struct platform_device sci_device = {
 };
 
 static struct platform_device *sh7750_devices[] __initdata = {
+	&rtc_device,
 	&sci_device,
 };
 

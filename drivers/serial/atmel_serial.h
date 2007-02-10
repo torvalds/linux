@@ -106,7 +106,7 @@
 #define ATMEL_US_CSR		0x14			/* Channel Status Register */
 #define ATMEL_US_RHR		0x18			/* Receiver Holding Register */
 #define ATMEL_US_THR		0x1c			/* Transmitter Holding Register */
-#define 	ATMEL_US_SYNH		(1 << 15)		/* Transmit/Receive Sync [SAM9 only] */
+#define		ATMEL_US_SYNH		(1 << 15)		/* Transmit/Receive Sync [AT91SAM9261 only] */
 
 #define ATMEL_US_BRGR		0x20			/* Baud Rate Generator Register */
 #define		ATMEL_US_CD		(0xffff << 0)		/* Clock Divider */

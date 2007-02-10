@@ -1177,7 +1177,7 @@ static int cdrom_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long ar
 static int vt_check(struct file *file)
 {
 	struct tty_struct *tty;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	
 	if (file->f_op->ioctl != tty_ioctl)
 		return -EINVAL;

@@ -243,7 +243,7 @@ static inline int ok_for_kernel(unsigned int insn)
 	return !floating_point_load_or_store_p(insn);
 }
 
-static void kernel_mna_trap_fault(void)
+static void kernel_mna_trap_fault(int fixup_tstate_asi)
 {
 	struct pt_regs *regs = current_thread_info()->kern_una_regs;
 	unsigned int insn = current_thread_info()->kern_una_insn;
@@ -274,18 +274,15 @@ static void kernel_mna_trap_fault(void)
 	regs->tpc = entry->fixup;
 	regs->tnpc = regs->tpc + 4;
 
-	regs->tstate &= ~TSTATE_ASI;
-	regs->tstate |= (ASI_AIUS << 24UL);
+	if (fixup_tstate_asi) {
+		regs->tstate &= ~TSTATE_ASI;
+		regs->tstate |= (ASI_AIUS << 24UL);
+	}
 }
 
-asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
+static void log_unaligned(struct pt_regs *regs)
 {
 	static unsigned long count, last_time;
-	enum direction dir = decode_direction(insn);
-	int size = decode_access_size(insn);
-
-	current_thread_info()->kern_una_regs = regs;
-	current_thread_info()->kern_una_insn = insn;
 
 	if (jiffies - last_time > 5 * HZ)
 		count = 0;
@@ -295,6 +292,28 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 		printk("Kernel unaligned access at TPC[%lx] ", regs->tpc);
 		print_symbol("%s\n", regs->tpc);
 	}
+}
+
+asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
+{
+	enum direction dir = decode_direction(insn);
+	int size = decode_access_size(insn);
+	int orig_asi, asi;
+
+	current_thread_info()->kern_una_regs = regs;
+	current_thread_info()->kern_una_insn = insn;
+
+	orig_asi = asi = decode_asi(insn, regs);
+
+	/* If this is a {get,put}_user() on an unaligned userspace pointer,
+	 * just signal a fault and do not log the event.
+	 */
+	if (asi == ASI_AIUS) {
+		kernel_mna_trap_fault(0);
+		return;
+	}
+
+	log_unaligned(regs);
 
 	if (!ok_for_kernel(insn) || dir == both) {
 		printk("Unsupported unaligned load/store trap for kernel "
@@ -302,10 +321,10 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 		unaligned_panic("Kernel does fpu/atomic "
 				"unaligned load/store.", regs);
 
-		kernel_mna_trap_fault();
+		kernel_mna_trap_fault(0);
 	} else {
 		unsigned long addr, *reg_addr;
-		int orig_asi, asi, err;
+		int err;
 
 		addr = compute_effective_address(regs, insn,
 						 ((insn >> 25) & 0x1f));
@@ -315,7 +334,6 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 		       regs->tpc, dirstrings[dir], addr, size,
 		       regs->u_regs[UREG_RETPC]);
 #endif
-		orig_asi = asi = decode_asi(insn, regs);
 		switch (asi) {
 		case ASI_NL:
 		case ASI_AIUPL:
@@ -365,7 +383,7 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 			/* Not reached... */
 		}
 		if (unlikely(err))
-			kernel_mna_trap_fault();
+			kernel_mna_trap_fault(1);
 		else
 			advance(regs);
 	}

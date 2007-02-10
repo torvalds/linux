@@ -1216,7 +1216,7 @@ static int __init pxafb_parse_options(struct device *dev, char *options)
 		done:
 			if (res_specified) {
 				dev_info(dev, "overriding resolution: %dx%d\n", xres, yres);
-				inf->xres = xres; inf->yres = yres;
+				inf->modes[0].xres = xres; inf->modes[0].yres = yres;
 			}
 			if (bpp_specified)
 				switch (bpp) {
@@ -1225,48 +1225,48 @@ static int __init pxafb_parse_options(struct device *dev, char *options)
 				case 4:
 				case 8:
 				case 16:
-					inf->bpp = bpp;
+					inf->modes[0].bpp = bpp;
 					dev_info(dev, "overriding bit depth: %d\n", bpp);
 					break;
 				default:
 					dev_err(dev, "Depth %d is not valid\n", bpp);
 				}
                 } else if (!strncmp(this_opt, "pixclock:", 9)) {
-                        inf->pixclock = simple_strtoul(this_opt+9, NULL, 0);
-			dev_info(dev, "override pixclock: %ld\n", inf->pixclock);
+                        inf->modes[0].pixclock = simple_strtoul(this_opt+9, NULL, 0);
+			dev_info(dev, "override pixclock: %ld\n", inf->modes[0].pixclock);
                 } else if (!strncmp(this_opt, "left:", 5)) {
-                        inf->left_margin = simple_strtoul(this_opt+5, NULL, 0);
-			dev_info(dev, "override left: %u\n", inf->left_margin);
+                        inf->modes[0].left_margin = simple_strtoul(this_opt+5, NULL, 0);
+			dev_info(dev, "override left: %u\n", inf->modes[0].left_margin);
                 } else if (!strncmp(this_opt, "right:", 6)) {
-                        inf->right_margin = simple_strtoul(this_opt+6, NULL, 0);
-			dev_info(dev, "override right: %u\n", inf->right_margin);
+                        inf->modes[0].right_margin = simple_strtoul(this_opt+6, NULL, 0);
+			dev_info(dev, "override right: %u\n", inf->modes[0].right_margin);
                 } else if (!strncmp(this_opt, "upper:", 6)) {
-                        inf->upper_margin = simple_strtoul(this_opt+6, NULL, 0);
-			dev_info(dev, "override upper: %u\n", inf->upper_margin);
+                        inf->modes[0].upper_margin = simple_strtoul(this_opt+6, NULL, 0);
+			dev_info(dev, "override upper: %u\n", inf->modes[0].upper_margin);
                 } else if (!strncmp(this_opt, "lower:", 6)) {
-                        inf->lower_margin = simple_strtoul(this_opt+6, NULL, 0);
-			dev_info(dev, "override lower: %u\n", inf->lower_margin);
+                        inf->modes[0].lower_margin = simple_strtoul(this_opt+6, NULL, 0);
+			dev_info(dev, "override lower: %u\n", inf->modes[0].lower_margin);
                 } else if (!strncmp(this_opt, "hsynclen:", 9)) {
-                        inf->hsync_len = simple_strtoul(this_opt+9, NULL, 0);
-			dev_info(dev, "override hsynclen: %u\n", inf->hsync_len);
+                        inf->modes[0].hsync_len = simple_strtoul(this_opt+9, NULL, 0);
+			dev_info(dev, "override hsynclen: %u\n", inf->modes[0].hsync_len);
                 } else if (!strncmp(this_opt, "vsynclen:", 9)) {
-                        inf->vsync_len = simple_strtoul(this_opt+9, NULL, 0);
-			dev_info(dev, "override vsynclen: %u\n", inf->vsync_len);
+                        inf->modes[0].vsync_len = simple_strtoul(this_opt+9, NULL, 0);
+			dev_info(dev, "override vsynclen: %u\n", inf->modes[0].vsync_len);
                 } else if (!strncmp(this_opt, "hsync:", 6)) {
                         if (simple_strtoul(this_opt+6, NULL, 0) == 0) {
 				dev_info(dev, "override hsync: Active Low\n");
-				inf->sync &= ~FB_SYNC_HOR_HIGH_ACT;
+				inf->modes[0].sync &= ~FB_SYNC_HOR_HIGH_ACT;
 			} else {
 				dev_info(dev, "override hsync: Active High\n");
-				inf->sync |= FB_SYNC_HOR_HIGH_ACT;
+				inf->modes[0].sync |= FB_SYNC_HOR_HIGH_ACT;
 			}
                 } else if (!strncmp(this_opt, "vsync:", 6)) {
                         if (simple_strtoul(this_opt+6, NULL, 0) == 0) {
 				dev_info(dev, "override vsync: Active Low\n");
-				inf->sync &= ~FB_SYNC_VERT_HIGH_ACT;
+				inf->modes[0].sync &= ~FB_SYNC_VERT_HIGH_ACT;
 			} else {
 				dev_info(dev, "override vsync: Active High\n");
-				inf->sync |= FB_SYNC_VERT_HIGH_ACT;
+				inf->modes[0].sync |= FB_SYNC_VERT_HIGH_ACT;
 			}
                 } else if (!strncmp(this_opt, "dpc:", 4)) {
                         if (simple_strtoul(this_opt+4, NULL, 0) == 0) {

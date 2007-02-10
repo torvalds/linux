@@ -150,7 +150,8 @@ static inline int autofs4_ispending(struct dentry *dentry)
 
 static inline void autofs4_copy_atime(struct file *src, struct file *dst)
 {
-	dst->f_dentry->d_inode->i_atime = src->f_dentry->d_inode->i_atime;
+	dst->f_path.dentry->d_inode->i_atime =
+		src->f_path.dentry->d_inode->i_atime;
 	return;
 }
 

@@ -107,7 +107,9 @@
 #include	<linux/nodemask.h>
 #include	<linux/mempolicy.h>
 #include	<linux/mutex.h>
+#include	<linux/fault-inject.h>
 #include	<linux/rtmutex.h>
+#include	<linux/reciprocal_div.h>
 
 #include	<asm/cacheflush.h>
 #include	<asm/tlbflush.h>
@@ -385,6 +387,7 @@ struct kmem_cache {
 	unsigned int shared;
 
 	unsigned int buffer_size;
+	u32 reciprocal_buffer_size;
 /* 3) touched by every alloc & free from the backend */
 	struct kmem_list3 *nodelists[MAX_NUMNODES];
 
@@ -626,10 +629,17 @@ static inline void *index_to_obj(struct kmem_cache *cache, struct slab *slab,
 	return slab->s_mem + cache->buffer_size * idx;
 }
 
-static inline unsigned int obj_to_index(struct kmem_cache *cache,
-					struct slab *slab, void *obj)
+/*
+ * We want to avoid an expensive divide : (offset / cache->buffer_size)
+ *   Using the fact that buffer_size is a constant for a particular cache,
+ *   we can replace (offset / cache->buffer_size) by
+ *   reciprocal_divide(offset, cache->reciprocal_buffer_size)
+ */
+static inline unsigned int obj_to_index(const struct kmem_cache *cache,
+					const struct slab *slab, void *obj)
 {
-	return (unsigned)(obj - slab->s_mem) / cache->buffer_size;
+	u32 offset = (obj - slab->s_mem);
+	return reciprocal_divide(offset, cache->reciprocal_buffer_size);
 }
 
 /*
@@ -945,7 +955,8 @@ static void __devinit start_cpu_timer(int cpu)
 	if (keventd_up() && reap_work->work.func == NULL) {
 		init_reap_node(cpu);
 		INIT_DELAYED_WORK(reap_work, cache_reap);
-		schedule_delayed_work_on(cpu, reap_work, HZ + 3 * cpu);
+		schedule_delayed_work_on(cpu, reap_work,
+					__round_jiffies_relative(HZ, cpu));
 	}
 }
 
@@ -1425,6 +1436,8 @@ void __init kmem_cache_init(void)
 
 	cache_cache.buffer_size = ALIGN(cache_cache.buffer_size,
 					cache_line_size());
+	cache_cache.reciprocal_buffer_size =
+		reciprocal_value(cache_cache.buffer_size);
 
 	for (order = 0; order < MAX_ORDER; order++) {
 		cache_estimate(order, cache_cache.buffer_size,
@@ -2311,6 +2324,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	if (flags & SLAB_CACHE_DMA)
 		cachep->gfpflags |= GFP_DMA;
 	cachep->buffer_size = size;
+	cachep->reciprocal_buffer_size = reciprocal_value(size);
 
 	if (flags & CFLGS_OFF_SLAB) {
 		cachep->slabp_cache = kmem_find_general_cachep(slab_size, 0u);
@@ -3088,12 +3102,89 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 #define cache_alloc_debugcheck_after(a,b,objp,d) (objp)
 #endif
 
+#ifdef CONFIG_FAILSLAB
+
+static struct failslab_attr {
+
+	struct fault_attr attr;
+
+	u32 ignore_gfp_wait;
+#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+	struct dentry *ignore_gfp_wait_file;
+#endif
+
+} failslab = {
+	.attr = FAULT_ATTR_INITIALIZER,
+	.ignore_gfp_wait = 1,
+};
+
+static int __init setup_failslab(char *str)
+{
+	return setup_fault_attr(&failslab.attr, str);
+}
+__setup("failslab=", setup_failslab);
+
+static int should_failslab(struct kmem_cache *cachep, gfp_t flags)
+{
+	if (cachep == &cache_cache)
+		return 0;
+	if (flags & __GFP_NOFAIL)
+		return 0;
+	if (failslab.ignore_gfp_wait && (flags & __GFP_WAIT))
+		return 0;
+
+	return should_fail(&failslab.attr, obj_size(cachep));
+}
+
+#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+
+static int __init failslab_debugfs(void)
+{
+	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
+	struct dentry *dir;
+	int err;
+
+       	err = init_fault_attr_dentries(&failslab.attr, "failslab");
+	if (err)
+		return err;
+	dir = failslab.attr.dentries.dir;
+
+	failslab.ignore_gfp_wait_file =
+		debugfs_create_bool("ignore-gfp-wait", mode, dir,
+				      &failslab.ignore_gfp_wait);
+
+	if (!failslab.ignore_gfp_wait_file) {
+		err = -ENOMEM;
+		debugfs_remove(failslab.ignore_gfp_wait_file);
+		cleanup_fault_attr_dentries(&failslab.attr);
+	}
+
+	return err;
+}
+
+late_initcall(failslab_debugfs);
+
+#endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
+
+#else /* CONFIG_FAILSLAB */
+
+static inline int should_failslab(struct kmem_cache *cachep, gfp_t flags)
+{
+	return 0;
+}
+
+#endif /* CONFIG_FAILSLAB */
+
 static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 {
 	void *objp;
 	struct array_cache *ac;
 
 	check_irq_off();
+
+	if (should_failslab(cachep, flags))
+		return NULL;
+
 	ac = cpu_cache_get(cachep);
 	if (likely(ac->avail)) {
 		STATS_INC_ALLOCHIT(cachep);
@@ -3173,6 +3264,7 @@ void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 	struct zone **z;
 	void *obj = NULL;
 	int nid;
+	gfp_t local_flags = (flags & GFP_LEVEL_MASK);
 
 retry:
 	/*
@@ -3182,21 +3274,26 @@ retry:
 	for (z = zonelist->zones; *z && !obj; z++) {
 		nid = zone_to_nid(*z);
 
-		if (cpuset_zone_allowed(*z, flags) &&
+		if (cpuset_zone_allowed_hardwall(*z, flags) &&
 			cache->nodelists[nid] &&
 			cache->nodelists[nid]->free_objects)
 				obj = ____cache_alloc_node(cache,
 					flags | GFP_THISNODE, nid);
 	}
 
-	if (!obj) {
+	if (!obj && !(flags & __GFP_NO_GROW)) {
 		/*
 		 * This allocation will be performed within the constraints
 		 * of the current cpuset / memory policy requirements.
 		 * We may trigger various forms of reclaim on the allowed
 		 * set and go into memory reserves if necessary.
 		 */
+		if (local_flags & __GFP_WAIT)
+			local_irq_enable();
+		kmem_flagcheck(cache, flags);
 		obj = kmem_getpages(cache, flags, -1);
+		if (local_flags & __GFP_WAIT)
+			local_irq_disable();
 		if (obj) {
 			/*
 			 * Insert into the appropriate per node queues
@@ -3213,7 +3310,7 @@ retry:
 					 */
 					goto retry;
 			} else {
-				kmem_freepages(cache, obj);
+				/* cache_grow already freed obj */
 				obj = NULL;
 			}
 		}
@@ -3456,7 +3553,7 @@ EXPORT_SYMBOL(kmem_cache_zalloc);
  *
  * Currently only used for dentry validation.
  */
-int fastcall kmem_ptr_validate(struct kmem_cache *cachep, void *ptr)
+int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr)
 {
 	unsigned long addr = (unsigned long)ptr;
 	unsigned long min_addr = PAGE_OFFSET;
@@ -3490,6 +3587,7 @@ out:
  * @cachep: The cache to allocate from.
  * @flags: See kmalloc().
  * @nodeid: node number of the target node.
+ * @caller: return address of caller, used for debug information
  *
  * Identical to kmem_cache_alloc but it will allocate memory on the given
  * node, which can improve the performance for cpu bound structures.
@@ -3928,7 +4026,7 @@ static void cache_reap(struct work_struct *unused)
 	if (!mutex_trylock(&cache_chain_mutex)) {
 		/* Give up. Setup the next iteration. */
 		schedule_delayed_work(&__get_cpu_var(reap_work),
-				      REAPTIMEOUT_CPUC);
+				      round_jiffies_relative(REAPTIMEOUT_CPUC));
 		return;
 	}
 
@@ -3974,7 +4072,8 @@ next:
 	next_reap_node();
 	refresh_cpu_vm_stats(smp_processor_id());
 	/* Set up the next iteration */
-	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC);
+	schedule_delayed_work(&__get_cpu_var(reap_work),
+		round_jiffies_relative(REAPTIMEOUT_CPUC));
 }
 
 #ifdef CONFIG_PROC_FS

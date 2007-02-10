@@ -4,7 +4,7 @@
  * s390 implementation of the AES Cipher Algorithm.
  *
  * s390 Version:
- *   Copyright (C) 2005 IBM Deutschland GmbH, IBM Corporation
+ *   Copyright IBM Corp. 2005,2007
  *   Author(s): Jan Glauber (jang@de.ibm.com)
  *
  * Derived from "crypto/aes.c"
@@ -27,9 +27,11 @@
 /* data block size for all key lengths */
 #define AES_BLOCK_SIZE		16
 
-int has_aes_128 = 0;
-int has_aes_192 = 0;
-int has_aes_256 = 0;
+#define AES_KEYLEN_128		1
+#define AES_KEYLEN_192		2
+#define AES_KEYLEN_256		4
+
+static char keylen_flag = 0;
 
 struct s390_aes_ctx {
 	u8 iv[AES_BLOCK_SIZE];
@@ -47,20 +49,19 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 
 	switch (key_len) {
 	case 16:
-		if (!has_aes_128)
+		if (!(keylen_flag & AES_KEYLEN_128))
 			goto fail;
 		break;
 	case 24:
-		if (!has_aes_192)
+		if (!(keylen_flag & AES_KEYLEN_192))
 			goto fail;
 
 		break;
 	case 32:
-		if (!has_aes_256)
+		if (!(keylen_flag & AES_KEYLEN_256))
 			goto fail;
 		break;
 	default:
-		/* invalid key length */
 		goto fail;
 		break;
 	}
@@ -322,34 +323,32 @@ static int __init aes_init(void)
 	int ret;
 
 	if (crypt_s390_func_available(KM_AES_128_ENCRYPT))
-		has_aes_128 = 1;
+		keylen_flag |= AES_KEYLEN_128;
 	if (crypt_s390_func_available(KM_AES_192_ENCRYPT))
-		has_aes_192 = 1;
+		keylen_flag |= AES_KEYLEN_192;
 	if (crypt_s390_func_available(KM_AES_256_ENCRYPT))
-		has_aes_256 = 1;
+		keylen_flag |= AES_KEYLEN_256;
 
-	if (!has_aes_128 && !has_aes_192 && !has_aes_256)
-		return -ENOSYS;
+	if (!keylen_flag)
+		return -EOPNOTSUPP;
+
+	/* z9 109 and z9 BC/EC only support 128 bit key length */
+	if (keylen_flag == AES_KEYLEN_128)
+		printk(KERN_INFO
+		       "aes_s390: hardware acceleration only available for"
+		       "128 bit keys\n");
 
 	ret = crypto_register_alg(&aes_alg);
-	if (ret != 0) {
-		printk(KERN_INFO "crypt_s390: aes-s390 couldn't be loaded.\n");
+	if (ret)
 		goto aes_err;
-	}
 
 	ret = crypto_register_alg(&ecb_aes_alg);
-	if (ret != 0) {
-		printk(KERN_INFO
-		       "crypt_s390: ecb-aes-s390 couldn't be loaded.\n");
+	if (ret)
 		goto ecb_aes_err;
-	}
 
 	ret = crypto_register_alg(&cbc_aes_alg);
-	if (ret != 0) {
-		printk(KERN_INFO
-		       "crypt_s390: cbc-aes-s390 couldn't be loaded.\n");
+	if (ret)
 		goto cbc_aes_err;
-	}
 
 out:
 	return ret;

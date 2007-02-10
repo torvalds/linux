@@ -214,7 +214,7 @@ out:
 static ssize_t
 rpc_pipe_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct rpc_inode *rpci = RPC_I(inode);
 	struct rpc_pipe_msg *msg;
 	int res = 0;
@@ -257,7 +257,7 @@ out_unlock:
 static ssize_t
 rpc_pipe_write(struct file *filp, const char __user *buf, size_t len, loff_t *offset)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct rpc_inode *rpci = RPC_I(inode);
 	int res;
 
@@ -275,7 +275,7 @@ rpc_pipe_poll(struct file *filp, struct poll_table_struct *wait)
 	struct rpc_inode *rpci;
 	unsigned int mask = 0;
 
-	rpci = RPC_I(filp->f_dentry->d_inode);
+	rpci = RPC_I(filp->f_path.dentry->d_inode);
 	poll_wait(filp, &rpci->waitq, wait);
 
 	mask = POLLOUT | POLLWRNORM;
@@ -290,7 +290,7 @@ static int
 rpc_pipe_ioctl(struct inode *ino, struct file *filp,
 		unsigned int cmd, unsigned long arg)
 {
-	struct rpc_inode *rpci = RPC_I(filp->f_dentry->d_inode);
+	struct rpc_inode *rpci = RPC_I(filp->f_path.dentry->d_inode);
 	int len;
 
 	switch (cmd) {

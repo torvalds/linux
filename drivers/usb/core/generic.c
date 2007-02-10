@@ -25,6 +25,20 @@ static inline const char *plural(int n)
 	return (n == 1 ? "" : "s");
 }
 
+static int is_rndis(struct usb_interface_descriptor *desc)
+{
+	return desc->bInterfaceClass == USB_CLASS_COMM
+		&& desc->bInterfaceSubClass == 2
+		&& desc->bInterfaceProtocol == 0xff;
+}
+
+static int is_activesync(struct usb_interface_descriptor *desc)
+{
+	return desc->bInterfaceClass == USB_CLASS_MISC
+		&& desc->bInterfaceSubClass == 1
+		&& desc->bInterfaceProtocol == 1;
+}
+
 static int choose_configuration(struct usb_device *udev)
 {
 	int i;
@@ -87,14 +101,12 @@ static int choose_configuration(struct usb_device *udev)
 			continue;
 		}
 
-		/* If the first config's first interface is COMM/2/0xff
-		 * (MSFT RNDIS), rule it out unless Linux has host-side
-		 * RNDIS support. */
-		if (i == 0 && desc
-				&& desc->bInterfaceClass == USB_CLASS_COMM
-				&& desc->bInterfaceSubClass == 2
-				&& desc->bInterfaceProtocol == 0xff) {
-#ifndef CONFIG_USB_NET_RNDIS_HOST
+		/* When the first config's first interface is one of Microsoft's
+		 * pet nonstandard Ethernet-over-USB protocols, ignore it unless
+		 * this kernel has enabled the necessary host side driver.
+		 */
+		if (i == 0 && desc && (is_rndis(desc) || is_activesync(desc))) {
+#if !defined(CONFIG_USB_NET_RNDIS_HOST) && !defined(CONFIG_USB_NET_RNDIS_HOST_MODULE)
 			continue;
 #else
 			best = c;

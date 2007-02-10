@@ -110,6 +110,7 @@ static struct usb_serial_driver kobil_device = {
 		.name =		"kobil",
 	},
 	.description =		"KOBIL USB smart card terminal",
+	.usb_driver = 		&kobil_driver,
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		0,
@@ -136,7 +137,7 @@ struct kobil_private {
 	int cur_pos; // index of the next char to send in buf
 	__u16 device_type;
 	int line_state;
-	struct termios internal_termios;
+	struct ktermios internal_termios;
 };
 
 
@@ -269,7 +270,7 @@ static int kobil_open (struct usb_serial_port *port, struct file *filp)
 	}
 
 	// allocate memory for write_urb transfer buffer
-	port->write_urb->transfer_buffer = (unsigned char *) kmalloc(write_urb_transfer_buffer_length, GFP_KERNEL);
+	port->write_urb->transfer_buffer = kmalloc(write_urb_transfer_buffer_length, GFP_KERNEL);
 	if (! port->write_urb->transfer_buffer) {
 		kfree(transfer_buffer);
 		usb_free_urb(port->write_urb);
@@ -624,11 +625,11 @@ static int  kobil_ioctl(struct usb_serial_port *port, struct file *file,
 
 	switch (cmd) {
 	case TCGETS:   // 0x5401
-		if (!access_ok(VERIFY_WRITE, user_arg, sizeof(struct termios))) {
+		if (!access_ok(VERIFY_WRITE, user_arg, sizeof(struct ktermios))) {
 			dbg("%s - port %d Error in access_ok", __FUNCTION__, port->number);
 			return -EFAULT;
 		}
-		if (kernel_termios_to_user_termios((struct termios __user *)arg,
+		if (kernel_termios_to_user_termios((struct ktermios __user *)arg,
 						   &priv->internal_termios))
 			return -EFAULT;
 		return 0;
@@ -638,12 +639,12 @@ static int  kobil_ioctl(struct usb_serial_port *port, struct file *file,
 			dbg("%s - port %d Error: port->tty->termios is NULL", __FUNCTION__, port->number);
 			return -ENOTTY;
 		}
-		if (!access_ok(VERIFY_READ, user_arg, sizeof(struct termios))) {
+		if (!access_ok(VERIFY_READ, user_arg, sizeof(struct ktermios))) {
 			dbg("%s - port %d Error in access_ok", __FUNCTION__, port->number);
 			return -EFAULT;
 		}
 		if (user_termios_to_kernel_termios(&priv->internal_termios,
-						   (struct termios __user *)arg))
+						   (struct ktermios __user *)arg))
 			return -EFAULT;
 		
 		settings = kzalloc(50, GFP_KERNEL);
@@ -696,7 +697,7 @@ static int  kobil_ioctl(struct usb_serial_port *port, struct file *file,
 		return 0;
 
 	case TCFLSH:   // 0x540B
-		transfer_buffer = (unsigned char *) kmalloc(transfer_buffer_length, GFP_KERNEL);
+		transfer_buffer = kmalloc(transfer_buffer_length, GFP_KERNEL);
 		if (! transfer_buffer) {
 		 	return -ENOBUFS;
 		}

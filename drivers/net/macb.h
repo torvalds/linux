@@ -200,7 +200,7 @@
 #define MACB_SOF_OFFSET				30
 #define MACB_SOF_SIZE				2
 
-/* Bitfields in USRIO */
+/* Bitfields in USRIO (AVR32) */
 #define MACB_MII_OFFSET				0
 #define MACB_MII_SIZE				1
 #define MACB_EAM_OFFSET				1
@@ -209,6 +209,12 @@
 #define MACB_TX_PAUSE_SIZE			1
 #define MACB_TX_PAUSE_ZERO_OFFSET		3
 #define MACB_TX_PAUSE_ZERO_SIZE			1
+
+/* Bitfields in USRIO (AT91) */
+#define MACB_RMII_OFFSET			0
+#define MACB_RMII_SIZE				1
+#define MACB_CLKEN_OFFSET			1
+#define MACB_CLKEN_SIZE				1
 
 /* Bitfields in WOL */
 #define MACB_IP_OFFSET				0
@@ -250,9 +256,9 @@
 
 /* Register access macros */
 #define macb_readl(port,reg)				\
-	readl((port)->regs + MACB_##reg)
+	__raw_readl((port)->regs + MACB_##reg)
 #define macb_writel(port,reg,value)			\
-	writel((value), (port)->regs + MACB_##reg)
+	__raw_writel((value), (port)->regs + MACB_##reg)
 
 struct dma_desc {
 	u32	addr;
@@ -377,7 +383,7 @@ struct macb {
 
 	unsigned int		rx_pending, tx_pending;
 
-	struct work_struct	periodic_task;
+	struct delayed_work	periodic_task;
 
 	struct mutex		mdio_mutex;
 	struct completion	mdio_complete;

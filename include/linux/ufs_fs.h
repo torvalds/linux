@@ -789,6 +789,7 @@ struct ufs_sb_private_info {
 
 	__u32	s_maxsymlinklen;/* upper limit on fast symlinks' size */
 	__s32	fs_magic;       /* filesystem magic */
+	unsigned int s_dirblksize;
 };
 
 /*

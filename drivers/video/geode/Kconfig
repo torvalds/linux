@@ -23,6 +23,26 @@ config FB_GEODE_GX
 
 	  If unsure, say N.
 
+config FB_GEODE_GX_SET_FBSIZE
+	bool "Manually specify the Geode GX framebuffer size"
+	depends on FB_GEODE_GX
+	default n
+	---help---
+	  If you want to manually specify the size of your GX framebuffer,
+	  say Y here, otherwise say N to dynamically probe it.
+
+	  Say N unless you know what you are doing.
+
+config FB_GEODE_GX_FBSIZE
+	hex "Size of the GX framebuffer, in bytes"
+	depends on FB_GEODE_GX_SET_FBSIZE
+	default "0x1600000"
+	---help---
+	  Specify the size of the GX framebuffer.  Normally, you will
+	  want this to be MB aligned.  Common values are 0x80000 (8MB)
+	  and 0x1600000 (16MB).  Don't change this unless you know what
+	  you are doing
+
 config FB_GEODE_GX1
 	tristate "AMD Geode GX1 framebuffer support (EXPERIMENTAL)"
 	depends on FB && FB_GEODE && EXPERIMENTAL

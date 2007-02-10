@@ -36,7 +36,7 @@
 struct tty_driver *tty3270_driver;
 static int tty3270_max_index;
 
-struct raw3270_fn tty3270_fn;
+static struct raw3270_fn tty3270_fn;
 
 struct tty3270_cell {
 	unsigned char character;
@@ -119,8 +119,7 @@ static void tty3270_update(struct tty3270 *);
 /*
  * Setup timeout for a device. On timeout trigger an update.
  */
-void
-tty3270_set_timer(struct tty3270 *tp, int expires)
+static void tty3270_set_timer(struct tty3270 *tp, int expires)
 {
 	if (expires == 0) {
 		if (timer_pending(&tp->timer) && del_timer(&tp->timer))
@@ -841,7 +840,7 @@ tty3270_del_views(void)
 	}
 }
 
-struct raw3270_fn tty3270_fn = {
+static struct raw3270_fn tty3270_fn = {
 	.activate = tty3270_activate,
 	.deactivate = tty3270_deactivate,
 	.intv = (void *) tty3270_irq,
@@ -1659,7 +1658,7 @@ tty3270_flush_buffer(struct tty_struct *tty)
  * Check for visible/invisible input switches
  */
 static void
-tty3270_set_termios(struct tty_struct *tty, struct termios *old)
+tty3270_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 	struct tty3270 *tp;
 	int new;
@@ -1754,8 +1753,7 @@ static const struct tty_operations tty3270_ops = {
 	.set_termios = tty3270_set_termios
 };
 
-void
-tty3270_notifier(int index, int active)
+static void tty3270_notifier(int index, int active)
 {
 	if (active)
 		tty_register_device(tty3270_driver, index, NULL);
@@ -1767,8 +1765,7 @@ tty3270_notifier(int index, int active)
  * 3270 tty registration code called from tty_init().
  * Most kernel services (incl. kmalloc) are available at this poimt.
  */
-int __init
-tty3270_init(void)
+static int __init tty3270_init(void)
 {
 	struct tty_driver *driver;
 	int ret;

@@ -157,7 +157,7 @@ handle_IPI (int irq, void *dev_id)
 			      case IPI_CPU_STOP:
 				stop_this_cpu();
 				break;
-#ifdef CONFIG_CRASH_DUMP
+#ifdef CONFIG_KEXEC
 			      case IPI_KDUMP_CPU_STOP:
 				unw_init_running(kdump_cpu_freeze, NULL);
 				break;
@@ -219,15 +219,15 @@ send_IPI_self (int op)
 	send_IPI_single(smp_processor_id(), op);
 }
 
-#ifdef CONFIG_CRASH_DUMP
+#ifdef CONFIG_KEXEC
 void
-kdump_smp_send_stop()
+kdump_smp_send_stop(void)
 {
  	send_IPI_allbutself(IPI_KDUMP_CPU_STOP);
 }
 
 void
-kdump_smp_send_init()
+kdump_smp_send_init(void)
 {
 	unsigned int cpu, self_cpu;
 	self_cpu = smp_processor_id();

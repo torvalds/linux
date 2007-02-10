@@ -33,7 +33,8 @@ ENTRY(empty_zero_page)
 	.long	0x00360000	/* INITRD_START */
 	.long	0x000a0000	/* INITRD_SIZE */
 	.long	0
-	.balign PAGE_SIZE,0,PAGE_SIZE
+1:
+	.skip	PAGE_SIZE - empty_zero_page - 1b
 
 	.text	
 /*

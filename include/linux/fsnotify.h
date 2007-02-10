@@ -164,7 +164,7 @@ static inline void fsnotify_open(struct dentry *dentry)
  */
 static inline void fsnotify_close(struct file *file)
 {
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	const char *name = dentry->d_name.name;
 	mode_t mode = file->f_mode;

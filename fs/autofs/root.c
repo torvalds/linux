@@ -45,7 +45,7 @@ static int autofs_root_readdir(struct file *filp, void *dirent, filldir_t filldi
 	struct autofs_dir_ent *ent = NULL;
 	struct autofs_dirhash *dirhash;
 	struct autofs_sb_info *sbi;
-	struct inode * inode = filp->f_dentry->d_inode;
+	struct inode * inode = filp->f_path.dentry->d_inode;
 	off_t onr, nr;
 
 	lock_kernel();
@@ -557,7 +557,7 @@ static int autofs_root_ioctl(struct inode *inode, struct file *filp,
 	case AUTOFS_IOC_SETTIMEOUT:
 		return autofs_get_set_timeout(sbi, argp);
 	case AUTOFS_IOC_EXPIRE:
-		return autofs_expire_run(inode->i_sb, sbi, filp->f_vfsmnt,
+		return autofs_expire_run(inode->i_sb, sbi, filp->f_path.mnt,
 					 argp);
 	default:
 		return -ENOSYS;

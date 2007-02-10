@@ -90,7 +90,9 @@ schedule:
 
 int dvb_usb_remote_init(struct dvb_usb_device *d)
 {
+	struct input_dev *input_dev;
 	int i;
+	int err;
 
 	if (d->props.rc_key_map == NULL ||
 		d->props.rc_query == NULL ||
@@ -100,23 +102,24 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 	usb_make_path(d->udev, d->rc_phys, sizeof(d->rc_phys));
 	strlcat(d->rc_phys, "/ir0", sizeof(d->rc_phys));
 
-	d->rc_input_dev = input_allocate_device();
-	if (!d->rc_input_dev)
+	input_dev = input_allocate_device();
+	if (!input_dev)
 		return -ENOMEM;
 
-	d->rc_input_dev->evbit[0] = BIT(EV_KEY);
-	d->rc_input_dev->keycodesize = sizeof(unsigned char);
-	d->rc_input_dev->keycodemax = KEY_MAX;
-	d->rc_input_dev->name = "IR-receiver inside an USB DVB receiver";
-	d->rc_input_dev->phys = d->rc_phys;
-	usb_to_input_id(d->udev, &d->rc_input_dev->id);
-	d->rc_input_dev->cdev.dev = &d->udev->dev;
+	input_dev->evbit[0] = BIT(EV_KEY);
+	input_dev->keycodesize = sizeof(unsigned char);
+	input_dev->keycodemax = KEY_MAX;
+	input_dev->name = "IR-receiver inside an USB DVB receiver";
+	input_dev->phys = d->rc_phys;
+	usb_to_input_id(d->udev, &input_dev->id);
+	input_dev->cdev.dev = &d->udev->dev;
 
 	/* set the bits for the keys */
 	deb_rc("key map size: %d\n", d->props.rc_key_map_size);
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		deb_rc("setting bit for event %d item %d\n",d->props.rc_key_map[i].event, i);
-		set_bit(d->props.rc_key_map[i].event, d->rc_input_dev->keybit);
+		deb_rc("setting bit for event %d item %d\n",
+			d->props.rc_key_map[i].event, i);
+		set_bit(d->props.rc_key_map[i].event, input_dev->keybit);
 	}
 
 	/* Start the remote-control polling. */
@@ -124,10 +127,16 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 		d->props.rc_interval = 100; /* default */
 
 	/* setting these two values to non-zero, we have to manage key repeats */
-	d->rc_input_dev->rep[REP_PERIOD] = d->props.rc_interval;
-	d->rc_input_dev->rep[REP_DELAY]  = d->props.rc_interval + 150;
+	input_dev->rep[REP_PERIOD] = d->props.rc_interval;
+	input_dev->rep[REP_DELAY]  = d->props.rc_interval + 150;
 
-	input_register_device(d->rc_input_dev);
+	err = input_register_device(input_dev);
+	if (err) {
+		input_free_device(input_dev);
+		return err;
+	}
+
+	d->rc_input_dev = input_dev;
 
 	INIT_DELAYED_WORK(&d->rc_query_work, dvb_usb_read_remote_control);
 

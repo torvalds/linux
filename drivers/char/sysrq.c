@@ -41,7 +41,34 @@
 #include <asm/irq_regs.h>
 
 /* Whether we react on sysrq keys or just ignore them */
-int sysrq_enabled = 1;
+int __read_mostly __sysrq_enabled = 1;
+
+static int __read_mostly sysrq_always_enabled;
+
+int sysrq_on(void)
+{
+	return __sysrq_enabled || sysrq_always_enabled;
+}
+
+/*
+ * A value of 1 means 'all', other nonzero values are an op mask:
+ */
+static inline int sysrq_on_mask(int mask)
+{
+	return sysrq_always_enabled || __sysrq_enabled == 1 ||
+						(__sysrq_enabled & mask);
+}
+
+static int __init sysrq_always_enabled_setup(char *str)
+{
+	sysrq_always_enabled = 1;
+	printk(KERN_INFO "debug: sysrq always enabled.\n");
+
+	return 1;
+}
+
+__setup("sysrq_always_enabled", sysrq_always_enabled_setup);
+
 
 static void sysrq_handle_loglevel(int key, struct tty_struct *tty)
 {
@@ -188,7 +215,7 @@ static void sysrq_handle_showstate_blocked(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_showstate_blocked_op = {
 	.handler	= sysrq_handle_showstate_blocked,
-	.help_msg	= "showBlockedTasks",
+	.help_msg	= "shoW-blocked-tasks",
 	.action_msg	= "Show Blocked State",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -288,15 +315,16 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	&sysrq_loglevel_op,		/* 9 */
 
 	/*
-	 * Don't use for system provided sysrqs, it is handled specially on
-	 * sparc and will never arrive
+	 * a: Don't use for system provided sysrqs, it is handled specially on
+	 * sparc and will never arrive.
 	 */
 	NULL,				/* a */
 	&sysrq_reboot_op,		/* b */
-	&sysrq_crashdump_op,		/* c */
+	&sysrq_crashdump_op,		/* c & ibm_emac driver debug */
 	&sysrq_showlocks_op,		/* d */
 	&sysrq_term_op,			/* e */
 	&sysrq_moom_op,			/* f */
+	/* g: May be registered by ppc for kgdb */
 	NULL,				/* g */
 	NULL,				/* h */
 	&sysrq_kill_op,			/* i */
@@ -305,18 +333,19 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	NULL,				/* l */
 	&sysrq_showmem_op,		/* m */
 	&sysrq_unrt_op,			/* n */
-	/* This will often be registered as 'Off' at init time */
+	/* o: This will often be registered as 'Off' at init time */
 	NULL,				/* o */
 	&sysrq_showregs_op,		/* p */
 	NULL,				/* q */
-	&sysrq_unraw_op,			/* r */
+	&sysrq_unraw_op,		/* r */
 	&sysrq_sync_op,			/* s */
 	&sysrq_showstate_op,		/* t */
 	&sysrq_mountro_op,		/* u */
-	/* May be assigned at init time by SMP VOYAGER */
+	/* v: May be registered at init time by SMP VOYAGER */
 	NULL,				/* v */
-	NULL,				/* w */
-	&sysrq_showstate_blocked_op,	/* x */
+	&sysrq_showstate_blocked_op,	/* w */
+	/* x: May be registered on ppc/powerpc for xmon */
+	NULL,				/* x */
 	NULL,				/* y */
 	NULL				/* z */
 };
@@ -379,8 +408,7 @@ void __handle_sysrq(int key, struct tty_struct *tty, int check_mask)
 		 * Should we check for enabled operations (/proc/sysrq-trigger
 		 * should not) and is the invoked operation enabled?
 		 */
-		if (!check_mask || sysrq_enabled == 1 ||
-		    (sysrq_enabled & op_p->enable_mask)) {
+		if (!check_mask || sysrq_on_mask(op_p->enable_mask)) {
 			printk("%s\n", op_p->action_msg);
 			console_loglevel = orig_log_level;
 			op_p->handler(key, tty);
@@ -414,9 +442,8 @@ void __handle_sysrq(int key, struct tty_struct *tty, int check_mask)
  */
 void handle_sysrq(int key, struct tty_struct *tty)
 {
-	if (!sysrq_enabled)
-		return;
-	__handle_sysrq(key, tty, 1);
+	if (sysrq_on())
+		__handle_sysrq(key, tty, 1);
 }
 EXPORT_SYMBOL(handle_sysrq);
 

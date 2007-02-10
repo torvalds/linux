@@ -171,15 +171,7 @@ int i2c_sgi_add_bus(struct i2c_adapter *adap)
 
 	return i2c_add_adapter(adap);
 }
-
-
-int i2c_sgi_del_bus(struct i2c_adapter *adap)
-{
-	return i2c_del_adapter(adap);
-}
-
 EXPORT_SYMBOL(i2c_sgi_add_bus);
-EXPORT_SYMBOL(i2c_sgi_del_bus);
 
 MODULE_AUTHOR("Ladislav Michl <ladis@linux-mips.org>");
 MODULE_DESCRIPTION("I2C-Bus SGI algorithm");

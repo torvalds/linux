@@ -1416,7 +1416,7 @@ static __init int iscsi_transport_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "Loading iSCSI transport class v%s.",
+	printk(KERN_INFO "Loading iSCSI transport class v%s.\n",
 		ISCSI_TRANSPORT_VERSION);
 
 	err = class_register(&iscsi_transport_class);

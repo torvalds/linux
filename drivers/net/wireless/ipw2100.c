@@ -2246,7 +2246,7 @@ static int ipw2100_snapshot_alloc(struct ipw2100_priv *priv)
 	if (priv->snapshot[0])
 		return 1;
 	for (i = 0; i < 0x30; i++) {
-		priv->snapshot[i] = (u8 *) kmalloc(0x1000, GFP_ATOMIC);
+		priv->snapshot[i] = kmalloc(0x1000, GFP_ATOMIC);
 		if (!priv->snapshot[i]) {
 			IPW_DEBUG_INFO("%s: Error allocating snapshot "
 				       "buffer %d\n", priv->net_dev->name, i);
@@ -2664,7 +2664,7 @@ static void __ipw2100_rx_process(struct ipw2100_priv *priv)
 				break;
 			}
 #endif
-			if (stats.len < sizeof(u->rx_data.header))
+			if (stats.len < sizeof(struct ieee80211_hdr_3addr))
 				break;
 			switch (WLAN_FC_GET_TYPE(u->rx_data.header.frame_ctl)) {
 			case IEEE80211_FTYPE_MGMT:

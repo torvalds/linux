@@ -93,27 +93,27 @@ static void vgacon_invert_region(struct vc_data *c, u16 * p, int count);
 static unsigned long vgacon_uni_pagedir[2];
 
 /* Description of the hardware situation */
-static unsigned long	vga_vram_base;		/* Base of video memory */
-static unsigned long	vga_vram_end;		/* End of video memory */
-static int		vga_vram_size;		/* Size of video memory */
-static u16		vga_video_port_reg;	/* Video register select port */
-static u16		vga_video_port_val;	/* Video register value port */
-static unsigned int	vga_video_num_columns;	/* Number of text columns */
-static unsigned int	vga_video_num_lines;	/* Number of text lines */
-static int		vga_can_do_color = 0;	/* Do we support colors? */
-static unsigned int	vga_default_font_height;/* Height of default screen font */
-static unsigned char	vga_video_type;		/* Card type */
-static unsigned char	vga_hardscroll_enabled;
-static unsigned char	vga_hardscroll_user_enable = 1;
+static int		vga_init_done		__read_mostly;
+static unsigned long	vga_vram_base		__read_mostly;	/* Base of video memory */
+static unsigned long	vga_vram_end		__read_mostly;	/* End of video memory */
+static unsigned int	vga_vram_size		__read_mostly;	/* Size of video memory */
+static u16		vga_video_port_reg	__read_mostly;	/* Video register select port */
+static u16		vga_video_port_val	__read_mostly;	/* Video register value port */
+static unsigned int	vga_video_num_columns;			/* Number of text columns */
+static unsigned int	vga_video_num_lines;			/* Number of text lines */
+static int		vga_can_do_color	__read_mostly;	/* Do we support colors? */
+static unsigned int	vga_default_font_height __read_mostly;	/* Height of default screen font */
+static unsigned char	vga_video_type		__read_mostly;	/* Card type */
+static unsigned char	vga_hardscroll_enabled	__read_mostly;
+static unsigned char	vga_hardscroll_user_enable __read_mostly = 1;
 static unsigned char	vga_font_is_default = 1;
 static int		vga_vesa_blanked;
 static int 		vga_palette_blanked;
 static int 		vga_is_gfx;
 static int 		vga_512_chars;
 static int 		vga_video_font_height;
-static int 		vga_scan_lines;
-static unsigned int 	vga_rolled_over = 0;
-static int              vga_init_done;
+static int 		vga_scan_lines		__read_mostly;
+static unsigned int 	vga_rolled_over;
 
 static int __init no_scroll(char *str)
 {

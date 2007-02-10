@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 
 #include <asm/uaccess.h>
+#include <asm/semaphore.h>
 
 #include "sysfs.h"
 
@@ -35,7 +36,7 @@ static ssize_t
 read(struct file * file, char __user * userbuf, size_t count, loff_t * off)
 {
 	char *buffer = file->private_data;
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	int size = dentry->d_inode->i_size;
 	loff_t offs = *off;
 	int ret;
@@ -81,7 +82,7 @@ static ssize_t write(struct file * file, const char __user * userbuf,
 		     size_t count, loff_t * off)
 {
 	char *buffer = file->private_data;
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	int size = dentry->d_inode->i_size;
 	loff_t offs = *off;
 
@@ -105,7 +106,7 @@ static ssize_t write(struct file * file, const char __user * userbuf,
 
 static int mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	struct bin_attribute *attr = to_bin_attr(dentry);
 	struct kobject *kobj = to_kobj(dentry->d_parent);
 
@@ -117,8 +118,8 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 
 static int open(struct inode * inode, struct file * file)
 {
-	struct kobject *kobj = sysfs_get_kobject(file->f_dentry->d_parent);
-	struct bin_attribute * attr = to_bin_attr(file->f_dentry);
+	struct kobject *kobj = sysfs_get_kobject(file->f_path.dentry->d_parent);
+	struct bin_attribute * attr = to_bin_attr(file->f_path.dentry);
 	int error = -EINVAL;
 
 	if (!kobj || !attr)
@@ -146,19 +147,18 @@ static int open(struct inode * inode, struct file * file)
  Error:
 	module_put(attr->attr.owner);
  Done:
-	if (error && kobj)
+	if (error)
 		kobject_put(kobj);
 	return error;
 }
 
 static int release(struct inode * inode, struct file * file)
 {
-	struct kobject * kobj = to_kobj(file->f_dentry->d_parent);
-	struct bin_attribute * attr = to_bin_attr(file->f_dentry);
+	struct kobject * kobj = to_kobj(file->f_path.dentry->d_parent);
+	struct bin_attribute * attr = to_bin_attr(file->f_path.dentry);
 	u8 * buffer = file->private_data;
 
-	if (kobj) 
-		kobject_put(kobj);
+	kobject_put(kobj);
 	module_put(attr->attr.owner);
 	kfree(buffer);
 	return 0;

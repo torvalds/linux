@@ -28,7 +28,7 @@ struct callvectors* debug_vectors;
 extern unsigned long marvell_base;
 extern unsigned long bus_clock;
 
-#ifdef CONFIG_GALILLEO_GT64240_ETH
+#ifdef CONFIG_GALILEO_GT64240_ETH
 extern unsigned char prom_mac_addr_base[6];
 #endif
 
@@ -61,7 +61,7 @@ void __init prom_init(void)
 	mips_machgroup = MACH_GROUP_MOMENCO;
 	mips_machtype = MACH_MOMENCO_OCELOT_G;
 
-#ifdef CONFIG_GALILLEO_GT64240_ETH
+#ifdef CONFIG_GALILEO_GT64240_ETH
 	/* get the base MAC address for on-board ethernet ports */
 	memcpy(prom_mac_addr_base, (void*)0xfc807cf2, 6);
 #endif
@@ -79,7 +79,6 @@ void __init prom_init(void)
 	}
 }
 
-unsigned long __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
-	return 0;
 }

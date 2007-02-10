@@ -186,7 +186,7 @@ static int i2o_cfg_parms(unsigned long arg, unsigned int type)
 	if (!dev)
 		return -ENXIO;
 
-	ops = (u8 *) kmalloc(kcmd.oplen, GFP_KERNEL);
+	ops = kmalloc(kcmd.oplen, GFP_KERNEL);
 	if (!ops)
 		return -ENOMEM;
 
@@ -199,7 +199,7 @@ static int i2o_cfg_parms(unsigned long arg, unsigned int type)
 	 * It's possible to have a _very_ large table
 	 * and that the user asks for all of it at once...
 	 */
-	res = (u8 *) kmalloc(65536, GFP_KERNEL);
+	res = kmalloc(65536, GFP_KERNEL);
 	if (!res) {
 		kfree(ops);
 		return -ENOMEM;

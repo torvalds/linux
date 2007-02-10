@@ -14,6 +14,7 @@
 #include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
+#include <linux/bitrev.h>
 #include "st5481.h"
 
 static inline void B_L1L2(struct st5481_bcs *bcs, int pr, void *arg)
@@ -72,7 +73,7 @@ static void usb_b_out(struct st5481_bcs *bcs,int buf_nr)
 					register unsigned char *dest = urb->transfer_buffer+len;
 					register unsigned int count;
 					for (count = 0; count < bytes_sent; count++)
-						*dest++ = isdnhdlc_bit_rev_tab[*src++];
+						*dest++ = bitrev8(*src++);
 				}
 				len += bytes_sent;
 			} else {

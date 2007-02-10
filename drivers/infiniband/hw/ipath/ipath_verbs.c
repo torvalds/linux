@@ -1599,6 +1599,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	dev->detach_mcast = ipath_multicast_detach;
 	dev->process_mad = ipath_process_mad;
 	dev->mmap = ipath_mmap;
+	dev->dma_ops = &ipath_dma_mapping_ops;
 
 	snprintf(dev->node_desc, sizeof(dev->node_desc),
 		 IPATH_IDSTR " %s", init_utsname()->nodename);

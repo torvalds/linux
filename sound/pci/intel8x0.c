@@ -71,6 +71,7 @@ static char *ac97_quirk;
 static int buggy_semaphore;
 static int buggy_irq = -1; /* auto-check */
 static int xbox;
+static int spdif_aclink = -1;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel i8x0 soundcard.");
@@ -86,6 +87,8 @@ module_param(buggy_irq, bool, 0444);
 MODULE_PARM_DESC(buggy_irq, "Enable workaround for buggy interrupts on some motherboards.");
 module_param(xbox, bool, 0444);
 MODULE_PARM_DESC(xbox, "Set to 1 for Xbox, if you have problems with the AC'97 codec detection.");
+module_param(spdif_aclink, int, 0444);
+MODULE_PARM_DESC(spdif_aclink, "S/PDIF over AC-link.");
 
 /* just for backward compatibility */
 static int enable;
@@ -368,12 +371,8 @@ struct intel8x0 {
 
 	int irq;
 
-	unsigned int mmio;
-	unsigned long addr;
-	void __iomem *remap_addr;
-	unsigned int bm_mmio;
-	unsigned long bmaddr;
-	void __iomem *remap_bmaddr;
+	void __iomem *addr;
+	void __iomem *bmaddr;
 
 	struct pci_dev *pci;
 	struct snd_card *card;
@@ -446,72 +445,48 @@ MODULE_DEVICE_TABLE(pci, snd_intel8x0_ids);
  *  Lowlevel I/O - busmaster
  */
 
-static u8 igetbyte(struct intel8x0 *chip, u32 offset)
+static inline u8 igetbyte(struct intel8x0 *chip, u32 offset)
 {
-	if (chip->bm_mmio)
-		return readb(chip->remap_bmaddr + offset);
-	else
-		return inb(chip->bmaddr + offset);
+	return ioread8(chip->bmaddr + offset);
 }
 
-static u16 igetword(struct intel8x0 *chip, u32 offset)
+static inline u16 igetword(struct intel8x0 *chip, u32 offset)
 {
-	if (chip->bm_mmio)
-		return readw(chip->remap_bmaddr + offset);
-	else
-		return inw(chip->bmaddr + offset);
+	return ioread16(chip->bmaddr + offset);
 }
 
-static u32 igetdword(struct intel8x0 *chip, u32 offset)
+static inline u32 igetdword(struct intel8x0 *chip, u32 offset)
 {
-	if (chip->bm_mmio)
-		return readl(chip->remap_bmaddr + offset);
-	else
-		return inl(chip->bmaddr + offset);
+	return ioread32(chip->bmaddr + offset);
 }
 
-static void iputbyte(struct intel8x0 *chip, u32 offset, u8 val)
+static inline void iputbyte(struct intel8x0 *chip, u32 offset, u8 val)
 {
-	if (chip->bm_mmio)
-		writeb(val, chip->remap_bmaddr + offset);
-	else
-		outb(val, chip->bmaddr + offset);
+	iowrite8(val, chip->bmaddr + offset);
 }
 
-static void iputword(struct intel8x0 *chip, u32 offset, u16 val)
+static inline void iputword(struct intel8x0 *chip, u32 offset, u16 val)
 {
-	if (chip->bm_mmio)
-		writew(val, chip->remap_bmaddr + offset);
-	else
-		outw(val, chip->bmaddr + offset);
+	iowrite16(val, chip->bmaddr + offset);
 }
 
-static void iputdword(struct intel8x0 *chip, u32 offset, u32 val)
+static inline void iputdword(struct intel8x0 *chip, u32 offset, u32 val)
 {
-	if (chip->bm_mmio)
-		writel(val, chip->remap_bmaddr + offset);
-	else
-		outl(val, chip->bmaddr + offset);
+	iowrite32(val, chip->bmaddr + offset);
 }
 
 /*
  *  Lowlevel I/O - AC'97 registers
  */
 
-static u16 iagetword(struct intel8x0 *chip, u32 offset)
+static inline u16 iagetword(struct intel8x0 *chip, u32 offset)
 {
-	if (chip->mmio)
-		return readw(chip->remap_addr + offset);
-	else
-		return inw(chip->addr + offset);
+	return ioread16(chip->addr + offset);
 }
 
-static void iaputword(struct intel8x0 *chip, u32 offset, u16 val)
+static inline void iaputword(struct intel8x0 *chip, u32 offset, u16 val)
 {
-	if (chip->mmio)
-		writew(val, chip->remap_addr + offset);
-	else
-		outw(val, chip->addr + offset);
+	iowrite16(val, chip->addr + offset);
 }
 
 /*
@@ -1606,10 +1581,14 @@ static int __devinit snd_intel8x0_pcm(struct intel8x0 *chip)
 	case DEVICE_INTEL_ICH4:
 		tbl = intel_pcms;
 		tblsize = ARRAY_SIZE(intel_pcms);
+		if (spdif_aclink)
+			tblsize--;
 		break;
 	case DEVICE_NFORCE:
 		tbl = nforce_pcms;
 		tblsize = ARRAY_SIZE(nforce_pcms);
+		if (spdif_aclink)
+			tblsize--;
 		break;
 	case DEVICE_ALI:
 		tbl = ali_pcms;
@@ -2068,24 +2047,26 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 	};
 
 	chip->spdif_idx = -1; /* use PCMOUT (or disabled) */
-	switch (chip->device_type) {
-	case DEVICE_NFORCE:
-		chip->spdif_idx = NVD_SPBAR;
-		break;
-	case DEVICE_ALI:
-		chip->spdif_idx = ALID_AC97SPDIFOUT;
-		break;
-	case DEVICE_INTEL_ICH4:
-		chip->spdif_idx = ICHD_SPBAR;
-		break;
-	};
+	if (!spdif_aclink) {
+		switch (chip->device_type) {
+		case DEVICE_NFORCE:
+			chip->spdif_idx = NVD_SPBAR;
+			break;
+		case DEVICE_ALI:
+			chip->spdif_idx = ALID_AC97SPDIFOUT;
+			break;
+		case DEVICE_INTEL_ICH4:
+			chip->spdif_idx = ICHD_SPBAR;
+			break;
+		};
+	}
 
 	chip->in_ac97_init = 1;
 	
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
 	ac97.private_free = snd_intel8x0_mixer_free_ac97;
-	ac97.scaps = AC97_SCAP_SKIP_MODEM;
+	ac97.scaps = AC97_SCAP_SKIP_MODEM | AC97_SCAP_POWER_SAVE;
 	if (chip->xbox)
 		ac97.scaps |= AC97_SCAP_DETECT_BY_VENDOR;
 	if (chip->device_type != DEVICE_ALI) {
@@ -2201,11 +2182,11 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 		if ((igetdword(chip, ICHREG(GLOB_STA)) & ICH_SAMPLE_CAP) == ICH_SAMPLE_16_20)
 			chip->smp20bit = 1;
 	}
-	if (chip->device_type == DEVICE_NFORCE) {
+	if (chip->device_type == DEVICE_NFORCE && !spdif_aclink) {
 		/* 48kHz only */
 		chip->ichd[chip->spdif_idx].pcm->rates = SNDRV_PCM_RATE_48000;
 	}
-	if (chip->device_type == DEVICE_INTEL_ICH4) {
+	if (chip->device_type == DEVICE_INTEL_ICH4 && !spdif_aclink) {
 		/* use slot 10/11 for SPDIF */
 		u32 val;
 		val = igetdword(chip, ICHREG(GLOB_CNT)) & ~ICH_PCM_SPDIF_MASK;
@@ -2333,7 +2314,7 @@ static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
 		/* unmute the output on SIS7012 */
 		iputword(chip, 0x4c, igetword(chip, 0x4c) | 1);
 	}
-	if (chip->device_type == DEVICE_NFORCE) {
+	if (chip->device_type == DEVICE_NFORCE && !spdif_aclink) {
 		/* enable SPDIF interrupt */
 		unsigned int val;
 		pci_read_config_dword(chip->pci, 0x4c, &val);
@@ -2426,7 +2407,7 @@ static int snd_intel8x0_free(struct intel8x0 *chip)
 	/* reset channels */
 	for (i = 0; i < chip->bdbars_count; i++)
 		iputbyte(chip, ICH_REG_OFF_CR + chip->ichd[i].reg_offset, ICH_RESETREGS);
-	if (chip->device_type == DEVICE_NFORCE) {
+	if (chip->device_type == DEVICE_NFORCE && !spdif_aclink) {
 		/* stop the spdif interrupt */
 		unsigned int val;
 		pci_read_config_dword(chip->pci, 0x4c, &val);
@@ -2443,10 +2424,10 @@ static int snd_intel8x0_free(struct intel8x0 *chip)
 			fill_nocache(chip->bdbars.area, chip->bdbars.bytes, 0);
 		snd_dma_free_pages(&chip->bdbars);
 	}
-	if (chip->remap_addr)
-		iounmap(chip->remap_addr);
-	if (chip->remap_bmaddr)
-		iounmap(chip->remap_bmaddr);
+	if (chip->addr)
+		pci_iounmap(chip->pci, chip->addr);
+	if (chip->bmaddr)
+		pci_iounmap(chip->pci, chip->bmaddr);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 	kfree(chip);
@@ -2509,7 +2490,7 @@ static int intel8x0_resume(struct pci_dev *pci)
 	}
 	pci_set_master(pci);
 	if (request_irq(pci->irq, snd_intel8x0_interrupt,
-			IRQF_DISABLED|IRQF_SHARED, card->shortname, chip)) {
+			IRQF_SHARED, card->shortname, chip)) {
 		printk(KERN_ERR "intel8x0: unable to grab IRQ %d, "
 		       "disabling device\n", pci->irq);
 		snd_card_disconnect(card);
@@ -2520,7 +2501,7 @@ static int intel8x0_resume(struct pci_dev *pci)
 	snd_intel8x0_chip_init(chip, 0);
 
 	/* re-initialize mixer stuff */
-	if (chip->device_type == DEVICE_INTEL_ICH4) {
+	if (chip->device_type == DEVICE_INTEL_ICH4 && !spdif_aclink) {
 		/* enable separate SDINs for ICH4 */
 		iputbyte(chip, ICHREG(SDM), chip->sdm_saved);
 		/* use slot 10/11 for SPDIF */
@@ -2793,35 +2774,27 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 
 	if (device_type == DEVICE_ALI) {
 		/* ALI5455 has no ac97 region */
-		chip->bmaddr = pci_resource_start(pci, 0);
+		chip->bmaddr = pci_iomap(pci, 0, 0);
 		goto port_inited;
 	}
 
-	if (pci_resource_flags(pci, 2) & IORESOURCE_MEM) {	/* ICH4 and Nforce */
-		chip->mmio = 1;
-		chip->addr = pci_resource_start(pci, 2);
-		chip->remap_addr = ioremap_nocache(chip->addr,
-						   pci_resource_len(pci, 2));
-		if (chip->remap_addr == NULL) {
-			snd_printk(KERN_ERR "AC'97 space ioremap problem\n");
-			snd_intel8x0_free(chip);
-			return -EIO;
-		}
-	} else {
-		chip->addr = pci_resource_start(pci, 0);
+	if (pci_resource_flags(pci, 2) & IORESOURCE_MEM) /* ICH4 and Nforce */
+		chip->addr = pci_iomap(pci, 2, 0);
+	else
+		chip->addr = pci_iomap(pci, 0, 0);
+	if (!chip->addr) {
+		snd_printk(KERN_ERR "AC'97 space ioremap problem\n");
+		snd_intel8x0_free(chip);
+		return -EIO;
 	}
-	if (pci_resource_flags(pci, 3) & IORESOURCE_MEM) {	/* ICH4 */
-		chip->bm_mmio = 1;
-		chip->bmaddr = pci_resource_start(pci, 3);
-		chip->remap_bmaddr = ioremap_nocache(chip->bmaddr,
-						     pci_resource_len(pci, 3));
-		if (chip->remap_bmaddr == NULL) {
-			snd_printk(KERN_ERR "Controller space ioremap problem\n");
-			snd_intel8x0_free(chip);
-			return -EIO;
-		}
-	} else {
-		chip->bmaddr = pci_resource_start(pci, 1);
+	if (pci_resource_flags(pci, 3) & IORESOURCE_MEM) /* ICH4 */
+		chip->bmaddr = pci_iomap(pci, 3, 0);
+	else
+		chip->bmaddr = pci_iomap(pci, 1, 0);
+	if (!chip->bmaddr) {
+		snd_printk(KERN_ERR "Controller space ioremap problem\n");
+		snd_intel8x0_free(chip);
+		return -EIO;
 	}
 
  port_inited:
@@ -2887,7 +2860,7 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 
 	/* request irq after initializaing int_sta_mask, etc */
 	if (request_irq(pci->irq, snd_intel8x0_interrupt,
-			IRQF_DISABLED|IRQF_SHARED, card->shortname, chip)) {
+			IRQF_SHARED, card->shortname, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_intel8x0_free(chip);
 		return -EBUSY;
@@ -2964,6 +2937,29 @@ static struct shortname_table {
 	{ 0, NULL },
 };
 
+static struct snd_pci_quirk spdif_aclink_defaults[] __devinitdata = {
+	SND_PCI_QUIRK(0x147b, 0x1c1a, "ASUS KN8", 1),
+	{ } /* end */
+};
+
+/* look up white/black list for SPDIF over ac-link */
+static int __devinit check_default_spdif_aclink(struct pci_dev *pci)
+{
+	const struct snd_pci_quirk *w;
+
+	w = snd_pci_quirk_lookup(pci, spdif_aclink_defaults);
+	if (w) {
+		if (w->value)
+			snd_printdd(KERN_INFO "intel8x0: Using SPDIF over "
+				    "AC-Link for %s\n", w->name);
+		else
+			snd_printdd(KERN_INFO "intel8x0: Using integrated "
+				    "SPDIF DMA for %s\n", w->name);
+		return w->value;
+	}
+	return 0;
+}
+
 static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 					const struct pci_device_id *pci_id)
 {
@@ -2976,16 +2972,18 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 	if (card == NULL)
 		return -ENOMEM;
 
-	switch (pci_id->driver_data) {
-	case DEVICE_NFORCE:
-		strcpy(card->driver, "NFORCE");
-		break;
-	case DEVICE_INTEL_ICH4:
-		strcpy(card->driver, "ICH4");
-		break;
-	default:
-		strcpy(card->driver, "ICH");
-		break;
+	if (spdif_aclink < 0)
+		spdif_aclink = check_default_spdif_aclink(pci);
+
+	strcpy(card->driver, "ICH");
+	if (!spdif_aclink) {
+		switch (pci_id->driver_data) {
+		case DEVICE_NFORCE:
+			strcpy(card->driver, "NFORCE");
+			break;
+		case DEVICE_INTEL_ICH4:
+			strcpy(card->driver, "ICH4");
+		}
 	}
 
 	strcpy(card->shortname, "Intel ICH");
@@ -3025,8 +3023,8 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 	snd_intel8x0_proc_init(chip);
 
 	snprintf(card->longname, sizeof(card->longname),
-		 "%s with %s at %#lx, irq %i", card->shortname,
-		 snd_ac97_get_short_name(chip->ac97[0]), chip->addr, chip->irq);
+		 "%s with %s at irq %i", card->shortname,
+		 snd_ac97_get_short_name(chip->ac97[0]), chip->irq);
 
 	if (! ac97_clock)
 		intel8x0_measure_ac97_clock(chip);

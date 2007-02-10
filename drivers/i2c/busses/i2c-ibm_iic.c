@@ -680,6 +680,12 @@ static int __devinit iic_probe(struct ocp_device *ocp){
 	dev->idx = ocp->def->index;
 	ocp_set_drvdata(ocp, dev);
 	
+	if (!request_mem_region(ocp->def->paddr, sizeof(struct iic_regs),
+				"ibm_iic")) {
+		ret = -EBUSY;
+		goto fail1;
+	}
+
 	if (!(dev->vaddr = ioremap(ocp->def->paddr, sizeof(struct iic_regs)))){
 		printk(KERN_CRIT "ibm-iic%d: failed to ioremap device registers\n",
 			dev->idx);
@@ -750,6 +756,8 @@ fail:
 
 	iounmap(dev->vaddr);
 fail2:	
+	release_mem_region(ocp->def->paddr, sizeof(struct iic_regs));
+fail1:
 	ocp_set_drvdata(ocp, NULL);
 	kfree(dev);	
 	return ret;
@@ -777,6 +785,7 @@ static void __devexit iic_remove(struct ocp_device *ocp)
 		    free_irq(dev->irq, dev);
 		}
 		iounmap(dev->vaddr);
+		release_mem_region(ocp->def->paddr, sizeof(struct iic_regs));
 		kfree(dev);
 	}
 }

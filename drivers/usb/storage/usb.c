@@ -731,26 +731,27 @@ static int get_pipes(struct us_data *us)
 	struct usb_endpoint_descriptor *ep_int = NULL;
 
 	/*
-	 * Find the endpoints we need.
+	 * Find the first endpoint of each type we need.
 	 * We are expecting a minimum of 2 endpoints - in and out (bulk).
-	 * An optional interrupt is OK (necessary for CBI protocol).
+	 * An optional interrupt-in is OK (necessary for CBI protocol).
 	 * We will ignore any others.
 	 */
 	for (i = 0; i < altsetting->desc.bNumEndpoints; i++) {
 		ep = &altsetting->endpoint[i].desc;
 
-		/* Is it a BULK endpoint? */
 		if (usb_endpoint_xfer_bulk(ep)) {
-			/* BULK in or out? */
-			if (usb_endpoint_dir_in(ep))
-				ep_in = ep;
-			else
-				ep_out = ep;
+			if (usb_endpoint_dir_in(ep)) {
+				if (!ep_in)
+					ep_in = ep;
+			} else {
+				if (!ep_out)
+					ep_out = ep;
+			}
 		}
 
-		/* Is it an interrupt endpoint? */
-		else if (usb_endpoint_xfer_int(ep)) {
-			ep_int = ep;
+		else if (usb_endpoint_is_int_in(ep)) {
+			if (!ep_int)
+				ep_int = ep;
 		}
 	}
 

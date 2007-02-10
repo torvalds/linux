@@ -85,27 +85,24 @@ static inline int is_single_threaded(struct workqueue_struct *wq)
 	return list_empty(&wq->list);
 }
 
+/*
+ * Set the workqueue on which a work item is to be run
+ * - Must *only* be called if the pending flag is set
+ */
 static inline void set_wq_data(struct work_struct *work, void *wq)
 {
-	unsigned long new, old, res;
+	unsigned long new;
 
-	/* assume the pending flag is already set and that the task has already
-	 * been queued on this workqueue */
+	BUG_ON(!work_pending(work));
+
 	new = (unsigned long) wq | (1UL << WORK_STRUCT_PENDING);
-	res = work->management;
-	if (res != new) {
-		do {
-			old = res;
-			new = (unsigned long) wq;
-			new |= (old & WORK_STRUCT_FLAG_MASK);
-			res = cmpxchg(&work->management, old, new);
-		} while (res != old);
-	}
+	new |= WORK_STRUCT_FLAG_MASK & *work_data_bits(work);
+	atomic_long_set(&work->data, new);
 }
 
 static inline void *get_wq_data(struct work_struct *work)
 {
-	return (void *) (work->management & WORK_STRUCT_WQ_DATA_MASK);
+	return (void *) (atomic_long_read(&work->data) & WORK_STRUCT_WQ_DATA_MASK);
 }
 
 static int __run_work(struct cpu_workqueue_struct *cwq, struct work_struct *work)
@@ -136,7 +133,7 @@ static int __run_work(struct cpu_workqueue_struct *cwq, struct work_struct *work
 		list_del_init(&work->entry);
 		spin_unlock_irqrestore(&cwq->lock, flags);
 
-		if (!test_bit(WORK_STRUCT_NOAUTOREL, &work->management))
+		if (!test_bit(WORK_STRUCT_NOAUTOREL, work_data_bits(work)))
 			work_release(work);
 		f(work);
 
@@ -209,7 +206,7 @@ int fastcall queue_work(struct workqueue_struct *wq, struct work_struct *work)
 {
 	int ret = 0, cpu = get_cpu();
 
-	if (!test_and_set_bit(WORK_STRUCT_PENDING, &work->management)) {
+	if (!test_and_set_bit(WORK_STRUCT_PENDING, work_data_bits(work))) {
 		if (unlikely(is_single_threaded(wq)))
 			cpu = singlethread_cpu;
 		BUG_ON(!list_empty(&work->entry));
@@ -236,7 +233,7 @@ static void delayed_work_timer_fn(unsigned long __data)
 /**
  * queue_delayed_work - queue work on a workqueue after delay
  * @wq: workqueue to use
- * @work: delayable work to queue
+ * @dwork: delayable work to queue
  * @delay: number of jiffies to wait before queueing
  *
  * Returns 0 if @work was already on a queue, non-zero otherwise.
@@ -251,7 +248,7 @@ int fastcall queue_delayed_work(struct workqueue_struct *wq,
 	if (delay == 0)
 		return queue_work(wq, work);
 
-	if (!test_and_set_bit(WORK_STRUCT_PENDING, &work->management)) {
+	if (!test_and_set_bit(WORK_STRUCT_PENDING, work_data_bits(work))) {
 		BUG_ON(timer_pending(timer));
 		BUG_ON(!list_empty(&work->entry));
 
@@ -271,7 +268,7 @@ EXPORT_SYMBOL_GPL(queue_delayed_work);
  * queue_delayed_work_on - queue work on specific CPU after delay
  * @cpu: CPU number to execute work on
  * @wq: workqueue to use
- * @work: work to queue
+ * @dwork: work to queue
  * @delay: number of jiffies to wait before queueing
  *
  * Returns 0 if @work was already on a queue, non-zero otherwise.
@@ -283,7 +280,7 @@ int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 	struct timer_list *timer = &dwork->timer;
 	struct work_struct *work = &dwork->work;
 
-	if (!test_and_set_bit(WORK_STRUCT_PENDING, &work->management)) {
+	if (!test_and_set_bit(WORK_STRUCT_PENDING, work_data_bits(work))) {
 		BUG_ON(timer_pending(timer));
 		BUG_ON(!list_empty(&work->entry));
 
@@ -324,7 +321,7 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 		spin_unlock_irqrestore(&cwq->lock, flags);
 
 		BUG_ON(get_wq_data(work) != cwq);
-		if (!test_bit(WORK_STRUCT_NOAUTOREL, &work->management))
+		if (!test_bit(WORK_STRUCT_NOAUTOREL, work_data_bits(work)))
 			work_release(work);
 		f(work);
 
@@ -640,9 +637,11 @@ int schedule_on_each_cpu(work_func_t func)
 
 	mutex_lock(&workqueue_mutex);
 	for_each_online_cpu(cpu) {
-		INIT_WORK(per_cpu_ptr(works, cpu), func);
-		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu),
-				per_cpu_ptr(works, cpu));
+		struct work_struct *work = per_cpu_ptr(works, cpu);
+
+		INIT_WORK(work, func);
+		set_bit(WORK_STRUCT_PENDING, work_data_bits(work));
+		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu), work);
 	}
 	mutex_unlock(&workqueue_mutex);
 	flush_workqueue(keventd_wq);

@@ -311,12 +311,21 @@ static inline void rt6_probe(struct rt6_info *rt)
 static int inline rt6_check_dev(struct rt6_info *rt, int oif)
 {
 	struct net_device *dev = rt->rt6i_dev;
-	if (!oif || dev->ifindex == oif)
+	int ret = 0;
+
+	if (!oif)
 		return 2;
-	if ((dev->flags & IFF_LOOPBACK) &&
-	    rt->rt6i_idev && rt->rt6i_idev->dev->ifindex == oif)
-		return 1;
-	return 0;
+	if (dev->flags & IFF_LOOPBACK) {
+		if (!WARN_ON(rt->rt6i_idev == NULL) &&
+		    rt->rt6i_idev->dev->ifindex == oif)
+			ret = 1;
+		else
+			return 0;
+	}
+	if (dev->ifindex == oif)
+		return 2;
+
+	return ret;
 }
 
 static int inline rt6_check_neigh(struct rt6_info *rt)
@@ -494,7 +503,7 @@ do { \
 				goto out; \
 			pn = fn->parent; \
 			if (FIB6_SUBTREE(pn) && FIB6_SUBTREE(pn) != fn) \
-				fn = fib6_lookup(pn->subtree, NULL, saddr); \
+				fn = fib6_lookup(FIB6_SUBTREE(pn), NULL, saddr); \
 			else \
 				fn = pn; \
 			if (fn->fn_flags & RTN_RTINFO) \
@@ -2017,6 +2026,7 @@ static inline size_t rt6_nlmsg_size(void)
 	       + nla_total_size(4) /* RTA_IIF */
 	       + nla_total_size(4) /* RTA_OIF */
 	       + nla_total_size(4) /* RTA_PRIORITY */
+	       + RTAX_MAX * nla_total_size(4) /* RTA_METRICS */
 	       + nla_total_size(sizeof(struct rta_cacheinfo));
 }
 
@@ -2039,7 +2049,7 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*rtm), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	rtm = nlmsg_data(nlh);
 	rtm->rtm_family = AF_INET6;
@@ -2110,7 +2120,8 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 int rt6_dump_route(struct rt6_info *rt, void *p_arg)
@@ -2221,9 +2232,12 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
 		goto errout;
 
 	err = rt6_fill_node(skb, rt, NULL, NULL, 0, event, pid, seq, 0, 0);
-	/* failure implies BUG in rt6_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in rt6_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, pid, RTNLGRP_IPV6_ROUTE, nlh, gfp_any());
 errout:
 	if (err < 0)

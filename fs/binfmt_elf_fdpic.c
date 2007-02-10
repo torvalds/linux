@@ -234,6 +234,14 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 				goto error;
 			}
 
+			/*
+			 * If the binary is not readable then enforce
+			 * mm->dumpable = 0 regardless of the interpreter's
+			 * permissions.
+			 */
+			if (file_permission(interpreter, MAY_READ) < 0)
+				bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
+
 			retval = kernel_read(interpreter, 0, bprm->buf,
 					     BINPRM_BUF_SIZE);
 			if (retval < 0)
@@ -706,12 +714,11 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 		return -ELIBBAD;
 
 	size = sizeof(*loadmap) + nloads * sizeof(*seg);
-	loadmap = kmalloc(size, GFP_KERNEL);
+	loadmap = kzalloc(size, GFP_KERNEL);
 	if (!loadmap)
 		return -ENOMEM;
 
 	params->loadmap = loadmap;
-	memset(loadmap, 0, size);
 
 	loadmap->version = ELF32_FDPIC_LOADMAP_VERSION;
 	loadmap->nsegs = nloads;
@@ -855,7 +862,7 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 
 dynamic_error:
 	printk("ELF FDPIC %s with invalid DYNAMIC section (inode=%lu)\n",
-	       what, file->f_dentry->d_inode->i_ino);
+	       what, file->f_path.dentry->d_inode->i_ino);
 	return -ELIBBAD;
 }
 
@@ -1186,7 +1193,7 @@ static int maydump(struct vm_area_struct *vma)
 
 	/* Dump shared memory only if mapped from an anonymous file. */
 	if (vma->vm_flags & VM_SHARED) {
-		if (vma->vm_file->f_dentry->d_inode->i_nlink == 0) {
+		if (vma->vm_file->f_path.dentry->d_inode->i_nlink == 0) {
 			kdcore("%08lx: %08lx: no (share)", vma->vm_start, vma->vm_flags);
 			return 1;
 		}
@@ -1322,7 +1329,7 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 	prstatus->pr_pid = p->pid;
 	prstatus->pr_ppid = p->parent->pid;
 	prstatus->pr_pgrp = process_group(p);
-	prstatus->pr_sid = p->signal->session;
+	prstatus->pr_sid = process_session(p);
 	if (thread_group_leader(p)) {
 		/*
 		 * This is the record for the group leader.  Add in the
@@ -1371,7 +1378,7 @@ static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 	psinfo->pr_pid = p->pid;
 	psinfo->pr_ppid = p->parent->pid;
 	psinfo->pr_pgrp = process_group(p);
-	psinfo->pr_sid = p->signal->session;
+	psinfo->pr_sid = process_session(p);
 
 	i = p->state ? ffz(~p->state) + 1 : 0;
 	psinfo->pr_state = i;

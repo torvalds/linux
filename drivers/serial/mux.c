@@ -273,8 +273,8 @@ static void mux_shutdown(struct uart_port *port)
  * The Serial Mux does not support this function.
  */
 static void
-mux_set_termios(struct uart_port *port, struct termios *termios,
-	        struct termios *old)
+mux_set_termios(struct uart_port *port, struct ktermios *termios,
+	        struct ktermios *old)
 {
 }
 

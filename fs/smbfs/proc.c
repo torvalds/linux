@@ -873,11 +873,11 @@ smb_newconn(struct smb_sb_info *server, struct smb_conn_opt *opt)
 	filp = fget(opt->fd);
 	if (!filp)
 		goto out;
-	if (!smb_valid_socket(filp->f_dentry->d_inode))
+	if (!smb_valid_socket(filp->f_path.dentry->d_inode))
 		goto out_putf;
 
 	server->sock_file = filp;
-	server->conn_pid = current->pid;
+	server->conn_pid = get_pid(task_pid(current));
 	server->opt = *opt;
 	server->generation += 1;
 	server->state = CONN_VALID;
@@ -898,7 +898,7 @@ smb_newconn(struct smb_sb_info *server, struct smb_conn_opt *opt)
 	/*
 	 * Store the server in sock user_data (Only used by sunrpc)
 	 */
-	sk = SOCKET_I(filp->f_dentry->d_inode)->sk;
+	sk = SOCKET_I(filp->f_path.dentry->d_inode)->sk;
 	sk->sk_user_data = server;
 
 	/* chain into the data_ready callback */
@@ -971,8 +971,8 @@ smb_newconn(struct smb_sb_info *server, struct smb_conn_opt *opt)
 	}
 
 	VERBOSE("protocol=%d, max_xmit=%d, pid=%d capabilities=0x%x\n",
-		server->opt.protocol, server->opt.max_xmit, server->conn_pid,
-		server->opt.capabilities);
+		server->opt.protocol, server->opt.max_xmit,
+		pid_nr(server->conn_pid), server->opt.capabilities);
 
 	/* FIXME: this really should be done by smbmount. */
 	if (server->opt.max_xmit > SMB_MAX_PACKET_SIZE) {
@@ -1939,7 +1939,7 @@ static int
 smb_proc_readdir_short(struct file *filp, void *dirent, filldir_t filldir,
 		       struct smb_cache_control *ctl)
 {
-	struct dentry *dir = filp->f_dentry;
+	struct dentry *dir = filp->f_path.dentry;
 	struct smb_sb_info *server = server_from_dentry(dir);
 	struct qstr qname;
 	struct smb_fattr fattr;
@@ -2291,7 +2291,7 @@ static int
 smb_proc_readdir_long(struct file *filp, void *dirent, filldir_t filldir,
 		      struct smb_cache_control *ctl)
 {
-	struct dentry *dir = filp->f_dentry;
+	struct dentry *dir = filp->f_path.dentry;
 	struct smb_sb_info *server = server_from_dentry(dir);
 	struct qstr qname;
 	struct smb_fattr fattr;
@@ -2859,7 +2859,7 @@ static int
 smb_proc_readdir_null(struct file *filp, void *dirent, filldir_t filldir,
 		      struct smb_cache_control *ctl)
 {
-	struct smb_sb_info *server = server_from_dentry(filp->f_dentry);
+	struct smb_sb_info *server = server_from_dentry(filp->f_path.dentry);
 
 	if (smb_proc_ops_wait(server) < 0)
 		return -EIO;

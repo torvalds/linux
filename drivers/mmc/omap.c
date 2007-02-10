@@ -91,7 +91,6 @@
 
 
 #define DRIVER_NAME "mmci-omap"
-#define RSP_TYPE(x)	((x) & ~(MMC_RSP_BUSY|MMC_RSP_OPCODE))
 
 /* Specifies how often in millisecs to poll for card status changes
  * when the cover switch is open */
@@ -204,18 +203,22 @@ mmc_omap_start_command(struct mmc_omap_host *host, struct mmc_command *cmd)
 	cmdtype = 0;
 
 	/* Our hardware needs to know exact type */
-	switch (RSP_TYPE(mmc_resp_type(cmd))) {
-	case RSP_TYPE(MMC_RSP_R1):
-		/* resp 1, resp 1b */
+	switch (mmc_resp_type(cmd)) {
+	case MMC_RSP_NONE:
+		break;
+	case MMC_RSP_R1:
+	case MMC_RSP_R1B:
+		/* resp 1, 1b, 6, 7 */
 		resptype = 1;
 		break;
-	case RSP_TYPE(MMC_RSP_R2):
+	case MMC_RSP_R2:
 		resptype = 2;
 		break;
-	case RSP_TYPE(MMC_RSP_R3):
+	case MMC_RSP_R3:
 		resptype = 3;
 		break;
 	default:
+		dev_err(mmc_dev(host->mmc), "Invalid response type: %04x\n", mmc_resp_type(cmd));
 		break;
 	}
 
@@ -581,9 +584,9 @@ static void mmc_omap_switch_timer(unsigned long arg)
 	schedule_work(&host->switch_work);
 }
 
-static void mmc_omap_switch_handler(void *data)
+static void mmc_omap_switch_handler(struct work_struct *work)
 {
-	struct mmc_omap_host *host = (struct mmc_omap_host *) data;
+	struct mmc_omap_host *host = container_of(work, struct mmc_omap_host, switch_work);
 	struct mmc_card *card;
 	static int complained = 0;
 	int cards = 0, cover_open;
@@ -1096,8 +1099,10 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	 */
 	mmc->max_phys_segs = 32;
 	mmc->max_hw_segs = 32;
-	mmc->max_sectors = 256; /* NBLK max 11-bits, OMAP also limited by DMA */
-	mmc->max_seg_size = mmc->max_sectors * 512;
+	mmc->max_blk_size = 2048;	/* BLEN is 11 bits (+1) */
+	mmc->max_blk_count = 2048;	/* NBLK is 11 bits (+1) */
+	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+	mmc->max_seg_size = mmc->max_req_size;
 
 	if (host->power_pin >= 0) {
 		if ((ret = omap_request_gpio(host->power_pin)) != 0) {
@@ -1116,7 +1121,7 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 
 	if (host->switch_pin >= 0) {
-		INIT_WORK(&host->switch_work, mmc_omap_switch_handler, host);
+		INIT_WORK(&host->switch_work, mmc_omap_switch_handler);
 		init_timer(&host->switch_timer);
 		host->switch_timer.function = mmc_omap_switch_timer;
 		host->switch_timer.data = (unsigned long) host;

@@ -94,8 +94,8 @@ Mount options
   filesystem is free to implement it's access policy or leave it to
   the underlying file access mechanism (e.g. in case of network
   filesystems).  This option enables permission checking, restricting
-  access based on file mode.  This is option is usually useful
-  together with the 'allow_other' mount option.
+  access based on file mode.  It is usually useful together with the
+  'allow_other' mount option.
 
 'allow_other'
 

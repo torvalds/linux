@@ -58,6 +58,7 @@ struct module_kobject
 {
 	struct kobject kobj;
 	struct module *mod;
+	struct kobject *drivers_dir;
 };
 
 /* These are either module local, or the kernel's dummy ones. */
@@ -263,7 +264,7 @@ struct module
 	struct module_attribute *modinfo_attrs;
 	const char *version;
 	const char *srcversion;
-	struct kobject *drivers_dir;
+	struct kobject *holders_dir;
 
 	/* Exported symbols */
 	const struct kernel_symbol *syms;
@@ -318,6 +319,13 @@ struct module
 	int unsafe;
 
 	unsigned int taints;	/* same bits as kernel:tainted */
+
+#ifdef CONFIG_GENERIC_BUG
+	/* Support for BUG */
+	struct list_head bug_list;
+	struct bug_entry *bug_table;
+	unsigned num_bugs;
+#endif
 
 #ifdef CONFIG_MODULE_UNLOAD
 	/* Reference counts */

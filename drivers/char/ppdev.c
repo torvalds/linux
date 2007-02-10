@@ -106,7 +106,7 @@ static inline void pp_enable_irq (struct pp_struct *pp)
 static ssize_t pp_read (struct file * file, char __user * buf, size_t count,
 			loff_t * ppos)
 {
-	unsigned int minor = iminor(file->f_dentry->d_inode);
+	unsigned int minor = iminor(file->f_path.dentry->d_inode);
 	struct pp_struct *pp = file->private_data;
 	char * kbuffer;
 	ssize_t bytes_read = 0;
@@ -189,7 +189,7 @@ static ssize_t pp_read (struct file * file, char __user * buf, size_t count,
 static ssize_t pp_write (struct file * file, const char __user * buf,
 			 size_t count, loff_t * ppos)
 {
-	unsigned int minor = iminor(file->f_dentry->d_inode);
+	unsigned int minor = iminor(file->f_path.dentry->d_inode);
 	struct pp_struct *pp = file->private_data;
 	char * kbuffer;
 	ssize_t bytes_written = 0;

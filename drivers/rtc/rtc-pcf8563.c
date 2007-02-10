@@ -53,6 +53,25 @@ I2C_CLIENT_INSMOD;
 #define PCF8563_SC_LV		0x80 /* low voltage */
 #define PCF8563_MO_C		0x80 /* century */
 
+struct pcf8563 {
+	struct i2c_client client;
+	/*
+	 * The meaning of MO_C bit varies by the chip type.
+	 * From PCF8563 datasheet: this bit is toggled when the years
+	 * register overflows from 99 to 00
+	 *   0 indicates the century is 20xx
+	 *   1 indicates the century is 19xx
+	 * From RTC8564 datasheet: this bit indicates change of
+	 * century. When the year digit data overflows from 99 to 00,
+	 * this bit is set. By presetting it to 0 while still in the
+	 * 20th century, it will be set in year 2000, ...
+	 * There seems no reliable way to know how the system use this
+	 * bit.  So let's do it heuristically, assuming we are live in
+	 * 1970...2069.
+	 */
+	int c_polarity;	/* 0: MO_C=1 means 19xx, otherwise MO_C=1 means 20xx */
+};
+
 static int pcf8563_probe(struct i2c_adapter *adapter, int address, int kind);
 static int pcf8563_detach(struct i2c_client *client);
 
@@ -62,6 +81,7 @@ static int pcf8563_detach(struct i2c_client *client);
  */
 static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
+	struct pcf8563 *pcf8563 = container_of(client, struct pcf8563, client);
 	unsigned char buf[13] = { PCF8563_REG_ST1 };
 
 	struct i2c_msg msgs[] = {
@@ -94,8 +114,12 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	tm->tm_mday = BCD2BIN(buf[PCF8563_REG_DM] & 0x3F);
 	tm->tm_wday = buf[PCF8563_REG_DW] & 0x07;
 	tm->tm_mon = BCD2BIN(buf[PCF8563_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
-	tm->tm_year = BCD2BIN(buf[PCF8563_REG_YR])
-		+ (buf[PCF8563_REG_MO] & PCF8563_MO_C ? 0 : 100);
+	tm->tm_year = BCD2BIN(buf[PCF8563_REG_YR]);
+	if (tm->tm_year < 70)
+		tm->tm_year += 100;	/* assume we are in 1970...2069 */
+	/* detect the polarity heuristically. see note above. */
+	pcf8563->c_polarity = (buf[PCF8563_REG_MO] & PCF8563_MO_C) ?
+		(tm->tm_year >= 100) : (tm->tm_year < 100);
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -114,6 +138,7 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
+	struct pcf8563 *pcf8563 = container_of(client, struct pcf8563, client);
 	int i, err;
 	unsigned char buf[9];
 
@@ -135,7 +160,7 @@ static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	/* year and century */
 	buf[PCF8563_REG_YR] = BIN2BCD(tm->tm_year % 100);
-	if (tm->tm_year < 100)
+	if (pcf8563->c_polarity ? (tm->tm_year >= 100) : (tm->tm_year < 100))
 		buf[PCF8563_REG_MO] |= PCF8563_MO_C;
 
 	buf[PCF8563_REG_DW] = tm->tm_wday & 0x07;
@@ -192,7 +217,7 @@ static int pcf8563_validate_client(struct i2c_client *client)
 		xfer = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 
 		if (xfer != ARRAY_SIZE(msgs)) {
-			dev_err(&client->adapter->dev,
+			dev_err(&client->dev,
 				"%s: could not read register 0x%02X\n",
 				__FUNCTION__, pattern[i].reg);
 
@@ -203,7 +228,7 @@ static int pcf8563_validate_client(struct i2c_client *client)
 
 		if (value > pattern[i].max ||
 			value < pattern[i].min) {
-			dev_dbg(&client->adapter->dev,
+			dev_dbg(&client->dev,
 				"%s: pattern=%d, reg=%x, mask=0x%02x, min=%d, "
 				"max=%d, value=%d, raw=0x%02X\n",
 				__FUNCTION__, i, pattern[i].reg, pattern[i].mask,
@@ -248,23 +273,25 @@ static struct i2c_driver pcf8563_driver = {
 
 static int pcf8563_probe(struct i2c_adapter *adapter, int address, int kind)
 {
+	struct pcf8563 *pcf8563;
 	struct i2c_client *client;
 	struct rtc_device *rtc;
 
 	int err = 0;
 
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
+	dev_dbg(adapter->class_dev.dev, "%s\n", __FUNCTION__);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
 		goto exit;
 	}
 
-	if (!(client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL))) {
+	if (!(pcf8563 = kzalloc(sizeof(struct pcf8563), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
 
+	client = &pcf8563->client;
 	client->addr = address;
 	client->driver = &pcf8563_driver;
 	client->adapter	= adapter;
@@ -301,7 +328,7 @@ exit_detach:
 	i2c_detach_client(client);
 
 exit_kfree:
-	kfree(client);
+	kfree(pcf8563);
 
 exit:
 	return err;
@@ -309,6 +336,7 @@ exit:
 
 static int pcf8563_detach(struct i2c_client *client)
 {
+	struct pcf8563 *pcf8563 = container_of(client, struct pcf8563, client);
 	int err;
 	struct rtc_device *rtc = i2c_get_clientdata(client);
 
@@ -318,7 +346,7 @@ static int pcf8563_detach(struct i2c_client *client)
 	if ((err = i2c_detach_client(client)))
 		return err;
 
-	kfree(client);
+	kfree(pcf8563);
 
 	return 0;
 }

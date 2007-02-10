@@ -39,7 +39,7 @@
  */
 #define SNAPSHOT_PAGES 256
 
-struct workqueue_struct *ksnapd;
+static struct workqueue_struct *ksnapd;
 static void flush_queued_bios(struct work_struct *work);
 
 struct pending_exception {
@@ -564,6 +564,17 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	return r;
 }
 
+static void __free_exceptions(struct dm_snapshot *s)
+{
+	kcopyd_client_destroy(s->kcopyd_client);
+	s->kcopyd_client = NULL;
+
+	exit_exception_table(&s->pending, pending_cache);
+	exit_exception_table(&s->complete, exception_cache);
+
+	s->store.destroy(&s->store);
+}
+
 static void snapshot_dtr(struct dm_target *ti)
 {
 	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
@@ -574,13 +585,7 @@ static void snapshot_dtr(struct dm_target *ti)
 	/* After this returns there can be no new kcopyd jobs. */
 	unregister_snapshot(s);
 
-	kcopyd_client_destroy(s->kcopyd_client);
-
-	exit_exception_table(&s->pending, pending_cache);
-	exit_exception_table(&s->complete, exception_cache);
-
-	/* Deallocate memory used */
-	s->store.destroy(&s->store);
+	__free_exceptions(s);
 
 	dm_put_device(ti, s->origin);
 	dm_put_device(ti, s->cow);
@@ -868,7 +873,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 {
 	struct exception *e;
 	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
-	int r = 1;
+	int r = DM_MAPIO_REMAPPED;
 	chunk_t chunk;
 	struct pending_exception *pe = NULL;
 
@@ -914,7 +919,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 		remap_exception(s, &pe->e, bio);
 		bio_list_add(&pe->snapshot_bios, bio);
 
-		r = 0;
+		r = DM_MAPIO_SUBMITTED;
 
 		if (!pe->started) {
 			/* this is protected by snap->lock */
@@ -992,7 +997,7 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
  *---------------------------------------------------------------*/
 static int __origin_write(struct list_head *snapshots, struct bio *bio)
 {
-	int r = 1, first = 0;
+	int r = DM_MAPIO_REMAPPED, first = 0;
 	struct dm_snapshot *snap;
 	struct exception *e;
 	struct pending_exception *pe, *next_pe, *primary_pe = NULL;
@@ -1050,7 +1055,7 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 
 			bio_list_add(&primary_pe->origin_bios, bio);
 
-			r = 0;
+			r = DM_MAPIO_SUBMITTED;
 		}
 
 		if (!pe->primary_pe) {
@@ -1099,7 +1104,7 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 static int do_origin(struct dm_dev *origin, struct bio *bio)
 {
 	struct origin *o;
-	int r = 1;
+	int r = DM_MAPIO_REMAPPED;
 
 	down_read(&_origins_lock);
 	o = __lookup_origin(origin->bdev);
@@ -1156,7 +1161,7 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
 		return -EOPNOTSUPP;
 
 	/* Only tell snapshots if this is a write */
-	return (bio_rw(bio) == WRITE) ? do_origin(dev, bio) : 1;
+	return (bio_rw(bio) == WRITE) ? do_origin(dev, bio) : DM_MAPIO_REMAPPED;
 }
 
 #define min_not_zero(l, r) (l == 0) ? r : ((r == 0) ? l : min(l, r))

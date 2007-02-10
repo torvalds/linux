@@ -98,11 +98,12 @@ void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 
 	struct acpi_pci_driver **pptr = &sub_driver;
 	while (*pptr) {
-		if (*pptr != driver)
-			continue;
-		*pptr = (*pptr)->next;
-		break;
+		if (*pptr == driver)
+			break;
+		pptr = &(*pptr)->next;
 	}
+	BUG_ON(!*pptr);
+	*pptr = (*pptr)->next;
 
 	if (!driver->remove)
 		return;
@@ -116,10 +117,23 @@ void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 
 EXPORT_SYMBOL(acpi_pci_unregister_driver);
 
+acpi_handle acpi_get_pci_rootbridge_handle(unsigned int seg, unsigned int bus)
+{
+	struct acpi_pci_root *tmp;
+	
+	list_for_each_entry(tmp, &acpi_pci_roots, node) {
+		if ((tmp->id.segment == (u16) seg) && (tmp->id.bus == (u16) bus))
+			return tmp->device->handle;
+	}
+	return NULL;		
+}
+
+EXPORT_SYMBOL_GPL(acpi_get_pci_rootbridge_handle);
+
 static acpi_status
 get_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 {
-	int *busnr = (int *)data;
+	int *busnr = data;
 	struct acpi_resource_address64 address;
 
 	if (resource->type != ACPI_RESOURCE_TYPE_ADDRESS16 &&
@@ -151,6 +165,21 @@ static acpi_status try_get_root_bridge_busnr(acpi_handle handle, int *busnum)
 	return AE_OK;
 }
 
+static void acpi_pci_bridge_scan(struct acpi_device *device)
+{
+	int status;
+	struct acpi_device *child = NULL;
+
+	if (device->flags.bus_address)
+		if (device->parent && device->parent->ops.bind) {
+			status = device->parent->ops.bind(device);
+			if (!status) {
+				list_for_each_entry(child, &device->children, node)
+					acpi_pci_bridge_scan(child);
+			}
+		}
+}
+
 static int acpi_pci_root_add(struct acpi_device *device)
 {
 	int result = 0;
@@ -159,15 +188,15 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	acpi_status status = AE_OK;
 	unsigned long value = 0;
 	acpi_handle handle = NULL;
+	struct acpi_device *child;
 
 
 	if (!device)
 		return -EINVAL;
 
-	root = kmalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
+	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
 		return -ENOMEM;
-	memset(root, 0, sizeof(struct acpi_pci_root));
 	INIT_LIST_HEAD(&root->node);
 
 	root->device = device;
@@ -175,9 +204,6 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	acpi_driver_data(device) = root;
 
-	/*
-	 * TBD: Doesn't the bus driver automatically set this?
-	 */
 	device->ops.bind = acpi_pci_bind;
 
 	/* 
@@ -299,6 +325,12 @@ static int acpi_pci_root_add(struct acpi_device *device)
 		result = acpi_pci_irq_add_prt(device->handle, root->id.segment,
 					      root->id.bus);
 
+	/*
+	 * Scan and bind all _ADR-Based Devices
+	 */
+	list_for_each_entry(child, &device->children, node)
+		acpi_pci_bridge_scan(child);
+
       end:
 	if (result) {
 		if (!list_empty(&root->node))
@@ -331,7 +363,7 @@ static int acpi_pci_root_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	root = (struct acpi_pci_root *)acpi_driver_data(device);
+	root = acpi_driver_data(device);
 
 	kfree(root);
 

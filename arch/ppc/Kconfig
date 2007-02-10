@@ -19,6 +19,14 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config ARCH_HAS_ILOG2_U32
+	bool
+	default y
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -51,6 +59,11 @@ config SCHED_NO_NO_OMIT_FRAME_POINTER
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
+
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
 
 source "init/Kconfig"
 
@@ -611,7 +624,7 @@ config HDPU
 	  Select HDPU if configuring a Sky Computers Compute Blade.
 
 config HDPU_FEATURES
-	depends HDPU
+	depends on HDPU
 	tristate "HDPU-Features"
 	help
 	  Select to enable HDPU enhanced features.
@@ -656,15 +669,6 @@ config RADSTONE_PPC7D
 
 config PAL4
 	bool "SBS-Palomar4"
-
-config GEMINI
-	bool "Synergy-Gemini"
-	depends on BROKEN
-	select PPC_INDIRECT_PCI
-	help
-	  Select Gemini if configuring for a Synergy Microsystems' Gemini
-	  series Single Board Computer.  More information is available at:
-	  <http://www.synergymicro.com/PressRel/97_10_15.html>.
 
 config EST8260
 	bool "EST8260"
@@ -722,7 +726,7 @@ config LITE5200
 
 config LITE5200B
 	bool "Freescale LITE5200B"
-	depends LITE5200
+	depends on LITE5200
 	help
 	  Support for the LITE5200B dev board for the MPC5200 from Freescale.
 	  This is the new board with 2 PCI slots.

@@ -15,16 +15,19 @@ int ip_route_me_harder(struct sk_buff **pskb, unsigned addr_type)
 	struct flowi fl = {};
 	struct dst_entry *odst;
 	unsigned int hh_len;
+	unsigned int type;
 
+	type = inet_addr_type(iph->saddr);
 	if (addr_type == RTN_UNSPEC)
-		addr_type = inet_addr_type(iph->saddr);
+		addr_type = type;
 
 	/* some non-standard hacks like ipt_REJECT.c:send_reset() can cause
 	 * packets with foreign saddr to appear on the NF_IP_LOCAL_OUT hook.
 	 */
 	if (addr_type == RTN_LOCAL) {
 		fl.nl_u.ip4_u.daddr = iph->daddr;
-		fl.nl_u.ip4_u.saddr = iph->saddr;
+		if (type == RTN_LOCAL)
+			fl.nl_u.ip4_u.saddr = iph->saddr;
 		fl.nl_u.ip4_u.tos = RT_TOS(iph->tos);
 		fl.oif = (*pskb)->sk ? (*pskb)->sk->sk_bound_dev_if : 0;
 		fl.mark = (*pskb)->mark;

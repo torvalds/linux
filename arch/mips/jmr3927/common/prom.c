@@ -75,7 +75,6 @@ void  __init prom_init_cmdline(void)
 	*cp = '\0';
 }
 
-unsigned long __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
-	return 0;
 }

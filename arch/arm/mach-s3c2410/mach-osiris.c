@@ -16,6 +16,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/serial_core.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

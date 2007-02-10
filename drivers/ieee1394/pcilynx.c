@@ -1485,7 +1485,7 @@ static int __devinit add_card(struct pci_dev *dev,
 
                         }
 
-                        i2c_bit_del_bus(i2c_ad);
+			i2c_del_adapter(i2c_ad);
 			kfree(i2c_ad);
                 }
         }

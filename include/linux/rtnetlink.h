@@ -3,6 +3,8 @@
 
 #include <linux/netlink.h>
 #include <linux/if_link.h>
+#include <linux/if_addr.h>
+#include <linux/neighbour.h>
 
 /****
  *		Routing/neighbour discovery messages.

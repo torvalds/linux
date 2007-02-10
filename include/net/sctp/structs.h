@@ -201,13 +201,12 @@ extern struct sctp_globals {
 	struct sctp_bind_hashbucket *port_hashtable;
 
 	/* This is the global local address list.
-	 * We actively maintain this complete list of interfaces on
-	 * the system by catching routing events.
+	 * We actively maintain this complete list of addresses on
+	 * the system by catching address add/delete events.
 	 *
 	 * It is a list of sctp_sockaddr_entry.
 	 */
 	struct list_head local_addr_list;
-	spinlock_t local_addr_lock;
 	
 	/* Flag to indicate if addip is enabled. */
 	int addip_enable;
@@ -243,7 +242,6 @@ extern struct sctp_globals {
 #define sctp_port_alloc_lock		(sctp_globals.port_alloc_lock)
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
 #define sctp_local_addr_list		(sctp_globals.local_addr_list)
-#define sctp_local_addr_lock		(sctp_globals.local_addr_lock)
 #define sctp_addip_enable		(sctp_globals.addip_enable)
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
 
@@ -277,6 +275,7 @@ struct sctp_sock {
 	__u16 default_flags;
 	__u32 default_context;
 	__u32 default_timetolive;
+	__u32 default_rcv_context;
 
 	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
 	 * the destination address every heartbeat interval. This value
@@ -307,7 +306,7 @@ struct sctp_sock {
 	__u8 disable_fragments;
 	__u8 pd_mode;
 	__u8 v4mapped;
-	__u32 adaption_ind;
+	__u32 adaptation_ind;
 
 	/* Receive to here while partial delivery is in effect. */
 	struct sk_buff_head pd_lobby;
@@ -389,7 +388,7 @@ struct sctp_cookie {
 	/* Padding for future use */
 	__u8 padding;  		
 
-	__u32 adaption_ind;	
+	__u32 adaptation_ind;
 
 
 	/* This is a shim for my peer's INIT packet, followed by
@@ -432,7 +431,7 @@ union sctp_params {
 	struct sctp_ipv4addr_param *v4;
 	struct sctp_ipv6addr_param *v6;
 	union sctp_addr_param *addr;
-	struct sctp_adaption_ind_param *aind;
+	struct sctp_adaptation_ind_param *aind;
 };
 
 /* RFC 2960.  Section 3.3.5 Heartbeat.
@@ -1484,7 +1483,7 @@ struct sctp_association {
 		__u8    asconf_capable;  /* Does peer support ADDIP? */
 		__u8    prsctp_capable;  /* Can peer do PR-SCTP? */
 
-		__u32   adaption_ind;	 /* Adaption Code point. */
+		__u32   adaptation_ind;	 /* Adaptation Code point. */
 
 		/* This mask is used to disable sending the ASCONF chunk
 		 * with specified parameter to peer.
@@ -1658,6 +1657,9 @@ struct sctp_association {
 	__u32 default_ppid;
 	__u32 default_context;
 	__u32 default_timetolive;
+
+	/* Default receive parameters */
+	__u32 default_rcv_context;
 
 	/* This tracks outbound ssn for a given stream.	 */
 	struct sctp_ssnmap *ssnmap;

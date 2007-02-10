@@ -12,10 +12,6 @@
 #endif /* CONFIG_QDIO_DEBUG */
 #define QDIO_USE_PROCESSING_STATE
 
-#ifdef CONFIG_QDIO_PERF_STATS
-#define QDIO_PERFORMANCE_STATS
-#endif /* CONFIG_QDIO_PERF_STATS */
-
 #define QDIO_MINIMAL_BH_RELIEF_TIME 16
 #define QDIO_TIMER_POLL_VALUE 1
 #define IQDIO_TIMER_POLL_VALUE 1
@@ -409,25 +405,23 @@ do_clear_global_summary(void)
 #define CHSC_FLAG_SIGA_SYNC_DONE_ON_THININTS 0x08
 #define CHSC_FLAG_SIGA_SYNC_DONE_ON_OUTB_PCIS 0x04
 
-#ifdef QDIO_PERFORMANCE_STATS
 struct qdio_perf_stats {
-	unsigned int tl_runs;
+	unsigned long tl_runs;
 
-	unsigned int siga_outs;
-	unsigned int siga_ins;
-	unsigned int siga_syncs;
-	unsigned int pcis;
-	unsigned int thinints;
-	unsigned int fast_reqs;
+	unsigned long siga_outs;
+	unsigned long siga_ins;
+	unsigned long siga_syncs;
+	unsigned long pcis;
+	unsigned long thinints;
+	unsigned long fast_reqs;
 
 	__u64 start_time_outbound;
-	unsigned int outbound_cnt;
-	unsigned int outbound_time;
+	unsigned long outbound_cnt;
+	unsigned long outbound_time;
 	__u64 start_time_inbound;
-	unsigned int inbound_cnt;
-	unsigned int inbound_time;
+	unsigned long inbound_cnt;
+	unsigned long inbound_time;
 };
-#endif /* QDIO_PERFORMANCE_STATS */
 
 /* unlikely as the later the better */
 #define SYNC_MEMORY if (unlikely(q->siga_sync)) qdio_siga_sync_q(q)

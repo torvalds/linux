@@ -159,7 +159,7 @@ static inline s64 cyc2ns(struct clocksource *cs, cycle_t cycles)
  * Unless you're the timekeeping code, you should not be using this!
  */
 static inline void clocksource_calculate_interval(struct clocksource *c,
-						unsigned long length_nsec)
+					  	  unsigned long length_nsec)
 {
 	u64 tmp;
 

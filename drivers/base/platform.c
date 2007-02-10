@@ -212,7 +212,7 @@ EXPORT_SYMBOL_GPL(platform_device_add_resources);
  *	pointer.  The memory associated with the platform data will be freed
  *	when the platform device is released.
  */
-int platform_device_add_data(struct platform_device *pdev, void *data, size_t size)
+int platform_device_add_data(struct platform_device *pdev, const void *data, size_t size)
 {
 	void *d;
 
@@ -473,7 +473,7 @@ EXPORT_SYMBOL_GPL(platform_driver_unregister);
  * Returns zero if the driver registered and bound to a device, else returns
  * a negative error code and with the driver not registered.
  */
-int platform_driver_probe(struct platform_driver *drv,
+int __init_or_module platform_driver_probe(struct platform_driver *drv,
 		int (*probe)(struct platform_device *))
 {
 	int retval, code;
@@ -611,8 +611,15 @@ EXPORT_SYMBOL_GPL(platform_bus_type);
 
 int __init platform_bus_init(void)
 {
-	device_register(&platform_bus);
-	return bus_register(&platform_bus_type);
+	int error;
+
+	error = device_register(&platform_bus);
+	if (error)
+		return error;
+	error =  bus_register(&platform_bus_type);
+	if (error)
+		device_unregister(&platform_bus);
+	return error;
 }
 
 #ifndef ARCH_HAS_DMA_GET_REQUIRED_MASK

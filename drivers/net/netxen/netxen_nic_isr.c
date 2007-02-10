@@ -79,7 +79,7 @@ void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 portno,
 void netxen_handle_port_int(struct netxen_adapter *adapter, u32 portno,
 			    u32 enable)
 {
-	__le32 int_src;
+	__u32 int_src;
 	struct netxen_port *port;
 
 	/*  This should clear the interrupt source */
@@ -110,7 +110,7 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 portno,
 	/* write it down later.. */
 	if ((netxen_get_phy_int_speed_changed(int_src))
 	    || (netxen_get_phy_int_link_status_changed(int_src))) {
-		__le32 status;
+		__u32 status;
 
 		DPRINTK(INFO, "SPEED CHANGED OR LINK STATUS CHANGED \n");
 
@@ -157,7 +157,8 @@ void netxen_nic_isr_other(struct netxen_adapter *adapter)
 	for (portno = 0; portno < NETXEN_NIU_MAX_GBE_PORTS; portno++) {
 		linkup = val & 1;
 		if (linkup != (qg_linksup & 1)) {
-			printk(KERN_INFO "%s: PORT %d link %s\n",
+			printk(KERN_INFO "%s: %s PORT %d link %s\n",
+			       adapter->port[portno]->netdev->name,
 			       netxen_nic_driver_name, portno,
 			       ((linkup == 0) ? "down" : "up"));
 			netxen_indicate_link_status(adapter, portno, linkup);

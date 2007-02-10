@@ -351,9 +351,6 @@ static void imxmci_start_cmd(struct imxmci_host *host, struct mmc_command *cmd, 
 	case MMC_RSP_R3: /* short */
 		cmdat |= CMD_DAT_CONT_RESPONSE_FORMAT_R3;
 		break;
-	case MMC_RSP_R6: /* short CRC */
-		cmdat |= CMD_DAT_CONT_RESPONSE_FORMAT_R6;
-		break;
 	default:
 		break;
 	}
@@ -961,8 +958,10 @@ static int imxmci_probe(struct platform_device *pdev)
 	/* MMC core transfer sizes tunable parameters */
 	mmc->max_hw_segs = 64;
 	mmc->max_phys_segs = 64;
-	mmc->max_sectors = 64;		/* default 1 << (PAGE_CACHE_SHIFT - 9) */
 	mmc->max_seg_size = 64*512;	/* default PAGE_CACHE_SIZE */
+	mmc->max_req_size = 64*512;	/* default PAGE_CACHE_SIZE */
+	mmc->max_blk_size = 2048;
+	mmc->max_blk_count = 65535;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;

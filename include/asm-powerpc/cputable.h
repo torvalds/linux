@@ -50,6 +50,12 @@ enum powerpc_oprofile_type {
 	PPC_OPROFILE_CELL = 5,
 };
 
+enum powerpc_pmc_type {
+	PPC_PMC_DEFAULT = 0,
+	PPC_PMC_IBM = 1,
+	PPC_PMC_PA6T = 2,
+};
+
 struct cpu_spec {
 	/* CPU is matched via (PVR & pvr_mask) == pvr_value */
 	unsigned int	pvr_mask;
@@ -65,6 +71,7 @@ struct cpu_spec {
 
 	/* number of performance monitor counters */
 	unsigned int	num_pmcs;
+	enum powerpc_pmc_type pmc_type;
 
 	/* this is called to initialize various CPU bits like L1 cache,
 	 * BHT, SPD, etc... from head.S before branching to identify_machine
@@ -126,6 +133,7 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #define CPU_FTR_NODSISRALIGN		ASM_CONST(0x0000000000100000)
 #define CPU_FTR_PPC_LE			ASM_CONST(0x0000000000200000)
 #define CPU_FTR_REAL_LE			ASM_CONST(0x0000000000400000)
+#define CPU_FTR_FPU_UNAVAILABLE		ASM_CONST(0x0000000000800000)
 
 /*
  * Add the 64-bit processor unique features in the top half of the word;
@@ -152,6 +160,7 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #define CPU_FTR_PURR			LONG_ASM_CONST(0x0000400000000000)
 #define CPU_FTR_CELL_TB_BUG		LONG_ASM_CONST(0x0000800000000000)
 #define CPU_FTR_SPURR			LONG_ASM_CONST(0x0001000000000000)
+#define CPU_FTR_DSCR			LONG_ASM_CONST(0x0002000000000000)
 
 #ifndef __ASSEMBLY__
 
@@ -295,6 +304,9 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #define CPU_FTRS_E300	(CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_MAYBE_CAN_DOZE | \
 	    CPU_FTR_USE_TB | CPU_FTR_MAYBE_CAN_NAP | CPU_FTR_HAS_HIGH_BATS | \
 	    CPU_FTR_COMMON)
+#define CPU_FTRS_E300C2	(CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_MAYBE_CAN_DOZE | \
+	    CPU_FTR_USE_TB | CPU_FTR_MAYBE_CAN_NAP | CPU_FTR_HAS_HIGH_BATS | \
+	    CPU_FTR_COMMON | CPU_FTR_FPU_UNAVAILABLE)
 #define CPU_FTRS_CLASSIC32	(CPU_FTR_COMMON | CPU_FTR_SPLIT_ID_CACHE | \
 	    CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE)
 #define CPU_FTRS_8XX	(CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB)
@@ -330,13 +342,8 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 	    CPU_FTR_HPTE_TABLE | CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | \
 	    CPU_FTR_MMCRA | CPU_FTR_SMT | \
 	    CPU_FTR_COHERENT_ICACHE | CPU_FTR_LOCKLESS_TLBIE | \
-	    CPU_FTR_PURR | CPU_FTR_SPURR | CPU_FTR_REAL_LE)
-#define CPU_FTRS_POWER6X (CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | \
-	    CPU_FTR_HPTE_TABLE | CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | \
-	    CPU_FTR_MMCRA | CPU_FTR_SMT | \
-	    CPU_FTR_COHERENT_ICACHE | CPU_FTR_LOCKLESS_TLBIE | \
-	    CPU_FTR_PURR | CPU_FTR_CI_LARGE_PAGE | \
-	    CPU_FTR_SPURR | CPU_FTR_REAL_LE)
+	    CPU_FTR_PURR | CPU_FTR_SPURR | CPU_FTR_REAL_LE | \
+	    CPU_FTR_DSCR)
 #define CPU_FTRS_CELL	(CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | \
 	    CPU_FTR_HPTE_TABLE | CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | \
 	    CPU_FTR_ALTIVEC_COMP | CPU_FTR_MMCRA | CPU_FTR_SMT | \
@@ -364,7 +371,8 @@ enum {
 	    CPU_FTRS_7450_21 | CPU_FTRS_7450_23 | CPU_FTRS_7455_1 |
 	    CPU_FTRS_7455_20 | CPU_FTRS_7455 | CPU_FTRS_7447_10 |
 	    CPU_FTRS_7447 | CPU_FTRS_7447A | CPU_FTRS_82XX |
-	    CPU_FTRS_G2_LE | CPU_FTRS_E300 | CPU_FTRS_CLASSIC32 |
+	    CPU_FTRS_G2_LE | CPU_FTRS_E300 | CPU_FTRS_E300C2 |
+	    CPU_FTRS_CLASSIC32 |
 #else
 	    CPU_FTRS_GENERIC_32 |
 #endif
@@ -403,7 +411,8 @@ enum {
 	    CPU_FTRS_7450_21 & CPU_FTRS_7450_23 & CPU_FTRS_7455_1 &
 	    CPU_FTRS_7455_20 & CPU_FTRS_7455 & CPU_FTRS_7447_10 &
 	    CPU_FTRS_7447 & CPU_FTRS_7447A & CPU_FTRS_82XX &
-	    CPU_FTRS_G2_LE & CPU_FTRS_E300 & CPU_FTRS_CLASSIC32 &
+	    CPU_FTRS_G2_LE & CPU_FTRS_E300 & CPU_FTRS_E300C2 &
+	    CPU_FTRS_CLASSIC32 &
 #else
 	    CPU_FTRS_GENERIC_32 &
 #endif

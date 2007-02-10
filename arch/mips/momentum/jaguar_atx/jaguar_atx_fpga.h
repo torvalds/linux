@@ -46,7 +46,9 @@
 
 extern unsigned long ja_fpga_base;
 
-#define JAGUAR_FPGA_WRITE(x,y) writeb(x, ja_fpga_base + JAGUAR_ATX_REG_##y)
-#define JAGUAR_FPGA_READ(x) readb(ja_fpga_base + JAGUAR_ATX_REG_##x)
+#define __FPGA_REG_TO_ADDR(reg)						\
+	((void *) ja_fpga_base + JAGUAR_ATX_REG_##reg)
+#define JAGUAR_FPGA_WRITE(x, reg) writeb(x, __FPGA_REG_TO_ADDR(reg))
+#define JAGUAR_FPGA_READ(reg) readb(__FPGA_REG_TO_ADDR(reg))
 
 #endif

@@ -1,0 +1,106 @@
+Kernel driver w83793
+====================
+
+Supported chips:
+  * Winbond W83793G/W83793R
+    Prefix: 'w83793'
+    Addresses scanned: I2C 0x2c - 0x2f
+    Datasheet: Still not published
+
+Authors:
+    Yuan Mu (Winbond Electronics)
+    Rudolf Marek <r.marek@assembler.cz>
+
+
+Module parameters
+-----------------
+
+* reset int
+  (default 0)
+  This parameter is not recommended, it will lose motherboard specific
+  settings. Use 'reset=1' to reset the chip when loading this module.
+
+* force_subclients=bus,caddr,saddr1,saddr2
+  This is used to force the i2c addresses for subclients of
+  a certain chip. Typical usage is `force_subclients=0,0x2f,0x4a,0x4b'
+  to force the subclients of chip 0x2f on bus 0 to i2c addresses
+  0x4a and 0x4b.
+
+
+Description
+-----------
+
+This driver implements support for Winbond W83793G/W83793R chips.
+
+* Exported features
+  This driver exports 10 voltage sensors, up to 12 fan tachometer inputs,
+  6 remote temperatures, up to 8 sets of PWM fan controls, SmartFan
+  (automatic fan speed control) on all temperature/PWM combinations, 2
+  sets of 6-pin CPU VID input.
+
+* Sensor resolutions
+  If your motherboard maker used the reference design, the resolution of
+  voltage0-2 is 2mV, resolution of voltage3/4/5 is 16mV, 8mV for voltage6,
+  24mV for voltage7/8. Temp1-4 have a 0.25 degree Celsius resolution,
+  temp5-6 have a 1 degree Celsiis resolution.
+
+* Temperature sensor types
+  Temp1-4 have 2 possible types. It can be read from (and written to)
+  temp[1-4]_type.
+  - If the value is 3, it starts monitoring using a remote termal diode
+    (default).
+  - If the value is 6, it starts monitoring using the temperature sensor
+    in Intel CPU and get result by PECI.
+  Temp5-6 can be connected to external thermistors (value of
+  temp[5-6]_type is 4).
+
+* Alarm mechanism
+  For voltage sensors, an alarm triggers if the measured value is below
+  the low voltage limit or over the high voltage limit.
+  For temperature sensors, an alarm triggers if the measured value goes
+  above the high temperature limit, and wears off only after the measured
+  value drops below the hysteresis value.
+  For fan sensors, an alarm triggers if the measured value is below the
+  low speed limit.
+
+* SmartFan/PWM control
+  If you want to set a pwm fan to manual mode, you just need to make sure it
+  is not controlled by any temp channel, for example, you want to set fan1
+  to manual mode, you need to check the value of temp[1-6]_fan_map, make
+  sure bit 0 is cleared in the 6 values. And then set the pwm1 value to
+  control the fan.
+
+  Each temperature channel can control all the 8 PWM outputs (by setting the
+  corresponding bit in tempX_fan_map), you can set the temperature channel
+  mode using temp[1-6]_pwm_enable, 2 is Thermal Cruise mode and 3
+  is the SmartFanII mode. Temperature channels will try to speed up or
+  slow down all controlled fans, this means one fan can receive different
+  PWM value requests from different temperature channels, but the chip
+  will always pick the safest (max) PWM value for each fan.
+
+  In Thermal Cruise mode, the chip attempts to keep the temperature at a
+  predefined value, within a tolerance margin. So if tempX_input >
+  thermal_cruiseX + toleranceX, the chip will increase the PWM value,
+  if tempX_input < thermal_cruiseX - toleranceX, the chip will decrease
+  the PWM value. If the temperature is within the tolerance range, the PWM
+  value is left unchanged.
+
+  SmartFanII works differently, you have to define up to 7 PWM, temperature
+  trip points, defining a PWM/temperature curve which the chip will follow.
+  While not fundamentally different from the Thermal Cruise mode, the
+  implementation is quite different, giving you a finer-grained control.
+
+* Chassis
+  If the case open alarm triggers, it will stay in this state unless cleared
+  by any write to the sysfs file "chassis".
+
+* VID and VRM
+  The VRM version is detected automatically, don't modify the it unless you
+  *do* know the cpu VRM version and it's not properly detected.
+
+
+Notes
+-----
+
+  Only Fan1-5 and PWM1-3 are guaranteed to always exist, other fan inputs and
+  PWM outputs may or may not exist depending on the chip pin configuration.

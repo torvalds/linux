@@ -23,9 +23,9 @@
 #include <scsi/scsi_host.h>
 
 #define DRV_NAME	"pata_ixp4xx_cf"
-#define DRV_VERSION	"0.1.1"
+#define DRV_VERSION	"0.1.1ac1"
 
-static void ixp4xx_set_mode(struct ata_port *ap)
+static int ixp4xx_set_mode(struct ata_port *ap, struct ata_device *adev)
 {
 	int i;
 
@@ -38,6 +38,7 @@ static void ixp4xx_set_mode(struct ata_port *ap)
 			dev->flags |= ATA_DFLAG_PIO;
 		}
 	}
+	return 0;
 }
 
 static void ixp4xx_phy_reset(struct ata_port *ap)
@@ -94,14 +95,6 @@ static void ixp4xx_irq_clear(struct ata_port *ap)
 {
 }
 
-static void ixp4xx_host_stop (struct ata_host *host)
-{
-	struct ixp4xx_pata_data *data = host->dev->platform_data;
-
-	iounmap(data->cs0);
-	iounmap(data->cs1);
-}
-
 static struct scsi_host_template ixp4xx_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
@@ -138,10 +131,10 @@ static struct ata_port_operations ixp4xx_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ixp4xx_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ixp4xx_host_stop,
 
 	.phy_reset	= ixp4xx_phy_reset,
 };
@@ -149,9 +142,9 @@ static struct ata_port_operations ixp4xx_port_ops = {
 static void ixp4xx_setup_port(struct ata_ioports *ioaddr,
 				struct ixp4xx_pata_data *data)
 {
-	ioaddr->cmd_addr	= (unsigned long) data->cs0;
-	ioaddr->altstatus_addr	= (unsigned long) data->cs1 + 0x06;
-	ioaddr->ctl_addr	= (unsigned long) data->cs1 + 0x06;
+	ioaddr->cmd_addr	= data->cs0;
+	ioaddr->altstatus_addr	= data->cs1 + 0x06;
+	ioaddr->ctl_addr	= data->cs1 + 0x06;
 
 	ata_std_ports(ioaddr);
 
@@ -161,19 +154,19 @@ static void ixp4xx_setup_port(struct ata_ioports *ioaddr,
 	 * ixp4xx in little endian mode.
 	 */
 
-	ioaddr->data_addr	^= 0x02;
-	ioaddr->cmd_addr	^= 0x03;
-	ioaddr->altstatus_addr	^= 0x03;
-	ioaddr->ctl_addr	^= 0x03;
-	ioaddr->error_addr	^= 0x03;
-	ioaddr->feature_addr	^= 0x03;
-	ioaddr->nsect_addr	^= 0x03;
-	ioaddr->lbal_addr 	^= 0x03;
-	ioaddr->lbam_addr	^= 0x03;
-	ioaddr->lbah_addr	^= 0x03;
-	ioaddr->device_addr	^= 0x03;
-	ioaddr->status_addr	^= 0x03;
-	ioaddr->command_addr	^= 0x03;
+	*(unsigned long *)&ioaddr->data_addr		^= 0x02;
+	*(unsigned long *)&ioaddr->cmd_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->altstatus_addr	^= 0x03;
+	*(unsigned long *)&ioaddr->ctl_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->error_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->feature_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->nsect_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->lbal_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->lbam_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->lbah_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->device_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->status_addr		^= 0x03;
+	*(unsigned long *)&ioaddr->command_addr		^= 0x03;
 #endif
 }
 
@@ -194,8 +187,8 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 
 	pdev->dev.coherent_dma_mask = DMA_32BIT_MASK;
 
-	data->cs0 = ioremap(cs0->start, 0x1000);
-	data->cs1 = ioremap(cs1->start, 0x1000);
+	data->cs0 = devm_ioremap(&pdev->dev, cs0->start, 0x1000);
+	data->cs1 = devm_ioremap(&pdev->dev, cs1->start, 0x1000);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq)
@@ -237,7 +230,7 @@ static __devexit int ixp4xx_pata_remove(struct platform_device *dev)
 {
 	struct ata_host *host = platform_get_drvdata(dev);
 
-	ata_host_remove(host);
+	ata_host_detach(host);
 	platform_set_drvdata(dev, NULL);
 
 	return 0;

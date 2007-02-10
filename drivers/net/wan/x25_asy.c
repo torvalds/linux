@@ -123,8 +123,8 @@ static int x25_asy_change_mtu(struct net_device *dev, int newmtu)
 	unsigned char *xbuff, *rbuff;
 	int len = 2* newmtu;
 
-	xbuff = (unsigned char *) kmalloc (len + 4, GFP_ATOMIC);
-	rbuff = (unsigned char *) kmalloc (len + 4, GFP_ATOMIC);
+	xbuff = kmalloc(len + 4, GFP_ATOMIC);
+	rbuff = kmalloc(len + 4, GFP_ATOMIC);
 
 	if (xbuff == NULL || rbuff == NULL)  
 	{
@@ -465,11 +465,11 @@ static int x25_asy_open(struct net_device *dev)
 
 	len = dev->mtu * 2;
 
-	sl->rbuff = (unsigned char *) kmalloc(len + 4, GFP_KERNEL);
+	sl->rbuff = kmalloc(len + 4, GFP_KERNEL);
 	if (sl->rbuff == NULL)   {
 		goto norbuff;
 	}
-	sl->xbuff = (unsigned char *) kmalloc(len + 4, GFP_KERNEL);
+	sl->xbuff = kmalloc(len + 4, GFP_KERNEL);
 	if (sl->xbuff == NULL)   {
 		goto noxbuff;
 	}

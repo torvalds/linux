@@ -884,6 +884,10 @@ asmlinkage long sys_mbind(unsigned long start, unsigned long len,
 	err = get_nodes(&nodes, nmask, maxnode);
 	if (err)
 		return err;
+#ifdef CONFIG_CPUSETS
+	/* Restrict the nodes to the allowed nodes in the cpuset */
+	nodes_and(nodes, nodes, current->mems_allowed);
+#endif
 	return do_mbind(start, len, mode, &nodes, flags);
 }
 
@@ -1857,7 +1861,7 @@ int show_numa_map(struct seq_file *m, void *v)
 
 	if (file) {
 		seq_printf(m, " file=");
-		seq_path(m, file->f_vfsmnt, file->f_dentry, "\n\t= ");
+		seq_path(m, file->f_path.mnt, file->f_path.dentry, "\n\t= ");
 	} else if (vma->vm_start <= mm->brk && vma->vm_end >= mm->start_brk) {
 		seq_printf(m, " heap");
 	} else if (vma->vm_start <= mm->start_stack &&

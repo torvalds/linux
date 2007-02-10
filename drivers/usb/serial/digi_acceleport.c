@@ -449,7 +449,7 @@ static int digi_transmit_idle( struct usb_serial_port *port,
 static void digi_rx_throttle (struct usb_serial_port *port);
 static void digi_rx_unthrottle (struct usb_serial_port *port);
 static void digi_set_termios( struct usb_serial_port *port, 
-	struct termios *old_termios );
+	struct ktermios *old_termios );
 static void digi_break_ctl( struct usb_serial_port *port, int break_state );
 static int digi_ioctl( struct usb_serial_port *port, struct file *file,
 	unsigned int cmd, unsigned long arg );
@@ -509,6 +509,7 @@ static struct usb_serial_driver digi_acceleport_2_device = {
 		.name =			"digi_2",
 	},
 	.description =			"Digi 2 port USB adapter",
+	.usb_driver = 			&digi_driver,
 	.id_table =			id_table_2,
 	.num_interrupt_in =		0,
 	.num_bulk_in =			4,
@@ -538,6 +539,7 @@ static struct usb_serial_driver digi_acceleport_4_device = {
 		.name =			"digi_4",
 	},
 	.description =			"Digi 4 port USB adapter",
+	.usb_driver = 			&digi_driver,
 	.id_table =			id_table_4,
 	.num_interrupt_in =		0,
 	.num_bulk_in =			5,
@@ -976,7 +978,7 @@ dbg( "digi_rx_unthrottle: TOP: port=%d", priv->dp_port_num );
 
 
 static void digi_set_termios( struct usb_serial_port *port, 
-	struct termios *old_termios )
+	struct ktermios *old_termios )
 {
 
 	struct digi_port *priv = usb_get_serial_port_data(port);
@@ -1463,7 +1465,7 @@ static int digi_open( struct usb_serial_port *port, struct file *filp )
 	int ret;
 	unsigned char buf[32];
 	struct digi_port *priv = usb_get_serial_port_data(port);
-	struct termios not_termios;
+	struct ktermios not_termios;
 	unsigned long flags = 0;
 
 
@@ -1681,7 +1683,7 @@ dbg( "digi_startup: TOP" );
 	for( i=0; i<serial->type->num_ports+1; i++ ) {
 
 		/* allocate port private structure */
-		priv = (struct digi_port *)kmalloc( sizeof(struct digi_port),
+		priv = kmalloc( sizeof(struct digi_port),
 			GFP_KERNEL );
 		if( priv == (struct digi_port *)0 ) {
 			while( --i >= 0 )
@@ -1714,7 +1716,7 @@ dbg( "digi_startup: TOP" );
 	}
 
 	/* allocate serial private structure */
-	serial_priv = (struct digi_serial *)kmalloc( sizeof(struct digi_serial),
+	serial_priv = kmalloc( sizeof(struct digi_serial),
 		GFP_KERNEL );
 	if( serial_priv == (struct digi_serial *)0 ) {
 		for( i=0; i<serial->type->num_ports+1; i++ )

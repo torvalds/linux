@@ -232,7 +232,7 @@ asmlinkage long compat_sys_fstatfs(unsigned int fd, struct compat_statfs __user 
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs(file->f_dentry, &tmp);
+	error = vfs_statfs(file->f_path.dentry, &tmp);
 	if (!error)
 		error = put_compat_statfs(buf, &tmp);
 	fput(file);
@@ -303,7 +303,7 @@ asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct c
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs(file->f_dentry, &tmp);
+	error = vfs_statfs(file->f_path.dentry, &tmp);
 	if (!error)
 		error = put_compat_statfs64(buf, &tmp);
 	fput(file);
@@ -365,7 +365,7 @@ static void compat_ioctl_error(struct file *filp, unsigned int fd,
 	/* find the name of the device. */
 	path = (char *)__get_free_page(GFP_KERNEL);
 	if (path) {
-		fn = d_path(filp->f_dentry, filp->f_vfsmnt, path, PAGE_SIZE);
+		fn = d_path(filp->f_path.dentry, filp->f_path.mnt, path, PAGE_SIZE);
 		if (IS_ERR(fn))
 			fn = "?";
 	}
@@ -416,7 +416,7 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 	case FIBMAP:
 	case FIGETBSZ:
 	case FIONREAD:
-		if (S_ISREG(filp->f_dentry->d_inode->i_mode))
+		if (S_ISREG(filp->f_path.dentry->d_inode->i_mode))
 			break;
 		/*FALL THROUGH*/
 
@@ -438,7 +438,7 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 			goto found_handler;
 	}
 
-	if (S_ISSOCK(filp->f_dentry->d_inode->i_mode) &&
+	if (S_ISSOCK(filp->f_path.dentry->d_inode->i_mode) &&
 	    cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
 		error = siocdevprivate_ioctl(fd, cmd, arg);
 	} else {
@@ -1259,7 +1259,7 @@ out:
 	if (iov != iovstack)
 		kfree(iov);
 	if ((ret + (type == READ)) > 0) {
-		struct dentry *dentry = file->f_dentry;
+		struct dentry *dentry = file->f_path.dentry;
 		if (type == READ)
 			fsnotify_access(dentry);
 		else
@@ -1679,19 +1679,19 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 {
 	fd_set_bits fds;
 	char *bits;
-	int size, max_fdset, ret = -EINVAL;
+	int size, max_fds, ret = -EINVAL;
 	struct fdtable *fdt;
 
 	if (n < 0)
 		goto out_nofds;
 
-	/* max_fdset can increase, so grab it once to avoid race */
+	/* max_fds can increase, so grab it once to avoid race */
 	rcu_read_lock();
 	fdt = files_fdtable(current->files);
-	max_fdset = fdt->max_fdset;
+	max_fds = fdt->max_fds;
 	rcu_read_unlock();
-	if (n > max_fdset)
-		n = max_fdset;
+	if (n > max_fds)
+		n = max_fds;
 
 	/*
 	 * We need 6 bitmaps (in/out/ex for both incoming and outgoing),

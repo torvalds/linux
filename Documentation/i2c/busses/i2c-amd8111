@@ -5,7 +5,7 @@ Supported adapters:
 
 Datasheets:
 	AMD datasheet not yet available, but almost everything can be found
-	in publically available ACPI 2.0 specification, which the adapter 
+	in the publicly available ACPI 2.0 specification, which the adapter
 	follows.
 
 Author: Vojtech Pavlik <vojtech@suse.cz>

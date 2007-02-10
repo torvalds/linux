@@ -944,13 +944,12 @@ int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 int jffs2_do_crccheck_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
 {
 	struct jffs2_raw_inode n;
-	struct jffs2_inode_info *f = kmalloc(sizeof(*f), GFP_KERNEL);
+	struct jffs2_inode_info *f = kzalloc(sizeof(*f), GFP_KERNEL);
 	int ret;
 
 	if (!f)
 		return -ENOMEM;
 
-	memset(f, 0, sizeof(*f));
 	init_MUTEX_LOCKED(&f->sem);
 	f->inocache = ic;
 

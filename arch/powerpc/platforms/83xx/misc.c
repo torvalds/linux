@@ -18,23 +18,36 @@
 
 #include "mpc83xx.h"
 
+static __be32 __iomem *restart_reg_base;
+
+static int __init mpc83xx_restart_init(void)
+{
+	/* map reset restart_reg_baseister space */
+	restart_reg_base = ioremap(get_immrbase() + 0x900, 0xff);
+
+	return 0;
+}
+
+arch_initcall(mpc83xx_restart_init);
+
 void mpc83xx_restart(char *cmd)
 {
 #define RST_OFFSET	0x00000900
 #define RST_PROT_REG	0x00000018
 #define RST_CTRL_REG	0x0000001c
-	__be32 __iomem *reg;
-
-	/* map reset register space */
-	reg = ioremap(get_immrbase() + 0x900, 0xff);
 
 	local_irq_disable();
 
-	/* enable software reset "RSTE" */
-	out_be32(reg + (RST_PROT_REG >> 2), 0x52535445);
+	if (restart_reg_base) {
+		/* enable software reset "RSTE" */
+		out_be32(restart_reg_base + (RST_PROT_REG >> 2), 0x52535445);
 
-	/* set software hard reset */
-	out_be32(reg + (RST_CTRL_REG >> 2), 0x2);
+		/* set software hard reset */
+		out_be32(restart_reg_base + (RST_CTRL_REG >> 2), 0x2);
+	} else {
+		printk (KERN_EMERG "Error: Restart registers not mapped, spinning!\n");
+	}
+
 	for (;;) ;
 }
 

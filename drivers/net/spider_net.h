@@ -24,7 +24,7 @@
 #ifndef _SPIDER_NET_H
 #define _SPIDER_NET_H
 
-#define VERSION "1.6 A"
+#define VERSION "1.6 B"
 
 #include "sungem_phy.h"
 
@@ -378,6 +378,9 @@ struct spider_net_descr_chain {
 	spinlock_t lock;
 	struct spider_net_descr *head;
 	struct spider_net_descr *tail;
+	struct spider_net_descr *ring;
+	int num_desc;
+	dma_addr_t dma_addr;
 };
 
 /* descriptor data_status bits */
@@ -396,8 +399,6 @@ struct spider_net_descr_chain {
 /* the cases we don't pass the packet to the stack.
  * 701b8000 would be correct, but every packets gets that flag */
 #define SPIDER_NET_DESTROY_RX_FLAGS	0x700b8000
-
-#define SPIDER_NET_DESCR_SIZE		32
 
 /* this will be bigger some time */
 struct spider_net_options {
@@ -441,25 +442,16 @@ struct spider_net_card {
 	struct spider_net_descr_chain rx_chain;
 	struct spider_net_descr *low_watermark;
 
-	struct net_device_stats netdev_stats;
-
-	struct spider_net_options options;
-
-	spinlock_t intmask_lock;
-	struct tasklet_struct rxram_full_tl;
 	struct timer_list tx_timer;
-
 	struct work_struct tx_timeout_task;
 	atomic_t tx_timeout_task_counter;
 	wait_queue_head_t waitq;
 
 	/* for ethtool */
 	int msg_enable;
-	int num_rx_desc;
-	int num_tx_desc;
+	struct net_device_stats netdev_stats;
 	struct spider_net_extra_stats spider_stats;
-
-	struct spider_net_descr descr[0];
+	struct spider_net_options options;
 };
 
 #define pr_err(fmt,arg...) \

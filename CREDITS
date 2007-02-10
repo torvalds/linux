@@ -516,9 +516,10 @@ S: Orlando, Florida
 S: USA
 
 N: Lennert Buytenhek
-E: buytenh@gnu.org
-D: Rewrite of the ethernet bridging code
-S: Ravenhorst 58B
+E: kernel@wantstofly.org
+D: Original (2.4) rewrite of the ethernet bridging code
+D: Various ARM bits and pieces
+S: Ravenhorst 58
 S: 2317 AK Leiden
 S: The Netherlands
 
@@ -1807,6 +1808,14 @@ S: X/OS Experts in Open Systems BV
 S: Kruislaan 419
 S: 1098 VA Amsterdam 
 S: The Netherlands
+
+N: Jiri Kosina
+E: jikos@jikos.cz
+E: jkosina@suse.cz
+D: Generic HID layer - original code split, fixes
+D: Various ACPI fixes, keeping correct battery state through suspend
+D: various lockdep annotations, autofs and other random bugfixes
+S: Prague, Czech Republic
 
 N: Gene Kozin
 E: 74604.152@compuserve.com
@@ -3270,7 +3279,7 @@ S: Sevilla 41005
 S: Spain
 
 N: Linus Torvalds
-E: torvalds@osdl.org
+E: torvalds@linux-foundation.org
 D: Original kernel hacker
 S: 12725 SW Millikan Way, Suite 400
 S: Beaverton, Oregon 97005

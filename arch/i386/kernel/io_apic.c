@@ -126,7 +126,7 @@ static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned i
  */
 static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
 {
-	volatile struct io_apic *io_apic = io_apic_base(apic);
+	volatile struct io_apic __iomem *io_apic = io_apic_base(apic);
 	if (sis_apic_bug)
 		writel(reg, &io_apic->index);
 	writel(value, &io_apic->data);
@@ -1227,26 +1227,32 @@ static u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = { FIRST_DEVICE_VECTOR , 0 }
 
 static int __assign_irq_vector(int irq)
 {
-	static int current_vector = FIRST_DEVICE_VECTOR, offset = 0;
-	int vector;
+	static int current_vector = FIRST_DEVICE_VECTOR, current_offset = 0;
+	int vector, offset, i;
 
 	BUG_ON((unsigned)irq >= NR_IRQ_VECTORS);
 
 	if (irq_vector[irq] > 0)
 		return irq_vector[irq];
 
-	current_vector += 8;
-	if (current_vector == SYSCALL_VECTOR)
-		current_vector += 8;
-
-	if (current_vector >= FIRST_SYSTEM_VECTOR) {
-		offset++;
-		if (!(offset % 8))
-			return -ENOSPC;
-		current_vector = FIRST_DEVICE_VECTOR + offset;
-	}
-
 	vector = current_vector;
+	offset = current_offset;
+next:
+	vector += 8;
+	if (vector >= FIRST_SYSTEM_VECTOR) {
+		offset = (offset + 1) % 8;
+		vector = FIRST_DEVICE_VECTOR + offset;
+	}
+	if (vector == current_vector)
+		return -ENOSPC;
+	if (vector == SYSCALL_VECTOR)
+		goto next;
+	for (i = 0; i < NR_IRQ_VECTORS; i++)
+		if (irq_vector[i] == vector)
+			goto next;
+
+	current_vector = vector;
+	current_offset = offset;
 	irq_vector[irq] = vector;
 
 	return vector;
@@ -2485,7 +2491,7 @@ device_initcall(ioapic_init_sysfs);
 int create_irq(void)
 {
 	/* Allocate an unused irq */
-	int irq, new, vector;
+	int irq, new, vector = 0;
 	unsigned long flags;
 
 	irq = -ENOSPC;
@@ -2600,25 +2606,32 @@ static struct irq_chip msi_chip = {
 	.retrigger	= ioapic_retrigger_irq,
 };
 
-int arch_setup_msi_irq(unsigned int irq, struct pci_dev *dev)
+int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 {
 	struct msi_msg msg;
-	int ret;
+	int irq, ret;
+	irq = create_irq();
+	if (irq < 0)
+		return irq;
+
+	set_irq_msi(irq, desc);
 	ret = msi_compose_msg(dev, irq, &msg);
-	if (ret < 0)
+	if (ret < 0) {
+		destroy_irq(irq);
 		return ret;
+	}
 
 	write_msi_msg(irq, &msg);
 
 	set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq,
 				      "edge");
 
-	return 0;
+	return irq;
 }
 
 void arch_teardown_msi_irq(unsigned int irq)
 {
-	return;
+	destroy_irq(irq);
 }
 
 #endif /* CONFIG_PCI_MSI */

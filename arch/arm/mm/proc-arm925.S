@@ -391,12 +391,12 @@ ENTRY(cpu_arm925_switch_mm)
 	mov	pc, lr
 
 /*
- * cpu_arm925_set_pte(ptep, pte)
+ * cpu_arm925_set_pte_ext(ptep, pte, ext)
  *
  * Set a PTE and flush it out
  */
 	.align	5
-ENTRY(cpu_arm925_set_pte)
+ENTRY(cpu_arm925_set_pte_ext)
 #ifdef CONFIG_MMU
 	str	r1, [r0], #-2048		@ linux version
 
@@ -490,7 +490,7 @@ arm925_processor_functions:
 	.word   cpu_arm925_do_idle
 	.word	cpu_arm925_dcache_clean_area
 	.word	cpu_arm925_switch_mm
-	.word	cpu_arm925_set_pte
+	.word	cpu_arm925_set_pte_ext
 	.size	arm925_processor_functions, . - arm925_processor_functions
 
 	.section ".rodata"

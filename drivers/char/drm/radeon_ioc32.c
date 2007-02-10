@@ -92,7 +92,7 @@ static int compat_radeon_cp_init(struct file *file, unsigned int cmd,
 			  &init->gart_textures_offset))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file,
+	return drm_ioctl(file->f_path.dentry->d_inode, file,
 			 DRM_IOCTL_RADEON_CP_INIT, (unsigned long)init);
 }
 
@@ -125,7 +125,7 @@ static int compat_radeon_cp_clear(struct file *file, unsigned int cmd,
 			  &clr->depth_boxes))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file,
+	return drm_ioctl(file->f_path.dentry->d_inode, file,
 			 DRM_IOCTL_RADEON_CLEAR, (unsigned long)clr);
 }
 
@@ -149,7 +149,7 @@ static int compat_radeon_cp_stipple(struct file *file, unsigned int cmd,
 			  &request->mask))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file,
+	return drm_ioctl(file->f_path.dentry->d_inode, file,
 			 DRM_IOCTL_RADEON_STIPPLE, (unsigned long)request);
 }
 
@@ -204,7 +204,7 @@ static int compat_radeon_cp_texture(struct file *file, unsigned int cmd,
 			  &image->data))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file,
+	return drm_ioctl(file->f_path.dentry->d_inode, file,
 			 DRM_IOCTL_RADEON_TEXTURE, (unsigned long)request);
 }
 
@@ -238,7 +238,7 @@ static int compat_radeon_cp_vertex2(struct file *file, unsigned int cmd,
 			  &request->prim))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file,
+	return drm_ioctl(file->f_path.dentry->d_inode, file,
 			 DRM_IOCTL_RADEON_VERTEX2, (unsigned long)request);
 }
 
@@ -268,7 +268,7 @@ static int compat_radeon_cp_cmdbuf(struct file *file, unsigned int cmd,
 			  &request->boxes))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file,
+	return drm_ioctl(file->f_path.dentry->d_inode, file,
 			 DRM_IOCTL_RADEON_CMDBUF, (unsigned long)request);
 }
 
@@ -293,7 +293,7 @@ static int compat_radeon_cp_getparam(struct file *file, unsigned int cmd,
 			  &request->value))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file,
+	return drm_ioctl(file->f_path.dentry->d_inode, file,
 			 DRM_IOCTL_RADEON_GETPARAM, (unsigned long)request);
 }
 
@@ -322,7 +322,7 @@ static int compat_radeon_mem_alloc(struct file *file, unsigned int cmd,
 			  &request->region_offset))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file,
+	return drm_ioctl(file->f_path.dentry->d_inode, file,
 			 DRM_IOCTL_RADEON_ALLOC, (unsigned long)request);
 }
 
@@ -345,7 +345,7 @@ static int compat_radeon_irq_emit(struct file *file, unsigned int cmd,
 			  &request->irq_seq))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_dentry->d_inode, file,
+	return drm_ioctl(file->f_path.dentry->d_inode, file,
 			 DRM_IOCTL_RADEON_IRQ_EMIT, (unsigned long)request);
 }
 
@@ -386,7 +386,7 @@ long radeon_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (fn != NULL)
 		ret = (*fn) (filp, cmd, arg);
 	else
-		ret = drm_ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
+		ret = drm_ioctl(filp->f_path.dentry->d_inode, filp, cmd, arg);
 	unlock_kernel();
 
 	return ret;

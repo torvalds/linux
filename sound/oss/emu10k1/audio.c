@@ -1139,7 +1139,7 @@ static int emu10k1_audio_open(struct inode *inode, struct file *file)
 
 match:
 
-	wave_dev = (struct emu10k1_wavedevice *) kmalloc(sizeof(struct emu10k1_wavedevice), GFP_KERNEL);
+	wave_dev = kmalloc(sizeof(struct emu10k1_wavedevice), GFP_KERNEL);
 
 	if (wave_dev == NULL) { 
 		ERROR();
@@ -1155,7 +1155,7 @@ match:
 		/* Recording */
 		struct wiinst *wiinst;
 
-		if ((wiinst = (struct wiinst *) kmalloc(sizeof(struct wiinst), GFP_KERNEL)) == NULL) {
+		if ((wiinst = kmalloc(sizeof(struct wiinst), GFP_KERNEL)) == NULL) {
 			ERROR();
 			kfree(wave_dev);
 			return -ENOMEM;
@@ -1211,7 +1211,7 @@ match:
 		struct woinst *woinst;
 		int i;
 
-		if ((woinst = (struct woinst *) kmalloc(sizeof(struct woinst), GFP_KERNEL)) == NULL) {
+		if ((woinst = kmalloc(sizeof(struct woinst), GFP_KERNEL)) == NULL) {
 			ERROR();
 			kfree(wave_dev);
 			return -ENOMEM;

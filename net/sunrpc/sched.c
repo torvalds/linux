@@ -42,6 +42,7 @@ static mempool_t	*rpc_buffer_mempool __read_mostly;
 static void			__rpc_default_timer(struct rpc_task *task);
 static void			rpciod_killall(void);
 static void			rpc_async_schedule(struct work_struct *);
+static void			 rpc_release_task(struct rpc_task *task);
 
 /*
  * RPC tasks sit here while waiting for conditions to improve.
@@ -896,7 +897,7 @@ void rpc_put_task(struct rpc_task *task)
 }
 EXPORT_SYMBOL(rpc_put_task);
 
-void rpc_release_task(struct rpc_task *task)
+static void rpc_release_task(struct rpc_task *task)
 {
 #ifdef RPC_DEBUG
 	BUG_ON(task->tk_magic != RPC_TASK_MAGIC_ID);

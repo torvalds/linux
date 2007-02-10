@@ -38,7 +38,6 @@
 #include "netxen_nic.h"
 #define DEFINE_GLOBAL_RECV_CRB
 #include "netxen_nic_phan_reg.h"
-#include "netxen_nic_ioctl.h"
 
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
@@ -52,8 +51,6 @@ MODULE_VERSION(NETXEN_NIC_LINUX_VERSIONID);
 char netxen_nic_driver_name[] = "netxen-nic";
 static char netxen_nic_driver_string[] = "NetXen Network Driver version "
     NETXEN_NIC_LINUX_VERSIONID;
-
-struct netxen_adapter *g_adapter = NULL;
 
 #define NETXEN_NETDEV_WEIGHT 120
 #define NETXEN_ADAPTER_UP_MAGIC 777
@@ -75,8 +72,6 @@ static void netxen_tx_timeout(struct net_device *netdev);
 static void netxen_tx_timeout_task(struct work_struct *work);
 static void netxen_watchdog(unsigned long);
 static int netxen_handle_int(struct netxen_adapter *, struct net_device *);
-static int netxen_nic_ioctl(struct net_device *netdev,
-			    struct ifreq *ifr, int cmd);
 static int netxen_nic_poll(struct net_device *dev, int *budget);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netxen_nic_poll_controller(struct net_device *netdev);
@@ -90,6 +85,8 @@ static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(0x4040, 0x0003)},
 	{PCI_DEVICE(0x4040, 0x0004)},
 	{PCI_DEVICE(0x4040, 0x0005)},
+	{PCI_DEVICE(0x4040, 0x0024)},
+	{PCI_DEVICE(0x4040, 0x0025)},
 	{0,}
 };
 
@@ -120,7 +117,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *mem_ptr1 = NULL;
 	void __iomem *mem_ptr2 = NULL;
 
-	u8 *db_ptr = NULL;
+	u8 __iomem *db_ptr = NULL;
 	unsigned long mem_base, mem_len, db_base, db_len;
 	int pci_using_dac, i, err;
 	int ring;
@@ -129,7 +126,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct netxen_cmd_buffer *cmd_buf_arr = NULL;
 	u64 mac_addr[FLASH_NUM_PORTS + 1];
 	int valid_mac = 0;
-	static int netxen_cards_found = 0;
 
 	printk(KERN_INFO "%s \n", netxen_nic_driver_string);
 	/* In current scheme, we use only PCI function 0 */
@@ -195,7 +191,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		db_len);
 
 	db_ptr = ioremap(db_base, NETXEN_DB_MAPSIZE_BYTES);
-	if (db_ptr == 0UL) {
+	if (!db_ptr) {
 		printk(KERN_ERR "%s: Failed to allocate doorbell map.",
 		       netxen_nic_driver_name);
 		err = -EIO;
@@ -220,9 +216,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_dbunmap;
 	}
 
-	if (netxen_cards_found == 0) {
-		g_adapter = adapter;
-	}
 	adapter->max_tx_desc_count = MAX_CMD_DESCRIPTORS;
 	adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS;
 	adapter->max_jumbo_rx_desc_count = MAX_JUMBO_RCV_DESCRIPTORS;
@@ -383,7 +376,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->set_multicast_list = netxen_nic_set_multi;
 		netdev->set_mac_address = netxen_nic_set_mac;
 		netdev->change_mtu = netxen_nic_change_mtu;
-		netdev->do_ioctl = netxen_nic_ioctl;
 		netdev->tx_timeout = netxen_tx_timeout;
 		netdev->watchdog_timeo = HZ;
 
@@ -428,8 +420,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 							     netdev->dev_addr);
 			}
 		}
-		adapter->netdev = netdev;
-		INIT_WORK(&adapter->tx_timeout_task, netxen_tx_timeout_task);
+		INIT_WORK(&port->tx_timeout_task, netxen_tx_timeout_task);
 		netif_carrier_off(netdev);
 		netif_stop_queue(netdev);
 
@@ -444,6 +435,11 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->port[i] = port;
 	}
 
+	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
+	netxen_pinit_from_rom(adapter, 0);
+	udelay(500);
+	netxen_load_firmware(adapter);
+	netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 	/*
 	 * delay a while to ensure that the Pegs are up & running.
 	 * Otherwise, we might see some flaky behaviour.
@@ -461,7 +457,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	adapter->number = netxen_cards_found;
 	adapter->driver_mismatch = 0;
 
 	return 0;
@@ -531,6 +526,8 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	netxen_nic_stop_all_ports(adapter);
 	/* leave the hw in the same state as reboot */
+	netxen_pinit_from_rom(adapter, 0);
+	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
 	netxen_load_firmware(adapter);
 	netxen_free_adapter_offload(adapter);
 
@@ -822,7 +819,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	pbuf = &adapter->cmd_buf_arr[producer];
 	if ((netdev->features & NETIF_F_TSO) && skb_shinfo(skb)->gso_size > 0) {
 		pbuf->mss = skb_shinfo(skb)->gso_size;
-		hwdesc->mss = skb_shinfo(skb)->gso_size;
+		hwdesc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
 	} else {
 		pbuf->mss = 0;
 		hwdesc->mss = 0;
@@ -885,7 +882,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			hwdesc->addr_buffer3 = cpu_to_le64(temp_dma);
 			break;
 		case 3:
-			hwdesc->buffer4_length = temp_len;
+			hwdesc->buffer4_length = cpu_to_le16(temp_len);
 			hwdesc->addr_buffer4 = cpu_to_le64(temp_dma);
 			break;
 		}
@@ -956,11 +953,6 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 static void netxen_watchdog(unsigned long v)
 {
 	struct netxen_adapter *adapter = (struct netxen_adapter *)v;
-	if (adapter != g_adapter) {
-		printk("%s: ***BUG*** adapter[%p] != g_adapter[%p]\n",
-		       __FUNCTION__, adapter, g_adapter);
-		return;
-	}
 
 	SCHEDULE_WORK(&adapter->watchdog_task);
 }
@@ -969,23 +961,23 @@ static void netxen_tx_timeout(struct net_device *netdev)
 {
 	struct netxen_port *port = (struct netxen_port *)netdev_priv(netdev);
 
-	SCHEDULE_WORK(&port->adapter->tx_timeout_task);
+	SCHEDULE_WORK(&port->tx_timeout_task);
 }
 
 static void netxen_tx_timeout_task(struct work_struct *work)
 {
-	struct netxen_adapter *adapter =
-		container_of(work, struct netxen_adapter, tx_timeout_task);
-	struct net_device *netdev = adapter->netdev;
+	struct netxen_port *port =
+		container_of(work, struct netxen_port, tx_timeout_task);
+	struct net_device *netdev = port->netdev;
 	unsigned long flags;
 
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",
 	       netxen_nic_driver_name, netdev->name);
 
-	spin_lock_irqsave(&adapter->lock, flags);
+	spin_lock_irqsave(&port->adapter->lock, flags);
 	netxen_nic_close(netdev);
 	netxen_nic_open(netdev);
-	spin_unlock_irqrestore(&adapter->lock, flags);
+	spin_unlock_irqrestore(&port->adapter->lock, flags);
 	netdev->trans_start = jiffies;
 	netif_wake_queue(netdev);
 }
@@ -1137,47 +1129,6 @@ static void netxen_nic_poll_controller(struct net_device *netdev)
 	enable_irq(adapter->irq);
 }
 #endif
-/*
- * netxen_nic_ioctl ()    We provide the tcl/phanmon support through these
- * ioctls.
- */
-static int
-netxen_nic_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
-{
-	int err = 0;
-	unsigned long nr_bytes = 0;
-	struct netxen_port *port = netdev_priv(netdev);
-	struct netxen_adapter *adapter = port->adapter;
-	char dev_name[NETXEN_NIC_NAME_LEN];
-
-	DPRINTK(INFO, "doing ioctl for %s\n", netdev->name);
-	switch (cmd) {
-	case NETXEN_NIC_CMD:
-		err = netxen_nic_do_ioctl(adapter, (void *)ifr->ifr_data, port);
-		break;
-
-	case NETXEN_NIC_NAME:
-		DPRINTK(INFO, "ioctl cmd for NetXen\n");
-		if (ifr->ifr_data) {
-			sprintf(dev_name, "%s-%d", NETXEN_NIC_NAME_RSP,
-				port->portnum);
-			nr_bytes =
-			    copy_to_user((char __user *)ifr->ifr_data, dev_name,
-					 NETXEN_NIC_NAME_LEN);
-			if (nr_bytes)
-				err = -EIO;
-
-		}
-		break;
-
-	default:
-		DPRINTK(INFO, "ioctl cmd %x not supported\n", cmd);
-		err = -EOPNOTSUPP;
-		break;
-	}
-
-	return err;
-}
 
 static struct pci_driver netxen_driver = {
 	.name = netxen_nic_driver_name,
@@ -1193,7 +1144,7 @@ static int __init netxen_init_module(void)
 	if ((netxen_workq = create_singlethread_workqueue("netxen")) == 0)
 		return -ENOMEM;
 
-	return pci_module_init(&netxen_driver);
+	return pci_register_driver(&netxen_driver);
 }
 
 module_init(netxen_init_module);

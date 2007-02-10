@@ -344,6 +344,17 @@ static void dispatch_bios(struct mirror_set *ms, struct bio_list *bio_list)
 	}
 }
 
+static void complete_resync_work(struct region *reg, int success)
+{
+	struct region_hash *rh = reg->rh;
+
+	rh->log->type->set_region_sync(rh->log, reg->key, success);
+	dispatch_bios(rh->ms, &reg->delayed_bios);
+	if (atomic_dec_and_test(&rh->recovery_in_flight))
+		wake_up_all(&_kmirrord_recovery_stopped);
+	up(&rh->recovery_count);
+}
+
 static void rh_update_states(struct region_hash *rh)
 {
 	struct region *reg, *next;
@@ -383,11 +394,7 @@ static void rh_update_states(struct region_hash *rh)
 	 */
 	list_for_each_entry_safe (reg, next, &recovered, list) {
 		rh->log->type->clear_region(rh->log, reg->key);
-		rh->log->type->complete_resync_work(rh->log, reg->key, 1);
-		dispatch_bios(rh->ms, &reg->delayed_bios);
-		if (atomic_dec_and_test(&rh->recovery_in_flight))
-			wake_up_all(&_kmirrord_recovery_stopped);
-		up(&rh->recovery_count);
+		complete_resync_work(reg, 1);
 		mempool_free(reg, rh->region_pool);
 	}
 
@@ -1137,7 +1144,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 
 	if (rw == WRITE) {
 		queue_bio(ms, bio, rw);
-		return 0;
+		return DM_MAPIO_SUBMITTED;
 	}
 
 	r = ms->rh.log->type->in_sync(ms->rh.log,
@@ -1146,7 +1153,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 		return r;
 
 	if (r == -EWOULDBLOCK)	/* FIXME: ugly */
-		r = 0;
+		r = DM_MAPIO_SUBMITTED;
 
 	/*
 	 * We don't want to fast track a recovery just for a read
@@ -1159,7 +1166,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 	if (!r) {
 		/* Pass this io over to the daemon */
 		queue_bio(ms, bio, rw);
-		return 0;
+		return DM_MAPIO_SUBMITTED;
 	}
 
 	m = choose_mirror(ms, bio->bi_sector);
@@ -1167,7 +1174,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 		return -EIO;
 
 	map_bio(ms, m, bio);
-	return 1;
+	return DM_MAPIO_REMAPPED;
 }
 
 static int mirror_end_io(struct dm_target *ti, struct bio *bio,

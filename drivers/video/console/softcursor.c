@@ -1,11 +1,13 @@
 /*
- * linux/drivers/video/softcursor.c -- Generic software cursor for frame buffer devices
+ * linux/drivers/video/softcursor.c
+ *
+ * Generic software cursor for frame buffer devices
  *
  *  Created 14 Nov 2002 by James Simmons
  *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive
- * for more details.
+ * This file is subject to the terms and conditions of the GNU General
+ * Public License.  See the file COPYING in the main directory of this
+ * archive for more details.
  */
 
 #include <linux/module.h>
@@ -25,7 +27,7 @@ int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	unsigned int buf_align = info->pixmap.buf_align - 1;
 	unsigned int i, size, dsize, s_pitch, d_pitch;
 	struct fb_image *image;
-	u8 *dst;
+	u8 *src, *dst;
 
 	if (info->state != FBINFO_STATE_RUNNING)
 		return 0;
@@ -45,7 +47,8 @@ int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		}
 	}
 
-	image = (struct fb_image *) (ops->cursor_src + dsize);
+	src = ops->cursor_src + sizeof(struct fb_image);
+	image = (struct fb_image *)ops->cursor_src;
 	*image = cursor->image;
 	d_pitch = (s_pitch + scan_align) & ~scan_align;
 
@@ -57,21 +60,18 @@ int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		switch (cursor->rop) {
 		case ROP_XOR:
 			for (i = 0; i < dsize; i++)
-				ops->cursor_src[i] = image->data[i] ^
-					cursor->mask[i];
+				src[i] = image->data[i] ^ cursor->mask[i];
 			break;
 		case ROP_COPY:
 		default:
 			for (i = 0; i < dsize; i++)
-				ops->cursor_src[i] = image->data[i] &
-					cursor->mask[i];
+				src[i] = image->data[i] & cursor->mask[i];
 			break;
 		}
 	} else
-		memcpy(ops->cursor_src, image->data, dsize);
+		memcpy(src, image->data, dsize);
 
-	fb_pad_aligned_buffer(dst, d_pitch, ops->cursor_src, s_pitch,
-			      image->height);
+	fb_pad_aligned_buffer(dst, d_pitch, src, s_pitch, image->height);
 	image->data = dst;
 	info->fbops->fb_imageblit(info, image);
 	return 0;

@@ -269,7 +269,7 @@ static const struct hc_driver ohci_au1xxx_hc_driver = {
 	 */
 	.start =		ohci_au1xxx_start,
 	.stop =			ohci_stop,
-	.shutdown = 		ohci_shutdown,
+	.shutdown =		ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -336,7 +336,7 @@ static int ohci_hcd_au1xxx_drv_resume(struct platform_device *dev)
 static struct platform_driver ohci_hcd_au1xxx_driver = {
 	.probe		= ohci_hcd_au1xxx_drv_probe,
 	.remove		= ohci_hcd_au1xxx_drv_remove,
-	.shutdown 	= usb_hcd_platform_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 	/*.suspend	= ohci_hcd_au1xxx_drv_suspend, */
 	/*.resume	= ohci_hcd_au1xxx_drv_resume, */
 	.driver		= {
@@ -345,19 +345,3 @@ static struct platform_driver ohci_hcd_au1xxx_driver = {
 	},
 };
 
-static int __init ohci_hcd_au1xxx_init (void)
-{
-	pr_debug (DRIVER_INFO " (Au1xxx)");
-	pr_debug ("block sizes: ed %d td %d\n",
-		sizeof (struct ed), sizeof (struct td));
-
-	return platform_driver_register(&ohci_hcd_au1xxx_driver);
-}
-
-static void __exit ohci_hcd_au1xxx_cleanup (void)
-{
-	platform_driver_unregister(&ohci_hcd_au1xxx_driver);
-}
-
-module_init (ohci_hcd_au1xxx_init);
-module_exit (ohci_hcd_au1xxx_cleanup);

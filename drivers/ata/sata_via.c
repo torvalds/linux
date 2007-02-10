@@ -44,7 +44,6 @@
 #include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
-#include <asm/io.h>
 
 #define DRV_NAME	"sata_via"
 #define DRV_VERSION	"2.0"
@@ -59,11 +58,14 @@ enum {
 	SATA_INT_GATE		= 0x41, /* SATA interrupt gating */
 	SATA_NATIVE_MODE	= 0x42, /* Native mode enable */
 	SATA_PATA_SHARING	= 0x49, /* PATA/SATA sharing func ctrl */
-
+	PATA_UDMA_TIMING	= 0xB3, /* PATA timing for DMA/ cable detect */
+	PATA_PIO_TIMING		= 0xAB, /* PATA timing register */
+	
 	PORT0			= (1 << 1),
 	PORT1			= (1 << 0),
 	ALL_PORTS		= PORT0 | PORT1,
-	N_PORTS			= 2,
+	PATA_PORT		= 2,	/* PATA is port 2 */
+	N_PORTS			= 3,
 
 	NATIVE_MODE_ALL		= (1 << 7) | (1 << 6) | (1 << 5) | (1 << 4),
 
@@ -74,9 +76,16 @@ enum {
 static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static u32 svia_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void svia_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
+static void svia_noop_freeze(struct ata_port *ap);
 static void vt6420_error_handler(struct ata_port *ap);
+static void vt6421_sata_error_handler(struct ata_port *ap);
+static void vt6421_pata_error_handler(struct ata_port *ap);
+static void vt6421_set_pio_mode(struct ata_port *ap, struct ata_device *adev);
+static void vt6421_set_dma_mode(struct ata_port *ap, struct ata_device *adev);
+static int vt6421_port_start(struct ata_port *ap);
 
 static const struct pci_device_id svia_pci_tbl[] = {
+	{ PCI_VDEVICE(VIA, 0x5337), vt6420 },
 	{ PCI_VDEVICE(VIA, 0x0591), vt6420 },
 	{ PCI_VDEVICE(VIA, 0x3149), vt6420 },
 	{ PCI_VDEVICE(VIA, 0x3249), vt6421 },
@@ -125,23 +134,26 @@ static const struct ata_port_operations vt6420_sata_ops = {
 
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
-	.freeze			= ata_bmdma_freeze,
+	.freeze			= svia_noop_freeze,
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= vt6420_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
 };
 
-static const struct ata_port_operations vt6421_sata_ops = {
+static const struct ata_port_operations vt6421_pata_ops = {
 	.port_disable		= ata_port_disable,
+	
+	.set_piomode		= vt6421_set_pio_mode,
+	.set_dmamode		= vt6421_set_dma_mode,
 
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
@@ -156,22 +168,53 @@ static const struct ata_port_operations vt6421_sata_ops = {
 
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
-	.error_handler		= ata_bmdma_error_handler,
+	.error_handler		= vt6421_pata_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
+
+	.port_start		= vt6421_port_start,
+};
+
+static const struct ata_port_operations vt6421_sata_ops = {
+	.port_disable		= ata_port_disable,
+	
+	.tf_load		= ata_tf_load,
+	.tf_read		= ata_tf_read,
+	.check_status		= ata_check_status,
+	.exec_command		= ata_exec_command,
+	.dev_select		= ata_std_dev_select,
+
+	.bmdma_setup            = ata_bmdma_setup,
+	.bmdma_start            = ata_bmdma_start,
+	.bmdma_stop		= ata_bmdma_stop,
+	.bmdma_status		= ata_bmdma_status,
+
+	.qc_prep		= ata_qc_prep,
+	.qc_issue		= ata_qc_issue_prot,
+	.data_xfer		= ata_data_xfer,
+
+	.freeze			= ata_bmdma_freeze,
+	.thaw			= ata_bmdma_thaw,
+	.error_handler		= vt6421_sata_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+
+	.irq_handler		= ata_interrupt,
+	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
 
 	.scr_read		= svia_scr_read,
 	.scr_write		= svia_scr_write,
 
-	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
+	.port_start		= vt6421_port_start,
 };
 
 static struct ata_port_info vt6420_port_info = {
@@ -193,14 +236,23 @@ static u32 svia_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
 	if (sc_reg > SCR_CONTROL)
 		return 0xffffffffU;
-	return inl(ap->ioaddr.scr_addr + (4 * sc_reg));
+	return ioread32(ap->ioaddr.scr_addr + (4 * sc_reg));
 }
 
 static void svia_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
 	if (sc_reg > SCR_CONTROL)
 		return;
-	outl(val, ap->ioaddr.scr_addr + (4 * sc_reg));
+	iowrite32(val, ap->ioaddr.scr_addr + (4 * sc_reg));
+}
+
+static void svia_noop_freeze(struct ata_port *ap)
+{
+	/* Some VIA controllers choke if ATA_NIEN is manipulated in
+	 * certain way.  Leave it alone and just clear pending IRQ.
+	 */
+	ata_chk_status(ap);
+	ata_bmdma_irq_clear(ap);
 }
 
 /**
@@ -278,6 +330,61 @@ static void vt6420_error_handler(struct ata_port *ap)
 				  NULL, ata_std_postreset);
 }
 
+static int vt6421_pata_prereset(struct ata_port *ap)
+{
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	u8 tmp;
+
+	pci_read_config_byte(pdev, PATA_UDMA_TIMING, &tmp);
+	if (tmp & 0x10)
+		ap->cbl = ATA_CBL_PATA40;
+	else
+		ap->cbl = ATA_CBL_PATA80;
+	return 0;
+}
+
+static void vt6421_pata_error_handler(struct ata_port *ap)
+{
+	return ata_bmdma_drive_eh(ap, vt6421_pata_prereset, ata_std_softreset,
+				  NULL, ata_std_postreset);
+}
+
+static int vt6421_sata_prereset(struct ata_port *ap)
+{
+	ap->cbl = ATA_CBL_SATA;
+	return 0;
+}
+
+static void vt6421_sata_error_handler(struct ata_port *ap)
+{
+	return ata_bmdma_drive_eh(ap, vt6421_sata_prereset, ata_std_softreset,
+				  NULL, ata_std_postreset);
+}
+
+static void vt6421_set_pio_mode(struct ata_port *ap, struct ata_device *adev)
+{
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	static const u8 pio_bits[] = { 0xA8, 0x65, 0x65, 0x31, 0x20 };
+	pci_write_config_byte(pdev, PATA_PIO_TIMING, pio_bits[adev->pio_mode - XFER_PIO_0]);
+}
+
+static void vt6421_set_dma_mode(struct ata_port *ap, struct ata_device *adev)
+{
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	static const u8 udma_bits[] = { 0xEE, 0xE8, 0xE6, 0xE4, 0xE2, 0xE1, 0xE0, 0xE0 };
+	pci_write_config_byte(pdev, PATA_UDMA_TIMING, udma_bits[adev->pio_mode - XFER_UDMA_0]);
+}
+
+static int vt6421_port_start(struct ata_port *ap)
+{
+	if (ap->port_no == PATA_PORT) {
+		ap->ops = &vt6421_pata_ops;
+		ap->mwdma_mask = 0;
+		ap->flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_NO_LEGACY | ATA_FLAG_SRST;
+	}
+	return ata_port_start(ap);
+}
+
 static const unsigned int svia_bar_sizes[] = {
 	8, 4, 8, 4, 16, 256
 };
@@ -286,31 +393,28 @@ static const unsigned int vt6421_bar_sizes[] = {
 	16, 16, 16, 16, 32, 128
 };
 
-static unsigned long svia_scr_addr(unsigned long addr, unsigned int port)
+static void __iomem * svia_scr_addr(void __iomem *addr, unsigned int port)
 {
 	return addr + (port * 128);
 }
 
-static unsigned long vt6421_scr_addr(unsigned long addr, unsigned int port)
+static void __iomem * vt6421_scr_addr(void __iomem *addr, unsigned int port)
 {
 	return addr + (port * 64);
 }
 
 static void vt6421_init_addrs(struct ata_probe_ent *probe_ent,
-			      struct pci_dev *pdev,
-			      unsigned int port)
+			      void __iomem * const *iomap, unsigned int port)
 {
-	unsigned long reg_addr = pci_resource_start(pdev, port);
-	unsigned long bmdma_addr = pci_resource_start(pdev, 4) + (port * 8);
-	unsigned long scr_addr;
+	void __iomem *reg_addr = iomap[port];
+	void __iomem *bmdma_addr = iomap[4] + (port * 8);
 
 	probe_ent->port[port].cmd_addr = reg_addr;
 	probe_ent->port[port].altstatus_addr =
-	probe_ent->port[port].ctl_addr = (reg_addr + 8) | ATA_PCI_CTL_OFS;
+	probe_ent->port[port].ctl_addr = (void __iomem *)
+		((unsigned long)(reg_addr + 8) | ATA_PCI_CTL_OFS);
 	probe_ent->port[port].bmdma_addr = bmdma_addr;
-
-	scr_addr = vt6421_scr_addr(pci_resource_start(pdev, 5), port);
-	probe_ent->port[port].scr_addr = scr_addr;
+	probe_ent->port[port].scr_addr = vt6421_scr_addr(iomap[5], port);
 
 	ata_std_ports(&probe_ent->port[port]);
 }
@@ -319,16 +423,16 @@ static struct ata_probe_ent *vt6420_init_probe_ent(struct pci_dev *pdev)
 {
 	struct ata_probe_ent *probe_ent;
 	struct ata_port_info *ppi[2];
-	
+	void __iomem * const *iomap;
+
 	ppi[0] = ppi[1] = &vt6420_port_info;
 	probe_ent = ata_pci_init_native_mode(pdev, ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
 	if (!probe_ent)
 		return NULL;
 
-	probe_ent->port[0].scr_addr =
-		svia_scr_addr(pci_resource_start(pdev, 5), 0);
-	probe_ent->port[1].scr_addr =
-		svia_scr_addr(pci_resource_start(pdev, 5), 1);
+	iomap = pcim_iomap_table(pdev);
+	probe_ent->port[0].scr_addr = svia_scr_addr(iomap[5], 0);
+	probe_ent->port[1].scr_addr = svia_scr_addr(iomap[5], 1);
 
 	return probe_ent;
 }
@@ -338,7 +442,7 @@ static struct ata_probe_ent *vt6421_init_probe_ent(struct pci_dev *pdev)
 	struct ata_probe_ent *probe_ent;
 	unsigned int i;
 
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
+	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
 	if (!probe_ent)
 		return NULL;
 
@@ -357,7 +461,7 @@ static struct ata_probe_ent *vt6421_init_probe_ent(struct pci_dev *pdev)
 	probe_ent->udma_mask	= 0x7f;
 
 	for (i = 0; i < N_PORTS; i++)
-		vt6421_init_addrs(probe_ent, pdev, i);
+		vt6421_init_addrs(probe_ent, pcim_iomap_table(pdev), i);
 
 	return probe_ent;
 }
@@ -409,20 +513,19 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_probe_ent *probe_ent;
 	int board_id = (int) ent->driver_data;
 	const int *bar_sizes;
-	int pci_dev_busy = 0;
 	u8 tmp8;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
-	rc = pci_request_regions(pdev, DRV_NAME);
+	rc = pcim_iomap_regions(pdev, 0x1f, DRV_NAME);
 	if (rc) {
-		pci_dev_busy = 1;
-		goto err_out;
+		pcim_pin_device(pdev);
+		return rc;
 	}
 
 	if (board_id == vt6420) {
@@ -431,8 +534,7 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 			dev_printk(KERN_ERR, &pdev->dev,
 				   "SATA master/slave not supported (0x%x)\n",
 		       		   (int) tmp8);
-			rc = -EIO;
-			goto err_out_regions;
+			return -EIO;
 		}
 
 		bar_sizes = &svia_bar_sizes[0];
@@ -448,16 +550,15 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 				i,
 			        (unsigned long long)pci_resource_start(pdev, i),
 			        (unsigned long long)pci_resource_len(pdev, i));
-			rc = -ENODEV;
-			goto err_out_regions;
+			return -ENODEV;
 		}
 
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		return rc;
 
 	if (board_id == vt6420)
 		probe_ent = vt6420_init_probe_ent(pdev);
@@ -466,26 +567,18 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (!probe_ent) {
 		dev_printk(KERN_ERR, &pdev->dev, "out of memory\n");
-		rc = -ENOMEM;
-		goto err_out_regions;
+		return -ENOMEM;
 	}
 
 	svia_configure(pdev);
 
 	pci_set_master(pdev);
 
-	/* FIXME: check ata_device_add return value */
-	ata_device_add(probe_ent);
-	kfree(probe_ent);
+	if (!ata_device_add(probe_ent))
+		return -ENODEV;
 
+	devm_kfree(&pdev->dev, probe_ent);
 	return 0;
-
-err_out_regions:
-	pci_release_regions(pdev);
-err_out:
-	if (!pci_dev_busy)
-		pci_disable_device(pdev);
-	return rc;
 }
 
 static int __init svia_init(void)
@@ -500,4 +593,3 @@ static void __exit svia_exit(void)
 
 module_init(svia_init);
 module_exit(svia_exit);
-

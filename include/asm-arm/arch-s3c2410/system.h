@@ -1,7 +1,7 @@
 /* linux/include/asm-arm/arch-s3c2410/system.h
  *
- * (c) 2003 Simtec Electronics
- *  Ben Dooks <ben@simtec.co.uk>
+ * Copyright (c) 2003 Simtec Electronics
+ *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 - System function defines and includes
  *

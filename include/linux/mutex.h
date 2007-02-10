@@ -105,7 +105,7 @@ do {							\
 extern void __mutex_init(struct mutex *lock, const char *name,
 			 struct lock_class_key *key);
 
-/***
+/**
  * mutex_is_locked - is the mutex locked
  * @lock: the mutex to be queried
  *
@@ -125,8 +125,10 @@ extern int fastcall mutex_lock_interruptible(struct mutex *lock);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 extern void mutex_lock_nested(struct mutex *lock, unsigned int subclass);
+extern int mutex_lock_interruptible_nested(struct mutex *lock, unsigned int subclass);
 #else
 # define mutex_lock_nested(lock, subclass) mutex_lock(lock)
+# define mutex_lock_interruptible_nested(lock, subclass) mutex_lock_interruptible(lock)
 #endif
 
 /*

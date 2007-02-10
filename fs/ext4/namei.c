@@ -602,7 +602,7 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 
 	dxtrace(printk("In htree_fill_tree, start hash: %x:%x\n", start_hash,
 		       start_minor_hash));
-	dir = dir_file->f_dentry->d_inode;
+	dir = dir_file->f_path.dentry->d_inode;
 	if (!(EXT4_I(dir)->i_flags & EXT4_INDEX_FL)) {
 		hinfo.hash_version = EXT4_SB(dir->i_sb)->s_def_hash_version;
 		hinfo.seed = EXT4_SB(dir->i_sb)->s_hash_seed;
@@ -613,7 +613,7 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	}
 	hinfo.hash = start_hash;
 	hinfo.minor_hash = 0;
-	frame = dx_probe(NULL, dir_file->f_dentry->d_inode, &hinfo, frames, &err);
+	frame = dx_probe(NULL, dir_file->f_path.dentry->d_inode, &hinfo, frames, &err);
 	if (!frame)
 		return err;
 

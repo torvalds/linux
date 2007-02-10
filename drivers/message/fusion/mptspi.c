@@ -3,7 +3,7 @@
  *      For use with LSI Logic PCI chip/adapter(s)
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2005 LSI Logic Corporation
+ *  Copyright (c) 1999-2007 LSI Logic Corporation
  *  (mailto:mpt_linux_developer@lsil.com)
  *
  */
@@ -77,6 +77,7 @@
 MODULE_AUTHOR(MODULEAUTHOR);
 MODULE_DESCRIPTION(my_NAME);
 MODULE_LICENSE("GPL");
+MODULE_VERSION(my_VERSION);
 
 /* Command line args */
 static int mpt_saf_te = MPTSCSIH_SAF_TE;

@@ -345,7 +345,7 @@ static void sticon_save_screen(struct vc_data *conp)
 {
 }
 
-static struct consw sti_con = {
+static const struct consw sti_con = {
 	.owner			= THIS_MODULE,
 	.con_startup		= sticon_startup,
 	.con_init		= sticon_init,

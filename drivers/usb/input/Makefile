@@ -11,14 +11,14 @@ usbhid-objs	:= hid-core.o
 ifeq ($(CONFIG_USB_HIDDEV),y)
 	usbhid-objs	+= hiddev.o
 endif
-ifeq ($(CONFIG_USB_HIDINPUT),y)
-	usbhid-objs	+= hid-input.o
-endif
 ifeq ($(CONFIG_HID_PID),y)
 	usbhid-objs	+= hid-pidff.o
 endif
 ifeq ($(CONFIG_LOGITECH_FF),y)
 	usbhid-objs	+= hid-lgff.o
+endif
+ifeq ($(CONFIG_PANTHERLORD_FF),y)
+	usbhid-objs	+= hid-plff.o
 endif
 ifeq ($(CONFIG_THRUSTMASTER_FF),y)
 	usbhid-objs	+= hid-tmff.o
@@ -48,6 +48,7 @@ obj-$(CONFIG_USB_ACECAD)	+= acecad.o
 obj-$(CONFIG_USB_YEALINK)	+= yealink.o
 obj-$(CONFIG_USB_XPAD)		+= xpad.o
 obj-$(CONFIG_USB_APPLETOUCH)	+= appletouch.o
+obj-$(CONFIG_USB_GTCO)         += gtco.o
 
 ifeq ($(CONFIG_USB_DEBUG),y)
 EXTRA_CFLAGS += -DDEBUG

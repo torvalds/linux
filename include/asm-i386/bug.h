@@ -4,20 +4,32 @@
 
 /*
  * Tell the user there is some problem.
- * The offending file and line are encoded after the "officially
- * undefined" opcode for parsing in the trap handler.
+ * The offending file and line are encoded encoded in the __bug_table section.
  */
 
 #ifdef CONFIG_BUG
 #define HAVE_ARCH_BUG
+
 #ifdef CONFIG_DEBUG_BUGVERBOSE
-#define BUG()				\
- __asm__ __volatile__(	"ud2\n"		\
-			"\t.word %c0\n"	\
-			"\t.long %c1\n"	\
-			 : : "i" (__LINE__), "i" (__FILE__))
+#define BUG()								\
+	do {								\
+		asm volatile("1:\tud2\n"				\
+			     ".pushsection __bug_table,\"a\"\n"		\
+			     "2:\t.long 1b, %c0\n"			\
+			     "\t.word %c1, 0\n"				\
+			     "\t.org 2b+%c2\n"				\
+			     ".popsection"				\
+			     : : "i" (__FILE__), "i" (__LINE__),	\
+			     "i" (sizeof(struct bug_entry)));		\
+		for(;;) ;						\
+	} while(0)
+
 #else
-#define BUG() __asm__ __volatile__("ud2\n")
+#define BUG()								\
+	do {								\
+		asm volatile("ud2");					\
+		for(;;) ;						\
+	} while(0)
 #endif
 #endif
 

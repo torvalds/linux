@@ -64,6 +64,8 @@ source "drivers/video/Kconfig"
 
 source "sound/Kconfig"
 
+source "drivers/hid/Kconfig"
+
 source "drivers/usb/Kconfig"
 
 source "drivers/mmc/Kconfig"
@@ -77,5 +79,7 @@ source "drivers/edac/Kconfig"
 source "drivers/rtc/Kconfig"
 
 source "drivers/dma/Kconfig"
+
+source "drivers/kvm/Kconfig"
 
 endmenu

@@ -87,6 +87,12 @@ struct kprobe_insn_page {
 	int ngarbage;
 };
 
+enum kprobe_slot_state {
+	SLOT_CLEAN = 0,
+	SLOT_DIRTY = 1,
+	SLOT_USED = 2,
+};
+
 static struct hlist_head kprobe_insn_pages;
 static int kprobe_garbage_slots;
 static int collect_garbage_slots(void);
@@ -130,8 +136,8 @@ kprobe_opcode_t __kprobes *get_insn_slot(void)
 		if (kip->nused < INSNS_PER_PAGE) {
 			int i;
 			for (i = 0; i < INSNS_PER_PAGE; i++) {
-				if (!kip->slot_used[i]) {
-					kip->slot_used[i] = 1;
+				if (kip->slot_used[i] == SLOT_CLEAN) {
+					kip->slot_used[i] = SLOT_USED;
 					kip->nused++;
 					return kip->insns + (i * MAX_INSN_SIZE);
 				}
@@ -163,8 +169,8 @@ kprobe_opcode_t __kprobes *get_insn_slot(void)
 	}
 	INIT_HLIST_NODE(&kip->hlist);
 	hlist_add_head(&kip->hlist, &kprobe_insn_pages);
-	memset(kip->slot_used, 0, INSNS_PER_PAGE);
-	kip->slot_used[0] = 1;
+	memset(kip->slot_used, SLOT_CLEAN, INSNS_PER_PAGE);
+	kip->slot_used[0] = SLOT_USED;
 	kip->nused = 1;
 	kip->ngarbage = 0;
 	return kip->insns;
@@ -173,7 +179,7 @@ kprobe_opcode_t __kprobes *get_insn_slot(void)
 /* Return 1 if all garbages are collected, otherwise 0. */
 static int __kprobes collect_one_slot(struct kprobe_insn_page *kip, int idx)
 {
-	kip->slot_used[idx] = 0;
+	kip->slot_used[idx] = SLOT_CLEAN;
 	kip->nused--;
 	if (kip->nused == 0) {
 		/*
@@ -212,7 +218,7 @@ static int __kprobes collect_garbage_slots(void)
 			continue;
 		kip->ngarbage = 0;	/* we will collect all garbages */
 		for (i = 0; i < INSNS_PER_PAGE; i++) {
-			if (kip->slot_used[i] == -1 &&
+			if (kip->slot_used[i] == SLOT_DIRTY &&
 			    collect_one_slot(kip, i))
 				break;
 		}
@@ -232,7 +238,7 @@ void __kprobes free_insn_slot(kprobe_opcode_t * slot, int dirty)
 		    slot < kip->insns + (INSNS_PER_PAGE * MAX_INSN_SIZE)) {
 			int i = (slot - kip->insns) / MAX_INSN_SIZE;
 			if (dirty) {
-				kip->slot_used[i] = -1;
+				kip->slot_used[i] = SLOT_DIRTY;
 				kip->ngarbage++;
 			} else {
 				collect_one_slot(kip, i);

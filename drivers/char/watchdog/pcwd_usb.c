@@ -42,6 +42,7 @@
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
+#include <linux/hid.h>		/* For HID_REQ_SET_REPORT & HID_DT_REPORT */
 
 
 #ifdef CONFIG_USB_DEBUG
@@ -108,10 +109,6 @@ MODULE_DEVICE_TABLE (usb, usb_pcwd_table);
 #define CMD_WRITE_WATCHDOG_TIMEOUT	0x19	/* Write Current Watchdog Time */
 #define CMD_ENABLE_WATCHDOG		0x30	/* Enable / Disable Watchdog */
 #define CMD_DISABLE_WATCHDOG		CMD_ENABLE_WATCHDOG
-
-/* Some defines that I like to be somewhere else like include/linux/usb_hid.h */
-#define HID_REQ_SET_REPORT		0x09
-#define HID_DT_REPORT			(USB_TYPE_CLASS | 0x02)
 
 /* We can only use 1 card due to the /dev/watchdog restriction */
 static int cards_found;

@@ -468,7 +468,7 @@ static int __devinit cpu_enable(unsigned int cpu)
 	return -ENOSYS;
 }
 
-int __devinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu)
 {
 	int c;
 

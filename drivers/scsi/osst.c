@@ -521,10 +521,10 @@ static void osst_init_aux(struct osst_tape * STp, int frame_type, int frame_seq_
 		break;
 	  default: ; /* probably FILL */
 	}
-	aux->filemark_cnt = ntohl(STp->filemark_cnt);
-	aux->phys_fm = ntohl(0xffffffff);
-	aux->last_mark_ppos = ntohl(STp->last_mark_ppos);
-	aux->last_mark_lbn  = ntohl(STp->last_mark_lbn);
+	aux->filemark_cnt = htonl(STp->filemark_cnt);
+	aux->phys_fm = htonl(0xffffffff);
+	aux->last_mark_ppos = htonl(STp->last_mark_ppos);
+	aux->last_mark_lbn  = htonl(STp->last_mark_lbn);
 }
 
 /*
@@ -5777,7 +5777,7 @@ static int osst_probe(struct device *dev)
 	dev_num = i;
 
 	/* allocate a struct osst_tape for this device */
-	tpnt = (struct osst_tape *)kmalloc(sizeof(struct osst_tape), GFP_ATOMIC);
+	tpnt = kmalloc(sizeof(struct osst_tape), GFP_ATOMIC);
 	if (tpnt == NULL) {
 		write_unlock(&os_scsi_tapes_lock);
 		printk(KERN_ERR "osst :E: Can't allocate device descriptor, device not attached.\n");

@@ -1,7 +1,7 @@
 /**
  * inode.c - NTFS kernel inode handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2006 Anton Altaparmakov
+ * Copyright (c) 2001-2007 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -95,7 +95,7 @@ int ntfs_test_inode(struct inode *vi, ntfs_attr *na)
  * If initializing the normal file/directory inode, set @na->type to AT_UNUSED.
  * In that case, @na->name and @na->name_len should be set to NULL and 0,
  * respectively. Although that is not strictly necessary as
- * ntfs_read_inode_locked() will fill them in later.
+ * ntfs_read_locked_inode() will fill them in later.
  *
  * Return 0 on success and -errno on error.
  *
@@ -171,8 +171,8 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi,
 struct inode *ntfs_iget(struct super_block *sb, unsigned long mft_no)
 {
 	struct inode *vi;
-	ntfs_attr na;
 	int err;
+	ntfs_attr na;
 
 	na.mft_no = mft_no;
 	na.type = AT_UNUSED;
@@ -229,8 +229,8 @@ struct inode *ntfs_attr_iget(struct inode *base_vi, ATTR_TYPE type,
 		ntfschar *name, u32 name_len)
 {
 	struct inode *vi;
-	ntfs_attr na;
 	int err;
+	ntfs_attr na;
 
 	/* Make sure no one calls ntfs_attr_iget() for indices. */
 	BUG_ON(type == AT_INDEX_ALLOCATION);
@@ -287,8 +287,8 @@ struct inode *ntfs_index_iget(struct inode *base_vi, ntfschar *name,
 		u32 name_len)
 {
 	struct inode *vi;
-	ntfs_attr na;
 	int err;
+	ntfs_attr na;
 
 	na.mft_no = base_vi->i_ino;
 	na.type = AT_INDEX_ALLOCATION;
@@ -402,7 +402,6 @@ void __ntfs_init_inode(struct super_block *sb, ntfs_inode *ni)
 	ntfs_init_runlist(&ni->attr_list_rl);
 	lockdep_set_class(&ni->attr_list_rl.lock,
 				&attr_list_rl_lock_class);
-	ni->itype.index.bmp_ino = NULL;
 	ni->itype.index.block_size = 0;
 	ni->itype.index.vcn_size = 0;
 	ni->itype.index.collation_rule = 0;
@@ -546,6 +545,7 @@ static int ntfs_read_locked_inode(struct inode *vi)
 {
 	ntfs_volume *vol = NTFS_SB(vi->i_sb);
 	ntfs_inode *ni;
+	struct inode *bvi;
 	MFT_RECORD *m;
 	ATTR_RECORD *a;
 	STANDARD_INFORMATION *si;
@@ -780,7 +780,6 @@ skip_attr_list_load:
 	 */
 	if (S_ISDIR(vi->i_mode)) {
 		loff_t bvi_size;
-		struct inode *bvi;
 		ntfs_inode *bni;
 		INDEX_ROOT *ir;
 		u8 *ir_end, *index_end;
@@ -985,13 +984,12 @@ skip_attr_list_load:
 			err = PTR_ERR(bvi);
 			goto unm_err_out;
 		}
-		ni->itype.index.bmp_ino = bvi;
 		bni = NTFS_I(bvi);
 		if (NInoCompressed(bni) || NInoEncrypted(bni) ||
 				NInoSparse(bni)) {
 			ntfs_error(vi->i_sb, "$BITMAP attribute is compressed "
 					"and/or encrypted and/or sparse.");
-			goto unm_err_out;
+			goto iput_unm_err_out;
 		}
 		/* Consistency check bitmap size vs. index allocation size. */
 		bvi_size = i_size_read(bvi);
@@ -1000,8 +998,10 @@ skip_attr_list_load:
 			ntfs_error(vi->i_sb, "Index bitmap too small (0x%llx) "
 					"for index allocation (0x%llx).",
 					bvi_size << 3, vi->i_size);
-			goto unm_err_out;
+			goto iput_unm_err_out;
 		}
+		/* No longer need the bitmap attribute inode. */
+		iput(bvi);
 skip_large_dir_stuff:
 		/* Setup the operations for this inode. */
 		vi->i_op = &ntfs_dir_inode_ops;
@@ -1176,7 +1176,8 @@ no_data_attr_special_case:
 		vi->i_blocks = ni->allocated_size >> 9;
 	ntfs_debug("Done.");
 	return 0;
-
+iput_unm_err_out:
+	iput(bvi);
 unm_err_out:
 	if (!err)
 		err = -EIO;
@@ -1697,7 +1698,7 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 				vi->i_size);
 		goto iput_unm_err_out;
 	}
-	ni->itype.index.bmp_ino = bvi;
+	iput(bvi);
 skip_large_index_stuff:
 	/* Setup the operations for this index inode. */
 	vi->i_op = NULL;
@@ -1714,7 +1715,6 @@ skip_large_index_stuff:
 
 	ntfs_debug("Done.");
 	return 0;
-
 iput_unm_err_out:
 	iput(bvi);
 unm_err_out:
@@ -2191,37 +2191,6 @@ err_out:
 	return -1;
 }
 
-/**
- * ntfs_put_inode - handler for when the inode reference count is decremented
- * @vi:		vfs inode
- *
- * The VFS calls ntfs_put_inode() every time the inode reference count (i_count)
- * is about to be decremented (but before the decrement itself.
- *
- * If the inode @vi is a directory with two references, one of which is being
- * dropped, we need to put the attribute inode for the directory index bitmap,
- * if it is present, otherwise the directory inode would remain pinned for
- * ever.
- */
-void ntfs_put_inode(struct inode *vi)
-{
-	if (S_ISDIR(vi->i_mode) && atomic_read(&vi->i_count) == 2) {
-		ntfs_inode *ni = NTFS_I(vi);
-		if (NInoIndexAllocPresent(ni)) {
-			struct inode *bvi = NULL;
-			mutex_lock(&vi->i_mutex);
-			if (atomic_read(&vi->i_count) == 2) {
-				bvi = ni->itype.index.bmp_ino;
-				if (bvi)
-					ni->itype.index.bmp_ino = NULL;
-			}
-			mutex_unlock(&vi->i_mutex);
-			if (bvi)
-				iput(bvi);
-		}
-	}
-}
-
 static void __ntfs_clear_inode(ntfs_inode *ni)
 {
 	/* Free all alocated memory. */
@@ -2287,18 +2256,6 @@ void ntfs_clear_big_inode(struct inode *vi)
 {
 	ntfs_inode *ni = NTFS_I(vi);
 
-	/*
-	 * If the inode @vi is an index inode we need to put the attribute
-	 * inode for the index bitmap, if it is present, otherwise the index
-	 * inode would disappear and the attribute inode for the index bitmap
-	 * would no longer be referenced from anywhere and thus it would remain
-	 * pinned for ever.
-	 */
-	if (NInoAttr(ni) && (ni->type == AT_INDEX_ALLOCATION) &&
-			NInoIndexAllocPresent(ni) && ni->itype.index.bmp_ino) {
-		iput(ni->itype.index.bmp_ino);
-		ni->itype.index.bmp_ino = NULL;
-	}
 #ifdef NTFS_RW
 	if (NInoDirty(ni)) {
 		bool was_bad = (is_bad_inode(vi));

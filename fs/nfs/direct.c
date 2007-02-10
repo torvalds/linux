@@ -116,7 +116,7 @@ static inline int put_dreq(struct nfs_direct_req *dreq)
 ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov, loff_t pos, unsigned long nr_segs)
 {
 	dprintk("NFS: nfs_direct_IO (%s) off/no(%Ld/%lu) EINVAL\n",
-			iocb->ki_filp->f_dentry->d_name.name,
+			iocb->ki_filp->f_path.dentry->d_name.name,
 			(long long) pos, nr_segs);
 
 	return -EINVAL;
@@ -734,8 +734,8 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, const struct iovec *iov,
 	size_t count = iov[0].iov_len;
 
 	dprintk("nfs: direct read(%s/%s, %lu@%Ld)\n",
-		file->f_dentry->d_parent->d_name.name,
-		file->f_dentry->d_name.name,
+		file->f_path.dentry->d_parent->d_name.name,
+		file->f_path.dentry->d_name.name,
 		(unsigned long) count, (long long) pos);
 
 	if (nr_segs != 1)
@@ -798,8 +798,8 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	size_t count = iov[0].iov_len;
 
 	dfprintk(VFS, "nfs: direct write(%s/%s, %lu@%Ld)\n",
-		file->f_dentry->d_parent->d_name.name,
-		file->f_dentry->d_name.name,
+		file->f_path.dentry->d_parent->d_name.name,
+		file->f_path.dentry->d_name.name,
 		(unsigned long) count, (long long) pos);
 
 	if (nr_segs != 1)

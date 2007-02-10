@@ -2131,14 +2131,15 @@ static int rtl8139_poll(struct net_device *dev, int *budget)
 	}
 
 	if (done) {
+		unsigned long flags;
 		/*
 		 * Order is important since data can get interrupted
 		 * again when we think we are done.
 		 */
-		local_irq_disable();
+		local_irq_save(flags);
 		RTL_W16_F(IntrMask, rtl8139_intr_mask);
 		__netif_rx_complete(dev);
-		local_irq_enable();
+		local_irq_restore(flags);
 	}
 	spin_unlock(&tp->rx_lock);
 

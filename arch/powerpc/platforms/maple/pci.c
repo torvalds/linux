@@ -425,14 +425,6 @@ static void __init setup_u4_pcie(struct pci_controller* hose)
         hose->cfg_addr = ioremap(0xf0000000 + 0x800000, 0x1000);
         hose->cfg_data = ioremap(0xf0000000 + 0xc00000, 0x1000);
 
-        /* The bus contains a bridge from root -> device, we need to
-         * make it visible on bus 0 so that we pick the right type
-         * of config cycles. If we didn't, we would have to force all
-         * config cycles to be type 1. So we override the "bus-range"
-         * property here
-         */
-        hose->first_busno = 0x00;
-        hose->last_busno = 0xff;
         u4_pcie = hose;
 }
 
@@ -560,13 +552,16 @@ void __init maple_pci_init(void)
 		return;
 	}
 	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;) {
-		if (np->name == NULL)
+		if (!np->type)
 			continue;
-		if (strcmp(np->name, "pci") == 0) {
-			if (add_bridge(np) == 0)
-				of_node_get(np);
-		}
-		if (strcmp(np->name, "ht") == 0) {
+		if (strcmp(np->type, "pci") && strcmp(np->type, "ht"))
+			continue;
+		if ((device_is_compatible(np, "u4-pcie") ||
+		     device_is_compatible(np, "u3-agp")) &&
+		    add_bridge(np) == 0)
+			of_node_get(np);
+
+		if (device_is_compatible(np, "u3-ht")) {
 			of_node_get(np);
 			ht = np;
 		}

@@ -304,6 +304,15 @@ config TASK_XACCT
 
 	  Say N if unsure.
 
+config TASK_IO_ACCOUNTING
+	bool "Enable per-task storage I/O accounting (EXPERIMENTAL)"
+	depends on TASK_XACCT
+	help
+	  Collect information on the number of bytes of storage I/O which this
+	  task has caused.
+
+	  Say N if unsure.
+
 config SYSCTL
 	bool
 
@@ -339,7 +348,7 @@ config SYSCTL_SYSCALL
 	  If unsure say Y here.
 
 config KALLSYMS
-	 bool "Load all symbols for debugging/kksymoops" if EMBEDDED
+	 bool "Load all symbols for debugging/ksymoops" if EMBEDDED
 	 default y
 	 help
 	   Say Y here to let the kernel print out symbolic crash information and
@@ -441,7 +450,7 @@ config SHMEM
 
 config SLAB
 	default y
-	bool "Use full SLAB allocator" if EMBEDDED
+	bool "Use full SLAB allocator" if (EMBEDDED && !SMP && !SPARSEMEM)
 	help
 	  Disabling this replaces the advanced SLAB allocator and
 	  kmalloc support with the drastically simpler SLOB allocator.
@@ -452,10 +461,10 @@ config VM_EVENT_COUNTERS
 	default y
 	bool "Enable VM event counters for /proc/vmstat" if EMBEDDED
 	help
-	  VM event counters are only needed to for event counts to be
-	  shown. They have no function for the kernel itself. This
-	  option allows the disabling of the VM event counters.
-	  /proc/vmstat will only show page counts.
+	  VM event counters are needed for event counts to be shown.
+	  This option allows the disabling of the VM event counters
+	  on EMBEDDED systems.  /proc/vmstat will only show page counts
+	  if VM event counters are disabled.
 
 endmenu		# General setup
 

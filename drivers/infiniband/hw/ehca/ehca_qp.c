@@ -637,7 +637,6 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		struct ipz_queue *ipz_rqueue = &my_qp->ipz_rqueue;
 		struct ipz_queue *ipz_squeue = &my_qp->ipz_squeue;
 		struct ehca_create_qp_resp resp;
-		struct vm_area_struct * vma;
 		memset(&resp, 0, sizeof(resp));
 
 		resp.qp_num = my_qp->real_qp_num;
@@ -651,58 +650,20 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		resp.ipz_rqueue.queue_length = ipz_rqueue->queue_length;
 		resp.ipz_rqueue.pagesize = ipz_rqueue->pagesize;
 		resp.ipz_rqueue.toggle_state = ipz_rqueue->toggle_state;
-		ret = ehca_mmap_nopage(((u64)(my_qp->token) << 32) | 0x22000000,
-				       ipz_rqueue->queue_length,
-				       (void**)&resp.ipz_rqueue.queue,
-				       &vma);
-		if (ret) {
-			ehca_err(pd->device, "Could not mmap rqueue pages");
-			goto create_qp_exit3;
-		}
-		my_qp->uspace_rqueue = resp.ipz_rqueue.queue;
 		/* squeue properties */
 		resp.ipz_squeue.qe_size = ipz_squeue->qe_size;
 		resp.ipz_squeue.act_nr_of_sg = ipz_squeue->act_nr_of_sg;
 		resp.ipz_squeue.queue_length = ipz_squeue->queue_length;
 		resp.ipz_squeue.pagesize = ipz_squeue->pagesize;
 		resp.ipz_squeue.toggle_state = ipz_squeue->toggle_state;
-		ret = ehca_mmap_nopage(((u64)(my_qp->token) << 32) | 0x23000000,
-				       ipz_squeue->queue_length,
-				       (void**)&resp.ipz_squeue.queue,
-				       &vma);
-		if (ret) {
-			ehca_err(pd->device, "Could not mmap squeue pages");
-			goto create_qp_exit4;
-		}
-		my_qp->uspace_squeue = resp.ipz_squeue.queue;
-		/* fw_handle */
-		resp.galpas = my_qp->galpas;
-		ret = ehca_mmap_register(my_qp->galpas.user.fw_handle,
-					 (void**)&resp.galpas.kernel.fw_handle,
-					 &vma);
-		if (ret) {
-			ehca_err(pd->device, "Could not mmap fw_handle");
-			goto create_qp_exit5;
-		}
-		my_qp->uspace_fwh = (u64)resp.galpas.kernel.fw_handle;
-
 		if (ib_copy_to_udata(udata, &resp, sizeof resp)) {
 			ehca_err(pd->device, "Copy to udata failed");
 			ret = -EINVAL;
-			goto create_qp_exit6;
+			goto create_qp_exit3;
 		}
 	}
 
 	return &my_qp->ib_qp;
-
-create_qp_exit6:
-	ehca_munmap(my_qp->uspace_fwh, EHCA_PAGESIZE);
-
-create_qp_exit5:
-	ehca_munmap(my_qp->uspace_squeue, my_qp->ipz_squeue.queue_length);
-
-create_qp_exit4:
-	ehca_munmap(my_qp->uspace_rqueue, my_qp->ipz_rqueue.queue_length);
 
 create_qp_exit3:
 	ipz_queue_dtor(&my_qp->ipz_rqueue);
@@ -807,7 +768,7 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 	unsigned long spl_flags = 0;
 
 	/* do query_qp to obtain current attr values */
-	mqpcb = ehca_alloc_fw_ctrlblock();
+	mqpcb = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!mqpcb) {
 		ehca_err(ibqp->device, "Could not get zeroed page for mqpcb "
 			 "ehca_qp=%p qp_num=%x ", my_qp, ibqp->qp_num);
@@ -931,7 +892,7 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 	     my_qp->qp_type == IB_QPT_SMI) &&
 	    statetrans == IB_QPST_SQE2RTS) {
 		/* mark next free wqe if kernel */
-		if (my_qp->uspace_squeue == 0) {
+		if (!ibqp->uobject) {
 			struct ehca_wqe *wqe;
 			/* lock send queue */
 			spin_lock_irqsave(&my_qp->spinlock_s, spl_flags);
@@ -1273,7 +1234,7 @@ int ehca_query_qp(struct ib_qp *qp,
 		return -EINVAL;
 	}
 
-	qpcb = ehca_alloc_fw_ctrlblock();
+	qpcb = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!qpcb) {
 		ehca_err(qp->device,"Out of memory for qpcb "
 			 "ehca_qp=%p qp_num=%x", my_qp, qp->qp_num);
@@ -1417,11 +1378,18 @@ int ehca_destroy_qp(struct ib_qp *ibqp)
 	enum ib_qp_type	qp_type;
 	unsigned long flags;
 
-	if (my_pd->ib_pd.uobject && my_pd->ib_pd.uobject->context &&
-	    my_pd->ownpid != cur_pid) {
-		ehca_err(ibqp->device, "Invalid caller pid=%x ownpid=%x",
-			 cur_pid, my_pd->ownpid);
-		return -EINVAL;
+	if (ibqp->uobject) {
+		if (my_qp->mm_count_galpa ||
+		    my_qp->mm_count_rqueue || my_qp->mm_count_squeue) {
+			ehca_err(ibqp->device, "Resources still referenced in "
+				 "user space qp_num=%x", ibqp->qp_num);
+			return -EINVAL;
+		}
+		if (my_pd->ownpid != cur_pid) {
+			ehca_err(ibqp->device, "Invalid caller pid=%x ownpid=%x",
+				 cur_pid, my_pd->ownpid);
+			return -EINVAL;
+		}
 	}
 
 	if (my_qp->send_cq) {
@@ -1438,24 +1406,6 @@ int ehca_destroy_qp(struct ib_qp *ibqp)
 	spin_lock_irqsave(&ehca_qp_idr_lock, flags);
 	idr_remove(&ehca_qp_idr, my_qp->token);
 	spin_unlock_irqrestore(&ehca_qp_idr_lock, flags);
-
-	/* un-mmap if vma alloc */
-	if (my_qp->uspace_rqueue) {
-		ret = ehca_munmap(my_qp->uspace_rqueue,
-				  my_qp->ipz_rqueue.queue_length);
-		if (ret)
-			ehca_err(ibqp->device, "Could not munmap rqueue "
-				 "qp_num=%x", qp_num);
-		ret = ehca_munmap(my_qp->uspace_squeue,
-				  my_qp->ipz_squeue.queue_length);
-		if (ret)
-			ehca_err(ibqp->device, "Could not munmap squeue "
-				 "qp_num=%x", qp_num);
-		ret = ehca_munmap(my_qp->uspace_fwh, EHCA_PAGESIZE);
-		if (ret)
-			ehca_err(ibqp->device, "Could not munmap fwh qp_num=%x",
-				 qp_num);
-	}
 
 	h_ret = hipz_h_destroy_qp(shca->ipz_hca_handle, my_qp);
 	if (h_ret != H_SUCCESS) {

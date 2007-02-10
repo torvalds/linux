@@ -93,7 +93,7 @@
  * Functions to READ and WRITE to serial port 1
  */
 #define	SERIAL_READ_1(ofs)		(*((volatile unsigned char*)	\
-					(TITAN_SERIAL_BASE_1 + ofs)
+					(TITAN_SERIAL_BASE_1 + ofs)))
 
 #define	SERIAL_WRITE_1(ofs, val)	((*((volatile unsigned char*)	\
 					(TITAN_SERIAL_BASE_1 + ofs))) = val)

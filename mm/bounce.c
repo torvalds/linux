@@ -237,6 +237,8 @@ static void __blk_queue_bounce(request_queue_t *q, struct bio **bio_orig,
 	if (!bio)
 		return;
 
+	blk_add_trace_bio(q, *bio_orig, BLK_TA_BOUNCE);
+
 	/*
 	 * at least one page was bounced, fill in possible non-highmem
 	 * pages
@@ -290,8 +292,6 @@ void blk_queue_bounce(request_queue_t *q, struct bio **bio_orig)
 		BUG_ON(!isa_page_pool);
 		pool = isa_page_pool;
 	}
-
-	blk_add_trace_bio(q, *bio_orig, BLK_TA_BOUNCE);
 
 	/*
 	 * slow path

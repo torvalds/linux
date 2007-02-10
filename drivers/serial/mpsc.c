@@ -1440,8 +1440,8 @@ mpsc_shutdown(struct uart_port *port)
 }
 
 static void
-mpsc_set_termios(struct uart_port *port, struct termios *termios,
-		 struct termios *old)
+mpsc_set_termios(struct uart_port *port, struct ktermios *termios,
+		 struct ktermios *old)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
 	u32 baud;

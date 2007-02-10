@@ -1211,7 +1211,7 @@ HFCPCI_l1hw(struct PStack *st, int pr, void *arg)
 			break;
 		case (HW_TESTLOOP | REQUEST):
 			spin_lock_irqsave(&cs->lock, flags);
-			switch ((int) arg) {
+			switch ((long) arg) {
 				case (1):
 					Write_hfc(cs, HFCPCI_B1_SSL, 0x80);	/* tx slot */
 					Write_hfc(cs, HFCPCI_B1_RSL, 0x80);	/* rx slot */
@@ -1229,7 +1229,7 @@ HFCPCI_l1hw(struct PStack *st, int pr, void *arg)
 				default:
 					spin_unlock_irqrestore(&cs->lock, flags);
 					if (cs->debug & L1_DEB_WARN)
-						debugl1(cs, "hfcpci_l1hw loop invalid %4x", (int) arg);
+						debugl1(cs, "hfcpci_l1hw loop invalid %4lx", (long) arg);
 					return;
 			}
 			cs->hw.hfcpci.trm |= 0x80;	/* enable IOM-loop */
@@ -1711,9 +1711,9 @@ setup_hfcpci(struct IsdnCard *card)
 		pci_write_config_dword(cs->hw.hfcpci.dev, 0x80, (u_int) virt_to_bus(cs->hw.hfcpci.fifos));
 		cs->hw.hfcpci.pci_io = ioremap((ulong) cs->hw.hfcpci.pci_io, 256);
 		printk(KERN_INFO
-		       "HFC-PCI: defined at mem %#x fifo %#x(%#x) IRQ %d HZ %d\n",
-		       (u_int) cs->hw.hfcpci.pci_io,
-		       (u_int) cs->hw.hfcpci.fifos,
+		       "HFC-PCI: defined at mem %p fifo %p(%#x) IRQ %d HZ %d\n",
+		       cs->hw.hfcpci.pci_io,
+		       cs->hw.hfcpci.fifos,
 		       (u_int) virt_to_bus(cs->hw.hfcpci.fifos),
 		       cs->irq, HZ);
 		spin_lock_irqsave(&cs->lock, flags);

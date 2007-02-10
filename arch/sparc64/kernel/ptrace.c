@@ -202,7 +202,10 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 #endif
 	if (request == PTRACE_TRACEME) {
 		ret = ptrace_traceme();
-		pt_succ_return(regs, 0);
+		if (ret < 0)
+			pt_error_return(regs, -ret);
+		else
+			pt_succ_return(regs, 0);
 		goto out;
 	}
 

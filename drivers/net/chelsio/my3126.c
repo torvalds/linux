@@ -10,25 +10,25 @@ static int my3126_reset(struct cphy *cphy, int wait)
 	 * This can be done through registers.  It is not required since
 	 * a full chip reset is used.
 	 */
-	return (0);
+	return 0;
 }
 
 static int my3126_interrupt_enable(struct cphy *cphy)
 {
 	schedule_delayed_work(&cphy->phy_update, HZ/30);
 	t1_tpi_read(cphy->adapter, A_ELMER0_GPO, &cphy->elmer_gpo);
-	return (0);
+	return 0;
 }
 
 static int my3126_interrupt_disable(struct cphy *cphy)
 {
 	cancel_rearming_delayed_work(&cphy->phy_update);
-	return (0);
+	return 0;
 }
 
 static int my3126_interrupt_clear(struct cphy *cphy)
 {
-	return (0);
+	return 0;
 }
 
 #define OFFSET(REG_ADDR)    (REG_ADDR << 2)
@@ -102,7 +102,7 @@ static void my3216_poll(struct work_struct *work)
 
 static int my3126_set_loopback(struct cphy *cphy, int on)
 {
-	return (0);
+	return 0;
 }
 
 /* To check the activity LED */
@@ -146,7 +146,7 @@ static int my3126_get_link_status(struct cphy *cphy,
 	if (fc)
 		*fc = PAUSE_RX | PAUSE_TX;
 
-	return (0);
+	return 0;
 }
 
 static void my3126_destroy(struct cphy *cphy)
@@ -170,13 +170,14 @@ static struct cphy *my3126_phy_create(adapter_t *adapter,
 {
 	struct cphy *cphy = kzalloc(sizeof (*cphy), GFP_KERNEL);
 
-	if (cphy)
-		cphy_init(cphy, adapter, phy_addr, &my3126_ops, mdio_ops);
+	if (!cphy)
+		return NULL;
 
+	cphy_init(cphy, adapter, phy_addr, &my3126_ops, mdio_ops);
 	INIT_DELAYED_WORK(&cphy->phy_update, my3216_poll);
 	cphy->bmsr = 0;
 
-	return (cphy);
+	return cphy;
 }
 
 /* Chip Reset */
@@ -197,7 +198,7 @@ static int my3126_phy_reset(adapter_t * adapter)
 	val |= 0x8000;
 	t1_tpi_write(adapter, A_ELMER0_GPO, val);
 	udelay(100);
-	return (0);
+	return 0;
 }
 
 struct gphy t1_my3126_ops = {

@@ -164,7 +164,7 @@ irport_open(int i, unsigned int iobase, unsigned int irq)
 	
 	/* Allocate memory if needed */
 	if (self->tx_buff.truesize > 0) {
-		self->tx_buff.head = (__u8 *) kmalloc(self->tx_buff.truesize, 
+		self->tx_buff.head = kmalloc(self->tx_buff.truesize,
 						      GFP_KERNEL);
 		if (self->tx_buff.head == NULL) {
 			IRDA_ERROR("%s(), can't allocate memory for "

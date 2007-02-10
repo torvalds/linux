@@ -185,7 +185,7 @@ void diva_log_info(unsigned char *format, ...)
 	unsigned char line[160];
 
 	va_start(args, format);
-	vsprintf(line, format, args);
+	vsnprintf(line, sizeof(line), format, args);
 	va_end(args);
 
 	printk(KERN_INFO "%s: %s\n", DRIVERLNAME, line);

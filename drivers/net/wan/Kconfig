@@ -235,6 +235,19 @@ comment "Cyclades-PC300 MLPPP support is disabled."
 comment "Refer to the file README.mlppp, provided by PC300 package."
 	depends on WAN && HDLC && PC300 && (PPP=n || !PPP_MULTILINK || PPP_SYNC_TTY=n || !HDLC_PPP)
 
+config PC300TOO
+	tristate "Cyclades PC300 RSV/X21 alternative support"
+	depends on HDLC && PCI
+	help
+	  Alternative driver for PC300 RSV/X21 PCI cards made by
+	  Cyclades, Inc. If you have such a card, say Y here and see
+	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
+
+	  To compile this as a module, choose M here: the module
+	  will be called pc300too.
+
+	  If unsure, say N here.
+
 config N2
 	tristate "SDL RISCom/N2 support"
 	depends on HDLC && ISA
@@ -344,17 +357,6 @@ config DLCI
 	  To compile this driver as a module, choose M here: the
 	  module will be called dlci.
 
-config DLCI_COUNT
-	int "Max open DLCI"
-	depends on DLCI
-	default "24"
-	help
-	  Maximal number of logical point-to-point frame relay connections
-	  (the identifiers of which are called DCLIs) that the driver can
-	  handle.
-
-	  The default is probably fine.
-
 config DLCI_MAX
 	int "Max DLCI per device"
 	depends on DLCI
@@ -382,7 +384,7 @@ config SDLA
 
 # Wan router core.
 config WAN_ROUTER_DRIVERS
-	bool "WAN router drivers"
+	tristate "WAN router drivers"
 	depends on WAN && WAN_ROUTER
 	---help---
 	  Connect LAN to WAN via Linux box.
@@ -393,7 +395,8 @@ config WAN_ROUTER_DRIVERS
 	  <file:Documentation/networking/wan-router.txt>.
 
 	  Note that the answer to this question won't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
+	  kernel except for how subordinate drivers may be built:
+	  saying N will just cause the configurator to skip all
 	  the questions about WAN router drivers.
 
 	  If unsure, say N.

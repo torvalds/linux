@@ -79,7 +79,7 @@ struct sock *__inet6_lookup_established(struct inet_hashinfo *hashinfo,
 			goto hit; /* You sunk my battleship! */
 	}
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_for_each(sk, node, &(head + hashinfo->ehash_size)->chain) {
+	sk_for_each(sk, node, &head->twchain) {
 		const struct inet_timewait_sock *tw = inet_twsk(sk);
 
 		if(*((__portpair *)&(tw->tw_dport))	== ports	&&
@@ -183,7 +183,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	write_lock(&head->lock);
 
 	/* Check TIME-WAIT sockets first. */
-	sk_for_each(sk2, node, &(head + hinfo->ehash_size)->chain) {
+	sk_for_each(sk2, node, &head->twchain) {
 		const struct inet6_timewait_sock *tw6 = inet6_twsk(sk2);
 
 		tw = inet_twsk(sk2);

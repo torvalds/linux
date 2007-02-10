@@ -15,7 +15,9 @@
 #include <linux/module.h>
 #include <linux/bootmem.h>
 #include <linux/ctype.h>
+#include <linux/ioport.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 #include <asm/ebcdic.h>
 #include <asm/errno.h>
 #include <asm/extmem.h>
@@ -69,6 +71,7 @@ struct qin64 {
 struct dcss_segment {
 	struct list_head list;
 	char dcss_name[8];
+	char res_name[15];
 	unsigned long start_addr;
 	unsigned long end;
 	atomic_t ref_count;
@@ -76,6 +79,7 @@ struct dcss_segment {
 	unsigned int vm_segtype;
 	struct qrange range[6];
 	int segcnt;
+	struct resource *res;
 };
 
 static DEFINE_MUTEX(dcss_lock);
@@ -87,7 +91,7 @@ static char *segtype_string[] = { "SW", "EW", "SR", "ER", "SN", "EN", "SC",
  * Create the 8 bytes, ebcdic VM segment name from
  * an ascii name.
  */
-static void inline
+static void
 dcss_mkname(char *name, char *dcss_name)
 {
 	int i;
@@ -238,65 +242,6 @@ query_segment_type (struct dcss_segment *seg)
 }
 
 /*
- * check if the given segment collides with guest storage.
- * returns 1 if this is the case, 0 if no collision was found
- */
-static int
-segment_overlaps_storage(struct dcss_segment *seg)
-{
-	int i;
-
-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
-		if (memory_chunk[i].type != CHUNK_READ_WRITE)
-			continue;
-		if ((memory_chunk[i].addr >> 20) > (seg->end >> 20))
-			continue;
-		if (((memory_chunk[i].addr + memory_chunk[i].size - 1) >> 20)
-				< (seg->start_addr >> 20))
-			continue;
-		return 1;
-	}
-	return 0;
-}
-
-/*
- * check if segment collides with other segments that are currently loaded
- * returns 1 if this is the case, 0 if no collision was found
- */
-static int
-segment_overlaps_others (struct dcss_segment *seg)
-{
-	struct list_head *l;
-	struct dcss_segment *tmp;
-
-	BUG_ON(!mutex_is_locked(&dcss_lock));
-	list_for_each(l, &dcss_list) {
-		tmp = list_entry(l, struct dcss_segment, list);
-		if ((tmp->start_addr >> 20) > (seg->end >> 20))
-			continue;
-		if ((tmp->end >> 20) < (seg->start_addr >> 20))
-			continue;
-		if (seg == tmp)
-			continue;
-		return 1;
-	}
-	return 0;
-}
-
-/*
- * check if segment exceeds the kernel mapping range (detected or set via mem=)
- * returns 1 if this is the case, 0 if segment fits into the range
- */
-static inline int
-segment_exceeds_range (struct dcss_segment *seg)
-{
-	int seg_last_pfn = (seg->end) >> PAGE_SHIFT;
-	if (seg_last_pfn > max_pfn)
-		return 1;
-	return 0;
-}
-
-/*
  * get info about a segment
  * possible return values:
  * -ENOSYS  : we are not running on VM
@@ -341,24 +286,49 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	rc = query_segment_type (seg);
 	if (rc < 0)
 		goto out_free;
-	if (segment_exceeds_range(seg)) {
-		PRINT_WARN ("segment_load: not loading segment %s - exceeds"
-				" kernel mapping range\n",name);
-		rc = -ERANGE;
+
+	rc = add_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
+
+	switch (rc) {
+	case 0:
+		break;
+	case -ENOSPC:
+		PRINT_WARN("segment_load: not loading segment %s - overlaps "
+			   "storage/segment\n", name);
+		goto out_free;
+	case -ERANGE:
+		PRINT_WARN("segment_load: not loading segment %s - exceeds "
+			   "kernel mapping range\n", name);
+		goto out_free;
+	default:
+		PRINT_WARN("segment_load: not loading segment %s (rc: %d)\n",
+			   name, rc);
 		goto out_free;
 	}
-	if (segment_overlaps_storage(seg)) {
-		PRINT_WARN ("segment_load: not loading segment %s - overlaps"
-				" storage\n",name);
-		rc = -ENOSPC;
-		goto out_free;
+
+	seg->res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	if (seg->res == NULL) {
+		rc = -ENOMEM;
+		goto out_shared;
 	}
-	if (segment_overlaps_others(seg)) {
-		PRINT_WARN ("segment_load: not loading segment %s - overlaps"
-				" other segments\n",name);
+	seg->res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
+	seg->res->start = seg->start_addr;
+	seg->res->end = seg->end;
+	memcpy(&seg->res_name, seg->dcss_name, 8);
+	EBCASC(seg->res_name, 8);
+	seg->res_name[8] = '\0';
+	strncat(seg->res_name, " (DCSS)", 7);
+	seg->res->name = seg->res_name;
+	rc = seg->vm_segtype;
+	if (rc == SEG_TYPE_SC ||
+	    ((rc == SEG_TYPE_SR || rc == SEG_TYPE_ER) && !do_nonshared))
+		seg->res->flags |= IORESOURCE_READONLY;
+	if (request_resource(&iomem_resource, seg->res)) {
 		rc = -EBUSY;
-		goto out_free;
+		kfree(seg->res);
+		goto out_shared;
 	}
+
 	if (do_nonshared)
 		dcss_command = DCSS_LOADNSR;
 	else
@@ -372,12 +342,11 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 		rc = dcss_diag_translate_rc (seg->end);
 		dcss_diag(DCSS_PURGESEG, seg->dcss_name,
 				&seg->start_addr, &seg->end);
-		goto out_free;
+		goto out_resource;
 	}
 	seg->do_nonshared = do_nonshared;
 	atomic_set(&seg->ref_count, 1);
 	list_add(&seg->list, &dcss_list);
-	rc = seg->vm_segtype;
 	*addr = seg->start_addr;
 	*end  = seg->end;
 	if (do_nonshared)
@@ -385,12 +354,18 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 				"type %s in non-shared mode\n", name,
 				(void*)seg->start_addr, (void*)seg->end,
 				segtype_string[seg->vm_segtype]);
-	else
+	else {
 		PRINT_INFO ("segment_load: loaded segment %s range %p .. %p "
 				"type %s in shared mode\n", name,
 				(void*)seg->start_addr, (void*)seg->end,
 				segtype_string[seg->vm_segtype]);
+	}
 	goto out;
+ out_resource:
+	release_resource(seg->res);
+	kfree(seg->res);
+ out_shared:
+	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
  out_free:
 	kfree(seg);
  out:
@@ -455,6 +430,7 @@ segment_load (char *name, int do_nonshared, unsigned long *addr,
  * -ENOENT  : no such segment (segment gone!)
  * -EAGAIN  : segment is in use by other exploiters, try later
  * -EINVAL  : no segment with the given name is currently loaded - name invalid
+ * -EBUSY   : segment can temporarily not be used (overlaps with dcss)
  * 0	    : operation succeeded
  */
 int
@@ -482,12 +458,24 @@ segment_modify_shared (char *name, int do_nonshared)
 		rc = -EAGAIN;
 		goto out_unlock;
 	}
-	dcss_diag(DCSS_PURGESEG, seg->dcss_name,
-		  &dummy, &dummy);
-	if (do_nonshared)
+	release_resource(seg->res);
+	if (do_nonshared) {
 		dcss_command = DCSS_LOADNSR;
-	else
-	dcss_command = DCSS_LOADNOLY;
+		seg->res->flags &= ~IORESOURCE_READONLY;
+	} else {
+		dcss_command = DCSS_LOADNOLY;
+		if (seg->vm_segtype == SEG_TYPE_SR ||
+		    seg->vm_segtype == SEG_TYPE_ER)
+			seg->res->flags |= IORESOURCE_READONLY;
+	}
+	if (request_resource(&iomem_resource, seg->res)) {
+		PRINT_WARN("segment_modify_shared: could not reload segment %s"
+			   " - overlapping resources\n", name);
+		rc = -EBUSY;
+		kfree(seg->res);
+		goto out_del;
+	}
+	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
 	diag_cc = dcss_diag(dcss_command, seg->dcss_name,
 			&seg->start_addr, &seg->end);
 	if (diag_cc > 1) {
@@ -500,9 +488,9 @@ segment_modify_shared (char *name, int do_nonshared)
 	rc = 0;
 	goto out_unlock;
  out_del:
+	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
 	list_del(&seg->list);
-	dcss_diag(DCSS_PURGESEG, seg->dcss_name,
-		  &dummy, &dummy);
+	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
 	kfree(seg);
  out_unlock:
 	mutex_unlock(&dcss_lock);
@@ -530,12 +518,14 @@ segment_unload(char *name)
 				"please report to linux390@de.ibm.com\n",name);
 		goto out_unlock;
 	}
-	if (atomic_dec_return(&seg->ref_count) == 0) {
-		list_del(&seg->list);
-		dcss_diag(DCSS_PURGESEG, seg->dcss_name,
-			  &dummy, &dummy);
-		kfree(seg);
-	}
+	if (atomic_dec_return(&seg->ref_count) != 0)
+		goto out_unlock;
+	release_resource(seg->res);
+	kfree(seg->res);
+	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
+	list_del(&seg->list);
+	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
+	kfree(seg);
 out_unlock:
 	mutex_unlock(&dcss_lock);
 }

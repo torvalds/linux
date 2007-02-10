@@ -28,11 +28,7 @@ static inline unsigned long virt_to_phys(volatile void * address)
 {
 	unsigned long real_address;
 	asm volatile(
-#ifndef __s390x__
 		 "	lra	%0,0(%1)\n"
-#else /* __s390x__ */
-		 "	lrag	%0,0(%1)\n"
-#endif /* __s390x__ */
 		 "	jz	0f\n"
 		 "	la	%0,0\n"
                  "0:"

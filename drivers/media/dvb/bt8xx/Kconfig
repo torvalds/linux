@@ -1,13 +1,13 @@
 config DVB_BT8XX
 	tristate "BT8xx based PCI cards"
 	depends on DVB_CORE && PCI && I2C && VIDEO_BT848
-	select DVB_PLL
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select DVB_SP887X if !DVB_FE_CUSTOMISE
 	select DVB_NXT6000 if !DVB_FE_CUSTOMISE
 	select DVB_CX24110 if !DVB_FE_CUSTOMISE
 	select DVB_OR51211 if !DVB_FE_CUSTOMISE
 	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
+	select DVB_TUNER_LGH06XF if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help

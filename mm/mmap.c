@@ -188,7 +188,7 @@ static void __remove_shared_vm_struct(struct vm_area_struct *vma,
 		struct file *file, struct address_space *mapping)
 {
 	if (vma->vm_flags & VM_DENYWRITE)
-		atomic_inc(&file->f_dentry->d_inode->i_writecount);
+		atomic_inc(&file->f_path.dentry->d_inode->i_writecount);
 	if (vma->vm_flags & VM_SHARED)
 		mapping->i_mmap_writable--;
 
@@ -399,7 +399,7 @@ static inline void __vma_link_file(struct vm_area_struct *vma)
 		struct address_space *mapping = file->f_mapping;
 
 		if (vma->vm_flags & VM_DENYWRITE)
-			atomic_dec(&file->f_dentry->d_inode->i_writecount);
+			atomic_dec(&file->f_path.dentry->d_inode->i_writecount);
 		if (vma->vm_flags & VM_SHARED)
 			mapping->i_mmap_writable++;
 
@@ -907,7 +907,7 @@ unsigned long do_mmap_pgoff(struct file * file, unsigned long addr,
 	 *  mounted, in which case we dont add PROT_EXEC.)
 	 */
 	if ((prot & PROT_READ) && (current->personality & READ_IMPLIES_EXEC))
-		if (!(file && (file->f_vfsmnt->mnt_flags & MNT_NOEXEC)))
+		if (!(file && (file->f_path.mnt->mnt_flags & MNT_NOEXEC)))
 			prot |= PROT_EXEC;
 
 	if (!len)
@@ -960,7 +960,7 @@ unsigned long do_mmap_pgoff(struct file * file, unsigned long addr,
 			return -EAGAIN;
 	}
 
-	inode = file ? file->f_dentry->d_inode : NULL;
+	inode = file ? file->f_path.dentry->d_inode : NULL;
 
 	if (file) {
 		switch (flags & MAP_TYPE) {
@@ -989,7 +989,7 @@ unsigned long do_mmap_pgoff(struct file * file, unsigned long addr,
 		case MAP_PRIVATE:
 			if (!(file->f_mode & FMODE_READ))
 				return -EACCES;
-			if (file->f_vfsmnt->mnt_flags & MNT_NOEXEC) {
+			if (file->f_path.mnt->mnt_flags & MNT_NOEXEC) {
 				if (vm_flags & VM_EXEC)
 					return -EPERM;
 				vm_flags &= ~VM_MAYEXEC;
@@ -1477,6 +1477,7 @@ static int acct_stack_growth(struct vm_area_struct * vma, unsigned long size, un
 {
 	struct mm_struct *mm = vma->vm_mm;
 	struct rlimit *rlim = current->signal->rlim;
+	unsigned long new_start;
 
 	/* address space limit tests */
 	if (!may_expand_vm(mm, grow))
@@ -1495,6 +1496,12 @@ static int acct_stack_growth(struct vm_area_struct * vma, unsigned long size, un
 		if (locked > limit && !capable(CAP_IPC_LOCK))
 			return -ENOMEM;
 	}
+
+	/* Check to ensure the stack will not grow into a hugetlb-only region */
+	new_start = (vma->vm_flags & VM_GROWSUP) ? vma->vm_start :
+			vma->vm_end - size;
+	if (is_hugepage_only_range(vma->vm_mm, new_start, size))
+		return -EFAULT;
 
 	/*
 	 * Overcommit..  This must be the final test, as it will
@@ -2093,4 +2100,76 @@ int may_expand_vm(struct mm_struct *mm, unsigned long npages)
 	if (cur + npages > lim)
 		return 0;
 	return 1;
+}
+
+
+static struct page *special_mapping_nopage(struct vm_area_struct *vma,
+					   unsigned long address, int *type)
+{
+	struct page **pages;
+
+	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+
+	address -= vma->vm_start;
+	for (pages = vma->vm_private_data; address > 0 && *pages; ++pages)
+		address -= PAGE_SIZE;
+
+	if (*pages) {
+		struct page *page = *pages;
+		get_page(page);
+		return page;
+	}
+
+	return NOPAGE_SIGBUS;
+}
+
+/*
+ * Having a close hook prevents vma merging regardless of flags.
+ */
+static void special_mapping_close(struct vm_area_struct *vma)
+{
+}
+
+static struct vm_operations_struct special_mapping_vmops = {
+	.close = special_mapping_close,
+	.nopage	= special_mapping_nopage,
+};
+
+/*
+ * Called with mm->mmap_sem held for writing.
+ * Insert a new vma covering the given region, with the given flags.
+ * Its pages are supplied by the given array of struct page *.
+ * The array can be shorter than len >> PAGE_SHIFT if it's null-terminated.
+ * The region past the last page supplied will always produce SIGBUS.
+ * The array pointer and the pages it points to are assumed to stay alive
+ * for as long as this mapping might exist.
+ */
+int install_special_mapping(struct mm_struct *mm,
+			    unsigned long addr, unsigned long len,
+			    unsigned long vm_flags, struct page **pages)
+{
+	struct vm_area_struct *vma;
+
+	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+	if (unlikely(vma == NULL))
+		return -ENOMEM;
+
+	vma->vm_mm = mm;
+	vma->vm_start = addr;
+	vma->vm_end = addr + len;
+
+	vma->vm_flags = vm_flags | mm->def_flags;
+	vma->vm_page_prot = protection_map[vma->vm_flags & 7];
+
+	vma->vm_ops = &special_mapping_vmops;
+	vma->vm_private_data = pages;
+
+	if (unlikely(insert_vm_struct(mm, vma))) {
+		kmem_cache_free(vm_area_cachep, vma);
+		return -ENOMEM;
+	}
+
+	mm->total_vm += len >> PAGE_SHIFT;
+
+	return 0;
 }

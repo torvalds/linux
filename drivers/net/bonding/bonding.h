@@ -22,8 +22,8 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define DRV_VERSION	"3.1.1"
-#define DRV_RELDATE	"September 26, 2006"
+#define DRV_VERSION	"3.1.2"
+#define DRV_RELDATE	"January 20, 2007"
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
@@ -151,8 +151,8 @@ struct slave {
 	struct slave *next;
 	struct slave *prev;
 	int    delay;
-	u32    jiffies;
-	u32    last_arp_rx;
+	unsigned long jiffies;
+	unsigned long last_arp_rx;
 	s8     link;    /* one of BOND_LINK_XXXX */
 	s8     state;   /* one of BOND_STATE_XXXX */
 	u32    original_flags;
@@ -237,12 +237,14 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 #define BOND_ARP_VALIDATE_ALL		(BOND_ARP_VALIDATE_ACTIVE | \
 					 BOND_ARP_VALIDATE_BACKUP)
 
-extern inline int slave_do_arp_validate(struct bonding *bond, struct slave *slave)
+static inline int slave_do_arp_validate(struct bonding *bond,
+					struct slave *slave)
 {
 	return bond->params.arp_validate & (1 << slave->state);
 }
 
-extern inline u32 slave_last_rx(struct bonding *bond, struct slave *slave)
+static inline unsigned long slave_last_rx(struct bonding *bond,
+					struct slave *slave)
 {
 	if (slave_do_arp_validate(bond, slave))
 		return slave->last_arp_rx;

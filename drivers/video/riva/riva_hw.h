@@ -463,7 +463,6 @@ typedef struct _riva_hw_inst
      * Common chip functions.
      */
     int  (*Busy)(struct _riva_hw_inst *);
-    void (*CalcStateExt)(struct _riva_hw_inst *,struct _riva_hw_state *,int,int,int,int,int);
     void (*LoadStateExt)(struct _riva_hw_inst *,struct _riva_hw_state *);
     void (*UnloadStateExt)(struct _riva_hw_inst *,struct _riva_hw_state *);
     void (*SetStartAddress)(struct _riva_hw_inst *,U032);
@@ -528,6 +527,22 @@ typedef struct _riva_hw_state
     U032 pitch2;
     U032 pitch3;
 } RIVA_HW_STATE;
+
+/*
+ * function prototypes
+ */
+
+extern int CalcStateExt
+(
+    RIVA_HW_INST  *chip,
+    RIVA_HW_STATE *state,
+    int            bpp,
+    int            width,
+    int            hDisplaySize,
+    int            height,
+    int            dotClock
+);
+
 /*
  * External routines.
  */

@@ -38,6 +38,8 @@
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/pfn.h>
+#include <linux/ctype.h>
+#include <linux/reboot.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -49,6 +51,14 @@
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/sections.h>
+#include <asm/ebcdic.h>
+#include <asm/compat.h>
+
+long psw_kernel_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_PRIMARY |
+			   PSW_MASK_MCHECK | PSW_DEFAULT_KEY);
+long psw_user_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME |
+			   PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
+			   PSW_MASK_PSTATE | PSW_DEFAULT_KEY);
 
 /*
  * User copy operations.
@@ -64,9 +74,8 @@ unsigned int console_devno = -1;
 unsigned int console_irq = -1;
 unsigned long machine_flags = 0;
 
-struct mem_chunk memory_chunk[MEMORY_CHUNKS];
+struct mem_chunk __initdata memory_chunk[MEMORY_CHUNKS];
 volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
-unsigned long __initdata zholes_size[MAX_NR_ZONES];
 static unsigned long __initdata memory_end;
 
 /*
@@ -118,9 +127,9 @@ void __devinit cpu_init (void)
  */
 char vmhalt_cmd[128] = "";
 char vmpoff_cmd[128] = "";
-char vmpanic_cmd[128] = "";
+static char vmpanic_cmd[128] = "";
 
-static inline void strncpy_skip_quote(char *dst, char *src, int n)
+static void strncpy_skip_quote(char *dst, char *src, int n)
 {
         int sx, dx;
 
@@ -276,10 +285,6 @@ static void __init conmode_default(void)
 }
 
 #ifdef CONFIG_SMP
-extern void machine_restart_smp(char *);
-extern void machine_halt_smp(void);
-extern void machine_power_off_smp(void);
-
 void (*_machine_restart)(char *command) = machine_restart_smp;
 void (*_machine_halt)(void) = machine_halt_smp;
 void (*_machine_power_off)(void) = machine_power_off_smp;
@@ -354,21 +359,6 @@ void machine_power_off(void)
  */
 void (*pm_power_off)(void) = machine_power_off;
 
-static void __init
-add_memory_hole(unsigned long start, unsigned long end)
-{
-	unsigned long dma_pfn = MAX_DMA_ADDRESS >> PAGE_SHIFT;
-
-	if (end <= dma_pfn)
-		zholes_size[ZONE_DMA] += end - start + 1;
-	else if (start > dma_pfn)
-		zholes_size[ZONE_NORMAL] += end - start + 1;
-	else {
-		zholes_size[ZONE_DMA] += dma_pfn - start + 1;
-		zholes_size[ZONE_NORMAL] += end - dma_pfn;
-	}
-}
-
 static int __init early_parse_mem(char *p)
 {
 	memory_end = memparse(p, &p);
@@ -402,6 +392,84 @@ static int __init early_parse_ipldelay(char *p)
 }
 early_param("ipldelay", early_parse_ipldelay);
 
+#ifdef CONFIG_S390_SWITCH_AMODE
+unsigned int switch_amode = 0;
+EXPORT_SYMBOL_GPL(switch_amode);
+
+static void set_amode_and_uaccess(unsigned long user_amode,
+				  unsigned long user32_amode)
+{
+	psw_user_bits = PSW_BASE_BITS | PSW_MASK_DAT | user_amode |
+			PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
+			PSW_MASK_PSTATE | PSW_DEFAULT_KEY;
+#ifdef CONFIG_COMPAT
+	psw_user32_bits = PSW_BASE32_BITS | PSW_MASK_DAT | user_amode |
+			  PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
+			  PSW_MASK_PSTATE | PSW_DEFAULT_KEY;
+	psw32_user_bits = PSW32_BASE_BITS | PSW32_MASK_DAT | user32_amode |
+			  PSW32_MASK_IO | PSW32_MASK_EXT | PSW32_MASK_MCHECK |
+			  PSW32_MASK_PSTATE;
+#endif
+	psw_kernel_bits = PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME |
+			  PSW_MASK_MCHECK | PSW_DEFAULT_KEY;
+
+	if (MACHINE_HAS_MVCOS) {
+		printk("mvcos available.\n");
+		memcpy(&uaccess, &uaccess_mvcos_switch, sizeof(uaccess));
+	} else {
+		printk("mvcos not available.\n");
+		memcpy(&uaccess, &uaccess_pt, sizeof(uaccess));
+	}
+}
+
+/*
+ * Switch kernel/user addressing modes?
+ */
+static int __init early_parse_switch_amode(char *p)
+{
+	switch_amode = 1;
+	return 0;
+}
+early_param("switch_amode", early_parse_switch_amode);
+
+#else /* CONFIG_S390_SWITCH_AMODE */
+static inline void set_amode_and_uaccess(unsigned long user_amode,
+					 unsigned long user32_amode)
+{
+}
+#endif /* CONFIG_S390_SWITCH_AMODE */
+
+#ifdef CONFIG_S390_EXEC_PROTECT
+unsigned int s390_noexec = 0;
+EXPORT_SYMBOL_GPL(s390_noexec);
+
+/*
+ * Enable execute protection?
+ */
+static int __init early_parse_noexec(char *p)
+{
+	if (!strncmp(p, "off", 3))
+		return 0;
+	switch_amode = 1;
+	s390_noexec = 1;
+	return 0;
+}
+early_param("noexec", early_parse_noexec);
+#endif /* CONFIG_S390_EXEC_PROTECT */
+
+static void setup_addressing_mode(void)
+{
+	if (s390_noexec) {
+		printk("S390 execute protection active, ");
+		set_amode_and_uaccess(PSW_ASC_SECONDARY, PSW32_ASC_SECONDARY);
+		return;
+	}
+	if (switch_amode) {
+		printk("S390 address spaces switched, ");
+		set_amode_and_uaccess(PSW_ASC_PRIMARY, PSW32_ASC_PRIMARY);
+	}
+}
+
 static void __init
 setup_lowcore(void)
 {
@@ -418,19 +486,21 @@ setup_lowcore(void)
 	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
-	lc->external_new_psw.mask = PSW_KERNEL_BITS;
+	if (switch_amode)
+		lc->restart_psw.mask |= PSW_ASC_HOME;
+	lc->external_new_psw.mask = psw_kernel_bits;
 	lc->external_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_IO | PSW_MASK_EXT;
+	lc->svc_new_psw.mask = psw_kernel_bits | PSW_MASK_IO | PSW_MASK_EXT;
 	lc->svc_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) system_call;
-	lc->program_new_psw.mask = PSW_KERNEL_BITS;
+	lc->program_new_psw.mask = psw_kernel_bits;
 	lc->program_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long)pgm_check_handler;
 	lc->mcck_new_psw.mask =
-		PSW_KERNEL_BITS & ~PSW_MASK_MCHECK & ~PSW_MASK_DAT;
+		psw_kernel_bits & ~PSW_MASK_MCHECK & ~PSW_MASK_DAT;
 	lc->mcck_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = PSW_KERNEL_BITS;
+	lc->io_new_psw.mask = psw_kernel_bits;
 	lc->io_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) io_int_handler;
 	lc->ipl_device = S390_lowcore.ipl_device;
 	lc->jiffy_timer = -1LL;
@@ -455,7 +525,7 @@ setup_lowcore(void)
 static void __init
 setup_resources(void)
 {
-	struct resource *res;
+	struct resource *res, *sub_res;
 	int i;
 
 	code_resource.start = (unsigned long) &_text;
@@ -480,8 +550,38 @@ setup_resources(void)
 		res->start = memory_chunk[i].addr;
 		res->end = memory_chunk[i].addr +  memory_chunk[i].size - 1;
 		request_resource(&iomem_resource, res);
-		request_resource(res, &code_resource);
-		request_resource(res, &data_resource);
+
+		if (code_resource.start >= res->start  &&
+			code_resource.start <= res->end &&
+			code_resource.end > res->end) {
+			sub_res = alloc_bootmem_low(sizeof(struct resource));
+			memcpy(sub_res, &code_resource,
+				sizeof(struct resource));
+			sub_res->end = res->end;
+			code_resource.start = res->end + 1;
+			request_resource(res, sub_res);
+		}
+
+		if (code_resource.start >= res->start &&
+			code_resource.start <= res->end &&
+			code_resource.end <= res->end)
+			request_resource(res, &code_resource);
+
+		if (data_resource.start >= res->start &&
+			data_resource.start <= res->end &&
+			data_resource.end > res->end) {
+			sub_res = alloc_bootmem_low(sizeof(struct resource));
+			memcpy(sub_res, &data_resource,
+				sizeof(struct resource));
+			sub_res->end = res->end;
+			data_resource.start = res->end + 1;
+			request_resource(res, sub_res);
+		}
+
+		if (data_resource.start >= res->start &&
+			data_resource.start <= res->end &&
+			data_resource.end <= res->end)
+			request_resource(res, &data_resource);
 	}
 }
 
@@ -492,7 +592,7 @@ static void __init setup_memory_end(void)
 	int i;
 
 	memory_size = real_size = 0;
-	max_phys = VMALLOC_END - VMALLOC_MIN_SIZE;
+	max_phys = VMALLOC_END_INIT - VMALLOC_MIN_SIZE;
 	memory_end &= PAGE_MASK;
 
 	max_mem = memory_end ? min(max_phys, memory_end) : max_phys;
@@ -511,17 +611,13 @@ static void __init setup_memory_end(void)
 	}
 	if (!memory_end)
 		memory_end = memory_size;
-	if (real_size > memory_end)
-		printk("More memory detected than supported. Unused: %luk\n",
-		       (real_size - memory_end) >> 10);
 }
 
 static void __init
 setup_memory(void)
 {
         unsigned long bootmap_size;
-	unsigned long start_pfn, end_pfn, init_pfn;
-	unsigned long last_rw_end;
+	unsigned long start_pfn, end_pfn;
 	int i;
 
 	/*
@@ -530,10 +626,6 @@ setup_memory(void)
 	 */
 	start_pfn = PFN_UP(__pa(&_end));
 	end_pfn = max_pfn = PFN_DOWN(memory_end);
-
-	/* Initialize storage key for kernel pages */
-	for (init_pfn = 0 ; init_pfn < start_pfn; init_pfn++)
-		page_set_storage_key(init_pfn << PAGE_SHIFT, PAGE_DEFAULT_KEY);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/*
@@ -577,39 +669,27 @@ setup_memory(void)
 	/*
 	 * Register RAM areas with the bootmem allocator.
 	 */
-	last_rw_end = start_pfn;
 
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
-		unsigned long start_chunk, end_chunk;
+		unsigned long start_chunk, end_chunk, pfn;
 
 		if (memory_chunk[i].type != CHUNK_READ_WRITE)
 			continue;
-		start_chunk = (memory_chunk[i].addr + PAGE_SIZE - 1);
-		start_chunk >>= PAGE_SHIFT;
-		end_chunk = (memory_chunk[i].addr + memory_chunk[i].size);
-		end_chunk >>= PAGE_SHIFT;
-		if (start_chunk < start_pfn)
-			start_chunk = start_pfn;
-		if (end_chunk > end_pfn)
-			end_chunk = end_pfn;
-		if (start_chunk < end_chunk) {
-			/* Initialize storage key for RAM pages */
-			for (init_pfn = start_chunk ; init_pfn < end_chunk;
-			     init_pfn++)
-				page_set_storage_key(init_pfn << PAGE_SHIFT,
-						     PAGE_DEFAULT_KEY);
-			free_bootmem(start_chunk << PAGE_SHIFT,
-				     (end_chunk - start_chunk) << PAGE_SHIFT);
-			if (last_rw_end < start_chunk)
-				add_memory_hole(last_rw_end, start_chunk - 1);
-			last_rw_end = end_chunk;
-		}
+		start_chunk = PFN_DOWN(memory_chunk[i].addr);
+		end_chunk = start_chunk + PFN_DOWN(memory_chunk[i].size) - 1;
+		end_chunk = min(end_chunk, end_pfn);
+		if (start_chunk >= end_chunk)
+			continue;
+		add_active_range(0, start_chunk, end_chunk);
+		pfn = max(start_chunk, start_pfn);
+		for (; pfn <= end_chunk; pfn++)
+			page_set_storage_key(PFN_PHYS(pfn), PAGE_DEFAULT_KEY);
 	}
 
 	psw_set_key(PAGE_DEFAULT_KEY);
 
-	if (last_rw_end < end_pfn - 1)
-		add_memory_hole(last_rw_end, end_pfn - 1);
+	free_bootmem_with_active_regions(0, max_pfn);
+	reserve_bootmem(0, PFN_PHYS(start_pfn));
 
 	/*
 	 * Reserve the bootmem bitmap itself as well. We do this in two
@@ -680,6 +760,7 @@ setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	setup_memory_end();
+	setup_addressing_mode();
 	setup_memory();
 	setup_resources();
 	setup_lowcore();
@@ -723,6 +804,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
         struct cpuinfo_S390 *cpuinfo;
 	unsigned long n = (unsigned long) v - 1;
 
+	s390_adjust_jiffies();
 	preempt_disable();
 	if (!n) {
 		seq_printf(m, "vendor_id       : IBM/S390\n"

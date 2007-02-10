@@ -1344,7 +1344,7 @@ static unsigned int db_scale_line[] = {
 	8, 15, TLV_DB_SCALE_ITEM(-750, 150, 0),
 };
 
-static DECLARE_TLV_DB_SCALE(db_scale_capture, 0, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_capture, 0, 150, 0);
 
 static struct snd_kcontrol_new snd_es1938_controls[] = {
 ES1938_DOUBLE_TLV("Master Playback Volume", 0, 0x60, 0x62, 0, 0, 63, 0,
@@ -1508,7 +1508,7 @@ static int es1938_resume(struct pci_dev *pci)
 	}
 
 	if (request_irq(pci->irq, snd_es1938_interrupt,
-			IRQF_DISABLED|IRQF_SHARED, "ES1938", chip)) {
+			IRQF_SHARED, "ES1938", chip)) {
 		printk(KERN_ERR "es1938: unable to grab IRQ %d, "
 		       "disabling device\n", pci->irq);
 		snd_card_disconnect(card);
@@ -1631,7 +1631,7 @@ static int __devinit snd_es1938_create(struct snd_card *card,
 	chip->vc_port = pci_resource_start(pci, 2);
 	chip->mpu_port = pci_resource_start(pci, 3);
 	chip->game_port = pci_resource_start(pci, 4);
-	if (request_irq(pci->irq, snd_es1938_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(pci->irq, snd_es1938_interrupt, IRQF_SHARED,
 			"ES1938", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_es1938_free(chip);

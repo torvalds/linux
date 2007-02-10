@@ -119,8 +119,8 @@ extern int  zfcp_adapter_scsi_register(struct zfcp_adapter *);
 extern void zfcp_adapter_scsi_unregister(struct zfcp_adapter *);
 extern void zfcp_set_fcp_dl(struct fcp_cmnd_iu *, fcp_dl_t);
 extern char *zfcp_get_fcp_rsp_info_ptr(struct fcp_rsp_iu *);
-extern void set_host_byte(u32 *, char);
-extern void set_driver_byte(u32 *, char);
+extern void set_host_byte(int *, char);
+extern void set_driver_byte(int *, char);
 extern char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *);
 extern fcp_dl_t zfcp_get_fcp_dl(struct fcp_cmnd_iu *);
 

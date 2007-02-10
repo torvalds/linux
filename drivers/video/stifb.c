@@ -1291,6 +1291,7 @@ out_err3:
 out_err2:
 	release_mem_region(fix->smem_start, fix->smem_len);
 out_err1:
+	iounmap(info->screen_base);
 	fb_dealloc_cmap(&info->cmap);
 out_err0:
 	kfree(fb);
@@ -1364,6 +1365,8 @@ stifb_cleanup(void)
 			unregister_framebuffer(sti->info);
 			release_mem_region(info->fix.mmio_start, info->fix.mmio_len);
 		        release_mem_region(info->fix.smem_start, info->fix.smem_len);
+				if (info->screen_base)
+					iounmap(info->screen_base);
 		        fb_dealloc_cmap(&info->cmap);
 		        kfree(info); 
 		}

@@ -1350,6 +1350,7 @@
 #define  GRC_MISC_CFG_BOARD_ID_5788	0x00010000
 #define  GRC_MISC_CFG_BOARD_ID_5788M	0x00018000
 #define  GRC_MISC_CFG_BOARD_ID_AC91002A1 0x00018000
+#define  GRC_MISC_CFG_EPHY_IDDQ		0x00200000
 #define  GRC_MISC_CFG_KEEP_GPHY_POWER	0x04000000
 #define GRC_LOCAL_CTRL			0x00006808
 #define  GRC_LCLCTRL_INT_ACTIVE		0x00000001
@@ -1656,6 +1657,9 @@
 
 #define MII_TG3_EPHY_TEST		0x1f /* 5906 PHY register */
 #define MII_TG3_EPHY_SHADOW_EN		0x80
+
+#define MII_TG3_TEST1			0x1e
+#define MII_TG3_TEST1_TRIM_EN		0x0010
 
 /* There are two ways to manage the TX descriptors on the tigon3.
  * Either the descriptors are in host DMA'able memory, or they
@@ -2255,6 +2259,7 @@ struct tg3 {
 #define TG3_FLG2_1SHOT_MSI		0x10000000
 #define TG3_FLG2_PHY_JITTER_BUG		0x20000000
 #define TG3_FLG2_NO_FWARE_REPORTED	0x40000000
+#define TG3_FLG2_PHY_ADJUST_TRIM	0x80000000
 
 	u32				split_mode_max_reqs;
 #define SPLIT_MODE_5704_MAX_REQ		3

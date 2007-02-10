@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/errno.h>
+#include <linux/freezer.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -143,19 +144,6 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 	cx88_start_audio_dma(core);
 
 	if (cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD) {
-		/* sets sound input from external adc */
-		switch (core->board) {
-		case CX88_BOARD_HAUPPAUGE_ROSLYN:
-		case CX88_BOARD_KWORLD_MCE200_DELUXE:
-		case CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT:
-		case CX88_BOARD_PIXELVIEW_PLAYTV_P7000:
-		case CX88_BOARD_ASUS_PVR_416:
-			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
-			break;
-		default:
-			cx_set(AUD_CTL, EN_I2SIN_ENABLE);
-		}
-
 		cx_write(AUD_I2SINPUTCNTL, 4);
 		cx_write(AUD_BAUDRATE, 1);
 		/* 'pass-thru mode': this enables the i2s output to the mpeg encoder */
@@ -974,6 +962,7 @@ int cx88_audio_thread(void *data)
 		msleep_interruptible(1000);
 		if (kthread_should_stop())
 			break;
+		try_to_freeze();
 
 		/* just monitor the audio status for now ... */
 		memset(&t, 0, sizeof(t));

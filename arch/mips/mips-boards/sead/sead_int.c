@@ -21,7 +21,7 @@
  * Sead board.
  */
 #include <linux/init.h>
-#include <linux/irq.h>
+#include <linux/interrupt.h>
 
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
@@ -108,10 +108,10 @@ asmlinkage void plat_irq_dispatch(void)
 	if (irq >= 0)
 		do_IRQ(MIPSCPU_INT_BASE + irq);
 	else
-		spurious_interrupt(regs);
+		spurious_interrupt();
 }
 
 void __init arch_init_irq(void)
 {
-	mips_cpu_irq_init(MIPSCPU_INT_BASE);
+	mips_cpu_irq_init();
 }

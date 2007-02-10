@@ -37,7 +37,7 @@
  * Calling conventions:
  *
  * ACPI_SYSTEM_XFACE        - Interfaces to host OS (handlers, threads)
- * ACPI_EXTERNAL_XFACE      - External ACPI interfaces 
+ * ACPI_EXTERNAL_XFACE      - External ACPI interfaces
  * ACPI_INTERNAL_XFACE      - Internal ACPI interfaces
  * ACPI_INTERNAL_VAR_XFACE  - Internal variable-parameter list interfaces
  */
@@ -54,36 +54,14 @@
 #define ACPI_ENABLE_IRQS()  local_irq_enable()
 #define ACPI_FLUSH_CPU_CACHE()	wbinvd()
 
+int __acpi_acquire_global_lock(unsigned int *lock);
+int __acpi_release_global_lock(unsigned int *lock);
 
-static inline int
-__acpi_acquire_global_lock (unsigned int *lock)
-{
-	unsigned int old, new, val;
-	do {
-		old = *lock;
-		new = (((old & ~0x3) + 2) + ((old >> 1) & 0x1));
-		val = cmpxchg(lock, old, new);
-	} while (unlikely (val != old));
-	return (new < 3) ? -1 : 0;
-}
+#define ACPI_ACQUIRE_GLOBAL_LOCK(facs, Acq) \
+	((Acq) = __acpi_acquire_global_lock(&facs->global_lock))
 
-static inline int
-__acpi_release_global_lock (unsigned int *lock)
-{
-	unsigned int old, new, val;
-	do {
-		old = *lock;
-		new = old & ~0x3;
-		val = cmpxchg(lock, old, new);
-	} while (unlikely (val != old));
-	return old & 0x1;
-}
-
-#define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) \
-	((Acq) = __acpi_acquire_global_lock((unsigned int *) GLptr))
-
-#define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq) \
-	((Acq) = __acpi_release_global_lock((unsigned int *) GLptr))
+#define ACPI_RELEASE_GLOBAL_LOCK(facs, Acq) \
+	((Acq) = __acpi_release_global_lock(&facs->global_lock))
 
 /*
  * Math helper asm macros
@@ -109,10 +87,10 @@ extern int acpi_strict;
 extern int acpi_disabled;
 extern int acpi_pci_disabled;
 extern int acpi_ht;
-static inline void disable_acpi(void) 
-{ 
-	acpi_disabled = 1; 
-	acpi_ht = 0; 
+static inline void disable_acpi(void)
+{
+	acpi_disabled = 1;
+	acpi_ht = 0;
 	acpi_pci_disabled = 1;
 	acpi_noirq = 1;
 }
@@ -122,9 +100,9 @@ static inline void disable_acpi(void)
 
 extern int acpi_gsi_to_irq(u32 gsi, unsigned int *irq);
 static inline void acpi_noirq_set(void) { acpi_noirq = 1; }
-static inline void acpi_disable_pci(void) 
+static inline void acpi_disable_pci(void)
 {
-	acpi_pci_disabled = 1; 
+	acpi_pci_disabled = 1;
 	acpi_noirq_set();
 }
 extern int acpi_irq_balance_set(char *str);
@@ -157,8 +135,6 @@ extern void acpi_reserve_bootmem(void);
 
 extern int acpi_disabled;
 extern int acpi_pci_disabled;
-
-extern u8 x86_acpiid_to_apicid[];
 
 #define ARCH_HAS_POWER_INIT 1
 

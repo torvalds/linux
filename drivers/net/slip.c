@@ -229,10 +229,10 @@ static int sl_realloc_bufs(struct slip *sl, int mtu)
 	if (len < 576 * 2)
 		len = 576 * 2;
 
-	xbuff = (unsigned char *) kmalloc (len + 4, GFP_ATOMIC);
-	rbuff = (unsigned char *) kmalloc (len + 4, GFP_ATOMIC);
+	xbuff = kmalloc(len + 4, GFP_ATOMIC);
+	rbuff = kmalloc(len + 4, GFP_ATOMIC);
 #ifdef SL_INCLUDE_CSLIP
-	cbuff = (unsigned char *) kmalloc (len + 4, GFP_ATOMIC);
+	cbuff = kmalloc(len + 4, GFP_ATOMIC);
 #endif
 
 
@@ -1343,14 +1343,11 @@ static int __init slip_init(void)
 	printk(KERN_INFO "SLIP linefill/keepalive option.\n");
 #endif
 
-	slip_devs = kmalloc(sizeof(struct net_device *)*slip_maxdev, GFP_KERNEL);
+	slip_devs = kzalloc(sizeof(struct net_device *)*slip_maxdev, GFP_KERNEL);
 	if (!slip_devs) {
 		printk(KERN_ERR "SLIP: Can't allocate slip devices array!  Uaargh! (-> No SLIP available)\n");
 		return -ENOMEM;
 	}
-
-	/* Clear the pointer array, we allocate devices when we need them */
-	memset(slip_devs, 0, sizeof(struct net_device *)*slip_maxdev);
 
 	/* Fill in our line protocol discipline, and register it */
 	if ((status = tty_register_ldisc(N_SLIP, &sl_ldisc)) != 0)  {

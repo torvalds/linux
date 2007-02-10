@@ -17,6 +17,7 @@
 #ifndef __ASM_DDB5XXX_DDB5477_H
 #define __ASM_DDB5XXX_DDB5477_H
 
+#include <irq.h>
 
 /*
  * This contains macros that are specific to DDB5477 or renamed from
@@ -251,14 +252,10 @@ extern void ll_vrc5477_irq_disable(int vrc5477_irq);
  */
 
 #define	NUM_CPU_IRQ		8
-#define	NUM_I8259_IRQ		16
 #define	NUM_VRC5477_IRQ		32
 
-#define	DDB_IRQ_BASE		0
-
-#define	I8259_IRQ_BASE		DDB_IRQ_BASE
-#define	VRC5477_IRQ_BASE	(I8259_IRQ_BASE + NUM_I8259_IRQ)
-#define	CPU_IRQ_BASE		(VRC5477_IRQ_BASE + NUM_VRC5477_IRQ)
+#define	CPU_IRQ_BASE		MIPS_CPU_IRQ_BASE
+#define	VRC5477_IRQ_BASE	(CPU_IRQ_BASE + NUM_CPU_IRQ)
 
 /*
  * vrc5477 irq defs
@@ -300,22 +297,22 @@ extern void ll_vrc5477_irq_disable(int vrc5477_irq);
 /*
  * i2859 irq assignment
  */
-#define I8259_IRQ_RESERVED_0	(0 + I8259_IRQ_BASE)
-#define I8259_IRQ_KEYBOARD	(1 + I8259_IRQ_BASE)	/* M1543 default */
-#define I8259_IRQ_CASCADE	(2 + I8259_IRQ_BASE)
-#define I8259_IRQ_UART_B	(3 + I8259_IRQ_BASE)	/* M1543 default, may conflict with RTC according to schematic diagram  */
-#define I8259_IRQ_UART_A	(4 + I8259_IRQ_BASE)	/* M1543 default */
-#define I8259_IRQ_PARALLEL	(5 + I8259_IRQ_BASE)	/* M1543 default */
-#define I8259_IRQ_RESERVED_6	(6 + I8259_IRQ_BASE)
-#define I8259_IRQ_RESERVED_7	(7 + I8259_IRQ_BASE)
-#define I8259_IRQ_RTC		(8 + I8259_IRQ_BASE)	/* who set this? */
-#define I8259_IRQ_USB		(9 + I8259_IRQ_BASE)	/* ddb_setup */
-#define I8259_IRQ_PMU		(10 + I8259_IRQ_BASE)	/* ddb_setup */
-#define I8259_IRQ_RESERVED_11	(11 + I8259_IRQ_BASE)
-#define I8259_IRQ_RESERVED_12	(12 + I8259_IRQ_BASE)	/* m1543_irq_setup */
-#define I8259_IRQ_RESERVED_13	(13 + I8259_IRQ_BASE)
-#define I8259_IRQ_HDC1		(14 + I8259_IRQ_BASE)	/* default and ddb_setup */
-#define I8259_IRQ_HDC2		(15 + I8259_IRQ_BASE)	/* default */
+#define I8259_IRQ_RESERVED_0	(0 + I8259A_IRQ_BASE)
+#define I8259_IRQ_KEYBOARD	(1 + I8259A_IRQ_BASE)	/* M1543 default */
+#define I8259_IRQ_CASCADE	(2 + I8259A_IRQ_BASE)
+#define I8259_IRQ_UART_B	(3 + I8259A_IRQ_BASE)	/* M1543 default, may conflict with RTC according to schematic diagram  */
+#define I8259_IRQ_UART_A	(4 + I8259A_IRQ_BASE)	/* M1543 default */
+#define I8259_IRQ_PARALLEL	(5 + I8259A_IRQ_BASE)	/* M1543 default */
+#define I8259_IRQ_RESERVED_6	(6 + I8259A_IRQ_BASE)
+#define I8259_IRQ_RESERVED_7	(7 + I8259A_IRQ_BASE)
+#define I8259_IRQ_RTC		(8 + I8259A_IRQ_BASE)	/* who set this? */
+#define I8259_IRQ_USB		(9 + I8259A_IRQ_BASE)	/* ddb_setup */
+#define I8259_IRQ_PMU		(10 + I8259A_IRQ_BASE)	/* ddb_setup */
+#define I8259_IRQ_RESERVED_11	(11 + I8259A_IRQ_BASE)
+#define I8259_IRQ_RESERVED_12	(12 + I8259A_IRQ_BASE)	/* m1543_irq_setup */
+#define I8259_IRQ_RESERVED_13	(13 + I8259A_IRQ_BASE)
+#define I8259_IRQ_HDC1		(14 + I8259A_IRQ_BASE)	/* default and ddb_setup */
+#define I8259_IRQ_HDC2		(15 + I8259A_IRQ_BASE)	/* default */
 
 
 /*

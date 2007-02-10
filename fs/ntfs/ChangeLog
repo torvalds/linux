@@ -17,6 +17,13 @@ ToDo/Notes:
 	  happen is unclear however so it is worth waiting until someone hits
 	  the problem.
 
+2.1.28 - Fix a deadlock.
+
+	- Fix deadlock in fs/ntfs/inode.c::ntfs_put_inode().  Thanks to Sergey
+	  Vlasov for the report and detailed analysis of the deadlock.  The fix
+	  involved getting rid of ntfs_put_inode() altogether and hence NTFS no
+	  longer has a ->put_inode super operation.
+
 2.1.27 - Various bug fixes and cleanups.
 
 	- Fix two compiler warnings on Alpha.  Thanks to Andrew Morton for

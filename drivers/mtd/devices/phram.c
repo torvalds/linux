@@ -126,11 +126,9 @@ static int register_device(char *name, unsigned long start, unsigned long len)
 	struct phram_mtd_list *new;
 	int ret = -ENOMEM;
 
-	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
 		goto out0;
-
-	memset(new, 0, sizeof(*new));
 
 	ret = -EIO;
 	new->mtd.priv = ioremap(start, len);

@@ -168,6 +168,7 @@
 #define H_FREE_LOGICAL_LAN	0x118
 #define H_ADD_LOGICAL_LAN_BUFFER 0x11C
 #define H_SEND_LOGICAL_LAN	0x120
+#define H_BULK_REMOVE		0x124
 #define H_MULTICAST_CTRL	0x130
 #define H_SET_XDABR		0x134
 #define H_STUFF_TCE		0x138
@@ -252,8 +253,6 @@ struct hcall_stats {
 	unsigned long	tb_total;	/* total wall time (mftb) of calls. */
 	unsigned long	purr_total;	/* total cpu time (PURR) of calls. */
 };
-void update_hcall_stats(unsigned long opcode, unsigned long tb_delta,
-			unsigned long purr_delta);
 #define HCALL_STAT_ARRAY_SIZE	((MAX_HCALL_OPCODE >> 2) + 1)
 
 #endif /* __ASSEMBLY__ */

@@ -51,9 +51,11 @@ config CRYPTO_DEV_PADLOCK_SHA
 	  If unsure say M. The compiled module will be
 	  called padlock-sha.ko
 
+source "arch/s390/crypto/Kconfig"
+
 config CRYPTO_DEV_GEODE
 	tristate "Support for the Geode LX AES engine"
-	depends on CRYPTO && X86_32
+	depends on CRYPTO && X86_32 && PCI
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	default m

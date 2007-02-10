@@ -56,6 +56,7 @@ static int x25_receive_data(struct sk_buff *skb, struct x25_neigh *nb)
 			sk_add_backlog(sk, skb);
 		}
 		bh_unlock_sock(sk);
+		sock_put(sk);
 		return queued;
 	}
 
@@ -66,9 +67,18 @@ static int x25_receive_data(struct sk_buff *skb, struct x25_neigh *nb)
 		return x25_rx_call_request(skb, nb, lci);
 
 	/*
-	 *	Its not a Call Request, nor is it a control frame.
-	 *      Let caller throw it away.
+	 * 	Its not a Call Request, nor is it a control frame.
+	 *	Can we forward it?
 	 */
+
+	if (x25_forward_data(lci, nb, skb)) {
+		if (frametype == X25_CLEAR_CONFIRMATION) {
+			x25_clear_forward_by_lci(lci);
+		}
+		kfree_skb(skb);
+		return 1;
+	}
+
 /*
 	x25_transmit_clear_request(nb, lci, 0x0D);
 */

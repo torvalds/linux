@@ -78,12 +78,12 @@ static struct attribute_group rtc_attr_group = {
 	.attrs = rtc_attrs,
 };
 
-static int __devinit rtc_sysfs_add_device(struct class_device *class_dev,
+static int rtc_sysfs_add_device(struct class_device *class_dev,
 					struct class_interface *class_intf)
 {
 	int err;
 
-	dev_info(class_dev->dev, "rtc intf: sysfs\n");
+	dev_dbg(class_dev->dev, "rtc intf: sysfs\n");
 
 	err = sysfs_create_group(&class_dev->kobj, &rtc_attr_group);
 	if (err)

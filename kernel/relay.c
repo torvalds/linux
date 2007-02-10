@@ -138,7 +138,7 @@ depopulate:
  */
 struct rchan_buf *relay_create_buf(struct rchan *chan)
 {
-	struct rchan_buf *buf = kcalloc(1, sizeof(struct rchan_buf), GFP_KERNEL);
+	struct rchan_buf *buf = kzalloc(sizeof(struct rchan_buf), GFP_KERNEL);
 	if (!buf)
 		return NULL;
 
@@ -302,7 +302,7 @@ static struct rchan_callbacks default_channel_callbacks = {
 
 /**
  *	wakeup_readers - wake up readers waiting on a channel
- *	@private: the channel buffer
+ *	@work: work struct that contains the the channel buffer
  *
  *	This is the work function used to defer reader waking.  The
  *	reason waking is deferred is that calling directly from write
@@ -322,7 +322,7 @@ static void wakeup_readers(struct work_struct *work)
  *
  *	See relay_reset for description of effect.
  */
-static inline void __relay_reset(struct rchan_buf *buf, unsigned int init)
+static void __relay_reset(struct rchan_buf *buf, unsigned int init)
 {
 	size_t i;
 
@@ -418,7 +418,7 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan,
  *	The channel buffer and channel buffer data structure are then freed
  *	automatically when the last reference is given up.
  */
-static inline void relay_close_buf(struct rchan_buf *buf)
+static void relay_close_buf(struct rchan_buf *buf)
 {
 	buf->finalized = 1;
 	cancel_delayed_work(&buf->wake_readers);
@@ -426,7 +426,7 @@ static inline void relay_close_buf(struct rchan_buf *buf)
 	kref_put(&buf->kref, relay_remove_buf);
 }
 
-static inline void setup_callbacks(struct rchan *chan,
+static void setup_callbacks(struct rchan *chan,
 				   struct rchan_callbacks *cb)
 {
 	if (!cb) {
@@ -479,7 +479,7 @@ struct rchan *relay_open(const char *base_filename,
 	if (!(subbuf_size && n_subbufs))
 		return NULL;
 
-	chan = kcalloc(1, sizeof(struct rchan), GFP_KERNEL);
+	chan = kzalloc(sizeof(struct rchan), GFP_KERNEL);
 	if (!chan)
 		return NULL;
 
@@ -946,11 +946,10 @@ typedef int (*subbuf_actor_t) (size_t read_start,
 /*
  *	relay_file_read_subbufs - read count bytes, bridging subbuf boundaries
  */
-static inline ssize_t relay_file_read_subbufs(struct file *filp,
-					      loff_t *ppos,
-					      subbuf_actor_t subbuf_actor,
-					      read_actor_t actor,
-					      read_descriptor_t *desc)
+static ssize_t relay_file_read_subbufs(struct file *filp, loff_t *ppos,
+					subbuf_actor_t subbuf_actor,
+					read_actor_t actor,
+					read_descriptor_t *desc)
 {
 	struct rchan_buf *buf = filp->private_data;
 	size_t read_start, avail;
@@ -959,7 +958,7 @@ static inline ssize_t relay_file_read_subbufs(struct file *filp,
 	if (!desc->count)
 		return 0;
 
-	mutex_lock(&filp->f_dentry->d_inode->i_mutex);
+	mutex_lock(&filp->f_path.dentry->d_inode->i_mutex);
 	do {
 		if (!relay_file_read_avail(buf, *ppos))
 			break;
@@ -979,7 +978,7 @@ static inline ssize_t relay_file_read_subbufs(struct file *filp,
 			*ppos = relay_file_read_end_pos(buf, read_start, ret);
 		}
 	} while (desc->count && ret);
-	mutex_unlock(&filp->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&filp->f_path.dentry->d_inode->i_mutex);
 
 	return desc->written;
 }

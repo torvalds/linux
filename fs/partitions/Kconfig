@@ -194,7 +194,7 @@ config LDM_DEBUG
 
 config SGI_PARTITION
 	bool "SGI partition support" if PARTITION_ADVANCED
-	default y if (SGI_IP22 || SGI_IP27 || ((MACH_JAZZ || SNI_RM200_PCI) && !CPU_LITTLE_ENDIAN))
+	default y if (SGI_IP22 || SGI_IP27 || ((MACH_JAZZ || SNI_RM) && !CPU_LITTLE_ENDIAN))
 	help
 	  Say Y here if you would like to be able to read the hard disk
 	  partition table format used by SGI machines.

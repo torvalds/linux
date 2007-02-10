@@ -312,8 +312,9 @@
 
 /* CCS Inc. ICDU/ICDU40 product ID - the FT232BM is used in an in-circuit-debugger */
 /* unit for PIC16's/PIC18's */
-#define FTDI_CCSICDU20_0_PID    0xF9D0     
-#define FTDI_CCSICDU40_1_PID    0xF9D1     
+#define FTDI_CCSICDU20_0_PID    0xF9D0
+#define FTDI_CCSICDU40_1_PID    0xF9D1
+#define FTDI_CCSMACHX_2_PID     0xF9D2
 
 /* Inside Accesso contactless reader (http://www.insidefr.com) */
 #define INSIDE_ACCESSO		0xFAD0
@@ -363,7 +364,6 @@
  * USB-TTY activ, USB-TTY passiv.  Some PIDs are used by several devices
  * and I'm not entirely sure which are used by which.
  */
-#define FTDI_4N_GALAXY_DE_0_PID	0x8372
 #define FTDI_4N_GALAXY_DE_1_PID	0xF3C0
 #define FTDI_4N_GALAXY_DE_2_PID	0xF3C1
 

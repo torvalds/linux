@@ -2188,13 +2188,13 @@ pfm_alloc_fd(struct file **cfile)
 	/*
 	 * allocate a new dcache entry
 	 */
-	file->f_dentry = d_alloc(pfmfs_mnt->mnt_sb->s_root, &this);
-	if (!file->f_dentry) goto out;
+	file->f_path.dentry = d_alloc(pfmfs_mnt->mnt_sb->s_root, &this);
+	if (!file->f_path.dentry) goto out;
 
-	file->f_dentry->d_op = &pfmfs_dentry_operations;
+	file->f_path.dentry->d_op = &pfmfs_dentry_operations;
 
-	d_add(file->f_dentry, inode);
-	file->f_vfsmnt = mntget(pfmfs_mnt);
+	d_add(file->f_path.dentry, inode);
+	file->f_path.mnt = mntget(pfmfs_mnt);
 	file->f_mapping = inode->i_mapping;
 
 	file->f_op    = &pfm_file_ops;

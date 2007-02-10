@@ -20,6 +20,7 @@
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_conntrack.h>
+#include <net/netfilter/nf_conntrack_compat.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
@@ -228,21 +229,17 @@ checkentry(const char *tablename,
 	   void *matchinfo,
 	   unsigned int hook_mask)
 {
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
-		printk(KERN_WARNING "can't load nf_conntrack support for "
+		printk(KERN_WARNING "can't load conntrack support for "
 				    "proto=%d\n", match->family);
 		return 0;
 	}
-#endif
 	return 1;
 }
 
 static void destroy(const struct xt_match *match, void *matchinfo)
 {
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	nf_ct_l3proto_module_put(match->family);
-#endif
 }
 
 static struct xt_match conntrack_match = {
@@ -257,7 +254,6 @@ static struct xt_match conntrack_match = {
 
 static int __init xt_conntrack_init(void)
 {
-	need_conntrack();
 	return xt_register_match(&conntrack_match);
 }
 

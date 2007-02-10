@@ -138,7 +138,7 @@ static struct vm_struct * split_im_region(unsigned long v_addr,
 	struct vm_struct *vm2 = NULL;
 	struct vm_struct *new_vm = NULL;
 	
-	vm1 = (struct vm_struct *) kmalloc(sizeof(*vm1), GFP_KERNEL);
+	vm1 = kmalloc(sizeof(*vm1), GFP_KERNEL);
 	if (vm1	== NULL) {
 		printk(KERN_ERR "%s() out of memory\n", __FUNCTION__);
 		return NULL;
@@ -172,7 +172,7 @@ static struct vm_struct * split_im_region(unsigned long v_addr,
 		 * uppermost remainder, and use existing parent one for the
 		 * lower remainder of parent range
 		 */
-		vm2 = (struct vm_struct *) kmalloc(sizeof(*vm2), GFP_KERNEL);
+		vm2 = kmalloc(sizeof(*vm2), GFP_KERNEL);
 		if (vm2 == NULL) {
 			printk(KERN_ERR "%s() out of memory\n", __FUNCTION__);
 			kfree(vm1);
@@ -206,7 +206,7 @@ static struct vm_struct * __add_new_im_area(unsigned long req_addr,
 			break;
 	}
 	
-	area = (struct vm_struct *) kmalloc(sizeof(*area), GFP_KERNEL);
+	area = kmalloc(sizeof(*area), GFP_KERNEL);
 	if (!area)
 		return NULL;
 	area->flags = 0;

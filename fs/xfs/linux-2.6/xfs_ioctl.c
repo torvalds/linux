@@ -107,9 +107,9 @@ xfs_find_handle(
 		if (!file)
 		    return -EBADF;
 
-		ASSERT(file->f_dentry);
-		ASSERT(file->f_dentry->d_inode);
-		inode = igrab(file->f_dentry->d_inode);
+		ASSERT(file->f_path.dentry);
+		ASSERT(file->f_path.dentry->d_inode);
+		inode = igrab(file->f_path.dentry->d_inode);
 		fput(file);
 		break;
 	}
@@ -333,10 +333,10 @@ xfs_open_by_handle(
 	}
 
 	/* Ensure umount returns EBUSY on umounts while this file is open. */
-	mntget(parfilp->f_vfsmnt);
+	mntget(parfilp->f_path.mnt);
 
 	/* Create file pointer. */
-	filp = dentry_open(dentry, parfilp->f_vfsmnt, hreq.oflags);
+	filp = dentry_open(dentry, parfilp->f_path.mnt, hreq.oflags);
 	if (IS_ERR(filp)) {
 		put_unused_fd(new_fd);
 		return -XFS_ERROR(-PTR_ERR(filp));

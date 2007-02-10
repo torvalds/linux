@@ -3,7 +3,7 @@
  *      For use with LSI Logic PCI chip/adapter(s)
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2005 LSI Logic Corporation
+ *  Copyright (c) 1999-2007 LSI Logic Corporation
  *  (mailto:mpt_linux_developer@lsil.com)
  *
  */
@@ -76,6 +76,7 @@
 MODULE_AUTHOR(MODULEAUTHOR);
 MODULE_DESCRIPTION(my_NAME);
 MODULE_LICENSE("GPL");
+MODULE_VERSION(my_VERSION);
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
@@ -701,6 +702,17 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 						break;
 					}
 				}
+			} else if (ioc->bus_type == FC) {
+				/*
+				 * The FC IOC may kill a request for variety of
+				 * reasons, some of which may be recovered by a
+				 * retry, some which are unlikely to be
+				 * recovered. Return DID_ERROR instead of
+				 * DID_RESET to permit retry of the command,
+				 * just not an infinite number of them
+				 */
+				sc->result = DID_ERROR << 16;
+				break;
 			}
 
 			/*
@@ -2688,7 +2700,8 @@ mptscsih_initTarget(MPT_SCSI_HOST *hd, VirtTarget *vtarget,
 		    struct scsi_device *sdev)
 {
 	dinitprintk((MYIOC_s_INFO_FMT "initTarget bus=%d id=%d lun=%d hd=%p\n",
-		hd->ioc->name, vtarget->bus_id, vtarget->target_id, lun, hd));
+		hd->ioc->name, vtarget->bus_id, vtarget->target_id,
+		sdev->lun, hd));
 
 	/* Is LUN supported? If so, upper 2 bits will be 0
 	* in first byte of inquiry data.
@@ -2770,7 +2783,7 @@ mptscsih_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 				else {
 					factor = MPT_ULTRA320;
 					if (scsi_device_qas(sdev)) {
-						ddvtprintk((KERN_INFO "Enabling QAS due to byte56=%02x on id=%d!\n", byte56, id));
+						ddvtprintk((KERN_INFO "Enabling QAS due to byte56=%02x on id=%d!\n", scsi_device_qas(sdev), id));
 						noQas = 0;
 					}
 					if (sdev->type == TYPE_TAPE &&

@@ -597,8 +597,6 @@ static int ext2_check_descriptors (struct super_block * sb)
 	return 1;
 }
 
-#define log2(n) ffz(~(n))
- 
 /*
  * Maximal file size.  There is a direct, and {,double-,triple-}indirect
  * block limit, and also a limit of (2^32 - 1) 512-byte sectors in i_blocks.
@@ -834,9 +832,9 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_sbh = bh;
 	sbi->s_mount_state = le16_to_cpu(es->s_state);
 	sbi->s_addr_per_block_bits =
-		log2 (EXT2_ADDR_PER_BLOCK(sb));
+		ilog2 (EXT2_ADDR_PER_BLOCK(sb));
 	sbi->s_desc_per_block_bits =
-		log2 (EXT2_DESC_PER_BLOCK(sb));
+		ilog2 (EXT2_DESC_PER_BLOCK(sb));
 
 	if (sb->s_magic != EXT2_SUPER_MAGIC)
 		goto cantfind_ext2;

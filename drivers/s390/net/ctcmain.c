@@ -369,7 +369,7 @@ ctc_dump_skb(struct sk_buff *skb, int offset)
  * @param ch The channel where this skb has been received.
  * @param pskb The received skb.
  */
-static __inline__ void
+static void
 ctc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 {
 	struct net_device *dev = ch->netdev;
@@ -512,7 +512,7 @@ ctc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
  * @param ch          The channel, the error belongs to.
  * @param return_code The error code to inspect.
  */
-static void inline
+static void
 ccw_check_return_code(struct channel *ch, int return_code, char *msg)
 {
 	DBF_TEXT(trace, 5, __FUNCTION__);
@@ -547,7 +547,7 @@ ccw_check_return_code(struct channel *ch, int return_code, char *msg)
  * @param ch    The channel, the sense code belongs to.
  * @param sense The sense code to inspect.
  */
-static void inline
+static void
 ccw_unit_check(struct channel *ch, unsigned char sense)
 {
 	DBF_TEXT(trace, 5, __FUNCTION__);
@@ -603,7 +603,7 @@ ctc_purge_skb_queue(struct sk_buff_head *q)
 	}
 }
 
-static __inline__ int
+static int
 ctc_checkalloc_buffer(struct channel *ch, int warn)
 {
 	DBF_TEXT(trace, 5, __FUNCTION__);
@@ -1646,7 +1646,7 @@ add_channel(struct ccw_device *cdev, enum channel_types type)
 		return -1;
 	}
 	memset(ch, 0, sizeof (struct channel));
-	if ((ch->ccw = (struct ccw1 *) kmalloc(8*sizeof(struct ccw1),
+	if ((ch->ccw = kmalloc(8*sizeof(struct ccw1),
 					       GFP_KERNEL | GFP_DMA)) == NULL) {
 		kfree(ch);
 		ctc_pr_warn("ctc: Out of memory in add_channel\n");
@@ -1693,7 +1693,7 @@ add_channel(struct ccw_device *cdev, enum channel_types type)
 		return -1;
 	}
 	fsm_newstate(ch->fsm, CH_STATE_IDLE);
-	if ((ch->irb = (struct irb *) kmalloc(sizeof (struct irb),
+	if ((ch->irb = kmalloc(sizeof (struct irb),
 					      GFP_KERNEL)) == NULL) {
 		ctc_pr_warn("ctc: Out of memory in add_channel\n");
 		kfree_fsm(ch->fsm);
@@ -2535,7 +2535,7 @@ ctc_print_statistics(struct ctc_priv *priv)
 	DBF_TEXT(trace, 4, __FUNCTION__);
 	if (!priv)
 		return;
-	sbuf = (char *)kmalloc(2048, GFP_KERNEL);
+	sbuf = kmalloc(2048, GFP_KERNEL);
 	if (sbuf == NULL)
 		return;
 	p = sbuf;

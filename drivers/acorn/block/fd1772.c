@@ -1549,12 +1549,12 @@ int fd1772_init(void)
 #ifdef TRACKBUFFER
 	BufferDrive = BufferSide = BufferTrack = -1;
 	/* Atari uses 512 - I want to eventually cope with 1K sectors */
-	DMABuffer = (char *)kmalloc((FD1772_MAX_SECTORS+1)*512,GFP_KERNEL);
+	DMABuffer = kmalloc((FD1772_MAX_SECTORS+1)*512,GFP_KERNEL);
 	TrackBuffer = DMABuffer + 512;
 #else
 	/* Allocate memory for the DMAbuffer - on the Atari this takes it
 	   out of some special memory... */
-	DMABuffer = (char *) kmalloc(2048);	/* Copes with pretty large sectors */
+	DMABuffer = kmalloc(2048);	/* Copes with pretty large sectors */
 #endif
 	err = -ENOMEM;
 	if (!DMAbuffer)

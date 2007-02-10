@@ -49,13 +49,17 @@ static void eim_unmask_irq(unsigned int irq)
 static int eim_set_irq_type(unsigned int irq, unsigned int flow_type)
 {
 	struct at32_sm *sm = get_irq_chip_data(irq);
+	struct irq_desc *desc;
 	unsigned int i = irq - sm->eim_first_irq;
 	u32 mode, edge, level;
 	unsigned long flags;
 	int ret = 0;
 
 	flow_type &= IRQ_TYPE_SENSE_MASK;
+	if (flow_type == IRQ_TYPE_NONE)
+		flow_type = IRQ_TYPE_LEVEL_LOW;
 
+	desc = &irq_desc[irq];
 	spin_lock_irqsave(&sm->lock, flags);
 
 	mode = sm_readl(sm, EIM_MODE);
@@ -84,9 +88,16 @@ static int eim_set_irq_type(unsigned int irq, unsigned int flow_type)
 		break;
 	}
 
-	sm_writel(sm, EIM_MODE, mode);
-	sm_writel(sm, EIM_EDGE, edge);
-	sm_writel(sm, EIM_LEVEL, level);
+	if (ret == 0) {
+		sm_writel(sm, EIM_MODE, mode);
+		sm_writel(sm, EIM_EDGE, edge);
+		sm_writel(sm, EIM_LEVEL, level);
+
+		if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
+			flow_type |= IRQ_LEVEL;
+		desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
+		desc->status |= flow_type;
+	}
 
 	spin_unlock_irqrestore(&sm->lock, flags);
 
@@ -109,8 +120,6 @@ static void demux_eim_irq(unsigned int irq, struct irq_desc *desc)
 	unsigned long status, pending;
 	unsigned int i, ext_irq;
 
-	spin_lock(&sm->lock);
-
 	status = sm_readl(sm, EIM_ISR);
 	pending = status & sm_readl(sm, EIM_IMR);
 
@@ -120,10 +129,11 @@ static void demux_eim_irq(unsigned int irq, struct irq_desc *desc)
 
 		ext_irq = i + sm->eim_first_irq;
 		ext_desc = irq_desc + ext_irq;
-		ext_desc->handle_irq(ext_irq, ext_desc);
+		if (ext_desc->status & IRQ_LEVEL)
+			handle_level_irq(ext_irq, ext_desc);
+		else
+			handle_edge_irq(ext_irq, ext_desc);
 	}
-
-	spin_unlock(&sm->lock);
 }
 
 static int __init eim_init(void)
@@ -148,10 +158,16 @@ static int __init eim_init(void)
 	pattern = sm_readl(sm, EIM_MODE);
 	nr_irqs = fls(pattern);
 
+	/* Trigger on falling edge unless overridden by driver */
+	sm_writel(sm, EIM_MODE, 0UL);
+	sm_writel(sm, EIM_EDGE, 0UL);
+
 	sm->eim_chip = &eim_chip;
 
 	for (i = 0; i < nr_irqs; i++) {
-		set_irq_chip(sm->eim_first_irq + i, &eim_chip);
+		/* NOTE the handler we set here is ignored by the demux */
+		set_irq_chip_and_handler(sm->eim_first_irq + i, &eim_chip,
+					 handle_level_irq);
 		set_irq_chip_data(sm->eim_first_irq + i, sm);
 	}
 

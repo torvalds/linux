@@ -59,14 +59,12 @@ much elements are in array.
 struct snd_seq_client_port *snd_seq_port_use_ptr(struct snd_seq_client *client,
 						 int num)
 {
-	struct list_head *p;
 	struct snd_seq_client_port *port;
 
 	if (client == NULL)
 		return NULL;
 	read_lock(&client->ports_lock);
-	list_for_each(p, &client->ports_list_head) {
-		port = list_entry(p, struct snd_seq_client_port, list);
+	list_for_each_entry(port, &client->ports_list_head, list) {
 		if (port->addr.port == num) {
 			if (port->closing)
 				break; /* deleting now */
@@ -85,14 +83,12 @@ struct snd_seq_client_port *snd_seq_port_query_nearest(struct snd_seq_client *cl
 						       struct snd_seq_port_info *pinfo)
 {
 	int num;
-	struct list_head *p;
 	struct snd_seq_client_port *port, *found;
 
 	num = pinfo->addr.port;
 	found = NULL;
 	read_lock(&client->ports_lock);
-	list_for_each(p, &client->ports_list_head) {
-		port = list_entry(p, struct snd_seq_client_port, list);
+	list_for_each_entry(port, &client->ports_list_head, list) {
 		if (port->addr.port < num)
 			continue;
 		if (port->addr.port == num) {
@@ -131,8 +127,7 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 						int port)
 {
 	unsigned long flags;
-	struct snd_seq_client_port *new_port;
-	struct list_head *l;
+	struct snd_seq_client_port *new_port, *p;
 	int num = -1;
 	
 	/* sanity check */
@@ -161,15 +156,14 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 	num = port >= 0 ? port : 0;
 	mutex_lock(&client->ports_mutex);
 	write_lock_irqsave(&client->ports_lock, flags);
-	list_for_each(l, &client->ports_list_head) {
-		struct snd_seq_client_port *p = list_entry(l, struct snd_seq_client_port, list);
+	list_for_each_entry(p, &client->ports_list_head, list) {
 		if (p->addr.port > num)
 			break;
 		if (port < 0) /* auto-probe mode */
 			num = p->addr.port + 1;
 	}
 	/* insert the new port */
-	list_add_tail(&new_port->list, l);
+	list_add_tail(&new_port->list, &p->list);
 	client->num_ports++;
 	new_port->addr.port = num;	/* store the port number in the port */
 	write_unlock_irqrestore(&client->ports_lock, flags);
@@ -251,9 +245,9 @@ static void clear_subscriber_list(struct snd_seq_client *client,
 				list_del(&subs->dest_list);
 			else
 				list_del(&subs->src_list);
+			up_write(&agrp->list_mutex);
 			unsubscribe_port(c, aport, agrp, &subs->info, 1);
 			kfree(subs);
-			up_write(&agrp->list_mutex);
 			snd_seq_port_unlock(aport);
 			snd_seq_client_unlock(c);
 		}
@@ -287,16 +281,14 @@ static int port_delete(struct snd_seq_client *client,
 int snd_seq_delete_port(struct snd_seq_client *client, int port)
 {
 	unsigned long flags;
-	struct list_head *l;
-	struct snd_seq_client_port *found = NULL;
+	struct snd_seq_client_port *found = NULL, *p;
 
 	mutex_lock(&client->ports_mutex);
 	write_lock_irqsave(&client->ports_lock, flags);
-	list_for_each(l, &client->ports_list_head) {
-		struct snd_seq_client_port *p = list_entry(l, struct snd_seq_client_port, list);
+	list_for_each_entry(p, &client->ports_list_head, list) {
 		if (p->addr.port == port) {
 			/* ok found.  delete from the list at first */
-			list_del(l);
+			list_del(&p->list);
 			client->num_ports--;
 			found = p;
 			break;
@@ -314,7 +306,8 @@ int snd_seq_delete_port(struct snd_seq_client *client, int port)
 int snd_seq_delete_all_ports(struct snd_seq_client *client)
 {
 	unsigned long flags;
-	struct list_head deleted_list, *p, *n;
+	struct list_head deleted_list;
+	struct snd_seq_client_port *port, *tmp;
 	
 	/* move the port list to deleted_list, and
 	 * clear the port list in the client data.
@@ -331,9 +324,8 @@ int snd_seq_delete_all_ports(struct snd_seq_client *client)
 	write_unlock_irqrestore(&client->ports_lock, flags);
 
 	/* remove each port in deleted_list */
-	list_for_each_safe(p, n, &deleted_list) {
-		struct snd_seq_client_port *port = list_entry(p, struct snd_seq_client_port, list);
-		list_del(p);
+	list_for_each_entry_safe(port, tmp, &deleted_list, list) {
+		list_del(&port->list);
 		snd_seq_system_client_ev_port_exit(port->addr.client, port->addr.port);
 		port_delete(client, port);
 	}
@@ -500,8 +492,7 @@ int snd_seq_port_connect(struct snd_seq_client *connector,
 {
 	struct snd_seq_port_subs_info *src = &src_port->c_src;
 	struct snd_seq_port_subs_info *dest = &dest_port->c_dest;
-	struct snd_seq_subscribers *subs;
-	struct list_head *p;
+	struct snd_seq_subscribers *subs, *s;
 	int err, src_called = 0;
 	unsigned long flags;
 	int exclusive;
@@ -525,13 +516,11 @@ int snd_seq_port_connect(struct snd_seq_client *connector,
 		if (src->exclusive || dest->exclusive)
 			goto __error;
 		/* check whether already exists */
-		list_for_each(p, &src->list_head) {
-			struct snd_seq_subscribers *s = list_entry(p, struct snd_seq_subscribers, src_list);
+		list_for_each_entry(s, &src->list_head, src_list) {
 			if (match_subs_info(info, &s->info))
 				goto __error;
 		}
-		list_for_each(p, &dest->list_head) {
-			struct snd_seq_subscribers *s = list_entry(p, struct snd_seq_subscribers, dest_list);
+		list_for_each_entry(s, &dest->list_head, dest_list) {
 			if (match_subs_info(info, &s->info))
 				goto __error;
 		}
@@ -582,7 +571,6 @@ int snd_seq_port_disconnect(struct snd_seq_client *connector,
 	struct snd_seq_port_subs_info *src = &src_port->c_src;
 	struct snd_seq_port_subs_info *dest = &dest_port->c_dest;
 	struct snd_seq_subscribers *subs;
-	struct list_head *p;
 	int err = -ENOENT;
 	unsigned long flags;
 
@@ -590,8 +578,7 @@ int snd_seq_port_disconnect(struct snd_seq_client *connector,
 	down_write_nested(&dest->list_mutex, SINGLE_DEPTH_NESTING);
 
 	/* look for the connection */
-	list_for_each(p, &src->list_head) {
-		subs = list_entry(p, struct snd_seq_subscribers, src_list);
+	list_for_each_entry(subs, &src->list_head, src_list) {
 		if (match_subs_info(info, &subs->info)) {
 			write_lock_irqsave(&src->list_lock, flags);
 			// write_lock(&dest->list_lock);  // no lock yet
@@ -620,12 +607,10 @@ int snd_seq_port_disconnect(struct snd_seq_client *connector,
 struct snd_seq_subscribers *snd_seq_port_get_subscription(struct snd_seq_port_subs_info *src_grp,
 							  struct snd_seq_addr *dest_addr)
 {
-	struct list_head *p;
 	struct snd_seq_subscribers *s, *found = NULL;
 
 	down_read(&src_grp->list_mutex);
-	list_for_each(p, &src_grp->list_head) {
-		s = list_entry(p, struct snd_seq_subscribers, src_list);
+	list_for_each_entry(s, &src_grp->list_head, src_list) {
 		if (addr_match(dest_addr, &s->info.dest)) {
 			found = s;
 			break;

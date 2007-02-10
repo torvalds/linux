@@ -2442,7 +2442,10 @@ static int cirrusfb_pci_register (struct pci_dev *pdev,
 	printk ("Cirrus Logic chipset on PCI bus\n");
 	pci_set_drvdata(pdev, info);
 
-	return cirrusfb_register(cinfo);
+	ret = cirrusfb_register(cinfo);
+	if (ret)
+		iounmap(cinfo->fbmem);
+	return ret;
 
 err_release_legacy:
 	if (release_io_ports)
@@ -2574,7 +2577,15 @@ static int cirrusfb_zorro_register(struct zorro_dev *z,
 	printk (KERN_INFO "Cirrus Logic chipset on Zorro bus\n");
 	zorro_set_drvdata(z, info);
 
-	return cirrusfb_register(cinfo);
+	ret = cirrusfb_register(cinfo);
+	if (ret) {
+		if (btype == BT_PICASSO4) {
+			iounmap(cinfo->fbmem);
+			iounmap(cinfo->regbase - 0x600000);
+		} else if (board_addr > 0x01000000)
+			iounmap(cinfo->fbmem);
+	}
+	return ret;
 
 err_unmap_regbase:
 	/* Parental advisory: explicit hack */

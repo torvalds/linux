@@ -156,7 +156,7 @@ cleanup:
 }
 
 static void ark3116_set_termios(struct usb_serial_port *port,
-				struct termios *old_termios)
+				struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
@@ -326,7 +326,7 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 
 static int ark3116_open(struct usb_serial_port *port, struct file *filp)
 {
-	struct termios tmp_termios;
+	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
 	char *buf;
 	int result = 0;
@@ -444,6 +444,7 @@ static struct usb_driver ark3116_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id =	1,
 };
 
 static struct usb_serial_driver ark3116_device = {
@@ -452,6 +453,7 @@ static struct usb_serial_driver ark3116_device = {
 		.name =		"ark3116",
 	},
 	.id_table =		id_table,
+	.usb_driver =		&ark3116_driver,
 	.num_interrupt_in =	1,
 	.num_bulk_in =		1,
 	.num_bulk_out =		1,

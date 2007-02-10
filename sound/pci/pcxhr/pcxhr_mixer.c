@@ -44,8 +44,8 @@
 #define PCXHR_ANALOG_PLAYBACK_LEVEL_MAX  128	/*    0.0 dB */
 #define PCXHR_ANALOG_PLAYBACK_ZERO_LEVEL 104	/*  -24.0 dB ( 0.0 dB - fix level +24.0 dB ) */
 
-static DECLARE_TLV_DB_SCALE(db_scale_analog_capture, -9600, 50, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_analog_playback, -12800, 100, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_analog_capture, -9600, 50, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_analog_playback, -12800, 100, 0);
 
 static int pcxhr_update_analog_audio_level(struct snd_pcxhr *chip, int is_capture, int channel)
 {
@@ -195,7 +195,7 @@ static struct snd_kcontrol_new pcxhr_control_output_switch = {
 #define PCXHR_DIGITAL_LEVEL_MAX		0x1ff	/* +18 dB */
 #define PCXHR_DIGITAL_ZERO_LEVEL	0x1b7	/*  0 dB */
 
-static DECLARE_TLV_DB_SCALE(db_scale_digital, -10950, 50, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_digital, -10950, 50, 0);
 
 #define MORE_THAN_ONE_STREAM_LEVEL	0x000001
 #define VALID_STREAM_PAN_LEVEL_MASK	0x800000

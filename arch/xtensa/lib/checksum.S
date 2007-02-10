@@ -16,8 +16,7 @@
 
 #include <asm/errno.h>
 #include <linux/linkage.h>
-#define _ASMLANGUAGE
-#include <xtensa/config/core.h>
+#include <asm/variant/core.h>
 
 /*
  * computes a partial checksum, e.g. for TCP/UDP fragments

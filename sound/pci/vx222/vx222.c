@@ -73,8 +73,8 @@ MODULE_DEVICE_TABLE(pci, snd_vx222_ids);
 /*
  */
 
-static DECLARE_TLV_DB_SCALE(db_scale_old_vol, -11350, 50, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_akm, -7350, 50, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_old_vol, -11350, 50, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_akm, -7350, 50, 0);
 
 static struct snd_vx_hardware vx222_old_hw = {
 
@@ -169,8 +169,8 @@ static int __devinit snd_vx222_create(struct snd_card *card, struct pci_dev *pci
 	for (i = 0; i < 2; i++)
 		vx->port[i] = pci_resource_start(pci, i + 1);
 
-	if (request_irq(pci->irq, snd_vx_irq_handler, IRQF_DISABLED|IRQF_SHARED,
-			CARD_NAME, (void *) chip)) {
+	if (request_irq(pci->irq, snd_vx_irq_handler, IRQF_SHARED,
+			CARD_NAME, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_vx222_free(chip);
 		return -EBUSY;

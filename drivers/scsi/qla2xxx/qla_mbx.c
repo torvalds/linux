@@ -1339,9 +1339,9 @@ qla2x00_lip_reset(scsi_qla_host_t *ha)
 
 	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		mcp->mb[0] = MBC_LIP_FULL_LOGIN;
-		mcp->mb[1] = BIT_0;
-		mcp->mb[2] = 0xff;
-		mcp->mb[3] = 0;
+		mcp->mb[1] = BIT_6;
+		mcp->mb[2] = 0;
+		mcp->mb[3] = ha->loop_reset_delay;
 		mcp->out_mb = MBX_3|MBX_2|MBX_1|MBX_0;
 	} else {
 		mcp->mb[0] = MBC_LIP_RESET;
@@ -1823,8 +1823,8 @@ qla2x00_full_login_lip(scsi_qla_host_t *ha)
 	    ha->host_no));
 
 	mcp->mb[0] = MBC_LIP_FULL_LOGIN;
-	mcp->mb[1] = 0;
-	mcp->mb[2] = 0xff;
+	mcp->mb[1] = IS_QLA24XX(ha) || IS_QLA54XX(ha) ? BIT_3: 0;
+	mcp->mb[2] = 0;
 	mcp->mb[3] = 0;
 	mcp->out_mb = MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->in_mb = MBX_0;
@@ -2486,7 +2486,7 @@ qla2x00_trace_control(scsi_qla_host_t *ha, uint16_t ctrl, dma_addr_t eft_dma,
 		mcp->mb[4] = LSW(MSD(eft_dma));
 		mcp->mb[5] = MSW(MSD(eft_dma));
 		mcp->mb[6] = buffers;
-		mcp->mb[7] = buffers;
+		mcp->mb[7] = 0;
 		mcp->out_mb |= MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2;
 	}
 	mcp->tov = 30;

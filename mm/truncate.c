@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/buffer_head.h>	/* grr. try_to_release_page,
 				   do_invalidatepage */
 
@@ -51,6 +52,33 @@ static inline void truncate_partial_page(struct page *page, unsigned partial)
 }
 
 /*
+ * This cancels just the dirty bit on the kernel page itself, it
+ * does NOT actually remove dirty bits on any mmap's that may be
+ * around. It also leaves the page tagged dirty, so any sync
+ * activity will still find it on the dirty lists, and in particular,
+ * clear_page_dirty_for_io() will still look at the dirty bits in
+ * the VM.
+ *
+ * Doing this should *normally* only ever be done when a page
+ * is truncated, and is not actually mapped anywhere at all. However,
+ * fs/buffer.c does this when it notices that somebody has cleaned
+ * out all the buffers on a page without actually doing it through
+ * the VM. Can you say "ext3 is horribly ugly"? Tought you could.
+ */
+void cancel_dirty_page(struct page *page, unsigned int account_size)
+{
+	if (TestClearPageDirty(page)) {
+		struct address_space *mapping = page->mapping;
+		if (mapping && mapping_cap_account_dirty(mapping)) {
+			dec_zone_page_state(page, NR_FILE_DIRTY);
+			if (account_size)
+				task_io_account_cancelled_write(account_size);
+		}
+	}
+}
+EXPORT_SYMBOL(cancel_dirty_page);
+
+/*
  * If truncate cannot remove the fs-private metadata from the page, the page
  * becomes anonymous.  It will be left on the LRU and may even be mapped into
  * user pagetables if we're racing with filemap_nopage().
@@ -66,10 +94,11 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 	if (page->mapping != mapping)
 		return;
 
+	cancel_dirty_page(page, PAGE_CACHE_SIZE);
+
 	if (PagePrivate(page))
 		do_invalidatepage(page, 0);
 
-	clear_page_dirty(page);
 	ClearPageUptodate(page);
 	ClearPageMappedToDisk(page);
 	remove_from_page_cache(page);
@@ -319,6 +348,15 @@ failed:
 	return 0;
 }
 
+static int do_launder_page(struct address_space *mapping, struct page *page)
+{
+	if (!PageDirty(page))
+		return 0;
+	if (page->mapping != mapping || mapping->a_ops->launder_page == NULL)
+		return 0;
+	return mapping->a_ops->launder_page(page);
+}
+
 /**
  * invalidate_inode_pages2_range - remove range of pages from an address_space
  * @mapping: the address_space
@@ -348,7 +386,6 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 		for (i = 0; !ret && i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
 			pgoff_t page_index;
-			int was_dirty;
 
 			lock_page(page);
 			if (page->mapping != mapping) {
@@ -384,18 +421,14 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 					  PAGE_CACHE_SIZE, 0);
 				}
 			}
-			was_dirty = test_clear_page_dirty(page);
-			if (!invalidate_complete_page2(mapping, page)) {
-				if (was_dirty)
-					set_page_dirty(page);
+			ret = do_launder_page(mapping, page);
+			if (ret == 0 && !invalidate_complete_page2(mapping, page))
 				ret = -EIO;
-			}
 			unlock_page(page);
 		}
 		pagevec_release(&pvec);
 		cond_resched();
 	}
-	WARN_ON_ONCE(ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(invalidate_inode_pages2_range);

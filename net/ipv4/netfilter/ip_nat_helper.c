@@ -183,7 +183,7 @@ ip_nat_mangle_tcp_packet(struct sk_buff **pskb,
 	datalen = (*pskb)->len - iph->ihl*4;
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
 		tcph->check = 0;
-		tcph->check = tcp_v4_check(tcph, datalen,
+		tcph->check = tcp_v4_check(datalen,
 					   iph->saddr, iph->daddr,
 					   csum_partial((char *)tcph,
 					   		datalen, 0));

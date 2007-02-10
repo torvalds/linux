@@ -867,9 +867,9 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 		error = -EBUSY;
 		goto error;
 	}
-	mutex_lock(&sb->s_bdev->bd_mount_mutex);
+	down(&sb->s_bdev->bd_mount_sem);
 	new = sget(fs_type, test_bdev_super, set_bdev_super, sb->s_bdev);
-	mutex_unlock(&sb->s_bdev->bd_mount_mutex);
+	up(&sb->s_bdev->bd_mount_sem);
 	if (IS_ERR(new)) {
 		error = PTR_ERR(new);
 		goto error;

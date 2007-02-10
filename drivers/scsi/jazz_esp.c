@@ -75,7 +75,7 @@ static int jazz_esp_detect(struct scsi_host_template *tpnt)
      */
     if (1) {
 	esp_dev = NULL;
-	esp = esp_allocate(tpnt, (void *) esp_dev);
+	esp = esp_allocate(tpnt, esp_dev, 0);
 	
 	/* Do command transfer with programmed I/O */
 	esp->do_pio_cmds = 1;

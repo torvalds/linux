@@ -30,6 +30,8 @@ struct v9fs_fid {
 	struct list_head list;	 /* list of fids associated with a dentry */
 	struct list_head active; /* XXX - debug */
 
+	struct semaphore lock;
+
 	u32 fid;
 	unsigned char fidopen;	  /* set when fid is opened */
 	unsigned char fidclunked; /* set when fid has already been clunked */
@@ -55,3 +57,6 @@ struct v9fs_fid *v9fs_fid_get_created(struct dentry *);
 void v9fs_fid_destroy(struct v9fs_fid *fid);
 struct v9fs_fid *v9fs_fid_create(struct v9fs_session_info *, int fid);
 int v9fs_fid_insert(struct v9fs_fid *fid, struct dentry *dentry);
+struct v9fs_fid *v9fs_fid_clone(struct dentry *dentry);
+void v9fs_fid_clunk(struct v9fs_session_info *v9ses, struct v9fs_fid *fid);
+

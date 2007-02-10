@@ -171,11 +171,11 @@ static void rackmeter_setup_dbdma(struct rackmeter *rm)
 	/* Make sure dbdma is reset */
 	DBDMA_DO_RESET(rm->dma_regs);
 
-	pr_debug("rackmeter: mark offset=0x%lx\n",
+	pr_debug("rackmeter: mark offset=0x%zx\n",
 		 offsetof(struct rackmeter_dma, mark));
-	pr_debug("rackmeter: buf1 offset=0x%lx\n",
+	pr_debug("rackmeter: buf1 offset=0x%zx\n",
 		 offsetof(struct rackmeter_dma, buf1));
-	pr_debug("rackmeter: buf2 offset=0x%lx\n",
+	pr_debug("rackmeter: buf2 offset=0x%zx\n",
 		 offsetof(struct rackmeter_dma, buf2));
 
 	/* Prepare 4 dbdma commands for the 2 buffers */

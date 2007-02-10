@@ -36,7 +36,7 @@ struct nlm_wait {
 	struct nlm_host *	b_host;
 	struct file_lock *	b_lock;		/* local file lock */
 	unsigned short		b_reclaim;	/* got to reclaim lock */
-	u32			b_status;	/* grant callback status */
+	__be32			b_status;	/* grant callback status */
 };
 
 static LIST_HEAD(nlm_blocked);
@@ -53,7 +53,7 @@ struct nlm_wait *nlmclnt_prepare_block(struct nlm_host *host, struct file_lock *
 		block->b_host = host;
 		block->b_lock = fl;
 		init_waitqueue_head(&block->b_wait);
-		block->b_status = NLM_LCK_BLOCKED;
+		block->b_status = nlm_lck_blocked;
 		list_add(&block->b_list, &nlm_blocked);
 	}
 	return block;
@@ -89,7 +89,7 @@ int nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 	 * nlmclnt_lock for an explanation.
 	 */
 	ret = wait_event_interruptible_timeout(block->b_wait,
-			block->b_status != NLM_LCK_BLOCKED,
+			block->b_status != nlm_lck_blocked,
 			timeout);
 	if (ret < 0)
 		return -ERESTARTSYS;
@@ -126,12 +126,12 @@ __be32 nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *lock
 			continue;
 		if (!nlm_cmp_addr(&block->b_host->h_addr, addr))
 			continue;
-		if (nfs_compare_fh(NFS_FH(fl_blocked->fl_file->f_dentry->d_inode) ,fh) != 0)
+		if (nfs_compare_fh(NFS_FH(fl_blocked->fl_file->f_path.dentry->d_inode) ,fh) != 0)
 			continue;
 		/* Alright, we found a lock. Set the return status
 		 * and wake up the caller
 		 */
-		block->b_status = NLM_LCK_GRANTED;
+		block->b_status = nlm_granted;
 		wake_up(&block->b_wait);
 		res = nlm_granted;
 	}
@@ -176,7 +176,7 @@ reclaimer(void *ptr)
 	lock_kernel();
 	lockd_up(0); /* note: this cannot fail as lockd is already running */
 
-	dprintk("lockd: reclaiming locks for host %s", host->h_name);
+	dprintk("lockd: reclaiming locks for host %s\n", host->h_name);
 
 restart:
 	nsmstate = host->h_nsmstate;
@@ -206,12 +206,12 @@ restart:
 
 	host->h_reclaiming = 0;
 	up_write(&host->h_rwsem);
-	dprintk("NLM: done reclaiming locks for host %s", host->h_name);
+	dprintk("NLM: done reclaiming locks for host %s\n", host->h_name);
 
 	/* Now, wake up all processes that sleep on a blocked lock */
 	list_for_each_entry(block, &nlm_blocked, b_list) {
 		if (block->b_host == host) {
-			block->b_status = NLM_LCK_DENIED_GRACE_PERIOD;
+			block->b_status = nlm_lck_denied_grace_period;
 			wake_up(&block->b_wait);
 		}
 	}

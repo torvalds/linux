@@ -97,7 +97,7 @@ extern int		ip_mc_output(struct sk_buff *skb);
 extern int		ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *));
 extern int		ip_do_nat(struct sk_buff *skb);
 extern void		ip_send_check(struct iphdr *ip);
-extern int		ip_queue_xmit(struct sk_buff *skb, struct sock *sk, int ipfragok);
+extern int		ip_queue_xmit(struct sk_buff *skb, int ipfragok);
 extern void		ip_init(void);
 extern int		ip_append_data(struct sock *sk,
 				       int getfrag(void *from, char *to, int offset, int len,
@@ -376,8 +376,7 @@ int ipv4_doint_and_flush(ctl_table *ctl, int write,
 			 size_t *lenp, loff_t *ppos);
 int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 				  void __user *oldval, size_t __user *oldlenp,
-				  void __user *newval, size_t newlen, 
-				  void **context);
+				  void __user *newval, size_t newlen);
 #ifdef CONFIG_PROC_FS
 extern int ip_misc_proc_init(void);
 #endif

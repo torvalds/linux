@@ -182,7 +182,7 @@ out_free:
 
 EXPORT_SYMBOL_GPL(dccp_create_openreq_child);
 
-/* 
+/*
  * Process an incoming packet for RESPOND sockets represented
  * as an request_sock.
  */

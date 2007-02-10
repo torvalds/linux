@@ -40,7 +40,7 @@ static inline void free_bio(struct bio *bio)
 
 static int emc_endio(struct bio *bio, unsigned int bytes_done, int error)
 {
-	struct path *path = bio->bi_private;
+	struct dm_path *path = bio->bi_private;
 
 	if (bio->bi_size)
 		return 1;
@@ -61,7 +61,7 @@ static int emc_endio(struct bio *bio, unsigned int bytes_done, int error)
 	return 0;
 }
 
-static struct bio *get_failover_bio(struct path *path, unsigned data_size)
+static struct bio *get_failover_bio(struct dm_path *path, unsigned data_size)
 {
 	struct bio *bio;
 	struct page *page;
@@ -96,7 +96,7 @@ static struct bio *get_failover_bio(struct path *path, unsigned data_size)
 }
 
 static struct request *get_failover_req(struct emc_handler *h,
-					struct bio *bio, struct path *path)
+					struct bio *bio, struct dm_path *path)
 {
 	struct request *rq;
 	struct block_device *bdev = bio->bi_bdev;
@@ -133,7 +133,7 @@ static struct request *get_failover_req(struct emc_handler *h,
 }
 
 static struct request *emc_trespass_get(struct emc_handler *h,
-					struct path *path)
+					struct dm_path *path)
 {
 	struct bio *bio;
 	struct request *rq;
@@ -191,7 +191,7 @@ static struct request *emc_trespass_get(struct emc_handler *h,
 }
 
 static void emc_pg_init(struct hw_handler *hwh, unsigned bypassed,
-			struct path *path)
+			struct dm_path *path)
 {
 	struct request *rq;
 	struct request_queue *q = bdev_get_queue(path->dev->bdev);

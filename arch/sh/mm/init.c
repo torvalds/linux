@@ -77,6 +77,7 @@ void show_mem(void)
 	printk("%d pages swap cached\n",cached);
 }
 
+#ifdef CONFIG_MMU
 static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 {
 	pgd_t *pgd;
@@ -139,6 +140,7 @@ void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 
 	set_pte_phys(address, phys, prot);
 }
+#endif	/* CONFIG_MMU */
 
 /* References to section boundaries */
 

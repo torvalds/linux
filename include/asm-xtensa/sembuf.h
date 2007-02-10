@@ -25,7 +25,7 @@
 
 struct semid64_ds {
 	struct ipc64_perm sem_perm;		/* permissions .. see ipc.h */
-#if XCHAL_HAVE_LE
+#ifdef __XTENSA_EL__
 	__kernel_time_t	sem_otime;		/* last semop time */
 	unsigned long	__unused1;
 	__kernel_time_t	sem_ctime;		/* last change time */

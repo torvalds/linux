@@ -193,6 +193,15 @@ static struct pci_dev * pci_find_subsys(unsigned int vendor,
 	struct pci_dev *dev;
 
 	WARN_ON(in_interrupt());
+
+	/*
+	 * pci_find_subsys() can be called on the ide_setup() path, super-early
+	 * in boot.  But the down_read() will enable local interrupts, which
+	 * can cause some machines to crash.  So here we detect and flag that
+	 * situation and bail out early.
+	 */
+	if (unlikely(list_empty(&pci_devices)))
+		return NULL;
 	down_read(&pci_bus_sem);
 	n = from ? from->global_list.next : pci_devices.next;
 
@@ -259,6 +268,15 @@ pci_get_subsys(unsigned int vendor, unsigned int device,
 	struct pci_dev *dev;
 
 	WARN_ON(in_interrupt());
+
+	/*
+	 * pci_get_subsys() can potentially be called by drivers super-early
+	 * in boot.  But the down_read() will enable local interrupts, which
+	 * can cause some machines to crash.  So here we detect and flag that
+	 * situation and bail out early.
+	 */
+	if (unlikely(list_empty(&pci_devices)))
+		return NULL;
 	down_read(&pci_bus_sem);
 	n = from ? from->global_list.next : pci_devices.next;
 
@@ -340,43 +358,6 @@ exit:
 }
 
 /**
- * pci_find_device_reverse - begin or continue searching for a PCI device by vendor/device id
- * @vendor: PCI vendor id to match, or %PCI_ANY_ID to match all vendor ids
- * @device: PCI device id to match, or %PCI_ANY_ID to match all device ids
- * @from: Previous PCI device found in search, or %NULL for new search.
- *
- * Iterates through the list of known PCI devices in the reverse order of
- * pci_find_device().
- * If a PCI device is found with a matching @vendor and @device, a pointer to
- * its device structure is returned.  Otherwise, %NULL is returned.
- * A new search is initiated by passing %NULL as the @from argument.
- * Otherwise if @from is not %NULL, searches continue from previous device
- * on the global list.
- */
-struct pci_dev *
-pci_find_device_reverse(unsigned int vendor, unsigned int device, const struct pci_dev *from)
-{
-	struct list_head *n;
-	struct pci_dev *dev;
-
-	WARN_ON(in_interrupt());
-	down_read(&pci_bus_sem);
-	n = from ? from->global_list.prev : pci_devices.prev;
-
-	while (n && (n != &pci_devices)) {
-		dev = pci_dev_g(n);
-		if ((vendor == PCI_ANY_ID || dev->vendor == vendor) &&
-		    (device == PCI_ANY_ID || dev->device == device))
-			goto exit;
-		n = n->prev;
-	}
-	dev = NULL;
-exit:
-	up_read(&pci_bus_sem);
-	return dev;
-}
-
-/**
  * pci_get_class - begin or continue searching for a PCI device by class
  * @class: search for a PCI device with this class designation
  * @from: Previous PCI device found in search, or %NULL for new search.
@@ -413,6 +394,24 @@ exit:
 	return dev;
 }
 
+const struct pci_device_id *pci_find_present(const struct pci_device_id *ids)
+{
+	struct pci_dev *dev;
+	const struct pci_device_id *found = NULL;
+
+	WARN_ON(in_interrupt());
+	down_read(&pci_bus_sem);
+	while (ids->vendor || ids->subvendor || ids->class_mask) {
+		list_for_each_entry(dev, &pci_devices, global_list) {
+			if ((found = pci_match_one_device(ids, dev)) != NULL)
+				break;
+		}
+		ids++;
+	}
+	up_read(&pci_bus_sem);
+	return found;
+}
+
 /**
  * pci_dev_present - Returns 1 if device matching the device list is present, 0 if not.
  * @ids: A pointer to a null terminated list of struct pci_device_id structures
@@ -426,28 +425,13 @@ exit:
  */
 int pci_dev_present(const struct pci_device_id *ids)
 {
-	struct pci_dev *dev;
-	int found = 0;
-
-	WARN_ON(in_interrupt());
-	down_read(&pci_bus_sem);
-	while (ids->vendor || ids->subvendor || ids->class_mask) {
-		list_for_each_entry(dev, &pci_devices, global_list) {
-			if (pci_match_one_device(ids, dev)) {
-				found = 1;
-				goto exit;
-			}
-		}
-		ids++;
-	}
-exit:
-	up_read(&pci_bus_sem);
-	return found;
+	return pci_find_present(ids) == NULL ? 0 : 1;
 }
+
 EXPORT_SYMBOL(pci_dev_present);
+EXPORT_SYMBOL(pci_find_present);
 
 EXPORT_SYMBOL(pci_find_device);
-EXPORT_SYMBOL(pci_find_device_reverse);
 EXPORT_SYMBOL(pci_find_slot);
 /* For boot time work */
 EXPORT_SYMBOL(pci_find_bus);

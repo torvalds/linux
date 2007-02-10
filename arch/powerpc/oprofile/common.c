@@ -149,6 +149,8 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 #ifdef CONFIG_PPC64
 #ifdef CONFIG_PPC_CELL_NATIVE
 		case PPC_OPROFILE_CELL:
+			if (firmware_has_feature(FW_FEATURE_LPAR))
+				return -ENODEV;
 			model = &op_model_cell;
 			break;
 #endif

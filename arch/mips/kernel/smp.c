@@ -271,7 +271,7 @@ void __devinit smp_prepare_boot_cpu(void)
  * and keep control until "cpu_online(cpu)" is set.  Note: cpu is
  * physical, not logical.
  */
-int __devinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu)
 {
 	struct task_struct *idle;
 

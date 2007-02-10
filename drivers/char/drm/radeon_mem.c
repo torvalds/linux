@@ -1,5 +1,5 @@
-/* radeon_mem.c -- Simple GART/fb memory manager for radeon -*- linux-c -*-
- *
+/* radeon_mem.c -- Simple GART/fb memory manager for radeon -*- linux-c -*- */
+/*
  * Copyright (C) The Weather Channel, Inc.  2002.  All Rights Reserved.
  *
  * The Weather Channel (TM) funded Tungsten Graphics to develop the

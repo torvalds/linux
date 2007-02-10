@@ -197,7 +197,7 @@ static void cmd64x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 static void cmd64x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	static const u8 udma_data[] = {
-		0x31, 0x21, 0x11, 0x25, 0x15, 0x05
+		0x30, 0x20, 0x10, 0x20, 0x10, 0x00
 	};
 	static const u8 mwdma_data[] = {
 		0x30, 0x20, 0x10
@@ -213,12 +213,21 @@ static void cmd64x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	pci_read_config_byte(pdev, pciD, &regD);
 	pci_read_config_byte(pdev, pciU, &regU);
 
-	regD &= ~(0x20 << shift);
-	regU &= ~(0x35 << shift);
+	/* DMA bits off */
+	regD &= ~(0x20 << adev->devno);
+	/* DMA control bits */
+	regU &= ~(0x30 << shift);
+	/* DMA timing bits */
+	regU &= ~(0x05 << adev->devno);
 
-	if (adev->dma_mode >= XFER_UDMA_0)
+	if (adev->dma_mode >= XFER_UDMA_0) {
+		/* Merge thge timing value */
 		regU |= udma_data[adev->dma_mode - XFER_UDMA_0] << shift;
-	else
+		/* Merge the control bits */
+		regU |= 1 << adev->devno; /* UDMA on */
+		if (adev->dma_mode > 2)	/* 15nS timing */
+			regU |= 4 << adev->devno;
+	} else
 		regD |= mwdma_data[adev->dma_mode - XFER_MW_DMA_0] << shift;
 
 	regD |= 0x20 << adev->devno;
@@ -239,8 +248,8 @@ static void cmd648_bmdma_stop(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 dma_intr;
-	int dma_reg = ap->port_no ? ARTTIM23_INTR_CH1 : CFR_INTR_CH0;
-	int dma_mask = ap->port_no ? ARTTIM2 : CFR;
+	int dma_mask = ap->port_no ? ARTTIM23_INTR_CH1 : CFR_INTR_CH0;
+	int dma_reg = ap->port_no ? ARTTIM2 : CFR;
 
 	ata_bmdma_stop(qc);
 
@@ -304,14 +313,14 @@ static struct ata_port_operations cmd64x_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct ata_port_operations cmd646r1_port_ops = {
@@ -338,14 +347,14 @@ static struct ata_port_operations cmd646r1_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct ata_port_operations cmd648_port_ops = {
@@ -372,14 +381,14 @@ static struct ata_port_operations cmd648_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)

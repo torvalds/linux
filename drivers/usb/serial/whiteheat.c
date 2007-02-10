@@ -145,7 +145,7 @@ static void whiteheat_close		(struct usb_serial_port *port, struct file *filp);
 static int  whiteheat_write		(struct usb_serial_port *port, const unsigned char *buf, int count);
 static int  whiteheat_write_room	(struct usb_serial_port *port);
 static int  whiteheat_ioctl		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-static void whiteheat_set_termios	(struct usb_serial_port *port, struct termios * old);
+static void whiteheat_set_termios	(struct usb_serial_port *port, struct ktermios * old);
 static int  whiteheat_tiocmget		(struct usb_serial_port *port, struct file *file);
 static int  whiteheat_tiocmset		(struct usb_serial_port *port, struct file *file, unsigned int set, unsigned int clear);
 static void whiteheat_break_ctl		(struct usb_serial_port *port, int break_state);
@@ -161,6 +161,7 @@ static struct usb_serial_driver whiteheat_fake_device = {
 		.name =		"whiteheatnofirm",
 	},
 	.description =		"Connect Tech - WhiteHEAT - (prerenumeration)",
+	.usb_driver =		&whiteheat_driver,
 	.id_table =		id_table_prerenumeration,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -176,6 +177,7 @@ static struct usb_serial_driver whiteheat_device = {
 		.name =		"whiteheat",
 	},
 	.description =		"Connect Tech - WhiteHEAT",
+	.usb_driver =		&whiteheat_driver,
 	.id_table =		id_table_std,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -416,7 +418,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
 
-		info = (struct whiteheat_private *)kmalloc(sizeof(struct whiteheat_private), GFP_KERNEL);
+		info = kmalloc(sizeof(struct whiteheat_private), GFP_KERNEL);
 		if (info == NULL) {
 			err("%s: Out of memory for port structures\n", serial->type->description);
 			goto no_private;
@@ -487,7 +489,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 		usb_set_serial_port_data(port, info);
 	}
 
-	command_info = (struct whiteheat_command_private *)kmalloc(sizeof(struct whiteheat_command_private), GFP_KERNEL);
+	command_info = kmalloc(sizeof(struct whiteheat_command_private), GFP_KERNEL);
 	if (command_info == NULL) {
 		err("%s: Out of memory for port structures\n", serial->type->description);
 		goto no_command_private;
@@ -597,7 +599,7 @@ static void whiteheat_shutdown (struct usb_serial *serial)
 static int whiteheat_open (struct usb_serial_port *port, struct file *filp)
 {
 	int		retval = 0;
-	struct termios	old_term;
+	struct ktermios	old_term;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -870,7 +872,7 @@ static int whiteheat_ioctl (struct usb_serial_port *port, struct file * file, un
 }
 
 
-static void whiteheat_set_termios (struct usb_serial_port *port, struct termios *old_termios)
+static void whiteheat_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	dbg("%s -port %d", __FUNCTION__, port->number);
 

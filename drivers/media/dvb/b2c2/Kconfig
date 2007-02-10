@@ -9,6 +9,7 @@ config DVB_B2C2_FLEXCOP
 	select DVB_STV0297 if !DVB_FE_CUSTOMISE
 	select DVB_BCM3510 if !DVB_FE_CUSTOMISE
 	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
+	select DVB_TUNER_LGH06XF if !DVB_FE_CUSTOMISE
 	help
 	  Support for the digital TV receiver chip made by B2C2 Inc. included in
 	  Technisats PCI cards and USB boxes.

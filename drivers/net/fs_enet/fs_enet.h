@@ -9,6 +9,7 @@
 #include <linux/dma-mapping.h>
 
 #include <linux/fs_enet_pd.h>
+#include <asm/fs_pd.h>
 
 #ifdef CONFIG_CPM1
 #include <asm/commproc.h>

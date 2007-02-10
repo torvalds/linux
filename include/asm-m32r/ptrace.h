@@ -33,21 +33,10 @@
 #define PT_R15		PT_SP
 
 /* processor status and miscellaneous context registers.  */
-#if defined(CONFIG_ISA_M32R2) && defined(CONFIG_ISA_DSP_LEVEL2)
 #define PT_ACC0H	15
 #define PT_ACC0L	16
-#define PT_ACC1H	17
-#define PT_ACC1L	18
-#define PT_ACCH		PT_ACC0H
-#define PT_ACCL		PT_ACC0L
-#elif defined(CONFIG_ISA_M32R2) || defined(CONFIG_ISA_M32R)
-#define PT_ACCH		15
-#define PT_ACCL		16
-#define PT_DUMMY_ACC1H	17
-#define PT_DUMMY_ACC1L	18
-#else
-#error unknown isa conifiguration
-#endif
+#define PT_ACC1H	17	/* ISA_DSP_LEVEL2 only */
+#define PT_ACC1L	18	/* ISA_DSP_LEVEL2 only */
 #define PT_PSW		19
 #define PT_BPC		20
 #define PT_BBPSW	21
@@ -103,19 +92,10 @@ struct pt_regs {
 	long syscall_nr;
 
 	/* Saved main processor status and miscellaneous context registers. */
-#if defined(CONFIG_ISA_M32R2) && defined(CONFIG_ISA_DSP_LEVEL2)
 	unsigned long acc0h;
 	unsigned long acc0l;
-	unsigned long acc1h;
-	unsigned long acc1l;
-#elif defined(CONFIG_ISA_M32R2) || defined(CONFIG_ISA_M32R)
-	unsigned long acch;
-	unsigned long accl;
-	unsigned long dummy_acc1h;
-	unsigned long dummy_acc1l;
-#else
-#error unknown isa configuration
-#endif
+	unsigned long acc1h;	/* ISA_DSP_LEVEL2 only */
+	unsigned long acc1l;	/* ISA_DSP_LEVEL2 only */
 	unsigned long psw;
 	unsigned long bpc;		/* saved PC for TRAP syscalls */
 	unsigned long bbpsw;

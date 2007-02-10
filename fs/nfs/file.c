@@ -176,7 +176,7 @@ static int
 nfs_file_flush(struct file *file, fl_owner_t id)
 {
 	struct nfs_open_context *ctx = (struct nfs_open_context *)file->private_data;
-	struct inode	*inode = file->f_dentry->d_inode;
+	struct inode	*inode = file->f_path.dentry->d_inode;
 	int		status;
 
 	dfprintk(VFS, "nfs: flush(%s/%ld)\n", inode->i_sb->s_id, inode->i_ino);
@@ -201,7 +201,7 @@ static ssize_t
 nfs_file_read(struct kiocb *iocb, const struct iovec *iov,
 		unsigned long nr_segs, loff_t pos)
 {
-	struct dentry * dentry = iocb->ki_filp->f_dentry;
+	struct dentry * dentry = iocb->ki_filp->f_path.dentry;
 	struct inode * inode = dentry->d_inode;
 	ssize_t result;
 	size_t count = iov_length(iov, nr_segs);
@@ -226,7 +226,7 @@ static ssize_t
 nfs_file_sendfile(struct file *filp, loff_t *ppos, size_t count,
 		read_actor_t actor, void *target)
 {
-	struct dentry *dentry = filp->f_dentry;
+	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	ssize_t res;
 
@@ -243,7 +243,7 @@ nfs_file_sendfile(struct file *filp, loff_t *ppos, size_t count,
 static int
 nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
 {
-	struct dentry *dentry = file->f_dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	int	status;
 
@@ -315,14 +315,13 @@ static void nfs_invalidate_page(struct page *page, unsigned long offset)
 
 static int nfs_release_page(struct page *page, gfp_t gfp)
 {
-	/*
-	 * Avoid deadlock on nfs_wait_on_request().
-	 */
-	if (!(gfp & __GFP_FS))
-		return 0;
-	/* Hack... Force nfs_wb_page() to write out the page */
-	SetPageDirty(page);
-	return !nfs_wb_page(page->mapping->host, page);
+	/* If PagePrivate() is set, then the page is not freeable */
+	return 0;
+}
+
+static int nfs_launder_page(struct page *page)
+{
+	return nfs_wb_page(page->mapping->host, page);
 }
 
 const struct address_space_operations nfs_file_aops = {
@@ -338,12 +337,13 @@ const struct address_space_operations nfs_file_aops = {
 #ifdef CONFIG_NFS_DIRECTIO
 	.direct_IO = nfs_direct_IO,
 #endif
+	.launder_page = nfs_launder_page,
 };
 
 static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos)
 {
-	struct dentry * dentry = iocb->ki_filp->f_dentry;
+	struct dentry * dentry = iocb->ki_filp->f_path.dentry;
 	struct inode * inode = dentry->d_inode;
 	ssize_t result;
 	size_t count = iov_length(iov, nr_segs);
@@ -434,8 +434,9 @@ static int do_vfs_lock(struct file *file, struct file_lock *fl)
 			BUG();
 	}
 	if (res < 0)
-		printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n",
-				__FUNCTION__);
+		dprintk(KERN_WARNING "%s: VFS is out of sync with lock manager"
+			" - error %d!\n",
+				__FUNCTION__, res);
 	return res;
 }
 
@@ -535,8 +536,8 @@ static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
 static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	dprintk("NFS: nfs_flock(f=%s/%ld, t=%x, fl=%x)\n",
-			filp->f_dentry->d_inode->i_sb->s_id,
-			filp->f_dentry->d_inode->i_ino,
+			filp->f_path.dentry->d_inode->i_sb->s_id,
+			filp->f_path.dentry->d_inode->i_ino,
 			fl->fl_type, fl->fl_flags);
 
 	/*

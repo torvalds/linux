@@ -500,7 +500,7 @@ int lance_open (struct net_device *dev)
 	int res;
 
         /* Install the Interrupt handler. Or we could shunt this out to specific drivers? */
-        if (request_irq(lp->irq, lance_interrupt, 0, lp->name, dev))
+        if (request_irq(lp->irq, lance_interrupt, SA_SHIRQ, lp->name, dev))
                 return -EAGAIN;
 
         res = lance_reset(dev);

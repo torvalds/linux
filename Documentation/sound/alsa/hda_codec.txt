@@ -277,11 +277,11 @@ Helper Functions
 snd_hda_get_codec_name() stores the codec name on the given string.
 
 snd_hda_check_board_config() can be used to obtain the configuration
-information matching with the device.  Define the table with struct
-hda_board_config entries (zero-terminated), and pass it to the
-function.  The function checks the modelname given as a module
-parameter, and PCI subsystem IDs.  If the matching entry is found, it
-returns the config field value.
+information matching with the device.  Define the model string table
+and the table with struct snd_pci_quirk entries (zero-terminated),
+and pass it to the function.  The function checks the modelname given
+as a module parameter, and PCI subsystem IDs.  If the matching entry
+is found, it returns the config field value.
 
 snd_hda_add_new_ctls() can be used to create and add control entries.
 Pass the zero-terminated array of struct snd_kcontrol_new.  The same array

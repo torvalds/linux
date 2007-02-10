@@ -105,12 +105,12 @@ struct ipoib_mcast;
 
 struct ipoib_rx_buf {
 	struct sk_buff *skb;
-	dma_addr_t	mapping;
+	u64		mapping;
 };
 
 struct ipoib_tx_buf {
 	struct sk_buff *skb;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	u64		mapping;
 };
 
 /*

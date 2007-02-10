@@ -24,7 +24,7 @@
  */
 unsigned int tsc_khz;
 
-int tsc_disable __cpuinitdata = 0;
+int tsc_disable;
 
 #ifdef CONFIG_X86_TSC
 static int __init tsc_setup(char *str)

@@ -10,9 +10,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Modifications:
- *	20-Aug-2004 BJD  Created
 */
 
 extern int usb_simtec_init(void);

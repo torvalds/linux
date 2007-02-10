@@ -70,7 +70,7 @@
 		      <property name="tooltip" translatable="yes">Save the config in .config</property>
 		      <property name="label" translatable="yes">_Save</property>
 		      <property name="use_underline">True</property>
-		      <signal name="activate" handler="on_save1_activate"/>
+		      <signal name="activate" handler="on_save_activate"/>
 		      <accelerator key="S" modifiers="GDK_CONTROL_MASK" signal="activate"/>
 
 		      <child internal-child="image">
@@ -380,7 +380,7 @@
 		  <property name="visible_horizontal">True</property>
 		  <property name="visible_vertical">True</property>
 		  <property name="is_important">False</property>
-		  <signal name="clicked" handler="on_save_clicked"/>
+		  <signal name="clicked" handler="on_save_activate"/>
 		</widget>
 		<packing>
 		  <property name="expand">False</property>

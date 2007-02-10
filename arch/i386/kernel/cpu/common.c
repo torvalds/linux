@@ -54,7 +54,7 @@ static struct cpu_dev __cpuinitdata default_cpu = {
 	.c_init	= default_init,
 	.c_vendor = "Unknown",
 };
-static struct cpu_dev * this_cpu = &default_cpu;
+static struct cpu_dev * this_cpu __cpuinitdata = &default_cpu;
 
 static int __init cachesize_setup(char *str)
 {
@@ -710,11 +710,8 @@ __cpuinit int init_gdt(int cpu, struct task_struct *idle)
 	return 1;
 }
 
-/* Common CPU init for both boot and secondary CPUs */
-static void __cpuinit _cpu_init(int cpu, struct task_struct *curr)
+void __cpuinit cpu_set_gdt(int cpu)
 {
-	struct tss_struct * t = &per_cpu(init_tss, cpu);
-	struct thread_struct *thread = &curr->thread;
 	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
 
 	/* Reinit these anyway, even if they've already been done (on
@@ -722,6 +719,13 @@ static void __cpuinit _cpu_init(int cpu, struct task_struct *curr)
 	   the real ones). */
 	load_gdt(cpu_gdt_descr);
 	set_kernel_gs();
+}
+
+/* Common CPU init for both boot and secondary CPUs */
+static void __cpuinit _cpu_init(int cpu, struct task_struct *curr)
+{
+	struct tss_struct * t = &per_cpu(init_tss, cpu);
+	struct thread_struct *thread = &curr->thread;
 
 	if (cpu_test_and_set(cpu, cpu_initialized)) {
 		printk(KERN_WARNING "CPU#%d already initialized!\n", cpu);
@@ -807,6 +811,7 @@ void __cpuinit cpu_init(void)
 			local_irq_enable();
 	}
 
+	cpu_set_gdt(cpu);
 	_cpu_init(cpu, curr);
 }
 

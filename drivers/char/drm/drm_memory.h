@@ -56,26 +56,6 @@
 # endif
 #endif
 
-static inline unsigned long drm_follow_page(void *vaddr)
-{
-	pgd_t *pgd = pgd_offset_k((unsigned long)vaddr);
-	pud_t *pud = pud_offset(pgd, (unsigned long)vaddr);
-	pmd_t *pmd = pmd_offset(pud, (unsigned long)vaddr);
-	pte_t *ptep = pte_offset_kernel(pmd, (unsigned long)vaddr);
-	return pte_pfn(*ptep) << PAGE_SHIFT;
-}
-
 #else				/* __OS_HAS_AGP */
 
-static inline unsigned long drm_follow_page(void *vaddr)
-{
-	return 0;
-}
-
 #endif
-
-void *drm_ioremap(unsigned long offset, unsigned long size,
-				drm_device_t * dev);
-
-void drm_ioremapfree(void *pt, unsigned long size,
-				   drm_device_t * dev);

@@ -17,8 +17,10 @@
  */
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/kernel.h>
 
 #include <asm/io.h>
+#include <asm/i8259.h>
 #include <asm/vr41xx/cmbvr4133.h>
 
 extern int vr4133_rockhopper;
@@ -142,7 +144,7 @@ int rockhopper_get_irq(struct pci_dev *dev, u8 pin, u8 slot)
 	if (bus == NULL)
 		return -1;
 
-	for (i = 0; i < sizeof (int_map) / sizeof (int_map[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(int_map); i++) {
 		if (int_map[i].bus == bus->number && int_map[i].slot == slot) {
 			int line;
 			for (line = 0; line < 4; line++)
@@ -160,17 +162,7 @@ int rockhopper_get_irq(struct pci_dev *dev, u8 pin, u8 slot)
 #ifdef CONFIG_ROCKHOPPER
 void i8259_init(void)
 {
-	outb(0x11, 0x20);		/* Master ICW1 */
-	outb(I8259_IRQ_BASE, 0x21);	/* Master ICW2 */
-	outb(0x04, 0x21);		/* Master ICW3 */
-	outb(0x01, 0x21);		/* Master ICW4 */
-	outb(0xff, 0x21);		/* Master IMW */
-
-	outb(0x11, 0xa0);		/* Slave ICW1 */
-	outb(I8259_IRQ_BASE + 8, 0xa1);	/* Slave ICW2 */
-	outb(0x02, 0xa1);		/* Slave ICW3 */
-	outb(0x01, 0xa1);		/* Slave ICW4 */
-	outb(0xff, 0xa1);		/* Slave IMW */
+	init_i8259_irqs();
 
 	outb(0x00, 0x4d0);
 	outb(0x02, 0x4d1);	/* USB IRQ9 is level */

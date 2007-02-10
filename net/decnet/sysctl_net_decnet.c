@@ -134,8 +134,7 @@ static int parse_addr(__le16 *addr, char *str)
 
 static int dn_node_address_strategy(ctl_table *table, int __user *name, int nlen,
 				void __user *oldval, size_t __user *oldlenp,
-				void __user *newval, size_t newlen,
-				void **context)
+				void __user *newval, size_t newlen)
 {
 	size_t len;
 	__le16 addr;
@@ -220,8 +219,7 @@ static int dn_node_address_handler(ctl_table *table, int write,
 
 static int dn_def_dev_strategy(ctl_table *table, int __user *name, int nlen,
 				void __user *oldval, size_t __user *oldlenp,
-				void __user *newval, size_t newlen,
-				void **context)
+				void __user *newval, size_t newlen)
 {
 	size_t len;
 	struct net_device *dev;

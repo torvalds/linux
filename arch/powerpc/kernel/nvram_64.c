@@ -505,7 +505,7 @@ static int nvram_scan_partitions(void)
 		return -ENODEV;
 	total_size = ppc_md.nvram_size();
 	
-	header = (char *) kmalloc(NVRAM_HEADER_LEN, GFP_KERNEL);
+	header = kmalloc(NVRAM_HEADER_LEN, GFP_KERNEL);
 	if (!header) {
 		printk(KERN_ERR "nvram_scan_partitions: Failed kmalloc\n");
 		return -ENOMEM;
@@ -574,7 +574,7 @@ static int __init nvram_init(void)
 	}
   	
   	/* initialize our anchor for the nvram partition list */
-  	nvram_part = (struct nvram_partition *) kmalloc(sizeof(struct nvram_partition), GFP_KERNEL);
+  	nvram_part = kmalloc(sizeof(struct nvram_partition), GFP_KERNEL);
   	if (!nvram_part) {
   		printk(KERN_ERR "nvram_init: Failed kmalloc\n");
   		return -ENOMEM;

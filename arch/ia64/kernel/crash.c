@@ -19,29 +19,11 @@
 
 #include <asm/kdebug.h>
 #include <asm/mca.h>
-#include <asm/uaccess.h>
 
 int kdump_status[NR_CPUS];
 atomic_t kdump_cpu_freezed;
 atomic_t kdump_in_progress;
 int kdump_on_init = 1;
-ssize_t
-copy_oldmem_page(unsigned long pfn, char *buf,
-		size_t csize, unsigned long offset, int userbuf)
-{
-	void  *vaddr;
-
-	if (!csize)
-		return 0;
-	vaddr = __va(pfn<<PAGE_SHIFT);
-	if (userbuf) {
-		if (copy_to_user(buf, (vaddr + offset), csize)) {
-			return -EFAULT;
-		}
-	} else
-		memcpy(buf, (vaddr + offset), csize);
-	return csize;
-}
 
 static inline Elf64_Word
 *append_elf_note(Elf64_Word *buf, char *name, unsigned type, void *data,
@@ -70,7 +52,7 @@ extern void ia64_dump_cpu_regs(void *);
 static DEFINE_PER_CPU(struct elf_prstatus, elf_prstatus);
 
 void
-crash_save_this_cpu()
+crash_save_this_cpu(void)
 {
 	void *buf;
 	unsigned long cfm, sof, sol;
@@ -97,6 +79,7 @@ crash_save_this_cpu()
 	final_note(buf);
 }
 
+#ifdef CONFIG_SMP
 static int
 kdump_wait_cpu_freeze(void)
 {
@@ -109,6 +92,7 @@ kdump_wait_cpu_freeze(void)
 	}
 	return 1;
 }
+#endif
 
 void
 machine_crash_shutdown(struct pt_regs *pt)
@@ -134,6 +118,11 @@ machine_crash_shutdown(struct pt_regs *pt)
 static void
 machine_kdump_on_init(void)
 {
+	if (!ia64_kimage) {
+		printk(KERN_NOTICE "machine_kdump_on_init(): "
+				"kdump not configured\n");
+		return;
+	}
 	local_irq_disable();
 	kexec_disable_iosapic();
 	machine_kexec(ia64_kimage);
@@ -150,11 +139,12 @@ kdump_cpu_freeze(struct unw_frame_info *info, void *arg)
 	atomic_inc(&kdump_cpu_freezed);
 	kdump_status[cpuid] = 1;
 	mb();
-	if (cpuid == 0) {
-		for (;;)
-			cpu_relax();
-	} else
+#ifdef CONFIG_HOTPLUG_CPU
+	if (cpuid != 0)
 		ia64_jump_to_sal(&sal_boot_rendez_state[cpuid]);
+#endif
+	for (;;)
+		cpu_relax();
 }
 
 static int
@@ -225,14 +215,10 @@ static ctl_table sys_table[] = {
 static int
 machine_crash_setup(void)
 {
-	char *from = strstr(saved_command_line, "elfcorehdr=");
 	static struct notifier_block kdump_init_notifier_nb = {
 		.notifier_call = kdump_init_notifier,
 	};
 	int ret;
-	if (from)
-		elfcorehdr_addr = memparse(from+11, &from);
-	saved_max_pfn = (unsigned long)-1;
 	if((ret = register_die_notifier(&kdump_init_notifier_nb)) != 0)
 		return ret;
 #ifdef CONFIG_SYSCTL

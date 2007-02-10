@@ -1299,6 +1299,7 @@ int security_load_policy(void *data, size_t len)
 		avc_ss_reset(seqno);
 		selnl_notify_policyload(seqno);
 		selinux_netlbl_cache_invalidate();
+		selinux_xfrm_notify_policyload();
 		return 0;
 	}
 
@@ -1354,6 +1355,7 @@ int security_load_policy(void *data, size_t len)
 	avc_ss_reset(seqno);
 	selnl_notify_policyload(seqno);
 	selinux_netlbl_cache_invalidate();
+	selinux_xfrm_notify_policyload();
 
 	return 0;
 
@@ -1853,6 +1855,7 @@ out:
 	if (!rc) {
 		avc_ss_reset(seqno);
 		selnl_notify_policyload(seqno);
+		selinux_xfrm_notify_policyload();
 	}
 	return rc;
 }
@@ -1916,10 +1919,9 @@ int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid)
 	newcon.user = context1->user;
 	newcon.role = context1->role;
 	newcon.type = context1->type;
-	rc = mls_copy_context(&newcon, context2);
+	rc = mls_context_cpy(&newcon, context2);
 	if (rc)
 		goto out_unlock;
-
 
 	/* Check the validity of the new context. */
 	if (!policydb_context_isvalid(&policydb, &newcon)) {
@@ -2492,9 +2494,9 @@ static int selinux_netlbl_socket_setsid(struct socket *sock, u32 sid)
 
 	rc = netlbl_socket_setattr(sock, &secattr);
 	if (rc == 0) {
-		spin_lock(&sksec->nlbl_lock);
+		spin_lock_bh(&sksec->nlbl_lock);
 		sksec->nlbl_state = NLBL_LABELED;
-		spin_unlock(&sksec->nlbl_lock);
+		spin_unlock_bh(&sksec->nlbl_lock);
 	}
 
 netlbl_socket_setsid_return:
@@ -2660,9 +2662,11 @@ int selinux_netlbl_inode_permission(struct inode *inode, int mask)
 		rcu_read_unlock();
 		return 0;
 	}
-	lock_sock(sock->sk);
+	local_bh_disable();
+	bh_lock_sock_nested(sock->sk);
 	rc = selinux_netlbl_socket_setsid(sock, sksec->sid);
-	release_sock(sock->sk);
+	bh_unlock_sock(sock->sk);
+	local_bh_enable();
 	rcu_read_unlock();
 
 	return rc;

@@ -333,7 +333,6 @@ static int scan_block_fast(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 	struct mtd_oob_ops ops;
 	int j, ret;
 
-	ops.len = mtd->oobsize;
 	ops.ooblen = mtd->oobsize;
 	ops.oobbuf = buf;
 	ops.ooboffs = 0;
@@ -676,10 +675,10 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 				       "bad block table\n");
 			}
 			/* Read oob data */
-			ops.len = (len >> this->page_shift) * mtd->oobsize;
+			ops.ooblen = (len >> this->page_shift) * mtd->oobsize;
 			ops.oobbuf = &buf[len];
 			res = mtd->read_oob(mtd, to + mtd->writesize, &ops);
-			if (res < 0 || ops.retlen != ops.len)
+			if (res < 0 || ops.oobretlen != ops.ooblen)
 				goto outerr;
 
 			/* Calc the byte offset in the buffer */
@@ -961,14 +960,12 @@ int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	struct nand_bbt_descr *md = this->bbt_md;
 
 	len = mtd->size >> (this->bbt_erase_shift + 2);
-	/* Allocate memory (2bit per block) */
-	this->bbt = kmalloc(len, GFP_KERNEL);
+	/* Allocate memory (2bit per block) and clear the memory bad block table */
+	this->bbt = kzalloc(len, GFP_KERNEL);
 	if (!this->bbt) {
 		printk(KERN_ERR "nand_scan_bbt: Out of memory\n");
 		return -ENOMEM;
 	}
-	/* Clear the memory bad block table */
-	memset(this->bbt, 0x00, len);
 
 	/* If no primary table decriptor is given, scan the device
 	 * to build a memory based bad block table

@@ -52,10 +52,20 @@ static int any_ports_active(struct uhci_hcd *uhci)
 static inline int get_hub_status_data(struct uhci_hcd *uhci, char *buf)
 {
 	int port;
+	int mask = RWC_BITS;
+
+	/* Some boards (both VIA and Intel apparently) report bogus
+	 * overcurrent indications, causing massive log spam unless
+	 * we completely ignore them.  This doesn't seem to be a problem
+	 * with the chipset so much as with the way it is connected on
+	 * the motherboard; if the overcurrent input is left to float
+	 * then it may constantly register false positives. */
+	if (ignore_oc)
+		mask &= ~USBPORTSC_OCC;
 
 	*buf = 0;
 	for (port = 0; port < uhci->rh_numports; ++port) {
-		if ((inw(uhci->io_addr + USBPORTSC1 + port * 2) & RWC_BITS) ||
+		if ((inw(uhci->io_addr + USBPORTSC1 + port * 2) & mask) ||
 				test_bit(port, &uhci->port_c_suspend))
 			*buf |= (1 << (port + 1));
 	}
@@ -263,7 +273,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			wPortChange |= USB_PORT_STAT_C_CONNECTION;
 		if (status & USBPORTSC_PEC)
 			wPortChange |= USB_PORT_STAT_C_ENABLE;
-		if (status & USBPORTSC_OCC)
+		if ((status & USBPORTSC_OCC) && !ignore_oc)
 			wPortChange |= USB_PORT_STAT_C_OVERCURRENT;
 
 		if (test_bit(port, &uhci->port_c_suspend)) {

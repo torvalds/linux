@@ -47,20 +47,10 @@ static ssize_t location_read_file (struct hotplug_slot *php_slot, char *buf)
 	return retval;
 }
 
-static struct hotplug_slot_attribute hotplug_slot_attr_location = {
+static struct hotplug_slot_attribute php_attr_location = {
 	.attr = {.name = "phy_location", .mode = S_IFREG | S_IRUGO},
 	.show = location_read_file,
 };
-
-static void rpaphp_sysfs_add_attr_location (struct hotplug_slot *slot)
-{
-	sysfs_create_file(&slot->kobj, &hotplug_slot_attr_location.attr);
-}
-
-static void rpaphp_sysfs_remove_attr_location (struct hotplug_slot *slot)
-{
-	sysfs_remove_file(&slot->kobj, &hotplug_slot_attr_location.attr);
-}
 
 /* free up the memory used by a slot */
 static void rpaphp_release_slot(struct hotplug_slot *hotplug_slot)
@@ -145,7 +135,7 @@ int rpaphp_deregister_slot(struct slot *slot)
 	list_del(&slot->rpaphp_slot_list);
 	
 	/* remove "phy_location" file */
-	rpaphp_sysfs_remove_attr_location(php_slot);
+	sysfs_remove_file(&php_slot->kobj, &php_attr_location.attr);
 
 	retval = pci_hp_deregister(php_slot);
 	if (retval)
@@ -160,36 +150,45 @@ EXPORT_SYMBOL_GPL(rpaphp_deregister_slot);
 
 int rpaphp_register_slot(struct slot *slot)
 {
+	struct hotplug_slot *php_slot = slot->hotplug_slot;
 	int retval;
 
 	dbg("%s registering slot:path[%s] index[%x], name[%s] pdomain[%x] type[%d]\n", 
 		__FUNCTION__, slot->dn->full_name, slot->index, slot->name, 
 		slot->power_domain, slot->type);
+
 	/* should not try to register the same slot twice */
-	if (is_registered(slot)) { /* should't be here */
+	if (is_registered(slot)) {
 		err("rpaphp_register_slot: slot[%s] is already registered\n", slot->name);
-		rpaphp_release_slot(slot->hotplug_slot);
-		return -EAGAIN;
+		retval = -EAGAIN;
+		goto register_fail;
 	}	
-	retval = pci_hp_register(slot->hotplug_slot);
+
+	retval = pci_hp_register(php_slot);
 	if (retval) {
 		err("pci_hp_register failed with error %d\n", retval);
-		rpaphp_release_slot(slot->hotplug_slot);
-		return retval;
+		goto register_fail;
 	}
-	
-	/* create "phy_locatoin" file */
-	rpaphp_sysfs_add_attr_location(slot->hotplug_slot);	
+
+	/* create "phy_location" file */
+	retval = sysfs_create_file(&php_slot->kobj, &php_attr_location.attr);
+	if (retval) {
+		err("sysfs_create_file failed with error %d\n", retval);
+		goto sysfs_fail;
+	}
 
 	/* add slot to our internal list */
-	dbg("%s adding slot[%s] to rpaphp_slot_list\n",
-	    __FUNCTION__, slot->name);
-
 	list_add(&slot->rpaphp_slot_list, &rpaphp_slot_head);
 	info("Slot [%s](PCI location=%s) registered\n", slot->name,
 			slot->location);
 	num_slots++;
 	return 0;
+
+sysfs_fail:
+	pci_hp_deregister(php_slot);
+register_fail:
+	rpaphp_release_slot(php_slot);
+	return retval;
 }
 
 int rpaphp_get_power_status(struct slot *slot, u8 * value)

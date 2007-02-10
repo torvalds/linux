@@ -92,7 +92,7 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		}
 
 		/* This MUST be done before doing anything irreversible... */
-		err = notify_change(filp->f_dentry, &ia);
+		err = notify_change(filp->f_path.dentry, &ia);
 		if (err)
 			goto up;
 

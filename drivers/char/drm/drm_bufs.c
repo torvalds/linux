@@ -79,14 +79,14 @@ static int drm_map_handle(drm_device_t *dev, drm_hash_item_t *hash,
 
 	if (!use_hashed_handle) {
 		int ret;
-		hash->key = user_token;
+		hash->key = user_token >> PAGE_SHIFT;
 		ret = drm_ht_insert_item(&dev->map_hash, hash);
 		if (ret != -EINVAL)
 			return ret;
 	}
 	return drm_ht_just_insert_please(&dev->map_hash, hash,
 					 user_token, 32 - PAGE_SHIFT - 3,
-					 PAGE_SHIFT, DRM_MAP_HASH_OFFSET);
+					 0, DRM_MAP_HASH_OFFSET >> PAGE_SHIFT);
 }
 
 /**
@@ -178,11 +178,11 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 			}
 		}
 		if (map->type == _DRM_REGISTERS)
-			map->handle = drm_ioremap(map->offset, map->size, dev);
+			map->handle = ioremap(map->offset, map->size);
 		break;
 
 	case _DRM_SHM:
-		map->handle = vmalloc_32(map->size);
+		map->handle = vmalloc_user(map->size);
 		DRM_DEBUG("%lu %d %p\n",
 			  map->size, drm_order(map->size), map->handle);
 		if (!map->handle) {
@@ -238,7 +238,7 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 	list = drm_alloc(sizeof(*list), DRM_MEM_MAPS);
 	if (!list) {
 		if (map->type == _DRM_REGISTERS)
-			drm_ioremapfree(map->handle, map->size, dev);
+			iounmap(map->handle);
 		drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 		return -EINVAL;
 	}
@@ -255,14 +255,14 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 	ret = drm_map_handle(dev, &list->hash, user_token, 0);
 	if (ret) {
 		if (map->type == _DRM_REGISTERS)
-			drm_ioremapfree(map->handle, map->size, dev);
+			iounmap(map->handle);
 		drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 		drm_free(list, sizeof(*list), DRM_MEM_MAPS);
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
-	list->user_token = list->hash.key;
+	list->user_token = list->hash.key << PAGE_SHIFT;
 	mutex_unlock(&dev->struct_mutex);
 
 	*maplist = list;
@@ -347,7 +347,8 @@ int drm_rmmap_locked(drm_device_t *dev, drm_local_map_t *map)
 
 		if (r_list->map == map) {
 			list_del(list);
-			drm_ht_remove_key(&dev->map_hash, r_list->user_token);
+			drm_ht_remove_key(&dev->map_hash,
+					  r_list->user_token >> PAGE_SHIFT);
 			drm_free(list, sizeof(*list), DRM_MEM_MAPS);
 			break;
 		}
@@ -362,7 +363,7 @@ int drm_rmmap_locked(drm_device_t *dev, drm_local_map_t *map)
 
 	switch (map->type) {
 	case _DRM_REGISTERS:
-		drm_ioremapfree(map->handle, map->size, dev);
+		iounmap(map->handle);
 		/* FALLTHROUGH */
 	case _DRM_FRAME_BUFFER:
 		if (drm_core_has_MTRR(dev) && map->mtrr >= 0) {
@@ -886,6 +887,9 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 
 	request->count = entry->buf_count;
 	request->size = size;
+
+	if (request->flags & _DRM_PCI_BUFFER_RO)
+		dma->flags = _DRM_DMA_USE_PCI_RO;
 
 	atomic_dec(&dev->buf_alloc);
 	return 0;
@@ -1471,9 +1475,10 @@ int drm_freebufs(struct inode *inode, struct file *filp,
  * \param arg pointer to a drm_buf_map structure.
  * \return zero on success or a negative number on failure.
  *
- * Maps the AGP or SG buffer region with do_mmap(), and copies information
- * about each buffer into user space. The PCI buffers are already mapped on the
- * addbufs_pci() call.
+ * Maps the AGP, SG or PCI buffer region with do_mmap(), and copies information
+ * about each buffer into user space. For PCI buffers, it calls do_mmap() with
+ * offset equal to 0, which drm_mmap() interpretes as PCI buffers and calls
+ * drm_mmap_dma().
  */
 int drm_mapbufs(struct inode *inode, struct file *filp,
 		unsigned int cmd, unsigned long arg)

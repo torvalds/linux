@@ -45,6 +45,7 @@ static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static int ac97_clock = 48000;
 static char *ac97_quirk;
 static int spdif_aclink = 1;
+static int ac97_codec = -1;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for ATI IXP controller.");
@@ -54,6 +55,8 @@ module_param(ac97_clock, int, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (default 48000Hz).");
 module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
+module_param(ac97_codec, int, 0444);
+MODULE_PARM_DESC(ac97_codec, "Specify codec instead of probing.");
 module_param(spdif_aclink, bool, 0444);
 MODULE_PARM_DESC(spdif_aclink, "S/PDIF over AC-link.");
 
@@ -293,6 +296,10 @@ static struct pci_device_id snd_atiixp_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_atiixp_ids);
 
+static struct snd_pci_quirk atiixp_quirks[] __devinitdata = {
+	SND_PCI_QUIRK(0x15bd, 0x3100, "DFI RS482", 0),
+	{ } /* terminator */
+};
 
 /*
  * lowlevel functions
@@ -553,11 +560,33 @@ static int snd_atiixp_aclink_down(struct atiixp *chip)
 	     ATI_REG_ISR_CODEC2_NOT_READY)
 #define CODEC_CHECK_BITS (ALL_CODEC_NOT_READY|ATI_REG_ISR_NEW_FRAME)
 
+static int ac97_probing_bugs(struct pci_dev *pci)
+{
+	const struct snd_pci_quirk *q;
+
+	q = snd_pci_quirk_lookup(pci, atiixp_quirks);
+	if (q) {
+		snd_printdd(KERN_INFO "Atiixp quirk for %s.  "
+			    "Forcing codec %d\n", q->name, q->value);
+		return q->value;
+	}
+	/* this hardware doesn't need workarounds.  Probe for codec */
+	return -1;
+}
+
 static int snd_atiixp_codec_detect(struct atiixp *chip)
 {
 	int timeout;
 
 	chip->codec_not_ready_bits = 0;
+	if (ac97_codec == -1)
+		ac97_codec = ac97_probing_bugs(chip->pci);
+	if (ac97_codec >= 0) {
+		chip->codec_not_ready_bits |= 
+			CODEC_CHECK_BITS ^ (1 << (ac97_codec + 10));
+		return 0;
+	}
+
 	atiixp_write(chip, IER, CODEC_CHECK_BITS);
 	/* wait for the interrupts */
 	timeout = 50;
@@ -1396,7 +1425,7 @@ static int __devinit snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 		ac97.private_data = chip;
 		ac97.pci = chip->pci;
 		ac97.num = i;
-		ac97.scaps = AC97_SCAP_SKIP_MODEM;
+		ac97.scaps = AC97_SCAP_SKIP_MODEM | AC97_SCAP_POWER_SAVE;
 		if (! chip->spdif_over_aclink)
 			ac97.scaps |= AC97_SCAP_NO_SPDIF;
 		if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i])) < 0) {
@@ -1583,7 +1612,7 @@ static int __devinit snd_atiixp_create(struct snd_card *card,
 		return -EIO;
 	}
 
-	if (request_irq(pci->irq, snd_atiixp_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(pci->irq, snd_atiixp_interrupt, IRQF_SHARED,
 			card->shortname, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_atiixp_free(chip);

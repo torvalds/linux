@@ -276,11 +276,9 @@ acpi_cpufreq_cpu_init (
 
 	dprintk("acpi_cpufreq_cpu_init\n");
 
-	data = kmalloc(sizeof(struct cpufreq_acpi_io), GFP_KERNEL);
+	data = kzalloc(sizeof(struct cpufreq_acpi_io), GFP_KERNEL);
 	if (!data)
 		return (-ENOMEM);
-
-	memset(data, 0, sizeof(struct cpufreq_acpi_io));
 
 	acpi_io_data[cpu] = data;
 

@@ -785,7 +785,11 @@ static int apm_do_idle(void)
 	polling = !!(current_thread_info()->status & TS_POLLING);
 	if (polling) {
 		current_thread_info()->status &= ~TS_POLLING;
-		smp_mb__after_clear_bit();
+		/*
+		 * TS_POLLING-cleared state must be visible before we
+		 * test NEED_RESCHED:
+		 */
+		smp_mb();
 	}
 	if (!need_resched()) {
 		idled = 1;
@@ -1604,7 +1608,7 @@ static int do_open(struct inode * inode, struct file * filp)
 {
 	struct apm_user *	as;
 
-	as = (struct apm_user *)kmalloc(sizeof(*as), GFP_KERNEL);
+	as = kmalloc(sizeof(*as), GFP_KERNEL);
 	if (as == NULL) {
 		printk(KERN_ERR "apm: cannot allocate struct of size %d bytes\n",
 		       sizeof(*as));

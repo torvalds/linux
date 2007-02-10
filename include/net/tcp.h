@@ -244,12 +244,7 @@ static inline int before(__u32 seq1, __u32 seq2)
 {
         return (__s32)(seq1-seq2) < 0;
 }
-
-static inline int after(__u32 seq1, __u32 seq2)
-{
-	return (__s32)(seq2-seq1) < 0;
-}
-
+#define after(seq2, seq1) 	before(seq1, seq2)
 
 /* is s2<=s1<=s3 ? */
 static inline int between(__u32 seq1, __u32 seq2, __u32 seq3)
@@ -807,9 +802,8 @@ static inline void tcp_update_wl(struct tcp_sock *tp, u32 ack, u32 seq)
 /*
  * Calculate(/check) TCP checksum
  */
-static inline __sum16 tcp_v4_check(struct tcphdr *th, int len,
-			       __be32 saddr, __be32 daddr,
-			       __wsum base)
+static inline __sum16 tcp_v4_check(int len, __be32 saddr,
+				   __be32 daddr, __wsum base)
 {
 	return csum_tcpudp_magic(saddr,daddr,len,IPPROTO_TCP,base);
 }

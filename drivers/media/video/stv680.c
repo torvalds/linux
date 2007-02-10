@@ -687,7 +687,7 @@ static int stv680_start_stream (struct usb_stv *stv680)
 		stv680->sbuf[i].data = kmalloc (stv680->rawbufsize, GFP_KERNEL);
 		if (stv680->sbuf[i].data == NULL) {
 			PDEBUG (0, "STV(e): Could not kmalloc raw data buffer %i", i);
-			return -1;
+			goto nomem_err;
 		}
 	}
 
@@ -698,7 +698,7 @@ static int stv680_start_stream (struct usb_stv *stv680)
 		stv680->scratch[i].data = kmalloc (stv680->rawbufsize, GFP_KERNEL);
 		if (stv680->scratch[i].data == NULL) {
 			PDEBUG (0, "STV(e): Could not kmalloc raw scratch buffer %i", i);
-			return -1;
+			goto nomem_err;
 		}
 		stv680->scratch[i].state = BUFFER_UNUSED;
 	}
@@ -706,7 +706,7 @@ static int stv680_start_stream (struct usb_stv *stv680)
 	for (i = 0; i < STV680_NUMSBUF; i++) {
 		urb = usb_alloc_urb (0, GFP_KERNEL);
 		if (!urb)
-			return -ENOMEM;
+			goto nomem_err;
 
 		/* sbuf is urb->transfer_buffer, later gets memcpyed to scratch */
 		usb_fill_bulk_urb (urb, stv680->udev,
@@ -721,6 +721,21 @@ static int stv680_start_stream (struct usb_stv *stv680)
 
 	stv680->framecount = 0;
 	return 0;
+
+ nomem_err:
+	for (i = 0; i < STV680_NUMSCRATCH; i++) {
+		kfree(stv680->scratch[i].data);
+		stv680->scratch[i].data = NULL;
+	}
+	for (i = 0; i < STV680_NUMSBUF; i++) {
+		usb_kill_urb(stv680->urb[i]);
+		usb_free_urb(stv680->urb[i]);
+		stv680->urb[i] = NULL;
+		kfree(stv680->sbuf[i].data);
+		stv680->sbuf[i].data = NULL;
+	}
+	return -ENOMEM;
+
 }
 
 static int stv680_stop_stream (struct usb_stv *stv680)

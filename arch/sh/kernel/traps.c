@@ -19,6 +19,7 @@
 #include <linux/kallsyms.h>
 #include <linux/io.h>
 #include <linux/debug_locks.h>
+#include <linux/limits.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
@@ -127,6 +128,40 @@ static int die_if_no_fixup(const char * str, struct pt_regs * regs, long err)
 		die(str, regs, err);
 	}
 	return -EFAULT;
+}
+
+#ifdef CONFIG_BUG
+#ifdef CONFIG_DEBUG_BUGVERBOSE
+static inline void do_bug_verbose(struct pt_regs *regs)
+{
+	struct bug_frame f;
+	long len;
+
+	if (__copy_from_user(&f, (const void __user *)regs->pc,
+			     sizeof(struct bug_frame)))
+		return;
+
+	len = __strnlen_user(f.file, PATH_MAX) - 1;
+	if (unlikely(len < 0 || len >= PATH_MAX))
+		f.file = "<bad filename>";
+	len = __strnlen_user(f.func, PATH_MAX) - 1;
+	if (unlikely(len < 0 || len >= PATH_MAX))
+		f.func = "<bad function>";
+
+	printk(KERN_ALERT "kernel BUG in %s() at %s:%d!\n",
+	       f.func, f.file, f.line);
+}
+#else
+static inline void do_bug_verbose(struct pt_regs *regs)
+{
+}
+#endif /* CONFIG_DEBUG_BUGVERBOSE */
+#endif /* CONFIG_BUG */
+
+void handle_BUG(struct pt_regs *regs)
+{
+	do_bug_verbose(regs);
+	die("Kernel BUG", regs, TRAPA_BUG_OPCODE & 0xff);
 }
 
 /*

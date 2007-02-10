@@ -195,7 +195,6 @@ static int tc589_probe(struct pcmcia_device *link)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
-    link->conf.Present = PRESENT_OPTION;
 
     /* The EL3-specific entries in the device structure. */
     SET_MODULE_OWNER(dev);
@@ -607,10 +606,13 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
     kio_addr_t ioaddr = dev->base_addr;
     struct el3_private *priv = netdev_priv(dev);
+    unsigned long flags;
 
     DEBUG(3, "%s: el3_start_xmit(length = %ld) called, "
 	  "status %4.4x.\n", dev->name, (long)skb->len,
 	  inw(ioaddr + EL3_STATUS));
+
+    spin_lock_irqsave(&priv->lock, flags);    
 
     priv->stats.tx_bytes += skb->len;
 
@@ -629,6 +631,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
     dev_kfree_skb(skb);
     pop_tx_status(dev);
+    spin_unlock_irqrestore(&priv->lock, flags);    
     
     return 0;
 }
@@ -730,14 +733,13 @@ static void media_check(unsigned long arg)
 
     if (!netif_device_present(dev)) goto reschedule;
 
-    EL3WINDOW(1);
     /* Check for pending interrupt with expired latency timer: with
        this, we can limp along even if the interrupt is blocked */
     if ((inw(ioaddr + EL3_STATUS) & IntLatch) &&
 	(inb(ioaddr + EL3_TIMER) == 0xff)) {
 	if (!lp->fast_poll)
 	    printk(KERN_WARNING "%s: interrupt(s) dropped!\n", dev->name);
-	el3_interrupt(dev->irq, lp);
+	el3_interrupt(dev->irq, dev);
 	lp->fast_poll = HZ;
     }
     if (lp->fast_poll) {

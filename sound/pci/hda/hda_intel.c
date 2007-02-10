@@ -83,6 +83,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{Intel, ICH7},"
 			 "{Intel, ESB2},"
 			 "{Intel, ICH8},"
+			 "{Intel, ICH9},"
 			 "{ATI, SB450},"
 			 "{ATI, SB600},"
 			 "{ATI, RS600},"
@@ -198,7 +199,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 
 /* STATESTS int mask: SD2,SD1,SD0 */
 #define STATESTS_INT_MASK	0x07
-#define AZX_MAX_CODECS		4
+#define AZX_MAX_CODECS		3
 
 /* SD_CTL bits */
 #define SD_CTL_STREAM_RESET	0x01	/* stream reset bit */
@@ -1284,7 +1285,7 @@ static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &azx_pcm_ops);
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci),
-					      1024 * 64, 1024 * 128);
+					      1024 * 64, 1024 * 1024);
 	chip->pcm[pcm_dev] = pcm;
 	if (chip->pcm_devs < pcm_dev + 1)
 		chip->pcm_devs = pcm_dev + 1;
@@ -1380,7 +1381,8 @@ static int __devinit azx_init_stream(struct azx *chip)
 
 static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 {
-	if (request_irq(chip->pci->irq, azx_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(chip->pci->irq, azx_interrupt,
+			chip->msi ? 0 : IRQF_SHARED,
 			"HDA Intel", chip)) {
 		printk(KERN_ERR "hda-intel: unable to grab IRQ %d, "
 		       "disabling device\n", chip->pci->irq);
@@ -1389,6 +1391,7 @@ static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 		return -1;
 	}
 	chip->irq = chip->pci->irq;
+	pci_intx(chip->pci, !chip->msi);
 	return 0;
 }
 
@@ -1500,6 +1503,31 @@ static int azx_dev_free(struct snd_device *device)
 }
 
 /*
+ * white/black-listing for position_fix
+ */
+static const struct snd_pci_quirk position_fix_list[] __devinitdata = {
+	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_NONE),
+	{}
+};
+
+static int __devinit check_position_fix(struct azx *chip, int fix)
+{
+	const struct snd_pci_quirk *q;
+
+	if (fix == POS_FIX_AUTO) {
+		q = snd_pci_quirk_lookup(chip->pci, position_fix_list);
+		if (q) {
+			snd_printdd(KERN_INFO
+				    "hda_intel: position_fix set to %d "
+				    "for device %04x:%04x\n",
+				    q->value, q->subvendor, q->subdevice);
+			return q->value;
+		}
+	}
+	return fix;
+}
+
+/*
  * constructor
  */
 static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
@@ -1533,7 +1561,8 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->driver_type = driver_type;
 	chip->msi = enable_msi;
 
-	chip->position_fix = position_fix;
+	chip->position_fix = check_position_fix(chip, position_fix);
+
 	chip->single_cmd = single_cmd;
 
 #if BITS_PER_LONG != 64
@@ -1710,6 +1739,8 @@ static struct pci_device_id azx_ids[] = {
 	{ 0x8086, 0x27d8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ICH }, /* ICH7 */
 	{ 0x8086, 0x269a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ICH }, /* ESB2 */
 	{ 0x8086, 0x284b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ICH }, /* ICH8 */
+	{ 0x8086, 0x293e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ICH }, /* ICH9 */
+	{ 0x8086, 0x293f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ICH }, /* ICH9 */
 	{ 0x1002, 0x437b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATI }, /* ATI SB450 */
 	{ 0x1002, 0x4383, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATI }, /* ATI SB600 */
 	{ 0x1002, 0x793b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATIHDMI }, /* ATI RS600 HDMI */
@@ -1717,9 +1748,14 @@ static struct pci_device_id azx_ids[] = {
 	{ 0x1106, 0x3288, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_VIA }, /* VIA VT8251/VT8237A */
 	{ 0x1039, 0x7502, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_SIS }, /* SIS966 */
 	{ 0x10b9, 0x5461, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ULI }, /* ULI M5461 */
-	{ 0x10de, 0x026c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA 026c */
-	{ 0x10de, 0x0371, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA 0371 */
-	{ 0x10de, 0x03f0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA 03f0 */
+	{ 0x10de, 0x026c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA MCP51 */
+	{ 0x10de, 0x0371, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA MCP55 */
+	{ 0x10de, 0x03e4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA MCP61 */
+	{ 0x10de, 0x03f0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA MCP61 */
+	{ 0x10de, 0x044a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA MCP65 */
+	{ 0x10de, 0x044b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA MCP65 */
+	{ 0x10de, 0x055c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA MCP67 */
+	{ 0x10de, 0x055d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_NVIDIA }, /* NVIDIA MCP67 */
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, azx_ids);

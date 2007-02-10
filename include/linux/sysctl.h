@@ -11,7 +11,7 @@
  **  the sysctl() binary interface.  Do *NOT* change the
  **  numbering of any existing values here, and do not change
  **  any numbers within any one set of values.  If you have to
- **  have to redefine an existing interface, use a new number for it.
+ **  redefine an existing interface, use a new number for it.
  **  The kernel will then return -ENOTDIR to any application using
  **  the old binary interface.
  **
@@ -699,7 +699,8 @@ enum {
 	NET_X25_CALL_REQUEST_TIMEOUT=2,
 	NET_X25_RESET_REQUEST_TIMEOUT=3,
 	NET_X25_CLEAR_REQUEST_TIMEOUT=4,
-	NET_X25_ACK_HOLD_BACK_TIMEOUT=5
+	NET_X25_ACK_HOLD_BACK_TIMEOUT=5,
+	NET_X25_FORWARD=6
 };
 
 /* /proc/sys/net/token-ring */
@@ -918,8 +919,7 @@ typedef struct ctl_table ctl_table;
 
 typedef int ctl_handler (ctl_table *table, int __user *name, int nlen,
 			 void __user *oldval, size_t __user *oldlenp,
-			 void __user *newval, size_t newlen, 
-			 void **context);
+			 void __user *newval, size_t newlen);
 
 typedef int proc_handler (ctl_table *ctl, int write, struct file * filp,
 			  void __user *buffer, size_t *lenp, loff_t *ppos);
@@ -950,7 +950,7 @@ extern int do_sysctl (int __user *name, int nlen,
 extern int do_sysctl_strategy (ctl_table *table, 
 			       int __user *name, int nlen,
 			       void __user *oldval, size_t __user *oldlenp,
-			       void __user *newval, size_t newlen, void ** context);
+			       void __user *newval, size_t newlen);
 
 extern ctl_handler sysctl_string;
 extern ctl_handler sysctl_intvec;

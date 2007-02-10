@@ -297,6 +297,9 @@ protected:
 
 class ConfigMainWindow : public QMainWindow {
 	Q_OBJECT
+
+	static QAction *saveAction;
+	static void conf_changed(void);
 public:
 	ConfigMainWindow(void);
 public slots:

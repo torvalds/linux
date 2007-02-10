@@ -215,6 +215,7 @@ config DM_CRYPT
 	tristate "Crypt target support"
 	depends on BLK_DEV_DM && EXPERIMENTAL
 	select CRYPTO
+	select CRYPTO_CBC
 	---help---
 	  This device-mapper target allows you to create a device that
 	  transparently encrypts the data on it. You'll need to activate

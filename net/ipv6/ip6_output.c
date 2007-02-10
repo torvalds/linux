@@ -72,20 +72,11 @@ static __inline__ void ipv6_select_ident(struct sk_buff *skb, struct frag_hdr *f
 
 static inline int ip6_output_finish(struct sk_buff *skb)
 {
-
 	struct dst_entry *dst = skb->dst;
-	struct hh_cache *hh = dst->hh;
 
-	if (hh) {
-		int hh_alen;
-
-		read_lock_bh(&hh->hh_lock);
-		hh_alen = HH_DATA_ALIGN(hh->hh_len);
-		memcpy(skb->data - hh_alen, hh->hh_data, hh_alen);
-		read_unlock_bh(&hh->hh_lock);
-	        skb_push(skb, hh->hh_len);
-		return hh->hh_output(skb);
-	} else if (dst->neighbour)
+	if (dst->hh)
+		return neigh_hh_output(dst->hh, skb);
+	else if (dst->neighbour)
 		return dst->neighbour->output(skb);
 
 	IP6_INC_STATS_BH(ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);

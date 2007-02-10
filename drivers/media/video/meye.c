@@ -923,7 +923,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		struct video_picture *p = arg;
 		if (p->depth != 16)
 			return -EINVAL;
-		if (p->palette != VIDEO_PALETTE_YUV422)
+		if (p->palette != VIDEO_PALETTE_YUV422 && p->palette != VIDEO_PALETTE_YUYV)
 			return -EINVAL;
 		mutex_lock(&meye.lock);
 		sonypi_camera_command(SONYPI_COMMAND_SETCAMERABRIGHTNESS,
@@ -978,7 +978,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 
 		if (vm->frame >= gbuffers || vm->frame < 0)
 			return -EINVAL;
-		if (vm->format != VIDEO_PALETTE_YUV422)
+		if (vm->format != VIDEO_PALETTE_YUV422 && vm->format != VIDEO_PALETTE_YUYV)
 			return -EINVAL;
 		if (vm->height * vm->width * 2 > gbufsize)
 			return -EINVAL;

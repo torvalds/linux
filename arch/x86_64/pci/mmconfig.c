@@ -1,6 +1,6 @@
 /*
  * mmconfig.c - Low-level direct PCI config space access via MMCONFIG
- * 
+ *
  * This is an 64bit optimized version that always keeps the full mmconfig
  * space mapped. This allows lockless config space operation.
  */
@@ -25,7 +25,7 @@ static DECLARE_BITMAP(fallback_slots, 32*MAX_CHECK_BUS);
 
 /* Static virtual mapping of the MMCONFIG aperture */
 struct mmcfg_virt {
-	struct acpi_table_mcfg_config *cfg;
+	struct acpi_mcfg_allocation *cfg;
 	char __iomem *virt;
 };
 static struct mmcfg_virt *pci_mmcfg_virt;
@@ -33,14 +33,14 @@ static struct mmcfg_virt *pci_mmcfg_virt;
 static char __iomem *get_virt(unsigned int seg, unsigned bus)
 {
 	int cfg_num = -1;
-	struct acpi_table_mcfg_config *cfg;
+	struct acpi_mcfg_allocation *cfg;
 
 	while (1) {
 		++cfg_num;
 		if (cfg_num >= pci_mmcfg_config_num)
 			break;
 		cfg = pci_mmcfg_virt[cfg_num].cfg;
-		if (cfg->pci_segment_group_number != seg)
+		if (cfg->pci_segment != seg)
 			continue;
 		if ((cfg->start_bus_number <= bus) &&
 		    (cfg->end_bus_number >= bus))
@@ -52,7 +52,7 @@ static char __iomem *get_virt(unsigned int seg, unsigned bus)
  	   this applies to all busses. */
 	cfg = &pci_mmcfg_config[0];
 	if (pci_mmcfg_config_num == 1 &&
-		cfg->pci_segment_group_number == 0 &&
+		cfg->pci_segment == 0 &&
 		(cfg->start_bus_number | cfg->end_bus_number) == 0)
 		return pci_mmcfg_virt[0].virt;
 
@@ -170,19 +170,19 @@ void __init pci_mmcfg_init(int type)
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return;
 
-	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
+	acpi_table_parse(ACPI_SIG_MCFG, acpi_parse_mcfg);
 	if ((pci_mmcfg_config_num == 0) ||
 	    (pci_mmcfg_config == NULL) ||
-	    (pci_mmcfg_config[0].base_address == 0))
+	    (pci_mmcfg_config[0].address == 0))
 		return;
 
 	/* Only do this check when type 1 works. If it doesn't work
            assume we run on a Mac and always use MCFG */
-	if (type == 1 && !e820_all_mapped(pci_mmcfg_config[0].base_address,
-			pci_mmcfg_config[0].base_address + MMCONFIG_APER_MIN,
+	if (type == 1 && !e820_all_mapped(pci_mmcfg_config[0].address,
+			pci_mmcfg_config[0].address + MMCONFIG_APER_MIN,
 			E820_RESERVED)) {
-		printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %x is not E820-reserved\n",
-				pci_mmcfg_config[0].base_address);
+		printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %lx is not E820-reserved\n",
+				(unsigned long)pci_mmcfg_config[0].address);
 		printk(KERN_ERR "PCI: Not using MMCONFIG.\n");
 		return;
 	}
@@ -194,15 +194,16 @@ void __init pci_mmcfg_init(int type)
 	}
 	for (i = 0; i < pci_mmcfg_config_num; ++i) {
 		pci_mmcfg_virt[i].cfg = &pci_mmcfg_config[i];
-		pci_mmcfg_virt[i].virt = ioremap_nocache(pci_mmcfg_config[i].base_address,
+		pci_mmcfg_virt[i].virt = ioremap_nocache(pci_mmcfg_config[i].address,
 							 MMCONFIG_APER_MAX);
 		if (!pci_mmcfg_virt[i].virt) {
 			printk(KERN_ERR "PCI: Cannot map mmconfig aperture for "
 					"segment %d\n",
-			       pci_mmcfg_config[i].pci_segment_group_number);
+				pci_mmcfg_config[i].pci_segment);
 			return;
 		}
-		printk(KERN_INFO "PCI: Using MMCONFIG at %x\n", pci_mmcfg_config[i].base_address);
+		printk(KERN_INFO "PCI: Using MMCONFIG at %lx\n",
+			(unsigned long)pci_mmcfg_config[i].address);
 	}
 
 	unreachable_devices();

@@ -159,12 +159,12 @@ ENTRY(cpu_sa1100_switch_mm)
 #endif
 
 /*
- * cpu_sa1100_set_pte(ptep, pte)
+ * cpu_sa1100_set_pte_ext(ptep, pte, ext)
  *
  * Set a PTE and flush it out
  */
 	.align	5
-ENTRY(cpu_sa1100_set_pte)
+ENTRY(cpu_sa1100_set_pte_ext)
 #ifdef CONFIG_MMU
 	str	r1, [r0], #-2048		@ linux version
 
@@ -237,7 +237,7 @@ ENTRY(sa1100_processor_functions)
 	.word	cpu_sa1100_do_idle
 	.word	cpu_sa1100_dcache_clean_area
 	.word	cpu_sa1100_switch_mm
-	.word	cpu_sa1100_set_pte
+	.word	cpu_sa1100_set_pte_ext
 	.size	sa1100_processor_functions, . - sa1100_processor_functions
 
 	.section ".rodata"

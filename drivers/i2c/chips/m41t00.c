@@ -209,6 +209,7 @@ m41t00_set(void *arg)
 	buf[m41t00_chip->hour] = (buf[m41t00_chip->hour] & ~0x3f) | (hour& 0x3f);
 	buf[m41t00_chip->day] = (buf[m41t00_chip->day] & ~0x3f) | (day & 0x3f);
 	buf[m41t00_chip->mon] = (buf[m41t00_chip->mon] & ~0x1f) | (mon & 0x1f);
+	buf[m41t00_chip->year] = year;
 
 	if (i2c_master_send(save_client, wbuf, 9) < 0)
 		dev_err(&save_client->dev, "m41t00_set: Write error\n");

@@ -143,7 +143,7 @@ struct cypress_private {
 	wait_queue_head_t delta_msr_wait;  /* used for TIOCMIWAIT */
 	char prev_status, diff_status;	   /* used for TIOCMIWAIT */
 	/* we pass a pointer to this as the arguement sent to cypress_set_termios old_termios */
-	struct termios tmp_termios; 	   /* stores the old termios settings */
+	struct ktermios tmp_termios; 	   /* stores the old termios settings */
 };
 
 /* write buffer structure */
@@ -165,7 +165,7 @@ static int  cypress_write		(struct usb_serial_port *port, const unsigned char *b
 static void cypress_send		(struct usb_serial_port *port);
 static int  cypress_write_room		(struct usb_serial_port *port);
 static int  cypress_ioctl		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-static void cypress_set_termios		(struct usb_serial_port *port, struct termios * old);
+static void cypress_set_termios		(struct usb_serial_port *port, struct ktermios * old);
 static int  cypress_tiocmget		(struct usb_serial_port *port, struct file *file);
 static int  cypress_tiocmset		(struct usb_serial_port *port, struct file *file, unsigned int set, unsigned int clear);
 static int  cypress_chars_in_buffer	(struct usb_serial_port *port);
@@ -193,6 +193,7 @@ static struct usb_serial_driver cypress_earthmate_device = {
 		.name =			"earthmate",
 	},
 	.description =			"DeLorme Earthmate USB",
+	.usb_driver = 			&cypress_driver,
 	.id_table =			id_table_earthmate,
 	.num_interrupt_in = 		1,
 	.num_interrupt_out =		1,
@@ -222,6 +223,7 @@ static struct usb_serial_driver cypress_hidcom_device = {
 		.name =			"cyphidcom",
 	},
 	.description =			"HID->COM RS232 Adapter",
+	.usb_driver = 			&cypress_driver,
 	.id_table =			id_table_cyphidcomrs232,
 	.num_interrupt_in =		1,
 	.num_interrupt_out =		1,
@@ -251,6 +253,7 @@ static struct usb_serial_driver cypress_ca42v2_device = {
                 .name =			"nokiaca42v2",
 	},
 	.description =			"Nokia CA-42 V2 Adapter",
+	.usb_driver = 			&cypress_driver,
 	.id_table =			id_table_nokiaca42v2,
 	.num_interrupt_in =		1,
 	.num_interrupt_out =		1,
@@ -949,28 +952,13 @@ static int cypress_ioctl (struct usb_serial_port *port, struct file * file, unsi
 
 	switch (cmd) {
 		case TIOCGSERIAL:
-			if (copy_to_user((void __user *)arg, port->tty->termios, sizeof(struct termios))) {
+			if (copy_to_user((void __user *)arg, port->tty->termios, sizeof(struct ktermios))) {
 				return -EFAULT;
 			}
 			return (0);
 			break;
 		case TIOCSSERIAL:
-			if (copy_from_user(port->tty->termios, (void __user *)arg, sizeof(struct termios))) {
-				return -EFAULT;
-			}
-			/* here we need to call cypress_set_termios to invoke the new settings */
-			cypress_set_termios(port, &priv->tmp_termios);
-			return (0);
-			break;
-		/* these are called when setting baud rate from gpsd */
-		case TCGETS:
-			if (copy_to_user((void __user *)arg, port->tty->termios, sizeof(struct termios))) {
-				return -EFAULT;
-			}
-			return (0);
-			break;
-		case TCSETS:
-			if (copy_from_user(port->tty->termios, (void __user *)arg, sizeof(struct termios))) {
+			if (copy_from_user(port->tty->termios, (void __user *)arg, sizeof(struct ktermios))) {
 				return -EFAULT;
 			}
 			/* here we need to call cypress_set_termios to invoke the new settings */
@@ -1019,7 +1007,7 @@ static int cypress_ioctl (struct usb_serial_port *port, struct file * file, unsi
 
 
 static void cypress_set_termios (struct usb_serial_port *port,
-		struct termios *old_termios)
+		struct ktermios *old_termios)
 {
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	struct tty_struct *tty;
@@ -1493,7 +1481,7 @@ static struct cypress_buf *cypress_buf_alloc(unsigned int size)
 	if (size == 0)
 		return NULL;
 
-	cb = (struct cypress_buf *)kmalloc(sizeof(struct cypress_buf), GFP_KERNEL);
+	cb = kmalloc(sizeof(struct cypress_buf), GFP_KERNEL);
 	if (cb == NULL)
 		return NULL;
 

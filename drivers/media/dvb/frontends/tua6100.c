@@ -43,8 +43,7 @@ struct tua6100_priv {
 
 static int tua6100_release(struct dvb_frontend *fe)
 {
-	if (fe->tuner_priv)
-		kfree(fe->tuner_priv);
+	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
 	return 0;
 }

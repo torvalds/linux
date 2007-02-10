@@ -18,7 +18,7 @@
 #ifdef CONFIG_I8259
 static inline int irq_canonicalize(int irq)
 {
-	return ((irq == 2) ? 9 : irq);
+	return ((irq == I8259A_IRQ_BASE + 2) ? I8259A_IRQ_BASE + 9 : irq);
 }
 #else
 #define irq_canonicalize(irq) (irq)	/* Sane hardware, sane code ... */
@@ -31,14 +31,14 @@ static inline int irq_canonicalize(int irq)
  * functions will take over re-enabling the low-level mask.
  * Otherwise it will be done on return from exception.
  */
-#define __DO_IRQ_SMTC_HOOK()						\
+#define __DO_IRQ_SMTC_HOOK(irq)						\
 do {									\
 	if (irq_hwmask[irq] & 0x0000ff00)				\
 		write_c0_tccontext(read_c0_tccontext() &		\
 		                   ~(irq_hwmask[irq] & 0x0000ff00));	\
 } while (0)
 #else
-#define __DO_IRQ_SMTC_HOOK() do { } while (0)
+#define __DO_IRQ_SMTC_HOOK(irq) do { } while (0)
 #endif
 
 /*
@@ -52,7 +52,7 @@ do {									\
 #define do_IRQ(irq)							\
 do {									\
 	irq_enter();							\
-	__DO_IRQ_SMTC_HOOK();						\
+	__DO_IRQ_SMTC_HOOK(irq);					\
 	generic_handle_irq(irq);					\
 	irq_exit();							\
 } while (0)

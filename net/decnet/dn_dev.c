@@ -167,8 +167,7 @@ static int dn_forwarding_proc(ctl_table *, int, struct file *,
 			void __user *, size_t *, loff_t *);
 static int dn_forwarding_sysctl(ctl_table *table, int __user *name, int nlen,
 			void __user *oldval, size_t __user *oldlenp,
-			void __user *newval, size_t newlen,
-			void **context);
+			void __user *newval, size_t newlen);
 
 static struct dn_dev_sysctl_table {
 	struct ctl_table_header *sysctl_header;
@@ -347,8 +346,7 @@ static int dn_forwarding_proc(ctl_table *table, int write,
 
 static int dn_forwarding_sysctl(ctl_table *table, int __user *name, int nlen,
 			void __user *oldval, size_t __user *oldlenp,
-			void __user *newval, size_t newlen,
-			void **context)
+			void __user *newval, size_t newlen)
 {
 #ifdef CONFIG_DECNET_ROUTER
 	struct net_device *dev = table->extra1;
@@ -751,7 +749,7 @@ static int dn_nl_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*ifm), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	ifm = nlmsg_data(nlh);
 	ifm->ifa_family = AF_DECnet;
@@ -770,7 +768,8 @@ static int dn_nl_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa)
@@ -783,9 +782,12 @@ static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa)
 		goto errout;
 
 	err = dn_nl_fill_ifaddr(skb, ifa, 0, 0, event, 0);
-	/* failure implies BUG in dn_ifaddr_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in dn_ifaddr_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, 0, RTNLGRP_DECnet_IFADDR, NULL, GFP_KERNEL);
 errout:
 	if (err < 0)
@@ -1147,15 +1149,22 @@ struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 	init_timer(&dn_db->timer);
 
 	dn_db->uptime = jiffies;
+
+	dn_db->neigh_parms = neigh_parms_alloc(dev, &dn_neigh_table);
+	if (!dn_db->neigh_parms) {
+		dev->dn_ptr = NULL;
+		kfree(dn_db);
+		return NULL;
+	}
+
 	if (dn_db->parms.up) {
 		if (dn_db->parms.up(dev) < 0) {
+			neigh_parms_release(&dn_neigh_table, dn_db->neigh_parms);
 			dev->dn_ptr = NULL;
 			kfree(dn_db);
 			return NULL;
 		}
 	}
-
-	dn_db->neigh_parms = neigh_parms_alloc(dev, &dn_neigh_table);
 
 	dn_dev_sysctl_register(dev, &dn_db->parms);
 

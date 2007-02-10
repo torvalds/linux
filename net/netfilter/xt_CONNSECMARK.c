@@ -41,8 +41,7 @@ static void secmark_save(struct sk_buff *skb)
 
 		connsecmark = nf_ct_get_secmark(skb, &ctinfo);
 		if (connsecmark && !*connsecmark)
-			if (*connsecmark != skb->secmark)
-				*connsecmark = skb->secmark;
+			*connsecmark = skb->secmark;
 	}
 }
 
@@ -58,8 +57,7 @@ static void secmark_restore(struct sk_buff *skb)
 
 		connsecmark = nf_ct_get_secmark(skb, &ctinfo);
 		if (connsecmark && *connsecmark)
-			if (skb->secmark != *connsecmark)
-				skb->secmark = *connsecmark;
+			skb->secmark = *connsecmark;
 	}
 }
 
@@ -93,6 +91,11 @@ static int checkentry(const char *tablename, const void *entry,
 {
 	struct xt_connsecmark_target_info *info = targinfo;
 
+	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+		printk(KERN_WARNING "can't load conntrack support for "
+				    "proto=%d\n", target->family);
+		return 0;
+	}
 	switch (info->mode) {
 	case CONNSECMARK_SAVE:
 	case CONNSECMARK_RESTORE:
@@ -106,11 +109,18 @@ static int checkentry(const char *tablename, const void *entry,
 	return 1;
 }
 
+static void
+destroy(const struct xt_target *target, void *targinfo)
+{
+	nf_ct_l3proto_module_put(target->family);
+}
+
 static struct xt_target xt_connsecmark_target[] = {
 	{
 		.name		= "CONNSECMARK",
 		.family		= AF_INET,
 		.checkentry	= checkentry,
+		.destroy	= destroy,
 		.target		= target,
 		.targetsize	= sizeof(struct xt_connsecmark_target_info),
 		.table		= "mangle",
@@ -120,6 +130,7 @@ static struct xt_target xt_connsecmark_target[] = {
 		.name		= "CONNSECMARK",
 		.family		= AF_INET6,
 		.checkentry	= checkentry,
+		.destroy	= destroy,
 		.target		= target,
 		.targetsize	= sizeof(struct xt_connsecmark_target_info),
 		.table		= "mangle",
@@ -129,7 +140,6 @@ static struct xt_target xt_connsecmark_target[] = {
 
 static int __init xt_connsecmark_init(void)
 {
-	need_conntrack();
 	return xt_register_targets(xt_connsecmark_target,
 				   ARRAY_SIZE(xt_connsecmark_target));
 }

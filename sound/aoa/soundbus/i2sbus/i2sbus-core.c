@@ -41,8 +41,8 @@ static int alloc_dbdma_descriptor_ring(struct i2sbus_dev *i2sdev,
 				       struct dbdma_command_mem *r,
 				       int numcmds)
 {
-	/* one more for rounding */
-	r->size = (numcmds+1) * sizeof(struct dbdma_cmd);
+	/* one more for rounding, one for branch back, one for stop command */
+	r->size = (numcmds + 3) * sizeof(struct dbdma_cmd);
 	/* We use the PCI APIs for now until the generic one gets fixed
 	 * enough or until we get some macio-specific versions
 	 */
@@ -377,11 +377,8 @@ static int i2sbus_suspend(struct macio_dev* dev, pm_message_t state)
 		if (i2sdev->sound.pcm) {
 			/* Suspend PCM streams */
 			snd_pcm_suspend_all(i2sdev->sound.pcm);
-			/* Probably useless as we handle
-			 * power transitions ourselves */
-			snd_power_change_state(i2sdev->sound.pcm->card,
-					       SNDRV_CTL_POWER_D3hot);
 		}
+
 		/* Notify codecs */
 		list_for_each_entry(cii, &i2sdev->sound.codec_list, list) {
 			err = 0;
@@ -390,7 +387,11 @@ static int i2sbus_suspend(struct macio_dev* dev, pm_message_t state)
 			if (err)
 				ret = err;
 		}
+
+		/* wait until streams are stopped */
+		i2sbus_wait_for_stop_both(i2sdev);
 	}
+
 	return ret;
 }
 
@@ -402,6 +403,9 @@ static int i2sbus_resume(struct macio_dev* dev)
 	int err, ret = 0;
 
 	list_for_each_entry(i2sdev, &control->list, item) {
+		/* reset i2s bus format etc. */
+		i2sbus_pcm_prepare_both(i2sdev);
+
 		/* Notify codecs so they can re-initialize */
 		list_for_each_entry(cii, &i2sdev->sound.codec_list, list) {
 			err = 0;
@@ -409,12 +413,6 @@ static int i2sbus_resume(struct macio_dev* dev)
 				err = cii->codec->resume(cii);
 			if (err)
 				ret = err;
-		}
-		/* Notify Alsa */
-		if (i2sdev->sound.pcm) {
-			/* Same comment as above, probably useless */
-			snd_power_change_state(i2sdev->sound.pcm->card,
-					       SNDRV_CTL_POWER_D0);
 		}
 	}
 

@@ -459,7 +459,7 @@ add_dataflash(struct spi_device *spi, char *name,
 	struct mtd_info			*device;
 	struct flash_platform_data	*pdata = spi->dev.platform_data;
 
-	priv = (struct dataflash *) kzalloc(sizeof *priv, GFP_KERNEL);
+	priv = kzalloc(sizeof *priv, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -480,7 +480,7 @@ add_dataflash(struct spi_device *spi, char *name,
 	device->writesize = pagesize;
 	device->owner = THIS_MODULE;
 	device->type = MTD_DATAFLASH;
-	device->flags = MTD_CAP_NORFLASH;
+	device->flags = MTD_WRITEABLE;
 	device->erase = dataflash_erase;
 	device->read = dataflash_read;
 	device->write = dataflash_write;
@@ -536,7 +536,7 @@ static int __devinit dataflash_probe(struct spi_device *spi)
 	if (status <= 0 || status == 0xff) {
 		DEBUG(MTD_DEBUG_LEVEL1, "%s: status error %d\n",
 				spi->dev.bus_id, status);
-		if (status == 0xff)
+		if (status == 0 || status == 0xff)
 			status = -ENODEV;
 		return status;
 	}

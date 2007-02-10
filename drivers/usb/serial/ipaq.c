@@ -563,6 +563,7 @@ static struct usb_serial_driver ipaq_device = {
 		.name =		"ipaq",
 	},
 	.description =		"PocketPC PDA",
+	.usb_driver = 		&ipaq_driver,
 	.id_table =		ipaq_id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		1,
@@ -595,7 +596,7 @@ static int ipaq_open(struct usb_serial_port *port, struct file *filp)
 
 	bytes_in = 0;
 	bytes_out = 0;
-	priv = (struct ipaq_private *)kmalloc(sizeof(struct ipaq_private), GFP_KERNEL);
+	priv = kmalloc(sizeof(struct ipaq_private), GFP_KERNEL);
 	if (priv == NULL) {
 		err("%s - Out of memory", __FUNCTION__);
 		return -ENOMEM;

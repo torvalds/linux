@@ -4,6 +4,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 
 #include <asm/cpu.h>
 #include <asm/processor.h>
@@ -24,16 +25,6 @@
 /*
  * This file should be built into the kernel only if CONFIG_MIPS_MT_SMTC is set.
  */
-
-/*
- * MIPSCPU_INT_BASE is identically defined in both
- * asm-mips/mips-boards/maltaint.h and asm-mips/mips-boards/simint.h,
- * but as yet there's no properly organized include structure that
- * will ensure that the right *int.h file will be included for a
- * given platform build.
- */
-
-#define MIPSCPU_INT_BASE	16
 
 #define MIPS_CPU_IPI_IRQ	1
 
@@ -76,15 +67,15 @@ unsigned int ipi_timer_latch[NR_CPUS];
 
 #define IPIBUF_PER_CPU 4
 
-struct smtc_ipi_q IPIQ[NR_CPUS];
-struct smtc_ipi_q freeIPIq;
+static struct smtc_ipi_q IPIQ[NR_CPUS];
+static struct smtc_ipi_q freeIPIq;
 
 
 /* Forward declarations */
 
 void ipi_decode(struct smtc_ipi *);
-void post_direct_ipi(int cpu, struct smtc_ipi *pipi);
-void setup_cross_vpe_interrupts(void);
+static void post_direct_ipi(int cpu, struct smtc_ipi *pipi);
+static void setup_cross_vpe_interrupts(void);
 void init_smtc_stats(void);
 
 /* Global SMTC Status */
@@ -199,7 +190,7 @@ void __init sanitize_tlb_entries(void)
  * Configure shared TLB - VPC configuration bit must be set by caller
  */
 
-void smtc_configure_tlb(void)
+static void smtc_configure_tlb(void)
 {
 	int i,tlbsiz,vpes;
 	unsigned long mvpconf0;
@@ -261,6 +252,7 @@ void smtc_configure_tlb(void)
 		    }
 		}
 		write_c0_mvpcontrol(read_c0_mvpcontrol() | MVPCONTROL_STLB);
+		ehb();
 
 		/*
 		 * Setup kernel data structures to use software total,
@@ -269,9 +261,12 @@ void smtc_configure_tlb(void)
 		 * of their initialization in smtc_cpu_setup().
 		 */
 
-		tlbsiz = tlbsiz & 0x3f;	/* MIPS32 limits TLB indices to 64 */
-		cpu_data[0].tlbsize = tlbsiz;
+		/* MIPS32 limits TLB indices to 64 */
+		if (tlbsiz > 64)
+			tlbsiz = 64;
+		cpu_data[0].tlbsize = current_cpu_data.tlbsize = tlbsiz;
 		smtc_status |= SMTC_TLB_SHARED;
+		local_flush_tlb_all();
 
 		printk("TLB of %d entry pairs shared by %d VPEs\n",
 			tlbsiz, vpes);
@@ -643,7 +638,7 @@ int setup_irq_smtc(unsigned int irq, struct irqaction * new,
  * the VPE.
  */
 
-void smtc_ipi_qdump(void)
+static void smtc_ipi_qdump(void)
 {
 	int i;
 
@@ -680,28 +675,6 @@ static __inline__ int atomic_postincrement(unsigned int *pv)
 
 	return result;
 }
-
-/* No longer used in IPI dispatch, but retained for future recycling */
-
-static __inline__ int atomic_postclear(unsigned int *pv)
-{
-	unsigned long result;
-
-	unsigned long temp;
-
-	__asm__ __volatile__(
-	"1:	ll	%0, %2					\n"
-	"	or	%1, $0, $0				\n"
-	"	sc	%1, %2					\n"
-	"	beqz	%1, 1b					\n"
-	"	sync						\n"
-	: "=&r" (result), "=&r" (temp), "=m" (*pv)
-	: "m" (*pv)
-	: "memory");
-
-	return result;
-}
-
 
 void smtc_send_ipi(int cpu, int type, unsigned int action)
 {
@@ -776,7 +749,7 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 /*
  * Send IPI message to Halted TC, TargTC/TargVPE already having been set
  */
-void post_direct_ipi(int cpu, struct smtc_ipi *pipi)
+static void post_direct_ipi(int cpu, struct smtc_ipi *pipi)
 {
 	struct pt_regs *kstack;
 	unsigned long tcstatus;
@@ -916,7 +889,7 @@ void smtc_timer_broadcast(int vpe)
  * interrupts.
  */
 
-static int cpu_ipi_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_IRQ;
+static int cpu_ipi_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_IRQ;
 
 static irqreturn_t ipi_interrupt(int irq, void *dev_idm)
 {
@@ -995,7 +968,7 @@ static void ipi_irq_dispatch(void)
 
 static struct irqaction irq_ipi;
 
-void setup_cross_vpe_interrupts(void)
+static void setup_cross_vpe_interrupts(void)
 {
 	if (!cpu_has_vint)
 		panic("SMTC Kernel requires Vectored Interupt support");
@@ -1015,6 +988,35 @@ void setup_cross_vpe_interrupts(void)
 /*
  * SMTC-specific hacks invoked from elsewhere in the kernel.
  */
+
+void smtc_ipi_replay(void)
+{
+	/*
+	 * To the extent that we've ever turned interrupts off,
+	 * we may have accumulated deferred IPIs.  This is subtle.
+	 * If we use the smtc_ipi_qdepth() macro, we'll get an
+	 * exact number - but we'll also disable interrupts
+	 * and create a window of failure where a new IPI gets
+	 * queued after we test the depth but before we re-enable
+	 * interrupts. So long as IXMT never gets set, however,
+	 * we should be OK:  If we pick up something and dispatch
+	 * it here, that's great. If we see nothing, but concurrent
+	 * with this operation, another TC sends us an IPI, IXMT
+	 * is clear, and we'll handle it as a real pseudo-interrupt
+	 * and not a pseudo-pseudo interrupt.
+	 */
+	if (IPIQ[smp_processor_id()].depth > 0) {
+		struct smtc_ipi *pipi;
+		extern void self_ipi(struct smtc_ipi *);
+
+		while ((pipi = smtc_ipi_dq(&IPIQ[smp_processor_id()]))) {
+			self_ipi(pipi);
+			smtc_cpu_stats[smp_processor_id()].selfipis++;
+		}
+	}
+}
+
+EXPORT_SYMBOL(smtc_ipi_replay);
 
 void smtc_idle_loop_hook(void)
 {
@@ -1112,29 +1114,14 @@ void smtc_idle_loop_hook(void)
 	if (pdb_msg != &id_ho_db_msg[0])
 		printk("CPU%d: %s", smp_processor_id(), id_ho_db_msg);
 #endif /* SMTC_IDLE_HOOK_DEBUG */
-	/*
-	 * To the extent that we've ever turned interrupts off,
-	 * we may have accumulated deferred IPIs.  This is subtle.
-	 * If we use the smtc_ipi_qdepth() macro, we'll get an
-	 * exact number - but we'll also disable interrupts
-	 * and create a window of failure where a new IPI gets
-	 * queued after we test the depth but before we re-enable
-	 * interrupts. So long as IXMT never gets set, however,
-	 * we should be OK:  If we pick up something and dispatch
-	 * it here, that's great. If we see nothing, but concurrent
-	 * with this operation, another TC sends us an IPI, IXMT
-	 * is clear, and we'll handle it as a real pseudo-interrupt
-	 * and not a pseudo-pseudo interrupt.
-	 */
-	if (IPIQ[smp_processor_id()].depth > 0) {
-		struct smtc_ipi *pipi;
-		extern void self_ipi(struct smtc_ipi *);
 
-		if ((pipi = smtc_ipi_dq(&IPIQ[smp_processor_id()])) != NULL) {
-			self_ipi(pipi);
-			smtc_cpu_stats[smp_processor_id()].selfipis++;
-		}
-	}
+	/*
+	 * Replay any accumulated deferred IPIs. If "Instant Replay"
+	 * is in use, there should never be any.
+	 */
+#ifndef CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY
+	smtc_ipi_replay();
+#endif /* CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY */
 }
 
 void smtc_soft_dump(void)
@@ -1172,7 +1159,7 @@ void smtc_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 	 * It would be nice to be able to use a spinlock here,
 	 * but this is invoked from within TLB flush routines
 	 * that protect themselves with DVPE, so if a lock is
-         * held by another TC, it'll never be freed.
+	 * held by another TC, it'll never be freed.
 	 *
 	 * DVPE/DMT must not be done with interrupts enabled,
 	 * so even so most callers will already have disabled
@@ -1277,7 +1264,7 @@ void smtc_flush_tlb_asid(unsigned long asid)
  * Support for single-threading cache flush operations.
  */
 
-int halt_state_save[NR_CPUS];
+static int halt_state_save[NR_CPUS];
 
 /*
  * To really, really be sure that nothing is being done

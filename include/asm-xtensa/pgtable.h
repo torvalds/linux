@@ -14,45 +14,6 @@
 #include <asm-generic/pgtable-nopmd.h>
 #include <asm/page.h>
 
-/* Assertions. */
-
-#ifdef CONFIG_MMU
-
-
-#if (XCHAL_MMU_RINGS < 2)
-# error Linux build assumes at least 2 ring levels.
-#endif
-
-#if (XCHAL_MMU_CA_BITS != 4)
-# error We assume exactly four bits for CA.
-#endif
-
-#if (XCHAL_MMU_SR_BITS != 0)
-# error We have no room for SR bits.
-#endif
-
-/*
- * Use the first min-wired way for mapping page-table pages.
- * Page coloring requires a second min-wired way.
- */
-
-#if (XCHAL_DTLB_MINWIRED_SETS == 0)
-# error Need a min-wired way for mapping page-table pages
-#endif
-
-#define DTLB_WAY_PGTABLE XCHAL_DTLB_SET(XCHAL_DTLB_MINWIRED_SET0, WAY)
-
-#if (DCACHE_WAY_SIZE > PAGE_SIZE) && XCHAL_DCACHE_IS_WRITEBACK
-# if XCHAL_DTLB_SET(XCHAL_DTLB_MINWIRED_SET0, WAYS) >= 2
-#  define DTLB_WAY_DCACHE_ALIAS0 (DTLB_WAY_PGTABLE + 1)
-#  define DTLB_WAY_DCACHE_ALIAS1 (DTLB_WAY_PGTABLE + 2)
-# else
-#  error Page coloring requires its own wired dtlb way!
-# endif
-#endif
-
-#endif /* CONFIG_MMU */
-
 /*
  * We only use two ring levels, user and kernel space.
  */
@@ -97,7 +58,7 @@
 #define PGD_ORDER		0
 #define PMD_ORDER		0
 #define USER_PTRS_PER_PGD	(TASK_SIZE/PGDIR_SIZE)
-#define FIRST_USER_ADDRESS      XCHAL_SEG_MAPPABLE_VADDR
+#define FIRST_USER_ADDRESS      0
 #define FIRST_USER_PGD_NR	(FIRST_USER_ADDRESS >> PGDIR_SHIFT)
 
 /* virtual memory area. We keep a distance to other memory regions to be

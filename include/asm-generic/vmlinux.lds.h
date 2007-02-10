@@ -35,6 +35,9 @@
 		VMLINUX_SYMBOL(__start_pci_fixups_enable) = .;		\
 		*(.pci_fixup_enable)					\
 		VMLINUX_SYMBOL(__end_pci_fixups_enable) = .;		\
+		VMLINUX_SYMBOL(__start_pci_fixups_resume) = .;		\
+		*(.pci_fixup_resume)					\
+		VMLINUX_SYMBOL(__end_pci_fixups_resume) = .;		\
 	}								\
 									\
 	/* RapidIO route ops */						\
@@ -119,8 +122,6 @@
 		*(__ksymtab_strings)					\
 	}								\
 									\
-	EH_FRAME							\
-									\
 	/* Built-in module parameters. */				\
 	__param : AT(ADDR(__param) - LOAD_OFFSET) {			\
 		VMLINUX_SYMBOL(__start___param) = .;			\
@@ -160,26 +161,6 @@
 		*(.kprobes.text)					\
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
 
-#ifdef CONFIG_STACK_UNWIND
-#define EH_FRAME							\
-		/* Unwind data binary search table */			\
-		. = ALIGN(8);						\
-        	.eh_frame_hdr : AT(ADDR(.eh_frame_hdr) - LOAD_OFFSET) {	\
-			VMLINUX_SYMBOL(__start_unwind_hdr) = .;		\
-			*(.eh_frame_hdr)				\
-			VMLINUX_SYMBOL(__end_unwind_hdr) = .;		\
-		}							\
-		/* Unwind data */					\
-		. = ALIGN(8);						\
-		.eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {		\
-			VMLINUX_SYMBOL(__start_unwind) = .;		\
-		  	*(.eh_frame)					\
-			VMLINUX_SYMBOL(__end_unwind) = .;		\
-		}
-#else
-#define EH_FRAME
-#endif
-
 		/* DWARF debug sections.
 		Symbols in the DWARF debugging sections are relative to
 		the beginning of the section so we begin them at 0.  */
@@ -218,6 +199,14 @@
 		.stab.indexstr 0 : { *(.stab.indexstr) }		\
 		.comment 0 : { *(.comment) }
 
+#define BUG_TABLE							\
+	. = ALIGN(8);							\
+	__bug_table : AT(ADDR(__bug_table) - LOAD_OFFSET) {		\
+		__start___bug_table = .;				\
+		*(__bug_table)						\
+		__stop___bug_table = .;					\
+	}
+
 #define NOTES								\
 		.notes : { *(.note.*) } :note
 
@@ -234,6 +223,7 @@
   	*(.initcall4s.init)						\
   	*(.initcall5.init)						\
   	*(.initcall5s.init)						\
+	*(.initcallrootfs.init)						\
   	*(.initcall6.init)						\
   	*(.initcall6s.init)						\
   	*(.initcall7.init)						\

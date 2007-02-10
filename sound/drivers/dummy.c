@@ -501,7 +501,7 @@ static int snd_dummy_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_dummy, -4500, 30, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_dummy, -4500, 30, 0);
 
 #define DUMMY_CAPSRC(xname, xindex, addr) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \

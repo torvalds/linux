@@ -100,6 +100,9 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "rx_csum_offload_errors", E1000_STAT(hw_csum_err) },
 	{ "rx_header_split", E1000_STAT(rx_hdr_split) },
 	{ "alloc_rx_buff_failed", E1000_STAT(alloc_rx_buff_failed) },
+	{ "tx_smbus", E1000_STAT(stats.mgptc) },
+	{ "rx_smbus", E1000_STAT(stats.mgprc) },
+	{ "dropped_smbus", E1000_STAT(stats.mgpdc) },
 };
 
 #define E1000_QUEUE_STATS_LEN 0
@@ -335,7 +338,6 @@ e1000_set_tx_csum(struct net_device *netdev, uint32_t data)
 	return 0;
 }
 
-#ifdef NETIF_F_TSO
 static int
 e1000_set_tso(struct net_device *netdev, uint32_t data)
 {
@@ -349,18 +351,15 @@ e1000_set_tso(struct net_device *netdev, uint32_t data)
 	else
 		netdev->features &= ~NETIF_F_TSO;
 
-#ifdef NETIF_F_TSO6
 	if (data)
 		netdev->features |= NETIF_F_TSO6;
 	else
 		netdev->features &= ~NETIF_F_TSO6;
-#endif
 
 	DPRINTK(PROBE, INFO, "TSO is %s\n", data ? "Enabled" : "Disabled");
 	adapter->tso_force = TRUE;
 	return 0;
 }
-#endif /* NETIF_F_TSO */
 
 static uint32_t
 e1000_get_msglevel(struct net_device *netdev)
@@ -1968,10 +1967,8 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.set_tx_csum            = e1000_set_tx_csum,
 	.get_sg                 = ethtool_op_get_sg,
 	.set_sg                 = ethtool_op_set_sg,
-#ifdef NETIF_F_TSO
 	.get_tso                = ethtool_op_get_tso,
 	.set_tso                = e1000_set_tso,
-#endif
 	.self_test_count        = e1000_diag_test_count,
 	.self_test              = e1000_diag_test,
 	.get_strings            = e1000_get_strings,

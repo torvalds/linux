@@ -2,7 +2,7 @@
 		     ----------------------------
 
 		    H. Peter Anvin <hpa@zytor.com>
-			Last update 2006-11-17
+			Last update 2007-01-26
 
 On the i386 platform, the Linux kernel uses a rather complicated boot
 convention.  This has evolved partially due to historical aspects, as
@@ -186,6 +186,7 @@ filled out, however:
 	7  GRuB
 	8  U-BOOT
 	9  Xen
+	A  Gujin
 
 	Please contact <hpa@zytor.com> if you need a bootloader ID
 	value assigned.

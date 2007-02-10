@@ -1,254 +1,193 @@
 /*
- * tc-init: We assume the TURBOchannel to be up and running so
- * just probe for Modules and fill in the global data structure
- * tc_bus.
+ *	TURBOchannel bus services.
  *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
+ *	Copyright (c) Harald Koerfgen, 1998
+ *	Copyright (c) 2001, 2003, 2005, 2006  Maciej W. Rozycki
+ *	Copyright (c) 2005  James Simmons
  *
- * Copyright (c) Harald Koerfgen, 1998
- * Copyright (c) 2001, 2003, 2005  Maciej W. Rozycki
+ *	This file is subject to the terms and conditions of the GNU
+ *	General Public License.  See the file "COPYING" in the main
+ *	directory of this archive for more details.
  */
+#include <linux/compiler.h>
+#include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/ioport.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/tc.h>
 #include <linux/types.h>
 
-#include <asm/addrspace.h>
-#include <asm/errno.h>
 #include <asm/io.h>
-#include <asm/paccess.h>
 
-#include <asm/dec/machtype.h>
-#include <asm/dec/prom.h>
-#include <asm/dec/tcinfo.h>
-#include <asm/dec/tcmodule.h>
-#include <asm/dec/interrupts.h>
-
-MODULE_LICENSE("GPL");
-slot_info tc_bus[MAX_SLOT];
-static int num_tcslots;
-static tcinfo *info;
+static struct tc_bus tc_bus = {
+	.name = "TURBOchannel",
+};
 
 /*
- * Interface to the world. Read comment in include/asm-mips/tc.h.
+ * Probing for TURBOchannel modules.
  */
-
-int search_tc_card(const char *name)
+static void __init tc_bus_add_devices(struct tc_bus *tbus)
 {
-	int slot;
-	slot_info *sip;
-
-	for (slot = 0; slot < num_tcslots; slot++) {
-		sip = &tc_bus[slot];
-		if ((sip->flags & FREE) &&
-		    (strncmp(sip->name, name, strlen(name)) == 0)) {
-			return slot;
-		}
-	}
-
-	return -ENODEV;
-}
-
-void claim_tc_card(int slot)
-{
-	if (tc_bus[slot].flags & IN_USE) {
-		printk("claim_tc_card: attempting to claim a card already in use\n");
-		return;
-	}
-	tc_bus[slot].flags &= ~FREE;
-	tc_bus[slot].flags |= IN_USE;
-}
-
-void release_tc_card(int slot)
-{
-	if (tc_bus[slot].flags & FREE) {
-		printk("release_tc_card: "
-		       "attempting to release a card already free\n");
-		return;
-	}
-	tc_bus[slot].flags &= ~IN_USE;
-	tc_bus[slot].flags |= FREE;
-}
-
-unsigned long get_tc_base_addr(int slot)
-{
-	return tc_bus[slot].base_addr;
-}
-
-unsigned long get_tc_irq_nr(int slot)
-{
-	return tc_bus[slot].interrupt;
-}
-
-unsigned long get_tc_speed(void)
-{
-	return 100000 * (10000 / (unsigned long)info->clk_period);
-}
-
-/*
- * Probing for TURBOchannel modules
- */
-static void __init tc_probe(unsigned long startaddr, unsigned long size,
-			    int slots)
-{
-	unsigned long slotaddr;
+	resource_size_t slotsize = tbus->info.slot_size << 20;
+	resource_size_t extslotsize = tbus->ext_slot_size;
+	resource_size_t slotaddr;
+	resource_size_t extslotaddr;
+	resource_size_t devsize;
+	void __iomem *module;
+	struct tc_dev *tdev;
 	int i, slot, err;
-	long offset;
 	u8 pattern[4];
-	volatile u8 *module;
+	long offset;
 
-	for (slot = 0; slot < slots; slot++) {
-		slotaddr = startaddr + slot * size;
-		module = ioremap_nocache(slotaddr, size);
+	for (slot = 0; slot < tbus->num_tcslots; slot++) {
+		slotaddr = tbus->slot_base + slot * slotsize;
+		extslotaddr = tbus->ext_slot_base + slot * extslotsize;
+		module = ioremap_nocache(slotaddr, slotsize);
 		BUG_ON(!module);
 
-		offset = OLDCARD;
+		offset = TC_OLDCARD;
 
 		err = 0;
-		err |= get_dbe(pattern[0], module + OLDCARD + TC_PATTERN0);
-		err |= get_dbe(pattern[1], module + OLDCARD + TC_PATTERN1);
-		err |= get_dbe(pattern[2], module + OLDCARD + TC_PATTERN2);
-		err |= get_dbe(pattern[3], module + OLDCARD + TC_PATTERN3);
-		if (err) {
-			iounmap(module);
-			continue;
-		}
+		err |= tc_preadb(pattern + 0, module + offset + TC_PATTERN0);
+		err |= tc_preadb(pattern + 1, module + offset + TC_PATTERN1);
+		err |= tc_preadb(pattern + 2, module + offset + TC_PATTERN2);
+		err |= tc_preadb(pattern + 3, module + offset + TC_PATTERN3);
+		if (err)
+			goto out_err;
 
 		if (pattern[0] != 0x55 || pattern[1] != 0x00 ||
 		    pattern[2] != 0xaa || pattern[3] != 0xff) {
-			offset = NEWCARD;
+			offset = TC_NEWCARD;
 
 			err = 0;
-			err |= get_dbe(pattern[0], module + TC_PATTERN0);
-			err |= get_dbe(pattern[1], module + TC_PATTERN1);
-			err |= get_dbe(pattern[2], module + TC_PATTERN2);
-			err |= get_dbe(pattern[3], module + TC_PATTERN3);
-			if (err) {
-				iounmap(module);
-				continue;
-			}
+			err |= tc_preadb(pattern + 0,
+					 module + offset + TC_PATTERN0);
+			err |= tc_preadb(pattern + 1,
+					 module + offset + TC_PATTERN1);
+			err |= tc_preadb(pattern + 2,
+					 module + offset + TC_PATTERN2);
+			err |= tc_preadb(pattern + 3,
+					 module + offset + TC_PATTERN3);
+			if (err)
+				goto out_err;
 		}
 
 		if (pattern[0] != 0x55 || pattern[1] != 0x00 ||
-		    pattern[2] != 0xaa || pattern[3] != 0xff) {
-			iounmap(module);
-			continue;
-		}
+		    pattern[2] != 0xaa || pattern[3] != 0xff)
+			goto out_err;
 
-		tc_bus[slot].base_addr = slotaddr;
+		/* Found a board, allocate it an entry in the list */
+		tdev = kzalloc(sizeof(*tdev), GFP_KERNEL);
+		if (!tdev) {
+			printk(KERN_ERR "tc%x: unable to allocate tc_dev\n",
+			       slot);
+			goto out_err;
+		}
+		sprintf(tdev->dev.bus_id, "tc%x", slot);
+		tdev->bus = tbus;
+		tdev->dev.parent = &tbus->dev;
+		tdev->dev.bus = &tc_bus_type;
+		tdev->slot = slot;
+
 		for (i = 0; i < 8; i++) {
-			tc_bus[slot].firmware[i] =
-				module[TC_FIRM_VER + offset + 4 * i];
-			tc_bus[slot].vendor[i] =
-				module[TC_VENDOR + offset + 4 * i];
-			tc_bus[slot].name[i] =
-				module[TC_MODULE + offset + 4 * i];
+			tdev->firmware[i] =
+				readb(module + offset + TC_FIRM_VER + 4 * i);
+			tdev->vendor[i] =
+				readb(module + offset + TC_VENDOR + 4 * i);
+			tdev->name[i] =
+				readb(module + offset + TC_MODULE + 4 * i);
 		}
-		tc_bus[slot].firmware[8] = 0;
-		tc_bus[slot].vendor[8] = 0;
-		tc_bus[slot].name[8] = 0;
-		/*
-		 * Looks unneccesary, but we may change
-		 * TC? in the future
-		 */
-		switch (slot) {
-		case 0:
-			tc_bus[slot].interrupt = dec_interrupt[DEC_IRQ_TC0];
-			break;
-		case 1:
-			tc_bus[slot].interrupt = dec_interrupt[DEC_IRQ_TC1];
-			break;
-		case 2:
-			tc_bus[slot].interrupt = dec_interrupt[DEC_IRQ_TC2];
-			break;
-		/*
-		 * Yuck! DS5000/200 onboard devices
-		 */
-		case 5:
-			tc_bus[slot].interrupt = dec_interrupt[DEC_IRQ_TC5];
-			break;
-		case 6:
-			tc_bus[slot].interrupt = dec_interrupt[DEC_IRQ_TC6];
-			break;
-		default:
-			tc_bus[slot].interrupt = -1;
-			break;
-		}
+		tdev->firmware[8] = 0;
+		tdev->vendor[8] = 0;
+		tdev->name[8] = 0;
 
+		pr_info("%s: %s %s %s\n", tdev->dev.bus_id, tdev->vendor,
+			tdev->name, tdev->firmware);
+
+		devsize = readb(module + offset + TC_SLOT_SIZE);
+		devsize <<= 22;
+		if (devsize <= slotsize) {
+			tdev->resource.start = slotaddr;
+			tdev->resource.end = slotaddr + devsize - 1;
+		} else if (devsize <= extslotsize) {
+			tdev->resource.start = extslotaddr;
+			tdev->resource.end = extslotaddr + devsize - 1;
+		} else {
+			printk(KERN_ERR "%s: Cannot provide slot space "
+			       "(%dMiB required, up to %dMiB supported)\n",
+			       tdev->dev.bus_id, devsize >> 20,
+			       max(slotsize, extslotsize) >> 20);
+			kfree(tdev);
+			goto out_err;
+		}
+		tdev->resource.name = tdev->name;
+		tdev->resource.flags = IORESOURCE_MEM;
+
+		tc_device_get_irq(tdev);
+
+		device_register(&tdev->dev);
+		list_add_tail(&tdev->node, &tbus->devices);
+
+out_err:
 		iounmap(module);
 	}
 }
 
 /*
- * the main entry
+ * The main entry.
  */
 static int __init tc_init(void)
 {
-	int tc_clock;
-	int i;
-	unsigned long slot0addr;
-	unsigned long slot_size;
-
-	if (!TURBOCHANNEL)
+	/* Initialize the TURBOchannel bus */
+	if (tc_bus_get_info(&tc_bus))
 		return 0;
 
-	for (i = 0; i < MAX_SLOT; i++) {
-		tc_bus[i].base_addr = 0;
-		tc_bus[i].name[0] = 0;
-		tc_bus[i].vendor[0] = 0;
-		tc_bus[i].firmware[0] = 0;
-		tc_bus[i].interrupt = -1;
-		tc_bus[i].flags = FREE;
-	}
+	INIT_LIST_HEAD(&tc_bus.devices);
+	strcpy(tc_bus.dev.bus_id, "tc");
+	device_register(&tc_bus.dev);
 
-	info = rex_gettcinfo();
-	slot0addr = CPHYSADDR((long)rex_slot_address(0));
+	if (tc_bus.info.slot_size) {
+		unsigned int tc_clock = tc_get_speed(&tc_bus) / 100000;
 
-	switch (mips_machtype) {
-	case MACH_DS5000_200:
-		num_tcslots = 7;
-		break;
-	case MACH_DS5000_1XX:
-	case MACH_DS5000_2X0:
-	case MACH_DS5900:
-		num_tcslots = 3;
-		break;
-	case MACH_DS5000_XX:
-	default:
-		num_tcslots = 2;
-		break;
-	}
+		pr_info("tc: TURBOchannel rev. %d at %d.%d MHz "
+			"(with%s parity)\n", tc_bus.info.revision,
+			tc_clock / 10, tc_clock % 10,
+			tc_bus.info.parity ? "" : "out");
 
-	tc_clock = 10000 / info->clk_period;
-
-	if (info->slot_size && slot0addr) {
-		pr_info("TURBOchannel rev. %d at %d.%d MHz (with%s parity)\n",
-			info->revision, tc_clock / 10, tc_clock % 10,
-			info->parity ? "" : "out");
-
-		slot_size = info->slot_size << 20;
-
-		tc_probe(slot0addr, slot_size, num_tcslots);
-
-		for (i = 0; i < num_tcslots; i++) {
-			if (!tc_bus[i].base_addr)
-				continue;
-			pr_info("    slot %d: %s %s %s\n", i, tc_bus[i].vendor,
-				tc_bus[i].name, tc_bus[i].firmware);
+		tc_bus.resource[0].start = tc_bus.slot_base;
+		tc_bus.resource[0].end = tc_bus.slot_base +
+					 (tc_bus.info.slot_size << 20) *
+					 tc_bus.num_tcslots - 1;
+		tc_bus.resource[0].name = tc_bus.name;
+		tc_bus.resource[0].flags = IORESOURCE_MEM;
+		if (request_resource(&iomem_resource,
+				     &tc_bus.resource[0]) < 0) {
+			printk(KERN_ERR "tc: Cannot reserve resource\n");
+			return 0;
 		}
+		if (tc_bus.ext_slot_size) {
+			tc_bus.resource[1].start = tc_bus.ext_slot_base;
+			tc_bus.resource[1].end = tc_bus.ext_slot_base +
+						 tc_bus.ext_slot_size *
+						 tc_bus.num_tcslots - 1;
+			tc_bus.resource[1].name = tc_bus.name;
+			tc_bus.resource[1].flags = IORESOURCE_MEM;
+			if (request_resource(&iomem_resource,
+					     &tc_bus.resource[1]) < 0) {
+				printk(KERN_ERR
+				       "tc: Cannot reserve resource\n");
+				release_resource(&tc_bus.resource[0]);
+				return 0;
+			}
+		}
+
+		tc_bus_add_devices(&tc_bus);
 	}
 
 	return 0;
 }
 
 subsys_initcall(tc_init);
-
-EXPORT_SYMBOL(search_tc_card);
-EXPORT_SYMBOL(claim_tc_card);
-EXPORT_SYMBOL(release_tc_card);
-EXPORT_SYMBOL(get_tc_base_addr);
-EXPORT_SYMBOL(get_tc_irq_nr);
-EXPORT_SYMBOL(get_tc_speed);

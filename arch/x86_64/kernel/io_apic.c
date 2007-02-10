@@ -55,6 +55,10 @@ int sis_apic_bug; /* not actually supported, dummy for compile */
 
 static int no_timer_check;
 
+static int disable_timer_pin_1 __initdata;
+
+int timer_over_8254 __initdata = 1;
+
 /* Where if anywhere is the i8259 connect in external int mode */
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
@@ -349,6 +353,29 @@ static int __init disable_ioapic_setup(char *str)
 	return 0;
 }
 early_param("noapic", disable_ioapic_setup);
+
+/* Actually the next is obsolete, but keep it for paranoid reasons -AK */
+static int __init disable_timer_pin_setup(char *arg)
+{
+	disable_timer_pin_1 = 1;
+	return 1;
+}
+__setup("disable_timer_pin_1", disable_timer_pin_setup);
+
+static int __init setup_disable_8254_timer(char *s)
+{
+	timer_over_8254 = -1;
+	return 1;
+}
+static int __init setup_enable_8254_timer(char *s)
+{
+	timer_over_8254 = 2;
+	return 1;
+}
+
+__setup("disable_8254_timer", setup_disable_8254_timer);
+__setup("enable_8254_timer", setup_enable_8254_timer);
+
 
 /*
  * Find the IRQ entry number of a certain pin.
@@ -1568,33 +1595,10 @@ static inline void unlock_ExtINT_logic(void)
  * a wide range of boards and BIOS bugs.  Fortunately only the timer IRQ
  * is so screwy.  Thanks to Brian Perkins for testing/hacking this beast
  * fanatically on his truly buggy board.
+ *
+ * FIXME: really need to revamp this for modern platforms only.
  */
-
-static int try_apic_pin(int apic, int pin, char *msg)
-{
-	apic_printk(APIC_VERBOSE, KERN_INFO
-		    "..TIMER: trying IO-APIC=%d PIN=%d %s",
-		    apic, pin, msg);
-
-	/*
-	 * Ok, does IRQ0 through the IOAPIC work?
-	 */
-	if (!no_timer_check && timer_irq_works()) {
-		nmi_watchdog_default();
-		if (nmi_watchdog == NMI_IO_APIC) {
-			disable_8259A_irq(0);
-			setup_nmi();
-			enable_8259A_irq(0);
-		}
-		return 1;
-	}
-	clear_IO_APIC_pin(apic, pin);
-	apic_printk(APIC_QUIET, KERN_ERR " .. failed\n");
-	return 0;
-}
-
-/* The function from hell */
-static void check_timer(void)
+static inline void check_timer(void)
 {
 	int apic1, pin1, apic2, pin2;
 	int vector;
@@ -1615,43 +1619,61 @@ static void check_timer(void)
 	 */
 	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 	init_8259A(1);
+	if (timer_over_8254 > 0)
+		enable_8259A_irq(0);
 
 	pin1  = find_isa_irq_pin(0, mp_INT);
 	apic1 = find_isa_irq_apic(0, mp_INT);
 	pin2  = ioapic_i8259.pin;
 	apic2 = ioapic_i8259.apic;
 
-	/* Do this first, otherwise we get double interrupts on ATI boards */
-	if ((pin1 != -1) && try_apic_pin(apic1, pin1,"with 8259 IRQ0 disabled"))
-		return;
+	apic_printk(APIC_VERBOSE,KERN_INFO "..TIMER: vector=0x%02X apic1=%d pin1=%d apic2=%d pin2=%d\n",
+		vector, apic1, pin1, apic2, pin2);
 
-	/* Now try again with IRQ0 8259A enabled.
-	   Assumes timer is on IO-APIC 0 ?!? */
-	enable_8259A_irq(0);
-	unmask_IO_APIC_irq(0);
-	if (try_apic_pin(apic1, pin1, "with 8259 IRQ0 enabled"))
-		return;
-	disable_8259A_irq(0);
-
-	/* Always try pin0 and pin2 on APIC 0 to handle buggy timer overrides
-	   on Nvidia boards */
-	if (!(apic1 == 0 && pin1 == 0) &&
-	    try_apic_pin(0, 0, "fallback with 8259 IRQ0 disabled"))
-		return;
-	if (!(apic1 == 0 && pin1 == 2) &&
-	    try_apic_pin(0, 2, "fallback with 8259 IRQ0 disabled"))
-		return;
-
-	/* Then try pure 8259A routing on the 8259 as reported by BIOS*/
-	enable_8259A_irq(0);
-	if (pin2 != -1) {
-		setup_ExtINT_IRQ0_pin(apic2, pin2, vector);
-		if (try_apic_pin(apic2,pin2,"8259A broadcast ExtINT from BIOS"))
+	if (pin1 != -1) {
+		/*
+		 * Ok, does IRQ0 through the IOAPIC work?
+		 */
+		unmask_IO_APIC_irq(0);
+		if (!no_timer_check && timer_irq_works()) {
+			nmi_watchdog_default();
+			if (nmi_watchdog == NMI_IO_APIC) {
+				disable_8259A_irq(0);
+				setup_nmi();
+				enable_8259A_irq(0);
+			}
+			if (disable_timer_pin_1 > 0)
+				clear_IO_APIC_pin(0, pin1);
 			return;
+		}
+		clear_IO_APIC_pin(apic1, pin1);
+		apic_printk(APIC_QUIET,KERN_ERR "..MP-BIOS bug: 8254 timer not "
+				"connected to IO-APIC\n");
 	}
 
-	/* Tried all possibilities to go through the IO-APIC. Now come the
-	   really cheesy fallbacks. */
+	apic_printk(APIC_VERBOSE,KERN_INFO "...trying to set up timer (IRQ0) "
+				"through the 8259A ... ");
+	if (pin2 != -1) {
+		apic_printk(APIC_VERBOSE,"\n..... (found apic %d pin %d) ...",
+			apic2, pin2);
+		/*
+		 * legacy devices should be connected to IO APIC #0
+		 */
+		setup_ExtINT_IRQ0_pin(apic2, pin2, vector);
+		if (timer_irq_works()) {
+			apic_printk(APIC_VERBOSE," works.\n");
+			nmi_watchdog_default();
+			if (nmi_watchdog == NMI_IO_APIC) {
+				setup_nmi();
+			}
+			return;
+		}
+		/*
+		 * Cleanup, just in case ...
+		 */
+		clear_IO_APIC_pin(apic2, pin2);
+	}
+	apic_printk(APIC_VERBOSE," failed.\n");
 
 	if (nmi_watchdog == NMI_IO_APIC) {
 		printk(KERN_WARNING "timer doesn't work through the IO-APIC - disabling NMI Watchdog!\n");
@@ -1934,24 +1956,31 @@ static struct irq_chip msi_chip = {
 	.retrigger	= ioapic_retrigger_irq,
 };
 
-int arch_setup_msi_irq(unsigned int irq, struct pci_dev *dev)
+int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 {
 	struct msi_msg msg;
-	int ret;
+	int irq, ret;
+	irq = create_irq();
+	if (irq < 0)
+		return irq;
+
+	set_irq_msi(irq, desc);
 	ret = msi_compose_msg(dev, irq, &msg);
-	if (ret < 0)
+	if (ret < 0) {
+		destroy_irq(irq);
 		return ret;
+	}
 
 	write_msi_msg(irq, &msg);
 
 	set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
 
-	return 0;
+	return irq;
 }
 
 void arch_teardown_msi_irq(unsigned int irq)
 {
-	return;
+	destroy_irq(irq);
 }
 
 #endif /* CONFIG_PCI_MSI */

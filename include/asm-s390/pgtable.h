@@ -40,6 +40,7 @@ struct mm_struct;
 
 extern pgd_t swapper_pg_dir[] __attribute__ ((aligned (4096)));
 extern void paging_init(void);
+extern void vmem_map_init(void);
 
 /*
  * The S390 doesn't have any external MMU info: the kernel page
@@ -107,23 +108,25 @@ extern char empty_zero_page[PAGE_SIZE];
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
  */
+extern unsigned long vmalloc_end;
 #define VMALLOC_OFFSET  (8*1024*1024)
 #define VMALLOC_START   (((unsigned long) high_memory + VMALLOC_OFFSET) \
 			 & ~(VMALLOC_OFFSET-1))
+#define VMALLOC_END	vmalloc_end
 
 /*
  * We need some free virtual space to be able to do vmalloc.
  * VMALLOC_MIN_SIZE defines the minimum size of the vmalloc
  * area. On a machine with 2GB memory we make sure that we
  * have at least 128MB free space for vmalloc. On a machine
- * with 4TB we make sure we have at least 1GB.
+ * with 4TB we make sure we have at least 128GB.
  */
 #ifndef __s390x__
 #define VMALLOC_MIN_SIZE	0x8000000UL
-#define VMALLOC_END		0x80000000UL
+#define VMALLOC_END_INIT	0x80000000UL
 #else /* __s390x__ */
-#define VMALLOC_MIN_SIZE	0x40000000UL
-#define VMALLOC_END		0x40000000000UL
+#define VMALLOC_MIN_SIZE	0x2000000000UL
+#define VMALLOC_END_INIT	0x40000000000UL
 #endif /* __s390x__ */
 
 /*
@@ -221,6 +224,8 @@ extern char empty_zero_page[PAGE_SIZE];
 #define _PAGE_TYPE_FILE		0x601	/* bit 0x002 is used for offset !! */
 #define _PAGE_TYPE_RO		0x200
 #define _PAGE_TYPE_RW		0x000
+#define _PAGE_TYPE_EX_RO	0x202
+#define _PAGE_TYPE_EX_RW	0x002
 
 /*
  * PTE type bits are rather complicated. handle_pte_fault uses pte_present,
@@ -241,11 +246,13 @@ extern char empty_zero_page[PAGE_SIZE];
  * _PAGE_TYPE_FILE	11?1   ->   11?1
  * _PAGE_TYPE_RO	0100   ->   1100
  * _PAGE_TYPE_RW	0000   ->   1000
+ * _PAGE_TYPE_EX_RO	0110   ->   1110
+ * _PAGE_TYPE_EX_RW	0010   ->   1010
  *
- * pte_none is true for bits combinations 1000, 1100
+ * pte_none is true for bits combinations 1000, 1010, 1100, 1110
  * pte_present is true for bits combinations 0000, 0010, 0100, 0110, 1001
  * pte_file is true for bits combinations 1101, 1111
- * swap pte is 1011 and 0001, 0011, 0101, 0111, 1010 and 1110 are invalid.
+ * swap pte is 1011 and 0001, 0011, 0101, 0111 are invalid.
  */
 
 #ifndef __s390x__
@@ -310,33 +317,100 @@ extern char empty_zero_page[PAGE_SIZE];
 #define PAGE_NONE	__pgprot(_PAGE_TYPE_NONE)
 #define PAGE_RO		__pgprot(_PAGE_TYPE_RO)
 #define PAGE_RW		__pgprot(_PAGE_TYPE_RW)
+#define PAGE_EX_RO	__pgprot(_PAGE_TYPE_EX_RO)
+#define PAGE_EX_RW	__pgprot(_PAGE_TYPE_EX_RW)
 
 #define PAGE_KERNEL	PAGE_RW
 #define PAGE_COPY	PAGE_RO
 
 /*
- * The S390 can't do page protection for execute, and considers that the
- * same are read. Also, write permissions imply read permissions. This is
- * the closest we can get..
+ * Dependent on the EXEC_PROTECT option s390 can do execute protection.
+ * Write permission always implies read permission. In theory with a
+ * primary/secondary page table execute only can be implemented but
+ * it would cost an additional bit in the pte to distinguish all the
+ * different pte types. To avoid that execute permission currently
+ * implies read permission as well.
  */
          /*xwr*/
 #define __P000	PAGE_NONE
 #define __P001	PAGE_RO
 #define __P010	PAGE_RO
 #define __P011	PAGE_RO
-#define __P100	PAGE_RO
-#define __P101	PAGE_RO
-#define __P110	PAGE_RO
-#define __P111	PAGE_RO
+#define __P100	PAGE_EX_RO
+#define __P101	PAGE_EX_RO
+#define __P110	PAGE_EX_RO
+#define __P111	PAGE_EX_RO
 
 #define __S000	PAGE_NONE
 #define __S001	PAGE_RO
 #define __S010	PAGE_RW
 #define __S011	PAGE_RW
-#define __S100	PAGE_RO
-#define __S101	PAGE_RO
-#define __S110	PAGE_RW
-#define __S111	PAGE_RW
+#define __S100	PAGE_EX_RO
+#define __S101	PAGE_EX_RO
+#define __S110	PAGE_EX_RW
+#define __S111	PAGE_EX_RW
+
+#ifndef __s390x__
+# define PMD_SHADOW_SHIFT	1
+# define PGD_SHADOW_SHIFT	1
+#else /* __s390x__ */
+# define PMD_SHADOW_SHIFT	2
+# define PGD_SHADOW_SHIFT	2
+#endif /* __s390x__ */
+
+static inline struct page *get_shadow_page(struct page *page)
+{
+	if (s390_noexec && !list_empty(&page->lru))
+		return virt_to_page(page->lru.next);
+	return NULL;
+}
+
+static inline pte_t *get_shadow_pte(pte_t *ptep)
+{
+	unsigned long pteptr = (unsigned long) (ptep);
+
+	if (s390_noexec) {
+		unsigned long offset = pteptr & (PAGE_SIZE - 1);
+		void *addr = (void *) (pteptr ^ offset);
+		struct page *page = virt_to_page(addr);
+		if (!list_empty(&page->lru))
+			return (pte_t *) ((unsigned long) page->lru.next |
+								offset);
+	}
+	return NULL;
+}
+
+static inline pmd_t *get_shadow_pmd(pmd_t *pmdp)
+{
+	unsigned long pmdptr = (unsigned long) (pmdp);
+
+	if (s390_noexec) {
+		unsigned long offset = pmdptr &
+				((PAGE_SIZE << PMD_SHADOW_SHIFT) - 1);
+		void *addr = (void *) (pmdptr ^ offset);
+		struct page *page = virt_to_page(addr);
+		if (!list_empty(&page->lru))
+			return (pmd_t *) ((unsigned long) page->lru.next |
+								offset);
+	}
+	return NULL;
+}
+
+static inline pgd_t *get_shadow_pgd(pgd_t *pgdp)
+{
+	unsigned long pgdptr = (unsigned long) (pgdp);
+
+	if (s390_noexec) {
+		unsigned long offset = pgdptr &
+				((PAGE_SIZE << PGD_SHADOW_SHIFT) - 1);
+		void *addr = (void *) (pgdptr ^ offset);
+		struct page *page = virt_to_page(addr);
+		if (!list_empty(&page->lru))
+			return (pgd_t *) ((unsigned long) page->lru.next |
+								offset);
+	}
+	return NULL;
+}
 
 /*
  * Certain architectures need to do special things when PTEs
@@ -345,7 +419,16 @@ extern char empty_zero_page[PAGE_SIZE];
  */
 static inline void set_pte(pte_t *pteptr, pte_t pteval)
 {
+	pte_t *shadow_pte = get_shadow_pte(pteptr);
+
 	*pteptr = pteval;
+	if (shadow_pte) {
+		if (!(pte_val(pteval) & _PAGE_INVALID) &&
+		    (pte_val(pteval) & _PAGE_SWX))
+			pte_val(*shadow_pte) = pte_val(pteval) | _PAGE_RO;
+		else
+			pte_val(*shadow_pte) = _PAGE_TYPE_EMPTY;
+	}
 }
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
@@ -463,7 +546,7 @@ static inline int pte_read(pte_t pte)
 
 static inline void pgd_clear(pgd_t * pgdp)      { }
 
-static inline void pmd_clear(pmd_t * pmdp)
+static inline void pmd_clear_kernel(pmd_t * pmdp)
 {
 	pmd_val(pmdp[0]) = _PAGE_TABLE_INV;
 	pmd_val(pmdp[1]) = _PAGE_TABLE_INV;
@@ -471,24 +554,55 @@ static inline void pmd_clear(pmd_t * pmdp)
 	pmd_val(pmdp[3]) = _PAGE_TABLE_INV;
 }
 
+static inline void pmd_clear(pmd_t * pmdp)
+{
+	pmd_t *shadow_pmd = get_shadow_pmd(pmdp);
+
+	pmd_clear_kernel(pmdp);
+	if (shadow_pmd)
+		pmd_clear_kernel(shadow_pmd);
+}
+
 #else /* __s390x__ */
 
-static inline void pgd_clear(pgd_t * pgdp)
+static inline void pgd_clear_kernel(pgd_t * pgdp)
 {
 	pgd_val(*pgdp) = _PGD_ENTRY_INV | _PGD_ENTRY;
 }
 
-static inline void pmd_clear(pmd_t * pmdp)
+static inline void pgd_clear(pgd_t * pgdp)
+{
+	pgd_t *shadow_pgd = get_shadow_pgd(pgdp);
+
+	pgd_clear_kernel(pgdp);
+	if (shadow_pgd)
+		pgd_clear_kernel(shadow_pgd);
+}
+
+static inline void pmd_clear_kernel(pmd_t * pmdp)
 {
 	pmd_val(*pmdp) = _PMD_ENTRY_INV | _PMD_ENTRY;
 	pmd_val1(*pmdp) = _PMD_ENTRY_INV | _PMD_ENTRY;
+}
+
+static inline void pmd_clear(pmd_t * pmdp)
+{
+	pmd_t *shadow_pmd = get_shadow_pmd(pmdp);
+
+	pmd_clear_kernel(pmdp);
+	if (shadow_pmd)
+		pmd_clear_kernel(shadow_pmd);
 }
 
 #endif /* __s390x__ */
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
+	pte_t *shadow_pte = get_shadow_pte(ptep);
+
 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
+	if (shadow_pte)
+		pte_val(*shadow_pte) = _PAGE_TYPE_EMPTY;
 }
 
 /*
@@ -606,8 +720,11 @@ ptep_clear_flush(struct vm_area_struct *vma,
 		 unsigned long address, pte_t *ptep)
 {
 	pte_t pte = *ptep;
+	pte_t *shadow_pte = get_shadow_pte(ptep);
 
 	__ptep_ipte(address, ptep);
+	if (shadow_pte)
+		__ptep_ipte(address, shadow_pte);
 	return pte;
 }
 
@@ -815,10 +932,16 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 
 #define kern_addr_valid(addr)   (1)
 
+extern int add_shared_memory(unsigned long start, unsigned long size);
+extern int remove_shared_memory(unsigned long start, unsigned long size);
+
 /*
  * No page table caches to initialise
  */
 #define pgtable_cache_init()	do { } while (0)
+
+#define __HAVE_ARCH_MEMMAP_INIT
+extern void memmap_init(unsigned long, int, unsigned long, unsigned long);
 
 #define __HAVE_ARCH_PTEP_ESTABLISH
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS

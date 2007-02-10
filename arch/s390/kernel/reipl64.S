@@ -20,7 +20,7 @@ do_reipl_asm:	basr	%r13,0
 		stg	%r0,__LC_GPREGS_SAVE_AREA-0x1000+8(%r1)
 		stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-0x1000(%r1)
 		stam	%a0,%a15,__LC_AREGS_SAVE_AREA-0x1000(%r1)
-		stpx	__LC_PREFIX_SAVE_AREA-0x1000(%r1)
+		mvc	__LC_PREFIX_SAVE_AREA-0x1000(4,%r1),dump_prefix_page-.Lpg0(%r13)
 		stfpc	__LC_FP_CREG_SAVE_AREA-0x1000(%r1)
 		stckc	.Lclkcmp-.Lpg0(%r13)
 		mvc	__LC_CLOCK_COMP_SAVE_AREA-0x1000(8,%r1),.Lclkcmp-.Lpg0(%r13)
@@ -103,3 +103,6 @@ do_reipl_asm:	basr	%r13,0
 		.long	0x00000000,0x00000000
 		.long	0x00000000,0x00000000
 		.long	0x00000000,0x00000000
+	.globl dump_prefix_page
+dump_prefix_page:
+	.long 0x00000000

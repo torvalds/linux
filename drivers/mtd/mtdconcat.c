@@ -247,7 +247,7 @@ concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 	struct mtd_oob_ops devops = *ops;
 	int i, err, ret = 0;
 
-	ops->retlen = 0;
+	ops->retlen = ops->oobretlen = 0;
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
@@ -263,6 +263,7 @@ concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 
 		err = subdev->read_oob(subdev, from, &devops);
 		ops->retlen += devops.retlen;
+		ops->oobretlen += devops.oobretlen;
 
 		/* Save information about bitflips! */
 		if (unlikely(err)) {
@@ -278,14 +279,18 @@ concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 				return err;
 		}
 
-		devops.len = ops->len - ops->retlen;
-		if (!devops.len)
-			return ret;
-
-		if (devops.datbuf)
+		if (devops.datbuf) {
+			devops.len = ops->len - ops->retlen;
+			if (!devops.len)
+				return ret;
 			devops.datbuf += devops.retlen;
-		if (devops.oobbuf)
-			devops.oobbuf += devops.ooblen;
+		}
+		if (devops.oobbuf) {
+			devops.ooblen = ops->ooblen - ops->oobretlen;
+			if (!devops.ooblen)
+				return ret;
+			devops.oobbuf += ops->oobretlen;
+		}
 
 		from = 0;
 	}
@@ -321,14 +326,18 @@ concat_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 		if (err)
 			return err;
 
-		devops.len = ops->len - ops->retlen;
-		if (!devops.len)
-			return 0;
-
-		if (devops.datbuf)
+		if (devops.datbuf) {
+			devops.len = ops->len - ops->retlen;
+			if (!devops.len)
+				return 0;
 			devops.datbuf += devops.retlen;
-		if (devops.oobbuf)
-			devops.oobbuf += devops.ooblen;
+		}
+		if (devops.oobbuf) {
+			devops.ooblen = ops->ooblen - ops->oobretlen;
+			if (!devops.ooblen)
+				return 0;
+			devops.oobbuf += devops.oobretlen;
+		}
 		to = 0;
 	}
 	return -EINVAL;
@@ -699,14 +708,13 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 
 	/* allocate the device structure */
 	size = SIZEOF_STRUCT_MTD_CONCAT(num_devs);
-	concat = kmalloc(size, GFP_KERNEL);
+	concat = kzalloc(size, GFP_KERNEL);
 	if (!concat) {
 		printk
 		    ("memory allocation error while creating concatenated device \"%s\"\n",
 		     name);
 		return NULL;
 	}
-	memset(concat, 0, size);
 	concat->subdev = (struct mtd_info **) (concat + 1);
 
 	/*
@@ -764,6 +772,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 		concat->mtd.ecc_stats.badblocks +=
 			subdev[i]->ecc_stats.badblocks;
 		if (concat->mtd.writesize   !=  subdev[i]->writesize ||
+		    concat->mtd.subpage_sft != subdev[i]->subpage_sft ||
 		    concat->mtd.oobsize    !=  subdev[i]->oobsize ||
 		    concat->mtd.ecctype    !=  subdev[i]->ecctype ||
 		    concat->mtd.eccsize    !=  subdev[i]->eccsize ||

@@ -104,6 +104,7 @@
 
 struct spu_context;
 struct spu_runqueue;
+struct device_node;
 
 struct spu {
 	const char *name;
@@ -142,7 +143,19 @@ struct spu {
 	char irq_c1[8];
 	char irq_c2[8];
 
+	u64 spe_id;
+
 	void* pdata; /* platform private data */
+
+	/* of based platforms only */
+	struct device_node *devnode;
+
+	/* native only */
+	struct spu_priv1 __iomem *priv1;
+
+	/* beat only */
+	u64 shadow_int_mask_RW[3];
+
 	struct sys_device sysdev;
 };
 
@@ -161,6 +174,7 @@ struct spu_syscall_block {
 extern long spu_sys_callback(struct spu_syscall_block *s);
 
 /* syscalls implemented in spufs */
+struct file;
 extern struct spufs_calls {
 	asmlinkage long (*create_thread)(const char __user *name,
 					unsigned int flags, mode_t mode);
@@ -232,6 +246,7 @@ void spu_remove_sysdev_attr_group(struct attribute_group *attrs);
  * to object-id spufs file from user space and the notifer
  * function can assume that spu->ctx is valid.
  */
+struct notifier_block;
 int spu_switch_event_register(struct notifier_block * n);
 int spu_switch_event_unregister(struct notifier_block * n);
 

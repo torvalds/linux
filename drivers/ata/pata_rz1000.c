@@ -52,19 +52,20 @@ static void rz1000_error_handler(struct ata_port *ap)
 /**
  *	rz1000_set_mode		-	mode setting function
  *	@ap: ATA interface
+ *	@unused: returned device on set_mode failure
  *
  *	Use a non standard set_mode function. We don't want to be tuned. We
  *	would prefer to be BIOS generic but for the fact our hardware is
  *	whacked out.
  */
 
-static void rz1000_set_mode(struct ata_port *ap)
+static int rz1000_set_mode(struct ata_port *ap, struct ata_device **unused)
 {
 	int i;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
-		if (ata_dev_enabled(dev)) {
+		if (ata_dev_ready(dev)) {
 			/* We don't really care */
 			dev->pio_mode = XFER_PIO_0;
 			dev->xfer_mode = XFER_PIO_0;
@@ -72,6 +73,7 @@ static void rz1000_set_mode(struct ata_port *ap)
 			dev->flags |= ATA_DFLAG_PIO;
 		}
 	}
+	return 0;
 }
 
 
@@ -105,8 +107,6 @@ static struct ata_port_operations rz1000_port_ops = {
 	.exec_command	= ata_exec_command,
 	.dev_select 	= ata_std_dev_select,
 
-	.error_handler	= rz1000_error_handler,
-
 	.bmdma_setup 	= ata_bmdma_setup,
 	.bmdma_start 	= ata_bmdma_start,
 	.bmdma_stop	= ata_bmdma_stop,
@@ -115,7 +115,7 @@ static struct ata_port_operations rz1000_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.freeze		= ata_bmdma_freeze,
 	.thaw		= ata_bmdma_thaw,
@@ -124,10 +124,10 @@ static struct ata_port_operations rz1000_port_ops = {
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static int rz1000_fifo_disable(struct pci_dev *pdev)

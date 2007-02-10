@@ -1155,36 +1155,3 @@ ENTRY(call_softirq)
 	ret
 	CFI_ENDPROC
 ENDPROC(call_softirq)
-
-#ifdef CONFIG_STACK_UNWIND
-ENTRY(arch_unwind_init_running)
-	CFI_STARTPROC
-	movq	%r15, R15(%rdi)
-	movq	%r14, R14(%rdi)
-	xchgq	%rsi, %rdx
-	movq	%r13, R13(%rdi)
-	movq	%r12, R12(%rdi)
-	xorl	%eax, %eax
-	movq	%rbp, RBP(%rdi)
-	movq	%rbx, RBX(%rdi)
-	movq	(%rsp), %rcx
-	movq	%rax, R11(%rdi)
-	movq	%rax, R10(%rdi)
-	movq	%rax, R9(%rdi)
-	movq	%rax, R8(%rdi)
-	movq	%rax, RAX(%rdi)
-	movq	%rax, RCX(%rdi)
-	movq	%rax, RDX(%rdi)
-	movq	%rax, RSI(%rdi)
-	movq	%rax, RDI(%rdi)
-	movq	%rax, ORIG_RAX(%rdi)
-	movq	%rcx, RIP(%rdi)
-	leaq	8(%rsp), %rcx
-	movq	$__KERNEL_CS, CS(%rdi)
-	movq	%rax, EFLAGS(%rdi)
-	movq	%rcx, RSP(%rdi)
-	movq	$__KERNEL_DS, SS(%rdi)
-	jmpq	*%rdx
-	CFI_ENDPROC
-ENDPROC(arch_unwind_init_running)
-#endif

@@ -1239,7 +1239,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 	} else {
 		/* Dump buffered message to console */
 		ia64_mlogbuf_finish(1);
-#ifdef CONFIG_CRASH_DUMP
+#ifdef CONFIG_KEXEC
 		atomic_set(&kdump_in_progress, 1);
 		monarch_cpu = -1;
 #endif

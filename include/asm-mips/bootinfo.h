@@ -131,6 +131,7 @@
 #define  MACH_PHILIPS_NINO	0	/* Nino */
 #define  MACH_PHILIPS_VELO	1	/* Velo */
 #define  MACH_PHILIPS_JBS	2	/* JBS */
+#define  MACH_PHILIPS_STB810	3	/* STB810 */
 
 /*
  * Valid machtype for group SIBYTE
@@ -242,6 +243,10 @@ extern struct boot_mem_map boot_mem_map;
 extern void add_memory_region(phys_t start, phys_t size, long type);
 
 extern void prom_init(void);
+extern void prom_free_prom_memory(void);
+
+extern void free_init_pages(const char *what,
+			    unsigned long begin, unsigned long end);
 
 /*
  * Initial kernel command line, usually setup by prom_init()

@@ -73,14 +73,13 @@ int pcbit_init_dev(int board, int mem_base, int irq)
 	struct pcbit_dev *dev;
 	isdn_if *dev_if;
 
-	if ((dev=kmalloc(sizeof(struct pcbit_dev), GFP_KERNEL)) == NULL)
+	if ((dev=kzalloc(sizeof(struct pcbit_dev), GFP_KERNEL)) == NULL)
 	{
 		printk("pcbit_init: couldn't malloc pcbit_dev struct\n");
 		return -ENOMEM;
 	}
 
 	dev_pcbit[board] = dev;
-	memset(dev, 0, sizeof(struct pcbit_dev));
 	init_waitqueue_head(&dev->set_running_wq);
 	spin_lock_init(&dev->lock);
 
@@ -104,7 +103,7 @@ int pcbit_init_dev(int board, int mem_base, int irq)
 		return -EACCES;
 	}
 
-	dev->b1 = kmalloc(sizeof(struct pcbit_chan), GFP_KERNEL);
+	dev->b1 = kzalloc(sizeof(struct pcbit_chan), GFP_KERNEL);
 	if (!dev->b1) {
 		printk("pcbit_init: couldn't malloc pcbit_chan struct\n");
 		iounmap(dev->sh_mem);
@@ -113,7 +112,7 @@ int pcbit_init_dev(int board, int mem_base, int irq)
 		return -ENOMEM;
 	}
     
-	dev->b2 = kmalloc(sizeof(struct pcbit_chan), GFP_KERNEL);
+	dev->b2 = kzalloc(sizeof(struct pcbit_chan), GFP_KERNEL);
 	if (!dev->b2) {
 		printk("pcbit_init: couldn't malloc pcbit_chan struct\n");
 		kfree(dev->b1);
@@ -123,8 +122,6 @@ int pcbit_init_dev(int board, int mem_base, int irq)
 		return -ENOMEM;
 	}
 
-	memset(dev->b1, 0, sizeof(struct pcbit_chan));
-	memset(dev->b2, 0, sizeof(struct pcbit_chan));
 	dev->b2->id = 1;
 
 	INIT_WORK(&dev->qdelivery, pcbit_deliver);

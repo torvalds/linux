@@ -26,19 +26,12 @@ struct embedded_fd_set {
 	unsigned long fds_bits[1];
 };
 
-/*
- * More than this number of fds: we use a separately allocated fd_set
- */
-#define EMBEDDED_FD_SET_SIZE (BITS_PER_BYTE * sizeof(struct embedded_fd_set))
-
 struct fdtable {
 	unsigned int max_fds;
-	int max_fdset;
 	struct file ** fd;      /* current fd array */
 	fd_set *close_on_exec;
 	fd_set *open_fds;
 	struct rcu_head rcu;
-	struct files_struct *free_files;
 	struct fdtable *next;
 };
 
@@ -83,15 +76,14 @@ extern int get_unused_fd(void);
 extern void FASTCALL(put_unused_fd(unsigned int fd));
 struct kmem_cache;
 
-extern struct file ** alloc_fd_array(int);
-extern void free_fd_array(struct file **, int);
-
-extern fd_set *alloc_fdset(int);
-extern void free_fdset(fd_set *, int);
-
 extern int expand_files(struct files_struct *, int nr);
-extern void free_fdtable(struct fdtable *fdt);
+extern void free_fdtable_rcu(struct rcu_head *rcu);
 extern void __init files_defer_init(void);
+
+static inline void free_fdtable(struct fdtable *fdt)
+{
+	call_rcu(&fdt->rcu, free_fdtable_rcu);
+}
 
 static inline struct file * fcheck_files(struct files_struct *files, unsigned int fd)
 {

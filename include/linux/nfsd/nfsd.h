@@ -52,8 +52,6 @@
 struct readdir_cd {
 	__be32			err;	/* 0, nfserr, or nfserr_eof */
 };
-typedef int		(*encode_dent_fn)(struct readdir_cd *, const char *,
-						int, loff_t, ino_t, unsigned int);
 typedef int (*nfsd_dirop_t)(struct inode *, struct dentry *, int, int);
 
 extern struct svc_program	nfsd_program;
@@ -117,7 +115,7 @@ __be32		nfsd_unlink(struct svc_rqst *, struct svc_fh *, int type,
 int		nfsd_truncate(struct svc_rqst *, struct svc_fh *,
 				unsigned long size);
 __be32		nfsd_readdir(struct svc_rqst *, struct svc_fh *,
-			     loff_t *, struct readdir_cd *, encode_dent_fn);
+			     loff_t *, struct readdir_cd *, filldir_t);
 __be32		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 				struct kstatfs *);
 
@@ -275,12 +273,12 @@ static inline int is_fsid(struct svc_fh *fh, struct knfsd_fh *reffh)
  * we might process an operation with side effects, and be unable to
  * tell the client that the operation succeeded.
  *
- * COMPOUND_SLACK_SPACE - this is the minimum amount of buffer space
+ * COMPOUND_SLACK_SPACE - this is the minimum bytes of buffer space
  * needed to encode an "ordinary" _successful_ operation.  (GETATTR,
  * READ, READDIR, and READLINK have their own buffer checks.)  if we
  * fall below this level, we fail the next operation with NFS4ERR_RESOURCE.
  *
- * COMPOUND_ERR_SLACK_SPACE - this is the minimum amount of buffer space
+ * COMPOUND_ERR_SLACK_SPACE - this is the minimum bytes of buffer space
  * needed to encode an operation which has failed with NFS4ERR_RESOURCE.
  * care is taken to ensure that we never fall below this level for any
  * reason.

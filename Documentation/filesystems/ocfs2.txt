@@ -54,3 +54,6 @@ errors=panic		Panic and halt the machine if an error occurs.
 intr		(*)	Allow signals to interrupt cluster operations.
 nointr			Do not allow signals to interrupt cluster
 			operations.
+atime_quantum=60(*)	OCFS2 will not update atime unless this number
+			of seconds has passed since the last update.
+			Set to zero to always update atime.

@@ -49,6 +49,11 @@ config GENERIC_IOMAP
 	bool
 	default y
 
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -185,6 +190,7 @@ endchoice
 config PARAVIRT
 	bool "Paravirtualization support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
+	depends on !(X86_VISWS || X86_VOYAGER)
 	help
 	  Paravirtualization is a way of running multiple instances of
 	  Linux on the same machine, under a hypervisor.  This option
@@ -770,6 +776,47 @@ config CRASH_DUMP
           to a memory address not used by the main kernel or BIOS using
           PHYSICAL_START.
 	  For more details see Documentation/kdump/kdump.txt
+
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
+	default "0x100000"
+	help
+	  This gives the physical address where the kernel is loaded.
+
+	  If kernel is a not relocatable (CONFIG_RELOCATABLE=n) then
+	  bzImage will decompress itself to above physical address and
+	  run from there. Otherwise, bzImage will run from the address where
+	  it has been loaded by the boot loader and will ignore above physical
+	  address.
+
+	  In normal kdump cases one does not have to set/change this option
+	  as now bzImage can be compiled as a completely relocatable image
+	  (CONFIG_RELOCATABLE=y) and be used to load and run from a different
+	  address. This option is mainly useful for the folks who don't want
+	  to use a bzImage for capturing the crash dump and want to use a
+	  vmlinux instead. vmlinux is not relocatable hence a kernel needs
+	  to be specifically compiled to run from a specific memory area
+	  (normally a reserved region) and this option comes handy.
+
+	  So if you are using bzImage for capturing the crash dump, leave
+	  the value here unchanged to 0x100000 and set CONFIG_RELOCATABLE=y.
+	  Otherwise if you plan to use vmlinux for capturing the crash dump
+	  change this value to start of the reserved region (Typically 16MB
+	  0x1000000). In other words, it can be set based on the "X" value as
+	  specified in the "crashkernel=YM@XM" command line boot parameter
+	  passed to the panic-ed kernel. Typically this parameter is set as
+	  crashkernel=64M@16M. Please take a look at
+	  Documentation/kdump/kdump.txt for more details about crash dumps.
+
+	  Usage of bzImage for capturing the crash dump is recommended as
+	  one does not have to build two kernels. Same kernel can be used
+	  as production kernel and capture kernel. Above option should have
+	  gone away after relocatable bzImage support is introduced. But it
+	  is present because there are users out there who continue to use
+	  vmlinux for dump capture. This option should go away down the
+	  line.
+
+	  Don't change this unless you know what you are doing.
 
 config RELOCATABLE
 	bool "Build a relocatable kernel(EXPERIMENTAL)"

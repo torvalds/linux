@@ -47,14 +47,11 @@ static int snd_hwdep_dev_disconnect(struct snd_device *device);
 
 static struct snd_hwdep *snd_hwdep_search(struct snd_card *card, int device)
 {
-	struct list_head *p;
 	struct snd_hwdep *hwdep;
 
-	list_for_each(p, &snd_hwdep_devices) {
-		hwdep = list_entry(p, struct snd_hwdep, list);
+	list_for_each_entry(hwdep, &snd_hwdep_devices, list)
 		if (hwdep->card == card && hwdep->device == device)
 			return hwdep;
-	}
 	return NULL;
 }
 
@@ -159,15 +156,16 @@ static int snd_hwdep_release(struct inode *inode, struct file * file)
 	int err = -ENXIO;
 	struct snd_hwdep *hw = file->private_data;
 	struct module *mod = hw->card->module;
+
 	mutex_lock(&hw->open_mutex);
-	if (hw->ops.release) {
+	if (hw->ops.release)
 		err = hw->ops.release(hw, file);
-		wake_up(&hw->open_wait);
-	}
 	if (hw->used > 0)
 		hw->used--;
-	snd_card_file_remove(hw->card, file);
 	mutex_unlock(&hw->open_mutex);
+	wake_up(&hw->open_wait);
+
+	snd_card_file_remove(hw->card, file);
 	module_put(mod);
 	return err;
 }
@@ -468,15 +466,12 @@ static int snd_hwdep_dev_disconnect(struct snd_device *device)
 static void snd_hwdep_proc_read(struct snd_info_entry *entry,
 				struct snd_info_buffer *buffer)
 {
-	struct list_head *p;
 	struct snd_hwdep *hwdep;
 
 	mutex_lock(&register_mutex);
-	list_for_each(p, &snd_hwdep_devices) {
-		hwdep = list_entry(p, struct snd_hwdep, list);
+	list_for_each_entry(hwdep, &snd_hwdep_devices, list)
 		snd_iprintf(buffer, "%02i-%02i: %s\n",
 			    hwdep->card->number, hwdep->device, hwdep->name);
-	}
 	mutex_unlock(&register_mutex);
 }
 

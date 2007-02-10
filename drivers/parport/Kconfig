@@ -82,9 +82,6 @@ config PARPORT_PC_PCMCIA
 	  Say Y here if you need PCMCIA support for your PC-style parallel
 	  ports. If unsure, say N.
 
-config PARPORT_NOT_PC
-	bool
-
 config PARPORT_IP32
 	tristate "SGI IP32 builtin port (EXPERIMENTAL)"
 	depends on SGI_IP32 && PARPORT && EXPERIMENTAL
@@ -157,6 +154,9 @@ config PARPORT_1284
 	  such as EPP and ECP, say Y here to enable advanced IEEE 1284
 	  transfer modes. Also say Y if you want device ID information to
 	  appear in /proc/sys/dev/parport/*/autoprobe*. It is safe to say N.
+
+config PARPORT_NOT_PC
+	bool
 
 endmenu
 

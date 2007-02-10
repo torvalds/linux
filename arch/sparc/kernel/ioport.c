@@ -153,7 +153,7 @@ void __iomem *of_ioremap(struct resource *res, unsigned long offset,
 }
 EXPORT_SYMBOL(of_ioremap);
 
-void of_iounmap(void __iomem *base, unsigned long size)
+void of_iounmap(struct resource *res, void __iomem *base, unsigned long size)
 {
 	iounmap(base);
 }
@@ -317,9 +317,8 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, long len, u32 *dma_addrp)
 	if ((va = __get_free_pages(GFP_KERNEL|__GFP_COMP, order)) == 0)
 		goto err_nopages;
 
-	if ((res = kmalloc(sizeof(struct resource), GFP_KERNEL)) == NULL)
+	if ((res = kzalloc(sizeof(struct resource), GFP_KERNEL)) == NULL)
 		goto err_nomem;
-	memset((char*)res, 0, sizeof(struct resource));
 
 	if (allocate_resource(&_sparc_dvma, res, len_total,
 	    _sparc_dvma.start, _sparc_dvma.end, PAGE_SIZE, NULL, NULL) != 0) {
@@ -589,12 +588,11 @@ void *pci_alloc_consistent(struct pci_dev *pdev, size_t len, dma_addr_t *pba)
 		return NULL;
 	}
 
-	if ((res = kmalloc(sizeof(struct resource), GFP_KERNEL)) == NULL) {
+	if ((res = kzalloc(sizeof(struct resource), GFP_KERNEL)) == NULL) {
 		free_pages(va, order);
 		printk("pci_alloc_consistent: no core\n");
 		return NULL;
 	}
-	memset((char*)res, 0, sizeof(struct resource));
 
 	if (allocate_resource(&_sparc_dvma, res, len_total,
 	    _sparc_dvma.start, _sparc_dvma.end, PAGE_SIZE, NULL, NULL) != 0) {
@@ -728,7 +726,8 @@ int pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents,
 	/* IIep is write-through, not flushing. */
 	for (n = 0; n < nents; n++) {
 		BUG_ON(page_address(sg->page) == NULL);
-		sg->dvma_address = virt_to_phys(page_address(sg->page));
+		sg->dvma_address =
+			virt_to_phys(page_address(sg->page)) + sg->offset;
 		sg->dvma_length = sg->length;
 		sg++;
 	}

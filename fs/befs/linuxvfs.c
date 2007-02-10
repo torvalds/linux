@@ -212,7 +212,7 @@ befs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 static int
 befs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct super_block *sb = inode->i_sb;
 	befs_data_stream *ds = &BEFS_I(inode)->i_data.ds;
 	befs_off_t value;
@@ -222,7 +222,7 @@ befs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	char keybuf[BEFS_NAME_LEN + 1];
 	char *nlsname;
 	int nlsnamelen;
-	const char *dirname = filp->f_dentry->d_name.name;
+	const char *dirname = filp->f_path.dentry->d_name.name;
 
 	befs_debug(sb, "---> befs_readdir() "
 		   "name %s, inode %ld, filp->f_pos %Ld",

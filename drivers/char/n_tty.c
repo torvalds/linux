@@ -994,7 +994,7 @@ int is_ignored(int sig)
  *	when the ldisc is closed.
  */
  
-static void n_tty_set_termios(struct tty_struct *tty, struct termios * old)
+static void n_tty_set_termios(struct tty_struct *tty, struct ktermios * old)
 {
 	if (!tty)
 		return;
@@ -1151,7 +1151,6 @@ static int copy_from_read_buf(struct tty_struct *tty,
 	n = min(*nr, n);
 	spin_unlock_irqrestore(&tty->read_lock, flags);
 	if (n) {
-		mb();
 		retval = copy_to_user(*b, &tty->read_buf[tty->read_tail], n);
 		n -= retval;
 		spin_lock_irqsave(&tty->read_lock, flags);

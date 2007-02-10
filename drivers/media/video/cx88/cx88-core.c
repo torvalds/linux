@@ -633,12 +633,12 @@ int cx88_reset(struct cx88_core *core)
 
 static unsigned int inline norm_swidth(struct cx88_tvnorm *norm)
 {
-	return (norm->id & V4L2_STD_625_50) ? 922 : 754;
+	return (norm->id & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 754 : 922;
 }
 
 static unsigned int inline norm_hdelay(struct cx88_tvnorm *norm)
 {
-	return (norm->id & V4L2_STD_625_50) ? 186 : 135;
+	return (norm->id & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 135 : 186;
 }
 
 static unsigned int inline norm_vdelay(struct cx88_tvnorm *norm)
@@ -648,24 +648,33 @@ static unsigned int inline norm_vdelay(struct cx88_tvnorm *norm)
 
 static unsigned int inline norm_fsc8(struct cx88_tvnorm *norm)
 {
-	static const unsigned int ntsc = 28636360;
-	static const unsigned int pal  = 35468950;
-	static const unsigned int palm  = 28604892;
-
 	if (norm->id & V4L2_STD_PAL_M)
-		return palm;
+		return 28604892;      // 3.575611 MHz
 
-	return (norm->id & V4L2_STD_625_50) ? pal : ntsc;
+	if (norm->id & (V4L2_STD_PAL_Nc))
+		return 28656448;      // 3.582056 MHz
+
+	if (norm->id & V4L2_STD_NTSC) // All NTSC/M and variants
+		return 28636360;      // 3.57954545 MHz +/- 10 Hz
+
+	/* SECAM have also different sub carrier for chroma,
+	   but step_db and step_dr, at cx88_set_tvnorm already handles that.
+
+	   The same FSC applies to PAL/BGDKIH, PAL/60, NTSC/4.43 and PAL/N
+	 */
+
+	return 35468950;      // 4.43361875 MHz +/- 5 Hz
 }
 
 static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
 {
-	/* Should always be Line Draw Time / (4*FSC) */
 
-	if (norm->id & V4L2_STD_PAL_M)
-		return 909;
+	unsigned int fsc4=norm_fsc8(norm)/2;
 
-	return (norm->id & V4L2_STD_625_50) ? 1135 : 910;
+	/* returns 4*FSC / vtotal / frames per seconds */
+	return (norm->id & V4L2_STD_625_50) ?
+				((fsc4+312)/625+12)/25 :
+				((fsc4+262)/525*1001+15000)/30000;
 }
 
 static unsigned int inline norm_vbipack(struct cx88_tvnorm *norm)
@@ -692,7 +701,7 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int heig
 	value &= 0x3fe;
 	cx_write(MO_HDELAY_EVEN,  value);
 	cx_write(MO_HDELAY_ODD,   value);
-	dprintk(1,"set_scale: hdelay  0x%04x\n", value);
+	dprintk(1,"set_scale: hdelay  0x%04x (width %d)\n", value,swidth);
 
 	value = (swidth * 4096 / width) - 4096;
 	cx_write(MO_HSCALE_EVEN,  value);
@@ -1153,7 +1162,7 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 	mutex_lock(&devlist);
 	cx88_ir_fini(core);
 	if (0 == core->i2c_rc)
-		i2c_bit_del_bus(&core->i2c_adap);
+		i2c_del_adapter(&core->i2c_adap);
 	list_del(&core->devlist);
 	iounmap(core->lmmio);
 	cx88_devcount--;

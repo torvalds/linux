@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/completion.h>
-#include <linux/namespace.h>
+#include <linux/mnt_namespace.h>
 #include <linux/personality.h>
 #include <linux/mempolicy.h>
 #include <linux/sem.h>
@@ -36,6 +36,7 @@
 #include <linux/syscalls.h>
 #include <linux/jiffies.h>
 #include <linux/futex.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/rcupdate.h>
 #include <linux/ptrace.h>
 #include <linux/mount.h>
@@ -202,7 +203,7 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 	struct mempolicy *pol;
 
 	down_write(&oldmm->mmap_sem);
-	flush_cache_mm(oldmm);
+	flush_cache_dup_mm(oldmm);
 	/*
 	 * Not linked in yet - no deadlock potential:
 	 */
@@ -252,7 +253,7 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		anon_vma_link(tmp);
 		file = tmp->vm_file;
 		if (file) {
-			struct inode *inode = file->f_dentry->d_inode;
+			struct inode *inode = file->f_path.dentry->d_inode;
 			get_file(file);
 			if (tmp->vm_flags & VM_DENYWRITE)
 				atomic_dec(&inode->i_writecount);
@@ -613,7 +614,7 @@ static inline int copy_fs(unsigned long clone_flags, struct task_struct * tsk)
 
 static int count_open_files(struct fdtable *fdt)
 {
-	int size = fdt->max_fdset;
+	int size = fdt->max_fds;
 	int i;
 
 	/* Find the last open fd */
@@ -640,12 +641,10 @@ static struct files_struct *alloc_files(void)
 	newf->next_fd = 0;
 	fdt = &newf->fdtab;
 	fdt->max_fds = NR_OPEN_DEFAULT;
-	fdt->max_fdset = EMBEDDED_FD_SET_SIZE;
 	fdt->close_on_exec = (fd_set *)&newf->close_on_exec_init;
 	fdt->open_fds = (fd_set *)&newf->open_fds_init;
 	fdt->fd = &newf->fd_array[0];
 	INIT_RCU_HEAD(&fdt->rcu);
-	fdt->free_files = NULL;
 	fdt->next = NULL;
 	rcu_assign_pointer(newf->fdt, fdt);
 out:
@@ -661,7 +660,7 @@ static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 {
 	struct files_struct *newf;
 	struct file **old_fds, **new_fds;
-	int open_files, size, i, expand;
+	int open_files, size, i;
 	struct fdtable *old_fdt, *new_fdt;
 
 	*errorp = -ENOMEM;
@@ -672,25 +671,14 @@ static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	spin_lock(&oldf->file_lock);
 	old_fdt = files_fdtable(oldf);
 	new_fdt = files_fdtable(newf);
-	size = old_fdt->max_fdset;
 	open_files = count_open_files(old_fdt);
-	expand = 0;
 
 	/*
-	 * Check whether we need to allocate a larger fd array or fd set.
-	 * Note: we're not a clone task, so the open count won't  change.
+	 * Check whether we need to allocate a larger fd array and fd set.
+	 * Note: we're not a clone task, so the open count won't change.
 	 */
-	if (open_files > new_fdt->max_fdset) {
-		new_fdt->max_fdset = 0;
-		expand = 1;
-	}
 	if (open_files > new_fdt->max_fds) {
 		new_fdt->max_fds = 0;
-		expand = 1;
-	}
-
-	/* if the old fdset gets grown now, we'll only copy up to "size" fds */
-	if (expand) {
 		spin_unlock(&oldf->file_lock);
 		spin_lock(&newf->file_lock);
 		*errorp = expand_files(newf, open_files-1);
@@ -710,8 +698,10 @@ static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	old_fds = old_fdt->fd;
 	new_fds = new_fdt->fd;
 
-	memcpy(new_fdt->open_fds->fds_bits, old_fdt->open_fds->fds_bits, open_files/8);
-	memcpy(new_fdt->close_on_exec->fds_bits, old_fdt->close_on_exec->fds_bits, open_files/8);
+	memcpy(new_fdt->open_fds->fds_bits,
+		old_fdt->open_fds->fds_bits, open_files/8);
+	memcpy(new_fdt->close_on_exec->fds_bits,
+		old_fdt->close_on_exec->fds_bits, open_files/8);
 
 	for (i = open_files; i != 0; i--) {
 		struct file *f = *old_fds++;
@@ -736,22 +726,19 @@ static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	/* This is long word aligned thus could use a optimized version */ 
 	memset(new_fds, 0, size); 
 
-	if (new_fdt->max_fdset > open_files) {
-		int left = (new_fdt->max_fdset-open_files)/8;
+	if (new_fdt->max_fds > open_files) {
+		int left = (new_fdt->max_fds-open_files)/8;
 		int start = open_files / (8 * sizeof(unsigned long));
 
 		memset(&new_fdt->open_fds->fds_bits[start], 0, left);
 		memset(&new_fdt->close_on_exec->fds_bits[start], 0, left);
 	}
 
-out:
 	return newf;
 
 out_release:
-	free_fdset (new_fdt->close_on_exec, new_fdt->max_fdset);
-	free_fdset (new_fdt->open_fds, new_fdt->max_fdset);
-	free_fd_array(new_fdt->fd, new_fdt->max_fds);
 	kmem_cache_free(files_cachep, newf);
+out:
 	return NULL;
 }
 
@@ -1055,6 +1042,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->wchar = 0;		/* I/O counter: bytes written */
 	p->syscr = 0;		/* I/O counter: read syscalls */
 	p->syscw = 0;		/* I/O counter: write syscalls */
+	task_io_accounting_init(p);
 	acct_clear_integrals(p);
 
  	p->it_virt_expires = cputime_zero;
@@ -1259,9 +1247,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		if (thread_group_leader(p)) {
 			p->signal->tty = current->signal->tty;
 			p->signal->pgrp = process_group(current);
-			p->signal->session = current->signal->session;
+			set_signal_session(p->signal, process_session(current));
 			attach_pid(p, PIDTYPE_PGID, process_group(p));
-			attach_pid(p, PIDTYPE_SID, p->signal->session);
+			attach_pid(p, PIDTYPE_SID, process_session(p));
 
 			list_add_tail_rcu(&p->tasks, &init_task.tasks);
 			__get_cpu_var(process_counts)++;
@@ -1325,7 +1313,7 @@ noinline struct pt_regs * __devinit __attribute__((weak)) idle_regs(struct pt_re
 	return regs;
 }
 
-struct task_struct * __devinit fork_idle(int cpu)
+struct task_struct * __cpuinit fork_idle(int cpu)
 {
 	struct task_struct *task;
 	struct pt_regs regs;
@@ -1525,17 +1513,18 @@ static int unshare_fs(unsigned long unshare_flags, struct fs_struct **new_fsp)
 }
 
 /*
- * Unshare the namespace structure if it is being shared
+ * Unshare the mnt_namespace structure if it is being shared
  */
-static int unshare_namespace(unsigned long unshare_flags, struct namespace **new_nsp, struct fs_struct *new_fs)
+static int unshare_mnt_namespace(unsigned long unshare_flags,
+		struct mnt_namespace **new_nsp, struct fs_struct *new_fs)
 {
-	struct namespace *ns = current->nsproxy->namespace;
+	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
 
 	if ((unshare_flags & CLONE_NEWNS) && ns) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		*new_nsp = dup_namespace(current, new_fs ? new_fs : current->fs);
+		*new_nsp = dup_mnt_ns(current, new_fs ? new_fs : current->fs);
 		if (!*new_nsp)
 			return -ENOMEM;
 	}
@@ -1544,15 +1533,13 @@ static int unshare_namespace(unsigned long unshare_flags, struct namespace **new
 }
 
 /*
- * Unsharing of sighand for tasks created with CLONE_SIGHAND is not
- * supported yet
+ * Unsharing of sighand is not supported yet
  */
 static int unshare_sighand(unsigned long unshare_flags, struct sighand_struct **new_sighp)
 {
 	struct sighand_struct *sigh = current->sighand;
 
-	if ((unshare_flags & CLONE_SIGHAND) &&
-	    (sigh && atomic_read(&sigh->count) > 1))
+	if ((unshare_flags & CLONE_SIGHAND) && atomic_read(&sigh->count) > 1)
 		return -EINVAL;
 	else
 		return 0;
@@ -1625,8 +1612,8 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 {
 	int err = 0;
 	struct fs_struct *fs, *new_fs = NULL;
-	struct namespace *ns, *new_ns = NULL;
-	struct sighand_struct *sigh, *new_sigh = NULL;
+	struct mnt_namespace *ns, *new_ns = NULL;
+	struct sighand_struct *new_sigh = NULL;
 	struct mm_struct *mm, *new_mm = NULL, *active_mm = NULL;
 	struct files_struct *fd, *new_fd = NULL;
 	struct sem_undo_list *new_ulist = NULL;
@@ -1647,7 +1634,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		goto bad_unshare_out;
 	if ((err = unshare_fs(unshare_flags, &new_fs)))
 		goto bad_unshare_cleanup_thread;
-	if ((err = unshare_namespace(unshare_flags, &new_ns, new_fs)))
+	if ((err = unshare_mnt_namespace(unshare_flags, &new_ns, new_fs)))
 		goto bad_unshare_cleanup_fs;
 	if ((err = unshare_sighand(unshare_flags, &new_sigh)))
 		goto bad_unshare_cleanup_ns;
@@ -1671,7 +1658,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		}
 	}
 
-	if (new_fs || new_ns || new_sigh || new_mm || new_fd || new_ulist ||
+	if (new_fs || new_ns || new_mm || new_fd || new_ulist ||
 				new_uts || new_ipc) {
 
 		task_lock(current);
@@ -1688,15 +1675,9 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		}
 
 		if (new_ns) {
-			ns = current->nsproxy->namespace;
-			current->nsproxy->namespace = new_ns;
+			ns = current->nsproxy->mnt_ns;
+			current->nsproxy->mnt_ns = new_ns;
 			new_ns = ns;
-		}
-
-		if (new_sigh) {
-			sigh = current->sighand;
-			rcu_assign_pointer(current->sighand, new_sigh);
-			new_sigh = sigh;
 		}
 
 		if (new_mm) {
@@ -1756,7 +1737,7 @@ bad_unshare_cleanup_sigh:
 
 bad_unshare_cleanup_ns:
 	if (new_ns)
-		put_namespace(new_ns);
+		put_mnt_ns(new_ns);
 
 bad_unshare_cleanup_fs:
 	if (new_fs)

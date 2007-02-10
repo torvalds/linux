@@ -23,6 +23,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/cache.h>
+#include <linux/bug.h>
 
 #include "setup.h"
 
@@ -223,7 +224,12 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			/* Low half of the symbol */
 			*(uint16_t *)location = value;
 			break;
-		
+
+		case R_PPC_ADDR16_HI:
+			/* Higher half of the symbol */
+			*(uint16_t *)location = (value >> 16);
+			break;
+
 		case R_PPC_ADDR16_HA:
 			/* Sign-adjusted lower 16 bits: PPC ELF ABI says:
 			   (((x >> 16) + ((x & 0x8000) ? 1 : 0))) & 0xFFFF.
@@ -290,23 +296,11 @@ int module_finalize(const Elf_Ehdr *hdr,
 		    struct module *me)
 {
 	const Elf_Shdr *sect;
+	int err;
 
-	me->arch.bug_table = NULL;
-	me->arch.num_bugs = 0;
-
-	/* Find the __bug_table section, if present */
-	sect = find_section(hdr, sechdrs, "__bug_table");
-	if (sect != NULL) {
-		me->arch.bug_table = (void *) sect->sh_addr;
-		me->arch.num_bugs = sect->sh_size / sizeof(struct bug_entry);
-	}
-
- 	/*
-	 * Strictly speaking this should have a spinlock to protect against
-	 * traversals, but since we only traverse on BUG()s, a spinlock
-	 * could potentially lead to deadlock and thus be counter-productive.
-	 */
-	list_add(&me->arch.bug_list, &module_bug_list);
+	err = module_bug_finalize(hdr, sechdrs, me);
+	if (err)		/* never true, currently */
+		return err;
 
 	/* Apply feature fixups */
 	sect = find_section(hdr, sechdrs, "__ftr_fixup");
@@ -320,7 +314,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 void module_arch_cleanup(struct module *mod)
 {
-	list_del(&mod->arch.bug_list);
+	module_bug_cleanup(mod);
 }
 
 struct bug_entry *module_find_bug(unsigned long bugaddr)

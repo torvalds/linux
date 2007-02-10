@@ -433,8 +433,8 @@ static void serial_pxa_shutdown(struct uart_port *port)
 }
 
 static void
-serial_pxa_set_termios(struct uart_port *port, struct termios *termios,
-		       struct termios *old)
+serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
+		       struct ktermios *old)
 {
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
 	unsigned char cval, fcr = 0;

@@ -1023,7 +1023,7 @@ int attach_mpu401(struct address_info *hw_config, struct module *owner)
 				devc->capabilities |= MPU_CAP_INTLG;	/* Supports intelligent mode */
 
 
-	mpu401_synth_operations[m] = (struct synth_operations *)kmalloc(sizeof(struct synth_operations), GFP_KERNEL);
+	mpu401_synth_operations[m] = kmalloc(sizeof(struct synth_operations), GFP_KERNEL);
 
 	if (mpu401_synth_operations[m] == NULL)
 	{

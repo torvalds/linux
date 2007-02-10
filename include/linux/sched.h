@@ -82,6 +82,7 @@ struct sched_param {
 #include <linux/resource.h>
 #include <linux/timer.h>
 #include <linux/hrtimer.h>
+#include <linux/task_io_accounting.h>
 
 #include <asm/processor.h>
 
@@ -436,7 +437,12 @@ struct signal_struct {
 	/* job control IDs */
 	pid_t pgrp;
 	pid_t tty_old_pgrp;
-	pid_t session;
+
+	union {
+		pid_t session __deprecated;
+		pid_t __session;
+	};
+
 	/* boolean value for session group leader */
 	int leader;
 
@@ -642,6 +648,7 @@ enum idle_type
 #define SD_SHARE_CPUPOWER	128	/* Domain members share cpu power */
 #define SD_POWERSAVINGS_BALANCE	256	/* Balance for power savings */
 #define SD_SHARE_PKG_RESOURCES	512	/* Domain members share cpu pkg resources */
+#define SD_SERIALIZE		1024	/* Only a single load balancing instance */
 
 #define BALANCE_FOR_MC_POWER	\
 	(sched_smt_power_savings ? SD_POWERSAVINGS_BALANCE : 0)
@@ -1008,6 +1015,7 @@ struct task_struct {
 	wait_queue_t *io_wait;
 /* i/o counters(bytes read/written, #syscalls */
 	u64 rchar, wchar, syscr, syscw;
+	struct task_io_accounting ioac;
 #if defined(CONFIG_TASK_XACCT)
 	u64 acct_rss_mem1;	/* accumulated rss usage */
 	u64 acct_vm_mem1;	/* accumulated virtual memory usage */
@@ -1040,11 +1048,29 @@ struct task_struct {
 #ifdef	CONFIG_TASK_DELAY_ACCT
 	struct task_delay_info *delays;
 #endif
+#ifdef CONFIG_FAULT_INJECTION
+	int make_it_fail;
+#endif
 };
 
 static inline pid_t process_group(struct task_struct *tsk)
 {
 	return tsk->signal->pgrp;
+}
+
+static inline pid_t signal_session(struct signal_struct *sig)
+{
+	return sig->__session;
+}
+
+static inline pid_t process_session(struct task_struct *tsk)
+{
+	return signal_session(tsk->signal);
+}
+
+static inline void set_signal_session(struct signal_struct *sig, pid_t session)
+{
+	sig->__session = session;
 }
 
 static inline struct pid *task_pid(struct task_struct *task)
@@ -1118,7 +1144,6 @@ static inline void put_task_struct(struct task_struct *t)
 #define PF_MEMALLOC	0x00000800	/* Allocating memory */
 #define PF_FLUSHER	0x00001000	/* responsible for disk writeback */
 #define PF_USED_MATH	0x00002000	/* if unset the fpu must be initialized before use */
-#define PF_FREEZE	0x00004000	/* this task is being frozen for suspend now */
 #define PF_NOFREEZE	0x00008000	/* this thread should not be frozen */
 #define PF_FROZEN	0x00010000	/* frozen for system suspend */
 #define PF_FSTRANS	0x00020000	/* inside a filesystem transaction */
@@ -1240,7 +1265,6 @@ extern struct   mm_struct init_mm;
 
 #define find_task_by_pid(nr)	find_task_by_pid_type(PIDTYPE_PID, nr)
 extern struct task_struct *find_task_by_pid_type(int type, int pid);
-extern void set_special_pids(pid_t session, pid_t pgrp);
 extern void __set_special_pids(pid_t session, pid_t pgrp);
 
 /* per-UID process charging. */
@@ -1381,7 +1405,6 @@ extern NORET_TYPE void do_group_exit(int);
 extern void daemonize(const char *, ...);
 extern int allow_signal(int);
 extern int disallow_signal(int);
-extern struct task_struct *child_reaper;
 
 extern int do_execve(char *, char __user * __user *, char __user * __user *, struct pt_regs *);
 extern long do_fork(unsigned long, unsigned long, struct pt_regs *, unsigned long, int __user *, int __user *);

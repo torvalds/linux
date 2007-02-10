@@ -47,13 +47,12 @@ static int __init  zfcp_module_init(void);
 static void zfcp_ns_gid_pn_handler(unsigned long);
 
 /* miscellaneous */
-static inline int zfcp_sg_list_alloc(struct zfcp_sg_list *, size_t);
-static inline void zfcp_sg_list_free(struct zfcp_sg_list *);
-static inline int zfcp_sg_list_copy_from_user(struct zfcp_sg_list *,
-					      void __user *, size_t);
-static inline int zfcp_sg_list_copy_to_user(void __user *,
-					    struct zfcp_sg_list *, size_t);
-
+static int zfcp_sg_list_alloc(struct zfcp_sg_list *, size_t);
+static void zfcp_sg_list_free(struct zfcp_sg_list *);
+static int zfcp_sg_list_copy_from_user(struct zfcp_sg_list *,
+				       void __user *, size_t);
+static int zfcp_sg_list_copy_to_user(void __user *,
+				     struct zfcp_sg_list *, size_t);
 static long zfcp_cfdc_dev_ioctl(struct file *, unsigned int, unsigned long);
 
 #define ZFCP_CFDC_IOC_MAGIC                     0xDD
@@ -237,7 +236,7 @@ zfcp_device_setup(char *devstr)
 		return 0;
 
 	len = strlen(devstr) + 1;
-	str = (char *) kmalloc(len, GFP_KERNEL);
+	str = kmalloc(len, GFP_KERNEL);
 	if (!str)
 		goto err_out;
 	memcpy(str, devstr, len);
@@ -605,7 +604,7 @@ zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
  * elements of the scatter-gather list. The maximum size of a single element
  * in the scatter-gather list is PAGE_SIZE.
  */
-static inline int
+static int
 zfcp_sg_list_alloc(struct zfcp_sg_list *sg_list, size_t size)
 {
 	struct scatterlist *sg;
@@ -652,7 +651,7 @@ zfcp_sg_list_alloc(struct zfcp_sg_list *sg_list, size_t size)
  * Memory for each element in the scatter-gather list is freed.
  * Finally sg_list->sg is freed itself and sg_list->count is reset.
  */
-static inline void
+static void
 zfcp_sg_list_free(struct zfcp_sg_list *sg_list)
 {
 	struct scatterlist *sg;
@@ -697,7 +696,7 @@ zfcp_sg_size(struct scatterlist *sg, unsigned int sg_count)
  * @size: number of bytes to be copied
  * Return: 0 on success, -EFAULT if copy_from_user fails.
  */
-static inline int
+static int
 zfcp_sg_list_copy_from_user(struct zfcp_sg_list *sg_list,
 			    void __user *user_buffer,
                             size_t size)
@@ -735,7 +734,7 @@ zfcp_sg_list_copy_from_user(struct zfcp_sg_list *sg_list,
  * @size: number of bytes to be copied
  * Return: 0 on success, -EFAULT if copy_to_user fails
  */
-static inline int
+static int
 zfcp_sg_list_copy_to_user(void __user  *user_buffer,
 			  struct zfcp_sg_list *sg_list,
                           size_t size)
@@ -1799,7 +1798,7 @@ static const struct zfcp_rc_entry zfcp_p_rjt_rc[] = {
  * @code: reason code
  * @rc_table: table of reason codes and descriptions
  */
-static inline const char *
+static const char *
 zfcp_rc_description(u8 code, const struct zfcp_rc_entry *rc_table)
 {
 	const char *descr = "unknown reason code";
@@ -1847,7 +1846,7 @@ zfcp_check_ct_response(struct ct_hdr *rjt)
  * @rjt_par: reject parameter acc. to FC-PH/FC-FS
  * @rc_table: table of reason codes and descriptions
  */
-static inline void
+static void
 zfcp_print_els_rjt(struct zfcp_ls_rjt_par *rjt_par,
 		   const struct zfcp_rc_entry *rc_table)
 {

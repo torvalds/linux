@@ -945,7 +945,7 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 	 */
 	tlen = sizeof(struct property) + len + 18;
 
-	prop = kcalloc(tlen, 1, GFP_KERNEL);
+	prop = kzalloc(tlen, GFP_KERNEL);
 	if (prop == NULL)
 		return NULL;
 	hdr = (struct smu_sdbp_header *)(prop + 1);

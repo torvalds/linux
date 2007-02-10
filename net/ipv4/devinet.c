@@ -165,9 +165,8 @@ struct in_device *inetdev_init(struct net_device *dev)
 			      NET_IPV4_NEIGH, "ipv4", NULL, NULL);
 #endif
 
-	/* Account for reference dev->ip_ptr */
+	/* Account for reference dev->ip_ptr (below) */
 	in_dev_hold(in_dev);
-	rcu_assign_pointer(dev->ip_ptr, in_dev);
 
 #ifdef CONFIG_SYSCTL
 	devinet_sysctl_register(in_dev, &in_dev->cnf);
@@ -175,6 +174,9 @@ struct in_device *inetdev_init(struct net_device *dev)
 	ip_mc_init_dev(in_dev);
 	if (dev->flags & IFF_UP)
 		ip_mc_up(in_dev);
+
+	/* we can receive as soon as ip_ptr is set -- do this last */
+	rcu_assign_pointer(dev->ip_ptr, in_dev);
 out:
 	return in_dev;
 out_kfree:
@@ -1138,7 +1140,7 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*ifm), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	ifm = nlmsg_data(nlh);
 	ifm->ifa_family = AF_INET;
@@ -1165,7 +1167,8 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
@@ -1223,9 +1226,12 @@ static void rtmsg_ifa(int event, struct in_ifaddr* ifa, struct nlmsghdr *nlh,
 		goto errout;
 
 	err = inet_fill_ifaddr(skb, ifa, pid, seq, event, 0);
-	/* failure implies BUG in inet_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in inet_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, pid, RTNLGRP_IPV4_IFADDR, nlh, GFP_KERNEL);
 errout:
 	if (err < 0)
@@ -1303,8 +1309,7 @@ int ipv4_doint_and_flush(ctl_table *ctl, int write,
 
 int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 				  void __user *oldval, size_t __user *oldlenp,
-				  void __user *newval, size_t newlen, 
-				  void **context)
+				  void __user *newval, size_t newlen)
 {
 	int *valp = table->data;
 	int new;

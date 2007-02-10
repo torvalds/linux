@@ -1,7 +1,7 @@
 /*
  * k8temp.c - Linux kernel module for hardware monitoring
  *
- * Copyright (C) 2006 Rudolf Marek <r.marek@sh.cvut.cz>
+ * Copyright (C) 2006 Rudolf Marek <r.marek@assembler.cz>
  *
  * Inspired from the w83785 and amd756 drivers.
  *
@@ -286,7 +286,7 @@ static void __exit k8temp_exit(void)
 	pci_unregister_driver(&k8temp_driver);
 }
 
-MODULE_AUTHOR("Rudolf Marek <r.marek@sh.cvut.cz>");
+MODULE_AUTHOR("Rudolf Marek <r.marek@assembler.cz>");
 MODULE_DESCRIPTION("AMD K8 core temperature monitor");
 MODULE_LICENSE("GPL");
 

@@ -71,7 +71,7 @@ void ax25_rt_device_down(struct net_device *dev)
 	write_unlock(&ax25_route_lock);
 }
 
-static int ax25_rt_add(struct ax25_routes_struct *route)
+static int __must_check ax25_rt_add(struct ax25_routes_struct *route)
 {
 	ax25_route *ax25_rt;
 	ax25_dev *ax25_dev;

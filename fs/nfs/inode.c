@@ -496,7 +496,7 @@ void put_nfs_open_context(struct nfs_open_context *ctx)
  */
 static void nfs_file_set_open_context(struct file *filp, struct nfs_open_context *ctx)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	filp->private_data = get_nfs_open_context(ctx);
@@ -528,7 +528,7 @@ struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_c
 
 static void nfs_file_clear_open_context(struct file *filp)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct nfs_open_context *ctx = (struct nfs_open_context *)filp->private_data;
 
 	if (ctx) {
@@ -551,7 +551,7 @@ int nfs_open(struct inode *inode, struct file *filp)
 	cred = rpcauth_lookupcred(NFS_CLIENT(inode)->cl_auth, 0);
 	if (IS_ERR(cred))
 		return PTR_ERR(cred);
-	ctx = alloc_nfs_open_context(filp->f_vfsmnt, filp->f_dentry, cred);
+	ctx = alloc_nfs_open_context(filp->f_path.mnt, filp->f_path.dentry, cred);
 	put_rpccred(cred);
 	if (ctx == NULL)
 		return -ENOMEM;
@@ -665,49 +665,86 @@ int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	return __nfs_revalidate_inode(server, inode);
 }
 
+static int nfs_invalidate_mapping_nolock(struct inode *inode, struct address_space *mapping)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	
+	if (mapping->nrpages != 0) {
+		int ret = invalidate_inode_pages2(mapping);
+		if (ret < 0)
+			return ret;
+	}
+	spin_lock(&inode->i_lock);
+	nfsi->cache_validity &= ~NFS_INO_INVALID_DATA;
+	if (S_ISDIR(inode->i_mode)) {
+		memset(nfsi->cookieverf, 0, sizeof(nfsi->cookieverf));
+		/* This ensures we revalidate child dentries */
+		nfsi->cache_change_attribute = jiffies;
+	}
+	spin_unlock(&inode->i_lock);
+	nfs_inc_stats(inode, NFSIOS_DATAINVALIDATE);
+	dfprintk(PAGECACHE, "NFS: (%s/%Ld) data cache invalidated\n",
+			inode->i_sb->s_id, (long long)NFS_FILEID(inode));
+	return 0;
+}
+
+static int nfs_invalidate_mapping(struct inode *inode, struct address_space *mapping)
+{
+	int ret = 0;
+
+	mutex_lock(&inode->i_mutex);
+	if (NFS_I(inode)->cache_validity & NFS_INO_INVALID_DATA) {
+		ret = nfs_sync_mapping(mapping);
+		if (ret == 0)
+			ret = nfs_invalidate_mapping_nolock(inode, mapping);
+	}
+	mutex_unlock(&inode->i_mutex);
+	return ret;
+}
+
+/**
+ * nfs_revalidate_mapping_nolock - Revalidate the pagecache
+ * @inode - pointer to host inode
+ * @mapping - pointer to mapping
+ */
+int nfs_revalidate_mapping_nolock(struct inode *inode, struct address_space *mapping)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	int ret = 0;
+
+	if ((nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
+			|| nfs_attribute_timeout(inode) || NFS_STALE(inode)) {
+		ret = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
+		if (ret < 0)
+			goto out;
+	}
+	if (nfsi->cache_validity & NFS_INO_INVALID_DATA)
+		ret = nfs_invalidate_mapping_nolock(inode, mapping);
+out:
+	return ret;
+}
+
 /**
  * nfs_revalidate_mapping - Revalidate the pagecache
  * @inode - pointer to host inode
  * @mapping - pointer to mapping
+ *
+ * This version of the function will take the inode->i_mutex and attempt to
+ * flush out all dirty data if it needs to invalidate the page cache.
  */
 int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	int ret = 0;
 
-	if (NFS_STALE(inode))
-		ret = -ESTALE;
 	if ((nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
-			|| nfs_attribute_timeout(inode))
+			|| nfs_attribute_timeout(inode) || NFS_STALE(inode)) {
 		ret = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
-	if (ret < 0)
-		goto out;
-
-	if (nfsi->cache_validity & NFS_INO_INVALID_DATA) {
-		if (mapping->nrpages != 0) {
-			if (S_ISREG(inode->i_mode)) {
-				ret = nfs_sync_mapping(mapping);
-				if (ret < 0)
-					goto out;
-			}
-			ret = invalidate_inode_pages2(mapping);
-			if (ret < 0)
-				goto out;
-		}
-		spin_lock(&inode->i_lock);
-		nfsi->cache_validity &= ~NFS_INO_INVALID_DATA;
-		if (S_ISDIR(inode->i_mode)) {
-			memset(nfsi->cookieverf, 0, sizeof(nfsi->cookieverf));
-			/* This ensures we revalidate child dentries */
-			nfsi->cache_change_attribute = jiffies;
-		}
-		spin_unlock(&inode->i_lock);
-
-		nfs_inc_stats(inode, NFSIOS_DATAINVALIDATE);
-		dfprintk(PAGECACHE, "NFS: (%s/%Ld) data cache invalidated\n",
-				inode->i_sb->s_id,
-				(long long)NFS_FILEID(inode));
+		if (ret < 0)
+			goto out;
 	}
+	if (nfsi->cache_validity & NFS_INO_INVALID_DATA)
+		ret = nfs_invalidate_mapping(inode, mapping);
 out:
 	return ret;
 }

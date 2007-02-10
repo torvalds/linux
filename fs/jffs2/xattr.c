@@ -399,8 +399,6 @@ static void unrefer_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datu
 {
 	/* must be called under down_write(xattr_sem) */
 	if (atomic_dec_and_lock(&xd->refcnt, &c->erase_completion_lock)) {
-		uint32_t xid = xd->xid, version = xd->version;
-
 		unload_xattr_datum(c, xd);
 		xd->flags |= JFFS2_XFLAGS_DEAD;
 		if (xd->node == (void *)xd) {
@@ -411,7 +409,8 @@ static void unrefer_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datu
 		}
 		spin_unlock(&c->erase_completion_lock);
 
-		dbg_xattr("xdatum(xid=%u, version=%u) was removed.\n", xid, version);
+		dbg_xattr("xdatum(xid=%u, version=%u) was removed.\n",
+			  xd->xid, xd->version);
 	}
 }
 

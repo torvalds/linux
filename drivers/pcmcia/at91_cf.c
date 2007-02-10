@@ -230,7 +230,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	if (!io)
 		return -ENODEV;
 
-	cf = kcalloc(1, sizeof *cf, GFP_KERNEL);
+	cf = kzalloc(sizeof *cf, GFP_KERNEL);
 	if (!cf)
 		return -ENOMEM;
 

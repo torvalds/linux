@@ -143,6 +143,7 @@
 
 /* Special Purpose Registers (SPRNs)*/
 #define SPRN_CTR	0x009	/* Count Register */
+#define SPRN_DSCR	0x11
 #define SPRN_CTRLF	0x088
 #define SPRN_CTRLT	0x098
 #define   CTRL_CT	0xc0000000	/* current thread */
@@ -163,7 +164,9 @@
 #define SPRN_TBRU	0x10D	/* Time Base Read Upper Register (user, R/O) */
 #define SPRN_TBWL	0x11C	/* Time Base Lower Register (super, R/W) */
 #define SPRN_TBWU	0x11D	/* Time Base Upper Register (super, R/W) */
+#define SPRN_SPURR	0x134	/* Scaled PURR */
 #define SPRN_HIOR	0x137	/* 970 Hypervisor interrupt offset */
+#define SPRN_LPCR	0x13E	/* LPAR Control Register */
 #define SPRN_DBAT0L	0x219	/* Data BAT 0 Lower Register */
 #define SPRN_DBAT0U	0x218	/* Data BAT 0 Upper Register */
 #define SPRN_DBAT1L	0x21B	/* Data BAT 1 Lower Register */
@@ -389,6 +392,12 @@
 #define SPRN_HSRR0	0x13A	/* Save/Restore Register 0 */
 #define SPRN_HSRR1	0x13B	/* Save/Restore Register 1 */
 
+#define SPRN_TBCTL	0x35f	/* PA6T Timebase control register */
+#define   TBCTL_FREEZE		0x0000000000000000ull /* Freeze all tbs */
+#define   TBCTL_RESTART		0x0000000100000000ull /* Restart all tbs */
+#define   TBCTL_UPDATE_UPPER	0x0000000200000000ull /* Set upper 32 bits */
+#define   TBCTL_UPDATE_LOWER	0x0000000300000000ull /* Set lower 32 bits */
+
 #ifndef SPRN_SVR
 #define SPRN_SVR	0x11E	/* System Version Register */
 #endif
@@ -459,6 +468,13 @@
 #define SPRN_PMC8	794
 #define SPRN_SIAR	780
 #define SPRN_SDAR	781
+
+#define PA6T_SPRN_PMC0	787
+#define PA6T_SPRN_PMC1	788
+#define PA6T_SPRN_PMC2	789
+#define PA6T_SPRN_PMC3	790
+#define PA6T_SPRN_PMC4	791
+#define PA6T_SPRN_PMC5	792
 
 #else /* 32-bit */
 #define SPRN_MMCR0	952	/* Monitor Mode Control Register 0 */

@@ -29,17 +29,26 @@
 #include <linux/interrupt.h>
 
 /*
- *	The null address is defined as a callsign of all spaces with an
- *	SSID of zero.
+ * The default broadcast address of an interface is QST-0; the default address
+ * is LINUX-1.  The null address is defined as a callsign of all spaces with
+ * an SSID of zero.
  */
-ax25_address null_ax25_address = {{0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x00}};
 
+const ax25_address ax25_bcast =
+	{{'Q' << 1, 'S' << 1, 'T' << 1, ' ' << 1, ' ' << 1, ' ' << 1, 0 << 1}};
+const ax25_address ax25_defaddr =
+	{{'L' << 1, 'I' << 1, 'N' << 1, 'U' << 1, 'X' << 1, ' ' << 1, 1 << 1}};
+const ax25_address null_ax25_address =
+	{{' ' << 1, ' ' << 1, ' ' << 1, ' ' << 1, ' ' << 1, ' ' << 1, 0 << 1}};
+
+EXPORT_SYMBOL_GPL(ax25_bcast);
+EXPORT_SYMBOL_GPL(ax25_defaddr);
 EXPORT_SYMBOL(null_ax25_address);
 
 /*
  *	ax25 -> ascii conversion
  */
-char *ax2asc(char *buf, ax25_address *a)
+char *ax2asc(char *buf, const ax25_address *a)
 {
 	char c, *s;
 	int n;
@@ -72,9 +81,9 @@ EXPORT_SYMBOL(ax2asc);
 /*
  *	ascii -> ax25 conversion
  */
-void asc2ax(ax25_address *addr, char *callsign)
+void asc2ax(ax25_address *addr, const char *callsign)
 {
-	char *s;
+	const char *s;
 	int n;
 
 	for (s = callsign, n = 0; n < 6; n++) {
@@ -107,7 +116,7 @@ EXPORT_SYMBOL(asc2ax);
 /*
  *	Compare two ax.25 addresses
  */
-int ax25cmp(ax25_address *a, ax25_address *b)
+int ax25cmp(const ax25_address *a, const ax25_address *b)
 {
 	int ct = 0;
 
@@ -128,7 +137,7 @@ EXPORT_SYMBOL(ax25cmp);
 /*
  *	Compare two AX.25 digipeater paths.
  */
-int ax25digicmp(ax25_digi *digi1, ax25_digi *digi2)
+int ax25digicmp(const ax25_digi *digi1, const ax25_digi *digi2)
 {
 	int i;
 
@@ -149,7 +158,9 @@ int ax25digicmp(ax25_digi *digi1, ax25_digi *digi2)
  *	Given an AX.25 address pull of to, from, digi list, command/response and the start of data
  *
  */
-unsigned char *ax25_addr_parse(unsigned char *buf, int len, ax25_address *src, ax25_address *dest, ax25_digi *digi, int *flags, int *dama)
+const unsigned char *ax25_addr_parse(const unsigned char *buf, int len,
+	ax25_address *src, ax25_address *dest, ax25_digi *digi, int *flags,
+	int *dama)
 {
 	int d = 0;
 
@@ -204,7 +215,8 @@ unsigned char *ax25_addr_parse(unsigned char *buf, int len, ax25_address *src, a
 /*
  *	Assemble an AX.25 header from the bits
  */
-int ax25_addr_build(unsigned char *buf, ax25_address *src, ax25_address *dest, ax25_digi *d, int flag, int modulus)
+int ax25_addr_build(unsigned char *buf, const ax25_address *src,
+	const ax25_address *dest, const ax25_digi *d, int flag, int modulus)
 {
 	int len = 0;
 	int ct  = 0;
@@ -261,7 +273,7 @@ int ax25_addr_build(unsigned char *buf, ax25_address *src, ax25_address *dest, a
 	return len;
 }
 
-int ax25_addr_size(ax25_digi *dp)
+int ax25_addr_size(const ax25_digi *dp)
 {
 	if (dp == NULL)
 		return 2 * AX25_ADDR_LEN;
@@ -272,7 +284,7 @@ int ax25_addr_size(ax25_digi *dp)
 /*
  *	Reverse Digipeat List. May not pass both parameters as same struct
  */
-void ax25_digi_invert(ax25_digi *in, ax25_digi *out)
+void ax25_digi_invert(const ax25_digi *in, ax25_digi *out)
 {
 	int ct;
 

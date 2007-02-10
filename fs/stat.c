@@ -102,7 +102,7 @@ int vfs_fstat(unsigned int fd, struct kstat *stat)
 	int error = -EBADF;
 
 	if (f) {
-		error = vfs_getattr(f->f_vfsmnt, f->f_dentry, stat);
+		error = vfs_getattr(f->f_path.mnt, f->f_path.dentry, stat);
 		fput(f);
 	}
 	return error;

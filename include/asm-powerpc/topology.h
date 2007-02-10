@@ -66,6 +66,7 @@ static inline int pcibus_to_node(struct pci_bus *bus)
 				| SD_BALANCE_EXEC	\
 				| SD_BALANCE_NEWIDLE	\
 				| SD_WAKE_IDLE		\
+				| SD_SERIALIZE		\
 				| SD_WAKE_BALANCE,	\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\

@@ -40,6 +40,7 @@
 #include <linux/sort.h>
 #include <linux/pfn.h>
 #include <linux/backing-dev.h>
+#include <linux/fault-inject.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -710,6 +711,9 @@ static void __drain_pages(unsigned int cpu)
 	for_each_zone(zone) {
 		struct per_cpu_pageset *pset;
 
+		if (!populated_zone(zone))
+			continue;
+
 		pset = zone_pcp(zone, cpu);
 		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
 			struct per_cpu_pages *pcp;
@@ -892,6 +896,91 @@ failed:
 #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
 #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
 
+#ifdef CONFIG_FAIL_PAGE_ALLOC
+
+static struct fail_page_alloc_attr {
+	struct fault_attr attr;
+
+	u32 ignore_gfp_highmem;
+	u32 ignore_gfp_wait;
+
+#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+
+	struct dentry *ignore_gfp_highmem_file;
+	struct dentry *ignore_gfp_wait_file;
+
+#endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
+
+} fail_page_alloc = {
+	.attr = FAULT_ATTR_INITIALIZER,
+	.ignore_gfp_wait = 1,
+	.ignore_gfp_highmem = 1,
+};
+
+static int __init setup_fail_page_alloc(char *str)
+{
+	return setup_fault_attr(&fail_page_alloc.attr, str);
+}
+__setup("fail_page_alloc=", setup_fail_page_alloc);
+
+static int should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+{
+	if (gfp_mask & __GFP_NOFAIL)
+		return 0;
+	if (fail_page_alloc.ignore_gfp_highmem && (gfp_mask & __GFP_HIGHMEM))
+		return 0;
+	if (fail_page_alloc.ignore_gfp_wait && (gfp_mask & __GFP_WAIT))
+		return 0;
+
+	return should_fail(&fail_page_alloc.attr, 1 << order);
+}
+
+#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+
+static int __init fail_page_alloc_debugfs(void)
+{
+	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
+	struct dentry *dir;
+	int err;
+
+	err = init_fault_attr_dentries(&fail_page_alloc.attr,
+				       "fail_page_alloc");
+	if (err)
+		return err;
+	dir = fail_page_alloc.attr.dentries.dir;
+
+	fail_page_alloc.ignore_gfp_wait_file =
+		debugfs_create_bool("ignore-gfp-wait", mode, dir,
+				      &fail_page_alloc.ignore_gfp_wait);
+
+	fail_page_alloc.ignore_gfp_highmem_file =
+		debugfs_create_bool("ignore-gfp-highmem", mode, dir,
+				      &fail_page_alloc.ignore_gfp_highmem);
+
+	if (!fail_page_alloc.ignore_gfp_wait_file ||
+			!fail_page_alloc.ignore_gfp_highmem_file) {
+		err = -ENOMEM;
+		debugfs_remove(fail_page_alloc.ignore_gfp_wait_file);
+		debugfs_remove(fail_page_alloc.ignore_gfp_highmem_file);
+		cleanup_fault_attr_dentries(&fail_page_alloc.attr);
+	}
+
+	return err;
+}
+
+late_initcall(fail_page_alloc_debugfs);
+
+#endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
+
+#else /* CONFIG_FAIL_PAGE_ALLOC */
+
+static inline int should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+{
+	return 0;
+}
+
+#endif /* CONFIG_FAIL_PAGE_ALLOC */
+
 /*
  * Return 1 if free pages are above 'mark'. This takes into account the order
  * of the allocation.
@@ -900,8 +989,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 		      int classzone_idx, int alloc_flags)
 {
 	/* free_pages my go negative - that's OK */
-	unsigned long min = mark;
-	long free_pages = z->free_pages - (1 << order) + 1;
+	long min = mark, free_pages = z->free_pages - (1 << order) + 1;
 	int o;
 
 	if (alloc_flags & ALLOC_HIGH)
@@ -1076,7 +1164,7 @@ zonelist_scan:
 			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
 				break;
 		if ((alloc_flags & ALLOC_CPUSET) &&
-			!cpuset_zone_allowed(zone, gfp_mask))
+			!cpuset_zone_allowed_softwall(zone, gfp_mask))
 				goto try_next_zone;
 
 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
@@ -1135,6 +1223,9 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
 	int did_some_progress;
 
 	might_sleep_if(wait);
+
+	if (should_fail_alloc_page(gfp_mask, order))
+		return NULL;
 
 restart:
 	z = zonelist->zones;  /* the list of zones suitable for gfp_mask */
@@ -1488,8 +1579,8 @@ void show_free_areas(void)
 
 	get_zone_counts(&active, &inactive, &free);
 
-	printk("Active:%lu inactive:%lu dirty:%lu writeback:%lu "
-		"unstable:%lu free:%u slab:%lu mapped:%lu pagetables:%lu\n",
+	printk("Active:%lu inactive:%lu dirty:%lu writeback:%lu unstable:%lu\n"
+		" free:%u slab:%lu mapped:%lu pagetables:%lu bounce:%lu\n",
 		active,
 		inactive,
 		global_page_state(NR_FILE_DIRTY),
@@ -1499,7 +1590,8 @@ void show_free_areas(void)
 		global_page_state(NR_SLAB_RECLAIMABLE) +
 			global_page_state(NR_SLAB_UNRECLAIMABLE),
 		global_page_state(NR_FILE_MAPPED),
-		global_page_state(NR_PAGETABLE));
+		global_page_state(NR_PAGETABLE),
+		global_page_state(NR_BOUNCE));
 
 	for_each_zone(zone) {
 		int i;
@@ -1864,17 +1956,24 @@ static inline unsigned long wait_table_bits(unsigned long size)
  * done. Non-atomic initialization, single-pass.
  */
 void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-		unsigned long start_pfn)
+		unsigned long start_pfn, enum memmap_context context)
 {
 	struct page *page;
 	unsigned long end_pfn = start_pfn + size;
 	unsigned long pfn;
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-		if (!early_pfn_valid(pfn))
-			continue;
-		if (!early_pfn_in_nid(pfn, nid))
-			continue;
+		/*
+		 * There can be holes in boot-time mem_map[]s
+		 * handed to this function.  They do not
+		 * exist on hotplugged memory.
+		 */
+		if (context == MEMMAP_EARLY) {
+			if (!early_pfn_valid(pfn))
+				continue;
+			if (!early_pfn_in_nid(pfn, nid))
+				continue;
+		}
 		page = pfn_to_page(pfn);
 		set_page_links(page, zone, nid, pfn);
 		init_page_count(page);
@@ -1901,7 +2000,7 @@ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
 
 #ifndef __HAVE_ARCH_MEMMAP_INIT
 #define memmap_init(size, nid, zone, start_pfn) \
-	memmap_init_zone((size), (nid), (zone), (start_pfn))
+	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY)
 #endif
 
 static int __cpuinit zone_batchsize(struct zone *zone)
@@ -2147,7 +2246,8 @@ static __meminit void zone_pcp_init(struct zone *zone)
 
 __meminit int init_currently_empty_zone(struct zone *zone,
 					unsigned long zone_start_pfn,
-					unsigned long size)
+					unsigned long size,
+					enum memmap_context context)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	int ret;
@@ -2591,7 +2691,8 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 		if (!size)
 			continue;
 
-		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
+		ret = init_currently_empty_zone(zone, zone_start_pfn,
+						size, MEMMAP_EARLY);
 		BUG_ON(ret);
 		zone_start_pfn += size;
 	}
@@ -3232,6 +3333,10 @@ void *__init alloc_large_system_hash(const char *tablename,
 			numentries >>= (scale - PAGE_SHIFT);
 		else
 			numentries <<= (PAGE_SHIFT - scale);
+
+		/* Make sure we've got at least a 0-order allocation.. */
+		if (unlikely((numentries * bucketsize) < PAGE_SIZE))
+			numentries = PAGE_SIZE / bucketsize;
 	}
 	numentries = roundup_pow_of_two(numentries);
 
@@ -3244,7 +3349,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 	if (numentries > max)
 		numentries = max;
 
-	log2qty = long_log2(numentries);
+	log2qty = ilog2(numentries);
 
 	do {
 		size = bucketsize << log2qty;
@@ -3266,7 +3371,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 	printk("%s hash table entries: %d (order: %d, %lu bytes)\n",
 	       tablename,
 	       (1U << log2qty),
-	       long_log2(size) - PAGE_SHIFT,
+	       ilog2(size) - PAGE_SHIFT,
 	       size);
 
 	if (_hash_shift)

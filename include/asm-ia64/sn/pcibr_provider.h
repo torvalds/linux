@@ -142,7 +142,7 @@ extern int 		pcibr_ate_alloc(struct pcibus_info *, int);
 extern void 		pcibr_ate_free(struct pcibus_info *, int);
 extern void 		ate_write(struct pcibus_info *, int, int, u64);
 extern int sal_pcibr_slot_enable(struct pcibus_info *soft, int device,
-				 void *resp);
+				 void *resp, char **ssdt);
 extern int sal_pcibr_slot_disable(struct pcibus_info *soft, int device,
 				  int action, void *resp);
 extern u16 sn_ioboard_to_pci_bus(struct pci_bus *pci_bus);

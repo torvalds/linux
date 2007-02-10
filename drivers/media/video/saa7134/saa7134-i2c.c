@@ -341,6 +341,7 @@ static int attach_inform(struct i2c_client *client)
 	switch (client->addr) {
 		case 0x7a:
 		case 0x47:
+		case 0x71:
 		{
 			struct IR_i2c *ir = i2c_get_clientdata(client);
 			d1printk("%s i2c IR detected (%s).\n",

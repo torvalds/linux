@@ -82,10 +82,10 @@ server_sock(struct smb_sb_info *server)
 	if (server && (file = server->sock_file))
 	{
 #ifdef SMBFS_PARANOIA
-		if (!smb_valid_socket(file->f_dentry->d_inode))
+		if (!smb_valid_socket(file->f_path.dentry->d_inode))
 			PARANOIA("bad socket!\n");
 #endif
-		return SOCKET_I(file->f_dentry->d_inode);
+		return SOCKET_I(file->f_path.dentry->d_inode);
 	}
 	return NULL;
 }

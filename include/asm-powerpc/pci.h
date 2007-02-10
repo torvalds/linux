@@ -143,8 +143,13 @@ int pci_mmap_page_range(struct pci_dev *pdev, struct vm_area_struct *vma,
 /* Tell drivers/pci/proc.c that we have pci_mmap_page_range() */
 #define HAVE_PCI_MMAP	1
 
-#ifdef CONFIG_PPC64
-/* pci_unmap_{single,page} is not a nop, thus... */
+#if defined(CONFIG_PPC64) || defined(CONFIG_NOT_COHERENT_CACHE)
+/*
+ * For 64-bit kernels, pci_unmap_{single,page} is not a nop.
+ * For 32-bit non-coherent kernels, pci_dma_sync_single_for_cpu() and
+ * so on are not nops.
+ * and thus...
+ */
 #define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)	\
 	dma_addr_t ADDR_NAME;
 #define DECLARE_PCI_UNMAP_LEN(LEN_NAME)		\
@@ -157,6 +162,20 @@ int pci_mmap_page_range(struct pci_dev *pdev, struct vm_area_struct *vma,
 	((PTR)->LEN_NAME)
 #define pci_unmap_len_set(PTR, LEN_NAME, VAL)		\
 	(((PTR)->LEN_NAME) = (VAL))
+
+#else /* 32-bit && coherent */
+
+/* pci_unmap_{page,single} is a nop so... */
+#define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)
+#define DECLARE_PCI_UNMAP_LEN(LEN_NAME)
+#define pci_unmap_addr(PTR, ADDR_NAME)		(0)
+#define pci_unmap_addr_set(PTR, ADDR_NAME, VAL)	do { } while (0)
+#define pci_unmap_len(PTR, LEN_NAME)		(0)
+#define pci_unmap_len_set(PTR, LEN_NAME, VAL)	do { } while (0)
+
+#endif /* CONFIG_PPC64 || CONFIG_NOT_COHERENT_CACHE */
+
+#ifdef CONFIG_PPC64
 
 /* The PCI address space does not equal the physical memory address
  * space (we have an IOMMU).  The IDE and SCSI device layers use
@@ -172,16 +191,8 @@ int pci_mmap_page_range(struct pci_dev *pdev, struct vm_area_struct *vma,
  */
 #define PCI_DMA_BUS_IS_PHYS     (1)
 
-/* pci_unmap_{page,single} is a nop so... */
-#define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)
-#define DECLARE_PCI_UNMAP_LEN(LEN_NAME)
-#define pci_unmap_addr(PTR, ADDR_NAME)		(0)
-#define pci_unmap_addr_set(PTR, ADDR_NAME, VAL)	do { } while (0)
-#define pci_unmap_len(PTR, LEN_NAME)		(0)
-#define pci_unmap_len_set(PTR, LEN_NAME, VAL)	do { } while (0)
-
 #endif /* CONFIG_PPC64 */
-	
+
 extern void pcibios_resource_to_bus(struct pci_dev *dev,
 			struct pci_bus_region *region,
 			struct resource *res);

@@ -277,20 +277,24 @@ struct sock *ax25_get_socket(ax25_address *, ax25_address *, int);
 extern ax25_cb *ax25_find_cb(ax25_address *, ax25_address *, ax25_digi *, struct net_device *);
 extern void ax25_send_to_raw(ax25_address *, struct sk_buff *, int);
 extern void ax25_destroy_socket(ax25_cb *);
-extern ax25_cb *ax25_create_cb(void);
+extern ax25_cb * __must_check ax25_create_cb(void);
 extern void ax25_fillin_cb(ax25_cb *, ax25_dev *);
 extern struct sock *ax25_make_new(struct sock *, struct ax25_dev *);
 
 /* ax25_addr.c */
-extern ax25_address null_ax25_address;
-extern char *ax2asc(char *buf, ax25_address *);
-extern void asc2ax(ax25_address *addr, char *callsign);
-extern int  ax25cmp(ax25_address *, ax25_address *);
-extern int  ax25digicmp(ax25_digi *, ax25_digi *);
-extern unsigned char *ax25_addr_parse(unsigned char *, int, ax25_address *, ax25_address *, ax25_digi *, int *, int *);
-extern int  ax25_addr_build(unsigned char *, ax25_address *, ax25_address *, ax25_digi *, int, int);
-extern int  ax25_addr_size(ax25_digi *);
-extern void ax25_digi_invert(ax25_digi *, ax25_digi *);
+extern const ax25_address ax25_bcast;
+extern const ax25_address ax25_defaddr;
+extern const ax25_address null_ax25_address;
+extern char *ax2asc(char *buf, const ax25_address *);
+extern void asc2ax(ax25_address *addr, const char *callsign);
+extern int ax25cmp(const ax25_address *, const ax25_address *);
+extern int ax25digicmp(const ax25_digi *, const ax25_digi *);
+extern const unsigned char *ax25_addr_parse(const unsigned char *, int,
+	ax25_address *, ax25_address *, ax25_digi *, int *, int *);
+extern int  ax25_addr_build(unsigned char *, const ax25_address *,
+	const ax25_address *, const ax25_digi *, int, int);
+extern int  ax25_addr_size(const ax25_digi *);
+extern void ax25_digi_invert(const ax25_digi *, ax25_digi *);
 
 /* ax25_dev.c */
 extern ax25_dev *ax25_dev_list;
@@ -329,11 +333,25 @@ extern void ax25_ds_t3timer_expiry(ax25_cb *);
 extern void ax25_ds_idletimer_expiry(ax25_cb *);
 
 /* ax25_iface.c */
-extern int  ax25_protocol_register(unsigned int, int (*)(struct sk_buff *, ax25_cb *));
+
+struct ax25_protocol {
+	struct ax25_protocol *next;
+	unsigned int pid;
+	int (*func)(struct sk_buff *, ax25_cb *);
+};
+
+extern void ax25_register_pid(struct ax25_protocol *ap);
 extern void ax25_protocol_release(unsigned int);
-extern int  ax25_linkfail_register(void (*)(ax25_cb *, int));
-extern void ax25_linkfail_release(void (*)(ax25_cb *, int));
-extern int  ax25_listen_register(ax25_address *, struct net_device *);
+
+struct ax25_linkfail {
+	struct hlist_node lf_node;
+	void (*func)(ax25_cb *, int);
+};
+
+extern void ax25_linkfail_register(struct ax25_linkfail *lf);
+extern void ax25_linkfail_release(struct ax25_linkfail *lf);
+extern int __must_check ax25_listen_register(ax25_address *,
+	struct net_device *);
 extern void ax25_listen_release(ax25_address *, struct net_device *);
 extern int  (*ax25_protocol_function(unsigned int))(struct sk_buff *, ax25_cb *);
 extern int  ax25_listen_mine(ax25_address *, struct net_device *);
@@ -411,7 +429,7 @@ extern unsigned long ax25_display_timer(struct timer_list *);
 /* ax25_uid.c */
 extern int  ax25_uid_policy;
 extern ax25_uid_assoc *ax25_findbyuid(uid_t);
-extern int  ax25_uid_ioctl(int, struct sockaddr_ax25 *);
+extern int __must_check ax25_uid_ioctl(int, struct sockaddr_ax25 *);
 extern struct file_operations ax25_uid_fops;
 extern void ax25_uid_free(void);
 

@@ -70,7 +70,7 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 	if (!dev->agp || !dev->agp->cant_use_aperture)
 		goto vm_nopage_error;
 
-	if (drm_ht_find_item(&dev->map_hash, vma->vm_pgoff << PAGE_SHIFT, &hash))
+	if (drm_ht_find_item(&dev->map_hash, vma->vm_pgoff, &hash))
 		goto vm_nopage_error;
 
 	r_list = drm_hash_entry(hash, drm_map_list_t, hash);
@@ -227,7 +227,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 							   map->size);
 					DRM_DEBUG("mtrr_del = %d\n", retcode);
 				}
-				drm_ioremapfree(map->handle, map->size, dev);
+				iounmap(map->handle);
 				break;
 			case _DRM_SHM:
 				vfree(map->handle);
@@ -463,8 +463,8 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	lock_kernel();
 	dev = priv->head->dev;
 	dma = dev->dma;
-	DRM_DEBUG("start = 0x%lx, end = 0x%lx, offset = 0x%lx\n",
-		  vma->vm_start, vma->vm_end, vma->vm_pgoff << PAGE_SHIFT);
+	DRM_DEBUG("start = 0x%lx, end = 0x%lx, page offset = 0x%lx\n",
+		  vma->vm_start, vma->vm_end, vma->vm_pgoff);
 
 	/* Length must match exact page count */
 	if (!dma || (length >> PAGE_SHIFT) != dma->page_count) {
@@ -472,6 +472,22 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 	unlock_kernel();
+
+	if (!capable(CAP_SYS_ADMIN) &&
+	    (dma->flags & _DRM_DMA_USE_PCI_RO)) {
+		vma->vm_flags &= ~(VM_WRITE | VM_MAYWRITE);
+#if defined(__i386__) || defined(__x86_64__)
+		pgprot_val(vma->vm_page_prot) &= ~_PAGE_RW;
+#else
+		/* Ye gads this is ugly.  With more thought
+		   we could move this up higher and use
+		   `protection_map' instead.  */
+		vma->vm_page_prot =
+		    __pgprot(pte_val
+			     (pte_wrprotect
+			      (__pte(pgprot_val(vma->vm_page_prot)))));
+#endif
+	}
 
 	vma->vm_ops = &drm_vm_dma_ops;
 
@@ -521,8 +537,8 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	unsigned long offset = 0;
 	drm_hash_item_t *hash;
 
-	DRM_DEBUG("start = 0x%lx, end = 0x%lx, offset = 0x%lx\n",
-		  vma->vm_start, vma->vm_end, vma->vm_pgoff << PAGE_SHIFT);
+	DRM_DEBUG("start = 0x%lx, end = 0x%lx, page offset = 0x%lx\n",
+		  vma->vm_start, vma->vm_end, vma->vm_pgoff);
 
 	if (!priv->authenticated)
 		return -EACCES;
@@ -531,7 +547,7 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	 * the AGP mapped at physical address 0
 	 * --BenH.
 	 */
-	if (!(vma->vm_pgoff << PAGE_SHIFT)
+	if (!vma->vm_pgoff
 #if __OS_HAS_AGP
 	    && (!dev->agp
 		|| dev->agp->agp_info.device->vendor != PCI_VENDOR_ID_APPLE)
@@ -539,7 +555,7 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	    )
 		return drm_mmap_dma(filp, vma);
 
-	if (drm_ht_find_item(&dev->map_hash, vma->vm_pgoff << PAGE_SHIFT, &hash)) {
+	if (drm_ht_find_item(&dev->map_hash, vma->vm_pgoff, &hash)) {
 		DRM_ERROR("Could not find map\n");
 		return -EINVAL;
 	}

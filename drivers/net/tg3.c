@@ -58,18 +58,14 @@
 #define TG3_VLAN_TAG_USED 0
 #endif
 
-#ifdef NETIF_F_TSO
 #define TG3_TSO_SUPPORT	1
-#else
-#define TG3_TSO_SUPPORT	0
-#endif
 
 #include "tg3.h"
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.70"
-#define DRV_MODULE_RELDATE	"December 1, 2006"
+#define DRV_MODULE_VERSION	"3.72"
+#define DRV_MODULE_RELDATE	"January 8, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -959,6 +955,13 @@ static int tg3_phy_reset(struct tg3 *tp)
 	u32 phy_status;
 	int err;
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+		u32 val;
+
+		val = tr32(GRC_MISC_CFG);
+		tw32_f(GRC_MISC_CFG, val & ~GRC_MISC_CFG_EPHY_IDDQ);
+		udelay(40);
+	}
 	err  = tg3_readphy(tp, MII_BMSR, &phy_status);
 	err |= tg3_readphy(tp, MII_BMSR, &phy_status);
 	if (err != 0)
@@ -1008,7 +1011,12 @@ out:
 	else if (tp->tg3_flags2 & TG3_FLG2_PHY_JITTER_BUG) {
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0c00);
 		tg3_writephy(tp, MII_TG3_DSP_ADDRESS, 0x000a);
-		tg3_writephy(tp, MII_TG3_DSP_RW_PORT, 0x010b);
+		if (tp->tg3_flags2 & TG3_FLG2_PHY_ADJUST_TRIM) {
+			tg3_writephy(tp, MII_TG3_DSP_RW_PORT, 0x110b);
+			tg3_writephy(tp, MII_TG3_TEST1,
+				     MII_TG3_TEST1_TRIM_EN | 0x4);
+		} else
+			tg3_writephy(tp, MII_TG3_DSP_RW_PORT, 0x010b);
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0400);
 	}
 	/* Set Extended packet length bit (bit 14) on all chips that */
@@ -1170,7 +1178,15 @@ static void tg3_power_down_phy(struct tg3 *tp)
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
 		return;
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906) {
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+		u32 val;
+
+		tg3_bmcr_reset(tp);
+		val = tr32(GRC_MISC_CFG);
+		tw32_f(GRC_MISC_CFG, val | GRC_MISC_CFG_EPHY_IDDQ);
+		udelay(40);
+		return;
+	} else {
 		tg3_writephy(tp, MII_TG3_EXT_CTRL,
 			     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x01b2);
@@ -3364,7 +3380,7 @@ next_pkt:
 		}
 next_pkt_nopost:
 		sw_idx++;
-		sw_idx %= TG3_RX_RCB_RING_SIZE(tp);
+		sw_idx &= (TG3_RX_RCB_RING_SIZE(tp) - 1);
 
 		/* Refresh hw_idx to see if there is new work */
 		if (sw_idx == hw_idx) {
@@ -3853,7 +3869,6 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	entry = tp->tx_prod;
 	base_flags = 0;
-#if TG3_TSO_SUPPORT != 0
 	mss = 0;
 	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
 	    (mss = skb_shinfo(skb)->gso_size) != 0) {
@@ -3886,11 +3901,6 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	else if (skb->ip_summed == CHECKSUM_PARTIAL)
 		base_flags |= TXD_FLAG_TCPUDP_CSUM;
-#else
-	mss = 0;
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		base_flags |= TXD_FLAG_TCPUDP_CSUM;
-#endif
 #if TG3_VLAN_TAG_USED
 	if (tp->vlgrp != NULL && vlan_tx_tag_present(skb))
 		base_flags |= (TXD_FLAG_VLAN |
@@ -3950,7 +3960,6 @@ out_unlock:
 	return NETDEV_TX_OK;
 }
 
-#if TG3_TSO_SUPPORT != 0
 static int tg3_start_xmit_dma_bug(struct sk_buff *, struct net_device *);
 
 /* Use GSO to workaround a rare TSO bug that may be triggered when the
@@ -3982,7 +3991,6 @@ tg3_tso_bug_end:
 
 	return NETDEV_TX_OK;
 }
-#endif
 
 /* hard_start_xmit for devices that have the 4G bug and/or 40-bit bug and
  * support TG3_FLG2_HW_TSO_1 or firmware TSO only.
@@ -4016,7 +4024,6 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	base_flags = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		base_flags |= TXD_FLAG_TCPUDP_CSUM;
-#if TG3_TSO_SUPPORT != 0
 	mss = 0;
 	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
 	    (mss = skb_shinfo(skb)->gso_size) != 0) {
@@ -4071,9 +4078,6 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 			}
 		}
 	}
-#else
-	mss = 0;
-#endif
 #if TG3_VLAN_TAG_USED
 	if (tp->vlgrp != NULL && vlan_tx_tag_present(skb))
 		base_flags |= (TXD_FLAG_VLAN |
@@ -4426,7 +4430,7 @@ static void tg3_free_consistent(struct tg3 *tp)
  */
 static int tg3_alloc_consistent(struct tg3 *tp)
 {
-	tp->rx_std_buffers = kmalloc((sizeof(struct ring_info) *
+	tp->rx_std_buffers = kzalloc((sizeof(struct ring_info) *
 				      (TG3_RX_RING_SIZE +
 				       TG3_RX_JUMBO_RING_SIZE)) +
 				     (sizeof(struct tx_ring_info) *
@@ -4434,13 +4438,6 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 				     GFP_KERNEL);
 	if (!tp->rx_std_buffers)
 		return -ENOMEM;
-
-	memset(tp->rx_std_buffers, 0,
-	       (sizeof(struct ring_info) *
-		(TG3_RX_RING_SIZE +
-		 TG3_RX_JUMBO_RING_SIZE)) +
-	       (sizeof(struct tx_ring_info) *
-		TG3_TX_RING_SIZE));
 
 	tp->rx_jumbo_buffers = &tp->rx_std_buffers[TG3_RX_RING_SIZE];
 	tp->tx_buffers = (struct tx_ring_info *)
@@ -5316,7 +5313,6 @@ static int tg3_load_5701_a0_firmware_fix(struct tg3 *tp)
 	return 0;
 }
 
-#if TG3_TSO_SUPPORT != 0
 
 #define TG3_TSO_FW_RELEASE_MAJOR	0x1
 #define TG3_TSO_FW_RELASE_MINOR		0x6
@@ -5893,7 +5889,6 @@ static int tg3_load_tso_firmware(struct tg3 *tp)
 	return 0;
 }
 
-#endif /* TG3_TSO_SUPPORT != 0 */
 
 /* tp->lock is held. */
 static void __tg3_set_mac_addr(struct tg3 *tp)
@@ -6107,7 +6102,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tw32(BUFMGR_DMA_DESC_POOL_ADDR, NIC_SRAM_DMA_DESC_POOL_BASE);
 		tw32(BUFMGR_DMA_DESC_POOL_SIZE, NIC_SRAM_DMA_DESC_POOL_SIZE);
 	}
-#if TG3_TSO_SUPPORT != 0
 	else if (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) {
 		int fw_len;
 
@@ -6122,7 +6116,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tw32(BUFMGR_MB_POOL_SIZE,
 		     NIC_SRAM_MBUF_POOL_SIZE5705 - fw_len - 0xa00);
 	}
-#endif
 
 	if (tp->dev->mtu <= ETH_DATA_LEN) {
 		tw32(BUFMGR_MB_RDMA_LOW_WATER,
@@ -6324,10 +6317,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)
 		rdmac_mode |= RDMAC_MODE_FIFO_LONG_BURST;
 
-#if TG3_TSO_SUPPORT != 0
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
 		rdmac_mode |= (1 << 27);
-#endif
 
 	/* Receive/send statistics. */
 	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
@@ -6498,10 +6489,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	tw32(RCVBDI_MODE, RCVBDI_MODE_ENABLE | RCVBDI_MODE_RCB_ATTN_ENAB);
 	tw32(RCVDBDI_MODE, RCVDBDI_MODE_ENABLE | RCVDBDI_MODE_INV_RING_SZ);
 	tw32(SNDDATAI_MODE, SNDDATAI_MODE_ENABLE);
-#if TG3_TSO_SUPPORT != 0
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
 		tw32(SNDDATAI_MODE, SNDDATAI_MODE_ENABLE | 0x8);
-#endif
 	tw32(SNDBDI_MODE, SNDBDI_MODE_ENABLE | SNDBDI_MODE_ATTN_ENABLE);
 	tw32(SNDBDS_MODE, SNDBDS_MODE_ENABLE | SNDBDS_MODE_ATTN_ENABLE);
 
@@ -6511,13 +6500,11 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 			return err;
 	}
 
-#if TG3_TSO_SUPPORT != 0
 	if (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) {
 		err = tg3_load_tso_firmware(tp);
 		if (err)
 			return err;
 	}
-#endif
 
 	tp->tx_mode = TX_MODE_ENABLE;
 	tw32_f(MAC_TX_MODE, tp->tx_mode);
@@ -6987,6 +6974,8 @@ static int tg3_open(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	int err;
+
+	netif_carrier_off(tp->dev);
 
 	tg3_full_lock(tp, 0);
 
@@ -7981,6 +7970,10 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		tp->link_config.duplex = cmd->duplex;
   	}
 
+	tp->link_config.orig_speed = tp->link_config.speed;
+	tp->link_config.orig_duplex = tp->link_config.duplex;
+	tp->link_config.orig_autoneg = tp->link_config.autoneg;
+
 	if (netif_running(dev))
 		tg3_setup_phy(tp, 1);
 
@@ -8043,7 +8036,6 @@ static void tg3_set_msglevel(struct net_device *dev, u32 value)
 	tp->msg_enable = value;
 }
 
-#if TG3_TSO_SUPPORT != 0
 static int tg3_set_tso(struct net_device *dev, u32 value)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -8062,7 +8054,6 @@ static int tg3_set_tso(struct net_device *dev, u32 value)
 	}
 	return ethtool_op_set_tso(dev, value);
 }
-#endif
 
 static int tg3_nway_reset(struct net_device *dev)
 {
@@ -9193,10 +9184,8 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.set_tx_csum		= tg3_set_tx_csum,
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
-#if TG3_TSO_SUPPORT != 0
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= tg3_set_tso,
-#endif
 	.self_test_count	= tg3_get_test_count,
 	.self_test		= tg3_self_test,
 	.get_strings		= tg3_get_strings,
@@ -10789,9 +10778,11 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS) {
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787) {
 			tp->tg3_flags2 |= TG3_FLG2_PHY_JITTER_BUG;
-		else if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906)
+			if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5755M)
+				tp->tg3_flags2 |= TG3_FLG2_PHY_ADJUST_TRIM;
+		} else if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906)
 			tp->tg3_flags2 |= TG3_FLG2_PHY_BER_BUG;
 	}
 
@@ -11835,7 +11826,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 	tg3_init_bufmgr_config(tp);
 
-#if TG3_TSO_SUPPORT != 0
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
 		tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE;
 	}
@@ -11860,7 +11850,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 			dev->features |= NETIF_F_TSO6;
 	}
 
-#endif
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5705_A1 &&
 	    !(tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) &&
@@ -11923,14 +11912,14 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 */
 	pci_save_state(tp->pdev);
 
+	pci_set_drvdata(pdev, dev);
+
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_ERR PFX "Cannot register net device, "
 		       "aborting.\n");
 		goto err_out_iounmap;
 	}
-
-	pci_set_drvdata(pdev, dev);
 
 	printk(KERN_INFO "%s: Tigon3 [partno(%s) rev %04x PHY(%s)] (%s) %s Ethernet ",
 	       dev->name,
@@ -11961,8 +11950,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	       dev->name, tp->dma_rwctrl,
 	       (pdev->dma_mask == DMA_32BIT_MASK) ? 32 :
 	        (((u64) pdev->dma_mask == DMA_40BIT_MASK) ? 40 : 64));
-
-	netif_carrier_off(tp->dev);
 
 	return 0;
 

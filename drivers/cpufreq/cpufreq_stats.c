@@ -285,11 +285,15 @@ cpufreq_stat_notifier_trans (struct notifier_block *nb, unsigned long val,
 	stat = cpufreq_stats_table[freq->cpu];
 	if (!stat)
 		return 0;
+
 	old_index = freq_table_get_index(stat, freq->old);
 	new_index = freq_table_get_index(stat, freq->new);
 
 	cpufreq_stats_update(freq->cpu);
 	if (old_index == new_index)
+		return 0;
+
+	if (old_index == -1 || new_index == -1)
 		return 0;
 
 	spin_lock(&cpufreq_stats_lock);
@@ -351,8 +355,8 @@ __init cpufreq_stats_init(void)
 
 	register_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
 	for_each_online_cpu(cpu) {
-		cpufreq_stat_cpu_callback(&cpufreq_stat_cpu_notifier, CPU_ONLINE,
-			(void *)(long)cpu);
+		cpufreq_stat_cpu_callback(&cpufreq_stat_cpu_notifier,
+				CPU_ONLINE, (void *)(long)cpu);
 	}
 	return 0;
 }
@@ -368,14 +372,15 @@ __exit cpufreq_stats_exit(void)
 	unregister_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
 	lock_cpu_hotplug();
 	for_each_online_cpu(cpu) {
-		cpufreq_stat_cpu_callback(&cpufreq_stat_cpu_notifier, CPU_DEAD,
-			(void *)(long)cpu);
+		cpufreq_stat_cpu_callback(&cpufreq_stat_cpu_notifier,
+						CPU_DEAD, (void *)(long)cpu);
 	}
 	unlock_cpu_hotplug();
 }
 
 MODULE_AUTHOR ("Zou Nan hai <nanhai.zou@intel.com>");
-MODULE_DESCRIPTION ("'cpufreq_stats' - A driver to export cpufreq stats through sysfs filesystem");
+MODULE_DESCRIPTION ("'cpufreq_stats' - A driver to export cpufreq stats"
+				"through sysfs filesystem");
 MODULE_LICENSE ("GPL");
 
 module_init(cpufreq_stats_init);

@@ -37,9 +37,9 @@ extern void __dma_sync_page(struct page *page, unsigned long offset,
  */
 
 #define __dma_alloc_coherent(gfp, size, handle)	NULL
-#define __dma_free_coherent(size, addr)		do { } while (0)
-#define __dma_sync(addr, size, rw)		do { } while (0)
-#define __dma_sync_page(pg, off, sz, rw)	do { } while (0)
+#define __dma_free_coherent(size, addr)		((void)0)
+#define __dma_sync(addr, size, rw)		((void)0)
+#define __dma_sync_page(pg, off, sz, rw)	((void)0)
 
 #endif /* ! CONFIG_NOT_COHERENT_CACHE */
 
@@ -251,7 +251,7 @@ dma_map_single(struct device *dev, void *ptr, size_t size,
 }
 
 /* We do nothing. */
-#define dma_unmap_single(dev, addr, size, dir)	do { } while (0)
+#define dma_unmap_single(dev, addr, size, dir)	((void)0)
 
 static inline dma_addr_t
 dma_map_page(struct device *dev, struct page *page,
@@ -266,7 +266,7 @@ dma_map_page(struct device *dev, struct page *page,
 }
 
 /* We do nothing. */
-#define dma_unmap_page(dev, handle, size, dir)	do { } while (0)
+#define dma_unmap_page(dev, handle, size, dir)	((void)0)
 
 static inline int
 dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
@@ -286,7 +286,7 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 }
 
 /* We don't do anything here. */
-#define dma_unmap_sg(dev, sg, nents, dir)	do { } while (0)
+#define dma_unmap_sg(dev, sg, nents, dir)	((void)0)
 
 #endif /* CONFIG_PPC64 */
 

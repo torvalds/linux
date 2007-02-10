@@ -55,53 +55,22 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	struct v9fs_fid *vfid;
 	struct v9fs_fcall *fcall = NULL;
 	int omode;
-	int fid = V9FS_NOFID;
 	int err;
 
 	dprintk(DEBUG_VFS, "inode: %p file: %p \n", inode, file);
 
-	vfid = v9fs_fid_lookup(file->f_dentry);
-	if (!vfid) {
-		dprintk(DEBUG_ERROR, "Couldn't resolve fid from dentry\n");
-		return -EBADF;
-	}
+	vfid = v9fs_fid_clone(file->f_path.dentry);
+	if (IS_ERR(vfid))
+		return PTR_ERR(vfid);
 
-	fid = v9fs_get_idpool(&v9ses->fidpool);
-	if (fid < 0) {
-		eprintk(KERN_WARNING, "newfid fails!\n");
-		return -ENOSPC;
-	}
-
-	err = v9fs_t_walk(v9ses, vfid->fid, fid, NULL, &fcall);
-	if (err < 0) {
-		dprintk(DEBUG_ERROR, "rewalk didn't work\n");
-		if (fcall && fcall->id == RWALK)
-			goto clunk_fid;
-		else {
-			v9fs_put_idpool(fid, &v9ses->fidpool);
-			goto free_fcall;
-		}
-	}
-	kfree(fcall);
-
-	/* TODO: do special things for O_EXCL, O_NOFOLLOW, O_SYNC */
-	/* translate open mode appropriately */
 	omode = v9fs_uflags2omode(file->f_flags);
-	err = v9fs_t_open(v9ses, fid, omode, &fcall);
+	err = v9fs_t_open(v9ses, vfid->fid, omode, &fcall);
 	if (err < 0) {
 		PRINT_FCALL_ERROR("open failed", fcall);
-		goto clunk_fid;
-	}
-
-	vfid = kmalloc(sizeof(struct v9fs_fid), GFP_KERNEL);
-	if (vfid == NULL) {
-		dprintk(DEBUG_ERROR, "out of memory\n");
-		err = -ENOMEM;
-		goto clunk_fid;
+		goto Clunk_Fid;
 	}
 
 	file->private_data = vfid;
-	vfid->fid = fid;
 	vfid->fidopen = 1;
 	vfid->fidclunked = 0;
 	vfid->iounit = fcall->params.ropen.iounit;
@@ -112,10 +81,8 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 	return 0;
 
-clunk_fid:
-	v9fs_t_clunk(v9ses, fid);
-
-free_fcall:
+Clunk_Fid:
+	v9fs_fid_clunk(v9ses, vfid);
 	kfree(fcall);
 
 	return err;
@@ -133,7 +100,7 @@ free_fcall:
 static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	int res = 0;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 
 	dprintk(DEBUG_VFS, "filp: %p lock: %p\n", filp, fl);
 
@@ -161,7 +128,7 @@ static ssize_t
 v9fs_file_read(struct file *filp, char __user * data, size_t count,
 	       loff_t * offset)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
 	struct v9fs_fid *v9f = filp->private_data;
 	struct v9fs_fcall *fcall = NULL;
@@ -225,7 +192,7 @@ static ssize_t
 v9fs_file_write(struct file *filp, const char __user * data,
 		size_t count, loff_t * offset)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
 	struct v9fs_fid *v9fid = filp->private_data;
 	struct v9fs_fcall *fcall;

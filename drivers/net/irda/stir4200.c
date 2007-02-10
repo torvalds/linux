@@ -59,7 +59,7 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-MODULE_AUTHOR("Stephen Hemminger <shemminger@osdl.org>");
+MODULE_AUTHOR("Stephen Hemminger <shemminger@linux-foundation.org>");
 MODULE_DESCRIPTION("IrDA-USB Dongle Driver for SigmaTel STIr4200");
 MODULE_LICENSE("GPL");
 

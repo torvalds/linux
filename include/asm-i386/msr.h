@@ -100,6 +100,8 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
 
 #define MSR_P6_PERFCTR0		0xc1
 #define MSR_P6_PERFCTR1		0xc2
+#define MSR_FSB_FREQ		0xcd
+
 
 #define MSR_IA32_BBL_CR_CTL		0x119
 
@@ -129,6 +131,9 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
 
 #define MSR_IA32_PERF_STATUS		0x198
 #define MSR_IA32_PERF_CTL		0x199
+
+#define MSR_IA32_MPERF			0xE7
+#define MSR_IA32_APERF			0xE8
 
 #define MSR_IA32_THERM_CONTROL		0x19a
 #define MSR_IA32_THERM_INTERRUPT	0x19b

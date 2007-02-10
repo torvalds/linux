@@ -404,8 +404,8 @@ static void v850e_uart_shutdown (struct uart_port *port)
 }
 
 static void
-v850e_uart_set_termios (struct uart_port *port, struct termios *termios,
-		        struct termios *old)
+v850e_uart_set_termios (struct uart_port *port, struct ktermios *termios,
+		        struct ktermios *old)
 {
 	unsigned cflags = termios->c_cflag;
 

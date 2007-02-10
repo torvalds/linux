@@ -59,7 +59,6 @@
 #include <asm/uaccess.h>
 
 #define NFSDDBG_FACILITY		NFSDDBG_FILEOP
-#define NFSD_PARANOIA
 
 
 /* We must ignore files (but only files) which might have mandatory
@@ -99,7 +98,7 @@ static struct raparm_hbucket	raparm_hash[RAPARM_HASH_SIZE];
 /* 
  * Called from nfsd_lookup and encode_dirent. Check if we have crossed 
  * a mount point.
- * Returns -EAGAIN leaving *dpp and *expp unchanged, 
+ * Returns -EAGAIN or -ETIMEDOUT leaving *dpp and *expp unchanged,
  *  or nfs_ok having possibly changed *dpp and *expp
  */
 int
@@ -736,10 +735,10 @@ static int
 nfsd_sync(struct file *filp)
 {
         int err;
-	struct inode *inode = filp->f_dentry->d_inode;
-	dprintk("nfsd: sync file %s\n", filp->f_dentry->d_name.name);
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	dprintk("nfsd: sync file %s\n", filp->f_path.dentry->d_name.name);
 	mutex_lock(&inode->i_mutex);
-	err=nfsd_dosync(filp, filp->f_dentry, filp->f_op);
+	err=nfsd_dosync(filp, filp->f_path.dentry, filp->f_op);
 	mutex_unlock(&inode->i_mutex);
 
 	return err;
@@ -822,7 +821,8 @@ nfsd_read_actor(read_descriptor_t *desc, struct page *page, unsigned long offset
 		rqstp->rq_res.page_len = size;
 	} else if (page != pp[-1]) {
 		get_page(page);
-		put_page(*pp);
+		if (*pp)
+			put_page(*pp);
 		*pp = page;
 		rqstp->rq_resused++;
 		rqstp->rq_res.page_len += size;
@@ -845,7 +845,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	int		host_err;
 
 	err = nfserr_perm;
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 #ifdef MSNFS
 	if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
 		(!lock_may_read(inode, offset, *count)))
@@ -883,7 +883,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		nfsdstats.io_read += host_err;
 		*count = host_err;
 		err = 0;
-		fsnotify_access(file->f_dentry);
+		fsnotify_access(file->f_path.dentry);
 	} else 
 		err = nfserrno(host_err);
 out:
@@ -917,11 +917,11 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	err = nfserr_perm;
 
 	if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
-		(!lock_may_write(file->f_dentry->d_inode, offset, cnt)))
+		(!lock_may_write(file->f_path.dentry->d_inode, offset, cnt)))
 		goto out;
 #endif
 
-	dentry = file->f_dentry;
+	dentry = file->f_path.dentry;
 	inode = dentry->d_inode;
 	exp   = fhp->fh_export;
 
@@ -950,7 +950,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	set_fs(oldfs);
 	if (host_err >= 0) {
 		nfsdstats.io_write += cnt;
-		fsnotify_modify(file->f_dentry);
+		fsnotify_modify(file->f_path.dentry);
 	}
 
 	/* clear setuid/setgid flag after write */
@@ -1244,7 +1244,6 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	__be32		err;
 	int		host_err;
 	__u32		v_mtime=0, v_atime=0;
-	int		v_mode=0;
 
 	err = nfserr_perm;
 	if (!flen)
@@ -1281,16 +1280,11 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out;
 
 	if (createmode == NFS3_CREATE_EXCLUSIVE) {
-		/* while the verifier would fit in mtime+atime,
-		 * solaris7 gets confused (bugid 4218508) if these have
-		 * the high bit set, so we use the mode as well
+		/* solaris7 gets confused (bugid 4218508) if these have
+		 * the high bit set, so just clear the high bits.
 		 */
 		v_mtime = verifier[0]&0x7fffffff;
 		v_atime = verifier[1]&0x7fffffff;
-		v_mode  = S_IFREG
-			| ((verifier[0]&0x80000000) >> (32-7)) /* u+x */
-			| ((verifier[1]&0x80000000) >> (32-9)) /* u+r */
-			;
 	}
 	
 	if (dchild->d_inode) {
@@ -1318,7 +1312,6 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		case NFS3_CREATE_EXCLUSIVE:
 			if (   dchild->d_inode->i_mtime.tv_sec == v_mtime
 			    && dchild->d_inode->i_atime.tv_sec == v_atime
-			    && dchild->d_inode->i_mode  == v_mode
 			    && dchild->d_inode->i_size  == 0 )
 				break;
 			 /* fallthru */
@@ -1340,26 +1333,22 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	}
 
 	if (createmode == NFS3_CREATE_EXCLUSIVE) {
-		/* Cram the verifier into atime/mtime/mode */
+		/* Cram the verifier into atime/mtime */
 		iap->ia_valid = ATTR_MTIME|ATTR_ATIME
-			| ATTR_MTIME_SET|ATTR_ATIME_SET
-			| ATTR_MODE;
+			| ATTR_MTIME_SET|ATTR_ATIME_SET;
 		/* XXX someone who knows this better please fix it for nsec */ 
 		iap->ia_mtime.tv_sec = v_mtime;
 		iap->ia_atime.tv_sec = v_atime;
 		iap->ia_mtime.tv_nsec = 0;
 		iap->ia_atime.tv_nsec = 0;
-		iap->ia_mode  = v_mode;
 	}
 
 	/* Set file attributes.
-	 * Mode has already been set but we might need to reset it
-	 * for CREATE_EXCLUSIVE
 	 * Irix appears to send along the gid when it tries to
 	 * implement setgid directories via NFS. Clear out all that cruft.
 	 */
  set_attr:
-	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID)) != 0) {
+	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID|ATTR_MODE)) != 0) {
  		__be32 err2 = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
 		if (err2)
 			err = err2;
@@ -1726,7 +1715,7 @@ out:
  */
 __be32
 nfsd_readdir(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t *offsetp, 
-	     struct readdir_cd *cdp, encode_dent_fn func)
+	     struct readdir_cd *cdp, filldir_t func)
 {
 	__be32		err;
 	int 		host_err;
@@ -1751,7 +1740,7 @@ nfsd_readdir(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t *offsetp,
 
 	do {
 		cdp->err = nfserr_eof; /* will be cleared on successful read */
-		host_err = vfs_readdir(file, (filldir_t) func, cdp);
+		host_err = vfs_readdir(file, func, cdp);
 	} while (host_err >=0 && cdp->err == nfs_ok);
 	if (host_err)
 		err = nfserrno(host_err);
@@ -1885,28 +1874,27 @@ nfsd_racache_init(int cache_size)
 		return 0;
 	if (cache_size < 2*RAPARM_HASH_SIZE)
 		cache_size = 2*RAPARM_HASH_SIZE;
-	raparml = kmalloc(sizeof(struct raparms) * cache_size, GFP_KERNEL);
+	raparml = kcalloc(cache_size, sizeof(struct raparms), GFP_KERNEL);
 
-	if (raparml != NULL) {
-		dprintk("nfsd: allocating %d readahead buffers.\n",
-			cache_size);
-		for (i = 0 ; i < RAPARM_HASH_SIZE ; i++) {
-			raparm_hash[i].pb_head = NULL;
-			spin_lock_init(&raparm_hash[i].pb_lock);
-		}
-		nperbucket = cache_size >> RAPARM_HASH_BITS;
-		memset(raparml, 0, sizeof(struct raparms) * cache_size);
-		for (i = 0; i < cache_size - 1; i++) {
-			if (i % nperbucket == 0)
-				raparm_hash[j++].pb_head = raparml + i;
-			if (i % nperbucket < nperbucket-1)
-				raparml[i].p_next = raparml + i + 1;
-		}
-	} else {
+	if (!raparml) {
 		printk(KERN_WARNING
-		       "nfsd: Could not allocate memory read-ahead cache.\n");
+			"nfsd: Could not allocate memory read-ahead cache.\n");
 		return -ENOMEM;
 	}
+
+	dprintk("nfsd: allocating %d readahead buffers.\n", cache_size);
+	for (i = 0 ; i < RAPARM_HASH_SIZE ; i++) {
+		raparm_hash[i].pb_head = NULL;
+		spin_lock_init(&raparm_hash[i].pb_lock);
+	}
+	nperbucket = cache_size >> RAPARM_HASH_BITS;
+	for (i = 0; i < cache_size - 1; i++) {
+		if (i % nperbucket == 0)
+			raparm_hash[j++].pb_head = raparml + i;
+		if (i % nperbucket < nperbucket-1)
+			raparml[i].p_next = raparml + i + 1;
+	}
+
 	nfsdstats.ra_size = cache_size;
 	return 0;
 }

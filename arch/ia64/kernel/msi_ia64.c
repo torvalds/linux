@@ -64,12 +64,17 @@ static void ia64_set_msi_irq_affinity(unsigned int irq, cpumask_t cpu_mask)
 }
 #endif /* CONFIG_SMP */
 
-int ia64_setup_msi_irq(unsigned int irq, struct pci_dev *pdev)
+int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
 	struct msi_msg	msg;
 	unsigned long	dest_phys_id;
-	unsigned int	vector;
+	unsigned int	irq, vector;
 
+	irq = create_irq();
+	if (irq < 0)
+		return irq;
+
+	set_irq_msi(irq, desc);
 	dest_phys_id = cpu_physical_id(first_cpu(cpu_online_map));
 	vector = irq;
 
@@ -89,12 +94,12 @@ int ia64_setup_msi_irq(unsigned int irq, struct pci_dev *pdev)
 	write_msi_msg(irq, &msg);
 	set_irq_chip_and_handler(irq, &ia64_msi_chip, handle_edge_irq);
 
-	return 0;
+	return irq;
 }
 
 void ia64_teardown_msi_irq(unsigned int irq)
 {
-	return;		/* no-op */
+	destroy_irq(irq);
 }
 
 static void ia64_ack_msi_irq(unsigned int irq)
@@ -126,12 +131,12 @@ static struct irq_chip ia64_msi_chip = {
 };
 
 
-int arch_setup_msi_irq(unsigned int irq, struct pci_dev *pdev)
+int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
 	if (platform_setup_msi_irq)
-		return platform_setup_msi_irq(irq, pdev);
+		return platform_setup_msi_irq(pdev, desc);
 
-	return ia64_setup_msi_irq(irq, pdev);
+	return ia64_setup_msi_irq(pdev, desc);
 }
 
 void arch_teardown_msi_irq(unsigned int irq)

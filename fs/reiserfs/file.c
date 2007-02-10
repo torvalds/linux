@@ -48,6 +48,11 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 	}
 
 	mutex_lock(&inode->i_mutex);
+
+	mutex_lock(&(REISERFS_I(inode)->i_mmap));
+	if (REISERFS_I(inode)->i_flags & i_ever_mapped)
+		REISERFS_I(inode)->i_flags &= ~i_pack_on_close_mask;
+
 	reiserfs_write_lock(inode->i_sb);
 	/* freeing preallocation only involves relogging blocks that
 	 * are already in the current transaction.  preallocation gets
@@ -100,9 +105,22 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 		err = reiserfs_truncate_file(inode, 0);
 	}
       out:
+	mutex_unlock(&(REISERFS_I(inode)->i_mmap));
 	mutex_unlock(&inode->i_mutex);
 	reiserfs_write_unlock(inode->i_sb);
 	return err;
+}
+
+static int reiserfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct inode *inode;
+
+	inode = file->f_path.dentry->d_inode;
+	mutex_lock(&(REISERFS_I(inode)->i_mmap));
+	REISERFS_I(inode)->i_flags |= i_ever_mapped;
+	mutex_unlock(&(REISERFS_I(inode)->i_mmap));
+
+	return generic_file_mmap(file, vma);
 }
 
 static void reiserfs_vfs_truncate_file(struct inode *inode)
@@ -1288,7 +1306,7 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 	loff_t pos;		// Current position in the file.
 	ssize_t res;		// return value of various functions that we call.
 	int err = 0;
-	struct inode *inode = file->f_dentry->d_inode;	// Inode of the file that we are writing to.
+	struct inode *inode = file->f_path.dentry->d_inode;	// Inode of the file that we are writing to.
 	/* To simplify coding at this time, we store
 	   locked pages in array for now */
 	struct page *prepared_pages[REISERFS_WRITE_PAGES_AT_A_TIME];
@@ -1335,7 +1353,7 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 	if (count == 0)
 		goto out;
 
-	res = remove_suid(file->f_dentry);
+	res = remove_suid(file->f_path.dentry);
 	if (res)
 		goto out;
 
@@ -1527,7 +1545,7 @@ const struct file_operations reiserfs_file_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = reiserfs_compat_ioctl,
 #endif
-	.mmap = generic_file_mmap,
+	.mmap = reiserfs_file_mmap,
 	.open = generic_file_open,
 	.release = reiserfs_file_release,
 	.fsync = reiserfs_sync_file,

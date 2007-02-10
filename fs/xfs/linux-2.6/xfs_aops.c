@@ -341,9 +341,9 @@ xfs_start_page_writeback(
 {
 	ASSERT(PageLocked(page));
 	ASSERT(!PageWriteback(page));
-	set_page_writeback(page);
 	if (clear_dirty)
-		clear_page_dirty(page);
+		clear_page_dirty_for_io(page);
+	set_page_writeback(page);
 	unlock_page(page);
 	if (!buffers) {
 		end_page_writeback(page);
@@ -1406,7 +1406,7 @@ xfs_vm_direct_IO(
 			xfs_end_io_direct);
 	}
 
-	if (unlikely(ret <= 0 && iocb->private))
+	if (unlikely(ret != -EIOCBQUEUED && iocb->private))
 		xfs_destroy_ioend(iocb->private);
 	return ret;
 }

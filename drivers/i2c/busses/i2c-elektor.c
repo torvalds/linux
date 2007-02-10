@@ -293,7 +293,7 @@ static int __init i2c_pcfisa_init(void)
 
 static void i2c_pcfisa_exit(void)
 {
-	i2c_pcf_del_bus(&pcf_isa_ops);
+	i2c_del_adapter(&pcf_isa_ops);
 
 	if (irq > 0) {
 		disable_irq(irq);

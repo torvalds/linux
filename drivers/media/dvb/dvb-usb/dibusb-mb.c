@@ -163,23 +163,23 @@ static struct dvb_usb_device_properties dibusb1_1_properties = {
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.pid_filter_count = 16,
 
-	.streaming_ctrl   = dibusb_streaming_ctrl,
-	.pid_filter       = dibusb_pid_filter,
-	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
-	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_tuner_probe_and_attach,
+			.streaming_ctrl   = dibusb_streaming_ctrl,
+			.pid_filter       = dibusb_pid_filter,
+			.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.frontend_attach  = dibusb_dib3000mb_frontend_attach,
+			.tuner_attach     = dibusb_tuner_probe_and_attach,
 
-	/* parameter for the MPEG2-data transfer */
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 7,
-		.endpoint = 0x02,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
+				.count = 7,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
 			.size_of_priv     = sizeof(struct dibusb_state),
 		}
 	},
@@ -248,23 +248,23 @@ static struct dvb_usb_device_properties dibusb1_1_an2235_properties = {
 			.caps = DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_ADAP_HAS_PID_FILTER,
 			.pid_filter_count = 16,
 
-	.streaming_ctrl   = dibusb_streaming_ctrl,
-	.pid_filter       = dibusb_pid_filter,
-	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
-	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_tuner_probe_and_attach,
+			.streaming_ctrl   = dibusb_streaming_ctrl,
+			.pid_filter       = dibusb_pid_filter,
+			.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.frontend_attach  = dibusb_dib3000mb_frontend_attach,
+			.tuner_attach     = dibusb_tuner_probe_and_attach,
 
-	/* parameter for the MPEG2-data transfer */
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 7,
-		.endpoint = 0x02,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
+				.count = 7,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
 			.size_of_priv     = sizeof(struct dibusb_state),
 		},
 	},
@@ -312,22 +312,23 @@ static struct dvb_usb_device_properties dibusb2_0b_properties = {
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.pid_filter_count = 16,
 
-	.streaming_ctrl   = dibusb2_0_streaming_ctrl,
-	.pid_filter       = dibusb_pid_filter,
-	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
-	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_thomson_tuner_attach,
-	/* parameter for the MPEG2-data transfer */
+			.streaming_ctrl   = dibusb2_0_streaming_ctrl,
+			.pid_filter       = dibusb_pid_filter,
+			.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.frontend_attach  = dibusb_dib3000mb_frontend_attach,
+			.tuner_attach     = dibusb_thomson_tuner_attach,
+
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 7,
-		.endpoint = 0x06,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
+				.count = 7,
+				.endpoint = 0x06,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
 			.size_of_priv     = sizeof(struct dibusb_state),
 		}
 	},
@@ -369,22 +370,22 @@ static struct dvb_usb_device_properties artec_t1_usb2_properties = {
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.pid_filter_count = 16,
 
-	.streaming_ctrl   = dibusb2_0_streaming_ctrl,
-	.pid_filter       = dibusb_pid_filter,
-	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
-	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_tuner_probe_and_attach,
-	/* parameter for the MPEG2-data transfer */
+			.streaming_ctrl   = dibusb2_0_streaming_ctrl,
+			.pid_filter       = dibusb_pid_filter,
+			.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+			.frontend_attach  = dibusb_dib3000mb_frontend_attach,
+			.tuner_attach     = dibusb_tuner_probe_and_attach,
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 7,
-		.endpoint = 0x06,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
+				.count = 7,
+				.endpoint = 0x06,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
 			.size_of_priv     = sizeof(struct dibusb_state),
 		}
 	},

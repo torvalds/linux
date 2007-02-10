@@ -1200,9 +1200,9 @@ static void set_ctrlr_state(struct sa1100fb_info *fbi, u_int state)
  * Our LCD controller task (which is called when we blank or unblank)
  * via keventd.
  */
-static void sa1100fb_task(void *dummy)
+static void sa1100fb_task(struct work_struct *w)
 {
-	struct sa1100fb_info *fbi = dummy;
+	struct sa1100fb_info *fbi = container_of(w, struct sa1100fb_info, task);
 	u_int state = xchg(&fbi->task_state, -1);
 
 	set_ctrlr_state(fbi, state);
@@ -1444,7 +1444,7 @@ static struct sa1100fb_info * __init sa1100fb_init_fbinfo(struct device *dev)
 					  fbi->max_bpp / 8;
 
 	init_waitqueue_head(&fbi->ctrlr_wait);
-	INIT_WORK(&fbi->task, sa1100fb_task, fbi);
+	INIT_WORK(&fbi->task, sa1100fb_task);
 	init_MUTEX(&fbi->ctrlr_sem);
 
 	return fbi;

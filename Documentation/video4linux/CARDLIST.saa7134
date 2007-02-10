@@ -76,7 +76,7 @@
  75 -> AVerMedia AVerTVHD MCE A180              [1461:1044]
  76 -> SKNet MonsterTV Mobile                   [1131:4ee9]
  77 -> Pinnacle PCTV 40i/50i/110i (saa7133)     [11bd:002e]
- 78 -> ASUSTeK P7131 Dual                       [1043:4862]
+ 78 -> ASUSTeK P7131 Dual                       [1043:4862,1043:4876]
  79 -> Sedna/MuchTV PC TV Cardbus TV/Radio (ITO25 Rev:2B)
  80 -> ASUS Digimatrix TV                       [1043:0210]
  81 -> Philips Tiger reference design           [1131:2018]
@@ -99,3 +99,8 @@
  98 -> Proteus Pro 2309                         [0919:2003]
  99 -> AVerMedia TV Hybrid A16AR                [1461:2c00]
 100 -> Asus Europa2 OEM                         [1043:4860]
+101 -> Pinnacle PCTV 310i                       [11bd:002f]
+102 -> Avermedia AVerTV Studio 507              [1461:9715]
+103 -> Compro Videomate DVB-T200A
+104 -> Hauppauge WinTV-HVR1110 DVB-T/Hybrid     [0070:6701]
+105 -> Terratec Cinergy HT PCMCIA               [153b:1172]

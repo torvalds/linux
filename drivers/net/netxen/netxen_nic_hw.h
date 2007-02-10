@@ -124,28 +124,28 @@ typedef enum {
  */
 
 #define netxen_gb_enable_tx(config_word)	\
-	set_bit(0, (unsigned long*)(&config_word))
+	((config_word) |= 1 << 0)
 #define netxen_gb_enable_rx(config_word)	\
-	set_bit(2, (unsigned long*)(&config_word))
+	((config_word) |= 1 << 2)
 #define netxen_gb_tx_flowctl(config_word)	\
-	set_bit(4, (unsigned long*)(&config_word))
+	((config_word) |= 1 << 4)
 #define netxen_gb_rx_flowctl(config_word)	\
-	set_bit(5, (unsigned long*)(&config_word))
+	((config_word) |= 1 << 5)
 #define netxen_gb_tx_reset_pb(config_word)	\
-		set_bit(16, (unsigned long*)(&config_word))
+	((config_word) |= 1 << 16)
 #define netxen_gb_rx_reset_pb(config_word)	\
-		set_bit(17, (unsigned long*)(&config_word))
+	((config_word) |= 1 << 17)
 #define netxen_gb_tx_reset_mac(config_word)	\
-		set_bit(18, (unsigned long*)(&config_word))
+	((config_word) |= 1 << 18)
 #define netxen_gb_rx_reset_mac(config_word)	\
-		set_bit(19, (unsigned long*)(&config_word))
+	((config_word) |= 1 << 19)
 #define netxen_gb_soft_reset(config_word)	\
-		set_bit(31, (unsigned long*)(&config_word))
+	((config_word) |= 1 << 31)
 
 #define netxen_gb_unset_tx_flowctl(config_word)	\
-		clear_bit(4, (unsigned long *)(&config_word))
+	((config_word) &= ~(1 << 4))
 #define netxen_gb_unset_rx_flowctl(config_word)	\
-		clear_bit(5, (unsigned long*)(&config_word))
+	((config_word) &= ~(1 << 5))
 
 #define netxen_gb_get_tx_synced(config_word)	\
 		_netxen_crb_get_bit((config_word), 1)
@@ -171,15 +171,15 @@ typedef enum {
  */
 
 #define netxen_gb_set_duplex(config_word)	\
-		set_bit(0, (unsigned long*)&config_word)
+		((config_word) |= 1 << 0)
 #define netxen_gb_set_crc_enable(config_word)	\
-		set_bit(1, (unsigned long*)&config_word)
+		((config_word) |= 1 << 1)
 #define netxen_gb_set_padshort(config_word)	\
-		set_bit(2, (unsigned long*)&config_word)
+		((config_word) |= 1 << 2)
 #define netxen_gb_set_checklength(config_word)	\
-		set_bit(4, (unsigned long*)&config_word)
+		((config_word) |= 1 << 4)
 #define netxen_gb_set_hugeframes(config_word)	\
-		set_bit(5, (unsigned long*)&config_word)
+		((config_word) |= 1 << 5)
 #define netxen_gb_set_preamblelen(config_word, val)	\
 		((config_word) |= ((val) << 12) & 0xF000)
 #define netxen_gb_set_intfmode(config_word, val)		\
@@ -190,9 +190,9 @@ typedef enum {
 #define netxen_gb_set_mii_mgmt_clockselect(config_word, val)	\
 		((config_word) |= ((val) & 0x07))
 #define netxen_gb_mii_mgmt_reset(config_word)	\
-		set_bit(31, (unsigned long*)&config_word)
+		((config_word) |= 1 << 31)
 #define netxen_gb_mii_mgmt_unset(config_word)	\
-		clear_bit(31, (unsigned long*)&config_word)
+		((config_word) &= ~(1 << 31))
 
 /*
  * NIU GB MII Mgmt Command Register (applies to GB0, GB1, GB2, GB3)
@@ -201,7 +201,7 @@ typedef enum {
  */
 
 #define netxen_gb_mii_mgmt_set_read_cycle(config_word)	\
-		set_bit(0, (unsigned long*)&config_word)
+		((config_word) |= 1 << 0)
 #define netxen_gb_mii_mgmt_reg_addr(config_word, val)	\
 		((config_word) |= ((val) & 0x1F))
 #define netxen_gb_mii_mgmt_phy_addr(config_word, val)	\
@@ -274,9 +274,9 @@ typedef enum {
 #define netxen_set_phy_speed(config_word, val)	\
 		((config_word) |= ((val & 0x03) << 14))
 #define netxen_set_phy_duplex(config_word)	\
-		set_bit(13, (unsigned long*)&config_word)
+		((config_word) |= 1 << 13)
 #define netxen_clear_phy_duplex(config_word)	\
-		clear_bit(13, (unsigned long*)&config_word)
+		((config_word) &= ~(1 << 13))
 
 #define netxen_get_phy_jabber(config_word)	\
 		_netxen_crb_get_bit(config_word, 0)
@@ -350,11 +350,11 @@ typedef enum {
 		_netxen_crb_get_bit(config_word, 15)
 
 #define netxen_set_phy_int_link_status_changed(config_word)	\
-		set_bit(10, (unsigned long*)&config_word)
+		((config_word) |= 1 << 10)
 #define netxen_set_phy_int_autoneg_completed(config_word)	\
-		set_bit(11, (unsigned long*)&config_word)
+		((config_word) |= 1 << 11)
 #define netxen_set_phy_int_speed_changed(config_word)	\
-		set_bit(14, (unsigned long*)&config_word)
+		((config_word) |= 1 << 14)
 
 /*
  * NIU Mode Register.
@@ -382,22 +382,22 @@ typedef enum {
  */
 
 #define netxen_set_gb_drop_gb0(config_word)	\
-		set_bit(0, (unsigned long*)&config_word)
+		((config_word) |= 1 << 0)
 #define netxen_set_gb_drop_gb1(config_word)	\
-		set_bit(1, (unsigned long*)&config_word)
+		((config_word) |= 1 << 1)
 #define netxen_set_gb_drop_gb2(config_word)	\
-		set_bit(2, (unsigned long*)&config_word)
+		((config_word) |= 1 << 2)
 #define netxen_set_gb_drop_gb3(config_word)	\
-		set_bit(3, (unsigned long*)&config_word)
+		((config_word) |= 1 << 3)
 
 #define netxen_clear_gb_drop_gb0(config_word)	\
-		clear_bit(0, (unsigned long*)&config_word)
+		((config_word) &= ~(1 << 0))
 #define netxen_clear_gb_drop_gb1(config_word)	\
-		clear_bit(1, (unsigned long*)&config_word)
+		((config_word) &= ~(1 << 1))
 #define netxen_clear_gb_drop_gb2(config_word)	\
-		clear_bit(2, (unsigned long*)&config_word)
+		((config_word) &= ~(1 << 2))
 #define netxen_clear_gb_drop_gb3(config_word)	\
-		clear_bit(3, (unsigned long*)&config_word)
+		((config_word) &= ~(1 << 3))
 
 /*
  * NIU XG MAC Config Register
@@ -413,7 +413,7 @@ typedef enum {
  */
 
 #define netxen_xg_soft_reset(config_word)	\
-		set_bit(4, (unsigned long*)&config_word)
+		((config_word) |= 1 << 4)
 
 /*
  * MAC Control Register
@@ -433,19 +433,19 @@ typedef enum {
 #define netxen_nic_mcr_set_id_pool0(config, val)	\
 		((config) |= ((val) &0x03))
 #define netxen_nic_mcr_set_enable_xtnd0(config)	\
-		(set_bit(3, (unsigned long *)&(config)))
+		((config) |= 1 << 3)
 #define netxen_nic_mcr_set_id_pool1(config, val)	\
 		((config) |= (((val) & 0x03) << 4))
 #define netxen_nic_mcr_set_enable_xtnd1(config)	\
-		(set_bit(6, (unsigned long *)&(config)))
+		((config) |= 1 << 6)
 #define netxen_nic_mcr_set_id_pool2(config, val)	\
 		((config) |= (((val) & 0x03) << 8))
 #define netxen_nic_mcr_set_enable_xtnd2(config)	\
-		(set_bit(10, (unsigned long *)&(config)))
+		((config) |= 1 << 10)
 #define netxen_nic_mcr_set_id_pool3(config, val)	\
 		((config) |= (((val) & 0x03) << 12))
 #define netxen_nic_mcr_set_enable_xtnd3(config)	\
-		(set_bit(14, (unsigned long *)&(config)))
+		((config) |= 1 << 14)
 #define netxen_nic_mcr_set_mode_select(config, val)	\
 		((config) |= (((val) & 0x03) << 24))
 #define netxen_nic_mcr_set_enable_pool(config, val)	\

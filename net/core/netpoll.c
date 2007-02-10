@@ -55,6 +55,7 @@ static void queue_process(struct work_struct *work)
 	struct netpoll_info *npinfo =
 		container_of(work, struct netpoll_info, tx_work.work);
 	struct sk_buff *skb;
+	unsigned long flags;
 
 	while ((skb = skb_dequeue(&npinfo->txq))) {
 		struct net_device *dev = skb->dev;
@@ -64,15 +65,19 @@ static void queue_process(struct work_struct *work)
 			continue;
 		}
 
-		netif_tx_lock_bh(dev);
+		local_irq_save(flags);
+		netif_tx_lock(dev);
 		if (netif_queue_stopped(dev) ||
 		    dev->hard_start_xmit(skb, dev) != NETDEV_TX_OK) {
 			skb_queue_head(&npinfo->txq, skb);
-			netif_tx_unlock_bh(dev);
+			netif_tx_unlock(dev);
+			local_irq_restore(flags);
 
 			schedule_delayed_work(&npinfo->tx_work, HZ/10);
 			return;
 		}
+		netif_tx_unlock(dev);
+		local_irq_restore(flags);
 	}
 }
 
@@ -242,22 +247,28 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 
 	/* don't get messages out of order, and no recursion */
 	if (skb_queue_len(&npinfo->txq) == 0 &&
-	    npinfo->poll_owner != smp_processor_id() &&
-	    netif_tx_trylock(dev)) {
-		/* try until next clock tick */
-		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL; tries > 0; --tries) {
-			if (!netif_queue_stopped(dev))
-				status = dev->hard_start_xmit(skb, dev);
+		    npinfo->poll_owner != smp_processor_id()) {
+		unsigned long flags;
 
-			if (status == NETDEV_TX_OK)
-				break;
+		local_irq_save(flags);
+		if (netif_tx_trylock(dev)) {
+			/* try until next clock tick */
+			for (tries = jiffies_to_usecs(1)/USEC_PER_POLL;
+					tries > 0; --tries) {
+				if (!netif_queue_stopped(dev))
+					status = dev->hard_start_xmit(skb, dev);
 
-			/* tickle device maybe there is some cleanup */
-			netpoll_poll(np);
+				if (status == NETDEV_TX_OK)
+					break;
 
-			udelay(USEC_PER_POLL);
+				/* tickle device maybe there is some cleanup */
+				netpoll_poll(np);
+
+				udelay(USEC_PER_POLL);
+			}
+			netif_tx_unlock(dev);
 		}
-		netif_tx_unlock(dev);
+		local_irq_restore(flags);
 	}
 
 	if (status != NETDEV_TX_OK) {
@@ -330,6 +341,7 @@ static void arp_reply(struct sk_buff *skb)
 	unsigned char *arp_ptr;
 	int size, type = ARPOP_REPLY, ptype = ETH_P_ARP;
 	__be32 sip, tip;
+	unsigned char *sha;
 	struct sk_buff *send_skb;
 	struct netpoll *np = NULL;
 
@@ -356,9 +368,14 @@ static void arp_reply(struct sk_buff *skb)
 	    arp->ar_op != htons(ARPOP_REQUEST))
 		return;
 
-	arp_ptr = (unsigned char *)(arp+1) + skb->dev->addr_len;
+	arp_ptr = (unsigned char *)(arp+1);
+	/* save the location of the src hw addr */
+	sha = arp_ptr;
+	arp_ptr += skb->dev->addr_len;
 	memcpy(&sip, arp_ptr, 4);
-	arp_ptr += 4 + skb->dev->addr_len;
+	arp_ptr += 4;
+	/* if we actually cared about dst hw addr, it would get copied here */
+	arp_ptr += skb->dev->addr_len;
 	memcpy(&tip, arp_ptr, 4);
 
 	/* Should we ignore arp? */
@@ -381,7 +398,7 @@ static void arp_reply(struct sk_buff *skb)
 
 	if (np->dev->hard_header &&
 	    np->dev->hard_header(send_skb, skb->dev, ptype,
-				 np->remote_mac, np->local_mac,
+				 sha, np->local_mac,
 				 send_skb->len) < 0) {
 		kfree_skb(send_skb);
 		return;
@@ -405,7 +422,7 @@ static void arp_reply(struct sk_buff *skb)
 	arp_ptr += np->dev->addr_len;
 	memcpy(arp_ptr, &tip, 4);
 	arp_ptr += 4;
-	memcpy(arp_ptr, np->remote_mac, np->dev->addr_len);
+	memcpy(arp_ptr, sha, np->dev->addr_len);
 	arp_ptr += np->dev->addr_len;
 	memcpy(arp_ptr, &sip, 4);
 

@@ -256,7 +256,7 @@ reserve_memory (void)
 
 #ifdef CONFIG_KEXEC
 	/* crashkernel=size@offset specifies the size to reserve for a crash
-	 * kernel.(offset is ingored for keep compatibility with other archs)
+	 * kernel. If offset is 0, then it is determined automatically.
 	 * By reserving this memory we guarantee that linux never set's it
 	 * up as a DMA target.Useful for holding code to do something
 	 * appropriate after a kernel panic.
@@ -266,10 +266,16 @@ reserve_memory (void)
 		unsigned long base, size;
 		if (from) {
 			size = memparse(from + 12, &from);
+			if (*from == '@')
+				base = memparse(from+1, &from);
+			else
+				base = 0;
 			if (size) {
-				sort_regions(rsvd_region, n);
-				base = kdump_find_rsvd_region(size,
-				rsvd_region, n);
+				if (!base) {
+					sort_regions(rsvd_region, n);
+					base = kdump_find_rsvd_region(size,
+							      	rsvd_region, n);
+					}
 				if (base != ~0UL) {
 					rsvd_region[n].start =
 						(unsigned long)__va(base);
@@ -434,6 +440,21 @@ static __init int setup_nomca(char *s)
 }
 early_param("nomca", setup_nomca);
 
+#ifdef CONFIG_PROC_VMCORE
+/* elfcorehdr= specifies the location of elf core header
+ * stored by the crashed kernel.
+ */
+static int __init parse_elfcorehdr(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+        elfcorehdr_addr = memparse(arg, &arg);
+	return 0;
+}
+early_param("elfcorehdr", parse_elfcorehdr);
+#endif /* CONFIG_PROC_VMCORE */
+
 void __init
 setup_arch (char **cmdline_p)
 {
@@ -548,34 +569,31 @@ show_cpuinfo (struct seq_file *m, void *v)
 		{ 1UL << 1, "spontaneous deferral"},
 		{ 1UL << 2, "16-byte atomic ops" }
 	};
-	char features[128], *cp, sep;
+	char features[128], *cp, *sep;
 	struct cpuinfo_ia64 *c = v;
 	unsigned long mask;
 	unsigned long proc_freq;
-	int i;
+	int i, size;
 
 	mask = c->features;
 
 	/* build the feature string: */
-	memcpy(features, " standard", 10);
+	memcpy(features, "standard", 9);
 	cp = features;
-	sep = 0;
-	for (i = 0; i < (int) ARRAY_SIZE(feature_bits); ++i) {
+	size = sizeof(features);
+	sep = "";
+	for (i = 0; i < ARRAY_SIZE(feature_bits) && size > 1; ++i) {
 		if (mask & feature_bits[i].mask) {
-			if (sep)
-				*cp++ = sep;
-			sep = ',';
-			*cp++ = ' ';
-			strcpy(cp, feature_bits[i].feature_name);
-			cp += strlen(feature_bits[i].feature_name);
+			cp += snprintf(cp, size, "%s%s", sep,
+				       feature_bits[i].feature_name),
+			sep = ", ";
 			mask &= ~feature_bits[i].mask;
+			size = sizeof(features) - (cp - features);
 		}
 	}
-	if (mask) {
-		/* print unknown features as a hex value: */
-		if (sep)
-			*cp++ = sep;
-		sprintf(cp, " 0x%lx", mask);
+	if (mask && size > 1) {
+		/* print unknown features as a hex value */
+		snprintf(cp, size, "%s0x%lx", sep, mask);
 	}
 
 	proc_freq = cpufreq_quick_get(cpunum);
@@ -591,7 +609,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   "model name : %s\n"
 		   "revision   : %u\n"
 		   "archrev    : %u\n"
-		   "features   :%s\n"	/* don't change this---it _is_ right! */
+		   "features   : %s\n"
 		   "cpu number : %lu\n"
 		   "cpu regs   : %u\n"
 		   "cpu MHz    : %lu.%06lu\n"
@@ -653,6 +671,7 @@ get_model_name(__u8 family, __u8 model)
 {
 	char brand[128];
 
+	memcpy(brand, "Unknown", 8);
 	if (ia64_pal_get_brand_info(brand)) {
 		if (family == 0x7)
 			memcpy(brand, "Merced", 7);
@@ -660,8 +679,7 @@ get_model_name(__u8 family, __u8 model)
 			case 0: memcpy(brand, "McKinley", 9); break;
 			case 1: memcpy(brand, "Madison", 8); break;
 			case 2: memcpy(brand, "Madison up to 9M cache", 23); break;
-		} else
-			memcpy(brand, "Unknown", 8);
+		}
 	}
 	if (brandname[0] == '\0')
 		return strcpy(brandname, brand);

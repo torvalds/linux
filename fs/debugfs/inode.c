@@ -24,6 +24,7 @@
 #include <linux/kobject.h>
 #include <linux/namei.h>
 #include <linux/debugfs.h>
+#include <linux/fsnotify.h>
 
 #define DEBUGFS_MAGIC	0x64626720
 
@@ -54,7 +55,8 @@ static struct inode *debugfs_get_inode(struct super_block *sb, int mode, dev_t d
 			inode->i_op = &simple_dir_inode_operations;
 			inode->i_fop = &simple_dir_operations;
 
-			/* directory inodes start off with i_nlink == 2 (for "." entry) */
+			/* directory inodes start off with i_nlink == 2
+			 * (for "." entry) */
 			inc_nlink(inode);
 			break;
 		}
@@ -87,15 +89,22 @@ static int debugfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
 	res = debugfs_mknod(dir, dentry, mode, 0);
-	if (!res)
+	if (!res) {
 		inc_nlink(dir);
+		fsnotify_mkdir(dir, dentry);
+	}
 	return res;
 }
 
 static int debugfs_create(struct inode *dir, struct dentry *dentry, int mode)
 {
+	int res;
+
 	mode = (mode & S_IALLUGO) | S_IFREG;
-	return debugfs_mknod(dir, dentry, mode, 0);
+	res = debugfs_mknod(dir, dentry, mode, 0);
+	if (!res)
+		fsnotify_create(dir, dentry);
+	return res;
 }
 
 static inline int debugfs_positive(struct dentry *dentry)
@@ -135,7 +144,7 @@ static int debugfs_create_by_name(const char *name, mode_t mode,
 	 * block. A pointer to that is in the struct vfsmount that we
 	 * have around.
 	 */
-	if (!parent ) {
+	if (!parent) {
 		if (debugfs_mount && debugfs_mount->mnt_sb) {
 			parent = debugfs_mount->mnt_sb->s_root;
 		}
@@ -153,6 +162,7 @@ static int debugfs_create_by_name(const char *name, mode_t mode,
 			error = debugfs_mkdir(parent->d_inode, *dentry, mode);
 		else 
 			error = debugfs_create(parent->d_inode, *dentry, mode);
+		dput(*dentry);
 	} else
 		error = PTR_ERR(*dentry);
 	mutex_unlock(&parent->d_inode->i_mutex);
@@ -197,13 +207,15 @@ struct dentry *debugfs_create_file(const char *name, mode_t mode,
 
 	pr_debug("debugfs: creating file '%s'\n",name);
 
-	error = simple_pin_fs(&debug_fs_type, &debugfs_mount, &debugfs_mount_count);
+	error = simple_pin_fs(&debug_fs_type, &debugfs_mount,
+			      &debugfs_mount_count);
 	if (error)
 		goto exit;
 
 	error = debugfs_create_by_name(name, mode, parent, &dentry);
 	if (error) {
 		dentry = NULL;
+		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
 		goto exit;
 	}
 
@@ -262,6 +274,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_dir);
 void debugfs_remove(struct dentry *dentry)
 {
 	struct dentry *parent;
+	int ret = 0;
 	
 	if (!dentry)
 		return;
@@ -273,11 +286,19 @@ void debugfs_remove(struct dentry *dentry)
 	mutex_lock(&parent->d_inode->i_mutex);
 	if (debugfs_positive(dentry)) {
 		if (dentry->d_inode) {
-			if (S_ISDIR(dentry->d_inode->i_mode))
-				simple_rmdir(parent->d_inode, dentry);
-			else
+			dget(dentry);
+			if (S_ISDIR(dentry->d_inode->i_mode)) {
+				ret = simple_rmdir(parent->d_inode, dentry);
+				if (ret)
+					printk(KERN_ERR
+						"DebugFS rmdir on %s failed : "
+						"directory not empty.\n",
+						dentry->d_name.name);
+			} else
 				simple_unlink(parent->d_inode, dentry);
-		dput(dentry);
+			if (!ret)
+				d_delete(dentry);
+			dput(dentry);
 		}
 	}
 	mutex_unlock(&parent->d_inode->i_mutex);

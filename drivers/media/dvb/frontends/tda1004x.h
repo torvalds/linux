@@ -35,8 +35,9 @@ enum tda10046_agc {
 	TDA10046_AGC_DEFAULT,		/* original configuration */
 	TDA10046_AGC_IFO_AUTO_NEG,	/* IF AGC only, automatic, negtive */
 	TDA10046_AGC_IFO_AUTO_POS,	/* IF AGC only, automatic, positive */
-	TDA10046_AGC_TDA827X,		/* IF AGC only, special setup for tda827x */
-	TDA10046_AGC_TDA827X_GPL,	/* same as above, but GPIOs 0 */
+	TDA10046_AGC_TDA827X_GP11,	/* IF AGC only, special setup for tda827x */
+	TDA10046_AGC_TDA827X_GP00,	/* same as above, but GPIOs 0 */
+	TDA10046_AGC_TDA827X_GP01,	/* same as above, but GPIO3=0 GPIO1=1*/
 };
 
 enum tda10046_if {

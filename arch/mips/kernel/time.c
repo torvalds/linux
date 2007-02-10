@@ -94,10 +94,8 @@ static void c0_timer_ack(void)
 {
 	unsigned int count;
 
-#ifndef CONFIG_SOC_PNX8550	/* pnx8550 resets to zero */
 	/* Ack this timer interrupt and set the next one.  */
 	expirelo += cycles_per_jiffy;
-#endif
 	write_c0_compare(expirelo);
 
 	/* Check to see if we have missed any timer interrupts.  */

@@ -222,12 +222,10 @@ static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 {
 	struct dentry *dentry = resp->fh.fh_dentry;
 	struct inode *inode = dentry->d_inode;
-	int w = nfsacl_size(
-		(resp->mask & NFS_ACL)   ? resp->acl_access  : NULL,
-		(resp->mask & NFS_DFACL) ? resp->acl_default : NULL);
 	struct kvec *head = rqstp->rq_res.head;
 	unsigned int base;
 	int n;
+	int w;
 
 	if (dentry == NULL || dentry->d_inode == NULL)
 		return 0;
@@ -239,7 +237,9 @@ static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 		return 0;
 	base = (char *)p - (char *)head->iov_base;
 
-	rqstp->rq_res.page_len = w;
+	rqstp->rq_res.page_len = w = nfsacl_size(
+		(resp->mask & NFS_ACL)   ? resp->acl_access  : NULL,
+		(resp->mask & NFS_DFACL) ? resp->acl_default : NULL);
 	while (w > 0) {
 		if (!rqstp->rq_respages[rqstp->rq_resused++])
 			return 0;

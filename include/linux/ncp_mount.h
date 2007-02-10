@@ -75,7 +75,7 @@ struct ncp_mount_data_kernel {
 	unsigned int	 int_flags;	/* internal flags */
 #define NCP_IMOUNT_LOGGEDIN_POSSIBLE	0x0001
 	__kernel_uid32_t mounted_uid;	/* Who may umount() this filesystem? */
-	__kernel_pid_t   wdog_pid;		/* Who cares for our watchdog packets? */
+	struct pid      *wdog_pid;	/* Who cares for our watchdog packets? */
 	unsigned int     ncp_fd;	/* The socket to the ncp port */
 	unsigned int     time_out;	/* How long should I wait after
 					   sending a NCP request? */

@@ -78,11 +78,7 @@ sparc_ramdisk_image64:
 
 	/* PROM cif handler code address is in %o4.  */
 sparc64_boot:
-1:	rd	%pc, %g7
-	set	1b, %g1
-	cmp	%g1, %g7
-	be,pn	%xcc, sparc64_boot_after_remap
-	 mov	%o4, %l7
+	mov	%o4, %l7
 
 	/* We need to remap the kernel.  Use position independant
 	 * code to remap us to KERNBASE.
@@ -295,7 +291,6 @@ is_sun4v:
 
 	add	%sp, (192 + 128), %sp
 
-sparc64_boot_after_remap:
 	sethi	%hi(prom_root_compatible), %g1
 	or	%g1, %lo(prom_root_compatible), %g1
 	sethi	%hi(prom_sun4v_name), %g7
@@ -488,6 +483,14 @@ tlb_fixup_done:
 	or	%o1, %lo(_end), %o1
 	call	__bzero
 	 sub	%o1, %o0, %o1
+
+#ifdef CONFIG_LOCKDEP
+	/* We have this call this super early, as even prom_init can grab
+	 * spinlocks and thus call into the lockdep code.
+	 */
+	call	lockdep_init
+	 nop
+#endif
 
 	mov	%l6, %o1			! OpenPROM stack
 	call	prom_init

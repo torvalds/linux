@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/pagevec.h>
 
 void default_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
@@ -151,6 +152,7 @@ int read_cache_pages(struct address_space *mapping, struct list_head *pages,
 			put_pages_list(pages);
 			break;
 		}
+		task_io_account_read(PAGE_CACHE_SIZE);
 	}
 	pagevec_lru_add(&lru_pvec);
 	return ret;
@@ -450,7 +452,7 @@ static int make_ahead_window(struct address_space *mapping, struct file *filp,
  *
  * Note that @filp is purely used for passing on to the ->readpage[s]()
  * handler: it may refer to a different file from @mapping (so we may not use
- * @filp->f_mapping or @filp->f_dentry->d_inode here).
+ * @filp->f_mapping or @filp->f_path.dentry->d_inode here).
  * Also, @ra may not be equal to &@filp->f_ra.
  *
  */

@@ -172,6 +172,22 @@ config DVB_DIB3000MC
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
 
+config DVB_DIB7000M
+	tristate "DiBcom 7000MA/MB/PA/PB/MC"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
+	  to support this frontend.
+
+config DVB_DIB7000P
+	tristate "DiBcom 7000PC"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
+	  to support this frontend.
+
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
 
@@ -280,6 +296,14 @@ config DVB_TUNER_MT2060
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A driver for the silicon IF tuner MT2060 from Microtune.
+
+config DVB_TUNER_LGH06XF
+	tristate "LG TDVS-H06xF ATSC tuner"
+	depends on DVB_CORE && I2C
+	select DVB_PLL
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the LG TDVS-H06xF ATSC tuner family.
 
 comment "Miscellaneous devices"
 	depends on DVB_CORE

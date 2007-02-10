@@ -96,13 +96,16 @@
 #define READ_GET(par) (NV_RD32(&(par)->FIFO[0x0011], 0) >> 2)
 
 #ifdef __LITTLE_ENDIAN
+
+#include <linux/bitrev.h>
+
 #define reverse_order(l)        \
 do {                            \
 	u8 *a = (u8 *)(l);      \
-	*a = byte_rev[*a], a++; \
-	*a = byte_rev[*a], a++; \
-	*a = byte_rev[*a], a++; \
-	*a = byte_rev[*a];      \
+	a[0] = bitrev8(a[0]);   \
+	a[1] = bitrev8(a[1]);   \
+	a[2] = bitrev8(a[2]);   \
+	a[3] = bitrev8(a[3]);   \
 } while(0)
 #else
 #define reverse_order(l) do { } while(0)

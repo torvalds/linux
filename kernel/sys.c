@@ -323,11 +323,18 @@ EXPORT_SYMBOL_GPL(blocking_notifier_chain_unregister);
 int blocking_notifier_call_chain(struct blocking_notifier_head *nh,
 		unsigned long val, void *v)
 {
-	int ret;
+	int ret = NOTIFY_DONE;
 
-	down_read(&nh->rwsem);
-	ret = notifier_call_chain(&nh->head, val, v);
-	up_read(&nh->rwsem);
+	/*
+	 * We check the head outside the lock, but if this access is
+	 * racy then it does not matter what the result of the test
+	 * is, we re-check the list after having taken the lock anyway:
+	 */
+	if (rcu_dereference(nh->head)) {
+		down_read(&nh->rwsem);
+		ret = notifier_call_chain(&nh->head, val, v);
+		up_read(&nh->rwsem);
+	}
 	return ret;
 }
 
@@ -1381,7 +1388,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 
 	if (p->real_parent == group_leader) {
 		err = -EPERM;
-		if (p->signal->session != group_leader->signal->session)
+		if (process_session(p) != process_session(group_leader))
 			goto out;
 		err = -EACCES;
 		if (p->did_exec)
@@ -1397,16 +1404,13 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 		goto out;
 
 	if (pgid != pid) {
-		struct task_struct *p;
+		struct task_struct *g =
+			find_task_by_pid_type(PIDTYPE_PGID, pgid);
 
-		do_each_task_pid(pgid, PIDTYPE_PGID, p) {
-			if (p->signal->session == group_leader->signal->session)
-				goto ok_pgid;
-		} while_each_task_pid(pgid, PIDTYPE_PGID, p);
-		goto out;
+		if (!g || process_session(g) != process_session(group_leader))
+			goto out;
 	}
 
-ok_pgid:
 	err = security_task_setpgid(p, pgid);
 	if (err)
 		goto out;
@@ -1459,7 +1463,7 @@ asmlinkage long sys_getpgrp(void)
 asmlinkage long sys_getsid(pid_t pid)
 {
 	if (!pid)
-		return current->signal->session;
+		return process_session(current);
 	else {
 		int retval;
 		struct task_struct *p;
@@ -1471,7 +1475,7 @@ asmlinkage long sys_getsid(pid_t pid)
 		if (p) {
 			retval = security_task_getsid(p);
 			if (!retval)
-				retval = p->signal->session;
+				retval = process_session(p);
 		}
 		read_unlock(&tasklist_lock);
 		return retval;
@@ -1484,7 +1488,6 @@ asmlinkage long sys_setsid(void)
 	pid_t session;
 	int err = -EPERM;
 
-	mutex_lock(&tty_mutex);
 	write_lock_irq(&tasklist_lock);
 
 	/* Fail if I am already a session leader */
@@ -1504,12 +1507,15 @@ asmlinkage long sys_setsid(void)
 
 	group_leader->signal->leader = 1;
 	__set_special_pids(session, session);
+
+	spin_lock(&group_leader->sighand->siglock);
 	group_leader->signal->tty = NULL;
 	group_leader->signal->tty_old_pgrp = 0;
+	spin_unlock(&group_leader->sighand->siglock);
+
 	err = process_group(group_leader);
 out:
 	write_unlock_irq(&tasklist_lock);
-	mutex_unlock(&tty_mutex);
 	return err;
 }
 

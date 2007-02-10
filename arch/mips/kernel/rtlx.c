@@ -63,7 +63,7 @@ extern void *vpe_get_shared(int index);
 
 static void rtlx_dispatch(void)
 {
-	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_RTLX_IRQ);
+	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_RTLX_IRQ);
 }
 
 
@@ -415,7 +415,7 @@ static unsigned int file_poll(struct file *file, poll_table * wait)
 	int minor;
 	unsigned int mask = 0;
 
-	minor = iminor(file->f_dentry->d_inode);
+	minor = iminor(file->f_path.dentry->d_inode);
 
 	poll_wait(file, &channel_wqs[minor].rt_queue, wait);
 	poll_wait(file, &channel_wqs[minor].lx_queue, wait);
@@ -437,7 +437,7 @@ static unsigned int file_poll(struct file *file, poll_table * wait)
 static ssize_t file_read(struct file *file, char __user * buffer, size_t count,
 			 loff_t * ppos)
 {
-	int minor = iminor(file->f_dentry->d_inode);
+	int minor = iminor(file->f_path.dentry->d_inode);
 
 	/* data available? */
 	if (!rtlx_read_poll(minor, (file->f_flags & O_NONBLOCK) ? 0 : 1)) {
@@ -454,7 +454,7 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 	struct rtlx_channel *rt;
 	DECLARE_WAITQUEUE(wait, current);
 
-	minor = iminor(file->f_dentry->d_inode);
+	minor = iminor(file->f_path.dentry->d_inode);
 	rt = &rtlx->channel[minor];
 
 	/* any space left... */
@@ -491,7 +491,7 @@ static struct irqaction rtlx_irq = {
 	.name		= "RTLX",
 };
 
-static int rtlx_irq_num = MIPSCPU_INT_BASE + MIPS_CPU_RTLX_IRQ;
+static int rtlx_irq_num = MIPS_CPU_IRQ_BASE + MIPS_CPU_RTLX_IRQ;
 
 static char register_chrdev_failed[] __initdata =
 	KERN_ERR "rtlx_module_init: unable to register device\n";

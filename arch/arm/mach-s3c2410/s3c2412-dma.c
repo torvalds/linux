@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/s3c2412-dma.c
  *
- * (c) 2006 Simtec Electronics
+ * Copyright (c) 2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2412 DMA selection
@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>
+#include <linux/serial_core.h>
 
 #include <asm/dma.h>
 #include <asm/arch/dma.h>
@@ -132,8 +133,8 @@ static struct s3c24xx_dma_map __initdata s3c2412_dma_mappings[] = {
 static void s3c2412_dma_select(struct s3c2410_dma_chan *chan,
 			       struct s3c24xx_dma_map *map)
 {
-	writel(chan->regs + S3C2412_DMA_DMAREQSEL,
-	       map->channels[0] | S3C2412_DMAREQSEL_HW);
+	writel(map->channels[0] | S3C2412_DMAREQSEL_HW,
+	       chan->regs + S3C2412_DMA_DMAREQSEL);
 }
 
 static struct s3c24xx_dma_selection __initdata s3c2412_dma_sel = {

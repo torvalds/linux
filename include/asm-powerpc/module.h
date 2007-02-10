@@ -46,8 +46,6 @@ struct mod_arch_specific {
 	unsigned int num_bugs;
 };
 
-extern struct bug_entry *module_find_bug(unsigned long bugaddr);
-
 /*
  * Select ELF headers.
  * Make empty section for module_frob_arch_sections to expand.

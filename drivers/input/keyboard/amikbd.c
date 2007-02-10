@@ -187,7 +187,7 @@ static irqreturn_t amikbd_interrupt(int irq, void *dummy)
 
 static int __init amikbd_init(void)
 {
-	int i, j;
+	int i, j, err;
 
 	if (!AMIGAHW_PRESENT(AMI_KEYBOARD))
 		return -ENODEV;

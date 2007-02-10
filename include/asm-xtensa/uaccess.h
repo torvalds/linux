@@ -23,7 +23,6 @@
 
 #ifdef __ASSEMBLY__
 
-#define _ASMLANGUAGE
 #include <asm/current.h>
 #include <asm/asm-offsets.h>
 #include <asm/processor.h>

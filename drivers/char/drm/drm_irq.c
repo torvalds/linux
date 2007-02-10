@@ -121,6 +121,7 @@ static int drm_irq_install(drm_device_t * dev)
 		spin_lock_init(&dev->vbl_lock);
 
 		INIT_LIST_HEAD(&dev->vbl_sigs.head);
+		INIT_LIST_HEAD(&dev->vbl_sigs2.head);
 
 		dev->vbl_pending = 0;
 	}
@@ -174,6 +175,8 @@ int drm_irq_uninstall(drm_device_t * dev)
 	dev->driver->irq_uninstall(dev);
 
 	free_irq(dev->irq, dev);
+
+	dev->locked_tasklet_func = NULL;
 
 	return 0;
 }
@@ -247,10 +250,7 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 	drm_wait_vblank_t vblwait;
 	struct timeval now;
 	int ret = 0;
-	unsigned int flags;
-
-	if (!drm_core_check_feature(dev, DRIVER_IRQ_VBL))
-		return -EINVAL;
+	unsigned int flags, seq;
 
 	if (!dev->irq)
 		return -EINVAL;
@@ -258,9 +258,26 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 	if (copy_from_user(&vblwait, argp, sizeof(vblwait)))
 		return -EFAULT;
 
-	switch (vblwait.request.type & ~_DRM_VBLANK_FLAGS_MASK) {
+	if (vblwait.request.type &
+	    ~(_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK)) {
+		DRM_ERROR("Unsupported type value 0x%x, supported mask 0x%x\n",
+			  vblwait.request.type,
+			  (_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK));
+		return -EINVAL;
+	}
+
+	flags = vblwait.request.type & _DRM_VBLANK_FLAGS_MASK;
+
+	if (!drm_core_check_feature(dev, (flags & _DRM_VBLANK_SECONDARY) ?
+				    DRIVER_IRQ_VBL2 : DRIVER_IRQ_VBL))
+		return -EINVAL;
+
+	seq = atomic_read((flags & _DRM_VBLANK_SECONDARY) ? &dev->vbl_received2
+			  : &dev->vbl_received);
+
+	switch (vblwait.request.type & _DRM_VBLANK_TYPES_MASK) {
 	case _DRM_VBLANK_RELATIVE:
-		vblwait.request.sequence += atomic_read(&dev->vbl_received);
+		vblwait.request.sequence += seq;
 		vblwait.request.type &= ~_DRM_VBLANK_RELATIVE;
 	case _DRM_VBLANK_ABSOLUTE:
 		break;
@@ -268,13 +285,16 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 		return -EINVAL;
 	}
 
-	flags = vblwait.request.type & _DRM_VBLANK_FLAGS_MASK;
+	if ((flags & _DRM_VBLANK_NEXTONMISS) &&
+	    (seq - vblwait.request.sequence) <= (1<<23)) {
+		vblwait.request.sequence = seq + 1;
+	}
 
 	if (flags & _DRM_VBLANK_SIGNAL) {
 		unsigned long irqflags;
+		drm_vbl_sig_t *vbl_sigs = (flags & _DRM_VBLANK_SECONDARY)
+				      ? &dev->vbl_sigs2 : &dev->vbl_sigs;
 		drm_vbl_sig_t *vbl_sig;
-
-		vblwait.reply.sequence = atomic_read(&dev->vbl_received);
 
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 
@@ -282,12 +302,13 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 		 * for the same vblank sequence number; nothing to be done in
 		 * that case
 		 */
-		list_for_each_entry(vbl_sig, &dev->vbl_sigs.head, head) {
+		list_for_each_entry(vbl_sig, &vbl_sigs->head, head) {
 			if (vbl_sig->sequence == vblwait.request.sequence
 			    && vbl_sig->info.si_signo == vblwait.request.signal
 			    && vbl_sig->task == current) {
 				spin_unlock_irqrestore(&dev->vbl_lock,
 						       irqflags);
+				vblwait.reply.sequence = seq;
 				goto done;
 			}
 		}
@@ -315,11 +336,16 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 
-		list_add_tail((struct list_head *)vbl_sig, &dev->vbl_sigs.head);
+		list_add_tail((struct list_head *)vbl_sig, &vbl_sigs->head);
 
 		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+
+		vblwait.reply.sequence = seq;
 	} else {
-		if (dev->driver->vblank_wait)
+		if (flags & _DRM_VBLANK_SECONDARY) {
+			if (dev->driver->vblank_wait2)
+				ret = dev->driver->vblank_wait2(dev, &vblwait.request.sequence);
+		} else if (dev->driver->vblank_wait)
 			ret =
 			    dev->driver->vblank_wait(dev,
 						     &vblwait.request.sequence);
@@ -347,25 +373,32 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
  */
 void drm_vbl_send_signals(drm_device_t * dev)
 {
-	struct list_head *list, *tmp;
-	drm_vbl_sig_t *vbl_sig;
-	unsigned int vbl_seq = atomic_read(&dev->vbl_received);
 	unsigned long flags;
+	int i;
 
 	spin_lock_irqsave(&dev->vbl_lock, flags);
 
-	list_for_each_safe(list, tmp, &dev->vbl_sigs.head) {
-		vbl_sig = list_entry(list, drm_vbl_sig_t, head);
-		if ((vbl_seq - vbl_sig->sequence) <= (1 << 23)) {
-			vbl_sig->info.si_code = vbl_seq;
-			send_sig_info(vbl_sig->info.si_signo, &vbl_sig->info,
-				      vbl_sig->task);
+	for (i = 0; i < 2; i++) {
+		struct list_head *list, *tmp;
+		drm_vbl_sig_t *vbl_sig;
+		drm_vbl_sig_t *vbl_sigs = i ? &dev->vbl_sigs2 : &dev->vbl_sigs;
+		unsigned int vbl_seq = atomic_read(i ? &dev->vbl_received2 :
+						   &dev->vbl_received);
 
-			list_del(list);
+		list_for_each_safe(list, tmp, &vbl_sigs->head) {
+			vbl_sig = list_entry(list, drm_vbl_sig_t, head);
+			if ((vbl_seq - vbl_sig->sequence) <= (1 << 23)) {
+				vbl_sig->info.si_code = vbl_seq;
+				send_sig_info(vbl_sig->info.si_signo,
+					      &vbl_sig->info, vbl_sig->task);
 
-			drm_free(vbl_sig, sizeof(*vbl_sig), DRM_MEM_DRIVER);
+				list_del(list);
 
-			dev->vbl_pending--;
+				drm_free(vbl_sig, sizeof(*vbl_sig),
+					 DRM_MEM_DRIVER);
+
+				dev->vbl_pending--;
+			}
 		}
 	}
 
@@ -373,3 +406,77 @@ void drm_vbl_send_signals(drm_device_t * dev)
 }
 
 EXPORT_SYMBOL(drm_vbl_send_signals);
+
+/**
+ * Tasklet wrapper function.
+ *
+ * \param data DRM device in disguise.
+ *
+ * Attempts to grab the HW lock and calls the driver callback on success. On
+ * failure, leave the lock marked as contended so the callback can be called
+ * from drm_unlock().
+ */
+static void drm_locked_tasklet_func(unsigned long data)
+{
+	drm_device_t *dev = (drm_device_t*)data;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
+
+	if (!dev->locked_tasklet_func ||
+	    !drm_lock_take(&dev->lock.hw_lock->lock,
+			   DRM_KERNEL_CONTEXT)) {
+		spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
+		return;
+	}
+
+	dev->lock.lock_time = jiffies;
+	atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
+
+	dev->locked_tasklet_func(dev);
+
+	drm_lock_free(dev, &dev->lock.hw_lock->lock,
+		      DRM_KERNEL_CONTEXT);
+
+	dev->locked_tasklet_func = NULL;
+
+	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
+}
+
+/**
+ * Schedule a tasklet to call back a driver hook with the HW lock held.
+ *
+ * \param dev DRM device.
+ * \param func Driver callback.
+ *
+ * This is intended for triggering actions that require the HW lock from an
+ * interrupt handler. The lock will be grabbed ASAP after the interrupt handler
+ * completes. Note that the callback may be called from interrupt or process
+ * context, it must not make any assumptions about this. Also, the HW lock will
+ * be held with the kernel context or any client context.
+ */
+void drm_locked_tasklet(drm_device_t *dev, void (*func)(drm_device_t*))
+{
+	unsigned long irqflags;
+	static DECLARE_TASKLET(drm_tasklet, drm_locked_tasklet_func, 0);
+
+	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ) ||
+	    test_bit(TASKLET_STATE_SCHED, &drm_tasklet.state))
+		return;
+
+	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
+
+	if (dev->locked_tasklet_func) {
+		spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
+		return;
+	}
+
+	dev->locked_tasklet_func = func;
+
+	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
+
+	drm_tasklet.data = (unsigned long)dev;
+
+	tasklet_hi_schedule(&drm_tasklet);
+}
+EXPORT_SYMBOL(drm_locked_tasklet);

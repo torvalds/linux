@@ -1325,7 +1325,8 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	/* Check for load limit; set rate_last to the latest sent
 	 * redirect.
 	 */
-	if (time_after(jiffies,
+	if (rt->u.dst.rate_tokens == 0 ||
+	    time_after(jiffies,
 		       (rt->u.dst.rate_last +
 			(ip_rt_redirect_load << rt->u.dst.rate_tokens)))) {
 		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST, rt->rt_gateway);
@@ -2634,7 +2635,7 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*r), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	r = nlmsg_data(nlh);
 	r->rtm_family	 = AF_INET;
@@ -2717,7 +2718,8 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
@@ -2872,8 +2874,7 @@ static int ipv4_sysctl_rtcache_flush_strategy(ctl_table *table,
 						void __user *oldval,
 						size_t __user *oldlenp,
 						void __user *newval,
-						size_t newlen,
-						void **context)
+						size_t newlen)
 {
 	int delay;
 	if (newlen != sizeof(int))

@@ -21,6 +21,7 @@
 
 #include <asm/memory.h>
 #include <asm/arch/vmalloc.h>
+#include <asm/pgtable-hwdef.h>
 
 /*
  * Just any arbitrary offset to the start of the vmalloc VM area: the
@@ -170,7 +171,6 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define L_PTE_EXEC		(1 << 6)
 #define L_PTE_DIRTY		(1 << 7)
 #define L_PTE_SHARED		(1 << 10)	/* shared(v6), coherent(xsc3) */
-#define L_PTE_ASID		(1 << 11)	/* non-global (use ASID, v6) */
 
 #ifndef __ASSEMBLY__
 
@@ -228,7 +228,7 @@ extern struct page *empty_zero_page;
 #define pfn_pte(pfn,prot)	(__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot)))
 
 #define pte_none(pte)		(!pte_val(pte))
-#define pte_clear(mm,addr,ptep)	set_pte_at((mm),(addr),(ptep), __pte(0))
+#define pte_clear(mm,addr,ptep)	set_pte_ext(ptep, __pte(0), 0)
 #define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
 #define pte_offset_kernel(dir,addr)	(pmd_page_vaddr(*(dir)) + __pte_index(addr))
 #define pte_offset_map(dir,addr)	(pmd_page_vaddr(*(dir)) + __pte_index(addr))
@@ -236,8 +236,11 @@ extern struct page *empty_zero_page;
 #define pte_unmap(pte)		do { } while (0)
 #define pte_unmap_nested(pte)	do { } while (0)
 
-#define set_pte(ptep, pte)	cpu_set_pte(ptep,pte)
-#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
+#define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
+
+#define set_pte_at(mm,addr,ptep,pteval) do { \
+	set_pte_ext(ptep, pteval, (addr) >= PAGE_OFFSET ? 0 : PTE_EXT_NG); \
+ } while (0)
 
 /*
  * The following only work if pte_present() is true.

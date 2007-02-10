@@ -119,7 +119,7 @@ static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 
 	/* Copy a 'clean' PSW mask to the user to avoid leaking
 	   information about whether PER is currently on.  */
-	user_sregs.regs.psw.mask = PSW_MASK_MERGE(PSW_USER_BITS, regs->psw.mask);
+	user_sregs.regs.psw.mask = PSW_MASK_MERGE(psw_user_bits, regs->psw.mask);
 	user_sregs.regs.psw.addr = regs->psw.addr;
 	memcpy(&user_sregs.regs.gprs, &regs->gprs, sizeof(sregs->regs.gprs));
 	memcpy(&user_sregs.regs.acrs, current->thread.acrs,

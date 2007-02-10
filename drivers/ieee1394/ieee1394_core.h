@@ -217,7 +217,7 @@ void hpsb_packet_received(struct hpsb_host *host, quadlet_t *data, size_t size,
 /* return the index (within a minor number block) of a file */
 static inline unsigned char ieee1394_file_to_instance(struct file *file)
 {
-	return file->f_dentry->d_inode->i_cindex;
+	return file->f_path.dentry->d_inode->i_cindex;
 }
 
 extern int hpsb_disable_irm;

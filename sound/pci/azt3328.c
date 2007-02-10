@@ -1513,7 +1513,7 @@ snd_azf3328_free(struct snd_azf3328 *chip)
 __end_hw:
 	snd_azf3328_free_joystick(chip);
         if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, chip);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 
@@ -1724,7 +1724,8 @@ snd_azf3328_create(struct snd_card *card,
 	chip->synth_port = pci_resource_start(pci, 3);
 	chip->mixer_port = pci_resource_start(pci, 4);
 
-	if (request_irq(pci->irq, snd_azf3328_interrupt, IRQF_DISABLED|IRQF_SHARED, card->shortname, (void *)chip)) {
+	if (request_irq(pci->irq, snd_azf3328_interrupt,
+			IRQF_SHARED, card->shortname, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		err = -EBUSY;
 		goto out_err;

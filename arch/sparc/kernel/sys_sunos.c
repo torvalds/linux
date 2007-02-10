@@ -94,8 +94,8 @@ asmlinkage unsigned long sunos_mmap(unsigned long addr, unsigned long len,
 	 * SunOS is so stupid some times... hmph!
 	 */
 	if (file) {
-		if (imajor(file->f_dentry->d_inode) == MEM_MAJOR &&
-		    iminor(file->f_dentry->d_inode) == 5) {
+		if (imajor(file->f_path.dentry->d_inode) == MEM_MAJOR &&
+		    iminor(file->f_path.dentry->d_inode) == 5) {
 			flags |= MAP_ANONYMOUS;
 			fput(file);
 			file = NULL;
@@ -655,7 +655,7 @@ sunos_nfs_get_server_fd (int fd, struct sockaddr_in *addr)
 	if (!file)
 		goto out;
 
-	inode = file->f_dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 
 	socket = SOCKET_I(inode);
 	local.sin_family = AF_INET;

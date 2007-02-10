@@ -1014,7 +1014,7 @@ static int send_cmd_write_baud_rate(struct moschip_port *mos7720_port,
  *      the specified new settings.
  */
 static void change_port_settings(struct moschip_port *mos7720_port,
-				 struct termios *old_termios)
+				 struct ktermios *old_termios)
 {
 	struct usb_serial_port *port;
 	struct usb_serial *serial;
@@ -1203,7 +1203,7 @@ static void change_port_settings(struct moschip_port *mos7720_port,
  *	termios structure.
  */
 static void mos7720_set_termios(struct usb_serial_port *port,
-				struct termios *old_termios)
+				struct ktermios *old_termios)
 {
 	int status;
 	unsigned int cflag;
@@ -1605,12 +1605,21 @@ static void mos7720_shutdown(struct usb_serial *serial)
 	usb_set_serial_data(serial, NULL);
 }
 
+static struct usb_driver usb_driver = {
+	.name =		"moschip7720",
+	.probe =	usb_serial_probe,
+	.disconnect =	usb_serial_disconnect,
+	.id_table =	moschip_port_id_table,
+	.no_dynamic_id =	1,
+};
+
 static struct usb_serial_driver moschip7720_2port_driver = {
 	.driver = {
 		.owner =	THIS_MODULE,
 		.name =		"moschip7720",
 	},
 	.description		= "Moschip 2 port adapter",
+	.usb_driver		= &usb_driver,
 	.id_table		= moschip_port_id_table,
 	.num_interrupt_in	= 1,
 	.num_bulk_in		= 2,
@@ -1629,13 +1638,6 @@ static struct usb_serial_driver moschip7720_2port_driver = {
 	.chars_in_buffer	= mos7720_chars_in_buffer,
 	.break_ctl		= mos7720_break,
 	.read_bulk_callback	= mos7720_bulk_in_callback,
-};
-
-static struct usb_driver usb_driver = {
-	.name =		"moschip7720",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	moschip_port_id_table,
 };
 
 static int __init moschip7720_init(void)

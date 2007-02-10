@@ -31,11 +31,9 @@ static struct mtd_info *map_rom_probe(struct map_info *map)
 {
 	struct mtd_info *mtd;
 
-	mtd = kmalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
 	if (!mtd)
 		return NULL;
-
-	memset(mtd, 0, sizeof(*mtd));
 
 	map->fldrv = &maprom_chipdrv;
 	mtd->priv = map;

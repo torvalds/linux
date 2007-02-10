@@ -46,7 +46,7 @@ static int  visor_probe		(struct usb_serial *serial, const struct usb_device_id 
 static int  visor_calc_num_ports(struct usb_serial *serial);
 static void visor_shutdown	(struct usb_serial *serial);
 static int  visor_ioctl		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-static void visor_set_termios	(struct usb_serial_port *port, struct termios *old_termios);
+static void visor_set_termios	(struct usb_serial_port *port, struct ktermios *old_termios);
 static void visor_write_bulk_callback	(struct urb *urb);
 static void visor_read_bulk_callback	(struct urb *urb);
 static void visor_read_int_callback	(struct urb *urb);
@@ -89,8 +89,6 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_TREO_650),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_TUNGSTEN_Z_ID),
-		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
-	{ USB_DEVICE(PALM_VENDOR_ID, PALM_ZIRE31_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_ZIRE_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
@@ -151,7 +149,6 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_TUNGSTEN_T_ID) },
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_TREO_650) },
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_TUNGSTEN_Z_ID) },
-	{ USB_DEVICE(PALM_VENDOR_ID, PALM_ZIRE31_ID) },
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_ZIRE_ID) },
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_3_5_ID) },
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_4_0_ID) },
@@ -189,6 +186,7 @@ static struct usb_serial_driver handspring_device = {
 		.name =		"visor",
 	},
 	.description =		"Handspring Visor / Palm OS",
+	.usb_driver =		&visor_driver,
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		2,
@@ -219,6 +217,7 @@ static struct usb_serial_driver clie_5_device = {
 		.name =		"clie_5",
 	},
 	.description =		"Sony Clie 5.0",
+	.usb_driver =		&visor_driver,
 	.id_table =		clie_id_5_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		2,
@@ -249,6 +248,7 @@ static struct usb_serial_driver clie_3_5_device = {
 		.name =		"clie_3.5",
 	},
 	.description =		"Sony Clie 3.5",
+	.usb_driver =		&visor_driver,
 	.id_table =		clie_id_3_5_table,
 	.num_interrupt_in =	0,
 	.num_bulk_in =		1,
@@ -916,7 +916,7 @@ static int visor_ioctl (struct usb_serial_port *port, struct file * file, unsign
 
 
 /* This function is all nice and good, but we don't change anything based on it :) */
-static void visor_set_termios (struct usb_serial_port *port, struct termios *old_termios)
+static void visor_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	unsigned int cflag;
 

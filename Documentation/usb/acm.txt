@@ -46,6 +46,10 @@ Abstract Control Model (USB CDC ACM) specification.
 
 	3Com USR ISDN Pro TA
 
+  Some cell phones also connect via USB. I know the following phones work:
+
+	SonyEricsson K800i
+
   Unfortunately many modems and most ISDN TAs use proprietary interfaces and
 thus won't work with this drivers. Check for ACM compliance before buying.
 

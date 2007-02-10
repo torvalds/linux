@@ -12,8 +12,8 @@
  *
  */
 
-#include <xtensa/config/core.h>
-#include <xtensa/hal.h>
+#include <asm/variant/core.h>
+#include <asm/coprocessor.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -46,7 +46,7 @@ extern struct task_struct *coproc_owners[];
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 
-int sys_sigsuspend(struct pt_regs *regs)
+int xtensa_sigsuspend(struct pt_regs *regs)
 {
 	old_sigset_t mask = (old_sigset_t) regs->areg[3];
 	sigset_t saveset;
@@ -68,7 +68,7 @@ int sys_sigsuspend(struct pt_regs *regs)
 }
 
 asmlinkage int
-sys_rt_sigsuspend(struct pt_regs *regs)
+xtensa_rt_sigsuspend(struct pt_regs *regs)
 {
 	sigset_t *unewset = (sigset_t *) regs->areg[4];
 	size_t sigsetsize = (size_t) regs->areg[3];
@@ -96,7 +96,7 @@ sys_rt_sigsuspend(struct pt_regs *regs)
 }
 
 asmlinkage int
-sys_sigaction(int sig, const struct old_sigaction *act,
+xtensa_sigaction(int sig, const struct old_sigaction *act,
 	      struct old_sigaction *oact)
 {
 	struct k_sigaction new_ka, old_ka;
@@ -128,7 +128,7 @@ sys_sigaction(int sig, const struct old_sigaction *act,
 }
 
 asmlinkage int
-sys_sigaltstack(struct pt_regs *regs)
+xtensa_sigaltstack(struct pt_regs *regs)
 {
 	const stack_t *uss = (stack_t *) regs->areg[4];
 	stack_t *uoss = (stack_t *) regs->areg[3];
@@ -216,8 +216,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc)
 	 * handler, or the user mode value doesn't matter (e.g. PS.OWB).
 	 */
 	err |= __get_user(ps, &sc->sc_ps);
-	regs->ps = (regs->ps & ~XCHAL_PS_CALLINC_MASK)
-		| (ps & XCHAL_PS_CALLINC_MASK);
+	regs->ps = (regs->ps & ~PS_CALLINC_MASK)
+		| (ps & PS_CALLINC_MASK);
 
 	/* Additional corruption checks */
 
@@ -280,7 +280,7 @@ flush_my_cpstate(struct task_struct *tsk)
 static int
 save_cpextra (struct _cpstate *buf)
 {
-#if (XCHAL_EXTRA_SA_SIZE == 0) && (XCHAL_CP_NUM == 0)
+#if XCHAL_CP_NUM == 0
 	return 0;
 #else
 
@@ -350,7 +350,7 @@ setup_sigcontext(struct sigcontext *sc, struct _cpstate *cpstate,
 	return err;
 }
 
-asmlinkage int sys_sigreturn(struct pt_regs *regs)
+asmlinkage int xtensa_sigreturn(struct pt_regs *regs)
 {
 	struct sigframe *frame = (struct sigframe *)regs->areg[1];
 	sigset_t set;
@@ -382,7 +382,7 @@ badframe:
 	return 0;
 }
 
-asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
+asmlinkage int xtensa_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe *frame = (struct rt_sigframe *)regs->areg[1];
 	sigset_t set;
@@ -497,8 +497,10 @@ gen_return_code(unsigned char *codemem, unsigned int use_rt_sigreturn)
 
 	/* Flush generated code out of the data cache */
 
-	if (err == 0)
-		__flush_invalidate_cache_range((unsigned long)codemem, 6UL);
+	if (err == 0) {
+		__invalidate_icache_range((unsigned long)codemem, 6UL);
+		__flush_invalidate_dcache_range((unsigned long)codemem, 6UL);
+	}
 
 	return err;
 }

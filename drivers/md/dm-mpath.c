@@ -31,7 +31,7 @@ struct pgpath {
 	struct priority_group *pg;	/* Owning PG */
 	unsigned fail_count;		/* Cumulative failure count */
 
-	struct path path;
+	struct dm_path path;
 };
 
 #define path_to_pgpath(__pgp) container_of((__pgp), struct pgpath, path)
@@ -229,7 +229,7 @@ static void __switch_pg(struct multipath *m, struct pgpath *pgpath)
 
 static int __choose_path_in_pg(struct multipath *m, struct priority_group *pg)
 {
-	struct path *path;
+	struct dm_path *path;
 
 	path = pg->ps.type->select_path(&pg->ps, &m->repeat_count);
 	if (!path)
@@ -282,10 +282,27 @@ failed:
 	m->current_pg = NULL;
 }
 
+/*
+ * Check whether bios must be queued in the device-mapper core rather
+ * than here in the target.
+ *
+ * m->lock must be held on entry.
+ *
+ * If m->queue_if_no_path and m->saved_queue_if_no_path hold the
+ * same value then we are not between multipath_presuspend()
+ * and multipath_resume() calls and we have no need to check
+ * for the DMF_NOFLUSH_SUSPENDING flag.
+ */
+static int __must_push_back(struct multipath *m)
+{
+	return (m->queue_if_no_path != m->saved_queue_if_no_path &&
+		dm_noflush_suspending(m->ti));
+}
+
 static int map_io(struct multipath *m, struct bio *bio, struct mpath_io *mpio,
 		  unsigned was_queued)
 {
-	int r = 1;
+	int r = DM_MAPIO_REMAPPED;
 	unsigned long flags;
 	struct pgpath *pgpath;
 
@@ -310,11 +327,13 @@ static int map_io(struct multipath *m, struct bio *bio, struct mpath_io *mpio,
 		    !m->queue_io)
 			queue_work(kmultipathd, &m->process_queued_ios);
 		pgpath = NULL;
-		r = 0;
-	} else if (!pgpath)
-		r = -EIO;		/* Failed */
-	else
+		r = DM_MAPIO_SUBMITTED;
+	} else if (pgpath)
 		bio->bi_bdev = pgpath->path.dev->bdev;
+	else if (__must_push_back(m))
+		r = DM_MAPIO_REQUEUE;
+	else
+		r = -EIO;	/* Failed */
 
 	mpio->pgpath = pgpath;
 
@@ -372,8 +391,10 @@ static void dispatch_queued_ios(struct multipath *m)
 		r = map_io(m, bio, mpio, 1);
 		if (r < 0)
 			bio_endio(bio, bio->bi_size, r);
-		else if (r == 1)
+		else if (r == DM_MAPIO_REMAPPED)
 			generic_make_request(bio);
+		else if (r == DM_MAPIO_REQUEUE)
+			bio_endio(bio, bio->bi_size, -EIO);
 
 		bio = next;
 	}
@@ -783,7 +804,7 @@ static int multipath_map(struct dm_target *ti, struct bio *bio,
 	map_context->ptr = mpio;
 	bio->bi_rw |= (1 << BIO_RW_FAILFAST);
 	r = map_io(m, bio, mpio, 0);
-	if (r < 0)
+	if (r < 0 || r == DM_MAPIO_REQUEUE)
 		mempool_free(mpio, m->mpio_pool);
 
 	return r;
@@ -957,7 +978,7 @@ static int bypass_pg_num(struct multipath *m, const char *pgstr, int bypassed)
 /*
  * pg_init must call this when it has completed its initialisation
  */
-void dm_pg_init_complete(struct path *path, unsigned err_flags)
+void dm_pg_init_complete(struct dm_path *path, unsigned err_flags)
 {
 	struct pgpath *pgpath = path_to_pgpath(path);
 	struct priority_group *pg = pgpath->pg;
@@ -1007,7 +1028,10 @@ static int do_end_io(struct multipath *m, struct bio *bio,
 
 	spin_lock_irqsave(&m->lock, flags);
 	if (!m->nr_valid_paths) {
-		if (!m->queue_if_no_path) {
+		if (__must_push_back(m)) {
+			spin_unlock_irqrestore(&m->lock, flags);
+			return DM_ENDIO_REQUEUE;
+		} else if (!m->queue_if_no_path) {
 			spin_unlock_irqrestore(&m->lock, flags);
 			return -EIO;
 		} else {
@@ -1042,7 +1066,7 @@ static int do_end_io(struct multipath *m, struct bio *bio,
 		queue_work(kmultipathd, &m->process_queued_ios);
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	return 1;	/* io not complete */
+	return DM_ENDIO_INCOMPLETE;	/* io not complete */
 }
 
 static int multipath_end_io(struct dm_target *ti, struct bio *bio,
@@ -1060,7 +1084,7 @@ static int multipath_end_io(struct dm_target *ti, struct bio *bio,
 		if (ps->type->end_io)
 			ps->type->end_io(ps, &pgpath->path);
 	}
-	if (r <= 0)
+	if (r != DM_ENDIO_INCOMPLETE)
 		mempool_free(mpio, m->mpio_pool);
 
 	return r;
@@ -1272,7 +1296,7 @@ static int multipath_ioctl(struct dm_target *ti, struct inode *inode,
 	struct dentry fake_dentry = {};
 	int r = 0;
 
-	fake_file.f_dentry = &fake_dentry;
+	fake_file.f_path.dentry = &fake_dentry;
 
 	spin_lock_irqsave(&m->lock, flags);
 

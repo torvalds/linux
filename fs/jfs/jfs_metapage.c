@@ -56,7 +56,7 @@ static inline void __lock_metapage(struct metapage *mp)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		if (metapage_locked(mp)) {
 			unlock_page(mp->page);
-			schedule();
+			io_schedule();
 			lock_page(mp->page);
 		}
 	} while (trylock_metapage(mp));
@@ -764,22 +764,9 @@ void release_metapage(struct metapage * mp)
 	} else if (mp->lsn)	/* discard_metapage doesn't remove it */
 		remove_from_logsync(mp);
 
-#if MPS_PER_PAGE == 1
-	/*
-	 * If we know this is the only thing in the page, we can throw
-	 * the page out of the page cache.  If pages are larger, we
-	 * don't want to do this.
-	 */
-
-	/* Retest mp->count since we may have released page lock */
-	if (test_bit(META_discard, &mp->flag) && !mp->count) {
-		clear_page_dirty(page);
-		ClearPageUptodate(page);
-	}
-#else
 	/* Try to keep metapages from using up too much memory */
 	drop_metapage(page, mp);
-#endif
+
 	unlock_page(page);
 	page_cache_release(page);
 }

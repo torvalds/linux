@@ -344,12 +344,7 @@ i##n:								\
 /* System reset */
 /* core99 pmac starts the seconary here by changing the vector, and
    putting it back to what it was (unknown_exception) when done.  */
-#if defined(CONFIG_GEMINI) && defined(CONFIG_SMP)
-	. = 0x100
-	b	__secondary_start_gemini
-#else
 	EXCEPTION(0x100, Reset, unknown_exception, EXC_XFER_STD)
-#endif
 
 /* Machine check */
 /*
@@ -437,6 +432,13 @@ Alignment:
 /* Floating-point unavailable */
 	. = 0x800
 FPUnavailable:
+BEGIN_FTR_SECTION
+/*
+ * Certain Freescale cores don't have a FPU and treat fp instructions
+ * as a FP Unavailable exception.  Redirect to illegal/emulation handling.
+ */
+	b 	ProgramCheck
+END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 	EXCEPTION_PROLOG
 	bne	load_up_fpu		/* if from user, just load it up */
 	addi	r3,r1,STACK_FRAME_OVERHEAD

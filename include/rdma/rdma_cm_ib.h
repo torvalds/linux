@@ -44,4 +44,7 @@
 int rdma_set_ib_paths(struct rdma_cm_id *id,
 		      struct ib_sa_path_rec *path_rec, int num_paths);
 
+/* Global qkey for UD QPs and multicast groups. */
+#define RDMA_UD_QKEY 0x01234567
+
 #endif /* RDMA_CM_IB_H */

@@ -978,12 +978,27 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_UNICAST_HOPS:
-		val = np->hop_limit;
-		break;
-
 	case IPV6_MULTICAST_HOPS:
-		val = np->mcast_hops;
+	{
+		struct dst_entry *dst;
+
+		if (optname == IPV6_UNICAST_HOPS)
+			val = np->hop_limit;
+		else
+			val = np->mcast_hops;
+
+		dst = sk_dst_get(sk);
+		if (dst) {
+			if (val < 0)
+				val = dst_metric(dst, RTAX_HOPLIMIT);
+			if (val < 0)
+				val = ipv6_get_hoplimit(dst->dev);
+			dst_release(dst);
+		}
+		if (val < 0)
+			val = ipv6_devconf.hop_limit;
 		break;
+	}
 
 	case IPV6_MULTICAST_LOOP:
 		val = np->mc_loop;

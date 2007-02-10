@@ -52,15 +52,18 @@ void show_mem(void)
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 
 	for_each_online_node(node) {
+		pg_data_t *n = NODE_DATA(node);
+		struct page *map = n->node_mem_map - n->node_start_pfn;
+
 		for_each_nodebank (i,mi,node) {
 			unsigned int pfn1, pfn2;
 			struct page *page, *end;
 
-			pfn1 = mi->bank[i].start >> PAGE_SHIFT;
-			pfn2 = (mi->bank[i].size + mi->bank[i].start) >> PAGE_SHIFT;
+			pfn1 = __phys_to_pfn(mi->bank[i].start);
+			pfn2 = __phys_to_pfn(mi->bank[i].size + mi->bank[i].start);
 
-			page = NODE_MEM_MAP(node) + pfn1;
-			end  = NODE_MEM_MAP(node) + pfn2;
+			page = map + pfn1;
+			end  = map + pfn2;
 
 			do {
 				total++;

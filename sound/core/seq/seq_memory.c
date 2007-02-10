@@ -151,7 +151,7 @@ int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char 
 		return len;
 	newlen = len;
 	if (size_aligned > 0)
-		newlen = ((len + size_aligned - 1) / size_aligned) * size_aligned;
+		newlen = roundup(len, size_aligned);
 	if (count < newlen)
 		return -EAGAIN;
 

@@ -22,6 +22,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/onenand.h>
+#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 

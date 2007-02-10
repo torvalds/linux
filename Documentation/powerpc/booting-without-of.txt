@@ -1703,29 +1703,32 @@ platforms are moved over to use the flattened-device-tree model.
     Required properties:
 
      - device_type : has to be "rom"
-     - compatible : Should specify what this ROM device is compatible with
-       (i.e. "onenand"). Currently, this is most likely to be "direct-mapped"
-       (which corresponds to the MTD physmap mapping driver).
-     - regs : Offset and length of the register set (or memory mapping) for
+     - compatible : Should specify what this flash device is compatible with.
+       Currently, this is most likely to be "direct-mapped" (which
+       corresponds to the MTD physmap mapping driver).
+     - reg : Offset and length of the register set (or memory mapping) for
        the device.
+     - bank-width : Width of the flash data bus in bytes. Required
+       for the NOR flashes (compatible == "direct-mapped" and others) ONLY.
 
     Recommended properties :
 
-     - bank-width : Width of the flash data bus in bytes. Required
-       for the NOR flashes (compatible == "direct-mapped" and others) ONLY.
      - partitions : Several pairs of 32-bit values where the first value is
        partition's offset from the start of the device and the second one is
        partition size in bytes with LSB used to signify a read only
-       partititon (so, the parition size should always be an even number).
+       partition (so, the parition size should always be an even number).
      - partition-names : The list of concatenated zero terminated strings
        representing the partition names.
+     - probe-type : The type of probe which should be done for the chip
+       (JEDEC vs CFI actually). Valid ONLY for NOR flashes.
 
    Example:
 
  	flash@ff000000 {
  		device_type = "rom";
  		compatible = "direct-mapped";
- 		regs = <ff000000 01000000>;
+ 		probe-type = "CFI";
+ 		reg = <ff000000 01000000>;
  		bank-width = <4>;
  		partitions = <00000000 00f80000
  			      00f80000 00080001>;

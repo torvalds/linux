@@ -2407,10 +2407,10 @@ default_chipset:
 						   fb_info.fix.smem_len);
 	if (!videomemory) {
 		printk("amifb: WARNING! unable to map videomem cached writethrough\n");
-		videomemory = ZTWO_VADDR(fb_info.fix.smem_start);
-	}
+		fb_info.screen_base = (char *)ZTWO_VADDR(fb_info.fix.smem_start);
+	} else
+		fb_info.screen_base = (char *)videomemory;
 
-	fb_info.screen_base = (char *)videomemory;
 	memset(dummysprite, 0, DUMMYSPRITEMEMSIZE);
 
 	/*
@@ -2453,6 +2453,8 @@ static void amifb_deinit(void)
 {
 	fb_dealloc_cmap(&fb_info.cmap);
 	chipfree();
+	if (videomemory)
+		iounmap((void*)videomemory);
 	release_mem_region(CUSTOM_PHYSADDR+0xe0, 0x120);
 	custom.dmacon = DMAF_ALL | DMAF_MASTER;
 }
@@ -2903,14 +2905,6 @@ static int ami_decode_var(struct fb_var_screeninfo *var,
 	par->crsr.crsr_x = par->crsr.crsr_y = 0;
 	par->crsr.spot_x = par->crsr.spot_y = 0;
 	par->crsr.height = par->crsr.width = 0;
-
-#if 0	/* fbmon not done.  uncomment for 2.5.x -brad */
-	if (!fbmon_valid_timings(pixclock[clk_shift], htotal, vtotal,
-				 &fb_info)) {
-		DPRINTK("mode doesn't fit for monitor\n");
-		return -EINVAL;
-	}
-#endif
 
 	return 0;
 }

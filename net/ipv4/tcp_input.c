@@ -936,28 +936,58 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned char *ptr = ack_skb->h.raw + TCP_SKB_CB(ack_skb)->sacked;
 	struct tcp_sack_block_wire *sp = (struct tcp_sack_block_wire *)(ptr+2);
+	struct sk_buff *cached_skb;
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
 	int reord = tp->packets_out;
 	int prior_fackets;
 	u32 lost_retrans = 0;
 	int flag = 0;
 	int dup_sack = 0;
+	int cached_fack_count;
 	int i;
+	int first_sack_index;
 
 	if (!tp->sacked_out)
 		tp->fackets_out = 0;
 	prior_fackets = tp->fackets_out;
+
+	/* Check for D-SACK. */
+	if (before(ntohl(sp[0].start_seq), TCP_SKB_CB(ack_skb)->ack_seq)) {
+		dup_sack = 1;
+		tp->rx_opt.sack_ok |= 4;
+		NET_INC_STATS_BH(LINUX_MIB_TCPDSACKRECV);
+	} else if (num_sacks > 1 &&
+			!after(ntohl(sp[0].end_seq), ntohl(sp[1].end_seq)) &&
+			!before(ntohl(sp[0].start_seq), ntohl(sp[1].start_seq))) {
+		dup_sack = 1;
+		tp->rx_opt.sack_ok |= 4;
+		NET_INC_STATS_BH(LINUX_MIB_TCPDSACKOFORECV);
+	}
+
+	/* D-SACK for already forgotten data...
+	 * Do dumb counting. */
+	if (dup_sack &&
+			!after(ntohl(sp[0].end_seq), prior_snd_una) &&
+			after(ntohl(sp[0].end_seq), tp->undo_marker))
+		tp->undo_retrans--;
+
+	/* Eliminate too old ACKs, but take into
+	 * account more or less fresh ones, they can
+	 * contain valid SACK info.
+	 */
+	if (before(TCP_SKB_CB(ack_skb)->ack_seq, prior_snd_una - tp->max_window))
+		return 0;
 
 	/* SACK fastpath:
 	 * if the only SACK change is the increase of the end_seq of
 	 * the first block then only apply that SACK block
 	 * and use retrans queue hinting otherwise slowpath */
 	flag = 1;
-	for (i = 0; i< num_sacks; i++) {
-		__u32 start_seq = ntohl(sp[i].start_seq);
-		__u32 end_seq =	 ntohl(sp[i].end_seq);
+	for (i = 0; i < num_sacks; i++) {
+		__be32 start_seq = sp[i].start_seq;
+		__be32 end_seq = sp[i].end_seq;
 
-		if (i == 0){
+		if (i == 0) {
 			if (tp->recv_sack_cache[i].start_seq != start_seq)
 				flag = 0;
 		} else {
@@ -967,39 +997,14 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		}
 		tp->recv_sack_cache[i].start_seq = start_seq;
 		tp->recv_sack_cache[i].end_seq = end_seq;
-
-		/* Check for D-SACK. */
-		if (i == 0) {
-			u32 ack = TCP_SKB_CB(ack_skb)->ack_seq;
-
-			if (before(start_seq, ack)) {
-				dup_sack = 1;
-				tp->rx_opt.sack_ok |= 4;
-				NET_INC_STATS_BH(LINUX_MIB_TCPDSACKRECV);
-			} else if (num_sacks > 1 &&
-				   !after(end_seq, ntohl(sp[1].end_seq)) &&
-				   !before(start_seq, ntohl(sp[1].start_seq))) {
-				dup_sack = 1;
-				tp->rx_opt.sack_ok |= 4;
-				NET_INC_STATS_BH(LINUX_MIB_TCPDSACKOFORECV);
-			}
-
-			/* D-SACK for already forgotten data...
-			 * Do dumb counting. */
-			if (dup_sack &&
-			    !after(end_seq, prior_snd_una) &&
-			    after(end_seq, tp->undo_marker))
-				tp->undo_retrans--;
-
-			/* Eliminate too old ACKs, but take into
-			 * account more or less fresh ones, they can
-			 * contain valid SACK info.
-			 */
-			if (before(ack, prior_snd_una - tp->max_window))
-				return 0;
-		}
+	}
+	/* Clear the rest of the cache sack blocks so they won't match mistakenly. */
+	for (; i < ARRAY_SIZE(tp->recv_sack_cache); i++) {
+		tp->recv_sack_cache[i].start_seq = 0;
+		tp->recv_sack_cache[i].end_seq = 0;
 	}
 
+	first_sack_index = 0;
 	if (flag)
 		num_sacks = 1;
 	else {
@@ -1011,10 +1016,15 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			for (j = 0; j < i; j++){
 				if (after(ntohl(sp[j].start_seq),
 					  ntohl(sp[j+1].start_seq))){
-					sp[j].start_seq = htonl(tp->recv_sack_cache[j+1].start_seq);
-					sp[j].end_seq = htonl(tp->recv_sack_cache[j+1].end_seq);
-					sp[j+1].start_seq = htonl(tp->recv_sack_cache[j].start_seq);
-					sp[j+1].end_seq = htonl(tp->recv_sack_cache[j].end_seq);
+					struct tcp_sack_block_wire tmp;
+
+					tmp = sp[j];
+					sp[j] = sp[j+1];
+					sp[j+1] = tmp;
+
+					/* Track where the first SACK block goes to */
+					if (j == first_sack_index)
+						first_sack_index = j+1;
 				}
 
 			}
@@ -1024,20 +1034,22 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	/* clear flag as used for different purpose in following code */
 	flag = 0;
 
+	/* Use SACK fastpath hint if valid */
+	cached_skb = tp->fastpath_skb_hint;
+	cached_fack_count = tp->fastpath_cnt_hint;
+	if (!cached_skb) {
+		cached_skb = sk->sk_write_queue.next;
+		cached_fack_count = 0;
+	}
+
 	for (i=0; i<num_sacks; i++, sp++) {
 		struct sk_buff *skb;
 		__u32 start_seq = ntohl(sp->start_seq);
 		__u32 end_seq = ntohl(sp->end_seq);
 		int fack_count;
 
-		/* Use SACK fastpath hint if valid */
-		if (tp->fastpath_skb_hint) {
-			skb = tp->fastpath_skb_hint;
-			fack_count = tp->fastpath_cnt_hint;
-		} else {
-			skb = sk->sk_write_queue.next;
-			fack_count = 0;
-		}
+		skb = cached_skb;
+		fack_count = cached_fack_count;
 
 		/* Event "B" in the comment above. */
 		if (after(end_seq, tp->high_seq))
@@ -1047,8 +1059,12 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			int in_sack, pcount;
 			u8 sacked;
 
-			tp->fastpath_skb_hint = skb;
-			tp->fastpath_cnt_hint = fack_count;
+			cached_skb = skb;
+			cached_fack_count = fack_count;
+			if (i == first_sack_index) {
+				tp->fastpath_skb_hint = skb;
+				tp->fastpath_cnt_hint = fack_count;
+			}
 
 			/* The retransmission queue is always in order, so
 			 * we can short-circuit the walk early.
@@ -4420,9 +4436,11 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			 * But, this leaves one open to an easy denial of
 		 	 * service attack, and SYN cookies can't defend
 			 * against this problem. So, we drop the data
-			 * in the interest of security over speed.
+			 * in the interest of security over speed unless
+			 * it's still in use.
 			 */
-			goto discard;
+			kfree_skb(skb);
+			return 0;
 		}
 		goto discard;
 

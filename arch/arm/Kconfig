@@ -9,6 +9,7 @@ config ARM
 	bool
 	default y
 	select RTC_LIB
+	select SYS_SUPPORTS_APM_EMULATION
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -16,6 +17,9 @@ config ARM
 	  manufactured, but legacy ARM-based PC hardware remains popular in
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
+
+config SYS_SUPPORTS_APM_EMULATION
+	bool
 
 config GENERIC_TIME
 	bool
@@ -73,6 +77,14 @@ config RWSEM_GENERIC_SPINLOCK
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
+
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
 
 config GENERIC_HWEIGHT
 	bool
@@ -732,7 +744,7 @@ config XIP_PHYS_ADDR
 
 endmenu
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP)
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX )
 
 menu "CPU Frequency scaling"
 
@@ -758,6 +770,15 @@ config CPU_FREQ_INTEGRATOR
 	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If in doubt, say Y.
+
+config CPU_FREQ_IMX
+	tristate "CPUfreq driver for i.MX CPUs"
+	depends on ARCH_IMX && CPU_FREQ
+	default n
+	help
+	  This enables the CPUfreq driver for i.MX CPUs.
+
+	  If in doubt, say N.
 
 endmenu
 
@@ -839,31 +860,6 @@ menu "Power management options"
 
 source "kernel/power/Kconfig"
 
-config APM
-	tristate "Advanced Power Management Emulation"
-	---help---
-	  APM is a BIOS specification for saving power using several different
-	  techniques. This is mostly useful for battery powered laptops with
-	  APM compliant BIOSes. If you say Y here, the system time will be
-	  reset after a RESUME operation, the /proc/apm device will provide
-	  battery status information, and user-space programs will receive
-	  notification of APM "events" (e.g. battery status change).
-
-	  In order to use APM, you will need supporting software. For location
-	  and more information, read <file:Documentation/pm.txt> and the
-	  Battery Powered Linux mini-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  This driver does not spin down disk drives (see the hdparm(8)
-	  manpage ("man 8 hdparm") for that), and it doesn't turn off
-	  VESA-compliant "green" monitors.
-
-	  Generally, if you don't have a battery in your machine, there isn't
-	  much point in using this driver and you should say N. If you get
-	  random kernel OOPSes or reboots that don't seem to be related to
-	  anything, try disabling/enabling this option (or disabling/enabling
-	  APM in your BIOS).
-
 endmenu
 
 source "net/Kconfig"
@@ -936,6 +932,8 @@ source "drivers/media/Kconfig"
 source "drivers/video/Kconfig"
 
 source "sound/Kconfig"
+
+source "drivers/hid/Kconfig"
 
 source "drivers/usb/Kconfig"
 

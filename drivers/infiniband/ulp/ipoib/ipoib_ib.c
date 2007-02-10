@@ -109,9 +109,8 @@ static int ipoib_ib_post_receive(struct net_device *dev, int id)
 	ret = ib_post_recv(priv->qp, &param, &bad_wr);
 	if (unlikely(ret)) {
 		ipoib_warn(priv, "receive failed for buf %d (%d)\n", id, ret);
-		dma_unmap_single(priv->ca->dma_device,
-				 priv->rx_ring[id].mapping,
-				 IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
+		ib_dma_unmap_single(priv->ca, priv->rx_ring[id].mapping,
+				    IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
 		dev_kfree_skb_any(priv->rx_ring[id].skb);
 		priv->rx_ring[id].skb = NULL;
 	}
@@ -123,7 +122,7 @@ static int ipoib_alloc_rx_skb(struct net_device *dev, int id)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct sk_buff *skb;
-	dma_addr_t addr;
+	u64 addr;
 
 	skb = dev_alloc_skb(IPOIB_BUF_SIZE + 4);
 	if (!skb)
@@ -136,10 +135,9 @@ static int ipoib_alloc_rx_skb(struct net_device *dev, int id)
 	 */
 	skb_reserve(skb, 4);
 
-	addr = dma_map_single(priv->ca->dma_device,
-			      skb->data, IPOIB_BUF_SIZE,
-			      DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(addr))) {
+	addr = ib_dma_map_single(priv->ca, skb->data, IPOIB_BUF_SIZE,
+				 DMA_FROM_DEVICE);
+	if (unlikely(ib_dma_mapping_error(priv->ca, addr))) {
 		dev_kfree_skb_any(skb);
 		return -EIO;
 	}
@@ -174,7 +172,7 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	unsigned int wr_id = wc->wr_id & ~IPOIB_OP_RECV;
 	struct sk_buff *skb;
-	dma_addr_t addr;
+	u64 addr;
 
 	ipoib_dbg_data(priv, "recv completion: id %d, op %d, status: %d\n",
 		       wr_id, wc->opcode, wc->status);
@@ -193,8 +191,8 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 			ipoib_warn(priv, "failed recv event "
 				   "(status=%d, wrid=%d vend_err %x)\n",
 				   wc->status, wr_id, wc->vendor_err);
-		dma_unmap_single(priv->ca->dma_device, addr,
-				 IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
+		ib_dma_unmap_single(priv->ca, addr,
+				    IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
 		dev_kfree_skb_any(skb);
 		priv->rx_ring[wr_id].skb = NULL;
 		return;
@@ -212,8 +210,7 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	ipoib_dbg_data(priv, "received %d bytes, SLID 0x%04x\n",
 		       wc->byte_len, wc->slid);
 
-	dma_unmap_single(priv->ca->dma_device, addr,
-			 IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
+	ib_dma_unmap_single(priv->ca, addr, IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
 
 	skb_put(skb, wc->byte_len);
 	skb_pull(skb, IB_GRH_BYTES);
@@ -261,10 +258,8 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 
 	tx_req = &priv->tx_ring[wr_id];
 
-	dma_unmap_single(priv->ca->dma_device,
-			 pci_unmap_addr(tx_req, mapping),
-			 tx_req->skb->len,
-			 DMA_TO_DEVICE);
+	ib_dma_unmap_single(priv->ca, tx_req->mapping,
+			    tx_req->skb->len, DMA_TO_DEVICE);
 
 	++priv->stats.tx_packets;
 	priv->stats.tx_bytes += tx_req->skb->len;
@@ -311,7 +306,7 @@ void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 static inline int post_send(struct ipoib_dev_priv *priv,
 			    unsigned int wr_id,
 			    struct ib_ah *address, u32 qpn,
-			    dma_addr_t addr, int len)
+			    u64 addr, int len)
 {
 	struct ib_send_wr *bad_wr;
 
@@ -330,7 +325,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_tx_buf *tx_req;
-	dma_addr_t addr;
+	u64 addr;
 
 	if (unlikely(skb->len > dev->mtu + INFINIBAND_ALEN)) {
 		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
@@ -353,21 +348,20 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	 */
 	tx_req = &priv->tx_ring[priv->tx_head & (ipoib_sendq_size - 1)];
 	tx_req->skb = skb;
-	addr = dma_map_single(priv->ca->dma_device, skb->data, skb->len,
-			      DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(addr))) {
+	addr = ib_dma_map_single(priv->ca, skb->data, skb->len,
+				 DMA_TO_DEVICE);
+	if (unlikely(ib_dma_mapping_error(priv->ca, addr))) {
 		++priv->stats.tx_errors;
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	pci_unmap_addr_set(tx_req, mapping, addr);
+	tx_req->mapping = addr;
 
 	if (unlikely(post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
 			       address->ah, qpn, addr, skb->len))) {
 		ipoib_warn(priv, "post_send failed\n");
 		++priv->stats.tx_errors;
-		dma_unmap_single(priv->ca->dma_device, addr, skb->len,
-				 DMA_TO_DEVICE);
+		ib_dma_unmap_single(priv->ca, addr, skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 	} else {
 		dev->trans_start = jiffies;
@@ -538,24 +532,27 @@ int ipoib_ib_dev_stop(struct net_device *dev)
 			while ((int) priv->tx_tail - (int) priv->tx_head < 0) {
 				tx_req = &priv->tx_ring[priv->tx_tail &
 							(ipoib_sendq_size - 1)];
-				dma_unmap_single(priv->ca->dma_device,
-						 pci_unmap_addr(tx_req, mapping),
-						 tx_req->skb->len,
-						 DMA_TO_DEVICE);
+				ib_dma_unmap_single(priv->ca,
+						    tx_req->mapping,
+						    tx_req->skb->len,
+						    DMA_TO_DEVICE);
 				dev_kfree_skb_any(tx_req->skb);
 				++priv->tx_tail;
 			}
 
-			for (i = 0; i < ipoib_recvq_size; ++i)
-				if (priv->rx_ring[i].skb) {
-					dma_unmap_single(priv->ca->dma_device,
-							 pci_unmap_addr(&priv->rx_ring[i],
-									mapping),
-							 IPOIB_BUF_SIZE,
-							 DMA_FROM_DEVICE);
-					dev_kfree_skb_any(priv->rx_ring[i].skb);
-					priv->rx_ring[i].skb = NULL;
-				}
+			for (i = 0; i < ipoib_recvq_size; ++i) {
+				struct ipoib_rx_buf *rx_req;
+
+				rx_req = &priv->rx_ring[i];
+				if (!rx_req->skb)
+					continue;
+				ib_dma_unmap_single(priv->ca,
+						    rx_req->mapping,
+						    IPOIB_BUF_SIZE,
+						    DMA_FROM_DEVICE);
+				dev_kfree_skb_any(rx_req->skb);
+				rx_req->skb = NULL;
+			}
 
 			goto timeout;
 		}

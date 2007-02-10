@@ -298,17 +298,23 @@ static void wait_for_all_aios(struct kioctx *ctx)
 	struct task_struct *tsk = current;
 	DECLARE_WAITQUEUE(wait, tsk);
 
+	spin_lock_irq(&ctx->ctx_lock);
 	if (!ctx->reqs_active)
-		return;
+		goto out;
 
 	add_wait_queue(&ctx->wait, &wait);
 	set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 	while (ctx->reqs_active) {
+		spin_unlock_irq(&ctx->ctx_lock);
 		schedule();
 		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+		spin_lock_irq(&ctx->ctx_lock);
 	}
 	__set_task_state(tsk, TASK_RUNNING);
 	remove_wait_queue(&ctx->wait, &wait);
+
+out:
+	spin_unlock_irq(&ctx->ctx_lock);
 }
 
 /* wait_on_sync_kiocb:
@@ -424,7 +430,6 @@ static struct kiocb fastcall *__aio_get_req(struct kioctx *ctx)
 	ring = kmap_atomic(ctx->ring_info.ring_pages[0], KM_USER0);
 	if (ctx->reqs_active < aio_ring_avail(&ctx->ring_info, ring)) {
 		list_add(&req->ki_list, &ctx->active_reqs);
-		get_ioctx(ctx);
 		ctx->reqs_active++;
 		okay = 1;
 	}
@@ -536,8 +541,6 @@ int fastcall aio_put_req(struct kiocb *req)
 	spin_lock_irq(&ctx->ctx_lock);
 	ret = __aio_put_req(ctx, req);
 	spin_unlock_irq(&ctx->ctx_lock);
-	if (ret)
-		put_ioctx(ctx);
 	return ret;
 }
 
@@ -586,7 +589,7 @@ static void use_mm(struct mm_struct *mm)
 	 * Note that on UML this *requires* PF_BORROWED_MM to be set, otherwise
 	 * it won't work. Update it accordingly if you change it here
 	 */
-	activate_mm(active_mm, mm);
+	switch_mm(active_mm, mm, tsk);
 	task_unlock(tsk);
 
 	mmdrop(active_mm);
@@ -599,9 +602,6 @@ static void use_mm(struct mm_struct *mm)
  *	by the calling kernel thread
  *	(Note: this routine is intended to be called only
  *	from a kernel thread context)
- *
- * Comments: Called with ctx->ctx_lock held. This nests
- * task_lock instead ctx_lock.
  */
 static void unuse_mm(struct mm_struct *mm)
 {
@@ -782,8 +782,7 @@ static int __aio_run_iocbs(struct kioctx *ctx)
 		 */
 		iocb->ki_users++;       /* grab extra reference */
 		aio_run_iocb(iocb);
-		if (__aio_put_req(ctx, iocb))  /* drop extra ref */
-			put_ioctx(ctx);
+		__aio_put_req(ctx, iocb);
  	}
 	if (!list_empty(&ctx->run_list))
 		return 1;
@@ -850,14 +849,16 @@ static void aio_kick_handler(struct work_struct *work)
 {
 	struct kioctx *ctx = container_of(work, struct kioctx, wq.work);
 	mm_segment_t oldfs = get_fs();
+	struct mm_struct *mm;
 	int requeue;
 
 	set_fs(USER_DS);
 	use_mm(ctx->mm);
 	spin_lock_irq(&ctx->ctx_lock);
 	requeue =__aio_run_iocbs(ctx);
- 	unuse_mm(ctx->mm);
+	mm = ctx->mm;
 	spin_unlock_irq(&ctx->ctx_lock);
+ 	unuse_mm(mm);
 	set_fs(oldfs);
 	/*
 	 * we're in a worker thread already, don't use queue_delayed_work,
@@ -998,14 +999,10 @@ put_rq:
 	/* everything turned out well, dispose of the aiocb. */
 	ret = __aio_put_req(ctx, iocb);
 
-	spin_unlock_irqrestore(&ctx->ctx_lock, flags);
-
 	if (waitqueue_active(&ctx->wait))
 		wake_up(&ctx->wait);
 
-	if (ret)
-		put_ioctx(ctx);
-
+	spin_unlock_irqrestore(&ctx->ctx_lock, flags);
 	return ret;
 }
 

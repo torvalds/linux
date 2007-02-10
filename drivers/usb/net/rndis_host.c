@@ -49,6 +49,8 @@
  *    - In some cases, MS-Windows will emit undocumented requests; this
  *	matters more to peripheral implementations than host ones.
  *
+ * Moreover there's a no-open-specs variant of RNDIS called "ActiveSync".
+ *
  * For these reasons and others, ** USE OF RNDIS IS STRONGLY DISCOURAGED ** in
  * favor of such non-proprietary alternatives as CDC Ethernet or the newer (and
  * currently rare) "Ethernet Emulation Model" (EEM).
@@ -61,6 +63,9 @@
  *  - control-in:  GET_ENCAPSULATED
  *
  * We'll try to ignore the RESPONSE_AVAILABLE notifications.
+ *
+ * REVISIT some RNDIS implementations seem to have curious issues still
+ * to be resolved.
  */
 struct rndis_msg_hdr {
 	__le32	msg_type;			/* RNDIS_MSG_* */
@@ -71,8 +76,14 @@ struct rndis_msg_hdr {
 	// ... and more
 } __attribute__ ((packed));
 
-/* RNDIS defines this (absurdly huge) control timeout */
-#define	RNDIS_CONTROL_TIMEOUT_MS	(10 * 1000)
+/* MS-Windows uses this strange size, but RNDIS spec says 1024 minimum */
+#define	CONTROL_BUFFER_SIZE		1025
+
+/* RNDIS defines an (absurdly huge) 10 second control timeout,
+ * but ActiveSync seems to use a more usual 5 second timeout
+ * (which matches the USB 2.0 spec).
+ */
+#define	RNDIS_CONTROL_TIMEOUT_MS	(5 * 1000)
 
 
 #define ccpu2 __constant_cpu_to_le32
@@ -270,6 +281,7 @@ static void rndis_status(struct usbnet *dev, struct urb *urb)
 static int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf)
 {
 	struct cdc_state	*info = (void *) &dev->data;
+	int			master_ifnum;
 	int			retval;
 	unsigned		count;
 	__le32			rsp;
@@ -279,7 +291,7 @@ static int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf)
 	 * disconnect(): either serialize, or dispatch responses on xid
 	 */
 
-	/* Issue the request; don't bother byteswapping our xid */
+	/* Issue the request; xid is unique, don't bother byteswapping it */
 	if (likely(buf->msg_type != RNDIS_MSG_HALT
 			&& buf->msg_type != RNDIS_MSG_RESET)) {
 		xid = dev->xid++;
@@ -287,11 +299,12 @@ static int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf)
 			xid = dev->xid++;
 		buf->request_id = (__force __le32) xid;
 	}
+	master_ifnum = info->control->cur_altsetting->desc.bInterfaceNumber;
 	retval = usb_control_msg(dev->udev,
 		usb_sndctrlpipe(dev->udev, 0),
 		USB_CDC_SEND_ENCAPSULATED_COMMAND,
 		USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-		0, info->u->bMasterInterface0,
+		0, master_ifnum,
 		buf, le32_to_cpu(buf->msg_len),
 		RNDIS_CONTROL_TIMEOUT_MS);
 	if (unlikely(retval < 0 || xid == 0))
@@ -306,13 +319,13 @@ static int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf)
 	 */
 	rsp = buf->msg_type | RNDIS_MSG_COMPLETION;
 	for (count = 0; count < 10; count++) {
-		memset(buf, 0, 1024);
+		memset(buf, 0, CONTROL_BUFFER_SIZE);
 		retval = usb_control_msg(dev->udev,
 			usb_rcvctrlpipe(dev->udev, 0),
 			USB_CDC_GET_ENCAPSULATED_RESPONSE,
 			USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			0, info->u->bMasterInterface0,
-			buf, 1024,
+			0, master_ifnum,
+			buf, CONTROL_BUFFER_SIZE,
 			RNDIS_CONTROL_TIMEOUT_MS);
 		if (likely(retval >= 8)) {
 			msg_len = le32_to_cpu(buf->msg_len);
@@ -350,7 +363,7 @@ static int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf)
 					usb_sndctrlpipe(dev->udev, 0),
 					USB_CDC_SEND_ENCAPSULATED_COMMAND,
 					USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-					0, info->u->bMasterInterface0,
+					0, master_ifnum,
 					msg, sizeof *msg,
 					RNDIS_CONTROL_TIMEOUT_MS);
 				if (unlikely(retval < 0))
@@ -379,6 +392,7 @@ static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int			retval;
 	struct net_device	*net = dev->net;
+	struct cdc_state	*info = (void *) &dev->data;
 	union {
 		void			*buf;
 		struct rndis_msg_hdr	*header;
@@ -392,54 +406,77 @@ static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 	u32			tmp;
 
 	/* we can't rely on i/o from stack working, or stack allocation */
-	u.buf = kmalloc(1024, GFP_KERNEL);
+	u.buf = kmalloc(CONTROL_BUFFER_SIZE, GFP_KERNEL);
 	if (!u.buf)
 		return -ENOMEM;
 	retval = usbnet_generic_cdc_bind(dev, intf);
 	if (retval < 0)
-		goto done;
+		goto fail;
 
-	net->hard_header_len += sizeof (struct rndis_data_hdr);
-
-	/* initialize; max transfer is 16KB at full speed */
 	u.init->msg_type = RNDIS_MSG_INIT;
 	u.init->msg_len = ccpu2(sizeof *u.init);
 	u.init->major_version = ccpu2(1);
 	u.init->minor_version = ccpu2(0);
-	u.init->max_transfer_size = ccpu2(net->mtu + net->hard_header_len);
 
+	/* max transfer (in spec) is 0x4000 at full speed, but for
+	 * TX we'll stick to one Ethernet packet plus RNDIS framing.
+	 * For RX we handle drivers that zero-pad to end-of-packet.
+	 * Don't let userspace change these settings.
+	 */
+	net->hard_header_len += sizeof (struct rndis_data_hdr);
+	dev->hard_mtu = net->mtu + net->hard_header_len;
+
+	dev->rx_urb_size = dev->hard_mtu + (dev->maxpacket + 1);
+	dev->rx_urb_size &= ~(dev->maxpacket - 1);
+	u.init->max_transfer_size = cpu_to_le32(dev->rx_urb_size);
+
+	net->change_mtu = NULL;
 	retval = rndis_command(dev, u.header);
 	if (unlikely(retval < 0)) {
 		/* it might not even be an RNDIS device!! */
 		dev_err(&intf->dev, "RNDIS init failed, %d\n", retval);
-fail:
-		usb_driver_release_interface(driver_of(intf),
-			((struct cdc_state *)&(dev->data))->data);
-		goto done;
+ 		goto fail_and_release;
 	}
-	dev->hard_mtu = le32_to_cpu(u.init_c->max_transfer_size);
+	tmp = le32_to_cpu(u.init_c->max_transfer_size);
+	if (tmp < dev->hard_mtu) {
+		dev_err(&intf->dev,
+			"dev can't take %u byte packets (max %u)\n",
+			dev->hard_mtu, tmp);
+		goto fail_and_release;
+	}
+
 	/* REVISIT:  peripheral "alignment" request is ignored ... */
-	dev_dbg(&intf->dev, "hard mtu %u, align %d\n", dev->hard_mtu,
+	dev_dbg(&intf->dev,
+		"hard mtu %u (%u from dev), rx buflen %Zu, align %d\n",
+		dev->hard_mtu, tmp, dev->rx_urb_size,
 		1 << le32_to_cpu(u.init_c->packet_alignment));
 
-	/* get designated host ethernet address */
-	memset(u.get, 0, sizeof *u.get);
+	/* Get designated host ethernet address.
+	 *
+	 * Adding a payload exactly the same size as the expected response
+	 * payload is an evident requirement MSFT added for ActiveSync.
+	 * This undocumented (and nonsensical) issue was found by sniffing
+	 * protocol requests from the ActiveSync 4.1 Windows driver.
+	 */
+	memset(u.get, 0, sizeof *u.get + 48);
 	u.get->msg_type = RNDIS_MSG_QUERY;
-	u.get->msg_len = ccpu2(sizeof *u.get);
+	u.get->msg_len = ccpu2(sizeof *u.get + 48);
 	u.get->oid = OID_802_3_PERMANENT_ADDRESS;
+	u.get->len = ccpu2(48);
+	u.get->offset = ccpu2(20);
 
 	retval = rndis_command(dev, u.header);
 	if (unlikely(retval < 0)) {
 		dev_err(&intf->dev, "rndis get ethaddr, %d\n", retval);
-		goto fail;
+		goto fail_and_release;
 	}
 	tmp = le32_to_cpu(u.get_c->offset);
-	if (unlikely((tmp + 8) > (1024 - ETH_ALEN)
+	if (unlikely((tmp + 8) > (CONTROL_BUFFER_SIZE - ETH_ALEN)
 			|| u.get_c->len != ccpu2(ETH_ALEN))) {
 		dev_err(&intf->dev, "rndis ethaddr off %d len %d ?\n",
 			tmp, le32_to_cpu(u.get_c->len));
 		retval = -EDOM;
-		goto fail;
+		goto fail_and_release;
 	}
 	memcpy(net->dev_addr, tmp + (char *)&u.get_c->request_id, ETH_ALEN);
 
@@ -455,11 +492,18 @@ fail:
 	retval = rndis_command(dev, u.header);
 	if (unlikely(retval < 0)) {
 		dev_err(&intf->dev, "rndis set packet filter, %d\n", retval);
-		goto fail;
+		goto fail_and_release;
 	}
 
 	retval = 0;
-done:
+
+	kfree(u.buf);
+	return retval;
+
+fail_and_release:
+	usb_set_intfdata(info->data, NULL);
+	usb_driver_release_interface(driver_of(intf), info->data);
+fail:
 	kfree(u.buf);
 	return retval;
 }
@@ -469,7 +513,7 @@ static void rndis_unbind(struct usbnet *dev, struct usb_interface *intf)
 	struct rndis_halt	*halt;
 
 	/* try to clear any rndis state/activity (no i/o from stack!) */
-	halt = kcalloc(1, sizeof *halt, GFP_KERNEL);
+	halt = kzalloc(sizeof *halt, GFP_KERNEL);
 	if (halt) {
 		halt->msg_type = RNDIS_MSG_HALT;
 		halt->msg_len = ccpu2(sizeof *halt);
@@ -592,6 +636,10 @@ static const struct usb_device_id	products [] = {
 {
 	/* RNDIS is MSFT's un-official variant of CDC ACM */
 	USB_INTERFACE_INFO(USB_CLASS_COMM, 2 /* ACM */, 0x0ff),
+	.driver_info = (unsigned long) &rndis_info,
+}, {
+	/* "ActiveSync" is an undocumented variant of RNDIS, used in WM5 */
+	USB_INTERFACE_INFO(USB_CLASS_MISC, 1, 1),
 	.driver_info = (unsigned long) &rndis_info,
 },
 	{ },		// END

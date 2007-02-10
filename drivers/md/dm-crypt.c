@@ -220,7 +220,7 @@ static int crypt_iv_benbi_ctr(struct crypt_config *cc, struct dm_target *ti,
 			      const char *opts)
 {
 	unsigned int bs = crypto_blkcipher_blocksize(cc->tfm);
-	int log = long_log2(bs);
+	int log = ilog2(bs);
 
 	/* we need to calculate how far we must shift the sector count
 	 * to get the cipher block count, we use this shift in _gen */
@@ -962,7 +962,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio,
 	atomic_set(&io->pending, 0);
 	kcryptd_queue_io(io);
 
-	return 0;
+	return DM_MAPIO_SUBMITTED;
 }
 
 static int crypt_status(struct dm_target *ti, status_type_t type,

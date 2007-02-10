@@ -39,12 +39,9 @@
 #include <linux/if_vlan.h>
 #define BCM_VLAN 1
 #endif
-#ifdef NETIF_F_TSO
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/checksum.h>
-#define BCM_TSO 1
-#endif
 #include <linux/workqueue.h>
 #include <linux/crc32.h>
 #include <linux/prefetch.h>
@@ -57,8 +54,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.5.1"
-#define DRV_MODULE_RELDATE	"November 15, 2006"
+#define DRV_MODULE_VERSION	"1.5.5"
+#define DRV_MODULE_RELDATE	"February 1, 2007"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -217,9 +214,16 @@ static inline u32 bnx2_tx_avail(struct bnx2 *bp)
 	u32 diff;
 
 	smp_mb();
-	diff = TX_RING_IDX(bp->tx_prod) - TX_RING_IDX(bp->tx_cons);
-	if (diff > MAX_TX_DESC_CNT)
-		diff = (diff & MAX_TX_DESC_CNT) - 1;
+
+	/* The ring uses 256 indices for 255 entries, one of them
+	 * needs to be skipped.
+	 */
+	diff = bp->tx_prod - bp->tx_cons;
+	if (unlikely(diff >= TX_DESC_CNT)) {
+		diff &= 0xffff;
+		if (diff == TX_DESC_CNT)
+			diff = MAX_TX_DESC_CNT;
+	}
 	return (bp->tx_ring_size - diff);
 }
 
@@ -1338,8 +1342,6 @@ bnx2_init_copper_phy(struct bnx2 *bp)
 {
 	u32 val;
 
-	bp->phy_flags |= PHY_CRC_FIX_FLAG;
-
 	if (bp->phy_flags & PHY_CRC_FIX_FLAG) {
 		bnx2_write_phy(bp, 0x18, 0x0c00);
 		bnx2_write_phy(bp, 0x17, 0x000a);
@@ -1349,6 +1351,14 @@ bnx2_init_copper_phy(struct bnx2 *bp)
 		bnx2_write_phy(bp, 0x17, 0x401f);
 		bnx2_write_phy(bp, 0x15, 0x14e2);
 		bnx2_write_phy(bp, 0x18, 0x0400);
+	}
+
+	if (bp->phy_flags & PHY_DIS_EARLY_DAC_FLAG) {
+		bnx2_write_phy(bp, MII_BNX2_DSP_ADDRESS,
+			       MII_BNX2_DSP_EXPAND_REG | 0x8);
+		bnx2_read_phy(bp, MII_BNX2_DSP_RW_PORT, &val);
+		val &= ~(1 << 8);
+		bnx2_write_phy(bp, MII_BNX2_DSP_RW_PORT, val);
 	}
 
 	if (bp->dev->mtu > 1500) {
@@ -1715,7 +1725,7 @@ bnx2_tx_int(struct bnx2 *bp)
 
 		tx_buf = &bp->tx_buf_ring[sw_ring_cons];
 		skb = tx_buf->skb;
-#ifdef BCM_TSO
+
 		/* partial BD completions possible with TSO packets */
 		if (skb_is_gso(skb)) {
 			u16 last_idx, last_ring_idx;
@@ -1731,7 +1741,7 @@ bnx2_tx_int(struct bnx2 *bp)
 				break;
 			}
 		}
-#endif
+
 		pci_unmap_single(bp->pdev, pci_unmap_addr(tx_buf, mapping),
 			skb_headlen(skb), PCI_DMA_TODEVICE);
 
@@ -2510,7 +2520,7 @@ bnx2_init_cpus(struct bnx2 *bp)
 	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
 		fw = &bnx2_cp_fw_09;
 
-		load_cpu_fw(bp, &cpu_reg, fw);
+		rc = load_cpu_fw(bp, &cpu_reg, fw);
 		if (rc)
 			goto init_cpu_err;
 	}
@@ -3078,7 +3088,7 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 		int buf_size)
 {
 	u32 written, offset32, len32;
-	u8 *buf, start[4], end[4], *flash_buffer = NULL;
+	u8 *buf, start[4], end[4], *align_buf = NULL, *flash_buffer = NULL;
 	int rc = 0;
 	int align_start, align_end;
 
@@ -3089,7 +3099,7 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 
 	if ((align_start = (offset32 & 3))) {
 		offset32 &= ~3;
-		len32 += align_start;
+		len32 += (4 - align_start);
 		if ((rc = bnx2_nvram_read(bp, offset32, start, 4)))
 			return rc;
 	}
@@ -3106,16 +3116,17 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 	}
 
 	if (align_start || align_end) {
-		buf = kmalloc(len32, GFP_KERNEL);
-		if (buf == 0)
+		align_buf = kmalloc(len32, GFP_KERNEL);
+		if (align_buf == NULL)
 			return -ENOMEM;
 		if (align_start) {
-			memcpy(buf, start, 4);
+			memcpy(align_buf, start, 4);
 		}
 		if (align_end) {
-			memcpy(buf + len32 - 4, end, 4);
+			memcpy(align_buf + len32 - 4, end, 4);
 		}
-		memcpy(buf + align_start, data_buf, buf_size);
+		memcpy(align_buf + align_start, data_buf, buf_size);
+		buf = align_buf;
 	}
 
 	if (bp->flash_info->buffered == 0) {
@@ -3249,11 +3260,8 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 	}
 
 nvram_write_end:
-	if (bp->flash_info->buffered == 0)
-		kfree(flash_buffer);
-
-	if (align_start || align_end)
-		kfree(buf);
+	kfree(flash_buffer);
+	kfree(align_buf);
 	return rc;
 }
 
@@ -3998,7 +4006,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	if (!skb)
 		return -ENOMEM;
 	packet = skb_put(skb, pkt_size);
-	memcpy(packet, bp->mac_addr, 6);
+	memcpy(packet, bp->dev->dev_addr, 6);
 	memset(packet + 6, 0x0, 8);
 	for (i = 14; i < pkt_size; i++)
 		packet[i] = (unsigned char) (i & 0xff);
@@ -4503,7 +4511,6 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		vlan_tag_flags |=
 			(TX_BD_FLAGS_VLAN_TAG | (vlan_tx_tag_get(skb) << 16));
 	}
-#ifdef BCM_TSO
 	if ((mss = skb_shinfo(skb)->gso_size) &&
 		(skb->len > (bp->dev->mtu + ETH_HLEN))) {
 		u32 tcp_opt_len, ip_tcp_len;
@@ -4536,7 +4543,6 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 	else
-#endif
 	{
 		mss = 0;
 	}
@@ -5533,10 +5539,8 @@ static const struct ethtool_ops bnx2_ethtool_ops = {
 	.set_tx_csum		= ethtool_op_set_tx_csum,
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
-#ifdef BCM_TSO
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= bnx2_set_tso,
-#endif
 	.self_test_count	= bnx2_self_test_count,
 	.self_test		= bnx2_self_test,
 	.get_strings		= bnx2_get_strings,
@@ -5637,6 +5641,44 @@ poll_bnx2(struct net_device *dev)
 	enable_irq(bp->pdev->irq);
 }
 #endif
+
+static void __devinit
+bnx2_get_5709_media(struct bnx2 *bp)
+{
+	u32 val = REG_RD(bp, BNX2_MISC_DUAL_MEDIA_CTRL);
+	u32 bond_id = val & BNX2_MISC_DUAL_MEDIA_CTRL_BOND_ID;
+	u32 strap;
+
+	if (bond_id == BNX2_MISC_DUAL_MEDIA_CTRL_BOND_ID_C)
+		return;
+	else if (bond_id == BNX2_MISC_DUAL_MEDIA_CTRL_BOND_ID_S) {
+		bp->phy_flags |= PHY_SERDES_FLAG;
+		return;
+	}
+
+	if (val & BNX2_MISC_DUAL_MEDIA_CTRL_STRAP_OVERRIDE)
+		strap = (val & BNX2_MISC_DUAL_MEDIA_CTRL_PHY_CTRL) >> 21;
+	else
+		strap = (val & BNX2_MISC_DUAL_MEDIA_CTRL_PHY_CTRL_STRAP) >> 8;
+
+	if (PCI_FUNC(bp->pdev->devfn) == 0) {
+		switch (strap) {
+		case 0x4:
+		case 0x5:
+		case 0x6:
+			bp->phy_flags |= PHY_SERDES_FLAG;
+			return;
+		}
+	} else {
+		switch (strap) {
+		case 0x1:
+		case 0x2:
+		case 0x4:
+			bp->phy_flags |= PHY_SERDES_FLAG;
+			return;
+		}
+	}
+}
 
 static int __devinit
 bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
@@ -5804,9 +5846,11 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	reg = REG_RD_IND(bp, BNX2_SHM_HDR_SIGNATURE);
 
 	if ((reg & BNX2_SHM_HDR_SIGNATURE_SIG_MASK) ==
-	    BNX2_SHM_HDR_SIGNATURE_SIG)
-		bp->shmem_base = REG_RD_IND(bp, BNX2_SHM_HDR_ADDR_0);
-	else
+	    BNX2_SHM_HDR_SIGNATURE_SIG) {
+		u32 off = PCI_FUNC(pdev->devfn) << 2;
+
+		bp->shmem_base = REG_RD_IND(bp, BNX2_SHM_HDR_ADDR_0 + off);
+	} else
 		bp->shmem_base = HOST_VIEW_SHMEM_BASE;
 
 	/* Get the permanent MAC address.  First we need to make sure the
@@ -5858,10 +5902,9 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->phy_addr = 1;
 
 	/* Disable WOL support if we are running on a SERDES chip. */
-	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
-		if (CHIP_BOND_ID(bp) != BNX2_MISC_DUAL_MEDIA_CTRL_BOND_ID_C)
-			bp->phy_flags |= PHY_SERDES_FLAG;
-	} else if (CHIP_BOND_ID(bp) & CHIP_BOND_ID_SERDES_BIT)
+	if (CHIP_NUM(bp) == CHIP_NUM_5709)
+		bnx2_get_5709_media(bp);
+	else if (CHIP_BOND_ID(bp) & CHIP_BOND_ID_SERDES_BIT)
 		bp->phy_flags |= PHY_SERDES_FLAG;
 
 	if (bp->phy_flags & PHY_SERDES_FLAG) {
@@ -5873,7 +5916,11 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			if (reg & BNX2_SHARED_HW_CFG_PHY_2_5G)
 				bp->phy_flags |= PHY_2_5G_CAPABLE_FLAG;
 		}
-	}
+	} else if (CHIP_NUM(bp) == CHIP_NUM_5706 ||
+		   CHIP_NUM(bp) == CHIP_NUM_5708)
+		bp->phy_flags |= PHY_CRC_FIX_FLAG;
+	else if (CHIP_ID(bp) == CHIP_ID_5709_A0)
+		bp->phy_flags |= PHY_DIS_EARLY_DAC_FLAG;
 
 	if ((CHIP_ID(bp) == CHIP_ID_5708_A0) ||
 	    (CHIP_ID(bp) == CHIP_ID_5708_B0) ||
@@ -5900,8 +5947,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	 * responding after a while.
 	 *
 	 * AMD believes this incompatibility is unique to the 5706, and
-	 * prefers to locally disable MSI rather than globally disabling it
-	 * using pci_msi_quirk.
+	 * prefers to locally disable MSI rather than globally disabling it.
 	 */
 	if (CHIP_NUM(bp) == CHIP_NUM_5706 && disable_msi == 0) {
 		struct pci_dev *amd_8132 = NULL;
@@ -6050,9 +6096,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef BCM_VLAN
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 #endif
-#ifdef BCM_TSO
 	dev->features |= NETIF_F_TSO | NETIF_F_TSO_ECN;
-#endif
 
 	netif_carrier_off(bp->dev);
 

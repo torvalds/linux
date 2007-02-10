@@ -109,9 +109,7 @@ int of_device_register(struct of_device *ofdev)
 	if (rc)
 		return rc;
 
-	device_create_file(&ofdev->dev, &dev_attr_devspec);
-
-	return 0;
+	return device_create_file(&ofdev->dev, &dev_attr_devspec);
 }
 
 void of_device_unregister(struct of_device *ofdev)

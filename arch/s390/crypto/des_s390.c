@@ -3,9 +3,9 @@
  *
  * s390 implementation of the DES Cipher Algorithm.
  *
- * Copyright (c) 2003 IBM Deutschland Entwicklung GmbH, IBM Corporation
- * Author(s): Thomas Spatzier (tspat@de.ibm.com)
- *
+ * Copyright IBM Corp. 2003,2007
+ * Author(s): Thomas Spatzier
+ *	      Jan Glauber (jan.glauber@de.ibm.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -557,7 +557,7 @@ static int init(void)
 	if (!crypt_s390_func_available(KM_DEA_ENCRYPT) ||
 	    !crypt_s390_func_available(KM_TDEA_128_ENCRYPT) ||
 	    !crypt_s390_func_available(KM_TDEA_192_ENCRYPT))
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	ret = crypto_register_alg(&des_alg);
 	if (ret)

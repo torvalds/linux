@@ -41,15 +41,19 @@
 
 /* PLL registers */
 #define CSCR   __REG(IMX_PLL_BASE)        /* Clock Source Control Register */
-#define CSCR_SYSTEM_SEL (1<<16)
+#define CSCR_SPLL_RESTART	(1<<22)
+#define CSCR_MPLL_RESTART	(1<<21)
+#define CSCR_SYSTEM_SEL		(1<<16)
+#define CSCR_BCLK_DIV		(0xf<<10)
+#define CSCR_MPU_PRESC		(1<<15)
+#define CSCR_SPEN		(1<<1)
+#define CSCR_MPEN		(1<<0)
 
 #define MPCTL0 __REG(IMX_PLL_BASE + 0x4)  /* MCU PLL Control Register 0 */
 #define MPCTL1 __REG(IMX_PLL_BASE + 0x8)  /* MCU PLL and System Clock Register 1 */
 #define SPCTL0 __REG(IMX_PLL_BASE + 0xc)  /* System PLL Control Register 0 */
 #define SPCTL1 __REG(IMX_PLL_BASE + 0x10) /* System PLL Control Register 1 */
 #define PCDR   __REG(IMX_PLL_BASE + 0x20) /* Peripheral Clock Divider Register */
-
-#define CSCR_MPLL_RESTART (1<<21)
 
 /*
  *  GPIO Module and I/O Multiplexer

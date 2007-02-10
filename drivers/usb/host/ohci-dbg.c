@@ -16,7 +16,7 @@
 	case PIPE_CONTROL:	temp = "ctrl"; break; \
 	case PIPE_BULK:		temp = "bulk"; break; \
 	case PIPE_INTERRUPT:	temp = "intr"; break; \
-	default: 		temp = "isoc"; break; \
+	default:		temp = "isoc"; break; \
 	}; temp;})
 #define pipestring(pipe) edstring(usb_pipetype(pipe))
 
@@ -205,13 +205,13 @@ ohci_dump_status (struct ohci_hcd *controller, char **next, unsigned *size)
 		(temp & RH_PS_PSSC) ? " PSSC" : "", \
 		(temp & RH_PS_PESC) ? " PESC" : "", \
 		(temp & RH_PS_CSC) ? " CSC" : "", \
- 		\
+		\
 		(temp & RH_PS_LSDA) ? " LSDA" : "", \
 		(temp & RH_PS_PPS) ? " PPS" : "", \
 		(temp & RH_PS_PRS) ? " PRS" : "", \
 		(temp & RH_PS_POCI) ? " POCI" : "", \
 		(temp & RH_PS_PSS) ? " PSS" : "", \
- 		\
+		\
 		(temp & RH_PS_PES) ? " PES" : "", \
 		(temp & RH_PS_CCS) ? " CCS" : "" \
 		);
@@ -563,7 +563,7 @@ show_periodic (struct class_device *class_dev, char *buf)
 					(info & ED_SKIP) ? " K" : "",
 					(ed->hwHeadP &
 						cpu_to_hc32(ohci, ED_H)) ?
- 							" H" : "");
+							" H" : "");
 				size -= temp;
 				next += temp;
 

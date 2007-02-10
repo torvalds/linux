@@ -606,9 +606,9 @@ static int iiDownloadAll(i2eBordStrPtr, loadHdrStrPtr, int, int);
 // code and returning.
 //
 #define COMPLETE(pB,code) \
-	if(1){ \
+	do { \
 		 pB->i2eError = code; \
 		 return (code == I2EE_GOOD);\
-	}
+	} while (0)
 
 #endif   // I2ELLIS_H

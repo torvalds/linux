@@ -42,14 +42,11 @@
 #endif
 
 /* Will / Can the user give input?
- * Val Henson has requested that Gemini doesn't wait for the
- * user to edit the cmdline or not.
  */
 #if (defined(CONFIG_SERIAL_8250_CONSOLE) \
 	|| defined(CONFIG_VGA_CONSOLE) \
 	|| defined(CONFIG_SERIAL_MPC52xx_CONSOLE) \
-	|| defined(CONFIG_SERIAL_MPSC_CONSOLE)) \
-	&& !defined(CONFIG_GEMINI)
+	|| defined(CONFIG_SERIAL_MPSC_CONSOLE))
 #define INTERACTIVE_CONSOLE	1
 #endif
 
@@ -178,16 +175,6 @@ decompress_kernel(unsigned long load_addr, int num_words, unsigned long cksum)
 
 	if (keyb_present)
 		CRT_tstc();  /* Forces keyboard to be initialized */
-#ifdef CONFIG_GEMINI
-	/*
-	 * If cmd_line is empty and cmd_preset is not, copy cmd_preset
-	 * to cmd_line.  This way we can override cmd_preset with the
-	 * command line from Smon.
-	 */
-
-	if ( (cmd_line[0] == '\0') && (cmd_preset[0] != '\0'))
-		memcpy (cmd_line, cmd_preset, sizeof(cmd_preset));
-#endif
 
 	/* Display standard Linux/PPC boot prompt for kernel args */
 	puts("\nLinux/PPC load: ");

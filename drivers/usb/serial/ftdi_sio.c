@@ -452,6 +452,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, LINX_FUTURE_2_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_CCSICDU20_0_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_CCSICDU40_1_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_CCSMACHX_2_PID) },
 	{ USB_DEVICE(FTDI_VID, INSIDE_ACCESSO) },
 	{ USB_DEVICE(INTREPID_VID, INTREPID_VALUECAN_PID) },
 	{ USB_DEVICE(INTREPID_VID, INTREPID_NEOVI_PID) },
@@ -463,7 +464,6 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(BANDB_VID, BANDB_USTL4_PID) },
 	{ USB_DEVICE(BANDB_VID, BANDB_USO9ML2_PID) },
 	{ USB_DEVICE(FTDI_VID, EVER_ECO_PRO_CDS) },
-	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_0_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_1_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_2_PID) },
 	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_0_PID) },
@@ -595,7 +595,7 @@ static int  ftdi_chars_in_buffer	(struct usb_serial_port *port);
 static void ftdi_write_bulk_callback	(struct urb *urb);
 static void ftdi_read_bulk_callback	(struct urb *urb);
 static void ftdi_process_read		(struct work_struct *work);
-static void ftdi_set_termios		(struct usb_serial_port *port, struct termios * old);
+static void ftdi_set_termios		(struct usb_serial_port *port, struct ktermios * old);
 static int  ftdi_tiocmget               (struct usb_serial_port *port, struct file *file);
 static int  ftdi_tiocmset		(struct usb_serial_port *port, struct file * file, unsigned int set, unsigned int clear);
 static int  ftdi_ioctl			(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
@@ -614,6 +614,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 		.name =		"ftdi_sio",
 	},
 	.description =		"FTDI USB Serial Device",
+	.usb_driver = 		&ftdi_driver ,
 	.id_table =		id_table_combined,
 	.num_interrupt_in =	0,
 	.num_bulk_in =		1,
@@ -1880,7 +1881,7 @@ static void ftdi_break_ctl( struct usb_serial_port *port, int break_state )
  * WARNING: set_termios calls this with old_termios in kernel space
  */
 
-static void ftdi_set_termios (struct usb_serial_port *port, struct termios *old_termios)
+static void ftdi_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 { /* ftdi_termios */
 	struct usb_device *dev = port->serial->dev;
 	unsigned int cflag = port->tty->termios->c_cflag;

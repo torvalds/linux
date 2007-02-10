@@ -6,6 +6,7 @@ obj-$(CONFIG_INFINIBAND_IPATH) += ib_ipath.o
 ib_ipath-y := \
 	ipath_cq.o \
 	ipath_diag.o \
+	ipath_dma.o \
 	ipath_driver.o \
 	ipath_eeprom.o \
 	ipath_file_ops.o \

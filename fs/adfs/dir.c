@@ -28,7 +28,7 @@ static DEFINE_RWLOCK(adfs_dir_lock);
 static int
 adfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct super_block *sb = inode->i_sb;
 	struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
 	struct object_info obj;

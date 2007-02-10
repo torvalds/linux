@@ -6,8 +6,8 @@ menu "IP: Netfilter Configuration"
 	depends on INET && NETFILTER
 
 config NF_CONNTRACK_IPV4
-	tristate "IPv4 connection tracking support (required for NAT) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && NF_CONNTRACK
+	tristate "IPv4 connection tracking support (required for NAT)"
+	depends on NF_CONNTRACK
 	---help---
 	  Connection tracking keeps a record of what packets have passed
 	  through your machine, in order to figure out how they are related
@@ -361,32 +361,6 @@ config IP_NF_TARGET_ULOG
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_TARGET_TCPMSS
-	tristate "TCPMSS target support"
-	depends on IP_NF_IPTABLES
-	---help---
-	  This option adds a `TCPMSS' target, which allows you to alter the
-	  MSS value of TCP SYN packets, to control the maximum size for that
-	  connection (usually limiting it to your outgoing interface's MTU
-	  minus 40).
-
-	  This is used to overcome criminally braindead ISPs or servers which
-	  block ICMP Fragmentation Needed packets.  The symptoms of this
-	  problem are that everything works fine from your Linux
-	  firewall/router, but machines behind it can never exchange large
-	  packets:
-	  	1) Web browsers connect, then hang with no data received.
-	  	2) Small mail works fine, but large emails hang.
-	  	3) ssh works fine, but scp hangs after initial handshaking.
-
-	  Workaround: activate this option and add a rule to your firewall
-	  configuration like:
-
-	  iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN \
-	  		 -j TCPMSS --clamp-mss-to-pmtu
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 # NAT + specific targets: ip_conntrack
 config IP_NF_NAT
 	tristate "Full NAT"
@@ -401,7 +375,7 @@ config IP_NF_NAT
 # NAT + specific targets: nf_conntrack
 config NF_NAT
 	tristate "Full NAT"
-	depends on IP_NF_IPTABLES && NF_CONNTRACK
+	depends on IP_NF_IPTABLES && NF_CONNTRACK_IPV4
 	help
 	  The Full NAT option allows masquerading, port forwarding and other
 	  forms of full Network Address Port Translation.  It is controlled by

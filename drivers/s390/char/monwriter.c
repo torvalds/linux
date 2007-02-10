@@ -23,7 +23,7 @@
 #include <asm/appldata.h>
 #include <asm/monwriter.h>
 
-#define MONWRITE_MAX_DATALEN	4024
+#define MONWRITE_MAX_DATALEN	4010
 
 static int mon_max_bufs = 255;
 static int mon_buf_count;
@@ -67,8 +67,8 @@ static int monwrite_diag(struct monwrite_hdr *myhdr, char *buffer, int fcn)
 	return -EINVAL;
 }
 
-static inline struct mon_buf *monwrite_find_hdr(struct mon_private *monpriv,
-						struct monwrite_hdr *monhdr)
+static struct mon_buf *monwrite_find_hdr(struct mon_private *monpriv,
+					 struct monwrite_hdr *monhdr)
 {
 	struct mon_buf *entry, *next;
 

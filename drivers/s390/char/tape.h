@@ -3,7 +3,7 @@
  *    tape device driver for 3480/3490E/3590 tapes.
  *
  *  S390 and zSeries version
- *    Copyright (C) 2001,2005 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2001,2006
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *		 Tuan Ngo-Anh <ngoanh@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -99,7 +99,11 @@ enum tape_op {
 	TO_DIS,		/* Tape display */
 	TO_ASSIGN,	/* Assign tape to channel path */
 	TO_UNASSIGN,	/* Unassign tape from channel path */
-	TO_SIZE		/* #entries in tape_op_t */
+	TO_CRYPT_ON,	/* Enable encrpytion */
+	TO_CRYPT_OFF,	/* Disable encrpytion */
+	TO_KEKL_SET,	/* Set KEK label */
+	TO_KEKL_QUERY,	/* Query KEK label */
+	TO_SIZE,	/* #entries in tape_op_t */
 };
 
 /* Forward declaration */
@@ -112,6 +116,7 @@ enum tape_request_status {
 	TAPE_REQUEST_IN_IO,	/* request is currently in IO */
 	TAPE_REQUEST_DONE,	/* request is completed. */
 	TAPE_REQUEST_CANCEL,	/* request should be canceled. */
+	TAPE_REQUEST_LONG_BUSY, /* request has to be restarted after long busy */
 };
 
 /* Tape CCW request */
@@ -164,10 +169,11 @@ struct tape_discipline {
  * The discipline irq function either returns an error code (<0) which
  * means that the request has failed with an error or one of the following:
  */
-#define TAPE_IO_SUCCESS 0	/* request successful */
-#define TAPE_IO_PENDING 1	/* request still running */
-#define TAPE_IO_RETRY	2	/* retry to current request */
-#define TAPE_IO_STOP	3	/* stop the running request */
+#define TAPE_IO_SUCCESS		0	/* request successful */
+#define TAPE_IO_PENDING		1	/* request still running */
+#define TAPE_IO_RETRY		2	/* retry to current request */
+#define TAPE_IO_STOP		3	/* stop the running request */
+#define TAPE_IO_LONG_BUSY	4	/* delay the running request */
 
 /* Char Frontend Data */
 struct tape_char_data {
@@ -179,6 +185,7 @@ struct tape_char_data {
 /* Block Frontend Data */
 struct tape_blk_data
 {
+	struct tape_device *	device;
 	/* Block device request queue. */
 	request_queue_t *	request_queue;
 	spinlock_t		request_queue_lock;
@@ -240,7 +247,11 @@ struct tape_device {
 #endif
 
 	/* Function to start or stop the next request later. */
-	struct work_struct		tape_dnr;
+	struct delayed_work		tape_dnr;
+
+	/* Timer for long busy */
+	struct timer_list		lb_timeout;
+
 };
 
 /* Externals from tape_core.c */

@@ -303,5 +303,8 @@ int main(void)
 	DEFINE(NSEC_PER_SEC, NSEC_PER_SEC);
 	DEFINE(CLOCK_REALTIME_RES, TICK_NSEC);
 
+#ifdef CONFIG_BUG
+	DEFINE(BUG_ENTRY_SIZE, sizeof(struct bug_entry));
+#endif
 	return 0;
 }

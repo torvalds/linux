@@ -265,14 +265,18 @@ static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status);
 static int velocity_suspend(struct pci_dev *pdev, pm_message_t state);
 static int velocity_resume(struct pci_dev *pdev);
 
+static DEFINE_SPINLOCK(velocity_dev_list_lock);
+static LIST_HEAD(velocity_dev_list);
+
+#endif
+
+#if defined(CONFIG_PM) && defined(CONFIG_INET)
+
 static int velocity_netdev_event(struct notifier_block *nb, unsigned long notification, void *ptr);
 
 static struct notifier_block velocity_inetaddr_notifier = {
       .notifier_call	= velocity_netdev_event,
 };
-
-static DEFINE_SPINLOCK(velocity_dev_list_lock);
-static LIST_HEAD(velocity_dev_list);
 
 static void velocity_register_notifier(void)
 {
@@ -284,12 +288,12 @@ static void velocity_unregister_notifier(void)
 	unregister_inetaddr_notifier(&velocity_inetaddr_notifier);
 }
 
-#else				/* CONFIG_PM */
+#else
 
 #define velocity_register_notifier()	do {} while (0)
 #define velocity_unregister_notifier()	do {} while (0)
 
-#endif				/* !CONFIG_PM */
+#endif
 
 /*
  *	Internal board variants. At the moment we have only one
@@ -3132,7 +3136,7 @@ static u16 wol_calc_crc(int size, u8 * pattern, u8 *mask_pattern)
 	}
 	/*	Finally, invert the result once to get the correct data */
 	crc = ~crc;
-	return bitreverse(crc) >> 16;
+	return bitrev32(crc) >> 16;
 }
 
 /**
@@ -3292,6 +3296,8 @@ static int velocity_resume(struct pci_dev *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_INET
+
 static int velocity_netdev_event(struct notifier_block *nb, unsigned long notification, void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *) ptr;
@@ -3312,4 +3318,6 @@ static int velocity_netdev_event(struct notifier_block *nb, unsigned long notifi
 	}
 	return NOTIFY_DONE;
 }
+
+#endif
 #endif

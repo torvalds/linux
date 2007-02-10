@@ -1443,14 +1443,9 @@ static void ata_eh_report(struct ata_port *ap)
 		};
 		struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
 		struct ata_taskfile *cmd = &qc->tf, *res = &qc->result_tf;
-		unsigned int nbytes;
 
 		if (!(qc->flags & ATA_QCFLAG_FAILED) || !qc->err_mask)
 			continue;
-
-		nbytes = qc->nbytes;
-		if (!nbytes)
-			nbytes = qc->nsect << 9;
 
 		ata_dev_printk(qc->dev, KERN_ERR,
 			"cmd %02x/%02x:%02x:%02x:%02x:%02x/%02x:%02x:%02x:%02x:%02x/%02x "
@@ -1461,7 +1456,7 @@ static void ata_eh_report(struct ata_port *ap)
 			cmd->lbal, cmd->lbam, cmd->lbah,
 			cmd->hob_feature, cmd->hob_nsect,
 			cmd->hob_lbal, cmd->hob_lbam, cmd->hob_lbah,
-			cmd->device, qc->tag, qc->cdb[0], nbytes,
+			cmd->device, qc->tag, qc->cdb[0], qc->nbytes,
 			dma_str[qc->dma_dir],
 			res->command, res->feature, res->nsect,
 			res->lbal, res->lbam, res->lbah,
@@ -1796,7 +1791,7 @@ static int ata_eh_suspend(struct ata_port *ap, struct ata_device **r_failed_dev)
 		*r_failed_dev = dev;
 
 	DPRINTK("EXIT\n");
-	return 0;
+	return rc;
 }
 
 /**
@@ -1978,6 +1973,10 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		dev = &ap->device[i];
 
 		ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
+
+		/* collect port action mask recorded in dev actions */
+		ehc->i.action |= ehc->i.dev_action[i] & ~ATA_EH_PERDEV_MASK;
+		ehc->i.dev_action[i] &= ATA_EH_PERDEV_MASK;
 
 		/* process hotplug request */
 		if (dev->flags & ATA_DFLAG_DETACH)

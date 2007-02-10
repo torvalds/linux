@@ -43,7 +43,7 @@
 #include <asm/unaligned.h>
 #include <asm/uaccess.h>
 
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb_gadget.h>
 
@@ -200,7 +200,7 @@ static void gs_unthrottle(struct tty_struct * tty);
 static void gs_break(struct tty_struct *tty, int break_state);
 static int  gs_ioctl(struct tty_struct *tty, struct file *file,
 	unsigned int cmd, unsigned long arg);
-static void gs_set_termios(struct tty_struct *tty, struct termios *old);
+static void gs_set_termios(struct tty_struct *tty, struct ktermios *old);
 
 static int gs_send(struct gs_dev *dev);
 static int gs_send_packet(struct gs_dev *dev, char *packet,
@@ -296,7 +296,7 @@ static struct usb_gadget_driver gs_gadget_driver = {
 #endif /* CONFIG_USB_GADGET_DUALSPEED */
 	.function =		GS_LONG_NAME,
 	.bind =			gs_bind,
-	.unbind =		__exit_p(gs_unbind),
+	.unbind =		gs_unbind,
 	.setup =		gs_setup,
 	.disconnect =		gs_disconnect,
 	.driver = {
@@ -1077,7 +1077,7 @@ static int gs_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd,
 /*
  * gs_set_termios
  */
-static void gs_set_termios(struct tty_struct *tty, struct termios *old)
+static void gs_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 }
 
@@ -2195,7 +2195,7 @@ static struct gs_buf *gs_buf_alloc(unsigned int size, gfp_t kmalloc_flags)
 	if (size == 0)
 		return NULL;
 
-	gb = (struct gs_buf *)kmalloc(sizeof(struct gs_buf), kmalloc_flags);
+	gb = kmalloc(sizeof(struct gs_buf), kmalloc_flags);
 	if (gb == NULL)
 		return NULL;
 

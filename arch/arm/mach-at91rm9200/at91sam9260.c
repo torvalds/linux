@@ -16,6 +16,7 @@
 #include <asm/mach/map.h>
 #include <asm/arch/at91sam9260.h>
 #include <asm/arch/at91_pmc.h>
+#include <asm/arch/at91_rstc.h>
 
 #include "generic.h"
 #include "clock.h"
@@ -212,7 +213,7 @@ static struct at91_gpio_bank at91sam9260_gpio[] = {
 
 static void at91sam9260_reset(void)
 {
-#warning "Implement CPU reset"
+	at91_sys_write(AT91_RSTC_CR, (0xA5 << 24) | AT91_RSTC_PROCRST | AT91_RSTC_PERRST);
 }
 
 

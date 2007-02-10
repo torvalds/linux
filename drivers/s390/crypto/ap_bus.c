@@ -33,6 +33,7 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <asm/s390_rdev.h>
+#include <asm/reset.h>
 
 #include "ap_bus.h"
 
@@ -464,7 +465,7 @@ static int ap_device_probe(struct device *dev)
  * Flush all requests from the request/pending queue of an AP device.
  * @ap_dev: pointer to the AP device.
  */
-static inline void __ap_flush_queue(struct ap_device *ap_dev)
+static void __ap_flush_queue(struct ap_device *ap_dev)
 {
 	struct ap_message *ap_msg, *next;
 
@@ -586,7 +587,7 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 /**
  * Pick one of the 16 ap domains.
  */
-static inline int ap_select_domain(void)
+static int ap_select_domain(void)
 {
 	int queue_depth, device_type, count, max_count, best_domain;
 	int rc, i, j;
@@ -824,7 +825,7 @@ static inline void ap_schedule_poll_timer(void)
  *	   required, bit 2^1 is set if the poll timer needs to get armed
  * Returns 0 if the device is still present, -ENODEV if not.
  */
-static inline int ap_poll_read(struct ap_device *ap_dev, unsigned long *flags)
+static int ap_poll_read(struct ap_device *ap_dev, unsigned long *flags)
 {
 	struct ap_queue_status status;
 	struct ap_message *ap_msg;
@@ -871,7 +872,7 @@ static inline int ap_poll_read(struct ap_device *ap_dev, unsigned long *flags)
  *	   required, bit 2^1 is set if the poll timer needs to get armed
  * Returns 0 if the device is still present, -ENODEV if not.
  */
-static inline int ap_poll_write(struct ap_device *ap_dev, unsigned long *flags)
+static int ap_poll_write(struct ap_device *ap_dev, unsigned long *flags)
 {
 	struct ap_queue_status status;
 	struct ap_message *ap_msg;
@@ -1128,6 +1129,27 @@ static void ap_poll_thread_stop(void)
 	mutex_unlock(&ap_poll_thread_mutex);
 }
 
+static void ap_reset_domain(void)
+{
+	int i;
+
+	for (i = 0; i < AP_DEVICES; i++)
+		ap_reset_queue(AP_MKQID(i, ap_domain_index));
+}
+
+static void ap_reset_all(void)
+{
+	int i, j;
+
+	for (i = 0; i < AP_DOMAINS; i++)
+		for (j = 0; j < AP_DEVICES; j++)
+			ap_reset_queue(AP_MKQID(j, i));
+}
+
+static struct reset_call ap_reset_call = {
+	.fn = ap_reset_all,
+};
+
 /**
  * The module initialization code.
  */
@@ -1144,6 +1166,7 @@ int __init ap_module_init(void)
 		printk(KERN_WARNING "AP instructions not installed.\n");
 		return -ENODEV;
 	}
+	register_reset_call(&ap_reset_call);
 
 	/* Create /sys/bus/ap. */
 	rc = bus_register(&ap_bus_type);
@@ -1197,6 +1220,7 @@ out_bus:
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
 	bus_unregister(&ap_bus_type);
 out:
+	unregister_reset_call(&ap_reset_call);
 	return rc;
 }
 
@@ -1213,10 +1237,12 @@ void ap_module_exit(void)
 	int i;
 	struct device *dev;
 
+	ap_reset_domain();
 	ap_poll_thread_stop();
 	del_timer_sync(&ap_config_timer);
 	del_timer_sync(&ap_poll_timer);
 	destroy_workqueue(ap_work_queue);
+	tasklet_kill(&ap_tasklet);
 	s390_root_dev_unregister(ap_root_device);
 	while ((dev = bus_find_device(&ap_bus_type, NULL, NULL,
 		    __ap_match_all)))
@@ -1227,6 +1253,7 @@ void ap_module_exit(void)
 	for (i = 0; ap_bus_attrs[i]; i++)
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
 	bus_unregister(&ap_bus_type);
+	unregister_reset_call(&ap_reset_call);
 }
 
 #ifndef CONFIG_ZCRYPT_MONOLITHIC

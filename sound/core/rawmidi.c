@@ -61,14 +61,11 @@ static DEFINE_MUTEX(register_mutex);
 
 static struct snd_rawmidi *snd_rawmidi_search(struct snd_card *card, int device)
 {
-	struct list_head *p;
 	struct snd_rawmidi *rawmidi;
 
-	list_for_each(p, &snd_rawmidi_devices) {
-		rawmidi = list_entry(p, struct snd_rawmidi, list);
+	list_for_each_entry(rawmidi, &snd_rawmidi_devices, list)
 		if (rawmidi->card == card && rawmidi->device == device)
 			return rawmidi;
-	}
 	return NULL;
 }
 
@@ -389,7 +386,6 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_file *rawmidi_file;
 	wait_queue_t wait;
-	struct list_head *list;
 	struct snd_ctl_file *kctl;
 
 	if (maj == snd_major) {
@@ -426,8 +422,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	while (1) {
 		subdevice = -1;
 		down_read(&card->controls_rwsem);
-		list_for_each(list, &card->ctl_files) {
-			kctl = snd_ctl_file(list);
+		list_for_each_entry(kctl, &card->ctl_files, list) {
 			if (kctl->pid == current->pid) {
 				subdevice = kctl->prefer_rawmidi_subdevice;
 				if (subdevice != -1)
@@ -575,7 +570,6 @@ int snd_rawmidi_info_select(struct snd_card *card, struct snd_rawmidi_info *info
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_str *pstr;
 	struct snd_rawmidi_substream *substream;
-	struct list_head *list;
 
 	mutex_lock(&register_mutex);
 	rmidi = snd_rawmidi_search(card, info->device);
@@ -589,8 +583,7 @@ int snd_rawmidi_info_select(struct snd_card *card, struct snd_rawmidi_info *info
 		return -ENOENT;
 	if (info->subdevice >= pstr->substream_count)
 		return -ENXIO;
-	list_for_each(list, &pstr->substreams) {
-		substream = list_entry(list, struct snd_rawmidi_substream, list);
+	list_for_each_entry(substream, &pstr->substreams, list) {
 		if ((unsigned int)substream->number == info->subdevice)
 			return snd_rawmidi_info(substream, info);
 	}
@@ -1313,14 +1306,14 @@ static void snd_rawmidi_proc_info_read(struct snd_info_entry *entry,
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_substream *substream;
 	struct snd_rawmidi_runtime *runtime;
-	struct list_head *list;
 
 	rmidi = entry->private_data;
 	snd_iprintf(buffer, "%s\n\n", rmidi->name);
 	mutex_lock(&rmidi->open_mutex);
 	if (rmidi->info_flags & SNDRV_RAWMIDI_INFO_OUTPUT) {
-		list_for_each(list, &rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substreams) {
-			substream = list_entry(list, struct snd_rawmidi_substream, list);
+		list_for_each_entry(substream,
+				    &rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substreams,
+				    list) {
 			snd_iprintf(buffer,
 				    "Output %d\n"
 				    "  Tx bytes     : %lu\n",
@@ -1339,8 +1332,9 @@ static void snd_rawmidi_proc_info_read(struct snd_info_entry *entry,
 		}
 	}
 	if (rmidi->info_flags & SNDRV_RAWMIDI_INFO_INPUT) {
-		list_for_each(list, &rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substreams) {
-			substream = list_entry(list, struct snd_rawmidi_substream, list);
+		list_for_each_entry(substream,
+				    &rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substreams,
+				    list) {
 			snd_iprintf(buffer,
 				    "Input %d\n"
 				    "  Rx bytes     : %lu\n",
@@ -1385,7 +1379,6 @@ static int snd_rawmidi_alloc_substreams(struct snd_rawmidi *rmidi,
 	struct snd_rawmidi_substream *substream;
 	int idx;
 
-	INIT_LIST_HEAD(&stream->substreams);
 	for (idx = 0; idx < count; idx++) {
 		substream = kzalloc(sizeof(*substream), GFP_KERNEL);
 		if (substream == NULL) {
@@ -1440,6 +1433,9 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 	rmidi->device = device;
 	mutex_init(&rmidi->open_mutex);
 	init_waitqueue_head(&rmidi->open_wait);
+	INIT_LIST_HEAD(&rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substreams);
+	INIT_LIST_HEAD(&rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substreams);
+
 	if (id != NULL)
 		strlcpy(rmidi->id, id, sizeof(rmidi->id));
 	if ((err = snd_rawmidi_alloc_substreams(rmidi,
@@ -1623,13 +1619,10 @@ static int snd_rawmidi_dev_disconnect(struct snd_device *device)
 void snd_rawmidi_set_ops(struct snd_rawmidi *rmidi, int stream,
 			 struct snd_rawmidi_ops *ops)
 {
-	struct list_head *list;
 	struct snd_rawmidi_substream *substream;
 	
-	list_for_each(list, &rmidi->streams[stream].substreams) {
-		substream = list_entry(list, struct snd_rawmidi_substream, list);
+	list_for_each_entry(substream, &rmidi->streams[stream].substreams, list)
 		substream->ops = ops;
-	}
 }
 
 /*

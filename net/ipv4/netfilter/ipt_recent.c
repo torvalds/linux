@@ -12,6 +12,7 @@
  * Copyright 2002-2003, Stephen Frost, 2.5.x port by laforge@netfilter.org
  */
 #include <linux/init.h>
+#include <linux/ip.h>
 #include <linux/moduleparam.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -24,7 +25,7 @@
 #include <linux/skbuff.h>
 #include <linux/inet.h>
 
-#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ipt_recent.h>
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
@@ -401,7 +402,7 @@ static int recent_seq_open(struct inode *inode, struct file *file)
 static ssize_t recent_proc_write(struct file *file, const char __user *input,
 				 size_t size, loff_t *loff)
 {
-	struct proc_dir_entry *pde = PDE(file->f_dentry->d_inode);
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	struct recent_table *t = pde->data;
 	struct recent_entry *e;
 	char buf[sizeof("+255.255.255.255")], *c = buf;
@@ -462,8 +463,9 @@ static struct file_operations recent_fops = {
 };
 #endif /* CONFIG_PROC_FS */
 
-static struct ipt_match recent_match = {
+static struct xt_match recent_match = {
 	.name		= "recent",
+	.family		= AF_INET,
 	.match		= ipt_recent_match,
 	.matchsize	= sizeof(struct ipt_recent_info),
 	.checkentry	= ipt_recent_checkentry,
@@ -479,13 +481,13 @@ static int __init ipt_recent_init(void)
 		return -EINVAL;
 	ip_list_hash_size = 1 << fls(ip_list_tot);
 
-	err = ipt_register_match(&recent_match);
+	err = xt_register_match(&recent_match);
 #ifdef CONFIG_PROC_FS
 	if (err)
 		return err;
 	proc_dir = proc_mkdir("ipt_recent", proc_net);
 	if (proc_dir == NULL) {
-		ipt_unregister_match(&recent_match);
+		xt_unregister_match(&recent_match);
 		err = -ENOMEM;
 	}
 #endif
@@ -495,7 +497,7 @@ static int __init ipt_recent_init(void)
 static void __exit ipt_recent_exit(void)
 {
 	BUG_ON(!list_empty(&tables));
-	ipt_unregister_match(&recent_match);
+	xt_unregister_match(&recent_match);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("ipt_recent", proc_net);
 #endif

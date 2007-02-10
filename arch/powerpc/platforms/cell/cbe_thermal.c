@@ -115,6 +115,7 @@ static struct sysdev_attribute attr_spu_temperature = {
 
 static struct attribute *spu_attributes[] = {
 	&attr_spu_temperature.attr,
+	NULL,
 };
 
 static struct attribute_group spu_attribute_group = {
@@ -135,6 +136,7 @@ static struct sysdev_attribute attr_ppe_temperature1 = {
 static struct attribute *ppe_attributes[] = {
 	&attr_ppe_temperature0.attr,
 	&attr_ppe_temperature1.attr,
+	NULL,
 };
 
 static struct attribute_group ppe_attribute_group = {

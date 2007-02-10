@@ -1,7 +1,7 @@
 /*
     hwmon-vid.c - VID/VRM/VRD voltage conversions
 
-    Copyright (c) 2004 Rudolf Marek <r.marek@sh.cvut.cz>
+    Copyright (c) 2004 Rudolf Marek <r.marek@assembler.cz>
 
     Partly imported from i2c-vid.h of the lm_sensors project
     Copyright (c) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
@@ -93,7 +93,7 @@ int vid_from_reg(int val, u8 vrm)
 	case 110:		/* Intel Conroe */
 				/* compute in uV, round to mV */
 		val &= 0xff;
-		if(((val & 0x7e) == 0xfe) || (!(val & 0x7e)))
+		if (val < 0x02 || val > 0xb2)
 			return 0;
 		return((1600000 - (val - 2) * 6250 + 500) / 1000);
 	case 24:                /* Opteron processor */
@@ -232,7 +232,7 @@ u8 vid_which_vrm(void)
 EXPORT_SYMBOL(vid_from_reg);
 EXPORT_SYMBOL(vid_which_vrm);
 
-MODULE_AUTHOR("Rudolf Marek <r.marek@sh.cvut.cz>");
+MODULE_AUTHOR("Rudolf Marek <r.marek@assembler.cz>");
 
 MODULE_DESCRIPTION("hwmon-vid driver");
 MODULE_LICENSE("GPL");

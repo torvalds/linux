@@ -434,7 +434,7 @@ void free_swap_and_cache(swp_entry_t entry)
  *
  * This is needed for the suspend to disk (aka swsusp).
  */
-int swap_type_of(dev_t device, sector_t offset)
+int swap_type_of(dev_t device, sector_t offset, struct block_device **bdev_p)
 {
 	struct block_device *bdev = NULL;
 	int i;
@@ -450,6 +450,9 @@ int swap_type_of(dev_t device, sector_t offset)
 			continue;
 
 		if (!bdev) {
+			if (bdev_p)
+				*bdev_p = sis->bdev;
+
 			spin_unlock(&swap_lock);
 			return i;
 		}
@@ -459,6 +462,9 @@ int swap_type_of(dev_t device, sector_t offset)
 			se = list_entry(sis->extent_list.next,
 					struct swap_extent, list);
 			if (se->start_block == offset) {
+				if (bdev_p)
+					*bdev_p = sis->bdev;
+
 				spin_unlock(&swap_lock);
 				bdput(bdev);
 				return i;
@@ -1357,10 +1363,10 @@ static int swap_show(struct seq_file *swap, void *v)
 	}
 
 	file = ptr->swap_file;
-	len = seq_path(swap, file->f_vfsmnt, file->f_dentry, " \t\n\\");
+	len = seq_path(swap, file->f_path.mnt, file->f_path.dentry, " \t\n\\");
 	seq_printf(swap, "%*s%s\t%u\t%u\t%d\n",
 		       len < 40 ? 40 - len : 1, " ",
-		       S_ISBLK(file->f_dentry->d_inode->i_mode) ?
+		       S_ISBLK(file->f_path.dentry->d_inode->i_mode) ?
 				"partition" : "file\t",
 		       ptr->pages << (PAGE_SHIFT - 10),
 		       ptr->inuse_pages << (PAGE_SHIFT - 10),

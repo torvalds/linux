@@ -498,7 +498,7 @@ static unsigned long get_cmos_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
 	unsigned long flags;
-	unsigned extyear = 0;
+	unsigned century = 0;
 
 	spin_lock_irqsave(&rtc_lock, flags);
 
@@ -510,9 +510,9 @@ static unsigned long get_cmos_time(void)
 		mon = CMOS_READ(RTC_MONTH);
 		year = CMOS_READ(RTC_YEAR);
 #ifdef CONFIG_ACPI
-		if (acpi_fadt.revision >= FADT2_REVISION_ID &&
-					acpi_fadt.century)
-			extyear = CMOS_READ(acpi_fadt.century);
+		if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID &&
+					acpi_gbl_FADT.century)
+			century = CMOS_READ(acpi_gbl_FADT.century);
 #endif
 	} while (sec != CMOS_READ(RTC_SECONDS));
 
@@ -530,10 +530,10 @@ static unsigned long get_cmos_time(void)
 	BCD_TO_BIN(mon);
 	BCD_TO_BIN(year);
 
-	if (extyear) {
-		BCD_TO_BIN(extyear);
-		year += extyear;
-		printk(KERN_INFO "Extended CMOS year: %d\n", extyear);
+	if (century) {
+		BCD_TO_BIN(century);
+		year += century * 100;
+		printk(KERN_INFO "Extended CMOS year: %d\n", century * 100);
 	} else { 
 		/*
 		 * x86-64 systems only exists since 2002.
@@ -656,6 +656,25 @@ core_initcall(cpufreq_tsc);
  */
 
 #define TICK_COUNT 100000000
+#define TICK_MIN   5000
+
+/*
+ * Some platforms take periodic SMI interrupts with 5ms duration. Make sure none
+ * occurs between the reads of the hpet & TSC.
+ */
+static void __init read_hpet_tsc(int *hpet, int *tsc)
+{
+	int tsc1, tsc2, hpet1;
+
+	do {
+		tsc1 = get_cycles_sync();
+		hpet1 = hpet_readl(HPET_COUNTER);
+		tsc2 = get_cycles_sync();
+	} while (tsc2 - tsc1 > TICK_MIN);
+	*hpet = hpet1;
+	*tsc = tsc2;
+}
+
 
 static unsigned int __init hpet_calibrate_tsc(void)
 {
@@ -666,13 +685,11 @@ static unsigned int __init hpet_calibrate_tsc(void)
 	local_irq_save(flags);
 	local_irq_disable();
 
-	hpet_start = hpet_readl(HPET_COUNTER);
-	rdtscl(tsc_start);
+	read_hpet_tsc(&hpet_start, &tsc_start);
 
 	do {
 		local_irq_disable();
-		hpet_now = hpet_readl(HPET_COUNTER);
-		tsc_now = get_cycles_sync();
+		read_hpet_tsc(&hpet_now, &tsc_now);
 		local_irq_restore(flags);
 	} while ((tsc_now - tsc_start) < TICK_COUNT &&
 		 (hpet_now - hpet_start) < TICK_COUNT);
@@ -937,7 +954,7 @@ __cpuinit int unsynchronized_tsc(void)
  	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
 #ifdef CONFIG_ACPI
 		/* But TSC doesn't tick in C3 so don't use it there */
-		if (acpi_fadt.length > 0 && acpi_fadt.plvl3_lat < 1000)
+		if (acpi_gbl_FADT.header.length > 0 && acpi_gbl_FADT.C3latency < 1000)
 			return 1;
 #endif
  		return 0;

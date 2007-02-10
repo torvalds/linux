@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt3x2n"
-#define DRV_VERSION	"0.3"
+#define DRV_VERSION	"0.3.2"
 
 enum {
 	HPT_PCI_FAST	=	(1 << 31),
@@ -263,26 +263,26 @@ static void hpt3x2n_bmdma_stop(struct ata_queued_cmd *qc)
 
 static void hpt3x2n_set_clock(struct ata_port *ap, int source)
 {
-	unsigned long bmdma = ap->ioaddr.bmdma_addr;
+	void __iomem *bmdma = ap->ioaddr.bmdma_addr;
 
 	/* Tristate the bus */
-	outb(0x80, bmdma+0x73);
-	outb(0x80, bmdma+0x77);
+	iowrite8(0x80, bmdma+0x73);
+	iowrite8(0x80, bmdma+0x77);
 
 	/* Switch clock and reset channels */
-	outb(source, bmdma+0x7B);
-	outb(0xC0, bmdma+0x79);
+	iowrite8(source, bmdma+0x7B);
+	iowrite8(0xC0, bmdma+0x79);
 
 	/* Reset state machines */
-	outb(0x37, bmdma+0x70);
-	outb(0x37, bmdma+0x74);
+	iowrite8(0x37, bmdma+0x70);
+	iowrite8(0x37, bmdma+0x74);
 
 	/* Complete reset */
-	outb(0x00, bmdma+0x79);
+	iowrite8(0x00, bmdma+0x79);
 
 	/* Reconnect channels to bus */
-	outb(0x00, bmdma+0x73);
-	outb(0x00, bmdma+0x77);
+	iowrite8(0x00, bmdma+0x73);
+	iowrite8(0x00, bmdma+0x77);
 }
 
 /* Check if our partner interface is busy */
@@ -297,11 +297,11 @@ static int hpt3x2n_pair_idle(struct ata_port *ap)
 	return 0;
 }
 
-static int hpt3x2n_use_dpll(struct ata_port *ap, int reading)
+static int hpt3x2n_use_dpll(struct ata_port *ap, int writing)
 {
 	long flags = (long)ap->host->private_data;
 	/* See if we should use the DPLL */
-	if (reading == 0)
+	if (writing)
 		return USE_DPLL;	/* Needed for write */
 	if (flags & PCI66)
 		return USE_DPLL;	/* Needed at 66Mhz */
@@ -373,14 +373,14 @@ static struct ata_port_operations hpt3x2n_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= hpt3x2n_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /**

@@ -540,8 +540,7 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 				     struct buffer_head *bh_result, int create)
 {
 	int ret;
-	u64 vbo_max; /* file offset, max_blocks from iblock */
-	u64 p_blkno;
+	u64 p_blkno, inode_blocks;
 	int contig_blocks;
 	unsigned char blocksize_bits = inode->i_sb->s_blocksize_bits;
 	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
@@ -550,12 +549,23 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	 * nicely aligned and of the right size, so there's no need
 	 * for us to check any of that. */
 
-	vbo_max = ((u64)iblock + max_blocks) << blocksize_bits;
-
 	spin_lock(&OCFS2_I(inode)->ip_lock);
-	if ((iblock + max_blocks) >
-	    ocfs2_clusters_to_blocks(inode->i_sb,
-				     OCFS2_I(inode)->ip_clusters)) {
+	inode_blocks = ocfs2_clusters_to_blocks(inode->i_sb,
+						OCFS2_I(inode)->ip_clusters);
+
+	/*
+	 * For a read which begins past the end of file, we return a hole.
+	 */
+	if (!create && (iblock >= inode_blocks)) {
+		spin_unlock(&OCFS2_I(inode)->ip_lock);
+		ret = 0;
+		goto bail;
+	}
+
+	/*
+	 * Any write past EOF is not allowed because we'd be extending.
+	 */
+	if (create && (iblock + max_blocks) > inode_blocks) {
 		spin_unlock(&OCFS2_I(inode)->ip_lock);
 		ret = -EIO;
 		goto bail;
@@ -595,7 +605,7 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
 			     ssize_t bytes,
 			     void *private)
 {
-	struct inode *inode = iocb->ki_filp->f_dentry->d_inode;
+	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
 
 	/* this io's submitter should not have unlocked this before we could */
 	BUG_ON(!ocfs2_iocb_is_rw_locked(iocb));
@@ -611,7 +621,7 @@ static ssize_t ocfs2_direct_IO(int rw,
 			       unsigned long nr_segs)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_dentry->d_inode->i_mapping->host;
+	struct inode *inode = file->f_path.dentry->d_inode->i_mapping->host;
 	int ret;
 
 	mlog_entry_void();

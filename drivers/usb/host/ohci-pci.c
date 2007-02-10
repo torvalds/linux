@@ -3,96 +3,171 @@
  *
  * (C) Copyright 1999 Roman Weissgaerber <weissg@vienna.at>
  * (C) Copyright 2000-2002 David Brownell <dbrownell@users.sourceforge.net>
- * 
+ *
  * [ Initialisation is based on Linus'  ]
  * [ uhci code and gregs ohci fragments ]
  * [ (C) Copyright 1999 Linus Torvalds  ]
  * [ (C) Copyright 1999 Gregory P. Smith]
- * 
+ *
  * PCI Bus Glue
  *
  * This file is licenced under the GPL.
  */
- 
+
 #ifndef CONFIG_PCI
 #error "This file is PCI bus glue.  CONFIG_PCI must be defined."
 #endif
 
 /*-------------------------------------------------------------------------*/
 
-static int
-ohci_pci_reset (struct usb_hcd *hcd)
+/* AMD 756, for most chips (early revs), corrupts register
+ * values on read ... so enable the vendor workaround.
+ */
+static int __devinit ohci_quirk_amd756(struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 
-	ohci_hcd_init (ohci);
-	return ohci_init (ohci);
+	ohci->flags = OHCI_QUIRK_AMD756;
+	ohci_dbg (ohci, "AMD756 erratum 4 workaround\n");
+
+	/* also erratum 10 (suspend/resume issues) */
+	device_init_wakeup(&hcd->self.root_hub->dev, 0);
+
+	return 0;
 }
 
-static int __devinit
-ohci_pci_start (struct usb_hcd *hcd)
+/* Apple's OHCI driver has a lot of bizarre workarounds
+ * for this chip.  Evidently control and bulk lists
+ * can get confused.  (B&W G3 models, and ...)
+ */
+static int __devinit ohci_quirk_opti(struct usb_hcd *hcd)
+{
+	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
+
+	ohci_dbg (ohci, "WARNING: OPTi workarounds unavailable\n");
+
+	return 0;
+}
+
+/* Check for NSC87560. We have to look at the bridge (fn1) to
+ * identify the USB (fn2). This quirk might apply to more or
+ * even all NSC stuff.
+ */
+static int __devinit ohci_quirk_ns(struct usb_hcd *hcd)
+{
+	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
+	struct pci_dev	*b;
+
+	b  = pci_get_slot (pdev->bus, PCI_DEVFN (PCI_SLOT (pdev->devfn), 1));
+	if (b && b->device == PCI_DEVICE_ID_NS_87560_LIO
+	    && b->vendor == PCI_VENDOR_ID_NS) {
+		struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
+
+		ohci->flags |= OHCI_QUIRK_SUPERIO;
+		ohci_dbg (ohci, "Using NSC SuperIO setup\n");
+	}
+	pci_dev_put(b);
+
+	return 0;
+}
+
+/* Check for Compaq's ZFMicro chipset, which needs short
+ * delays before control or bulk queues get re-activated
+ * in finish_unlinks()
+ */
+static int __devinit ohci_quirk_zfmicro(struct usb_hcd *hcd)
+{
+	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
+
+	ohci->flags |= OHCI_QUIRK_ZFMICRO;
+	ohci_dbg (ohci, "enabled Compaq ZFMicro chipset quirk\n");
+
+	return 0;
+}
+
+/* Check for Toshiba SCC OHCI which has big endian registers
+ * and little endian in memory data structures
+ */
+static int __devinit ohci_quirk_toshiba_scc(struct usb_hcd *hcd)
+{
+	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
+
+	/* That chip is only present in the southbridge of some
+	 * cell based platforms which are supposed to select
+	 * CONFIG_USB_OHCI_BIG_ENDIAN_MMIO. We verify here if
+	 * that was the case though.
+	 */
+#ifdef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
+	ohci->flags |= OHCI_QUIRK_BE_MMIO;
+	ohci_dbg (ohci, "enabled big endian Toshiba quirk\n");
+	return 0;
+#else
+	ohci_err (ohci, "unsupported big endian Toshiba quirk\n");
+	return -ENXIO;
+#endif
+}
+
+/* List of quirks for OHCI */
+static const struct pci_device_id ohci_pci_quirks[] = {
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x740c),
+		.driver_data = (unsigned long)ohci_quirk_amd756,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_OPTI, 0xc861),
+		.driver_data = (unsigned long)ohci_quirk_opti,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_ANY_ID),
+		.driver_data = (unsigned long)ohci_quirk_ns,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_COMPAQ, 0xa0f8),
+		.driver_data = (unsigned long)ohci_quirk_zfmicro,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, 0x01b6),
+		.driver_data = (unsigned long)ohci_quirk_toshiba_scc,
+	},
+	/* FIXME for some of the early AMD 760 southbridges, OHCI
+	 * won't work at all.  blacklist them.
+	 */
+
+	{},
+};
+
+static int ohci_pci_reset (struct usb_hcd *hcd)
+{
+	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
+	int ret = 0;
+
+	if (hcd->self.controller) {
+		struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
+		const struct pci_device_id *quirk_id;
+
+		quirk_id = pci_match_id(ohci_pci_quirks, pdev);
+		if (quirk_id != NULL) {
+			int (*quirk)(struct usb_hcd *ohci);
+			quirk = (void *)quirk_id->driver_data;
+			ret = quirk(hcd);
+		}
+	}
+	if (ret == 0) {
+		ohci_hcd_init (ohci);
+		return ohci_init (ohci);
+	}
+	return ret;
+}
+
+
+static int __devinit ohci_pci_start (struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	int		ret;
 
-	/* REVISIT this whole block should move to reset(), which handles
-	 * all the other one-time init.
-	 */
+#ifdef CONFIG_PM /* avoid warnings about unused pdev */
 	if (hcd->self.controller) {
 		struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
-
-		/* AMD 756, for most chips (early revs), corrupts register
-		 * values on read ... so enable the vendor workaround.
-		 */
-		if (pdev->vendor == PCI_VENDOR_ID_AMD
-				&& pdev->device == 0x740c) {
-			ohci->flags = OHCI_QUIRK_AMD756;
-			ohci_dbg (ohci, "AMD756 erratum 4 workaround\n");
-			/* also erratum 10 (suspend/resume issues) */
-			device_init_wakeup(&hcd->self.root_hub->dev, 0);
-		}
-
-		/* FIXME for some of the early AMD 760 southbridges, OHCI
-		 * won't work at all.  blacklist them.
-		 */
-
-		/* Apple's OHCI driver has a lot of bizarre workarounds
-		 * for this chip.  Evidently control and bulk lists
-		 * can get confused.  (B&W G3 models, and ...)
-		 */
-		else if (pdev->vendor == PCI_VENDOR_ID_OPTI
-				&& pdev->device == 0xc861) {
-			ohci_dbg (ohci,
-				"WARNING: OPTi workarounds unavailable\n");
-		}
-
-		/* Check for NSC87560. We have to look at the bridge (fn1) to
-		 * identify the USB (fn2). This quirk might apply to more or
-		 * even all NSC stuff.
-		 */
-		else if (pdev->vendor == PCI_VENDOR_ID_NS) {
-			struct pci_dev	*b;
-
-			b  = pci_get_slot (pdev->bus,
-					PCI_DEVFN (PCI_SLOT (pdev->devfn), 1));
-			if (b && b->device == PCI_DEVICE_ID_NS_87560_LIO
-					&& b->vendor == PCI_VENDOR_ID_NS) {
-				ohci->flags |= OHCI_QUIRK_SUPERIO;
-				ohci_dbg (ohci, "Using NSC SuperIO setup\n");
-			}
-			pci_dev_put(b);
-		}
-
-		/* Check for Compaq's ZFMicro chipset, which needs short 
-		 * delays before control or bulk queues get re-activated
-		 * in finish_unlinks()
-		 */
-		else if (pdev->vendor == PCI_VENDOR_ID_COMPAQ
-				&& pdev->device  == 0xa0f8) {
-			ohci->flags |= OHCI_QUIRK_ZFMICRO;
-			ohci_dbg (ohci,
-				"enabled Compaq ZFMicro chipset quirk\n");
-		}
 
 		/* RWC may not be set for add-in PCI cards, since boot
 		 * firmware probably ignored them.  This transfers PCI
@@ -101,16 +176,14 @@ ohci_pci_start (struct usb_hcd *hcd)
 		if (device_may_wakeup(&pdev->dev))
 			ohci->hc_control |= OHCI_CTRL_RWC;
 	}
+#endif /* CONFIG_PM */
 
-	/* NOTE: there may have already been a first reset, to
-	 * keep bios/smm irqs from making trouble
-	 */
-	if ((ret = ohci_run (ohci)) < 0) {
+	ret = ohci_run (ohci);
+	if (ret < 0) {
 		ohci_err (ohci, "can't start\n");
 		ohci_stop (hcd);
-		return ret;
 	}
-	return 0;
+	return ret;
 }
 
 #ifdef	CONFIG_PM
@@ -238,23 +311,3 @@ static struct pci_driver ohci_pci_driver = {
 	.shutdown =	usb_hcd_pci_shutdown,
 };
 
- 
-static int __init ohci_hcd_pci_init (void) 
-{
-	printk (KERN_DEBUG "%s: " DRIVER_INFO " (PCI)\n", hcd_name);
-	if (usb_disabled())
-		return -ENODEV;
-
-	pr_debug ("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
-		sizeof (struct ed), sizeof (struct td));
-	return pci_register_driver (&ohci_pci_driver);
-}
-module_init (ohci_hcd_pci_init);
-
-/*-------------------------------------------------------------------------*/
-
-static void __exit ohci_hcd_pci_cleanup (void) 
-{	
-	pci_unregister_driver (&ohci_pci_driver);
-}
-module_exit (ohci_hcd_pci_cleanup);

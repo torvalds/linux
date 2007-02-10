@@ -905,6 +905,15 @@ static int __init pvr2fb_dc_init(void)
 
 static void pvr2fb_dc_exit(void)
 {
+	if (fb_info->screen_base) {
+		iounmap(fb_info->screen_base);
+		fb_info->screen_base = NULL;
+	}
+	if (currentpar->mmio_base) {
+		iounmap((void *)currentpar->mmio_base);
+		currentpar->mmio_base = 0;
+	}
+
 	free_irq(HW_EVENT_VSYNC, 0);
 #ifdef CONFIG_SH_DMA
 	free_dma(pvr2dma);
@@ -946,6 +955,15 @@ static int __devinit pvr2fb_pci_probe(struct pci_dev *pdev,
 
 static void __devexit pvr2fb_pci_remove(struct pci_dev *pdev)
 {
+	if (fb_info->screen_base) {
+		iounmap(fb_info->screen_base);
+		fb_info->screen_base = NULL;
+	}
+	if (currentpar->mmio_base) {
+		iounmap((void *)currentpar->mmio_base);
+		currentpar->mmio_base = 0;
+	}
+
 	pci_release_regions(pdev);
 }
 

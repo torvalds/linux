@@ -18,8 +18,8 @@ struct module;
 struct seq_file;
 
 struct crypto_type {
-	unsigned int (*ctxsize)(struct crypto_alg *alg);
-	int (*init)(struct crypto_tfm *tfm);
+	unsigned int (*ctxsize)(struct crypto_alg *alg, u32 type, u32 mask);
+	int (*init)(struct crypto_tfm *tfm, u32 type, u32 mask);
 	void (*exit)(struct crypto_tfm *tfm);
 	void (*show)(struct seq_file *m, struct crypto_alg *alg);
 };
@@ -93,7 +93,8 @@ struct crypto_template *crypto_lookup_template(const char *name);
 int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
 		      struct crypto_instance *inst);
 void crypto_drop_spawn(struct crypto_spawn *spawn);
-struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn);
+struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
+				    u32 mask);
 
 struct crypto_alg *crypto_get_attr_alg(void *param, unsigned int len,
 				       u32 type, u32 mask);
@@ -132,9 +133,26 @@ static inline void *crypto_blkcipher_ctx_aligned(struct crypto_blkcipher *tfm)
 	return crypto_tfm_ctx_aligned(&tfm->base);
 }
 
+static inline struct crypto_cipher *crypto_spawn_cipher(
+	struct crypto_spawn *spawn)
+{
+	u32 type = CRYPTO_ALG_TYPE_CIPHER;
+	u32 mask = CRYPTO_ALG_TYPE_MASK;
+
+	return __crypto_cipher_cast(crypto_spawn_tfm(spawn, type, mask));
+}
+
 static inline struct cipher_alg *crypto_cipher_alg(struct crypto_cipher *tfm)
 {
 	return &crypto_cipher_tfm(tfm)->__crt_alg->cra_cipher;
+}
+
+static inline struct crypto_hash *crypto_spawn_hash(struct crypto_spawn *spawn)
+{
+	u32 type = CRYPTO_ALG_TYPE_HASH;
+	u32 mask = CRYPTO_ALG_TYPE_HASH_MASK;
+
+	return __crypto_hash_cast(crypto_spawn_tfm(spawn, type, mask));
 }
 
 static inline void *crypto_hash_ctx_aligned(struct crypto_hash *tfm)

@@ -56,10 +56,7 @@ u8 ata_irq_on(struct ata_port *ap)
 	ap->ctl &= ~ATA_NIEN;
 	ap->last_ctl = ap->ctl;
 
-	if (ap->flags & ATA_FLAG_MMIO)
-		writeb(ap->ctl, (void __iomem *) ioaddr->ctl_addr);
-	else
-		outb(ap->ctl, ioaddr->ctl_addr);
+	iowrite8(ap->ctl, ioaddr->ctl_addr);
 	tmp = ata_wait_idle(ap);
 
 	ap->ops->irq_clear(ap);
@@ -67,8 +64,48 @@ u8 ata_irq_on(struct ata_port *ap)
 	return tmp;
 }
 
+u8 ata_dummy_irq_on (struct ata_port *ap) 	{ return 0; }
+
 /**
- *	ata_tf_load_pio - send taskfile registers to host controller
+ *	ata_irq_ack - Acknowledge a device interrupt.
+ *	@ap: Port on which interrupts are enabled.
+ *
+ *	Wait up to 10 ms for legacy IDE device to become idle (BUSY
+ *	or BUSY+DRQ clear).  Obtain dma status and port status from
+ *	device.  Clear the interrupt.  Return port status.
+ *
+ *	LOCKING:
+ */
+
+u8 ata_irq_ack(struct ata_port *ap, unsigned int chk_drq)
+{
+	unsigned int bits = chk_drq ? ATA_BUSY | ATA_DRQ : ATA_BUSY;
+	u8 host_stat, post_stat, status;
+
+	status = ata_busy_wait(ap, bits, 1000);
+	if (status & bits)
+		if (ata_msg_err(ap))
+			printk(KERN_ERR "abnormal status 0x%X\n", status);
+
+	/* get controller status; clear intr, err bits */
+	host_stat = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
+	iowrite8(host_stat | ATA_DMA_INTR | ATA_DMA_ERR,
+		 ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
+
+	post_stat = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
+
+	if (ata_msg_intr(ap))
+		printk(KERN_INFO "%s: irq ack: host_stat 0x%X, new host_stat 0x%X, drv_stat 0x%X\n",
+			__FUNCTION__,
+			host_stat, post_stat, status);
+
+	return status;
+}
+
+u8 ata_dummy_irq_ack(struct ata_port *ap, unsigned int chk_drq) { return 0; }
+
+/**
+ *	ata_tf_load - send taskfile registers to host controller
  *	@ap: Port to which output is sent
  *	@tf: ATA taskfile register set
  *
@@ -78,272 +115,71 @@ u8 ata_irq_on(struct ata_port *ap)
  *	Inherited from caller.
  */
 
-static void ata_tf_load_pio(struct ata_port *ap, const struct ata_taskfile *tf)
-{
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-	unsigned int is_addr = tf->flags & ATA_TFLAG_ISADDR;
-
-	if (tf->ctl != ap->last_ctl) {
-		outb(tf->ctl, ioaddr->ctl_addr);
-		ap->last_ctl = tf->ctl;
-		ata_wait_idle(ap);
-	}
-
-	if (is_addr && (tf->flags & ATA_TFLAG_LBA48)) {
-		outb(tf->hob_feature, ioaddr->feature_addr);
-		outb(tf->hob_nsect, ioaddr->nsect_addr);
-		outb(tf->hob_lbal, ioaddr->lbal_addr);
-		outb(tf->hob_lbam, ioaddr->lbam_addr);
-		outb(tf->hob_lbah, ioaddr->lbah_addr);
-		VPRINTK("hob: feat 0x%X nsect 0x%X, lba 0x%X 0x%X 0x%X\n",
-			tf->hob_feature,
-			tf->hob_nsect,
-			tf->hob_lbal,
-			tf->hob_lbam,
-			tf->hob_lbah);
-	}
-
-	if (is_addr) {
-		outb(tf->feature, ioaddr->feature_addr);
-		outb(tf->nsect, ioaddr->nsect_addr);
-		outb(tf->lbal, ioaddr->lbal_addr);
-		outb(tf->lbam, ioaddr->lbam_addr);
-		outb(tf->lbah, ioaddr->lbah_addr);
-		VPRINTK("feat 0x%X nsect 0x%X lba 0x%X 0x%X 0x%X\n",
-			tf->feature,
-			tf->nsect,
-			tf->lbal,
-			tf->lbam,
-			tf->lbah);
-	}
-
-	if (tf->flags & ATA_TFLAG_DEVICE) {
-		outb(tf->device, ioaddr->device_addr);
-		VPRINTK("device 0x%X\n", tf->device);
-	}
-
-	ata_wait_idle(ap);
-}
-
-/**
- *	ata_tf_load_mmio - send taskfile registers to host controller
- *	@ap: Port to which output is sent
- *	@tf: ATA taskfile register set
- *
- *	Outputs ATA taskfile to standard ATA host controller using MMIO.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-
-static void ata_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
-{
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-	unsigned int is_addr = tf->flags & ATA_TFLAG_ISADDR;
-
-	if (tf->ctl != ap->last_ctl) {
-		writeb(tf->ctl, (void __iomem *) ap->ioaddr.ctl_addr);
-		ap->last_ctl = tf->ctl;
-		ata_wait_idle(ap);
-	}
-
-	if (is_addr && (tf->flags & ATA_TFLAG_LBA48)) {
-		writeb(tf->hob_feature, (void __iomem *) ioaddr->feature_addr);
-		writeb(tf->hob_nsect, (void __iomem *) ioaddr->nsect_addr);
-		writeb(tf->hob_lbal, (void __iomem *) ioaddr->lbal_addr);
-		writeb(tf->hob_lbam, (void __iomem *) ioaddr->lbam_addr);
-		writeb(tf->hob_lbah, (void __iomem *) ioaddr->lbah_addr);
-		VPRINTK("hob: feat 0x%X nsect 0x%X, lba 0x%X 0x%X 0x%X\n",
-			tf->hob_feature,
-			tf->hob_nsect,
-			tf->hob_lbal,
-			tf->hob_lbam,
-			tf->hob_lbah);
-	}
-
-	if (is_addr) {
-		writeb(tf->feature, (void __iomem *) ioaddr->feature_addr);
-		writeb(tf->nsect, (void __iomem *) ioaddr->nsect_addr);
-		writeb(tf->lbal, (void __iomem *) ioaddr->lbal_addr);
-		writeb(tf->lbam, (void __iomem *) ioaddr->lbam_addr);
-		writeb(tf->lbah, (void __iomem *) ioaddr->lbah_addr);
-		VPRINTK("feat 0x%X nsect 0x%X lba 0x%X 0x%X 0x%X\n",
-			tf->feature,
-			tf->nsect,
-			tf->lbal,
-			tf->lbam,
-			tf->lbah);
-	}
-
-	if (tf->flags & ATA_TFLAG_DEVICE) {
-		writeb(tf->device, (void __iomem *) ioaddr->device_addr);
-		VPRINTK("device 0x%X\n", tf->device);
-	}
-
-	ata_wait_idle(ap);
-}
-
-
-/**
- *	ata_tf_load - send taskfile registers to host controller
- *	@ap: Port to which output is sent
- *	@tf: ATA taskfile register set
- *
- *	Outputs ATA taskfile to standard ATA host controller using MMIO
- *	or PIO as indicated by the ATA_FLAG_MMIO flag.
- *	Writes the control, feature, nsect, lbal, lbam, and lbah registers.
- *	Optionally (ATA_TFLAG_LBA48) writes hob_feature, hob_nsect,
- *	hob_lbal, hob_lbam, and hob_lbah.
- *
- *	This function waits for idle (!BUSY and !DRQ) after writing
- *	registers.  If the control register has a new value, this
- *	function also waits for idle after writing control and before
- *	writing the remaining registers.
- *
- *	May be used as the tf_load() entry in ata_port_operations.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
 void ata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 {
-	if (ap->flags & ATA_FLAG_MMIO)
-		ata_tf_load_mmio(ap, tf);
-	else
-		ata_tf_load_pio(ap, tf);
+	struct ata_ioports *ioaddr = &ap->ioaddr;
+	unsigned int is_addr = tf->flags & ATA_TFLAG_ISADDR;
+
+	if (tf->ctl != ap->last_ctl) {
+		iowrite8(tf->ctl, ioaddr->ctl_addr);
+		ap->last_ctl = tf->ctl;
+		ata_wait_idle(ap);
+	}
+
+	if (is_addr && (tf->flags & ATA_TFLAG_LBA48)) {
+		iowrite8(tf->hob_feature, ioaddr->feature_addr);
+		iowrite8(tf->hob_nsect, ioaddr->nsect_addr);
+		iowrite8(tf->hob_lbal, ioaddr->lbal_addr);
+		iowrite8(tf->hob_lbam, ioaddr->lbam_addr);
+		iowrite8(tf->hob_lbah, ioaddr->lbah_addr);
+		VPRINTK("hob: feat 0x%X nsect 0x%X, lba 0x%X 0x%X 0x%X\n",
+			tf->hob_feature,
+			tf->hob_nsect,
+			tf->hob_lbal,
+			tf->hob_lbam,
+			tf->hob_lbah);
+	}
+
+	if (is_addr) {
+		iowrite8(tf->feature, ioaddr->feature_addr);
+		iowrite8(tf->nsect, ioaddr->nsect_addr);
+		iowrite8(tf->lbal, ioaddr->lbal_addr);
+		iowrite8(tf->lbam, ioaddr->lbam_addr);
+		iowrite8(tf->lbah, ioaddr->lbah_addr);
+		VPRINTK("feat 0x%X nsect 0x%X lba 0x%X 0x%X 0x%X\n",
+			tf->feature,
+			tf->nsect,
+			tf->lbal,
+			tf->lbam,
+			tf->lbah);
+	}
+
+	if (tf->flags & ATA_TFLAG_DEVICE) {
+		iowrite8(tf->device, ioaddr->device_addr);
+		VPRINTK("device 0x%X\n", tf->device);
+	}
+
+	ata_wait_idle(ap);
 }
-
-/**
- *	ata_exec_command_pio - issue ATA command to host controller
- *	@ap: port to which command is being issued
- *	@tf: ATA taskfile register set
- *
- *	Issues PIO write to ATA command register, with proper
- *	synchronization with interrupt handler / other threads.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-
-static void ata_exec_command_pio(struct ata_port *ap, const struct ata_taskfile *tf)
-{
-	DPRINTK("ata%u: cmd 0x%X\n", ap->id, tf->command);
-
-       	outb(tf->command, ap->ioaddr.command_addr);
-	ata_pause(ap);
-}
-
-
-/**
- *	ata_exec_command_mmio - issue ATA command to host controller
- *	@ap: port to which command is being issued
- *	@tf: ATA taskfile register set
- *
- *	Issues MMIO write to ATA command register, with proper
- *	synchronization with interrupt handler / other threads.
- *
- *	FIXME: missing write posting for 400nS delay enforcement
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-
-static void ata_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
-{
-	DPRINTK("ata%u: cmd 0x%X\n", ap->id, tf->command);
-
-       	writeb(tf->command, (void __iomem *) ap->ioaddr.command_addr);
-	ata_pause(ap);
-}
-
 
 /**
  *	ata_exec_command - issue ATA command to host controller
  *	@ap: port to which command is being issued
  *	@tf: ATA taskfile register set
  *
- *	Issues PIO/MMIO write to ATA command register, with proper
- *	synchronization with interrupt handler / other threads.
+ *	Issues ATA command, with proper synchronization with interrupt
+ *	handler / other threads.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
 void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf)
 {
-	if (ap->flags & ATA_FLAG_MMIO)
-		ata_exec_command_mmio(ap, tf);
-	else
-		ata_exec_command_pio(ap, tf);
+	DPRINTK("ata%u: cmd 0x%X\n", ap->id, tf->command);
+
+	iowrite8(tf->command, ap->ioaddr.command_addr);
+	ata_pause(ap);
 }
-
-/**
- *	ata_tf_read_pio - input device's ATA taskfile shadow registers
- *	@ap: Port from which input is read
- *	@tf: ATA taskfile register set for storing input
- *
- *	Reads ATA taskfile registers for currently-selected device
- *	into @tf.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-
-static void ata_tf_read_pio(struct ata_port *ap, struct ata_taskfile *tf)
-{
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-
-	tf->command = ata_check_status(ap);
-	tf->feature = inb(ioaddr->error_addr);
-	tf->nsect = inb(ioaddr->nsect_addr);
-	tf->lbal = inb(ioaddr->lbal_addr);
-	tf->lbam = inb(ioaddr->lbam_addr);
-	tf->lbah = inb(ioaddr->lbah_addr);
-	tf->device = inb(ioaddr->device_addr);
-
-	if (tf->flags & ATA_TFLAG_LBA48) {
-		outb(tf->ctl | ATA_HOB, ioaddr->ctl_addr);
-		tf->hob_feature = inb(ioaddr->error_addr);
-		tf->hob_nsect = inb(ioaddr->nsect_addr);
-		tf->hob_lbal = inb(ioaddr->lbal_addr);
-		tf->hob_lbam = inb(ioaddr->lbam_addr);
-		tf->hob_lbah = inb(ioaddr->lbah_addr);
-	}
-}
-
-/**
- *	ata_tf_read_mmio - input device's ATA taskfile shadow registers
- *	@ap: Port from which input is read
- *	@tf: ATA taskfile register set for storing input
- *
- *	Reads ATA taskfile registers for currently-selected device
- *	into @tf via MMIO.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-
-static void ata_tf_read_mmio(struct ata_port *ap, struct ata_taskfile *tf)
-{
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-
-	tf->command = ata_check_status(ap);
-	tf->feature = readb((void __iomem *)ioaddr->error_addr);
-	tf->nsect = readb((void __iomem *)ioaddr->nsect_addr);
-	tf->lbal = readb((void __iomem *)ioaddr->lbal_addr);
-	tf->lbam = readb((void __iomem *)ioaddr->lbam_addr);
-	tf->lbah = readb((void __iomem *)ioaddr->lbah_addr);
-	tf->device = readb((void __iomem *)ioaddr->device_addr);
-
-	if (tf->flags & ATA_TFLAG_LBA48) {
-		writeb(tf->ctl | ATA_HOB, (void __iomem *) ap->ioaddr.ctl_addr);
-		tf->hob_feature = readb((void __iomem *)ioaddr->error_addr);
-		tf->hob_nsect = readb((void __iomem *)ioaddr->nsect_addr);
-		tf->hob_lbal = readb((void __iomem *)ioaddr->lbal_addr);
-		tf->hob_lbam = readb((void __iomem *)ioaddr->lbam_addr);
-		tf->hob_lbah = readb((void __iomem *)ioaddr->lbah_addr);
-	}
-}
-
 
 /**
  *	ata_tf_read - input device's ATA taskfile shadow registers
@@ -353,54 +189,30 @@ static void ata_tf_read_mmio(struct ata_port *ap, struct ata_taskfile *tf)
  *	Reads ATA taskfile registers for currently-selected device
  *	into @tf.
  *
- *	Reads nsect, lbal, lbam, lbah, and device.  If ATA_TFLAG_LBA48
- *	is set, also reads the hob registers.
- *
- *	May be used as the tf_read() entry in ata_port_operations.
- *
  *	LOCKING:
  *	Inherited from caller.
  */
 void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 {
-	if (ap->flags & ATA_FLAG_MMIO)
-		ata_tf_read_mmio(ap, tf);
-	else
-		ata_tf_read_pio(ap, tf);
-}
+	struct ata_ioports *ioaddr = &ap->ioaddr;
 
-/**
- *	ata_check_status_pio - Read device status reg & clear interrupt
- *	@ap: port where the device is
- *
- *	Reads ATA taskfile status register for currently-selected device
- *	and return its value. This also clears pending interrupts
- *      from this device
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-static u8 ata_check_status_pio(struct ata_port *ap)
-{
-	return inb(ap->ioaddr.status_addr);
-}
+	tf->command = ata_check_status(ap);
+	tf->feature = ioread8(ioaddr->error_addr);
+	tf->nsect = ioread8(ioaddr->nsect_addr);
+	tf->lbal = ioread8(ioaddr->lbal_addr);
+	tf->lbam = ioread8(ioaddr->lbam_addr);
+	tf->lbah = ioread8(ioaddr->lbah_addr);
+	tf->device = ioread8(ioaddr->device_addr);
 
-/**
- *	ata_check_status_mmio - Read device status reg & clear interrupt
- *	@ap: port where the device is
- *
- *	Reads ATA taskfile status register for currently-selected device
- *	via MMIO and return its value. This also clears pending interrupts
- *      from this device
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-static u8 ata_check_status_mmio(struct ata_port *ap)
-{
-       	return readb((void __iomem *) ap->ioaddr.status_addr);
+	if (tf->flags & ATA_TFLAG_LBA48) {
+		iowrite8(tf->ctl | ATA_HOB, ioaddr->ctl_addr);
+		tf->hob_feature = ioread8(ioaddr->error_addr);
+		tf->hob_nsect = ioread8(ioaddr->nsect_addr);
+		tf->hob_lbal = ioread8(ioaddr->lbal_addr);
+		tf->hob_lbam = ioread8(ioaddr->lbam_addr);
+		tf->hob_lbah = ioread8(ioaddr->lbah_addr);
+	}
 }
-
 
 /**
  *	ata_check_status - Read device status reg & clear interrupt
@@ -410,18 +222,13 @@ static u8 ata_check_status_mmio(struct ata_port *ap)
  *	and return its value. This also clears pending interrupts
  *      from this device
  *
- *	May be used as the check_status() entry in ata_port_operations.
- *
  *	LOCKING:
  *	Inherited from caller.
  */
 u8 ata_check_status(struct ata_port *ap)
 {
-	if (ap->flags & ATA_FLAG_MMIO)
-		return ata_check_status_mmio(ap);
-	return ata_check_status_pio(ap);
+	return ioread8(ap->ioaddr.status_addr);
 }
-
 
 /**
  *	ata_altstatus - Read device alternate status reg
@@ -441,58 +248,52 @@ u8 ata_altstatus(struct ata_port *ap)
 	if (ap->ops->check_altstatus)
 		return ap->ops->check_altstatus(ap);
 
-	if (ap->flags & ATA_FLAG_MMIO)
-		return readb((void __iomem *)ap->ioaddr.altstatus_addr);
-	return inb(ap->ioaddr.altstatus_addr);
+	return ioread8(ap->ioaddr.altstatus_addr);
 }
 
 /**
- *	ata_bmdma_setup_mmio - Set up PCI IDE BMDMA transaction
+ *	ata_bmdma_setup - Set up PCI IDE BMDMA transaction
  *	@qc: Info associated with this ATA transaction.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
-static void ata_bmdma_setup_mmio (struct ata_queued_cmd *qc)
+void ata_bmdma_setup(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
 	u8 dmactl;
-	void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
 
 	/* load PRD table addr. */
 	mb();	/* make sure PRD table writes are visible to controller */
-	writel(ap->prd_dma, mmio + ATA_DMA_TABLE_OFS);
+	iowrite32(ap->prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
 
 	/* specify data direction, triple-check start bit is clear */
-	dmactl = readb(mmio + ATA_DMA_CMD);
+	dmactl = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 	dmactl &= ~(ATA_DMA_WR | ATA_DMA_START);
 	if (!rw)
 		dmactl |= ATA_DMA_WR;
-	writeb(dmactl, mmio + ATA_DMA_CMD);
+	iowrite8(dmactl, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 
 	/* issue r/w command */
 	ap->ops->exec_command(ap, &qc->tf);
 }
 
 /**
- *	ata_bmdma_start_mmio - Start a PCI IDE BMDMA transaction
+ *	ata_bmdma_start - Start a PCI IDE BMDMA transaction
  *	@qc: Info associated with this ATA transaction.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
-static void ata_bmdma_start_mmio (struct ata_queued_cmd *qc)
+void ata_bmdma_start (struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
 	u8 dmactl;
 
 	/* start host DMA transaction */
-	dmactl = readb(mmio + ATA_DMA_CMD);
-	writeb(dmactl | ATA_DMA_START, mmio + ATA_DMA_CMD);
+	dmactl = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+	iowrite8(dmactl | ATA_DMA_START, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 
 	/* Strictly, one may wish to issue a readb() here, to
 	 * flush the mmio write.  However, control also passes
@@ -508,96 +309,6 @@ static void ata_bmdma_start_mmio (struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_bmdma_setup_pio - Set up PCI IDE BMDMA transaction (PIO)
- *	@qc: Info associated with this ATA transaction.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-
-static void ata_bmdma_setup_pio (struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
-	u8 dmactl;
-
-	/* load PRD table addr. */
-	outl(ap->prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
-
-	/* specify data direction, triple-check start bit is clear */
-	dmactl = inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-	dmactl &= ~(ATA_DMA_WR | ATA_DMA_START);
-	if (!rw)
-		dmactl |= ATA_DMA_WR;
-	outb(dmactl, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-
-	/* issue r/w command */
-	ap->ops->exec_command(ap, &qc->tf);
-}
-
-/**
- *	ata_bmdma_start_pio - Start a PCI IDE BMDMA transaction (PIO)
- *	@qc: Info associated with this ATA transaction.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-
-static void ata_bmdma_start_pio (struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	u8 dmactl;
-
-	/* start host DMA transaction */
-	dmactl = inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-	outb(dmactl | ATA_DMA_START,
-	     ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-}
-
-
-/**
- *	ata_bmdma_start - Start a PCI IDE BMDMA transaction
- *	@qc: Info associated with this ATA transaction.
- *
- *	Writes the ATA_DMA_START flag to the DMA command register.
- *
- *	May be used as the bmdma_start() entry in ata_port_operations.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-void ata_bmdma_start(struct ata_queued_cmd *qc)
-{
-	if (qc->ap->flags & ATA_FLAG_MMIO)
-		ata_bmdma_start_mmio(qc);
-	else
-		ata_bmdma_start_pio(qc);
-}
-
-
-/**
- *	ata_bmdma_setup - Set up PCI IDE BMDMA transaction
- *	@qc: Info associated with this ATA transaction.
- *
- *	Writes address of PRD table to device's PRD Table Address
- *	register, sets the DMA control register, and calls
- *	ops->exec_command() to start the transfer.
- *
- *	May be used as the bmdma_setup() entry in ata_port_operations.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-void ata_bmdma_setup(struct ata_queued_cmd *qc)
-{
-	if (qc->ap->flags & ATA_FLAG_MMIO)
-		ata_bmdma_setup_mmio(qc);
-	else
-		ata_bmdma_setup_pio(qc);
-}
-
-
-/**
  *	ata_bmdma_irq_clear - Clear PCI IDE BMDMA interrupt.
  *	@ap: Port associated with this ATA transaction.
  *
@@ -608,22 +319,15 @@ void ata_bmdma_setup(struct ata_queued_cmd *qc)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
 void ata_bmdma_irq_clear(struct ata_port *ap)
 {
-	if (!ap->ioaddr.bmdma_addr)
+	void __iomem *mmio = ap->ioaddr.bmdma_addr;
+
+	if (!mmio)
 		return;
 
-	if (ap->flags & ATA_FLAG_MMIO) {
-		void __iomem *mmio =
-		      ((void __iomem *) ap->ioaddr.bmdma_addr) + ATA_DMA_STATUS;
-		writeb(readb(mmio), mmio);
-	} else {
-		unsigned long addr = ap->ioaddr.bmdma_addr + ATA_DMA_STATUS;
-		outb(inb(addr), addr);
-	}
+	iowrite8(ioread8(mmio + ATA_DMA_STATUS), mmio + ATA_DMA_STATUS);
 }
-
 
 /**
  *	ata_bmdma_status - Read PCI IDE BMDMA status
@@ -636,18 +340,10 @@ void ata_bmdma_irq_clear(struct ata_port *ap)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
 u8 ata_bmdma_status(struct ata_port *ap)
 {
-	u8 host_stat;
-	if (ap->flags & ATA_FLAG_MMIO) {
-		void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
-		host_stat = readb(mmio + ATA_DMA_STATUS);
-	} else
-		host_stat = inb(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-	return host_stat;
+	return ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 }
-
 
 /**
  *	ata_bmdma_stop - Stop PCI IDE BMDMA transfer
@@ -660,21 +356,14 @@ u8 ata_bmdma_status(struct ata_port *ap)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
 void ata_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	if (ap->flags & ATA_FLAG_MMIO) {
-		void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
+	void __iomem *mmio = ap->ioaddr.bmdma_addr;
 
-		/* clear start/stop bit */
-		writeb(readb(mmio + ATA_DMA_CMD) & ~ATA_DMA_START,
-			mmio + ATA_DMA_CMD);
-	} else {
-		/* clear start/stop bit */
-		outb(inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD) & ~ATA_DMA_START,
-			ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-	}
+	/* clear start/stop bit */
+	iowrite8(ioread8(mmio + ATA_DMA_CMD) & ~ATA_DMA_START,
+		 mmio + ATA_DMA_CMD);
 
 	/* one-PIO-cycle guaranteed wait, per spec, for HDMA1:0 transition */
 	ata_altstatus(ap);        /* dummy read */
@@ -696,10 +385,7 @@ void ata_bmdma_freeze(struct ata_port *ap)
 	ap->ctl |= ATA_NIEN;
 	ap->last_ctl = ap->ctl;
 
-	if (ap->flags & ATA_FLAG_MMIO)
-		writeb(ap->ctl, (void __iomem *)ioaddr->ctl_addr);
-	else
-		outb(ap->ctl, ioaddr->ctl_addr);
+	iowrite8(ap->ctl, ioaddr->ctl_addr);
 
 	/* Under certain circumstances, some controllers raise IRQ on
 	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
@@ -724,8 +410,7 @@ void ata_bmdma_thaw(struct ata_port *ap)
 	/* clear & re-enable interrupts */
 	ata_chk_status(ap);
 	ap->ops->irq_clear(ap);
-	if (ap->ioaddr.ctl_addr)	/* FIXME: hack. create a hook instead */
-		ata_irq_on(ap);
+	ap->ops->irq_on(ap);
 }
 
 /**
@@ -775,7 +460,7 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 		 * really a timeout event, adjust error mask and
 		 * cancel frozen state.
 		 */
-		if (qc->err_mask == AC_ERR_TIMEOUT && host_stat & ATA_DMA_ERR) {
+		if (qc->err_mask == AC_ERR_TIMEOUT && (host_stat & ATA_DMA_ERR)) {
 			qc->err_mask = AC_ERR_HOST_BUS;
 			thaw = 1;
 		}
@@ -827,10 +512,26 @@ void ata_bmdma_error_handler(struct ata_port *ap)
  */
 void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc)
 {
-	ata_bmdma_stop(qc);
+	if (qc->ap->ioaddr.bmdma_addr)
+		ata_bmdma_stop(qc);
 }
 
 #ifdef CONFIG_PCI
+
+static int ata_resources_present(struct pci_dev *pdev, int port)
+{
+	int i;
+	
+	/* Check the PCI resources for this channel are enabled */
+	port = port * 2;
+	for (i = 0; i < 2; i ++) {
+		if (pci_resource_start(pdev, port + i) == 0 ||
+			pci_resource_len(pdev, port + i) == 0)
+		return 0;
+	}
+	return 1;
+}
+		
 /**
  *	ata_pci_init_native_mode - Initialize native-mode driver
  *	@pdev:  pci device to be initialized
@@ -852,43 +553,62 @@ void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc)
 struct ata_probe_ent *
 ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int ports)
 {
-	struct ata_probe_ent *probe_ent =
-		ata_probe_ent_alloc(pci_dev_to_dev(pdev), port[0]);
-	int p = 0;
-	unsigned long bmdma;
+	struct ata_probe_ent *probe_ent;
+	int i, p = 0;
+	void __iomem * const *iomap;
 
+	/* iomap BARs */
+	for (i = 0; i < 4; i++) {
+		if (pcim_iomap(pdev, i, 0) == NULL) {
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "failed to iomap PCI BAR %d\n", i);
+			return NULL;
+		}
+	}
+
+	pcim_iomap(pdev, 4, 0); /* may fail */
+	iomap = pcim_iomap_table(pdev);
+
+	/* alloc and init probe_ent */
+	probe_ent = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port[0]);
 	if (!probe_ent)
 		return NULL;
 
 	probe_ent->irq = pdev->irq;
 	probe_ent->irq_flags = IRQF_SHARED;
+	
+	/* Discard disabled ports. Some controllers show their
+	   unused channels this way */
+	if (ata_resources_present(pdev, 0) == 0)
+		ports &= ~ATA_PORT_PRIMARY;
+	if (ata_resources_present(pdev, 1) == 0)
+		ports &= ~ATA_PORT_SECONDARY;
 
 	if (ports & ATA_PORT_PRIMARY) {
-		probe_ent->port[p].cmd_addr = pci_resource_start(pdev, 0);
+		probe_ent->port[p].cmd_addr = iomap[0];
 		probe_ent->port[p].altstatus_addr =
-		probe_ent->port[p].ctl_addr =
-			pci_resource_start(pdev, 1) | ATA_PCI_CTL_OFS;
-		bmdma = pci_resource_start(pdev, 4);
-		if (bmdma) {
-			if (inb(bmdma + 2) & 0x80)
+		probe_ent->port[p].ctl_addr = (void __iomem *)
+			((unsigned long)iomap[1] | ATA_PCI_CTL_OFS);
+		if (iomap[4]) {
+			if ((!(port[p]->flags & ATA_FLAG_IGN_SIMPLEX)) &&
+			    (ioread8(iomap[4] + 2) & 0x80))
 				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
-			probe_ent->port[p].bmdma_addr = bmdma;
+			probe_ent->port[p].bmdma_addr = iomap[4];
 		}
 		ata_std_ports(&probe_ent->port[p]);
 		p++;
 	}
 
 	if (ports & ATA_PORT_SECONDARY) {
-		probe_ent->port[p].cmd_addr = pci_resource_start(pdev, 2);
+		probe_ent->port[p].cmd_addr = iomap[2];
 		probe_ent->port[p].altstatus_addr =
-		probe_ent->port[p].ctl_addr =
-			pci_resource_start(pdev, 3) | ATA_PCI_CTL_OFS;
-		bmdma = pci_resource_start(pdev, 4);
-		if (bmdma) {
-			bmdma += 8;
-			if(inb(bmdma + 2) & 0x80)
+		probe_ent->port[p].ctl_addr = (void __iomem *)
+			((unsigned long)iomap[3] | ATA_PCI_CTL_OFS);
+		if (iomap[4]) {
+			if ((!(port[p]->flags & ATA_FLAG_IGN_SIMPLEX)) &&
+			    (ioread8(iomap[4] + 10) & 0x80))
 				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
-			probe_ent->port[p].bmdma_addr = bmdma;
+			probe_ent->port[p].bmdma_addr = iomap[4] + 8;
 		}
 		ata_std_ports(&probe_ent->port[p]);
 		probe_ent->pinfo2 = port[1];
@@ -899,13 +619,29 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 	return probe_ent;
 }
 
-
 static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 				struct ata_port_info **port, int port_mask)
 {
 	struct ata_probe_ent *probe_ent;
-	unsigned long bmdma = pci_resource_start(pdev, 4);
+	void __iomem *iomap[5] = { }, *bmdma;
 
+	if (port_mask & ATA_PORT_PRIMARY) {
+		iomap[0] = devm_ioport_map(&pdev->dev, ATA_PRIMARY_CMD, 8);
+		iomap[1] = devm_ioport_map(&pdev->dev, ATA_PRIMARY_CTL, 1);
+		if (!iomap[0] || !iomap[1])
+			return NULL;
+	}
+
+	if (port_mask & ATA_PORT_SECONDARY) {
+		iomap[2] = devm_ioport_map(&pdev->dev, ATA_SECONDARY_CMD, 8);
+		iomap[3] = devm_ioport_map(&pdev->dev, ATA_SECONDARY_CTL, 1);
+		if (!iomap[2] || !iomap[3])
+			return NULL;
+	}
+
+	bmdma = pcim_iomap(pdev, 4, 16); /* may fail */
+
+	/* alloc and init probe_ent */
 	probe_ent = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port[0]);
 	if (!probe_ent)
 		return NULL;
@@ -914,13 +650,14 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 	probe_ent->irq_flags = IRQF_SHARED;
 
 	if (port_mask & ATA_PORT_PRIMARY) {
-		probe_ent->irq = ATA_PRIMARY_IRQ;
-		probe_ent->port[0].cmd_addr = ATA_PRIMARY_CMD;
+		probe_ent->irq = ATA_PRIMARY_IRQ(pdev);
+		probe_ent->port[0].cmd_addr = iomap[0];
 		probe_ent->port[0].altstatus_addr =
-		probe_ent->port[0].ctl_addr = ATA_PRIMARY_CTL;
+		probe_ent->port[0].ctl_addr = iomap[1];
 		if (bmdma) {
 			probe_ent->port[0].bmdma_addr = bmdma;
-			if (inb(bmdma + 2) & 0x80)
+			if ((!(port[0]->flags & ATA_FLAG_IGN_SIMPLEX)) &&
+			    (ioread8(bmdma + 2) & 0x80))
 				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 		}
 		ata_std_ports(&probe_ent->port[0]);
@@ -929,15 +666,16 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 
 	if (port_mask & ATA_PORT_SECONDARY) {
 		if (probe_ent->irq)
-			probe_ent->irq2 = ATA_SECONDARY_IRQ;
+			probe_ent->irq2 = ATA_SECONDARY_IRQ(pdev);
 		else
-			probe_ent->irq = ATA_SECONDARY_IRQ;
-		probe_ent->port[1].cmd_addr = ATA_SECONDARY_CMD;
+			probe_ent->irq = ATA_SECONDARY_IRQ(pdev);
+		probe_ent->port[1].cmd_addr = iomap[2];
 		probe_ent->port[1].altstatus_addr =
-		probe_ent->port[1].ctl_addr = ATA_SECONDARY_CTL;
+		probe_ent->port[1].ctl_addr = iomap[3];
 		if (bmdma) {
 			probe_ent->port[1].bmdma_addr = bmdma + 8;
-			if (inb(bmdma + 10) & 0x80)
+			if ((!(port[1]->flags & ATA_FLAG_IGN_SIMPLEX)) &&
+			    (ioread8(bmdma + 10) & 0x80))
 				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 		}
 		ata_std_ports(&probe_ent->port[1]);
@@ -979,14 +717,17 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		      unsigned int n_ports)
 {
+	struct device *dev = &pdev->dev;
 	struct ata_probe_ent *probe_ent = NULL;
 	struct ata_port_info *port[2];
 	u8 mask;
 	unsigned int legacy_mode = 0;
-	int disable_dev_on_err = 1;
 	int rc;
 
 	DPRINTK("ENTER\n");
+
+	if (!devres_open_group(dev, NULL, GFP_KERNEL))
+		return -ENOMEM;
 
 	BUG_ON(n_ports < 1 || n_ports > 2);
 
@@ -1004,9 +745,9 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	   boot for the primary video which is BIOS enabled
          */
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc)
-		return rc;
+		goto err_out;
 
 	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
 		u8 tmp8;
@@ -1022,19 +763,22 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		   left a device in compatibility mode */
 		if (legacy_mode) {
 			printk(KERN_ERR "ata: Compatibility mode ATA is not supported on this platform, skipping.\n");
-			return -EOPNOTSUPP;
+			rc = -EOPNOTSUPP;
+			goto err_out;
 		}
 #endif
 	}
 
-	rc = pci_request_regions(pdev, DRV_NAME);
-	if (rc) {
-		disable_dev_on_err = 0;
-		goto err_out;
-	}
-
-	if (legacy_mode) {
-		if (!request_region(ATA_PRIMARY_CMD, 8, "libata")) {
+	if (!legacy_mode) {
+		rc = pci_request_regions(pdev, DRV_NAME);
+		if (rc) {
+			pcim_pin_device(pdev);
+			goto err_out;
+		}
+	} else {
+		/* Deal with combined mode hack. This side of the logic all
+		   goes away once the combined mode hack is killed in 2.6.21 */
+		if (!devm_request_region(dev, ATA_PRIMARY_CMD, 8, "libata")) {
 			struct resource *conflict, res;
 			res.start = ATA_PRIMARY_CMD;
 			res.end = ATA_PRIMARY_CMD + 8 - 1;
@@ -1044,7 +788,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 			if (!strcmp(conflict->name, "libata"))
 				legacy_mode |= ATA_PORT_PRIMARY;
 			else {
-				disable_dev_on_err = 0;
+				pcim_pin_device(pdev);
 				printk(KERN_WARNING "ata: 0x%0X IDE port busy\n" \
 						    "ata: conflict with %s\n",
 						    ATA_PRIMARY_CMD,
@@ -1053,7 +797,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		} else
 			legacy_mode |= ATA_PORT_PRIMARY;
 
-		if (!request_region(ATA_SECONDARY_CMD, 8, "libata")) {
+		if (!devm_request_region(dev, ATA_SECONDARY_CMD, 8, "libata")) {
 			struct resource *conflict, res;
 			res.start = ATA_SECONDARY_CMD;
 			res.end = ATA_SECONDARY_CMD + 8 - 1;
@@ -1063,7 +807,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 			if (!strcmp(conflict->name, "libata"))
 				legacy_mode |= ATA_PORT_SECONDARY;
 			else {
-				disable_dev_on_err = 0;
+				pcim_pin_device(pdev);
 				printk(KERN_WARNING "ata: 0x%X IDE port busy\n" \
 						    "ata: conflict with %s\n",
 						    ATA_SECONDARY_CMD,
@@ -1071,21 +815,28 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 			}
 		} else
 			legacy_mode |= ATA_PORT_SECONDARY;
+
+		if (legacy_mode & ATA_PORT_PRIMARY)
+			pci_request_region(pdev, 1, DRV_NAME);
+		if (legacy_mode & ATA_PORT_SECONDARY)
+			pci_request_region(pdev, 3, DRV_NAME);
+		/* If there is a DMA resource, allocate it */
+		pci_request_region(pdev, 4, DRV_NAME);
 	}
 
 	/* we have legacy mode, but all ports are unavailable */
 	if (legacy_mode == (1 << 3)) {
 		rc = -EBUSY;
-		goto err_out_regions;
+		goto err_out;
 	}
 
 	/* TODO: If we get no DMA mask we should fall back to PIO */
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		goto err_out;
 	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		goto err_out_regions;
+		goto err_out;
 
 	if (legacy_mode) {
 		probe_ent = ata_pci_init_legacy_port(pdev, port, legacy_mode);
@@ -1097,31 +848,22 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	}
 	if (!probe_ent) {
 		rc = -ENOMEM;
-		goto err_out_regions;
+		goto err_out;
 	}
 
 	pci_set_master(pdev);
 
 	if (!ata_device_add(probe_ent)) {
 		rc = -ENODEV;
-		goto err_out_ent;
+		goto err_out;
 	}
 
-	kfree(probe_ent);
-
+	devm_kfree(dev, probe_ent);
+	devres_remove_group(dev, NULL);
 	return 0;
 
-err_out_ent:
-	kfree(probe_ent);
-err_out_regions:
-	if (legacy_mode & ATA_PORT_PRIMARY)
-		release_region(ATA_PRIMARY_CMD, 8);
-	if (legacy_mode & ATA_PORT_SECONDARY)
-		release_region(ATA_SECONDARY_CMD, 8);
-	pci_release_regions(pdev);
 err_out:
-	if (disable_dev_on_err)
-		pci_disable_device(pdev);
+	devres_release_group(dev, NULL);
 	return rc;
 }
 

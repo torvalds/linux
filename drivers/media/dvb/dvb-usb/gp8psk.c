@@ -194,19 +194,19 @@ static struct dvb_usb_device_properties gp8psk_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
-	.streaming_ctrl   = gp8psk_streaming_ctrl,
-	.frontend_attach  = gp8psk_frontend_attach,
-	/* parameter for the MPEG2-data transfer */
+			.streaming_ctrl   = gp8psk_streaming_ctrl,
+			.frontend_attach  = gp8psk_frontend_attach,
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 7,
-		.endpoint = 0x82,
-		.u = {
-			.bulk = {
-				.buffersize = 8192,
-			}
-		}
-	},
+				.count = 7,
+				.endpoint = 0x82,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
 		}
 	},
 	.power_ctrl       = gp8psk_power_ctrl,

@@ -4,7 +4,7 @@
  * driver for Philips PNX4008 USB Host
  *
  * Authors: Dmitry Chigirev <source@mvista.com>
- * 	    Vitaly Wool <vitalywool@gmail.com>
+ *	    Vitaly Wool <vitalywool@gmail.com>
  *
  * register initialization is based on code examples provided by Philips
  * Copyright (c) 2005 Koninklijke Philips Electronics N.V.
@@ -29,7 +29,7 @@
 #include <asm/arch/irqs.h>
 #include <asm/arch/gpio.h>
 
-#define USB_CTRL 	IO_ADDRESS(PNX4008_PWRMAN_BASE + 0x64)
+#define USB_CTRL	IO_ADDRESS(PNX4008_PWRMAN_BASE + 0x64)
 
 /* USB_CTRL bit defines */
 #define USB_SLAVE_HCLK_EN	(1 << 24)
@@ -465,15 +465,3 @@ static struct platform_driver usb_hcd_pnx4008_driver = {
 	.remove = usb_hcd_pnx4008_remove,
 };
 
-static int __init usb_hcd_pnx4008_init(void)
-{
-	return platform_driver_register(&usb_hcd_pnx4008_driver);
-}
-
-static void __exit usb_hcd_pnx4008_cleanup(void)
-{
-	return platform_driver_unregister(&usb_hcd_pnx4008_driver);
-}
-
-module_init(usb_hcd_pnx4008_init);
-module_exit(usb_hcd_pnx4008_cleanup);

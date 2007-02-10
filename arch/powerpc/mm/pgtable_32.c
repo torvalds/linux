@@ -294,11 +294,8 @@ void __init mapin_ram(void)
 	}
 }
 
-/* is x a power of 2? */
-#define is_power_of_2(x)	((x) != 0 && (((x) & ((x) - 1)) == 0))
-
 /* is x a power of 4? */
-#define is_power_of_4(x)	((x) != 0 && (((x) & (x-1)) == 0) && (ffs(x) & 1))
+#define is_power_of_4(x)	is_power_of_2(x) && (ffs(x) & 1))
 
 /*
  * Set up a mapping for a block of I/O.

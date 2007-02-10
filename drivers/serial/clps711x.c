@@ -286,8 +286,8 @@ static void clps711xuart_shutdown(struct uart_port *port)
 }
 
 static void
-clps711xuart_set_termios(struct uart_port *port, struct termios *termios,
-			 struct termios *old)
+clps711xuart_set_termios(struct uart_port *port, struct ktermios *termios,
+			 struct ktermios *old)
 {
 	unsigned int ubrlcr, baud, quot;
 	unsigned long flags;

@@ -479,7 +479,7 @@ static struct ocfs2_net_wait_ctxt *ocfs2_new_net_wait_ctxt(unsigned int response
 {
 	struct ocfs2_net_wait_ctxt *w;
 
-	w = kcalloc(1, sizeof(*w), GFP_NOFS);
+	w = kzalloc(sizeof(*w), GFP_NOFS);
 	if (!w) {
 		mlog_errno(-ENOMEM);
 		goto bail;
@@ -642,7 +642,7 @@ static struct ocfs2_vote_msg * ocfs2_new_vote_request(struct ocfs2_super *osb,
 
 	BUG_ON(!ocfs2_is_valid_vote_request(type));
 
-	request = kcalloc(1, sizeof(*request), GFP_NOFS);
+	request = kzalloc(sizeof(*request), GFP_NOFS);
 	if (!request) {
 		mlog_errno(-ENOMEM);
 	} else {
@@ -887,7 +887,7 @@ static inline int ocfs2_translate_response(int response)
 
 static int ocfs2_handle_response_message(struct o2net_msg *msg,
 					 u32 len,
-					 void *data)
+					 void *data, void **ret_data)
 {
 	unsigned int response_id, node_num;
 	int response_status;
@@ -943,7 +943,7 @@ bail:
 
 static int ocfs2_handle_vote_message(struct o2net_msg *msg,
 				     u32 len,
-				     void *data)
+				     void *data, void **ret_data)
 {
 	int status;
 	struct ocfs2_super *osb = data;
@@ -1000,11 +1000,14 @@ int ocfs2_register_net_handlers(struct ocfs2_super *osb)
 {
 	int status = 0;
 
+	if (ocfs2_mount_local(osb))
+		return 0;
+
 	status = o2net_register_handler(OCFS2_MESSAGE_TYPE_RESPONSE,
 					osb->net_key,
 					sizeof(struct ocfs2_response_msg),
 					ocfs2_handle_response_message,
-					osb, &osb->osb_net_handlers);
+					osb, NULL, &osb->osb_net_handlers);
 	if (status) {
 		mlog_errno(status);
 		goto bail;
@@ -1014,7 +1017,7 @@ int ocfs2_register_net_handlers(struct ocfs2_super *osb)
 					osb->net_key,
 					sizeof(struct ocfs2_vote_msg),
 					ocfs2_handle_vote_message,
-					osb, &osb->osb_net_handlers);
+					osb, NULL, &osb->osb_net_handlers);
 	if (status) {
 		mlog_errno(status);
 		goto bail;

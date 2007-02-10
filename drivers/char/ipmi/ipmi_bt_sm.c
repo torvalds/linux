@@ -37,8 +37,10 @@
 #define BT_DEBUG_ENABLE	1	/* Generic messages */
 #define BT_DEBUG_MSG	2	/* Prints all request/response buffers */
 #define BT_DEBUG_STATES	4	/* Verbose look at state changes */
+/* BT_DEBUG_OFF must be zero to correspond to the default uninitialized
+   value */
 
-static int bt_debug = BT_DEBUG_OFF;
+static int bt_debug; /* 0 == BT_DEBUG_OFF */
 
 module_param(bt_debug, int, 0644);
 MODULE_PARM_DESC(bt_debug, "debug bitmask, 1=enable, 2=messages, 4=states");

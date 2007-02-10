@@ -279,9 +279,8 @@ static int omap_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	local_irq_enable();
 
 	bcd2tm(&alm->time);
-	alm->pending = !!(rtc_read(OMAP_RTC_INTERRUPTS_REG)
+	alm->enabled = !!(rtc_read(OMAP_RTC_INTERRUPTS_REG)
 			& OMAP_RTC_INTERRUPTS_IT_ALARM);
-	alm->enabled = alm->pending && device_may_wakeup(dev);
 
 	return 0;
 }

@@ -77,7 +77,7 @@ const struct file_operations udf_dir_operations = {
 
 int udf_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *dir = filp->f_dentry->d_inode;
+	struct inode *dir = filp->f_path.dentry->d_inode;
 	int result;
 
 	lock_kernel();
@@ -225,7 +225,7 @@ do_udf_readdir(struct inode * dir, struct file *filp, filldir_t filldir, void *d
 
 		if ( cfi.fileCharacteristics & FID_FILE_CHAR_PARENT )
 		{
-			iblock = parent_ino(filp->f_dentry);
+			iblock = parent_ino(filp->f_path.dentry);
 			flen = 2;
 			memcpy(fname, "..", flen);
 			dt_type = DT_DIR;

@@ -3,8 +3,7 @@
  *
  * Note: This driver is a cleanroom reimplementation based on reverse
  *      engineered documentation written by Carl-Daniel Hailfinger
- *      and Andrew de Quincey. It's neither supported nor endorsed
- *      by NVIDIA Corp. Use at your own risk.
+ *      and Andrew de Quincey.
  *
  * NVIDIA, nForce and other NVIDIA marks are trademarks or registered
  * trademarks of NVIDIA Corporation in the United States and other
@@ -14,7 +13,7 @@
  * Copyright (C) 2004 Andrew de Quincey (wol support)
  * Copyright (C) 2004 Carl-Daniel Hailfinger (invalid MAC handling, insane
  *		IRQ rate fixes, bigendian fixes, cleanups, verification)
- * Copyright (c) 2004 NVIDIA Corporation
+ * Copyright (c) 2004,5,6 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -112,6 +111,7 @@
  *	0.57: 14 May 2006: Mac address set in probe/remove and order corrections.
  *	0.58: 30 Oct 2006: Added support for sideband management unit.
  *	0.59: 30 Oct 2006: Added support for recoverable error.
+ *	0.60: 20 Jan 2007: Code optimizations for rings, rx & tx data paths, and stats.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -128,7 +128,7 @@
 #else
 #define DRIVERNAPI
 #endif
-#define FORCEDETH_VERSION		"0.59"
+#define FORCEDETH_VERSION		"0.60"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -174,9 +174,10 @@
 #define DEV_HAS_MSI_X           0x0080  /* device supports MSI-X */
 #define DEV_HAS_POWER_CNTRL     0x0100  /* device supports power savings */
 #define DEV_HAS_PAUSEFRAME_TX   0x0200  /* device supports tx pause frames */
-#define DEV_HAS_STATISTICS      0x0400  /* device supports hw statistics */
-#define DEV_HAS_TEST_EXTENDED   0x0800  /* device supports extended diagnostic test */
-#define DEV_HAS_MGMT_UNIT       0x1000  /* device supports management unit */
+#define DEV_HAS_STATISTICS_V1   0x0400  /* device supports hw statistics version 1 */
+#define DEV_HAS_STATISTICS_V2   0x0800  /* device supports hw statistics version 2 */
+#define DEV_HAS_TEST_EXTENDED   0x1000  /* device supports extended diagnostic test */
+#define DEV_HAS_MGMT_UNIT       0x2000  /* device supports management unit */
 
 enum {
 	NvRegIrqStatus = 0x000,
@@ -211,7 +212,7 @@ enum {
  * NVREG_POLL_DEFAULT=97 would result in an interval length of 1 ms
  */
 	NvRegPollingInterval = 0x00c,
-#define NVREG_POLL_DEFAULT_THROUGHPUT	970
+#define NVREG_POLL_DEFAULT_THROUGHPUT	970 /* backup tx cleanup if loop max reached */
 #define NVREG_POLL_DEFAULT_CPU	13
 	NvRegMSIMap0 = 0x020,
 	NvRegMSIMap1 = 0x024,
@@ -235,6 +236,7 @@ enum {
 #define NVREG_XMITCTL_HOST_SEMA_MASK	0x0000f000
 #define NVREG_XMITCTL_HOST_SEMA_ACQ	0x0000f000
 #define NVREG_XMITCTL_HOST_LOADED	0x00004000
+#define NVREG_XMITCTL_TX_PATH_EN	0x01000000
 	NvRegTransmitterStatus = 0x088,
 #define NVREG_XMITSTAT_BUSY	0x01
 
@@ -250,6 +252,7 @@ enum {
 #define NVREG_OFFLOAD_NORMAL	RX_NIC_BUFSIZE
 	NvRegReceiverControl = 0x094,
 #define NVREG_RCVCTL_START	0x01
+#define NVREG_RCVCTL_RX_PATH_EN	0x01000000
 	NvRegReceiverStatus = 0x98,
 #define NVREG_RCVSTAT_BUSY	0x01
 
@@ -303,8 +306,8 @@ enum {
 #define NVREG_TXRXCTL_RESET	0x0010
 #define NVREG_TXRXCTL_RXCHECK	0x0400
 #define NVREG_TXRXCTL_DESC_1	0
-#define NVREG_TXRXCTL_DESC_2	0x02100
-#define NVREG_TXRXCTL_DESC_3	0x02200
+#define NVREG_TXRXCTL_DESC_2	0x002100
+#define NVREG_TXRXCTL_DESC_3	0xc02200
 #define NVREG_TXRXCTL_VLANSTRIP 0x00040
 #define NVREG_TXRXCTL_VLANINS	0x00080
 	NvRegTxRingPhysAddrHigh = 0x148,
@@ -486,7 +489,8 @@ union ring_type {
 
 /* Miscelaneous hardware related defines: */
 #define NV_PCI_REGSZ_VER1      	0x270
-#define NV_PCI_REGSZ_VER2      	0x604
+#define NV_PCI_REGSZ_VER2      	0x2d4
+#define NV_PCI_REGSZ_VER3      	0x604
 
 /* various timeout delays: all in usec */
 #define NV_TXRX_RESET_DELAY	4
@@ -517,12 +521,6 @@ union ring_type {
 #define TX_RING_MIN		64
 #define RING_MAX_DESC_VER_1	1024
 #define RING_MAX_DESC_VER_2_3	16384
-/*
- * Difference between the get and put pointers for the tx ring.
- * This is used to throttle the amount of data outstanding in the
- * tx ring.
- */
-#define TX_LIMIT_DIFFERENCE	1
 
 /* rx/tx mac addr + type + vlan + align + slack*/
 #define NV_RX_HEADERS		(64)
@@ -610,9 +608,6 @@ static const struct nv_ethtool_str nv_estats_str[] = {
 	{ "tx_carrier_errors" },
 	{ "tx_excess_deferral" },
 	{ "tx_retry_error" },
-	{ "tx_deferral" },
-	{ "tx_packets" },
-	{ "tx_pause" },
 	{ "rx_frame_error" },
 	{ "rx_extra_byte" },
 	{ "rx_late_collision" },
@@ -625,11 +620,17 @@ static const struct nv_ethtool_str nv_estats_str[] = {
 	{ "rx_unicast" },
 	{ "rx_multicast" },
 	{ "rx_broadcast" },
-	{ "rx_bytes" },
-	{ "rx_pause" },
-	{ "rx_drop_frame" },
 	{ "rx_packets" },
-	{ "rx_errors_total" }
+	{ "rx_errors_total" },
+	{ "tx_errors_total" },
+
+	/* version 2 stats */
+	{ "tx_deferral" },
+	{ "tx_packets" },
+	{ "rx_bytes" },
+	{ "tx_pause" },
+	{ "rx_pause" },
+	{ "rx_drop_frame" }
 };
 
 struct nv_ethtool_stats {
@@ -642,9 +643,6 @@ struct nv_ethtool_stats {
 	u64 tx_carrier_errors;
 	u64 tx_excess_deferral;
 	u64 tx_retry_error;
-	u64 tx_deferral;
-	u64 tx_packets;
-	u64 tx_pause;
 	u64 rx_frame_error;
 	u64 rx_extra_byte;
 	u64 rx_late_collision;
@@ -657,12 +655,21 @@ struct nv_ethtool_stats {
 	u64 rx_unicast;
 	u64 rx_multicast;
 	u64 rx_broadcast;
-	u64 rx_bytes;
-	u64 rx_pause;
-	u64 rx_drop_frame;
 	u64 rx_packets;
 	u64 rx_errors_total;
+	u64 tx_errors_total;
+
+	/* version 2 stats */
+	u64 tx_deferral;
+	u64 tx_packets;
+	u64 rx_bytes;
+	u64 tx_pause;
+	u64 rx_pause;
+	u64 rx_drop_frame;
 };
+
+#define NV_DEV_STATISTICS_V2_COUNT (sizeof(struct nv_ethtool_stats)/sizeof(u64))
+#define NV_DEV_STATISTICS_V1_COUNT (NV_DEV_STATISTICS_V2_COUNT - 6)
 
 /* diagnostics */
 #define NV_TEST_COUNT_BASE 3
@@ -688,6 +695,12 @@ static const struct register_test nv_registers_test[] = {
 	{ NvRegTxWatermark, 0x0ff },
 	{ NvRegWakeUpFlags, 0x07777 },
 	{ 0,0 }
+};
+
+struct nv_skb_map {
+	struct sk_buff *skb;
+	dma_addr_t dma;
+	unsigned int dma_len;
 };
 
 /*
@@ -740,10 +753,12 @@ struct fe_priv {
 	/* rx specific fields.
 	 * Locking: Within irq hander or disable_irq+spin_lock(&np->lock);
 	 */
+	union ring_type get_rx, put_rx, first_rx, last_rx;
+	struct nv_skb_map *get_rx_ctx, *put_rx_ctx;
+	struct nv_skb_map *first_rx_ctx, *last_rx_ctx;
+	struct nv_skb_map *rx_skb;
+
 	union ring_type rx_ring;
-	unsigned int cur_rx, refill_rx;
-	struct sk_buff **rx_skbuff;
-	dma_addr_t *rx_dma;
 	unsigned int rx_buf_sz;
 	unsigned int pkt_limit;
 	struct timer_list oom_kick;
@@ -760,15 +775,15 @@ struct fe_priv {
 	/*
 	 * tx specific fields.
 	 */
+	union ring_type get_tx, put_tx, first_tx, last_tx;
+	struct nv_skb_map *get_tx_ctx, *put_tx_ctx;
+	struct nv_skb_map *first_tx_ctx, *last_tx_ctx;
+	struct nv_skb_map *tx_skb;
+
 	union ring_type tx_ring;
-	unsigned int next_tx, nic_tx;
-	struct sk_buff **tx_skbuff;
-	dma_addr_t *tx_dma;
-	unsigned int *tx_dma_len;
 	u32 tx_flags;
 	int tx_ring_size;
-	int tx_limit_start;
-	int tx_limit_stop;
+	int tx_stop;
 
 	/* vlan fields */
 	struct vlan_group *vlangrp;
@@ -920,16 +935,10 @@ static void free_rings(struct net_device *dev)
 			pci_free_consistent(np->pci_dev, sizeof(struct ring_desc_ex) * (np->rx_ring_size + np->tx_ring_size),
 					    np->rx_ring.ex, np->ring_addr);
 	}
-	if (np->rx_skbuff)
-		kfree(np->rx_skbuff);
-	if (np->rx_dma)
-		kfree(np->rx_dma);
-	if (np->tx_skbuff)
-		kfree(np->tx_skbuff);
-	if (np->tx_dma)
-		kfree(np->tx_dma);
-	if (np->tx_dma_len)
-		kfree(np->tx_dma_len);
+	if (np->rx_skb)
+		kfree(np->rx_skb);
+	if (np->tx_skb)
+		kfree(np->tx_skb);
 }
 
 static int using_multi_irqs(struct net_device *dev)
@@ -1170,16 +1179,21 @@ static void nv_start_rx(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	u32 rx_ctrl = readl(base + NvRegReceiverControl);
 
 	dprintk(KERN_DEBUG "%s: nv_start_rx\n", dev->name);
 	/* Already running? Stop it. */
-	if (readl(base + NvRegReceiverControl) & NVREG_RCVCTL_START) {
-		writel(0, base + NvRegReceiverControl);
+	if ((readl(base + NvRegReceiverControl) & NVREG_RCVCTL_START) && !np->mac_in_use) {
+		rx_ctrl &= ~NVREG_RCVCTL_START;
+		writel(rx_ctrl, base + NvRegReceiverControl);
 		pci_push(base);
 	}
 	writel(np->linkspeed, base + NvRegLinkSpeed);
 	pci_push(base);
-	writel(NVREG_RCVCTL_START, base + NvRegReceiverControl);
+        rx_ctrl |= NVREG_RCVCTL_START;
+        if (np->mac_in_use)
+		rx_ctrl &= ~NVREG_RCVCTL_RX_PATH_EN;
+	writel(rx_ctrl, base + NvRegReceiverControl);
 	dprintk(KERN_DEBUG "%s: nv_start_rx to duplex %d, speed 0x%08x.\n",
 				dev->name, np->duplex, np->linkspeed);
 	pci_push(base);
@@ -1187,39 +1201,59 @@ static void nv_start_rx(struct net_device *dev)
 
 static void nv_stop_rx(struct net_device *dev)
 {
+	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	u32 rx_ctrl = readl(base + NvRegReceiverControl);
 
 	dprintk(KERN_DEBUG "%s: nv_stop_rx\n", dev->name);
-	writel(0, base + NvRegReceiverControl);
+	if (!np->mac_in_use)
+		rx_ctrl &= ~NVREG_RCVCTL_START;
+	else
+		rx_ctrl |= NVREG_RCVCTL_RX_PATH_EN;
+	writel(rx_ctrl, base + NvRegReceiverControl);
 	reg_delay(dev, NvRegReceiverStatus, NVREG_RCVSTAT_BUSY, 0,
 			NV_RXSTOP_DELAY1, NV_RXSTOP_DELAY1MAX,
 			KERN_INFO "nv_stop_rx: ReceiverStatus remained busy");
 
 	udelay(NV_RXSTOP_DELAY2);
-	writel(0, base + NvRegLinkSpeed);
+	if (!np->mac_in_use)
+		writel(0, base + NvRegLinkSpeed);
 }
 
 static void nv_start_tx(struct net_device *dev)
 {
+	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	u32 tx_ctrl = readl(base + NvRegTransmitterControl);
 
 	dprintk(KERN_DEBUG "%s: nv_start_tx\n", dev->name);
-	writel(NVREG_XMITCTL_START, base + NvRegTransmitterControl);
+	tx_ctrl |= NVREG_XMITCTL_START;
+	if (np->mac_in_use)
+		tx_ctrl &= ~NVREG_XMITCTL_TX_PATH_EN;
+	writel(tx_ctrl, base + NvRegTransmitterControl);
 	pci_push(base);
 }
 
 static void nv_stop_tx(struct net_device *dev)
 {
+	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	u32 tx_ctrl = readl(base + NvRegTransmitterControl);
 
 	dprintk(KERN_DEBUG "%s: nv_stop_tx\n", dev->name);
-	writel(0, base + NvRegTransmitterControl);
+	if (!np->mac_in_use)
+		tx_ctrl &= ~NVREG_XMITCTL_START;
+	else
+		tx_ctrl |= NVREG_XMITCTL_TX_PATH_EN;
+	writel(tx_ctrl, base + NvRegTransmitterControl);
 	reg_delay(dev, NvRegTransmitterStatus, NVREG_XMITSTAT_BUSY, 0,
 			NV_TXSTOP_DELAY1, NV_TXSTOP_DELAY1MAX,
 			KERN_INFO "nv_stop_tx: TransmitterStatus remained busy");
 
 	udelay(NV_TXSTOP_DELAY2);
-	writel(readl(base + NvRegTransmitPoll) & NVREG_TRANSMITPOLL_MAC_ADDR_REV, base + NvRegTransmitPoll);
+	if (!np->mac_in_use)
+		writel(readl(base + NvRegTransmitPoll) & NVREG_TRANSMITPOLL_MAC_ADDR_REV,
+		       base + NvRegTransmitPoll);
 }
 
 static void nv_txrx_reset(struct net_device *dev)
@@ -1253,6 +1287,61 @@ static void nv_mac_reset(struct net_device *dev)
 	pci_push(base);
 }
 
+static void nv_get_hw_stats(struct net_device *dev)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+
+	np->estats.tx_bytes += readl(base + NvRegTxCnt);
+	np->estats.tx_zero_rexmt += readl(base + NvRegTxZeroReXmt);
+	np->estats.tx_one_rexmt += readl(base + NvRegTxOneReXmt);
+	np->estats.tx_many_rexmt += readl(base + NvRegTxManyReXmt);
+	np->estats.tx_late_collision += readl(base + NvRegTxLateCol);
+	np->estats.tx_fifo_errors += readl(base + NvRegTxUnderflow);
+	np->estats.tx_carrier_errors += readl(base + NvRegTxLossCarrier);
+	np->estats.tx_excess_deferral += readl(base + NvRegTxExcessDef);
+	np->estats.tx_retry_error += readl(base + NvRegTxRetryErr);
+	np->estats.rx_frame_error += readl(base + NvRegRxFrameErr);
+	np->estats.rx_extra_byte += readl(base + NvRegRxExtraByte);
+	np->estats.rx_late_collision += readl(base + NvRegRxLateCol);
+	np->estats.rx_runt += readl(base + NvRegRxRunt);
+	np->estats.rx_frame_too_long += readl(base + NvRegRxFrameTooLong);
+	np->estats.rx_over_errors += readl(base + NvRegRxOverflow);
+	np->estats.rx_crc_errors += readl(base + NvRegRxFCSErr);
+	np->estats.rx_frame_align_error += readl(base + NvRegRxFrameAlignErr);
+	np->estats.rx_length_error += readl(base + NvRegRxLenErr);
+	np->estats.rx_unicast += readl(base + NvRegRxUnicast);
+	np->estats.rx_multicast += readl(base + NvRegRxMulticast);
+	np->estats.rx_broadcast += readl(base + NvRegRxBroadcast);
+	np->estats.rx_packets =
+		np->estats.rx_unicast +
+		np->estats.rx_multicast +
+		np->estats.rx_broadcast;
+	np->estats.rx_errors_total =
+		np->estats.rx_crc_errors +
+		np->estats.rx_over_errors +
+		np->estats.rx_frame_error +
+		(np->estats.rx_frame_align_error - np->estats.rx_extra_byte) +
+		np->estats.rx_late_collision +
+		np->estats.rx_runt +
+		np->estats.rx_frame_too_long;
+	np->estats.tx_errors_total =
+		np->estats.tx_late_collision +
+		np->estats.tx_fifo_errors +
+		np->estats.tx_carrier_errors +
+		np->estats.tx_excess_deferral +
+		np->estats.tx_retry_error;
+
+	if (np->driver_data & DEV_HAS_STATISTICS_V2) {
+		np->estats.tx_deferral += readl(base + NvRegTxDef);
+		np->estats.tx_packets += readl(base + NvRegTxFrame);
+		np->estats.rx_bytes += readl(base + NvRegRxCnt);
+		np->estats.tx_pause += readl(base + NvRegTxPause);
+		np->estats.rx_pause += readl(base + NvRegRxPause);
+		np->estats.rx_drop_frame += readl(base + NvRegRxDropFrame);
+	}
+}
+
 /*
  * nv_get_stats: dev->get_stats function
  * Get latest stats value from the nic.
@@ -1263,10 +1352,19 @@ static struct net_device_stats *nv_get_stats(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 
-	/* It seems that the nic always generates interrupts and doesn't
-	 * accumulate errors internally. Thus the current values in np->stats
-	 * are already up to date.
-	 */
+	/* If the nic supports hw counters then retrieve latest values */
+	if (np->driver_data & (DEV_HAS_STATISTICS_V1|DEV_HAS_STATISTICS_V2)) {
+		nv_get_hw_stats(dev);
+
+		/* copy to net_device stats */
+		np->stats.tx_bytes = np->estats.tx_bytes;
+		np->stats.tx_fifo_errors = np->estats.tx_fifo_errors;
+		np->stats.tx_carrier_errors = np->estats.tx_carrier_errors;
+		np->stats.rx_crc_errors = np->estats.rx_crc_errors;
+		np->stats.rx_over_errors = np->estats.rx_over_errors;
+		np->stats.rx_errors = np->estats.rx_errors_total;
+		np->stats.tx_errors = np->estats.tx_errors_total;
+	}
 	return &np->stats;
 }
 
@@ -1278,43 +1376,63 @@ static struct net_device_stats *nv_get_stats(struct net_device *dev)
 static int nv_alloc_rx(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
-	unsigned int refill_rx = np->refill_rx;
-	int nr;
+	struct ring_desc* less_rx;
 
-	while (np->cur_rx != refill_rx) {
-		struct sk_buff *skb;
+	less_rx = np->get_rx.orig;
+	if (less_rx-- == np->first_rx.orig)
+		less_rx = np->last_rx.orig;
 
-		nr = refill_rx % np->rx_ring_size;
-		if (np->rx_skbuff[nr] == NULL) {
-
-			skb = dev_alloc_skb(np->rx_buf_sz + NV_RX_ALLOC_PAD);
-			if (!skb)
-				break;
-
+	while (np->put_rx.orig != less_rx) {
+		struct sk_buff *skb = dev_alloc_skb(np->rx_buf_sz + NV_RX_ALLOC_PAD);
+		if (skb) {
 			skb->dev = dev;
-			np->rx_skbuff[nr] = skb;
-		} else {
-			skb = np->rx_skbuff[nr];
-		}
-		np->rx_dma[nr] = pci_map_single(np->pci_dev, skb->data,
-					skb->end-skb->data, PCI_DMA_FROMDEVICE);
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
-			np->rx_ring.orig[nr].buf = cpu_to_le32(np->rx_dma[nr]);
+			np->put_rx_ctx->skb = skb;
+			np->put_rx_ctx->dma = pci_map_single(np->pci_dev, skb->data,
+							     skb->end-skb->data, PCI_DMA_FROMDEVICE);
+			np->put_rx_ctx->dma_len = skb->end-skb->data;
+			np->put_rx.orig->buf = cpu_to_le32(np->put_rx_ctx->dma);
 			wmb();
-			np->rx_ring.orig[nr].flaglen = cpu_to_le32(np->rx_buf_sz | NV_RX_AVAIL);
+			np->put_rx.orig->flaglen = cpu_to_le32(np->rx_buf_sz | NV_RX_AVAIL);
+			if (unlikely(np->put_rx.orig++ == np->last_rx.orig))
+				np->put_rx.orig = np->first_rx.orig;
+			if (unlikely(np->put_rx_ctx++ == np->last_rx_ctx))
+				np->put_rx_ctx = np->first_rx_ctx;
 		} else {
-			np->rx_ring.ex[nr].bufhigh = cpu_to_le64(np->rx_dma[nr]) >> 32;
-			np->rx_ring.ex[nr].buflow = cpu_to_le64(np->rx_dma[nr]) & 0x0FFFFFFFF;
-			wmb();
-			np->rx_ring.ex[nr].flaglen = cpu_to_le32(np->rx_buf_sz | NV_RX2_AVAIL);
+			return 1;
 		}
-		dprintk(KERN_DEBUG "%s: nv_alloc_rx: Packet %d marked as Available\n",
-					dev->name, refill_rx);
-		refill_rx++;
 	}
-	np->refill_rx = refill_rx;
-	if (np->cur_rx - refill_rx == np->rx_ring_size)
-		return 1;
+	return 0;
+}
+
+static int nv_alloc_rx_optimized(struct net_device *dev)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	struct ring_desc_ex* less_rx;
+
+	less_rx = np->get_rx.ex;
+	if (less_rx-- == np->first_rx.ex)
+		less_rx = np->last_rx.ex;
+
+	while (np->put_rx.ex != less_rx) {
+		struct sk_buff *skb = dev_alloc_skb(np->rx_buf_sz + NV_RX_ALLOC_PAD);
+		if (skb) {
+			skb->dev = dev;
+			np->put_rx_ctx->skb = skb;
+			np->put_rx_ctx->dma = pci_map_single(np->pci_dev, skb->data,
+							     skb->end-skb->data, PCI_DMA_FROMDEVICE);
+			np->put_rx_ctx->dma_len = skb->end-skb->data;
+			np->put_rx.ex->bufhigh = cpu_to_le64(np->put_rx_ctx->dma) >> 32;
+			np->put_rx.ex->buflow = cpu_to_le64(np->put_rx_ctx->dma) & 0x0FFFFFFFF;
+			wmb();
+			np->put_rx.ex->flaglen = cpu_to_le32(np->rx_buf_sz | NV_RX2_AVAIL);
+			if (unlikely(np->put_rx.ex++ == np->last_rx.ex))
+				np->put_rx.ex = np->first_rx.ex;
+			if (unlikely(np->put_rx_ctx++ == np->last_rx_ctx))
+				np->put_rx_ctx = np->first_rx_ctx;
+		} else {
+			return 1;
+		}
+	}
 	return 0;
 }
 
@@ -1332,6 +1450,7 @@ static void nv_do_rx_refill(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
+	int retcode;
 
 	if (!using_multi_irqs(dev)) {
 		if (np->msi_flags & NV_MSI_X_ENABLED)
@@ -1341,7 +1460,11 @@ static void nv_do_rx_refill(unsigned long data)
 	} else {
 		disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 	}
-	if (nv_alloc_rx(dev)) {
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+		retcode = nv_alloc_rx(dev);
+	else
+		retcode = nv_alloc_rx_optimized(dev);
+	if (retcode) {
 		spin_lock_irq(&np->lock);
 		if (!np->in_shutdown)
 			mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
@@ -1362,56 +1485,81 @@ static void nv_init_rx(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	int i;
+	np->get_rx = np->put_rx = np->first_rx = np->rx_ring;
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+		np->last_rx.orig = &np->rx_ring.orig[np->rx_ring_size-1];
+	else
+		np->last_rx.ex = &np->rx_ring.ex[np->rx_ring_size-1];
+	np->get_rx_ctx = np->put_rx_ctx = np->first_rx_ctx = np->rx_skb;
+	np->last_rx_ctx = &np->rx_skb[np->rx_ring_size-1];
 
-	np->cur_rx = np->rx_ring_size;
-	np->refill_rx = 0;
-	for (i = 0; i < np->rx_ring_size; i++)
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+	for (i = 0; i < np->rx_ring_size; i++) {
+		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 			np->rx_ring.orig[i].flaglen = 0;
-	        else
+			np->rx_ring.orig[i].buf = 0;
+		} else {
 			np->rx_ring.ex[i].flaglen = 0;
+			np->rx_ring.ex[i].txvlan = 0;
+			np->rx_ring.ex[i].bufhigh = 0;
+			np->rx_ring.ex[i].buflow = 0;
+		}
+		np->rx_skb[i].skb = NULL;
+		np->rx_skb[i].dma = 0;
+	}
 }
 
 static void nv_init_tx(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	int i;
+	np->get_tx = np->put_tx = np->first_tx = np->tx_ring;
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+		np->last_tx.orig = &np->tx_ring.orig[np->tx_ring_size-1];
+	else
+		np->last_tx.ex = &np->tx_ring.ex[np->tx_ring_size-1];
+	np->get_tx_ctx = np->put_tx_ctx = np->first_tx_ctx = np->tx_skb;
+	np->last_tx_ctx = &np->tx_skb[np->tx_ring_size-1];
 
-	np->next_tx = np->nic_tx = 0;
 	for (i = 0; i < np->tx_ring_size; i++) {
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 			np->tx_ring.orig[i].flaglen = 0;
-	        else
+			np->tx_ring.orig[i].buf = 0;
+		} else {
 			np->tx_ring.ex[i].flaglen = 0;
-		np->tx_skbuff[i] = NULL;
-		np->tx_dma[i] = 0;
+			np->tx_ring.ex[i].txvlan = 0;
+			np->tx_ring.ex[i].bufhigh = 0;
+			np->tx_ring.ex[i].buflow = 0;
+		}
+		np->tx_skb[i].skb = NULL;
+		np->tx_skb[i].dma = 0;
 	}
 }
 
 static int nv_init_ring(struct net_device *dev)
 {
+	struct fe_priv *np = netdev_priv(dev);
+
 	nv_init_tx(dev);
 	nv_init_rx(dev);
-	return nv_alloc_rx(dev);
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+		return nv_alloc_rx(dev);
+	else
+		return nv_alloc_rx_optimized(dev);
 }
 
-static int nv_release_txskb(struct net_device *dev, unsigned int skbnr)
+static int nv_release_txskb(struct net_device *dev, struct nv_skb_map* tx_skb)
 {
 	struct fe_priv *np = netdev_priv(dev);
 
-	dprintk(KERN_INFO "%s: nv_release_txskb for skbnr %d\n",
-		dev->name, skbnr);
-
-	if (np->tx_dma[skbnr]) {
-		pci_unmap_page(np->pci_dev, np->tx_dma[skbnr],
-			       np->tx_dma_len[skbnr],
+	if (tx_skb->dma) {
+		pci_unmap_page(np->pci_dev, tx_skb->dma,
+			       tx_skb->dma_len,
 			       PCI_DMA_TODEVICE);
-		np->tx_dma[skbnr] = 0;
+		tx_skb->dma = 0;
 	}
-
-	if (np->tx_skbuff[skbnr]) {
-		dev_kfree_skb_any(np->tx_skbuff[skbnr]);
-		np->tx_skbuff[skbnr] = NULL;
+	if (tx_skb->skb) {
+		dev_kfree_skb_any(tx_skb->skb);
+		tx_skb->skb = NULL;
 		return 1;
 	} else {
 		return 0;
@@ -1424,11 +1572,16 @@ static void nv_drain_tx(struct net_device *dev)
 	unsigned int i;
 
 	for (i = 0; i < np->tx_ring_size; i++) {
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 			np->tx_ring.orig[i].flaglen = 0;
-		else
+			np->tx_ring.orig[i].buf = 0;
+		} else {
 			np->tx_ring.ex[i].flaglen = 0;
-		if (nv_release_txskb(dev, i))
+			np->tx_ring.ex[i].txvlan = 0;
+			np->tx_ring.ex[i].bufhigh = 0;
+			np->tx_ring.ex[i].buflow = 0;
+		}
+		if (nv_release_txskb(dev, &np->tx_skb[i]))
 			np->stats.tx_dropped++;
 	}
 }
@@ -1437,18 +1590,24 @@ static void nv_drain_rx(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	int i;
+
 	for (i = 0; i < np->rx_ring_size; i++) {
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 			np->rx_ring.orig[i].flaglen = 0;
-		else
+			np->rx_ring.orig[i].buf = 0;
+		} else {
 			np->rx_ring.ex[i].flaglen = 0;
+			np->rx_ring.ex[i].txvlan = 0;
+			np->rx_ring.ex[i].bufhigh = 0;
+			np->rx_ring.ex[i].buflow = 0;
+		}
 		wmb();
-		if (np->rx_skbuff[i]) {
-			pci_unmap_single(np->pci_dev, np->rx_dma[i],
-						np->rx_skbuff[i]->end-np->rx_skbuff[i]->data,
+		if (np->rx_skb[i].skb) {
+			pci_unmap_single(np->pci_dev, np->rx_skb[i].dma,
+						np->rx_skb[i].skb->end-np->rx_skb[i].skb->data,
 						PCI_DMA_FROMDEVICE);
-			dev_kfree_skb(np->rx_skbuff[i]);
-			np->rx_skbuff[i] = NULL;
+			dev_kfree_skb(np->rx_skb[i].skb);
+			np->rx_skb[i].skb = NULL;
 		}
 	}
 }
@@ -1457,6 +1616,11 @@ static void drain_ring(struct net_device *dev)
 {
 	nv_drain_tx(dev);
 	nv_drain_rx(dev);
+}
+
+static inline u32 nv_get_empty_tx_slots(struct fe_priv *np)
+{
+	return (u32)(np->tx_ring_size - ((np->tx_ring_size + (np->put_tx_ctx - np->get_tx_ctx)) % np->tx_ring_size));
 }
 
 /*
@@ -1469,14 +1633,16 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 tx_flags = 0;
 	u32 tx_flags_extra = (np->desc_ver == DESC_VER_1 ? NV_TX_LASTPACKET : NV_TX2_LASTPACKET);
 	unsigned int fragments = skb_shinfo(skb)->nr_frags;
-	unsigned int nr = (np->next_tx - 1) % np->tx_ring_size;
-	unsigned int start_nr = np->next_tx % np->tx_ring_size;
 	unsigned int i;
 	u32 offset = 0;
 	u32 bcnt;
 	u32 size = skb->len-skb->data_len;
 	u32 entries = (size >> NV_TX2_TSO_MAX_SHIFT) + ((size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
-	u32 tx_flags_vlan = 0;
+	u32 empty_slots;
+	struct ring_desc* put_tx;
+	struct ring_desc* start_tx;
+	struct ring_desc* prev_tx;
+	struct nv_skb_map* prev_tx_ctx;
 
 	/* add fragments to entries count */
 	for (i = 0; i < fragments; i++) {
@@ -1484,34 +1650,35 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			   ((skb_shinfo(skb)->frags[i].size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
 	}
 
-	spin_lock_irq(&np->lock);
-
-	if ((np->next_tx - np->nic_tx + entries - 1) > np->tx_limit_stop) {
-		spin_unlock_irq(&np->lock);
+	empty_slots = nv_get_empty_tx_slots(np);
+	if (unlikely(empty_slots <= entries)) {
+		spin_lock_irq(&np->lock);
 		netif_stop_queue(dev);
+		np->tx_stop = 1;
+		spin_unlock_irq(&np->lock);
 		return NETDEV_TX_BUSY;
 	}
 
+	start_tx = put_tx = np->put_tx.orig;
+
 	/* setup the header buffer */
 	do {
+		prev_tx = put_tx;
+		prev_tx_ctx = np->put_tx_ctx;
 		bcnt = (size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : size;
-		nr = (nr + 1) % np->tx_ring_size;
-
-		np->tx_dma[nr] = pci_map_single(np->pci_dev, skb->data + offset, bcnt,
+		np->put_tx_ctx->dma = pci_map_single(np->pci_dev, skb->data + offset, bcnt,
 						PCI_DMA_TODEVICE);
-		np->tx_dma_len[nr] = bcnt;
+		np->put_tx_ctx->dma_len = bcnt;
+		put_tx->buf = cpu_to_le32(np->put_tx_ctx->dma);
+		put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
 
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
-			np->tx_ring.orig[nr].buf = cpu_to_le32(np->tx_dma[nr]);
-			np->tx_ring.orig[nr].flaglen = cpu_to_le32((bcnt-1) | tx_flags);
-		} else {
-			np->tx_ring.ex[nr].bufhigh = cpu_to_le64(np->tx_dma[nr]) >> 32;
-			np->tx_ring.ex[nr].buflow = cpu_to_le64(np->tx_dma[nr]) & 0x0FFFFFFFF;
-			np->tx_ring.ex[nr].flaglen = cpu_to_le32((bcnt-1) | tx_flags);
-		}
 		tx_flags = np->tx_flags;
 		offset += bcnt;
 		size -= bcnt;
+		if (unlikely(put_tx++ == np->last_tx.orig))
+			put_tx = np->first_tx.orig;
+		if (unlikely(np->put_tx_ctx++ == np->last_tx_ctx))
+			np->put_tx_ctx = np->first_tx_ctx;
 	} while (size);
 
 	/* setup the fragments */
@@ -1521,58 +1688,46 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		offset = 0;
 
 		do {
+			prev_tx = put_tx;
+			prev_tx_ctx = np->put_tx_ctx;
 			bcnt = (size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : size;
-			nr = (nr + 1) % np->tx_ring_size;
+			np->put_tx_ctx->dma = pci_map_page(np->pci_dev, frag->page, frag->page_offset+offset, bcnt,
+							   PCI_DMA_TODEVICE);
+			np->put_tx_ctx->dma_len = bcnt;
+			put_tx->buf = cpu_to_le32(np->put_tx_ctx->dma);
+			put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
 
-			np->tx_dma[nr] = pci_map_page(np->pci_dev, frag->page, frag->page_offset+offset, bcnt,
-						      PCI_DMA_TODEVICE);
-			np->tx_dma_len[nr] = bcnt;
-
-			if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
-				np->tx_ring.orig[nr].buf = cpu_to_le32(np->tx_dma[nr]);
-				np->tx_ring.orig[nr].flaglen = cpu_to_le32((bcnt-1) | tx_flags);
-			} else {
-				np->tx_ring.ex[nr].bufhigh = cpu_to_le64(np->tx_dma[nr]) >> 32;
-				np->tx_ring.ex[nr].buflow = cpu_to_le64(np->tx_dma[nr]) & 0x0FFFFFFFF;
-				np->tx_ring.ex[nr].flaglen = cpu_to_le32((bcnt-1) | tx_flags);
-			}
 			offset += bcnt;
 			size -= bcnt;
+			if (unlikely(put_tx++ == np->last_tx.orig))
+				put_tx = np->first_tx.orig;
+			if (unlikely(np->put_tx_ctx++ == np->last_tx_ctx))
+				np->put_tx_ctx = np->first_tx_ctx;
 		} while (size);
 	}
 
 	/* set last fragment flag  */
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
-		np->tx_ring.orig[nr].flaglen |= cpu_to_le32(tx_flags_extra);
-	} else {
-		np->tx_ring.ex[nr].flaglen |= cpu_to_le32(tx_flags_extra);
-	}
+	prev_tx->flaglen |= cpu_to_le32(tx_flags_extra);
 
-	np->tx_skbuff[nr] = skb;
+	/* save skb in this slot's context area */
+	prev_tx_ctx->skb = skb;
 
-#ifdef NETIF_F_TSO
 	if (skb_is_gso(skb))
 		tx_flags_extra = NV_TX2_TSO | (skb_shinfo(skb)->gso_size << NV_TX2_TSO_SHIFT);
 	else
-#endif
-	tx_flags_extra = skb->ip_summed == CHECKSUM_PARTIAL ?
+		tx_flags_extra = skb->ip_summed == CHECKSUM_PARTIAL ?
 			 NV_TX2_CHECKSUM_L3 | NV_TX2_CHECKSUM_L4 : 0;
 
-	/* vlan tag */
-	if (np->vlangrp && vlan_tx_tag_present(skb)) {
-		tx_flags_vlan = NV_TX3_VLAN_TAG_PRESENT | vlan_tx_tag_get(skb);
-	}
+	spin_lock_irq(&np->lock);
 
 	/* set tx flags */
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
-		np->tx_ring.orig[start_nr].flaglen |= cpu_to_le32(tx_flags | tx_flags_extra);
-	} else {
-		np->tx_ring.ex[start_nr].txvlan = cpu_to_le32(tx_flags_vlan);
-		np->tx_ring.ex[start_nr].flaglen |= cpu_to_le32(tx_flags | tx_flags_extra);
-	}
+	start_tx->flaglen |= cpu_to_le32(tx_flags | tx_flags_extra);
+	np->put_tx.orig = put_tx;
 
-	dprintk(KERN_DEBUG "%s: nv_start_xmit: packet %d (entries %d) queued for transmission. tx_flags_extra: %x\n",
-		dev->name, np->next_tx, entries, tx_flags_extra);
+	spin_unlock_irq(&np->lock);
+
+	dprintk(KERN_DEBUG "%s: nv_start_xmit: entries %d queued for transmission. tx_flags_extra: %x\n",
+		dev->name, entries, tx_flags_extra);
 	{
 		int j;
 		for (j=0; j<64; j++) {
@@ -1583,12 +1738,136 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dprintk("\n");
 	}
 
-	np->next_tx += entries;
+	dev->trans_start = jiffies;
+	writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
+	return NETDEV_TX_OK;
+}
+
+static int nv_start_xmit_optimized(struct sk_buff *skb, struct net_device *dev)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	u32 tx_flags = 0;
+	u32 tx_flags_extra;
+	unsigned int fragments = skb_shinfo(skb)->nr_frags;
+	unsigned int i;
+	u32 offset = 0;
+	u32 bcnt;
+	u32 size = skb->len-skb->data_len;
+	u32 entries = (size >> NV_TX2_TSO_MAX_SHIFT) + ((size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
+	u32 empty_slots;
+	struct ring_desc_ex* put_tx;
+	struct ring_desc_ex* start_tx;
+	struct ring_desc_ex* prev_tx;
+	struct nv_skb_map* prev_tx_ctx;
+
+	/* add fragments to entries count */
+	for (i = 0; i < fragments; i++) {
+		entries += (skb_shinfo(skb)->frags[i].size >> NV_TX2_TSO_MAX_SHIFT) +
+			   ((skb_shinfo(skb)->frags[i].size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
+	}
+
+	empty_slots = nv_get_empty_tx_slots(np);
+	if (unlikely(empty_slots <= entries)) {
+		spin_lock_irq(&np->lock);
+		netif_stop_queue(dev);
+		np->tx_stop = 1;
+		spin_unlock_irq(&np->lock);
+		return NETDEV_TX_BUSY;
+	}
+
+	start_tx = put_tx = np->put_tx.ex;
+
+	/* setup the header buffer */
+	do {
+		prev_tx = put_tx;
+		prev_tx_ctx = np->put_tx_ctx;
+		bcnt = (size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : size;
+		np->put_tx_ctx->dma = pci_map_single(np->pci_dev, skb->data + offset, bcnt,
+						PCI_DMA_TODEVICE);
+		np->put_tx_ctx->dma_len = bcnt;
+		put_tx->bufhigh = cpu_to_le64(np->put_tx_ctx->dma) >> 32;
+		put_tx->buflow = cpu_to_le64(np->put_tx_ctx->dma) & 0x0FFFFFFFF;
+		put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
+
+		tx_flags = NV_TX2_VALID;
+		offset += bcnt;
+		size -= bcnt;
+		if (unlikely(put_tx++ == np->last_tx.ex))
+			put_tx = np->first_tx.ex;
+		if (unlikely(np->put_tx_ctx++ == np->last_tx_ctx))
+			np->put_tx_ctx = np->first_tx_ctx;
+	} while (size);
+
+	/* setup the fragments */
+	for (i = 0; i < fragments; i++) {
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		u32 size = frag->size;
+		offset = 0;
+
+		do {
+			prev_tx = put_tx;
+			prev_tx_ctx = np->put_tx_ctx;
+			bcnt = (size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : size;
+			np->put_tx_ctx->dma = pci_map_page(np->pci_dev, frag->page, frag->page_offset+offset, bcnt,
+							   PCI_DMA_TODEVICE);
+			np->put_tx_ctx->dma_len = bcnt;
+			put_tx->bufhigh = cpu_to_le64(np->put_tx_ctx->dma) >> 32;
+			put_tx->buflow = cpu_to_le64(np->put_tx_ctx->dma) & 0x0FFFFFFFF;
+			put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
+
+			offset += bcnt;
+			size -= bcnt;
+			if (unlikely(put_tx++ == np->last_tx.ex))
+				put_tx = np->first_tx.ex;
+			if (unlikely(np->put_tx_ctx++ == np->last_tx_ctx))
+				np->put_tx_ctx = np->first_tx_ctx;
+		} while (size);
+	}
+
+	/* set last fragment flag  */
+	prev_tx->flaglen |= cpu_to_le32(NV_TX2_LASTPACKET);
+
+	/* save skb in this slot's context area */
+	prev_tx_ctx->skb = skb;
+
+	if (skb_is_gso(skb))
+		tx_flags_extra = NV_TX2_TSO | (skb_shinfo(skb)->gso_size << NV_TX2_TSO_SHIFT);
+	else
+		tx_flags_extra = skb->ip_summed == CHECKSUM_PARTIAL ?
+			 NV_TX2_CHECKSUM_L3 | NV_TX2_CHECKSUM_L4 : 0;
+
+	/* vlan tag */
+	if (likely(!np->vlangrp)) {
+		start_tx->txvlan = 0;
+	} else {
+		if (vlan_tx_tag_present(skb))
+			start_tx->txvlan = cpu_to_le32(NV_TX3_VLAN_TAG_PRESENT | vlan_tx_tag_get(skb));
+		else
+			start_tx->txvlan = 0;
+	}
+
+	spin_lock_irq(&np->lock);
+
+	/* set tx flags */
+	start_tx->flaglen |= cpu_to_le32(tx_flags | tx_flags_extra);
+	np->put_tx.ex = put_tx;
+
+	spin_unlock_irq(&np->lock);
+
+	dprintk(KERN_DEBUG "%s: nv_start_xmit_optimized: entries %d queued for transmission. tx_flags_extra: %x\n",
+		dev->name, entries, tx_flags_extra);
+	{
+		int j;
+		for (j=0; j<64; j++) {
+			if ((j%16) == 0)
+				dprintk("\n%03x:", j);
+			dprintk(" %02x", ((unsigned char*)skb->data)[j]);
+		}
+		dprintk("\n");
+	}
 
 	dev->trans_start = jiffies;
-	spin_unlock_irq(&np->lock);
 	writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
-	pci_push(get_hwbase(dev));
 	return NETDEV_TX_OK;
 }
 
@@ -1601,26 +1880,22 @@ static void nv_tx_done(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u32 flags;
-	unsigned int i;
-	struct sk_buff *skb;
+	struct ring_desc* orig_get_tx = np->get_tx.orig;
 
-	while (np->nic_tx != np->next_tx) {
-		i = np->nic_tx % np->tx_ring_size;
+	while ((np->get_tx.orig != np->put_tx.orig) &&
+	       !((flags = le32_to_cpu(np->get_tx.orig->flaglen)) & NV_TX_VALID)) {
 
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
-			flags = le32_to_cpu(np->tx_ring.orig[i].flaglen);
-		else
-			flags = le32_to_cpu(np->tx_ring.ex[i].flaglen);
+		dprintk(KERN_DEBUG "%s: nv_tx_done: flags 0x%x.\n",
+					dev->name, flags);
 
-		dprintk(KERN_DEBUG "%s: nv_tx_done: looking at packet %d, flags 0x%x.\n",
-					dev->name, np->nic_tx, flags);
-		if (flags & NV_TX_VALID)
-			break;
+		pci_unmap_page(np->pci_dev, np->get_tx_ctx->dma,
+			       np->get_tx_ctx->dma_len,
+			       PCI_DMA_TODEVICE);
+		np->get_tx_ctx->dma = 0;
+
 		if (np->desc_ver == DESC_VER_1) {
 			if (flags & NV_TX_LASTPACKET) {
-				skb = np->tx_skbuff[i];
-				if (flags & (NV_TX_RETRYERROR|NV_TX_CARRIERLOST|NV_TX_LATECOLLISION|
-					     NV_TX_UNDERFLOW|NV_TX_ERROR)) {
+				if (flags & NV_TX_ERROR) {
 					if (flags & NV_TX_UNDERFLOW)
 						np->stats.tx_fifo_errors++;
 					if (flags & NV_TX_CARRIERLOST)
@@ -1628,14 +1903,14 @@ static void nv_tx_done(struct net_device *dev)
 					np->stats.tx_errors++;
 				} else {
 					np->stats.tx_packets++;
-					np->stats.tx_bytes += skb->len;
+					np->stats.tx_bytes += np->get_tx_ctx->skb->len;
 				}
+				dev_kfree_skb_any(np->get_tx_ctx->skb);
+				np->get_tx_ctx->skb = NULL;
 			}
 		} else {
 			if (flags & NV_TX2_LASTPACKET) {
-				skb = np->tx_skbuff[i];
-				if (flags & (NV_TX2_RETRYERROR|NV_TX2_CARRIERLOST|NV_TX2_LATECOLLISION|
-					     NV_TX2_UNDERFLOW|NV_TX2_ERROR)) {
+				if (flags & NV_TX2_ERROR) {
 					if (flags & NV_TX2_UNDERFLOW)
 						np->stats.tx_fifo_errors++;
 					if (flags & NV_TX2_CARRIERLOST)
@@ -1643,15 +1918,56 @@ static void nv_tx_done(struct net_device *dev)
 					np->stats.tx_errors++;
 				} else {
 					np->stats.tx_packets++;
-					np->stats.tx_bytes += skb->len;
+					np->stats.tx_bytes += np->get_tx_ctx->skb->len;
 				}
+				dev_kfree_skb_any(np->get_tx_ctx->skb);
+				np->get_tx_ctx->skb = NULL;
 			}
 		}
-		nv_release_txskb(dev, i);
-		np->nic_tx++;
+		if (unlikely(np->get_tx.orig++ == np->last_tx.orig))
+			np->get_tx.orig = np->first_tx.orig;
+		if (unlikely(np->get_tx_ctx++ == np->last_tx_ctx))
+			np->get_tx_ctx = np->first_tx_ctx;
 	}
-	if (np->next_tx - np->nic_tx < np->tx_limit_start)
+	if (unlikely((np->tx_stop == 1) && (np->get_tx.orig != orig_get_tx))) {
+		np->tx_stop = 0;
 		netif_wake_queue(dev);
+	}
+}
+
+static void nv_tx_done_optimized(struct net_device *dev, int limit)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	u32 flags;
+	struct ring_desc_ex* orig_get_tx = np->get_tx.ex;
+
+	while ((np->get_tx.ex != np->put_tx.ex) &&
+	       !((flags = le32_to_cpu(np->get_tx.ex->flaglen)) & NV_TX_VALID) &&
+	       (limit-- > 0)) {
+
+		dprintk(KERN_DEBUG "%s: nv_tx_done_optimized: flags 0x%x.\n",
+					dev->name, flags);
+
+		pci_unmap_page(np->pci_dev, np->get_tx_ctx->dma,
+			       np->get_tx_ctx->dma_len,
+			       PCI_DMA_TODEVICE);
+		np->get_tx_ctx->dma = 0;
+
+		if (flags & NV_TX2_LASTPACKET) {
+			if (!(flags & NV_TX2_ERROR))
+				np->stats.tx_packets++;
+			dev_kfree_skb_any(np->get_tx_ctx->skb);
+			np->get_tx_ctx->skb = NULL;
+		}
+		if (unlikely(np->get_tx.ex++ == np->last_tx.ex))
+			np->get_tx.ex = np->first_tx.ex;
+		if (unlikely(np->get_tx_ctx++ == np->last_tx_ctx))
+			np->get_tx_ctx = np->first_tx_ctx;
+	}
+	if (unlikely((np->tx_stop == 1) && (np->get_tx.ex != orig_get_tx))) {
+		np->tx_stop = 0;
+		netif_wake_queue(dev);
+	}
 }
 
 /*
@@ -1674,9 +1990,8 @@ static void nv_tx_timeout(struct net_device *dev)
 	{
 		int i;
 
-		printk(KERN_INFO "%s: Ring at %lx: next %d nic %d\n",
-				dev->name, (unsigned long)np->ring_addr,
-				np->next_tx, np->nic_tx);
+		printk(KERN_INFO "%s: Ring at %lx\n",
+		       dev->name, (unsigned long)np->ring_addr);
 		printk(KERN_INFO "%s: Dumping tx registers\n", dev->name);
 		for (i=0;i<=np->register_size;i+= 32) {
 			printk(KERN_INFO "%3x: %08x %08x %08x %08x %08x %08x %08x %08x\n",
@@ -1724,13 +2039,16 @@ static void nv_tx_timeout(struct net_device *dev)
 	nv_stop_tx(dev);
 
 	/* 2) check that the packets were not sent already: */
-	nv_tx_done(dev);
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+		nv_tx_done(dev);
+	else
+		nv_tx_done_optimized(dev, np->tx_ring_size);
 
 	/* 3) if there are dead entries: clear everything */
-	if (np->next_tx != np->nic_tx) {
+	if (np->get_tx_ctx != np->put_tx_ctx) {
 		printk(KERN_DEBUG "%s: tx_timeout: dead entries!\n", dev->name);
 		nv_drain_tx(dev);
-		np->next_tx = np->nic_tx = 0;
+		nv_init_tx(dev);
 		setup_hw_rings(dev, NV_SETUP_TX_RING);
 		netif_wake_queue(dev);
 	}
@@ -1797,40 +2115,27 @@ static int nv_rx_process(struct net_device *dev, int limit)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u32 flags;
-	u32 vlanflags = 0;
-	int count;
+	u32 rx_processed_cnt = 0;
+	struct sk_buff *skb;
+	int len;
 
- 	for (count = 0; count < limit; ++count) {
-		struct sk_buff *skb;
-		int len;
-		int i;
-		if (np->cur_rx - np->refill_rx >= np->rx_ring_size)
-			break;	/* we scanned the whole ring - do not continue */
+	while((np->get_rx.orig != np->put_rx.orig) &&
+	      !((flags = le32_to_cpu(np->get_rx.orig->flaglen)) & NV_RX_AVAIL) &&
+		(rx_processed_cnt++ < limit)) {
 
-		i = np->cur_rx % np->rx_ring_size;
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
-			flags = le32_to_cpu(np->rx_ring.orig[i].flaglen);
-			len = nv_descr_getlength(&np->rx_ring.orig[i], np->desc_ver);
-		} else {
-			flags = le32_to_cpu(np->rx_ring.ex[i].flaglen);
-			len = nv_descr_getlength_ex(&np->rx_ring.ex[i], np->desc_ver);
-			vlanflags = le32_to_cpu(np->rx_ring.ex[i].buflow);
-		}
-
-		dprintk(KERN_DEBUG "%s: nv_rx_process: looking at packet %d, flags 0x%x.\n",
-					dev->name, np->cur_rx, flags);
-
-		if (flags & NV_RX_AVAIL)
-			break;	/* still owned by hardware, */
+		dprintk(KERN_DEBUG "%s: nv_rx_process: flags 0x%x.\n",
+					dev->name, flags);
 
 		/*
 		 * the packet is for us - immediately tear down the pci mapping.
 		 * TODO: check if a prefetch of the first cacheline improves
 		 * the performance.
 		 */
-		pci_unmap_single(np->pci_dev, np->rx_dma[i],
-				np->rx_skbuff[i]->end-np->rx_skbuff[i]->data,
+		pci_unmap_single(np->pci_dev, np->get_rx_ctx->dma,
+				np->get_rx_ctx->dma_len,
 				PCI_DMA_FROMDEVICE);
+		skb = np->get_rx_ctx->skb;
+		np->get_rx_ctx->skb = NULL;
 
 		{
 			int j;
@@ -1838,123 +2143,228 @@ static int nv_rx_process(struct net_device *dev, int limit)
 			for (j=0; j<64; j++) {
 				if ((j%16) == 0)
 					dprintk("\n%03x:", j);
-				dprintk(" %02x", ((unsigned char*)np->rx_skbuff[i]->data)[j]);
+				dprintk(" %02x", ((unsigned char*)skb->data)[j]);
 			}
 			dprintk("\n");
 		}
 		/* look at what we actually got: */
 		if (np->desc_ver == DESC_VER_1) {
-			if (!(flags & NV_RX_DESCRIPTORVALID))
-				goto next_pkt;
-
-			if (flags & NV_RX_ERROR) {
-				if (flags & NV_RX_MISSEDFRAME) {
-					np->stats.rx_missed_errors++;
-					np->stats.rx_errors++;
-					goto next_pkt;
-				}
-				if (flags & (NV_RX_ERROR1|NV_RX_ERROR2|NV_RX_ERROR3)) {
-					np->stats.rx_errors++;
-					goto next_pkt;
-				}
-				if (flags & NV_RX_CRCERR) {
-					np->stats.rx_crc_errors++;
-					np->stats.rx_errors++;
-					goto next_pkt;
-				}
-				if (flags & NV_RX_OVERFLOW) {
-					np->stats.rx_over_errors++;
-					np->stats.rx_errors++;
-					goto next_pkt;
-				}
-				if (flags & NV_RX_ERROR4) {
-					len = nv_getlen(dev, np->rx_skbuff[i]->data, len);
-					if (len < 0) {
+			if (likely(flags & NV_RX_DESCRIPTORVALID)) {
+				len = flags & LEN_MASK_V1;
+				if (unlikely(flags & NV_RX_ERROR)) {
+					if (flags & NV_RX_ERROR4) {
+						len = nv_getlen(dev, skb->data, len);
+						if (len < 0) {
+							np->stats.rx_errors++;
+							dev_kfree_skb(skb);
+							goto next_pkt;
+						}
+					}
+					/* framing errors are soft errors */
+					else if (flags & NV_RX_FRAMINGERR) {
+						if (flags & NV_RX_SUBSTRACT1) {
+							len--;
+						}
+					}
+					/* the rest are hard errors */
+					else {
+						if (flags & NV_RX_MISSEDFRAME)
+							np->stats.rx_missed_errors++;
+						if (flags & NV_RX_CRCERR)
+							np->stats.rx_crc_errors++;
+						if (flags & NV_RX_OVERFLOW)
+							np->stats.rx_over_errors++;
 						np->stats.rx_errors++;
+						dev_kfree_skb(skb);
 						goto next_pkt;
 					}
 				}
-				/* framing errors are soft errors. */
-				if (flags & NV_RX_FRAMINGERR) {
-					if (flags & NV_RX_SUBSTRACT1) {
-						len--;
-					}
-				}
+			} else {
+				dev_kfree_skb(skb);
+				goto next_pkt;
 			}
 		} else {
-			if (!(flags & NV_RX2_DESCRIPTORVALID))
-				goto next_pkt;
-
-			if (flags & NV_RX2_ERROR) {
-				if (flags & (NV_RX2_ERROR1|NV_RX2_ERROR2|NV_RX2_ERROR3)) {
-					np->stats.rx_errors++;
-					goto next_pkt;
-				}
-				if (flags & NV_RX2_CRCERR) {
-					np->stats.rx_crc_errors++;
-					np->stats.rx_errors++;
-					goto next_pkt;
-				}
-				if (flags & NV_RX2_OVERFLOW) {
-					np->stats.rx_over_errors++;
-					np->stats.rx_errors++;
-					goto next_pkt;
-				}
-				if (flags & NV_RX2_ERROR4) {
-					len = nv_getlen(dev, np->rx_skbuff[i]->data, len);
-					if (len < 0) {
+			if (likely(flags & NV_RX2_DESCRIPTORVALID)) {
+				len = flags & LEN_MASK_V2;
+				if (unlikely(flags & NV_RX2_ERROR)) {
+					if (flags & NV_RX2_ERROR4) {
+						len = nv_getlen(dev, skb->data, len);
+						if (len < 0) {
+							np->stats.rx_errors++;
+							dev_kfree_skb(skb);
+							goto next_pkt;
+						}
+					}
+					/* framing errors are soft errors */
+					else if (flags & NV_RX2_FRAMINGERR) {
+						if (flags & NV_RX2_SUBSTRACT1) {
+							len--;
+						}
+					}
+					/* the rest are hard errors */
+					else {
+						if (flags & NV_RX2_CRCERR)
+							np->stats.rx_crc_errors++;
+						if (flags & NV_RX2_OVERFLOW)
+							np->stats.rx_over_errors++;
 						np->stats.rx_errors++;
+						dev_kfree_skb(skb);
 						goto next_pkt;
 					}
 				}
-				/* framing errors are soft errors */
-				if (flags & NV_RX2_FRAMINGERR) {
-					if (flags & NV_RX2_SUBSTRACT1) {
-						len--;
+				if ((flags & NV_RX2_CHECKSUMMASK) == NV_RX2_CHECKSUMOK2)/*ip and tcp */ {
+					skb->ip_summed = CHECKSUM_UNNECESSARY;
+				} else {
+					if ((flags & NV_RX2_CHECKSUMMASK) == NV_RX2_CHECKSUMOK1 ||
+					    (flags & NV_RX2_CHECKSUMMASK) == NV_RX2_CHECKSUMOK3) {
+						skb->ip_summed = CHECKSUM_UNNECESSARY;
 					}
 				}
-			}
-			if (np->rx_csum) {
-				flags &= NV_RX2_CHECKSUMMASK;
-				if (flags == NV_RX2_CHECKSUMOK1 ||
-				    flags == NV_RX2_CHECKSUMOK2 ||
-				    flags == NV_RX2_CHECKSUMOK3) {
-					dprintk(KERN_DEBUG "%s: hw checksum hit!.\n", dev->name);
-					np->rx_skbuff[i]->ip_summed = CHECKSUM_UNNECESSARY;
-				} else {
-					dprintk(KERN_DEBUG "%s: hwchecksum miss!.\n", dev->name);
-				}
+			} else {
+				dev_kfree_skb(skb);
+				goto next_pkt;
 			}
 		}
 		/* got a valid packet - forward it to the network core */
-		skb = np->rx_skbuff[i];
-		np->rx_skbuff[i] = NULL;
-
 		skb_put(skb, len);
 		skb->protocol = eth_type_trans(skb, dev);
-		dprintk(KERN_DEBUG "%s: nv_rx_process: packet %d with %d bytes, proto %d accepted.\n",
-					dev->name, np->cur_rx, len, skb->protocol);
+		dprintk(KERN_DEBUG "%s: nv_rx_process: %d bytes, proto %d accepted.\n",
+					dev->name, len, skb->protocol);
 #ifdef CONFIG_FORCEDETH_NAPI
-		if (np->vlangrp && (vlanflags & NV_RX3_VLAN_TAG_PRESENT))
-			vlan_hwaccel_receive_skb(skb, np->vlangrp,
-						 vlanflags & NV_RX3_VLAN_TAG_MASK);
-		else
-			netif_receive_skb(skb);
+		netif_receive_skb(skb);
 #else
-		if (np->vlangrp && (vlanflags & NV_RX3_VLAN_TAG_PRESENT))
-			vlan_hwaccel_rx(skb, np->vlangrp,
-					vlanflags & NV_RX3_VLAN_TAG_MASK);
-		else
-			netif_rx(skb);
+		netif_rx(skb);
 #endif
 		dev->last_rx = jiffies;
 		np->stats.rx_packets++;
 		np->stats.rx_bytes += len;
 next_pkt:
-		np->cur_rx++;
+		if (unlikely(np->get_rx.orig++ == np->last_rx.orig))
+			np->get_rx.orig = np->first_rx.orig;
+		if (unlikely(np->get_rx_ctx++ == np->last_rx_ctx))
+			np->get_rx_ctx = np->first_rx_ctx;
 	}
 
-	return count;
+	return rx_processed_cnt;
+}
+
+static int nv_rx_process_optimized(struct net_device *dev, int limit)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	u32 flags;
+	u32 vlanflags = 0;
+	u32 rx_processed_cnt = 0;
+	struct sk_buff *skb;
+	int len;
+
+	while((np->get_rx.ex != np->put_rx.ex) &&
+	      !((flags = le32_to_cpu(np->get_rx.ex->flaglen)) & NV_RX2_AVAIL) &&
+	      (rx_processed_cnt++ < limit)) {
+
+		dprintk(KERN_DEBUG "%s: nv_rx_process_optimized: flags 0x%x.\n",
+					dev->name, flags);
+
+		/*
+		 * the packet is for us - immediately tear down the pci mapping.
+		 * TODO: check if a prefetch of the first cacheline improves
+		 * the performance.
+		 */
+		pci_unmap_single(np->pci_dev, np->get_rx_ctx->dma,
+				np->get_rx_ctx->dma_len,
+				PCI_DMA_FROMDEVICE);
+		skb = np->get_rx_ctx->skb;
+		np->get_rx_ctx->skb = NULL;
+
+		{
+			int j;
+			dprintk(KERN_DEBUG "Dumping packet (flags 0x%x).",flags);
+			for (j=0; j<64; j++) {
+				if ((j%16) == 0)
+					dprintk("\n%03x:", j);
+				dprintk(" %02x", ((unsigned char*)skb->data)[j]);
+			}
+			dprintk("\n");
+		}
+		/* look at what we actually got: */
+		if (likely(flags & NV_RX2_DESCRIPTORVALID)) {
+			len = flags & LEN_MASK_V2;
+			if (unlikely(flags & NV_RX2_ERROR)) {
+				if (flags & NV_RX2_ERROR4) {
+					len = nv_getlen(dev, skb->data, len);
+					if (len < 0) {
+						dev_kfree_skb(skb);
+						goto next_pkt;
+					}
+				}
+				/* framing errors are soft errors */
+				else if (flags & NV_RX2_FRAMINGERR) {
+					if (flags & NV_RX2_SUBSTRACT1) {
+						len--;
+					}
+				}
+				/* the rest are hard errors */
+				else {
+					dev_kfree_skb(skb);
+					goto next_pkt;
+				}
+			}
+
+			if ((flags & NV_RX2_CHECKSUMMASK) == NV_RX2_CHECKSUMOK2)/*ip and tcp */ {
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
+			} else {
+				if ((flags & NV_RX2_CHECKSUMMASK) == NV_RX2_CHECKSUMOK1 ||
+				    (flags & NV_RX2_CHECKSUMMASK) == NV_RX2_CHECKSUMOK3) {
+					skb->ip_summed = CHECKSUM_UNNECESSARY;
+				}
+			}
+
+			/* got a valid packet - forward it to the network core */
+			skb_put(skb, len);
+			skb->protocol = eth_type_trans(skb, dev);
+			prefetch(skb->data);
+
+			dprintk(KERN_DEBUG "%s: nv_rx_process_optimized: %d bytes, proto %d accepted.\n",
+				dev->name, len, skb->protocol);
+
+			if (likely(!np->vlangrp)) {
+#ifdef CONFIG_FORCEDETH_NAPI
+				netif_receive_skb(skb);
+#else
+				netif_rx(skb);
+#endif
+			} else {
+				vlanflags = le32_to_cpu(np->get_rx.ex->buflow);
+				if (vlanflags & NV_RX3_VLAN_TAG_PRESENT) {
+#ifdef CONFIG_FORCEDETH_NAPI
+					vlan_hwaccel_receive_skb(skb, np->vlangrp,
+								 vlanflags & NV_RX3_VLAN_TAG_MASK);
+#else
+					vlan_hwaccel_rx(skb, np->vlangrp,
+							vlanflags & NV_RX3_VLAN_TAG_MASK);
+#endif
+				} else {
+#ifdef CONFIG_FORCEDETH_NAPI
+					netif_receive_skb(skb);
+#else
+					netif_rx(skb);
+#endif
+				}
+			}
+
+			dev->last_rx = jiffies;
+			np->stats.rx_packets++;
+			np->stats.rx_bytes += len;
+		} else {
+			dev_kfree_skb(skb);
+		}
+next_pkt:
+		if (unlikely(np->get_rx.ex++ == np->last_rx.ex))
+			np->get_rx.ex = np->first_rx.ex;
+		if (unlikely(np->get_rx_ctx++ == np->last_rx_ctx))
+			np->get_rx_ctx = np->first_rx_ctx;
+	}
+
+	return rx_processed_cnt;
 }
 
 static void set_bufsize(struct net_device *dev)
@@ -2430,7 +2840,6 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 			events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQSTAT_MASK;
 			writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
 		}
-		pci_push(base);
 		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
 			break;
@@ -2439,22 +2848,46 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 		nv_tx_done(dev);
 		spin_unlock(&np->lock);
 
-		if (events & NVREG_IRQ_LINK) {
+#ifdef CONFIG_FORCEDETH_NAPI
+		if (events & NVREG_IRQ_RX_ALL) {
+			netif_rx_schedule(dev);
+
+			/* Disable furthur receive irq's */
+			spin_lock(&np->lock);
+			np->irqmask &= ~NVREG_IRQ_RX_ALL;
+
+			if (np->msi_flags & NV_MSI_X_ENABLED)
+				writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
+			else
+				writel(np->irqmask, base + NvRegIrqMask);
+			spin_unlock(&np->lock);
+		}
+#else
+		if (nv_rx_process(dev, dev->weight)) {
+			if (unlikely(nv_alloc_rx(dev))) {
+				spin_lock(&np->lock);
+				if (!np->in_shutdown)
+					mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
+				spin_unlock(&np->lock);
+			}
+		}
+#endif
+		if (unlikely(events & NVREG_IRQ_LINK)) {
 			spin_lock(&np->lock);
 			nv_link_irq(dev);
 			spin_unlock(&np->lock);
 		}
-		if (np->need_linktimer && time_after(jiffies, np->link_timeout)) {
+		if (unlikely(np->need_linktimer && time_after(jiffies, np->link_timeout))) {
 			spin_lock(&np->lock);
 			nv_linkchange(dev);
 			spin_unlock(&np->lock);
 			np->link_timeout = jiffies + LINK_TIMEOUT;
 		}
-		if (events & (NVREG_IRQ_TX_ERR)) {
+		if (unlikely(events & (NVREG_IRQ_TX_ERR))) {
 			dprintk(KERN_DEBUG "%s: received irq with events 0x%x. Probably TX fail.\n",
 						dev->name, events);
 		}
-		if (events & (NVREG_IRQ_UNKNOWN)) {
+		if (unlikely(events & (NVREG_IRQ_UNKNOWN))) {
 			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
 						dev->name, events);
 		}
@@ -2475,30 +2908,7 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 			spin_unlock(&np->lock);
 			break;
 		}
-#ifdef CONFIG_FORCEDETH_NAPI
-		if (events & NVREG_IRQ_RX_ALL) {
-			netif_rx_schedule(dev);
-
-			/* Disable furthur receive irq's */
-			spin_lock(&np->lock);
-			np->irqmask &= ~NVREG_IRQ_RX_ALL;
-
-			if (np->msi_flags & NV_MSI_X_ENABLED)
-				writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
-			else
-				writel(np->irqmask, base + NvRegIrqMask);
-			spin_unlock(&np->lock);
-		}
-#else
-		nv_rx_process(dev, dev->weight);
-		if (nv_alloc_rx(dev)) {
-			spin_lock(&np->lock);
-			if (!np->in_shutdown)
-				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
-			spin_unlock(&np->lock);
-		}
-#endif
-		if (i > max_interrupt_work) {
+		if (unlikely(i > max_interrupt_work)) {
 			spin_lock(&np->lock);
 			/* disable interrupts on the nic */
 			if (!(np->msi_flags & NV_MSI_X_ENABLED))
@@ -2522,6 +2932,124 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 	return IRQ_RETVAL(i);
 }
 
+#define TX_WORK_PER_LOOP  64
+#define RX_WORK_PER_LOOP  64
+/**
+ * All _optimized functions are used to help increase performance
+ * (reduce CPU and increase throughput). They use descripter version 3,
+ * compiler directives, and reduce memory accesses.
+ */
+static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
+{
+	struct net_device *dev = (struct net_device *) data;
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+	u32 events;
+	int i;
+
+	dprintk(KERN_DEBUG "%s: nv_nic_irq_optimized\n", dev->name);
+
+	for (i=0; ; i++) {
+		if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
+			events = readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK;
+			writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
+		} else {
+			events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQSTAT_MASK;
+			writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
+		}
+		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
+		if (!(events & np->irqmask))
+			break;
+
+		spin_lock(&np->lock);
+		nv_tx_done_optimized(dev, TX_WORK_PER_LOOP);
+		spin_unlock(&np->lock);
+
+#ifdef CONFIG_FORCEDETH_NAPI
+		if (events & NVREG_IRQ_RX_ALL) {
+			netif_rx_schedule(dev);
+
+			/* Disable furthur receive irq's */
+			spin_lock(&np->lock);
+			np->irqmask &= ~NVREG_IRQ_RX_ALL;
+
+			if (np->msi_flags & NV_MSI_X_ENABLED)
+				writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
+			else
+				writel(np->irqmask, base + NvRegIrqMask);
+			spin_unlock(&np->lock);
+		}
+#else
+		if (nv_rx_process_optimized(dev, dev->weight)) {
+			if (unlikely(nv_alloc_rx_optimized(dev))) {
+				spin_lock(&np->lock);
+				if (!np->in_shutdown)
+					mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
+				spin_unlock(&np->lock);
+			}
+		}
+#endif
+		if (unlikely(events & NVREG_IRQ_LINK)) {
+			spin_lock(&np->lock);
+			nv_link_irq(dev);
+			spin_unlock(&np->lock);
+		}
+		if (unlikely(np->need_linktimer && time_after(jiffies, np->link_timeout))) {
+			spin_lock(&np->lock);
+			nv_linkchange(dev);
+			spin_unlock(&np->lock);
+			np->link_timeout = jiffies + LINK_TIMEOUT;
+		}
+		if (unlikely(events & (NVREG_IRQ_TX_ERR))) {
+			dprintk(KERN_DEBUG "%s: received irq with events 0x%x. Probably TX fail.\n",
+						dev->name, events);
+		}
+		if (unlikely(events & (NVREG_IRQ_UNKNOWN))) {
+			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
+						dev->name, events);
+		}
+		if (unlikely(events & NVREG_IRQ_RECOVER_ERROR)) {
+			spin_lock(&np->lock);
+			/* disable interrupts on the nic */
+			if (!(np->msi_flags & NV_MSI_X_ENABLED))
+				writel(0, base + NvRegIrqMask);
+			else
+				writel(np->irqmask, base + NvRegIrqMask);
+			pci_push(base);
+
+			if (!np->in_shutdown) {
+				np->nic_poll_irq = np->irqmask;
+				np->recover_error = 1;
+				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
+			}
+			spin_unlock(&np->lock);
+			break;
+		}
+
+		if (unlikely(i > max_interrupt_work)) {
+			spin_lock(&np->lock);
+			/* disable interrupts on the nic */
+			if (!(np->msi_flags & NV_MSI_X_ENABLED))
+				writel(0, base + NvRegIrqMask);
+			else
+				writel(np->irqmask, base + NvRegIrqMask);
+			pci_push(base);
+
+			if (!np->in_shutdown) {
+				np->nic_poll_irq = np->irqmask;
+				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
+			}
+			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq.\n", dev->name, i);
+			spin_unlock(&np->lock);
+			break;
+		}
+
+	}
+	dprintk(KERN_DEBUG "%s: nv_nic_irq_optimized completed\n", dev->name);
+
+	return IRQ_RETVAL(i);
+}
+
 static irqreturn_t nv_nic_irq_tx(int foo, void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
@@ -2536,20 +3064,19 @@ static irqreturn_t nv_nic_irq_tx(int foo, void *data)
 	for (i=0; ; i++) {
 		events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_TX_ALL;
 		writel(NVREG_IRQ_TX_ALL, base + NvRegMSIXIrqStatus);
-		pci_push(base);
 		dprintk(KERN_DEBUG "%s: tx irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
 			break;
 
 		spin_lock_irqsave(&np->lock, flags);
-		nv_tx_done(dev);
+		nv_tx_done_optimized(dev, TX_WORK_PER_LOOP);
 		spin_unlock_irqrestore(&np->lock, flags);
 
-		if (events & (NVREG_IRQ_TX_ERR)) {
+		if (unlikely(events & (NVREG_IRQ_TX_ERR))) {
 			dprintk(KERN_DEBUG "%s: received irq with events 0x%x. Probably TX fail.\n",
 						dev->name, events);
 		}
-		if (i > max_interrupt_work) {
+		if (unlikely(i > max_interrupt_work)) {
 			spin_lock_irqsave(&np->lock, flags);
 			/* disable interrupts on the nic */
 			writel(NVREG_IRQ_TX_ALL, base + NvRegIrqMask);
@@ -2576,14 +3103,18 @@ static int nv_napi_poll(struct net_device *dev, int *budget)
 	int pkts, limit = min(*budget, dev->quota);
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	unsigned long flags;
 
-	pkts = nv_rx_process(dev, limit);
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+		pkts = nv_rx_process(dev, limit);
+	else
+		pkts = nv_rx_process_optimized(dev, limit);
 
 	if (nv_alloc_rx(dev)) {
-		spin_lock_irq(&np->lock);
+		spin_lock_irqsave(&np->lock, flags);
 		if (!np->in_shutdown)
 			mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
-		spin_unlock_irq(&np->lock);
+		spin_unlock_irqrestore(&np->lock, flags);
 	}
 
 	if (pkts < limit) {
@@ -2591,13 +3122,15 @@ static int nv_napi_poll(struct net_device *dev, int *budget)
 		netif_rx_complete(dev);
 
 		/* re-enable receive interrupts */
-		spin_lock_irq(&np->lock);
+		spin_lock_irqsave(&np->lock, flags);
+
 		np->irqmask |= NVREG_IRQ_RX_ALL;
 		if (np->msi_flags & NV_MSI_X_ENABLED)
 			writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
 		else
 			writel(np->irqmask, base + NvRegIrqMask);
-		spin_unlock_irq(&np->lock);
+
+		spin_unlock_irqrestore(&np->lock, flags);
 		return 0;
 	} else {
 		/* used up our quantum, so reschedule */
@@ -2641,20 +3174,20 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 	for (i=0; ; i++) {
 		events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_RX_ALL;
 		writel(NVREG_IRQ_RX_ALL, base + NvRegMSIXIrqStatus);
-		pci_push(base);
 		dprintk(KERN_DEBUG "%s: rx irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
 			break;
 
-		nv_rx_process(dev, dev->weight);
-		if (nv_alloc_rx(dev)) {
-			spin_lock_irqsave(&np->lock, flags);
-			if (!np->in_shutdown)
-				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
-			spin_unlock_irqrestore(&np->lock, flags);
+		if (nv_rx_process_optimized(dev, dev->weight)) {
+			if (unlikely(nv_alloc_rx_optimized(dev))) {
+				spin_lock_irqsave(&np->lock, flags);
+				if (!np->in_shutdown)
+					mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
+				spin_unlock_irqrestore(&np->lock, flags);
+			}
 		}
 
-		if (i > max_interrupt_work) {
+		if (unlikely(i > max_interrupt_work)) {
 			spin_lock_irqsave(&np->lock, flags);
 			/* disable interrupts on the nic */
 			writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
@@ -2689,10 +3222,14 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 	for (i=0; ; i++) {
 		events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_OTHER;
 		writel(NVREG_IRQ_OTHER, base + NvRegMSIXIrqStatus);
-		pci_push(base);
 		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
 			break;
+
+		/* check tx in case we reached max loop limit in tx isr */
+		spin_lock_irqsave(&np->lock, flags);
+		nv_tx_done_optimized(dev, TX_WORK_PER_LOOP);
+		spin_unlock_irqrestore(&np->lock, flags);
 
 		if (events & NVREG_IRQ_LINK) {
 			spin_lock_irqsave(&np->lock, flags);
@@ -2723,7 +3260,7 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
 						dev->name, events);
 		}
-		if (i > max_interrupt_work) {
+		if (unlikely(i > max_interrupt_work)) {
 			spin_lock_irqsave(&np->lock, flags);
 			/* disable interrupts on the nic */
 			writel(NVREG_IRQ_OTHER, base + NvRegIrqMask);
@@ -2806,6 +3343,16 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 	u8 __iomem *base = get_hwbase(dev);
 	int ret = 1;
 	int i;
+	irqreturn_t (*handler)(int foo, void *data);
+
+	if (intr_test) {
+		handler = nv_nic_irq_test;
+	} else {
+		if (np->desc_ver == DESC_VER_3)
+			handler = nv_nic_irq_optimized;
+		else
+			handler = nv_nic_irq;
+	}
 
 	if (np->msi_flags & NV_MSI_X_CAPABLE) {
 		for (i = 0; i < (np->msi_flags & NV_MSI_X_VECTORS_MASK); i++) {
@@ -2843,10 +3390,7 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 				set_msix_vector_map(dev, NV_MSI_X_VECTOR_OTHER, NVREG_IRQ_OTHER);
 			} else {
 				/* Request irq for all interrupts */
-				if ((!intr_test &&
-				     request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector, &nv_nic_irq, IRQF_SHARED, dev->name, dev) != 0) ||
-				    (intr_test &&
-				     request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector, &nv_nic_irq_test, IRQF_SHARED, dev->name, dev) != 0)) {
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector, handler, IRQF_SHARED, dev->name, dev) != 0) {
 					printk(KERN_INFO "forcedeth: request_irq failed %d\n", ret);
 					pci_disable_msix(np->pci_dev);
 					np->msi_flags &= ~NV_MSI_X_ENABLED;
@@ -2862,8 +3406,7 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 	if (ret != 0 && np->msi_flags & NV_MSI_CAPABLE) {
 		if ((ret = pci_enable_msi(np->pci_dev)) == 0) {
 			np->msi_flags |= NV_MSI_ENABLED;
-			if ((!intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq, IRQF_SHARED, dev->name, dev) != 0) ||
-			    (intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq_test, IRQF_SHARED, dev->name, dev) != 0)) {
+			if (request_irq(np->pci_dev->irq, handler, IRQF_SHARED, dev->name, dev) != 0) {
 				printk(KERN_INFO "forcedeth: request_irq failed %d\n", ret);
 				pci_disable_msi(np->pci_dev);
 				np->msi_flags &= ~NV_MSI_ENABLED;
@@ -2878,8 +3421,7 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 		}
 	}
 	if (ret != 0) {
-		if ((!intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq, IRQF_SHARED, dev->name, dev) != 0) ||
-		    (intr_test && request_irq(np->pci_dev->irq, &nv_nic_irq_test, IRQF_SHARED, dev->name, dev) != 0))
+		if (request_irq(np->pci_dev->irq, handler, IRQF_SHARED, dev->name, dev) != 0)
 			goto out_err;
 
 	}
@@ -3022,47 +3564,8 @@ static void nv_do_stats_poll(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
-	u8 __iomem *base = get_hwbase(dev);
 
-	np->estats.tx_bytes += readl(base + NvRegTxCnt);
-	np->estats.tx_zero_rexmt += readl(base + NvRegTxZeroReXmt);
-	np->estats.tx_one_rexmt += readl(base + NvRegTxOneReXmt);
-	np->estats.tx_many_rexmt += readl(base + NvRegTxManyReXmt);
-	np->estats.tx_late_collision += readl(base + NvRegTxLateCol);
-	np->estats.tx_fifo_errors += readl(base + NvRegTxUnderflow);
-	np->estats.tx_carrier_errors += readl(base + NvRegTxLossCarrier);
-	np->estats.tx_excess_deferral += readl(base + NvRegTxExcessDef);
-	np->estats.tx_retry_error += readl(base + NvRegTxRetryErr);
-	np->estats.tx_deferral += readl(base + NvRegTxDef);
-	np->estats.tx_packets += readl(base + NvRegTxFrame);
-	np->estats.tx_pause += readl(base + NvRegTxPause);
-	np->estats.rx_frame_error += readl(base + NvRegRxFrameErr);
-	np->estats.rx_extra_byte += readl(base + NvRegRxExtraByte);
-	np->estats.rx_late_collision += readl(base + NvRegRxLateCol);
-	np->estats.rx_runt += readl(base + NvRegRxRunt);
-	np->estats.rx_frame_too_long += readl(base + NvRegRxFrameTooLong);
-	np->estats.rx_over_errors += readl(base + NvRegRxOverflow);
-	np->estats.rx_crc_errors += readl(base + NvRegRxFCSErr);
-	np->estats.rx_frame_align_error += readl(base + NvRegRxFrameAlignErr);
-	np->estats.rx_length_error += readl(base + NvRegRxLenErr);
-	np->estats.rx_unicast += readl(base + NvRegRxUnicast);
-	np->estats.rx_multicast += readl(base + NvRegRxMulticast);
-	np->estats.rx_broadcast += readl(base + NvRegRxBroadcast);
-	np->estats.rx_bytes += readl(base + NvRegRxCnt);
-	np->estats.rx_pause += readl(base + NvRegRxPause);
-	np->estats.rx_drop_frame += readl(base + NvRegRxDropFrame);
-	np->estats.rx_packets =
-		np->estats.rx_unicast +
-		np->estats.rx_multicast +
-		np->estats.rx_broadcast;
-	np->estats.rx_errors_total =
-		np->estats.rx_crc_errors +
-		np->estats.rx_over_errors +
-		np->estats.rx_frame_error +
-		(np->estats.rx_frame_align_error - np->estats.rx_extra_byte) +
-		np->estats.rx_late_collision +
-		np->estats.rx_runt +
-		np->estats.rx_frame_too_long;
+	nv_get_hw_stats(dev);
 
 	if (!np->in_shutdown)
 		mod_timer(&np->stats_poll, jiffies + STATS_INTERVAL);
@@ -3436,7 +3939,7 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	u8 *rxtx_ring, *rx_skbuff, *tx_skbuff, *rx_dma, *tx_dma, *tx_dma_len;
+	u8 *rxtx_ring, *rx_skbuff, *tx_skbuff;
 	dma_addr_t ring_addr;
 
 	if (ring->rx_pending < RX_RING_MIN ||
@@ -3462,12 +3965,9 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 					    sizeof(struct ring_desc_ex) * (ring->rx_pending + ring->tx_pending),
 					    &ring_addr);
 	}
-	rx_skbuff = kmalloc(sizeof(struct sk_buff*) * ring->rx_pending, GFP_KERNEL);
-	rx_dma = kmalloc(sizeof(dma_addr_t) * ring->rx_pending, GFP_KERNEL);
-	tx_skbuff = kmalloc(sizeof(struct sk_buff*) * ring->tx_pending, GFP_KERNEL);
-	tx_dma = kmalloc(sizeof(dma_addr_t) * ring->tx_pending, GFP_KERNEL);
-	tx_dma_len = kmalloc(sizeof(unsigned int) * ring->tx_pending, GFP_KERNEL);
-	if (!rxtx_ring || !rx_skbuff || !rx_dma || !tx_skbuff || !tx_dma || !tx_dma_len) {
+	rx_skbuff = kmalloc(sizeof(struct nv_skb_map) * ring->rx_pending, GFP_KERNEL);
+	tx_skbuff = kmalloc(sizeof(struct nv_skb_map) * ring->tx_pending, GFP_KERNEL);
+	if (!rxtx_ring || !rx_skbuff || !tx_skbuff) {
 		/* fall back to old rings */
 		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 			if (rxtx_ring)
@@ -3480,14 +3980,8 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 		}
 		if (rx_skbuff)
 			kfree(rx_skbuff);
-		if (rx_dma)
-			kfree(rx_dma);
 		if (tx_skbuff)
 			kfree(tx_skbuff);
-		if (tx_dma)
-			kfree(tx_dma);
-		if (tx_dma_len)
-			kfree(tx_dma_len);
 		goto exit;
 	}
 
@@ -3509,8 +4003,6 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 	/* set new values */
 	np->rx_ring_size = ring->rx_pending;
 	np->tx_ring_size = ring->tx_pending;
-	np->tx_limit_stop = ring->tx_pending - TX_LIMIT_DIFFERENCE;
-	np->tx_limit_start = ring->tx_pending - TX_LIMIT_DIFFERENCE - 1;
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 		np->rx_ring.orig = (struct ring_desc*)rxtx_ring;
 		np->tx_ring.orig = &np->rx_ring.orig[np->rx_ring_size];
@@ -3518,18 +4010,12 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 		np->rx_ring.ex = (struct ring_desc_ex*)rxtx_ring;
 		np->tx_ring.ex = &np->rx_ring.ex[np->rx_ring_size];
 	}
-	np->rx_skbuff = (struct sk_buff**)rx_skbuff;
-	np->rx_dma = (dma_addr_t*)rx_dma;
-	np->tx_skbuff = (struct sk_buff**)tx_skbuff;
-	np->tx_dma = (dma_addr_t*)tx_dma;
-	np->tx_dma_len = (unsigned int*)tx_dma_len;
+	np->rx_skb = (struct nv_skb_map*)rx_skbuff;
+	np->tx_skb = (struct nv_skb_map*)tx_skbuff;
 	np->ring_addr = ring_addr;
 
-	memset(np->rx_skbuff, 0, sizeof(struct sk_buff*) * np->rx_ring_size);
-	memset(np->rx_dma, 0, sizeof(dma_addr_t) * np->rx_ring_size);
-	memset(np->tx_skbuff, 0, sizeof(struct sk_buff*) * np->tx_ring_size);
-	memset(np->tx_dma, 0, sizeof(dma_addr_t) * np->tx_ring_size);
-	memset(np->tx_dma_len, 0, sizeof(unsigned int) * np->tx_ring_size);
+	memset(np->rx_skb, 0, sizeof(struct nv_skb_map) * np->rx_ring_size);
+	memset(np->tx_skb, 0, sizeof(struct nv_skb_map) * np->tx_ring_size);
 
 	if (netif_running(dev)) {
 		/* reinit driver view of the queues */
@@ -3698,8 +4184,10 @@ static int nv_get_stats_count(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 
-	if (np->driver_data & DEV_HAS_STATISTICS)
-		return sizeof(struct nv_ethtool_stats)/sizeof(u64);
+	if (np->driver_data & DEV_HAS_STATISTICS_V1)
+		return NV_DEV_STATISTICS_V1_COUNT;
+	else if (np->driver_data & DEV_HAS_STATISTICS_V2)
+		return NV_DEV_STATISTICS_V2_COUNT;
 	else
 		return 0;
 }
@@ -3926,7 +4414,7 @@ static int nv_loopback_test(struct net_device *dev)
 			dprintk(KERN_DEBUG "%s: loopback len mismatch %d vs %d\n",
 				dev->name, len, pkt_len);
 		} else {
-			rx_skb = np->rx_skbuff[0];
+			rx_skb = np->rx_skb[0].skb;
 			for (i = 0; i < pkt_len; i++) {
 				if (rx_skb->data[i] != (u8)(i & 0xff)) {
 					ret = 0;
@@ -4146,20 +4634,6 @@ static int nv_mgmt_acquire_sema(struct net_device *dev)
 	return 0;
 }
 
-/* Indicate to mgmt unit whether driver is loaded or not */
-static void nv_mgmt_driver_loaded(struct net_device *dev, int loaded)
-{
-	u8 __iomem *base = get_hwbase(dev);
-	u32 tx_ctrl;
-
-	tx_ctrl = readl(base + NvRegTransmitterControl);
-	if (loaded)
-		tx_ctrl |= NVREG_XMITCTL_HOST_LOADED;
-	else
-		tx_ctrl &= ~NVREG_XMITCTL_HOST_LOADED;
-	writel(tx_ctrl, base + NvRegTransmitterControl);
-}
-
 static int nv_open(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
@@ -4300,7 +4774,7 @@ static int nv_open(struct net_device *dev)
 		mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
 
 	/* start statistics timer */
-	if (np->driver_data & DEV_HAS_STATISTICS)
+	if (np->driver_data & (DEV_HAS_STATISTICS_V1|DEV_HAS_STATISTICS_V2))
 		mod_timer(&np->stats_poll, jiffies + STATS_INTERVAL);
 
 	spin_unlock_irq(&np->lock);
@@ -4397,7 +4871,9 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	if (err < 0)
 		goto out_disable;
 
-	if (id->driver_data & (DEV_HAS_VLAN|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_STATISTICS))
+	if (id->driver_data & (DEV_HAS_VLAN|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_STATISTICS_V2))
+		np->register_size = NV_PCI_REGSZ_VER3;
+	else if (id->driver_data & DEV_HAS_STATISTICS_V1)
 		np->register_size = NV_PCI_REGSZ_VER2;
 	else
 		np->register_size = NV_PCI_REGSZ_VER1;
@@ -4460,10 +4936,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->rx_csum = 1;
 		np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
 		dev->features |= NETIF_F_HW_CSUM | NETIF_F_SG;
-#ifdef NETIF_F_TSO
 		dev->features |= NETIF_F_TSO;
-#endif
- 	}
+	}
 
 	np->vlanctl_bits = 0;
 	if (id->driver_data & DEV_HAS_VLAN) {
@@ -4497,8 +4971,6 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 
 	np->rx_ring_size = RX_RING_DEFAULT;
 	np->tx_ring_size = TX_RING_DEFAULT;
-	np->tx_limit_stop = np->tx_ring_size - TX_LIMIT_DIFFERENCE;
-	np->tx_limit_start = np->tx_ring_size - TX_LIMIT_DIFFERENCE - 1;
 
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 		np->rx_ring.orig = pci_alloc_consistent(pci_dev,
@@ -4515,22 +4987,19 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 			goto out_unmap;
 		np->tx_ring.ex = &np->rx_ring.ex[np->rx_ring_size];
 	}
-	np->rx_skbuff = kmalloc(sizeof(struct sk_buff*) * np->rx_ring_size, GFP_KERNEL);
-	np->rx_dma = kmalloc(sizeof(dma_addr_t) * np->rx_ring_size, GFP_KERNEL);
-	np->tx_skbuff = kmalloc(sizeof(struct sk_buff*) * np->tx_ring_size, GFP_KERNEL);
-	np->tx_dma = kmalloc(sizeof(dma_addr_t) * np->tx_ring_size, GFP_KERNEL);
-	np->tx_dma_len = kmalloc(sizeof(unsigned int) * np->tx_ring_size, GFP_KERNEL);
-	if (!np->rx_skbuff || !np->rx_dma || !np->tx_skbuff || !np->tx_dma || !np->tx_dma_len)
+	np->rx_skb = kmalloc(sizeof(struct nv_skb_map) * np->rx_ring_size, GFP_KERNEL);
+	np->tx_skb = kmalloc(sizeof(struct nv_skb_map) * np->tx_ring_size, GFP_KERNEL);
+	if (!np->rx_skb || !np->tx_skb)
 		goto out_freering;
-	memset(np->rx_skbuff, 0, sizeof(struct sk_buff*) * np->rx_ring_size);
-	memset(np->rx_dma, 0, sizeof(dma_addr_t) * np->rx_ring_size);
-	memset(np->tx_skbuff, 0, sizeof(struct sk_buff*) * np->tx_ring_size);
-	memset(np->tx_dma, 0, sizeof(dma_addr_t) * np->tx_ring_size);
-	memset(np->tx_dma_len, 0, sizeof(unsigned int) * np->tx_ring_size);
+	memset(np->rx_skb, 0, sizeof(struct nv_skb_map) * np->rx_ring_size);
+	memset(np->tx_skb, 0, sizeof(struct nv_skb_map) * np->tx_ring_size);
 
 	dev->open = nv_open;
 	dev->stop = nv_close;
-	dev->hard_start_xmit = nv_start_xmit;
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+		dev->hard_start_xmit = nv_start_xmit;
+	else
+		dev->hard_start_xmit = nv_start_xmit_optimized;
 	dev->get_stats = nv_get_stats;
 	dev->change_mtu = nv_change_mtu;
 	dev->set_mac_address = nv_set_mac_address;
@@ -4538,7 +5007,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = nv_poll_controller;
 #endif
-	dev->weight = 64;
+	dev->weight = RX_WORK_PER_LOOP;
 #ifdef CONFIG_FORCEDETH_NAPI
 	dev->poll = nv_napi_poll;
 #endif
@@ -4657,33 +5126,24 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	writel(NVREG_MIISTAT_MASK, base + NvRegMIIStatus);
 
 	if (id->driver_data & DEV_HAS_MGMT_UNIT) {
-		writel(0x1, base + 0x204); pci_push(base);
-		msleep(500);
 		/* management unit running on the mac? */
-		np->mac_in_use = readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_MGMT_ST;
-		if (np->mac_in_use) {
-			u32 mgmt_sync;
-			/* management unit setup the phy already? */
-			mgmt_sync = readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_SYNC_MASK;
-			if (mgmt_sync == NVREG_XMITCTL_SYNC_NOT_READY) {
-				if (!nv_mgmt_acquire_sema(dev)) {
-					for (i = 0; i < 5000; i++) {
-						msleep(1);
-						mgmt_sync = readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_SYNC_MASK;
-						if (mgmt_sync == NVREG_XMITCTL_SYNC_NOT_READY)
-							continue;
-						if (mgmt_sync == NVREG_XMITCTL_SYNC_PHY_INIT)
-							phyinitialized = 1;
-						break;
+		if (readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_SYNC_PHY_INIT) {
+			np->mac_in_use = readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_MGMT_ST;
+			dprintk(KERN_INFO "%s: mgmt unit is running. mac in use %x.\n", pci_name(pci_dev), np->mac_in_use);
+			for (i = 0; i < 5000; i++) {
+				msleep(1);
+				if (nv_mgmt_acquire_sema(dev)) {
+					/* management unit setup the phy already? */
+					if ((readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_SYNC_MASK) ==
+					    NVREG_XMITCTL_SYNC_PHY_INIT) {
+						/* phy is inited by mgmt unit */
+						phyinitialized = 1;
+						dprintk(KERN_INFO "%s: Phy already initialized by mgmt unit.\n", pci_name(pci_dev));
+					} else {
+						/* we need to init the phy */
 					}
-				} else {
-					/* we need to init the phy */
+					break;
 				}
-			} else if (mgmt_sync == NVREG_XMITCTL_SYNC_PHY_INIT) {
-				/* phy is inited by SMU */
-				phyinitialized = 1;
-			} else {
-				/* we need to init the phy */
 			}
 		}
 	}
@@ -4722,10 +5182,12 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	if (!phyinitialized) {
 		/* reset it */
 		phy_init(dev);
-	}
-
-	if (id->driver_data & DEV_HAS_MGMT_UNIT) {
-		nv_mgmt_driver_loaded(dev, 1);
+	} else {
+		/* see if it is a gigabit phy */
+		u32 mii_status = mii_rw(dev, np->phyaddr, MII_BMSR, MII_READ);
+		if (mii_status & PHY_GIGABIT) {
+			np->gigabit = PHY_GIGABIT;
+		}
 	}
 
 	/* set default link speed settings */
@@ -4747,8 +5209,6 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 out_error:
 	if (phystate_orig)
 		writel(phystate|NVREG_ADAPTCTL_RUNNING, base + NvRegAdapterControl);
-	if (np->mac_in_use)
-		nv_mgmt_driver_loaded(dev, 0);
 	pci_set_drvdata(pci_dev, NULL);
 out_freering:
 	free_rings(dev);
@@ -4777,9 +5237,6 @@ static void __devexit nv_remove(struct pci_dev *pci_dev)
 	 */
 	writel(np->orig_mac[0], base + NvRegMacAddrA);
 	writel(np->orig_mac[1], base + NvRegMacAddrB);
-
-	if (np->mac_in_use)
-		nv_mgmt_driver_loaded(dev, 0);
 
 	/* free all structures */
 	free_rings(dev);
@@ -4865,83 +5322,83 @@ static struct pci_device_id pci_tbl[] = {
 	},
 	{	/* CK804 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_8),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_STATISTICS_V1,
 	},
 	{	/* CK804 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_9),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_STATISTICS_V1,
 	},
 	{	/* MCP04 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_10),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_STATISTICS_V1,
 	},
 	{	/* MCP04 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_11),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_STATISTICS_V1,
 	},
 	{	/* MCP51 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_12),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_STATISTICS_V1,
 	},
 	{	/* MCP51 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_13),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_STATISTICS_V1,
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_14),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_15),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP61 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_16),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP61 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_17),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP61 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_18),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP61 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_19),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_20),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_21),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_22),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_23),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_24),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_25),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_26),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_27),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT,
 	},
 	{0,},
 };

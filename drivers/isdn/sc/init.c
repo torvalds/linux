@@ -271,14 +271,13 @@ static int __init sc_init(void)
 		 * Horray! We found a board, Make sure we can register
 		 * it with ISDN4Linux
 		 */
-		interface = kmalloc(sizeof(isdn_if), GFP_KERNEL);
+		interface = kzalloc(sizeof(isdn_if), GFP_KERNEL);
 		if (interface == NULL) {
 			/*
 			 * Oops, can't malloc isdn_if
 			 */
 			continue;
 		}
-		memset(interface, 0, sizeof(isdn_if));
 
 		interface->owner = THIS_MODULE;
 		interface->hl_hdrlen = 0;
@@ -294,7 +293,7 @@ static int __init sc_init(void)
 		/*
 		 * Allocate the board structure
 		 */
-		sc_adapter[cinst] = kmalloc(sizeof(board), GFP_KERNEL);
+		sc_adapter[cinst] = kzalloc(sizeof(board), GFP_KERNEL);
 		if (sc_adapter[cinst] == NULL) {
 			/*
 			 * Oops, can't alloc memory for the board
@@ -302,7 +301,6 @@ static int __init sc_init(void)
 			kfree(interface);
 			continue;
 		}
-		memset(sc_adapter[cinst], 0, sizeof(board));
 		spin_lock_init(&sc_adapter[cinst]->lock);
 
 		if(!register_isdn(interface)) {
@@ -326,7 +324,7 @@ static int __init sc_init(void)
 		/*
 		 * Allocate channels status structures
 		 */
-		sc_adapter[cinst]->channel = kmalloc(sizeof(bchan) * channels, GFP_KERNEL);
+		sc_adapter[cinst]->channel = kzalloc(sizeof(bchan) * channels, GFP_KERNEL);
 		if (sc_adapter[cinst]->channel == NULL) {
 			/*
 			 * Oops, can't alloc memory for the channels
@@ -336,7 +334,6 @@ static int __init sc_init(void)
 			kfree(sc_adapter[cinst]);
 			continue;
 		}
-		memset(sc_adapter[cinst]->channel, 0, sizeof(bchan) * channels);
 
 		/*
 		 * Lock down the hardware resources

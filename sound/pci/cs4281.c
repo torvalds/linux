@@ -1055,7 +1055,7 @@ static int snd_cs4281_put_volume(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_dsp, -4650, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_dsp, -4650, 150, 0);
 
 static struct snd_kcontrol_new snd_cs4281_fm_vol = 
 {
@@ -1391,7 +1391,7 @@ static int __devinit snd_cs4281_create(struct snd_card *card,
 		return -ENOMEM;
 	}
 	
-	if (request_irq(pci->irq, snd_cs4281_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(pci->irq, snd_cs4281_interrupt, IRQF_SHARED,
 			"CS4281", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_cs4281_free(chip);

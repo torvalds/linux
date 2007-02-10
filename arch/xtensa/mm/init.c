@@ -141,8 +141,8 @@ void __init bootmem_init(void)
 	if (min_low_pfn > max_pfn)
 		panic("No memory found!\n");
 
-	max_low_pfn = max_pfn < MAX_LOW_MEMORY >> PAGE_SHIFT ?
-		max_pfn : MAX_LOW_MEMORY >> PAGE_SHIFT;
+	max_low_pfn = max_pfn < MAX_MEM_PFN >> PAGE_SHIFT ?
+		max_pfn : MAX_MEM_PFN >> PAGE_SHIFT;
 
 	/* Find an area to use for the bootmem bitmap. */
 
@@ -215,7 +215,7 @@ void __init init_mmu (void)
 
 	/* Set rasid register to a known value. */
 
-	set_rasid_register (ASID_ALL_RESERVED);
+	set_rasid_register (ASID_USER_FIRST);
 
 	/* Set PTEVADDR special register to the start of the page
 	 * table, which is in kernel mappable space (ie. not

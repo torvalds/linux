@@ -343,7 +343,7 @@ void unwind_frame_init_from_blocked_task(struct unwind_frame_info *info, struct 
 	struct pt_regs *r = &t->thread.regs;
 	struct pt_regs *r2;
 
-	r2 = (struct pt_regs *)kmalloc(sizeof(struct pt_regs), GFP_KERNEL);
+	r2 = kmalloc(sizeof(struct pt_regs), GFP_KERNEL);
 	if (!r2)
 		return;
 	*r2 = *r;

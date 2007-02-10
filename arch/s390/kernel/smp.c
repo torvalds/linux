@@ -22,23 +22,23 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-
 #include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <linux/kernel_stat.h>
 #include <linux/smp_lock.h>
-
 #include <linux/delay.h>
 #include <linux/cache.h>
 #include <linux/interrupt.h>
 #include <linux/cpu.h>
-
+#include <linux/timex.h>
+#include <asm/setup.h>
 #include <asm/sigp.h>
 #include <asm/pgalloc.h>
 #include <asm/irq.h>
 #include <asm/s390_ext.h>
 #include <asm/cpcmd.h>
 #include <asm/tlbflush.h>
+#include <asm/timer.h>
 
 extern volatile int __cpu_logical_map[];
 
@@ -52,12 +52,6 @@ cpumask_t cpu_online_map = CPU_MASK_NONE;
 cpumask_t cpu_possible_map = CPU_MASK_NONE;
 
 static struct task_struct *current_set[NR_CPUS];
-
-/*
- * Reboot, halt and power_off routines for SMP.
- */
-extern char vmhalt_cmd[];
-extern char vmpoff_cmd[];
 
 static void smp_ext_bitcall(int, ec_bit_sig);
 static void smp_ext_bitcall_others(ec_bit_sig);
@@ -200,7 +194,7 @@ int smp_call_function_on(void (*func) (void *info), void *info,
 }
 EXPORT_SYMBOL(smp_call_function_on);
 
-static inline void do_send_stop(void)
+static void do_send_stop(void)
 {
         int cpu, rc;
 
@@ -214,7 +208,7 @@ static inline void do_send_stop(void)
 	}
 }
 
-static inline void do_store_status(void)
+static void do_store_status(void)
 {
         int cpu, rc;
 
@@ -230,7 +224,7 @@ static inline void do_store_status(void)
         }
 }
 
-static inline void do_wait_for_stop(void)
+static void do_wait_for_stop(void)
 {
 	int cpu;
 
@@ -250,7 +244,7 @@ static inline void do_wait_for_stop(void)
 void smp_send_stop(void)
 {
 	/* Disable all interrupts/machine checks */
-	__load_psw_mask(PSW_KERNEL_BITS & ~PSW_MASK_MCHECK);
+	__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
 
         /* write magic number to zero page (absolute 0) */
 	lowcore_ptr[smp_processor_id()]->panic_magic = __PANIC_MAGIC;
@@ -298,7 +292,7 @@ void machine_power_off_smp(void)
  * cpus are handled.
  */
 
-void do_ext_call_interrupt(__u16 code)
+static void do_ext_call_interrupt(__u16 code)
 {
         unsigned long bits;
 
@@ -385,7 +379,7 @@ struct ec_creg_mask_parms {
 /*
  * callback for setting/clearing control bits
  */
-void smp_ctl_bit_callback(void *info) {
+static void smp_ctl_bit_callback(void *info) {
 	struct ec_creg_mask_parms *pp = info;
 	unsigned long cregs[16];
 	int i;
@@ -458,17 +452,15 @@ __init smp_count_cpus(void)
 /*
  *      Activate a secondary processor.
  */
-extern void init_cpu_timer(void);
-extern void init_cpu_vtimer(void);
-
 int __devinit start_secondary(void *cpuvoid)
 {
         /* Setup the cpu */
         cpu_init();
 	preempt_disable();
-        /* init per CPU timer */
+	/* Enable TOD clock interrupts on the secondary cpu. */
         init_cpu_timer();
 #ifdef CONFIG_VIRT_TIMER
+	/* Enable cpu timer interrupts on the secondary cpu. */
         init_cpu_vtimer();
 #endif
 	/* Enable pfault pseudo page faults on this cpu. */
@@ -542,7 +534,7 @@ smp_put_cpu(int cpu)
 	spin_unlock_irqrestore(&smp_reserve_lock, flags);
 }
 
-static inline int
+static int
 cpu_stopped(int cpu)
 {
 	__u32 status;
@@ -794,7 +786,10 @@ static int __init topology_init(void)
 	int ret;
 
 	for_each_possible_cpu(cpu) {
-		ret = register_cpu(&per_cpu(cpu_devices, cpu), cpu);
+		struct cpu *c = &per_cpu(cpu_devices, cpu);
+
+		c->hotpluggable = 1;
+		ret = register_cpu(c, cpu);
 		if (ret)
 			printk(KERN_WARNING "topology_init: register_cpu %d "
 			       "failed (%d)\n", cpu, ret);

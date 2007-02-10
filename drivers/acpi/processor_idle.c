@@ -160,7 +160,7 @@ static inline u32 ticks_elapsed(u32 t1, u32 t2)
 {
 	if (t2 >= t1)
 		return (t2 - t1);
-	else if (!acpi_fadt.tmr_val_ext)
+	else if (!(acpi_gbl_FADT.flags & ACPI_FADT_32BIT_TIMER))
 		return (((0x00FFFFFF - t1) + t2) & 0x00FFFFFF);
 	else
 		return ((0xFFFFFFFF - t1) + t2);
@@ -187,8 +187,7 @@ acpi_processor_power_activate(struct acpi_processor *pr,
 		case ACPI_STATE_C3:
 			/* Disable bus master reload */
 			if (new->type != ACPI_STATE_C3 && pr->flags.bm_check)
-				acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0,
-						  ACPI_MTX_DO_NOT_LOCK);
+				acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0);
 			break;
 		}
 	}
@@ -198,8 +197,7 @@ acpi_processor_power_activate(struct acpi_processor *pr,
 	case ACPI_STATE_C3:
 		/* Enable bus master reload */
 		if (old->type != ACPI_STATE_C3 && pr->flags.bm_check)
-			acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 1,
-					  ACPI_MTX_DO_NOT_LOCK);
+			acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 1);
 		break;
 	}
 
@@ -211,7 +209,11 @@ acpi_processor_power_activate(struct acpi_processor *pr,
 static void acpi_safe_halt(void)
 {
 	current_thread_info()->status &= ~TS_POLLING;
-	smp_mb__after_clear_bit();
+	/*
+	 * TS_POLLING-cleared state must be visible before we
+	 * test NEED_RESCHED:
+	 */
+	smp_mb();
 	if (!need_resched())
 		safe_halt();
 	current_thread_info()->status |= TS_POLLING;
@@ -232,7 +234,7 @@ static void acpi_cstate_enter(struct acpi_processor_cx *cstate)
 		/* Dummy wait op - must do something useless after P_LVL2 read
 		   because chipsets cannot guarantee that STPCLK# signal
 		   gets asserted in time to freeze execution properly. */
-		unused = inl(acpi_fadt.xpm_tmr_blk.address);
+		unused = inl(acpi_gbl_FADT.xpm_timer_block.address);
 	}
 }
 
@@ -287,12 +289,10 @@ static void acpi_processor_idle(void)
 
 		pr->power.bm_activity <<= diff;
 
-		acpi_get_register(ACPI_BITREG_BUS_MASTER_STATUS,
-				  &bm_status, ACPI_MTX_DO_NOT_LOCK);
+		acpi_get_register(ACPI_BITREG_BUS_MASTER_STATUS, &bm_status);
 		if (bm_status) {
 			pr->power.bm_activity |= 0x1;
-			acpi_set_register(ACPI_BITREG_BUS_MASTER_STATUS,
-					  1, ACPI_MTX_DO_NOT_LOCK);
+			acpi_set_register(ACPI_BITREG_BUS_MASTER_STATUS, 1);
 		}
 		/*
 		 * PIIX4 Erratum #18: Note that BM_STS doesn't always reflect
@@ -334,7 +334,7 @@ static void acpi_processor_idle(void)
 	 * detection phase, to work cleanly with logical CPU hotplug.
 	 */
 	if ((cx->type != ACPI_STATE_C1) && (num_online_cpus() > 1) && 
-	    !pr->flags.has_cst && !acpi_fadt.plvl2_up)
+	    !pr->flags.has_cst && !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
 		cx = &pr->power.states[ACPI_STATE_C1];
 #endif
 
@@ -345,7 +345,11 @@ static void acpi_processor_idle(void)
 	 */
 	if (cx->type == ACPI_STATE_C2 || cx->type == ACPI_STATE_C3) {
 		current_thread_info()->status &= ~TS_POLLING;
-		smp_mb__after_clear_bit();
+		/*
+		 * TS_POLLING-cleared state must be visible before we
+		 * test NEED_RESCHED:
+		 */
+		smp_mb();
 		if (need_resched()) {
 			current_thread_info()->status |= TS_POLLING;
 			local_irq_enable();
@@ -376,11 +380,11 @@ static void acpi_processor_idle(void)
 
 	case ACPI_STATE_C2:
 		/* Get start time (ticks) */
-		t1 = inl(acpi_fadt.xpm_tmr_blk.address);
+		t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 		/* Invoke C2 */
 		acpi_cstate_enter(cx);
 		/* Get end time (ticks) */
-		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
+		t2 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 
 #ifdef CONFIG_GENERIC_TIME
 		/* TSC halts in C2, so notify users */
@@ -403,8 +407,7 @@ static void acpi_processor_idle(void)
 				 * All CPUs are trying to go to C3
 				 * Disable bus master arbitration
 				 */
-				acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1,
-						  ACPI_MTX_DO_NOT_LOCK);
+				acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1);
 			}
 		} else {
 			/* SMP with no shared cache... Invalidate cache  */
@@ -412,16 +415,15 @@ static void acpi_processor_idle(void)
 		}
 
 		/* Get start time (ticks) */
-		t1 = inl(acpi_fadt.xpm_tmr_blk.address);
+		t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 		/* Invoke C3 */
 		acpi_cstate_enter(cx);
 		/* Get end time (ticks) */
-		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
+		t2 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 		if (pr->flags.bm_check) {
 			/* Enable bus master arbitration */
 			atomic_dec(&c3_cpu_count);
-			acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0,
-					  ACPI_MTX_DO_NOT_LOCK);
+			acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0);
 		}
 
 #ifdef CONFIG_GENERIC_TIME
@@ -449,7 +451,7 @@ static void acpi_processor_idle(void)
 #ifdef CONFIG_HOTPLUG_CPU
 	/* Don't do promotion/demotion */
 	if ((cx->type == ACPI_STATE_C1) && (num_online_cpus() > 1) &&
-	    !pr->flags.has_cst && !acpi_fadt.plvl2_up) {
+	    !pr->flags.has_cst && !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED)) {
 		next_state = cx;
 		goto end;
 	}
@@ -619,7 +621,8 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	 * Check for P_LVL2_UP flag before entering C2 and above on
 	 * an SMP system. 
 	 */
-	if ((num_online_cpus() > 1) && !acpi_fadt.plvl2_up)
+	if ((num_online_cpus() > 1) &&
+	    !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
 		return -ENODEV;
 #endif
 
@@ -628,8 +631,8 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	pr->power.states[ACPI_STATE_C3].address = pr->pblk + 5;
 
 	/* determine latencies from FADT */
-	pr->power.states[ACPI_STATE_C2].latency = acpi_fadt.plvl2_lat;
-	pr->power.states[ACPI_STATE_C3].latency = acpi_fadt.plvl3_lat;
+	pr->power.states[ACPI_STATE_C2].latency = acpi_gbl_FADT.C2latency;
+	pr->power.states[ACPI_STATE_C3].latency = acpi_gbl_FADT.C3latency;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "lvl2[0x%08x] lvl3[0x%08x]\n",
@@ -673,7 +676,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		return -ENODEV;
 	}
 
-	cst = (union acpi_object *)buffer.pointer;
+	cst = buffer.pointer;
 
 	/* There must be at least 2 elements */
 	if (!cst || (cst->type != ACPI_TYPE_PACKAGE) || cst->package.count < 2) {
@@ -702,14 +705,14 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 		memset(&cx, 0, sizeof(cx));
 
-		element = (union acpi_object *)&(cst->package.elements[i]);
+		element = &(cst->package.elements[i]);
 		if (element->type != ACPI_TYPE_PACKAGE)
 			continue;
 
 		if (element->package.count != 4)
 			continue;
 
-		obj = (union acpi_object *)&(element->package.elements[0]);
+		obj = &(element->package.elements[0]);
 
 		if (obj->type != ACPI_TYPE_BUFFER)
 			continue;
@@ -721,7 +724,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 			continue;
 
 		/* There should be an easy way to extract an integer... */
-		obj = (union acpi_object *)&(element->package.elements[1]);
+		obj = &(element->package.elements[1]);
 		if (obj->type != ACPI_TYPE_INTEGER)
 			continue;
 
@@ -754,13 +757,13 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 			}
 		}
 
-		obj = (union acpi_object *)&(element->package.elements[2]);
+		obj = &(element->package.elements[2]);
 		if (obj->type != ACPI_TYPE_INTEGER)
 			continue;
 
 		cx.latency = obj->integer.value;
 
-		obj = (union acpi_object *)&(element->package.elements[3]);
+		obj = &(element->package.elements[3]);
 		if (obj->type != ACPI_TYPE_INTEGER)
 			continue;
 
@@ -875,14 +878,13 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 		 * WBINVD should be set in fadt, for C3 state to be
 		 * supported on when bm_check is not required.
 		 */
-		if (acpi_fadt.wb_invd != 1) {
+		if (!(acpi_gbl_FADT.flags & ACPI_FADT_WBINVD)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Cache invalidation should work properly"
 					  " for C3 to be enabled on SMP systems\n"));
 			return;
 		}
-		acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD,
-				  0, ACPI_MTX_DO_NOT_LOCK);
+		acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0);
 	}
 
 	/*
@@ -1029,7 +1031,7 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 
 static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_processor *pr = (struct acpi_processor *)seq->private;
+	struct acpi_processor *pr = seq->private;
 	unsigned int i;
 
 
@@ -1088,7 +1090,7 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 		seq_printf(seq, "latency[%03d] usage[%08d] duration[%020llu]\n",
 			   pr->power.states[i].latency,
 			   pr->power.states[i].usage,
-			   pr->power.states[i].time);
+			   (unsigned long long)pr->power.states[i].time);
 	}
 
       end:
@@ -1156,9 +1158,9 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	if (!pr)
 		return -EINVAL;
 
-	if (acpi_fadt.cst_cnt && !nocst) {
+	if (acpi_gbl_FADT.cst_control && !nocst) {
 		status =
-		    acpi_os_write_port(acpi_fadt.smi_cmd, acpi_fadt.cst_cnt, 8);
+		    acpi_os_write_port(acpi_gbl_FADT.smi_command, acpi_gbl_FADT.cst_control, 8);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"Notifying BIOS of _CST ability failed"));

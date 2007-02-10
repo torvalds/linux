@@ -106,7 +106,6 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		ENTER_CRITICAL(flags);
 		size = (end - start + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		size = (size + 1) >> 1;
-		local_irq_save(flags);
 		if (size <= current_cpu_data.tlbsize/2) {
 			int oldpid = read_c0_entryhi();
 			int newpid = cpu_asid(cpu, mm);

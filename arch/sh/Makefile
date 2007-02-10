@@ -179,7 +179,7 @@ maketools:  include/linux/version.h FORCE
 
 all: zImage
 
-zImage: vmlinux
+zImage uImage uImage.srec vmlinux.srec: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 compressed: zImage
@@ -190,5 +190,8 @@ archclean:
 CLEAN_FILES += include/asm-sh/machtypes.h
 
 define archhelp
-	@echo '  zImage 	           - Compressed kernel image (arch/sh/boot/zImage)'
+	@echo '* zImage 	           - Compressed kernel image'
+	@echo '  vmlinux.srec	           - Create an ELF S-record'
+	@echo '  uImage  	           - Create a bootable image for U-Boot'
+	@echo '  uImage.srec  	           - Create an S-record for U-Boot'
 endef

@@ -29,6 +29,7 @@
 #include <linux/fsl_devices.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
+#include <linux/workqueue.h>
 
 #include <asm/of_platform.h>
 #include <asm/uaccess.h>
@@ -194,9 +195,9 @@ static void enqueue(struct list_head *node, struct list_head *lh)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(ugeth_lock, flags);
+	spin_lock_irqsave(&ugeth_lock, flags);
 	list_add_tail(node, lh);
-	spin_unlock_irqrestore(ugeth_lock, flags);
+	spin_unlock_irqrestore(&ugeth_lock, flags);
 }
 #endif /* CONFIG_UGETH_FILTERING */
 
@@ -204,14 +205,14 @@ static struct list_head *dequeue(struct list_head *lh)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(ugeth_lock, flags);
+	spin_lock_irqsave(&ugeth_lock, flags);
 	if (!list_empty(lh)) {
 		struct list_head *node = lh->next;
 		list_del(node);
-		spin_unlock_irqrestore(ugeth_lock, flags);
+		spin_unlock_irqrestore(&ugeth_lock, flags);
 		return node;
 	} else {
-		spin_unlock_irqrestore(ugeth_lock, flags);
+		spin_unlock_irqrestore(&ugeth_lock, flags);
 		return NULL;
 	}
 }
@@ -472,7 +473,7 @@ static void put_enet_addr_container(struct enet_addr_container *enet_addr_cont)
 	kfree(enet_addr_cont);
 }
 
-static int set_mac_addr(__be16 __iomem *reg, u8 *mac)
+static void set_mac_addr(__be16 __iomem *reg, u8 *mac)
 {
 	out_be16(&reg[0], ((u16)mac[5] << 8) | mac[4]);
 	out_be16(&reg[1], ((u16)mac[3] << 8) | mac[2]);
@@ -1708,75 +1709,13 @@ static void adjust_link(struct net_device *dev)
 		if (mii_info->speed != ugeth->oldspeed) {
 			switch (mii_info->speed) {
 			case 1000:
-#ifdef CONFIG_PPC_MPC836x
-/* FIXME: This code is for 100Mbs BUG fixing,
-remove this when it is fixed!!! */
-				if (ugeth->ug_info->enet_interface ==
-				    ENET_1000_GMII)
-				/* Run the commands which initialize the PHY */
-				{
-					tempval =
-					    (u32) mii_info->mdio_read(ugeth->
-						dev, mii_info->mii_id, 0x1b);
-					tempval |= 0x000f;
-					mii_info->mdio_write(ugeth->dev,
-						mii_info->mii_id, 0x1b,
-						(u16) tempval);
-					tempval =
-					    (u32) mii_info->mdio_read(ugeth->
-						dev, mii_info->mii_id,
-						MII_BMCR);
-					mii_info->mdio_write(ugeth->dev,
-						mii_info->mii_id, MII_BMCR,
-						(u16) (tempval | BMCR_RESET));
-				} else if (ugeth->ug_info->enet_interface ==
-					   ENET_1000_RGMII)
-				/* Run the commands which initialize the PHY */
-				{
-					tempval =
-					    (u32) mii_info->mdio_read(ugeth->
-						dev, mii_info->mii_id, 0x1b);
-					tempval = (tempval & ~0x000f) | 0x000b;
-					mii_info->mdio_write(ugeth->dev,
-						mii_info->mii_id, 0x1b,
-						(u16) tempval);
-					tempval =
-					    (u32) mii_info->mdio_read(ugeth->
-						dev, mii_info->mii_id,
-						MII_BMCR);
-					mii_info->mdio_write(ugeth->dev,
-						mii_info->mii_id, MII_BMCR,
-						(u16) (tempval | BMCR_RESET));
-				}
-				msleep(4000);
-#endif				/* CONFIG_MPC8360 */
-				adjust_enet_interface(ugeth);
+				ugeth->ug_info->enet_interface = ENET_1000_RGMII;
 				break;
 			case 100:
-			case 10:
-#ifdef CONFIG_PPC_MPC836x
-/* FIXME: This code is for 100Mbs BUG fixing,
-remove this lines when it will be fixed!!! */
 				ugeth->ug_info->enet_interface = ENET_100_RGMII;
-				tempval =
-				    (u32) mii_info->mdio_read(ugeth->dev,
-							      mii_info->mii_id,
-							      0x1b);
-				tempval = (tempval & ~0x000f) | 0x000b;
-				mii_info->mdio_write(ugeth->dev,
-						     mii_info->mii_id, 0x1b,
-						     (u16) tempval);
-				tempval =
-				    (u32) mii_info->mdio_read(ugeth->dev,
-							      mii_info->mii_id,
-							      MII_BMCR);
-				mii_info->mdio_write(ugeth->dev,
-						     mii_info->mii_id, MII_BMCR,
-						     (u16) (tempval |
-							    BMCR_RESET));
-				msleep(4000);
-#endif				/* CONFIG_MPC8360 */
-				adjust_enet_interface(ugeth);
+				break;
+			case 10:
+				ugeth->ug_info->enet_interface = ENET_10_RGMII;
 				break;
 			default:
 				ugeth_warn
@@ -1784,6 +1723,7 @@ remove this lines when it will be fixed!!! */
 				     dev->name, mii_info->speed);
 				break;
 			}
+			adjust_enet_interface(ugeth);
 
 			ugeth_info("%s: Speed %dBT", dev->name,
 				   mii_info->speed);
@@ -1851,6 +1791,8 @@ static int init_phy(struct net_device *dev)
 
 	mii_info->mdio_read = &read_phy_reg;
 	mii_info->mdio_write = &write_phy_reg;
+
+	spin_lock_init(&mii_info->mdio_lock);
 
 	ugeth->mii_info = mii_info;
 
@@ -2862,8 +2804,8 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			if (UCC_GETH_TX_BD_RING_ALIGNMENT > 4)
 				align = UCC_GETH_TX_BD_RING_ALIGNMENT;
 			ugeth->tx_bd_ring_offset[j] =
-				(u32) (kmalloc((u32) (length + align),
-				GFP_KERNEL));
+				kmalloc((u32) (length + align), GFP_KERNEL);
+
 			if (ugeth->tx_bd_ring_offset[j] != 0)
 				ugeth->p_tx_bd_ring[j] =
 					(void*)((ugeth->tx_bd_ring_offset[j] +
@@ -2898,7 +2840,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			if (UCC_GETH_RX_BD_RING_ALIGNMENT > 4)
 				align = UCC_GETH_RX_BD_RING_ALIGNMENT;
 			ugeth->rx_bd_ring_offset[j] =
-			    (u32) (kmalloc((u32) (length + align), GFP_KERNEL));
+				kmalloc((u32) (length + align), GFP_KERNEL);
 			if (ugeth->rx_bd_ring_offset[j] != 0)
 				ugeth->p_rx_bd_ring[j] =
 					(void*)((ugeth->rx_bd_ring_offset[j] +
@@ -2924,10 +2866,9 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	/* Init Tx bds */
 	for (j = 0; j < ug_info->numQueuesTx; j++) {
 		/* Setup the skbuff rings */
-		ugeth->tx_skbuff[j] =
-		    (struct sk_buff **)kmalloc(sizeof(struct sk_buff *) *
-					       ugeth->ug_info->bdRingLenTx[j],
-					       GFP_KERNEL);
+		ugeth->tx_skbuff[j] = kmalloc(sizeof(struct sk_buff *) *
+					      ugeth->ug_info->bdRingLenTx[j],
+					      GFP_KERNEL);
 
 		if (ugeth->tx_skbuff[j] == NULL) {
 			ugeth_err("%s: Could not allocate tx_skbuff",
@@ -2956,10 +2897,9 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	/* Init Rx bds */
 	for (j = 0; j < ug_info->numQueuesRx; j++) {
 		/* Setup the skbuff rings */
-		ugeth->rx_skbuff[j] =
-		    (struct sk_buff **)kmalloc(sizeof(struct sk_buff *) *
-					       ugeth->ug_info->bdRingLenRx[j],
-					       GFP_KERNEL);
+		ugeth->rx_skbuff[j] = kmalloc(sizeof(struct sk_buff *) *
+					      ugeth->ug_info->bdRingLenRx[j],
+					      GFP_KERNEL);
 
 		if (ugeth->rx_skbuff[j] == NULL) {
 			ugeth_err("%s: Could not allocate rx_skbuff",
@@ -3450,8 +3390,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	 * allocated resources can be released when the channel is freed.
 	 */
 	if (!(ugeth->p_init_enet_param_shadow =
-	     (struct ucc_geth_init_pram *) kmalloc(sizeof(struct ucc_geth_init_pram),
-					      GFP_KERNEL))) {
+	      kmalloc(sizeof(struct ucc_geth_init_pram), GFP_KERNEL))) {
 		ugeth_err
 		    ("%s: Can not allocate memory for"
 			" p_UccInitEnetParamShadows.", __FUNCTION__);
@@ -3918,10 +3857,11 @@ static irqreturn_t phy_interrupt(int irq, void *dev_id)
 }
 
 /* Scheduled by the phy_interrupt/timer to handle PHY changes */
-static void ugeth_phy_change(void *data)
+static void ugeth_phy_change(struct work_struct *work)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct ucc_geth_private *ugeth = netdev_priv(dev);
+	struct ucc_geth_private *ugeth =
+		container_of(work, struct ucc_geth_private, tq);
+	struct net_device *dev = ugeth->dev;
 	struct ucc_geth *ug_regs;
 	int result = 0;
 
@@ -4078,7 +4018,7 @@ static int ucc_geth_open(struct net_device *dev)
 #endif				/* CONFIG_UGETH_NAPI */
 
 	/* Set up the PHY change work queue */
-	INIT_WORK(&ugeth->tq, ugeth_phy_change, dev);
+	INIT_WORK(&ugeth->tq, ugeth_phy_change);
 
 	init_timer(&ugeth->phy_info_timer);
 	ugeth->phy_info_timer.function = &ugeth_phy_startup_timer;
@@ -4132,6 +4072,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	static int mii_mng_configured = 0;
 	const phandle *ph;
 	const unsigned int *prop;
+	const void *mac_addr;
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
 
@@ -4257,7 +4198,12 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 
 	ugeth->ug_info = ug_info;
 	ugeth->dev = dev;
-	memcpy(dev->dev_addr, get_property(np, "mac-address", NULL), 6);
+
+	mac_addr = get_property(np, "mac-address", NULL);
+	if (mac_addr == NULL)
+		mac_addr = get_property(np, "local-mac-address", NULL);
+	if (mac_addr)
+		memcpy(dev->dev_addr, mac_addr, 6);
 
 	return 0;
 }

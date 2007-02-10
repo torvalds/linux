@@ -24,8 +24,5 @@
 #define PBI_CF_IDE_BASE     (IQ81340_CMP_FLSH)
 #define PBI_CF_BAR_ADDR     (IOP13XX_PBI_BAR1)
 
-/* These are the values used in the Machine description */
-#define PHYS_IO         0xfeffff00
-#define IO_PG_OFFSET    0xffffff00
-#define BOOT_PARAM_OFFSET  0x00000100
+
 #endif	/* _IQ81340_H_ */
