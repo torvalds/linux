@@ -316,7 +316,7 @@ static int mxser_set_baud_method[MXSER_PORTS + 1];
 static spinlock_t gm_lock;
 
 #ifdef CONFIG_PCI
-static int CheckIsMoxaMust(int io)
+static int __devinit CheckIsMoxaMust(int io)
 {
 	u8 oldmcr, hwid;
 	int i;
@@ -1373,7 +1373,7 @@ static int mxser_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static int mxser_program_mode(int port)
+static int __init mxser_program_mode(int port)
 {
 	int id, i, j, n;
 
@@ -1410,7 +1410,7 @@ static int mxser_program_mode(int port)
 	return id;
 }
 
-static void mxser_normal_mode(int port)
+static void __init mxser_normal_mode(int port)
 {
 	int i, n;
 
@@ -1443,7 +1443,7 @@ static void mxser_normal_mode(int port)
 #define EN0_PORT	0x010	/* Rcv missed frame error counter RD */
 #define ENC_PAGE0	0x000	/* Select page 0 of chip registers   */
 #define ENC_PAGE3	0x0C0	/* Select page 3 of chip registers   */
-static int mxser_read_register(int port, unsigned short *regs)
+static int __init mxser_read_register(int port, unsigned short *regs)
 {
 	int i, k, value, id;
 	unsigned int j;
