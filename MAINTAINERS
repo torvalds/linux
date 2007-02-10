@@ -635,6 +635,12 @@ W:	http://people.redhat.com/sgrubb/audit/
 T:	git kernel.org:/pub/scm/linux/kernel/git/dwmw2/audit-2.6.git
 S:	Maintained
 
+AUXILIARY DISPLAY DRIVERS
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 AVR32 ARCHITECTURE
 P:	Haavard Skinnemoen
 M:	hskinnemoen@atmel.com
@@ -834,6 +840,18 @@ P:	Jon D. Mason
 M:	jdmason@kudzu.us
 L:	linux-kernel@vger.kernel.org
 L:	discuss@x86-64.org
+S:	Maintained
+
+CFAG12864B LCD DRIVER
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+CFAG12864BFB LCD FRAMEBUFFER DRIVER
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
+L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 COMMON INTERNET FILE SYSTEM (CIFS)
@@ -1968,6 +1986,12 @@ P:	Anil S Keshavamurthy
 M:	anil.s.keshavamurthy@intel.com
 P:	David S. Miller
 M:	davem@davemloft.net
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+KS0108 LCD CONTROLLER DRIVER
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
