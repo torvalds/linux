@@ -81,9 +81,7 @@ static inline void arch_switch_to_tt(struct task_struct *from,
 {
 }
 
-static inline void arch_switch_to_skas(struct task_struct *from,
-                                       struct task_struct *to)
-{
-}
+extern void arch_switch_to_skas(struct task_struct *from,
+				struct task_struct *to);
 
 #endif

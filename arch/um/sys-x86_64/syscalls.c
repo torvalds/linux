@@ -16,6 +16,7 @@
 #include "asm/prctl.h" /* XXX This should get the constants from libc */
 #include "choose-mode.h"
 #include "kern.h"
+#include "os.h"
 
 asmlinkage long sys_uname64(struct new_utsname __user * name)
 {
@@ -58,40 +59,67 @@ static long arch_prctl_tt(int code, unsigned long addr)
 
 #ifdef CONFIG_MODE_SKAS
 
-/* XXX: Must also call arch_prctl in the host, beside saving the segment bases! */
-static long arch_prctl_skas(int code, unsigned long addr)
+static long arch_prctl_skas(int code, unsigned long __user *addr)
 {
-	long ret = 0;
+        unsigned long *ptr = addr, tmp;
+	long ret;
+        int pid = current->mm->context.skas.id.u.pid;
 
+	/*
+	 * With ARCH_SET_FS (and ARCH_SET_GS is treated similarly to
+	 * be safe), we need to call arch_prctl on the host because
+	 * setting %fs may result in something else happening (like a
+	 * GDT being set instead).  So, we let the host fiddle the
+	 * registers and restore them afterwards.
+	 *
+	 * So, the saved registers are stored to the process (this
+	 * needed because a stub may have been the last thing to run),
+	 * arch_prctl is run on the host, then the registers are read
+	 * back.
+	 */
 	switch(code){
 	case ARCH_SET_FS:
-		current->thread.regs.regs.skas.regs[FS_BASE / sizeof(unsigned long)] = addr;
-		break;
 	case ARCH_SET_GS:
-		current->thread.regs.regs.skas.regs[GS_BASE / sizeof(unsigned long)] = addr;
+                restore_registers(pid, &current->thread.regs.regs);
+                break;
+        case ARCH_GET_FS:
+        case ARCH_GET_GS:
+                /*
+                 * With these two, we read to a local pointer and
+                 * put_user it to the userspace pointer that we were
+                 * given.  If addr isn't valid (because it hasn't been
+                 * faulted in or is just bogus), we want put_user to
+                 * fault it in (or return -EFAULT) instead of having
+                 * the host return -EFAULT.
+                 */
+                ptr = &tmp;
+        }
+
+        ret = os_arch_prctl(pid, code, ptr);
+        if(ret)
+                return ret;
+
+        switch(code){
+	case ARCH_SET_FS:
+	case ARCH_SET_GS:
+                save_registers(pid, &current->thread.regs.regs);
 		break;
 	case ARCH_GET_FS:
-		ret = put_user(current->thread.regs.regs.skas.
-				regs[FS_BASE / sizeof(unsigned long)],
-				(unsigned long __user *)addr);
+		ret = put_user(tmp, addr);
 	        break;
 	case ARCH_GET_GS:
-		ret = put_user(current->thread.regs.regs.skas.
-				regs[GS_BASE / sizeof(unsigned long)],
-				(unsigned long __user *)addr);
+		ret = put_user(tmp, addr);
 	        break;
-	default:
-		ret = -EINVAL;
-		break;
 	}
 
-	return(ret);
+	return ret;
 }
 #endif
 
 long sys_arch_prctl(int code, unsigned long addr)
 {
-	return(CHOOSE_MODE_PROC(arch_prctl_tt, arch_prctl_skas, code, addr));
+	return CHOOSE_MODE_PROC(arch_prctl_tt, arch_prctl_skas, code,
+                                (unsigned long __user *) addr);
 }
 
 long sys_clone(unsigned long clone_flags, unsigned long newsp,
@@ -105,5 +133,14 @@ long sys_clone(unsigned long clone_flags, unsigned long newsp,
 	ret = do_fork(clone_flags, newsp, &current->thread.regs, 0, parent_tid,
 		      child_tid);
 	current->thread.forking = 0;
-	return(ret);
+	return ret;
 }
+
+void arch_switch_to_skas(struct task_struct *from, struct task_struct *to)
+{
+        if(to->thread.arch.fs == 0)
+                return;
+
+        arch_prctl_skas(ARCH_SET_FS, (void __user *) to->thread.arch.fs);
+}
+

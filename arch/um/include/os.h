@@ -340,4 +340,6 @@ extern void maybe_sigio_broken(int fd, int read);
 extern void sig_handler_common_skas(int sig, void *sc_ptr);
 extern void user_signal(int sig, union uml_pt_regs *regs, int pid);
 
+extern int os_arch_prctl(int pid, int code, unsigned long *addr);
+
 #endif
