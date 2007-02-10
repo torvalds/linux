@@ -35,7 +35,8 @@ static void __init find_tempdir(void)
 	int i;
 	char *dir = NULL;
 
-	if(tempdir != NULL) return;	/* We've already been called */
+	if(tempdir != NULL) /* We've already been called */
+		return;
 	for(i = 0; dirs[i]; i++){
 		dir = getenv(dirs[i]);
 		if((dir != NULL) && (*dir != '\0'))
@@ -193,7 +194,7 @@ int make_tempfile(const char *template, char **out_tempname, int do_unlink)
 	} else {
 		free(tempname);
 	}
-	return(fd);
+	return fd;
 out:
 	free(tempname);
 	return -1;
@@ -238,7 +239,7 @@ int create_tmp_file(unsigned long long len)
 		exit(1);
 	}
 
-	return(fd);
+	return fd;
 }
 
 int create_mem_file(unsigned long long len)
@@ -252,7 +253,7 @@ int create_mem_file(unsigned long long len)
 		errno = -err;
 		perror("exec_close");
 	}
-	return(fd);
+	return fd;
 }
 
 
