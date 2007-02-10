@@ -311,7 +311,7 @@ extern void	xfs_icsb_sync_counters_flags(struct xfs_mount *, int);
 
 #else
 #define xfs_icsb_init_counters(mp)	(0)
-#define xfs_icsb_sync_counters_lazy(mp)	do { } while (0)
+#define xfs_icsb_sync_counters_flags(mp, flags)	do { } while (0)
 #endif
 
 typedef struct xfs_mount {
