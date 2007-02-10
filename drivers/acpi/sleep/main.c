@@ -200,7 +200,7 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 	{},
 };
 
-static int __init acpi_sleep_init(void)
+int __init acpi_sleep_init(void)
 {
 	int i = 0;
 
@@ -229,4 +229,3 @@ static int __init acpi_sleep_init(void)
 	return 0;
 }
 
-late_initcall(acpi_sleep_init);

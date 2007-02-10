@@ -128,4 +128,14 @@ extern void unregister_hotplug_dock_device(acpi_handle handle);
 #define register_hotplug_dock_device(h1, h2, c)	(-ENODEV)
 #define unregister_hotplug_dock_device(h)       do { } while(0)
 #endif
+
+/*--------------------------------------------------------------------------
+                                  Suspend/Resume
+  -------------------------------------------------------------------------- */
+#ifdef CONFIG_ACPI_SLEEP
+extern int acpi_sleep_init(void);
+#else
+#define acpi_sleep_init() do {} while (0)
+#endif
+
 #endif /*__ACPI_DRIVERS_H__*/
