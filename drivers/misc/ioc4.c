@@ -309,7 +309,7 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		ret = -ENODEV;
 		goto out_pci;
 	}
-	if (!request_region(idd->idd_bar0, sizeof(struct ioc4_misc_regs),
+	if (!request_mem_region(idd->idd_bar0, sizeof(struct ioc4_misc_regs),
 			    "ioc4_misc")) {
 		printk(KERN_WARNING
 		       "%s: Unable to request IOC4 misc region "
@@ -379,7 +379,7 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	return 0;
 
 out_misc_region:
-	release_region(idd->idd_bar0, sizeof(struct ioc4_misc_regs));
+	release_mem_region(idd->idd_bar0, sizeof(struct ioc4_misc_regs));
 out_pci:
 	kfree(idd);
 out_idd:
@@ -418,7 +418,7 @@ ioc4_remove(struct pci_dev *pdev)
 		       "Device removal may be incomplete.\n",
 		       __FUNCTION__, pci_name(idd->idd_pdev));
 	}
-	release_region(idd->idd_bar0, sizeof(struct ioc4_misc_regs));
+	release_mem_region(idd->idd_bar0, sizeof(struct ioc4_misc_regs));
 
 	/* Disable IOC4 and relinquish */
 	pci_disable_device(pdev);
