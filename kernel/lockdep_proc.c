@@ -77,12 +77,29 @@ static unsigned long count_backward_deps(struct lock_class *class)
 	return ret;
 }
 
+static void print_name(struct seq_file *m, struct lock_class *class)
+{
+	char str[128];
+	const char *name = class->name;
+
+	if (!name) {
+		name = __get_key_name(class->key, str);
+		seq_printf(m, "%s", name);
+	} else{
+		seq_printf(m, "%s", name);
+		if (class->name_version > 1)
+			seq_printf(m, "#%d", class->name_version);
+		if (class->subclass)
+			seq_printf(m, "/%d", class->subclass);
+	}
+}
+
 static int l_show(struct seq_file *m, void *v)
 {
 	unsigned long nr_forward_deps, nr_backward_deps;
 	struct lock_class *class = m->private;
-	char str[128], c1, c2, c3, c4;
-	const char *name;
+	struct lock_list *entry;
+	char c1, c2, c3, c4;
 
 	seq_printf(m, "%p", class->key);
 #ifdef CONFIG_DEBUG_LOCKDEP
@@ -97,16 +114,16 @@ static int l_show(struct seq_file *m, void *v)
 	get_usage_chars(class, &c1, &c2, &c3, &c4);
 	seq_printf(m, " %c%c%c%c", c1, c2, c3, c4);
 
-	name = class->name;
-	if (!name) {
-		name = __get_key_name(class->key, str);
-		seq_printf(m, ": %s", name);
-	} else{
-		seq_printf(m, ": %s", name);
-		if (class->name_version > 1)
-			seq_printf(m, "#%d", class->name_version);
-		if (class->subclass)
-			seq_printf(m, "/%d", class->subclass);
+	seq_printf(m, ": ");
+	print_name(m, class);
+	seq_puts(m, "\n");
+
+	list_for_each_entry(entry, &class->locks_after, entry) {
+		if (entry->distance == 1) {
+			seq_printf(m, " -> [%p] ", entry->class);
+			print_name(m, entry->class);
+			seq_puts(m, "\n");
+		}
 	}
 	seq_puts(m, "\n");
 

@@ -490,7 +490,7 @@ static void print_lock_dependencies(struct lock_class *class, int depth)
  * Add a new dependency to the head of the list:
  */
 static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
-			    struct list_head *head, unsigned long ip)
+			    struct list_head *head, unsigned long ip, int distance)
 {
 	struct lock_list *entry;
 	/*
@@ -502,6 +502,7 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 		return 0;
 
 	entry->class = this;
+	entry->distance = distance;
 	if (!save_trace(&entry->trace))
 		return 0;
 
@@ -906,7 +907,7 @@ check_deadlock(struct task_struct *curr, struct held_lock *next,
  */
 static int
 check_prev_add(struct task_struct *curr, struct held_lock *prev,
-	       struct held_lock *next)
+	       struct held_lock *next, int distance)
 {
 	struct lock_list *entry;
 	int ret;
@@ -984,8 +985,11 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 *  L2 added to its dependency list, due to the first chain.)
 	 */
 	list_for_each_entry(entry, &prev->class->locks_after, entry) {
-		if (entry->class == next->class)
+		if (entry->class == next->class) {
+			if (distance == 1)
+				entry->distance = 1;
 			return 2;
+		}
 	}
 
 	/*
@@ -993,12 +997,13 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 * to the previous lock's dependency list:
 	 */
 	ret = add_lock_to_list(prev->class, next->class,
-			       &prev->class->locks_after, next->acquire_ip);
+			       &prev->class->locks_after, next->acquire_ip, distance);
+
 	if (!ret)
 		return 0;
 
 	ret = add_lock_to_list(next->class, prev->class,
-			       &next->class->locks_before, next->acquire_ip);
+			       &next->class->locks_before, next->acquire_ip, distance);
 	if (!ret)
 		return 0;
 
@@ -1046,13 +1051,14 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 		goto out_bug;
 
 	for (;;) {
+		int distance = curr->lockdep_depth - depth + 1;
 		hlock = curr->held_locks + depth-1;
 		/*
 		 * Only non-recursive-read entries get new dependencies
 		 * added:
 		 */
 		if (hlock->read != 2) {
-			if (!check_prev_add(curr, hlock, next))
+			if (!check_prev_add(curr, hlock, next, distance))
 				return 0;
 			/*
 			 * Stop after the first non-trylock entry,
@@ -2779,4 +2785,3 @@ void debug_show_held_locks(struct task_struct *task)
 }
 
 EXPORT_SYMBOL_GPL(debug_show_held_locks);
-
