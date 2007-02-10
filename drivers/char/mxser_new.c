@@ -853,9 +853,9 @@ static int mxser_startup(struct mxser_port *info)
 	 * and set the speed of the serial port
 	 */
 	mxser_change_speed(info, NULL);
+	info->flags |= ASYNC_INITIALIZED;
 	spin_unlock_irqrestore(&info->slock, flags);
 
-	info->flags |= ASYNC_INITIALIZED;
 	return 0;
 }
 
@@ -925,6 +925,7 @@ static void mxser_shutdown(struct mxser_port *info)
 static int mxser_open(struct tty_struct *tty, struct file *filp)
 {
 	struct mxser_port *info;
+	unsigned long flags;
 	int retval, line;
 
 	line = tty->index;
@@ -941,7 +942,9 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	/*
 	 * Start up serial port
 	 */
+	spin_lock_irqsave(&info->slock, flags);
 	info->count++;
+	spin_unlock_irqrestore(&info->slock, flags);
 	retval = mxser_startup(info);
 	if (retval)
 		return retval;
