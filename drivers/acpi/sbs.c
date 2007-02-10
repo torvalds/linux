@@ -1034,21 +1034,19 @@ static int acpi_battery_read_state(struct seq_file *seq, void *offset)
 	} else {
 		seq_printf(seq, "capacity state:          ok\n");
 	}
+
+	foo = (s16) battery->state.amperage * battery->info.ipscale;
+	if (battery->info.capacity_mode) {
+		foo = foo * battery->info.design_voltage / 1000;
+	}
 	if (battery->state.amperage < 0) {
 		seq_printf(seq, "charging state:          discharging\n");
-		foo = battery->state.remaining_capacity * cscale * 60 /
-		    (battery->state.average_time_to_empty == 0 ? 1 :
-		     battery->state.average_time_to_empty);
-		seq_printf(seq, "present rate:            %i%s\n",
-			   foo, battery->info.capacity_mode ? "0 mW" : " mA");
+		seq_printf(seq, "present rate:            %d %s\n",
+			   -foo, battery->info.capacity_mode ? "mW" : "mA");
 	} else if (battery->state.amperage > 0) {
 		seq_printf(seq, "charging state:          charging\n");
-		foo = (battery->info.full_charge_capacity -
-		       battery->state.remaining_capacity) * cscale * 60 /
-		    (battery->state.average_time_to_full == 0 ? 1 :
-		     battery->state.average_time_to_full);
-		seq_printf(seq, "present rate:            %i%s\n",
-			   foo, battery->info.capacity_mode ? "0 mW" : " mA");
+		seq_printf(seq, "present rate:            %d %s\n",
+			   foo, battery->info.capacity_mode ? "mW" : "mA");
 	} else {
 		seq_printf(seq, "charging state:          charged\n");
 		seq_printf(seq, "present rate:            0 %s\n",
