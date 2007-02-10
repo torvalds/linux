@@ -583,14 +583,14 @@ sub output_function_xml(%) {
     $id = "API-".$args{'function'};
     $id =~ s/[^A-Za-z0-9]/-/g;
 
-    print "<refentry>\n";
+    print "<refentry id=\"$id\">\n";
     print "<refentryinfo>\n";
     print " <title>LINUX</title>\n";
     print " <productname>Kernel Hackers Manual</productname>\n";
     print " <date>$man_date</date>\n";
     print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print " <refentrytitle><phrase id=\"$id\">".$args{'function'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase>".$args{'function'}."</phrase></refentrytitle>\n";
     print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
@@ -659,14 +659,14 @@ sub output_struct_xml(%) {
     $id = "API-struct-".$args{'struct'};
     $id =~ s/[^A-Za-z0-9]/-/g;
 
-    print "<refentry>\n";
+    print "<refentry id=\"$id\">\n";
     print "<refentryinfo>\n";
     print " <title>LINUX</title>\n";
     print " <productname>Kernel Hackers Manual</productname>\n";
     print " <date>$man_date</date>\n";
     print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print " <refentrytitle><phrase id=\"$id\">".$args{'type'}." ".$args{'struct'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase>".$args{'type'}." ".$args{'struct'}."</phrase></refentrytitle>\n";
     print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
@@ -743,14 +743,14 @@ sub output_enum_xml(%) {
     $id = "API-enum-".$args{'enum'};
     $id =~ s/[^A-Za-z0-9]/-/g;
 
-    print "<refentry>\n";
+    print "<refentry id=\"$id\">\n";
     print "<refentryinfo>\n";
     print " <title>LINUX</title>\n";
     print " <productname>Kernel Hackers Manual</productname>\n";
     print " <date>$man_date</date>\n";
     print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print " <refentrytitle><phrase id=\"$id\">enum ".$args{'enum'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase>enum ".$args{'enum'}."</phrase></refentrytitle>\n";
     print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
@@ -809,14 +809,14 @@ sub output_typedef_xml(%) {
     $id = "API-typedef-".$args{'typedef'};
     $id =~ s/[^A-Za-z0-9]/-/g;
 
-    print "<refentry>\n";
+    print "<refentry id=\"$id\">\n";
     print "<refentryinfo>\n";
     print " <title>LINUX</title>\n";
     print " <productname>Kernel Hackers Manual</productname>\n";
     print " <date>$man_date</date>\n";
     print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print " <refentrytitle><phrase id=\"$id\">typedef ".$args{'typedef'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase>typedef ".$args{'typedef'}."</phrase></refentrytitle>\n";
     print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
