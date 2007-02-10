@@ -562,7 +562,6 @@ jpg_fbuffer_alloc (struct file *file)
 			jpg_fbuffer_free(file);
 			return -ENOBUFS;
 		}
-		memset((void *) mem, 0, PAGE_SIZE);
 		fh->jpg_buffers.buffer[i].frag_tab = (u32 *) mem;
 		fh->jpg_buffers.buffer[i].frag_tab_bus =
 		    virt_to_bus((void *) mem);

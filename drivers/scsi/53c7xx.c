@@ -3099,7 +3099,6 @@ allocate_cmd (Scsi_Cmnd *cmd) {
         real = get_zeroed_page(GFP_ATOMIC);
         if (real == 0)
         	return NULL;
-        memset((void *)real, 0, 4096);
         cache_push(virt_to_phys((void *)real), 4096);
         cache_clear(virt_to_phys((void *)real), 4096);
         kernel_set_cachemode((void *)real, 4096, IOMAP_NOCACHE_SER);
