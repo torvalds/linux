@@ -568,8 +568,10 @@ static void ether1394_add_host (struct hpsb_host *host)
 			&eth1394_highlevel, host, &addr_ops,
 			ETHER1394_REGION_ADDR_LEN, ETHER1394_REGION_ADDR_LEN,
 			CSR1212_INVALID_ADDR_SPACE, CSR1212_INVALID_ADDR_SPACE);
-	if (fifo_addr == CSR1212_INVALID_ADDR_SPACE)
-		goto out;
+	if (fifo_addr == CSR1212_INVALID_ADDR_SPACE) {
+		ETH1394_PRINT_G(KERN_ERR, "Cannot register CSR space\n");
+		return;
+	}
 
 	/* We should really have our own alloc_hpsbdev() function in
 	 * net_init.c instead of calling the one for ethernet then hijacking
@@ -640,16 +642,13 @@ static void ether1394_add_host (struct hpsb_host *host)
 		else
 			priv->bc_state = ETHER1394_BC_RUNNING;
 	}
-
 	return;
-
 out:
-	if (dev != NULL)
+	if (dev)
 		free_netdev(dev);
 	if (hi)
 		hpsb_destroy_hostinfo(&eth1394_highlevel, host);
-
-	return;
+	hpsb_unregister_addrspace(&eth1394_highlevel, host, fifo_addr);
 }
 
 /* Remove a card from our list */
