@@ -1090,11 +1090,6 @@ xfs_ioc_fsgeometry(
 /*
  * Linux extended inode flags interface.
  */
-#define LINUX_XFLAG_SYNC	0x00000008 /* Synchronous updates */
-#define LINUX_XFLAG_IMMUTABLE	0x00000010 /* Immutable file */
-#define LINUX_XFLAG_APPEND	0x00000020 /* writes to file may only append */
-#define LINUX_XFLAG_NODUMP	0x00000040 /* do not dump file */
-#define LINUX_XFLAG_NOATIME	0x00000080 /* do not update atime */
 
 STATIC unsigned int
 xfs_merge_ioc_xflags(
@@ -1103,23 +1098,23 @@ xfs_merge_ioc_xflags(
 {
 	unsigned int	xflags = start;
 
-	if (flags & LINUX_XFLAG_IMMUTABLE)
+	if (flags & FS_IMMUTABLE_FL)
 		xflags |= XFS_XFLAG_IMMUTABLE;
 	else
 		xflags &= ~XFS_XFLAG_IMMUTABLE;
-	if (flags & LINUX_XFLAG_APPEND)
+	if (flags & FS_APPEND_FL)
 		xflags |= XFS_XFLAG_APPEND;
 	else
 		xflags &= ~XFS_XFLAG_APPEND;
-	if (flags & LINUX_XFLAG_SYNC)
+	if (flags & FS_SYNC_FL)
 		xflags |= XFS_XFLAG_SYNC;
 	else
 		xflags &= ~XFS_XFLAG_SYNC;
-	if (flags & LINUX_XFLAG_NOATIME)
+	if (flags & FS_NOATIME_FL)
 		xflags |= XFS_XFLAG_NOATIME;
 	else
 		xflags &= ~XFS_XFLAG_NOATIME;
-	if (flags & LINUX_XFLAG_NODUMP)
+	if (flags & FS_NODUMP_FL)
 		xflags |= XFS_XFLAG_NODUMP;
 	else
 		xflags &= ~XFS_XFLAG_NODUMP;
@@ -1134,15 +1129,15 @@ xfs_di2lxflags(
 	unsigned int	flags = 0;
 
 	if (di_flags & XFS_DIFLAG_IMMUTABLE)
-		flags |= LINUX_XFLAG_IMMUTABLE;
+		flags |= FS_IMMUTABLE_FL;
 	if (di_flags & XFS_DIFLAG_APPEND)
-		flags |= LINUX_XFLAG_APPEND;
+		flags |= FS_APPEND_FL;
 	if (di_flags & XFS_DIFLAG_SYNC)
-		flags |= LINUX_XFLAG_SYNC;
+		flags |= FS_SYNC_FL;
 	if (di_flags & XFS_DIFLAG_NOATIME)
-		flags |= LINUX_XFLAG_NOATIME;
+		flags |= FS_NOATIME_FL;
 	if (di_flags & XFS_DIFLAG_NODUMP)
-		flags |= LINUX_XFLAG_NODUMP;
+		flags |= FS_NODUMP_FL;
 	return flags;
 }
 
@@ -1242,9 +1237,9 @@ xfs_ioc_xattr(
 			break;
 		}
 
-		if (flags & ~(LINUX_XFLAG_IMMUTABLE | LINUX_XFLAG_APPEND | \
-			      LINUX_XFLAG_NOATIME | LINUX_XFLAG_NODUMP | \
-			      LINUX_XFLAG_SYNC)) {
+		if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | \
+			      FS_NOATIME_FL | FS_NODUMP_FL | \
+			      FS_SYNC_FL)) {
 			error = -EOPNOTSUPP;
 			break;
 		}
