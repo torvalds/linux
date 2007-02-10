@@ -1686,13 +1686,12 @@ static int _proc_do_string(void* data, int maxlen, int write,
 	size_t len;
 	char __user *p;
 	char c;
-	
-	if (!data || !maxlen || !*lenp ||
-	    (*ppos && !write)) {
+
+	if (!data || !maxlen || !*lenp) {
 		*lenp = 0;
 		return 0;
 	}
-	
+
 	if (write) {
 		len = 0;
 		p = buffer;
@@ -1713,6 +1712,15 @@ static int _proc_do_string(void* data, int maxlen, int write,
 		len = strlen(data);
 		if (len > maxlen)
 			len = maxlen;
+
+		if (*ppos > len) {
+			*lenp = 0;
+			return 0;
+		}
+
+		data += *ppos;
+		len  -= *ppos;
+
 		if (len > *lenp)
 			len = *lenp;
 		if (len)
