@@ -492,7 +492,7 @@ struct request_sock;
  *	Note that the fown_struct, @fown, is never outside the context of a
  *	struct file, so the file structure (and associated security information)
  *	can always be obtained:
- *		(struct file *)((long)fown - offsetof(struct file,f_owner));
+ *		container_of(fown, struct file, f_owner)
  * 	@tsk contains the structure of task receiving signal.
  *	@fown contains the file owner information.
  *	@sig is the signal that will be sent.  When 0, kernel sends SIGIO.

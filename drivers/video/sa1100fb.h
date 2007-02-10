@@ -110,9 +110,7 @@ struct sa1100fb_info {
 #endif
 };
 
-#define __type_entry(ptr,type,member) ((type *)((char *)(ptr)-offsetof(type,member)))
-
-#define TO_INF(ptr,member)	__type_entry(ptr,struct sa1100fb_info,member)
+#define TO_INF(ptr,member)	container_of(ptr,struct sa1100fb_info,member)
 
 #define SA1100_PALETTE_MODE_VAL(bpp)    (((bpp) & 0x018) << 9)
 
