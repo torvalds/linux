@@ -437,15 +437,15 @@ static inline compound_page_dtor *get_compound_page_dtor(struct page *page)
 /* NODE:ZONE or SECTION:ZONE is used to ID a zone for the buddy allcator */
 #ifdef NODE_NOT_IN_PAGEFLAGS
 #define ZONEID_SHIFT		(SECTIONS_SHIFT + ZONES_SHIFT)
+#define ZONEID_PGOFF		((SECTIONS_PGOFF < ZONES_PGOFF)? \
+						SECTIONS_PGOFF : ZONES_PGOFF)
 #else
 #define ZONEID_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
+#define ZONEID_PGOFF		((NODES_PGOFF < ZONES_PGOFF)? \
+						NODES_PGOFF : ZONES_PGOFF)
 #endif
 
-#if ZONES_WIDTH > 0
-#define ZONEID_PGSHIFT		ZONES_PGSHIFT
-#else
-#define ZONEID_PGSHIFT		NODES_PGOFF
-#endif
+#define ZONEID_PGSHIFT		(ZONEID_PGOFF * (ZONEID_SHIFT != 0))
 
 #if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
 #error SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
@@ -471,7 +471,6 @@ static inline enum zone_type page_zonenum(struct page *page)
  */
 static inline int page_zone_id(struct page *page)
 {
-	BUILD_BUG_ON(ZONEID_PGSHIFT == 0 && ZONEID_MASK);
 	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
 }
 
