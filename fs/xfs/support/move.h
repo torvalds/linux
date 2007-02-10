@@ -55,7 +55,7 @@ enum uio_seg {
 };
 
 struct uio {
-	struct iovec	*uio_iov;   /* pointer to array of iovecs */
+	struct kvec	*uio_iov;   /* pointer to array of iovecs */
 	int		uio_iovcnt; /* number of iovecs in array */
 	xfs_off_t	uio_offset; /* offset in file this uio corresponds to */
 	int		uio_resid;  /* residual i/o count */
@@ -63,7 +63,7 @@ struct uio {
 };
 
 typedef struct uio uio_t;
-typedef struct iovec iovec_t;
+typedef struct kvec iovec_t;
 
 extern int	xfs_uio_read (caddr_t, size_t, uio_t *);
 

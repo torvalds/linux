@@ -388,7 +388,7 @@ xfs_readlink_by_handle(
 	aiov.iov_len	= olen;
 	aiov.iov_base	= hreq.ohandle;
 
-	auio.uio_iov	= &aiov;
+	auio.uio_iov	= (struct kvec *)&aiov;
 	auio.uio_iovcnt	= 1;
 	auio.uio_offset	= 0;
 	auio.uio_segflg	= UIO_USERSPACE;
