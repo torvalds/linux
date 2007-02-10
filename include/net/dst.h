@@ -37,14 +37,7 @@ struct sk_buff;
 
 struct dst_entry
 {
-	union {
-		struct dst_entry *next;
-		struct rtable    *rt_next;
-		struct rt6_info   *rt6_next;
-		struct dn_route  *dn_next;
-	};
-	atomic_t		__refcnt;	/* client references	*/
-	int			__use;
+	struct rcu_head		rcu_head;
 	struct dst_entry	*child;
 	struct net_device       *dev;
 	short			error;
@@ -55,7 +48,6 @@ struct dst_entry
 #define DST_NOPOLICY		4
 #define DST_NOHASH		8
 #define DST_BALANCED            0x10
-	unsigned long		lastuse;
 	unsigned long		expires;
 
 	unsigned short		header_len;	/* more space at head required */
@@ -80,8 +72,16 @@ struct dst_entry
 #endif
 
 	struct  dst_ops	        *ops;
-	struct rcu_head		rcu_head;
 		
+	unsigned long		lastuse;
+	atomic_t		__refcnt;	/* client references	*/
+	int			__use;
+	union {
+		struct dst_entry *next;
+		struct rtable    *rt_next;
+		struct rt6_info   *rt6_next;
+		struct dn_route  *dn_next;
+	};
 	char			info[0];
 };
 
