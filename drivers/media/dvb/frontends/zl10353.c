@@ -38,6 +38,12 @@ struct zl10353_state {
 	struct zl10353_config config;
 };
 
+static int debug;
+#define dprintk(args...) \
+	do { \
+		if (debug) printk(KERN_DEBUG "zl10353: " args); \
+	} while (0)
+
 static int debug_regs = 0;
 
 static int zl10353_single_write(struct dvb_frontend *fe, u8 reg, u8 val)
@@ -113,6 +119,36 @@ static void zl10353_dump_regs(struct dvb_frontend *fe)
 	printk(KERN_DEBUG "%s\n", buf);
 }
 
+static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,
+				      enum fe_bandwidth bandwidth,
+				      u16 *nominal_rate)
+{
+	u32 adc_clock = 22528; /* 20.480 MHz on the board(!?) */
+	u8 bw;
+	struct zl10353_state *state = fe->demodulator_priv;
+
+	if (state->config.adc_clock)
+		adc_clock = state->config.adc_clock;
+
+	switch (bandwidth) {
+	case BANDWIDTH_6_MHZ:
+		bw = 6;
+		break;
+	case BANDWIDTH_7_MHZ:
+		bw = 7;
+		break;
+	case BANDWIDTH_8_MHZ:
+	default:
+		bw = 8;
+		break;
+	}
+
+	*nominal_rate = (64 * bw * (1<<16) / (7 * 8) * 4000 / adc_clock + 2) / 4;
+
+	dprintk("%s: bw %d, adc_clock %d => 0x%x\n",
+		__FUNCTION__, bw, adc_clock, *nominal_rate);
+}
+
 static int zl10353_sleep(struct dvb_frontend *fe)
 {
 	static u8 zl10353_softdown[] = { 0x50, 0x0C, 0x44 };
@@ -125,7 +161,7 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 				  struct dvb_frontend_parameters *param)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
-
+	u16 nominal_rate;
 	u8 pllbuf[6] = { 0x67 };
 
 	/* These settings set "auto-everything" and start the FSM. */
@@ -138,8 +174,11 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 	zl10353_single_write(fe, 0x56, 0x28);
 	zl10353_single_write(fe, 0x89, 0x20);
 	zl10353_single_write(fe, 0x5E, 0x00);
-	zl10353_single_write(fe, 0x65, 0x5A);
-	zl10353_single_write(fe, 0x66, 0xE9);
+
+	zl10353_calc_nominal_rate(fe, param->u.ofdm.bandwidth, &nominal_rate);
+	zl10353_single_write(fe, TRL_NOMINAL_RATE_1, msb(nominal_rate));
+	zl10353_single_write(fe, TRL_NOMINAL_RATE_0, lsb(nominal_rate));
+
 	zl10353_single_write(fe, 0x6C, 0xCD);
 	zl10353_single_write(fe, 0x6D, 0x7E);
 	if (fe->ops.i2c_gate_ctrl)
@@ -376,6 +415,9 @@ static struct dvb_frontend_ops zl10353_ops = {
 	.read_snr = zl10353_read_snr,
 	.read_ucblocks = zl10353_read_ucblocks,
 };
+
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
 module_param(debug_regs, int, 0644);
 MODULE_PARM_DESC(debug_regs, "Turn on/off frontend register dumps (default:off).");
