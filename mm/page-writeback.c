@@ -515,7 +515,7 @@ static int __cpuinit
 ratelimit_handler(struct notifier_block *self, unsigned long u, void *v)
 {
 	writeback_set_ratelimit();
-	return 0;
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block __cpuinitdata ratelimit_nb = {
