@@ -2066,7 +2066,7 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 /*
  * This routine is called by tty_hangup() when a hangup is signaled.
  */
-void mxser_hangup(struct tty_struct *tty)
+static void mxser_hangup(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
 
