@@ -439,12 +439,4 @@
 
 #define READ_MOXA_MUST_GDL(baseio)	inb((baseio)+MOXA_MUST_GDL_REGISTER)
 
-
-#ifndef INIT_WORK
-#define INIT_WORK(_work, _func, _data){	\
-	_data->tqueue.routine = _func;\
-	_data->tqueue.data = _data;\
-	}
-#endif
-
 #endif
