@@ -399,7 +399,7 @@ static int to_ib_qp_access_flags(int mthca_flags)
 static void to_ib_ah_attr(struct mthca_dev *dev, struct ib_ah_attr *ib_ah_attr,
 				struct mthca_qp_path *path)
 {
-	memset(ib_ah_attr, 0, sizeof *path);
+	memset(ib_ah_attr, 0, sizeof *ib_ah_attr);
 	ib_ah_attr->port_num 	  = (be32_to_cpu(path->port_pkey) >> 24) & 0x3;
 
 	if (ib_ah_attr->port_num == 0 || ib_ah_attr->port_num > dev->limits.num_ports)
