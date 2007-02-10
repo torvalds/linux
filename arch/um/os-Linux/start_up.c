@@ -95,7 +95,7 @@ static int start_ptraced_child(void **stack_out)
 		      status);
 
 	*stack_out = stack;
-	return(pid);
+	return pid;
 }
 
 /* When testing for SYSEMU support, if it is one of the broken versions, we
@@ -182,7 +182,7 @@ __uml_setup("nosysemu", nosysemu_cmd_param,
 static void __init check_sysemu(void)
 {
 	void *stack;
- 	int pid, n, status, count=0;
+	int pid, n, status, count=0;
 
 	printf("Checking syscall emulation patch for ptrace...");
 	sysemu_supported = 0;
@@ -418,7 +418,7 @@ static inline void check_skas3_proc_mm(void)
 {
 	printf("  - /proc/mm...");
 	if (os_access("/proc/mm", OS_ACC_W_OK) < 0) {
- 		proc_mm = 0;
+		proc_mm = 0;
 		printf("not found\n");
 	}
 	else {
@@ -445,7 +445,7 @@ int can_do_skas(void)
 #else
 int can_do_skas(void)
 {
-	return(0);
+	return 0;
 }
 #endif
 
@@ -493,11 +493,11 @@ int __init parse_iomem(char *str, int *add)
 	iomem_regions = new;
 	iomem_size += new->size + UM_KERN_PAGE_SIZE;
 
-	return(0);
+	return 0;
  out_close:
 	os_close_file(fd);
  out:
-	return(1);
+	return 1;
 }
 
 
