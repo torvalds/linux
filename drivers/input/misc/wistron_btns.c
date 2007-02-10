@@ -335,6 +335,17 @@ static struct key_entry keymap_aopen_1559as[] = {
 	{ KE_END,  0 },
 };
 
+static struct key_entry keymap_fs_amilo_d88x0[] = {
+	{ KE_KEY, 0x01, KEY_HELP },
+	{ KE_KEY, 0x08, KEY_MUTE },
+	{ KE_KEY, 0x31, KEY_MAIL },
+	{ KE_KEY, 0x36, KEY_WWW },
+	{ KE_KEY, 0x11, KEY_PROG1 },
+	{ KE_KEY, 0x12, KEY_PROG2 },
+	{ KE_KEY, 0x13, KEY_PROG3 },
+	{ KE_END, 0 }
+};
+
 /*
  * If your machine is not here (which is currently rather likely), please send
  * a list of buttons and their key codes (reported when loading this module
@@ -412,6 +423,15 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "MD 9783"),
 		},
 		.driver_data = keymap_wistron_ms2111
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Fujitsu Siemens Amilo D88x0",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO D"),
+		},
+		.driver_data = keymap_fs_amilo_d88x0
 	},
 	{ NULL, }
 };
