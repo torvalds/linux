@@ -40,7 +40,7 @@ static struct rb_node **find_rb(void *virt)
 	while(*n != NULL){
 		d = rb_entry(*n, struct phys_desc, rb);
 		if(d->virt == virt)
-			return(n);
+			return n;
 
 		if(d->virt > virt)
 			n = &(*n)->rb_left;
@@ -48,7 +48,7 @@ static struct rb_node **find_rb(void *virt)
 			n = &(*n)->rb_right;
 	}
 
-	return(n);
+	return n;
 }
 
 static struct phys_desc *find_phys_mapping(void *virt)
@@ -56,9 +56,9 @@ static struct phys_desc *find_phys_mapping(void *virt)
 	struct rb_node **n = find_rb(virt);
 
 	if(*n == NULL)
-		return(NULL);
+		return NULL;
 
-	return(rb_entry(*n, struct phys_desc, rb));
+	return rb_entry(*n, struct phys_desc, rb);
 }
 
 static void insert_phys_mapping(struct phys_desc *desc)
@@ -89,10 +89,10 @@ static struct desc_mapping *find_mapping(int fd)
 	list_for_each(ele, &descriptor_mappings){
 		desc = list_entry(ele, struct desc_mapping, list);
 		if(desc->fd == fd)
-			return(desc);
+			return desc;
 	}
 
-	return(NULL);
+	return NULL;
 }
 
 static struct desc_mapping *descriptor_mapping(int fd)
@@ -101,11 +101,11 @@ static struct desc_mapping *descriptor_mapping(int fd)
 
 	desc = find_mapping(fd);
 	if(desc != NULL)
-		return(desc);
+		return desc;
 
 	desc = kmalloc(sizeof(*desc), GFP_ATOMIC);
 	if(desc == NULL)
-		return(NULL);
+		return NULL;
 
 	*desc = ((struct desc_mapping)
 		{ .fd =		fd,
@@ -113,7 +113,7 @@ static struct desc_mapping *descriptor_mapping(int fd)
 		  .pages =	LIST_HEAD_INIT(desc->pages) });
 	list_add(&desc->list, &descriptor_mappings);
 
-	return(desc);
+	return desc;
 }
 
 int physmem_subst_mapping(void *virt, int fd, __u64 offset, int w)
@@ -125,11 +125,11 @@ int physmem_subst_mapping(void *virt, int fd, __u64 offset, int w)
 
 	fd_maps = descriptor_mapping(fd);
 	if(fd_maps == NULL)
-		return(-ENOMEM);
+		return -ENOMEM;
 
 	phys = __pa(virt);
 	desc = find_phys_mapping(virt);
-  	if(desc != NULL)
+	if(desc != NULL)
 		panic("Address 0x%p is already substituted\n", virt);
 
 	err = -ENOMEM;
@@ -155,7 +155,7 @@ int physmem_subst_mapping(void *virt, int fd, __u64 offset, int w)
 	rb_erase(&desc->rb, &phys_mappings);
 	kfree(desc);
  out:
-	return(err);
+	return err;
 }
 
 static int physmem_fd = -1;
@@ -182,10 +182,10 @@ int physmem_remove_mapping(void *virt)
 	virt = (void *) ((unsigned long) virt & PAGE_MASK);
 	desc = find_phys_mapping(virt);
 	if(desc == NULL)
-		return(0);
+		return 0;
 
 	remove_mapping(desc);
-	return(1);
+	return 1;
 }
 
 void physmem_forget_descriptor(int fd)
@@ -239,9 +239,9 @@ void arch_free_page(struct page *page, int order)
 
 int is_remapped(void *virt)
 {
-  	struct phys_desc *desc = find_phys_mapping(virt);
+ 	struct phys_desc *desc = find_phys_mapping(virt);
 
-	return(desc != NULL);
+	return desc != NULL;
 }
 
 /* Changed during early boot */
@@ -276,7 +276,7 @@ int init_maps(unsigned long physmem, unsigned long iomem, unsigned long highmem)
 	else map = alloc_bootmem_low_pages(total_len);
 
 	if(map == NULL)
-		return(-ENOMEM);
+		return -ENOMEM;
 
 	for(i = 0; i < total_pages; i++){
 		p = &map[i];
@@ -286,7 +286,7 @@ int init_maps(unsigned long physmem, unsigned long iomem, unsigned long highmem)
 	}
 
 	max_mapnr = total_pages;
-	return(0);
+	return 0;
 }
 
 /* Changed during early boot */
@@ -296,7 +296,7 @@ unsigned long get_kmem_end(void)
 {
 	if(kmem_top == 0)
 		kmem_top = CHOOSE_MODE(kmem_end_tt, kmem_end_skas);
-	return(kmem_top);
+	return kmem_top;
 }
 
 void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
@@ -379,7 +379,7 @@ int phys_mapping(unsigned long phys, __u64 *offset_out)
 		*offset_out = phys - iomem_size;
 	}
 
-	return(fd);
+	return fd;
 }
 
 static int __init uml_mem_setup(char *line, int *add)
@@ -422,13 +422,13 @@ unsigned long find_iomem(char *driver, unsigned long *len_out)
 	while(region != NULL){
 		if(!strcmp(region->driver, driver)){
 			*len_out = region->size;
-			return(region->virt);
+			return region->virt;
 		}
 
 		region = region->next;
 	}
 
-	return(0);
+	return 0;
 }
 
 int setup_iomem(void)
@@ -452,18 +452,7 @@ int setup_iomem(void)
 		region = region->next;
 	}
 
-	return(0);
+	return 0;
 }
 
 __initcall(setup_iomem);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
