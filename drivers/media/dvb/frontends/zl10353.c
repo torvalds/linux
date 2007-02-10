@@ -258,9 +258,9 @@ static int zl10353_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
 
-	*ber = zl10353_read_register(state, 0x11) << 16 |
-	       zl10353_read_register(state, 0x12) << 8 |
-	       zl10353_read_register(state, 0x13);
+	*ber = zl10353_read_register(state, RS_ERR_CNT_2) << 16 |
+	       zl10353_read_register(state, RS_ERR_CNT_1) << 8 |
+	       zl10353_read_register(state, RS_ERR_CNT_0);
 
 	return 0;
 }
@@ -269,8 +269,8 @@ static int zl10353_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
 
-	u16 signal = zl10353_read_register(state, 0x0a) << 10 |
-		     zl10353_read_register(state, 0x0b) << 2 | 3;
+	u16 signal = zl10353_read_register(state, AGC_GAIN_1) << 10 |
+		     zl10353_read_register(state, AGC_GAIN_0) << 2 | 3;
 
 	*strength = ~signal;
 
@@ -295,8 +295,8 @@ static int zl10353_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
 
-	*ucblocks = zl10353_read_register(state, 0x14) << 8 |
-		    zl10353_read_register(state, 0x15);
+	*ucblocks = zl10353_read_register(state, RS_UBC_1) << 8 |
+		    zl10353_read_register(state, RS_UBC_0);
 
 	return 0;
 }
