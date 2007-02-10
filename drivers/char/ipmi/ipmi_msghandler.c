@@ -1887,7 +1887,6 @@ int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
 		kfree(entry);
 		rv = -ENOMEM;
 	} else {
-		file->nlink = 1;
 		file->data = data;
 		file->read_proc = read_proc;
 		file->write_proc = write_proc;

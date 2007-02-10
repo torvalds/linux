@@ -513,7 +513,6 @@ static int proc_ppc64_create_ofdt(void)
 
 	ent = create_proc_entry("ppc64/ofdt", S_IWUSR, NULL);
 	if (ent) {
-		ent->nlink = 1;
 		ent->data = NULL;
 		ent->size = 0;
 		ent->proc_fops = &ofdt_fops;

@@ -708,7 +708,6 @@ static struct proc_dir_entry *create_flash_pde(const char *filename,
 
 	ent = create_proc_entry(filename, S_IRUSR | S_IWUSR, NULL);
 	if (ent != NULL) {
-		ent->nlink = 1;
 		ent->proc_fops = fops;
 		ent->owner = THIS_MODULE;
 	}

@@ -1063,7 +1063,6 @@ int __init zcrypt_api_init(void)
 		rc = -ENOMEM;
 		goto out_misc;
 	}
-	zcrypt_entry->nlink = 1;
 	zcrypt_entry->data = NULL;
 	zcrypt_entry->read_proc = zcrypt_status_read;
 	zcrypt_entry->write_proc = zcrypt_status_write;

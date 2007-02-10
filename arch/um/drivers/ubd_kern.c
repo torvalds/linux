@@ -235,7 +235,6 @@ static void make_ide_entries(char *dev_name)
 
 	ent = create_proc_entry("media", S_IFREG|S_IRUGO, dir);
 	if(!ent) return;
-	ent->nlink = 1;
 	ent->data = NULL;
 	ent->read_proc = proc_ide_read_media;
 	ent->write_proc = NULL;

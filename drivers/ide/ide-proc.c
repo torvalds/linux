@@ -413,7 +413,6 @@ void ide_add_proc_entries(struct proc_dir_entry *dir, ide_proc_entry_t *p, void 
 	while (p->name != NULL) {
 		ent = create_proc_entry(p->name, p->mode, dir);
 		if (!ent) return;
-		ent->nlink = 1;
 		ent->data = data;
 		ent->read_proc = p->read_proc;
 		ent->write_proc = p->write_proc;

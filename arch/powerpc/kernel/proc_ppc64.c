@@ -71,7 +71,6 @@ static int __init proc_ppc64_init(void)
 	pde = create_proc_entry("ppc64/systemcfg", S_IFREG|S_IRUGO, NULL);
 	if (!pde)
 		return 1;
-	pde->nlink = 1;
 	pde->data = vdso_data;
 	pde->size = PAGE_SIZE;
 	pde->proc_fops = &page_map_fops;
