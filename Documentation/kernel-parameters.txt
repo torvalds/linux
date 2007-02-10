@@ -1396,6 +1396,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			in <PAGE_SIZE> units (needed only for swap files).
 			See  Documentation/power/swsusp-and-swap-files.txt
 
+	retain_initrd	[RAM] Keep initrd memory after extraction
+
 	rhash_entries=	[KNL,NET]
 			Set number of hash buckets for route cache
 
