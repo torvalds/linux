@@ -977,6 +977,10 @@ config ISA
 	  have an IBM RS/6000 or pSeries machine or a PReP machine, say Y.  If
 	  you have an embedded board, consult your board documentation.
 
+config ZONE_DMA
+	bool
+	default y
+
 config GENERIC_ISA_DMA
 	bool
 	depends on PPC64 || POWER4 || 6xx && !CPM2

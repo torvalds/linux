@@ -232,6 +232,10 @@ config LARGE_ALLOCS
 
 source "mm/Kconfig"
 
+config ZONE_DMA
+	bool
+	default y
+
 config GENERIC_ISA_DMA
 	bool
 	default y

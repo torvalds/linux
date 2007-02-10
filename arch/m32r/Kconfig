@@ -16,6 +16,10 @@ config GENERIC_ISA_DMA
 	bool
 	default y
 
+config ZONE_DMA
+	bool
+	default y
+
 config GENERIC_HARDIRQS
 	bool
 	default y

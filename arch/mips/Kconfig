@@ -8,6 +8,10 @@ mainmenu "Linux/MIPS Kernel Configuration"
 
 menu "Machine selection"
 
+config ZONE_DMA
+	bool
+	default y
+
 choice
 	prompt "System type"
 	default SGI_IP22

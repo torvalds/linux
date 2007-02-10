@@ -439,6 +439,10 @@ config GENERIC_ISA_DMA
 	depends on Q40 || AMIGA_PCMCIA || GG2
 	default y
 
+config ZONE_DMA
+	bool
+	default y
+
 source "drivers/pci/Kconfig"
 
 source "drivers/zorro/Kconfig"
