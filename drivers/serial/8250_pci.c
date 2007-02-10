@@ -943,6 +943,7 @@ enum pci_board_num_t {
 
 	pbn_b2_1_115200,
 	pbn_b2_2_115200,
+	pbn_b2_4_115200,
 	pbn_b2_8_115200,
 
 	pbn_b2_1_460800,
@@ -1255,6 +1256,12 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.num_ports	= 2,
 		.base_baud	= 115200,
 		.uart_offset	= 8,
+	},
+	[pbn_b2_4_115200] = {
+		.flags          = FL_BASE2,
+		.num_ports      = 4,
+		.base_baud      = 115200,
+		.uart_offset    = 8,
 	},
 	[pbn_b2_8_115200] = {
 		.flags		= FL_BASE2,
@@ -1997,6 +2004,10 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_PANACOM, PCI_DEVICE_ID_PANACOM_DUALMODEM,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_panacom2 },
+	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9030,
+		PCI_VENDOR_ID_ESDGMBH,
+		PCI_DEVICE_ID_ESDGMBH_CPCIASIO4, 0, 0,
+		pbn_b2_4_115200 },
 	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
 		PCI_SUBVENDOR_ID_CHASE_PCIFAST,
 		PCI_SUBDEVICE_ID_CHASE_PCIFAST4, 0, 0, 
