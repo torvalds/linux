@@ -915,7 +915,7 @@ static void media_check(unsigned long arg)
 	if ((inw(ioaddr + EL3_STATUS) & IntLatch) && (inb(ioaddr + Timer) == 0xff)) {
 		if (!lp->fast_poll)
 			printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-		el3_interrupt(dev->irq, lp);
+		el3_interrupt(dev->irq, dev);
 		lp->fast_poll = HZ;
 	}
 	if (lp->fast_poll) {
