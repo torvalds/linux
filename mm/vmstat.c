@@ -13,14 +13,6 @@
 #include <linux/module.h>
 #include <linux/cpu.h>
 
-void __get_zone_counts(unsigned long *active, unsigned long *inactive,
-			unsigned long *free, struct pglist_data *pgdat)
-{
-	*active = node_page_state(pgdat->node_id, NR_ACTIVE);
-	*inactive = node_page_state(pgdat->node_id, NR_INACTIVE);
-	*free = node_page_state(pgdat->node_id, NR_FREE_PAGES);
-}
-
 void get_zone_counts(unsigned long *active,
 		unsigned long *inactive, unsigned long *free)
 {
