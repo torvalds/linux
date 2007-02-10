@@ -96,6 +96,8 @@ static int parse_redboot_partitions(struct mtd_info *master,
 			 */
 			if (swab32(buf[i].size) == master->erasesize) {
 				int j;
+				/* Update numslots based on actual FIS directory size */
+				numslots = swab32(buf[i].size) / sizeof (struct fis_image_desc);
 				for (j = 0; j < numslots; ++j) {
 
 					/* A single 0xff denotes a deleted entry.
@@ -120,11 +122,11 @@ static int parse_redboot_partitions(struct mtd_info *master,
 					swab32s(&buf[j].desc_cksum);
 					swab32s(&buf[j].file_cksum);
 				}
+			} else {
+				/* Update numslots based on actual FIS directory size */
+				numslots = buf[i].size / sizeof(struct fis_image_desc);
 			}
 			break;
-		} else if (buf[i].size != -1) {
-			/* re-calculate of real numslots */
-			numslots = buf[i].size / sizeof(struct fis_image_desc);
 		}
 	}
 	if (i == numslots) {
