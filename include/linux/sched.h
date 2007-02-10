@@ -1013,8 +1013,10 @@ struct task_struct {
  * to a stack based synchronous wait) if its doing sync IO.
  */
 	wait_queue_t *io_wait;
+#ifdef CONFIG_TASK_XACCT
 /* i/o counters(bytes read/written, #syscalls */
 	u64 rchar, wchar, syscr, syscw;
+#endif
 	struct task_io_accounting ioac;
 #if defined(CONFIG_TASK_XACCT)
 	u64 acct_rss_mem1;	/* accumulated rss usage */
@@ -1648,6 +1650,44 @@ extern struct sysdev_attribute attr_sched_mc_power_savings, attr_sched_smt_power
 extern int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls);
 
 extern void normalize_rt_tasks(void);
+
+#ifdef CONFIG_TASK_XACCT
+static inline void add_rchar(struct task_struct *tsk, ssize_t amt)
+{
+	tsk->rchar += amt;
+}
+
+static inline void add_wchar(struct task_struct *tsk, ssize_t amt)
+{
+	tsk->wchar += amt;
+}
+
+static inline void inc_syscr(struct task_struct *tsk)
+{
+	tsk->syscr++;
+}
+
+static inline void inc_syscw(struct task_struct *tsk)
+{
+	tsk->syscw++;
+}
+#else
+static inline void add_rchar(struct task_struct *tsk, ssize_t amt)
+{
+}
+
+static inline void add_wchar(struct task_struct *tsk, ssize_t amt)
+{
+}
+
+static inline void inc_syscr(struct task_struct *tsk)
+{
+}
+
+static inline void inc_syscw(struct task_struct *tsk)
+{
+}
+#endif
 
 #endif /* __KERNEL__ */
 

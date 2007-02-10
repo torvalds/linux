@@ -1038,10 +1038,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->utime = cputime_zero;
 	p->stime = cputime_zero;
  	p->sched_time = 0;
+#ifdef CONFIG_TASK_XACCT
 	p->rchar = 0;		/* I/O counter: bytes read */
 	p->wchar = 0;		/* I/O counter: bytes written */
 	p->syscr = 0;		/* I/O counter: read syscalls */
 	p->syscw = 0;		/* I/O counter: write syscalls */
+#endif
 	task_io_accounting_init(p);
 	acct_clear_integrals(p);
 
