@@ -1350,9 +1350,10 @@ static void __devexit nvidiafb_remove(struct pci_dev *pd)
 
 	NVTRACE_ENTER();
 
+	unregister_framebuffer(info);
+
 	nvidia_bl_exit(par);
 
-	unregister_framebuffer(info);
 #ifdef CONFIG_MTRR
 	if (par->mtrr.vram_valid)
 		mtrr_del(par->mtrr.vram, info->fix.smem_start,

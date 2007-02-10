@@ -769,16 +769,13 @@ struct fb_info {
 	struct fb_videomode *mode;	/* current mode */
 
 #ifdef CONFIG_FB_BACKLIGHT
-	/* Lock ordering:
-	 * bl_mutex (protects bl_dev and bl_curve)
-	 *   bl_dev->sem (backlight class)
-	 */
-	struct mutex bl_mutex;
-
 	/* assigned backlight device */
+	/* set before framebuffer registration, 
+	   remove after unregister */
 	struct backlight_device *bl_dev;
 
 	/* Backlight level curve */
+	struct mutex bl_curve_mutex;	
 	u8 bl_curve[FB_BACKLIGHT_LEVELS];
 #endif
 

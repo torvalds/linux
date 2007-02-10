@@ -1697,7 +1697,6 @@ static int __devinit aty128fb_setup(char *options)
 
 static struct backlight_properties aty128_bl_data;
 
-/* Call with fb_info->bl_mutex held */
 static int aty128_bl_get_level_brightness(struct aty128fb_par *par,
 		int level)
 {
@@ -1705,6 +1704,7 @@ static int aty128_bl_get_level_brightness(struct aty128fb_par *par,
 	int atylevel;
 
 	/* Get and convert the value */
+	/* No locking of bl_curve since we read a single value */
 	atylevel = MAX_LEVEL -
 		(info->bl_curve[level] * FB_BACKLIGHT_MAX / MAX_LEVEL);
 
@@ -1724,8 +1724,7 @@ static int aty128_bl_get_level_brightness(struct aty128fb_par *par,
 /* That one prevents proper CRT output with LCD off */
 #undef BACKLIGHT_DAC_OFF
 
-/* Call with fb_info->bl_mutex held */
-static int __aty128_bl_update_status(struct backlight_device *bd)
+static int aty128_bl_update_status(struct backlight_device *bd)
 {
 	struct aty128fb_par *par = class_get_devdata(&bd->class_dev);
 	unsigned int reg = aty_ld_le32(LVDS_GEN_CNTL);
@@ -1778,19 +1777,6 @@ static int __aty128_bl_update_status(struct backlight_device *bd)
 	return 0;
 }
 
-static int aty128_bl_update_status(struct backlight_device *bd)
-{
-	struct aty128fb_par *par = class_get_devdata(&bd->class_dev);
-	struct fb_info *info = pci_get_drvdata(par->pdev);
-	int ret;
-
-	mutex_lock(&info->bl_mutex);
-	ret = __aty128_bl_update_status(bd);
-	mutex_unlock(&info->bl_mutex);
-
-	return ret;
-}
-
 static int aty128_bl_get_brightness(struct backlight_device *bd)
 {
 	return bd->props->brightness;
@@ -1804,14 +1790,10 @@ static struct backlight_properties aty128_bl_data = {
 
 static void aty128_bl_set_power(struct fb_info *info, int power)
 {
-	mutex_lock(&info->bl_mutex);
-
 	if (info->bl_dev) {
 		info->bl_dev->props->power = power;
-		__aty128_bl_update_status(info->bl_dev);
+		backlight_update_status(info->bl_dev);
 	}
-
-	mutex_unlock(&info->bl_mutex);
 }
 
 static void aty128_bl_init(struct aty128fb_par *par)
@@ -1838,12 +1820,10 @@ static void aty128_bl_init(struct aty128fb_par *par)
 		goto error;
 	}
 
-	mutex_lock(&info->bl_mutex);
 	info->bl_dev = bd;
 	fb_bl_default_curve(info, 0,
 		 63 * FB_BACKLIGHT_MAX / MAX_LEVEL,
 		219 * FB_BACKLIGHT_MAX / MAX_LEVEL);
-	mutex_unlock(&info->bl_mutex);
 
 	bd->props->brightness = aty128_bl_data.max_brightness;
 	bd->props->power = FB_BLANK_UNBLANK;
@@ -1864,31 +1844,19 @@ error:
 	return;
 }
 
-static void aty128_bl_exit(struct aty128fb_par *par)
+static void aty128_bl_exit(struct backlight_device *bd)
 {
-	struct fb_info *info = pci_get_drvdata(par->pdev);
-
+	if (bd) {
 #ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_lock(&pmac_backlight_mutex);
-#endif
-
-	mutex_lock(&info->bl_mutex);
-	if (info->bl_dev) {
-#ifdef CONFIG_PMAC_BACKLIGHT
-		if (pmac_backlight == info->bl_dev)
+		mutex_lock(&pmac_backlight_mutex);
+		if (pmac_backlight == bd)
 			pmac_backlight = NULL;
+		mutex_unlock(&pmac_backlight_mutex);
 #endif
-
-		backlight_device_unregister(info->bl_dev);
-		info->bl_dev = NULL;
+		backlight_device_unregister(bd);
 
 		printk("aty128: Backlight unloaded\n");
 	}
-	mutex_unlock(&info->bl_mutex);
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_unlock(&pmac_backlight_mutex);
-#endif
 }
 #endif /* CONFIG_FB_ATY128_BACKLIGHT */
 
@@ -2175,11 +2143,12 @@ static void __devexit aty128_remove(struct pci_dev *pdev)
 
 	par = info->par;
 
+	unregister_framebuffer(info);
+
 #ifdef CONFIG_FB_ATY128_BACKLIGHT
-	aty128_bl_exit(par);
+	aty128_bl_exit(info->bl_dev);
 #endif
 
-	unregister_framebuffer(info);
 #ifdef CONFIG_MTRR
 	if (par->mtrr.vram_valid)
 		mtrr_del(par->mtrr.vram, info->fix.smem_start,

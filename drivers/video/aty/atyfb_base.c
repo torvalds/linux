@@ -2116,13 +2116,13 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 
 static struct backlight_properties aty_bl_data;
 
-/* Call with fb_info->bl_mutex held */
 static int aty_bl_get_level_brightness(struct atyfb_par *par, int level)
 {
 	struct fb_info *info = pci_get_drvdata(par->pdev);
 	int atylevel;
 
 	/* Get and convert the value */
+	/* No locking of bl_curve since we read a single value */
 	atylevel = info->bl_curve[level] * FB_BACKLIGHT_MAX / MAX_LEVEL;
 
 	if (atylevel < 0)
@@ -2133,8 +2133,7 @@ static int aty_bl_get_level_brightness(struct atyfb_par *par, int level)
 	return atylevel;
 }
 
-/* Call with fb_info->bl_mutex held */
-static int __aty_bl_update_status(struct backlight_device *bd)
+static int aty_bl_update_status(struct backlight_device *bd)
 {
 	struct atyfb_par *par = class_get_devdata(&bd->class_dev);
 	unsigned int reg = aty_ld_lcd(LCD_MISC_CNTL, par);
@@ -2157,19 +2156,6 @@ static int __aty_bl_update_status(struct backlight_device *bd)
 	aty_st_lcd(LCD_MISC_CNTL, reg, par);
 
 	return 0;
-}
-
-static int aty_bl_update_status(struct backlight_device *bd)
-{
-	struct atyfb_par *par = class_get_devdata(&bd->class_dev);
-	struct fb_info *info = pci_get_drvdata(par->pdev);
-	int ret;
-
-	mutex_lock(&info->bl_mutex);
-	ret = __aty_bl_update_status(bd);
-	mutex_unlock(&info->bl_mutex);
-
-	return ret;
 }
 
 static int aty_bl_get_brightness(struct backlight_device *bd)
@@ -2203,12 +2189,10 @@ static void aty_bl_init(struct atyfb_par *par)
 		goto error;
 	}
 
-	mutex_lock(&info->bl_mutex);
 	info->bl_dev = bd;
 	fb_bl_default_curve(info, 0,
 		0x3F * FB_BACKLIGHT_MAX / MAX_LEVEL,
 		0xFF * FB_BACKLIGHT_MAX / MAX_LEVEL);
-	mutex_unlock(&info->bl_mutex);
 
 	bd->props->brightness = aty_bl_data.max_brightness;
 	bd->props->power = FB_BLANK_UNBLANK;
@@ -2229,30 +2213,19 @@ error:
 	return;
 }
 
-static void aty_bl_exit(struct atyfb_par *par)
+static void aty_bl_exit(struct backlight_device *bd)
 {
-	struct fb_info *info = pci_get_drvdata(par->pdev);
-
+	if (bd) {
 #ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_lock(&pmac_backlight_mutex);
-#endif
-
-	mutex_lock(&info->bl_mutex);
-	if (info->bl_dev) {
-#ifdef CONFIG_PMAC_BACKLIGHT
-		if (pmac_backlight == info->bl_dev)
+		mutex_lock(&pmac_backlight_mutex);
+		if (pmac_backlight == bd)
 			pmac_backlight = NULL;
+		mutex_unlock(&pmac_backlight_mutex);
 #endif
-
-		backlight_device_unregister(info->bl_dev);
+		backlight_device_unregister(bd);
 
 		printk("aty: Backlight unloaded\n");
 	}
-	mutex_unlock(&info->bl_mutex);
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_unlock(&pmac_backlight_mutex);
-#endif
 }
 
 #endif /* CONFIG_FB_ATY_BACKLIGHT */
@@ -3705,12 +3678,12 @@ static void __devexit atyfb_remove(struct fb_info *info)
 	aty_set_crtc(par, &saved_crtc);
 	par->pll_ops->set_pll(info, &saved_pll);
 
+	unregister_framebuffer(info);
+
 #ifdef CONFIG_FB_ATY_BACKLIGHT
 	if (M64_HAS(MOBIL_BUS))
-		aty_bl_exit(par);
+		aty_bl_exit(info->bl_dev);
 #endif
-
-	unregister_framebuffer(info);
 
 #ifdef CONFIG_MTRR
 	if (par->mtrr_reg >= 0) {

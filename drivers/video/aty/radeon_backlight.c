@@ -29,16 +29,12 @@ struct radeon_bl_privdata {
 static int radeon_bl_get_level_brightness(struct radeon_bl_privdata *pdata,
 		int level)
 {
-	struct fb_info *info = pdata->rinfo->info;
 	int rlevel;
 
-	mutex_lock(&info->bl_mutex);
-
 	/* Get and convert the value */
+	/* No locking of bl_curve since we read a single value */
 	rlevel = pdata->rinfo->info->bl_curve[level] *
 		 FB_BACKLIGHT_MAX / MAX_RADEON_LEVEL;
-
-	mutex_unlock(&info->bl_mutex);
 
 	if (rlevel < 0)
 		rlevel = 0;
@@ -187,12 +183,10 @@ void radeonfb_bl_init(struct radeonfb_info *rinfo)
 		machine_is_compatible("PowerBook6,5");
 #endif
 
-	mutex_lock(&rinfo->info->bl_mutex);
 	rinfo->info->bl_dev = bd;
 	fb_bl_default_curve(rinfo->info, 0,
 		 63 * FB_BACKLIGHT_MAX / MAX_RADEON_LEVEL,
 		217 * FB_BACKLIGHT_MAX / MAX_RADEON_LEVEL);
-	mutex_unlock(&rinfo->info->bl_mutex);
 
 	bd->props->brightness = radeon_bl_data.max_brightness;
 	bd->props->power = FB_BLANK_UNBLANK;
@@ -216,29 +210,22 @@ error:
 
 void radeonfb_bl_exit(struct radeonfb_info *rinfo)
 {
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_lock(&pmac_backlight_mutex);
-#endif
+	struct backlight_device *bd = rinfo->info->bl_dev;
 
-	mutex_lock(&rinfo->info->bl_mutex);
-	if (rinfo->info->bl_dev) {
+	if (bd) {
 		struct radeon_bl_privdata *pdata;
 
 #ifdef CONFIG_PMAC_BACKLIGHT
-		if (pmac_backlight == rinfo->info->bl_dev)
+		mutex_lock(&pmac_backlight_mutex);
+		if (pmac_backlight == bd)
 			pmac_backlight = NULL;
+		mutex_unlock(&pmac_backlight_mutex);
 #endif
-
-		pdata = class_get_devdata(&rinfo->info->bl_dev->class_dev);
-		backlight_device_unregister(rinfo->info->bl_dev);
+		pdata = class_get_devdata(&bd->class_dev);
+		backlight_device_unregister(bd);
 		kfree(pdata);
 		rinfo->info->bl_dev = NULL;
 
 		printk("radeonfb: Backlight unloaded\n");
 	}
-	mutex_unlock(&rinfo->info->bl_mutex);
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_unlock(&pmac_backlight_mutex);
-#endif
 }
