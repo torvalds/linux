@@ -151,6 +151,8 @@ static int sysctl_ipc_data(ctl_table *table, int __user *name, int nlen,
 #ifdef CONFIG_PROC_SYSCTL
 static int proc_do_cad_pid(ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
+static int proc_dointvec_taint(ctl_table *table, int write, struct file *filp,
+			       void __user *buffer, size_t *lenp, loff_t *ppos);
 #endif
 
 static ctl_table root_table[];
@@ -173,6 +175,7 @@ extern ctl_table inotify_table[];
 #ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
 int sysctl_legacy_va_layout;
 #endif
+
 
 static void *get_uts(ctl_table *table, int write)
 {
@@ -344,14 +347,16 @@ static ctl_table kern_table[] = {
 		.proc_handler	= &proc_dostring,
 		.strategy	= &sysctl_string,
 	},
+#ifdef CONFIG_PROC_SYSCTL
 	{
 		.ctl_name	= KERN_TAINTED,
 		.procname	= "tainted",
 		.data		= &tainted,
 		.maxlen		= sizeof(int),
-		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_taint,
 	},
+#endif
 	{
 		.ctl_name	= KERN_CAP_BSET,
 		.procname	= "cap-bound",
@@ -1927,6 +1932,7 @@ int proc_dointvec(ctl_table *table, int write, struct file *filp,
 
 #define OP_SET	0
 #define OP_AND	1
+#define OP_OR	2
 
 static int do_proc_dointvec_bset_conv(int *negp, unsigned long *lvalp,
 				      int *valp,
@@ -1938,6 +1944,7 @@ static int do_proc_dointvec_bset_conv(int *negp, unsigned long *lvalp,
 		switch(op) {
 		case OP_SET:	*valp = val; break;
 		case OP_AND:	*valp &= val; break;
+		case OP_OR:	*valp |= val; break;
 		}
 	} else {
 		int val = *valp;
@@ -1966,6 +1973,22 @@ int proc_dointvec_bset(ctl_table *table, int write, struct file *filp,
 	}
 
 	op = is_init(current) ? OP_SET : OP_AND;
+	return do_proc_dointvec(table,write,filp,buffer,lenp,ppos,
+				do_proc_dointvec_bset_conv,&op);
+}
+
+/*
+ *	Taint values can only be increased
+ */
+static int proc_dointvec_taint(ctl_table *table, int write, struct file *filp,
+			       void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int op;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	op = OP_OR;
 	return do_proc_dointvec(table,write,filp,buffer,lenp,ppos,
 				do_proc_dointvec_bset_conv,&op);
 }
