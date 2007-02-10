@@ -3848,6 +3848,9 @@ xlog_do_recover(
 	ASSERT(XFS_SB_GOOD_VERSION(sbp));
 	xfs_buf_relse(bp);
 
+	/* We've re-read the superblock so re-initialize per-cpu counters */
+	xfs_icsb_reinit_counters(log->l_mp);
+
 	xlog_recover_check_summary(log);
 
 	/* Normal transactions can now occur */

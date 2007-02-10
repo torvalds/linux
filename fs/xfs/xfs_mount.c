@@ -543,11 +543,8 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 		ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
 	}
 
-	xfs_icsb_lock(mp);
-	xfs_icsb_balance_counter(mp, XFS_SBS_ICOUNT, 0, 0);
-	xfs_icsb_balance_counter(mp, XFS_SBS_IFREE, 0, 0);
-	xfs_icsb_balance_counter(mp, XFS_SBS_FDBLOCKS, 0, 0);
-	xfs_icsb_unlock(mp);
+	/* Initialize per-cpu counters */
+	xfs_icsb_reinit_counters(mp);
 
 	mp->m_sb_bp = bp;
 	xfs_buf_relse(bp);
@@ -1809,6 +1806,22 @@ xfs_icsb_init_counters(
 	 */
 	mp->m_icsb_counters = -1;
 	return 0;
+}
+
+void
+xfs_icsb_reinit_counters(
+	xfs_mount_t	*mp)
+{
+	xfs_icsb_lock(mp);
+	/*
+	 * start with all counters disabled so that the
+	 * initial balance kicks us off correctly
+	 */
+	mp->m_icsb_counters = -1;
+	xfs_icsb_balance_counter(mp, XFS_SBS_ICOUNT, 0, 0);
+	xfs_icsb_balance_counter(mp, XFS_SBS_IFREE, 0, 0);
+	xfs_icsb_balance_counter(mp, XFS_SBS_FDBLOCKS, 0, 0);
+	xfs_icsb_unlock(mp);
 }
 
 STATIC void
