@@ -39,13 +39,9 @@ typedef struct xfs_trans_header {
 /*
  * Log item types.
  */
-#define	XFS_LI_5_3_BUF		0x1234	/* v1 bufs, 1-block inode buffers */
-#define	XFS_LI_5_3_INODE	0x1235	/* 1-block inode buffers */
 #define	XFS_LI_EFI		0x1236
 #define	XFS_LI_EFD		0x1237
 #define	XFS_LI_IUNLINK		0x1238
-#define	XFS_LI_6_1_INODE	0x1239	/* 4K non-aligned inode bufs */
-#define	XFS_LI_6_1_BUF		0x123a	/* v1, 4K inode buffers */
 #define	XFS_LI_INODE		0x123b	/* aligned ino chunks, var-size ibufs */
 #define	XFS_LI_BUF		0x123c	/* v2 bufs, variable sized inode bufs */
 #define	XFS_LI_DQUOT		0x123d
