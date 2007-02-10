@@ -152,7 +152,7 @@ make_spkm3_checksum(s32 cksumtype, struct xdr_netobj *key, char *header,
 
 	switch (cksumtype) {
 		case CKSUMTYPE_HMAC_MD5:
-			cksumname = "md5";
+			cksumname = "hmac(md5)";
 			break;
 		default:
 			dprintk("RPC:       spkm3_make_checksum:"
@@ -173,7 +173,7 @@ make_spkm3_checksum(s32 cksumtype, struct xdr_netobj *key, char *header,
 		goto out;
 
 	sg_set_buf(sg, header, hdrlen);
-	crypto_hash_update(&desc, sg, 1);
+	crypto_hash_update(&desc, sg, sg->length);
 
 	xdr_process_buf(body, body_offset, body->len - body_offset,
 			spkm3_checksummer, &desc);
