@@ -53,8 +53,6 @@
 #define	MXSERMAJOR	 174
 #define	MXSERCUMAJOR	 175
 
-#define	MXSER_EVENT_TXLOW	1
-
 #define MXSER_BOARDS		4	/* Max. boards */
 #define MXSER_PORTS_PER_BOARD	8	/* Max. ports per board */
 #define MXSER_PORTS		(MXSER_BOARDS * MXSER_PORTS_PER_BOARD)
@@ -64,6 +62,11 @@
 #define	MXSER_ERR_IRQ		-2
 #define	MXSER_ERR_IRQ_CONFLIT	-3
 #define	MXSER_ERR_VECTOR	-4
+
+/*CheckIsMoxaMust return value*/
+#define MOXA_OTHER_UART		0x00
+#define MOXA_MUST_MU150_HWID	0x01
+#define MOXA_MUST_MU860_HWID	0x02
 
 #define WAKEUP_CHARS		256
 
