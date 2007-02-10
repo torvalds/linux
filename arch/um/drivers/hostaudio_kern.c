@@ -25,9 +25,12 @@ struct hostmixer_state {
 #define HOSTAUDIO_DEV_DSP "/dev/sound/dsp"
 #define HOSTAUDIO_DEV_MIXER "/dev/sound/mixer"
 
-/* Only changed from linux_main at boot time */
-char *dsp = HOSTAUDIO_DEV_DSP;
-char *mixer = HOSTAUDIO_DEV_MIXER;
+/* Changed either at boot time or module load time.  At boot, this is
+ * single-threaded; at module load, multiple modules would each have
+ * their own copy of these variables.
+ */
+static char *dsp = HOSTAUDIO_DEV_DSP;
+static char *mixer = HOSTAUDIO_DEV_MIXER;
 
 #define DSP_HELP \
 "    This is used to specify the host dsp device to the hostaudio driver.\n" \
