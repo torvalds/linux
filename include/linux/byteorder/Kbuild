@@ -1,6 +1,5 @@
 header-y += big_endian.h
 header-y += little_endian.h
-header-y += pdp_endian.h
 
 unifdef-y += generic.h
 unifdef-y += swabb.h
