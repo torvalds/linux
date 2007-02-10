@@ -363,10 +363,9 @@ static int blk_trace_setup(request_queue_t *q, struct block_device *bdev,
 	if (!bt->dropped_file)
 		goto err;
 
-	bt->rchan = relay_open("trace", dir, buts.buf_size, buts.buf_nr, &blk_relay_callbacks);
+	bt->rchan = relay_open("trace", dir, buts.buf_size, buts.buf_nr, &blk_relay_callbacks, bt);
 	if (!bt->rchan)
 		goto err;
-	bt->rchan->private_data = bt;
 
 	bt->act_mask = buts.act_mask;
 	if (!bt->act_mask)
