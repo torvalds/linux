@@ -129,8 +129,8 @@ static int port_accept(struct port_list *port)
 	return(ret);
 } 
 
-DECLARE_MUTEX(ports_sem);
-struct list_head ports = LIST_HEAD_INIT(ports);
+static DECLARE_MUTEX(ports_sem);
+static struct list_head ports = LIST_HEAD_INIT(ports);
 
 void port_work_proc(struct work_struct *unused)
 {
