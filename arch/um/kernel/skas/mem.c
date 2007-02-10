@@ -14,13 +14,9 @@ unsigned long set_task_sizes_skas(unsigned long *task_size_out)
 	unsigned long host_task_size = ROUND_4M((unsigned long)
 						&host_task_size);
 
-#ifdef CONFIG_HOST_TASK_SIZE
-	*host_size_out = ROUND_4M(CONFIG_HOST_TASK_SIZE);
-	*task_size_out = CONFIG_HOST_TASK_SIZE;
-#else
 	if (!skas_needs_stub)
 		*task_size_out = host_task_size;
 	else *task_size_out = CONFIG_STUB_START & PGDIR_MASK;
-#endif
+
 	return host_task_size;
 }
