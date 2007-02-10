@@ -378,15 +378,13 @@ ecryptfs_fill_super(struct super_block *sb, void *raw_data, int silent)
 
 	/* Released in ecryptfs_put_super() */
 	ecryptfs_set_superblock_private(sb,
-					kmem_cache_alloc(ecryptfs_sb_info_cache,
+					kmem_cache_zalloc(ecryptfs_sb_info_cache,
 							 GFP_KERNEL));
 	if (!ecryptfs_superblock_to_private(sb)) {
 		ecryptfs_printk(KERN_WARNING, "Out of memory\n");
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(ecryptfs_superblock_to_private(sb), 0,
-	       sizeof(struct ecryptfs_sb_info));
 	sb->s_op = &ecryptfs_sops;
 	/* Released through deactivate_super(sb) from get_sb_nodev */
 	sb->s_root = d_alloc(NULL, &(const struct qstr) {
@@ -402,7 +400,7 @@ ecryptfs_fill_super(struct super_block *sb, void *raw_data, int silent)
 	/* Released in d_release when dput(sb->s_root) is called */
 	/* through deactivate_super(sb) from get_sb_nodev() */
 	ecryptfs_set_dentry_private(sb->s_root,
-				    kmem_cache_alloc(ecryptfs_dentry_info_cache,
+				    kmem_cache_zalloc(ecryptfs_dentry_info_cache,
 						     GFP_KERNEL));
 	if (!ecryptfs_dentry_to_private(sb->s_root)) {
 		ecryptfs_printk(KERN_ERR,
@@ -410,8 +408,6 @@ ecryptfs_fill_super(struct super_block *sb, void *raw_data, int silent)
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(ecryptfs_dentry_to_private(sb->s_root), 0,
-	       sizeof(struct ecryptfs_dentry_info));
 	rc = 0;
 out:
 	/* Should be able to rely on deactivate_super called from

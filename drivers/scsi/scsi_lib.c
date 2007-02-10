@@ -388,10 +388,9 @@ int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
 	int err = 0;
 	int write = (data_direction == DMA_TO_DEVICE);
 
-	sioc = kmem_cache_alloc(scsi_io_context_cache, gfp);
+	sioc = kmem_cache_zalloc(scsi_io_context_cache, gfp);
 	if (!sioc)
 		return DRIVER_ERROR << 24;
-	memset(sioc, 0, sizeof(*sioc));
 
 	req = blk_get_request(sdev->request_queue, write, gfp);
 	if (!req)

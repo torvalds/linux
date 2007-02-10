@@ -251,11 +251,9 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl)
 			goto out_entries;
 	}
 
-	n = kmem_cache_alloc(tbl->kmem_cachep, GFP_ATOMIC);
+	n = kmem_cache_zalloc(tbl->kmem_cachep, GFP_ATOMIC);
 	if (!n)
 		goto out_entries;
-
-	memset(n, 0, tbl->entry_size);
 
 	skb_queue_head_init(&n->arp_queue);
 	rwlock_init(&n->lock);

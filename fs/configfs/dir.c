@@ -72,11 +72,10 @@ static struct configfs_dirent *configfs_new_dirent(struct configfs_dirent * pare
 {
 	struct configfs_dirent * sd;
 
-	sd = kmem_cache_alloc(configfs_dir_cachep, GFP_KERNEL);
+	sd = kmem_cache_zalloc(configfs_dir_cachep, GFP_KERNEL);
 	if (!sd)
 		return NULL;
 
-	memset(sd, 0, sizeof(*sd));
 	atomic_set(&sd->s_count, 1);
 	INIT_LIST_HEAD(&sd->s_links);
 	INIT_LIST_HEAD(&sd->s_children);

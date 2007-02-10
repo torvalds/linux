@@ -2163,9 +2163,8 @@ static void etrax_usb_add_to_bulk_sb_list(struct urb *urb, int epid)
 
 	maxlen = usb_maxpacket(urb->dev, urb->pipe, usb_pipeout(urb->pipe));
 
-	sb_desc = (USB_SB_Desc_t*)kmem_cache_alloc(usb_desc_cache, SLAB_FLAG);
+	sb_desc = kmem_cache_zalloc(usb_desc_cache, SLAB_FLAG);
 	assert(sb_desc != NULL);
-	memset(sb_desc, 0, sizeof(USB_SB_Desc_t));
 
 
 	if (usb_pipeout(urb->pipe)) {

@@ -37,11 +37,10 @@ static struct sysfs_dirent * __sysfs_new_dirent(void * element)
 {
 	struct sysfs_dirent * sd;
 
-	sd = kmem_cache_alloc(sysfs_dir_cachep, GFP_KERNEL);
+	sd = kmem_cache_zalloc(sysfs_dir_cachep, GFP_KERNEL);
 	if (!sd)
 		return NULL;
 
-	memset(sd, 0, sizeof(*sd));
 	atomic_set(&sd->s_count, 1);
 	atomic_set(&sd->s_event, 1);
 	INIT_LIST_HEAD(&sd->s_children);

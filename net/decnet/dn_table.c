@@ -593,11 +593,9 @@ create:
 
 replace:
 	err = -ENOBUFS;
-	new_f = kmem_cache_alloc(dn_hash_kmem, GFP_KERNEL);
+	new_f = kmem_cache_zalloc(dn_hash_kmem, GFP_KERNEL);
 	if (new_f == NULL)
 		goto out;
-
-	memset(new_f, 0, sizeof(struct dn_fib_node));
 
 	new_f->fn_key = key;
 	new_f->fn_type = type;

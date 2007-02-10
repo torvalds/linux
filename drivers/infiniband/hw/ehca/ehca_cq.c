@@ -134,14 +134,13 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe,
 	if (cqe >= 0xFFFFFFFF - 64 - additional_cqe)
 		return ERR_PTR(-EINVAL);
 
-	my_cq = kmem_cache_alloc(cq_cache, GFP_KERNEL);
+	my_cq = kmem_cache_zalloc(cq_cache, GFP_KERNEL);
 	if (!my_cq) {
 		ehca_err(device, "Out of memory for ehca_cq struct device=%p",
 			 device);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	memset(my_cq, 0, sizeof(struct ehca_cq));
 	memset(&param, 0, sizeof(struct ehca_alloc_cq_parms));
 
 	spin_lock_init(&my_cq->spinlock);

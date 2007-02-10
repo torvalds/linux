@@ -1332,13 +1332,13 @@ int ecryptfs_write_headers(struct dentry *ecryptfs_dentry,
 		goto out;
 	}
 	/* Released in this function */
-	page_virt = kmem_cache_alloc(ecryptfs_header_cache_0, GFP_USER);
+	page_virt = kmem_cache_zalloc(ecryptfs_header_cache_0, GFP_USER);
 	if (!page_virt) {
 		ecryptfs_printk(KERN_ERR, "Out of memory\n");
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(page_virt, 0, PAGE_CACHE_SIZE);
+
 	rc = ecryptfs_write_headers_virt(page_virt, crypt_stat,
 					 ecryptfs_dentry);
 	if (unlikely(rc)) {

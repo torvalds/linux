@@ -50,14 +50,13 @@ struct ib_pd *ehca_alloc_pd(struct ib_device *device,
 {
 	struct ehca_pd *pd;
 
-	pd = kmem_cache_alloc(pd_cache, GFP_KERNEL);
+	pd = kmem_cache_zalloc(pd_cache, GFP_KERNEL);
 	if (!pd) {
 		ehca_err(device, "device=%p context=%p out of memory",
 			 device, context);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	memset(pd, 0, sizeof(struct ehca_pd));
 	pd->ownpid = current->tgid;
 
 	/*

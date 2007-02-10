@@ -207,14 +207,12 @@ parse_tag_3_packet(struct ecryptfs_crypt_stat *crypt_stat,
 	/* Released: wipe_auth_tok_list called in ecryptfs_parse_packet_set or
 	 * at end of function upon failure */
 	auth_tok_list_item =
-	    kmem_cache_alloc(ecryptfs_auth_tok_list_item_cache, GFP_KERNEL);
+	    kmem_cache_zalloc(ecryptfs_auth_tok_list_item_cache, GFP_KERNEL);
 	if (!auth_tok_list_item) {
 		ecryptfs_printk(KERN_ERR, "Unable to allocate memory\n");
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(auth_tok_list_item, 0,
-	       sizeof(struct ecryptfs_auth_tok_list_item));
 	(*new_auth_tok) = &auth_tok_list_item->auth_tok;
 
 	/* check for body size - one to two bytes */

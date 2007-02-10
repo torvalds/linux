@@ -638,14 +638,13 @@ struct ip_conntrack *ip_conntrack_alloc(struct ip_conntrack_tuple *orig,
 		}
 	}
 
-	conntrack = kmem_cache_alloc(ip_conntrack_cachep, GFP_ATOMIC);
+	conntrack = kmem_cache_zalloc(ip_conntrack_cachep, GFP_ATOMIC);
 	if (!conntrack) {
 		DEBUGP("Can't allocate conntrack.\n");
 		atomic_dec(&ip_conntrack_count);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	memset(conntrack, 0, sizeof(*conntrack));
 	atomic_set(&conntrack->ct_general.use, 1);
 	conntrack->ct_general.destroy = destroy_conntrack;
 	conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;

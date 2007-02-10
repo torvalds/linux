@@ -624,11 +624,9 @@ static inline struct urb_priv *uhci_alloc_urb_priv(struct uhci_hcd *uhci,
 {
 	struct urb_priv *urbp;
 
-	urbp = kmem_cache_alloc(uhci_up_cachep, GFP_ATOMIC);
+	urbp = kmem_cache_zalloc(uhci_up_cachep, GFP_ATOMIC);
 	if (!urbp)
 		return NULL;
-
-	memset((void *)urbp, 0, sizeof(*urbp));
 
 	urbp->urb = urb;
 	urb->hcpriv = urbp;

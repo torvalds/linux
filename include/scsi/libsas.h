@@ -558,10 +558,9 @@ struct sas_task {
 static inline struct sas_task *sas_alloc_task(gfp_t flags)
 {
 	extern struct kmem_cache *sas_task_cache;
-	struct sas_task *task = kmem_cache_alloc(sas_task_cache, flags);
+	struct sas_task *task = kmem_cache_zalloc(sas_task_cache, flags);
 
 	if (task) {
-		memset(task, 0, sizeof(*task));
 		INIT_LIST_HEAD(&task->list);
 		spin_lock_init(&task->task_state_lock);
 		task->task_state_flags = SAS_TASK_STATE_PENDING;

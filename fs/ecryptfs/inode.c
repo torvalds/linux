@@ -361,8 +361,7 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 	/* Released in this function */
-	page_virt =
-	    (char *)kmem_cache_alloc(ecryptfs_header_cache_2,
+	page_virt = kmem_cache_zalloc(ecryptfs_header_cache_2,
 				     GFP_USER);
 	if (!page_virt) {
 		rc = -ENOMEM;
@@ -370,7 +369,7 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 				"Cannot ecryptfs_kmalloc a page\n");
 		goto out_dput;
 	}
-	memset(page_virt, 0, PAGE_CACHE_SIZE);
+
 	rc = ecryptfs_read_header_region(page_virt, lower_dentry, nd->mnt);
 	crypt_stat = &ecryptfs_inode_to_private(dentry->d_inode)->crypt_stat;
 	if (!ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_POLICY_APPLIED))
