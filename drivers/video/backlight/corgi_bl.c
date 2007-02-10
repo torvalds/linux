@@ -22,7 +22,6 @@
 #include <asm/hardware/sharpsl_pm.h>
 
 static int corgibl_intensity;
-static DEFINE_MUTEX(bl_mutex);
 static struct backlight_properties corgibl_data;
 static struct backlight_device *corgi_backlight_device;
 static struct corgibl_machinfo *bl_machinfo;
@@ -45,9 +44,7 @@ static int corgibl_send_intensity(struct backlight_device *bd)
 	if (corgibl_flags & CORGIBL_BATTLOW)
 		intensity &= bl_machinfo->limit_mask;
 
- 	mutex_lock(&bl_mutex);
 	bl_machinfo->set_bl_intensity(intensity);
-	mutex_unlock(&bl_mutex);
 
 	corgibl_intensity = intensity;
 
@@ -66,7 +63,7 @@ static int corgibl_suspend(struct platform_device *pdev, pm_message_t state)
 	struct backlight_device *bd = platform_get_drvdata(pdev);
 
 	corgibl_flags |= CORGIBL_SUSPENDED;
-	corgibl_send_intensity(bd);
+	backlight_update_status(bd);
 	return 0;
 }
 
@@ -75,7 +72,7 @@ static int corgibl_resume(struct platform_device *pdev)
 	struct backlight_device *bd = platform_get_drvdata(pdev);
 
 	corgibl_flags &= ~CORGIBL_SUSPENDED;
-	corgibl_send_intensity(bd);
+	backlight_update_status(bd);
 	return 0;
 }
 #else
@@ -98,7 +95,7 @@ void corgibl_limit_intensity(int limit)
 		corgibl_flags |= CORGIBL_BATTLOW;
 	else
 		corgibl_flags &= ~CORGIBL_BATTLOW;
-	corgibl_send_intensity(corgi_backlight_device);
+	backlight_update_status(corgi_backlight_device);
 }
 EXPORT_SYMBOL(corgibl_limit_intensity);
 
@@ -126,7 +123,7 @@ static int corgibl_probe(struct platform_device *pdev)
 	corgi_backlight_device->props.max_brightness = machinfo->max_intensity;
 	corgi_backlight_device->props.power = FB_BLANK_UNBLANK;
 	corgi_backlight_device->props.brightness = machinfo->default_intensity;
-	corgibl_send_intensity(corgi_backlight_device);
+	backlight_update_status(corgi_backlight_device);
 
 	printk("Corgi Backlight Driver Initialized.\n");
 	return 0;
@@ -138,7 +135,7 @@ static int corgibl_remove(struct platform_device *pdev)
 
 	corgibl_data.power = 0;
 	corgibl_data.brightness = 0;
-	corgibl_send_intensity(bd);
+	backlight_update_status(bd);
 
 	backlight_device_unregister(bd);
 
