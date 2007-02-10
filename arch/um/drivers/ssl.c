@@ -51,6 +51,8 @@ static int ssl_config(char *str, char **error_out);
 static int ssl_get_config(char *dev, char *str, int size, char **error_out);
 static int ssl_remove(int n, char **error_out);
 
+
+/* Const, except for .mc.list */
 static struct line_driver driver = {
 	.name 			= "UML serial line",
 	.device_name 		= "ttyS",
@@ -62,8 +64,6 @@ static struct line_driver driver = {
 	.read_irq_name 		= "ssl",
 	.write_irq 		= SSL_WRITE_IRQ,
 	.write_irq_name 	= "ssl-write",
-	.symlink_from 		= "serial",
-	.symlink_to 		= "tts",
 	.mc  = {
 		.list		= LIST_HEAD_INIT(driver.mc.list),
 		.name  		= "ssl",
@@ -74,13 +74,11 @@ static struct line_driver driver = {
 	},
 };
 
-/* The array is initialized by line_init, which is an initcall.  The 
- * individual elements are protected by individual semaphores.
+/* The array is initialized by line_init, at initcall time.  The
+ * elements are locked individually as needed.
  */
 static struct line serial_lines[NR_PORTS] =
 	{ [0 ... NR_PORTS - 1] = LINE_INIT(CONFIG_SSL_CHAN, &driver) };
-
-static struct lines lines = LINES_INIT(NR_PORTS);
 
 static int ssl_config(char *str, char **error_out)
 {
@@ -175,6 +173,7 @@ static int ssl_console_setup(struct console *co, char *options)
 	return console_open_chan(line, co);
 }
 
+/* No locking for register_console call - relies on single-threaded initcalls */
 static struct console ssl_cons = {
 	.name		= "ttyS",
 	.write		= ssl_console_write,
@@ -190,9 +189,8 @@ static int ssl_init(void)
 
 	printk(KERN_INFO "Initializing software serial port version %d\n",
 	       ssl_version);
-	ssl_driver = line_register_devfs(&lines, &driver, &ssl_ops,
-					 serial_lines,
-					 ARRAY_SIZE(serial_lines));
+	ssl_driver = register_lines(&driver, &ssl_ops, serial_lines,
+				    ARRAY_SIZE(serial_lines));
 
 	lines_init(serial_lines, ARRAY_SIZE(serial_lines), &opts);
 

@@ -707,10 +707,9 @@ int line_remove(struct line *lines, unsigned int num, int n, char **error_out)
 	return err;
 }
 
-struct tty_driver *line_register_devfs(struct lines *set,
-				       struct line_driver *line_driver,
-				       const struct tty_operations *ops,
-				       struct line *lines, int nlines)
+struct tty_driver *register_lines(struct line_driver *line_driver,
+				  const struct tty_operations *ops,
+				  struct line *lines, int nlines)
 {
 	int i;
 	struct tty_driver *driver = alloc_tty_driver(nlines);

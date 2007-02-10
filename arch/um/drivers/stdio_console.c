@@ -55,6 +55,8 @@ static int con_config(char *str, char **error_out);
 static int con_get_config(char *dev, char *str, int size, char **error_out);
 static int con_remove(int n, char **con_remove);
 
+
+/* Const, except for .mc.list */
 static struct line_driver driver = {
 	.name 			= "UML console",
 	.device_name 		= "tty",
@@ -66,8 +68,6 @@ static struct line_driver driver = {
 	.read_irq_name 		= "console",
 	.write_irq 		= CONSOLE_WRITE_IRQ,
 	.write_irq_name 	= "console-write",
-	.symlink_from 		= "ttys",
-	.symlink_to 		= "vc",
 	.mc  = {
 		.name  		= "con",
 		.config 	= con_config,
@@ -77,10 +77,8 @@ static struct line_driver driver = {
 	},
 };
 
-static struct lines console_lines = LINES_INIT(MAX_TTYS);
-
-/* The array is initialized by line_init, which is an initcall.  The 
- * individual elements are protected by individual semaphores.
+/* The array is initialized by line_init, at initcall time.  The
+ * elements are locked individually as needed.
  */
 static struct line vts[MAX_TTYS] = { LINE_INIT(CONFIG_CON_ZERO_CHAN, &driver),
 				     [ 1 ... MAX_TTYS - 1 ] =
@@ -148,6 +146,7 @@ static int uml_console_setup(struct console *co, char *options)
 	return console_open_chan(line, co);
 }
 
+/* No locking for register_console call - relies on single-threaded initcalls */
 static struct console stdiocons = {
 	.name		= "tty",
 	.write		= uml_console_write,
@@ -155,16 +154,14 @@ static struct console stdiocons = {
 	.setup		= uml_console_setup,
 	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
-	.data		= &vts,
 };
 
 int stdio_init(void)
 {
 	char *new_title;
 
-	console_driver = line_register_devfs(&console_lines, &driver,
-					     &console_ops, vts,
-					     ARRAY_SIZE(vts));
+	console_driver = register_lines(&driver, &console_ops, vts,
+					ARRAY_SIZE(vts));
 	if (console_driver == NULL)
 		return -1;
 	printk(KERN_INFO "Initialized stdio console driver\n");
