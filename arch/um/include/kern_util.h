@@ -61,7 +61,6 @@ extern int set_signals(int enable);
 extern void force_sigbus(void);
 extern int pid_to_processor_id(int pid);
 extern void deliver_signals(void *t);
-extern int next_syscall_index(int max);
 extern int next_trap_index(int max);
 extern void default_idle(void);
 extern void finish_fork(void);
