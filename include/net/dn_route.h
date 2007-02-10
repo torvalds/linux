@@ -68,8 +68,9 @@ extern void dn_rt_cache_flush(int delay);
 struct dn_route {
 	union {
 		struct dst_entry dst;
-		struct dn_route *rt_next;
 	} u;
+
+	struct flowi fl;
 
 	__le16 rt_saddr;
 	__le16 rt_daddr;
@@ -80,8 +81,6 @@ struct dn_route {
 
 	unsigned rt_flags;
 	unsigned rt_type;
-
-	struct flowi fl;
 };
 
 extern void dn_route_init(void);
