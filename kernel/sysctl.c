@@ -1961,7 +1961,7 @@ int proc_dointvec_bset(ctl_table *table, int write, struct file *filp,
 {
 	int op;
 
-	if (!capable(CAP_SYS_MODULE)) {
+	if (write && !capable(CAP_SYS_MODULE)) {
 		return -EPERM;
 	}
 
