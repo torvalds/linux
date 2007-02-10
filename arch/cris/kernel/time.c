@@ -55,7 +55,6 @@ void do_gettimeofday(struct timeval *tv)
 	unsigned long flags;
 	signed long usec, sec;
 	local_irq_save(flags);
-	local_irq_disable();
 	usec = do_gettimeoffset();
 
         /*
