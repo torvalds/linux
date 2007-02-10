@@ -1160,11 +1160,9 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 	struct timespec now;
 
-	if (IS_RDONLY(inode))
-		return;
 	if (inode->i_flags & S_NOATIME)
 		return;
-	if (inode->i_sb->s_flags & MS_NOATIME)
+	if (IS_NOATIME(inode))
 		return;
 	if ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode))
 		return;
