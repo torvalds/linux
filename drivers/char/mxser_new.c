@@ -56,7 +56,7 @@
 #define MXSER_BOARDS		4	/* Max. boards */
 #define MXSER_PORTS_PER_BOARD	8	/* Max. ports per board */
 #define MXSER_PORTS		(MXSER_BOARDS * MXSER_PORTS_PER_BOARD)
-#define MXSER_ISR_PASS_LIMIT	99999L
+#define MXSER_ISR_PASS_LIMIT	100
 
 #define	MXSER_ERR_IOADDR	-1
 #define	MXSER_ERR_IRQ		-2
@@ -2222,8 +2222,7 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 	struct mxser_board *brd = NULL;
 	struct mxser_port *port;
 	int max, irqbits, bits, msr;
-	int pass_counter = 0;
-	unsigned int int_cnt;
+	unsigned int int_cnt, pass_counter = 0;
 	int handled = IRQ_NONE;
 
 	for (i = 0; i < MXSER_BOARDS; i++)
@@ -2237,7 +2236,7 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 	if (brd == NULL)
 		goto irq_stop;
 	max = brd->info->nports;
-	while (1) {
+	while (pass_counter++ < MXSER_ISR_PASS_LIMIT) {
 		irqbits = inb(brd->vector) & brd->vector_mask;
 		if (irqbits == brd->vector_mask)
 			break;
@@ -2308,8 +2307,6 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 			} while (int_cnt++ < MXSER_ISR_PASS_LIMIT);
 			spin_unlock(&port->slock);
 		}
-		if (pass_counter++ > MXSER_ISR_PASS_LIMIT)
-			break;	/* Prevent infinite loops */
 	}
 
 irq_stop:
