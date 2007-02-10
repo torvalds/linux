@@ -674,12 +674,6 @@ config ZISOFS
 	  necessary to create such a filesystem.  Say Y here if you want to be
 	  able to read such compressed CD-ROMs.
 
-config ZISOFS_FS
-# for fs/nls/Config.in
-	tristate
-	depends on ZISOFS
-	default ISO9660_FS
-
 config UDF_FS
 	tristate "UDF file system support"
 	help
