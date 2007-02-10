@@ -37,6 +37,7 @@
  *	1.06	Do not insert a char caused previous overrun.
  *		Fix some spin_locks.
  *		Do not call uart_add_one_port for absent ports.
+ *	1.07	Use CONFIG_SERIAL_TXX9_NR_UARTS.  Cleanup.
  */
 
 #if defined(CONFIG_SERIAL_TXX9_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
@@ -58,9 +59,8 @@
 #include <linux/mutex.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 
-static char *serial_version = "1.06";
+static char *serial_version = "1.07";
 static char *serial_name = "TX39/49 Serial driver";
 
 #define PASS_LIMIT	256
@@ -88,12 +88,7 @@ static char *serial_name = "TX39/49 Serial driver";
 /*
  * Number of serial ports
  */
-#ifdef ENABLE_SERIAL_TXX9_PCI
-#define NR_PCI_BOARDS	4
-#define UART_NR  (4 + NR_PCI_BOARDS)
-#else
-#define UART_NR  4
-#endif
+#define UART_NR  CONFIG_SERIAL_TXX9_NR_UARTS
 
 #define HIGH_BITS_OFFSET	((sizeof(long)-sizeof(int))*8)
 
@@ -987,6 +982,7 @@ int __init early_serial_txx9_setup(struct uart_port *port)
 }
 
 #ifdef ENABLE_SERIAL_TXX9_PCI
+#ifdef CONFIG_PM
 /**
  *	serial_txx9_suspend_port - suspend one serial port
  *	@line:  serial line number
@@ -1008,6 +1004,7 @@ static void serial_txx9_resume_port(int line)
 {
 	uart_resume_port(&serial_txx9_reg, &serial_txx9_ports[line].port);
 }
+#endif
 
 static DEFINE_MUTEX(serial_txx9_mutex);
 
@@ -1118,6 +1115,7 @@ static void __devexit pciserial_txx9_remove_one(struct pci_dev *dev)
 	}
 }
 
+#ifdef CONFIG_PM
 static int pciserial_txx9_suspend_one(struct pci_dev *dev, pm_message_t state)
 {
 	int line = (int)(long)pci_get_drvdata(dev);
@@ -1142,11 +1140,10 @@ static int pciserial_txx9_resume_one(struct pci_dev *dev)
 	}
 	return 0;
 }
+#endif
 
-static struct pci_device_id serial_txx9_pci_tbl[] = {
-	{	PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_MISC,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0, 0 },
+static const struct pci_device_id serial_txx9_pci_tbl[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_MISC) },
 	{ 0, }
 };
 
@@ -1154,8 +1151,10 @@ static struct pci_driver serial_txx9_pci_driver = {
 	.name		= "serial_txx9",
 	.probe		= pciserial_txx9_init_one,
 	.remove		= __devexit_p(pciserial_txx9_remove_one),
+#ifdef CONFIG_PM
 	.suspend	= pciserial_txx9_suspend_one,
 	.resume		= pciserial_txx9_resume_one,
+#endif
 	.id_table	= serial_txx9_pci_tbl,
 };
 
