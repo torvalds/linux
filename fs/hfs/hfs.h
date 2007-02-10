@@ -83,8 +83,6 @@
 
 /*======== HFS structures as they appear on the disk ========*/
 
-#define __packed __attribute__ ((packed))
-
 /* Pascal-style string of up to 31 characters */
 struct hfs_name {
 	u8 len;
