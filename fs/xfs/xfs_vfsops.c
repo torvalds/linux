@@ -640,7 +640,7 @@ xfs_quiesce_fs(
 	 * we can write the unmount record.
 	 */
 	do {
-		xfs_syncsub(mp, SYNC_REMOUNT|SYNC_ATTR|SYNC_WAIT, 0, NULL);
+		xfs_syncsub(mp, SYNC_REMOUNT|SYNC_ATTR|SYNC_WAIT, NULL);
 		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
 		if (!pincount) {
 			delay(50);
@@ -886,24 +886,20 @@ xfs_sync(
 	if (unlikely(flags == SYNC_QUIESCE))
 		return xfs_quiesce_fs(mp);
 	else
-		return xfs_syncsub(mp, flags, 0, NULL);
+		return xfs_syncsub(mp, flags, NULL);
 }
 
 /*
  * xfs sync routine for internal use
  *
  * This routine supports all of the flags defined for the generic vfs_sync
- * interface as explained above under xfs_sync.  In the interests of not
- * changing interfaces within the 6.5 family, additional internally-
- * required functions are specified within a separate xflags parameter,
- * only available by calling this routine.
+ * interface as explained above under xfs_sync.
  *
  */
 int
 xfs_sync_inodes(
 	xfs_mount_t	*mp,
 	int		flags,
-	int             xflags,
 	int             *bypassed)
 {
 	xfs_inode_t	*ip = NULL;
@@ -1412,17 +1408,13 @@ xfs_sync_inodes(
  * xfs sync routine for internal use
  *
  * This routine supports all of the flags defined for the generic vfs_sync
- * interface as explained above under xfs_sync.  In the interests of not
- * changing interfaces within the 6.5 family, additional internally-
- * required functions are specified within a separate xflags parameter,
- * only available by calling this routine.
+ * interface as explained above under xfs_sync.
  *
  */
 int
 xfs_syncsub(
 	xfs_mount_t	*mp,
 	int		flags,
-	int             xflags,
 	int             *bypassed)
 {
 	int		error = 0;
@@ -1444,7 +1436,7 @@ xfs_syncsub(
 		if (flags & SYNC_BDFLUSH)
 			xfs_finish_reclaim_all(mp, 1);
 		else
-			error = xfs_sync_inodes(mp, flags, xflags, bypassed);
+			error = xfs_sync_inodes(mp, flags, bypassed);
 	}
 
 	/*
