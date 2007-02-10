@@ -52,12 +52,12 @@ struct net_kern_info {
 
 struct transport {
 	struct list_head list;
-	char *name;
-	int (*setup)(char *, char **, void *);
+	const char *name;
+	int (* const setup)(char *, char **, void *);
 	const struct net_user_info *user;
 	const struct net_kern_info *kern;
-	int private_size;
-	int setup_size;
+	const int private_size;
+	const int setup_size;
 };
 
 extern struct net_device *ether_init(int);
