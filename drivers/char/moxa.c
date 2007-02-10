@@ -159,7 +159,6 @@ struct moxa_str {
 	int cflag;
 	wait_queue_head_t open_wait;
 	wait_queue_head_t close_wait;
-	struct work_struct tqueue;
 };
 
 struct mxser_mstatus {
@@ -177,9 +176,6 @@ static struct mxser_mstatus GMStatus[MAX_PORTS];
 #define LOWWAIT 	0x2
 #define EMPTYWAIT	0x4
 #define THROTTLE	0x8
-
-/* event */
-#define MOXA_EVENT_HANGUP	1
 
 #define SERIAL_DO_RESTART
 
@@ -213,7 +209,6 @@ module_param(verbose, bool, 0644);
 /*
  * static functions:
  */
-static void do_moxa_softint(struct work_struct *);
 static int moxa_open(struct tty_struct *, struct file *);
 static void moxa_close(struct tty_struct *, struct file *);
 static int moxa_write(struct tty_struct *, const unsigned char *, int);
@@ -354,7 +349,6 @@ static int __init moxa_init(void)
 	for (i = 0, ch = moxaChannels; i < MAX_PORTS; i++, ch++) {
 		ch->type = PORT_16550A;
 		ch->port = i;
-		INIT_WORK(&ch->tqueue, do_moxa_softint);
 		ch->close_delay = 5 * HZ / 10;
 		ch->closing_wait = 30 * HZ;
 		ch->cflag = B9600 | CS8 | CREAD | CLOCAL | HUPCL;
@@ -481,20 +475,6 @@ static void __exit moxa_exit(void)
 
 module_init(moxa_init);
 module_exit(moxa_exit);
-
-static void do_moxa_softint(struct work_struct *work)
-{
-	struct moxa_str *ch = container_of(work, struct moxa_str, tqueue);
-	struct tty_struct *tty;
-
-	if (ch && (tty = ch->tty)) {
-		if (test_and_clear_bit(MOXA_EVENT_HANGUP, &ch->event)) {
-			tty_hangup(tty);	/* FIXME: module removal race here - AKPM */
-			wake_up_interruptible(&ch->open_wait);
-			ch->asyncflags &= ~ASYNC_NORMAL_ACTIVE;
-		}
-	}
-}
 
 static int moxa_open(struct tty_struct *tty, struct file *filp)
 {
@@ -908,8 +888,9 @@ static void moxa_poll(unsigned long ignored)
 					if (MoxaPortDCDON(ch->port))
 						wake_up_interruptible(&ch->open_wait);
 					else {
-						set_bit(MOXA_EVENT_HANGUP, &ch->event);
-						schedule_work(&ch->tqueue);
+						tty_hangup(tp);
+						wake_up_interruptible(&ch->open_wait);
+						ch->asyncflags &= ~ASYNC_NORMAL_ACTIVE;
 					}
 				}
 			}
