@@ -1090,8 +1090,7 @@ xfs_da_node_lookup_int(xfs_da_state_t *state, int *result)
 		if (blk->magic == XFS_DA_NODE_MAGIC) {
 			node = blk->bp->data;
 			max = be16_to_cpu(node->hdr.count);
-			btreehashval = node->btree[max-1].hashval;
-			blk->hashval = be32_to_cpu(btreehashval);
+			blk->hashval = be32_to_cpu(node->btree[max-1].hashval);
 
 			/*
 			 * Binary search.  (note: small blocks will skip loop)
