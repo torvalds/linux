@@ -743,6 +743,7 @@ EXPORT_SYMBOL_GPL(usb_deregister_device_driver);
  * usb_register_driver - register a USB interface driver
  * @new_driver: USB operations for the interface driver
  * @owner: module owner of this driver.
+ * @mod_name: module name string
  *
  * Registers a USB interface driver with the USB core.  The list of
  * unattached interfaces will be rescanned whenever a new driver is
