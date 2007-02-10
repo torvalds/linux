@@ -719,18 +719,6 @@ config AEDSP16_SBPRO
 
 endchoice
 
-config AEDSP16_MPU401
-	bool "Audio Excel DSP 16 (MPU401 emulation)"
-	depends on SOUND_AEDSP16 && SOUND_MPU401
-	help
-	  Answer Y if you want your audio card to emulate the MPU-401 midi
-	  interface. You should then also say Y to "MPU-401 support".
-
-	  Note that the I/O base for MPU-401 support of aedsp16 is the same
-	  you have selected for "MPU-401 support". If you are using this
-	  driver as a module you have to specify the MPU I/O base address with
-	  the parameter 'mpu_base=0xNNN'.
-
 config SOUND_VIDC
 	tristate "VIDC 16-bit sound"
 	depends on ARM && (ARCH_ACORN || ARCH_CLPS7500) && SOUND_OSS
