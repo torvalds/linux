@@ -42,6 +42,7 @@ int write_sigio_irq(int fd)
 	return(0);
 }
 
+/* These are called from os-Linux/sigio.c to protect its pollfds arrays. */
 static DEFINE_SPINLOCK(sigio_spinlock);
 
 void sigio_lock(void)
