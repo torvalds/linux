@@ -464,6 +464,10 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 		goto err_unmap_aux;
 	}
 
+	/* CPU writes to non-reserved MTTs, while HCA might DMA to reserved mtts */
+	mdev->limits.reserved_mtts = ALIGN(mdev->limits.reserved_mtts * MTHCA_MTT_SEG_SIZE,
+					   dma_get_cache_alignment()) / MTHCA_MTT_SEG_SIZE;
+
 	mdev->mr_table.mtt_table = mthca_alloc_icm_table(mdev, init_hca->mtt_base,
 							 MTHCA_MTT_SEG_SIZE,
 							 mdev->limits.num_mtt_segs,
