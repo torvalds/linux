@@ -2165,21 +2165,6 @@ xfs_da_reada_buf(
 		return rval;
 }
 
-/*
- * Calculate the number of bits needed to hold i different values.
- */
-uint
-xfs_da_log2_roundup(uint i)
-{
-	uint rval;
-
-	for (rval = 0; rval < NBBY * sizeof(i); rval++) {
-		if ((1 << rval) >= i)
-			break;
-	}
-	return(rval);
-}
-
 kmem_zone_t *xfs_da_state_zone;	/* anchor for state struct zone */
 kmem_zone_t *xfs_dabuf_zone;		/* dabuf zone */
 

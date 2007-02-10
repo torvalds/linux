@@ -291,15 +291,11 @@ extern xfs_exntst_t xfs_bmbt_get_state(xfs_bmbt_rec_t *r);
 
 #ifndef XFS_NATIVE_HOST
 extern void xfs_bmbt_disk_get_all(xfs_bmbt_rec_t *r, xfs_bmbt_irec_t *s);
-extern xfs_exntst_t xfs_bmbt_disk_get_state(xfs_bmbt_rec_t *r);
 extern xfs_filblks_t xfs_bmbt_disk_get_blockcount(xfs_bmbt_rec_t *r);
-extern xfs_fsblock_t xfs_bmbt_disk_get_startblock(xfs_bmbt_rec_t *r);
 extern xfs_fileoff_t xfs_bmbt_disk_get_startoff(xfs_bmbt_rec_t *r);
 #else
 #define xfs_bmbt_disk_get_all(r, s)	xfs_bmbt_get_all(r, s)
-#define xfs_bmbt_disk_get_state(r)	xfs_bmbt_get_state(r)
 #define xfs_bmbt_disk_get_blockcount(r)	xfs_bmbt_get_blockcount(r)
-#define xfs_bmbt_disk_get_startblock(r)	xfs_bmbt_get_blockcount(r)
 #define xfs_bmbt_disk_get_startoff(r)	xfs_bmbt_get_startoff(r)
 #endif /* XFS_NATIVE_HOST */
 
@@ -339,15 +335,6 @@ extern void xfs_bmbt_disk_set_allf(xfs_bmbt_rec_t *r, xfs_fileoff_t o,
 extern void xfs_bmbt_to_bmdr(xfs_bmbt_block_t *, int, xfs_bmdr_block_t *, int);
 extern int xfs_bmbt_update(struct xfs_btree_cur *, xfs_fileoff_t,
 				xfs_fsblock_t, xfs_filblks_t, xfs_exntst_t);
-
-#ifdef DEBUG
-/*
- * Get the data from the pointed-to record.
- */
-extern int xfs_bmbt_get_rec(struct xfs_btree_cur *, xfs_fileoff_t *,
-				xfs_fsblock_t *, xfs_filblks_t *,
-				xfs_exntst_t *, int *);
-#endif
 
 #endif	/* __KERNEL__ */
 

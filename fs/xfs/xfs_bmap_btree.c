@@ -678,47 +678,6 @@ error0:
 	return error;
 }
 
-#ifdef DEBUG
-/*
- * Get the data from the pointed-to record.
- */
-int
-xfs_bmbt_get_rec(
-	xfs_btree_cur_t		*cur,
-	xfs_fileoff_t		*off,
-	xfs_fsblock_t		*bno,
-	xfs_filblks_t		*len,
-	xfs_exntst_t		*state,
-	int			*stat)
-{
-	xfs_bmbt_block_t	*block;
-	xfs_buf_t		*bp;
-#ifdef DEBUG
-	int			error;
-#endif
-	int			ptr;
-	xfs_bmbt_rec_t		*rp;
-
-	block = xfs_bmbt_get_block(cur, 0, &bp);
-	ptr = cur->bc_ptrs[0];
-#ifdef DEBUG
-	if ((error = xfs_btree_check_lblock(cur, block, 0, bp)))
-		return error;
-#endif
-	if (ptr > be16_to_cpu(block->bb_numrecs) || ptr <= 0) {
-		*stat = 0;
-		return 0;
-	}
-	rp = XFS_BMAP_REC_IADDR(block, ptr, cur);
-	*off = xfs_bmbt_disk_get_startoff(rp);
-	*bno = xfs_bmbt_disk_get_startblock(rp);
-	*len = xfs_bmbt_disk_get_blockcount(rp);
-	*state = xfs_bmbt_disk_get_state(rp);
-	*stat = 1;
-	return 0;
-}
-#endif
-
 /*
  * Insert one record/level.  Return information to the caller
  * allowing the next level up to proceed if necessary.
@@ -2016,30 +1975,6 @@ xfs_bmbt_disk_get_blockcount(
 }
 
 /*
- * Extract the startblock field from an on disk bmap extent record.
- */
-xfs_fsblock_t
-xfs_bmbt_disk_get_startblock(
-	xfs_bmbt_rec_t	*r)
-{
-#if XFS_BIG_BLKNOS
-	return (((xfs_fsblock_t)INT_GET(r->l0, ARCH_CONVERT) & XFS_MASK64LO(9)) << 43) |
-	       (((xfs_fsblock_t)INT_GET(r->l1, ARCH_CONVERT)) >> 21);
-#else
-#ifdef DEBUG
-	xfs_dfsbno_t	b;
-
-	b = (((xfs_dfsbno_t)INT_GET(r->l0, ARCH_CONVERT) & XFS_MASK64LO(9)) << 43) |
-	    (((xfs_dfsbno_t)INT_GET(r->l1, ARCH_CONVERT)) >> 21);
-	ASSERT((b >> 32) == 0 || ISNULLDSTARTBLOCK(b));
-	return (xfs_fsblock_t)b;
-#else	/* !DEBUG */
-	return (xfs_fsblock_t)(((xfs_dfsbno_t)INT_GET(r->l1, ARCH_CONVERT)) >> 21);
-#endif	/* DEBUG */
-#endif	/* XFS_BIG_BLKNOS */
-}
-
-/*
  * Extract the startoff field from a disk format bmap extent record.
  */
 xfs_fileoff_t
@@ -2048,17 +1983,6 @@ xfs_bmbt_disk_get_startoff(
 {
 	return ((xfs_fileoff_t)INT_GET(r->l0, ARCH_CONVERT) &
 		 XFS_MASK64LO(64 - BMBT_EXNTFLAG_BITLEN)) >> 9;
-}
-
-xfs_exntst_t
-xfs_bmbt_disk_get_state(
-	xfs_bmbt_rec_t  *r)
-{
-	int	ext_flag;
-
-	ext_flag = (int)((INT_GET(r->l0, ARCH_CONVERT)) >> (64 - BMBT_EXNTFLAG_BITLEN));
-	return xfs_extent_state(xfs_bmbt_disk_get_blockcount(r),
-				ext_flag);
 }
 #endif /* XFS_NATIVE_HOST */
 

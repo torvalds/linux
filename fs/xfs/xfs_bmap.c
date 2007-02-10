@@ -185,16 +185,6 @@ xfs_bmap_btree_to_extents(
 	int			*logflagsp, /* inode logging flags */
 	int			whichfork); /* data or attr fork */
 
-#ifdef DEBUG
-/*
- * Check that the extents list for the inode ip is in the right order.
- */
-STATIC void
-xfs_bmap_check_extents(
-	xfs_inode_t		*ip,		/* incore inode pointer */
-	int			whichfork);	/* data or attr fork */
-#endif
-
 /*
  * Called by xfs_bmapi to update file extent records and the btree
  * after removing space (or undoing a delayed allocation).
@@ -6045,32 +6035,6 @@ xfs_bmap_eof(
 }
 
 #ifdef DEBUG
-/*
- * Check that the extents list for the inode ip is in the right order.
- */
-STATIC void
-xfs_bmap_check_extents(
-	xfs_inode_t		*ip,		/* incore inode pointer */
-	int			whichfork)	/* data or attr fork */
-{
-	xfs_bmbt_rec_t		*ep;		/* current extent entry */
-	xfs_extnum_t		idx;		/* extent record index */
-	xfs_ifork_t		*ifp;		/* inode fork pointer */
-	xfs_extnum_t		nextents;	/* number of extents in list */
-	xfs_bmbt_rec_t		*nextp;		/* next extent entry */
-
-	ifp = XFS_IFORK_PTR(ip, whichfork);
-	ASSERT(ifp->if_flags & XFS_IFEXTENTS);
-	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
-	ep = xfs_iext_get_ext(ifp, 0);
-	for (idx = 0; idx < nextents - 1; idx++) {
-		nextp = xfs_iext_get_ext(ifp, idx + 1);
-		xfs_btree_check_rec(XFS_BTNUM_BMAP, (void *)ep,
-			(void *)(nextp));
-		ep = nextp;
-	}
-}
-
 STATIC
 xfs_buf_t *
 xfs_bmap_get_bp(

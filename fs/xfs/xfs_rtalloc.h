@@ -134,24 +134,6 @@ xfs_rtpick_extent(
 	xfs_rtblock_t		*pick);	/* result rt extent */
 
 /*
- * Debug code: print out the value of a range in the bitmap.
- */
-void
-xfs_rtprint_range(
-	struct xfs_mount	*mp,	/* file system mount structure */
-	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_rtblock_t		start,	/* starting block to print */
-	xfs_extlen_t		len);	/* length to print */
-
-/*
- * Debug code: print the summary file.
- */
-void
-xfs_rtprint_summary(
-	struct xfs_mount	*mp,	/* file system mount structure */
-	struct xfs_trans	*tp);	/* transaction pointer */
-
-/*
  * Grow the realtime area of the filesystem.
  */
 int
