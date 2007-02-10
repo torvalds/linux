@@ -215,7 +215,7 @@ EXPORT_SYMBOL_GPL(atomic_notifier_chain_unregister);
  *	This routine uses RCU to synchronize with changes to the chain.
  *
  *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then atomic_notifier_call_chain
+ *	with %NOTIFY_STOP_MASK then atomic_notifier_call_chain()
  *	will return immediately, with the return value of
  *	the notifier function which halted execution.
  *	Otherwise the return value is the return value
@@ -313,7 +313,7 @@ EXPORT_SYMBOL_GPL(blocking_notifier_chain_unregister);
  *	run in a process context, so they are allowed to block.
  *
  *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then blocking_notifier_call_chain
+ *	with %NOTIFY_STOP_MASK then blocking_notifier_call_chain()
  *	will return immediately, with the return value of
  *	the notifier function which halted execution.
  *	Otherwise the return value is the return value
@@ -393,7 +393,7 @@ EXPORT_SYMBOL_GPL(raw_notifier_chain_unregister);
  *	All locking must be provided by the caller.
  *
  *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then raw_notifier_call_chain
+ *	with %NOTIFY_STOP_MASK then raw_notifier_call_chain()
  *	will return immediately, with the return value of
  *	the notifier function which halted execution.
  *	Otherwise the return value is the return value
@@ -487,7 +487,7 @@ EXPORT_SYMBOL_GPL(srcu_notifier_chain_unregister);
  *	run in a process context, so they are allowed to block.
  *
  *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then srcu_notifier_call_chain
+ *	with %NOTIFY_STOP_MASK then srcu_notifier_call_chain()
  *	will return immediately, with the return value of
  *	the notifier function which halted execution.
  *	Otherwise the return value is the return value
@@ -538,7 +538,7 @@ EXPORT_SYMBOL_GPL(srcu_init_notifier_head);
  *	Registers a function with the list of functions
  *	to be called at reboot time.
  *
- *	Currently always returns zero, as blocking_notifier_chain_register
+ *	Currently always returns zero, as blocking_notifier_chain_register()
  *	always returns zero.
  */
  

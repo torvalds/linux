@@ -328,7 +328,7 @@ static void wakeup_readers(struct work_struct *work)
  *	@buf: the channel buffer
  *	@init: 1 if this is a first-time initialization
  *
- *	See relay_reset for description of effect.
+ *	See relay_reset() for description of effect.
  */
 static void __relay_reset(struct rchan_buf *buf, unsigned int init)
 {
@@ -364,7 +364,7 @@ static void __relay_reset(struct rchan_buf *buf, unsigned int init)
  *	and restarting the channel in its initial state.  The buffers
  *	are not freed, so any mappings are still in effect.
  *
- *	NOTE: Care should be taken that the channel isn't actually
+ *	NOTE. Care should be taken that the channel isn't actually
  *	being used by anything when this call is made.
  */
 void relay_reset(struct rchan *chan)
@@ -528,7 +528,7 @@ static int __cpuinit relay_hotcpu_callback(struct notifier_block *nb,
  *	Creates a channel buffer for each cpu using the sizes and
  *	attributes specified.  The created channel buffer files
  *	will be named base_filename0...base_filenameN-1.  File
- *	permissions will be S_IRUSR.
+ *	permissions will be %S_IRUSR.
  */
 struct rchan *relay_open(const char *base_filename,
 			 struct dentry *parent,
@@ -648,7 +648,7 @@ EXPORT_SYMBOL_GPL(relay_switch_subbuf);
  *	subbufs_consumed should be the number of sub-buffers newly consumed,
  *	not the total consumed.
  *
- *	NOTE: Kernel clients don't need to call this function if the channel
+ *	NOTE. Kernel clients don't need to call this function if the channel
  *	mode is 'overwrite'.
  */
 void relay_subbufs_consumed(struct rchan *chan,
@@ -749,7 +749,7 @@ static int relay_file_open(struct inode *inode, struct file *filp)
  *	@filp: the file
  *	@vma: the vma describing what to map
  *
- *	Calls upon relay_mmap_buf to map the file into user space.
+ *	Calls upon relay_mmap_buf() to map the file into user space.
  */
 static int relay_file_mmap(struct file *filp, struct vm_area_struct *vma)
 {
@@ -891,7 +891,7 @@ static size_t relay_file_read_subbuf_avail(size_t read_pos,
  *	@read_pos: file read position
  *	@buf: relay channel buffer
  *
- *	If the read_pos is in the middle of padding, return the
+ *	If the @read_pos is in the middle of padding, return the
  *	position of the first actually available byte, otherwise
  *	return the original value.
  */

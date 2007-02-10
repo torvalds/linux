@@ -161,7 +161,7 @@ static inline void __list_del(struct list_head * prev, struct list_head * next)
 /**
  * list_del - deletes entry from list.
  * @entry: the element to delete from the list.
- * Note: list_empty on entry does not return true after this, the entry is
+ * Note: list_empty() on entry does not return true after this, the entry is
  * in an undefined state.
  */
 #ifndef CONFIG_DEBUG_LIST
@@ -179,7 +179,7 @@ extern void list_del(struct list_head *entry);
  * list_del_rcu - deletes entry from list without re-initialization
  * @entry: the element to delete from the list.
  *
- * Note: list_empty on entry does not return true after this,
+ * Note: list_empty() on entry does not return true after this,
  * the entry is in an undefined state. It is useful for RCU based
  * lockfree traversal.
  *
@@ -209,7 +209,8 @@ static inline void list_del_rcu(struct list_head *entry)
  * list_replace - replace old entry by new one
  * @old : the element to be replaced
  * @new : the new element to insert
- * Note: if 'old' was empty, it will be overwritten.
+ *
+ * If @old was empty, it will be overwritten.
  */
 static inline void list_replace(struct list_head *old,
 				struct list_head *new)
@@ -488,12 +489,12 @@ static inline void list_splice_init_rcu(struct list_head *list,
 	     pos = list_entry(pos->member.prev, typeof(*pos), member))
 
 /**
- * list_prepare_entry - prepare a pos entry for use in list_for_each_entry_continue
+ * list_prepare_entry - prepare a pos entry for use in list_for_each_entry_continue()
  * @pos:	the type * to use as a start point
  * @head:	the head of the list
  * @member:	the name of the list_struct within the struct.
  *
- * Prepares a pos entry for use as a start point in list_for_each_entry_continue.
+ * Prepares a pos entry for use as a start point in list_for_each_entry_continue().
  */
 #define list_prepare_entry(pos, head, member) \
 	((pos) ? : list_entry(head, typeof(*pos), member))

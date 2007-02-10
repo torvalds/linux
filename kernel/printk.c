@@ -483,7 +483,7 @@ static int have_callable_console(void)
  * printk - print a kernel message
  * @fmt: format string
  *
- * This is printk.  It can be called from any context.  We want it to work.
+ * This is printk().  It can be called from any context.  We want it to work.
  *
  * We try to grab the console_sem.  If we succeed, it's easy - we log the output and
  * call the console drivers.  If we fail to get the semaphore we place the output

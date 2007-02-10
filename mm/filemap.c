@@ -327,7 +327,7 @@ EXPORT_SYMBOL(sync_page_range);
  * @pos:	beginning offset in pages to write
  * @count:	number of bytes to write
  *
- * Note: Holding i_mutex across sync_page_range_nolock is not a good idea
+ * Note: Holding i_mutex across sync_page_range_nolock() is not a good idea
  * as it forces O_SYNC writers to different parts of the same file
  * to be serialised right until io completion.
  */
@@ -784,7 +784,7 @@ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
  * @mapping: target address_space
  * @index: the page index
  *
- * Same as grab_cache_page, but do not wait if the page is unavailable.
+ * Same as grab_cache_page(), but do not wait if the page is unavailable.
  * This is intended for speculative data generators, where the data can
  * be regenerated if the page couldn't be grabbed.  This routine should
  * be safe to call while holding the lock for another page.

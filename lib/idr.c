@@ -329,8 +329,8 @@ static void sub_remove(struct idr *idp, int shift, int id)
 
 /**
  * idr_remove - remove the given id and free it's slot
- * idp: idr handle
- * id: uniqueue key
+ * @idp: idr handle
+ * @id: unique key
  */
 void idr_remove(struct idr *idp, int id)
 {

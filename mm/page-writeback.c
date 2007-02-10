@@ -549,9 +549,7 @@ void __init page_writeback_init(void)
 }
 
 /**
- * generic_writepages - walk the list of dirty pages of the given
- *                      address space and writepage() all of them.
- *
+ * generic_writepages - walk the list of dirty pages of the given address space and writepage() all of them.
  * @mapping: address space structure to write
  * @wbc: subtract the number of written pages from *@wbc->nr_to_write
  *
@@ -698,7 +696,6 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
 
 /**
  * write_one_page - write out a single page and optionally wait on I/O
- *
  * @page: the page to write
  * @wait: if true, wait on writeout
  *

@@ -2282,7 +2282,7 @@ static int do_tkill(int tgid, int pid, int sig)
  *  @pid: the PID of the thread
  *  @sig: signal to be sent
  *
- *  This syscall also checks the tgid and returns -ESRCH even if the PID
+ *  This syscall also checks the @tgid and returns -ESRCH even if the PID
  *  exists but it's not belonging to the target process anymore. This
  *  method solves the problem of threads exiting and PIDs getting reused.
  */

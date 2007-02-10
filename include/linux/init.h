@@ -172,7 +172,7 @@ void __init parse_early_param(void);
  * module_init() - driver initialization entry point
  * @x: function to be run at kernel boot time or module insertion
  * 
- * module_init() will either be called during do_initcalls (if
+ * module_init() will either be called during do_initcalls() (if
  * builtin) or at module insertion time (if a module).  There can only
  * be one per module.
  */

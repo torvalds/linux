@@ -27,7 +27,7 @@ static void generic_swap(void *a, void *b, int size)
 	} while (--size > 0);
 }
 
-/*
+/**
  * sort - sort an array of elements
  * @base: pointer to data to sort
  * @num: number of elements

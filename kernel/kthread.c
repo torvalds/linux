@@ -50,7 +50,7 @@ static struct kthread_stop_info kthread_stop_info;
 /**
  * kthread_should_stop - should this kthread return now?
  *
- * When someone calls kthread_stop on your kthread, it will be woken
+ * When someone calls kthread_stop() on your kthread, it will be woken
  * and this will return true.  You should then return, and your return
  * value will be passed through to kthread_stop().
  */
@@ -143,7 +143,7 @@ static void keventd_create_kthread(struct work_struct *work)
  * it.  See also kthread_run(), kthread_create_on_cpu().
  *
  * When woken, the thread will run @threadfn() with @data as its
- * argument. @threadfn can either call do_exit() directly if it is a
+ * argument. @threadfn() can either call do_exit() directly if it is a
  * standalone thread for which noone will call kthread_stop(), or
  * return when 'kthread_should_stop()' is true (which means
  * kthread_stop() has been called).  The return value should be zero
@@ -192,7 +192,7 @@ EXPORT_SYMBOL(kthread_create);
  *
  * Description: This function is equivalent to set_cpus_allowed(),
  * except that @cpu doesn't need to be online, and the thread must be
- * stopped (i.e., just returned from kthread_create().
+ * stopped (i.e., just returned from kthread_create()).
  */
 void kthread_bind(struct task_struct *k, unsigned int cpu)
 {

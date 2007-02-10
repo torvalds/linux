@@ -85,7 +85,7 @@ static DEFINE_PER_CPU(tvec_base_t *, tvec_bases) = &boot_tvec_bases;
  * @j: the time in (absolute) jiffies that should be rounded
  * @cpu: the processor number on which the timeout will happen
  *
- * __round_jiffies rounds an absolute time in the future (in jiffies)
+ * __round_jiffies() rounds an absolute time in the future (in jiffies)
  * up or down to (approximately) full seconds. This is useful for timers
  * for which the exact time they fire does not matter too much, as long as
  * they fire approximately every X seconds.
@@ -98,7 +98,7 @@ static DEFINE_PER_CPU(tvec_base_t *, tvec_bases) = &boot_tvec_bases;
  * processors firing at the exact same time, which could lead
  * to lock contention or spurious cache line bouncing.
  *
- * The return value is the rounded version of the "j" parameter.
+ * The return value is the rounded version of the @j parameter.
  */
 unsigned long __round_jiffies(unsigned long j, int cpu)
 {
@@ -142,7 +142,7 @@ EXPORT_SYMBOL_GPL(__round_jiffies);
  * @j: the time in (relative) jiffies that should be rounded
  * @cpu: the processor number on which the timeout will happen
  *
- * __round_jiffies_relative rounds a time delta  in the future (in jiffies)
+ * __round_jiffies_relative() rounds a time delta  in the future (in jiffies)
  * up or down to (approximately) full seconds. This is useful for timers
  * for which the exact time they fire does not matter too much, as long as
  * they fire approximately every X seconds.
@@ -155,7 +155,7 @@ EXPORT_SYMBOL_GPL(__round_jiffies);
  * processors firing at the exact same time, which could lead
  * to lock contention or spurious cache line bouncing.
  *
- * The return value is the rounded version of the "j" parameter.
+ * The return value is the rounded version of the @j parameter.
  */
 unsigned long __round_jiffies_relative(unsigned long j, int cpu)
 {
@@ -173,7 +173,7 @@ EXPORT_SYMBOL_GPL(__round_jiffies_relative);
  * round_jiffies - function to round jiffies to a full second
  * @j: the time in (absolute) jiffies that should be rounded
  *
- * round_jiffies rounds an absolute time in the future (in jiffies)
+ * round_jiffies() rounds an absolute time in the future (in jiffies)
  * up or down to (approximately) full seconds. This is useful for timers
  * for which the exact time they fire does not matter too much, as long as
  * they fire approximately every X seconds.
@@ -182,7 +182,7 @@ EXPORT_SYMBOL_GPL(__round_jiffies_relative);
  * at the same time, rather than at various times spread out. The goal
  * of this is to have the CPU wake up less, which saves power.
  *
- * The return value is the rounded version of the "j" parameter.
+ * The return value is the rounded version of the @j parameter.
  */
 unsigned long round_jiffies(unsigned long j)
 {
@@ -194,7 +194,7 @@ EXPORT_SYMBOL_GPL(round_jiffies);
  * round_jiffies_relative - function to round jiffies to a full second
  * @j: the time in (relative) jiffies that should be rounded
  *
- * round_jiffies_relative rounds a time delta  in the future (in jiffies)
+ * round_jiffies_relative() rounds a time delta  in the future (in jiffies)
  * up or down to (approximately) full seconds. This is useful for timers
  * for which the exact time they fire does not matter too much, as long as
  * they fire approximately every X seconds.
@@ -203,7 +203,7 @@ EXPORT_SYMBOL_GPL(round_jiffies);
  * at the same time, rather than at various times spread out. The goal
  * of this is to have the CPU wake up less, which saves power.
  *
- * The return value is the rounded version of the "j" parameter.
+ * The return value is the rounded version of the @j parameter.
  */
 unsigned long round_jiffies_relative(unsigned long j)
 {
@@ -387,7 +387,7 @@ void add_timer_on(struct timer_list *timer, int cpu)
  * @timer: the timer to be modified
  * @expires: new timeout in jiffies
  *
- * mod_timer is a more efficient way to update the expire field of an
+ * mod_timer() is a more efficient way to update the expire field of an
  * active timer (if the timer is inactive it will be activated)
  *
  * mod_timer(timer, expires) is equivalent to:
@@ -490,7 +490,7 @@ out:
  * the timer it also makes sure the handler has finished executing on other
  * CPUs.
  *
- * Synchronization rules: callers must prevent restarting of the timer,
+ * Synchronization rules: Callers must prevent restarting of the timer,
  * otherwise this function is meaningless. It must not be called from
  * interrupt contexts. The caller must not hold locks which would prevent
  * completion of the timer's handler. The timer's handler must not call
