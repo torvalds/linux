@@ -51,7 +51,6 @@
 #include "xfs_refcache.h"
 #include "xfs_trans_space.h"
 #include "xfs_log_priv.h"
-#include "xfs_mac.h"
 
 STATIC int
 xfs_open(

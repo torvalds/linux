@@ -47,7 +47,6 @@
 #include "xfs_utils.h"
 #include "xfs_dir2_trace.h"
 #include "xfs_quota.h"
-#include "xfs_mac.h"
 #include "xfs_acl.h"
 
 
