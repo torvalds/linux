@@ -269,7 +269,6 @@ struct mxser_port {
 	struct mxser_mon mon_data;
 
 	spinlock_t slock;
-	struct work_struct tqueue;
 	wait_queue_head_t open_wait;
 	wait_queue_head_t delta_msr_wait;
 };
@@ -353,15 +352,6 @@ static void process_txrx_fifo(struct mxser_port *info)
 				info->xmit_fifo_size = Gpci_uart_info[i].xmit_fifo_size;
 				break;
 			}
-}
-
-static void mxser_do_softint(struct work_struct *work)
-{
-	struct mxser_port *info = container_of(work, struct mxser_port, tqueue);
-	struct tty_struct *tty = info->tty;
-
-	if (test_and_clear_bit(MXSER_EVENT_TXLOW, &info->event))
-		tty_wakeup(tty);
 }
 
 static unsigned char mxser_get_msr(int baseaddr, int mode, int port)
@@ -607,8 +597,8 @@ static int mxser_change_speed(struct mxser_port *info,
 						outb(info->IER, info->ioaddr +
 								UART_IER);
 					}
-					set_bit(MXSER_EVENT_TXLOW, &info->event);
-					schedule_work(&info->tqueue);				}
+					tty_wakeup(info->tty);
+				}
 			} else {
 				if (!(status & UART_MSR_CTS)) {
 					info->tty->hw_stopped = 1;
@@ -703,7 +693,6 @@ static void mxser_check_modem_status(struct mxser_port *port, int status)
 	if ((port->flags & ASYNC_CHECK_CD) && (status & UART_MSR_DDCD)) {
 		if (status & UART_MSR_DCD)
 			wake_up_interruptible(&port->open_wait);
-		schedule_work(&port->tqueue);
 	}
 
 	if (port->flags & ASYNC_CTS_FLOW) {
@@ -719,8 +708,7 @@ static void mxser_check_modem_status(struct mxser_port *port, int status)
 					outb(port->IER, port->ioaddr +
 							UART_IER);
 				}
-				set_bit(MXSER_EVENT_TXLOW, &port->event);
-				schedule_work(&port->tqueue);
+				tty_wakeup(port->tty);
 			}
 		} else {
 			if (!(status & UART_MSR_CTS)) {
@@ -2220,10 +2208,9 @@ static void mxser_transmit_chars(struct mxser_port *port)
 	port->mon_data.up_txcnt += (cnt - port->xmit_cnt);
 	port->icount.tx += (cnt - port->xmit_cnt);
 
-	if (port->xmit_cnt < WAKEUP_CHARS) {
-		set_bit(MXSER_EVENT_TXLOW, &port->event);
-		schedule_work(&port->tqueue);
-	}
+	if (port->xmit_cnt < WAKEUP_CHARS)
+		tty_wakeup(port->tty);
+
 	if (port->xmit_cnt <= 0) {
 		port->IER &= ~UART_IER_THRI;
 		outb(port->IER, port->ioaddr + UART_IER);
@@ -2400,7 +2387,6 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 		info->custom_divisor = info->baud_base * 16;
 		info->close_delay = 5 * HZ / 10;
 		info->closing_wait = 30 * HZ;
-		INIT_WORK(&info->tqueue, mxser_do_softint);
 		info->normal_termios = mxvar_sdriver->init_termios;
 		init_waitqueue_head(&info->open_wait);
 		init_waitqueue_head(&info->delta_msr_wait);
