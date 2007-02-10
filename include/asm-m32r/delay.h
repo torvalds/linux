@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_DELAY_H
 #define _ASM_M32R_DELAY_H
 
-/* $Id$ */
-
 /*
  * Copyright (C) 1993 Linus Torvalds
  *

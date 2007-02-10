@@ -1,8 +1,6 @@
 #ifndef _M32R_TERMIOS_H
 #define _M32R_TERMIOS_H
 
-/* orig : i386 2.6.0-test5 */
-
 #include <asm/termbits.h>
 #include <asm/ioctls.h>
 

@@ -1,9 +1,6 @@
 #ifndef _ASM_M32R_SMP_H
 #define _ASM_M32R_SMP_H
 
-/* $Id$ */
-
-
 #ifdef CONFIG_SMP
 #ifndef __ASSEMBLY__
 

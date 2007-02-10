@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_BYTEORDER_H
 #define _ASM_M32R_BYTEORDER_H
 
-/* $Id$ */
-
 #include <asm/types.h>
 
 #if !defined(__STRICT_ANSI__) || defined(__KERNEL__)

@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_PGTABLE_2LEVEL_H
 #define _ASM_M32R_PGTABLE_2LEVEL_H
-
 #ifdef __KERNEL__
-
 
 /*
  * traditional M32R two-level paging structure:
@@ -77,5 +75,4 @@ static inline pmd_t *pmd_offset(pgd_t * dir, unsigned long address)
 #define pgoff_to_pte(off)	((pte_t) { (((off) & 0xef) << 2) | (((off) >> 7) << 10) | _PAGE_FILE })
 
 #endif /* __KERNEL__ */
-
 #endif /* _ASM_M32R_PGTABLE_2LEVEL_H */

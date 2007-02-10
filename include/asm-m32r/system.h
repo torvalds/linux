@@ -339,4 +339,4 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 
 #define arch_align_stack(x) (x)
 
-#endif  /* _ASM_M32R_SYSTEM_H */
+#endif /* _ASM_M32R_SYSTEM_H */

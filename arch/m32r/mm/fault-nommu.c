@@ -7,8 +7,6 @@
  *    Copyright (C) 1995  Linus Torvalds
  */
 
-/* $Id: fault-nommu.c,v 1.1 2004/03/30 06:40:59 sakugawa Exp $ */
-
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -67,7 +65,7 @@ void bust_spinlocks(int yes)
 	 * without oops_in_progress set so that printk will give klogd
 	 * a poke.  Hold onto your hats...
 	 */
-	console_loglevel = 15;		/* NMI oopser may have shut the console up */
+	console_loglevel = 15;	/* NMI oopser may have shut the console up */
 	printk(" ");
 	console_loglevel = loglevel_save;
 }
@@ -161,4 +159,3 @@ void local_flush_tlb_all(void)
 {
 	BUG();
 }
-

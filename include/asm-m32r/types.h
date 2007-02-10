@@ -3,10 +3,6 @@
 
 #ifndef __ASSEMBLY__
 
-/* $Id$ */
-
-/* orig : i386 2.4.18 */
-
 typedef unsigned short umode_t;
 
 /*
@@ -59,4 +55,4 @@ typedef u64 dma64_addr_t;
 
 #endif /* __KERNEL__ */
 
-#endif  /* _ASM_M32R_TYPES_H */
+#endif /* _ASM_M32R_TYPES_H */
