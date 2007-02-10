@@ -1624,7 +1624,7 @@ struct time_interpolator *time_interpolator __read_mostly;
 static struct time_interpolator *time_interpolator_list __read_mostly;
 static DEFINE_SPINLOCK(time_interpolator_lock);
 
-static inline u64 time_interpolator_get_cycles(unsigned int src)
+static inline cycles_t time_interpolator_get_cycles(unsigned int src)
 {
 	unsigned long (*x)(void);
 
@@ -1650,8 +1650,8 @@ static inline u64 time_interpolator_get_counter(int writelock)
 
 	if (time_interpolator->jitter)
 	{
-		u64 lcycle;
-		u64 now;
+		cycles_t lcycle;
+		cycles_t now;
 
 		do {
 			lcycle = time_interpolator->last_cycle;
