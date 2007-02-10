@@ -98,6 +98,10 @@ static void fixup_winbond_82c105(struct pci_dev* dev)
 		if (dev->resource[i].flags & IORESOURCE_IO
 		    && dev->bus->number == 0 && dev->devfn == 0x81)
 			dev->resource[i].flags &= ~IORESOURCE_IO;
+		if (dev->resource[i].start == 0 && dev->resource[i].end) {
+			dev->resource[i].flags = 0;
+			dev->resource[i].end = 0;
+		}
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105,
