@@ -16,7 +16,7 @@
 #include "user.h"
 #include "sysdep/ptrace.h"
 #include "mconsole.h"
-#include "umid.h"
+#include "os.h"
 #include "user_util.h"
 
 static struct mconsole_command commands[] = {
