@@ -212,12 +212,10 @@ module_param(verbose, bool, 0644);
 
 static struct tty_driver *moxaDriver;
 static struct moxa_str moxaChannels[MAX_PORTS];
-static unsigned char *moxaXmitBuff;
 static int moxaTimer_on;
 static struct timer_list moxaTimer;
 static int moxaEmptyTimer_on[MAX_PORTS];
 static struct timer_list moxaEmptyTimer[MAX_PORTS];
-static struct semaphore moxaBuffSem;
 
 /*
  * static functions:
@@ -343,7 +341,6 @@ static int __init moxa_init(void)
 	if (!moxaDriver)
 		return -ENOMEM;
 
-	init_MUTEX(&moxaBuffSem);
 	moxaDriver->owner = THIS_MODULE;
 	moxaDriver->name = "ttyMX";
 	moxaDriver->major = ttymajor;
@@ -359,8 +356,6 @@ static int __init moxa_init(void)
 	moxaDriver->init_termios.c_ospeed = 9600;
 	moxaDriver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(moxaDriver, &moxa_ops);
-
-	moxaXmitBuff = NULL;
 
 	for (i = 0, ch = moxaChannels; i < MAX_PORTS; i++, ch++) {
 		ch->type = PORT_16550A;
@@ -533,7 +528,6 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 	struct moxa_str *ch;
 	int port;
 	int retval;
-	unsigned long page;
 
 	port = PORTNO(tty);
 	if (port == MAX_PORTS) {
@@ -543,21 +537,6 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 		tty->driver_data = NULL;
 		return (-ENODEV);
 	}
-	down(&moxaBuffSem);
-	if (!moxaXmitBuff) {
-		page = get_zeroed_page(GFP_KERNEL);
-		if (!page) {
-			up(&moxaBuffSem);
-			return (-ENOMEM);
-		}
-		/* This test is guarded by the BuffSem so no longer needed
-		   delete me in 2.5 */
-		if (moxaXmitBuff)
-			free_page(page);
-		else
-			moxaXmitBuff = (unsigned char *) page;
-	}
-	up(&moxaBuffSem);
 
 	ch = &moxaChannels[port];
 	ch->count++;
@@ -739,8 +718,7 @@ static void moxa_put_char(struct tty_struct *tty, unsigned char c)
 		return;
 	port = ch->port;
 	spin_lock_irqsave(&moxa_lock, flags);
-	moxaXmitBuff[0] = c;
-	MoxaPortWriteData(port, moxaXmitBuff, 1);
+	MoxaPortWriteData(port, &c, 1);
 	spin_unlock_irqrestore(&moxa_lock, flags);
 	/************************************************
 	if ( !(ch->statusflags & LOWWAIT) && (MoxaPortTxFree(port) <= 100) )
