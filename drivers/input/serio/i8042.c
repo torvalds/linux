@@ -543,6 +543,7 @@ static int __devinit i8042_check_aux(void)
 {
 	int retval = -1;
 	int irq_registered = 0;
+	int aux_loop_broken = 0;
 	unsigned long flags;
 	unsigned char param;
 
@@ -572,6 +573,8 @@ static int __devinit i8042_check_aux(void)
 		if (i8042_command(&param, I8042_CMD_AUX_TEST) ||
 		    (param && param != 0xfa && param != 0xff))
 			return -1;
+
+		aux_loop_broken = 1;
 	}
 
 /*
@@ -595,7 +598,7 @@ static int __devinit i8042_check_aux(void)
  * used it for a PCI card or somethig else.
  */
 
-	if (i8042_noloop) {
+	if (i8042_noloop || aux_loop_broken) {
 /*
  * Without LOOP command we can't test AUX IRQ delivery. Assume the port
  * is working and hope we are right.
