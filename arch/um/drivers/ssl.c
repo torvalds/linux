@@ -64,6 +64,7 @@ static struct line_driver driver = {
 	.symlink_from 		= "serial",
 	.symlink_to 		= "tts",
 	.mc  = {
+		.list		= LIST_HEAD_INIT(driver.mc.list),
 		.name  		= "ssl",
 		.config 	= ssl_config,
 		.get_config 	= ssl_get_config,
