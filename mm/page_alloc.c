@@ -2877,20 +2877,23 @@ static void __init sort_node_map(void)
 			cmp_node_active_region, NULL);
 }
 
-/* Find the lowest pfn for a node. This depends on a sorted early_node_map */
+/* Find the lowest pfn for a node */
 unsigned long __init find_min_pfn_for_node(unsigned long nid)
 {
 	int i;
-
-	/* Regions in the early_node_map can be in any order */
-	sort_node_map();
+	unsigned long min_pfn = ULONG_MAX;
 
 	/* Assuming a sorted map, the first range found has the starting pfn */
 	for_each_active_range_index_in_nid(i, nid)
-		return early_node_map[i].start_pfn;
+		min_pfn = min(min_pfn, early_node_map[i].start_pfn);
 
-	printk(KERN_WARNING "Could not find start_pfn for node %lu\n", nid);
-	return 0;
+	if (min_pfn == ULONG_MAX) {
+		printk(KERN_WARNING
+			"Could not find start_pfn for node %lu\n", nid);
+		return 0;
+	}
+
+	return min_pfn;
 }
 
 /**
@@ -2938,6 +2941,9 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 {
 	unsigned long nid;
 	enum zone_type i;
+
+	/* Sort early_node_map as initialisation assumes it is sorted */
+	sort_node_map();
 
 	/* Record where the zone boundaries are */
 	memset(arch_zone_lowest_possible_pfn, 0,
