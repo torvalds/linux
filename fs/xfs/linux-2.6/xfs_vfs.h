@@ -92,6 +92,7 @@ typedef enum {
 #define SYNC_REFCACHE		0x0040  /* prune some of the nfs ref cache */
 #define SYNC_REMOUNT		0x0080  /* remount readonly, no dummy LRs */
 #define SYNC_QUIESCE		0x0100  /* quiesce fileystem for a snapshot */
+#define SYNC_DIO_WAIT		0x0200  /* wait for direct I/O to complete */
 
 #define SHUTDOWN_META_IO_ERROR	0x0001	/* write attempt to metadata failed */
 #define SHUTDOWN_LOG_IO_ERROR	0x0002	/* write attempt to the log failed */

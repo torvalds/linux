@@ -872,6 +872,10 @@ xfs_statvfs(
  *		       this by simply making sure the log gets flushed
  *		       if SYNC_BDFLUSH is set, and by actually writing it
  *		       out otherwise.
+ *	SYNC_DIO_WAIT - The caller wants us to wait for all direct I/Os
+ *		       as well to ensure all data I/O completes before we
+ *		       return. Forms the drain side of the write barrier needed
+ *		       to safely quiesce the filesystem.
  *
  */
 /*ARGSUSED*/
@@ -883,10 +887,7 @@ xfs_sync(
 {
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 
-	if (unlikely(flags == SYNC_QUIESCE))
-		return xfs_quiesce_fs(mp);
-	else
-		return xfs_syncsub(mp, flags, NULL);
+	return xfs_syncsub(mp, flags, NULL);
 }
 
 /*
@@ -1172,6 +1173,12 @@ xfs_sync_inodes(
 			}
 
 		}
+		/*
+		 * When freezing, we need to wait ensure direct I/O is complete
+		 * as well to ensure all data modification is complete here
+		 */
+		if (flags & SYNC_DIO_WAIT)
+			vn_iowait(vp);
 
 		if (flags & SYNC_BDFLUSH) {
 			if ((flags & SYNC_ATTR) &&
@@ -1950,14 +1957,25 @@ xfs_showargs(
 	return 0;
 }
 
+/*
+ * Second stage of a freeze. The data is already frozen, now we have to take
+ * care of the metadata. New transactions are already blocked, so we need to
+ * wait for any remaining transactions to drain out before proceding.
+ */
 STATIC void
 xfs_freeze(
 	bhv_desc_t	*bdp)
 {
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 
+	/* wait for all modifications to complete */
 	while (atomic_read(&mp->m_active_trans) > 0)
 		delay(100);
+
+	/* flush inodes and push all remaining buffers out to disk */
+	xfs_quiesce_fs(mp);
+
+	BUG_ON(atomic_read(&mp->m_active_trans) > 0);
 
 	/* Push the superblock and write an unmount record */
 	xfs_log_unmount_write(mp);

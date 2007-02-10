@@ -659,9 +659,17 @@ xfs_fs_sync_super(
 	int			error;
 	int			flags;
 
-	if (unlikely(sb->s_frozen == SB_FREEZE_WRITE))
-		flags = SYNC_QUIESCE;
-	else
+	if (unlikely(sb->s_frozen == SB_FREEZE_WRITE)) {
+		/*
+		 * First stage of freeze - no more writers will make progress
+		 * now we are here, so we flush delwri and delalloc buffers
+		 * here, then wait for all I/O to complete.  Data is frozen at
+		 * that point. Metadata is not frozen, transactions can still
+		 * occur here so don't bother flushing the buftarg (i.e
+		 * SYNC_QUIESCE) because it'll just get dirty again.
+		 */
+		flags = SYNC_FSDATA | SYNC_DELWRI | SYNC_WAIT | SYNC_DIO_WAIT;
+	} else
 		flags = SYNC_FSDATA | (wait ? SYNC_WAIT : 0);
 
 	error = bhv_vfs_sync(vfsp, flags, NULL);
