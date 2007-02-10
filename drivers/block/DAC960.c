@@ -177,7 +177,7 @@ static void DAC960_AnnounceDriver(DAC960_Controller_T *Controller)
   DAC960_Failure prints a standardized error message, and then returns false.
 */
 
-static boolean DAC960_Failure(DAC960_Controller_T *Controller,
+static bool DAC960_Failure(DAC960_Controller_T *Controller,
 			      unsigned char *ErrorMessage)
 {
   DAC960_Error("While configuring DAC960 PCI RAID Controller at\n",
@@ -206,7 +206,7 @@ static boolean DAC960_Failure(DAC960_Controller_T *Controller,
   that are passed in.
  */
 
-static boolean init_dma_loaf(struct pci_dev *dev, struct dma_loaf *loaf,
+static bool init_dma_loaf(struct pci_dev *dev, struct dma_loaf *loaf,
 								 size_t len)
 {
 	void *cpu_addr;
@@ -250,7 +250,7 @@ static void free_dma_loaf(struct pci_dev *dev, struct dma_loaf *loaf_handle)
   failure.
 */
 
-static boolean DAC960_CreateAuxiliaryStructures(DAC960_Controller_T *Controller)
+static bool DAC960_CreateAuxiliaryStructures(DAC960_Controller_T *Controller)
 {
   int CommandAllocationLength, CommandAllocationGroupSize;
   int CommandsRemaining = 0, CommandIdentifier, CommandGroupByteCount;
@@ -790,7 +790,7 @@ static void DAC960_ExecuteCommand(DAC960_Command_T *Command)
   on failure.
 */
 
-static boolean DAC960_V1_ExecuteType3(DAC960_Controller_T *Controller,
+static bool DAC960_V1_ExecuteType3(DAC960_Controller_T *Controller,
 				      DAC960_V1_CommandOpcode_T CommandOpcode,
 				      dma_addr_t DataDMA)
 {
@@ -814,7 +814,7 @@ static boolean DAC960_V1_ExecuteType3(DAC960_Controller_T *Controller,
   on failure.
 */
 
-static boolean DAC960_V1_ExecuteType3B(DAC960_Controller_T *Controller,
+static bool DAC960_V1_ExecuteType3B(DAC960_Controller_T *Controller,
 				       DAC960_V1_CommandOpcode_T CommandOpcode,
 				       unsigned char CommandOpcode2,
 				       dma_addr_t DataDMA)
@@ -840,7 +840,7 @@ static boolean DAC960_V1_ExecuteType3B(DAC960_Controller_T *Controller,
   on failure.
 */
 
-static boolean DAC960_V1_ExecuteType3D(DAC960_Controller_T *Controller,
+static bool DAC960_V1_ExecuteType3D(DAC960_Controller_T *Controller,
 				       DAC960_V1_CommandOpcode_T CommandOpcode,
 				       unsigned char Channel,
 				       unsigned char TargetID,
@@ -870,7 +870,7 @@ static boolean DAC960_V1_ExecuteType3D(DAC960_Controller_T *Controller,
   Return data in The controller's HealthStatusBuffer, which is dma-able memory
 */
 
-static boolean DAC960_V2_GeneralInfo(DAC960_Controller_T *Controller)
+static bool DAC960_V2_GeneralInfo(DAC960_Controller_T *Controller)
 {
   DAC960_Command_T *Command = DAC960_AllocateCommand(Controller);
   DAC960_V2_CommandMailbox_T *CommandMailbox = &Command->V2.CommandMailbox;
@@ -908,7 +908,7 @@ static boolean DAC960_V2_GeneralInfo(DAC960_Controller_T *Controller)
   memory buffer.
 */
 
-static boolean DAC960_V2_NewControllerInfo(DAC960_Controller_T *Controller)
+static bool DAC960_V2_NewControllerInfo(DAC960_Controller_T *Controller)
 {
   DAC960_Command_T *Command = DAC960_AllocateCommand(Controller);
   DAC960_V2_CommandMailbox_T *CommandMailbox = &Command->V2.CommandMailbox;
@@ -946,7 +946,7 @@ static boolean DAC960_V2_NewControllerInfo(DAC960_Controller_T *Controller)
   Data is returned in the controller's V2.NewLogicalDeviceInformation
 */
 
-static boolean DAC960_V2_NewLogicalDeviceInfo(DAC960_Controller_T *Controller,
+static bool DAC960_V2_NewLogicalDeviceInfo(DAC960_Controller_T *Controller,
 					   unsigned short LogicalDeviceNumber)
 {
   DAC960_Command_T *Command = DAC960_AllocateCommand(Controller);
@@ -997,7 +997,7 @@ static boolean DAC960_V2_NewLogicalDeviceInfo(DAC960_Controller_T *Controller,
 
 */
 
-static boolean DAC960_V2_NewPhysicalDeviceInfo(DAC960_Controller_T *Controller,
+static bool DAC960_V2_NewPhysicalDeviceInfo(DAC960_Controller_T *Controller,
 					    unsigned char Channel,
 					    unsigned char TargetID,
 					    unsigned char LogicalUnit)
@@ -1082,7 +1082,7 @@ static void DAC960_V2_ConstructNewUnitSerialNumber(
   memory buffer.
 */
 
-static boolean DAC960_V2_NewInquiryUnitSerialNumber(DAC960_Controller_T *Controller,
+static bool DAC960_V2_NewInquiryUnitSerialNumber(DAC960_Controller_T *Controller,
 			int Channel, int TargetID, int LogicalUnit)
 {
       DAC960_Command_T *Command;
@@ -1110,7 +1110,7 @@ static boolean DAC960_V2_NewInquiryUnitSerialNumber(DAC960_Controller_T *Control
   success and false on failure.
 */
 
-static boolean DAC960_V2_DeviceOperation(DAC960_Controller_T *Controller,
+static bool DAC960_V2_DeviceOperation(DAC960_Controller_T *Controller,
 					 DAC960_V2_IOCTL_Opcode_T IOCTL_Opcode,
 					 DAC960_V2_OperationDevice_T
 					   OperationDevice)
@@ -1142,7 +1142,7 @@ static boolean DAC960_V2_DeviceOperation(DAC960_Controller_T *Controller,
   other dma mapped memory.
 */
 
-static boolean DAC960_V1_EnableMemoryMailboxInterface(DAC960_Controller_T
+static bool DAC960_V1_EnableMemoryMailboxInterface(DAC960_Controller_T
 						      *Controller)
 {
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
@@ -1348,7 +1348,7 @@ skip_mailboxes:
   the structures that are contained in that region.
 */
 
-static boolean DAC960_V2_EnableMemoryMailboxInterface(DAC960_Controller_T
+static bool DAC960_V2_EnableMemoryMailboxInterface(DAC960_Controller_T
 						      *Controller)
 {
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
@@ -1526,7 +1526,7 @@ static boolean DAC960_V2_EnableMemoryMailboxInterface(DAC960_Controller_T
   from DAC960 V1 Firmware Controllers and initializes the Controller structure.
 */
 
-static boolean DAC960_V1_ReadControllerConfiguration(DAC960_Controller_T
+static bool DAC960_V1_ReadControllerConfiguration(DAC960_Controller_T
 						     *Controller)
 {
   DAC960_V1_Enquiry2_T *Enquiry2;
@@ -1767,7 +1767,7 @@ static boolean DAC960_V1_ReadControllerConfiguration(DAC960_Controller_T
   from DAC960 V2 Firmware Controllers and initializes the Controller structure.
 */
 
-static boolean DAC960_V2_ReadControllerConfiguration(DAC960_Controller_T
+static bool DAC960_V2_ReadControllerConfiguration(DAC960_Controller_T
 						     *Controller)
 {
   DAC960_V2_ControllerInfo_T *ControllerInfo =
@@ -1898,7 +1898,7 @@ static boolean DAC960_V2_ReadControllerConfiguration(DAC960_Controller_T
   for Controller.
 */
 
-static boolean DAC960_ReportControllerConfiguration(DAC960_Controller_T
+static bool DAC960_ReportControllerConfiguration(DAC960_Controller_T
 						    *Controller)
 {
   DAC960_Info("Configuring Mylex %s PCI RAID Controller\n",
@@ -1947,7 +1947,7 @@ static boolean DAC960_ReportControllerConfiguration(DAC960_Controller_T
   Controller.
 */
 
-static boolean DAC960_V1_ReadDeviceConfiguration(DAC960_Controller_T
+static bool DAC960_V1_ReadDeviceConfiguration(DAC960_Controller_T
 						 *Controller)
 {
   struct dma_loaf local_dma;
@@ -2095,7 +2095,7 @@ static boolean DAC960_V1_ReadDeviceConfiguration(DAC960_Controller_T
   device connected to Controller.
 */
 
-static boolean DAC960_V2_ReadDeviceConfiguration(DAC960_Controller_T
+static bool DAC960_V2_ReadDeviceConfiguration(DAC960_Controller_T
 						 *Controller)
 {
   unsigned char Channel = 0, TargetID = 0, LogicalUnit = 0;
@@ -2219,7 +2219,7 @@ static void DAC960_SanitizeInquiryData(DAC960_SCSI_Inquiry_T
   Information for DAC960 V1 Firmware Controllers.
 */
 
-static boolean DAC960_V1_ReportDeviceConfiguration(DAC960_Controller_T
+static bool DAC960_V1_ReportDeviceConfiguration(DAC960_Controller_T
 						   *Controller)
 {
   int LogicalDriveNumber, Channel, TargetID;
@@ -2316,7 +2316,7 @@ static boolean DAC960_V1_ReportDeviceConfiguration(DAC960_Controller_T
   Information for DAC960 V2 Firmware Controllers.
 */
 
-static boolean DAC960_V2_ReportDeviceConfiguration(DAC960_Controller_T
+static bool DAC960_V2_ReportDeviceConfiguration(DAC960_Controller_T
 						   *Controller)
 {
   int PhysicalDeviceIndex, LogicalDriveNumber;
@@ -2501,7 +2501,7 @@ static boolean DAC960_V2_ReportDeviceConfiguration(DAC960_Controller_T
   associated with Controller.
 */
 
-static boolean DAC960_RegisterBlockDevice(DAC960_Controller_T *Controller)
+static bool DAC960_RegisterBlockDevice(DAC960_Controller_T *Controller)
 {
   int MajorNumber = DAC960_MAJOR + Controller->ControllerNumber;
   int n;
@@ -2582,7 +2582,7 @@ static void DAC960_ComputeGenericDiskInfo(DAC960_Controller_T *Controller)
   It returns true for fatal errors and false otherwise.
 */
 
-static boolean DAC960_ReportErrorStatus(DAC960_Controller_T *Controller,
+static bool DAC960_ReportErrorStatus(DAC960_Controller_T *Controller,
 					unsigned char ErrorStatus,
 					unsigned char Parameter0,
 					unsigned char Parameter1)
@@ -3048,7 +3048,7 @@ Failure:
   DAC960_InitializeController initializes Controller.
 */
 
-static boolean 
+static bool 
 DAC960_InitializeController(DAC960_Controller_T *Controller)
 {
   if (DAC960_ReadControllerConfiguration(Controller) &&
@@ -3445,8 +3445,8 @@ static void DAC960_RequestFunction(struct request_queue *RequestQueue)
   individual Buffer.
 */
 
-static inline boolean DAC960_ProcessCompletedRequest(DAC960_Command_T *Command,
-						 boolean SuccessfulIO)
+static inline bool DAC960_ProcessCompletedRequest(DAC960_Command_T *Command,
+						 bool SuccessfulIO)
 {
 	struct request *Request = Command->Request;
 	int UpToDate;
@@ -3572,7 +3572,7 @@ static void DAC960_V1_ProcessCompletedCommand(DAC960_Command_T *Command)
   else if (CommandType == DAC960_ReadRetryCommand ||
 	   CommandType == DAC960_WriteRetryCommand)
     {
-      boolean normal_completion;
+      bool normal_completion;
 #ifdef FORCE_RETRY_FAILURE_DEBUG
       static int retry_count = 1;
 #endif
@@ -4659,7 +4659,7 @@ static void DAC960_V2_ProcessCompletedCommand(DAC960_Command_T *Command)
   else if (CommandType == DAC960_ReadRetryCommand ||
 	   CommandType == DAC960_WriteRetryCommand)
     {
-      boolean normal_completion;
+      bool normal_completion;
 
 #ifdef FORCE_RETRY_FAILURE_DEBUG
       static int retry_count = 1;
@@ -5632,7 +5632,7 @@ static void DAC960_MonitoringTimerFunction(unsigned long TimerData)
 	&Controller->V2.ControllerInformation;
       unsigned int StatusChangeCounter =
 	Controller->V2.HealthStatusBuffer->StatusChangeCounter;
-      boolean ForceMonitoringCommand = false;
+      bool ForceMonitoringCommand = false;
       if (time_after(jiffies, Controller->SecondaryMonitoringTime
 	  + DAC960_SecondaryMonitoringInterval))
 	{
@@ -5696,7 +5696,7 @@ static void DAC960_MonitoringTimerFunction(unsigned long TimerData)
   necessary.  It returns true if there is enough room and false otherwise.
 */
 
-static boolean DAC960_CheckStatusBuffer(DAC960_Controller_T *Controller,
+static bool DAC960_CheckStatusBuffer(DAC960_Controller_T *Controller,
 					unsigned int ByteCount)
 {
   unsigned char *NewStatusBuffer;
@@ -5744,7 +5744,7 @@ static void DAC960_Message(DAC960_MessageLevel_T MessageLevel,
 			   ...)
 {
   static unsigned char Buffer[DAC960_LineBufferSize];
-  static boolean BeginningOfLine = true;
+  static bool BeginningOfLine = true;
   va_list Arguments;
   int Length = 0;
   va_start(Arguments, Controller);
@@ -5837,7 +5837,7 @@ static void DAC960_Message(DAC960_MessageLevel_T MessageLevel,
   Channel and TargetID and returns true on success and false on failure.
 */
 
-static boolean DAC960_ParsePhysicalDevice(DAC960_Controller_T *Controller,
+static bool DAC960_ParsePhysicalDevice(DAC960_Controller_T *Controller,
 					  char *UserCommandString,
 					  unsigned char *Channel,
 					  unsigned char *TargetID)
@@ -5870,7 +5870,7 @@ static boolean DAC960_ParsePhysicalDevice(DAC960_Controller_T *Controller,
   returns true on success and false on failure.
 */
 
-static boolean DAC960_ParseLogicalDrive(DAC960_Controller_T *Controller,
+static bool DAC960_ParseLogicalDrive(DAC960_Controller_T *Controller,
 					char *UserCommandString,
 					unsigned char *LogicalDriveNumber)
 {
@@ -5951,7 +5951,7 @@ static void DAC960_V1_SetDeviceState(DAC960_Controller_T *Controller,
   Controllers.
 */
 
-static boolean DAC960_V1_ExecuteUserCommand(DAC960_Controller_T *Controller,
+static bool DAC960_V1_ExecuteUserCommand(DAC960_Controller_T *Controller,
 					    unsigned char *UserCommand)
 {
   DAC960_Command_T *Command;
@@ -6166,7 +6166,7 @@ failure:
   on failure.
 */
 
-static boolean DAC960_V2_TranslatePhysicalDevice(DAC960_Command_T *Command,
+static bool DAC960_V2_TranslatePhysicalDevice(DAC960_Command_T *Command,
 						 unsigned char Channel,
 						 unsigned char TargetID,
 						 unsigned short
@@ -6213,7 +6213,7 @@ static boolean DAC960_V2_TranslatePhysicalDevice(DAC960_Command_T *Command,
   Controllers.
 */
 
-static boolean DAC960_V2_ExecuteUserCommand(DAC960_Controller_T *Controller,
+static bool DAC960_V2_ExecuteUserCommand(DAC960_Controller_T *Controller,
 					    unsigned char *UserCommand)
 {
   DAC960_Command_T *Command;
