@@ -2398,13 +2398,9 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 		outb(inb(info->ioaddr + UART_IER) & 0xf0,
 			info->ioaddr + UART_IER);
 	}
-	/*
-	 * Allocate the IRQ if necessary
-	 */
 
-	retval = request_irq(brd->irq, mxser_interrupt,
-			(brd->ports[0].flags & ASYNC_SHARE_IRQ) ? IRQF_SHARED :
-			IRQF_DISABLED, "mxser", brd);
+	retval = request_irq(brd->irq, mxser_interrupt, IRQF_SHARED, "mxser",
+			brd);
 	if (retval) {
 		printk(KERN_ERR "Board %s: Request irq failed, IRQ (%d) may "
 			"conflict with another device.\n",
