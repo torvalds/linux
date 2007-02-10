@@ -2348,7 +2348,6 @@ static void mxser_release_res(struct mxser_board *brd, struct pci_dev *pdev,
 #ifdef CONFIG_PCI
 		pci_release_region(pdev, 2);
 		pci_release_region(pdev, 3);
-		pci_dev_put(pdev);
 #endif
 	} else {
 		release_region(brd->ports[0].ioaddr, 8 * brd->info->nports);
