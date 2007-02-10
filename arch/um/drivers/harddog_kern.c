@@ -44,12 +44,13 @@
 #include <linux/reboot.h>
 #include <linux/smp_lock.h>
 #include <linux/init.h>
+#include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include "mconsole.h"
 
 MODULE_LICENSE("GPL");
 
-/* Locked by the BKL in harddog_open and harddog_release */
+static DEFINE_SPINLOCK(lock);
 static int timer_alive;
 static int harddog_in_fd = -1;
 static int harddog_out_fd = -1;
@@ -62,12 +63,12 @@ extern int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock);
 
 static int harddog_open(struct inode *inode, struct file *file)
 {
-	int err;
+	int err = -EBUSY;
 	char *sock = NULL;
 
-	lock_kernel();
+	spin_lock(&lock);
 	if(timer_alive)
-		return -EBUSY;
+		goto err;
 #ifdef CONFIG_HARDDOG_NOWAYOUT	 
 	__module_get(THIS_MODULE);
 #endif
@@ -76,11 +77,15 @@ static int harddog_open(struct inode *inode, struct file *file)
 	sock = mconsole_notify_socket();
 #endif
 	err = start_watchdog(&harddog_in_fd, &harddog_out_fd, sock);
-	if(err) return(err);
+	if(err)
+		goto err;
 
 	timer_alive = 1;
-	unlock_kernel();
+	spin_unlock(&lock);
 	return nonseekable_open(inode, file);
+err:
+	spin_unlock(&lock);
+	return err;
 }
 
 extern void stop_watchdog(int in_fd, int out_fd);
@@ -90,14 +95,16 @@ static int harddog_release(struct inode *inode, struct file *file)
 	/*
 	 *	Shut off the timer.
 	 */
-	lock_kernel();
+
+	spin_lock(&lock);
 
 	stop_watchdog(harddog_in_fd, harddog_out_fd);
 	harddog_in_fd = -1;
 	harddog_out_fd = -1;
 
 	timer_alive=0;
-	unlock_kernel();
+	spin_unlock(&lock);
+
 	return 0;
 }
 
