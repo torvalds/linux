@@ -2707,10 +2707,24 @@ xfs_idestroy(
 	ktrace_free(ip->i_dir_trace);
 #endif
 	if (ip->i_itemp) {
-		/* XXXdpd should be able to assert this but shutdown
-		 * is leaving the AIL behind. */
-		ASSERT(((ip->i_itemp->ili_item.li_flags & XFS_LI_IN_AIL) == 0) ||
-		       XFS_FORCED_SHUTDOWN(ip->i_mount));
+		/*
+		 * Only if we are shutting down the fs will we see an
+		 * inode still in the AIL. If it is there, we should remove
+		 * it to prevent a use-after-free from occurring.
+		 */
+		xfs_mount_t	*mp = ip->i_mount;
+		xfs_log_item_t	*lip = &ip->i_itemp->ili_item;
+		int		s;
+
+		ASSERT(((lip->li_flags & XFS_LI_IN_AIL) == 0) ||
+				       XFS_FORCED_SHUTDOWN(ip->i_mount));
+		if (lip->li_flags & XFS_LI_IN_AIL) {
+			AIL_LOCK(mp, s);
+			if (lip->li_flags & XFS_LI_IN_AIL)
+				xfs_trans_delete_ail(mp, lip, s);
+			else
+				AIL_UNLOCK(mp, s);
+		}
 		xfs_inode_item_destroy(ip);
 	}
 	kmem_zone_free(xfs_inode_zone, ip);
