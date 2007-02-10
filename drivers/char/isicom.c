@@ -213,8 +213,6 @@ struct	isi_port {
 	struct tty_struct 	* tty;
 	wait_queue_head_t	close_wait;
 	wait_queue_head_t	open_wait;
-	struct work_struct	hangup_tq;
-	struct work_struct	bh_tqueue;
 	unsigned char		* xmit_buf;
 	int			xmit_head;
 	int			xmit_tail;
@@ -510,7 +508,7 @@ static void isicom_tx(unsigned long _data)
 		if (port->xmit_cnt <= 0)
 			port->status &= ~ISI_TXOK;
 		if (port->xmit_cnt <= WAKEUP_CHARS)
-			schedule_work(&port->bh_tqueue);
+			tty_wakeup(tty);
 		unlock_card(&isi_card[card]);
 	}
 
@@ -522,21 +520,6 @@ sched_again:
 	}
 
 	mod_timer(&tx, jiffies + msecs_to_jiffies(10));
-}
-
-/* 	Interrupt handlers 	*/
-
-
-static void isicom_bottomhalf(struct work_struct *work)
-{
-	struct isi_port *port = container_of(work, struct isi_port, bh_tqueue);
-	struct tty_struct *tty = port->tty;
-
-	if (!tty)
-		return;
-
-	tty_wakeup(tty);
-	wake_up_interruptible(&tty->write_wait);
 }
 
 /*
@@ -609,7 +592,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 						pr_dbg("interrupt: DCD->low.\n"
 							);
 						port->status &= ~ISI_DCD;
-						schedule_work(&port->hangup_tq);
+						tty_hangup(tty);
 					}
 				} else if (header & ISI_DCD) {
 				/* Carrier has been detected */
@@ -631,7 +614,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 						/* start tx ing */
 						port->status |= (ISI_TXOK
 							| ISI_CTS);
-						schedule_work(&port->bh_tqueue);
+						tty_wakeup(tty);
 					}
 				} else if (!(header & ISI_CTS)) {
 					port->tty->hw_stopped = 1;
@@ -1460,17 +1443,6 @@ static void isicom_start(struct tty_struct *tty)
 	port->status |= ISI_TXOK;
 }
 
-/* hangup et all */
-static void do_isicom_hangup(struct work_struct *work)
-{
-	struct isi_port *port = container_of(work, struct isi_port, hangup_tq);
-	struct tty_struct *tty;
-
-	tty = port->tty;
-	if (tty)
-		tty_hangup(tty);
-}
-
 static void isicom_hangup(struct tty_struct *tty)
 {
 	struct isi_port *port = tty->driver_data;
@@ -1858,8 +1830,6 @@ static int __init isicom_init(void)
 			port->channel = channel;
 			port->close_delay = 50 * HZ/100;
 			port->closing_wait = 3000 * HZ/100;
-			INIT_WORK(&port->hangup_tq, do_isicom_hangup);
-			INIT_WORK(&port->bh_tqueue, isicom_bottomhalf);
 			port->status = 0;
 			init_waitqueue_head(&port->open_wait);
 			init_waitqueue_head(&port->close_wait);
