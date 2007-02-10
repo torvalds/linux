@@ -540,6 +540,11 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	base = card->base;
+
+	/* did the card interrupt us? */
+	if (!(inw(base + 0x0e) & 0x02))
+		return IRQ_NONE;
+
 	spin_lock(&card->card_lock);
 
 	/*
