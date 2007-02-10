@@ -365,7 +365,7 @@ sub dump_section {
 #  parameterlist => @list of parameters
 #  parameterdescs => %parameter descriptions
 #  sectionlist => @list of sections
-#  sections => %descriont descriptions
+#  sections => %section descriptions
 #
 
 sub output_highlight {
@@ -953,7 +953,11 @@ sub output_function_man(%) {
     print $args{'function'}." \\- ".$args{'purpose'}."\n";
 
     print ".SH SYNOPSIS\n";
-    print ".B \"".$args{'functiontype'}."\" ".$args{'function'}."\n";
+    if ($args{'functiontype'} ne "") {
+	print ".B \"".$args{'functiontype'}."\" ".$args{'function'}."\n";
+    } else {
+	print ".B \"".$args{'function'}."\n";
+    }
     $count = 0;
     my $parenth = "(";
     my $post = ",";
@@ -1118,13 +1122,19 @@ sub output_intro_man(%) {
 sub output_function_text(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
+    my $start;
 
     print "Name:\n\n";
     print $args{'function'}." - ".$args{'purpose'}."\n";
 
     print "\nSynopsis:\n\n";
-    my $start=$args{'functiontype'}." ".$args{'function'}." (";
+    if ($args{'functiontype'} ne "") {
+	$start = $args{'functiontype'}." ".$args{'function'}." (";
+    } else {
+	$start = $args{'function'}." (";
+    }
     print $start;
+
     my $count = 0;
     foreach my $parameter (@{$args{'parameterlist'}}) {
 	$type = $args{'parametertypes'}{$parameter};
@@ -1710,6 +1720,7 @@ sub process_file($) {
     my $file;
     my $identifier;
     my $func;
+    my $descr;
     my $initial_section_counter = $section_counter;
 
     if (defined($ENV{'SRCTREE'})) {
@@ -1753,7 +1764,12 @@ sub process_file($) {
 
 		$state = 2;
 		if (/-(.*)/) {
-		    $declaration_purpose = xml_escape($1);
+		    # strip leading/trailing/multiple spaces #RDD:T:
+		    $descr= $1;
+		    $descr =~ s/^\s*//;
+		    $descr =~ s/\s*$//;
+		    $descr =~ s/\s+/ /;
+		    $declaration_purpose = xml_escape($descr);
 		} else {
 		    $declaration_purpose = "";
 		}
