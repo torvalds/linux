@@ -183,7 +183,7 @@ static DEFINE_TIMER(tx, isicom_tx, 0, 0);
 /*   baud index mappings from linux defns to isi */
 
 static signed char linuxb_to_isib[] = {
-	-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 16, 17, 18, 19
+	-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 16, 17, 18, 19, 20, 21
 };
 
 struct	isi_board {
@@ -710,7 +710,8 @@ static void isicom_config_port(struct isi_port *port)
 		 *  respectively.
 		 */
 
-		if (baud < 1 || baud > 2)
+		/* 1,2,3,4 => 57.6, 115.2, 230, 460 kbps resp. */
+		if (baud < 1 || baud > 4)
 			port->tty->termios->c_cflag &= ~CBAUDEX;
 		else
 			baud += 15;
@@ -726,6 +727,10 @@ static void isicom_config_port(struct isi_port *port)
 			baud++; /*  57.6 Kbps */
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
 			baud +=2; /*  115  Kbps */
+		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
+			baud += 3; /* 230 kbps*/
+		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
+			baud += 4; /* 460 kbps*/
 	}
 	if (linuxb_to_isib[baud] == -1) {
 		/* hang up */
