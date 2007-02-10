@@ -14,7 +14,7 @@
 #include <linux/vt_kern.h>
 
 
-void bust_spinlocks(int yes)
+void __attribute__((weak)) bust_spinlocks(int yes)
 {
 	if (yes) {
 		oops_in_progress = 1;
