@@ -1708,7 +1708,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 
 		info->speed = speed;
 		spin_lock_irqsave(&info->slock, flags);
-		mxser_change_speed(info, 0);
+		mxser_change_speed(info, NULL);
 		spin_unlock_irqrestore(&info->slock, flags);
 
 		return 0;
