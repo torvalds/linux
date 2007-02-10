@@ -524,7 +524,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		if (err)
 			goto err_out_mpt_free;
 
-		mr->mem.arbel.mpt = mthca_table_find(dev->mr_table.mpt_table, key);
+		mr->mem.arbel.mpt = mthca_table_find(dev->mr_table.mpt_table, key, NULL);
 		BUG_ON(!mr->mem.arbel.mpt);
 	} else
 		mr->mem.tavor.mpt = dev->mr_table.tavor_fmr.mpt_base +
@@ -538,7 +538,8 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 
 	if (mthca_is_memfree(dev)) {
 		mr->mem.arbel.mtts = mthca_table_find(dev->mr_table.mtt_table,
-						      mr->mtt->first_seg);
+						      mr->mtt->first_seg,
+						      &mr->mem.arbel.dma_handle);
 		BUG_ON(!mr->mem.arbel.mtts);
 	} else
 		mr->mem.tavor.mtts = dev->mr_table.tavor_fmr.mtt_base + mtt_seg;
@@ -711,6 +712,9 @@ int mthca_arbel_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 	for (i = 0; i < list_len; ++i)
 		fmr->mem.arbel.mtts[i] = cpu_to_be64(page_list[i] |
 						     MTHCA_MTT_FLAG_PRESENT);
+
+	dma_sync_single(&dev->pdev->dev, fmr->mem.arbel.dma_handle,
+			list_len * sizeof(u64), DMA_TO_DEVICE);
 
 	fmr->mem.arbel.mpt->key    = cpu_to_be32(key);
 	fmr->mem.arbel.mpt->lkey   = cpu_to_be32(key);
