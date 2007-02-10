@@ -213,6 +213,29 @@ static int zl10353_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 }
 
+static int zl10353_read_ber(struct dvb_frontend *fe, u32 *ber)
+{
+	struct zl10353_state *state = fe->demodulator_priv;
+
+	*ber = zl10353_read_register(state, 0x11) << 16 |
+	       zl10353_read_register(state, 0x12) << 8 |
+	       zl10353_read_register(state, 0x13);
+
+	return 0;
+}
+
+static int zl10353_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
+{
+	struct zl10353_state *state = fe->demodulator_priv;
+
+	u16 signal = zl10353_read_register(state, 0x0a) << 10 |
+		     zl10353_read_register(state, 0x0b) << 2 | 3;
+
+	*strength = ~signal;
+
+	return 0;
+}
+
 static int zl10353_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
@@ -223,6 +246,16 @@ static int zl10353_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 	_snr = zl10353_read_register(state, SNR);
 	*snr = (_snr << 8) | _snr;
+
+	return 0;
+}
+
+static int zl10353_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
+{
+	struct zl10353_state *state = fe->demodulator_priv;
+
+	*ucblocks = zl10353_read_register(state, 0x14) << 8 |
+		    zl10353_read_register(state, 0x15);
 
 	return 0;
 }
@@ -325,7 +358,10 @@ static struct dvb_frontend_ops zl10353_ops = {
 	.get_tune_settings = zl10353_get_tune_settings,
 
 	.read_status = zl10353_read_status,
+	.read_ber = zl10353_read_ber,
+	.read_signal_strength = zl10353_read_signal_strength,
 	.read_snr = zl10353_read_snr,
+	.read_ucblocks = zl10353_read_ucblocks,
 };
 
 module_param(debug_regs, int, 0644);
