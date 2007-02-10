@@ -151,6 +151,10 @@ static int tsdev_open(struct inode *inode, struct file *file)
 	int i = iminor(inode) - TSDEV_MINOR_BASE;
 	struct tsdev_list *list;
 
+	printk(KERN_WARNING "tsdev (compaq touchscreen emulation) is scheduled "
+		"for removal.\nSee Documentation/feature-removal-schedule.txt "
+		"for details.\n");
+
 	if (i >= TSDEV_MINORS || !tsdev_table[i & TSDEV_MINOR_MASK])
 		return -ENODEV;
 

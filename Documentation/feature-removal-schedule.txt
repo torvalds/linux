@@ -312,3 +312,18 @@ Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
 	replaced by the skge driver. 
 Who:    Stephen Hemminger <shemminger@osdl.org>
 
+---------------------------
+
+What:	Compaq touchscreen device emulation
+When:	Oct 2007
+Files:	drivers/input/tsdev.c
+Why:	The code says it was obsolete when it was written in 2001.
+	tslib is a userspace library which does anything tsdev can do and
+	much more besides in userspace where this code belongs. There is no
+	longer any need for tsdev and applications should have converted to
+	use tslib by now.
+	The name "tsdev" is also extremely confusing and lots of people have
+	it loaded when they don't need/use it.
+Who:	Richard Purdie <rpurdie@rpsys.net>
+
+---------------------------
