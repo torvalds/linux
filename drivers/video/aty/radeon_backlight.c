@@ -192,13 +192,6 @@ void radeonfb_bl_init(struct radeonfb_info *rinfo)
 	bd->props->power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_lock(&pmac_backlight_mutex);
-	if (!pmac_backlight)
-		pmac_backlight = bd;
-	mutex_unlock(&pmac_backlight_mutex);
-#endif
-
 	printk("radeonfb: Backlight initialized (%s)\n", name);
 
 	return;
@@ -215,12 +208,6 @@ void radeonfb_bl_exit(struct radeonfb_info *rinfo)
 	if (bd) {
 		struct radeon_bl_privdata *pdata;
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-		mutex_lock(&pmac_backlight_mutex);
-		if (pmac_backlight == bd)
-			pmac_backlight = NULL;
-		mutex_unlock(&pmac_backlight_mutex);
-#endif
 		pdata = class_get_devdata(&bd->class_dev);
 		backlight_device_unregister(bd);
 		kfree(pdata);

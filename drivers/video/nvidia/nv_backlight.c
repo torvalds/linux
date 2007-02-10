@@ -16,11 +16,6 @@
 #include "nv_type.h"
 #include "nv_proto.h"
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-#include <asm/backlight.h>
-#include <asm/machdep.h>
-#endif
-
 /* We do not have any information about which values are allowed, thus
  * we used safe values.
  */
@@ -128,13 +123,6 @@ void nvidia_bl_init(struct nvidia_par *par)
 	bd->props->power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_lock(&pmac_backlight_mutex);
-	if (!pmac_backlight)
-		pmac_backlight = bd;
-	mutex_unlock(&pmac_backlight_mutex);
-#endif
-
 	printk("nvidia: Backlight initialized (%s)\n", name);
 
 	return;
@@ -148,15 +136,6 @@ void nvidia_bl_exit(struct nvidia_par *par)
 	struct fb_info *info = pci_get_drvdata(par->pci_dev);
 	struct backlight_device *bd = info->bl_dev;
 
-	if (bd) {
-#ifdef CONFIG_PMAC_BACKLIGHT
-		mutex_lock(&pmac_backlight_mutex);
-		if (pmac_backlight == bd)
-			pmac_backlight = NULL;
-		mutex_unlock(&pmac_backlight_mutex);
-#endif
-		backlight_device_unregister(bd);
-
-		printk("nvidia: Backlight unloaded\n");
-	}
+	backlight_device_unregister(bd);
+	printk("nvidia: Backlight unloaded\n");
 }

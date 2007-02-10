@@ -1829,13 +1829,6 @@ static void aty128_bl_init(struct aty128fb_par *par)
 	bd->props->power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_lock(&pmac_backlight_mutex);
-	if (!pmac_backlight)
-		pmac_backlight = bd;
-	mutex_unlock(&pmac_backlight_mutex);
-#endif
-
 	printk("aty128: Backlight initialized (%s)\n", name);
 
 	return;
@@ -1846,17 +1839,8 @@ error:
 
 static void aty128_bl_exit(struct backlight_device *bd)
 {
-	if (bd) {
-#ifdef CONFIG_PMAC_BACKLIGHT
-		mutex_lock(&pmac_backlight_mutex);
-		if (pmac_backlight == bd)
-			pmac_backlight = NULL;
-		mutex_unlock(&pmac_backlight_mutex);
-#endif
-		backlight_device_unregister(bd);
-
-		printk("aty128: Backlight unloaded\n");
-	}
+	backlight_device_unregister(bd);
+	printk("aty128: Backlight unloaded\n");
 }
 #endif /* CONFIG_FB_ATY128_BACKLIGHT */
 

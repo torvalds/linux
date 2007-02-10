@@ -384,7 +384,7 @@ static void sony_snc_pf_remove(void)
 static int sony_backlight_update_status(struct backlight_device *bd)
 {
 	return acpi_callsetfunc(sony_acpi_handle, "SBRT",
-				bd->props->brightness + 1, NULL);
+				bd->props.brightness + 1, NULL);
 }
 
 static int sony_backlight_get_brightness(struct backlight_device *bd)
@@ -398,10 +398,9 @@ static int sony_backlight_get_brightness(struct backlight_device *bd)
 }
 
 static struct backlight_device *sony_backlight_device;
-static struct backlight_properties sony_backlight_properties = {
+static struct backlight_ops sony_backlight_ops = {
 	.update_status = sony_backlight_update_status,
 	.get_brightness = sony_backlight_get_brightness,
-	.max_brightness = SONY_MAX_BRIGHTNESS - 1,
 };
 
 /*
@@ -483,15 +482,19 @@ static int sony_acpi_add(struct acpi_device *device)
 	if (ACPI_SUCCESS(acpi_get_handle(sony_acpi_handle, "GBRT", &handle))) {
 		sony_backlight_device = backlight_device_register("sony", NULL,
 								  NULL,
-								  &sony_backlight_properties);
+								  &sony_backlight_ops);
 
 		if (IS_ERR(sony_backlight_device)) {
 			printk(LOG_PFX "unable to register backlight device\n");
 			sony_backlight_device = NULL;
-		} else
-			sony_backlight_properties.brightness =
+		} else {
+			sony_backlight_device->props.brightness =
 			    sony_backlight_get_brightness
 			    (sony_backlight_device);
+			sony_backlight_device->props.max_brightness = 
+			    SONY_MAX_BRIGHTNESS - 1;
+		}
+
 	}
 
 	if (sony_snc_pf_add())

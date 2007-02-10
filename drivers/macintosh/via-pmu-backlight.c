@@ -170,11 +170,6 @@ void __init pmu_backlight_init()
 	bd->props->power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
 
-	mutex_lock(&pmac_backlight_mutex);
-	if (!pmac_backlight)
-		pmac_backlight = bd;
-	mutex_unlock(&pmac_backlight_mutex);
-
 	printk("pmubl: Backlight initialized (%s)\n", name);
 
 	return;

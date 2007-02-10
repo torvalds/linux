@@ -14,6 +14,9 @@
 #include <linux/err.h>
 #include <linux/fb.h>
 
+#ifdef CONFIG_PMAC_BACKLIGHT
+#include <asm/backlight.h>
+#endif
 
 #if defined(CONFIG_FB) || (defined(CONFIG_FB_MODULE) && \
 			   defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE))
@@ -262,6 +265,13 @@ struct backlight_device *backlight_device_register(const char *name,
 		}
 	}
 
+#ifdef CONFIG_PMAC_BACKLIGHT
+	mutex_lock(&pmac_backlight_mutex);
+	if (!pmac_backlight)
+		pmac_backlight = new_bd;
+	mutex_unlock(&pmac_backlight_mutex);
+#endif
+
 	return new_bd;
 }
 EXPORT_SYMBOL(backlight_device_register);
@@ -280,6 +290,13 @@ void backlight_device_unregister(struct backlight_device *bd)
 		return;
 
 	pr_debug("backlight_device_unregister: name=%s\n", bd->class_dev.class_id);
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	mutex_lock(&pmac_backlight_mutex);
+	if (pmac_backlight == bd)
+		pmac_backlight = NULL;
+	mutex_unlock(&pmac_backlight_mutex);
+#endif
 
 	for (i = 0; i < ARRAY_SIZE(bl_class_device_attributes); i++)
 		class_device_remove_file(&bd->class_dev,
