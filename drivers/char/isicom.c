@@ -1510,7 +1510,7 @@ static int __devinit reset_card(struct pci_dev *pdev,
 {
 	struct isi_board *board = pci_get_drvdata(pdev);
 	unsigned long base = board->base;
-	unsigned int portcount = 0;
+	unsigned int sig, portcount = 0;
 	int retval = 0;
 
 	dev_dbg(&pdev->dev, "ISILoad:Resetting Card%d at 0x%lx\n", card + 1,
@@ -1518,27 +1518,35 @@ static int __devinit reset_card(struct pci_dev *pdev,
 
 	inw(base + 0x8);
 
-	mdelay(10);
+	msleep(10);
 
 	outw(0, base + 0x8); /* Reset */
 
-	msleep(3000);
+	msleep(1000);
 
-	*signature = inw(base + 0x4) & 0xff;
+	sig = inw(base + 0x4) & 0xff;
 
-	portcount = inw(base + 0x2);
-	if (!(inw(base + 0xe) & 0x1) || ((portcount != 0) &&
-			(portcount != 4) && (portcount != 8))) {
-		dev_dbg(&pdev->dev, "base+0x2=0x%lx, base+0xe=0x%lx\n",
-			inw(base + 0x2), inw(base + 0xe));
-		dev_err(&pdev->dev, "ISILoad:PCI Card%d reset failure "
-			"(Possible bad I/O Port Address 0x%lx).\n",
-			card + 1, base);
+	if (sig != 0xa5 && sig != 0xbb && sig != 0xcc && sig != 0xdd &&
+			sig != 0xee) {
+		dev_warn(&pdev->dev, "ISILoad:Card%u reset failure (Possible "
+			"bad I/O Port Address 0x%lx).\n", card + 1, base);
+		dev_dbg(&pdev->dev, "Sig=0x%x\n", sig);
 		retval = -EIO;
 		goto end;
 	}
 
-	switch (*signature) {
+	msleep(10);
+
+	portcount = inw(base + 0x2);
+	if (!inw(base + 0xe) & 0x1 || (portcount != 0 && portcount != 4 &&
+				portcount != 8 && portcount != 16)) {
+		dev_err(&pdev->dev, "ISILoad:PCI Card%d reset failure.",
+			card + 1);
+		retval = -EIO;
+		goto end;
+	}
+
+	switch (sig) {
 	case 0xa5:
 	case 0xbb:
 	case 0xdd:
@@ -1546,16 +1554,13 @@ static int __devinit reset_card(struct pci_dev *pdev,
 		board->shift_count = 12;
 		break;
 	case 0xcc:
+	case 0xee:
 		board->port_count = 16;
 		board->shift_count = 11;
 		break;
-	default:
-		dev_warn(&pdev->dev, "ISILoad:Card%d reset failure (Possible "
-			"bad I/O Port Address 0x%lx).\n", card + 1, base);
-		dev_dbg(&pdev->dev, "Sig=0x%lx\n", signature);
-		retval = -EIO;
 	}
 	dev_info(&pdev->dev, "-Done\n");
+	*signature = sig;
 
 end:
 	return retval;
