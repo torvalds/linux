@@ -280,7 +280,11 @@ config RELAY
 
 	  If unsure, say N.
 
+if BLK_DEV_INITRD
+
 source "usr/Kconfig"
+
+endif
 
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size (Look out for broken compilers!)"
