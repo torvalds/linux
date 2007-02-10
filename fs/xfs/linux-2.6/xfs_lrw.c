@@ -137,7 +137,6 @@ xfs_iozero(
 	unsigned		bytes;
 	struct page		*page;
 	struct address_space	*mapping;
-	char			*kaddr;
 	int			status;
 
 	mapping = ip->i_mapping;
@@ -155,15 +154,13 @@ xfs_iozero(
 		if (!page)
 			break;
 
-		kaddr = kmap(page);
 		status = mapping->a_ops->prepare_write(NULL, page, offset,
 							offset + bytes);
-		if (status) {
+		if (status)
 			goto unlock;
-		}
 
-		memset((void *) (kaddr + offset), 0, bytes);
-		flush_dcache_page(page);
+		memclear_highpage_flush(page, offset, bytes);
+
 		status = mapping->a_ops->commit_write(NULL, page, offset,
 							offset + bytes);
 		if (!status) {
@@ -172,7 +169,6 @@ xfs_iozero(
 		}
 
 unlock:
-		kunmap(page);
 		unlock_page(page);
 		page_cache_release(page);
 		if (status)
