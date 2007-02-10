@@ -313,7 +313,6 @@ static int mxvar_diagflag;
 static unsigned char mxser_msr[MXSER_PORTS + 1];
 static struct mxser_mon_ext mon_data_ext;
 static int mxser_set_baud_method[MXSER_PORTS + 1];
-static spinlock_t gm_lock;
 
 #ifdef CONFIG_PCI
 static int __devinit CheckIsMoxaMust(int io)
@@ -1377,7 +1376,6 @@ static int __init mxser_program_mode(int port)
 {
 	int id, i, j, n;
 
-	spin_lock(&gm_lock);
 	outb(0, port);
 	outb(0, port);
 	outb(0, port);
@@ -1385,7 +1383,6 @@ static int __init mxser_program_mode(int port)
 	(void)inb(port);
 	outb(0, port);
 	(void)inb(port);
-	spin_unlock(&gm_lock);
 
 	id = inb(port + 1) & 0x1F;
 	if ((id != C168_ASIC_ID) &&
@@ -2684,7 +2681,6 @@ static int __init mxser_module_init(void)
 	mxvar_sdriver = alloc_tty_driver(MXSER_PORTS + 1);
 	if (!mxvar_sdriver)
 		return -ENOMEM;
-	spin_lock_init(&gm_lock);
 
 	printk(KERN_INFO "MOXA Smartio/Industio family driver version %s\n",
 		MXSER_VERSION);
