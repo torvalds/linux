@@ -169,6 +169,10 @@ make_spkm3_checksum(s32 cksumtype, struct xdr_netobj *key, char *header,
 	if (err)
 		goto out;
 
+	err = crypto_hash_init(&desc);
+	if (err)
+		goto out;
+
 	sg_set_buf(sg, header, hdrlen);
 	crypto_hash_update(&desc, sg, sg->length);
 
