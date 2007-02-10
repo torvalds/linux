@@ -655,24 +655,17 @@ out:
 static void ether1394_remove_host (struct hpsb_host *host)
 {
 	struct eth1394_host_info *hi;
+	struct eth1394_priv *priv;
 
 	hi = hpsb_get_hostinfo(&eth1394_highlevel, host);
-	if (hi != NULL) {
-		struct eth1394_priv *priv = netdev_priv(hi->dev);
-
-		hpsb_unregister_addrspace(&eth1394_highlevel, host,
-					  priv->local_fifo);
-
-		if (priv->iso != NULL)
-			hpsb_iso_shutdown(priv->iso);
-
-		if (hi->dev) {
-			unregister_netdev (hi->dev);
-			free_netdev(hi->dev);
-		}
-	}
-
-	return;
+	if (!hi)
+		return;
+	priv = netdev_priv(hi->dev);
+	hpsb_unregister_addrspace(&eth1394_highlevel, host, priv->local_fifo);
+	if (priv->iso)
+		hpsb_iso_shutdown(priv->iso);
+	unregister_netdev(hi->dev);
+	free_netdev(hi->dev);
 }
 
 /* A reset has just arisen */
@@ -689,7 +682,7 @@ static void ether1394_host_reset (struct hpsb_host *host)
 	hi = hpsb_get_hostinfo(&eth1394_highlevel, host);
 
 	/* This can happen for hosts that we don't use */
-	if (hi == NULL)
+	if (!hi)
 		return;
 
 	dev = hi->dev;
