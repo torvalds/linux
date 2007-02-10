@@ -1746,7 +1746,7 @@ end:
 /*
  *	Insmod can set static symbols so keep these static
  */
-static int card;
+static unsigned int card_count;
 
 static int __devinit isicom_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
@@ -1756,7 +1756,7 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 	u8 pciirq;
 	struct isi_board *board = NULL;
 
-	if (card >= BOARD_COUNT)
+	if (card_count >= BOARD_COUNT)
 		goto err;
 
 	ioaddr = pci_resource_start(pdev, 3);
@@ -1774,7 +1774,7 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 	board->index = index;
 	board->base = ioaddr;
 	board->irq = pciirq;
-	card++;
+	card_count++;
 
 	pci_set_drvdata(pdev, board);
 
@@ -1784,7 +1784,7 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 			"will be disabled.\n", board->base, board->base + 15,
 			index + 1);
 		retval = -EBUSY;
-		goto err;
+		goto errdec;
  	}
 
 	retval = request_irq(board->irq, isicom_interrupt,
@@ -1813,8 +1813,10 @@ errunri:
 	free_irq(board->irq, board);
 errunrr:
 	pci_release_region(pdev, 3);
-err:
+errdec:
 	board->base = 0;
+	card_count--;
+err:
 	return retval;
 }
 
@@ -1828,14 +1830,14 @@ static void __devexit isicom_remove(struct pci_dev *pdev)
 
 	free_irq(board->irq, board);
 	pci_release_region(pdev, 3);
+	board->base = 0;
+	card_count--;
 }
 
 static int __init isicom_init(void)
 {
 	int retval, idx, channel;
 	struct isi_port *port;
-
-	card = 0;
 
 	for(idx = 0; idx < BOARD_COUNT; idx++) {
 		port = &isi_ports[idx * 16];
