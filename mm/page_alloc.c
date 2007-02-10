@@ -1440,16 +1440,6 @@ fastcall void free_pages(unsigned long addr, unsigned int order)
 
 EXPORT_SYMBOL(free_pages);
 
-/*
- * Total amount of free (allocatable) RAM:
- */
-unsigned int nr_free_pages(void)
-{
-	return global_page_state(NR_FREE_PAGES);
-}
-
-EXPORT_SYMBOL(nr_free_pages);
-
 #ifdef CONFIG_NUMA
 unsigned int nr_free_pages_pgdat(pg_data_t *pgdat)
 {

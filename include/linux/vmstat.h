@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/percpu.h>
+#include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <asm/atomic.h>
 

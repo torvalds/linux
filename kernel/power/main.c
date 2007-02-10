@@ -20,6 +20,7 @@
 #include <linux/cpu.h>
 #include <linux/resume-trace.h>
 #include <linux/freezer.h>
+#include <linux/vmstat.h>
 
 #include "power.h"
 
@@ -72,7 +73,8 @@ static int suspend_prepare(suspend_state_t state)
 		goto Thaw;
 	}
 
-	if ((free_pages = nr_free_pages()) < FREE_PAGE_NUMBER) {
+	if ((free_pages = global_page_state(NR_FREE_PAGES))
+			< FREE_PAGE_NUMBER) {
 		pr_debug("PM: free some memory\n");
 		shrink_all_memory(FREE_PAGE_NUMBER - free_pages);
 		if (nr_free_pages() < FREE_PAGE_NUMBER) {

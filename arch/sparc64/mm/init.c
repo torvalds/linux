@@ -416,7 +416,7 @@ void show_mem(void)
 	printk("Free swap:       %6ldkB\n",
 	       nr_swap_pages << (PAGE_SHIFT-10));
 	printk("%ld pages of RAM\n", num_physpages);
-	printk("%d free pages\n", nr_free_pages());
+	printk("%lu free pages\n", nr_free_pages());
 }
 
 void mmu_info(struct seq_file *m)
@@ -1593,7 +1593,7 @@ void __init mem_init(void)
 	initpages = (((unsigned long) __init_end) - ((unsigned long) __init_begin));
 	initpages = PAGE_ALIGN(initpages) >> PAGE_SHIFT;
 
-	printk("Memory: %uk available (%ldk kernel code, %ldk data, %ldk init) [%016lx,%016lx]\n",
+	printk("Memory: %luk available (%ldk kernel code, %ldk data, %ldk init) [%016lx,%016lx]\n",
 	       nr_free_pages() << (PAGE_SHIFT-10),
 	       codepages << (PAGE_SHIFT-10),
 	       datapages << (PAGE_SHIFT-10), 
