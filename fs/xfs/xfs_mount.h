@@ -18,6 +18,7 @@
 #ifndef __XFS_MOUNT_H__
 #define	__XFS_MOUNT_H__
 
+
 typedef struct xfs_trans_reservations {
 	uint	tr_write;	/* extent alloc trans */
 	uint	tr_itruncate;	/* truncate trans */
@@ -562,6 +563,26 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 	xfs_daddr_t ld = XFS_BB_TO_FSBT(mp, d);
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
 }
+
+/*
+ * Per-cpu superblock locking functions
+ */
+#ifdef HAVE_PERCPU_SB
+STATIC_INLINE void
+xfs_icsb_lock(xfs_mount_t *mp)
+{
+	mutex_lock(&mp->m_icsb_mutex);
+}
+
+STATIC_INLINE void
+xfs_icsb_unlock(xfs_mount_t *mp)
+{
+	mutex_unlock(&mp->m_icsb_mutex);
+}
+#else
+#define xfs_icsb_lock(mp)
+#define xfs_icsb_unlock(mp)
+#endif
 
 /*
  * This structure is for use by the xfs_mod_incore_sb_batch() routine.

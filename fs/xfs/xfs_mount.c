@@ -543,11 +543,11 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 		ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
 	}
 
-	mutex_lock(&mp->m_icsb_mutex);
+	xfs_icsb_lock(mp);
 	xfs_icsb_balance_counter(mp, XFS_SBS_ICOUNT, 0, 0);
 	xfs_icsb_balance_counter(mp, XFS_SBS_IFREE, 0, 0);
 	xfs_icsb_balance_counter(mp, XFS_SBS_FDBLOCKS, 0, 0);
-	mutex_unlock(&mp->m_icsb_mutex);
+	xfs_icsb_unlock(mp);
 
 	mp->m_sb_bp = bp;
 	xfs_buf_relse(bp);
@@ -1736,17 +1736,17 @@ xfs_icsb_cpu_notify(
 		memset(cntp, 0, sizeof(xfs_icsb_cnts_t));
 		break;
 	case CPU_ONLINE:
-		mutex_lock(&mp->m_icsb_mutex);
+		xfs_icsb_lock(mp);
 		xfs_icsb_balance_counter(mp, XFS_SBS_ICOUNT, 0, 0);
 		xfs_icsb_balance_counter(mp, XFS_SBS_IFREE, 0, 0);
 		xfs_icsb_balance_counter(mp, XFS_SBS_FDBLOCKS, 0, 0);
-		mutex_unlock(&mp->m_icsb_mutex);
+		xfs_icsb_unlock(mp);
 		break;
 	case CPU_DEAD:
 		/* Disable all the counters, then fold the dead cpu's
 		 * count into the total on the global superblock and
 		 * re-enable the counters. */
-		mutex_lock(&mp->m_icsb_mutex);
+		xfs_icsb_lock(mp);
 		s = XFS_SB_LOCK(mp);
 		xfs_icsb_disable_counter(mp, XFS_SBS_ICOUNT);
 		xfs_icsb_disable_counter(mp, XFS_SBS_IFREE);
@@ -1765,7 +1765,7 @@ xfs_icsb_cpu_notify(
 		xfs_icsb_balance_counter(mp, XFS_SBS_FDBLOCKS,
 					 XFS_ICSB_SB_LOCKED, 0);
 		XFS_SB_UNLOCK(mp, s);
-		mutex_unlock(&mp->m_icsb_mutex);
+		xfs_icsb_unlock(mp);
 		break;
 	}
 
@@ -1813,6 +1813,7 @@ xfs_icsb_destroy_counters(
 		unregister_hotcpu_notifier(&mp->m_icsb_notifier);
 		free_percpu(mp->m_sb_cnts);
 	}
+	mutex_destroy(&mp->m_icsb_mutex);
 }
 
 STATIC_INLINE void
@@ -2156,7 +2157,7 @@ slow_path:
 	 * the superblock lock. We still need to hold the superblock
 	 * lock, however, when we modify the global structures.
 	 */
-	mutex_lock(&mp->m_icsb_mutex);
+	xfs_icsb_lock(mp);
 
 	/*
 	 * Now running atomically.
@@ -2165,7 +2166,7 @@ slow_path:
 	 * Drop the lock and try again in the fast path....
 	 */
 	if (!(xfs_icsb_counter_disabled(mp, field))) {
-		mutex_unlock(&mp->m_icsb_mutex);
+		xfs_icsb_unlock(mp);
 		goto again;
 	}
 
@@ -2192,7 +2193,7 @@ slow_path:
 	 */
 	if (ret != ENOSPC)
 		xfs_icsb_balance_counter(mp, field, 0, 0);
-	mutex_unlock(&mp->m_icsb_mutex);
+	xfs_icsb_unlock(mp);
 	return ret;
 
 balance_counter:
@@ -2205,7 +2206,7 @@ balance_counter:
 	 * do more balances than strictly necessary but it is not
 	 * the common slowpath case.
 	 */
-	mutex_lock(&mp->m_icsb_mutex);
+	xfs_icsb_lock(mp);
 
 	/*
 	 * running atomically.
@@ -2216,7 +2217,7 @@ balance_counter:
 	 * another balance operation being required.
 	 */
 	xfs_icsb_balance_counter(mp, field, 0, delta);
-	mutex_unlock(&mp->m_icsb_mutex);
+	xfs_icsb_unlock(mp);
 	goto again;
 }
 
