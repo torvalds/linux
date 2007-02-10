@@ -108,7 +108,7 @@ irqreturn_t uml_net_interrupt(int irq, void *dev_id)
 
 out:
 	spin_unlock(&lp->lock);
-	return(IRQ_HANDLED);
+	return IRQ_HANDLED;
 }
 
 static int uml_net_open(struct net_device *dev)
@@ -239,7 +239,7 @@ static int uml_net_set_mac(struct net_device *dev, void *addr)
 	set_ether_mac(dev, hwaddr->sa_data);
 	spin_unlock_irq(&lp->lock);
 
-	return(0);
+	return 0;
 }
 
 static int uml_net_change_mtu(struct net_device *dev, int new_mtu)
@@ -460,7 +460,7 @@ static struct uml_net *find_device(int n)
 	device = NULL;
  out:
 	spin_unlock(&devices_lock);
-	return(device);
+	return device;
 }
 
 static int eth_parse(char *str, int *index_out, char **str_out,
@@ -511,23 +511,23 @@ static int check_transport(struct transport *transport, char *eth, int n,
 
 	len = strlen(transport->name);
 	if(strncmp(eth, transport->name, len))
-		return(0);
+		return 0;
 
 	eth += len;
 	if(*eth == ',')
 		eth++;
 	else if(*eth != '\0')
-		return(0);
+		return 0;
 
 	*init_out = kmalloc(transport->setup_size, GFP_KERNEL);
 	if(*init_out == NULL)
-		return(1);
+		return 1;
 
 	if(!transport->setup(eth, mac_out, *init_out)){
 		kfree(*init_out);
 		*init_out = NULL;
 	}
-	return(1);
+	return 1;
 }
 
 void register_transport(struct transport *new)
@@ -572,9 +572,9 @@ static int eth_setup_common(char *str, int index)
 			eth_configure(index, init, mac, transport);
 			kfree(init);
 		}
-		return(1);
+		return 1;
 	}
-	return(0);
+	return 0;
 }
 
 static int eth_setup(char *str)
@@ -678,7 +678,7 @@ static int net_remove(int n, char **error_out)
 	dev = device->dev;
 	lp = dev->priv;
 	if(lp->fd > 0)
-                return -EBUSY;
+		return -EBUSY;
 	if(lp->remove != NULL) (*lp->remove)(&lp->user);
 	unregister_netdev(dev);
 	platform_device_unregister(&device->pdev);
@@ -693,7 +693,7 @@ static struct mc_device net_mc = {
 	.name		= "eth",
 	.config		= net_config,
 	.get_config	= NULL,
-        .id		= net_id,
+	.id		= net_id,
 	.remove		= net_remove,
 };
 
@@ -706,7 +706,8 @@ static int uml_inetaddr_event(struct notifier_block *this, unsigned long event,
 	void (*proc)(unsigned char *, unsigned char *, void *);
 	unsigned char addr_buf[4], netmask_buf[4];
 
-	if(dev->open != uml_net_open) return(NOTIFY_DONE);
+	if(dev->open != uml_net_open)
+		return NOTIFY_DONE;
 
 	lp = dev->priv;
 
@@ -724,7 +725,7 @@ static int uml_inetaddr_event(struct notifier_block *this, unsigned long event,
 		memcpy(netmask_buf, &ifa->ifa_mask, sizeof(netmask_buf));
 		(*proc)(addr_buf, netmask_buf, &lp->user);
 	}
-	return(NOTIFY_DONE);
+	return NOTIFY_DONE;
 }
 
 struct notifier_block uml_inetaddr_notifier = {
@@ -834,7 +835,7 @@ void *get_output_buffer(int *len_out)
 	ret = (void *) __get_free_pages(GFP_KERNEL, 0);
 	if(ret) *len_out = PAGE_SIZE;
 	else *len_out = 0;
-	return(ret);
+	return ret;
 }
 
 void free_output_buffer(void *buffer)
