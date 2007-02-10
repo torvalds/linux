@@ -101,7 +101,7 @@ The format of the block comment is like this:
 
 /**
  * function_name(:)? (- short description)?
-(* @parameterx: (description of parameter x)?)*
+(* @parameterx(space)*: (description of parameter x)?)*
 (* a blank line)?
  * (Description:)? (Description of function)?
  * (section header: (section description)? )*
