@@ -298,7 +298,7 @@ static int fib6_dump_node(struct fib6_walker_t *w)
 	int res;
 	struct rt6_info *rt;
 
-	for (rt = w->leaf; rt; rt = rt->u.next) {
+	for (rt = w->leaf; rt; rt = rt->u.dst.rt6_next) {
 		res = rt6_dump_route(rt, w->args);
 		if (res < 0) {
 			/* Frame is full, suspend walking */
@@ -624,11 +624,11 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 	    fn->leaf == &ip6_null_entry &&
 	    !(rt->rt6i_flags & (RTF_DEFAULT | RTF_ADDRCONF)) ){
 		fn->leaf = rt;
-		rt->u.next = NULL;
+		rt->u.dst.rt6_next = NULL;
 		goto out;
 	}
 
-	for (iter = fn->leaf; iter; iter=iter->u.next) {
+	for (iter = fn->leaf; iter; iter=iter->u.dst.rt6_next) {
 		/*
 		 *	Search for duplicates
 		 */
@@ -656,7 +656,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 		if (iter->rt6i_metric > rt->rt6i_metric)
 			break;
 
-		ins = &iter->u.next;
+		ins = &iter->u.dst.rt6_next;
 	}
 
 	/*
@@ -664,7 +664,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 	 */
 
 out:
-	rt->u.next = iter;
+	rt->u.dst.rt6_next = iter;
 	*ins = rt;
 	rt->rt6i_node = fn;
 	atomic_inc(&rt->rt6i_ref);
@@ -1105,7 +1105,7 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	RT6_TRACE("fib6_del_route\n");
 
 	/* Unlink it */
-	*rtp = rt->u.next;
+	*rtp = rt->u.dst.rt6_next;
 	rt->rt6i_node = NULL;
 	rt6_stats.fib_rt_entries--;
 	rt6_stats.fib_discarded_routes++;
@@ -1115,14 +1115,14 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	FOR_WALKERS(w) {
 		if (w->state == FWS_C && w->leaf == rt) {
 			RT6_TRACE("walker %p adjusted by delroute\n", w);
-			w->leaf = rt->u.next;
+			w->leaf = rt->u.dst.rt6_next;
 			if (w->leaf == NULL)
 				w->state = FWS_U;
 		}
 	}
 	read_unlock(&fib6_walker_lock);
 
-	rt->u.next = NULL;
+	rt->u.dst.rt6_next = NULL;
 
 	if (fn->leaf == NULL && fn->fn_flags&RTN_TL_ROOT)
 		fn->leaf = &ip6_null_entry;
@@ -1190,7 +1190,7 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 	 *	Walk the leaf entries looking for ourself
 	 */
 
-	for (rtp = &fn->leaf; *rtp; rtp = &(*rtp)->u.next) {
+	for (rtp = &fn->leaf; *rtp; rtp = &(*rtp)->u.dst.rt6_next) {
 		if (*rtp == rt) {
 			fib6_del_route(fn, rtp, info);
 			return 0;
@@ -1317,7 +1317,7 @@ static int fib6_clean_node(struct fib6_walker_t *w)
 	struct rt6_info *rt;
 	struct fib6_cleaner_t *c = (struct fib6_cleaner_t*)w;
 
-	for (rt = w->leaf; rt; rt = rt->u.next) {
+	for (rt = w->leaf; rt; rt = rt->u.dst.rt6_next) {
 		res = c->func(rt, c->arg);
 		if (res < 0) {
 			w->leaf = rt;

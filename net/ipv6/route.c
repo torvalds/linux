@@ -243,7 +243,7 @@ static __inline__ struct rt6_info *rt6_device_match(struct rt6_info *rt,
 	struct rt6_info *sprt;
 
 	if (oif) {
-		for (sprt = rt; sprt; sprt = sprt->u.next) {
+		for (sprt = rt; sprt; sprt = sprt->u.dst.rt6_next) {
 			struct net_device *dev = sprt->rt6i_dev;
 			if (dev->ifindex == oif)
 				return sprt;
@@ -376,7 +376,7 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 
 	for (rt = rt0, metric = rt0->rt6i_metric;
 	     rt && rt->rt6i_metric == metric && (!last || rt != rt0);
-	     rt = rt->u.next) {
+	     rt = rt->u.dst.rt6_next) {
 		int m;
 
 		if (rt6_check_expired(rt))
@@ -404,9 +404,9 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 		/* no entries matched; do round-robin */
 		static DEFINE_SPINLOCK(lock);
 		spin_lock(&lock);
-		*head = rt0->u.next;
-		rt0->u.next = last->u.next;
-		last->u.next = rt0;
+		*head = rt0->u.dst.rt6_next;
+		rt0->u.dst.rt6_next = last->u.dst.rt6_next;
+		last->u.dst.rt6_next = rt0;
 		spin_unlock(&lock);
 	}
 
@@ -1278,7 +1278,7 @@ static int ip6_route_del(struct fib6_config *cfg)
 			 &cfg->fc_src, cfg->fc_src_len);
 
 	if (fn) {
-		for (rt = fn->leaf; rt; rt = rt->u.next) {
+		for (rt = fn->leaf; rt; rt = rt->u.dst.rt6_next) {
 			if (cfg->fc_ifindex &&
 			    (rt->rt6i_dev == NULL ||
 			     rt->rt6i_dev->ifindex != cfg->fc_ifindex))
@@ -1329,7 +1329,7 @@ static struct rt6_info *__ip6_route_redirect(struct fib6_table *table,
 	read_lock_bh(&table->tb6_lock);
 	fn = fib6_lookup(&table->tb6_root, &fl->fl6_dst, &fl->fl6_src);
 restart:
-	for (rt = fn->leaf; rt; rt = rt->u.next) {
+	for (rt = fn->leaf; rt; rt = rt->u.dst.rt6_next) {
 		/*
 		 * Current route is on-link; redirect is always invalid.
 		 *
@@ -1590,7 +1590,7 @@ static struct rt6_info *rt6_get_route_info(struct in6_addr *prefix, int prefixle
 	if (!fn)
 		goto out;
 
-	for (rt = fn->leaf; rt; rt = rt->u.next) {
+	for (rt = fn->leaf; rt; rt = rt->u.dst.rt6_next) {
 		if (rt->rt6i_dev->ifindex != ifindex)
 			continue;
 		if ((rt->rt6i_flags & (RTF_ROUTEINFO|RTF_GATEWAY)) != (RTF_ROUTEINFO|RTF_GATEWAY))
@@ -1641,7 +1641,7 @@ struct rt6_info *rt6_get_dflt_router(struct in6_addr *addr, struct net_device *d
 		return NULL;
 
 	write_lock_bh(&table->tb6_lock);
-	for (rt = table->tb6_root.leaf; rt; rt=rt->u.next) {
+	for (rt = table->tb6_root.leaf; rt; rt=rt->u.dst.rt6_next) {
 		if (dev == rt->rt6i_dev &&
 		    ((rt->rt6i_flags & (RTF_ADDRCONF | RTF_DEFAULT)) == (RTF_ADDRCONF | RTF_DEFAULT)) &&
 		    ipv6_addr_equal(&rt->rt6i_gateway, addr))
@@ -1684,7 +1684,7 @@ void rt6_purge_dflt_routers(void)
 
 restart:
 	read_lock_bh(&table->tb6_lock);
-	for (rt = table->tb6_root.leaf; rt; rt = rt->u.next) {
+	for (rt = table->tb6_root.leaf; rt; rt = rt->u.dst.rt6_next) {
 		if (rt->rt6i_flags & (RTF_DEFAULT | RTF_ADDRCONF)) {
 			dst_hold(&rt->u.dst);
 			read_unlock_bh(&table->tb6_lock);
