@@ -24,6 +24,10 @@ config 64BIT
 	bool
 	default y
 
+config ZONE_DMA
+	bool
+	default y
+
 config MMU
 	bool
 	default y

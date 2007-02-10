@@ -7,6 +7,10 @@ config FRAME_POINTER
 	bool
 	default n
 
+config ZONE_DMA
+	bool
+	default y
+
 config XTENSA
 	bool
 	default y

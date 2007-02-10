@@ -139,6 +139,10 @@ config SPLIT_PTLOCK_CPUS
 	default "4096" if PARISC && !PA20
 	default "4"
 
+config ZONE_DMA
+	def_bool y
+	depends on GENERIC_ISA_DMA
+
 #
 # support for page migration
 #
