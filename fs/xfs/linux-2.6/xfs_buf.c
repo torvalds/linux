@@ -34,13 +34,13 @@
 #include <linux/backing-dev.h>
 #include <linux/freezer.h>
 
-STATIC kmem_zone_t *xfs_buf_zone;
-STATIC kmem_shaker_t xfs_buf_shake;
+static kmem_zone_t *xfs_buf_zone;
+static kmem_shaker_t xfs_buf_shake;
 STATIC int xfsbufd(void *);
 STATIC int xfsbufd_wakeup(int, gfp_t);
 STATIC void xfs_buf_delwri_queue(xfs_buf_t *, int);
 
-STATIC struct workqueue_struct *xfslogd_workqueue;
+static struct workqueue_struct *xfslogd_workqueue;
 struct workqueue_struct *xfsdatad_workqueue;
 
 #ifdef XFS_BUF_TRACE
@@ -139,7 +139,7 @@ page_region_mask(
 	return mask;
 }
 
-STATIC inline void
+STATIC_INLINE void
 set_page_region(
 	struct page	*page,
 	size_t		offset,
@@ -151,7 +151,7 @@ set_page_region(
 		SetPageUptodate(page);
 }
 
-STATIC inline int
+STATIC_INLINE int
 test_page_region(
 	struct page	*page,
 	size_t		offset,
@@ -171,9 +171,9 @@ typedef struct a_list {
 	struct a_list	*next;
 } a_list_t;
 
-STATIC a_list_t		*as_free_head;
-STATIC int		as_list_len;
-STATIC DEFINE_SPINLOCK(as_lock);
+static a_list_t		*as_free_head;
+static int		as_list_len;
+static DEFINE_SPINLOCK(as_lock);
 
 /*
  *	Try to batch vunmaps because they are costly.
@@ -1085,7 +1085,7 @@ xfs_buf_iostart(
 	return status;
 }
 
-STATIC __inline__ int
+STATIC_INLINE int
 _xfs_buf_iolocked(
 	xfs_buf_t		*bp)
 {
@@ -1095,7 +1095,7 @@ _xfs_buf_iolocked(
 	return 0;
 }
 
-STATIC __inline__ void
+STATIC_INLINE void
 _xfs_buf_ioend(
 	xfs_buf_t		*bp,
 	int			schedule)
@@ -1426,8 +1426,8 @@ xfs_free_bufhash(
 /*
  *	buftarg list for delwrite queue processing
  */
-STATIC LIST_HEAD(xfs_buftarg_list);
-STATIC DEFINE_SPINLOCK(xfs_buftarg_lock);
+LIST_HEAD(xfs_buftarg_list);
+static DEFINE_SPINLOCK(xfs_buftarg_lock);
 
 STATIC void
 xfs_register_buftarg(

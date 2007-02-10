@@ -54,7 +54,7 @@ xfs_stats_clear_proc_handler(
 }
 #endif /* CONFIG_PROC_FS */
 
-STATIC ctl_table xfs_table[] = {
+static ctl_table xfs_table[] = {
 	{XFS_RESTRICT_CHOWN, "restrict_chown", &xfs_params.restrict_chown.val,
 	sizeof(int), 0644, NULL, &proc_dointvec_minmax,
 	&sysctl_intvec, NULL,
@@ -136,12 +136,12 @@ STATIC ctl_table xfs_table[] = {
 	{0}
 };
 
-STATIC ctl_table xfs_dir_table[] = {
+static ctl_table xfs_dir_table[] = {
 	{FS_XFS, "xfs", NULL, 0, 0555, xfs_table},
 	{0}
 };
 
-STATIC ctl_table xfs_root_table[] = {
+static ctl_table xfs_root_table[] = {
 	{CTL_FS, "fs",  NULL, 0, 0555, xfs_dir_table},
 	{0}
 };

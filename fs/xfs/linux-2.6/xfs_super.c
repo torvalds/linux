@@ -58,10 +58,10 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-STATIC struct quotactl_ops xfs_quotactl_operations;
-STATIC struct super_operations xfs_super_operations;
-STATIC kmem_zone_t *xfs_vnode_zone;
-STATIC kmem_zone_t *xfs_ioend_zone;
+static struct quotactl_ops xfs_quotactl_operations;
+static struct super_operations xfs_super_operations;
+static kmem_zone_t *xfs_vnode_zone;
+static kmem_zone_t *xfs_ioend_zone;
 mempool_t *xfs_ioend_pool;
 
 STATIC struct xfs_mount_args *
@@ -121,7 +121,7 @@ xfs_max_file_offset(
 	return (((__uint64_t)pagefactor) << bitshift) - 1;
 }
 
-STATIC __inline__ void
+STATIC_INLINE void
 xfs_set_inodeops(
 	struct inode		*inode)
 {
@@ -147,7 +147,7 @@ xfs_set_inodeops(
 	}
 }
 
-STATIC __inline__ void
+STATIC_INLINE void
 xfs_revalidate_inode(
 	xfs_mount_t		*mp,
 	bhv_vnode_t		*vp,
@@ -873,7 +873,7 @@ xfs_fs_get_sb(
 			   mnt);
 }
 
-STATIC struct super_operations xfs_super_operations = {
+static struct super_operations xfs_super_operations = {
 	.alloc_inode		= xfs_fs_alloc_inode,
 	.destroy_inode		= xfs_fs_destroy_inode,
 	.write_inode		= xfs_fs_write_inode,
@@ -887,7 +887,7 @@ STATIC struct super_operations xfs_super_operations = {
 	.show_options		= xfs_fs_show_options,
 };
 
-STATIC struct quotactl_ops xfs_quotactl_operations = {
+static struct quotactl_ops xfs_quotactl_operations = {
 	.quota_sync		= xfs_fs_quotasync,
 	.get_xstate		= xfs_fs_getxstate,
 	.set_xstate		= xfs_fs_setxstate,

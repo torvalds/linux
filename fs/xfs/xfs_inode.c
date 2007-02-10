@@ -2125,7 +2125,7 @@ xfs_iunlink_remove(
 	return 0;
 }
 
-static __inline__ int xfs_inode_clean(xfs_inode_t *ip)
+STATIC_INLINE int xfs_inode_clean(xfs_inode_t *ip)
 {
 	return (((ip->i_itemp == NULL) ||
 		!(ip->i_itemp->ili_format.ilf_fields & XFS_ILOG_ALL)) &&

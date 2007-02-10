@@ -94,7 +94,7 @@ STATIC int xfs_attr_leaf_entsize(xfs_attr_leafblock_t *leaf, int index);
  * Namespace helper routines
  *========================================================================*/
 
-STATIC inline attrnames_t *
+STATIC_INLINE attrnames_t *
 xfs_attr_flags_namesp(int flags)
 {
 	return ((flags & XFS_ATTR_SECURE) ? &attr_secure:
@@ -105,7 +105,7 @@ xfs_attr_flags_namesp(int flags)
  * If namespace bits don't match return 0.
  * If all match then return 1.
  */
-STATIC inline int
+STATIC_INLINE int
 xfs_attr_namesp_match(int arg_flags, int ondisk_flags)
 {
 	return XFS_ATTR_NSP_ONDISK(ondisk_flags) == XFS_ATTR_NSP_ARGS_TO_ONDISK(arg_flags);
@@ -116,7 +116,7 @@ xfs_attr_namesp_match(int arg_flags, int ondisk_flags)
  * then return 0.
  * If all match or are overridable then return 1.
  */
-STATIC inline int
+STATIC_INLINE int
 xfs_attr_namesp_match_overrides(int arg_flags, int ondisk_flags)
 {
 	if (((arg_flags & ATTR_SECURE) == 0) !=

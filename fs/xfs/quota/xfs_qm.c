@@ -64,10 +64,10 @@ uint		ndquot;
 
 kmem_zone_t	*qm_dqzone;
 kmem_zone_t	*qm_dqtrxzone;
-STATIC kmem_shaker_t	xfs_qm_shaker;
+static kmem_shaker_t	xfs_qm_shaker;
 
-STATIC cred_t	xfs_zerocr;
-STATIC xfs_inode_t	xfs_zeroino;
+static cred_t	xfs_zerocr;
+static xfs_inode_t	xfs_zeroino;
 
 STATIC void	xfs_qm_list_init(xfs_dqlist_t *, char *, int);
 STATIC void	xfs_qm_list_destroy(xfs_dqlist_t *);

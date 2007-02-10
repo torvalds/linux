@@ -57,9 +57,9 @@
  */
 
 #define ATTR_SYSCOUNT	2
-STATIC struct attrnames posix_acl_access;
-STATIC struct attrnames posix_acl_default;
-STATIC struct attrnames *attr_system_names[ATTR_SYSCOUNT];
+static struct attrnames posix_acl_access;
+static struct attrnames posix_acl_default;
+static struct attrnames *attr_system_names[ATTR_SYSCOUNT];
 
 /*========================================================================
  * Function prototypes for the kernel.
@@ -2477,7 +2477,7 @@ posix_acl_default_exists(
 	return xfs_acl_vhasacl_default(vp);
 }
 
-STATIC struct attrnames posix_acl_access = {
+static struct attrnames posix_acl_access = {
 	.attr_name	= "posix_acl_access",
 	.attr_namelen	= sizeof("posix_acl_access") - 1,
 	.attr_get	= posix_acl_access_get,
@@ -2486,7 +2486,7 @@ STATIC struct attrnames posix_acl_access = {
 	.attr_exists	= posix_acl_access_exists,
 };
 
-STATIC struct attrnames posix_acl_default = {
+static struct attrnames posix_acl_default = {
 	.attr_name	= "posix_acl_default",
 	.attr_namelen	= sizeof("posix_acl_default") - 1,
 	.attr_get	= posix_acl_default_get,
@@ -2495,7 +2495,7 @@ STATIC struct attrnames posix_acl_default = {
 	.attr_exists	= posix_acl_default_exists,
 };
 
-STATIC struct attrnames *attr_system_names[] =
+static struct attrnames *attr_system_names[] =
 	{ &posix_acl_access, &posix_acl_default };
 
 

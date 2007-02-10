@@ -26,7 +26,7 @@ DEFINE_SPINLOCK(vnumber_lock);
  */
 #define NVSYNC                  37
 #define vptosync(v)             (&vsync[((unsigned long)v) % NVSYNC])
-STATIC wait_queue_head_t vsync[NVSYNC];
+static wait_queue_head_t vsync[NVSYNC];
 
 void
 vn_init(void)

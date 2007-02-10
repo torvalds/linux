@@ -1802,7 +1802,7 @@ xfs_icsb_destroy_counters(
 	}
 }
 
-STATIC inline void
+STATIC_INLINE void
 xfs_icsb_lock_cntr(
 	xfs_icsb_cnts_t	*icsbp)
 {
@@ -1811,7 +1811,7 @@ xfs_icsb_lock_cntr(
 	}
 }
 
-STATIC inline void
+STATIC_INLINE void
 xfs_icsb_unlock_cntr(
 	xfs_icsb_cnts_t	*icsbp)
 {
@@ -1819,7 +1819,7 @@ xfs_icsb_unlock_cntr(
 }
 
 
-STATIC inline void
+STATIC_INLINE void
 xfs_icsb_lock_all_counters(
 	xfs_mount_t	*mp)
 {
@@ -1832,7 +1832,7 @@ xfs_icsb_lock_all_counters(
 	}
 }
 
-STATIC inline void
+STATIC_INLINE void
 xfs_icsb_unlock_all_counters(
 	xfs_mount_t	*mp)
 {

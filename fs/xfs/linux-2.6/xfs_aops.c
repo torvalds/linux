@@ -249,7 +249,7 @@ xfs_map_blocks(
 	return -error;
 }
 
-STATIC inline int
+STATIC_INLINE int
 xfs_iomap_valid(
 	xfs_iomap_t		*iomapp,
 	loff_t			offset)
