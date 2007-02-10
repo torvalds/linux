@@ -529,7 +529,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 		zap_locks();
 
 	/* This stops the holder of console_sem just where we want him */
-	local_irq_save(flags);
+	raw_local_irq_save(flags);
 	lockdep_off();
 	spin_lock(&logbuf_lock);
 	printk_cpu = smp_processor_id();
@@ -618,7 +618,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 			up(&console_sem);
 		}
 		lockdep_on();
-		local_irq_restore(flags);
+		raw_local_irq_restore(flags);
 	} else {
 		/*
 		 * Someone else owns the drivers.  We drop the spinlock, which
@@ -628,7 +628,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 		printk_cpu = UINT_MAX;
 		spin_unlock(&logbuf_lock);
 		lockdep_on();
-		local_irq_restore(flags);
+		raw_local_irq_restore(flags);
 	}
 
 	preempt_enable();
