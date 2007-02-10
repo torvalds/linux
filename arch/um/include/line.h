@@ -11,6 +11,7 @@
 #include "linux/tty.h"
 #include "linux/interrupt.h"
 #include "linux/spinlock.h"
+#include "linux/mutex.h"
 #include "chan_user.h"
 #include "mconsole_kern.h"
 
@@ -32,15 +33,17 @@ struct line_driver {
 
 struct line {
 	struct tty_struct *tty;
+	spinlock_t count_lock;
+	int valid;
+
+	struct mutex open_mutex;
 	char *init_str;
 	int init_pri;
 	struct list_head chan_list;
-	int valid;
-	int count;
-	int throttled;
+
 	/*This lock is actually, mostly, local to*/
 	spinlock_t lock;
-
+	int throttled;
 	/* Yes, this is a real circular buffer.
 	 * XXX: And this should become a struct kfifo!
 	 *
@@ -57,7 +60,8 @@ struct line {
 };
 
 #define LINE_INIT(str, d) \
-	{ .init_str =	str, \
+	{ .count_lock =	SPIN_LOCK_UNLOCKED, \
+	  .init_str =	str,	\
 	  .init_pri =	INIT_STATIC, \
 	  .valid =	1, \
 	  .lock =	SPIN_LOCK_UNLOCKED, \

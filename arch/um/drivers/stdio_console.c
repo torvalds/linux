@@ -83,9 +83,9 @@ static struct lines console_lines = LINES_INIT(MAX_TTYS);
 /* The array is initialized by line_init, which is an initcall.  The 
  * individual elements are protected by individual semaphores.
  */
-struct line vts[MAX_TTYS] = { LINE_INIT(CONFIG_CON_ZERO_CHAN, &driver),
-			      [ 1 ... MAX_TTYS - 1 ] =
-			      LINE_INIT(CONFIG_CON_CHAN, &driver) };
+static struct line vts[MAX_TTYS] = { LINE_INIT(CONFIG_CON_ZERO_CHAN, &driver),
+				     [ 1 ... MAX_TTYS - 1 ] =
+				     LINE_INIT(CONFIG_CON_CHAN, &driver) };
 
 static int con_config(char *str)
 {
