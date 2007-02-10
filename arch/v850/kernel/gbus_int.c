@@ -16,6 +16,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/signal.h>
+#include <linux/kernel.h>
 
 #include <asm/machdep.h>
 
@@ -36,7 +37,7 @@ struct used_gint {
 	{ 1, GBUS_INT_PRIORITY_HIGH },
 	{ 3, GBUS_INT_PRIORITY_LOW }
 };
-#define NUM_USED_GINTS	(sizeof used_gint / sizeof used_gint[0])
+#define NUM_USED_GINTS ARRAY_SIZE(used_gint)
 
 /* A table of which GINT is used by each GBUS interrupts (they are
    assigned based on priority).  */
@@ -231,8 +232,7 @@ struct gbus_int_irq_init gbus_irq_inits[] __initdata = {
 	{ "GBUS_INT", IRQ_GBUS_INT(0), IRQ_GBUS_INT_NUM, 1, 6},
 	{ 0 }
 };
-#define NUM_GBUS_IRQ_INITS  \
-   ((sizeof gbus_irq_inits / sizeof gbus_irq_inits[0]) - 1)
+#define NUM_GBUS_IRQ_INITS (ARRAY_SIZE(gbus_irq_inits) - 1)
 
 static struct hw_interrupt_type gbus_hw_itypes[NUM_GBUS_IRQ_INITS];
 
