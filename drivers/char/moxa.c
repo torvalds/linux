@@ -424,10 +424,10 @@ static void __exit moxa_exit(void)
 	if (verbose)
 		printk("Unloading module moxa ...\n");
 
-	del_timer(&moxaTimer);
+	del_timer_sync(&moxaTimer);
 
 	for (i = 0; i < MAX_PORTS; i++)
-		del_timer(&moxaEmptyTimer[i]);
+		del_timer_sync(&moxaEmptyTimer[i]);
 
 	if (tty_unregister_driver(moxaDriver))
 		printk("Couldn't unregister MOXA Intellio family serial driver\n");
@@ -529,7 +529,7 @@ static void moxa_close(struct tty_struct *tty, struct file *filp)
 	if (ch->asyncflags & ASYNC_INITIALIZED) {
 		setup_empty_event(tty);
 		tty_wait_until_sent(tty, 30 * HZ);	/* 30 seconds timeout */
-		del_timer(&moxaEmptyTimer[ch->port]);
+		del_timer_sync(&moxaEmptyTimer[ch->port]);
 	}
 	shut_down(ch);
 	MoxaPortFlushData(port, 2);
@@ -1004,7 +1004,7 @@ static void check_xmit_empty(unsigned long data)
 	struct moxa_str *ch;
 
 	ch = (struct moxa_str *) data;
-	del_timer(&moxaEmptyTimer[ch->port]);
+	del_timer_sync(&moxaEmptyTimer[ch->port]);
 	if (ch->tty && (ch->statusflags & EMPTYWAIT)) {
 		if (MoxaPortTxQueue(ch->port) == 0) {
 			ch->statusflags &= ~EMPTYWAIT;
