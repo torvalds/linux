@@ -38,6 +38,7 @@ static void ssl_announce(char *dev_name, int dev)
 	       dev_name);
 }
 
+/* Almost const, except that xterm_title may be changed in an initcall */
 static struct chan_opts opts = {
 	.announce 	= ssl_announce,
 	.xterm_title	= "Serial Line #%d",
@@ -171,7 +172,7 @@ static int ssl_console_setup(struct console *co, char *options)
 {
 	struct line *line = &serial_lines[co->index];
 
-	return console_open_chan(line, co, &opts);
+	return console_open_chan(line, co);
 }
 
 static struct console ssl_cons = {

@@ -9,11 +9,11 @@
 #include "init.h"
 
 struct chan_opts {
-	void (*announce)(char *dev_name, int dev);
+	void (*const announce)(char *dev_name, int dev);
 	char *xterm_title;
-	int raw;
-	unsigned long tramp_stack;
-	int in_kernel;
+	const int raw;
+	const unsigned long tramp_stack;
+	const int in_kernel;
 };
 
 enum chan_init_pri { INIT_STATIC, INIT_ALL, INIT_ONE };

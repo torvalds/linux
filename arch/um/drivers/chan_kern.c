@@ -354,8 +354,7 @@ int console_write_chan(struct list_head *chans, const char *buf, int len)
 	return ret;
 }
 
-int console_open_chan(struct line *line, struct console *co,
-		      const struct chan_opts *opts)
+int console_open_chan(struct line *line, struct console *co)
 {
 	int err;
 
@@ -363,7 +362,7 @@ int console_open_chan(struct line *line, struct console *co,
 	if(err)
 		return err;
 
-	printk("Console initialized on /dev/%s%d\n",co->name,co->index);
+	printk("Console initialized on /dev/%s%d\n", co->name, co->index);
 	return 0;
 }
 
