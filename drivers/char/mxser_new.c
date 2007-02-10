@@ -2073,9 +2073,6 @@ static void mxser_receive_chars(struct mxser_port *port, int *status)
 	int cnt = 0;
 	int recv_room;
 	int max = 256;
-	unsigned long flags;
-
-	spin_lock_irqsave(&port->slock, flags);
 
 	recv_room = tty->receive_room;
 	if ((recv_room == 0) && (!port->ldisc_stop_rx))
@@ -2159,7 +2156,6 @@ end_intr:
 	mxvar_log.rxcnt[port->tty->index] += cnt;
 	port->mon_data.rxcnt += cnt;
 	port->mon_data.up_rxcnt += cnt;
-	spin_unlock_irqrestore(&port->slock, flags);
 
 	tty_flip_buffer_push(tty);
 }
@@ -2167,9 +2163,6 @@ end_intr:
 static void mxser_transmit_chars(struct mxser_port *port)
 {
 	int count, cnt;
-	unsigned long flags;
-
-	spin_lock_irqsave(&port->slock, flags);
 
 	if (port->x_char) {
 		outb(port->x_char, port->ioaddr + UART_TX);
@@ -2178,11 +2171,11 @@ static void mxser_transmit_chars(struct mxser_port *port)
 		port->mon_data.txcnt++;
 		port->mon_data.up_txcnt++;
 		port->icount.tx++;
-		goto unlock;
+		return;
 	}
 
 	if (port->xmit_buf == 0)
-		goto unlock;
+		return;
 
 	if ((port->xmit_cnt <= 0) || port->tty->stopped ||
 			(port->tty->hw_stopped &&
@@ -2190,7 +2183,7 @@ static void mxser_transmit_chars(struct mxser_port *port)
 			(!port->board->chip_flag))) {
 		port->IER &= ~UART_IER_THRI;
 		outb(port->IER, port->ioaddr + UART_IER);
-		goto unlock;
+		return;
 	}
 
 	cnt = port->xmit_cnt;
@@ -2215,8 +2208,6 @@ static void mxser_transmit_chars(struct mxser_port *port)
 		port->IER &= ~UART_IER_THRI;
 		outb(port->IER, port->ioaddr + UART_IER);
 	}
-unlock:
-	spin_unlock_irqrestore(&port->slock, flags);
 }
 
 /*
@@ -2257,12 +2248,16 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 			port = &brd->ports[i];
 
 			int_cnt = 0;
+			spin_lock(&port->slock);
 			do {
 				iir = inb(port->ioaddr + UART_IIR);
 				if (iir & UART_IIR_NO_INT)
 					break;
 				iir &= MOXA_MUST_IIR_MASK;
-				if (!port->tty) {
+				if (!port->tty ||
+						(port->flags & ASYNC_CLOSING) ||
+						!(port->flags &
+							ASYNC_INITIALIZED)) {
 					status = inb(port->ioaddr + UART_LSR);
 					outb(0x27, port->ioaddr + UART_FCR);
 					inb(port->ioaddr + UART_MSR);
@@ -2308,6 +2303,7 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 						mxser_transmit_chars(port);
 				}
 			} while (int_cnt++ < MXSER_ISR_PASS_LIMIT);
+			spin_unlock(&port->slock);
 		}
 		if (pass_counter++ > MXSER_ISR_PASS_LIMIT)
 			break;	/* Prevent infinite loops */
