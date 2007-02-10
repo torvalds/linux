@@ -141,13 +141,13 @@ static volatile int adb_int_pending;
 static volatile int disable_poll;
 static struct device_node *vias;
 static int pmu_kind = PMU_UNKNOWN;
-static int pmu_fully_inited = 0;
+static int pmu_fully_inited;
 static int pmu_has_adb;
 static struct device_node *gpio_node;
-static unsigned char __iomem *gpio_reg = NULL;
+static unsigned char __iomem *gpio_reg;
 static int gpio_irq = NO_IRQ;
 static int gpio_irq_enabled = -1;
-static volatile int pmu_suspended = 0;
+static volatile int pmu_suspended;
 static spinlock_t pmu_lock;
 static u8 pmu_intr_mask;
 static int pmu_version;
@@ -180,7 +180,7 @@ int asleep;
 BLOCKING_NOTIFIER_HEAD(sleep_notifier_list);
 
 #ifdef CONFIG_ADB
-static int adb_dev_map = 0;
+static int adb_dev_map;
 static int pmu_adb_flags;
 
 static int pmu_probe(void);
@@ -2776,7 +2776,7 @@ pmu_polled_request(struct adb_request *req)
 
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 
-static int pmu_sys_suspended = 0;
+static int pmu_sys_suspended;
 
 static int pmu_sys_suspend(struct sys_device *sysdev, pm_message_t state)
 {
@@ -2816,7 +2816,6 @@ static struct sysdev_class pmu_sysclass = {
 };
 
 static struct sys_device device_pmu = {
-	.id		= 0,
 	.cls		= &pmu_sysclass,
 };
 
