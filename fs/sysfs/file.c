@@ -54,7 +54,7 @@ static struct sysfs_ops subsys_sysfs_ops = {
 /**
  *	add_to_collection - add buffer to a collection
  *	@buffer:	buffer to be added
- *	@node		inode of set to add to
+ *	@node:		inode of set to add to
  */
 
 static inline void

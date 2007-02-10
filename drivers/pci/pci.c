@@ -1300,7 +1300,7 @@ pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 
 /**
  * pci_select_bars - Make BAR mask from the type of resource
- * @pdev: the PCI device for which BAR mask is made
+ * @dev: the PCI device for which BAR mask is made
  * @flags: resource type mask to be selected
  *
  * This helper routine makes bar mask from the type of resource.
