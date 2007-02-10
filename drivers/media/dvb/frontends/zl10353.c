@@ -142,14 +142,16 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 	zl10353_single_write(fe, 0x66, 0xE9);
 	zl10353_single_write(fe, 0x6C, 0xCD);
 	zl10353_single_write(fe, 0x6D, 0x7E);
-	zl10353_single_write(fe, 0x62, 0x0A);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
 
 	// if there is no attached secondary tuner, we call set_params to program
 	// a potential tuner attached somewhere else
 	if (state->config.no_tuner) {
 		if (fe->ops.tuner_ops.set_params) {
 			fe->ops.tuner_ops.set_params(fe, param);
-			if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+			if (fe->ops.i2c_gate_ctrl)
+				fe->ops.i2c_gate_ctrl(fe, 0);
 		}
 	}
 
@@ -294,6 +296,16 @@ static int zl10353_init(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int zl10353_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	u8 val = 0x0a;
+
+	if (enable)
+		val |= 0x10;
+
+	return zl10353_single_write(fe, 0x62, val);
+}
+
 static void zl10353_release(struct dvb_frontend *fe)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
@@ -352,6 +364,7 @@ static struct dvb_frontend_ops zl10353_ops = {
 
 	.init = zl10353_init,
 	.sleep = zl10353_sleep,
+	.i2c_gate_ctrl = zl10353_i2c_gate_ctrl,
 	.write = zl10353_write,
 
 	.set_frontend = zl10353_set_parameters,
