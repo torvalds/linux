@@ -217,6 +217,8 @@ int mmc_register_card(struct mmc_card *card)
 				device_del(&card->dev);
 		}
 	}
+	if (ret == 0)
+		mmc_card_set_present(card);
 	return ret;
 }
 

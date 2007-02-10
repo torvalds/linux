@@ -1604,8 +1604,6 @@ static void mmc_rescan(struct work_struct *work)
 		if (!mmc_card_present(card) && !mmc_card_dead(card)) {
 			if (mmc_register_card(card))
 				mmc_card_set_dead(card);
-			else
-				mmc_card_set_present(card);
 		}
 
 		/*
