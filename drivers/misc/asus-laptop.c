@@ -1088,11 +1088,6 @@ static int __init asus_laptop_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	if (!acpi_specific_hotkey_enabled) {
-		printk(ASUS_ERR "Using generic hotkey driver\n");
-		return -ENODEV;
-	}
-
 	result = acpi_bus_register_driver(&asus_hotk_driver);
 	if (result < 0)
 		return result;

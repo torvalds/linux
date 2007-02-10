@@ -2696,11 +2696,6 @@ static int __init acpi_ibm_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	if (!acpi_specific_hotkey_enabled) {
-		printk(IBM_ERR "using generic hotkey driver\n");
-		return -ENODEV;
-	}
-
 	/* ec is required because many other handles are relative to it */
 	IBM_HANDLE_INIT(ec);
 	if (!ec_handle) {

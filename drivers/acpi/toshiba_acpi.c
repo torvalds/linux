@@ -561,10 +561,6 @@ static int __init toshiba_acpi_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	if (!acpi_specific_hotkey_enabled) {
-		printk(MY_INFO "Using generic hotkey driver\n");
-		return -ENODEV;
-	}
 	/* simple device detection: look for HCI method */
 	if (is_valid_acpi_path(METHOD_HCI_1))
 		method_hci = METHOD_HCI_1;
