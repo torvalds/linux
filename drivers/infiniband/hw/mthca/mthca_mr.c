@@ -243,8 +243,8 @@ void mthca_free_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt)
 	kfree(mtt);
 }
 
-int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
-		    int start_index, u64 *buffer_list, int list_len)
+static int __mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
+			     int start_index, u64 *buffer_list, int list_len)
 {
 	struct mthca_mailbox *mailbox;
 	__be64 *mtt_entry;
@@ -293,6 +293,84 @@ int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 out:
 	mthca_free_mailbox(dev, mailbox);
 	return err;
+}
+
+int mthca_write_mtt_size(struct mthca_dev *dev)
+{
+	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy)
+		/*
+		 * Be friendly to WRITE_MTT command
+		 * and leave two empty slots for the
+		 * index and reserved fields of the
+		 * mailbox.
+		 */
+		return PAGE_SIZE / sizeof (u64) - 2;
+
+	/* For Arbel, all MTTs must fit in the same page. */
+	return mthca_is_memfree(dev) ? (PAGE_SIZE / sizeof (u64)) : 0x7ffffff;
+}
+
+void mthca_tavor_write_mtt_seg(struct mthca_dev *dev, struct mthca_mtt *mtt,
+			      int start_index, u64 *buffer_list, int list_len)
+{
+	u64 __iomem *mtts;
+	int i;
+
+	mtts = dev->mr_table.tavor_fmr.mtt_base + mtt->first_seg * MTHCA_MTT_SEG_SIZE +
+		start_index * sizeof (u64);
+	for (i = 0; i < list_len; ++i)
+		mthca_write64_raw(cpu_to_be64(buffer_list[i] | MTHCA_MTT_FLAG_PRESENT),
+				  mtts + i);
+}
+
+void mthca_arbel_write_mtt_seg(struct mthca_dev *dev, struct mthca_mtt *mtt,
+			      int start_index, u64 *buffer_list, int list_len)
+{
+	__be64 *mtts;
+	dma_addr_t dma_handle;
+	int i;
+	int s = start_index * sizeof (u64);
+
+	/* For Arbel, all MTTs must fit in the same page. */
+	BUG_ON(s / PAGE_SIZE != (s + list_len * sizeof(u64) - 1) / PAGE_SIZE);
+	/* Require full segments */
+	BUG_ON(s % MTHCA_MTT_SEG_SIZE);
+
+	mtts = mthca_table_find(dev->mr_table.mtt_table, mtt->first_seg +
+				s / MTHCA_MTT_SEG_SIZE, &dma_handle);
+
+	BUG_ON(!mtts);
+
+	for (i = 0; i < list_len; ++i)
+		mtts[i] = cpu_to_be64(buffer_list[i] | MTHCA_MTT_FLAG_PRESENT);
+
+	dma_sync_single(&dev->pdev->dev, dma_handle, list_len * sizeof (u64), DMA_TO_DEVICE);
+}
+
+int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
+		    int start_index, u64 *buffer_list, int list_len)
+{
+	int size = mthca_write_mtt_size(dev);
+	int chunk;
+
+	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy)
+		return __mthca_write_mtt(dev, mtt, start_index, buffer_list, list_len);
+
+	while (list_len > 0) {
+		chunk = min(size, list_len);
+		if (mthca_is_memfree(dev))
+			mthca_arbel_write_mtt_seg(dev, mtt, start_index,
+						  buffer_list, chunk);
+		else
+			mthca_tavor_write_mtt_seg(dev, mtt, start_index,
+						  buffer_list, chunk);
+
+		list_len    -= chunk;
+		start_index += chunk;
+		buffer_list += chunk;
+	}
+
+	return 0;
 }
 
 static inline u32 tavor_hw_index_to_key(u32 ind)
