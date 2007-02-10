@@ -85,8 +85,10 @@ struct vm_area_struct;
 
 static inline enum zone_type gfp_zone(gfp_t flags)
 {
+#ifdef CONFIG_ZONE_DMA
 	if (flags & __GFP_DMA)
 		return ZONE_DMA;
+#endif
 #ifdef CONFIG_ZONE_DMA32
 	if (flags & __GFP_DMA32)
 		return ZONE_DMA32;

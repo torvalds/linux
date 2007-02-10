@@ -96,6 +96,7 @@ struct per_cpu_pageset {
 #endif
 
 enum zone_type {
+#ifdef CONFIG_ZONE_DMA
 	/*
 	 * ZONE_DMA is used when there are devices that are not able
 	 * to do DMA to all of addressable memory (ZONE_NORMAL). Then we
@@ -116,6 +117,7 @@ enum zone_type {
 	 * 			<16M.
 	 */
 	ZONE_DMA,
+#endif
 #ifdef CONFIG_ZONE_DMA32
 	/*
 	 * x86_64 needs two ZONE_DMAs because it supports devices that are
@@ -152,11 +154,27 @@ enum zone_type {
  * match the requested limits. See gfp_zone() in include/linux/gfp.h
  */
 
-#if !defined(CONFIG_ZONE_DMA32) && !defined(CONFIG_HIGHMEM)
+/*
+ * Count the active zones.  Note that the use of defined(X) outside
+ * #if and family is not necessarily defined so ensure we cannot use
+ * it later.  Use __ZONE_COUNT to work out how many shift bits we need.
+ */
+#define __ZONE_COUNT (			\
+	  defined(CONFIG_ZONE_DMA)	\
+	+ defined(CONFIG_ZONE_DMA32)	\
+	+ 1				\
+	+ defined(CONFIG_HIGHMEM)	\
+)
+#if __ZONE_COUNT < 2
+#define ZONES_SHIFT 0
+#elif __ZONE_COUNT <= 2
 #define ZONES_SHIFT 1
-#else
+#elif __ZONE_COUNT <= 4
 #define ZONES_SHIFT 2
+#else
+#error ZONES_SHIFT -- too many zones configured adjust calculation
 #endif
+#undef __ZONE_COUNT
 
 struct zone {
 	/* Fields commonly accessed by the page allocator */
@@ -523,7 +541,11 @@ static inline int is_dma32(struct zone *zone)
 
 static inline int is_dma(struct zone *zone)
 {
+#ifdef CONFIG_ZONE_DMA
 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
+#else
+	return 0;
+#endif
 }
 
 /* These two functions are used to setup the per zone pages min values */
