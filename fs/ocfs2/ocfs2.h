@@ -463,6 +463,38 @@ static inline unsigned long ocfs2_align_bytes_to_sectors(u64 bytes)
 	return (unsigned long)((bytes + 511) >> 9);
 }
 
+static inline unsigned int ocfs2_page_index_to_clusters(struct super_block *sb,
+							unsigned long pg_index)
+{
+	u32 clusters = pg_index;
+	unsigned int cbits = OCFS2_SB(sb)->s_clustersize_bits;
+
+	if (unlikely(PAGE_CACHE_SHIFT > cbits))
+		clusters = pg_index << (PAGE_CACHE_SHIFT - cbits);
+	else if (PAGE_CACHE_SHIFT < cbits)
+		clusters = pg_index >> (cbits - PAGE_CACHE_SHIFT);
+
+	return clusters;
+}
+
+/*
+ * Find the 1st page index which covers the given clusters.
+ */
+static inline unsigned long ocfs2_align_clusters_to_page_index(struct super_block *sb,
+							u32 clusters)
+{
+	unsigned int cbits = OCFS2_SB(sb)->s_clustersize_bits;
+	unsigned long index = clusters;
+
+	if (PAGE_CACHE_SHIFT > cbits) {
+		index = clusters >> (PAGE_CACHE_SHIFT - cbits);
+	} else if (PAGE_CACHE_SHIFT < cbits) {
+		index = clusters << (cbits - PAGE_CACHE_SHIFT);
+	}
+
+	return index;
+}
+
 #define ocfs2_set_bit ext2_set_bit
 #define ocfs2_clear_bit ext2_clear_bit
 #define ocfs2_test_bit ext2_test_bit

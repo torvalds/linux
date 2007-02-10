@@ -24,6 +24,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <asm/byteorder.h>
+#include <linux/swap.h>
 
 #define MLOG_MASK_PREFIX ML_FILE_IO
 #include <cluster/masklog.h>
@@ -37,6 +38,7 @@
 #include "file.h"
 #include "inode.h"
 #include "journal.h"
+#include "suballoc.h"
 #include "super.h"
 #include "symlink.h"
 
@@ -645,23 +647,27 @@ static ssize_t ocfs2_direct_IO(int rw,
 
 	mlog_entry_void();
 
-	/*
-	 * We get PR data locks even for O_DIRECT.  This allows
-	 * concurrent O_DIRECT I/O but doesn't let O_DIRECT with
-	 * extending and buffered zeroing writes race.  If they did
-	 * race then the buffered zeroing could be written back after
-	 * the O_DIRECT I/O.  It's one thing to tell people not to mix
-	 * buffered and O_DIRECT writes, but expecting them to
-	 * understand that file extension is also an implicit buffered
-	 * write is too much.  By getting the PR we force writeback of
-	 * the buffered zeroing before proceeding.
-	 */
-	ret = ocfs2_data_lock(inode, 0);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out;
+	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb))) {
+		/*
+		 * We get PR data locks even for O_DIRECT.  This
+		 * allows concurrent O_DIRECT I/O but doesn't let
+		 * O_DIRECT with extending and buffered zeroing writes
+		 * race.  If they did race then the buffered zeroing
+		 * could be written back after the O_DIRECT I/O.  It's
+		 * one thing to tell people not to mix buffered and
+		 * O_DIRECT writes, but expecting them to understand
+		 * that file extension is also an implicit buffered
+		 * write is too much.  By getting the PR we force
+		 * writeback of the buffered zeroing before
+		 * proceeding.
+		 */
+		ret = ocfs2_data_lock(inode, 0);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+		ocfs2_data_unlock(inode, 0);
 	}
-	ocfs2_data_unlock(inode, 0);
 
 	ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
 					    inode->i_sb->s_bdev, iov, offset,
@@ -671,6 +677,647 @@ static ssize_t ocfs2_direct_IO(int rw,
 out:
 	mlog_exit(ret);
 	return ret;
+}
+
+static void ocfs2_figure_cluster_boundaries(struct ocfs2_super *osb,
+					    u32 cpos,
+					    unsigned int *start,
+					    unsigned int *end)
+{
+	unsigned int cluster_start = 0, cluster_end = PAGE_CACHE_SIZE;
+
+	if (unlikely(PAGE_CACHE_SHIFT > osb->s_clustersize_bits)) {
+		unsigned int cpp;
+
+		cpp = 1 << (PAGE_CACHE_SHIFT - osb->s_clustersize_bits);
+
+		cluster_start = cpos % cpp;
+		cluster_start = cluster_start << osb->s_clustersize_bits;
+
+		cluster_end = cluster_start + osb->s_clustersize;
+	}
+
+	BUG_ON(cluster_start > PAGE_SIZE);
+	BUG_ON(cluster_end > PAGE_SIZE);
+
+	if (start)
+		*start = cluster_start;
+	if (end)
+		*end = cluster_end;
+}
+
+/*
+ * 'from' and 'to' are the region in the page to avoid zeroing.
+ *
+ * If pagesize > clustersize, this function will avoid zeroing outside
+ * of the cluster boundary.
+ *
+ * from == to == 0 is code for "zero the entire cluster region"
+ */
+static void ocfs2_clear_page_regions(struct page *page,
+				     struct ocfs2_super *osb, u32 cpos,
+				     unsigned from, unsigned to)
+{
+	void *kaddr;
+	unsigned int cluster_start, cluster_end;
+
+	ocfs2_figure_cluster_boundaries(osb, cpos, &cluster_start, &cluster_end);
+
+	kaddr = kmap_atomic(page, KM_USER0);
+
+	if (from || to) {
+		if (from > cluster_start)
+			memset(kaddr + cluster_start, 0, from - cluster_start);
+		if (to < cluster_end)
+			memset(kaddr + to, 0, cluster_end - to);
+	} else {
+		memset(kaddr + cluster_start, 0, cluster_end - cluster_start);
+	}
+
+	kunmap_atomic(kaddr, KM_USER0);
+}
+
+/*
+ * Some of this taken from block_prepare_write(). We already have our
+ * mapping by now though, and the entire write will be allocating or
+ * it won't, so not much need to use BH_New.
+ *
+ * This will also skip zeroing, which is handled externally.
+ */
+static int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
+				 struct inode *inode, unsigned int from,
+				 unsigned int to, int new)
+{
+	int ret = 0;
+	struct buffer_head *head, *bh, *wait[2], **wait_bh = wait;
+	unsigned int block_end, block_start;
+	unsigned int bsize = 1 << inode->i_blkbits;
+
+	if (!page_has_buffers(page))
+		create_empty_buffers(page, bsize, 0);
+
+	head = page_buffers(page);
+	for (bh = head, block_start = 0; bh != head || !block_start;
+	     bh = bh->b_this_page, block_start += bsize) {
+		block_end = block_start + bsize;
+
+		/*
+		 * Ignore blocks outside of our i/o range -
+		 * they may belong to unallocated clusters.
+		 */
+		if (block_start >= to ||
+		    (block_start + bsize) <= from) {
+			if (PageUptodate(page))
+				set_buffer_uptodate(bh);
+			continue;
+		}
+
+		/*
+		 * For an allocating write with cluster size >= page
+		 * size, we always write the entire page.
+		 */
+
+		if (buffer_new(bh))
+			clear_buffer_new(bh);
+
+		if (!buffer_mapped(bh)) {
+			map_bh(bh, inode->i_sb, *p_blkno);
+			unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
+		}
+
+		if (PageUptodate(page)) {
+			if (!buffer_uptodate(bh))
+				set_buffer_uptodate(bh);
+		} else if (!buffer_uptodate(bh) && !buffer_delay(bh) &&
+		     (block_start < from || block_end > to)) {
+			ll_rw_block(READ, 1, &bh);
+			*wait_bh++=bh;
+		}
+
+		*p_blkno = *p_blkno + 1;
+	}
+
+	/*
+	 * If we issued read requests - let them complete.
+	 */
+	while(wait_bh > wait) {
+		wait_on_buffer(*--wait_bh);
+		if (!buffer_uptodate(*wait_bh))
+			ret = -EIO;
+	}
+
+	if (ret == 0 || !new)
+		return ret;
+
+	/*
+	 * If we get -EIO above, zero out any newly allocated blocks
+	 * to avoid exposing stale data.
+	 */
+	bh = head;
+	block_start = 0;
+	do {
+		void *kaddr;
+
+		block_end = block_start + bsize;
+		if (block_end <= from)
+			goto next_bh;
+		if (block_start >= to)
+			break;
+
+		kaddr = kmap_atomic(page, KM_USER0);
+		memset(kaddr+block_start, 0, bh->b_size);
+		flush_dcache_page(page);
+		kunmap_atomic(kaddr, KM_USER0);
+		set_buffer_uptodate(bh);
+		mark_buffer_dirty(bh);
+
+next_bh:
+		block_start = block_end;
+		bh = bh->b_this_page;
+	} while (bh != head);
+
+	return ret;
+}
+
+/*
+ * This will copy user data from the iovec in the buffered write
+ * context.
+ */
+int ocfs2_map_and_write_user_data(struct inode *inode,
+				  struct ocfs2_write_ctxt *wc, u64 *p_blkno,
+				  unsigned int *ret_from, unsigned int *ret_to)
+{
+	int ret;
+	unsigned int to, from, cluster_start, cluster_end;
+	unsigned long bytes, src_from;
+	char *dst;
+	struct ocfs2_buffered_write_priv *bp = wc->w_private;
+	const struct iovec *cur_iov = bp->b_cur_iov;
+	char __user *buf;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	ocfs2_figure_cluster_boundaries(osb, wc->w_cpos, &cluster_start,
+					&cluster_end);
+
+	buf = cur_iov->iov_base + bp->b_cur_off;
+	src_from = (unsigned long)buf & ~PAGE_CACHE_MASK;
+
+	from = wc->w_pos & (PAGE_CACHE_SIZE - 1);
+
+	/*
+	 * This is a lot of comparisons, but it reads quite
+	 * easily, which is important here.
+	 */
+	/* Stay within the src page */
+	bytes = PAGE_SIZE - src_from;
+	/* Stay within the vector */
+	bytes = min(bytes,
+		    (unsigned long)(cur_iov->iov_len - bp->b_cur_off));
+	/* Stay within count */
+	bytes = min(bytes, (unsigned long)wc->w_count);
+	/*
+	 * For clustersize > page size, just stay within
+	 * target page, otherwise we have to calculate pos
+	 * within the cluster and obey the rightmost
+	 * boundary.
+	 */
+	if (wc->w_large_pages) {
+		/*
+		 * For cluster size < page size, we have to
+		 * calculate pos within the cluster and obey
+		 * the rightmost boundary.
+		 */
+		bytes = min(bytes, (unsigned long)(osb->s_clustersize
+				   - (wc->w_pos & (osb->s_clustersize - 1))));
+	} else {
+		/*
+		 * cluster size > page size is the most common
+		 * case - we just stay within the target page
+		 * boundary.
+		 */
+		bytes = min(bytes, PAGE_CACHE_SIZE - from);
+	}
+
+	to = from + bytes;
+
+	if (wc->w_this_page_new)
+		ret = ocfs2_map_page_blocks(wc->w_this_page, p_blkno, inode,
+					    cluster_start, cluster_end, 1);
+	else
+		ret = ocfs2_map_page_blocks(wc->w_this_page, p_blkno, inode,
+					    from, to, 0);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	BUG_ON(from > PAGE_CACHE_SIZE);
+	BUG_ON(to > PAGE_CACHE_SIZE);
+	BUG_ON(from > osb->s_clustersize);
+	BUG_ON(to > osb->s_clustersize);
+
+	dst = kmap(wc->w_this_page);
+	memcpy(dst + from, bp->b_src_buf + src_from, bytes);
+	kunmap(wc->w_this_page);
+
+	/*
+	 * XXX: This is slow, but simple. The caller of
+	 * ocfs2_buffered_write_cluster() is responsible for
+	 * passing through the iovecs, so it's difficult to
+	 * predict what our next step is in here after our
+	 * initial write. A future version should be pushing
+	 * that iovec manipulation further down.
+	 *
+	 * By setting this, we indicate that a copy from user
+	 * data was done, and subsequent calls for this
+	 * cluster will skip copying more data.
+	 */
+	wc->w_finished_copy = 1;
+
+	*ret_from = from;
+	*ret_to = to;
+out:
+
+	return bytes ? (unsigned int)bytes : ret;
+}
+
+/*
+ * Map, fill and write a page to disk.
+ *
+ * The work of copying data is done via callback.  Newly allocated
+ * pages which don't take user data will be zero'd (set 'new' to
+ * indicate an allocating write)
+ *
+ * Returns a negative error code or the number of bytes copied into
+ * the page.
+ */
+int ocfs2_write_data_page(struct inode *inode, handle_t *handle,
+			  u64 *p_blkno, struct page *page,
+			  struct ocfs2_write_ctxt *wc, int new)
+{
+	int ret, copied = 0;
+	unsigned int from = 0, to = 0;
+	unsigned int cluster_start, cluster_end;
+	unsigned int zero_from = 0, zero_to = 0;
+
+	ocfs2_figure_cluster_boundaries(OCFS2_SB(inode->i_sb), wc->w_cpos,
+					&cluster_start, &cluster_end);
+
+	if ((wc->w_pos >> PAGE_CACHE_SHIFT) == page->index
+	    && !wc->w_finished_copy) {
+
+		wc->w_this_page = page;
+		wc->w_this_page_new = new;
+		ret = wc->w_write_data_page(inode, wc, p_blkno, &from, &to);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		copied = ret;
+
+		zero_from = from;
+		zero_to = to;
+		if (new) {
+			from = cluster_start;
+			to = cluster_end;
+		}
+	} else {
+		/*
+		 * If we haven't allocated the new page yet, we
+		 * shouldn't be writing it out without copying user
+		 * data. This is likely a math error from the caller.
+		 */
+		BUG_ON(!new);
+
+		from = cluster_start;
+		to = cluster_end;
+
+		ret = ocfs2_map_page_blocks(page, p_blkno, inode,
+					    cluster_start, cluster_end, 1);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	/*
+	 * Parts of newly allocated pages need to be zero'd.
+	 *
+	 * Above, we have also rewritten 'to' and 'from' - as far as
+	 * the rest of the function is concerned, the entire cluster
+	 * range inside of a page needs to be written.
+	 *
+	 * We can skip this if the page is up to date - it's already
+	 * been zero'd from being read in as a hole.
+	 */
+	if (new && !PageUptodate(page))
+		ocfs2_clear_page_regions(page, OCFS2_SB(inode->i_sb),
+					 wc->w_cpos, zero_from, zero_to);
+
+	flush_dcache_page(page);
+
+	if (ocfs2_should_order_data(inode)) {
+		ret = walk_page_buffers(handle,
+					page_buffers(page),
+					from, to, NULL,
+					ocfs2_journal_dirty_data);
+		if (ret < 0)
+			mlog_errno(ret);
+	}
+
+	/*
+	 * We don't use generic_commit_write() because we need to
+	 * handle our own i_size update.
+	 */
+	ret = block_commit_write(page, from, to);
+	if (ret)
+		mlog_errno(ret);
+out:
+
+	return copied ? copied : ret;
+}
+
+/*
+ * Do the actual write of some data into an inode. Optionally allocate
+ * in order to fulfill the write.
+ *
+ * cpos is the logical cluster offset within the file to write at
+ *
+ * 'phys' is the physical mapping of that offset. a 'phys' value of
+ * zero indicates that allocation is required. In this case, data_ac
+ * and meta_ac should be valid (meta_ac can be null if metadata
+ * allocation isn't required).
+ */
+static ssize_t ocfs2_write(struct file *file, u32 phys, handle_t *handle,
+			   struct buffer_head *di_bh,
+			   struct ocfs2_alloc_context *data_ac,
+			   struct ocfs2_alloc_context *meta_ac,
+			   struct ocfs2_write_ctxt *wc)
+{
+	int ret, i, numpages = 1, new;
+	unsigned int copied = 0;
+	u32 tmp_pos;
+	u64 v_blkno, p_blkno;
+	struct address_space *mapping = file->f_mapping;
+	struct inode *inode = mapping->host;
+	unsigned int cbits = OCFS2_SB(inode->i_sb)->s_clustersize_bits;
+	unsigned long index, start;
+	struct page **cpages;
+
+	new = phys == 0 ? 1 : 0;
+
+	/*
+	 * Figure out how many pages we'll be manipulating here. For
+	 * non-allocating write, or any writes where cluster size is
+	 * less than page size, we only need one page. Otherwise,
+	 * allocating writes of cluster size larger than page size
+	 * need cluster size pages.
+	 */
+	if (new && !wc->w_large_pages)
+		numpages = (1 << cbits) / PAGE_SIZE;
+
+	cpages = kzalloc(sizeof(*cpages) * numpages, GFP_NOFS);
+	if (!cpages) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		return ret;
+	}
+
+	/*
+	 * Fill our page array first. That way we've grabbed enough so
+	 * that we can zero and flush if we error after adding the
+	 * extent.
+	 */
+	if (new) {
+		start = ocfs2_align_clusters_to_page_index(inode->i_sb,
+							   wc->w_cpos);
+		v_blkno = ocfs2_clusters_to_blocks(inode->i_sb, wc->w_cpos);
+	} else {
+		start = wc->w_pos >> PAGE_CACHE_SHIFT;
+		v_blkno = wc->w_pos >> inode->i_sb->s_blocksize_bits;
+	}
+
+	for(i = 0; i < numpages; i++) {
+		index = start + i;
+
+		cpages[i] = grab_cache_page(mapping, index);
+		if (!cpages[i]) {
+			ret = -ENOMEM;
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	if (new) {
+		/*
+		 * This is safe to call with the page locks - it won't take
+		 * any additional semaphores or cluster locks.
+		 */
+		tmp_pos = wc->w_cpos;
+		ret = ocfs2_do_extend_allocation(OCFS2_SB(inode->i_sb), inode,
+						 &tmp_pos, 1, di_bh, handle,
+						 data_ac, meta_ac, NULL);
+		/*
+		 * This shouldn't happen because we must have already
+		 * calculated the correct meta data allocation required. The
+		 * internal tree allocation code should know how to increase
+		 * transaction credits itself.
+		 *
+		 * If need be, we could handle -EAGAIN for a
+		 * RESTART_TRANS here.
+		 */
+		mlog_bug_on_msg(ret == -EAGAIN,
+				"Inode %llu: EAGAIN return during allocation.\n",
+				(unsigned long long)OCFS2_I(inode)->ip_blkno);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	ret = ocfs2_extent_map_get_blocks(inode, v_blkno, &p_blkno, NULL);
+	if (ret < 0) {
+
+		/*
+		 * XXX: Should we go readonly here?
+		 */
+
+		mlog_errno(ret);
+		goto out;
+	}
+
+	BUG_ON(p_blkno == 0);
+
+	for(i = 0; i < numpages; i++) {
+		ret = ocfs2_write_data_page(inode, handle, &p_blkno, cpages[i],
+					    wc, new);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		copied += ret;
+	}
+
+out:
+	for(i = 0; i < numpages; i++) {
+		unlock_page(cpages[i]);
+		mark_page_accessed(cpages[i]);
+		page_cache_release(cpages[i]);
+	}
+	kfree(cpages);
+
+	return copied ? copied : ret;
+}
+
+static void ocfs2_write_ctxt_init(struct ocfs2_write_ctxt *wc,
+				  struct ocfs2_super *osb, loff_t pos,
+				  size_t count, ocfs2_page_writer *cb,
+				  void *cb_priv)
+{
+	wc->w_count = count;
+	wc->w_pos = pos;
+	wc->w_cpos = wc->w_pos >> osb->s_clustersize_bits;
+	wc->w_finished_copy = 0;
+
+	if (unlikely(PAGE_CACHE_SHIFT > osb->s_clustersize_bits))
+		wc->w_large_pages = 1;
+	else
+		wc->w_large_pages = 0;
+
+	wc->w_write_data_page = cb;
+	wc->w_private = cb_priv;
+}
+
+/*
+ * Write a cluster to an inode. The cluster may not be allocated yet,
+ * in which case it will be. This only exists for buffered writes -
+ * O_DIRECT takes a more "traditional" path through the kernel.
+ *
+ * The caller is responsible for incrementing pos, written counts, etc
+ *
+ * For file systems that don't support sparse files, pre-allocation
+ * and page zeroing up until cpos should be done prior to this
+ * function call.
+ *
+ * Callers should be holding i_sem, and the rw cluster lock.
+ *
+ * Returns the number of user bytes written, or less than zero for
+ * error.
+ */
+ssize_t ocfs2_buffered_write_cluster(struct file *file, loff_t pos,
+				     size_t count, ocfs2_page_writer *actor,
+				     void *priv)
+{
+	int ret, credits = OCFS2_INODE_UPDATE_CREDITS;
+	ssize_t written = 0;
+	u32 phys;
+	struct inode *inode = file->f_mapping->host;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct buffer_head *di_bh = NULL;
+	struct ocfs2_dinode *di;
+	struct ocfs2_alloc_context *data_ac = NULL;
+	struct ocfs2_alloc_context *meta_ac = NULL;
+	handle_t *handle;
+	struct ocfs2_write_ctxt wc;
+
+	ocfs2_write_ctxt_init(&wc, osb, pos, count, actor, priv);
+
+	ret = ocfs2_meta_lock(inode, &di_bh, 1);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+	di = (struct ocfs2_dinode *)di_bh->b_data;
+
+	/*
+	 * Take alloc sem here to prevent concurrent lookups. That way
+	 * the mapping, zeroing and tree manipulation within
+	 * ocfs2_write() will be safe against ->readpage(). This
+	 * should also serve to lock out allocation from a shared
+	 * writeable region.
+	 */
+	down_write(&OCFS2_I(inode)->ip_alloc_sem);
+
+	ret = ocfs2_get_clusters(inode, wc.w_cpos, &phys, NULL);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_meta;
+	}
+
+	/* phys == 0 means that allocation is required. */
+	if (phys == 0) {
+		ret = ocfs2_lock_allocators(inode, di, 1, &data_ac, &meta_ac);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_meta;
+		}
+
+		credits = ocfs2_calc_extend_credits(inode->i_sb, di, 1);
+	}
+
+	ret = ocfs2_data_lock(inode, 1);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_meta;
+	}
+
+	handle = ocfs2_start_trans(osb, credits);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out_data;
+	}
+
+	written = ocfs2_write(file, phys, handle, di_bh, data_ac,
+			      meta_ac, &wc);
+	if (written < 0) {
+		ret = written;
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, di_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	pos += written;
+	if (pos > inode->i_size) {
+		i_size_write(inode, pos);
+		mark_inode_dirty(inode);
+	}
+	inode->i_blocks = ocfs2_align_bytes_to_sectors((u64)(i_size_read(inode)));
+	di->i_size = cpu_to_le64((u64)i_size_read(inode));
+	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	di->i_mtime = di->i_ctime = cpu_to_le64(inode->i_mtime.tv_sec);
+	di->i_mtime_nsec = di->i_ctime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
+
+	ret = ocfs2_journal_dirty(handle, di_bh);
+	if (ret)
+		mlog_errno(ret);
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+
+out_data:
+	ocfs2_data_unlock(inode, 1);
+
+out_meta:
+	up_write(&OCFS2_I(inode)->ip_alloc_sem);
+	ocfs2_meta_unlock(inode, 1);
+
+out:
+	brelse(di_bh);
+	if (data_ac)
+		ocfs2_free_alloc_context(data_ac);
+	if (meta_ac)
+		ocfs2_free_alloc_context(meta_ac);
+
+	return written ? written : ret;
 }
 
 const struct address_space_operations ocfs2_aops = {

@@ -25,6 +25,8 @@
 #ifndef _EXTENT_MAP_H
 #define _EXTENT_MAP_H
 
+int ocfs2_get_clusters(struct inode *inode, u32 v_cluster, u32 *p_cluster,
+		       u32 *num_clusters);
 int ocfs2_extent_map_get_blocks(struct inode *inode, u64 v_blkno, u64 *p_blkno,
 				int *ret_count);
 

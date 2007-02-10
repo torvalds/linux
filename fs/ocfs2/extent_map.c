@@ -67,8 +67,8 @@ static int ocfs2_search_extent_list(struct ocfs2_extent_list *el,
 	return ret;
 }
 
-static int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
-			      u32 *p_cluster, u32 *num_clusters)
+int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
+		       u32 *p_cluster, u32 *num_clusters)
 {
 	int ret, i;
 	struct buffer_head *di_bh = NULL;
