@@ -406,13 +406,14 @@ static void clean_up_interface_data(ipmi_smi_t intf)
 	free_smi_msg_list(&intf->waiting_msgs);
 	free_recv_msg_list(&intf->waiting_events);
 
-	/* Wholesale remove all the entries from the list in the
-	 * interface and wait for RCU to know that none are in use. */
+	/*
+	 * Wholesale remove all the entries from the list in the
+	 * interface and wait for RCU to know that none are in use.
+	 */
 	mutex_lock(&intf->cmd_rcvrs_mutex);
-	list_add_rcu(&list, &intf->cmd_rcvrs);
-	list_del_rcu(&intf->cmd_rcvrs);
+	INIT_LIST_HEAD(&list);
+	list_splice_init_rcu(&intf->cmd_rcvrs, &list, synchronize_rcu);
 	mutex_unlock(&intf->cmd_rcvrs_mutex);
-	synchronize_rcu();
 
 	list_for_each_entry_safe(rcvr, rcvr2, &list, link)
 		kfree(rcvr);
@@ -451,7 +452,7 @@ int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher)
 	mutex_lock(&ipmi_interfaces_mutex);
 
 	/* Build a list of things to deliver. */
-	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
+	list_for_each_entry(intf, &ipmi_interfaces, link) {
 		if (intf->intf_num == -1)
 			continue;
 		e = kmalloc(sizeof(*e), GFP_KERNEL);
@@ -2760,9 +2761,15 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		synchronize_rcu();
 		kref_put(&intf->refcount, intf_free);
 	} else {
-		/* After this point the interface is legal to use. */
+		/*
+		 * Keep memory order straight for RCU readers.  Make
+		 * sure everything else is committed to memory before
+		 * setting intf_num to mark the interface valid.
+		 */
+		smp_wmb();
 		intf->intf_num = i;
 		mutex_unlock(&ipmi_interfaces_mutex);
+		/* After this point the interface is legal to use. */
 		call_smi_watchers(i, intf->si_dev);
 		mutex_unlock(&smi_watchers_mutex);
 	}
@@ -3922,6 +3929,14 @@ static void send_panic_events(char *str)
 		if (intf->intf_num == -1)
 			/* Interface was not ready yet. */
 			continue;
+
+		/*
+		 * intf_num is used as an marker to tell if the
+		 * interface is valid.  Thus we need a read barrier to
+		 * make sure data fetched before checking intf_num
+		 * won't be used.
+		 */
+		smp_rmb();
 
 		/* First job here is to figure out where to send the
 		   OEM events.  There's no way in IPMI to send OEM
