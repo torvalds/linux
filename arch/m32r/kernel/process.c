@@ -174,7 +174,7 @@ void show_regs(struct pt_regs * regs)
 	  regs->acc1h, regs->acc1l);
 #elif defined(CONFIG_ISA_M32R2) || defined(CONFIG_ISA_M32R)
 	printk("ACCH[%08lx]:ACCL[%08lx]\n", \
-	  regs->acch, regs->accl);
+	  regs->acc0h, regs->acc0l);
 #else
 #error unknown isa configuration
 #endif
