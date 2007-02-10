@@ -180,6 +180,6 @@ extern void xfs_fs_cmn_err(int level, struct xfs_mount *mp, char *fmt, ...);
 	xfs_fs_cmn_err(level, mp, fmt "  Unmount and run xfs_repair.", ## args)
 
 #define xfs_fs_mount_cmn_err(f, fmt, args...) \
-	((f & XFS_MFSI_QUIET)? cmn_err(CE_WARN, "XFS: " fmt, ## args) : (void)0)
+	((f & XFS_MFSI_QUIET)? (void)0 : cmn_err(CE_WARN, "XFS: " fmt, ## args))
 
 #endif	/* __XFS_ERROR_H__ */
