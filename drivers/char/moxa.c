@@ -94,32 +94,32 @@ static struct pci_device_id moxa_pcibrds[] = {
 MODULE_DEVICE_TABLE(pci, moxa_pcibrds);
 #endif /* CONFIG_PCI */
 
-typedef struct _moxa_isa_board_conf {
+struct moxa_isa_board_conf {
 	int boardType;
 	int numPorts;
 	unsigned long baseAddr;
-} moxa_isa_board_conf;
+};
 
-static moxa_isa_board_conf moxa_isa_boards[] =
+static struct moxa_isa_board_conf moxa_isa_boards[] =
 {
 /*       {MOXA_BOARD_C218_ISA,8,0xDC000}, */
 };
 
-typedef struct _moxa_pci_devinfo {
+struct moxa_pci_devinfo {
 	ushort busNum;
 	ushort devNum;
 	struct pci_dev *pdev;
-} moxa_pci_devinfo;
+};
 
-typedef struct _moxa_board_conf {
+struct moxa_board_conf {
 	int boardType;
 	int numPorts;
 	unsigned long baseAddr;
 	int busType;
-	moxa_pci_devinfo pciInfo;
-} moxa_board_conf;
+	struct moxa_pci_devinfo pciInfo;
+};
 
-static moxa_board_conf moxa_boards[MAX_BOARDS];
+static struct moxa_board_conf moxa_boards[MAX_BOARDS];
 static void __iomem *moxaBaseAddr[MAX_BOARDS];
 static int loadstat[MAX_BOARDS];
 
@@ -273,7 +273,8 @@ static struct timer_list moxaEmptyTimer[MAX_PORTS];
 static DEFINE_SPINLOCK(moxa_lock);
 
 #ifdef CONFIG_PCI
-static int moxa_get_PCI_conf(struct pci_dev *p, int board_type, moxa_board_conf * board)
+static int moxa_get_PCI_conf(struct pci_dev *p, int board_type,
+		struct moxa_board_conf *board)
 {
 	board->baseAddr = pci_resource_start (p, 2);
 	board->boardType = board_type;
@@ -1369,7 +1370,6 @@ struct mon_str {
 	int rxcnt[MAX_PORTS];
 	int txcnt[MAX_PORTS];
 };
-typedef struct mon_str mon_st;
 
 #define 	DCD_changed	0x01
 #define 	DCD_oldstate	0x80
@@ -1386,7 +1386,7 @@ static char moxaDCDState[MAX_PORTS];
 static char moxaLowChkFlag[MAX_PORTS];
 static int moxaLowWaterChk;
 static int moxaCard;
-static mon_st moxaLog;
+static struct mon_str moxaLog;
 static int moxaFuncTout = HZ / 2;
 static ushort moxaBreakCnt[MAX_PORTS];
 
@@ -1485,7 +1485,8 @@ int MoxaDriverIoctl(unsigned int cmd, unsigned long arg, int port)
 	}
 	switch (cmd) {
 	case MOXA_GET_CONF:
-		if(copy_to_user(argp, &moxa_boards, MAX_BOARDS * sizeof(moxa_board_conf)))
+		if(copy_to_user(argp, &moxa_boards, MAX_BOARDS *
+				sizeof(struct moxa_board_conf)))
 			return -EFAULT;
 		return (0);
 	case MOXA_INIT_DRIVER:
@@ -1494,7 +1495,7 @@ int MoxaDriverIoctl(unsigned int cmd, unsigned long arg, int port)
 		return (0);
 	case MOXA_GETDATACOUNT:
 		moxaLog.tick = jiffies;
-		if(copy_to_user(argp, &moxaLog, sizeof(mon_st)))
+		if(copy_to_user(argp, &moxaLog, sizeof(struct mon_str)))
 			return -EFAULT;
 		return (0);
 	case MOXA_FLUSH_QUEUE:
