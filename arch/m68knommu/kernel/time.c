@@ -174,13 +174,4 @@ int do_settimeofday(struct timespec *tv)
 	clock_was_set();
 	return 0;
 }
-
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies * (1000000000 / HZ);
-}
-
 EXPORT_SYMBOL(do_settimeofday);

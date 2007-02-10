@@ -579,12 +579,3 @@ void enter_deep_standby(void)
 	asm __volatile__ ("nop");
 	panic("Unexpected wakeup!\n");
 }
-
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies * (1000000000 / HZ);
-}
-

@@ -110,15 +110,6 @@ static void avr32_hpt_init(unsigned int count)
 }
 
 /*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	/* There must be better ways...? */
-	return (unsigned long long)jiffies * (1000000000 / HZ);
-}
-
-/*
  * local_timer_interrupt() does profiling and process accounting on a
  * per-CPU basis.
  *

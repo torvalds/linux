@@ -216,14 +216,6 @@ cris_do_profile(struct pt_regs* regs)
 #endif
 }
 
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies * (1000000000 / HZ);
-}
-
 static int
 __init init_udelay(void)
 {
