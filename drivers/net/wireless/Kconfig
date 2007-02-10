@@ -265,6 +265,19 @@ config IPW2200_DEBUG
 
 	  If you are not sure, say N here.
 
+config LIBERTAS_USB
+	tristate "Marvell Libertas 8388 802.11a/b/g cards"
+	depends on NET_RADIO && USB
+	select FW_LOADER
+	---help---
+	  A driver for Marvell Libertas 8388 USB devices.
+
+config LIBERTAS_USB_DEBUG
+	bool "Enable full debugging output in the Libertas USB module."
+	depends on LIBERTAS_USB
+	---help---
+	  Debugging support.
+
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
 	depends on ISA_DMA_API && WLAN_80211 && (PCI || BROKEN)
