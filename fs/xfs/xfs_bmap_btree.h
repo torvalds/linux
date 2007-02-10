@@ -175,18 +175,10 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
 
 #define XFS_BUF_TO_BMBT_BLOCK(bp)	((xfs_bmbt_block_t *)XFS_BUF_PTR(bp))
 
-#define XFS_BMAP_IBLOCK_SIZE(lev,cur)	(1 << (cur)->bc_blocklog)
 #define XFS_BMAP_RBLOCK_DSIZE(lev,cur)	((cur)->bc_private.b.forksize)
 #define XFS_BMAP_RBLOCK_ISIZE(lev,cur)	\
 	((int)XFS_IFORK_PTR((cur)->bc_private.b.ip, \
 		    (cur)->bc_private.b.whichfork)->if_broot_bytes)
-
-#define XFS_BMAP_BLOCK_DSIZE(lev,cur)	\
-	(((lev) == (cur)->bc_nlevels - 1 ? \
-		XFS_BMAP_RBLOCK_DSIZE(lev,cur) : XFS_BMAP_IBLOCK_SIZE(lev,cur)))
-#define XFS_BMAP_BLOCK_ISIZE(lev,cur)	\
-	(((lev) == (cur)->bc_nlevels - 1 ? \
-		XFS_BMAP_RBLOCK_ISIZE(lev,cur) : XFS_BMAP_IBLOCK_SIZE(lev,cur)))
 
 #define XFS_BMAP_BLOCK_DMAXRECS(lev,cur) \
 	(((lev) == (cur)->bc_nlevels - 1 ? \
@@ -210,37 +202,21 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
 				xfs_bmbt, (lev) == 0) : \
 			((cur)->bc_mp->m_bmap_dmnr[(lev) != 0])))
 
-#define XFS_BMAP_REC_DADDR(bb,i,cur)	\
-	(XFS_BTREE_REC_ADDR(XFS_BMAP_BLOCK_DSIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_DMAXRECS(	\
-				be16_to_cpu((bb)->bb_level), cur)))
-#define XFS_BMAP_REC_IADDR(bb,i,cur)	\
-	(XFS_BTREE_REC_ADDR(XFS_BMAP_BLOCK_ISIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_IMAXRECS(	\
-				be16_to_cpu((bb)->bb_level), cur)))
+#define XFS_BMAP_REC_DADDR(bb,i,cur)	(XFS_BTREE_REC_ADDR(xfs_bmbt, bb, i))
+
+#define XFS_BMAP_REC_IADDR(bb,i,cur)	(XFS_BTREE_REC_ADDR(xfs_bmbt, bb, i))
 
 #define XFS_BMAP_KEY_DADDR(bb,i,cur)	\
-	(XFS_BTREE_KEY_ADDR(XFS_BMAP_BLOCK_DSIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_DMAXRECS(	\
-				be16_to_cpu((bb)->bb_level), cur)))
+	(XFS_BTREE_KEY_ADDR(xfs_bmbt, bb, i))
+
 #define XFS_BMAP_KEY_IADDR(bb,i,cur)	\
-	(XFS_BTREE_KEY_ADDR(XFS_BMAP_BLOCK_ISIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_IMAXRECS(	\
-				be16_to_cpu((bb)->bb_level), cur)))
+	(XFS_BTREE_KEY_ADDR(xfs_bmbt, bb, i))
 
 #define XFS_BMAP_PTR_DADDR(bb,i,cur)	\
-	(XFS_BTREE_PTR_ADDR(XFS_BMAP_BLOCK_DSIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_DMAXRECS(	\
+	(XFS_BTREE_PTR_ADDR(xfs_bmbt, bb, i, XFS_BMAP_BLOCK_DMAXRECS(	\
 				be16_to_cpu((bb)->bb_level), cur)))
 #define XFS_BMAP_PTR_IADDR(bb,i,cur)	\
-	(XFS_BTREE_PTR_ADDR(XFS_BMAP_BLOCK_ISIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_IMAXRECS(	\
+	(XFS_BTREE_PTR_ADDR(xfs_bmbt, bb, i, XFS_BMAP_BLOCK_IMAXRECS(	\
 				be16_to_cpu((bb)->bb_level), cur)))
 
 /*
@@ -248,11 +224,11 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
  * we don't have a cursor.
  */
 #define XFS_BMAP_BROOT_REC_ADDR(bb,i,sz) \
-	(XFS_BTREE_REC_ADDR(sz,xfs_bmbt,bb,i,XFS_BMAP_BROOT_MAXRECS(sz)))
+	(XFS_BTREE_REC_ADDR(xfs_bmbt,bb,i))
 #define XFS_BMAP_BROOT_KEY_ADDR(bb,i,sz) \
-	(XFS_BTREE_KEY_ADDR(sz,xfs_bmbt,bb,i,XFS_BMAP_BROOT_MAXRECS(sz)))
+	(XFS_BTREE_KEY_ADDR(xfs_bmbt,bb,i))
 #define XFS_BMAP_BROOT_PTR_ADDR(bb,i,sz) \
-	(XFS_BTREE_PTR_ADDR(sz,xfs_bmbt,bb,i,XFS_BMAP_BROOT_MAXRECS(sz)))
+	(XFS_BTREE_PTR_ADDR(xfs_bmbt,bb,i,XFS_BMAP_BROOT_MAXRECS(sz)))
 
 #define XFS_BMAP_BROOT_NUMRECS(bb)	be16_to_cpu((bb)->bb_numrecs)
 #define XFS_BMAP_BROOT_MAXRECS(sz)	XFS_BTREE_BLOCK_MAXRECS(sz,xfs_bmbt,0)

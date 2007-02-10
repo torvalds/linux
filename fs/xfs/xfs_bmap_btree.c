@@ -1731,9 +1731,9 @@ xfs_bmdr_to_bmbt(
 	rblock->bb_leftsib = cpu_to_be64(NULLDFSBNO);
 	rblock->bb_rightsib = cpu_to_be64(NULLDFSBNO);
 	dmxr = (int)XFS_BTREE_BLOCK_MAXRECS(dblocklen, xfs_bmdr, 0);
-	fkp = XFS_BTREE_KEY_ADDR(dblocklen, xfs_bmdr, dblock, 1, dmxr);
+	fkp = XFS_BTREE_KEY_ADDR(xfs_bmdr, dblock, 1);
 	tkp = XFS_BMAP_BROOT_KEY_ADDR(rblock, 1, rblocklen);
-	fpp = XFS_BTREE_PTR_ADDR(dblocklen, xfs_bmdr, dblock, 1, dmxr);
+	fpp = XFS_BTREE_PTR_ADDR(xfs_bmdr, dblock, 1, dmxr);
 	tpp = XFS_BMAP_BROOT_PTR_ADDR(rblock, 1, rblocklen);
 	dmxr = be16_to_cpu(dblock->bb_numrecs);
 	memcpy(tkp, fkp, sizeof(*fkp) * dmxr);
@@ -2684,9 +2684,9 @@ xfs_bmbt_to_bmdr(
 	dblock->bb_numrecs = rblock->bb_numrecs;
 	dmxr = (int)XFS_BTREE_BLOCK_MAXRECS(dblocklen, xfs_bmdr, 0);
 	fkp = XFS_BMAP_BROOT_KEY_ADDR(rblock, 1, rblocklen);
-	tkp = XFS_BTREE_KEY_ADDR(dblocklen, xfs_bmdr, dblock, 1, dmxr);
+	tkp = XFS_BTREE_KEY_ADDR(xfs_bmdr, dblock, 1);
 	fpp = XFS_BMAP_BROOT_PTR_ADDR(rblock, 1, rblocklen);
-	tpp = XFS_BTREE_PTR_ADDR(dblocklen, xfs_bmdr, dblock, 1, dmxr);
+	tpp = XFS_BTREE_PTR_ADDR(xfs_bmdr, dblock, 1, dmxr);
 	dmxr = be16_to_cpu(dblock->bb_numrecs);
 	memcpy(tkp, fkp, sizeof(*fkp) * dmxr);
 	memcpy(tpp, fpp, sizeof(*fpp) * dmxr);
