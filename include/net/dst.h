@@ -37,7 +37,12 @@ struct sk_buff;
 
 struct dst_entry
 {
-	struct dst_entry        *next;
+	union {
+		struct dst_entry *next;
+		struct rtable    *rt_next;
+		struct rt6_info   *rt6_next;
+		struct dn_route  *dn_next;
+	};
 	atomic_t		__refcnt;	/* client references	*/
 	int			__use;
 	struct dst_entry	*child;
