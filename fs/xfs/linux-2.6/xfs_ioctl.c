@@ -355,7 +355,6 @@ STATIC int
 xfs_readlink_by_handle(
 	xfs_mount_t		*mp,
 	void			__user *arg,
-	struct file		*parfilp,
 	struct inode		*parinode)
 {
 	int			error;
@@ -406,7 +405,6 @@ STATIC int
 xfs_fssetdm_by_handle(
 	xfs_mount_t		*mp,
 	void			__user *arg,
-	struct file		*parfilp,
 	struct inode		*parinode)
 {
 	int			error;
@@ -448,7 +446,6 @@ STATIC int
 xfs_attrlist_by_handle(
 	xfs_mount_t		*mp,
 	void			__user *arg,
-	struct file		*parfilp,
 	struct inode		*parinode)
 {
 	int			error;
@@ -569,7 +566,6 @@ STATIC int
 xfs_attrmulti_by_handle(
 	xfs_mount_t		*mp,
 	void			__user *arg,
-	struct file		*parfilp,
 	struct inode		*parinode)
 {
 	int			error;
@@ -689,7 +685,6 @@ xfs_ioc_xattr(
 STATIC int
 xfs_ioc_getbmap(
 	bhv_desc_t		*bdp,
-	struct file		*filp,
 	int			flags,
 	unsigned int		cmd,
 	void			__user *arg);
@@ -788,7 +783,7 @@ xfs_ioctl(
 
 	case XFS_IOC_GETBMAP:
 	case XFS_IOC_GETBMAPA:
-		return xfs_ioc_getbmap(bdp, filp, ioflags, cmd, arg);
+		return xfs_ioc_getbmap(bdp, ioflags, cmd, arg);
 
 	case XFS_IOC_GETBMAPX:
 		return xfs_ioc_getbmapx(bdp, arg);
@@ -802,16 +797,16 @@ xfs_ioctl(
 		return xfs_open_by_handle(mp, arg, filp, inode);
 
 	case XFS_IOC_FSSETDM_BY_HANDLE:
-		return xfs_fssetdm_by_handle(mp, arg, filp, inode);
+		return xfs_fssetdm_by_handle(mp, arg, inode);
 
 	case XFS_IOC_READLINK_BY_HANDLE:
-		return xfs_readlink_by_handle(mp, arg, filp, inode);
+		return xfs_readlink_by_handle(mp, arg, inode);
 
 	case XFS_IOC_ATTRLIST_BY_HANDLE:
-		return xfs_attrlist_by_handle(mp, arg, filp, inode);
+		return xfs_attrlist_by_handle(mp, arg, inode);
 
 	case XFS_IOC_ATTRMULTI_BY_HANDLE:
-		return xfs_attrmulti_by_handle(mp, arg, filp, inode);
+		return xfs_attrmulti_by_handle(mp, arg, inode);
 
 	case XFS_IOC_SWAPEXT: {
 		error = xfs_swapext((struct xfs_swapext __user *)arg);
@@ -1281,7 +1276,6 @@ xfs_ioc_xattr(
 STATIC int
 xfs_ioc_getbmap(
 	bhv_desc_t		*bdp,
-	struct file		*filp,
 	int			ioflags,
 	unsigned int		cmd,
 	void			__user *arg)
