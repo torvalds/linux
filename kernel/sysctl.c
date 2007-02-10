@@ -2553,17 +2553,23 @@ int sysctl_jiffies(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {
-	if (oldval) {
+	if (oldval && oldlenp) {
 		size_t olen;
-		if (oldlenp) { 
-			if (get_user(olen, oldlenp))
-				return -EFAULT;
-			if (olen!=sizeof(int))
-				return -EINVAL; 
-		}
-		if (put_user(*(int *)(table->data)/HZ, (int __user *)oldval) ||
-		    (oldlenp && put_user(sizeof(int),oldlenp)))
+
+		if (get_user(olen, oldlenp))
 			return -EFAULT;
+		if (olen) {
+			int val;
+
+			if (olen < sizeof(int))
+				return -EINVAL;
+
+			val = *(int *)(table->data) / HZ;
+			if (put_user(val, (int __user *)oldval))
+				return -EFAULT;
+			if (put_user(sizeof(int), oldlenp))
+				return -EFAULT;
+		}
 	}
 	if (newval && newlen) { 
 		int new;
@@ -2581,17 +2587,23 @@ int sysctl_ms_jiffies(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {
-	if (oldval) {
+	if (oldval && oldlenp) {
 		size_t olen;
-		if (oldlenp) { 
-			if (get_user(olen, oldlenp))
-				return -EFAULT;
-			if (olen!=sizeof(int))
-				return -EINVAL; 
-		}
-		if (put_user(jiffies_to_msecs(*(int *)(table->data)), (int __user *)oldval) ||
-		    (oldlenp && put_user(sizeof(int),oldlenp)))
+
+		if (get_user(olen, oldlenp))
 			return -EFAULT;
+		if (olen) {
+			int val;
+
+			if (olen < sizeof(int))
+				return -EINVAL;
+
+			val = jiffies_to_msecs(*(int *)(table->data));
+			if (put_user(val, (int __user *)oldval))
+				return -EFAULT;
+			if (put_user(sizeof(int), oldlenp))
+				return -EFAULT;
+		}
 	}
 	if (newval && newlen) { 
 		int new;
