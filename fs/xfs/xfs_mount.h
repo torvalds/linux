@@ -419,6 +419,7 @@ typedef struct xfs_mount {
 	xfs_icsb_cnts_t		*m_sb_cnts;	/* per-cpu superblock counters */
 	unsigned long		m_icsb_counters; /* disabled per-cpu counters */
 	struct notifier_block	m_icsb_notifier; /* hotplug cpu notifier */
+	struct mutex		m_icsb_mutex;	/* balancer sync lock */
 #endif
 } xfs_mount_t;
 
