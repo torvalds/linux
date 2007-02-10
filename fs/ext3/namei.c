@@ -1618,21 +1618,6 @@ static int ext3_delete_entry (handle_t *handle,
 	return -ENOENT;
 }
 
-/*
- * ext3_mark_inode_dirty is somewhat expensive, so unlike ext2 we
- * do not perform it in these functions.  We perform it at the call site,
- * if it is needed.
- */
-static inline void ext3_inc_count(handle_t *handle, struct inode *inode)
-{
-	inc_nlink(inode);
-}
-
-static inline void ext3_dec_count(handle_t *handle, struct inode *inode)
-{
-	drop_nlink(inode);
-}
-
 static int ext3_add_nondir(handle_t *handle,
 		struct dentry *dentry, struct inode *inode)
 {
@@ -1642,7 +1627,7 @@ static int ext3_add_nondir(handle_t *handle,
 		d_instantiate(dentry, inode);
 		return 0;
 	}
-	ext3_dec_count(handle, inode);
+	drop_nlink(inode);
 	iput(inode);
 	return err;
 }
@@ -2163,7 +2148,7 @@ retry:
 		err = __page_symlink(inode, symname, l,
 				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
 		if (err) {
-			ext3_dec_count(handle, inode);
+			drop_nlink(inode);
 			ext3_mark_inode_dirty(handle, inode);
 			iput (inode);
 			goto out_stop;
@@ -2208,7 +2193,7 @@ retry:
 		handle->h_sync = 1;
 
 	inode->i_ctime = CURRENT_TIME_SEC;
-	ext3_inc_count(handle, inode);
+	inc_nlink(inode);
 	atomic_inc(&inode->i_count);
 
 	err = ext3_add_nondir(handle, dentry, inode);
