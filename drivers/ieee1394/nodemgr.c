@@ -1681,7 +1681,8 @@ static int nodemgr_host_thread(void *__hi)
 	for (;;) {
 		/* Sleep until next bus reset */
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (get_hpsb_generation(host) == generation)
+		if (get_hpsb_generation(host) == generation &&
+		    !kthread_should_stop())
 			schedule();
 		__set_current_state(TASK_RUNNING);
 
