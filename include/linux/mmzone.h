@@ -47,6 +47,7 @@ struct zone_padding {
 #endif
 
 enum zone_stat_item {
+	NR_FREE_PAGES,
 	NR_INACTIVE,
 	NR_ACTIVE,
 	NR_ANON_PAGES,	/* Mapped anonymous pages */
@@ -157,7 +158,6 @@ enum zone_type {
 
 struct zone {
 	/* Fields commonly accessed by the page allocator */
-	unsigned long		free_pages;
 	unsigned long		pages_min, pages_low, pages_high;
 	/*
 	 * We don't know if the memory that we're going to allocate will be freeable

@@ -16,30 +16,17 @@
 void __get_zone_counts(unsigned long *active, unsigned long *inactive,
 			unsigned long *free, struct pglist_data *pgdat)
 {
-	struct zone *zones = pgdat->node_zones;
-	int i;
-
 	*active = node_page_state(pgdat->node_id, NR_ACTIVE);
 	*inactive = node_page_state(pgdat->node_id, NR_INACTIVE);
-	*free = 0;
-	for (i = 0; i < MAX_NR_ZONES; i++) {
-		*free += zones[i].free_pages;
-	}
+	*free = node_page_state(pgdat->node_id, NR_FREE_PAGES);
 }
 
 void get_zone_counts(unsigned long *active,
 		unsigned long *inactive, unsigned long *free)
 {
-	struct pglist_data *pgdat;
-
 	*active = global_page_state(NR_ACTIVE);
 	*inactive = global_page_state(NR_INACTIVE);
-	*free = 0;
-	for_each_online_pgdat(pgdat) {
-		unsigned long l, m, n;
-		__get_zone_counts(&l, &m, &n, pgdat);
-		*free += n;
-	}
+	*free = global_page_state(NR_FREE_PAGES);
 }
 
 #ifdef CONFIG_VM_EVENT_COUNTERS
@@ -454,6 +441,7 @@ const struct seq_operations fragmentation_op = {
 
 static const char * const vmstat_text[] = {
 	/* Zoned VM counters */
+	"nr_free_pages",
 	"nr_active",
 	"nr_inactive",
 	"nr_anon_pages",
@@ -534,7 +522,7 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 			   "\n        scanned  %lu (a: %lu i: %lu)"
 			   "\n        spanned  %lu"
 			   "\n        present  %lu",
-			   zone->free_pages,
+			   zone_page_state(zone, NR_FREE_PAGES),
 			   zone->pages_min,
 			   zone->pages_low,
 			   zone->pages_high,
