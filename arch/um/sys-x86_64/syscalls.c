@@ -59,18 +59,20 @@ static long arch_prctl_tt(int code, unsigned long addr)
 
 #ifdef CONFIG_MODE_SKAS
 
-static long arch_prctl_skas(int code, unsigned long __user *addr)
+long arch_prctl_skas(struct task_struct *task, int code,
+                     unsigned long __user *addr)
 {
         unsigned long *ptr = addr, tmp;
 	long ret;
-        int pid = current->mm->context.skas.id.u.pid;
+	int pid = task->mm->context.skas.id.u.pid;
 
 	/*
 	 * With ARCH_SET_FS (and ARCH_SET_GS is treated similarly to
 	 * be safe), we need to call arch_prctl on the host because
 	 * setting %fs may result in something else happening (like a
-	 * GDT being set instead).  So, we let the host fiddle the
-	 * registers and restore them afterwards.
+	 * GDT or thread.fs being set instead).  So, we let the host
+	 * fiddle the registers and thread struct and restore the
+	 * registers afterwards.
 	 *
 	 * So, the saved registers are stored to the process (this
 	 * needed because a stub may have been the last thing to run),
@@ -118,7 +120,7 @@ static long arch_prctl_skas(int code, unsigned long __user *addr)
 
 long sys_arch_prctl(int code, unsigned long addr)
 {
-	return CHOOSE_MODE_PROC(arch_prctl_tt, arch_prctl_skas, code,
+	return CHOOSE_MODE_PROC(arch_prctl_tt, arch_prctl_skas, current, code,
                                 (unsigned long __user *) addr);
 }
 
@@ -141,6 +143,6 @@ void arch_switch_to_skas(struct task_struct *from, struct task_struct *to)
         if(to->thread.arch.fs == 0)
                 return;
 
-        arch_prctl_skas(ARCH_SET_FS, (void __user *) to->thread.arch.fs);
+        arch_prctl_skas(to, ARCH_SET_FS, (void __user *) to->thread.arch.fs);
 }
 

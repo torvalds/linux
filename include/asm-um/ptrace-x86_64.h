@@ -84,4 +84,7 @@ static inline void arch_switch_to_tt(struct task_struct *from,
 extern void arch_switch_to_skas(struct task_struct *from,
 				struct task_struct *to);
 
+extern long arch_prctl_skas(struct task_struct *task, int code,
+			    unsigned long __user *addr);
+
 #endif
