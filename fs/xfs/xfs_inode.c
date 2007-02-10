@@ -1810,7 +1810,7 @@ xfs_igrow_start(
 	 * and any blocks between the old and new file sizes.
 	 */
 	error = xfs_zero_eof(XFS_ITOV(ip), &ip->i_iocore, new_size,
-			     ip->i_d.di_size, new_size);
+			     ip->i_d.di_size);
 	return error;
 }
 

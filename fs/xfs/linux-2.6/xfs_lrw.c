@@ -134,8 +134,7 @@ STATIC int
 xfs_iozero(
 	struct inode		*ip,	/* inode			*/
 	loff_t			pos,	/* offset in file		*/
-	size_t			count,	/* size of data to zero		*/
-	loff_t			end_size)	/* max file size to set */
+	size_t			count)	/* size of data to zero		*/
 {
 	unsigned		bytes;
 	struct page		*page;
@@ -172,8 +171,6 @@ xfs_iozero(
 		if (!status) {
 			pos += bytes;
 			count -= bytes;
-			if (pos > i_size_read(ip))
-				i_size_write(ip, pos < end_size ? pos : end_size);
 		}
 
 unlock:
@@ -449,8 +446,8 @@ STATIC int				/* error (positive) */
 xfs_zero_last_block(
 	struct inode	*ip,
 	xfs_iocore_t	*io,
-	xfs_fsize_t	isize,
-	xfs_fsize_t	end_size)
+	xfs_fsize_t	offset,
+	xfs_fsize_t	isize)
 {
 	xfs_fileoff_t	last_fsb;
 	xfs_mount_t	*mp = io->io_mount;
@@ -459,7 +456,6 @@ xfs_zero_last_block(
 	int		zero_len;
 	int		error = 0;
 	xfs_bmbt_irec_t	imap;
-	loff_t		loff;
 
 	ASSERT(ismrlocked(io->io_lock, MR_UPDATE) != 0);
 
@@ -494,9 +490,10 @@ xfs_zero_last_block(
 	 */
 	XFS_IUNLOCK(mp, io, XFS_ILOCK_EXCL| XFS_EXTSIZE_RD);
 
-	loff = XFS_FSB_TO_B(mp, last_fsb);
 	zero_len = mp->m_sb.sb_blocksize - zero_offset;
-	error = xfs_iozero(ip, loff + zero_offset, zero_len, end_size);
+	if (isize + zero_len > offset)
+		zero_len = offset - isize;
+	error = xfs_iozero(ip, isize, zero_len);
 
 	XFS_ILOCK(mp, io, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
 	ASSERT(error >= 0);
@@ -519,14 +516,15 @@ xfs_zero_eof(
 	bhv_vnode_t	*vp,
 	xfs_iocore_t	*io,
 	xfs_off_t	offset,		/* starting I/O offset */
-	xfs_fsize_t	isize,		/* current inode size */
-	xfs_fsize_t	end_size)	/* terminal inode size */
+	xfs_fsize_t	isize)		/* current inode size */
 {
 	struct inode	*ip = vn_to_inode(vp);
 	xfs_fileoff_t	start_zero_fsb;
 	xfs_fileoff_t	end_zero_fsb;
 	xfs_fileoff_t	zero_count_fsb;
 	xfs_fileoff_t	last_fsb;
+	xfs_fileoff_t	zero_off;
+	xfs_fsize_t	zero_len;
 	xfs_mount_t	*mp = io->io_mount;
 	int		nimaps;
 	int		error = 0;
@@ -540,7 +538,7 @@ xfs_zero_eof(
 	 * First handle zeroing the block on which isize resides.
 	 * We only zero a part of that block so it is handled specially.
 	 */
-	error = xfs_zero_last_block(ip, io, isize, end_size);
+	error = xfs_zero_last_block(ip, io, offset, isize);
 	if (error) {
 		ASSERT(ismrlocked(io->io_lock, MR_UPDATE));
 		ASSERT(ismrlocked(io->io_iolock, MR_UPDATE));
@@ -601,10 +599,13 @@ xfs_zero_eof(
 		 */
 		XFS_IUNLOCK(mp, io, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
 
-		error = xfs_iozero(ip,
-				   XFS_FSB_TO_B(mp, start_zero_fsb),
-				   XFS_FSB_TO_B(mp, imap.br_blockcount),
-				   end_size);
+		zero_off = XFS_FSB_TO_B(mp, start_zero_fsb);
+		zero_len = XFS_FSB_TO_B(mp, imap.br_blockcount);
+
+		if ((zero_off + zero_len) > offset)
+			zero_len = offset - zero_off;
+
+		error = xfs_iozero(ip, zero_off, zero_len);
 		if (error) {
 			goto out_lock;
 		}
@@ -783,8 +784,7 @@ start:
 	 */
 
 	if (pos > isize) {
-		error = xfs_zero_eof(BHV_TO_VNODE(bdp), io, pos,
-					isize, pos + count);
+		error = xfs_zero_eof(BHV_TO_VNODE(bdp), io, pos, isize);
 		if (error) {
 			xfs_iunlock(xip, XFS_ILOCK_EXCL|iolock);
 			goto out_unlock_mutex;
