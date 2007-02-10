@@ -146,8 +146,6 @@ struct moxa_port {
 	wait_queue_head_t close_wait;
 
 	struct timer_list emptyTimer;
-	struct mxser_mstatus GMStatus;
-	struct moxaq_str temp_queue;
 
 	char chkPort;
 	char lineCtrl;
@@ -1487,17 +1485,15 @@ int MoxaDriverIoctl(unsigned int cmd, unsigned long arg, int port)
 		return (0);
 	case MOXA_GET_IOQUEUE: {
 		struct moxaq_str __user *argm = argp;
-		struct moxa_port *p;
+		struct moxaq_str tmp;
 
 		for (i = 0; i < MAX_PORTS; i++, argm++) {
-			p = &moxa_ports[i];
-			memset(&p->temp_queue, 0, sizeof(p->temp_queue));
-			if (p->chkPort) {
-				p->temp_queue.inq = MoxaPortRxQueue(i);
-				p->temp_queue.outq = MoxaPortTxQueue(i);
+			memset(&tmp, 0, sizeof(tmp));
+			if (moxa_ports[i].chkPort) {
+				tmp.inq = MoxaPortRxQueue(i);
+				tmp.outq = MoxaPortTxQueue(i);
 			}
-			if (copy_to_user(argm, &p->temp_queue,
-						sizeof(p->temp_queue)))
+			if (copy_to_user(argm, &tmp, sizeof(tmp)))
 				return -EFAULT;
 		}
 		return (0);
@@ -1518,33 +1514,30 @@ int MoxaDriverIoctl(unsigned int cmd, unsigned long arg, int port)
 		return 0;
 	case MOXA_GETMSTATUS: {
 		struct mxser_mstatus __user *argm = argp;
+		struct mxser_mstatus tmp;
 		struct moxa_port *p;
 
 		for (i = 0; i < MAX_PORTS; i++, argm++) {
 			p = &moxa_ports[i];
-			p->GMStatus.ri = 0;
-			p->GMStatus.dcd = 0;
-			p->GMStatus.dsr = 0;
-			p->GMStatus.cts = 0;
+			memset(&tmp, 0, sizeof(tmp));
 			if (!p->chkPort) {
 				goto copy;
 			} else {
 				status = MoxaPortLineStatus(p->port);
 				if (status & 1)
-					p->GMStatus.cts = 1;
+					tmp.cts = 1;
 				if (status & 2)
-					p->GMStatus.dsr = 1;
+					tmp.dsr = 1;
 				if (status & 4)
-					p->GMStatus.dcd = 1;
+					tmp.dcd = 1;
 			}
 
 			if (!p->tty || !p->tty->termios)
-				p->GMStatus.cflag = p->cflag;
+				tmp.cflag = p->cflag;
 			else
-				p->GMStatus.cflag = p->tty->termios->c_cflag;
+				tmp.cflag = p->tty->termios->c_cflag;
 copy:
-			if (copy_to_user(argm, &p->GMStatus,
-						sizeof(p->GMStatus)))
+			if (copy_to_user(argm, &tmp, sizeof(tmp)))
 				return -EFAULT;
 		}
 		return 0;
