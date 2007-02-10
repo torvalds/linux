@@ -181,19 +181,11 @@ config DEBUG_MUTEXES
 	 This feature allows mutex semantics violations to be detected and
 	 reported.
 
-config DEBUG_RWSEMS
-	bool "RW-sem debugging: basic checks"
-	depends on DEBUG_KERNEL
-	help
-	 This feature allows read-write semaphore semantics violations to
-	 be detected and reported.
-
 config DEBUG_LOCK_ALLOC
 	bool "Lock debugging: detect incorrect freeing of live locks"
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
-	select DEBUG_RWSEMS
 	select LOCKDEP
 	help
 	 This feature will check whether any held lock (spinlock, rwlock,
@@ -209,7 +201,6 @@ config PROVE_LOCKING
 	select LOCKDEP
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
-	select DEBUG_RWSEMS
 	select DEBUG_LOCK_ALLOC
 	default n
 	help
