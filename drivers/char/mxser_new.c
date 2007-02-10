@@ -927,9 +927,6 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	struct mxser_port *info;
 	int retval, line;
 
-	/* initialize driver_data in case something fails */
-	tty->driver_data = NULL;
-
 	line = tty->index;
 	if (line == MXSER_PORTS)
 		return 0;
