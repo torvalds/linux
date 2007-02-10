@@ -806,7 +806,7 @@ xfs_statvfs(
 
 	statp->f_type = XFS_SB_MAGIC;
 
-	xfs_icsb_sync_counters_lazy(mp);
+	xfs_icsb_sync_counters_flags(mp, XFS_ICSB_LAZY_COUNT);
 	s = XFS_SB_LOCK(mp);
 	statp->f_bsize = sbp->sb_blocksize;
 	lsize = sbp->sb_logstart ? sbp->sb_logblocks : 0;

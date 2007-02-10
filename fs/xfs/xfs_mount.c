@@ -1979,8 +1979,8 @@ xfs_icsb_enable_counter(
 	xfs_icsb_unlock_all_counters(mp);
 }
 
-STATIC void
-xfs_icsb_sync_counters_int(
+void
+xfs_icsb_sync_counters_flags(
 	xfs_mount_t	*mp,
 	int		flags)
 {
@@ -2012,17 +2012,7 @@ STATIC void
 xfs_icsb_sync_counters(
 	xfs_mount_t	*mp)
 {
-	xfs_icsb_sync_counters_int(mp, 0);
-}
-
-/*
- * lazy addition used for things like df, background sb syncs, etc
- */
-void
-xfs_icsb_sync_counters_lazy(
-	xfs_mount_t	*mp)
-{
-	xfs_icsb_sync_counters_int(mp, XFS_ICSB_LAZY_COUNT);
+	xfs_icsb_sync_counters_flags(mp, 0);
 }
 
 /*

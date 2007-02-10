@@ -307,7 +307,7 @@ typedef struct xfs_icsb_cnts {
 #define XFS_ICSB_LAZY_COUNT	(1 << 1)	/* accuracy not needed */
 
 extern int	xfs_icsb_init_counters(struct xfs_mount *);
-extern void	xfs_icsb_sync_counters_lazy(struct xfs_mount *);
+extern void	xfs_icsb_sync_counters_flags(struct xfs_mount *, int);
 
 #else
 #define xfs_icsb_init_counters(mp)	(0)
