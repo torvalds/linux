@@ -7,18 +7,6 @@
 #include <linux/mmzone.h>
 #include <asm/atomic.h>
 
-#ifdef CONFIG_VM_EVENT_COUNTERS
-/*
- * Light weight per cpu counter implementation.
- *
- * Counters should only be incremented.  You need to set EMBEDDED
- * to disable VM_EVENT_COUNTERS.  Things like procps (vmstat,
- * top, etc) use /proc/vmstat and depend on these counters.
- *
- * Counters are handled completely inline. On many platforms the code
- * generated will simply be the increment of a global address.
- */
-
 #ifdef CONFIG_ZONE_DMA
 #define DMA_ZONE(xx) xx##_DMA,
 #else
@@ -51,6 +39,17 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
 		NR_VM_EVENT_ITEMS
 };
+
+#ifdef CONFIG_VM_EVENT_COUNTERS
+/*
+ * Light weight per cpu counter implementation.
+ *
+ * Counters should only be incremented and no critical kernel component
+ * should rely on the counter values.
+ *
+ * Counters are handled completely inline. On many platforms the code
+ * generated will simply be the increment of a global address.
+ */
 
 struct vm_event_state {
 	unsigned long event[NR_VM_EVENT_ITEMS];
@@ -92,12 +91,24 @@ static inline void vm_events_fold_cpu(int cpu)
 #else
 
 /* Disable counters */
-#define get_cpu_vm_events(e)	0L
-#define count_vm_event(e)	do { } while (0)
-#define count_vm_events(e,d)	do { } while (0)
-#define __count_vm_event(e)	do { } while (0)
-#define __count_vm_events(e,d)	do { } while (0)
-#define vm_events_fold_cpu(x)	do { } while (0)
+static inline void count_vm_event(enum vm_event_item item)
+{
+}
+static inline void count_vm_events(enum vm_event_item item, long delta)
+{
+}
+static inline void __count_vm_event(enum vm_event_item item)
+{
+}
+static inline void __count_vm_events(enum vm_event_item item, long delta)
+{
+}
+static inline void all_vm_events(unsigned long *ret)
+{
+}
+static inline void vm_events_fold_cpu(int cpu)
+{
+}
 
 #endif /* CONFIG_VM_EVENT_COUNTERS */
 
