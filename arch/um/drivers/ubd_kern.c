@@ -131,7 +131,6 @@ static struct block_device_operations ubd_blops = {
 
 /* Protected by ubd_lock */
 static int fake_major = MAJOR_NR;
-
 static struct gendisk *ubd_gendisk[MAX_DEV];
 static struct gendisk *fake_gendisk[MAX_DEV];
 
@@ -142,10 +141,6 @@ static struct gendisk *fake_gendisk[MAX_DEV];
 #define OPEN_FLAGS ((struct openflags) { .r = 1, .w = 1, .s = 0, .c = 0, \
 					 .cl = 1 })
 #endif
-
-/* Not protected - changed only in ubd_setup_common and then only to
- * to enable O_SYNC.
- */
 static struct openflags global_openflags = OPEN_FLAGS;
 
 struct cow {
@@ -197,6 +192,7 @@ struct ubd {
 	.lock =			SPIN_LOCK_UNLOCKED,	\
 }
 
+/* Protected by ubd_lock */
 struct ubd ubd_devs[MAX_DEV] = { [ 0 ... MAX_DEV - 1 ] = DEFAULT_UBD };
 
 /* Only changed by fake_ide_setup which is a setup */
@@ -288,7 +284,7 @@ static int ubd_setup_common(char *str, int *index_out, char **error_out)
 	struct ubd *ubd_dev;
 	struct openflags flags = global_openflags;
 	char *backing_file;
-	int n, err, i;
+	int n, err = 0, i;
 
 	if(index_out) *index_out = -1;
 	n = *str;
@@ -299,15 +295,16 @@ static int ubd_setup_common(char *str, int *index_out, char **error_out)
 		str++;
 		if(!strcmp(str, "sync")){
 			global_openflags = of_sync(global_openflags);
-			return 0;
-		}
-		major = simple_strtoul(str, &end, 0);
-		if((*end != '\0') || (end == str)){
-			*error_out = "Didn't parse major number";
-			return -EINVAL;
+			goto out1;
 		}
 
 		err = -EINVAL;
+		major = simple_strtoul(str, &end, 0);
+		if((*end != '\0') || (end == str)){
+			*error_out = "Didn't parse major number";
+			goto out1;
+		}
+
 		mutex_lock(&ubd_lock);
 		if(fake_major != MAJOR_NR){
 			*error_out = "Can't assign a fake major twice";
@@ -473,12 +470,6 @@ static void do_ubd_request(request_queue_t * q);
 /* Only changed by ubd_init, which is an initcall. */
 int thread_fd = -1;
 
-/* Changed by ubd_handler, which is serialized because interrupts only
- * happen on CPU 0.
- * XXX: currently unused.
- */
-static int intr_count = 0;
-
 /* call ubd_finish if you need to serialize */
 static void __ubd_finish(struct request *req, int error)
 {
@@ -518,7 +509,6 @@ static void ubd_handler(void)
 	int n;
 
 	do_ubd = 0;
-	intr_count++;
 	n = os_read_file(thread_fd, &req, sizeof(req));
 	if(n != sizeof(req)){
 		printk(KERN_ERR "Pid %d - spurious interrupt in ubd_handler, "
@@ -637,8 +627,7 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 }
 
 static int ubd_disk_register(int major, u64 size, int unit,
-			struct gendisk **disk_out)
-			
+			     struct gendisk **disk_out)
 {
 	struct gendisk *disk;
 
@@ -840,7 +829,7 @@ out:
 }
 
 /* All these are called by mconsole in process context and without
- * ubd-specific locks.
+ * ubd-specific locks.  The structure itself is const except for .list.
  */
 static struct mc_device ubd_mc = {
 	.list		= LIST_HEAD_INIT(ubd_mc.list),
@@ -863,13 +852,17 @@ static int __init ubd0_init(void)
 {
 	struct ubd *ubd_dev = &ubd_devs[0];
 
+	mutex_lock(&ubd_lock);
 	if(ubd_dev->file == NULL)
 		ubd_dev->file = "root_fs";
+	mutex_unlock(&ubd_lock);
+
 	return(0);
 }
 
 __initcall(ubd0_init);
 
+/* Used in ubd_init, which is an initcall */
 static struct platform_driver ubd_driver = {
 	.driver = {
 		.name  = DRIVER_NAME,
@@ -892,12 +885,14 @@ static int __init ubd_init(void)
 			return -1;
 	}
 	platform_driver_register(&ubd_driver);
+ 	mutex_lock(&ubd_lock);
 	for (i = 0; i < MAX_DEV; i++){
 		err = ubd_add(i, &error);
 		if(err)
 			printk(KERN_ERR "Failed to initialize ubd device %d :"
 			       "%s\n", i, error);
 	}
+ 	mutex_unlock(&ubd_lock);
 	return 0;
 }
 
@@ -1129,7 +1124,7 @@ static int ubd_ioctl(struct inode * inode, struct file * file,
 				 sizeof(ubd_id)))
 			return(-EFAULT);
 		return(0);
-		
+
 	case CDROMVOLREAD:
 		if(copy_from_user(&volume, (char __user *) arg, sizeof(volume)))
 			return(-EFAULT);
