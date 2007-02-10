@@ -94,7 +94,16 @@ static int parse_redboot_partitions(struct mtd_info *master,
 			 * (NOTE: this is 'size' not 'data_length'; size is
 			 * the full size of the entry.)
 			 */
-			if (swab32(buf[i].size) == master->erasesize) {
+
+			/* RedBoot can combine the FIS directory and
+			   config partitions into a single eraseblock;
+			   we assume wrong-endian if either the swapped
+			   'size' matches the eraseblock size precisely,
+			   or if the swapped size actually fits in an
+			   eraseblock while the unswapped size doesn't. */
+			if (swab32(buf[i].size) == master->erasesize ||
+			    (buf[i].size > master->erasesize
+			     && swab32(buf[i].size) < master->erasesize)) {
 				int j;
 				/* Update numslots based on actual FIS directory size */
 				numslots = swab32(buf[i].size) / sizeof (struct fis_image_desc);
@@ -122,7 +131,7 @@ static int parse_redboot_partitions(struct mtd_info *master,
 					swab32s(&buf[j].desc_cksum);
 					swab32s(&buf[j].file_cksum);
 				}
-			} else {
+			} else if (buf[i].size < master->erasesize) {
 				/* Update numslots based on actual FIS directory size */
 				numslots = buf[i].size / sizeof(struct fis_image_desc);
 			}
