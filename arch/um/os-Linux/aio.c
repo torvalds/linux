@@ -24,9 +24,6 @@ struct aio_thread_req {
 	struct aio_context *aio;
 };
 
-static int aio_req_fd_r = -1;
-static int aio_req_fd_w = -1;
-
 #if defined(HAVE_AIO_ABI)
 #include <linux/aio_abi.h>
 
@@ -111,6 +108,7 @@ static int do_aio(aio_context_t ctx, enum aio_type type, int fd, char *buf,
 	return err;
 }
 
+/* Initialized in an initcall and unchanged thereafter */
 static aio_context_t ctx = 0;
 
 static int aio_thread(void *arg)
@@ -137,7 +135,7 @@ static int aio_thread(void *arg)
 			err = os_write_file(reply_fd, &reply, sizeof(reply));
 			if(err != sizeof(reply))
 				printk("aio_thread - write failed, fd = %d, "
-				       "err = %d\n", aio_req_fd_r, -err);
+				       "err = %d\n", reply_fd, -err);
 		}
 	}
 	return 0;
@@ -182,6 +180,11 @@ out:
 	return err;
 }
 
+/* These are initialized in initcalls and not changed */
+static int aio_req_fd_r = -1;
+static int aio_req_fd_w = -1;
+static int aio_pid = -1;
+
 static int not_aio_thread(void *arg)
 {
 	struct aio_thread_req req;
@@ -208,13 +211,11 @@ static int not_aio_thread(void *arg)
 		err = os_write_file(req.aio->reply_fd, &reply, sizeof(reply));
 		if(err != sizeof(reply))
 			printk("not_aio_thread - write failed, fd = %d, "
-			       "err = %d\n", aio_req_fd_r, -err);
+			       "err = %d\n", req.aio->reply_fd, -err);
 	}
 
 	return 0;
 }
-
-static int aio_pid = -1;
 
 static int init_aio_24(void)
 {
@@ -308,6 +309,7 @@ static int submit_aio_26(enum aio_type type, int io_fd, char *buf, int len,
 }
 #endif
 
+/* Initialized in an initcall and unchanged thereafter */
 static int aio_24 = DEFAULT_24_AIO;
 
 static int __init set_aio_24(char *name, int *add)
