@@ -68,7 +68,7 @@ max_pgt_pages(void)
 #ifndef	CONFIG_NUMA
 	node_free_pages = nr_free_pages();
 #else
-	node_free_pages = nr_free_pages_pgdat(NODE_DATA(numa_node_id()));
+	node_free_pages = node_page_state(numa_node_id(), NR_FREE_PAGES);
 #endif
 	max_pgt_pages = node_free_pages / PGT_FRACTION_OF_NODE_MEM;
 	max_pgt_pages = max(max_pgt_pages, MIN_PGT_PAGES);
