@@ -2767,12 +2767,14 @@ static int sysctl_uts_string(ctl_table *table, int __user *name, int nlen,
 {
 	return -ENOSYS;
 }
+#ifdef CONFIG_SYSVIPC
 static int sysctl_ipc_data(ctl_table *table, int __user *name, int nlen,
 		void __user *oldval, size_t __user *oldlenp,
 		void __user *newval, size_t newlen)
 {
 	return -ENOSYS;
 }
+#endif
 #endif /* CONFIG_SYSCTL_SYSCALL */
 
 /*
