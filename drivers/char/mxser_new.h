@@ -35,6 +35,8 @@
 #define MOXA_ASPP_LSTATUS 	(MOXA + 74)
 #define MOXA_ASPP_MON_EXT 	(MOXA + 75)
 #define MOXA_SET_BAUD_METHOD	(MOXA + 76)
+#define MOXA_SET_SPECIAL_BAUD_RATE	(MOXA + 77)
+#define MOXA_GET_SPECIAL_BAUD_RATE	(MOXA + 78)
 
 /* --------------------------------------------------- */
 
@@ -210,6 +212,18 @@
 	outb((u8)((info)->rx_low_water), (info)->ioaddr+	\
 			MOXA_MUST_RBRTL_REGISTER);		\
 	outb(__oldlcr, (info)->ioaddr+UART_LCR);		\
+} while (0)
+
+#define SET_MOXA_MUST_ENUM_VALUE(baseio, Value) do {		\
+	u8	__oldlcr, __efr;				\
+	__oldlcr = inb((baseio)+UART_LCR);			\
+	outb(MOXA_MUST_ENTER_ENCHANCE, (baseio)+UART_LCR);	\
+	__efr = inb((baseio)+MOXA_MUST_EFR_REGISTER);		\
+	__efr &= ~MOXA_MUST_EFR_BANK_MASK;			\
+	__efr |= MOXA_MUST_EFR_BANK2;				\
+	outb(__efr, (baseio)+MOXA_MUST_EFR_REGISTER);		\
+	outb((u8)(Value), (baseio)+MOXA_MUST_ENUM_REGISTER);	\
+	outb(__oldlcr, (baseio)+UART_LCR);			\
 } while (0)
 
 #define GET_MOXA_MUST_HARDWARE_ID(baseio, pId) do {		\
