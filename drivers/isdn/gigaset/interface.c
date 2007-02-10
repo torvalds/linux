@@ -599,19 +599,9 @@ out:
 static void if_wake(unsigned long data)
 {
 	struct cardstate *cs = (struct cardstate *) data;
-	struct tty_struct *tty;
 
-	tty = cs->tty;
-	if (!tty)
-		return;
-
-	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-	    tty->ldisc.write_wakeup) {
-		gig_dbg(DEBUG_IF, "write wakeup call");
-		tty->ldisc.write_wakeup(tty);
-	}
-
-	wake_up_interruptible(&tty->write_wait);
+	if (cs->tty)
+		tty_wakeup(cs->tty);
 }
 
 /*** interface to common ***/

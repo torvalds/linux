@@ -4488,7 +4488,6 @@ static void cy_flush_buffer(struct tty_struct *tty)
 		CY_UNLOCK(info, flags);
 	}
 	tty_wakeup(tty);
-	wake_up_interruptible(&tty->write_wait);
 }				/* cy_flush_buffer */
 
 /*

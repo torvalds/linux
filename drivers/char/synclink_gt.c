@@ -1045,7 +1045,6 @@ static void flush_buffer(struct tty_struct *tty)
 		info->tx_count = 0;
 	spin_unlock_irqrestore(&info->lock,flags);
 
-	wake_up_interruptible(&tty->write_wait);
 	tty_wakeup(tty);
 }
 
@@ -1933,10 +1932,8 @@ static void bh_transmit(struct slgt_info *info)
 	struct tty_struct *tty = info->tty;
 
 	DBGBH(("%s bh_transmit\n", info->device_name));
-	if (tty) {
+	if (tty)
 		tty_wakeup(tty);
-		wake_up_interruptible(&tty->write_wait);
-	}
 }
 
 static void dsr_change(struct slgt_info *info)

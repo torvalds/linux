@@ -474,7 +474,6 @@ static void rp_do_transmit(struct r_port *info)
 
 	if (info->xmit_cnt < WAKEUP_CHARS) {
 		tty_wakeup(tty);
-		wake_up_interruptible(&tty->write_wait);
 #ifdef ROCKETPORT_HAVE_POLL_WAIT
 		wake_up_interruptible(&tty->poll_wait);
 #endif
@@ -1772,7 +1771,6 @@ static int rp_write(struct tty_struct *tty,
 end:
  	if (info->xmit_cnt < WAKEUP_CHARS) {
  		tty_wakeup(tty);
-		wake_up_interruptible(&tty->write_wait);
 #ifdef ROCKETPORT_HAVE_POLL_WAIT
 		wake_up_interruptible(&tty->poll_wait);
 #endif
@@ -1841,7 +1839,6 @@ static void rp_flush_buffer(struct tty_struct *tty)
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
 	spin_unlock_irqrestore(&info->slock, flags);
 
-	wake_up_interruptible(&tty->write_wait);
 #ifdef ROCKETPORT_HAVE_POLL_WAIT
 	wake_up_interruptible(&tty->poll_wait);
 #endif

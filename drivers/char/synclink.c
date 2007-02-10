@@ -1148,10 +1148,8 @@ static void mgsl_bh_transmit(struct mgsl_struct *info)
 		printk( "%s(%d):mgsl_bh_transmit() entry on %s\n",
 			__FILE__,__LINE__,info->device_name);
 
-	if (tty) {
+	if (tty)
 		tty_wakeup(tty);
-		wake_up_interruptible(&tty->write_wait);
-	}
 
 	/* if transmitter idle and loopmode_send_done_requested
 	 * then start echoing RxD to TxD
@@ -2340,7 +2338,6 @@ static void mgsl_flush_buffer(struct tty_struct *tty)
 	del_timer(&info->tx_timer);	
 	spin_unlock_irqrestore(&info->irq_spinlock,flags);
 	
-	wake_up_interruptible(&tty->write_wait);
 	tty_wakeup(tty);
 }
 

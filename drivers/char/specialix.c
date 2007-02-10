@@ -2350,10 +2350,8 @@ static void do_softint(struct work_struct *work)
 		return;
 	}
 
-	if (test_and_clear_bit(RS_EVENT_WRITE_WAKEUP, &port->event)) {
+	if (test_and_clear_bit(RS_EVENT_WRITE_WAKEUP, &port->event))
  		tty_wakeup(tty);
-		//wake_up_interruptible(&tty->write_wait);
-	}
 
 	func_exit();
 }

@@ -1254,9 +1254,7 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 	spin_unlock_irqrestore(&info->slock, flags);
 	/* above added by shinhay */
 
-	wake_up_interruptible(&tty->write_wait);
-	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) && tty->ldisc.write_wakeup)
-		(tty->ldisc.write_wakeup) (tty);
+	tty_wakeup(tty);
 }
 
 static int mxser_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg)

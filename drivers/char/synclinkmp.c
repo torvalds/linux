@@ -1258,7 +1258,6 @@ static void flush_buffer(struct tty_struct *tty)
 	del_timer(&info->tx_timer);
 	spin_unlock_irqrestore(&info->lock,flags);
 
-	wake_up_interruptible(&tty->write_wait);
 	tty_wakeup(tty);
 }
 
@@ -2127,10 +2126,8 @@ void bh_transmit(SLMP_INFO *info)
 		printk( "%s(%d):%s bh_transmit() entry\n",
 			__FILE__,__LINE__,info->device_name);
 
-	if (tty) {
+	if (tty)
 		tty_wakeup(tty);
-		wake_up_interruptible(&tty->write_wait);
-	}
 }
 
 void bh_status(SLMP_INFO *info)
