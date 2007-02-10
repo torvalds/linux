@@ -24,8 +24,9 @@
 #include "init.h"
 #include "kern_constants.h"
 
-/* Changed during early boot */
+/* allocated in paging_init, zeroed in mem_init, and unchanged thereafter */
 unsigned long *empty_zero_page = NULL;
+/* allocated in paging_init and unchanged thereafter */
 unsigned long *empty_bad_page = NULL;
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
 unsigned long long highmem;

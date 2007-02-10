@@ -20,7 +20,13 @@
 
 #include <sys/param.h>
 
+/* Modified by which_tmpdir, which is called during early boot */
 static char *default_tmpdir = "/tmp";
+
+/*
+ *  Modified when creating the physical memory file and when checking
+ * the tmp filesystem for usability, both happening during early boot.
+ */
 static char *tempdir = NULL;
 
 static void __init find_tempdir(void)
@@ -83,6 +89,7 @@ static int next(int fd, char *buf, int size, char c)
 	return 1;
 }
 
+/* which_tmpdir is called only during early boot */
 static int checked_tmpdir = 0;
 
 /* Look for a tmpfs mounted at /dev/shm.  I couldn't find a cleaner
