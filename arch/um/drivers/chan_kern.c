@@ -222,15 +222,28 @@ void enable_chan(struct line *line)
 	}
 }
 
+/* Items are added in IRQ context, when free_irq can't be called, and
+ * removed in process context, when it can.
+ * This handles interrupt sources which disappear, and which need to
+ * be permanently disabled.  This is discovered in IRQ context, but
+ * the freeing of the IRQ must be done later.
+ */
+static DEFINE_SPINLOCK(irqs_to_free_lock);
 static LIST_HEAD(irqs_to_free);
 
 void free_irqs(void)
 {
 	struct chan *chan;
+	LIST_HEAD(list);
+	struct list_head *ele;
 
-	while(!list_empty(&irqs_to_free)){
-		chan = list_entry(irqs_to_free.next, struct chan, free_list);
-		list_del(&chan->free_list);
+	spin_lock_irq(&irqs_to_free_lock);
+	list_splice_init(&irqs_to_free, &list);
+	INIT_LIST_HEAD(&irqs_to_free);
+	spin_unlock_irq(&irqs_to_free_lock);
+
+	list_for_each(ele, &list){
+		chan = list_entry(ele, struct chan, free_list);
 
 		if(chan->input)
 			free_irq(chan->line->driver->read_irq, chan);
@@ -246,7 +259,9 @@ static void close_one_chan(struct chan *chan, int delay_free_irq)
 		return;
 
 	if(delay_free_irq){
+		spin_lock_irq(&irqs_to_free_lock);
 		list_add(&chan->free_list, &irqs_to_free);
+		spin_unlock_irq(&irqs_to_free_lock);
 	}
 	else {
 		if(chan->input)
