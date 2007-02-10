@@ -3543,6 +3543,7 @@ xfs_bmap_forkoff_reset(
 	if (whichfork == XFS_ATTR_FORK &&
 	    (ip->i_d.di_format != XFS_DINODE_FMT_DEV) &&
 	    (ip->i_d.di_format != XFS_DINODE_FMT_UUID) &&
+	    (ip->i_d.di_format != XFS_DINODE_FMT_BTREE) &&
 	    ((mp->m_attroffset >> 3) > ip->i_d.di_forkoff)) {
 		ip->i_d.di_forkoff = mp->m_attroffset >> 3;
 		ip->i_df.if_ext_max = XFS_IFORK_DSIZE(ip) /
