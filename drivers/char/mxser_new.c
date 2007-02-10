@@ -2403,9 +2403,8 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 			brd->info->name, brd->irq);
 		/* We hold resources, we need to release them. */
 		mxser_release_res(brd, pdev, 0);
-		return retval;
 	}
-	return 0;
+	return retval;
 }
 
 static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
@@ -2590,8 +2589,9 @@ static int __devinit mxser_probe(struct pci_dev *pdev,
 	}
 
 	/* mxser_initbrd will hook ISR. */
-	if (mxser_initbrd(brd, pdev) < 0)
-		goto err_relvec;
+	retval = mxser_initbrd(brd, pdev);
+	if (retval)
+		goto err_null;
 
 	for (i = 0; i < brd->info->nports; i++)
 		tty_register_device(mxvar_sdriver, brd->idx + i, &pdev->dev);
@@ -2599,10 +2599,9 @@ static int __devinit mxser_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, brd);
 
 	return 0;
-err_relvec:
-	pci_release_region(pdev, 3);
 err_relio:
 	pci_release_region(pdev, 2);
+err_null:
 	brd->info = NULL;
 err:
 	return retval;
@@ -2620,6 +2619,7 @@ static void __devexit mxser_remove(struct pci_dev *pdev)
 		tty_unregister_device(mxvar_sdriver, brd->idx + i);
 
 	mxser_release_res(brd, pdev, 1);
+	brd->info = NULL;
 }
 
 static struct pci_driver mxser_driver = {
