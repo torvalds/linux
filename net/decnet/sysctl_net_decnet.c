@@ -164,7 +164,7 @@ static int dn_node_address_strategy(ctl_table *table, int __user *name, int nlen
 	return 0;
 }
 
-static int dn_node_address_handler(ctl_table *table, int write, 
+static int dn_node_address_handler(ctl_table *table, int write,
 				struct file *filp,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
@@ -240,7 +240,7 @@ static int dn_def_dev_strategy(ctl_table *table, int __user *name, int nlen,
 			}
 
 			namel = strlen(devname) + 1;
-			if (len > namel) len = namel;	
+			if (len > namel) len = namel;
 
 			if (copy_to_user(oldval, devname, len))
 				return -EFAULT;
@@ -275,7 +275,7 @@ static int dn_def_dev_strategy(ctl_table *table, int __user *name, int nlen,
 }
 
 
-static int dn_def_dev_handler(ctl_table *table, int write, 
+static int dn_def_dev_handler(ctl_table *table, int write,
 				struct file * filp,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
@@ -341,17 +341,17 @@ static int dn_def_dev_handler(ctl_table *table, int write,
 
 static ctl_table dn_table[] = {
 	{
-		.ctl_name = NET_DECNET_NODE_ADDRESS, 
-		.procname = "node_address", 
-		.maxlen = 7, 
-		.mode = 0644, 
+		.ctl_name = NET_DECNET_NODE_ADDRESS,
+		.procname = "node_address",
+		.maxlen = 7,
+		.mode = 0644,
 		.proc_handler = dn_node_address_handler,
 		.strategy = dn_node_address_strategy,
 	},
 	{
 		.ctl_name = NET_DECNET_NODE_NAME,
 		.procname = "node_name",
-		.data = node_name, 
+		.data = node_name,
 		.maxlen = 7,
 		.mode = 0644,
 		.proc_handler = &proc_dostring,
@@ -359,8 +359,8 @@ static ctl_table dn_table[] = {
 	},
 	{
 		.ctl_name = NET_DECNET_DEFAULT_DEVICE,
-		.procname = "default_device", 
-		.maxlen = 16, 
+		.procname = "default_device",
+		.maxlen = 16,
 		.mode = 0644,
 		.proc_handler = dn_def_dev_handler,
 		.strategy = dn_def_dev_strategy,
@@ -432,32 +432,32 @@ static ctl_table dn_table[] = {
 		.extra2 = &max_decnet_no_fc_max_cwnd
 	},
        {
-                .ctl_name = NET_DECNET_MEM,
-                .procname = "decnet_mem",
-                .data = &sysctl_decnet_mem,
-                .maxlen = sizeof(sysctl_decnet_mem),
-                .mode = 0644,
-                .proc_handler = &proc_dointvec,
-                .strategy = &sysctl_intvec,
-        },
-        {
-                .ctl_name = NET_DECNET_RMEM,
-                .procname = "decnet_rmem",
-                .data = &sysctl_decnet_rmem,
-                .maxlen = sizeof(sysctl_decnet_rmem),
-                .mode = 0644,
-                .proc_handler = &proc_dointvec,
-                .strategy = &sysctl_intvec,
-        },
-        {
-                .ctl_name = NET_DECNET_WMEM,
-                .procname = "decnet_wmem",
-                .data = &sysctl_decnet_wmem,
-                .maxlen = sizeof(sysctl_decnet_wmem),
-                .mode = 0644,
-                .proc_handler = &proc_dointvec,
-                .strategy = &sysctl_intvec,
-        },
+		.ctl_name = NET_DECNET_MEM,
+		.procname = "decnet_mem",
+		.data = &sysctl_decnet_mem,
+		.maxlen = sizeof(sysctl_decnet_mem),
+		.mode = 0644,
+		.proc_handler = &proc_dointvec,
+		.strategy = &sysctl_intvec,
+	},
+	{
+		.ctl_name = NET_DECNET_RMEM,
+		.procname = "decnet_rmem",
+		.data = &sysctl_decnet_rmem,
+		.maxlen = sizeof(sysctl_decnet_rmem),
+		.mode = 0644,
+		.proc_handler = &proc_dointvec,
+		.strategy = &sysctl_intvec,
+	},
+	{
+		.ctl_name = NET_DECNET_WMEM,
+		.procname = "decnet_wmem",
+		.data = &sysctl_decnet_wmem,
+		.maxlen = sizeof(sysctl_decnet_wmem),
+		.mode = 0644,
+		.proc_handler = &proc_dointvec,
+		.strategy = &sysctl_intvec,
+	},
 	{
 		.ctl_name = NET_DECNET_DEBUG_LEVEL,
 		.procname = "debug",
@@ -472,18 +472,18 @@ static ctl_table dn_table[] = {
 
 static ctl_table dn_dir_table[] = {
 	{
-		.ctl_name = NET_DECNET, 
-		.procname = "decnet", 
-		.mode = 0555, 
+		.ctl_name = NET_DECNET,
+		.procname = "decnet",
+		.mode = 0555,
 		.child = dn_table},
 	{0}
 };
 
 static ctl_table dn_root_table[] = {
 	{
-		.ctl_name = CTL_NET, 
-		.procname = "net", 
-		.mode = 0555, 
+		.ctl_name = CTL_NET,
+		.procname = "net",
+		.mode = 0555,
 		.child = dn_dir_table
 	},
 	{0}

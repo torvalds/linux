@@ -98,7 +98,7 @@ static void basic_destroy(struct tcf_proto *tp)
 {
 	struct basic_head *head = (struct basic_head *) xchg(&tp->root, NULL);
 	struct basic_filter *f, *n;
-	
+
 	list_for_each_entry_safe(f, n, &head->flist, link) {
 		list_del(&f->link);
 		basic_delete_filter(tp, f);
@@ -157,7 +157,7 @@ errout:
 }
 
 static int basic_change(struct tcf_proto *tp, unsigned long base, u32 handle,
-		        struct rtattr **tca, unsigned long *arg)
+			struct rtattr **tca, unsigned long *arg)
 {
 	int err = -EINVAL;
 	struct basic_head *head = (struct basic_head *) tp->root;
@@ -292,7 +292,7 @@ static int __init init_basic(void)
 	return register_tcf_proto_ops(&cls_basic_ops);
 }
 
-static void __exit exit_basic(void) 
+static void __exit exit_basic(void)
 {
 	unregister_tcf_proto_ops(&cls_basic_ops);
 }

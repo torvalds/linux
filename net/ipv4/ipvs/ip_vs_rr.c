@@ -68,7 +68,7 @@ ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 			q = q->next;
 			continue;
 		}
-		
+
 		dest = list_entry(q, struct ip_vs_dest, n_list);
 		if (!(dest->flags & IP_VS_DEST_F_OVERLOAD) &&
 		    atomic_read(&dest->weight) > 0)

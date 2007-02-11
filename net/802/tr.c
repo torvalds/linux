@@ -1,6 +1,6 @@
 /*
  * NET3:	Token ring device handling subroutines
- * 
+ *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
  *		as published by the Free Software Foundation; either version
@@ -12,7 +12,7 @@
  *              22 Jun 98 Paul Norton <p.norton@computer.org> Rearranged
  *              tr_header and tr_type_trans to handle passing IPX SNAP and
  *              802.2 through the correct layers. Eliminated tr_reformat.
- *        
+ *
  */
 
 #include <asm/uaccess.h>
@@ -45,7 +45,7 @@ static void rif_check_expire(unsigned long dummy);
 /*
  *	Each RIF entry we learn is kept this way
  */
- 
+
 struct rif_cache {
 	unsigned char addr[TR_ALEN];
 	int iface;
@@ -62,7 +62,7 @@ struct rif_cache {
  *	We hash the RIF cache 32 ways. We do after all have to look it
  *	up a lot.
  */
- 
+
 static struct rif_cache *rif_table[RIF_TABLE_SIZE];
 
 static DEFINE_SPINLOCK(rif_lock);
@@ -71,7 +71,7 @@ static DEFINE_SPINLOCK(rif_lock);
 /*
  *	Garbage disposal timer.
  */
- 
+
 static struct timer_list rif_timer;
 
 int sysctl_tr_rif_timeout = 60*10*HZ;
@@ -96,16 +96,16 @@ static inline unsigned long rif_hash(const unsigned char *addr)
  *	Put the headers on a token ring packet. Token ring source routing
  *	makes this a little more exciting than on ethernet.
  */
- 
+
 static int tr_header(struct sk_buff *skb, struct net_device *dev,
 		     unsigned short type,
-		     void *daddr, void *saddr, unsigned len) 
+		     void *daddr, void *saddr, unsigned len)
 {
 	struct trh_hdr *trh;
 	int hdr_len;
 
-	/* 
-	 * Add the 802.2 SNAP header if IP as the IPv4/IPv6 code calls  
+	/*
+	 * Add the 802.2 SNAP header if IP as the IPv4/IPv6 code calls
 	 * dev->hard_header directly.
 	 */
 	if (type == ETH_P_IP || type == ETH_P_IPV6 || type == ETH_P_ARP)
@@ -123,7 +123,7 @@ static int tr_header(struct sk_buff *skb, struct net_device *dev,
 	else
 	{
 		hdr_len = sizeof(struct trh_hdr);
-		trh = (struct trh_hdr *)skb_push(skb, hdr_len);	
+		trh = (struct trh_hdr *)skb_push(skb, hdr_len);
 	}
 
 	trh->ac=AC;
@@ -137,8 +137,8 @@ static int tr_header(struct sk_buff *skb, struct net_device *dev,
 	/*
 	 *	Build the destination and then source route the frame
 	 */
-	 
-	if(daddr) 
+
+	if(daddr)
 	{
 		memcpy(trh->daddr,daddr,dev->addr_len);
 		tr_source_route(skb,trh,dev);
@@ -147,13 +147,13 @@ static int tr_header(struct sk_buff *skb, struct net_device *dev,
 
 	return -hdr_len;
 }
-	
+
 /*
  *	A neighbour discovery of some species (eg arp) has completed. We
  *	can now send the packet.
  */
- 
-static int tr_rebuild_header(struct sk_buff *skb) 
+
+static int tr_rebuild_header(struct sk_buff *skb)
 {
 	struct trh_hdr *trh=(struct trh_hdr *)skb->data;
 	struct trllc *trllc=(struct trllc *)(skb->data+sizeof(struct trh_hdr));
@@ -162,7 +162,7 @@ static int tr_rebuild_header(struct sk_buff *skb)
 	/*
 	 *	FIXME: We don't yet support IPv6 over token rings
 	 */
-	 
+
 	if(trllc->ethertype != htons(ETH_P_IP)) {
 		printk("tr_rebuild_header: Don't know how to resolve type %04X addresses ?\n", ntohs(trllc->ethertype));
 		return 0;
@@ -172,39 +172,39 @@ static int tr_rebuild_header(struct sk_buff *skb)
 	if(arp_find(trh->daddr, skb)) {
 			return 1;
 	}
-	else 
-#endif	
-	{	
-		tr_source_route(skb,trh,dev); 
+	else
+#endif
+	{
+		tr_source_route(skb,trh,dev);
 		return 0;
 	}
 }
-	
+
 /*
  *	Some of this is a bit hackish. We intercept RIF information
  *	used for source routing. We also grab IP directly and don't feed
  *	it via SNAP.
  */
- 
+
 __be16 tr_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 
 	struct trh_hdr *trh=(struct trh_hdr *)skb->data;
 	struct trllc *trllc;
 	unsigned riflen=0;
-	
+
 	skb->mac.raw = skb->data;
-	
-       	if(trh->saddr[0] & TR_RII)
+
+	if(trh->saddr[0] & TR_RII)
 		riflen = (ntohs(trh->rcf) & TR_RCF_LEN_MASK) >> 8;
 
 	trllc = (struct trllc *)(skb->data+sizeof(struct trh_hdr)-TR_MAXRIFLEN+riflen);
 
 	skb_pull(skb,sizeof(struct trh_hdr)-TR_MAXRIFLEN+riflen);
 
-	if(*trh->daddr & 0x80) 
+	if(*trh->daddr & 0x80)
 	{
-		if(!memcmp(trh->daddr,dev->broadcast,TR_ALEN)) 	
+		if(!memcmp(trh->daddr,dev->broadcast,TR_ALEN))
 			skb->pkt_type=PACKET_BROADCAST;
 		else
 			skb->pkt_type=PACKET_MULTICAST;
@@ -213,7 +213,7 @@ __be16 tr_type_trans(struct sk_buff *skb, struct net_device *dev)
 	{
 		skb->pkt_type=PACKET_MULTICAST;
 	}
-	else if(dev->flags & IFF_PROMISC) 
+	else if(dev->flags & IFF_PROMISC)
 	{
 		if(memcmp(trh->daddr, dev->dev_addr, TR_ALEN))
 			skb->pkt_type=PACKET_OTHERHOST;
@@ -221,10 +221,10 @@ __be16 tr_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 	if ((skb->pkt_type != PACKET_BROADCAST) &&
 	    (skb->pkt_type != PACKET_MULTICAST))
-		tr_add_rif_info(trh,dev) ; 
+		tr_add_rif_info(trh,dev) ;
 
 	/*
-	 * Strip the SNAP header from ARP packets since we don't 
+	 * Strip the SNAP header from ARP packets since we don't
 	 * pass them through to the 802.2/SNAP layers.
 	 */
 
@@ -241,32 +241,32 @@ __be16 tr_type_trans(struct sk_buff *skb, struct net_device *dev)
 }
 
 /*
- *	We try to do source routing... 
+ *	We try to do source routing...
  */
 
-void tr_source_route(struct sk_buff *skb,struct trh_hdr *trh,struct net_device *dev) 
+void tr_source_route(struct sk_buff *skb,struct trh_hdr *trh,struct net_device *dev)
 {
 	int slack;
 	unsigned int hash;
 	struct rif_cache *entry;
 	unsigned char *olddata;
 	unsigned long flags;
-	static const unsigned char mcast_func_addr[] 
+	static const unsigned char mcast_func_addr[]
 		= {0xC0,0x00,0x00,0x04,0x00,0x00};
-	
+
 	spin_lock_irqsave(&rif_lock, flags);
 
 	/*
-	 *	Broadcasts are single route as stated in RFC 1042 
+	 *	Broadcasts are single route as stated in RFC 1042
 	 */
 	if( (!memcmp(&(trh->daddr[0]),&(dev->broadcast[0]),TR_ALEN)) ||
 	    (!memcmp(&(trh->daddr[0]),&(mcast_func_addr[0]), TR_ALEN))  )
 	{
-		trh->rcf=htons((((sizeof(trh->rcf)) << 8) & TR_RCF_LEN_MASK)  
+		trh->rcf=htons((((sizeof(trh->rcf)) << 8) & TR_RCF_LEN_MASK)
 			       | TR_RCF_FRAME2K | TR_RCF_LIMITED_BROADCAST);
 		trh->saddr[0]|=TR_RII;
 	}
-	else 
+	else
 	{
 		hash = rif_hash(trh->daddr);
 		/*
@@ -277,7 +277,7 @@ void tr_source_route(struct sk_buff *skb,struct trh_hdr *trh,struct net_device *
 		/*
 		 *	If we found an entry we can route the frame.
 		 */
-		if(entry) 
+		if(entry)
 		{
 #if TR_SR_DEBUG
 printk("source routing for %02X:%02X:%02X:%02X:%02X:%02X\n",trh->daddr[0],
@@ -287,7 +287,7 @@ printk("source routing for %02X:%02X:%02X:%02X:%02X:%02X\n",trh->daddr[0],
 			{
 				trh->rcf=entry->rcf;
 				memcpy(&trh->rseg[0],&entry->rseg[0],8*sizeof(unsigned short));
-				trh->rcf^=htons(TR_RCF_DIR_BIT);	
+				trh->rcf^=htons(TR_RCF_DIR_BIT);
 				trh->rcf&=htons(0x1fff);	/* Issam Chehab <ichehab@madge1.demon.co.uk> */
 
 				trh->saddr[0]|=TR_RII;
@@ -301,14 +301,14 @@ printk("source routing for %02X:%02X:%02X:%02X:%02X:%02X\n",trh->daddr[0],
 			}
 			entry->last_used=jiffies;
 		}
-		else 
+		else
 		{
 			/*
 			 *	Without the information we simply have to shout
 			 *	on the wire. The replies should rapidly clean this
 			 *	situation up.
 			 */
-			trh->rcf=htons((((sizeof(trh->rcf)) << 8) & TR_RCF_LEN_MASK)  
+			trh->rcf=htons((((sizeof(trh->rcf)) << 8) & TR_RCF_LEN_MASK)
 				       | TR_RCF_FRAME2K | TR_RCF_LIMITED_BROADCAST);
 			trh->saddr[0]|=TR_RII;
 #if TR_SR_DEBUG
@@ -320,7 +320,7 @@ printk("source routing for %02X:%02X:%02X:%02X:%02X:%02X\n",trh->daddr[0],
 	/* Compress the RIF here so we don't have to do it in the driver(s) */
 	if (!(trh->saddr[0] & 0x80))
 		slack = 18;
-	else 
+	else
 		slack = 18 - ((ntohs(trh->rcf) & TR_RCF_LEN_MASK)>>8);
 	olddata = skb->data;
 	spin_unlock_irqrestore(&rif_lock, flags);
@@ -333,7 +333,7 @@ printk("source routing for %02X:%02X:%02X:%02X:%02X:%02X\n",trh->daddr[0],
  *	We have learned some new RIF information for our source
  *	routing.
  */
- 
+
 static void tr_add_rif_info(struct trh_hdr *trh, struct net_device *dev)
 {
 	unsigned int hash, rii_p = 0;
@@ -343,29 +343,29 @@ static void tr_add_rif_info(struct trh_hdr *trh, struct net_device *dev)
 
 	spin_lock_irqsave(&rif_lock, flags);
 	saddr0 = trh->saddr[0];
-	
+
 	/*
 	 *	Firstly see if the entry exists
 	 */
 
-       	if(trh->saddr[0] & TR_RII)
+	if(trh->saddr[0] & TR_RII)
 	{
 		trh->saddr[0]&=0x7f;
 		if (((ntohs(trh->rcf) & TR_RCF_LEN_MASK) >> 8) > 2)
 		{
 			rii_p = 1;
-	        }
+		}
 	}
 
 	hash = rif_hash(trh->saddr);
 	for(entry=rif_table[hash];entry && memcmp(&(entry->addr[0]),&(trh->saddr[0]),TR_ALEN);entry=entry->next);
 
-	if(entry==NULL) 
+	if(entry==NULL)
 	{
 #if TR_SR_DEBUG
 printk("adding rif_entry: addr:%02X:%02X:%02X:%02X:%02X:%02X rcf:%04X\n",
 		trh->saddr[0],trh->saddr[1],trh->saddr[2],
-       		trh->saddr[3],trh->saddr[4],trh->saddr[5],
+		trh->saddr[3],trh->saddr[4],trh->saddr[5],
 		ntohs(trh->rcf));
 #endif
 		/*
@@ -377,7 +377,7 @@ printk("adding rif_entry: addr:%02X:%02X:%02X:%02X:%02X:%02X rcf:%04X\n",
 		 */
 		entry=kmalloc(sizeof(struct rif_cache),GFP_ATOMIC);
 
-		if(!entry) 
+		if(!entry)
 		{
 			printk(KERN_DEBUG "tr.c: Couldn't malloc rif cache entry !\n");
 			spin_unlock_irqrestore(&rif_lock, flags);
@@ -400,13 +400,13 @@ printk("adding rif_entry: addr:%02X:%02X:%02X:%02X:%02X:%02X rcf:%04X\n",
 		{
 			entry->local_ring = 1;
 		}
-	} 	
+	}
 	else	/* Y. Tahara added */
-	{ 
+	{
 		/*
 		 *	Update existing entries
 		 */
-		if (!entry->local_ring) 
+		if (!entry->local_ring)
 		    if (entry->rcf != (trh->rcf & htons((unsigned short)~TR_RCF_BROADCAST_MASK)) &&
 			 !(trh->rcf & htons(TR_RCF_BROADCAST_MASK)))
 		    {
@@ -417,9 +417,9 @@ printk("updating rif_entry: addr:%02X:%02X:%02X:%02X:%02X:%02X rcf:%04X\n",
 		ntohs(trh->rcf));
 #endif
 			    entry->rcf = trh->rcf & htons((unsigned short)~TR_RCF_BROADCAST_MASK);
-        		    memcpy(&(entry->rseg[0]),&(trh->rseg[0]),8*sizeof(unsigned short));
-		    }                                         
-           	entry->last_used=jiffies;               
+			    memcpy(&(entry->rseg[0]),&(trh->rseg[0]),8*sizeof(unsigned short));
+		    }
+		entry->last_used=jiffies;
 	}
 	trh->saddr[0]=saddr0; /* put the routing indicator back for tcpdump */
 	spin_unlock_irqrestore(&rif_lock, flags);
@@ -429,16 +429,16 @@ printk("updating rif_entry: addr:%02X:%02X:%02X:%02X:%02X:%02X rcf:%04X\n",
  *	Scan the cache with a timer and see what we need to throw out.
  */
 
-static void rif_check_expire(unsigned long dummy) 
+static void rif_check_expire(unsigned long dummy)
 {
 	int i;
 	unsigned long flags, next_interval = jiffies + sysctl_tr_rif_timeout/2;
 
 	spin_lock_irqsave(&rif_lock, flags);
-	
+
 	for(i =0; i < RIF_TABLE_SIZE; i++) {
 		struct rif_cache *entry, **pentry;
-		
+
 		pentry = rif_table+i;
 		while((entry=*pentry) != NULL) {
 			unsigned long expires
@@ -455,7 +455,7 @@ static void rif_check_expire(unsigned long dummy)
 			}
 		}
 	}
-	
+
 	spin_unlock_irqrestore(&rif_lock, flags);
 
 	mod_timer(&rif_timer, next_interval);
@@ -466,7 +466,7 @@ static void rif_check_expire(unsigned long dummy)
  *	Generate the /proc/net information for the token ring RIF
  *	routing.
  */
- 
+
 #ifdef CONFIG_PROC_FS
 
 static struct rif_cache *rif_get_idx(loff_t pos)
@@ -475,7 +475,7 @@ static struct rif_cache *rif_get_idx(loff_t pos)
 	struct rif_cache *entry;
 	loff_t off = 0;
 
-	for(i = 0; i < RIF_TABLE_SIZE; i++) 
+	for(i = 0; i < RIF_TABLE_SIZE; i++)
 		for(entry = rif_table[i]; entry; entry = entry->next) {
 			if (off == pos)
 				return entry;
@@ -504,7 +504,7 @@ static void *rif_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		goto scan;
 	}
 
-	if (ent->next) 
+	if (ent->next)
 		return ent->next;
 
 	i = rif_hash(ent->addr);
@@ -541,13 +541,13 @@ static int rif_seq_show(struct seq_file *seq, void *v)
 			   ttl/HZ);
 
 			if (entry->local_ring)
-			        seq_puts(seq, "local\n");
+				seq_puts(seq, "local\n");
 			else {
 
 				seq_printf(seq, "%04X", ntohs(entry->rcf));
-				rcf_len = ((ntohs(entry->rcf) & TR_RCF_LEN_MASK)>>8)-2; 
+				rcf_len = ((ntohs(entry->rcf) & TR_RCF_LEN_MASK)>>8)-2;
 				if (rcf_len)
-				        rcf_len >>= 1;
+					rcf_len >>= 1;
 				for(j = 1; j < rcf_len; j++) {
 					if(j==1) {
 						segment=ntohs(entry->rseg[j-1])>>4;
@@ -559,7 +559,7 @@ static int rif_seq_show(struct seq_file *seq, void *v)
 				}
 				seq_putc(seq, '\n');
 			}
-	   	}
+		}
 	return 0;
 }
 
@@ -591,7 +591,7 @@ static void tr_setup(struct net_device *dev)
 	/*
 	 *	Configure and register
 	 */
-	
+
 	dev->hard_header	= tr_header;
 	dev->rebuild_header	= tr_rebuild_header;
 
@@ -600,7 +600,7 @@ static void tr_setup(struct net_device *dev)
 	dev->mtu		= 2000;
 	dev->addr_len		= TR_ALEN;
 	dev->tx_queue_len	= 100;	/* Long queues on tr */
-	
+
 	memset(dev->broadcast,0xFF, TR_ALEN);
 
 	/* New-style flags. */

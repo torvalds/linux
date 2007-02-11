@@ -141,7 +141,7 @@ static int rxrpc_krxiod(void *arg)
 
 		try_to_freeze();
 
-                /* discard pending signals */
+		/* discard pending signals */
 		rxrpc_discard_my_signals();
 
 	} while (!rxrpc_krxiod_die);

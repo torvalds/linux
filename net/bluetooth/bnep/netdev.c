@@ -1,4 +1,4 @@
-/* 
+/*
    BNEP implementation for Linux Bluetooth stack (BlueZ).
    Copyright (C) 2001-2002 Inventel Systemes
    Written 2001-2002 by
@@ -15,19 +15,19 @@
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
    IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
+   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
+   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS,
+   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS
    SOFTWARE IS DISCLAIMED.
 */
 
 /*
  * $Id: netdev.c,v 1.8 2002/08/04 21:23:58 maxk Exp $
- */ 
+ */
 
 #include <linux/module.h>
 
@@ -94,7 +94,7 @@ static void bnep_net_set_mc_list(struct net_device *dev)
 	r->type = BNEP_CONTROL;
 	r->ctrl = BNEP_FILTER_MULTI_ADDR_SET;
 
-        if (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) {
+	if (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) {
 		u8 start[ETH_ALEN] = { 0x01 };
 
 		/* Request all addresses */
@@ -102,14 +102,14 @@ static void bnep_net_set_mc_list(struct net_device *dev)
 		memcpy(__skb_put(skb, ETH_ALEN), dev->broadcast, ETH_ALEN);
 		r->len = htons(ETH_ALEN * 2);
 	} else {
-                struct dev_mc_list *dmi = dev->mc_list;
+		struct dev_mc_list *dmi = dev->mc_list;
 		int i, len = skb->len;
 
 		if (dev->flags & IFF_BROADCAST) {
 			memcpy(__skb_put(skb, ETH_ALEN), dev->broadcast, ETH_ALEN);
 			memcpy(__skb_put(skb, ETH_ALEN), dev->broadcast, ETH_ALEN);
-		}	
-		
+		}
+
 		/* FIXME: We should group addresses here. */
 
 		for (i = 0; i < dev->mc_count && i < BNEP_MAX_MULTICAST_FILTERS; i++) {
@@ -159,13 +159,13 @@ static inline u16 bnep_net_eth_proto(struct sk_buff *skb)
 {
 	struct ethhdr *eh = (void *) skb->data;
 	u16 proto = ntohs(eh->h_proto);
-	
+
 	if (proto >= 1536)
 		return proto;
-		
+
 	if (get_unaligned((__be16 *) skb->data) == htons(0xFFFF))
 		return ETH_P_802_3;
-		
+
 	return ETH_P_802_2;
 }
 
@@ -174,7 +174,7 @@ static inline int bnep_net_proto_filter(struct sk_buff *skb, struct bnep_session
 	u16 proto = bnep_net_eth_proto(skb);
 	struct bnep_proto_filter *f = s->proto_filter;
 	int i;
-	
+
 	for (i = 0; i < BNEP_MAX_PROTO_FILTERS && f[i].end; i++) {
 		if (proto >= f[i].start && proto <= f[i].end)
 			return 0;
@@ -198,14 +198,14 @@ static int bnep_net_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	}
 #endif
-	
+
 #ifdef CONFIG_BT_BNEP_PROTO_FILTER
 	if (bnep_net_proto_filter(skb, s)) {
 		kfree_skb(skb);
 		return 0;
 	}
 #endif
-	
+
 	/*
 	 * We cannot send L2CAP packets from here as we are potentially in a bh.
 	 * So we have to queue them and wake up session thread which is sleeping

@@ -26,7 +26,7 @@
   The following two-column lookup table implements a part of the TCP throughput
   equation from [RFC 3448, sec. 3.1]:
 
-	 			     s
+				     s
   X_calc  =  --------------------------------------------------------------
 	     R * sqrt(2*b*p/3) + (3 * t_RTO * sqrt(3*b*p/8) * (p + 32*p^3))
 
@@ -35,7 +35,7 @@
 	s      is the packet size in bytes
 	R      is the round trip time in seconds
 	p      is the loss event rate, between 0 and 1.0, of the number of loss
-	              events as a fraction of the number of packets transmitted
+		      events as a fraction of the number of packets transmitted
 	t_RTO  is the TCP retransmission timeout value in seconds
 	b      is the number of packets acknowledged by a single TCP ACK
 
@@ -47,9 +47,9 @@
 
   which we can break down into:
 
-                      s
+		      s
 	X_calc  =  ---------
-	            R * f(p)
+		    R * f(p)
 
   where f(p) is given for 0 < p <= 1 by:
 
@@ -62,7 +62,7 @@
     * the return result f(p)
   The lookup table therefore actually tabulates the following function g(q):
 
-  	g(q)  =  1000000 * f(q/1000000)
+	g(q)  =  1000000 * f(q/1000000)
 
   Hence, when p <= 1, q must be less than or equal to 1000000. To achieve finer
   granularity for the practically more relevant case of small values of p (up to
@@ -628,7 +628,7 @@ u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 	if (R == 0) {			/* possible  divide by zero */
 		DCCP_CRIT("WARNING: RTT is 0, returning maximum X_calc.");
 		return ~0U;
- 	}
+	}
 
 	if (p <= TFRC_CALC_X_SPLIT) 		{     /* 0.0000 < p <= 0.05   */
 		if (p < TFRC_SMALLEST_P) {	      /* 0.0000 < p <  0.0001 */
@@ -638,7 +638,7 @@ u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 		} else 				      /* 0.0001 <= p <= 0.05  */
 			index =  p/TFRC_SMALLEST_P - 1;
 
- 		f = tfrc_calc_x_lookup[index][1];
+		f = tfrc_calc_x_lookup[index][1];
 
 	} else {	 			      /* 0.05   <  p <= 1.00  */
 		index = p/(1000000/TFRC_CALC_X_ARRSIZE) - 1;
@@ -687,8 +687,8 @@ u32 tfrc_calc_x_reverse_lookup(u32 fvalue)
 	if (fvalue <= tfrc_calc_x_lookup[TFRC_CALC_X_ARRSIZE - 1][1]) {
 		index = tfrc_binsearch(fvalue, 1);
 		return (index + 1) * TFRC_CALC_X_SPLIT / TFRC_CALC_X_ARRSIZE;
- 	}
- 
+	}
+
 	/* else ... it must be in the coarse-grained column */
 	index = tfrc_binsearch(fvalue, 0);
 	return (index + 1) * 1000000 / TFRC_CALC_X_ARRSIZE;

@@ -172,8 +172,8 @@ static struct cache_head *rsi_alloc(void)
 }
 
 static void rsi_request(struct cache_detail *cd,
-                       struct cache_head *h,
-                       char **bpp, int *blen)
+		       struct cache_head *h,
+		       char **bpp, int *blen)
 {
 	struct rsi *rsii = container_of(h, struct rsi, h);
 
@@ -184,7 +184,7 @@ static void rsi_request(struct cache_detail *cd,
 
 
 static int rsi_parse(struct cache_detail *cd,
-                    char *mesg, int mlen)
+		    char *mesg, int mlen)
 {
 	/* context token expiry major minor context token */
 	char *buf = mesg;

@@ -110,7 +110,7 @@ static int nr_device_event(struct notifier_block *this, unsigned long event, voi
 
 	nr_kill_by_device(dev);
 	nr_rt_device_down(dev);
-	
+
 	return NOTIFY_DONE;
 }
 
@@ -137,7 +137,7 @@ static struct sock *nr_find_listener(ax25_address *addr)
 	sk_for_each(s, node, &nr_list)
 		if (!ax25cmp(&nr_sk(s)->source_addr, addr) &&
 		    s->sk_state == TCP_LISTEN) {
-		    	bh_lock_sock(s);
+			bh_lock_sock(s);
 			goto found;
 		}
 	s = NULL;
@@ -157,7 +157,7 @@ static struct sock *nr_find_socket(unsigned char index, unsigned char id)
 	spin_lock_bh(&nr_list_lock);
 	sk_for_each(s, node, &nr_list) {
 		struct nr_sock *nr = nr_sk(s);
-		
+
 		if (nr->my_index == index && nr->my_id == id) {
 			bh_lock_sock(s);
 			goto found;
@@ -181,10 +181,10 @@ static struct sock *nr_find_peer(unsigned char index, unsigned char id,
 	spin_lock_bh(&nr_list_lock);
 	sk_for_each(s, node, &nr_list) {
 		struct nr_sock *nr = nr_sk(s);
-		
+
 		if (nr->your_index == index && nr->your_id == id &&
 		    !ax25cmp(&nr->dest_addr, dest)) {
-		    	bh_lock_sock(s);
+			bh_lock_sock(s);
 			goto found;
 		}
 	}
@@ -341,17 +341,17 @@ static int nr_getsockopt(struct socket *sock, int level, int optname,
 	struct sock *sk = sock->sk;
 	struct nr_sock *nr = nr_sk(sk);
 	int val = 0;
-	int len; 
+	int len;
 
 	if (level != SOL_NETROM)
 		return -ENOPROTOOPT;
-	
+
 	if (get_user(len, optlen))
 		return -EFAULT;
 
 	if (len < 0)
 		return -EINVAL;
-		
+
 	switch (optname) {
 	case NETROM_T1:
 		val = nr->t1 / HZ;
@@ -537,7 +537,7 @@ static int nr_release(struct socket *sock)
 		break;
 	}
 
-	sock->sk   = NULL;	
+	sock->sk   = NULL;
 	release_sock(sk);
 	sock_put(sk);
 
@@ -644,7 +644,7 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 		return -EISCONN;	/* No reconnect on a seqpacket socket */
 	}
 
-	sk->sk_state   = TCP_CLOSE;	
+	sk->sk_state   = TCP_CLOSE;
 	sock->state = SS_UNCONNECTED;
 
 	if (addr_len != sizeof(struct sockaddr_ax25) && addr_len != sizeof(struct full_sockaddr_ax25)) {
@@ -710,7 +710,7 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 		release_sock(sk);
 		return -EINPROGRESS;
 	}
-		
+
 	/*
 	 * A Connect Ack with Choke or timeout or failed routing will go to
 	 * closed.
@@ -848,7 +848,7 @@ static int nr_getname(struct socket *sock, struct sockaddr *uaddr,
 int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sock *sk;
-	struct sock *make;	
+	struct sock *make;
 	struct nr_sock *nr_make;
 	ax25_address *src, *dest, *user;
 	unsigned short circuit_index, circuit_id;
@@ -1258,10 +1258,10 @@ static void *nr_info_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
 
-	return (v == SEQ_START_TOKEN) ? sk_head(&nr_list) 
+	return (v == SEQ_START_TOKEN) ? sk_head(&nr_list)
 		: sk_next((struct sock *)v);
 }
-	
+
 static void nr_info_stop(struct seq_file *seq, void *v)
 {
 	spin_unlock_bh(&nr_list_lock);
@@ -1291,7 +1291,7 @@ static int nr_info_show(struct seq_file *seq, void *v)
 
 		seq_printf(seq, "%-9s ", ax2asc(buf, &nr->user_addr));
 		seq_printf(seq, "%-9s ", ax2asc(buf, &nr->dest_addr));
-		seq_printf(seq, 
+		seq_printf(seq,
 "%-9s %-3s  %02X/%02X %02X/%02X %2d %3d %3d %3d %3lu/%03lu %2lu/%02lu %3lu/%03lu %3lu/%03lu %2d/%02d %3d %5d %5d %ld\n",
 			ax2asc(buf, &nr->source_addr),
 			devname,
@@ -1329,12 +1329,12 @@ static struct seq_operations nr_info_seqops = {
 	.stop = nr_info_stop,
 	.show = nr_info_show,
 };
- 
+
 static int nr_info_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &nr_info_seqops);
 }
- 
+
 static struct file_operations nr_info_fops = {
 	.owner = THIS_MODULE,
 	.open = nr_info_open,
@@ -1415,7 +1415,7 @@ static int __init nr_proto_init(void)
 			printk(KERN_ERR "NET/ROM: nr_proto_init - unable to allocate device structure\n");
 			goto fail;
 		}
-		
+
 		dev->base_addr = i;
 		if (register_netdev(dev)) {
 			printk(KERN_ERR "NET/ROM: nr_proto_init - unable to register network device\n");
@@ -1430,7 +1430,7 @@ static int __init nr_proto_init(void)
 		printk(KERN_ERR "NET/ROM: nr_proto_init - unable to register socket family\n");
 		goto fail;
 	}
-		
+
 	register_netdevice_notifier(&nr_dev_notifier);
 
 	ax25_register_pid(&nr_pid);

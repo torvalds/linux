@@ -11,7 +11,7 @@
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Alan Cox, <gw4pts@gw4pts.ampr.org>
  *
- * Fixes:	
+ * Fixes:
  *		Alan Cox	:	verify_area() now used correctly
  *		Alan Cox	:	new skbuff lists, look ma no backlogs!
  *		Alan Cox	:	tidied skbuff lists.
@@ -34,12 +34,12 @@
  *	Alexey Kuznetsov	:	Untied from IPv4 stack.
  *	Cyrus Durgin		:	Fixed kerneld for kmod.
  *	Michal Ostrowski        :       Module initialization cleanup.
- *         Ulises Alonso        :       Frame number limit removal and 
+ *         Ulises Alonso        :       Frame number limit removal and
  *                                      packet_set_ring memory leak.
  *		Eric Biederman	:	Allow for > 8 byte hardware addresses.
  *					The convention is that longer addresses
  *					will simply extend the hardware address
- *					byte arrays at the end of sockaddr_ll 
+ *					byte arrays at the end of sockaddr_ll
  *					and packet_mreq.
  *
  *		This program is free software; you can redistribute it and/or
@@ -48,7 +48,7 @@
  *		2 of the License, or (at your option) any later version.
  *
  */
- 
+
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -124,7 +124,7 @@ Outgoing, dev->hard_header!=NULL
 
 Incoming, dev->hard_header==NULL
    mac.raw -> UNKNOWN position. It is very likely, that it points to ll header.
-              PPP makes it, that is wrong, because introduce assymetry
+	      PPP makes it, that is wrong, because introduce assymetry
 	      between rx and tx paths.
    data    -> data
 
@@ -237,7 +237,7 @@ static inline char *packet_lookup_frame(struct packet_sock *po, unsigned int pos
 	frame_offset = position % po->frames_per_block;
 
 	frame = po->pg_vec[pg_vec_pos] + (frame_offset * po->frame_size);
-	
+
 	return frame;
 }
 #endif
@@ -280,7 +280,7 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct 
 	 */
 
 	sk = pt->af_packet_priv;
-	
+
 	/*
 	 *	Yank back the headers [hope the device set this
 	 *	right or kerboom...]
@@ -336,7 +336,7 @@ oom:
  *	Output a raw packet to a device layer. This bypasses all the other
  *	protocol layers and you must therefore supply it with a complete frame
  */
- 
+
 static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 			       struct msghdr *msg, size_t len)
 {
@@ -346,9 +346,9 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	struct net_device *dev;
 	__be16 proto=0;
 	int err;
-	
+
 	/*
-	 *	Get and verify the address. 
+	 *	Get and verify the address.
 	 */
 
 	if (saddr)
@@ -362,7 +362,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 		return(-ENOTCONN);	/* SOCK_PACKET must be sent giving an address */
 
 	/*
-	 *	Find the device first to size check it 
+	 *	Find the device first to size check it
 	 */
 
 	saddr->spkt_device[13] = 0;
@@ -370,7 +370,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	err = -ENODEV;
 	if (dev == NULL)
 		goto out_unlock;
-	
+
 	err = -ENETDOWN;
 	if (!(dev->flags & IFF_UP))
 		goto out_unlock;
@@ -379,7 +379,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	 *	You may not queue a frame bigger than the mtu. This is the lowest level
 	 *	raw protocol and you must do your own fragmentation at this level.
 	 */
-	 
+
 	err = -EMSGSIZE;
 	if (len > dev->mtu + dev->hard_header_len)
 		goto out_unlock;
@@ -392,14 +392,14 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	 *	deal with the problem - do your own algorithmic backoffs. That's far
 	 *	more flexible.
 	 */
-	 
-	if (skb == NULL) 
+
+	if (skb == NULL)
 		goto out_unlock;
 
 	/*
-	 *	Fill it in 
+	 *	Fill it in
 	 */
-	 
+
 	/* FIXME: Save some space for broken drivers that write a
 	 * hard header at transmission time by themselves. PPP is the
 	 * notable one here. This should really be fixed at the driver level.
@@ -641,7 +641,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 
 	spin_lock(&sk->sk_receive_queue.lock);
 	h = (struct tpacket_hdr *)packet_lookup_frame(po, po->head);
-	
+
 	if (h->tp_status)
 		goto ring_is_full;
 	po->head = po->head != po->frame_max ? po->head+1 : 0;
@@ -660,7 +660,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	h->tp_snaplen = snaplen;
 	h->tp_mac = macoff;
 	h->tp_net = netoff;
-	if (skb->tstamp.off_sec == 0) { 
+	if (skb->tstamp.off_sec == 0) {
 		__net_timestamp(skb);
 		sock_enable_timestamp(sk);
 	}
@@ -700,7 +700,7 @@ drop_n_restore:
 		skb->len = skb_len;
 	}
 drop:
-        kfree_skb(skb);
+	kfree_skb(skb);
 	return 0;
 
 ring_is_full:
@@ -728,9 +728,9 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	int ifindex, err, reserve = 0;
 
 	/*
-	 *	Get and verify the address. 
+	 *	Get and verify the address.
 	 */
-	 
+
 	if (saddr == NULL) {
 		struct packet_sock *po = pkt_sk(sk);
 
@@ -939,11 +939,11 @@ static int packet_bind_spkt(struct socket *sock, struct sockaddr *uaddr, int add
 	char name[15];
 	struct net_device *dev;
 	int err = -ENODEV;
-	
+
 	/*
 	 *	Check legality
 	 */
-	 
+
 	if (addr_len != sizeof(struct sockaddr))
 		return -EINVAL;
 	strlcpy(name,uaddr->sa_data,sizeof(name));
@@ -968,7 +968,7 @@ static int packet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len
 	/*
 	 *	Check legality
 	 */
-	 
+
 	if (addr_len < sizeof(struct sockaddr_ll))
 		return -EINVAL;
 	if (sll->sll_family != AF_PACKET)
@@ -995,7 +995,7 @@ static struct proto packet_proto = {
 };
 
 /*
- *	Create a packet of type SOCK_PACKET. 
+ *	Create a packet of type SOCK_PACKET.
  */
 
 static int packet_create(struct socket *sock, int protocol)
@@ -1097,7 +1097,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	skb=skb_recv_datagram(sk,flags,flags&MSG_DONTWAIT,&err);
 
 	/*
-	 *	An error occurred so return it. Because skb_recv_datagram() 
+	 *	An error occurred so return it. Because skb_recv_datagram()
 	 *	handles the blocking we don't see and worry about blocking
 	 *	retries.
 	 */
@@ -1358,7 +1358,7 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 
 	switch(optname)	{
 #ifdef CONFIG_PACKET_MULTICAST
-	case PACKET_ADD_MEMBERSHIP:	
+	case PACKET_ADD_MEMBERSHIP:
 	case PACKET_DROP_MEMBERSHIP:
 	{
 		struct packet_mreq_max mreq;
@@ -1438,7 +1438,7 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 
 	if (len < 0)
 		return -EINVAL;
-		
+
 	switch(optname)	{
 	case PACKET_STATISTICS:
 		if (len > sizeof(struct tpacket_stats))
@@ -1547,7 +1547,7 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 		}
 		case SIOCGSTAMP:
 			return sock_get_timestamp(sk, (struct timeval __user *)arg);
-			
+
 #ifdef CONFIG_INET
 		case SIOCADDRT:
 		case SIOCDELRT:
@@ -1608,7 +1608,7 @@ static void packet_mm_open(struct vm_area_struct *vma)
 	struct file *file = vma->vm_file;
 	struct socket * sock = file->private_data;
 	struct sock *sk = sock->sk;
-	
+
 	if (sk)
 		atomic_inc(&pkt_sk(sk)->mapped);
 }
@@ -1618,7 +1618,7 @@ static void packet_mm_close(struct vm_area_struct *vma)
 	struct file *file = vma->vm_file;
 	struct socket * sock = file->private_data;
 	struct sock *sk = sock->sk;
-	
+
 	if (sk)
 		atomic_dec(&pkt_sk(sk)->mapped);
 }
@@ -1682,7 +1682,7 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 	int was_running, order = 0;
 	__be16 num;
 	int err = 0;
-	
+
 	if (req->tp_block_nr) {
 		int i, l;
 
@@ -1744,7 +1744,7 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 		__sock_put(sk);
 	}
 	spin_unlock(&po->bind_lock);
-		
+
 	synchronize_net();
 
 	err = -EBUSY;
@@ -1861,7 +1861,7 @@ static const struct proto_ops packet_ops = {
 	.connect =	sock_no_connect,
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,
-	.getname =	packet_getname, 
+	.getname =	packet_getname,
 	.poll =		packet_poll,
 	.ioctl =	packet_ioctl,
 	.listen =	sock_no_listen,
@@ -1906,17 +1906,17 @@ static void *packet_seq_start(struct seq_file *seq, loff_t *pos)
 static void *packet_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
-	return  (v == SEQ_START_TOKEN) 
-		? sk_head(&packet_sklist) 
+	return  (v == SEQ_START_TOKEN)
+		? sk_head(&packet_sklist)
 		: sk_next((struct sock*)v) ;
 }
 
 static void packet_seq_stop(struct seq_file *seq, void *v)
 {
-	read_unlock(&packet_sklist_lock);		
+	read_unlock(&packet_sklist_lock);
 }
 
-static int packet_seq_show(struct seq_file *seq, void *v) 
+static int packet_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "sk       RefCnt Type Proto  Iface R Rmem   User   Inode\n");

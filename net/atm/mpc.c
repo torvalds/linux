@@ -32,7 +32,7 @@
 #include "resources.h"
 
 /*
- * mpc.c: Implementation of MPOA client kernel part 
+ * mpc.c: Implementation of MPOA client kernel part
  */
 
 #if 0
@@ -80,17 +80,17 @@ static struct llc_snap_hdr llc_snap_mpoa_ctrl = {
 	0xaa, 0xaa, 0x03,
 	{0x00, 0x00, 0x5e},
 	{0x00, 0x03}         /* For MPOA control PDUs */
-};        
+};
 static struct llc_snap_hdr llc_snap_mpoa_data = {
 	0xaa, 0xaa, 0x03,
 	{0x00, 0x00, 0x00},
 	{0x08, 0x00}         /* This is for IP PDUs only */
-};        
+};
 static struct llc_snap_hdr llc_snap_mpoa_data_tagged = {
 	0xaa, 0xaa, 0x03,
 	{0x00, 0x00, 0x00},
 	{0x88, 0x4c}         /* This is for tagged data PDUs */
-};        
+};
 
 static struct notifier_block mpoa_notifier = {
 	mpoa_event_listener,
@@ -106,12 +106,12 @@ static DEFINE_TIMER(mpc_timer, NULL, 0, 0);
 static struct mpoa_client *find_mpc_by_itfnum(int itf)
 {
 	struct mpoa_client *mpc;
-	
+
 	mpc = mpcs;  /* our global linked list */
 	while (mpc != NULL) {
 		if (mpc->dev_num == itf)
 			return mpc;
-		mpc = mpc->next;    
+		mpc = mpc->next;
 	}
 
 	return NULL;   /* not found */
@@ -120,7 +120,7 @@ static struct mpoa_client *find_mpc_by_itfnum(int itf)
 static struct mpoa_client *find_mpc_by_vcc(struct atm_vcc *vcc)
 {
 	struct mpoa_client *mpc;
-	
+
 	mpc = mpcs;  /* our global linked list */
 	while (mpc != NULL) {
 		if (mpc->mpoad_vcc == vcc)
@@ -134,7 +134,7 @@ static struct mpoa_client *find_mpc_by_vcc(struct atm_vcc *vcc)
 static struct mpoa_client *find_mpc_by_lec(struct net_device *dev)
 {
 	struct mpoa_client *mpc;
-	
+
 	mpc = mpcs;  /* our global linked list */
 	while (mpc != NULL) {
 		if (mpc->dev == dev)
@@ -190,7 +190,7 @@ struct atm_mpoa_qos *atm_mpoa_search_qos(__be32 dst_ip)
 	}
 
 	return qos;
-}        
+}
 
 /*
  * Returns 0 for failure
@@ -245,7 +245,7 @@ static struct net_device *find_lec_by_itfnum(int itf)
 
 	sprintf(name, "lec%d", itf);
 	dev = dev_get_by_name(name);
-	
+
 	return dev;
 }
 
@@ -265,25 +265,25 @@ static struct mpoa_client *alloc_mpc(void)
 	mpc->parameters.mpc_p2 = MPC_P2;
 	memset(mpc->parameters.mpc_p3,0,sizeof(mpc->parameters.mpc_p3));
 	mpc->parameters.mpc_p4 = MPC_P4;
-	mpc->parameters.mpc_p5 = MPC_P5; 
+	mpc->parameters.mpc_p5 = MPC_P5;
 	mpc->parameters.mpc_p6 = MPC_P6;
-	
+
 	mpcs = mpc;
-	
+
 	return mpc;
 }
 
 /*
  *
  * start_mpc() puts the MPC on line. All the packets destined
- * to the lec underneath us are now being monitored and 
+ * to the lec underneath us are now being monitored and
  * shortcuts will be established.
  *
  */
 static void start_mpc(struct mpoa_client *mpc, struct net_device *dev)
 {
-	
-	dprintk("mpoa: (%s) start_mpc:\n", mpc->dev->name); 
+
+	dprintk("mpoa: (%s) start_mpc:\n", mpc->dev->name);
 	if (dev->hard_start_xmit == NULL) {
 		printk("mpoa: (%s) start_mpc: dev->hard_start_xmit == NULL, not starting\n",
 		       dev->name);
@@ -297,8 +297,8 @@ static void start_mpc(struct mpoa_client *mpc, struct net_device *dev)
 
 static void stop_mpc(struct mpoa_client *mpc)
 {
-	
-	dprintk("mpoa: (%s) stop_mpc:", mpc->dev->name); 
+
+	dprintk("mpoa: (%s) stop_mpc:", mpc->dev->name);
 
 	/* Lets not nullify lec device's dev->hard_start_xmit */
 	if (mpc->dev->hard_start_xmit != mpc_send_packet) {
@@ -309,7 +309,7 @@ static void stop_mpc(struct mpoa_client *mpc)
 	mpc->dev->hard_start_xmit = mpc->old_hard_start_xmit;
 	mpc->old_hard_start_xmit = NULL;
 	/* close_shortcuts(mpc);    ??? FIXME */
-	
+
 	return;
 }
 
@@ -358,7 +358,7 @@ static void lane2_assoc_ind(struct net_device *dev, uint8_t *mac_addr,
 	uint8_t length, mpoa_device_type, number_of_mps_macs;
 	uint8_t *end_of_tlvs;
 	struct mpoa_client *mpc;
-	
+
 	mpoa_device_type = number_of_mps_macs = 0; /* silence gcc */
 	dprintk("mpoa: (%s) lane2_assoc_ind: received TLV(s), ", dev->name);
 	dprintk("total length of all TLVs %d\n", sizeoftlvs);
@@ -377,7 +377,7 @@ static void lane2_assoc_ind(struct net_device *dev, uint8_t *mac_addr,
 			printk("TLV value extends past its buffer, aborting parse\n");
 			return;
 		}
-		
+
 		if (type == 0) {
 			printk("mpoa: (%s) lane2_assoc_ind: TLV type was 0, returning\n", dev->name);
 			return;
@@ -412,10 +412,10 @@ static void lane2_assoc_ind(struct net_device *dev, uint8_t *mac_addr,
 			continue;  /* someone should read the spec */
 		}
 		dprintk("this MPS has %d MAC addresses\n", number_of_mps_macs);
-		
+
 		/* ok, now we can go and tell our daemon the control address of MPS */
 		send_set_mps_ctrl_addr(tlvs, mpc);
-		
+
 		tlvs = copy_macs(mpc, mac_addr, tlvs, number_of_mps_macs, mpoa_device_type);
 		if (tlvs == NULL) return;
 	}
@@ -474,7 +474,7 @@ static int send_via_shortcut(struct sk_buff *skb, struct mpoa_client *mpc)
 	iph = (struct iphdr *)buff;
 	ipaddr = iph->daddr;
 
-	ddprintk("mpoa: (%s) send_via_shortcut: ipaddr 0x%x\n", mpc->dev->name, ipaddr);        
+	ddprintk("mpoa: (%s) send_via_shortcut: ipaddr 0x%x\n", mpc->dev->name, ipaddr);
 
 	entry = mpc->in_ops->get(ipaddr, mpc);
 	if (entry == NULL) {
@@ -483,15 +483,15 @@ static int send_via_shortcut(struct sk_buff *skb, struct mpoa_client *mpc)
 		return 1;
 	}
 	if (mpc->in_ops->cache_hit(entry, mpc) != OPEN){   /* threshold not exceeded or VCC not ready */
-		ddprintk("mpoa: (%s) send_via_shortcut: cache_hit: returns != OPEN\n", mpc->dev->name);        
+		ddprintk("mpoa: (%s) send_via_shortcut: cache_hit: returns != OPEN\n", mpc->dev->name);
 		mpc->in_ops->put(entry);
 		return 1;
 	}
 
-	ddprintk("mpoa: (%s) send_via_shortcut: using shortcut\n", mpc->dev->name);        
+	ddprintk("mpoa: (%s) send_via_shortcut: using shortcut\n", mpc->dev->name);
 	/* MPOA spec A.1.4, MPOA client must decrement IP ttl at least by one */
 	if (iph->ttl <= 1) {
-		ddprintk("mpoa: (%s) send_via_shortcut: IP ttl = %u, using LANE\n", mpc->dev->name, iph->ttl);        
+		ddprintk("mpoa: (%s) send_via_shortcut: IP ttl = %u, using LANE\n", mpc->dev->name, iph->ttl);
 		mpc->in_ops->put(entry);
 		return 1;
 	}
@@ -529,7 +529,7 @@ static int mpc_send_packet(struct sk_buff *skb, struct net_device *dev)
 	struct mpoa_client *mpc;
 	struct ethhdr *eth;
 	int i = 0;
-	
+
 	mpc = find_mpc_by_lec(dev); /* this should NEVER fail */
 	if(mpc == NULL) {
 		printk("mpoa: (%s) mpc_send_packet: no MPC found\n", dev->name);
@@ -549,7 +549,7 @@ static int mpc_send_packet(struct sk_buff *skb, struct net_device *dev)
 
  non_ip:
 	retval = mpc->old_hard_start_xmit(skb,dev);
-	
+
 	return retval;
 }
 
@@ -569,11 +569,11 @@ static int atm_mpoa_vcc_attach(struct atm_vcc *vcc, void __user *arg)
 	ipaddr = ioc_data.ipaddr;
 	if (ioc_data.dev_num < 0 || ioc_data.dev_num >= MAX_LEC_ITF)
 		return -EINVAL;
-	
+
 	mpc = find_mpc_by_itfnum(ioc_data.dev_num);
 	if (mpc == NULL)
 		return -EINVAL;
-	
+
 	if (ioc_data.type == MPC_SOCKET_INGRESS) {
 		in_entry = mpc->in_ops->get(ipaddr, mpc);
 		if (in_entry == NULL || in_entry->entry_state < INGRESS_RESOLVED) {
@@ -604,7 +604,7 @@ static void mpc_vcc_close(struct atm_vcc *vcc, struct net_device *dev)
 	struct mpoa_client *mpc;
 	in_cache_entry *in_entry;
 	eg_cache_entry *eg_entry;
-	
+
 	mpc = find_mpc_by_lec(dev);
 	if (mpc == NULL) {
 		printk("mpoa: (%s) mpc_vcc_close: close for unknown MPC\n", dev->name);
@@ -640,14 +640,14 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct mpoa_client *mpc;
 	__be32 tag;
 	char *tmp;
-	
+
 	ddprintk("mpoa: (%s) mpc_push:\n", dev->name);
 	if (skb == NULL) {
 		dprintk("mpoa: (%s) mpc_push: null skb, closing VCC\n", dev->name);
 		mpc_vcc_close(vcc, dev);
 		return;
 	}
-	
+
 	skb->dev = dev;
 	if (memcmp(skb->data, &llc_snap_mpoa_ctrl, sizeof(struct llc_snap_hdr)) == 0) {
 		struct sock *sk = sk_atm(vcc);
@@ -693,11 +693,11 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	
+
 	/*
 	 * See if ingress MPC is using shortcut we opened as a return channel.
 	 * This means we have a bi-directional vcc opened by us.
-	 */ 
+	 */
 	if (eg->shortcut == NULL) {
 		eg->shortcut = vcc;
 		printk("mpoa: (%s) mpc_push: egress SVC in use\n", dev->name);
@@ -743,7 +743,7 @@ static int atm_mpoa_mpoad_attach (struct atm_vcc *vcc, int arg)
 	struct mpoa_client *mpc;
 	struct lec_priv *priv;
 	int err;
-	
+
 	if (mpcs == NULL) {
 		init_timer(&mpc_timer);
 		mpc_timer_refresh();
@@ -755,7 +755,7 @@ static int atm_mpoa_mpoad_attach (struct atm_vcc *vcc, int arg)
 			return err;
 		}
 	}
-	
+
 	mpc = find_mpc_by_itfnum(arg);
 	if (mpc == NULL) {
 		dprintk("mpoa: mpoad_attach: allocating new mpc for itf %d\n", arg);
@@ -776,7 +776,7 @@ static int atm_mpoa_mpoad_attach (struct atm_vcc *vcc, int arg)
 			dev_put(mpc->dev);
 			mpc->dev = NULL;
 		} else
-			priv->lane2_ops->associate_indicator = lane2_assoc_ind;  
+			priv->lane2_ops->associate_indicator = lane2_assoc_ind;
 	}
 
 	mpc->mpoad_vcc = vcc;
@@ -788,7 +788,7 @@ static int atm_mpoa_mpoad_attach (struct atm_vcc *vcc, int arg)
 	if (mpc->dev) {
 		char empty[ATM_ESA_LEN];
 		memset(empty, 0, ATM_ESA_LEN);
-		
+
 		start_mpc(mpc, mpc->dev);
 		/* set address if mpcd e.g. gets killed and restarted.
 		 * If we do not do it now we have to wait for the next LE_ARP
@@ -806,7 +806,7 @@ static void send_set_mps_ctrl_addr(char *addr, struct mpoa_client *mpc)
 	struct k_message mesg;
 
 	memcpy (mpc->mps_ctrl_addr, addr, ATM_ESA_LEN);
-	
+
 	mesg.type = SET_MPS_CTRL_ADDR;
 	memcpy(mesg.MPS_ctrl, addr, ATM_ESA_LEN);
 	msg_to_mpoad(&mesg, mpc);
@@ -828,7 +828,7 @@ static void mpoad_close(struct atm_vcc *vcc)
 		printk("mpoa: mpoad_close: close for non-present mpoad\n");
 		return;
 	}
-	
+
 	mpc->mpoad_vcc = NULL;
 	if (mpc->dev) {
 		struct lec_priv *priv = (struct lec_priv *)mpc->dev->priv;
@@ -844,7 +844,7 @@ static void mpoad_close(struct atm_vcc *vcc)
 		atm_return(vcc, skb->truesize);
 		kfree_skb(skb);
 	}
-	
+
 	printk("mpoa: (%s) going down\n",
 		(mpc->dev) ? mpc->dev->name : "<unknown>");
 	module_put(THIS_MODULE);
@@ -857,11 +857,11 @@ static void mpoad_close(struct atm_vcc *vcc)
  */
 static int msg_from_mpoad(struct atm_vcc *vcc, struct sk_buff *skb)
 {
-	
+
 	struct mpoa_client *mpc = find_mpc_by_vcc(vcc);
 	struct k_message *mesg = (struct k_message*)skb->data;
 	atomic_sub(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
-	
+
 	if (mpc == NULL) {
 		printk("mpoa: msg_from_mpoad: no mpc found\n");
 		return 0;
@@ -938,7 +938,7 @@ int msg_to_mpoad(struct k_message *mesg, struct mpoa_client *mpc)
 	skb_put(skb, sizeof(struct k_message));
 	memcpy(skb->data, mesg, sizeof(struct k_message));
 	atm_force_charge(mpc->mpoad_vcc, skb->truesize);
-	
+
 	sk = sk_atm(mpc->mpoad_vcc);
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk, skb->len);
@@ -955,7 +955,7 @@ static int mpoa_event_listener(struct notifier_block *mpoa_notifier, unsigned lo
 	dev = (struct net_device *)dev_ptr;
 	if (dev->name == NULL || strncmp(dev->name, "lec", 3))
 		return NOTIFY_DONE; /* we are only interested in lec:s */
-	
+
 	switch (event) {
 	case NETDEV_REGISTER:       /* a new lec device was allocated */
 		priv = (struct lec_priv *)dev->priv;
@@ -1043,7 +1043,7 @@ static void MPOA_trigger_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 		mpc->in_ops->put(entry);
 		return;
 	}
-	
+
 	if(entry->entry_state == INGRESS_INVALID){
 		entry->entry_state = INGRESS_RESOLVING;
 		msg->type = SND_MPOA_RES_RQST;
@@ -1053,7 +1053,7 @@ static void MPOA_trigger_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 		mpc->in_ops->put(entry);
 		return;
 	}
-	
+
 	printk("mpoa: (%s) MPOA_trigger_rcvd: entry already in resolving state\n",
 		(mpc->dev) ? mpc->dev->name : "<unknown>");
 	mpc->in_ops->put(entry);
@@ -1062,7 +1062,7 @@ static void MPOA_trigger_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 
 /*
  * Things get complicated because we have to check if there's an egress
- * shortcut with suitable traffic parameters we could use. 
+ * shortcut with suitable traffic parameters we could use.
  */
 static void check_qos_and_open_shortcut(struct k_message *msg, struct mpoa_client *client, in_cache_entry *entry)
 {
@@ -1079,7 +1079,7 @@ static void check_qos_and_open_shortcut(struct k_message *msg, struct mpoa_clien
 			    else if(eg_entry->shortcut->qos.txtp.max_pcr > 0)
 				    entry->shortcut = eg_entry->shortcut;
 		}
-	 	if(entry->shortcut){
+		if(entry->shortcut){
 			dprintk("mpoa: (%s) using egress SVC to reach %u.%u.%u.%u\n",client->dev->name, NIPQUAD(dst_ip));
 			client->eg_ops->put(eg_entry);
 			return;
@@ -1094,7 +1094,7 @@ static void check_qos_and_open_shortcut(struct k_message *msg, struct mpoa_clien
 	{
 		msg->qos = qos->qos;
 		printk("mpoa: (%s) trying to get a CBR shortcut\n",client->dev->name);
-    	}
+	}
 	else memset(&msg->qos,0,sizeof(struct atm_qos));
 	msg_to_mpoad(msg, client);
 	return;
@@ -1111,7 +1111,7 @@ static void MPOA_res_reply_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 		printk("\nmpoa: (%s) ARGH, received res. reply for an entry that doesn't exist.\n", mpc->dev->name);
 		return;
 	}
-	ddprintk(" entry_state = %d ", entry->entry_state);	
+	ddprintk(" entry_state = %d ", entry->entry_state);
 
 	if (entry->entry_state == INGRESS_RESOLVED) {
 		printk("\nmpoa: (%s) MPOA_res_reply_rcvd for RESOLVED entry!\n", mpc->dev->name);
@@ -1126,7 +1126,7 @@ static void MPOA_res_reply_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 	ddprintk("entry->shortcut = %p\n", entry->shortcut);
 
 	if(entry->entry_state == INGRESS_RESOLVING && entry->shortcut != NULL){
-		entry->entry_state = INGRESS_RESOLVED; 
+		entry->entry_state = INGRESS_RESOLVED;
 		mpc->in_ops->put(entry);
 		return; /* Shortcut already open... */
 	}
@@ -1137,7 +1137,7 @@ static void MPOA_res_reply_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 		mpc->in_ops->put(entry);
 		return;
 	}
-	
+
 	check_qos_and_open_shortcut(msg, mpc, entry);
 	entry->entry_state = INGRESS_RESOLVED;
 	mpc->in_ops->put(entry);
@@ -1169,13 +1169,13 @@ static void ingress_purge_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 	} while (entry != NULL);
 
 	return;
-} 
+}
 
 static void egress_purge_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 {
 	__be32 cache_id = msg->content.eg_info.cache_id;
 	eg_cache_entry *entry = mpc->eg_ops->get_by_cache_id(cache_id, mpc);
-	
+
 	if (entry == NULL) {
 		dprintk("mpoa: (%s) egress_purge_rcvd: purge for a non-existing entry\n", mpc->dev->name);
 		return;
@@ -1188,7 +1188,7 @@ static void egress_purge_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 	mpc->eg_ops->put(entry);
 
 	return;
-} 
+}
 
 static void purge_egress_shortcut(struct atm_vcc *vcc, eg_cache_entry *entry)
 {
@@ -1259,7 +1259,7 @@ static void MPOA_cache_impos_rcvd( struct k_message * msg, struct mpoa_client * 
 {
 	uint16_t holding_time;
 	eg_cache_entry *entry = mpc->eg_ops->get_by_cache_id(msg->content.eg_info.cache_id, mpc);
-	
+
 	holding_time = msg->content.eg_info.holding_time;
 	dprintk("mpoa: (%s) MPOA_cache_impos_rcvd: entry = %p, holding_time = %u\n",
 	       mpc->dev->name, entry, holding_time);
@@ -1272,13 +1272,13 @@ static void MPOA_cache_impos_rcvd( struct k_message * msg, struct mpoa_client * 
 		mpc->eg_ops->update(entry, holding_time);
 		return;
 	}
-	
+
 	write_lock_irq(&mpc->egress_lock);
 	mpc->eg_ops->remove_entry(entry, mpc);
 	write_unlock_irq(&mpc->egress_lock);
 
 	mpc->eg_ops->put(entry);
-	
+
 	return;
 }
 
@@ -1328,7 +1328,7 @@ static void set_mps_mac_addr_rcvd(struct k_message *msg, struct mpoa_client *cli
 		return;
 	}
 	client->number_of_mps_macs = 1;
-	
+
 	return;
 }
 
@@ -1364,7 +1364,7 @@ static void mpc_timer_refresh(void)
 	mpc_timer.data = mpc_timer.expires;
 	mpc_timer.function = mpc_cache_check;
 	add_timer(&mpc_timer);
-	
+
 	return;
 }
 
@@ -1373,7 +1373,7 @@ static void mpc_cache_check( unsigned long checking_time  )
 	struct mpoa_client *mpc = mpcs;
 	static unsigned long previous_resolving_check_time;
 	static unsigned long previous_refresh_time;
-	
+
 	while( mpc != NULL ){
 		mpc->in_ops->clear_count(mpc);
 		mpc->eg_ops->clear_expired(mpc);
@@ -1388,7 +1388,7 @@ static void mpc_cache_check( unsigned long checking_time  )
 		mpc = mpc->next;
 	}
 	mpc_timer_refresh();
-	
+
 	return;
 }
 

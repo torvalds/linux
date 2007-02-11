@@ -1,9 +1,9 @@
 /*
- *	Linux INET6 implementation 
+ *	Linux INET6 implementation
  *	Forwarding Information Database
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	$Id: ip6_fib.c,v 1.25 2001/10/31 21:55:55 davem Exp $
  *
@@ -97,7 +97,7 @@ static DEFINE_TIMER(ip6_fib_timer, fib6_run_gc, 0, 0);
 
 static struct fib6_walker_t fib6_walker_list = {
 	.prev	= &fib6_walker_list,
-	.next	= &fib6_walker_list, 
+	.next	= &fib6_walker_list,
 };
 
 #define FOR_WALKERS(w) for ((w)=fib6_walker_list.next; (w) != &fib6_walker_list; (w)=(w)->next)
@@ -131,7 +131,7 @@ static __inline__ u32 fib6_new_sernum(void)
 /*
  *	Auxiliary address test functions for the radix tree.
  *
- *	These assume a 32bit processor (although it will work on 
+ *	These assume a 32bit processor (although it will work on
  *	64bit processors)
  */
 
@@ -297,7 +297,7 @@ static int fib6_dump_node(struct fib6_walker_t *w)
 	int res;
 	struct rt6_info *rt;
 
-	for (rt = w->leaf; rt; rt = rt->u.next) {
+	for (rt = w->leaf; rt; rt = rt->u.dst.rt6_next) {
 		res = rt6_dump_route(rt, w->args);
 		if (res < 0) {
 			/* Frame is full, suspend walking */
@@ -433,7 +433,7 @@ static struct fib6_node * fib6_add_1(struct fib6_node *root, void *addr,
 	struct fib6_node *pn = NULL;
 	struct rt6key *key;
 	int	bit;
-       	__be32	dir = 0;
+	__be32	dir = 0;
 	__u32	sernum = fib6_new_sernum();
 
 	RT6_TRACE("fib6_add_1\n");
@@ -451,27 +451,27 @@ static struct fib6_node * fib6_add_1(struct fib6_node *root, void *addr,
 		if (plen < fn->fn_bit ||
 		    !ipv6_prefix_equal(&key->addr, addr, fn->fn_bit))
 			goto insert_above;
-		
+
 		/*
 		 *	Exact match ?
 		 */
-			 
+
 		if (plen == fn->fn_bit) {
 			/* clean up an intermediate node */
 			if ((fn->fn_flags & RTN_RTINFO) == 0) {
 				rt6_release(fn->leaf);
 				fn->leaf = NULL;
 			}
-			
+
 			fn->fn_sernum = sernum;
-				
+
 			return fn;
 		}
 
 		/*
 		 *	We have more bits to go
 		 */
-			 
+
 		/* Try to walk down on tree. */
 		fn->fn_sernum = sernum;
 		dir = addr_bit_set(addr, fn->fn_bit);
@@ -489,7 +489,7 @@ static struct fib6_node * fib6_add_1(struct fib6_node *root, void *addr,
 	if (ln == NULL)
 		return NULL;
 	ln->fn_bit = plen;
-			
+
 	ln->parent = pn;
 	ln->fn_sernum = sernum;
 
@@ -503,7 +503,7 @@ static struct fib6_node * fib6_add_1(struct fib6_node *root, void *addr,
 
 insert_above:
 	/*
-	 * split since we don't have a common prefix anymore or 
+	 * split since we don't have a common prefix anymore or
 	 * we have a less significant route.
 	 * we've to insert an intermediate node on the list
 	 * this new node will point to the one we need to create
@@ -517,18 +517,18 @@ insert_above:
 	   See comment in __ipv6_addr_diff: bit may be an invalid value,
 	   but if it is >= plen, the value is ignored in any case.
 	 */
-	
+
 	bit = __ipv6_addr_diff(addr, &key->addr, addrlen);
 
-	/* 
-	 *		(intermediate)[in]	
+	/*
+	 *		(intermediate)[in]
 	 *	          /	   \
 	 *	(new leaf node)[ln] (old node)[fn]
 	 */
 	if (plen > bit) {
 		in = node_alloc();
 		ln = node_alloc();
-		
+
 		if (in == NULL || ln == NULL) {
 			if (in)
 				node_free(in);
@@ -537,8 +537,8 @@ insert_above:
 			return NULL;
 		}
 
-		/* 
-		 * new intermediate node. 
+		/*
+		 * new intermediate node.
 		 * RTN_RTINFO will
 		 * be off since that an address that chooses one of
 		 * the branches would not match less specific routes
@@ -575,7 +575,7 @@ insert_above:
 		}
 	} else { /* plen <= bit */
 
-		/* 
+		/*
 		 *		(new leaf node)[ln]
 		 *	          /	   \
 		 *	     (old node)[fn] NULL
@@ -591,7 +591,7 @@ insert_above:
 		ln->parent = pn;
 
 		ln->fn_sernum = sernum;
-		
+
 		if (dir)
 			pn->right = ln;
 		else
@@ -623,11 +623,11 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 	    fn->leaf == &ip6_null_entry &&
 	    !(rt->rt6i_flags & (RTF_DEFAULT | RTF_ADDRCONF)) ){
 		fn->leaf = rt;
-		rt->u.next = NULL;
+		rt->u.dst.rt6_next = NULL;
 		goto out;
 	}
 
-	for (iter = fn->leaf; iter; iter=iter->u.next) {
+	for (iter = fn->leaf; iter; iter=iter->u.dst.rt6_next) {
 		/*
 		 *	Search for duplicates
 		 */
@@ -655,7 +655,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 		if (iter->rt6i_metric > rt->rt6i_metric)
 			break;
 
-		ins = &iter->u.next;
+		ins = &iter->u.dst.rt6_next;
 	}
 
 	/*
@@ -663,7 +663,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 	 */
 
 out:
-	rt->u.next = iter;
+	rt->u.dst.rt6_next = iter;
 	*ins = rt;
 	rt->rt6i_node = fn;
 	atomic_inc(&rt->rt6i_ref);
@@ -1104,7 +1104,7 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	RT6_TRACE("fib6_del_route\n");
 
 	/* Unlink it */
-	*rtp = rt->u.next;
+	*rtp = rt->u.dst.rt6_next;
 	rt->rt6i_node = NULL;
 	rt6_stats.fib_rt_entries--;
 	rt6_stats.fib_discarded_routes++;
@@ -1114,14 +1114,14 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	FOR_WALKERS(w) {
 		if (w->state == FWS_C && w->leaf == rt) {
 			RT6_TRACE("walker %p adjusted by delroute\n", w);
-			w->leaf = rt->u.next;
+			w->leaf = rt->u.dst.rt6_next;
 			if (w->leaf == NULL)
 				w->state = FWS_U;
 		}
 	}
 	read_unlock(&fib6_walker_lock);
 
-	rt->u.next = NULL;
+	rt->u.dst.rt6_next = NULL;
 
 	if (fn->leaf == NULL && fn->fn_flags&RTN_TL_ROOT)
 		fn->leaf = &ip6_null_entry;
@@ -1189,7 +1189,7 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 	 *	Walk the leaf entries looking for ourself
 	 */
 
-	for (rtp = &fn->leaf; *rtp; rtp = &(*rtp)->u.next) {
+	for (rtp = &fn->leaf; *rtp; rtp = &(*rtp)->u.dst.rt6_next) {
 		if (*rtp == rt) {
 			fib6_del_route(fn, rtp, info);
 			return 0;
@@ -1205,7 +1205,7 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
  *	However, it is internally reenterable wrt itself and fib6_add/fib6_del.
  *	It means, that we can modify tree during walking
  *	and use this function for garbage collection, clone pruning,
- *	cleaning tree when a device goes down etc. etc.	
+ *	cleaning tree when a device goes down etc. etc.
  *
  *	It guarantees that every node will be traversed,
  *	and that it will be traversed only once.
@@ -1244,7 +1244,7 @@ static int fib6_walk_continue(struct fib6_walker_t *w)
 				continue;
 			}
 			w->state = FWS_L;
-#endif	
+#endif
 		case FWS_L:
 			if (fn->left) {
 				w->node = fn->left;
@@ -1316,7 +1316,7 @@ static int fib6_clean_node(struct fib6_walker_t *w)
 	struct rt6_info *rt;
 	struct fib6_cleaner_t *c = (struct fib6_cleaner_t*)w;
 
-	for (rt = w->leaf; rt; rt = rt->u.next) {
+	for (rt = w->leaf; rt; rt = rt->u.dst.rt6_next) {
 		res = c->func(rt, c->arg);
 		if (res < 0) {
 			w->leaf = rt;
@@ -1337,7 +1337,7 @@ static int fib6_clean_node(struct fib6_walker_t *w)
 
 /*
  *	Convenient frontend to tree walker.
- *	
+ *
  *	func is called on each route.
  *		It may return -1 -> delete this route.
  *		              0  -> continue walking

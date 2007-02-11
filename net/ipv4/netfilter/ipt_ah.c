@@ -29,8 +29,8 @@ static inline int
 spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, int invert)
 {
 	int r=0;
-        duprintf("ah spi_match:%c 0x%x <= 0x%x <= 0x%x",invert? '!':' ',
-        	min,spi,max);
+	duprintf("ah spi_match:%c 0x%x <= 0x%x <= 0x%x",invert? '!':' ',
+		min,spi,max);
 	r=(spi >= min && spi <= max) ^ invert;
 	duprintf(" result %s\n",r? "PASS" : "FAILED");
 	return r;

@@ -1,9 +1,9 @@
 /*
  *	IPv6 fragment reassembly
- *	Linux INET6 implementation 
+ *	Linux INET6 implementation
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	$Id: reassembly.c,v 1.26 2001/03/07 22:00:57 davem Exp $
  *
@@ -15,8 +15,8 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-/* 
- *	Fixes:	
+/*
+ *	Fixes:
  *	Andi Kleen	Make it work with multiple hosts.
  *			More RFC compliance.
  *
@@ -343,7 +343,7 @@ static struct frag_queue *ip6_frag_intern(struct frag_queue *fq_in)
 	hash = ip6qhashfn(fq_in->id, &fq_in->saddr, &fq_in->daddr);
 #ifdef CONFIG_SMP
 	hlist_for_each_entry(fq, n, &ip6_frag_hash[hash], list) {
-		if (fq->id == fq_in->id && 
+		if (fq->id == fq_in->id &&
 		    ipv6_addr_equal(&fq_in->saddr, &fq->saddr) &&
 		    ipv6_addr_equal(&fq_in->daddr, &fq->daddr)) {
 			atomic_inc(&fq->refcnt);
@@ -406,7 +406,7 @@ fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst,
 	read_lock(&ip6_frag_lock);
 	hash = ip6qhashfn(id, src, dst);
 	hlist_for_each_entry(fq, n, &ip6_frag_hash[hash], list) {
-		if (fq->id == id && 
+		if (fq->id == id &&
 		    ipv6_addr_equal(src, &fq->saddr) &&
 		    ipv6_addr_equal(dst, &fq->daddr)) {
 			atomic_inc(&fq->refcnt);
@@ -420,7 +420,7 @@ fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst,
 }
 
 
-static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb, 
+static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 			   struct frag_hdr *fhdr, int nhoff)
 {
 	struct sk_buff *prev, *next;
@@ -436,13 +436,13 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	if ((unsigned int)end > IPV6_MAXPLEN) {
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INHDRERRORS);
- 		icmpv6_param_prob(skb,ICMPV6_HDR_FIELD, (u8*)&fhdr->frag_off - skb->nh.raw);
- 		return;
+		icmpv6_param_prob(skb,ICMPV6_HDR_FIELD, (u8*)&fhdr->frag_off - skb->nh.raw);
+		return;
 	}
 
- 	if (skb->ip_summed == CHECKSUM_COMPLETE)
- 		skb->csum = csum_sub(skb->csum,
- 				     csum_partial(skb->nh.raw, (u8*)(fhdr+1)-skb->nh.raw, 0));
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->csum = csum_sub(skb->csum,
+				     csum_partial(skb->nh.raw, (u8*)(fhdr+1)-skb->nh.raw, 0));
 
 	/* Is this the final fragment? */
 	if (!(fhdr->frag_off & htons(IP6_MF))) {
@@ -464,7 +464,7 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 			 */
 			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 					 IPSTATS_MIB_INHDRERRORS);
-			icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, 
+			icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
 					  offsetof(struct ipv6hdr, payload_len));
 			return;
 		}
@@ -482,7 +482,7 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	/* Point into the IP datagram 'data' part. */
 	if (!pskb_pull(skb, (u8 *) (fhdr + 1) - skb->data))
 		goto err;
-	
+
 	if (pskb_trim_rcsum(skb, end - offset))
 		goto err;
 
@@ -640,7 +640,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 	 * header in order to calculate ICV correctly. */
 	nhoff = fq->nhoffset;
 	head->nh.raw[nhoff] = head->h.raw[0];
-	memmove(head->head + sizeof(struct frag_hdr), head->head, 
+	memmove(head->head + sizeof(struct frag_hdr), head->head,
 		(head->data - head->head) - sizeof(struct frag_hdr));
 	head->mac.raw += sizeof(struct frag_hdr);
 	head->nh.raw += sizeof(struct frag_hdr);
@@ -695,7 +695,7 @@ out_fail:
 
 static int ipv6_frag_rcv(struct sk_buff **skbp)
 {
-	struct sk_buff *skb = *skbp; 
+	struct sk_buff *skb = *skbp;
 	struct net_device *dev = skb->dev;
 	struct frag_hdr *fhdr;
 	struct frag_queue *fq;

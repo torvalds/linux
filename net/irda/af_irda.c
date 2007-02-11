@@ -138,7 +138,7 @@ static void irda_disconnect_indication(void *instance, void *sap,
 		sk->sk_shutdown |= SEND_SHUTDOWN;
 
 		sk->sk_state_change(sk);
-                sock_orphan(sk);
+		sock_orphan(sk);
 		release_sock(sk);
 
 		/* Close our TSAP.
@@ -158,7 +158,7 @@ static void irda_disconnect_indication(void *instance, void *sap,
 			irttp_close_tsap(self->tsap);
 			self->tsap = NULL;
 		}
-        }
+	}
 
 	/* Note : once we are there, there is not much you want to do
 	 * with the socket anymore, apart from closing it.
@@ -1211,7 +1211,7 @@ static int irda_release(struct socket *sock)
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
 
-        if (sk == NULL)
+	if (sk == NULL)
 		return 0;
 
 	lock_sock(sk);
@@ -1259,7 +1259,7 @@ static int irda_release(struct socket *sock)
 	 * memory leak is now gone... - Jean II
 	 */
 
-        return 0;
+	return 0;
 }
 
 /*
@@ -1312,7 +1312,7 @@ static int irda_sendmsg(struct kiocb *iocb, struct socket *sock,
 		len = self->max_data_size;
 	}
 
-	skb = sock_alloc_send_skb(sk, len + self->max_header_size + 16, 
+	skb = sock_alloc_send_skb(sk, len + self->max_header_size + 16,
 				  msg->msg_flags & MSG_DONTWAIT, &err);
 	if (!skb)
 		return -ENOBUFS;
@@ -1714,7 +1714,7 @@ static int irda_shutdown(struct socket *sock, int how)
 	self->daddr = DEV_ADDR_ANY;	/* Until we get re-connected */
 	self->saddr = 0x0;		/* so IrLMP assign us any link */
 
-        return 0;
+	return 0;
 }
 
 /*

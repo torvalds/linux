@@ -109,11 +109,11 @@ static inline int vcc_writable(struct sock *sk)
 	struct atm_vcc *vcc = atm_sk(sk);
 
 	return (vcc->qos.txtp.max_sdu +
-	        atomic_read(&sk->sk_wmem_alloc)) <= sk->sk_sndbuf;
+		atomic_read(&sk->sk_wmem_alloc)) <= sk->sk_sndbuf;
 }
 
 static void vcc_write_space(struct sock *sk)
-{       
+{
 	read_lock(&sk->sk_callback_lock);
 
 	if (vcc_writable(sk)) {
@@ -131,7 +131,7 @@ static struct proto vcc_proto = {
 	.owner	  = THIS_MODULE,
 	.obj_size = sizeof(struct atm_vcc),
 };
- 
+
 int vcc_create(struct socket *sock, int protocol, int family)
 {
 	struct sock *sk;
@@ -359,7 +359,7 @@ static int __vcc_connect(struct atm_vcc *vcc, struct atm_dev *dev, short vpi,
 		return error;
 	vcc->dev = dev;
 	write_lock_irq(&vcc_sklist_lock);
-	if (test_bit(ATM_DF_REMOVED, &dev->flags) || 
+	if (test_bit(ATM_DF_REMOVED, &dev->flags) ||
 	    (error = find_ci(vcc, &vpi, &vci))) {
 		write_unlock_irq(&vcc_sklist_lock);
 		goto fail_module_put;
@@ -494,20 +494,20 @@ int vcc_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	if (!skb)
 		return error;
 
-	copied = skb->len; 
+	copied = skb->len;
 	if (copied > size) {
-		copied = size; 
+		copied = size;
 		msg->msg_flags |= MSG_TRUNC;
 	}
 
-        error = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
-        if (error)
-                return error;
-        sock_recv_timestamp(msg, sk, skb);
-        DPRINTK("RcvM %d -= %d\n", atomic_read(&sk->rmem_alloc), skb->truesize);
-        atm_return(vcc, skb->truesize);
-        skb_free_datagram(sk, skb);
-        return copied;
+	error = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	if (error)
+		return error;
+	sock_recv_timestamp(msg, sk, skb);
+	DPRINTK("RcvM %d -= %d\n", atomic_read(&sk->rmem_alloc), skb->truesize);
+	atm_return(vcc, skb->truesize);
+	skb_free_datagram(sk, skb);
+	return copied;
 }
 
 
@@ -675,7 +675,7 @@ static int check_qos(struct atm_qos *qos)
 	int error;
 
 	if (!qos->txtp.traffic_class && !qos->rxtp.traffic_class)
-                return -EINVAL;
+		return -EINVAL;
 	if (qos->txtp.traffic_class != qos->rxtp.traffic_class &&
 	    qos->txtp.traffic_class && qos->rxtp.traffic_class &&
 	    qos->txtp.traffic_class != ATM_ANYCLASS &&
@@ -786,11 +786,11 @@ static int __init atm_init(void)
 		printk(KERN_ERR "atmsvc_init() failed with %d\n", error);
 		goto out_atmpvc_exit;
 	}
-        if ((error = atm_proc_init()) < 0) {
+	if ((error = atm_proc_init()) < 0) {
 		printk(KERN_ERR "atm_proc_init() failed with %d\n",error);
 		goto out_atmsvc_exit;
 	}
-        if ((error = atm_sysfs_init()) < 0) {
+	if ((error = atm_sysfs_init()) < 0) {
 		printk(KERN_ERR "atm_sysfs_init() failed with %d\n",error);
 		goto out_atmproc_exit;
 	}

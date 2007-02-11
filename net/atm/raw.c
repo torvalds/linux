@@ -56,12 +56,12 @@ static int atm_send_aal0(struct atm_vcc *vcc,struct sk_buff *skb)
 	 * still work
 	 */
 	if (!capable(CAP_NET_ADMIN) &&
-            (((u32 *) skb->data)[0] & (ATM_HDR_VPI_MASK | ATM_HDR_VCI_MASK)) !=
-            ((vcc->vpi << ATM_HDR_VPI_SHIFT) | (vcc->vci << ATM_HDR_VCI_SHIFT)))
+	    (((u32 *) skb->data)[0] & (ATM_HDR_VPI_MASK | ATM_HDR_VCI_MASK)) !=
+	    ((vcc->vpi << ATM_HDR_VPI_SHIFT) | (vcc->vci << ATM_HDR_VCI_SHIFT)))
 	    {
 		kfree_skb(skb);
 		return -EADDRNOTAVAIL;
-        }
+	}
 	return vcc->dev->ops->send(vcc,skb);
 }
 

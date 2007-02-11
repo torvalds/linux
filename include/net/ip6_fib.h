@@ -83,7 +83,6 @@ struct rt6_info
 {
 	union {
 		struct dst_entry	dst;
-		struct rt6_info		*next;
 	} u;
 
 	struct inet6_dev		*rt6i_idev;

@@ -292,7 +292,7 @@ int __init atalk_proc_init(void)
 	p->proc_fops = &atalk_seq_socket_fops;
 
 	p = create_proc_entry("arp", S_IRUGO, atalk_proc_dir);
-	if (!p) 
+	if (!p)
 		goto out_arp;
 	p->proc_fops = &atalk_seq_arp_fops;
 

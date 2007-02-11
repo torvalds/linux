@@ -101,7 +101,7 @@ static void lapb_t1timer_expiry(unsigned long param)
 		/*
 		 *	Awaiting connection state, send SABM(E), up to N2 times.
 		 */
-		case LAPB_STATE_1: 
+		case LAPB_STATE_1:
 			if (lapb->n2count == lapb->n2) {
 				lapb_clear_queues(lapb);
 				lapb->state = LAPB_STATE_0;

@@ -292,7 +292,7 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 					}
 			}
 		doi_def->map.std->cat.local = kcalloc(
-			                      doi_def->map.std->cat.local_size,
+					      doi_def->map.std->cat.local_size,
 					      sizeof(u32),
 					      GFP_KERNEL);
 		if (doi_def->map.std->cat.local == NULL) {
@@ -300,7 +300,7 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 			goto add_std_failure;
 		}
 		doi_def->map.std->cat.cipso = kcalloc(
-			                      doi_def->map.std->cat.cipso_size,
+					      doi_def->map.std->cat.cipso_size,
 					      sizeof(u32),
 					      GFP_KERNEL);
 		if (doi_def->map.std->cat.cipso == NULL) {
@@ -325,10 +325,10 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 				if (cat_loc == NULL || cat_rem == NULL)
 					goto add_std_failure;
 				doi_def->map.std->cat.local[
-				                        nla_get_u32(cat_loc)] =
+							nla_get_u32(cat_loc)] =
 					nla_get_u32(cat_rem);
 				doi_def->map.std->cat.cipso[
-					                nla_get_u32(cat_rem)] =
+							nla_get_u32(cat_rem)] =
 					nla_get_u32(cat_loc);
 			}
 	}

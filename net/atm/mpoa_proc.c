@@ -2,7 +2,7 @@
 #ifdef CONFIG_PROC_FS
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/string.h> 
+#include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
@@ -16,7 +16,7 @@
 
 /*
  * mpoa_proc.c: Implementation MPOA client's proc
- * file system statistics 
+ * file system statistics
  */
 
 #if 1
@@ -32,7 +32,7 @@ extern struct proc_dir_entry *atm_proc_root;  /* from proc.c. */
 
 static int proc_mpc_open(struct inode *inode, struct file *file);
 static ssize_t proc_mpc_write(struct file *file, const char __user *buff,
-                              size_t nbytes, loff_t *ppos);
+			      size_t nbytes, loff_t *ppos);
 
 static int parse_qos(const char *buff);
 
@@ -52,18 +52,18 @@ static struct file_operations mpc_file_operations = {
  * Returns the state of an ingress cache entry as a string
  */
 static const char *ingress_state_string(int state){
-        switch(state) {
+	switch(state) {
 	case INGRESS_RESOLVING:
-	        return "resolving  ";
+		return "resolving  ";
 		break;
 	case INGRESS_RESOLVED:
-                return "resolved   ";
+		return "resolved   ";
 		break;
 	case INGRESS_INVALID:
-	        return "invalid    ";
+		return "invalid    ";
 		break;
 	case INGRESS_REFRESHING:
-	        return "refreshing ";
+		return "refreshing ";
 		break;
 	default:
 	       return "";
@@ -74,15 +74,15 @@ static const char *ingress_state_string(int state){
  * Returns the state of an egress cache entry as a string
  */
 static const char *egress_state_string(int state){
-        switch(state) {
+	switch(state) {
 	case EGRESS_RESOLVED:
-	        return "resolved   ";
+		return "resolved   ";
 		break;
 	case EGRESS_PURGE:
-                return "purge      ";
+		return "purge      ";
 		break;
 	case EGRESS_INVALID:
-	        return "invalid    ";
+		return "invalid    ";
 		break;
 	default:
 	       return "";
@@ -135,7 +135,7 @@ static int mpc_show(struct seq_file *m, void *v)
 		return 0;
 	}
 
-	seq_printf(m, "\nInterface %d:\n\n", mpc->dev_num);  
+	seq_printf(m, "\nInterface %d:\n\n", mpc->dev_num);
 	seq_printf(m, "Ingress Entries:\nIP address      State      Holding time  Packets fwded  VPI  VCI\n");
 	do_gettimeofday(&now);
 
@@ -163,7 +163,7 @@ static int mpc_show(struct seq_file *m, void *v)
 			   egress_state_string(eg_entry->entry_state),
 			   (eg_entry->ctrl_info.holding_time-(now.tv_sec-eg_entry->tv.tv_sec)),
 			   eg_entry->packets_rcvd);
-		
+
 		/* latest IP address */
 		temp = (unsigned char *)&eg_entry->latest_ip_addr;
 		sprintf(ip_string, "%d.%d.%d.%d", temp[0], temp[1], temp[2], temp[3]);
@@ -190,51 +190,51 @@ static int proc_mpc_open(struct inode *inode, struct file *file)
 }
 
 static ssize_t proc_mpc_write(struct file *file, const char __user *buff,
-                              size_t nbytes, loff_t *ppos)
+			      size_t nbytes, loff_t *ppos)
 {
-        char *page, *p;
+	char *page, *p;
 	unsigned len;
 
-        if (nbytes == 0)
+	if (nbytes == 0)
 		return 0;
 
-        if (nbytes >= PAGE_SIZE)
+	if (nbytes >= PAGE_SIZE)
 		nbytes = PAGE_SIZE-1;
 
-        page = (char *)__get_free_page(GFP_KERNEL);
-        if (!page)
+	page = (char *)__get_free_page(GFP_KERNEL);
+	if (!page)
 		return -ENOMEM;
 
-        for (p = page, len = 0; len < nbytes; p++, len++) {
-                if (get_user(*p, buff++)) {
+	for (p = page, len = 0; len < nbytes; p++, len++) {
+		if (get_user(*p, buff++)) {
 			free_page((unsigned long)page);
 			return -EFAULT;
 		}
-                if (*p == '\0' || *p == '\n')
-                        break;
-        }
+		if (*p == '\0' || *p == '\n')
+			break;
+	}
 
-        *p = '\0';
+	*p = '\0';
 
 	if (!parse_qos(page))
-                printk("mpoa: proc_mpc_write: could not parse '%s'\n", page);
+		printk("mpoa: proc_mpc_write: could not parse '%s'\n", page);
 
-        free_page((unsigned long)page);
-        
-        return len;
+	free_page((unsigned long)page);
+
+	return len;
 }
 
 static int parse_qos(const char *buff)
 {
-        /* possible lines look like this
-         * add 130.230.54.142 tx=max_pcr,max_sdu rx=max_pcr,max_sdu
-         */
-        unsigned char ip[4]; 
+	/* possible lines look like this
+	 * add 130.230.54.142 tx=max_pcr,max_sdu rx=max_pcr,max_sdu
+	 */
+	unsigned char ip[4];
 	int tx_pcr, tx_sdu, rx_pcr, rx_sdu;
-        __be32 ipaddr;
-	struct atm_qos qos; 
-        
-        memset(&qos, 0, sizeof(struct atm_qos));
+	__be32 ipaddr;
+	struct atm_qos qos;
+
+	memset(&qos, 0, sizeof(struct atm_qos));
 
 	if (sscanf(buff, "del %hhu.%hhu.%hhu.%hhu",
 			ip, ip+1, ip+2, ip+3) == 4) {
@@ -250,14 +250,14 @@ static int parse_qos(const char *buff)
 		ip, ip+1, ip+2, ip+3, &tx_pcr, &tx_sdu, &rx_pcr, &rx_sdu) != 8)
 		return 0;
 
-        ipaddr = *(__be32 *)ip;
+	ipaddr = *(__be32 *)ip;
 	qos.txtp.traffic_class = ATM_CBR;
 	qos.txtp.max_pcr = tx_pcr;
 	qos.txtp.max_sdu = tx_sdu;
 	qos.rxtp.traffic_class = ATM_CBR;
 	qos.rxtp.max_pcr = rx_pcr;
 	qos.rxtp.max_sdu = rx_sdu;
-        qos.aal = ATM_AAL5;
+	qos.aal = ATM_AAL5;
 	dprintk("mpoa: mpoa_proc.c: parse_qos(): setting qos paramameters to tx=%d,%d rx=%d,%d\n",
 		qos.txtp.max_pcr,
 		qos.txtp.max_sdu,
@@ -276,11 +276,11 @@ int mpc_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-        p = create_proc_entry(STAT_FILE_NAME, 0, atm_proc_root);
+	p = create_proc_entry(STAT_FILE_NAME, 0, atm_proc_root);
 	if (!p) {
-                printk(KERN_ERR "Unable to initialize /proc/atm/%s\n", STAT_FILE_NAME);
-                return -ENOMEM;
-        }
+		printk(KERN_ERR "Unable to initialize /proc/atm/%s\n", STAT_FILE_NAME);
+		return -ENOMEM;
+	}
 	p->proc_fops = &mpc_file_operations;
 	p->owner = THIS_MODULE;
 	return 0;

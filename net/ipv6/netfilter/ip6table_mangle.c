@@ -50,7 +50,7 @@ static struct
       0, NULL, { } },
     {
 	    /* PRE_ROUTING */
-            { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
+	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
 		0,
 		sizeof(struct ip6t_entry),
 		sizeof(struct ip6t_standard),
@@ -58,7 +58,7 @@ static struct
 	      { { { { IP6T_ALIGN(sizeof(struct ip6t_standard_target)), "" } }, { } },
 		-NF_ACCEPT - 1 } },
 	    /* LOCAL_IN */
-            { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
+	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
 		0,
 		sizeof(struct ip6t_entry),
 		sizeof(struct ip6t_standard),
@@ -66,7 +66,7 @@ static struct
 	      { { { { IP6T_ALIGN(sizeof(struct ip6t_standard_target)), "" } }, { } },
 		-NF_ACCEPT - 1 } },
 	    /* FORWARD */
-            { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
+	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
 		0,
 		sizeof(struct ip6t_entry),
 		sizeof(struct ip6t_standard),
@@ -74,7 +74,7 @@ static struct
 	      { { { { IP6T_ALIGN(sizeof(struct ip6t_standard_target)), "" } }, { } },
 		-NF_ACCEPT - 1 } },
 	    /* LOCAL_OUT */
-            { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
+	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
 		0,
 		sizeof(struct ip6t_entry),
 		sizeof(struct ip6t_standard),
@@ -156,7 +156,7 @@ ip6t_local_hook(unsigned int hook,
 
 	ret = ip6t_do_table(pskb, hook, in, out, &packet_mangler);
 
-	if (ret != NF_DROP && ret != NF_STOLEN 
+	if (ret != NF_DROP && ret != NF_STOLEN
 		&& (memcmp(&(*pskb)->nh.ipv6h->saddr, &saddr, sizeof(saddr))
 		    || memcmp(&(*pskb)->nh.ipv6h->daddr, &daddr, sizeof(daddr))
 		    || (*pskb)->mark != mark

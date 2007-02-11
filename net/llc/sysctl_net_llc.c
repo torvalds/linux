@@ -1,6 +1,6 @@
 /*
  * sysctl_net_llc.c: sysctl interface to LLC net subsystem.
- * 
+ *
  * Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  */
 
@@ -72,7 +72,7 @@ static struct ctl_table llc2_dir_timeout_table[] = {
 		.procname	= "timeout",
 		.mode		= 0555,
 		.child		= llc2_timeout_table,
-       	},
+	},
 	{ 0 },
 };
 
@@ -82,7 +82,7 @@ static struct ctl_table llc_table[] = {
 		.procname	= "llc2",
 		.mode		= 0555,
 		.child		= llc2_dir_timeout_table,
-       	},
+	},
 	{
 		.ctl_name       = NET_LLC_STATION,
 		.procname       = "station",
@@ -98,7 +98,7 @@ static struct ctl_table llc_dir_table[] = {
 		.procname	= "llc",
 		.mode		= 0555,
 		.child		= llc_table,
-       	},
+	},
 	{ 0 },
 };
 

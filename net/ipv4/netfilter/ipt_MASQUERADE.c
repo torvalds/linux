@@ -86,7 +86,7 @@ masquerade_target(struct sk_buff **pskb,
 	nat = nfct_nat(ct);
 #endif
 	IP_NF_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED
-	                    || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
+			    || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
 
 	/* Source address is 0.0.0.0 - locally generated packet that is
 	 * probably not supposed to be masqueraded.
@@ -221,7 +221,7 @@ static void __exit ipt_masquerade_fini(void)
 {
 	xt_unregister_target(&masquerade);
 	unregister_netdevice_notifier(&masq_dev_notifier);
-	unregister_inetaddr_notifier(&masq_inet_notifier);	
+	unregister_inetaddr_notifier(&masq_inet_notifier);
 }
 
 module_init(ipt_masquerade_init);

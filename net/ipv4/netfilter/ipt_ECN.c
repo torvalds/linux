@@ -1,9 +1,9 @@
 /* iptables module for the IPv4 and TCP ECN bits, Version 1.5
  *
  * (C) 2002 by Harald Welte <laforge@netfilter.org>
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as 
+ * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
  * ipt_ECN.c,v 1.5 2002/08/18 19:36:51 laforge Exp
@@ -40,7 +40,7 @@ set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 		iph->tos &= ~IPT_ECN_IP_MASK;
 		iph->tos |= (einfo->ip_ect & IPT_ECN_IP_MASK);
 		nf_csum_replace2(&iph->check, htons(oldtos), htons(iph->tos));
-	} 
+	}
 	return 1;
 }
 
@@ -104,8 +104,8 @@ static int
 checkentry(const char *tablename,
 	   const void *e_void,
 	   const struct xt_target *target,
-           void *targinfo,
-           unsigned int hook_mask)
+	   void *targinfo,
+	   unsigned int hook_mask)
 {
 	const struct ipt_ECN_info *einfo = (struct ipt_ECN_info *)targinfo;
 	const struct ipt_entry *e = e_void;

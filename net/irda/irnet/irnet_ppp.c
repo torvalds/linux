@@ -93,7 +93,7 @@ irnet_ctrl_write(irnet_socket *	ap,
 
       /* Check if we recognised one of the known command
        * We can't use "switch" with strings, so hack with "continue" */
-      
+
       /* First command : name -> Requested IrDA nickname */
       if(!strncmp(start, "name", 4))
 	{
@@ -744,7 +744,7 @@ dev_irnet_ioctl(struct inode *	inode,
       break;
 
       /* Set DTR/RTS */
-    case TIOCMBIS: 
+    case TIOCMBIS:
     case TIOCMBIC:
       /* Set exclusive/non-exclusive mode */
     case TIOCEXCL:
@@ -941,7 +941,7 @@ ppp_irnet_send(struct ppp_channel *	chan,
   ret = irttp_data_request(self->tsap, skb);
   if(ret < 0)
     {
-      /*   
+      /*
        * > IrTTPs tx queue is full, so we just have to
        * > drop the frame! You might think that we should
        * > just return -1 and don't deallocate the frame,
@@ -949,7 +949,7 @@ ppp_irnet_send(struct ppp_channel *	chan,
        * > we have replaced the original skb with a new
        * > one with larger headroom, and that would really
        * > confuse do_dev_queue_xmit() in dev.c! I have
-       * > tried :-) DB 
+       * > tried :-) DB
        * Correction : we verify the flow control above (self->tx_flow),
        * so we come here only if IrTTP doesn't like the packet (empty,
        * too large, IrTTP not connected). In those rare cases, it's ok
@@ -1136,6 +1136,6 @@ irnet_cleanup(void)
 module_init(irnet_init);
 module_exit(irnet_cleanup);
 MODULE_AUTHOR("Jean Tourrilhes <jt@hpl.hp.com>");
-MODULE_DESCRIPTION("IrNET : Synchronous PPP over IrDA"); 
+MODULE_DESCRIPTION("IrNET : Synchronous PPP over IrDA");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV(10, 187);

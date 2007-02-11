@@ -1,4 +1,4 @@
-/* 
+/*
  * Hop Limit modification target for ip6tables
  * Maciej Soltysiak <solt@dns.toxicfilms.tv>
  * Based on HW's TTL module
@@ -18,7 +18,7 @@ MODULE_AUTHOR("Maciej Soltysiak <solt@dns.toxicfilms.tv>");
 MODULE_DESCRIPTION("IP6 tables Hop Limit modification module");
 MODULE_LICENSE("GPL");
 
-static unsigned int ip6t_hl_target(struct sk_buff **pskb, 
+static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 				   const struct net_device *in,
 				   const struct net_device *out,
 				   unsigned int hooknum,
@@ -67,7 +67,7 @@ static int ip6t_hl_checkentry(const char *tablename,
 	struct ip6t_HL_info *info = targinfo;
 
 	if (info->mode > IP6T_HL_MAXMODE) {
-		printk(KERN_WARNING "ip6t_HL: invalid or unknown Mode %u\n", 
+		printk(KERN_WARNING "ip6t_HL: invalid or unknown Mode %u\n",
 			info->mode);
 		return 0;
 	}
@@ -80,12 +80,12 @@ static int ip6t_hl_checkentry(const char *tablename,
 }
 
 static struct xt_target ip6t_HL = {
-	.name 		= "HL", 
+	.name 		= "HL",
 	.family		= AF_INET6,
-	.target		= ip6t_hl_target, 
+	.target		= ip6t_hl_target,
 	.targetsize	= sizeof(struct ip6t_HL_info),
 	.table		= "mangle",
-	.checkentry	= ip6t_hl_checkentry, 
+	.checkentry	= ip6t_hl_checkentry,
 	.me		= THIS_MODULE
 };
 

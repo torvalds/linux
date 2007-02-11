@@ -118,7 +118,7 @@ irnet_open_tsap(irnet_socket *	self)
 
   /* Open an IrTTP instance */
   self->tsap = irttp_open_tsap(LSAP_ANY, DEFAULT_INITIAL_CREDIT,
-			       &notify);	
+			       &notify);
   DABORT(self->tsap == NULL, -ENOMEM,
 	 IRDA_SR_ERROR, "Unable to allocate TSAP !\n");
 
@@ -188,7 +188,7 @@ irnet_ias_to_tsap(irnet_socket *	self,
 	  if(value->t.integer != -1)
 	    /* Get the remote TSAP selector */
 	    dtsap_sel = value->t.integer;
-	  else 
+	  else
 	    self->errno = -EADDRNOTAVAIL;
 	  break;
 	default:
@@ -280,8 +280,8 @@ irnet_connect_tsap(irnet_socket *	self)
     }
 
   /* Connect to remote device */
-  err = irttp_connect_request(self->tsap, self->dtsap_sel, 
-			      self->rsaddr, self->daddr, NULL, 
+  err = irttp_connect_request(self->tsap, self->dtsap_sel,
+			      self->rsaddr, self->daddr, NULL,
 			      self->max_sdu_size_rx, NULL);
   if(err != 0)
     {
@@ -438,7 +438,7 @@ irnet_dname_to_daddr(irnet_socket *	self)
   if(discoveries == NULL)
     DRETURN(-ENETUNREACH, IRDA_SR_INFO, "Cachelog empty...\n");
 
-  /* 
+  /*
    * Now, check all discovered devices (if any), and connect
    * client only about the services that the client is
    * interested in...
@@ -627,7 +627,7 @@ irda_irnet_destroy(irnet_socket *	self)
 
   /* Unregister with LM-IAS */
   if(self->iriap)
-    { 
+    {
       iriap_close(self->iriap);
       self->iriap = NULL;
     }
@@ -945,7 +945,7 @@ irnet_setup_server(void)
 
   /* Register with LM-IAS (so that people can connect to us) */
   irnet_server.ias_obj = irias_new_object(IRNET_SERVICE_NAME, jiffies);
-  irias_add_integer_attrib(irnet_server.ias_obj, IRNET_IAS_VALUE, 
+  irias_add_integer_attrib(irnet_server.ias_obj, IRNET_IAS_VALUE,
 			   irnet_server.s.stsap_sel, IAS_KERNEL_ATTR);
   irias_insert_object(irnet_server.ias_obj);
 
@@ -1076,7 +1076,7 @@ irnet_data_indication(void *	instance,
  */
 static void
 irnet_disconnect_indication(void *	instance,
-			    void *	sap, 
+			    void *	sap,
 			    LM_REASON	reason,
 			    struct sk_buff *skb)
 {
@@ -1166,10 +1166,10 @@ irnet_disconnect_indication(void *	instance,
  */
 static void
 irnet_connect_confirm(void *	instance,
-		      void *	sap, 
+		      void *	sap,
 		      struct qos_info *qos,
 		      __u32	max_sdu_size,
-		      __u8	max_header_size, 
+		      __u8	max_header_size,
 		      struct sk_buff *skb)
 {
   irnet_socket *	self = (irnet_socket *) instance;
@@ -1235,7 +1235,7 @@ irnet_connect_confirm(void *	instance,
 static void
 irnet_flow_indication(void *	instance,
 		      void *	sap,
-		      LOCAL_FLOW flow) 
+		      LOCAL_FLOW flow)
 {
   irnet_socket *	self = (irnet_socket *) instance;
   LOCAL_FLOW		oldflow = self->tx_flow;
@@ -1308,13 +1308,13 @@ irnet_status_indication(void *	instance,
  * Some other node is attempting to connect to the IrNET service, and has
  * sent a connection request on our server socket.
  * We just redirect the connection to the relevant IrNET socket.
- * 
+ *
  * Note : we also make sure that between 2 irnet nodes, there can
  * exist only one irnet connection.
  */
 static void
 irnet_connect_indication(void *		instance,
-			 void *		sap, 
+			 void *		sap,
 			 struct qos_info *qos,
 			 __u32		max_sdu_size,
 			 __u8		max_header_size,
@@ -1463,7 +1463,7 @@ irnet_connect_indication(void *		instance,
  */
 static void
 irnet_getvalue_confirm(int	result,
-		       __u16	obj_id, 
+		       __u16	obj_id,
 		       struct ias_value *value,
 		       void *	priv)
 {
@@ -1526,7 +1526,7 @@ irnet_getvalue_confirm(int	result,
  */
 static void
 irnet_discovervalue_confirm(int		result,
-			    __u16	obj_id, 
+			    __u16	obj_id,
 			    struct ias_value *value,
 			    void *	priv)
 {
@@ -1645,7 +1645,7 @@ irnet_discovery_indication(discinfo_t *		discovery,
 			   void *		priv)
 {
   irnet_socket *	self = &irnet_server.s;
-	
+
   DENTER(IRDA_OCB_TRACE, "(self=0x%p)\n", self);
   DASSERT(priv == &irnet_server, , IRDA_OCB_ERROR,
 	  "Invalid instance (0x%p) !!!\n", priv);
@@ -1676,7 +1676,7 @@ irnet_expiry_indication(discinfo_t *	expiry,
 			void *		priv)
 {
   irnet_socket *	self = &irnet_server.s;
-	
+
   DENTER(IRDA_OCB_TRACE, "(self=0x%p)\n", self);
   DASSERT(priv == &irnet_server, , IRDA_OCB_ERROR,
 	  "Invalid instance (0x%p) !!!\n", priv);
@@ -1718,7 +1718,7 @@ irnet_proc_read(char *	buf,
   int			i = 0;
 
   len = 0;
-	
+
   /* Get the IrNET server information... */
   len += sprintf(buf+len, "IrNET server - ");
   len += sprintf(buf+len, "IrDA state: %s, ",
@@ -1811,7 +1811,7 @@ irda_irnet_init(void)
   memset(&irnet_server, 0, sizeof(struct irnet_root));
 
   /* Setup start of irnet instance list */
-  irnet_server.list = hashbin_new(HB_NOLOCK); 
+  irnet_server.list = hashbin_new(HB_NOLOCK);
   DABORT(irnet_server.list == NULL, -ENOMEM,
 	 MODULE_ERROR, "Can't allocate hashbin!\n");
   /* Init spinlock for instance list */

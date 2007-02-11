@@ -410,7 +410,7 @@ void xprt_set_retrans_timeout_def(struct rpc_task *task)
 /*
  * xprt_set_retrans_timeout_rtt - set a request's retransmit timeout
  * @task: task whose timeout is to be set
- * 
+ *
  * Set a request's retransmit timeout using the RTT estimator.
  */
 void xprt_set_retrans_timeout_rtt(struct rpc_task *task)
@@ -873,7 +873,7 @@ void xprt_release(struct rpc_task *task)
  */
 void xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long incr)
 {
-	to->to_initval   = 
+	to->to_initval   =
 	to->to_increment = incr;
 	to->to_maxval    = to->to_initval + (incr * retr);
 	to->to_retries   = retr;

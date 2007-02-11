@@ -130,7 +130,7 @@ static inline u8 get_fallback_rate(struct ieee80211softmac_device *mac, u8 rate)
 {
 	return ieee80211softmac_lower_rate_delta(mac, rate, 2);
 }
-                
+
 
 /*** prototypes from _io.c */
 int ieee80211softmac_send_mgt_frame(struct ieee80211softmac_device *mac,
@@ -156,7 +156,7 @@ int ieee80211softmac_handle_assoc_response(struct net_device * dev,
 int ieee80211softmac_handle_disassoc(struct net_device * dev,
 				     struct ieee80211_disassoc * disassoc);
 int ieee80211softmac_handle_reassoc_req(struct net_device * dev,
-				        struct ieee80211_reassoc_request * reassoc);
+					struct ieee80211_reassoc_request * reassoc);
 void ieee80211softmac_assoc_timeout(struct work_struct *work);
 void ieee80211softmac_send_disassoc_req(struct ieee80211softmac_device *mac, u16 reason);
 void ieee80211softmac_disassoc(struct ieee80211softmac_device *mac);
@@ -164,15 +164,15 @@ void ieee80211softmac_disassoc(struct ieee80211softmac_device *mac);
 /* some helper functions */
 static inline int ieee80211softmac_scan_handlers_check_self(struct ieee80211softmac_device *sm)
 {
-	return (sm->start_scan == ieee80211softmac_start_scan_implementation) && 
-		(sm->stop_scan == ieee80211softmac_stop_scan_implementation) && 
+	return (sm->start_scan == ieee80211softmac_start_scan_implementation) &&
+		(sm->stop_scan == ieee80211softmac_stop_scan_implementation) &&
 		(sm->wait_for_scan == ieee80211softmac_wait_for_scan_implementation);
 }
 
 static inline int ieee80211softmac_scan_sanity_check(struct ieee80211softmac_device *sm)
 {
-	return ((sm->start_scan != ieee80211softmac_start_scan_implementation) && 
-		(sm->stop_scan != ieee80211softmac_stop_scan_implementation) && 
+	return ((sm->start_scan != ieee80211softmac_start_scan_implementation) &&
+		(sm->stop_scan != ieee80211softmac_stop_scan_implementation) &&
 		(sm->wait_for_scan != ieee80211softmac_wait_for_scan_implementation)
 		) || ieee80211softmac_scan_handlers_check_self(sm);
 }

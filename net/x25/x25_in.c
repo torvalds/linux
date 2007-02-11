@@ -3,7 +3,7 @@
  *
  *	This is ALPHA test software. This code may break your machine,
  *	randomly fail to work with new releases, misbehave and/or generally
- *	screw up. It might even work. 
+ *	screw up. It might even work.
  *
  *	This code REQUIRES 2.1.15 or higher
  *
@@ -17,7 +17,7 @@
  *	X.25 001	Jonathan Naylor	  Started coding.
  *	X.25 002	Jonathan Naylor	  Centralised disconnection code.
  *					  New timer architecture.
- *	2000-03-20	Daniela Squassoni Disabling/enabling of facilities 
+ *	2000-03-20	Daniela Squassoni Disabling/enabling of facilities
  *					  negotiation.
  *	2000-11-10	Henner Eisen	  Check and reset for out-of-sequence
  *					  i-frames.
@@ -67,7 +67,7 @@ static int x25_queue_rx_frame(struct sock *sk, struct sk_buff *skb, int more)
 			kfree_skb(skbo);
 		}
 
-		x25->fraglen = 0;		
+		x25->fraglen = 0;
 	}
 
 	skb_set_owner_r(skbn, sk);
@@ -167,7 +167,7 @@ static int x25_state3_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 	int queued = 0;
 	int modulus;
 	struct x25_sock *x25 = x25_sk(sk);
-	
+
 	modulus = (x25->neighbour->extended) ? X25_EMODULUS : X25_SMODULUS;
 
 	switch (frametype) {

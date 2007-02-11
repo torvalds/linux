@@ -60,7 +60,7 @@ static int dccp_write_timeout(struct sock *sk)
    be far nicer to have all of the black holes fixed rather than fixing
    all of the TCP implementations."
 
-                           Golden words :-).
+			   Golden words :-).
 		   */
 
 			dst_negative_advice(&sk->sk_dst_cache);

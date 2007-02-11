@@ -34,7 +34,7 @@ static struct ctl_table ipx_dir_table[] = {
 		.procname	= "ipx",
 		.mode		= 0555,
 		.child		= ipx_table,
-       	},
+	},
 	{ 0 },
 };
 

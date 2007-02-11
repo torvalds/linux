@@ -8,7 +8,7 @@
  * 		IPv6 support
  * 	YOSHIFUJI Hideaki @USAGI
  * 		Split up af-specific portion
- * 	
+ *
  */
 
 #include <net/xfrm.h>

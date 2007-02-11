@@ -550,7 +550,7 @@ int inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 		if (err < 0)
 			goto out;
 
-  		sock->state = SS_CONNECTING;
+		sock->state = SS_CONNECTING;
 
 		/* Just entered SS_CONNECTING state; the only
 		 * difference is that return value in non-blocking
@@ -878,36 +878,36 @@ static struct net_proto_family inet_family_ops = {
  */
 static struct inet_protosw inetsw_array[] =
 {
-        {
-                .type =       SOCK_STREAM,
-                .protocol =   IPPROTO_TCP,
-                .prot =       &tcp_prot,
-                .ops =        &inet_stream_ops,
-                .capability = -1,
-                .no_check =   0,
-                .flags =      INET_PROTOSW_PERMANENT |
+	{
+		.type =       SOCK_STREAM,
+		.protocol =   IPPROTO_TCP,
+		.prot =       &tcp_prot,
+		.ops =        &inet_stream_ops,
+		.capability = -1,
+		.no_check =   0,
+		.flags =      INET_PROTOSW_PERMANENT |
 			      INET_PROTOSW_ICSK,
-        },
+	},
 
-        {
-                .type =       SOCK_DGRAM,
-                .protocol =   IPPROTO_UDP,
-                .prot =       &udp_prot,
-                .ops =        &inet_dgram_ops,
-                .capability = -1,
-                .no_check =   UDP_CSUM_DEFAULT,
-                .flags =      INET_PROTOSW_PERMANENT,
+	{
+		.type =       SOCK_DGRAM,
+		.protocol =   IPPROTO_UDP,
+		.prot =       &udp_prot,
+		.ops =        &inet_dgram_ops,
+		.capability = -1,
+		.no_check =   UDP_CSUM_DEFAULT,
+		.flags =      INET_PROTOSW_PERMANENT,
        },
-        
+
 
        {
-               .type =       SOCK_RAW,
-               .protocol =   IPPROTO_IP,	/* wild card */
-               .prot =       &raw_prot,
-               .ops =        &inet_sockraw_ops,
-               .capability = CAP_NET_RAW,
-               .no_check =   UDP_CSUM_DEFAULT,
-               .flags =      INET_PROTOSW_REUSE,
+	       .type =       SOCK_RAW,
+	       .protocol =   IPPROTO_IP,	/* wild card */
+	       .prot =       &raw_prot,
+	       .ops =        &inet_sockraw_ops,
+	       .capability = CAP_NET_RAW,
+	       .no_check =   UDP_CSUM_DEFAULT,
+	       .flags =      INET_PROTOSW_REUSE,
        }
 };
 
@@ -946,7 +946,7 @@ void inet_register_protosw(struct inet_protosw *p)
 	/* Add the new entry after the last permanent entry if any, so that
 	 * the new entry does not override a permanent entry when matched with
 	 * a wild-card protocol. But it is allowed to override any existing
-	 * non-permanent entry.  This means that when we remove this entry, the 
+	 * non-permanent entry.  This means that when we remove this entry, the
 	 * system automatically returns to the old behavior.
 	 */
 	list_add_rcu(&p->list, last_perm);
@@ -1073,7 +1073,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 			},
 		},
 	};
-						
+
 	security_sk_classify_flow(sk, &fl);
 	err = ip_route_output_flow(&rt, &fl, sk, 0);
 }
@@ -1273,10 +1273,10 @@ static int __init inet_init(void)
 		goto out_unregister_udp_proto;
 
 	/*
-	 *	Tell SOCKET that we are alive... 
+	 *	Tell SOCKET that we are alive...
 	 */
 
-  	(void)sock_register(&inet_family_ops);
+	(void)sock_register(&inet_family_ops);
 
 	/*
 	 *	Add all the base protocols.
@@ -1306,9 +1306,9 @@ static int __init inet_init(void)
 
 	arp_init();
 
-  	/*
-  	 *	Set the IP module up
-  	 */
+	/*
+	 *	Set the IP module up
+	 */
 
 	ip_init();
 
@@ -1334,11 +1334,11 @@ static int __init inet_init(void)
 #endif
 	/*
 	 *	Initialise per-cpu ipv4 mibs
-	 */ 
+	 */
 
 	if(init_ipv4_mibs())
 		printk(KERN_CRIT "inet_init: Cannot init ipv4 mibs\n"); ;
-	
+
 	ipv4_proc_init();
 
 	ipfrag_init();

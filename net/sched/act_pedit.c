@@ -153,8 +153,8 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 			if (tkey->offmask) {
 				if (skb->len > tkey->at) {
 					 char *j = pptr + tkey->at;
-					 offset += ((*j & tkey->offmask) >> 
-					           tkey->shift);
+					 offset += ((*j & tkey->offmask) >>
+						   tkey->shift);
 				} else {
 					goto bad;
 				}
@@ -176,7 +176,7 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 			*ptr = ((*ptr & tkey->mask) ^ tkey->val);
 			munged++;
 		}
-		
+
 		if (munged)
 			skb->tc_verd = SET_TC_MUNGED(skb->tc_verd);
 		goto done;
@@ -200,8 +200,8 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tcf_pedit *p = a->priv;
 	struct tc_pedit *opt;
 	struct tcf_t t;
-	int s; 
-		
+	int s;
+
 	s = sizeof(*opt) + p->tcfp_nkeys * sizeof(struct tc_pedit_key);
 
 	/* netlink spinlocks held above us - must use ATOMIC */

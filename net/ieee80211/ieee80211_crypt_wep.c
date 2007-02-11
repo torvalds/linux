@@ -97,7 +97,7 @@ static int prism2_wep_build_iv(struct sk_buff *skb, int hdr_len,
 	struct prism2_wep_data *wep = priv;
 	u32 klen, len;
 	u8 *pos;
-	
+
 	if (skb_headroom(skb) < 4 || skb->len < hdr_len)
 		return -1;
 
@@ -146,17 +146,17 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	/* other checks are in prism2_wep_build_iv */
 	if (skb_tailroom(skb) < 4)
 		return -1;
-	
+
 	/* add the IV to the frame */
 	if (prism2_wep_build_iv(skb, hdr_len, NULL, 0, priv))
 		return -1;
-	
+
 	/* Copy the IV into the first 3 bytes of the key */
 	memcpy(key, skb->data + hdr_len, 3);
 
 	/* Copy rest of the WEP key (the secret part) */
 	memcpy(key + 3, wep->key, wep->key_len);
-	
+
 	len = skb->len - hdr_len - 4;
 	pos = skb->data + hdr_len + 4;
 	klen = 3 + wep->key_len;

@@ -1,7 +1,7 @@
 /*
  * xfrm4_output.c - Common IPsec encapsulation code for IPv4.
  * Copyright (c) 2004 Herbert Xu <herbert@gondor.apana.org.au>
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
@@ -28,7 +28,7 @@ static int xfrm4_tunnel_check_size(struct sk_buff *skb)
 		goto out;
 
 	IPCB(skb)->flags |= IPSKB_XFRM_TUNNEL_SIZE;
-	
+
 	if (!(iph->frag_off & htons(IP_DF)) || skb->local_df)
 		goto out;
 
@@ -47,7 +47,7 @@ static int xfrm4_output_one(struct sk_buff *skb)
 	struct dst_entry *dst = skb->dst;
 	struct xfrm_state *x = dst->xfrm;
 	int err;
-	
+
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		err = skb_checksum_help(skb);
 		if (err)
@@ -78,7 +78,7 @@ static int xfrm4_output_one(struct sk_buff *skb)
 		x->curlft.packets++;
 
 		spin_unlock_bh(&x->lock);
-	
+
 		if (!(skb->dst = dst_pop(dst))) {
 			err = -EHOSTUNREACH;
 			goto error_nolock;

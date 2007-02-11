@@ -95,7 +95,7 @@ __ipq_find_entry(ipq_cmpfn cmpfn, unsigned long data)
 
 	list_for_each_prev(p, &queue_list) {
 		struct ipq_queue_entry *entry = (struct ipq_queue_entry *)p;
-		
+
 		if (!cmpfn || cmpfn(entry, data))
 			return entry;
 	}
@@ -127,7 +127,7 @@ static inline void
 __ipq_flush(int verdict)
 {
 	struct ipq_queue_entry *entry;
-	
+
 	while ((entry = __ipq_find_dequeue_entry(NULL, 0)))
 		ipq_issue_verdict(entry, verdict);
 }
@@ -136,21 +136,21 @@ static inline int
 __ipq_set_mode(unsigned char mode, unsigned int range)
 {
 	int status = 0;
-	
+
 	switch(mode) {
 	case IPQ_COPY_NONE:
 	case IPQ_COPY_META:
 		copy_mode = mode;
 		copy_range = 0;
 		break;
-		
+
 	case IPQ_COPY_PACKET:
 		copy_mode = mode;
 		copy_range = range;
 		if (copy_range > 0xFFFF)
 			copy_range = 0xFFFF;
 		break;
-		
+
 	default:
 		status = -EINVAL;
 
@@ -171,7 +171,7 @@ static struct ipq_queue_entry *
 ipq_find_dequeue_entry(ipq_cmpfn cmpfn, unsigned long data)
 {
 	struct ipq_queue_entry *entry;
-	
+
 	write_lock_bh(&queue_lock);
 	entry = __ipq_find_dequeue_entry(cmpfn, data);
 	write_unlock_bh(&queue_lock);
@@ -197,14 +197,14 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 	struct nlmsghdr *nlh;
 
 	read_lock_bh(&queue_lock);
-	
+
 	switch (copy_mode) {
 	case IPQ_COPY_META:
 	case IPQ_COPY_NONE:
 		size = NLMSG_SPACE(sizeof(*pmsg));
 		data_len = 0;
 		break;
-	
+
 	case IPQ_COPY_PACKET:
 		if ((entry->skb->ip_summed == CHECKSUM_PARTIAL ||
 		     entry->skb->ip_summed == CHECKSUM_COMPLETE) &&
@@ -216,10 +216,10 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 			data_len = entry->skb->len;
 		else
 			data_len = copy_range;
-		
+
 		size = NLMSG_SPACE(sizeof(*pmsg) + data_len);
 		break;
-	
+
 	default:
 		*errp = -EINVAL;
 		read_unlock_bh(&queue_lock);
@@ -231,7 +231,7 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb)
 		goto nlmsg_failure;
-		
+
 	old_tail= skb->tail;
 	nlh = NLMSG_PUT(skb, 0, 0, IPQM_PACKET, size - sizeof(*nlh));
 	pmsg = NLMSG_DATA(nlh);
@@ -244,29 +244,29 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 	pmsg->mark            = entry->skb->mark;
 	pmsg->hook            = entry->info->hook;
 	pmsg->hw_protocol     = entry->skb->protocol;
-	
+
 	if (entry->info->indev)
 		strcpy(pmsg->indev_name, entry->info->indev->name);
 	else
 		pmsg->indev_name[0] = '\0';
-	
+
 	if (entry->info->outdev)
 		strcpy(pmsg->outdev_name, entry->info->outdev->name);
 	else
 		pmsg->outdev_name[0] = '\0';
-	
+
 	if (entry->info->indev && entry->skb->dev) {
 		pmsg->hw_type = entry->skb->dev->type;
 		if (entry->skb->dev->hard_header_parse)
 			pmsg->hw_addrlen =
 				entry->skb->dev->hard_header_parse(entry->skb,
-				                                   pmsg->hw_addr);
+								   pmsg->hw_addr);
 	}
-	
+
 	if (data_len)
 		if (skb_copy_bits(entry->skb, 0, pmsg->payload, data_len))
 			BUG();
-		
+
 	nlh->nlmsg_len = skb->tail - old_tail;
 	return skb;
 
@@ -279,7 +279,7 @@ nlmsg_failure:
 }
 
 static int
-ipq_enqueue_packet(struct sk_buff *skb, struct nf_info *info, 
+ipq_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 		   unsigned int queuenum, void *data)
 {
 	int status = -EINVAL;
@@ -301,37 +301,37 @@ ipq_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 	nskb = ipq_build_packet_message(entry, &status);
 	if (nskb == NULL)
 		goto err_out_free;
-		
+
 	write_lock_bh(&queue_lock);
-	
+
 	if (!peer_pid)
-		goto err_out_free_nskb; 
+		goto err_out_free_nskb;
 
 	if (queue_total >= queue_maxlen) {
-                queue_dropped++;
+		queue_dropped++;
 		status = -ENOSPC;
 		if (net_ratelimit())
-		        printk (KERN_WARNING "ip6_queue: fill at %d entries, "
+			printk (KERN_WARNING "ip6_queue: fill at %d entries, "
 				"dropping packet(s).  Dropped: %d\n", queue_total,
 				queue_dropped);
 		goto err_out_free_nskb;
 	}
 
- 	/* netlink_unicast will either free the nskb or attach it to a socket */ 
+	/* netlink_unicast will either free the nskb or attach it to a socket */
 	status = netlink_unicast(ipqnl, nskb, peer_pid, MSG_DONTWAIT);
 	if (status < 0) {
- 	        queue_user_dropped++;
+		queue_user_dropped++;
 		goto err_out_unlock;
 	}
-	
+
 	__ipq_enqueue_entry(entry);
 
 	write_unlock_bh(&queue_lock);
 	return status;
-	
+
 err_out_free_nskb:
-	kfree_skb(nskb); 
-	
+	kfree_skb(nskb);
+
 err_out_unlock:
 	write_unlock_bh(&queue_lock);
 
@@ -357,11 +357,11 @@ ipq_mangle_ipv6(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 			return -EINVAL;
 		if (diff > skb_tailroom(e->skb)) {
 			struct sk_buff *newskb;
-			
+
 			newskb = skb_copy_expand(e->skb,
-			                         skb_headroom(e->skb),
-			                         diff,
-			                         GFP_ATOMIC);
+						 skb_headroom(e->skb),
+						 diff,
+						 GFP_ATOMIC);
 			if (newskb == NULL) {
 				printk(KERN_WARNING "ip6_queue: OOM "
 				      "in mangle, dropping packet\n");
@@ -401,11 +401,11 @@ ipq_set_verdict(struct ipq_verdict_msg *vmsg, unsigned int len)
 		return -ENOENT;
 	else {
 		int verdict = vmsg->value;
-		
+
 		if (vmsg->data_len && vmsg->data_len == len)
 			if (ipq_mangle_ipv6(vmsg, entry) < 0)
 				verdict = NF_DROP;
-		
+
 		ipq_issue_verdict(entry, verdict);
 		return 0;
 	}
@@ -424,7 +424,7 @@ ipq_set_mode(unsigned char mode, unsigned int range)
 
 static int
 ipq_receive_peer(struct ipq_peer_msg *pmsg,
-                 unsigned char type, unsigned int len)
+		 unsigned char type, unsigned int len)
 {
 	int status = 0;
 
@@ -434,15 +434,15 @@ ipq_receive_peer(struct ipq_peer_msg *pmsg,
 	switch (type) {
 	case IPQM_MODE:
 		status = ipq_set_mode(pmsg->msg.mode.value,
-		                      pmsg->msg.mode.range);
+				      pmsg->msg.mode.range);
 		break;
-		
+
 	case IPQM_VERDICT:
 		if (pmsg->msg.verdict.value > NF_MAX_VERDICT)
 			status = -EINVAL;
 		else
 			status = ipq_set_verdict(&pmsg->msg.verdict,
-			                         len - sizeof(*pmsg));
+						 len - sizeof(*pmsg));
 			break;
 	default:
 		status = -EINVAL;
@@ -456,7 +456,7 @@ dev_cmp(struct ipq_queue_entry *entry, unsigned long ifindex)
 	if (entry->info->indev)
 		if (entry->info->indev->ifindex == ifindex)
 			return 1;
-			
+
 	if (entry->info->outdev)
 		if (entry->info->outdev->ifindex == ifindex)
 			return 1;
@@ -468,7 +468,7 @@ static void
 ipq_dev_drop(int ifindex)
 {
 	struct ipq_queue_entry *entry;
-	
+
 	while ((entry = ipq_find_dequeue_entry(dev_cmp, ifindex)) != NULL)
 		ipq_issue_verdict(entry, NF_DROP);
 }
@@ -492,25 +492,25 @@ ipq_rcv_skb(struct sk_buff *skb)
 
 	pid = nlh->nlmsg_pid;
 	flags = nlh->nlmsg_flags;
-	
+
 	if(pid <= 0 || !(flags & NLM_F_REQUEST) || flags & NLM_F_MULTI)
 		RCV_SKB_FAIL(-EINVAL);
-		
+
 	if (flags & MSG_TRUNC)
 		RCV_SKB_FAIL(-ECOMM);
-		
+
 	type = nlh->nlmsg_type;
 	if (type < NLMSG_NOOP || type >= IPQM_MAX)
 		RCV_SKB_FAIL(-EINVAL);
-		
+
 	if (type <= IPQM_BASE)
 		return;
-	
+
 	if (security_netlink_recv(skb, CAP_NET_ADMIN))
-		RCV_SKB_FAIL(-EPERM);	
+		RCV_SKB_FAIL(-EPERM);
 
 	write_lock_bh(&queue_lock);
-	
+
 	if (peer_pid) {
 		if (peer_pid != pid) {
 			write_unlock_bh(&queue_lock);
@@ -520,17 +520,17 @@ ipq_rcv_skb(struct sk_buff *skb)
 		net_enable_timestamp();
 		peer_pid = pid;
 	}
-		
+
 	write_unlock_bh(&queue_lock);
-	
+
 	status = ipq_receive_peer(NLMSG_DATA(nlh), type,
-	                          nlmsglen - NLMSG_LENGTH(0));
+				  nlmsglen - NLMSG_LENGTH(0));
 	if (status < 0)
 		RCV_SKB_FAIL(status);
-		
+
 	if (flags & NLM_F_ACK)
 		netlink_ack(skb, nlh, 0);
-        return;
+	return;
 }
 
 static void
@@ -540,19 +540,19 @@ ipq_rcv_sk(struct sock *sk, int len)
 	unsigned int qlen;
 
 	mutex_lock(&ipqnl_mutex);
-			
+
 	for (qlen = skb_queue_len(&sk->sk_receive_queue); qlen; qlen--) {
 		skb = skb_dequeue(&sk->sk_receive_queue);
 		ipq_rcv_skb(skb);
 		kfree_skb(skb);
 	}
-		
+
 	mutex_unlock(&ipqnl_mutex);
 }
 
 static int
 ipq_rcv_dev_event(struct notifier_block *this,
-                  unsigned long event, void *ptr)
+		  unsigned long event, void *ptr)
 {
 	struct net_device *dev = ptr;
 
@@ -568,7 +568,7 @@ static struct notifier_block ipq_dev_notifier = {
 
 static int
 ipq_rcv_nl_event(struct notifier_block *this,
-                 unsigned long event, void *ptr)
+		 unsigned long event, void *ptr)
 {
 	struct netlink_notify *n = ptr;
 
@@ -597,7 +597,7 @@ static ctl_table ipq_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
- 	{ .ctl_name = 0 }
+	{ .ctl_name = 0 }
 };
 
 static ctl_table ipq_dir_table[] = {
@@ -627,25 +627,25 @@ ipq_get_info(char *buffer, char **start, off_t offset, int length)
 	int len;
 
 	read_lock_bh(&queue_lock);
-	
+
 	len = sprintf(buffer,
-	              "Peer PID          : %d\n"
-	              "Copy mode         : %hu\n"
-	              "Copy range        : %u\n"
-	              "Queue length      : %u\n"
-	              "Queue max. length : %u\n"
+		      "Peer PID          : %d\n"
+		      "Copy mode         : %hu\n"
+		      "Copy range        : %u\n"
+		      "Queue length      : %u\n"
+		      "Queue max. length : %u\n"
 		      "Queue dropped     : %u\n"
 		      "Netfilter dropped : %u\n",
-	              peer_pid,
-	              copy_mode,
-	              copy_range,
-	              queue_total,
-	              queue_maxlen,
+		      peer_pid,
+		      copy_mode,
+		      copy_range,
+		      queue_total,
+		      queue_maxlen,
 		      queue_dropped,
 		      queue_user_dropped);
 
 	read_unlock_bh(&queue_lock);
-	
+
 	*start = buffer + offset;
 	len -= offset;
 	if (len > length)
@@ -665,10 +665,10 @@ static int __init ip6_queue_init(void)
 {
 	int status = -ENOMEM;
 	struct proc_dir_entry *proc;
-	
+
 	netlink_register_notifier(&ipq_nl_notifier);
 	ipqnl = netlink_kernel_create(NETLINK_IP6_FW, 0, ipq_rcv_sk,
-	                              THIS_MODULE);
+				      THIS_MODULE);
 	if (ipqnl == NULL) {
 		printk(KERN_ERR "ip6_queue: failed to create netlink socket\n");
 		goto cleanup_netlink_notifier;
@@ -681,10 +681,10 @@ static int __init ip6_queue_init(void)
 		printk(KERN_ERR "ip6_queue: failed to create proc entry\n");
 		goto cleanup_ipqnl;
 	}
-	
+
 	register_netdevice_notifier(&ipq_dev_notifier);
 	ipq_sysctl_header = register_sysctl_table(ipq_root_table, 0);
-	
+
 	status = nf_register_queue_handler(PF_INET6, &nfqh);
 	if (status < 0) {
 		printk(KERN_ERR "ip6_queue: failed to register queue handler\n");
@@ -696,12 +696,12 @@ cleanup_sysctl:
 	unregister_sysctl_table(ipq_sysctl_header);
 	unregister_netdevice_notifier(&ipq_dev_notifier);
 	proc_net_remove(IPQ_PROC_FS_NAME);
-	
+
 cleanup_ipqnl:
 	sock_release(ipqnl->sk_socket);
 	mutex_lock(&ipqnl_mutex);
 	mutex_unlock(&ipqnl_mutex);
-	
+
 cleanup_netlink_notifier:
 	netlink_unregister_notifier(&ipq_nl_notifier);
 	return status;

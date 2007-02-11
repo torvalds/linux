@@ -15,14 +15,14 @@ static int ltalk_change_mtu(struct net_device *dev, int mtu)
 }
 
 static int ltalk_mac_addr(struct net_device *dev, void *addr)
-{	
+{
 	return -EINVAL;
 }
 
 static void ltalk_setup(struct net_device *dev)
 {
 	/* Fill in the fields of the device structure with localtalk-generic values. */
-	
+
 	dev->change_mtu		= ltalk_change_mtu;
 	dev->hard_header	= NULL;
 	dev->rebuild_header 	= NULL;
@@ -34,8 +34,8 @@ static void ltalk_setup(struct net_device *dev)
 	dev->hard_header_len 	= LTALK_HLEN;
 	dev->mtu		= LTALK_MTU;
 	dev->addr_len		= LTALK_ALEN;
-	dev->tx_queue_len	= 10;	
-	
+	dev->tx_queue_len	= 10;
+
 	dev->broadcast[0]	= 0xFF;
 
 	dev->flags		= IFF_BROADCAST|IFF_MULTICAST|IFF_NOARP;

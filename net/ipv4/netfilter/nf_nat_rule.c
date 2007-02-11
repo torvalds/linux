@@ -56,8 +56,8 @@ static struct
 		/* PRE_ROUTING */
 		{
 			.entry = {
-	    			.target_offset = sizeof(struct ipt_entry),
-	    			.next_offset = sizeof(struct ipt_standard),
+				.target_offset = sizeof(struct ipt_entry),
+				.next_offset = sizeof(struct ipt_standard),
 			},
 			.target = {
 				.target = {
@@ -71,8 +71,8 @@ static struct
 		/* POST_ROUTING */
 		{
 			.entry = {
-	    			.target_offset = sizeof(struct ipt_entry),
-	    			.next_offset = sizeof(struct ipt_standard),
+				.target_offset = sizeof(struct ipt_entry),
+				.next_offset = sizeof(struct ipt_standard),
 			},
 			.target = {
 				.target = {
@@ -86,8 +86,8 @@ static struct
 		/* LOCAL_OUT */
 		{
 			.entry = {
-	    			.target_offset = sizeof(struct ipt_entry),
-	    			.next_offset = sizeof(struct ipt_standard),
+				.target_offset = sizeof(struct ipt_entry),
+				.next_offset = sizeof(struct ipt_standard),
 			},
 			.target = {
 				.target = {
@@ -145,7 +145,7 @@ static unsigned int ipt_snat_target(struct sk_buff **pskb,
 
 	/* Connection must be valid and new. */
 	NF_CT_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED ||
-	                    ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
+			    ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
 	NF_CT_ASSERT(out);
 
 	return nf_nat_setup_info(ct, &mr->range[0], hooknum);
@@ -256,8 +256,8 @@ alloc_null_binding(struct nf_conn *ct,
 
 unsigned int
 alloc_null_binding_confirmed(struct nf_conn *ct,
-                             struct nf_nat_info *info,
-                             unsigned int hooknum)
+			     struct nf_nat_info *info,
+			     unsigned int hooknum)
 {
 	__be32 ip
 		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC

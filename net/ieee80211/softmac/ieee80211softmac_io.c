@@ -1,4 +1,4 @@
-/* 
+/*
  * Some parts based on code from net80211
  * Copyright (c) 2001 Atsushi Onoe
  * Copyright (c) 2002-2005 Sam Leffler, Errno Consulting
@@ -29,14 +29,14 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 
 #include "ieee80211softmac_priv.h"
 
 /* Helper functions for inserting data into the frames */
 
-/* 
+/*
  * Adds an ESSID element to the frame
  *
  */
@@ -53,7 +53,7 @@ ieee80211softmac_add_essid(u8 *dst, struct ieee80211softmac_essid *essid)
 		*dst++ = 0;
 		return dst;
 	}
-}     
+}
 
 /* Adds Supported Rates and if required Extended Rates Information Element
  * to the frame, ASSUMES WE HAVE A SORTED LIST OF RATES */
@@ -81,18 +81,18 @@ ieee80211softmac_frame_add_rates(u8 *dst, const struct ieee80211softmac_ratesinf
 			memcpy(dst, r->rates + cck_len, ofdm_len);
 			dst += ofdm_len;
 		}
-	}	
+	}
 	return dst;
 }
 
 /* Allocate a management frame */
-static u8 * 
+static u8 *
 ieee80211softmac_alloc_mgt(u32 size)
 {
 	u8 * data;
-	
+
 	/* Add the header and FCS to the size */
-	size = size + IEEE80211_3ADDR_LEN;	
+	size = size + IEEE80211_3ADDR_LEN;
 	if(size > IEEE80211_DATA_LEN)
 		return NULL;
 	/* Allocate the frame */
@@ -103,13 +103,13 @@ ieee80211softmac_alloc_mgt(u32 size)
 /*
  * Add a 2 Address Header
  */
-static void 
+static void
 ieee80211softmac_hdr_2addr(struct ieee80211softmac_device *mac,
 	struct ieee80211_hdr_2addr *header, u32 type, u8 *dest)
 {
 	/* Fill in the frame control flags */
 	header->frame_ctl = cpu_to_le16(type);
-	/* Control packets always have WEP turned off */	
+	/* Control packets always have WEP turned off */
 	if(type > IEEE80211_STYPE_CFENDACK && type < IEEE80211_STYPE_PSPOLL)
 		header->frame_ctl |= mac->ieee->sec.level ? cpu_to_le16(IEEE80211_FCTL_PROTECTED) : 0;
 
@@ -130,13 +130,13 @@ ieee80211softmac_hdr_2addr(struct ieee80211softmac_device *mac,
 
 
 /* Add a 3 Address Header */
-static void 
+static void
 ieee80211softmac_hdr_3addr(struct ieee80211softmac_device *mac,
 	struct ieee80211_hdr_3addr *header, u32 type, u8 *dest, u8 *bssid)
 {
 	/* This is common with 2addr, so use that instead */
-	ieee80211softmac_hdr_2addr(mac, (struct ieee80211_hdr_2addr *)header, type, dest);	
-	
+	ieee80211softmac_hdr_2addr(mac, (struct ieee80211_hdr_2addr *)header, type, dest);
+
 	/* Fill in the BSS ID */
 	if(bssid == NULL)
 		memset(header->addr3, 0xFF, ETH_ALEN);
@@ -201,11 +201,11 @@ ieee80211softmac_capabilities(struct ieee80211softmac_device *mac,
 
 /*****************************************************************************
  * Create Management packets
- *****************************************************************************/ 
+ *****************************************************************************/
 
 /* Creates an association request packet */
 static u32
-ieee80211softmac_assoc_req(struct ieee80211_assoc_request **pkt, 
+ieee80211softmac_assoc_req(struct ieee80211_assoc_request **pkt,
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net)
 {
 	u8 *data;
@@ -233,7 +233,7 @@ ieee80211softmac_assoc_req(struct ieee80211_assoc_request **pkt,
 
 	/* Fill in Listen Interval (?) */
 	(*pkt)->listen_interval = cpu_to_le16(10);
-	
+
 	data = (u8 *)(*pkt)->info_element;
 	/* Add SSID */
 	data = ieee80211softmac_add_essid(data, &net->essid);
@@ -250,7 +250,7 @@ ieee80211softmac_assoc_req(struct ieee80211_assoc_request **pkt,
 
 /* Create a reassociation request packet */
 static u32
-ieee80211softmac_reassoc_req(struct ieee80211_reassoc_request **pkt, 
+ieee80211softmac_reassoc_req(struct ieee80211_reassoc_request **pkt,
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net)
 {
 	u8 *data;
@@ -263,9 +263,9 @@ ieee80211softmac_reassoc_req(struct ieee80211_reassoc_request **pkt,
 		/* Rates IE */
 		1 + 1 + IEEE80211SOFTMAC_MAX_RATES_LEN +
 		/* Extended Rates IE */
-		1 + 1 + IEEE80211SOFTMAC_MAX_EX_RATES_LEN 
+		1 + 1 + IEEE80211SOFTMAC_MAX_EX_RATES_LEN
 		/* Other IE's? */
-	);				
+	);
 	if (unlikely((*pkt) == NULL))
 		return 0;
 	ieee80211softmac_hdr_3addr(mac, &((*pkt)->header), IEEE80211_STYPE_REASSOC_REQ, net->bssid, net->bssid);
@@ -277,10 +277,10 @@ ieee80211softmac_reassoc_req(struct ieee80211_reassoc_request **pkt,
 	(*pkt)->listen_interval = cpu_to_le16(10);
 	/* Fill in the current AP MAC */
 	memcpy((*pkt)->current_ap, mac->ieee->bssid, ETH_ALEN);
-	
+
 	data = (u8 *)(*pkt)->info_element;
 	/* Add SSID */
-	data = ieee80211softmac_add_essid(data, &net->essid); 
+	data = ieee80211softmac_add_essid(data, &net->essid);
 	/* Add Rates */
 	data = ieee80211softmac_frame_add_rates(data, &mac->ratesinfo);
 	/* Return packet size */
@@ -289,7 +289,7 @@ ieee80211softmac_reassoc_req(struct ieee80211_reassoc_request **pkt,
 
 /* Create an authentication packet */
 static u32
-ieee80211softmac_auth(struct ieee80211_auth **pkt, 
+ieee80211softmac_auth(struct ieee80211_auth **pkt,
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net,
 	u16 transaction, u16 status, int *encrypt_mpdu)
 {
@@ -309,20 +309,20 @@ ieee80211softmac_auth(struct ieee80211_auth **pkt,
 	if (unlikely((*pkt) == NULL))
 		return 0;
 	ieee80211softmac_hdr_3addr(mac, &((*pkt)->header), IEEE80211_STYPE_AUTH, net->bssid, net->bssid);
-		
+
 	/* Algorithm */
 	(*pkt)->algorithm = cpu_to_le16(auth_mode);
 	/* Transaction */
 	(*pkt)->transaction = cpu_to_le16(transaction);
 	/* Status */
 	(*pkt)->status = cpu_to_le16(status);
-	
+
 	data = (u8 *)(*pkt)->info_element;
 	/* Challenge Text */
 	if (is_shared_response) {
 		*data = MFIE_TYPE_CHALLENGE;
 		data++;
-		
+
 		/* Copy the challenge in */
 		*data = net->challenge_len;
 		data++;
@@ -360,7 +360,7 @@ static u32
 ieee80211softmac_probe_req(struct ieee80211_probe_request **pkt,
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_essid *essid)
 {
-	u8 *data;	
+	u8 *data;
 	/* Allocate Packet */
 	(*pkt) = (struct ieee80211_probe_request *)ieee80211softmac_alloc_mgt(
 		/* SSID of requested network */
@@ -368,12 +368,12 @@ ieee80211softmac_probe_req(struct ieee80211_probe_request **pkt,
 		/* Rates IE */
 		1 + 1 + IEEE80211SOFTMAC_MAX_RATES_LEN +
 		/* Extended Rates IE */
-		1 + 1 + IEEE80211SOFTMAC_MAX_EX_RATES_LEN 
+		1 + 1 + IEEE80211SOFTMAC_MAX_EX_RATES_LEN
 	);
 	if (unlikely((*pkt) == NULL))
 		return 0;
 	ieee80211softmac_hdr_3addr(mac, &((*pkt)->header), IEEE80211_STYPE_PROBE_REQ, NULL, NULL);
-		
+
 	data = (u8 *)(*pkt)->info_element;
 	/* Add ESSID (can be NULL) */
 	data = ieee80211softmac_add_essid(data, essid);
@@ -401,7 +401,7 @@ ieee80211softmac_probe_resp(struct ieee80211_probe_response **pkt,
 		2 +		/* DS Parameter Set */
 		8 +		/* CF Parameter Set */
 		4 		/* IBSS Parameter Set */
-	);	
+	);
 	if (unlikely((*pkt) == NULL))
 		return 0;
 	ieee80211softmac_hdr_3addr(mac, &((*pkt)->header), IEEE80211_STYPE_PROBE_RESP, net->bssid, net->bssid);
@@ -445,15 +445,15 @@ ieee80211softmac_send_mgt_frame(struct ieee80211softmac_device *mac,
 		pkt_size = ieee80211softmac_probe_resp((struct ieee80211_probe_response **)(&pkt), mac, (struct ieee80211softmac_network *)ptrarg);
 		break;
 	default:
-                printkl(KERN_DEBUG PFX "Unsupported Management Frame type: %i\n", type);
-                return -EINVAL;
+		printkl(KERN_DEBUG PFX "Unsupported Management Frame type: %i\n", type);
+		return -EINVAL;
 	};
 
 	if(pkt_size == 0 || pkt == NULL) {
 		printkl(KERN_DEBUG PFX "Error, packet is nonexistant or 0 length\n");
 		return -ENOMEM;
 	}
-	
+
 	/* Send the packet to the ieee80211 layer for tx */
 	/* we defined softmac->mgmt_xmit for this. Should we keep it
 	 * as it is (that means we'd need to wrap this into a txb),

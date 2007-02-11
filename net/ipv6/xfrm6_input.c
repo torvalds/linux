@@ -33,7 +33,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 	seq = 0;
 	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0)
 		goto drop;
-	
+
 	do {
 		struct ipv6hdr *iph = skb->nh.ipv6h;
 
@@ -115,7 +115,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 		__skb_push(skb, skb->data - skb->nh.raw);
 
 		NF_HOOK(PF_INET6, NF_IP6_PRE_ROUTING, skb, skb->dev, NULL,
-		        ip6_rcv_finish);
+			ip6_rcv_finish);
 		return -1;
 #else
 		return 1;
@@ -142,12 +142,12 @@ int xfrm6_rcv(struct sk_buff **pskb)
 int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		     xfrm_address_t *saddr, u8 proto)
 {
- 	struct xfrm_state *x = NULL;
- 	int wildcard = 0;
+	struct xfrm_state *x = NULL;
+	int wildcard = 0;
 	struct in6_addr any;
 	xfrm_address_t *xany;
 	struct xfrm_state *xfrm_vec_one = NULL;
- 	int nh = 0;
+	int nh = 0;
 	int i = 0;
 
 	ipv6_addr_set(&any, 0, 0, 0, 0);
@@ -168,12 +168,12 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			break;
 		case 2:
 		default:
- 			/* lookup state with wild-card addresses */
+			/* lookup state with wild-card addresses */
 			wildcard = 1; /* XXX */
 			dst = xany;
 			src = xany;
 			break;
- 		}
+		}
 
 		x = xfrm_state_lookup_byaddr(dst, src, proto, AF_INET6);
 		if (!x)
@@ -193,8 +193,8 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		if (unlikely(x->km.state != XFRM_STATE_VALID)) {
 			spin_unlock(&x->lock);
 			xfrm_state_put(x);
- 			x = NULL;
- 			continue;
+			x = NULL;
+			continue;
 		}
 		if (xfrm_state_check_expire(x)) {
 			spin_unlock(&x->lock);

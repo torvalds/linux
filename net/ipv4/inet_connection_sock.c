@@ -149,7 +149,7 @@ success:
 	if (!inet_csk(sk)->icsk_bind_hash)
 		inet_bind_hash(sk, tb, snum);
 	BUG_TRAP(inet_csk(sk)->icsk_bind_hash == tb);
- 	ret = 0;
+	ret = 0;
 
 fail_unlock:
 	spin_unlock(&head->lock);
@@ -255,7 +255,7 @@ EXPORT_SYMBOL(inet_csk_accept);
 
 /*
  * Using different timers for retransmit, delayed acks and probes
- * We may wish use just one timer maintaining a list of expire jiffies 
+ * We may wish use just one timer maintaining a list of expire jiffies
  * to optimize.
  */
 void inet_csk_init_xmit_timers(struct sock *sk,
@@ -273,7 +273,7 @@ void inet_csk_init_xmit_timers(struct sock *sk,
 	icsk->icsk_delack_timer.function     = delack_handler;
 	sk->sk_timer.function		     = keepalive_handler;
 
-	icsk->icsk_retransmit_timer.data = 
+	icsk->icsk_retransmit_timer.data =
 		icsk->icsk_delack_timer.data =
 			sk->sk_timer.data  = (unsigned long)sk;
 

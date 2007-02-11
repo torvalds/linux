@@ -4,7 +4,7 @@
  *		interface as the means of communication with the user level.
  *
  *		The IP fragmentation functionality.
- *		
+ *
  * Version:	$Id: ip_fragment.c,v 1.59 2002/01/12 07:54:56 davem Exp $
  *
  * Authors:	Fred N. van Kempen <waltje@uWalt.NL.Mugnet.ORG>
@@ -238,7 +238,7 @@ static void ipq_kill(struct ipq *ipq)
 	}
 }
 
-/* Memory limiting on fragments.  Evictor trashes the oldest 
+/* Memory limiting on fragments.  Evictor trashes the oldest
  * fragment queue until we are back under the threshold.
  */
 static void ip_evictor(void)
@@ -479,14 +479,14 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		goto err;
 	}
 
- 	offset = ntohs(skb->nh.iph->frag_off);
+	offset = ntohs(skb->nh.iph->frag_off);
 	flags = offset & ~IP_OFFSET;
 	offset &= IP_OFFSET;
 	offset <<= 3;		/* offset is in 8-byte chunks */
- 	ihl = skb->nh.iph->ihl * 4;
+	ihl = skb->nh.iph->ihl * 4;
 
 	/* Determine the position of this fragment. */
- 	end = offset + skb->len - ihl;
+	end = offset + skb->len - ihl;
 
 	/* Is this the final fragment? */
 	if ((flags & IP_MF) == 0) {
@@ -589,8 +589,8 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	else
 		qp->fragments = skb;
 
- 	if (skb->dev)
- 		qp->iif = skb->dev->ifindex;
+	if (skb->dev)
+		qp->iif = skb->dev->ifindex;
 	skb->dev = NULL;
 	skb_get_timestamp(skb, &qp->stamp);
 	qp->meat += skb->len;
@@ -684,7 +684,7 @@ static struct sk_buff *ip_frag_reasm(struct ipq *qp, struct net_device *dev)
 	return head;
 
 out_nomem:
- 	LIMIT_NETDEBUG(KERN_ERR "IP: queue_glue: no memory for gluing "
+	LIMIT_NETDEBUG(KERN_ERR "IP: queue_glue: no memory for gluing "
 			      "queue %p\n", qp);
 	goto out_fail;
 out_oversize:
@@ -703,7 +703,7 @@ struct sk_buff *ip_defrag(struct sk_buff *skb, u32 user)
 	struct iphdr *iph = skb->nh.iph;
 	struct ipq *qp;
 	struct net_device *dev;
-	
+
 	IP_INC_STATS_BH(IPSTATS_MIB_REASMREQDS);
 
 	/* Start by cleaning up the memory. */

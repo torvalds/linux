@@ -1,8 +1,8 @@
 /*
  *	X.25 Packet Layer release 002
  *
- *	This is ALPHA test software. This code may break your machine, randomly fail to work with new 
- *	releases, misbehave and/or generally screw up. It might even work. 
+ *	This is ALPHA test software. This code may break your machine, randomly fail to work with new
+ *	releases, misbehave and/or generally screw up. It might even work.
  *
  *	This code REQUIRES 2.1.15 or higher
  *
@@ -31,7 +31,7 @@ static int x25_receive_data(struct sk_buff *skb, struct x25_neigh *nb)
 	unsigned int lci;
 
 	frametype = skb->data[2];
-        lci = ((skb->data[0] << 8) & 0xF00) + ((skb->data[1] << 0) & 0x0FF);
+	lci = ((skb->data[0] << 8) & 0xF00) + ((skb->data[1] << 0) & 0x0FF);
 
 	/*
 	 *	LCI of zero is always for us, and its always a link control

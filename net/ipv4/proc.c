@@ -266,7 +266,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 
 	for (i = 0; snmp4_ipstats_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   fold_field((void **) ip_statistics, 
+			   fold_field((void **) ip_statistics,
 				      snmp4_ipstats_list[i].entry));
 
 	seq_puts(seq, "\nIcmp:");
@@ -276,7 +276,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nIcmp:");
 	for (i = 0; snmp4_icmp_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   fold_field((void **) icmp_statistics, 
+			   fold_field((void **) icmp_statistics,
 				      snmp4_icmp_list[i].entry));
 
 	seq_puts(seq, "\nTcp:");
@@ -288,7 +288,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 		/* MaxConn field is signed, RFC 2012 */
 		if (snmp4_tcp_list[i].entry == TCP_MIB_MAXCONN)
 			seq_printf(seq, " %ld",
-				   fold_field((void **) tcp_statistics, 
+				   fold_field((void **) tcp_statistics,
 					      snmp4_tcp_list[i].entry));
 		else
 			seq_printf(seq, " %lu",
@@ -303,7 +303,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nUdp:");
 	for (i = 0; snmp4_udp_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   fold_field((void **) udp_statistics, 
+			   fold_field((void **) udp_statistics,
 				      snmp4_udp_list[i].entry));
 
 	/* the UDP and UDP-Lite MIBs are the same */
@@ -348,7 +348,7 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nTcpExt:");
 	for (i = 0; snmp4_net_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   fold_field((void **) net_statistics, 
+			   fold_field((void **) net_statistics,
 				      snmp4_net_list[i].entry));
 
 	seq_putc(seq, '\n');

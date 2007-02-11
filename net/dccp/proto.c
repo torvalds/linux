@@ -478,7 +478,7 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 			err = -EINVAL;
 		else
 			err = dccp_setsockopt_change(sk, DCCPO_CHANGE_L,
-					             (struct dccp_so_feat __user *)
+						     (struct dccp_so_feat __user *)
 						     optval);
 		break;
 	case DCCP_SOCKOPT_CHANGE_R:

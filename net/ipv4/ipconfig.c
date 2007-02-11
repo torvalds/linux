@@ -12,7 +12,7 @@
  *  BOOTP rewritten to construct and analyse packets itself instead
  *  of misusing the IP layer. num_bugs_causing_wrong_arp_replies--;
  *					     -- MJ, December 1998
- *  
+ *
  *  Fixed ip_auto_config_setup calling at startup in the new "Linker Magic"
  *  initialization scheme.
  *	- Arnaldo Carvalho de Melo <acme@conectiva.com.br>, 08/11/1999
@@ -98,8 +98,8 @@
 #define CONF_TIMEOUT_RANDOM	(HZ)	/* Maximum amount of randomization */
 #define CONF_TIMEOUT_MULT	*7/4	/* Rate of timeout growth */
 #define CONF_TIMEOUT_MAX	(HZ*30)	/* Maximum allowed timeout */
-#define CONF_NAMESERVERS_MAX   3       /* Maximum number of nameservers  
-                                           - '3' from resolv.h */
+#define CONF_NAMESERVERS_MAX   3       /* Maximum number of nameservers
+					   - '3' from resolv.h */
 
 #define NONE __constant_htonl(INADDR_NONE)
 
@@ -365,7 +365,7 @@ static int __init ic_defaults(void)
 	 *	At this point we have no userspace running so need not
 	 *	claim locks on system_utsname
 	 */
-	 
+
 	if (!ic_host_name_set)
 		sprintf(init_utsname()->nodename, "%u.%u.%u.%u", NIPQUAD(ic_myaddr));
 
@@ -650,9 +650,9 @@ static void __init ic_bootp_init_ext(u8 *e)
 	*e++ = 40;
 	e += 40;
 
-	*e++ = 57;		/* set extension buffer size for reply */ 
+	*e++ = 57;		/* set extension buffer size for reply */
 	*e++ = 2;
-	*e++ = 1;		/* 128+236+8+20+14, see dhcpd sources */ 
+	*e++ = 1;		/* 128+236+8+20+14, see dhcpd sources */
 	*e++ = 150;
 
 	*e++ = 255;		/* End of the list */
@@ -913,7 +913,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	/* Parse extensions */
 	if (ext_len >= 4 &&
 	    !memcmp(b->exten, ic_bootp_cookie, 4)) { /* Check magic cookie */
-                u8 *end = (u8 *) b + ntohs(b->iph.tot_len);
+		u8 *end = (u8 *) b + ntohs(b->iph.tot_len);
 		u8 *ext;
 
 #ifdef IPCONFIG_DHCP
@@ -1020,7 +1020,7 @@ drop:
 	kfree_skb(skb);
 
 	return 0;
-}	
+}
 
 
 #endif
@@ -1080,7 +1080,7 @@ static int __init ic_dynamic(void)
 	 * seems to be a terrible waste of CPU time, but actually there is
 	 * only one process running at all, so we don't need to use any
 	 * scheduler functions.
-	 * [Actually we could now, but the nothing else running note still 
+	 * [Actually we could now, but the nothing else running note still
 	 *  applies.. - AC]
 	 */
 	printk(KERN_NOTICE "Sending %s%s%s requests .",
@@ -1156,7 +1156,7 @@ static int __init ic_dynamic(void)
 	}
 
 	printk("IP-Config: Got %s answer from %u.%u.%u.%u, ",
-		((ic_got_reply & IC_RARP) ? "RARP" 
+		((ic_got_reply & IC_RARP) ? "RARP"
 		 : (ic_proto_enabled & IC_USE_DHCP) ? "DHCP" : "BOOTP"),
 		NIPQUAD(ic_servaddr));
 	printk("my address is %u.%u.%u.%u\n", NIPQUAD(ic_myaddr));
@@ -1286,7 +1286,7 @@ static int __init ip_auto_config(void)
 #endif
 	    ic_first_dev->next) {
 #ifdef IPCONFIG_DYNAMIC
-	
+
 		int retries = CONF_OPEN_RETRIES;
 
 		if (ic_dynamic() < 0) {
@@ -1308,14 +1308,14 @@ static int __init ip_auto_config(void)
 			 */
 #ifdef CONFIG_ROOT_NFS
 			if (ROOT_DEV ==  Root_NFS) {
-				printk(KERN_ERR 
+				printk(KERN_ERR
 					"IP-Config: Retrying forever (NFS root)...\n");
 				goto try_try_again;
 			}
 #endif
 
 			if (--retries) {
-				printk(KERN_ERR 
+				printk(KERN_ERR
 				       "IP-Config: Reopening network devices...\n");
 				goto try_try_again;
 			}
@@ -1443,8 +1443,8 @@ static int __init ip_auto_config_setup(char *addrs)
 
 	ic_set_manually = 1;
 
-	ic_enable = (*addrs && 
-		(strcmp(addrs, "off") != 0) && 
+	ic_enable = (*addrs &&
+		(strcmp(addrs, "off") != 0) &&
 		(strcmp(addrs, "none") != 0));
 	if (!ic_enable)
 		return 1;

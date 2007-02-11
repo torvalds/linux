@@ -151,7 +151,7 @@ static void ip_map_request(struct cache_detail *cd,
 	char text_addr[20];
 	struct ip_map *im = container_of(h, struct ip_map, h);
 	__be32 addr = im->m_addr.s_addr;
-	
+
 	snprintf(text_addr, 20, "%u.%u.%u.%u",
 		 ntohl(addr) >> 24 & 0xff,
 		 ntohl(addr) >> 16 & 0xff,
@@ -198,7 +198,7 @@ static int ip_map_parse(struct cache_detail *cd,
 
 	if (sscanf(buf, "%u.%u.%u.%u%c", &b1, &b2, &b3, &b4, &c) != 4)
 		return -EINVAL;
-	
+
 	expiry = get_expiry(&mesg);
 	if (expiry ==0)
 		return -EINVAL;
@@ -248,7 +248,7 @@ static int ip_map_show(struct seq_file *m,
 	/* class addr domain */
 	addr = im->m_addr;
 
-	if (test_bit(CACHE_VALID, &h->flags) && 
+	if (test_bit(CACHE_VALID, &h->flags) &&
 	    !test_bit(CACHE_NEGATIVE, &h->flags))
 		dom = im->m_client->h.name;
 
@@ -262,7 +262,7 @@ static int ip_map_show(struct seq_file *m,
 		   );
 	return 0;
 }
-	
+
 
 struct cache_detail ip_map_cache = {
 	.owner		= THIS_MODULE,
@@ -343,7 +343,7 @@ int auth_unix_add_addr(struct in_addr addr, struct auth_domain *dom)
 int auth_unix_forget_old(struct auth_domain *dom)
 {
 	struct unix_domain *udom;
-	
+
 	if (dom->flavour != &svcauth_unix)
 		return -EINVAL;
 	udom = container_of(dom, struct unix_domain, h);
@@ -465,7 +465,7 @@ svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 	if (argv->iov_len < 3*4)
 		return SVC_GARBAGE;
 
-	if (svc_getu32(argv) != 0) { 
+	if (svc_getu32(argv) != 0) {
 		dprintk("svc: bad null cred\n");
 		*authp = rpc_autherr_badcred;
 		return SVC_DENIED;

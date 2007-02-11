@@ -224,7 +224,7 @@ static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
 
-        if (tp->snd_cwnd <= tp->snd_ssthresh)
+	if (tp->snd_cwnd <= tp->snd_ssthresh)
 		tcp_slow_start(tp);
 	else {
 

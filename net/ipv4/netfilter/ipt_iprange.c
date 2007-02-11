@@ -41,7 +41,7 @@ match(const struct sk_buff *skb,
 			DEBUGP("src IP %u.%u.%u.%u NOT in range %s"
 			       "%u.%u.%u.%u-%u.%u.%u.%u\n",
 				NIPQUAD(iph->saddr),
-			        info->flags & IPRANGE_SRC_INV ? "(INV) " : "",
+				info->flags & IPRANGE_SRC_INV ? "(INV) " : "",
 				NIPQUAD(info->src.min_ip),
 				NIPQUAD(info->src.max_ip));
 			return 0;
@@ -54,7 +54,7 @@ match(const struct sk_buff *skb,
 			DEBUGP("dst IP %u.%u.%u.%u NOT in range %s"
 			       "%u.%u.%u.%u-%u.%u.%u.%u\n",
 				NIPQUAD(iph->daddr),
-			        info->flags & IPRANGE_DST_INV ? "(INV) " : "",
+				info->flags & IPRANGE_DST_INV ? "(INV) " : "",
 				NIPQUAD(info->dst.min_ip),
 				NIPQUAD(info->dst.max_ip));
 			return 0;

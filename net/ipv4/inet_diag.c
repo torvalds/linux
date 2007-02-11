@@ -381,7 +381,7 @@ static int inet_diag_bc_run(const void *bc, int len,
 				if (addr[0] == 0 && addr[1] == 0 &&
 				    addr[2] == htonl(0xffff) &&
 				    bitstring_match(addr + 3, cond->addr,
-					    	    cond->prefix_len))
+						    cond->prefix_len))
 					break;
 			}
 			yes = 0;
@@ -518,7 +518,7 @@ static int inet_twsk_diag_dump(struct inet_timewait_sock *tw,
 		}
 		entry.sport = tw->tw_num;
 		entry.dport = ntohs(tw->tw_dport);
-		entry.userlocks = 0; 
+		entry.userlocks = 0;
 
 		if (!inet_diag_bc_run(RTA_DATA(bc), RTA_PAYLOAD(bc), &entry))
 			return 0;

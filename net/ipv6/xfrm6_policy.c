@@ -8,7 +8,7 @@
  * 		IPv6 support
  * 	YOSHIFUJI Hideaki
  * 		Split up af-specific portion
- * 
+ *
  */
 
 #include <linux/compiler.h>
@@ -178,7 +178,8 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		__xfrm6_bundle_len_inc(&header_len, &nfheader_len, xfrm[i]);
 		trailer_len += xfrm[i]->props.trailer_len;
 
-		if (xfrm[i]->props.mode == XFRM_MODE_TUNNEL) {
+		if (xfrm[i]->props.mode == XFRM_MODE_TUNNEL ||
+		    xfrm[i]->props.mode == XFRM_MODE_ROUTEOPTIMIZATION) {
 			unsigned short encap_family = xfrm[i]->props.family;
 			switch(encap_family) {
 			case AF_INET:
@@ -186,8 +187,9 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 				fl_tunnel.fl4_src = xfrm[i]->props.saddr.a4;
 				break;
 			case AF_INET6:
-				ipv6_addr_copy(&fl_tunnel.fl6_dst, (struct in6_addr*)&xfrm[i]->id.daddr.a6);
-				ipv6_addr_copy(&fl_tunnel.fl6_src, (struct in6_addr*)&xfrm[i]->props.saddr.a6);
+				ipv6_addr_copy(&fl_tunnel.fl6_dst, __xfrm6_bundle_addr_remote(xfrm[i], &fl->fl6_dst));
+
+				ipv6_addr_copy(&fl_tunnel.fl6_src, __xfrm6_bundle_addr_remote(xfrm[i], &fl->fl6_src));
 				break;
 			default:
 				BUG_ON(1);
@@ -247,9 +249,9 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		x->u.rt6.rt6i_metric   = rt0->rt6i_metric;
 		x->u.rt6.rt6i_node     = rt0->rt6i_node;
 		x->u.rt6.rt6i_gateway  = rt0->rt6i_gateway;
-		memcpy(&x->u.rt6.rt6i_gateway, &rt0->rt6i_gateway, sizeof(x->u.rt6.rt6i_gateway)); 
+		memcpy(&x->u.rt6.rt6i_gateway, &rt0->rt6i_gateway, sizeof(x->u.rt6.rt6i_gateway));
 		x->u.rt6.rt6i_dst      = rt0->rt6i_dst;
-		x->u.rt6.rt6i_src      = rt0->rt6i_src;	
+		x->u.rt6.rt6i_src      = rt0->rt6i_src;
 		x->u.rt6.rt6i_idev     = rt0->rt6i_idev;
 		in6_dev_hold(rt0->rt6i_idev);
 		__xfrm6_bundle_len_dec(&header_len, &nfheader_len, x->u.dst.xfrm);

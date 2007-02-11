@@ -77,7 +77,7 @@ static struct snmp_mib sctp_snmp_list[] = {
 
 /* Return the current value of a particular entry in the mib by adding its
  * per cpu counters.
- */ 
+ */
 static unsigned long
 fold_field(void *mib[], int nr)
 {
@@ -102,7 +102,7 @@ static int sctp_snmp_seq_show(struct seq_file *seq, void *v)
 
 	for (i = 0; sctp_snmp_list[i].name != NULL; i++)
 		seq_printf(seq, "%-32s\t%ld\n", sctp_snmp_list[i].name,
-			   fold_field((void **)sctp_statistics, 
+			   fold_field((void **)sctp_statistics,
 				      sctp_snmp_list[i].entry));
 
 	return 0;

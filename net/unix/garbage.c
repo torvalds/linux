@@ -63,7 +63,7 @@
  *		Damn. Added missing check for ->dead in listen queues scanning.
  *
  */
- 
+
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -118,7 +118,7 @@ static struct sock *unix_get_socket(struct file *filp)
  *	Keep the number of times in flight count for the file
  *	descriptor if it is for an AF_UNIX socket.
  */
- 
+
 void unix_inflight(struct file *fp)
 {
 	struct sock *s = unix_get_socket(fp);
@@ -190,7 +190,7 @@ void unix_gc(void)
 		unix_sk(s)->gc_tree = GC_ORPHAN;
 	}
 	/*
-	 *	Everything is now marked 
+	 *	Everything is now marked
 	 */
 
 	/* Invariant to be maintained:
@@ -227,7 +227,7 @@ void unix_gc(void)
 	}
 
 	/*
-	 *	Mark phase 
+	 *	Mark phase
 	 */
 
 	while (!empty_stack())
@@ -237,11 +237,11 @@ void unix_gc(void)
 
 		spin_lock(&x->sk_receive_queue.lock);
 		skb = skb_peek(&x->sk_receive_queue);
-		
+
 		/*
-		 *	Loop through all but first born 
+		 *	Loop through all but first born
 		 */
-		
+
 		while (skb && skb != (struct sk_buff *)&x->sk_receive_queue) {
 			/*
 			 *	Do we have file descriptors ?

@@ -87,7 +87,7 @@ static int __must_check ax25_rt_add(struct ax25_routes_struct *route)
 	ax25_rt = ax25_route_list;
 	while (ax25_rt != NULL) {
 		if (ax25cmp(&ax25_rt->callsign, &route->dest_addr) == 0 &&
-		            ax25_rt->dev == ax25_dev->dev) {
+			    ax25_rt->dev == ax25_dev->dev) {
 			kfree(ax25_rt->digipeat);
 			ax25_rt->digipeat = NULL;
 			if (route->digi_count != 0) {
@@ -252,8 +252,8 @@ static void *ax25_rt_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct ax25_route *ax25_rt;
 	int i = 1;
- 
- 	read_lock(&ax25_route_lock);
+
+	read_lock(&ax25_route_lock);
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
@@ -269,7 +269,7 @@ static void *ax25_rt_seq_start(struct seq_file *seq, loff_t *pos)
 static void *ax25_rt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
-	return (v == SEQ_START_TOKEN) ? ax25_route_list : 
+	return (v == SEQ_START_TOKEN) ? ax25_route_list :
 		((struct ax25_route *) v)->next;
 }
 

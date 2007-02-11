@@ -303,7 +303,7 @@ static void do_pmtu_discovery(struct sock *sk, struct iphdr *iph, u32 mtu)
 	/* We don't check in the destentry if pmtu discovery is forbidden
 	 * on this route. We just assume that no packet_to_big packets
 	 * are send back when pmtu discovery is not active.
-     	 * There is a small race when the user changes this flag in the
+	 * There is a small race when the user changes this flag in the
 	 * route, but I think that's acceptable.
 	 */
 	if ((dst = __sk_dst_check(sk, 0)) == NULL)
@@ -880,7 +880,7 @@ int tcp_v4_md5_do_add(struct sock *sk, __be32 addr,
 
 		if (md5sig->alloced4 == md5sig->entries4) {
 			keys = kmalloc((sizeof(*keys) *
-				        (md5sig->entries4 + 1)), GFP_ATOMIC);
+					(md5sig->entries4 + 1)), GFP_ATOMIC);
 			if (!keys) {
 				kfree(newkey);
 				tcp_free_md5sig_pool();
@@ -934,7 +934,7 @@ int tcp_v4_md5_do_del(struct sock *sk, __be32 addr)
 				memcpy(&tp->md5sig_info->keys4[i],
 				       &tp->md5sig_info->keys4[i+1],
 				       (tp->md5sig_info->entries4 - i) *
-				        sizeof(struct tcp4_md5sig_key));
+					sizeof(struct tcp4_md5sig_key));
 			}
 			tcp_free_md5sig_pool();
 			return 0;
@@ -1388,7 +1388,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		goto drop_and_free;
 
 	if (want_cookie) {
-	   	reqsk_free(req);
+		reqsk_free(req);
 	} else {
 		inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
 	}
@@ -1704,7 +1704,7 @@ bad_packet:
 discard_it:
 	/* Discard frame. */
 	kfree_skb(skb);
-  	return 0;
+	return 0;
 
 discard_and_relse:
 	sock_put(sk);
@@ -1890,10 +1890,10 @@ int tcp_v4_destroy_sock(struct sock *sk)
 	tcp_cleanup_congestion_control(sk);
 
 	/* Cleanup up the write buffer. */
-  	sk_stream_writequeue_purge(sk);
+	sk_stream_writequeue_purge(sk);
 
 	/* Cleans up our, hopefully empty, out_of_order_queue. */
-  	__skb_queue_purge(&tp->out_of_order_queue);
+	__skb_queue_purge(&tp->out_of_order_queue);
 
 #ifdef CONFIG_TCP_MD5SIG
 	/* Clean up the MD5 key list, if any */
@@ -1906,7 +1906,7 @@ int tcp_v4_destroy_sock(struct sock *sk)
 
 #ifdef CONFIG_NET_DMA
 	/* Cleans up our sk_async_wait_queue */
-  	__skb_queue_purge(&sk->sk_async_wait_queue);
+	__skb_queue_purge(&sk->sk_async_wait_queue);
 #endif
 
 	/* Clean prequeue, it must be empty really */
@@ -1983,7 +1983,7 @@ get_req:
 		st->state = TCP_SEQ_STATE_LISTENING;
 		read_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 	} else {
-	       	icsk = inet_csk(sk);
+		icsk = inet_csk(sk);
 		read_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 		if (reqsk_queue_len(&icsk->icsk_accept_queue))
 			goto start_req;
@@ -1996,7 +1996,7 @@ get_sk:
 			cur = sk;
 			goto out;
 		}
-	       	icsk = inet_csk(sk);
+		icsk = inet_csk(sk);
 		read_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 		if (reqsk_queue_len(&icsk->icsk_accept_queue)) {
 start_req:

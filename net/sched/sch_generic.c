@@ -36,7 +36,7 @@
 
 /* Main transmission queue. */
 
-/* Main qdisc structure lock. 
+/* Main qdisc structure lock.
 
    However, modifications
    to data, participating in scheduling must be additionally
@@ -66,7 +66,7 @@ void qdisc_unlock_tree(struct net_device *dev)
 	write_unlock(&qdisc_tree_lock);
 }
 
-/* 
+/*
    dev->queue_lock serializes queue accesses for this device
    AND dev->qdisc pointer itself.
 
@@ -82,7 +82,7 @@ void qdisc_unlock_tree(struct net_device *dev)
    we do not check dev->tbusy flag here.
 
    Returns:  0  - queue is empty.
-            >0  - queue is not empty, but throttled.
+	    >0  - queue is not empty, but throttled.
 	    <0  - queue is not empty. Device is throttled, if dev->tbusy != 0.
 
    NOTE: Called under dev->queue_lock with locally disabled BH.
@@ -112,7 +112,7 @@ static inline int qdisc_restart(struct net_device *dev)
 			if (!netif_tx_trylock(dev)) {
 			collision:
 				/* So, someone grabbed the driver. */
-				
+
 				/* It may be transient configuration error,
 				   when hard_start_xmit() recurses. We detect
 				   it by checking xmit owner and drop the
@@ -128,7 +128,7 @@ static inline int qdisc_restart(struct net_device *dev)
 				goto requeue;
 			}
 		}
-		
+
 		{
 			/* And release queue */
 			spin_unlock(&dev->queue_lock);
@@ -137,7 +137,7 @@ static inline int qdisc_restart(struct net_device *dev)
 				int ret;
 
 				ret = dev_hard_start_xmit(skb, dev);
-				if (ret == NETDEV_TX_OK) { 
+				if (ret == NETDEV_TX_OK) {
 					if (!nolock) {
 						netif_tx_unlock(dev);
 					}
@@ -146,15 +146,15 @@ static inline int qdisc_restart(struct net_device *dev)
 				}
 				if (ret == NETDEV_TX_LOCKED && nolock) {
 					spin_lock(&dev->queue_lock);
-					goto collision; 
+					goto collision;
 				}
 			}
 
 			/* NETDEV_TX_BUSY - we need to requeue */
 			/* Release the driver */
-			if (!nolock) { 
+			if (!nolock) {
 				netif_tx_unlock(dev);
-			} 
+			}
 			spin_lock(&dev->queue_lock);
 			q = dev->qdisc;
 		}
@@ -300,7 +300,7 @@ struct Qdisc noop_qdisc = {
 	.enqueue	=	noop_enqueue,
 	.dequeue	=	noop_dequeue,
 	.flags		=	TCQ_F_BUILTIN,
-	.ops		=	&noop_qdisc_ops,	
+	.ops		=	&noop_qdisc_ops,
 	.list		=	LIST_HEAD_INIT(noop_qdisc.list),
 };
 
@@ -454,7 +454,7 @@ struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops,
 				 unsigned int parentid)
 {
 	struct Qdisc *sch;
-	
+
 	sch = qdisc_alloc(dev, ops);
 	if (IS_ERR(sch))
 		goto errout;
@@ -478,7 +478,7 @@ void qdisc_reset(struct Qdisc *qdisc)
 		ops->reset(qdisc);
 }
 
-/* this is the rcu callback function to clean up a qdisc when there 
+/* this is the rcu callback function to clean up a qdisc when there
  * are no further references to it */
 
 static void __qdisc_destroy(struct rcu_head *head)
@@ -600,10 +600,10 @@ void dev_shutdown(struct net_device *dev)
 	dev->qdisc_sleeping = &noop_qdisc;
 	qdisc_destroy(qdisc);
 #if defined(CONFIG_NET_SCH_INGRESS) || defined(CONFIG_NET_SCH_INGRESS_MODULE)
-        if ((qdisc = dev->qdisc_ingress) != NULL) {
+	if ((qdisc = dev->qdisc_ingress) != NULL) {
 		dev->qdisc_ingress = NULL;
 		qdisc_destroy(qdisc);
-        }
+	}
 #endif
 	BUG_TRAP(!timer_pending(&dev->watchdog_timer));
 	qdisc_unlock_tree(dev);

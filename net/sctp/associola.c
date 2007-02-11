@@ -158,14 +158,14 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * If the 'T5-shutdown-guard' timer is used, it SHOULD be set to the
 	 * recommended value of 5 times 'RTO.Max'.
 	 */
-        asoc->timeouts[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]
 		= 5 * asoc->rto_max;
 
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] = 0;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] = asoc->sackdelay;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
 		sp->autoclose * HZ;
-	
+
 	/* Initilizes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i) {
 		init_timer(&asoc->timers[i]);
@@ -1334,8 +1334,8 @@ int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *asoc,
 				      asoc->ep->base.bind_addr.port, gfp);
 }
 
-/* Lookup laddr in the bind address list of an association. */ 
-int sctp_assoc_lookup_laddr(struct sctp_association *asoc, 
+/* Lookup laddr in the bind address list of an association. */
+int sctp_assoc_lookup_laddr(struct sctp_association *asoc,
 			    const union sctp_addr *laddr)
 {
 	int found;
@@ -1343,7 +1343,7 @@ int sctp_assoc_lookup_laddr(struct sctp_association *asoc,
 	sctp_read_lock(&asoc->base.addr_lock);
 	if ((asoc->base.bind_addr.port == ntohs(laddr->v4.sin_port)) &&
 	    sctp_bind_addr_match(&asoc->base.bind_addr, laddr,
-			         sctp_sk(asoc->base.sk))) {
+				 sctp_sk(asoc->base.sk))) {
 		found = 1;
 		goto out;
 	}

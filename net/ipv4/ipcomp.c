@@ -5,7 +5,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
+ * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
  * Todo:
@@ -48,7 +48,7 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 	u8 *start, *scratch;
 	struct crypto_comp *tfm;
 	int cpu;
-	
+
 	plen = skb->len;
 	dlen = IPCOMP_SCRATCH_SIZE;
 	start = skb->data;
@@ -69,11 +69,11 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 	err = pskb_expand_head(skb, 0, dlen - plen, GFP_ATOMIC);
 	if (err)
 		goto out;
-		
+
 	skb->truesize += dlen - plen;
 	__skb_put(skb, dlen - plen);
 	memcpy(skb->data, scratch, dlen);
-out:	
+out:
 	put_cpu();
 	return err;
 }
@@ -85,11 +85,11 @@ static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct ip_comp_hdr *ipch;
 
 	if (skb_linearize_cow(skb))
-	    	goto out;
+		goto out;
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	/* Remove ipcomp header and decompress original payload */	
+	/* Remove ipcomp header and decompress original payload */
 	iph = skb->nh.iph;
 	ipch = (void *)skb->data;
 	iph->protocol = ipch->nexthdr;
@@ -97,7 +97,7 @@ static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 	__skb_pull(skb, sizeof(*ipch));
 	err = ipcomp_decompress(x, skb);
 
-out:	
+out:
 	return err;
 }
 
@@ -109,7 +109,7 @@ static int ipcomp_compress(struct xfrm_state *x, struct sk_buff *skb)
 	u8 *start, *scratch;
 	struct crypto_comp *tfm;
 	int cpu;
-	
+
 	ihlen = iph->ihl * 4;
 	plen = skb->len - ihlen;
 	dlen = IPCOMP_SCRATCH_SIZE;
@@ -127,14 +127,14 @@ static int ipcomp_compress(struct xfrm_state *x, struct sk_buff *skb)
 		err = -EMSGSIZE;
 		goto out;
 	}
-	
+
 	memcpy(start + sizeof(struct ip_comp_hdr), scratch, dlen);
 	put_cpu();
 
 	pskb_trim(skb, ihlen + dlen + sizeof(struct ip_comp_hdr));
 	return 0;
-	
-out:	
+
+out:
 	put_cpu();
 	return err;
 }
@@ -157,7 +157,7 @@ static int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	if (skb_linearize_cow(skb))
 		goto out_ok;
-	
+
 	err = ipcomp_compress(x, skb);
 	iph = skb->nh.iph;
 
@@ -194,7 +194,7 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 
 	spi = htonl(ntohs(ipch->cpi));
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr,
-	                      spi, IPPROTO_COMP, AF_INET);
+			      spi, IPPROTO_COMP, AF_INET);
 	if (!x)
 		return;
 	NETDEBUG(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/%u.%u.%u.%u\n",
@@ -202,12 +202,12 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 	xfrm_state_put(x);
 }
 
-/* We always hold one tunnel user reference to indicate a tunnel */ 
+/* We always hold one tunnel user reference to indicate a tunnel */
 static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 {
 	struct xfrm_state *t;
 	u8 mode = XFRM_MODE_TUNNEL;
-	
+
 	t = xfrm_state_alloc();
 	if (t == NULL)
 		goto out;
@@ -247,7 +247,7 @@ static int ipcomp_tunnel_attach(struct xfrm_state *x)
 	struct xfrm_state *t;
 
 	t = xfrm_state_lookup((xfrm_address_t *)&x->id.daddr.a4,
-	                      x->props.saddr.a4, IPPROTO_IPIP, AF_INET);
+			      x->props.saddr.a4, IPPROTO_IPIP, AF_INET);
 	if (!t) {
 		t = ipcomp_tunnel_create(x);
 		if (!t) {

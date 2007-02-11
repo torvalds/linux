@@ -124,7 +124,7 @@ void linkwatch_run_queue(void)
 
 		dev_put(dev);
 	}
-}       
+}
 
 
 static void linkwatch_event(struct work_struct *dummy)
@@ -133,7 +133,7 @@ static void linkwatch_event(struct work_struct *dummy)
 	 * per second so that a runaway driver does not
 	 * cause a storm of messages on the netlink
 	 * socket
-	 */	
+	 */
 	linkwatch_nextevent = jiffies + HZ;
 	clear_bit(LW_RUNNING, &linkwatch_flags);
 

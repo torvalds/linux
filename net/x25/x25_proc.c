@@ -3,7 +3,7 @@
  *
  *	This is ALPHA test software. This code may break your machine,
  *	randomly fail to work with new releases, misbehave and/or generally
- *	screw up. It might even work. 
+ *	screw up. It might even work.
  *
  *	This code REQUIRES 2.4 with seq_file support
  *
@@ -62,7 +62,7 @@ static void *x25_seq_route_next(struct seq_file *seq, void *v, loff_t *pos)
 	rt = v;
 	if (rt->node.next != &x25_route_list)
 		rt = list_entry(rt->node.next, struct x25_route, node);
-	else 
+	else
 		rt = NULL;
 out:
 	return rt;
@@ -88,7 +88,7 @@ static int x25_seq_route_show(struct seq_file *seq, void *v)
 		   rt->dev ? rt->dev->name : "???");
 out:
 	return 0;
-} 
+}
 
 static __inline__ struct sock *x25_get_socket_idx(loff_t pos)
 {
@@ -163,7 +163,7 @@ static int x25_seq_socket_show(struct seq_file *seq, void *v)
 		   s->sk_socket ? SOCK_INODE(s->sk_socket)->i_ino : 0L);
 out:
 	return 0;
-} 
+}
 
 static __inline__ struct x25_forward *x25_get_forward_idx(loff_t pos)
 {

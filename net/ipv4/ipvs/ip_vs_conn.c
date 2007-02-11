@@ -494,8 +494,8 @@ int ip_vs_check_template(struct ip_vs_conn *ct)
 	 * Checking the dest server status.
 	 */
 	if ((dest == NULL) ||
-	    !(dest->flags & IP_VS_DEST_F_AVAILABLE) || 
-	    (sysctl_ip_vs_expire_quiescent_template && 
+	    !(dest->flags & IP_VS_DEST_F_AVAILABLE) ||
+	    (sysctl_ip_vs_expire_quiescent_template &&
 	     (atomic_read(&dest->weight) == 0))) {
 		IP_VS_DBG(9, "check_template: dest not available for "
 			  "protocol %s s:%u.%u.%u.%u:%d v:%u.%u.%u.%u:%d "
@@ -666,7 +666,7 @@ static void *ip_vs_conn_array(struct seq_file *seq, loff_t pos)
 {
 	int idx;
 	struct ip_vs_conn *cp;
-	
+
 	for(idx = 0; idx < IP_VS_CONN_TAB_SIZE; idx++) {
 		ct_read_lock_bh(idx);
 		list_for_each_entry(cp, &ip_vs_conn_tab[idx], c_list) {
@@ -694,7 +694,7 @@ static void *ip_vs_conn_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	int idx;
 
 	++*pos;
-	if (v == SEQ_START_TOKEN) 
+	if (v == SEQ_START_TOKEN)
 		return ip_vs_conn_array(seq, 0);
 
 	/* more on same hash chain? */
@@ -709,7 +709,7 @@ static void *ip_vs_conn_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		list_for_each_entry(cp, &ip_vs_conn_tab[idx], c_list) {
 			seq->private = &ip_vs_conn_tab[idx];
 			return cp;
-		}	
+		}
 		ct_read_unlock_bh(idx);
 	}
 	seq->private = NULL;

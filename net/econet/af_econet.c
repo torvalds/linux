@@ -139,7 +139,7 @@ static int econet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	skb=skb_recv_datagram(sk,flags,flags&MSG_DONTWAIT,&err);
 
 	/*
-	 *	An error occurred so return it. Because skb_recv_datagram() 
+	 *	An error occurred so return it. Because skb_recv_datagram()
 	 *	handles the blocking we don't see and worry about blocking
 	 *	retries.
 	 */
@@ -190,15 +190,15 @@ static int econet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len
 	struct sockaddr_ec *sec = (struct sockaddr_ec *)uaddr;
 	struct sock *sk;
 	struct econet_sock *eo;
-	
+
 	/*
 	 *	Check legality
 	 */
-	 
+
 	if (addr_len < sizeof(struct sockaddr_ec) ||
 	    sec->sec_family != AF_ECONET)
 		return -EINVAL;
-	
+
 	mutex_lock(&econet_mutex);
 
 	sk = sock->sk;
@@ -283,18 +283,18 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	int i;
 	mm_segment_t oldfs;
 #endif
-		
+
 	/*
-	 *	Check the flags. 
+	 *	Check the flags.
 	 */
 
-	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_CMSG_COMPAT)) 
+	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_CMSG_COMPAT))
 		return -EINVAL;
 
 	/*
-	 *	Get and verify the address. 
+	 *	Get and verify the address.
 	 */
-	 
+
 	mutex_lock(&econet_mutex);
 
 	if (saddr == NULL) {
@@ -339,17 +339,17 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		unsigned short proto = 0;
 
 		dev_hold(dev);
-		
-		skb = sock_alloc_send_skb(sk, len+LL_RESERVED_SPACE(dev), 
+
+		skb = sock_alloc_send_skb(sk, len+LL_RESERVED_SPACE(dev),
 					  msg->msg_flags & MSG_DONTWAIT, &err);
 		if (skb==NULL)
 			goto out_unlock;
-		
+
 		skb_reserve(skb, LL_RESERVED_SPACE(dev));
 		skb->nh.raw = skb->data;
-		
+
 		eb = (struct ec_cb *)&skb->cb;
-		
+
 		/* BUG: saddr may be NULL */
 		eb->cookie = saddr->cookie;
 		eb->sec = *saddr;
@@ -359,7 +359,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 			int res;
 			struct ec_framehdr *fh;
 			err = -EINVAL;
-			res = dev->hard_header(skb, dev, ntohs(proto), 
+			res = dev->hard_header(skb, dev, ntohs(proto),
 					       &addr, NULL, len);
 			/* Poke in our control byte and
 			   port number.  Hack, hack.  */
@@ -372,7 +372,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 			} else if (res < 0)
 				goto out_free;
 		}
-		
+
 		/* Copy the data. Returns -EFAULT on error */
 		err = memcpy_fromiovec(skb_put(skb,len), msg->msg_iov, len);
 		skb->protocol = proto;
@@ -380,15 +380,15 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		skb->priority = sk->sk_priority;
 		if (err)
 			goto out_free;
-		
+
 		err = -ENETDOWN;
 		if (!(dev->flags & IFF_UP))
 			goto out_free;
-		
+
 		/*
 		 *	Now send it
 		 */
-		
+
 		dev_queue_xmit(skb);
 		dev_put(dev);
 		mutex_unlock(&econet_mutex);
@@ -414,7 +414,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		mutex_unlock(&econet_mutex);
 		return -ENETDOWN;		/* No socket - can't send */
 	}
-	
+
 	/* Make up a UDP datagram and hand it off to some higher intellect. */
 
 	memset(&udpdest, 0, sizeof(udpdest));
@@ -432,7 +432,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		idev = __in_dev_get_rcu(dev);
 		if (idev) {
 			if (idev->ifa_list)
-				network = ntohl(idev->ifa_list->ifa_address) & 
+				network = ntohl(idev->ifa_list->ifa_address) &
 					0xffffff00;		/* !!! */
 		}
 		rcu_read_unlock();
@@ -470,7 +470,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	}
 
 	/* Get a skbuff (no data, just holds our cb information) */
-	if ((skb = sock_alloc_send_skb(sk, 0, 
+	if ((skb = sock_alloc_send_skb(sk, 0,
 				       msg->msg_flags & MSG_DONTWAIT,
 				       &err)) == NULL) {
 		mutex_unlock(&econet_mutex);
@@ -660,7 +660,7 @@ static int ec_dev_ioctl(struct socket *sock, unsigned int cmd, void __user *arg)
 	if (copy_from_user(&ifr, arg, sizeof(struct ifreq)))
 		return -EFAULT;
 
-	if ((dev = dev_get_by_name(ifr.ifr_name)) == NULL) 
+	if ((dev = dev_get_by_name(ifr.ifr_name)) == NULL)
 		return -ENODEV;
 
 	sec = (struct sockaddr_ec *)&ifr.ifr_addr;
@@ -754,7 +754,7 @@ static const struct proto_ops econet_ops = {
 	.connect =	sock_no_connect,
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,
-	.getname =	econet_getname, 
+	.getname =	econet_getname,
 	.poll =		datagram_poll,
 	.ioctl =	econet_ioctl,
 	.listen =	sock_no_listen,
@@ -780,7 +780,7 @@ static struct sock *ec_listening_socket(unsigned char port, unsigned char
 
 	sk_for_each(sk, node, &econet_sklist) {
 		struct econet_sock *opt = ec_sk(sk);
-		if ((opt->port == port || opt->port == 0) && 
+		if ((opt->port == port || opt->port == 0) &&
 		    (opt->station == station || opt->station == 0) &&
 		    (opt->net == net || opt->net == 0))
 			goto found;
@@ -815,7 +815,7 @@ static int ec_queue_packet(struct sock *sk, struct sk_buff *skb,
 
 #ifdef CONFIG_ECONET_AUNUDP
 /*
- *	Send an AUN protocol response. 
+ *	Send an AUN protocol response.
  */
 
 static void aun_send_response(__u32 addr, unsigned long seq, int code, int cb)
@@ -828,7 +828,7 @@ static void aun_send_response(__u32 addr, unsigned long seq, int code, int cb)
 	struct aunhdr ah = {.code = code, .cb = cb, .handle = seq};
 	struct kvec iov = {.iov_base = (void *)&ah, .iov_len = sizeof(ah)};
 	struct msghdr udpmsg;
-	
+
 	udpmsg.msg_name = (void *)&sin;
 	udpmsg.msg_namelen = sizeof(sin);
 	udpmsg.msg_control = NULL;
@@ -858,7 +858,7 @@ static void aun_incoming(struct sk_buff *skb, struct aunhdr *ah, size_t len)
 	if ((sk = ec_listening_socket(ah->port, stn, edev->net)) == NULL)
 		goto bad;		/* Nobody wants it */
 
-	newskb = alloc_skb((len - sizeof(struct aunhdr) + 15) & ~15, 
+	newskb = alloc_skb((len - sizeof(struct aunhdr) + 15) & ~15,
 			   GFP_ATOMIC);
 	if (newskb == NULL)
 	{
@@ -867,7 +867,7 @@ static void aun_incoming(struct sk_buff *skb, struct aunhdr *ah, size_t len)
 		goto bad;
 	}
 
-	memcpy(skb_put(newskb, len - sizeof(struct aunhdr)), (void *)(ah+1), 
+	memcpy(skb_put(newskb, len - sizeof(struct aunhdr)), (void *)(ah+1),
 	       len - sizeof(struct aunhdr));
 
 	if (ec_queue_packet(sk, newskb, stn, edev->net, ah->cb, ah->port))
@@ -990,7 +990,7 @@ static void ab_cleanup(unsigned long h)
 		struct ec_cb *eb = (struct ec_cb *)&skb->cb;
 		if ((jiffies - eb->start) > eb->timeout)
 		{
-			tx_result(skb->sk, eb->cookie, 
+			tx_result(skb->sk, eb->cookie,
 				  ECTYPE_TRANSMIT_NOT_PRESENT);
 			skb_unlink(skb, &aun_queue);
 			kfree_skb(skb);
@@ -1024,11 +1024,11 @@ static int __init aun_udp_initialise(void)
 		printk("AUN: socket error %d\n", -error);
 		return error;
 	}
-	
+
 	udpsock->sk->sk_reuse = 1;
 	udpsock->sk->sk_allocation = GFP_ATOMIC; /* we're going to call it
 						    from interrupts */
-	
+
 	error = udpsock->ops->bind(udpsock, (struct sockaddr *)&sin,
 				sizeof(sin));
 	if (error < 0)
