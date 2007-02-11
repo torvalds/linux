@@ -155,7 +155,7 @@ parse_extended(struct parsed_partitions *state, struct block_device *bdev,
 
 			put_partition(state, state->next, next, size);
 			if (SYS_IND(p) == LINUX_RAID_PARTITION)
-				state->parts[state->next].flags = 1;
+				state->parts[state->next].flags = ADDPART_FLAG_RAID;
 			loopct = 0;
 			if (++state->next == state->limit)
 				goto done;
