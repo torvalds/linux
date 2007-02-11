@@ -1550,6 +1550,12 @@ static void mmc_setup(struct mmc_host *host)
  */
 void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 {
+#ifdef CONFIG_MMC_DEBUG
+	mmc_claim_host(host);
+	BUG_ON(host->removed);
+	mmc_release_host(host);
+#endif
+
 	mmc_schedule_delayed_work(&host->detect, delay);
 }
 
@@ -1690,6 +1696,14 @@ void mmc_remove_host(struct mmc_host *host)
 {
 	struct list_head *l, *n;
 
+#ifdef CONFIG_MMC_DEBUG
+	mmc_claim_host(host);
+	host->removed = 1;
+	mmc_release_host(host);
+#endif
+
+	mmc_flush_scheduled_work();
+
 	list_for_each_safe(l, n, &host->cards) {
 		struct mmc_card *card = mmc_list_to_card(l);
 
@@ -1710,7 +1724,6 @@ EXPORT_SYMBOL(mmc_remove_host);
  */
 void mmc_free_host(struct mmc_host *host)
 {
-	mmc_flush_scheduled_work();
 	mmc_free_host_sysfs(host);
 }
 

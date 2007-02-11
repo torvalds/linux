@@ -147,6 +147,9 @@ struct mmc_host {
 	struct mmc_card		*card_selected;	/* the selected MMC card */
 
 	struct delayed_work	detect;
+#ifdef CONFIG_MMC_DEBUG
+	unsigned int		removed:1;	/* host is being removed */
+#endif
 
 	unsigned long		private[0] ____cacheline_aligned;
 };
