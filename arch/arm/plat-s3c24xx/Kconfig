@@ -7,9 +7,11 @@
 config PLAT_S3C24XX
 	bool
 	depends on ARCH_S3C2410
-	default y
+	default y if ARCH_S3C2410
 	help
 	  Base platform code for any Samsung S3C device
+
+if PLAT_S3C24XX
 
 config CPU_S3C244X
 	bool
@@ -94,3 +96,4 @@ config MACH_SMDK
 	help
 	  Common machine code for SMDK2410 and SMDK2440
 
+endif
