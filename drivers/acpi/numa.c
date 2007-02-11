@@ -220,9 +220,7 @@ int __init acpi_numa_init(void)
 	int result;
 
 	/* SRAT: Static Resource Affinity Table */
-	result = acpi_table_parse(ACPI_SIG_SRAT, acpi_parse_srat);
-
-	if (result > 0) {
+	if (!acpi_table_parse(ACPI_SIG_SRAT, acpi_parse_srat)) {
 		result = acpi_table_parse_srat(ACPI_SRAT_TYPE_CPU_AFFINITY,
 					       acpi_parse_processor_affinity,
 					       NR_CPUS);
@@ -230,7 +228,7 @@ int __init acpi_numa_init(void)
 	}
 
 	/* SLIT: System Locality Information Table */
-	result = acpi_table_parse(ACPI_SIG_SLIT, acpi_parse_slit);
+	acpi_table_parse(ACPI_SIG_SLIT, acpi_parse_slit);
 
 	acpi_numa_arch_fixup();
 	return 0;

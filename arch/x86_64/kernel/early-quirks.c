@@ -53,7 +53,9 @@ static void nvidia_bugs(void)
 		return;
 
 	nvidia_hpet_detected = 0;
-	acpi_table_parse(ACPI_SIG_HPET, nvidia_hpet_check);
+	if (acpi_table_parse(ACPI_SIG_HPET, nvidia_hpet_check))
+		return;
+
 	if (nvidia_hpet_detected == 0) {
 		acpi_skip_timer_override = 1;
 		printk(KERN_INFO "Nvidia board "

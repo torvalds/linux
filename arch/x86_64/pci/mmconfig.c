@@ -170,7 +170,9 @@ void __init pci_mmcfg_init(int type)
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return;
 
-	acpi_table_parse(ACPI_SIG_MCFG, acpi_parse_mcfg);
+	if (acpi_table_parse(ACPI_SIG_MCFG, acpi_parse_mcfg))
+		return;
+
 	if ((pci_mmcfg_config_num == 0) ||
 	    (pci_mmcfg_config == NULL) ||
 	    (pci_mmcfg_config[0].address == 0))
