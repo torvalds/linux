@@ -38,13 +38,37 @@ extern void assfail(char *expr, char *f, int l);
 
 #ifndef DEBUG
 # define ASSERT(expr)	((void)0)
-#else
-# define ASSERT(expr)	ASSERT_ALWAYS(expr)
-extern unsigned long random(void);
-#endif
 
 #ifndef STATIC
-# define STATIC static
+# define STATIC static noinline
 #endif
+
+#ifndef STATIC_INLINE
+# define STATIC_INLINE static inline
+#endif
+
+#else /* DEBUG */
+
+# define ASSERT(expr)	ASSERT_ALWAYS(expr)
+extern unsigned long random(void);
+
+#ifndef STATIC
+# define STATIC noinline
+#endif
+
+/*
+ * We stop inlining of inline functions in debug mode.
+ * Unfortunately, this means static inline in header files
+ * get multiple definitions, so they need to remain static.
+ * This then gives tonnes of warnings about unused but defined
+ * functions, so we need to add the unused attribute to prevent
+ * these spurious warnings.
+ */
+#ifndef STATIC_INLINE
+# define STATIC_INLINE static __attribute__ ((unused)) noinline
+#endif
+
+#endif /* DEBUG */
+
 
 #endif  /* __XFS_SUPPORT_DEBUG_H__ */

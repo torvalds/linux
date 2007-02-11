@@ -43,8 +43,6 @@
 #include "xfs_itable.h"
 #include "xfs_rw.h"
 #include "xfs_acl.h"
-#include "xfs_cap.h"
-#include "xfs_mac.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
@@ -250,13 +248,13 @@ xfs_init_security(
  *
  * XXX(hch):  nfsd is broken, better fix it instead.
  */
-STATIC inline int
+STATIC_INLINE int
 xfs_has_fs_struct(struct task_struct *task)
 {
 	return (task->fs != init_task.fs);
 }
 
-STATIC inline void
+STATIC void
 xfs_cleanup_inode(
 	bhv_vnode_t	*dvp,
 	bhv_vnode_t	*vp,

@@ -21,23 +21,7 @@
 /*
  * This is the structure used to lay out a buf log item in the
  * log.  The data map describes which 128 byte chunks of the buffer
- * have been logged.  This structure works only on buffers that
- * reside up to the first TB in the filesystem.  These buffers are
- * generated only by pre-6.2 systems and are known as XFS_LI_6_1_BUF.
- */
-typedef struct xfs_buf_log_format_v1 {
-	unsigned short	blf_type;	/* buf log item type indicator */
-	unsigned short	blf_size;	/* size of this item */
-	__int32_t	blf_blkno;	/* starting blkno of this buf */
-	ushort		blf_flags;	/* misc state */
-	ushort		blf_len;	/* number of blocks in this buf */
-	unsigned int	blf_map_size;	/* size of data bitmap in words */
-	unsigned int	blf_data_map[1];/* variable size bitmap of */
-					/*   regions of buffer in this item */
-} xfs_buf_log_format_v1_t;
-
-/*
- * This is a form of the above structure with a 64 bit blkno field.
+ * have been logged.
  * For 6.2 and beyond, this is XFS_LI_BUF.  We use this to log everything.
  */
 typedef struct xfs_buf_log_format_t {

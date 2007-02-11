@@ -31,7 +31,6 @@
 #include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_acl.h"
-#include "xfs_mac.h"
 #include "xfs_attr.h"
 
 #include <linux/capability.h>

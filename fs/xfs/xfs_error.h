@@ -144,7 +144,6 @@ extern void xfs_error_test_init(void);
 #endif /* __ANSI_CPP__ */
 
 extern int xfs_errortag_add(int error_tag, xfs_mount_t *mp);
-extern int xfs_errortag_clear(int error_tag, xfs_mount_t *mp);
 extern int xfs_errortag_clearall(xfs_mount_t *mp);
 extern int xfs_errortag_clearall_umount(int64_t fsid, char *fsname, int loud);
 #else
@@ -180,6 +179,6 @@ extern void xfs_fs_cmn_err(int level, struct xfs_mount *mp, char *fmt, ...);
 	xfs_fs_cmn_err(level, mp, fmt "  Unmount and run xfs_repair.", ## args)
 
 #define xfs_fs_mount_cmn_err(f, fmt, args...) \
-	((f & XFS_MFSI_QUIET)? cmn_err(CE_WARN, "XFS: " fmt, ## args) : (void)0)
+	((f & XFS_MFSI_QUIET)? (void)0 : cmn_err(CE_WARN, "XFS: " fmt, ## args))
 
 #endif	/* __XFS_ERROR_H__ */

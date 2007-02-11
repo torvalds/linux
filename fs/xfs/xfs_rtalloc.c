@@ -147,7 +147,7 @@ xfs_growfs_rt_alloc(
 		/*
 		 * Free any blocks freed up in the transaction, then commit.
 		 */
-		error = xfs_bmap_finish(&tp, &flist, firstblock, &committed);
+		error = xfs_bmap_finish(&tp, &flist, &committed);
 		if (error)
 			goto error_exit;
 		xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
@@ -910,57 +910,6 @@ xfs_rtcheck_alloc_range(
 	xfs_rtblock_t	new;		/* dummy for xfs_rtcheck_range */
 
 	return xfs_rtcheck_range(mp, tp, bno, len, 0, &new, stat);
-}
-#endif
-
-#ifdef DEBUG
-/*
- * Check whether the given block in the bitmap has the given value.
- */
-STATIC int				/* 1 for matches, 0 for not */
-xfs_rtcheck_bit(
-	xfs_mount_t	*mp,		/* file system mount structure */
-	xfs_trans_t	*tp,		/* transaction pointer */
-	xfs_rtblock_t	start,		/* bit (block) to check */
-	int		val)		/* 1 for free, 0 for allocated */
-{
-	int		bit;		/* bit number in the word */
-	xfs_rtblock_t	block;		/* bitmap block number */
-	xfs_buf_t	*bp;		/* buf for the block */
-	xfs_rtword_t	*bufp;		/* pointer into the buffer */
-	/* REFERENCED */
-	int		error;		/* error value */
-	xfs_rtword_t	wdiff;		/* difference between bit & expected */
-	int		word;		/* word number in the buffer */
-	xfs_rtword_t	wval;		/* word value from buffer */
-
-	block = XFS_BITTOBLOCK(mp, start);
-	error = xfs_rtbuf_get(mp, tp, block, 0, &bp);
-	bufp = (xfs_rtword_t *)XFS_BUF_PTR(bp);
-	word = XFS_BITTOWORD(mp, start);
-	bit = (int)(start & (XFS_NBWORD - 1));
-	wval = bufp[word];
-	xfs_trans_brelse(tp, bp);
-	wdiff = (wval ^ -val) & ((xfs_rtword_t)1 << bit);
-	return !wdiff;
-}
-#endif	/* DEBUG */
-
-#if 0
-/*
- * Check that the given extent (block range) is free already.
- */
-STATIC int				/* error */
-xfs_rtcheck_free_range(
-	xfs_mount_t	*mp,		/* file system mount point */
-	xfs_trans_t	*tp,		/* transaction pointer */
-	xfs_rtblock_t	bno,		/* starting block number of extent */
-	xfs_extlen_t	len,		/* length of extent */
-	int		*stat)		/* out: 1 for free, 0 for not */
-{
-	xfs_rtblock_t	new;		/* dummy for xfs_rtcheck_range */
-
-	return xfs_rtcheck_range(mp, tp, bno, len, 1, &new, stat);
 }
 #endif
 
@@ -2382,60 +2331,3 @@ xfs_rtpick_extent(
 	*pick = b;
 	return 0;
 }
-
-#ifdef DEBUG
-/*
- * Debug code: print out the value of a range in the bitmap.
- */
-void
-xfs_rtprint_range(
-	xfs_mount_t	*mp,		/* file system mount structure */
-	xfs_trans_t	*tp,		/* transaction pointer */
-	xfs_rtblock_t	start,		/* starting block to print */
-	xfs_extlen_t	len)		/* length to print */
-{
-	xfs_extlen_t	i;		/* block number in the extent */
-
-	cmn_err(CE_DEBUG, "%Ld: ", (long long)start);
-	for (i = 0; i < len; i++)
-		cmn_err(CE_DEBUG, "%d", xfs_rtcheck_bit(mp, tp, start + i, 1));
-	cmn_err(CE_DEBUG, "\n");
-}
-
-/*
- * Debug code: print the summary file.
- */
-void
-xfs_rtprint_summary(
-	xfs_mount_t	*mp,		/* file system mount structure */
-	xfs_trans_t	*tp)		/* transaction pointer */
-{
-	xfs_suminfo_t	c;		/* summary data */
-	xfs_rtblock_t	i;		/* bitmap block number */
-	int		l;		/* summary information level */
-	int		p;		/* flag for printed anything */
-	xfs_fsblock_t	sb;		/* summary block number */
-	xfs_buf_t	*sumbp;		/* summary block buffer */
-
-	sumbp = NULL;
-	for (l = 0; l < mp->m_rsumlevels; l++) {
-		for (p = 0, i = 0; i < mp->m_sb.sb_rbmblocks; i++) {
-			(void)xfs_rtget_summary(mp, tp, l, i, &sumbp, &sb, &c);
-			if (c) {
-				if (!p) {
-					cmn_err(CE_DEBUG, "%Ld-%Ld:", 1LL << l,
-						XFS_RTMIN((1LL << l) +
-							  ((1LL << l) - 1LL),
-							 mp->m_sb.sb_rextents));
-					p = 1;
-				}
-				cmn_err(CE_DEBUG, " %Ld:%d", (long long)i, c);
-			}
-		}
-		if (p)
-			cmn_err(CE_DEBUG, "\n");
-	}
-	if (sumbp)
-		xfs_trans_brelse(tp, sumbp);
-}
-#endif	/* DEBUG */
