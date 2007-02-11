@@ -167,7 +167,7 @@ static void wrandom_select_route(const struct flowi *flp,
 
 	/* collect all candidates and identify their weights */
 	for (rt = rcu_dereference(first); rt;
-	     rt = rcu_dereference(rt->u.rt_next)) {
+	     rt = rcu_dereference(rt->u.dst.rt_next)) {
 		if ((rt->u.dst.flags & DST_BALANCED) != 0 &&
 		    multipath_comparekeys(&rt->fl, flp)) {
 			struct multipath_candidate* mpc =
