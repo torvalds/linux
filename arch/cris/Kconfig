@@ -44,6 +44,9 @@ config IRQ_PER_CPU
 	bool
 	default y
 
+config NO_IOPORT
+	def_bool y
+
 config CRIS
 	bool
 	default y

@@ -840,6 +840,11 @@ enum pci_fixup_pass {
 
 void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev);
 
+void __iomem * pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen);
+void pcim_iounmap(struct pci_dev *pdev, void __iomem *addr);
+void __iomem * const * pcim_iomap_table(struct pci_dev *pdev);
+int pcim_iomap_regions(struct pci_dev *pdev, u16 mask, const char *name);
+
 extern int pci_pci_problems;
 #define PCIPCI_FAIL		1	/* No PCI PCI DMA */
 #define PCIPCI_TRITON		2

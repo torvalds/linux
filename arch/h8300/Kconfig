@@ -57,6 +57,9 @@ config TIME_LOW_RES
 	bool
 	default y
 
+config NO_IOPORT
+	def_bool y
+
 config ISA
 	bool
 	default y
