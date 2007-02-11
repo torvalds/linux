@@ -32,10 +32,10 @@
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 
-#include "s3c2410.h"
-#include "clock.h"
-#include "devs.h"
-#include "cpu.h"
+#include <asm/plat-s3c24xx/s3c2410.h>
+#include <asm/plat-s3c24xx/clock.h>
+#include <asm/plat-s3c24xx/devs.h>
+#include <asm/plat-s3c24xx/cpu.h>
 
 static struct map_desc otom11_iodesc[] __initdata = {
   /* Device area */

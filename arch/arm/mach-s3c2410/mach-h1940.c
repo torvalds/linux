@@ -38,10 +38,10 @@
 #include <asm/arch/h1940-latch.h>
 #include <asm/arch/fb.h>
 
-#include "clock.h"
-#include "devs.h"
-#include "cpu.h"
-#include "pm.h"
+#include <asm/plat-s3c24xx/clock.h>
+#include <asm/plat-s3c24xx/devs.h>
+#include <asm/plat-s3c24xx/cpu.h>
+#include <asm/plat-s3c24xx/pm.h>
 
 static struct map_desc h1940_iodesc[] __initdata = {
 	[0] = {

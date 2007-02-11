@@ -31,10 +31,10 @@
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-serial.h>
 
-#include "s3c2410.h"
-#include "cpu.h"
-#include "devs.h"
-#include "clock.h"
+#include <asm/plat-s3c24xx/s3c2410.h>
+#include <asm/plat-s3c24xx/cpu.h>
+#include <asm/plat-s3c24xx/devs.h>
+#include <asm/plat-s3c24xx/clock.h>
 
 /* Initial IO mappings */
 

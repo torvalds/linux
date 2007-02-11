@@ -1,4 +1,4 @@
-/***********************************************************************
+/* linux/arch/arm/mach-s3c2410/mach-amlm5900.c
  *
  * linux/arch/arm/mach-s3c2410/mach-amlm5900.c
  *
@@ -52,8 +52,8 @@
 #include <asm/arch/regs-lcd.h>
 #include <asm/arch/regs-gpio.h>
 
-#include "devs.h"
-#include "cpu.h"
+#include <asm/plat-s3c24xx/devs.h>
+#include <asm/plat-s3c24xx/cpu.h>
 
 #ifdef CONFIG_MTD_PARTITIONS
 
