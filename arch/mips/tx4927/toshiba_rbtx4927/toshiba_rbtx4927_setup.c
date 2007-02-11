@@ -137,6 +137,8 @@ int tx4927_using_backplane = 0;
 extern void gt64120_time_init(void);
 extern void toshiba_rbtx4927_irq_setup(void);
 
+char *prom_getcmdline(void);
+
 #ifdef CONFIG_PCI
 #define CONFIG_TX4927BUG_WORKAROUND
 #undef TX4927_SUPPORT_COMMAND_IO

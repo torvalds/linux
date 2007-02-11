@@ -17,6 +17,7 @@
  *
  */
 
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -34,6 +35,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <asm/mipsmtregs.h>
+#include <asm/mips_mt.h>
 #include <asm/cacheflush.h>
 #include <asm/atomic.h>
 #include <asm/cpu.h>
@@ -498,7 +500,8 @@ static char register_chrdev_failed[] __initdata =
 
 static int rtlx_module_init(void)
 {
-	int i;
+	struct device *dev;
+	int i, err;
 
 	major = register_chrdev(0, module_name, &rtlx_fops);
 	if (major < 0) {
@@ -511,6 +514,13 @@ static int rtlx_module_init(void)
 		init_waitqueue_head(&channel_wqs[i].rt_queue);
 		init_waitqueue_head(&channel_wqs[i].lx_queue);
 		channel_wqs[i].in_open = 0;
+
+		dev = device_create(mt_class, NULL, MKDEV(major, i),
+		                    "%s%d", module_name, i);
+		if (IS_ERR(dev)) {
+			err = PTR_ERR(dev);
+			goto out_chrdev;
+		}
 	}
 
 	/* set up notifiers */
@@ -525,10 +535,21 @@ static int rtlx_module_init(void)
 	setup_irq(rtlx_irq_num, &rtlx_irq);
 
 	return 0;
+
+out_chrdev:
+	for (i = 0; i < RTLX_CHANNELS; i++)
+		device_destroy(mt_class, MKDEV(major, i));
+
+	return err;
 }
 
 static void __exit rtlx_module_exit(void)
 {
+	int i;
+
+	for (i = 0; i < RTLX_CHANNELS; i++)
+		device_destroy(mt_class, MKDEV(major, i));
+
 	unregister_chrdev(major, module_name);
 }
 
