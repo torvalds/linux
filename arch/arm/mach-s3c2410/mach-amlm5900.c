@@ -35,7 +35,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
-
+#include <linux/serial_core.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -113,12 +113,6 @@ static struct platform_device amlm5900_device_nor = {
 #endif
 
 static struct map_desc amlm5900_iodesc[] __initdata = {
-	{
-		.virtual	= (u32)S3C24XX_VA_SPI,
-		.pfn		= __phys_to_pfn(S3C2410_PA_SPI),
-		.length		= SZ_1M,
-		.type		= MT_DEVICE
-	}
 };
 
 #define UCON S3C2410_UCON_DEFAULT
