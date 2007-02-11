@@ -935,7 +935,7 @@ struct usb_iso_packet_descriptor {
 	unsigned int offset;
 	unsigned int length;		/* expected length */
 	unsigned int actual_length;
-	unsigned int status;
+	int status;
 };
 
 struct urb;
