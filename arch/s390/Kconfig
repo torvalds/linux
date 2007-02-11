@@ -41,7 +41,7 @@ config GENERIC_HWEIGHT
 config GENERIC_TIME
 	def_bool y
 
-config NO_IOPORT
+config NO_IOMEM
 	def_bool y
 
 mainmenu "Linux Kernel Configuration"
