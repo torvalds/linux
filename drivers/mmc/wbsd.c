@@ -343,7 +343,6 @@ static inline void wbsd_dma_to_sg(struct wbsd_host *host, struct mmc_data *data)
 			memcpy(sgbuf, dmabuf, size);
 		else
 			memcpy(sgbuf, dmabuf, sg[i].length);
-		kunmap_atomic(sgbuf, KM_BIO_SRC_IRQ);
 		dmabuf += sg[i].length;
 
 		if (size < sg[i].length)
