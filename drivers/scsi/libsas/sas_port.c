@@ -42,10 +42,11 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	struct asd_sas_port *port = phy->port;
 	struct sas_internal *si =
 		to_sas_internal(sas_ha->core.shost->transportt);
+	unsigned long flags;
 
 	if (port) {
 		if (memcmp(port->attached_sas_addr, phy->attached_sas_addr,
-			   SAS_ADDR_SIZE) == 0)
+			   SAS_ADDR_SIZE) != 0)
 			sas_deform_port(phy);
 		else {
 			SAS_DPRINTK("%s: phy%d belongs to port%d already(%d)!\n",
@@ -56,7 +57,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	}
 
 	/* find a port */
-	spin_lock(&sas_ha->phy_port_lock);
+	spin_lock_irqsave(&sas_ha->phy_port_lock, flags);
 	for (i = 0; i < sas_ha->num_phys; i++) {
 		port = sas_ha->sas_port[i];
 		spin_lock(&port->phy_list_lock);
@@ -78,7 +79,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	if (i >= sas_ha->num_phys) {
 		printk(KERN_NOTICE "%s: couldn't find a free port, bug?\n",
 		       __FUNCTION__);
-		spin_unlock(&sas_ha->phy_port_lock);
+		spin_unlock_irqrestore(&sas_ha->phy_port_lock, flags);
 		return;
 	}
 
@@ -105,7 +106,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	} else
 		port->linkrate = max(port->linkrate, phy->linkrate);
 	spin_unlock(&port->phy_list_lock);
-	spin_unlock(&sas_ha->phy_port_lock);
+	spin_unlock_irqrestore(&sas_ha->phy_port_lock, flags);
 
 	if (!port->port) {
 		port->port = sas_port_alloc(phy->phy->dev.parent, port->id);
@@ -137,6 +138,7 @@ void sas_deform_port(struct asd_sas_phy *phy)
 	struct asd_sas_port *port = phy->port;
 	struct sas_internal *si =
 		to_sas_internal(sas_ha->core.shost->transportt);
+	unsigned long flags;
 
 	if (!port)
 		return;		  /* done by a phy event */
@@ -155,7 +157,7 @@ void sas_deform_port(struct asd_sas_phy *phy)
 	if (si->dft->lldd_port_deformed)
 		si->dft->lldd_port_deformed(phy);
 
-	spin_lock(&sas_ha->phy_port_lock);
+	spin_lock_irqsave(&sas_ha->phy_port_lock, flags);
 	spin_lock(&port->phy_list_lock);
 
 	list_del_init(&phy->port_phy_el);
@@ -174,7 +176,7 @@ void sas_deform_port(struct asd_sas_phy *phy)
 		port->phy_mask = 0;
 	}
 	spin_unlock(&port->phy_list_lock);
-	spin_unlock(&sas_ha->phy_port_lock);
+	spin_unlock_irqrestore(&sas_ha->phy_port_lock, flags);
 
 	return;
 }

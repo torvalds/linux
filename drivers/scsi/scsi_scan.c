@@ -1029,7 +1029,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 
 				sdev_printk(KERN_INFO, sdev,
 					"scsi scan: consider passing scsi_mod."
-					"dev_flags=%s:%s:0x240 or 0x800240\n",
+					"dev_flags=%s:%s:0x240 or 0x1000240\n",
 					scsi_inq_str(vend, result, 8, 16),
 					scsi_inq_str(mod, result, 16, 32));
 			});

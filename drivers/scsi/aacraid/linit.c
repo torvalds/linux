@@ -157,6 +157,7 @@ static struct pci_device_id aac_pci_tbl[] = {
 	{ 0x9005, 0x0285, 0x17aa, PCI_ANY_ID, 0, 0, 58 }, /* Legend Catchall */
 	{ 0x9005, 0x0285, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 59 }, /* Adaptec Catch All */
 	{ 0x9005, 0x0286, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 60 }, /* Adaptec Rocket Catch All */
+	{ 0x9005, 0x0288, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 61 }, /* Adaptec NEMER/ARK Catch All */
 	{ 0,}
 };
 MODULE_DEVICE_TABLE(pci, aac_pci_tbl);
@@ -230,7 +231,8 @@ static struct aac_driver_ident aac_drivers[] = {
 	{ aac_rx_init, "aacraid",  "DELL    ", "RAID            ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Dell Catchall */
 	{ aac_rx_init, "aacraid",  "Legend  ", "RAID            ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Legend Catchall */
 	{ aac_rx_init, "aacraid",  "ADAPTEC ", "RAID            ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Adaptec Catch All */
-	{ aac_rkt_init, "aacraid", "ADAPTEC ", "RAID            ", 2 } /* Adaptec Rocket Catch All */
+	{ aac_rkt_init, "aacraid", "ADAPTEC ", "RAID            ", 2 }, /* Adaptec Rocket Catch All */
+	{ aac_nark_init, "aacraid", "ADAPTEC ", "RAID            ", 2 } /* Adaptec NEMER/ARK Catch All */
 };
 
 /**
@@ -396,11 +398,15 @@ static int aac_slave_configure(struct scsi_device *sdev)
 		sdev->skip_ms_page_3f = 1;
 	}
 	if ((sdev->type == TYPE_DISK) &&
-			!expose_physicals &&
 			(sdev_channel(sdev) != CONTAINER_CHANNEL)) {
-		struct aac_dev *aac = (struct aac_dev *)sdev->host->hostdata;
-		if (!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))
-			sdev->no_uld_attach = 1;
+		if (expose_physicals == 0)
+			return -ENXIO;
+		if (expose_physicals < 0) {
+			struct aac_dev *aac =
+				(struct aac_dev *)sdev->host->hostdata;
+			if (!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))
+				sdev->no_uld_attach = 1;
+		}
 	}
 	if (sdev->tagged_supported && (sdev->type == TYPE_DISK) &&
 			(sdev_channel(sdev) == CONTAINER_CHANNEL)) {
@@ -803,7 +809,6 @@ static struct scsi_host_template aac_driver_template = {
 	.use_clustering			= ENABLE_CLUSTERING,
 	.emulated                       = 1,
 };
-
 
 static int __devinit aac_probe_one(struct pci_dev *pdev,
 		const struct pci_device_id *id)

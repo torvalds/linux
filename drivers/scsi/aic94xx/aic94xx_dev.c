@@ -37,18 +37,14 @@
 
 static inline int asd_get_ddb(struct asd_ha_struct *asd_ha)
 {
-	unsigned long flags;
 	int ddb, i;
 
-	spin_lock_irqsave(&asd_ha->hw_prof.ddb_lock, flags);
 	ddb = FIND_FREE_DDB(asd_ha);
 	if (ddb >= asd_ha->hw_prof.max_ddbs) {
 		ddb = -ENOMEM;
-		spin_unlock_irqrestore(&asd_ha->hw_prof.ddb_lock, flags);
 		goto out;
 	}
 	SET_DDB(ddb, asd_ha);
-	spin_unlock_irqrestore(&asd_ha->hw_prof.ddb_lock, flags);
 
 	for (i = 0; i < sizeof(struct asd_ddb_ssp_smp_target_port); i+= 4)
 		asd_ddbsite_write_dword(asd_ha, ddb, i, 0);
@@ -77,14 +73,10 @@ out:
 
 static inline void asd_free_ddb(struct asd_ha_struct *asd_ha, int ddb)
 {
-	unsigned long flags;
-
 	if (!ddb || ddb >= 0xFFFF)
 		return;
 	asd_ddbsite_write_byte(asd_ha, ddb, DDB_TYPE, DDB_TYPE_UNUSED);
-	spin_lock_irqsave(&asd_ha->hw_prof.ddb_lock, flags);
 	CLEAR_DDB(ddb, asd_ha);
-	spin_unlock_irqrestore(&asd_ha->hw_prof.ddb_lock, flags);
 }
 
 static inline void asd_set_ddb_type(struct domain_device *dev)
@@ -320,8 +312,11 @@ out:
 
 int asd_dev_found(struct domain_device *dev)
 {
+	unsigned long flags;
 	int res = 0;
+	struct asd_ha_struct *asd_ha = dev->port->ha->lldd_ha;
 
+	spin_lock_irqsave(&asd_ha->hw_prof.ddb_lock, flags);
 	switch (dev->dev_type) {
 	case SATA_PM:
 		res = asd_init_sata_pm_ddb(dev);
@@ -335,14 +330,18 @@ int asd_dev_found(struct domain_device *dev)
 		else
 			res = asd_init_initiator_ddb(dev);
 	}
+	spin_unlock_irqrestore(&asd_ha->hw_prof.ddb_lock, flags);
+
 	return res;
 }
 
 void asd_dev_gone(struct domain_device *dev)
 {
 	int ddb, sister_ddb;
+	unsigned long flags;
 	struct asd_ha_struct *asd_ha = dev->port->ha->lldd_ha;
 
+	spin_lock_irqsave(&asd_ha->hw_prof.ddb_lock, flags);
 	ddb = (int) (unsigned long) dev->lldd_dev;
 	sister_ddb = asd_ddbsite_read_word(asd_ha, ddb, SISTER_DDB);
 
@@ -350,4 +349,5 @@ void asd_dev_gone(struct domain_device *dev)
 		asd_free_ddb(asd_ha, sister_ddb);
 	asd_free_ddb(asd_ha, ddb);
 	dev->lldd_dev = NULL;
+	spin_unlock_irqrestore(&asd_ha->hw_prof.ddb_lock, flags);
 }

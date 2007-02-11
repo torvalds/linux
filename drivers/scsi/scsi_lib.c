@@ -1399,7 +1399,7 @@ static void scsi_softirq_done(struct request *rq)
 			scsi_finish_command(cmd);
 			break;
 		case NEEDS_RETRY:
-			scsi_retry_command(cmd);
+			scsi_queue_insert(cmd, SCSI_MLQUEUE_EH_RETRY);
 			break;
 		case ADD_TO_MLQUEUE:
 			scsi_queue_insert(cmd, SCSI_MLQUEUE_DEVICE_BUSY);
@@ -2248,6 +2248,8 @@ void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
 	int i;
 	size_t sg_len = 0, len_complete = 0;
 	struct page *page;
+
+	WARN_ON(!irqs_disabled());
 
 	for (i = 0; i < sg_count; i++) {
 		len_complete = sg_len; /* Complete sg-entries */

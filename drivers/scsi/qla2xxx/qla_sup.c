@@ -611,7 +611,6 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 					    flash_conf_to_access_addr(0x0339),
 					    (fdata & 0xff00) | ((fdata << 16) &
 					    0xff0000) | ((fdata >> 16) & 0xff));
-				fdata = (faddr & sec_mask) << 2;
 				ret = qla24xx_write_flash_dword(ha, conf_addr,
 				    (fdata & 0xff00) |((fdata << 16) &
 				    0xff0000) | ((fdata >> 16) & 0xff));
@@ -1383,6 +1382,29 @@ qla2x00_get_flash_manufacturer(scsi_qla_host_t *ha, uint8_t *man_id,
 	qla2x00_write_flash_byte(ha, 0x5555, 0xf0);
 }
 
+static void
+qla2x00_read_flash_data(scsi_qla_host_t *ha, uint8_t *tmp_buf, uint32_t saddr,
+        uint32_t length)
+{
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
+	uint32_t midpoint, ilength;
+	uint8_t data;
+
+	midpoint = length / 2;
+
+	WRT_REG_WORD(&reg->nvram, 0);
+	RD_REG_WORD(&reg->nvram);
+	for (ilength = 0; ilength < length; saddr++, ilength++, tmp_buf++) {
+		if (ilength == midpoint) {
+			WRT_REG_WORD(&reg->nvram, NVR_SELECT);
+			RD_REG_WORD(&reg->nvram);
+		}
+		data = qla2x00_read_flash_byte(ha, saddr);
+		if (saddr % 100)
+			udelay(10);
+		*tmp_buf = data;
+	}
+}
 
 static inline void
 qla2x00_suspend_hba(struct scsi_qla_host *ha)
@@ -1721,4 +1743,328 @@ qla24xx_write_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 	scsi_unblock_requests(ha->host);
 
 	return rval;
+}
+
+/**
+ * qla2x00_get_fcode_version() - Determine an FCODE image's version.
+ * @ha: HA context
+ * @pcids: Pointer to the FCODE PCI data structure
+ *
+ * The process of retrieving the FCODE version information is at best
+ * described as interesting.
+ *
+ * Within the first 100h bytes of the image an ASCII string is present
+ * which contains several pieces of information including the FCODE
+ * version.  Unfortunately it seems the only reliable way to retrieve
+ * the version is by scanning for another sentinel within the string,
+ * the FCODE build date:
+ *
+ *	... 2.00.02 10/17/02 ...
+ *
+ * Returns QLA_SUCCESS on successful retrieval of version.
+ */
+static void
+qla2x00_get_fcode_version(scsi_qla_host_t *ha, uint32_t pcids)
+{
+	int ret = QLA_FUNCTION_FAILED;
+	uint32_t istart, iend, iter, vend;
+	uint8_t do_next, rbyte, *vbyte;
+
+	memset(ha->fcode_revision, 0, sizeof(ha->fcode_revision));
+
+	/* Skip the PCI data structure. */
+	istart = pcids +
+	    ((qla2x00_read_flash_byte(ha, pcids + 0x0B) << 8) |
+		qla2x00_read_flash_byte(ha, pcids + 0x0A));
+	iend = istart + 0x100;
+	do {
+		/* Scan for the sentinel date string...eeewww. */
+		do_next = 0;
+		iter = istart;
+		while ((iter < iend) && !do_next) {
+			iter++;
+			if (qla2x00_read_flash_byte(ha, iter) == '/') {
+				if (qla2x00_read_flash_byte(ha, iter + 2) ==
+				    '/')
+					do_next++;
+				else if (qla2x00_read_flash_byte(ha,
+				    iter + 3) == '/')
+					do_next++;
+			}
+		}
+		if (!do_next)
+			break;
+
+		/* Backtrack to previous ' ' (space). */
+		do_next = 0;
+		while ((iter > istart) && !do_next) {
+			iter--;
+			if (qla2x00_read_flash_byte(ha, iter) == ' ')
+				do_next++;
+		}
+		if (!do_next)
+			break;
+
+		/*
+		 * Mark end of version tag, and find previous ' ' (space) or
+		 * string length (recent FCODE images -- major hack ahead!!!).
+		 */
+		vend = iter - 1;
+		do_next = 0;
+		while ((iter > istart) && !do_next) {
+			iter--;
+			rbyte = qla2x00_read_flash_byte(ha, iter);
+			if (rbyte == ' ' || rbyte == 0xd || rbyte == 0x10)
+				do_next++;
+		}
+		if (!do_next)
+			break;
+
+		/* Mark beginning of version tag, and copy data. */
+		iter++;
+		if ((vend - iter) &&
+		    ((vend - iter) < sizeof(ha->fcode_revision))) {
+			vbyte = ha->fcode_revision;
+			while (iter <= vend) {
+				*vbyte++ = qla2x00_read_flash_byte(ha, iter);
+				iter++;
+			}
+			ret = QLA_SUCCESS;
+		}
+	} while (0);
+
+	if (ret != QLA_SUCCESS)
+		memset(ha->fcode_revision, 0, sizeof(ha->fcode_revision));
+}
+
+int
+qla2x00_get_flash_version(scsi_qla_host_t *ha, void *mbuf)
+{
+	int ret = QLA_SUCCESS;
+	uint8_t code_type, last_image;
+	uint32_t pcihdr, pcids;
+	uint8_t *dbyte;
+	uint16_t *dcode;
+
+	if (!ha->pio_address || !mbuf)
+		return QLA_FUNCTION_FAILED;
+
+	memset(ha->bios_revision, 0, sizeof(ha->bios_revision));
+	memset(ha->efi_revision, 0, sizeof(ha->efi_revision));
+	memset(ha->fcode_revision, 0, sizeof(ha->fcode_revision));
+	memset(ha->fw_revision, 0, sizeof(ha->fw_revision));
+
+	qla2x00_flash_enable(ha);
+
+	/* Begin with first PCI expansion ROM header. */
+	pcihdr = 0;
+	last_image = 1;
+	do {
+		/* Verify PCI expansion ROM header. */
+		if (qla2x00_read_flash_byte(ha, pcihdr) != 0x55 ||
+		    qla2x00_read_flash_byte(ha, pcihdr + 0x01) != 0xaa) {
+			/* No signature */
+			DEBUG2(printk("scsi(%ld): No matching ROM "
+			    "signature.\n", ha->host_no));
+			ret = QLA_FUNCTION_FAILED;
+			break;
+		}
+
+		/* Locate PCI data structure. */
+		pcids = pcihdr +
+		    ((qla2x00_read_flash_byte(ha, pcihdr + 0x19) << 8) |
+			qla2x00_read_flash_byte(ha, pcihdr + 0x18));
+
+		/* Validate signature of PCI data structure. */
+		if (qla2x00_read_flash_byte(ha, pcids) != 'P' ||
+		    qla2x00_read_flash_byte(ha, pcids + 0x1) != 'C' ||
+		    qla2x00_read_flash_byte(ha, pcids + 0x2) != 'I' ||
+		    qla2x00_read_flash_byte(ha, pcids + 0x3) != 'R') {
+			/* Incorrect header. */
+			DEBUG2(printk("%s(): PCI data struct not found "
+			    "pcir_adr=%x.\n", __func__, pcids));
+			ret = QLA_FUNCTION_FAILED;
+			break;
+		}
+
+		/* Read version */
+		code_type = qla2x00_read_flash_byte(ha, pcids + 0x14);
+		switch (code_type) {
+		case ROM_CODE_TYPE_BIOS:
+			/* Intel x86, PC-AT compatible. */
+			ha->bios_revision[0] =
+			    qla2x00_read_flash_byte(ha, pcids + 0x12);
+			ha->bios_revision[1] =
+			    qla2x00_read_flash_byte(ha, pcids + 0x13);
+			DEBUG3(printk("%s(): read BIOS %d.%d.\n", __func__,
+			    ha->bios_revision[1], ha->bios_revision[0]));
+			break;
+		case ROM_CODE_TYPE_FCODE:
+			/* Open Firmware standard for PCI (FCode). */
+			/* Eeeewww... */
+			qla2x00_get_fcode_version(ha, pcids);
+			break;
+		case ROM_CODE_TYPE_EFI:
+			/* Extensible Firmware Interface (EFI). */
+			ha->efi_revision[0] =
+			    qla2x00_read_flash_byte(ha, pcids + 0x12);
+			ha->efi_revision[1] =
+			    qla2x00_read_flash_byte(ha, pcids + 0x13);
+			DEBUG3(printk("%s(): read EFI %d.%d.\n", __func__,
+			    ha->efi_revision[1], ha->efi_revision[0]));
+			break;
+		default:
+			DEBUG2(printk("%s(): Unrecognized code type %x at "
+			    "pcids %x.\n", __func__, code_type, pcids));
+			break;
+		}
+
+		last_image = qla2x00_read_flash_byte(ha, pcids + 0x15) & BIT_7;
+
+		/* Locate next PCI expansion ROM. */
+		pcihdr += ((qla2x00_read_flash_byte(ha, pcids + 0x11) << 8) |
+		    qla2x00_read_flash_byte(ha, pcids + 0x10)) * 512;
+	} while (!last_image);
+
+	if (IS_QLA2322(ha)) {
+		/* Read firmware image information. */
+		memset(ha->fw_revision, 0, sizeof(ha->fw_revision));
+		dbyte = mbuf;
+		memset(dbyte, 0, 8);
+		dcode = (uint16_t *)dbyte;
+
+		qla2x00_read_flash_data(ha, dbyte, FA_RISC_CODE_ADDR * 4 + 10,
+		    8);
+		DEBUG3(printk("%s(%ld): dumping fw ver from flash:\n",
+		    __func__, ha->host_no));
+		DEBUG3(qla2x00_dump_buffer((uint8_t *)dbyte, 8));
+
+		if ((dcode[0] == 0xffff && dcode[1] == 0xffff &&
+		    dcode[2] == 0xffff && dcode[3] == 0xffff) ||
+		    (dcode[0] == 0 && dcode[1] == 0 && dcode[2] == 0 &&
+		    dcode[3] == 0)) {
+			DEBUG2(printk("%s(): Unrecognized fw revision at "
+			    "%x.\n", __func__, FA_RISC_CODE_ADDR * 4));
+		} else {
+			/* values are in big endian */
+			ha->fw_revision[0] = dbyte[0] << 16 | dbyte[1];
+			ha->fw_revision[1] = dbyte[2] << 16 | dbyte[3];
+			ha->fw_revision[2] = dbyte[4] << 16 | dbyte[5];
+		}
+	}
+
+	qla2x00_flash_disable(ha);
+
+	return ret;
+}
+
+int
+qla24xx_get_flash_version(scsi_qla_host_t *ha, void *mbuf)
+{
+	int ret = QLA_SUCCESS;
+	uint32_t pcihdr, pcids;
+	uint32_t *dcode;
+	uint8_t *bcode;
+	uint8_t code_type, last_image;
+	int i;
+
+	if (!mbuf)
+		return QLA_FUNCTION_FAILED;
+
+	memset(ha->bios_revision, 0, sizeof(ha->bios_revision));
+	memset(ha->efi_revision, 0, sizeof(ha->efi_revision));
+	memset(ha->fcode_revision, 0, sizeof(ha->fcode_revision));
+	memset(ha->fw_revision, 0, sizeof(ha->fw_revision));
+
+	dcode = mbuf;
+
+	/* Begin with first PCI expansion ROM header. */
+	pcihdr = 0;
+	last_image = 1;
+	do {
+		/* Verify PCI expansion ROM header. */
+		qla24xx_read_flash_data(ha, dcode, pcihdr >> 2, 0x20);
+		bcode = mbuf + (pcihdr % 4);
+		if (bcode[0x0] != 0x55 || bcode[0x1] != 0xaa) {
+			/* No signature */
+			DEBUG2(printk("scsi(%ld): No matching ROM "
+			    "signature.\n", ha->host_no));
+			ret = QLA_FUNCTION_FAILED;
+			break;
+		}
+
+		/* Locate PCI data structure. */
+		pcids = pcihdr + ((bcode[0x19] << 8) | bcode[0x18]);
+
+		qla24xx_read_flash_data(ha, dcode, pcids >> 2, 0x20);
+		bcode = mbuf + (pcihdr % 4);
+
+		/* Validate signature of PCI data structure. */
+		if (bcode[0x0] != 'P' || bcode[0x1] != 'C' ||
+		    bcode[0x2] != 'I' || bcode[0x3] != 'R') {
+			/* Incorrect header. */
+			DEBUG2(printk("%s(): PCI data struct not found "
+			    "pcir_adr=%x.\n", __func__, pcids));
+			ret = QLA_FUNCTION_FAILED;
+			break;
+		}
+
+		/* Read version */
+		code_type = bcode[0x14];
+		switch (code_type) {
+		case ROM_CODE_TYPE_BIOS:
+			/* Intel x86, PC-AT compatible. */
+			ha->bios_revision[0] = bcode[0x12];
+			ha->bios_revision[1] = bcode[0x13];
+			DEBUG3(printk("%s(): read BIOS %d.%d.\n", __func__,
+			    ha->bios_revision[1], ha->bios_revision[0]));
+			break;
+		case ROM_CODE_TYPE_FCODE:
+			/* Open Firmware standard for PCI (FCode). */
+			ha->fcode_revision[0] = bcode[0x12];
+			ha->fcode_revision[1] = bcode[0x13];
+			DEBUG3(printk("%s(): read FCODE %d.%d.\n", __func__,
+			    ha->fcode_revision[1], ha->fcode_revision[0]));
+			break;
+		case ROM_CODE_TYPE_EFI:
+			/* Extensible Firmware Interface (EFI). */
+			ha->efi_revision[0] = bcode[0x12];
+			ha->efi_revision[1] = bcode[0x13];
+			DEBUG3(printk("%s(): read EFI %d.%d.\n", __func__,
+			    ha->efi_revision[1], ha->efi_revision[0]));
+			break;
+		default:
+			DEBUG2(printk("%s(): Unrecognized code type %x at "
+			    "pcids %x.\n", __func__, code_type, pcids));
+			break;
+		}
+
+		last_image = bcode[0x15] & BIT_7;
+
+		/* Locate next PCI expansion ROM. */
+		pcihdr += ((bcode[0x11] << 8) | bcode[0x10]) * 512;
+	} while (!last_image);
+
+	/* Read firmware image information. */
+	memset(ha->fw_revision, 0, sizeof(ha->fw_revision));
+	dcode = mbuf;
+
+	qla24xx_read_flash_data(ha, dcode, FA_RISC_CODE_ADDR + 4, 4);
+	for (i = 0; i < 4; i++)
+		dcode[i] = be32_to_cpu(dcode[i]);
+
+	if ((dcode[0] == 0xffffffff && dcode[1] == 0xffffffff &&
+	    dcode[2] == 0xffffffff && dcode[3] == 0xffffffff) ||
+	    (dcode[0] == 0 && dcode[1] == 0 && dcode[2] == 0 &&
+	    dcode[3] == 0)) {
+		DEBUG2(printk("%s(): Unrecognized fw version at %x.\n",
+		    __func__, FA_RISC_CODE_ADDR));
+	} else {
+		ha->fw_revision[0] = dcode[0];
+		ha->fw_revision[1] = dcode[1];
+		ha->fw_revision[2] = dcode[2];
+		ha->fw_revision[3] = dcode[3];
+	}
+
+	return ret;
 }

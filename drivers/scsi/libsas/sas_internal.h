@@ -80,7 +80,7 @@ void sas_hae_reset(struct work_struct *work);
 static inline void sas_queue_event(int event, spinlock_t *lock,
 				   unsigned long *pending,
 				   struct work_struct *work,
-				   struct Scsi_Host *shost)
+				   struct sas_ha_struct *sas_ha)
 {
 	unsigned long flags;
 
@@ -91,7 +91,12 @@ static inline void sas_queue_event(int event, spinlock_t *lock,
 	}
 	__set_bit(event, pending);
 	spin_unlock_irqrestore(lock, flags);
-	scsi_queue_work(shost, work);
+
+	spin_lock_irqsave(&sas_ha->state_lock, flags);
+	if (sas_ha->state != SAS_HA_UNREGISTERED) {
+		scsi_queue_work(sas_ha->core.shost, work);
+	}
+	spin_unlock_irqrestore(&sas_ha->state_lock, flags);
 }
 
 static inline void sas_begin_event(int event, spinlock_t *lock,

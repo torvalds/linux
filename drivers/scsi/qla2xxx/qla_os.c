@@ -1485,6 +1485,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->isp_ops.fw_dump		= qla2100_fw_dump;
 	ha->isp_ops.read_optrom		= qla2x00_read_optrom_data;
 	ha->isp_ops.write_optrom	= qla2x00_write_optrom_data;
+	ha->isp_ops.get_flash_version	= qla2x00_get_flash_version;
 	if (IS_QLA2100(ha)) {
 		host->max_id = MAX_TARGETS_2100;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT_2100;
@@ -1550,6 +1551,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->isp_ops.beacon_on = qla24xx_beacon_on;
 		ha->isp_ops.beacon_off = qla24xx_beacon_off;
 		ha->isp_ops.beacon_blink = qla24xx_beacon_blink;
+		ha->isp_ops.get_flash_version = qla24xx_get_flash_version;
 		ha->gid_list_info_size = 8;
 		ha->optrom_size = OPTROM_SIZE_24XX;
 	}
@@ -1563,14 +1565,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	INIT_LIST_HEAD(&ha->list);
 	INIT_LIST_HEAD(&ha->fcports);
-
-	/*
-	 * These locks are used to prevent more than one CPU
-	 * from modifying the queue at the same time. The
-	 * higher level "host_lock" will reduce most
-	 * contention for these locks.
-	 */
-	spin_lock_init(&ha->mbx_reg_lock);
 
 	qla2x00_config_dma_addressing(ha);
 	if (qla2x00_mem_alloc(ha)) {
@@ -1615,15 +1609,9 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host->max_lun = MAX_LUNS;
 	host->transportt = qla2xxx_transport_template;
 
-	ret = request_irq(pdev->irq, ha->isp_ops.intr_handler,
-	    IRQF_DISABLED|IRQF_SHARED, QLA2XXX_DRIVER_NAME, ha);
-	if (ret) {
-		qla_printk(KERN_WARNING, ha,
-		    "Failed to reserve interrupt %d already in use.\n",
-		    pdev->irq);
+	ret = qla2x00_request_irqs(ha);
+	if (ret)
 		goto probe_failed;
-	}
-	host->irq = pdev->irq;
 
 	/* Initialized the timer */
 	qla2x00_start_timer(ha, qla2x00_timer, WATCH_INTERVAL);
@@ -1753,9 +1741,7 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 
 	qla2x00_mem_free(ha);
 
-	/* Detach interrupts */
-	if (ha->host->irq)
-		free_irq(ha->host->irq, ha);
+	qla2x00_free_irqs(ha);
 
 	/* release io space registers  */
 	if (ha->iobase)

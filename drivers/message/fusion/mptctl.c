@@ -5,7 +5,7 @@
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
  *  Copyright (c) 1999-2007 LSI Logic Corporation
- *  (mailto:mpt_linux_developer@lsil.com)
+ *  (mailto:mpt_linux_developer@lsi.com)
  *
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -313,7 +313,7 @@ static void mptctl_timeout_expired (MPT_IOCTL *ioctl)
 		 */
 		dctlprintk((MYIOC_s_INFO_FMT "Calling HardReset! \n",
 			 ioctl->ioc->name));
-		mpt_HardResetHandler(ioctl->ioc, NO_SLEEP);
+		mpt_HardResetHandler(ioctl->ioc, CAN_SLEEP);
 	}
 	return;
 
@@ -361,7 +361,7 @@ static int mptctl_bus_reset(MPT_IOCTL *ioctl)
 			ioctl->ioc->name, mf));
 
 	pScsiTm = (SCSITaskMgmt_t *) mf;
-	pScsiTm->TargetID = ioctl->target;
+	pScsiTm->TargetID = ioctl->id;
 	pScsiTm->Bus = hd->port;	/* 0 */
 	pScsiTm->ChainOffset = 0;
 	pScsiTm->Function = MPI_FUNCTION_SCSI_TASK_MGMT;
@@ -1159,15 +1159,12 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 	struct mpt_ioctl_iocinfo *karg;
 	MPT_ADAPTER		*ioc;
 	struct pci_dev		*pdev;
-	struct Scsi_Host	*sh;
-	MPT_SCSI_HOST		*hd;
 	int			iocnum;
-	int			numDevices = 0;
-	unsigned int		max_id;
-	int			ii;
 	unsigned int		port;
 	int			cim_rev;
 	u8			revision;
+	struct scsi_device 	*sdev;
+	VirtDevice		*vdev;
 
 	dctlprintk((": mptctl_getiocinfo called.\n"));
 	/* Add of PCI INFO results in unaligned access for
@@ -1257,23 +1254,16 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 
 	/* Get number of devices
          */
-	if ((sh = ioc->sh) != NULL) {
-		 /* sh->max_id = maximum target ID + 1
-		 */
-		max_id = sh->max_id - 1;
-		hd = (MPT_SCSI_HOST *) sh->hostdata;
-
-		/* Check all of the target structures and
-		 * keep a counter.
-		 */
-		if (hd && hd->Targets) {
-			for (ii = 0; ii <= max_id; ii++) {
-				if (hd->Targets[ii])
-					numDevices++;
-			}
+	karg->numDevices = 0;
+	if (ioc->sh) {
+		shost_for_each_device(sdev, ioc->sh) {
+			vdev = sdev->hostdata;
+			if (vdev->vtarget->tflags &
+			    MPT_TARGET_FLAGS_RAID_COMPONENT)
+				continue;
+			karg->numDevices++;
 		}
 	}
-	karg->numDevices = numDevices;
 
 	/* Set the BIOS and FW Version
 	 */
@@ -1319,21 +1309,16 @@ mptctl_gettargetinfo (unsigned long arg)
 	struct mpt_ioctl_targetinfo __user *uarg = (void __user *) arg;
 	struct mpt_ioctl_targetinfo karg;
 	MPT_ADAPTER		*ioc;
-	struct Scsi_Host	*sh;
-	MPT_SCSI_HOST		*hd;
-	VirtTarget		*vdev;
+	VirtDevice		*vdev;
 	char			*pmem;
 	int			*pdata;
-	IOCPage2_t		*pIoc2;
-	IOCPage3_t		*pIoc3;
 	int			iocnum;
 	int			numDevices = 0;
-	unsigned int		max_id;
-	int			id, jj, indexed_lun, lun_index;
-	u32			lun;
+	int			lun;
 	int			maxWordsLeft;
 	int			numBytes;
-	u8			port, devType, bus_id;
+	u8			port;
+	struct scsi_device 	*sdev;
 
 	dctlprintk(("mptctl_gettargetinfo called.\n"));
 	if (copy_from_user(&karg, uarg, sizeof(struct mpt_ioctl_targetinfo))) {
@@ -1389,74 +1374,22 @@ mptctl_gettargetinfo (unsigned long arg)
 
 	/* Get number of devices
          */
-	if ((sh = ioc->sh) != NULL) {
-
-		max_id = sh->max_id - 1;
-		hd = (MPT_SCSI_HOST *) sh->hostdata;
-
-		/* Check all of the target structures.
-		 * Save the Id and increment the counter,
-		 * if ptr non-null.
-		 * sh->max_id = maximum target ID + 1
-		 */
-		if (hd && hd->Targets) {
-			mpt_findImVolumes(ioc);
-			pIoc2 = ioc->raid_data.pIocPg2;
-			for ( id = 0; id <= max_id; ) {
-				if ( pIoc2 && pIoc2->NumActiveVolumes ) {
-					if ( id == pIoc2->RaidVolume[0].VolumeID ) {
-						if (maxWordsLeft <= 0) {
-							printk(KERN_ERR "mptctl_gettargetinfo - "
-			"buffer is full but volume is available on ioc %d\n, numDevices=%d", iocnum, numDevices);
-							goto data_space_full;
-						}
-						if ( ( pIoc2->RaidVolume[0].Flags & MPI_IOCPAGE2_FLAG_VOLUME_INACTIVE ) == 0 )
-                        				devType = 0x80;
-                    				else
-                        				devType = 0xC0;
-						bus_id = pIoc2->RaidVolume[0].VolumeBus;
-	            				numDevices++;
-                    				*pdata = ( (devType << 24) | (bus_id << 8) | id );
-						dctlprintk((KERN_ERR "mptctl_gettargetinfo - "
-		"volume ioc=%d target=%x numDevices=%d pdata=%p\n", iocnum, *pdata, numDevices, pdata));
-                    				pdata++;
-						--maxWordsLeft;
-						goto next_id;
-					} else {
-						pIoc3 = ioc->raid_data.pIocPg3;
-            					for ( jj = 0; jj < pIoc3->NumPhysDisks; jj++ ) {
-                    					if ( pIoc3->PhysDisk[jj].PhysDiskID == id )
-								goto next_id;
-						}
-					}
-				}
-				if ( (vdev = hd->Targets[id]) ) {
-					for (jj = 0; jj <= MPT_LAST_LUN; jj++) {
-						lun_index = (jj >> 5);
-						indexed_lun = (jj % 32);
-						lun = (1 << indexed_lun);
-						if (vdev->luns[lun_index] & lun) {
-							if (maxWordsLeft <= 0) {
-								printk(KERN_ERR "mptctl_gettargetinfo - "
-			"buffer is full but more targets are available on ioc %d numDevices=%d\n", iocnum, numDevices);
-								goto data_space_full;
-							}
-							bus_id = vdev->bus_id;
-							numDevices++;
-                            				*pdata = ( (jj << 16) | (bus_id << 8) | id );
-							dctlprintk((KERN_ERR "mptctl_gettargetinfo - "
-		"target ioc=%d target=%x numDevices=%d pdata=%p\n", iocnum, *pdata, numDevices, pdata));
-							pdata++;
-							--maxWordsLeft;
-						}
-					}
-				}
-next_id:
-				id++;
-			}
+	if (ioc->sh){
+		shost_for_each_device(sdev, ioc->sh) {
+			if (!maxWordsLeft)
+				continue;
+			vdev = sdev->hostdata;
+			if (vdev->vtarget->tflags &
+			    MPT_TARGET_FLAGS_RAID_COMPONENT)
+				continue;
+			lun = (vdev->vtarget->raidVolume) ? 0x80 : vdev->lun;
+			*pdata = (((u8)lun << 16) + (vdev->vtarget->channel << 8) +
+			    (vdev->vtarget->id ));
+			pdata++;
+			numDevices++;
+			--maxWordsLeft;
 		}
 	}
-data_space_full:
 	karg.numDevices = numDevices;
 
 	/* Copy part of the data from kernel memory to user memory
@@ -1821,6 +1754,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 	int		msgContext;
 	u16		req_idx;
 	ulong 		timeout;
+	struct scsi_device *sdev;
 
 	dctlprintk(("mptctl_do_mpt_command called.\n"));
 	bufIn.kptr = bufOut.kptr = NULL;
@@ -1902,16 +1836,23 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 	case MPI_FUNCTION_SCSI_IO_REQUEST:
 		if (ioc->sh) {
 			SCSIIORequest_t *pScsiReq = (SCSIIORequest_t *) mf;
-			VirtTarget	*pTarget = NULL;
-			MPT_SCSI_HOST	*hd = NULL;
 			int qtag = MPI_SCSIIO_CONTROL_UNTAGGED;
 			int scsidir = 0;
-			int target = (int) pScsiReq->TargetID;
 			int dataSize;
+			u32 id;
 
-			if ((target < 0) || (target >= ioc->sh->max_id)) {
+			id = (ioc->devices_per_bus == 0) ? 256 : ioc->devices_per_bus;
+			if (pScsiReq->TargetID > id) {
 				printk(KERN_ERR "%s@%d::mptctl_do_mpt_command - "
 					"Target ID out of bounds. \n",
+					__FILE__, __LINE__);
+				rc = -ENODEV;
+				goto done_free_mem;
+			}
+
+			if (pScsiReq->Bus >= ioc->number_of_buses) {
+				printk(KERN_ERR "%s@%d::mptctl_do_mpt_command - "
+					"Target Bus out of bounds. \n",
 					__FILE__, __LINE__);
 				rc = -ENODEV;
 				goto done_free_mem;
@@ -1936,13 +1877,15 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 				cpu_to_le32(ioc->sense_buf_low_dma
 				   + (req_idx * MPT_SENSE_BUFFER_ALLOC));
 
-			if ((hd = (MPT_SCSI_HOST *) ioc->sh->hostdata)) {
-				if (hd->Targets)
-					pTarget = hd->Targets[target];
-			}
+			shost_for_each_device(sdev, ioc->sh) {
+				struct scsi_target *starget = scsi_target(sdev);
+				VirtTarget *vtarget = starget->hostdata;
 
-			if (pTarget &&(pTarget->tflags & MPT_TARGET_FLAGS_Q_YES))
-				qtag = MPI_SCSIIO_CONTROL_SIMPLEQ;
+				if ((pScsiReq->TargetID == vtarget->id) &&
+				    (pScsiReq->Bus == vtarget->channel) &&
+				    (vtarget->tflags & MPT_TARGET_FLAGS_Q_YES))
+					qtag = MPI_SCSIIO_CONTROL_SIMPLEQ;
+			}
 
 			/* Have the IOCTL driver set the direction based
 			 * on the dataOutSize (ordering issue with Sparc).
@@ -1959,7 +1902,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 			pScsiReq->DataLength = cpu_to_le32(dataSize);
 
 			ioc->ioctl->reset = MPTCTL_RESET_OK;
-			ioc->ioctl->target = target;
+			ioc->ioctl->id = pScsiReq->TargetID;
 
 		} else {
 			printk(KERN_ERR "%s@%d::mptctl_do_mpt_command - "
@@ -2038,7 +1981,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 			pScsiReq->DataLength = cpu_to_le32(dataSize);
 
 			ioc->ioctl->reset = MPTCTL_RESET_OK;
-			ioc->ioctl->target = pScsiReq->TargetID;
+			ioc->ioctl->id = pScsiReq->TargetID;
 		} else {
 			printk(KERN_ERR "%s@%d::mptctl_do_mpt_command - "
 				"SCSI driver is not loaded. \n",

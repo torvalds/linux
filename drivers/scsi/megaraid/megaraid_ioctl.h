@@ -22,23 +22,23 @@
 
 #include "mbox_defs.h"
 
-/**
- * con_log() - console log routine
- * @param level		: indicates the severity of the message.
- * @fparam mt		: format string
- *
- * con_log displays the error messages on the console based on the current
- * debug level. Also it attaches the appropriate kernel severity level with
- * the message.
- *
- *
- * consolge messages debug levels
+/*
+ * console messages debug levels
  */
 #define	CL_ANN		0	/* print unconditionally, announcements */
 #define CL_DLEVEL1	1	/* debug level 1, informative */
 #define CL_DLEVEL2	2	/* debug level 2, verbose */
 #define CL_DLEVEL3	3	/* debug level 3, very verbose */
 
+/**
+ * con_log() - console log routine
+ * @level		: indicates the severity of the message.
+ * @fmt			: format string
+ *
+ * con_log displays the error messages on the console based on the current
+ * debug level. Also it attaches the appropriate kernel severity level with
+ * the message.
+ */
 #define	con_log(level, fmt) if (LSI_DBGLVL >= level) printk fmt;
 
 /*
@@ -157,14 +157,14 @@ typedef struct uioc {
 /**
  * struct mraid_hba_info - information about the controller
  *
- * @param pci_vendor_id		: PCI vendor id
- * @param pci_device_id		: PCI device id
- * @param subsystem_vendor_id	: PCI subsystem vendor id
- * @param subsystem_device_id	: PCI subsystem device id
- * @param baseport		: base port of hba memory
- * @param pci_bus		: PCI bus
- * @param pci_dev_fn		: PCI device/function values
- * @param irq			: interrupt vector for the device
+ * @pci_vendor_id		: PCI vendor id
+ * @pci_device_id		: PCI device id
+ * @subsystem_vendor_id		: PCI subsystem vendor id
+ * @subsystem_device_id		: PCI subsystem device id
+ * @baseport			: base port of hba memory
+ * @pci_bus			: PCI bus
+ * @pci_dev_fn			: PCI device/function values
+ * @irq				: interrupt vector for the device
  *
  * Extended information of 256 bytes about the controller. Align on the single
  * byte boundary so that 32-bit applications can be run on 64-bit platform

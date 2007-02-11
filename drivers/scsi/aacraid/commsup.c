@@ -317,7 +317,7 @@ static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entr
  *	success.
  */
 
-static int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw_fib, int wait, struct fib * fibptr, unsigned long *nonotify)
+int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw_fib, int wait, struct fib * fibptr, unsigned long *nonotify)
 {
 	struct aac_entry * entry = NULL;
 	int map = 0;
@@ -387,7 +387,6 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 {
 	struct aac_dev * dev = fibptr->dev;
 	struct hw_fib * hw_fib = fibptr->hw_fib;
-	struct aac_queue * q;
 	unsigned long flags = 0;
 	unsigned long qflags;
 
@@ -469,38 +468,10 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 
 	if (!dev->queues)
 		return -EBUSY;
-	q = &dev->queues->queue[AdapNormCmdQueue];
 
 	if(wait)
 		spin_lock_irqsave(&fibptr->event_lock, flags);
-	spin_lock_irqsave(q->lock, qflags);
-	if (dev->new_comm_interface) {
-		unsigned long count = 10000000L; /* 50 seconds */
-		q->numpending++;
-		spin_unlock_irqrestore(q->lock, qflags);
-		while (aac_adapter_send(fibptr) != 0) {
-			if (--count == 0) {
-				if (wait)
-					spin_unlock_irqrestore(&fibptr->event_lock, flags);
-				spin_lock_irqsave(q->lock, qflags);
-				q->numpending--;
-				spin_unlock_irqrestore(q->lock, qflags);
-				return -ETIMEDOUT;
-			}
-			udelay(5);
-		}
-	} else {
-		u32 index;
-		unsigned long nointr = 0;
-		aac_queue_get( dev, &index, AdapNormCmdQueue, hw_fib, 1, fibptr, &nointr);
-
-		q->numpending++;
-		*(q->headers.producer) = cpu_to_le32(index + 1);
-		spin_unlock_irqrestore(q->lock, qflags);
-		dprintk((KERN_DEBUG "aac_fib_send: inserting a queue entry at index %d.\n",index));
-		if (!(nointr & aac_config.irq_mod))
-			aac_adapter_notify(dev, AdapNormCmdQueue);
-	}
+	aac_adapter_deliver(fibptr);
 
 	/*
 	 *	If the caller wanted us to wait for response wait now. 
@@ -520,6 +491,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 			while (down_trylock(&fibptr->event_wait)) {
 				int blink;
 				if (--count == 0) {
+					struct aac_queue * q = &dev->queues->queue[AdapNormCmdQueue];
 					spin_lock_irqsave(q->lock, qflags);
 					q->numpending--;
 					spin_unlock_irqrestore(q->lock, qflags);
@@ -659,7 +631,7 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 	unsigned long qflags;
 
 	if (hw_fib->header.XferState == 0) {
-		if (dev->new_comm_interface)
+		if (dev->comm_interface == AAC_COMM_MESSAGE)
 			kfree (hw_fib);
         	return 0;
 	}
@@ -667,7 +639,7 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 	 *	If we plan to do anything check the structure type first.
 	 */ 
 	if ( hw_fib->header.StructType != FIB_MAGIC ) {
-		if (dev->new_comm_interface)
+		if (dev->comm_interface == AAC_COMM_MESSAGE)
 			kfree (hw_fib);
         	return -EINVAL;
 	}
@@ -679,7 +651,7 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 	 *	send the completed cdb to the adapter.
 	 */
 	if (hw_fib->header.XferState & cpu_to_le32(SentFromAdapter)) {
-		if (dev->new_comm_interface) {
+		if (dev->comm_interface == AAC_COMM_MESSAGE) {
 			kfree (hw_fib);
 		} else {
 	       		u32 index;
