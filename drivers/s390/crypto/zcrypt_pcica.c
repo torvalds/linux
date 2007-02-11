@@ -191,10 +191,10 @@ static int ICACRT_msg_to_type4CRT_msg(struct zcrypt_device *zdev,
  *
  * Returns 0 on success or -EFAULT.
  */
-static inline int convert_type84(struct zcrypt_device *zdev,
-				 struct ap_message *reply,
-				 char __user *outputdata,
-				 unsigned int outputdatalength)
+static int convert_type84(struct zcrypt_device *zdev,
+			  struct ap_message *reply,
+			  char __user *outputdata,
+			  unsigned int outputdatalength)
 {
 	struct type84_hdr *t84h = reply->message;
 	char *data;

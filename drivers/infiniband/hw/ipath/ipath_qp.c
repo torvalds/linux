@@ -379,7 +379,7 @@ void ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
 	wc.vendor_err = 0;
 	wc.byte_len = 0;
 	wc.imm_data = 0;
-	wc.qp_num = qp->ibqp.qp_num;
+	wc.qp = &qp->ibqp;
 	wc.src_qp = 0;
 	wc.wc_flags = 0;
 	wc.pkey_index = 0;

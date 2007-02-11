@@ -1450,7 +1450,6 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 		return -1;
 	}
 	pci_dev->irq = virq;
-	pci_write_config_byte(pci_dev, PCI_INTERRUPT_LINE, virq);
 
 	return 0;
 }

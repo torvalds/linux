@@ -1104,7 +1104,7 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 	/* prepare pcmcia_socket */
 	socket->socket.ops = &yenta_socket_operations;
 	socket->socket.resource_ops = &pccard_nonstatic_ops;
-	socket->socket.dev.dev = &dev->dev;
+	socket->socket.dev.parent = &dev->dev;
 	socket->socket.driver_data = socket;
 	socket->socket.owner = THIS_MODULE;
 	socket->socket.features = SS_CAP_PAGE_REGS | SS_CAP_PCCARD;

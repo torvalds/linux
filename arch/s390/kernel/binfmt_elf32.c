@@ -192,7 +192,7 @@ MODULE_AUTHOR("Gerhard Tonn <ton@de.ibm.com>");
 
 #undef cputime_to_timeval
 #define cputime_to_timeval cputime_to_compat_timeval
-static __inline__ void
+static inline void
 cputime_to_compat_timeval(const cputime_t cputime, struct compat_timeval *value)
 {
 	value->tv_usec = cputime % 1000000;

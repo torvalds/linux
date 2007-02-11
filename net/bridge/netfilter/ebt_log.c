@@ -96,6 +96,7 @@ ebt_log_packet(unsigned int pf, unsigned int hooknum,
 		       NIPQUAD(ih->daddr), ih->tos, ih->protocol);
 		if (ih->protocol == IPPROTO_TCP ||
 		    ih->protocol == IPPROTO_UDP ||
+		    ih->protocol == IPPROTO_UDPLITE ||
 		    ih->protocol == IPPROTO_SCTP ||
 		    ih->protocol == IPPROTO_DCCP) {
 			struct tcpudphdr _ports, *pptr;

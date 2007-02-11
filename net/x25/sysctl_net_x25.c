@@ -73,6 +73,14 @@ static struct ctl_table x25_table[] = {
 		.extra1 =	&min_timer,
 		.extra2 =	&max_timer,
 	},
+	{
+		.ctl_name =	NET_X25_FORWARD,
+		.procname =	"x25_forward",
+		.data = 	&sysctl_x25_forward,
+		.maxlen = 	sizeof(int),
+		.mode = 	0644,
+		.proc_handler = &proc_dointvec,
+	},
 	{ 0, },
 };
 

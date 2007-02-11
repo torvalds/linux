@@ -121,7 +121,8 @@ int __init blz1230_esp_detect(struct scsi_host_template *tpnt)
 		 */
 		address = ZTWO_VADDR(board);
 		eregs = (struct ESP_regs *)(address + REAL_BLZ1230_ESP_ADDR);
-		esp = esp_allocate(tpnt, (void *)board+REAL_BLZ1230_ESP_ADDR);
+		esp = esp_allocate(tpnt, (void *)board + REAL_BLZ1230_ESP_ADDR,
+				   0);
 
 		esp_write(eregs->esp_cfg1, (ESP_CONFIG1_PENABLE | 7));
 		udelay(5);

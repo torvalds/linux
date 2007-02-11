@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/random.h>
 #include <linux/netfilter.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
@@ -73,6 +74,10 @@ udp_unique_tuple(struct ip_conntrack_tuple *tuple,
 		min = ntohs(range->min.udp.port);
 		range_size = ntohs(range->max.udp.port) - min + 1;
 	}
+
+	/* Start from random port to avoid prediction */
+	if (range->flags & IP_NAT_RANGE_PROTO_RANDOM)
+		port = net_random();
 
 	for (i = 0; i < range_size; i++, port++) {
 		*portptr = htons(min + port % range_size);

@@ -170,9 +170,11 @@ int
 spu_irq_class_0_bottom(struct spu *spu)
 {
 	unsigned long stat, mask;
+	unsigned long flags;
 
 	spu->class_0_pending = 0;
 
+	spin_lock_irqsave(&spu->register_lock, flags);
 	mask = spu_int_mask_get(spu, 0);
 	stat = spu_int_stat_get(spu, 0);
 
@@ -188,6 +190,7 @@ spu_irq_class_0_bottom(struct spu *spu)
 		__spu_trap_error(spu);
 
 	spu_int_stat_clear(spu, 0, stat);
+	spin_unlock_irqrestore(&spu->register_lock, flags);
 
 	return (stat & 0x7) ? -EIO : 0;
 }

@@ -465,7 +465,7 @@ static int ap_device_probe(struct device *dev)
  * Flush all requests from the request/pending queue of an AP device.
  * @ap_dev: pointer to the AP device.
  */
-static inline void __ap_flush_queue(struct ap_device *ap_dev)
+static void __ap_flush_queue(struct ap_device *ap_dev)
 {
 	struct ap_message *ap_msg, *next;
 
@@ -587,7 +587,7 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 /**
  * Pick one of the 16 ap domains.
  */
-static inline int ap_select_domain(void)
+static int ap_select_domain(void)
 {
 	int queue_depth, device_type, count, max_count, best_domain;
 	int rc, i, j;
@@ -825,7 +825,7 @@ static inline void ap_schedule_poll_timer(void)
  *	   required, bit 2^1 is set if the poll timer needs to get armed
  * Returns 0 if the device is still present, -ENODEV if not.
  */
-static inline int ap_poll_read(struct ap_device *ap_dev, unsigned long *flags)
+static int ap_poll_read(struct ap_device *ap_dev, unsigned long *flags)
 {
 	struct ap_queue_status status;
 	struct ap_message *ap_msg;
@@ -872,7 +872,7 @@ static inline int ap_poll_read(struct ap_device *ap_dev, unsigned long *flags)
  *	   required, bit 2^1 is set if the poll timer needs to get armed
  * Returns 0 if the device is still present, -ENODEV if not.
  */
-static inline int ap_poll_write(struct ap_device *ap_dev, unsigned long *flags)
+static int ap_poll_write(struct ap_device *ap_dev, unsigned long *flags)
 {
 	struct ap_queue_status status;
 	struct ap_message *ap_msg;

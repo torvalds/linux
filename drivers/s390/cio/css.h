@@ -143,6 +143,8 @@ extern void css_sch_device_unregister(struct subchannel *);
 extern struct subchannel * get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
 extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
+extern int css_process_crw(int, int);
+extern void css_reiterate_subchannels(void);
 
 #define __MAX_SUBCHANNEL 65535
 #define __MAX_SSID 3

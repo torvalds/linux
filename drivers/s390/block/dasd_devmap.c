@@ -136,7 +136,7 @@ __setup ("dasd=", dasd_call_setup);
 /*
  * Read a device busid/devno from a string.
  */
-static inline int
+static int
 dasd_busid(char **str, int *id0, int *id1, int *devno)
 {
 	int val, old_style;
@@ -182,7 +182,7 @@ dasd_busid(char **str, int *id0, int *id1, int *devno)
  * only one: "ro" for read-only devices. The default feature set
  * is empty (value 0).
  */
-static inline int
+static int
 dasd_feature_list(char *str, char **endp)
 {
 	int features, len, rc;
@@ -341,7 +341,7 @@ dasd_parse_range( char *parsestring ) {
 	return ERR_PTR(-EINVAL);
 }
 
-static inline char *
+static char *
 dasd_parse_next_element( char *parsestring ) {
 	char * residual_str;
 	residual_str = dasd_parse_keyword(parsestring);

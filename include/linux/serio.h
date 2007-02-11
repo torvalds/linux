@@ -86,6 +86,11 @@ static inline void serio_register_port(struct serio *serio)
 void serio_unregister_port(struct serio *serio);
 void serio_unregister_child_port(struct serio *serio);
 
+int __serio_register_driver(struct serio_driver *drv, struct module *owner, const char *mod_name);
+static inline int serio_register_driver(struct serio_driver *drv)
+{
+	return __serio_register_driver(drv, THIS_MODULE, KBUILD_MODNAME);
+}
 int serio_register_driver(struct serio_driver *drv);
 void serio_unregister_driver(struct serio_driver *drv);
 

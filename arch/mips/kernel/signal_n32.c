@@ -105,7 +105,7 @@ _sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	spin_lock_irq(&current->sighand->siglock);
 	current->saved_sigmask = current->blocked;
 	current->blocked = newset;
-        recalc_sigpending();
+	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
 	current->state = TASK_INTERRUPTIBLE;
@@ -184,7 +184,7 @@ int setup_rt_frame_n32(struct k_sigaction * ka,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
 	err |= __put_user(0, &frame->rs_uc.uc_link);
-        sp = (int) (long) current->sas_ss_sp;
+	sp = (int) (long) current->sas_ss_sp;
 	err |= __put_user(sp,
 	                  &frame->rs_uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->regs[29]),

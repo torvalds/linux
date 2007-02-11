@@ -53,6 +53,8 @@ unsigned long dec_kn_slot_base, dec_kn_slot_size;
 EXPORT_SYMBOL(dec_kn_slot_base);
 EXPORT_SYMBOL(dec_kn_slot_size);
 
+int dec_tc_bus;
+
 spinlock_t ioasic_ssr_lock;
 
 volatile u32 *ioasic_base;
@@ -234,7 +236,7 @@ static void __init dec_init_kn01(void)
 	memcpy(&cpu_mask_nr_tbl, &kn01_cpu_mask_nr_tbl,
 		sizeof(kn01_cpu_mask_nr_tbl));
 
-	mips_cpu_irq_init(DEC_CPU_IRQ_BASE);
+	mips_cpu_irq_init();
 
 }				/* dec_init_kn01 */
 
@@ -309,7 +311,7 @@ static void __init dec_init_kn230(void)
 	memcpy(&cpu_mask_nr_tbl, &kn230_cpu_mask_nr_tbl,
 		sizeof(kn230_cpu_mask_nr_tbl));
 
-	mips_cpu_irq_init(DEC_CPU_IRQ_BASE);
+	mips_cpu_irq_init();
 
 }				/* dec_init_kn230 */
 
@@ -403,7 +405,7 @@ static void __init dec_init_kn02(void)
 	memcpy(&asic_mask_nr_tbl, &kn02_asic_mask_nr_tbl,
 		sizeof(kn02_asic_mask_nr_tbl));
 
-	mips_cpu_irq_init(DEC_CPU_IRQ_BASE);
+	mips_cpu_irq_init();
 	init_kn02_irqs(KN02_IRQ_BASE);
 
 }				/* dec_init_kn02 */
@@ -504,7 +506,7 @@ static void __init dec_init_kn02ba(void)
 	memcpy(&asic_mask_nr_tbl, &kn02ba_asic_mask_nr_tbl,
 		sizeof(kn02ba_asic_mask_nr_tbl));
 
-	mips_cpu_irq_init(DEC_CPU_IRQ_BASE);
+	mips_cpu_irq_init();
 	init_ioasic_irqs(IO_IRQ_BASE);
 
 }				/* dec_init_kn02ba */
@@ -601,7 +603,7 @@ static void __init dec_init_kn02ca(void)
 	memcpy(&asic_mask_nr_tbl, &kn02ca_asic_mask_nr_tbl,
 		sizeof(kn02ca_asic_mask_nr_tbl));
 
-	mips_cpu_irq_init(DEC_CPU_IRQ_BASE);
+	mips_cpu_irq_init();
 	init_ioasic_irqs(IO_IRQ_BASE);
 
 }				/* dec_init_kn02ca */
@@ -702,7 +704,7 @@ static void __init dec_init_kn03(void)
 	memcpy(&asic_mask_nr_tbl, &kn03_asic_mask_nr_tbl,
 		sizeof(kn03_asic_mask_nr_tbl));
 
-	mips_cpu_irq_init(DEC_CPU_IRQ_BASE);
+	mips_cpu_irq_init();
 	init_ioasic_irqs(IO_IRQ_BASE);
 
 }				/* dec_init_kn03 */

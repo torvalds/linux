@@ -42,7 +42,7 @@ do {							\
 		if (cond)				\
 			break;				\
 		unlock_cmd;				\
-		schedule();				\
+		io_schedule();				\
 		lock_cmd;				\
 	}						\
 	current->state = TASK_RUNNING;			\

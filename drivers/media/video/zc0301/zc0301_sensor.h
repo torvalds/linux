@@ -75,7 +75,6 @@ static const struct usb_device_id zc0301_id_table[] =  {                      \
 	{ ZC0301_USB_DEVICE(0x046d, 0x08ae, 0xff), }, /* PAS202 */            \
 	{ ZC0301_USB_DEVICE(0x055f, 0xd003, 0xff), }, /* TAS5130 */           \
 	{ ZC0301_USB_DEVICE(0x055f, 0xd004, 0xff), }, /* TAS5130 */           \
-	{ ZC0301_USB_DEVICE(0x046d, 0x08ae, 0xff), }, /* PAS202 */            \
 	{ ZC0301_USB_DEVICE(0x0ac8, 0x0301, 0xff), },                         \
 	{ ZC0301_USB_DEVICE(0x0ac8, 0x301b, 0xff), }, /* PB-0330/HV7131 */    \
 	{ ZC0301_USB_DEVICE(0x0ac8, 0x303b, 0xff), }, /* PB-0330 */           \

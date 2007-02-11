@@ -74,6 +74,7 @@ extern struct workqueue_struct *ccw_device_notify_work;
 extern wait_queue_head_t ccw_device_init_wq;
 extern atomic_t ccw_device_init_count;
 
+void io_subchannel_irq (struct device *pdev);
 void io_subchannel_recog_done(struct ccw_device *cdev);
 
 int ccw_device_cancel_halt_clear(struct ccw_device *);
@@ -118,6 +119,7 @@ int ccw_device_stlck(struct ccw_device *);
 /* qdio needs this. */
 void ccw_device_set_timeout(struct ccw_device *, int);
 extern struct subchannel_id ccw_device_get_subchannel_id(struct ccw_device *);
+extern struct bus_type ccw_bus_type;
 
 /* Channel measurement facility related */
 void retry_set_schib(struct ccw_device *cdev);

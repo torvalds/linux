@@ -35,7 +35,7 @@
 #include <sound/initval.h>
 #include <sound/rawmidi.h>
 
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 #include <linux/usb/audio.h>
 #include <linux/usb/midi.h>

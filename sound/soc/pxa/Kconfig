@@ -1,0 +1,60 @@
+menu "SoC Audio for the Intel PXA2xx"
+
+config SND_PXA2XX_SOC
+	tristate "SoC Audio for the Intel PXA2xx chip"
+	depends on ARCH_PXA && SND
+	select SND_PCM
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the PXA2xx AC97, I2S or SSP interface. You will also need
+	  to select the audio interfaces to support below.
+
+config SND_PXA2XX_AC97
+	tristate
+	select SND_AC97_CODEC
+
+config SND_PXA2XX_SOC_AC97
+	tristate
+	select AC97_BUS
+	select SND_SOC_AC97_BUS
+
+config SND_PXA2XX_SOC_I2S
+	tristate
+
+config SND_PXA2XX_SOC_CORGI
+	tristate "SoC Audio support for Sharp Zaurus SL-C7x0"
+	depends on SND_PXA2XX_SOC && PXA_SHARP_C7xx
+	select SND_PXA2XX_SOC_I2S
+	select SND_SOC_WM8731
+	help
+	  Say Y if you want to add support for SoC audio on Sharp
+	  Zaurus SL-C7x0 models (Corgi, Shepherd, Husky).
+
+config SND_PXA2XX_SOC_SPITZ
+	tristate "SoC Audio support for Sharp Zaurus SL-Cxx00"
+	depends on SND_PXA2XX_SOC && PXA_SHARP_Cxx00
+	select SND_PXA2XX_SOC_I2S
+	select SND_SOC_WM8750
+	help
+	  Say Y if you want to add support for SoC audio on Sharp
+	  Zaurus SL-Cxx00 models (Spitz, Borzoi and Akita).
+
+config SND_PXA2XX_SOC_POODLE
+	tristate "SoC Audio support for Poodle"
+	depends on SND_PXA2XX_SOC && MACH_POODLE
+	select SND_PXA2XX_SOC_I2S
+	select SND_SOC_WM8731
+	help
+	  Say Y if you want to add support for SoC audio on Sharp
+	  Zaurus SL-5600 model (Poodle).
+
+config SND_PXA2XX_SOC_TOSA
+	tristate "SoC AC97 Audio support for Tosa"
+	depends on SND_PXA2XX_SOC && MACH_TOSA
+	select SND_PXA2XX_SOC_AC97
+	select SND_SOC_WM9712
+	help
+	  Say Y if you want to add support for SoC audio on Sharp
+	  Zaurus SL-C6000x models (Tosa).
+
+endmenu

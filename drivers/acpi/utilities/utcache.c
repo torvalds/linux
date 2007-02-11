@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -288,6 +288,14 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 		/* The cache is empty, create a new object */
 
 		ACPI_MEM_TRACKING(cache->total_allocated++);
+
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+		if ((cache->total_allocated - cache->total_freed) >
+		    cache->max_occupied) {
+			cache->max_occupied =
+			    cache->total_allocated - cache->total_freed;
+		}
+#endif
 
 		/* Avoid deadlock with ACPI_ALLOCATE_ZEROED */
 

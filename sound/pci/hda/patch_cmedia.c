@@ -40,6 +40,7 @@ enum {
 	CMI_FULL_DIG,	/* back 6-jack + front-panel 2-jack + digital I/O */
 	CMI_ALLOUT,	/* back 5-jack + front-panel 2-jack + digital out */
 	CMI_AUTO,	/* let driver guess it */
+	CMI_MODELS
 };
 
 struct cmi_spec {
@@ -603,14 +604,17 @@ static void cmi9880_free(struct hda_codec *codec)
 /*
  */
 
-static struct hda_board_config cmi9880_cfg_tbl[] = {
-	{ .modelname = "minimal", .config = CMI_MINIMAL },
-	{ .modelname = "min_fp", .config = CMI_MIN_FP },
-	{ .modelname = "full", .config = CMI_FULL },
-	{ .modelname = "full_dig", .config = CMI_FULL_DIG },
-	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x813d, .config = CMI_FULL_DIG }, /* ASUS P5AD2 */
-	{ .modelname = "allout", .config = CMI_ALLOUT },
-	{ .modelname = "auto", .config = CMI_AUTO },
+static const char *cmi9880_models[CMI_MODELS] = {
+	[CMI_MINIMAL]	= "minimal",
+	[CMI_MIN_FP]	= "min_fp",
+	[CMI_FULL]	= "full",
+	[CMI_FULL_DIG]	= "full_dig",
+	[CMI_ALLOUT]	= "allout",
+	[CMI_AUTO]	= "auto",
+};
+
+static struct snd_pci_quirk cmi9880_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", CMI_FULL_DIG),
 	{} /* terminator */
 };
 
@@ -633,7 +637,9 @@ static int patch_cmi9880(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
-	spec->board_config = snd_hda_check_board_config(codec, cmi9880_cfg_tbl);
+	spec->board_config = snd_hda_check_board_config(codec, CMI_MODELS,
+							cmi9880_models,
+							cmi9880_cfg_tbl);
 	if (spec->board_config < 0) {
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for CMI9880\n");
 		spec->board_config = CMI_AUTO; /* try everything */

@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/bootmem.h>
 #include <linux/ctype.h>
+#include <linux/ioport.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/ebcdic.h>
@@ -70,6 +71,7 @@ struct qin64 {
 struct dcss_segment {
 	struct list_head list;
 	char dcss_name[8];
+	char res_name[15];
 	unsigned long start_addr;
 	unsigned long end;
 	atomic_t ref_count;
@@ -77,6 +79,7 @@ struct dcss_segment {
 	unsigned int vm_segtype;
 	struct qrange range[6];
 	int segcnt;
+	struct resource *res;
 };
 
 static DEFINE_MUTEX(dcss_lock);
@@ -88,7 +91,7 @@ static char *segtype_string[] = { "SW", "EW", "SR", "ER", "SN", "EN", "SC",
  * Create the 8 bytes, ebcdic VM segment name from
  * an ascii name.
  */
-static void inline
+static void
 dcss_mkname(char *name, char *dcss_name)
 {
 	int i;
@@ -303,6 +306,29 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 		goto out_free;
 	}
 
+	seg->res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	if (seg->res == NULL) {
+		rc = -ENOMEM;
+		goto out_shared;
+	}
+	seg->res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
+	seg->res->start = seg->start_addr;
+	seg->res->end = seg->end;
+	memcpy(&seg->res_name, seg->dcss_name, 8);
+	EBCASC(seg->res_name, 8);
+	seg->res_name[8] = '\0';
+	strncat(seg->res_name, " (DCSS)", 7);
+	seg->res->name = seg->res_name;
+	rc = seg->vm_segtype;
+	if (rc == SEG_TYPE_SC ||
+	    ((rc == SEG_TYPE_SR || rc == SEG_TYPE_ER) && !do_nonshared))
+		seg->res->flags |= IORESOURCE_READONLY;
+	if (request_resource(&iomem_resource, seg->res)) {
+		rc = -EBUSY;
+		kfree(seg->res);
+		goto out_shared;
+	}
+
 	if (do_nonshared)
 		dcss_command = DCSS_LOADNSR;
 	else
@@ -316,12 +342,11 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 		rc = dcss_diag_translate_rc (seg->end);
 		dcss_diag(DCSS_PURGESEG, seg->dcss_name,
 				&seg->start_addr, &seg->end);
-		goto out_shared;
+		goto out_resource;
 	}
 	seg->do_nonshared = do_nonshared;
 	atomic_set(&seg->ref_count, 1);
 	list_add(&seg->list, &dcss_list);
-	rc = seg->vm_segtype;
 	*addr = seg->start_addr;
 	*end  = seg->end;
 	if (do_nonshared)
@@ -329,12 +354,16 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 				"type %s in non-shared mode\n", name,
 				(void*)seg->start_addr, (void*)seg->end,
 				segtype_string[seg->vm_segtype]);
-	else
+	else {
 		PRINT_INFO ("segment_load: loaded segment %s range %p .. %p "
 				"type %s in shared mode\n", name,
 				(void*)seg->start_addr, (void*)seg->end,
 				segtype_string[seg->vm_segtype]);
+	}
 	goto out;
+ out_resource:
+	release_resource(seg->res);
+	kfree(seg->res);
  out_shared:
 	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
  out_free:
@@ -401,6 +430,7 @@ segment_load (char *name, int do_nonshared, unsigned long *addr,
  * -ENOENT  : no such segment (segment gone!)
  * -EAGAIN  : segment is in use by other exploiters, try later
  * -EINVAL  : no segment with the given name is currently loaded - name invalid
+ * -EBUSY   : segment can temporarily not be used (overlaps with dcss)
  * 0	    : operation succeeded
  */
 int
@@ -428,12 +458,24 @@ segment_modify_shared (char *name, int do_nonshared)
 		rc = -EAGAIN;
 		goto out_unlock;
 	}
-	dcss_diag(DCSS_PURGESEG, seg->dcss_name,
-		  &dummy, &dummy);
-	if (do_nonshared)
+	release_resource(seg->res);
+	if (do_nonshared) {
 		dcss_command = DCSS_LOADNSR;
-	else
-	dcss_command = DCSS_LOADNOLY;
+		seg->res->flags &= ~IORESOURCE_READONLY;
+	} else {
+		dcss_command = DCSS_LOADNOLY;
+		if (seg->vm_segtype == SEG_TYPE_SR ||
+		    seg->vm_segtype == SEG_TYPE_ER)
+			seg->res->flags |= IORESOURCE_READONLY;
+	}
+	if (request_resource(&iomem_resource, seg->res)) {
+		PRINT_WARN("segment_modify_shared: could not reload segment %s"
+			   " - overlapping resources\n", name);
+		rc = -EBUSY;
+		kfree(seg->res);
+		goto out_del;
+	}
+	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
 	diag_cc = dcss_diag(dcss_command, seg->dcss_name,
 			&seg->start_addr, &seg->end);
 	if (diag_cc > 1) {
@@ -446,9 +488,9 @@ segment_modify_shared (char *name, int do_nonshared)
 	rc = 0;
 	goto out_unlock;
  out_del:
+	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
 	list_del(&seg->list);
-	dcss_diag(DCSS_PURGESEG, seg->dcss_name,
-		  &dummy, &dummy);
+	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
 	kfree(seg);
  out_unlock:
 	mutex_unlock(&dcss_lock);
@@ -478,6 +520,8 @@ segment_unload(char *name)
 	}
 	if (atomic_dec_return(&seg->ref_count) != 0)
 		goto out_unlock;
+	release_resource(seg->res);
+	kfree(seg->res);
 	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
 	list_del(&seg->list);
 	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);

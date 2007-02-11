@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/crc32.h>
+#include <linux/bitrev.h>
 #include <asm/prom.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
@@ -140,7 +141,6 @@ static unsigned char *bmac_emergency_rxbuf;
 	+ (N_RX_RING + N_TX_RING + 4) * sizeof(struct dbdma_cmd) \
 	+ sizeof(struct sk_buff_head))
 
-static unsigned char bitrev(unsigned char b);
 static int bmac_open(struct net_device *dev);
 static int bmac_close(struct net_device *dev);
 static int bmac_transmit_packet(struct sk_buff *skb, struct net_device *dev);
@@ -585,18 +585,6 @@ bmac_construct_rxbuff(struct sk_buff *skb, volatile struct dbdma_cmd *cp)
 	dbdma_setcmd(cp, (INPUT_LAST | INTR_ALWAYS), RX_BUFLEN,
 		     virt_to_bus(addr), 0);
 }
-
-/* Bit-reverse one byte of an ethernet hardware address. */
-static unsigned char
-bitrev(unsigned char b)
-{
-	int d = 0, i;
-
-	for (i = 0; i < 8; ++i, b >>= 1)
-		d = (d << 1) | (b & 1);
-	return d;
-}
-
 
 static void
 bmac_init_tx_ring(struct bmac_data *bp)
@@ -1224,8 +1212,8 @@ bmac_get_station_address(struct net_device *dev, unsigned char *ea)
 		{
 			reset_and_select_srom(dev);
 			data = read_srom(dev, i + EnetAddressOffset/2, SROMAddressBits);
-			ea[2*i]   = bitrev(data & 0x0ff);
-			ea[2*i+1] = bitrev((data >> 8) & 0x0ff);
+			ea[2*i]   = bitrev8(data & 0x0ff);
+			ea[2*i+1] = bitrev8((data >> 8) & 0x0ff);
 		}
 }
 
@@ -1315,7 +1303,7 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 
 	rev = addr[0] == 0 && addr[1] == 0xA0;
 	for (j = 0; j < 6; ++j)
-		dev->dev_addr[j] = rev? bitrev(addr[j]): addr[j];
+		dev->dev_addr[j] = rev ? bitrev8(addr[j]): addr[j];
 
 	/* Enable chip without interrupts for now */
 	bmac_enable_and_reset_chip(dev);

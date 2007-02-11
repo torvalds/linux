@@ -52,7 +52,7 @@ static struct tcf_hashinfo ipt_hash_info = {
 
 static int ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int hook)
 {
-	struct ipt_target *target;
+	struct xt_target *target;
 	int ret = 0;
 
 	target = xt_request_find_target(AF_INET, t->u.user.name,

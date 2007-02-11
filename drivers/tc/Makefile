@@ -4,7 +4,7 @@
 
 # Object file lists.
 
-obj-$(CONFIG_TC) += tc.o
+obj-$(CONFIG_TC) += tc.o tc-driver.o
 obj-$(CONFIG_ZS) += zs.o
 obj-$(CONFIG_VT) += lk201.o lk201-map.o lk201-remap.o
 

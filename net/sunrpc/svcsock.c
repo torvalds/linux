@@ -62,6 +62,12 @@
  *		after a clear, the socket must be read/accepted
  *		 if this succeeds, it must be set again.
  *	SK_CLOSE can set at any time. It is never cleared.
+ *      sk_inuse contains a bias of '1' until SK_DEAD is set.
+ *             so when sk_inuse hits zero, we know the socket is dead
+ *             and no-one is using it.
+ *      SK_DEAD can only be set while SK_BUSY is held which ensures
+ *             no other thread will be using the socket or will try to
+ *	       set SK_DEAD.
  *
  */
 
@@ -70,6 +76,7 @@
 
 static struct svc_sock *svc_setup_socket(struct svc_serv *, struct socket *,
 					 int *errp, int pmap_reg);
+static void		svc_delete_socket(struct svc_sock *svsk);
 static void		svc_udp_data_ready(struct sock *, int);
 static int		svc_udp_recvfrom(struct svc_rqst *);
 static int		svc_udp_sendto(struct svc_rqst *);
@@ -329,8 +336,9 @@ void svc_reserve(struct svc_rqst *rqstp, int space)
 static inline void
 svc_sock_put(struct svc_sock *svsk)
 {
-	if (atomic_dec_and_test(&svsk->sk_inuse) &&
-			test_bit(SK_DEAD, &svsk->sk_flags)) {
+	if (atomic_dec_and_test(&svsk->sk_inuse)) {
+		BUG_ON(! test_bit(SK_DEAD, &svsk->sk_flags));
+
 		dprintk("svc: releasing dead socket\n");
 		if (svsk->sk_sock->file)
 			sockfd_put(svsk->sk_sock);
@@ -520,7 +528,7 @@ svc_sock_names(char *buf, struct svc_serv *serv, char *toclose)
 
 	if (!serv)
 		return 0;
-	spin_lock(&serv->sv_lock);
+	spin_lock_bh(&serv->sv_lock);
 	list_for_each_entry(svsk, &serv->sv_permsocks, sk_list) {
 		int onelen = one_sock_name(buf+len, svsk);
 		if (toclose && strcmp(toclose, buf+len) == 0)
@@ -528,12 +536,12 @@ svc_sock_names(char *buf, struct svc_serv *serv, char *toclose)
 		else
 			len += onelen;
 	}
-	spin_unlock(&serv->sv_lock);
+	spin_unlock_bh(&serv->sv_lock);
 	if (closesk)
 		/* Should unregister with portmap, but you cannot
 		 * unregister just one protocol...
 		 */
-		svc_delete_socket(closesk);
+		svc_close_socket(closesk);
 	else if (toclose)
 		return -ENOENT;
 	return len;
@@ -681,6 +689,11 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 	if ((rqstp->rq_deferred = svc_deferred_dequeue(svsk))) {
 		svc_sock_received(svsk);
 		return svc_deferred_recv(rqstp);
+	}
+
+	if (test_bit(SK_CLOSE, &svsk->sk_flags)) {
+		svc_delete_socket(svsk);
+		return 0;
 	}
 
 	clear_bit(SK_DATA, &svsk->sk_flags);
@@ -1176,7 +1189,8 @@ svc_tcp_sendto(struct svc_rqst *rqstp)
 		       rqstp->rq_sock->sk_server->sv_name,
 		       (sent<0)?"got error":"sent only",
 		       sent, xbufp->len);
-		svc_delete_socket(rqstp->rq_sock);
+		set_bit(SK_CLOSE, &rqstp->rq_sock->sk_flags);
+		svc_sock_enqueue(rqstp->rq_sock);
 		sent = -EAGAIN;
 	}
 	return sent;
@@ -1495,7 +1509,7 @@ svc_setup_socket(struct svc_serv *serv, struct socket *sock,
 	svsk->sk_odata = inet->sk_data_ready;
 	svsk->sk_owspace = inet->sk_write_space;
 	svsk->sk_server = serv;
-	atomic_set(&svsk->sk_inuse, 0);
+	atomic_set(&svsk->sk_inuse, 1);
 	svsk->sk_lastrecv = get_seconds();
 	spin_lock_init(&svsk->sk_defer_lock);
 	INIT_LIST_HEAD(&svsk->sk_deferred);
@@ -1618,7 +1632,7 @@ bummer:
 /*
  * Remove a dead socket
  */
-void
+static void
 svc_delete_socket(struct svc_sock *svsk)
 {
 	struct svc_serv	*serv;
@@ -1644,16 +1658,26 @@ svc_delete_socket(struct svc_sock *svsk)
 	 * while still attached to a queue, the queue itself
 	 * is about to be destroyed (in svc_destroy).
 	 */
-	if (!test_and_set_bit(SK_DEAD, &svsk->sk_flags))
+	if (!test_and_set_bit(SK_DEAD, &svsk->sk_flags)) {
+		BUG_ON(atomic_read(&svsk->sk_inuse)<2);
+		atomic_dec(&svsk->sk_inuse);
 		if (test_bit(SK_TEMP, &svsk->sk_flags))
 			serv->sv_tmpcnt--;
+	}
 
-	/* This atomic_inc should be needed - svc_delete_socket
-	 * should have the semantic of dropping a reference.
-	 * But it doesn't yet....
-	 */
-	atomic_inc(&svsk->sk_inuse);
 	spin_unlock_bh(&serv->sv_lock);
+}
+
+void svc_close_socket(struct svc_sock *svsk)
+{
+	set_bit(SK_CLOSE, &svsk->sk_flags);
+	if (test_and_set_bit(SK_BUSY, &svsk->sk_flags))
+		/* someone else will have to effect the close */
+		return;
+
+	atomic_inc(&svsk->sk_inuse);
+	svc_delete_socket(svsk);
+	clear_bit(SK_BUSY, &svsk->sk_flags);
 	svc_sock_put(svsk);
 }
 

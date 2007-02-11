@@ -11,19 +11,17 @@
 
 #ifndef FS_PD_H
 #define FS_PD_H
-#include <asm/cpm2.h>
 #include <sysdev/fsl_soc.h>
 #include <asm/time.h>
 
-static inline int uart_baudrate(void)
-{
-        return get_baudrate();
-}
+#ifdef CONFIG_CPM2
+#include <asm/cpm2.h>
 
-static inline int uart_clock(void)
-{
-        return ppc_proc_freq;
-}
+#if defined(CONFIG_8260)
+#include <asm/mpc8260.h>
+#elif defined(CONFIG_85xx)
+#include <asm/mpc85xx.h>
+#endif
 
 #define cpm2_map(member)						\
 ({									\
@@ -41,5 +39,38 @@ static inline int uart_clock(void)
 })
 
 #define cpm2_unmap(addr)	iounmap(addr)
+#endif
+
+#ifdef CONFIG_8xx
+#include <asm/8xx_immap.h>
+#include <asm/mpc8xx.h>
+
+#define immr_map(member)						\
+({									\
+	u32 offset = offsetof(immap_t, member);				\
+	void *addr = ioremap (IMAP_ADDR + offset,			\
+			      sizeof( ((immap_t*)0)->member));		\
+	addr;								\
+})
+
+#define immr_map_size(member, size)					\
+({									\
+	u32 offset = offsetof(immap_t, member);				\
+	void *addr = ioremap (IMAP_ADDR + offset, size);		\
+	addr;								\
+})
+
+#define immr_unmap(addr)		iounmap(addr)
+#endif
+
+static inline int uart_baudrate(void)
+{
+        return get_baudrate();
+}
+
+static inline int uart_clock(void)
+{
+        return ppc_proc_freq;
+}
 
 #endif

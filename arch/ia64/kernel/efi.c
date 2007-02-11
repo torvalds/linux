@@ -380,7 +380,7 @@ efi_get_pal_addr (void)
 #endif
 		return __va(md->phys_addr);
 	}
-	printk(KERN_WARNING "%s: no PAL-code memory-descriptor found",
+	printk(KERN_WARNING "%s: no PAL-code memory-descriptor found\n",
 	       __FUNCTION__);
 	return NULL;
 }

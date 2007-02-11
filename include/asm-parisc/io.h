@@ -191,15 +191,6 @@ void memset_io(volatile void __iomem *addr, unsigned char val, int count);
 void memcpy_fromio(void *dst, const volatile void __iomem *src, int count);
 void memcpy_toio(volatile void __iomem *dst, const void *src, int count);
 
-/*
- * XXX - We don't have csum_partial_copy_fromio() yet, so we cheat here and 
- * just copy it. The net code will then do the checksum later. Presently 
- * only used by some shared memory 8390 Ethernet cards anyway.
- */
-
-#define eth_io_copy_and_sum(skb,src,len,unused) \
-  memcpy_fromio((skb)->data,(src),(len))
-
 /* Port-space IO */
 
 #define inb_p inb

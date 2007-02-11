@@ -190,12 +190,17 @@ int hpsb_add_host(struct hpsb_host *host)
 {
 	if (hpsb_default_host_entry(host))
 		return -ENOMEM;
-
 	hpsb_add_extra_config_roms(host);
-
 	highlevel_add_host(host);
-
 	return 0;
+}
+
+void hpsb_resume_host(struct hpsb_host *host)
+{
+	if (host->driver->set_hw_config_rom)
+		host->driver->set_hw_config_rom(host,
+						host->csr.rom->bus_info_data);
+	host->driver->devctl(host, RESET_BUS, SHORT_RESET);
 }
 
 void hpsb_remove_host(struct hpsb_host *host)
@@ -206,9 +211,7 @@ void hpsb_remove_host(struct hpsb_host *host)
 	flush_scheduled_work();
 
 	host->driver = &dummy_driver;
-
 	highlevel_remove_host(host);
-
 	hpsb_remove_extra_config_roms(host);
 
 	class_device_unregister(&host->class_dev);

@@ -165,14 +165,14 @@ static struct ata_port_operations cy82c693_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static int cy82c693_init_one(struct pci_dev *pdev, const struct pci_device_id *id)

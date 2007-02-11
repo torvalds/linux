@@ -116,10 +116,6 @@ zimageinitrd-$(CONFIG_WALNUT)		:= zImage.initrd-TREE
      extra.o-$(CONFIG_CHESTNUT)		:= misc-chestnut.o
          end-$(CONFIG_CHESTNUT)		:= chestnut
 
-      zimage-$(CONFIG_GEMINI)		:= zImage-STRIPELF
-zimageinitrd-$(CONFIG_GEMINI)		:= zImage.initrd-STRIPELF
-         end-$(CONFIG_GEMINI)		:= gemini
-
      extra.o-$(CONFIG_KATANA)		:= misc-katana.o
          end-$(CONFIG_KATANA)		:= katana
    cacheflag-$(CONFIG_KATANA)		:= -include $(clear_L2_L3)

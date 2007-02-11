@@ -3,6 +3,7 @@
 
 #include <linux/mm.h>
 #include <asm/processor.h>
+#include <asm/pgalloc.h>
 
 /*
  * TLB flushing:
@@ -102,6 +103,14 @@ static inline void __flush_tlb_mm(struct mm_struct * mm)
 	if (unlikely(cpus_empty(mm->cpu_vm_mask)))
 		return;
 	if (MACHINE_HAS_IDTE) {
+		pgd_t *shadow_pgd = get_shadow_pgd(mm->pgd);
+
+		if (shadow_pgd) {
+			asm volatile(
+				"	.insn	rrf,0xb98e0000,0,%0,%1,0"
+				: : "a" (2048),
+				"a" (__pa(shadow_pgd) & PAGE_MASK) : "cc" );
+		}
 		asm volatile(
 			"	.insn	rrf,0xb98e0000,0,%0,%1,0"
 			: : "a" (2048), "a" (__pa(mm->pgd)&PAGE_MASK) : "cc");

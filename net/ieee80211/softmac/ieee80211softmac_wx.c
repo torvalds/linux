@@ -265,6 +265,12 @@ ieee80211softmac_wx_get_rate(struct net_device *net_dev,
 	int err = -EINVAL;
 
 	spin_lock_irqsave(&mac->lock, flags);
+
+	if (unlikely(!mac->running)) {
+		err = -ENODEV;
+		goto out_unlock;
+	}
+
 	switch (mac->txrates.default_rate) {
 	case IEEE80211_CCK_RATE_1MB:
 		data->bitrate.value = 1000000;

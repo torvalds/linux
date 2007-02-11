@@ -415,8 +415,67 @@ dma_pool_free (struct dma_pool *pool, void *vaddr, dma_addr_t dma)
 	spin_unlock_irqrestore (&pool->lock, flags);
 }
 
+/*
+ * Managed DMA pool
+ */
+static void dmam_pool_release(struct device *dev, void *res)
+{
+	struct dma_pool *pool = *(struct dma_pool **)res;
+
+	dma_pool_destroy(pool);
+}
+
+static int dmam_pool_match(struct device *dev, void *res, void *match_data)
+{
+	return *(struct dma_pool **)res == match_data;
+}
+
+/**
+ * dmam_pool_create - Managed dma_pool_create()
+ * @name: name of pool, for diagnostics
+ * @dev: device that will be doing the DMA
+ * @size: size of the blocks in this pool.
+ * @align: alignment requirement for blocks; must be a power of two
+ * @allocation: returned blocks won't cross this boundary (or zero)
+ *
+ * Managed dma_pool_create().  DMA pool created with this function is
+ * automatically destroyed on driver detach.
+ */
+struct dma_pool *dmam_pool_create(const char *name, struct device *dev,
+				  size_t size, size_t align, size_t allocation)
+{
+	struct dma_pool **ptr, *pool;
+
+	ptr = devres_alloc(dmam_pool_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	pool = *ptr = dma_pool_create(name, dev, size, align, allocation);
+	if (pool)
+		devres_add(dev, ptr);
+	else
+		devres_free(ptr);
+
+	return pool;
+}
+
+/**
+ * dmam_pool_destroy - Managed dma_pool_destroy()
+ * @pool: dma pool that will be destroyed
+ *
+ * Managed dma_pool_destroy().
+ */
+void dmam_pool_destroy(struct dma_pool *pool)
+{
+	struct device *dev = pool->dev;
+
+	dma_pool_destroy(pool);
+	WARN_ON(devres_destroy(dev, dmam_pool_release, dmam_pool_match, pool));
+}
 
 EXPORT_SYMBOL (dma_pool_create);
 EXPORT_SYMBOL (dma_pool_destroy);
 EXPORT_SYMBOL (dma_pool_alloc);
 EXPORT_SYMBOL (dma_pool_free);
+EXPORT_SYMBOL (dmam_pool_create);
+EXPORT_SYMBOL (dmam_pool_destroy);

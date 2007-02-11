@@ -1121,7 +1121,7 @@ static const struct tty_operations tty3215_ops = {
  * 3215 tty registration code called from tty_init().
  * Most kernel services (incl. kmalloc) are available at this poimt.
  */
-int __init
+static int __init
 tty3215_init(void)
 {
 	struct tty_driver *driver;

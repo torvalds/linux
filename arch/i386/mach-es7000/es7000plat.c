@@ -160,51 +160,14 @@ parse_unisys_oem (char *oemptr)
 int __init
 find_unisys_acpi_oem_table(unsigned long *oem_addr)
 {
-	struct acpi_table_rsdp		*rsdp = NULL;
-	unsigned long			rsdp_phys = 0;
-	struct acpi_table_header 	*header = NULL;
-	int				i;
-	struct acpi_table_sdt		sdt;
-
-	rsdp_phys = acpi_find_rsdp();
-	rsdp = __va(rsdp_phys);
-	if (rsdp->rsdt_address) {
-		struct acpi_table_rsdt	*mapped_rsdt = NULL;
-		sdt.pa = rsdp->rsdt_address;
-
-		header = (struct acpi_table_header *)
-			__acpi_map_table(sdt.pa, sizeof(struct acpi_table_header));
-		if (!header)
-			return -ENODEV;
-
-		sdt.count = (header->length - sizeof(struct acpi_table_header)) >> 3;
-		mapped_rsdt = (struct acpi_table_rsdt *)
-			__acpi_map_table(sdt.pa, header->length);
-		if (!mapped_rsdt)
-			return -ENODEV;
-
-		header = &mapped_rsdt->header;
-
-		for (i = 0; i < sdt.count; i++)
-			sdt.entry[i].pa = (unsigned long) mapped_rsdt->entry[i];
-	};
-	for (i = 0; i < sdt.count; i++) {
-
-		header = (struct acpi_table_header *)
-			__acpi_map_table(sdt.entry[i].pa,
-				sizeof(struct acpi_table_header));
-		if (!header)
-			continue;
-		if (!strncmp((char *) &header->signature, "OEM1", 4)) {
-			if (!strncmp((char *) &header->oem_id, "UNISYS", 6)) {
-				void *addr;
-				struct oem_table *t;
-				acpi_table_print(header, sdt.entry[i].pa);
-				t = (struct oem_table *) __acpi_map_table(sdt.entry[i].pa, header->length);
-				addr = (void *) __acpi_map_table(t->OEMTableAddr, t->OEMTableSize);
-				*oem_addr = (unsigned long) addr;
-				return 0;
-			}
+	struct acpi_table_header *header = NULL;
+	int i = 0;
+	while (ACPI_SUCCESS(acpi_get_table("OEM1", i++, &header))) {
+		if (!memcmp((char *) &header->oem_id, "UNISYS", 6)) {
+			struct oem_table *t = (struct oem_table *)header;
+			*oem_addr = (unsigned long)__acpi_map_table(t->OEMTableAddr,
+								    t->OEMTableSize);
+			return 0;
 		}
 	}
 	return -1;

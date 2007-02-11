@@ -8,11 +8,12 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/ip.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 
 #include <linux/netfilter_ipv4/ipt_tos.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter/x_tables.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("iptables TOS match module");
@@ -32,8 +33,9 @@ match(const struct sk_buff *skb,
 	return (skb->nh.iph->tos == info->tos) ^ info->invert;
 }
 
-static struct ipt_match tos_match = {
+static struct xt_match tos_match = {
 	.name		= "tos",
+	.family		= AF_INET,
 	.match		= match,
 	.matchsize	= sizeof(struct ipt_tos_info),
 	.me		= THIS_MODULE,
@@ -41,12 +43,12 @@ static struct ipt_match tos_match = {
 
 static int __init ipt_multiport_init(void)
 {
-	return ipt_register_match(&tos_match);
+	return xt_register_match(&tos_match);
 }
 
 static void __exit ipt_multiport_fini(void)
 {
-	ipt_unregister_match(&tos_match);
+	xt_unregister_match(&tos_match);
 }
 
 module_init(ipt_multiport_init);

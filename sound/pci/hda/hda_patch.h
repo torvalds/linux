@@ -14,6 +14,10 @@ extern struct hda_codec_preset snd_hda_preset_sigmatel[];
 extern struct hda_codec_preset snd_hda_preset_si3054[];
 /* ATI HDMI codecs */
 extern struct hda_codec_preset snd_hda_preset_atihdmi[];
+/* Conexant audio codec */
+extern struct hda_codec_preset snd_hda_preset_conexant[];
+/* VIA codecs */
+extern struct hda_codec_preset snd_hda_preset_via[];
 
 static const struct hda_codec_preset *hda_preset_tables[] = {
 	snd_hda_preset_realtek,
@@ -22,5 +26,7 @@ static const struct hda_codec_preset *hda_preset_tables[] = {
 	snd_hda_preset_sigmatel,
 	snd_hda_preset_si3054,
 	snd_hda_preset_atihdmi,
+	snd_hda_preset_conexant,
+	snd_hda_preset_via,
 	NULL
 };

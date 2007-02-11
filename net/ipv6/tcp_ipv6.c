@@ -265,7 +265,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
+	if ((err = xfrm_lookup(&dst, &fl, sk, 1)) < 0)
 		goto failure;
 
 	if (saddr == NULL) {

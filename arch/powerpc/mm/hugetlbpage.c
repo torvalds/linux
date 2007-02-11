@@ -1014,7 +1014,6 @@ repeat:
 
 		/* Primary is full, try the secondary */
 		if (unlikely(slot == -1)) {
-			new_pte |= _PAGE_F_SECOND;
 			hpte_group = ((~hash & htab_hash_mask) *
 				      HPTES_PER_GROUP) & ~0x7UL; 
 			slot = ppc_md.hpte_insert(hpte_group, va, pa, rflags,
@@ -1033,7 +1032,7 @@ repeat:
 		if (unlikely(slot == -2))
 			panic("hash_huge_page: pte_insert failed\n");
 
-		new_pte |= (slot << 12) & _PAGE_F_GIX;
+		new_pte |= (slot << 12) & (_PAGE_F_SECOND | _PAGE_F_GIX);
 	}
 
 	/*

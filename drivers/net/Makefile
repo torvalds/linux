@@ -6,8 +6,10 @@ obj-$(CONFIG_E1000) += e1000/
 obj-$(CONFIG_IBM_EMAC) += ibm_emac/
 obj-$(CONFIG_IXGB) += ixgb/
 obj-$(CONFIG_CHELSIO_T1) += chelsio/
+obj-$(CONFIG_CHELSIO_T3) += cxgb3/
 obj-$(CONFIG_EHEA) += ehea/
 obj-$(CONFIG_BONDING) += bonding/
+obj-$(CONFIG_ATL1) += atl1/
 obj-$(CONFIG_GIANFAR) += gianfar_driver.o
 
 gianfar_driver-objs := gianfar.o \
@@ -35,8 +37,6 @@ obj-$(CONFIG_CASSINI) += cassini.o
 
 obj-$(CONFIG_MACE) += mace.o
 obj-$(CONFIG_BMAC) += bmac.o
-
-obj-$(CONFIG_OAKNET) += oaknet.o 8390.o
 
 obj-$(CONFIG_DGRS) += dgrs.o
 obj-$(CONFIG_VORTEX) += 3c59x.o
@@ -137,7 +137,6 @@ obj-$(CONFIG_AT1700) += at1700.o
 obj-$(CONFIG_EL1) += 3c501.o
 obj-$(CONFIG_EL16) += 3c507.o
 obj-$(CONFIG_ELMC) += 3c523.o
-obj-$(CONFIG_SKMC) += sk_mca.o
 obj-$(CONFIG_IBMLANA) += ibmlana.o
 obj-$(CONFIG_ELMC_II) += 3c527.o
 obj-$(CONFIG_EL3) += 3c509.o
@@ -160,6 +159,7 @@ obj-$(CONFIG_APRICOT) += 82596.o
 obj-$(CONFIG_LASI_82596) += lasi_82596.o
 obj-$(CONFIG_MVME16x_NET) += 82596.o
 obj-$(CONFIG_BVME6000_NET) += 82596.o
+obj-$(CONFIG_SC92031) += sc92031.o
 
 # This is also a 82596 and should probably be merged
 obj-$(CONFIG_LP486E) += lp486e.o
@@ -196,6 +196,7 @@ obj-$(CONFIG_SMC91X) += smc91x.o
 obj-$(CONFIG_SMC911X) += smc911x.o
 obj-$(CONFIG_DM9000) += dm9000.o
 obj-$(CONFIG_FEC_8XX) += fec_8xx/
+obj-$(CONFIG_PASEMI_MAC) += pasemi_mac.o
 
 obj-$(CONFIG_MACB) += macb.o
 

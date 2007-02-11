@@ -17,39 +17,36 @@ struct petp {
 static void tp_init(adapter_t * ap, const struct tp_params *p,
 		    unsigned int tp_clk)
 {
-	if (t1_is_asic(ap)) {
-		u32 val;
+	u32 val;
 
-		val = F_TP_IN_CSPI_CPL | F_TP_IN_CSPI_CHECK_IP_CSUM |
-		    F_TP_IN_CSPI_CHECK_TCP_CSUM | F_TP_IN_ESPI_ETHERNET;
-		if (!p->pm_size)
-			val |= F_OFFLOAD_DISABLE;
-		else
-			val |= F_TP_IN_ESPI_CHECK_IP_CSUM |
-			    F_TP_IN_ESPI_CHECK_TCP_CSUM;
-		writel(val, ap->regs + A_TP_IN_CONFIG);
-		writel(F_TP_OUT_CSPI_CPL |
-		       F_TP_OUT_ESPI_ETHERNET |
-		       F_TP_OUT_ESPI_GENERATE_IP_CSUM |
-		       F_TP_OUT_ESPI_GENERATE_TCP_CSUM,
-		       ap->regs + A_TP_OUT_CONFIG);
-		writel(V_IP_TTL(64) |
-		       F_PATH_MTU /* IP DF bit */  |
-		       V_5TUPLE_LOOKUP(p->use_5tuple_mode) |
-		       V_SYN_COOKIE_PARAMETER(29),
-		       ap->regs + A_TP_GLOBAL_CONFIG);
-		/*
-		 * Enable pause frame deadlock prevention.
-		 */
-		if (is_T2(ap) && ap->params.nports > 1) {
-			u32 drop_ticks = DROP_MSEC * (tp_clk / 1000);
+	if (!t1_is_asic(ap))
+		return;
 
-			writel(F_ENABLE_TX_DROP | F_ENABLE_TX_ERROR |
-			       V_DROP_TICKS_CNT(drop_ticks) |
-			       V_NUM_PKTS_DROPPED(DROP_PKTS_CNT),
-			       ap->regs + A_TP_TX_DROP_CONFIG);
-		}
+	val = F_TP_IN_CSPI_CPL | F_TP_IN_CSPI_CHECK_IP_CSUM |
+		F_TP_IN_CSPI_CHECK_TCP_CSUM | F_TP_IN_ESPI_ETHERNET;
+	if (!p->pm_size)
+		val |= F_OFFLOAD_DISABLE;
+	else
+		val |= F_TP_IN_ESPI_CHECK_IP_CSUM | F_TP_IN_ESPI_CHECK_TCP_CSUM;
+	writel(val, ap->regs + A_TP_IN_CONFIG);
+	writel(F_TP_OUT_CSPI_CPL |
+	       F_TP_OUT_ESPI_ETHERNET |
+	       F_TP_OUT_ESPI_GENERATE_IP_CSUM |
+	       F_TP_OUT_ESPI_GENERATE_TCP_CSUM, ap->regs + A_TP_OUT_CONFIG);
+	writel(V_IP_TTL(64) |
+	       F_PATH_MTU /* IP DF bit */  |
+	       V_5TUPLE_LOOKUP(p->use_5tuple_mode) |
+	       V_SYN_COOKIE_PARAMETER(29), ap->regs + A_TP_GLOBAL_CONFIG);
+	/*
+	 * Enable pause frame deadlock prevention.
+	 */
+	if (is_T2(ap) && ap->params.nports > 1) {
+		u32 drop_ticks = DROP_MSEC * (tp_clk / 1000);
 
+		writel(F_ENABLE_TX_DROP | F_ENABLE_TX_ERROR |
+		       V_DROP_TICKS_CNT(drop_ticks) |
+		       V_NUM_PKTS_DROPPED(DROP_PKTS_CNT),
+		       ap->regs + A_TP_TX_DROP_CONFIG);
 	}
 }
 
@@ -61,6 +58,7 @@ void t1_tp_destroy(struct petp *tp)
 struct petp *__devinit t1_tp_create(adapter_t * adapter, struct tp_params *p)
 {
 	struct petp *tp = kzalloc(sizeof(*tp), GFP_KERNEL);
+
 	if (!tp)
 		return NULL;
 

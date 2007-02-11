@@ -99,7 +99,7 @@ struct aoa_fabric {
  * that are not assigned yet are passed to the fabric
  * again for reconsideration. */
 extern int
-aoa_fabric_register(struct aoa_fabric *fabric);
+aoa_fabric_register(struct aoa_fabric *fabric, struct device *dev);
 
 /* it is vital to call this when the fabric exits!
  * When calling, the remove_codec will be called

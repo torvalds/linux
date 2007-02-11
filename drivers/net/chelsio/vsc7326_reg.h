@@ -192,73 +192,84 @@
 #define REG_HDX(pn)		CRA(0x1,pn,0x19)	/* Half-duplex config */
 
 /* Statistics */
+/* CRA(0x4,pn,reg) */
+/* reg below */
 /* pn = port number, 0-a, a = 10GbE */
-#define REG_RX_IN_BYTES(pn)	CRA(0x4,pn,0x00)	/* # Rx in octets */
-#define REG_RX_SYMBOL_CARRIER(pn) CRA(0x4,pn,0x01)	/* Frames w/ symbol errors */
-#define REG_RX_PAUSE(pn)	CRA(0x4,pn,0x02)	/* # pause frames received */
-#define REG_RX_UNSUP_OPCODE(pn)	CRA(0x4,pn,0x03)	/* # control frames with unsupported opcode */
-#define REG_RX_OK_BYTES(pn)	CRA(0x4,pn,0x04)	/* # octets in good frames */
-#define REG_RX_BAD_BYTES(pn)	CRA(0x4,pn,0x05)	/* # octets in bad frames */
-#define REG_RX_UNICAST(pn)	CRA(0x4,pn,0x06)	/* # good unicast frames */
-#define REG_RX_MULTICAST(pn)	CRA(0x4,pn,0x07)	/* # good multicast frames */
-#define REG_RX_BROADCAST(pn)	CRA(0x4,pn,0x08)	/* # good broadcast frames */
-#define REG_CRC(pn)		CRA(0x4,pn,0x09)	/* # frames w/ bad CRC only */
-#define REG_RX_ALIGNMENT(pn)	CRA(0x4,pn,0x0a)	/* # frames w/ alignment err */
-#define REG_RX_UNDERSIZE(pn)	CRA(0x4,pn,0x0b)	/* # frames undersize */
-#define REG_RX_FRAGMENTS(pn)	CRA(0x4,pn,0x0c)	/* # frames undersize w/ crc err */
-#define REG_RX_IN_RANGE_LENGTH_ERROR(pn) CRA(0x4,pn,0x0d)	/* # frames with length error */
-#define REG_RX_OUT_OF_RANGE_ERROR(pn) CRA(0x4,pn,0x0e)	/* # frames with illegal length field */
-#define REG_RX_OVERSIZE(pn)	CRA(0x4,pn,0x0f)	/* # frames oversize */
-#define REG_RX_JABBERS(pn)	CRA(0x4,pn,0x10)	/* # frames oversize w/ crc err */
-#define REG_RX_SIZE_64(pn)	CRA(0x4,pn,0x11)	/* # frames 64 octets long */
-#define REG_RX_SIZE_65_TO_127(pn) CRA(0x4,pn,0x12)	/* # frames 65-127 octets */
-#define REG_RX_SIZE_128_TO_255(pn) CRA(0x4,pn,0x13)	/* # frames 128-255 */
-#define REG_RX_SIZE_256_TO_511(pn) CRA(0x4,pn,0x14)	/* # frames 256-511 */
-#define REG_RX_SIZE_512_TO_1023(pn) CRA(0x4,pn,0x15)	/* # frames 512-1023 */
-#define REG_RX_SIZE_1024_TO_1518(pn) CRA(0x4,pn,0x16)	/* # frames 1024-1518 */
-#define REG_RX_SIZE_1519_TO_MAX(pn) CRA(0x4,pn,0x17)	/* # frames 1519-max */
 
-#define REG_TX_OUT_BYTES(pn)	CRA(0x4,pn,0x18)	/* # octets tx */
-#define REG_TX_PAUSE(pn)	CRA(0x4,pn,0x19)	/* # pause frames sent */
-#define REG_TX_OK_BYTES(pn)	CRA(0x4,pn,0x1a)	/* # octets tx OK */
-#define REG_TX_UNICAST(pn)	CRA(0x4,pn,0x1b)	/* # frames unicast */
-#define REG_TX_MULTICAST(pn)	CRA(0x4,pn,0x1c)	/* # frames multicast */
-#define REG_TX_BROADCAST(pn)	CRA(0x4,pn,0x1d)	/* # frames broadcast */
-#define REG_TX_MULTIPLE_COLL(pn) CRA(0x4,pn,0x1e)	/* # frames tx after multiple collisions */
-#define REG_TX_LATE_COLL(pn)	CRA(0x4,pn,0x1f)	/* # late collisions detected */
-#define REG_TX_XCOLL(pn)	CRA(0x4,pn,0x20)	/* # frames lost, excessive collisions */
-#define REG_TX_DEFER(pn)	CRA(0x4,pn,0x21)	/* # frames deferred on first tx attempt */
-#define REG_TX_XDEFER(pn)	CRA(0x4,pn,0x22)	/* # frames excessively deferred */
-#define REG_TX_CSENSE(pn)	CRA(0x4,pn,0x23)	/* carrier sense errors at frame end */
-#define REG_TX_SIZE_64(pn)	CRA(0x4,pn,0x24)	/* # frames 64 octets long */
-#define REG_TX_SIZE_65_TO_127(pn) CRA(0x4,pn,0x25)	/* # frames 65-127 octets */
-#define REG_TX_SIZE_128_TO_255(pn) CRA(0x4,pn,0x26)	/* # frames 128-255 */
-#define REG_TX_SIZE_256_TO_511(pn) CRA(0x4,pn,0x27)	/* # frames 256-511 */
-#define REG_TX_SIZE_512_TO_1023(pn) CRA(0x4,pn,0x28)	/* # frames 512-1023 */
-#define REG_TX_SIZE_1024_TO_1518(pn) CRA(0x4,pn,0x29)	/* # frames 1024-1518 */
-#define REG_TX_SIZE_1519_TO_MAX(pn) CRA(0x4,pn,0x2a)	/* # frames 1519-max */
-#define REG_TX_SINGLE_COLL(pn)	CRA(0x4,pn,0x2b)	/* # frames tx after single collision */
-#define REG_TX_BACKOFF2(pn)	CRA(0x4,pn,0x2c)	/* # frames tx ok after 2 backoffs/collisions */
-#define REG_TX_BACKOFF3(pn)	CRA(0x4,pn,0x2d)	/*   after 3 backoffs/collisions */
-#define REG_TX_BACKOFF4(pn)	CRA(0x4,pn,0x2e)	/*   after 4 */
-#define REG_TX_BACKOFF5(pn)	CRA(0x4,pn,0x2f)	/*   after 5 */
-#define REG_TX_BACKOFF6(pn)	CRA(0x4,pn,0x30)	/*   after 6 */
-#define REG_TX_BACKOFF7(pn)	CRA(0x4,pn,0x31)	/*   after 7 */
-#define REG_TX_BACKOFF8(pn)	CRA(0x4,pn,0x32)	/*   after 8 */
-#define REG_TX_BACKOFF9(pn)	CRA(0x4,pn,0x33)	/*   after 9 */
-#define REG_TX_BACKOFF10(pn)	CRA(0x4,pn,0x34)	/*   after 10 */
-#define REG_TX_BACKOFF11(pn)	CRA(0x4,pn,0x35)	/*   after 11 */
-#define REG_TX_BACKOFF12(pn)	CRA(0x4,pn,0x36)	/*   after 12 */
-#define REG_TX_BACKOFF13(pn)	CRA(0x4,pn,0x37)	/*   after 13 */
-#define REG_TX_BACKOFF14(pn)	CRA(0x4,pn,0x38)	/*   after 14 */
-#define REG_TX_BACKOFF15(pn)	CRA(0x4,pn,0x39)	/*   after 15 */
-#define REG_TX_UNDERRUN(pn)	CRA(0x4,pn,0x3a)	/* # frames dropped from underrun */
-#define REG_RX_XGMII_PROT_ERR	CRA(0x4,0xa,0x3b)	/* # protocol errors detected on XGMII interface */
-#define REG_RX_IPG_SHRINK(pn)	CRA(0x4,pn,0x3c)	/* # of IPG shrinks detected */
+enum {
+	RxInBytes		= 0x00,	// # Rx in octets
+	RxSymbolCarrier		= 0x01,	// Frames w/ symbol errors
+	RxPause			= 0x02,	// # pause frames received
+	RxUnsupOpcode		= 0x03,	// # control frames with unsupported opcode
+	RxOkBytes		= 0x04,	// # octets in good frames
+	RxBadBytes		= 0x05,	// # octets in bad frames
+	RxUnicast		= 0x06,	// # good unicast frames
+	RxMulticast		= 0x07,	// # good multicast frames
+	RxBroadcast		= 0x08,	// # good broadcast frames
+	Crc			= 0x09,	// # frames w/ bad CRC only
+	RxAlignment		= 0x0a,	// # frames w/ alignment err
+	RxUndersize		= 0x0b,	// # frames undersize
+	RxFragments		= 0x0c,	// # frames undersize w/ crc err
+	RxInRangeLengthError	= 0x0d,	// # frames with length error
+	RxOutOfRangeError	= 0x0e,	// # frames with illegal length field
+	RxOversize		= 0x0f,	// # frames oversize
+	RxJabbers		= 0x10,	// # frames oversize w/ crc err
+	RxSize64		= 0x11,	// # frames 64 octets long
+	RxSize65To127		= 0x12,	// # frames 65-127 octets
+	RxSize128To255		= 0x13,	// # frames 128-255
+	RxSize256To511		= 0x14,	// # frames 256-511
+	RxSize512To1023		= 0x15,	// # frames 512-1023
+	RxSize1024To1518	= 0x16,	// # frames 1024-1518
+	RxSize1519ToMax		= 0x17,	// # frames 1519-max
 
-#define REG_STAT_STICKY1G(pn)	CRA(0x4,pn,0x3e)	/* tri-speed sticky bits */
-#define REG_STAT_STICKY10G	CRA(0x4,0xa,0x3e)	/* 10GbE sticky bits */
-#define REG_STAT_INIT(pn)	CRA(0x4,pn,0x3f)	/* Clear all statistics */
+	TxOutBytes		= 0x18,	// # octets tx
+	TxPause			= 0x19,	// # pause frames sent
+	TxOkBytes		= 0x1a, // # octets tx OK
+	TxUnicast		= 0x1b,	// # frames unicast
+	TxMulticast		= 0x1c,	// # frames multicast
+	TxBroadcast		= 0x1d,	// # frames broadcast
+	TxMultipleColl		= 0x1e,	// # frames tx after multiple collisions
+	TxLateColl		= 0x1f,	// # late collisions detected
+	TxXcoll			= 0x20,	// # frames lost, excessive collisions
+	TxDefer			= 0x21,	// # frames deferred on first tx attempt
+	TxXdefer		= 0x22,	// # frames excessively deferred
+	TxCsense		= 0x23,	// carrier sense errors at frame end
+	TxSize64		= 0x24,	// # frames 64 octets long
+	TxSize65To127		= 0x25,	// # frames 65-127 octets
+	TxSize128To255		= 0x26,	// # frames 128-255
+	TxSize256To511		= 0x27,	// # frames 256-511
+	TxSize512To1023		= 0x28,	// # frames 512-1023
+	TxSize1024To1518	= 0x29,	// # frames 1024-1518
+	TxSize1519ToMax		= 0x2a,	// # frames 1519-max
+	TxSingleColl		= 0x2b,	// # frames tx after single collision
+	TxBackoff2		= 0x2c,	// # frames tx ok after 2 backoffs/collisions
+	TxBackoff3		= 0x2d,	//   after 3 backoffs/collisions
+	TxBackoff4		= 0x2e,	//   after 4
+	TxBackoff5		= 0x2f,	//   after 5
+	TxBackoff6		= 0x30,	//   after 6
+	TxBackoff7		= 0x31,	//   after 7
+	TxBackoff8		= 0x32,	//   after 8
+	TxBackoff9		= 0x33,	//   after 9
+	TxBackoff10		= 0x34,	//   after 10
+	TxBackoff11		= 0x35,	//   after 11
+	TxBackoff12		= 0x36,	//   after 12
+	TxBackoff13		= 0x37,	//   after 13
+	TxBackoff14		= 0x38,	//   after 14
+	TxBackoff15		= 0x39,	//   after 15
+	TxUnderrun		= 0x3a,	// # frames dropped from underrun
+	// Hole. See REG_RX_XGMII_PROT_ERR below.
+	RxIpgShrink		= 0x3c,	// # of IPG shrinks detected
+	// Duplicate. See REG_STAT_STICKY10G below.
+	StatSticky1G		= 0x3e,	// tri-speed sticky bits
+	StatInit		= 0x3f	// Clear all statistics
+};
+
+#define REG_RX_XGMII_PROT_ERR	CRA(0x4,0xa,0x3b)		/* # protocol errors detected on XGMII interface */
+#define REG_STAT_STICKY10G	CRA(0x4,0xa,StatSticky1G)	/* 10GbE sticky bits */
+
+#define REG_RX_OK_BYTES(pn)	CRA(0x4,pn,RxOkBytes)
+#define REG_RX_BAD_BYTES(pn)	CRA(0x4,pn,RxBadBytes)
+#define REG_TX_OK_BYTES(pn)	CRA(0x4,pn,TxOkBytes)
 
 /* MII-Management Block registers */
 /* These are for MII-M interface 0, which is the bidirectional LVTTL one.  If

@@ -479,7 +479,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 			ccid3_pr_debug("%s(%p), s=%u, w_init=%llu, "
 				       "R_sample=%dus, X=%u\n", dccp_role(sk),
-				       sk, hctx->ccid3hctx_s, w_init,
+				       sk, hctx->ccid3hctx_s,
+				       (unsigned long long)w_init,
 				       (int)r_sample,
 				       (unsigned)(hctx->ccid3hctx_x >> 6));
 
@@ -1005,7 +1006,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		DCCP_BUG_ON(r_sample < 0);
 		if (unlikely(r_sample <= t_elapsed))
 			DCCP_WARN("r_sample=%ldus, t_elapsed=%ldus\n",
-				  r_sample, t_elapsed);
+				  (long)r_sample, (long)t_elapsed);
 		else
 			r_sample -= t_elapsed;
 		CCID3_RTT_SANITY_CHECK(r_sample);

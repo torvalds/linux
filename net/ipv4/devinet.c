@@ -1140,7 +1140,7 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*ifm), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	ifm = nlmsg_data(nlh);
 	ifm->ifa_family = AF_INET;
@@ -1167,7 +1167,8 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
@@ -1225,9 +1226,12 @@ static void rtmsg_ifa(int event, struct in_ifaddr* ifa, struct nlmsghdr *nlh,
 		goto errout;
 
 	err = inet_fill_ifaddr(skb, ifa, pid, seq, event, 0);
-	/* failure implies BUG in inet_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in inet_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, pid, RTNLGRP_IPV4_IFADDR, nlh, GFP_KERNEL);
 errout:
 	if (err < 0)

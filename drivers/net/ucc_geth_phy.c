@@ -376,6 +376,8 @@ static int marvell_init(struct ugeth_mii_info *mii_info)
 	ugphy_vdbg("%s: IN", __FUNCTION__);
 
 	ucc_geth_phy_write(mii_info, 0x14, 0x0cd2);
+	ucc_geth_phy_write(mii_info, 0x1b,
+		(ucc_geth_phy_read(mii_info, 0x1b) & ~0x000f) | 0x000b);
 	ucc_geth_phy_write(mii_info, MII_BMCR,
 		  ucc_geth_phy_read(mii_info, MII_BMCR) | BMCR_RESET);
 	msleep(4000);

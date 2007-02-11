@@ -69,13 +69,16 @@ static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	struct gfs2_bufdata *bd = container_of(le, struct gfs2_bufdata, bd_le);
 	struct gfs2_trans *tr;
 
-	if (!list_empty(&bd->bd_list_tr))
+	gfs2_log_lock(sdp);
+	if (!list_empty(&bd->bd_list_tr)) {
+		gfs2_log_unlock(sdp);
 		return;
-
+	}
 	tr = current->journal_info;
 	tr->tr_touched = 1;
 	tr->tr_num_buf++;
 	list_add(&bd->bd_list_tr, &tr->tr_list_buf);
+	gfs2_log_unlock(sdp);
 
 	if (!list_empty(&le->le_list))
 		return;
@@ -84,7 +87,6 @@ static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 
 	gfs2_meta_check(sdp, bd->bd_bh);
 	gfs2_pin(sdp, bd->bd_bh);
-
 	gfs2_log_lock(sdp);
 	sdp->sd_log_num_buf++;
 	list_add(&le->le_list, &sdp->sd_log_le_buf);
@@ -98,11 +100,13 @@ static void buf_lo_incore_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	struct list_head *head = &tr->tr_list_buf;
 	struct gfs2_bufdata *bd;
 
+	gfs2_log_lock(sdp);
 	while (!list_empty(head)) {
 		bd = list_entry(head->next, struct gfs2_bufdata, bd_list_tr);
 		list_del_init(&bd->bd_list_tr);
 		tr->tr_num_buf--;
 	}
+	gfs2_log_unlock(sdp);
 	gfs2_assert_warn(sdp, !tr->tr_num_buf);
 }
 
@@ -462,13 +466,17 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	struct address_space *mapping = bd->bd_bh->b_page->mapping;
 	struct gfs2_inode *ip = GFS2_I(mapping->host);
 
+	gfs2_log_lock(sdp);
 	tr->tr_touched = 1;
 	if (list_empty(&bd->bd_list_tr) &&
 	    (ip->i_di.di_flags & GFS2_DIF_JDATA)) {
 		tr->tr_num_buf++;
 		list_add(&bd->bd_list_tr, &tr->tr_list_buf);
+		gfs2_log_unlock(sdp);
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_buf_new++;
+	} else {
+		gfs2_log_unlock(sdp);
 	}
 	gfs2_trans_add_gl(bd->bd_gl);
 	gfs2_log_lock(sdp);

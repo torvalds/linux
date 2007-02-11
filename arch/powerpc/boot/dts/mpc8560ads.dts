@@ -200,7 +200,7 @@
 					 a800 0 0 4 40000 31 1>;
 
 			interrupt-parent = <40000>;
-			interrupts = <42 0>;
+			interrupts = <8 0>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 80000000 80000000 0 20000000
 				  01000000 0 00000000 e2000000 0 01000000>;
@@ -250,7 +250,7 @@
 				rx-clock = <1>;
 				tx-clock = <1>;
 				current-speed = <1c200>;
-				interrupts = <64 1>;
+				interrupts = <28 8>;
 				interrupt-parent = <90c00>;
 			};
 
@@ -264,7 +264,7 @@
 				rx-clock = <2>;
 				tx-clock = <2>;
 				current-speed = <1c200>;
-				interrupts = <65 1>;
+				interrupts = <29 8>;
 				interrupt-parent = <90c00>;
 			};
 
@@ -278,7 +278,7 @@
 				clock-setup = <ff00ffff 250000>;
 				rx-clock = <15>;
 				tx-clock = <16>;
-				interrupts = <5d 1>;
+				interrupts = <21 8>;
 				interrupt-parent = <90c00>;
 				phy-handle = <2452002>;
 			};
@@ -293,7 +293,7 @@
 				clock-setup = <ffff00ff 3700>;
 				rx-clock = <17>;
 				tx-clock = <18>;
-				interrupts = <5e 1>;
+				interrupts = <22 8>;
 				interrupt-parent = <90c00>;
 				phy-handle = <2452003>;
 			};

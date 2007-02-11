@@ -513,7 +513,7 @@ int __init acpi_irq_penalty_init(void)
 		}
 	}
 	/* Add a penalty for the SCI */
-	acpi_irq_penalty[acpi_fadt.sci_int] += PIRQ_PENALTY_PCI_USING;
+	acpi_irq_penalty[acpi_gbl_FADT.sci_interrupt] += PIRQ_PENALTY_PCI_USING;
 
 	return 0;
 }
@@ -785,7 +785,7 @@ static int irqrouter_resume(struct sys_device *dev)
 
 
 	/* Make sure SCI is enabled again (Apple firmware bug?) */
-	acpi_set_register(ACPI_BITREG_SCI_ENABLE, 1, ACPI_MTX_DO_NOT_LOCK);
+	acpi_set_register(ACPI_BITREG_SCI_ENABLE, 1);
 
 	list_for_each(node, &acpi_link.entries) {
 		link = list_entry(node, struct acpi_pci_link, node);

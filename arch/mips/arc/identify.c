@@ -77,7 +77,7 @@ static struct smatch * __init string_to_mach(const char *s)
 {
 	int i;
 
-	for (i = 0; i < (sizeof(mach_table) / sizeof (mach_table[0])); i++) {
+	for (i = 0; i < ARRAY_SIZE(mach_table); i++) {
 		if (!strcmp(s, mach_table[i].arcname))
 			return &mach_table[i];
 	}

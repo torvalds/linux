@@ -185,7 +185,7 @@ struct ad1848_mix_elem {
 	int index;
 	int type;
 	unsigned long private_value;
-	unsigned int *tlv;
+	const unsigned int *tlv;
 };
 
 #define AD1848_SINGLE(xname, xindex, reg, shift, mask, invert) \

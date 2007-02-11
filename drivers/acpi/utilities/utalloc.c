@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@
  */
 
 #include <acpi/acpi.h>
+#include <acpi/acdebug.h>
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utalloc")
@@ -142,6 +143,14 @@ acpi_status acpi_ut_create_caches(void)
 
 acpi_status acpi_ut_delete_caches(void)
 {
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+	char buffer[7];
+
+	if (acpi_gbl_display_final_mem_stats) {
+		ACPI_STRCPY(buffer, "MEMORY");
+		acpi_db_display_statistics(buffer);
+	}
+#endif
 
 	(void)acpi_os_delete_cache(acpi_gbl_namespace_cache);
 	acpi_gbl_namespace_cache = NULL;

@@ -65,6 +65,7 @@ int have_of = 1;
 
 #ifdef CONFIG_VGA_CONSOLE
 unsigned long vgacon_remap_base;
+EXPORT_SYMBOL(vgacon_remap_base);
 #endif
 
 /*

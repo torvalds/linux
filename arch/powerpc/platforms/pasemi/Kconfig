@@ -1,0 +1,10 @@
+menu "PA Semi PWRficient options"
+	depends on PPC_PASEMI
+
+config PPC_PASEMI_IOMMU
+	bool "PA Semi IOMMU support"
+	depends on PPC_PASEMI
+	help
+	  IOMMU support for PA6T-1682M
+
+endmenu

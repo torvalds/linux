@@ -1024,7 +1024,6 @@ static int __init dccp_init(void)
 	do {
 		dccp_hashinfo.ehash_size = (1UL << ehash_order) * PAGE_SIZE /
 					sizeof(struct inet_ehash_bucket);
-		dccp_hashinfo.ehash_size >>= 1;
 		while (dccp_hashinfo.ehash_size &
 		       (dccp_hashinfo.ehash_size - 1))
 			dccp_hashinfo.ehash_size--;
@@ -1037,9 +1036,10 @@ static int __init dccp_init(void)
 		goto out_free_bind_bucket_cachep;
 	}
 
-	for (i = 0; i < (dccp_hashinfo.ehash_size << 1); i++) {
+	for (i = 0; i < dccp_hashinfo.ehash_size; i++) {
 		rwlock_init(&dccp_hashinfo.ehash[i].lock);
 		INIT_HLIST_HEAD(&dccp_hashinfo.ehash[i].chain);
+		INIT_HLIST_HEAD(&dccp_hashinfo.ehash[i].twchain);
 	}
 
 	bhash_order = ehash_order;

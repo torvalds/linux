@@ -9,8 +9,6 @@
 
 #include "lock_dlm.h"
 
-int gdlm_drop_count;
-int gdlm_drop_period;
 const struct lm_lockops gdlm_ops;
 
 
@@ -24,8 +22,8 @@ static struct gdlm_ls *init_gdlm(lm_callback_t cb, struct gfs2_sbd *sdp,
 	if (!ls)
 		return NULL;
 
-	ls->drop_locks_count = gdlm_drop_count;
-	ls->drop_locks_period = gdlm_drop_period;
+	ls->drop_locks_count = GDLM_DROP_COUNT;
+	ls->drop_locks_period = GDLM_DROP_PERIOD;
 	ls->fscb = cb;
 	ls->sdp = sdp;
 	ls->fsflags = flags;

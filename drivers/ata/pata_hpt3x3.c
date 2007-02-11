@@ -148,14 +148,14 @@ static struct ata_port_operations hpt3x3_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /**
@@ -164,7 +164,7 @@ static struct ata_port_operations hpt3x3_port_ops = {
  *
  *	Perform the setup required at boot and on resume.
  */
- 
+
 static void hpt3x3_init_chipset(struct pci_dev *dev)
 {
 	u16 cmd;

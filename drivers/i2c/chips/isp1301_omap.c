@@ -27,7 +27,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 #include <linux/usb.h>
 #include <linux/usb/otg.h>

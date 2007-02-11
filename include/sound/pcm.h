@@ -56,6 +56,8 @@ struct snd_pcm_hardware {
 	size_t fifo_size;		/* fifo size in bytes */
 };
 
+struct snd_pcm_substream;
+
 struct snd_pcm_ops {
 	int (*open)(struct snd_pcm_substream *substream);
 	int (*close)(struct snd_pcm_substream *substream);
@@ -384,6 +386,7 @@ struct snd_pcm_substream {
 	struct snd_info_entry *proc_sw_params_entry;
 	struct snd_info_entry *proc_status_entry;
 	struct snd_info_entry *proc_prealloc_entry;
+	struct snd_info_entry *proc_prealloc_max_entry;
 #endif
 	/* misc flags */
 	unsigned int hw_opened: 1;
@@ -427,6 +430,7 @@ struct snd_pcm {
 	wait_queue_head_t open_wait;
 	void *private_data;
 	void (*private_free) (struct snd_pcm *pcm);
+	struct device *dev; /* actual hw device this belongs to */
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	struct snd_pcm_oss oss;
 #endif

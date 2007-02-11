@@ -2635,7 +2635,7 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*r), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	r = nlmsg_data(nlh);
 	r->rtm_family	 = AF_INET;
@@ -2718,7 +2718,8 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)

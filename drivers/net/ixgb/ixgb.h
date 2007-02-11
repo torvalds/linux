@@ -61,9 +61,7 @@
 #include <net/pkt_sched.h>
 #include <linux/list.h>
 #include <linux/reboot.h>
-#ifdef NETIF_F_TSO
 #include <net/checksum.h>
-#endif
 
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>

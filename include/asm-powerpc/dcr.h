@@ -33,6 +33,7 @@
  * base from the device-tree
  */
 #ifdef CONFIG_PPC_MERGE
+struct device_node;
 extern unsigned int dcr_resource_start(struct device_node *np,
 				       unsigned int index);
 extern unsigned int dcr_resource_len(struct device_node *np,

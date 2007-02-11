@@ -91,6 +91,12 @@ struct ias_object *irias_new_object( char *name, int id)
 
 	obj->magic = IAS_OBJECT_MAGIC;
 	obj->name = strndup(name, IAS_MAX_CLASSNAME);
+	if (!obj->name) {
+		IRDA_WARNING("%s(), Unable to allocate name!\n",
+			     __FUNCTION__);
+		kfree(obj);
+		return NULL;
+	}
 	obj->id = id;
 
 	/* Locking notes : the attrib spinlock has lower precendence
@@ -101,6 +107,7 @@ struct ias_object *irias_new_object( char *name, int id)
 	if (obj->attribs == NULL) {
 		IRDA_WARNING("%s(), Unable to allocate attribs!\n",
 			     __FUNCTION__);
+		kfree(obj->name);
 		kfree(obj);
 		return NULL;
 	}
@@ -357,6 +364,15 @@ void irias_add_integer_attrib(struct ias_object *obj, char *name, int value,
 
 	/* Insert value */
 	attrib->value = irias_new_integer_value(value);
+	if (!attrib->name || !attrib->value) {
+		IRDA_WARNING("%s: Unable to allocate attribute!\n",
+			     __FUNCTION__);
+		if (attrib->value)
+			irias_delete_value(attrib->value);
+		kfree(attrib->name);
+		kfree(attrib);
+		return;
+	}
 
 	irias_add_attrib(obj, attrib, owner);
 }
@@ -391,6 +407,15 @@ void irias_add_octseq_attrib(struct ias_object *obj, char *name, __u8 *octets,
 	attrib->name = strndup(name, IAS_MAX_ATTRIBNAME);
 
 	attrib->value = irias_new_octseq_value( octets, len);
+	if (!attrib->name || !attrib->value) {
+		IRDA_WARNING("%s: Unable to allocate attribute!\n",
+			     __FUNCTION__);
+		if (attrib->value)
+			irias_delete_value(attrib->value);
+		kfree(attrib->name);
+		kfree(attrib);
+		return;
+	}
 
 	irias_add_attrib(obj, attrib, owner);
 }
@@ -424,6 +449,15 @@ void irias_add_string_attrib(struct ias_object *obj, char *name, char *value,
 	attrib->name = strndup(name, IAS_MAX_ATTRIBNAME);
 
 	attrib->value = irias_new_string_value(value);
+	if (!attrib->name || !attrib->value) {
+		IRDA_WARNING("%s: Unable to allocate attribute!\n",
+			     __FUNCTION__);
+		if (attrib->value)
+			irias_delete_value(attrib->value);
+		kfree(attrib->name);
+		kfree(attrib);
+		return;
+	}
 
 	irias_add_attrib(obj, attrib, owner);
 }
@@ -473,6 +507,12 @@ struct ias_value *irias_new_string_value(char *string)
 	value->type = IAS_STRING;
 	value->charset = CS_ASCII;
 	value->t.string = strndup(string, IAS_MAX_STRING);
+	if (!value->t.string) {
+		IRDA_WARNING("%s: Unable to kmalloc!\n", __FUNCTION__);
+		kfree(value);
+		return NULL;
+	}
+
 	value->len = strlen(value->t.string);
 
 	return value;

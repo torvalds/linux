@@ -99,7 +99,14 @@ static void dst_run_gc(unsigned long dummy)
 	printk("dst_total: %d/%d %ld\n",
 	       atomic_read(&dst_total), delayed,  dst_gc_timer_expires);
 #endif
-	mod_timer(&dst_gc_timer, jiffies + dst_gc_timer_expires);
+	/* if the next desired timer is more than 4 seconds in the future
+	 * then round the timer to whole seconds
+	 */
+	if (dst_gc_timer_expires > 4*HZ)
+		mod_timer(&dst_gc_timer,
+			round_jiffies(jiffies + dst_gc_timer_expires));
+	else
+		mod_timer(&dst_gc_timer, jiffies + dst_gc_timer_expires);
 
 out:
 	spin_unlock(&dst_lock);

@@ -26,8 +26,9 @@
 
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
-#include <asm/ps3.h>
 #include <asm/lv1call.h>
+
+#include "platform.h"
 
 /* spu_management_ops */
 
@@ -50,7 +51,7 @@ enum spe_type {
  */
 
 struct spe_shadow {
-	u8 padding_0000[0x0140];
+	u8 padding_0140[0x0140];
 	u64 int_status_class0_RW;       /* 0x0140 */
 	u64 int_status_class1_RW;       /* 0x0148 */
 	u64 int_status_class2_RW;       /* 0x0150 */
@@ -67,8 +68,7 @@ struct spe_shadow {
 	u8 padding_0c08[0x0f00-0x0c08];
 	u64 spe_execution_status;       /* 0x0f00 */
 	u8 padding_0f08[0x1000-0x0f08];
-} __attribute__ ((packed));
-
+};
 
 /**
  * enum spe_ex_state - Logical spe execution state.
@@ -268,20 +268,20 @@ static int __init setup_interrupts(struct spu *spu)
 {
 	int result;
 
-	result = ps3_alloc_spe_irq(spu_pdata(spu)->spe_id, 0,
-		&spu->irqs[0]);
+	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+		0, &spu->irqs[0]);
 
 	if (result)
 		goto fail_alloc_0;
 
-	result = ps3_alloc_spe_irq(spu_pdata(spu)->spe_id, 1,
-		&spu->irqs[1]);
+	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+		1, &spu->irqs[1]);
 
 	if (result)
 		goto fail_alloc_1;
 
-	result = ps3_alloc_spe_irq(spu_pdata(spu)->spe_id, 2,
-		&spu->irqs[2]);
+	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+		2, &spu->irqs[2]);
 
 	if (result)
 		goto fail_alloc_2;

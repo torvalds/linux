@@ -219,12 +219,6 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
 #define __ISA_IO_base ((char __iomem *)(PAGE_OFFSET))
 
 /*
- * Again, i386 does not require mem IO specific function.
- */
-
-#define eth_io_copy_and_sum(a,b,c,d)		eth_copy_and_sum((a),(void __force *)(b),(c),(d))
-
-/*
  *	Cache management
  *
  *	This needed for two cases

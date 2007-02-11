@@ -754,7 +754,8 @@ ipip_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 				goto done;
 			dev = t->dev;
 		}
-		err = unregister_netdevice(dev);
+		unregister_netdevice(dev);
+		err = 0;
 		break;
 
 	default:

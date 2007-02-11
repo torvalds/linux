@@ -39,6 +39,8 @@ extern void generic_calibrate_decr(void);
 extern void wakeup_decrementer(void);
 extern void snapshot_timebase(void);
 
+extern void set_dec_cpu6(unsigned int val);
+
 /* Some sane defaults: 125 MHz timebase, 1GHz processor */
 extern unsigned long ppc_proc_freq;
 #define DEFAULT_PROC_FREQ	(DEFAULT_TB_FREQ * 8)

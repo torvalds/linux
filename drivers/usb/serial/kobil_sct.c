@@ -110,6 +110,7 @@ static struct usb_serial_driver kobil_device = {
 		.name =		"kobil",
 	},
 	.description =		"KOBIL USB smart card terminal",
+	.usb_driver = 		&kobil_driver,
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		0,

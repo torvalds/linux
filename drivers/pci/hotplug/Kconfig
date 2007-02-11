@@ -145,15 +145,6 @@ config HOTPLUG_PCI_SHPC
 
 	  When in doubt, say N.
 
-config HOTPLUG_PCI_SHPC_POLL_EVENT_MODE
-	bool "Use polling mechanism for hot-plug events (for testing purpose)"
-	depends on HOTPLUG_PCI_SHPC
-	help
-	  Say Y here if you want to use the polling mechanism for hot-plug 
-	  events for early platform testing.
-
-	  When in doubt, say N.
-
 config HOTPLUG_PCI_RPA
 	tristate "RPA PCI Hotplug driver"
 	depends on HOTPLUG_PCI && PPC_PSERIES && PPC64 && !HOTPLUG_PCI_FAKE

@@ -24,6 +24,8 @@
 #ifndef __ASM_EMMA2RH_EMMA2RH_H
 #define __ASM_EMMA2RH_EMMA2RH_H
 
+#include <irq.h>
+
 /*
  * EMMA2RH registers
  */
@@ -104,7 +106,8 @@
 #define NUM_EMMA2RH_IRQ		96
 
 #define CPU_EMMA2RH_CASCADE	2
-#define EMMA2RH_IRQ_BASE	0
+#define CPU_IRQ_BASE		MIPS_CPU_IRQ_BASE
+#define EMMA2RH_IRQ_BASE	(CPU_IRQ_BASE + NUM_CPU_IRQ)
 
 /*
  * emma2rh irq defs

@@ -11,11 +11,11 @@
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
 
-static inline unsigned long save_context_stack(struct stack_trace *trace,
-					       unsigned int *skip,
-					       unsigned long sp,
-					       unsigned long low,
-					       unsigned long high)
+static unsigned long save_context_stack(struct stack_trace *trace,
+					unsigned int *skip,
+					unsigned long sp,
+					unsigned long low,
+					unsigned long high)
 {
 	struct stack_frame *sf;
 	struct pt_regs *regs;

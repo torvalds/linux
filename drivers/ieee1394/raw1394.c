@@ -636,27 +636,32 @@ static int state_initialized(struct file_info *fi, struct pending_request *req)
 
 	case RAW1394_REQ_SET_CARD:
 		spin_lock_irqsave(&host_info_lock, flags);
-		if (req->req.misc < host_count) {
-			list_for_each_entry(hi, &host_info_list, list) {
-				if (!req->req.misc--)
-					break;
-			}
-			get_device(&hi->host->device);	// XXX Need to handle failure case
-			list_add_tail(&fi->list, &hi->file_info_list);
-			fi->host = hi->host;
-			fi->state = connected;
-
-			req->req.error = RAW1394_ERROR_NONE;
-			req->req.generation = get_hpsb_generation(fi->host);
-			req->req.misc = (fi->host->node_id << 16)
-			    | fi->host->node_count;
-			if (fi->protocol_version > 3) {
-				req->req.misc |=
-				    NODEID_TO_NODE(fi->host->irm_id) << 8;
-			}
-		} else {
+		if (req->req.misc >= host_count) {
 			req->req.error = RAW1394_ERROR_INVALID_ARG;
+			goto out_set_card;
 		}
+		list_for_each_entry(hi, &host_info_list, list)
+			if (!req->req.misc--)
+				break;
+		get_device(&hi->host->device); /* FIXME handle failure case */
+		list_add_tail(&fi->list, &hi->file_info_list);
+
+		/* prevent unloading of the host's low-level driver */
+		if (!try_module_get(hi->host->driver->owner)) {
+			req->req.error = RAW1394_ERROR_ABORTED;
+			goto out_set_card;
+		}
+		WARN_ON(fi->host);
+		fi->host = hi->host;
+		fi->state = connected;
+
+		req->req.error = RAW1394_ERROR_NONE;
+		req->req.generation = get_hpsb_generation(fi->host);
+		req->req.misc = (fi->host->node_id << 16)
+				| fi->host->node_count;
+		if (fi->protocol_version > 3)
+			req->req.misc |= NODEID_TO_NODE(fi->host->irm_id) << 8;
+out_set_card:
 		spin_unlock_irqrestore(&host_info_lock, flags);
 
 		req->req.length = 0;
@@ -2954,6 +2959,11 @@ static int raw1394_release(struct inode *inode, struct file *file)
 
 		put_device(&fi->host->device);
 	}
+
+	spin_lock_irqsave(&host_info_lock, flags);
+	if (fi->host)
+		module_put(fi->host->driver->owner);
+	spin_unlock_irqrestore(&host_info_lock, flags);
 
 	kfree(fi);
 

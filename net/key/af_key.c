@@ -2345,6 +2345,196 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_NET_KEY_MIGRATE
+static int pfkey_sockaddr_pair_size(sa_family_t family)
+{
+	switch (family) {
+	case AF_INET:
+		return PFKEY_ALIGN8(sizeof(struct sockaddr_in) * 2);
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		return PFKEY_ALIGN8(sizeof(struct sockaddr_in6) * 2);
+#endif
+	default:
+		return 0;
+	}
+	/* NOTREACHED */
+}
+
+static int parse_sockaddr_pair(struct sadb_x_ipsecrequest *rq,
+			       xfrm_address_t *saddr, xfrm_address_t *daddr,
+			       u16 *family)
+{
+	struct sockaddr *sa = (struct sockaddr *)(rq + 1);
+	if (rq->sadb_x_ipsecrequest_len <
+	    pfkey_sockaddr_pair_size(sa->sa_family))
+		return -EINVAL;
+
+	switch (sa->sa_family) {
+	case AF_INET:
+		{
+			struct sockaddr_in *sin;
+			sin = (struct sockaddr_in *)sa;
+			if ((sin+1)->sin_family != AF_INET)
+				return -EINVAL;
+			memcpy(&saddr->a4, &sin->sin_addr, sizeof(saddr->a4));
+			sin++;
+			memcpy(&daddr->a4, &sin->sin_addr, sizeof(daddr->a4));
+			*family = AF_INET;
+			break;
+		}
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		{
+			struct sockaddr_in6 *sin6;
+			sin6 = (struct sockaddr_in6 *)sa;
+			if ((sin6+1)->sin6_family != AF_INET6)
+				return -EINVAL;
+			memcpy(&saddr->a6, &sin6->sin6_addr,
+			       sizeof(saddr->a6));
+			sin6++;
+			memcpy(&daddr->a6, &sin6->sin6_addr,
+			       sizeof(daddr->a6));
+			*family = AF_INET6;
+			break;
+		}
+#endif
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ipsecrequests_to_migrate(struct sadb_x_ipsecrequest *rq1, int len,
+				    struct xfrm_migrate *m)
+{
+	int err;
+	struct sadb_x_ipsecrequest *rq2;
+
+	if (len <= sizeof(struct sadb_x_ipsecrequest) ||
+	    len < rq1->sadb_x_ipsecrequest_len)
+		return -EINVAL;
+
+	/* old endoints */
+	err = parse_sockaddr_pair(rq1, &m->old_saddr, &m->old_daddr,
+				  &m->old_family);
+	if (err)
+		return err;
+
+	rq2 = (struct sadb_x_ipsecrequest *)((u8 *)rq1 + rq1->sadb_x_ipsecrequest_len);
+	len -= rq1->sadb_x_ipsecrequest_len;
+
+	if (len <= sizeof(struct sadb_x_ipsecrequest) ||
+	    len < rq2->sadb_x_ipsecrequest_len)
+		return -EINVAL;
+
+	/* new endpoints */
+	err = parse_sockaddr_pair(rq2, &m->new_saddr, &m->new_daddr,
+				  &m->new_family);
+	if (err)
+		return err;
+
+	if (rq1->sadb_x_ipsecrequest_proto != rq2->sadb_x_ipsecrequest_proto ||
+	    rq1->sadb_x_ipsecrequest_mode != rq2->sadb_x_ipsecrequest_mode ||
+	    rq1->sadb_x_ipsecrequest_reqid != rq2->sadb_x_ipsecrequest_reqid)
+		return -EINVAL;
+
+	m->proto = rq1->sadb_x_ipsecrequest_proto;
+	m->mode = rq1->sadb_x_ipsecrequest_mode - 1;
+	m->reqid = rq1->sadb_x_ipsecrequest_reqid;
+
+	return ((int)(rq1->sadb_x_ipsecrequest_len +
+		      rq2->sadb_x_ipsecrequest_len));
+}
+
+static int pfkey_migrate(struct sock *sk, struct sk_buff *skb,
+			 struct sadb_msg *hdr, void **ext_hdrs)
+{
+	int i, len, ret, err = -EINVAL;
+	u8 dir;
+	struct sadb_address *sa;
+	struct sadb_x_policy *pol;
+	struct sadb_x_ipsecrequest *rq;
+	struct xfrm_selector sel;
+	struct xfrm_migrate m[XFRM_MAX_DEPTH];
+
+	if (!present_and_same_family(ext_hdrs[SADB_EXT_ADDRESS_SRC - 1],
+	    ext_hdrs[SADB_EXT_ADDRESS_DST - 1]) ||
+	    !ext_hdrs[SADB_X_EXT_POLICY - 1]) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	pol = ext_hdrs[SADB_X_EXT_POLICY - 1];
+	if (!pol) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (pol->sadb_x_policy_dir >= IPSEC_DIR_MAX) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	dir = pol->sadb_x_policy_dir - 1;
+	memset(&sel, 0, sizeof(sel));
+
+	/* set source address info of selector */
+	sa = ext_hdrs[SADB_EXT_ADDRESS_SRC - 1];
+	sel.family = pfkey_sadb_addr2xfrm_addr(sa, &sel.saddr);
+	sel.prefixlen_s = sa->sadb_address_prefixlen;
+	sel.proto = pfkey_proto_to_xfrm(sa->sadb_address_proto);
+	sel.sport = ((struct sockaddr_in *)(sa + 1))->sin_port;
+	if (sel.sport)
+		sel.sport_mask = ~0;
+
+	/* set destination address info of selector */
+	sa = ext_hdrs[SADB_EXT_ADDRESS_DST - 1],
+	pfkey_sadb_addr2xfrm_addr(sa, &sel.daddr);
+	sel.prefixlen_d = sa->sadb_address_prefixlen;
+	sel.proto = pfkey_proto_to_xfrm(sa->sadb_address_proto);
+	sel.dport = ((struct sockaddr_in *)(sa + 1))->sin_port;
+	if (sel.dport)
+		sel.dport_mask = ~0;
+
+	rq = (struct sadb_x_ipsecrequest *)(pol + 1);
+
+	/* extract ipsecrequests */
+	i = 0;
+	len = pol->sadb_x_policy_len * 8 - sizeof(struct sadb_x_policy);
+
+	while (len > 0 && i < XFRM_MAX_DEPTH) {
+		ret = ipsecrequests_to_migrate(rq, len, &m[i]);
+		if (ret < 0) {
+			err = ret;
+			goto out;
+		} else {
+			rq = (struct sadb_x_ipsecrequest *)((u8 *)rq + ret);
+			len -= ret;
+			i++;
+		}
+	}
+
+	if (!i || len > 0) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	return xfrm_migrate(&sel, dir, XFRM_POLICY_TYPE_MAIN, m, i);
+
+ out:
+	return err;
+}
+#else
+static int pfkey_migrate(struct sock *sk, struct sk_buff *skb,
+			 struct sadb_msg *hdr, void **ext_hdrs)
+{
+	return -ENOPROTOOPT;
+}
+#endif
+
+
 static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
 	unsigned int dir;
@@ -2473,6 +2663,7 @@ static pfkey_handler pfkey_funcs[SADB_MAX + 1] = {
 	[SADB_X_SPDFLUSH]	= pfkey_spdflush,
 	[SADB_X_SPDSETIDX]	= pfkey_spdadd,
 	[SADB_X_SPDDELETE2]	= pfkey_spdget,
+	[SADB_X_MIGRATE]	= pfkey_migrate,
 };
 
 static int pfkey_process(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr)
@@ -3118,6 +3309,236 @@ static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, 
 	return pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_REGISTERED, NULL);
 }
 
+#ifdef CONFIG_NET_KEY_MIGRATE
+static int set_sadb_address(struct sk_buff *skb, int sasize, int type,
+			    struct xfrm_selector *sel)
+{
+	struct sadb_address *addr;
+	struct sockaddr_in *sin;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct sockaddr_in6 *sin6;
+#endif
+	addr = (struct sadb_address *)skb_put(skb, sizeof(struct sadb_address) + sasize);
+	addr->sadb_address_len = (sizeof(struct sadb_address) + sasize)/8;
+	addr->sadb_address_exttype = type;
+	addr->sadb_address_proto = sel->proto;
+	addr->sadb_address_reserved = 0;
+
+	switch (type) {
+	case SADB_EXT_ADDRESS_SRC:
+		if (sel->family == AF_INET) {
+			addr->sadb_address_prefixlen = sel->prefixlen_s;
+			sin = (struct sockaddr_in *)(addr + 1);
+			sin->sin_family = AF_INET;
+			memcpy(&sin->sin_addr.s_addr, &sel->saddr,
+			       sizeof(sin->sin_addr.s_addr));
+			sin->sin_port = 0;
+			memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
+		}
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+		else if (sel->family == AF_INET6) {
+			addr->sadb_address_prefixlen = sel->prefixlen_s;
+			sin6 = (struct sockaddr_in6 *)(addr + 1);
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_port = 0;
+			sin6->sin6_flowinfo = 0;
+			sin6->sin6_scope_id = 0;
+			memcpy(&sin6->sin6_addr.s6_addr, &sel->saddr,
+			       sizeof(sin6->sin6_addr.s6_addr));
+		}
+#endif
+		break;
+	case SADB_EXT_ADDRESS_DST:
+		if (sel->family == AF_INET) {
+			addr->sadb_address_prefixlen = sel->prefixlen_d;
+			sin = (struct sockaddr_in *)(addr + 1);
+			sin->sin_family = AF_INET;
+			memcpy(&sin->sin_addr.s_addr, &sel->daddr,
+			       sizeof(sin->sin_addr.s_addr));
+			sin->sin_port = 0;
+			memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
+		}
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+		else if (sel->family == AF_INET6) {
+			addr->sadb_address_prefixlen = sel->prefixlen_d;
+			sin6 = (struct sockaddr_in6 *)(addr + 1);
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_port = 0;
+			sin6->sin6_flowinfo = 0;
+			sin6->sin6_scope_id = 0;
+			memcpy(&sin6->sin6_addr.s6_addr, &sel->daddr,
+			       sizeof(sin6->sin6_addr.s6_addr));
+		}
+#endif
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int set_ipsecrequest(struct sk_buff *skb,
+			    uint8_t proto, uint8_t mode, int level,
+			    uint32_t reqid, uint8_t family,
+			    xfrm_address_t *src, xfrm_address_t *dst)
+{
+	struct sadb_x_ipsecrequest *rq;
+	struct sockaddr_in *sin;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct sockaddr_in6 *sin6;
+#endif
+	int size_req;
+
+	size_req = sizeof(struct sadb_x_ipsecrequest) +
+		   pfkey_sockaddr_pair_size(family);
+
+	rq = (struct sadb_x_ipsecrequest *)skb_put(skb, size_req);
+	memset(rq, 0, size_req);
+	rq->sadb_x_ipsecrequest_len = size_req;
+	rq->sadb_x_ipsecrequest_proto = proto;
+	rq->sadb_x_ipsecrequest_mode = mode;
+	rq->sadb_x_ipsecrequest_level = level;
+	rq->sadb_x_ipsecrequest_reqid = reqid;
+
+	switch (family) {
+	case AF_INET:
+		sin = (struct sockaddr_in *)(rq + 1);
+		sin->sin_family = AF_INET;
+		memcpy(&sin->sin_addr.s_addr, src,
+		       sizeof(sin->sin_addr.s_addr));
+		sin++;
+		sin->sin_family = AF_INET;
+		memcpy(&sin->sin_addr.s_addr, dst,
+		       sizeof(sin->sin_addr.s_addr));
+		break;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		sin6 = (struct sockaddr_in6 *)(rq + 1);
+		sin6->sin6_family = AF_INET6;
+		sin6->sin6_port = 0;
+		sin6->sin6_flowinfo = 0;
+		sin6->sin6_scope_id = 0;
+		memcpy(&sin6->sin6_addr.s6_addr, src,
+		       sizeof(sin6->sin6_addr.s6_addr));
+		sin6++;
+		sin6->sin6_family = AF_INET6;
+		sin6->sin6_port = 0;
+		sin6->sin6_flowinfo = 0;
+		sin6->sin6_scope_id = 0;
+		memcpy(&sin6->sin6_addr.s6_addr, dst,
+		       sizeof(sin6->sin6_addr.s6_addr));
+		break;
+#endif
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_NET_KEY_MIGRATE
+static int pfkey_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
+			      struct xfrm_migrate *m, int num_bundles)
+{
+	int i;
+	int sasize_sel;
+	int size = 0;
+	int size_pol = 0;
+	struct sk_buff *skb;
+	struct sadb_msg *hdr;
+	struct sadb_x_policy *pol;
+	struct xfrm_migrate *mp;
+
+	if (type != XFRM_POLICY_TYPE_MAIN)
+		return 0;
+
+	if (num_bundles <= 0 || num_bundles > XFRM_MAX_DEPTH)
+		return -EINVAL;
+
+	/* selector */
+	sasize_sel = pfkey_sockaddr_size(sel->family);
+	if (!sasize_sel)
+		return -EINVAL;
+	size += (sizeof(struct sadb_address) + sasize_sel) * 2;
+
+	/* policy info */
+	size_pol += sizeof(struct sadb_x_policy);
+
+	/* ipsecrequests */
+	for (i = 0, mp = m; i < num_bundles; i++, mp++) {
+		/* old locator pair */
+		size_pol += sizeof(struct sadb_x_ipsecrequest) +
+			    pfkey_sockaddr_pair_size(mp->old_family);
+		/* new locator pair */
+		size_pol += sizeof(struct sadb_x_ipsecrequest) +
+			    pfkey_sockaddr_pair_size(mp->new_family);
+	}
+
+	size += sizeof(struct sadb_msg) + size_pol;
+
+	/* alloc buffer */
+	skb = alloc_skb(size, GFP_ATOMIC);
+	if (skb == NULL)
+		return -ENOMEM;
+
+	hdr = (struct sadb_msg *)skb_put(skb, sizeof(struct sadb_msg));
+	hdr->sadb_msg_version = PF_KEY_V2;
+	hdr->sadb_msg_type = SADB_X_MIGRATE;
+	hdr->sadb_msg_satype = pfkey_proto2satype(m->proto);
+	hdr->sadb_msg_len = size / 8;
+	hdr->sadb_msg_errno = 0;
+	hdr->sadb_msg_reserved = 0;
+	hdr->sadb_msg_seq = 0;
+	hdr->sadb_msg_pid = 0;
+
+	/* selector src */
+	set_sadb_address(skb, sasize_sel, SADB_EXT_ADDRESS_SRC, sel);
+
+	/* selector dst */
+	set_sadb_address(skb, sasize_sel, SADB_EXT_ADDRESS_DST, sel);
+
+	/* policy information */
+	pol = (struct sadb_x_policy *)skb_put(skb, sizeof(struct sadb_x_policy));
+	pol->sadb_x_policy_len = size_pol / 8;
+	pol->sadb_x_policy_exttype = SADB_X_EXT_POLICY;
+	pol->sadb_x_policy_type = IPSEC_POLICY_IPSEC;
+	pol->sadb_x_policy_dir = dir + 1;
+	pol->sadb_x_policy_id = 0;
+	pol->sadb_x_policy_priority = 0;
+
+	for (i = 0, mp = m; i < num_bundles; i++, mp++) {
+		/* old ipsecrequest */
+		if (set_ipsecrequest(skb, mp->proto, mp->mode + 1,
+				     (mp->reqid ?  IPSEC_LEVEL_UNIQUE : IPSEC_LEVEL_REQUIRE),
+				     mp->reqid, mp->old_family,
+				     &mp->old_saddr, &mp->old_daddr) < 0) {
+			return -EINVAL;
+		}
+
+		/* new ipsecrequest */
+		if (set_ipsecrequest(skb, mp->proto, mp->mode + 1,
+				     (mp->reqid ? IPSEC_LEVEL_UNIQUE : IPSEC_LEVEL_REQUIRE),
+				     mp->reqid, mp->new_family,
+				     &mp->new_saddr, &mp->new_daddr) < 0) {
+			return -EINVAL;
+		}
+	}
+
+	/* broadcast migrate message to sockets */
+	pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ALL, NULL);
+
+	return 0;
+}
+#else
+static int pfkey_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
+			      struct xfrm_migrate *m, int num_bundles)
+{
+	return -ENOPROTOOPT;
+}
+#endif
+
 static int pfkey_sendmsg(struct kiocb *kiocb,
 			 struct socket *sock, struct msghdr *msg, size_t len)
 {
@@ -3287,6 +3708,7 @@ static struct xfrm_mgr pfkeyv2_mgr =
 	.compile_policy	= pfkey_compile_policy,
 	.new_mapping	= pfkey_send_new_mapping,
 	.notify_policy	= pfkey_send_policy_notify,
+	.migrate	= pfkey_send_migrate,
 };
 
 static void __exit ipsec_pfkey_exit(void)

@@ -243,6 +243,10 @@ extern struct boot_mem_map boot_mem_map;
 extern void add_memory_region(phys_t start, phys_t size, long type);
 
 extern void prom_init(void);
+extern void prom_free_prom_memory(void);
+
+extern void free_init_pages(const char *what,
+			    unsigned long begin, unsigned long end);
 
 /*
  * Initial kernel command line, usually setup by prom_init()

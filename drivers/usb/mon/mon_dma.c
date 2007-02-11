@@ -48,6 +48,36 @@ char mon_dmapeek(unsigned char *dst, dma_addr_t dma_addr, int len)
 	local_irq_restore(flags);
 	return 0;
 }
+
+void mon_dmapeek_vec(const struct mon_reader_bin *rp,
+    unsigned int offset, dma_addr_t dma_addr, unsigned int length)
+{
+	unsigned long flags;
+	unsigned int step_len;
+	struct page *pg;
+	unsigned char *map;
+	unsigned long page_off, page_len;
+
+	local_irq_save(flags);
+	while (length) {
+		/* compute number of bytes we are going to copy in this page */
+		step_len = length;
+		page_off = dma_addr & (PAGE_SIZE-1);
+		page_len = PAGE_SIZE - page_off;
+		if (page_len < step_len)
+			step_len = page_len;
+
+		/* copy data and advance pointers */
+		pg = phys_to_page(dma_addr);
+		map = kmap_atomic(pg, KM_IRQ0);
+		offset = mon_copy_to_buff(rp, offset, map + page_off, step_len);
+		kunmap_atomic(map, KM_IRQ0);
+		dma_addr += step_len;
+		length -= step_len;
+	}
+	local_irq_restore(flags);
+}
+
 #endif /* __i386__ */
 
 #ifndef MON_HAS_UNMAP
@@ -55,4 +85,11 @@ char mon_dmapeek(unsigned char *dst, dma_addr_t dma_addr, int len)
 {
 	return 'D';
 }
-#endif
+
+void mon_dmapeek_vec(const struct mon_reader_bin *rp,
+    unsigned int offset, dma_addr_t dma_addr, unsigned int length)
+{
+	;
+}
+
+#endif /* MON_HAS_UNMAP */

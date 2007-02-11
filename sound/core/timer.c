@@ -35,9 +35,6 @@
 #include <sound/minors.h>
 #include <sound/initval.h>
 #include <linux/kmod.h>
-#ifdef CONFIG_KERNELD
-#include <linux/kerneld.h>
-#endif
 
 #if defined(CONFIG_SND_HPET) || defined(CONFIG_SND_HPET_MODULE)
 #define DEFAULT_TIMER_LIMIT 3
@@ -130,11 +127,8 @@ static struct snd_timer_instance *snd_timer_instance_new(char *owner,
 static struct snd_timer *snd_timer_find(struct snd_timer_id *tid)
 {
 	struct snd_timer *timer = NULL;
-	struct list_head *p;
 
-	list_for_each(p, &snd_timer_list) {
-		timer = list_entry(p, struct snd_timer, device_list);
-
+	list_for_each_entry(timer, &snd_timer_list, device_list) {
 		if (timer->tmr_class != tid->dev_class)
 			continue;
 		if ((timer->tmr_class == SNDRV_TIMER_CLASS_CARD ||
@@ -184,13 +178,10 @@ static void snd_timer_check_slave(struct snd_timer_instance *slave)
 {
 	struct snd_timer *timer;
 	struct snd_timer_instance *master;
-	struct list_head *p, *q;
 
 	/* FIXME: it's really dumb to look up all entries.. */
-	list_for_each(p, &snd_timer_list) {
-		timer = list_entry(p, struct snd_timer, device_list);
-		list_for_each(q, &timer->open_list_head) {
-			master = list_entry(q, struct snd_timer_instance, open_list);
+	list_for_each_entry(timer, &snd_timer_list, device_list) {
+		list_for_each_entry(master, &timer->open_list_head, open_list) {
 			if (slave->slave_class == master->slave_class &&
 			    slave->slave_id == master->slave_id) {
 				list_del(&slave->open_list);
@@ -214,16 +205,13 @@ static void snd_timer_check_slave(struct snd_timer_instance *slave)
  */
 static void snd_timer_check_master(struct snd_timer_instance *master)
 {
-	struct snd_timer_instance *slave;
-	struct list_head *p, *n;
+	struct snd_timer_instance *slave, *tmp;
 
 	/* check all pending slaves */
-	list_for_each_safe(p, n, &snd_timer_slave_list) {
-		slave = list_entry(p, struct snd_timer_instance, open_list);
+	list_for_each_entry_safe(slave, tmp, &snd_timer_slave_list, open_list) {
 		if (slave->slave_class == master->slave_class &&
 		    slave->slave_id == master->slave_id) {
-			list_del(p);
-			list_add_tail(p, &master->slave_list_head);
+			list_move_tail(&slave->open_list, &master->slave_list_head);
 			spin_lock_irq(&slave_active_lock);
 			slave->master = master;
 			slave->timer = master->timer;
@@ -317,8 +305,7 @@ static int _snd_timer_stop(struct snd_timer_instance *timeri,
 int snd_timer_close(struct snd_timer_instance *timeri)
 {
 	struct snd_timer *timer = NULL;
-	struct list_head *p, *n;
-	struct snd_timer_instance *slave;
+	struct snd_timer_instance *slave, *tmp;
 
 	snd_assert(timeri != NULL, return -ENXIO);
 
@@ -353,12 +340,11 @@ int snd_timer_close(struct snd_timer_instance *timeri)
 		    timer->hw.close)
 			timer->hw.close(timer);
 		/* remove slave links */
-		list_for_each_safe(p, n, &timeri->slave_list_head) {
-			slave = list_entry(p, struct snd_timer_instance, open_list);
+		list_for_each_entry_safe(slave, tmp, &timeri->slave_list_head,
+					 open_list) {
 			spin_lock_irq(&slave_active_lock);
 			_snd_timer_stop(slave, 1, SNDRV_TIMER_EVENT_RESOLUTION);
-			list_del(p);
-			list_add_tail(p, &snd_timer_slave_list);
+			list_move_tail(&slave->open_list, &snd_timer_slave_list);
 			slave->master = NULL;
 			slave->timer = NULL;
 			spin_unlock_irq(&slave_active_lock);
@@ -394,7 +380,6 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 	unsigned long flags;
 	unsigned long resolution = 0;
 	struct snd_timer_instance *ts;
-	struct list_head *n;
 	struct timespec tstamp;
 
 	getnstimeofday(&tstamp);
@@ -413,11 +398,9 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 	if (timer->hw.flags & SNDRV_TIMER_HW_SLAVE)
 		return;
 	spin_lock_irqsave(&timer->lock, flags);
-	list_for_each(n, &ti->slave_active_head) {
-		ts = list_entry(n, struct snd_timer_instance, active_list);
+	list_for_each_entry(ts, &ti->slave_active_head, active_list)
 		if (ts->ccallback)
 			ts->ccallback(ti, event + 100, &tstamp, resolution);
-	}
 	spin_unlock_irqrestore(&timer->lock, flags);
 }
 
@@ -593,10 +576,8 @@ static void snd_timer_reschedule(struct snd_timer * timer, unsigned long ticks_l
 {
 	struct snd_timer_instance *ti;
 	unsigned long ticks = ~0UL;
-	struct list_head *p;
 
-	list_for_each(p, &timer->active_list_head) {
-		ti = list_entry(p, struct snd_timer_instance, active_list);
+	list_for_each_entry(ti, &timer->active_list_head, active_list) {
 		if (ti->flags & SNDRV_TIMER_IFLG_START) {
 			ti->flags &= ~SNDRV_TIMER_IFLG_START;
 			ti->flags |= SNDRV_TIMER_IFLG_RUNNING;
@@ -661,9 +642,9 @@ static void snd_timer_tasklet(unsigned long arg)
  */
 void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 {
-	struct snd_timer_instance *ti, *ts;
+	struct snd_timer_instance *ti, *ts, *tmp;
 	unsigned long resolution, ticks;
-	struct list_head *p, *q, *n, *ack_list_head;
+	struct list_head *p, *ack_list_head;
 	unsigned long flags;
 	int use_tasklet = 0;
 
@@ -679,12 +660,12 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 		resolution = timer->hw.resolution;
 
 	/* loop for all active instances
-	 * Here we cannot use list_for_each because the active_list of a
+	 * Here we cannot use list_for_each_entry because the active_list of a
 	 * processed instance is relinked to done_list_head before the callback
 	 * is called.
 	 */
-	list_for_each_safe(p, n, &timer->active_list_head) {
-		ti = list_entry(p, struct snd_timer_instance, active_list);
+	list_for_each_entry_safe(ti, tmp, &timer->active_list_head,
+				 active_list) {
 		if (!(ti->flags & SNDRV_TIMER_IFLG_RUNNING))
 			continue;
 		ti->pticks += ticks_left;
@@ -700,7 +681,7 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 		} else {
 			ti->flags &= ~SNDRV_TIMER_IFLG_RUNNING;
 			if (--timer->running)
-				list_del(p);
+				list_del(&ti->active_list);
 		}
 		if ((timer->hw.flags & SNDRV_TIMER_HW_TASKLET) ||
 		    (ti->flags & SNDRV_TIMER_IFLG_FAST))
@@ -709,8 +690,7 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 			ack_list_head = &timer->sack_list_head;
 		if (list_empty(&ti->ack_list))
 			list_add_tail(&ti->ack_list, ack_list_head);
-		list_for_each(q, &ti->slave_active_head) {
-			ts = list_entry(q, struct snd_timer_instance, active_list);
+		list_for_each_entry(ts, &ti->slave_active_head, active_list) {
 			ts->pticks = ti->pticks;
 			ts->resolution = resolution;
 			if (list_empty(&ts->ack_list))
@@ -844,7 +824,6 @@ static int snd_timer_dev_register(struct snd_device *dev)
 {
 	struct snd_timer *timer = dev->device_data;
 	struct snd_timer *timer1;
-	struct list_head *p;
 
 	snd_assert(timer != NULL && timer->hw.start != NULL &&
 		   timer->hw.stop != NULL, return -ENXIO);
@@ -853,8 +832,7 @@ static int snd_timer_dev_register(struct snd_device *dev)
 	    	return -EINVAL;
 
 	mutex_lock(&register_mutex);
-	list_for_each(p, &snd_timer_list) {
-		timer1 = list_entry(p, struct snd_timer, device_list);
+	list_for_each_entry(timer1, &snd_timer_list, device_list) {
 		if (timer1->tmr_class > timer->tmr_class)
 			break;
 		if (timer1->tmr_class < timer->tmr_class)
@@ -877,7 +855,7 @@ static int snd_timer_dev_register(struct snd_device *dev)
 		mutex_unlock(&register_mutex);
 		return -EBUSY;
 	}
-	list_add_tail(&timer->device_list, p);
+	list_add_tail(&timer->device_list, &timer1->device_list);
 	mutex_unlock(&register_mutex);
 	return 0;
 }
@@ -896,7 +874,6 @@ void snd_timer_notify(struct snd_timer *timer, int event, struct timespec *tstam
 	unsigned long flags;
 	unsigned long resolution = 0;
 	struct snd_timer_instance *ti, *ts;
-	struct list_head *p, *n;
 
 	if (! (timer->hw.flags & SNDRV_TIMER_HW_SLAVE))
 		return;
@@ -911,15 +888,12 @@ void snd_timer_notify(struct snd_timer *timer, int event, struct timespec *tstam
 		else
 			resolution = timer->hw.resolution;
 	}
-	list_for_each(p, &timer->active_list_head) {
-		ti = list_entry(p, struct snd_timer_instance, active_list);
+	list_for_each_entry(ti, &timer->active_list_head, active_list) {
 		if (ti->ccallback)
 			ti->ccallback(ti, event, tstamp, resolution);
-		list_for_each(n, &ti->slave_active_head) {
-			ts = list_entry(n, struct snd_timer_instance, active_list);
+		list_for_each_entry(ts, &ti->slave_active_head, active_list)
 			if (ts->ccallback)
 				ts->ccallback(ts, event, tstamp, resolution);
-		}
 	}
 	spin_unlock_irqrestore(&timer->lock, flags);
 }
@@ -1057,11 +1031,9 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 {
 	struct snd_timer *timer;
 	struct snd_timer_instance *ti;
-	struct list_head *p, *q;
 
 	mutex_lock(&register_mutex);
-	list_for_each(p, &snd_timer_list) {
-		timer = list_entry(p, struct snd_timer, device_list);
+	list_for_each_entry(timer, &snd_timer_list, device_list) {
 		switch (timer->tmr_class) {
 		case SNDRV_TIMER_CLASS_GLOBAL:
 			snd_iprintf(buffer, "G%i: ", timer->tmr_device);
@@ -1088,14 +1060,12 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 		if (timer->hw.flags & SNDRV_TIMER_HW_SLAVE)
 			snd_iprintf(buffer, " SLAVE");
 		snd_iprintf(buffer, "\n");
-		list_for_each(q, &timer->open_list_head) {
-			ti = list_entry(q, struct snd_timer_instance, open_list);
+		list_for_each_entry(ti, &timer->open_list_head, open_list)
 			snd_iprintf(buffer, "  Client %s : %s\n",
 				    ti->owner ? ti->owner : "unknown",
 				    ti->flags & (SNDRV_TIMER_IFLG_START |
 						 SNDRV_TIMER_IFLG_RUNNING)
 				    ? "running" : "stopped");
-		}
 	}
 	mutex_unlock(&register_mutex);
 }

@@ -114,22 +114,28 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 	if (idx < 0) {
 		int idx2;
 		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++)
+			/* idx == -1 == 0xffff means: take any free slot */
 			if (~snd_cards_lock & idx & 1<<idx2) {
 				idx = idx2;
 				if (idx >= snd_ecards_limit)
 					snd_ecards_limit = idx + 1;
 				break;
 			}
-	} else if (idx < snd_ecards_limit) {
-		if (snd_cards_lock & (1 << idx))
-			err = -ENODEV;	/* invalid */
-	} else if (idx < SNDRV_CARDS)
-		snd_ecards_limit = idx + 1; /* increase the limit */
-	else
-		err = -ENODEV;
+	} else {
+		 if (idx < snd_ecards_limit) {
+			if (snd_cards_lock & (1 << idx))
+				err = -EBUSY;	/* invalid */
+		} else {
+			if (idx < SNDRV_CARDS)
+				snd_ecards_limit = idx + 1; /* increase the limit */
+			else
+				err = -ENODEV;
+		}
+	}
 	if (idx < 0 || err < 0) {
 		mutex_unlock(&snd_card_mutex);
-		snd_printk(KERN_ERR "cannot find the slot for index %d (range 0-%i)\n", idx, snd_ecards_limit - 1);
+		snd_printk(KERN_ERR "cannot find the slot for index %d (range 0-%i), error: %d\n",
+			 idx, snd_ecards_limit - 1, err);
 		goto __error;
 	}
 	snd_cards_lock |= 1 << idx;		/* lock it */

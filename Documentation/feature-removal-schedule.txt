@@ -50,22 +50,6 @@ Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ---------------------------
 
-What:	ieee1394 core's unused exports (CONFIG_IEEE1394_EXPORT_FULL_API)
-When:	January 2007
-Why:	There are no projects known to use these exported symbols, except
-	dfg1394 (uses one symbol whose functionality is core-internal now).
-Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
-
----------------------------
-
-What:	ieee1394's *_oui sysfs attributes (CONFIG_IEEE1394_OUI_DB)
-When:	January 2007
-Files:	drivers/ieee1394/: oui.db, oui2c.sh
-Why:	big size, little value
-Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
-
----------------------------
-
 What:	Video4Linux API 1 ioctls and video_decoder.h from Video devices.
 When:	December 2006
 Why:	V4L1 AP1 was replaced by V4L2 API. during migration from 2.4 to 2.6
@@ -186,18 +170,6 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
 
 ---------------------------
 
-What:	find_trylock_page
-When:	January 2007
-Why:	The interface no longer has any callers left in the kernel. It
-	is an odd interface (compared with other find_*_page functions), in
-	that it does not take a refcount to the page, only the page lock.
-	It should be replaced with find_get_page or find_lock_page if possible.
-	This feature removal can be reevaluated if users of the interface
-	cannot cleanly use something else.
-Who:	Nick Piggin <npiggin@suse.de>
-
----------------------------
-
 What:	Interrupt only SA_* flags
 When:	Januar 2007
 Why:	The interrupt related SA_* flags are replaced by IRQF_* to move them
@@ -274,6 +246,7 @@ Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
 
 ---------------------------
 
+<<<<<<< test:Documentation/feature-removal-schedule.txt
 What:	ACPI hotkey driver (CONFIG_ACPI_HOTKEY)
 When:	2.6.21
 Why:	hotkey.c was an attempt to consolidate multiple drivers that use
@@ -306,8 +279,15 @@ Why:	The ACPI namespace is effectively the symbol list for
 	the BIOS can be extracted and disassembled with acpidump
 	and iasl as documented in the pmtools package here:
 	http://ftp.kernel.org/pub/linux/kernel/people/lenb/acpi/utils
-
 Who:	Len Brown <len.brown@intel.com>
+
+---------------------------
+
+What:	ACPI procfs interface
+When:	July 2007
+Why:	After ACPI sysfs conversion, ACPI attributes will be duplicated
+	in sysfs and the ACPI procfs interface should be removed.
+Who:	Zhang Rui <rui.zhang@intel.com>
 
 ---------------------------
 
@@ -325,3 +305,10 @@ Why:	Unmaintained for years, superceded by JFFS2 for years.
 Who:	Jeff Garzik <jeff@garzik.org>
 
 ---------------------------
+
+What:   sk98lin network driver
+When:   July 2007
+Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
+	replaced by the skge driver. 
+Who:    Stephen Hemminger <shemminger@osdl.org>
+

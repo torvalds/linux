@@ -28,6 +28,7 @@
 #include <sound/i2c.h>
 #include <sound/ak4xxx-adda.h>
 #include <sound/ak4114.h>
+#include <sound/pt2258.h>
 #include <sound/pcm.h>
 #include <sound/mpu401.h>
 
@@ -381,6 +382,11 @@ struct snd_ice1712 {
 			unsigned short master[2];
 			unsigned short vol[8];
 		} phase28;
+		/* a non-standard I2C device for revo51 */
+		struct revo51_spec {
+			struct snd_i2c_device *dev;
+			struct snd_pt2258 *pt2258;
+		} revo51;
 		/* Hoontech-specific setting */
 		struct hoontech_spec {
 			unsigned char boxbits[4];
@@ -462,6 +468,14 @@ static inline void snd_ice1712_gpio_write_bits(struct snd_ice1712 *ice,
 	snd_ice1712_gpio_write(ice, mask & bits);
 }
 
+static inline int snd_ice1712_gpio_read_bits(struct snd_ice1712 *ice,
+					      unsigned int mask)
+{
+	ice->gpio.direction &= ~mask;
+	snd_ice1712_gpio_set_dir(ice, ice->gpio.direction);
+	return  (snd_ice1712_gpio_read(ice) & mask);
+}
+
 int snd_ice1712_spdif_build_controls(struct snd_ice1712 *ice);
 
 int snd_ice1712_akm4xxx_init(struct snd_akm4xxx *ak, const struct snd_akm4xxx *template,
@@ -500,8 +514,8 @@ struct snd_ice1712_card_info {
 	unsigned int mpu401_2_info_flags;
 	const char *mpu401_1_name;
 	const char *mpu401_2_name;
-	unsigned int eeprom_size;
-	unsigned char *eeprom_data;
+	const unsigned int eeprom_size;
+	const unsigned char *eeprom_data;
 };
 
 

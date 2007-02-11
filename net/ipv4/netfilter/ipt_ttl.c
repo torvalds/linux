@@ -9,11 +9,12 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/ip.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 
 #include <linux/netfilter_ipv4/ipt_ttl.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter/x_tables.h>
 
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("IP tables TTL matching module");
@@ -48,8 +49,9 @@ static int match(const struct sk_buff *skb,
 	return 0;
 }
 
-static struct ipt_match ttl_match = {
+static struct xt_match ttl_match = {
 	.name		= "ttl",
+	.family		= AF_INET,
 	.match		= match,
 	.matchsize	= sizeof(struct ipt_ttl_info),
 	.me		= THIS_MODULE,
@@ -57,13 +59,12 @@ static struct ipt_match ttl_match = {
 
 static int __init ipt_ttl_init(void)
 {
-	return ipt_register_match(&ttl_match);
+	return xt_register_match(&ttl_match);
 }
 
 static void __exit ipt_ttl_fini(void)
 {
-	ipt_unregister_match(&ttl_match);
-
+	xt_unregister_match(&ttl_match);
 }
 
 module_init(ipt_ttl_init);

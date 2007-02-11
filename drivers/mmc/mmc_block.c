@@ -237,13 +237,17 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		brq.mrq.cmd = &brq.cmd;
 		brq.mrq.data = &brq.data;
 
-		brq.cmd.arg = req->sector << 9;
+		brq.cmd.arg = req->sector;
+		if (!mmc_card_blockaddr(card))
+			brq.cmd.arg <<= 9;
 		brq.cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 		brq.data.blksz = 1 << md->block_bits;
-		brq.data.blocks = req->nr_sectors >> (md->block_bits - 9);
 		brq.stop.opcode = MMC_STOP_TRANSMISSION;
 		brq.stop.arg = 0;
 		brq.stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
+		brq.data.blocks = req->nr_sectors >> (md->block_bits - 9);
+		if (brq.data.blocks > card->host->max_blk_count)
+			brq.data.blocks = card->host->max_blk_count;
 
 		mmc_set_data_timeout(&brq.data, card, rq_data_dir(req) != READ);
 
@@ -375,9 +379,10 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		spin_unlock_irq(&md->lock);
 	}
 
+flush_queue:
+
 	mmc_card_release_host(card);
 
-flush_queue:
 	spin_lock_irq(&md->lock);
 	while (ret) {
 		ret = end_that_request_chunk(req, 0,
@@ -493,6 +498,10 @@ mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
 {
 	struct mmc_command cmd;
 	int err;
+
+	/* Block-addressed cards ignore MMC_SET_BLOCKLEN. */
+	if (mmc_card_blockaddr(card))
+		return 0;
 
 	mmc_card_claim_host(card);
 	cmd.opcode = MMC_SET_BLOCKLEN;

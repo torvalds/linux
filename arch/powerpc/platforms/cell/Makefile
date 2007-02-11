@@ -14,7 +14,12 @@ endif
 spufs-modular-$(CONFIG_SPU_FS)		+= spu_syscalls.o
 spu-priv1-$(CONFIG_PPC_CELL_NATIVE)	+= spu_priv1_mmio.o
 
+spu-manage-$(CONFIG_PPC_CELLEB)		+= spu_manage.o
+spu-manage-$(CONFIG_PPC_CELL_NATIVE)	+= spu_manage.o
+
 obj-$(CONFIG_SPU_BASE)			+= spu_callbacks.o spu_base.o \
 					   spu_coredump.o \
 					   $(spufs-modular-m) \
-					   $(spu-priv1-y) spufs/
+					   $(spu-priv1-y) \
+					   $(spu-manage-y) \
+					   spufs/
