@@ -20,6 +20,8 @@ enum {
 	LINUX_EXTENDED_PARTITION = 0x85,
 	WIN98_EXTENDED_PARTITION = 0x0f,
 
+	SUN_WHOLE_DISK = DOS_EXTENDED_PARTITION,
+
 	LINUX_SWAP_PARTITION = 0x82,
 	LINUX_DATA_PARTITION = 0x83,
 	LINUX_LVM_PARTITION = 0x8e,
@@ -402,10 +404,14 @@ struct unixware_disklabel {
 
 #ifdef __KERNEL__
 
+#define ADDPART_FLAG_NONE	0
+#define ADDPART_FLAG_RAID	1
+#define ADDPART_FLAG_WHOLEDISK	2
+
 char *disk_name (struct gendisk *hd, int part, char *buf);
 
 extern int rescan_partitions(struct gendisk *disk, struct block_device *bdev);
-extern void add_partition(struct gendisk *, int, sector_t, sector_t);
+extern void add_partition(struct gendisk *, int, sector_t, sector_t, int);
 extern void delete_partition(struct gendisk *, int);
 
 extern struct gendisk *alloc_disk_node(int minors, int node_id);
