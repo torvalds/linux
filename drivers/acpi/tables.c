@@ -170,40 +170,40 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header * header)
 
 
 int __init
-acpi_table_parse_madt_family(char *id,
-			     unsigned long madt_size,
+acpi_table_parse_entries(char *id,
+			     unsigned long table_size,
 			     int entry_id,
 			     acpi_table_entry_handler handler,
 			     unsigned int max_entries)
 {
-	struct acpi_table_header *madt = NULL;
+	struct acpi_table_header *table_header = NULL;
 	struct acpi_subtable_header *entry;
 	unsigned int count = 0;
-	unsigned long madt_end;
+	unsigned long table_end;
 
 	if (!handler)
 		return -EINVAL;
 
-	/* Locate the MADT (if exists). There should only be one. */
-	acpi_get_table(id, 0, &madt);
+	/* Locate the table (if exists). There should only be one. */
+	acpi_get_table(id, 0, &table_header);
 
-	if (!madt) {
+	if (!table_header) {
 		printk(KERN_WARNING PREFIX "%4.4s not present\n", id);
 		return -ENODEV;
 	}
 
-	madt_end = (unsigned long)madt + madt->length;
+	table_end = (unsigned long)table_header + table_header->length;
 
 	/* Parse all entries looking for a match. */
 
 	entry = (struct acpi_subtable_header *)
-	    ((unsigned long)madt + madt_size);
+	    ((unsigned long)table_header + table_size);
 
 	while (((unsigned long)entry) + sizeof(struct acpi_subtable_header) <
-	       madt_end) {
+	       table_end) {
 		if (entry->type == entry_id
 		    && (!max_entries || count++ < max_entries))
-			if (handler(entry, madt_end))
+			if (handler(entry, table_end))
 				return -EINVAL;
 
 		entry = (struct acpi_subtable_header *)
@@ -221,7 +221,7 @@ int __init
 acpi_table_parse_madt(enum acpi_madt_type id,
 		      acpi_table_entry_handler handler, unsigned int max_entries)
 {
-	return acpi_table_parse_madt_family(ACPI_SIG_MADT,
+	return acpi_table_parse_entries(ACPI_SIG_MADT,
 					    sizeof(struct acpi_table_madt), id,
 					    handler, max_entries);
 }
