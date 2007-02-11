@@ -1225,8 +1225,8 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 			 le16_to_cpu(dev->descriptor.idProduct));
 
 	hid->bus = BUS_USB;
-	hid->vendor = dev->descriptor.idVendor;
-	hid->product = dev->descriptor.idProduct;
+	hid->vendor = le16_to_cpu(dev->descriptor.idVendor);
+	hid->product = le16_to_cpu(dev->descriptor.idProduct);
 
 	usb_make_path(dev, hid->phys, sizeof(hid->phys));
 	strlcat(hid->phys, "/input", sizeof(hid->phys));
