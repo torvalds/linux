@@ -173,7 +173,7 @@ int __init
 acpi_table_parse_madt_family(char *id,
 			     unsigned long madt_size,
 			     int entry_id,
-			     acpi_madt_entry_handler handler,
+			     acpi_table_entry_handler handler,
 			     unsigned int max_entries)
 {
 	struct acpi_table_header *madt = NULL;
@@ -219,7 +219,7 @@ acpi_table_parse_madt_family(char *id,
 
 int __init
 acpi_table_parse_madt(enum acpi_madt_type id,
-		      acpi_madt_entry_handler handler, unsigned int max_entries)
+		      acpi_table_entry_handler handler, unsigned int max_entries)
 {
 	return acpi_table_parse_madt_family(ACPI_SIG_MADT,
 					    sizeof(struct acpi_table_madt), id,

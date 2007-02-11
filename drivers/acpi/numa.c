@@ -48,7 +48,7 @@ int __cpuinitdata node_to_pxm_map[MAX_NUMNODES]
 extern int __init acpi_table_parse_madt_family(char *id,
 					       unsigned long madt_size,
 					       int entry_id,
-					       acpi_madt_entry_handler handler,
+					       acpi_table_entry_handler handler,
 					       unsigned int max_entries);
 
 int __cpuinit pxm_to_node(int pxm)
@@ -208,7 +208,7 @@ static int __init acpi_parse_srat(struct acpi_table_header *table)
 
 int __init
 acpi_table_parse_srat(enum acpi_srat_type id,
-		      acpi_madt_entry_handler handler, unsigned int max_entries)
+		      acpi_table_entry_handler handler, unsigned int max_entries)
 {
 	return acpi_table_parse_madt_family(ACPI_SIG_SRAT,
 					    sizeof(struct acpi_table_srat), id,
