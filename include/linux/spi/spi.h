@@ -220,7 +220,7 @@ struct spi_master {
 						struct spi_message *mesg);
 
 	/* called on release() to free memory provided by spi_master */
-	void			(*cleanup)(const struct spi_device *spi);
+	void			(*cleanup)(struct spi_device *spi);
 };
 
 static inline void *spi_master_get_devdata(struct spi_master *master)

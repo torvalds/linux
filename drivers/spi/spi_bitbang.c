@@ -238,7 +238,7 @@ EXPORT_SYMBOL_GPL(spi_bitbang_setup);
 /**
  * spi_bitbang_cleanup - default cleanup for per-word I/O loops
  */
-void spi_bitbang_cleanup(const struct spi_device *spi)
+void spi_bitbang_cleanup(struct spi_device *spi)
 {
 	kfree(spi->controller_state);
 }

@@ -1214,9 +1214,9 @@ static int setup(struct spi_device *spi)
 	return 0;
 }
 
-static void cleanup(const struct spi_device *spi)
+static void cleanup(struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata((struct spi_device *)spi);
+	struct chip_data *chip = spi_get_ctldata(spi);
 
 	kfree(chip);
 }
