@@ -829,17 +829,18 @@ static unsigned short cy_pci_nboard;
 static unsigned short cy_isa_nboard;
 static unsigned short cy_nboard;
 #ifdef CONFIG_PCI
-static unsigned short cy_pci_dev_id[] = {
-	PCI_DEVICE_ID_CYCLOM_Y_Lo,	/* PCI < 1Mb */
-	PCI_DEVICE_ID_CYCLOM_Y_Hi,	/* PCI > 1Mb */
-	PCI_DEVICE_ID_CYCLOM_4Y_Lo,	/* 4Y PCI < 1Mb */
-	PCI_DEVICE_ID_CYCLOM_4Y_Hi,	/* 4Y PCI > 1Mb */
-	PCI_DEVICE_ID_CYCLOM_8Y_Lo,	/* 8Y PCI < 1Mb */
-	PCI_DEVICE_ID_CYCLOM_8Y_Hi,	/* 8Y PCI > 1Mb */
-	PCI_DEVICE_ID_CYCLOM_Z_Lo,	/* Z PCI < 1Mb */
-	PCI_DEVICE_ID_CYCLOM_Z_Hi,	/* Z PCI > 1Mb */
-	0			/* end of table */
+static struct pci_device_id cy_pci_dev_id[] __devinitdata = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_CYCLADES, PCI_DEVICE_ID_CYCLOM_Y_Lo) },	/* PCI < 1Mb */
+	{ PCI_DEVICE(PCI_VENDOR_ID_CYCLADES, PCI_DEVICE_ID_CYCLOM_Y_Hi) },	/* PCI > 1Mb */
+	{ PCI_DEVICE(PCI_VENDOR_ID_CYCLADES, PCI_DEVICE_ID_CYCLOM_4Y_Lo) },	/* 4Y PCI < 1Mb */
+	{ PCI_DEVICE(PCI_VENDOR_ID_CYCLADES, PCI_DEVICE_ID_CYCLOM_4Y_Hi) },	/* 4Y PCI > 1Mb */
+	{ PCI_DEVICE(PCI_VENDOR_ID_CYCLADES, PCI_DEVICE_ID_CYCLOM_8Y_Lo) },	/* 8Y PCI < 1Mb */
+	{ PCI_DEVICE(PCI_VENDOR_ID_CYCLADES, PCI_DEVICE_ID_CYCLOM_8Y_Hi) },	/* 8Y PCI > 1Mb */
+	{ PCI_DEVICE(PCI_VENDOR_ID_CYCLADES, PCI_DEVICE_ID_CYCLOM_Z_Lo) },	/* Z PCI < 1Mb */
+	{ PCI_DEVICE(PCI_VENDOR_ID_CYCLADES, PCI_DEVICE_ID_CYCLOM_Z_Hi) },	/* Z PCI > 1Mb */
+	{ }			/* end of table */
 };
+MODULE_DEVICE_TABLE(pci, cy_pci_dev_id);
 #endif
 
 static void cy_start(struct tty_struct *);
@@ -4758,7 +4759,7 @@ static int __init cy_detect_pci(void)
 
 	for (i = 0; i < NR_CARDS; i++) {
 		/* look for a Cyclades card by vendor and device id */
-		while ((device_id = cy_pci_dev_id[dev_index]) != 0) {
+		while ((device_id = cy_pci_dev_id[dev_index].device) != 0) {
 			if ((pdev = pci_get_device(PCI_VENDOR_ID_CYCLADES,
 						   device_id, pdev)) == NULL) {
 				dev_index++;	/* try next device id */
