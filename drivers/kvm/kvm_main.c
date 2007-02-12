@@ -34,6 +34,7 @@
 #include <linux/highmem.h>
 #include <linux/file.h>
 #include <asm/desc.h>
+#include <linux/sysdev.h>
 #include <linux/cpu.h>
 
 #include "x86_emulate.h"
@@ -2117,6 +2118,30 @@ static void kvm_exit_debug(void)
 	debugfs_remove(debugfs_dir);
 }
 
+static int kvm_suspend(struct sys_device *dev, pm_message_t state)
+{
+	decache_vcpus_on_cpu(raw_smp_processor_id());
+	on_each_cpu(kvm_arch_ops->hardware_disable, 0, 0, 1);
+	return 0;
+}
+
+static int kvm_resume(struct sys_device *dev)
+{
+	on_each_cpu(kvm_arch_ops->hardware_enable, 0, 0, 1);
+	return 0;
+}
+
+static struct sysdev_class kvm_sysdev_class = {
+	set_kset_name("kvm"),
+	.suspend = kvm_suspend,
+	.resume = kvm_resume,
+};
+
+static struct sys_device kvm_sysdev = {
+	.id = 0,
+	.cls = &kvm_sysdev_class,
+};
+
 hpa_t bad_page_address;
 
 int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
@@ -2149,6 +2174,14 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 		goto out_free_1;
 	register_reboot_notifier(&kvm_reboot_notifier);
 
+	r = sysdev_class_register(&kvm_sysdev_class);
+	if (r)
+		goto out_free_2;
+
+	r = sysdev_register(&kvm_sysdev);
+	if (r)
+		goto out_free_3;
+
 	kvm_chardev_ops.owner = module;
 
 	r = misc_register(&kvm_dev);
@@ -2160,6 +2193,10 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 	return r;
 
 out_free:
+	sysdev_unregister(&kvm_sysdev);
+out_free_3:
+	sysdev_class_unregister(&kvm_sysdev_class);
+out_free_2:
 	unregister_reboot_notifier(&kvm_reboot_notifier);
 	unregister_cpu_notifier(&kvm_cpu_notifier);
 out_free_1:
@@ -2171,8 +2208,10 @@ out_free_1:
 void kvm_exit_arch(void)
 {
 	misc_deregister(&kvm_dev);
-
+	sysdev_unregister(&kvm_sysdev);
+	sysdev_class_unregister(&kvm_sysdev_class);
 	unregister_reboot_notifier(&kvm_reboot_notifier);
+	unregister_cpu_notifier(&kvm_cpu_notifier);
 	on_each_cpu(kvm_arch_ops->hardware_disable, NULL, 0, 1);
 	kvm_arch_ops->hardware_unsetup();
 	kvm_arch_ops = NULL;
