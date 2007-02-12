@@ -1344,24 +1344,41 @@ static int ecryptfs_write_metadata_to_contents(struct ecryptfs_crypt_stat *crypt
 	mm_segment_t oldfs;
 	int current_header_page;
 	int header_pages;
+	ssize_t size;
+	int rc = 0;
 
 	lower_file->f_pos = 0;
 	oldfs = get_fs();
 	set_fs(get_ds());
-	lower_file->f_op->write(lower_file, (char __user *)page_virt,
-				PAGE_CACHE_SIZE, &lower_file->f_pos);
+	size = vfs_write(lower_file, (char __user *)page_virt, PAGE_CACHE_SIZE,
+			 &lower_file->f_pos);
+	if (size < 0) {
+		rc = (int)size;
+		printk(KERN_ERR "Error attempting to write lower page; "
+		       "rc = [%d]\n", rc);
+		set_fs(oldfs);
+		goto out;
+	}
 	header_pages = ((crypt_stat->header_extent_size
 			 * crypt_stat->num_header_extents_at_front)
 			/ PAGE_CACHE_SIZE);
 	memset(page_virt, 0, PAGE_CACHE_SIZE);
 	current_header_page = 1;
 	while (current_header_page < header_pages) {
-		lower_file->f_op->write(lower_file, (char __user *)page_virt,
-					PAGE_CACHE_SIZE, &lower_file->f_pos);
+		size = vfs_write(lower_file, (char __user *)page_virt,
+				 PAGE_CACHE_SIZE, &lower_file->f_pos);
+		if (size < 0) {
+			rc = (int)size;
+			printk(KERN_ERR "Error attempting to write lower page; "
+			       "rc = [%d]\n", rc);
+			set_fs(oldfs);
+			goto out;
+		}
 		current_header_page++;
 	}
 	set_fs(oldfs);
-	return 0;
+out:
+	return rc;
 }
 
 static int ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
