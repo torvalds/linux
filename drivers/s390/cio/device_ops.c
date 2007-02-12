@@ -23,8 +23,7 @@
 #include "chsc.h"
 #include "device.h"
 
-int
-ccw_device_set_options(struct ccw_device *cdev, unsigned long flags)
+int ccw_device_set_options_mask(struct ccw_device *cdev, unsigned long flags)
 {
        /*
 	* The flag usage is mutal exclusive ...
@@ -37,6 +36,33 @@ ccw_device_set_options(struct ccw_device *cdev, unsigned long flags)
 	cdev->private->options.pgroup = (flags & CCWDEV_DO_PATHGROUP) != 0;
 	cdev->private->options.force = (flags & CCWDEV_ALLOW_FORCE) != 0;
 	return 0;
+}
+
+int ccw_device_set_options(struct ccw_device *cdev, unsigned long flags)
+{
+       /*
+	* The flag usage is mutal exclusive ...
+	*/
+	if (((flags & CCWDEV_EARLY_NOTIFICATION) &&
+	    (flags & CCWDEV_REPORT_ALL)) ||
+	    ((flags & CCWDEV_EARLY_NOTIFICATION) &&
+	     cdev->private->options.repall) ||
+	    ((flags & CCWDEV_REPORT_ALL) &&
+	     cdev->private->options.fast))
+		return -EINVAL;
+	cdev->private->options.fast |= (flags & CCWDEV_EARLY_NOTIFICATION) != 0;
+	cdev->private->options.repall |= (flags & CCWDEV_REPORT_ALL) != 0;
+	cdev->private->options.pgroup |= (flags & CCWDEV_DO_PATHGROUP) != 0;
+	cdev->private->options.force |= (flags & CCWDEV_ALLOW_FORCE) != 0;
+	return 0;
+}
+
+void ccw_device_clear_options(struct ccw_device *cdev, unsigned long flags)
+{
+	cdev->private->options.fast &= (flags & CCWDEV_EARLY_NOTIFICATION) == 0;
+	cdev->private->options.repall &= (flags & CCWDEV_REPORT_ALL) == 0;
+	cdev->private->options.pgroup &= (flags & CCWDEV_DO_PATHGROUP) == 0;
+	cdev->private->options.force &= (flags & CCWDEV_ALLOW_FORCE) == 0;
 }
 
 int
@@ -601,7 +627,9 @@ _ccw_device_get_device_number(struct ccw_device *cdev)
 
 
 MODULE_LICENSE("GPL");
+EXPORT_SYMBOL(ccw_device_set_options_mask);
 EXPORT_SYMBOL(ccw_device_set_options);
+EXPORT_SYMBOL(ccw_device_clear_options);
 EXPORT_SYMBOL(ccw_device_clear);
 EXPORT_SYMBOL(ccw_device_halt);
 EXPORT_SYMBOL(ccw_device_resume);

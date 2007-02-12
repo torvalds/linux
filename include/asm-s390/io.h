@@ -17,8 +17,6 @@
 
 #define IO_SPACE_LIMIT 0xffffffff
 
-#define __io_virt(x)            ((void *)(PAGE_OFFSET | (unsigned long)(x)))
-
 /*
  * Change virtual addresses to physical addresses and vv.
  * These are pretty trivial
@@ -37,10 +35,8 @@ static inline unsigned long virt_to_phys(volatile void * address)
 
 static inline void * phys_to_virt(unsigned long address)
 {
-        return __io_virt(address);
+	return (void *) address;
 }
-
-#define mmiowb()	do { } while (0)
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
