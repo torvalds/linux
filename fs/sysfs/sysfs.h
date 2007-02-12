@@ -26,8 +26,8 @@ extern struct super_block * sysfs_sb;
 extern const struct file_operations sysfs_dir_operations;
 extern const struct file_operations sysfs_file_operations;
 extern const struct file_operations bin_fops;
-extern struct inode_operations sysfs_dir_inode_operations;
-extern struct inode_operations sysfs_symlink_inode_operations;
+extern const struct inode_operations sysfs_dir_inode_operations;
+extern const struct inode_operations sysfs_symlink_inode_operations;
 
 struct sysfs_symlink {
 	char * link_name;

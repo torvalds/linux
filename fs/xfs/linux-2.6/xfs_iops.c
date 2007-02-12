@@ -813,7 +813,7 @@ xfs_vn_removexattr(
 }
 
 
-struct inode_operations xfs_inode_operations = {
+const struct inode_operations xfs_inode_operations = {
 	.permission		= xfs_vn_permission,
 	.truncate		= xfs_vn_truncate,
 	.getattr		= xfs_vn_getattr,
@@ -824,7 +824,7 @@ struct inode_operations xfs_inode_operations = {
 	.removexattr		= xfs_vn_removexattr,
 };
 
-struct inode_operations xfs_dir_inode_operations = {
+const struct inode_operations xfs_dir_inode_operations = {
 	.create			= xfs_vn_create,
 	.lookup			= xfs_vn_lookup,
 	.link			= xfs_vn_link,
@@ -843,7 +843,7 @@ struct inode_operations xfs_dir_inode_operations = {
 	.removexattr		= xfs_vn_removexattr,
 };
 
-struct inode_operations xfs_symlink_inode_operations = {
+const struct inode_operations xfs_symlink_inode_operations = {
 	.readlink		= generic_readlink,
 	.follow_link		= xfs_vn_follow_link,
 	.put_link		= xfs_vn_put_link,

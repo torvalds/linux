@@ -296,7 +296,7 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	return ERR_PTR(err);
 }
 
-struct inode_operations sysfs_dir_inode_operations = {
+const struct inode_operations sysfs_dir_inode_operations = {
 	.lookup		= sysfs_lookup,
 	.setattr	= sysfs_setattr,
 };

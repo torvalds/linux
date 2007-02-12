@@ -513,6 +513,6 @@ static int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 	return inode_setattr(inode, attr);
 }
 
-struct inode_operations ufs_file_inode_operations = {
+const struct inode_operations ufs_file_inode_operations = {
 	.setattr = ufs_setattr,
 };

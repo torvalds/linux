@@ -957,7 +957,7 @@ extern struct ufs_cg_private_info * ufs_load_cylinder (struct super_block *, uns
 extern void ufs_put_cylinder (struct super_block *, unsigned);
 
 /* dir.c */
-extern struct inode_operations ufs_dir_inode_operations;
+extern const struct inode_operations ufs_dir_inode_operations;
 extern int ufs_add_link (struct dentry *, struct inode *);
 extern ino_t ufs_inode_by_name(struct inode *, struct dentry *);
 extern int ufs_make_empty(struct inode *, struct inode *);
@@ -969,7 +969,7 @@ extern void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 			 struct page *page, struct inode *inode);
 
 /* file.c */
-extern struct inode_operations ufs_file_inode_operations;
+extern const struct inode_operations ufs_file_inode_operations;
 extern const struct file_operations ufs_file_operations;
 
 extern const struct address_space_operations ufs_aops;
@@ -996,7 +996,7 @@ extern void ufs_error (struct super_block *, const char *, const char *, ...) __
 extern void ufs_panic (struct super_block *, const char *, const char *, ...) __attribute__ ((format (printf, 3, 4)));
 
 /* symlink.c */
-extern struct inode_operations ufs_fast_symlink_inode_operations;
+extern const struct inode_operations ufs_fast_symlink_inode_operations;
 
 /* truncate.c */
 extern int ufs_truncate (struct inode *, loff_t);

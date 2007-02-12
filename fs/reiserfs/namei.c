@@ -1525,7 +1525,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 /*
  * directories can handle most operations...
  */
-struct inode_operations reiserfs_dir_inode_operations = {
+const struct inode_operations reiserfs_dir_inode_operations = {
 	//&reiserfs_dir_operations,   /* default_file_ops */
 	.create = reiserfs_create,
 	.lookup = reiserfs_lookup,
@@ -1548,7 +1548,7 @@ struct inode_operations reiserfs_dir_inode_operations = {
  * symlink operations.. same as page_symlink_inode_operations, with xattr
  * stuff added
  */
-struct inode_operations reiserfs_symlink_inode_operations = {
+const struct inode_operations reiserfs_symlink_inode_operations = {
 	.readlink = generic_readlink,
 	.follow_link = page_follow_link_light,
 	.put_link = page_put_link,
@@ -1564,7 +1564,7 @@ struct inode_operations reiserfs_symlink_inode_operations = {
 /*
  * special file operations.. just xattr/acl stuff
  */
-struct inode_operations reiserfs_special_inode_operations = {
+const struct inode_operations reiserfs_special_inode_operations = {
 	.setattr = reiserfs_setattr,
 	.setxattr = reiserfs_setxattr,
 	.getxattr = reiserfs_getxattr,

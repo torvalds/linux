@@ -33,7 +33,7 @@ const struct file_operations qnx4_file_operations =
 #endif
 };
 
-struct inode_operations qnx4_file_inode_operations =
+const struct inode_operations qnx4_file_inode_operations =
 {
 #ifdef CONFIG_QNX4FS_RW
 	.truncate	= qnx4_truncate,
