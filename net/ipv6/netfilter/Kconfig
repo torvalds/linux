@@ -42,7 +42,8 @@ config IP6_NF_QUEUE
 
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"
-	depends on INET && IPV6 && EXPERIMENTAL && NETFILTER_XTABLES
+	depends on INET && IPV6 && EXPERIMENTAL
+	select NETFILTER_XTABLES
 	help
 	  ip6tables is a general, extensible packet identification framework.
 	  Currently only the packet filtering and packet mangling subsystem
