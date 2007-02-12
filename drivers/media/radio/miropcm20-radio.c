@@ -216,7 +216,7 @@ static struct pcm20_device pcm20_unit = {
 	.muted  = 1,
 };
 
-static struct file_operations pcm20_fops = {
+static const struct file_operations pcm20_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

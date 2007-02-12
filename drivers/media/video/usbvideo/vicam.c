@@ -1234,7 +1234,7 @@ static inline void vicam_create_proc_entry(struct vicam_camera *cam) { }
 static inline void vicam_destroy_proc_entry(void *ptr) { }
 #endif
 
-static struct file_operations vicam_fops = {
+static const struct file_operations vicam_fops = {
 	.owner		= THIS_MODULE,
 	.open		= vicam_open,
 	.release	= vicam_close,

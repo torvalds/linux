@@ -501,7 +501,7 @@ static int apm_emu_get_info(char *buf, char **start, off_t fpos, int length)
 	return p - buf;
 }
 
-static struct file_operations apm_bios_fops = {
+static const struct file_operations apm_bios_fops = {
 	.owner		= THIS_MODULE,
 	.read		= do_read,
 	.poll		= do_poll,

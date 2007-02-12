@@ -416,7 +416,7 @@ static ssize_t fops_write(struct file *file, const char __user *data, size_t cou
 	}
 }
 
-static struct file_operations video_fops =
+static const struct file_operations video_fops =
 {
 	.owner		= THIS_MODULE,
 	.open		= fops_open,

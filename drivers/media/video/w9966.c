@@ -183,7 +183,7 @@ static int w9966_v4l_ioctl(struct inode *inode, struct file *file,
 static ssize_t w9966_v4l_read(struct file *file, char __user *buf,
 			      size_t count, loff_t *ppos);
 
-static struct file_operations w9966_fops = {
+static const struct file_operations w9966_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

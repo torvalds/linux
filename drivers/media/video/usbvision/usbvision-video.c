@@ -1475,7 +1475,7 @@ static int usbvision_vbi_ioctl(struct inode *inode, struct file *file,
 //
 
 // Video template
-static struct file_operations usbvision_fops = {
+static const struct file_operations usbvision_fops = {
 	.owner             = THIS_MODULE,
 	.open		= usbvision_v4l2_open,
 	.release	= usbvision_v4l2_close,
@@ -1496,7 +1496,7 @@ static struct video_device usbvision_video_template = {
 
 
 // Radio template
-static struct file_operations usbvision_radio_fops = {
+static const struct file_operations usbvision_radio_fops = {
 	.owner             = THIS_MODULE,
 	.open		= usbvision_radio_open,
 	.release	= usbvision_radio_close,
@@ -1517,7 +1517,7 @@ static struct video_device usbvision_radio_template=
 
 
 // vbi template
-static struct file_operations usbvision_vbi_fops = {
+static const struct file_operations usbvision_vbi_fops = {
 	.owner             = THIS_MODULE,
 	.open		= usbvision_vbi_open,
 	.release	= usbvision_vbi_close,
