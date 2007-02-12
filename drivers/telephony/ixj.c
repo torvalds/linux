@@ -648,9 +648,9 @@ static inline BYTE SLIC_GetState(IXJ *j)
 	return j->pld_slicr.bits.state;
 }
 
-static BOOL SLIC_SetState(BYTE byState, IXJ *j)
+static bool SLIC_SetState(BYTE byState, IXJ *j)
 {
-	BOOL fRetVal = FALSE;
+	bool fRetVal = false;
 
 	if (j->cardtype == QTI_PHONECARD) {
 		if (j->flags.pcmciasct) {
@@ -659,14 +659,14 @@ static BOOL SLIC_SetState(BYTE byState, IXJ *j)
 			case PLD_SLIC_STATE_OC:
 				j->pslic.bits.powerdown = 1;
 				j->pslic.bits.ring0 = j->pslic.bits.ring1 = 0;
-				fRetVal = TRUE;
+				fRetVal = true;
 				break;
 			case PLD_SLIC_STATE_RINGING:
 				if (j->readers || j->writers) {
 					j->pslic.bits.powerdown = 0;
 					j->pslic.bits.ring0 = 1;
 					j->pslic.bits.ring1 = 0;
-					fRetVal = TRUE;
+					fRetVal = true;
 				}
 				break;
 			case PLD_SLIC_STATE_OHT:	/* On-hook transmit */
@@ -679,14 +679,14 @@ static BOOL SLIC_SetState(BYTE byState, IXJ *j)
 					j->pslic.bits.powerdown = 1;
 				}
 				j->pslic.bits.ring0 = j->pslic.bits.ring1 = 0;
-				fRetVal = TRUE;
+				fRetVal = true;
 				break;
 			case PLD_SLIC_STATE_APR:	/* Active polarity reversal */
 
 			case PLD_SLIC_STATE_OHTPR:	/* OHT polarity reversal */
 
 			default:
-				fRetVal = FALSE;
+				fRetVal = false;
 				break;
 			}
 			j->psccr.bits.dev = 3;
@@ -703,7 +703,7 @@ static BOOL SLIC_SetState(BYTE byState, IXJ *j)
 			j->pld_slicw.bits.c3 = 0;
 			j->pld_slicw.bits.b2en = 0;
 			outb_p(j->pld_slicw.byte, j->XILINXbase + 0x01);
-			fRetVal = TRUE;
+			fRetVal = true;
 			break;
 		case PLD_SLIC_STATE_RINGING:
 			j->pld_slicw.bits.c1 = 1;
@@ -711,7 +711,7 @@ static BOOL SLIC_SetState(BYTE byState, IXJ *j)
 			j->pld_slicw.bits.c3 = 0;
 			j->pld_slicw.bits.b2en = 1;
 			outb_p(j->pld_slicw.byte, j->XILINXbase + 0x01);
-			fRetVal = TRUE;
+			fRetVal = true;
 			break;
 		case PLD_SLIC_STATE_ACTIVE:
 			j->pld_slicw.bits.c1 = 0;
@@ -719,7 +719,7 @@ static BOOL SLIC_SetState(BYTE byState, IXJ *j)
 			j->pld_slicw.bits.c3 = 0;
 			j->pld_slicw.bits.b2en = 0;
 			outb_p(j->pld_slicw.byte, j->XILINXbase + 0x01);
-			fRetVal = TRUE;
+			fRetVal = true;
 			break;
 		case PLD_SLIC_STATE_OHT:	/* On-hook transmit */
 
@@ -728,7 +728,7 @@ static BOOL SLIC_SetState(BYTE byState, IXJ *j)
 			j->pld_slicw.bits.c3 = 0;
 			j->pld_slicw.bits.b2en = 0;
 			outb_p(j->pld_slicw.byte, j->XILINXbase + 0x01);
-			fRetVal = TRUE;
+			fRetVal = true;
 			break;
 		case PLD_SLIC_STATE_TIPOPEN:
 			j->pld_slicw.bits.c1 = 0;
@@ -736,7 +736,7 @@ static BOOL SLIC_SetState(BYTE byState, IXJ *j)
 			j->pld_slicw.bits.c3 = 1;
 			j->pld_slicw.bits.b2en = 0;
 			outb_p(j->pld_slicw.byte, j->XILINXbase + 0x01);
-			fRetVal = TRUE;
+			fRetVal = true;
 			break;
 		case PLD_SLIC_STATE_STANDBY:
 			j->pld_slicw.bits.c1 = 1;
@@ -744,7 +744,7 @@ static BOOL SLIC_SetState(BYTE byState, IXJ *j)
 			j->pld_slicw.bits.c3 = 1;
 			j->pld_slicw.bits.b2en = 1;
 			outb_p(j->pld_slicw.byte, j->XILINXbase + 0x01);
-			fRetVal = TRUE;
+			fRetVal = true;
 			break;
 		case PLD_SLIC_STATE_APR:	/* Active polarity reversal */
 
@@ -753,7 +753,7 @@ static BOOL SLIC_SetState(BYTE byState, IXJ *j)
 			j->pld_slicw.bits.c3 = 1;
 			j->pld_slicw.bits.b2en = 0;
 			outb_p(j->pld_slicw.byte, j->XILINXbase + 0x01);
-			fRetVal = TRUE;
+			fRetVal = true;
 			break;
 		case PLD_SLIC_STATE_OHTPR:	/* OHT polarity reversal */
 
@@ -762,10 +762,10 @@ static BOOL SLIC_SetState(BYTE byState, IXJ *j)
 			j->pld_slicw.bits.c3 = 1;
 			j->pld_slicw.bits.b2en = 0;
 			outb_p(j->pld_slicw.byte, j->XILINXbase + 0x01);
-			fRetVal = TRUE;
+			fRetVal = true;
 			break;
 		default:
-			fRetVal = FALSE;
+			fRetVal = false;
 			break;
 		}
 	}
@@ -4969,7 +4969,8 @@ static int ixj_daa_cid_read(IXJ *j)
 {
 	int i;
 	BYTES bytes;
-	char CID[ALISDAA_CALLERID_SIZE], mContinue;
+	char CID[ALISDAA_CALLERID_SIZE];
+	bool mContinue;
 	char *pIn, *pOut;
 
 	if (!SCI_Prepare(j))
@@ -5013,7 +5014,7 @@ static int ixj_daa_cid_read(IXJ *j)
 
 	pIn = CID;
 	pOut = j->m_DAAShadowRegs.CAO_REGS.CAO.CallerID;
-	mContinue = 1;
+	mContinue = true;
 	while (mContinue) {
 		if ((pIn[1] & 0x03) == 0x01) {
 			pOut[0] = pIn[0];
@@ -5027,7 +5028,7 @@ static int ixj_daa_cid_read(IXJ *j)
 		if ((pIn[4] & 0xc0) == 0x40) {
 			pOut[3] = ((pIn[4] & 0x3f) << 2) | ((pIn[3] & 0xc0) >> 6);
 		} else {
-			mContinue = FALSE;
+			mContinue = false;
 		}
 		pIn += 5, pOut += 4;
 	}
@@ -7498,7 +7499,7 @@ static BYTE PCIEE_ReadBit(WORD wEEPROMAddress, BYTE lastLCC)
 	return ((inb(wEEPROMAddress) >> 3) & 1);
 }
 
-static BOOL PCIEE_ReadWord(WORD wAddress, WORD wLoc, WORD * pwResult)
+static bool PCIEE_ReadWord(WORD wAddress, WORD wLoc, WORD * pwResult)
 {
 	BYTE lastLCC;
 	WORD wEEPROMAddress = wAddress + 3;
