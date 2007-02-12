@@ -1101,10 +1101,10 @@ static int riva_get_cmap_len(const struct fb_var_screeninfo *var)
 static int rivafb_open(struct fb_info *info, int user)
 {
 	struct riva_par *par = info->par;
-	int cnt = atomic_read(&par->ref_count);
 
 	NVTRACE_ENTER();
-	if (!cnt) {
+	mutex_lock(&par->open_lock);
+	if (!par->ref_count) {
 #ifdef CONFIG_X86
 		memset(&par->state, 0, sizeof(struct vgastate));
 		par->state.flags = VGA_SAVE_MODE  | VGA_SAVE_FONTS;
@@ -1119,7 +1119,8 @@ static int rivafb_open(struct fb_info *info, int user)
 	
 		riva_save_state(par, &par->initial_state);
 	}
-	atomic_inc(&par->ref_count);
+	par->ref_count++;
+	mutex_unlock(&par->open_lock);
 	NVTRACE_LEAVE();
 	return 0;
 }
@@ -1127,12 +1128,14 @@ static int rivafb_open(struct fb_info *info, int user)
 static int rivafb_release(struct fb_info *info, int user)
 {
 	struct riva_par *par = info->par;
-	int cnt = atomic_read(&par->ref_count);
 
 	NVTRACE_ENTER();
-	if (!cnt)
+	mutex_lock(&par->open_lock);
+	if (!par->ref_count) {
+		mutex_unlock(&par->open_lock);
 		return -EINVAL;
-	if (cnt == 1) {
+	}
+	if (par->ref_count == 1) {
 		par->riva.LockUnlock(&par->riva, 0);
 		par->riva.LoadStateExt(&par->riva, &par->initial_state.ext);
 		riva_load_state(par, &par->initial_state);
@@ -1141,7 +1144,8 @@ static int rivafb_release(struct fb_info *info, int user)
 #endif
 		par->riva.LockUnlock(&par->riva, 1);
 	}
-	atomic_dec(&par->ref_count);
+	par->ref_count--;
+	mutex_unlock(&par->open_lock);
 	NVTRACE_LEAVE();
 	return 0;
 }
@@ -1999,6 +2003,7 @@ static int __devinit rivafb_probe(struct pci_dev *pd,
 		goto err_disable_device;
 	}
 
+	mutex_init(&default_par->open_lock);
 	default_par->riva.Architecture = riva_get_arch(pd);
 
 	default_par->Chipset = (pd->vendor << 16) | pd->device;

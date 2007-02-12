@@ -70,7 +70,8 @@ struct vga16fb_par {
 		unsigned char	ClockingMode;	  /* Seq-Controller:01h */
 	} vga_state;
 	struct vgastate state;
-	atomic_t ref_count;
+	struct mutex open_lock;
+	unsigned int ref_count;
 	int palette_blanked, vesa_blanked, mode, isVGA;
 	u8 misc, pel_msk, vss, clkdiv;
 	u8 crtc[VGA_CRT_C];
@@ -300,28 +301,33 @@ static void vga16fb_clock_chip(struct vga16fb_par *par,
 static int vga16fb_open(struct fb_info *info, int user)
 {
 	struct vga16fb_par *par = info->par;
-	int cnt = atomic_read(&par->ref_count);
 
-	if (!cnt) {
+	mutex_lock(&par->open_lock);
+	if (!par->ref_count) {
 		memset(&par->state, 0, sizeof(struct vgastate));
 		par->state.flags = VGA_SAVE_FONTS | VGA_SAVE_MODE |
 			VGA_SAVE_CMAP;
 		save_vga(&par->state);
 	}
-	atomic_inc(&par->ref_count);
+	par->ref_count++;
+	mutex_unlock(&par->open_lock);
+
 	return 0;
 }
 
 static int vga16fb_release(struct fb_info *info, int user)
 {
 	struct vga16fb_par *par = info->par;
-	int cnt = atomic_read(&par->ref_count);
 
-	if (!cnt)
+	mutex_lock(&par->open_lock);
+	if (!par->ref_count) {
+		mutex_unlock(&par->open_lock);
 		return -EINVAL;
-	if (cnt == 1)
+	}
+	if (par->ref_count == 1)
 		restore_vga(&par->state);
-	atomic_dec(&par->ref_count);
+	par->ref_count--;
+	mutex_unlock(&par->open_lock);
 
 	return 0;
 }
@@ -1357,6 +1363,7 @@ static int __init vga16fb_probe(struct platform_device *dev)
 	printk(KERN_INFO "vga16fb: mapped to 0x%p\n", info->screen_base);
 	par = info->par;
 
+	mutex_init(&par->open_lock);
 	par->isVGA = ORIG_VIDEO_ISVGA;
 	par->palette_blanked = 0;
 	par->vesa_blanked = 0;
