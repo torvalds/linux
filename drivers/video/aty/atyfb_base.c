@@ -2566,7 +2566,7 @@ static int __devinit aty_init(struct fb_info *info)
 	       info->fix.smem_len == 0x80000 ? 'K' : 'M', ramname, xtal, par->pll_limits.pll_max,
 	       par->pll_limits.mclk, par->pll_limits.xclk);
 
-#if defined(DEBUG) && defined(CONFIG_ATY_CT)
+#if defined(DEBUG) && defined(CONFIG_FB_ATY_CT)
 	if (M64_HAS(INTEGRATED)) {
 		int i;
 		printk("debug atyfb: BUS_CNTL DAC_CNTL MEM_CNTL EXT_MEM_CNTL CRTC_GEN_CNTL "
