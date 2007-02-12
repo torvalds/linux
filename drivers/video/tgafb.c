@@ -885,7 +885,7 @@ copyarea_line_8bpp(struct fb_info *info, u32 dy, u32 sy,
 
 	n64 = (height * width) / 64;
 
-	if (dy < sy) {
+	if (sy < dy) {
 		spos = (sy + height) * width;
 		dpos = (dy + height) * width;
 
@@ -933,7 +933,7 @@ copyarea_line_32bpp(struct fb_info *info, u32 dy, u32 sy,
 
 	n16 = (height * width) / 16;
 
-	if (dy < sy) {
+	if (sy < dy) {
 		src = tga_fb + (sy + height) * width * 4;
 		dst = tga_fb + (dy + height) * width * 4;
 
