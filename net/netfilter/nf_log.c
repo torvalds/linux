@@ -46,11 +46,11 @@ int nf_log_unregister_pf(int pf)
 		return -EINVAL;
 
 	spin_lock(&nf_log_lock);
-	nf_logging[pf] = NULL;
+	rcu_assign_pointer(nf_logging[pf], NULL);
 	spin_unlock(&nf_log_lock);
 
 	/* Give time to concurrent readers. */
-	synchronize_net();
+	synchronize_rcu();
 
 	return 0;
 }
@@ -63,11 +63,11 @@ void nf_log_unregister_logger(struct nf_logger *logger)
 	spin_lock(&nf_log_lock);
 	for (i = 0; i < NPROTO; i++) {
 		if (nf_logging[i] == logger)
-			nf_logging[i] = NULL;
+			rcu_assign_pointer(nf_logging[i], NULL);
 	}
 	spin_unlock(&nf_log_lock);
 
-	synchronize_net();
+	synchronize_rcu();
 }
 EXPORT_SYMBOL(nf_log_unregister_logger);
 
