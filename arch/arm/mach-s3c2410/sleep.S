@@ -59,7 +59,7 @@ ENTRY(s3c2410_cpu_suspend)
 	b	s3c2410_do_sleep	@
 
 	@@ align next bit of code to cache line
-	.align	8
+	.align	5
 s3c2410_do_sleep:
 	streq	r7, [ r4 ]			@ SDRAM sleep command
 	streq	r8, [ r5 ]			@ SDRAM power-down config
