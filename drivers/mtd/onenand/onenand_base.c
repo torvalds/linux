@@ -1093,7 +1093,7 @@ int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
 static int onenand_verify_oob(struct mtd_info *mtd, const u_char *buf, loff_t to)
 {
 	struct onenand_chip *this = mtd->priv;
-	char *readp = this->page_buf + mtd->writesize;
+	char oobbuf[64];
 	int status, i;
 
 	this->command(mtd, ONENAND_CMD_READOOB, to, mtd->oobsize);
@@ -1102,9 +1102,9 @@ static int onenand_verify_oob(struct mtd_info *mtd, const u_char *buf, loff_t to
 	if (status)
 		return status;
 
-	this->read_bufferram(mtd, ONENAND_SPARERAM, readp, 0, mtd->oobsize);
-	for(i = 0; i < mtd->oobsize; i++)
-		if (buf[i] != 0xFF && buf[i] != readp[i])
+	this->read_bufferram(mtd, ONENAND_SPARERAM, oobbuf, 0, mtd->oobsize);
+	for (i = 0; i < mtd->oobsize; i++)
+		if (buf[i] != 0xFF && buf[i] != oobbuf[i])
 			return -EBADMSG;
 
 	return 0;
@@ -1312,6 +1312,7 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 	struct onenand_chip *this = mtd->priv;
 	int column, ret = 0, oobsize;
 	int written = 0;
+	u_char *oobbuf;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "onenand_write_oob: to = 0x%08x, len = %i\n", (unsigned int) to, (int) len);
 
@@ -1331,7 +1332,7 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 	}
 
 	/* For compatibility with NAND: Do not allow write past end of page */
-	if (column + len > oobsize) {
+	if (unlikely(column + len > oobsize)) {
 		printk(KERN_ERR "onenand_write_oob: "
 		      "Attempt to write past end of page\n");
 		return -EINVAL;
@@ -1348,6 +1349,8 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Grab the lock and see if the device is available */
 	onenand_get_device(mtd, FL_WRITING);
 
+	oobbuf = this->page_buf + mtd->writesize;
+
 	/* Loop until all data write */
 	while (written < len) {
 		int thislen = min_t(int, oobsize, len - written);
@@ -1358,12 +1361,12 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 
 		/* We send data to spare ram with oobsize
 		 * to prevent byte access */
-		memset(this->page_buf, 0xff, mtd->oobsize);
+		memset(oobbuf, 0xff, mtd->oobsize);
 		if (mode == MTD_OOB_AUTO)
-			onenand_fill_auto_oob(mtd, this->page_buf, buf, column, thislen);
+			onenand_fill_auto_oob(mtd, oobbuf, buf, column, thislen);
 		else
-			memcpy(this->page_buf + column, buf, thislen);
-		this->write_bufferram(mtd, ONENAND_SPARERAM, this->page_buf, 0, mtd->oobsize);
+			memcpy(oobbuf + column, buf, thislen);
+		this->write_bufferram(mtd, ONENAND_SPARERAM, oobbuf, 0, mtd->oobsize);
 
 		this->command(mtd, ONENAND_CMD_PROGOOB, to, mtd->oobsize);
 
@@ -1375,7 +1378,7 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 			break;
 		}
 
-		ret = onenand_verify_oob(mtd, this->page_buf, to);
+		ret = onenand_verify_oob(mtd, oobbuf, to);
 		if (ret) {
 			printk(KERN_ERR "onenand_write_oob: verify failed %d\n", ret);
 			break;
