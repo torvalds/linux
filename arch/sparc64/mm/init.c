@@ -1467,8 +1467,8 @@ void __init paging_init(void)
 		for (znum = 0; znum < MAX_NR_ZONES; znum++)
 			zones_size[znum] = zholes_size[znum] = 0;
 
-		zones_size[ZONE_DMA] = end_pfn;
-		zholes_size[ZONE_DMA] = end_pfn - pages_avail;
+		zones_size[ZONE_NORMAL] = end_pfn;
+		zholes_size[ZONE_NORMAL] = end_pfn - pages_avail;
 
 		free_area_init_node(0, &contig_page_data, zones_size,
 				    __pa(PAGE_OFFSET) >> PAGE_SHIFT,
