@@ -738,14 +738,20 @@ int ipc_parse_version (int *cmd)
 #endif /* __ARCH_WANT_IPC_PARSE_VERSION */
 
 #ifdef CONFIG_PROC_FS
+struct ipc_proc_iter {
+	struct ipc_namespace *ns;
+	struct ipc_proc_iface *iface;
+};
+
 static void *sysvipc_proc_next(struct seq_file *s, void *it, loff_t *pos)
 {
-	struct ipc_proc_iface *iface = s->private;
+	struct ipc_proc_iter *iter = s->private;
+	struct ipc_proc_iface *iface = iter->iface;
 	struct kern_ipc_perm *ipc = it;
 	loff_t p;
 	struct ipc_ids *ids;
 
-	ids = current->nsproxy->ipc_ns->ids[iface->ids];
+	ids = iter->ns->ids[iface->ids];
 
 	/* If we had an ipc id locked before, unlock it */
 	if (ipc && ipc != SEQ_START_TOKEN)
@@ -772,12 +778,13 @@ static void *sysvipc_proc_next(struct seq_file *s, void *it, loff_t *pos)
  */
 static void *sysvipc_proc_start(struct seq_file *s, loff_t *pos)
 {
-	struct ipc_proc_iface *iface = s->private;
+	struct ipc_proc_iter *iter = s->private;
+	struct ipc_proc_iface *iface = iter->iface;
 	struct kern_ipc_perm *ipc;
 	loff_t p;
 	struct ipc_ids *ids;
 
-	ids = current->nsproxy->ipc_ns->ids[iface->ids];
+	ids = iter->ns->ids[iface->ids];
 
 	/*
 	 * Take the lock - this will be released by the corresponding
@@ -806,21 +813,23 @@ static void *sysvipc_proc_start(struct seq_file *s, loff_t *pos)
 static void sysvipc_proc_stop(struct seq_file *s, void *it)
 {
 	struct kern_ipc_perm *ipc = it;
-	struct ipc_proc_iface *iface = s->private;
+	struct ipc_proc_iter *iter = s->private;
+	struct ipc_proc_iface *iface = iter->iface;
 	struct ipc_ids *ids;
 
 	/* If we had a locked segment, release it */
 	if (ipc && ipc != SEQ_START_TOKEN)
 		ipc_unlock(ipc);
 
-	ids = current->nsproxy->ipc_ns->ids[iface->ids];
+	ids = iter->ns->ids[iface->ids];
 	/* Release the lock we took in start() */
 	mutex_unlock(&ids->mutex);
 }
 
 static int sysvipc_proc_show(struct seq_file *s, void *it)
 {
-	struct ipc_proc_iface *iface = s->private;
+	struct ipc_proc_iter *iter = s->private;
+	struct ipc_proc_iface *iface = iter->iface;
 
 	if (it == SEQ_START_TOKEN)
 		return seq_puts(s, iface->header);
@@ -835,22 +844,45 @@ static struct seq_operations sysvipc_proc_seqops = {
 	.show  = sysvipc_proc_show,
 };
 
-static int sysvipc_proc_open(struct inode *inode, struct file *file) {
+static int sysvipc_proc_open(struct inode *inode, struct file *file)
+{
 	int ret;
 	struct seq_file *seq;
+	struct ipc_proc_iter *iter;
+
+	ret = -ENOMEM;
+	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+	if (!iter)
+		goto out;
 
 	ret = seq_open(file, &sysvipc_proc_seqops);
-	if (!ret) {
-		seq = file->private_data;
-		seq->private = PDE(inode)->data;
-	}
+	if (ret)
+		goto out_kfree;
+
+	seq = file->private_data;
+	seq->private = iter;
+
+	iter->iface = PDE(inode)->data;
+	iter->ns    = get_ipc_ns(current->nsproxy->ipc_ns);
+out:
 	return ret;
+out_kfree:
+	kfree(iter);
+	goto out;
+}
+
+static int sysvipc_proc_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct ipc_proc_iter *iter = seq->private;
+	put_ipc_ns(iter->ns);
+	return seq_release_private(inode, file);
 }
 
 static struct file_operations sysvipc_proc_fops = {
 	.open    = sysvipc_proc_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = sysvipc_proc_release,
 };
 #endif /* CONFIG_PROC_FS */
