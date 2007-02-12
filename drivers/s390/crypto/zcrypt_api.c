@@ -807,7 +807,7 @@ static long zcrypt_compat_ioctl(struct file *filp, unsigned int cmd,
 /**
  * Misc device file operations.
  */
-static struct file_operations zcrypt_fops = {
+static const struct file_operations zcrypt_fops = {
 	.owner		= THIS_MODULE,
 	.read		= zcrypt_read,
 	.write		= zcrypt_write,

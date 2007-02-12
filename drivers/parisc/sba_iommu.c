@@ -1799,7 +1799,7 @@ sba_proc_open(struct inode *i, struct file *f)
 	return single_open(f, &sba_proc_info, NULL);
 }
 
-static struct file_operations sba_proc_fops = {
+static const struct file_operations sba_proc_fops = {
 	.owner = THIS_MODULE,
 	.open = sba_proc_open,
 	.read = seq_read,
@@ -1831,7 +1831,7 @@ sba_proc_bitmap_open(struct inode *i, struct file *f)
 	return single_open(f, &sba_proc_bitmap_info, NULL);
 }
 
-static struct file_operations sba_proc_bitmap_fops = {
+static const struct file_operations sba_proc_bitmap_fops = {
 	.owner = THIS_MODULE,
 	.open = sba_proc_bitmap_open,
 	.read = seq_read,

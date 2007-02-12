@@ -60,7 +60,7 @@ static long zfcp_cfdc_dev_ioctl(struct file *, unsigned int, unsigned long);
 	_IOWR(ZFCP_CFDC_IOC_MAGIC, 0, struct zfcp_cfdc_sense_data)
 
 
-static struct file_operations zfcp_cfdc_fops = {
+static const struct file_operations zfcp_cfdc_fops = {
 	.unlocked_ioctl = zfcp_cfdc_dev_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = zfcp_cfdc_dev_ioctl

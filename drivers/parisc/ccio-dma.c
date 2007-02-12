@@ -1091,7 +1091,7 @@ static int ccio_proc_info_open(struct inode *inode, struct file *file)
 	return single_open(file, &ccio_proc_info, NULL);
 }
 
-static struct file_operations ccio_proc_info_fops = {
+static const struct file_operations ccio_proc_info_fops = {
 	.owner = THIS_MODULE,
 	.open = ccio_proc_info_open,
 	.read = seq_read,
@@ -1127,7 +1127,7 @@ static int ccio_proc_bitmap_open(struct inode *inode, struct file *file)
 	return single_open(file, &ccio_proc_bitmap_info, NULL);
 }
 
-static struct file_operations ccio_proc_bitmap_fops = {
+static const struct file_operations ccio_proc_bitmap_fops = {
 	.owner = THIS_MODULE,
 	.open = ccio_proc_bitmap_open,
 	.read = seq_read,

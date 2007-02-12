@@ -744,7 +744,7 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations tun_fops = {
+static const struct file_operations tun_fops = {
 	.owner	= THIS_MODULE,
 	.llseek = no_llseek,
 	.read  = do_sync_read,

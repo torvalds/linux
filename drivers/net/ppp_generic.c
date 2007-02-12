@@ -834,7 +834,7 @@ static int ppp_unattached_ioctl(struct ppp_file *pf, struct file *file,
 	return err;
 }
 
-static struct file_operations ppp_device_fops = {
+static const struct file_operations ppp_device_fops = {
 	.owner		= THIS_MODULE,
 	.read		= ppp_read,
 	.write		= ppp_write,

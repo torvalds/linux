@@ -3120,7 +3120,7 @@ static int bond_info_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-static struct file_operations bond_info_fops = {
+static const struct file_operations bond_info_fops = {
 	.owner   = THIS_MODULE,
 	.open    = bond_info_open,
 	.read    = seq_read,

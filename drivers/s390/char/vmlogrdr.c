@@ -88,7 +88,7 @@ static int vmlogrdr_release(struct inode *, struct file *);
 static ssize_t vmlogrdr_read (struct file *filp, char __user *data,
 			      size_t count, loff_t * ppos);
 
-static struct file_operations vmlogrdr_fops = {
+static const struct file_operations vmlogrdr_fops = {
 	.owner   = THIS_MODULE,
 	.open    = vmlogrdr_open,
 	.release = vmlogrdr_release,

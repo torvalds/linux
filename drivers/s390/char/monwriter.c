@@ -255,7 +255,7 @@ out_error:
 	return rc;
 }
 
-static struct file_operations monwrite_fops = {
+static const struct file_operations monwrite_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = &monwrite_open,
 	.release = &monwrite_close,
