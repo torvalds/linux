@@ -148,11 +148,9 @@ extern int spi_register_driver(struct spi_driver *sdrv);
 
 static inline void spi_unregister_driver(struct spi_driver *sdrv)
 {
-	if (!sdrv)
-		return;
-	driver_unregister(&sdrv->driver);
+	if (sdrv)
+		driver_unregister(&sdrv->driver);
 }
-
 
 
 /**
