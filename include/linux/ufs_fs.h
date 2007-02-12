@@ -45,8 +45,10 @@ typedef __u32 __bitwise __fs32;
 typedef __u16 __bitwise __fs16;
 #endif
 
+#ifdef __KERNEL__
 #include <linux/ufs_fs_i.h>
 #include <linux/ufs_fs_sb.h>
+#endif
 
 #define UFS_BBLOCK 0
 #define UFS_BBSIZE 8192
@@ -303,7 +305,7 @@ typedef __u16 __bitwise __fs16;
 #define UFS_MAXMNTLEN 512
 #define UFS2_MAXMNTLEN 468
 #define UFS2_MAXVOLLEN 32
-/* #define UFS_MAXCSBUFS 31 */
+#define UFS_MAXCSBUFS 31
 #define UFS_LINK_MAX 32000
 /*
 #define	UFS2_NOCSPTRS	((128 / sizeof(void *)) - 4)
