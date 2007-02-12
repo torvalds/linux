@@ -827,7 +827,8 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			/* freeze if hotplugged or controller error */
 			if (unlikely(status & (NV_ADMA_STAT_HOTPLUG |
 					       NV_ADMA_STAT_HOTUNPLUG |
-					       NV_ADMA_STAT_TIMEOUT))) {
+					       NV_ADMA_STAT_TIMEOUT |
+					       NV_ADMA_STAT_SERROR))) {
 				struct ata_eh_info *ehi = &ap->eh_info;
 
 				ata_ehi_clear_desc(ehi);
@@ -841,6 +842,9 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 				} else if (status & NV_ADMA_STAT_HOTUNPLUG) {
 					ata_ehi_hotplugged(ehi);
 					ata_ehi_push_desc(ehi, ": hot unplug");
+				} else if (status & NV_ADMA_STAT_SERROR) {
+					/* let libata analyze SError and figure out the cause */
+					ata_ehi_push_desc(ehi, ": SError");
 				}
 				ata_port_freeze(ap);
 				continue;
