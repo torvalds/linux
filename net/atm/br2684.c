@@ -784,7 +784,7 @@ static int br2684_proc_open(struct inode *inode, struct file *file)
 	return seq_open(file, &br2684_seq_ops);
 }
 
-static struct file_operations br2684_proc_ops = {
+static const struct file_operations br2684_proc_ops = {
 	.owner   = THIS_MODULE,
 	.open    = br2684_proc_open,
 	.read    = seq_read,

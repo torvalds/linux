@@ -1712,7 +1712,7 @@ out_kfree:
 
 }
 
-static struct file_operations ipmr_vif_fops = {
+static const struct file_operations ipmr_vif_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = ipmr_vif_open,
 	.read    = seq_read,
@@ -1874,7 +1874,7 @@ out_kfree:
 
 }
 
-static struct file_operations ipmr_mfc_fops = {
+static const struct file_operations ipmr_mfc_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = ipmr_mfc_open,
 	.read    = seq_read,

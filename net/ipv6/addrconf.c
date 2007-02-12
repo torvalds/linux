@@ -2776,7 +2776,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations if6_fops = {
+static const struct file_operations if6_fops = {
 	.owner		= THIS_MODULE,
 	.open		= if6_seq_open,
 	.read		= seq_read,

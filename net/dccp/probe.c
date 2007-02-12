@@ -149,7 +149,7 @@ out_free:
 	return error ? error : cnt;
 }
 
-static struct file_operations dccpprobe_fops = {
+static const struct file_operations dccpprobe_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = dccpprobe_open,
 	.read    = dccpprobe_read,

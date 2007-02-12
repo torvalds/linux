@@ -1390,7 +1390,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations arp_seq_fops = {
+static const struct file_operations arp_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open           = arp_seq_open,
 	.read           = seq_read,

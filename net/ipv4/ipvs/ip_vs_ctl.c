@@ -1812,7 +1812,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations ip_vs_info_fops = {
+static const struct file_operations ip_vs_info_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = ip_vs_info_open,
 	.read    = seq_read,
@@ -1859,7 +1859,7 @@ static int ip_vs_stats_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, ip_vs_stats_show, NULL);
 }
 
-static struct file_operations ip_vs_stats_fops = {
+static const struct file_operations ip_vs_stats_fops = {
 	.owner = THIS_MODULE,
 	.open = ip_vs_stats_seq_open,
 	.read = seq_read,

@@ -2451,7 +2451,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations igmp6_mc_seq_fops = {
+static const struct file_operations igmp6_mc_seq_fops = {
 	.owner		=	THIS_MODULE,
 	.open		=	igmp6_mc_seq_open,
 	.read		=	seq_read,
@@ -2625,7 +2625,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations igmp6_mcf_seq_fops = {
+static const struct file_operations igmp6_mcf_seq_fops = {
 	.owner		=	THIS_MODULE,
 	.open		=	igmp6_mcf_seq_open,
 	.read		=	seq_read,

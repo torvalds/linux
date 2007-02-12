@@ -198,7 +198,7 @@ static int ax25_uid_info_open(struct inode *inode, struct file *file)
 	return seq_open(file, &ax25_uid_seqops);
 }
 
-struct file_operations ax25_uid_fops = {
+const struct file_operations ax25_uid_fops = {
 	.owner = THIS_MODULE,
 	.open = ax25_uid_info_open,
 	.read = seq_read,

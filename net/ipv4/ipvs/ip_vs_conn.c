@@ -757,7 +757,7 @@ static int ip_vs_conn_open(struct inode *inode, struct file *file)
 	return seq_open(file, &ip_vs_conn_seq_ops);
 }
 
-static struct file_operations ip_vs_conn_fops = {
+static const struct file_operations ip_vs_conn_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = ip_vs_conn_open,
 	.read    = seq_read,

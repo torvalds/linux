@@ -565,7 +565,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations ac6_seq_fops = {
+static const struct file_operations ac6_seq_fops = {
 	.owner		=	THIS_MODULE,
 	.open		=	ac6_seq_open,
 	.read		=	seq_read,

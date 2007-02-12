@@ -85,7 +85,7 @@ struct mqueue_inode_info {
 };
 
 static struct inode_operations mqueue_dir_inode_operations;
-static struct file_operations mqueue_file_operations;
+static const struct file_operations mqueue_file_operations;
 static struct super_operations mqueue_super_ops;
 static void remove_notification(struct mqueue_inode_info *info);
 
@@ -1166,7 +1166,7 @@ static struct inode_operations mqueue_dir_inode_operations = {
 	.unlink = mqueue_unlink,
 };
 
-static struct file_operations mqueue_file_operations = {
+static const struct file_operations mqueue_file_operations = {
 	.flush = mqueue_flush_file,
 	.poll = mqueue_poll_file,
 	.read = mqueue_read_file,

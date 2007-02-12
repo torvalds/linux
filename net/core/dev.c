@@ -2200,7 +2200,7 @@ static int dev_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &dev_seq_ops);
 }
 
-static struct file_operations dev_seq_fops = {
+static const struct file_operations dev_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = dev_seq_open,
 	.read    = seq_read,
@@ -2220,7 +2220,7 @@ static int softnet_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &softnet_seq_ops);
 }
 
-static struct file_operations softnet_seq_fops = {
+static const struct file_operations softnet_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = softnet_seq_open,
 	.read    = seq_read,

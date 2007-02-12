@@ -33,7 +33,7 @@
 static ssize_t proc_dev_atm_read(struct file *file,char __user *buf,size_t count,
     loff_t *pos);
 
-static struct file_operations proc_atm_dev_ops = {
+static const struct file_operations proc_atm_dev_ops = {
 	.owner =	THIS_MODULE,
 	.read =		proc_dev_atm_read,
 };
@@ -272,7 +272,7 @@ static int atm_dev_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &atm_dev_seq_ops);
 }
 
-static struct file_operations devices_seq_fops = {
+static const struct file_operations devices_seq_fops = {
 	.open		= atm_dev_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -307,7 +307,7 @@ static int pvc_seq_open(struct inode *inode, struct file *file)
 	return __vcc_seq_open(inode, file, PF_ATMPVC, &pvc_seq_ops);
 }
 
-static struct file_operations pvc_seq_fops = {
+static const struct file_operations pvc_seq_fops = {
 	.open		= pvc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -341,7 +341,7 @@ static int vcc_seq_open(struct inode *inode, struct file *file)
 	return __vcc_seq_open(inode, file, 0, &vcc_seq_ops);
 }
 
-static struct file_operations vcc_seq_fops = {
+static const struct file_operations vcc_seq_fops = {
 	.open		= vcc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -376,7 +376,7 @@ static int svc_seq_open(struct inode *inode, struct file *file)
 	return __vcc_seq_open(inode, file, PF_ATMSVC, &svc_seq_ops);
 }
 
-static struct file_operations svc_seq_fops = {
+static const struct file_operations svc_seq_fops = {
 	.open		= svc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -457,7 +457,7 @@ void atm_proc_dev_deregister(struct atm_dev *dev)
 
 static struct atm_proc_entry {
 	char *name;
-	struct file_operations *proc_fops;
+	const struct file_operations *proc_fops;
 	struct proc_dir_entry *dirent;
 } atm_proc_ents[] = {
 	{ .name = "devices",	.proc_fops = &devices_seq_fops },

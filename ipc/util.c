@@ -205,7 +205,7 @@ void __ipc_init ipc_init_ids(struct ipc_ids* ids, int size)
 }
 
 #ifdef CONFIG_PROC_FS
-static struct file_operations sysvipc_proc_fops;
+static const struct file_operations sysvipc_proc_fops;
 /**
  *	ipc_init_proc_interface	-  Create a proc interface for sysipc types using a seq_file interface.
  *	@path: Path in procfs
@@ -879,7 +879,7 @@ static int sysvipc_proc_release(struct inode *inode, struct file *file)
 	return seq_release_private(inode, file);
 }
 
-static struct file_operations sysvipc_proc_fops = {
+static const struct file_operations sysvipc_proc_fops = {
 	.open    = sysvipc_proc_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

@@ -81,7 +81,7 @@ static int vlan_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &vlan_seq_ops);
 }
 
-static struct file_operations vlan_fops = {
+static const struct file_operations vlan_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = vlan_seq_open,
 	.read    = seq_read,
@@ -98,7 +98,7 @@ static int vlandev_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, vlandev_seq_show, PDE(inode)->data);
 }
 
-static struct file_operations vlandev_fops = {
+static const struct file_operations vlandev_fops = {
 	.owner = THIS_MODULE,
 	.open    = vlandev_seq_open,
 	.read    = seq_read,

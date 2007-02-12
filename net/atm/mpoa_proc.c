@@ -39,7 +39,7 @@ static int parse_qos(const char *buff);
 /*
  *   Define allowed FILE OPERATIONS
  */
-static struct file_operations mpc_file_operations = {
+static const struct file_operations mpc_file_operations = {
 	.owner =	THIS_MODULE,
 	.open =		proc_mpc_open,
 	.read =		seq_read,

@@ -1048,7 +1048,7 @@ out_kfree:
 	goto out;
 }
 
-struct file_operations atalk_seq_arp_fops = {
+const struct file_operations atalk_seq_arp_fops = {
 	.owner		= THIS_MODULE,
 	.open           = aarp_seq_open,
 	.read           = seq_read,

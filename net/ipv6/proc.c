@@ -187,7 +187,7 @@ static int sockstat6_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, sockstat6_seq_show, NULL);
 }
 
-static struct file_operations sockstat6_seq_fops = {
+static const struct file_operations sockstat6_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = sockstat6_seq_open,
 	.read	 = seq_read,
@@ -200,7 +200,7 @@ static int snmp6_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, snmp6_seq_show, PDE(inode)->data);
 }
 
-static struct file_operations snmp6_seq_fops = {
+static const struct file_operations snmp6_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = snmp6_seq_open,
 	.read	 = seq_read,

@@ -70,7 +70,7 @@ static LIST_HEAD(clusterip_configs);
 static DEFINE_RWLOCK(clusterip_lock);
 
 #ifdef CONFIG_PROC_FS
-static struct file_operations clusterip_proc_fops;
+static const struct file_operations clusterip_proc_fops;
 static struct proc_dir_entry *clusterip_procdir;
 #endif
 
@@ -715,7 +715,7 @@ static ssize_t clusterip_proc_write(struct file *file, const char __user *input,
 	return size;
 }
 
-static struct file_operations clusterip_proc_fops = {
+static const struct file_operations clusterip_proc_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = clusterip_proc_open,
 	.read	 = seq_read,

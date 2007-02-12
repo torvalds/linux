@@ -332,7 +332,7 @@ static int ax25_rt_info_open(struct inode *inode, struct file *file)
 	return seq_open(file, &ax25_rt_seqops);
 }
 
-struct file_operations ax25_route_fops = {
+const struct file_operations ax25_route_fops = {
 	.owner = THIS_MODULE,
 	.open = ax25_rt_info_open,
 	.read = seq_read,

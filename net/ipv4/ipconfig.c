@@ -1200,7 +1200,7 @@ static int pnp_seq_open(struct inode *indoe, struct file *file)
 	return single_open(file, pnp_seq_show, NULL);
 }
 
-static struct file_operations pnp_seq_fops = {
+static const struct file_operations pnp_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pnp_seq_open,
 	.read		= seq_read,

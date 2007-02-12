@@ -1057,7 +1057,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations fib_seq_fops = {
+static const struct file_operations fib_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open           = fib_seq_open,
 	.read           = seq_read,
