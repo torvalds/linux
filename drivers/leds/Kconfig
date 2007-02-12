@@ -82,6 +82,12 @@ config LEDS_WRAP
 	help
 	  This option enables support for the PCEngines WRAP programmable LEDs.
 
+config LEDS_H1940
+	tristate "LED Support for iPAQ H1940 device"
+	depends LEDS_CLASS && ARCH_H1940
+	help
+	  This option enables support for the LEDs on the h1940.
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS
