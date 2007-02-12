@@ -85,6 +85,14 @@ config FB_CFB_IMAGEBLIT
 	  blitting. This is used by drivers that don't provide their own
 	  (accelerated) version.
 
+config FB_SVGALIB
+	tristate
+	depends on FB
+	default n
+	---help---
+	  Common utility functions useful to fbdev drivers of VGA-based
+	  cards.
+
 config FB_MACMODES
        tristate
        depends on FB
@@ -1146,6 +1154,17 @@ config FB_S3TRIO
 	depends on (FB = y) && PPC && BROKEN
 	help
 	  If you have a S3 Trio say Y. Say N for S3 Virge.
+
+config FB_S3
+	tristate "S3 Trio/Virge support"
+	depends on FB && PCI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_TILEBLITTING
+	select FB_SVGALIB
+	---help---
+	  Driver for graphics boards with S3 Trio / S3 Virge chip.
 
 config FB_SAVAGE
 	tristate "S3 Savage support"
