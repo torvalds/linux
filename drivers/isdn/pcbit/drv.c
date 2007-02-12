@@ -774,10 +774,6 @@ static void pcbit_logstat(struct pcbit_dev *dev, char *str)
 	dev->dev_if->statcallb(&ictl);
 }
 	
-extern char * isdn_state_table[];
-extern char * strisdnevent(unsigned short);
-
-
 void pcbit_state_change(struct pcbit_dev * dev, struct pcbit_chan * chan, 
 			unsigned short i, unsigned short ev, unsigned short f)
 {
