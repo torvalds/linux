@@ -165,7 +165,7 @@ static struct bin_attribute ds1742_nvram_attr = {
 	.write = ds1742_nvram_write,
 };
 
-static int __init ds1742_rtc_probe(struct platform_device *pdev)
+static int __devinit ds1742_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	struct resource *res;
