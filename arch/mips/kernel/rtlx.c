@@ -478,7 +478,7 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 	return rtlx_write(minor, (void *)buffer, count, 1);
 }
 
-static struct file_operations rtlx_fops = {
+static const struct file_operations rtlx_fops = {
 	.owner =   THIS_MODULE,
 	.open =    file_open,
 	.release = file_release,

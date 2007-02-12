@@ -499,7 +499,7 @@ print_rtc_status(void)
 
 /* The various file operations we support. */
 
-static struct file_operations rtc_fops = {
+static const struct file_operations rtc_fops = {
 	.owner =	THIS_MODULE,
 	.ioctl =	rtc_ioctl,
 }; 

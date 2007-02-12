@@ -33,7 +33,7 @@ static ssize_t page_map_read( struct file *file, char __user *buf, size_t nbytes
 			      loff_t *ppos);
 static int     page_map_mmap( struct file *file, struct vm_area_struct *vma );
 
-static struct file_operations page_map_fops = {
+static const struct file_operations page_map_fops = {
 	.llseek	= page_map_seek,
 	.read	= page_map_read,
 	.mmap	= page_map_mmap

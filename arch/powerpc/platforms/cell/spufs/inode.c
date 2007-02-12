@@ -224,7 +224,7 @@ struct inode_operations spufs_dir_inode_operations = {
 	.lookup = simple_lookup,
 };
 
-struct file_operations spufs_context_fops = {
+const struct file_operations spufs_context_fops = {
 	.open		= dcache_dir_open,
 	.release	= spufs_dir_close,
 	.llseek		= dcache_dir_lseek,
@@ -372,7 +372,7 @@ static int spufs_gang_close(struct inode *inode, struct file *file)
 	return dcache_dir_close(inode, file);
 }
 
-struct file_operations spufs_gang_fops = {
+const struct file_operations spufs_gang_fops = {
 	.open		= dcache_dir_open,
 	.release	= spufs_gang_close,
 	.llseek		= dcache_dir_lseek,

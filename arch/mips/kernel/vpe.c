@@ -1208,7 +1208,7 @@ static ssize_t vpe_write(struct file *file, const char __user * buffer,
 	return ret;
 }
 
-static struct file_operations vpe_fops = {
+static const struct file_operations vpe_fops = {
 	.owner = THIS_MODULE,
 	.open = vpe_open,
 	.release = vpe_release,

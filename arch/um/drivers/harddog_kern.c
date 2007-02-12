@@ -145,7 +145,7 @@ static int harddog_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-static struct file_operations harddog_fops = {
+static const struct file_operations harddog_fops = {
 	.owner		= THIS_MODULE,
 	.write		= harddog_write,
 	.ioctl		= harddog_ioctl,

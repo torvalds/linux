@@ -1224,7 +1224,7 @@ out:
 	return rc;
 }
 
-static struct file_operations proc_vmlinux_operations = {
+static const struct file_operations proc_vmlinux_operations = {
 	.write		= proc_mf_change_vmlinux,
 };
 

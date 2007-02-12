@@ -499,7 +499,7 @@ out:
 	return rv ? rv : count;
 }
 
-static struct file_operations ofdt_fops = {
+static const struct file_operations ofdt_fops = {
 	.write = ofdt_write
 };
 
