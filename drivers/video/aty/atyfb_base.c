@@ -2957,8 +2957,6 @@ extern void (*prom_palette) (int);
 static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 			struct fb_info *info, unsigned long addr)
 {
-	extern int con_is_present(void);
-
 	struct atyfb_par *par = info->par;
 	struct pcidev_cookie *pcp;
 	char prop[128];

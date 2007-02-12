@@ -370,7 +370,6 @@ static int __init iga_init(struct fb_info *info, struct iga_par *par)
 
 int __init igafb_init(void)
 {
-        extern int con_is_present(void);
         struct fb_info *info;
         struct pci_dev *pdev;
         struct iga_par *par;
