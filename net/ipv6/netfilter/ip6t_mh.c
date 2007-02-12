@@ -66,6 +66,13 @@ match(const struct sk_buff *skb,
 		return 0;
 	}
 
+	if (mh->ip6mh_proto != IPPROTO_NONE) {
+		duprintf("Dropping invalid MH Payload Proto: %u\n",
+			 mh->ip6mh_proto);
+		*hotdrop = 1;
+		return 0;
+	}
+
 	return type_match(mhinfo->types[0], mhinfo->types[1], mh->ip6mh_type,
 			  !!(mhinfo->invflags & IP6T_MH_INV_TYPE));
 }
