@@ -1786,10 +1786,10 @@ again:
 		"kvm_vmx_return: "
 		/* Save guest registers, load host registers, keep flags */
 #ifdef CONFIG_X86_64
-		"xchg %3,     0(%%rsp) \n\t"
+		"xchg %3,     (%%rsp) \n\t"
 		"mov %%rax, %c[rax](%3) \n\t"
 		"mov %%rbx, %c[rbx](%3) \n\t"
-		"pushq 0(%%rsp); popq %c[rcx](%3) \n\t"
+		"pushq (%%rsp); popq %c[rcx](%3) \n\t"
 		"mov %%rdx, %c[rdx](%3) \n\t"
 		"mov %%rsi, %c[rsi](%3) \n\t"
 		"mov %%rdi, %c[rdi](%3) \n\t"
@@ -1804,24 +1804,24 @@ again:
 		"mov %%r15, %c[r15](%3) \n\t"
 		"mov %%cr2, %%rax   \n\t"
 		"mov %%rax, %c[cr2](%3) \n\t"
-		"mov 0(%%rsp), %3 \n\t"
+		"mov (%%rsp), %3 \n\t"
 
 		"pop  %%rcx; pop  %%r15; pop  %%r14; pop  %%r13; pop  %%r12;"
 		"pop  %%r11; pop  %%r10; pop  %%r9;  pop  %%r8;"
 		"pop  %%rbp; pop  %%rdi; pop  %%rsi;"
 		"pop  %%rdx; pop  %%rbx; pop  %%rax \n\t"
 #else
-		"xchg %3, 0(%%esp) \n\t"
+		"xchg %3, (%%esp) \n\t"
 		"mov %%eax, %c[rax](%3) \n\t"
 		"mov %%ebx, %c[rbx](%3) \n\t"
-		"pushl 0(%%esp); popl %c[rcx](%3) \n\t"
+		"pushl (%%esp); popl %c[rcx](%3) \n\t"
 		"mov %%edx, %c[rdx](%3) \n\t"
 		"mov %%esi, %c[rsi](%3) \n\t"
 		"mov %%edi, %c[rdi](%3) \n\t"
 		"mov %%ebp, %c[rbp](%3) \n\t"
 		"mov %%cr2, %%eax  \n\t"
 		"mov %%eax, %c[cr2](%3) \n\t"
-		"mov 0(%%esp), %3 \n\t"
+		"mov (%%esp), %3 \n\t"
 
 		"pop %%ecx; popa \n\t"
 #endif
