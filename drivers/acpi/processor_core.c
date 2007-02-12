@@ -404,7 +404,7 @@ static int map_lsapic_id(struct acpi_subtable_header *entry,
 	if (lsapic->lapic_flags & ACPI_MADT_ENABLED) {
 		/* First check against id */
 		if (lsapic->processor_id == acpi_id) {
-			*apic_id = lsapic->id;
+			*apic_id = (lsapic->id << 8) | lsapic->eid;
 			return 1;
 		/* Check against optional uid */
 		} else if (entry->length >= 16 &&
