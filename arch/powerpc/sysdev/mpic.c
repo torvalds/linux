@@ -1370,7 +1370,7 @@ void mpic_request_ipis(void)
 			printk(KERN_ERR "Failed to map IPI %d\n", i);
 			break;
 		}
-		request_irq(vipi, mpic_ipi_action, IRQF_DISABLED,
+		request_irq(vipi, mpic_ipi_action, IRQF_DISABLED|IRQF_PERCPU,
 			    ipi_names[i], mpic);
 	}
 }
