@@ -123,7 +123,9 @@ enum mem_type {
 	MEM_RDR,		/* Registered single data rate SDRAM */
 	MEM_DDR,		/* Double data rate SDRAM */
 	MEM_RDDR,		/* Registered Double data rate SDRAM */
-	MEM_RMBS		/* Rambus DRAM */
+	MEM_RMBS,		/* Rambus DRAM */
+	MEM_DDR2,               /* DDR2 RAM */
+	MEM_FB_DDR2,            /* fully buffered DDR2 */
 };
 
 #define MEM_FLAG_EMPTY		BIT(MEM_EMPTY)
@@ -137,6 +139,8 @@ enum mem_type {
 #define MEM_FLAG_DDR		BIT(MEM_DDR)
 #define MEM_FLAG_RDDR		BIT(MEM_RDDR)
 #define MEM_FLAG_RMBS		BIT(MEM_RMBS)
+#define MEM_FLAG_DDR2           BIT(MEM_DDR2)
+#define MEM_FLAG_FB_DDR2        BIT(MEM_FB_DDR2)
 
 /* chipset Error Detection and Correction capabilities and mode */
 enum edac_type {
@@ -329,6 +333,7 @@ struct mem_ctl_info {
 
 	/* pointer to edac checking routine */
 	void (*edac_check) (struct mem_ctl_info * mci);
+
 	/*
 	 * Remaps memory pages: controller pages to physical pages.
 	 * For most MC's, this will be NULL.
@@ -453,6 +458,15 @@ extern void edac_mc_handle_ue(struct mem_ctl_info *mci,
 		int row, const char *msg);
 extern void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci,
 		const char *msg);
+extern void edac_mc_handle_fbd_ue(struct mem_ctl_info *mci,
+		unsigned int csrow,
+		unsigned int channel0,
+		unsigned int channel1,
+		char *msg);
+extern void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci,
+		unsigned int csrow,
+		unsigned int channel,
+		char *msg);
 
 /*
  * This kmalloc's and initializes all the structures.

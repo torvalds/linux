@@ -1497,11 +1497,11 @@ int edac_mc_add_mc(struct mem_ctl_info *mci, int mc_idx)
 	/* set load time so that error rate can be tracked */
 	mci->start_time = jiffies;
 
-        if (edac_create_sysfs_mci_device(mci)) {
-                edac_mc_printk(mci, KERN_WARNING,
+	if (edac_create_sysfs_mci_device(mci)) {
+		edac_mc_printk(mci, KERN_WARNING,
 			"failed to create sysfs device\n");
-                goto fail1;
-        }
+		goto fail1;
+	}
 
 	/* Report action taken */
 	edac_mc_printk(mci, KERN_INFO, "Giving out device to %s %s: DEV %s\n",
@@ -1758,6 +1758,116 @@ void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci, const char *msg)
 EXPORT_SYMBOL_GPL(edac_mc_handle_ue_no_info);
 
 
+/*************************************************************
+ * On Fully Buffered DIMM modules, this help function is
+ * called to process UE events
+ */
+void edac_mc_handle_fbd_ue(struct mem_ctl_info *mci,
+				unsigned int csrow,
+				unsigned int channela,
+				unsigned int channelb,
+				char *msg)
+{
+	int len = EDAC_MC_LABEL_LEN * 4;
+	char labels[len + 1];
+	char *pos = labels;
+	int chars;
+
+	if (csrow >= mci->nr_csrows) {
+		/* something is wrong */
+		edac_mc_printk(mci, KERN_ERR,
+			"INTERNAL ERROR: row out of range (%d >= %d)\n",
+			csrow, mci->nr_csrows);
+		edac_mc_handle_ue_no_info(mci, "INTERNAL ERROR");
+		return;
+	}
+
+	if (channela >= mci->csrows[csrow].nr_channels) {
+		/* something is wrong */
+		edac_mc_printk(mci, KERN_ERR,
+			"INTERNAL ERROR: channel-a out of range "
+			"(%d >= %d)\n",
+			channela, mci->csrows[csrow].nr_channels);
+		edac_mc_handle_ue_no_info(mci, "INTERNAL ERROR");
+		return;
+	}
+
+	if (channelb >= mci->csrows[csrow].nr_channels) {
+		/* something is wrong */
+		edac_mc_printk(mci, KERN_ERR,
+			"INTERNAL ERROR: channel-b out of range "
+			"(%d >= %d)\n",
+			channelb, mci->csrows[csrow].nr_channels);
+		edac_mc_handle_ue_no_info(mci, "INTERNAL ERROR");
+		return;
+	}
+
+	mci->ue_count++;
+	mci->csrows[csrow].ue_count++;
+
+	/* Generate the DIMM labels from the specified channels */
+	chars = snprintf(pos, len + 1, "%s",
+			 mci->csrows[csrow].channels[channela].label);
+	len -= chars; pos += chars;
+	chars = snprintf(pos, len + 1, "-%s",
+			 mci->csrows[csrow].channels[channelb].label);
+
+	if (log_ue)
+		edac_mc_printk(mci, KERN_EMERG,
+			"UE row %d, channel-a= %d channel-b= %d "
+			"labels \"%s\": %s\n", csrow, channela, channelb,
+			labels, msg);
+
+	if (panic_on_ue)
+		panic("UE row %d, channel-a= %d channel-b= %d "
+				"labels \"%s\": %s\n", csrow, channela,
+				channelb, labels, msg);
+}
+EXPORT_SYMBOL(edac_mc_handle_fbd_ue);
+
+/*************************************************************
+ * On Fully Buffered DIMM modules, this help function is
+ * called to process CE events
+ */
+void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci,
+			   unsigned int csrow,
+			   unsigned int channel,
+			   char *msg)
+{
+
+	/* Ensure boundary values */
+	if (csrow >= mci->nr_csrows) {
+		/* something is wrong */
+		edac_mc_printk(mci, KERN_ERR,
+			"INTERNAL ERROR: row out of range (%d >= %d)\n",
+			csrow, mci->nr_csrows);
+		edac_mc_handle_ce_no_info(mci, "INTERNAL ERROR");
+		return;
+	}
+	if (channel >= mci->csrows[csrow].nr_channels) {
+		/* something is wrong */
+		edac_mc_printk(mci, KERN_ERR,
+			"INTERNAL ERROR: channel out of range (%d >= %d)\n",
+			channel, mci->csrows[csrow].nr_channels);
+		edac_mc_handle_ce_no_info(mci, "INTERNAL ERROR");
+		return;
+	}
+
+	if (log_ce)
+		/* FIXME - put in DIMM location */
+		edac_mc_printk(mci, KERN_WARNING,
+			"CE row %d, channel %d, label \"%s\": %s\n",
+			csrow, channel,
+			mci->csrows[csrow].channels[channel].label,
+			msg);
+
+	mci->ce_count++;
+	mci->csrows[csrow].ce_count++;
+	mci->csrows[csrow].channels[channel].ce_count++;
+}
+EXPORT_SYMBOL(edac_mc_handle_fbd_ce);
+
+
 /*
  * Iterate over all MC instances and check for ECC, et al, errors
  */
@@ -1861,7 +1971,7 @@ static void __exit edac_mc_exit(void)
 	debugf0("%s()\n", __func__);
 	kthread_stop(edac_thread);
 
-        /* tear down the sysfs device */
+	/* tear down the sysfs device */
 	edac_sysfs_memctrl_teardown();
 	edac_sysfs_pci_teardown();
 }
