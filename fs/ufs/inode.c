@@ -616,8 +616,8 @@ static void ufs1_read_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 	inode->i_atime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
 	inode->i_blocks = fs32_to_cpu(sb, ufs_inode->ui_blocks);
+	inode->i_generation = fs32_to_cpu(sb, ufs_inode->ui_gen);
 	ufsi->i_flags = fs32_to_cpu(sb, ufs_inode->ui_flags);
-	ufsi->i_gen = fs32_to_cpu(sb, ufs_inode->ui_gen);
 	ufsi->i_shadow = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_shadow);
 	ufsi->i_oeftflag = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_oeftflag);
 
@@ -661,8 +661,8 @@ static void ufs2_read_inode(struct inode *inode, struct ufs2_inode *ufs2_inode)
 	inode->i_atime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
 	inode->i_blocks = fs64_to_cpu(sb, ufs2_inode->ui_blocks);
+	inode->i_generation = fs32_to_cpu(sb, ufs2_inode->ui_gen);
 	ufsi->i_flags = fs32_to_cpu(sb, ufs2_inode->ui_flags);
-	ufsi->i_gen = fs32_to_cpu(sb, ufs2_inode->ui_gen);
 	/*
 	ufsi->i_shadow = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_shadow);
 	ufsi->i_oeftflag = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_oeftflag);
@@ -731,34 +731,11 @@ bad_inode:
 	make_bad_inode(inode);
 }
 
-static int ufs_update_inode(struct inode * inode, int do_sync)
+static void ufs1_update_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 {
-	struct ufs_inode_info *ufsi = UFS_I(inode);
-	struct super_block * sb;
-	struct ufs_sb_private_info * uspi;
-	struct buffer_head * bh;
-	struct ufs_inode * ufs_inode;
-	unsigned i;
-	unsigned flags;
-
-	UFSD("ENTER, ino %lu\n", inode->i_ino);
-
-	sb = inode->i_sb;
-	uspi = UFS_SB(sb)->s_uspi;
-	flags = UFS_SB(sb)->s_flags;
-
-	if (inode->i_ino < UFS_ROOTINO || 
-	    inode->i_ino > (uspi->s_ncg * uspi->s_ipg)) {
-		ufs_warning (sb, "ufs_read_inode", "bad inode number (%lu)\n", inode->i_ino);
-		return -1;
-	}
-
-	bh = sb_bread(sb, ufs_inotofsba(inode->i_ino));
-	if (!bh) {
-		ufs_warning (sb, "ufs_read_inode", "unable to read inode %lu\n", inode->i_ino);
-		return -1;
-	}
-	ufs_inode = (struct ufs_inode *) (bh->b_data + ufs_inotofsbo(inode->i_ino) * sizeof(struct ufs_inode));
+	struct super_block *sb = inode->i_sb;
+ 	struct ufs_inode_info *ufsi = UFS_I(inode);
+ 	unsigned i;
 
 	ufs_inode->ui_mode = cpu_to_fs16(sb, inode->i_mode);
 	ufs_inode->ui_nlink = cpu_to_fs16(sb, inode->i_nlink);
@@ -775,9 +752,9 @@ static int ufs_update_inode(struct inode * inode, int do_sync)
 	ufs_inode->ui_mtime.tv_usec = 0;
 	ufs_inode->ui_blocks = cpu_to_fs32(sb, inode->i_blocks);
 	ufs_inode->ui_flags = cpu_to_fs32(sb, ufsi->i_flags);
-	ufs_inode->ui_gen = cpu_to_fs32(sb, ufsi->i_gen);
+	ufs_inode->ui_gen = cpu_to_fs32(sb, inode->i_generation);
 
-	if ((flags & UFS_UID_MASK) == UFS_UID_EFT) {
+	if ((UFS_SB(sb)->s_flags & UFS_UID_MASK) == UFS_UID_EFT) {
 		ufs_inode->ui_u3.ui_sun.ui_shadow = cpu_to_fs32(sb, ufsi->i_shadow);
 		ufs_inode->ui_u3.ui_sun.ui_oeftflag = cpu_to_fs32(sb, ufsi->i_oeftflag);
 	}
@@ -796,6 +773,78 @@ static int ufs_update_inode(struct inode * inode, int do_sync)
 
 	if (!inode->i_nlink)
 		memset (ufs_inode, 0, sizeof(struct ufs_inode));
+}
+
+static void ufs2_update_inode(struct inode *inode, struct ufs2_inode *ufs_inode)
+{
+	struct super_block *sb = inode->i_sb;
+ 	struct ufs_inode_info *ufsi = UFS_I(inode);
+ 	unsigned i;
+
+	UFSD("ENTER\n");
+	ufs_inode->ui_mode = cpu_to_fs16(sb, inode->i_mode);
+	ufs_inode->ui_nlink = cpu_to_fs16(sb, inode->i_nlink);
+
+	ufs_inode->ui_uid = cpu_to_fs32(sb, inode->i_uid);
+	ufs_inode->ui_gid = cpu_to_fs32(sb, inode->i_gid);
+
+	ufs_inode->ui_size = cpu_to_fs64(sb, inode->i_size);
+	ufs_inode->ui_atime.tv_sec = cpu_to_fs32(sb, inode->i_atime.tv_sec);
+	ufs_inode->ui_atime.tv_usec = 0;
+	ufs_inode->ui_ctime.tv_sec = cpu_to_fs32(sb, inode->i_ctime.tv_sec);
+	ufs_inode->ui_ctime.tv_usec = 0;
+	ufs_inode->ui_mtime.tv_sec = cpu_to_fs32(sb, inode->i_mtime.tv_sec);
+	ufs_inode->ui_mtime.tv_usec = 0;
+
+	ufs_inode->ui_blocks = cpu_to_fs64(sb, inode->i_blocks);
+	ufs_inode->ui_flags = cpu_to_fs32(sb, ufsi->i_flags);
+	ufs_inode->ui_gen = cpu_to_fs32(sb, inode->i_generation);
+
+	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
+		/* ufs_inode->ui_u2.ui_addr.ui_db[0] = cpu_to_fs32(sb, inode->i_rdev); */
+		ufs_inode->ui_u2.ui_addr.ui_db[0] = ufsi->i_u1.u2_i_data[0];
+	} else if (inode->i_blocks) {
+		for (i = 0; i < (UFS_NDADDR + UFS_NINDIR); i++)
+			ufs_inode->ui_u2.ui_addr.ui_db[i] = ufsi->i_u1.u2_i_data[i];
+	} else {
+		for (i = 0; i < (UFS_NDADDR + UFS_NINDIR) * 4; i++)
+			ufs_inode->ui_u2.ui_symlink[i] = ufsi->i_u1.i_symlink[i];
+ 	}
+
+	if (!inode->i_nlink)
+		memset (ufs_inode, 0, sizeof(struct ufs2_inode));
+	UFSD("EXIT\n");
+}
+
+static int ufs_update_inode(struct inode * inode, int do_sync)
+{
+	struct super_block *sb = inode->i_sb;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+	struct buffer_head * bh;
+
+	UFSD("ENTER, ino %lu\n", inode->i_ino);
+
+	if (inode->i_ino < UFS_ROOTINO ||
+	    inode->i_ino > (uspi->s_ncg * uspi->s_ipg)) {
+		ufs_warning (sb, "ufs_read_inode", "bad inode number (%lu)\n", inode->i_ino);
+		return -1;
+	}
+
+	bh = sb_bread(sb, ufs_inotofsba(inode->i_ino));
+	if (!bh) {
+		ufs_warning (sb, "ufs_read_inode", "unable to read inode %lu\n", inode->i_ino);
+		return -1;
+	}
+	if (uspi->fs_magic == UFS2_MAGIC) {
+		struct ufs2_inode *ufs2_inode = (struct ufs2_inode *)bh->b_data;
+
+		ufs2_update_inode(inode,
+				  ufs2_inode + ufs_inotofsbo(inode->i_ino));
+	} else {
+		struct ufs_inode *ufs_inode = (struct ufs_inode *) bh->b_data;
+
+		ufs1_update_inode(inode, ufs_inode + ufs_inotofsbo(inode->i_ino));
+	}
 		
 	mark_buffer_dirty(bh);
 	if (do_sync)

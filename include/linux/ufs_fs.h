@@ -263,7 +263,7 @@ typedef __u16 __bitwise __fs16;
  */
 #define	ufs_inotocg(x)		((x) / uspi->s_ipg)
 #define	ufs_inotocgoff(x)	((x) % uspi->s_ipg)
-#define	ufs_inotofsba(x)	(ufs_cgimin(ufs_inotocg(x)) + ufs_inotocgoff(x) / uspi->s_inopf)
+#define	ufs_inotofsba(x)	(((u64)ufs_cgimin(ufs_inotocg(x))) + ufs_inotocgoff(x) / uspi->s_inopf)
 #define	ufs_inotofsbo(x)	((x) % uspi->s_inopf)
 
 /*
@@ -756,7 +756,7 @@ struct ufs_sb_private_info {
 	__u32	s_npsect;	/* # sectors/track including spares */
 	__u32	s_interleave;	/* hardware sector interleave */
 	__u32	s_trackskew;	/* sector 0 skew, per track */
-	__u32	s_csaddr;	/* blk addr of cyl grp summary area */
+	__u64	s_csaddr;	/* blk addr of cyl grp summary area */
 	__u32	s_cssize;	/* size of cyl grp summary area */
 	__u32	s_cgsize;	/* cylinder group size */
 	__u32	s_ntrak;	/* tracks per cylinder */
