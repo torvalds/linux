@@ -64,11 +64,10 @@ ENTRY(s3c2410_cpu_save)
 
 	@@ store co-processor registers
 
-	mrc	p15, 0, r4, c15, c1, 0	@ CP access register
-	mrc	p15, 0, r5, c13, c0, 0	@ PID
-	mrc	p15, 0, r6, c3, c0, 0	@ Domain ID
-	mrc	p15, 0, r7, c2, c0, 0	@ translation table base address
-	mrc	p15, 0, r8, c1, c0, 0	@ control register
+	mrc	p15, 0, r4, c13, c0, 0	@ PID
+	mrc	p15, 0, r5, c3, c0, 0	@ Domain ID
+	mrc	p15, 0, r6, c2, c0, 0	@ translation table base address
+	mrc	p15, 0, r7, c1, c0, 0	@ control register
 
 	stmia	r0, { r4 - r13 }
 
@@ -141,10 +140,9 @@ ENTRY(s3c2410_cpu_resume)
 	ldr	r0, s3c2410_sleep_save_phys	@ address of restore block
 	ldmia	r0, { r4 - r13 }
 
-	mcr	p15, 0, r4, c15, c1, 0		@ CP access register
-	mcr	p15, 0, r5, c13, c0, 0		@ PID
-	mcr	p15, 0, r6, c3, c0, 0		@ Domain ID
-	mcr	p15, 0, r7, c2, c0, 0		@ translation table base
+	mcr	p15, 0, r4, c13, c0, 0		@ PID
+	mcr	p15, 0, r5, c3, c0, 0		@ Domain ID
+	mcr	p15, 0, r6, c2, c0, 0		@ translation table base
 
 #ifdef CONFIG_DEBUG_RESUME
 	mov	r3, #'R'
@@ -152,7 +150,7 @@ ENTRY(s3c2410_cpu_resume)
 #endif
 
 	ldr	r2, =resume_with_mmu
-	mcr	p15, 0, r8, c1, c0, 0		@ turn on MMU, etc
+	mcr	p15, 0, r7, c1, c0, 0		@ turn on MMU, etc
 	nop					@ second-to-last before mmu
 	mov	pc, r2				@ go back to virtual address
 
