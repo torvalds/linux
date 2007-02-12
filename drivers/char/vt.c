@@ -866,8 +866,8 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 		ws.ws_col = vc->vc_cols;
 		ws.ws_ypixel = vc->vc_scan_lines;
 		if ((ws.ws_row != cws->ws_row || ws.ws_col != cws->ws_col) &&
-		    vc->vc_tty->pgrp > 0)
-			kill_pg(vc->vc_tty->pgrp, SIGWINCH, 1);
+		    vc->vc_tty->pgrp)
+			kill_pgrp(vc->vc_tty->pgrp, SIGWINCH, 1);
 		*cws = ws;
 	}
 

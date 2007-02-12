@@ -1510,7 +1510,6 @@ asmlinkage long sys_setsid(void)
 
 	spin_lock(&group_leader->sighand->siglock);
 	group_leader->signal->tty = NULL;
-	group_leader->signal->tty_old_pgrp = 0;
 	spin_unlock(&group_leader->sighand->siglock);
 
 	err = process_group(group_leader);

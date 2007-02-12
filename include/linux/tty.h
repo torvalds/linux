@@ -197,8 +197,8 @@ struct tty_struct {
 	struct mutex termios_mutex;
 	struct ktermios *termios, *termios_locked;
 	char name[64];
-	int pgrp;
-	int session;
+	struct pid *pgrp;
+	struct pid *session;
 	unsigned long flags;
 	int count;
 	struct winsize winsize;

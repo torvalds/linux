@@ -869,7 +869,7 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 	sig->it_prof_incr = cputime_zero;
 
 	sig->leader = 0;	/* session leadership doesn't inherit */
-	sig->tty_old_pgrp = 0;
+	sig->tty_old_pgrp = NULL;
 
 	sig->utime = sig->stime = sig->cutime = sig->cstime = cputime_zero;
 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;

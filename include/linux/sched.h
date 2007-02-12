@@ -436,7 +436,7 @@ struct signal_struct {
 
 	/* job control IDs */
 	pid_t pgrp;
-	pid_t tty_old_pgrp;
+	struct pid *tty_old_pgrp;
 
 	union {
 		pid_t session __deprecated;
