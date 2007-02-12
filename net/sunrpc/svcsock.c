@@ -484,7 +484,7 @@ svc_sendto(struct svc_rqst *rqstp, struct xdr_buf *xdr)
 		cmh->cmsg_level = SOL_IP;
 		cmh->cmsg_type = IP_PKTINFO;
 		pki->ipi_ifindex = 0;
-		pki->ipi_spec_dst.s_addr = rqstp->rq_daddr;
+		pki->ipi_spec_dst.s_addr = rqstp->rq_daddr.addr.s_addr;
 
 		if (sock_sendmsg(sock, &msg, 0) < 0)
 			goto out;
@@ -763,7 +763,7 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 	rqstp->rq_addrlen = sizeof(struct sockaddr_in);
 
 	/* Remember which interface received this request */
-	rqstp->rq_daddr = skb->nh.iph->daddr;
+	rqstp->rq_daddr.addr.s_addr = skb->nh.iph->daddr;
 
 	if (skb_is_nonlinear(skb)) {
 		/* we have to copy */
