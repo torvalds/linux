@@ -20,6 +20,8 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/atmel_pdc.h>
+
 #include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -29,7 +31,6 @@
 #include <asm/arch/hardware.h>
 #include <asm/arch/at91_pmc.h>
 #include <asm/arch/at91_ssc.h>
-#include <asm/arch/at91_pdc.h>
 
 #include "at91-pcm.h"
 #include "at91-i2s.h"
@@ -51,17 +52,17 @@
  * SSC PDC registers required by the PCM DMA engine.
  */
 static struct at91_pdc_regs pdc_tx_reg = {
-	.xpr		= AT91_PDC_TPR,
-	.xcr		= AT91_PDC_TCR,
-	.xnpr		= AT91_PDC_TNPR,
-	.xncr		= AT91_PDC_TNCR,
+	.xpr		= ATMEL_PDC_TPR,
+	.xcr		= ATMEL_PDC_TCR,
+	.xnpr		= ATMEL_PDC_TNPR,
+	.xncr		= ATMEL_PDC_TNCR,
 };
 
 static struct at91_pdc_regs pdc_rx_reg = {
-	.xpr		= AT91_PDC_RPR,
-	.xcr		= AT91_PDC_RCR,
-	.xnpr		= AT91_PDC_RNPR,
-	.xncr		= AT91_PDC_RNCR,
+	.xpr		= ATMEL_PDC_RPR,
+	.xcr		= ATMEL_PDC_RCR,
+	.xnpr		= ATMEL_PDC_RNPR,
+	.xncr		= ATMEL_PDC_RNCR,
 };
 
 /*
@@ -72,8 +73,8 @@ static struct at91_ssc_mask ssc_tx_mask = {
 	.ssc_disable	= AT91_SSC_TXDIS,
 	.ssc_endx	= AT91_SSC_ENDTX,
 	.ssc_endbuf	= AT91_SSC_TXBUFE,
-	.pdc_enable	= AT91_PDC_TXTEN,
-	.pdc_disable	= AT91_PDC_TXTDIS,
+	.pdc_enable	= ATMEL_PDC_TXTEN,
+	.pdc_disable	= ATMEL_PDC_TXTDIS,
 };
 
 static struct at91_ssc_mask ssc_rx_mask = {
@@ -81,8 +82,8 @@ static struct at91_ssc_mask ssc_rx_mask = {
 	.ssc_disable	= AT91_SSC_RXDIS,
 	.ssc_endx	= AT91_SSC_ENDRX,
 	.ssc_endbuf	= AT91_SSC_RXBUFF,
-	.pdc_enable	= AT91_PDC_RXTEN,
-	.pdc_disable	= AT91_PDC_RXTDIS,
+	.pdc_enable	= ATMEL_PDC_RXTEN,
+	.pdc_disable	= ATMEL_PDC_RXTDIS,
 };
 
 
@@ -508,14 +509,14 @@ static int at91_i2s_hw_params(struct snd_pcm_substream *substream,
 		/* Reset the SSC and its PDC registers */
 		at91_ssc_write(ssc_p->ssc.base + AT91_SSC_CR, AT91_SSC_SWRST);
 
-		at91_ssc_write(ssc_p->ssc.base + AT91_PDC_RPR, 0);
-		at91_ssc_write(ssc_p->ssc.base + AT91_PDC_RCR, 0);
-		at91_ssc_write(ssc_p->ssc.base + AT91_PDC_RNPR, 0);
-		at91_ssc_write(ssc_p->ssc.base + AT91_PDC_RNCR, 0);
-		at91_ssc_write(ssc_p->ssc.base + AT91_PDC_TPR, 0);
-		at91_ssc_write(ssc_p->ssc.base + AT91_PDC_TCR, 0);
-		at91_ssc_write(ssc_p->ssc.base + AT91_PDC_TNPR, 0);
-		at91_ssc_write(ssc_p->ssc.base + AT91_PDC_TNCR, 0);
+		at91_ssc_write(ssc_p->ssc.base + ATMEL_PDC_RPR, 0);
+		at91_ssc_write(ssc_p->ssc.base + ATMEL_PDC_RCR, 0);
+		at91_ssc_write(ssc_p->ssc.base + ATMEL_PDC_RNPR, 0);
+		at91_ssc_write(ssc_p->ssc.base + ATMEL_PDC_RNCR, 0);
+		at91_ssc_write(ssc_p->ssc.base + ATMEL_PDC_TPR, 0);
+		at91_ssc_write(ssc_p->ssc.base + ATMEL_PDC_TCR, 0);
+		at91_ssc_write(ssc_p->ssc.base + ATMEL_PDC_TNPR, 0);
+		at91_ssc_write(ssc_p->ssc.base + ATMEL_PDC_TNCR, 0);
 
 		if ((ret = request_irq(ssc_p->ssc.pid, at91_i2s_interrupt,
 					0, ssc_p->name, ssc_p)) < 0) {
