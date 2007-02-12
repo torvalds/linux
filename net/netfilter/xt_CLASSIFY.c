@@ -48,7 +48,7 @@ static struct xt_target xt_classify_target[] = {
 		.table		= "mangle",
 		.hooks		= (1 << NF_IP_LOCAL_OUT) |
 				  (1 << NF_IP_FORWARD) |
-			          (1 << NF_IP_POST_ROUTING),
+				  (1 << NF_IP_POST_ROUTING),
 		.me 		= THIS_MODULE,
 	},
 	{
@@ -59,7 +59,7 @@ static struct xt_target xt_classify_target[] = {
 		.table		= "mangle",
 		.hooks		= (1 << NF_IP6_LOCAL_OUT) |
 				  (1 << NF_IP6_FORWARD) |
-			          (1 << NF_IP6_POST_ROUTING),
+				  (1 << NF_IP6_POST_ROUTING),
 		.me 		= THIS_MODULE,
 	},
 };

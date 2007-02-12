@@ -50,11 +50,11 @@ target_v1(struct sk_buff **pskb,
 	case XT_MARK_SET:
 		mark = markinfo->mark;
 		break;
-		
+
 	case XT_MARK_AND:
 		mark = (*pskb)->mark & markinfo->mark;
 		break;
-		
+
 	case XT_MARK_OR:
 		mark = (*pskb)->mark | markinfo->mark;
 		break;

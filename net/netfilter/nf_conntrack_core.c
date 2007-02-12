@@ -424,7 +424,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_find_get);
 
 static void __nf_conntrack_hash_insert(struct nf_conn *ct,
 				       unsigned int hash,
-				       unsigned int repl_hash) 
+				       unsigned int repl_hash)
 {
 	ct->id = ++nf_conntrack_next_id;
 	list_add(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list,
@@ -1066,7 +1066,7 @@ get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 			if (iter(ct, data))
 				goto found;
 		}
- 	}
+	}
 	list_for_each_entry(h, &unconfirmed, list) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
 		if (iter(ct, data))
@@ -1107,7 +1107,7 @@ static void free_conntrack_hash(struct list_head *hash, int vmalloced, int size)
 	if (vmalloced)
 		vfree(hash);
 	else
-		free_pages((unsigned long)hash, 
+		free_pages((unsigned long)hash,
 			   get_order(sizeof(struct list_head) * size));
 }
 
@@ -1168,18 +1168,18 @@ static struct list_head *alloc_hashtable(int size, int *vmalloced)
 	struct list_head *hash;
 	unsigned int i;
 
-	*vmalloced = 0; 
-	hash = (void*)__get_free_pages(GFP_KERNEL, 
+	*vmalloced = 0;
+	hash = (void*)__get_free_pages(GFP_KERNEL,
 				       get_order(sizeof(struct list_head)
 						 * size));
-	if (!hash) { 
+	if (!hash) {
 		*vmalloced = 1;
 		printk(KERN_WARNING "nf_conntrack: falling back to vmalloc.\n");
 		hash = vmalloc(sizeof(struct list_head) * size);
 	}
 
 	if (hash)
-		for (i = 0; i < size; i++) 
+		for (i = 0; i < size; i++)
 			INIT_LIST_HEAD(&hash[i]);
 
 	return hash;
@@ -1286,9 +1286,9 @@ int __init nf_conntrack_init(void)
 
 	/* Don't NEED lock here, but good form anyway. */
 	write_lock_bh(&nf_conntrack_lock);
-        for (i = 0; i < AF_MAX; i++)
+	for (i = 0; i < AF_MAX; i++)
 		nf_ct_l3protos[i] = &nf_conntrack_l3proto_generic;
-        write_unlock_bh(&nf_conntrack_lock);
+	write_unlock_bh(&nf_conntrack_lock);
 
 	/* For use by REJECT target */
 	rcu_assign_pointer(ip_ct_attach, __nf_conntrack_attach);

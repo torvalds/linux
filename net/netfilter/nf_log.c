@@ -41,7 +41,7 @@ int nf_log_register(int pf, struct nf_logger *logger)
 
 	mutex_unlock(&nf_log_mutex);
 	return ret;
-}		
+}
 EXPORT_SYMBOL(nf_log_register);
 
 void nf_log_unregister_pf(int pf)
@@ -83,7 +83,7 @@ void nf_log_packet(int pf,
 	va_list args;
 	char prefix[NF_LOG_PREFIXLEN];
 	struct nf_logger *logger;
-	
+
 	rcu_read_lock();
 	logger = rcu_dereference(nf_loggers[pf]);
 	if (logger) {
@@ -136,7 +136,7 @@ static int seq_show(struct seq_file *s, void *v)
 
 	if (!logger)
 		return seq_printf(s, "%2lld NONE\n", *pos);
-	
+
 	return seq_printf(s, "%2lld %s\n", *pos, logger->name);
 }
 

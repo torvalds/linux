@@ -22,8 +22,8 @@ target(struct sk_buff **pskb,
 	if ((*pskb)->nfct != NULL)
 		return XT_CONTINUE;
 
-	/* Attach fake conntrack entry. 
-	   If there is a real ct entry correspondig to this packet, 
+	/* Attach fake conntrack entry.
+	   If there is a real ct entry correspondig to this packet,
 	   it'll hang aroun till timing out. We don't deal with it
 	   for performance reasons. JK */
 	nf_ct_untrack(*pskb);

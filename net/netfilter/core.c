@@ -1,4 +1,4 @@
-/* netfilter.c: look after the filters for various protocols. 
+/* netfilter.c: look after the filters for various protocols.
  * Heavily influenced by the old firewall.c by David Bonn and Alan Cox.
  *
  * Thanks to Rob `CmdrTaco' Malda for not influencing this code in any
@@ -141,14 +141,14 @@ unsigned int nf_iterate(struct list_head *head,
 			continue;
 
 		/* Optimization: we don't need to hold module
-                   reference here, since function can't sleep. --RR */
+		   reference here, since function can't sleep. --RR */
 		verdict = elem->hook(hook, skb, indev, outdev, okfn);
 		if (verdict != NF_ACCEPT) {
 #ifdef CONFIG_NETFILTER_DEBUG
 			if (unlikely((verdict & NF_VERDICT_MASK)
 							> NF_MAX_VERDICT)) {
 				NFDEBUG("Evil return from %p(%u).\n",
-				        elem->hook, hook);
+					elem->hook, hook);
 				continue;
 			}
 #endif

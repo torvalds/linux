@@ -10,7 +10,7 @@
 
 #include "nf_internals.h"
 
-/* 
+/*
  * A queue handler may be registered for each protocol.  Each is protected by
  * long term mutex.  The handler must provide an an outfn() to accept packets
  * for queueing and must reinject all packets it receives, no matter what.
@@ -22,7 +22,7 @@ static DEFINE_RWLOCK(queue_handler_lock);
 /* return EBUSY when somebody else is registered, return EEXIST if the
  * same handler is registered, return 0 in case of success. */
 int nf_register_queue_handler(int pf, struct nf_queue_handler *qh)
-{      
+{
 	int ret;
 
 	if (pf >= NPROTO)
@@ -52,7 +52,7 @@ int nf_unregister_queue_handler(int pf)
 	write_lock_bh(&queue_handler_lock);
 	queue_handler[pf] = NULL;
 	write_unlock_bh(&queue_handler_lock);
-	
+
 	return 0;
 }
 EXPORT_SYMBOL(nf_unregister_queue_handler);
@@ -70,8 +70,8 @@ void nf_unregister_queue_handlers(struct nf_queue_handler *qh)
 }
 EXPORT_SYMBOL_GPL(nf_unregister_queue_handlers);
 
-/* 
- * Any packet that leaves via this function must come back 
+/*
+ * Any packet that leaves via this function must come back
  * through nf_reinject().
  */
 static int __nf_queue(struct sk_buff *skb,
@@ -115,7 +115,7 @@ static int __nf_queue(struct sk_buff *skb,
 		return 1;
 	}
 
-	*info = (struct nf_info) { 
+	*info = (struct nf_info) {
 		(struct nf_hook_ops *)elem, pf, hook, indev, outdev, okfn };
 
 	/* If it's going away, ignore hook. */
@@ -226,10 +226,10 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 	module_put(info->elem->owner);
 
 	list_for_each_rcu(i, &nf_hooks[info->pf][info->hook]) {
-		if (i == elem) 
-  			break;
-  	}
-  
+		if (i == elem)
+			break;
+	}
+
 	if (i == &nf_hooks[info->pf][info->hook]) {
 		/* The module which sent it to userspace is gone. */
 		NFDEBUG("%s: module disappeared, dropping packet.\n",
@@ -252,7 +252,7 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 	if (verdict == NF_ACCEPT) {
 	next_hook:
 		verdict = nf_iterate(&nf_hooks[info->pf][info->hook],
-				     &skb, info->hook, 
+				     &skb, info->hook,
 				     info->indev, info->outdev, &elem,
 				     info->okfn, INT_MIN);
 	}

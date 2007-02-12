@@ -51,10 +51,10 @@ match(const struct sk_buff *skb,
 	if (ct == &ip_conntrack_untracked)
 		statebit = XT_CONNTRACK_STATE_UNTRACKED;
 	else if (ct)
- 		statebit = XT_CONNTRACK_STATE_BIT(ctinfo);
- 	else
- 		statebit = XT_CONNTRACK_STATE_INVALID;
- 
+		statebit = XT_CONNTRACK_STATE_BIT(ctinfo);
+	else
+		statebit = XT_CONNTRACK_STATE_INVALID;
+
 	if (sinfo->flags & XT_CONNTRACK_STATE) {
 		if (ct) {
 			if (test_bit(IPS_SRC_NAT_BIT, &ct->status))
@@ -77,7 +77,7 @@ match(const struct sk_buff *skb,
 	    FWINV(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum !=
 		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum,
 		  XT_CONNTRACK_PROTO))
-                return 0;
+		return 0;
 
 	if (sinfo->flags & XT_CONNTRACK_ORIGSRC &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip &
@@ -147,10 +147,10 @@ match(const struct sk_buff *skb,
 	if (ct == &nf_conntrack_untracked)
 		statebit = XT_CONNTRACK_STATE_UNTRACKED;
 	else if (ct)
- 		statebit = XT_CONNTRACK_STATE_BIT(ctinfo);
- 	else
- 		statebit = XT_CONNTRACK_STATE_INVALID;
- 
+		statebit = XT_CONNTRACK_STATE_BIT(ctinfo);
+	else
+		statebit = XT_CONNTRACK_STATE_INVALID;
+
 	if (sinfo->flags & XT_CONNTRACK_STATE) {
 		if (ct) {
 			if (test_bit(IPS_SRC_NAT_BIT, &ct->status))
@@ -171,41 +171,41 @@ match(const struct sk_buff *skb,
 
 	if (sinfo->flags & XT_CONNTRACK_PROTO &&
 	    FWINV(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum !=
-	    	  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum,
+		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum,
 		  XT_CONNTRACK_PROTO))
-                return 0;
+		return 0;
 
 	if (sinfo->flags & XT_CONNTRACK_ORIGSRC &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip &
-	    	   sinfo->sipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
+		   sinfo->sipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_ORIGINAL].src.ip,
 		  XT_CONNTRACK_ORIGSRC))
 		return 0;
 
 	if (sinfo->flags & XT_CONNTRACK_ORIGDST &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.ip &
-	    	   sinfo->dipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
+		   sinfo->dipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.ip,
 		  XT_CONNTRACK_ORIGDST))
 		return 0;
 
 	if (sinfo->flags & XT_CONNTRACK_REPLSRC &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3.ip &
-	    	   sinfo->sipmsk[IP_CT_DIR_REPLY].s_addr) !=
+		   sinfo->sipmsk[IP_CT_DIR_REPLY].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_REPLY].src.ip,
 		  XT_CONNTRACK_REPLSRC))
 		return 0;
 
 	if (sinfo->flags & XT_CONNTRACK_REPLDST &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3.ip &
-	    	   sinfo->dipmsk[IP_CT_DIR_REPLY].s_addr) !=
+		   sinfo->dipmsk[IP_CT_DIR_REPLY].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_REPLY].dst.ip,
 		  XT_CONNTRACK_REPLDST))
 		return 0;
 
 	if (sinfo->flags & XT_CONNTRACK_STATUS &&
 	    FWINV((ct->status & sinfo->statusmask) == 0,
-	    	  XT_CONNTRACK_STATUS))
+		  XT_CONNTRACK_STATUS))
 		return 0;
 
 	if(sinfo->flags & XT_CONNTRACK_EXPIRES) {
