@@ -42,14 +42,13 @@ static void efika_show_cpuinfo(struct seq_file *m)
 	const char *codegenvendor = NULL;
 
 	root = of_find_node_by_path("/");
-	if (root) {
-		revision = get_property(root, "revision", NULL);
-		codegendescription =
-		    get_property(root, "CODEGEN,description", NULL);
-		codegenvendor = get_property(root, "CODEGEN,vendor", NULL);
+	if (!root)
+		return;
 
-		of_node_put(root);
-	}
+	revision = get_property(root, "revision", NULL);
+	codegendescription =
+		    get_property(root, "CODEGEN,description", NULL);
+	codegenvendor = get_property(root, "CODEGEN,vendor", NULL);
 
 	if (codegendescription)
 		seq_printf(m, "machine\t\t: %s\n", codegendescription);
