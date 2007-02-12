@@ -1713,7 +1713,7 @@ static int netlink_seq_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations netlink_seq_fops = {
+static const struct file_operations netlink_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open		= netlink_seq_open,
 	.read		= seq_read,

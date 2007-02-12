@@ -114,7 +114,7 @@ static int sctp_snmp_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, sctp_snmp_seq_show, NULL);
 }
 
-static struct file_operations sctp_snmp_seq_fops = {
+static const struct file_operations sctp_snmp_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = sctp_snmp_seq_open,
 	.read	 = seq_read,
@@ -264,7 +264,7 @@ static int sctp_eps_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &sctp_eps_ops);
 }
 
-static struct file_operations sctp_eps_seq_fops = {
+static const struct file_operations sctp_eps_seq_fops = {
 	.open	 = sctp_eps_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -374,7 +374,7 @@ static int sctp_assocs_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &sctp_assoc_ops);
 }
 
-static struct file_operations sctp_assocs_seq_fops = {
+static const struct file_operations sctp_assocs_seq_fops = {
 	.open	 = sctp_assocs_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,

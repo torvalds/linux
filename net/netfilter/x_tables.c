@@ -772,7 +772,7 @@ static int xt_tgt_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static struct file_operations xt_file_ops = {
+static const struct file_operations xt_file_ops = {
 	.owner	 = THIS_MODULE,
 	.open	 = xt_tgt_open,
 	.read	 = seq_read,

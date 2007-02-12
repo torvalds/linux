@@ -93,7 +93,7 @@ extern struct proc_dir_entry *proc_irda;
 
 static int irlan_seq_open(struct inode *inode, struct file *file);
 
-static struct file_operations irlan_fops = {
+static const struct file_operations irlan_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = irlan_seq_open,
 	.read    = seq_read,

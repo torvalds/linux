@@ -1440,7 +1440,7 @@ static int rose_info_open(struct inode *inode, struct file *file)
 	return seq_open(file, &rose_info_seqops);
 }
 
-static struct file_operations rose_info_fops = {
+static const struct file_operations rose_info_fops = {
 	.owner = THIS_MODULE,
 	.open = rose_info_open,
 	.read = seq_read,

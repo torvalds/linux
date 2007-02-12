@@ -188,7 +188,7 @@ static int status_open(struct inode *inode, struct file *file)
 	return seq_open(file, &status_op);
 }
 
-static struct file_operations config_fops = {
+static const struct file_operations config_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = config_open,
 	.read	 = seq_read,
@@ -196,7 +196,7 @@ static struct file_operations config_fops = {
 	.release = seq_release,
 };
 
-static struct file_operations status_fops = {
+static const struct file_operations status_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = status_open,
 	.read	 = seq_read,
@@ -271,7 +271,7 @@ static int wandev_open(struct inode *inode, struct file *file)
 	return single_open(file, wandev_show, PDE(inode)->data);
 }
 
-static struct file_operations wandev_fops = {
+static const struct file_operations wandev_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = wandev_open,
 	.read	 = seq_read,

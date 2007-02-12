@@ -151,7 +151,7 @@ static int nflog_open(struct inode *inode, struct file *file)
 	return seq_open(file, &nflog_seq_ops);
 }
 
-static struct file_operations nflog_file_ops = {
+static const struct file_operations nflog_file_ops = {
 	.owner	 = THIS_MODULE,
 	.open	 = nflog_open,
 	.read	 = seq_read,

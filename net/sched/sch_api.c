@@ -1194,7 +1194,7 @@ static int psched_open(struct inode *inode, struct file *file)
 	return single_open(file, psched_show, PDE(inode)->data);
 }
 
-static struct file_operations psched_fops = {
+static const struct file_operations psched_fops = {
 	.owner = THIS_MODULE,
 	.open = psched_open,
 	.read  = seq_read,

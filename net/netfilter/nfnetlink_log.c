@@ -1025,7 +1025,7 @@ out_free:
 	return ret;
 }
 
-static struct file_operations nful_file_ops = {
+static const struct file_operations nful_file_ops = {
 	.owner	 = THIS_MODULE,
 	.open	 = nful_open,
 	.read	 = seq_read,

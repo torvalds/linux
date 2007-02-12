@@ -331,7 +331,7 @@ static int nfqueue_open(struct inode *inode, struct file *file)
 	return seq_open(file, &nfqueue_seq_ops);
 }
 
-static struct file_operations nfqueue_file_ops = {
+static const struct file_operations nfqueue_file_ops = {
 	.owner	 = THIS_MODULE,
 	.open	 = nfqueue_open,
 	.read	 = seq_read,

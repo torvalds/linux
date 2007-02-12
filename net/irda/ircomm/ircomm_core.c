@@ -56,7 +56,7 @@ static void ircomm_control_indication(struct ircomm_cb *self,
 extern struct proc_dir_entry *proc_irda;
 static int ircomm_seq_open(struct inode *, struct file *);
 
-static struct file_operations ircomm_proc_fops = {
+static const struct file_operations ircomm_proc_fops = {
 	.owner		= THIS_MODULE,
 	.open           = ircomm_seq_open,
 	.read           = seq_read,

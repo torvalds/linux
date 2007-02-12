@@ -37,7 +37,7 @@ MODULE_ALIAS("ip6t_hashlimit");
 /* need to declare this at the top */
 static struct proc_dir_entry *hashlimit_procdir4;
 static struct proc_dir_entry *hashlimit_procdir6;
-static struct file_operations dl_file_ops;
+static const struct file_operations dl_file_ops;
 
 /* hash table crap */
 struct dsthash_dst {
@@ -714,7 +714,7 @@ static int dl_proc_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static struct file_operations dl_file_ops = {
+static const struct file_operations dl_file_ops = {
 	.owner   = THIS_MODULE,
 	.open    = dl_proc_open,
 	.read    = seq_read,
