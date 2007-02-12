@@ -55,7 +55,7 @@ void V1_minix_truncate(struct inode * inode)
 	truncate(inode);
 }
 
-unsigned V1_minix_blocks(loff_t size)
+unsigned V1_minix_blocks(loff_t size, struct super_block *sb)
 {
-	return nblocks(size);
+	return nblocks(size, sb);
 }

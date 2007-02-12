@@ -7,6 +7,7 @@
  *	Minix V2 fs support.
  *
  *  Modified for 680x0 by Andreas Schwab
+ *  Updated to filesystem version 3 by Daniel Aragones
  */
 
 #include <linux/module.h>
@@ -36,7 +37,8 @@ static void minix_put_super(struct super_block *sb)
 	struct minix_sb_info *sbi = minix_sb(sb);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
-		sbi->s_ms->s_state = sbi->s_mount_state;
+		if (sbi->s_version != MINIX_V3)	 /* s_state is now out from V3 sb */
+			sbi->s_ms->s_state = sbi->s_mount_state;
 		mark_buffer_dirty(sbi->s_sbh);
 	}
 	for (i = 0; i < sbi->s_imap_blocks; i++)
@@ -117,12 +119,17 @@ static int minix_remount (struct super_block * sb, int * flags, char * data)
 		    !(sbi->s_mount_state & MINIX_VALID_FS))
 			return 0;
 		/* Mounting a rw partition read-only. */
-		ms->s_state = sbi->s_mount_state;
+		if (sbi->s_version != MINIX_V3)
+			ms->s_state = sbi->s_mount_state;
 		mark_buffer_dirty(sbi->s_sbh);
 	} else {
 	  	/* Mount a partition which is read-only, read-write. */
-		sbi->s_mount_state = ms->s_state;
-		ms->s_state &= ~MINIX_VALID_FS;
+		if (sbi->s_version != MINIX_V3) {
+			sbi->s_mount_state = ms->s_state;
+			ms->s_state &= ~MINIX_VALID_FS;
+		} else {
+			sbi->s_mount_state = MINIX_VALID_FS;
+		}
 		mark_buffer_dirty(sbi->s_sbh);
 
 		if (!(sbi->s_mount_state & MINIX_VALID_FS))
@@ -140,7 +147,8 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	struct buffer_head *bh;
 	struct buffer_head **map;
 	struct minix_super_block *ms;
-	int i, block;
+	struct minix3_super_block *m3s = NULL;
+	unsigned long i, block;
 	struct inode *root_inode;
 	struct minix_sb_info *sbi;
 
@@ -192,6 +200,22 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 		sbi->s_dirsize = 32;
 		sbi->s_namelen = 30;
 		sbi->s_link_max = MINIX2_LINK_MAX;
+	} else if ( *(__u16 *)(bh->b_data + 24) == MINIX3_SUPER_MAGIC) {
+		m3s = (struct minix3_super_block *) bh->b_data;
+		s->s_magic = m3s->s_magic;
+		sbi->s_imap_blocks = m3s->s_imap_blocks;
+		sbi->s_zmap_blocks = m3s->s_zmap_blocks;
+		sbi->s_firstdatazone = m3s->s_firstdatazone;
+		sbi->s_log_zone_size = m3s->s_log_zone_size;
+		sbi->s_max_size = m3s->s_max_size;
+		sbi->s_ninodes = m3s->s_ninodes;
+		sbi->s_nzones = m3s->s_zones;
+		sbi->s_dirsize = 64;
+		sbi->s_namelen = 60;
+		sbi->s_version = MINIX_V3;
+		sbi->s_link_max = MINIX2_LINK_MAX;
+		sbi->s_mount_state = MINIX_VALID_FS;
+		sb_set_blocksize(s, m3s->s_blocksize);
 	} else
 		goto out_no_fs;
 
@@ -236,7 +260,8 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 		s->s_root->d_op = &minix_dentry_operations;
 
 	if (!(s->s_flags & MS_RDONLY)) {
-		ms->s_state &= ~MINIX_VALID_FS;
+		if (sbi->s_version != MINIX_V3) /* s_state is now out from V3 sb */
+			ms->s_state &= ~MINIX_VALID_FS;
 		mark_buffer_dirty(bh);
 	}
 	if (!(sbi->s_mount_state & MINIX_VALID_FS))
@@ -278,8 +303,8 @@ out_illegal_sb:
 
 out_no_fs:
 	if (!silent)
-		printk("VFS: Can't find a Minix or Minix V2 filesystem "
-			"on device %s\n", s->s_id);
+		printk("VFS: Can't find a Minix filesystem V1 | V2 | V3 "
+		       "on device %s.\n", s->s_id);
 out_release:
 	brelse(bh);
 	goto out;
@@ -537,12 +562,14 @@ int minix_sync_inode(struct inode * inode)
 
 int minix_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
+	struct inode *dir = dentry->d_parent->d_inode;
+	struct super_block *sb = dir->i_sb;
 	generic_fillattr(dentry->d_inode, stat);
 	if (INODE_VERSION(dentry->d_inode) == MINIX_V1)
-		stat->blocks = (BLOCK_SIZE / 512) * V1_minix_blocks(stat->size);
+		stat->blocks = (BLOCK_SIZE / 512) * V1_minix_blocks(stat->size, sb);
 	else
-		stat->blocks = (BLOCK_SIZE / 512) * V2_minix_blocks(stat->size);
-	stat->blksize = BLOCK_SIZE;
+		stat->blocks = (sb->s_blocksize / 512) * V2_minix_blocks(stat->size, sb);
+	stat->blksize = sb->s_blocksize;
 	return 0;
 }
 
