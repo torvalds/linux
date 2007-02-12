@@ -170,7 +170,7 @@ out:
  * @locked_page - for ufs_new_fragments()
  */
 static struct buffer_head *
-ufs_inode_getfrag(struct inode *inode, unsigned int fragment,
+ufs_inode_getfrag(struct inode *inode, u64 fragment,
 		  sector_t new_fragment, unsigned int required, int *err,
 		  long *phys, int *new, struct page *locked_page)
 {
@@ -178,12 +178,12 @@ ufs_inode_getfrag(struct inode *inode, unsigned int fragment,
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	struct buffer_head * result;
-	unsigned block, blockoff, lastfrag, lastblock, lastblockoff;
-	unsigned tmp, goal;
-	__fs32 * p, * p2;
+	unsigned blockoff, lastblockoff;
+	u64 tmp, goal, lastfrag, block, lastblock;
+	void *p, *p2;
 
-	UFSD("ENTER, ino %lu, fragment %u, new_fragment %llu, required %u, "
-	     "metadata %d\n", inode->i_ino, fragment,
+	UFSD("ENTER, ino %lu, fragment %llu, new_fragment %llu, required %u, "
+	     "metadata %d\n", inode->i_ino, (unsigned long long)fragment,
 	     (unsigned long long)new_fragment, required, !phys);
 
         /* TODO : to be done for write support
@@ -193,17 +193,20 @@ ufs_inode_getfrag(struct inode *inode, unsigned int fragment,
 
 	block = ufs_fragstoblks (fragment);
 	blockoff = ufs_fragnum (fragment);
-	p = ufsi->i_u1.i_data + block;
+	p = ufs_get_direct_data_ptr(uspi, ufsi, block);
+
 	goal = 0;
 
 repeat:
-	tmp = fs32_to_cpu(sb, *p);
+	tmp = ufs_data_ptr_to_cpu(sb, p);
+
 	lastfrag = ufsi->i_lastfrag;
 	if (tmp && fragment < lastfrag) {
 		if (!phys) {
 			result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
-			if (tmp == fs32_to_cpu(sb, *p)) {
-				UFSD("EXIT, result %u\n", tmp + blockoff);
+			if (tmp == ufs_data_ptr_to_cpu(sb, p)) {
+				UFSD("EXIT, result %llu\n",
+				     (unsigned long long)tmp + blockoff);
 				return result;
 			}
 			brelse (result);
@@ -224,10 +227,11 @@ repeat:
 		 * We must reallocate last allocated block
 		 */
 		if (lastblockoff) {
-			p2 = ufsi->i_u1.i_data + lastblock;
-			tmp = ufs_new_fragments (inode, p2, lastfrag, 
-						 fs32_to_cpu(sb, *p2), uspi->s_fpb - lastblockoff,
-						 err, locked_page);
+			p2 = ufs_get_direct_data_ptr(uspi, ufsi, lastblock);
+			tmp = ufs_new_fragments(inode, p2, lastfrag,
+						ufs_data_ptr_to_cpu(sb, p2),
+						uspi->s_fpb - lastblockoff,
+						err, locked_page);
 			if (!tmp) {
 				if (lastfrag != ufsi->i_lastfrag)
 					goto repeat;
@@ -237,27 +241,31 @@ repeat:
 			lastfrag = ufsi->i_lastfrag;
 			
 		}
-		tmp = fs32_to_cpu(sb, ufsi->i_u1.i_data[lastblock]);
+		tmp = ufs_data_ptr_to_cpu(sb,
+					 ufs_get_direct_data_ptr(uspi, ufsi,
+								 lastblock));
 		if (tmp)
 			goal = tmp + uspi->s_fpb;
 		tmp = ufs_new_fragments (inode, p, fragment - blockoff, 
 					 goal, required + blockoff,
 					 err,
 					 phys != NULL ? locked_page : NULL);
-	}
+	} else if (lastblock == block) {
 	/*
 	 * We will extend last allocated block
 	 */
-	else if (lastblock == block) {
-		tmp = ufs_new_fragments(inode, p, fragment - (blockoff - lastblockoff),
-					fs32_to_cpu(sb, *p), required +  (blockoff - lastblockoff),
+		tmp = ufs_new_fragments(inode, p, fragment -
+					(blockoff - lastblockoff),
+					ufs_data_ptr_to_cpu(sb, p),
+					required +  (blockoff - lastblockoff),
 					err, phys != NULL ? locked_page : NULL);
 	} else /* (lastblock > block) */ {
 	/*
 	 * We will allocate new block before last allocated block
 	 */
 		if (block) {
-			tmp = fs32_to_cpu(sb, ufsi->i_u1.i_data[block-1]);
+			tmp = ufs_data_ptr_to_cpu(sb,
+						 ufs_get_direct_data_ptr(uspi, ufsi, block - 1));
 			if (tmp)
 				goal = tmp + uspi->s_fpb;
 		}
@@ -266,7 +274,7 @@ repeat:
 					phys != NULL ? locked_page : NULL);
 	}
 	if (!tmp) {
-		if ((!blockoff && *p) || 
+		if ((!blockoff && ufs_data_ptr_to_cpu(sb, p)) ||
 		    (blockoff && lastfrag != ufsi->i_lastfrag))
 			goto repeat;
 		*err = -ENOSPC;
@@ -286,7 +294,7 @@ repeat:
 	if (IS_SYNC(inode))
 		ufs_sync_inode (inode);
 	mark_inode_dirty(inode);
-	UFSD("EXIT, result %u\n", tmp + blockoff);
+	UFSD("EXIT, result %llu\n", (unsigned long long)tmp + blockoff);
 	return result;
 
      /* This part : To be implemented ....
@@ -320,20 +328,22 @@ repeat2:
  */
 static struct buffer_head *
 ufs_inode_getblock(struct inode *inode, struct buffer_head *bh,
-		  unsigned int fragment, sector_t new_fragment, int *err,
+		  u64 fragment, sector_t new_fragment, int *err,
 		  long *phys, int *new, struct page *locked_page)
 {
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	struct buffer_head * result;
-	unsigned tmp, goal, block, blockoff;
-	__fs32 * p;
+	unsigned blockoff;
+	u64 tmp, goal, block;
+	void *p;
 
 	block = ufs_fragstoblks (fragment);
 	blockoff = ufs_fragnum (fragment);
 
-	UFSD("ENTER, ino %lu, fragment %u, new_fragment %llu, metadata %d\n",
-	     inode->i_ino, fragment, (unsigned long long)new_fragment, !phys);
+	UFSD("ENTER, ino %lu, fragment %llu, new_fragment %llu, metadata %d\n",
+	     inode->i_ino, (unsigned long long)fragment,
+	     (unsigned long long)new_fragment, !phys);
 
 	result = NULL;
 	if (!bh)
@@ -344,14 +354,16 @@ ufs_inode_getblock(struct inode *inode, struct buffer_head *bh,
 		if (!buffer_uptodate(bh))
 			goto out;
 	}
-
-	p = (__fs32 *) bh->b_data + block;
+	if (uspi->fs_magic == UFS2_MAGIC)
+		p = (__fs64 *)bh->b_data + block;
+	else
+		p = (__fs32 *)bh->b_data + block;
 repeat:
-	tmp = fs32_to_cpu(sb, *p);
+	tmp = ufs_data_ptr_to_cpu(sb, p);
 	if (tmp) {
 		if (!phys) {
 			result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
-			if (tmp == fs32_to_cpu(sb, *p))
+			if (tmp == ufs_data_ptr_to_cpu(sb, p))
 				goto out;
 			brelse (result);
 			goto repeat;
@@ -361,14 +373,16 @@ repeat:
 		}
 	}
 
-	if (block && (tmp = fs32_to_cpu(sb, ((__fs32*)bh->b_data)[block-1])))
+	if (block && (uspi->fs_magic == UFS2_MAGIC ?
+		      (tmp = fs64_to_cpu(sb, ((__fs64 *)bh->b_data)[block-1])) :
+		      (tmp = fs32_to_cpu(sb, ((__fs32 *)bh->b_data)[block-1]))))
 		goal = tmp + uspi->s_fpb;
 	else
 		goal = bh->b_blocknr + uspi->s_fpb;
 	tmp = ufs_new_fragments(inode, p, ufs_blknum(new_fragment), goal,
 				uspi->s_fpb, err, locked_page);
 	if (!tmp) {
-		if (fs32_to_cpu(sb, *p))
+		if (ufs_data_ptr_to_cpu(sb, p))
 			goto repeat;
 		goto out;
 	}		
@@ -386,7 +400,7 @@ repeat:
 		sync_dirty_buffer(bh);
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
-	UFSD("result %u\n", tmp + blockoff);
+	UFSD("result %llu\n", (unsigned long long)tmp + blockoff);
 out:
 	brelse (bh);
 	UFSD("EXIT\n");

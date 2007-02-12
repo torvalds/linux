@@ -40,6 +40,7 @@ typedef __u64 __fs64;
 typedef __u32 __fs32;
 typedef __u16 __fs16;
 #else
+#include <asm/div64.h>
 typedef __u64 __bitwise __fs64;
 typedef __u32 __bitwise __fs32;
 typedef __u16 __bitwise __fs16;
@@ -265,13 +266,6 @@ typedef __u16 __bitwise __fs16;
 #define	ufs_inotocgoff(x)	((x) % uspi->s_ipg)
 #define	ufs_inotofsba(x)	(((u64)ufs_cgimin(ufs_inotocg(x))) + ufs_inotocgoff(x) / uspi->s_inopf)
 #define	ufs_inotofsbo(x)	((x) % uspi->s_inopf)
-
-/*
- * Give cylinder group number for a file system block.
- * Give cylinder group block number for a file system block.
- */
-#define	ufs_dtog(d)	((d) / uspi->s_fpg)
-#define	ufs_dtogd(d)	((d) % uspi->s_fpg)
 
 /*
  * Compute the cylinder and rotational position of a cyl block addr.
@@ -723,6 +717,7 @@ struct ufs_cg_private_info {
 	__u32	c_nclusterblks;	/* number of clusters this cg */
 };	
 
+
 struct ufs_sb_private_info {
 	struct ufs_buffer_head s_ubh; /* buffer containing super block */
 	struct ufs_csum_core cs_total;
@@ -952,10 +947,10 @@ struct ufs_super_block_third {
 #ifdef __KERNEL__
 
 /* balloc.c */
-extern void ufs_free_fragments (struct inode *, unsigned, unsigned);
-extern void ufs_free_blocks (struct inode *, unsigned, unsigned);
-extern unsigned ufs_new_fragments(struct inode *, __fs32 *, unsigned, unsigned,
-				  unsigned, int *, struct page *);
+extern void ufs_free_fragments (struct inode *, u64, unsigned);
+extern void ufs_free_blocks (struct inode *, u64, unsigned);
+extern u64 ufs_new_fragments(struct inode *, void *, u64, u64,
+			     unsigned, int *, struct page *);
 
 /* cylinder.c */
 extern struct ufs_cg_private_info * ufs_load_cylinder (struct super_block *, unsigned);
@@ -1014,6 +1009,22 @@ static inline struct ufs_sb_info *UFS_SB(struct super_block *sb)
 static inline struct ufs_inode_info *UFS_I(struct inode *inode)
 {
 	return container_of(inode, struct ufs_inode_info, vfs_inode);
+}
+
+/*
+ * Give cylinder group number for a file system block.
+ * Give cylinder group block number for a file system block.
+ */
+/* #define	ufs_dtog(d)	((d) / uspi->s_fpg) */
+static inline u64 ufs_dtog(struct ufs_sb_private_info * uspi, u64 b)
+{
+	do_div(b, uspi->s_fpg);
+	return b;
+}
+/* #define	ufs_dtogd(d)	((d) % uspi->s_fpg) */
+static inline u32 ufs_dtogd(struct ufs_sb_private_info * uspi, u64 b)
+{
+	return do_div(b, uspi->s_fpg);
 }
 
 #endif	/* __KERNEL__ */
