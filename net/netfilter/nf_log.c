@@ -40,19 +40,16 @@ int nf_log_register(int pf, struct nf_logger *logger)
 }		
 EXPORT_SYMBOL(nf_log_register);
 
-int nf_log_unregister_pf(int pf)
+void nf_log_unregister_pf(int pf)
 {
 	if (pf >= NPROTO)
-		return -EINVAL;
-
+		return;
 	spin_lock(&nf_log_lock);
 	rcu_assign_pointer(nf_logging[pf], NULL);
 	spin_unlock(&nf_log_lock);
 
 	/* Give time to concurrent readers. */
 	synchronize_rcu();
-
-	return 0;
 }
 EXPORT_SYMBOL(nf_log_unregister_pf);
 

@@ -172,7 +172,7 @@ struct nf_logger {
 
 /* Function to register/unregister log function. */
 int nf_log_register(int pf, struct nf_logger *logger);
-int nf_log_unregister_pf(int pf);
+void nf_log_unregister_pf(int pf);
 void nf_log_unregister_logger(struct nf_logger *logger);
 
 /* Calls the registered backend logging function */
