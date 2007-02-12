@@ -1598,6 +1598,26 @@ config FB_IBM_GXT4500
 	  Say Y here to enable support for the IBM GXT4500P display
 	  adaptor, found on some IBM System P (pSeries) machines.
 
+config FB_PS3
+	bool "PS3 GPU framebuffer driver"
+	depends on FB && PPC_PS3
+	select PS3_PS3AV
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Include support for the virtual frame buffer in the PS3 platform.
+
+config FB_PS3_DEFAULT_SIZE_M
+	int "PS3 default frame buffer size (in MiB)"
+	depends on FB_PS3
+	default 18
+	---help---
+	  This is the default size (in MiB) of the virtual frame buffer in
+	  the PS3.
+	  The default value can be overridden on the kernel command line
+	  using the "ps3fb" option (e.g. "ps3fb=9M");
+
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"
 	depends on FB
