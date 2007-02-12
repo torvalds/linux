@@ -6812,7 +6812,7 @@ void nl_ind(PLCI   * plci)
         }
         if (((plci->NL.Ind & 0x0f) == N_DISC) || ((plci->NL.Ind & 0x0f) == N_DISC_ACK))
         {
-          if (((T30_INFO   *)plci->NL.RBuffer->P)->code < sizeof(fax_info) / sizeof(fax_info[0]))
+	  if (((T30_INFO   *)plci->NL.RBuffer->P)->code < ARRAY_SIZE(fax_info))
             info = fax_info[((T30_INFO   *)plci->NL.RBuffer->P)->code];
           else
             info = _FAX_PROTOCOL_ERROR;
@@ -9564,7 +9564,7 @@ static struct
 
 };
 
-#define DTMF_DIGIT_MAP_ENTRIES (sizeof(dtmf_digit_map) / sizeof(dtmf_digit_map[0]))
+#define DTMF_DIGIT_MAP_ENTRIES ARRAY_SIZE(dtmf_digit_map)
 
 
 static void dtmf_enable_receiver (PLCI   *plci, byte enable_mask)
@@ -10069,8 +10069,7 @@ static byte dtmf_request (dword Id, word Number, DIVA_CAPI_ADAPTER   *a, PLCI   
           PUT_WORD (&result[1], DTMF_INCORRECT_DIGIT);
           break;
         }
-        if (plci->dtmf_send_requests >=
-          sizeof(plci->dtmf_msg_number_queue) / sizeof(plci->dtmf_msg_number_queue[0]))
+        if (plci->dtmf_send_requests >= ARRAY_SIZE(plci->dtmf_msg_number_queue))
         {
           dbug (1, dprintf ("[%06lx] %s,%d: DTMF request overrun",
             UnMapId (Id), (char   *)(FILE_), __LINE__));
@@ -11018,9 +11017,9 @@ static byte xconnect_write_coefs_process (dword Id, PLCI   *plci, byte Rc)
             li_config_table[i].coef_table[j] ^= xconnect_write_prog[n].mask << 4;
           }
           n++;
-        } while ((n < sizeof(xconnect_write_prog) / sizeof(xconnect_write_prog[0]))
+        } while ((n < ARRAY_SIZE(xconnect_write_prog))
           && ((p - plci->internal_req_buffer) + 16 < INTERNAL_REQ_BUFFER_SIZE));
-        if (n == sizeof(xconnect_write_prog) / sizeof(xconnect_write_prog[0]))
+        if (n == ARRAY_SIZE(xconnect_write_prog))
         {
           do
           {
@@ -11090,7 +11089,7 @@ static byte xconnect_write_coefs_process (dword Id, PLCI   *plci, byte Rc)
             ch_map[j+1] = (byte)(j+1);
           }
         }
-        for (n = 0; n < sizeof(mixer_write_prog_bri) / sizeof(mixer_write_prog_bri[0]); n++)
+        for (n = 0; n < ARRAY_SIZE(mixer_write_prog_bri); n++)
         {
           i = a->li_base + ch_map[mixer_write_prog_bri[n].to_ch];
           j = a->li_base + ch_map[mixer_write_prog_bri[n].from_ch];
@@ -11140,7 +11139,7 @@ static byte xconnect_write_coefs_process (dword Id, PLCI   *plci, byte Rc)
           w |= MIXER_FEATURE_ENABLE_RX_DATA;
         *(p++) = (byte) w;
         *(p++) = (byte)(w >> 8);
-        for (n = 0; n < sizeof(mixer_write_prog_pri) / sizeof(mixer_write_prog_pri[0]); n++)
+        for (n = 0; n < ARRAY_SIZE(mixer_write_prog_pri); n++)
         {
           *(p++) = (byte)((plci->li_bchannel_id - 1) | mixer_write_prog_pri[n].line_flags);
           for (j = a->li_base; j < a->li_base + MIXER_CHANNELS_PRI; j++)
@@ -11196,7 +11195,7 @@ static byte xconnect_write_coefs_process (dword Id, PLCI   *plci, byte Rc)
             ch_map[j+1] = (byte)(j+1);
           }
         }
-        for (n = 0; n < sizeof(mixer_write_prog_bri) / sizeof(mixer_write_prog_bri[0]); n++)
+        for (n = 0; n < ARRAY_SIZE(mixer_write_prog_bri); n++)
         {
           i = a->li_base + ch_map[mixer_write_prog_bri[n].to_ch];
           j = a->li_base + ch_map[mixer_write_prog_bri[n].from_ch];
@@ -13178,7 +13177,7 @@ static void adv_voice_write_coefs (PLCI   *plci, word write_command)
         ch_map[j] = (byte)(j + (plci->li_bchannel_id - 1));
         ch_map[j+1] = (byte)(j + (2 - plci->li_bchannel_id));
       }
-      for (n = 0; n < sizeof(mixer_write_prog_bri) / sizeof(mixer_write_prog_bri[0]); n++)
+      for (n = 0; n < ARRAY_SIZE(mixer_write_prog_bri); n++)
       {
         i = a->li_base + ch_map[mixer_write_prog_bri[n].to_ch];
         j = a->li_base + ch_map[mixer_write_prog_bri[n].from_ch];
@@ -14603,7 +14602,7 @@ static void channel_request_xon (PLCI   * plci, byte ch) {
 
 static void channel_xmit_extended_xon (PLCI   * plci) {
   DIVA_CAPI_ADAPTER   * a;
-  int max_ch = sizeof(a->ch_flow_control)/sizeof(a->ch_flow_control[0]);
+  int max_ch = ARRAY_SIZE(a->ch_flow_control);
   int i, one_requested = 0;
 
   if ((!plci) || (!plci->Id) || ((a = plci->adapter) == 0)) {
@@ -14628,7 +14627,7 @@ static void channel_xmit_extended_xon (PLCI   * plci) {
   Try to xmit next X_ON
   */
 static int find_channel_with_pending_x_on (DIVA_CAPI_ADAPTER   * a, PLCI   * plci) {
-  int max_ch = sizeof(a->ch_flow_control)/sizeof(a->ch_flow_control[0]);
+  int max_ch = ARRAY_SIZE(a->ch_flow_control);
   int i;
 
   if (!(plci->adapter->manufacturer_features & MANUFACTURER_FEATURE_XONOFF_FLOW_CONTROL)) {

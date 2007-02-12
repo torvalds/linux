@@ -123,10 +123,6 @@
 #define DIVA_OS_MEM_DETACH_CONFIG(a, x)	do { } while(0)
 #define DIVA_OS_MEM_DETACH_CONTROL(a, x)	do { } while(0)
 
-#if !defined(DIM)
-#define DIM(array)  (sizeof (array)/sizeof ((array)[0]))
-#endif
-
 #define DIVA_INVALID_FILE_HANDLE  ((dword)(-1))
 
 #define DIVAS_CONTAINING_RECORD(address, type, field) \
