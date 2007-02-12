@@ -15,6 +15,8 @@
 #include <linux/ip.h>
 #include <net/checksum.h>
 
+#include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_ipv6.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_CLASSIFY.h>
 
@@ -55,9 +57,9 @@ static struct xt_target xt_classify_target[] = {
 		.target 	= target,
 		.targetsize	= sizeof(struct xt_classify_target_info),
 		.table		= "mangle",
-		.hooks		= (1 << NF_IP_LOCAL_OUT) |
-				  (1 << NF_IP_FORWARD) |
-			          (1 << NF_IP_POST_ROUTING),
+		.hooks		= (1 << NF_IP6_LOCAL_OUT) |
+				  (1 << NF_IP6_FORWARD) |
+			          (1 << NF_IP6_POST_ROUTING),
 		.me 		= THIS_MODULE,
 	},
 };
