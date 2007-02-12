@@ -318,9 +318,11 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	/* To make sure we don't get any weird locking issues here:
 	 * destroy_conntrack() MUST NOT be called with a write lock
 	 * to ip_conntrack_lock!!! -HW */
+	rcu_read_lock();
 	proto = __ip_conntrack_proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
 	if (proto && proto->destroy)
 		proto->destroy(ct);
+	rcu_read_unlock();
 
 	if (ip_conntrack_destroyed)
 		ip_conntrack_destroyed(ct);
@@ -595,13 +597,13 @@ ip_conntrack_proto_find_get(u_int8_t protocol)
 {
 	struct ip_conntrack_protocol *p;
 
-	preempt_disable();
+	rcu_read_lock();
 	p = __ip_conntrack_proto_find(protocol);
 	if (p) {
 		if (!try_module_get(p->me))
 			p = &ip_conntrack_generic_protocol;
 	}
-	preempt_enable();
+	rcu_read_unlock();
 
 	return p;
 }
@@ -830,6 +832,7 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 	}
 #endif
 
+	/* rcu_read_lock()ed by nf_hook_slow */
 	proto = __ip_conntrack_proto_find((*pskb)->nh.iph->protocol);
 
 	/* It may be an special packet, error, unclean...
@@ -875,8 +878,15 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 int invert_tuplepr(struct ip_conntrack_tuple *inverse,
 		   const struct ip_conntrack_tuple *orig)
 {
-	return ip_ct_invert_tuple(inverse, orig,
-				  __ip_conntrack_proto_find(orig->dst.protonum));
+	struct ip_conntrack_protocol *proto;
+	int ret;
+
+	rcu_read_lock();
+	proto = __ip_conntrack_proto_find(orig->dst.protonum);
+	ret = ip_ct_invert_tuple(inverse, orig, proto);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 /* Would two expected things clash? */
@@ -1507,11 +1517,11 @@ int __init ip_conntrack_init(void)
 	/* Don't NEED lock here, but good form anyway. */
 	write_lock_bh(&ip_conntrack_lock);
 	for (i = 0; i < MAX_IP_CT_PROTO; i++)
-		ip_ct_protos[i] = &ip_conntrack_generic_protocol;
+		rcu_assign_pointer(ip_ct_protos[i], &ip_conntrack_generic_protocol);
 	/* Sew in builtin protocols. */
-	ip_ct_protos[IPPROTO_TCP] = &ip_conntrack_protocol_tcp;
-	ip_ct_protos[IPPROTO_UDP] = &ip_conntrack_protocol_udp;
-	ip_ct_protos[IPPROTO_ICMP] = &ip_conntrack_protocol_icmp;
+	rcu_assign_pointer(ip_ct_protos[IPPROTO_TCP], &ip_conntrack_protocol_tcp);
+	rcu_assign_pointer(ip_ct_protos[IPPROTO_UDP], &ip_conntrack_protocol_udp);
+	rcu_assign_pointer(ip_ct_protos[IPPROTO_ICMP], &ip_conntrack_protocol_icmp);
 	write_unlock_bh(&ip_conntrack_lock);
 
 	/* For use by ipt_REJECT */
