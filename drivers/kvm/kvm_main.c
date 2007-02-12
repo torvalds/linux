@@ -1360,6 +1360,9 @@ static int kvm_dev_ioctl_run(struct kvm *kvm, struct kvm_run *kvm_run)
 	if (!vcpu)
 		return -ENOENT;
 
+	/* re-sync apic's tpr */
+	vcpu->cr8 = kvm_run->cr8;
+
 	if (kvm_run->emulated) {
 		kvm_arch_ops->skip_emulated_instruction(vcpu);
 		kvm_run->emulated = 0;

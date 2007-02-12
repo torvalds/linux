@@ -65,6 +65,8 @@ struct kvm_run {
 	__u8 ready_for_interrupt_injection;
 	__u8 if_flag;
 	__u16 padding2;
+
+	/* in (pre_kvm_run), out (post_kvm_run) */
 	__u64 cr8;
 	__u64 apic_base;
 
