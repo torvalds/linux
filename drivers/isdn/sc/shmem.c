@@ -22,12 +22,6 @@
 #include "card.h"
 
 /*
- * Main adapter array
- */
-extern board *sc_adapter[];
-extern int cinst;
-
-/*
  *
  */
 void memcpy_toshmem(int card, void *dest, const void *src, size_t n)

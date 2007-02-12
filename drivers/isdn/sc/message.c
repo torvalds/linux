@@ -22,16 +22,6 @@
 #include "message.h"
 #include "card.h"
 
-extern board *sc_adapter[];
-extern unsigned int cinst;
-
-/*
- * Obligatory function prototypes
- */
-extern int indicate_status(int,ulong,char*);
-extern int scm_command(isdn_ctrl *);
-
-
 /*
  * receive a message from the board
  */
