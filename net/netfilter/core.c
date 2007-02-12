@@ -69,8 +69,6 @@ int nf_register_hook(struct nf_hook_ops *reg)
 	}
 	list_add_rcu(&reg->list, i->prev);
 	spin_unlock_bh(&nf_hook_lock);
-
-	synchronize_net();
 	return 0;
 }
 EXPORT_SYMBOL(nf_register_hook);
