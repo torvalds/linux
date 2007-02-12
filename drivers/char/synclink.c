@@ -1798,9 +1798,7 @@ static int startup(struct mgsl_struct * info)
 	
 	memset(&info->icount, 0, sizeof(info->icount));
 
-	init_timer(&info->tx_timer);
-	info->tx_timer.data = (unsigned long)info;
-	info->tx_timer.function = mgsl_tx_timeout;
+	setup_timer(&info->tx_timer, mgsl_tx_timeout, (unsigned long)info);
 	
 	/* Allocate and claim adapter resources */
 	retval = mgsl_claim_resources(info);
@@ -1851,7 +1849,7 @@ static void shutdown(struct mgsl_struct * info)
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);
 
-	del_timer(&info->tx_timer);	
+	del_timer_sync(&info->tx_timer);
 
 	if (info->xmit_buf) {
 		free_page((unsigned long) info->xmit_buf);
@@ -5710,8 +5708,8 @@ static void usc_start_transmitter( struct mgsl_struct *info )
 			
 			usc_TCmd( info, TCmd_SendFrame );
 			
-			info->tx_timer.expires = jiffies + msecs_to_jiffies(5000);
-			add_timer(&info->tx_timer);	
+			mod_timer(&info->tx_timer, jiffies +
+					msecs_to_jiffies(5000));
 		}
 		info->tx_active = 1;
 	}

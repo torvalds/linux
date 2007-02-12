@@ -461,8 +461,7 @@ void missed_irq (unsigned long data)
 		sx_interrupt (((struct specialix_board *)data)->irq,
 				(void*)data);
 	}
-	missed_irq_timer.expires = jiffies + sx_poll;
-	add_timer (&missed_irq_timer);
+	mod_timer(&missed_irq_timer, jiffies + sx_poll);
 }
 #endif
 
@@ -597,11 +596,8 @@ static int sx_probe(struct specialix_board *bp)
 	dprintk (SX_DEBUG_INIT, " GFCR = 0x%02x\n", sx_in_off(bp, CD186x_GFRCR) );
 
 #ifdef SPECIALIX_TIMER
-	init_timer (&missed_irq_timer);
-	missed_irq_timer.function = missed_irq;
-	missed_irq_timer.data = (unsigned long) bp;
-	missed_irq_timer.expires = jiffies + sx_poll;
-	add_timer (&missed_irq_timer);
+	setup_timer(&missed_irq_timer, missed_irq, (unsigned long)bp);
+	mod_timer(&missed_irq_timer, jiffies + sx_poll);
 #endif
 
 	printk(KERN_INFO"sx%d: specialix IO8+ board detected at 0x%03x, IRQ %d, CD%d Rev. %c.\n",
@@ -2559,7 +2555,7 @@ static void __exit specialix_exit_module(void)
 		if (sx_board[i].flags & SX_BOARD_PRESENT)
 			sx_release_io_range(&sx_board[i]);
 #ifdef SPECIALIX_TIMER
-	del_timer (&missed_irq_timer);
+	del_timer_sync(&missed_irq_timer);
 #endif
 
 	func_exit();

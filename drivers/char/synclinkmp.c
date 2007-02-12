@@ -2744,8 +2744,7 @@ static int startup(SLMP_INFO * info)
 
 	change_params(info);
 
-	info->status_timer.expires = jiffies + msecs_to_jiffies(10);
-	add_timer(&info->status_timer);
+	mod_timer(&info->status_timer, jiffies + msecs_to_jiffies(10));
 
 	if (info->tty)
 		clear_bit(TTY_IO_ERROR, &info->tty->flags);
@@ -3841,13 +3840,9 @@ static SLMP_INFO *alloc_dev(int adapter_num, int port_num, struct pci_dev *pdev)
 		info->bus_type = MGSL_BUS_TYPE_PCI;
 		info->irq_flags = IRQF_SHARED;
 
-		init_timer(&info->tx_timer);
-		info->tx_timer.data = (unsigned long)info;
-		info->tx_timer.function = tx_timeout;
-
-		init_timer(&info->status_timer);
-		info->status_timer.data = (unsigned long)info;
-		info->status_timer.function = status_timeout;
+		setup_timer(&info->tx_timer, tx_timeout, (unsigned long)info);
+		setup_timer(&info->status_timer, status_timeout,
+				(unsigned long)info);
 
 		/* Store the PCI9050 misc control register value because a flaw
 		 * in the PCI9050 prevents LCR registers from being read if
@@ -4291,8 +4286,8 @@ void tx_start(SLMP_INFO *info)
 			write_reg(info, TXDMA + DIR, 0x40);		/* enable Tx DMA interrupts (EOM) */
 			write_reg(info, TXDMA + DSR, 0xf2);		/* clear Tx DMA IRQs, enable Tx DMA */
 	
-			info->tx_timer.expires = jiffies + msecs_to_jiffies(5000);
-			add_timer(&info->tx_timer);
+			mod_timer(&info->tx_timer, jiffies +
+					msecs_to_jiffies(5000));
 		}
 		else {
 			tx_load_fifo(info);
@@ -5574,10 +5569,7 @@ void status_timeout(unsigned long context)
 	if (status)
 		isr_io_pin(info,status);
 
-	info->status_timer.data = (unsigned long)info;
-	info->status_timer.function = status_timeout;
-	info->status_timer.expires = jiffies + msecs_to_jiffies(10);
-	add_timer(&info->status_timer);
+	mod_timer(&info->status_timer, jiffies + msecs_to_jiffies(10));
 }
 
 
