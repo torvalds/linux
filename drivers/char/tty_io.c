@@ -1496,7 +1496,6 @@ void disassociate_ctty(int on_exit)
 {
 	struct tty_struct *tty;
 	int tty_pgrp = -1;
-	int session;
 
 	lock_kernel();
 
@@ -1530,7 +1529,6 @@ void disassociate_ctty(int on_exit)
 
 	spin_lock_irq(&current->sighand->siglock);
 	current->signal->tty_old_pgrp = 0;
-	session = process_session(current);
 	spin_unlock_irq(&current->sighand->siglock);
 
 	mutex_lock(&tty_mutex);
@@ -1549,7 +1547,7 @@ void disassociate_ctty(int on_exit)
 
 	/* Now clear signal->tty under the lock */
 	read_lock(&tasklist_lock);
-	session_clear_tty(session);
+	session_clear_tty(process_session(current));
 	read_unlock(&tasklist_lock);
 	unlock_kernel();
 }
