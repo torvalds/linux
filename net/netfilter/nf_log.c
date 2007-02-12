@@ -15,27 +15,31 @@
 #define NF_LOG_PREFIXLEN		128
 
 static struct nf_logger *nf_logging[NPROTO]; /* = NULL */
-static DEFINE_SPINLOCK(nf_log_lock);
+static DEFINE_MUTEX(nf_log_mutex);
 
 /* return EBUSY if somebody else is registered, EEXIST if the same logger
  * is registred, 0 on success. */
 int nf_log_register(int pf, struct nf_logger *logger)
 {
-	int ret = -EBUSY;
+	int ret;
 
 	if (pf >= NPROTO)
 		return -EINVAL;
 
 	/* Any setup of logging members must be done before
 	 * substituting pointer. */
-	spin_lock(&nf_log_lock);
-	if (!nf_logging[pf]) {
-		rcu_assign_pointer(nf_logging[pf], logger);
-		ret = 0;
-	} else if (nf_logging[pf] == logger)
-		ret = -EEXIST;
+	ret = mutex_lock_interruptible(&nf_log_mutex);
+	if (ret < 0)
+		return ret;
 
-	spin_unlock(&nf_log_lock);
+	if (!nf_logging[pf])
+		rcu_assign_pointer(nf_logging[pf], logger);
+	else if (nf_logging[pf] == logger)
+		ret = -EEXIST;
+	else
+		ret = -EBUSY;
+
+	mutex_unlock(&nf_log_mutex);
 	return ret;
 }		
 EXPORT_SYMBOL(nf_log_register);
@@ -44,9 +48,9 @@ void nf_log_unregister_pf(int pf)
 {
 	if (pf >= NPROTO)
 		return;
-	spin_lock(&nf_log_lock);
+	mutex_lock(&nf_log_mutex);
 	rcu_assign_pointer(nf_logging[pf], NULL);
-	spin_unlock(&nf_log_lock);
+	mutex_unlock(&nf_log_mutex);
 
 	/* Give time to concurrent readers. */
 	synchronize_rcu();
@@ -57,12 +61,12 @@ void nf_log_unregister_logger(struct nf_logger *logger)
 {
 	int i;
 
-	spin_lock(&nf_log_lock);
+	mutex_lock(&nf_log_mutex);
 	for (i = 0; i < NPROTO; i++) {
 		if (nf_logging[i] == logger)
 			rcu_assign_pointer(nf_logging[i], NULL);
 	}
-	spin_unlock(&nf_log_lock);
+	mutex_unlock(&nf_log_mutex);
 
 	synchronize_rcu();
 }
