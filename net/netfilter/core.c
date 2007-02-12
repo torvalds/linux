@@ -22,29 +22,34 @@
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 #include <linux/proc_fs.h>
+#include <linux/mutex.h>
 #include <net/sock.h>
 
 #include "nf_internals.h"
 
-static DEFINE_SPINLOCK(afinfo_lock);
+static DEFINE_MUTEX(afinfo_mutex);
 
 struct nf_afinfo *nf_afinfo[NPROTO] __read_mostly;
 EXPORT_SYMBOL(nf_afinfo);
 
 int nf_register_afinfo(struct nf_afinfo *afinfo)
 {
-	spin_lock(&afinfo_lock);
+	int err;
+
+	err = mutex_lock_interruptible(&afinfo_mutex);
+	if (err < 0)
+		return err;
 	rcu_assign_pointer(nf_afinfo[afinfo->family], afinfo);
-	spin_unlock(&afinfo_lock);
+	mutex_unlock(&afinfo_mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_register_afinfo);
 
 void nf_unregister_afinfo(struct nf_afinfo *afinfo)
 {
-	spin_lock(&afinfo_lock);
+	mutex_lock(&afinfo_mutex);
 	rcu_assign_pointer(nf_afinfo[afinfo->family], NULL);
-	spin_unlock(&afinfo_lock);
+	mutex_unlock(&afinfo_mutex);
 	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(nf_unregister_afinfo);
