@@ -1188,7 +1188,7 @@ static int job_control(struct tty_struct *tty, struct file *file)
 			printk("read_chan: tty->pgrp <= 0!\n");
 		else if (process_group(current) != tty->pgrp) {
 			if (is_ignored(SIGTTIN) ||
-			    is_orphaned_pgrp(process_group(current)))
+			    is_current_pgrp_orphaned())
 				return -EIO;
 			kill_pg(process_group(current), SIGTTIN, 1);
 			return -ERESTARTSYS;

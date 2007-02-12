@@ -1118,7 +1118,7 @@ int tty_check_change(struct tty_struct * tty)
 		return 0;
 	if (is_ignored(SIGTTOU))
 		return 0;
-	if (is_orphaned_pgrp(process_group(current)))
+	if (is_current_pgrp_orphaned())
 		return -EIO;
 	(void) kill_pg(process_group(current), SIGTTOU, 1);
 	return -ERESTARTSYS;
