@@ -210,7 +210,7 @@ int spi_bitbang_setup(struct spi_device *spi)
 	if (!cs->txrx_word)
 		return -EINVAL;
 
-	retval = spi_bitbang_setup_transfer(spi, NULL);
+	retval = bitbang->setup_transfer(spi, NULL);
 	if (retval < 0)
 		return retval;
 
@@ -442,9 +442,10 @@ EXPORT_SYMBOL_GPL(spi_bitbang_transfer);
  * hardware that basically exposes a shift register) or per-spi_transfer
  * (which takes better advantage of hardware like fifos or DMA engines).
  *
- * Drivers using per-word I/O loops should use (or call) spi_bitbang_setup and
- * spi_bitbang_cleanup to handle those spi master methods.  Those methods are
- * the defaults if the bitbang->txrx_bufs routine isn't initialized.
+ * Drivers using per-word I/O loops should use (or call) spi_bitbang_setup,
+ * spi_bitbang_cleanup and spi_bitbang_setup_transfer to handle those spi
+ * master methods.  Those methods are the defaults if the bitbang->txrx_bufs
+ * routine isn't initialized.
  *
  * This routine registers the spi_master, which will process requests in a
  * dedicated task, keeping IRQs unblocked most of the time.  To stop
