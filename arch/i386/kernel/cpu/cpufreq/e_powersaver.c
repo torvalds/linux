@@ -234,7 +234,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 
 	/* Fill frequency and MSR value table */
 	f_table = &centaur->freq_table[0];
-	if (brand == EPS_BRAND_EDEN) {
+	if (brand != EPS_BRAND_C7M) {
 		f_table[0].frequency = fsb * min_multiplier;
 		f_table[0].index = (min_multiplier << 8) | min_voltage;
 		f_table[1].frequency = fsb * max_multiplier;
