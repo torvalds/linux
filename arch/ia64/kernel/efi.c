@@ -405,8 +405,6 @@ efi_map_pal_code (void)
 	ia64_srlz_i();
 }
 
-extern char __initdata boot_command_line[];
-
 void __init
 efi_init (void)
 {

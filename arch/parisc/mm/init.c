@@ -77,7 +77,6 @@ static void __init mem_limit_func(void)
 {
 	char *cp, *end;
 	unsigned long limit;
-	extern char __initdata boot_command_line[];
 
 	/* We need this before __setup() functions are called */
 

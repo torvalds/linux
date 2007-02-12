@@ -190,8 +190,6 @@ sal_desc_ap_wakeup (void *p)
 	}
 }
 
-extern char __initdata boot_command_line[];
-
 static void __init
 chk_nointroute_opt(void)
 {

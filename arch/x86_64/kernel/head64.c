@@ -34,8 +34,6 @@ static void __init clear_bss(void)
 #define OLD_CL_BASE_ADDR        0x90000
 #define OLD_CL_OFFSET           0x90022
 
-extern char __initdata boot_command_line[];
-
 static void __init copy_bootdata(char *real_mode_data)
 {
 	int new_data;
