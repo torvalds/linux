@@ -323,7 +323,7 @@ static void __exit ebt_ulog_fini(void)
 	ebt_ulog_buff_t *ub;
 	int i;
 
-	nf_log_unregister_logger(&ebt_ulog_logger);
+	nf_log_unregister(&ebt_ulog_logger);
 	ebt_unregister_watcher(&ulog);
 	for (i = 0; i < EBT_ULOG_MAXNLGROUPS; i++) {
 		ub = &ulog_buffers[i];

@@ -14,7 +14,7 @@
 
 #define NF_LOG_PREFIXLEN		128
 
-static struct nf_logger *nf_logging[NPROTO]; /* = NULL */
+static struct nf_logger *nf_loggers[NPROTO];
 static DEFINE_MUTEX(nf_log_mutex);
 
 /* return EBUSY if somebody else is registered, EEXIST if the same logger
@@ -32,9 +32,9 @@ int nf_log_register(int pf, struct nf_logger *logger)
 	if (ret < 0)
 		return ret;
 
-	if (!nf_logging[pf])
-		rcu_assign_pointer(nf_logging[pf], logger);
-	else if (nf_logging[pf] == logger)
+	if (!nf_loggers[pf])
+		rcu_assign_pointer(nf_loggers[pf], logger);
+	else if (nf_loggers[pf] == logger)
 		ret = -EEXIST;
 	else
 		ret = -EBUSY;
@@ -49,7 +49,7 @@ void nf_log_unregister_pf(int pf)
 	if (pf >= NPROTO)
 		return;
 	mutex_lock(&nf_log_mutex);
-	rcu_assign_pointer(nf_logging[pf], NULL);
+	rcu_assign_pointer(nf_loggers[pf], NULL);
 	mutex_unlock(&nf_log_mutex);
 
 	/* Give time to concurrent readers. */
@@ -57,20 +57,20 @@ void nf_log_unregister_pf(int pf)
 }
 EXPORT_SYMBOL(nf_log_unregister_pf);
 
-void nf_log_unregister_logger(struct nf_logger *logger)
+void nf_log_unregister(struct nf_logger *logger)
 {
 	int i;
 
 	mutex_lock(&nf_log_mutex);
 	for (i = 0; i < NPROTO; i++) {
-		if (nf_logging[i] == logger)
-			rcu_assign_pointer(nf_logging[i], NULL);
+		if (nf_loggers[i] == logger)
+			rcu_assign_pointer(nf_loggers[i], NULL);
 	}
 	mutex_unlock(&nf_log_mutex);
 
 	synchronize_rcu();
 }
-EXPORT_SYMBOL(nf_log_unregister_logger);
+EXPORT_SYMBOL(nf_log_unregister);
 
 void nf_log_packet(int pf,
 		   unsigned int hooknum,
@@ -85,7 +85,7 @@ void nf_log_packet(int pf,
 	struct nf_logger *logger;
 	
 	rcu_read_lock();
-	logger = rcu_dereference(nf_logging[pf]);
+	logger = rcu_dereference(nf_loggers[pf]);
 	if (logger) {
 		va_start(args, fmt);
 		vsnprintf(prefix, sizeof(prefix), fmt, args);
@@ -132,7 +132,7 @@ static int seq_show(struct seq_file *s, void *v)
 	loff_t *pos = v;
 	const struct nf_logger *logger;
 
-	logger = rcu_dereference(nf_logging[*pos]);
+	logger = rcu_dereference(nf_loggers[*pos]);
 
 	if (!logger)
 		return seq_printf(s, "%2lld NONE\n", *pos);

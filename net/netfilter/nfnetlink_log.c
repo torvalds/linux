@@ -1077,7 +1077,7 @@ cleanup_netlink_notifier:
 
 static void __exit nfnetlink_log_fini(void)
 {
-	nf_log_unregister_logger(&nfulnl_logger);
+	nf_log_unregister(&nfulnl_logger);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_log", proc_net_netfilter);
 #endif

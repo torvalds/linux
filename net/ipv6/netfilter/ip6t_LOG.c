@@ -501,7 +501,7 @@ static int __init ip6t_log_init(void)
 
 static void __exit ip6t_log_fini(void)
 {
-	nf_log_unregister_logger(&ip6t_logger);
+	nf_log_unregister(&ip6t_logger);
 	xt_unregister_target(&ip6t_log_reg);
 }
 

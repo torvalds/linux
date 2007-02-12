@@ -208,7 +208,7 @@ static int __init ebt_log_init(void)
 
 static void __exit ebt_log_fini(void)
 {
-	nf_log_unregister_logger(&ebt_log_logger);
+	nf_log_unregister(&ebt_log_logger);
 	ebt_unregister_watcher(&log);
 }
 

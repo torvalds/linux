@@ -489,7 +489,7 @@ static int __init ipt_log_init(void)
 
 static void __exit ipt_log_fini(void)
 {
-	nf_log_unregister_logger(&ipt_log_logger);
+	nf_log_unregister(&ipt_log_logger);
 	xt_unregister_target(&ipt_log_reg);
 }
 
