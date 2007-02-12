@@ -175,6 +175,11 @@ static struct s3c2410fb_mach_info h1940_lcdcfg __initdata = {
 	.bpp=		{16,16,16},
 };
 
+static struct platform_device s3c_device_leds = {
+	.name             = "h1940-leds",
+	.id               = -1,
+};
+
 static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_lcd,
@@ -182,6 +187,7 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_i2c,
 	&s3c_device_iis,
 	&s3c_device_usbgadget,
+	&s3c_device_leds,
 };
 
 static struct s3c24xx_board h1940_board __initdata = {
