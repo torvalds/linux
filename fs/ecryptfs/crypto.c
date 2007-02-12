@@ -915,6 +915,22 @@ static void ecryptfs_generate_new_key(struct ecryptfs_crypt_stat *crypt_stat)
 }
 
 /**
+ * ecryptfs_copy_mount_wide_flags_to_inode_flags
+ *
+ * This function propagates the mount-wide flags to individual inode
+ * flags.
+ */
+static void ecryptfs_copy_mount_wide_flags_to_inode_flags(
+	struct ecryptfs_crypt_stat *crypt_stat,
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat)
+{
+	if (mount_crypt_stat->flags & ECRYPTFS_XATTR_METADATA_ENABLED)
+		crypt_stat->flags |= ECRYPTFS_METADATA_IN_XATTR;
+	if (mount_crypt_stat->flags & ECRYPTFS_ENCRYPTED_VIEW_ENABLED)
+		crypt_stat->flags |= ECRYPTFS_VIEW_AS_ENCRYPTED;
+}
+
+/**
  * ecryptfs_set_default_crypt_stat_vals
  * @crypt_stat
  *
@@ -924,6 +940,8 @@ static void ecryptfs_set_default_crypt_stat_vals(
 	struct ecryptfs_crypt_stat *crypt_stat,
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat)
 {
+	ecryptfs_copy_mount_wide_flags_to_inode_flags(crypt_stat,
+						      mount_crypt_stat);
 	ecryptfs_set_default_sizes(crypt_stat);
 	strcpy(crypt_stat->cipher, ECRYPTFS_DEFAULT_CIPHER);
 	crypt_stat->key_size = ECRYPTFS_DEFAULT_KEY_BYTES;
@@ -969,6 +987,8 @@ int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry)
 				"file using mount_crypt_stat\n");
 		ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_ENCRYPTED);
 		ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_KEY_VALID);
+		ecryptfs_copy_mount_wide_flags_to_inode_flags(crypt_stat,
+							      mount_crypt_stat);
 		memcpy(crypt_stat->keysigs[crypt_stat->num_keysigs++],
 		       mount_crypt_stat->global_auth_tok_sig,
 		       ECRYPTFS_SIG_SIZE_HEX);

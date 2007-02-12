@@ -162,7 +162,8 @@ out:
 enum { ecryptfs_opt_sig, ecryptfs_opt_ecryptfs_sig, ecryptfs_opt_debug,
        ecryptfs_opt_ecryptfs_debug, ecryptfs_opt_cipher,
        ecryptfs_opt_ecryptfs_cipher, ecryptfs_opt_ecryptfs_key_bytes,
-       ecryptfs_opt_passthrough, ecryptfs_opt_err };
+       ecryptfs_opt_passthrough, ecryptfs_opt_xattr_metadata,
+       ecryptfs_opt_encrypted_view, ecryptfs_opt_err };
 
 static match_table_t tokens = {
 	{ecryptfs_opt_sig, "sig=%s"},
@@ -173,6 +174,8 @@ static match_table_t tokens = {
 	{ecryptfs_opt_ecryptfs_cipher, "ecryptfs_cipher=%s"},
 	{ecryptfs_opt_ecryptfs_key_bytes, "ecryptfs_key_bytes=%u"},
 	{ecryptfs_opt_passthrough, "ecryptfs_passthrough"},
+	{ecryptfs_opt_xattr_metadata, "ecryptfs_xattr_metadata"},
+	{ecryptfs_opt_encrypted_view, "ecryptfs_encrypted_view"},
 	{ecryptfs_opt_err, NULL}
 };
 
@@ -312,6 +315,16 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		case ecryptfs_opt_passthrough:
 			mount_crypt_stat->flags |=
 				ECRYPTFS_PLAINTEXT_PASSTHROUGH_ENABLED;
+			break;
+		case ecryptfs_opt_xattr_metadata:
+			mount_crypt_stat->flags |=
+				ECRYPTFS_XATTR_METADATA_ENABLED;
+			break;
+		case ecryptfs_opt_encrypted_view:
+			mount_crypt_stat->flags |=
+				ECRYPTFS_XATTR_METADATA_ENABLED;
+			mount_crypt_stat->flags |=
+				ECRYPTFS_ENCRYPTED_VIEW_ENABLED;
 			break;
 		case ecryptfs_opt_err:
 		default:
@@ -734,7 +747,8 @@ static struct ecryptfs_version_str_map_elem {
 	{ECRYPTFS_VERSIONING_PASSPHRASE, "passphrase"},
 	{ECRYPTFS_VERSIONING_PUBKEY, "pubkey"},
 	{ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH, "plaintext passthrough"},
-	{ECRYPTFS_VERSIONING_POLICY, "policy"}
+	{ECRYPTFS_VERSIONING_POLICY, "policy"},
+	{ECRYPTFS_VERSIONING_XATTR, "metadata in extended attribute"}
 };
 
 static ssize_t version_str_show(struct ecryptfs_obj *obj, char *buff)

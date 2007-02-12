@@ -43,13 +43,14 @@
  * module; userspace tools such as the mount helper read
  * ECRYPTFS_VERSIONING_MASK from a sysfs handle in order to determine
  * how to behave. */
-#define ECRYPTFS_VERSIONING_PASSPHRASE 0x00000001
-#define ECRYPTFS_VERSIONING_PUBKEY 0x00000002
+#define ECRYPTFS_VERSIONING_PASSPHRASE            0x00000001
+#define ECRYPTFS_VERSIONING_PUBKEY                0x00000002
 #define ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH 0x00000004
-#define ECRYPTFS_VERSIONING_POLICY 0x00000008
+#define ECRYPTFS_VERSIONING_POLICY                0x00000008
+#define ECRYPTFS_VERSIONING_XATTR                 0x00000010
 #define ECRYPTFS_VERSIONING_MASK (ECRYPTFS_VERSIONING_PASSPHRASE \
-                                  | ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH \
-                                  | ECRYPTFS_VERSIONING_PUBKEY)
+				  | ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH \
+				  | ECRYPTFS_VERSIONING_PUBKEY)
 
 #define ECRYPTFS_MAX_PASSWORD_LENGTH 64
 #define ECRYPTFS_MAX_PASSPHRASE_BYTES ECRYPTFS_MAX_PASSWORD_LENGTH
@@ -227,6 +228,8 @@ struct ecryptfs_crypt_stat {
 #define ECRYPTFS_ENABLE_HMAC        0x00000020
 #define ECRYPTFS_ENCRYPT_IV_PAGES   0x00000040
 #define ECRYPTFS_KEY_VALID          0x00000080
+#define ECRYPTFS_METADATA_IN_XATTR  0x00000100
+#define ECRYPTFS_VIEW_AS_ENCRYPTED  0x00000200
 	u32 flags;
 	unsigned int file_version;
 	size_t iv_bytes;
@@ -273,6 +276,8 @@ struct ecryptfs_dentry_info {
 struct ecryptfs_mount_crypt_stat {
 	/* Pointers to memory we do not own, do not free these */
 #define ECRYPTFS_PLAINTEXT_PASSTHROUGH_ENABLED 0x00000001
+#define ECRYPTFS_XATTR_METADATA_ENABLED        0x00000002
+#define ECRYPTFS_ENCRYPTED_VIEW_ENABLED        0x00000004
 	u32 flags;
 	struct ecryptfs_auth_tok *global_auth_tok;
 	struct key *global_auth_tok_key;
