@@ -538,7 +538,7 @@ static int early_drop(struct list_head *chain)
 	if (del_timer(&ct->timeout)) {
 		death_by_timeout((unsigned long)ct);
 		dropped = 1;
-		CONNTRACK_STAT_INC(early_drop);
+		CONNTRACK_STAT_INC_ATOMIC(early_drop);
 	}
 	ip_conntrack_put(ct);
 	return dropped;
@@ -804,7 +804,7 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 
 	/* Previously seen (loopback or untracked)?  Ignore. */
 	if ((*pskb)->nfct) {
-		CONNTRACK_STAT_INC(ignore);
+		CONNTRACK_STAT_INC_ATOMIC(ignore);
 		return NF_ACCEPT;
 	}
 
@@ -840,20 +840,20 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 	 * core what to do with the packet. */
 	if (proto->error != NULL
 	    && (ret = proto->error(*pskb, &ctinfo, hooknum)) <= 0) {
-		CONNTRACK_STAT_INC(error);
-		CONNTRACK_STAT_INC(invalid);
+		CONNTRACK_STAT_INC_ATOMIC(error);
+		CONNTRACK_STAT_INC_ATOMIC(invalid);
 		return -ret;
 	}
 
 	if (!(ct = resolve_normal_ct(*pskb, proto,&set_reply,hooknum,&ctinfo))) {
 		/* Not valid part of a connection */
-		CONNTRACK_STAT_INC(invalid);
+		CONNTRACK_STAT_INC_ATOMIC(invalid);
 		return NF_ACCEPT;
 	}
 
 	if (IS_ERR(ct)) {
 		/* Too stressed to deal. */
-		CONNTRACK_STAT_INC(drop);
+		CONNTRACK_STAT_INC_ATOMIC(drop);
 		return NF_DROP;
 	}
 
@@ -865,7 +865,7 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 		 * the netfilter core what to do*/
 		nf_conntrack_put((*pskb)->nfct);
 		(*pskb)->nfct = NULL;
-		CONNTRACK_STAT_INC(invalid);
+		CONNTRACK_STAT_INC_ATOMIC(invalid);
 		return -ret;
 	}
 
