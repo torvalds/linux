@@ -34,6 +34,7 @@
 #include <linux/highmem.h>
 #include <linux/file.h>
 #include <asm/desc.h>
+#include <linux/cpu.h>
 
 #include "x86_emulate.h"
 #include "segment_descriptor.h"
@@ -2039,6 +2040,64 @@ static struct notifier_block kvm_reboot_notifier = {
 	.priority = 0,
 };
 
+/*
+ * Make sure that a cpu that is being hot-unplugged does not have any vcpus
+ * cached on it.
+ */
+static void decache_vcpus_on_cpu(int cpu)
+{
+	struct kvm *vm;
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	spin_lock(&kvm_lock);
+	list_for_each_entry(vm, &vm_list, vm_list)
+		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+			vcpu = &vm->vcpus[i];
+			/*
+			 * If the vcpu is locked, then it is running on some
+			 * other cpu and therefore it is not cached on the
+			 * cpu in question.
+			 *
+			 * If it's not locked, check the last cpu it executed
+			 * on.
+			 */
+			if (mutex_trylock(&vcpu->mutex)) {
+				if (vcpu->cpu == cpu) {
+					kvm_arch_ops->vcpu_decache(vcpu);
+					vcpu->cpu = -1;
+				}
+				mutex_unlock(&vcpu->mutex);
+			}
+		}
+	spin_unlock(&kvm_lock);
+}
+
+static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
+			   void *v)
+{
+	int cpu = (long)v;
+
+	switch (val) {
+	case CPU_DEAD:
+	case CPU_UP_CANCELED:
+		decache_vcpus_on_cpu(cpu);
+		smp_call_function_single(cpu, kvm_arch_ops->hardware_disable,
+					 NULL, 0, 1);
+		break;
+	case CPU_UP_PREPARE:
+		smp_call_function_single(cpu, kvm_arch_ops->hardware_enable,
+					 NULL, 0, 1);
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block kvm_cpu_notifier = {
+	.notifier_call = kvm_cpu_hotplug,
+	.priority = 20, /* must be > scheduler priority */
+};
+
 static __init void kvm_init_debug(void)
 {
 	struct kvm_stats_debugfs_item *p;
@@ -2085,6 +2144,9 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 	    return r;
 
 	on_each_cpu(kvm_arch_ops->hardware_enable, NULL, 0, 1);
+	r = register_cpu_notifier(&kvm_cpu_notifier);
+	if (r)
+		goto out_free_1;
 	register_reboot_notifier(&kvm_reboot_notifier);
 
 	kvm_chardev_ops.owner = module;
@@ -2099,6 +2161,8 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 
 out_free:
 	unregister_reboot_notifier(&kvm_reboot_notifier);
+	unregister_cpu_notifier(&kvm_cpu_notifier);
+out_free_1:
 	on_each_cpu(kvm_arch_ops->hardware_disable, NULL, 0, 1);
 	kvm_arch_ops->hardware_unsetup();
 	return r;

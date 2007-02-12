@@ -609,6 +609,10 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 	put_cpu();
 }
 
+static void svm_vcpu_decache(struct kvm_vcpu *vcpu)
+{
+}
+
 static void svm_cache_regs(struct kvm_vcpu *vcpu)
 {
 	vcpu->regs[VCPU_REGS_RAX] = vcpu->svm->vmcb->save.rax;
@@ -1677,6 +1681,7 @@ static struct kvm_arch_ops svm_arch_ops = {
 
 	.vcpu_load = svm_vcpu_load,
 	.vcpu_put = svm_vcpu_put,
+	.vcpu_decache = svm_vcpu_decache,
 
 	.set_guest_debug = svm_guest_debug,
 	.get_msr = svm_get_msr,
