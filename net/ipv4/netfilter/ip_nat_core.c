@@ -604,8 +604,8 @@ static int __init ip_nat_init(void)
 	}
 
 	/* FIXME: Man, this is a hack.  <SIGH> */
-	IP_NF_ASSERT(ip_conntrack_destroyed == NULL);
-	ip_conntrack_destroyed = &ip_nat_cleanup_conntrack;
+	IP_NF_ASSERT(rcu_dereference(ip_conntrack_destroyed) == NULL);
+	rcu_assign_pointer(ip_conntrack_destroyed, ip_nat_cleanup_conntrack);
 
 	/* Initialize fake conntrack so that NAT will skip it */
 	ip_conntrack_untracked.status |= IPS_NAT_DONE_MASK;
@@ -623,7 +623,8 @@ static int clean_nat(struct ip_conntrack *i, void *data)
 static void __exit ip_nat_cleanup(void)
 {
 	ip_ct_iterate_cleanup(&clean_nat, NULL);
-	ip_conntrack_destroyed = NULL;
+	rcu_assign_pointer(ip_conntrack_destroyed, NULL);
+	synchronize_rcu();
 	vfree(bysource);
 }
 

@@ -303,6 +303,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	struct ip_conntrack *ct = (struct ip_conntrack *)nfct;
 	struct ip_conntrack_protocol *proto;
 	struct ip_conntrack_helper *helper;
+	typeof(ip_conntrack_destroyed) destroyed;
 
 	DEBUGP("destroy_conntrack(%p)\n", ct);
 	IP_NF_ASSERT(atomic_read(&nfct->use) == 0);
@@ -322,10 +323,12 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	proto = __ip_conntrack_proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
 	if (proto && proto->destroy)
 		proto->destroy(ct);
-	rcu_read_unlock();
 
-	if (ip_conntrack_destroyed)
-		ip_conntrack_destroyed(ct);
+	destroyed = rcu_dereference(ip_conntrack_destroyed);
+	if (destroyed)
+		destroyed(ct);
+
+	rcu_read_unlock();
 
 	write_lock_bh(&ip_conntrack_lock);
 	/* Expectations will have been removed in clean_from_lists,
