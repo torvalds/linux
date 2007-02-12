@@ -596,6 +596,7 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 	struct task_struct *g, *p;
 	struct user_struct *user;
 	int error = -EINVAL;
+	struct pid *pgrp;
 
 	if (which > 2 || which < 0)
 		goto out;
@@ -610,18 +611,21 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 	read_lock(&tasklist_lock);
 	switch (which) {
 		case PRIO_PROCESS:
-			if (!who)
-				who = current->pid;
-			p = find_task_by_pid(who);
+			if (who)
+				p = find_task_by_pid(who);
+			else
+				p = current;
 			if (p)
 				error = set_one_prio(p, niceval, error);
 			break;
 		case PRIO_PGRP:
-			if (!who)
-				who = process_group(current);
-			do_each_task_pid(who, PIDTYPE_PGID, p) {
+			if (who)
+				pgrp = find_pid(who);
+			else
+				pgrp = task_pgrp(current);
+			do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
 				error = set_one_prio(p, niceval, error);
-			} while_each_task_pid(who, PIDTYPE_PGID, p);
+			} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
 			user = current->user;
@@ -656,6 +660,7 @@ asmlinkage long sys_getpriority(int which, int who)
 	struct task_struct *g, *p;
 	struct user_struct *user;
 	long niceval, retval = -ESRCH;
+	struct pid *pgrp;
 
 	if (which > 2 || which < 0)
 		return -EINVAL;
@@ -663,9 +668,10 @@ asmlinkage long sys_getpriority(int which, int who)
 	read_lock(&tasklist_lock);
 	switch (which) {
 		case PRIO_PROCESS:
-			if (!who)
-				who = current->pid;
-			p = find_task_by_pid(who);
+			if (who)
+				p = find_task_by_pid(who);
+			else
+				p = current;
 			if (p) {
 				niceval = 20 - task_nice(p);
 				if (niceval > retval)
@@ -673,13 +679,15 @@ asmlinkage long sys_getpriority(int which, int who)
 			}
 			break;
 		case PRIO_PGRP:
-			if (!who)
-				who = process_group(current);
-			do_each_task_pid(who, PIDTYPE_PGID, p) {
+			if (who)
+				pgrp = find_pid(who);
+			else
+				pgrp = task_pgrp(current);
+			do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
 				niceval = 20 - task_nice(p);
 				if (niceval > retval)
 					retval = niceval;
-			} while_each_task_pid(who, PIDTYPE_PGID, p);
+			} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
 			user = current->user;
@@ -1388,7 +1396,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 
 	if (p->real_parent == group_leader) {
 		err = -EPERM;
-		if (process_session(p) != process_session(group_leader))
+		if (task_session(p) != task_session(group_leader))
 			goto out;
 		err = -EACCES;
 		if (p->did_exec)
@@ -1407,7 +1415,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 		struct task_struct *g =
 			find_task_by_pid_type(PIDTYPE_PGID, pgid);
 
-		if (!g || process_session(g) != process_session(group_leader))
+		if (!g || task_session(g) != task_session(group_leader))
 			goto out;
 	}
 
