@@ -419,7 +419,7 @@ static void __exit ipt_ulog_fini(void)
 	DEBUGP("ipt_ULOG: cleanup_module\n");
 
 	if (nflog)
-		nf_log_unregister_logger(&ipt_ulog_logger);
+		nf_log_unregister(&ipt_ulog_logger);
 	xt_unregister_target(&ipt_ulog_reg);
 	sock_release(nflognl->sk_socket);
 

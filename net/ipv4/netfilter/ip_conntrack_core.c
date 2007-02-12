@@ -303,6 +303,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	struct ip_conntrack *ct = (struct ip_conntrack *)nfct;
 	struct ip_conntrack_protocol *proto;
 	struct ip_conntrack_helper *helper;
+	typeof(ip_conntrack_destroyed) destroyed;
 
 	DEBUGP("destroy_conntrack(%p)\n", ct);
 	IP_NF_ASSERT(atomic_read(&nfct->use) == 0);
@@ -318,12 +319,16 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	/* To make sure we don't get any weird locking issues here:
 	 * destroy_conntrack() MUST NOT be called with a write lock
 	 * to ip_conntrack_lock!!! -HW */
+	rcu_read_lock();
 	proto = __ip_conntrack_proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
 	if (proto && proto->destroy)
 		proto->destroy(ct);
 
-	if (ip_conntrack_destroyed)
-		ip_conntrack_destroyed(ct);
+	destroyed = rcu_dereference(ip_conntrack_destroyed);
+	if (destroyed)
+		destroyed(ct);
+
+	rcu_read_unlock();
 
 	write_lock_bh(&ip_conntrack_lock);
 	/* Expectations will have been removed in clean_from_lists,
@@ -536,7 +541,7 @@ static int early_drop(struct list_head *chain)
 	if (del_timer(&ct->timeout)) {
 		death_by_timeout((unsigned long)ct);
 		dropped = 1;
-		CONNTRACK_STAT_INC(early_drop);
+		CONNTRACK_STAT_INC_ATOMIC(early_drop);
 	}
 	ip_conntrack_put(ct);
 	return dropped;
@@ -595,13 +600,13 @@ ip_conntrack_proto_find_get(u_int8_t protocol)
 {
 	struct ip_conntrack_protocol *p;
 
-	preempt_disable();
+	rcu_read_lock();
 	p = __ip_conntrack_proto_find(protocol);
 	if (p) {
 		if (!try_module_get(p->me))
 			p = &ip_conntrack_generic_protocol;
 	}
-	preempt_enable();
+	rcu_read_unlock();
 
 	return p;
 }
@@ -802,7 +807,7 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 
 	/* Previously seen (loopback or untracked)?  Ignore. */
 	if ((*pskb)->nfct) {
-		CONNTRACK_STAT_INC(ignore);
+		CONNTRACK_STAT_INC_ATOMIC(ignore);
 		return NF_ACCEPT;
 	}
 
@@ -830,6 +835,7 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 	}
 #endif
 
+	/* rcu_read_lock()ed by nf_hook_slow */
 	proto = __ip_conntrack_proto_find((*pskb)->nh.iph->protocol);
 
 	/* It may be an special packet, error, unclean...
@@ -837,20 +843,20 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 	 * core what to do with the packet. */
 	if (proto->error != NULL
 	    && (ret = proto->error(*pskb, &ctinfo, hooknum)) <= 0) {
-		CONNTRACK_STAT_INC(error);
-		CONNTRACK_STAT_INC(invalid);
+		CONNTRACK_STAT_INC_ATOMIC(error);
+		CONNTRACK_STAT_INC_ATOMIC(invalid);
 		return -ret;
 	}
 
 	if (!(ct = resolve_normal_ct(*pskb, proto,&set_reply,hooknum,&ctinfo))) {
 		/* Not valid part of a connection */
-		CONNTRACK_STAT_INC(invalid);
+		CONNTRACK_STAT_INC_ATOMIC(invalid);
 		return NF_ACCEPT;
 	}
 
 	if (IS_ERR(ct)) {
 		/* Too stressed to deal. */
-		CONNTRACK_STAT_INC(drop);
+		CONNTRACK_STAT_INC_ATOMIC(drop);
 		return NF_DROP;
 	}
 
@@ -862,7 +868,7 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 		 * the netfilter core what to do*/
 		nf_conntrack_put((*pskb)->nfct);
 		(*pskb)->nfct = NULL;
-		CONNTRACK_STAT_INC(invalid);
+		CONNTRACK_STAT_INC_ATOMIC(invalid);
 		return -ret;
 	}
 
@@ -875,8 +881,15 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 int invert_tuplepr(struct ip_conntrack_tuple *inverse,
 		   const struct ip_conntrack_tuple *orig)
 {
-	return ip_ct_invert_tuple(inverse, orig,
-				  __ip_conntrack_proto_find(orig->dst.protonum));
+	struct ip_conntrack_protocol *proto;
+	int ret;
+
+	rcu_read_lock();
+	proto = __ip_conntrack_proto_find(orig->dst.protonum);
+	ret = ip_ct_invert_tuple(inverse, orig, proto);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 /* Would two expected things clash? */
@@ -1354,7 +1367,7 @@ static void free_conntrack_hash(struct list_head *hash, int vmalloced,int size)
    supposed to kill the mall. */
 void ip_conntrack_cleanup(void)
 {
-	ip_ct_attach = NULL;
+	rcu_assign_pointer(ip_ct_attach, NULL);
 
 	/* This makes sure all current packets have passed through
 	   netfilter framework.  Roll on, two-stage module
@@ -1507,15 +1520,15 @@ int __init ip_conntrack_init(void)
 	/* Don't NEED lock here, but good form anyway. */
 	write_lock_bh(&ip_conntrack_lock);
 	for (i = 0; i < MAX_IP_CT_PROTO; i++)
-		ip_ct_protos[i] = &ip_conntrack_generic_protocol;
+		rcu_assign_pointer(ip_ct_protos[i], &ip_conntrack_generic_protocol);
 	/* Sew in builtin protocols. */
-	ip_ct_protos[IPPROTO_TCP] = &ip_conntrack_protocol_tcp;
-	ip_ct_protos[IPPROTO_UDP] = &ip_conntrack_protocol_udp;
-	ip_ct_protos[IPPROTO_ICMP] = &ip_conntrack_protocol_icmp;
+	rcu_assign_pointer(ip_ct_protos[IPPROTO_TCP], &ip_conntrack_protocol_tcp);
+	rcu_assign_pointer(ip_ct_protos[IPPROTO_UDP], &ip_conntrack_protocol_udp);
+	rcu_assign_pointer(ip_ct_protos[IPPROTO_ICMP], &ip_conntrack_protocol_icmp);
 	write_unlock_bh(&ip_conntrack_lock);
 
 	/* For use by ipt_REJECT */
-	ip_ct_attach = ip_conntrack_attach;
+	rcu_assign_pointer(ip_ct_attach, ip_conntrack_attach);
 
 	/* Set up fake conntrack:
 	    - to never be deleted, not in any hashes */

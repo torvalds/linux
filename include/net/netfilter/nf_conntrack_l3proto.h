@@ -89,7 +89,7 @@ extern struct nf_conntrack_l3proto *nf_ct_l3protos[AF_MAX];
 
 /* Protocol registration. */
 extern int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto);
-extern int nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto);
+extern void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto);
 
 extern struct nf_conntrack_l3proto *
 nf_ct_l3proto_find_get(u_int16_t l3proto);
@@ -106,7 +106,7 @@ __nf_ct_l3proto_find(u_int16_t l3proto)
 {
 	if (unlikely(l3proto >= AF_MAX))
 		return &nf_conntrack_l3proto_generic;
-	return nf_ct_l3protos[l3proto];
+	return rcu_dereference(nf_ct_l3protos[l3proto]);
 }
 
 #endif /*_NF_CONNTRACK_L3PROTO_H*/

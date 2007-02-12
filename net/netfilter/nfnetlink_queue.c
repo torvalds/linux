@@ -129,7 +129,7 @@ instance_create(u_int16_t queue_num, int pid)
 
 	QDEBUG("entering for queue_num=%u, pid=%d\n", queue_num, pid);
 
-	write_lock_bh(&instances_lock);	
+	write_lock_bh(&instances_lock);
 	if (__instance_lookup(queue_num)) {
 		inst = NULL;
 		QDEBUG("aborting, instance already exists\n");
@@ -154,7 +154,7 @@ instance_create(u_int16_t queue_num, int pid)
 	if (!try_module_get(THIS_MODULE))
 		goto out_free;
 
-	hlist_add_head(&inst->hlist, 
+	hlist_add_head(&inst->hlist,
 		       &instance_table[instance_hashfn(queue_num)]);
 
 	write_unlock_bh(&instances_lock);
@@ -239,14 +239,14 @@ __enqueue_entry(struct nfqnl_instance *queue,
  * entry if cmpfn is NULL.
  */
 static inline struct nfqnl_queue_entry *
-__find_entry(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, 
+__find_entry(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn,
 		   unsigned long data)
 {
 	struct list_head *p;
 
 	list_for_each_prev(p, &queue->queue_list) {
 		struct nfqnl_queue_entry *entry = (struct nfqnl_queue_entry *)p;
-		
+
 		if (!cmpfn || cmpfn(entry, data))
 			return entry;
 	}
@@ -279,7 +279,7 @@ static inline void
 __nfqnl_flush(struct nfqnl_instance *queue, int verdict)
 {
 	struct nfqnl_queue_entry *entry;
-	
+
 	while ((entry = __find_dequeue_entry(queue, NULL, 0)))
 		issue_verdict(entry, verdict);
 }
@@ -289,14 +289,14 @@ __nfqnl_set_mode(struct nfqnl_instance *queue,
 		 unsigned char mode, unsigned int range)
 {
 	int status = 0;
-	
+
 	switch (mode) {
 	case NFQNL_COPY_NONE:
 	case NFQNL_COPY_META:
 		queue->copy_mode = mode;
 		queue->copy_range = 0;
 		break;
-		
+
 	case NFQNL_COPY_PACKET:
 		queue->copy_mode = mode;
 		/* we're using struct nfattr which has 16bit nfa_len */
@@ -305,7 +305,7 @@ __nfqnl_set_mode(struct nfqnl_instance *queue,
 		else
 			queue->copy_range = range;
 		break;
-		
+
 	default:
 		status = -EINVAL;
 
@@ -318,7 +318,7 @@ find_dequeue_entry(struct nfqnl_instance *queue,
 			 nfqnl_cmpfn cmpfn, unsigned long data)
 {
 	struct nfqnl_queue_entry *entry;
-	
+
 	spin_lock_bh(&queue->lock);
 	entry = __find_dequeue_entry(queue, cmpfn, data);
 	spin_unlock_bh(&queue->lock);
@@ -369,13 +369,13 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	outdev = entinf->outdev;
 
 	spin_lock_bh(&queue->lock);
-	
+
 	switch (queue->copy_mode) {
 	case NFQNL_COPY_META:
 	case NFQNL_COPY_NONE:
 		data_len = 0;
 		break;
-	
+
 	case NFQNL_COPY_PACKET:
 		if ((entskb->ip_summed == CHECKSUM_PARTIAL ||
 		     entskb->ip_summed == CHECKSUM_COMPLETE) &&
@@ -383,15 +383,15 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 			spin_unlock_bh(&queue->lock);
 			return NULL;
 		}
-		if (queue->copy_range == 0 
+		if (queue->copy_range == 0
 		    || queue->copy_range > entskb->len)
 			data_len = entskb->len;
 		else
 			data_len = queue->copy_range;
-		
+
 		size += NFA_SPACE(data_len);
 		break;
-	
+
 	default:
 		*errp = -EINVAL;
 		spin_unlock_bh(&queue->lock);
@@ -403,9 +403,9 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb)
 		goto nlmsg_failure;
-		
+
 	old_tail= skb->tail;
-	nlh = NLMSG_PUT(skb, 0, 0, 
+	nlh = NLMSG_PUT(skb, 0, 0,
 			NFNL_SUBSYS_QUEUE << 8 | NFQNL_MSG_PACKET,
 			sizeof(struct nfgenmsg));
 	nfmsg = NLMSG_DATA(nlh);
@@ -427,9 +427,9 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 #else
 		if (entinf->pf == PF_BRIDGE) {
 			/* Case 1: indev is physical input device, we need to
-			 * look for bridge group (when called from 
+			 * look for bridge group (when called from
 			 * netfilter_bridge) */
-			NFA_PUT(skb, NFQA_IFINDEX_PHYSINDEV, sizeof(tmp_uint), 
+			NFA_PUT(skb, NFQA_IFINDEX_PHYSINDEV, sizeof(tmp_uint),
 				&tmp_uint);
 			/* this is the bridge group "brX" */
 			tmp_uint = htonl(indev->br_port->br->dev->ifindex);
@@ -457,7 +457,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 #else
 		if (entinf->pf == PF_BRIDGE) {
 			/* Case 1: outdev is physical output device, we need to
-			 * look for bridge group (when called from 
+			 * look for bridge group (when called from
 			 * netfilter_bridge) */
 			NFA_PUT(skb, NFQA_IFINDEX_PHYSOUTDEV, sizeof(tmp_uint),
 				&tmp_uint);
@@ -490,7 +490,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		struct nfqnl_msg_packet_hw phw;
 
 		int len = entskb->dev->hard_header_parse(entskb,
-			                                   phw.hw_addr);
+							   phw.hw_addr);
 		phw.hw_addrlen = htons(len);
 		NFA_PUT(skb, NFQA_HWADDR, sizeof(phw), &phw);
 	}
@@ -520,7 +520,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		if (skb_copy_bits(entskb, 0, NFA_DATA(nfa), data_len))
 			BUG();
 	}
-		
+
 	nlh->nlmsg_len = skb->tail - old_tail;
 	return skb;
 
@@ -535,7 +535,7 @@ nfattr_failure:
 }
 
 static int
-nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info, 
+nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 		     unsigned int queuenum, void *data)
 {
 	int status = -EINVAL;
@@ -560,7 +560,7 @@ nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL) {
 		if (net_ratelimit())
-			printk(KERN_ERR 
+			printk(KERN_ERR
 				"nf_queue: OOM in nfqnl_enqueue_packet()\n");
 		status = -ENOMEM;
 		goto err_out_put;
@@ -573,18 +573,18 @@ nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 	nskb = nfqnl_build_packet_message(queue, entry, &status);
 	if (nskb == NULL)
 		goto err_out_free;
-		
+
 	spin_lock_bh(&queue->lock);
-	
+
 	if (!queue->peer_pid)
-		goto err_out_free_nskb; 
+		goto err_out_free_nskb;
 
 	if (queue->queue_total >= queue->queue_maxlen) {
-                queue->queue_dropped++;
+		queue->queue_dropped++;
 		status = -ENOSPC;
 		if (net_ratelimit())
-		          printk(KERN_WARNING "nf_queue: full at %d entries, "
-				 "dropping packets(s). Dropped: %d\n", 
+			  printk(KERN_WARNING "nf_queue: full at %d entries, "
+				 "dropping packets(s). Dropped: %d\n",
 				 queue->queue_total, queue->queue_dropped);
 		goto err_out_free_nskb;
 	}
@@ -592,7 +592,7 @@ nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 	/* nfnetlink_unicast will either free the nskb or add it to a socket */
 	status = nfnetlink_unicast(nskb, queue->peer_pid, MSG_DONTWAIT);
 	if (status < 0) {
-	        queue->queue_user_dropped++;
+		queue->queue_user_dropped++;
 		goto err_out_unlock;
 	}
 
@@ -603,8 +603,8 @@ nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 	return status;
 
 err_out_free_nskb:
-	kfree_skb(nskb); 
-	
+	kfree_skb(nskb);
+
 err_out_unlock:
 	spin_unlock_bh(&queue->lock);
 
@@ -629,11 +629,11 @@ nfqnl_mangle(void *data, int data_len, struct nfqnl_queue_entry *e)
 			return -EINVAL;
 		if (diff > skb_tailroom(e->skb)) {
 			struct sk_buff *newskb;
-			
+
 			newskb = skb_copy_expand(e->skb,
-			                         skb_headroom(e->skb),
-			                         diff,
-			                         GFP_ATOMIC);
+						 skb_headroom(e->skb),
+						 diff,
+						 GFP_ATOMIC);
 			if (newskb == NULL) {
 				printk(KERN_WARNING "nf_queue: OOM "
 				      "in mangle, dropping packet\n");
@@ -676,7 +676,7 @@ static int
 dev_cmp(struct nfqnl_queue_entry *entry, unsigned long ifindex)
 {
 	struct nf_info *entinf = entry->info;
-	
+
 	if (entinf->indev)
 		if (entinf->indev->ifindex == ifindex)
 			return 1;
@@ -702,7 +702,7 @@ static void
 nfqnl_dev_drop(int ifindex)
 {
 	int i;
-	
+
 	QDEBUG("entering for ifindex %u\n", ifindex);
 
 	/* this only looks like we have to hold the readlock for a way too long
@@ -717,7 +717,7 @@ nfqnl_dev_drop(int ifindex)
 
 		hlist_for_each_entry(inst, tmp, head, hlist) {
 			struct nfqnl_queue_entry *entry;
-			while ((entry = find_dequeue_entry(inst, dev_cmp, 
+			while ((entry = find_dequeue_entry(inst, dev_cmp,
 							   ifindex)) != NULL)
 				issue_verdict(entry, NF_DROP);
 		}
@@ -835,8 +835,8 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 
 	if (nfqa[NFQA_MARK-1])
 		entry->skb->mark = ntohl(*(__be32 *)
-		                         NFA_DATA(nfqa[NFQA_MARK-1]));
-		
+					 NFA_DATA(nfqa[NFQA_MARK-1]));
+
 	issue_verdict(entry, verdict);
 	instance_put(queue);
 	return 0;
@@ -1093,7 +1093,7 @@ static int __init nfnetlink_queue_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *proc_nfqueue;
 #endif
-	
+
 	for (i = 0; i < INSTANCE_BUCKETS; i++)
 		INIT_HLIST_HEAD(&instance_table[i]);
 

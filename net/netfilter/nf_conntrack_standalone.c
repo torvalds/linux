@@ -472,7 +472,7 @@ static int __init nf_conntrack_standalone_init(void)
 static void __exit nf_conntrack_standalone_fini(void)
 {
 #ifdef CONFIG_SYSCTL
- 	unregister_sysctl_table(nf_ct_sysctl_header);
+	unregister_sysctl_table(nf_ct_sysctl_header);
 #endif
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nf_conntrack", proc_net_stat);

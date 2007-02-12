@@ -130,7 +130,7 @@ void nf_ct_remove_expectations(struct nf_conn *ct)
 		if (i->master == ct && del_timer(&i->timeout)) {
 			nf_ct_unlink_expect(i);
 			nf_conntrack_expect_put(i);
- 		}
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(nf_ct_remove_expectations);

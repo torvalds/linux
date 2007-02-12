@@ -50,7 +50,7 @@ static struct ip_nat_protocol *ip_nat_protos[MAX_IP_NAT_PROTO];
 static inline struct ip_nat_protocol *
 __ip_nat_proto_find(u_int8_t protonum)
 {
-	return ip_nat_protos[protonum];
+	return rcu_dereference(ip_nat_protos[protonum]);
 }
 
 struct ip_nat_protocol *
@@ -58,13 +58,11 @@ ip_nat_proto_find_get(u_int8_t protonum)
 {
 	struct ip_nat_protocol *p;
 
-	/* we need to disable preemption to make sure 'p' doesn't get
-	 * removed until we've grabbed the reference */
-	preempt_disable();
+	rcu_read_lock();
 	p = __ip_nat_proto_find(protonum);
 	if (!try_module_get(p->me))
 		p = &ip_nat_unknown_protocol;
-	preempt_enable();
+	rcu_read_unlock();
 
 	return p;
 }
@@ -120,8 +118,8 @@ static int
 in_range(const struct ip_conntrack_tuple *tuple,
 	 const struct ip_nat_range *range)
 {
-	struct ip_nat_protocol *proto =
-				__ip_nat_proto_find(tuple->dst.protonum);
+	struct ip_nat_protocol *proto;
+	int ret = 0;
 
 	/* If we are supposed to map IPs, then we must be in the
 	   range specified, otherwise let this drag us onto a new src IP. */
@@ -131,12 +129,15 @@ in_range(const struct ip_conntrack_tuple *tuple,
 			return 0;
 	}
 
+	rcu_read_lock();
+	proto = __ip_nat_proto_find(tuple->dst.protonum);
 	if (!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED)
 	    || proto->in_range(tuple, IP_NAT_MANIP_SRC,
 			       &range->min, &range->max))
-		return 1;
+		ret = 1;
+	rcu_read_unlock();
 
-	return 0;
+	return ret;
 }
 
 static inline int
@@ -260,27 +261,25 @@ get_unique_tuple(struct ip_conntrack_tuple *tuple,
 	/* 3) The per-protocol part of the manip is made to map into
 	   the range to make a unique tuple. */
 
-	proto = ip_nat_proto_find_get(orig_tuple->dst.protonum);
+	rcu_read_lock();
+	proto = __ip_nat_proto_find(orig_tuple->dst.protonum);
 
 	/* Change protocol info to have some randomization */
 	if (range->flags & IP_NAT_RANGE_PROTO_RANDOM) {
 		proto->unique_tuple(tuple, range, maniptype, conntrack);
-		ip_nat_proto_put(proto);
-		return;
+		goto out;
 	}
 
 	/* Only bother mapping if it's not already in range and unique */
 	if ((!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED)
 	     || proto->in_range(tuple, maniptype, &range->min, &range->max))
-	    && !ip_nat_used_tuple(tuple, conntrack)) {
-		ip_nat_proto_put(proto);
-		return;
-	}
+	    && !ip_nat_used_tuple(tuple, conntrack))
+		goto out;
 
 	/* Last change: get protocol to try to obtain unique tuple. */
 	proto->unique_tuple(tuple, range, maniptype, conntrack);
-
-	ip_nat_proto_put(proto);
+out:
+	rcu_read_unlock();
 }
 
 unsigned int
@@ -360,12 +359,11 @@ manip_pkt(u_int16_t proto,
 	iph = (void *)(*pskb)->data + iphdroff;
 
 	/* Manipulate protcol part. */
-	p = ip_nat_proto_find_get(proto);
-	if (!p->manip_pkt(pskb, iphdroff, target, maniptype)) {
-		ip_nat_proto_put(p);
+
+	/* rcu_read_lock()ed by nf_hook_slow */
+	p = __ip_nat_proto_find(proto);
+	if (!p->manip_pkt(pskb, iphdroff, target, maniptype))
 		return 0;
-	}
-	ip_nat_proto_put(p);
 
 	iph = (void *)(*pskb)->data + iphdroff;
 
@@ -422,6 +420,7 @@ int ip_nat_icmp_reply_translation(struct ip_conntrack *ct,
 		struct icmphdr icmp;
 		struct iphdr ip;
 	} *inside;
+	struct ip_conntrack_protocol *proto;
 	struct ip_conntrack_tuple inner, target;
 	int hdrlen = (*pskb)->nh.iph->ihl * 4;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
@@ -457,10 +456,11 @@ int ip_nat_icmp_reply_translation(struct ip_conntrack *ct,
 	DEBUGP("icmp_reply_translation: translating error %p manp %u dir %s\n",
 	       *pskb, manip, dir == IP_CT_DIR_ORIGINAL ? "ORIG" : "REPLY");
 
+	/* rcu_read_lock()ed by nf_hook_slow */
+	proto = __ip_conntrack_proto_find(inside->ip.protocol);
 	if (!ip_ct_get_tuple(&inside->ip, *pskb, (*pskb)->nh.iph->ihl*4 +
 			     sizeof(struct icmphdr) + inside->ip.ihl*4,
-			     &inner,
-			     __ip_conntrack_proto_find(inside->ip.protocol)))
+			     &inner, proto))
 		return 0;
 
 	/* Change inner back to look like incoming packet.  We do the
@@ -515,7 +515,7 @@ int ip_nat_protocol_register(struct ip_nat_protocol *proto)
 		ret = -EBUSY;
 		goto out;
 	}
-	ip_nat_protos[proto->protonum] = proto;
+	rcu_assign_pointer(ip_nat_protos[proto->protonum], proto);
  out:
 	write_unlock_bh(&ip_nat_lock);
 	return ret;
@@ -526,11 +526,10 @@ EXPORT_SYMBOL(ip_nat_protocol_register);
 void ip_nat_protocol_unregister(struct ip_nat_protocol *proto)
 {
 	write_lock_bh(&ip_nat_lock);
-	ip_nat_protos[proto->protonum] = &ip_nat_unknown_protocol;
+	rcu_assign_pointer(ip_nat_protos[proto->protonum],
+			   &ip_nat_unknown_protocol);
 	write_unlock_bh(&ip_nat_lock);
-
-	/* Someone could be still looking at the proto in a bh. */
-	synchronize_net();
+	synchronize_rcu();
 }
 EXPORT_SYMBOL(ip_nat_protocol_unregister);
 
@@ -594,10 +593,10 @@ static int __init ip_nat_init(void)
 	/* Sew in builtin protocols. */
 	write_lock_bh(&ip_nat_lock);
 	for (i = 0; i < MAX_IP_NAT_PROTO; i++)
-		ip_nat_protos[i] = &ip_nat_unknown_protocol;
-	ip_nat_protos[IPPROTO_TCP] = &ip_nat_protocol_tcp;
-	ip_nat_protos[IPPROTO_UDP] = &ip_nat_protocol_udp;
-	ip_nat_protos[IPPROTO_ICMP] = &ip_nat_protocol_icmp;
+		rcu_assign_pointer(ip_nat_protos[i], &ip_nat_unknown_protocol);
+	rcu_assign_pointer(ip_nat_protos[IPPROTO_TCP], &ip_nat_protocol_tcp);
+	rcu_assign_pointer(ip_nat_protos[IPPROTO_UDP], &ip_nat_protocol_udp);
+	rcu_assign_pointer(ip_nat_protos[IPPROTO_ICMP], &ip_nat_protocol_icmp);
 	write_unlock_bh(&ip_nat_lock);
 
 	for (i = 0; i < ip_nat_htable_size; i++) {
@@ -605,8 +604,8 @@ static int __init ip_nat_init(void)
 	}
 
 	/* FIXME: Man, this is a hack.  <SIGH> */
-	IP_NF_ASSERT(ip_conntrack_destroyed == NULL);
-	ip_conntrack_destroyed = &ip_nat_cleanup_conntrack;
+	IP_NF_ASSERT(rcu_dereference(ip_conntrack_destroyed) == NULL);
+	rcu_assign_pointer(ip_conntrack_destroyed, ip_nat_cleanup_conntrack);
 
 	/* Initialize fake conntrack so that NAT will skip it */
 	ip_conntrack_untracked.status |= IPS_NAT_DONE_MASK;
@@ -624,7 +623,8 @@ static int clean_nat(struct ip_conntrack *i, void *data)
 static void __exit ip_nat_cleanup(void)
 {
 	ip_ct_iterate_cleanup(&clean_nat, NULL);
-	ip_conntrack_destroyed = NULL;
+	rcu_assign_pointer(ip_conntrack_destroyed, NULL);
+	synchronize_rcu();
 	vfree(bysource);
 }
 

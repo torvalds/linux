@@ -208,7 +208,7 @@ static int htable_create(struct xt_hashlimit_info *minfo, int family)
 	spin_lock_init(&hinfo->lock);
 	hinfo->pde = create_proc_entry(minfo->name, 0,
 				       family == AF_INET ? hashlimit_procdir4 :
-				       			   hashlimit_procdir6);
+							   hashlimit_procdir6);
 	if (!hinfo->pde) {
 		vfree(hinfo);
 		return -1;
@@ -240,7 +240,7 @@ static int select_gc(struct xt_hashlimit_htable *ht, struct dsthash_ent *he)
 }
 
 static void htable_selective_cleanup(struct xt_hashlimit_htable *ht,
-		 		int (*select)(struct xt_hashlimit_htable *ht,
+				int (*select)(struct xt_hashlimit_htable *ht,
 					      struct dsthash_ent *he))
 {
 	unsigned int i;
@@ -279,7 +279,7 @@ static void htable_destroy(struct xt_hashlimit_htable *hinfo)
 	/* remove proc entry */
 	remove_proc_entry(hinfo->pde->name,
 			  hinfo->family == AF_INET ? hashlimit_procdir4 :
-			  			     hashlimit_procdir6);
+						     hashlimit_procdir6);
 	htable_selective_cleanup(hinfo, select_all);
 	vfree(hinfo);
 }
@@ -483,7 +483,7 @@ hashlimit_match(const struct sk_buff *skb,
 		return 1;
 	}
 
-       	spin_unlock_bh(&hinfo->lock);
+	spin_unlock_bh(&hinfo->lock);
 
 	/* default case: we're overlimit, thus don't match */
 	return 0;

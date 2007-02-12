@@ -305,7 +305,7 @@ int xt_find_revision(int af, const char *name, u8 revision, int target,
 EXPORT_SYMBOL_GPL(xt_find_revision);
 
 int xt_check_match(const struct xt_match *match, unsigned short family,
-                   unsigned int size, const char *table, unsigned int hook_mask,
+		   unsigned int size, const char *table, unsigned int hook_mask,
 		   unsigned short proto, int inv_proto)
 {
 	if (XT_ALIGN(match->matchsize) != size) {
@@ -377,7 +377,7 @@ int xt_compat_match_to_user(struct xt_entry_match *m, void __user **dstptr,
 
 	if (copy_to_user(cm, m, sizeof(*cm)) ||
 	    put_user(msize, &cm->u.user.match_size))
-	    	return -EFAULT;
+		return -EFAULT;
 
 	if (match->compat_to_user) {
 		if (match->compat_to_user((void __user *)cm->data, m->data))
@@ -432,7 +432,7 @@ int xt_compat_target_offset(struct xt_target *target)
 EXPORT_SYMBOL_GPL(xt_compat_target_offset);
 
 void xt_compat_target_from_user(struct xt_entry_target *t, void **dstptr,
-			        int *size)
+				int *size)
 {
 	struct xt_target *target = t->u.kernel.target;
 	struct compat_xt_entry_target *ct = (struct compat_xt_entry_target *)t;
@@ -467,7 +467,7 @@ int xt_compat_target_to_user(struct xt_entry_target *t, void __user **dstptr,
 
 	if (copy_to_user(ct, t, sizeof(*ct)) ||
 	    put_user(tsize, &ct->u.user.target_size))
-	    	return -EFAULT;
+		return -EFAULT;
 
 	if (target->compat_to_user) {
 		if (target->compat_to_user((void __user *)ct->data, t->data))
@@ -710,7 +710,7 @@ static void *xt_tgt_seq_start(struct seq_file *seq, loff_t *pos)
 
 	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
 		return NULL;
-	
+
 	return xt_get_idx(list, seq, *pos);
 }
 
@@ -723,7 +723,7 @@ static void *xt_tgt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	if (af >= NPROTO)
 		return NULL;
-	
+
 	list = type2list(af, type);
 	if (!list)
 		return NULL;

@@ -26,7 +26,7 @@ MODULE_DESCRIPTION("Match for DCCP protocol packets");
 MODULE_ALIAS("ipt_dccp");
 
 #define DCCHECK(cond, option, flag, invflag) (!((flag) & (option)) \
-		                  || (!!((invflag) & (option)) ^ (cond)))
+				  || (!!((invflag) & (option)) ^ (cond)))
 
 static unsigned char *dccp_optbuf;
 static DEFINE_SPINLOCK(dccp_buflock);
@@ -67,9 +67,9 @@ dccp_find_option(u_int8_t option,
 			return 1;
 		}
 
-		if (op[i] < 2) 
+		if (op[i] < 2)
 			i++;
-		else 
+		else
 			i += op[i+1]?:1;
 	}
 
@@ -106,18 +106,18 @@ match(const struct sk_buff *skb,
 
 	if (offset)
 		return 0;
-	
+
 	dh = skb_header_pointer(skb, protoff, sizeof(_dh), &_dh);
 	if (dh == NULL) {
 		*hotdrop = 1;
 		return 0;
-       	}
+	}
 
-	return  DCCHECK(((ntohs(dh->dccph_sport) >= info->spts[0]) 
-			&& (ntohs(dh->dccph_sport) <= info->spts[1])), 
-		   	XT_DCCP_SRC_PORTS, info->flags, info->invflags)
-		&& DCCHECK(((ntohs(dh->dccph_dport) >= info->dpts[0]) 
-			&& (ntohs(dh->dccph_dport) <= info->dpts[1])), 
+	return  DCCHECK(((ntohs(dh->dccph_sport) >= info->spts[0])
+			&& (ntohs(dh->dccph_sport) <= info->spts[1])),
+			XT_DCCP_SRC_PORTS, info->flags, info->invflags)
+		&& DCCHECK(((ntohs(dh->dccph_dport) >= info->dpts[0])
+			&& (ntohs(dh->dccph_dport) <= info->dpts[1])),
 			XT_DCCP_DEST_PORTS, info->flags, info->invflags)
 		&& DCCHECK(match_types(dh, info->typemask),
 			   XT_DCCP_TYPE, info->flags, info->invflags)

@@ -2297,16 +2297,17 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 				   &sel, tmp.security, 1);
 	security_xfrm_policy_free(&tmp);
 
-	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
-		       AUDIT_MAC_IPSEC_DELSPD, (xp) ? 1 : 0, xp, NULL);
-
 	if (xp == NULL)
 		return -ENOENT;
 
-	err = 0;
+	err = security_xfrm_policy_delete(xp);
 
-	if ((err = security_xfrm_policy_delete(xp)))
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
+
+	if (err)
 		goto out;
+
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
 	c.event = XFRM_MSG_DELPOLICY;

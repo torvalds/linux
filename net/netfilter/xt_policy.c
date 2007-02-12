@@ -109,13 +109,13 @@ match_policy_out(const struct sk_buff *skb, const struct xt_policy_info *info,
 }
 
 static int match(const struct sk_buff *skb,
-                 const struct net_device *in,
-                 const struct net_device *out,
-                 const struct xt_match *match,
-                 const void *matchinfo,
-                 int offset,
-                 unsigned int protoff,
-                 int *hotdrop)
+		 const struct net_device *in,
+		 const struct net_device *out,
+		 const struct xt_match *match,
+		 const void *matchinfo,
+		 int offset,
+		 unsigned int protoff,
+		 int *hotdrop)
 {
 	const struct xt_policy_info *info = matchinfo;
 	int ret;
@@ -134,27 +134,27 @@ static int match(const struct sk_buff *skb,
 }
 
 static int checkentry(const char *tablename, const void *ip_void,
-                      const struct xt_match *match,
-                      void *matchinfo, unsigned int hook_mask)
+		      const struct xt_match *match,
+		      void *matchinfo, unsigned int hook_mask)
 {
 	struct xt_policy_info *info = matchinfo;
 
 	if (!(info->flags & (XT_POLICY_MATCH_IN|XT_POLICY_MATCH_OUT))) {
 		printk(KERN_ERR "xt_policy: neither incoming nor "
-		                "outgoing policy selected\n");
+				"outgoing policy selected\n");
 		return 0;
 	}
 	/* hook values are equal for IPv4 and IPv6 */
 	if (hook_mask & (1 << NF_IP_PRE_ROUTING | 1 << NF_IP_LOCAL_IN)
 	    && info->flags & XT_POLICY_MATCH_OUT) {
 		printk(KERN_ERR "xt_policy: output policy not valid in "
-		                "PRE_ROUTING and INPUT\n");
+				"PRE_ROUTING and INPUT\n");
 		return 0;
 	}
 	if (hook_mask & (1 << NF_IP_POST_ROUTING | 1 << NF_IP_LOCAL_OUT)
 	    && info->flags & XT_POLICY_MATCH_IN) {
 		printk(KERN_ERR "xt_policy: input policy not valid in "
-		                "POST_ROUTING and OUTPUT\n");
+				"POST_ROUTING and OUTPUT\n");
 		return 0;
 	}
 	if (info->len > XT_POLICY_MAX_ELEM) {

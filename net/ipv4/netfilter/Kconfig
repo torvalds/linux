@@ -226,7 +226,7 @@ config IP_NF_QUEUE
 
 config IP_NF_IPTABLES
 	tristate "IP tables support (required for filtering/masq/NAT)"
-	depends on NETFILTER_XTABLES
+	select NETFILTER_XTABLES
 	help
 	  iptables is a general, extensible packet identification framework.
 	  The packet filtering and full NAT (masquerading, port forwarding,
@@ -606,7 +606,9 @@ config IP_NF_TARGET_TTL
 config IP_NF_TARGET_CLUSTERIP
 	tristate "CLUSTERIP target support (EXPERIMENTAL)"
 	depends on IP_NF_MANGLE && EXPERIMENTAL
-	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK_IPV4
+	select IP_NF_CONNTRACK_MARK if IP_NF_CONNTRACK
+	select NF_CONNTRACK_MARK if NF_CONNTRACK_IPV4
 	help
 	  The CLUSTERIP target allows you to build load-balancing clusters of
 	  network servers without having a dedicated load-balancing
@@ -629,7 +631,7 @@ config IP_NF_RAW
 # ARP tables
 config IP_NF_ARPTABLES
 	tristate "ARP tables support"
-	depends on NETFILTER_XTABLES
+	select NETFILTER_XTABLES
 	help
 	  arptables is a general, extensible packet identification framework.
 	  The ARP packet filtering and mangling (manipulation)subsystems

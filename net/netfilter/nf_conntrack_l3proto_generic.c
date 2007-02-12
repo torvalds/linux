@@ -77,7 +77,7 @@ generic_prepare(struct sk_buff **pskb, unsigned int hooknum,
 
 
 static u_int32_t generic_get_features(const struct nf_conntrack_tuple *tuple)
-				
+
 {
 	return NF_CT_F_BASIC;
 }
