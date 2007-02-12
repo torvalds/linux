@@ -66,8 +66,6 @@ struct dmabounce_pool {
 };
 
 struct dmabounce_device_info {
-	struct list_head node;
-
 	struct device *dev;
 	struct list_head safe_buffers;
 #ifdef STATS
@@ -81,8 +79,6 @@ struct dmabounce_device_info {
 	rwlock_t lock;
 };
 
-static LIST_HEAD(dmabounce_devs);
-
 #ifdef STATS
 static void print_alloc_stats(struct dmabounce_device_info *device_info)
 {
@@ -95,19 +91,6 @@ static void print_alloc_stats(struct dmabounce_device_info *device_info)
 		device_info->total_allocs);
 }
 #endif
-
-/* find the given device in the dmabounce device list */
-static inline struct dmabounce_device_info *
-find_dmabounce_dev(struct device *dev)
-{
-	struct dmabounce_device_info *d;
-
-	list_for_each_entry(d, &dmabounce_devs, node)
-		if (d->dev == dev)
-			return d;
-
-	return NULL;
-}
 
 
 /* allocate a 'safe' buffer and keep track of it */
@@ -231,7 +214,7 @@ static inline dma_addr_t
 map_single(struct device *dev, void *ptr, size_t size,
 		enum dma_data_direction dir)
 {
-	struct dmabounce_device_info *device_info = find_dmabounce_dev(dev);
+	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
 	dma_addr_t dma_addr;
 	int needs_bounce = 0;
 
@@ -292,7 +275,7 @@ static inline void
 unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		enum dma_data_direction dir)
 {
-	struct dmabounce_device_info *device_info = find_dmabounce_dev(dev);
+	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
 	struct safe_buffer *buf = NULL;
 
 	/*
@@ -343,7 +326,7 @@ static inline void
 sync_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		enum dma_data_direction dir)
 {
-	struct dmabounce_device_info *device_info = find_dmabounce_dev(dev);
+	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
 	struct safe_buffer *buf = NULL;
 
 	if (device_info)
@@ -606,7 +589,7 @@ dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 	device_info->bounce_count = 0;
 #endif
 
-	list_add(&device_info->node, &dmabounce_devs);
+	dev->archdata.dmabounce = device_info;
 
 	printk(KERN_INFO "dmabounce: registered device %s on %s bus\n",
 		dev->bus_id, dev->bus->name);
@@ -623,7 +606,9 @@ dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 void
 dmabounce_unregister_dev(struct device *dev)
 {
-	struct dmabounce_device_info *device_info = find_dmabounce_dev(dev);
+	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
+
+	dev->archdata.dmabounce = NULL;
 
 	if (!device_info) {
 		printk(KERN_WARNING
@@ -648,8 +633,6 @@ dmabounce_unregister_dev(struct device *dev)
 	print_alloc_stats(device_info);
 	print_map_stats(device_info);
 #endif
-
-	list_del(&device_info->node);
 
 	kfree(device_info);
 

@@ -3,5 +3,13 @@
  *
  * This file is released under the GPLv2
  */
-#include <asm-generic/device.h>
+#ifndef ASMARM_DEVICE_H
+#define ASMARM_DEVICE_H
 
+struct dev_archdata {
+#ifdef CONFIG_DMABOUNCE
+	struct dmabounce_device_info *dmabounce;
+#endif
+};
+
+#endif
