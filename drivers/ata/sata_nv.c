@@ -1446,6 +1446,26 @@ static void nv_adma_error_handler(struct ata_port *ap)
 		void __iomem *mmio = pp->ctl_block;
 		int i;
 		u16 tmp;
+		
+		if(ata_tag_valid(ap->active_tag) || ap->sactive) {
+			u32 notifier = readl(mmio + NV_ADMA_NOTIFIER);
+			u32 notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);
+			u32 gen_ctl = readl(pp->gen_block + NV_ADMA_GEN_CTL);
+			u32 status = readw(mmio + NV_ADMA_STAT);
+
+			ata_port_printk(ap, KERN_ERR, "EH in ADMA mode, notifier 0x%X "
+				"notifier_error 0x%X gen_ctl 0x%X status 0x%X\n",
+				notifier, notifier_error, gen_ctl, status);
+
+			for( i=0;i<NV_ADMA_MAX_CPBS;i++) {
+				struct nv_adma_cpb *cpb = &pp->cpb[i];
+				if( (ata_tag_valid(ap->active_tag) && i == ap->active_tag) ||
+				    ap->sactive & (1 << i) )
+					ata_port_printk(ap, KERN_ERR,
+						"CPB %d: ctl_flags 0x%x, resp_flags 0x%x\n",
+						i, cpb->ctl_flags, cpb->resp_flags);
+			}
+		}
 
 		/* Push us back into port register mode for error handling. */
 		nv_adma_register_mode(ap);
