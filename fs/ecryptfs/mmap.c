@@ -528,90 +528,6 @@ out:
 	return rc;
 }
 
-static int
-process_new_file(struct ecryptfs_crypt_stat *crypt_stat,
-		 struct file *file, struct inode *inode)
-{
-	struct page *header_page;
-	const struct address_space_operations *lower_a_ops;
-	struct inode *lower_inode;
-	struct file *lower_file;
-	char *header_virt;
-	int rc = 0;
-	int current_header_page = 0;
-	int header_pages;
-	int more_header_data_to_be_written = 1;
-
-	lower_inode = ecryptfs_inode_to_lower(inode);
-	lower_file = ecryptfs_file_to_lower(file);
-	lower_a_ops = lower_inode->i_mapping->a_ops;
-	header_pages = ((crypt_stat->header_extent_size
-			 * crypt_stat->num_header_extents_at_front)
-			/ PAGE_CACHE_SIZE);
-	BUG_ON(header_pages < 1);
-	while (current_header_page < header_pages) {
-		rc = ecryptfs_grab_and_map_lower_page(&header_page,
-						      &header_virt,
-						      lower_inode,
-						      current_header_page);
-		if (rc) {
-			ecryptfs_printk(KERN_ERR, "grab_cache_page for "
-					"header page [%d] failed; rc = [%d]\n",
-					current_header_page, rc);
-			goto out;
-		}
-		rc = lower_a_ops->prepare_write(lower_file, header_page, 0,
-						PAGE_CACHE_SIZE);
-		if (rc) {
-			ecryptfs_printk(KERN_ERR, "Error preparing to write "
-					"header page out; rc = [%d]\n", rc);
-			goto out;
-		}
-		memset(header_virt, 0, PAGE_CACHE_SIZE);
-		if (more_header_data_to_be_written) {
-			rc = ecryptfs_write_headers_virt(header_virt,
-							 crypt_stat,
-							 file->f_dentry);
-			if (rc) {
-				ecryptfs_printk(KERN_WARNING, "Error "
-						"generating header; rc = "
-						"[%d]\n", rc);
-				rc = -EIO;
-				memset(header_virt, 0, PAGE_CACHE_SIZE);
-				ecryptfs_unmap_and_release_lower_page(
-					header_page);
-				goto out;
-			}
-			if (current_header_page == 0)
-				memset(header_virt, 0, 8);
-			more_header_data_to_be_written = 0;
-		}
-		rc = lower_a_ops->commit_write(lower_file, header_page, 0,
-					       PAGE_CACHE_SIZE);
-		ecryptfs_unmap_and_release_lower_page(header_page);
-		if (rc < 0) {
-			ecryptfs_printk(KERN_ERR,
-					"Error commiting header page write; "
-					"rc = [%d]\n", rc);
-			break;
-		}
-		current_header_page++;
-	}
-	if (rc >= 0) {
-		rc = 0;
-		ecryptfs_printk(KERN_DEBUG, "lower_inode->i_blocks = "
-				"[0x%.16x]\n", lower_inode->i_blocks);
-		i_size_write(inode, 0);
-		lower_inode->i_mtime = lower_inode->i_ctime = CURRENT_TIME;
-		mark_inode_dirty_sync(inode);
-	}
-	ecryptfs_printk(KERN_DEBUG, "Clearing ECRYPTFS_NEW_FILE flag in "
-			"crypt_stat at memory location [%p]\n", crypt_stat);
-	ECRYPTFS_CLEAR_FLAG(crypt_stat->flags, ECRYPTFS_NEW_FILE);
-out:
-	return rc;
-}
-
 /**
  * ecryptfs_commit_write
  * @file: The eCryptfs file object
@@ -643,12 +559,7 @@ static int ecryptfs_commit_write(struct file *file, struct page *page,
 	if (ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_NEW_FILE)) {
 		ecryptfs_printk(KERN_DEBUG, "ECRYPTFS_NEW_FILE flag set in "
 			"crypt_stat at memory location [%p]\n", crypt_stat);
-		rc = process_new_file(crypt_stat, file, inode);
-		if (rc) {
-			ecryptfs_printk(KERN_ERR, "Error processing new "
-					"file; rc = [%d]\n", rc);
-			goto out;
-		}
+		ECRYPTFS_CLEAR_FLAG(crypt_stat->flags, ECRYPTFS_NEW_FILE);
 	} else
 		ecryptfs_printk(KERN_DEBUG, "Not a new file\n");
 	ecryptfs_printk(KERN_DEBUG, "Calling fill_zeros_to_end_of_page"

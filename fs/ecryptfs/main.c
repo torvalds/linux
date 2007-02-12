@@ -6,6 +6,7 @@
  * Copyright (C) 2004-2006 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *              Michael C. Thompson <mcthomps@us.ibm.com>
+ *              Tyler Hicks <tyhicks@ou.edu>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -47,6 +48,43 @@ module_param(ecryptfs_verbosity, int, 0);
 MODULE_PARM_DESC(ecryptfs_verbosity,
 		 "Initial verbosity level (0 or 1; defaults to "
 		 "0, which is Quiet)");
+
+/**
+ * Module parameter that defines the number of netlink message buffer
+ * elements
+ */
+unsigned int ecryptfs_message_buf_len = ECRYPTFS_DEFAULT_MSG_CTX_ELEMS;
+
+module_param(ecryptfs_message_buf_len, uint, 0);
+MODULE_PARM_DESC(ecryptfs_message_buf_len,
+		 "Number of message buffer elements");
+
+/**
+ * Module parameter that defines the maximum guaranteed amount of time to wait
+ * for a response through netlink.  The actual sleep time will be, more than
+ * likely, a small amount greater than this specified value, but only less if
+ * the netlink message successfully arrives.
+ */
+signed long ecryptfs_message_wait_timeout = ECRYPTFS_MAX_MSG_CTX_TTL / HZ;
+
+module_param(ecryptfs_message_wait_timeout, long, 0);
+MODULE_PARM_DESC(ecryptfs_message_wait_timeout,
+		 "Maximum number of seconds that an operation will "
+		 "sleep while waiting for a message response from "
+		 "userspace");
+
+/**
+ * Module parameter that is an estimate of the maximum number of users
+ * that will be concurrently using eCryptfs. Set this to the right
+ * value to balance performance and memory use.
+ */
+unsigned int ecryptfs_number_of_users = ECRYPTFS_DEFAULT_NUM_USERS;
+
+module_param(ecryptfs_number_of_users, uint, 0);
+MODULE_PARM_DESC(ecryptfs_number_of_users, "An estimate of the number of "
+		 "concurrent users of eCryptfs");
+
+unsigned int ecryptfs_transport = ECRYPTFS_DEFAULT_TRANSPORT;
 
 void __ecryptfs_printk(const char *fmt, ...)
 {
@@ -347,9 +385,10 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		rc = -EINVAL;
 		goto out;
 	}
-	if (auth_tok->token_type != ECRYPTFS_PASSWORD) {
+	if (auth_tok->token_type != ECRYPTFS_PASSWORD
+	    && auth_tok->token_type != ECRYPTFS_PRIVATE_KEY) {
 		ecryptfs_printk(KERN_ERR, "Invalid auth_tok structure "
-				"returned from key\n");
+				"returned from key query\n");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -794,6 +833,11 @@ static int __init ecryptfs_init(void)
 		ecryptfs_free_kmem_caches();
 		goto out;
 	}
+	rc = ecryptfs_init_messaging(ecryptfs_transport);
+	if (rc) {
+		ecryptfs_printk(KERN_ERR, "Failure occured while attempting to "
+				"initialize the eCryptfs netlink socket\n");
+	}
 out:
 	return rc;
 }
@@ -805,6 +849,7 @@ static void __exit ecryptfs_exit(void)
 	sysfs_remove_file(&ecryptfs_subsys.kset.kobj,
 			  &sysfs_attr_version_str.attr);
 	subsystem_unregister(&ecryptfs_subsys);
+	ecryptfs_release_messaging(ecryptfs_transport);
 	unregister_filesystem(&ecryptfs_fs_type);
 	ecryptfs_free_kmem_caches();
 }

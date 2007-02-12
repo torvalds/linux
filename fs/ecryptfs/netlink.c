@@ -107,8 +107,8 @@ static int ecryptfs_process_nl_response(struct sk_buff *skb)
 				"incorrectly specified data length\n");
 		goto out;
 	}
-	rc = ecryptfs_process_response(msg, NETLINK_CREDS(skb)->pid,
-				       nlh->nlmsg_seq);
+	rc = ecryptfs_process_response(msg, NETLINK_CREDS(skb)->uid,
+				       NETLINK_CREDS(skb)->pid, nlh->nlmsg_seq);
 	if (rc)
 		printk(KERN_ERR
 		       "Error processing response message; rc = [%d]\n", rc);

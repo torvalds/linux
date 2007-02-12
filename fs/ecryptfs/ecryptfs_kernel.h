@@ -33,6 +33,7 @@
 #include <linux/fs_stack.h>
 #include <linux/namei.h>
 #include <linux/scatterlist.h>
+#include <linux/hash.h>
 
 /* Version verification for shared data structures w/ userspace */
 #define ECRYPTFS_VERSION_MAJOR 0x00
@@ -47,7 +48,8 @@
 #define ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH 0x00000004
 #define ECRYPTFS_VERSIONING_POLICY 0x00000008
 #define ECRYPTFS_VERSIONING_MASK (ECRYPTFS_VERSIONING_PASSPHRASE \
-                                  | ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH)
+                                  | ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH \
+                                  | ECRYPTFS_VERSIONING_PUBKEY)
 
 #define ECRYPTFS_MAX_PASSWORD_LENGTH 64
 #define ECRYPTFS_MAX_PASSPHRASE_BYTES ECRYPTFS_MAX_PASSWORD_LENGTH
@@ -558,7 +560,8 @@ int ecryptfs_close_lower_file(struct file *lower_file);
 
 int ecryptfs_process_helo(unsigned int transport, uid_t uid, pid_t pid);
 int ecryptfs_process_quit(uid_t uid, pid_t pid);
-int ecryptfs_process_response(struct ecryptfs_message *msg, pid_t pid, u32 seq);
+int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t uid,
+			      pid_t pid, u32 seq);
 int ecryptfs_send_message(unsigned int transport, char *data, int data_len,
 			  struct ecryptfs_msg_ctx **msg_ctx);
 int ecryptfs_wait_for_response(struct ecryptfs_msg_ctx *msg_ctx,

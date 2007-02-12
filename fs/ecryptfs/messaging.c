@@ -243,7 +243,8 @@ unlock:
  * userspace. Returns zero upon delivery to desired context element;
  * non-zero upon delivery failure or error.
  */
-int ecryptfs_process_response(struct ecryptfs_message *msg, pid_t pid, u32 seq)
+int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t uid,
+			      pid_t pid, u32 seq)
 {
 	struct ecryptfs_daemon_id *id;
 	struct ecryptfs_msg_ctx *msg_ctx;
@@ -267,6 +268,13 @@ int ecryptfs_process_response(struct ecryptfs_message *msg, pid_t pid, u32 seq)
 				"not have a registered daemon\n",
 				msg_ctx->task->euid, pid);
 		goto wake_up;
+	}
+	if (msg_ctx->task->euid != uid) {
+		rc = -EBADMSG;
+		ecryptfs_printk(KERN_WARNING, "Received message from user "
+				"[%d]; expected message from user [%d]\n",
+				uid, msg_ctx->task->euid);
+		goto unlock;
 	}
 	if (id->pid != pid) {
 		rc = -EBADMSG;
