@@ -215,22 +215,12 @@ out:
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_register);
 
-int nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
+void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 {
-	int ret = 0;
-
-	if (proto->l3proto >= AF_MAX) {
-		ret = -EBUSY;
-		goto out;
-	}
+	BUG_ON(proto->l3proto >= AF_MAX);
 
 	write_lock_bh(&nf_conntrack_lock);
-	if (nf_ct_l3protos[proto->l3proto] != proto) {
-		write_unlock_bh(&nf_conntrack_lock);
-		ret = -EBUSY;
-		goto out;
-	}
-
+	BUG_ON(nf_ct_l3protos[proto->l3proto] != proto);
 	rcu_assign_pointer(nf_ct_l3protos[proto->l3proto],
 			   &nf_conntrack_l3proto_generic);
 	write_unlock_bh(&nf_conntrack_lock);
@@ -240,9 +230,6 @@ int nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(kill_l3proto, proto);
-
-out:
-	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_unregister);
 
@@ -368,27 +355,17 @@ out:
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_register);
 
-int nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
+void nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 {
-	int ret = 0;
-
-	if (l4proto->l3proto >= PF_MAX) {
-		ret = -EBUSY;
-		goto out;
-	}
+	BUG_ON(l4proto->l3proto >= PF_MAX);
 
 	if (l4proto == &nf_conntrack_l4proto_generic) {
 		nf_ct_l4proto_unregister_sysctl(l4proto);
-		goto out;
+		return;
 	}
 
 	write_lock_bh(&nf_conntrack_lock);
-	if (nf_ct_protos[l4proto->l3proto][l4proto->l4proto]
-	    != l4proto) {
-		write_unlock_bh(&nf_conntrack_lock);
-		ret = -EBUSY;
-		goto out;
-	}
+	BUG_ON(nf_ct_protos[l4proto->l3proto][l4proto->l4proto] != l4proto);
 	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto],
 			   &nf_conntrack_l4proto_generic);
 	write_unlock_bh(&nf_conntrack_lock);
@@ -398,8 +375,5 @@ int nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(kill_l4proto, l4proto);
-
-out:
-	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_unregister);
