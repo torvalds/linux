@@ -429,6 +429,7 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 		struct icmphdr icmp;
 		struct iphdr ip;
 	} *inside;
+	struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple inner, target;
 	int hdrlen = (*pskb)->nh.iph->ihl * 4;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
@@ -464,16 +465,16 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 	DEBUGP("icmp_reply_translation: translating error %p manp %u dir %s\n",
 	       *pskb, manip, dir == IP_CT_DIR_ORIGINAL ? "ORIG" : "REPLY");
 
+	/* rcu_read_lock()ed by nf_hook_slow */
+	l4proto = __nf_ct_l4proto_find(PF_INET, inside->ip.protocol);
+
 	if (!nf_ct_get_tuple(*pskb,
 			     (*pskb)->nh.iph->ihl*4 + sizeof(struct icmphdr),
 			     (*pskb)->nh.iph->ihl*4 +
 			     sizeof(struct icmphdr) + inside->ip.ihl*4,
 			     (u_int16_t)AF_INET,
 			     inside->ip.protocol,
-			     &inner,
-			     l3proto,
-			     __nf_ct_l4proto_find((u_int16_t)PF_INET,
-						  inside->ip.protocol)))
+			     &inner, l3proto, l4proto))
 		return 0;
 
 	/* Change inner back to look like incoming packet.  We do the

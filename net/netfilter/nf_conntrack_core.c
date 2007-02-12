@@ -332,13 +332,16 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	/* To make sure we don't get any weird locking issues here:
 	 * destroy_conntrack() MUST NOT be called with a write lock
 	 * to nf_conntrack_lock!!! -HW */
+	rcu_read_lock();
 	l3proto = __nf_ct_l3proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num);
 	if (l3proto && l3proto->destroy)
 		l3proto->destroy(ct);
 
-	l4proto = __nf_ct_l4proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num, ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
+	l4proto = __nf_ct_l4proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num,
+				       ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
 	if (l4proto && l4proto->destroy)
 		l4proto->destroy(ct);
+	rcu_read_unlock();
 
 	if (nf_conntrack_destroyed)
 		nf_conntrack_destroyed(ct);
@@ -647,9 +650,14 @@ struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 				   const struct nf_conntrack_tuple *repl)
 {
 	struct nf_conntrack_l3proto *l3proto;
+	struct nf_conn *ct;
 
+	rcu_read_lock();
 	l3proto = __nf_ct_l3proto_find(orig->src.l3num);
-	return __nf_conntrack_alloc(orig, repl, l3proto, 0);
+	ct = __nf_conntrack_alloc(orig, repl, l3proto, 0);
+	rcu_read_unlock();
+
+	return ct;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alloc);
 
@@ -817,7 +825,9 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 		return NF_ACCEPT;
 	}
 
+	/* rcu_read_lock()ed by nf_hook_slow */
 	l3proto = __nf_ct_l3proto_find((u_int16_t)pf);
+
 	if ((ret = l3proto->prepare(pskb, hooknum, &dataoff, &protonum)) <= 0) {
 		DEBUGP("not prepared to track yet or error occured\n");
 		return -ret;
@@ -872,10 +882,15 @@ EXPORT_SYMBOL_GPL(nf_conntrack_in);
 int nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 			 const struct nf_conntrack_tuple *orig)
 {
-	return nf_ct_invert_tuple(inverse, orig,
-				  __nf_ct_l3proto_find(orig->src.l3num),
-				  __nf_ct_l4proto_find(orig->src.l3num,
-						     orig->dst.protonum));
+	int ret;
+
+	rcu_read_lock();
+	ret = nf_ct_invert_tuple(inverse, orig,
+				 __nf_ct_l3proto_find(orig->src.l3num),
+				 __nf_ct_l4proto_find(orig->src.l3num,
+						      orig->dst.protonum));
+	rcu_read_unlock();
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_invert_tuplepr);
 
