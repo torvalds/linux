@@ -312,7 +312,7 @@ might look like this unless you're creating a class_device:
 		chip = kzalloc(sizeof *chip, GFP_KERNEL);
 		if (!chip)
 			return -ENOMEM;
-		dev_set_drvdata(&spi->dev, chip);
+		spi_set_drvdata(spi, chip);
 
 		... etc
 		return 0;
