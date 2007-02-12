@@ -430,8 +430,10 @@ static void close_files(struct files_struct * files)
 		while (set) {
 			if (set & 1) {
 				struct file * file = xchg(&fdt->fd[i], NULL);
-				if (file)
+				if (file) {
 					filp_close(file, files);
+					cond_resched();
+				}
 			}
 			i++;
 			set >>= 1;
