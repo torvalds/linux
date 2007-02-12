@@ -607,13 +607,13 @@ parse_tag_1_packet(struct ecryptfs_crypt_stat *crypt_stat,
 	(*new_auth_tok)->session_key.flags |=
 		ECRYPTFS_CONTAINS_ENCRYPTED_KEY;
 	(*new_auth_tok)->token_type = ECRYPTFS_PRIVATE_KEY;
-	ECRYPTFS_SET_FLAG((*new_auth_tok)->flags, ECRYPTFS_PRIVATE_KEY);
+	(*new_auth_tok)->flags |= ECRYPTFS_PRIVATE_KEY;
 	/* TODO: Why are we setting this flag here? Don't we want the
 	 * userspace to decrypt the session key? */
-	ECRYPTFS_CLEAR_FLAG((*new_auth_tok)->session_key.flags,
-			    ECRYPTFS_USERSPACE_SHOULD_TRY_TO_DECRYPT);
-	ECRYPTFS_CLEAR_FLAG((*new_auth_tok)->session_key.flags,
-			    ECRYPTFS_USERSPACE_SHOULD_TRY_TO_ENCRYPT);
+	(*new_auth_tok)->session_key.flags &=
+		~(ECRYPTFS_USERSPACE_SHOULD_TRY_TO_DECRYPT);
+	(*new_auth_tok)->session_key.flags &=
+		~(ECRYPTFS_USERSPACE_SHOULD_TRY_TO_ENCRYPT);
 	list_add(&auth_tok_list_item->list, auth_tok_list);
 	goto out;
 out_free:
@@ -793,10 +793,10 @@ parse_tag_3_packet(struct ecryptfs_crypt_stat *crypt_stat,
 	(*new_auth_tok)->token_type = ECRYPTFS_PASSWORD;
 	/* TODO: Parametarize; we might actually want userspace to
 	 * decrypt the session key. */
-	ECRYPTFS_CLEAR_FLAG((*new_auth_tok)->session_key.flags,
-			    ECRYPTFS_USERSPACE_SHOULD_TRY_TO_DECRYPT);
-	ECRYPTFS_CLEAR_FLAG((*new_auth_tok)->session_key.flags,
-			    ECRYPTFS_USERSPACE_SHOULD_TRY_TO_ENCRYPT);
+	(*new_auth_tok)->session_key.flags &=
+			    ~(ECRYPTFS_USERSPACE_SHOULD_TRY_TO_DECRYPT);
+	(*new_auth_tok)->session_key.flags &=
+			    ~(ECRYPTFS_USERSPACE_SHOULD_TRY_TO_ENCRYPT);
 	list_add(&auth_tok_list_item->list, auth_tok_list);
 	goto out;
 out_free:
@@ -941,8 +941,7 @@ static int decrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 	int rc = 0;
 
 	password_s_ptr = &auth_tok->token.password;
-	if (ECRYPTFS_CHECK_FLAG(password_s_ptr->flags,
-				ECRYPTFS_SESSION_KEY_ENCRYPTION_KEY_SET))
+	if (password_s_ptr->flags & ECRYPTFS_SESSION_KEY_ENCRYPTION_KEY_SET)
 		ecryptfs_printk(KERN_DEBUG, "Session key encryption key "
 				"set; skipping key generation\n");
 	ecryptfs_printk(KERN_DEBUG, "Session key encryption key (size [%d])"
@@ -1024,7 +1023,7 @@ static int decrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 	auth_tok->session_key.flags |= ECRYPTFS_CONTAINS_DECRYPTED_KEY;
 	memcpy(crypt_stat->key, auth_tok->session_key.decrypted_key,
 	       auth_tok->session_key.decrypted_key_size);
-	ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_KEY_VALID);
+	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
 	ecryptfs_printk(KERN_DEBUG, "Decrypted session key:\n");
 	if (ecryptfs_verbosity > 0)
 		ecryptfs_dump_hex(crypt_stat->key,
@@ -1127,8 +1126,7 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 					sig_tmp_space, tag_11_contents_size);
 			new_auth_tok->token.password.signature[
 				ECRYPTFS_PASSWORD_SIG_SIZE] = '\0';
-			ECRYPTFS_SET_FLAG(crypt_stat->flags,
-					  ECRYPTFS_ENCRYPTED);
+			crypt_stat->flags |= ECRYPTFS_ENCRYPTED;
 			break;
 		case ECRYPTFS_TAG_1_PACKET_TYPE:
 			rc = parse_tag_1_packet(crypt_stat,
@@ -1142,8 +1140,7 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 				goto out_wipe_list;
 			}
 			i += packet_size;
-			ECRYPTFS_SET_FLAG(crypt_stat->flags,
-					  ECRYPTFS_ENCRYPTED);
+			crypt_stat->flags |= ECRYPTFS_ENCRYPTED;
 			break;
 		case ECRYPTFS_TAG_11_PACKET_TYPE:
 			ecryptfs_printk(KERN_WARNING, "Invalid packet set "
@@ -1209,8 +1206,7 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 	}
 leave_list:
 	rc = -ENOTSUPP;
-	if ((ECRYPTFS_CHECK_FLAG(candidate_auth_tok->flags,
-			         ECRYPTFS_PRIVATE_KEY))) {
+	if (candidate_auth_tok->token_type == ECRYPTFS_PRIVATE_KEY) {
 		memcpy(&(candidate_auth_tok->token.private_key),
 		       &(chosen_auth_tok->token.private_key),
 		       sizeof(struct ecryptfs_private_key));

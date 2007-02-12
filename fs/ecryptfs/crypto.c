@@ -207,7 +207,7 @@ ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
 	mutex_init(&crypt_stat->cs_mutex);
 	mutex_init(&crypt_stat->cs_tfm_mutex);
 	mutex_init(&crypt_stat->cs_hash_tfm_mutex);
-	ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_STRUCT_INITIALIZED);
+	crypt_stat->flags |= ECRYPTFS_STRUCT_INITIALIZED;
 }
 
 /**
@@ -305,8 +305,7 @@ static int encrypt_scatterlist(struct ecryptfs_crypt_stat *crypt_stat,
 	int rc = 0;
 
 	BUG_ON(!crypt_stat || !crypt_stat->tfm
-	       || !ECRYPTFS_CHECK_FLAG(crypt_stat->flags,
-				       ECRYPTFS_STRUCT_INITIALIZED));
+	       || !(crypt_stat->flags & ECRYPTFS_STRUCT_INITIALIZED));
 	if (unlikely(ecryptfs_verbosity > 0)) {
 		ecryptfs_printk(KERN_DEBUG, "Key size [%d]; key:\n",
 				crypt_stat->key_size);
@@ -485,7 +484,7 @@ int ecryptfs_encrypt_page(struct ecryptfs_page_crypt_context *ctx)
 	lower_inode = ecryptfs_inode_to_lower(ctx->page->mapping->host);
 	inode_info = ecryptfs_inode_to_private(ctx->page->mapping->host);
 	crypt_stat = &inode_info->crypt_stat;
-	if (!ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_ENCRYPTED)) {
+	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 		rc = ecryptfs_copy_page_to_lower(ctx->page, lower_inode,
 						 ctx->param.lower_file);
 		if (rc)
@@ -617,7 +616,7 @@ int ecryptfs_decrypt_page(struct file *file, struct page *page)
 	crypt_stat = &(ecryptfs_inode_to_private(
 			       page->mapping->host)->crypt_stat);
 	lower_inode = ecryptfs_inode_to_lower(page->mapping->host);
-	if (!ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_ENCRYPTED)) {
+	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 		rc = ecryptfs_do_readpage(file, page, page->index);
 		if (rc)
 			ecryptfs_printk(KERN_ERR, "Error attempting to copy "
@@ -882,7 +881,7 @@ int ecryptfs_compute_root_iv(struct ecryptfs_crypt_stat *crypt_stat)
 
 	BUG_ON(crypt_stat->iv_bytes > MD5_DIGEST_SIZE);
 	BUG_ON(crypt_stat->iv_bytes <= 0);
-	if (!ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_KEY_VALID)) {
+	if (!(crypt_stat->flags & ECRYPTFS_KEY_VALID)) {
 		rc = -EINVAL;
 		ecryptfs_printk(KERN_WARNING, "Session key not valid; "
 				"cannot generate root IV\n");
@@ -899,8 +898,7 @@ int ecryptfs_compute_root_iv(struct ecryptfs_crypt_stat *crypt_stat)
 out:
 	if (rc) {
 		memset(crypt_stat->root_iv, 0, crypt_stat->iv_bytes);
-		ECRYPTFS_SET_FLAG(crypt_stat->flags,
-				  ECRYPTFS_SECURITY_WARNING);
+		crypt_stat->flags |= ECRYPTFS_SECURITY_WARNING;
 	}
 	return rc;
 }
@@ -908,7 +906,7 @@ out:
 static void ecryptfs_generate_new_key(struct ecryptfs_crypt_stat *crypt_stat)
 {
 	get_random_bytes(crypt_stat->key, crypt_stat->key_size);
-	ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_KEY_VALID);
+	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
 	ecryptfs_compute_root_iv(crypt_stat);
 	if (unlikely(ecryptfs_verbosity > 0)) {
 		ecryptfs_printk(KERN_DEBUG, "Generated new session key:\n");
@@ -948,7 +946,7 @@ static void ecryptfs_set_default_crypt_stat_vals(
 	ecryptfs_set_default_sizes(crypt_stat);
 	strcpy(crypt_stat->cipher, ECRYPTFS_DEFAULT_CIPHER);
 	crypt_stat->key_size = ECRYPTFS_DEFAULT_KEY_BYTES;
-	ECRYPTFS_CLEAR_FLAG(crypt_stat->flags, ECRYPTFS_KEY_VALID);
+	crypt_stat->flags &= ~(ECRYPTFS_KEY_VALID);
 	crypt_stat->file_version = ECRYPTFS_FILE_VERSION;
 	crypt_stat->mount_crypt_stat = mount_crypt_stat;
 }
@@ -988,8 +986,8 @@ int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry)
 	if (mount_crypt_stat->global_auth_tok) {
 		ecryptfs_printk(KERN_DEBUG, "Initializing context for new "
 				"file using mount_crypt_stat\n");
-		ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_ENCRYPTED);
-		ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_KEY_VALID);
+		crypt_stat->flags |= ECRYPTFS_ENCRYPTED;
+		crypt_stat->flags |= ECRYPTFS_KEY_VALID;
 		ecryptfs_copy_mount_wide_flags_to_inode_flags(crypt_stat,
 							      mount_crypt_stat);
 		memcpy(crypt_stat->keysigs[crypt_stat->num_keysigs++],
@@ -1074,11 +1072,9 @@ static int ecryptfs_process_flags(struct ecryptfs_crypt_stat *crypt_stat,
 	for (i = 0; i < ((sizeof(ecryptfs_flag_map)
 			  / sizeof(struct ecryptfs_flag_map_elem))); i++)
 		if (flags & ecryptfs_flag_map[i].file_flag) {
-			ECRYPTFS_SET_FLAG(crypt_stat->flags,
-					  ecryptfs_flag_map[i].local_flag);
+			crypt_stat->flags |= ecryptfs_flag_map[i].local_flag;
 		} else
-			ECRYPTFS_CLEAR_FLAG(crypt_stat->flags,
-					    ecryptfs_flag_map[i].local_flag);
+			crypt_stat->flags &= ~(ecryptfs_flag_map[i].local_flag);
 	/* Version is in top 8 bits of the 32-bit flag vector */
 	crypt_stat->file_version = ((flags >> 24) & 0xFF);
 	(*bytes_read) = 4;
@@ -1115,8 +1111,7 @@ write_ecryptfs_flags(char *page_virt, struct ecryptfs_crypt_stat *crypt_stat,
 
 	for (i = 0; i < ((sizeof(ecryptfs_flag_map)
 			  / sizeof(struct ecryptfs_flag_map_elem))); i++)
-		if (ECRYPTFS_CHECK_FLAG(crypt_stat->flags,
-					ecryptfs_flag_map[i].local_flag))
+		if (crypt_stat->flags & ecryptfs_flag_map[i].local_flag)
 			flags |= ecryptfs_flag_map[i].file_flag;
 	/* Version is in top 8 bits of the 32-bit flag vector */
 	flags |= ((((u8)crypt_stat->file_version) << 24) & 0xFF000000);
@@ -1414,10 +1409,8 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
 
 	crypt_stat = &ecryptfs_inode_to_private(
 		ecryptfs_dentry->d_inode)->crypt_stat;
-	if (likely(ECRYPTFS_CHECK_FLAG(crypt_stat->flags,
-				       ECRYPTFS_ENCRYPTED))) {
-		if (!ECRYPTFS_CHECK_FLAG(crypt_stat->flags,
-					 ECRYPTFS_KEY_VALID)) {
+	if (likely(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
+		if (!(crypt_stat->flags & ECRYPTFS_KEY_VALID)) {
 			ecryptfs_printk(KERN_DEBUG, "Key is "
 					"invalid; bailing out\n");
 			rc = -EINVAL;

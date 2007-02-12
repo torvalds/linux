@@ -273,11 +273,11 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
 	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
 	mutex_lock(&crypt_stat->cs_mutex);
-	if (!ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_POLICY_APPLIED)) {
+	if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED)) {
 		ecryptfs_printk(KERN_DEBUG, "Setting flags for stat...\n");
 		/* Policy code enabled in future release */
-		ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_POLICY_APPLIED);
-		ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_ENCRYPTED);
+		crypt_stat->flags |= ECRYPTFS_POLICY_APPLIED;
+		crypt_stat->flags |= ECRYPTFS_ENCRYPTED;
 	}
 	mutex_unlock(&crypt_stat->cs_mutex);
 	lower_flags = file->f_flags;
@@ -297,15 +297,13 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	lower_inode = lower_dentry->d_inode;
 	if (S_ISDIR(ecryptfs_dentry->d_inode->i_mode)) {
 		ecryptfs_printk(KERN_DEBUG, "This is a directory\n");
-		ECRYPTFS_CLEAR_FLAG(crypt_stat->flags, ECRYPTFS_ENCRYPTED);
+		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
 		rc = 0;
 		goto out;
 	}
 	mutex_lock(&crypt_stat->cs_mutex);
-	if (!ECRYPTFS_CHECK_FLAG(crypt_stat->flags,
-				 ECRYPTFS_POLICY_APPLIED)
-	    || !ECRYPTFS_CHECK_FLAG(crypt_stat->flags,
-				    ECRYPTFS_KEY_VALID)) {
+	if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED)
+	    || !(crypt_stat->flags & ECRYPTFS_KEY_VALID)) {
 		rc = ecryptfs_read_metadata(ecryptfs_dentry, lower_file);
 		if (rc) {
 			ecryptfs_printk(KERN_DEBUG,
@@ -320,9 +318,8 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 				mutex_unlock(&crypt_stat->cs_mutex);
 				goto out_puts;
 			}
-			ECRYPTFS_CLEAR_FLAG(crypt_stat->flags,
-					    ECRYPTFS_ENCRYPTED);
 			rc = 0;
+			crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
 			mutex_unlock(&crypt_stat->cs_mutex);
 			goto out;
 		}

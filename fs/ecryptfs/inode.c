@@ -161,9 +161,8 @@ static int grow_file(struct dentry *ecryptfs_dentry, struct file *lower_file,
 	ecryptfs_set_file_lower(&fake_file, lower_file);
 	rc = ecryptfs_fill_zeros(&fake_file, 1);
 	if (rc) {
-		ECRYPTFS_SET_FLAG(
-			ecryptfs_inode_to_private(inode)->crypt_stat.flags,
-			ECRYPTFS_SECURITY_WARNING);
+		ecryptfs_inode_to_private(inode)->crypt_stat.flags |=
+			ECRYPTFS_SECURITY_WARNING;
 		ecryptfs_printk(KERN_WARNING, "Error attempting to fill zeros "
 				"in file; rc = [%d]\n", rc);
 		goto out;
@@ -172,8 +171,7 @@ static int grow_file(struct dentry *ecryptfs_dentry, struct file *lower_file,
 	ecryptfs_write_inode_size_to_metadata(lower_file, lower_inode, inode,
 					      ecryptfs_dentry,
 					      ECRYPTFS_LOWER_I_MUTEX_NOT_HELD);
-	ECRYPTFS_SET_FLAG(ecryptfs_inode_to_private(inode)->crypt_stat.flags,
-			  ECRYPTFS_NEW_FILE);
+	ecryptfs_inode_to_private(inode)->crypt_stat.flags |= ECRYPTFS_NEW_FILE;
 out:
 	return rc;
 }
@@ -216,10 +214,10 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 	lower_inode = lower_dentry->d_inode;
 	if (S_ISDIR(ecryptfs_dentry->d_inode->i_mode)) {
 		ecryptfs_printk(KERN_DEBUG, "This is a directory\n");
-		ECRYPTFS_CLEAR_FLAG(crypt_stat->flags, ECRYPTFS_ENCRYPTED);
+		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
 		goto out_fput;
 	}
-	ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_NEW_FILE);
+	crypt_stat->flags |= ECRYPTFS_NEW_FILE;
 	ecryptfs_printk(KERN_DEBUG, "Initializing crypto context\n");
 	rc = ecryptfs_new_file_context(ecryptfs_dentry);
 	if (rc) {
@@ -373,7 +371,7 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out_dput;
 	}
 	crypt_stat = &ecryptfs_inode_to_private(dentry->d_inode)->crypt_stat;
-	if (!ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_POLICY_APPLIED))
+	if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED))
 		ecryptfs_set_default_sizes(crypt_stat);
 	rc = ecryptfs_read_and_validate_header_region(page_virt, lower_dentry,
 						      nd->mnt);

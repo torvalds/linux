@@ -295,8 +295,8 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
 	crypt_stat = &ecryptfs_inode_to_private(file->f_path.dentry->d_inode)
 			->crypt_stat;
 	if (!crypt_stat
-	    || !ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_ENCRYPTED)
-	    || ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_NEW_FILE)) {
+	    || !(crypt_stat->flags & ECRYPTFS_ENCRYPTED)
+	    || (crypt_stat->flags & ECRYPTFS_NEW_FILE)) {
 		ecryptfs_printk(KERN_DEBUG,
 				"Passing through unencrypted page\n");
 		rc = ecryptfs_do_readpage(file, page, page->index);
@@ -657,10 +657,10 @@ static int ecryptfs_commit_write(struct file *file, struct page *page,
 	mutex_lock(&lower_inode->i_mutex);
 	crypt_stat = &ecryptfs_inode_to_private(file->f_path.dentry->d_inode)
 				->crypt_stat;
-	if (ECRYPTFS_CHECK_FLAG(crypt_stat->flags, ECRYPTFS_NEW_FILE)) {
+	if (crypt_stat->flags & ECRYPTFS_NEW_FILE) {
 		ecryptfs_printk(KERN_DEBUG, "ECRYPTFS_NEW_FILE flag set in "
 			"crypt_stat at memory location [%p]\n", crypt_stat);
-		ECRYPTFS_CLEAR_FLAG(crypt_stat->flags, ECRYPTFS_NEW_FILE);
+		crypt_stat->flags &= ~(ECRYPTFS_NEW_FILE);
 	} else
 		ecryptfs_printk(KERN_DEBUG, "Not a new file\n");
 	ecryptfs_printk(KERN_DEBUG, "Calling fill_zeros_to_end_of_page"
