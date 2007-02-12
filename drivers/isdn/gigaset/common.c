@@ -640,7 +640,6 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 		return NULL;
 	}
 	mutex_init(&cs->mutex);
-	mutex_lock(&cs->mutex);
 
 	gig_dbg(DEBUG_INIT, "allocating bcs[0..%d]", channels - 1);
 	cs->bcs = kmalloc(channels * sizeof(struct bc_state), GFP_KERNEL);
@@ -738,6 +737,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 
 	++cs->cs_init;
 
+	/* set up character device */
 	gigaset_if_init(cs);
 
 	/* set up device sysfs */
@@ -753,11 +753,9 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	add_timer(&cs->timer);
 
 	gig_dbg(DEBUG_INIT, "cs initialized");
-	mutex_unlock(&cs->mutex);
 	return cs;
 
 error:
-	mutex_unlock(&cs->mutex);
 	gig_dbg(DEBUG_INIT, "failed");
 	gigaset_freecs(cs);
 	return NULL;
