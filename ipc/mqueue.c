@@ -84,7 +84,7 @@ struct mqueue_inode_info {
 	unsigned long qsize; /* size of queue in memory (sum of all msgs) */
 };
 
-static struct inode_operations mqueue_dir_inode_operations;
+static const struct inode_operations mqueue_dir_inode_operations;
 static const struct file_operations mqueue_file_operations;
 static struct super_operations mqueue_super_ops;
 static void remove_notification(struct mqueue_inode_info *info);
@@ -1160,7 +1160,7 @@ out:
 	return ret;
 }
 
-static struct inode_operations mqueue_dir_inode_operations = {
+static const struct inode_operations mqueue_dir_inode_operations = {
 	.lookup = simple_lookup,
 	.create = mqueue_create,
 	.unlink = mqueue_unlink,

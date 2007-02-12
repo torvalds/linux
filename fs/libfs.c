@@ -186,7 +186,7 @@ const struct file_operations simple_dir_operations = {
 	.fsync		= simple_sync_file,
 };
 
-struct inode_operations simple_dir_inode_operations = {
+const struct inode_operations simple_dir_inode_operations = {
 	.lookup		= simple_lookup,
 };
 

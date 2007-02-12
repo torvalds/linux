@@ -56,9 +56,9 @@ static int jffs_remove(struct inode *dir, struct dentry *dentry, int type);
 
 static struct super_operations jffs_ops;
 static const struct file_operations jffs_file_operations;
-static struct inode_operations jffs_file_inode_operations;
+static const struct inode_operations jffs_file_inode_operations;
 static const struct file_operations jffs_dir_operations;
-static struct inode_operations jffs_dir_inode_operations;
+static const struct inode_operations jffs_dir_inode_operations;
 static const struct address_space_operations jffs_address_operations;
 
 struct kmem_cache     *node_cache = NULL;
@@ -1642,7 +1642,7 @@ static const struct file_operations jffs_file_operations =
 };
 
 
-static struct inode_operations jffs_file_inode_operations =
+static const struct inode_operations jffs_file_inode_operations =
 {
 	.lookup		= jffs_lookup,          /* lookup */
 	.setattr	= jffs_setattr,
@@ -1655,7 +1655,7 @@ static const struct file_operations jffs_dir_operations =
 };
 
 
-static struct inode_operations jffs_dir_inode_operations =
+static const struct inode_operations jffs_dir_inode_operations =
 {
 	.create		= jffs_create,
 	.lookup		= jffs_lookup,

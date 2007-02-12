@@ -212,7 +212,7 @@ static struct dentry *hppfs_lookup(struct inode *ino, struct dentry *dentry,
 	return(ERR_PTR(err));
 }
 
-static struct inode_operations hppfs_file_iops = {
+static const struct inode_operations hppfs_file_iops = {
 };
 
 static ssize_t read_proc(struct file *file, char __user *buf, ssize_t count,
@@ -693,11 +693,11 @@ static void* hppfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return ret;
 }
 
-static struct inode_operations hppfs_dir_iops = {
+static const struct inode_operations hppfs_dir_iops = {
 	.lookup		= hppfs_lookup,
 };
 
-static struct inode_operations hppfs_link_iops = {
+static const struct inode_operations hppfs_link_iops = {
 	.readlink	= hppfs_readlink,
 	.follow_link	= hppfs_follow_link,
 };

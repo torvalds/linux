@@ -178,9 +178,9 @@ static inline void shmem_unacct_blocks(unsigned long flags, long pages)
 static struct super_operations shmem_ops;
 static const struct address_space_operations shmem_aops;
 static const struct file_operations shmem_file_operations;
-static struct inode_operations shmem_inode_operations;
-static struct inode_operations shmem_dir_inode_operations;
-static struct inode_operations shmem_special_inode_operations;
+static const struct inode_operations shmem_inode_operations;
+static const struct inode_operations shmem_dir_inode_operations;
+static const struct inode_operations shmem_special_inode_operations;
 static struct vm_operations_struct shmem_vm_ops;
 
 static struct backing_dev_info shmem_backing_dev_info  __read_mostly = {
@@ -1410,8 +1410,8 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
 }
 
 #ifdef CONFIG_TMPFS
-static struct inode_operations shmem_symlink_inode_operations;
-static struct inode_operations shmem_symlink_inline_operations;
+static const struct inode_operations shmem_symlink_inode_operations;
+static const struct inode_operations shmem_symlink_inline_operations;
 
 /*
  * Normally tmpfs makes no use of shmem_prepare_write, but it
@@ -1904,12 +1904,12 @@ static void shmem_put_link(struct dentry *dentry, struct nameidata *nd, void *co
 	}
 }
 
-static struct inode_operations shmem_symlink_inline_operations = {
+static const struct inode_operations shmem_symlink_inline_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= shmem_follow_link_inline,
 };
 
-static struct inode_operations shmem_symlink_inode_operations = {
+static const struct inode_operations shmem_symlink_inode_operations = {
 	.truncate	= shmem_truncate,
 	.readlink	= generic_readlink,
 	.follow_link	= shmem_follow_link,
@@ -2335,7 +2335,7 @@ static const struct file_operations shmem_file_operations = {
 #endif
 };
 
-static struct inode_operations shmem_inode_operations = {
+static const struct inode_operations shmem_inode_operations = {
 	.truncate	= shmem_truncate,
 	.setattr	= shmem_notify_change,
 	.truncate_range	= shmem_truncate_range,
@@ -2349,7 +2349,7 @@ static struct inode_operations shmem_inode_operations = {
 
 };
 
-static struct inode_operations shmem_dir_inode_operations = {
+static const struct inode_operations shmem_dir_inode_operations = {
 #ifdef CONFIG_TMPFS
 	.create		= shmem_create,
 	.lookup		= simple_lookup,
@@ -2371,7 +2371,7 @@ static struct inode_operations shmem_dir_inode_operations = {
 #endif
 };
 
-static struct inode_operations shmem_special_inode_operations = {
+static const struct inode_operations shmem_special_inode_operations = {
 #ifdef CONFIG_TMPFS_POSIX_ACL
 	.setattr	= shmem_notify_change,
 	.setxattr	= generic_setxattr,

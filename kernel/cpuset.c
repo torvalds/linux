@@ -1540,7 +1540,7 @@ static const struct file_operations cpuset_file_operations = {
 	.release = cpuset_file_release,
 };
 
-static struct inode_operations cpuset_dir_inode_operations = {
+static const struct inode_operations cpuset_dir_inode_operations = {
 	.lookup = simple_lookup,
 	.mkdir = cpuset_mkdir,
 	.rmdir = cpuset_rmdir,

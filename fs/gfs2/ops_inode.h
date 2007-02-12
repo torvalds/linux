@@ -12,9 +12,9 @@
 
 #include <linux/fs.h>
 
-extern struct inode_operations gfs2_file_iops;
-extern struct inode_operations gfs2_dir_iops;
-extern struct inode_operations gfs2_symlink_iops;
-extern struct inode_operations gfs2_dev_iops;
+extern const struct inode_operations gfs2_file_iops;
+extern const struct inode_operations gfs2_dir_iops;
+extern const struct inode_operations gfs2_symlink_iops;
+extern const struct inode_operations gfs2_dev_iops;
 
 #endif /* __OPS_INODE_DOT_H__ */
