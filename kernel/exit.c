@@ -185,21 +185,19 @@ repeat:
  * This checks not only the pgrp, but falls back on the pid if no
  * satisfactory pgrp is found. I dunno - gdb doesn't work correctly
  * without this...
+ *
+ * The caller must hold rcu lock or the tasklist lock.
  */
-int session_of_pgrp(int pgrp)
+struct pid *session_of_pgrp(struct pid *pgrp)
 {
 	struct task_struct *p;
-	int sid = 0;
+	struct pid *sid = NULL;
 
-	read_lock(&tasklist_lock);
-
-	p = find_task_by_pid_type(PIDTYPE_PGID, pgrp);
+	p = pid_task(pgrp, PIDTYPE_PGID);
 	if (p == NULL)
-		p = find_task_by_pid(pgrp);
+		p = pid_task(pgrp, PIDTYPE_PID);
 	if (p != NULL)
-		sid = process_session(p);
-
-	read_unlock(&tasklist_lock);
+		sid = task_session(p);
 
 	return sid;
 }
