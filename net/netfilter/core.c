@@ -248,9 +248,12 @@ void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb)
 {
 	void (*attach)(struct sk_buff *, struct sk_buff *);
 
-	if (skb->nfct && (attach = ip_ct_attach) != NULL) {
-		mb(); /* Just to be sure: must be read before executing this */
-		attach(new, skb);
+	if (skb->nfct) {
+		rcu_read_lock();
+		attach = rcu_dereference(ip_ct_attach);
+		if (attach)
+			attach(new, skb);
+		rcu_read_unlock();
 	}
 }
 EXPORT_SYMBOL(nf_ct_attach);

@@ -1105,7 +1105,7 @@ void nf_conntrack_cleanup(void)
 {
 	int i;
 
-	ip_ct_attach = NULL;
+	rcu_assign_pointer(ip_ct_attach, NULL);
 
 	/* This makes sure all current packets have passed through
 	   netfilter framework.  Roll on, two-stage module
@@ -1273,7 +1273,7 @@ int __init nf_conntrack_init(void)
         write_unlock_bh(&nf_conntrack_lock);
 
 	/* For use by REJECT target */
-	ip_ct_attach = __nf_conntrack_attach;
+	rcu_assign_pointer(ip_ct_attach, __nf_conntrack_attach);
 
 	/* Set up fake conntrack:
 	    - to never be deleted, not in any hashes */

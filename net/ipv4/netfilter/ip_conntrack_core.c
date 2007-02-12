@@ -1354,7 +1354,7 @@ static void free_conntrack_hash(struct list_head *hash, int vmalloced,int size)
    supposed to kill the mall. */
 void ip_conntrack_cleanup(void)
 {
-	ip_ct_attach = NULL;
+	rcu_assign_pointer(ip_ct_attach, NULL);
 
 	/* This makes sure all current packets have passed through
 	   netfilter framework.  Roll on, two-stage module
@@ -1515,7 +1515,7 @@ int __init ip_conntrack_init(void)
 	write_unlock_bh(&ip_conntrack_lock);
 
 	/* For use by ipt_REJECT */
-	ip_ct_attach = ip_conntrack_attach;
+	rcu_assign_pointer(ip_ct_attach, ip_conntrack_attach);
 
 	/* Set up fake conntrack:
 	    - to never be deleted, not in any hashes */
