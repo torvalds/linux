@@ -8,6 +8,8 @@
 #ifndef __LINUX_LOCKDEP_H
 #define __LINUX_LOCKDEP_H
 
+struct task_struct;
+
 #ifdef CONFIG_LOCKDEP
 
 #include <linux/linkage.h>
