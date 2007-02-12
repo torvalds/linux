@@ -2365,7 +2365,7 @@ end_rename:
 /*
  * directories can handle most operations...
  */
-struct inode_operations ext3_dir_inode_operations = {
+const struct inode_operations ext3_dir_inode_operations = {
 	.create		= ext3_create,
 	.lookup		= ext3_lookup,
 	.link		= ext3_link,
@@ -2385,7 +2385,7 @@ struct inode_operations ext3_dir_inode_operations = {
 	.permission	= ext3_permission,
 };
 
-struct inode_operations ext3_special_inode_operations = {
+const struct inode_operations ext3_special_inode_operations = {
 	.setattr	= ext3_setattr,
 #ifdef CONFIG_EXT3_FS_XATTR
 	.setxattr	= generic_setxattr,

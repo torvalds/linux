@@ -38,7 +38,7 @@ const struct file_operations affs_file_operations = {
 	.sendfile	= generic_file_sendfile,
 };
 
-struct inode_operations affs_file_inode_operations = {
+const struct inode_operations affs_file_inode_operations = {
 	.truncate	= affs_truncate,
 	.setattr	= affs_notify_change,
 };

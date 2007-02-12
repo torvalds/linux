@@ -220,7 +220,7 @@ static int spufs_dir_close(struct inode *inode, struct file *file)
 	return dcache_dir_close(inode, file);
 }
 
-struct inode_operations spufs_dir_inode_operations = {
+const struct inode_operations spufs_dir_inode_operations = {
 	.lookup = simple_lookup,
 };
 

@@ -49,7 +49,7 @@ static struct backing_dev_info configfs_backing_dev_info = {
 	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
 };
 
-static struct inode_operations configfs_inode_operations ={
+static const struct inode_operations configfs_inode_operations ={
 	.setattr	= configfs_setattr,
 };
 

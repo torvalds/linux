@@ -32,7 +32,7 @@ const struct file_operations autofs_root_operations = {
 	.ioctl		= autofs_root_ioctl,
 };
 
-struct inode_operations autofs_root_inode_operations = {
+const struct inode_operations autofs_root_inode_operations = {
         .lookup		= autofs_root_lookup,
         .unlink		= autofs_root_unlink,
         .symlink	= autofs_root_symlink,

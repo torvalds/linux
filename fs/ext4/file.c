@@ -125,7 +125,7 @@ const struct file_operations ext4_file_operations = {
 	.splice_write	= generic_file_splice_write,
 };
 
-struct inode_operations ext4_file_inode_operations = {
+const struct inode_operations ext4_file_inode_operations = {
 	.truncate	= ext4_truncate,
 	.setattr	= ext4_setattr,
 #ifdef CONFIG_EXT4DEV_FS_XATTR

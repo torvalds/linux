@@ -48,7 +48,7 @@ static int	vxfs_immed_readpage(struct file *, struct page *);
  * Unliked all other operations we do not go through the pagecache,
  * but do all work directly on the inode.
  */
-struct inode_operations vxfs_immed_symlink_iops = {
+const struct inode_operations vxfs_immed_symlink_iops = {
 	.readlink =		generic_readlink,
 	.follow_link =		vxfs_immed_follow_link,
 };

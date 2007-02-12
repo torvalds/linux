@@ -989,7 +989,7 @@ int ecryptfs_inode_set(struct inode *inode, void *lower_inode)
 	return 0;
 }
 
-struct inode_operations ecryptfs_symlink_iops = {
+const struct inode_operations ecryptfs_symlink_iops = {
 	.readlink = ecryptfs_readlink,
 	.follow_link = ecryptfs_follow_link,
 	.put_link = ecryptfs_put_link,
@@ -1001,7 +1001,7 @@ struct inode_operations ecryptfs_symlink_iops = {
 	.removexattr = ecryptfs_removexattr
 };
 
-struct inode_operations ecryptfs_dir_iops = {
+const struct inode_operations ecryptfs_dir_iops = {
 	.create = ecryptfs_create,
 	.lookup = ecryptfs_lookup,
 	.link = ecryptfs_link,
@@ -1019,7 +1019,7 @@ struct inode_operations ecryptfs_dir_iops = {
 	.removexattr = ecryptfs_removexattr
 };
 
-struct inode_operations ecryptfs_main_iops = {
+const struct inode_operations ecryptfs_main_iops = {
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
 	.setxattr = ecryptfs_setxattr,

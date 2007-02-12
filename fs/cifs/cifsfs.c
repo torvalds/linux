@@ -533,7 +533,7 @@ static struct file_system_type cifs_fs_type = {
 	.kill_sb = kill_anon_super,
 	/*  .fs_flags */
 };
-struct inode_operations cifs_dir_inode_ops = {
+const struct inode_operations cifs_dir_inode_ops = {
 	.create = cifs_create,
 	.lookup = cifs_lookup,
 	.getattr = cifs_getattr,
@@ -555,7 +555,7 @@ struct inode_operations cifs_dir_inode_ops = {
 #endif
 };
 
-struct inode_operations cifs_file_inode_ops = {
+const struct inode_operations cifs_file_inode_ops = {
 /*	revalidate:cifs_revalidate, */
 	.setattr = cifs_setattr,
 	.getattr = cifs_getattr, /* do we need this anymore? */
@@ -569,7 +569,7 @@ struct inode_operations cifs_file_inode_ops = {
 #endif 
 };
 
-struct inode_operations cifs_symlink_inode_ops = {
+const struct inode_operations cifs_symlink_inode_ops = {
 	.readlink = generic_readlink, 
 	.follow_link = cifs_follow_link,
 	.put_link = cifs_put_link,

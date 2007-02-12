@@ -446,9 +446,9 @@ void __ecryptfs_printk(const char *fmt, ...);
 
 extern const struct file_operations ecryptfs_main_fops;
 extern const struct file_operations ecryptfs_dir_fops;
-extern struct inode_operations ecryptfs_main_iops;
-extern struct inode_operations ecryptfs_dir_iops;
-extern struct inode_operations ecryptfs_symlink_iops;
+extern const struct inode_operations ecryptfs_main_iops;
+extern const struct inode_operations ecryptfs_dir_iops;
+extern const struct inode_operations ecryptfs_symlink_iops;
 extern struct super_operations ecryptfs_sops;
 extern struct dentry_operations ecryptfs_dops;
 extern struct address_space_operations ecryptfs_aops;
