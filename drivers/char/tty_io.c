@@ -1508,8 +1508,12 @@ void disassociate_ctty(int on_exit)
 		/* XXX: here we race, there is nothing protecting tty */
 		if (on_exit && tty->driver->type != TTY_DRIVER_TYPE_PTY)
 			tty_vhangup(tty);
-	} else {
-		pid_t old_pgrp = current->signal->tty_old_pgrp;
+	} else if (on_exit) {
+		pid_t old_pgrp;
+		spin_lock_irq(&current->sighand->siglock);
+		old_pgrp = current->signal->tty_old_pgrp;
+		current->signal->tty_old_pgrp = 0;
+		spin_unlock_irq(&current->sighand->siglock);
 		if (old_pgrp) {
 			kill_pg(old_pgrp, SIGHUP, on_exit);
 			kill_pg(old_pgrp, SIGCONT, on_exit);
