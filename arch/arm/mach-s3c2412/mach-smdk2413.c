@@ -37,6 +37,7 @@
 #include <asm/arch/regs-lcd.h>
 
 #include <asm/arch/idle.h>
+#include <asm/arch/udc.h>
 #include <asm/arch/fb.h>
 
 #include <asm/plat-s3c24xx/s3c2410.h>
@@ -75,12 +76,38 @@ static struct s3c2410_uartcfg smdk2413_uartcfgs[] __initdata = {
 	}
 };
 
+static void smdk2413_udc_pullup(enum s3c2410_udc_cmd_e cmd)
+{
+	printk(KERN_DEBUG "udc: pullup(%d)\n",cmd);
+
+	switch (cmd)
+	{
+		case S3C2410_UDC_P_ENABLE :
+			s3c2410_gpio_setpin(S3C2410_GPF2, 1);
+			break;
+		case S3C2410_UDC_P_DISABLE :
+			s3c2410_gpio_setpin(S3C2410_GPF2, 0);
+			break;
+		case S3C2410_UDC_P_RESET :
+			break;
+		default:
+			break;
+	}
+}
+
+
+static struct s3c2410_udc_mach_info smdk2413_udc_cfg __initdata = {
+	.udc_command		= smdk2413_udc_pullup,
+};
+
+
 static struct platform_device *smdk2413_devices[] __initdata = {
 	&s3c_device_usb,
 	//&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c,
 	&s3c_device_iis,
+	&s3c_device_usbgadget,
 };
 
 static struct s3c24xx_board smdk2413_board __initdata = {
@@ -109,7 +136,19 @@ static void __init smdk2413_map_io(void)
 }
 
 static void __init smdk2413_machine_init(void)
-{
+{	/* Turn off suspend on both USB ports, and switch the
+	 * selectable USB port to USB device mode. */
+
+	s3c2410_gpio_setpin(S3C2410_GPF2, 0);
+	s3c2410_gpio_cfgpin(S3C2410_GPF2, S3C2410_GPIO_OUTPUT);
+
+	s3c2410_modify_misccr(S3C2410_MISCCR_USBHOST |
+			      S3C2410_MISCCR_USBSUSPND0 |
+			      S3C2410_MISCCR_USBSUSPND1, 0x0);
+
+
+ 	s3c24xx_udc_set_platdata(&smdk2413_udc_cfg);
+
 	smdk_machine_init();
 }
 
