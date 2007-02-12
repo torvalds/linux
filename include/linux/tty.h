@@ -333,7 +333,6 @@ extern int tty_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 extern dev_t tty_devnum(struct tty_struct *tty);
 extern void proc_clear_tty(struct task_struct *p);
-extern void __proc_set_tty(struct task_struct *tsk, struct tty_struct *tty);
 extern void proc_set_tty(struct task_struct *tsk, struct tty_struct *tty);
 extern struct tty_struct *get_current_tty(void);
 
