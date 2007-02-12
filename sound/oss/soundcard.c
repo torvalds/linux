@@ -483,7 +483,7 @@ static int sound_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-struct file_operations oss_sound_fops = {
+const struct file_operations oss_sound_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= sound_read,

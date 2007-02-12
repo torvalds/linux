@@ -1359,7 +1359,7 @@ static void snd_rawmidi_proc_info_read(struct snd_info_entry *entry,
  *  Register functions
  */
 
-static struct file_operations snd_rawmidi_f_ops =
+static const struct file_operations snd_rawmidi_f_ops =
 {
 	.owner =	THIS_MODULE,
 	.read =		snd_rawmidi_read,

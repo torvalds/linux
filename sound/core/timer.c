@@ -1901,7 +1901,7 @@ static unsigned int snd_timer_user_poll(struct file *file, poll_table * wait)
 #define snd_timer_user_ioctl_compat	NULL
 #endif
 
-static struct file_operations snd_timer_f_ops =
+static const struct file_operations snd_timer_f_ops =
 {
 	.owner =	THIS_MODULE,
 	.read =		snd_timer_user_read,

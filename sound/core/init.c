@@ -36,7 +36,7 @@
 static DEFINE_SPINLOCK(shutdown_lock);
 static LIST_HEAD(shutdown_files);
 
-static struct file_operations snd_shutdown_f_ops;
+static const struct file_operations snd_shutdown_f_ops;
 
 static unsigned int snd_cards_lock;	/* locked for registering/using */
 struct snd_card *snd_cards[SNDRV_CARDS];
@@ -244,7 +244,7 @@ static int snd_disconnect_fasync(int fd, struct file *file, int on)
 	return -ENODEV;
 }
 
-static struct file_operations snd_shutdown_f_ops =
+static const struct file_operations snd_shutdown_f_ops =
 {
 	.owner = 	THIS_MODULE,
 	.llseek =	snd_disconnect_llseek,
