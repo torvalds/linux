@@ -238,7 +238,9 @@ int ecryptfs_do_readpage(struct file *file, struct page *page,
 	lower_page_data = kmap_atomic(lower_page, KM_USER1);
 	memcpy(page_data, lower_page_data, PAGE_CACHE_SIZE);
 	kunmap_atomic(lower_page_data, KM_USER1);
+	flush_dcache_page(lower_page);
 	kunmap_atomic(page_data, KM_USER0);
+	flush_dcache_page(page);
 	rc = 0;
 out:
 	if (likely(lower_page))
@@ -322,6 +324,7 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
 					set_header_info(page_virt, crypt_stat);
 				}
 				kunmap_atomic(page_virt, KM_USER0);
+				flush_dcache_page(page);
 				if (rc) {
 					printk(KERN_ERR "Error reading xattr "
 					       "region\n");
@@ -382,6 +385,7 @@ static int fill_zeros_to_end_of_page(struct page *page, unsigned int to)
 	memset((page_virt + end_byte_in_page), 0,
 	       (PAGE_CACHE_SIZE - end_byte_in_page));
 	kunmap_atomic(page_virt, KM_USER0);
+	flush_dcache_page(page);
 out:
 	return 0;
 }
@@ -456,6 +460,7 @@ static int ecryptfs_write_inode_size_to_header(struct file *lower_file,
 	header_virt = kmap_atomic(header_page, KM_USER0);
 	memcpy(header_virt, &file_size, sizeof(u64));
 	kunmap_atomic(header_virt, KM_USER0);
+	flush_dcache_page(header_page);
 	rc = lower_a_ops->commit_write(lower_file, header_page, 0, 8);
 	if (rc < 0)
 		ecryptfs_printk(KERN_ERR, "Error commiting header page "
@@ -742,6 +747,7 @@ int write_zeros(struct file *file, pgoff_t index, int start, int num_zeros)
 	tmp_page_virt = kmap_atomic(tmp_page, KM_USER0);
 	memset(((char *)tmp_page_virt + start), 0, num_zeros);
 	kunmap_atomic(tmp_page_virt, KM_USER0);
+	flush_dcache_page(tmp_page);
 	rc = ecryptfs_commit_write(file, tmp_page, start, start + num_zeros);
 	if (rc < 0) {
 		ecryptfs_printk(KERN_ERR, "Error attempting to write zero's "
