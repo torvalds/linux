@@ -110,7 +110,7 @@ static struct sys_device s3c2410_sysdev = {
 
 /* need to register class before we actually register the device, and
  * we also need to ensure that it has been initialised before any of the
- * drivers even try to use it (even if not on an s3c2440 based system)
+ * drivers even try to use it (even if not on an s3c2410 based system)
  * as a driver which may support both 2410 and 2440 may try and use it.
 */
 
