@@ -548,7 +548,7 @@ static int ide_drivers_open(struct inode *inode, struct file *file)
 	return single_open(file, &ide_drivers_show, NULL);
 }
 
-static struct file_operations ide_drivers_operations = {
+static const struct file_operations ide_drivers_operations = {
 	.open		= ide_drivers_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

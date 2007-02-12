@@ -101,7 +101,7 @@ static int crypto_info_open(struct inode *inode, struct file *file)
 	return seq_open(file, &crypto_seq_ops);
 }
         
-static struct file_operations proc_crypto_ops = {
+static const struct file_operations proc_crypto_ops = {
 	.open		= crypto_info_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

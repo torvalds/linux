@@ -264,7 +264,7 @@ static ssize_t blk_dropped_read(struct file *filp, char __user *buffer,
 	return simple_read_from_buffer(buffer, count, ppos, buf, strlen(buf));
 }
 
-static struct file_operations blk_dropped_fops = {
+static const struct file_operations blk_dropped_fops = {
 	.owner =	THIS_MODULE,
 	.open =		blk_dropped_open,
 	.read =		blk_dropped_read,

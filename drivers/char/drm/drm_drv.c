@@ -371,7 +371,7 @@ void drm_exit(struct drm_driver *driver)
 EXPORT_SYMBOL(drm_exit);
 
 /** File operations structure */
-static struct file_operations drm_stub_fops = {
+static const struct file_operations drm_stub_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_stub_open
 };

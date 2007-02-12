@@ -526,7 +526,7 @@ static int pc87413_notify_sys(struct notifier_block *this,
 
 /* -- Module's structures ---------------------------------------*/
 
-static struct file_operations pc87413_fops = {
+static const struct file_operations pc87413_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= pc87413_write,

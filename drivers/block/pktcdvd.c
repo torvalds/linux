@@ -435,7 +435,7 @@ static int pkt_debugfs_fops_open(struct inode *inode, struct file *file)
 	return single_open(file, pkt_debugfs_seq_show, inode->i_private);
 }
 
-static struct file_operations debug_fops = {
+static const struct file_operations debug_fops = {
 	.open		= pkt_debugfs_fops_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -2725,7 +2725,7 @@ static int pkt_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, pkt_seq_show, PDE(inode)->data);
 }
 
-static struct file_operations pkt_proc_fops = {
+static const struct file_operations pkt_proc_fops = {
 	.open	= pkt_seq_open,
 	.read	= seq_read,
 	.llseek	= seq_lseek,
@@ -3052,7 +3052,7 @@ static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cm
 }
 
 
-static struct file_operations pkt_ctl_fops = {
+static const struct file_operations pkt_ctl_fops = {
 	.ioctl	 = pkt_ctl_ioctl,
 	.owner	 = THIS_MODULE,
 };

@@ -7024,7 +7024,7 @@ static int DAC960_gam_ioctl(struct inode *inode, struct file *file,
   return -EINVAL;
 }
 
-static struct file_operations DAC960_gam_fops = {
+static const struct file_operations DAC960_gam_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= DAC960_gam_ioctl
 };

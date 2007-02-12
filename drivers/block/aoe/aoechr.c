@@ -233,7 +233,7 @@ loop:
 	}
 }
 
-static struct file_operations aoe_fops = {
+static const struct file_operations aoe_fops = {
 	.write = aoechr_write,
 	.read = aoechr_read,
 	.open = aoechr_open,

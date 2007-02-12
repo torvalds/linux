@@ -1277,7 +1277,7 @@ static long video1394_compat_ioctl(struct file *f, unsigned cmd, unsigned long a
 #endif
 
 static struct cdev video1394_cdev;
-static struct file_operations video1394_fops=
+static const struct file_operations video1394_fops=
 {
 	.owner =	THIS_MODULE,
 	.unlocked_ioctl = video1394_ioctl,

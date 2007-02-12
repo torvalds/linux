@@ -238,7 +238,7 @@ static int pnx4008_wdt_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations pnx4008_wdt_fops = {
+static const struct file_operations pnx4008_wdt_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.write = pnx4008_wdt_write,

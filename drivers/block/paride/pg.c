@@ -227,7 +227,7 @@ static struct class *pg_class;
 
 /* kernel glue structures */
 
-static struct file_operations pg_fops = {
+static const struct file_operations pg_fops = {
 	.owner = THIS_MODULE,
 	.read = pg_read,
 	.write = pg_write,

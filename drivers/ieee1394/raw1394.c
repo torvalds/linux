@@ -3013,7 +3013,7 @@ static struct hpsb_highlevel raw1394_highlevel = {
 };
 
 static struct cdev raw1394_cdev;
-static struct file_operations raw1394_fops = {
+static const struct file_operations raw1394_fops = {
 	.owner = THIS_MODULE,
 	.read = raw1394_read,
 	.write = raw1394_write,
