@@ -782,7 +782,12 @@ static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 	u8 value;
 	u32 dra, drc, cumul_size;
 
-	pci_read_config_dword(pdev, E752X_DRA, &dra);
+	dra = 0;
+	for (index=0; index < 4; index++) {
+		u8 dra_reg;
+		pci_read_config_byte(pdev, E752X_DRA+index, &dra_reg);
+		dra |= dra_reg << (index * 8);
+	}
 	pci_read_config_dword(pdev, E752X_DRC, &drc);
 	drc_chan = dual_channel_active(ddrcsr);
 	drc_drbg = drc_chan + 1;  /* 128 in dual mode, 64 in single */
