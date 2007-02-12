@@ -774,7 +774,7 @@ static struct class_device_attribute *aac_attrs[] = {
 };
 
 
-static struct file_operations aac_cfg_fops = {
+static const struct file_operations aac_cfg_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= aac_cfg_ioctl,
 #ifdef CONFIG_COMPAT

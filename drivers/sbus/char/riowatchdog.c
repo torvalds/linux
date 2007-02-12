@@ -193,7 +193,7 @@ static ssize_t riowd_write(struct file *file, const char __user *buf, size_t cou
 	return 0;
 }
 
-static struct file_operations riowd_fops = {
+static const struct file_operations riowd_fops = {
 	.owner =	THIS_MODULE,
 	.ioctl =	riowd_ioctl,
 	.open =		riowd_open,

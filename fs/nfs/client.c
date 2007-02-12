@@ -1173,7 +1173,7 @@ static struct seq_operations nfs_server_list_ops = {
 	.show	= nfs_server_list_show,
 };
 
-static struct file_operations nfs_server_list_fops = {
+static const struct file_operations nfs_server_list_fops = {
 	.open		= nfs_server_list_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1193,7 +1193,7 @@ static struct seq_operations nfs_volume_list_ops = {
 	.show	= nfs_volume_list_show,
 };
 
-static struct file_operations nfs_volume_list_fops = {
+static const struct file_operations nfs_volume_list_fops = {
 	.open		= nfs_volume_list_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

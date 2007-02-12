@@ -1209,7 +1209,7 @@ error_1:
 	return retval;
 }
 
-static struct file_operations ftdi_elan_fops = {
+static const struct file_operations ftdi_elan_fops = {
         .owner = THIS_MODULE,
         .llseek = no_llseek,
         .ioctl = ftdi_elan_ioctl,

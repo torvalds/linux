@@ -94,7 +94,7 @@ struct pid_entry {
 	char *name;
 	mode_t mode;
 	struct inode_operations *iop;
-	struct file_operations *fop;
+	const struct file_operations *fop;
 	union proc_op op;
 };
 
@@ -424,7 +424,7 @@ static unsigned mounts_poll(struct file *file, poll_table *wait)
 	return res;
 }
 
-static struct file_operations proc_mounts_operations = {
+static const struct file_operations proc_mounts_operations = {
 	.open		= mounts_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -462,7 +462,7 @@ static int mountstats_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static struct file_operations proc_mountstats_operations = {
+static const struct file_operations proc_mountstats_operations = {
 	.open		= mountstats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -501,7 +501,7 @@ out_no_task:
 	return length;
 }
 
-static struct file_operations proc_info_file_operations = {
+static const struct file_operations proc_info_file_operations = {
 	.read		= proc_info_read,
 };
 
@@ -646,7 +646,7 @@ static loff_t mem_lseek(struct file * file, loff_t offset, int orig)
 	return file->f_pos;
 }
 
-static struct file_operations proc_mem_operations = {
+static const struct file_operations proc_mem_operations = {
 	.llseek		= mem_lseek,
 	.read		= mem_read,
 	.write		= mem_write,
@@ -710,7 +710,7 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 	return end - buffer;
 }
 
-static struct file_operations proc_oom_adjust_operations = {
+static const struct file_operations proc_oom_adjust_operations = {
 	.read		= oom_adjust_read,
 	.write		= oom_adjust_write,
 };
@@ -777,7 +777,7 @@ out_free_page:
 	return length;
 }
 
-static struct file_operations proc_loginuid_operations = {
+static const struct file_operations proc_loginuid_operations = {
 	.read		= proc_loginuid_read,
 	.write		= proc_loginuid_write,
 };
@@ -849,7 +849,7 @@ out_no_task:
 	return result;
 }
 
-static struct file_operations proc_seccomp_operations = {
+static const struct file_operations proc_seccomp_operations = {
 	.read		= seccomp_read,
 	.write		= seccomp_write,
 };
@@ -908,7 +908,7 @@ static ssize_t proc_fault_inject_write(struct file * file,
 	return end - buffer;
 }
 
-static struct file_operations proc_fault_inject_operations = {
+static const struct file_operations proc_fault_inject_operations = {
 	.read		= proc_fault_inject_read,
 	.write		= proc_fault_inject_write,
 };
@@ -1408,7 +1408,7 @@ out_no_task:
 	return retval;
 }
 
-static struct file_operations proc_fd_operations = {
+static const struct file_operations proc_fd_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_readfd,
 };
@@ -1623,7 +1623,7 @@ out_no_task:
 	return length;
 }
 
-static struct file_operations proc_pid_attr_operations = {
+static const struct file_operations proc_pid_attr_operations = {
 	.read		= proc_pid_attr_read,
 	.write		= proc_pid_attr_write,
 };
@@ -1644,7 +1644,7 @@ static int proc_attr_dir_readdir(struct file * filp,
 				   attr_dir_stuff,ARRAY_SIZE(attr_dir_stuff));
 }
 
-static struct file_operations proc_attr_dir_operations = {
+static const struct file_operations proc_attr_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_attr_dir_readdir,
 };
@@ -1834,7 +1834,7 @@ static int proc_pid_io_accounting(struct task_struct *task, char *buffer)
 /*
  * Thread groups
  */
-static struct file_operations proc_task_operations;
+static const struct file_operations proc_task_operations;
 static struct inode_operations proc_task_inode_operations;
 
 static struct pid_entry tgid_base_stuff[] = {
@@ -1894,7 +1894,7 @@ static int proc_tgid_base_readdir(struct file * filp,
 				   tgid_base_stuff,ARRAY_SIZE(tgid_base_stuff));
 }
 
-static struct file_operations proc_tgid_base_operations = {
+static const struct file_operations proc_tgid_base_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_tgid_base_readdir,
 };
@@ -2177,7 +2177,7 @@ static struct dentry *proc_tid_base_lookup(struct inode *dir, struct dentry *den
 				  tid_base_stuff, ARRAY_SIZE(tid_base_stuff));
 }
 
-static struct file_operations proc_tid_base_operations = {
+static const struct file_operations proc_tid_base_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_tid_base_readdir,
 };
@@ -2414,7 +2414,7 @@ static struct inode_operations proc_task_inode_operations = {
 	.setattr	= proc_setattr,
 };
 
-static struct file_operations proc_task_operations = {
+static const struct file_operations proc_task_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_task_readdir,
 };

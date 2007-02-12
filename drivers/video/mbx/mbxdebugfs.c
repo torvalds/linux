@@ -170,37 +170,37 @@ static ssize_t misc_read_file(struct file *file, char __user *userbuf,
 }
 
 
-static struct file_operations sysconf_fops = {
+static const struct file_operations sysconf_fops = {
 	.read = sysconf_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
 };
 
-static struct file_operations clock_fops = {
+static const struct file_operations clock_fops = {
 	.read = clock_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
 };
 
-static struct file_operations display_fops = {
+static const struct file_operations display_fops = {
 	.read = display_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
 };
 
-static struct file_operations gsctl_fops = {
+static const struct file_operations gsctl_fops = {
 	.read = gsctl_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
 };
 
-static struct file_operations sdram_fops = {
+static const struct file_operations sdram_fops = {
 	.read = sdram_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
 };
 
-static struct file_operations misc_fops = {
+static const struct file_operations misc_fops = {
 	.read = misc_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,

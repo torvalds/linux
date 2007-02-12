@@ -280,7 +280,7 @@ static int tgt_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations tgt_fops = {
+static const struct file_operations tgt_fops = {
 	.owner		= THIS_MODULE,
 	.open		= tgt_open,
 	.poll		= tgt_poll,

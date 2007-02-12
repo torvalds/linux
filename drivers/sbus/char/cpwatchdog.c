@@ -459,7 +459,7 @@ static irqreturn_t wd_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct file_operations wd_fops = {
+static const struct file_operations wd_fops = {
 	.owner =	THIS_MODULE,
 	.ioctl =	wd_ioctl,
 	.compat_ioctl =	wd_compat_ioctl,

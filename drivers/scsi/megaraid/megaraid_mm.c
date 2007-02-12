@@ -67,7 +67,7 @@ static struct list_head adapters_list_g;
 
 static wait_queue_head_t wait_q;
 
-static struct file_operations lsi_fops = {
+static const struct file_operations lsi_fops = {
 	.open	= mraid_mm_open,
 	.ioctl	= mraid_mm_ioctl,
 #ifdef CONFIG_COMPAT

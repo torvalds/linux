@@ -136,7 +136,7 @@ static int proc_root_readdir(struct file * filp,
  * <pid> directories. Thus we don't use the generic
  * directory handling functions for that..
  */
-static struct file_operations proc_root_operations = {
+static const struct file_operations proc_root_operations = {
 	.read		 = generic_read_dir,
 	.readdir	 = proc_root_readdir,
 };

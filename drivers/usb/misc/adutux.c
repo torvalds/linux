@@ -644,7 +644,7 @@ exit:
 }
 
 /* file operations needed when we register this driver */
-static struct file_operations adu_fops = {
+static const struct file_operations adu_fops = {
 	.owner = THIS_MODULE,
 	.read  = adu_read,
 	.write = adu_write,

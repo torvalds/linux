@@ -254,7 +254,7 @@ static ssize_t read_file_blob(struct file *file, char __user *user_buf,
 			blob->size);
 }
 
-static struct file_operations fops_blob = {
+static const struct file_operations fops_blob = {
 	.read =		read_file_blob,
 	.open =		default_open,
 };

@@ -142,7 +142,7 @@ flash_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations flash_fops = {
+static const struct file_operations flash_fops = {
 	/* no write to the Flash, use mmap
 	 * and play flash dependent tricks.
 	 */

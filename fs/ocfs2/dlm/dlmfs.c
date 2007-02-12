@@ -62,7 +62,7 @@
 #include "cluster/masklog.h"
 
 static struct super_operations dlmfs_ops;
-static struct file_operations dlmfs_file_operations;
+static const struct file_operations dlmfs_file_operations;
 static struct inode_operations dlmfs_dir_inode_operations;
 static struct inode_operations dlmfs_root_inode_operations;
 static struct inode_operations dlmfs_file_inode_operations;
@@ -540,7 +540,7 @@ static int dlmfs_fill_super(struct super_block * sb,
 	return 0;
 }
 
-static struct file_operations dlmfs_file_operations = {
+static const struct file_operations dlmfs_file_operations = {
 	.open		= dlmfs_file_open,
 	.release	= dlmfs_file_release,
 	.read		= dlmfs_file_read,
