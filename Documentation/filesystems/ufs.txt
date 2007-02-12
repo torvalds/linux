@@ -21,7 +21,7 @@ ufstype=type_of_ufs
 		supported as read-write
 
 	ufs2    used in FreeBSD 5.x
-		supported as read-only
+		supported as read-write
 
 	5xbsd	synonym for ufs2
 
@@ -50,12 +50,11 @@ ufstype=type_of_ufs
 POSSIBLE PROBLEMS
 =================
 
-There is still bug in reallocation of fragment, in file fs/ufs/balloc.c, 
-line 364. But it seems working on current buffer cache configuration.
+See next section, if you have any.
 
 
 BUG REPORTS
 ===========
 
-Any ufs bug report you can send to daniel.pirkl@email.cz (do not send 
-partition tables bug reports.)
+Any ufs bug report you can send to daniel.pirkl@email.cz or
+to dushistov@mail.ru (do not send partition tables bug reports).
