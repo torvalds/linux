@@ -906,20 +906,7 @@ void gigaset_shutdown(struct cardstate *cs)
 	gig_dbg(DEBUG_CMD, "scheduling SHUTDOWN");
 	gigaset_schedule_event(cs);
 
-	if (wait_event_interruptible(cs->waitqueue, !cs->waiting)) {
-		warn("%s: aborted", __func__);
-		//FIXME
-	}
-
-	if (atomic_read(&cs->mstate) != MS_LOCKED) {
-		//FIXME?
-		//gigaset_baud_rate(cs, B115200);
-		//gigaset_set_line_ctrl(cs, CS8);
-		//gigaset_set_modem_ctrl(cs, TIOCM_DTR|TIOCM_RTS, 0);
-		//cs->control_state = 0;
-	} else {
-		//FIXME use some saved values?
-	}
+	wait_event(cs->waitqueue, !cs->waiting);
 
 	cleanup_cs(cs);
 
@@ -942,10 +929,7 @@ void gigaset_stop(struct cardstate *cs)
 	gig_dbg(DEBUG_CMD, "scheduling STOP");
 	gigaset_schedule_event(cs);
 
-	if (wait_event_interruptible(cs->waitqueue, !cs->waiting)) {
-		warn("%s: aborted", __func__);
-		//FIXME
-	}
+	wait_event(cs->waitqueue, !cs->waiting);
 
 	cleanup_cs(cs);
 

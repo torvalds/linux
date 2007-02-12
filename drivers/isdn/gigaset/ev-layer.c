@@ -1015,7 +1015,7 @@ static void finish_shutdown(struct cardstate *cs)
 
 	cs->cmd_result = -ENODEV;
 	cs->waiting = 0;
-	wake_up_interruptible(&cs->waitqueue);
+	wake_up(&cs->waitqueue);
 }
 
 static void do_shutdown(struct cardstate *cs)
