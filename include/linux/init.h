@@ -67,7 +67,8 @@ extern initcall_t __con_initcall_start[], __con_initcall_end[];
 extern initcall_t __security_initcall_start[], __security_initcall_end[];
 
 /* Defined in init/main.c */
-extern char saved_command_line[];
+extern char __initdata boot_command_line[];
+extern char *saved_command_line;
 extern unsigned int reset_devices;
 
 /* used by init/main.c */
@@ -164,7 +165,7 @@ struct obs_kernel_param {
 #define early_param(str, fn)					\
 	__setup_param(str, fn, fn, 1)
 
-/* Relies on saved_command_line being set */
+/* Relies on boot_command_line being set */
 void __init parse_early_param(void);
 #endif /* __ASSEMBLY__ */
 

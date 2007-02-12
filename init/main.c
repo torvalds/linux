@@ -121,8 +121,12 @@ extern void time_init(void);
 void (*late_time_init)(void);
 extern void softirq_init(void);
 
-/* Untouched command line (eg. for /proc) saved by arch-specific code. */
-char saved_command_line[COMMAND_LINE_SIZE];
+/* Untouched command line saved by arch-specific code. */
+char __initdata boot_command_line[COMMAND_LINE_SIZE];
+/* Untouched saved command line (eg. for /proc) */
+char *saved_command_line;
+/* Command line for parameter parsing */
+static char *static_command_line;
 
 static char *execute_command;
 static char *ramdisk_execute_command;
@@ -400,6 +404,20 @@ static void __init smp_init(void)
 #endif
 
 /*
+ * We need to store the untouched command line for future reference.
+ * We also need to store the touched command line since the parameter
+ * parsing is performed in place, and we should allow a component to
+ * store reference of name/value for future reference.
+ */
+static void __init setup_command_line(char *command_line)
+{
+	saved_command_line = alloc_bootmem(strlen (boot_command_line)+1);
+	static_command_line = alloc_bootmem(strlen (command_line)+1);
+	strcpy (saved_command_line, boot_command_line);
+	strcpy (static_command_line, command_line);
+}
+
+/*
  * We need to finalize in a non-__init function or else race conditions
  * between the root thread and the init thread may cause start_kernel to
  * be reaped by free_initmem before the root thread has proceeded to
@@ -453,7 +471,7 @@ void __init parse_early_param(void)
 		return;
 
 	/* All fall through to do_early_param. */
-	strlcpy(tmp_cmdline, saved_command_line, COMMAND_LINE_SIZE);
+	strlcpy(tmp_cmdline, boot_command_line, COMMAND_LINE_SIZE);
 	parse_args("early options", tmp_cmdline, NULL, 0, do_early_param);
 	done = 1;
 }
@@ -503,6 +521,7 @@ asmlinkage void __init start_kernel(void)
 	printk(KERN_NOTICE);
 	printk(linux_banner);
 	setup_arch(&command_line);
+	setup_command_line(command_line);
 	unwind_setup();
 	setup_per_cpu_areas();
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
@@ -520,9 +539,9 @@ asmlinkage void __init start_kernel(void)
 	preempt_disable();
 	build_all_zonelists();
 	page_alloc_init();
-	printk(KERN_NOTICE "Kernel command line: %s\n", saved_command_line);
+	printk(KERN_NOTICE "Kernel command line: %s\n", boot_command_line);
 	parse_early_param();
-	parse_args("Booting kernel", command_line, __start___param,
+	parse_args("Booting kernel", static_command_line, __start___param,
 		   __stop___param - __start___param,
 		   &unknown_bootoption);
 	if (!irqs_disabled()) {
