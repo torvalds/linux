@@ -2,7 +2,7 @@
  *
  * Efika 5K2 platform setup
  * Some code really inspired from the lite5200b platform.
- * 
+ *
  * Copyright (C) 2006 bplan GmbH
  *
  * This file is licensed under the terms of the GNU General Public License
@@ -81,35 +81,7 @@ static void __init efika_setup_arch(void)
 	efika_pcisetup();
 
 	if (ppc_md.progress)
-		ppc_md.progress("Linux/PPC " UTS_RELEASE " runnung on Efika ;-)\n", 0x0);
-}
-
-static void __init efika_init(void)
-{
-	struct device_node *np;
-	struct device_node *cnp = NULL;
-	const u32 *base;
-
-	/* Find every child of the SOC node and add it to of_platform */
-	np = of_find_node_by_name(NULL, "builtin");
-	if (np) {
-		char name[BUS_ID_SIZE];
-		while ((cnp = of_get_next_child(np, cnp))) {
-			strcpy(name, cnp->name);
-
-			base = get_property(cnp, "reg", NULL);
-			if (base == NULL)
-				continue;
-
-			snprintf(name+strlen(name), BUS_ID_SIZE, "@%x", *base);
-			of_platform_device_create(cnp, name, NULL);
-
-			printk(KERN_INFO EFIKA_PLATFORM_NAME" : Added %s (type '%s' at '%s') to the known devices\n", name, cnp->type, cnp->full_name);
-		}
-	}
-
-	if (ppc_md.progress)
-		ppc_md.progress("  Have fun with your Efika!    ", 0x7777);
+		ppc_md.progress("Linux/PPC " UTS_RELEASE " running on Efika ;-)\n", 0x0);
 }
 
 static int __init efika_probe(void)
@@ -131,20 +103,20 @@ static int __init efika_probe(void)
 
 define_machine(efika)
 {
-	.name = EFIKA_PLATFORM_NAME,
-	.probe = efika_probe,
-	.setup_arch = efika_setup_arch,
-	.init = efika_init,
-	.show_cpuinfo = efika_show_cpuinfo,
-	.init_IRQ = mpc52xx_init_irq,
-	.get_irq = mpc52xx_get_irq,
-	.restart = rtas_restart,
-	.power_off = rtas_power_off,
-	.halt = rtas_halt,
-	.set_rtc_time = rtas_set_rtc_time,
-	.get_rtc_time = rtas_get_rtc_time,
-	.progress = rtas_progress,
-	.get_boot_time = rtas_get_boot_time,
-	.calibrate_decr = generic_calibrate_decr,
-	.phys_mem_access_prot = pci_phys_mem_access_prot,
+	.name			= EFIKA_PLATFORM_NAME,
+	.probe			= efika_probe,
+	.setup_arch		= efika_setup_arch,
+	.init			= mpc52xx_declare_of_platform_devices,
+	.show_cpuinfo		= efika_show_cpuinfo,
+	.init_IRQ		= mpc52xx_init_irq,
+	.get_irq		= mpc52xx_get_irq,
+	.restart		= rtas_restart,
+	.power_off		= rtas_power_off,
+	.halt			= rtas_halt,
+	.set_rtc_time		= rtas_set_rtc_time,
+	.get_rtc_time		= rtas_get_rtc_time,
+	.progress		= rtas_progress,
+	.get_boot_time		= rtas_get_boot_time,
+	.calibrate_decr		= generic_calibrate_decr,
+	.phys_mem_access_prot	= pci_phys_mem_access_prot,
 };
