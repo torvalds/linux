@@ -58,16 +58,16 @@ static DEFINE_RWLOCK(tcp_lock);
 /* "Be conservative in what you do,
     be liberal in what you accept from others."
     If it's non-zero, we mark only out of window RST segments as INVALID. */
-int nf_ct_tcp_be_liberal __read_mostly = 0;
+static int nf_ct_tcp_be_liberal __read_mostly = 0;
 
 /* If it is set to zero, we disable picking up already established
    connections. */
-int nf_ct_tcp_loose __read_mostly = 1;
+static int nf_ct_tcp_loose __read_mostly = 1;
 
 /* Max number of the retransmitted packets without receiving an (acceptable)
    ACK from the destination. If this number is reached, a shorter timer
    will be started. */
-int nf_ct_tcp_max_retrans __read_mostly = 3;
+static int nf_ct_tcp_max_retrans __read_mostly = 3;
 
   /* FIXME: Examine ipfilter's timeouts and conntrack transitions more
      closely.  They're more complex. --RR */
