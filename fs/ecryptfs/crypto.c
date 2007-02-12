@@ -429,10 +429,10 @@ static int ecryptfs_read_in_page(struct ecryptfs_page_crypt_context *ctx,
 			goto out;
 		}
 	} else {
-		rc = ecryptfs_grab_and_map_lower_page(lower_page, NULL,
-						      lower_inode,
-						      lower_page_idx);
-		if (rc) {
+		*lower_page = grab_cache_page(lower_inode->i_mapping,
+					      lower_page_idx);
+		if (!(*lower_page)) {
+			rc = -EINVAL;
 			ecryptfs_printk(
 				KERN_ERR, "Error attempting to grab and map "
 				"lower page with index [0x%.16x]; rc = [%d]\n",

@@ -514,10 +514,6 @@ int ecryptfs_copy_page_to_lower(struct page *page, struct inode *lower_inode,
 				struct file *lower_file);
 int ecryptfs_do_readpage(struct file *file, struct page *page,
 			 pgoff_t lower_page_index);
-int ecryptfs_grab_and_map_lower_page(struct page **lower_page,
-				     char **lower_virt,
-				     struct inode *lower_inode,
-				     unsigned long lower_page_index);
 int ecryptfs_writepage_and_release_lower_page(struct page *lower_page,
 					      struct inode *lower_inode,
 					      struct writeback_control *wbc);
