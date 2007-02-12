@@ -556,17 +556,17 @@ static void e752x_check_sysbus(struct e752x_error_info *info,
 	error32 = (stat32 >> 16) & 0x3ff;
 	stat32 = stat32 & 0x3ff;
 
-	if(stat32 & 0x083)
-		sysbus_error(1, stat32 & 0x083, error_found, handle_error);
+	if(stat32 & 0x087)
+		sysbus_error(1, stat32 & 0x087, error_found, handle_error);
 
-	if(stat32 & 0x37c)
-		sysbus_error(0, stat32 & 0x37c, error_found, handle_error);
+	if(stat32 & 0x378)
+		sysbus_error(0, stat32 & 0x378, error_found, handle_error);
 
-	if(error32 & 0x083)
-		sysbus_error(1, error32 & 0x083, error_found, handle_error);
+	if(error32 & 0x087)
+		sysbus_error(1, error32 & 0x087, error_found, handle_error);
 
-	if(error32 & 0x37c)
-		sysbus_error(0, error32 & 0x37c, error_found, handle_error);
+	if(error32 & 0x378)
+		sysbus_error(0, error32 & 0x378, error_found, handle_error);
 }
 
 static void e752x_check_membuf (struct e752x_error_info *info,
