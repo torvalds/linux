@@ -927,6 +927,57 @@ static ssize_t mci_reset_counters_store(struct mem_ctl_info *mci,
 	return count;
 }
 
+/* memory scrubbing */
+static ssize_t mci_sdram_scrub_rate_store(struct mem_ctl_info *mci,
+					const char *data, size_t count)
+{
+	u32 bandwidth = -1;
+
+	if (mci->set_sdram_scrub_rate) {
+
+		memctrl_int_store(&bandwidth, data, count);
+
+		if (!(*mci->set_sdram_scrub_rate)(mci, &bandwidth)) {
+			edac_printk(KERN_DEBUG, EDAC_MC,
+				"Scrub rate set successfully, applied: %d\n",
+				bandwidth);
+		} else {
+			/* FIXME: error codes maybe? */
+			edac_printk(KERN_DEBUG, EDAC_MC,
+				"Scrub rate set FAILED, could not apply: %d\n",
+				bandwidth);
+		}
+	} else {
+		/* FIXME: produce "not implemented" ERROR for user-side. */
+		edac_printk(KERN_WARNING, EDAC_MC,
+			"Memory scrubbing 'set'control is not implemented!\n");
+	}
+	return count;
+}
+
+static ssize_t mci_sdram_scrub_rate_show(struct mem_ctl_info *mci, char *data)
+{
+	u32 bandwidth = -1;
+
+	if (mci->get_sdram_scrub_rate) {
+		if (!(*mci->get_sdram_scrub_rate)(mci, &bandwidth)) {
+			edac_printk(KERN_DEBUG, EDAC_MC,
+				"Scrub rate successfully, fetched: %d\n",
+				bandwidth);
+		} else {
+			/* FIXME: error codes maybe? */
+			edac_printk(KERN_DEBUG, EDAC_MC,
+				"Scrub rate fetch FAILED, got: %d\n",
+				bandwidth);
+		}
+	} else {
+		/* FIXME: produce "not implemented" ERROR for user-side.  */
+		edac_printk(KERN_WARNING, EDAC_MC,
+			"Memory scrubbing 'get' control is not implemented!\n");
+	}
+	return sprintf(data, "%d\n", bandwidth);
+}
+
 /* default attribute files for the MCI object */
 static ssize_t mci_ue_count_show(struct mem_ctl_info *mci, char *data)
 {
@@ -1033,6 +1084,9 @@ MCIDEV_ATTR(ce_noinfo_count,S_IRUGO,mci_ce_noinfo_show,NULL);
 MCIDEV_ATTR(ue_count,S_IRUGO,mci_ue_count_show,NULL);
 MCIDEV_ATTR(ce_count,S_IRUGO,mci_ce_count_show,NULL);
 
+/* memory scrubber attribute file */
+MCIDEV_ATTR(sdram_scrub_rate,S_IRUGO|S_IWUSR,mci_sdram_scrub_rate_show,mci_sdram_scrub_rate_store);
+
 static struct mcidev_attribute *mci_attr[] = {
 	&mci_attr_reset_counters,
 	&mci_attr_mc_name,
@@ -1042,6 +1096,7 @@ static struct mcidev_attribute *mci_attr[] = {
 	&mci_attr_ce_noinfo_count,
 	&mci_attr_ue_count,
 	&mci_attr_ce_count,
+	&mci_attr_sdram_scrub_rate,
 	NULL
 };
 

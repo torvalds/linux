@@ -315,6 +315,18 @@ struct mem_ctl_info {
 	unsigned long scrub_cap;	/* chipset scrub capabilities */
 	enum scrub_type scrub_mode;	/* current scrub mode */
 
+	/* Translates sdram memory scrub rate given in bytes/sec to the
+	   internal representation and configures whatever else needs
+	   to be configured.
+	*/
+	int (*set_sdram_scrub_rate) (struct mem_ctl_info *mci, u32 *bw);
+
+	/* Get the current sdram memory scrub rate from the internal
+	   representation and converts it to the closest matching
+	   bandwith in bytes/sec.
+	*/
+	int (*get_sdram_scrub_rate) (struct mem_ctl_info *mci, u32 *bw);
+
 	/* pointer to edac checking routine */
 	void (*edac_check) (struct mem_ctl_info * mci);
 	/*
