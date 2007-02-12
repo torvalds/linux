@@ -357,6 +357,7 @@ void free_irq(unsigned int irq, void *dev_id)
 	struct irq_desc *desc;
 	struct irqaction **p;
 	unsigned long flags;
+	irqreturn_t (*handler)(int, void *) = NULL;
 
 	WARN_ON(in_interrupt());
 	if (irq >= NR_IRQS)
@@ -396,6 +397,8 @@ void free_irq(unsigned int irq, void *dev_id)
 
 			/* Make sure it's not being used on another CPU */
 			synchronize_irq(irq);
+			if (action->flags & IRQF_SHARED)
+				handler = action->handler;
 			kfree(action);
 			return;
 		}
@@ -403,6 +406,17 @@ void free_irq(unsigned int irq, void *dev_id)
 		spin_unlock_irqrestore(&desc->lock, flags);
 		return;
 	}
+#ifdef CONFIG_DEBUG_SHIRQ
+	if (handler) {
+		/*
+		 * It's a shared IRQ -- the driver ought to be prepared for it
+		 * to happen even now it's being freed, so let's make sure....
+		 * We do this after actually deregistering it, to make sure that
+		 * a 'real' IRQ doesn't run in parallel with our fake
+		 */
+		handler(irq, dev_id);
+	}
+#endif
 }
 EXPORT_SYMBOL(free_irq);
 
@@ -474,6 +488,25 @@ int request_irq(unsigned int irq, irq_handler_t handler,
 	action->dev_id = dev_id;
 
 	select_smp_affinity(irq);
+
+#ifdef CONFIG_DEBUG_SHIRQ
+	if (irqflags & IRQF_SHARED) {
+		/*
+		 * It's a shared IRQ -- the driver ought to be prepared for it
+		 * to happen immediately, so let's make sure....
+		 * We do this before actually registering it, to make sure that
+		 * a 'real' IRQ doesn't run in parallel with our fake
+		 */
+		if (irqflags & IRQF_DISABLED) {
+			unsigned long flags;
+
+			local_irq_save(flags);
+			handler(irq, dev_id);
+			local_irq_restore(flags);
+		} else
+			handler(irq, dev_id);
+	}
+#endif
 
 	retval = setup_irq(irq, action);
 	if (retval)
