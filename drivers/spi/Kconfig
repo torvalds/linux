@@ -135,6 +135,16 @@ config SPI_S3C24XX_GPIO
 comment "SPI Protocol Masters"
 	depends on SPI_MASTER
 
+config SPI_AT25
+	tristate "SPI EEPROMs from most vendors"
+	depends on SPI_MASTER && SYSFS
+	help
+	  Enable this driver to get read/write support to most SPI EEPROMs,
+	  after you configure the board init code to know about each eeprom
+	  on your target board.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called at25.
 
 #
 # Add new SPI protocol masters in alphabetical order above this line
