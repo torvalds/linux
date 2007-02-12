@@ -447,7 +447,7 @@ struct snd_pcm_notify {
  *  Registering
  */
 
-extern struct file_operations snd_pcm_f_ops[2];
+extern const struct file_operations snd_pcm_f_ops[2];
 
 int snd_pcm_new(struct snd_card *card, char *id, int device,
 		int playback_count, int capture_count,
