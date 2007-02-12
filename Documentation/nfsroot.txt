@@ -67,8 +67,8 @@ nfsroot=[<server-ip>:]<root-dir>[,<nfs-options>]
   <nfs-options>	Standard NFS options. All options are separated by commas.
 		The following defaults are used:
 			port		= as given by server portmap daemon
-			rsize		= 1024
-			wsize		= 1024
+			rsize		= 4096
+			wsize		= 4096
 			timeo		= 7
 			retrans		= 3
 			acregmin	= 3
