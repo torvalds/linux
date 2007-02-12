@@ -26,16 +26,16 @@
 					  */
 #define	BICTCP_HZ		10	/* BIC HZ 2^10 = 1024 */
 
-static int fast_convergence = 1;
-static int max_increment = 16;
-static int beta = 819;		/* = 819/1024 (BICTCP_BETA_SCALE) */
-static int initial_ssthresh = 100;
-static int bic_scale = 41;
-static int tcp_friendliness = 1;
+static int fast_convergence __read_mostly = 1;
+static int max_increment __read_mostly = 16;
+static int beta __read_mostly = 819;	/* = 819/1024 (BICTCP_BETA_SCALE) */
+static int initial_ssthresh __read_mostly = 100;
+static int bic_scale __read_mostly = 41;
+static int tcp_friendliness __read_mostly = 1;
 
-static u32 cube_rtt_scale;
-static u32 beta_scale;
-static u64 cube_factor;
+static u32 cube_rtt_scale __read_mostly;
+static u32 beta_scale __read_mostly;
+static u64 cube_factor __read_mostly;
 
 /* Note parameters that are used for precomputing scale factors are read-only */
 module_param(fast_convergence, int, 0644);
