@@ -29,6 +29,7 @@
 #include <asm/irq.h>
 
 #include <asm/arch/regs-serial.h>
+#include <asm/arch/udc.h>
 
 #include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c24xx/cpu.h>
@@ -229,6 +230,20 @@ struct platform_device s3c_device_usbgadget = {
 };
 
 EXPORT_SYMBOL(s3c_device_usbgadget);
+
+void __init s3c24xx_udc_set_platdata(struct s3c2410_udc_mach_info *pd)
+{
+	struct s3c2410_udc_mach_info *npd;
+
+	npd = kmalloc(sizeof(*npd), GFP_KERNEL);
+	if (npd) {
+		memcpy(npd, pd, sizeof(*npd));
+		s3c_device_usbgadget.dev.platform_data = npd;
+	} else {
+		printk(KERN_ERR "no memory for udc platform data\n");
+	}
+}
+
 
 /* Watchdog */
 
