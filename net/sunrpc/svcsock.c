@@ -938,7 +938,7 @@ svc_tcp_accept(struct svc_sock *svsk)
 	if (!(newsvsk = svc_setup_socket(serv, newsock, &err,
 				 (SVC_SOCK_ANONYMOUS | SVC_SOCK_TEMPORARY))))
 		goto failed;
-
+	svc_sock_received(newsvsk);
 
 	/* make sure that we don't have too many active connections.
 	 * If we have, something must be dropped.
@@ -1546,8 +1546,6 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	dprintk("svc: svc_setup_socket created %p (inet %p)\n",
 				svsk, svsk->sk_sk);
 
-	clear_bit(SK_BUSY, &svsk->sk_flags);
-	svc_sock_enqueue(svsk);
 	return svsk;
 }
 
@@ -1571,8 +1569,10 @@ int svc_addsock(struct svc_serv *serv,
 		err = -EISCONN;
 	else {
 		svsk = svc_setup_socket(serv, so, &err, SVC_SOCK_DEFAULTS);
-		if (svsk)
+		if (svsk) {
+			svc_sock_received(svsk);
 			err = 0;
+		}
 	}
 	if (err) {
 		sockfd_put(so);
@@ -1623,8 +1623,10 @@ static int svc_create_socket(struct svc_serv *serv, int protocol,
 			goto bummer;
 	}
 
-	if ((svsk = svc_setup_socket(serv, sock, &error, flags)) != NULL)
+	if ((svsk = svc_setup_socket(serv, sock, &error, flags)) != NULL) {
+		svc_sock_received(svsk);
 		return ntohs(inet_sk(svsk->sk_sk)->sport);
+	}
 
 bummer:
 	dprintk("svc: svc_create_socket error = %d\n", -error);
