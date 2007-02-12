@@ -22,16 +22,18 @@
 
 #include "ecryptfs_kernel.h"
 
-LIST_HEAD(ecryptfs_msg_ctx_free_list);
-LIST_HEAD(ecryptfs_msg_ctx_alloc_list);
-struct mutex ecryptfs_msg_ctx_lists_mux;
+static LIST_HEAD(ecryptfs_msg_ctx_free_list);
+static LIST_HEAD(ecryptfs_msg_ctx_alloc_list);
+static struct mutex ecryptfs_msg_ctx_lists_mux;
 
-struct hlist_head *ecryptfs_daemon_id_hash;
-struct mutex ecryptfs_daemon_id_hash_mux;
-int ecryptfs_hash_buckets;
+static struct hlist_head *ecryptfs_daemon_id_hash;
+static struct mutex ecryptfs_daemon_id_hash_mux;
+static int ecryptfs_hash_buckets;
+#define ecryptfs_uid_hash(uid) \
+        hash_long((unsigned long)uid, ecryptfs_hash_buckets)
 
-unsigned int ecryptfs_msg_counter;
-struct ecryptfs_msg_ctx *ecryptfs_msg_ctx_arr;
+static unsigned int ecryptfs_msg_counter;
+static struct ecryptfs_msg_ctx *ecryptfs_msg_ctx_arr;
 
 /**
  * ecryptfs_acquire_free_msg_ctx

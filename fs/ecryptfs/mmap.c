@@ -6,7 +6,7 @@
  *
  * Copyright (C) 1997-2003 Erez Zadok
  * Copyright (C) 2001-2003 Stony Brook University
- * Copyright (C) 2004-2006 International Business Machines Corp.
+ * Copyright (C) 2004-2007 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -308,6 +308,9 @@ out:
 	return rc;
 }
 
+/**
+ * Called with lower inode mutex held.
+ */
 static int fill_zeros_to_end_of_page(struct page *page, unsigned int to)
 {
 	struct inode *inode = page->mapping->host;
@@ -407,10 +410,9 @@ static void ecryptfs_unmap_and_release_lower_page(struct page *lower_page)
  *
  * Returns zero on success; non-zero on error.
  */
-int
-ecryptfs_write_inode_size_to_header(struct file *lower_file,
-				    struct inode *lower_inode,
-				    struct inode *inode)
+static int ecryptfs_write_inode_size_to_header(struct file *lower_file,
+					       struct inode *lower_inode,
+					       struct inode *inode)
 {
 	int rc = 0;
 	struct page *header_page;
@@ -440,6 +442,80 @@ ecryptfs_write_inode_size_to_header(struct file *lower_file,
 	mark_inode_dirty_sync(inode);
 out:
 	return rc;
+}
+
+static int ecryptfs_write_inode_size_to_xattr(struct inode *lower_inode,
+					      struct inode *inode,
+					      struct dentry *ecryptfs_dentry,
+					      int lower_i_mutex_held)
+{
+	ssize_t size;
+	void *xattr_virt;
+	struct dentry *lower_dentry;
+	u64 file_size;
+	int rc;
+
+	xattr_virt = kmem_cache_alloc(ecryptfs_xattr_cache, GFP_KERNEL);
+	if (!xattr_virt) {
+		printk(KERN_ERR "Out of memory whilst attempting to write "
+		       "inode size to xattr\n");
+		rc = -ENOMEM;
+		goto out;
+	}
+	lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
+	if (!lower_dentry->d_inode->i_op->getxattr) {
+		printk(KERN_WARNING
+		       "No support for setting xattr in lower filesystem\n");
+		rc = -ENOSYS;
+		kmem_cache_free(ecryptfs_xattr_cache, xattr_virt);
+		goto out;
+	}
+	if (!lower_i_mutex_held)
+		mutex_lock(&lower_dentry->d_inode->i_mutex);
+	size = lower_dentry->d_inode->i_op->getxattr(lower_dentry,
+						     ECRYPTFS_XATTR_NAME,
+						     xattr_virt,
+						     PAGE_CACHE_SIZE);
+	if (!lower_i_mutex_held)
+		mutex_unlock(&lower_dentry->d_inode->i_mutex);
+	if (size < 0)
+		size = 8;
+	file_size = (u64)i_size_read(inode);
+	file_size = cpu_to_be64(file_size);
+	memcpy(xattr_virt, &file_size, sizeof(u64));
+	if (!lower_i_mutex_held)
+		mutex_lock(&lower_dentry->d_inode->i_mutex);
+	rc = lower_dentry->d_inode->i_op->setxattr(lower_dentry,
+						   ECRYPTFS_XATTR_NAME,
+						   xattr_virt, size, 0);
+	if (!lower_i_mutex_held)
+		mutex_unlock(&lower_dentry->d_inode->i_mutex);
+	if (rc)
+		printk(KERN_ERR "Error whilst attempting to write inode size "
+		       "to lower file xattr; rc = [%d]\n", rc);
+	kmem_cache_free(ecryptfs_xattr_cache, xattr_virt);
+out:
+	return rc;
+}
+
+int
+ecryptfs_write_inode_size_to_metadata(struct file *lower_file,
+				      struct inode *lower_inode,
+				      struct inode *inode,
+				      struct dentry *ecryptfs_dentry,
+				      int lower_i_mutex_held)
+{
+	struct ecryptfs_crypt_stat *crypt_stat;
+
+	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
+	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
+		return ecryptfs_write_inode_size_to_xattr(lower_inode, inode,
+							  ecryptfs_dentry,
+							  lower_i_mutex_held);
+	else
+		return ecryptfs_write_inode_size_to_header(lower_file,
+							   lower_inode,
+							   inode);
 }
 
 int ecryptfs_get_lower_page(struct page **lower_page, struct inode *lower_inode,
@@ -528,6 +604,8 @@ out:
 	return rc;
 }
 
+struct kmem_cache *ecryptfs_xattr_cache;
+
 /**
  * ecryptfs_commit_write
  * @file: The eCryptfs file object
@@ -581,7 +659,6 @@ static int ecryptfs_commit_write(struct file *file, struct page *page,
 				"index [0x%.16x])\n", page->index);
 		goto out;
 	}
-	rc = 0;
 	inode->i_blocks = lower_inode->i_blocks;
 	pos = (page->index << PAGE_CACHE_SHIFT) + to;
 	if (pos > i_size_read(inode)) {
@@ -589,7 +666,12 @@ static int ecryptfs_commit_write(struct file *file, struct page *page,
 		ecryptfs_printk(KERN_DEBUG, "Expanded file size to "
 				"[0x%.16x]\n", i_size_read(inode));
 	}
-	ecryptfs_write_inode_size_to_header(lower_file, lower_inode, inode);
+	rc = ecryptfs_write_inode_size_to_metadata(lower_file, lower_inode,
+						   inode, file->f_dentry,
+						   ECRYPTFS_LOWER_I_MUTEX_HELD);
+	if (rc)
+		printk(KERN_ERR "Error writing inode size to metadata; "
+		       "rc = [%d]\n", rc);
 	lower_inode->i_mtime = lower_inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty_sync(inode);
 out:

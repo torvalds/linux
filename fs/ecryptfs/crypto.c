@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1997-2004 Erez Zadok
  * Copyright (C) 2001-2004 Stony Brook University
- * Copyright (C) 2004-2006 International Business Machines Corp.
+ * Copyright (C) 2004-2007 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *   		Michael C. Thompson <mcthomps@us.ibm.com>
  *
@@ -863,7 +863,10 @@ void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat)
 			ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
 	} else
 		crypt_stat->header_extent_size = PAGE_CACHE_SIZE;
-	crypt_stat->num_header_extents_at_front = 1;
+	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
+		crypt_stat->num_header_extents_at_front = 0;
+	else
+		crypt_stat->num_header_extents_at_front = 1;
 }
 
 /**
@@ -1021,7 +1024,7 @@ int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry)
  *
  * Returns one if marker found; zero if not found
  */
-int contains_ecryptfs_marker(char *data)
+static int contains_ecryptfs_marker(char *data)
 {
 	u32 m_1, m_2;
 
@@ -1047,7 +1050,8 @@ struct ecryptfs_flag_map_elem {
 /* Add support for additional flags by adding elements here. */
 static struct ecryptfs_flag_map_elem ecryptfs_flag_map[] = {
 	{0x00000001, ECRYPTFS_ENABLE_HMAC},
-	{0x00000002, ECRYPTFS_ENCRYPTED}
+	{0x00000002, ECRYPTFS_ENCRYPTED},
+	{0x00000004, ECRYPTFS_METADATA_IN_XATTR}
 };
 
 /**
@@ -1207,8 +1211,8 @@ int ecryptfs_cipher_code_to_string(char *str, u16 cipher_code)
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_read_header_region(char *data, struct dentry *dentry,
-				struct vfsmount *mnt)
+static int ecryptfs_read_header_region(char *data, struct dentry *dentry,
+				       struct vfsmount *mnt)
 {
 	struct file *lower_file;
 	mm_segment_t oldfs;
@@ -1236,6 +1240,21 @@ int ecryptfs_read_header_region(char *data, struct dentry *dentry,
 out:
 	return rc;
 }
+
+int ecryptfs_read_and_validate_header_region(char *data, struct dentry *dentry,
+					     struct vfsmount *mnt)
+{
+	int rc;
+
+	rc = ecryptfs_read_header_region(data, dentry, mnt);
+	if (rc)
+		goto out;
+	if (!contains_ecryptfs_marker(data + ECRYPTFS_FILE_SIZE_BYTES))
+		rc = -EINVAL;
+out:
+	return rc;
+}
+
 
 static void
 write_header_metadata(char *virt, struct ecryptfs_crypt_stat *crypt_stat,
@@ -1288,9 +1307,9 @@ struct kmem_cache *ecryptfs_header_cache_2;
  *
  * Returns zero on success
  */
-int ecryptfs_write_headers_virt(char *page_virt,
-				struct ecryptfs_crypt_stat *crypt_stat,
-				struct dentry *ecryptfs_dentry)
+static int ecryptfs_write_headers_virt(char *page_virt, size_t *size,
+				       struct ecryptfs_crypt_stat *crypt_stat,
+				       struct dentry *ecryptfs_dentry)
 {
 	int rc;
 	size_t written;
@@ -1309,11 +1328,53 @@ int ecryptfs_write_headers_virt(char *page_virt,
 	if (rc)
 		ecryptfs_printk(KERN_WARNING, "Error generating key packet "
 				"set; rc = [%d]\n", rc);
+	if (size) {
+		offset += written;
+		*size = offset;
+	}
+	return rc;
+}
+
+static int ecryptfs_write_metadata_to_contents(struct ecryptfs_crypt_stat *crypt_stat,
+					       struct file *lower_file,
+					       char *page_virt)
+{
+	mm_segment_t oldfs;
+	int current_header_page;
+	int header_pages;
+
+	lower_file->f_pos = 0;
+	oldfs = get_fs();
+	set_fs(get_ds());
+	lower_file->f_op->write(lower_file, (char __user *)page_virt,
+				PAGE_CACHE_SIZE, &lower_file->f_pos);
+	header_pages = ((crypt_stat->header_extent_size
+			 * crypt_stat->num_header_extents_at_front)
+			/ PAGE_CACHE_SIZE);
+	memset(page_virt, 0, PAGE_CACHE_SIZE);
+	current_header_page = 1;
+	while (current_header_page < header_pages) {
+		lower_file->f_op->write(lower_file, (char __user *)page_virt,
+					PAGE_CACHE_SIZE, &lower_file->f_pos);
+		current_header_page++;
+	}
+	set_fs(oldfs);
+	return 0;
+}
+
+static int ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
+					    struct ecryptfs_crypt_stat *crypt_stat,
+					    char *page_virt, size_t size)
+{
+	int rc;
+
+	rc = ecryptfs_setxattr(ecryptfs_dentry, ECRYPTFS_XATTR_NAME, page_virt,
+			       size, 0);
 	return rc;
 }
 
 /**
- * ecryptfs_write_headers
+ * ecryptfs_write_metadata
  * @lower_file: The lower file struct, which was returned from dentry_open
  *
  * Write the file headers out.  This will likely involve a userspace
@@ -1324,14 +1385,12 @@ int ecryptfs_write_headers_virt(char *page_virt,
  *
  * Returns zero on success; non-zero on error
  */
-int ecryptfs_write_headers(struct dentry *ecryptfs_dentry,
-			   struct file *lower_file)
+int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
+			    struct file *lower_file)
 {
-	mm_segment_t oldfs;
 	struct ecryptfs_crypt_stat *crypt_stat;
 	char *page_virt;
-	int current_header_page;
-	int header_pages;
+	size_t size;
 	int rc = 0;
 
 	crypt_stat = &ecryptfs_inode_to_private(
@@ -1358,48 +1417,36 @@ int ecryptfs_write_headers(struct dentry *ecryptfs_dentry,
 		rc = -ENOMEM;
 		goto out;
 	}
-
-	rc = ecryptfs_write_headers_virt(page_virt, crypt_stat,
-					 ecryptfs_dentry);
+	rc = ecryptfs_write_headers_virt(page_virt, &size, crypt_stat,
+  					 ecryptfs_dentry);
 	if (unlikely(rc)) {
 		ecryptfs_printk(KERN_ERR, "Error whilst writing headers\n");
 		memset(page_virt, 0, PAGE_CACHE_SIZE);
 		goto out_free;
 	}
-	ecryptfs_printk(KERN_DEBUG,
-			"Writing key packet set to underlying file\n");
-	lower_file->f_pos = 0;
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ecryptfs_printk(KERN_DEBUG, "Calling lower_file->f_op->"
-			"write() w/ header page; lower_file->f_pos = "
-			"[0x%.16x]\n", lower_file->f_pos);
-	lower_file->f_op->write(lower_file, (char __user *)page_virt,
-				PAGE_CACHE_SIZE, &lower_file->f_pos);
-	header_pages = ((crypt_stat->header_extent_size
-			 * crypt_stat->num_header_extents_at_front)
-			/ PAGE_CACHE_SIZE);
-	memset(page_virt, 0, PAGE_CACHE_SIZE);
-	current_header_page = 1;
-	while (current_header_page < header_pages) {
-		ecryptfs_printk(KERN_DEBUG, "Calling lower_file->f_op->"
-				"write() w/ zero'd page; lower_file->f_pos = "
-				"[0x%.16x]\n", lower_file->f_pos);
-		lower_file->f_op->write(lower_file, (char __user *)page_virt,
-					PAGE_CACHE_SIZE, &lower_file->f_pos);
-		current_header_page++;
+	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
+		rc = ecryptfs_write_metadata_to_xattr(ecryptfs_dentry,
+						      crypt_stat, page_virt,
+						      size);
+	else
+		rc = ecryptfs_write_metadata_to_contents(crypt_stat, lower_file,
+							 page_virt);
+	if (rc) {
+		printk(KERN_ERR "Error writing metadata out to lower file; "
+		       "rc = [%d]\n", rc);
+		goto out_free;
 	}
-	set_fs(oldfs);
-	ecryptfs_printk(KERN_DEBUG,
-			"Done writing key packet set to underlying file.\n");
 out_free:
 	kmem_cache_free(ecryptfs_header_cache_0, page_virt);
 out:
 	return rc;
 }
 
+#define ECRYPTFS_DONT_VALIDATE_HEADER_SIZE 0
+#define ECRYPTFS_VALIDATE_HEADER_SIZE 1
 static int parse_header_metadata(struct ecryptfs_crypt_stat *crypt_stat,
-				 char *virt, int *bytes_read)
+				 char *virt, int *bytes_read,
+				 int validate_header_size)
 {
 	int rc = 0;
 	u32 header_extent_size;
@@ -1414,9 +1461,10 @@ static int parse_header_metadata(struct ecryptfs_crypt_stat *crypt_stat,
 	crypt_stat->num_header_extents_at_front =
 		(int)num_header_extents_at_front;
 	(*bytes_read) = 6;
-	if ((crypt_stat->header_extent_size
-	     * crypt_stat->num_header_extents_at_front)
-	    < ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE) {
+	if ((validate_header_size == ECRYPTFS_VALIDATE_HEADER_SIZE)
+	    && ((crypt_stat->header_extent_size
+		 * crypt_stat->num_header_extents_at_front)
+		< ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)) {
 		rc = -EINVAL;
 		ecryptfs_printk(KERN_WARNING, "Invalid header extent size: "
 				"[%d]\n", crypt_stat->header_extent_size);
@@ -1447,7 +1495,8 @@ static void set_default_header_data(struct ecryptfs_crypt_stat *crypt_stat)
  */
 static int ecryptfs_read_headers_virt(char *page_virt,
 				      struct ecryptfs_crypt_stat *crypt_stat,
-				      struct dentry *ecryptfs_dentry)
+				      struct dentry *ecryptfs_dentry,
+				      int validate_header_size)
 {
 	int rc = 0;
 	int offset;
@@ -1481,7 +1530,7 @@ static int ecryptfs_read_headers_virt(char *page_virt,
 	offset += bytes_read;
 	if (crypt_stat->file_version >= 1) {
 		rc = parse_header_metadata(crypt_stat, (page_virt + offset),
-					   &bytes_read);
+					   &bytes_read, validate_header_size);
 		if (rc) {
 			ecryptfs_printk(KERN_WARNING, "Error reading header "
 					"metadata; rc = [%d]\n", rc);
@@ -1496,12 +1545,60 @@ out:
 }
 
 /**
- * ecryptfs_read_headers
+ * ecryptfs_read_xattr_region
+ *
+ * Attempts to read the crypto metadata from the extended attribute
+ * region of the lower file.
+ */
+int ecryptfs_read_xattr_region(char *page_virt, struct dentry *ecryptfs_dentry)
+{
+	ssize_t size;
+	int rc = 0;
+
+	size = ecryptfs_getxattr(ecryptfs_dentry, ECRYPTFS_XATTR_NAME,
+				 page_virt, ECRYPTFS_DEFAULT_EXTENT_SIZE);
+	if (size < 0) {
+		printk(KERN_DEBUG "Error attempting to read the [%s] "
+		       "xattr from the lower file; return value = [%zd]\n",
+		       ECRYPTFS_XATTR_NAME, size);
+		rc = -EINVAL;
+		goto out;
+	}
+out:
+	return rc;
+}
+
+int ecryptfs_read_and_validate_xattr_region(char *page_virt,
+					    struct dentry *ecryptfs_dentry)
+{
+	int rc;
+
+	rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_dentry);
+	if (rc)
+		goto out;
+	if (!contains_ecryptfs_marker(page_virt	+ ECRYPTFS_FILE_SIZE_BYTES)) {
+		printk(KERN_WARNING "Valid data found in [%s] xattr, but "
+			"the marker is invalid\n", ECRYPTFS_XATTR_NAME);
+		rc = -EINVAL;
+	}
+out:
+	return rc;
+}
+
+/**
+ * ecryptfs_read_metadata
+ *
+ * Common entry point for reading file metadata. From here, we could
+ * retrieve the header information from the header region of the file,
+ * the xattr region of the file, or some other repostory that is
+ * stored separately from the file itself. The current implementation
+ * supports retrieving the metadata information from the file contents
+ * and from the xattr region.
  *
  * Returns zero if valid headers found and parsed; non-zero otherwise
  */
-int ecryptfs_read_headers(struct dentry *ecryptfs_dentry,
-			  struct file *lower_file)
+int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry,
+			   struct file *lower_file)
 {
 	int rc = 0;
 	char *page_virt = NULL;
@@ -1530,11 +1627,36 @@ int ecryptfs_read_headers(struct dentry *ecryptfs_dentry,
 		goto out;
 	}
 	rc = ecryptfs_read_headers_virt(page_virt, crypt_stat,
-					ecryptfs_dentry);
+					ecryptfs_dentry,
+					ECRYPTFS_VALIDATE_HEADER_SIZE);
 	if (rc) {
-		ecryptfs_printk(KERN_DEBUG, "Valid eCryptfs headers not "
-				"found\n");
-		rc = -EINVAL;
+		rc = ecryptfs_read_xattr_region(page_virt,
+						ecryptfs_dentry);
+		if (rc) {
+			printk(KERN_DEBUG "Valid eCryptfs headers not found in "
+			       "file header region or xattr region\n");
+			rc = -EINVAL;
+			goto out;
+		}
+		rc = ecryptfs_read_headers_virt(page_virt, crypt_stat,
+						ecryptfs_dentry,
+						ECRYPTFS_DONT_VALIDATE_HEADER_SIZE);
+		if (rc) {
+			printk(KERN_DEBUG "Valid eCryptfs headers not found in "
+			       "file xattr region either\n");
+			rc = -EINVAL;
+		}
+		if (crypt_stat->mount_crypt_stat->flags
+		    & ECRYPTFS_XATTR_METADATA_ENABLED) {
+			crypt_stat->flags |= ECRYPTFS_METADATA_IN_XATTR;
+		} else {
+			printk(KERN_WARNING "Attempt to access file with "
+			       "crypto metadata only in the extended attribute "
+			       "region, but eCryptfs was mounted without "
+			       "xattr support enabled. eCryptfs will not treat "
+			       "this like an encrypted file.\n");
+			rc = -EINVAL;
+		}
 	}
 out:
 	if (page_virt) {

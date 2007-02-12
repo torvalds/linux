@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1997-2003 Erez Zadok
  * Copyright (C) 2001-2003 Stony Brook University
- * Copyright (C) 2004-2006 International Business Machines Corp.
+ * Copyright (C) 2004-2007 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *              Michael C. Thompson <mcthomps@us.ibm.com>
  *              Tyler Hicks <tyhicks@ou.edu>
@@ -639,6 +639,11 @@ static struct ecryptfs_cache_info {
 	{
 		.cache = &ecryptfs_header_cache_2,
 		.name = "ecryptfs_headers_2",
+		.size = PAGE_CACHE_SIZE,
+	},
+	{
+		.cache = &ecryptfs_xattr_cache,
+		.name = "ecryptfs_xattr_cache",
 		.size = PAGE_CACHE_SIZE,
 	},
 	{

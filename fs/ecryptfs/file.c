@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1997-2004 Erez Zadok
  * Copyright (C) 2001-2004 Stony Brook University
- * Copyright (C) 2004-2006 International Business Machines Corp.
+ * Copyright (C) 2004-2007 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mhalcrow@us.ibm.com>
  *   		Michael C. Thompson <mcthomps@us.ibm.com>
  *
@@ -293,26 +293,11 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 	mutex_lock(&crypt_stat->cs_mutex);
-	if (i_size_read(lower_inode) < ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE) {
-		if (!(mount_crypt_stat->flags
-		      & ECRYPTFS_PLAINTEXT_PASSTHROUGH_ENABLED)) {
-			rc = -EIO;
-			printk(KERN_WARNING "Attempt to read file that is "
-			       "not in a valid eCryptfs format, and plaintext "
-			       "passthrough mode is not enabled; returning "
-			       "-EIO\n");
-			mutex_unlock(&crypt_stat->cs_mutex);
-			goto out_puts;
-		}
-		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
-		rc = 0;
-		mutex_unlock(&crypt_stat->cs_mutex);
-		goto out;
-	} else if (!ECRYPTFS_CHECK_FLAG(crypt_stat->flags,
-					ECRYPTFS_POLICY_APPLIED)
-		   || !ECRYPTFS_CHECK_FLAG(crypt_stat->flags,
-					   ECRYPTFS_KEY_VALID)) {
-		rc = ecryptfs_read_headers(ecryptfs_dentry, lower_file);
+	if (!ECRYPTFS_CHECK_FLAG(crypt_stat->flags,
+				 ECRYPTFS_POLICY_APPLIED)
+	    || !ECRYPTFS_CHECK_FLAG(crypt_stat->flags,
+				    ECRYPTFS_KEY_VALID)) {
+		rc = ecryptfs_read_metadata(ecryptfs_dentry, lower_file);
 		if (rc) {
 			ecryptfs_printk(KERN_DEBUG,
 					"Valid headers not found\n");
