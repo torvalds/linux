@@ -289,6 +289,7 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 	char *encoded_name;
 	unsigned int encoded_namelen;
 	struct ecryptfs_crypt_stat *crypt_stat = NULL;
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	char *page_virt = NULL;
 	struct inode *lower_inode;
 	u64 file_size;
@@ -388,8 +389,18 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 		}
 		crypt_stat->flags |= ECRYPTFS_METADATA_IN_XATTR;
 	}
-	memcpy(&file_size, page_virt, sizeof(file_size));
-	file_size = be64_to_cpu(file_size);
+	mount_crypt_stat = &ecryptfs_superblock_to_private(
+		dentry->d_sb)->mount_crypt_stat;
+	if (mount_crypt_stat->flags & ECRYPTFS_ENCRYPTED_VIEW_ENABLED) {
+		if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
+			file_size = (crypt_stat->header_extent_size
+				     + i_size_read(lower_dentry->d_inode));
+		else
+			file_size = i_size_read(lower_dentry->d_inode);
+	} else {
+		memcpy(&file_size, page_virt, sizeof(file_size));
+		file_size = be64_to_cpu(file_size);
+	}
 	i_size_write(dentry->d_inode, (loff_t)file_size);
 	kmem_cache_free(ecryptfs_header_cache_2, page_virt);
 	goto out;

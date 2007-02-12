@@ -559,7 +559,7 @@ ssize_t ecryptfs_getxattr(struct dentry *dentry, const char *name, void *value,
 int
 ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags);
-
+int ecryptfs_read_xattr_region(char *page_virt, struct dentry *ecryptfs_dentry);
 int ecryptfs_process_helo(unsigned int transport, uid_t uid, pid_t pid);
 int ecryptfs_process_quit(uid_t uid, pid_t pid);
 int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t uid,
@@ -582,6 +582,9 @@ int ecryptfs_send_connector(char *data, int data_len,
 			    u16 msg_flags, pid_t daemon_pid);
 int ecryptfs_init_connector(void);
 void ecryptfs_release_connector(void);
-
+void
+ecryptfs_write_header_metadata(char *virt,
+			       struct ecryptfs_crypt_stat *crypt_stat,
+			       size_t *written);
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */

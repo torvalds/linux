@@ -260,6 +260,33 @@ out:
 		ClearPageUptodate(page);
 	return rc;
 }
+/**
+ *   Header Extent:
+ *     Octets 0-7:        Unencrypted file size (big-endian)
+ *     Octets 8-15:       eCryptfs special marker
+ *     Octets 16-19:      Flags
+ *      Octet 16:         File format version number (between 0 and 255)
+ *      Octets 17-18:     Reserved
+ *      Octet 19:         Bit 1 (lsb): Reserved
+ *                        Bit 2: Encrypted?
+ *                        Bits 3-8: Reserved
+ *     Octets 20-23:      Header extent size (big-endian)
+ *     Octets 24-25:      Number of header extents at front of file
+ *                        (big-endian)
+ *     Octet  26:         Begin RFC 2440 authentication token packet set
+ */
+static void set_header_info(char *page_virt,
+			    struct ecryptfs_crypt_stat *crypt_stat)
+{
+	size_t written;
+	int save_num_header_extents_at_front =
+		crypt_stat->num_header_extents_at_front;
+
+	crypt_stat->num_header_extents_at_front = 1;
+	ecryptfs_write_header_metadata(page_virt + 20, crypt_stat, &written);
+	crypt_stat->num_header_extents_at_front =
+		save_num_header_extents_at_front;
+}
 
 /**
  * ecryptfs_readpage
@@ -289,10 +316,55 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
 					"[%d]\n", rc);
 			goto out;
 		}
+	} else if (crypt_stat->flags & ECRYPTFS_VIEW_AS_ENCRYPTED) {
+		if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR) {
+			int num_pages_in_header_region =
+				(crypt_stat->header_extent_size
+				 / PAGE_CACHE_SIZE);
+
+			if (page->index < num_pages_in_header_region) {
+				char *page_virt;
+
+				page_virt = (char *)kmap(page);
+				if (!page_virt) {
+					rc = -ENOMEM;
+					printk(KERN_ERR "Error mapping page\n");
+					goto out;
+				}
+				memset(page_virt, 0, PAGE_CACHE_SIZE);
+				if (page->index == 0) {
+					rc = ecryptfs_read_xattr_region(
+						page_virt, file->f_path.dentry);
+					set_header_info(page_virt, crypt_stat);
+				}
+				kunmap(page);
+				if (rc) {
+					printk(KERN_ERR "Error reading xattr "
+					       "region\n");
+					goto out;
+				}
+			} else {
+				rc = ecryptfs_do_readpage(
+					file, page,
+					(page->index
+					 - num_pages_in_header_region));
+				if (rc) {
+					printk(KERN_ERR "Error reading page; "
+					       "rc = [%d]\n", rc);
+					goto out;
+				}
+			}
+		} else {
+			rc = ecryptfs_do_readpage(file, page, page->index);
+			if (rc) {
+				printk(KERN_ERR "Error reading page; rc = "
+				       "[%d]\n", rc);
+				goto out;
+			}
+		}
 	} else {
 		rc = ecryptfs_decrypt_page(file, page);
 		if (rc) {
-
 			ecryptfs_printk(KERN_ERR, "Error decrypting page; "
 					"rc = [%d]\n", rc);
 			goto out;

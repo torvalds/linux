@@ -1256,9 +1256,10 @@ out:
 }
 
 
-static void
-write_header_metadata(char *virt, struct ecryptfs_crypt_stat *crypt_stat,
-		      size_t *written)
+void
+ecryptfs_write_header_metadata(char *virt,
+			       struct ecryptfs_crypt_stat *crypt_stat,
+			       size_t *written)
 {
 	u32 header_extent_size;
 	u16 num_header_extents_at_front;
@@ -1320,7 +1321,8 @@ static int ecryptfs_write_headers_virt(char *page_virt, size_t *size,
 	offset += written;
 	write_ecryptfs_flags((page_virt + offset), crypt_stat, &written);
 	offset += written;
-	write_header_metadata((page_virt + offset), crypt_stat, &written);
+	ecryptfs_write_header_metadata((page_virt + offset), crypt_stat,
+				       &written);
 	offset += written;
 	rc = ecryptfs_generate_key_packet_set((page_virt + offset), crypt_stat,
 					      ecryptfs_dentry, &written,
@@ -1606,7 +1608,12 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry,
 	ssize_t bytes_read;
 	struct ecryptfs_crypt_stat *crypt_stat =
 	    &ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->crypt_stat;
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
+		&ecryptfs_superblock_to_private(
+			ecryptfs_dentry->d_sb)->mount_crypt_stat;
 
+	ecryptfs_copy_mount_wide_flags_to_inode_flags(crypt_stat,
+						      mount_crypt_stat);
 	/* Read the first page from the underlying file */
 	page_virt = kmem_cache_alloc(ecryptfs_header_cache_1, GFP_USER);
 	if (!page_virt) {
