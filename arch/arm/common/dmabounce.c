@@ -32,7 +32,6 @@
 
 #include <asm/cacheflush.h>
 
-#undef DEBUG
 #undef STATS
 
 #ifdef STATS
@@ -72,6 +71,7 @@ struct dmabounce_device_info {
 	unsigned long total_allocs;
 	unsigned long map_op_count;
 	unsigned long bounce_count;
+	int attr_res;
 #endif
 	struct dmabounce_pool	small;
 	struct dmabounce_pool	large;
@@ -80,16 +80,21 @@ struct dmabounce_device_info {
 };
 
 #ifdef STATS
-static void print_alloc_stats(struct dmabounce_device_info *device_info)
+static ssize_t dmabounce_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
-	printk(KERN_INFO
-		"%s: dmabounce: sbp: %lu, lbp: %lu, other: %lu, total: %lu\n",
-		device_info->dev->bus_id,
-		device_info->small.allocs, device_info->large.allocs,
+	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
+	return sprintf(buf, "%lu %lu %lu %lu %lu %lu\n",
+		device_info->small.allocs,
+		device_info->large.allocs,
 		device_info->total_allocs - device_info->small.allocs -
 			device_info->large.allocs,
-		device_info->total_allocs);
+		device_info->total_allocs,
+		device_info->map_op_count,
+		device_info->bounce_count);
 }
+
+static DEVICE_ATTR(dmabounce_stats, 0400, dmabounce_show, NULL);
 #endif
 
 
@@ -145,8 +150,6 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 	if (pool)
 		pool->allocs++;
 	device_info->total_allocs++;
-	if (device_info->total_allocs % 1000 == 0)
-		print_alloc_stats(device_info);
 #endif
 
 	write_lock_irqsave(&device_info->lock, flags);
@@ -200,15 +203,6 @@ free_safe_buffer(struct dmabounce_device_info *device_info, struct safe_buffer *
 }
 
 /* ************************************************** */
-
-#ifdef STATS
-static void print_map_stats(struct dmabounce_device_info *device_info)
-{
-	dev_info(device_info->dev,
-		"dmabounce: map_op_count=%lu, bounce_count=%lu\n",
-		device_info->map_op_count, device_info->bounce_count);
-}
-#endif
 
 static inline dma_addr_t
 map_single(struct device *dev, void *ptr, size_t size,
@@ -587,6 +581,7 @@ dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 	device_info->total_allocs = 0;
 	device_info->map_op_count = 0;
 	device_info->bounce_count = 0;
+	device_info->attr_res = device_create_file(dev, &dev_attr_dmabounce_stats);
 #endif
 
 	dev->archdata.dmabounce = device_info;
@@ -630,8 +625,8 @@ dmabounce_unregister_dev(struct device *dev)
 		dma_pool_destroy(device_info->large.pool);
 
 #ifdef STATS
-	print_alloc_stats(device_info);
-	print_map_stats(device_info);
+	if (device_info->attr_res == 0)
+		device_remove_file(dev, &dev_attr_dmabounce_stats);
 #endif
 
 	kfree(device_info);
