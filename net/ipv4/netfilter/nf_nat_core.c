@@ -617,8 +617,8 @@ static int __init nf_nat_init(void)
 	}
 
 	/* FIXME: Man, this is a hack.  <SIGH> */
-	NF_CT_ASSERT(nf_conntrack_destroyed == NULL);
-	nf_conntrack_destroyed = &nf_nat_cleanup_conntrack;
+	NF_CT_ASSERT(rcu_dereference(nf_conntrack_destroyed) == NULL);
+	rcu_assign_pointer(nf_conntrack_destroyed, nf_nat_cleanup_conntrack);
 
 	/* Initialize fake conntrack so that NAT will skip it */
 	nf_conntrack_untracked.status |= IPS_NAT_DONE_MASK;
@@ -642,7 +642,8 @@ static int clean_nat(struct nf_conn *i, void *data)
 static void __exit nf_nat_cleanup(void)
 {
 	nf_ct_iterate_cleanup(&clean_nat, NULL);
-	nf_conntrack_destroyed = NULL;
+	rcu_assign_pointer(nf_conntrack_destroyed, NULL);
+	synchronize_rcu();
 	vfree(bysource);
 	nf_ct_l3proto_put(l3proto);
 }
