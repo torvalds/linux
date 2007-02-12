@@ -549,10 +549,6 @@ extern int setup_isurf(struct IsdnCard *card);
 extern int setup_saphir(struct IsdnCard *card);
 #endif
 
-#if CARD_TESTEMU
-extern int setup_testemu(struct IsdnCard *card);
-#endif
-
 #if CARD_BKM_A4T
 extern int setup_bkm_a4t(struct IsdnCard *card);
 #endif
@@ -1059,11 +1055,6 @@ static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockow
 #if CARD_HSTSAPHIR
 	case ISDN_CTYPE_HSTSAPHIR:
 		ret = setup_saphir(card);
-		break;
-#endif
-#if CARD_TESTEMU
-	case ISDN_CTYPE_TESTEMU:
-		ret = setup_testemu(card);
 		break;
 #endif
 #if	CARD_BKM_A4T
