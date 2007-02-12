@@ -41,6 +41,9 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
+static DEFINE_SPINLOCK(kvm_lock);
+static LIST_HEAD(vm_list);
+
 struct kvm_arch_ops *kvm_arch_ops;
 struct kvm_stat kvm_stat;
 EXPORT_SYMBOL_GPL(kvm_stat);
@@ -230,9 +233,13 @@ static int kvm_dev_open(struct inode *inode, struct file *filp)
 		struct kvm_vcpu *vcpu = &kvm->vcpus[i];
 
 		mutex_init(&vcpu->mutex);
+		vcpu->cpu = -1;
 		vcpu->kvm = kvm;
 		vcpu->mmu.root_hpa = INVALID_PAGE;
 		INIT_LIST_HEAD(&vcpu->free_pages);
+		spin_lock(&kvm_lock);
+		list_add(&kvm->vm_list, &vm_list);
+		spin_unlock(&kvm_lock);
 	}
 	filp->private_data = kvm;
 	return 0;
@@ -292,6 +299,9 @@ static int kvm_dev_release(struct inode *inode, struct file *filp)
 {
 	struct kvm *kvm = filp->private_data;
 
+	spin_lock(&kvm_lock);
+	list_del(&kvm->vm_list);
+	spin_unlock(&kvm_lock);
 	kvm_free_vcpus(kvm);
 	kvm_free_physmem(kvm);
 	kfree(kvm);
@@ -546,7 +556,6 @@ static int kvm_dev_ioctl_create_vcpu(struct kvm *kvm, int n)
 					   FX_IMAGE_ALIGN);
 	vcpu->guest_fx_image = vcpu->host_fx_image + FX_IMAGE_SIZE;
 
-	vcpu->cpu = -1;  /* First load will set up TR */
 	r = kvm_arch_ops->vcpu_create(vcpu);
 	if (r < 0)
 		goto out_free_vcpus;

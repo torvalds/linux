@@ -304,6 +304,7 @@ struct kvm {
 	int memory_config_version;
 	int busy;
 	unsigned long rmap_overflow;
+	struct list_head vm_list;
 };
 
 struct kvm_stat {
