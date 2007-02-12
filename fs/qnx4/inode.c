@@ -30,7 +30,7 @@
 #define QNX4_VERSION  4
 #define QNX4_BMNAME   ".bitmap"
 
-static struct super_operations qnx4_sops;
+static const struct super_operations qnx4_sops;
 
 #ifdef CONFIG_QNX4FS_RW
 
@@ -129,7 +129,7 @@ static void qnx4_read_inode(struct inode *);
 static int qnx4_remount(struct super_block *sb, int *flags, char *data);
 static int qnx4_statfs(struct dentry *, struct kstatfs *);
 
-static struct super_operations qnx4_sops =
+static const struct super_operations qnx4_sops =
 {
 	.alloc_inode	= qnx4_alloc_inode,
 	.destroy_inode	= qnx4_destroy_inode,

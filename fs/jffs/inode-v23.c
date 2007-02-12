@@ -54,7 +54,7 @@
 
 static int jffs_remove(struct inode *dir, struct dentry *dentry, int type);
 
-static struct super_operations jffs_ops;
+static const struct super_operations jffs_ops;
 static const struct file_operations jffs_file_operations;
 static const struct inode_operations jffs_file_inode_operations;
 static const struct file_operations jffs_dir_operations;
@@ -1774,7 +1774,7 @@ static int jffs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations jffs_ops =
+static const struct super_operations jffs_ops =
 {
 	.read_inode	= jffs_read_inode,
 	.delete_inode 	= jffs_delete_inode,

@@ -690,7 +690,7 @@ static struct quotactl_ops ext4_qctl_operations = {
 };
 #endif
 
-static struct super_operations ext4_sops = {
+static const struct super_operations ext4_sops = {
 	.alloc_inode	= ext4_alloc_inode,
 	.destroy_inode	= ext4_destroy_inode,
 	.read_inode	= ext4_read_inode,

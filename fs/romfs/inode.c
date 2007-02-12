@@ -110,7 +110,7 @@ romfs_checksum(void *data, int size)
 	return sum;
 }
 
-static struct super_operations romfs_ops;
+static const struct super_operations romfs_ops;
 
 static int romfs_fill_super(struct super_block *s, void *data, int silent)
 {
@@ -598,7 +598,7 @@ static int romfs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations romfs_ops = {
+static const struct super_operations romfs_ops = {
 	.alloc_inode	= romfs_alloc_inode,
 	.destroy_inode	= romfs_destroy_inode,
 	.read_inode	= romfs_read_inode,

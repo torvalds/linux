@@ -59,7 +59,7 @@ static void		vxfs_put_super(struct super_block *);
 static int		vxfs_statfs(struct dentry *, struct kstatfs *);
 static int		vxfs_remount(struct super_block *, int *, char *);
 
-static struct super_operations vxfs_super_ops = {
+static const struct super_operations vxfs_super_ops = {
 	.read_inode =		vxfs_read_inode,
 	.clear_inode =		vxfs_clear_inode,
 	.put_super =		vxfs_put_super,

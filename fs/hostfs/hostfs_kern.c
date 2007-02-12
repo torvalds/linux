@@ -309,7 +309,7 @@ static void hostfs_read_inode(struct inode *inode)
 	read_inode(inode);
 }
 
-static struct super_operations hostfs_sbops = {
+static const struct super_operations hostfs_sbops = {
 	.alloc_inode	= hostfs_alloc_inode,
 	.drop_inode	= generic_delete_inode,
 	.delete_inode   = hostfs_delete_inode,

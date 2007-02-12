@@ -213,7 +213,7 @@ static void ufs_print_cylinder_stuff(struct super_block *sb,
 #  define ufs_print_cylinder_stuff(sb, cg) /**/
 #endif /* CONFIG_UFS_DEBUG */
 
-static struct super_operations ufs_super_ops;
+static const struct super_operations ufs_super_ops;
 
 static char error_buf[1024];
 
@@ -1264,7 +1264,7 @@ static ssize_t ufs_quota_read(struct super_block *, int, char *,size_t, loff_t);
 static ssize_t ufs_quota_write(struct super_block *, int, const char *, size_t, loff_t);
 #endif
 
-static struct super_operations ufs_super_ops = {
+static const struct super_operations ufs_super_ops = {
 	.alloc_inode	= ufs_alloc_inode,
 	.destroy_inode	= ufs_destroy_inode,
 	.read_inode	= ufs_read_inode,

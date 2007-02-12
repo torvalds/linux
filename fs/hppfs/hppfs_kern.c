@@ -43,7 +43,7 @@ static inline struct hppfs_inode_info *HPPFS_I(struct inode *inode)
 
 #define HPPFS_SUPER_MAGIC 0xb00000ee
 
-static struct super_operations hppfs_sbops;
+static const struct super_operations hppfs_sbops;
 
 static int is_pid(struct dentry *dentry)
 {
@@ -649,7 +649,7 @@ static void hppfs_destroy_inode(struct inode *inode)
 	kfree(HPPFS_I(inode));
 }
 
-static struct super_operations hppfs_sbops = {
+static const struct super_operations hppfs_sbops = {
 	.alloc_inode	= hppfs_alloc_inode,
 	.destroy_inode	= hppfs_destroy_inode,
 	.read_inode	= hppfs_read_inode,

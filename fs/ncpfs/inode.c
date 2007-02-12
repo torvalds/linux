@@ -90,7 +90,7 @@ static int ncp_remount(struct super_block *sb, int *flags, char* data)
 	return 0;
 }
 
-static struct super_operations ncp_sops =
+static const struct super_operations ncp_sops =
 {
 	.alloc_inode	= ncp_alloc_inode,
 	.destroy_inode	= ncp_destroy_inode,

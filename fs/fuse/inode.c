@@ -446,7 +446,7 @@ static struct inode *get_root_inode(struct super_block *sb, unsigned mode)
 	return fuse_iget(sb, 1, 0, &attr);
 }
 
-static struct super_operations fuse_super_operations = {
+static const struct super_operations fuse_super_operations = {
 	.alloc_inode    = fuse_alloc_inode,
 	.destroy_inode  = fuse_destroy_inode,
 	.read_inode	= fuse_read_inode,

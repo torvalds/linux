@@ -61,7 +61,7 @@
 #define MLOG_MASK_PREFIX ML_DLMFS
 #include "cluster/masklog.h"
 
-static struct super_operations dlmfs_ops;
+static const struct super_operations dlmfs_ops;
 static const struct file_operations dlmfs_file_operations;
 static const struct inode_operations dlmfs_dir_inode_operations;
 static const struct inode_operations dlmfs_root_inode_operations;
@@ -560,7 +560,7 @@ static const struct inode_operations dlmfs_root_inode_operations = {
 	.rmdir		= simple_rmdir,
 };
 
-static struct super_operations dlmfs_ops = {
+static const struct super_operations dlmfs_ops = {
 	.statfs		= simple_statfs,
 	.alloc_inode	= dlmfs_alloc_inode,
 	.destroy_inode	= dlmfs_destroy_inode,

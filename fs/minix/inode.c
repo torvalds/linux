@@ -95,7 +95,7 @@ static void destroy_inodecache(void)
 	kmem_cache_destroy(minix_inode_cachep);
 }
 
-static struct super_operations minix_sops = {
+static const struct super_operations minix_sops = {
 	.alloc_inode	= minix_alloc_inode,
 	.destroy_inode	= minix_destroy_inode,
 	.read_inode	= minix_read_inode,

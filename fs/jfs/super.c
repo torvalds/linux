@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
 
 static struct kmem_cache * jfs_inode_cachep;
 
-static struct super_operations jfs_super_operations;
+static const struct super_operations jfs_super_operations;
 static struct export_operations jfs_export_operations;
 static struct file_system_type jfs_fs_type;
 
@@ -716,7 +716,7 @@ out:
 
 #endif
 
-static struct super_operations jfs_super_operations = {
+static const struct super_operations jfs_super_operations = {
 	.alloc_inode	= jfs_alloc_inode,
 	.destroy_inode	= jfs_destroy_inode,
 	.read_inode	= jfs_read_inode,

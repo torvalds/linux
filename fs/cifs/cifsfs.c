@@ -64,7 +64,7 @@ extern struct task_struct * oplockThread; /* remove sparse warning */
 struct task_struct * oplockThread = NULL;
 extern struct task_struct * dnotifyThread; /* remove sparse warning */
 struct task_struct * dnotifyThread = NULL;
-static struct super_operations cifs_super_ops; 
+static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
 MODULE_PARM_DESC(CIFSMaxBufSize,"Network buffer size (not including header). Default: 16384 Range: 8192 to 130048");
@@ -453,7 +453,7 @@ static int cifs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations cifs_super_ops = {
+static const struct super_operations cifs_super_ops = {
 	.read_inode = cifs_read_inode,
 	.put_super = cifs_put_super,
 	.statfs = cifs_statfs,

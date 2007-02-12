@@ -449,7 +449,7 @@ extern const struct file_operations ecryptfs_dir_fops;
 extern const struct inode_operations ecryptfs_main_iops;
 extern const struct inode_operations ecryptfs_dir_iops;
 extern const struct inode_operations ecryptfs_symlink_iops;
-extern struct super_operations ecryptfs_sops;
+extern const struct super_operations ecryptfs_sops;
 extern struct dentry_operations ecryptfs_dops;
 extern struct address_space_operations ecryptfs_aops;
 extern int ecryptfs_verbosity;

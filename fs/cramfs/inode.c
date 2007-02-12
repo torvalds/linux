@@ -27,7 +27,7 @@
 
 #include <asm/uaccess.h>
 
-static struct super_operations cramfs_ops;
+static const struct super_operations cramfs_ops;
 static const struct inode_operations cramfs_dir_inode_operations;
 static const struct file_operations cramfs_directory_operations;
 static const struct address_space_operations cramfs_aops;
@@ -522,7 +522,7 @@ static const struct inode_operations cramfs_dir_inode_operations = {
 	.lookup		= cramfs_lookup,
 };
 
-static struct super_operations cramfs_ops = {
+static const struct super_operations cramfs_ops = {
 	.put_super	= cramfs_put_super,
 	.remount_fs	= cramfs_remount,
 	.statfs		= cramfs_statfs,

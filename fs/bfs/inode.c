@@ -270,7 +270,7 @@ static void destroy_inodecache(void)
 	kmem_cache_destroy(bfs_inode_cachep);
 }
 
-static struct super_operations bfs_sops = {
+static const struct super_operations bfs_sops = {
 	.alloc_inode	= bfs_alloc_inode,
 	.destroy_inode	= bfs_destroy_inode,
 	.read_inode	= bfs_read_inode,

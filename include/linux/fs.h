@@ -907,7 +907,7 @@ struct super_block {
 	unsigned char		s_dirt;
 	unsigned long long	s_maxbytes;	/* Max file size */
 	struct file_system_type	*s_type;
-	struct super_operations	*s_op;
+	const struct super_operations	*s_op;
 	struct dquot_operations	*dq_op;
  	struct quotactl_ops	*s_qcop;
 	struct export_operations *s_export_op;
@@ -1383,7 +1383,7 @@ struct super_block *sget(struct file_system_type *type,
 			int (*set)(struct super_block *,void *),
 			void *data);
 extern int get_sb_pseudo(struct file_system_type *, char *,
-	struct super_operations *ops, unsigned long,
+	const struct super_operations *ops, unsigned long,
 	struct vfsmount *mnt);
 extern int simple_set_mnt(struct vfsmount *mnt, struct super_block *sb);
 int __put_super(struct super_block *sb);

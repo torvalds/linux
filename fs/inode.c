@@ -1000,7 +1000,7 @@ EXPORT_SYMBOL(remove_inode_hash);
  */
 void generic_delete_inode(struct inode *inode)
 {
-	struct super_operations *op = inode->i_sb->s_op;
+	const struct super_operations *op = inode->i_sb->s_op;
 
 	list_del_init(&inode->i_list);
 	list_del_init(&inode->i_sb_list);
@@ -1093,7 +1093,7 @@ EXPORT_SYMBOL_GPL(generic_drop_inode);
  */
 static inline void iput_final(struct inode *inode)
 {
-	struct super_operations *op = inode->i_sb->s_op;
+	const struct super_operations *op = inode->i_sb->s_op;
 	void (*drop)(struct inode *) = generic_drop_inode;
 
 	if (op && op->drop_inode)
@@ -1113,7 +1113,7 @@ static inline void iput_final(struct inode *inode)
 void iput(struct inode *inode)
 {
 	if (inode) {
-		struct super_operations *op = inode->i_sb->s_op;
+		const struct super_operations *op = inode->i_sb->s_op;
 
 		BUG_ON(inode->i_state == I_CLEAR);
 

@@ -327,7 +327,7 @@ static void init_once(void *p, struct kmem_cache *cachep, unsigned long flags)
 		inode_init_once(&si->vfs_inode);
 }
 
-struct super_operations sysv_sops = {
+const struct super_operations sysv_sops = {
 	.alloc_inode	= sysv_alloc_inode,
 	.destroy_inode	= sysv_destroy_inode,
 	.read_inode	= sysv_read_inode,

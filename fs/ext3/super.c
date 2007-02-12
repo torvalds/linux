@@ -639,7 +639,7 @@ static struct quotactl_ops ext3_qctl_operations = {
 };
 #endif
 
-static struct super_operations ext3_sops = {
+static const struct super_operations ext3_sops = {
 	.alloc_inode	= ext3_alloc_inode,
 	.destroy_inode	= ext3_destroy_inode,
 	.read_inode	= ext3_read_inode,

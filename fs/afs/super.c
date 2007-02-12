@@ -56,7 +56,7 @@ struct file_system_type afs_fs_type = {
 	.fs_flags	= FS_BINARY_MOUNTDATA,
 };
 
-static struct super_operations afs_super_ops = {
+static const struct super_operations afs_super_ops = {
 	.statfs		= simple_statfs,
 	.alloc_inode	= afs_alloc_inode,
 	.drop_inode	= generic_delete_inode,

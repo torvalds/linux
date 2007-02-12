@@ -52,7 +52,7 @@ out_kill_sb:
 
 static void autofs_read_inode(struct inode *inode);
 
-static struct super_operations autofs_sops = {
+static const struct super_operations autofs_sops = {
 	.read_inode	= autofs_read_inode,
 	.statfs		= simple_statfs,
 };

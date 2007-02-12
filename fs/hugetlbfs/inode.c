@@ -33,7 +33,7 @@
 /* some random number */
 #define HUGETLBFS_MAGIC	0x958458f6
 
-static struct super_operations hugetlbfs_ops;
+static const struct super_operations hugetlbfs_ops;
 static const struct address_space_operations hugetlbfs_aops;
 const struct file_operations hugetlbfs_file_operations;
 static const struct inode_operations hugetlbfs_dir_inode_operations;
@@ -580,7 +580,7 @@ static const struct inode_operations hugetlbfs_inode_operations = {
 	.setattr	= hugetlbfs_setattr,
 };
 
-static struct super_operations hugetlbfs_ops = {
+static const struct super_operations hugetlbfs_ops = {
 	.alloc_inode    = hugetlbfs_alloc_inode,
 	.destroy_inode  = hugetlbfs_destroy_inode,
 	.statfs		= hugetlbfs_statfs,
