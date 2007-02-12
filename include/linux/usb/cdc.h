@@ -73,6 +73,13 @@ struct usb_cdc_acm_descriptor {
 	__u8	bmCapabilities;
 } __attribute__ ((packed));
 
+/* capabilities from 5.2.3.3 */
+
+#define USB_CDC_COMM_FEATURE	0x01
+#define USB_CDC_CAP_LINE	0x02
+#define USB_CDC_CAP_BRK	0x04
+#define USB_CDC_CAP_NOTIFY	0x08
+
 /* "Union Functional Descriptor" from CDC spec 5.2.3.8 */
 struct usb_cdc_union_desc {
 	__u8	bLength;
