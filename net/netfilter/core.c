@@ -61,28 +61,31 @@ EXPORT_SYMBOL_GPL(nf_unregister_afinfo);
  * packets come back: if the hook is gone, the packet is discarded. */
 struct list_head nf_hooks[NPROTO][NF_MAX_HOOKS] __read_mostly;
 EXPORT_SYMBOL(nf_hooks);
-static DEFINE_SPINLOCK(nf_hook_lock);
+static DEFINE_MUTEX(nf_hook_mutex);
 
 int nf_register_hook(struct nf_hook_ops *reg)
 {
 	struct list_head *i;
+	int err;
 
-	spin_lock_bh(&nf_hook_lock);
+	err = mutex_lock_interruptible(&nf_hook_mutex);
+	if (err < 0)
+		return err;
 	list_for_each(i, &nf_hooks[reg->pf][reg->hooknum]) {
 		if (reg->priority < ((struct nf_hook_ops *)i)->priority)
 			break;
 	}
 	list_add_rcu(&reg->list, i->prev);
-	spin_unlock_bh(&nf_hook_lock);
+	mutex_unlock(&nf_hook_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(nf_register_hook);
 
 void nf_unregister_hook(struct nf_hook_ops *reg)
 {
-	spin_lock_bh(&nf_hook_lock);
+	mutex_lock(&nf_hook_mutex);
 	list_del_rcu(&reg->list);
-	spin_unlock_bh(&nf_hook_lock);
+	mutex_unlock(&nf_hook_mutex);
 
 	synchronize_net();
 }
