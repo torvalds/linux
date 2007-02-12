@@ -48,7 +48,7 @@ struct display {
     struct fb_bitfield green;
     struct fb_bitfield blue;
     struct fb_bitfield transp;
-    struct fb_videomode *mode;
+    const struct fb_videomode *mode;
 };
 
 struct fbcon_ops {

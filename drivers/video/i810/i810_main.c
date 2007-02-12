@@ -1049,7 +1049,7 @@ static int i810_check_params(struct fb_var_screeninfo *var,
 		mode_valid = 1;
 
 	if (!mode_valid && info->monspecs.modedb_len) {
-		struct fb_videomode *mode;
+		const struct fb_videomode *mode;
 
 		mode = fb_find_best_mode(var, &info->modelist);
 		if (mode) {
@@ -1924,7 +1924,7 @@ static void __devinit i810fb_find_init_mode(struct fb_info *info)
 	fb_videomode_to_modelist(specs->modedb, specs->modedb_len,
 				 &info->modelist);
 	if (specs->modedb != NULL) {
-		struct fb_videomode *m;
+		const struct fb_videomode *m;
 
 		if (xres && yres) {
 			if ((m = fb_find_best_mode(&var, &info->modelist))) {

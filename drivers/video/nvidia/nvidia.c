@@ -829,7 +829,7 @@ static int nvidiafb_check_var(struct fb_var_screeninfo *var,
 	}
 
 	if (!mode_valid) {
-		struct fb_videomode *mode;
+		const struct fb_videomode *mode;
 
 		mode = fb_find_best_mode(var, &info->modelist);
 		if (mode) {
@@ -1046,10 +1046,10 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 	}
 
 	if (specs->modedb != NULL) {
-		struct fb_videomode *modedb;
+		const struct fb_videomode *mode;
 
-		modedb = fb_find_best_display(specs, &info->modelist);
-		fb_videomode_to_var(&nvidiafb_default_var, modedb);
+		mode = fb_find_best_display(specs, &info->modelist);
+		fb_videomode_to_var(&nvidiafb_default_var, mode);
 		nvidiafb_default_var.bits_per_pixel = bpp;
 	} else if (par->fpWidth && par->fpHeight) {
 		char buf[16];

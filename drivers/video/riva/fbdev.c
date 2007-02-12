@@ -894,7 +894,8 @@ out:
 	return rc;
 }
 
-static void riva_update_var(struct fb_var_screeninfo *var, struct fb_videomode *modedb)
+static void riva_update_var(struct fb_var_screeninfo *var,
+			    const struct fb_videomode *modedb)
 {
 	NVTRACE_ENTER();
 	var->xres = var->xres_virtual = modedb->xres;
@@ -1152,7 +1153,7 @@ static int rivafb_release(struct fb_info *info, int user)
 
 static int rivafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	struct fb_videomode *mode;
+	const struct fb_videomode *mode;
 	struct riva_par *par = info->par;
 	int nom, den;		/* translating from pixels->bytes */
 	int mode_valid = 0;
