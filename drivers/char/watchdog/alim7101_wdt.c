@@ -417,10 +417,8 @@ module_init(alim7101_wdt_init);
 module_exit(alim7101_wdt_unload);
 
 static struct pci_device_id alim7101_pci_tbl[] __devinitdata = {
-	{ PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101) },
 	{ }
 };
 
