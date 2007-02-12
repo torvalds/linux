@@ -285,8 +285,9 @@ static void do_process_ce(struct mem_ctl_info *mci, u16 error_one,
 	if (!pvt->map_type)
 		row = 7 - row;
 
-	edac_mc_handle_ce(mci, page, 0, sec1_syndrome, row, channel,
-		"e752x CE");
+	/* e752x mc reads 34:6 of the DRAM linear address */
+	edac_mc_handle_ce(mci, page, offset_in_page(sec1_add << 4),
+			sec1_syndrome, row, channel, "e752x CE");
 }
 
 static inline void process_ce(struct mem_ctl_info *mci, u16 error_one,
@@ -319,8 +320,10 @@ static void do_process_ue(struct mem_ctl_info *mci, u16 error_one,
 			((block_page >> 1) & 3) :
 			edac_mc_find_csrow_by_page(mci, block_page);
 
-		edac_mc_handle_ue(mci, block_page, 0, row,
-			"e752x UE from Read");
+		/* e752x mc reads 34:6 of the DRAM linear address */
+		edac_mc_handle_ue(mci, block_page,
+					offset_in_page(error_2b << 4),
+					row, "e752x UE from Read");
 	}
 	if (error_one & 0x0404) {
 		error_2b = scrb_add;
@@ -333,8 +336,10 @@ static void do_process_ue(struct mem_ctl_info *mci, u16 error_one,
 			((block_page >> 1) & 3) :
 			edac_mc_find_csrow_by_page(mci, block_page);
 
-		edac_mc_handle_ue(mci, block_page, 0, row,
-				"e752x UE from Scruber");
+		/* e752x mc reads 34:6 of the DRAM linear address */
+		edac_mc_handle_ue(mci, block_page,
+					offset_in_page(error_2b << 4),
+					row, "e752x UE from Scruber");
 	}
 }
 
