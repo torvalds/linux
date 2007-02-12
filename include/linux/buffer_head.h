@@ -174,12 +174,14 @@ struct super_block *freeze_bdev(struct block_device *);
 void thaw_bdev(struct block_device *, struct super_block *);
 int fsync_super(struct super_block *);
 int fsync_no_super(struct block_device *);
-struct buffer_head *__find_get_block(struct block_device *, sector_t, int);
-struct buffer_head * __getblk(struct block_device *, sector_t, int);
+struct buffer_head *__find_get_block(struct block_device *bdev, sector_t block,
+			unsigned size);
+struct buffer_head *__getblk(struct block_device *bdev, sector_t block,
+			unsigned size);
 void __brelse(struct buffer_head *);
 void __bforget(struct buffer_head *);
-void __breadahead(struct block_device *, sector_t block, int size);
-struct buffer_head *__bread(struct block_device *, sector_t block, int size);
+void __breadahead(struct block_device *, sector_t block, unsigned int size);
+struct buffer_head *__bread(struct block_device *, sector_t block, unsigned size);
 struct buffer_head *alloc_buffer_head(gfp_t gfp_flags);
 void free_buffer_head(struct buffer_head * bh);
 void FASTCALL(unlock_buffer(struct buffer_head *bh));
