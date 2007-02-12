@@ -459,7 +459,7 @@ void missed_irq (unsigned long data)
 	if (irq) {
 		printk (KERN_INFO "Missed interrupt... Calling int from timer. \n");
 		sx_interrupt (((struct specialix_board *)data)->irq,
-		              (void*)data, NULL);
+				(void*)data);
 	}
 	missed_irq_timer.expires = jiffies + sx_poll;
 	add_timer (&missed_irq_timer);
