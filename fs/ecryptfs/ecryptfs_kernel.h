@@ -6,6 +6,8 @@
  * Copyright (C) 2001-2003 Stony Brook University
  * Copyright (C) 2004-2006 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
+ *              Trevor S. Highland <trevor.highland@gmail.com>
+ *              Tyler Hicks <tyhicks@ou.edu>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -35,7 +37,7 @@
 /* Version verification for shared data structures w/ userspace */
 #define ECRYPTFS_VERSION_MAJOR 0x00
 #define ECRYPTFS_VERSION_MINOR 0x04
-#define ECRYPTFS_SUPPORTED_FILE_VERSION 0x01
+#define ECRYPTFS_SUPPORTED_FILE_VERSION 0x02
 /* These flags indicate which features are supported by the kernel
  * module; userspace tools such as the mount helper read
  * ECRYPTFS_VERSIONING_MASK from a sysfs handle in order to determine
@@ -60,10 +62,24 @@
 #define ECRYPTFS_MAX_KEY_BYTES 64
 #define ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES 512
 #define ECRYPTFS_DEFAULT_IV_BYTES 16
-#define ECRYPTFS_FILE_VERSION 0x01
+#define ECRYPTFS_FILE_VERSION 0x02
 #define ECRYPTFS_DEFAULT_HEADER_EXTENT_SIZE 8192
 #define ECRYPTFS_DEFAULT_EXTENT_SIZE 4096
 #define ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE 8192
+#define ECRYPTFS_DEFAULT_MSG_CTX_ELEMS 32
+#define ECRYPTFS_DEFAULT_SEND_TIMEOUT HZ
+#define ECRYPTFS_MAX_MSG_CTX_TTL (HZ*3)
+#define ECRYPTFS_NLMSG_HELO 100
+#define ECRYPTFS_NLMSG_QUIT 101
+#define ECRYPTFS_NLMSG_REQUEST 102
+#define ECRYPTFS_NLMSG_RESPONSE 103
+#define ECRYPTFS_MAX_PKI_NAME_BYTES 16
+#define ECRYPTFS_DEFAULT_NUM_USERS 4
+#define ECRYPTFS_MAX_NUM_USERS 32768
+#define ECRYPTFS_TRANSPORT_NETLINK 0
+#define ECRYPTFS_TRANSPORT_CONNECTOR 1
+#define ECRYPTFS_TRANSPORT_RELAYFS 2
+#define ECRYPTFS_DEFAULT_TRANSPORT ECRYPTFS_TRANSPORT_NETLINK
 
 #define RFC2440_CIPHER_DES3_EDE 0x02
 #define RFC2440_CIPHER_CAST_5 0x03
@@ -77,6 +93,7 @@
 #define ECRYPTFS_SET_FLAG(flag_bit_vector, flag) (flag_bit_vector |= (flag))
 #define ECRYPTFS_CLEAR_FLAG(flag_bit_vector, flag) (flag_bit_vector &= ~(flag))
 #define ECRYPTFS_CHECK_FLAG(flag_bit_vector, flag) (flag_bit_vector & (flag))
+#define RFC2440_CIPHER_RSA 0x01
 
 /**
  * For convenience, we may need to pass around the encrypted session
@@ -114,6 +131,14 @@ struct ecryptfs_password {
 
 enum ecryptfs_token_types {ECRYPTFS_PASSWORD, ECRYPTFS_PRIVATE_KEY};
 
+struct ecryptfs_private_key {
+	u32 key_size;
+	u32 data_len;
+	u8 signature[ECRYPTFS_PASSWORD_SIG_SIZE + 1];
+	char pki_type[ECRYPTFS_MAX_PKI_NAME_BYTES + 1];
+	u8 data[];
+};
+
 /* May be a password or a private key */
 struct ecryptfs_auth_tok {
 	u16 version; /* 8-bit major and 8-bit minor */
@@ -123,7 +148,7 @@ struct ecryptfs_auth_tok {
 	u8 reserved[32];
 	union {
 		struct ecryptfs_password password;
-		/* Private key is in future eCryptfs releases */
+		struct ecryptfs_private_key private_key;
 	} token;
 } __attribute__ ((packed));
 
@@ -177,8 +202,13 @@ ecryptfs_get_key_payload_data(struct key *key)
 #define ECRYPTFS_DEFAULT_CIPHER "aes"
 #define ECRYPTFS_DEFAULT_KEY_BYTES 16
 #define ECRYPTFS_DEFAULT_HASH "md5"
+#define ECRYPTFS_TAG_1_PACKET_TYPE 0x01
 #define ECRYPTFS_TAG_3_PACKET_TYPE 0x8C
 #define ECRYPTFS_TAG_11_PACKET_TYPE 0xED
+#define ECRYPTFS_TAG_64_PACKET_TYPE 0x40
+#define ECRYPTFS_TAG_65_PACKET_TYPE 0x41
+#define ECRYPTFS_TAG_66_PACKET_TYPE 0x42
+#define ECRYPTFS_TAG_67_PACKET_TYPE 0x43
 #define MD5_DIGEST_SIZE 16
 
 /**
@@ -269,6 +299,45 @@ struct ecryptfs_auth_tok_list_item {
 	unsigned char encrypted_session_key[ECRYPTFS_MAX_KEY_BYTES];
 	struct list_head list;
 	struct ecryptfs_auth_tok auth_tok;
+};
+
+struct ecryptfs_message {
+	u32 index;
+	u32 data_len;
+	u8 data[];
+};
+
+struct ecryptfs_msg_ctx {
+#define ECRYPTFS_MSG_CTX_STATE_FREE      0x0001
+#define ECRYPTFS_MSG_CTX_STATE_PENDING   0x0002
+#define ECRYPTFS_MSG_CTX_STATE_DONE      0x0003
+	u32 state;
+	unsigned int index;
+	unsigned int counter;
+	struct ecryptfs_message *msg;
+	struct task_struct *task;
+	struct list_head node;
+	struct mutex mux;
+};
+
+extern struct list_head ecryptfs_msg_ctx_free_list;
+extern struct list_head ecryptfs_msg_ctx_alloc_list;
+extern struct mutex ecryptfs_msg_ctx_lists_mux;
+
+#define ecryptfs_uid_hash(uid) \
+        hash_long((unsigned long)uid, ecryptfs_hash_buckets)
+extern struct hlist_head *ecryptfs_daemon_id_hash;
+extern struct mutex ecryptfs_daemon_id_hash_mux;
+extern int ecryptfs_hash_buckets;
+
+extern unsigned int ecryptfs_msg_counter;
+extern struct ecryptfs_msg_ctx *ecryptfs_msg_ctx_arr;
+extern unsigned int ecryptfs_transport;
+
+struct ecryptfs_daemon_id {
+	pid_t pid;
+	uid_t uid;
+	struct hlist_node id_chain;
 };
 
 static inline struct ecryptfs_file_info *
@@ -391,6 +460,9 @@ extern struct super_operations ecryptfs_sops;
 extern struct dentry_operations ecryptfs_dops;
 extern struct address_space_operations ecryptfs_aops;
 extern int ecryptfs_verbosity;
+extern unsigned int ecryptfs_message_buf_len;
+extern signed long ecryptfs_message_wait_timeout;
+extern unsigned int ecryptfs_number_of_users;
 
 extern struct kmem_cache *ecryptfs_auth_tok_list_item_cache;
 extern struct kmem_cache *ecryptfs_file_info_cache;
@@ -483,5 +555,28 @@ int ecryptfs_open_lower_file(struct file **lower_file,
 			     struct dentry *lower_dentry,
 			     struct vfsmount *lower_mnt, int flags);
 int ecryptfs_close_lower_file(struct file *lower_file);
+
+int ecryptfs_process_helo(unsigned int transport, uid_t uid, pid_t pid);
+int ecryptfs_process_quit(uid_t uid, pid_t pid);
+int ecryptfs_process_response(struct ecryptfs_message *msg, pid_t pid, u32 seq);
+int ecryptfs_send_message(unsigned int transport, char *data, int data_len,
+			  struct ecryptfs_msg_ctx **msg_ctx);
+int ecryptfs_wait_for_response(struct ecryptfs_msg_ctx *msg_ctx,
+			       struct ecryptfs_message **emsg);
+int ecryptfs_init_messaging(unsigned int transport);
+void ecryptfs_release_messaging(unsigned int transport);
+
+int ecryptfs_send_netlink(char *data, int data_len,
+			  struct ecryptfs_msg_ctx *msg_ctx, u16 msg_type,
+			  u16 msg_flags, pid_t daemon_pid);
+int ecryptfs_init_netlink(void);
+void ecryptfs_release_netlink(void);
+
+int ecryptfs_send_connector(char *data, int data_len,
+			    struct ecryptfs_msg_ctx *msg_ctx, u16 msg_type,
+			    u16 msg_flags, pid_t daemon_pid);
+int ecryptfs_init_connector(void);
+void ecryptfs_release_connector(void);
+
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */

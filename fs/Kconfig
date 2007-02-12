@@ -1088,7 +1088,7 @@ config AFFS_FS
 
 config ECRYPT_FS
 	tristate "eCrypt filesystem layer support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && KEYS && CRYPTO
+	depends on EXPERIMENTAL && KEYS && CRYPTO && NET
 	help
 	  Encrypted filesystem that operates on the VFS layer.  See
 	  <file:Documentation/ecryptfs.txt> to learn more about
