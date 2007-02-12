@@ -563,7 +563,7 @@ static int early_drop(struct list_head *chain)
 	if (del_timer(&ct->timeout)) {
 		death_by_timeout((unsigned long)ct);
 		dropped = 1;
-		NF_CT_STAT_INC(early_drop);
+		NF_CT_STAT_INC_ATOMIC(early_drop);
 	}
 	nf_ct_put(ct);
 	return dropped;
@@ -821,7 +821,7 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 
 	/* Previously seen (loopback or untracked)?  Ignore. */
 	if ((*pskb)->nfct) {
-		NF_CT_STAT_INC(ignore);
+		NF_CT_STAT_INC_ATOMIC(ignore);
 		return NF_ACCEPT;
 	}
 
@@ -840,8 +840,8 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 	 * core what to do with the packet. */
 	if (l4proto->error != NULL &&
 	    (ret = l4proto->error(*pskb, dataoff, &ctinfo, pf, hooknum)) <= 0) {
-		NF_CT_STAT_INC(error);
-		NF_CT_STAT_INC(invalid);
+		NF_CT_STAT_INC_ATOMIC(error);
+		NF_CT_STAT_INC_ATOMIC(invalid);
 		return -ret;
 	}
 
@@ -849,13 +849,13 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 			       &set_reply, &ctinfo);
 	if (!ct) {
 		/* Not valid part of a connection */
-		NF_CT_STAT_INC(invalid);
+		NF_CT_STAT_INC_ATOMIC(invalid);
 		return NF_ACCEPT;
 	}
 
 	if (IS_ERR(ct)) {
 		/* Too stressed to deal. */
-		NF_CT_STAT_INC(drop);
+		NF_CT_STAT_INC_ATOMIC(drop);
 		return NF_DROP;
 	}
 
@@ -868,7 +868,7 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 		DEBUGP("nf_conntrack_in: Can't track with proto module\n");
 		nf_conntrack_put((*pskb)->nfct);
 		(*pskb)->nfct = NULL;
-		NF_CT_STAT_INC(invalid);
+		NF_CT_STAT_INC_ATOMIC(invalid);
 		return -ret;
 	}
 
