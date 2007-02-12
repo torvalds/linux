@@ -66,7 +66,6 @@
 #include <linux/init.h>
 #ifdef CONFIG_TOSHIBA
 #include <linux/toshiba.h>
-extern int tosh_smm(SMMRegisters *regs);
 #endif
 
 #include <asm/io.h>
