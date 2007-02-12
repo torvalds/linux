@@ -1109,12 +1109,6 @@ config FB_ATY_BACKLIGHT
 	help
 	  Say Y here if you want to control the backlight of your display.
 
-config FB_S3TRIO
-	bool "S3 Trio display support"
-	depends on (FB = y) && PPC && BROKEN
-	help
-	  If you have a S3 Trio say Y. Say N for S3 Virge.
-
 config FB_S3
 	tristate "S3 Trio/Virge support"
 	depends on FB && PCI
