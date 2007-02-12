@@ -133,6 +133,7 @@ static int of_platform_device_resume(struct device * dev)
 struct bus_type of_platform_bus_type = {
        .name	= "of_platform",
        .match	= of_platform_bus_match,
+       .uevent	= of_device_uevent,
        .probe	= of_platform_device_probe,
        .remove	= of_platform_device_remove,
        .suspend	= of_platform_device_suspend,
