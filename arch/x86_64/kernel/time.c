@@ -1226,8 +1226,9 @@ static void hpet_rtc_timer_reinit(void)
 		if (PIE_on)
 			PIE_count += lost_ints;
 
-		printk(KERN_WARNING "rtc: lost some interrupts at %ldHz.\n",
-		       hpet_rtc_int_freq);
+		if (printk_ratelimit())
+			printk(KERN_WARNING "rtc: lost some interrupts at %ldHz.\n",
+			       hpet_rtc_int_freq);
 	}
 }
 
