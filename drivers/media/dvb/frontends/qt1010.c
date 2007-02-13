@@ -312,7 +312,7 @@ static int qt1010_init(struct dvb_frontend *fe)
 {
 	struct qt1010_priv *priv = fe->tuner_priv;
 	struct dvb_frontend_parameters params;
-	int err;
+	int err = 0;
 	u8 i, tmpval, *valptr = NULL;
 
 	qt1010_i2c_oper_t i2c_data[] = {
