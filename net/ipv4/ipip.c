@@ -871,7 +871,7 @@ static int __init ipip_init(void)
 
 	printk(banner);
 
-	if (xfrm4_tunnel_register(&ipip_handler)) {
+	if (xfrm4_tunnel_register(&ipip_handler, AF_INET)) {
 		printk(KERN_INFO "ipip init: can't register tunnel\n");
 		return -EAGAIN;
 	}
@@ -893,7 +893,7 @@ static int __init ipip_init(void)
  err2:
 	free_netdev(ipip_fb_tunnel_dev);
  err1:
-	xfrm4_tunnel_deregister(&ipip_handler);
+	xfrm4_tunnel_deregister(&ipip_handler, AF_INET);
 	goto out;
 }
 
@@ -913,7 +913,7 @@ static void __exit ipip_destroy_tunnels(void)
 
 static void __exit ipip_fini(void)
 {
-	if (xfrm4_tunnel_deregister(&ipip_handler))
+	if (xfrm4_tunnel_deregister(&ipip_handler, AF_INET))
 		printk(KERN_INFO "ipip close: can't deregister tunnel\n");
 
 	rtnl_lock();

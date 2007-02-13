@@ -946,8 +946,8 @@ extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 extern int xfrm_init_state(struct xfrm_state *x);
 extern int xfrm4_rcv(struct sk_buff *skb);
 extern int xfrm4_output(struct sk_buff *skb);
-extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler);
-extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler);
+extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
+extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
 extern int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi);
 extern int xfrm6_rcv(struct sk_buff **pskb);
 extern int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
