@@ -43,6 +43,7 @@ obj-$(CONFIG_PCI)		+= early-quirks.o
 
 obj-y				+= topology.o
 obj-y				+= intel_cacheinfo.o
+obj-y				+= pcspeaker.o
 
 CFLAGS_vsyscall.o		:= $(PROFILING) -g0
 
@@ -56,3 +57,4 @@ quirks-y			+= ../../i386/kernel/quirks.o
 i8237-y				+= ../../i386/kernel/i8237.o
 msr-$(subst m,y,$(CONFIG_X86_MSR))  += ../../i386/kernel/msr.o
 alternative-y			+= ../../i386/kernel/alternative.o
+pcspeaker-y			+= ../../i386/kernel/pcspeaker.o

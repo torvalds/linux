@@ -42,6 +42,7 @@ obj-$(CONFIG_K8_NB)		+= k8.o
 
 obj-$(CONFIG_VMI)		+= vmi.o vmitime.o
 obj-$(CONFIG_PARAVIRT)		+= paravirt.o
+obj-y				+= pcspeaker.o
 
 EXTRA_AFLAGS   := -traditional
 
