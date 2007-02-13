@@ -233,7 +233,7 @@ static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 		rd[10].val, rd[13].val, rd[14].val, rd[15].val, rd[35].val, \
 		rd[40].val, rd[41].val, rd[43].val, rd[45].val);
 
-	for (i = 0; i < sizeof(rd) / sizeof(*rd); i++) {
+	for (i = 0; i < ARRAY_SIZE(rd); i++) {
 		if (rd[i].oper == QT1010_WR) {
 			err = qt1010_writereg(priv, rd[i].reg, rd[i].val);
 		} else { /* read is required to proper locking */
@@ -263,7 +263,7 @@ static int qt1010_init_meas1(struct qt1010_priv *priv, u8 oper, u8 reg, u8 reg_i
 		{ QT1010_RD, reg, 0xff }
 	};
 
-	for (i = 0; i < sizeof(i2c_data) / sizeof(*i2c_data); i++) {
+	for (i = 0; i < ARRAY_SIZE(i2c_data); i++) {
 		if (i2c_data[i].oper == QT1010_WR) {
 			err = qt1010_writereg(priv, i2c_data[i].reg, i2c_data[i].val);
 		} else {
@@ -296,7 +296,7 @@ static u8 qt1010_init_meas2(struct qt1010_priv *priv, u8 reg_init_val, u8 *retva
 		{ QT1010_WR, 0x1e, 0x00 },
 		{ QT1010_WR, 0x22, 0xff }
 	};
-	for (i = 0; i < sizeof(i2c_data) / sizeof(*i2c_data); i++) {
+	for (i = 0; i < ARRAY_SIZE(i2c_data); i++) {
 		if (i2c_data[i].oper == QT1010_WR) {
 			err = qt1010_writereg(priv, i2c_data[i].reg, i2c_data[i].val);
 		} else {
@@ -355,7 +355,7 @@ static int qt1010_init(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
 
-	for (i = 0; i < sizeof(i2c_data) / sizeof(*i2c_data); i++) {
+	for (i = 0; i < ARRAY_SIZE(i2c_data); i++) {
 		switch (i2c_data[i].oper) {
 		case QT1010_WR:
 			err = qt1010_writereg(priv, i2c_data[i].reg, i2c_data[i].val);
