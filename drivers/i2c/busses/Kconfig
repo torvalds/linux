@@ -500,11 +500,11 @@ config I2C_VIA
 	  will be called i2c-via.
 
 config I2C_VIAPRO
-	tristate "VIA 82C596/82C686/82xx"
+	tristate "VIA VT82C596/82C686/82xx and CX700"
 	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the VIA
-	  82C596/82C686/82xx I2C interfaces.  Specifically, the following
+	  VT82C596 and later SMBus interface.  Specifically, the following
 	  chipsets are supported:
 	    VT82C596A/B
 	    VT82C686A/B
@@ -513,6 +513,7 @@ config I2C_VIAPRO
 	    VT8235
 	    VT8237R/A
 	    VT8251
+	    CX700
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-viapro.
