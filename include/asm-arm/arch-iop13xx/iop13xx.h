@@ -12,32 +12,6 @@ void iop13xx_init_irq(void);
 void iop13xx_init_time(unsigned long tickrate);
 unsigned long iop13xx_gettimeoffset(void);
 
-/* handle cp6 access
- * to do: handle access in entry-armv5.S and unify with
- * the iop3xx implementation
- * note: use iop13xx_cp6_enable_irq_save and iop13xx_cp6_irq_restore (irq.h)
- * when interrupts are enabled
- */
-static inline unsigned long iop13xx_cp6_save(void)
-{
-	u32 temp, cp_flags;
-
-	asm volatile (
-		"mrc	p15, 0, %1, c15, c1, 0\n\t"
-		"orr	%0, %1, #(1 << 6)\n\t"
-		"mcr	p15, 0, %0, c15, c1, 0\n\t"
-		: "=r" (temp), "=r"(cp_flags));
-
-	return cp_flags;
-}
-
-static inline void iop13xx_cp6_restore(unsigned long cp_flags)
-{
-	asm volatile (
-		"mcr	p15, 0, %0, c15, c1, 0\n\t"
-		: : "r" (cp_flags) );
-}
-
 /* CPUID CP6 R0 Page 0 */
 static inline int iop13xx_cpu_id(void)
 {

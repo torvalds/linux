@@ -38,11 +38,8 @@ static inline u32 read_tcr1(void)
 unsigned long iop13xx_gettimeoffset(void)
 {
 	unsigned long offset;
-	u32 cp_flags;
 
-	cp_flags = iop13xx_cp6_save();
 	offset = next_jiffy_time - read_tcr1();
-	iop13xx_cp6_restore(cp_flags);
 
 	return offset / ticks_per_usec;
 }
@@ -50,8 +47,6 @@ unsigned long iop13xx_gettimeoffset(void)
 static irqreturn_t
 iop13xx_timer_interrupt(int irq, void *dev_id)
 {
-	u32 cp_flags = iop13xx_cp6_save();
-
 	write_seqlock(&xtime_lock);
 
 	asm volatile("mcr p6, 0, %0, c6, c9, 0" : : "r" (1));
@@ -63,8 +58,6 @@ iop13xx_timer_interrupt(int irq, void *dev_id)
 	}
 
 	write_sequnlock(&xtime_lock);
-
-	iop13xx_cp6_restore(cp_flags);
 
 	return IRQ_HANDLED;
 }
@@ -78,7 +71,6 @@ static struct irqaction iop13xx_timer_irq = {
 void __init iop13xx_init_time(unsigned long tick_rate)
 {
 	u32 timer_ctl;
-	u32 cp_flags;
 
 	ticks_per_jiffy = (tick_rate + HZ/2) / HZ;
 	ticks_per_usec = tick_rate / 1000000;
@@ -91,12 +83,10 @@ void __init iop13xx_init_time(unsigned long tick_rate)
 	 * We use timer 0 for our timer interrupt, and timer 1 as
 	 * monotonic counter for tracking missed jiffies.
 	 */
-	cp_flags = iop13xx_cp6_save();
 	asm volatile("mcr p6, 0, %0, c4, c9, 0" : : "r" (ticks_per_jiffy - 1));
 	asm volatile("mcr p6, 0, %0, c0, c9, 0" : : "r" (timer_ctl));
 	asm volatile("mcr p6, 0, %0, c5, c9, 0" : : "r" (0xffffffff));
 	asm volatile("mcr p6, 0, %0, c1, c9, 0" : : "r" (timer_ctl));
-	iop13xx_cp6_restore(cp_flags);
 
 	setup_irq(IRQ_IOP13XX_TIMER0, &iop13xx_timer_irq);
 }
