@@ -2,6 +2,7 @@
  * device.h - generic, centralized driver model
  *
  * Copyright (c) 2001-2003 Patrick Mochel <mochel@osdl.org>
+ * Copyright (c) 2004-2007 Greg Kroah-Hartman <gregkh@suse.de>
  *
  * This file is released under the GPLv2
  *
