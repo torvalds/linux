@@ -1354,18 +1354,22 @@ static inline int is_channel_valid(unsigned int channel)
 	return (channel & DMA_CH_VALID);
 }
 
+static struct s3c24xx_dma_order *dma_order;
+
+
 /* s3c2410_dma_map_channel()
  *
  * turn the virtual channel number into a real, and un-used hardware
  * channel.
  *
- * currently this code uses first-free channel from the specified harware
- * map, not taking into account anything that the board setup code may
- * have to say about the likely peripheral set to be in use.
+ * first, try the dma ordering given to us by either the relevant
+ * dma code, or the board. Then just find the first usable free
+ * channel
 */
 
 struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
 {
+	struct s3c24xx_dma_order_ch *ord = NULL;
 	struct s3c24xx_dma_map *ch_map;
 	struct s3c2410_dma_chan *dmach;
 	int ch;
@@ -1374,6 +1378,27 @@ struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
 		return NULL;
 
 	ch_map = dma_sel.map + channel;
+
+	/* first, try the board mapping */
+
+	if (dma_order) {
+		ord = &dma_order->channels[channel];
+
+		for (ch = 0; ch < S3C2410_DMA_CHANNELS; ch++) {
+			if (!is_channel_valid(ord->list[ch]))
+				continue;
+
+			if (s3c2410_chans[ord->list[ch]].in_use == 0) {
+				ch = ord->list[ch] & ~DMA_CH_VALID;
+				goto found;
+			}
+		}
+
+		if (ord->flags & DMA_CH_NEVER)
+			return NULL;
+	}
+
+	/* second, search the channel map for first free */
 
 	for (ch = 0; ch < S3C2410_DMA_CHANNELS; ch++) {
 		if (!is_channel_valid(ch_map->channels[ch]))
@@ -1390,6 +1415,7 @@ struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
 
 	/* update our channel mapping */
 
+ found:
 	dmach = &s3c2410_chans[ch];
 	dma_chan_map[channel] = dmach;
 
@@ -1437,5 +1463,22 @@ int __init s3c24xx_dma_init_map(struct s3c24xx_dma_selection *sel)
 	for (ptr = 0; ptr < sel->map_size; ptr++)
 		s3c24xx_dma_check_entry(nmap+ptr, ptr);
 
+	return 0;
+}
+
+int __init s3c24xx_dma_order_set(struct s3c24xx_dma_order *ord)
+{
+	struct s3c24xx_dma_order *nord = dma_order;
+
+	if (nord == NULL)
+		nord = kmalloc(sizeof(struct s3c24xx_dma_order), GFP_KERNEL);
+
+	if (nord == NULL) {
+		printk(KERN_ERR "no memory to store dma channel order\n");
+		return -ENOMEM;
+	}
+
+	dma_order = nord;
+	memcpy(nord, ord, sizeof(struct s3c24xx_dma_order));
 	return 0;
 }
