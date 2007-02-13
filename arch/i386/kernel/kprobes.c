@@ -408,7 +408,7 @@ fastcall void *__kprobes trampoline_handler(struct pt_regs *regs)
 	spin_lock_irqsave(&kretprobe_lock, flags);
 	head = kretprobe_inst_table_head(current);
 	/* fixup registers */
-	regs->xcs = __KERNEL_CS;
+	regs->xcs = __KERNEL_CS | get_kernel_rpl();
 	regs->eip = trampoline_address;
 	regs->orig_eax = 0xffffffff;
 
