@@ -60,6 +60,8 @@ void __init iop32x_init_irq(void)
 {
 	int i;
 
+	iop_init_cp6_handler();
+
 	intctl_write(0);
 	intstr_write(0);
 	if (machine_is_glantank() ||

@@ -110,6 +110,8 @@ void __init iop33x_init_irq(void)
 {
 	int i;
 
+	iop_init_cp6_handler();
+
 	intctl0_write(0);
 	intctl1_write(0);
 	intstr0_write(0);

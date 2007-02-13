@@ -278,6 +278,7 @@ extern void gpio_line_set(int line, int value);
 void iop3xx_map_io(void);
 void iop3xx_init_time(unsigned long);
 unsigned long iop3xx_gettimeoffset(void);
+void iop_init_cp6_handler(void);
 
 extern struct platform_device iop3xx_i2c0_device;
 extern struct platform_device iop3xx_i2c1_device;
