@@ -545,6 +545,7 @@ struct paravirt_ops paravirt_ops = {
 	.apic_write_atomic = native_apic_write_atomic,
 	.apic_read = native_apic_read,
 #endif
+	.set_lazy_mode = (void *)native_nop,
 
 	.flush_tlb_user = native_flush_tlb,
 	.flush_tlb_kernel = native_flush_tlb_global,

@@ -670,14 +670,6 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	load_TLS(next, cpu);
 
 	/*
-	 * Restore %gs if needed (which is common)
-	 */
-	if (prev->gs | next->gs)
-		loadsegment(gs, next->gs);
-
-	write_pda(pcurrent, next_p);
-
-	/*
 	 * Now maybe handle debug registers and/or IO bitmaps
 	 */
 	if (unlikely((task_thread_info(next_p)->flags & _TIF_WORK_CTXSW)
@@ -686,12 +678,29 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 
 	disable_tsc(prev_p, next_p);
 
+	/*
+	 * Leave lazy mode, flushing any hypercalls made here.
+	 * This must be done before restoring TLS segments so
+	 * the GDT and LDT are properly updated, and must be
+	 * done before math_state_restore, so the TS bit is up
+	 * to date.
+	 */
+	arch_leave_lazy_cpu_mode();
+
 	/* If the task has used fpu the last 5 timeslices, just do a full
 	 * restore of the math state immediately to avoid the trap; the
 	 * chances of needing FPU soon are obviously high now
 	 */
 	if (next_p->fpu_counter > 5)
 		math_state_restore();
+
+	/*
+	 * Restore %gs if needed (which is common)
+	 */
+	if (prev->gs | next->gs)
+		loadsegment(gs, next->gs);
+
+	write_pda(pcurrent, next_p);
 
 	return prev_p;
 }
