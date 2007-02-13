@@ -68,6 +68,43 @@ static inline int node_allowed(int node)
 	return 1;
 }
 
+/**
+ * spu_add_to_active_list - add spu to active list
+ * @spu:	spu to add to the active list
+ */
+static void spu_add_to_active_list(struct spu *spu)
+{
+	mutex_lock(&spu_prio->active_mutex[spu->node]);
+	list_add_tail(&spu->list, &spu_prio->active_list[spu->node]);
+	mutex_unlock(&spu_prio->active_mutex[spu->node]);
+}
+
+/**
+ * spu_remove_from_active_list - remove spu from active list
+ * @spu:       spu to remove from the active list
+ *
+ * This function removes an spu from the active list.  If the spu was
+ * found on the active list the function returns 1, else it doesn't do
+ * anything and returns 0.
+ */
+static int spu_remove_from_active_list(struct spu *spu)
+{
+	int node = spu->node;
+	struct spu *tmp;
+	int rc = 0;
+
+	mutex_lock(&spu_prio->active_mutex[node]);
+	list_for_each_entry(tmp, &spu_prio->active_list[node], list) {
+		if (tmp == spu) {
+			list_del_init(&spu->list);
+			rc = 1;
+			break;
+		}
+	}
+	mutex_unlock(&spu_prio->active_mutex[node]);
+	return rc;
+}
+
 static inline void mm_needs_global_tlbie(struct mm_struct *mm)
 {
 	int nr = (NR_CPUS > 1) ? NR_CPUS : NR_CPUS + 1;
@@ -94,8 +131,12 @@ int spu_switch_event_unregister(struct notifier_block * n)
 	return blocking_notifier_chain_unregister(&spu_switch_notifier, n);
 }
 
-
-static inline void bind_context(struct spu *spu, struct spu_context *ctx)
+/**
+ * spu_bind_context - bind spu context to physical spu
+ * @spu:	physical spu to bind to
+ * @ctx:	context to bind
+ */
+static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 {
 	pr_debug("%s: pid=%d SPU=%d NODE=%d\n", __FUNCTION__, current->pid,
 		 spu->number, spu->node);
@@ -118,14 +159,24 @@ static inline void bind_context(struct spu *spu, struct spu_context *ctx)
 	spu->timestamp = jiffies;
 	spu_cpu_affinity_set(spu, raw_smp_processor_id());
 	spu_switch_notify(spu, ctx);
-
+	spu_add_to_active_list(spu);
 	ctx->state = SPU_STATE_RUNNABLE;
 }
 
-static inline void unbind_context(struct spu *spu, struct spu_context *ctx)
+/**
+ * spu_unbind_context - unbind spu context from physical spu
+ * @spu:	physical spu to unbind from
+ * @ctx:	context to unbind
+ *
+ * If the spu was on the active list the function returns 1, else 0.
+ */
+static int spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 {
+	int was_active = spu_remove_from_active_list(spu);
+
 	pr_debug("%s: unbind pid=%d SPU=%d NODE=%d\n", __FUNCTION__,
 		 spu->pid, spu->number, spu->node);
+
 	spu_switch_notify(spu, NULL);
 	spu_unmap_mappings(ctx);
 	spu_save(&ctx->csa, spu);
@@ -143,6 +194,8 @@ static inline void unbind_context(struct spu *spu, struct spu_context *ctx)
 	ctx->spu = NULL;
 	spu->flags = 0;
 	spu->ctx = NULL;
+
+	return was_active;
 }
 
 static inline void spu_add_wq(wait_queue_head_t * wq, wait_queue_t * wait,
@@ -199,33 +252,6 @@ static void spu_prio_wakeup(void)
 	}
 }
 
-static int get_active_spu(struct spu *spu)
-{
-	int node = spu->node;
-	struct spu *tmp;
-	int rc = 0;
-
-	mutex_lock(&spu_prio->active_mutex[node]);
-	list_for_each_entry(tmp, &spu_prio->active_list[node], list) {
-		if (tmp == spu) {
-			list_del_init(&spu->list);
-			rc = 1;
-			break;
-		}
-	}
-	mutex_unlock(&spu_prio->active_mutex[node]);
-	return rc;
-}
-
-static void put_active_spu(struct spu *spu)
-{
-	int node = spu->node;
-
-	mutex_lock(&spu_prio->active_mutex[node]);
-	list_add_tail(&spu->list, &spu_prio->active_list[node]);
-	mutex_unlock(&spu_prio->active_mutex[node]);
-}
-
 static struct spu *spu_get_idle(struct spu_context *ctx, u64 flags)
 {
 	struct spu *spu = NULL;
@@ -275,8 +301,7 @@ int spu_activate(struct spu_context *ctx, u64 flags)
 				spu_prio_wakeup();
 				break;
 			}
-			bind_context(spu, ctx);
-			put_active_spu(spu);
+			spu_bind_context(spu, ctx);
 			break;
 		}
 		spu_prio_wait(ctx, flags);
@@ -292,14 +317,13 @@ int spu_activate(struct spu_context *ctx, u64 flags)
 void spu_deactivate(struct spu_context *ctx)
 {
 	struct spu *spu;
-	int needs_idle;
+	int was_active;
 
 	spu = ctx->spu;
 	if (!spu)
 		return;
-	needs_idle = get_active_spu(spu);
-	unbind_context(spu, ctx);
-	if (needs_idle) {
+	was_active = spu_unbind_context(spu, ctx);
+	if (was_active) {
 		spu_free(spu);
 		spu_prio_wakeup();
 	}
