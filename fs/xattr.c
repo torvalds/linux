@@ -350,6 +350,7 @@ sys_fgetxattr(int fd, char __user *name, void __user *value, size_t size)
 	f = fget(fd);
 	if (!f)
 		return error;
+	audit_inode(NULL, f->f_path.dentry->d_inode);
 	error = getxattr(f->f_path.dentry, name, value, size);
 	fput(f);
 	return error;
@@ -422,6 +423,7 @@ sys_flistxattr(int fd, char __user *list, size_t size)
 	f = fget(fd);
 	if (!f)
 		return error;
+	audit_inode(NULL, f->f_path.dentry->d_inode);
 	error = listxattr(f->f_path.dentry, list, size);
 	fput(f);
 	return error;
