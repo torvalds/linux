@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -327,7 +327,7 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	ACPI_FUNCTION_TRACE_PTR(ds_call_control_method, this_walk_state);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-			  "Execute method %p, currentstate=%p\n",
+			  "Calling method %p, currentstate=%p\n",
 			  this_walk_state->prev_op, this_walk_state));
 
 	/*
@@ -351,49 +351,7 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 		return_ACPI_STATUS(status);
 	}
 
-	/*
-	 * 1) Parse the method. All "normal" methods are parsed for each execution.
-	 * Internal methods (_OSI, etc.) do not require parsing.
-	 */
-	if (!(obj_desc->method.method_flags & AML_METHOD_INTERNAL_ONLY)) {
-
-		/* Create a new walk state for the parse */
-
-		next_walk_state =
-		    acpi_ds_create_walk_state(obj_desc->method.owner_id, op,
-					      obj_desc, NULL);
-		if (!next_walk_state) {
-			status = AE_NO_MEMORY;
-			goto cleanup;
-		}
-
-		/* Create and init a parse tree root */
-
-		op = acpi_ps_create_scope_op();
-		if (!op) {
-			status = AE_NO_MEMORY;
-			goto cleanup;
-		}
-
-		status = acpi_ds_init_aml_walk(next_walk_state, op, method_node,
-					       obj_desc->method.aml_start,
-					       obj_desc->method.aml_length,
-					       NULL, 1);
-		if (ACPI_FAILURE(status)) {
-			acpi_ps_delete_parse_tree(op);
-			goto cleanup;
-		}
-
-		/* Begin AML parse (deletes next_walk_state) */
-
-		status = acpi_ps_parse_aml(next_walk_state);
-		acpi_ps_delete_parse_tree(op);
-		if (ACPI_FAILURE(status)) {
-			goto cleanup;
-		}
-	}
-
-	/* 2) Begin method execution. Create a new walk state */
+	/* Begin method parse/execution. Create a new walk state */
 
 	next_walk_state = acpi_ds_create_walk_state(obj_desc->method.owner_id,
 						    NULL, obj_desc, thread);
@@ -424,7 +382,8 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 
 	status = acpi_ds_init_aml_walk(next_walk_state, NULL, method_node,
 				       obj_desc->method.aml_start,
-				       obj_desc->method.aml_length, info, 3);
+				       obj_desc->method.aml_length, info,
+				       ACPI_IMODE_EXECUTE);
 
 	ACPI_FREE(info);
 	if (ACPI_FAILURE(status)) {
@@ -445,8 +404,8 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	this_walk_state->num_operands = 0;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-			  "Starting nested execution, newstate=%p\n",
-			  next_walk_state));
+			  "**** Begin nested execution of [%4.4s] **** WalkState=%p\n",
+			  method_node->name.ascii, next_walk_state));
 
 	/* Invoke an internal method if necessary */
 

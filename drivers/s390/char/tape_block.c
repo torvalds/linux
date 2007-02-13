@@ -73,7 +73,7 @@ tapeblock_trigger_requeue(struct tape_device *device)
 /*
  * Post finished request.
  */
-static inline void
+static void
 tapeblock_end_request(struct request *req, int uptodate)
 {
 	if (end_that_request_first(req, uptodate, req->hard_nr_sectors))
@@ -108,7 +108,7 @@ __tapeblock_end_request(struct tape_request *ccw_req, void *data)
 /*
  * Feed the tape device CCW queue with requests supplied in a list.
  */
-static inline int
+static int
 tapeblock_start_request(struct tape_device *device, struct request *req)
 {
 	struct tape_request *	ccw_req;

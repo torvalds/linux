@@ -789,13 +789,14 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	head = ehci->async;
 	timer_action_done (ehci, TIMER_ASYNC_OFF);
 	if (!head->qh_next.qh) {
-		u32	cmd = readl (&ehci->regs->command);
+		u32	cmd = ehci_readl(ehci, &ehci->regs->command);
 
 		if (!(cmd & CMD_ASE)) {
 			/* in case a clear of CMD_ASE didn't take yet */
-			(void) handshake (&ehci->regs->status, STS_ASS, 0, 150);
+			(void)handshake(ehci, &ehci->regs->status,
+					STS_ASS, 0, 150);
 			cmd |= CMD_ASE | CMD_RUN;
-			writel (cmd, &ehci->regs->command);
+			ehci_writel(ehci, cmd, &ehci->regs->command);
 			ehci_to_hcd(ehci)->state = HC_STATE_RUNNING;
 			/* posted write need not be known to HC yet ... */
 		}
@@ -1007,7 +1008,7 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 
 static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	int		cmd = readl (&ehci->regs->command);
+	int		cmd = ehci_readl(ehci, &ehci->regs->command);
 	struct ehci_qh	*prev;
 
 #ifdef DEBUG
@@ -1025,7 +1026,8 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		if (ehci_to_hcd(ehci)->state != HC_STATE_HALT
 				&& !ehci->reclaim) {
 			/* ... and CMD_IAAD clear */
-			writel (cmd & ~CMD_ASE, &ehci->regs->command);
+			ehci_writel(ehci, cmd & ~CMD_ASE,
+				    &ehci->regs->command);
 			wmb ();
 			// handshake later, if we need to
 			timer_action_done (ehci, TIMER_ASYNC_OFF);
@@ -1054,8 +1056,8 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	ehci->reclaim_ready = 0;
 	cmd |= CMD_IAAD;
-	writel (cmd, &ehci->regs->command);
-	(void) readl (&ehci->regs->command);
+	ehci_writel(ehci, cmd, &ehci->regs->command);
+	(void)ehci_readl(ehci, &ehci->regs->command);
 	timer_action (ehci, TIMER_IAA_WATCHDOG);
 }
 

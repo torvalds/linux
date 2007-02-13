@@ -1,5 +1,5 @@
 /*
- *  arch/s390/kernel/delay.c
+ *  arch/s390/lib/delay.c
  *    Precise Delay Loops for S390
  *
  *  S390 version
@@ -13,10 +13,8 @@
 
 #include <linux/sched.h>
 #include <linux/delay.h>
-
-#ifdef CONFIG_SMP
-#include <asm/smp.h>
-#endif
+#include <linux/timex.h>
+#include <linux/irqflags.h>
 
 void __delay(unsigned long loops)
 {
@@ -31,17 +29,39 @@ void __delay(unsigned long loops)
 }
 
 /*
- * Waits for 'usecs' microseconds using the tod clock, giving up the time slice
- * of the virtual PU inbetween to avoid congestion.
+ * Waits for 'usecs' microseconds using the TOD clock comparator.
  */
 void __udelay(unsigned long usecs)
 {
-	uint64_t start_cc;
+	u64 end, time, jiffy_timer = 0;
+	unsigned long flags, cr0, mask, dummy;
 
-        if (usecs == 0)
-                return;
-	start_cc = get_clock();
-        do {
-		cpu_relax();
-	} while (((get_clock() - start_cc)/4096) < usecs);
+	local_irq_save(flags);
+	if (raw_irqs_disabled_flags(flags)) {
+		jiffy_timer = S390_lowcore.jiffy_timer;
+		S390_lowcore.jiffy_timer = -1ULL - (4096 << 12);
+		__ctl_store(cr0, 0, 0);
+		dummy = (cr0 & 0xffff00e0) | 0x00000800;
+		__ctl_load(dummy , 0, 0);
+		mask = psw_kernel_bits | PSW_MASK_WAIT | PSW_MASK_EXT;
+	} else
+		mask = psw_kernel_bits | PSW_MASK_WAIT |
+			PSW_MASK_EXT | PSW_MASK_IO;
+
+	end = get_clock() + ((u64) usecs << 12);
+	do {
+		time = end < S390_lowcore.jiffy_timer ?
+			end : S390_lowcore.jiffy_timer;
+		set_clock_comparator(time);
+		trace_hardirqs_on();
+		__load_psw_mask(mask);
+		local_irq_disable();
+	} while (get_clock() < end);
+
+	if (raw_irqs_disabled_flags(flags)) {
+		__ctl_load(cr0, 0, 0);
+		S390_lowcore.jiffy_timer = jiffy_timer;
+	}
+	set_clock_comparator(S390_lowcore.jiffy_timer);
+	local_irq_restore(flags);
 }

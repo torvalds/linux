@@ -439,7 +439,7 @@ void __init arch_init_irq(void)
 }
 
 static struct irq_chip jmr3927_irq_controller = {
-	.typename = "jmr3927_irq",
+	.name = "jmr3927_irq",
 	.ack = jmr3927_irq_ack,
 	.mask = jmr3927_irq_disable,
 	.mask_ack = jmr3927_irq_ack,

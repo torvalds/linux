@@ -104,7 +104,7 @@ void __init arch_init_irq(void)
 	GT_WRITE(GT_INTRMASK_OFS, 0);
 
 	init_i8259_irqs();				/*  0 ... 15 */
-	mips_cpu_irq_init(COBALT_CPU_IRQ);		/* 16 ... 23 */
+	mips_cpu_irq_init();		/* 16 ... 23 */
 
 	/*
 	 * Mask all cpu interrupts

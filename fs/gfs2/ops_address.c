@@ -16,6 +16,7 @@
 #include <linux/pagevec.h>
 #include <linux/mpage.h>
 #include <linux/fs.h>
+#include <linux/writeback.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/lm_interface.h>
 
@@ -157,6 +158,32 @@ out_ignore:
 }
 
 /**
+ * gfs2_writepages - Write a bunch of dirty pages back to disk
+ * @mapping: The mapping to write
+ * @wbc: Write-back control
+ *
+ * For journaled files and/or ordered writes this just falls back to the
+ * kernel's default writepages path for now. We will probably want to change
+ * that eventually (i.e. when we look at allocate on flush).
+ *
+ * For the data=writeback case though we can already ignore buffer heads
+ * and write whole extents at once. This is a big reduction in the
+ * number of I/O requests we send and the bmap calls we make in this case.
+ */
+static int gfs2_writepages(struct address_space *mapping,
+			   struct writeback_control *wbc)
+{
+	struct inode *inode = mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+
+	if (sdp->sd_args.ar_data == GFS2_DATA_WRITEBACK && !gfs2_is_jdata(ip))
+		return mpage_writepages(mapping, wbc, gfs2_get_block_noalloc);
+
+	return generic_writepages(mapping, wbc);
+}
+
+/**
  * stuffed_readpage - Fill in a Linux page with stuffed file data
  * @ip: the inode
  * @page: the page
@@ -256,7 +283,7 @@ out_unlock:
  *    the page lock and the glock) and return having done no I/O. Its
  *    obviously not something we'd want to do on too regular a basis.
  *    Any I/O we ignore at this time will be done via readpage later.
- * 2. We have to handle stuffed files here too.
+ * 2. We don't handle stuffed files here we let readpage do the honours.
  * 3. mpage_readpages() does most of the heavy lifting in the common case.
  * 4. gfs2_get_block() is relied upon to set BH_Boundary in the right places.
  * 5. We use LM_FLAG_TRY_1CB here, effectively we then have lock-ahead as
@@ -269,8 +296,7 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_holder gh;
-	unsigned page_idx;
-	int ret;
+	int ret = 0;
 	int do_unlock = 0;
 
 	if (likely(file != &gfs2_internal_file_sentinel)) {
@@ -289,29 +315,8 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 			goto out_unlock;
 	}
 skip_lock:
-	if (gfs2_is_stuffed(ip)) {
-		struct pagevec lru_pvec;
-		pagevec_init(&lru_pvec, 0);
-		for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-			struct page *page = list_entry(pages->prev, struct page, lru);
-			prefetchw(&page->flags);
-			list_del(&page->lru);
-			if (!add_to_page_cache(page, mapping,
-					       page->index, GFP_KERNEL)) {
-				ret = stuffed_readpage(ip, page);
-				unlock_page(page);
-				if (!pagevec_add(&lru_pvec, page))
-					 __pagevec_lru_add(&lru_pvec);
-			} else {
-				page_cache_release(page);
-			}
-		}
-		pagevec_lru_add(&lru_pvec);
-		ret = 0;
-	} else {
-		/* What we really want to do .... */
+	if (!gfs2_is_stuffed(ip))
 		ret = mpage_readpages(mapping, pages, nr_pages, gfs2_get_block);
-	}
 
 	if (do_unlock) {
 		gfs2_glock_dq_m(1, &gh);
@@ -356,8 +361,10 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME|LM_FLAG_TRY_1CB, &ip->i_gh);
 	error = gfs2_glock_nq_atime(&ip->i_gh);
 	if (unlikely(error)) {
-		if (error == GLR_TRYFAILED)
+		if (error == GLR_TRYFAILED) {
+			unlock_page(page);
 			error = AOP_TRUNCATED_PAGE;
+		}
 		goto out_uninit;
 	}
 
@@ -594,6 +601,36 @@ static void gfs2_invalidatepage(struct page *page, unsigned long offset)
 	return;
 }
 
+/**
+ * gfs2_ok_for_dio - check that dio is valid on this file
+ * @ip: The inode
+ * @rw: READ or WRITE
+ * @offset: The offset at which we are reading or writing
+ *
+ * Returns: 0 (to ignore the i/o request and thus fall back to buffered i/o)
+ *          1 (to accept the i/o request)
+ */
+static int gfs2_ok_for_dio(struct gfs2_inode *ip, int rw, loff_t offset)
+{
+	/*
+	 * Should we return an error here? I can't see that O_DIRECT for
+	 * a journaled file makes any sense. For now we'll silently fall
+	 * back to buffered I/O, likewise we do the same for stuffed
+	 * files since they are (a) small and (b) unaligned.
+	 */
+	if (gfs2_is_jdata(ip))
+		return 0;
+
+	if (gfs2_is_stuffed(ip))
+		return 0;
+
+	if (offset > i_size_read(&ip->i_inode))
+		return 0;
+	return 1;
+}
+
+
+
 static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 			      const struct iovec *iov, loff_t offset,
 			      unsigned long nr_segs)
@@ -604,42 +641,28 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	struct gfs2_holder gh;
 	int rv;
 
-	if (rw == READ)
-		mutex_lock(&inode->i_mutex);
 	/*
-	 * Shared lock, even if its a write, since we do no allocation
-	 * on this path. All we need change is atime.
+	 * Deferred lock, even if its a write, since we do no allocation
+	 * on this path. All we need change is atime, and this lock mode
+	 * ensures that other nodes have flushed their buffered read caches
+	 * (i.e. their page cache entries for this inode). We do not,
+	 * unfortunately have the option of only flushing a range like
+	 * the VFS does.
 	 */
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_DEFERRED, GL_ATIME, &gh);
 	rv = gfs2_glock_nq_atime(&gh);
 	if (rv)
-		goto out;
+		return rv;
+	rv = gfs2_ok_for_dio(ip, rw, offset);
+	if (rv != 1)
+		goto out; /* dio not valid, fall back to buffered i/o */
 
-	if (offset > i_size_read(inode))
-		goto out;
-
-	/*
-	 * Should we return an error here? I can't see that O_DIRECT for
-	 * a journaled file makes any sense. For now we'll silently fall
-	 * back to buffered I/O, likewise we do the same for stuffed
-	 * files since they are (a) small and (b) unaligned.
-	 */
-	if (gfs2_is_jdata(ip))
-		goto out;
-
-	if (gfs2_is_stuffed(ip))
-		goto out;
-
-	rv = blockdev_direct_IO_own_locking(rw, iocb, inode,
-					    inode->i_sb->s_bdev,
-					    iov, offset, nr_segs,
-					    gfs2_get_block_direct, NULL);
+	rv = blockdev_direct_IO_no_locking(rw, iocb, inode, inode->i_sb->s_bdev,
+					   iov, offset, nr_segs,
+					   gfs2_get_block_direct, NULL);
 out:
 	gfs2_glock_dq_m(1, &gh);
 	gfs2_holder_uninit(&gh);
-	if (rw == READ)
-		mutex_unlock(&inode->i_mutex);
-
 	return rv;
 }
 
@@ -763,6 +786,7 @@ out:
 
 const struct address_space_operations gfs2_file_aops = {
 	.writepage = gfs2_writepage,
+	.writepages = gfs2_writepages,
 	.readpage = gfs2_readpage,
 	.readpages = gfs2_readpages,
 	.sync_page = block_sync_page,

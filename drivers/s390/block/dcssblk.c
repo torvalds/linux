@@ -102,7 +102,7 @@ dcssblk_release_segment(struct device *dev)
  * device needs to be enqueued before the semaphore is
  * freed.
  */
-static inline int
+static int
 dcssblk_assign_free_minor(struct dcssblk_dev_info *dev_info)
 {
 	int minor, found;
@@ -230,7 +230,7 @@ dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const ch
 					   SEGMENT_SHARED);
 		if (rc < 0) {
 			BUG_ON(rc == -EINVAL);
-			if (rc == -EIO || rc == -ENOENT)
+			if (rc != -EAGAIN)
 				goto removeseg;
 		} else {
 			dev_info->is_shared = 1;
@@ -253,7 +253,7 @@ dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const ch
 					   SEGMENT_EXCLUSIVE);
 		if (rc < 0) {
 			BUG_ON(rc == -EINVAL);
-			if (rc == -EIO || rc == -ENOENT)
+			if (rc != -EAGAIN)
 				goto removeseg;
 		} else {
 			dev_info->is_shared = 0;

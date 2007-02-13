@@ -245,7 +245,7 @@ cmm_set_timeout(long nr, long seconds)
 	cmm_set_timer();
 }
 
-static inline int
+static int
 cmm_skip_blanks(char *cp, char **endp)
 {
 	char *str;
@@ -414,7 +414,7 @@ cmm_smsg_target(char *from, char *msg)
 }
 #endif
 
-struct ctl_table_header *cmm_sysctl_header;
+static struct ctl_table_header *cmm_sysctl_header;
 
 static int
 cmm_init (void)

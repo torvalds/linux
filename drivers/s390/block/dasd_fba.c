@@ -75,7 +75,7 @@ static struct ccw_driver dasd_fba_driver = {
 	.notify      = dasd_generic_notify,
 };
 
-static inline void
+static void
 define_extent(struct ccw1 * ccw, struct DE_fba_data *data, int rw,
 	      int blksize, int beg, int nr)
 {
@@ -95,7 +95,7 @@ define_extent(struct ccw1 * ccw, struct DE_fba_data *data, int rw,
 	data->ext_end = nr - 1;
 }
 
-static inline void
+static void
 locate_record(struct ccw1 * ccw, struct LO_fba_data *data, int rw,
 	      int block_nr, int block_ct)
 {

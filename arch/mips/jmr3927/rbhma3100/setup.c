@@ -434,7 +434,7 @@ void __init tx3927_setup(void)
 
 	/* DMA */
 	tx3927_dmaptr->mcr = 0;
-	for (i = 0; i < sizeof(tx3927_dmaptr->ch) / sizeof(tx3927_dmaptr->ch[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(tx3927_dmaptr->ch); i++) {
 		/* reset channel */
 		tx3927_dmaptr->ch[i].ccr = TX3927_DMA_CCR_CHRST;
 		tx3927_dmaptr->ch[i].ccr = 0;

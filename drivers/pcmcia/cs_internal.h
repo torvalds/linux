@@ -142,7 +142,7 @@ struct pcmcia_callback{
 
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);
 
-#define cs_socket_name(skt)	((skt)->dev.class_id)
+#define cs_socket_name(skt)	((skt)->dev.bus_id)
 
 #ifdef DEBUG
 extern int cs_debug_level(int);
@@ -158,6 +158,6 @@ extern int cs_debug_level(int);
 #endif
 
 #define cs_err(skt, fmt, arg...) \
-	printk(KERN_ERR "cs: %s: " fmt, (skt)->dev.class_id , ## arg)
+	printk(KERN_ERR "cs: %s: " fmt, (skt)->dev.bus_id , ## arg)
 
 #endif /* _LINUX_CS_INTERNAL_H */

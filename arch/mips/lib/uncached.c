@@ -44,20 +44,24 @@ unsigned long __init run_uncached(void *func)
 
 	if (sp >= (long)CKSEG0 && sp < (long)CKSEG2)
 		usp = CKSEG1ADDR(sp);
+#ifdef CONFIG_64BIT
 	else if ((long long)sp >= (long long)PHYS_TO_XKPHYS(0LL, 0) &&
 		 (long long)sp < (long long)PHYS_TO_XKPHYS(8LL, 0))
 		usp = PHYS_TO_XKPHYS((long long)K_CALG_UNCACHED,
 				     XKPHYS_TO_PHYS((long long)sp));
+#endif
 	else {
 		BUG();
 		usp = sp;
 	}
 	if (lfunc >= (long)CKSEG0 && lfunc < (long)CKSEG2)
 		ufunc = CKSEG1ADDR(lfunc);
+#ifdef CONFIG_64BIT
 	else if ((long long)lfunc >= (long long)PHYS_TO_XKPHYS(0LL, 0) &&
 		 (long long)lfunc < (long long)PHYS_TO_XKPHYS(8LL, 0))
 		ufunc = PHYS_TO_XKPHYS((long long)K_CALG_UNCACHED,
 				       XKPHYS_TO_PHYS((long long)lfunc));
+#endif
 	else {
 		BUG();
 		ufunc = lfunc;

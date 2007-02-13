@@ -190,7 +190,7 @@ config MII
 
 config MACB
 	tristate "Atmel MACB support"
-	depends on NET_ETHERNET && AVR32
+	depends on NET_ETHERNET && (AVR32 || ARCH_AT91SAM9260 || ARCH_AT91SAM9263)
 	select MII
 	help
 	  The Atmel MACB ethernet interface is found on many AT32 and AT91
@@ -234,16 +234,6 @@ config BMAC
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called bmac.
-
-config OAKNET
-	tristate "National DP83902AV (Oak ethernet) support"
-	depends on NET_ETHERNET && PPC && BROKEN
-	select CRC32
-	help
-	  Say Y if your machine has this type of Ethernet network card.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called oaknet.
 
 config ARIADNE
 	tristate "Ariadne support"
@@ -1155,21 +1145,6 @@ config SEEQ8005
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called seeq8005.
 
-config SKMC
-	tristate "SKnet MCA support"
-	depends on NET_ETHERNET && MCA && BROKEN
-	---help---
-	  These are Micro Channel Ethernet adapters. You need to say Y to "MCA
-	  support" in order to use this driver.  Supported cards are the SKnet
-	  Junior MC2 and the SKnet MC2(+).  The driver automatically
-	  distinguishes between the two cards. Note that using multiple boards
-	  of different type hasn't been tested with this driver.  Say Y if you
-	  have one of these Ethernet adapters.
-
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>. The module
-	  will be called sk_mca.
-
 config NE2_MCA
 	tristate "NE/2 (ne2000 MCA version) support"
 	depends on NET_ETHERNET && MCA_LEGACY
@@ -1788,6 +1763,18 @@ config LAN_SAA9730
 	  workstations.
 	  See <http://www.semiconductors.philips.com/pip/SAA9730_flyer_1>.
 
+config SC92031
+	tristate "Silan SC92031 PCI Fast Ethernet Adapter driver (EXPERIMENTAL)"
+	depends on NET_PCI && PCI && EXPERIMENTAL
+	select CRC32
+	---help---
+	  This is a driver for the Fast Ethernet PCI network cards based on
+	  the Silan SC92031 chip (sometimes also called Rsltek 8139D). If you
+	  have one of these, say Y here.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sc92031.  This is recommended.
+
 config NET_POCKET
 	bool "Pocket and portable adapters"
 	depends on NET_ETHERNET && PARPORT
@@ -2392,6 +2379,24 @@ config CHELSIO_T1_NAPI
 	  NAPI is a driver API designed to reduce CPU and interrupt load
 	  when the driver is receiving lots of packets from the card.
 
+config CHELSIO_T3
+        tristate "Chelsio Communications T3 10Gb Ethernet support"
+        depends on PCI
+        help
+          This driver supports Chelsio T3-based gigabit and 10Gb Ethernet
+          adapters.
+
+          For general information about Chelsio and our products, visit
+          our website at <http://www.chelsio.com>.
+
+          For customer support, please visit our customer support page at
+          <http://www.chelsio.com/support.htm>.
+
+          Please send feedback to <linux-bugs@chelsio.com>.
+
+          To compile this driver as a module, choose M here: the module
+          will be called cxgb3.
+
 config EHEA
 	tristate "eHEA Ethernet support"
 	depends on IBMEBUS
@@ -2488,6 +2493,13 @@ config NETXEN_NIC
 	help
 	  This enables the support for NetXen's Gigabit Ethernet card.
 
+config PASEMI_MAC
+	tristate "PA Semi 1/10Gbit MAC"
+	depends on PPC64 && PCI
+	help
+	  This driver supports the on-chip 1/10Gbit Ethernet controller on
+	  PA Semi's PWRficient line of chips.
+
 endmenu
 
 source "drivers/net/tokenring/Kconfig"
@@ -2541,6 +2553,7 @@ config DEFXX
 config SKFP
 	tristate "SysKonnect FDDI PCI support"
 	depends on FDDI && PCI
+	select BITREVERSE
 	---help---
 	  Say Y here if you have a SysKonnect FDDI PCI adapter.
 	  The following adapters are supported by this driver:

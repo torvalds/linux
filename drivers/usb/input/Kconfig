@@ -69,6 +69,14 @@ config LOGITECH_FF
 	  Note: if you say N here, this device will still be supported, but without
 	  force feedback.
 
+config PANTHERLORD_FF
+	bool "PantherLord USB/PS2 2in1 Adapter support"
+	depends on HID_FF
+	select INPUT_FF_MEMLESS if USB_HID
+	help
+	  Say Y here if you have a PantherLord USB/PS2 2in1 Adapter and want
+	  to enable force feedback support for it.
+
 config THRUSTMASTER_FF
 	bool "ThrustMaster FireStorm Dual Power 2 support (EXPERIMENTAL)"
 	depends on HID_FF && EXPERIMENTAL
@@ -344,3 +352,15 @@ config USB_APPLETOUCH
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called appletouch.
+
+config USB_GTCO
+        tristate "GTCO CalComp/InterWrite USB Support"
+        depends on USB && INPUT
+        ---help---
+          Say Y here if you want to use the USB version of the GTCO
+          CalComp/InterWrite Tablet.  Make sure to say Y to "Mouse support"
+          (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
+          (CONFIG_INPUT_EVDEV) as well.
+
+          To compile this driver as a module, choose M here: the
+          module will be called gtco.

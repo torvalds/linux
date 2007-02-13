@@ -9166,7 +9166,7 @@ static int ipw_wx_set_rts(struct net_device *dev,
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	mutex_lock(&priv->mutex);
-	if (wrqu->rts.disabled)
+	if (wrqu->rts.disabled || !wrqu->rts.fixed)
 		priv->rts_threshold = DEFAULT_RTS_THRESHOLD;
 	else {
 		if (wrqu->rts.value < MIN_RTS_THRESHOLD ||
@@ -9255,7 +9255,7 @@ static int ipw_wx_set_frag(struct net_device *dev,
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	mutex_lock(&priv->mutex);
-	if (wrqu->frag.disabled)
+	if (wrqu->frag.disabled || !wrqu->frag.fixed)
 		priv->ieee->fts = DEFAULT_FTS;
 	else {
 		if (wrqu->frag.value < MIN_FRAG_THRESHOLD ||

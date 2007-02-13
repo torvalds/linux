@@ -25,7 +25,7 @@
 #include <asm/irq_regs.h>
 
 static ext_int_info_t ext_int_info_timer;
-DEFINE_PER_CPU(struct vtimer_queue, virt_cpu_timer);
+static DEFINE_PER_CPU(struct vtimer_queue, virt_cpu_timer);
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 /*
@@ -524,16 +524,15 @@ EXPORT_SYMBOL(del_virt_timer);
 void init_cpu_vtimer(void)
 {
 	struct vtimer_queue *vt_list;
-	unsigned long cr0;
 
 	/* kick the virtual timer */
 	S390_lowcore.exit_timer = VTIMER_MAX_SLICE;
 	S390_lowcore.last_update_timer = VTIMER_MAX_SLICE;
 	asm volatile ("SPT %0" : : "m" (S390_lowcore.last_update_timer));
 	asm volatile ("STCK %0" : "=m" (S390_lowcore.last_update_clock));
-	__ctl_store(cr0, 0, 0);
-	cr0 |= 0x400;
-	__ctl_load(cr0, 0, 0);
+
+	/* enable cpu timer interrupts */
+	__ctl_set_bit(0,10);
 
 	vt_list = &per_cpu(virt_cpu_timer, smp_processor_id());
 	INIT_LIST_HEAD(&vt_list->list);
@@ -572,6 +571,7 @@ void __init vtime_init(void)
 	if (register_idle_notifier(&vtimer_idle_nb))
 		panic("Couldn't register idle notifier");
 
+	/* Enable cpu timer interrupts on the boot cpu. */
 	init_cpu_vtimer();
 }
 

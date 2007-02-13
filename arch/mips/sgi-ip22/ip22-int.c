@@ -19,6 +19,7 @@
 
 #include <asm/mipsregs.h>
 #include <asm/addrspace.h>
+#include <asm/irq_cpu.h>
 
 #include <asm/sgi/ioc.h>
 #include <asm/sgi/hpc3.h>
@@ -52,7 +53,7 @@ static void disable_local0_irq(unsigned int irq)
 }
 
 static struct irq_chip ip22_local0_irq_type = {
-	.typename	= "IP22 local 0",
+	.name		= "IP22 local 0",
 	.ack		= disable_local0_irq,
 	.mask		= disable_local0_irq,
 	.mask_ack	= disable_local0_irq,
@@ -73,7 +74,7 @@ void disable_local1_irq(unsigned int irq)
 }
 
 static struct irq_chip ip22_local1_irq_type = {
-	.typename	= "IP22 local 1",
+	.name		= "IP22 local 1",
 	.ack		= disable_local1_irq,
 	.mask		= disable_local1_irq,
 	.mask_ack	= disable_local1_irq,
@@ -94,7 +95,7 @@ void disable_local2_irq(unsigned int irq)
 }
 
 static struct irq_chip ip22_local2_irq_type = {
-	.typename	= "IP22 local 2",
+	.name		= "IP22 local 2",
 	.ack		= disable_local2_irq,
 	.mask		= disable_local2_irq,
 	.mask_ack	= disable_local2_irq,
@@ -115,7 +116,7 @@ void disable_local3_irq(unsigned int irq)
 }
 
 static struct irq_chip ip22_local3_irq_type = {
-	.typename	= "IP22 local 3",
+	.name		= "IP22 local 3",
 	.ack		= disable_local3_irq,
 	.mask		= disable_local3_irq,
 	.mask_ack	= disable_local3_irq,
@@ -253,8 +254,6 @@ asmlinkage void plat_irq_dispatch(void)
 		indy_8254timer_irq();
 }
 
-extern void mips_cpu_irq_init(unsigned int irq_base);
-
 void __init arch_init_irq(void)
 {
 	int i;
@@ -316,7 +315,7 @@ void __init arch_init_irq(void)
 	sgint->cmeimask1 = 0;
 
 	/* init CPU irqs */
-	mips_cpu_irq_init(SGINT_CPU);
+	mips_cpu_irq_init();
 
 	for (i = SGINT_LOCAL0; i < SGI_INTERRUPTS; i++) {
 		struct irq_chip *handler;

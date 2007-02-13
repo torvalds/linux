@@ -174,7 +174,6 @@ struct sdhci_host {
 
 	unsigned int		max_clk;	/* Max possible freq (MHz) */
 	unsigned int		timeout_clk;	/* Timeout freq (KHz) */
-	unsigned int		max_block;	/* Max block size (bytes) */
 
 	unsigned int		clock;		/* Current clock (MHz) */
 	unsigned short		power;		/* Current voltage */
@@ -184,7 +183,6 @@ struct sdhci_host {
 	struct mmc_data		*data;		/* Current data request */
 
 	struct scatterlist	*cur_sg;	/* We're working on this */
-	char			*mapped_sg;	/* This is where it's mapped */
 	int			num_sg;		/* Entries left */
 	int			offset;		/* Offset into current sg */
 	int			remain;		/* Bytes left in current */

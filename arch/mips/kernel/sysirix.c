@@ -669,7 +669,7 @@ asmlinkage int irix_mount(char __user *dev_name, char __user *dir_name,
 
 struct irix_statfs {
 	short f_type;
-        long  f_bsize, f_frsize, f_blocks, f_bfree, f_files, f_ffree;
+	long  f_bsize, f_frsize, f_blocks, f_bfree, f_files, f_ffree;
 	char  f_fname[6], f_fpack[6];
 };
 
@@ -959,7 +959,7 @@ static inline loff_t llseek(struct file *file, loff_t offset, int origin)
 
 	fn = default_llseek;
 	if (file->f_op && file->f_op->llseek)
-        fn = file->f_op->llseek;
+	fn = file->f_op->llseek;
 	lock_kernel();
 	retval = fn(file, offset, origin);
 	unlock_kernel();

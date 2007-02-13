@@ -63,7 +63,7 @@
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
 #include <linux/device.h>
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 
 #include <asm/byteorder.h>

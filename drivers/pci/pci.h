@@ -1,6 +1,6 @@
 /* Functions internal to the PCI core code */
 
-extern int __must_check __pci_enable_device(struct pci_dev *);
+extern int __must_check __pci_reenable_device(struct pci_dev *);
 extern int pci_uevent(struct device *dev, char **envp, int num_envp,
 		      char *buffer, int buffer_size);
 extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
@@ -43,12 +43,8 @@ extern void pci_remove_legacy_files(struct pci_bus *bus);
 /* Lock for read/write access to pci device and bus lists */
 extern struct rw_semaphore pci_bus_sem;
 
-#ifdef CONFIG_PCI_MSI
-extern int pci_msi_quirk;
-#else
-#define pci_msi_quirk 0
-#endif
 extern unsigned int pci_pm_d3_delay;
+
 #ifdef CONFIG_PCI_MSI
 void disable_msi_mode(struct pci_dev *dev, int pos, int type);
 void pci_no_msi(void);
@@ -56,17 +52,15 @@ void pci_no_msi(void);
 static inline void disable_msi_mode(struct pci_dev *dev, int pos, int type) { }
 static inline void pci_no_msi(void) { }
 #endif
+
 #if defined(CONFIG_PCI_MSI) && defined(CONFIG_PM)
 int pci_save_msi_state(struct pci_dev *dev);
-int pci_save_msix_state(struct pci_dev *dev);
 void pci_restore_msi_state(struct pci_dev *dev);
-void pci_restore_msix_state(struct pci_dev *dev);
 #else
 static inline int pci_save_msi_state(struct pci_dev *dev) { return 0; }
-static inline int pci_save_msix_state(struct pci_dev *dev) { return 0; }
 static inline void pci_restore_msi_state(struct pci_dev *dev) {}
-static inline void pci_restore_msix_state(struct pci_dev *dev) {}
 #endif
+
 static inline int pci_no_d1d2(struct pci_dev *dev)
 {
 	unsigned int parent_dstates = 0;

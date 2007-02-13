@@ -43,7 +43,7 @@ MODULE_LICENSE("GPL");
 #define DIAG_MAX_RETRIES	32
 #define DIAG_TIMEOUT		50 * HZ
 
-struct dasd_discipline dasd_diag_discipline;
+static struct dasd_discipline dasd_diag_discipline;
 
 struct dasd_diag_private {
 	struct dasd_diag_characteristics rdc_data;
@@ -90,7 +90,7 @@ static inline int dia250(void *iob, int cmd)
  * block offset. On success, return zero and set end_block to contain the
  * number of blocks on the device minus the specified offset. Return non-zero
  * otherwise. */
-static __inline__ int
+static inline int
 mdsk_init_io(struct dasd_device *device, unsigned int blocksize,
 	     blocknum_t offset, blocknum_t *end_block)
 {
@@ -117,7 +117,7 @@ mdsk_init_io(struct dasd_device *device, unsigned int blocksize,
 
 /* Remove block I/O environment for device. Return zero on success, non-zero
  * otherwise. */
-static __inline__ int
+static inline int
 mdsk_term_io(struct dasd_device * device)
 {
 	struct dasd_diag_private *private;
@@ -576,7 +576,7 @@ dasd_diag_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 		    "dump sense not available for DIAG data");
 }
 
-struct dasd_discipline dasd_diag_discipline = {
+static struct dasd_discipline dasd_diag_discipline = {
 	.owner = THIS_MODULE,
 	.name = "DIAG",
 	.ebcname = "DIAG",

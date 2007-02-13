@@ -43,7 +43,7 @@ typedef enum {add, free} range_action;
  * Function: blacklist_range
  * (Un-)blacklist the devices from-to
  */
-static inline void
+static void
 blacklist_range (range_action action, unsigned int from, unsigned int to,
 		 unsigned int ssid)
 {
@@ -69,7 +69,7 @@ blacklist_range (range_action action, unsigned int from, unsigned int to,
  * Get devno/busid from given string.
  * Shamelessly grabbed from dasd_devmap.c.
  */
-static inline int
+static int
 blacklist_busid(char **str, int *id0, int *ssid, int *devno)
 {
 	int val, old_style;
@@ -123,10 +123,10 @@ confused:
 	return 1;
 }
 
-static inline int
+static int
 blacklist_parse_parameters (char *str, range_action action)
 {
-	unsigned int from, to, from_id0, to_id0, from_ssid, to_ssid;
+	int from, to, from_id0, to_id0, from_ssid, to_ssid;
 
 	while (*str != 0 && *str != '\n') {
 		range_action ra = action;
@@ -227,7 +227,7 @@ is_blacklisted (int ssid, int devno)
  * Function: blacklist_parse_proc_parameters
  * parse the stuff which is piped to /proc/cio_ignore
  */
-static inline void
+static void
 blacklist_parse_proc_parameters (char *buf)
 {
 	if (strncmp (buf, "free ", 5) == 0) {

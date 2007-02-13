@@ -506,7 +506,7 @@ sys_call_table:
 	PTR	sys_readlinkat
 	PTR	sys_fchmodat
 	PTR	sys_faccessat			/* 4300 */
-	PTR	sys_pselect6
+	PTR	compat_sys_pselect6
 	PTR	sys_ppoll
 	PTR	sys_unshare
 	PTR	sys_splice

@@ -1099,8 +1099,10 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	 */
 	mmc->max_phys_segs = 32;
 	mmc->max_hw_segs = 32;
-	mmc->max_sectors = 256; /* NBLK max 11-bits, OMAP also limited by DMA */
-	mmc->max_seg_size = mmc->max_sectors * 512;
+	mmc->max_blk_size = 2048;	/* BLEN is 11 bits (+1) */
+	mmc->max_blk_count = 2048;	/* NBLK is 11 bits (+1) */
+	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+	mmc->max_seg_size = mmc->max_req_size;
 
 	if (host->power_pin >= 0) {
 		if ((ret = omap_request_gpio(host->power_pin)) != 0) {

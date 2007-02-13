@@ -925,6 +925,11 @@ iosapic_unregister_intr (unsigned int gsi)
 			/* Clear the interrupt controller descriptor */
 			idesc->chip = &no_irq_type;
 
+#ifdef CONFIG_SMP
+			/* Clear affinity */
+			cpus_setall(idesc->affinity);
+#endif
+
 			/* Clear the interrupt information */
 			memset(&iosapic_intr_info[vector], 0,
 			       sizeof(struct iosapic_intr_info));

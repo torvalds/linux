@@ -134,44 +134,7 @@ ceil_quot(unsigned int d1, unsigned int d2)
 	return (d1 + (d2 - 1)) / d2;
 }
 
-static inline int
-bytes_per_record(struct dasd_eckd_characteristics *rdc, int kl, int dl)
-{
-	unsigned int fl1, fl2, int1, int2;
-	int bpr;
-
-	switch (rdc->formula) {
-	case 0x01:
-		fl1 = round_up_multiple(ECKD_F2(rdc) + dl, ECKD_F1(rdc));
-		fl2 = round_up_multiple(kl ? ECKD_F2(rdc) + kl : 0,
-					ECKD_F1(rdc));
-		bpr = fl1 + fl2;
-		break;
-	case 0x02:
-		int1 = ceil_quot(dl + ECKD_F6(rdc), ECKD_F5(rdc) << 1);
-		int2 = ceil_quot(kl + ECKD_F6(rdc), ECKD_F5(rdc) << 1);
-		fl1 = round_up_multiple(ECKD_F1(rdc) * ECKD_F2(rdc) + dl +
-					ECKD_F6(rdc) + ECKD_F4(rdc) * int1,
-					ECKD_F1(rdc));
-		fl2 = round_up_multiple(ECKD_F1(rdc) * ECKD_F3(rdc) + kl +
-					ECKD_F6(rdc) + ECKD_F4(rdc) * int2,
-					ECKD_F1(rdc));
-		bpr = fl1 + fl2;
-		break;
-	default:
-		bpr = 0;
-		break;
-	}
-	return bpr;
-}
-
-static inline unsigned int
-bytes_per_track(struct dasd_eckd_characteristics *rdc)
-{
-	return *(unsigned int *) (rdc->byte_per_track) >> 8;
-}
-
-static inline unsigned int
+static unsigned int
 recs_per_track(struct dasd_eckd_characteristics * rdc,
 	       unsigned int kl, unsigned int dl)
 {
@@ -204,37 +167,39 @@ recs_per_track(struct dasd_eckd_characteristics * rdc,
 	return 0;
 }
 
-static inline void
+static int
 check_XRC (struct ccw1         *de_ccw,
            struct DE_eckd_data *data,
            struct dasd_device  *device)
 {
         struct dasd_eckd_private *private;
+	int rc;
 
         private = (struct dasd_eckd_private *) device->private;
+	if (!private->rdc_data.facilities.XRC_supported)
+		return 0;
 
         /* switch on System Time Stamp - needed for XRC Support */
-        if (private->rdc_data.facilities.XRC_supported) {
+	data->ga_extended |= 0x08; /* switch on 'Time Stamp Valid'   */
+	data->ga_extended |= 0x02; /* switch on 'Extended Parameter' */
 
-                data->ga_extended |= 0x08; /* switch on 'Time Stamp Valid'   */
-                data->ga_extended |= 0x02; /* switch on 'Extended Parameter' */
+	rc = get_sync_clock(&data->ep_sys_time);
+	/* Ignore return code if sync clock is switched off. */
+	if (rc == -ENOSYS || rc == -EACCES)
+		rc = 0;
 
-                data->ep_sys_time = get_clock ();
+	de_ccw->count = sizeof (struct DE_eckd_data);
+	de_ccw->flags |= CCW_FLAG_SLI;
+	return rc;
+}
 
-                de_ccw->count = sizeof (struct DE_eckd_data);
-		de_ccw->flags |= CCW_FLAG_SLI;
-        }
-
-        return;
-
-} /* end check_XRC */
-
-static inline void
+static int
 define_extent(struct ccw1 * ccw, struct DE_eckd_data * data, int trk,
 	      int totrk, int cmd, struct dasd_device * device)
 {
 	struct dasd_eckd_private *private;
 	struct ch_t geo, beg, end;
+	int rc = 0;
 
 	private = (struct dasd_eckd_private *) device->private;
 
@@ -263,12 +228,12 @@ define_extent(struct ccw1 * ccw, struct DE_eckd_data * data, int trk,
 	case DASD_ECKD_CCW_WRITE_KD_MT:
 		data->mask.perm = 0x02;
 		data->attributes.operation = private->attrib.operation;
-                check_XRC (ccw, data, device);
+		rc = check_XRC (ccw, data, device);
 		break;
 	case DASD_ECKD_CCW_WRITE_CKD:
 	case DASD_ECKD_CCW_WRITE_CKD_MT:
 		data->attributes.operation = DASD_BYPASS_CACHE;
-                check_XRC (ccw, data, device);
+		rc = check_XRC (ccw, data, device);
 		break;
 	case DASD_ECKD_CCW_ERASE:
 	case DASD_ECKD_CCW_WRITE_HOME_ADDRESS:
@@ -276,7 +241,7 @@ define_extent(struct ccw1 * ccw, struct DE_eckd_data * data, int trk,
 		data->mask.perm = 0x3;
 		data->mask.auth = 0x1;
 		data->attributes.operation = DASD_BYPASS_CACHE;
-                check_XRC (ccw, data, device);
+		rc = check_XRC (ccw, data, device);
 		break;
 	default:
 		DEV_MESSAGE(KERN_ERR, device, "unknown opcode 0x%x", cmd);
@@ -312,9 +277,10 @@ define_extent(struct ccw1 * ccw, struct DE_eckd_data * data, int trk,
 	data->beg_ext.head = beg.head;
 	data->end_ext.cyl = end.cyl;
 	data->end_ext.head = end.head;
+	return rc;
 }
 
-static inline void
+static void
 locate_record(struct ccw1 *ccw, struct LO_eckd_data *data, int trk,
 	      int rec_on_trk, int no_rec, int cmd,
 	      struct dasd_device * device, int reclen)
@@ -548,7 +514,7 @@ dasd_eckd_read_conf(struct dasd_device *device)
 /*
  * Build CP for Perform Subsystem Function - SSC.
  */
-struct dasd_ccw_req *
+static struct dasd_ccw_req *
 dasd_eckd_build_psf_ssc(struct dasd_device *device)
 {
        struct dasd_ccw_req *cqr;
@@ -1200,7 +1166,12 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 		return cqr;
 	ccw = cqr->cpaddr;
 	/* First ccw is define extent. */
-	define_extent(ccw++, cqr->data, first_trk, last_trk, cmd, device);
+	if (define_extent(ccw++, cqr->data, first_trk,
+			  last_trk, cmd, device) == -EAGAIN) {
+		/* Clock not in sync and XRC is enabled. Try again later. */
+		dasd_sfree_request(cqr, device);
+		return ERR_PTR(-EAGAIN);
+	}
 	/* Build locate_record+read/write/ccws. */
 	idaws = (unsigned long *) (cqr->data + sizeof(struct DE_eckd_data));
 	LO_data = (struct LO_eckd_data *) (idaws + cidaw);
@@ -1380,7 +1351,7 @@ dasd_eckd_release(struct dasd_device *device)
 	cqr->device = device;
 	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
-	cqr->retries = 0;
+	cqr->retries = 2;	/* set retry counter to enable basic ERP */
 	cqr->expires = 2 * HZ;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
@@ -1420,7 +1391,7 @@ dasd_eckd_reserve(struct dasd_device *device)
 	cqr->device = device;
 	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
-	cqr->retries = 0;
+	cqr->retries = 2;	/* set retry counter to enable basic ERP */
 	cqr->expires = 2 * HZ;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
@@ -1459,7 +1430,7 @@ dasd_eckd_steal_lock(struct dasd_device *device)
 	cqr->device = device;
 	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
-	cqr->retries = 0;
+	cqr->retries = 2;	/* set retry counter to enable basic ERP */
 	cqr->expires = 2 * HZ;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
@@ -1609,7 +1580,7 @@ dasd_eckd_ioctl(struct dasd_device *device, unsigned int cmd, void __user *argp)
  * Dump the range of CCWs into 'page' buffer
  * and return number of printed chars.
  */
-static inline int
+static int
 dasd_eckd_dump_ccw_range(struct ccw1 *from, struct ccw1 *to, char *page)
 {
 	int len, count;

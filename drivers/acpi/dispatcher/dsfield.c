@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -133,7 +133,8 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 		}
 	}
 
-	/* We could put the returned object (Node) on the object stack for later,
+	/*
+	 * We could put the returned object (Node) on the object stack for later,
 	 * but for now, we will put it in the "op" object that the parser uses,
 	 * so we can get it again at the end of this scope
 	 */
@@ -514,8 +515,33 @@ acpi_ds_create_bank_field(union acpi_parse_object *op,
 
 	/* Third arg is the bank_value */
 
+	/* TBD: This arg is a term_arg, not a constant, and must be evaluated */
+
 	arg = arg->common.next;
-	info.bank_value = (u32) arg->common.value.integer;
+
+	/* Currently, only the following constants are supported */
+
+	switch (arg->common.aml_opcode) {
+	case AML_ZERO_OP:
+		info.bank_value = 0;
+		break;
+
+	case AML_ONE_OP:
+		info.bank_value = 1;
+		break;
+
+	case AML_BYTE_OP:
+	case AML_WORD_OP:
+	case AML_DWORD_OP:
+	case AML_QWORD_OP:
+		info.bank_value = (u32) arg->common.value.integer;
+		break;
+
+	default:
+		info.bank_value = 0;
+		ACPI_ERROR((AE_INFO,
+			    "Non-constant BankValue for BankField is not implemented"));
+	}
 
 	/* Fourth arg is the field flags */
 

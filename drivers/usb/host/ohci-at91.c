@@ -170,7 +170,6 @@ static int usb_hcd_at91_remove(struct usb_hcd *hcd,
 	at91_stop_hc(pdev);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-	disable_irq_wake(hcd->irq);
 
 	clk_put(fclk);
 	clk_put(iclk);
@@ -271,8 +270,6 @@ ohci_hcd_at91_drv_suspend(struct platform_device *pdev, pm_message_t mesg)
 
 	if (device_may_wakeup(&pdev->dev))
 		enable_irq_wake(hcd->irq);
-	else
-		disable_irq_wake(hcd->irq);
 
 	/*
 	 * The integrated transceivers seem unable to notice disconnect,
@@ -293,6 +290,11 @@ ohci_hcd_at91_drv_suspend(struct platform_device *pdev, pm_message_t mesg)
 
 static int ohci_hcd_at91_drv_resume(struct platform_device *pdev)
 {
+	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
+
+	if (device_may_wakeup(&pdev->dev))
+		disable_irq_wake(hcd->irq);
+
 	if (!clocked) {
 		clk_enable(iclk);
 		clk_enable(fclk);
@@ -320,18 +322,3 @@ static struct platform_driver ohci_hcd_at91_driver = {
 	},
 };
 
-static int __init ohci_hcd_at91_init (void)
-{
-	if (usb_disabled())
-		return -ENODEV;
-
-	return platform_driver_register(&ohci_hcd_at91_driver);
-}
-
-static void __exit ohci_hcd_at91_cleanup (void)
-{
-	platform_driver_unregister(&ohci_hcd_at91_driver);
-}
-
-module_init (ohci_hcd_at91_init);
-module_exit (ohci_hcd_at91_cleanup);

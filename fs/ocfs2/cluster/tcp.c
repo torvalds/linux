@@ -556,6 +556,8 @@ static void o2net_register_callbacks(struct sock *sk,
 	sk->sk_data_ready = o2net_data_ready;
 	sk->sk_state_change = o2net_state_change;
 
+	mutex_init(&sc->sc_send_lock);
+
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
@@ -688,6 +690,7 @@ static void o2net_handler_put(struct o2net_msg_handler *nmh)
  * be given to the handler if their payload is longer than the max. */
 int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 			   o2net_msg_handler_func *func, void *data,
+			   o2net_post_msg_handler_func *post_func,
 			   struct list_head *unreg_list)
 {
 	struct o2net_msg_handler *nmh = NULL;
@@ -722,6 +725,7 @@ int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 
 	nmh->nh_func = func;
 	nmh->nh_func_data = data;
+	nmh->nh_post_func = post_func;
 	nmh->nh_msg_type = msg_type;
 	nmh->nh_max_len = max_len;
 	nmh->nh_key = key;
@@ -856,10 +860,12 @@ static void o2net_sendpage(struct o2net_sock_container *sc,
 	ssize_t ret;
 
 
+	mutex_lock(&sc->sc_send_lock);
 	ret = sc->sc_sock->ops->sendpage(sc->sc_sock,
 					 virt_to_page(kmalloced_virt),
 					 (long)kmalloced_virt & ~PAGE_MASK,
 					 size, MSG_DONTWAIT);
+	mutex_unlock(&sc->sc_send_lock);
 	if (ret != size) {
 		mlog(ML_ERROR, "sendpage of size %zu to " SC_NODEF_FMT 
 		     " failed with %zd\n", size, SC_NODEF_ARGS(sc), ret);
@@ -974,8 +980,10 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 
 	/* finally, convert the message header to network byte-order
 	 * and send */
+	mutex_lock(&sc->sc_send_lock);
 	ret = o2net_send_tcp_msg(sc->sc_sock, vec, veclen,
 				 sizeof(struct o2net_msg) + caller_bytes);
+	mutex_unlock(&sc->sc_send_lock);
 	msglog(msg, "sending returned %d\n", ret);
 	if (ret < 0) {
 		mlog(0, "error returned from o2net_send_tcp_msg=%d\n", ret);
@@ -1049,6 +1057,7 @@ static int o2net_process_message(struct o2net_sock_container *sc,
 	int ret = 0, handler_status;
 	enum  o2net_system_error syserr;
 	struct o2net_msg_handler *nmh = NULL;
+	void *ret_data = NULL;
 
 	msglog(hdr, "processing message\n");
 
@@ -1101,16 +1110,25 @@ static int o2net_process_message(struct o2net_sock_container *sc,
 	sc->sc_msg_type = be16_to_cpu(hdr->msg_type);
 	handler_status = (nmh->nh_func)(hdr, sizeof(struct o2net_msg) +
 					     be16_to_cpu(hdr->data_len),
-					nmh->nh_func_data);
+					nmh->nh_func_data, &ret_data);
 	do_gettimeofday(&sc->sc_tv_func_stop);
 
 out_respond:
 	/* this destroys the hdr, so don't use it after this */
+	mutex_lock(&sc->sc_send_lock);
 	ret = o2net_send_status_magic(sc->sc_sock, hdr, syserr,
 				      handler_status);
+	mutex_unlock(&sc->sc_send_lock);
 	hdr = NULL;
 	mlog(0, "sending handler status %d, syserr %d returned %d\n",
 	     handler_status, syserr, ret);
+
+	if (nmh) {
+		BUG_ON(ret_data != NULL && nmh->nh_post_func == NULL);
+		if (nmh->nh_post_func)
+			(nmh->nh_post_func)(handler_status, nmh->nh_func_data,
+					    ret_data);
+	}
 
 out:
 	if (nmh)
@@ -1795,13 +1813,13 @@ out:
 	ready(sk, bytes);
 }
 
-static int o2net_open_listening_sock(__be16 port)
+static int o2net_open_listening_sock(__be32 addr, __be16 port)
 {
 	struct socket *sock = NULL;
 	int ret;
 	struct sockaddr_in sin = {
 		.sin_family = PF_INET,
-		.sin_addr = { .s_addr = (__force u32)htonl(INADDR_ANY) },
+		.sin_addr = { .s_addr = (__force u32)addr },
 		.sin_port = (__force u16)port,
 	};
 
@@ -1824,15 +1842,15 @@ static int o2net_open_listening_sock(__be16 port)
 	sock->sk->sk_reuse = 1;
 	ret = sock->ops->bind(sock, (struct sockaddr *)&sin, sizeof(sin));
 	if (ret < 0) {
-		mlog(ML_ERROR, "unable to bind socket to port %d, ret=%d\n",
-		     ntohs(port), ret);
+		mlog(ML_ERROR, "unable to bind socket at %u.%u.%u.%u:%u, "
+		     "ret=%d\n", NIPQUAD(addr), ntohs(port), ret);
 		goto out;
 	}
 
 	ret = sock->ops->listen(sock, 64);
 	if (ret < 0) {
-		mlog(ML_ERROR, "unable to listen on port %d, ret=%d\n",
-		     ntohs(port), ret);
+		mlog(ML_ERROR, "unable to listen on %u.%u.%u.%u:%u, ret=%d\n",
+		     NIPQUAD(addr), ntohs(port), ret);
 	}
 
 out:
@@ -1865,7 +1883,8 @@ int o2net_start_listening(struct o2nm_node *node)
 		return -ENOMEM; /* ? */
 	}
 
-	ret = o2net_open_listening_sock(node->nd_ipv4_port);
+	ret = o2net_open_listening_sock(node->nd_ipv4_address,
+					node->nd_ipv4_port);
 	if (ret) {
 		destroy_workqueue(o2net_wq);
 		o2net_wq = NULL;

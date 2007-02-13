@@ -67,7 +67,7 @@ extern char sb1250_duart_present[];
 #endif
 
 static struct irq_chip sb1250_irq_type = {
-	.typename = "SB1250-IMR",
+	.name = "SB1250-IMR",
 	.ack = ack_sb1250_irq,
 	.mask = disable_sb1250_irq,
 	.mask_ack = ack_sb1250_irq,

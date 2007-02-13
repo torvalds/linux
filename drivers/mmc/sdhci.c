@@ -37,6 +37,7 @@ static unsigned int debug_quirks = 0;
 #define SDHCI_QUIRK_FORCE_DMA				(1<<1)
 /* Controller doesn't like some resets when there is no card inserted. */
 #define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
+#define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -63,6 +64,14 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_ENE,
+		.device		= PCI_DEVICE_ID_ENE_CB712_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE,
 	},
 
 	{	/* Generic SD host controller */
@@ -197,15 +206,9 @@ static void sdhci_deactivate_led(struct sdhci_host *host)
  *                                                                           *
 \*****************************************************************************/
 
-static inline char* sdhci_kmap_sg(struct sdhci_host* host)
+static inline char* sdhci_sg_to_buffer(struct sdhci_host* host)
 {
-	host->mapped_sg = kmap_atomic(host->cur_sg->page, KM_BIO_SRC_IRQ);
-	return host->mapped_sg + host->cur_sg->offset;
-}
-
-static inline void sdhci_kunmap_sg(struct sdhci_host* host)
-{
-	kunmap_atomic(host->mapped_sg, KM_BIO_SRC_IRQ);
+	return page_address(host->cur_sg->page) + host->cur_sg->offset;
 }
 
 static inline int sdhci_next_sg(struct sdhci_host* host)
@@ -240,7 +243,7 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 	chunk_remain = 0;
 	data = 0;
 
-	buffer = sdhci_kmap_sg(host) + host->offset;
+	buffer = sdhci_sg_to_buffer(host) + host->offset;
 
 	while (blksize) {
 		if (chunk_remain == 0) {
@@ -264,16 +267,13 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 		}
 
 		if (host->remain == 0) {
-			sdhci_kunmap_sg(host);
 			if (sdhci_next_sg(host) == 0) {
 				BUG_ON(blksize != 0);
 				return;
 			}
-			buffer = sdhci_kmap_sg(host);
+			buffer = sdhci_sg_to_buffer(host);
 		}
 	}
-
-	sdhci_kunmap_sg(host);
 }
 
 static void sdhci_write_block_pio(struct sdhci_host *host)
@@ -290,7 +290,7 @@ static void sdhci_write_block_pio(struct sdhci_host *host)
 	data = 0;
 
 	bytes = 0;
-	buffer = sdhci_kmap_sg(host) + host->offset;
+	buffer = sdhci_sg_to_buffer(host) + host->offset;
 
 	while (blksize) {
 		size = min(host->size, host->remain);
@@ -314,16 +314,13 @@ static void sdhci_write_block_pio(struct sdhci_host *host)
 		}
 
 		if (host->remain == 0) {
-			sdhci_kunmap_sg(host);
 			if (sdhci_next_sg(host) == 0) {
 				BUG_ON(blksize != 0);
 				return;
 			}
-			buffer = sdhci_kmap_sg(host);
+			buffer = sdhci_sg_to_buffer(host);
 		}
 	}
-
-	sdhci_kunmap_sg(host);
 }
 
 static void sdhci_transfer_pio(struct sdhci_host *host)
@@ -372,7 +369,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 
 	/* Sanity checks */
 	BUG_ON(data->blksz * data->blocks > 524288);
-	BUG_ON(data->blksz > host->max_block);
+	BUG_ON(data->blksz > host->mmc->max_blk_size);
 	BUG_ON(data->blocks > 65535);
 
 	/* timeout in us */
@@ -674,10 +671,17 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 	if (host->power == power)
 		return;
 
-	writeb(0, host->ioaddr + SDHCI_POWER_CONTROL);
-
-	if (power == (unsigned short)-1)
+	if (power == (unsigned short)-1) {
+		writeb(0, host->ioaddr + SDHCI_POWER_CONTROL);
 		goto out;
+	}
+
+	/*
+	 * Spec says that we should clear the power reg before setting
+	 * a new value. Some controllers don't seem to like this though.
+	 */
+	if (!(host->chip->quirks & SDHCI_QUIRK_SINGLE_POWER_WRITE))
+		writeb(0, host->ioaddr + SDHCI_POWER_CONTROL);
 
 	pwr = SDHCI_POWER_ON;
 
@@ -1109,7 +1113,9 @@ static int sdhci_resume (struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_enable_device(pdev);
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
 
 	for (i = 0;i < chip->num_slots;i++) {
 		if (!chip->hosts[i])
@@ -1274,15 +1280,6 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	if (caps & SDHCI_TIMEOUT_CLK_UNIT)
 		host->timeout_clk *= 1000;
 
-	host->max_block = (caps & SDHCI_MAX_BLOCK_MASK) >> SDHCI_MAX_BLOCK_SHIFT;
-	if (host->max_block >= 3) {
-		printk(KERN_ERR "%s: Invalid maximum block size.\n",
-			host->slot_descr);
-		ret = -ENODEV;
-		goto unmap;
-	}
-	host->max_block = 512 << host->max_block;
-
 	/*
 	 * Set host parameters.
 	 */
@@ -1294,9 +1291,9 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	mmc->ocr_avail = 0;
 	if (caps & SDHCI_CAN_VDD_330)
 		mmc->ocr_avail |= MMC_VDD_32_33|MMC_VDD_33_34;
-	else if (caps & SDHCI_CAN_VDD_300)
+	if (caps & SDHCI_CAN_VDD_300)
 		mmc->ocr_avail |= MMC_VDD_29_30|MMC_VDD_30_31;
-	else if (caps & SDHCI_CAN_VDD_180)
+	if (caps & SDHCI_CAN_VDD_180)
 		mmc->ocr_avail |= MMC_VDD_17_18|MMC_VDD_18_19;
 
 	if ((host->max_clk > 25000000) && !(caps & SDHCI_CAN_DO_HISPD)) {
@@ -1326,15 +1323,33 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	/*
 	 * Maximum number of sectors in one transfer. Limited by DMA boundary
-	 * size (512KiB), which means (512 KiB/512=) 1024 entries.
+	 * size (512KiB).
 	 */
-	mmc->max_sectors = 1024;
+	mmc->max_req_size = 524288;
 
 	/*
 	 * Maximum segment size. Could be one segment with the maximum number
-	 * of sectors.
+	 * of bytes.
 	 */
-	mmc->max_seg_size = mmc->max_sectors * 512;
+	mmc->max_seg_size = mmc->max_req_size;
+
+	/*
+	 * Maximum block size. This varies from controller to controller and
+	 * is specified in the capabilities register.
+	 */
+	mmc->max_blk_size = (caps & SDHCI_MAX_BLOCK_MASK) >> SDHCI_MAX_BLOCK_SHIFT;
+	if (mmc->max_blk_size >= 3) {
+		printk(KERN_ERR "%s: Invalid maximum block size.\n",
+			host->slot_descr);
+		ret = -ENODEV;
+		goto unmap;
+	}
+	mmc->max_blk_size = 512 << mmc->max_blk_size;
+
+	/*
+	 * Maximum block count.
+	 */
+	mmc->max_blk_count = 65535;
 
 	/*
 	 * Init tasklets.

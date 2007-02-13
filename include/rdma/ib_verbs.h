@@ -45,6 +45,7 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
+#include <linux/kref.h>
 
 #include <asm/atomic.h>
 #include <asm/scatterlist.h>
@@ -419,8 +420,8 @@ struct ib_wc {
 	enum ib_wc_opcode	opcode;
 	u32			vendor_err;
 	u32			byte_len;
+	struct ib_qp	       *qp;
 	__be32			imm_data;
-	u32			qp_num;
 	u32			src_qp;
 	int			wc_flags;
 	u16			pkey_index;

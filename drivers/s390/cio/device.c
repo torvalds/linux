@@ -138,7 +138,6 @@ struct bus_type ccw_bus_type;
 
 static int io_subchannel_probe (struct subchannel *);
 static int io_subchannel_remove (struct subchannel *);
-void io_subchannel_irq (struct device *);
 static int io_subchannel_notify(struct device *, int);
 static void io_subchannel_verify(struct device *);
 static void io_subchannel_ioterm(struct device *);
@@ -235,11 +234,8 @@ chpids_show (struct device * dev, struct device_attribute *attr, char * buf)
 	ssize_t ret = 0;
 	int chp;
 
-	if (ssd)
-		for (chp = 0; chp < 8; chp++)
-			ret += sprintf (buf+ret, "%02x ", ssd->chpid[chp]);
-	else
-		ret += sprintf (buf, "n/a");
+	for (chp = 0; chp < 8; chp++)
+		ret += sprintf (buf+ret, "%02x ", ssd->chpid[chp]);
 	ret += sprintf (buf+ret, "\n");
 	return min((ssize_t)PAGE_SIZE, ret);
 }
@@ -552,13 +548,13 @@ static struct attribute_group ccwdev_attr_group = {
 	.attrs = ccwdev_attrs,
 };
 
-static inline int
+static int
 device_add_files (struct device *dev)
 {
 	return sysfs_create_group(&dev->kobj, &ccwdev_attr_group);
 }
 
-static inline void
+static void
 device_remove_files(struct device *dev)
 {
 	sysfs_remove_group(&dev->kobj, &ccwdev_attr_group);

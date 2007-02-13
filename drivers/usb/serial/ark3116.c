@@ -444,6 +444,7 @@ static struct usb_driver ark3116_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id =	1,
 };
 
 static struct usb_serial_driver ark3116_device = {
@@ -452,6 +453,7 @@ static struct usb_serial_driver ark3116_device = {
 		.name =		"ark3116",
 	},
 	.id_table =		id_table,
+	.usb_driver =		&ark3116_driver,
 	.num_interrupt_in =	1,
 	.num_bulk_in =		1,
 	.num_bulk_out =		1,

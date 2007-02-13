@@ -211,4 +211,8 @@ islpci_trigger(islpci_private *priv)
 
 int islpci_free_memory(islpci_private *);
 struct net_device *islpci_setup(struct pci_dev *);
+
+#define DRV_NAME	"prism54"
+#define DRV_VERSION	"1.2"
+
 #endif				/* _ISLPCI_DEV_H */

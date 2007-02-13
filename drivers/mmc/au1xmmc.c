@@ -152,8 +152,9 @@ static inline int au1xmmc_card_inserted(struct au1xmmc_host *host)
 		? 1 : 0;
 }
 
-static inline int au1xmmc_card_readonly(struct au1xmmc_host *host)
+static int au1xmmc_card_readonly(struct mmc_host *mmc)
 {
+	struct au1xmmc_host *host = mmc_priv(mmc);
 	return (bcsr->status & au1xmmc_card_table[host->id].wpstatus)
 		? 1 : 0;
 }
@@ -193,6 +194,8 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 	u32 mmccmd = (cmd->opcode << SD_CMD_CI_SHIFT);
 
 	switch (mmc_resp_type(cmd)) {
+	case MMC_RSP_NONE:
+		break;
 	case MMC_RSP_R1:
 		mmccmd |= SD_CMD_RT_1;
 		break;
@@ -205,6 +208,10 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 	case MMC_RSP_R3:
 		mmccmd |= SD_CMD_RT_3;
 		break;
+	default:
+		printk(KERN_INFO "au1xmmc: unhandled response type %02x\n",
+			mmc_resp_type(cmd));
+		return MMC_ERR_INVALID;
 	}
 
 	switch(cmd->opcode) {
@@ -878,6 +885,7 @@ static void au1xmmc_init_dma(struct au1xmmc_host *host)
 static const struct mmc_host_ops au1xmmc_ops = {
 	.request	= au1xmmc_request,
 	.set_ios	= au1xmmc_set_ios,
+	.get_ro		= au1xmmc_card_readonly,
 };
 
 static int __devinit au1xmmc_probe(struct platform_device *pdev)
@@ -913,6 +921,9 @@ static int __devinit au1xmmc_probe(struct platform_device *pdev)
 
 		mmc->max_seg_size = AU1XMMC_DESCRIPTOR_SIZE;
 		mmc->max_phys_segs = AU1XMMC_DESCRIPTOR_COUNT;
+
+		mmc->max_blk_size = 2048;
+		mmc->max_blk_count = 512;
 
 		mmc->ocr_avail = AU1XMMC_OCR;
 

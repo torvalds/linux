@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20060707
+#define ACPI_CA_VERSION                 0x20070126
 
 /*
  * OS name, used for the _OS object.  The _OS object is essentially obsolete,
@@ -115,6 +115,10 @@
 
 #define ACPI_NUM_OWNERID_MASKS          8
 
+/* Size of the root table array is increased by this increment */
+
+#define ACPI_ROOT_TABLE_SIZE_INCREMENT  4
+
 /******************************************************************************
  *
  * ACPI Specification constants (Do not change unless the specification changes)
@@ -151,6 +155,11 @@
 #define ACPI_NAME_SIZE                  4
 #define ACPI_PATH_SEGMENT_LENGTH        5	/* 4 chars for name + 1 char for separator */
 #define ACPI_PATH_SEPARATOR             '.'
+
+/* Sizes for ACPI table headers */
+
+#define ACPI_OEM_ID_SIZE                6
+#define ACPI_OEM_TABLE_ID_SIZE          8
 
 /* Constants used in searching for the RSDP in low memory */
 

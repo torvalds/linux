@@ -231,28 +231,3 @@ NESTED(smp_bootstrap, 16, sp)
 #endif /* CONFIG_SMP */
 
 	__FINIT
-
-	.comm	kernelsp,    NR_CPUS * 8, 8
-	.comm	pgd_current, NR_CPUS * 8, 8
-
-	.comm	fw_arg0, SZREG, SZREG		# firmware arguments
-	.comm	fw_arg1, SZREG, SZREG
-	.comm	fw_arg2, SZREG, SZREG
-	.comm	fw_arg3, SZREG, SZREG
-
-	.macro page name, order
-	.comm	\name, (_PAGE_SIZE << \order), (_PAGE_SIZE << \order)
-	.endm
-
-	/*
-	 * On 64-bit we've got three-level pagetables with a slightly
-	 * different layout ...
-	 */
-	page	swapper_pg_dir, _PGD_ORDER
-#ifdef CONFIG_64BIT
-#if defined(CONFIG_MODULES) && !defined(CONFIG_BUILD_ELF64)
-	page	module_pg_dir, _PGD_ORDER
-#endif
-	page	invalid_pmd_table, _PMD_ORDER
-#endif
-	page	invalid_pte_table, _PTE_ORDER

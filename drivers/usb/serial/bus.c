@@ -103,11 +103,52 @@ exit:
 	return retval;
 }
 
+#ifdef CONFIG_HOTPLUG
+static ssize_t store_new_id(struct device_driver *driver,
+			    const char *buf, size_t count)
+{
+	struct usb_serial_driver *usb_drv = to_usb_serial_driver(driver);
+	ssize_t retval = usb_store_new_id(&usb_drv->dynids, driver, buf, count);
+
+	if (retval >= 0 && usb_drv->usb_driver != NULL)
+		retval = usb_store_new_id(&usb_drv->usb_driver->dynids,
+					  &usb_drv->usb_driver->drvwrap.driver,
+					  buf, count);
+	return retval;
+}
+
+static struct driver_attribute drv_attrs[] = {
+	__ATTR(new_id, S_IWUSR, NULL, store_new_id),
+	__ATTR_NULL,
+};
+
+static void free_dynids(struct usb_serial_driver *drv)
+{
+	struct usb_dynid *dynid, *n;
+
+	spin_lock(&drv->dynids.lock);
+	list_for_each_entry_safe(dynid, n, &drv->dynids.list, node) {
+		list_del(&dynid->node);
+		kfree(dynid);
+	}
+	spin_unlock(&drv->dynids.lock);
+}
+
+#else
+static struct driver_attribute drv_attrs[] = {
+	__ATTR_NULL,
+};
+static inline void free_dynids(struct usb_driver *drv)
+{
+}
+#endif
+
 struct bus_type usb_serial_bus_type = {
 	.name =		"usb-serial",
 	.match =	usb_serial_device_match,
 	.probe =	usb_serial_device_probe,
 	.remove =	usb_serial_device_remove,
+	.drv_attrs = 	drv_attrs,
 };
 
 int usb_serial_bus_register(struct usb_serial_driver *driver)
@@ -115,6 +156,9 @@ int usb_serial_bus_register(struct usb_serial_driver *driver)
 	int retval;
 
 	driver->driver.bus = &usb_serial_bus_type;
+	spin_lock_init(&driver->dynids.lock);
+	INIT_LIST_HEAD(&driver->dynids.list);
+
 	retval = driver_register(&driver->driver);
 
 	return retval;
@@ -122,6 +166,7 @@ int usb_serial_bus_register(struct usb_serial_driver *driver)
 
 void usb_serial_bus_deregister(struct usb_serial_driver *driver)
 {
+	free_dynids(driver);
 	driver_unregister(&driver->driver);
 }
 

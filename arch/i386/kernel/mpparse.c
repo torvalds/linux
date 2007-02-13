@@ -1057,7 +1057,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	static int		gsi_to_irq[MAX_GSI_NUM];
 
 	/* Don't set up the ACPI SCI because it's already set up */
-	if (acpi_fadt.sci_int == gsi)
+	if (acpi_gbl_FADT.sci_interrupt == gsi)
 		return gsi;
 
 	ioapic = mp_find_ioapic(gsi);
@@ -1114,7 +1114,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 			/*
 			 * Don't assign IRQ used by ACPI SCI
 			 */
-			if (gsi == acpi_fadt.sci_int)
+			if (gsi == acpi_gbl_FADT.sci_interrupt)
 				gsi = pci_irq++;
 			gsi_to_irq[irq] = gsi;
 		} else {

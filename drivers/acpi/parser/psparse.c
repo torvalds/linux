@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -540,6 +540,11 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 
 			if ((status == AE_ALREADY_EXISTS) &&
 			    (!walk_state->method_desc->method.mutex)) {
+				ACPI_INFO((AE_INFO,
+					   "Marking method %4.4s as Serialized",
+					   walk_state->method_node->name.
+					   ascii));
+
 				/*
 				 * Method tried to create an object twice. The probable cause is
 				 * that the method cannot handle reentrancy.

@@ -43,6 +43,7 @@ typedef struct {
 	uint32_t tex_level_lo[2];
 	uint32_t tex_level_hi[2];
 	uint32_t tex_palette_size[2];
+	uint32_t tex_npot[2];
 	drm_via_sequence_t unfinished;
 	int agp_texture;
 	int multitex;

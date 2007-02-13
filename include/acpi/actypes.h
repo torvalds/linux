@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,8 @@
 
 /*
  * ACPI_MACHINE_WIDTH must be specified in an OS- or compiler-dependent header
- * and must be either 16, 32, or 64
+ * and must be either 32 or 64. 16-bit ACPICA is no longer supported, as of
+ * 12/2006.
  */
 #ifndef ACPI_MACHINE_WIDTH
 #error ACPI_MACHINE_WIDTH not defined
@@ -149,7 +150,6 @@ typedef int INT32;
 typedef u64 acpi_native_uint;
 typedef s64 acpi_native_int;
 
-typedef u64 acpi_table_ptr;
 typedef u64 acpi_io_address;
 typedef u64 acpi_physical_address;
 
@@ -189,48 +189,15 @@ typedef int INT32;
 typedef u32 acpi_native_uint;
 typedef s32 acpi_native_int;
 
-typedef u64 acpi_table_ptr;
 typedef u32 acpi_io_address;
-typedef u64 acpi_physical_address;
+typedef u32 acpi_physical_address;
 
 #define ACPI_MAX_PTR                    ACPI_UINT32_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT32_MAX
 
-/*******************************************************************************
- *
- * Types specific to 16-bit targets
- *
- ******************************************************************************/
-
-#elif ACPI_MACHINE_WIDTH == 16
-
-/*! [Begin] no source code translation (keep the typedefs as-is) */
-
-typedef unsigned long UINT32;
-typedef short INT16;
-typedef long INT32;
-
-/*! [End] no source code translation !*/
-
-typedef u16 acpi_native_uint;
-typedef s16 acpi_native_int;
-
-typedef u32 acpi_table_ptr;
-typedef u32 acpi_io_address;
-typedef char *acpi_physical_address;
-
-#define ACPI_MAX_PTR                    ACPI_UINT16_MAX
-#define ACPI_SIZE_MAX                   ACPI_UINT16_MAX
-
-#define ACPI_USE_NATIVE_DIVIDE	/* No 64-bit integers, ok to use native divide */
-
-/* 64-bit integers cannot be supported */
-
-#define ACPI_NO_INTEGER64_SUPPORT
-
 #else
 
-/* ACPI_MACHINE_WIDTH must be either 64, 32, or 16 */
+/* ACPI_MACHINE_WIDTH must be either 64 or 32 */
 
 #error unknown ACPI_MACHINE_WIDTH
 #endif
@@ -310,36 +277,6 @@ typedef acpi_native_uint acpi_size;
  * Independent types
  *
  ******************************************************************************/
-
-/*
- * Pointer overlays to avoid lots of typecasting for
- * code that accepts both physical and logical pointers.
- */
-union acpi_pointers {
-	acpi_physical_address physical;
-	void *logical;
-	acpi_table_ptr value;
-};
-
-struct acpi_pointer {
-	u32 pointer_type;
-	union acpi_pointers pointer;
-};
-
-/* pointer_types for above */
-
-#define ACPI_PHYSICAL_POINTER           0x01
-#define ACPI_LOGICAL_POINTER            0x02
-
-/* Processor mode */
-
-#define ACPI_PHYSICAL_ADDRESSING        0x04
-#define ACPI_LOGICAL_ADDRESSING         0x08
-#define ACPI_MEMORY_MODE                0x0C
-
-#define ACPI_PHYSMODE_PHYSPTR           ACPI_PHYSICAL_ADDRESSING | ACPI_PHYSICAL_POINTER
-#define ACPI_LOGMODE_PHYSPTR            ACPI_LOGICAL_ADDRESSING  | ACPI_PHYSICAL_POINTER
-#define ACPI_LOGMODE_LOGPTR             ACPI_LOGICAL_ADDRESSING  | ACPI_LOGICAL_POINTER
 
 /* Logical defines and NULL */
 
@@ -442,7 +379,8 @@ typedef u64 acpi_integer;
 /*
  * Initialization state
  */
-#define ACPI_INITIALIZED_OK             0x01
+#define ACPI_SUBSYSTEM_INITIALIZE       0x01
+#define ACPI_INITIALIZED_OK             0x02
 
 /*
  * Power state values
@@ -489,21 +427,6 @@ typedef u64 acpi_integer;
 #define ACPI_NOTIFY_FREQUENCY_MISMATCH  (u8) 5
 #define ACPI_NOTIFY_BUS_MODE_MISMATCH   (u8) 6
 #define ACPI_NOTIFY_POWER_FAULT         (u8) 7
-
-/*
- *  Table types.  These values are passed to the table related APIs
- */
-typedef u32 acpi_table_type;
-
-#define ACPI_TABLE_ID_RSDP              (acpi_table_type) 0
-#define ACPI_TABLE_ID_DSDT              (acpi_table_type) 1
-#define ACPI_TABLE_ID_FADT              (acpi_table_type) 2
-#define ACPI_TABLE_ID_FACS              (acpi_table_type) 3
-#define ACPI_TABLE_ID_PSDT              (acpi_table_type) 4
-#define ACPI_TABLE_ID_SSDT              (acpi_table_type) 5
-#define ACPI_TABLE_ID_XSDT              (acpi_table_type) 6
-#define ACPI_TABLE_ID_MAX               6
-#define ACPI_NUM_TABLE_TYPES            (ACPI_TABLE_ID_MAX+1)
 
 /*
  * Types associated with ACPI names and objects.  The first group of
@@ -637,7 +560,7 @@ typedef u32 acpi_event_status;
  *  | | |  +--- Type of dispatch -- to method, handler, or none
  *  | | +--- Enabled for runtime?
  *  | +--- Enabled for wake?
- *  +--- System state when GPE ocurred (running/waking)
+ *  +--- Unused
  */
 #define ACPI_GPE_XRUPT_TYPE_MASK        (u8) 0x01
 #define ACPI_GPE_LEVEL_TRIGGERED        (u8) 0x01
@@ -662,10 +585,6 @@ typedef u32 acpi_event_status;
 #define ACPI_GPE_WAKE_DISABLED          (u8) 0x00	/* Default */
 
 #define ACPI_GPE_ENABLE_MASK            (u8) 0x60	/* Both run/wake */
-
-#define ACPI_GPE_SYSTEM_MASK            (u8) 0x80
-#define ACPI_GPE_SYSTEM_RUNNING         (u8) 0x80
-#define ACPI_GPE_SYSTEM_WAKING          (u8) 0x00
 
 /*
  * Flags for GPE and Lock interfaces
@@ -816,13 +735,6 @@ struct acpi_buffer {
 #define ACPI_SYS_MODES_MASK             0x0003
 
 /*
- * ACPI Table Info.  One per ACPI table _type_
- */
-struct acpi_table_info {
-	u32 count;
-};
-
-/*
  * System info returned by acpi_get_system_info()
  */
 struct acpi_system_info {
@@ -833,8 +745,6 @@ struct acpi_system_info {
 	u32 reserved2;
 	u32 debug_level;
 	u32 debug_layer;
-	u32 num_table_types;
-	struct acpi_table_info table_info[ACPI_TABLE_ID_MAX + 1];
 };
 
 /*

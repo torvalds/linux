@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -142,9 +142,10 @@ u32 acpi_ev_install_sci_handler(void)
 
 	ACPI_FUNCTION_TRACE(ev_install_sci_handler);
 
-	status = acpi_os_install_interrupt_handler((u32) acpi_gbl_FADT->sci_int,
-						   acpi_ev_sci_xrupt_handler,
-						   acpi_gbl_gpe_xrupt_list_head);
+	status =
+	    acpi_os_install_interrupt_handler((u32) acpi_gbl_FADT.sci_interrupt,
+					      acpi_ev_sci_xrupt_handler,
+					      acpi_gbl_gpe_xrupt_list_head);
 	return_ACPI_STATUS(status);
 }
 
@@ -175,8 +176,9 @@ acpi_status acpi_ev_remove_sci_handler(void)
 
 	/* Just let the OS remove the handler and disable the level */
 
-	status = acpi_os_remove_interrupt_handler((u32) acpi_gbl_FADT->sci_int,
-						  acpi_ev_sci_xrupt_handler);
+	status =
+	    acpi_os_remove_interrupt_handler((u32) acpi_gbl_FADT.sci_interrupt,
+					     acpi_ev_sci_xrupt_handler);
 
 	return_ACPI_STATUS(status);
 }

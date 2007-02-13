@@ -54,7 +54,7 @@ enum {
 };
 
 #define CFG_CHG_INTR_MASK (VSC_INTR_LINK_CHG | VSC_INTR_NEG_ERR | \
-	 		   VSC_INTR_NEG_DONE)
+			   VSC_INTR_NEG_DONE)
 #define INTR_MASK (CFG_CHG_INTR_MASK | VSC_INTR_TX_FIFO | VSC_INTR_RX_FIFO | \
 		   VSC_INTR_ENABLE)
 
@@ -94,19 +94,18 @@ static int vsc8244_intr_enable(struct cphy *cphy)
 {
 	simple_mdio_write(cphy, VSC8244_INTR_ENABLE, INTR_MASK);
 
-    /* Enable interrupts through Elmer */
+	/* Enable interrupts through Elmer */
 	if (t1_is_asic(cphy->adapter)) {
 		u32 elmer;
 
 		t1_tpi_read(cphy->adapter, A_ELMER0_INT_ENABLE, &elmer);
 		elmer |= ELMER0_GP_BIT1;
-		if (is_T2(cphy->adapter)) {
+		if (is_T2(cphy->adapter))
 		    elmer |= ELMER0_GP_BIT2|ELMER0_GP_BIT3|ELMER0_GP_BIT4;
-                }
 		t1_tpi_write(cphy->adapter, A_ELMER0_INT_ENABLE, elmer);
 	}
 
-    return 0;
+	return 0;
 }
 
 static int vsc8244_intr_disable(struct cphy *cphy)
@@ -118,19 +117,18 @@ static int vsc8244_intr_disable(struct cphy *cphy)
 
 		t1_tpi_read(cphy->adapter, A_ELMER0_INT_ENABLE, &elmer);
 		elmer &= ~ELMER0_GP_BIT1;
-		if (is_T2(cphy->adapter)) {
+		if (is_T2(cphy->adapter))
 		    elmer &= ~(ELMER0_GP_BIT2|ELMER0_GP_BIT3|ELMER0_GP_BIT4);
-                }
 		t1_tpi_write(cphy->adapter, A_ELMER0_INT_ENABLE, elmer);
 	}
 
-    return 0;
+	return 0;
 }
 
 static int vsc8244_intr_clear(struct cphy *cphy)
 {
 	u32 val;
-    u32 elmer;
+	u32 elmer;
 
 	/* Clear PHY interrupts by reading the register. */
 	simple_mdio_read(cphy, VSC8244_INTR_ENABLE, &val);
@@ -138,13 +136,12 @@ static int vsc8244_intr_clear(struct cphy *cphy)
 	if (t1_is_asic(cphy->adapter)) {
 		t1_tpi_read(cphy->adapter, A_ELMER0_INT_CAUSE, &elmer);
 		elmer |= ELMER0_GP_BIT1;
-		if (is_T2(cphy->adapter)) {
+		if (is_T2(cphy->adapter))
 		    elmer |= ELMER0_GP_BIT2|ELMER0_GP_BIT3|ELMER0_GP_BIT4;
-                }
 		t1_tpi_write(cphy->adapter, A_ELMER0_INT_CAUSE, elmer);
 	}
 
-    return 0;
+	return 0;
 }
 
 /*
@@ -179,13 +176,13 @@ static int vsc8244_set_speed_duplex(struct cphy *phy, int speed, int duplex)
 
 int t1_mdio_set_bits(struct cphy *phy, int mmd, int reg, unsigned int bits)
 {
-    int ret;
-    unsigned int val;
+	int ret;
+	unsigned int val;
 
-    ret = mdio_read(phy, mmd, reg, &val);
-    if (!ret)
-        ret = mdio_write(phy, mmd, reg, val | bits);
-    return ret;
+	ret = mdio_read(phy, mmd, reg, &val);
+	if (!ret)
+		ret = mdio_write(phy, mmd, reg, val | bits);
+	return ret;
 }
 
 static int vsc8244_autoneg_enable(struct cphy *cphy)
@@ -235,7 +232,7 @@ static int vsc8244_advertise(struct cphy *phy, unsigned int advertise_map)
 }
 
 static int vsc8244_get_link_status(struct cphy *cphy, int *link_ok,
-				     int *speed, int *duplex, int *fc)
+				   int *speed, int *duplex, int *fc)
 {
 	unsigned int bmcr, status, lpa, adv;
 	int err, sp = -1, dplx = -1, pause = 0;
@@ -343,11 +340,13 @@ static struct cphy_ops vsc8244_ops = {
 	.get_link_status      = vsc8244_get_link_status
 };
 
-static struct cphy* vsc8244_phy_create(adapter_t *adapter, int phy_addr, struct mdio_ops *mdio_ops)
+static struct cphy* vsc8244_phy_create(adapter_t *adapter, int phy_addr,
+				       struct mdio_ops *mdio_ops)
 {
 	struct cphy *cphy = kzalloc(sizeof(*cphy), GFP_KERNEL);
 
-	if (!cphy) return NULL;
+	if (!cphy)
+		return NULL;
 
 	cphy_init(cphy, adapter, phy_addr, &vsc8244_ops, mdio_ops);
 

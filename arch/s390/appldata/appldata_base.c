@@ -81,7 +81,7 @@ static struct ctl_table appldata_dir_table[] = {
 /*
  * Timer
  */
-DEFINE_PER_CPU(struct vtimer_list, appldata_timer);
+static DEFINE_PER_CPU(struct vtimer_list, appldata_timer);
 static atomic_t appldata_expire_count = ATOMIC_INIT(0);
 
 static DEFINE_SPINLOCK(appldata_timer_lock);
