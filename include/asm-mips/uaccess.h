@@ -273,7 +273,6 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	lw	%1, (%3)				\n"	\
 	"2:	lw	%D1, 4(%3)				\n"	\
-	"	move	%0, $0					\n"	\
 	"3:	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	move	%1, $0					\n"	\
