@@ -94,3 +94,9 @@ extern void pci_pcbios_init(void);
 extern void pci_mmcfg_init(int type);
 extern void pcibios_sort(void);
 
+/* pci-mmconfig.c */
+
+#define PCI_MMCFG_MAX_CHECK_BUS 16
+extern DECLARE_BITMAP(pci_mmcfg_fallback_slots, 32*PCI_MMCFG_MAX_CHECK_BUS);
+
+extern int pci_mmcfg_arch_init(void);
