@@ -623,7 +623,6 @@ extern struct {
 	unsigned short ss;
 } stack_start;
 extern struct i386_pda *start_pda;
-extern struct Xgt_desc_struct cpu_gdt_descr;
 
 #ifdef CONFIG_NUMA
 
