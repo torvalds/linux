@@ -952,8 +952,8 @@ extern int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi);
 extern int xfrm6_rcv(struct sk_buff **pskb);
 extern int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			    xfrm_address_t *saddr, u8 proto);
-extern int xfrm6_tunnel_register(struct xfrm6_tunnel *handler);
-extern int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler);
+extern int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family);
+extern int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family);
 extern __be32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr);
 extern void xfrm6_tunnel_free_spi(xfrm_address_t *saddr);
 extern __be32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr);
