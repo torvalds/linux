@@ -46,12 +46,6 @@ struct sigframe {
 #endif	/* !ICACHE_REFILLS_WORKAROUND_WAR */
 
 /*
- * handle hardware context
- */
-extern int setup_sigcontext(struct pt_regs *, struct sigcontext __user *);
-extern int restore_sigcontext(struct pt_regs *, struct sigcontext __user *);
-
-/*
  * Determine which stack to use..
  */
 extern void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
