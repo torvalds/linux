@@ -1022,7 +1022,7 @@ static ssize_t cafe_v4l_read(struct file *filp,
 		char __user *buffer, size_t len, loff_t *pos)
 {
 	struct cafe_camera *cam = filp->private_data;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * Perhaps we're in speculative read mode and already
@@ -1251,8 +1251,6 @@ static int cafe_vidioc_reqbufs(struct file *filp, void *priv,
 
 	if (cam->n_sbufs == 0)  /* no luck at all - ret already set */
 		kfree(cam->sb_bufs);
-	else
-		ret = 0;
 	req->count = cam->n_sbufs;  /* In case of partial success */
 
   out:
