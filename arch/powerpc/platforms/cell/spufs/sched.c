@@ -281,14 +281,6 @@ static struct spu *spu_get_idle(struct spu_context *ctx)
 	return spu;
 }
 
-/* The three externally callable interfaces
- * for the scheduler begin here.
- *
- *	spu_activate	- bind a context to SPU, waiting as needed.
- *	spu_deactivate	- unbind a context from its SPU.
- *	spu_yield	- yield an SPU if others are waiting.
- */
-
 /**
  * spu_activate - find a free spu for a context and execute it
  * @ctx:	spu context to schedule
@@ -339,6 +331,14 @@ void spu_deactivate(struct spu_context *ctx)
 	}
 }
 
+/**
+ * spu_yield -  yield a physical spu if others are waiting
+ * @ctx:	spu context to yield
+ *
+ * Check if there is a higher priority context waiting and if yes
+ * unbind @ctx from the physical spu and schedule the highest
+ * priority context to run on the freed physical spu instead.
+ */
 void spu_yield(struct spu_context *ctx)
 {
 	struct spu *spu;
