@@ -10779,7 +10779,9 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS) {
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787) {
-			tp->tg3_flags2 |= TG3_FLG2_PHY_JITTER_BUG;
+			if (tp->pdev->device != PCI_DEVICE_ID_TIGON3_5756 &&
+			    tp->pdev->device != PCI_DEVICE_ID_TIGON3_5722)
+				tp->tg3_flags2 |= TG3_FLG2_PHY_JITTER_BUG;
 			if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5755M)
 				tp->tg3_flags2 |= TG3_FLG2_PHY_ADJUST_TRIM;
 		} else if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906)
