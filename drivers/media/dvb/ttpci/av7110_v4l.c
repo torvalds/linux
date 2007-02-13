@@ -140,17 +140,6 @@ static int ves1820_writereg(struct saa7146_dev *dev, u8 addr, u8 reg, u8 data)
 	return 0;
 }
 
-static int stv0297_writereg(struct saa7146_dev *dev, u8 addr, u8 reg, u8 data)
-{
-	u8 buf [] = { reg, data };
-	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = buf, .len = 2 };
-
-	if (1 != saa7146_i2c_transfer(dev, &msg, 1, 1))
-		return -1;
-	return 0;
-}
-
-
 static int tuner_write(struct saa7146_dev *dev, u8 addr, u8 data [4])
 {
 	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = data, .len = 4 };
@@ -193,6 +182,7 @@ static int ves1820_set_tv_freq(struct saa7146_dev *dev, u32 freq)
 
 static int stv0297_set_tv_freq(struct saa7146_dev *dev, u32 freq)
 {
+	struct av7110 *av7110 = (struct av7110*)dev->ext_priv;
 	u32 div;
 	u8 data[4];
 
@@ -213,8 +203,8 @@ static int stv0297_set_tv_freq(struct saa7146_dev *dev, u32 freq)
 	else
 		return -EINVAL;
 
-	stv0297_writereg(dev, 0x1C, 0x87, 0x78);
-	stv0297_writereg(dev, 0x1C, 0x86, 0xc8);
+	if (av7110->fe->ops.i2c_gate_ctrl)
+		av7110->fe->ops.i2c_gate_ctrl(av7110->fe, 1);
 	return tuner_write(dev, 0x63, data);
 }
 
