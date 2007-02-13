@@ -17,7 +17,6 @@
 #include <asm/clock.h>
 #include <asm/io.h>
 
-extern void heartbeat_r7780rp(void);
 extern void init_r7780rp_IRQ(void);
 
 static struct resource m66596_usb_host_resources[] = {
@@ -72,9 +71,30 @@ static struct platform_device cf_ide_device  = {
 	.resource	= cf_ide_resources,
 };
 
+static unsigned char heartbeat_bit_pos[] = { 2, 1, 0, 3, 6, 5, 4, 7 };
+
+static struct resource heartbeat_resources[] = {
+	[0] = {
+		.start	= PA_OBLED,
+		.end	= PA_OBLED + ARRAY_SIZE(heartbeat_bit_pos) - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device heartbeat_device = {
+	.name		= "heartbeat",
+	.id		= -1,
+	.dev	= {
+		.platform_data	= heartbeat_bit_pos,
+	},
+	.num_resources	= ARRAY_SIZE(heartbeat_resources),
+	.resource	= heartbeat_resources,
+};
+
 static struct platform_device *r7780rp_devices[] __initdata = {
 	&m66596_usb_host_device,
 	&cf_ide_device,
+	&heartbeat_device,
 };
 
 static int __init r7780rp_devices_setup(void)
@@ -185,8 +205,5 @@ struct sh_machine_vector mv_r7780rp __initmv = {
 
 	.mv_ioport_map		= r7780rp_ioport_map,
 	.mv_init_irq		= init_r7780rp_IRQ,
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat		= heartbeat_r7780rp,
-#endif
 };
 ALIAS_MV(r7780rp)

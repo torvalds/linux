@@ -512,7 +512,8 @@ config HEARTBEAT
 	bool "Heartbeat LED"
 	depends on SH_MPC1211 || SH_SH03 || \
 		   SH_BIGSUR || SOLUTION_ENGINE || \
-		   SH_RTS7751R2D || SH_SH4202_MICRODEV || SH_LANDISK
+		   SH_RTS7751R2D || SH_SH4202_MICRODEV || SH_LANDISK || \
+		   SH_R7780RP
 	help
 	  Use the power-on LED on your machine as a load meter.  The exact
 	  behavior is platform-dependent, but normally the flash frequency is

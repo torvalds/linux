@@ -10,12 +10,38 @@
  */
 
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <asm/machvec.h>
 #include <asm/se73180.h>
 #include <asm/irq.h>
 
-void heartbeat_73180se(void);
 void init_73180se_IRQ(void);
+
+static struct resource heartbeat_resources[] = {
+	[0] = {
+		.start	= PA_LED,
+		.end	= PA_LED + 8 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device heartbeat_device = {
+	.name		= "heartbeat",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(heartbeat_resources),
+	.resource	= heartbeat_resources,
+};
+
+static struct platform_device *se73180_devices[] __initdata = {
+	&heartbeat_device,
+};
+
+static int __init se73180_devices_setup(void)
+{
+	return platform_add_devices(sh7343se_platform_devices,
+				    ARRAY_SIZE(sh7343se_platform_devices));
+}
+__initcall(se73180_devices_setup);
 
 /*
  * The Machine Vector
@@ -46,8 +72,5 @@ struct sh_machine_vector mv_73180se __initmv = {
 
 	.mv_init_irq = init_73180se_IRQ,
 	.mv_irq_demux = shmse_irq_demux,
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat = heartbeat_73180se,
-#endif
 };
 ALIAS_MV(73180se)

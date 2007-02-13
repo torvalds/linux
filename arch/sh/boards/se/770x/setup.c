@@ -7,12 +7,12 @@
  *
  */
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <asm/machvec.h>
 #include <asm/se.h>
 #include <asm/io.h>
 #include <asm/smc37c93x.h>
 
-void heartbeat_se(void);
 void init_se_IRQ(void);
 
 /*
@@ -63,6 +63,36 @@ static void __init smsc_setup(char **cmdline_p)
 	outb_p(CONFIG_EXIT, CONFIG_PORT);
 }
 
+static unsigned char heartbeat_bit_pos[] = { 8, 9, 10, 11, 12, 13, 14, 15 };
+
+static struct resource heartbeat_resources[] = {
+	[0] = {
+		.start	= PA_LED,
+		.end	= PA_LED + ARRAY_SIZE(heartbeat_bit_pos) - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device heartbeat_device = {
+	.name		= "heartbeat",
+	.id		= -1,
+	.dev	= {
+		.platform_data	= heartbeat_bit_pos,
+	},
+	.num_resources	= ARRAY_SIZE(heartbeat_resources),
+	.resource	= heartbeat_resources,
+};
+
+static struct platform_device *se_devices[] __initdata = {
+	&heartbeat_device,
+};
+
+static int __init se_devices_setup(void)
+{
+	return platform_add_devices(se_devices, ARRAY_SIZE(se_devices));
+}
+__initcall(se_devices_setup);
+
 /*
  * The Machine Vector
  */
@@ -101,8 +131,5 @@ struct sh_machine_vector mv_se __initmv = {
 	.mv_outsl		= se_outsl,
 
 	.mv_init_irq		= init_se_IRQ,
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat		= heartbeat_se,
-#endif
 };
 ALIAS_MV(se)
