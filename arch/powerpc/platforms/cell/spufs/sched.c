@@ -83,27 +83,14 @@ static void spu_add_to_active_list(struct spu *spu)
 /**
  * spu_remove_from_active_list - remove spu from active list
  * @spu:       spu to remove from the active list
- *
- * This function removes an spu from the active list.  If the spu was
- * found on the active list the function returns 1, else it doesn't do
- * anything and returns 0.
  */
-static int spu_remove_from_active_list(struct spu *spu)
+static void spu_remove_from_active_list(struct spu *spu)
 {
 	int node = spu->node;
-	struct spu *tmp;
-	int rc = 0;
 
 	mutex_lock(&spu_prio->active_mutex[node]);
-	list_for_each_entry(tmp, &spu_prio->active_list[node], list) {
-		if (tmp == spu) {
-			list_del_init(&spu->list);
-			rc = 1;
-			break;
-		}
-	}
+	list_del_init(&spu->list);
 	mutex_unlock(&spu_prio->active_mutex[node]);
-	return rc;
 }
 
 static inline void mm_needs_global_tlbie(struct mm_struct *mm)
@@ -167,16 +154,13 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
  * spu_unbind_context - unbind spu context from physical spu
  * @spu:	physical spu to unbind from
  * @ctx:	context to unbind
- *
- * If the spu was on the active list the function returns 1, else 0.
  */
-static int spu_unbind_context(struct spu *spu, struct spu_context *ctx)
+static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 {
-	int was_active = spu_remove_from_active_list(spu);
-
 	pr_debug("%s: unbind pid=%d SPU=%d NODE=%d\n", __FUNCTION__,
 		 spu->pid, spu->number, spu->node);
 
+	spu_remove_from_active_list(spu);
 	spu_switch_notify(spu, NULL);
 	spu_unmap_mappings(ctx);
 	spu_save(&ctx->csa, spu);
@@ -193,8 +177,6 @@ static int spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	ctx->spu = NULL;
 	spu->flags = 0;
 	spu->ctx = NULL;
-
-	return was_active;
 }
 
 /**
@@ -340,17 +322,21 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
 	return -ERESTARTSYS;
 }
 
+/**
+ * spu_deactivate - unbind a context from it's physical spu
+ * @ctx:	spu context to unbind
+ *
+ * Unbind @ctx from the physical spu it is running on and schedule
+ * the highest priority context to run on the freed physical spu.
+ */
 void spu_deactivate(struct spu_context *ctx)
 {
-	struct spu *spu;
-	int was_active;
+	struct spu *spu = ctx->spu;
 
-	spu = ctx->spu;
-	if (!spu)
-		return;
-	was_active = spu_unbind_context(spu, ctx);
-	if (was_active)
+	if (spu) {
+		spu_unbind_context(spu, ctx);
 		spu_reschedule(spu);
+	}
 }
 
 void spu_yield(struct spu_context *ctx)
