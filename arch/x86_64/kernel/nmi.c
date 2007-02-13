@@ -172,7 +172,7 @@ static __cpuinit inline int nmi_known_cpu(void)
 {
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
-		return boot_cpu_data.x86 == 15;
+		return boot_cpu_data.x86 == 15 || boot_cpu_data.x86 == 16;
 	case X86_VENDOR_INTEL:
 		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
 			return 1;

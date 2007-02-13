@@ -185,7 +185,8 @@ static __cpuinit inline int nmi_known_cpu(void)
 {
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
-		return ((boot_cpu_data.x86 == 15) || (boot_cpu_data.x86 == 6));
+		return ((boot_cpu_data.x86 == 15) || (boot_cpu_data.x86 == 6)
+			|| (boot_cpu_data.x86 == 16));
 	case X86_VENDOR_INTEL:
 		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
 			return 1;
@@ -817,7 +818,8 @@ void setup_apic_nmi_watchdog (void *unused)
 	if (nmi_watchdog == NMI_LOCAL_APIC) {
 		switch (boot_cpu_data.x86_vendor) {
 		case X86_VENDOR_AMD:
-			if (boot_cpu_data.x86 != 6 && boot_cpu_data.x86 != 15)
+			if (boot_cpu_data.x86 != 6 && boot_cpu_data.x86 != 15 &&
+				boot_cpu_data.x86 != 16)
 				return;
 			if (!setup_k7_watchdog())
 				return;
