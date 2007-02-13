@@ -214,6 +214,23 @@ static __init void nmi_cpu_busy(void *data)
 }
 #endif
 
+static unsigned int adjust_for_32bit_ctr(unsigned int hz)
+{
+	unsigned int retval = hz;
+
+	/*
+	 * On Intel CPUs with ARCH_PERFMON only 32 bits in the counter
+	 * are writable, with higher bits sign extending from bit 31.
+	 * So, we can only program the counter with 31 bit values and
+	 * 32nd bit should be 1, for 33.. to be 1.
+	 * Find the appropriate nmi_hz
+	 */
+ 	if ((((u64)cpu_khz * 1000) / retval) > 0x7fffffffULL) {
+		retval = ((u64)cpu_khz * 1000) / 0x7fffffffUL + 1;
+	}
+	return retval;
+}
+
 int __init check_nmi_watchdog (void)
 {
 	int *counts;
@@ -268,17 +285,8 @@ int __init check_nmi_watchdog (void)
 		struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
 
 		nmi_hz = 1;
-		/*
-		 * On Intel CPUs with ARCH_PERFMON only 32 bits in the counter
-		 * are writable, with higher bits sign extending from bit 31.
-		 * So, we can only program the counter with 31 bit values and
-		 * 32nd bit should be 1, for 33.. to be 1.
-		 * Find the appropriate nmi_hz
-		 */
-	 	if (wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0 &&
-			((u64)cpu_khz * 1000) > 0x7fffffffULL) {
-			nmi_hz = ((u64)cpu_khz * 1000) / 0x7fffffffUL + 1;
-		}
+	 	if (wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0)
+			nmi_hz = adjust_for_32bit_ctr(nmi_hz);
 	}
 
 	kfree(counts);
@@ -634,7 +642,9 @@ static int setup_intel_arch_watchdog(void)
 
 	/* setup the timer */
 	wrmsr(evntsel_msr, evntsel, 0);
-	wrmsrl(perfctr_msr, -((u64)cpu_khz * 1000 / nmi_hz));
+
+	nmi_hz = adjust_for_32bit_ctr(nmi_hz);
+	wrmsr(perfctr_msr, (u32)(-((u64)cpu_khz * 1000 / nmi_hz)), 0);
 
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= ARCH_PERFMON_EVENTSEL0_ENABLE;
@@ -855,15 +865,23 @@ int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 				dummy &= ~P4_CCCR_OVF;
 	 			wrmsrl(wd->cccr_msr, dummy);
 	 			apic_write(APIC_LVTPC, APIC_DM_NMI);
+				/* start the cycle over again */
+				wrmsrl(wd->perfctr_msr,
+				       -((u64)cpu_khz * 1000 / nmi_hz));
 	 		} else if (wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0) {
 				/*
 				 * ArchPerfom/Core Duo needs to re-unmask
 				 * the apic vector
 				 */
 				apic_write(APIC_LVTPC, APIC_DM_NMI);
+				/* ARCH_PERFMON has 32 bit counter writes */
+				wrmsr(wd->perfctr_msr,
+				     (u32)(-((u64)cpu_khz * 1000 / nmi_hz)), 0);
+			} else {
+				/* start the cycle over again */
+				wrmsrl(wd->perfctr_msr,
+				       -((u64)cpu_khz * 1000 / nmi_hz));
 			}
-			/* start the cycle over again */
-			wrmsrl(wd->perfctr_msr, -((u64)cpu_khz * 1000 / nmi_hz));
 			rc = 1;
 		} else 	if (nmi_watchdog == NMI_IO_APIC) {
 			/* don't know how to accurately check for this.
