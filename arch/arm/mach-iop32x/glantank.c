@@ -31,6 +31,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach-types.h>
 #include <asm/page.h>
+#include <asm/arch/time.h>
 
 /*
  * GLAN Tank timer tick configuration.
@@ -38,12 +39,12 @@
 static void __init glantank_timer_init(void)
 {
 	/* 33.333 MHz crystal.  */
-	iop3xx_init_time(200000000);
+	iop_init_time(200000000);
 }
 
 static struct sys_timer glantank_timer = {
 	.init		= glantank_timer_init,
-	.offset		= iop3xx_gettimeoffset,
+	.offset		= iop_gettimeoffset,
 };
 
 

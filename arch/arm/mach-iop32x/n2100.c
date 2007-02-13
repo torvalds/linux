@@ -37,6 +37,7 @@
 #include <asm/mach-types.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/arch/time.h>
 
 /*
  * N2100 timer tick configuration.
@@ -44,12 +45,12 @@
 static void __init n2100_timer_init(void)
 {
 	/* 33.000 MHz crystal.  */
-	iop3xx_init_time(198000000);
+	iop_init_time(198000000);
 }
 
 static struct sys_timer n2100_timer = {
 	.init		= n2100_timer_init,
-	.offset		= iop3xx_gettimeoffset,
+	.offset		= iop_gettimeoffset,
 };
 
 

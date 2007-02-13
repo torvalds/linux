@@ -9,8 +9,6 @@ void iop13xx_init_irq(void);
 void iop13xx_map_io(void);
 void iop13xx_platform_init(void);
 void iop13xx_init_irq(void);
-void iop13xx_init_time(unsigned long tickrate);
-unsigned long iop13xx_gettimeoffset(void);
 
 /* CPUID CP6 R0 Page 0 */
 static inline int iop13xx_cpu_id(void)
@@ -452,15 +450,5 @@ static inline int iop13xx_cpu_id(void)
 #define IOP13XX_PBI_LR0       		IOP13XX_PBI_OFFSET(0xc)
 #define IOP13XX_PBI_BAR1      		IOP13XX_PBI_OFFSET(0x10)
 #define IOP13XX_PBI_LR1       		IOP13XX_PBI_OFFSET(0x14)
-
-#define IOP13XX_TMR_TC			0x01
-#define IOP13XX_TMR_EN			0x02
-#define IOP13XX_TMR_RELOAD		0x04
-#define IOP13XX_TMR_PRIVILEGED		0x08
-
-#define IOP13XX_TMR_RATIO_1_1		0x00
-#define IOP13XX_TMR_RATIO_4_1		0x10
-#define IOP13XX_TMR_RATIO_8_1		0x20
-#define IOP13XX_TMR_RATIO_16_1		0x30
 
 #endif /* _IOP13XX_HW_H_ */

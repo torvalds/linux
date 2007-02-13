@@ -36,7 +36,7 @@
 #include <asm/mach-types.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-
+#include <asm/arch/time.h>
 
 /*
  * The EP80219 and IQ31244 use the same machine ID.  To find out
@@ -56,16 +56,16 @@ static void __init iq31244_timer_init(void)
 {
 	if (is_80219()) {
 		/* 33.333 MHz crystal.  */
-		iop3xx_init_time(200000000);
+		iop_init_time(200000000);
 	} else {
 		/* 33.000 MHz crystal.  */
-		iop3xx_init_time(198000000);
+		iop_init_time(198000000);
 	}
 }
 
 static struct sys_timer iq31244_timer = {
 	.init		= iq31244_timer_init,
-	.offset		= iop3xx_gettimeoffset,
+	.offset		= iop_gettimeoffset,
 };
 
 

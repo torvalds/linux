@@ -25,6 +25,7 @@
 #include <asm/mach/arch.h>
 #include <asm/arch/pci.h>
 #include <asm/mach/time.h>
+#include <asm/arch/time.h>
 
 extern int init_atu; /* Flag to select which ATU(s) to initialize / disable */
 
@@ -78,12 +79,12 @@ static void __init iq81340mc_init(void)
 
 static void __init iq81340mc_timer_init(void)
 {
-	iop13xx_init_time(400000000);
+	iop_init_time(400000000);
 }
 
 static struct sys_timer iq81340mc_timer = {
        .init       = iq81340mc_timer_init,
-       .offset     = iop13xx_gettimeoffset,
+       .offset     = iop_gettimeoffset,
 };
 
 MACHINE_START(IQ81340MC, "Intel IQ81340MC")
