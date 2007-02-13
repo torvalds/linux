@@ -6,6 +6,7 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/timer.h>
+#include <asm/pci-direct.h>
 
 #include "cpu.h"
 
@@ -183,14 +184,6 @@ static void __cpuinit geode_configure(void)
 }
 
 
-#ifdef CONFIG_PCI
-static struct pci_device_id __cpuinitdata cyrix_55x0[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5510) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5520) },
-	{ },
-};
-#endif
-
 static void __cpuinit init_cyrix(struct cpuinfo_x86 *c)
 {
 	unsigned char dir0, dir0_msn, dir0_lsn, dir1 = 0;
@@ -258,6 +251,8 @@ static void __cpuinit init_cyrix(struct cpuinfo_x86 *c)
 
 	case 4: /* MediaGX/GXm or Geode GXM/GXLV/GX1 */
 #ifdef CONFIG_PCI
+	{
+		u32 vendor, device;
 		/* It isn't really a PCI quirk directly, but the cure is the
 		   same. The MediaGX has deep magic SMM stuff that handles the
 		   SB emulation. It thows away the fifo on disable_dma() which
@@ -273,12 +268,19 @@ static void __cpuinit init_cyrix(struct cpuinfo_x86 *c)
 		printk(KERN_INFO "Working around Cyrix MediaGX virtual DMA bugs.\n");
 		isa_dma_bridge_buggy = 2;
 
+		/* We do this before the PCI layer is running. However we
+		   are safe here as we know the bridge must be a Cyrix
+		   companion and must be present */
+		vendor = read_pci_config_16(0, 0, 0x12, PCI_VENDOR_ID);
+		device = read_pci_config_16(0, 0, 0x12, PCI_DEVICE_ID);
 
 		/*
 		 *  The 5510/5520 companion chips have a funky PIT.
 		 */  
-		if (pci_dev_present(cyrix_55x0))
+		if (vendor == PCI_VENDOR_ID_CYRIX &&
+	 (device == PCI_DEVICE_ID_CYRIX_5510 || device == PCI_DEVICE_ID_CYRIX_5520))
 			pit_latch_buggy = 1;
+	}
 #endif
 		c->x86_cache_size=16;	/* Yep 16K integrated cache thats it */
 
