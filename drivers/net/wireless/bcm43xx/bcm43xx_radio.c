@@ -1393,11 +1393,12 @@ u16 bcm43xx_radio_init2050(struct bcm43xx_private *bcm)
 	backup[12] = bcm43xx_read16(bcm, BCM43xx_MMIO_CHANNEL_EXT);
 
 	// Initialization
-	if (phy->version == 0) {
+	if (phy->analog == 0) {
 		bcm43xx_write16(bcm, 0x03E6, 0x0122);
 	} else {
-		if (phy->version >= 2)
-			bcm43xx_write16(bcm, 0x03E6, 0x0040);
+		if (phy->analog >= 2)
+			bcm43xx_phy_write(bcm, 0x0003, (bcm43xx_phy_read(bcm, 0x0003)
+					& 0xFFBF) | 0x0040);
 		bcm43xx_write16(bcm, BCM43xx_MMIO_CHANNEL_EXT,
 		                (bcm43xx_read16(bcm, BCM43xx_MMIO_CHANNEL_EXT) | 0x2000));
 	}
@@ -1405,7 +1406,7 @@ u16 bcm43xx_radio_init2050(struct bcm43xx_private *bcm)
 	ret = bcm43xx_radio_calibrationvalue(bcm);
 
 	if (phy->type == BCM43xx_PHYTYPE_B)
-		bcm43xx_radio_write16(bcm, 0x0078, 0x0003);
+		bcm43xx_radio_write16(bcm, 0x0078, 0x0026);
 
 	bcm43xx_phy_write(bcm, 0x0015, 0xBFAF);
 	bcm43xx_phy_write(bcm, 0x002B, 0x1403);
@@ -1416,7 +1417,7 @@ u16 bcm43xx_radio_init2050(struct bcm43xx_private *bcm)
 	                      (bcm43xx_radio_read16(bcm, 0x0051) | 0x0004));
 	bcm43xx_radio_write16(bcm, 0x0052, 0x0000);
 	bcm43xx_radio_write16(bcm, 0x0043,
-			      bcm43xx_radio_read16(bcm, 0x0043) | 0x0009);
+			      (bcm43xx_radio_read16(bcm, 0x0043) & 0xFFF0) | 0x0009);
 	bcm43xx_phy_write(bcm, 0x0058, 0x0000);
 
 	for (i = 0; i < 16; i++) {
@@ -1488,7 +1489,7 @@ u16 bcm43xx_radio_init2050(struct bcm43xx_private *bcm)
 	bcm43xx_phy_write(bcm, 0x0059, backup[17]);
 	bcm43xx_phy_write(bcm, 0x0058, backup[18]);
 	bcm43xx_write16(bcm, 0x03E6, backup[11]);
-	if (phy->version != 0)
+	if (phy->analog != 0)
 		bcm43xx_write16(bcm, BCM43xx_MMIO_CHANNEL_EXT, backup[12]);
 	bcm43xx_phy_write(bcm, 0x0035, backup[10]);
 	bcm43xx_radio_selectchannel(bcm, radio->channel, 1);
