@@ -94,6 +94,7 @@ asmlinkage void spurious_interrupt_bug(void);
 asmlinkage void machine_check(void);
 
 int kstack_depth_to_print = 24;
+static unsigned int code_bytes = 64;
 ATOMIC_NOTIFIER_HEAD(i386die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
@@ -325,7 +326,8 @@ void show_registers(struct pt_regs *regs)
 	 */
 	if (in_kernel) {
 		u8 *eip;
-		int code_bytes = 64;
+		unsigned int code_prologue = code_bytes * 43 / 64;
+		unsigned int code_len = code_bytes;
 		unsigned char c;
 
 		printk("\n" KERN_EMERG "Stack: ");
@@ -333,14 +335,14 @@ void show_registers(struct pt_regs *regs)
 
 		printk(KERN_EMERG "Code: ");
 
-		eip = (u8 *)regs->eip - 43;
+		eip = (u8 *)regs->eip - code_prologue;
 		if (eip < (u8 *)PAGE_OFFSET ||
 			probe_kernel_address(eip, c)) {
 			/* try starting at EIP */
 			eip = (u8 *)regs->eip;
-			code_bytes = 32;
+			code_len = code_len - code_prologue + 1;
 		}
-		for (i = 0; i < code_bytes; i++, eip++) {
+		for (i = 0; i < code_len; i++, eip++) {
 			if (eip < (u8 *)PAGE_OFFSET ||
 				probe_kernel_address(eip, c)) {
 				printk(" Bad EIP value.");
@@ -1192,3 +1194,13 @@ static int __init kstack_setup(char *s)
 	return 1;
 }
 __setup("kstack=", kstack_setup);
+
+static int __init code_bytes_setup(char *s)
+{
+	code_bytes = simple_strtoul(s, NULL, 0);
+	if (code_bytes > 8192)
+		code_bytes = 8192;
+
+	return 1;
+}
+__setup("code_bytes=", code_bytes_setup);
