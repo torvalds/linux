@@ -657,6 +657,7 @@ core_initcall(cpufreq_tsc);
 
 #define TICK_COUNT 100000000
 #define TICK_MIN   5000
+#define MAX_READ_RETRIES 5
 
 /*
  * Some platforms take periodic SMI interrupts with 5ms duration. Make sure none
@@ -664,13 +665,17 @@ core_initcall(cpufreq_tsc);
  */
 static void __init read_hpet_tsc(int *hpet, int *tsc)
 {
-	int tsc1, tsc2, hpet1;
+	int tsc1, tsc2, hpet1, retries = 0;
+	static int msg;
 
 	do {
 		tsc1 = get_cycles_sync();
 		hpet1 = hpet_readl(HPET_COUNTER);
 		tsc2 = get_cycles_sync();
-	} while (tsc2 - tsc1 > TICK_MIN);
+	} while (tsc2 - tsc1 > TICK_MIN && retries++ < MAX_READ_RETRIES);
+	if (retries >= MAX_READ_RETRIES && !msg++)
+		printk(KERN_WARNING
+		       "hpet.c: exceeded max retries to read HPET & TSC\n");
 	*hpet = hpet1;
 	*tsc = tsc2;
 }
