@@ -7,7 +7,7 @@
  *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
- * Fixes:       19990609: J Hadi Salim <hadi@nortelnetworks.com>: 
+ * Fixes:       19990609: J Hadi Salim <hadi@nortelnetworks.com>:
  *              Init --  EINVAL when opt undefined
  */
 
@@ -105,7 +105,7 @@ prio_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return NET_XMIT_SUCCESS;
 	}
 	sch->qstats.drops++;
-	return ret; 
+	return ret;
 }
 
 
@@ -372,6 +372,20 @@ static int prio_dump_class(struct Qdisc *sch, unsigned long cl, struct sk_buff *
 	return 0;
 }
 
+static int prio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
+				 struct gnet_dump *d)
+{
+	struct prio_sched_data *q = qdisc_priv(sch);
+	struct Qdisc *cl_q;
+
+	cl_q = q->queues[cl - 1];
+	if (gnet_stats_copy_basic(d, &cl_q->bstats) < 0 ||
+	    gnet_stats_copy_queue(d, &cl_q->qstats) < 0)
+		return -1;
+
+	return 0;
+}
+
 static void prio_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
@@ -414,6 +428,7 @@ static struct Qdisc_class_ops prio_class_ops = {
 	.bind_tcf	=	prio_bind,
 	.unbind_tcf	=	prio_put,
 	.dump		=	prio_dump_class,
+	.dump_stats	=	prio_dump_class_stats,
 };
 
 static struct Qdisc_ops prio_qdisc_ops = {
@@ -438,7 +453,7 @@ static int __init prio_module_init(void)
 	return register_qdisc(&prio_qdisc_ops);
 }
 
-static void __exit prio_module_exit(void) 
+static void __exit prio_module_exit(void)
 {
 	unregister_qdisc(&prio_qdisc_ops);
 }

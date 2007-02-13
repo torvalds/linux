@@ -36,13 +36,13 @@ extern const struct address_space_operations cifs_addr_ops;
 extern const struct address_space_operations cifs_addr_ops_smallbuf;
 
 /* Functions related to super block operations */
-/* extern struct super_operations cifs_super_ops;*/
+/* extern const struct super_operations cifs_super_ops;*/
 extern void cifs_read_inode(struct inode *);
 extern void cifs_delete_inode(struct inode *);
 /* extern void cifs_write_inode(struct inode *); *//* BB not needed yet */
 
 /* Functions related to inodes */
-extern struct inode_operations cifs_dir_inode_ops;
+extern const struct inode_operations cifs_dir_inode_ops;
 extern int cifs_create(struct inode *, struct dentry *, int, 
 		       struct nameidata *);
 extern struct dentry * cifs_lookup(struct inode *, struct dentry *,
@@ -58,8 +58,8 @@ extern int cifs_revalidate(struct dentry *);
 extern int cifs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int cifs_setattr(struct dentry *, struct iattr *);
 
-extern struct inode_operations cifs_file_inode_ops;
-extern struct inode_operations cifs_symlink_inode_ops;
+extern const struct inode_operations cifs_file_inode_ops;
+extern const struct inode_operations cifs_symlink_inode_ops;
 
 /* Functions related to files and directories */
 extern const struct file_operations cifs_file_ops;

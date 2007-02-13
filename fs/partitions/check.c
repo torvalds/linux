@@ -365,7 +365,7 @@ void delete_partition(struct gendisk *disk, int part)
 	kobject_put(&p->kobj);
 }
 
-void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len)
+void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, int flags)
 {
 	struct hd_struct *p;
 
@@ -390,6 +390,15 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len)
 	if (!disk->part_uevent_suppress)
 		kobject_uevent(&p->kobj, KOBJ_ADD);
 	sysfs_create_link(&p->kobj, &block_subsys.kset.kobj, "subsystem");
+	if (flags & ADDPART_FLAG_WHOLEDISK) {
+		static struct attribute addpartattr = {
+			.name = "whole_disk",
+			.mode = S_IRUSR | S_IRGRP | S_IROTH,
+			.owner = THIS_MODULE,
+		};
+
+		sysfs_create_file(&p->kobj, &addpartattr);
+	}
 	partition_sysfs_add_subdir(p);
 	disk->part[part-1] = p;
 }
@@ -543,9 +552,9 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 			printk(" %s: p%d exceeds device capacity\n",
 				disk->disk_name, p);
 		}
-		add_partition(disk, p, from, size);
+		add_partition(disk, p, from, size, state->parts[p].flags);
 #ifdef CONFIG_BLK_DEV_MD
-		if (state->parts[p].flags)
+		if (state->parts[p].flags & ADDPART_FLAG_RAID)
 			md_autodetect_dev(bdev->bd_dev+p);
 #endif
 	}

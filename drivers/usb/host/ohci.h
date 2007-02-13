@@ -507,10 +507,10 @@ static inline unsigned int _ohci_readl (const struct ohci_hcd *ohci,
 {
 #ifdef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
 	return big_endian_mmio(ohci) ?
-		readl_be ((__force u32 *)regs) :
-		readl ((__force u32 *)regs);
+		readl_be (regs) :
+		readl (regs);
 #else
-	return readl ((__force u32 *)regs);
+	return readl (regs);
 #endif
 }
 
@@ -519,10 +519,10 @@ static inline void _ohci_writel (const struct ohci_hcd *ohci,
 {
 #ifdef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
 	big_endian_mmio(ohci) ?
-		writel_be (val, (__force u32 *)regs) :
-		writel (val, (__force u32 *)regs);
+		writel_be (val, regs) :
+		writel (val, regs);
 #else
-		writel (val, (__force u32 *)regs);
+		writel (val, regs);
 #endif
 }
 

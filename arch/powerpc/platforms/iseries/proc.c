@@ -101,7 +101,7 @@ static int proc_titantod_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_titantod_show, NULL);
 }
 
-static struct file_operations proc_titantod_operations = {
+static const struct file_operations proc_titantod_operations = {
 	.open		= proc_titantod_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

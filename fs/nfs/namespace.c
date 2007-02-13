@@ -155,12 +155,12 @@ out_follow:
 	goto out;
 }
 
-struct inode_operations nfs_mountpoint_inode_operations = {
+const struct inode_operations nfs_mountpoint_inode_operations = {
 	.follow_link	= nfs_follow_mountpoint,
 	.getattr	= nfs_getattr,
 };
 
-struct inode_operations nfs_referral_inode_operations = {
+const struct inode_operations nfs_referral_inode_operations = {
 	.follow_link	= nfs_follow_mountpoint,
 };
 

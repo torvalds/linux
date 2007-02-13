@@ -43,6 +43,53 @@
 #define P17V_I2C_ADDR		0x3d	/* I2C Address */
 #define P17V_I2C_0		0x3e	/* I2C Data */
 #define P17V_I2C_1		0x3f	/* I2C Data */
+/* I2C values */
+#define I2C_A_ADC_ADD_MASK	0x000000fe	/*The address is a 7 bit address */
+#define I2C_A_ADC_RW_MASK	0x00000001	/*bit mask for R/W */
+#define I2C_A_ADC_TRANS_MASK	0x00000010  	/*Bit mask for I2c address DAC value  */
+#define I2C_A_ADC_ABORT_MASK	0x00000020	/*Bit mask for I2C transaction abort flag */
+#define I2C_A_ADC_LAST_MASK	0x00000040	/*Bit mask for Last word transaction */
+#define I2C_A_ADC_BYTE_MASK	0x00000080	/*Bit mask for Byte Mode */
+
+#define I2C_A_ADC_ADD		0x00000034	/*This is the Device address for ADC  */
+#define I2C_A_ADC_READ		0x00000001	/*To perform a read operation */
+#define I2C_A_ADC_START		0x00000100	/*Start I2C transaction */
+#define I2C_A_ADC_ABORT		0x00000200	/*I2C transaction abort */
+#define I2C_A_ADC_LAST		0x00000400	/*I2C last transaction */
+#define I2C_A_ADC_BYTE		0x00000800	/*I2C one byte mode */
+
+#define I2C_D_ADC_REG_MASK	0xfe000000  	/*ADC address register */ 
+#define I2C_D_ADC_DAT_MASK	0x01ff0000  	/*ADC data register */
+
+#define ADC_TIMEOUT		0x00000007	/*ADC Timeout Clock Disable */
+#define ADC_IFC_CTRL		0x0000000b	/*ADC Interface Control */
+#define ADC_MASTER		0x0000000c	/*ADC Master Mode Control */
+#define ADC_POWER		0x0000000d	/*ADC PowerDown Control */
+#define ADC_ATTEN_ADCL		0x0000000e	/*ADC Attenuation ADCL */
+#define ADC_ATTEN_ADCR		0x0000000f	/*ADC Attenuation ADCR */
+#define ADC_ALC_CTRL1		0x00000010	/*ADC ALC Control 1 */
+#define ADC_ALC_CTRL2		0x00000011	/*ADC ALC Control 2 */
+#define ADC_ALC_CTRL3		0x00000012	/*ADC ALC Control 3 */
+#define ADC_NOISE_CTRL		0x00000013	/*ADC Noise Gate Control */
+#define ADC_LIMIT_CTRL		0x00000014	/*ADC Limiter Control */
+#define ADC_MUX			0x00000015  	/*ADC Mux offset */
+#if 0
+/* FIXME: Not tested yet. */
+#define ADC_GAIN_MASK		0x000000ff	//Mask for ADC Gain
+#define ADC_ZERODB		0x000000cf	//Value to set ADC to 0dB
+#define ADC_MUTE_MASK		0x000000c0	//Mask for ADC mute
+#define ADC_MUTE		0x000000c0	//Value to mute ADC
+#define ADC_OSR			0x00000008	//Mask for ADC oversample rate select
+#define ADC_TIMEOUT_DISABLE	0x00000008	//Value and mask to disable Timeout clock
+#define ADC_HPF_DISABLE		0x00000100	//Value and mask to disable High pass filter
+#define ADC_TRANWIN_MASK	0x00000070	//Mask for Length of Transient Window
+#endif
+
+#define ADC_MUX_MASK		0x0000000f	//Mask for ADC Mux
+#define ADC_MUX_0		0x00000001	//Value to select Unknown at ADC Mux (Not used)
+#define ADC_MUX_1		0x00000002	//Value to select Unknown at ADC Mux (Not used)
+#define ADC_MUX_2		0x00000004	//Value to select Mic at ADC Mux
+#define ADC_MUX_3		0x00000008	//Value to select Line-In at ADC Mux
 
 #define P17V_START_AUDIO	0x40	/* Start Audio bit */
 /* 41 - 47: Reserved */

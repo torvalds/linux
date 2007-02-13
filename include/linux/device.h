@@ -354,6 +354,41 @@ extern int __must_check device_create_bin_file(struct device *dev,
 					       struct bin_attribute *attr);
 extern void device_remove_bin_file(struct device *dev,
 				   struct bin_attribute *attr);
+
+/* device resource management */
+typedef void (*dr_release_t)(struct device *dev, void *res);
+typedef int (*dr_match_t)(struct device *dev, void *res, void *match_data);
+
+#ifdef CONFIG_DEBUG_DEVRES
+extern void * __devres_alloc(dr_release_t release, size_t size, gfp_t gfp,
+			     const char *name);
+#define devres_alloc(release, size, gfp) \
+	__devres_alloc(release, size, gfp, #release)
+#else
+extern void * devres_alloc(dr_release_t release, size_t size, gfp_t gfp);
+#endif
+extern void devres_free(void *res);
+extern void devres_add(struct device *dev, void *res);
+extern void * devres_find(struct device *dev, dr_release_t release,
+			  dr_match_t match, void *match_data);
+extern void * devres_get(struct device *dev, void *new_res,
+			 dr_match_t match, void *match_data);
+extern void * devres_remove(struct device *dev, dr_release_t release,
+			    dr_match_t match, void *match_data);
+extern int devres_destroy(struct device *dev, dr_release_t release,
+			  dr_match_t match, void *match_data);
+
+/* devres group */
+extern void * __must_check devres_open_group(struct device *dev, void *id,
+					     gfp_t gfp);
+extern void devres_close_group(struct device *dev, void *id);
+extern void devres_remove_group(struct device *dev, void *id);
+extern int devres_release_group(struct device *dev, void *id);
+
+/* managed kzalloc/kfree for device drivers, no kmalloc, always use kzalloc */
+extern void *devm_kzalloc(struct device *dev, size_t size, gfp_t gfp);
+extern void devm_kfree(struct device *dev, void *p);
+
 struct device {
 	struct klist		klist_children;
 	struct klist_node	knode_parent;		/* node in sibling list */
@@ -396,6 +431,9 @@ struct device {
 					     override */
 	/* arch specific additions */
 	struct dev_archdata	archdata;
+
+	spinlock_t		devres_lock;
+	struct list_head	devres_head;
 
 	/* class_device migration path */
 	struct list_head	node;

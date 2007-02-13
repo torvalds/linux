@@ -27,7 +27,7 @@
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
-#include <asm/apm.h>
+#include <asm/apm-emulation.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/sharpsl.h>

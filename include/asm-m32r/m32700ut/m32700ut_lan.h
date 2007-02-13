@@ -1,3 +1,6 @@
+#ifndef _M32700UT_M32700UT_LAN_H
+#define _M32700UT_M32700UT_LAN_H
+
 /*
  * include/asm-m32r/m32700ut/m32700ut_lan.h
  *
@@ -8,13 +11,7 @@
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file "COPYING" in the main directory of
  * this archive for more details.
- *
- * $Id$
  */
-
-#ifndef _M32700UT_M32700UT_LAN_H
-#define _M32700UT_M32700UT_LAN_H
-
 
 #ifndef __ASSEMBLY__
 /*
@@ -23,7 +20,7 @@
 #define M32700UT_LAN_BASE	(0x10000000 /* + NONCACHE_OFFSET */)
 #else
 #define M32700UT_LAN_BASE	(0x10000000 + NONCACHE_OFFSET)
-#endif	/* __ASSEMBLY__ */
+#endif /* __ASSEMBLY__ */
 
 /* ICU
  *  ICUISTS:	status register
@@ -103,4 +100,4 @@
 #define PLDI2CSTS_BB		0x00000010
 #define PLDI2CSTS_NOACK		0x00000001	/* 0:ack, 1:noack */
 
-#endif	/* _M32700UT_M32700UT_LAN_H */
+#endif /* _M32700UT_M32700UT_LAN_H */

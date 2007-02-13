@@ -163,7 +163,7 @@ int rxrpc_create_connection(struct rxrpc_transport *trans,
 		conn = list_entry(_p, struct rxrpc_connection, link);
 		if (conn->addr.sin_port	== candidate->addr.sin_port	&&
 		    conn->security_ix	== candidate->security_ix	&&
-		    conn->service_id	== candidate->service_id	&& 
+		    conn->service_id	== candidate->service_id	&&
 		    conn->in_clientflag	== 0)
 			goto found_in_graveyard;
 	}
@@ -247,13 +247,13 @@ int rxrpc_connection_lookup(struct rxrpc_peer *peer,
 		    conn->in_epoch		== x_epoch	&&
 		    conn->conn_id		== x_connid	&&
 		    conn->security_ix		== x_secix	&&
-		    conn->service_id		== x_servid	&& 
+		    conn->service_id		== x_servid	&&
 		    conn->in_clientflag		== x_clflag)
 			goto found_active;
 	}
 	read_unlock(&peer->conn_lock);
 
-	/* [uncommon case] not active 
+	/* [uncommon case] not active
 	 * - create a candidate for a new record if an inbound connection
 	 * - only examine the graveyard for an outbound connection
 	 */
@@ -286,7 +286,7 @@ int rxrpc_connection_lookup(struct rxrpc_peer *peer,
 		    conn->in_epoch		== x_epoch	&&
 		    conn->conn_id		== x_connid	&&
 		    conn->security_ix		== x_secix	&&
-		    conn->service_id		== x_servid	&& 
+		    conn->service_id		== x_servid	&&
 		    conn->in_clientflag		== x_clflag)
 			goto found_active_second_chance;
 	}
@@ -299,7 +299,7 @@ int rxrpc_connection_lookup(struct rxrpc_peer *peer,
 		    conn->in_epoch		== x_epoch	&&
 		    conn->conn_id		== x_connid	&&
 		    conn->security_ix		== x_secix	&&
-		    conn->service_id		== x_servid	&& 
+		    conn->service_id		== x_servid	&&
 		    conn->in_clientflag		== x_clflag)
 			goto found_in_graveyard;
 	}

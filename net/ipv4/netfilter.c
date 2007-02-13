@@ -53,7 +53,7 @@ int ip_route_me_harder(struct sk_buff **pskb, unsigned addr_type)
 		dst_release(&rt->u.dst);
 		dst_release(odst);
 	}
-	
+
 	if ((*pskb)->dst->error)
 		return -1;
 
@@ -70,7 +70,7 @@ int ip_route_me_harder(struct sk_buff **pskb, unsigned addr_type)
 		struct sk_buff *nskb;
 
 		nskb = skb_realloc_headroom(*pskb, hh_len);
-		if (!nskb) 
+		if (!nskb)
 			return -1;
 		if ((*pskb)->sk)
 			skb_set_owner_w(nskb, (*pskb)->sk);
@@ -177,7 +177,7 @@ __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 			break;
 		if ((protocol == 0 && !csum_fold(skb->csum)) ||
 		    !csum_tcpudp_magic(iph->saddr, iph->daddr,
-			    	       skb->len - dataoff, protocol,
+				       skb->len - dataoff, protocol,
 				       skb->csum)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			break;

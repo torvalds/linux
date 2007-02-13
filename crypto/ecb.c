@@ -99,12 +99,13 @@ static int crypto_ecb_init_tfm(struct crypto_tfm *tfm)
 	struct crypto_instance *inst = (void *)tfm->__crt_alg;
 	struct crypto_spawn *spawn = crypto_instance_ctx(inst);
 	struct crypto_ecb_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct crypto_cipher *cipher;
 
-	tfm = crypto_spawn_tfm(spawn);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
+	cipher = crypto_spawn_cipher(spawn);
+	if (IS_ERR(cipher))
+		return PTR_ERR(cipher);
 
-	ctx->child = crypto_cipher_cast(tfm);
+	ctx->child = cipher;
 	return 0;
 }
 

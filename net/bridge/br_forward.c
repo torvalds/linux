@@ -21,7 +21,7 @@
 #include "br_private.h"
 
 /* Don't forward packets to originating port or forwarding diasabled */
-static inline int should_deliver(const struct net_bridge_port *p, 
+static inline int should_deliver(const struct net_bridge_port *p,
 				 const struct sk_buff *skb)
 {
 	return (skb->dev != p->dev && p->state == BR_STATE_FORWARDING);
@@ -101,7 +101,7 @@ void br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 
 /* called under bridge lock */
 static void br_flood(struct net_bridge *br, struct sk_buff *skb, int clone,
-	void (*__packet_hook)(const struct net_bridge_port *p, 
+	void (*__packet_hook)(const struct net_bridge_port *p,
 			      struct sk_buff *skb))
 {
 	struct net_bridge_port *p;

@@ -9,7 +9,7 @@
    Steve Hirsch, Andreas Koppenh"ofer, Michael Leodolter, Eyal Lebedinsky,
    Michael Schaefer, J"org Weule, and Eric Youngdale.
 
-   Copyright 1992 - 2006 Kai Makisara
+   Copyright 1992 - 2007 Kai Makisara
    email Kai.Makisara@kolumbus.fi
 
    Some small formal changes - aeb, 950809
@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static const char *verstr = "20061107";
+static const char *verstr = "20070203";
 
 #include <linux/module.h>
 
@@ -1168,6 +1168,7 @@ static int st_open(struct inode *inode, struct file *filp)
 		STps = &(STp->ps[i]);
 		STps->rw = ST_IDLE;
 	}
+	STp->try_dio_now = STp->try_dio;
 	STp->recover_count = 0;
 	DEB( STp->nbr_waits = STp->nbr_finished = 0;
 	     STp->nbr_requests = STp->nbr_dio = STp->nbr_pages = STp->nbr_combinable = 0; )
@@ -1400,9 +1401,9 @@ static int setup_buffering(struct scsi_tape *STp, const char __user *buf,
 	struct st_buffer *STbp = STp->buffer;
 
 	if (is_read)
-		i = STp->try_dio && try_rdio;
+		i = STp->try_dio_now && try_rdio;
 	else
-		i = STp->try_dio && try_wdio;
+		i = STp->try_dio_now && try_wdio;
 
 	if (i && ((unsigned long)buf & queue_dma_alignment(
 					STp->device->request_queue)) == 0) {
@@ -1599,7 +1600,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 			STm->do_async_writes && STps->eof < ST_EOM_OK;
 
 		if (STp->block_size != 0 && STm->do_buffer_writes &&
-		    !(STp->try_dio && try_wdio) && STps->eof < ST_EOM_OK &&
+		    !(STp->try_dio_now && try_wdio) && STps->eof < ST_EOM_OK &&
 		    STbp->buffer_bytes < STbp->buffer_size) {
 			STp->dirty = 1;
 			/* Don't write a buffer that is not full enough. */
@@ -1769,7 +1770,7 @@ static long read_tape(struct scsi_tape *STp, long count,
 	if (STp->block_size == 0)
 		blks = bytes = count;
 	else {
-		if (!(STp->try_dio && try_rdio) && STm->do_read_ahead) {
+		if (!(STp->try_dio_now && try_rdio) && STm->do_read_ahead) {
 			blks = (STp->buffer)->buffer_blocks;
 			bytes = blks * STp->block_size;
 		} else {
@@ -1948,10 +1949,12 @@ st_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 		goto out;
 
 	STm = &(STp->modes[STp->current_mode]);
-	if (!(STm->do_read_ahead) && STp->block_size != 0 &&
-	    (count % STp->block_size) != 0) {
-		retval = (-EINVAL);	/* Read must be integral number of blocks */
-		goto out;
+	if (STp->block_size != 0 && (count % STp->block_size) != 0) {
+		if (!STm->do_read_ahead) {
+			retval = (-EINVAL);	/* Read must be integral number of blocks */
+			goto out;
+		}
+		STp->try_dio_now = 0;  /* Direct i/o can't handle split blocks */
 	}
 
 	STps = &(STp->ps[STp->partition]);
@@ -3861,7 +3864,7 @@ __setup("st=", st_setup);
 
 #endif
 
-static struct file_operations st_fops =
+static const struct file_operations st_fops =
 {
 	.owner =	THIS_MODULE,
 	.read =		st_read,

@@ -9,8 +9,8 @@
 #define VLAN_ERR KERN_ERR
 #define VLAN_INF KERN_INFO
 #define VLAN_DBG KERN_ALERT /* change these... to debug, having a hard time
-                             * changing the log level at run-time..for some reason.
-                             */
+			     * changing the log level at run-time..for some reason.
+			     */
 
 /*
 
@@ -24,7 +24,7 @@ I'll bet they might prove useful again... --Ben
 */
 
 /* This way they don't do anything! */
-#define VLAN_MEM_DBG(x, y, z) 
+#define VLAN_MEM_DBG(x, y, z)
 #define VLAN_FMEM_DBG(x, y)
 
 
@@ -51,10 +51,10 @@ struct net_device *__find_vlan_dev(struct net_device* real_dev,
 /* found in vlan_dev.c */
 int vlan_dev_rebuild_header(struct sk_buff *skb);
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
-                  struct packet_type *ptype, struct net_device *orig_dev);
+		  struct packet_type *ptype, struct net_device *orig_dev);
 int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
-                         unsigned short type, void *daddr, void *saddr,
-                         unsigned len);
+			 unsigned short type, void *daddr, void *saddr,
+			 unsigned len);
 int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int vlan_dev_change_mtu(struct net_device *dev, int new_mtu);

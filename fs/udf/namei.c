@@ -1308,7 +1308,7 @@ end_rename:
 	return retval;
 }
 
-struct inode_operations udf_dir_inode_operations = {
+const struct inode_operations udf_dir_inode_operations = {
 	.lookup				= udf_lookup,
 	.create				= udf_create,
 	.link				= udf_link,

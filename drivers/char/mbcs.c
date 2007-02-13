@@ -46,7 +46,7 @@ LIST_HEAD(soft_list);
 /*
  * file operations
  */
-struct file_operations mbcs_ops = {
+const struct file_operations mbcs_ops = {
 	.open = mbcs_open,
 	.llseek = mbcs_sram_llseek,
 	.read = mbcs_sram_read,

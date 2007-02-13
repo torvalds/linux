@@ -101,16 +101,20 @@ The format of the block comment is like this:
 
 /**
  * function_name(:)? (- short description)?
-(* @parameterx: (description of parameter x)?)*
+(* @parameterx(space)*: (description of parameter x)?)*
 (* a blank line)?
  * (Description:)? (Description of function)?
  * (section header: (section description)? )*
 (*)?*/
 
-The short function description cannot be multiline, but the other
-descriptions can be (and they can contain blank lines). Avoid putting a
-spurious blank line after the function name, or else the description will
-be repeated!
+The short function description ***cannot be multiline***, but the other
+descriptions can be (and they can contain blank lines).  If you continue
+that initial short description onto a second line, that second line will
+appear further down at the beginning of the description section, which is
+almost certainly not what you had in mind.
+
+Avoid putting a spurious blank line after the function name, or else the
+description will be repeated!
 
 All descriptive text is further processed, scanning for the following special
 patterns, which are highlighted appropriately.
@@ -120,6 +124,31 @@ patterns, which are highlighted appropriately.
 '&struct_name' - name of a structure (up to two words including 'struct')
 '@parameter' - name of a parameter
 '%CONST' - name of a constant.
+
+NOTE 1:  The multi-line descriptive text you provide does *not* recognize
+line breaks, so if you try to format some text nicely, as in:
+
+  Return codes
+    0 - cool
+    1 - invalid arg
+    2 - out of memory
+
+this will all run together and produce:
+
+  Return codes 0 - cool 1 - invalid arg 2 - out of memory
+
+NOTE 2:  If the descriptive text you provide has lines that begin with
+some phrase followed by a colon, each of those phrases will be taken as
+a new section heading, which means you should similarly try to avoid text
+like:
+
+  Return codes:
+    0: cool
+    1: invalid arg
+    2: out of memory
+
+every line of which would start a new section.  Again, probably not
+what you were after.
 
 Take a look around the source tree for examples.
 

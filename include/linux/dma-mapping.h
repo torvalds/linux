@@ -66,6 +66,33 @@ dma_mark_declared_memory_occupied(struct device *dev,
 }
 #endif
 
+/*
+ * Managed DMA API
+ */
+extern void *dmam_alloc_coherent(struct device *dev, size_t size,
+				 dma_addr_t *dma_handle, gfp_t gfp);
+extern void dmam_free_coherent(struct device *dev, size_t size, void *vaddr,
+			       dma_addr_t dma_handle);
+extern void *dmam_alloc_noncoherent(struct device *dev, size_t size,
+				    dma_addr_t *dma_handle, gfp_t gfp);
+extern void dmam_free_noncoherent(struct device *dev, size_t size, void *vaddr,
+				  dma_addr_t dma_handle);
+#ifdef ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
+extern int dmam_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
+					dma_addr_t device_addr, size_t size,
+					int flags);
+extern void dmam_release_declared_memory(struct device *dev);
+#else /* ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY */
+static inline int dmam_declare_coherent_memory(struct device *dev,
+				dma_addr_t bus_addr, dma_addr_t device_addr,
+				size_t size, gfp_t gfp)
+{
+	return 0;
+}
+
+static inline void dmam_release_declared_memory(struct device *dev)
+{
+}
+#endif /* ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY */
+
 #endif
-
-

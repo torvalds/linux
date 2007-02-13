@@ -111,12 +111,14 @@ SECTIONS
   .init.data : AT(ADDR(.init.data) - LOAD_OFFSET)
 	{ *(.init.data) }
 
+#ifdef CONFIG_BLK_DEV_INITRD
   .init.ramfs : AT(ADDR(.init.ramfs) - LOAD_OFFSET)
 	{
 	  __initramfs_start = .;
 	  *(.init.ramfs)
 	  __initramfs_end = .;
 	}
+#endif
 
    . = ALIGN(16);
   .init.setup : AT(ADDR(.init.setup) - LOAD_OFFSET)

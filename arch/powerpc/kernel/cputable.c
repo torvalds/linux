@@ -44,7 +44,7 @@ extern void __setup_cpu_745x(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_ppc970(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_ppc970MP(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_pa6t(unsigned long offset, struct cpu_spec* spec);
-extern void __restore_cpu_pa6t(unsigned long offset, struct cpu_spec* spec);
+extern void __restore_cpu_pa6t(void);
 extern void __restore_cpu_ppc970(void);
 #endif /* CONFIG_PPC64 */
 

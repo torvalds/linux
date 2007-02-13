@@ -83,7 +83,7 @@
 
 
 struct ucb1400 {
-	ac97_t			*ac97;
+	struct snd_ac97		*ac97;
 	struct input_dev	*ts_idev;
 
 	int			irq;

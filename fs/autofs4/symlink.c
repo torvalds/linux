@@ -19,7 +19,7 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return NULL;
 }
 
-struct inode_operations autofs4_symlink_inode_operations = {
+const struct inode_operations autofs4_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= autofs4_follow_link
 };

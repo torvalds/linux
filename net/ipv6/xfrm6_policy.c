@@ -8,7 +8,7 @@
  * 		IPv6 support
  * 	YOSHIFUJI Hideaki
  * 		Split up af-specific portion
- * 
+ *
  */
 
 #include <linux/compiler.h>
@@ -131,13 +131,11 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 	struct dst_entry *dst, *dst_prev;
 	struct rt6_info *rt0 = (struct rt6_info*)(*dst_p);
 	struct rt6_info *rt  = rt0;
-	struct in6_addr *remote = &fl->fl6_dst;
-	struct in6_addr *local  = &fl->fl6_src;
 	struct flowi fl_tunnel = {
 		.nl_u = {
 			.ip6_u = {
-				.saddr = *local,
-				.daddr = *remote
+				.saddr = fl->fl6_src,
+				.daddr = fl->fl6_dst,
 			}
 		}
 	};
@@ -153,7 +151,6 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 	for (i = 0; i < nx; i++) {
 		struct dst_entry *dst1 = dst_alloc(&xfrm6_dst_ops);
 		struct xfrm_dst *xdst;
-		int tunnel = 0;
 
 		if (unlikely(dst1 == NULL)) {
 			err = -ENOBUFS;
@@ -177,19 +174,29 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 
 		dst1->next = dst_prev;
 		dst_prev = dst1;
-		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
-			remote = __xfrm6_bundle_addr_remote(xfrm[i], remote);
-			local  = __xfrm6_bundle_addr_local(xfrm[i], local);
-			tunnel = 1;
-		}
+
 		__xfrm6_bundle_len_inc(&header_len, &nfheader_len, xfrm[i]);
 		trailer_len += xfrm[i]->props.trailer_len;
 
-		if (tunnel) {
-			ipv6_addr_copy(&fl_tunnel.fl6_dst, remote);
-			ipv6_addr_copy(&fl_tunnel.fl6_src, local);
+		if (xfrm[i]->props.mode == XFRM_MODE_TUNNEL ||
+		    xfrm[i]->props.mode == XFRM_MODE_ROUTEOPTIMIZATION) {
+			unsigned short encap_family = xfrm[i]->props.family;
+			switch(encap_family) {
+			case AF_INET:
+				fl_tunnel.fl4_dst = xfrm[i]->id.daddr.a4;
+				fl_tunnel.fl4_src = xfrm[i]->props.saddr.a4;
+				break;
+			case AF_INET6:
+				ipv6_addr_copy(&fl_tunnel.fl6_dst, __xfrm6_bundle_addr_remote(xfrm[i], &fl->fl6_dst));
+
+				ipv6_addr_copy(&fl_tunnel.fl6_src, __xfrm6_bundle_addr_remote(xfrm[i], &fl->fl6_src));
+				break;
+			default:
+				BUG_ON(1);
+			}
+
 			err = xfrm_dst_lookup((struct xfrm_dst **) &rt,
-					      &fl_tunnel, AF_INET6);
+					      &fl_tunnel, encap_family);
 			if (err)
 				goto error;
 		} else
@@ -208,6 +215,7 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 	i = 0;
 	for (; dst_prev != &rt->u.dst; dst_prev = dst_prev->child) {
 		struct xfrm_dst *x = (struct xfrm_dst*)dst_prev;
+		struct xfrm_state_afinfo *afinfo;
 
 		dst_prev->xfrm = xfrm[i++];
 		dst_prev->dev = rt->u.dst.dev;
@@ -224,16 +232,26 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		/* Copy neighbour for reachability confirmation */
 		dst_prev->neighbour	= neigh_clone(rt->u.dst.neighbour);
 		dst_prev->input		= rt->u.dst.input;
-		dst_prev->output	= xfrm6_output;
+		/* XXX: When IPv4 is implemented as module and can be unloaded,
+		 * we should manage reference to xfrm4_output in afinfo->output.
+		 * Miyazawa
+		 */
+		afinfo = xfrm_state_get_afinfo(dst_prev->xfrm->props.family);
+		if (!afinfo) {
+			dst = *dst_p;
+			goto error;
+		};
+		dst_prev->output = afinfo->output;
+		xfrm_state_put_afinfo(afinfo);
 		/* Sheit... I remember I did this right. Apparently,
 		 * it was magically lost, so this code needs audit */
 		x->u.rt6.rt6i_flags    = rt0->rt6i_flags&(RTCF_BROADCAST|RTCF_MULTICAST|RTCF_LOCAL);
 		x->u.rt6.rt6i_metric   = rt0->rt6i_metric;
 		x->u.rt6.rt6i_node     = rt0->rt6i_node;
 		x->u.rt6.rt6i_gateway  = rt0->rt6i_gateway;
-		memcpy(&x->u.rt6.rt6i_gateway, &rt0->rt6i_gateway, sizeof(x->u.rt6.rt6i_gateway)); 
+		memcpy(&x->u.rt6.rt6i_gateway, &rt0->rt6i_gateway, sizeof(x->u.rt6.rt6i_gateway));
 		x->u.rt6.rt6i_dst      = rt0->rt6i_dst;
-		x->u.rt6.rt6i_src      = rt0->rt6i_src;	
+		x->u.rt6.rt6i_src      = rt0->rt6i_src;
 		x->u.rt6.rt6i_idev     = rt0->rt6i_idev;
 		in6_dev_hold(rt0->rt6i_idev);
 		__xfrm6_bundle_len_dec(&header_len, &nfheader_len, x->u.dst.xfrm);

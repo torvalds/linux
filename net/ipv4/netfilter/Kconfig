@@ -226,7 +226,7 @@ config IP_NF_QUEUE
 
 config IP_NF_IPTABLES
 	tristate "IP tables support (required for filtering/masq/NAT)"
-	depends on NETFILTER_XTABLES
+	select NETFILTER_XTABLES
 	help
 	  iptables is a general, extensible packet identification framework.
 	  The packet filtering and full NAT (masquerading, port forwarding,
@@ -358,32 +358,6 @@ config IP_NF_TARGET_ULOG
 
 	  The appropriate userspace logging daemon (ulogd) may be obtained from
 	  <http://www.gnumonks.org/projects/ulogd/>
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_TARGET_TCPMSS
-	tristate "TCPMSS target support"
-	depends on IP_NF_IPTABLES
-	---help---
-	  This option adds a `TCPMSS' target, which allows you to alter the
-	  MSS value of TCP SYN packets, to control the maximum size for that
-	  connection (usually limiting it to your outgoing interface's MTU
-	  minus 40).
-
-	  This is used to overcome criminally braindead ISPs or servers which
-	  block ICMP Fragmentation Needed packets.  The symptoms of this
-	  problem are that everything works fine from your Linux
-	  firewall/router, but machines behind it can never exchange large
-	  packets:
-	  	1) Web browsers connect, then hang with no data received.
-	  	2) Small mail works fine, but large emails hang.
-	  	3) ssh works fine, but scp hangs after initial handshaking.
-
-	  Workaround: activate this option and add a rule to your firewall
-	  configuration like:
-
-	  iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN \
-	  		 -j TCPMSS --clamp-mss-to-pmtu
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -632,7 +606,9 @@ config IP_NF_TARGET_TTL
 config IP_NF_TARGET_CLUSTERIP
 	tristate "CLUSTERIP target support (EXPERIMENTAL)"
 	depends on IP_NF_MANGLE && EXPERIMENTAL
-	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK_IPV4
+	select IP_NF_CONNTRACK_MARK if IP_NF_CONNTRACK
+	select NF_CONNTRACK_MARK if NF_CONNTRACK_IPV4
 	help
 	  The CLUSTERIP target allows you to build load-balancing clusters of
 	  network servers without having a dedicated load-balancing
@@ -655,7 +631,7 @@ config IP_NF_RAW
 # ARP tables
 config IP_NF_ARPTABLES
 	tristate "ARP tables support"
-	depends on NETFILTER_XTABLES
+	select NETFILTER_XTABLES
 	help
 	  arptables is a general, extensible packet identification framework.
 	  The ARP packet filtering and mangling (manipulation)subsystems

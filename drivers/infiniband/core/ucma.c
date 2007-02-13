@@ -833,7 +833,7 @@ static int ucma_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations ucma_fops = {
+static const struct file_operations ucma_fops = {
 	.owner 	 = THIS_MODULE,
 	.open 	 = ucma_open,
 	.release = ucma_close,

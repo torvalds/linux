@@ -76,6 +76,8 @@ source "sound/sparc/Kconfig"
 
 source "sound/parisc/Kconfig"
 
+source "sound/soc/Kconfig"
+
 endmenu
 
 menu "Open Sound System"

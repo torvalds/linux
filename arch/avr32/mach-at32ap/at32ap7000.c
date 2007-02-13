@@ -496,9 +496,16 @@ static struct resource pio3_resource[] = {
 DEFINE_DEV(pio, 3);
 DEV_CLK(mck, pio3, pba, 13);
 
+static struct resource pio4_resource[] = {
+	PBMEM(0xffe03800),
+	IRQ(17),
+};
+DEFINE_DEV(pio, 4);
+DEV_CLK(mck, pio4, pba, 14);
+
 void __init at32_add_system_devices(void)
 {
-	system_manager.eim_first_irq = NR_INTERNAL_IRQS;
+	system_manager.eim_first_irq = EIM_IRQ_BASE;
 
 	platform_device_register(&at32_sm_device);
 	platform_device_register(&at32_intc0_device);
@@ -509,6 +516,7 @@ void __init at32_add_system_devices(void)
 	platform_device_register(&pio1_device);
 	platform_device_register(&pio2_device);
 	platform_device_register(&pio3_device);
+	platform_device_register(&pio4_device);
 }
 
 /* --------------------------------------------------------------------
@@ -521,7 +529,7 @@ static struct atmel_uart_data atmel_usart0_data = {
 };
 static struct resource atmel_usart0_resource[] = {
 	PBMEM(0xffe00c00),
-	IRQ(7),
+	IRQ(6),
 };
 DEFINE_DEV_DATA(atmel_usart, 0);
 DEV_CLK(usart, atmel_usart0, pba, 4);
@@ -583,7 +591,7 @@ static inline void configure_usart3_pins(void)
 	select_peripheral(PB(17), PERIPH_B, 0);	/* TXD	*/
 }
 
-static struct platform_device *at32_usarts[4];
+static struct platform_device *__initdata at32_usarts[4];
 
 void __init at32_map_usart(unsigned int hw_id, unsigned int line)
 {
@@ -728,12 +736,19 @@ at32_add_device_eth(unsigned int id, struct eth_platform_data *data)
 /* --------------------------------------------------------------------
  *  SPI
  * -------------------------------------------------------------------- */
-static struct resource spi0_resource[] = {
+static struct resource atmel_spi0_resource[] = {
 	PBMEM(0xffe00000),
 	IRQ(3),
 };
-DEFINE_DEV(spi, 0);
-DEV_CLK(mck, spi0, pba, 0);
+DEFINE_DEV(atmel_spi, 0);
+DEV_CLK(spi_clk, atmel_spi0, pba, 0);
+
+static struct resource atmel_spi1_resource[] = {
+	PBMEM(0xffe00400),
+	IRQ(4),
+};
+DEFINE_DEV(atmel_spi, 1);
+DEV_CLK(spi_clk, atmel_spi1, pba, 1);
 
 struct platform_device *__init at32_add_device_spi(unsigned int id)
 {
@@ -741,13 +756,33 @@ struct platform_device *__init at32_add_device_spi(unsigned int id)
 
 	switch (id) {
 	case 0:
-		pdev = &spi0_device;
+		pdev = &atmel_spi0_device;
 		select_peripheral(PA(0),  PERIPH_A, 0);	/* MISO	 */
 		select_peripheral(PA(1),  PERIPH_A, 0);	/* MOSI	 */
 		select_peripheral(PA(2),  PERIPH_A, 0);	/* SCK	 */
-		select_peripheral(PA(3),  PERIPH_A, 0);	/* NPCS0 */
-		select_peripheral(PA(4),  PERIPH_A, 0);	/* NPCS1 */
-		select_peripheral(PA(5),  PERIPH_A, 0);	/* NPCS2 */
+
+		/* NPCS[2:0] */
+		at32_select_gpio(GPIO_PIN_PA(3),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		at32_select_gpio(GPIO_PIN_PA(4),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		at32_select_gpio(GPIO_PIN_PA(5),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		break;
+
+	case 1:
+		pdev = &atmel_spi1_device;
+		select_peripheral(PB(0),  PERIPH_B, 0);	/* MISO  */
+		select_peripheral(PB(1),  PERIPH_B, 0);	/* MOSI  */
+		select_peripheral(PB(5),  PERIPH_B, 0);	/* SCK   */
+
+		/* NPCS[2:0] */
+		at32_select_gpio(GPIO_PIN_PB(2),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		at32_select_gpio(GPIO_PIN_PB(3),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		at32_select_gpio(GPIO_PIN_PB(4),
+				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
 		break;
 
 	default:
@@ -860,6 +895,7 @@ struct clk *at32_clock_list[] = {
 	&pio1_mck,
 	&pio2_mck,
 	&pio3_mck,
+	&pio4_mck,
 	&atmel_usart0_usart,
 	&atmel_usart1_usart,
 	&atmel_usart2_usart,
@@ -868,7 +904,8 @@ struct clk *at32_clock_list[] = {
 	&macb0_pclk,
 	&macb1_hclk,
 	&macb1_pclk,
-	&spi0_mck,
+	&atmel_spi0_spi_clk,
+	&atmel_spi1_spi_clk,
 	&lcdc0_hclk,
 	&lcdc0_pixclk,
 };
@@ -880,6 +917,7 @@ void __init at32_portmux_init(void)
 	at32_init_pio(&pio1_device);
 	at32_init_pio(&pio2_device);
 	at32_init_pio(&pio3_device);
+	at32_init_pio(&pio4_device);
 }
 
 void __init at32_clock_init(void)

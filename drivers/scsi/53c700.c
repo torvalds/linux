@@ -667,12 +667,30 @@ NCR_700_chip_setup(struct Scsi_Host *host)
 	__u8 min_xferp = (hostdata->chip710 ? NCR_710_MIN_XFERP : NCR_700_MIN_XFERP);
 
 	if(hostdata->chip710) {
-		__u8 burst_disable = hostdata->burst_disable
-			? BURST_DISABLE : 0;
+		__u8 burst_disable = 0;
+		__u8 burst_length = 0;
+
+		switch (hostdata->burst_length) {
+			case 1:
+			        burst_length = BURST_LENGTH_1;
+			        break;
+			case 2:
+			        burst_length = BURST_LENGTH_2;
+			        break;
+			case 4:
+			        burst_length = BURST_LENGTH_4;
+			        break;
+			case 8:
+			        burst_length = BURST_LENGTH_8;
+			        break;
+			default:
+			        burst_disable = BURST_DISABLE;
+			        break;
+		}
 		dcntl_extra = COMPAT_700_MODE;
 
 		NCR_700_writeb(dcntl_extra, host, DCNTL_REG);
-		NCR_700_writeb(BURST_LENGTH_8  | hostdata->dmode_extra,
+		NCR_700_writeb(burst_length | hostdata->dmode_extra,
 			       host, DMODE_710_REG);
 		NCR_700_writeb(burst_disable | (hostdata->differential ? 
 						DIFF : 0), host, CTEST7_REG);

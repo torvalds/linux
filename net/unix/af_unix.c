@@ -195,7 +195,7 @@ static inline void unix_release_addr(struct unix_address *addr)
  *	        - if started by not zero, should be NULL terminated (FS object)
  *		- if started by zero, it is abstract name.
  */
- 
+
 static int unix_mkname(struct sockaddr_un * sunaddr, int len, unsigned *hashp)
 {
 	if (len <= sizeof(short) || len > sizeof(*sunaddr))
@@ -432,7 +432,7 @@ static int unix_release_sock (struct sock *sk, int embrion)
 	 */
 
 	if (atomic_read(&unix_tot_inflight))
-		unix_gc();		/* Garbage collect fds */	
+		unix_gc();		/* Garbage collect fds */
 
 	return 0;
 }
@@ -698,7 +698,7 @@ static struct sock *unix_find_other(struct sockaddr_un *sunname, int len,
 	struct sock *u;
 	struct nameidata nd;
 	int err = 0;
-	
+
 	if (sunname->sun_path[0]) {
 		err = path_lookup(sunname->sun_path, LOOKUP_FOLLOW, &nd);
 		if (err)
@@ -915,7 +915,7 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 		unix_peer(sk)=other;
 		unix_state_wunlock(sk);
 	}
- 	return 0;
+	return 0;
 
 out_unlock:
 	unix_state_wunlock(sk);
@@ -1021,7 +1021,7 @@ restart:
 			goto out;
 		sock_put(other);
 		goto restart;
-        }
+	}
 
 	/* Latch our state.
 
@@ -1415,7 +1415,7 @@ out:
 	return err;
 }
 
-		
+
 static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 			       struct msghdr *msg, size_t len)
 {
@@ -1467,11 +1467,11 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 		if (size > SKB_MAX_ALLOC)
 			size = SKB_MAX_ALLOC;
-			
+
 		/*
 		 *	Grab a buffer
 		 */
-		 
+
 		skb=sock_alloc_send_skb(sk,size,msg->msg_flags&MSG_DONTWAIT, &err);
 
 		if (skb==NULL)
@@ -1530,7 +1530,7 @@ static int unix_seqpacket_sendmsg(struct kiocb *kiocb, struct socket *sock,
 {
 	int err;
 	struct sock *sk = sock->sk;
-	
+
 	err = sock_error(sk);
 	if (err)
 		return err;
@@ -1543,7 +1543,7 @@ static int unix_seqpacket_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	return unix_dgram_sendmsg(kiocb, sock, msg, len);
 }
-                                                                                            
+
 static void unix_copy_addr(struct msghdr *msg, struct sock *sk)
 {
 	struct unix_sock *u = unix_sk(sk);
@@ -1605,7 +1605,7 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if (UNIXCB(skb).fp)
 			unix_detach_fds(siocb->scm, skb);
 	}
-	else 
+	else
 	{
 		/* It is questionable: on PEEK we could:
 		   - do not return fds - good, but too simple 8)
@@ -1613,11 +1613,11 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 		     apparently wrong)
 		   - clone fds (I chose it for now, it is the most universal
 		     solution)
-		
-	           POSIX 1003.1g does not actually define this clearly
-	           at all. POSIX 1003.1g doesn't define a lot of things
-	           clearly however!		     
-		   
+
+		   POSIX 1003.1g does not actually define this clearly
+		   at all. POSIX 1003.1g doesn't define a lot of things
+		   clearly however!
+
 		*/
 		if (UNIXCB(skb).fp)
 			siocb->scm->fp = scm_fp_dup(UNIXCB(skb).fp);
@@ -1637,7 +1637,7 @@ out:
 /*
  *	Sleep until data has arrive. But check for races..
  */
- 
+
 static long unix_stream_data_wait(struct sock * sk, long timeo)
 {
 	DEFINE_WAIT(wait);
@@ -1721,7 +1721,7 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 			/*
 			 *	POSIX 1003.1g mandates this order.
 			 */
-			 
+
 			if ((err = sock_error(sk)) != 0)
 				break;
 			if (sk->sk_shutdown & RCV_SHUTDOWN)
@@ -1937,7 +1937,7 @@ static struct sock *unix_seq_idx(int *iter, loff_t pos)
 	struct sock *s;
 
 	for (s = first_unix_socket(iter); s; s = next_unix_socket(iter, s)) {
-		if (off == pos) 
+		if (off == pos)
 			return s;
 		++off;
 	}
@@ -1955,7 +1955,7 @@ static void *unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
 
-	if (v == (void *)1) 
+	if (v == (void *)1)
 		return first_unix_socket(seq->private);
 	return next_unix_socket(seq->private, v);
 }
@@ -1967,7 +1967,7 @@ static void unix_seq_stop(struct seq_file *seq, void *v)
 
 static int unix_seq_show(struct seq_file *seq, void *v)
 {
-	
+
 	if (v == (void *)1)
 		seq_puts(seq, "Num       RefCount Protocol Flags    Type St "
 			 "Inode Path\n");
@@ -2040,7 +2040,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations unix_seq_fops = {
+static const struct file_operations unix_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open		= unix_seq_open,
 	.read		= seq_read,
@@ -2064,8 +2064,8 @@ static int __init af_unix_init(void)
 	BUILD_BUG_ON(sizeof(struct unix_skb_parms) > sizeof(dummy_skb->cb));
 
 	rc = proto_register(&unix_proto, 1);
-        if (rc != 0) {
-                printk(KERN_CRIT "%s: Cannot create unix_sock SLAB cache!\n",
+	if (rc != 0) {
+		printk(KERN_CRIT "%s: Cannot create unix_sock SLAB cache!\n",
 		       __FUNCTION__);
 		goto out;
 	}

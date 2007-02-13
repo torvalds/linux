@@ -51,6 +51,8 @@ struct spu_context {
 	struct address_space *cntl; 	   /* 'control' area mappings. */
 	struct address_space *signal1; 	   /* 'signal1' area mappings. */
 	struct address_space *signal2; 	   /* 'signal2' area mappings. */
+	struct address_space *mss; 	   /* 'mss' area mappings. */
+	struct address_space *psmap; 	   /* 'psmap' area mappings. */
 	u64 object_id;		   /* user space pointer for oprofile */
 
 	enum { SPU_STATE_RUNNABLE, SPU_STATE_SAVED } state;
@@ -149,7 +151,7 @@ long spufs_run_spu(struct file *file,
 		   struct spu_context *ctx, u32 *npc, u32 *status);
 long spufs_create(struct nameidata *nd,
 			 unsigned int flags, mode_t mode);
-extern struct file_operations spufs_context_fops;
+extern const struct file_operations spufs_context_fops;
 
 /* gang management */
 struct spu_gang *alloc_spu_gang(void);

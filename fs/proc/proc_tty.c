@@ -138,7 +138,7 @@ static int tty_drivers_open(struct inode *inode, struct file *file)
 	return seq_open(file, &tty_drivers_op);
 }
 
-static struct file_operations proc_tty_drivers_operations = {
+static const struct file_operations proc_tty_drivers_operations = {
 	.open		= tty_drivers_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

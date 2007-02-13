@@ -24,8 +24,6 @@
 #include <asm/uaccess.h>
 #include <asm/kdebug.h>
 
-extern spinlock_t timerlist_lock;
-
 fpswa_interface_t *fpswa_interface;
 EXPORT_SYMBOL(fpswa_interface);
 
@@ -51,34 +49,6 @@ trap_init (void)
 	if (ia64_boot_param->fpswa)
 		/* FPSWA fixup: make the interface pointer a kernel virtual address: */
 		fpswa_interface = __va(ia64_boot_param->fpswa);
-}
-
-/*
- * Unlock any spinlocks which will prevent us from getting the message out (timerlist_lock
- * is acquired through the console unblank code)
- */
-void
-bust_spinlocks (int yes)
-{
-	int loglevel_save = console_loglevel;
-
-	if (yes) {
-		oops_in_progress = 1;
-		return;
-	}
-
-#ifdef CONFIG_VT
-	unblank_screen();
-#endif
-	oops_in_progress = 0;
-	/*
-	 * OK, the message is on the console.  Now we call printk() without
-	 * oops_in_progress set so that printk will give klogd a poke.  Hold onto
-	 * your hats...
-	 */
-	console_loglevel = 15;		/* NMI oopser may have shut the console up */
-	printk(" ");
-	console_loglevel = loglevel_save;
 }
 
 void

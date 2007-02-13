@@ -285,7 +285,7 @@ int fsync_super(struct super_block *sb)
  */
 void generic_shutdown_super(struct super_block *sb)
 {
-	struct super_operations *sop = sb->s_op;
+	const struct super_operations *sop = sb->s_op;
 
 	if (sb->s_root) {
 		shrink_dcache_for_umount(sb);

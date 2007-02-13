@@ -284,7 +284,6 @@ SPI protocol drivers somewhat resemble platform device drivers:
 	static struct spi_driver CHIP_driver = {
 		.driver = {
 			.name		= "CHIP",
-			.bus		= &spi_bus_type,
 			.owner		= THIS_MODULE,
 		},
 
@@ -312,7 +311,7 @@ might look like this unless you're creating a class_device:
 		chip = kzalloc(sizeof *chip, GFP_KERNEL);
 		if (!chip)
 			return -ENOMEM;
-		dev_set_drvdata(&spi->dev, chip);
+		spi_set_drvdata(spi, chip);
 
 		... etc
 		return 0;

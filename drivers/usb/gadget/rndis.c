@@ -1419,7 +1419,6 @@ int __devinit rndis_init (void)
 			return -EIO;
 		}
 
-		rndis_connect_state [i]->nlink = 1;
 		rndis_connect_state [i]->write_proc = rndis_proc_write;
 		rndis_connect_state [i]->read_proc = rndis_proc_read;
 		rndis_connect_state [i]->data = (void *)

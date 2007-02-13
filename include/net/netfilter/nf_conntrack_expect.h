@@ -8,7 +8,7 @@
 
 extern struct list_head nf_conntrack_expect_list;
 extern struct kmem_cache *nf_conntrack_expect_cachep;
-extern struct file_operations exp_file_ops;
+extern const struct file_operations exp_file_ops;
 
 struct nf_conntrack_expect
 {

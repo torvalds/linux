@@ -17,10 +17,10 @@
 
 static struct input_dev *emumousebtn;
 static int emumousebtn_input_register(void);
-static int mouse_emulate_buttons = 0;
+static int mouse_emulate_buttons;
 static int mouse_button2_keycode = KEY_RIGHTCTRL;	/* right control key */
 static int mouse_button3_keycode = KEY_RIGHTALT;	/* right option key */
-static int mouse_last_keycode = 0;
+static int mouse_last_keycode;
 
 #if defined(CONFIG_SYSCTL)
 /* file(s) in /proc/sys/dev/mac_hid */

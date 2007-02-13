@@ -133,7 +133,7 @@ int oktagon_esp_detect(struct scsi_host_template *tpnt)
 		eregs = (struct ESP_regs *)(address + OKTAGON_ESP_ADDR);
 
 		/* This line was 5 lines lower */
-		esp = esp_allocate(tpnt, (void *)board+OKTAGON_ESP_ADDR);
+		esp = esp_allocate(tpnt, (void *)board + OKTAGON_ESP_ADDR, 0);
 
 		/* we have to shift the registers only one bit for oktagon */
 		esp->shift = 1;

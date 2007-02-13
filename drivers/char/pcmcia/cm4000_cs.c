@@ -946,8 +946,7 @@ release_io:
 
 return_with_timer:
 	DEBUGP(7, dev, "<- monitor_card (returns with timer)\n");
-	dev->timer.expires = jiffies + dev->mdelay;
-	add_timer(&dev->timer);
+	mod_timer(&dev->timer, jiffies + dev->mdelay);
 	clear_bit(LOCK_MONITOR, &dev->flags);
 }
 
@@ -1406,12 +1405,9 @@ static void start_monitor(struct cm4000_dev *dev)
 	DEBUGP(3, dev, "-> start_monitor\n");
 	if (!dev->monitor_running) {
 		DEBUGP(5, dev, "create, init and add timer\n");
-		init_timer(&dev->timer);
+		setup_timer(&dev->timer, monitor_card, (unsigned long)dev);
 		dev->monitor_running = 1;
-		dev->timer.expires = jiffies;
-		dev->timer.data = (unsigned long) dev;
-		dev->timer.function = monitor_card;
-		add_timer(&dev->timer);
+		mod_timer(&dev->timer, jiffies);
 	} else
 		DEBUGP(5, dev, "monitor already running\n");
 	DEBUGP(3, dev, "<- start_monitor\n");

@@ -1628,23 +1628,15 @@ __error:
 }
 
 
-struct nm256_quirk {
-	unsigned short vendor;
-	unsigned short device;
-	int type;
-};
-
 enum { NM_BLACKLISTED, NM_RESET_WORKAROUND, NM_RESET_WORKAROUND_2 };
 
-static struct nm256_quirk nm256_quirks[] __devinitdata = {
+static struct snd_pci_quirk nm256_quirks[] __devinitdata = {
 	/* HP omnibook 4150 has cs4232 codec internally */
-	{ .vendor = 0x103c, .device = 0x0007, .type = NM_BLACKLISTED },
-	/* Sony PCG-F305 */
-	{ .vendor = 0x104d, .device = 0x8041, .type = NM_RESET_WORKAROUND },
-	/* Dell Latitude LS */
-	{ .vendor = 0x1028, .device = 0x0080, .type = NM_RESET_WORKAROUND },
-	/* Dell Latitude CSx */
-	{ .vendor = 0x1028, .device = 0x0091, .type = NM_RESET_WORKAROUND_2 },
+	SND_PCI_QUIRK(0x103c, 0x0007, "HP omnibook 4150", NM_BLACKLISTED),
+	/* Reset workarounds to avoid lock-ups */
+	SND_PCI_QUIRK(0x104d, 0x8041, "Sony PCG-F305", NM_RESET_WORKAROUND),
+	SND_PCI_QUIRK(0x1028, 0x0080, "Dell Latitude LS", NM_RESET_WORKAROUND),
+	SND_PCI_QUIRK(0x1028, 0x0091, "Dell Latitude CSx", NM_RESET_WORKAROUND_2),
 	{ } /* terminator */
 };
 
@@ -1655,26 +1647,22 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 	struct snd_card *card;
 	struct nm256 *chip;
 	int err;
-	struct nm256_quirk *q;
-	u16 subsystem_vendor, subsystem_device;
+	const struct snd_pci_quirk *q;
 
-	pci_read_config_word(pci, PCI_SUBSYSTEM_VENDOR_ID, &subsystem_vendor);
-	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &subsystem_device);
-
-	for (q = nm256_quirks; q->vendor; q++) {
-		if (q->vendor == subsystem_vendor && q->device == subsystem_device) {
-			switch (q->type) {
-			case NM_BLACKLISTED:
-				printk(KERN_INFO "nm256: The device is blacklisted. "
-				       "Loading stopped\n");
-				return -ENODEV;
-			case NM_RESET_WORKAROUND_2:
-				reset_workaround_2 = 1;
-				/* Fall-through */
-			case NM_RESET_WORKAROUND:
-				reset_workaround = 1;
-				break;
-			}
+	q = snd_pci_quirk_lookup(pci, nm256_quirks);
+	if (q) {
+		snd_printdd(KERN_INFO "nm256: Enabled quirk for %s.\n", q->name);
+		switch (q->value) {
+		case NM_BLACKLISTED:
+			printk(KERN_INFO "nm256: The device is blacklisted. "
+			       "Loading stopped\n");
+			return -ENODEV;
+		case NM_RESET_WORKAROUND_2:
+			reset_workaround_2 = 1;
+			/* Fall-through */
+		case NM_RESET_WORKAROUND:
+			reset_workaround = 1;
+			break;
 		}
 	}
 

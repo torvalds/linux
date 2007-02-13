@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_UNISTD_H
 #define _ASM_M32R_UNISTD_H
 
-/* $Id$ */
-
 /*
  * This file contains the system call numbers.
  */

@@ -22,9 +22,6 @@
 #include "sdhci.h"
 
 #define DRIVER_NAME "sdhci"
-#define DRIVER_VERSION "0.12"
-
-#define BUGMAIL "<sdhci-devel@list.drzeus.cx>"
 
 #define DBG(f, x...) \
 	pr_debug(DRIVER_NAME " [%s()]: " f, __func__,## x)
@@ -154,8 +151,7 @@ static void sdhci_reset(struct sdhci_host *host, u8 mask)
 	/* hw clears the bit when it's done */
 	while (readb(host->ioaddr + SDHCI_SOFTWARE_RESET) & mask) {
 		if (timeout == 0) {
-			printk(KERN_ERR "%s: Reset 0x%x never completed. "
-				"Please report this to " BUGMAIL ".\n",
+			printk(KERN_ERR "%s: Reset 0x%x never completed.\n",
 				mmc_hostname(host->mmc), (int)mask);
 			sdhci_dumpregs(host);
 			return;
@@ -474,12 +470,11 @@ static void sdhci_finish_data(struct sdhci_host *host)
 
 	if ((data->error == MMC_ERR_NONE) && blocks) {
 		printk(KERN_ERR "%s: Controller signalled completion even "
-			"though there were blocks left. Please report this "
-			"to " BUGMAIL ".\n", mmc_hostname(host->mmc));
+			"though there were blocks left.\n",
+			mmc_hostname(host->mmc));
 		data->error = MMC_ERR_FAILED;
 	} else if (host->size != 0) {
-		printk(KERN_ERR "%s: %d bytes were left untransferred. "
-			"Please report this to " BUGMAIL ".\n",
+		printk(KERN_ERR "%s: %d bytes were left untransferred.\n",
 			mmc_hostname(host->mmc), host->size);
 		data->error = MMC_ERR_FAILED;
 	}
@@ -526,8 +521,7 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	while (readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask) {
 		if (timeout == 0) {
 			printk(KERN_ERR "%s: Controller never released "
-				"inhibit bit(s). Please report this to "
-				BUGMAIL ".\n", mmc_hostname(host->mmc));
+				"inhibit bit(s).\n", mmc_hostname(host->mmc));
 			sdhci_dumpregs(host);
 			cmd->error = MMC_ERR_FAILED;
 			tasklet_schedule(&host->finish_tasklet);
@@ -548,8 +542,7 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	sdhci_set_transfer_mode(host, cmd->data);
 
 	if ((cmd->flags & MMC_RSP_136) && (cmd->flags & MMC_RSP_BUSY)) {
-		printk(KERN_ERR "%s: Unsupported response type! "
-			"Please report this to " BUGMAIL ".\n",
+		printk(KERN_ERR "%s: Unsupported response type!\n",
 			mmc_hostname(host->mmc));
 		cmd->error = MMC_ERR_INVALID;
 		tasklet_schedule(&host->finish_tasklet);
@@ -647,9 +640,8 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	while (!((clk = readw(host->ioaddr + SDHCI_CLOCK_CONTROL))
 		& SDHCI_CLOCK_INT_STABLE)) {
 		if (timeout == 0) {
-			printk(KERN_ERR "%s: Internal clock never stabilised. "
-				"Please report this to " BUGMAIL ".\n",
-				mmc_hostname(host->mmc));
+			printk(KERN_ERR "%s: Internal clock never "
+				"stabilised.\n", mmc_hostname(host->mmc));
 			sdhci_dumpregs(host);
 			return;
 		}
@@ -899,9 +891,8 @@ static void sdhci_timeout_timer(unsigned long data)
 	spin_lock_irqsave(&host->lock, flags);
 
 	if (host->mrq) {
-		printk(KERN_ERR "%s: Timeout waiting for hardware interrupt. "
-			"Please report this to " BUGMAIL ".\n",
-			mmc_hostname(host->mmc));
+		printk(KERN_ERR "%s: Timeout waiting for hardware "
+			"interrupt.\n", mmc_hostname(host->mmc));
 		sdhci_dumpregs(host);
 
 		if (host->data) {
@@ -934,8 +925,6 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
 	if (!host->cmd) {
 		printk(KERN_ERR "%s: Got command interrupt even though no "
 			"command operation was in progress.\n",
-			mmc_hostname(host->mmc));
-		printk(KERN_ERR "%s: Please report this to " BUGMAIL ".\n",
 			mmc_hostname(host->mmc));
 		sdhci_dumpregs(host);
 		return;
@@ -971,8 +960,6 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 
 		printk(KERN_ERR "%s: Got data interrupt even though no "
 			"data operation was in progress.\n",
-			mmc_hostname(host->mmc));
-		printk(KERN_ERR "%s: Please report this to " BUGMAIL ".\n",
 			mmc_hostname(host->mmc));
 		sdhci_dumpregs(host);
 
@@ -1045,8 +1032,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 	intmask &= SDHCI_INT_BUS_POWER;
 
 	if (intmask) {
-		printk(KERN_ERR "%s: Unexpected interrupt 0x%08x. Please "
-			"report this to " BUGMAIL ".\n",
+		printk(KERN_ERR "%s: Unexpected interrupt 0x%08x.\n",
 			mmc_hostname(host->mmc), intmask);
 		sdhci_dumpregs(host);
 
@@ -1528,8 +1514,7 @@ static struct pci_driver sdhci_driver = {
 static int __init sdhci_drv_init(void)
 {
 	printk(KERN_INFO DRIVER_NAME
-		": Secure Digital Host Controller Interface driver, "
-		DRIVER_VERSION "\n");
+		": Secure Digital Host Controller Interface driver\n");
 	printk(KERN_INFO DRIVER_NAME ": Copyright(c) Pierre Ossman\n");
 
 	return pci_register_driver(&sdhci_driver);
@@ -1551,7 +1536,6 @@ module_param(debug_quirks, uint, 0444);
 
 MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Secure Digital Host Controller Interface driver");
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
 MODULE_PARM_DESC(debug_nodma, "Forcefully disable DMA transfers. (default 0)");

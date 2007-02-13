@@ -986,7 +986,7 @@ static unsigned int pvr2_v4l2_poll(struct file *file, poll_table *wait)
 }
 
 
-static struct file_operations vdev_fops = {
+static const struct file_operations vdev_fops = {
 	.owner      = THIS_MODULE,
 	.open       = pvr2_v4l2_open,
 	.release    = pvr2_v4l2_release,

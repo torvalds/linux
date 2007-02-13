@@ -334,14 +334,14 @@ static struct ata_port_operations via_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static struct ata_port_operations via_port_ops_noirq = {
@@ -369,14 +369,14 @@ static struct ata_port_operations via_port_ops_noirq = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer_noirq,
+	.data_xfer	= ata_data_xfer_noirq,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /**
@@ -391,11 +391,11 @@ static struct ata_port_operations via_port_ops_noirq = {
 static void via_config_fifo(struct pci_dev *pdev, unsigned int flags)
 {
 	u8 enable;
-	
+
 	/* 0x40 low bits indicate enabled channels */
 	pci_read_config_byte(pdev, 0x40 , &enable);
 	enable &= 3;
-	
+
 	if (flags & VIA_SET_FIFO) {
 		static const u8 fifo_setting[4] = {0x00, 0x60, 0x00, 0x20};
 		u8 fifo;
@@ -516,7 +516,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Initialise the FIFO for the enabled channels. */
 	via_config_fifo(pdev, config->flags);
-	
+
 	/* Clock set up */
 	switch(config->flags & VIA_UDMA) {
 		case VIA_UDMA_NONE:
@@ -575,7 +575,7 @@ static int via_reinit_one(struct pci_dev *pdev)
 	u32 timing;
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 	const struct via_isa_bridge *config = host->private_data;
-	
+
 	via_config_fifo(pdev, config->flags);
 
 	if ((config->flags & VIA_UDMA) == VIA_UDMA_66) {
@@ -590,7 +590,7 @@ static int via_reinit_one(struct pci_dev *pdev)
 		timing &= ~0x80008;
 		pci_write_config_dword(pdev, 0x50, timing);
 	}
-	return ata_pci_device_resume(pdev);	
+	return ata_pci_device_resume(pdev);
 }
 
 static const struct pci_device_id via[] = {

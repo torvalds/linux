@@ -2147,7 +2147,7 @@ out:
 }
 
 static struct cdev dv1394_cdev;
-static struct file_operations dv1394_fops=
+static const struct file_operations dv1394_fops=
 {
 	.owner =	THIS_MODULE,
 	.poll =         dv1394_poll,
@@ -2255,49 +2255,37 @@ static int dv1394_init(struct ti_ohci *ohci, enum pal_or_ntsc format, enum modes
 	return 0;
 }
 
-static void dv1394_un_init(struct video_card *video)
+static void dv1394_remove_host(struct hpsb_host *host)
 {
-	/* obviously nobody has the driver open at this point */
-	do_dv1394_shutdown(video, 1);
-	kfree(video);
-}
-
-
-static void dv1394_remove_host (struct hpsb_host *host)
-{
-	struct video_card *video;
+	struct video_card *video, *tmp_video;
 	unsigned long flags;
-	int id = host->id;
+	int found_ohci_card = 0;
 
-	/* We only work with the OHCI-1394 driver */
-	if (strcmp(host->driver->name, OHCI1394_DRIVER_NAME))
-		return;
-
-	/* find the corresponding video_cards */
 	do {
-		struct video_card *tmp_vid;
-
 		video = NULL;
-
 		spin_lock_irqsave(&dv1394_cards_lock, flags);
-		list_for_each_entry(tmp_vid, &dv1394_cards, list) {
-			if ((tmp_vid->id >> 2) == id) {
-				list_del(&tmp_vid->list);
-				video = tmp_vid;
+		list_for_each_entry(tmp_video, &dv1394_cards, list) {
+			if ((tmp_video->id >> 2) == host->id) {
+				list_del(&tmp_video->list);
+				video = tmp_video;
+				found_ohci_card = 1;
 				break;
 			}
 		}
 		spin_unlock_irqrestore(&dv1394_cards_lock, flags);
 
-		if (video)
-			dv1394_un_init(video);
-	} while (video != NULL);
+		if (video) {
+			do_dv1394_shutdown(video, 1);
+			kfree(video);
+		}
+	} while (video);
 
-	class_device_destroy(hpsb_protocol_class,
-		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)));
+	if (found_ohci_card)
+		class_device_destroy(hpsb_protocol_class, MKDEV(IEEE1394_MAJOR,
+			   IEEE1394_MINOR_BLOCK_DV1394 * 16 + (host->id << 2)));
 }
 
-static void dv1394_add_host (struct hpsb_host *host)
+static void dv1394_add_host(struct hpsb_host *host)
 {
 	struct ti_ohci *ohci;
 	int id = host->id;

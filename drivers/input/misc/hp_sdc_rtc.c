@@ -670,7 +670,7 @@ static int hp_sdc_rtc_ioctl(struct inode *inode, struct file *file,
 #endif
 }
 
-static struct file_operations hp_sdc_rtc_fops = {
+static const struct file_operations hp_sdc_rtc_fops = {
         .owner =	THIS_MODULE,
         .llseek =	no_llseek,
         .read =		hp_sdc_rtc_read,

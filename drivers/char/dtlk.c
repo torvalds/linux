@@ -72,6 +72,7 @@
 #define TRACE_RET ((void) 0)
 #endif				/* TRACING */
 
+static void dtlk_timer_tick(unsigned long data);
 
 static int dtlk_major;
 static int dtlk_port_lpc;
@@ -81,7 +82,7 @@ static int dtlk_has_indexing;
 static unsigned int dtlk_portlist[] =
 {0x25e, 0x29e, 0x2de, 0x31e, 0x35e, 0x39e, 0};
 static wait_queue_head_t dtlk_process_list;
-static struct timer_list dtlk_timer;
+static DEFINE_TIMER(dtlk_timer, dtlk_timer_tick, 0, 0);
 
 /* prototypes for file_operations struct */
 static ssize_t dtlk_read(struct file *, char __user *,
@@ -117,7 +118,6 @@ static char dtlk_write_tts(char);
 /*
    static void dtlk_handle_error(char, char, unsigned int);
  */
-static void dtlk_timer_tick(unsigned long data);
 
 static ssize_t dtlk_read(struct file *file, char __user *buf,
 			 size_t count, loff_t * ppos)
@@ -318,7 +318,7 @@ static int dtlk_release(struct inode *inode, struct file *file)
 	}
 	TRACE_RET;
 	
-	del_timer(&dtlk_timer);
+	del_timer_sync(&dtlk_timer);
 
 	return 0;
 }
@@ -336,8 +336,6 @@ static int __init dtlk_init(void)
 	if (dtlk_dev_probe() == 0)
 		printk(", MAJOR %d\n", dtlk_major);
 
-	init_timer(&dtlk_timer);
-	dtlk_timer.function = dtlk_timer_tick;
 	init_waitqueue_head(&dtlk_process_list);
 
 	return 0;

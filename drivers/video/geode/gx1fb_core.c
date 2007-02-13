@@ -401,6 +401,30 @@ static void gx1fb_remove(struct pci_dev *pdev)
 	framebuffer_release(info);
 }
 
+#ifndef MODULE
+static void __init gx1fb_setup(char *options)
+{
+	char *this_opt;
+
+	if (!options || !*options)
+		return;
+
+	while ((this_opt = strsep(&options, ","))) {
+		if (!*this_opt)
+			continue;
+
+		if (!strncmp(this_opt, "mode:", 5))
+			strlcpy(mode_option, this_opt + 5, sizeof(mode_option));
+		else if (!strncmp(this_opt, "crt:", 4))
+			crt_option = !!simple_strtoul(this_opt + 4, NULL, 0);
+		else if (!strncmp(this_opt, "panel:", 6))
+			strlcpy(panel_option, this_opt + 6, sizeof(panel_option));
+		else
+			strlcpy(mode_option, this_opt, sizeof(mode_option));
+	}
+}
+#endif
+
 static struct pci_device_id gx1fb_id_table[] = {
 	{ PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_VIDEO,
 	  PCI_ANY_ID, PCI_ANY_ID, PCI_BASE_CLASS_DISPLAY << 16,
@@ -420,8 +444,11 @@ static struct pci_driver gx1fb_driver = {
 static int __init gx1fb_init(void)
 {
 #ifndef MODULE
-	if (fb_get_options("gx1fb", NULL))
+	char *option = NULL;
+
+	if (fb_get_options("gx1fb", &option))
 		return -ENODEV;
+	gx1fb_setup(option);
 #endif
 	return pci_register_driver(&gx1fb_driver);
 }

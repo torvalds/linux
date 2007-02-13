@@ -1,10 +1,6 @@
 #ifndef __ARCH_M32R_IOCTLS_H__
 #define __ARCH_M32R_IOCTLS_H__
 
-/* $Id$ */
-
-/* orig : i386 2.5.67 */
-
 #include <asm/ioctl.h>
 
 /* 0x54 is just a magic number to make these relatively unique ('T') */
@@ -85,4 +81,3 @@
 #define TIOCSER_TEMT    0x01	/* Transmitter physically empty */
 
 #endif /* __ARCH_M32R_IOCTLS_H__ */
-

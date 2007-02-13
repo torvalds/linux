@@ -308,7 +308,7 @@ static int dbg_tps_open(struct inode *inode, struct file *file)
 	return single_open(file, dbg_show, inode->i_private);
 }
 
-static struct file_operations debug_fops = {
+static const struct file_operations debug_fops = {
 	.open		= dbg_tps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

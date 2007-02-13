@@ -45,7 +45,7 @@
 
 /******************************************************************************
     (c) 1995-1998 E.M. Serrat		emserrat@geocities.com
-    
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -63,7 +63,7 @@ Version           Kernel     Date       Author/Comments
 Version 0.0.1     2.0.30    01-dic-97	Eduardo Marcelo Serrat
 					(emserrat@geocities.com)
 
-                                        First Development of DECnet Socket La-
+					First Development of DECnet Socket La-
 					yer for Linux. Only supports outgoing
 					connections.
 
@@ -75,28 +75,28 @@ Version 0.0.2	  2.1.105   20-jun-98   Patrick J. Caulfield
 Version 0.0.3     2.1.106   25-jun-98   Eduardo Marcelo Serrat
 					(emserrat@geocities.com)
 					_
-                                        Added support for incoming connections
-                                        so we can start developing server apps
-                                        on Linux.
+					Added support for incoming connections
+					so we can start developing server apps
+					on Linux.
 					-
 					Module Support
 Version 0.0.4     2.1.109   21-jul-98   Eduardo Marcelo Serrat
-                                       (emserrat@geocities.com)
-                                       _
-                                        Added support for X11R6.4. Now we can 
-                                        use DECnet transport for X on Linux!!!
-                                       -
+				       (emserrat@geocities.com)
+				       _
+					Added support for X11R6.4. Now we can
+					use DECnet transport for X on Linux!!!
+				       -
 Version 0.0.5    2.1.110   01-aug-98   Eduardo Marcelo Serrat
-                                       (emserrat@geocities.com)
-                                       Removed bugs on flow control
-                                       Removed bugs on incoming accessdata
-                                       order
-                                       -
+				       (emserrat@geocities.com)
+				       Removed bugs on flow control
+				       Removed bugs on incoming accessdata
+				       order
+				       -
 Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
-                                       dn_recvmsg fixes
+				       dn_recvmsg fixes
 
-                                        Patrick J. Caulfield
-                                       dn_bind fixes
+					Patrick J. Caulfield
+				       dn_bind fixes
 *******************************************************************************/
 
 #include <linux/module.h>
@@ -169,7 +169,7 @@ static struct hlist_head *dn_find_list(struct sock *sk)
 	return &dn_sk_hash[dn_ntohs(scp->addrloc) & DN_SK_HASH_MASK];
 }
 
-/* 
+/*
  * Valid ports are those greater than zero and not already in use.
  */
 static int check_port(__le16 port)
@@ -218,7 +218,7 @@ static int dn_hash_sock(struct sock *sk)
 	BUG_ON(sk_hashed(sk));
 
 	write_lock_bh(&dn_hash_lock);
-	
+
 	if (!scp->addrloc && !port_alloc(sk))
 		goto out;
 
@@ -400,7 +400,7 @@ struct sock *dn_sklist_find_listener(struct sockaddr_dn *addr)
 
 	sk = sk_head(&dn_wild_sk);
 	if (sk) {
-	       	if (sk->sk_state == TCP_LISTEN)
+		if (sk->sk_state == TCP_LISTEN)
 			sock_hold(sk);
 		else
 			sk = NULL;
@@ -500,7 +500,7 @@ static struct sock *dn_alloc_sock(struct socket *sock, gfp_t gfp)
 	scp->ackxmt_oth = 0;		/* Last oth data ack'ed */
 	scp->ackrcv_dat = 0;		/* Highest data ack recv*/
 	scp->ackrcv_oth = 0;		/* Last oth data ack rec*/
-        scp->flowrem_sw = DN_SEND;
+	scp->flowrem_sw = DN_SEND;
 	scp->flowloc_sw = DN_SEND;
 	scp->flowrem_dat = 0;
 	scp->flowrem_oth = 1;
@@ -690,7 +690,7 @@ static int dn_create(struct socket *sock, int protocol)
 	}
 
 
-	if ((sk = dn_alloc_sock(sock, GFP_KERNEL)) == NULL) 
+	if ((sk = dn_alloc_sock(sock, GFP_KERNEL)) == NULL)
 		return -ENOBUFS;
 
 	sk->sk_protocol = protocol;
@@ -713,7 +713,7 @@ dn_release(struct socket *sock)
 		sock_put(sk);
 	}
 
-        return 0;
+	return 0;
 }
 
 static int dn_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
@@ -770,7 +770,7 @@ static int dn_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	}
 	release_sock(sk);
 
-        return rv;
+	return rv;
 }
 
 
@@ -791,7 +791,7 @@ static int dn_auto_bind(struct socket *sock)
 	 */
 	if ((scp->accessdata.acc_accl != 0) &&
 		(scp->accessdata.acc_accl <= 12)) {
-	
+
 		scp->addr.sdn_objnamel = dn_htons(scp->accessdata.acc_accl);
 		memcpy(scp->addr.sdn_objname, scp->accessdata.acc_acc, dn_ntohs(scp->addr.sdn_objnamel));
 
@@ -997,20 +997,20 @@ static inline int dn_check_state(struct sock *sk, struct sockaddr_dn *addr, int 
 
 static void dn_access_copy(struct sk_buff *skb, struct accessdata_dn *acc)
 {
-        unsigned char *ptr = skb->data;
+	unsigned char *ptr = skb->data;
 
-        acc->acc_userl = *ptr++;
-        memcpy(&acc->acc_user, ptr, acc->acc_userl);
-        ptr += acc->acc_userl;
+	acc->acc_userl = *ptr++;
+	memcpy(&acc->acc_user, ptr, acc->acc_userl);
+	ptr += acc->acc_userl;
 
-        acc->acc_passl = *ptr++;
-        memcpy(&acc->acc_pass, ptr, acc->acc_passl);
-        ptr += acc->acc_passl;
+	acc->acc_passl = *ptr++;
+	memcpy(&acc->acc_pass, ptr, acc->acc_passl);
+	ptr += acc->acc_passl;
 
-        acc->acc_accl = *ptr++;
-        memcpy(&acc->acc_acc, ptr, acc->acc_accl);
+	acc->acc_accl = *ptr++;
+	memcpy(&acc->acc_acc, ptr, acc->acc_accl);
 
-        skb_pull(skb, acc->acc_accl + acc->acc_passl + acc->acc_userl + 3);
+	skb_pull(skb, acc->acc_accl + acc->acc_passl + acc->acc_userl + 3);
 
 }
 
@@ -1071,7 +1071,7 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	lock_sock(sk);
 
-        if (sk->sk_state != TCP_LISTEN || DN_SK(sk)->state != DN_O) {
+	if (sk->sk_state != TCP_LISTEN || DN_SK(sk)->state != DN_O) {
 		release_sock(sk);
 		return -EINVAL;
 	}
@@ -1098,13 +1098,13 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
 	dst_release(xchg(&newsk->sk_dst_cache, skb->dst));
 	skb->dst = NULL;
 
-        DN_SK(newsk)->state        = DN_CR;
+	DN_SK(newsk)->state        = DN_CR;
 	DN_SK(newsk)->addrrem      = cb->src_port;
 	DN_SK(newsk)->services_rem = cb->services;
 	DN_SK(newsk)->info_rem     = cb->info;
 	DN_SK(newsk)->segsize_rem  = cb->segsize;
 	DN_SK(newsk)->accept_mode  = DN_SK(sk)->accept_mode;
-	
+
 	if (DN_SK(newsk)->segsize_rem < 230)
 		DN_SK(newsk)->segsize_rem = 230;
 
@@ -1154,15 +1154,15 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
 		dn_send_conn_ack(newsk);
 
 		/*
-	 	 * Here we use sk->sk_allocation since although the conn conf is
-	 	 * for the newsk, the context is the old socket.
-	 	 */
+		 * Here we use sk->sk_allocation since although the conn conf is
+		 * for the newsk, the context is the old socket.
+		 */
 		if (DN_SK(newsk)->accept_mode == ACC_IMMED)
 			err = dn_confirm_accept(newsk, &timeo,
 						sk->sk_allocation);
 	}
 	release_sock(newsk);
-        return err;
+	return err;
 }
 
 
@@ -1177,10 +1177,10 @@ static int dn_getname(struct socket *sock, struct sockaddr *uaddr,int *uaddr_len
 	lock_sock(sk);
 
 	if (peer) {
-		if ((sock->state != SS_CONNECTED && 
-		     sock->state != SS_CONNECTING) && 
+		if ((sock->state != SS_CONNECTED &&
+		     sock->state != SS_CONNECTING) &&
 		    scp->accept_mode == ACC_IMMED) {
-		    	release_sock(sk);
+			release_sock(sk);
 			return -ENOTCONN;
 		}
 
@@ -1191,7 +1191,7 @@ static int dn_getname(struct socket *sock, struct sockaddr *uaddr,int *uaddr_len
 
 	release_sock(sk);
 
-        return 0;
+	return 0;
 }
 
 
@@ -1285,7 +1285,7 @@ static int dn_listen(struct socket *sock, int backlog)
 out:
 	release_sock(sk);
 
-        return err;
+	return err;
 }
 
 
@@ -1333,7 +1333,7 @@ static int dn_setsockopt(struct socket *sock, int level, int optname, char __use
 	return err;
 }
 
-static int __dn_setsockopt(struct socket *sock, int level,int optname, char __user *optval, int optlen, int flags) 
+static int __dn_setsockopt(struct socket *sock, int level,int optname, char __user *optval, int optlen, int flags)
 {
 	struct	sock *sk = sock->sk;
 	struct dn_scp *scp = DN_SK(sk);
@@ -1360,7 +1360,7 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 
 	switch(optname) {
 		case DSO_CONDATA:
-			if (sock->state == SS_CONNECTED) 
+			if (sock->state == SS_CONNECTED)
 				return -EISCONN;
 			if ((scp->state != DN_O) && (scp->state != DN_CR))
 				return -EINVAL;
@@ -1375,7 +1375,7 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 			break;
 
 		case DSO_DISDATA:
-	   	        if (sock->state != SS_CONNECTED && scp->accept_mode == ACC_IMMED)
+			if (sock->state != SS_CONNECTED && scp->accept_mode == ACC_IMMED)
 				return -ENOTCONN;
 
 			if (optlen != sizeof(struct optdata_dn))
@@ -1388,7 +1388,7 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 			break;
 
 		case DSO_CONACCESS:
-			if (sock->state == SS_CONNECTED) 
+			if (sock->state == SS_CONNECTED)
 				return -EISCONN;
 			if (scp->state != DN_O)
 				return -EINVAL;
@@ -1521,7 +1521,7 @@ static int __dn_getsockopt(struct socket *sock, int level,int optname, char __us
 
 	if(get_user(r_len , optlen))
 		return -EFAULT;
-		
+
 	switch(optname) {
 		case DSO_CONDATA:
 			if (r_len > sizeof(struct optdata_dn))
@@ -1573,11 +1573,11 @@ static int __dn_getsockopt(struct socket *sock, int level,int optname, char __us
 #ifdef CONFIG_NETFILTER
 		{
 			int val, len;
-			
+
 			if(get_user(len, optlen))
 				return -EFAULT;
-			
-			val = nf_getsockopt(sk, PF_DECnet, optname, 
+
+			val = nf_getsockopt(sk, PF_DECnet, optname,
 							optval, &len);
 			if (val >= 0)
 				val = put_user(len, optlen);
@@ -1588,7 +1588,7 @@ static int __dn_getsockopt(struct socket *sock, int level,int optname, char __us
 		case DSO_SEQPACKET:
 		case DSO_CONACCEPT:
 		case DSO_CONREJECT:
-        		return -ENOPROTOOPT;
+			return -ENOPROTOOPT;
 
 		case DSO_MAXWINDOW:
 			if (r_len > sizeof(unsigned long))
@@ -1724,7 +1724,7 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 				}
 			}
 		}
-		
+
 		if (scp->state != DN_RUN)
 			goto out;
 
@@ -1773,7 +1773,7 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if (skb->len == 0) {
 			skb_unlink(skb, queue);
 			kfree_skb(skb);
-			/* 
+			/*
 			 * N.B. Don't refer to skb or cb after this point
 			 * in loop.
 			 */
@@ -1783,7 +1783,7 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 			}
 		}
 
-		if (eor) { 
+		if (eor) {
 			if (sk->sk_type == SOCK_SEQPACKET)
 				break;
 			if (!(flags & MSG_WAITALL))
@@ -1884,7 +1884,7 @@ static inline unsigned int dn_current_mss(struct sock *sk, int flags)
 	return mss_now;
 }
 
-/* 
+/*
  * N.B. We get the timeout wrong here, but then we always did get it
  * wrong before and this is another step along the road to correcting
  * it. It ought to get updated each time we pass through the routine,
@@ -2044,7 +2044,7 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 				cb->nsp_flags |= 0x20;
 
 			scp->seg_total += len;
-		
+
 			if (((sent + len) == size) && (flags & MSG_EOR)) {
 				cb->nsp_flags |= 0x40;
 				scp->seg_total = 0;
@@ -2202,7 +2202,7 @@ static void dn_socket_seq_stop(struct seq_file *seq, void *v)
 static void dn_printable_object(struct sockaddr_dn *dn, unsigned char *buf)
 {
 	int i;
-    
+
 	switch (dn_ntohs(dn->sdn_objnamel)) {
 		case 0:
 			sprintf(buf, "%d", dn->sdn_objnum);
@@ -2214,7 +2214,7 @@ static void dn_printable_object(struct sockaddr_dn *dn, unsigned char *buf)
 					buf[i] = '.';
 			}
 			buf[i] = 0;
-    	}
+	}
 }
 
 static char *dn_state2asc(unsigned char state)
@@ -2331,7 +2331,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations dn_socket_seq_fops = {
+static const struct file_operations dn_socket_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open		= dn_socket_seq_open,
 	.read		= seq_read,
@@ -2381,7 +2381,7 @@ static int __init decnet_init(void)
 {
 	int rc;
 
-        printk(banner);
+	printk(banner);
 
 	rc = proto_register(&dn_proto, 1);
 	if (rc != 0)

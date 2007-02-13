@@ -24,7 +24,7 @@
 #include "xfs_mount.h"
 #include "xfs_export.h"
 
-STATIC struct dentry dotdot = { .d_name.name = "..", .d_name.len = 2, };
+static struct dentry dotdot = { .d_name.name = "..", .d_name.len = 2, };
 
 /*
  * XFS encodes and decodes the fileid portion of NFS filehandles

@@ -744,6 +744,104 @@ int pci_enable_device(struct pci_dev *dev)
 	return pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
 }
 
+/*
+ * Managed PCI resources.  This manages device on/off, intx/msi/msix
+ * on/off and BAR regions.  pci_dev itself records msi/msix status, so
+ * there's no need to track it separately.  pci_devres is initialized
+ * when a device is enabled using managed PCI device enable interface.
+ */
+struct pci_devres {
+	unsigned int disable:1;
+	unsigned int orig_intx:1;
+	unsigned int restore_intx:1;
+	u32 region_mask;
+};
+
+static void pcim_release(struct device *gendev, void *res)
+{
+	struct pci_dev *dev = container_of(gendev, struct pci_dev, dev);
+	struct pci_devres *this = res;
+	int i;
+
+	if (dev->msi_enabled)
+		pci_disable_msi(dev);
+	if (dev->msix_enabled)
+		pci_disable_msix(dev);
+
+	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++)
+		if (this->region_mask & (1 << i))
+			pci_release_region(dev, i);
+
+	if (this->restore_intx)
+		pci_intx(dev, this->orig_intx);
+
+	if (this->disable)
+		pci_disable_device(dev);
+}
+
+static struct pci_devres * get_pci_dr(struct pci_dev *pdev)
+{
+	struct pci_devres *dr, *new_dr;
+
+	dr = devres_find(&pdev->dev, pcim_release, NULL, NULL);
+	if (dr)
+		return dr;
+
+	new_dr = devres_alloc(pcim_release, sizeof(*new_dr), GFP_KERNEL);
+	if (!new_dr)
+		return NULL;
+	return devres_get(&pdev->dev, new_dr, NULL, NULL);
+}
+
+static struct pci_devres * find_pci_dr(struct pci_dev *pdev)
+{
+	if (pci_is_managed(pdev))
+		return devres_find(&pdev->dev, pcim_release, NULL, NULL);
+	return NULL;
+}
+
+/**
+ * pcim_enable_device - Managed pci_enable_device()
+ * @pdev: PCI device to be initialized
+ *
+ * Managed pci_enable_device().
+ */
+int pcim_enable_device(struct pci_dev *pdev)
+{
+	struct pci_devres *dr;
+	int rc;
+
+	dr = get_pci_dr(pdev);
+	if (unlikely(!dr))
+		return -ENOMEM;
+	WARN_ON(!!dr->disable);
+
+	rc = pci_enable_device(pdev);
+	if (!rc) {
+		pdev->is_managed = 1;
+		dr->disable = 1;
+	}
+	return rc;
+}
+
+/**
+ * pcim_pin_device - Pin managed PCI device
+ * @pdev: PCI device to pin
+ *
+ * Pin managed PCI device @pdev.  Pinned device won't be disabled on
+ * driver detach.  @pdev must have been enabled with
+ * pcim_enable_device().
+ */
+void pcim_pin_device(struct pci_dev *pdev)
+{
+	struct pci_devres *dr;
+
+	dr = find_pci_dr(pdev);
+	WARN_ON(!dr || !dr->disable);
+	if (dr)
+		dr->disable = 0;
+}
+
 /**
  * pcibios_disable_device - disable arch specific PCI resources for device dev
  * @dev: the PCI device to disable
@@ -767,7 +865,12 @@ void __attribute__ ((weak)) pcibios_disable_device (struct pci_dev *dev) {}
 void
 pci_disable_device(struct pci_dev *dev)
 {
+	struct pci_devres *dr;
 	u16 pci_command;
+
+	dr = find_pci_dr(dev);
+	if (dr)
+		dr->disable = 0;
 
 	if (atomic_sub_return(1, &dev->enable_cnt) != 0)
 		return;
@@ -867,6 +970,8 @@ pci_get_interrupt_pin(struct pci_dev *dev, struct pci_dev **bridge)
  */
 void pci_release_region(struct pci_dev *pdev, int bar)
 {
+	struct pci_devres *dr;
+
 	if (pci_resource_len(pdev, bar) == 0)
 		return;
 	if (pci_resource_flags(pdev, bar) & IORESOURCE_IO)
@@ -875,6 +980,10 @@ void pci_release_region(struct pci_dev *pdev, int bar)
 	else if (pci_resource_flags(pdev, bar) & IORESOURCE_MEM)
 		release_mem_region(pci_resource_start(pdev, bar),
 				pci_resource_len(pdev, bar));
+
+	dr = find_pci_dr(pdev);
+	if (dr)
+		dr->region_mask &= ~(1 << bar);
 }
 
 /**
@@ -893,6 +1002,8 @@ void pci_release_region(struct pci_dev *pdev, int bar)
  */
 int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 {
+	struct pci_devres *dr;
+
 	if (pci_resource_len(pdev, bar) == 0)
 		return 0;
 		
@@ -906,7 +1017,11 @@ int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 				        pci_resource_len(pdev, bar), res_name))
 			goto err_out;
 	}
-	
+
+	dr = find_pci_dr(pdev);
+	if (dr)
+		dr->region_mask |= 1 << bar;
+
 	return 0;
 
 err_out:
@@ -1144,7 +1259,15 @@ pci_intx(struct pci_dev *pdev, int enable)
 	}
 
 	if (new != pci_command) {
+		struct pci_devres *dr;
+
 		pci_write_config_word(pdev, PCI_COMMAND, new);
+
+		dr = find_pci_dr(pdev);
+		if (dr && !dr->restore_intx) {
+			dr->restore_intx = 1;
+			dr->orig_intx = !enable;
+		}
 	}
 }
 
@@ -1226,6 +1349,8 @@ device_initcall(pci_init);
 EXPORT_SYMBOL_GPL(pci_restore_bars);
 EXPORT_SYMBOL(pci_enable_device_bars);
 EXPORT_SYMBOL(pci_enable_device);
+EXPORT_SYMBOL(pcim_enable_device);
+EXPORT_SYMBOL(pcim_pin_device);
 EXPORT_SYMBOL(pci_disable_device);
 EXPORT_SYMBOL(pci_find_capability);
 EXPORT_SYMBOL(pci_bus_find_capability);

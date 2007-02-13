@@ -32,12 +32,6 @@
 #define DEBUGP(format, args...)
 #endif
 
-#define HOOKNAME(hooknum) ((hooknum) == NF_IP_POST_ROUTING ? "POST_ROUTING"  \
-			   : ((hooknum) == NF_IP_PRE_ROUTING ? "PRE_ROUTING" \
-			      : ((hooknum) == NF_IP_LOCAL_OUT ? "LOCAL_OUT"  \
-			         : ((hooknum) == NF_IP_LOCAL_IN ? "LOCAL_IN"  \
-				    : "*ERROR*")))
-
 #ifdef CONFIG_XFRM
 static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 {
@@ -102,8 +96,8 @@ nf_nat_fn(unsigned int hooknum,
 	   protocol. 8) --RR */
 	if (!ct) {
 		/* Exception: ICMP redirect to new connection (not in
-                   hash table yet).  We must not let this through, in
-                   case we're doing NAT to the same network. */
+		   hash table yet).  We must not let this through, in
+		   case we're doing NAT to the same network. */
 		if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP) {
 			struct icmphdr _hdr, *hp;
 
@@ -147,7 +141,7 @@ nf_nat_fn(unsigned int hooknum,
 			if (unlikely(nf_ct_is_confirmed(ct)))
 				/* NAT module was loaded late */
 				ret = alloc_null_binding_confirmed(ct, info,
-				                                   hooknum);
+								   hooknum);
 			else if (hooknum == NF_IP_LOCAL_IN)
 				/* LOCAL_IN hook doesn't have a chain!  */
 				ret = alloc_null_binding(ct, info, hooknum);
@@ -177,10 +171,10 @@ nf_nat_fn(unsigned int hooknum,
 
 static unsigned int
 nf_nat_in(unsigned int hooknum,
-          struct sk_buff **pskb,
-          const struct net_device *in,
-          const struct net_device *out,
-          int (*okfn)(struct sk_buff *))
+	  struct sk_buff **pskb,
+	  const struct net_device *in,
+	  const struct net_device *out,
+	  int (*okfn)(struct sk_buff *))
 {
 	unsigned int ret;
 	__be32 daddr = (*pskb)->nh.iph->daddr;
@@ -275,9 +269,9 @@ nf_nat_adjust(unsigned int hooknum,
 
 	ct = nf_ct_get(*pskb, &ctinfo);
 	if (ct && test_bit(IPS_SEQ_ADJUST_BIT, &ct->status)) {
-	        DEBUGP("nf_nat_standalone: adjusting sequence number\n");
-	        if (!nf_nat_seq_adjust(pskb, ct, ctinfo))
-	                return NF_DROP;
+		DEBUGP("nf_nat_standalone: adjusting sequence number\n");
+		if (!nf_nat_seq_adjust(pskb, ct, ctinfo))
+			return NF_DROP;
 	}
 	return NF_ACCEPT;
 }

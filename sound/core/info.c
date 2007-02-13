@@ -507,7 +507,7 @@ static int snd_info_entry_mmap(struct file *file, struct vm_area_struct *vma)
 	return -ENXIO;
 }
 
-static struct file_operations snd_info_entry_operations =
+static const struct file_operations snd_info_entry_operations =
 {
 	.owner =		THIS_MODULE,
 	.llseek =		snd_info_entry_llseek,

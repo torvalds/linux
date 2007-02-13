@@ -128,9 +128,9 @@ ebt_check_vlan(const char *tablename,
 
 	/* Reserved VLAN ID (VID) values
 	 * -----------------------------
-	 * 0 - The null VLAN ID. 
+	 * 0 - The null VLAN ID.
 	 * 1 - The default Port VID (PVID)
-	 * 0x0FFF - Reserved for implementation use. 
+	 * 0x0FFF - Reserved for implementation use.
 	 * if_vlan.h: VLAN_GROUP_ARRAY_LEN 4096. */
 	if (GET_BITMASK(EBT_VLAN_ID)) {
 		if (!!info->id) { /* if id!=0 => check vid range */
@@ -141,7 +141,7 @@ ebt_check_vlan(const char *tablename,
 				return -EINVAL;
 			}
 			/* Note: This is valid VLAN-tagged frame point.
-			 * Any value of user_priority are acceptable, 
+			 * Any value of user_priority are acceptable,
 			 * but should be ignored according to 802.1Q Std.
 			 * So we just drop the prio flag. */
 			info->bitmask &= ~EBT_VLAN_PRIO;

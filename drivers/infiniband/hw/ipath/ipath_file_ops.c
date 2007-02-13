@@ -54,7 +54,7 @@ static ssize_t ipath_write(struct file *, const char __user *, size_t,
 static unsigned int ipath_poll(struct file *, struct poll_table_struct *);
 static int ipath_mmap(struct file *, struct vm_area_struct *);
 
-static struct file_operations ipath_file_ops = {
+static const struct file_operations ipath_file_ops = {
 	.owner = THIS_MODULE,
 	.write = ipath_write,
 	.open = ipath_open,
@@ -2153,7 +2153,7 @@ bail:
 
 static struct class *ipath_class;
 
-static int init_cdev(int minor, char *name, struct file_operations *fops,
+static int init_cdev(int minor, char *name, const struct file_operations *fops,
 		     struct cdev **cdevp, struct class_device **class_devp)
 {
 	const dev_t dev = MKDEV(IPATH_MAJOR, minor);
@@ -2210,7 +2210,7 @@ done:
 	return ret;
 }
 
-int ipath_cdev_init(int minor, char *name, struct file_operations *fops,
+int ipath_cdev_init(int minor, char *name, const struct file_operations *fops,
 		    struct cdev **cdevp, struct class_device **class_devp)
 {
 	return init_cdev(minor, name, fops, cdevp, class_devp);

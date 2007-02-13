@@ -54,7 +54,7 @@ const struct file_operations jffs2_file_operations =
 
 /* jffs2_file_inode_operations */
 
-struct inode_operations jffs2_file_inode_operations =
+const struct inode_operations jffs2_file_inode_operations =
 {
 	.permission =	jffs2_permission,
 	.setattr =	jffs2_setattr,

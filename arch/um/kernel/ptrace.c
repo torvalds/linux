@@ -18,6 +18,7 @@
 #include "kern_util.h"
 #include "skas_ptrace.h"
 #include "sysdep/ptrace.h"
+#include "os.h"
 
 static inline void set_singlestepping(struct task_struct *child, int on)
 {
@@ -240,6 +241,12 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = 0;
 		break;
 	}
+#endif
+#ifdef PTRACE_ARCH_PRCTL
+        case PTRACE_ARCH_PRCTL:
+                /* XXX Calls ptrace on the host - needs some SMP thinking */
+                ret = arch_prctl_skas(child, data, (void *) addr);
+                break;
 #endif
 	default:
 		ret = ptrace_request(child, request, addr, data);

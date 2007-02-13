@@ -410,7 +410,7 @@ struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
 		rpc_shutdown_client(clnt);
 		clnt = ERR_PTR(err);
 	}
-out:	
+out:
 	return clnt;
 }
 
@@ -431,7 +431,7 @@ static const struct rpc_call_ops rpc_default_ops = {
  *	sleeps on RPC calls
  */
 #define RPC_INTR_SIGNALS (sigmask(SIGHUP) | sigmask(SIGINT) | sigmask(SIGQUIT) | sigmask(SIGTERM))
- 
+
 static void rpc_save_sigmask(sigset_t *oldset, int intr)
 {
 	unsigned long	sigallow = sigmask(SIGKILL);
@@ -474,7 +474,7 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 	int		status;
 
 	/* If this client is slain all further I/O fails */
-	if (clnt->cl_dead) 
+	if (clnt->cl_dead)
 		return -EIO;
 
 	BUG_ON(flags & RPC_TASK_ASYNC);
@@ -515,7 +515,7 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 
 	/* If this client is slain all further I/O fails */
 	status = -EIO;
-	if (clnt->cl_dead) 
+	if (clnt->cl_dead)
 		goto out_release;
 
 	flags |= RPC_TASK_ASYNC;
@@ -526,7 +526,7 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 		goto out_release;
 
 	/* Mask signals on GSS_AUTH upcalls */
-	rpc_task_sigmask(task, &oldset);		
+	rpc_task_sigmask(task, &oldset);
 
 	rpc_call_setup(task, msg, 0);
 
@@ -537,7 +537,7 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	else
 		rpc_put_task(task);
 
-	rpc_restore_sigmask(&oldset);		
+	rpc_restore_sigmask(&oldset);
 	return status;
 out_release:
 	rpc_release_calldata(tk_ops, data);
@@ -749,7 +749,7 @@ call_allocate(struct rpc_task *task)
 	struct rpc_xprt *xprt = task->tk_xprt;
 	unsigned int	bufsiz;
 
-	dprintk("RPC: %4d call_allocate (status %d)\n", 
+	dprintk("RPC: %4d call_allocate (status %d)\n",
 				task->tk_pid, task->tk_status);
 	task->tk_action = call_bind;
 	if (req->rq_buffer)
@@ -761,7 +761,7 @@ call_allocate(struct rpc_task *task)
 
 	if (xprt->ops->buf_alloc(task, bufsiz << 1) != NULL)
 		return;
-	printk(KERN_INFO "RPC: buffer allocation failed for task %p\n", task); 
+	printk(KERN_INFO "RPC: buffer allocation failed for task %p\n", task);
 
 	if (RPC_IS_ASYNC(task) || !signalled()) {
 		xprt_release(task);
@@ -798,7 +798,7 @@ call_encode(struct rpc_task *task)
 	kxdrproc_t	encode;
 	__be32		*p;
 
-	dprintk("RPC: %4d call_encode (status %d)\n", 
+	dprintk("RPC: %4d call_encode (status %d)\n",
 				task->tk_pid, task->tk_status);
 
 	/* Default buffer setup */
@@ -933,7 +933,7 @@ call_connect_status(struct rpc_task *task)
 	struct rpc_clnt *clnt = task->tk_client;
 	int status = task->tk_status;
 
-	dprintk("RPC: %5u call_connect_status (status %d)\n", 
+	dprintk("RPC: %5u call_connect_status (status %d)\n",
 				task->tk_pid, task->tk_status);
 
 	task->tk_status = 0;
@@ -966,7 +966,7 @@ call_connect_status(struct rpc_task *task)
 static void
 call_transmit(struct rpc_task *task)
 {
-	dprintk("RPC: %4d call_transmit (status %d)\n", 
+	dprintk("RPC: %4d call_transmit (status %d)\n",
 				task->tk_pid, task->tk_status);
 
 	task->tk_action = call_status;
@@ -1028,7 +1028,7 @@ call_status(struct rpc_task *task)
 	if (req->rq_received > 0 && !req->rq_bytes_sent)
 		task->tk_status = req->rq_received;
 
-	dprintk("RPC: %4d call_status (status %d)\n", 
+	dprintk("RPC: %4d call_status (status %d)\n",
 				task->tk_pid, task->tk_status);
 
 	status = task->tk_status;
@@ -1118,7 +1118,7 @@ call_decode(struct rpc_task *task)
 	kxdrproc_t	decode = task->tk_msg.rpc_proc->p_decode;
 	__be32		*p;
 
-	dprintk("RPC: %4d call_decode (status %d)\n", 
+	dprintk("RPC: %4d call_decode (status %d)\n",
 				task->tk_pid, task->tk_status);
 
 	if (task->tk_flags & RPC_CALL_MAJORSEEN) {
@@ -1196,7 +1196,7 @@ static void
 call_refreshresult(struct rpc_task *task)
 {
 	int status = task->tk_status;
-	dprintk("RPC: %4d call_refreshresult (status %d)\n", 
+	dprintk("RPC: %4d call_refreshresult (status %d)\n",
 				task->tk_pid, task->tk_status);
 
 	task->tk_status = 0;

@@ -34,9 +34,9 @@ static inline void set_fs (mm_segment_t fs)
 }
 
 #define __range_ok(addr,size) ({					\
-	unsigned long flag, sum;					\
+	unsigned long flag, roksum;					\
 	__asm__ __volatile__("subs %1, %0, %3; cmpcs %1, %2; movcs %0, #0" \
-		: "=&r" (flag), "=&r" (sum)				\
+		: "=&r" (flag), "=&r" (roksum)				\
 		: "r" (addr), "Ir" (size), "0" (current_thread_info()->addr_limit)	\
 		: "cc");						\
 	flag; })

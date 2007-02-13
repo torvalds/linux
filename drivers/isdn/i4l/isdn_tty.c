@@ -1261,7 +1261,6 @@ isdn_tty_flush_buffer(struct tty_struct *tty)
 	}
 	isdn_tty_cleanup_xmit(info);
 	info->xmit_count = 0;
-	wake_up_interruptible(&tty->write_wait);
 	tty_wakeup(tty);
 }
 

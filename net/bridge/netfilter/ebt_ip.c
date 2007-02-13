@@ -61,15 +61,15 @@ static int ebt_filter_ip(const struct sk_buff *skb, const struct net_device *in,
 		if (info->bitmask & EBT_IP_DPORT) {
 			u32 dst = ntohs(pptr->dst);
 			if (FWINV(dst < info->dport[0] ||
-			          dst > info->dport[1],
-			          EBT_IP_DPORT))
+				  dst > info->dport[1],
+				  EBT_IP_DPORT))
 			return EBT_NOMATCH;
 		}
 		if (info->bitmask & EBT_IP_SPORT) {
 			u32 src = ntohs(pptr->src);
 			if (FWINV(src < info->sport[0] ||
-			          src > info->sport[1],
-			          EBT_IP_SPORT))
+				  src > info->sport[1],
+				  EBT_IP_SPORT))
 			return EBT_NOMATCH;
 		}
 	}
@@ -93,6 +93,7 @@ static int ebt_ip_check(const char *tablename, unsigned int hookmask,
 			return -EINVAL;
 		if (info->protocol != IPPROTO_TCP &&
 		    info->protocol != IPPROTO_UDP &&
+		    info->protocol != IPPROTO_UDPLITE &&
 		    info->protocol != IPPROTO_SCTP &&
 		    info->protocol != IPPROTO_DCCP)
 			 return -EINVAL;

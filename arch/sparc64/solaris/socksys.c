@@ -163,7 +163,7 @@ static unsigned int socksys_poll(struct file * filp, poll_table * wait)
 	return mask;
 }
 	
-static struct file_operations socksys_fops = {
+static const struct file_operations socksys_fops = {
 	.open =		socksys_open,
 	.release =	socksys_release,
 };

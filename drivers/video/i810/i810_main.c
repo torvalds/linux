@@ -1049,7 +1049,7 @@ static int i810_check_params(struct fb_var_screeninfo *var,
 		mode_valid = 1;
 
 	if (!mode_valid && info->monspecs.modedb_len) {
-		struct fb_videomode *mode;
+		const struct fb_videomode *mode;
 
 		mode = fb_find_best_mode(var, &info->modelist);
 		if (mode) {
@@ -1235,9 +1235,9 @@ static int i810fb_getcolreg(u8 regno, u8 *red, u8 *green, u8 *blue,
 static int i810fb_open(struct fb_info *info, int user)
 {
 	struct i810fb_par *par = info->par;
-	u32 count = atomic_read(&par->use_count);
-	
-	if (count == 0) {
+
+	mutex_lock(&par->open_lock);
+	if (par->use_count == 0) {
 		memset(&par->state, 0, sizeof(struct vgastate));
 		par->state.flags = VGA_SAVE_CMAP;
 		par->state.vgabase = par->mmio_start_virtual;
@@ -1246,7 +1246,8 @@ static int i810fb_open(struct fb_info *info, int user)
 		i810_save_vga_state(par);
 	}
 
-	atomic_inc(&par->use_count);
+	par->use_count++;
+	mutex_unlock(&par->open_lock);
 	
 	return 0;
 }
@@ -1254,18 +1255,20 @@ static int i810fb_open(struct fb_info *info, int user)
 static int i810fb_release(struct fb_info *info, int user)
 {
 	struct i810fb_par *par = info->par;
-	u32 count;
-	
-	count = atomic_read(&par->use_count);
-	if (count == 0)
-		return -EINVAL;
 
-	if (count == 1) {
+	mutex_lock(&par->open_lock);
+	if (par->use_count == 0) {
+		mutex_unlock(&par->open_lock);
+		return -EINVAL;
+	}
+
+	if (par->use_count == 1) {
 		i810_restore_vga_state(par);
 		restore_vga(&par->state);
 	}
 
-	atomic_dec(&par->use_count);
+	par->use_count--;
+	mutex_unlock(&par->open_lock);
 	
 	return 0;
 }
@@ -1752,6 +1755,8 @@ static void __devinit i810_init_monspecs(struct fb_info *info)
 static void __devinit i810_init_defaults(struct i810fb_par *par, 
 				      struct fb_info *info)
 {
+	mutex_init(&par->open_lock);
+
 	if (voffset) 
 		v_offset_default = voffset;
 	else if (par->aperture.size > 32 * 1024 * 1024)
@@ -1919,7 +1924,7 @@ static void __devinit i810fb_find_init_mode(struct fb_info *info)
 	fb_videomode_to_modelist(specs->modedb, specs->modedb_len,
 				 &info->modelist);
 	if (specs->modedb != NULL) {
-		struct fb_videomode *m;
+		const struct fb_videomode *m;
 
 		if (xres && yres) {
 			if ((m = fb_find_best_mode(&var, &info->modelist))) {
@@ -2016,11 +2021,10 @@ static int __devinit i810fb_init_pci (struct pci_dev *dev,
 	par = info->par;
 	par->dev = dev;
 
-	if (!(info->pixmap.addr = kmalloc(8*1024, GFP_KERNEL))) {
+	if (!(info->pixmap.addr = kzalloc(8*1024, GFP_KERNEL))) {
 		i810fb_release_resource(info, par);
 		return -ENOMEM;
 	}
-	memset(info->pixmap.addr, 0, 8*1024);
 	info->pixmap.size = 8*1024;
 	info->pixmap.buf_align = 8;
 	info->pixmap.access_align = 32;

@@ -1,7 +1,7 @@
 /* ipv6header match - matches IPv6 packets based
    on whether they contain certain headers */
 
-/* Original idea: Brad Chapman 
+/* Original idea: Brad Chapman
  * Rewritten by: Andras Kis-Szabo <kisza@sch.bme.hu> */
 
 /* (C) 2001-2002 Andras Kis-Szabo <kisza@sch.bme.hu>
@@ -18,6 +18,7 @@
 #include <net/checksum.h>
 #include <net/ipv6.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/netfilter_ipv6/ip6t_ipv6header.h>
 
@@ -140,8 +141,9 @@ ipv6header_checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ip6t_match ip6t_ipv6header_match = {
+static struct xt_match ip6t_ipv6header_match = {
 	.name		= "ipv6header",
+	.family		= AF_INET6,
 	.match		= &ipv6header_match,
 	.matchsize	= sizeof(struct ip6t_ipv6header_info),
 	.checkentry	= &ipv6header_checkentry,
@@ -151,12 +153,12 @@ static struct ip6t_match ip6t_ipv6header_match = {
 
 static int __init ipv6header_init(void)
 {
-	return ip6t_register_match(&ip6t_ipv6header_match);
+	return xt_register_match(&ip6t_ipv6header_match);
 }
 
 static void __exit ipv6header_exit(void)
 {
-	ip6t_unregister_match(&ip6t_ipv6header_match);
+	xt_unregister_match(&ip6t_ipv6header_match);
 }
 
 module_init(ipv6header_init);

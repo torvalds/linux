@@ -110,7 +110,7 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 
 	if ((IS_SETLK(cmd) || IS_SETLKW(cmd)) && fl->fl_type != F_UNLCK) {
 		filemap_write_and_wait(inode->i_mapping);
-		invalidate_inode_pages(&inode->i_data);
+		invalidate_mapping_pages(&inode->i_data, 0, -1);
 	}
 
 	return res;
@@ -234,7 +234,7 @@ v9fs_file_write(struct file *filp, const char __user * data,
 		total += result;
 	} while (count);
 
-		invalidate_inode_pages2(inode->i_mapping);
+	invalidate_inode_pages2(inode->i_mapping);
 	return total;
 }
 

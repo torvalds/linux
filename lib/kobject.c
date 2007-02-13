@@ -97,11 +97,12 @@ static void fill_kobj_path(struct kobject *kobj, char *path, int length)
 }
 
 /**
- * kobject_get_path - generate and return the path associated with a given kobj
- * and kset pair.  The result must be freed by the caller with kfree().
+ * kobject_get_path - generate and return the path associated with a given kobj and kset pair.
  *
  * @kobj:	kobject in question, with which to build the path
  * @gfp_mask:	the allocation type used to allocate the path
+ *
+ * The result must be freed by the caller with kfree().
  */
 char *kobject_get_path(struct kobject *kobj, gfp_t gfp_mask)
 {

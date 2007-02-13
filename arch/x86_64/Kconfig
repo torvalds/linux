@@ -44,6 +44,10 @@ config MMU
 	bool
 	default y
 
+config ZONE_DMA
+	bool
+	default y
+
 config ISA
 	bool
 

@@ -2,7 +2,7 @@
  * linux/net/sunrpc/auth_gss/auth_gss.c
  *
  * RPCSEC_GSS client authentication.
- * 
+ *
  *  Copyright (c) 2000 The Regents of the University of Michigan.
  *  All rights reserved.
  *
@@ -74,7 +74,7 @@ static struct rpc_credops gss_credops;
 * as it is passed to gssd to signal the use of
 * machine creds should be part of the shared rpc interface */
 
-#define CA_RUN_AS_MACHINE  0x00000200 
+#define CA_RUN_AS_MACHINE  0x00000200
 
 /* dump the buffer in `emacs-hexl' style */
 #define isprint(c)      ((c > 0x1f) && (c < 0x7f))
@@ -607,8 +607,8 @@ gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	}
 }
 
-/* 
- * NOTE: we have the opportunity to use different 
+/*
+ * NOTE: we have the opportunity to use different
  * parameters based on the input flavor (which must be a pseudoflavor)
  */
 static struct rpc_auth *
@@ -869,7 +869,7 @@ gss_validate(struct rpc_task *task, __be32 *p)
 
 	flav = ntohl(*p++);
 	if ((len = ntohl(*p++)) > RPC_MAX_AUTH_SIZE)
-                goto out_bad;
+		goto out_bad;
 	if (flav != RPC_AUTH_GSS)
 		goto out_bad;
 	seq = htonl(task->tk_rqstp->rq_seqno);
@@ -925,7 +925,7 @@ gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	*integ_len = htonl(integ_buf.len);
 
 	/* guess whether we're in the head or the tail: */
-	if (snd_buf->page_len || snd_buf->tail[0].iov_len) 
+	if (snd_buf->page_len || snd_buf->tail[0].iov_len)
 		iov = snd_buf->tail;
 	else
 		iov = snd_buf->head;
@@ -1030,7 +1030,7 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	maj_stat = gss_wrap(ctx->gc_gss_ctx, offset, snd_buf, inpages);
 	/* RPC_SLACK_SPACE should prevent this ever happening: */
 	BUG_ON(snd_buf->len > snd_buf->buflen);
-        status = -EIO;
+	status = -EIO;
 	/* We're assuming that when GSS_S_CONTEXT_EXPIRED, the encryption was
 	 * done anyway, so it's safe to put the request on the wire: */
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
@@ -1079,7 +1079,7 @@ gss_wrap_req(struct rpc_task *task,
 			status = gss_wrap_req_integ(cred, ctx, encode,
 								rqstp, p, obj);
 			break;
-       		case RPC_GSS_SVC_PRIVACY:
+		case RPC_GSS_SVC_PRIVACY:
 			status = gss_wrap_req_priv(cred, ctx, encode,
 					rqstp, p, obj);
 			break;
@@ -1179,7 +1179,7 @@ gss_unwrap_resp(struct rpc_task *task,
 			if (status)
 				goto out;
 			break;
-       		case RPC_GSS_SVC_PRIVACY:
+		case RPC_GSS_SVC_PRIVACY:
 			status = gss_unwrap_resp_priv(cred, ctx, rqstp, &p);
 			if (status)
 				goto out;
@@ -1196,7 +1196,7 @@ out:
 			status);
 	return status;
 }
-  
+
 static struct rpc_authops authgss_ops = {
 	.owner		= THIS_MODULE,
 	.au_flavor	= RPC_AUTH_GSS,

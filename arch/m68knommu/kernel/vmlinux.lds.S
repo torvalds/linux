@@ -87,6 +87,16 @@ SECTIONS {
 		*(__ksymtab_gpl)
 		__stop___ksymtab_gpl = .;
 
+		/* Kernel symbol table: Normal unused symbols */
+		__start___ksymtab_unused = .;
+		*(__ksymtab_unused)
+		__stop___ksymtab_unused = .;
+
+		/* Kernel symbol table: GPL-only unused symbols */
+		__start___ksymtab_unused_gpl = .;
+		*(__ksymtab_unused_gpl)
+		__stop___ksymtab_unused_gpl = .;
+
 		/* Kernel symbol table: GPL-future symbols */
 		__start___ksymtab_gpl_future = .;
 		*(__ksymtab_gpl_future)
@@ -149,10 +159,12 @@ SECTIONS {
 		__security_initcall_start = .;
 		*(.security_initcall.init)
 		__security_initcall_end = .;
+#ifdef CONFIG_BLK_DEV_INITRD
 		. = ALIGN(4);
 		__initramfs_start = .;
 		*(.init.ramfs)
 		__initramfs_end = .;
+#endif
 		. = ALIGN(4096);
 		__init_end = .;
 	} > INIT

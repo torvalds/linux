@@ -868,16 +868,16 @@ do {								\
 extern const struct file_operations ext3_dir_operations;
 
 /* file.c */
-extern struct inode_operations ext3_file_inode_operations;
+extern const struct inode_operations ext3_file_inode_operations;
 extern const struct file_operations ext3_file_operations;
 
 /* namei.c */
-extern struct inode_operations ext3_dir_inode_operations;
-extern struct inode_operations ext3_special_inode_operations;
+extern const struct inode_operations ext3_dir_inode_operations;
+extern const struct inode_operations ext3_special_inode_operations;
 
 /* symlink.c */
-extern struct inode_operations ext3_symlink_inode_operations;
-extern struct inode_operations ext3_fast_symlink_inode_operations;
+extern const struct inode_operations ext3_symlink_inode_operations;
+extern const struct inode_operations ext3_fast_symlink_inode_operations;
 
 
 #endif	/* __KERNEL__ */

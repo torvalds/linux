@@ -90,7 +90,7 @@ xfs_trans_push_ail(
 	int			flush_log;
 	SPLDECL(s);
 
-#define	XFS_TRANS_PUSH_AIL_RESTARTS	10
+#define	XFS_TRANS_PUSH_AIL_RESTARTS	1000
 
 	AIL_LOCK(mp,s);
 	lip = xfs_trans_first_ail(mp, &gen);

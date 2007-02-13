@@ -14,25 +14,6 @@
 #define DEBUGP(x, args...)
 #endif
 
-/* Standard entry. */
-struct ip6t_standard
-{
-	struct ip6t_entry entry;
-	struct ip6t_standard_target target;
-};
-
-struct ip6t_error_target
-{
-	struct ip6t_entry_target target;
-	char errorname[IP6T_FUNCTION_MAXNAMELEN];
-};
-
-struct ip6t_error
-{
-	struct ip6t_entry entry;
-	struct ip6t_error_target target;
-};
-
 static struct
 {
 	struct ip6t_replace repl;
@@ -106,10 +87,10 @@ static struct
 	}
 };
 
-static struct xt_table packet_raw = { 
-	.name = "raw", 
-	.valid_hooks = RAW_VALID_HOOKS, 
-	.lock = RW_LOCK_UNLOCKED, 
+static struct xt_table packet_raw = {
+	.name = "raw",
+	.valid_hooks = RAW_VALID_HOOKS,
+	.lock = RW_LOCK_UNLOCKED,
 	.me = THIS_MODULE,
 	.af = AF_INET6,
 };
@@ -125,17 +106,17 @@ ip6t_hook(unsigned int hook,
 	return ip6t_do_table(pskb, hook, in, out, &packet_raw);
 }
 
-static struct nf_hook_ops ip6t_ops[] = { 
+static struct nf_hook_ops ip6t_ops[] = {
 	{
-	  .hook = ip6t_hook, 
+	  .hook = ip6t_hook,
 	  .pf = PF_INET6,
 	  .hooknum = NF_IP6_PRE_ROUTING,
 	  .priority = NF_IP6_PRI_FIRST,
 	  .owner = THIS_MODULE,
 	},
 	{
-	  .hook = ip6t_hook, 
-	  .pf = PF_INET6, 
+	  .hook = ip6t_hook,
+	  .pf = PF_INET6,
 	  .hooknum = NF_IP6_LOCAL_OUT,
 	  .priority = NF_IP6_PRI_FIRST,
 	  .owner = THIS_MODULE,

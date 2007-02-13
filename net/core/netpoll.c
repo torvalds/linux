@@ -237,13 +237,13 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 {
 	int status = NETDEV_TX_BUSY;
 	unsigned long tries;
- 	struct net_device *dev = np->dev;
- 	struct netpoll_info *npinfo = np->dev->npinfo;
+	struct net_device *dev = np->dev;
+	struct netpoll_info *npinfo = np->dev->npinfo;
 
- 	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {
- 		__kfree_skb(skb);
- 		return;
- 	}
+	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {
+		__kfree_skb(skb);
+		return;
+	}
 
 	/* don't get messages out of order, and no recursion */
 	if (skb_queue_len(&npinfo->txq) == 0 &&
@@ -676,7 +676,7 @@ int netpoll_setup(struct netpoll *np)
 		}
 
 		atleast = jiffies + HZ/10;
- 		atmost = jiffies + 4*HZ;
+		atmost = jiffies + 4*HZ;
 		while (!netif_carrier_ok(ndev)) {
 			if (time_after(jiffies, atmost)) {
 				printk(KERN_NOTICE
@@ -772,9 +772,9 @@ void netpoll_cleanup(struct netpoll *np)
 			np->dev->npinfo = NULL;
 			if (atomic_dec_and_test(&npinfo->refcnt)) {
 				skb_queue_purge(&npinfo->arp_tx);
- 				skb_queue_purge(&npinfo->txq);
+				skb_queue_purge(&npinfo->txq);
 				cancel_rearming_delayed_work(&npinfo->tx_work);
- 				flush_scheduled_work();
+				flush_scheduled_work();
 
 				kfree(npinfo);
 			}

@@ -95,7 +95,7 @@ static void raw_v4_hash(struct sock *sk)
 
 static void raw_v4_unhash(struct sock *sk)
 {
- 	write_lock_bh(&raw_v4_lock);
+	write_lock_bh(&raw_v4_lock);
 	if (sk_del_node_init(sk))
 		sock_prot_dec_use(sk->sk_prot);
 	write_unlock_bh(&raw_v4_lock);
@@ -238,7 +238,7 @@ void raw_err (struct sock *sk, struct sk_buff *skb, u32 info)
 static int raw_rcv_skb(struct sock * sk, struct sk_buff * skb)
 {
 	/* Charge it to the socket. */
-	
+
 	if (sock_queue_rcv_skb(sk, skb) < 0) {
 		/* FIXME: increment a raw drops counter here */
 		kfree_skb(skb);
@@ -263,7 +263,7 @@ int raw_rcv(struct sock *sk, struct sk_buff *skb)
 }
 
 static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
-			struct rtable *rt, 
+			struct rtable *rt,
 			unsigned int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -285,7 +285,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 	skb = sock_alloc_send_skb(sk, length+hh_len+15,
 				  flags&MSG_DONTWAIT, &err);
 	if (skb == NULL)
-		goto error; 
+		goto error;
 	skb_reserve(skb, hh_len);
 
 	skb->priority = sk->sk_priority;
@@ -326,7 +326,7 @@ error_fault:
 	kfree_skb(skb);
 error:
 	IP_INC_STATS(IPSTATS_MIB_OUTDISCARDS);
-	return err; 
+	return err;
 }
 
 static int raw_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
@@ -399,9 +399,9 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	err = -EOPNOTSUPP;
 	if (msg->msg_flags & MSG_OOB)	/* Mirror BSD error message */
 		goto out;               /* compatibility */
-			 
+
 	/*
-	 *	Get and verify the address. 
+	 *	Get and verify the address.
 	 */
 
 	if (msg->msg_namelen) {
@@ -426,7 +426,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		 */
 	} else {
 		err = -EDESTADDRREQ;
-		if (sk->sk_state != TCP_ESTABLISHED) 
+		if (sk->sk_state != TCP_ESTABLISHED)
 			goto out;
 		daddr = inet->daddr;
 	}
@@ -480,7 +480,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 						.saddr = saddr,
 						.tos = tos } },
 				    .proto = inet->hdrincl ? IPPROTO_RAW :
-					    		     sk->sk_protocol,
+							     sk->sk_protocol,
 				  };
 		if (!inet->hdrincl) {
 			err = raw_probe_proto_opt(&fl, msg);
@@ -489,7 +489,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		}
 
 		security_sk_classify_flow(sk, &fl);
-		err = ip_route_output_flow(&rt, &fl, sk, !(msg->msg_flags&MSG_DONTWAIT));
+		err = ip_route_output_flow(&rt, &fl, sk, 1);
 	}
 	if (err)
 		goto done;
@@ -503,9 +503,9 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 back_from_confirm:
 
 	if (inet->hdrincl)
-		err = raw_send_hdrinc(sk, msg->msg_iov, len, 
+		err = raw_send_hdrinc(sk, msg->msg_iov, len,
 					rt, msg->msg_flags);
-	
+
 	 else {
 		if (!ipc.addr)
 			ipc.addr = rt->rt_dst;
@@ -538,7 +538,7 @@ do_confirm:
 
 static void raw_close(struct sock *sk, long timeout)
 {
-        /*
+	/*
 	 * Raw sockets may have direct kernel refereneces. Kill them.
 	 */
 	ip_ra_control(sk, 0, NULL);
@@ -861,7 +861,7 @@ static __inline__ char *get_raw_sock(struct sock *sp, char *tmpbuf, int i)
 
 	sprintf(tmpbuf, "%4d: %08X:%04X %08X:%04X"
 		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p",
-		i, src, srcp, dest, destp, sp->sk_state, 
+		i, src, srcp, dest, destp, sp->sk_state,
 		atomic_read(&sp->sk_wmem_alloc),
 		atomic_read(&sp->sk_rmem_alloc),
 		0, 0L, 0, sock_i_uid(sp), 0, sock_i_ino(sp),
@@ -916,7 +916,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations raw_seq_fops = {
+static const struct file_operations raw_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = raw_seq_open,
 	.read	 = seq_read,

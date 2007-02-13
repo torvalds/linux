@@ -900,7 +900,7 @@ static int __devinit snd_via82xx_mixer_new(struct via82xx_modem *chip)
 	ac97.private_data = chip;
 	ac97.private_free = snd_via82xx_mixer_free_ac97;
 	ac97.pci = chip->pci;
-	ac97.scaps = AC97_SCAP_SKIP_AUDIO;
+	ac97.scaps = AC97_SCAP_SKIP_AUDIO | AC97_SCAP_POWER_SAVE;
 	ac97.num = chip->ac97_secondary;
 
 	if ((err = snd_ac97_mixer(chip->ac97_bus, &ac97, &chip->ac97)) < 0)

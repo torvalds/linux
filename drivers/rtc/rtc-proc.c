@@ -96,7 +96,7 @@ static int rtc_proc_release(struct inode *inode, struct file *file)
 	return res;
 }
 
-static struct file_operations rtc_proc_fops = {
+static const struct file_operations rtc_proc_fops = {
 	.open		= rtc_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

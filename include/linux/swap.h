@@ -170,10 +170,12 @@ extern void swapin_readahead(swp_entry_t, unsigned long, struct vm_area_struct *
 extern unsigned long totalram_pages;
 extern unsigned long totalreserve_pages;
 extern long nr_swap_pages;
-extern unsigned int nr_free_pages(void);
-extern unsigned int nr_free_pages_pgdat(pg_data_t *pgdat);
 extern unsigned int nr_free_buffer_pages(void);
 extern unsigned int nr_free_pagecache_pages(void);
+
+/* Definition of global_page_state not available yet */
+#define nr_free_pages() global_page_state(NR_FREE_PAGES)
+
 
 /* linux/mm/swap.c */
 extern void FASTCALL(lru_cache_add(struct page *));

@@ -29,7 +29,7 @@
 #define LLC_RESERVE sizeof(struct llc_pdu_un)
 
 static void br_send_bpdu(struct net_bridge_port *p,
- 			 const unsigned char *data, int length)
+			 const unsigned char *data, int length)
 {
 	struct sk_buff *skb;
 

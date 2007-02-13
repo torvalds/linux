@@ -632,8 +632,7 @@ static int reader_probe(struct pcmcia_device *link)
 	init_waitqueue_head(&dev->poll_wait);
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);
-	init_timer(&dev->poll_timer);
-	dev->poll_timer.function = &cm4040_do_poll;
+	setup_timer(&dev->poll_timer, cm4040_do_poll, 0);
 
 	ret = reader_config(link, i);
 	if (ret)

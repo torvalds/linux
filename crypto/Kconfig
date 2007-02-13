@@ -149,6 +149,15 @@ config CRYPTO_CBC
 	  CBC: Cipher Block Chaining mode
 	  This block cipher algorithm is required for IPSec.
 
+config CRYPTO_PCBC
+	tristate "PCBC support"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
+	default m
+	help
+	  PCBC: Propagating Cipher Block Chaining mode
+	  This block cipher algorithm is required for RxRPC.
+
 config CRYPTO_LRW
 	tristate "LRW support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -167,6 +176,13 @@ config CRYPTO_DES
 	select CRYPTO_ALGAPI
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
+
+config CRYPTO_FCRYPT
+	tristate "FCrypt cipher algorithm"
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  FCrypt algorithm used by RxRPC.
 
 config CRYPTO_BLOWFISH
 	tristate "Blowfish cipher algorithm"
@@ -408,6 +424,21 @@ config CRYPTO_CRC32C
 	  by iSCSI for header and data digests and by others.
 	  See Castagnoli93.  This implementation uses lib/libcrc32c.
           Module will be crc32c.
+
+config CRYPTO_CAMELLIA
+	tristate "Camellia cipher algorithms"
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	help
+	  Camellia cipher algorithms module.
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
 
 config CRYPTO_TEST
 	tristate "Testing module"

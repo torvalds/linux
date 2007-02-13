@@ -358,8 +358,6 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
 }
 #endif
 
-#define eth_io_copy_and_sum(a,b,c,d)		eth_copy_and_sum((a),(void __force *)(void __iomem *)(b),(c),(d))
-
 /*
  * Map in an area of physical address space, for accessing
  * I/O devices etc.

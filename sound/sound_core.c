@@ -436,7 +436,7 @@ EXPORT_SYMBOL(unregister_sound_dsp);
 
 static int soundcore_open(struct inode *, struct file *);
 
-static struct file_operations soundcore_fops=
+static const struct file_operations soundcore_fops=
 {
 	/* We must have an owner or the module locking fails */
 	.owner	= THIS_MODULE,

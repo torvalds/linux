@@ -23,6 +23,7 @@ header-y += linkage.h
 header-y += resource.h
 header-y += sigcontext.h
 header-y += statfs.h
+header-y += ps3fb.h
 
 unifdef-y += a.out.h
 unifdef-y += asm-compat.h

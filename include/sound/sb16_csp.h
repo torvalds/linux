@@ -114,8 +114,20 @@ struct snd_sb_csp_info {
 #ifdef __KERNEL__
 #include "sb.h"
 #include "hwdep.h"
+#include <linux/firmware.h>
 
 struct snd_sb_csp;
+
+/* indices for the known CSP programs */
+enum {
+	CSP_PROGRAM_MULAW,
+	CSP_PROGRAM_ALAW,
+	CSP_PROGRAM_ADPCM_INIT,
+	CSP_PROGRAM_ADPCM_PLAYBACK,
+	CSP_PROGRAM_ADPCM_CAPTURE,
+
+	CSP_PROGRAM_COUNT
+};
 
 /*
  * CSP operators
@@ -159,6 +171,8 @@ struct snd_sb_csp {
 	struct snd_kcontrol *qsound_space;
 
 	struct mutex access_mutex;	/* locking */
+
+	const struct firmware *csp_programs[CSP_PROGRAM_COUNT];
 };
 
 int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep);

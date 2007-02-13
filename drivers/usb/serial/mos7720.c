@@ -269,18 +269,8 @@ static void mos7720_bulk_out_data_callback(struct urb *urb)
 
 	tty = mos7720_port->port->tty;
 
-	if (tty && mos7720_port->open) {
-		/* let the tty driver wakeup if it has a special *
-		 * write_wakeup function */
-		if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-		     tty->ldisc.write_wakeup)
-			(tty->ldisc.write_wakeup)(tty);
-
-		/* tell the tty driver that something has changed */
-		wake_up_interruptible(&tty->write_wait);
-	}
-
-	/* schedule_work(&mos7720_port->port->work); */
+	if (tty && mos7720_port->open)
+		tty_wakeup(tty);
 }
 
 /*

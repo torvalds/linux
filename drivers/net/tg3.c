@@ -3380,7 +3380,7 @@ next_pkt:
 		}
 next_pkt_nopost:
 		sw_idx++;
-		sw_idx %= TG3_RX_RCB_RING_SIZE(tp);
+		sw_idx &= (TG3_RX_RCB_RING_SIZE(tp) - 1);
 
 		/* Refresh hw_idx to see if there is new work */
 		if (sw_idx == hw_idx) {

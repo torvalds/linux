@@ -1,4 +1,4 @@
-/* 
+/*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
 
@@ -12,13 +12,13 @@
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
    IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
+   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
+   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS,
+   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS
    SOFTWARE IS DISCLAIMED.
 */
 
@@ -227,7 +227,7 @@ static void __l2cap_chan_add(struct l2cap_conn *conn, struct sock *sk, struct so
 		bt_accept_enqueue(parent, sk);
 }
 
-/* Delete channel. 
+/* Delete channel.
  * Must be called on the locked socket. */
 static void l2cap_chan_del(struct sock *sk, int err)
 {
@@ -238,7 +238,7 @@ static void l2cap_chan_del(struct sock *sk, int err)
 
 	BT_DBG("sk %p, conn %p, err %d", sk, conn, err);
 
-	if (conn) { 
+	if (conn) {
 		/* Unlink from channel list */
 		l2cap_chan_unlink(&conn->chan_list, sk);
 		l2cap_pi(sk)->conn = NULL;
@@ -590,7 +590,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_
 		err = -EACCES;
 		goto done;
 	}
-		
+
 	write_lock_bh(&l2cap_sk_list.lock);
 
 	if (la->l2_psm && __l2cap_get_sock_by_addr(la->l2_psm, &la->l2_bdaddr)) {
@@ -890,7 +890,7 @@ static inline int l2cap_do_send(struct sock *sk, struct msghdr *msg, int len)
 		*frag = bt_skb_send_alloc(sk, count, msg->msg_flags & MSG_DONTWAIT, &err);
 		if (!*frag)
 			goto fail;
-		
+
 		if (memcpy_fromiovec(skb_put(*frag, count), msg->msg_iov, count)) {
 			err = -EFAULT;
 			goto fail;
@@ -1267,7 +1267,7 @@ static inline int l2cap_get_conf_opt(void **ptr, int *type, int *olen, unsigned 
 
 static inline void l2cap_parse_conf_req(struct sock *sk, void *data, int len)
 {
-	int type, hint, olen; 
+	int type, hint, olen;
 	unsigned long val;
 	void *ptr = data;
 
@@ -1414,7 +1414,7 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 
 	/* Check for backlog size */
 	if (sk_acceptq_is_full(parent)) {
-		BT_DBG("backlog full %d", parent->sk_ack_backlog); 
+		BT_DBG("backlog full %d", parent->sk_ack_backlog);
 		goto response;
 	}
 
@@ -1607,7 +1607,7 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 			goto done;
 		}
 
-	default: 
+	default:
 		sk->sk_state = BT_DISCONN;
 		sk->sk_err   = ECONNRESET;
 		l2cap_sock_set_timer(sk, HZ * 5);

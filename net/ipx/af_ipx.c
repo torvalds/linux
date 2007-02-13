@@ -11,7 +11,7 @@
  *	work I am currently employed to do there.
  *
  *	All the material in this file is subject to the Gnu license version 2.
- *	Neither Alan Cox nor the Swansea University Computer Society admit 
+ *	Neither Alan Cox nor the Swansea University Computer Society admit
  *	liability nor provide warranty for any of this software. This material
  *	is provided as is and at no charge.
  *
@@ -152,8 +152,8 @@ static void ipx_destroy_socket(struct sock *sk)
 	ipx_remove_socket(sk);
 	skb_queue_purge(&sk->sk_receive_queue);
 #ifdef IPX_REFCNT_DEBUG
-        atomic_dec(&ipx_sock_nr);
-        printk(KERN_DEBUG "IPX socket %p released, %d are still alive\n", sk,
+	atomic_dec(&ipx_sock_nr);
+	printk(KERN_DEBUG "IPX socket %p released, %d are still alive\n", sk,
 			atomic_read(&ipx_sock_nr));
 	if (atomic_read(&sk->sk_refcnt) != 1)
 		printk(KERN_DEBUG "Destruction sock ipx %p delayed, cnt=%d\n",
@@ -162,7 +162,7 @@ static void ipx_destroy_socket(struct sock *sk)
 	sock_put(sk);
 }
 
-/* 
+/*
  * The following code is used to support IPX Interfaces (IPXITF).  An
  * IPX interface is defined by a physical device and a frame type.
  */
@@ -369,7 +369,7 @@ static __exit void ipxitf_cleanup(void)
 	struct ipx_interface *i, *tmp;
 
 	spin_lock_bh(&ipx_interfaces_lock);
-	list_for_each_entry_safe(i, tmp, &ipx_interfaces, node) 
+	list_for_each_entry_safe(i, tmp, &ipx_interfaces, node)
 		__ipxitf_put(i);
 	spin_unlock_bh(&ipx_interfaces_lock);
 }
@@ -446,10 +446,10 @@ static struct sock *ncp_connection_hack(struct ipx_interface *intrfc,
 	 * You might call this a hack, but believe me, you do not want a
 	 * complete NCP layer in the kernel, and this is VERY fast as well. */
 	struct sock *sk = NULL;
- 	int connection = 0;
+	int connection = 0;
 	u8 *ncphdr = (u8 *)(ipx + 1);
 
- 	if (*ncphdr == 0x22 && *(ncphdr + 1) == 0x22) /* NCP request */
+	if (*ncphdr == 0x22 && *(ncphdr + 1) == 0x22) /* NCP request */
 		connection = (((int) *(ncphdr + 5)) << 8) | (int) *(ncphdr + 3);
 	else if (*ncphdr == 0x77 && *(ncphdr + 1) == 0x77) /* BURST packet */
 		connection = (((int) *(ncphdr + 9)) << 8) | (int) *(ncphdr + 8);
@@ -482,7 +482,7 @@ static int ipxitf_demux_socket(struct ipx_interface *intrfc,
 
 	if (intrfc == ipx_primary_net && ntohs(ipx->ipx_dest.sock) == 0x451)
 		sock1 = ncp_connection_hack(intrfc, ipx);
-        if (!sock1)
+	if (!sock1)
 		/* No special socket found, forward the packet the normal way */
 		sock1 = ipxitf_find_socket(intrfc, ipx->ipx_dest.sock);
 
@@ -607,22 +607,22 @@ int ipxitf_send(struct ipx_interface *intrfc, struct sk_buff *skb, char *node)
 		*last_hop = IPX_SKB_CB(skb)->last_hop.netnum;
 		IPX_SKB_CB(skb)->last_hop.index = -1;
 	}
-	
-	/* 
+
+	/*
 	 * We need to know how many skbuffs it will take to send out this
 	 * packet to avoid unnecessary copies.
 	 */
-	 
-	if (!dl || !dev || dev->flags & IFF_LOOPBACK) 
+
+	if (!dl || !dev || dev->flags & IFF_LOOPBACK)
 		send_to_wire = 0;	/* No non looped */
 
 	/*
-	 * See if this should be demuxed to sockets on this interface 
+	 * See if this should be demuxed to sockets on this interface
 	 *
 	 * We want to ensure the original was eaten or that we only use
 	 * up clones.
 	 */
-	 
+
 	if (ipx->ipx_dest.net == intrfc->if_netnum) {
 		/*
 		 * To our own node, loop and free the original.
@@ -709,8 +709,8 @@ static int ipxitf_rcv(struct ipx_interface *intrfc, struct sk_buff *skb)
 
 	/* See if we should update our network number */
 	if (!intrfc->if_netnum) /* net number of intrfc not known yet */
- 		ipxitf_discover_netnum(intrfc, skb);
-	
+		ipxitf_discover_netnum(intrfc, skb);
+
 	IPX_SKB_CB(skb)->last_hop.index = -1;
 	if (ipx->ipx_type == IPX_TYPE_PPROP) {
 		rc = ipxitf_pprop(intrfc, skb);
@@ -756,7 +756,7 @@ out_intrfc:
 
 static void ipxitf_discover_netnum(struct ipx_interface *intrfc,
 				   struct sk_buff *skb)
-{ 
+{
 	const struct ipx_cb *cb = IPX_SKB_CB(skb);
 
 	/* see if this is an intra packet: source_net == dest_net */
@@ -793,7 +793,7 @@ static void ipxitf_discover_netnum(struct ipx_interface *intrfc,
  * it, not even processing it locally, if it has exact %IPX_MAX_PPROP_HOPS we
  * don't broadcast it, but process it locally. See chapter 5 of Novell's "IPX
  * RIP and SAP Router Specification", Part Number 107-000029-001.
- * 
+ *
  * If it is valid, check if we have pprop broadcasting enabled by the user,
  * if not, just return zero for local processing.
  *
@@ -820,7 +820,7 @@ static int ipxitf_pprop(struct ipx_interface *intrfc, struct sk_buff *skb)
 	 * tctrl <= 15, any data payload... */
 	if (IPX_SKB_CB(skb)->ipx_tctrl > IPX_MAX_PPROP_HOPS ||
 	    ntohs(ipx->ipx_pktsize) < sizeof(struct ipxhdr) +
-	    				IPX_MAX_PPROP_HOPS * sizeof(u32))
+					IPX_MAX_PPROP_HOPS * sizeof(u32))
 		goto out;
 	/* are we broadcasting this damn thing? */
 	rc = 0;
@@ -831,7 +831,7 @@ static int ipxitf_pprop(struct ipx_interface *intrfc, struct sk_buff *skb)
 	 * locally. */
 	if (IPX_SKB_CB(skb)->ipx_tctrl == IPX_MAX_PPROP_HOPS)
 		goto out;
-	
+
 	c = ((u8 *) ipx) + sizeof(struct ipxhdr);
 	l = (__be32 *) c;
 
@@ -851,7 +851,7 @@ static int ipxitf_pprop(struct ipx_interface *intrfc, struct sk_buff *skb)
 		/* Except unconfigured interfaces */
 		if (!ifcs->if_netnum)
 			continue;
-					
+
 		/* That aren't in the list */
 		if (ifcs == intrfc)
 			continue;
@@ -1003,7 +1003,7 @@ static int ipxitf_create(struct ipx_interface_definition *idef)
 			dlink_type 	= htons(ETH_P_IPX);
 			datalink 	= pEII_datalink;
 			break;
-		} else 
+		} else
 			printk(KERN_WARNING "IPX frame type EtherII over "
 					"token-ring is obsolete. Use SNAP "
 					"instead.\n");
@@ -1208,14 +1208,14 @@ static int ipxitf_ioctl(unsigned int cmd, void __user *arg)
 		rc = 0;
 		break;
 	}
-	case SIOCAIPXITFCRT: 
+	case SIOCAIPXITFCRT:
 		rc = -EFAULT;
 		if (get_user(val, (unsigned char __user *) arg))
 			break;
 		rc = 0;
 		ipxcfg_auto_create_interfaces = val;
 		break;
-	case SIOCAIPXPRISLT: 
+	case SIOCAIPXPRISLT:
 		rc = -EFAULT;
 		if (get_user(val, (unsigned char __user *) arg))
 			break;
@@ -1230,14 +1230,14 @@ static int ipxitf_ioctl(unsigned int cmd, void __user *arg)
 /*
  *	Checksum routine for IPX
  */
- 
+
 /* Note: We assume ipx_tctrl==0 and htons(length)==ipx_pktsize */
 /* This functions should *not* mess with packet contents */
 
 __be16 ipx_cksum(struct ipxhdr *packet, int length)
 {
-	/* 
-	 *	NOTE: sum is a net byte order quantity, which optimizes the 
+	/*
+	 *	NOTE: sum is a net byte order quantity, which optimizes the
 	 *	loop. This only works on big and little endian machines. (I
 	 *	don't know of a machine that isn't.)
 	 */
@@ -1342,7 +1342,7 @@ static int ipx_getsockopt(struct socket *sock, int level, int optname,
 	rc = -EINVAL;
 	if(len < 0)
 		goto out;
-		
+
 	rc = -EFAULT;
 	if (put_user(len, optlen) || copy_to_user(optval, &val, len))
 		goto out;
@@ -1372,13 +1372,13 @@ static int ipx_create(struct socket *sock, int protocol)
 	if (sock->type != SOCK_DGRAM)
 		goto out;
 
-       	rc = -ENOMEM;
+	rc = -ENOMEM;
 	sk = sk_alloc(PF_IPX, GFP_KERNEL, &ipx_proto, 1);
 	if (!sk)
 		goto out;
 #ifdef IPX_REFCNT_DEBUG
-        atomic_inc(&ipx_sock_nr);
-        printk(KERN_DEBUG "IPX socket %p created, now we have %d alive\n", sk,
+	atomic_inc(&ipx_sock_nr);
+	printk(KERN_DEBUG "IPX socket %p created, now we have %d alive\n", sk,
 			atomic_read(&ipx_sock_nr));
 #endif
 	sock_init_data(sock, sk);
@@ -1561,7 +1561,7 @@ static int ipx_connect(struct socket *sock, struct sockaddr *uaddr,
 			goto out;
 	}
 
-        /* We can either connect to primary network or somewhere
+	/* We can either connect to primary network or somewhere
 	 * we can route to */
 	rt = ipxrtr_lookup(addr->sipx_network);
 	rc = -ENETUNREACH;
@@ -1641,10 +1641,10 @@ static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 	struct ipxhdr *ipx;
 	u16 ipx_pktsize;
 	int rc = 0;
-		
-	/* Not ours */	
-        if (skb->pkt_type == PACKET_OTHERHOST)
-        	goto drop;
+
+	/* Not ours */
+	if (skb->pkt_type == PACKET_OTHERHOST)
+		goto drop;
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
 		goto out;
@@ -1653,12 +1653,12 @@ static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 		goto drop;
 
 	ipx_pktsize = ntohs(ipx_hdr(skb)->ipx_pktsize);
-	
+
 	/* Too small or invalid header? */
 	if (ipx_pktsize < sizeof(struct ipxhdr) ||
 	    !pskb_may_pull(skb, ipx_pktsize))
 		goto drop;
-                        
+
 	ipx = ipx_hdr(skb);
 	if (ipx->ipx_checksum != IPX_NO_CHECKSUM &&
 	   ipx->ipx_checksum != ipx_cksum(ipx, ipx_pktsize))
@@ -1786,7 +1786,7 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if (rc)
 			goto out;
 	}
-	
+
 	rc = -ENOTCONN;
 	if (sock_flag(sk, SOCK_ZAPPED))
 		goto out;
@@ -1875,15 +1875,15 @@ static int ipx_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		 * This socket wants to take care of the NCP connection
 		 * handed to us in arg.
 		 */
-        	rc = -EPERM;
-        	if (!capable(CAP_NET_ADMIN))
+		rc = -EPERM;
+		if (!capable(CAP_NET_ADMIN))
 			break;
 		rc = get_user(ipx_sk(sk)->ipx_ncp_conn,
 			      (const unsigned short __user *)argp);
 		break;
 	case SIOCGSTAMP:
 		rc = -EINVAL;
-		if (sk) 
+		if (sk)
 			rc = sock_get_timestamp(sk, argp);
 		break;
 	case SIOCGIFDSTADDR:
@@ -2035,19 +2035,27 @@ static void __exit ipx_proto_finito(void)
 
 	ipxitf_cleanup();
 
-	unregister_snap_client(pSNAP_datalink);
-	pSNAP_datalink = NULL;
+	if (pSNAP_datalink) {
+		unregister_snap_client(pSNAP_datalink);
+		pSNAP_datalink = NULL;
+	}
 
-	unregister_8022_client(p8022_datalink);
-	p8022_datalink = NULL;
+	if (p8022_datalink) {
+		unregister_8022_client(p8022_datalink);
+		p8022_datalink = NULL;
+	}
 
 	dev_remove_pack(&ipx_8023_packet_type);
-	destroy_8023_client(p8023_datalink);
-	p8023_datalink = NULL;
+	if (p8023_datalink) {
+		destroy_8023_client(p8023_datalink);
+		p8023_datalink = NULL;
+	}
 
 	dev_remove_pack(&ipx_dix_packet_type);
-	destroy_EII_client(pEII_datalink);
-	pEII_datalink = NULL;
+	if (pEII_datalink) {
+		destroy_EII_client(pEII_datalink);
+		pEII_datalink = NULL;
+	}
 
 	proto_unregister(&ipx_proto);
 	sock_unregister(ipx_family_ops.family);

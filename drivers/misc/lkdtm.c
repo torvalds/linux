@@ -108,8 +108,8 @@ static struct jprobe lkdtm;
 static int lkdtm_parse_commandline(void);
 static void lkdtm_handler(void);
 
-static char* cpoint_name = INVALID;
-static char* cpoint_type = NONE;
+static char* cpoint_name;
+static char* cpoint_type;
 static int cpoint_count = DEFAULT_COUNT;
 static int recur_count = REC_NUM_DEFAULT;
 

@@ -225,7 +225,7 @@ EXPORT_SYMBOL(tty_termios_input_baud_rate);
 
 /**
  *	tty_termios_encode_baud_rate
- *	@termios: termios structure
+ *	@termios: ktermios structure holding user requested state
  *	@ispeed: input speed
  *	@ospeed: output speed
  *
@@ -233,7 +233,10 @@ EXPORT_SYMBOL(tty_termios_input_baud_rate);
  *	used as a library helper for drivers os that they can report back
  *	the actual speed selected when it differs from the speed requested
  *
- *	For now input and output speed must agree.
+ *	For maximal back compatibility with legacy SYS5/POSIX *nix behaviour
+ *	we need to carefully set the bits when the user does not get the
+ *	desired speed. We allow small margins and preserve as much of possible
+ *	of the input intent to keep compatiblity.
  *
  *	Locking: Caller should hold termios lock. This is already held
  *	when calling this function from the driver termios handler.
@@ -242,32 +245,44 @@ EXPORT_SYMBOL(tty_termios_input_baud_rate);
 void tty_termios_encode_baud_rate(struct ktermios *termios, speed_t ibaud, speed_t obaud)
 {
 	int i = 0;
-	int ifound = 0, ofound = 0;
+	int ifound = -1, ofound = -1;
+	int iclose = ibaud/50, oclose = obaud/50;
+	int ibinput = 0;
 
 	termios->c_ispeed = ibaud;
 	termios->c_ospeed = obaud;
 
+	/* If the user asked for a precise weird speed give a precise weird
+	   answer. If they asked for a Bfoo speed they many have problems
+	   digesting non-exact replies so fuzz a bit */
+
+	if ((termios->c_cflag & CBAUD) == BOTHER)
+		oclose = 0;
+	if (((termios->c_cflag >> IBSHIFT) & CBAUD) == BOTHER)
+		iclose = 0;
+	if ((termios->c_cflag >> IBSHIFT) & CBAUD)
+		ibinput = 1;	/* An input speed was specified */
+
 	termios->c_cflag &= ~CBAUD;
-	/* Identical speed means no input encoding (ie B0 << IBSHIFT)*/
-	if (termios->c_ispeed == termios->c_ospeed)
-		ifound = 1;
 
 	do {
-		if (obaud == baud_table[i]) {
+		if (obaud - oclose >= baud_table[i] && obaud + oclose <= baud_table[i]) {
 			termios->c_cflag |= baud_bits[i];
-			ofound = 1;
-			/* So that if ibaud == obaud we don't set it */
-			continue;
+			ofound = i;
 		}
-		if (ibaud == baud_table[i]) {
-			termios->c_cflag |= (baud_bits[i] << IBSHIFT);
-			ifound = 1;
+		if (ibaud - iclose >= baud_table[i] && ibaud + iclose <= baud_table[i]) {
+			/* For the case input == output don't set IBAUD bits if the user didn't do so */
+			if (ofound != i || ibinput)
+				termios->c_cflag |= (baud_bits[i] << IBSHIFT);
+			ifound = i;
 		}
 	}
 	while(++i < n_baud_table);
-	if (!ofound)
+	if (ofound == -1)
 		termios->c_cflag |= BOTHER;
-	if (!ifound)
+	/* Set exact input bits only if the input and output differ or the
+	   user already did */
+	if (ifound == -1 && (ibaud != obaud  || ibinput))
 		termios->c_cflag |= (BOTHER << IBSHIFT);
 }
 

@@ -102,7 +102,7 @@ static DEFINE_PER_CPU(struct hrtimer_base, hrtimer_bases[MAX_HRTIMER_BASES]) =
  *
  * The function calculates the monotonic clock from the realtime
  * clock and the wall_to_monotonic offset and stores the result
- * in normalized timespec format in the variable pointed to by ts.
+ * in normalized timespec format in the variable pointed to by @ts.
  */
 void ktime_get_ts(struct timespec *ts)
 {
@@ -583,8 +583,8 @@ EXPORT_SYMBOL_GPL(hrtimer_init);
  * @which_clock: which clock to query
  * @tp:		 pointer to timespec variable to store the resolution
  *
- * Store the resolution of the clock selected by which_clock in the
- * variable pointed to by tp.
+ * Store the resolution of the clock selected by @which_clock in the
+ * variable pointed to by @tp.
  */
 int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp)
 {

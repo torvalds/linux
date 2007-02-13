@@ -54,6 +54,7 @@ struct sas_identify {
 struct sas_phy {
 	struct device		dev;
 	int			number;
+	int			enabled;
 
 	/* phy identification */
 	struct sas_identify	identify;
@@ -163,6 +164,7 @@ struct sas_function_template {
 	int (*get_enclosure_identifier)(struct sas_rphy *, u64 *);
 	int (*get_bay_identifier)(struct sas_rphy *);
 	int (*phy_reset)(struct sas_phy *, int);
+	int (*phy_enable)(struct sas_phy *, int);
 	int (*set_phy_speed)(struct sas_phy *, struct sas_phy_linkrates *);
 };
 
@@ -180,6 +182,7 @@ extern struct sas_rphy *sas_end_device_alloc(struct sas_port *);
 extern struct sas_rphy *sas_expander_alloc(struct sas_port *, enum sas_device_type);
 void sas_rphy_free(struct sas_rphy *);
 extern int sas_rphy_add(struct sas_rphy *);
+extern void sas_rphy_remove(struct sas_rphy *);
 extern void sas_rphy_delete(struct sas_rphy *);
 extern int scsi_is_sas_rphy(const struct device *);
 

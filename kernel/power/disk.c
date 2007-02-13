@@ -87,50 +87,22 @@ static inline void platform_finish(void)
 	}
 }
 
+static void unprepare_processes(void)
+{
+	thaw_processes();
+	pm_restore_console();
+}
+
 static int prepare_processes(void)
 {
 	int error = 0;
 
 	pm_prepare_console();
-
-	error = disable_nonboot_cpus();
-	if (error)
-		goto enable_cpus;
-
 	if (freeze_processes()) {
 		error = -EBUSY;
-		goto thaw;
+		unprepare_processes();
 	}
-
-	if (pm_disk_mode == PM_DISK_TESTPROC) {
-		printk("swsusp debug: Waiting for 5 seconds.\n");
-		mdelay(5000);
-		goto thaw;
-	}
-
-	error = platform_prepare();
-	if (error)
-		goto thaw;
-
-	/* Free memory before shutting down devices. */
-	if (!(error = swsusp_shrink_memory()))
-		return 0;
-
-	platform_finish();
- thaw:
-	thaw_processes();
- enable_cpus:
-	enable_nonboot_cpus();
-	pm_restore_console();
 	return error;
-}
-
-static void unprepare_processes(void)
-{
-	platform_finish();
-	thaw_processes();
-	enable_nonboot_cpus();
-	pm_restore_console();
 }
 
 /**
@@ -150,29 +122,45 @@ int pm_suspend_disk(void)
 	if (error)
 		return error;
 
-	if (pm_disk_mode == PM_DISK_TESTPROC)
-		return 0;
+	if (pm_disk_mode == PM_DISK_TESTPROC) {
+		printk("swsusp debug: Waiting for 5 seconds.\n");
+		mdelay(5000);
+		goto Thaw;
+	}
+	/* Free memory before shutting down devices. */
+	error = swsusp_shrink_memory();
+	if (error)
+		goto Thaw;
+
+	error = platform_prepare();
+	if (error)
+		goto Thaw;
 
 	suspend_console();
 	error = device_suspend(PMSG_FREEZE);
 	if (error) {
-		resume_console();
-		printk("Some devices failed to suspend\n");
-		goto Thaw;
+		printk(KERN_ERR "PM: Some devices failed to suspend\n");
+		goto Resume_devices;
 	}
+	error = disable_nonboot_cpus();
+	if (error)
+		goto Enable_cpus;
 
 	if (pm_disk_mode == PM_DISK_TEST) {
 		printk("swsusp debug: Waiting for 5 seconds.\n");
 		mdelay(5000);
-		goto Done;
+		goto Enable_cpus;
 	}
 
 	pr_debug("PM: snapshotting memory.\n");
 	in_suspend = 1;
-	if ((error = swsusp_suspend()))
-		goto Done;
+	error = swsusp_suspend();
+	if (error)
+		goto Enable_cpus;
 
 	if (in_suspend) {
+		enable_nonboot_cpus();
+		platform_finish();
 		device_resume();
 		resume_console();
 		pr_debug("PM: writing image.\n");
@@ -188,7 +176,10 @@ int pm_suspend_disk(void)
 	}
 
 	swsusp_free();
- Done:
+ Enable_cpus:
+	enable_nonboot_cpus();
+ Resume_devices:
+	platform_finish();
 	device_resume();
 	resume_console();
  Thaw:
@@ -237,19 +228,28 @@ static int software_resume(void)
 
 	pr_debug("PM: Checking swsusp image.\n");
 
-	if ((error = swsusp_check()))
+	error = swsusp_check();
+	if (error)
 		goto Done;
 
 	pr_debug("PM: Preparing processes for restore.\n");
 
-	if ((error = prepare_processes())) {
+	error = prepare_processes();
+	if (error) {
 		swsusp_close();
 		goto Done;
 	}
 
+	error = platform_prepare();
+	if (error) {
+		swsusp_free();
+		goto Thaw;
+	}
+
 	pr_debug("PM: Reading swsusp image.\n");
 
-	if ((error = swsusp_read())) {
+	error = swsusp_read();
+	if (error) {
 		swsusp_free();
 		goto Thaw;
 	}
@@ -257,21 +257,22 @@ static int software_resume(void)
 	pr_debug("PM: Preparing devices for restore.\n");
 
 	suspend_console();
-	if ((error = device_suspend(PMSG_PRETHAW))) {
-		resume_console();
-		printk("Some devices failed to suspend\n");
-		swsusp_free();
-		goto Thaw;
-	}
+	error = device_suspend(PMSG_PRETHAW);
+	if (error)
+		goto Free;
 
-	mb();
+	error = disable_nonboot_cpus();
+	if (!error)
+		swsusp_resume();
 
-	pr_debug("PM: Restoring saved image.\n");
-	swsusp_resume();
-	pr_debug("PM: Restore failed, recovering.n");
+	enable_nonboot_cpus();
+ Free:
+	swsusp_free();
+	platform_finish();
 	device_resume();
 	resume_console();
  Thaw:
+	printk(KERN_ERR "PM: Restore failed, recovering.\n");
 	unprepare_processes();
  Done:
 	/* For success case, the suspend path will release the lock */

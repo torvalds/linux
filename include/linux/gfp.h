@@ -70,7 +70,7 @@ struct vm_area_struct;
 #ifdef CONFIG_NUMA
 #define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
 #else
-#define GFP_THISNODE	0
+#define GFP_THISNODE	((__force gfp_t)0)
 #endif
 
 
@@ -85,8 +85,10 @@ struct vm_area_struct;
 
 static inline enum zone_type gfp_zone(gfp_t flags)
 {
+#ifdef CONFIG_ZONE_DMA
 	if (flags & __GFP_DMA)
 		return ZONE_DMA;
+#endif
 #ifdef CONFIG_ZONE_DMA32
 	if (flags & __GFP_DMA32)
 		return ZONE_DMA32;

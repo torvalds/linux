@@ -591,7 +591,7 @@ static unsigned int count_free_highmem_pages(void)
 
 	for_each_zone(zone)
 		if (populated_zone(zone) && is_highmem(zone))
-			cnt += zone->free_pages;
+			cnt += zone_page_state(zone, NR_FREE_PAGES);
 
 	return cnt;
 }
@@ -869,7 +869,7 @@ static int enough_free_mem(unsigned int nr_pages, unsigned int nr_highmem)
 	for_each_zone(zone) {
 		meta += snapshot_additional_pages(zone);
 		if (!is_highmem(zone))
-			free += zone->free_pages;
+			free += zone_page_state(zone, NR_FREE_PAGES);
 	}
 
 	nr_pages += count_pages_for_highmem(nr_highmem);

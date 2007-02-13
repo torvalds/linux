@@ -85,7 +85,7 @@ EXPORT_SYMBOL(cancel_dirty_page);
  *
  * We need to bale out if page->mapping is no longer equal to the original
  * mapping.  This happens a) when the VM reclaimed the page while we waited on
- * its lock, b) when a concurrent invalidate_inode_pages got there first and
+ * its lock, b) when a concurrent invalidate_mapping_pages got there first and
  * c) when tmpfs swizzles a page between a tmpfs inode and swapper_space.
  */
 static void
@@ -106,7 +106,7 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 }
 
 /*
- * This is for invalidate_inode_pages().  That function can be called at
+ * This is for invalidate_mapping_pages().  That function can be called at
  * any time, and is not supposed to throw away dirty pages.  But pages can
  * be marked dirty at any time too, so use remove_mapping which safely
  * discards clean, unused pages.
@@ -310,12 +310,7 @@ unlock:
 	}
 	return ret;
 }
-
-unsigned long invalidate_inode_pages(struct address_space *mapping)
-{
-	return invalidate_mapping_pages(mapping, 0, ~0UL);
-}
-EXPORT_SYMBOL(invalidate_inode_pages);
+EXPORT_SYMBOL(invalidate_mapping_pages);
 
 /*
  * This is like invalidate_complete_page(), except it ignores the page's

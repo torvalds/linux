@@ -107,8 +107,6 @@ void __update_cache(struct vm_area_struct *vma, unsigned long address,
 	}
 }
 
-#define __weak __attribute__((weak))
-
 static char cache_panic[] __initdata = "Yeee, unsupported cache architecture.";
 
 void __init cpu_cache_init(void)

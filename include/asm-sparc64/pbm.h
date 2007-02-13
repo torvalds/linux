@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
+#include <linux/msi.h>
 
 #include <asm/io.h>
 #include <asm/page.h>
@@ -177,6 +178,24 @@ struct pci_pbm_info {
 	int				is_66mhz_capable;
 	int				all_devs_66mhz;
 
+#ifdef CONFIG_PCI_MSI
+	/* MSI info.  */
+	u32				msiq_num;
+	u32				msiq_ent_count;
+	u32				msiq_first;
+	u32				msiq_first_devino;
+	u32				msi_num;
+	u32				msi_first;
+	u32				msi_data_mask;
+	u32				msix_data_width;
+	u64				msi32_start;
+	u64				msi64_start;
+	u32				msi32_len;
+	u32				msi64_len;
+	void				*msi_queues;
+	unsigned long			*msi_bitmap;
+#endif /* !(CONFIG_PCI_MSI) */
+
 	/* This PBM's streaming buffer. */
 	struct pci_strbuf		stc;
 
@@ -213,6 +232,12 @@ struct pci_controller_info {
 	void (*base_address_update)(struct pci_dev *, int);
 	void (*resource_adjust)(struct pci_dev *, struct resource *, struct resource *);
 
+#ifdef CONFIG_PCI_MSI
+	int (*setup_msi_irq)(unsigned int *virt_irq_p, struct pci_dev *pdev,
+			     struct msi_desc *entry);
+	void (*teardown_msi_irq)(unsigned int virt_irq, struct pci_dev *pdev);
+#endif
+
 	/* Now things for the actual PCI bus probes. */
 	struct pci_ops			*pci_ops;
 	unsigned int			pci_first_busno;
@@ -231,6 +256,9 @@ struct pcidev_cookie {
 	int num_prom_regs;
 	struct linux_prom_pci_registers prom_assignments[PROMREG_MAX];
 	int num_prom_assignments;
+#ifdef CONFIG_PCI_MSI
+	unsigned int			msi_num;
+#endif
 };
 
 /* Currently these are the same across all PCI controllers

@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_PGALLOC_H
 #define _ASM_M32R_PGALLOC_H
 
-/* $Id$ */
-
 #include <linux/mm.h>
 
 #include <asm/io.h>
@@ -74,4 +72,3 @@ static __inline__ void pte_free(struct page *pte)
 #define check_pgt_cache()	do { } while (0)
 
 #endif /* _ASM_M32R_PGALLOC_H */
-

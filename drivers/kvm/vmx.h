@@ -180,6 +180,7 @@ enum vmcs_field {
 
 #define EXIT_REASON_EXCEPTION_NMI       0
 #define EXIT_REASON_EXTERNAL_INTERRUPT  1
+#define EXIT_REASON_TRIPLE_FAULT        2
 
 #define EXIT_REASON_PENDING_INTERRUPT   7
 

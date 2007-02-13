@@ -193,6 +193,7 @@ Original developers of the crypto algorithms:
   Kartikey Mahendra Bhatt (CAST6)
   Jon Oberheide (ARC4)
   Jouni Malinen (Michael MIC)
+  NTT(Nippon Telegraph and Telephone Corporation) (Camellia)
 
 SHA1 algorithm contributors:
   Jean-Francois Dive
@@ -245,6 +246,9 @@ Tiger algorithm contributors:
 
 VIA PadLock contributors:
   Michal Ludvig
+
+Camellia algorithm contributors:
+  NTT(Nippon Telegraph and Telephone Corporation) (Camellia)
 
 Generic scatterwalk code by Adam J. Richter <adam@yggdrasil.com>
 

@@ -52,10 +52,12 @@ SECTIONS
   }
   __initcall_end = .;
 
+#ifdef CONFIG_BLK_DEV_INITRD
   . = ALIGN(8192);
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
   __initramfs_end = .;
+#endif
 
   . = ALIGN(8);
   .con_initcall.init : {

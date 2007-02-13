@@ -392,7 +392,7 @@ static int i2cdev_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations i2cdev_fops = {
+static const struct file_operations i2cdev_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= i2cdev_read,

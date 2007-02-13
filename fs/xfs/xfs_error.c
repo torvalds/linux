@@ -132,32 +132,6 @@ xfs_errortag_add(int error_tag, xfs_mount_t *mp)
 }
 
 int
-xfs_errortag_clear(int error_tag, xfs_mount_t *mp)
-{
-	int i;
-	int64_t fsid;
-
-	memcpy(&fsid, mp->m_fixedfsid, sizeof(xfs_fsid_t));
-
-	for (i = 0; i < XFS_NUM_INJECT_ERROR; i++) {
-		if (xfs_etest_fsid[i] == fsid && xfs_etest[i] == error_tag) {
-			xfs_etest[i] = 0;
-			xfs_etest_fsid[i] = 0LL;
-			kmem_free(xfs_etest_fsname[i],
-				  strlen(xfs_etest_fsname[i]) + 1);
-			xfs_etest_fsname[i] = NULL;
-			cmn_err(CE_WARN, "Cleared XFS error tag #%d",
-				error_tag);
-			return 0;
-		}
-	}
-
-	cmn_err(CE_WARN, "XFS error tag %d not on", error_tag);
-
-	return 1;
-}
-
-int
 xfs_errortag_clearall_umount(int64_t fsid, char *fsname, int loud)
 {
 	int i;

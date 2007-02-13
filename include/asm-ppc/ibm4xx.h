@@ -109,6 +109,10 @@ void ppc4xx_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #include <platforms/4xx/ocotea.h>
 #endif
 
+#if defined(CONFIG_TAISHAN)
+#include <platforms/4xx/taishan.h>
+#endif
+
 #ifndef __ASSEMBLY__
 #ifdef CONFIG_40x
 /*

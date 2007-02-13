@@ -491,6 +491,17 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
 	return message;
 }
 
+static int __initdata do_retain_initrd;
+
+static int __init retain_initrd_param(char *str)
+{
+	if (*str)
+		return 0;
+	do_retain_initrd = 1;
+	return 1;
+}
+__setup("retain_initrd", retain_initrd_param);
+
 extern char __initramfs_start[], __initramfs_end[];
 #ifdef CONFIG_BLK_DEV_INITRD
 #include <linux/initrd.h>
@@ -501,7 +512,11 @@ static void __init free_initrd(void)
 #ifdef CONFIG_KEXEC
 	unsigned long crashk_start = (unsigned long)__va(crashk_res.start);
 	unsigned long crashk_end   = (unsigned long)__va(crashk_res.end);
+#endif
+	if (do_retain_initrd)
+		goto skip;
 
+#ifdef CONFIG_KEXEC
 	/*
 	 * If the initrd region is overlapped with crashkernel reserved region,
 	 * free only memory that is not part of crashkernel region.
@@ -519,7 +534,7 @@ static void __init free_initrd(void)
 	} else
 #endif
 		free_initrd_mem(initrd_start, initrd_end);
-
+skip:
 	initrd_start = 0;
 	initrd_end = 0;
 }

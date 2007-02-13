@@ -39,7 +39,7 @@
 #include <asm/system.h>
 
 /*
- * Create the HIPPI MAC header for an arbitrary protocol layer 
+ * Create the HIPPI MAC header for an arbitrary protocol layer
  *
  * saddr=NULL	means use device source address
  * daddr=NULL	means leave destination address (eg unresolved arp)
@@ -104,8 +104,8 @@ static int hippi_rebuild_header(struct sk_buff *skb)
 	/*
 	 * Only IP is currently supported
 	 */
-	 
-	if(hip->snap.ethertype != __constant_htons(ETH_P_IP)) 
+
+	if(hip->snap.ethertype != __constant_htons(ETH_P_IP))
 	{
 		printk(KERN_DEBUG "%s: unable to resolve type %X addresses.\n",skb->dev->name,ntohs(hip->snap.ethertype));
 		return 0;
@@ -122,11 +122,11 @@ static int hippi_rebuild_header(struct sk_buff *skb)
 /*
  *	Determine the packet's protocol ID.
  */
- 
+
 __be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hippi_hdr *hip;
-	
+
 	hip = (struct hippi_hdr *) skb->data;
 
 	/*
@@ -173,10 +173,10 @@ static int hippi_neigh_setup_dev(struct net_device *dev, struct neigh_parms *p)
 {
 	/* Never send broadcast/multicast ARP messages */
 	p->mcast_probes = 0;
- 
+
 	/* In IPv6 unicast probes are valid even on NBMA,
 	* because they are encapsulated in normal IPv6 protocol.
-	* Should be a generic flag. 
+	* Should be a generic flag.
 	*/
 	if (p->tbl->family != AF_INET6)
 		p->ucast_probes = 0;
@@ -193,7 +193,7 @@ static void hippi_setup(struct net_device *dev)
 	dev->hard_header_parse		= NULL;
 	dev->hard_header_cache		= NULL;
 	dev->header_cache_update	= NULL;
-	dev->neigh_setup 		= hippi_neigh_setup_dev; 
+	dev->neigh_setup 		= hippi_neigh_setup_dev;
 
 	/*
 	 * We don't support HIPPI `ARP' for the time being, and probably
@@ -210,9 +210,9 @@ static void hippi_setup(struct net_device *dev)
 
 	/*
 	 * HIPPI doesn't support broadcast+multicast and we only use
-	 * static ARP tables. ARP is disabled by hippi_neigh_setup_dev. 
+	 * static ARP tables. ARP is disabled by hippi_neigh_setup_dev.
 	 */
-	dev->flags = 0; 
+	dev->flags = 0;
 }
 
 /**

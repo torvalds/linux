@@ -1,10 +1,6 @@
 #ifndef _ASM_M32R_SIGNAL_H
 #define _ASM_M32R_SIGNAL_H
 
-/* $Id$ */
-
-/* orig : i386 2.4.18 */
-
 #include <linux/types.h>
 #include <linux/time.h>
 #include <linux/compiler.h>

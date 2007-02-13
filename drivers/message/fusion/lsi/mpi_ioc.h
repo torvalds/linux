@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2005 LSI Logic Corporation.
+ *  Copyright (c) 2000-2006 LSI Logic Corporation.
  *
  *
  *           Name:  mpi_ioc.h
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  August 11, 2000
  *
- *    mpi_ioc.h Version:  01.05.11
+ *    mpi_ioc.h Version:  01.05.12
  *
  *  Version History
  *  ---------------
@@ -98,6 +98,14 @@
  *                      Added MPI_EVENT_SAS_INIT_TABLE_OVERFLOW and event
  *                      data structure.
  *                      Added MPI_EXT_IMAGE_TYPE_INITIALIZATION.
+ *  10-11-06  01.05.12  Added MPI_IOCFACTS_EXCEPT_METADATA_UNSUPPORTED.
+ *                      Added MaxInitiators field to PortFacts reply.
+ *                      Added SAS Device Status Change ReasonCode for
+ *                      asynchronous notificaiton.
+ *                      Added MPI_EVENT_SAS_EXPANDER_STATUS_CHANGE and event
+ *                      data structure.
+ *                      Added new ImageType values for FWDownload and FWUpload
+ *                      requests.
  *  --------------------------------------------------------------------------
  */
 
@@ -264,6 +272,7 @@ typedef struct _MSG_IOC_FACTS_REPLY
 #define MPI_IOCFACTS_EXCEPT_RAID_CONFIG_INVALID         (0x0002)
 #define MPI_IOCFACTS_EXCEPT_FW_CHECKSUM_FAIL            (0x0004)
 #define MPI_IOCFACTS_EXCEPT_PERSISTENT_TABLE_FULL       (0x0008)
+#define MPI_IOCFACTS_EXCEPT_METADATA_UNSUPPORTED        (0x0010)
 
 #define MPI_IOCFACTS_FLAGS_FW_DOWNLOAD_BOOT             (0x01)
 #define MPI_IOCFACTS_FLAGS_REPLY_FIFO_HOST_SIGNAL       (0x02)
@@ -328,7 +337,8 @@ typedef struct _MSG_PORT_FACTS_REPLY
      U16                    MaxPostedCmdBuffers;        /* 1Ch */
      U16                    MaxPersistentIDs;           /* 1Eh */
      U16                    MaxLanBuckets;              /* 20h */
-     U16                    Reserved4;                  /* 22h */
+     U8                     MaxInitiators;              /* 22h */
+     U8                     Reserved4;                  /* 23h */
      U32                    Reserved5;                  /* 24h */
 } MSG_PORT_FACTS_REPLY, MPI_POINTER PTR_MSG_PORT_FACTS_REPLY,
   PortFactsReply_t, MPI_POINTER pPortFactsReply_t;
@@ -487,6 +497,7 @@ typedef struct _MSG_EVENT_ACK_REPLY
 #define MPI_EVENT_SAS_INIT_DEVICE_STATUS_CHANGE (0x00000018)
 #define MPI_EVENT_SAS_INIT_TABLE_OVERFLOW       (0x00000019)
 #define MPI_EVENT_SAS_SMP_ERROR                 (0x0000001A)
+#define MPI_EVENT_SAS_EXPANDER_STATUS_CHANGE    (0x0000001B)
 #define MPI_EVENT_LOG_ENTRY_ADDED               (0x00000021)
 
 /* AckRequired field values */
@@ -593,6 +604,7 @@ typedef struct _EVENT_DATA_SAS_DEVICE_STATUS_CHANGE
 #define MPI_EVENT_SAS_DEV_STAT_RC_ABORT_TASK_SET_INTERNAL   (0x0A)
 #define MPI_EVENT_SAS_DEV_STAT_RC_CLEAR_TASK_SET_INTERNAL   (0x0B)
 #define MPI_EVENT_SAS_DEV_STAT_RC_QUERY_TASK_INTERNAL       (0x0C)
+#define MPI_EVENT_SAS_DEV_STAT_RC_ASYNC_NOTIFICATION        (0x0D)
 
 
 /* SCSI Event data for Queue Full event */
@@ -895,6 +907,54 @@ typedef struct _EVENT_DATA_SAS_INIT_TABLE_OVERFLOW
   MpiEventDataSasInitTableOverflow_t,
   MPI_POINTER pMpiEventDataSasInitTableOverflow_t;
 
+/* SAS Expander Status Change Event data */
+
+typedef struct _EVENT_DATA_SAS_EXPANDER_STATUS_CHANGE
+{
+    U8                      ReasonCode;             /* 00h */
+    U8                      Reserved1;              /* 01h */
+    U16                     Reserved2;              /* 02h */
+    U8                      PhysicalPort;           /* 04h */
+    U8                      Reserved3;              /* 05h */
+    U16                     EnclosureHandle;        /* 06h */
+    U64                     SASAddress;             /* 08h */
+    U32                     DiscoveryStatus;        /* 10h */
+    U16                     DevHandle;              /* 14h */
+    U16                     ParentDevHandle;        /* 16h */
+    U16                     ExpanderChangeCount;    /* 18h */
+    U16                     ExpanderRouteIndexes;   /* 1Ah */
+    U8                      NumPhys;                /* 1Ch */
+    U8                      SASLevel;               /* 1Dh */
+    U8                      Flags;                  /* 1Eh */
+    U8                      Reserved4;              /* 1Fh */
+} EVENT_DATA_SAS_EXPANDER_STATUS_CHANGE,
+  MPI_POINTER PTR_EVENT_DATA_SAS_EXPANDER_STATUS_CHANGE,
+  MpiEventDataSasExpanderStatusChange_t,
+  MPI_POINTER pMpiEventDataSasExpanderStatusChange_t;
+
+/* values for ReasonCode field of SAS Expander Status Change Event data */
+#define MPI_EVENT_SAS_EXP_RC_ADDED                      (0x00)
+#define MPI_EVENT_SAS_EXP_RC_NOT_RESPONDING             (0x01)
+
+/* values for DiscoveryStatus field of SAS Expander Status Change Event data */
+#define MPI_EVENT_SAS_EXP_DS_LOOP_DETECTED              (0x00000001)
+#define MPI_EVENT_SAS_EXP_DS_UNADDRESSABLE_DEVICE       (0x00000002)
+#define MPI_EVENT_SAS_EXP_DS_MULTIPLE_PORTS             (0x00000004)
+#define MPI_EVENT_SAS_EXP_DS_EXPANDER_ERR               (0x00000008)
+#define MPI_EVENT_SAS_EXP_DS_SMP_TIMEOUT                (0x00000010)
+#define MPI_EVENT_SAS_EXP_DS_OUT_ROUTE_ENTRIES          (0x00000020)
+#define MPI_EVENT_SAS_EXP_DS_INDEX_NOT_EXIST            (0x00000040)
+#define MPI_EVENT_SAS_EXP_DS_SMP_FUNCTION_FAILED        (0x00000080)
+#define MPI_EVENT_SAS_EXP_DS_SMP_CRC_ERROR              (0x00000100)
+#define MPI_EVENT_SAS_EXP_DS_SUBTRACTIVE_LINK           (0x00000200)
+#define MPI_EVENT_SAS_EXP_DS_TABLE_LINK                 (0x00000400)
+#define MPI_EVENT_SAS_EXP_DS_UNSUPPORTED_DEVICE         (0x00000800)
+
+/* values for Flags field of SAS Expander Status Change Event data */
+#define MPI_EVENT_SAS_EXP_FLAGS_ROUTE_TABLE_CONFIG      (0x02)
+#define MPI_EVENT_SAS_EXP_FLAGS_CONFIG_IN_PROGRESS      (0x01)
+
+
 
 /*****************************************************************************
 *
@@ -926,6 +986,10 @@ typedef struct _MSG_FW_DOWNLOAD
 #define MPI_FW_DOWNLOAD_ITYPE_BIOS              (0x02)
 #define MPI_FW_DOWNLOAD_ITYPE_NVDATA            (0x03)
 #define MPI_FW_DOWNLOAD_ITYPE_BOOTLOADER        (0x04)
+#define MPI_FW_DOWNLOAD_ITYPE_MANUFACTURING     (0x06)
+#define MPI_FW_DOWNLOAD_ITYPE_CONFIG_1          (0x07)
+#define MPI_FW_DOWNLOAD_ITYPE_CONFIG_2          (0x08)
+#define MPI_FW_DOWNLOAD_ITYPE_MEGARAID          (0x09)
 
 
 typedef struct _FWDownloadTCSGE
@@ -980,6 +1044,11 @@ typedef struct _MSG_FW_UPLOAD
 #define MPI_FW_UPLOAD_ITYPE_NVDATA          (0x03)
 #define MPI_FW_UPLOAD_ITYPE_BOOTLOADER      (0x04)
 #define MPI_FW_UPLOAD_ITYPE_FW_BACKUP       (0x05)
+#define MPI_FW_UPLOAD_ITYPE_MANUFACTURING   (0x06)
+#define MPI_FW_UPLOAD_ITYPE_CONFIG_1        (0x07)
+#define MPI_FW_UPLOAD_ITYPE_CONFIG_2        (0x08)
+#define MPI_FW_UPLOAD_ITYPE_MEGARAID        (0x09)
+#define MPI_FW_UPLOAD_ITYPE_COMPLETE        (0x0A)
 
 typedef struct _FWUploadTCSGE
 {

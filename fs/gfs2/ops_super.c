@@ -468,7 +468,7 @@ static void gfs2_destroy_inode(struct inode *inode)
 	kmem_cache_free(gfs2_inode_cachep, inode);
 }
 
-struct super_operations gfs2_super_ops = {
+const struct super_operations gfs2_super_ops = {
 	.alloc_inode		= gfs2_alloc_inode,
 	.destroy_inode		= gfs2_destroy_inode,
 	.write_inode		= gfs2_write_inode,

@@ -26,6 +26,7 @@
  *		12-Sep-96	LVS		Removed packet request header pointers.
  *		04 Aug 2003	macro		Converted to the DMA API.
  *		23 Oct 2006	macro		Big-endian host support.
+ *		14 Dec 2006	macro		TURBOchannel support.
  */
 
 #ifndef _DEFXX_H_
@@ -1471,9 +1472,17 @@ typedef union
 
 #endif /* __BIG_ENDIAN */
 
+/* Define TC PDQ CSR offset and length */
+
+#define PI_TC_K_CSR_OFFSET		0x100000
+#define PI_TC_K_CSR_LEN			0x40		/* 64 bytes */
+
 /* Define EISA controller register offsets */
 
-#define PI_ESIC_K_BURST_HOLDOFF		0x040
+#define PI_ESIC_K_CSR_IO_LEN		0x80		/* 128 bytes */
+
+#define PI_DEFEA_K_BURST_HOLDOFF	0x040
+
 #define PI_ESIC_K_SLOT_ID            	0xC80
 #define PI_ESIC_K_SLOT_CNTRL		0xC84
 #define PI_ESIC_K_MEM_ADD_CMP_0     	0xC85
@@ -1488,14 +1497,14 @@ typedef union
 #define PI_ESIC_K_MEM_ADD_LO_CMP_0  	0xC8E
 #define PI_ESIC_K_MEM_ADD_LO_CMP_1  	0xC8F
 #define PI_ESIC_K_MEM_ADD_LO_CMP_2  	0xC90
-#define PI_ESIC_K_IO_CMP_0_0		0xC91
-#define PI_ESIC_K_IO_CMP_0_1		0xC92
-#define PI_ESIC_K_IO_CMP_1_0		0xC93
-#define PI_ESIC_K_IO_CMP_1_1		0xC94
-#define PI_ESIC_K_IO_CMP_2_0		0xC95
-#define PI_ESIC_K_IO_CMP_2_1		0xC96
-#define PI_ESIC_K_IO_CMP_3_0		0xC97
-#define PI_ESIC_K_IO_CMP_3_1		0xC98
+#define PI_ESIC_K_IO_ADD_CMP_0_0	0xC91
+#define PI_ESIC_K_IO_ADD_CMP_0_1	0xC92
+#define PI_ESIC_K_IO_ADD_CMP_1_0	0xC93
+#define PI_ESIC_K_IO_ADD_CMP_1_1	0xC94
+#define PI_ESIC_K_IO_ADD_CMP_2_0	0xC95
+#define PI_ESIC_K_IO_ADD_CMP_2_1	0xC96
+#define PI_ESIC_K_IO_ADD_CMP_3_0	0xC97
+#define PI_ESIC_K_IO_ADD_CMP_3_1	0xC98
 #define PI_ESIC_K_IO_ADD_MASK_0_0    	0xC99
 #define PI_ESIC_K_IO_ADD_MASK_0_1    	0xC9A
 #define PI_ESIC_K_IO_ADD_MASK_1_0    	0xC9B
@@ -1518,11 +1527,16 @@ typedef union
 #define PI_ESIC_K_INPUT_PORT         	0xCAC
 #define PI_ESIC_K_OUTPUT_PORT        	0xCAD
 #define PI_ESIC_K_FUNCTION_CNTRL	0xCAE
-#define PI_ESIC_K_CSR_IO_LEN		PI_ESIC_K_FUNCTION_CNTRL+1	/* always last reg + 1 */
 
-/* Define the value all drivers must write to the function control register. */
+/* Define the bits in the function control register. */
 
-#define PI_ESIC_K_FUNCTION_CNTRL_IO_ENB	0x03
+#define PI_FUNCTION_CNTRL_M_IOCS0	0x01
+#define PI_FUNCTION_CNTRL_M_IOCS1	0x02
+#define PI_FUNCTION_CNTRL_M_IOCS2	0x04
+#define PI_FUNCTION_CNTRL_M_IOCS3	0x08
+#define PI_FUNCTION_CNTRL_M_MEMCS0	0x10
+#define PI_FUNCTION_CNTRL_M_MEMCS1	0x20
+#define PI_FUNCTION_CNTRL_M_DMA		0x80
 
 /* Define the bits in the slot control register. */
 
@@ -1539,6 +1553,10 @@ typedef union
 #define PI_BURST_HOLDOFF_V_HOLDOFF	2
 #define PI_BURST_HOLDOFF_V_RESERVED	1
 #define PI_BURST_HOLDOFF_V_MEM_MAP	0
+
+/* Define the implicit mask of the Memory Address Mask Register.  */
+
+#define PI_MEM_ADD_MASK_M		0x3ff
 
 /*
  * Define the fields in the IO Compare registers.
@@ -1577,6 +1595,7 @@ typedef union
 #define DEFEA_PROD_ID_1		0x0130A310		/* DEC product 300, rev 1	*/
 #define DEFEA_PROD_ID_2		0x0230A310		/* DEC product 300, rev 2	*/
 #define DEFEA_PROD_ID_3		0x0330A310		/* DEC product 300, rev 3	*/
+#define DEFEA_PROD_ID_4		0x0430A310		/* DEC product 300, rev 4	*/
 
 /**********************************************/
 /* Digital PFI Specification v1.0 Definitions */
@@ -1632,12 +1651,6 @@ typedef union
 #define PFI_STATUS_V_FIFO_FULL		 2
 #define PFI_STATUS_V_FIFO_EMPTY		 1
 #define PFI_STATUS_V_DMA_IN_PROGRESS 0
-
-#define DFX_MAX_EISA_SLOTS		16			/* maximum number of EISA slots to scan */
-#define DFX_MAX_NUM_BOARDS		8			/* maximum number of adapters supported */
-
-#define DFX_BUS_TYPE_PCI		0			/* type code for DEC FDDIcontroller/PCI */
-#define DFX_BUS_TYPE_EISA		1			/* type code for DEC FDDIcontroller/EISA */
 
 #define DFX_FC_PRH2_PRH1_PRH0		0x54003820	/* Packet Request Header bytes + FC */
 #define DFX_PRH0_BYTE			0x20		/* Packet Request Header byte 0 */
@@ -1756,10 +1769,11 @@ typedef struct DFX_board_tag
 	/* Store device, bus-specific, and parameter information for this adapter */
 
 	struct net_device		*dev;						/* pointer to device structure */
-	struct net_device		*next;
-	u32				bus_type;					/* bus type (0 == PCI, 1 == EISA) */
-	u16				base_addr;					/* base I/O address (same as dev->base_addr) */
-	struct pci_dev *		pci_dev;
+	union {
+		void __iomem *mem;
+		int port;
+	} base;										/* base address */
+	struct device			*bus_dev;
 	u32				full_duplex_enb;				/* FDDI Full Duplex enable (1 == on, 2 == off) */
 	u32				req_ttrt;					/* requested TTRT value (in 80ns units) */
 	u32				burst_size;					/* adapter burst size (enumerated) */

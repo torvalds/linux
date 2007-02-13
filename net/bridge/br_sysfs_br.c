@@ -353,19 +353,19 @@ static ssize_t brforward_read(struct kobject *kobj, char *buf,
 	if (off % sizeof(struct __fdb_entry) != 0)
 		return -EINVAL;
 
-	n =  br_fdb_fillbuf(br, buf, 
+	n =  br_fdb_fillbuf(br, buf,
 			    count / sizeof(struct __fdb_entry),
 			    off / sizeof(struct __fdb_entry));
 
 	if (n > 0)
 		n *= sizeof(struct __fdb_entry);
-	
+
 	return n;
 }
 
 static struct bin_attribute bridge_forward = {
 	.attr = { .name = SYSFS_BRIDGE_FDB,
-		  .mode = S_IRUGO, 
+		  .mode = S_IRUGO,
 		  .owner = THIS_MODULE, },
 	.read = brforward_read,
 };
@@ -401,7 +401,7 @@ int br_sysfs_addbr(struct net_device *dev)
 		goto out2;
 	}
 
-	
+
 	kobject_set_name(&br->ifobj, SYSFS_BRIDGE_PORT_SUBDIR);
 	br->ifobj.ktype = NULL;
 	br->ifobj.kset = NULL;

@@ -114,7 +114,7 @@ static int cache_debugfs_open(struct inode *inode, struct file *file)
 	return single_open(file, cache_seq_show, inode->i_private);
 }
 
-static struct file_operations cache_debugfs_fops = {
+static const struct file_operations cache_debugfs_fops = {
 	.owner		= THIS_MODULE,
 	.open		= cache_debugfs_open,
 	.read		= seq_read,

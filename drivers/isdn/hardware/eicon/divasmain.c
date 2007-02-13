@@ -663,7 +663,7 @@ static unsigned int divas_poll(struct file *file, poll_table * wait)
 	return (POLLIN | POLLRDNORM);
 }
 
-static struct file_operations divas_fops = {
+static const struct file_operations divas_fops = {
 	.owner   = THIS_MODULE,
 	.llseek  = no_llseek,
 	.read    = divas_read,

@@ -74,7 +74,7 @@ int inet_add_protocol(struct net_protocol *prot, unsigned char protocol)
 /*
  *	Remove a protocol from the hash tables.
  */
- 
+
 int inet_del_protocol(struct net_protocol *prot, unsigned char protocol)
 {
 	int hash, ret;

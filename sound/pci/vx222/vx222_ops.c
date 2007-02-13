@@ -846,7 +846,7 @@ static void vx2_set_input_level(struct snd_vx222 *chip)
 
 #define MIC_LEVEL_MAX	0xff
 
-static DECLARE_TLV_DB_SCALE(db_scale_mic, -6450, 50, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_mic, -6450, 50, 0);
 
 /*
  * controls API for input levels

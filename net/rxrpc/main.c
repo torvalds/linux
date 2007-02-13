@@ -146,17 +146,17 @@ __attribute__((no_instrument_function));
 void __cyg_profile_func_enter (void *this_fn, void *call_site)
 {
        asm volatile("  movl    %%esp,%%edi     \n"
-                    "  andl    %0,%%edi        \n"
-                    "  addl    %1,%%edi        \n"
-                    "  movl    %%esp,%%ecx     \n"
-                    "  subl    %%edi,%%ecx     \n"
-                    "  shrl    $2,%%ecx        \n"
-                    "  movl    $0xedededed,%%eax     \n"
-                    "  rep stosl               \n"
-                    :
-                    : "i"(~(THREAD_SIZE-1)), "i"(sizeof(struct thread_info))
-                    : "eax", "ecx", "edi", "memory", "cc"
-                    );
+		    "  andl    %0,%%edi        \n"
+		    "  addl    %1,%%edi        \n"
+		    "  movl    %%esp,%%ecx     \n"
+		    "  subl    %%edi,%%ecx     \n"
+		    "  shrl    $2,%%ecx        \n"
+		    "  movl    $0xedededed,%%eax     \n"
+		    "  rep stosl               \n"
+		    :
+		    : "i"(~(THREAD_SIZE-1)), "i"(sizeof(struct thread_info))
+		    : "eax", "ecx", "edi", "memory", "cc"
+		    );
 }
 
 void __cyg_profile_func_exit(void *this_fn, void *call_site)
@@ -165,16 +165,16 @@ __attribute__((no_instrument_function));
 void __cyg_profile_func_exit(void *this_fn, void *call_site)
 {
        asm volatile("  movl    %%esp,%%edi     \n"
-                    "  andl    %0,%%edi        \n"
-                    "  addl    %1,%%edi        \n"
-                    "  movl    %%esp,%%ecx     \n"
-                    "  subl    %%edi,%%ecx     \n"
-                    "  shrl    $2,%%ecx        \n"
-                    "  movl    $0xdadadada,%%eax     \n"
-                    "  rep stosl               \n"
-                    :
-                    : "i"(~(THREAD_SIZE-1)), "i"(sizeof(struct thread_info))
-                    : "eax", "ecx", "edi", "memory", "cc"
-                    );
+		    "  andl    %0,%%edi        \n"
+		    "  addl    %1,%%edi        \n"
+		    "  movl    %%esp,%%ecx     \n"
+		    "  subl    %%edi,%%ecx     \n"
+		    "  shrl    $2,%%ecx        \n"
+		    "  movl    $0xdadadada,%%eax     \n"
+		    "  rep stosl               \n"
+		    :
+		    : "i"(~(THREAD_SIZE-1)), "i"(sizeof(struct thread_info))
+		    : "eax", "ecx", "edi", "memory", "cc"
+		    );
 }
 #endif

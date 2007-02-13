@@ -973,6 +973,15 @@ config SCSI_LASI700
 	  many PA-RISC workstations & servers.  If you do not know whether you
 	  have a Lasi chip, it is safe to say "Y" here.
 
+config SCSI_SNI_53C710
+	tristate "SNI RM SCSI support for 53c710"
+	depends on SNI_RM && SCSI
+	select SCSI_SPI_ATTRS
+	select 53C700_LE_ON_BE
+	help
+	  This is a driver for the onboard SCSI controller found in older
+	  SNI RM workstations & servers.
+
 config 53C700_LE_ON_BE
 	bool
 	depends on SCSI_LASI700

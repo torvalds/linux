@@ -96,49 +96,49 @@
  */
 static const struct pci_device_id pci_tbl[] = {
 /* AA
-	{ 0x8086, 0x2418, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, */
-	{ 0x8086, 0x2410, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* AA */
+	{ PCI_DEVICE(0x8086, 0x2418) }, */
+	{ PCI_DEVICE(0x8086, 0x2410) }, /* AA */
 /* AB
-	{ 0x8086, 0x2428, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, */
-	{ 0x8086, 0x2420, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* AB */
+	{ PCI_DEVICE(0x8086, 0x2428) }, */
+	{ PCI_DEVICE(0x8086, 0x2420) }, /* AB */
 /* ??
-	{ 0x8086, 0x2430, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, */
+	{ PCI_DEVICE(0x8086, 0x2430) }, */
 /* BAM, CAM, DBM, FBM, GxM
-	{ 0x8086, 0x2448, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, */
-	{ 0x8086, 0x244c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* BAM */
-	{ 0x8086, 0x248c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* CAM */
-	{ 0x8086, 0x24cc, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* DBM */
-	{ 0x8086, 0x2641, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* FBM */
-	{ 0x8086, 0x27b9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* GxM */
-	{ 0x8086, 0x27bd, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* GxM DH */
+	{ PCI_DEVICE(0x8086, 0x2448) }, */
+	{ PCI_DEVICE(0x8086, 0x244c) }, /* BAM */
+	{ PCI_DEVICE(0x8086, 0x248c) }, /* CAM */
+	{ PCI_DEVICE(0x8086, 0x24cc) }, /* DBM */
+	{ PCI_DEVICE(0x8086, 0x2641) }, /* FBM */
+	{ PCI_DEVICE(0x8086, 0x27b9) }, /* GxM */
+	{ PCI_DEVICE(0x8086, 0x27bd) }, /* GxM DH */
 /* BA, CA, DB, Ex, 6300, Fx, 631x/632x, Gx
-	{ 0x8086, 0x244e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, */
-	{ 0x8086, 0x2440, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* BA */
-	{ 0x8086, 0x2480, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* CA */
-	{ 0x8086, 0x24c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* DB */
-	{ 0x8086, 0x24d0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* Ex */
-	{ 0x8086, 0x25a1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 6300 */
-	{ 0x8086, 0x2640, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* Fx */
-	{ 0x8086, 0x2670, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x2671, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x2672, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x2673, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x2674, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x2675, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x2676, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x2677, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x2678, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x2679, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x267a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x267b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x267c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x267d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x267e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x267f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* 631x/632x */
-	{ 0x8086, 0x27b8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* Gx */
+	{ PCI_DEVICE(0x8086, 0x244e) }, */
+	{ PCI_DEVICE(0x8086, 0x2440) }, /* BA */
+	{ PCI_DEVICE(0x8086, 0x2480) }, /* CA */
+	{ PCI_DEVICE(0x8086, 0x24c0) }, /* DB */
+	{ PCI_DEVICE(0x8086, 0x24d0) }, /* Ex */
+	{ PCI_DEVICE(0x8086, 0x25a1) }, /* 6300 */
+	{ PCI_DEVICE(0x8086, 0x2640) }, /* Fx */
+	{ PCI_DEVICE(0x8086, 0x2670) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x2671) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x2672) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x2673) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x2674) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x2675) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x2676) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x2677) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x2678) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x2679) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x267a) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x267b) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x267c) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x267d) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x267e) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x267f) }, /* 631x/632x */
+	{ PCI_DEVICE(0x8086, 0x27b8) }, /* Gx */
 /* E
-	{ 0x8086, 0x245e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, */
-	{ 0x8086, 0x2450, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, }, /* E  */
+	{ PCI_DEVICE(0x8086, 0x245e) }, */
+	{ PCI_DEVICE(0x8086, 0x2450) }, /* E  */
 	{ 0, },	/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, pci_tbl);

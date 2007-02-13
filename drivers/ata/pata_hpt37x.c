@@ -349,24 +349,13 @@ static u32 hpt37x_find_mode(struct ata_port *ap, int speed)
 
 static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr, const char *list[])
 {
-	unsigned char model_num[40];
-	char *s;
-	unsigned int len;
+	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 	int i = 0;
 
-	ata_id_string(dev->id, model_num, ATA_ID_PROD_OFS,
-			  sizeof(model_num));
-	s = &model_num[0];
-	len = strnlen(s, sizeof(model_num));
+	ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 
-	/* ATAPI specifies that empty space is blank-filled; remove blanks */
-	while ((len > 0) && (s[len - 1] == ' ')) {
-		len--;
-		s[len] = 0;
-	}
-
-	while(list[i] != NULL) {
-		if (!strncmp(list[i], s, len)) {
+	while (list[i] != NULL) {
+		if (!strcmp(list[i], model_num)) {
 			printk(KERN_WARNING DRV_NAME ": %s is not supported for %s.\n",
 				modestr, list[i]);
 			return 1;
@@ -459,7 +448,7 @@ static int hpt37x_pre_reset(struct ata_port *ap)
 	};
 	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
 		return -ENOENT;
-		
+
 	pci_read_config_byte(pdev, 0x5B, &scr2);
 	pci_write_config_byte(pdev, 0x5B, scr2 & ~0x01);
 	/* Cable register now active */
@@ -504,7 +493,7 @@ static int hpt374_pre_reset(struct ata_port *ap)
 
 	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
 		return -ENOENT;
-		
+
 	/* Do the extra channel work */
 	pci_read_config_word(pdev, 0x52, &mcr3);
 	pci_read_config_word(pdev, 0x56, &mcr6);
@@ -645,24 +634,24 @@ static void hpt370_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u8 dma_stat = inb(ap->ioaddr.bmdma_addr + 2);
+	u8 dma_stat = ioread8(ap->ioaddr.bmdma_addr + 2);
 	u8 dma_cmd;
-	unsigned long bmdma = ap->ioaddr.bmdma_addr;
+	void __iomem *bmdma = ap->ioaddr.bmdma_addr;
 
 	if (dma_stat & 0x01) {
 		udelay(20);
-		dma_stat = inb(bmdma + 2);
+		dma_stat = ioread8(bmdma + 2);
 	}
 	if (dma_stat & 0x01) {
 		/* Clear the engine */
 		pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 		udelay(10);
 		/* Stop DMA */
-		dma_cmd = inb(bmdma );
-		outb(dma_cmd & 0xFE, bmdma);
+		dma_cmd = ioread8(bmdma );
+		iowrite8(dma_cmd & 0xFE, bmdma);
 		/* Clear Error */
-		dma_stat = inb(bmdma + 2);
-		outb(dma_stat | 0x06 , bmdma + 2);
+		dma_stat = ioread8(bmdma + 2);
+		iowrite8(dma_stat | 0x06 , bmdma + 2);
 		/* Clear the engine */
 		pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 		udelay(10);
@@ -807,14 +796,14 @@ static struct ata_port_operations hpt370_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -846,14 +835,14 @@ static struct ata_port_operations hpt370a_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -886,14 +875,14 @@ static struct ata_port_operations hpt372_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /*
@@ -926,14 +915,14 @@ static struct ata_port_operations hpt374_port_ops = {
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 /**

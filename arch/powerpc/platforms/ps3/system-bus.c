@@ -57,6 +57,7 @@ int ps3_mmio_region_create(struct ps3_mmio_region *r)
 	dump_mmio_region(r);
 	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_mmio_region_create);
 
 int ps3_free_mmio_region(struct ps3_mmio_region *r)
 {
@@ -72,6 +73,7 @@ int ps3_free_mmio_region(struct ps3_mmio_region *r)
 	r->lpar_addr = 0;
 	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_free_mmio_region);
 
 static int ps3_system_bus_match(struct device *_dev,
 	struct device_driver *_drv)

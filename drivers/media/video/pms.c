@@ -881,7 +881,7 @@ static ssize_t pms_read(struct file *file, char __user *buf,
 	return len;
 }
 
-static struct file_operations pms_fops = {
+static const struct file_operations pms_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

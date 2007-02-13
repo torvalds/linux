@@ -8,11 +8,12 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/ipv6.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 
 #include <linux/netfilter_ipv6/ip6t_hl.h>
-#include <linux/netfilter_ipv6/ip6_tables.h>
+#include <linux/netfilter/x_tables.h>
 
 MODULE_AUTHOR("Maciej Soltysiak <solt@dns.toxicfilms.tv>");
 MODULE_DESCRIPTION("IP tables Hop Limit matching module");
@@ -40,7 +41,7 @@ static int match(const struct sk_buff *skb,
 			return (ip6h->hop_limit > info->hop_limit);
 			break;
 		default:
-			printk(KERN_WARNING "ip6t_hl: unknown mode %d\n", 
+			printk(KERN_WARNING "ip6t_hl: unknown mode %d\n",
 				info->mode);
 			return 0;
 	}
@@ -48,8 +49,9 @@ static int match(const struct sk_buff *skb,
 	return 0;
 }
 
-static struct ip6t_match hl_match = {
+static struct xt_match hl_match = {
 	.name		= "hl",
+	.family		= AF_INET6,
 	.match		= match,
 	.matchsize	= sizeof(struct ip6t_hl_info),
 	.me		= THIS_MODULE,
@@ -57,13 +59,12 @@ static struct ip6t_match hl_match = {
 
 static int __init ip6t_hl_init(void)
 {
-	return ip6t_register_match(&hl_match);
+	return xt_register_match(&hl_match);
 }
 
 static void __exit ip6t_hl_fini(void)
 {
-	ip6t_unregister_match(&hl_match);
-
+	xt_unregister_match(&hl_match);
 }
 
 module_init(ip6t_hl_init);

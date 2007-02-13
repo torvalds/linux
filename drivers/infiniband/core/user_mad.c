@@ -771,7 +771,7 @@ static int ib_umad_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations umad_fops = {
+static const struct file_operations umad_fops = {
 	.owner 	 	= THIS_MODULE,
 	.read 	 	= ib_umad_read,
 	.write 	 	= ib_umad_write,
@@ -846,7 +846,7 @@ static int ib_umad_sm_close(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static struct file_operations umad_sm_fops = {
+static const struct file_operations umad_sm_fops = {
 	.owner 	 = THIS_MODULE,
 	.open 	 = ib_umad_sm_open,
 	.release = ib_umad_sm_close

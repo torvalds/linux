@@ -383,7 +383,7 @@ hysdn_log_poll(struct file *file, poll_table * wait)
 /**************************************************/
 /* table for log filesystem functions defined above. */
 /**************************************************/
-static struct file_operations log_fops =
+static const struct file_operations log_fops =
 {
 	.llseek         = no_llseek,
 	.read           = hysdn_log_read,

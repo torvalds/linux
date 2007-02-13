@@ -373,7 +373,7 @@ static int zol_ioctl(struct inode *inode, struct file *file,
 
 static struct zol_device zoltrix_unit;
 
-static struct file_operations zoltrix_fops =
+static const struct file_operations zoltrix_fops =
 {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,

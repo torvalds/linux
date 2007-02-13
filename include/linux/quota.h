@@ -132,6 +132,7 @@ struct if_dqinfo {
 
 #ifdef __KERNEL__
 #include <linux/spinlock.h>
+#include <linux/rwsem.h>
 #include <linux/mutex.h>
 
 #include <linux/dqblk_xfs.h>

@@ -62,7 +62,7 @@ static void sctp_bind_addr_clean(struct sctp_bind_addr *);
 /* Copy 'src' to 'dest' taking 'scope' into account.  Omit addresses
  * in 'src' which have a broader scope than 'scope'.
  */
-int sctp_bind_addr_copy(struct sctp_bind_addr *dest, 
+int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 			const struct sctp_bind_addr *src,
 			sctp_scope_t scope, gfp_t gfp,
 			int flags)
@@ -296,7 +296,7 @@ int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw_addr_list,
  ********************************************************************/
 
 /* Does this contain a specified address?  Allow wildcarding. */
-int sctp_bind_addr_match(struct sctp_bind_addr *bp, 
+int sctp_bind_addr_match(struct sctp_bind_addr *bp,
 			 const union sctp_addr *addr,
 			 struct sctp_sock *opt)
 {
@@ -306,7 +306,7 @@ int sctp_bind_addr_match(struct sctp_bind_addr *bp,
 	list_for_each(pos, &bp->address_list) {
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
 		if (opt->pf->cmp_addr(&laddr->a, addr, opt))
- 			return 1;
+			return 1;
 	}
 
 	return 0;
@@ -329,12 +329,12 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 
 	list_for_each(pos, &bp->address_list) {
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		
+
 		addr_buf = (union sctp_addr *)addrs;
 		for (i = 0; i < addrcnt; i++) {
 			addr = (union sctp_addr *)addr_buf;
 			af = sctp_get_af_specific(addr->v4.sin_family);
-			if (!af) 
+			if (!af)
 				return NULL;
 
 			if (opt->pf->cmp_addr(&laddr->a, addr, opt))
@@ -350,7 +350,7 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 }
 
 /* Copy out addresses from the global local address list. */
-static int sctp_copy_one_addr(struct sctp_bind_addr *dest, 
+static int sctp_copy_one_addr(struct sctp_bind_addr *dest,
 			      union sctp_addr *addr,
 			      sctp_scope_t scope, gfp_t gfp,
 			      int flags)

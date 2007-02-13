@@ -3,7 +3,7 @@
  *              operating system.  DECnet is implemented using the  BSD Socket
  *              interface as the means of communication with the user level.
  *
- *              DECnet Neighbour Functions (Adjacency Database and 
+ *              DECnet Neighbour Functions (Adjacency Database and
  *                                                        On-Ethernet Cache)
  *
  * Author:      Steve Whitehouse <SteveW@ACM.org>
@@ -277,19 +277,19 @@ static int dn_short_output(struct sk_buff *skb)
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 
 
-        if (skb_headroom(skb) < headroom) {
-                struct sk_buff *skb2 = skb_realloc_headroom(skb, headroom);
-                if (skb2 == NULL) {
+	if (skb_headroom(skb) < headroom) {
+		struct sk_buff *skb2 = skb_realloc_headroom(skb, headroom);
+		if (skb2 == NULL) {
 			if (net_ratelimit())
-                        	printk(KERN_CRIT "dn_short_output: no memory\n");
-                        kfree_skb(skb);
-                        return -ENOBUFS;
-                }
-                kfree_skb(skb);
-                skb = skb2;
+				printk(KERN_CRIT "dn_short_output: no memory\n");
+			kfree_skb(skb);
+			return -ENOBUFS;
+		}
+		kfree_skb(skb);
+		skb = skb2;
 		if (net_ratelimit())
-                	printk(KERN_INFO "dn_short_output: Increasing headroom\n");
-        }
+			printk(KERN_INFO "dn_short_output: Increasing headroom\n");
+	}
 
 	data = skb_push(skb, sizeof(struct dn_short_packet) + 2);
 	*((__le16 *)data) = dn_htons(skb->len - 2);
@@ -598,7 +598,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations dn_neigh_seq_fops = {
+static const struct file_operations dn_neigh_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open		= dn_neigh_seq_open,
 	.read		= seq_read,

@@ -64,9 +64,9 @@ match(const struct sk_buff *skb,
 			u_int16_t mssval;
 
 			mssval = (op[i+2] << 8) | op[i+3];
-			
+
 			return (mssval >= info->mss_min &&
-			        mssval <= info->mss_max) ^ info->invert;
+				mssval <= info->mss_max) ^ info->invert;
 		}
 		if (op[i] < 2)
 			i++;

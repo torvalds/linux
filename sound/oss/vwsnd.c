@@ -3035,7 +3035,7 @@ static int vwsnd_audio_release(struct inode *inode, struct file *file)
 	return err;
 }
 
-static struct file_operations vwsnd_audio_fops = {
+static const struct file_operations vwsnd_audio_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.read =		vwsnd_audio_read,
@@ -3225,7 +3225,7 @@ static int vwsnd_mixer_ioctl(struct inode *ioctl,
 	return retval;
 }
 
-static struct file_operations vwsnd_mixer_fops = {
+static const struct file_operations vwsnd_mixer_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.ioctl =	vwsnd_mixer_ioctl,

@@ -139,7 +139,7 @@ static void config_gdb_cb(void *arg)
 	init_proxy(debugger_pid, 0, 0);
 }
 
-int gdb_config(char *str)
+int gdb_config(char *str, char **error_out)
 {
 	struct gdb_data data;
 
@@ -154,7 +154,7 @@ void remove_gdb_cb(void *unused)
 	exit_debugger_cb(NULL);
 }
 
-int gdb_remove(int unused)
+int gdb_remove(int unused, char **error_out)
 {
 	initial_thread_cb(remove_gdb_cb, NULL);
         return 0;

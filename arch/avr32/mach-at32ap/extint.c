@@ -55,20 +55,11 @@ static int eim_set_irq_type(unsigned int irq, unsigned int flow_type)
 	unsigned long flags;
 	int ret = 0;
 
+	flow_type &= IRQ_TYPE_SENSE_MASK;
 	if (flow_type == IRQ_TYPE_NONE)
 		flow_type = IRQ_TYPE_LEVEL_LOW;
 
 	desc = &irq_desc[irq];
-	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
-	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
-
-	if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH)) {
-		desc->status |= IRQ_LEVEL;
-		set_irq_handler(irq, handle_level_irq);
-	} else {
-		set_irq_handler(irq, handle_edge_irq);
-	}
-
 	spin_lock_irqsave(&sm->lock, flags);
 
 	mode = sm_readl(sm, EIM_MODE);
@@ -97,9 +88,16 @@ static int eim_set_irq_type(unsigned int irq, unsigned int flow_type)
 		break;
 	}
 
-	sm_writel(sm, EIM_MODE, mode);
-	sm_writel(sm, EIM_EDGE, edge);
-	sm_writel(sm, EIM_LEVEL, level);
+	if (ret == 0) {
+		sm_writel(sm, EIM_MODE, mode);
+		sm_writel(sm, EIM_EDGE, edge);
+		sm_writel(sm, EIM_LEVEL, level);
+
+		if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
+			flow_type |= IRQ_LEVEL;
+		desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
+		desc->status |= flow_type;
+	}
 
 	spin_unlock_irqrestore(&sm->lock, flags);
 
@@ -122,8 +120,6 @@ static void demux_eim_irq(unsigned int irq, struct irq_desc *desc)
 	unsigned long status, pending;
 	unsigned int i, ext_irq;
 
-	spin_lock(&sm->lock);
-
 	status = sm_readl(sm, EIM_ISR);
 	pending = status & sm_readl(sm, EIM_IMR);
 
@@ -133,10 +129,11 @@ static void demux_eim_irq(unsigned int irq, struct irq_desc *desc)
 
 		ext_irq = i + sm->eim_first_irq;
 		ext_desc = irq_desc + ext_irq;
-		ext_desc->handle_irq(ext_irq, ext_desc);
+		if (ext_desc->status & IRQ_LEVEL)
+			handle_level_irq(ext_irq, ext_desc);
+		else
+			handle_edge_irq(ext_irq, ext_desc);
 	}
-
-	spin_unlock(&sm->lock);
 }
 
 static int __init eim_init(void)
@@ -168,8 +165,9 @@ static int __init eim_init(void)
 	sm->eim_chip = &eim_chip;
 
 	for (i = 0; i < nr_irqs; i++) {
+		/* NOTE the handler we set here is ignored by the demux */
 		set_irq_chip_and_handler(sm->eim_first_irq + i, &eim_chip,
-					 handle_edge_irq);
+					 handle_level_irq);
 		set_irq_chip_data(sm->eim_first_irq + i, sm);
 	}
 

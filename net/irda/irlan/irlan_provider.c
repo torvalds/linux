@@ -1,5 +1,5 @@
 /*********************************************************************
- *                
+ *
  * Filename:      irlan_provider.c
  * Version:       0.9
  * Description:   IrDA LAN Access Protocol Implementation
@@ -11,17 +11,17 @@
  * Sources:       skeleton.c by Donald Becker <becker@CESDIS.gsfc.nasa.gov>
  *                slip.c by Laurence Culhane,   <loz@holmes.demon.co.uk>
  *                          Fred N. van Kempen, <waltje@uwalt.nl.mugnet.org>
- * 
- *     Copyright (c) 1998-1999 Dag Brattli <dagb@cs.uit.no>, 
+ *
+ *     Copyright (c) 1998-1999 Dag Brattli <dagb@cs.uit.no>,
  *     All Rights Reserved.
- *     
- *     This program is free software; you can redistribute it and/or 
- *     modify it under the terms of the GNU General Public License as 
- *     published by the Free Software Foundation; either version 2 of 
+ *
+ *     This program is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of
  *     the License, or (at your option) any later version.
  *
  *     Neither Dag Brattli nor University of Tromsø admit liability nor
- *     provide warranty for any of this software. This material is 
+ *     provide warranty for any of this software. This material is
  *     provided "AS-IS" and at no charge.
  *
  ********************************************************************/
@@ -52,8 +52,8 @@
 #include <net/irda/irlan_filter.h>
 #include <net/irda/irlan_client.h>
 
-static void irlan_provider_connect_indication(void *instance, void *sap, 
-					      struct qos_info *qos, 
+static void irlan_provider_connect_indication(void *instance, void *sap,
+					      struct qos_info *qos,
 					      __u32 max_sdu_size,
 					      __u8 max_header_size,
 					      struct sk_buff *skb);
@@ -64,14 +64,14 @@ static void irlan_provider_connect_indication(void *instance, void *sap,
  *    This function gets the data that is received on the control channel
  *
  */
-static int irlan_provider_data_indication(void *instance, void *sap, 
-					  struct sk_buff *skb) 
+static int irlan_provider_data_indication(void *instance, void *sap,
+					  struct sk_buff *skb)
 {
 	struct irlan_cb *self;
 	__u8 code;
-	
+
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
-	
+
 	self = (struct irlan_cb *) instance;
 
 	IRDA_ASSERT(self != NULL, return -1;);
@@ -83,16 +83,16 @@ static int irlan_provider_data_indication(void *instance, void *sap,
 	switch(code) {
 	case CMD_GET_PROVIDER_INFO:
 		IRDA_DEBUG(4, "Got GET_PROVIDER_INFO command!\n");
-		irlan_do_provider_event(self, IRLAN_GET_INFO_CMD, skb); 
+		irlan_do_provider_event(self, IRLAN_GET_INFO_CMD, skb);
 		break;
 
 	case CMD_GET_MEDIA_CHAR:
 		IRDA_DEBUG(4, "Got GET_MEDIA_CHAR command!\n");
-		irlan_do_provider_event(self, IRLAN_GET_MEDIA_CMD, skb); 
+		irlan_do_provider_event(self, IRLAN_GET_MEDIA_CMD, skb);
 		break;
 	case CMD_OPEN_DATA_CHANNEL:
 		IRDA_DEBUG(4, "Got OPEN_DATA_CHANNEL command!\n");
-		irlan_do_provider_event(self, IRLAN_OPEN_DATA_CMD, skb); 
+		irlan_do_provider_event(self, IRLAN_OPEN_DATA_CMD, skb);
 		break;
 	case CMD_FILTER_OPERATION:
 		IRDA_DEBUG(4, "Got FILTER_OPERATION command!\n");
@@ -119,9 +119,9 @@ static int irlan_provider_data_indication(void *instance, void *sap,
  *    Got connection from peer IrLAN client
  *
  */
-static void irlan_provider_connect_indication(void *instance, void *sap, 
+static void irlan_provider_connect_indication(void *instance, void *sap,
 					      struct qos_info *qos,
-					      __u32 max_sdu_size, 
+					      __u32 max_sdu_size,
 					      __u8 max_header_size,
 					      struct sk_buff *skb)
 {
@@ -130,13 +130,13 @@ static void irlan_provider_connect_indication(void *instance, void *sap,
 	__u32 saddr, daddr;
 
 	IRDA_DEBUG(0, "%s()\n", __FUNCTION__ );
-	
+
 	self = (struct irlan_cb *) instance;
 	tsap = (struct tsap_cb *) sap;
-	
+
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
-	
+
 	IRDA_ASSERT(tsap == self->provider.tsap_ctrl,return;);
 	IRDA_ASSERT(self->provider.state == IRLAN_IDLE, return;);
 
@@ -147,13 +147,13 @@ static void irlan_provider_connect_indication(void *instance, void *sap,
 
 	irlan_do_provider_event(self, IRLAN_CONNECT_INDICATION, NULL);
 
-	/*  
+	/*
 	 * If we are in peer mode, the client may not have got the discovery
-	 * indication it needs to make progress. If the client is still in 
-	 * IDLE state, we must kick it. 
+	 * indication it needs to make progress. If the client is still in
+	 * IDLE state, we must kick it.
 	 */
-	if ((self->provider.access_type == ACCESS_PEER) && 
-	    (self->client.state == IRLAN_IDLE)) 
+	if ((self->provider.access_type == ACCESS_PEER) &&
+	    (self->client.state == IRLAN_IDLE))
 	{
 		irlan_client_wakeup(self, self->saddr, self->daddr);
 	}
@@ -175,38 +175,38 @@ void irlan_provider_connect_response(struct irlan_cb *self,
 	irttp_connect_response(tsap, IRLAN_MTU, NULL);
 }
 
-static void irlan_provider_disconnect_indication(void *instance, void *sap, 
-						 LM_REASON reason, 
-						 struct sk_buff *userdata) 
+static void irlan_provider_disconnect_indication(void *instance, void *sap,
+						 LM_REASON reason,
+						 struct sk_buff *userdata)
 {
 	struct irlan_cb *self;
 	struct tsap_cb *tsap;
 
 	IRDA_DEBUG(4, "%s(), reason=%d\n", __FUNCTION__ , reason);
-	
+
 	self = (struct irlan_cb *) instance;
 	tsap = (struct tsap_cb *) sap;
 
 	IRDA_ASSERT(self != NULL, return;);
-	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);	
+	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 	IRDA_ASSERT(tsap != NULL, return;);
 	IRDA_ASSERT(tsap->magic == TTP_TSAP_MAGIC, return;);
-	
+
 	IRDA_ASSERT(tsap == self->provider.tsap_ctrl, return;);
-	
+
 	irlan_do_provider_event(self, IRLAN_LMP_DISCONNECT, NULL);
 }
 
 /*
  * Function irlan_parse_open_data_cmd (self, skb)
  *
- *    
+ *
  *
  */
 int irlan_parse_open_data_cmd(struct irlan_cb *self, struct sk_buff *skb)
 {
 	int ret;
-	
+
 	ret = irlan_provider_parse_command(self, CMD_OPEN_DATA_CHANNEL, skb);
 
 	/* Open data channel */
@@ -218,12 +218,12 @@ int irlan_parse_open_data_cmd(struct irlan_cb *self, struct sk_buff *skb)
 /*
  * Function parse_command (skb)
  *
- *    Extract all parameters from received buffer, then feed them to 
+ *    Extract all parameters from received buffer, then feed them to
  *    check_params for parsing
  *
  */
 int irlan_provider_parse_command(struct irlan_cb *self, int cmd,
-				 struct sk_buff *skb) 
+				 struct sk_buff *skb)
 {
 	__u8 *frame;
 	__u8 *ptr;
@@ -231,16 +231,16 @@ int irlan_provider_parse_command(struct irlan_cb *self, int cmd,
 	__u16 val_len;
 	int i;
 	char *name;
-        char *value;
+	char *value;
 	int ret = RSP_SUCCESS;
-	
+
 	IRDA_ASSERT(skb != NULL, return -RSP_PROTOCOL_ERROR;);
-	
+
 	IRDA_DEBUG(4, "%s(), skb->len=%d\n", __FUNCTION__ , (int)skb->len);
 
 	IRDA_ASSERT(self != NULL, return -RSP_PROTOCOL_ERROR;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return -RSP_PROTOCOL_ERROR;);
-	
+
 	if (!skb)
 		return -RSP_PROTOCOL_ERROR;
 
@@ -259,11 +259,11 @@ int irlan_provider_parse_command(struct irlan_cb *self, int cmd,
 	count = frame[1];
 
 	IRDA_DEBUG(4, "Got %d parameters\n", count);
-	
+
 	ptr = frame+2;
-	
+
 	/* For all parameters */
- 	for (i=0; i<count;i++) {
+	for (i=0; i<count;i++) {
 		ret = irlan_extract_param(ptr, name, value, &val_len);
 		if (ret < 0) {
 			IRDA_DEBUG(2, "%s(), IrLAN, Error!\n", __FUNCTION__ );
@@ -286,7 +286,7 @@ int irlan_provider_parse_command(struct irlan_cb *self, int cmd,
  *    Send reply to query to peer IrLAN layer
  *
  */
-void irlan_provider_send_reply(struct irlan_cb *self, int command, 
+void irlan_provider_send_reply(struct irlan_cb *self, int command,
 			       int ret_code)
 {
 	struct sk_buff *skb;
@@ -310,7 +310,7 @@ void irlan_provider_send_reply(struct irlan_cb *self, int command,
 	/* Reserve space for TTP, LMP, and LAP header */
 	skb_reserve(skb, self->provider.max_header_size);
 	skb_put(skb, 2);
-       
+
 	switch (command) {
 	case CMD_GET_PROVIDER_INFO:
 		skb->data[0] = 0x00; /* Success */
@@ -356,7 +356,7 @@ void irlan_provider_send_reply(struct irlan_cb *self, int command,
 		skb->data[0] = 0x00; /* Success */
 		if (self->provider.send_arb_val) {
 			skb->data[1] = 0x03; /* 3 parameters */
-			irlan_insert_short_param(skb, "CON_ARB", 
+			irlan_insert_short_param(skb, "CON_ARB",
 						 self->provider.send_arb_val);
 		} else
 			skb->data[1] = 0x02; /* 2 parameters */
@@ -378,13 +378,13 @@ void irlan_provider_send_reply(struct irlan_cb *self, int command,
  * Function irlan_provider_register(void)
  *
  *    Register provider support so we can accept incoming connections.
- * 
+ *
  */
 int irlan_provider_open_ctrl_tsap(struct irlan_cb *self)
 {
 	struct tsap_cb *tsap;
 	notify_t notify;
-	
+
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
@@ -393,7 +393,7 @@ int irlan_provider_open_ctrl_tsap(struct irlan_cb *self)
 	/* Check if already open */
 	if (self->provider.tsap_ctrl)
 		return -1;
-	
+
 	/*
 	 *  First register well known control TSAP
 	 */

@@ -1,13 +1,13 @@
 /*
  *	TCP over IPv6
- *	Linux INET6 implementation 
+ *	Linux INET6 implementation
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	$Id: tcp_ipv6.c,v 1.144 2002/02/01 22:01:04 davem Exp $
  *
- *	Based on: 
+ *	Based on:
  *	linux/net/ipv4/tcp.c
  *	linux/net/ipv4/tcp_input.c
  *	linux/net/ipv4/tcp_output.c
@@ -74,7 +74,7 @@ static struct socket *tcp6_socket;
 
 static void	tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb);
 static void	tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req);
-static void	tcp_v6_send_check(struct sock *sk, int len, 
+static void	tcp_v6_send_check(struct sock *sk, int len,
 				  struct sk_buff *skb);
 
 static int	tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb);
@@ -106,8 +106,8 @@ static void tcp_v6_hash(struct sock *sk)
 }
 
 static __inline__ __sum16 tcp_v6_check(struct tcphdr *th, int len,
-				   struct in6_addr *saddr, 
-				   struct in6_addr *daddr, 
+				   struct in6_addr *saddr,
+				   struct in6_addr *daddr,
 				   __wsum base)
 {
 	return csum_ipv6_magic(saddr, daddr, len, IPPROTO_TCP, base);
@@ -121,11 +121,11 @@ static __u32 tcp_v6_init_sequence(struct sk_buff *skb)
 					    skb->h.th->source);
 }
 
-static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr, 
+static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 			  int addr_len)
 {
 	struct sockaddr_in6 *usin = (struct sockaddr_in6 *) uaddr;
- 	struct inet_sock *inet = inet_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -135,10 +135,10 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	int addr_type;
 	int err;
 
-	if (addr_len < SIN6_LEN_RFC2133) 
+	if (addr_len < SIN6_LEN_RFC2133)
 		return -EINVAL;
 
-	if (usin->sin6_family != AF_INET6) 
+	if (usin->sin6_family != AF_INET6)
 		return(-EAFNOSUPPORT);
 
 	memset(&fl, 0, sizeof(fl));
@@ -157,11 +157,11 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	}
 
 	/*
-  	 *	connect() to INADDR_ANY means loopback (BSD'ism).
-  	 */
-  	
-  	if(ipv6_addr_any(&usin->sin6_addr))
-		usin->sin6_addr.s6_addr[15] = 0x1; 
+	 *	connect() to INADDR_ANY means loopback (BSD'ism).
+	 */
+
+	if(ipv6_addr_any(&usin->sin6_addr))
+		usin->sin6_addr.s6_addr[15] = 0x1;
 
 	addr_type = ipv6_addr_type(&usin->sin6_addr);
 
@@ -265,7 +265,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
+	if ((err = xfrm_lookup(&dst, &fl, sk, 1)) < 0)
 		goto failure;
 
 	if (saddr == NULL) {
@@ -323,7 +323,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct ipv6_pinfo *np;
 	struct sock *sk;
 	int err;
-	struct tcp_sock *tp; 
+	struct tcp_sock *tp;
 	__u32 seq;
 
 	sk = inet6_lookup(&tcp_hashinfo, &hdr->daddr, th->dest, &hdr->saddr,
@@ -347,7 +347,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		goto out;
 
 	tp = tcp_sk(sk);
-	seq = ntohl(th->seq); 
+	seq = ntohl(th->seq);
 	if (sk->sk_state != TCP_LISTEN &&
 	    !between(seq, tp->snd_una, tp->snd_nxt)) {
 		NET_INC_STATS_BH(LINUX_MIB_OUTOFWINDOWICMPS);
@@ -434,7 +434,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	case TCP_SYN_SENT:
 	case TCP_SYN_RECV:  /* Cannot happen.
-			       It can, it SYNs are crossed. --ANK */ 
+			       It can, it SYNs are crossed. --ANK */
 		if (!sock_owned_by_user(sk)) {
 			sk->sk_err = err;
 			sk->sk_error_report(sk);		/* Wake people up to see the error (see connect in sock.c) */
@@ -519,7 +519,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	}
 
 done:
-        if (opt && opt != np->opt)
+	if (opt && opt != np->opt)
 		sock_kfree_s(sk, opt, opt->tot_len);
 	dst_release(dst);
 	return err;
@@ -950,8 +950,8 @@ static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 		th->check = ~csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP,  0);
 		skb->csum_offset = offsetof(struct tcphdr, check);
 	} else {
-		th->check = csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP, 
-					    csum_partial((char *)th, th->doff<<2, 
+		th->check = csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP,
+					    csum_partial((char *)th, th->doff<<2,
 							 skb->csum));
 	}
 }
@@ -977,7 +977,7 @@ static int tcp_v6_gso_send_check(struct sk_buff *skb)
 
 static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcphdr *th = skb->h.th, *t1; 
+	struct tcphdr *th = skb->h.th, *t1;
 	struct sk_buff *buff;
 	struct flowi fl;
 	int tot_len = sizeof(*th);
@@ -989,7 +989,7 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 		return;
 
 	if (!ipv6_unicast_destination(skb))
-		return; 
+		return;
 
 #ifdef CONFIG_TCP_MD5SIG
 	if (sk)
@@ -1008,8 +1008,8 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 
 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
 			 GFP_ATOMIC);
-	if (buff == NULL) 
-	  	return;
+	if (buff == NULL)
+		return;
 
 	skb_reserve(buff, MAX_HEADER + sizeof(struct ipv6hdr) + tot_len);
 
@@ -1021,9 +1021,9 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 	t1->source = th->dest;
 	t1->doff = tot_len / 4;
 	t1->rst = 1;
-  
+
 	if(th->ack) {
-	  	t1->seq = th->ack_seq;
+		t1->seq = th->ack_seq;
 	} else {
 		t1->ack = 1;
 		t1->ack_seq = htonl(ntohl(th->seq) + th->syn + th->fin
@@ -1128,7 +1128,7 @@ static void tcp_v6_send_ack(struct tcp_timewait_sock *tw,
 	t1->window = htons(win);
 
 	topt = (__be32 *)(t1 + 1);
-	
+
 	if (ts) {
 		*topt++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
 				(TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP);
@@ -1243,15 +1243,15 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 		return tcp_v4_conn_request(sk, skb);
 
 	if (!ipv6_unicast_destination(skb))
-		goto drop; 
+		goto drop;
 
 	/*
-	 *	There are no SYN attacks on IPv6, yet...	
+	 *	There are no SYN attacks on IPv6, yet...
 	 */
 	if (inet_csk_reqsk_queue_is_full(sk) && !isn) {
 		if (net_ratelimit())
 			printk(KERN_INFO "TCPv6: dropping request, synflood is possible\n");
-		goto drop;		
+		goto drop;
 	}
 
 	if (sk_acceptq_is_full(sk) && inet_csk_reqsk_queue_young(sk) > 1)
@@ -1292,7 +1292,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	    ipv6_addr_type(&treq->rmt_addr) & IPV6_ADDR_LINKLOCAL)
 		treq->iif = inet6_iif(skb);
 
-	if (isn == 0) 
+	if (isn == 0)
 		isn = tcp_v6_init_sequence(skb);
 
 	tcp_rsk(req)->snt_isn = isn;
@@ -1334,7 +1334,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 		newsk = tcp_v4_syn_recv_sock(sk, skb, req, dst);
 
-		if (newsk == NULL) 
+		if (newsk == NULL)
 			return NULL;
 
 		newtcp6sk = (struct tcp6_sock *)newsk;
@@ -1419,7 +1419,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 		if ((xfrm_lookup(&dst, &fl, sk, 0)) < 0)
 			goto out;
-	} 
+	}
 
 	newsk = tcp_create_openreq_child(sk, req, skb);
 	if (newsk == NULL)
@@ -1448,7 +1448,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	ipv6_addr_copy(&newnp->rcv_saddr, &treq->loc_addr);
 	newsk->sk_bound_dev_if = treq->iif;
 
-	/* Now IPv6 options... 
+	/* Now IPv6 options...
 
 	   First: no IPv4 options.
 	 */
@@ -1592,7 +1592,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	   looks not very well thought. For now we latch
 	   options, received in the last packet, enqueued
 	   by tcp. Feel free to propose better solution.
-	                                       --ANK (980728)
+					       --ANK (980728)
 	 */
 	if (np->rxopt.all)
 		opt_skb = skb_clone(skb, GFP_ATOMIC);
@@ -1610,7 +1610,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	if (skb->len < (skb->h.th->doff<<2) || tcp_checksum_complete(skb))
 		goto csum_err;
 
-	if (sk->sk_state == TCP_LISTEN) { 
+	if (sk->sk_state == TCP_LISTEN) {
 		struct sock *nsk = tcp_v6_hnd_req(sk, skb);
 		if (!nsk)
 			goto discard;
@@ -1620,7 +1620,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 		 * otherwise we just shortcircuit this and continue with
 		 * the new socket..
 		 */
- 		if(nsk != sk) {
+		if(nsk != sk) {
 			if (tcp_child_process(sk, nsk, skb))
 				goto reset;
 			if (opt_skb)
@@ -1681,7 +1681,7 @@ ipv6_pktoptions:
 static int tcp_v6_rcv(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
-	struct tcphdr *th;	
+	struct tcphdr *th;
 	struct sock *sk;
 	int ret;
 
@@ -1739,10 +1739,10 @@ process:
 	ret = 0;
 	if (!sock_owned_by_user(sk)) {
 #ifdef CONFIG_NET_DMA
-                struct tcp_sock *tp = tcp_sk(sk);
-                if (tp->ucopy.dma_chan)
-                        ret = tcp_v6_do_rcv(sk, skb);
-                else
+		struct tcp_sock *tp = tcp_sk(sk);
+		if (tp->ucopy.dma_chan)
+			ret = tcp_v6_do_rcv(sk, skb);
+		else
 #endif
 		{
 			if (!tcp_prequeue(sk, skb))
@@ -1945,7 +1945,7 @@ static int tcp_v6_destroy_sock(struct sock *sk)
 }
 
 /* Proc filesystem TCPv6 sock list dumping. */
-static void get_openreq6(struct seq_file *seq, 
+static void get_openreq6(struct seq_file *seq,
 			 struct sock *sk, struct request_sock *req, int i, int uid)
 {
 	int ttd = req->expires - jiffies;
@@ -1967,11 +1967,11 @@ static void get_openreq6(struct seq_file *seq,
 		   ntohs(inet_rsk(req)->rmt_port),
 		   TCP_SYN_RECV,
 		   0,0, /* could print option size, but that is af dependent. */
-		   1,   /* timers active (only the expire timer) */  
-		   jiffies_to_clock_t(ttd), 
+		   1,   /* timers active (only the expire timer) */
+		   jiffies_to_clock_t(ttd),
 		   req->retrans,
 		   uid,
-		   0,  /* non standard timer */  
+		   0,  /* non standard timer */
 		   0, /* open_requests have no inode */
 		   0, req);
 }
@@ -2014,7 +2014,7 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 		   src->s6_addr32[2], src->s6_addr32[3], srcp,
 		   dest->s6_addr32[0], dest->s6_addr32[1],
 		   dest->s6_addr32[2], dest->s6_addr32[3], destp,
-		   sp->sk_state, 
+		   sp->sk_state,
 		   tp->write_seq-tp->snd_una,
 		   (sp->sk_state == TCP_LISTEN) ? sp->sk_ack_backlog : (tp->rcv_nxt - tp->copied_seq),
 		   timer_active,
@@ -2031,7 +2031,7 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 		   );
 }
 
-static void get_timewait6_sock(struct seq_file *seq, 
+static void get_timewait6_sock(struct seq_file *seq,
 			       struct inet_timewait_sock *tw, int i)
 {
 	struct in6_addr *dest, *src;

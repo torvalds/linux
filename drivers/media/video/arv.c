@@ -742,7 +742,7 @@ void ar_release(struct video_device *vfd)
  * Video4Linux Module functions
  *
  ****************************************************************************/
-static struct file_operations ar_fops = {
+static const struct file_operations ar_fops = {
 	.owner		= THIS_MODULE,
 	.open		= video_exclusive_open,
 	.release	= video_exclusive_release,

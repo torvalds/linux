@@ -43,8 +43,6 @@
 #include "xfs_itable.h"
 #include "xfs_rw.h"
 #include "xfs_acl.h"
-#include "xfs_cap.h"
-#include "xfs_mac.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_space.h"
@@ -542,7 +540,7 @@ xfs_iomap_write_direct(
 	/*
 	 * Complete the transaction
 	 */
-	error = xfs_bmap_finish(&tp, &free_list, firstfsb, &committed);
+	error = xfs_bmap_finish(&tp, &free_list, &committed);
 	if (error)
 		goto error0;
 	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
@@ -838,8 +836,7 @@ xfs_iomap_write_allocate(
 			if (error)
 				goto trans_cancel;
 
-			error = xfs_bmap_finish(&tp, &free_list,
-					first_block, &committed);
+			error = xfs_bmap_finish(&tp, &free_list, &committed);
 			if (error)
 				goto trans_cancel;
 
@@ -947,8 +944,7 @@ xfs_iomap_write_unwritten(
 		if (error)
 			goto error_on_bmapi_transaction;
 
-		error = xfs_bmap_finish(&(tp), &(free_list),
-				firstfsb, &committed);
+		error = xfs_bmap_finish(&(tp), &(free_list), &committed);
 		if (error)
 			goto error_on_bmapi_transaction;
 

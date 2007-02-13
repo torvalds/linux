@@ -7,6 +7,8 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/pci.h>
+#include <linux/device.h>
 
 #include <asm/pbm.h>
 #include <asm/prom.h>
@@ -129,6 +131,20 @@ static void __init fixup_obp_assignments(struct pci_dev *pdev,
 	}
 }
 
+static ssize_t
+show_pciobppath_attr(struct device * dev, struct device_attribute * attr, char * buf)
+{
+	struct pci_dev *pdev;
+	struct pcidev_cookie *sysdata;
+
+	pdev = to_pci_dev(dev);
+	sysdata = pdev->sysdata;
+
+	return snprintf (buf, PAGE_SIZE, "%s\n", sysdata->prom_node->full_name);
+}
+
+static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH, show_pciobppath_attr, NULL);
+
 /* Fill in the PCI device cookie sysdata for the given
  * PCI device.  This cookie is the means by which one
  * can get to OBP and PCI controller specific information
@@ -142,7 +158,7 @@ static void __init pdev_cookie_fillin(struct pci_pbm_info *pbm,
 	struct pcidev_cookie *pcp;
 	struct device_node *dp;
 	struct property *prop;
-	int nregs, len;
+	int nregs, len, err;
 
 	dp = find_device_prom_node(pbm, pdev, bus_node,
 				   &pregs, &nregs);
@@ -215,6 +231,13 @@ static void __init pdev_cookie_fillin(struct pci_pbm_info *pbm,
 	fixup_obp_assignments(pdev, pcp);
 
 	pdev->sysdata = pcp;
+
+	/* we don't really care if we can create this file or not,
+	 * but we need to assign the result of the call or the world will fall
+	 * under alien invasion and everybody will be frozen on a spaceship
+	 * ready to be eaten on alpha centauri by some green and jelly humanoid.
+	 */
+	err = sysfs_create_file(&pdev->dev.kobj, &dev_attr_obppath.attr);
 }
 
 void __init pci_fill_in_pbm_cookies(struct pci_bus *pbus,

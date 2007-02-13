@@ -58,7 +58,7 @@ const struct file_operations ncp_dir_operations =
 #endif
 };
 
-struct inode_operations ncp_dir_inode_operations =
+const struct inode_operations ncp_dir_inode_operations =
 {
 	.create		= ncp_create,
 	.lookup		= ncp_lookup,

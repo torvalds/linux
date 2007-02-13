@@ -108,6 +108,13 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 	/* temporary */
 	if (major == 0) {
 		for (i = ARRAY_SIZE(chrdevs)-1; i > 0; i--) {
+			/*
+			 * Disallow the LANANA-assigned LOCAL/EXPERIMENTAL
+			 * majors
+			 */
+			if ((60 <= i && i <= 63) || (120 <= i && i <= 127) ||
+					(240 <= i && i <= 254))
+				continue;
 			if (chrdevs[i] == NULL)
 				break;
 		}

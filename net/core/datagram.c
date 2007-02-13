@@ -430,7 +430,7 @@ EXPORT_SYMBOL(__skb_checksum_complete);
  *	@skb: skbuff
  *	@hlen: hardware length
  *	@iov: io vector
- * 
+ *
  *	Caller _must_ check that skb will fit to this iovec.
  *
  *	Returns: 0       - success.

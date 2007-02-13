@@ -172,7 +172,7 @@ static const char eeprom_name[] = "eeprom";
 static struct eeprom_type eeprom;
 
 /* This is the exported file-operations structure for this device. */
-struct file_operations eeprom_fops =
+const struct file_operations eeprom_fops =
 {
   .llseek  = eeprom_lseek,
   .read    = eeprom_read,

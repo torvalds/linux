@@ -318,7 +318,7 @@ static struct typhoon_device typhoon_unit =
 	.mutefreq	= CONFIG_RADIO_TYPHOON_MUTEFREQ,
 };
 
-static struct file_operations typhoon_fops = {
+static const struct file_operations typhoon_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

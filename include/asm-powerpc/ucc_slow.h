@@ -150,7 +150,7 @@ struct ucc_slow_info {
 	int ucc_num;
 	enum qe_clock rx_clock;
 	enum qe_clock tx_clock;
-	struct ucc_slow *us_regs;
+	struct ucc_slow *regs;
 	int irq;
 	u16 uccm_mask;
 	int data_mem_part;

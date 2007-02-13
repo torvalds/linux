@@ -19,6 +19,7 @@
 #include <linux/time.h>
 #include <linux/reiserfs_fs.h>
 #include <linux/buffer_head.h>
+#include <linux/kernel.h>
 
 #ifdef CONFIG_REISERFS_CHECK
 
@@ -1756,7 +1757,7 @@ static void store_thrown(struct tree_balance *tb, struct buffer_head *bh)
 	if (buffer_dirty(bh))
 		reiserfs_warning(tb->tb_sb,
 				 "store_thrown deals with dirty buffer");
-	for (i = 0; i < sizeof(tb->thrown) / sizeof(tb->thrown[0]); i++)
+	for (i = 0; i < ARRAY_SIZE(tb->thrown); i++)
 		if (!tb->thrown[i]) {
 			tb->thrown[i] = bh;
 			get_bh(bh);	/* free_thrown puts this */
@@ -1769,7 +1770,7 @@ static void free_thrown(struct tree_balance *tb)
 {
 	int i;
 	b_blocknr_t blocknr;
-	for (i = 0; i < sizeof(tb->thrown) / sizeof(tb->thrown[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(tb->thrown); i++) {
 		if (tb->thrown[i]) {
 			blocknr = tb->thrown[i]->b_blocknr;
 			if (buffer_dirty(tb->thrown[i]))

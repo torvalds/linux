@@ -374,7 +374,7 @@ static long sbprof_tb_ioctl(struct file *filp,
 	return error;
 }
 
-static struct file_operations sbprof_tb_fops = {
+static const struct file_operations sbprof_tb_fops = {
 	.owner		= THIS_MODULE,
 	.open		= sbprof_tb_open,
 	.release	= sbprof_tb_release,

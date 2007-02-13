@@ -40,7 +40,7 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->mac.raw = skb->data;
 	skb_pull(skb, ETH_HLEN);
 
-	if (dest[0] & 1) 
+	if (dest[0] & 1)
 		br_flood_deliver(br, skb, 0);
 	else if ((dst = __br_fdb_get(br, dest)) != NULL)
 		br_deliver(dst->dst, skb);
@@ -178,12 +178,12 @@ void br_dev_setup(struct net_device *dev)
 	dev->change_mtu = br_change_mtu;
 	dev->destructor = free_netdev;
 	SET_MODULE_OWNER(dev);
- 	SET_ETHTOOL_OPS(dev, &br_ethtool_ops);
+	SET_ETHTOOL_OPS(dev, &br_ethtool_ops);
 	dev->stop = br_dev_stop;
 	dev->tx_queue_len = 0;
 	dev->set_mac_address = br_set_mac_address;
 	dev->priv_flags = IFF_EBRIDGE;
 
- 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
- 			NETIF_F_TSO | NETIF_F_NO_CSUM | NETIF_F_GSO_ROBUST;
+	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
+			NETIF_F_TSO | NETIF_F_NO_CSUM | NETIF_F_GSO_ROBUST;
 }

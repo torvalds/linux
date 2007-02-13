@@ -42,7 +42,7 @@ module_param(timeout, uint, 0400);
 MODULE_PARM_DESC(timeout, "timeout for master connection/replies in seconds");
 
 static int help(struct sk_buff **pskb,
-                struct ip_conntrack *ct, enum ip_conntrack_info ctinfo)
+		struct ip_conntrack *ct, enum ip_conntrack_info ctinfo)
 {
 	struct ip_conntrack_expect *exp;
 	struct iphdr *iph = (*pskb)->nh.iph;

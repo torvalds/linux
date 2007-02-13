@@ -1,3 +1,19 @@
+Release Date	: Thu Nov 16 15:32:35 EST 2006 -
+				Sumant Patro <sumant.patro@lsi.com>
+Current Version : 2.20.5.1 (scsi module), 2.20.2.6 (cmm module)
+Older Version	: 2.20.4.9 (scsi module), 2.20.2.6 (cmm module)
+
+1.	Changes in Initialization to fix kdump failure.
+	Send SYNC command on loading.
+	This command clears the pending commands in the adapter
+	and re-initialize its internal RAID structure.
+	Without this change, megaraid driver either panics or fails to
+	initialize the adapter during kdump's second kernel boot
+	if there are pending commands or interrupts from other devices
+	sharing the same IRQ.
+2. 	Authors email-id domain name changed from lsil.com to lsi.com.
+	Also modified the MODULE_AUTHOR to megaraidlinux@lsi.com
+
 Release Date	: Fri May 19 09:31:45 EST 2006 - Seokmann Ju <sju@lsil.com>
 Current Version : 2.20.4.9 (scsi module), 2.20.2.6 (cmm module)
 Older Version	: 2.20.4.8 (scsi module), 2.20.2.6 (cmm module)

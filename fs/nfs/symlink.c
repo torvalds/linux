@@ -78,7 +78,7 @@ read_failed:
 /*
  * symlinks can't do much...
  */
-struct inode_operations nfs_symlink_inode_operations = {
+const struct inode_operations nfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= nfs_follow_link,
 	.put_link	= page_put_link,

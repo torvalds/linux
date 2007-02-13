@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <asm/apm.h>
+#include <asm/apm-emulation.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/hardware.h>

@@ -135,7 +135,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 			l3proto, l4proto))
 		return -ENOSPC;
 
- 	if (seq_print_counters(s, &ct->counters[IP_CT_DIR_ORIGINAL]))
+	if (seq_print_counters(s, &ct->counters[IP_CT_DIR_ORIGINAL]))
 		return -ENOSPC;
 
 	if (!(test_bit(IPS_SEEN_REPLY_BIT, &ct->status)))
@@ -146,7 +146,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 			l3proto, l4proto))
 		return -ENOSPC;
 
- 	if (seq_print_counters(s, &ct->counters[IP_CT_DIR_REPLY]))
+	if (seq_print_counters(s, &ct->counters[IP_CT_DIR_REPLY]))
 		return -ENOSPC;
 
 	if (test_bit(IPS_ASSURED_BIT, &ct->status))
@@ -197,7 +197,7 @@ out_free:
 	return ret;
 }
 
-static struct file_operations ct_file_ops = {
+static const struct file_operations ct_file_ops = {
 	.owner   = THIS_MODULE,
 	.open    = ct_open,
 	.read    = seq_read,
@@ -228,7 +228,7 @@ static void *exp_seq_start(struct seq_file *s, loff_t *pos)
 
 static void *exp_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
- 	struct list_head *e = v;
+	struct list_head *e = v;
 
 	++*pos;
 	e = e->next;
@@ -262,7 +262,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 	print_tuple(s, &exp->tuple,
 		    __nf_ct_l3proto_find(exp->tuple.src.l3num),
 		    __nf_ct_l4proto_find(exp->tuple.src.l3num,
-		    			 exp->tuple.dst.protonum));
+					 exp->tuple.dst.protonum));
 	return seq_putc(s, '\n');
 }
 
@@ -278,7 +278,7 @@ static int exp_open(struct inode *inode, struct file *file)
 	return seq_open(file, &exp_seq_ops);
 }
 
-static struct file_operations ip_exp_file_ops = {
+static const struct file_operations ip_exp_file_ops = {
 	.owner   = THIS_MODULE,
 	.open    = exp_open,
 	.read    = seq_read,
@@ -366,7 +366,7 @@ static int ct_cpu_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &ct_cpu_seq_ops);
 }
 
-static struct file_operations ct_cpu_seq_fops = {
+static const struct file_operations ct_cpu_seq_fops = {
 	.owner   = THIS_MODULE,
 	.open    = ct_cpu_seq_open,
 	.read    = seq_read,

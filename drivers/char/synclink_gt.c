@@ -1045,7 +1045,6 @@ static void flush_buffer(struct tty_struct *tty)
 		info->tx_count = 0;
 	spin_unlock_irqrestore(&info->lock,flags);
 
-	wake_up_interruptible(&tty->write_wait);
 	tty_wakeup(tty);
 }
 
@@ -1826,8 +1825,7 @@ static void rx_async(struct slgt_info *info)
 		if (i < count) {
 			/* receive buffer not completed */
 			info->rbuf_index += i;
-			info->rx_timer.expires = jiffies + 1;
-			add_timer(&info->rx_timer);
+			mod_timer(&info->rx_timer, jiffies + 1);
 			break;
 		}
 
@@ -1933,10 +1931,8 @@ static void bh_transmit(struct slgt_info *info)
 	struct tty_struct *tty = info->tty;
 
 	DBGBH(("%s bh_transmit\n", info->device_name));
-	if (tty) {
+	if (tty)
 		tty_wakeup(tty);
-		wake_up_interruptible(&tty->write_wait);
-	}
 }
 
 static void dsr_change(struct slgt_info *info)
@@ -3343,13 +3339,8 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 		info->adapter_num = adapter_num;
 		info->port_num = port_num;
 
-		init_timer(&info->tx_timer);
-		info->tx_timer.data = (unsigned long)info;
-		info->tx_timer.function = tx_timeout;
-
-		init_timer(&info->rx_timer);
-		info->rx_timer.data = (unsigned long)info;
-		info->rx_timer.function = rx_timeout;
+		setup_timer(&info->tx_timer, tx_timeout, (unsigned long)info);
+		setup_timer(&info->rx_timer, rx_timeout, (unsigned long)info);
 
 		/* Copy configuration info to device instance data */
 		info->pdev = pdev;
@@ -3797,10 +3788,9 @@ static void tx_start(struct slgt_info *info)
 				}
 			}
 
-			if (info->params.mode == MGSL_MODE_HDLC) {
-				info->tx_timer.expires = jiffies + msecs_to_jiffies(5000);
-				add_timer(&info->tx_timer);
-			}
+			if (info->params.mode == MGSL_MODE_HDLC)
+				mod_timer(&info->tx_timer, jiffies +
+						msecs_to_jiffies(5000));
 		} else {
 			tdma_reset(info);
 			/* set 1st descriptor address */

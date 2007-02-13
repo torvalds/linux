@@ -117,7 +117,7 @@ static ssize_t sock_sendpage(struct file *file, struct page *page,
  *	in the operation structures but are done directly via the socketcall() multiplexor.
  */
 
-static struct file_operations socket_file_ops = {
+static const struct file_operations socket_file_ops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.aio_read =	sock_aio_read,
@@ -407,24 +407,11 @@ int sock_map_fd(struct socket *sock)
 
 static struct socket *sock_from_file(struct file *file, int *err)
 {
-	struct inode *inode;
-	struct socket *sock;
-
 	if (file->f_op == &socket_file_ops)
 		return file->private_data;	/* set in sock_map_fd */
 
-	inode = file->f_path.dentry->d_inode;
-	if (!S_ISSOCK(inode->i_mode)) {
-		*err = -ENOTSOCK;
-		return NULL;
-	}
-
-	sock = SOCKET_I(inode);
-	if (sock->file != file) {
-		printk(KERN_ERR "socki_lookup: socket file changed!\n");
-		sock->file = file;
-	}
-	return sock;
+	*err = -ENOTSOCK;
+	return NULL;
 }
 
 /**
@@ -1527,8 +1514,9 @@ asmlinkage long sys_sendto(int fd, void __user *buff, size_t len,
 	struct file *sock_file;
 
 	sock_file = fget_light(fd, &fput_needed);
+	err = -EBADF;
 	if (!sock_file)
-		return -EBADF;
+		goto out;
 
 	sock = sock_from_file(sock_file, &err);
 	if (!sock)
@@ -1555,6 +1543,7 @@ asmlinkage long sys_sendto(int fd, void __user *buff, size_t len,
 
 out_put:
 	fput_light(sock_file, fput_needed);
+out:
 	return err;
 }
 
@@ -1586,12 +1575,13 @@ asmlinkage long sys_recvfrom(int fd, void __user *ubuf, size_t size,
 	int fput_needed;
 
 	sock_file = fget_light(fd, &fput_needed);
+	err = -EBADF;
 	if (!sock_file)
-		return -EBADF;
+		goto out;
 
 	sock = sock_from_file(sock_file, &err);
 	if (!sock)
-		goto out;
+		goto out_put;
 
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
@@ -1610,8 +1600,9 @@ asmlinkage long sys_recvfrom(int fd, void __user *ubuf, size_t size,
 		if (err2 < 0)
 			err = err2;
 	}
-out:
+out_put:
 	fput_light(sock_file, fput_needed);
+out:
 	return err;
 }
 
@@ -2189,7 +2180,7 @@ done:
 }
 
 int kernel_connect(struct socket *sock, struct sockaddr *addr, int addrlen,
-                   int flags)
+		   int flags)
 {
 	return sock->ops->connect(sock, addr, addrlen, flags);
 }

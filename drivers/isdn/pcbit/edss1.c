@@ -35,12 +35,6 @@
 #include "callbacks.h"
 
 
-extern void pcbit_state_change(struct pcbit_dev *, struct pcbit_chan *, 
-                               unsigned short i, unsigned short ev, 
-                               unsigned short f);
-
-extern struct pcbit_dev * dev_pcbit[MAX_PCBIT_CARDS];
-
 char * isdn_state_table[] = {
   "Closed",
   "Call initiated",

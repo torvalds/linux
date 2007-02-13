@@ -294,10 +294,10 @@ static int snd_gus_init_dma_irq(struct snd_gus_card * gus, int latches)
 		gus->mix_cntrl_reg |= 4;	/* enable MIC */
 	}
 	dma1 = gus->gf1.dma1;
-	dma1 = dma1 < 0 ? -dma1 : dma1;
+	dma1 = abs(dma1);
 	dma1 = dmas[dma1 & 7];
 	dma2 = gus->gf1.dma2;
-	dma2 = dma2 < 0 ? -dma2 : dma2;
+	dma2 = abs(dma2);
 	dma2 = dmas[dma2 & 7];
 	dma1 |= gus->equal_dma ? 0x40 : (dma2 << 3);
 
@@ -306,7 +306,7 @@ static int snd_gus_init_dma_irq(struct snd_gus_card * gus, int latches)
 		return -EINVAL;
 	}
 	irq = gus->gf1.irq;
-	irq = irq < 0 ? -irq : irq;
+	irq = abs(irq);
 	irq = irqs[irq & 0x0f];
 	if (irq == 0) {
 		snd_printk(KERN_ERR "Error! IRQ isn't defined.\n");

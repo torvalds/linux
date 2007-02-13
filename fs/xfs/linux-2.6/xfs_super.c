@@ -43,8 +43,6 @@
 #include "xfs_itable.h"
 #include "xfs_rw.h"
 #include "xfs_acl.h"
-#include "xfs_cap.h"
-#include "xfs_mac.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
@@ -58,10 +56,10 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-STATIC struct quotactl_ops xfs_quotactl_operations;
-STATIC struct super_operations xfs_super_operations;
-STATIC kmem_zone_t *xfs_vnode_zone;
-STATIC kmem_zone_t *xfs_ioend_zone;
+static struct quotactl_ops xfs_quotactl_operations;
+static struct super_operations xfs_super_operations;
+static kmem_zone_t *xfs_vnode_zone;
+static kmem_zone_t *xfs_ioend_zone;
 mempool_t *xfs_ioend_pool;
 
 STATIC struct xfs_mount_args *
@@ -121,7 +119,7 @@ xfs_max_file_offset(
 	return (((__uint64_t)pagefactor) << bitshift) - 1;
 }
 
-STATIC __inline__ void
+STATIC_INLINE void
 xfs_set_inodeops(
 	struct inode		*inode)
 {
@@ -147,7 +145,7 @@ xfs_set_inodeops(
 	}
 }
 
-STATIC __inline__ void
+STATIC_INLINE void
 xfs_revalidate_inode(
 	xfs_mount_t		*mp,
 	bhv_vnode_t		*vp,
@@ -553,7 +551,6 @@ vfs_sync_worker(
 		error = bhv_vfs_sync(vfsp, SYNC_FSDATA | SYNC_BDFLUSH | \
 					SYNC_ATTR | SYNC_REFCACHE, NULL);
 	vfsp->vfs_sync_seq++;
-	wmb();
 	wake_up(&vfsp->vfs_wait_single_sync_task);
 }
 
@@ -659,9 +656,17 @@ xfs_fs_sync_super(
 	int			error;
 	int			flags;
 
-	if (unlikely(sb->s_frozen == SB_FREEZE_WRITE))
-		flags = SYNC_QUIESCE;
-	else
+	if (unlikely(sb->s_frozen == SB_FREEZE_WRITE)) {
+		/*
+		 * First stage of freeze - no more writers will make progress
+		 * now we are here, so we flush delwri and delalloc buffers
+		 * here, then wait for all I/O to complete.  Data is frozen at
+		 * that point. Metadata is not frozen, transactions can still
+		 * occur here so don't bother flushing the buftarg (i.e
+		 * SYNC_QUIESCE) because it'll just get dirty again.
+		 */
+		flags = SYNC_FSDATA | SYNC_DELWRI | SYNC_WAIT | SYNC_IOWAIT;
+	} else
 		flags = SYNC_FSDATA | (wait ? SYNC_WAIT : 0);
 
 	error = bhv_vfs_sync(vfsp, flags, NULL);
@@ -873,7 +878,7 @@ xfs_fs_get_sb(
 			   mnt);
 }
 
-STATIC struct super_operations xfs_super_operations = {
+static struct super_operations xfs_super_operations = {
 	.alloc_inode		= xfs_fs_alloc_inode,
 	.destroy_inode		= xfs_fs_destroy_inode,
 	.write_inode		= xfs_fs_write_inode,
@@ -887,7 +892,7 @@ STATIC struct super_operations xfs_super_operations = {
 	.show_options		= xfs_fs_show_options,
 };
 
-STATIC struct quotactl_ops xfs_quotactl_operations = {
+static struct quotactl_ops xfs_quotactl_operations = {
 	.quota_sync		= xfs_fs_quotasync,
 	.get_xstate		= xfs_fs_getxstate,
 	.set_xstate		= xfs_fs_setxstate,

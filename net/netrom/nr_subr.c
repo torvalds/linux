@@ -57,7 +57,7 @@ void nr_frames_acked(struct sock *sk, unsigned short nr)
 	 */
 	if (nrom->va != nr) {
 		while (skb_peek(&nrom->ack_queue) != NULL && nrom->va != nr) {
-		        skb = skb_dequeue(&nrom->ack_queue);
+			skb = skb_dequeue(&nrom->ack_queue);
 			kfree_skb(skb);
 			nrom->va = (nrom->va + 1) % NR_MODULUS;
 		}

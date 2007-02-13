@@ -208,7 +208,7 @@ odev_poll(struct file *file, poll_table * wait)
  * registration of sequencer minor device
  */
 
-static struct file_operations seq_oss_f_ops =
+static const struct file_operations seq_oss_f_ops =
 {
 	.owner =	THIS_MODULE,
 	.read =		odev_read,

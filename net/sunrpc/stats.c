@@ -66,7 +66,7 @@ static int rpc_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, rpc_proc_show, PDE(inode)->data);
 }
 
-static struct file_operations rpc_proc_fops = {
+static const struct file_operations rpc_proc_fops = {
 	.owner = THIS_MODULE,
 	.open = rpc_proc_open,
 	.read  = seq_read,

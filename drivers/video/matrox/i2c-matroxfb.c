@@ -146,7 +146,7 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 	unsigned long flags;
 	struct matroxfb_dh_maven_info* m2info;
 
-	m2info = kmalloc(sizeof(*m2info), GFP_KERNEL);
+	m2info = kzalloc(sizeof(*m2info), GFP_KERNEL);
 	if (!m2info)
 		return NULL;
 
@@ -154,8 +154,6 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 	matroxfb_DAC_out(PMINFO DAC_XGENIODATA, 0xFF);
 	matroxfb_DAC_out(PMINFO DAC_XGENIOCTRL, 0x00);
 	matroxfb_DAC_unlock_irqrestore(flags);
-
-	memset(m2info, 0, sizeof(*m2info));
 
 	switch (ACCESS_FBINFO(chip)) {
 		case MGA_2064:

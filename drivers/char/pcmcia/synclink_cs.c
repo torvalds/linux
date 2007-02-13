@@ -887,10 +887,8 @@ static void bh_transmit(MGSLPC_INFO *info)
 	if (debug_level >= DEBUG_LEVEL_BH)
 		printk("bh_transmit() entry on %s\n", info->device_name);
 
-	if (tty) {
+	if (tty)
 		tty_wakeup(tty);
-		wake_up_interruptible(&tty->write_wait);
-	}
 }
 
 static void bh_status(MGSLPC_INFO *info)
@@ -1363,9 +1361,7 @@ static int startup(MGSLPC_INFO * info)
 	
 	memset(&info->icount, 0, sizeof(info->icount));
 
-	init_timer(&info->tx_timer);
-	info->tx_timer.data = (unsigned long)info;
-	info->tx_timer.function = tx_timeout;
+	setup_timer(&info->tx_timer, tx_timeout, (unsigned long)info);
 
 	/* Allocate and claim adapter resources */
 	retval = claim_resources(info);
@@ -1410,7 +1406,7 @@ static void shutdown(MGSLPC_INFO * info)
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);
 
-	del_timer(&info->tx_timer);	
+	del_timer_sync(&info->tx_timer);
 
 	if (info->tx_buf) {
 		free_page((unsigned long) info->tx_buf);
@@ -3551,8 +3547,8 @@ static void tx_start(MGSLPC_INFO *info)
 		} else {
 			info->tx_active = 1;
 			tx_ready(info);
-			info->tx_timer.expires = jiffies + msecs_to_jiffies(5000);
-			add_timer(&info->tx_timer);	
+			mod_timer(&info->tx_timer, jiffies +
+					msecs_to_jiffies(5000));
 		}
 	}
 

@@ -151,7 +151,6 @@ static int ns558_isa_probe(int io)
 		return -ENOMEM;
 	}
 
-	memset(ns558, 0, sizeof(struct ns558));
 	ns558->io = io;
 	ns558->size = 1 << i;
 	ns558->gameport = port;

@@ -1,6 +1,6 @@
 /*
  * net/tipc/netlink.c: TIPC configuration handling
- * 
+ *
  * Copyright (c) 2005-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -63,15 +63,15 @@ static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
 		genlmsg_unicast(rep_buf, req_nlh->nlmsg_pid);
 	}
 
-        return 0;
+	return 0;
 }
 
 static struct genl_family family = {
-        .id		= GENL_ID_GENERATE,
-        .name		= TIPC_GENL_NAME,
-        .version	= TIPC_GENL_VERSION,
-        .hdrsize	= TIPC_GENL_HDRLEN,
-        .maxattr	= 0,
+	.id		= GENL_ID_GENERATE,
+	.name		= TIPC_GENL_NAME,
+	.version	= TIPC_GENL_VERSION,
+	.hdrsize	= TIPC_GENL_HDRLEN,
+	.maxattr	= 0,
 };
 
 static struct genl_ops ops = {
@@ -93,7 +93,7 @@ int tipc_netlink_start(void)
 	if (genl_register_ops(&family, &ops))
 		goto err_unregister;
 
-        return 0;
+	return 0;
 
  err_unregister:
 	genl_unregister_family(&family);

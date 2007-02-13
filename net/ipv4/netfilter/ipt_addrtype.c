@@ -16,7 +16,7 @@
 #include <net/route.h>
 
 #include <linux/netfilter_ipv4/ipt_addrtype.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter/x_tables.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
@@ -40,12 +40,13 @@ static int match(const struct sk_buff *skb,
 		ret &= match_type(iph->saddr, info->source)^info->invert_source;
 	if (info->dest)
 		ret &= match_type(iph->daddr, info->dest)^info->invert_dest;
-	
+
 	return ret;
 }
 
-static struct ipt_match addrtype_match = {
+static struct xt_match addrtype_match = {
 	.name		= "addrtype",
+	.family		= AF_INET,
 	.match		= match,
 	.matchsize	= sizeof(struct ipt_addrtype_info),
 	.me		= THIS_MODULE
@@ -53,12 +54,12 @@ static struct ipt_match addrtype_match = {
 
 static int __init ipt_addrtype_init(void)
 {
-	return ipt_register_match(&addrtype_match);
+	return xt_register_match(&addrtype_match);
 }
 
 static void __exit ipt_addrtype_fini(void)
 {
-	ipt_unregister_match(&addrtype_match);
+	xt_unregister_match(&addrtype_match);
 }
 
 module_init(ipt_addrtype_init);

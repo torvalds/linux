@@ -106,6 +106,8 @@
 
 /****** RocketPort Local Variables ******/
 
+static void rp_do_poll(unsigned long dummy);
+
 static struct tty_driver *rocket_driver;
 
 static struct rocket_version driver_version = {	
@@ -116,7 +118,7 @@ static struct r_port *rp_table[MAX_RP_PORTS];	       /*  The main repository of 
 static unsigned int xmit_flags[NUM_BOARDS];	       /*  Bit significant, indicates port had data to transmit. */
 						       /*  eg.  Bit 0 indicates port 0 has xmit data, ...        */
 static atomic_t rp_num_ports_open;	               /*  Number of serial ports open                           */
-static struct timer_list rocket_timer;
+static DEFINE_TIMER(rocket_timer, rp_do_poll, 0, 0);
 
 static unsigned long board1;	                       /* ISA addresses, retrieved from rocketport.conf          */
 static unsigned long board2;
@@ -474,7 +476,6 @@ static void rp_do_transmit(struct r_port *info)
 
 	if (info->xmit_cnt < WAKEUP_CHARS) {
 		tty_wakeup(tty);
-		wake_up_interruptible(&tty->write_wait);
 #ifdef ROCKETPORT_HAVE_POLL_WAIT
 		wake_up_interruptible(&tty->poll_wait);
 #endif
@@ -1772,7 +1773,6 @@ static int rp_write(struct tty_struct *tty,
 end:
  	if (info->xmit_cnt < WAKEUP_CHARS) {
  		tty_wakeup(tty);
-		wake_up_interruptible(&tty->write_wait);
 #ifdef ROCKETPORT_HAVE_POLL_WAIT
 		wake_up_interruptible(&tty->poll_wait);
 #endif
@@ -1841,7 +1841,6 @@ static void rp_flush_buffer(struct tty_struct *tty)
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
 	spin_unlock_irqrestore(&info->slock, flags);
 
-	wake_up_interruptible(&tty->write_wait);
 #ifdef ROCKETPORT_HAVE_POLL_WAIT
 	wake_up_interruptible(&tty->poll_wait);
 #endif
@@ -2369,12 +2368,6 @@ static int __init rp_init(void)
 	rocket_driver = alloc_tty_driver(MAX_RP_PORTS);
 	if (!rocket_driver)
 		return -ENOMEM;
-
-	/*
-	 * Set up the timer channel.
-	 */
-	init_timer(&rocket_timer);
-	rocket_timer.function = rp_do_poll;
 
 	/*
 	 * Initialize the array of pointers to our own internal state

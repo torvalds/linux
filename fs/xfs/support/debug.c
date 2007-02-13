@@ -19,7 +19,7 @@
 #include "debug.h"
 #include "spin.h"
 
-static char		message[256];	/* keep it off the stack */
+static char		message[1024];	/* keep it off the stack */
 static DEFINE_SPINLOCK(xfs_err_lock);
 
 /* Translate from CE_FOO to KERN_FOO, err_level(CE_FOO) == KERN_FOO */
@@ -44,13 +44,14 @@ cmn_err(register int level, char *fmt, ...)
 	spin_lock_irqsave(&xfs_err_lock,flags);
 	va_start(ap, fmt);
 	if (*fmt == '!') fp++;
-	len = vsprintf(message, fp, ap);
-	if (level != CE_DEBUG && message[len-1] != '\n')
-		strcat(message, "\n");
-	printk("%s%s", err_level[level], message);
+	len = vsnprintf(message, sizeof(message), fp, ap);
+	if (len >= sizeof(message))
+		len = sizeof(message) - 1;
+	if (message[len-1] == '\n')
+		message[len-1] = 0;
+	printk("%s%s\n", err_level[level], message);
 	va_end(ap);
 	spin_unlock_irqrestore(&xfs_err_lock,flags);
-
 	BUG_ON(level == CE_PANIC);
 }
 
@@ -64,11 +65,13 @@ icmn_err(register int level, char *fmt, va_list ap)
 	if(level > XFS_MAX_ERR_LEVEL)
 		level = XFS_MAX_ERR_LEVEL;
 	spin_lock_irqsave(&xfs_err_lock,flags);
-	len = vsprintf(message, fmt, ap);
-	if (level != CE_DEBUG && message[len-1] != '\n')
-		strcat(message, "\n");
+	len = vsnprintf(message, sizeof(message), fmt, ap);
+	if (len >= sizeof(message))
+		len = sizeof(message) - 1;
+	if (message[len-1] == '\n')
+		message[len-1] = 0;
+	printk("%s%s\n", err_level[level], message);
 	spin_unlock_irqrestore(&xfs_err_lock,flags);
-	printk("%s%s", err_level[level], message);
 	BUG_ON(level == CE_PANIC);
 }
 

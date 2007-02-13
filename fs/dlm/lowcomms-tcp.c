@@ -268,12 +268,12 @@ static void close_connection(struct connection *con, bool and_other)
 static int receive_from_sock(struct connection *con)
 {
 	int ret = 0;
-	struct msghdr msg;
-	struct iovec iov[2];
-	mm_segment_t fs;
+	struct msghdr msg = {};
+	struct kvec iov[2];
 	unsigned len;
 	int r;
 	int call_again_soon = 0;
+	int nvec;
 
 	mutex_lock(&con->sock_mutex);
 
@@ -293,21 +293,13 @@ static int receive_from_sock(struct connection *con)
 		cbuf_init(&con->cb, PAGE_CACHE_SIZE);
 	}
 
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_iovlen = 1;
-	msg.msg_iov = iov;
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_flags = 0;
-
 	/*
 	 * iov[0] is the bit of the circular buffer between the current end
 	 * point (cb.base + cb.len) and the end of the buffer.
 	 */
 	iov[0].iov_len = con->cb.base - cbuf_data(&con->cb);
 	iov[0].iov_base = page_address(con->rx_page) + cbuf_data(&con->cb);
-	iov[1].iov_len = 0;
+	nvec = 1;
 
 	/*
 	 * iov[1] is the bit of the circular buffer between the start of the
@@ -317,15 +309,12 @@ static int receive_from_sock(struct connection *con)
 		iov[0].iov_len = PAGE_CACHE_SIZE - cbuf_data(&con->cb);
 		iov[1].iov_len = con->cb.base;
 		iov[1].iov_base = page_address(con->rx_page);
-		msg.msg_iovlen = 2;
+		nvec = 2;
 	}
 	len = iov[0].iov_len + iov[1].iov_len;
 
-	fs = get_fs();
-	set_fs(get_ds());
-	r = ret = sock_recvmsg(con->sock, &msg, len,
+	r = ret = kernel_recvmsg(con->sock, &msg, iov, nvec, len,
 			       MSG_DONTWAIT | MSG_NOSIGNAL);
-	set_fs(fs);
 
 	if (ret <= 0)
 		goto out_close;

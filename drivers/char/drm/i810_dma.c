@@ -112,7 +112,7 @@ static int i810_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-static struct file_operations i810_buffer_fops = {
+static const struct file_operations i810_buffer_fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.ioctl = drm_ioctl,

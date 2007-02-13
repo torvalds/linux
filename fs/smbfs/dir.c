@@ -42,7 +42,7 @@ const struct file_operations smb_dir_operations =
 	.open		= smb_dir_open,
 };
 
-struct inode_operations smb_dir_inode_operations =
+const struct inode_operations smb_dir_inode_operations =
 {
 	.create		= smb_create,
 	.lookup		= smb_lookup,
@@ -54,7 +54,7 @@ struct inode_operations smb_dir_inode_operations =
 	.setattr	= smb_notify_change,
 };
 
-struct inode_operations smb_dir_inode_operations_unix =
+const struct inode_operations smb_dir_inode_operations_unix =
 {
 	.create		= smb_create,
 	.lookup		= smb_lookup,

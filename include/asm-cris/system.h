@@ -44,8 +44,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
   /* since Etrax doesn't have any atomic xchg instructions, we need to disable
      irq's (if enabled) and do it with move.d's */
   unsigned long flags,temp;
-  local_save_flags(flags); /* save flags, including irq enable bit */
-  local_irq_disable();             /* shut off irq's */
+  local_irq_save(flags); /* save flags, including irq enable bit and shut off irqs */
   switch (size) {
   case 1:
     *((unsigned char *)&temp) = x;

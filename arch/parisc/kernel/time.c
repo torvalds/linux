@@ -288,17 +288,6 @@ do_settimeofday (struct timespec *tv)
 }
 EXPORT_SYMBOL(do_settimeofday);
 
-/*
- * XXX: We can do better than this.
- * Returns nanoseconds
- */
-
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies * (1000000000 / HZ);
-}
-
-
 void __init start_cpu_itimer(void)
 {
 	unsigned int cpu = smp_processor_id();

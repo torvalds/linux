@@ -1894,7 +1894,7 @@ static int __init apm_setup(char *str)
 __setup("apm=", apm_setup);
 #endif
 
-static struct file_operations apm_bios_fops = {
+static const struct file_operations apm_bios_fops = {
 	.owner		= THIS_MODULE,
 	.read		= do_read,
 	.poll		= do_poll,

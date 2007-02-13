@@ -284,7 +284,7 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 
 restart_timer:
 	sk_reset_timer(sk, &hctx->ccid3hctx_no_feedback_timer,
-		           jiffies + usecs_to_jiffies(t_nfb));
+			   jiffies + usecs_to_jiffies(t_nfb));
 out:
 	bh_unlock_sock(sk);
 	sock_put(sk);
@@ -319,7 +319,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	case TFRC_SSTATE_NO_SENT:
 		sk_reset_timer(sk, &hctx->ccid3hctx_no_feedback_timer,
 			       (jiffies +
-			        usecs_to_jiffies(TFRC_INITIAL_TIMEOUT)));
+				usecs_to_jiffies(TFRC_INITIAL_TIMEOUT)));
 		hctx->ccid3hctx_last_win_count	 = 0;
 		hctx->ccid3hctx_t_last_win_count = now;
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
@@ -479,14 +479,15 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 			ccid3_pr_debug("%s(%p), s=%u, w_init=%llu, "
 				       "R_sample=%dus, X=%u\n", dccp_role(sk),
-				       sk, hctx->ccid3hctx_s, w_init,
+				       sk, hctx->ccid3hctx_s,
+				       (unsigned long long)w_init,
 				       (int)r_sample,
 				       (unsigned)(hctx->ccid3hctx_x >> 6));
 
 			ccid3_hc_tx_set_state(sk, TFRC_SSTATE_FBACK);
 		} else {
 			hctx->ccid3hctx_rtt = (9 * hctx->ccid3hctx_rtt +
-					           (u32)r_sample) / 10;
+						   (u32)r_sample) / 10;
 
 			/* Update sending rate (step 4 of [RFC 3448, 4.3]) */
 			if (hctx->ccid3hctx_p > 0)
@@ -923,7 +924,7 @@ static void ccid3_hc_rx_update_li(struct sock *sk, u64 seq_loss, u8 win_loss)
 }
 
 static int ccid3_hc_rx_detect_loss(struct sock *sk,
-                                    struct dccp_rx_hist_entry *packet)
+				    struct dccp_rx_hist_entry *packet)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_rx_hist_entry *rx_hist =
@@ -1005,7 +1006,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		DCCP_BUG_ON(r_sample < 0);
 		if (unlikely(r_sample <= t_elapsed))
 			DCCP_WARN("r_sample=%ldus, t_elapsed=%ldus\n",
-				  r_sample, t_elapsed);
+				  (long)r_sample, (long)t_elapsed);
 		else
 			r_sample -= t_elapsed;
 		CCID3_RTT_SANITY_CHECK(r_sample);
@@ -1073,7 +1074,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		       dccp_role(sk), sk, dccp_state_name(sk->sk_state));
 
 	p_prev = hcrx->ccid3hcrx_p;
-	
+
 	/* Calculate loss event rate */
 	if (!list_empty(&hcrx->ccid3hcrx_li_hist)) {
 		u32 i_mean = dccp_li_hist_calc_i_mean(&hcrx->ccid3hcrx_li_hist);
@@ -1155,7 +1156,7 @@ static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 {
 	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	const void *val;
-	
+
 	/* Listen socks doesn't have a private CCID block */
 	if (sk->sk_state == DCCP_LISTEN)
 		return -EINVAL;
@@ -1182,7 +1183,7 @@ static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 {
 	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	const void *val;
-	
+
 	/* Listen socks doesn't have a private CCID block */
 	if (sk->sk_state == DCCP_LISTEN)
 		return -EINVAL;

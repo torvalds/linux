@@ -635,6 +635,12 @@ W:	http://people.redhat.com/sgrubb/audit/
 T:	git kernel.org:/pub/scm/linux/kernel/git/dwmw2/audit-2.6.git
 S:	Maintained
 
+AUXILIARY DISPLAY DRIVERS
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 AVR32 ARCHITECTURE
 P:	Haavard Skinnemoen
 M:	hskinnemoen@atmel.com
@@ -836,6 +842,18 @@ L:	linux-kernel@vger.kernel.org
 L:	discuss@x86-64.org
 S:	Maintained
 
+CFAG12864B LCD DRIVER
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+CFAG12864BFB LCD FRAMEBUFFER DRIVER
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 COMMON INTERNET FILE SYSTEM (CIFS)
 P:	Steve French
 M:	sfrench@samba.org
@@ -984,14 +1002,12 @@ L:	cycsyn-devel@bazar.conectiva.com.br
 S:	Maintained
 
 CYCLADES ASYNC MUX DRIVER
-M:	async@cyclades.com
 W:	http://www.cyclades.com/
-S:	Supported
+S:	Orphan
 
 CYCLADES PC300 DRIVER
-M:	pc300@cyclades.com
 W:	http://www.cyclades.com/
-S:	Supported
+S:	Orphan
 
 DAMA SLAVE for AX.25
 P:	Joerg Reuter
@@ -1114,7 +1130,7 @@ S:	Supported
 DAVICOM FAST ETHERNET (DMFE) NETWORK DRIVER
 P:	Tobias Ringstrom
 M:	tori@unhappy.mine.nu
-L:	linux-kernel@vger.kernel.org
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 DOCBOOK FOR DOCUMENTATION
@@ -1971,6 +1987,12 @@ M:	davem@davemloft.net
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+KS0108 LCD CONTROLLER DRIVER
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 LAPB module
 L:	linux-x25@vger.kernel.org
 S:	Orphan
@@ -2361,7 +2383,7 @@ S:	Maintained
 NETWORKING [WIRELESS]
 P:	John W. Linville
 M:	linville@tuxdriver.com
-L:	netdev@vger.kernel.org
+L:	linux-wireless@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git
 S:	Maintained
 
@@ -3037,6 +3059,12 @@ M:	perex@suse.cz
 L:	alsa-devel@alsa-project.org
 S:	Maintained
 
+SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT
+P:	Liam Girdwood
+M:	liam.girdwood@wolfsonmicro.com
+L:	alsa-devel@alsa-project.org
+S:	Supported
+
 SPI SUBSYSTEM
 P:	David Brownell
 M:	dbrownell@users.sourceforge.net
@@ -3285,6 +3313,11 @@ P:	Maxim Krasnyansky
 M:	maxk@qualcomm.com
 L:	vtun@office.satix.net
 W:	http://vtun.sourceforge.net/tun
+S:	Maintained
+
+TURBOCHANNEL SUBSYSTEM
+P:	Maciej W. Rozycki
+M:	macro@linux-mips.org
 S:	Maintained
 
 U14-34F SCSI DRIVER

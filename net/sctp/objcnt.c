@@ -1,39 +1,39 @@
 /* SCTP kernel reference Implementation
  * (C) Copyright IBM Corp. 2001, 2004
- * 
+ *
  * This file is part of the SCTP kernel reference Implementation
- * 
+ *
  * Support for memory object debugging.  This allows one to monitor the
- * object allocations/deallocations for types instrumented for this 
- * via the proc fs. 
- * 
- * The SCTP reference implementation is free software; 
- * you can redistribute it and/or modify it under the terms of 
+ * object allocations/deallocations for types instrumented for this
+ * via the proc fs.
+ *
+ * The SCTP reference implementation is free software;
+ * you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
- * 
- * The SCTP reference implementation is distributed in the hope that it 
+ *
+ * The SCTP reference implementation is distributed in the hope that it
  * will be useful, but WITHOUT ANY WARRANTY; without even the implied
  *                 ************************
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with GNU CC; see the file COPYING.  If not, write to
  * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.  
- * 
+ * Boston, MA 02111-1307, USA.
+ *
  * Please send any bug reports or fixes you make to the
  * email address(es):
  *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- * 
+ *
  * Or submit a bug report through the following website:
  *    http://www.sf.net/projects/lksctp
  *
- * Written or modified by: 
+ * Written or modified by:
  *    Jon Grimm             <jgrimm@us.ibm.com>
- * 
+ *
  * Any bugs reported given to us we will try to fix... any fixes shared will
  * be incorporated into the next SCTP release.
  */
@@ -121,7 +121,7 @@ done:
 	if (len > length)
 		len = length;
 
-  	return len;
+	return len;
 }
 
 /* Initialize the objcount in the proc filesystem.  */
@@ -131,7 +131,7 @@ void sctp_dbg_objcnt_init(void)
 	ent = create_proc_read_entry("sctp_dbg_objcnt", 0, proc_net_sctp,
 			       sctp_dbg_objcnt_read, NULL);
 	if (!ent)
-		printk(KERN_WARNING 
+		printk(KERN_WARNING
 			"sctp_dbg_objcnt: Unable to create /proc entry.\n");
 }
 

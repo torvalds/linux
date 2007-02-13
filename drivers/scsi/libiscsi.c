@@ -113,8 +113,7 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
         hdr->opcode = ISCSI_OP_SCSI_CMD;
         hdr->flags = ISCSI_ATTR_SIMPLE;
         int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
-        hdr->itt = ctask->itt | (conn->id << ISCSI_CID_SHIFT) |
-                         (session->age << ISCSI_AGE_SHIFT);
+        hdr->itt = build_itt(ctask->itt, conn->id, session->age);
         hdr->data_length = cpu_to_be32(sc->request_bufflen);
         hdr->cmdsn = cpu_to_be32(session->cmdsn);
         session->cmdsn++;
@@ -270,7 +269,7 @@ invalid_datalen:
 			goto out;
 		}
 
-		senselen = be16_to_cpu(*(uint16_t *)data);
+		senselen = be16_to_cpu(*(__be16 *)data);
 		if (datalen < senselen)
 			goto invalid_datalen;
 
@@ -338,7 +337,7 @@ static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 
 		if (ntoh24(reject->dlength) >= sizeof(struct iscsi_hdr)) {
 			memcpy(&rejected_pdu, data, sizeof(struct iscsi_hdr));
-			itt = rejected_pdu.itt & ISCSI_ITT_MASK;
+			itt = get_itt(rejected_pdu.itt);
 			printk(KERN_ERR "itt 0x%x had pdu (op 0x%x) rejected "
 				"due to DataDigest error.\n", itt,
 				rejected_pdu.opcode);
@@ -367,10 +366,10 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	struct iscsi_mgmt_task *mtask;
 	uint32_t itt;
 
-	if (hdr->itt != cpu_to_be32(ISCSI_RESERVED_TAG))
-		itt = hdr->itt & ISCSI_ITT_MASK;
+	if (hdr->itt != RESERVED_ITT)
+		itt = get_itt(hdr->itt);
 	else
-		itt = hdr->itt;
+		itt = ~0U;
 
 	if (itt < session->cmds_max) {
 		ctask = session->cmds[itt];
@@ -440,7 +439,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			iscsi_tmf_rsp(conn, hdr);
 			break;
 		case ISCSI_OP_NOOP_IN:
-			if (hdr->ttt != ISCSI_RESERVED_TAG || datalen) {
+			if (hdr->ttt != cpu_to_be32(ISCSI_RESERVED_TAG) || datalen) {
 				rc = ISCSI_ERR_PROTO;
 				break;
 			}
@@ -457,7 +456,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			rc = ISCSI_ERR_BAD_OPCODE;
 			break;
 		}
-	} else if (itt == ISCSI_RESERVED_TAG) {
+	} else if (itt == ~0U) {
 		rc = iscsi_check_assign_cmdsn(session,
 					     (struct iscsi_nopin*)hdr);
 		if (rc)
@@ -470,7 +469,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 				break;
 			}
 
-			if (hdr->ttt == ISCSI_RESERVED_TAG)
+			if (hdr->ttt == cpu_to_be32(ISCSI_RESERVED_TAG))
 				break;
 
 			if (iscsi_recv_pdu(conn->cls_conn, hdr, NULL, 0))
@@ -516,24 +515,24 @@ int iscsi_verify_itt(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	struct iscsi_cmd_task *ctask;
 	uint32_t itt;
 
-	if (hdr->itt != cpu_to_be32(ISCSI_RESERVED_TAG)) {
-		if ((hdr->itt & ISCSI_AGE_MASK) !=
+	if (hdr->itt != RESERVED_ITT) {
+		if (((__force u32)hdr->itt & ISCSI_AGE_MASK) !=
 		    (session->age << ISCSI_AGE_SHIFT)) {
 			printk(KERN_ERR "iscsi: received itt %x expected "
-				"session age (%x)\n", hdr->itt,
+				"session age (%x)\n", (__force u32)hdr->itt,
 				session->age & ISCSI_AGE_MASK);
 			return ISCSI_ERR_BAD_ITT;
 		}
 
-		if ((hdr->itt & ISCSI_CID_MASK) !=
+		if (((__force u32)hdr->itt & ISCSI_CID_MASK) !=
 		    (conn->id << ISCSI_CID_SHIFT)) {
 			printk(KERN_ERR "iscsi: received itt %x, expected "
-				"CID (%x)\n", hdr->itt, conn->id);
+				"CID (%x)\n", (__force u32)hdr->itt, conn->id);
 			return ISCSI_ERR_BAD_ITT;
 		}
-		itt = hdr->itt & ISCSI_ITT_MASK;
+		itt = get_itt(hdr->itt);
 	} else
-		itt = hdr->itt;
+		itt = ~0U;
 
 	if (itt < session->cmds_max) {
 		ctask = session->cmds[itt];
@@ -896,9 +895,8 @@ iscsi_conn_send_generic(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	/*
 	 * pre-format CmdSN for outgoing PDU.
 	 */
-	if (hdr->itt != cpu_to_be32(ISCSI_RESERVED_TAG)) {
-		hdr->itt = mtask->itt | (conn->id << ISCSI_CID_SHIFT) |
-			   (session->age << ISCSI_AGE_SHIFT);
+	if (hdr->itt != RESERVED_ITT) {
+		hdr->itt = build_itt(mtask->itt, conn->id, session->age);
 		nop->cmdsn = cpu_to_be32(session->cmdsn);
 		if (conn->c_stage == ISCSI_CONN_STARTED &&
 		    !(hdr->opcode & ISCSI_OP_IMMEDIATE))
@@ -1064,7 +1062,7 @@ static int iscsi_exec_abort_task(struct scsi_cmnd *sc,
 
 	spin_lock_bh(&session->lock);
 	ctask->mtask = (struct iscsi_mgmt_task *)
-			session->mgmt_cmds[(hdr->itt & ISCSI_ITT_MASK) -
+			session->mgmt_cmds[get_itt(hdr->itt) -
 					ISCSI_MGMT_ITT_OFFSET];
 
 	if (conn->tmabort_state == TMABORT_INITIAL) {

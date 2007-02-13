@@ -1,4 +1,4 @@
-/* 
+/*
  * 'raw' table, which is the very first hooked in at PRE_ROUTING and LOCAL_OUT .
  *
  * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
@@ -15,26 +15,26 @@ static struct
 	struct ipt_error term;
 } initial_table __initdata = {
 	.repl = {
-		.name = "raw", 
-		.valid_hooks = RAW_VALID_HOOKS, 
+		.name = "raw",
+		.valid_hooks = RAW_VALID_HOOKS,
 		.num_entries = 3,
 		.size = sizeof(struct ipt_standard) * 2 + sizeof(struct ipt_error),
-		.hook_entry = { 
+		.hook_entry = {
 			[NF_IP_PRE_ROUTING] = 0,
 			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard) },
-		.underflow = { 
+		.underflow = {
 			[NF_IP_PRE_ROUTING] = 0,
 			[NF_IP_LOCAL_OUT]  = sizeof(struct ipt_standard) },
 	},
 	.entries = {
 	     /* PRE_ROUTING */
-	     { 
-		     .entry = { 
+	     {
+		     .entry = {
 			     .target_offset = sizeof(struct ipt_entry),
 			     .next_offset = sizeof(struct ipt_standard),
 		     },
-		     .target = { 
-			  .target = { 
+		     .target = {
+			  .target = {
 				  .u = {
 					  .target_size = IPT_ALIGN(sizeof(struct ipt_standard_target)),
 				  },
@@ -69,7 +69,7 @@ static struct
 			.target = {
 				.u = {
 					.user = {
-						.target_size = IPT_ALIGN(sizeof(struct ipt_error_target)), 
+						.target_size = IPT_ALIGN(sizeof(struct ipt_error_target)),
 						.name = IPT_ERROR_TARGET,
 					},
 				},
@@ -79,10 +79,10 @@ static struct
 	}
 };
 
-static struct ipt_table packet_raw = { 
-	.name = "raw", 
-	.valid_hooks =  RAW_VALID_HOOKS, 
-	.lock = RW_LOCK_UNLOCKED, 
+static struct xt_table packet_raw = {
+	.name = "raw",
+	.valid_hooks =  RAW_VALID_HOOKS,
+	.lock = RW_LOCK_UNLOCKED,
 	.me = THIS_MODULE,
 	.af = AF_INET,
 };

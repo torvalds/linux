@@ -1,4 +1,4 @@
-/* 
+/*
    BNEP implementation for Linux Bluetooth stack (BlueZ).
    Copyright (C) 2001-2002 Inventel Systemes
    Written 2001-2002 by
@@ -15,19 +15,19 @@
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
    IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
+   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
+   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS,
+   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS
    SOFTWARE IS DISCLAIMED.
 */
 
 /*
  * $Id: core.c,v 1.20 2002/08/04 21:23:58 maxk Exp $
- */ 
+ */
 
 #include <linux/module.h>
 
@@ -74,7 +74,7 @@ static struct bnep_session *__bnep_get_session(u8 *dst)
 	BT_DBG("");
 
 	list_for_each(p, &bnep_session_list) {
-		s = list_entry(p, struct bnep_session, list);	
+		s = list_entry(p, struct bnep_session, list);
 		if (!compare_ether_addr(dst, s->eh.h_source))
 			return s;
 	}
@@ -87,7 +87,7 @@ static void __bnep_link_session(struct bnep_session *s)
 	   by the socket layer which has to hold the refference to this module.
 	 */
 	__module_get(THIS_MODULE);
-	list_add(&s->list, &bnep_session_list);	
+	list_add(&s->list, &bnep_session_list);
 }
 
 static void __bnep_unlink_session(struct bnep_session *s)
@@ -203,7 +203,7 @@ static int bnep_ctrl_set_mcfilter(struct bnep_session *s, u8 *data, int len)
 
 			memcpy(a1, data, ETH_ALEN); data += ETH_ALEN;
 			a2 = data; data += ETH_ALEN;
-	
+
 			BT_DBG("mc filter %s -> %s",
 				batostr((void *) a1), batostr((void *) a2));
 
@@ -277,7 +277,7 @@ static int bnep_rx_extension(struct bnep_session *s, struct sk_buff *skb)
 		}
 
 		BT_DBG("type 0x%x len %d", h->type, h->len);
-	
+
 		switch (h->type & BNEP_TYPE_MASK) {
 		case BNEP_EXT_CONTROL:
 			bnep_rx_control(s, skb->data, skb->len);
@@ -293,7 +293,7 @@ static int bnep_rx_extension(struct bnep_session *s, struct sk_buff *skb)
 			break;
 		}
 	} while (!err && (h->type & BNEP_EXT_HEADER));
-	
+
 	return err;
 }
 
@@ -319,7 +319,7 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 
 	if ((type & BNEP_TYPE_MASK) > BNEP_RX_TYPES)
 		goto badframe;
-	
+
 	if ((type & BNEP_TYPE_MASK) == BNEP_CONTROL) {
 		bnep_rx_control(s, skb->data, skb->len);
 		kfree_skb(skb);
@@ -345,7 +345,7 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 			goto badframe;
 		s->eh.h_proto = get_unaligned((__be16 *) (skb->data - 2));
 	}
-	
+
 	/* We have to alloc new skb and copy data here :(. Because original skb
 	 * may not be modified and because of the alignment requirements. */
 	nskb = alloc_skb(2 + ETH_HLEN + skb->len, GFP_KERNEL);
@@ -361,7 +361,7 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	case BNEP_COMPRESSED:
 		memcpy(__skb_put(nskb, ETH_HLEN), &s->eh, ETH_HLEN);
 		break;
-	
+
 	case BNEP_COMPRESSED_SRC_ONLY:
 		memcpy(__skb_put(nskb, ETH_ALEN), s->eh.h_dest, ETH_ALEN);
 		memcpy(__skb_put(nskb, ETH_ALEN), skb->mac.raw, ETH_ALEN);
@@ -381,7 +381,7 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 
 	memcpy(__skb_put(nskb, skb->len), skb->data, skb->len);
 	kfree_skb(skb);
-	
+
 	s->stats.rx_packets++;
 	nskb->dev       = dev;
 	nskb->ip_summed = CHECKSUM_NONE;
@@ -435,7 +435,7 @@ static inline int bnep_tx_frame(struct bnep_session *s, struct sk_buff *skb)
 		iv[il++] = (struct kvec) { eh->h_source, ETH_ALEN };
 		len += ETH_ALEN;
 		break;
-		
+
 	case BNEP_COMPRESSED_DST_ONLY:
 		iv[il++] = (struct kvec) { eh->h_dest, ETH_ALEN };
 		len += ETH_ALEN;
@@ -445,7 +445,7 @@ static inline int bnep_tx_frame(struct bnep_session *s, struct sk_buff *skb)
 send:
 	iv[il++] = (struct kvec) { skb->data, skb->len };
 	len += skb->len;
-	
+
 	/* FIXME: linearize skb */
 	{
 		len = kernel_sendmsg(sock, &s->msg, iv, il, len);
@@ -471,7 +471,7 @@ static int bnep_session(void *arg)
 
 	BT_DBG("");
 
-        daemonize("kbnepd %s", dev->name);
+	daemonize("kbnepd %s", dev->name);
 	set_user_nice(current, -15);
 	current->flags |= PF_NOFREEZE;
 
@@ -488,13 +488,13 @@ static int bnep_session(void *arg)
 
 		if (sk->sk_state != BT_CONNECTED)
 			break;
-	
+
 		// TX
 		while ((skb = skb_dequeue(&sk->sk_write_queue)))
 			if (bnep_tx_frame(s, skb))
 				break;
 		netif_wake_queue(dev);
-	
+
 		schedule();
 	}
 	set_current_state(TASK_RUNNING);
@@ -573,7 +573,7 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	s->sock  = sock;
 	s->role  = req->role;
 	s->state = BT_CONNECTED;
-	
+
 	s->msg.msg_flags = MSG_NOSIGNAL;
 
 #ifdef CONFIG_BT_BNEP_MC_FILTER
@@ -594,7 +594,7 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	}
 
 	__bnep_link_session(s);
-	
+
 	err = kernel_thread(bnep_session, s, CLONE_KERNEL);
 	if (err < 0) {
 		/* Session thread start failed, gotta cleanup. */
@@ -627,7 +627,7 @@ int bnep_del_connection(struct bnep_conndel_req *req)
 		/* Wakeup user-space which is polling for socket errors.
 		 * This is temporary hack untill we have shutdown in L2CAP */
 		s->sock->sk->sk_err = EUNATCH;
-		
+
 		/* Kill session thread */
 		atomic_inc(&s->killed);
 		wake_up_interruptible(s->sock->sk->sk_sleep);
@@ -661,7 +661,7 @@ int bnep_get_connlist(struct bnep_connlist_req *req)
 		s = list_entry(p, struct bnep_session, list);
 
 		__bnep_copy_ci(&ci, s);
-		
+
 		if (copy_to_user(req->ci, &ci, sizeof(ci))) {
 			err = -EFAULT;
 			break;
@@ -696,7 +696,7 @@ int bnep_get_conninfo(struct bnep_conninfo *ci)
 }
 
 static int __init bnep_init(void)
-{	
+{
 	char flt[50] = "";
 
 	l2cap_load();

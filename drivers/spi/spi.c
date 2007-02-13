@@ -32,7 +32,7 @@
  */
 static void spidev_release(struct device *dev)
 {
-	const struct spi_device	*spi = to_spi_device(dev);
+	struct spi_device	*spi = to_spi_device(dev);
 
 	/* spi masters may cleanup for released devices */
 	if (spi->master->cleanup)

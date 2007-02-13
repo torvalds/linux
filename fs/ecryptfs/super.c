@@ -168,7 +168,7 @@ out:
 	return rc;
 }
 
-struct super_operations ecryptfs_sops = {
+const struct super_operations ecryptfs_sops = {
 	.alloc_inode = ecryptfs_alloc_inode,
 	.destroy_inode = ecryptfs_destroy_inode,
 	.drop_inode = generic_delete_inode,

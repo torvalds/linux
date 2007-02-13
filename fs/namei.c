@@ -2744,7 +2744,7 @@ int page_symlink(struct inode *inode, const char *symname, int len)
 			mapping_gfp_mask(inode->i_mapping));
 }
 
-struct inode_operations page_symlink_inode_operations = {
+const struct inode_operations page_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
 	.put_link	= page_put_link,

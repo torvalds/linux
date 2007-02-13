@@ -45,6 +45,7 @@ union nf_conntrack_expect_proto {
 #include <linux/netfilter/nf_conntrack_ftp.h>
 #include <linux/netfilter/nf_conntrack_pptp.h>
 #include <linux/netfilter/nf_conntrack_h323.h>
+#include <linux/netfilter/nf_conntrack_sane.h>
 
 /* per conntrack: application helper private data */
 union nf_conntrack_help {
@@ -52,6 +53,7 @@ union nf_conntrack_help {
 	struct nf_ct_ftp_master ct_ftp_info;
 	struct nf_ct_pptp_master ct_pptp_info;
 	struct nf_ct_h323_master ct_h323_info;
+	struct nf_ct_sane_master ct_sane_info;
 };
 
 #include <linux/types.h>
@@ -255,6 +257,12 @@ extern int nf_conntrack_max;
 
 DECLARE_PER_CPU(struct ip_conntrack_stat, nf_conntrack_stat);
 #define NF_CT_STAT_INC(count) (__get_cpu_var(nf_conntrack_stat).count++)
+#define NF_CT_STAT_INC_ATOMIC(count)			\
+do {							\
+	local_bh_disable();				\
+	__get_cpu_var(nf_conntrack_stat).count++;	\
+	local_bh_enable();				\
+} while (0)
 
 /* no helper, no nat */
 #define	NF_CT_F_BASIC	0

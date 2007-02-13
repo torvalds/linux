@@ -147,7 +147,7 @@ static int dasd_devices_open(struct inode *inode, struct file *file)
 	return seq_open(file, &dasd_devices_seq_ops);
 }
 
-static struct file_operations dasd_devices_file_ops = {
+static const struct file_operations dasd_devices_file_ops = {
 	.open		= dasd_devices_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

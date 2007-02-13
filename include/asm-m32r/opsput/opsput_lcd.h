@@ -1,3 +1,6 @@
+#ifndef _OPSPUT_OPSPUT_LCD_H
+#define _OPSPUT_OPSPUT_LCD_H
+
 /*
  * include/asm-m32r/opsput/opsput_lcd.h
  *
@@ -8,13 +11,7 @@
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file "COPYING" in the main directory of
  * this archive for more details.
- *
- * $Id: opsput_lcd.h,v 1.1 2004/07/27 06:54:20 sakugawa Exp $
  */
-
-#ifndef _OPSPUT_OPSPUT_LCD_H
-#define _OPSPUT_OPSPUT_LCD_H
-
 
 #ifndef __ASSEMBLY__
 /*
@@ -23,7 +20,7 @@
 #define OPSPUT_LCD_BASE	(0x10000000 /* + NONCACHE_OFFSET */)
 #else
 #define OPSPUT_LCD_BASE	(0x10000000 + NONCACHE_OFFSET)
-#endif	/* __ASSEMBLY__ */
+#endif /* __ASSEMBLY__ */
 
 /*
  * ICU
@@ -55,4 +52,4 @@
 #define OPSPUT_LCD_ICUCR19	__reg16(OPSPUT_LCD_BASE + 0x300036)
 #define OPSPUT_LCD_ICUCR21	__reg16(OPSPUT_LCD_BASE + 0x30003a)
 
-#endif	/* _OPSPUT_OPSPUT_LCD_H */
+#endif /* _OPSPUT_OPSPUT_LCD_H */
