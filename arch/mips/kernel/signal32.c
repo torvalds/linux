@@ -8,6 +8,7 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/cache.h>
+#include <linux/compat.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -24,6 +25,7 @@
 
 #include <asm/abi.h>
 #include <asm/asm.h>
+#include <asm/compat-signal.h>
 #include <linux/bitops.h>
 #include <asm/cacheflush.h>
 #include <asm/sim.h>
@@ -517,7 +519,7 @@ asmlinkage void sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
 	frame = (struct sigframe32 __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
-	if (__copy_from_user(&blocked, &frame->sf_mask, sizeof(blocked)))
+	if (__copy_conv_sigset_from_user(&blocked, &frame->sf_mask))
 		goto badframe;
 
 	sigdelsetmask(&blocked, ~_BLOCKABLE);
@@ -554,7 +556,7 @@ asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	frame = (struct rt_sigframe32 __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
-	if (__copy_from_user(&set, &frame->rs_uc.uc_sigmask, sizeof(set)))
+	if (__copy_conv_sigset_from_user(&set, &frame->rs_uc.uc_sigmask))
 		goto badframe;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -609,7 +611,8 @@ int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	err |= install_sigtramp(frame->sf_code, __NR_O32_sigreturn);
 
 	err |= setup_sigcontext32(regs, &frame->sf_sc);
-	err |= __copy_to_user(&frame->sf_mask, set, sizeof(*set));
+	err |= __copy_conv_sigset_to_user(&frame->sf_mask, set);
+
 	if (err)
 		goto give_sigsegv;
 
@@ -668,7 +671,7 @@ int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	err |= __put_user(current->sas_ss_size,
 	                  &frame->rs_uc.uc_stack.ss_size);
 	err |= setup_sigcontext32(regs, &frame->rs_uc.uc_mcontext);
-	err |= __copy_to_user(&frame->rs_uc.uc_sigmask, set, sizeof(*set));
+	err |= __copy_conv_sigset_to_user(&frame->rs_uc.uc_sigmask, set);
 
 	if (err)
 		goto give_sigsegv;
