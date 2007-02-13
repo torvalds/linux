@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Mon Feb 12 13:32:08 2007
+# Tue Feb 13 16:43:14 2007
 #
 CONFIG_ARM=y
 # CONFIG_GENERIC_TIME is not set
@@ -1220,7 +1220,7 @@ CONFIG_JFFS2_FS_WRITEBUFFER=y
 CONFIG_JFFS2_ZLIB=y
 CONFIG_JFFS2_RTIME=y
 # CONFIG_JFFS2_RUBIN is not set
-# CONFIG_CRAMFS is not set
+CONFIG_CRAMFS=y
 # CONFIG_VXFS_FS is not set
 # CONFIG_HPFS_FS is not set
 # CONFIG_QNX4FS_FS is not set
