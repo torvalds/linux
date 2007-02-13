@@ -482,9 +482,6 @@ static int __init print_banner(void)
 }
 core_initcall(print_banner);
 
-/* We simply declare start_kernel to be the paravirt probe of last resort. */
-paravirt_probe(start_kernel);
-
 struct paravirt_ops paravirt_ops = {
 	.name = "bare hardware",
 	.paravirt_enabled = 0,
