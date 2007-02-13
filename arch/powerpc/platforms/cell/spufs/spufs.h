@@ -83,6 +83,7 @@ struct spu_context {
 	/* scheduler fields */
  	struct list_head rq;
 	unsigned long sched_flags;
+	unsigned long rt_priority;
 	int prio;
 };
 

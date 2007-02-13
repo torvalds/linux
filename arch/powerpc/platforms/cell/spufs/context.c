@@ -53,6 +53,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	ctx->owner = get_task_mm(current);
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
+	ctx->rt_priority = current->rt_priority;
 	ctx->prio = current->prio;
 	goto out;
 out_free:

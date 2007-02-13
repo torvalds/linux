@@ -282,6 +282,74 @@ static struct spu *spu_get_idle(struct spu_context *ctx)
 }
 
 /**
+ * find_victim - find a lower priority context to preempt
+ * @ctx:	canidate context for running
+ *
+ * Returns the freed physical spu to run the new context on.
+ */
+static struct spu *find_victim(struct spu_context *ctx)
+{
+	struct spu_context *victim = NULL;
+	struct spu *spu;
+	int node, n;
+
+	/*
+	 * Look for a possible preemption candidate on the local node first.
+	 * If there is no candidate look at the other nodes.  This isn't
+	 * exactly fair, but so far the whole spu schedule tries to keep
+	 * a strong node affinity.  We might want to fine-tune this in
+	 * the future.
+	 */
+ restart:
+	node = cpu_to_node(raw_smp_processor_id());
+	for (n = 0; n < MAX_NUMNODES; n++, node++) {
+		node = (node < MAX_NUMNODES) ? node : 0;
+		if (!node_allowed(node))
+			continue;
+
+		mutex_lock(&spu_prio->active_mutex[node]);
+		list_for_each_entry(spu, &spu_prio->active_list[node], list) {
+			struct spu_context *tmp = spu->ctx;
+
+			if (tmp->rt_priority < ctx->rt_priority &&
+			    (!victim || tmp->rt_priority < victim->rt_priority))
+				victim = spu->ctx;
+		}
+		mutex_unlock(&spu_prio->active_mutex[node]);
+
+		if (victim) {
+			/*
+			 * This nests ctx->state_mutex, but we always lock
+			 * higher priority contexts before lower priority
+			 * ones, so this is safe until we introduce
+			 * priority inheritance schemes.
+			 */
+			if (!mutex_trylock(&victim->state_mutex)) {
+				victim = NULL;
+				goto restart;
+			}
+
+			spu = victim->spu;
+			if (!spu) {
+				/*
+				 * This race can happen because we've dropped
+				 * the active list mutex.  No a problem, just
+				 * restart the search.
+				 */
+				mutex_unlock(&victim->state_mutex);
+				victim = NULL;
+				goto restart;
+			}
+			spu_unbind_context(spu, victim);
+			mutex_unlock(&victim->state_mutex);
+			return spu;
+		}
+	}
+
+	return NULL;
+}
+
+/**
  * spu_activate - find a free spu for a context and execute it
  * @ctx:	spu context to schedule
  * @flags:	flags (currently ignored)
@@ -300,6 +368,12 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
 		struct spu *spu;
 
 		spu = spu_get_idle(ctx);
+		/*
+		 * If this is a realtime thread we try to get it running by
+		 * preempting a lower priority thread.
+		 */
+		if (!spu && ctx->rt_priority)
+			spu = find_victim(ctx);
 		if (spu) {
 			spu_bind_context(spu, ctx);
 			return 0;
