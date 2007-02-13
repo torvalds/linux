@@ -63,6 +63,7 @@
 #include <mach_apic.h>
 #include <mach_wakecpu.h>
 #include <smpboot_hooks.h>
+#include <asm/vmi.h>
 
 /* Set if we find a B stepping CPU */
 static int __devinitdata smp_b_stepping;
@@ -545,6 +546,9 @@ static void __cpuinit start_secondary(void *unused)
 	 * booting is too fragile that we want to limit the
 	 * things done here to the most necessary things.
 	 */
+#ifdef CONFIG_VMI
+	vmi_bringup();
+#endif
 	secondary_cpu_init();
 	preempt_disable();
 	smp_callin();

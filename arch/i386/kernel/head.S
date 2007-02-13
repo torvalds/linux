@@ -360,7 +360,7 @@ check_x87:
  * cpu_gdt_table and boot_pda; for secondary CPUs, these will be
  * that CPU's GDT and PDA.
  */
-setup_pda:
+ENTRY(setup_pda)
 	/* get the PDA pointer */
 	movl start_pda, %eax
 

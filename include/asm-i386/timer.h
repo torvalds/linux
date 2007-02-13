@@ -8,6 +8,7 @@ void setup_pit_timer(void);
 /* Modifiers for buggy PIT handling */
 extern int pit_latch_buggy;
 extern int timer_ack;
+extern int no_timer_check;
 extern int recalibrate_cpu_khz(void);
 
 #endif

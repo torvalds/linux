@@ -203,6 +203,15 @@ config PARAVIRT
 	  However, when run without a hypervisor the kernel is
 	  theoretically slower.  If in doubt, say N.
 
+config VMI
+	bool "VMI Paravirt-ops support"
+	depends on PARAVIRT
+	default y
+	help
+	  VMI provides a paravirtualized interface to multiple hypervisors
+	  include VMware ESX server and Xen by connecting to a ROM module
+	  provided by the hypervisor.
+
 config ACPI_SRAT
 	bool
 	default y

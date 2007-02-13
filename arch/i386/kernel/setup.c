@@ -60,6 +60,7 @@
 #include <asm/io_apic.h>
 #include <asm/ist.h>
 #include <asm/io.h>
+#include <asm/vmi.h>
 #include <setup_arch.h>
 #include <bios_ebda.h>
 
@@ -580,6 +581,14 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = command_line;
 
 	max_low_pfn = setup_memory();
+
+#ifdef CONFIG_VMI
+	/*
+	 * Must be after max_low_pfn is determined, and before kernel
+	 * pagetables are setup.
+	 */
+	vmi_init();
+#endif
 
 	/*
 	 * NOTE: before this point _nobody_ is allowed to allocate

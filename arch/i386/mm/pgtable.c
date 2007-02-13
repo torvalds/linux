@@ -171,6 +171,8 @@ void __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
 void reserve_top_address(unsigned long reserve)
 {
 	BUG_ON(fixmaps > 0);
+	printk(KERN_INFO "Reserving virtual address space above 0x%08x\n",
+	       (int)-reserve);
 #ifdef CONFIG_COMPAT_VDSO
 	BUG_ON(reserve != 0);
 #else

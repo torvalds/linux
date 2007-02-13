@@ -1920,7 +1920,7 @@ static void __init setup_ioapic_ids_from_mpc(void)
 static void __init setup_ioapic_ids_from_mpc(void) { }
 #endif
 
-static int no_timer_check __initdata;
+int no_timer_check __initdata;
 
 static int __init notimercheck(char *s)
 {
