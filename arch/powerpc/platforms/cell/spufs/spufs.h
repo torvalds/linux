@@ -37,9 +37,6 @@ enum {
 };
 
 struct spu_context_ops;
-
-#define SPU_CONTEXT_PREEMPT          0UL
-
 struct spu_gang;
 
 struct spu_context {
