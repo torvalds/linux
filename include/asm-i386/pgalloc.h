@@ -5,13 +5,31 @@
 #include <linux/threads.h>
 #include <linux/mm.h>		/* for struct page */
 
-#define pmd_populate_kernel(mm, pmd, pte) \
-		set_pmd(pmd, __pmd(_PAGE_TABLE + __pa(pte)))
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+#define paravirt_alloc_pt(pfn) do { } while (0)
+#define paravirt_alloc_pd(pfn) do { } while (0)
+#define paravirt_alloc_pd(pfn) do { } while (0)
+#define paravirt_alloc_pd_clone(pfn, clonepfn, start, count) do { } while (0)
+#define paravirt_release_pt(pfn) do { } while (0)
+#define paravirt_release_pd(pfn) do { } while (0)
+#endif
+
+#define pmd_populate_kernel(mm, pmd, pte)			\
+do {								\
+	paravirt_alloc_pt(__pa(pte) >> PAGE_SHIFT);		\
+	set_pmd(pmd, __pmd(_PAGE_TABLE + __pa(pte)));		\
+} while (0)
 
 #define pmd_populate(mm, pmd, pte) 				\
+do {								\
+	paravirt_alloc_pt(page_to_pfn(pte));			\
 	set_pmd(pmd, __pmd(_PAGE_TABLE +			\
 		((unsigned long long)page_to_pfn(pte) <<	\
-			(unsigned long long) PAGE_SHIFT)))
+			(unsigned long long) PAGE_SHIFT)));	\
+} while (0)
+
 /*
  * Allocate and free page tables.
  */
@@ -32,7 +50,11 @@ static inline void pte_free(struct page *pte)
 }
 
 
-#define __pte_free_tlb(tlb,pte) tlb_remove_page((tlb),(pte))
+#define __pte_free_tlb(tlb,pte) 					\
+do {									\
+	paravirt_release_pt(page_to_pfn(pte));				\
+	tlb_remove_page((tlb),(pte));					\
+} while (0)
 
 #ifdef CONFIG_X86_PAE
 /*

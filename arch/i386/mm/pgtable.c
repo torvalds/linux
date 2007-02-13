@@ -248,8 +248,14 @@ void pgd_ctor(void *pgd, struct kmem_cache *cache, unsigned long unused)
 	clone_pgd_range((pgd_t *)pgd + USER_PTRS_PER_PGD,
 			swapper_pg_dir + USER_PTRS_PER_PGD,
 			KERNEL_PGD_PTRS);
+
 	if (PTRS_PER_PMD > 1)
 		return;
+
+	/* must happen under lock */
+	paravirt_alloc_pd_clone(__pa(pgd) >> PAGE_SHIFT,
+			__pa(swapper_pg_dir) >> PAGE_SHIFT,
+			USER_PTRS_PER_PGD, PTRS_PER_PGD - USER_PTRS_PER_PGD);
 
 	pgd_list_add(pgd);
 	spin_unlock_irqrestore(&pgd_lock, flags);
@@ -260,6 +266,7 @@ void pgd_dtor(void *pgd, struct kmem_cache *cache, unsigned long unused)
 {
 	unsigned long flags; /* can be called from interrupt context */
 
+	paravirt_release_pd(__pa(pgd) >> PAGE_SHIFT);
 	spin_lock_irqsave(&pgd_lock, flags);
 	pgd_list_del(pgd);
 	spin_unlock_irqrestore(&pgd_lock, flags);
@@ -277,13 +284,18 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		pmd_t *pmd = kmem_cache_alloc(pmd_cache, GFP_KERNEL);
 		if (!pmd)
 			goto out_oom;
+		paravirt_alloc_pd(__pa(pmd) >> PAGE_SHIFT);
 		set_pgd(&pgd[i], __pgd(1 + __pa(pmd)));
 	}
 	return pgd;
 
 out_oom:
-	for (i--; i >= 0; i--)
-		kmem_cache_free(pmd_cache, (void *)__va(pgd_val(pgd[i])-1));
+	for (i--; i >= 0; i--) {
+		pgd_t pgdent = pgd[i];
+		void* pmd = (void *)__va(pgd_val(pgdent)-1);
+		paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
+		kmem_cache_free(pmd_cache, pmd);
+	}
 	kmem_cache_free(pgd_cache, pgd);
 	return NULL;
 }
@@ -294,8 +306,12 @@ void pgd_free(pgd_t *pgd)
 
 	/* in the PAE case user pgd entries are overwritten before usage */
 	if (PTRS_PER_PMD > 1)
-		for (i = 0; i < USER_PTRS_PER_PGD; ++i)
-			kmem_cache_free(pmd_cache, (void *)__va(pgd_val(pgd[i])-1));
+		for (i = 0; i < USER_PTRS_PER_PGD; ++i) {
+			pgd_t pgdent = pgd[i];
+			void* pmd = (void *)__va(pgd_val(pgdent)-1);
+			paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
+			kmem_cache_free(pmd_cache, pmd);
+		}
 	/* in the non-PAE case, free_pgtables() clears user pgd entries */
 	kmem_cache_free(pgd_cache, pgd);
 }

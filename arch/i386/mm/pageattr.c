@@ -60,6 +60,7 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
 	address = __pa(address);
 	addr = address & LARGE_PAGE_MASK; 
 	pbase = (pte_t *)page_address(base);
+	paravirt_alloc_pt(page_to_pfn(base));
 	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE) {
                set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT,
                                           addr == address ? prot : ref_prot));
@@ -172,6 +173,7 @@ __change_page_attr(struct page *page, pgprot_t prot)
 	if (!PageReserved(kpte_page)) {
 		if (cpu_has_pse && (page_private(kpte_page) == 0)) {
 			ClearPagePrivate(kpte_page);
+			paravirt_release_pt(page_to_pfn(kpte_page));
 			list_add(&kpte_page->lru, &df_list);
 			revert_page(kpte_page, address);
 		}

@@ -127,6 +127,12 @@ struct paravirt_ops
 	void (fastcall *flush_tlb_kernel)(void);
 	void (fastcall *flush_tlb_single)(u32 addr);
 
+	void (fastcall *alloc_pt)(u32 pfn);
+	void (fastcall *alloc_pd)(u32 pfn);
+	void (fastcall *alloc_pd_clone)(u32 pfn, u32 clonepfn, u32 start, u32 count);
+	void (fastcall *release_pt)(u32 pfn);
+	void (fastcall *release_pd)(u32 pfn);
+
 	void (fastcall *set_pte)(pte_t *ptep, pte_t pteval);
 	void (fastcall *set_pte_at)(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pteval);
 	void (fastcall *set_pmd)(pmd_t *pmdp, pmd_t pmdval);
@@ -319,6 +325,14 @@ static inline unsigned long apic_read(unsigned long reg)
 #define __flush_tlb() paravirt_ops.flush_tlb_user()
 #define __flush_tlb_global() paravirt_ops.flush_tlb_kernel()
 #define __flush_tlb_single(addr) paravirt_ops.flush_tlb_single(addr)
+
+#define paravirt_alloc_pt(pfn) paravirt_ops.alloc_pt(pfn)
+#define paravirt_release_pt(pfn) paravirt_ops.release_pt(pfn)
+
+#define paravirt_alloc_pd(pfn) paravirt_ops.alloc_pd(pfn)
+#define paravirt_alloc_pd_clone(pfn, clonepfn, start, count) \
+	paravirt_ops.alloc_pd_clone(pfn, clonepfn, start, count)
+#define paravirt_release_pd(pfn) paravirt_ops.release_pd(pfn)
 
 static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
