@@ -220,6 +220,10 @@ asmlinkage void mce_threshold_interrupt(void)
 			     (high & MASK_LOCKED_HI))
 				continue;
 
+			/* Log the machine check that caused the threshold
+			   event. */
+			do_machine_check(NULL, 0);
+
 			if (high & MASK_OVERFLOW_HI) {
 				rdmsrl(address, m.misc);
 				rdmsrl(MSR_IA32_MC0_STATUS + bank * 4,
