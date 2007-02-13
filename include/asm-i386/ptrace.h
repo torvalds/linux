@@ -49,6 +49,10 @@ static inline int user_mode_vm(struct pt_regs *regs)
 {
 	return ((regs->xcs & SEGMENT_RPL_MASK) | (regs->eflags & VM_MASK)) >= USER_RPL;
 }
+static inline int v8086_mode(struct pt_regs *regs)
+{
+	return (regs->eflags & VM_MASK);
+}
 
 #define instruction_pointer(regs) ((regs)->eip)
 #define regs_return_value(regs) ((regs)->eax)
