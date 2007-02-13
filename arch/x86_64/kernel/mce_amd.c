@@ -37,6 +37,8 @@
 #define THRESHOLD_MAX     0xFFF
 #define INT_TYPE_APIC     0x00020000
 #define MASK_VALID_HI     0x80000000
+#define MASK_CNTP_HI      0x40000000
+#define MASK_LOCKED_HI    0x20000000
 #define MASK_LVTOFF_HI    0x00F00000
 #define MASK_COUNT_EN_HI  0x00080000
 #define MASK_INT_TYPE_HI  0x00060000
@@ -122,14 +124,17 @@ void __cpuinit mce_amd_feature_init(struct cpuinfo_x86 *c)
 		for (block = 0; block < NR_BLOCKS; ++block) {
 			if (block == 0)
 				address = MSR_IA32_MC0_MISC + bank * 4;
-			else if (block == 1)
-				address = MCG_XBLK_ADDR
-					+ ((low & MASK_BLKPTR_LO) >> 21);
+			else if (block == 1) {
+				address = (low & MASK_BLKPTR_LO) >> 21;
+				if (!address)
+					break;
+				address += MCG_XBLK_ADDR;
+			}
 			else
 				++address;
 
 			if (rdmsr_safe(address, &low, &high))
-				continue;
+				break;
 
 			if (!(high & MASK_VALID_HI)) {
 				if (block)
@@ -138,8 +143,8 @@ void __cpuinit mce_amd_feature_init(struct cpuinfo_x86 *c)
 					break;
 			}
 
-			if (!(high & MASK_VALID_HI >> 1)  ||
-			     (high & MASK_VALID_HI >> 2))
+			if (!(high & MASK_CNTP_HI)  ||
+			     (high & MASK_LOCKED_HI))
 				continue;
 
 			if (!block)
@@ -187,17 +192,22 @@ asmlinkage void mce_threshold_interrupt(void)
 
 	/* assume first bank caused it */
 	for (bank = 0; bank < NR_BANKS; ++bank) {
+		if (!(per_cpu(bank_map, m.cpu) & (1 << bank)))
+			continue;
 		for (block = 0; block < NR_BLOCKS; ++block) {
 			if (block == 0)
 				address = MSR_IA32_MC0_MISC + bank * 4;
-			else if (block == 1)
-				address = MCG_XBLK_ADDR
-					+ ((low & MASK_BLKPTR_LO) >> 21);
+			else if (block == 1) {
+				address = (low & MASK_BLKPTR_LO) >> 21;
+				if (!address)
+					break;
+				address += MCG_XBLK_ADDR;
+			}
 			else
 				++address;
 
 			if (rdmsr_safe(address, &low, &high))
-				continue;
+				break;
 
 			if (!(high & MASK_VALID_HI)) {
 				if (block)
@@ -206,8 +216,8 @@ asmlinkage void mce_threshold_interrupt(void)
 					break;
 			}
 
-			if (!(high & MASK_VALID_HI >> 1)  ||
-			     (high & MASK_VALID_HI >> 2))
+			if (!(high & MASK_CNTP_HI)  ||
+			     (high & MASK_LOCKED_HI))
 				continue;
 
 			if (high & MASK_OVERFLOW_HI) {
@@ -385,7 +395,7 @@ static __cpuinit int allocate_threshold_blocks(unsigned int cpu,
 		return 0;
 
 	if (rdmsr_safe(address, &low, &high))
-		goto recurse;
+		return 0;
 
 	if (!(high & MASK_VALID_HI)) {
 		if (block)
@@ -394,8 +404,8 @@ static __cpuinit int allocate_threshold_blocks(unsigned int cpu,
 			return 0;
 	}
 
-	if (!(high & MASK_VALID_HI >> 1)  ||
-	     (high & MASK_VALID_HI >> 2))
+	if (!(high & MASK_CNTP_HI)  ||
+	     (high & MASK_LOCKED_HI))
 		goto recurse;
 
 	b = kzalloc(sizeof(struct threshold_block), GFP_KERNEL);
