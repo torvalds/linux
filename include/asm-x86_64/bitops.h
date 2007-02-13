@@ -7,7 +7,7 @@
 
 #include <asm/alternative.h>
 
-#if __GNUC__ < 4 || __GNUC_MINOR__ < 1
+#if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 1)
 /* Technically wrong, but this avoids compilation errors on some gcc
    versions. */
 #define ADDR "=m" (*(volatile long *) addr)
