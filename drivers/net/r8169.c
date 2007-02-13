@@ -156,6 +156,7 @@ enum mac_version {
 	RTL_GIGA_MAC_VER_03 = 0x03, // 8110S
 	RTL_GIGA_MAC_VER_04 = 0x04, // 8169SB
 	RTL_GIGA_MAC_VER_05 = 0x05, // 8110SCd
+	RTL_GIGA_MAC_VER_06 = 0x06, // 8110SCe
 	RTL_GIGA_MAC_VER_11 = 0x0b, // 8168Bb
 	RTL_GIGA_MAC_VER_12 = 0x0c, // 8168Be 8168Bf
 	RTL_GIGA_MAC_VER_13 = 0x0d, // 8101Eb 8101Ec
@@ -185,6 +186,7 @@ static const struct {
 	_R("RTL8110s",		RTL_GIGA_MAC_VER_03, 0xff7e1880), // 8110S
 	_R("RTL8169sb/8110sb",	RTL_GIGA_MAC_VER_04, 0xff7e1880), // 8169SB
 	_R("RTL8169sc/8110sc",	RTL_GIGA_MAC_VER_05, 0xff7e1880), // 8110SCd
+	_R("RTL8169sc/8110sc",	RTL_GIGA_MAC_VER_06, 0xff7e1880), // 8110SCe
 	_R("RTL8168b/8111b",	RTL_GIGA_MAC_VER_11, 0xff7e1880), // PCI-E
 	_R("RTL8168b/8111b",	RTL_GIGA_MAC_VER_12, 0xff7e1880), // PCI-E
 	_R("RTL8101e",		RTL_GIGA_MAC_VER_13, 0xff7e1880), // PCI-E 8139
@@ -327,6 +329,10 @@ enum RTL8169_register_content {
 
 	/* Config1 register p.24 */
 	PMEnable	= (1 << 0),	/* Power Management Enable */
+
+	/* Config2 register p. 25 */
+	PCI_Clock_66MHz = 0x01,
+	PCI_Clock_33MHz = 0x00,
 
 	/* Config3 register p.25 */
 	MagicPacket	= (1 << 5),	/* Wake up when receives a Magic Packet */
@@ -1169,6 +1175,7 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp, void __iomem *io
 		{ 0x34000000,	RTL_GIGA_MAC_VER_13 },
 		{ 0x30800000,	RTL_GIGA_MAC_VER_14 },
 		{ 0x30000000,	RTL_GIGA_MAC_VER_11 },
+		{ 0x98000000,	RTL_GIGA_MAC_VER_06 },
 		{ 0x18000000,	RTL_GIGA_MAC_VER_05 },
 		{ 0x10000000,	RTL_GIGA_MAC_VER_04 },
 		{ 0x04000000,	RTL_GIGA_MAC_VER_03 },
@@ -1177,7 +1184,7 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp, void __iomem *io
 	}, *p = mac_info;
 	u32 reg;
 
-	reg = RTL_R32(TxConfig) & 0x7c800000;
+	reg = RTL_R32(TxConfig) & 0xfc800000;
 	while ((reg & p->mask) != p->mask)
 		p++;
 	tp->mac_version = p->mac_version;
@@ -1425,10 +1432,10 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 	dprintk("Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
 	RTL_W8(0x82, 0x01);
 
-	if (tp->mac_version < RTL_GIGA_MAC_VER_03) {
-		dprintk("Set PCI Latency=0x40\n");
-		pci_write_config_byte(tp->pci_dev, PCI_LATENCY_TIMER, 0x40);
-	}
+	pci_write_config_byte(tp->pci_dev, PCI_LATENCY_TIMER, 0x40);
+
+	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
+		pci_write_config_byte(tp->pci_dev, PCI_CACHE_LINE_SIZE, 0x08);
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_02) {
 		dprintk("Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
@@ -1844,9 +1851,6 @@ static void rtl_hw_start(struct net_device *dev)
 
 	tp->hw_start(dev);
 
-	/* Enable all known interrupts by setting the interrupt mask. */
-	RTL_W16(IntrMask, rtl8169_intr_mask);
-
 	netif_start_queue(dev);
 }
 
@@ -1880,29 +1884,39 @@ static void rtl_set_rx_max_size(void __iomem *ioaddr)
 	RTL_W16(RxMaxSize, 16383);
 }
 
+static void rtl8169_set_magic_reg(void __iomem *ioaddr, unsigned mac_version)
+{
+	struct {
+		u32 mac_version;
+		u32 clk;
+		u32 val;
+	} cfg2_info [] = {
+		{ RTL_GIGA_MAC_VER_05, PCI_Clock_33MHz, 0x000fff00 }, // 8110SCd
+		{ RTL_GIGA_MAC_VER_05, PCI_Clock_66MHz, 0x000fffff },
+		{ RTL_GIGA_MAC_VER_06, PCI_Clock_33MHz, 0x00ffff00 }, // 8110SCe
+		{ RTL_GIGA_MAC_VER_06, PCI_Clock_66MHz, 0x00ffffff }
+	}, *p = cfg2_info;
+	unsigned int i;
+	u32 clk;
+
+	clk = RTL_R8(Config2) & PCI_Clock_66MHz;
+	for (i = 0; i < ARRAY_SIZE(cfg2_info); i++) {
+		if ((p->mac_version == mac_version) && (p->clk == clk)) {
+			RTL_W32(0x7c, p->val);
+			break;
+		}
+	}
+}
+
 static void rtl_hw_start_8169(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 	struct pci_dev *pdev = tp->pci_dev;
-	u16 cmd;
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_05) {
 		RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) | PCIMulRW);
 		pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, 0x08);
-	}
-
-	/* Undocumented stuff. */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_05) {
-		/* Realtek's r1000_n.c driver uses '&& 0x01' here. Well... */
-		if ((RTL_R8(Config2) & 0x07) & 0x01)
-			RTL_W32(0x7c, 0x0007ffff);
-
-		RTL_W32(0x7c, 0x0007ff00);
-
-		pci_read_config_word(pdev, PCI_COMMAND, &cmd);
-		cmd = cmd & 0xef;
-		pci_write_config_word(pdev, PCI_COMMAND, cmd);
 	}
 
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
@@ -1916,11 +1930,7 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 	rtl_set_rx_max_size(ioaddr);
 
-	if ((tp->mac_version == RTL_GIGA_MAC_VER_01) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_02) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_03) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_04))
-		rtl_set_rx_tx_config_registers(tp);
+	rtl_set_rx_tx_config_registers(tp);
 
 	tp->cp_cmd |= rtl_rw_cpluscmd(ioaddr) | PCIMulRW;
 
@@ -1933,6 +1943,8 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 	RTL_W16(CPlusCmd, tp->cp_cmd);
 
+	rtl8169_set_magic_reg(ioaddr, tp->mac_version);
+
 	/*
 	 * Undocumented corner. Supposedly:
 	 * (TxTimer << 12) | (TxPackets << 8) | (RxTimer << 4) | RxPackets
@@ -1940,14 +1952,6 @@ static void rtl_hw_start_8169(struct net_device *dev)
 	RTL_W16(IntrMitigate, 0x0000);
 
 	rtl_set_rx_tx_desc_registers(tp, ioaddr);
-
-	if ((tp->mac_version != RTL_GIGA_MAC_VER_01) &&
-	    (tp->mac_version != RTL_GIGA_MAC_VER_02) &&
-	    (tp->mac_version != RTL_GIGA_MAC_VER_03) &&
-	    (tp->mac_version != RTL_GIGA_MAC_VER_04)) {
-		RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
-		rtl_set_rx_tx_config_registers(tp);
-	}
 
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
@@ -1960,6 +1964,11 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 	/* no early-rx interrupts */
 	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xF000);
+
+	/* Enable all known interrupts by setting the interrupt mask. */
+	RTL_W16(IntrMask, rtl8169_intr_mask);
+
+	RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
 }
 
 static void rtl_hw_start_8168(struct net_device *dev)
@@ -1993,6 +2002,8 @@ static void rtl_hw_start_8168(struct net_device *dev)
 	rtl_set_rx_mode(dev);
 
 	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xF000);
+
+	RTL_W16(IntrMask, rtl8169_intr_mask);
 }
 
 static void rtl_hw_start_8101(struct net_device *dev)
@@ -2032,6 +2043,8 @@ static void rtl_hw_start_8101(struct net_device *dev)
 	rtl_set_rx_mode(dev);
 
 	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xf000);
+
+	RTL_W16(IntrMask, rtl8169_intr_mask);
 }
 
 static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
@@ -2688,6 +2701,13 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 			dev->last_rx = jiffies;
 			tp->stats.rx_bytes += pkt_size;
 			tp->stats.rx_packets++;
+		}
+
+		/* Work around for AMD plateform. */
+		if ((desc->opts2 & 0xfffe000) &&
+		    (tp->mac_version == RTL_GIGA_MAC_VER_05)) {
+			desc->opts2 = 0;
+			cur_rx++;
 		}
 	}
 
