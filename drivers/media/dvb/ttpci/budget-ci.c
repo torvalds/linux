@@ -130,6 +130,7 @@ static void msp430_ir_interrupt(unsigned long data)
 	int toggle;
 	static int prev_toggle = -1;
 	static u32 ir_key;
+	static int state = 0;
 	u32 command = ttpci_budget_debiread(&budget_ci->budget, DEBINOSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
 
 	/*
@@ -138,21 +139,34 @@ static void msp430_ir_interrupt(unsigned long data)
 	 * type1: X1CCCCCC, C = command bits (0 - 63)
 	 * type2: X0TDDDDD, D = device bits (0 - 31), T = RC5 toggle bit
 	 *
-	 * More than one command byte may be generated before the device byte
-	 * Only when we have both, a correct keypress is generated
+	 * Each signal from the remote control can generate one or more command
+	 * bytes and one or more device bytes. For the repeated bytes, the
+	 * highest bit (X) is set. The first command byte is always generated
+	 * before the first device byte. Other than that, no specific order
+	 * seems to apply.
+	 *
+	 * Only when we have a command and device byte, a keypress is
+	 * generated.
 	 */
+
+	if (ir_debug)
+		printk("budget_ci: received byte 0x%02x\n", command);
+
+	/* Is this a repeated byte? */
+	if (command & 0x80)
+		return;
 
 	/* Is this a RC5 command byte? */
 	if (command & 0x40) {
-		if (ir_debug)
-			printk("budget_ci: received command byte 0x%02x\n", command);
+		state = 1;
 		ir_key = command & 0x3f;
 		return;
 	}
 
 	/* It's a RC5 device byte */
-	if (ir_debug)
-		printk("budget_ci: received device byte 0x%02x\n", command);
+	if (!state)
+		return;
+	state = 0;
 	device = command & 0x1f;
 	toggle = command & 0x20;
 
