@@ -9,7 +9,13 @@
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <asm/ebcdic.h>
+
+/* Sigh, math-emu. Don't ask. */
+#include <asm/sfp-util.h>
+#include <math-emu/soft-fp.h>
+#include <math-emu/single.h>
 
 struct sysinfo_1_1_1 {
 	char reserved_0[32];
@@ -198,7 +204,7 @@ static int stsi_1_2_2(struct sysinfo_1_2_2 *info, char *page, int len)
 		 * if the higher order 8 bits are not zero. Printing
 		 * a floating point number in the kernel is a no-no,
 		 * always print the number as 32 bit unsigned integer.
-		 * The user-space needs to know about the stange
+		 * The user-space needs to know about the strange
 		 * encoding of the alternate cpu capability.
 		 */
 		len += sprintf(page + len, "Capability:           %u %u\n",
@@ -351,3 +357,58 @@ static __init int create_proc_sysinfo(void)
 
 __initcall(create_proc_sysinfo);
 
+/*
+ * CPU capability might have changed. Therefore recalculate loops_per_jiffy.
+ */
+void s390_adjust_jiffies(void)
+{
+	struct sysinfo_1_2_2 *info;
+	const unsigned int fmil = 0x4b189680;	/* 1e7 as 32-bit float. */
+	FP_DECL_S(SA); FP_DECL_S(SB); FP_DECL_S(SR);
+	FP_DECL_EX;
+	unsigned int capability;
+
+	info = (void *) get_zeroed_page(GFP_KERNEL);
+	if (!info)
+		return;
+
+	if (stsi(info, 1, 2, 2) != -ENOSYS) {
+		/*
+		 * Major sigh. The cpu capability encoding is "special".
+		 * If the first 9 bits of info->capability are 0 then it
+		 * is a 32 bit unsigned integer in the range 0 .. 2^23.
+		 * If the first 9 bits are != 0 then it is a 32 bit float.
+		 * In addition a lower value indicates a proportionally
+		 * higher cpu capacity. Bogomips are the other way round.
+		 * To get to a halfway suitable number we divide 1e7
+		 * by the cpu capability number. Yes, that means a floating
+		 * point division .. math-emu here we come :-)
+		 */
+		FP_UNPACK_SP(SA, &fmil);
+		if ((info->capability >> 23) == 0)
+			FP_FROM_INT_S(SB, info->capability, 32, int);
+		else
+			FP_UNPACK_SP(SB, &info->capability);
+		FP_DIV_S(SR, SA, SB);
+		FP_TO_INT_S(capability, SR, 32, 0);
+	} else
+		/*
+		 * Really old machine without stsi block for basic
+		 * cpu information. Report 42.0 bogomips.
+		 */
+		capability = 42;
+	loops_per_jiffy = capability * (500000/HZ);
+	free_page((unsigned long) info);
+}
+
+/*
+ * calibrate the delay loop
+ */
+void __init calibrate_delay(void)
+{
+	s390_adjust_jiffies();
+	/* Print the good old Bogomips line .. */
+	printk(KERN_DEBUG "Calibrating delay loop (skipped)... "
+	       "%lu.%02lu BogoMIPS preset\n", loops_per_jiffy/(500000/HZ),
+	       (loops_per_jiffy/(5000/HZ)) % 100);
+}

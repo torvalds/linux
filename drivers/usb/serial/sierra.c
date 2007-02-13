@@ -13,10 +13,9 @@
   Portions based on the option driver by Matthias Urlichs <smurf@smurf.noris.de>
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 
-  History:
 */
 
-#define DRIVER_VERSION "v.1.0.5"
+#define DRIVER_VERSION "v.1.0.6"
 #define DRIVER_AUTHOR "Kevin Lloyd <linux@sierrawireless.com>"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
 
@@ -31,14 +30,15 @@
 
 
 static struct usb_device_id id_table [] = {
-	{ USB_DEVICE(0x1199, 0x0018) },	/* Sierra Wireless MC5720 */
-	{ USB_DEVICE(0x1199, 0x0020) },	/* Sierra Wireless MC5725 */
 	{ USB_DEVICE(0x1199, 0x0017) },	/* Sierra Wireless EM5625 */
-	{ USB_DEVICE(0x1199, 0x0019) },	/* Sierra Wireless AirCard 595 */
+	{ USB_DEVICE(0x1199, 0x0018) },	/* Sierra Wireless MC5720 */
 	{ USB_DEVICE(0x1199, 0x0218) },	/* Sierra Wireless MC5720 */
+	{ USB_DEVICE(0x1199, 0x0020) },	/* Sierra Wireless MC5725 */
+	{ USB_DEVICE(0x1199, 0x0019) },	/* Sierra Wireless AirCard 595 */
+	{ USB_DEVICE(0x1199, 0x0021) },	/* Sierra Wireless AirCard 597E */
 	{ USB_DEVICE(0x1199, 0x6802) },	/* Sierra Wireless MC8755 */
+	{ USB_DEVICE(0x1199, 0x6804) },	/* Sierra Wireless MC8755 */
 	{ USB_DEVICE(0x1199, 0x6803) },	/* Sierra Wireless MC8765 */
-	{ USB_DEVICE(0x1199, 0x6804) },	/* Sierra Wireless MC8755 for Europe */
 	{ USB_DEVICE(0x1199, 0x6812) },	/* Sierra Wireless MC8775 */
 	{ USB_DEVICE(0x1199, 0x6820) },	/* Sierra Wireless AirCard 875 */
 
@@ -55,14 +55,15 @@ static struct usb_device_id id_table_1port [] = {
 };
 
 static struct usb_device_id id_table_3port [] = {
-	{ USB_DEVICE(0x1199, 0x0018) },	/* Sierra Wireless MC5720 */
-	{ USB_DEVICE(0x1199, 0x0020) },	/* Sierra Wireless MC5725 */
 	{ USB_DEVICE(0x1199, 0x0017) },	/* Sierra Wireless EM5625 */
-	{ USB_DEVICE(0x1199, 0x0019) },	/* Sierra Wireless AirCard 595 */
+	{ USB_DEVICE(0x1199, 0x0018) },	/* Sierra Wireless MC5720 */
 	{ USB_DEVICE(0x1199, 0x0218) },	/* Sierra Wireless MC5720 */
+	{ USB_DEVICE(0x1199, 0x0020) },	/* Sierra Wireless MC5725 */
+	{ USB_DEVICE(0x1199, 0x0019) },	/* Sierra Wireless AirCard 595 */
+	{ USB_DEVICE(0x1199, 0x0021) },	/* Sierra Wireless AirCard 597E */
 	{ USB_DEVICE(0x1199, 0x6802) },	/* Sierra Wireless MC8755 */
+	{ USB_DEVICE(0x1199, 0x6804) },	/* Sierra Wireless MC8755 */
 	{ USB_DEVICE(0x1199, 0x6803) },	/* Sierra Wireless MC8765 */
-	{ USB_DEVICE(0x1199, 0x6804) },	/* Sierra Wireless MC8755 for Europe */
 	{ USB_DEVICE(0x1199, 0x6812) },	/* Sierra Wireless MC8775 */
 	{ USB_DEVICE(0x1199, 0x6820) },	/* Sierra Wireless AirCard 875 */
 	{ }
@@ -81,7 +82,7 @@ static int debug;
 
 /* per port private data */
 #define N_IN_URB	4
-#define N_OUT_URB	1
+#define N_OUT_URB	4
 #define IN_BUFLEN	4096
 #define OUT_BUFLEN	128
 
@@ -396,6 +397,8 @@ static int sierra_open(struct usb_serial_port *port, struct file *filp)
 	struct usb_serial *serial = port->serial;
 	int i, err;
 	struct urb *urb;
+	int result;
+	__u16 set_mode_dzero = 0x0000;
 
 	portdata = usb_get_serial_port_data(port);
 
@@ -441,6 +444,12 @@ static int sierra_open(struct usb_serial_port *port, struct file *filp)
 	}
 
 	port->tty->low_latency = 1;
+
+	/* set mode to D0 */
+	result = usb_control_msg(serial->dev,
+				 usb_rcvctrlpipe(serial->dev, 0),
+				 0x00, 0x40, set_mode_dzero, 0, NULL,
+				 0, USB_CTRL_SET_TIMEOUT);
 
 	sierra_send_setup(port);
 
@@ -614,6 +623,7 @@ static struct usb_serial_driver sierra_1port_device = {
 	},
 	.description       = "Sierra USB modem (1 port)",
 	.id_table          = id_table_1port,
+	.usb_driver        = &sierra_driver,
 	.num_interrupt_in  = NUM_DONT_CARE,
 	.num_bulk_in       = 1,
 	.num_bulk_out      = 1,
@@ -642,6 +652,7 @@ static struct usb_serial_driver sierra_3port_device = {
 	},
 	.description       = "Sierra USB modem (3 port)",
 	.id_table          = id_table_3port,
+	.usb_driver        = &sierra_driver,
 	.num_interrupt_in  = NUM_DONT_CARE,
 	.num_bulk_in       = 3,
 	.num_bulk_out      = 3,

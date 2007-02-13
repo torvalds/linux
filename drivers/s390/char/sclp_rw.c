@@ -460,7 +460,7 @@ sclp_emit_buffer(struct sclp_buffer *buffer,
 		sccb->msg_buf.header.type = EvTyp_PMsgCmd;
 	else
 		return -ENOSYS;
-	buffer->request.command = SCLP_CMDW_WRITEDATA;
+	buffer->request.command = SCLP_CMDW_WRITE_EVENT_DATA;
 	buffer->request.status = SCLP_REQ_FILLED;
 	buffer->request.callback = sclp_writedata_callback;
 	buffer->request.callback_data = buffer;

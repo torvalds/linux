@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -195,31 +195,27 @@ acpi_status acpi_ns_root_initialize(void)
 				obj_desc->mutex.sync_level =
 				    (u8) (ACPI_TO_INTEGER(val) - 1);
 
+				/* Create a mutex */
+
+				status =
+				    acpi_os_create_mutex(&obj_desc->mutex.
+							 os_mutex);
+				if (ACPI_FAILURE(status)) {
+					acpi_ut_remove_reference(obj_desc);
+					goto unlock_and_exit;
+				}
+
+				/* Special case for ACPI Global Lock */
+
 				if (ACPI_STRCMP(init_val->name, "_GL_") == 0) {
+					acpi_gbl_global_lock_mutex =
+					    obj_desc->mutex.os_mutex;
 
-					/* Create a counting semaphore for the global lock */
-
-					status =
-					    acpi_os_create_semaphore
-					    (ACPI_NO_UNIT_LIMIT, 1,
-					     &acpi_gbl_global_lock_semaphore);
-					if (ACPI_FAILURE(status)) {
-						acpi_ut_remove_reference
-						    (obj_desc);
-						goto unlock_and_exit;
-					}
-
-					/* Mark this mutex as very special */
-
-					obj_desc->mutex.os_mutex =
-					    ACPI_GLOBAL_LOCK;
-				} else {
-					/* Create a mutex */
+					/* Create additional counting semaphore for global lock */
 
 					status =
-					    acpi_os_create_mutex(&obj_desc->
-								 mutex.
-								 os_mutex);
+					    acpi_os_create_semaphore(1, 0,
+								     &acpi_gbl_global_lock_semaphore);
 					if (ACPI_FAILURE(status)) {
 						acpi_ut_remove_reference
 						    (obj_desc);

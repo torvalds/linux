@@ -331,7 +331,7 @@ int diRead(struct inode *ip)
 
 	/* read the iag */
 	imap = JFS_IP(ipimap)->i_imap;
-	IREAD_LOCK(ipimap);
+	IREAD_LOCK(ipimap, RDWRLOCK_IMAP);
 	rc = diIAGRead(imap, iagno, &mp);
 	IREAD_UNLOCK(ipimap);
 	if (rc) {
@@ -920,7 +920,7 @@ int diFree(struct inode *ip)
 	/* Obtain read lock in imap inode.  Don't release it until we have
 	 * read all of the IAG's that we are going to.
 	 */
-	IREAD_LOCK(ipimap);
+	IREAD_LOCK(ipimap, RDWRLOCK_IMAP);
 
 	/* read the iag.
 	 */
@@ -1415,7 +1415,7 @@ int diAlloc(struct inode *pip, bool dir, struct inode *ip)
 	AG_LOCK(imap, agno);
 
 	/* Get read lock on imap inode */
-	IREAD_LOCK(ipimap);
+	IREAD_LOCK(ipimap, RDWRLOCK_IMAP);
 
 	/* get the iag number and read the iag */
 	iagno = INOTOIAG(inum);
@@ -1808,7 +1808,7 @@ static int diAllocIno(struct inomap * imap, int agno, struct inode *ip)
 		return -ENOSPC;
 
 	/* obtain read lock on imap inode */
-	IREAD_LOCK(imap->im_ipimap);
+	IREAD_LOCK(imap->im_ipimap, RDWRLOCK_IMAP);
 
 	/* read the iag at the head of the list.
 	 */
@@ -1946,7 +1946,7 @@ static int diAllocExt(struct inomap * imap, int agno, struct inode *ip)
 	} else {
 		/* read the iag.
 		 */
-		IREAD_LOCK(imap->im_ipimap);
+		IREAD_LOCK(imap->im_ipimap, RDWRLOCK_IMAP);
 		if ((rc = diIAGRead(imap, iagno, &mp))) {
 			IREAD_UNLOCK(imap->im_ipimap);
 			jfs_error(ip->i_sb, "diAllocExt: error reading iag");
@@ -2509,7 +2509,7 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 		 */
 
 		/* acquire inode map lock */
-		IWRITE_LOCK(ipimap);
+		IWRITE_LOCK(ipimap, RDWRLOCK_IMAP);
 
 		if (ipimap->i_size >> L2PSIZE != imap->im_nextiag + 1) {
 			IWRITE_UNLOCK(ipimap);
@@ -2648,7 +2648,7 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 	}
 
 	/* obtain read lock on map */
-	IREAD_LOCK(ipimap);
+	IREAD_LOCK(ipimap, RDWRLOCK_IMAP);
 
 	/* read the iag */
 	if ((rc = diIAGRead(imap, iagno, &mp))) {
@@ -2779,7 +2779,7 @@ diUpdatePMap(struct inode *ipimap,
 		return -EIO;
 	}
 	/* read the iag */
-	IREAD_LOCK(ipimap);
+	IREAD_LOCK(ipimap, RDWRLOCK_IMAP);
 	rc = diIAGRead(imap, iagno, &mp);
 	IREAD_UNLOCK(ipimap);
 	if (rc)

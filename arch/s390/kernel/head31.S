@@ -51,175 +51,14 @@ startup_continue:
 	st	%r15,__LC_KERNEL_STACK	# set end of kernel stack
 	ahi	%r15,-96
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
-
-	l	%r14,.Lipl_save_parameters-.LPG1(%r13)
+#
+# Save ipl parameters, clear bss memory, initialize storage key for kernel pages,
+# and create a kernel NSS if the SAVESYS= parm is defined
+#
+	l	%r14,.Lstartup_init-.LPG1(%r13)
 	basr	%r14,%r14
-#
-# clear bss memory
-#
-	l	%r2,.Lbss_bgn-.LPG1(%r13) # start of bss
-	l	%r3,.Lbss_end-.LPG1(%r13) # end of bss
-	sr	%r3,%r2			# length of bss
-	sr	%r4,%r4
-	sr	%r5,%r5			# set src,length and pad to zero
-	sr	%r0,%r0
-	mvcle	%r2,%r4,0		# clear mem
-	jo	.-4			# branch back, if not finish
 
-	l	%r2,.Lrcp-.LPG1(%r13)	# Read SCP forced command word
-.Lservicecall:
-	stosm	.Lpmask-.LPG1(%r13),0x01	# authorize ext interrupts
-
-	stctl	%r0, %r0,.Lcr-.LPG1(%r13)	# get cr0
-	la	%r1,0x200		# set bit 22
-	o	%r1,.Lcr-.LPG1(%r13)	# or old cr0 with r1
-	st	%r1,.Lcr-.LPG1(%r13)
-	lctl	%r0, %r0,.Lcr-.LPG1(%r13)	# load modified cr0
-
-	mvc	__LC_EXT_NEW_PSW(8),.Lpcext-.LPG1(%r13) # set postcall psw
-	la	%r1, .Lsclph-.LPG1(%r13)
-	a	%r1,__LC_EXT_NEW_PSW+4	# set handler
-	st	%r1,__LC_EXT_NEW_PSW+4
-
-	l	%r4,.Lsccbaddr-.LPG1(%r13) # %r4 is our index for sccb stuff
-	lr	%r1,%r4			# our sccb
-	.insn	rre,0xb2200000,%r2,%r1	# service call
-	ipm	%r1
-	srl	%r1,28			# get cc code
-	xr	%r3, %r3
-	chi	%r1,3
-	be	.Lfchunk-.LPG1(%r13)	# leave
-	chi	%r1,2
-	be	.Lservicecall-.LPG1(%r13)
-	lpsw	.Lwaitsclp-.LPG1(%r13)
-.Lsclph:
-	lh	%r1,.Lsccbr-.Lsccb(%r4)
-	chi	%r1,0x10		# 0x0010 is the sucess code
-	je	.Lprocsccb		# let's process the sccb
-	chi	%r1,0x1f0
-	bne	.Lfchunk-.LPG1(%r13)	# unhandled error code
-	c	%r2, .Lrcp-.LPG1(%r13)	# Did we try Read SCP forced
-	bne	.Lfchunk-.LPG1(%r13)	# if no, give up
-	l	%r2, .Lrcp2-.LPG1(%r13)	# try with Read SCP
-	b	.Lservicecall-.LPG1(%r13)
-.Lprocsccb:
-	lhi	%r1,0
-	icm	%r1,3,.Lscpincr1-.Lsccb(%r4) # use this one if != 0
-	jnz	.Lscnd
-	lhi	%r1,0x800		# otherwise report 2GB
-.Lscnd:
-	lhi	%r3,0x800		# limit reported memory size to 2GB
-	cr	%r1,%r3
-	jl	.Lno2gb
-	lr	%r1,%r3
-.Lno2gb:
-	xr	%r3,%r3			# same logic
-	ic	%r3,.Lscpa1-.Lsccb(%r4)
-	chi	%r3,0x00
-	jne	.Lcompmem
-	l	%r3,.Lscpa2-.Lsccb(%r4)
-.Lcompmem:
-	mr	%r2,%r1			# mem in MB on 128-bit
-	l	%r1,.Lonemb-.LPG1(%r13)
-	mr	%r2,%r1			# mem size in bytes in %r3
-	b	.Lfchunk-.LPG1(%r13)
-
-	.align 4
-.Lipl_save_parameters:
-	.long	ipl_save_parameters
-.Linittu:
-	.long	init_thread_union
-.Lpmask:
-	.byte	0
-	.align	8
-.Lpcext:.long	0x00080000,0x80000000
-.Lcr:
-	.long	0x00			# place holder for cr0
-	.align	8
-.Lwaitsclp:
-	.long 0x010a0000,0x80000000 + .Lsclph
-.Lrcp:
-	.int	0x00120001		# Read SCP forced code
-.Lrcp2:
-	.int	0x00020001		# Read SCP code
-.Lonemb:
-	.int	0x100000
-.Lfchunk:
-
-#
-# find memory chunks.
-#
-	lr	%r9,%r3			# end of mem
-	mvc	__LC_PGM_NEW_PSW(8),.Lpcmem-.LPG1(%r13)
-	la	%r1,1			# test in increments of 128KB
-	sll	%r1,17
-	l	%r3,.Lmchunk-.LPG1(%r13) # get pointer to memory_chunk array
-	slr	%r4,%r4			# set start of chunk to zero
-	slr	%r5,%r5			# set end of chunk to zero
-	slr	%r6,%r6			# set access code to zero
-	la	%r10,MEMORY_CHUNKS	# number of chunks
-.Lloop:
-	tprot	0(%r5),0		# test protection of first byte
-	ipm	%r7
-	srl	%r7,28
-	clr	%r6,%r7			# compare cc with last access code
-	be	.Lsame-.LPG1(%r13)
-	lhi	%r8,0			# no program checks
-	b	.Lsavchk-.LPG1(%r13)
-.Lsame:
-	ar	%r5,%r1			# add 128KB to end of chunk
-	bno	.Lloop-.LPG1(%r13)	# r1 < 0x80000000 -> loop
-.Lchkmem:				# > 2GB or tprot got a program check
-	lhi	%r8,1			# set program check flag
-.Lsavchk:
-	clr	%r4,%r5			# chunk size > 0?
-	be	.Lchkloop-.LPG1(%r13)
-	st	%r4,0(%r3)		# store start address of chunk
-	lr	%r0,%r5
-	slr	%r0,%r4
-	st	%r0,4(%r3)		# store size of chunk
-	st	%r6,8(%r3)		# store type of chunk
-	la	%r3,12(%r3)
-	ahi	%r10,-1			# update chunk number
-.Lchkloop:
-	lr	%r6,%r7			# set access code to last cc
-	# we got an exception or we're starting a new
-	# chunk , we must check if we should
-	# still try to find valid memory (if we detected
-	# the amount of available storage), and if we
-	# have chunks left
-	xr	%r0,%r0
-	clr	%r0,%r9			# did we detect memory?
-	je	.Ldonemem		# if not, leave
-	chi	%r10,0			# do we have chunks left?
-	je	.Ldonemem
-	chi	%r8,1			# program check ?
-	je	.Lpgmchk
-	lr	%r4,%r5			# potential new chunk
-	alr	%r5,%r1			# add 128KB to end of chunk
-	j	.Llpcnt
-.Lpgmchk:
-	alr	%r5,%r1			# add 128KB to end of chunk
-	lr	%r4,%r5			# potential new chunk
-.Llpcnt:
-	clr	%r5,%r9			# should we go on?
-	jl	.Lloop
-.Ldonemem:
 	l	%r12,.Lmflags-.LPG1(%r13) # get address of machine_flags
-#
-# find out if we are running under VM
-#
-	stidp	__LC_CPUID		# store cpuid
-	tm	__LC_CPUID,0xff		# running under VM ?
-	bno	.Lnovm-.LPG1(%r13)
-	oi	3(%r12),1		# set VM flag
-.Lnovm:
-	lh	%r0,__LC_CPUID+4	# get cpu version
-	chi	%r0,0x7490		# running on a P/390 ?
-	bne	.Lnop390-.LPG1(%r13)
-	oi	3(%r12),4		# set P/390 flag
-.Lnop390:
-
 #
 # find out if we have an IEEE fpu
 #
@@ -295,7 +134,6 @@ startup_continue:
 	.long	0			# cr15: linkage stack operations
 .Lduct:	.long	0,0,0,0,0,0,0,0
 	.long	0,0,0,0,0,0,0,0
-.Lpcmem:.long	0x00080000,0x80000000 + .Lchkmem
 .Lpcfpu:.long	0x00080000,0x80000000 + .Lchkfpu
 .Lpccsp:.long	0x00080000,0x80000000 + .Lchkcsp
 .Lpcmvpg:.long	0x00080000,0x80000000 + .Lchkmvpg
@@ -306,7 +144,9 @@ startup_continue:
 .Lbss_bgn:  .long __bss_start
 .Lbss_end:  .long _end
 .Lparmaddr: .long PARMAREA
-.Lsccbaddr: .long .Lsccb
+.Linittu:   .long init_thread_union
+.Lstartup_init:
+	    .long startup_init
 
 	.globl ipl_schib
 ipl_schib:
@@ -322,26 +162,6 @@ ipl_devno:
 	.word 0
 
 	.org	0x12000
-.globl s390_readinfo_sccb
-s390_readinfo_sccb:
-.Lsccb:
-	.hword	0x1000			# length, one page
-	.byte	0x00,0x00,0x00
-	.byte	0x80			# variable response bit set
-.Lsccbr:
-	.hword	0x00			# response code
-.Lscpincr1:
-	.hword	0x00
-.Lscpa1:
-	.byte	0x00
-	.fill	89,1,0
-.Lscpa2:
-	.int	0x00
-.Lscpincr2:
-	.quad	0x00
-	.fill	3984,1,0
-	.org	0x13000
-
 #ifdef CONFIG_SHARED_KERNEL
 	.org	0x100000
 #endif

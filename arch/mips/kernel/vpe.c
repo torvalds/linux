@@ -522,7 +522,7 @@ static int (*reloc_handlers[]) (struct module *me, uint32_t *location,
 };
 
 static char *rstrs[] = {
-    	[R_MIPS_NONE]	= "MIPS_NONE",
+	[R_MIPS_NONE]	= "MIPS_NONE",
 	[R_MIPS_32]	= "MIPS_32",
 	[R_MIPS_26]	= "MIPS_26",
 	[R_MIPS_HI16]	= "MIPS_HI16",
@@ -695,7 +695,7 @@ static void dump_tclist(void)
 }
 
 /* We are prepared so configure and start the VPE... */
-int vpe_run(struct vpe * v)
+static int vpe_run(struct vpe * v)
 {
 	struct vpe_notifications *n;
 	unsigned long val, dmt_flag;
@@ -713,16 +713,16 @@ int vpe_run(struct vpe * v)
 	dvpe();
 
 	if (!list_empty(&v->tc)) {
-                if ((t = list_entry(v->tc.next, struct tc, tc)) == NULL) {
-                        printk(KERN_WARNING "VPE loader: TC %d is already in use.\n",
-                               t->index);
-                        return -ENOEXEC;
-                }
-        } else {
-                printk(KERN_WARNING "VPE loader: No TC's associated with VPE %d\n",
-                       v->minor);
-                return -ENOEXEC;
-        }
+		if ((t = list_entry(v->tc.next, struct tc, tc)) == NULL) {
+			printk(KERN_WARNING "VPE loader: TC %d is already in use.\n",
+			       t->index);
+			return -ENOEXEC;
+		}
+	} else {
+		printk(KERN_WARNING "VPE loader: No TC's associated with VPE %d\n",
+		       v->minor);
+		return -ENOEXEC;
+	}
 
 	/* Put MVPE's into 'configuration state' */
 	set_c0_mvpcontrol(MVPCONTROL_VPC);
@@ -775,14 +775,14 @@ int vpe_run(struct vpe * v)
 
 	back_to_back_c0_hazard();
 
-        /* Set up the XTC bit in vpeconf0 to point at our tc */
-        write_vpe_c0_vpeconf0( (read_vpe_c0_vpeconf0() & ~(VPECONF0_XTC))
-                               | (t->index << VPECONF0_XTC_SHIFT));
+	/* Set up the XTC bit in vpeconf0 to point at our tc */
+	write_vpe_c0_vpeconf0( (read_vpe_c0_vpeconf0() & ~(VPECONF0_XTC))
+	                      | (t->index << VPECONF0_XTC_SHIFT));
 
 	back_to_back_c0_hazard();
 
-        /* enable this VPE */
-        write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() | VPECONF0_VPA);
+	/* enable this VPE */
+	write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() | VPECONF0_VPA);
 
 	/* clear out any left overs from a previous program */
 	write_vpe_c0_status(0);
@@ -832,7 +832,7 @@ static int find_vpe_symbols(struct vpe * v, Elf_Shdr * sechdrs,
  * contents of the program (p)buffer performing relocatations/etc, free's it
  * when finished.
  */
-int vpe_elfload(struct vpe * v)
+static int vpe_elfload(struct vpe * v)
 {
 	Elf_Ehdr *hdr;
 	Elf_Shdr *sechdrs;

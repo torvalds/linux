@@ -274,6 +274,7 @@ Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
 
 ---------------------------
 
+<<<<<<< test:Documentation/feature-removal-schedule.txt
 What:	ACPI hotkey driver (CONFIG_ACPI_HOTKEY)
 When:	2.6.21
 Why:	hotkey.c was an attempt to consolidate multiple drivers that use
@@ -306,8 +307,15 @@ Why:	The ACPI namespace is effectively the symbol list for
 	the BIOS can be extracted and disassembled with acpidump
 	and iasl as documented in the pmtools package here:
 	http://ftp.kernel.org/pub/linux/kernel/people/lenb/acpi/utils
-
 Who:	Len Brown <len.brown@intel.com>
+
+---------------------------
+
+What:	ACPI procfs interface
+When:	July 2007
+Why:	After ACPI sysfs conversion, ACPI attributes will be duplicated
+	in sysfs and the ACPI procfs interface should be removed.
+Who:	Zhang Rui <rui.zhang@intel.com>
 
 ---------------------------
 
@@ -325,3 +333,10 @@ Why:	Unmaintained for years, superceded by JFFS2 for years.
 Who:	Jeff Garzik <jeff@garzik.org>
 
 ---------------------------
+
+What:   sk98lin network driver
+When:   July 2007
+Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
+	replaced by the skge driver. 
+Who:    Stephen Hemminger <shemminger@osdl.org>
+

@@ -84,15 +84,6 @@ struct es7000_oem_table {
 };
 
 #ifdef CONFIG_ACPI
-struct acpi_table_sdt {
-	unsigned long pa;
-	unsigned long count;
-	struct {
-		unsigned long pa;
-		enum acpi_table_id id;
-		unsigned long size;
-	}	entry[50];
-};
 
 struct oem_table {
 	struct acpi_table_header Header;

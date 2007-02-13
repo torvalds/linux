@@ -26,14 +26,10 @@
 #include <linux/acpi.h>
 #include <asm/sn/sn2/sn_hwperf.h>
 #include <asm/sn/acpi.h>
+#include "acpi/acglobal.h"
 
 extern void sn_init_cpei_timer(void);
 extern void register_sn_procfs(void);
-extern void sn_acpi_bus_fixup(struct pci_bus *);
-extern void sn_bus_fixup(struct pci_bus *);
-extern void sn_acpi_slot_fixup(struct pci_dev *, struct pcidev_info *);
-extern void sn_more_slot_fixup(struct pci_dev *, struct pcidev_info *);
-extern void sn_legacy_pci_window_fixup(struct pci_controller *, u64, u64);
 extern void sn_io_acpi_init(void);
 extern void sn_io_init(void);
 
@@ -47,6 +43,9 @@ struct sysdata_el {
 };
 
 int sn_ioif_inited;		/* SN I/O infrastructure initialized? */
+
+int sn_acpi_rev;		/* SN ACPI revision */
+EXPORT_SYMBOL_GPL(sn_acpi_rev);
 
 struct sn_pcibus_provider *sn_pci_provider[PCIIO_ASIC_MAX_TYPES];	/* indexed by asic type */
 
@@ -96,25 +95,6 @@ sal_get_device_dmaflush_list(u64 nasid, u64 widget_num, u64 device_num,
 			(u64) nasid, (u64) widget_num,
 			(u64) device_num, (u64) address, 0, 0, 0);
 	return ret_stuff.status;
-}
-
-/*
- * Retrieve the pci device information given the bus and device|function number.
- */
-static inline u64
-sal_get_pcidev_info(u64 segment, u64 bus_number, u64 devfn, u64 pci_dev,
-		    u64 sn_irq_info)
-{
-	struct ia64_sal_retval ret_stuff;
-	ret_stuff.status = 0;
-	ret_stuff.v0 = 0;
-
-	SAL_CALL_NOLOCK(ret_stuff,
-			(u64) SN_SAL_IOIF_GET_PCIDEV_INFO,
-			(u64) segment, (u64) bus_number, (u64) devfn,
-			(u64) pci_dev,
-			sn_irq_info, 0, 0);
-	return ret_stuff.v0;
 }
 
 /*
@@ -249,50 +229,25 @@ void sn_pci_unfixup_slot(struct pci_dev *dev)
 }
 
 /*
- * sn_pci_fixup_slot() - This routine sets up a slot's resources consistent
- *			 with the Linux PCI abstraction layer. Resources
- *			 acquired from our PCI provider include PIO maps
- *			 to BAR space and interrupt objects.
+ * sn_pci_fixup_slot()
  */
-void sn_pci_fixup_slot(struct pci_dev *dev)
+void sn_pci_fixup_slot(struct pci_dev *dev, struct pcidev_info *pcidev_info,
+		       struct sn_irq_info *sn_irq_info)
 {
 	int segment = pci_domain_nr(dev->bus);
-	int status = 0;
 	struct pcibus_bussoft *bs;
- 	struct pci_bus *host_pci_bus;
- 	struct pci_dev *host_pci_dev;
-	struct pcidev_info *pcidev_info;
- 	struct sn_irq_info *sn_irq_info;
- 	unsigned int bus_no, devfn;
+	struct pci_bus *host_pci_bus;
+	struct pci_dev *host_pci_dev;
+	unsigned int bus_no, devfn;
 
 	pci_dev_get(dev); /* for the sysdata pointer */
-	pcidev_info = kzalloc(sizeof(struct pcidev_info), GFP_KERNEL);
-	if (!pcidev_info)
-		BUG();		/* Cannot afford to run out of memory */
-
-	sn_irq_info = kzalloc(sizeof(struct sn_irq_info), GFP_KERNEL);
-	if (!sn_irq_info)
-		BUG();		/* Cannot afford to run out of memory */
-
-	/* Call to retrieve pci device information needed by kernel. */
-	status = sal_get_pcidev_info((u64) segment, (u64) dev->bus->number,
-				     dev->devfn,
-				     (u64) __pa(pcidev_info),
-				     (u64) __pa(sn_irq_info));
-	if (status)
-		BUG(); /* Cannot get platform pci device information */
 
 	/* Add pcidev_info to list in pci_controller.platform_data */
 	list_add_tail(&pcidev_info->pdi_list,
 		      &(SN_PLATFORM_DATA(dev->bus)->pcidev_info));
-
-	if (SN_ACPI_BASE_SUPPORT())
-		sn_acpi_slot_fixup(dev, pcidev_info);
-	else
-		sn_more_slot_fixup(dev, pcidev_info);
 	/*
 	 * Using the PROMs values for the PCI host bus, get the Linux
- 	 * PCI host_pci_dev struct and set up host bus linkages
+	 * PCI host_pci_dev struct and set up host bus linkages
  	 */
 
 	bus_no = (pcidev_info->pdi_slot_host_handle >> 32) & 0xff;
@@ -489,11 +444,6 @@ void sn_generate_path(struct pci_bus *pci_bus, char *address)
 			sprintf(address, "%s^%d", address, geo_slot(geoid));
 }
 
-/*
- * sn_pci_fixup_bus() - Perform SN specific setup of software structs
- *			(pcibus_bussoft, pcidev_info) and hardware
- *			registers, for the specified bus and devices under it.
- */
 void __devinit
 sn_pci_fixup_bus(struct pci_bus *bus)
 {
@@ -518,6 +468,15 @@ sn_io_early_init(void)
 
 	if (!ia64_platform_is("sn2") || IS_RUNNING_ON_FAKE_PROM())
 		return 0;
+
+	/* we set the acpi revision to that of the DSDT table OEM rev. */
+	{
+		struct acpi_table_header *header = NULL;
+
+		acpi_get_table_by_index(ACPI_TABLE_INDEX_DSDT, &header);
+		BUG_ON(header == NULL);
+		sn_acpi_rev = header->oem_revision;
+	}
 
 	/*
 	 * prime sn_pci_provider[].  Individial provider init routines will
@@ -544,8 +503,12 @@ sn_io_early_init(void)
 	register_sn_procfs();
 #endif
 
-	printk(KERN_INFO "ACPI  DSDT OEM Rev 0x%x\n",
-	       acpi_gbl_DSDT->oem_revision);
+	{
+		struct acpi_table_header *header;
+		(void)acpi_get_table_by_index(ACPI_TABLE_INDEX_DSDT, &header);
+		printk(KERN_INFO "ACPI  DSDT OEM Rev 0x%x\n",
+			header->oem_revision);
+	}
 	if (SN_ACPI_BASE_SUPPORT())
 		sn_io_acpi_init();
 	else
@@ -605,7 +568,6 @@ sn_io_late_init(void)
 
 fs_initcall(sn_io_late_init);
 
-EXPORT_SYMBOL(sn_pci_fixup_slot);
 EXPORT_SYMBOL(sn_pci_unfixup_slot);
 EXPORT_SYMBOL(sn_bus_store_sysdata);
 EXPORT_SYMBOL(sn_bus_free_sysdata);

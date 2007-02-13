@@ -9,7 +9,8 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 
-#include <linux/uaccess.h>
+#include <asm/page.h>
+#include <asm/uaccess.h>
 
 /**
  * copy_oldmem_page - copy one page from "oldmem"

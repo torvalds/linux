@@ -202,7 +202,6 @@ void __init sgimc_init(void)
 }
 
 void __init prom_meminit(void) {}
-unsigned long __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
-	return 0;
 }

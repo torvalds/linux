@@ -44,9 +44,6 @@ struct smtc_ipi_q {
 	int depth;
 };
 
-extern struct smtc_ipi_q IPIQ[NR_CPUS];
-extern struct smtc_ipi_q freeIPIq;
-
 static inline void smtc_ipi_nq(struct smtc_ipi_q *q, struct smtc_ipi *p)
 {
 	long flags;

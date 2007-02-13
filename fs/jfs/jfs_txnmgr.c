@@ -135,7 +135,7 @@ static inline void TXN_SLEEP_DROP_LOCK(wait_queue_head_t * event)
 	add_wait_queue(event, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	TXN_UNLOCK();
-	schedule();
+	io_schedule();
 	current->state = TASK_RUNNING;
 	remove_wait_queue(event, &wait);
 }

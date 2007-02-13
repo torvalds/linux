@@ -30,6 +30,8 @@
 #define DEBUGP(fmt, a...)
 #endif
 
+static struct kobj_type module_ktype;
+
 static inline char dash2underscore(char c)
 {
 	if (c == '-')
@@ -561,14 +563,11 @@ static void __init kernel_param_sysfs_setup(const char *name,
 	mk->mod = THIS_MODULE;
 	kobj_set_kset_s(mk, module_subsys);
 	kobject_set_name(&mk->kobj, name);
-	ret = kobject_register(&mk->kobj);
+	kobject_init(&mk->kobj);
+	ret = kobject_add(&mk->kobj);
 	BUG_ON(ret < 0);
-
-	/* no need to keep the kobject if no parameter is exported */
-	if (!param_sysfs_setup(mk, kparam, num_params, name_skip)) {
-		kobject_unregister(&mk->kobj);
-		kfree(mk);
-	}
+	param_sysfs_setup(mk, kparam, num_params, name_skip);
+	kobject_uevent(&mk->kobj, KOBJ_ADD);
 }
 
 /*
@@ -674,6 +673,19 @@ static struct sysfs_ops module_sysfs_ops = {
 	.store = module_attr_store,
 };
 
+static int uevent_filter(struct kset *kset, struct kobject *kobj)
+{
+	struct kobj_type *ktype = get_ktype(kobj);
+
+	if (ktype == &module_ktype)
+		return 1;
+	return 0;
+}
+
+static struct kset_uevent_ops module_uevent_ops = {
+	.filter = uevent_filter,
+};
+
 #else
 static struct sysfs_ops module_sysfs_ops = {
 	.show = NULL,
@@ -685,7 +697,7 @@ static struct kobj_type module_ktype = {
 	.sysfs_ops =	&module_sysfs_ops,
 };
 
-decl_subsys(module, &module_ktype, NULL);
+decl_subsys(module, &module_ktype, &module_uevent_ops);
 
 /*
  * param_sysfs_init - wrapper for built-in params support

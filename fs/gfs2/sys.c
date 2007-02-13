@@ -436,17 +436,12 @@ TUNE_ATTR(atime_quantum, 0);
 TUNE_ATTR(max_readahead, 0);
 TUNE_ATTR(complain_secs, 0);
 TUNE_ATTR(reclaim_limit, 0);
-TUNE_ATTR(prefetch_secs, 0);
 TUNE_ATTR(statfs_slow, 0);
 TUNE_ATTR(new_files_jdata, 0);
 TUNE_ATTR(new_files_directio, 0);
 TUNE_ATTR(quota_simul_sync, 1);
 TUNE_ATTR(quota_cache_secs, 1);
-TUNE_ATTR(max_atomic_write, 1);
 TUNE_ATTR(stall_secs, 1);
-TUNE_ATTR(greedy_default, 1);
-TUNE_ATTR(greedy_quantum, 1);
-TUNE_ATTR(greedy_max, 1);
 TUNE_ATTR(statfs_quantum, 1);
 TUNE_ATTR_DAEMON(scand_secs, scand_process);
 TUNE_ATTR_DAEMON(recoverd_secs, recoverd_process);
@@ -465,15 +460,10 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_max_readahead.attr,
 	&tune_attr_complain_secs.attr,
 	&tune_attr_reclaim_limit.attr,
-	&tune_attr_prefetch_secs.attr,
 	&tune_attr_statfs_slow.attr,
 	&tune_attr_quota_simul_sync.attr,
 	&tune_attr_quota_cache_secs.attr,
-	&tune_attr_max_atomic_write.attr,
 	&tune_attr_stall_secs.attr,
-	&tune_attr_greedy_default.attr,
-	&tune_attr_greedy_quantum.attr,
-	&tune_attr_greedy_max.attr,
 	&tune_attr_statfs_quantum.attr,
 	&tune_attr_scand_secs.attr,
 	&tune_attr_recoverd_secs.attr,

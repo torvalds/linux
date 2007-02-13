@@ -9,6 +9,7 @@
 #include <linux/usb.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
+#include <linux/debugfs.h>
 #include <asm/uaccess.h>
 
 #include "usb_mon.h"
@@ -62,6 +63,8 @@ struct mon_reader_text {
 
 	char slab_name[SLAB_NAME_SZ];
 };
+
+static struct dentry *mon_dir;		/* Usually /sys/kernel/debug/usbmon */
 
 static void mon_text_ctor(void *, struct kmem_cache *, unsigned long);
 
@@ -436,7 +439,7 @@ static int mon_text_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-const struct file_operations mon_fops_text = {
+static const struct file_operations mon_fops_text = {
 	.owner =	THIS_MODULE,
 	.open =		mon_text_open,
 	.llseek =	no_llseek,
@@ -446,6 +449,47 @@ const struct file_operations mon_fops_text = {
 	/* .ioctl =	mon_text_ioctl, */
 	.release =	mon_text_release,
 };
+
+int mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus)
+{
+	struct dentry *d;
+	enum { NAMESZ = 10 };
+	char name[NAMESZ];
+	int rc;
+
+	rc = snprintf(name, NAMESZ, "%dt", ubus->busnum);
+	if (rc <= 0 || rc >= NAMESZ)
+		goto err_print_t;
+	d = debugfs_create_file(name, 0600, mon_dir, mbus, &mon_fops_text);
+	if (d == NULL)
+		goto err_create_t;
+	mbus->dent_t = d;
+
+	/* XXX The stats do not belong to here (text API), but oh well... */
+	rc = snprintf(name, NAMESZ, "%ds", ubus->busnum);
+	if (rc <= 0 || rc >= NAMESZ)
+		goto err_print_s;
+	d = debugfs_create_file(name, 0600, mon_dir, mbus, &mon_fops_stat);
+	if (d == NULL)
+		goto err_create_s;
+	mbus->dent_s = d;
+
+	return 1;
+
+err_create_s:
+err_print_s:
+	debugfs_remove(mbus->dent_t);
+	mbus->dent_t = NULL;
+err_create_t:
+err_print_t:
+	return 0;
+}
+
+void mon_text_del(struct mon_bus *mbus)
+{
+	debugfs_remove(mbus->dent_t);
+	debugfs_remove(mbus->dent_s);
+}
 
 /*
  * Slab interface: constructor.
@@ -459,3 +503,24 @@ static void mon_text_ctor(void *mem, struct kmem_cache *slab, unsigned long sfla
 	memset(mem, 0xe5, sizeof(struct mon_event_text));
 }
 
+int __init mon_text_init(void)
+{
+	struct dentry *mondir;
+
+	mondir = debugfs_create_dir("usbmon", NULL);
+	if (IS_ERR(mondir)) {
+		printk(KERN_NOTICE TAG ": debugfs is not available\n");
+		return -ENODEV;
+	}
+	if (mondir == NULL) {
+		printk(KERN_NOTICE TAG ": unable to create usbmon directory\n");
+		return -ENODEV;
+	}
+	mon_dir = mondir;
+	return 0;
+}
+
+void __exit mon_text_exit(void)
+{
+	debugfs_remove(mon_dir);
+}

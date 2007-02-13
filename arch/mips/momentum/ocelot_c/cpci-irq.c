@@ -84,7 +84,7 @@ void ll_cpci_irq(void)
 }
 
 struct irq_chip cpci_irq_type = {
-	.typename = "CPCI/FPGA",
+	.name = "CPCI/FPGA",
 	.ack = mask_cpci_irq,
 	.mask = mask_cpci_irq,
 	.mask_ack = mask_cpci_irq,

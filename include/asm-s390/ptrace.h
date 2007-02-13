@@ -266,17 +266,12 @@ typedef struct
 #define PSW_ASC_SECONDARY	0x0000800000000000UL
 #define PSW_ASC_HOME		0x0000C00000000000UL
 
-#define PSW_USER32_BITS (PSW_BASE32_BITS | PSW_MASK_DAT | PSW_ASC_HOME | \
-			 PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK | \
-			 PSW_MASK_PSTATE | PSW_DEFAULT_KEY)
+extern long psw_user32_bits;
 
 #endif /* __s390x__ */
 
-#define PSW_KERNEL_BITS	(PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_PRIMARY | \
-			 PSW_MASK_MCHECK | PSW_DEFAULT_KEY)
-#define PSW_USER_BITS	(PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME | \
-			 PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK | \
-			 PSW_MASK_PSTATE | PSW_DEFAULT_KEY)
+extern long psw_kernel_bits;
+extern long psw_user_bits;
 
 /* This macro merges a NEW PSW mask specified by the user into
    the currently active PSW mask CURRENT, modifying only those

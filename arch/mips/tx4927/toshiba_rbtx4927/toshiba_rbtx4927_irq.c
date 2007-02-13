@@ -228,7 +228,7 @@ static void toshiba_rbtx4927_irq_isa_mask_and_ack(unsigned int irq);
 
 #define TOSHIBA_RBTX4927_IOC_NAME "RBTX4927-IOC"
 static struct irq_chip toshiba_rbtx4927_irq_ioc_type = {
-	.typename = TOSHIBA_RBTX4927_IOC_NAME,
+	.name = TOSHIBA_RBTX4927_IOC_NAME,
 	.ack = toshiba_rbtx4927_irq_ioc_disable,
 	.mask = toshiba_rbtx4927_irq_ioc_disable,
 	.mask_ack = toshiba_rbtx4927_irq_ioc_disable,
@@ -241,7 +241,7 @@ static struct irq_chip toshiba_rbtx4927_irq_ioc_type = {
 #ifdef CONFIG_TOSHIBA_FPCIB0
 #define TOSHIBA_RBTX4927_ISA_NAME "RBTX4927-ISA"
 static struct irq_chip toshiba_rbtx4927_irq_isa_type = {
-	.typename = TOSHIBA_RBTX4927_ISA_NAME,
+	.name = TOSHIBA_RBTX4927_ISA_NAME,
 	.ack = toshiba_rbtx4927_irq_isa_mask_and_ack,
 	.mask = toshiba_rbtx4927_irq_isa_disable,
 	.mask_ack = toshiba_rbtx4927_irq_isa_mask_and_ack,
@@ -490,13 +490,13 @@ void toshiba_rbtx4927_irq_dump(char *key)
 	{
 		u32 i, j = 0;
 		for (i = 0; i < NR_IRQS; i++) {
-			if (strcmp(irq_desc[i].chip->typename, "none")
+			if (strcmp(irq_desc[i].chip->name, "none")
 			    == 0)
 				continue;
 
 			if ((i >= 1)
-			    && (irq_desc[i - 1].chip->typename ==
-				irq_desc[i].chip->typename)) {
+			    && (irq_desc[i - 1].chip->name ==
+				irq_desc[i].chip->name)) {
 				j++;
 			} else {
 				j = 0;
@@ -510,7 +510,7 @@ void toshiba_rbtx4927_irq_dump(char *key)
 			     (u32) (irq_desc[i].action ? irq_desc[i].
 				    action->handler : 0),
 			     irq_desc[i].depth,
-			     irq_desc[i].chip->typename, j);
+			     irq_desc[i].chip->name, j);
 		}
 	}
 #endif

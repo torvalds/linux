@@ -333,7 +333,7 @@ static inline void disable_bridge_irq(unsigned int irq)
 }
 
 static struct irq_chip bridge_irq_type = {
-	.typename	= "bridge",
+	.name		= "bridge",
 	.startup	= startup_bridge_irq,
 	.shutdown	= shutdown_bridge_irq,
 	.ack		= disable_bridge_irq,

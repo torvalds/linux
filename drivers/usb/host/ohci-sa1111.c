@@ -269,19 +269,3 @@ static struct sa1111_driver ohci_hcd_sa1111_driver = {
 	.remove		= ohci_hcd_sa1111_drv_remove,
 };
 
-static int __init ohci_hcd_sa1111_init (void)
-{
-	dbg (DRIVER_INFO " (SA-1111)");
-	dbg ("block sizes: ed %d td %d",
-		sizeof (struct ed), sizeof (struct td));
-
-	return sa1111_driver_register(&ohci_hcd_sa1111_driver);
-}
-
-static void __exit ohci_hcd_sa1111_cleanup (void)
-{
-	sa1111_driver_unregister(&ohci_hcd_sa1111_driver);
-}
-
-module_init (ohci_hcd_sa1111_init);
-module_exit (ohci_hcd_sa1111_cleanup);

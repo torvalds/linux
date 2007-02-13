@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -219,7 +219,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 	if (!op) {
 		status = acpi_ds_load2_begin_op(walk_state, out_op);
 		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+			goto error_exit;
 		}
 
 		op = *out_op;
@@ -238,7 +238,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 
 			status = acpi_ds_scope_stack_pop(walk_state);
 			if (ACPI_FAILURE(status)) {
-				return_ACPI_STATUS(status);
+				goto error_exit;
 			}
 		}
 	}
@@ -287,7 +287,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 
 		status = acpi_ds_result_stack_push(walk_state);
 		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+			goto error_exit;
 		}
 
 		status = acpi_ds_exec_begin_control_op(walk_state, op);
@@ -327,6 +327,10 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 
 	/* Nothing to do here during method execution */
 
+	return_ACPI_STATUS(status);
+
+      error_exit:
+	status = acpi_ds_method_error(status, walk_state);
 	return_ACPI_STATUS(status);
 }
 

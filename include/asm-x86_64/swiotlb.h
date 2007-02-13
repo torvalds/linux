@@ -1,6 +1,5 @@
 #ifndef _ASM_SWIOTLB_H
-#define _ASM_SWTIOLB_H 1
-
+#define _ASM_SWIOTLB_H 1
 
 #include <asm/dma-mapping.h>
 
@@ -45,6 +44,7 @@ extern void swiotlb_init(void);
 extern int swiotlb_force;
 
 #ifdef CONFIG_SWIOTLB
+#define SWIOTLB_ARCH_NEED_ALLOC
 extern int swiotlb;
 #else
 #define swiotlb 0
@@ -52,4 +52,6 @@ extern int swiotlb;
 
 extern void pci_swiotlb_init(void);
 
-#endif /* _ASM_SWTIOLB_H */
+static inline void dma_mark_clean(void *addr, size_t size) {}
+
+#endif /* _ASM_SWIOTLB_H */

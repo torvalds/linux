@@ -1412,10 +1412,8 @@ static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.set_tx_csum = ethtool_op_set_tx_hw_csum,
 	.get_sg = ethtool_op_get_sg,
 	.set_sg = ethtool_op_set_sg,
-#ifdef NETIF_F_TSO
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
-#endif
 	.get_strings = myri10ge_get_strings,
 	.get_stats_count = myri10ge_get_stats_count,
 	.get_ethtool_stats = myri10ge_get_ethtool_stats,
@@ -1975,13 +1973,11 @@ again:
 	mss = 0;
 	max_segments = MXGEFW_MAX_SEND_DESC;
 
-#ifdef NETIF_F_TSO
 	if (skb->len > (dev->mtu + ETH_HLEN)) {
 		mss = skb_shinfo(skb)->gso_size;
 		if (mss != 0)
 			max_segments = MYRI10GE_MAX_SEND_DESC_TSO;
 	}
-#endif				/*NETIF_F_TSO */
 
 	if ((unlikely(avail < max_segments))) {
 		/* we are out of transmit resources */
@@ -2013,7 +2009,6 @@ again:
 
 	cum_len = 0;
 
-#ifdef NETIF_F_TSO
 	if (mss) {		/* TSO */
 		/* this removes any CKSUM flag from before */
 		flags = (MXGEFW_FLAGS_TSO_HDR | MXGEFW_FLAGS_FIRST);
@@ -2029,7 +2024,6 @@ again:
 		 * the checksum by parsing the header. */
 		pseudo_hdr_offset = mss;
 	} else
-#endif				/*NETIF_F_TSO */
 		/* Mark small packets, and pad out tiny packets */
 	if (skb->len <= MXGEFW_SEND_SMALL_SIZE) {
 		flags |= MXGEFW_FLAGS_SMALL;
@@ -2097,7 +2091,6 @@ again:
 				seglen = len;
 			flags_next = flags & ~MXGEFW_FLAGS_FIRST;
 			cum_len_next = cum_len + seglen;
-#ifdef NETIF_F_TSO
 			if (mss) {	/* TSO */
 				(req - rdma_count)->rdma_count = rdma_count + 1;
 
@@ -2124,7 +2117,6 @@ again:
 					    (small * MXGEFW_FLAGS_SMALL);
 				}
 			}
-#endif				/* NETIF_F_TSO */
 			req->addr_high = high_swapped;
 			req->addr_low = htonl(low);
 			req->pseudo_hdr_offset = htons(pseudo_hdr_offset);
@@ -2161,14 +2153,12 @@ again:
 	}
 
 	(req - rdma_count)->rdma_count = rdma_count;
-#ifdef NETIF_F_TSO
 	if (mss)
 		do {
 			req--;
 			req->flags |= MXGEFW_FLAGS_TSO_LAST;
 		} while (!(req->flags & (MXGEFW_FLAGS_TSO_CHOP |
 					 MXGEFW_FLAGS_FIRST)));
-#endif
 	idx = ((count - 1) + tx->req) & tx->mask;
 	tx->info[idx].last = 1;
 	if (tx->wc_fifo == NULL)

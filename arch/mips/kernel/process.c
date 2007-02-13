@@ -41,10 +41,6 @@
 #include <asm/isadep.h>
 #include <asm/inst.h>
 #include <asm/stacktrace.h>
-#ifdef CONFIG_MIPS_MT_SMTC
-#include <asm/mipsmtregs.h>
-extern void smtc_idle_loop_hook(void);
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 /*
  * The idle thread. There's no useful work to be done, so just try to conserve
@@ -57,6 +53,8 @@ ATTRIB_NORET void cpu_idle(void)
 	while (1) {
 		while (!need_resched()) {
 #ifdef CONFIG_MIPS_MT_SMTC
+			extern void smtc_idle_loop_hook(void);
+
 			smtc_idle_loop_hook();
 #endif /* CONFIG_MIPS_MT_SMTC */
 			if (cpu_wait)

@@ -145,48 +145,61 @@ static void disable_port(struct cmac *mac)
 	t1_tpi_write(mac->adapter, REG_PORT_ENABLE, val);
 }
 
-#define RMON_UPDATE(mac, name, stat_name) \
-	t1_tpi_read((mac)->adapter, MACREG(mac, REG_##name), &val); \
-	(mac)->stats.stat_name += val;
-
 /*
  * Read the current values of the RMON counters and add them to the cumulative
  * port statistics.  The HW RMON counters are cleared by this operation.
  */
 static void port_stats_update(struct cmac *mac)
 {
-	u32 val;
+	static struct {
+		unsigned int reg;
+		unsigned int offset;
+	} hw_stats[] = {
 
-	/* Rx stats */
-	RMON_UPDATE(mac, RxOctetsTotalOK, RxOctetsOK);
-	RMON_UPDATE(mac, RxOctetsBad, RxOctetsBad);
-	RMON_UPDATE(mac, RxUCPkts, RxUnicastFramesOK);
-	RMON_UPDATE(mac, RxMCPkts, RxMulticastFramesOK);
-	RMON_UPDATE(mac, RxBCPkts, RxBroadcastFramesOK);
-	RMON_UPDATE(mac, RxJumboPkts, RxJumboFramesOK);
-	RMON_UPDATE(mac, RxFCSErrors, RxFCSErrors);
-	RMON_UPDATE(mac, RxAlignErrors, RxAlignErrors);
-	RMON_UPDATE(mac, RxLongErrors, RxFrameTooLongErrors);
-	RMON_UPDATE(mac, RxVeryLongErrors, RxFrameTooLongErrors);
-	RMON_UPDATE(mac, RxPauseMacControlCounter, RxPauseFrames);
-	RMON_UPDATE(mac, RxDataErrors, RxDataErrors);
-	RMON_UPDATE(mac, RxJabberErrors, RxJabberErrors);
-	RMON_UPDATE(mac, RxRuntErrors, RxRuntErrors);
-	RMON_UPDATE(mac, RxShortErrors, RxRuntErrors);
-	RMON_UPDATE(mac, RxSequenceErrors, RxSequenceErrors);
-	RMON_UPDATE(mac, RxSymbolErrors, RxSymbolErrors);
+#define HW_STAT(name, stat_name) \
+	{ REG_##name, \
+	  (&((struct cmac_statistics *)NULL)->stat_name) - (u64 *)NULL }
 
-	/* Tx stats (skip collision stats as we are full-duplex only) */
-	RMON_UPDATE(mac, TxOctetsTotalOK, TxOctetsOK);
-	RMON_UPDATE(mac, TxOctetsBad, TxOctetsBad);
-	RMON_UPDATE(mac, TxUCPkts, TxUnicastFramesOK);
-	RMON_UPDATE(mac, TxMCPkts, TxMulticastFramesOK);
-	RMON_UPDATE(mac, TxBCPkts, TxBroadcastFramesOK);
-	RMON_UPDATE(mac, TxJumboPkts, TxJumboFramesOK);
-	RMON_UPDATE(mac, TxPauseFrames, TxPauseFrames);
-	RMON_UPDATE(mac, TxExcessiveLengthDrop, TxLengthErrors);
-	RMON_UPDATE(mac, TxUnderrun, TxUnderrun);
-	RMON_UPDATE(mac, TxCRCErrors, TxFCSErrors);
+		/* Rx stats */
+		HW_STAT(RxOctetsTotalOK, RxOctetsOK),
+		HW_STAT(RxOctetsBad, RxOctetsBad),
+		HW_STAT(RxUCPkts, RxUnicastFramesOK),
+		HW_STAT(RxMCPkts, RxMulticastFramesOK),
+		HW_STAT(RxBCPkts, RxBroadcastFramesOK),
+		HW_STAT(RxJumboPkts, RxJumboFramesOK),
+		HW_STAT(RxFCSErrors, RxFCSErrors),
+		HW_STAT(RxAlignErrors, RxAlignErrors),
+		HW_STAT(RxLongErrors, RxFrameTooLongErrors),
+		HW_STAT(RxVeryLongErrors, RxFrameTooLongErrors),
+		HW_STAT(RxPauseMacControlCounter, RxPauseFrames),
+		HW_STAT(RxDataErrors, RxDataErrors),
+		HW_STAT(RxJabberErrors, RxJabberErrors),
+		HW_STAT(RxRuntErrors, RxRuntErrors),
+		HW_STAT(RxShortErrors, RxRuntErrors),
+		HW_STAT(RxSequenceErrors, RxSequenceErrors),
+		HW_STAT(RxSymbolErrors, RxSymbolErrors),
+
+		/* Tx stats (skip collision stats as we are full-duplex only) */
+		HW_STAT(TxOctetsTotalOK, TxOctetsOK),
+		HW_STAT(TxOctetsBad, TxOctetsBad),
+		HW_STAT(TxUCPkts, TxUnicastFramesOK),
+		HW_STAT(TxMCPkts, TxMulticastFramesOK),
+		HW_STAT(TxBCPkts, TxBroadcastFramesOK),
+		HW_STAT(TxJumboPkts, TxJumboFramesOK),
+		HW_STAT(TxPauseFrames, TxPauseFrames),
+		HW_STAT(TxExcessiveLengthDrop, TxLengthErrors),
+		HW_STAT(TxUnderrun, TxUnderrun),
+		HW_STAT(TxCRCErrors, TxFCSErrors)
+	}, *p = hw_stats;
+	u64 *stats = (u64 *) &mac->stats;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(hw_stats); i++) {
+		u32 val;
+
+		t1_tpi_read(mac->adapter, MACREG(mac, p->reg), &val);
+		stats[p->offset] += val;
+	}
 }
 
 /* No-op interrupt operation as this MAC does not support interrupts */
@@ -273,7 +286,8 @@ static int mac_set_rx_mode(struct cmac *mac, struct t1_rx_mode *rm)
 static int mac_set_mtu(struct cmac *mac, int mtu)
 {
 	/* MAX_FRAME_SIZE inludes header + FCS, mtu doesn't */
-	if (mtu > (MAX_FRAME_SIZE - 14 - 4)) return -EINVAL;
+	if (mtu > (MAX_FRAME_SIZE - 14 - 4))
+		return -EINVAL;
 	t1_tpi_write(mac->adapter, MACREG(mac, REG_MAX_FRAME_SIZE),
 		     mtu + 14 + 4);
 	return 0;
@@ -357,8 +371,8 @@ static void enable_port(struct cmac *mac)
 	val |= (1 << index);
 	t1_tpi_write(adapter, REG_PORT_ENABLE, val);
 
-       	index <<= 2;
-        if (is_T2(adapter)) {
+	index <<= 2;
+	if (is_T2(adapter)) {
 		/* T204: set the Fifo water level & threshold */
 		t1_tpi_write(adapter, RX_FIFO_HIGH_WATERMARK_BASE + index, 0x740);
 		t1_tpi_write(adapter, RX_FIFO_LOW_WATERMARK_BASE + index, 0x730);
@@ -388,6 +402,10 @@ static int mac_disable(struct cmac *mac, int which)
 		disable_port(mac);
 	return 0;
 }
+
+#define RMON_UPDATE(mac, name, stat_name) \
+	t1_tpi_read((mac)->adapter, MACREG(mac, REG_##name), &val); \
+	(mac)->stats.stat_name += val;
 
 /*
  * This function is called periodically to accumulate the current values of the
@@ -460,10 +478,12 @@ static struct cmac *ixf1010_mac_create(adapter_t *adapter, int index)
 	struct cmac *mac;
 	u32 val;
 
-	if (index > 9) return NULL;
+	if (index > 9)
+		return NULL;
 
 	mac = kzalloc(sizeof(*mac) + sizeof(cmac_instance), GFP_KERNEL);
-	if (!mac) return NULL;
+	if (!mac)
+		return NULL;
 
 	mac->ops = &ixf1010_ops;
 	mac->instance = (cmac_instance *)(mac + 1);

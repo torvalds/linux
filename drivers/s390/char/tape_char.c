@@ -3,7 +3,7 @@
  *    character device frontend for tape device driver
  *
  *  S390 and zSeries version
- *    Copyright (C) 2001,2002 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2001,2006
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *		 Michael Holzheu <holzheu@de.ibm.com>
  *		 Tuan Ngo-Anh <ngoanh@de.ibm.com>
@@ -89,22 +89,7 @@ tapechar_cleanup_device(struct tape_device *device)
 	device->nt = NULL;
 }
 
-/*
- * Terminate write command (we write two TMs and skip backward over last)
- * This ensures that the tape is always correctly terminated.
- * When the user writes afterwards a new file, he will overwrite the
- * second TM and therefore one TM will remain to separate the
- * two files on the tape...
- */
-static inline void
-tapechar_terminate_write(struct tape_device *device)
-{
-	if (tape_mtop(device, MTWEOF, 1) == 0 &&
-	    tape_mtop(device, MTWEOF, 1) == 0)
-		tape_mtop(device, MTBSR, 1);
-}
-
-static inline int
+static int
 tapechar_check_idalbuffer(struct tape_device *device, size_t block_size)
 {
 	struct idal_buffer *new;
@@ -137,7 +122,7 @@ tapechar_check_idalbuffer(struct tape_device *device, size_t block_size)
 /*
  * Tape device read function
  */
-ssize_t
+static ssize_t
 tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 {
 	struct tape_device *device;
@@ -201,7 +186,7 @@ tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 /*
  * Tape device write function
  */
-ssize_t
+static ssize_t
 tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t *ppos)
 {
 	struct tape_device *device;
@@ -291,7 +276,7 @@ tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t 
 /*
  * Character frontend tape device open function.
  */
-int
+static int
 tapechar_open (struct inode *inode, struct file *filp)
 {
 	struct tape_device *device;
@@ -326,7 +311,7 @@ tapechar_open (struct inode *inode, struct file *filp)
  * Character frontend tape device release function.
  */
 
-int
+static int
 tapechar_release(struct inode *inode, struct file *filp)
 {
 	struct tape_device *device;

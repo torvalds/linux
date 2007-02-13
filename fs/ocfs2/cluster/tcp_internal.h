@@ -38,6 +38,12 @@
  * locking semantics of the file system using the protocol.  It should 
  * be somewhere else, I'm sure, but right now it isn't.
  *
+ * New in version 7:
+ * 	- DLM join domain includes the live nodemap
+ *
+ * New in version 6:
+ * 	- DLM lockres remote refcount fixes.
+ *
  * New in version 5:
  * 	- Network timeout checking protocol
  *
@@ -51,7 +57,7 @@
  * 	- full 64 bit i_size in the metadata lock lvbs
  * 	- introduction of "rw" lock and pushing meta/data locking down
  */
-#define O2NET_PROTOCOL_VERSION 5ULL
+#define O2NET_PROTOCOL_VERSION 7ULL
 struct o2net_handshake {
 	__be64	protocol_version;
 	__be64	connector_id;
@@ -149,6 +155,8 @@ struct o2net_sock_container {
 	struct timeval 		sc_tv_func_stop;
 	u32			sc_msg_key;
 	u16			sc_msg_type;
+
+	struct mutex		sc_send_lock;
 };
 
 struct o2net_msg_handler {
@@ -158,6 +166,8 @@ struct o2net_msg_handler {
 	u32			nh_key;
 	o2net_msg_handler_func	*nh_func;
 	o2net_msg_handler_func	*nh_func_data;
+	o2net_post_msg_handler_func
+				*nh_post_func;
 	struct kref		nh_kref;
 	struct list_head	nh_unregister_item;
 };

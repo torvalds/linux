@@ -21,6 +21,7 @@
 #include <linux/module.h>
 
 #include <linux/netdevice.h>
+#include <linux/ethtool.h>
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
@@ -787,6 +788,17 @@ islpci_set_multicast_list(struct net_device *dev)
 }
 #endif
 
+static void islpci_ethtool_get_drvinfo(struct net_device *dev,
+                                       struct ethtool_drvinfo *info)
+{
+	strcpy(info->driver, DRV_NAME);
+	strcpy(info->version, DRV_VERSION);
+}
+
+static struct ethtool_ops islpci_ethtool_ops = {
+	.get_drvinfo = islpci_ethtool_get_drvinfo,
+};
+
 struct net_device *
 islpci_setup(struct pci_dev *pdev)
 {
@@ -813,6 +825,7 @@ islpci_setup(struct pci_dev *pdev)
 	ndev->do_ioctl = &prism54_ioctl;
 	ndev->wireless_handlers =
 	    (struct iw_handler_def *) &prism54_handler_def;
+	ndev->ethtool_ops = &islpci_ethtool_ops;
 
 	ndev->hard_start_xmit = &islpci_eth_transmit;
 	/* ndev->set_multicast_list = &islpci_set_multicast_list; */

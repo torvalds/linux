@@ -286,8 +286,8 @@ enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 		__dlm_print_one_lock_resource(res);
 		mlog(ML_ERROR, "converting a remote lock that is already "
 		     "converting! (cookie=%u:%llu, conv=%d)\n",
-		     dlm_get_lock_cookie_node(lock->ml.cookie),
-		     dlm_get_lock_cookie_seq(lock->ml.cookie),
+		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		     lock->ml.convert_type);
 		status = DLM_DENIED;
 		goto bail;
@@ -418,7 +418,8 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
  * returns: DLM_NORMAL, DLM_IVLOCKID, DLM_BADARGS,
  *          status from __dlmconvert_master
  */
-int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
+int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
+			     void **ret_data)
 {
 	struct dlm_ctxt *dlm = data;
 	struct dlm_convert_lock *cnv = (struct dlm_convert_lock *)msg->buf;
@@ -428,7 +429,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 	struct dlm_lockstatus *lksb;
 	enum dlm_status status = DLM_NORMAL;
 	u32 flags;
-	int call_ast = 0, kick_thread = 0, ast_reserved = 0;
+	int call_ast = 0, kick_thread = 0, ast_reserved = 0, wake = 0;
 
 	if (!dlm_grab(dlm)) {
 		dlm_error(DLM_REJECTED);
@@ -479,25 +480,14 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 		}
 		lock = NULL;
 	}
-	if (!lock) {
-		__dlm_print_one_lock_resource(res);
-		list_for_each(iter, &res->granted) {
-			lock = list_entry(iter, struct dlm_lock, list);
-			if (lock->ml.node == cnv->node_idx) {
-				mlog(ML_ERROR, "There is something here "
-				     "for node %u, lock->ml.cookie=%llu, "
-				     "cnv->cookie=%llu\n", cnv->node_idx,
-				     (unsigned long long)lock->ml.cookie,
-				     (unsigned long long)cnv->cookie);
-				break;
-			}
-		}
-		lock = NULL;
-	}
 	spin_unlock(&res->spinlock);
 	if (!lock) {
 		status = DLM_IVLOCKID;
-		dlm_error(status);
+		mlog(ML_ERROR, "did not find lock to convert on grant queue! "
+			       "cookie=%u:%llu\n",
+		     dlm_get_lock_cookie_node(be64_to_cpu(cnv->cookie)),
+		     dlm_get_lock_cookie_seq(be64_to_cpu(cnv->cookie)));
+		__dlm_print_one_lock_resource(res);
 		goto leave;
 	}
 
@@ -524,8 +514,11 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 					     cnv->requested_type,
 					     &call_ast, &kick_thread);
 		res->state &= ~DLM_LOCK_RES_IN_PROGRESS;
+		wake = 1;
 	}
 	spin_unlock(&res->spinlock);
+	if (wake)
+		wake_up(&res->wq);
 
 	if (status != DLM_NORMAL) {
 		if (status != DLM_NOTQUEUED)
@@ -534,12 +527,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 	}
 
 leave:
-	if (!lock)
-		mlog(ML_ERROR, "did not find lock to convert on grant queue! "
-			       "cookie=%u:%llu\n",
-			       dlm_get_lock_cookie_node(cnv->cookie),
-			       dlm_get_lock_cookie_seq(cnv->cookie));
-	else
+	if (lock)
 		dlm_lock_put(lock);
 
 	/* either queue the ast or release it, if reserved */

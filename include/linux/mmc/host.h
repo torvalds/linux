@@ -92,8 +92,10 @@ struct mmc_host {
 	unsigned int		max_seg_size;	/* see blk_queue_max_segment_size */
 	unsigned short		max_hw_segs;	/* see blk_queue_max_hw_segments */
 	unsigned short		max_phys_segs;	/* see blk_queue_max_phys_segments */
-	unsigned short		max_sectors;	/* see blk_queue_max_sectors */
 	unsigned short		unused;
+	unsigned int		max_req_size;	/* maximum number of bytes in one req */
+	unsigned int		max_blk_size;	/* maximum size of one mmc block */
+	unsigned int		max_blk_count;	/* maximum number of blocks in one req */
 
 	/* private data */
 	struct mmc_ios		ios;		/* current io bus settings */
@@ -106,8 +108,9 @@ struct mmc_host {
 	struct list_head	cards;		/* devices attached to this host */
 
 	wait_queue_head_t	wq;
-	spinlock_t		lock;		/* card_busy lock */
-	struct mmc_card		*card_busy;	/* the MMC card claiming host */
+	spinlock_t		lock;		/* claimed lock */
+	unsigned int		claimed:1;	/* host exclusively claimed */
+
 	struct mmc_card		*card_selected;	/* the selected MMC card */
 
 	struct delayed_work	detect;
@@ -126,6 +129,7 @@ static inline void *mmc_priv(struct mmc_host *host)
 }
 
 #define mmc_dev(x)	((x)->parent)
+#define mmc_classdev(x)	(&(x)->class_dev)
 #define mmc_hostname(x)	((x)->class_dev.bus_id)
 
 extern int mmc_suspend_host(struct mmc_host *, pm_message_t);

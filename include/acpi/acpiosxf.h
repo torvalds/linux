@@ -8,7 +8,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,7 @@ acpi_status acpi_os_terminate(void);
 /*
  * ACPI Table interfaces
  */
-acpi_status acpi_os_get_root_pointer(u32 flags, struct acpi_pointer *address);
+acpi_physical_address acpi_os_get_root_pointer(void);
 
 acpi_status
 acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
@@ -143,9 +143,7 @@ void acpi_os_release_mutex(acpi_mutex handle);
  */
 void *acpi_os_allocate(acpi_size size);
 
-acpi_status
-acpi_os_map_memory(acpi_physical_address physical_address,
-		   acpi_size size, void __iomem ** logical_address);
+void __iomem *acpi_os_map_memory(acpi_physical_address where, acpi_native_uint length);
 
 void acpi_os_unmap_memory(void __iomem * logical_address, acpi_size size);
 

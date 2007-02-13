@@ -8,8 +8,9 @@
  * implementation written by Steve Reid.
  *
  * s390 Version:
- *   Copyright (C) 2003 IBM Deutschland GmbH, IBM Corporation
- *   Author(s): Thomas Spatzier (tspat@de.ibm.com)
+ *   Copyright IBM Corp. 2003,2007
+ *   Author(s): Thomas Spatzier
+ *		Jan Glauber (jan.glauber@de.ibm.com)
  *
  * Derived from "crypto/sha1.c"
  *   Copyright (c) Alan Smithee.
@@ -43,16 +44,14 @@ struct crypt_s390_sha1_ctx {
 static void sha1_init(struct crypto_tfm *tfm)
 {
 	struct crypt_s390_sha1_ctx *ctx = crypto_tfm_ctx(tfm);
-	static const u32 initstate[5] = {
-		0x67452301,
-		0xEFCDAB89,
-		0x98BADCFE,
-		0x10325476,
-		0xC3D2E1F0
-	};
+
+	ctx->state[0] = 0x67452301;
+	ctx->state[1] =	0xEFCDAB89;
+	ctx->state[2] =	0x98BADCFE;
+	ctx->state[3] = 0x10325476;
+	ctx->state[4] =	0xC3D2E1F0;
 
 	ctx->count = 0;
-	memcpy(ctx->state, &initstate, sizeof(initstate));
 	ctx->buf_len = 0;
 }
 
@@ -63,13 +62,13 @@ static void sha1_update(struct crypto_tfm *tfm, const u8 *data,
 	long imd_len;
 
 	sctx = crypto_tfm_ctx(tfm);
-	sctx->count += len * 8; //message bit length
+	sctx->count += len * 8; /* message bit length */
 
-	//anything in buffer yet? -> must be completed
+	/* anything in buffer yet? -> must be completed */
 	if (sctx->buf_len && (sctx->buf_len + len) >= SHA1_BLOCK_SIZE) {
-		//complete full block and hash
+		/* complete full block and hash */
 		memcpy(sctx->buffer + sctx->buf_len, data,
-				SHA1_BLOCK_SIZE - sctx->buf_len);
+		       SHA1_BLOCK_SIZE - sctx->buf_len);
 		crypt_s390_kimd(KIMD_SHA_1, sctx->state, sctx->buffer,
 				SHA1_BLOCK_SIZE);
 		data += SHA1_BLOCK_SIZE - sctx->buf_len;
@@ -77,37 +76,36 @@ static void sha1_update(struct crypto_tfm *tfm, const u8 *data,
 		sctx->buf_len = 0;
 	}
 
-	//rest of data contains full blocks?
+	/* rest of data contains full blocks? */
 	imd_len = len & ~0x3ful;
-	if (imd_len){
+	if (imd_len) {
 		crypt_s390_kimd(KIMD_SHA_1, sctx->state, data, imd_len);
 		data += imd_len;
 		len -= imd_len;
 	}
-	//anything left? store in buffer
-	if (len){
+	/* anything left? store in buffer */
+	if (len) {
 		memcpy(sctx->buffer + sctx->buf_len , data, len);
 		sctx->buf_len += len;
 	}
 }
 
 
-static void
-pad_message(struct crypt_s390_sha1_ctx* sctx)
+static void pad_message(struct crypt_s390_sha1_ctx* sctx)
 {
 	int index;
 
 	index = sctx->buf_len;
-	sctx->buf_len = (sctx->buf_len < 56)?
-		SHA1_BLOCK_SIZE:2 * SHA1_BLOCK_SIZE;
-	//start pad with 1
+	sctx->buf_len = (sctx->buf_len < 56) ?
+			 SHA1_BLOCK_SIZE:2 * SHA1_BLOCK_SIZE;
+	/* start pad with 1 */
 	sctx->buffer[index] = 0x80;
-	//pad with zeros
+	/* pad with zeros */
 	index++;
 	memset(sctx->buffer + index, 0x00, sctx->buf_len - index);
-	//append length
+	/* append length */
 	memcpy(sctx->buffer + sctx->buf_len - 8, &sctx->count,
-			sizeof sctx->count);
+	       sizeof sctx->count);
 }
 
 /* Add padding and return the message digest. */
@@ -115,47 +113,40 @@ static void sha1_final(struct crypto_tfm *tfm, u8 *out)
 {
 	struct crypt_s390_sha1_ctx *sctx = crypto_tfm_ctx(tfm);
 
-	//must perform manual padding
+	/* must perform manual padding */
 	pad_message(sctx);
 	crypt_s390_kimd(KIMD_SHA_1, sctx->state, sctx->buffer, sctx->buf_len);
-	//copy digest to out
+	/* copy digest to out */
 	memcpy(out, sctx->state, SHA1_DIGEST_SIZE);
-	/* Wipe context */
+	/* wipe context */
 	memset(sctx, 0, sizeof *sctx);
 }
 
 static struct crypto_alg alg = {
 	.cra_name	=	"sha1",
-	.cra_driver_name =	"sha1-s390",
+	.cra_driver_name=	"sha1-s390",
 	.cra_priority	=	CRYPT_S390_PRIORITY,
 	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
 	.cra_blocksize	=	SHA1_BLOCK_SIZE,
 	.cra_ctxsize	=	sizeof(struct crypt_s390_sha1_ctx),
 	.cra_module	=	THIS_MODULE,
-	.cra_list       =       LIST_HEAD_INIT(alg.cra_list),
+	.cra_list	=	LIST_HEAD_INIT(alg.cra_list),
 	.cra_u		=	{ .digest = {
 	.dia_digestsize	=	SHA1_DIGEST_SIZE,
-	.dia_init   	= 	sha1_init,
-	.dia_update 	=	sha1_update,
-	.dia_final  	=	sha1_final } }
+	.dia_init	=	sha1_init,
+	.dia_update	=	sha1_update,
+	.dia_final	=	sha1_final } }
 };
 
-static int
-init(void)
+static int __init init(void)
 {
-	int ret = -ENOSYS;
+	if (!crypt_s390_func_available(KIMD_SHA_1))
+		return -EOPNOTSUPP;
 
-	if (crypt_s390_func_available(KIMD_SHA_1)){
-		ret = crypto_register_alg(&alg);
-		if (ret == 0){
-			printk(KERN_INFO "crypt_s390: sha1_s390 loaded.\n");
-		}
-	}
-	return ret;
+	return crypto_register_alg(&alg);
 }
 
-static void __exit
-fini(void)
+static void __exit fini(void)
 {
 	crypto_unregister_alg(&alg);
 }

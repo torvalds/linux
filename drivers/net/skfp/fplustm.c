@@ -22,7 +22,7 @@
 #include "h/fddi.h"
 #include "h/smc.h"
 #include "h/supern_2.h"
-#include "can.c"
+#include <linux/bitrev.h>
 
 #ifndef	lint
 static const char ID_sccs[] = "@(#)fplustm.c	1.32 99/02/23 (C) SK " ;
@@ -1073,7 +1073,7 @@ static struct s_fpmc* mac_get_mc_table(struct s_smc *smc,
 	if (can) {
 		p = own->a ;
 		for (i = 0 ; i < 6 ; i++, p++)
-			*p = canonical[*p] ;
+			*p = bitrev8(*p);
 	}
 	slot = NULL;
 	for (i = 0, tb = smc->hw.fp.mc.table ; i < FPMAX_MULTICAST ; i++, tb++){

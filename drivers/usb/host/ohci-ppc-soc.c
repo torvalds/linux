@@ -72,7 +72,7 @@ static int usb_hcd_ppc_soc_probe(const struct hc_driver *driver,
 	}
 
 	ohci = hcd_to_ohci(hcd);
-	ohci->flags |= OHCI_BIG_ENDIAN;
+	ohci->flags |= OHCI_QUIRK_BE_MMIO | OHCI_QUIRK_BE_DESC;
 	ohci_hcd_init(ohci);
 
 	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED);
@@ -208,19 +208,3 @@ static struct platform_driver ohci_hcd_ppc_soc_driver = {
 	},
 };
 
-static int __init ohci_hcd_ppc_soc_init(void)
-{
-	pr_debug(DRIVER_INFO " (PPC SOC)\n");
-	pr_debug("block sizes: ed %d td %d\n", sizeof(struct ed),
-							sizeof(struct td));
-
-	return platform_driver_register(&ohci_hcd_ppc_soc_driver);
-}
-
-static void __exit ohci_hcd_ppc_soc_cleanup(void)
-{
-	platform_driver_unregister(&ohci_hcd_ppc_soc_driver);
-}
-
-module_init(ohci_hcd_ppc_soc_init);
-module_exit(ohci_hcd_ppc_soc_cleanup);

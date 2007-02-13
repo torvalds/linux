@@ -1610,5 +1610,7 @@ sys_call_table:
 	data8 sys_sync_file_range		// 1300
 	data8 sys_tee
 	data8 sys_vmsplice
+	data8 sys_ni_syscall			// reserved for move_pages
+	data8 sys_getcpu
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls

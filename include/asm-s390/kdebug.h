@@ -26,7 +26,6 @@ extern int register_page_fault_notifier(struct notifier_block *);
 extern int unregister_page_fault_notifier(struct notifier_block *);
 extern struct atomic_notifier_head s390die_chain;
 
-
 enum die_val {
 	DIE_OOPS = 1,
 	DIE_BPT,
@@ -55,5 +54,7 @@ static inline int notify_die(enum die_val val, const char *str,
 	};
 	return atomic_notifier_call_chain(&s390die_chain, val, &args);
 }
+
+extern void die(const char *, struct pt_regs *, long);
 
 #endif

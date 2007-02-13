@@ -64,7 +64,7 @@ u8 shpchp_handle_attention_button(u8 hp_slot, struct controller *ctrl)
 
 	/* Attention Button Change */
 	dbg("shpchp:  Attention button interrupt received.\n");
-	
+
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
 
@@ -128,7 +128,7 @@ u8 shpchp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
 
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
-	/* 
+	/*
 	 * Save the presence state
 	 */
 	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
@@ -184,12 +184,12 @@ u8 shpchp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
 	return 1;
 }
 
-/* The following routines constitute the bulk of the 
+/* The following routines constitute the bulk of the
    hotplug controller logic
  */
 static int change_bus_speed(struct controller *ctrl, struct slot *p_slot,
 		enum pci_bus_speed speed)
-{ 
+{
 	int rc = 0;
 
 	dbg("%s: change to speed %d\n", __FUNCTION__, speed);
@@ -204,7 +204,7 @@ static int change_bus_speed(struct controller *ctrl, struct slot *p_slot,
 static int fix_bus_speed(struct controller *ctrl, struct slot *pslot,
 		u8 flag, enum pci_bus_speed asp, enum pci_bus_speed bsp,
 		enum pci_bus_speed msp)
-{ 
+{
 	int rc = 0;
 
 	/*
@@ -257,23 +257,23 @@ static int board_added(struct slot *p_slot)
 		err("%s: Failed to power on slot\n", __FUNCTION__);
 		return -1;
 	}
-	
+
 	if ((ctrl->pci_dev->vendor == 0x8086) && (ctrl->pci_dev->device == 0x0332)) {
 		if (slots_not_empty)
 			return WRONG_BUS_FREQUENCY;
-		
+
 		if ((rc = p_slot->hpc_ops->set_bus_speed_mode(p_slot, PCI_SPEED_33MHz))) {
 			err("%s: Issue of set bus speed mode command failed\n", __FUNCTION__);
 			return WRONG_BUS_FREQUENCY;
 		}
-		
+
 		/* turn on board, blink green LED, turn off Amber LED */
 		if ((rc = p_slot->hpc_ops->slot_enable(p_slot))) {
 			err("%s: Issue of Slot Enable command failed\n", __FUNCTION__);
 			return rc;
 		}
 	}
- 
+
 	rc = p_slot->hpc_ops->get_adapter_speed(p_slot, &asp);
 	if (rc) {
 		err("%s: Can't get adapter speed or bus mode mismatch\n",
@@ -378,7 +378,7 @@ static int remove_board(struct slot *p_slot)
 		err("%s: Issue of Slot Disable command failed\n", __FUNCTION__);
 		return rc;
 	}
-	
+
 	rc = p_slot->hpc_ops->set_attention_status(p_slot, 0);
 	if (rc) {
 		err("%s: Issue of Set Attention command failed\n", __FUNCTION__);

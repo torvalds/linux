@@ -34,6 +34,7 @@
 #include <linux/pci.h>
 #include "pciehp.h"
 #include <linux/interrupt.h>
+#include <linux/time.h>
 
 /* Global variables */
 int pciehp_debug;
@@ -87,6 +88,95 @@ static struct hotplug_slot_ops pciehp_hotplug_slot_ops = {
   	.get_cur_bus_speed =	get_cur_bus_speed,
 };
 
+/*
+ * Check the status of the Electro Mechanical Interlock (EMI)
+ */
+static int get_lock_status(struct hotplug_slot *hotplug_slot, u8 *value)
+{
+	struct slot *slot = hotplug_slot->private;
+	return (slot->hpc_ops->get_emi_status(slot, value));
+}
+
+/*
+ * sysfs interface for the Electro Mechanical Interlock (EMI)
+ * 1 == locked, 0 == unlocked
+ */
+static ssize_t lock_read_file(struct hotplug_slot *slot, char *buf)
+{
+	int retval;
+	u8 value;
+
+	retval = get_lock_status(slot, &value);
+	if (retval)
+		goto lock_read_exit;
+	retval = sprintf (buf, "%d\n", value);
+
+lock_read_exit:
+	return retval;
+}
+
+/*
+ * Change the status of the Electro Mechanical Interlock (EMI)
+ * This is a toggle - in addition there must be at least 1 second
+ * in between toggles.
+ */
+static int set_lock_status(struct hotplug_slot *hotplug_slot, u8 status)
+{
+	struct slot *slot = hotplug_slot->private;
+	int retval;
+	u8 value;
+
+	mutex_lock(&slot->ctrl->crit_sect);
+
+	/* has it been >1 sec since our last toggle? */
+	if ((get_seconds() - slot->last_emi_toggle) < 1)
+		return -EINVAL;
+
+	/* see what our current state is */
+	retval = get_lock_status(hotplug_slot, &value);
+	if (retval || (value == status))
+		goto set_lock_exit;
+
+	slot->hpc_ops->toggle_emi(slot);
+set_lock_exit:
+	mutex_unlock(&slot->ctrl->crit_sect);
+	return 0;
+}
+
+/*
+ * sysfs interface which allows the user to toggle the Electro Mechanical
+ * Interlock.  Valid values are either 0 or 1.  0 == unlock, 1 == lock
+ */
+static ssize_t lock_write_file(struct hotplug_slot *slot, const char *buf,
+		size_t count)
+{
+	unsigned long llock;
+	u8 lock;
+	int retval = 0;
+
+	llock = simple_strtoul(buf, NULL, 10);
+	lock = (u8)(llock & 0xff);
+
+	switch (lock) {
+		case 0:
+		case 1:
+			retval = set_lock_status(slot, lock);
+			break;
+		default:
+			err ("%d is an invalid lock value\n", lock);
+			retval = -EINVAL;
+	}
+	if (retval)
+		return retval;
+	return count;
+}
+
+static struct hotplug_slot_attribute hotplug_slot_attr_lock = {
+	.attr = {.name = "lock", .mode = S_IFREG | S_IRUGO | S_IWUSR},
+	.show = lock_read_file,
+	.store = lock_write_file
+};
+
 /**
  * release_slot - free up the memory used by a slot
  * @hotplug_slot: slot to free
@@ -98,147 +188,107 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 	dbg("%s - physical_slot = %s\n", __FUNCTION__, hotplug_slot->name);
 
 	kfree(slot->hotplug_slot->info);
-	kfree(slot->hotplug_slot->name);
 	kfree(slot->hotplug_slot);
 	kfree(slot);
+}
+
+static void make_slot_name(struct slot *slot)
+{
+	snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%04d_%04d",
+		 slot->bus, slot->number);
 }
 
 static int init_slots(struct controller *ctrl)
 {
 	struct slot *slot;
-	struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
-	struct hotplug_slot_info *hotplug_slot_info;
-	u8 number_of_slots;
-	u8 slot_device;
-	u32 slot_number;
-	int result = -ENOMEM;
+	struct hotplug_slot_info *info;
+	int retval = -ENOMEM;
+	int i;
 
-	number_of_slots = ctrl->num_slots;
-	slot_device = ctrl->slot_device_offset;
-	slot_number = ctrl->first_slot;
-
-	while (number_of_slots) {
+	for (i = 0; i < ctrl->num_slots; i++) {
 		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 		if (!slot)
 			goto error;
 
-		slot->hotplug_slot =
-				kzalloc(sizeof(*(slot->hotplug_slot)),
-						GFP_KERNEL);
-		if (!slot->hotplug_slot)
+		hotplug_slot = kzalloc(sizeof(*hotplug_slot), GFP_KERNEL);
+		if (!hotplug_slot)
 			goto error_slot;
-		hotplug_slot = slot->hotplug_slot;
+		slot->hotplug_slot = hotplug_slot;
 
-		hotplug_slot->info =
-			kzalloc(sizeof(*(hotplug_slot->info)),
-						GFP_KERNEL);
-		if (!hotplug_slot->info)
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		if (!info)
 			goto error_hpslot;
-		hotplug_slot_info = hotplug_slot->info;
-		hotplug_slot->name = kmalloc(SLOT_NAME_SIZE, GFP_KERNEL);
-		if (!hotplug_slot->name)
-			goto error_info;
+		hotplug_slot->info = info;
 
+		hotplug_slot->name = slot->name;
+
+		slot->hp_slot = i;
 		slot->ctrl = ctrl;
-		slot->bus = ctrl->slot_bus;
-		slot->device = slot_device;
-		slot->hpc_ops = hpc_ops = ctrl->hpc_ops;
-
+		slot->bus = ctrl->pci_dev->subordinate->number;
+		slot->device = ctrl->slot_device_offset + i;
+		slot->hpc_ops = ctrl->hpc_ops;
 		slot->number = ctrl->first_slot;
-		slot->hp_slot = slot_device - ctrl->slot_device_offset;
 
 		/* register this slot with the hotplug pci core */
 		hotplug_slot->private = slot;
 		hotplug_slot->release = &release_slot;
-		make_slot_name(hotplug_slot->name, SLOT_NAME_SIZE, slot);
+		make_slot_name(slot);
 		hotplug_slot->ops = &pciehp_hotplug_slot_ops;
 
-		hpc_ops->get_power_status(slot,
-			&(hotplug_slot_info->power_status));
-		hpc_ops->get_attention_status(slot,
-			&(hotplug_slot_info->attention_status));
-		hpc_ops->get_latch_status(slot,
-			&(hotplug_slot_info->latch_status));
-		hpc_ops->get_adapter_status(slot,
-			&(hotplug_slot_info->adapter_status));
+		get_power_status(hotplug_slot, &info->power_status);
+		get_attention_status(hotplug_slot, &info->attention_status);
+		get_latch_status(hotplug_slot, &info->latch_status);
+		get_adapter_status(hotplug_slot, &info->adapter_status);
 
 		dbg("Registering bus=%x dev=%x hp_slot=%x sun=%x "
-			"slot_device_offset=%x\n",
-			slot->bus, slot->device, slot->hp_slot, slot->number,
-			ctrl->slot_device_offset);
-		result = pci_hp_register(hotplug_slot);
-		if (result) {
-			err ("pci_hp_register failed with error %d\n", result);
-			goto error_name;
+		    "slot_device_offset=%x\n", slot->bus, slot->device,
+		    slot->hp_slot, slot->number, ctrl->slot_device_offset);
+		retval = pci_hp_register(hotplug_slot);
+		if (retval) {
+			err ("pci_hp_register failed with error %d\n", retval);
+			goto error_info;
+		}
+		/* create additional sysfs entries */
+		if (EMI(ctrl->ctrlcap)) {
+			retval = sysfs_create_file(&hotplug_slot->kobj,
+				&hotplug_slot_attr_lock.attr);
+			if (retval) {
+				pci_hp_deregister(hotplug_slot);
+				err("cannot create additional sysfs entries\n");
+				goto error_info;
+			}
 		}
 
-		slot->next = ctrl->slot;
-		ctrl->slot = slot;
-
-		number_of_slots--;
-		slot_device++;
-		slot_number += ctrl->slot_num_inc;
+		list_add(&slot->slot_list, &ctrl->slot_list);
 	}
 
 	return 0;
-
-error_name:
-	kfree(hotplug_slot->name);
 error_info:
-	kfree(hotplug_slot_info);
+	kfree(info);
 error_hpslot:
 	kfree(hotplug_slot);
 error_slot:
 	kfree(slot);
 error:
-	return result;
+	return retval;
 }
 
-
-static int cleanup_slots (struct controller * ctrl)
+static void cleanup_slots(struct controller *ctrl)
 {
-	struct slot *old_slot, *next_slot;
+	struct list_head *tmp;
+	struct list_head *next;
+	struct slot *slot;
 
-	old_slot = ctrl->slot;
-	ctrl->slot = NULL;
-
-	while (old_slot) {
-		next_slot = old_slot->next;
-		pci_hp_deregister (old_slot->hotplug_slot);
-		old_slot = next_slot;
+	list_for_each_safe(tmp, next, &ctrl->slot_list) {
+		slot = list_entry(tmp, struct slot, slot_list);
+		list_del(&slot->slot_list);
+		if (EMI(ctrl->ctrlcap))
+			sysfs_remove_file(&slot->hotplug_slot->kobj,
+				&hotplug_slot_attr_lock.attr);
+		pci_hp_deregister(slot->hotplug_slot);
 	}
-
-
-	return(0);
 }
-
-static int get_ctlr_slot_config(struct controller *ctrl)
-{
-	int num_ctlr_slots;		/* Not needed; PCI Express has 1 slot per port*/
-	int first_device_num;		/* Not needed */
-	int physical_slot_num;
-	u8 ctrlcap;			
-	int rc;
-
-	rc = pcie_get_ctlr_slot_config(ctrl, &num_ctlr_slots, &first_device_num, &physical_slot_num, &ctrlcap);
-	if (rc) {
-		err("%s: get_ctlr_slot_config fail for b:d (%x:%x)\n", __FUNCTION__, ctrl->bus, ctrl->device);
-		return (-1);
-	}
-
-	ctrl->num_slots = num_ctlr_slots;	/* PCI Express has 1 slot per port */
-	ctrl->slot_device_offset = first_device_num;
-	ctrl->first_slot = physical_slot_num;
-	ctrl->ctrlcap = ctrlcap; 	
-
-	dbg("%s: bus(0x%x) num_slot(0x%x) 1st_dev(0x%x) psn(0x%x) ctrlcap(%x) for b:d (%x:%x)\n",
-		__FUNCTION__, ctrl->slot_bus, num_ctlr_slots, first_device_num, physical_slot_num, ctrlcap, 
-		ctrl->bus, ctrl->device);
-
-	return (0);
-}
-
 
 /*
  * set_attention_status - Turns the Amber LED for a slot on, off or blink
@@ -378,8 +428,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	int rc;
 	struct controller *ctrl;
 	struct slot *t_slot;
-	int first_device_num = 0 ;	/* first PCI device number supported by this PCIE */  
-	int num_ctlr_slots;		/* number of slots supported by this HPC */
 	u8 value;
 	struct pci_dev *pdev;
 	
@@ -388,6 +436,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		err("%s : out of memory\n", __FUNCTION__);
 		goto err_out_none;
 	}
+	INIT_LIST_HEAD(&ctrl->slot_list);
 
 	pdev = dev->port;
 	ctrl->pci_dev = pdev;
@@ -400,13 +449,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 
 	pci_set_drvdata(pdev, ctrl);
 
-	ctrl->pci_bus = kmalloc(sizeof(*ctrl->pci_bus), GFP_KERNEL);
-	if (!ctrl->pci_bus) {
-		err("%s: out of memory\n", __FUNCTION__);
-		rc = -ENOMEM;
-		goto err_out_unmap_mmio_region;
-	}
-	memcpy (ctrl->pci_bus, pdev->bus, sizeof (*ctrl->pci_bus));
 	ctrl->bus = pdev->bus->number;  /* ctrl bus */
 	ctrl->slot_bus = pdev->subordinate->number;  /* bus controlled by this HPC */
 
@@ -415,26 +457,14 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	dbg("%s: ctrl bus=0x%x, device=%x, function=%x, irq=%x\n", __FUNCTION__,
 		ctrl->bus, ctrl->device, ctrl->function, pdev->irq);
 
-	/*
-	 *	Save configuration headers for this and subordinate PCI buses
-	 */
-
-	rc = get_ctlr_slot_config(ctrl);
-	if (rc) {
-		err(msg_initialization_err, rc);
-		goto err_out_free_ctrl_bus;
-	}
-	first_device_num = ctrl->slot_device_offset;
-	num_ctlr_slots = ctrl->num_slots; 
-
 	/* Setup the slot information structures */
 	rc = init_slots(ctrl);
 	if (rc) {
-		err(msg_initialization_err, 6);
-		goto err_out_free_ctrl_slot;
+		err("%s: slot initialization failed\n", PCIE_MODULE_NAME);
+		goto err_out_release_ctlr;
 	}
 
-	t_slot = pciehp_find_slot(ctrl, first_device_num);
+	t_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
 
 	/*	Finish setting up the hot plug ctrl device */
 	ctrl->next_event = 0;
@@ -447,32 +477,18 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		pciehp_ctrl_list = ctrl;
 	}
 
-	/* Wait for exclusive access to hardware */
-	mutex_lock(&ctrl->ctrl_lock);
-
 	t_slot->hpc_ops->get_adapter_status(t_slot, &value); /* Check if slot is occupied */
-	
 	if ((POWER_CTRL(ctrl->ctrlcap)) && !value) {
 		rc = t_slot->hpc_ops->power_off_slot(t_slot); /* Power off slot if not occupied*/
-		if (rc) {
-			/* Done with exclusive hardware access */
-			mutex_unlock(&ctrl->ctrl_lock);
+		if (rc)
 			goto err_out_free_ctrl_slot;
-		} else
-			/* Wait for the command to complete */
-			wait_for_ctrl_irq (ctrl);
 	}
-
-	/* Done with exclusive hardware access */
-	mutex_unlock(&ctrl->ctrl_lock);
 
 	return 0;
 
 err_out_free_ctrl_slot:
 	cleanup_slots(ctrl);
-err_out_free_ctrl_bus:
-	kfree(ctrl->pci_bus);
-err_out_unmap_mmio_region:
+err_out_release_ctlr:
 	ctrl->hpc_ops->release_ctlr(ctrl);
 err_out_free_ctrl:
 	kfree(ctrl);
@@ -505,8 +521,6 @@ static void __exit unload_pciehpd(void)
 
 	while (ctrl) {
 		cleanup_slots(ctrl);
-
-		kfree (ctrl->pci_bus);
 
 		ctrl->hpc_ops->release_ctlr(ctrl);
 

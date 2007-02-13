@@ -651,7 +651,7 @@ __qeth_ref_ip_on_card(struct qeth_card *card, struct qeth_ipaddr *todo,
 		return 0;
 }
 
-static inline int
+static int
 __qeth_address_exists_in_list(struct list_head *list, struct qeth_ipaddr *addr,
 		              int same_type)
 {
@@ -795,7 +795,7 @@ qeth_add_ip(struct qeth_card *card, struct qeth_ipaddr *addr)
 	return rc;
 }
 
-static inline void
+static void
 __qeth_delete_all_mc(struct qeth_card *card, unsigned long *flags)
 {
 	struct qeth_ipaddr *addr, *tmp;
@@ -882,7 +882,7 @@ static void qeth_layer2_add_multicast(struct qeth_card *);
 static void qeth_add_multicast_ipv6(struct qeth_card *);
 #endif
 
-static inline int
+static int
 qeth_set_thread_start_bit(struct qeth_card *card, unsigned long thread)
 {
 	unsigned long flags;
@@ -920,7 +920,7 @@ qeth_clear_thread_running_bit(struct qeth_card *card, unsigned long thread)
 	wake_up(&card->wait_q);
 }
 
-static inline int
+static int
 __qeth_do_run_thread(struct qeth_card *card, unsigned long thread)
 {
 	unsigned long flags;
@@ -1764,9 +1764,9 @@ out:
 	qeth_release_buffer(channel,iob);
 }
 
-static inline void
+static void
 qeth_prepare_control_data(struct qeth_card *card, int len,
-struct qeth_cmd_buffer *iob)
+			  struct qeth_cmd_buffer *iob)
 {
 	qeth_setup_ccw(&card->write,iob->data,len);
 	iob->callback = qeth_release_buffer;
@@ -2160,7 +2160,7 @@ qeth_check_qdio_errors(struct qdio_buffer *buf, unsigned int qdio_error,
 	return 0;
 }
 
-static inline struct sk_buff *
+static struct sk_buff *
 qeth_get_skb(unsigned int length, struct qeth_hdr *hdr)
 {
 	struct sk_buff* skb;
@@ -2179,7 +2179,7 @@ qeth_get_skb(unsigned int length, struct qeth_hdr *hdr)
 	return skb;
 }
 
-static inline struct sk_buff *
+static struct sk_buff *
 qeth_get_next_skb(struct qeth_card *card, struct qdio_buffer *buffer,
 		  struct qdio_buffer_element **__element, int *__offset,
 		  struct qeth_hdr **hdr)
@@ -2264,7 +2264,7 @@ no_mem:
 	return NULL;
 }
 
-static inline __be16
+static __be16
 qeth_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct qeth_card *card;
@@ -2297,7 +2297,7 @@ qeth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	return htons(ETH_P_802_2);
 }
 
-static inline void
+static void
 qeth_rebuild_skb_fake_ll_tr(struct qeth_card *card, struct sk_buff *skb,
 			 struct qeth_hdr *hdr)
 {
@@ -2351,7 +2351,7 @@ qeth_rebuild_skb_fake_ll_tr(struct qeth_card *card, struct sk_buff *skb,
 	fake_llc->ethertype = ETH_P_IP;
 }
 
-static inline void
+static void
 qeth_rebuild_skb_fake_ll_eth(struct qeth_card *card, struct sk_buff *skb,
 			 struct qeth_hdr *hdr)
 {
@@ -2420,7 +2420,7 @@ qeth_layer2_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 	*((__u32 *)skb->cb) = ++card->seqno.pkt_seqno;
 }
 
-static inline __u16
+static __u16
 qeth_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 		 struct qeth_hdr *hdr)
 {
@@ -2476,7 +2476,7 @@ qeth_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 	return vlan_id;
 }
 
-static inline void
+static void
 qeth_process_inbound_buffer(struct qeth_card *card,
 			    struct qeth_qdio_buffer *buf, int index)
 {
@@ -2528,7 +2528,7 @@ qeth_process_inbound_buffer(struct qeth_card *card,
 	}
 }
 
-static inline struct qeth_buffer_pool_entry *
+static struct qeth_buffer_pool_entry *
 qeth_get_buffer_pool_entry(struct qeth_card *card)
 {
 	struct qeth_buffer_pool_entry *entry;
@@ -2543,7 +2543,7 @@ qeth_get_buffer_pool_entry(struct qeth_card *card)
 	return NULL;
 }
 
-static inline void
+static void
 qeth_init_input_buffer(struct qeth_card *card, struct qeth_qdio_buffer *buf)
 {
 	struct qeth_buffer_pool_entry *pool_entry;
@@ -2570,7 +2570,7 @@ qeth_init_input_buffer(struct qeth_card *card, struct qeth_qdio_buffer *buf)
 	buf->state = QETH_QDIO_BUF_EMPTY;
 }
 
-static inline void
+static void
 qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 			 struct qeth_qdio_out_buffer *buf)
 {
@@ -2595,7 +2595,7 @@ qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	atomic_set(&buf->state, QETH_QDIO_BUF_EMPTY);
 }
 
-static inline void
+static void
 qeth_queue_input_buffer(struct qeth_card *card, int index)
 {
 	struct qeth_qdio_q *queue = card->qdio.in_q;
@@ -2699,7 +2699,7 @@ qeth_qdio_input_handler(struct ccw_device * ccwdev, unsigned int status,
 			card->perf_stats.inbound_start_time;
 }
 
-static inline int
+static int
 qeth_handle_send_error(struct qeth_card *card,
 		       struct qeth_qdio_out_buffer *buffer,
 		       unsigned int qdio_err, unsigned int siga_err)
@@ -2821,7 +2821,7 @@ qeth_flush_buffers(struct qeth_qdio_out_q *queue, int under_int,
  * Switched to packing state if the number of used buffers on a queue
  * reaches a certain limit.
  */
-static inline void
+static void
 qeth_switch_to_packing_if_needed(struct qeth_qdio_out_q *queue)
 {
 	if (!queue->do_pack) {
@@ -2842,7 +2842,7 @@ qeth_switch_to_packing_if_needed(struct qeth_qdio_out_q *queue)
  * In that case 1 is returned to inform the caller. If no buffer
  * has to be flushed, zero is returned.
  */
-static inline int
+static int
 qeth_switch_to_nonpacking_if_needed(struct qeth_qdio_out_q *queue)
 {
 	struct qeth_qdio_out_buffer *buffer;
@@ -2877,7 +2877,7 @@ qeth_switch_to_nonpacking_if_needed(struct qeth_qdio_out_q *queue)
  * Checks if there is a packing buffer and prepares it to be flushed.
  * In that case returns 1, otherwise zero.
  */
-static inline int
+static int
 qeth_flush_buffers_on_no_pci(struct qeth_qdio_out_q *queue)
 {
 	struct qeth_qdio_out_buffer *buffer;
@@ -2894,7 +2894,7 @@ qeth_flush_buffers_on_no_pci(struct qeth_qdio_out_q *queue)
 	return 0;
 }
 
-static inline void
+static void
 qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 {
 	int index;
@@ -3594,7 +3594,7 @@ qeth_fake_header(struct sk_buff *skb, struct net_device *dev,
 	}
 }
 
-static inline int
+static int
 qeth_send_packet(struct qeth_card *, struct sk_buff *);
 
 static int
@@ -3759,7 +3759,7 @@ qeth_stop(struct net_device *dev)
 	return 0;
 }
 
-static inline int
+static int
 qeth_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 {
 	int cast_type = RTN_UNSPEC;
@@ -3806,7 +3806,7 @@ qeth_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	return cast_type;
 }
 
-static inline int
+static int
 qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
 		        int ipv, int cast_type)
 {
@@ -3853,7 +3853,7 @@ qeth_get_ip_version(struct sk_buff *skb)
 	}
 }
 
-static inline struct qeth_hdr *
+static struct qeth_hdr *
 __qeth_prepare_skb(struct qeth_card *card, struct sk_buff *skb, int ipv)
 {
 #ifdef CONFIG_QETH_VLAN
@@ -3882,14 +3882,14 @@ __qeth_prepare_skb(struct qeth_card *card, struct sk_buff *skb, int ipv)
 		qeth_push_skb(card, skb, sizeof(struct qeth_hdr)));
 }
 
-static inline void
+static void
 __qeth_free_new_skb(struct sk_buff *orig_skb, struct sk_buff *new_skb)
 {
 	if (orig_skb != new_skb)
 		dev_kfree_skb_any(new_skb);
 }
 
-static inline struct sk_buff *
+static struct sk_buff *
 qeth_prepare_skb(struct qeth_card *card, struct sk_buff *skb,
 		 struct qeth_hdr **hdr, int ipv)
 {
@@ -3940,7 +3940,7 @@ qeth_get_qeth_hdr_flags6(int cast_type)
 	return ct | QETH_CAST_UNICAST;
 }
 
-static inline void
+static void
 qeth_layer2_get_packet_type(struct qeth_card *card, struct qeth_hdr *hdr,
 			    struct sk_buff *skb)
 {
@@ -3977,7 +3977,7 @@ qeth_layer2_get_packet_type(struct qeth_card *card, struct qeth_hdr *hdr,
 	}
 }
 
-static inline void
+static void
 qeth_layer2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 			struct sk_buff *skb, int cast_type)
 {
@@ -4068,7 +4068,7 @@ qeth_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	}
 }
 
-static inline void
+static void
 __qeth_fill_buffer(struct sk_buff *skb, struct qdio_buffer *buffer,
 		   int is_tso, int *next_element_to_fill)
 {
@@ -4112,7 +4112,7 @@ __qeth_fill_buffer(struct sk_buff *skb, struct qdio_buffer *buffer,
 	*next_element_to_fill = element;
 }
 
-static inline int
+static int
 qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 		 struct qeth_qdio_out_buffer *buf,
 		 struct sk_buff *skb)
@@ -4171,7 +4171,7 @@ qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 	return flush_cnt;
 }
 
-static inline int
+static int
 qeth_do_send_packet_fast(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			 struct sk_buff *skb, struct qeth_hdr *hdr,
 			 int elements_needed,
@@ -4222,7 +4222,7 @@ out:
 	return -EBUSY;
 }
 
-static inline int
+static int
 qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 		    struct sk_buff *skb, struct qeth_hdr *hdr,
 		    int elements_needed, struct qeth_eddp_context *ctx)
@@ -4328,7 +4328,7 @@ out:
 	return rc;
 }
 
-static inline int
+static int
 qeth_get_elements_no(struct qeth_card *card, void *hdr,
 		     struct sk_buff *skb, int elems)
 {
@@ -4349,7 +4349,7 @@ qeth_get_elements_no(struct qeth_card *card, void *hdr,
 }
 
 
-static inline int
+static int
 qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 {
 	int ipv = 0;
@@ -4536,7 +4536,7 @@ qeth_mdio_read(struct net_device *dev, int phy_id, int regnum)
 }
 
 
-static inline const char *
+static const char *
 qeth_arp_get_error_cause(int *rc)
 {
 	switch (*rc) {
@@ -4597,7 +4597,7 @@ qeth_arp_set_no_entries(struct qeth_card *card, int no_entries)
 	return rc;
 }
 
-static inline void
+static void
 qeth_copy_arp_entries_stripped(struct qeth_arp_query_info *qinfo,
 		               struct qeth_arp_query_data *qdata,
 			       int entry_size, int uentry_size)
@@ -5214,7 +5214,7 @@ qeth_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 	spin_unlock_irqrestore(&card->vlanlock, flags);
 }
 
-static inline void
+static void
 qeth_free_vlan_buffer(struct qeth_card *card, struct qeth_qdio_out_buffer *buf,
 		      unsigned short vid)
 {
@@ -5625,7 +5625,7 @@ qeth_delete_mc_addresses(struct qeth_card *card)
 	spin_unlock_irqrestore(&card->ip_lock, flags);
 }
 
-static inline void
+static void
 qeth_add_mc(struct qeth_card *card, struct in_device *in4_dev)
 {
 	struct qeth_ipaddr *ipm;
@@ -5711,7 +5711,7 @@ qeth_layer2_add_multicast(struct qeth_card *card)
 }
 
 #ifdef CONFIG_QETH_IPV6
-static inline void
+static void
 qeth_add_mc6(struct qeth_card *card, struct inet6_dev *in6_dev)
 {
 	struct qeth_ipaddr *ipm;
@@ -6022,7 +6022,7 @@ qeth_send_setdelmc(struct qeth_card *card, struct qeth_ipaddr *addr, int ipacmd)
 
 	return rc;
 }
-static inline void
+static void
 qeth_fill_netmask(u8 *netmask, unsigned int len)
 {
 	int i,j;
@@ -6626,7 +6626,7 @@ qeth_send_setadp_mode(struct qeth_card *card, __u32 command, __u32 mode)
 	return rc;
 }
 
-static inline int
+static int
 qeth_setadapter_hstr(struct qeth_card *card)
 {
 	int rc;
@@ -6889,7 +6889,7 @@ qeth_send_simple_setassparms(struct qeth_card *card,
 	return rc;
 }
 
-static inline int
+static int
 qeth_start_ipa_arp_processing(struct qeth_card *card)
 {
 	int rc;
@@ -7529,7 +7529,7 @@ qeth_set_allowed_threads(struct qeth_card *card, unsigned long threads,
 	wake_up(&card->wait_q);
 }
 
-static inline int
+static int
 qeth_threads_running(struct qeth_card *card, unsigned long threads)
 {
 	unsigned long flags;
@@ -8118,7 +8118,7 @@ qeth_del_ipato_entry(struct qeth_card *card, enum qeth_prot_versions proto,
 	spin_unlock_irqrestore(&card->ip_lock, flags);
 }
 
-static inline void
+static void
 qeth_convert_addr_to_bits(u8 *addr, u8 *bits, int len)
 {
 	int i, j;

@@ -82,10 +82,8 @@ static struct ixgb_stats ixgb_gstrings_stats[] = {
 	{"tx_restart_queue", IXGB_STAT(restart_queue) },
 	{"rx_long_length_errors", IXGB_STAT(stats.roc)},
 	{"rx_short_length_errors", IXGB_STAT(stats.ruc)},
-#ifdef NETIF_F_TSO
 	{"tx_tcp_seg_good", IXGB_STAT(stats.tsctc)},
 	{"tx_tcp_seg_failed", IXGB_STAT(stats.tsctfc)},
-#endif
 	{"rx_flow_control_xon", IXGB_STAT(stats.xonrxc)},
 	{"rx_flow_control_xoff", IXGB_STAT(stats.xoffrxc)},
 	{"tx_flow_control_xon", IXGB_STAT(stats.xontxc)},
@@ -240,7 +238,6 @@ ixgb_set_tx_csum(struct net_device *netdev, uint32_t data)
 	return 0;
 }
 
-#ifdef NETIF_F_TSO
 static int
 ixgb_set_tso(struct net_device *netdev, uint32_t data)
 {
@@ -250,7 +247,6 @@ ixgb_set_tso(struct net_device *netdev, uint32_t data)
 		netdev->features &= ~NETIF_F_TSO;
 	return 0;
 } 
-#endif /* NETIF_F_TSO */
 
 static uint32_t
 ixgb_get_msglevel(struct net_device *netdev)
@@ -722,10 +718,8 @@ static const struct ethtool_ops ixgb_ethtool_ops = {
 	.set_sg	= ethtool_op_set_sg,
 	.get_msglevel = ixgb_get_msglevel,
 	.set_msglevel = ixgb_set_msglevel,
-#ifdef NETIF_F_TSO
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ixgb_set_tso,
-#endif
 	.get_strings = ixgb_get_strings,
 	.phys_id = ixgb_phys_id,
 	.get_stats_count = ixgb_get_stats_count,

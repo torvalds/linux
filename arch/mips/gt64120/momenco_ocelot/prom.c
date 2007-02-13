@@ -67,7 +67,6 @@ void __init prom_init(void)
 	add_memory_region(0, 64 << 20, BOOT_MEM_RAM);
 }
 
-unsigned long __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
-	return 0;
 }

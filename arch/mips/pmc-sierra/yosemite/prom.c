@@ -132,9 +132,8 @@ void __init prom_init(void)
 	prom_grab_secondary();
 }
 
-unsigned long __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
-	return 0;
 }
 
 void __init prom_fixup_mem_map(unsigned long start, unsigned long end)

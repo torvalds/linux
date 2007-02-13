@@ -61,6 +61,7 @@ typedef struct drm_i810_buf_priv {
 	int currently_mapped;
 	void *virtual;
 	void *kernel_virtual;
+	drm_local_map_t map;
 } drm_i810_buf_priv_t;
 
 typedef struct _drm_i810_ring_buffer {
@@ -72,6 +73,7 @@ typedef struct _drm_i810_ring_buffer {
 	int head;
 	int tail;
 	int space;
+	drm_local_map_t map;
 } drm_i810_ring_buffer_t;
 
 typedef struct drm_i810_private {

@@ -958,16 +958,17 @@ struct ipoib_dev_priv *ipoib_intf_alloc(const char *name)
 	return netdev_priv(dev);
 }
 
-static ssize_t show_pkey(struct class_device *cdev, char *buf)
+static ssize_t show_pkey(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
-	struct ipoib_dev_priv *priv =
-		netdev_priv(container_of(cdev, struct net_device, class_dev));
+	struct ipoib_dev_priv *priv = netdev_priv(to_net_dev(dev));
 
 	return sprintf(buf, "0x%04x\n", priv->pkey);
 }
-static CLASS_DEVICE_ATTR(pkey, S_IRUGO, show_pkey, NULL);
+static DEVICE_ATTR(pkey, S_IRUGO, show_pkey, NULL);
 
-static ssize_t create_child(struct class_device *cdev,
+static ssize_t create_child(struct device *dev,
+			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	int pkey;
@@ -985,14 +986,14 @@ static ssize_t create_child(struct class_device *cdev,
 	 */
 	pkey |= 0x8000;
 
-	ret = ipoib_vlan_add(container_of(cdev, struct net_device, class_dev),
-			     pkey);
+	ret = ipoib_vlan_add(to_net_dev(dev), pkey);
 
 	return ret ? ret : count;
 }
-static CLASS_DEVICE_ATTR(create_child, S_IWUGO, NULL, create_child);
+static DEVICE_ATTR(create_child, S_IWUGO, NULL, create_child);
 
-static ssize_t delete_child(struct class_device *cdev,
+static ssize_t delete_child(struct device *dev,
+			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	int pkey;
@@ -1004,18 +1005,16 @@ static ssize_t delete_child(struct class_device *cdev,
 	if (pkey < 0 || pkey > 0xffff)
 		return -EINVAL;
 
-	ret = ipoib_vlan_delete(container_of(cdev, struct net_device, class_dev),
-				pkey);
+	ret = ipoib_vlan_delete(to_net_dev(dev), pkey);
 
 	return ret ? ret : count;
 
 }
-static CLASS_DEVICE_ATTR(delete_child, S_IWUGO, NULL, delete_child);
+static DEVICE_ATTR(delete_child, S_IWUGO, NULL, delete_child);
 
 int ipoib_add_pkey_attr(struct net_device *dev)
 {
-	return class_device_create_file(&dev->class_dev,
-					&class_device_attr_pkey);
+	return device_create_file(&dev->dev, &dev_attr_pkey);
 }
 
 static struct net_device *ipoib_add_port(const char *format,
@@ -1083,11 +1082,9 @@ static struct net_device *ipoib_add_port(const char *format,
 
 	if (ipoib_add_pkey_attr(priv->dev))
 		goto sysfs_failed;
-	if (class_device_create_file(&priv->dev->class_dev,
-				     &class_device_attr_create_child))
+	if (device_create_file(&priv->dev->dev, &dev_attr_create_child))
 		goto sysfs_failed;
-	if (class_device_create_file(&priv->dev->class_dev,
-				     &class_device_attr_delete_child))
+	if (device_create_file(&priv->dev->dev, &dev_attr_delete_child))
 		goto sysfs_failed;
 
 	return priv->dev;

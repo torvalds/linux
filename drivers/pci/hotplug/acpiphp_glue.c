@@ -773,13 +773,13 @@ static int get_gsi_base(acpi_handle handle, u32 *gsi_base)
 		goto out;
 
 	table = obj->buffer.pointer;
-	switch (((acpi_table_entry_header *)table)->type) {
-	case ACPI_MADT_IOSAPIC:
-		*gsi_base = ((struct acpi_table_iosapic *)table)->global_irq_base;
+	switch (((struct acpi_subtable_header *)table)->type) {
+	case ACPI_MADT_TYPE_IO_SAPIC:
+		*gsi_base = ((struct acpi_madt_io_sapic *)table)->global_irq_base;
 		result = 0;
 		break;
-	case ACPI_MADT_IOAPIC:
-		*gsi_base = ((struct acpi_table_ioapic *)table)->global_irq_base;
+	case ACPI_MADT_TYPE_IO_APIC:
+		*gsi_base = ((struct acpi_madt_io_apic *)table)->global_irq_base;
 		result = 0;
 		break;
 	default:

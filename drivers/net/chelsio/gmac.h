@@ -42,8 +42,15 @@
 
 #include "common.h"
 
-enum { MAC_STATS_UPDATE_FAST, MAC_STATS_UPDATE_FULL };
-enum { MAC_DIRECTION_RX = 1, MAC_DIRECTION_TX = 2 };
+enum {
+	MAC_STATS_UPDATE_FAST,
+	MAC_STATS_UPDATE_FULL
+};
+
+enum {
+	MAC_DIRECTION_RX = 1,
+	MAC_DIRECTION_TX = 2
+};
 
 struct cmac_statistics {
 	/* Transmit */

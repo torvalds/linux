@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -170,7 +170,6 @@ acpi_evaluate_object(acpi_handle handle,
 		     struct acpi_buffer *return_buffer)
 {
 	acpi_status status;
-	acpi_status status2;
 	struct acpi_evaluate_info *info;
 	acpi_size buffer_space_needed;
 	u32 i;
@@ -329,14 +328,12 @@ acpi_evaluate_object(acpi_handle handle,
 		 * Delete the internal return object. NOTE: Interpreter must be
 		 * locked to avoid race condition.
 		 */
-		status2 = acpi_ex_enter_interpreter();
-		if (ACPI_SUCCESS(status2)) {
+		acpi_ex_enter_interpreter();
 
-			/* Remove one reference on the return object (should delete it) */
+		/* Remove one reference on the return object (should delete it) */
 
-			acpi_ut_remove_reference(info->return_object);
-			acpi_ex_exit_interpreter();
-		}
+		acpi_ut_remove_reference(info->return_object);
+		acpi_ex_exit_interpreter();
 	}
 
       cleanup:

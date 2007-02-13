@@ -751,7 +751,7 @@ int dev_change_name(struct net_device *dev, char *newname)
 	else
 		strlcpy(dev->name, newname, IFNAMSIZ);
 
-	err = class_device_rename(&dev->class_dev, dev->name);
+	err = device_rename(&dev->dev, dev->name);
 	if (!err) {
 		hlist_del(&dev->name_hlist);
 		hlist_add_head(&dev->name_hlist, dev_name_hash(dev->name));
@@ -3221,8 +3221,8 @@ void free_netdev(struct net_device *dev)
 	BUG_ON(dev->reg_state != NETREG_UNREGISTERED);
 	dev->reg_state = NETREG_RELEASED;
 
-	/* will free via class release */
-	class_device_put(&dev->class_dev);
+	/* will free via device release */
+	put_device(&dev->dev);
 #else
 	kfree((char *)dev - dev->padded);
 #endif
