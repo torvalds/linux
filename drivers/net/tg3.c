@@ -1340,7 +1340,8 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 
 		tw32_wait_f(TG3PCI_CLOCK_CTRL, base_val | CLOCK_CTRL_ALTCLK |
 			    CLOCK_CTRL_PWRDOWN_PLL133, 40);
-	} else if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS) {
+	} else if ((tp->tg3_flags2 & TG3_FLG2_5780_CLASS) ||
+		   (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)) {
 		/* do nothing */
 	} else if (!((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
 		     (tp->tg3_flags & TG3_FLAG_ENABLE_ASF))) {
