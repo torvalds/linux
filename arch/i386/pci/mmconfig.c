@@ -27,22 +27,17 @@ static int mmcfg_last_accessed_cpu;
  */
 static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 {
-	int cfg_num = -1;
 	struct acpi_mcfg_allocation *cfg;
+	int cfg_num;
 
 	if (seg == 0 && bus < PCI_MMCFG_MAX_CHECK_BUS &&
 	    test_bit(PCI_SLOT(devfn) + 32*bus, pci_mmcfg_fallback_slots))
 		return 0;
 
-	while (1) {
-		++cfg_num;
-		if (cfg_num >= pci_mmcfg_config_num) {
-			break;
-		}
+	for (cfg_num = 0; cfg_num < pci_mmcfg_config_num; cfg_num++) {
 		cfg = &pci_mmcfg_config[cfg_num];
-		if (cfg->pci_segment != seg)
-			continue;
-		if ((cfg->start_bus_number <= bus) &&
+		if (cfg->pci_segment == seg &&
+		    (cfg->start_bus_number <= bus) &&
 		    (cfg->end_bus_number >= bus))
 			return cfg->address;
 	}

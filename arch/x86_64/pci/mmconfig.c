@@ -13,10 +13,6 @@
 
 #include "pci.h"
 
-/* Verify the first 16 busses. We assume that systems with more busses
-   get MCFG right. */
-#define PCI_MMCFG_MAX_CHECK_BUS 16
-
 /* Static virtual mapping of the MMCONFIG aperture */
 struct mmcfg_virt {
 	struct acpi_mcfg_allocation *cfg;
@@ -26,17 +22,13 @@ static struct mmcfg_virt *pci_mmcfg_virt;
 
 static char __iomem *get_virt(unsigned int seg, unsigned bus)
 {
-	int cfg_num = -1;
 	struct acpi_mcfg_allocation *cfg;
+	int cfg_num;
 
-	while (1) {
-		++cfg_num;
-		if (cfg_num >= pci_mmcfg_config_num)
-			break;
+	for (cfg_num = 0; cfg_num < pci_mmcfg_config_num; cfg_num++) {
 		cfg = pci_mmcfg_virt[cfg_num].cfg;
-		if (cfg->pci_segment != seg)
-			continue;
-		if ((cfg->start_bus_number <= bus) &&
+		if (cfg->pci_segment == seg &&
+		    (cfg->start_bus_number <= bus) &&
 		    (cfg->end_bus_number >= bus))
 			return pci_mmcfg_virt[cfg_num].virt;
 	}
