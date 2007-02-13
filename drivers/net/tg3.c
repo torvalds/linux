@@ -6594,8 +6594,9 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		u32 tmp;
 
 		/* Clear CRC stats. */
-		if (!tg3_readphy(tp, 0x1e, &tmp)) {
-			tg3_writephy(tp, 0x1e, tmp | 0x8000);
+		if (!tg3_readphy(tp, MII_TG3_TEST1, &tmp)) {
+			tg3_writephy(tp, MII_TG3_TEST1,
+				     tmp | MII_TG3_TEST1_CRC_EN);
 			tg3_readphy(tp, 0x14, &tmp);
 		}
 	}
@@ -7419,8 +7420,9 @@ static unsigned long calc_crc_errors(struct tg3 *tp)
 		u32 val;
 
 		spin_lock_bh(&tp->lock);
-		if (!tg3_readphy(tp, 0x1e, &val)) {
-			tg3_writephy(tp, 0x1e, val | 0x8000);
+		if (!tg3_readphy(tp, MII_TG3_TEST1, &val)) {
+			tg3_writephy(tp, MII_TG3_TEST1,
+				     val | MII_TG3_TEST1_CRC_EN);
 			tg3_readphy(tp, 0x14, &val);
 		} else
 			val = 0;
