@@ -90,7 +90,7 @@ static inline struct timespec timespec_sub(struct timespec lhs,
 
 extern struct timespec xtime;
 extern struct timespec wall_to_monotonic;
-extern seqlock_t xtime_lock;
+extern seqlock_t xtime_lock __attribute__((weak));
 
 void timekeeping_init(void);
 

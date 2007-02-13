@@ -1162,11 +1162,9 @@ static inline void calc_load(unsigned long ticks)
  * This read-write spinlock protects us from races in SMP while
  * playing with xtime and avenrun.
  */
-#ifndef ARCH_HAVE_XTIME_LOCK
-__cacheline_aligned_in_smp DEFINE_SEQLOCK(xtime_lock);
+__attribute__((weak)) __cacheline_aligned_in_smp DEFINE_SEQLOCK(xtime_lock);
 
 EXPORT_SYMBOL(xtime_lock);
-#endif
 
 /*
  * This function runs timers and the timer-tq in bottom half context.
