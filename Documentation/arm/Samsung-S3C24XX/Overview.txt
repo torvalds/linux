@@ -8,12 +8,9 @@ Introduction
 
   The Samsung S3C24XX range of ARM9 System-on-Chip CPUs are supported
   by the 's3c2410' architecture of ARM Linux. Currently the S3C2410,
-  S3C2440 and S3C2442 devices are supported.
+  S3C2412, S3C2413, S3C2440 and S3C2442 devices are supported.
 
   Support for the S3C2400 series is in progress.
-
-  Support for the S3C2412 and S3C2413 CPUs is being merged.
-
 
 Configuration
 -------------
