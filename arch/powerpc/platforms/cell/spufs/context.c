@@ -197,10 +197,8 @@ void spu_acquire_saved(struct spu_context *ctx)
 	up_read(&ctx->state_sema);
 	down_write(&ctx->state_sema);
 
-	if (ctx->state == SPU_STATE_RUNNABLE) {
+	if (ctx->state == SPU_STATE_RUNNABLE)
 		spu_deactivate(ctx);
-		ctx->state = SPU_STATE_SAVED;
-	}
 
 	downgrade_write(&ctx->state_sema);
 }

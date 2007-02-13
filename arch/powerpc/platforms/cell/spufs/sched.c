@@ -315,7 +315,6 @@ void spu_yield(struct spu_context *ctx)
 				pr_debug("%s: yielding SPU %d NODE %d\n",
 					 __FUNCTION__, spu->number, spu->node);
 				spu_deactivate(ctx);
-				ctx->state = SPU_STATE_SAVED;
 				need_yield = 1;
 			} else {
 				spu->prio = MAX_PRIO;
