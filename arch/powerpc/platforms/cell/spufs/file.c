@@ -45,8 +45,8 @@ spufs_mem_open(struct inode *inode, struct file *file)
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
 	file->private_data = ctx;
-	file->f_mapping = inode->i_mapping;
 	ctx->local_store = inode->i_mapping;
+	smp_wmb();
 	return 0;
 }
 
@@ -232,8 +232,8 @@ static int spufs_cntl_open(struct inode *inode, struct file *file)
 	struct spu_context *ctx = i->i_ctx;
 
 	file->private_data = ctx;
-	file->f_mapping = inode->i_mapping;
 	ctx->cntl = inode->i_mapping;
+	smp_wmb();
 	return simple_attr_open(inode, file, spufs_cntl_get,
 					spufs_cntl_set, "0x%08lx");
 }
@@ -717,8 +717,8 @@ static int spufs_signal1_open(struct inode *inode, struct file *file)
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
 	file->private_data = ctx;
-	file->f_mapping = inode->i_mapping;
 	ctx->signal1 = inode->i_mapping;
+	smp_wmb();
 	return nonseekable_open(inode, file);
 }
 
@@ -824,8 +824,8 @@ static int spufs_signal2_open(struct inode *inode, struct file *file)
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
 	file->private_data = ctx;
-	file->f_mapping = inode->i_mapping;
 	ctx->signal2 = inode->i_mapping;
+	smp_wmb();
 	return nonseekable_open(inode, file);
 }
 
@@ -1021,8 +1021,11 @@ static int spufs_mss_mmap(struct file *file, struct vm_area_struct *vma)
 static int spufs_mss_open(struct inode *inode, struct file *file)
 {
 	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
 
 	file->private_data = i->i_ctx;
+	ctx->mss = inode->i_mapping;
+	smp_wmb();
 	return nonseekable_open(inode, file);
 }
 
@@ -1060,8 +1063,11 @@ static int spufs_psmap_mmap(struct file *file, struct vm_area_struct *vma)
 static int spufs_psmap_open(struct inode *inode, struct file *file)
 {
 	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
 
 	file->private_data = i->i_ctx;
+	ctx->psmap = inode->i_mapping;
+	smp_wmb();
 	return nonseekable_open(inode, file);
 }
 
@@ -1114,6 +1120,8 @@ static int spufs_mfc_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	file->private_data = ctx;
+	ctx->mfc = inode->i_mapping;
+	smp_wmb();
 	return nonseekable_open(inode, file);
 }
 

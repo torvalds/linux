@@ -111,13 +111,17 @@ void spu_unmap_mappings(struct spu_context *ctx)
 	if (ctx->local_store)
 		unmap_mapping_range(ctx->local_store, 0, LS_SIZE, 1);
 	if (ctx->mfc)
-		unmap_mapping_range(ctx->mfc, 0, 0x4000, 1);
+		unmap_mapping_range(ctx->mfc, 0, 0x1000, 1);
 	if (ctx->cntl)
-		unmap_mapping_range(ctx->cntl, 0, 0x4000, 1);
+		unmap_mapping_range(ctx->cntl, 0, 0x1000, 1);
 	if (ctx->signal1)
-		unmap_mapping_range(ctx->signal1, 0, 0x4000, 1);
+		unmap_mapping_range(ctx->signal1, 0, PAGE_SIZE, 1);
 	if (ctx->signal2)
-		unmap_mapping_range(ctx->signal2, 0, 0x4000, 1);
+		unmap_mapping_range(ctx->signal2, 0, PAGE_SIZE, 1);
+	if (ctx->mss)
+		unmap_mapping_range(ctx->mss, 0, 0x1000, 1);
+	if (ctx->psmap)
+		unmap_mapping_range(ctx->psmap, 0, 0x20000, 1);
 }
 
 int spu_acquire_exclusive(struct spu_context *ctx)
