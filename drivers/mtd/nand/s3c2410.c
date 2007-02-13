@@ -418,6 +418,15 @@ static void s3c2410_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 	writel(ctrl, info->regs + S3C2410_NFCONF);
 }
 
+static void s3c2412_nand_enable_hwecc(struct mtd_info *mtd, int mode)
+{
+	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
+	unsigned long ctrl;
+
+	ctrl = readl(info->regs + S3C2440_NFCONT);
+	writel(ctrl | S3C2412_NFCONT_INIT_MAIN_ECC, info->regs + S3C2440_NFCONT);
+}
+
 static void s3c2440_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
@@ -437,6 +446,20 @@ static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 
 	pr_debug("%s: returning ecc %02x%02x%02x\n", __func__,
 		 ecc_code[0], ecc_code[1], ecc_code[2]);
+
+	return 0;
+}
+
+static int s3c2412_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
+{
+	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
+	unsigned long ecc = readl(info->regs + S3C2412_NFMECC0);
+
+	ecc_code[0] = ecc;
+	ecc_code[1] = ecc >> 8;
+	ecc_code[2] = ecc >> 16;
+
+	pr_debug("calculate_ecc: returning ecc %02x,%02x,%02x\n", ecc_code[0], ecc_code[1], ecc_code[2]);
 
 	return 0;
 }
@@ -618,6 +641,10 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 			break;
 
 		case TYPE_S3C2412:
+  			chip->ecc.hwctl     = s3c2412_nand_enable_hwecc;
+  			chip->ecc.calculate = s3c2412_nand_calculate_ecc;
+			break;
+
 		case TYPE_S3C2440:
   			chip->ecc.hwctl     = s3c2440_nand_enable_hwecc;
   			chip->ecc.calculate = s3c2440_nand_calculate_ecc;
