@@ -9,6 +9,8 @@ void setup_pit_timer(void);
 extern int pit_latch_buggy;
 extern int timer_ack;
 extern int no_timer_check;
+extern unsigned long long (*custom_sched_clock)(void);
+extern int no_sync_cmos_clock;
 extern int recalibrate_cpu_khz(void);
 
 #endif

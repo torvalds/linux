@@ -232,6 +232,7 @@ EXPORT_SYMBOL(get_cmos_time);
 static void sync_cmos_clock(unsigned long dummy);
 
 static DEFINE_TIMER(sync_cmos_timer, sync_cmos_clock, 0, 0);
+int no_sync_cmos_clock;
 
 static void sync_cmos_clock(unsigned long dummy)
 {
@@ -275,7 +276,8 @@ static void sync_cmos_clock(unsigned long dummy)
 
 void notify_arch_cmos_timer(void)
 {
-	mod_timer(&sync_cmos_timer, jiffies + 1);
+	if (!no_sync_cmos_clock)
+		mod_timer(&sync_cmos_timer, jiffies + 1);
 }
 
 static long clock_cmos_diff;

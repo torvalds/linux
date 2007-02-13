@@ -544,6 +544,8 @@ struct paravirt_ops paravirt_ops = {
 	.apic_write = native_apic_write,
 	.apic_write_atomic = native_apic_write_atomic,
 	.apic_read = native_apic_read,
+	.setup_boot_clock = setup_boot_APIC_clock,
+	.setup_secondary_clock = setup_secondary_APIC_clock,
 #endif
 	.set_lazy_mode = (void *)native_nop,
 

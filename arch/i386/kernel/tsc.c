@@ -23,6 +23,7 @@
  * an extra value to store the TSC freq
  */
 unsigned int tsc_khz;
+unsigned long long (*custom_sched_clock)(void);
 
 int tsc_disable;
 
@@ -106,6 +107,9 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 unsigned long long sched_clock(void)
 {
 	unsigned long long this_offset;
+
+	if (unlikely(custom_sched_clock))
+		return (*custom_sched_clock)();
 
 	/*
 	 * in the NUMA case we dont use the TSC as they are not

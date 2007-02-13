@@ -121,6 +121,8 @@ struct paravirt_ops
 	void (fastcall *apic_write)(unsigned long reg, unsigned long v);
 	void (fastcall *apic_write_atomic)(unsigned long reg, unsigned long v);
 	unsigned long (fastcall *apic_read)(unsigned long reg);
+	void (*setup_boot_clock)(void);
+	void (*setup_secondary_clock)(void);
 #endif
 
 	void (fastcall *flush_tlb_user)(void);
@@ -322,6 +324,16 @@ static inline void apic_write_atomic(unsigned long reg, unsigned long v)
 static inline unsigned long apic_read(unsigned long reg)
 {
 	return paravirt_ops.apic_read(reg);
+}
+
+static inline void setup_boot_clock(void)
+{
+	paravirt_ops.setup_boot_clock();
+}
+
+static inline void setup_secondary_clock(void)
+{
+	paravirt_ops.setup_secondary_clock();
 }
 #endif
 

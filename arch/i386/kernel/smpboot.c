@@ -554,7 +554,7 @@ static void __cpuinit start_secondary(void *unused)
 	smp_callin();
 	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
 		rep_nop();
-	setup_secondary_APIC_clock();
+	setup_secondary_clock();
 	if (nmi_watchdog == NMI_IO_APIC) {
 		disable_8259A_irq(0);
 		enable_NMI_through_LVT0(NULL);
@@ -1331,7 +1331,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 	smpboot_setup_io_apic();
 
-	setup_boot_APIC_clock();
+	setup_boot_clock();
 
 	/*
 	 * Synchronize the TSC with the AP

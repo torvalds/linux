@@ -34,6 +34,7 @@
 #include <asm/apic.h>
 #include <asm/processor.h>
 #include <asm/timer.h>
+#include <asm/vmi_time.h>
 
 /* Convenient for calling VMI functions indirectly in the ROM */
 typedef u32 __attribute__((regparm(1))) (VROMFUNC)(void);
@@ -67,6 +68,7 @@ struct {
 	void (*set_linear_mapping)(int, u32, u32, u32);
 	void (*flush_tlb)(int);
 	void (*set_initial_ap_state)(int, int);
+	void (*halt)(void);
 } vmi_ops;
 
 /* XXX move this to alternative.h */
@@ -252,6 +254,19 @@ static void vmi_nop(void)
 {
 }
 
+/* For NO_IDLE_HZ, we stop the clock when halting the kernel */
+#ifdef CONFIG_NO_IDLE_HZ
+static fastcall void vmi_safe_halt(void)
+{
+	int idle = vmi_stop_hz_timer();
+	vmi_ops.halt();
+	if (idle) {
+		local_irq_disable();
+		vmi_account_time_restart_hz_timer();
+		local_irq_enable();
+	}
+}
+#endif
 
 #ifdef CONFIG_DEBUG_PAGE_TYPE
 
@@ -727,7 +742,12 @@ static inline int __init activate_vmi(void)
 		     (char *)paravirt_ops.save_fl);
 	patch_offset(&irq_save_disable_callout[IRQ_PATCH_DISABLE],
 		     (char *)paravirt_ops.irq_disable);
+#ifndef CONFIG_NO_IDLE_HZ
 	para_fill(safe_halt, Halt);
+#else
+	vmi_ops.halt = vmi_get_function(VMI_CALL_Halt);
+	paravirt_ops.safe_halt = vmi_safe_halt;
+#endif
 	para_fill(wbinvd, WBINVD);
 	/* paravirt_ops.read_msr = vmi_rdmsr */
 	/* paravirt_ops.write_msr = vmi_wrmsr */
@@ -836,6 +856,31 @@ static inline int __init activate_vmi(void)
 	paravirt_ops.apic_write = vmi_get_function(VMI_CALL_APICWrite);
 	paravirt_ops.apic_write_atomic = vmi_get_function(VMI_CALL_APICWrite);
 #endif
+
+	/*
+	 * Check for VMI timer functionality by probing for a cycle frequency method
+	 */
+	reloc = call_vrom_long_func(vmi_rom, get_reloc, VMI_CALL_GetCycleFrequency);
+	if (rel->type != VMI_RELOCATION_NONE) {
+		vmi_timer_ops.get_cycle_frequency = (void *)rel->eip;
+		vmi_timer_ops.get_cycle_counter =
+			vmi_get_function(VMI_CALL_GetCycleCounter);
+		vmi_timer_ops.get_wallclock =
+			vmi_get_function(VMI_CALL_GetWallclockTime);
+		vmi_timer_ops.wallclock_updated =
+			vmi_get_function(VMI_CALL_WallclockUpdated);
+		vmi_timer_ops.set_alarm = vmi_get_function(VMI_CALL_SetAlarm);
+		vmi_timer_ops.cancel_alarm =
+			 vmi_get_function(VMI_CALL_CancelAlarm);
+		paravirt_ops.time_init = vmi_time_init;
+		paravirt_ops.get_wallclock = vmi_get_wallclock;
+		paravirt_ops.set_wallclock = vmi_set_wallclock;
+#ifdef CONFIG_X86_LOCAL_APIC
+		paravirt_ops.setup_boot_clock = vmi_timer_setup_boot_alarm;
+		paravirt_ops.setup_secondary_clock = vmi_timer_setup_secondary_alarm;
+#endif
+		custom_sched_clock = vmi_sched_clock;
+	}
 
 	/*
 	 * Alternative instruction rewriting doesn't happen soon enough

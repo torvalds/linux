@@ -1395,7 +1395,7 @@ int __init APIC_init_uniprocessor (void)
 		if (!skip_ioapic_setup && nr_ioapics)
 			setup_IO_APIC();
 #endif
-	setup_boot_APIC_clock();
+	setup_boot_clock();
 
 	return 0;
 }
