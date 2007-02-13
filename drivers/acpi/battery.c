@@ -42,7 +42,6 @@
 #define ACPI_BATTERY_COMPONENT		0x00040000
 #define ACPI_BATTERY_CLASS		"battery"
 #define ACPI_BATTERY_HID		"PNP0C0A"
-#define ACPI_BATTERY_DRIVER_NAME	"ACPI Battery Driver"
 #define ACPI_BATTERY_DEVICE_NAME	"Battery"
 #define ACPI_BATTERY_FILE_INFO		"info"
 #define ACPI_BATTERY_FILE_STATUS	"state"
@@ -56,7 +55,7 @@
 ACPI_MODULE_NAME("battery");
 
 MODULE_AUTHOR("Paul Diefenbaugh");
-MODULE_DESCRIPTION(ACPI_BATTERY_DRIVER_NAME);
+MODULE_DESCRIPTION("ACPI Battery Driver");
 MODULE_LICENSE("GPL");
 
 extern struct proc_dir_entry *acpi_lock_battery_dir(void);

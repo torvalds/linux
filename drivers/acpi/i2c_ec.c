@@ -28,7 +28,6 @@
 #define ACPI_EC_HC_COMPONENT	0x00080000
 #define ACPI_EC_HC_CLASS	"ec_hc_smbus"
 #define ACPI_EC_HC_HID		"ACPI0001"
-#define ACPI_EC_HC_DRIVER_NAME	"ACPI EC HC smbus driver"
 #define ACPI_EC_HC_DEVICE_NAME	"EC HC smbus"
 
 #define _COMPONENT		ACPI_EC_HC_COMPONENT

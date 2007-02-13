@@ -34,7 +34,6 @@
 #include <acpi/acpi_drivers.h>
 
 #define ACPI_BUTTON_COMPONENT		0x00080000
-#define ACPI_BUTTON_DRIVER_NAME		"ACPI Button Driver"
 #define ACPI_BUTTON_CLASS		"button"
 #define ACPI_BUTTON_FILE_INFO		"info"
 #define ACPI_BUTTON_FILE_STATE		"state"
@@ -64,7 +63,7 @@
 ACPI_MODULE_NAME("button");
 
 MODULE_AUTHOR("Paul Diefenbaugh");
-MODULE_DESCRIPTION(ACPI_BUTTON_DRIVER_NAME);
+MODULE_DESCRIPTION("ACPI Button Driver");
 MODULE_LICENSE("GPL");
 
 static int acpi_button_add(struct acpi_device *device);
