@@ -447,7 +447,8 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 		if (buf->vb.dma.varea) {
 			gen_line(tmpbuf,0,wmax,hmax,h,dev->timestr);
 			/* FIXME: replacing to __copy_to_user */
-			copy_to_user(buf->vb.dma.varea+pos,tmpbuf,wmax*2);
+			if (copy_to_user(buf->vb.dma.varea+pos,tmpbuf,wmax*2)!=0)
+				dprintk(2,"vivifill copy_to_user failed.\n");
 		} else {
 			gen_line(tmpbuf,pos,wmax,hmax,h,dev->timestr);
 		}
