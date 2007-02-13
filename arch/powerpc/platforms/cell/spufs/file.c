@@ -103,6 +103,9 @@ static unsigned long spufs_mem_mmap_nopfn(struct vm_area_struct *vma,
 
 	offset += vma->vm_pgoff << PAGE_SHIFT;
 
+	if (offset >= LS_SIZE)
+		return NOPFN_SIGBUS;
+
 	spu_acquire(ctx);
 
 	if (ctx->state == SPU_STATE_SAVED) {
