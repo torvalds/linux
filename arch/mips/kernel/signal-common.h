@@ -20,32 +20,6 @@
 #endif
 
 /*
- * Horribly complicated - with the bloody RM9000 workarounds enabled
- * the signal trampolines is moving to the end of the structure so we can
- * increase the alignment without breaking software compatibility.
- */
-#if ICACHE_REFILLS_WORKAROUND_WAR == 0
-
-struct sigframe {
-	u32 sf_ass[4];		/* argument save space for o32 */
-	u32 sf_code[2];		/* signal trampoline */
-	struct sigcontext sf_sc;
-	sigset_t sf_mask;
-};
-
-#else  /* ICACHE_REFILLS_WORKAROUND_WAR */
-
-struct sigframe {
-	u32 sf_ass[4];			/* argument save space for o32 */
-	u32 sf_pad[2];
-	struct sigcontext sf_sc;	/* hw context */
-	sigset_t sf_mask;
-	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
-};
-
-#endif	/* !ICACHE_REFILLS_WORKAROUND_WAR */
-
-/*
  * Determine which stack to use..
  */
 extern void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
