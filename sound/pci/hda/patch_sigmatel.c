@@ -461,6 +461,8 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 		      "Dell Inspiron E1705/9400", STAC_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ce,
 		      "Dell XPS M1710", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cf,
+		      "Dell Precision M90", STAC_REF),
 	{} /* terminator */
 };
 
