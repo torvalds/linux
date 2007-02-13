@@ -45,8 +45,7 @@ unsigned long isa_mem_base = 0;
 #endif
 
 #ifdef CONFIG_PCI
-int
-mpc85xx_exclude_device(u_char bus, u_char devfn)
+static int mpc85xx_exclude_device(u_char bus, u_char devfn)
 {
 	if (bus == 0 && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -69,7 +68,7 @@ static void cpm2_cascade(unsigned int irq, struct irq_desc *desc)
 
 #endif /* CONFIG_CPM2 */
 
-void __init mpc85xx_ads_pic_init(void)
+static void __init mpc85xx_ads_pic_init(void)
 {
 	struct mpic *mpic;
 	struct resource r;
@@ -254,7 +253,7 @@ static void __init mpc85xx_ads_setup_arch(void)
 #endif
 }
 
-void mpc85xx_ads_show_cpuinfo(struct seq_file *m)
+static void mpc85xx_ads_show_cpuinfo(struct seq_file *m)
 {
 	uint pvid, svid, phid1;
 	uint memsize = total_memory;
