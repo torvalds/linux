@@ -180,40 +180,81 @@ PCI
   pci=lastbus=NUMBER	       Scan upto NUMBER busses, no matter what the mptable says.
   pci=noacpi		Don't use ACPI to set up PCI interrupt routing.
 
-IOMMU
+IOMMU (input/output memory management unit)
 
- iommu=[size][,noagp][,off][,force][,noforce][,leak][,memaper[=order]][,merge]
-         [,forcesac][,fullflush][,nomerge][,noaperture][,calgary]
-   size  set size of iommu (in bytes)
-   noagp don't initialize the AGP driver and use full aperture.
-   off   don't use the IOMMU
-   leak  turn on simple iommu leak tracing (only when CONFIG_IOMMU_LEAK is on)
-   memaper[=order] allocate an own aperture over RAM with size 32MB^order.
-   noforce don't force IOMMU usage. Default.
-   force  Force IOMMU.
-   merge  Do SG merging. Implies force (experimental)
-   nomerge Don't do SG merging.
-   forcesac For SAC mode for masks <40bits  (experimental)
-   fullflush Flush IOMMU on each allocation (default)
-   nofullflush Don't use IOMMU fullflush
-   allowed  overwrite iommu off workarounds for specific chipsets.
-   soft	 Use software bounce buffering (default for Intel machines)
-   noaperture Don't touch the aperture for AGP.
-   allowdac Allow DMA >4GB
-	    When off all DMA over >4GB is forced through an IOMMU or bounce
-	    buffering.
-   nodac    Forbid DMA >4GB
-   panic    Always panic when IOMMU overflows
-   calgary  Use the Calgary IOMMU if it is available
+ Currently four x86-64 PCI-DMA mapping implementations exist:
 
-  swiotlb=pages[,force]
+   1. <arch/x86_64/kernel/pci-nommu.c>: use no hardware/software IOMMU at all
+      (e.g. because you have < 3 GB memory).
+      Kernel boot message: "PCI-DMA: Disabling IOMMU"
 
-  pages  Prereserve that many 128K pages for the software IO bounce buffering.
-  force  Force all IO through the software TLB.
+   2. <arch/x86_64/kernel/pci-gart.c>: AMD GART based hardware IOMMU.
+      Kernel boot message: "PCI-DMA: using GART IOMMU"
 
-  calgary=[64k,128k,256k,512k,1M,2M,4M,8M]
-  calgary=[translate_empty_slots]
-  calgary=[disable=<PCI bus number>]
+   3. <arch/x86_64/kernel/pci-swiotlb.c> : Software IOMMU implementation. Used
+      e.g. if there is no hardware IOMMU in the system and it is need because
+      you have >3GB memory or told the kernel to us it (iommu=soft))
+      Kernel boot message: "PCI-DMA: Using software bounce buffering
+      for IO (SWIOTLB)"
+
+   4. <arch/x86_64/pci-calgary.c> : IBM Calgary hardware IOMMU. Used in IBM
+      pSeries and xSeries servers. This hardware IOMMU supports DMA address
+      mapping with memory protection, etc.
+      Kernel boot message: "PCI-DMA: Using Calgary IOMMU"
+
+ iommu=[<size>][,noagp][,off][,force][,noforce][,leak[=<nr_of_leak_pages>]
+	[,memaper[=<order>]][,merge][,forcesac][,fullflush][,nomerge]
+	[,noaperture][,calgary]
+
+  General iommu options:
+    off                Don't initialize and use any kind of IOMMU.
+    noforce            Don't force hardware IOMMU usage when it is not needed.
+                       (default).
+    force              Force the use of the hardware IOMMU even when it is
+                       not actually needed (e.g. because < 3 GB memory).
+    soft               Use software bounce buffering (SWIOTLB) (default for
+                       Intel machines). This can be used to prevent the usage
+                       of an available hardware IOMMU.
+
+  iommu options only relevant to the AMD GART hardware IOMMU:
+    <size>             Set the size of the remapping area in bytes.
+    allowed            Overwrite iommu off workarounds for specific chipsets.
+    fullflush          Flush IOMMU on each allocation (default).
+    nofullflush        Don't use IOMMU fullflush.
+    leak               Turn on simple iommu leak tracing (only when
+                       CONFIG_IOMMU_LEAK is on). Default number of leak pages
+                       is 20.
+    memaper[=<order>]  Allocate an own aperture over RAM with size 32MB<<order.
+                       (default: order=1, i.e. 64MB)
+    merge              Do scather-gather (SG) merging. Implies "force"
+                       (experimental).
+    nomerge            Don't do scather-gather (SG) merging.
+    noaperture         Ask the IOMMU not to touch the aperture for AGP.
+    forcesac           Force single-address cycle (SAC) mode for masks <40bits
+                       (experimental).
+    noagp              Don't initialize the AGP driver and use full aperture.
+    allowdac           Allow double-address cycle (DAC) mode, i.e. DMA >4GB.
+                       DAC is used with 32-bit PCI to push a 64-bit address in
+                       two cycles. When off all DMA over >4GB is forced through
+                       an IOMMU or software bounce buffering.
+    nodac              Forbid DAC mode, i.e. DMA >4GB.
+    panic              Always panic when IOMMU overflows.
+    calgary            Use the Calgary IOMMU if it is available
+
+  iommu options only relevant to the software bounce buffering (SWIOTLB) IOMMU
+  implementation:
+    swiotlb=<pages>[,force]
+    <pages>            Prereserve that many 128K pages for the software IO
+                       bounce buffering.
+    force              Force all IO through the software TLB.
+
+  Settings for the IBM Calgary hardware IOMMU currently found in IBM
+  pSeries and xSeries machines:
+
+    calgary=[64k,128k,256k,512k,1M,2M,4M,8M]
+    calgary=[translate_empty_slots]
+    calgary=[disable=<PCI bus number>]
+    panic              Always panic when IOMMU overflows
 
     64k,...,8M - Set the size of each PCI slot's translation table
     when using the Calgary IOMMU. This is the size of the translation
