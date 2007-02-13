@@ -139,7 +139,19 @@ struct ucontext32 {
 	sigset_t32          uc_sigmask;   /* mask last for extensibility */
 };
 
+/*
+ * Horribly complicated - with the bloody RM9000 workarounds enabled
+ * the signal trampolines is moving to the end of the structure so we can
+ * increase the alignment without breaking software compatibility.
+ */
 #if ICACHE_REFILLS_WORKAROUND_WAR == 0
+
+struct sigframe32 {
+	u32 sf_ass[4];		/* argument save space for o32 */
+	u32 sf_code[2];		/* signal trampoline */
+	struct sigcontext32 sf_sc;
+	sigset_t sf_mask;
+};
 
 struct rt_sigframe32 {
 	u32 rs_ass[4];			/* argument save space for o32 */
@@ -149,6 +161,14 @@ struct rt_sigframe32 {
 };
 
 #else  /* ICACHE_REFILLS_WORKAROUND_WAR */
+
+struct sigframe32 {
+	u32 sf_ass[4];			/* argument save space for o32 */
+	u32 sf_pad[2];
+	struct sigcontext32 sf_sc;	/* hw context */
+	sigset_t sf_mask;
+	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
+};
 
 struct rt_sigframe32 {
 	u32 rs_ass[4];			/* argument save space for o32 */
@@ -493,10 +513,10 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
 
 asmlinkage void sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
-	struct sigframe __user *frame;
+	struct sigframe32 __user *frame;
 	sigset_t blocked;
 
-	frame = (struct sigframe __user *) regs.regs[29];
+	frame = (struct sigframe32 __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&blocked, &frame->sf_mask, sizeof(blocked)))
@@ -581,7 +601,7 @@ badframe:
 int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set)
 {
-	struct sigframe __user *frame;
+	struct sigframe32 __user *frame;
 	int err = 0;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
