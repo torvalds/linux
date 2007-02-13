@@ -30,7 +30,7 @@
  *	18(%esp) - %eax
  *	1C(%esp) - %ds
  *	20(%esp) - %es
- *	24(%esp) - %gs
+ *	24(%esp) - %fs
  *	28(%esp) - orig_eax
  *	2C(%esp) - %eip
  *	30(%esp) - %cs
@@ -99,9 +99,9 @@ VM_MASK		= 0x00020000
 
 #define SAVE_ALL \
 	cld; \
-	pushl %gs; \
+	pushl %fs; \
 	CFI_ADJUST_CFA_OFFSET 4;\
-	/*CFI_REL_OFFSET gs, 0;*/\
+	/*CFI_REL_OFFSET fs, 0;*/\
 	pushl %es; \
 	CFI_ADJUST_CFA_OFFSET 4;\
 	/*CFI_REL_OFFSET es, 0;*/\
@@ -133,7 +133,7 @@ VM_MASK		= 0x00020000
 	movl %edx, %ds; \
 	movl %edx, %es; \
 	movl $(__KERNEL_PDA), %edx; \
-	movl %edx, %gs
+	movl %edx, %fs
 
 #define RESTORE_INT_REGS \
 	popl %ebx;	\
@@ -166,9 +166,9 @@ VM_MASK		= 0x00020000
 2:	popl %es;	\
 	CFI_ADJUST_CFA_OFFSET -4;\
 	/*CFI_RESTORE es;*/\
-3:	popl %gs;	\
+3:	popl %fs;	\
 	CFI_ADJUST_CFA_OFFSET -4;\
-	/*CFI_RESTORE gs;*/\
+	/*CFI_RESTORE fs;*/\
 .pushsection .fixup,"ax";	\
 4:	movl $0,(%esp);	\
 	jmp 1b;		\
@@ -349,11 +349,11 @@ sysenter_past_esp:
 	movl PT_OLDESP(%esp), %ecx
 	xorl %ebp,%ebp
 	TRACE_IRQS_ON
-1:	mov  PT_GS(%esp), %gs
+1:	mov  PT_FS(%esp), %fs
 	ENABLE_INTERRUPTS_SYSEXIT
 	CFI_ENDPROC
 .pushsection .fixup,"ax"
-2:	movl $0,PT_GS(%esp)
+2:	movl $0,PT_FS(%esp)
 	jmp 1b
 .section __ex_table,"a"
 	.align 4
@@ -550,7 +550,7 @@ syscall_badsys:
 
 #define FIXUP_ESPFIX_STACK \
 	/* since we are on a wrong stack, we cant make it a C code :( */ \
-	movl %gs:PDA_cpu, %ebx; \
+	movl %fs:PDA_cpu, %ebx; \
 	PER_CPU(cpu_gdt_descr, %ebx); \
 	movl GDS_address(%ebx), %ebx; \
 	GET_DESC_BASE(GDT_ENTRY_ESPFIX_SS, %ebx, %eax, %ax, %al, %ah); \
@@ -632,7 +632,7 @@ KPROBE_ENTRY(page_fault)
 	CFI_ADJUST_CFA_OFFSET 4
 	ALIGN
 error_code:
-	/* the function address is in %gs's slot on the stack */
+	/* the function address is in %fs's slot on the stack */
 	pushl %es
 	CFI_ADJUST_CFA_OFFSET 4
 	/*CFI_REL_OFFSET es, 0*/
@@ -661,20 +661,20 @@ error_code:
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET ebx, 0
 	cld
-	pushl %gs
+	pushl %fs
 	CFI_ADJUST_CFA_OFFSET 4
-	/*CFI_REL_OFFSET gs, 0*/
+	/*CFI_REL_OFFSET fs, 0*/
 	movl $(__KERNEL_PDA), %ecx
-	movl %ecx, %gs
+	movl %ecx, %fs
 	UNWIND_ESPFIX_STACK
 	popl %ecx
 	CFI_ADJUST_CFA_OFFSET -4
 	/*CFI_REGISTER es, ecx*/
-	movl PT_GS(%esp), %edi		# get the function address
+	movl PT_FS(%esp), %edi		# get the function address
 	movl PT_ORIG_EAX(%esp), %edx	# get the error code
 	movl $-1, PT_ORIG_EAX(%esp)	# no syscall to restart
-	mov  %ecx, PT_GS(%esp)
-	/*CFI_REL_OFFSET gs, ES*/
+	mov  %ecx, PT_FS(%esp)
+	/*CFI_REL_OFFSET fs, ES*/
 	movl $(__USER_DS), %ecx
 	movl %ecx, %ds
 	movl %ecx, %es

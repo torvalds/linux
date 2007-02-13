@@ -128,8 +128,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *peax
 			 X86_EFLAGS_TF | X86_EFLAGS_SF | X86_EFLAGS_ZF | \
 			 X86_EFLAGS_AF | X86_EFLAGS_PF | X86_EFLAGS_CF)
 
-	COPY_SEG(gs);
-	GET_SEG(fs);
+	GET_SEG(gs);
+	COPY_SEG(fs);
 	COPY_SEG(es);
 	COPY_SEG(ds);
 	COPY(edi);
@@ -244,9 +244,9 @@ setup_sigcontext(struct sigcontext __user *sc, struct _fpstate __user *fpstate,
 {
 	int tmp, err = 0;
 
-	err |= __put_user(regs->xgs, (unsigned int __user *)&sc->gs);
-	savesegment(fs, tmp);
-	err |= __put_user(tmp, (unsigned int __user *)&sc->fs);
+	err |= __put_user(regs->xfs, (unsigned int __user *)&sc->fs);
+	savesegment(gs, tmp);
+	err |= __put_user(tmp, (unsigned int __user *)&sc->gs);
 
 	err |= __put_user(regs->xes, (unsigned int __user *)&sc->es);
 	err |= __put_user(regs->xds, (unsigned int __user *)&sc->ds);

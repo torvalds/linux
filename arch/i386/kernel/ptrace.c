@@ -89,14 +89,14 @@ static int putreg(struct task_struct *child,
 	unsigned long regno, unsigned long value)
 {
 	switch (regno >> 2) {
-		case FS:
+		case GS:
 			if (value && (value & 3) != 3)
 				return -EIO;
-			child->thread.fs = value;
+			child->thread.gs = value;
 			return 0;
 		case DS:
 		case ES:
-		case GS:
+		case FS:
 			if (value && (value & 3) != 3)
 				return -EIO;
 			value &= 0xffff;
@@ -112,7 +112,7 @@ static int putreg(struct task_struct *child,
 			value |= get_stack_long(child, EFL_OFFSET) & ~FLAG_MASK;
 			break;
 	}
-	if (regno > ES*4)
+	if (regno > FS*4)
 		regno -= 1*4;
 	put_stack_long(child, regno, value);
 	return 0;
@@ -124,18 +124,18 @@ static unsigned long getreg(struct task_struct *child,
 	unsigned long retval = ~0UL;
 
 	switch (regno >> 2) {
-		case FS:
-			retval = child->thread.fs;
+		case GS:
+			retval = child->thread.gs;
 			break;
 		case DS:
 		case ES:
-		case GS:
+		case FS:
 		case SS:
 		case CS:
 			retval = 0xffff;
 			/* fall through */
 		default:
-			if (regno > ES*4)
+			if (regno > FS*4)
 				regno -= 1*4;
 			retval &= get_stack_long(child, regno);
 	}

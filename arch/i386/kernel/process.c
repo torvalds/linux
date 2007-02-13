@@ -308,8 +308,8 @@ void show_regs(struct pt_regs * regs)
 		regs->eax,regs->ebx,regs->ecx,regs->edx);
 	printk("ESI: %08lx EDI: %08lx EBP: %08lx",
 		regs->esi, regs->edi, regs->ebp);
-	printk(" DS: %04x ES: %04x GS: %04x\n",
-	       0xffff & regs->xds,0xffff & regs->xes, 0xffff & regs->xgs);
+	printk(" DS: %04x ES: %04x FS: %04x\n",
+	       0xffff & regs->xds,0xffff & regs->xes, 0xffff & regs->xfs);
 
 	cr0 = read_cr0();
 	cr2 = read_cr2();
@@ -340,7 +340,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 
 	regs.xds = __USER_DS;
 	regs.xes = __USER_DS;
-	regs.xgs = __KERNEL_PDA;
+	regs.xfs = __KERNEL_PDA;
 	regs.orig_eax = -1;
 	regs.eip = (unsigned long) kernel_thread_helper;
 	regs.xcs = __KERNEL_CS | get_kernel_rpl();
@@ -425,7 +425,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 
 	p->thread.eip = (unsigned long) ret_from_fork;
 
-	savesegment(fs,p->thread.fs);
+	savesegment(gs,p->thread.gs);
 
 	tsk = current;
 	if (unlikely(test_tsk_thread_flag(tsk, TIF_IO_BITMAP))) {
@@ -501,8 +501,8 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	dump->regs.eax = regs->eax;
 	dump->regs.ds = regs->xds;
 	dump->regs.es = regs->xes;
-	savesegment(fs,dump->regs.fs);
-	dump->regs.gs = regs->xgs;
+	dump->regs.fs = regs->xfs;
+	savesegment(gs,dump->regs.gs);
 	dump->regs.orig_eax = regs->orig_eax;
 	dump->regs.eip = regs->eip;
 	dump->regs.cs = regs->xcs;
@@ -653,7 +653,7 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	load_esp0(tss, next);
 
 	/*
-	 * Save away %fs. No need to save %gs, as it was saved on the
+	 * Save away %gs. No need to save %fs, as it was saved on the
 	 * stack on entry.  No need to save %es and %ds, as those are
 	 * always kernel segments while inside the kernel.  Doing this
 	 * before setting the new TLS descriptors avoids the situation
@@ -662,7 +662,7 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	 * used %fs or %gs (it does not today), or if the kernel is
 	 * running inside of a hypervisor layer.
 	 */
-	savesegment(fs, prev->fs);
+	savesegment(gs, prev->gs);
 
 	/*
 	 * Load the per-thread Thread-Local Storage descriptor.
@@ -670,12 +670,10 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	load_TLS(next, cpu);
 
 	/*
-	 * Restore %fs if needed.
-	 *
-	 * Glibc normally makes %fs be zero.
+	 * Restore %gs if needed (which is common)
 	 */
-	if (unlikely(prev->fs | next->fs))
-		loadsegment(fs, next->fs);
+	if (prev->gs | next->gs)
+		loadsegment(gs, next->gs);
 
 	write_pda(pcurrent, next_p);
 

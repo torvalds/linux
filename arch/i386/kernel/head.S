@@ -319,12 +319,12 @@ is386:	movl $2,%ecx		# set MP
 	movl %eax,%ds
 	movl %eax,%es
 
-	xorl %eax,%eax			# Clear FS and LDT
-	movl %eax,%fs
+	xorl %eax,%eax			# Clear GS and LDT
+	movl %eax,%gs
 	lldt %ax
 
 	movl $(__KERNEL_PDA),%eax
-	mov  %eax,%gs
+	mov  %eax,%fs
 
 	cld			# gcc2 wants the direction flag cleared at all times
 	pushl $0		# fake return address for unwinder

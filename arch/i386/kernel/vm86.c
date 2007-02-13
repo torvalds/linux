@@ -96,12 +96,12 @@ static int copy_vm86_regs_to_user(struct vm86_regs __user *user,
 {
 	int ret = 0;
 
-	/* kernel_vm86_regs is missing xfs, so copy everything up to
-	   (but not including) xgs, and then rest after xgs. */
-	ret += copy_to_user(user, regs, offsetof(struct kernel_vm86_regs, pt.xgs));
-	ret += copy_to_user(&user->__null_gs, &regs->pt.xgs,
+	/* kernel_vm86_regs is missing xgs, so copy everything up to
+	   (but not including) orig_eax, and then rest including orig_eax. */
+	ret += copy_to_user(user, regs, offsetof(struct kernel_vm86_regs, pt.orig_eax));
+	ret += copy_to_user(&user->orig_eax, &regs->pt.orig_eax,
 			    sizeof(struct kernel_vm86_regs) -
-			    offsetof(struct kernel_vm86_regs, pt.xgs));
+			    offsetof(struct kernel_vm86_regs, pt.orig_eax));
 
 	return ret;
 }
@@ -113,12 +113,13 @@ static int copy_vm86_regs_from_user(struct kernel_vm86_regs *regs,
 {
 	int ret = 0;
 
-	ret += copy_from_user(regs, user, offsetof(struct kernel_vm86_regs, pt.xgs));
-	ret += copy_from_user(&regs->pt.xgs, &user->__null_gs,
+	/* copy eax-xfs inclusive */
+	ret += copy_from_user(regs, user, offsetof(struct kernel_vm86_regs, pt.orig_eax));
+	/* copy orig_eax-__gsh+extra */
+	ret += copy_from_user(&regs->pt.orig_eax, &user->orig_eax,
 			      sizeof(struct kernel_vm86_regs) -
-			      offsetof(struct kernel_vm86_regs, pt.xgs) +
+			      offsetof(struct kernel_vm86_regs, pt.orig_eax) +
 			      extra);
-
 	return ret;
 }
 
@@ -157,8 +158,8 @@ struct pt_regs * fastcall save_v86_state(struct kernel_vm86_regs * regs)
 
 	ret = KVM86->regs32;
 
-	loadsegment(fs, current->thread.saved_fs);
-	ret->xgs = current->thread.saved_gs;
+	ret->xfs = current->thread.saved_fs;
+	loadsegment(gs, current->thread.saved_gs);
 
 	return ret;
 }
@@ -285,9 +286,9 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
  */
 	info->regs.pt.xds = 0;
 	info->regs.pt.xes = 0;
-	info->regs.pt.xgs = 0;
+	info->regs.pt.xfs = 0;
 
-/* we are clearing fs later just before "jmp resume_userspace",
+/* we are clearing gs later just before "jmp resume_userspace",
  * because it is not saved/restored.
  */
 
@@ -321,8 +322,8 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
  */
 	info->regs32->eax = 0;
 	tsk->thread.saved_esp0 = tsk->thread.esp0;
-	savesegment(fs, tsk->thread.saved_fs);
-	tsk->thread.saved_gs = info->regs32->xgs;
+	tsk->thread.saved_fs = info->regs32->xfs;
+	savesegment(gs, tsk->thread.saved_gs);
 
 	tss = &per_cpu(init_tss, get_cpu());
 	tsk->thread.esp0 = (unsigned long) &info->VM86_TSS_ESP0;
@@ -342,7 +343,7 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
 	__asm__ __volatile__(
 		"movl %0,%%esp\n\t"
 		"movl %1,%%ebp\n\t"
-		"mov  %2, %%fs\n\t"
+		"mov  %2, %%gs\n\t"
 		"jmp resume_userspace"
 		: /* no outputs */
 		:"r" (&info->regs), "r" (task_thread_info(tsk)), "r" (0));
