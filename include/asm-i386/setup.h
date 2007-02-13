@@ -77,6 +77,8 @@ int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map);
 void __init add_memory_region(unsigned long long start,
 			      unsigned long long size, int type);
 
+extern unsigned long init_pg_tables_end;
+
 #endif /* __ASSEMBLY__ */
 
 #endif  /*  __KERNEL__  */
