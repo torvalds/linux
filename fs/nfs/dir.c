@@ -65,7 +65,7 @@ const struct file_operations nfs_dir_operations = {
 	.fsync		= nfs_fsync_dir,
 };
 
-struct inode_operations nfs_dir_inode_operations = {
+const struct inode_operations nfs_dir_inode_operations = {
 	.create		= nfs_create,
 	.lookup		= nfs_lookup,
 	.link		= nfs_link,
@@ -81,7 +81,7 @@ struct inode_operations nfs_dir_inode_operations = {
 };
 
 #ifdef CONFIG_NFS_V3
-struct inode_operations nfs3_dir_inode_operations = {
+const struct inode_operations nfs3_dir_inode_operations = {
 	.create		= nfs_create,
 	.lookup		= nfs_lookup,
 	.link		= nfs_link,
@@ -104,7 +104,7 @@ struct inode_operations nfs3_dir_inode_operations = {
 #ifdef CONFIG_NFS_V4
 
 static struct dentry *nfs_atomic_lookup(struct inode *, struct dentry *, struct nameidata *);
-struct inode_operations nfs4_dir_inode_operations = {
+const struct inode_operations nfs4_dir_inode_operations = {
 	.create		= nfs_create,
 	.lookup		= nfs_atomic_lookup,
 	.link		= nfs_link,

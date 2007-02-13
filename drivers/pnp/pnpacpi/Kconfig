@@ -2,8 +2,8 @@
 # Plug and Play ACPI configuration
 #
 config PNPACPI
-	bool "Plug and Play ACPI support (EXPERIMENTAL)"
-	depends on PNP && ACPI && EXPERIMENTAL
+	bool "Plug and Play ACPI support"
+	depends on PNP && ACPI
 	default y
 	---help---
 	  Linux uses the PNPACPI to autodetect built-in

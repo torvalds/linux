@@ -62,6 +62,7 @@
 #include <asm/mpic.h>
 #include <asm/rtas.h>
 #include <asm/udbg.h>
+#include <asm/nvram.h>
 
 #include "maple.h"
 
@@ -195,6 +196,8 @@ void __init maple_setup_arch(void)
 	maple_use_rtas_reboot_and_halt_if_present();
 
 	printk(KERN_DEBUG "Using native/NAP idle loop\n");
+
+	mmio_nvram_init();
 }
 
 /* 

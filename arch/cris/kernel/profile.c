@@ -50,7 +50,7 @@ write_cris_profile(struct file *file, const char __user *buf,
   memset(sample_buffer, 0, SAMPLE_BUFFER_SIZE);
 }
 
-static struct file_operations cris_proc_profile_operations = {
+static const struct file_operations cris_proc_profile_operations = {
 	.read		= read_cris_profile,
 	.write		= write_cris_profile,
 };

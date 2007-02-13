@@ -20,6 +20,10 @@
 #include <linux/usb/serial.h>
 #include <asm/uaccess.h>
 
+static int generic_probe(struct usb_interface *interface,
+			 const struct usb_device_id *id);
+
+
 static int debug;
 
 #ifdef CONFIG_USB_SERIAL_GENERIC
@@ -34,6 +38,21 @@ MODULE_PARM_DESC(product, "User specified USB idProduct");
 
 static struct usb_device_id generic_device_ids[2]; /* Initially all zeroes. */
 
+/* we want to look at all devices, as the vendor/product id can change
+ * depending on the command line argument */
+static struct usb_device_id generic_serial_ids[] = {
+	{.driver_info = 42},
+	{}
+};
+
+static struct usb_driver generic_driver = {
+	.name =		"usbserial_generic",
+	.probe =	generic_probe,
+	.disconnect =	usb_serial_disconnect,
+	.id_table =	generic_serial_ids,
+	.no_dynamic_id =	1,
+};
+
 /* All of the device info needed for the Generic Serial Converter */
 struct usb_serial_driver usb_serial_generic_device = {
 	.driver = {
@@ -41,18 +60,12 @@ struct usb_serial_driver usb_serial_generic_device = {
 		.name =		"generic",
 	},
 	.id_table =		generic_device_ids,
+	.usb_driver = 		&generic_driver,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
 	.num_bulk_out =		NUM_DONT_CARE,
 	.num_ports =		1,
 	.shutdown =		usb_serial_generic_shutdown,
-};
-
-/* we want to look at all devices, as the vendor/product id can change
- * depending on the command line argument */
-static struct usb_device_id generic_serial_ids[] = {
-	{.driver_info = 42},
-	{}
 };
 
 static int generic_probe(struct usb_interface *interface,
@@ -65,14 +78,6 @@ static int generic_probe(struct usb_interface *interface,
 		return usb_serial_probe(interface, id);
 	return -ENODEV;
 }
-
-static struct usb_driver generic_driver = {
-	.name =		"usbserial_generic",
-	.probe =	generic_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	generic_serial_ids,
-	.no_dynamic_id = 	1,
-};
 #endif
 
 int usb_serial_generic_register (int _debug)

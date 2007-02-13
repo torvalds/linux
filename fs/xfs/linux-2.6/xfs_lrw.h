@@ -83,7 +83,7 @@ extern int xfs_bdstrat_cb(struct xfs_buf *);
 extern int xfs_dev_is_read_only(struct xfs_mount *, char *);
 
 extern int xfs_zero_eof(struct bhv_vnode *, struct xfs_iocore *, xfs_off_t,
-				xfs_fsize_t, xfs_fsize_t);
+				xfs_fsize_t);
 extern ssize_t xfs_read(struct bhv_desc *, struct kiocb *,
 				const struct iovec *, unsigned int,
 				loff_t *, int, struct cred *);

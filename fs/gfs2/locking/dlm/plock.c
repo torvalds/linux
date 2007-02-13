@@ -264,7 +264,7 @@ static unsigned int dev_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-static struct file_operations dev_fops = {
+static const struct file_operations dev_fops = {
 	.read    = dev_read,
 	.write   = dev_write,
 	.poll    = dev_poll,

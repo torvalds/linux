@@ -3,9 +3,11 @@
  * Copyright (C) 2005 Mips Technologies, Inc
  */
 
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/cpumask.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/security.h>
 
@@ -96,6 +98,10 @@ asmlinkage long mipsmt_sys_sched_setaffinity(pid_t pid, unsigned int len,
 		goto out_unlock;
 	}
 
+	retval = security_task_setscheduler(p, 0, NULL);
+	if (retval)
+		goto out_unlock;
+
 	/* Record new user-specified CPU set for future reference */
 	p->thread.user_cpus_allowed = new_mask;
 
@@ -141,8 +147,9 @@ asmlinkage long mipsmt_sys_sched_getaffinity(pid_t pid, unsigned int len,
 	p = find_process_by_pid(pid);
 	if (!p)
 		goto out_unlock;
-
-	retval = 0;
+	retval = security_task_getscheduler(p);
+	if (retval)
+		goto out_unlock;
 
 	cpus_and(mask, p->thread.user_cpus_allowed, cpu_possible_map);
 
@@ -448,3 +455,20 @@ void mt_cflush_release(void)
 #endif /* CONFIG_MIPS_MT_SMTC */
 	/* FILL IN VSMP and AP/SP VERSIONS HERE */
 }
+
+struct class *mt_class;
+
+static int __init mt_init(void)
+{
+	struct class *mtc;
+
+	mtc = class_create(THIS_MODULE, "mt");
+	if (IS_ERR(mtc))
+		return PTR_ERR(mtc);
+
+	mt_class = mtc;
+
+	return 0;
+}
+
+subsys_initcall(mt_init);

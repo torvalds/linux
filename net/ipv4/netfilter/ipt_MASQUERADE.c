@@ -25,7 +25,7 @@
 #else
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
 #endif
-#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter/x_tables.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
@@ -86,7 +86,7 @@ masquerade_target(struct sk_buff **pskb,
 	nat = nfct_nat(ct);
 #endif
 	IP_NF_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED
-	                    || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
+			    || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
 
 	/* Source address is 0.0.0.0 - locally generated packet that is
 	 * probably not supposed to be masqueraded.
@@ -190,8 +190,9 @@ static struct notifier_block masq_inet_notifier = {
 	.notifier_call	= masq_inet_event,
 };
 
-static struct ipt_target masquerade = {
+static struct xt_target masquerade = {
 	.name		= "MASQUERADE",
+	.family		= AF_INET,
 	.target		= masquerade_target,
 	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
 	.table		= "nat",
@@ -204,7 +205,7 @@ static int __init ipt_masquerade_init(void)
 {
 	int ret;
 
-	ret = ipt_register_target(&masquerade);
+	ret = xt_register_target(&masquerade);
 
 	if (ret == 0) {
 		/* Register for device down reports */
@@ -218,9 +219,9 @@ static int __init ipt_masquerade_init(void)
 
 static void __exit ipt_masquerade_fini(void)
 {
-	ipt_unregister_target(&masquerade);
+	xt_unregister_target(&masquerade);
 	unregister_netdevice_notifier(&masq_dev_notifier);
-	unregister_inetaddr_notifier(&masq_inet_notifier);	
+	unregister_inetaddr_notifier(&masq_inet_notifier);
 }
 
 module_init(ipt_masquerade_init);

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,8 +80,8 @@ union acpi_parse_object;
  * table below also!
  */
 #define ACPI_MTX_INTERPRETER            0	/* AML Interpreter, main lock */
-#define ACPI_MTX_TABLES                 1	/* Data for ACPI tables */
-#define ACPI_MTX_NAMESPACE              2	/* ACPI Namespace */
+#define ACPI_MTX_NAMESPACE              1	/* ACPI Namespace */
+#define ACPI_MTX_TABLES                 2	/* Data for ACPI tables */
 #define ACPI_MTX_EVENTS                 3	/* Data for ACPI events */
 #define ACPI_MTX_CACHES                 4	/* Internal caches, general purposes */
 #define ACPI_MTX_MEMORY                 5	/* Debug memory tracking lists */
@@ -162,7 +162,7 @@ struct acpi_mutex_info {
 typedef enum {
 	ACPI_IMODE_LOAD_PASS1 = 0x01,
 	ACPI_IMODE_LOAD_PASS2 = 0x02,
-	ACPI_IMODE_EXECUTE = 0x0E
+	ACPI_IMODE_EXECUTE = 0x03
 } acpi_interpreter_mode;
 
 union acpi_name_union {
@@ -204,7 +204,7 @@ struct acpi_namespace_node {
 /* Namespace Node flags */
 
 #define ANOBJ_END_OF_PEER_LIST          0x01	/* End-of-list, Peer field points to parent */
-#define ANOBJ_RESERVED                  0x02	/* Available for future use */
+#define ANOBJ_TEMPORARY                 0x02	/* Node is create by a method and is temporary */
 #define ANOBJ_METHOD_ARG                0x04	/* Node is a method argument */
 #define ANOBJ_METHOD_LOCAL              0x08	/* Node is a method local */
 #define ANOBJ_SUBTREE_HAS_INI           0x10	/* Used to optimize device initialization */
@@ -219,24 +219,41 @@ struct acpi_namespace_node {
  * ACPI Table Descriptor.  One per ACPI table
  */
 struct acpi_table_desc {
-	struct acpi_table_desc *prev;
-	struct acpi_table_desc *next;
-	struct acpi_table_desc *installed_desc;
+	acpi_physical_address address;
 	struct acpi_table_header *pointer;
-	u8 *aml_start;
-	u64 physical_address;
-	acpi_size length;
-	u32 aml_length;
+	u32 length;		/* Length fixed at 32 bits */
+	union acpi_name_union signature;
 	acpi_owner_id owner_id;
-	u8 type;
-	u8 allocation;
-	u8 loaded_into_namespace;
+	u8 flags;
 };
 
-struct acpi_table_list {
-	struct acpi_table_desc *next;
+/* Flags for above */
+
+#define ACPI_TABLE_ORIGIN_UNKNOWN       (0)
+#define ACPI_TABLE_ORIGIN_MAPPED        (1)
+#define ACPI_TABLE_ORIGIN_ALLOCATED     (2)
+#define ACPI_TABLE_ORIGIN_MASK          (3)
+#define ACPI_TABLE_IS_LOADED            (4)
+
+/* One internal RSDT for table management */
+
+struct acpi_internal_rsdt {
+	struct acpi_table_desc *tables;
 	u32 count;
+	u32 size;
+	u8 flags;
 };
+
+/* Flags for above */
+
+#define ACPI_ROOT_ORIGIN_UNKNOWN        (0)	/* ~ORIGIN_ALLOCATED */
+#define ACPI_ROOT_ORIGIN_ALLOCATED      (1)
+#define ACPI_ROOT_ALLOW_RESIZE          (2)
+
+/* Predefined (fixed) table indexes */
+
+#define ACPI_TABLE_INDEX_DSDT           (0)
+#define ACPI_TABLE_INDEX_FACS           (1)
 
 struct acpi_find_context {
 	char *search_for;
@@ -350,7 +367,7 @@ struct acpi_gpe_event_info {
 	union acpi_gpe_dispatch_info dispatch;	/* Either Method or Handler */
 	struct acpi_gpe_register_info *register_info;	/* Backpointer to register info */
 	u8 flags;		/* Misc info about this GPE */
-	u8 register_bit;	/* This GPE bit within the register */
+	u8 gpe_number;		/* This GPE */
 };
 
 /* Information about a GPE register pair, one per each status/enable pair in an array */
@@ -855,12 +872,30 @@ struct acpi_bit_register_info {
  ****************************************************************************/
 
 struct acpi_db_method_info {
-	acpi_handle thread_gate;
+	acpi_handle main_thread_gate;
+	acpi_handle thread_complete_gate;
+	u32 *threads;
+	u32 num_threads;
+	u32 num_created;
+	u32 num_completed;
+
 	char *name;
-	char **args;
 	u32 flags;
 	u32 num_loops;
 	char pathname[128];
+	char **args;
+
+	/*
+	 * Arguments to be passed to method for the command
+	 * Threads -
+	 *   the Number of threads, ID of current thread and
+	 *   Index of current thread inside all them created.
+	 */
+	char init_args;
+	char *arguments[4];
+	char num_threads_str[11];
+	char id_of_thread_str[11];
+	char index_of_thread_str[11];
 };
 
 struct acpi_integrity_info {
@@ -919,6 +954,8 @@ struct acpi_memory_list {
 
 	u32 total_allocated;
 	u32 total_freed;
+	u32 max_occupied;
+	u32 total_size;
 	u32 current_total_size;
 	u32 requests;
 	u32 hits;

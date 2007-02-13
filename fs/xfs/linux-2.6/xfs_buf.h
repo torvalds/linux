@@ -69,8 +69,8 @@ typedef enum {
 } xfs_buf_flags_t;
 
 typedef enum {
-	XBT_FORCE_SLEEP = (0 << 1),
-	XBT_FORCE_FLUSH = (1 << 1),
+	XBT_FORCE_SLEEP = 0,
+	XBT_FORCE_FLUSH = 1,
 } xfs_buftarg_flags_t;
 
 typedef struct xfs_bufhash {

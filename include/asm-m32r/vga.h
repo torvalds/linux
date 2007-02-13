@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_VGA_H
 #define _ASM_M32R_VGA_H
 
-/* $Id$ */
-
 /*
  *	Access to VGA videoram
  *
@@ -19,4 +17,4 @@
 #define vga_readb(x) (*(x))
 #define vga_writeb(x,y) (*(y) = (x))
 
-#endif  /* _ASM_M32R_VGA_H */
+#endif /* _ASM_M32R_VGA_H */

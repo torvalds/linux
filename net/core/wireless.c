@@ -369,7 +369,7 @@ static const struct iw_ioctl_description standard_event[] = {
 		.header_type	= IW_HEADER_TYPE_ADDR,
 	},
 	[IWEVEXPIRED	- IWEVFIRST] = {
-		.header_type	= IW_HEADER_TYPE_ADDR, 
+		.header_type	= IW_HEADER_TYPE_ADDR,
 	},
 	[IWEVGENIE	- IWEVFIRST] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
@@ -377,7 +377,7 @@ static const struct iw_ioctl_description standard_event[] = {
 		.max_tokens	= IW_GENERIC_IE_MAX,
 	},
 	[IWEVMICHAELMICFAILURE	- IWEVFIRST] = {
-		.header_type	= IW_HEADER_TYPE_POINT, 
+		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
 		.max_tokens	= sizeof(struct iw_michaelmicfailure),
 	},
@@ -630,11 +630,11 @@ static __inline__ void wireless_seq_printf_stats(struct seq_file *seq,
 			   dev->name, stats->status, stats->qual.qual,
 			   stats->qual.updated & IW_QUAL_QUAL_UPDATED
 			   ? '.' : ' ',
-			   ((__s32) stats->qual.level) - 
+			   ((__s32) stats->qual.level) -
 			   ((stats->qual.updated & IW_QUAL_DBM) ? 0x100 : 0),
 			   stats->qual.updated & IW_QUAL_LEVEL_UPDATED
 			   ? '.' : ' ',
-			   ((__s32) stats->qual.noise) - 
+			   ((__s32) stats->qual.noise) -
 			   ((stats->qual.updated & IW_QUAL_DBM) ? 0x100 : 0),
 			   stats->qual.updated & IW_QUAL_NOISE_UPDATED
 			   ? '.' : ' ',
@@ -674,7 +674,7 @@ static int wireless_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &wireless_seq_ops);
 }
 
-static struct file_operations wireless_seq_fops = {
+static const struct file_operations wireless_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = wireless_seq_open,
 	.read    = seq_read,
@@ -862,7 +862,7 @@ static int ioctl_standard_call(struct net_device *	dev,
 					   iwr->u.data.length *
 					   descr->token_size);
 			if (err)
-				ret =  -EFAULT;				   
+				ret =  -EFAULT;
 #ifdef WE_IOCTL_DEBUG
 			printk(KERN_DEBUG "%s (WE) : Wrote %d bytes\n",
 			       dev->name,
@@ -1040,7 +1040,7 @@ static inline int ioctl_private_call(struct net_device *	dev,
 			err = copy_to_user(iwr->u.data.pointer, extra,
 					   extra_size);
 			if (err)
-				ret =  -EFAULT;				   
+				ret =  -EFAULT;
 #ifdef WE_IOCTL_DEBUG
 			printk(KERN_DEBUG "%s (WE) : Wrote %d elem\n",
 			       dev->name, iwr->u.data.length);
@@ -1080,7 +1080,7 @@ int wireless_process_ioctl(struct ifreq *ifr, unsigned int cmd)
 	/* A bunch of special cases, then the generic case...
 	 * Note that 'cmd' is already filtered in dev_ioctl() with
 	 * (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) */
-	switch(cmd) 
+	switch(cmd)
 	{
 		case SIOCGIWSTATS:
 			/* Get Wireless Stats */
@@ -2015,7 +2015,7 @@ void wireless_send_event(struct net_device *	dev,
 		 * The best the driver could do is to log an error message.
 		 * We will do it ourselves instead...
 		 */
-	  	printk(KERN_ERR "%s (WE) : Invalid/Unknown Wireless Event (0x%04X)\n",
+		printk(KERN_ERR "%s (WE) : Invalid/Unknown Wireless Event (0x%04X)\n",
 		       dev->name, cmd);
 		return;
 	}
@@ -2029,11 +2029,11 @@ void wireless_send_event(struct net_device *	dev,
 	if(descr->header_type == IW_HEADER_TYPE_POINT) {
 		/* Check if number of token fits within bounds */
 		if(wrqu->data.length > descr->max_tokens) {
-		  	printk(KERN_ERR "%s (WE) : Wireless Event too big (%d)\n", dev->name, wrqu->data.length);
+			printk(KERN_ERR "%s (WE) : Wireless Event too big (%d)\n", dev->name, wrqu->data.length);
 			return;
 		}
 		if(wrqu->data.length < descr->min_tokens) {
-		  	printk(KERN_ERR "%s (WE) : Wireless Event too small (%d)\n", dev->name, wrqu->data.length);
+			printk(KERN_ERR "%s (WE) : Wireless Event too small (%d)\n", dev->name, wrqu->data.length);
 			return;
 		}
 		/* Calculate extra_len - extra is NULL for restricted events */

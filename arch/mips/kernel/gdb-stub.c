@@ -505,13 +505,13 @@ void show_gdbregs(struct gdb_regs * regs)
 	 */
 	printk("$0 : %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
 	       regs->reg0, regs->reg1, regs->reg2, regs->reg3,
-               regs->reg4, regs->reg5, regs->reg6, regs->reg7);
+	       regs->reg4, regs->reg5, regs->reg6, regs->reg7);
 	printk("$8 : %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
 	       regs->reg8, regs->reg9, regs->reg10, regs->reg11,
-               regs->reg12, regs->reg13, regs->reg14, regs->reg15);
+	       regs->reg12, regs->reg13, regs->reg14, regs->reg15);
 	printk("$16: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
 	       regs->reg16, regs->reg17, regs->reg18, regs->reg19,
-               regs->reg20, regs->reg21, regs->reg22, regs->reg23);
+	       regs->reg20, regs->reg21, regs->reg22, regs->reg23);
 	printk("$24: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
 	       regs->reg24, regs->reg25, regs->reg26, regs->reg27,
 	       regs->reg28, regs->reg29, regs->reg30, regs->reg31);

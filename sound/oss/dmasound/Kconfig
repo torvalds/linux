@@ -14,7 +14,7 @@ config DMASOUND_ATARI
 
 config DMASOUND_PMAC
 	tristate "PowerMac DMA sound support"
-	depends on PPC32 && PPC_PMAC && SOUND && I2C
+	depends on PPC32 && PPC_PMAC && SOUND && I2C && OBSOLETE_OSS
  	select DMASOUND
 	help
 	  If you want to use the internal audio of your PowerMac in Linux,

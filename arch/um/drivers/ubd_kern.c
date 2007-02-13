@@ -56,6 +56,7 @@
 enum ubd_req { UBD_READ, UBD_WRITE };
 
 struct io_thread_req {
+	struct request *req;
 	enum ubd_req op;
 	int fds[2];
 	unsigned long offsets[2];
@@ -106,10 +107,6 @@ static inline void ubd_set_bit(__u64 bit, unsigned char *data)
 
 #define DRIVER_NAME "uml-blkdev"
 
-/* Can be taken in interrupt context, and is passed to the block layer to lock
- * the request queue. Kernel side code knows that. */
-static DEFINE_SPINLOCK(ubd_io_lock);
-
 static DEFINE_MUTEX(ubd_lock);
 
 /* XXX - this made sense in 2.4 days, now it's only used as a boolean, and
@@ -132,12 +129,8 @@ static struct block_device_operations ubd_blops = {
 	.getgeo		= ubd_getgeo,
 };
 
-/* Protected by the queue_lock */
-static request_queue_t *ubd_queue;
-
 /* Protected by ubd_lock */
 static int fake_major = MAJOR_NR;
-
 static struct gendisk *ubd_gendisk[MAX_DEV];
 static struct gendisk *fake_gendisk[MAX_DEV];
 
@@ -148,10 +141,6 @@ static struct gendisk *fake_gendisk[MAX_DEV];
 #define OPEN_FLAGS ((struct openflags) { .r = 1, .w = 1, .s = 0, .c = 0, \
 					 .cl = 1 })
 #endif
-
-/* Not protected - changed only in ubd_setup_common and then only to
- * to enable O_SYNC.
- */
 static struct openflags global_openflags = OPEN_FLAGS;
 
 struct cow {
@@ -178,6 +167,8 @@ struct ubd {
 	unsigned no_cow:1;
 	struct cow cow;
 	struct platform_device pdev;
+	struct request_queue *queue;
+	spinlock_t lock;
 };
 
 #define DEFAULT_COW { \
@@ -198,8 +189,10 @@ struct ubd {
         .no_cow =               0, \
 	.shared =		0, \
         .cow =			DEFAULT_COW, \
+	.lock =			SPIN_LOCK_UNLOCKED,	\
 }
 
+/* Protected by ubd_lock */
 struct ubd ubd_devs[MAX_DEV] = { [ 0 ... MAX_DEV - 1 ] = DEFAULT_UBD };
 
 /* Only changed by fake_ide_setup which is a setup */
@@ -242,7 +235,6 @@ static void make_ide_entries(char *dev_name)
 
 	ent = create_proc_entry("media", S_IFREG|S_IRUGO, dir);
 	if(!ent) return;
-	ent->nlink = 1;
 	ent->data = NULL;
 	ent->read_proc = proc_ide_read_media;
 	ent->write_proc = NULL;
@@ -286,12 +278,12 @@ static int parse_unit(char **ptr)
  * otherwise, the str pointer is used (and owned) inside ubd_devs array, so it
  * should not be freed on exit.
  */
-static int ubd_setup_common(char *str, int *index_out)
+static int ubd_setup_common(char *str, int *index_out, char **error_out)
 {
 	struct ubd *ubd_dev;
 	struct openflags flags = global_openflags;
 	char *backing_file;
-	int n, err, i;
+	int n, err = 0, i;
 
 	if(index_out) *index_out = -1;
 	n = *str;
@@ -302,56 +294,55 @@ static int ubd_setup_common(char *str, int *index_out)
 		str++;
 		if(!strcmp(str, "sync")){
 			global_openflags = of_sync(global_openflags);
-			return(0);
+			goto out1;
 		}
+
+		err = -EINVAL;
 		major = simple_strtoul(str, &end, 0);
 		if((*end != '\0') || (end == str)){
-			printk(KERN_ERR
-			       "ubd_setup : didn't parse major number\n");
-			return(1);
+			*error_out = "Didn't parse major number";
+			goto out1;
 		}
 
-		err = 1;
- 		mutex_lock(&ubd_lock);
- 		if(fake_major != MAJOR_NR){
- 			printk(KERN_ERR "Can't assign a fake major twice\n");
- 			goto out1;
- 		}
+		mutex_lock(&ubd_lock);
+		if(fake_major != MAJOR_NR){
+			*error_out = "Can't assign a fake major twice";
+			goto out1;
+		}
 
- 		fake_major = major;
+		fake_major = major;
 
 		printk(KERN_INFO "Setting extra ubd major number to %d\n",
 		       major);
- 		err = 0;
- 	out1:
- 		mutex_unlock(&ubd_lock);
-		return(err);
+		err = 0;
+	out1:
+		mutex_unlock(&ubd_lock);
+		return err;
 	}
 
 	n = parse_unit(&str);
 	if(n < 0){
-		printk(KERN_ERR "ubd_setup : couldn't parse unit number "
-		       "'%s'\n", str);
-		return(1);
+		*error_out = "Couldn't parse device number";
+		return -EINVAL;
 	}
 	if(n >= MAX_DEV){
-		printk(KERN_ERR "ubd_setup : index %d out of range "
-		       "(%d devices, from 0 to %d)\n", n, MAX_DEV, MAX_DEV - 1);
-		return(1);
+		*error_out = "Device number out of range";
+		return 1;
 	}
 
-	err = 1;
+	err = -EBUSY;
 	mutex_lock(&ubd_lock);
 
 	ubd_dev = &ubd_devs[n];
 	if(ubd_dev->file != NULL){
-		printk(KERN_ERR "ubd_setup : device already configured\n");
+		*error_out = "Device is already configured";
 		goto out;
 	}
 
 	if (index_out)
 		*index_out = n;
 
+	err = -EINVAL;
 	for (i = 0; i < sizeof("rscd="); i++) {
 		switch (*str) {
 		case 'r':
@@ -370,47 +361,54 @@ static int ubd_setup_common(char *str, int *index_out)
 			str++;
 			goto break_loop;
 		default:
-			printk(KERN_ERR "ubd_setup : Expected '=' or flag letter (r, s, c, or d)\n");
+			*error_out = "Expected '=' or flag letter "
+				"(r, s, c, or d)";
 			goto out;
 		}
 		str++;
 	}
 
-        if (*str == '=')
-		printk(KERN_ERR "ubd_setup : Too many flags specified\n");
-        else
-		printk(KERN_ERR "ubd_setup : Expected '='\n");
+	if (*str == '=')
+		*error_out = "Too many flags specified";
+	else
+		*error_out = "Missing '='";
 	goto out;
 
 break_loop:
-	err = 0;
 	backing_file = strchr(str, ',');
 
-	if (!backing_file) {
+	if (backing_file == NULL)
 		backing_file = strchr(str, ':');
-	}
 
-	if(backing_file){
-		if(ubd_dev->no_cow)
-			printk(KERN_ERR "Can't specify both 'd' and a "
-			       "cow file\n");
+	if(backing_file != NULL){
+		if(ubd_dev->no_cow){
+			*error_out = "Can't specify both 'd' and a cow file";
+			goto out;
+		}
 		else {
 			*backing_file = '\0';
 			backing_file++;
 		}
 	}
+	err = 0;
 	ubd_dev->file = str;
 	ubd_dev->cow.file = backing_file;
 	ubd_dev->boot_openflags = flags;
 out:
 	mutex_unlock(&ubd_lock);
-	return(err);
+	return err;
 }
 
 static int ubd_setup(char *str)
 {
-	ubd_setup_common(str, NULL);
-	return(1);
+	char *error;
+	int err;
+
+	err = ubd_setup_common(str, NULL, &error);
+	if(err)
+		printk(KERN_ERR "Failed to initialize device with \"%s\" : "
+		       "%s\n", str, error);
+	return 1;
 }
 
 __setup("ubd", ubd_setup);
@@ -422,7 +420,7 @@ __uml_help(ubd_setup,
 "    use either a ':' or a ',': the first one allows writing things like;\n"
 "	ubd0=~/Uml/root_cow:~/Uml/root_backing_file\n"
 "    while with a ',' the shell would not expand the 2nd '~'.\n"
-"    When using only one filename, UML will detect whether to thread it like\n"
+"    When using only one filename, UML will detect whether to treat it like\n"
 "    a COW file or a backing file. To override this detection, add the 'd'\n"
 "    flag:\n"
 "	ubd0d=BackingFile\n"
@@ -471,12 +469,6 @@ static void do_ubd_request(request_queue_t * q);
 /* Only changed by ubd_init, which is an initcall. */
 int thread_fd = -1;
 
-/* Changed by ubd_handler, which is serialized because interrupts only
- * happen on CPU 0.
- * XXX: currently unused.
- */
-static int intr_count = 0;
-
 /* call ubd_finish if you need to serialize */
 static void __ubd_finish(struct request *req, int error)
 {
@@ -499,36 +491,38 @@ static void __ubd_finish(struct request *req, int error)
  * spin_lock_irq()/spin_lock_irqsave() */
 static inline void ubd_finish(struct request *req, int error)
 {
- 	spin_lock(&ubd_io_lock);
+	struct ubd *dev = req->rq_disk->private_data;
+
+	spin_lock(&dev->lock);
 	__ubd_finish(req, error);
-	spin_unlock(&ubd_io_lock);
+	spin_unlock(&dev->lock);
 }
 
 /* XXX - move this inside ubd_intr. */
-/* Called without ubd_io_lock held, and only in interrupt context. */
+/* Called without dev->lock held, and only in interrupt context. */
 static void ubd_handler(void)
 {
 	struct io_thread_req req;
-	struct request *rq = elv_next_request(ubd_queue);
+	struct request *rq;
+	struct ubd *dev;
 	int n;
 
 	do_ubd = 0;
-	intr_count++;
 	n = os_read_file(thread_fd, &req, sizeof(req));
 	if(n != sizeof(req)){
 		printk(KERN_ERR "Pid %d - spurious interrupt in ubd_handler, "
 		       "err = %d\n", os_getpid(), -n);
-		spin_lock(&ubd_io_lock);
-		end_request(rq, 0);
-		spin_unlock(&ubd_io_lock);
 		return;
 	}
 
+	rq = req.req;
+	dev = rq->rq_disk->private_data;
+
 	ubd_finish(rq, req.error);
-	reactivate_fd(thread_fd, UBD_IRQ);	
-	spin_lock(&ubd_io_lock);
-	do_ubd_request(ubd_queue);
-	spin_unlock(&ubd_io_lock);
+	reactivate_fd(thread_fd, UBD_IRQ);
+	spin_lock(&dev->lock);
+	do_ubd_request(dev->queue);
+	spin_unlock(&dev->lock);
 }
 
 static irqreturn_t ubd_intr(int irq, void *dev)
@@ -632,8 +626,7 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 }
 
 static int ubd_disk_register(int major, u64 size, int unit,
-			struct gendisk **disk_out)
-			
+			     struct gendisk **disk_out)
 {
 	struct gendisk *disk;
 
@@ -659,7 +652,7 @@ static int ubd_disk_register(int major, u64 size, int unit,
 	}
 
 	disk->private_data = &ubd_devs[unit];
-	disk->queue = ubd_queue;
+	disk->queue = ubd_devs[unit].queue;
 	add_disk(disk);
 
 	*disk_out = disk;
@@ -668,28 +661,39 @@ static int ubd_disk_register(int major, u64 size, int unit,
 
 #define ROUND_BLOCK(n) ((n + ((1 << 9) - 1)) & (-1 << 9))
 
-static int ubd_add(int n)
+static int ubd_add(int n, char **error_out)
 {
 	struct ubd *ubd_dev = &ubd_devs[n];
-	int err;
+	int err = 0;
 
-	err = -ENODEV;
 	if(ubd_dev->file == NULL)
 		goto out;
 
 	err = ubd_file_size(ubd_dev, &ubd_dev->size);
-	if(err < 0)
+	if(err < 0){
+		*error_out = "Couldn't determine size of device's file";
 		goto out;
+	}
 
 	ubd_dev->size = ROUND_BLOCK(ubd_dev->size);
 
-	err = ubd_disk_register(MAJOR_NR, ubd_dev->size, n, &ubd_gendisk[n]);
-	if(err)
+	err = -ENOMEM;
+	ubd_dev->queue = blk_init_queue(do_ubd_request, &ubd_dev->lock);
+	if (ubd_dev->queue == NULL) {
+		*error_out = "Failed to initialize device queue";
 		goto out;
+	}
+	ubd_dev->queue->queuedata = ubd_dev;
+
+	err = ubd_disk_register(MAJOR_NR, ubd_dev->size, n, &ubd_gendisk[n]);
+	if(err){
+		*error_out = "Failed to register device";
+		goto out_cleanup;
+	}
 
 	if(fake_major != MAJOR_NR)
 		ubd_disk_register(fake_major, ubd_dev->size, n,
-			     &fake_gendisk[n]);
+				  &fake_gendisk[n]);
 
 	/* perhaps this should also be under the "if (fake_major)" above */
 	/* using the fake_disk->disk_name and also the fakehd_set name */
@@ -699,30 +703,37 @@ static int ubd_add(int n)
 	err = 0;
 out:
 	return err;
+
+out_cleanup:
+	blk_cleanup_queue(ubd_dev->queue);
+	goto out;
 }
 
-static int ubd_config(char *str)
+static int ubd_config(char *str, char **error_out)
 {
 	int n, ret;
 
+	/* This string is possibly broken up and stored, so it's only
+	 * freed if ubd_setup_common fails, or if only general options
+	 * were set.
+	 */
 	str = kstrdup(str, GFP_KERNEL);
 	if (str == NULL) {
-		printk(KERN_ERR "ubd_config failed to strdup string\n");
-		ret = 1;
-		goto out;
+		*error_out = "Failed to allocate memory";
+		return -ENOMEM;
 	}
-	ret = ubd_setup_common(str, &n);
-	if (ret) {
-		ret = -1;
+
+	ret = ubd_setup_common(str, &n, error_out);
+	if (ret)
 		goto err_free;
-	}
+
 	if (n == -1) {
 		ret = 0;
 		goto err_free;
 	}
 
  	mutex_lock(&ubd_lock);
-	ret = ubd_add(n);
+	ret = ubd_add(n, error_out);
 	if (ret)
 		ubd_devs[n].file = NULL;
  	mutex_unlock(&ubd_lock);
@@ -777,7 +788,7 @@ static int ubd_id(char **str, int *start_out, int *end_out)
         return n;
 }
 
-static int ubd_remove(int n)
+static int ubd_remove(int n, char **error_out)
 {
 	struct ubd *ubd_dev;
 	int err = -ENODEV;
@@ -807,6 +818,7 @@ static int ubd_remove(int n)
 		fake_gendisk[n] = NULL;
 	}
 
+	blk_cleanup_queue(ubd_dev->queue);
 	platform_device_unregister(&ubd_dev->pdev);
 	*ubd_dev = ((struct ubd) DEFAULT_UBD);
 	err = 0;
@@ -815,8 +827,11 @@ out:
 	return err;
 }
 
-/* All these are called by mconsole in process context and without ubd-specific locks. */
+/* All these are called by mconsole in process context and without
+ * ubd-specific locks.  The structure itself is const except for .list.
+ */
 static struct mc_device ubd_mc = {
+	.list		= LIST_HEAD_INIT(ubd_mc.list),
 	.name		= "ubd",
 	.config		= ubd_config,
  	.get_config	= ubd_get_config,
@@ -836,13 +851,17 @@ static int __init ubd0_init(void)
 {
 	struct ubd *ubd_dev = &ubd_devs[0];
 
+	mutex_lock(&ubd_lock);
 	if(ubd_dev->file == NULL)
 		ubd_dev->file = "root_fs";
+	mutex_unlock(&ubd_lock);
+
 	return(0);
 }
 
 __initcall(ubd0_init);
 
+/* Used in ubd_init, which is an initcall */
 static struct platform_driver ubd_driver = {
 	.driver = {
 		.name  = DRIVER_NAME,
@@ -851,17 +870,12 @@ static struct platform_driver ubd_driver = {
 
 static int __init ubd_init(void)
 {
-        int i;
+	char *error;
+	int i, err;
 
 	if (register_blkdev(MAJOR_NR, "ubd"))
 		return -1;
 
-	ubd_queue = blk_init_queue(do_ubd_request, &ubd_io_lock);
-	if (!ubd_queue) {
-		unregister_blkdev(MAJOR_NR, "ubd");
-		return -1;
-	}
-		
 	if (fake_major != MAJOR_NR) {
 		char name[sizeof("ubd_nnn\0")];
 
@@ -870,8 +884,14 @@ static int __init ubd_init(void)
 			return -1;
 	}
 	platform_driver_register(&ubd_driver);
-	for (i = 0; i < MAX_DEV; i++)
-		ubd_add(i);
+ 	mutex_lock(&ubd_lock);
+	for (i = 0; i < MAX_DEV; i++){
+		err = ubd_add(i, &error);
+		if(err)
+			printk(KERN_ERR "Failed to initialize ubd device %d :"
+			       "%s\n", i, error);
+	}
+ 	mutex_unlock(&ubd_lock);
 	return 0;
 }
 
@@ -1003,7 +1023,7 @@ static void cowify_req(struct io_thread_req *req, unsigned long *bitmap,
 			   req->bitmap_words, bitmap_len);
 }
 
-/* Called with ubd_io_lock held */
+/* Called with dev->lock held */
 static int prepare_request(struct request *req, struct io_thread_req *io_req)
 {
 	struct gendisk *disk = req->rq_disk;
@@ -1022,6 +1042,7 @@ static int prepare_request(struct request *req, struct io_thread_req *io_req)
 	offset = ((__u64) req->sector) << 9;
 	len = req->current_nr_sectors << 9;
 
+	io_req->req = req;
 	io_req->fds[0] = (ubd_dev->cow.file != NULL) ? ubd_dev->cow.fd : ubd_dev->fd;
 	io_req->fds[1] = ubd_dev->fd;
 	io_req->cow_offset = -1;
@@ -1043,7 +1064,7 @@ static int prepare_request(struct request *req, struct io_thread_req *io_req)
 	return(0);
 }
 
-/* Called with ubd_io_lock held */
+/* Called with dev->lock held */
 static void do_ubd_request(request_queue_t *q)
 {
 	struct io_thread_req io_req;
@@ -1102,7 +1123,7 @@ static int ubd_ioctl(struct inode * inode, struct file * file,
 				 sizeof(ubd_id)))
 			return(-EFAULT);
 		return(0);
-		
+
 	case CDROMVOLREAD:
 		if(copy_from_user(&volume, (char __user *) arg, sizeof(volume)))
 			return(-EFAULT);

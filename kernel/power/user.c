@@ -37,6 +37,7 @@ static struct snapshot_data {
 	int mode;
 	char frozen;
 	char ready;
+	char platform_suspend;
 } snapshot_state;
 
 static atomic_t device_available = ATOMIC_INIT(1);
@@ -66,6 +67,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	data->bitmap = NULL;
 	data->frozen = 0;
 	data->ready = 0;
+	data->platform_suspend = 0;
 
 	return 0;
 }
@@ -122,6 +124,92 @@ static ssize_t snapshot_write(struct file *filp, const char __user *buf,
 	return res;
 }
 
+static inline int platform_prepare(void)
+{
+	int error = 0;
+
+	if (pm_ops && pm_ops->prepare)
+		error = pm_ops->prepare(PM_SUSPEND_DISK);
+
+	return error;
+}
+
+static inline void platform_finish(void)
+{
+	if (pm_ops && pm_ops->finish)
+		pm_ops->finish(PM_SUSPEND_DISK);
+}
+
+static inline int snapshot_suspend(int platform_suspend)
+{
+	int error;
+
+	mutex_lock(&pm_mutex);
+	/* Free memory before shutting down devices. */
+	error = swsusp_shrink_memory();
+	if (error)
+		goto Finish;
+
+	if (platform_suspend) {
+		error = platform_prepare();
+		if (error)
+			goto Finish;
+	}
+	suspend_console();
+	error = device_suspend(PMSG_FREEZE);
+	if (error)
+		goto Resume_devices;
+
+	error = disable_nonboot_cpus();
+	if (!error) {
+		in_suspend = 1;
+		error = swsusp_suspend();
+	}
+	enable_nonboot_cpus();
+ Resume_devices:
+	if (platform_suspend)
+		platform_finish();
+
+	device_resume();
+	resume_console();
+ Finish:
+	mutex_unlock(&pm_mutex);
+	return error;
+}
+
+static inline int snapshot_restore(int platform_suspend)
+{
+	int error;
+
+	mutex_lock(&pm_mutex);
+	pm_prepare_console();
+	if (platform_suspend) {
+		error = platform_prepare();
+		if (error)
+			goto Finish;
+	}
+	suspend_console();
+	error = device_suspend(PMSG_PRETHAW);
+	if (error)
+		goto Resume_devices;
+
+	error = disable_nonboot_cpus();
+	if (!error)
+		error = swsusp_resume();
+
+	enable_nonboot_cpus();
+ Resume_devices:
+	if (platform_suspend)
+		platform_finish();
+
+	device_resume();
+	resume_console();
+ Finish:
+	pm_restore_console();
+	mutex_unlock(&pm_mutex);
+	return error;
+}
+
 static int snapshot_ioctl(struct inode *inode, struct file *filp,
                           unsigned int cmd, unsigned long arg)
 {
@@ -145,14 +233,9 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		if (data->frozen)
 			break;
 		mutex_lock(&pm_mutex);
-		error = disable_nonboot_cpus();
-		if (!error) {
-			error = freeze_processes();
-			if (error) {
-				thaw_processes();
-				enable_nonboot_cpus();
-				error = -EBUSY;
-			}
+		if (freeze_processes()) {
+			thaw_processes();
+			error = -EBUSY;
 		}
 		mutex_unlock(&pm_mutex);
 		if (!error)
@@ -164,7 +247,6 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			break;
 		mutex_lock(&pm_mutex);
 		thaw_processes();
-		enable_nonboot_cpus();
 		mutex_unlock(&pm_mutex);
 		data->frozen = 0;
 		break;
@@ -174,20 +256,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -EPERM;
 			break;
 		}
-		mutex_lock(&pm_mutex);
-		/* Free memory before shutting down devices. */
-		error = swsusp_shrink_memory();
-		if (!error) {
-			suspend_console();
-			error = device_suspend(PMSG_FREEZE);
-			if (!error) {
-				in_suspend = 1;
-				error = swsusp_suspend();
-				device_resume();
-			}
-			resume_console();
-		}
-		mutex_unlock(&pm_mutex);
+		error = snapshot_suspend(data->platform_suspend);
 		if (!error)
 			error = put_user(in_suspend, (unsigned int __user *)arg);
 		if (!error)
@@ -201,17 +270,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -EPERM;
 			break;
 		}
-		mutex_lock(&pm_mutex);
-		pm_prepare_console();
-		suspend_console();
-		error = device_suspend(PMSG_PRETHAW);
-		if (!error) {
-			error = swsusp_resume();
-			device_resume();
-		}
-		resume_console();
-		pm_restore_console();
-		mutex_unlock(&pm_mutex);
+		error = snapshot_restore(data->platform_suspend);
 		break;
 
 	case SNAPSHOT_FREE:
@@ -282,6 +341,11 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		break;
 
 	case SNAPSHOT_S2RAM:
+		if (!pm_ops) {
+			error = -ENOSYS;
+			break;
+		}
+
 		if (!data->frozen) {
 			error = -EPERM;
 			break;
@@ -319,28 +383,35 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		break;
 
 	case SNAPSHOT_PMOPS:
+		error = -EINVAL;
+
 		switch (arg) {
 
 		case PMOPS_PREPARE:
-			if (pm_ops->prepare) {
-				error = pm_ops->prepare(PM_SUSPEND_DISK);
+			if (pm_ops && pm_ops->enter) {
+				data->platform_suspend = 1;
+				error = 0;
+			} else {
+				error = -ENOSYS;
 			}
 			break;
 
 		case PMOPS_ENTER:
-			kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
-			error = pm_ops->enter(PM_SUSPEND_DISK);
+			if (data->platform_suspend) {
+				kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
+				error = pm_ops->enter(PM_SUSPEND_DISK);
+				error = 0;
+			}
 			break;
 
 		case PMOPS_FINISH:
-			if (pm_ops && pm_ops->finish) {
-				pm_ops->finish(PM_SUSPEND_DISK);
-			}
+			if (data->platform_suspend)
+				error = 0;
+
 			break;
 
 		default:
 			printk(KERN_ERR "SNAPSHOT_PMOPS: invalid argument %ld\n", arg);
-			error = -EINVAL;
 
 		}
 		break;

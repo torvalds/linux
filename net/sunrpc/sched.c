@@ -4,7 +4,7 @@
  * Scheduling for synchronous and asynchronous RPC requests.
  *
  * Copyright (C) 1996 Olaf Kirch, <okir@monad.swb.de>
- * 
+ *
  * TCP NFS related read + write fixes
  * (C) 1999 Dave Airlie, University of Limerick, Ireland <airlied@linux.ie>
  */
@@ -307,7 +307,7 @@ EXPORT_SYMBOL(__rpc_wait_for_completion_task);
 /*
  * Make an RPC task runnable.
  *
- * Note: If the task is ASYNC, this must be called with 
+ * Note: If the task is ASYNC, this must be called with
  * the spinlock held to protect the wait queue operation.
  */
 static void rpc_make_runnable(struct rpc_task *task)
@@ -648,8 +648,8 @@ static void __rpc_execute(struct rpc_task *task)
 		if (RPC_DO_CALLBACK(task)) {
 			/* Define a callback save pointer */
 			void (*save_callback)(struct rpc_task *);
-	
-			/* 
+
+			/*
 			 * If a callback exists, save it, reset it,
 			 * call it.
 			 * The save is needed to stop from resetting

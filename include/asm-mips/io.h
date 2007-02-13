@@ -115,7 +115,7 @@ static inline void set_io_port_base(unsigned long base)
  */
 static inline unsigned long virt_to_phys(volatile const void *address)
 {
-	return (unsigned long)address - PAGE_OFFSET;
+	return (unsigned long)address - PAGE_OFFSET + PHYS_OFFSET;
 }
 
 /*
@@ -132,7 +132,7 @@ static inline unsigned long virt_to_phys(volatile const void *address)
  */
 static inline void * phys_to_virt(unsigned long address)
 {
-	return (void *)(address + PAGE_OFFSET);
+	return (void *)(address + PAGE_OFFSET - PHYS_OFFSET);
 }
 
 /*
@@ -554,12 +554,6 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
  * analogy with PCI is quite large):
  */
 #define __ISA_IO_base ((char *)(isa_slot_offset))
-
-/*
- * We don't have csum_partial_copy_fromio() yet, so we cheat here and
- * just copy it. The net code will then do the checksum later.
- */
-#define eth_io_copy_and_sum(skb,src,len,unused) memcpy_fromio((skb)->data,(src),(len))
 
 /*
  * The caches on some architectures aren't dma-coherent and have need to

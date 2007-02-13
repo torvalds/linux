@@ -1343,13 +1343,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			"inaccurate.\n", bond_dev->name, slave_dev->name);
 	}
 
-	new_slave = kmalloc(sizeof(struct slave), GFP_KERNEL);
+	new_slave = kzalloc(sizeof(struct slave), GFP_KERNEL);
 	if (!new_slave) {
 		res = -ENOMEM;
 		goto err_undo_flags;
 	}
-
-	memset(new_slave, 0, sizeof(struct slave));
 
 	/* save slave's original flags before calling
 	 * netdev_set_master and dev_open
@@ -3122,7 +3120,7 @@ static int bond_info_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-static struct file_operations bond_info_fops = {
+static const struct file_operations bond_info_fops = {
 	.owner   = THIS_MODULE,
 	.open    = bond_info_open,
 	.read    = seq_read,
@@ -4704,6 +4702,7 @@ static int bond_check_params(struct bond_params *params)
 static struct lock_class_key bonding_netdev_xmit_lock_key;
 
 /* Create a new bond based on the specified name and bonding parameters.
+ * If name is NULL, obtain a suitable "bond%d" name for us.
  * Caller must NOT hold rtnl_lock; we need to release it here before we
  * set up our sysfs entries.
  */
@@ -4713,13 +4712,20 @@ int bond_create(char *name, struct bond_params *params, struct bonding **newbond
 	int res;
 
 	rtnl_lock();
-	bond_dev = alloc_netdev(sizeof(struct bonding), name, ether_setup);
+	bond_dev = alloc_netdev(sizeof(struct bonding), name ? name : "",
+				ether_setup);
 	if (!bond_dev) {
 		printk(KERN_ERR DRV_NAME
 		       ": %s: eek! can't alloc netdev!\n",
 		       name);
 		res = -ENOMEM;
 		goto out_rtnl;
+	}
+
+	if (!name) {
+		res = dev_alloc_name(bond_dev, "bond%d");
+		if (res < 0)
+			goto out_netdev;
 	}
 
 	/* bond_init() must be called after dev_alloc_name() (for the
@@ -4748,14 +4754,19 @@ int bond_create(char *name, struct bond_params *params, struct bonding **newbond
 
 	rtnl_unlock(); /* allows sysfs registration of net device */
 	res = bond_create_sysfs_entry(bond_dev->priv);
-	goto done;
+	if (res < 0) {
+		rtnl_lock();
+		goto out_bond;
+	}
+
+	return 0;
+
 out_bond:
 	bond_deinit(bond_dev);
 out_netdev:
 	free_netdev(bond_dev);
 out_rtnl:
 	rtnl_unlock();
-done:
 	return res;
 }
 
@@ -4763,7 +4774,6 @@ static int __init bonding_init(void)
 {
 	int i;
 	int res;
-	char new_bond_name[8];  /* Enough room for 999 bonds at init. */
 
 	printk(KERN_INFO "%s", version);
 
@@ -4776,8 +4786,7 @@ static int __init bonding_init(void)
 	bond_create_proc_dir();
 #endif
 	for (i = 0; i < max_bonds; i++) {
-		sprintf(new_bond_name, "bond%d",i);
-		res = bond_create(new_bond_name,&bonding_defaults, NULL);
+		res = bond_create(NULL, &bonding_defaults, NULL);
 		if (res)
 			goto err;
 	}

@@ -93,8 +93,8 @@ struct pid_entry {
 	int len;
 	char *name;
 	mode_t mode;
-	struct inode_operations *iop;
-	struct file_operations *fop;
+	const struct inode_operations *iop;
+	const struct file_operations *fop;
 	union proc_op op;
 };
 
@@ -352,7 +352,7 @@ static int proc_setattr(struct dentry *dentry, struct iattr *attr)
 	return error;
 }
 
-static struct inode_operations proc_def_inode_operations = {
+static const struct inode_operations proc_def_inode_operations = {
 	.setattr	= proc_setattr,
 };
 
@@ -424,7 +424,7 @@ static unsigned mounts_poll(struct file *file, poll_table *wait)
 	return res;
 }
 
-static struct file_operations proc_mounts_operations = {
+static const struct file_operations proc_mounts_operations = {
 	.open		= mounts_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -462,7 +462,7 @@ static int mountstats_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static struct file_operations proc_mountstats_operations = {
+static const struct file_operations proc_mountstats_operations = {
 	.open		= mountstats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -501,7 +501,7 @@ out_no_task:
 	return length;
 }
 
-static struct file_operations proc_info_file_operations = {
+static const struct file_operations proc_info_file_operations = {
 	.read		= proc_info_read,
 };
 
@@ -646,7 +646,7 @@ static loff_t mem_lseek(struct file * file, loff_t offset, int orig)
 	return file->f_pos;
 }
 
-static struct file_operations proc_mem_operations = {
+static const struct file_operations proc_mem_operations = {
 	.llseek		= mem_lseek,
 	.read		= mem_read,
 	.write		= mem_write,
@@ -710,7 +710,7 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 	return end - buffer;
 }
 
-static struct file_operations proc_oom_adjust_operations = {
+static const struct file_operations proc_oom_adjust_operations = {
 	.read		= oom_adjust_read,
 	.write		= oom_adjust_write,
 };
@@ -777,7 +777,7 @@ out_free_page:
 	return length;
 }
 
-static struct file_operations proc_loginuid_operations = {
+static const struct file_operations proc_loginuid_operations = {
 	.read		= proc_loginuid_read,
 	.write		= proc_loginuid_write,
 };
@@ -849,7 +849,7 @@ out_no_task:
 	return result;
 }
 
-static struct file_operations proc_seccomp_operations = {
+static const struct file_operations proc_seccomp_operations = {
 	.read		= seccomp_read,
 	.write		= seccomp_write,
 };
@@ -908,7 +908,7 @@ static ssize_t proc_fault_inject_write(struct file * file,
 	return end - buffer;
 }
 
-static struct file_operations proc_fault_inject_operations = {
+static const struct file_operations proc_fault_inject_operations = {
 	.read		= proc_fault_inject_read,
 	.write		= proc_fault_inject_write,
 };
@@ -980,7 +980,7 @@ out:
 	return error;
 }
 
-static struct inode_operations proc_pid_link_inode_operations = {
+static const struct inode_operations proc_pid_link_inode_operations = {
 	.readlink	= proc_pid_readlink,
 	.follow_link	= proc_pid_follow_link,
 	.setattr	= proc_setattr,
@@ -1408,7 +1408,7 @@ out_no_task:
 	return retval;
 }
 
-static struct file_operations proc_fd_operations = {
+static const struct file_operations proc_fd_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_readfd,
 };
@@ -1416,7 +1416,7 @@ static struct file_operations proc_fd_operations = {
 /*
  * proc directories can do almost nothing..
  */
-static struct inode_operations proc_fd_inode_operations = {
+static const struct inode_operations proc_fd_inode_operations = {
 	.lookup		= proc_lookupfd,
 	.setattr	= proc_setattr,
 };
@@ -1623,7 +1623,7 @@ out_no_task:
 	return length;
 }
 
-static struct file_operations proc_pid_attr_operations = {
+static const struct file_operations proc_pid_attr_operations = {
 	.read		= proc_pid_attr_read,
 	.write		= proc_pid_attr_write,
 };
@@ -1644,7 +1644,7 @@ static int proc_attr_dir_readdir(struct file * filp,
 				   attr_dir_stuff,ARRAY_SIZE(attr_dir_stuff));
 }
 
-static struct file_operations proc_attr_dir_operations = {
+static const struct file_operations proc_attr_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_attr_dir_readdir,
 };
@@ -1656,7 +1656,7 @@ static struct dentry *proc_attr_dir_lookup(struct inode *dir,
 				  attr_dir_stuff, ARRAY_SIZE(attr_dir_stuff));
 }
 
-static struct inode_operations proc_attr_dir_inode_operations = {
+static const struct inode_operations proc_attr_dir_inode_operations = {
 	.lookup		= proc_attr_dir_lookup,
 	.getattr	= pid_getattr,
 	.setattr	= proc_setattr,
@@ -1682,7 +1682,7 @@ static void *proc_self_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return ERR_PTR(vfs_follow_link(nd,tmp));
 }
 
-static struct inode_operations proc_self_inode_operations = {
+static const struct inode_operations proc_self_inode_operations = {
 	.readlink	= proc_self_readlink,
 	.follow_link	= proc_self_follow_link,
 };
@@ -1810,17 +1810,21 @@ static int proc_base_fill_cache(struct file *filp, void *dirent, filldir_t filld
 static int proc_pid_io_accounting(struct task_struct *task, char *buffer)
 {
 	return sprintf(buffer,
+#ifdef CONFIG_TASK_XACCT
 			"rchar: %llu\n"
 			"wchar: %llu\n"
 			"syscr: %llu\n"
 			"syscw: %llu\n"
+#endif
 			"read_bytes: %llu\n"
 			"write_bytes: %llu\n"
 			"cancelled_write_bytes: %llu\n",
+#ifdef CONFIG_TASK_XACCT
 			(unsigned long long)task->rchar,
 			(unsigned long long)task->wchar,
 			(unsigned long long)task->syscr,
 			(unsigned long long)task->syscw,
+#endif
 			(unsigned long long)task->ioac.read_bytes,
 			(unsigned long long)task->ioac.write_bytes,
 			(unsigned long long)task->ioac.cancelled_write_bytes);
@@ -1830,8 +1834,8 @@ static int proc_pid_io_accounting(struct task_struct *task, char *buffer)
 /*
  * Thread groups
  */
-static struct file_operations proc_task_operations;
-static struct inode_operations proc_task_inode_operations;
+static const struct file_operations proc_task_operations;
+static const struct inode_operations proc_task_inode_operations;
 
 static struct pid_entry tgid_base_stuff[] = {
 	DIR("task",       S_IRUGO|S_IXUGO, task),
@@ -1890,7 +1894,7 @@ static int proc_tgid_base_readdir(struct file * filp,
 				   tgid_base_stuff,ARRAY_SIZE(tgid_base_stuff));
 }
 
-static struct file_operations proc_tgid_base_operations = {
+static const struct file_operations proc_tgid_base_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_tgid_base_readdir,
 };
@@ -1900,7 +1904,7 @@ static struct dentry *proc_tgid_base_lookup(struct inode *dir, struct dentry *de
 				  tgid_base_stuff, ARRAY_SIZE(tgid_base_stuff));
 }
 
-static struct inode_operations proc_tgid_base_inode_operations = {
+static const struct inode_operations proc_tgid_base_inode_operations = {
 	.lookup		= proc_tgid_base_lookup,
 	.getattr	= pid_getattr,
 	.setattr	= proc_setattr,
@@ -2173,12 +2177,12 @@ static struct dentry *proc_tid_base_lookup(struct inode *dir, struct dentry *den
 				  tid_base_stuff, ARRAY_SIZE(tid_base_stuff));
 }
 
-static struct file_operations proc_tid_base_operations = {
+static const struct file_operations proc_tid_base_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_tid_base_readdir,
 };
 
-static struct inode_operations proc_tid_base_inode_operations = {
+static const struct inode_operations proc_tid_base_inode_operations = {
 	.lookup		= proc_tid_base_lookup,
 	.getattr	= pid_getattr,
 	.setattr	= proc_setattr,
@@ -2404,13 +2408,13 @@ static int proc_task_getattr(struct vfsmount *mnt, struct dentry *dentry, struct
 	return 0;
 }
 
-static struct inode_operations proc_task_inode_operations = {
+static const struct inode_operations proc_task_inode_operations = {
 	.lookup		= proc_task_lookup,
 	.getattr	= proc_task_getattr,
 	.setattr	= proc_setattr,
 };
 
-static struct file_operations proc_task_operations = {
+static const struct file_operations proc_task_operations = {
 	.read		= generic_read_dir,
 	.readdir	= proc_task_readdir,
 };

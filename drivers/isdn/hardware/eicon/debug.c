@@ -287,7 +287,7 @@ void* diva_maint_finit (void) {
   }
   external_dbg_queue = 0;
 
-  for (i = 1; i < (sizeof(clients)/sizeof(clients[0])); i++) {
+  for (i = 1; i < ARRAY_SIZE(clients); i++) {
     if (clients[i].pmem) {
       diva_os_free (0, clients[i].pmem);
     }
@@ -391,7 +391,7 @@ static void DI_register (void *arg) {
 
   diva_os_enter_spin_lock (&dbg_q_lock, &old_irql, "register");
 
-  for (id = 1; id < (sizeof(clients)/sizeof(clients[0])); id++) {
+  for (id = 1; id < ARRAY_SIZE(clients); id++) {
     if (clients[id].hDbg == hDbg) {
       /*
         driver already registered
@@ -494,7 +494,7 @@ static void DI_deregister (pDbgHandle hDbg) {
   diva_os_enter_spin_lock (&dbg_adapter_lock, &old_irql1, "read");
   diva_os_enter_spin_lock (&dbg_q_lock, &old_irql, "read");
 
-  for (i = 1; i < (sizeof(clients)/sizeof(clients[0])); i++) {
+  for (i = 1; i < ARRAY_SIZE(clients); i++) {
     if (clients[i].hDbg == hDbg) {
       diva_dbg_entry_head_t* pmsg;
       char tmp[256];
@@ -736,7 +736,7 @@ int diva_get_driver_info (dword id, byte* data, int data_length) {
   int to_copy;
 
   if (!data || !id || (data_length < 17) ||
-      (id >= (sizeof(clients)/sizeof(clients[0])))) {
+      (id >= ARRAY_SIZE(clients))) {
     return (-1);
   }
 
@@ -786,7 +786,7 @@ int diva_get_driver_dbg_mask (dword id, byte* data) {
   diva_os_spin_lock_magic_t old_irql;
   int ret = -1;
 
-  if (!data || !id || (id >= (sizeof(clients)/sizeof(clients[0])))) {
+  if (!data || !id || (id >= ARRAY_SIZE(clients))) {
     return (-1);
   }
   diva_os_enter_spin_lock (&dbg_q_lock, &old_irql, "driver info");
@@ -809,7 +809,7 @@ int diva_set_driver_dbg_mask (dword id, dword mask) {
   int ret = -1;
   
 
-  if (!id || (id >= (sizeof(clients)/sizeof(clients[0])))) {
+  if (!id || (id >= ARRAY_SIZE(clients))) {
     return (-1);
   }
 
@@ -887,7 +887,7 @@ void diva_mnt_add_xdi_adapter (const DESCRIPTOR* d) {
   diva_os_enter_spin_lock (&dbg_adapter_lock, &old_irql1, "register");
   diva_os_enter_spin_lock (&dbg_q_lock, &old_irql, "register");
 
-  for (id = 1; id < (sizeof(clients)/sizeof(clients[0])); id++) {
+  for (id = 1; id < ARRAY_SIZE(clients); id++) {
     if (clients[id].hDbg && (clients[id].request == d->request)) {
       diva_os_leave_spin_lock (&dbg_q_lock, &old_irql, "register");
       diva_os_leave_spin_lock (&dbg_adapter_lock, &old_irql1, "register");
@@ -1037,7 +1037,7 @@ void diva_mnt_remove_xdi_adapter (const DESCRIPTOR* d) {
   diva_os_enter_spin_lock (&dbg_adapter_lock, &old_irql1, "read");
   diva_os_enter_spin_lock (&dbg_q_lock, &old_irql, "read");
 
-  for (i = 1; i < (sizeof(clients)/sizeof(clients[0])); i++) {
+  for (i = 1; i < ARRAY_SIZE(clients); i++) {
     if (clients[i].hDbg && (clients[i].request == d->request)) {
       diva_dbg_entry_head_t* pmsg;
       char tmp[256];
@@ -1115,7 +1115,7 @@ void diva_mnt_remove_xdi_adapter (const DESCRIPTOR* d) {
 void* SuperTraceOpenAdapter   (int AdapterNumber) {
   int i;
 
-  for (i = 1; i < (sizeof(clients)/sizeof(clients[0])); i++) {
+  for (i = 1; i < ARRAY_SIZE(clients); i++) {
     if (clients[i].hDbg && clients[i].request && (clients[i].logical == AdapterNumber)) {
       return (&clients[i]);
     }
@@ -1508,7 +1508,7 @@ static void diva_maint_state_change_notify (void* user_context,
 					int ch = TraceFilterChannel;
 					int id = TraceFilterIdent;
 
-					if ((id >= 0) && (ch >= 0) && (id < sizeof(clients)/sizeof(clients[0])) &&
+					if ((id >= 0) && (ch >= 0) && (id < ARRAY_SIZE(clients)) &&
 						(clients[id].Dbg.id == (byte)id) && (clients[id].pIdiLib == hLib)) {
 						if (ch != (int)modem->ChannelNumber) {
 							break;
@@ -1555,7 +1555,7 @@ static void diva_maint_state_change_notify (void* user_context,
 					int ch = TraceFilterChannel;
 					int id = TraceFilterIdent;
 
-					if ((id >= 0) && (ch >= 0) && (id < sizeof(clients)/sizeof(clients[0])) &&
+					if ((id >= 0) && (ch >= 0) && (id < ARRAY_SIZE(clients)) &&
 						(clients[id].Dbg.id == (byte)id) && (clients[id].pIdiLib == hLib)) {
 						if (ch != (int)fax->ChannelNumber) {
 							break;
@@ -1803,7 +1803,7 @@ static void diva_maint_trace_notify (void* user_context,
   /*
     Selective trace
     */
-  if ((id >= 0) && (ch >= 0) && (id < sizeof(clients)/sizeof(clients[0])) &&
+  if ((id >= 0) && (ch >= 0) && (id < ARRAY_SIZE(clients)) &&
       (clients[id].Dbg.id == (byte)id) && (clients[id].pIdiLib == hLib)) {
     const char* p = NULL;
     int ch_value = -1;
@@ -1925,7 +1925,7 @@ int diva_mnt_shutdown_xdi_adapters (void) {
   byte * pmem;
 
 
-  for (i = 1; i < (sizeof(clients)/sizeof(clients[0])); i++) {
+  for (i = 1; i < ARRAY_SIZE(clients); i++) {
     pmem = NULL;
 
     diva_os_enter_spin_lock (&dbg_adapter_lock, &old_irql1, "unload");
@@ -2006,7 +2006,7 @@ int diva_set_trace_filter (int filter_length, const char* filter) {
 
   on = (TraceFilter[0] == 0);
 
-  for (i = 1; i < (sizeof(clients)/sizeof(clients[0])); i++) {
+  for (i = 1; i < ARRAY_SIZE(clients); i++) {
     if (clients[i].hDbg && clients[i].pIdiLib && clients[i].request) {
       client_b_on    = on && ((clients[i].hDbg->dbgMask & DIVA_MGT_DBG_IFC_BCHANNEL) != 0);
       client_atap_on = on && ((clients[i].hDbg->dbgMask & DIVA_MGT_DBG_IFC_AUDIO)    != 0);
@@ -2017,7 +2017,7 @@ int diva_set_trace_filter (int filter_length, const char* filter) {
     }
   }
 
-  for (i = 1; i < (sizeof(clients)/sizeof(clients[0])); i++) {
+  for (i = 1; i < ARRAY_SIZE(clients); i++) {
     if (clients[i].hDbg && clients[i].pIdiLib && clients[i].request && clients[i].request_pending) {
       diva_os_leave_spin_lock (&dbg_q_lock, &old_irql, "write_filter");
       clients[i].request_pending = 0;

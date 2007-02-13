@@ -173,14 +173,9 @@ static inline int snd_hda_codec_proc_new(struct hda_codec *codec) { return 0; }
 /*
  * Misc
  */
-struct hda_board_config {
-	const char *modelname;
-	int config;
-	unsigned short pci_subvendor;
-	unsigned short pci_subdevice;
-};
-
-int snd_hda_check_board_config(struct hda_codec *codec, const struct hda_board_config *tbl);
+int snd_hda_check_board_config(struct hda_codec *codec, int num_configs,
+			       const char **modelnames,
+			       const struct snd_pci_quirk *pci_list);
 int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew);
 
 /*
@@ -204,7 +199,6 @@ struct hda_bus_unsolicited {
 	unsigned int rp, wp;
 
 	/* workqueue */
-	struct workqueue_struct *workq;
 	struct work_struct work;
 	struct hda_bus *bus;
 };

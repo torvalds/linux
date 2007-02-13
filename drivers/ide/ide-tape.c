@@ -4779,7 +4779,7 @@ static ide_driver_t idetape_driver = {
 /*
  *	Our character device supporting functions, passed to register_chrdev.
  */
-static struct file_operations idetape_fops = {
+static const struct file_operations idetape_fops = {
 	.owner		= THIS_MODULE,
 	.read		= idetape_chrdev_read,
 	.write		= idetape_chrdev_write,

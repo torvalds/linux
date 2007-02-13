@@ -18,7 +18,7 @@ static int ebt_mac_wormhash_contains(const struct ebt_mac_wormhash *wh,
 				     const char *mac, __be32 ip)
 {
 	/* You may be puzzled as to how this code works.
-	 * Some tricks were used, refer to 
+	 * Some tricks were used, refer to
 	 * 	include/linux/netfilter_bridge/ebt_among.h
 	 * as there you can find a solution of this mystery.
 	 */
@@ -207,8 +207,8 @@ static int ebt_among_check(const char *tablename, unsigned int hookmask,
 }
 
 static struct ebt_match filter_among = {
-	.name		= EBT_AMONG_MATCH, 
-	.match		= ebt_filter_among, 
+	.name		= EBT_AMONG_MATCH,
+	.match		= ebt_filter_among,
 	.check		= ebt_among_check,
 	.me		= THIS_MODULE,
 };

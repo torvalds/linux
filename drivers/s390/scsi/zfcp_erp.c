@@ -200,7 +200,7 @@ void zfcp_fsf_start_timer(struct zfcp_fsf_req *fsf_req, unsigned long timeout)
  * returns:	0	- initiated action successfully
  *		<0	- failed to initiate action
  */
-int
+static int
 zfcp_erp_adapter_reopen_internal(struct zfcp_adapter *adapter, int clear_mask)
 {
 	int retval;
@@ -295,7 +295,7 @@ zfcp_erp_unit_shutdown(struct zfcp_unit *unit, int clear_mask)
  * zfcp_erp_adisc - send ADISC ELS command
  * @port: port structure
  */
-int
+static int
 zfcp_erp_adisc(struct zfcp_port *port)
 {
 	struct zfcp_adapter *adapter = port->adapter;
@@ -380,7 +380,7 @@ zfcp_erp_adisc(struct zfcp_port *port)
  *
  * If ADISC failed (LS_RJT or timed out) forced reopen of the port is triggered.
  */
-void
+static void
 zfcp_erp_adisc_handler(unsigned long data)
 {
 	struct zfcp_send_els *send_els;
@@ -838,32 +838,28 @@ zfcp_erp_action_exists(struct zfcp_erp_action *erp_action)
  *		and does appropriate preparations (dismiss fsf request, ...)
  *
  * locks:	called under erp_lock (disabled interrupts)
- *
- * returns:	0
  */
-static int
+static void
 zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 {
-	int retval = 0;
-	struct zfcp_fsf_req *fsf_req = NULL;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 
 	if (erp_action->fsf_req) {
 		/* take lock to ensure that request is not deleted meanwhile */
 		spin_lock(&adapter->req_list_lock);
-		if ((!zfcp_reqlist_ismember(adapter,
-					    erp_action->fsf_req->req_id)) &&
-		    (fsf_req->erp_action == erp_action)) {
+		if (zfcp_reqlist_ismember(adapter,
+					    erp_action->fsf_req->req_id)) {
 			/* fsf_req still exists */
 			debug_text_event(adapter->erp_dbf, 3, "a_ca_req");
-			debug_event(adapter->erp_dbf, 3, &fsf_req,
+			debug_event(adapter->erp_dbf, 3, &erp_action->fsf_req,
 				    sizeof (unsigned long));
 			/* dismiss fsf_req of timed out/dismissed erp_action */
 			if (erp_action->status & (ZFCP_STATUS_ERP_DISMISSED |
 						  ZFCP_STATUS_ERP_TIMEDOUT)) {
 				debug_text_event(adapter->erp_dbf, 3,
 						 "a_ca_disreq");
-				fsf_req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
+				erp_action->fsf_req->status |=
+					ZFCP_STATUS_FSFREQ_DISMISSED;
 			}
 			if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT) {
 				ZFCP_LOG_NORMAL("error: erp step timed out "
@@ -876,11 +872,11 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 			 * then keep it running asynchronously and don't mess
 			 * with the association of erp_action and fsf_req.
 			 */
-			if (fsf_req->status & (ZFCP_STATUS_FSFREQ_COMPLETED |
+			if (erp_action->fsf_req->status &
+					(ZFCP_STATUS_FSFREQ_COMPLETED |
 					       ZFCP_STATUS_FSFREQ_DISMISSED)) {
 				/* forget about association between fsf_req
 				   and erp_action */
-				fsf_req->erp_action = NULL;
 				erp_action->fsf_req = NULL;
 			}
 		} else {
@@ -894,8 +890,6 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 		spin_unlock(&adapter->req_list_lock);
 	} else
 		debug_text_event(adapter->erp_dbf, 3, "a_ca_noreq");
-
-	return retval;
 }
 
 /**
@@ -3141,7 +3135,6 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 		break;
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		if (result != ZFCP_ERP_SUCCEEDED) {
-			struct zfcp_port *port;
 			list_for_each_entry(port, &adapter->port_list_head, list)
 				if (port->rport &&
 				    !atomic_test_mask(ZFCP_STATUS_PORT_WKA,

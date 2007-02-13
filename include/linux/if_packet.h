@@ -41,11 +41,21 @@ struct sockaddr_ll
 #define PACKET_RX_RING			5
 #define PACKET_STATISTICS		6
 #define PACKET_COPY_THRESH		7
+#define PACKET_AUXDATA			8
 
 struct tpacket_stats
 {
 	unsigned int	tp_packets;
 	unsigned int	tp_drops;
+};
+
+struct tpacket_auxdata
+{
+	__u32		tp_status;
+	__u32		tp_len;
+	__u32		tp_snaplen;
+	__u16		tp_mac;
+	__u16		tp_net;
 };
 
 struct tpacket_hdr

@@ -52,7 +52,7 @@ static __inline__ unsigned long hold_time(const struct net_bridge *br)
 static __inline__ int has_expired(const struct net_bridge *br,
 				  const struct net_bridge_fdb_entry *fdb)
 {
-	return !fdb->is_static 
+	return !fdb->is_static
 		&& time_before_eq(fdb->ageing_timer + hold_time(br), jiffies);
 }
 
@@ -71,7 +71,7 @@ void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
 {
 	struct net_bridge *br = p->br;
 	int i;
-	
+
 	spin_lock_bh(&br->hash_lock);
 
 	/* Search all chains since old address/hash is unknown */
@@ -85,7 +85,7 @@ void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
 				/* maybe another port has same hw addr? */
 				struct net_bridge_port *op;
 				list_for_each_entry(op, &br->port_list, list) {
-					if (op != p && 
+					if (op != p &&
 					    !compare_ether_addr(op->dev->dev_addr,
 								f->addr.addr)) {
 						f->dst = op;
@@ -118,8 +118,8 @@ void br_fdb_cleanup(unsigned long _data)
 		struct hlist_node *h, *n;
 
 		hlist_for_each_entry_safe(f, h, n, &br->hash[i], hlist) {
-			if (!f->is_static && 
-			    time_before_eq(f->ageing_timer + delay, jiffies)) 
+			if (!f->is_static &&
+			    time_before_eq(f->ageing_timer + delay, jiffies))
 				fdb_delete(f);
 		}
 	}
@@ -138,11 +138,11 @@ void br_fdb_delete_by_port(struct net_bridge *br,
 	spin_lock_bh(&br->hash_lock);
 	for (i = 0; i < BR_HASH_SIZE; i++) {
 		struct hlist_node *h, *g;
-		
+
 		hlist_for_each_safe(h, g, &br->hash[i]) {
 			struct net_bridge_fdb_entry *f
 				= hlist_entry(h, struct net_bridge_fdb_entry, hlist);
-			if (f->dst != p) 
+			if (f->dst != p)
 				continue;
 
 			if (f->is_static && !do_all)
@@ -155,7 +155,7 @@ void br_fdb_delete_by_port(struct net_bridge *br,
 			if (f->is_local) {
 				struct net_bridge_port *op;
 				list_for_each_entry(op, &br->port_list, list) {
-					if (op != p && 
+					if (op != p &&
 					    !compare_ether_addr(op->dev->dev_addr,
 								f->addr.addr)) {
 						f->dst = op;
@@ -190,14 +190,14 @@ struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
 }
 
 /* Interface used by ATM hook that keeps a ref count */
-struct net_bridge_fdb_entry *br_fdb_get(struct net_bridge *br, 
+struct net_bridge_fdb_entry *br_fdb_get(struct net_bridge *br,
 					unsigned char *addr)
 {
 	struct net_bridge_fdb_entry *fdb;
 
 	rcu_read_lock();
 	fdb = __br_fdb_get(br, addr);
-	if (fdb) 
+	if (fdb)
 		atomic_inc(&fdb->use_count);
 	rcu_read_unlock();
 	return fdb;
@@ -218,7 +218,7 @@ void br_fdb_put(struct net_bridge_fdb_entry *ent)
 }
 
 /*
- * Fill buffer with forwarding table records in 
+ * Fill buffer with forwarding table records in
  * the API format.
  */
 int br_fdb_fillbuf(struct net_bridge *br, void *buf,
@@ -237,7 +237,7 @@ int br_fdb_fillbuf(struct net_bridge *br, void *buf,
 			if (num >= maxnum)
 				goto out;
 
-			if (has_expired(br, f)) 
+			if (has_expired(br, f))
 				continue;
 
 			if (skip) {
@@ -277,7 +277,7 @@ static inline struct net_bridge_fdb_entry *fdb_find(struct hlist_head *head,
 
 static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 					       struct net_bridge_port *source,
-					       const unsigned char *addr, 
+					       const unsigned char *addr,
 					       int is_local)
 {
 	struct net_bridge_fdb_entry *fdb;
@@ -307,17 +307,17 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 
 	fdb = fdb_find(head, addr);
 	if (fdb) {
-		/* it is okay to have multiple ports with same 
+		/* it is okay to have multiple ports with same
 		 * address, just use the first one.
 		 */
-		if (fdb->is_local) 
+		if (fdb->is_local)
 			return 0;
 
 		printk(KERN_WARNING "%s adding interface with same address "
 		       "as a received packet\n",
 		       source->dev->name);
 		fdb_delete(fdb);
- 	}
+	}
 
 	if (!fdb_create(head, source, addr, 1))
 		return -ENOMEM;
@@ -350,7 +350,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 	if (likely(fdb)) {
 		/* attempt to update an entry for a local interface */
 		if (unlikely(fdb->is_local)) {
-			if (net_ratelimit()) 
+			if (net_ratelimit())
 				printk(KERN_WARNING "%s: received packet with "
 				       " own address as source address\n",
 				       source->dev->name);

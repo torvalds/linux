@@ -509,6 +509,7 @@ static struct usb_serial_driver digi_acceleport_2_device = {
 		.name =			"digi_2",
 	},
 	.description =			"Digi 2 port USB adapter",
+	.usb_driver = 			&digi_driver,
 	.id_table =			id_table_2,
 	.num_interrupt_in =		0,
 	.num_bulk_in =			4,
@@ -538,6 +539,7 @@ static struct usb_serial_driver digi_acceleport_4_device = {
 		.name =			"digi_4",
 	},
 	.description =			"Digi 4 port USB adapter",
+	.usb_driver = 			&digi_driver,
 	.id_table =			id_table_4,
 	.num_interrupt_in =		0,
 	.num_bulk_in =			5,
@@ -614,15 +616,7 @@ static void digi_wakeup_write_lock(struct work_struct *work)
 
 static void digi_wakeup_write( struct usb_serial_port *port )
 {
-
-	struct tty_struct *tty = port->tty;
-
-
-	/* wake up port processes */
-	wake_up_interruptible( &port->write_wait );
-
-	/* wake up line discipline */
-	tty_wakeup(tty);
+	tty_wakeup(port->tty);
 }
 
 

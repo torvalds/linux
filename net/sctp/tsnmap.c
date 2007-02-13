@@ -277,7 +277,7 @@ static void sctp_tsnmap_update(struct sctp_tsnmap *map)
 			/* Now tsn_map must have been all '1's,
 			 * so we swap the map and check the overflow table
 			 */
-        		__u8 *tmp = map->tsn_map;
+			__u8 *tmp = map->tsn_map;
 			memset(tmp, 0, map->len);
 			map->tsn_map = map->overflow_map;
 			map->overflow_map = tmp;

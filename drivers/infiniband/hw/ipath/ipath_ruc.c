@@ -137,7 +137,7 @@ bad_lkey:
 	wc.vendor_err = 0;
 	wc.byte_len = 0;
 	wc.imm_data = 0;
-	wc.qp_num = qp->ibqp.qp_num;
+	wc.qp = &qp->ibqp;
 	wc.src_qp = 0;
 	wc.wc_flags = 0;
 	wc.pkey_index = 0;
@@ -336,7 +336,7 @@ again:
 			wc.opcode = ib_ipath_wc_opcode[wqe->wr.opcode];
 			wc.vendor_err = 0;
 			wc.byte_len = 0;
-			wc.qp_num = sqp->ibqp.qp_num;
+			wc.qp = &sqp->ibqp;
 			wc.src_qp = sqp->remote_qpn;
 			wc.pkey_index = 0;
 			wc.slid = sqp->remote_ah_attr.dlid;
@@ -426,7 +426,7 @@ again:
 	wc.status = IB_WC_SUCCESS;
 	wc.vendor_err = 0;
 	wc.byte_len = wqe->length;
-	wc.qp_num = qp->ibqp.qp_num;
+	wc.qp = &qp->ibqp;
 	wc.src_qp = qp->remote_qpn;
 	/* XXX do we know which pkey matched? Only needed for GSI. */
 	wc.pkey_index = 0;
@@ -447,7 +447,7 @@ send_comp:
 		wc.opcode = ib_ipath_wc_opcode[wqe->wr.opcode];
 		wc.vendor_err = 0;
 		wc.byte_len = wqe->length;
-		wc.qp_num = sqp->ibqp.qp_num;
+		wc.qp = &sqp->ibqp;
 		wc.src_qp = 0;
 		wc.pkey_index = 0;
 		wc.slid = 0;

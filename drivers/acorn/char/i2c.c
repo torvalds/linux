@@ -238,7 +238,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file,
 	return -EINVAL;
 }
 
-static struct file_operations rtc_fops = {
+static const struct file_operations rtc_fops = {
 	.ioctl	= rtc_ioctl,
 };
 

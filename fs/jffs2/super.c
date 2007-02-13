@@ -66,7 +66,7 @@ static int jffs2_sync_fs(struct super_block *sb, int wait)
 	return 0;
 }
 
-static struct super_operations jffs2_super_operations =
+static const struct super_operations jffs2_super_operations =
 {
 	.alloc_inode =	jffs2_alloc_inode,
 	.destroy_inode =jffs2_destroy_inode,

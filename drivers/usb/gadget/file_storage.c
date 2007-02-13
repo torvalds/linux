@@ -253,7 +253,7 @@
 #include <linux/freezer.h>
 #include <linux/utsname.h>
 
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 
 #include "gadget_chips.h"
@@ -1148,7 +1148,7 @@ static int ep0_queue(struct fsg_dev *fsg)
 
 static void ep0_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	struct fsg_dev		*fsg = (struct fsg_dev *) ep->driver_data;
+	struct fsg_dev		*fsg = ep->driver_data;
 
 	if (req->actual > 0)
 		dump_msg(fsg, fsg->ep0req_name, req->buf, req->actual);
@@ -1170,8 +1170,8 @@ static void ep0_complete(struct usb_ep *ep, struct usb_request *req)
 
 static void bulk_in_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	struct fsg_dev		*fsg = (struct fsg_dev *) ep->driver_data;
-	struct fsg_buffhd	*bh = (struct fsg_buffhd *) req->context;
+	struct fsg_dev		*fsg = ep->driver_data;
+	struct fsg_buffhd	*bh = req->context;
 
 	if (req->status || req->actual != req->length)
 		DBG(fsg, "%s --> %d, %u/%u\n", __FUNCTION__,
@@ -1190,8 +1190,8 @@ static void bulk_in_complete(struct usb_ep *ep, struct usb_request *req)
 
 static void bulk_out_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	struct fsg_dev		*fsg = (struct fsg_dev *) ep->driver_data;
-	struct fsg_buffhd	*bh = (struct fsg_buffhd *) req->context;
+	struct fsg_dev		*fsg = ep->driver_data;
+	struct fsg_buffhd	*bh = req->context;
 
 	dump_msg(fsg, "bulk-out", req->buf, req->actual);
 	if (req->status || req->actual != bh->bulk_out_intended_length)
@@ -1214,8 +1214,8 @@ static void bulk_out_complete(struct usb_ep *ep, struct usb_request *req)
 #ifdef CONFIG_USB_FILE_STORAGE_TEST
 static void intr_in_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	struct fsg_dev		*fsg = (struct fsg_dev *) ep->driver_data;
-	struct fsg_buffhd	*bh = (struct fsg_buffhd *) req->context;
+	struct fsg_dev		*fsg = ep->driver_data;
+	struct fsg_buffhd	*bh = req->context;
 
 	if (req->status || req->actual != req->length)
 		DBG(fsg, "%s --> %d, %u/%u\n", __FUNCTION__,
@@ -1953,7 +1953,7 @@ static void invalidate_sub(struct lun *curlun)
 	struct inode	*inode = filp->f_path.dentry->d_inode;
 	unsigned long	rc;
 
-	rc = invalidate_inode_pages(inode->i_mapping);
+	rc = invalidate_mapping_pages(inode->i_mapping, 0, -1);
 	VLDBG(curlun, "invalidate_inode_pages -> %ld\n", rc);
 }
 
@@ -2577,7 +2577,7 @@ static int send_status(struct fsg_dev *fsg)
 	}
 
 	if (transport_is_bbb()) {
-		struct bulk_cs_wrap	*csw = (struct bulk_cs_wrap *) bh->buf;
+		struct bulk_cs_wrap	*csw = bh->buf;
 
 		/* Store and send the Bulk-only CSW */
 		csw->Signature = __constant_cpu_to_le32(USB_BULK_CS_SIG);
@@ -2596,8 +2596,7 @@ static int send_status(struct fsg_dev *fsg)
 		return 0;
 
 	} else {			// USB_PR_CBI
-		struct interrupt_data	*buf = (struct interrupt_data *)
-						bh->buf;
+		struct interrupt_data	*buf = bh->buf;
 
 		/* Store and send the Interrupt data.  UFI sends the ASC
 		 * and ASCQ bytes.  Everything else sends a Type (which
@@ -2982,7 +2981,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 {
 	struct usb_request	*req = bh->outreq;
-	struct bulk_cb_wrap	*cbw = (struct bulk_cb_wrap *) req->buf;
+	struct bulk_cb_wrap	*cbw = req->buf;
 
 	/* Was this a real packet? */
 	if (req->status)
@@ -3428,7 +3427,7 @@ static void handle_exception(struct fsg_dev *fsg)
 
 static int fsg_main_thread(void *fsg_)
 {
-	struct fsg_dev		*fsg = (struct fsg_dev *) fsg_;
+	struct fsg_dev		*fsg = fsg_;
 
 	/* Allow the thread to be killed by a signal, but set the signal mask
 	 * to block everything but INT, TERM, KILL, and USR1. */
@@ -3600,7 +3599,7 @@ static ssize_t show_ro(struct device *dev, struct device_attribute *attr, char *
 static ssize_t show_file(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lun	*curlun = dev_to_lun(dev);
-	struct fsg_dev	*fsg = (struct fsg_dev *) dev_get_drvdata(dev);
+	struct fsg_dev	*fsg = dev_get_drvdata(dev);
 	char		*p;
 	ssize_t		rc;
 
@@ -3629,7 +3628,7 @@ static ssize_t store_ro(struct device *dev, struct device_attribute *attr, const
 {
 	ssize_t		rc = count;
 	struct lun	*curlun = dev_to_lun(dev);
-	struct fsg_dev	*fsg = (struct fsg_dev *) dev_get_drvdata(dev);
+	struct fsg_dev	*fsg = dev_get_drvdata(dev);
 	int		i;
 
 	if (sscanf(buf, "%d", &i) != 1)
@@ -3652,7 +3651,7 @@ static ssize_t store_ro(struct device *dev, struct device_attribute *attr, const
 static ssize_t store_file(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct lun	*curlun = dev_to_lun(dev);
-	struct fsg_dev	*fsg = (struct fsg_dev *) dev_get_drvdata(dev);
+	struct fsg_dev	*fsg = dev_get_drvdata(dev);
 	int		rc = 0;
 
 	if (curlun->prevent_medium_removal && backing_file_is_open(curlun)) {
@@ -3700,7 +3699,7 @@ static void fsg_release(struct kref *ref)
 
 static void lun_release(struct device *dev)
 {
-	struct fsg_dev	*fsg = (struct fsg_dev *) dev_get_drvdata(dev);
+	struct fsg_dev	*fsg = dev_get_drvdata(dev);
 
 	kref_put(&fsg->ref, fsg_release);
 }

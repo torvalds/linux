@@ -214,15 +214,3 @@ static struct platform_driver ohci_hcd_ep93xx_driver = {
 	},
 };
 
-static int __init ohci_hcd_ep93xx_init(void)
-{
-	return platform_driver_register(&ohci_hcd_ep93xx_driver);
-}
-
-static void __exit ohci_hcd_ep93xx_cleanup(void)
-{
-	platform_driver_unregister(&ohci_hcd_ep93xx_driver);
-}
-
-module_init(ohci_hcd_ep93xx_init);
-module_exit(ohci_hcd_ep93xx_cleanup);

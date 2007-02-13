@@ -760,22 +760,13 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 	case SPEED_1000:
 		DPRINTK(PROBE, INFO, "1000 Mbps Speed specified without "
 			"Duplex\n");
-		DPRINTK(PROBE, INFO,
-			"Using Autonegotiation at 1000 Mbps "
-			"Full Duplex only\n");
-		adapter->hw.autoneg = adapter->fc_autoneg = 1;
-		adapter->hw.autoneg_advertised = ADVERTISE_1000_FULL;
-		break;
+		goto full_duplex_only;
 	case SPEED_1000 + HALF_DUPLEX:
 		DPRINTK(PROBE, INFO,
 			"Half Duplex is not supported at 1000 Mbps\n");
-		DPRINTK(PROBE, INFO,
-			"Using Autonegotiation at 1000 Mbps "
-			"Full Duplex only\n");
-		adapter->hw.autoneg = adapter->fc_autoneg = 1;
-		adapter->hw.autoneg_advertised = ADVERTISE_1000_FULL;
-		break;
+		/* fall through */
 	case SPEED_1000 + FULL_DUPLEX:
+full_duplex_only:
 		DPRINTK(PROBE, INFO,
 		       "Using Autonegotiation at 1000 Mbps Full Duplex only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;

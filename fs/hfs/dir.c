@@ -320,7 +320,7 @@ const struct file_operations hfs_dir_operations = {
 	.release	= hfs_dir_release,
 };
 
-struct inode_operations hfs_dir_inode_operations = {
+const struct inode_operations hfs_dir_inode_operations = {
 	.create		= hfs_create,
 	.lookup		= hfs_lookup,
 	.unlink		= hfs_unlink,

@@ -65,6 +65,24 @@ static inline unsigned pin_to_mask(unsigned pin)
 
 
 /*
+ * mux the pin to the "GPIO" peripheral role.
+ */
+int __init_or_module at91_set_GPIO_periph(unsigned pin, int use_pullup)
+{
+	void __iomem	*pio = pin_to_controller(pin);
+	unsigned	mask = pin_to_mask(pin);
+
+	if (!pio)
+		return -EINVAL;
+	__raw_writel(mask, pio + PIO_IDR);
+	__raw_writel(mask, pio + (use_pullup ? PIO_PUER : PIO_PUDR));
+	__raw_writel(mask, pio + PIO_PER);
+	return 0;
+}
+EXPORT_SYMBOL(at91_set_GPIO_periph);
+
+
+/*
  * mux the pin to the "A" internal peripheral role.
  */
 int __init_or_module at91_set_A_periph(unsigned pin, int use_pullup)
@@ -178,6 +196,36 @@ int __init_or_module at91_set_multi_drive(unsigned pin, int is_on)
 	return 0;
 }
 EXPORT_SYMBOL(at91_set_multi_drive);
+
+/*--------------------------------------------------------------------------*/
+
+/* new-style GPIO calls; these expect at91_set_GPIO_periph to have been
+ * called, and maybe at91_set_multi_drive() for putout pins.
+ */
+
+int gpio_direction_input(unsigned pin)
+{
+	void __iomem	*pio = pin_to_controller(pin);
+	unsigned	mask = pin_to_mask(pin);
+
+	if (!pio || !(__raw_readl(pio + PIO_PSR) & mask))
+		return -EINVAL;
+	__raw_writel(mask, pio + PIO_OER);
+	return 0;
+}
+EXPORT_SYMBOL(gpio_direction_input);
+
+int gpio_direction_output(unsigned pin)
+{
+	void __iomem	*pio = pin_to_controller(pin);
+	unsigned	mask = pin_to_mask(pin);
+
+	if (!pio || !(__raw_readl(pio + PIO_PSR) & mask))
+		return -EINVAL;
+	__raw_writel(mask, pio + PIO_OER);
+	return 0;
+}
+EXPORT_SYMBOL(gpio_direction_output);
 
 /*--------------------------------------------------------------------------*/
 

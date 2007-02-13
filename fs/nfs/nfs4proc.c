@@ -3584,7 +3584,7 @@ struct nfs4_state_recovery_ops nfs4_network_partition_recovery_ops = {
 	.recover_lock	= nfs4_lock_expired,
 };
 
-static struct inode_operations nfs4_file_inode_operations = {
+static const struct inode_operations nfs4_file_inode_operations = {
 	.permission	= nfs_permission,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,

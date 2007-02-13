@@ -7,6 +7,10 @@ config MMU
 	bool
 	default y
 
+config ZONE_DMA
+	bool
+	default y
+
 config LOCKDEP_SUPPORT
 	bool
 	default y
@@ -34,11 +38,10 @@ config GENERIC_HWEIGHT
 	bool
 	default y
 
-config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
 config GENERIC_TIME
+	def_bool y
+
+config NO_IOMEM
 	def_bool y
 
 mainmenu "Linux Kernel Configuration"
@@ -133,6 +136,31 @@ config SYSVIPC_COMPAT
 config AUDIT_ARCH
 	bool
 	default y
+
+config S390_SWITCH_AMODE
+	bool "Switch kernel/user addressing modes"
+	help
+	  This option allows to switch the addressing modes of kernel and user
+	  space. The kernel parameter switch_amode=on will enable this feature,
+	  default is disabled. Enabling this (via kernel parameter) on machines
+	  earlier than IBM System z9-109 EC/BC will reduce system performance.
+
+	  Note that this option will also be selected by selecting the execute
+	  protection option below. Enabling the execute protection via the
+	  noexec kernel parameter will also switch the addressing modes,
+	  independent of the switch_amode kernel parameter.
+
+
+config S390_EXEC_PROTECT
+	bool "Data execute protection"
+	select S390_SWITCH_AMODE
+	help
+	  This option allows to enable a buffer overflow protection for user
+	  space programs and it also selects the addressing mode option above.
+	  The kernel parameter noexec=on will enable this feature and also
+	  switch the addressing modes, default is disabled. Enabling this (via
+	  kernel parameter) on machines earlier than IBM System z9-109 EC/BC
+	  will reduce system performance.
 
 comment "Code generation options"
 

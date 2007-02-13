@@ -82,7 +82,8 @@ SECTIONS
 		__con_initcall_end = .;
 	}	
 	SECURITY_INIT
-		
+
+#ifdef CONFIG_BLK_DEV_INITRD
 	.init.ramfs : {
 		__initramfs_start = .;
 		*(.init.ramfs)
@@ -93,6 +94,7 @@ SECTIONS
 		FILL (0); 
 		. = ALIGN (8192);
 	}
+#endif
 	
 	__vmlinux_end = .;            /* last address of the physical file */
   	__init_end = .;

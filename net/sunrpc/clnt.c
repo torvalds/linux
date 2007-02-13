@@ -416,7 +416,7 @@ struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
 		rpc_shutdown_client(clnt);
 		clnt = ERR_PTR(err);
 	}
-out:	
+out:
 	return clnt;
 }
 
@@ -437,7 +437,7 @@ static const struct rpc_call_ops rpc_default_ops = {
  *	sleeps on RPC calls
  */
 #define RPC_INTR_SIGNALS (sigmask(SIGHUP) | sigmask(SIGINT) | sigmask(SIGQUIT) | sigmask(SIGTERM))
- 
+
 static void rpc_save_sigmask(sigset_t *oldset, int intr)
 {
 	unsigned long	sigallow = sigmask(SIGKILL);
@@ -480,7 +480,7 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 	int		status;
 
 	/* If this client is slain all further I/O fails */
-	if (clnt->cl_dead) 
+	if (clnt->cl_dead)
 		return -EIO;
 
 	BUG_ON(flags & RPC_TASK_ASYNC);
@@ -517,7 +517,7 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 
 	/* If this client is slain all further I/O fails */
 	status = -EIO;
-	if (clnt->cl_dead) 
+	if (clnt->cl_dead)
 		goto out_release;
 
 	flags |= RPC_TASK_ASYNC;
@@ -528,7 +528,7 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 		goto out_release;
 
 	/* Mask signals on GSS_AUTH upcalls */
-	rpc_task_sigmask(task, &oldset);		
+	rpc_task_sigmask(task, &oldset);
 
 	rpc_call_setup(task, msg, 0);
 
@@ -539,7 +539,7 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	else
 		rpc_put_task(task);
 
-	rpc_restore_sigmask(&oldset);		
+	rpc_restore_sigmask(&oldset);
 	return status;
 out_release:
 	rpc_release_calldata(tk_ops, data);

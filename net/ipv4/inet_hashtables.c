@@ -212,7 +212,7 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	write_lock(&head->lock);
 
 	/* Check TIME-WAIT sockets first. */
-	sk_for_each(sk2, node, &(head + hinfo->ehash_size)->chain) {
+	sk_for_each(sk2, node, &head->twchain) {
 		tw = inet_twsk(sk2);
 
 		if (INET_TW_MATCH(sk2, hash, acookie, saddr, daddr, ports, dif)) {
@@ -262,7 +262,7 @@ not_unique:
 static inline u32 inet_sk_port_offset(const struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
-	return secure_ipv4_port_ephemeral(inet->rcv_saddr, inet->daddr, 
+	return secure_ipv4_port_ephemeral(inet->rcv_saddr, inet->daddr,
 					  inet->dport);
 }
 
@@ -274,81 +274,81 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	const unsigned short snum = inet_sk(sk)->num;
- 	struct inet_bind_hashbucket *head;
- 	struct inet_bind_bucket *tb;
+	struct inet_bind_hashbucket *head;
+	struct inet_bind_bucket *tb;
 	int ret;
 
- 	if (!snum) {
- 		int low = sysctl_local_port_range[0];
- 		int high = sysctl_local_port_range[1];
+	if (!snum) {
+		int low = sysctl_local_port_range[0];
+		int high = sysctl_local_port_range[1];
 		int range = high - low;
- 		int i;
+		int i;
 		int port;
 		static u32 hint;
 		u32 offset = hint + inet_sk_port_offset(sk);
 		struct hlist_node *node;
- 		struct inet_timewait_sock *tw = NULL;
+		struct inet_timewait_sock *tw = NULL;
 
- 		local_bh_disable();
+		local_bh_disable();
 		for (i = 1; i <= range; i++) {
 			port = low + (i + offset) % range;
- 			head = &hinfo->bhash[inet_bhashfn(port, hinfo->bhash_size)];
- 			spin_lock(&head->lock);
+			head = &hinfo->bhash[inet_bhashfn(port, hinfo->bhash_size)];
+			spin_lock(&head->lock);
 
- 			/* Does not bother with rcv_saddr checks,
- 			 * because the established check is already
- 			 * unique enough.
- 			 */
+			/* Does not bother with rcv_saddr checks,
+			 * because the established check is already
+			 * unique enough.
+			 */
 			inet_bind_bucket_for_each(tb, node, &head->chain) {
- 				if (tb->port == port) {
- 					BUG_TRAP(!hlist_empty(&tb->owners));
- 					if (tb->fastreuse >= 0)
- 						goto next_port;
- 					if (!__inet_check_established(death_row,
+				if (tb->port == port) {
+					BUG_TRAP(!hlist_empty(&tb->owners));
+					if (tb->fastreuse >= 0)
+						goto next_port;
+					if (!__inet_check_established(death_row,
 								      sk, port,
 								      &tw))
- 						goto ok;
- 					goto next_port;
- 				}
- 			}
+						goto ok;
+					goto next_port;
+				}
+			}
 
- 			tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep, head, port);
- 			if (!tb) {
- 				spin_unlock(&head->lock);
- 				break;
- 			}
- 			tb->fastreuse = -1;
- 			goto ok;
+			tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep, head, port);
+			if (!tb) {
+				spin_unlock(&head->lock);
+				break;
+			}
+			tb->fastreuse = -1;
+			goto ok;
 
- 		next_port:
- 			spin_unlock(&head->lock);
- 		}
- 		local_bh_enable();
+		next_port:
+			spin_unlock(&head->lock);
+		}
+		local_bh_enable();
 
- 		return -EADDRNOTAVAIL;
+		return -EADDRNOTAVAIL;
 
 ok:
 		hint += i;
 
- 		/* Head lock still held and bh's disabled */
- 		inet_bind_hash(sk, tb, port);
+		/* Head lock still held and bh's disabled */
+		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
- 			inet_sk(sk)->sport = htons(port);
- 			__inet_hash(hinfo, sk, 0);
- 		}
- 		spin_unlock(&head->lock);
+			inet_sk(sk)->sport = htons(port);
+			__inet_hash(hinfo, sk, 0);
+		}
+		spin_unlock(&head->lock);
 
- 		if (tw) {
- 			inet_twsk_deschedule(tw, death_row);
- 			inet_twsk_put(tw);
- 		}
+		if (tw) {
+			inet_twsk_deschedule(tw, death_row);
+			inet_twsk_put(tw);
+		}
 
 		ret = 0;
 		goto out;
- 	}
+	}
 
- 	head = &hinfo->bhash[inet_bhashfn(snum, hinfo->bhash_size)];
- 	tb  = inet_csk(sk)->icsk_bind_hash;
+	head = &hinfo->bhash[inet_bhashfn(snum, hinfo->bhash_size)];
+	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
 		__inet_hash(hinfo, sk, 0);

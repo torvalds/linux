@@ -1539,16 +1539,21 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 	/*
 	 * Allow the CyberPro to accept PCI burst accesses
 	 */
-	val = cyber2000_grphr(EXT_BUS_CTL, cfb);
-	if (!(val & EXT_BUS_CTL_PCIBURST_WRITE)) {
-		printk(KERN_INFO "%s: enabling PCI bursts\n", cfb->fb.fix.id);
+	if (cfb->id == ID_CYBERPRO_2010) {
+		printk(KERN_INFO "%s: NOT enabling PCI bursts\n", cfb->fb.fix.id);
+	} else {
+		val = cyber2000_grphr(EXT_BUS_CTL, cfb);
+		if (!(val & EXT_BUS_CTL_PCIBURST_WRITE)) {
+			printk(KERN_INFO "%s: enabling PCI bursts\n",
+				cfb->fb.fix.id);
 
-		val |= EXT_BUS_CTL_PCIBURST_WRITE;
+			val |= EXT_BUS_CTL_PCIBURST_WRITE;
 
-		if (cfb->id == ID_CYBERPRO_5000)
-			val |= EXT_BUS_CTL_PCIBURST_READ;
+			if (cfb->id == ID_CYBERPRO_5000)
+				val |= EXT_BUS_CTL_PCIBURST_READ;
 
-		cyber2000_grphw(EXT_BUS_CTL, val, cfb);
+			cyber2000_grphw(EXT_BUS_CTL, val, cfb);
+		}
 	}
 
 	return 0;

@@ -563,7 +563,7 @@ static int irda_param_extract(void *self, __u8 *buf, int len,
  *    safe. Returns the number of bytes that was parsed
  *
  */
-int irda_param_extract_all(void *self, __u8 *buf, int len, 
+int irda_param_extract_all(void *self, __u8 *buf, int len,
 			   pi_param_info_t *info)
 {
 	int ret = -1;

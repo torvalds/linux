@@ -170,7 +170,6 @@ dasd_3990_erp_examine(struct dasd_ccw_req * cqr, struct irb * irb)
 	/* log the erp chain if fatal error occurred */
 	if ((era == dasd_era_fatal) && (device->state >= DASD_STATE_READY)) {
 		dasd_log_sense(cqr, irb);
-		dasd_log_ccw(cqr, 0, irb->scsw.cpa);
 	}
 
 	return era;
@@ -2640,7 +2639,6 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 
 	struct dasd_ccw_req *erp = NULL;
 	struct dasd_device *device = cqr->device;
-	__u32 cpa = cqr->irb.scsw.cpa;
 	struct dasd_ccw_req *temp_erp = NULL;
 
 	if (device->features & DASD_FEATURE_ERPLOG) {
@@ -2705,9 +2703,6 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 				    temp_erp->refers);
 		}
 	}
-
-	if (erp->status == DASD_CQR_FAILED)
-		dasd_log_ccw(erp, 1, cpa);
 
 	/* enqueue added ERP request */
 	if (erp->status == DASD_CQR_FILLED) {

@@ -1,6 +1,6 @@
 /*
  * net/tipc/handler.c: TIPC signal handling
- * 
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -95,7 +95,7 @@ static void process_signal_queue(unsigned long dummy)
 
 int tipc_handler_start(void)
 {
-	tipc_queue_item_cache = 
+	tipc_queue_item_cache =
 		kmem_cache_create("tipc_queue_items", sizeof(struct queue_item),
 				  0, SLAB_HWCACHE_ALIGN, NULL, NULL);
 	if (!tipc_queue_item_cache)
@@ -110,7 +110,7 @@ int tipc_handler_start(void)
 void tipc_handler_stop(void)
 {
 	struct list_head *l, *n;
-	struct queue_item *item; 
+	struct queue_item *item;
 
 	if (!handler_enabled)
 		return;

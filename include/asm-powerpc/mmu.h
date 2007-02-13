@@ -247,6 +247,7 @@ extern void htab_initialize_secondary(void);
 extern void hpte_init_native(void);
 extern void hpte_init_lpar(void);
 extern void hpte_init_iSeries(void);
+extern void hpte_init_beat(void);
 
 extern void stabs_alloc(void);
 extern void slb_initialize(void);

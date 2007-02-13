@@ -200,7 +200,7 @@ GetLCDStructPtr661_2(struct SiS_Private *SiS_Pr)
 /*           Adjust Rate for CRT2            */
 /*********************************************/
 
-static BOOLEAN
+static bool
 SiS_AdjustCRT2Rate(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
 		unsigned short RRTI, unsigned short *i)
 {
@@ -269,7 +269,7 @@ SiS_AdjustCRT2Rate(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
    /* Look backwards in table for matching CRT2 mode */
    for(; SiS_Pr->SiS_RefIndex[RRTI + (*i)].ModeID == modeid; (*i)--) {
       infoflag = SiS_Pr->SiS_RefIndex[RRTI + (*i)].Ext_InfoFlag;
-      if(infoflag & checkmask) return TRUE;
+      if(infoflag & checkmask) return true;
       if((*i) == 0) break;
    }
 
@@ -279,9 +279,9 @@ SiS_AdjustCRT2Rate(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
    for((*i) = 0; ; (*i)++) {
       if(SiS_Pr->SiS_RefIndex[RRTI + (*i)].ModeID != modeid) break;
       infoflag = SiS_Pr->SiS_RefIndex[RRTI + (*i)].Ext_InfoFlag;
-      if(infoflag & checkmask) return TRUE;
+      if(infoflag & checkmask) return true;
    }
-   return FALSE;
+   return false;
 }
 
 /*********************************************/
@@ -405,7 +405,7 @@ SiS_SaveCRT2Info(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 /*********************************************/
 
 #ifdef SIS300
-static BOOLEAN
+static bool
 SiS_CR36BIOSWord23b(struct SiS_Private *SiS_Pr)
 {
    unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
@@ -415,13 +415,13 @@ SiS_CR36BIOSWord23b(struct SiS_Private *SiS_Pr)
       if((ROMAddr[0x233] == 0x12) && (ROMAddr[0x234] == 0x34)) {
 	 temp = 1 << ((SiS_GetReg(SiS_Pr->SiS_P3d4,0x36) >> 4) & 0x0f);
 	 temp1 = SISGETROMW(0x23b);
-	 if(temp1 & temp) return TRUE;
+	 if(temp1 & temp) return true;
       }
    }
-   return FALSE;
+   return false;
 }
 
-static BOOLEAN
+static bool
 SiS_CR36BIOSWord23d(struct SiS_Private *SiS_Pr)
 {
    unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
@@ -431,10 +431,10 @@ SiS_CR36BIOSWord23d(struct SiS_Private *SiS_Pr)
       if((ROMAddr[0x233] == 0x12) && (ROMAddr[0x234] == 0x34)) {
 	 temp = 1 << ((SiS_GetReg(SiS_Pr->SiS_P3d4,0x36) >> 4) & 0x0f);
 	 temp1 = SISGETROMW(0x23d);
-	 if(temp1 & temp) return TRUE;
+	 if(temp1 & temp) return true;
       }
    }
-   return FALSE;
+   return false;
 }
 #endif
 
@@ -687,38 +687,38 @@ SiS_VBLongWait(struct SiS_Private *SiS_Pr)
 /*********************************************/
 
 #ifdef SIS300
-static BOOLEAN
+static bool
 SiS_Is301B(struct SiS_Private *SiS_Pr)
 {
-   if(SiS_GetReg(SiS_Pr->SiS_Part4Port,0x01) >= 0xb0) return TRUE;
-   return FALSE;
+   if(SiS_GetReg(SiS_Pr->SiS_Part4Port,0x01) >= 0xb0) return true;
+   return false;
 }
 #endif
 
-static BOOLEAN
+static bool
 SiS_CRT2IsLCD(struct SiS_Private *SiS_Pr)
 {
    if(SiS_Pr->ChipType == SIS_730) {
-      if(SiS_GetReg(SiS_Pr->SiS_P3c4,0x13) & 0x20) return TRUE;
+      if(SiS_GetReg(SiS_Pr->SiS_P3c4,0x13) & 0x20) return true;
    }
-   if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x30) & 0x20) return TRUE;
-   return FALSE;
+   if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x30) & 0x20) return true;
+   return false;
 }
 
-BOOLEAN
+bool
 SiS_IsDualEdge(struct SiS_Private *SiS_Pr)
 {
 #ifdef SIS315H
    if(SiS_Pr->ChipType >= SIS_315H) {
       if((SiS_Pr->ChipType != SIS_650) || (SiS_GetReg(SiS_Pr->SiS_P3d4,0x5f) & 0xf0)) {
-	 if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x38) & EnableDualEdge) return TRUE;
+	 if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x38) & EnableDualEdge) return true;
       }
    }
 #endif
-   return FALSE;
+   return false;
 }
 
-BOOLEAN
+bool
 SiS_IsVAMode(struct SiS_Private *SiS_Pr)
 {
 #ifdef SIS315H
@@ -726,70 +726,70 @@ SiS_IsVAMode(struct SiS_Private *SiS_Pr)
 
    if(SiS_Pr->ChipType >= SIS_315H) {
       flag = SiS_GetReg(SiS_Pr->SiS_P3d4,0x38);
-      if((flag & EnableDualEdge) && (flag & SetToLCDA)) return TRUE;
+      if((flag & EnableDualEdge) && (flag & SetToLCDA)) return true;
    }
 #endif
-   return FALSE;
+   return false;
 }
 
 #ifdef SIS315H
-static BOOLEAN
+static bool
 SiS_IsVAorLCD(struct SiS_Private *SiS_Pr)
 {
-   if(SiS_IsVAMode(SiS_Pr))  return TRUE;
-   if(SiS_CRT2IsLCD(SiS_Pr)) return TRUE;
-   return FALSE;
+   if(SiS_IsVAMode(SiS_Pr))  return true;
+   if(SiS_CRT2IsLCD(SiS_Pr)) return true;
+   return false;
 }
 #endif
 
-static BOOLEAN
+static bool
 SiS_IsDualLink(struct SiS_Private *SiS_Pr)
 {
 #ifdef SIS315H
    if(SiS_Pr->ChipType >= SIS_315H) {
       if((SiS_CRT2IsLCD(SiS_Pr)) ||
          (SiS_IsVAMode(SiS_Pr))) {
-	 if(SiS_Pr->SiS_LCDInfo & LCDDualLink) return TRUE;
+	 if(SiS_Pr->SiS_LCDInfo & LCDDualLink) return true;
       }
    }
 #endif
-   return FALSE;
+   return false;
 }
 
 #ifdef SIS315H
-static BOOLEAN
+static bool
 SiS_TVEnabled(struct SiS_Private *SiS_Pr)
 {
-   if((SiS_GetReg(SiS_Pr->SiS_Part2Port,0x00) & 0x0f) != 0x0c) return TRUE;
+   if((SiS_GetReg(SiS_Pr->SiS_Part2Port,0x00) & 0x0f) != 0x0c) return true;
    if(SiS_Pr->SiS_VBType & VB_SISYPBPR) {
-      if(SiS_GetReg(SiS_Pr->SiS_Part2Port,0x4d) & 0x10) return TRUE;
+      if(SiS_GetReg(SiS_Pr->SiS_Part2Port,0x4d) & 0x10) return true;
    }
-   return FALSE;
+   return false;
 }
 #endif
 
 #ifdef SIS315H
-static BOOLEAN
+static bool
 SiS_LCDAEnabled(struct SiS_Private *SiS_Pr)
 {
-   if(SiS_GetReg(SiS_Pr->SiS_Part1Port,0x13) & 0x04) return TRUE;
-   return FALSE;
+   if(SiS_GetReg(SiS_Pr->SiS_Part1Port,0x13) & 0x04) return true;
+   return false;
 }
 #endif
 
 #ifdef SIS315H
-static BOOLEAN
+static bool
 SiS_WeHaveBacklightCtrl(struct SiS_Private *SiS_Pr)
 {
    if((SiS_Pr->ChipType >= SIS_315H) && (SiS_Pr->ChipType < SIS_661)) {
-      if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x79) & 0x10) return TRUE;
+      if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x79) & 0x10) return true;
    }
-   return FALSE;
+   return false;
 }
 #endif
 
 #ifdef SIS315H
-static BOOLEAN
+static bool
 SiS_IsNotM650orLater(struct SiS_Private *SiS_Pr)
 {
    unsigned short flag;
@@ -798,90 +798,90 @@ SiS_IsNotM650orLater(struct SiS_Private *SiS_Pr)
       flag = SiS_GetReg(SiS_Pr->SiS_P3d4,0x5f) & 0xf0;
       /* Check for revision != A0 only */
       if((flag == 0xe0) || (flag == 0xc0) ||
-         (flag == 0xb0) || (flag == 0x90)) return FALSE;
-   } else if(SiS_Pr->ChipType >= SIS_661) return FALSE;
-   return TRUE;
+         (flag == 0xb0) || (flag == 0x90)) return false;
+   } else if(SiS_Pr->ChipType >= SIS_661) return false;
+   return true;
 }
 #endif
 
 #ifdef SIS315H
-static BOOLEAN
+static bool
 SiS_IsYPbPr(struct SiS_Private *SiS_Pr)
 {
    if(SiS_Pr->ChipType >= SIS_315H) {
       /* YPrPb = 0x08 */
-      if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x38) & EnableCHYPbPr) return TRUE;
+      if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x38) & EnableCHYPbPr) return true;
    }
-   return FALSE;
+   return false;
 }
 #endif
 
 #ifdef SIS315H
-static BOOLEAN
+static bool
 SiS_IsChScart(struct SiS_Private *SiS_Pr)
 {
    if(SiS_Pr->ChipType >= SIS_315H) {
       /* Scart = 0x04 */
-      if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x38) & EnableCHScart) return TRUE;
+      if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x38) & EnableCHScart) return true;
    }
-   return FALSE;
+   return false;
 }
 #endif
 
 #ifdef SIS315H
-static BOOLEAN
+static bool
 SiS_IsTVOrYPbPrOrScart(struct SiS_Private *SiS_Pr)
 {
    unsigned short flag;
 
    if(SiS_Pr->ChipType >= SIS_315H) {
       flag = SiS_GetReg(SiS_Pr->SiS_P3d4,0x30);
-      if(flag & SetCRT2ToTV)        return TRUE;
+      if(flag & SetCRT2ToTV)        return true;
       flag = SiS_GetReg(SiS_Pr->SiS_P3d4,0x38);
-      if(flag & EnableCHYPbPr)      return TRUE;  /* = YPrPb = 0x08 */
-      if(flag & EnableCHScart)      return TRUE;  /* = Scart = 0x04 - TW */
+      if(flag & EnableCHYPbPr)      return true;  /* = YPrPb = 0x08 */
+      if(flag & EnableCHScart)      return true;  /* = Scart = 0x04 - TW */
    } else {
       flag = SiS_GetReg(SiS_Pr->SiS_P3d4,0x30);
-      if(flag & SetCRT2ToTV)        return TRUE;
+      if(flag & SetCRT2ToTV)        return true;
    }
-   return FALSE;
+   return false;
 }
 #endif
 
 #ifdef SIS315H
-static BOOLEAN
+static bool
 SiS_IsLCDOrLCDA(struct SiS_Private *SiS_Pr)
 {
    unsigned short flag;
 
    if(SiS_Pr->ChipType >= SIS_315H) {
       flag = SiS_GetReg(SiS_Pr->SiS_P3d4,0x30);
-      if(flag & SetCRT2ToLCD) return TRUE;
+      if(flag & SetCRT2ToLCD) return true;
       flag = SiS_GetReg(SiS_Pr->SiS_P3d4,0x38);
-      if(flag & SetToLCDA)    return TRUE;
+      if(flag & SetToLCDA)    return true;
    } else {
       flag = SiS_GetReg(SiS_Pr->SiS_P3d4,0x30);
-      if(flag & SetCRT2ToLCD) return TRUE;
+      if(flag & SetCRT2ToLCD) return true;
    }
-   return FALSE;
+   return false;
 }
 #endif
 
-static BOOLEAN
+static bool
 SiS_HaveBridge(struct SiS_Private *SiS_Pr)
 {
    unsigned short flag;
 
    if(SiS_Pr->SiS_IF_DEF_LVDS == 1) {
-      return TRUE;
+      return true;
    } else if(SiS_Pr->SiS_VBType & VB_SISVB) {
       flag = SiS_GetReg(SiS_Pr->SiS_Part4Port,0x00);
-      if((flag == 1) || (flag == 2)) return TRUE;
+      if((flag == 1) || (flag == 2)) return true;
    }
-   return FALSE;
+   return false;
 }
 
-static BOOLEAN
+static bool
 SiS_BridgeIsEnabled(struct SiS_Private *SiS_Pr)
 {
    unsigned short flag;
@@ -890,23 +890,23 @@ SiS_BridgeIsEnabled(struct SiS_Private *SiS_Pr)
       flag = SiS_GetReg(SiS_Pr->SiS_Part1Port,0x00);
       if(SiS_Pr->ChipType < SIS_315H) {
 	flag &= 0xa0;
-	if((flag == 0x80) || (flag == 0x20)) return TRUE;
+	if((flag == 0x80) || (flag == 0x20)) return true;
       } else {
 	flag &= 0x50;
-	if((flag == 0x40) || (flag == 0x10)) return TRUE;
+	if((flag == 0x40) || (flag == 0x10)) return true;
       }
    }
-   return FALSE;
+   return false;
 }
 
-static BOOLEAN
+static bool
 SiS_BridgeInSlavemode(struct SiS_Private *SiS_Pr)
 {
    unsigned short flag1;
 
    flag1 = SiS_GetReg(SiS_Pr->SiS_P3d4,0x31);
-   if(flag1 & (SetInSlaveMode >> 8)) return TRUE;
-   return FALSE;
+   if(flag1 & (SetInSlaveMode >> 8)) return true;
+   return false;
 }
 
 /*********************************************/
@@ -1461,11 +1461,11 @@ SiS_GetLCDInfoBIOS(struct SiS_Private *SiS_Pr)
 
    if((ROMAddr = GetLCDStructPtr661(SiS_Pr))) {
       if((temp = SISGETROMW(6)) != SiS_Pr->PanelHT) {
-	 SiS_Pr->SiS_NeedRomModeData = TRUE;
+	 SiS_Pr->SiS_NeedRomModeData = true;
 	 SiS_Pr->PanelHT  = temp;
       }
       if((temp = SISGETROMW(8)) != SiS_Pr->PanelVT) {
-	 SiS_Pr->SiS_NeedRomModeData = TRUE;
+	 SiS_Pr->SiS_NeedRomModeData = true;
 	 SiS_Pr->PanelVT  = temp;
       }
       SiS_Pr->PanelHRS = SISGETROMW(10);
@@ -1516,7 +1516,7 @@ void
 SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
 {
   unsigned short temp,modeflag,resinfo=0,modexres=0,modeyres=0;
-  BOOLEAN panelcanscale = FALSE;
+  bool panelcanscale = false;
 #ifdef SIS300
   unsigned char *ROMAddr = SiS_Pr->VirtualRomBase;
   static const unsigned char SiS300SeriesLCDRes[] =
@@ -1534,10 +1534,10 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
   SiS_Pr->PanelHRE        = 999; /* HSync end */
   SiS_Pr->PanelVRS        = 999; /* VSync start */
   SiS_Pr->PanelVRE        = 999; /* VSync end */
-  SiS_Pr->SiS_NeedRomModeData = FALSE;
+  SiS_Pr->SiS_NeedRomModeData = false;
 
   /* Alternative 1600x1200@60 timing for 1600x1200 LCDA */
-  SiS_Pr->Alternate1600x1200 = FALSE;
+  SiS_Pr->Alternate1600x1200 = false;
 
   if(!(SiS_Pr->SiS_VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA))) return;
 
@@ -1633,7 +1633,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
       SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
   }
 
-  panelcanscale = (SiS_Pr->SiS_LCDInfo & DontExpandLCD) ? TRUE : FALSE;
+  panelcanscale = (bool)(SiS_Pr->SiS_LCDInfo & DontExpandLCD);
 
   if(!SiS_Pr->UsePanelScaler)          SiS_Pr->SiS_LCDInfo &= ~DontExpandLCD;
   else if(SiS_Pr->UsePanelScaler == 1) SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
@@ -1833,7 +1833,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 				  SiS_Pr->PanelHRS =   48; SiS_Pr->PanelHRE =   32;
 				  SiS_Pr->PanelVRS =    2; SiS_Pr->PanelVRE =    4;
 				  SiS_Pr->PanelVCLKIdx315 = VCLK130_315;
-				  SiS_Pr->Alternate1600x1200 = TRUE;
+				  SiS_Pr->Alternate1600x1200 = true;
 			       }
 			    } else if(SiS_Pr->SiS_IF_DEF_LVDS) {
 			       SiS_Pr->PanelHT  = 2048; SiS_Pr->PanelVT  = 1320;
@@ -3448,7 +3448,7 @@ SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 
      } else {
 
-	BOOLEAN gotit = FALSE;
+	bool gotit = false;
 
 	if((SiS_Pr->SiS_LCDInfo & DontExpandLCD) && (!(SiS_Pr->SiS_LCDInfo & LCDPass11))) {
 
@@ -3456,7 +3456,7 @@ SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 	   SiS_Pr->SiS_VGAVT = SiS_Pr->PanelVT;
 	   SiS_Pr->SiS_HT    = SiS_Pr->PanelHT;
 	   SiS_Pr->SiS_VT    = SiS_Pr->PanelVT;
-	   gotit = TRUE;
+	   gotit = true;
 
 	} else if( (!(SiS_Pr->SiS_LCDInfo & DontExpandLCD)) && (romptr) && (ROMAddr) ) {
 
@@ -3474,7 +3474,7 @@ SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 	      if(ROMAddr[romptr+9] & 0x80) SiS_Pr->SiS_RVBHRS2 -= tempax;
 	      else                         SiS_Pr->SiS_RVBHRS2 += tempax;
 	   }
-	   if(SiS_Pr->SiS_VGAHT) gotit = TRUE;
+	   if(SiS_Pr->SiS_VGAHT) gotit = true;
 	   else {
 	      SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
 	      SiS_Pr->SiS_LCDInfo &= ~LCDPass11;
@@ -3485,7 +3485,7 @@ SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 	      SiS_Pr->SiS_HT      = SiS_Pr->PanelHT;
 	      SiS_Pr->SiS_VT      = SiS_Pr->PanelVT;
 	      SiS_Pr->SiS_RVBHRS2 = 0;
-	      gotit = TRUE;
+	      gotit = true;
 	   }
 #endif
 
@@ -3960,8 +3960,8 @@ SiS_DisableBridge(struct SiS_Private *SiS_Pr)
 #ifdef SIS315H	   /* 315 series */
 
 	   int didpwd = 0;
-	   BOOLEAN custom1 = ((SiS_Pr->SiS_CustomT == CUT_COMPAQ1280) ||
-	                      (SiS_Pr->SiS_CustomT == CUT_CLEVO1400)) ? TRUE : FALSE;
+	   bool custom1 = (SiS_Pr->SiS_CustomT == CUT_COMPAQ1280) ||
+	                  (SiS_Pr->SiS_CustomT == CUT_CLEVO1400);
 
 	   modenum = SiS_GetReg(SiS_Pr->SiS_P3d4,0x34) & 0x7f;
 
@@ -4313,7 +4313,7 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
   unsigned short temp=0, tempah;
 #ifdef SIS315H
   unsigned short temp1, pushax=0;
-  BOOLEAN delaylong = FALSE;
+  bool delaylong = false;
 #endif
 
   if(SiS_Pr->SiS_VBType & VB_SISVB) {
@@ -4448,7 +4448,7 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 
 	    if(!(SiS_GetReg(SiS_Pr->SiS_P3d4,0x31) & 0x40)) {
 	       SiS_PanelDelayLoop(SiS_Pr, 3, 10);
-	       delaylong = TRUE;
+	       delaylong = true;
 	    }
 
 	 }
@@ -4530,7 +4530,7 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 			SiS_Pr->EMI_33 = ROMAddr[romptr + SiS_Pr->SiS_EMIOffset + 2];
 			if(ROMAddr[romptr + 1] & 0x10) SiS_Pr->EMI_30 = 0x40;
 			/* emidelay = SISGETROMW((romptr + 0x22)); */
-			SiS_Pr->HaveEMI = SiS_Pr->HaveEMILCD = SiS_Pr->OverruleEMI = TRUE;
+			SiS_Pr->HaveEMI = SiS_Pr->HaveEMILCD = SiS_Pr->OverruleEMI = true;
 		     }
 		  }
 
@@ -4644,7 +4644,7 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 			SiS_PanelDelayLoop(SiS_Pr, 3, 5);
 			if(delaylong) {
 			   SiS_PanelDelayLoop(SiS_Pr, 3, 5);
-			   delaylong = FALSE;
+			   delaylong = false;
 			}
 			SiS_WaitVBRetrace(SiS_Pr);
 			SiS_WaitVBRetrace(SiS_Pr);
@@ -5454,7 +5454,7 @@ SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
   unsigned short modeflag, resinfo = 0;
   unsigned short push2, tempax, tempbx, tempcx, temp;
   unsigned int   tempeax = 0, tempebx, tempecx, tempvcfact = 0;
-  BOOLEAN islvds = FALSE, issis  = FALSE, chkdclkfirst = FALSE;
+  bool islvds = false, issis  = false, chkdclkfirst = false;
 #ifdef SIS300
   unsigned short crt2crtc = 0;
 #endif
@@ -5480,17 +5480,17 @@ SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 
   /* is lvds if really LVDS, or 301B-DH with external LVDS transmitter */
   if((SiS_Pr->SiS_IF_DEF_LVDS == 1) || (SiS_Pr->SiS_VBType & VB_NoLCD)) {
-     islvds = TRUE;
+     islvds = true;
   }
 
   /* is really sis if sis bridge, but not 301B-DH */
   if((SiS_Pr->SiS_VBType & VB_SISVB) && (!(SiS_Pr->SiS_VBType & VB_NoLCD))) {
-     issis = TRUE;
+     issis = true;
   }
 
   if((SiS_Pr->ChipType >= SIS_315H) && (islvds) && (!(SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA))) {
      if((!SiS_Pr->SiS_IF_DEF_FSTN) && (!SiS_Pr->SiS_IF_DEF_DSTN)) {
-        chkdclkfirst = TRUE;
+        chkdclkfirst = true;
      }
   }
 
@@ -6447,13 +6447,13 @@ SiS_SetGroup2_C_ELV(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
    SiS_SetRegANDOR(SiS_Pr->SiS_Part2Port,0x4e,0xeb,temp);
 }
 
-static BOOLEAN
+static bool
 SiS_GetCRT2Part2Ptr(struct SiS_Private *SiS_Pr,unsigned short ModeNo,unsigned short ModeIdIndex,
 		    unsigned short RefreshRateTableIndex,unsigned short *CRT2Index,
 		    unsigned short *ResIndex)
 {
 
-  if(SiS_Pr->ChipType < SIS_315H) return FALSE;
+  if(SiS_Pr->ChipType < SIS_315H) return false;
 
   if(ModeNo <= 0x13)
      (*ResIndex) = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
@@ -6688,7 +6688,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
   unsigned short i, j, tempax, tempbx, tempcx, tempch, tempcl, temp;
   unsigned short push2, modeflag, crt2crtc, bridgeoffset;
   unsigned int   longtemp, PhaseIndex;
-  BOOLEAN        newtvphase;
+  bool           newtvphase;
   const unsigned char *TimingPoint;
 #ifdef SIS315H
   unsigned short resindex, CRT2Index;
@@ -6721,11 +6721,11 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
   PhaseIndex  = 0x01; /* SiS_PALPhase */
   TimingPoint = SiS_Pr->SiS_PALTiming;
 
-  newtvphase = FALSE;
+  newtvphase = false;
   if( (SiS_Pr->SiS_VBType & VB_SIS30xBLV) &&
       ( (!(SiS_Pr->SiS_VBInfo & SetInSlaveMode)) ||
 	(SiS_Pr->SiS_TVMode & TVSetTVSimuMode) ) ) {
-     newtvphase = TRUE;
+     newtvphase = true;
   }
 
   if(SiS_Pr->SiS_VBInfo & SetCRT2ToHiVision) {
@@ -7754,13 +7754,13 @@ SiS_SetGroup5(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 /*     MODIFY CRT1 GROUP FOR SLAVE MODE      */
 /*********************************************/
 
-static BOOLEAN
+static bool
 SiS_GetLVDSCRT1Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
 		   unsigned short RefreshRateTableIndex, unsigned short *ResIndex,
 		   unsigned short *DisplayType)
  {
   unsigned short modeflag = 0;
-  BOOLEAN checkhd = TRUE;
+  bool checkhd = true;
 
   /* Pass 1:1 not supported here */
 
@@ -7792,7 +7792,7 @@ SiS_GetLVDSCRT1Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
      (*DisplayType = 0);
      switch(SiS_Pr->SiS_LCDResInfo) {
      case Panel_320x240_1: (*DisplayType) = 50;
-			   checkhd = FALSE;
+			   checkhd = false;
 			   break;
      case Panel_320x240_2: (*DisplayType) = 14;
 			   break;
@@ -7802,7 +7802,7 @@ SiS_GetLVDSCRT1Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 			   break;
      case Panel_1024x600:  (*DisplayType) = 26;
 			   break;
-     default: return TRUE;
+     default: return true;
      }
 
      if(checkhd) {
@@ -7815,7 +7815,7 @@ SiS_GetLVDSCRT1Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 
   }
 
-  return TRUE;
+  return true;
 }
 
 static void
@@ -8654,7 +8654,7 @@ SiS_ChrontelDoSomething1(struct SiS_Private *SiS_Pr)
 /*      MAIN: SET CRT2 REGISTER GROUP        */
 /*********************************************/
 
-BOOLEAN
+bool
 SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 {
 #ifdef SIS300
@@ -8690,7 +8690,7 @@ SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    if(SiS_Pr->SiS_VBInfo & DisableCRT2Display) {
       SiS_LockCRT2(SiS_Pr);
       SiS_DisplayOn(SiS_Pr);
-      return TRUE;
+      return true;
    }
 
    SiS_GetCRT2Data(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
@@ -8828,7 +8828,7 @@ SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
       SiS_LockCRT2(SiS_Pr);
    }
 
-   return TRUE;
+   return true;
 }
 
 
@@ -8908,7 +8908,7 @@ SiS_SetTrumpBlockLoop(struct SiS_Private *SiS_Pr, unsigned char *dataptr)
   return NULL;
 }
 
-static BOOLEAN
+static bool
 SiS_SetTrumpionBlock(struct SiS_Private *SiS_Pr, unsigned char *dataptr)
 {
   SiS_Pr->SiS_DDC_DeviceAddr = 0xF0;  		/* DAB (Device Address Byte) */
@@ -8921,14 +8921,14 @@ SiS_SetTrumpionBlock(struct SiS_Private *SiS_Pr, unsigned char *dataptr)
 
   while(*dataptr) {
      dataptr = SiS_SetTrumpBlockLoop(SiS_Pr, dataptr);
-     if(!dataptr) return FALSE;
+     if(!dataptr) return false;
   }
 #ifdef SIS_XORG_XF86
 #ifdef TWDEBUG
   xf86DrvMsg(0, X_INFO, "Trumpion block success\n");
 #endif
 #endif
-  return TRUE;
+  return true;
 }
 #endif
 
@@ -8939,7 +8939,7 @@ SiS_SetTrumpionBlock(struct SiS_Private *SiS_Pr, unsigned char *dataptr)
  * 0x0a, possibly for working around the DDC problems
  */
 
-static BOOLEAN
+static bool
 SiS_SetChReg(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val, unsigned short myor)
 {
   unsigned short temp, i;
@@ -8958,9 +8958,9 @@ SiS_SetChReg(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val, 
      if(temp) continue;							/*    (ERROR: no ack) */
      if(SiS_SetStop(SiS_Pr)) continue;					/* Set stop condition */
      SiS_Pr->SiS_ChrontelInit = 1;
-     return TRUE;
+     return true;
   }
-  return FALSE;
+  return false;
 }
 
 /* Write to Chrontel 700x */
@@ -9119,7 +9119,7 @@ static
 #endif
 unsigned short
 SiS_InitDDCRegs(struct SiS_Private *SiS_Pr, unsigned int VBFlags, int VGAEngine,
-                unsigned short adaptnum, unsigned short DDCdatatype, BOOLEAN checkcr32,
+                unsigned short adaptnum, unsigned short DDCdatatype, bool checkcr32,
 		unsigned int VBFlags2)
 {
      unsigned char ddcdtype[] = { 0xa0, 0xa0, 0xa0, 0xa2, 0xa6 };
@@ -9287,7 +9287,7 @@ SiS_DoProbeDDC(struct SiS_Private *SiS_Pr)
 {
     unsigned char mask, value;
     unsigned short  temp, ret=0;
-    BOOLEAN failed = FALSE;
+    bool failed = false;
 
     SiS_SetSwitchDDC2(SiS_Pr);
     if(SiS_PrepareDDC(SiS_Pr)) {
@@ -9308,7 +9308,7 @@ SiS_DoProbeDDC(struct SiS_Private *SiS_Pr)
            mask = 0xff;
 	   value = 0xff;
        } else {
-           failed = TRUE;
+           failed = true;
 	   ret = 0xFFFF;
 #ifdef SIS_XORG_XF86
 #ifdef TWDEBUG
@@ -9317,7 +9317,7 @@ SiS_DoProbeDDC(struct SiS_Private *SiS_Pr)
 #endif
        }
     }
-    if(failed == FALSE) {
+    if(!failed) {
        temp = (unsigned char)SiS_ReadDDC2Data(SiS_Pr);
        SiS_SendACK(SiS_Pr, 1);
        temp &= mask;
@@ -9431,7 +9431,7 @@ SiS_HandleDDC(struct SiS_Private *SiS_Pr, unsigned int VBFlags, int VGAEngine,
    if((!(VBFlags2 & VB2_VIDEOBRIDGE)) && (adaptnum > 0))
       return 0xFFFF;
 
-   if(SiS_InitDDCRegs(SiS_Pr, VBFlags, VGAEngine, adaptnum, DDCdatatype, FALSE, VBFlags2) == 0xFFFF)
+   if(SiS_InitDDCRegs(SiS_Pr, VBFlags, VGAEngine, adaptnum, DDCdatatype, false, VBFlags2) == 0xFFFF)
       return 0xFFFF;
 
    sr1f = SiS_GetReg(SiS_Pr->SiS_P3c4,0x1f);
@@ -9829,7 +9829,7 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 {
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
   unsigned short delay=0,index,myindex,temp,romptr=0;
-  BOOLEAN dochiptest = TRUE;
+  bool dochiptest = true;
 
   if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA) {
      SiS_SetRegAND(SiS_Pr->SiS_Part1Port,0x20,0xbf);
@@ -9864,7 +9864,7 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
   } else if(SiS_Pr->SiS_VBInfo & (SetCRT2ToLCD|SetCRT2ToLCDA)) {  /* ----------	LCD/LCDA */
 
-     BOOLEAN gotitfrompci = FALSE;
+     bool gotitfrompci = false;
 
      /* Could we detect a PDC for LCD or did we get a user-defined? If yes, use it */
 
@@ -9916,22 +9916,22 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
      case CUT_COMPAQ1280:
      case CUT_COMPAQ12802:
 	if(SiS_Pr->SiS_LCDResInfo == Panel_1280x1024) {
-	   gotitfrompci = TRUE;
-	   dochiptest = FALSE;
+	   gotitfrompci = true;
+	   dochiptest = false;
 	   delay = 0x03;
 	}
 	break;
      case CUT_CLEVO1400:
      case CUT_CLEVO14002:
-	gotitfrompci = TRUE;
-	dochiptest = FALSE;
+	gotitfrompci = true;
+	dochiptest = false;
 	delay = 0x02;
 	break;
      case CUT_CLEVO1024:
      case CUT_CLEVO10242:
         if(SiS_Pr->SiS_LCDResInfo == Panel_1024x768) {
-	   gotitfrompci = TRUE;
-	   dochiptest = FALSE;
+	   gotitfrompci = true;
+	   dochiptest = false;
 	   delay = 0x33;
 	   SiS_SetReg(SiS_Pr->SiS_Part1Port,0x2D,delay);
 	   delay &= 0x0f;
@@ -10009,7 +10009,7 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
      if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA) {
 	SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port,0x2D,0x0F,((delay << 4) & 0xf0));
-	dochiptest = FALSE;
+	dochiptest = false;
      }
 
   } else if(SiS_Pr->SiS_VBInfo & SetCRT2ToTV) {			/* ------------ TV */
@@ -10043,12 +10043,12 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 	   case CUT_CLEVO1400:
 	   case CUT_CLEVO14002:
 	      delay = 0x02;
-	      dochiptest = FALSE;
+	      dochiptest = false;
 	      break;
 	   case CUT_CLEVO1024:
 	   case CUT_CLEVO10242:
 	      delay = 0x03;
-	      dochiptest = FALSE;
+	      dochiptest = false;
    	      break;
 	   default:
               delay = SiS310_TVDelayCompensation_651301LV[index];
@@ -10085,7 +10085,7 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
      if(SiS_LCDAEnabled(SiS_Pr)) {
 	delay &= 0x0f;
-	dochiptest = FALSE;
+	dochiptest = false;
      }
 
   } else return;
@@ -10728,7 +10728,7 @@ SiS_FinalizeLCD(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x1c,0x00);
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x1d,0x1b);
 	   }
-	   if((SiS_Pr->Backup == TRUE) && (SiS_Pr->Backup_Mode == ModeNo)) {
+	   if(SiS_Pr->Backup && (SiS_Pr->Backup_Mode == ModeNo)) {
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x14,SiS_Pr->Backup_14);
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x15,SiS_Pr->Backup_15);
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x16,SiS_Pr->Backup_16);

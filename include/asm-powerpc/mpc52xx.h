@@ -249,6 +249,8 @@ extern void mpc52xx_declare_of_platform_devices(void);
 extern void mpc52xx_init_irq(void);
 extern unsigned int mpc52xx_get_irq(void);
 
+extern int __init mpc52xx_add_bridge(struct device_node *node);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __ASM_POWERPC_MPC52xx_H__ */

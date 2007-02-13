@@ -53,10 +53,12 @@ SECTIONS
 		__security_initcall_start = .;
 			*(.security_initcall.init)
 		__security_initcall_end = .;
+#ifdef CONFIG_BLK_DEV_INITRD
 		. = ALIGN(32);
 		__initramfs_start = .;
 			usr/built-in.o(.init.ramfs)
 		__initramfs_end = .;
+#endif
 		. = ALIGN(64);
 		__per_cpu_start = .;
 			*(.data.percpu)

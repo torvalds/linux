@@ -67,7 +67,7 @@ static struct list_head adapters_list_g;
 
 static wait_queue_head_t wait_q;
 
-static struct file_operations lsi_fops = {
+static const struct file_operations lsi_fops = {
 	.open	= mraid_mm_open,
 	.ioctl	= mraid_mm_ioctl,
 #ifdef CONFIG_COMPAT
@@ -78,10 +78,10 @@ static struct file_operations lsi_fops = {
 
 /**
  * mraid_mm_open - open routine for char node interface
- * @inod	: unused
+ * @inode	: unused
  * @filep	: unused
  *
- * allow ioctl operations by apps only if they superuser privilege
+ * Allow ioctl operations by apps only if they have superuser privilege.
  */
 static int
 mraid_mm_open(struct inode *inode, struct file *filep)
@@ -214,7 +214,9 @@ mraid_mm_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 /**
  * mraid_mm_get_adapter - Returns corresponding adapters for the mimd packet
  * @umimd	: User space mimd_t ioctl packet
- * @adapter	: pointer to the adapter (OUT)
+ * @rval	: returned success/error status
+ *
+ * The function return value is a pointer to the located @adapter.
  */
 static mraid_mmadp_t *
 mraid_mm_get_adapter(mimd_t __user *umimd, int *rval)
@@ -252,11 +254,11 @@ mraid_mm_get_adapter(mimd_t __user *umimd, int *rval)
 	return adapter;
 }
 
-/*
- * handle_drvrcmd - This routine checks if the opcode is a driver
- * 			  cmd and if it is, handles it.
+/**
+ * handle_drvrcmd - Checks if the opcode is a driver cmd and if it is, handles it.
  * @arg		: packet sent by the user app
  * @old_ioctl	: mimd if 1; uioc otherwise
+ * @rval	: pointer for command's returned value (not function status)
  */
 static int
 handle_drvrcmd(void __user *arg, uint8_t old_ioctl, int *rval)
@@ -322,8 +324,8 @@ old_packet:
 
 /**
  * mimd_to_kioc	- Converter from old to new ioctl format
- *
  * @umimd	: user space old MIMD IOCTL
+ * @adp		: adapter softstate
  * @kioc	: kernel space new format IOCTL
  *
  * Routine to convert MIMD interface IOCTL to new interface IOCTL packet. The
@@ -474,7 +476,6 @@ mimd_to_kioc(mimd_t __user *umimd, mraid_mmadp_t *adp, uioc_t *kioc)
 
 /**
  * mraid_mm_attch_buf - Attach a free dma buffer for required size
- *
  * @adp		: Adapter softstate
  * @kioc	: kioc that the buffer needs to be attached to
  * @xferlen	: required length for buffer
@@ -607,7 +608,6 @@ mraid_mm_alloc_kioc(mraid_mmadp_t *adp)
 
 /**
  * mraid_mm_dealloc_kioc - Return kioc to free pool
- *
  * @adp		: Adapter softstate
  * @kioc	: uioc_t node to be returned to free pool
  */
@@ -652,7 +652,6 @@ mraid_mm_dealloc_kioc(mraid_mmadp_t *adp, uioc_t *kioc)
 
 /**
  * lld_ioctl - Routine to issue ioctl to low level drvr
- *
  * @adp		: The adapter handle
  * @kioc	: The ioctl packet with kernel addresses
  */
@@ -705,7 +704,6 @@ lld_ioctl(mraid_mmadp_t *adp, uioc_t *kioc)
 
 /**
  * ioctl_done - callback from the low level driver
- *
  * @kioc	: completed ioctl packet
  */
 static void
@@ -756,9 +754,8 @@ ioctl_done(uioc_t *kioc)
 }
 
 
-/*
- * lld_timedout	: callback from the expired timer
- *
+/**
+ * lld_timedout	- callback from the expired timer
  * @ptr		: ioctl packet that timed out
  */
 static void
@@ -776,8 +773,7 @@ lld_timedout(unsigned long ptr)
 
 
 /**
- * kioc_to_mimd	: Converter from new back to old format
- *
+ * kioc_to_mimd	- Converter from new back to old format
  * @kioc	: Kernel space IOCTL packet (successfully issued)
  * @mimd	: User space MIMD packet
  */
@@ -855,7 +851,6 @@ kioc_to_mimd(uioc_t *kioc, mimd_t __user *mimd)
 
 /**
  * hinfo_to_cinfo - Convert new format hba info into old format
- *
  * @hinfo	: New format, more comprehensive adapter info
  * @cinfo	: Old format adapter info to support mimd_t apps
  */
@@ -878,10 +873,9 @@ hinfo_to_cinfo(mraid_hba_info_t *hinfo, mcontroller_t *cinfo)
 }
 
 
-/*
- * mraid_mm_register_adp - Registration routine for low level drvrs
- *
- * @adp	: Adapter objejct
+/**
+ * mraid_mm_register_adp - Registration routine for low level drivers
+ * @lld_adp	: Adapter objejct
  */
 int
 mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
@@ -1007,15 +1001,14 @@ memalloc_error:
 
 /**
  * mraid_mm_adapter_app_handle - return the application handle for this adapter
+ * @unique_id	: adapter unique identifier
  *
- * For the given driver data, locate the adadpter in our global list and
+ * For the given driver data, locate the adapter in our global list and
  * return the corresponding handle, which is also used by applications to
  * uniquely identify an adapter.
  *
- * @param unique_id : adapter unique identifier
- *
- * @return adapter handle if found in the list
- * @return 0 if adapter could not be located, should never happen though
+ * Return adapter handle if found in the list.
+ * Return 0 if adapter could not be located, should never happen though.
  */
 uint32_t
 mraid_mm_adapter_app_handle(uint32_t unique_id)
@@ -1040,7 +1033,6 @@ mraid_mm_adapter_app_handle(uint32_t unique_id)
 
 /**
  * mraid_mm_setup_dma_pools - Set up dma buffer pools per adapter
- *
  * @adp	: Adapter softstate
  *
  * We maintain a pool of dma buffers per each adapter. Each pool has one
@@ -1093,11 +1085,11 @@ dma_pool_setup_error:
 }
 
 
-/*
+/**
  * mraid_mm_unregister_adp - Unregister routine for low level drivers
- *				  Assume no outstanding ioctls to llds.
- *
  * @unique_id	: UID of the adpater
+ *
+ * Assumes no outstanding ioctls to llds.
  */
 int
 mraid_mm_unregister_adp(uint32_t unique_id)
@@ -1131,7 +1123,6 @@ mraid_mm_unregister_adp(uint32_t unique_id)
 
 /**
  * mraid_mm_free_adp_resources - Free adapter softstate
- *
  * @adp	: Adapter softstate
  */
 static void
@@ -1162,7 +1153,6 @@ mraid_mm_free_adp_resources(mraid_mmadp_t *adp)
 
 /**
  * mraid_mm_teardown_dma_pools - Free all per adapter dma buffers
- *
  * @adp	: Adapter softstate
  */
 static void
@@ -1190,7 +1180,7 @@ mraid_mm_teardown_dma_pools(mraid_mmadp_t *adp)
 }
 
 /**
- * mraid_mm_init	: Module entry point
+ * mraid_mm_init	- Module entry point
  */
 static int __init
 mraid_mm_init(void)
@@ -1214,10 +1204,13 @@ mraid_mm_init(void)
 }
 
 
-/**
- * mraid_mm_compat_ioctl	: 32bit to 64bit ioctl conversion routine
- */
 #ifdef CONFIG_COMPAT
+/**
+ * mraid_mm_compat_ioctl	- 32bit to 64bit ioctl conversion routine
+ * @filep	: file operations pointer (ignored)
+ * @cmd		: ioctl command
+ * @arg		: user ioctl packet
+ */
 static long
 mraid_mm_compat_ioctl(struct file *filep, unsigned int cmd,
 		      unsigned long arg)
@@ -1231,7 +1224,7 @@ mraid_mm_compat_ioctl(struct file *filep, unsigned int cmd,
 #endif
 
 /**
- * mraid_mm_exit	: Module exit point
+ * mraid_mm_exit	- Module exit point
  */
 static void __exit
 mraid_mm_exit(void)

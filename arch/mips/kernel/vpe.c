@@ -29,6 +29,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -48,6 +49,7 @@
 #include <asm/cacheflush.h>
 #include <asm/atomic.h>
 #include <asm/cpu.h>
+#include <asm/mips_mt.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/vpe.h>
@@ -64,6 +66,7 @@ typedef void *vpe_handle;
 
 static char module_name[] = "vpe";
 static int major;
+static const int minor = 1;	/* fixed for now  */
 
 #ifdef CONFIG_MIPS_APSP_KSPD
  static struct kspd_notifications kspd_events;
@@ -522,7 +525,7 @@ static int (*reloc_handlers[]) (struct module *me, uint32_t *location,
 };
 
 static char *rstrs[] = {
-    	[R_MIPS_NONE]	= "MIPS_NONE",
+	[R_MIPS_NONE]	= "MIPS_NONE",
 	[R_MIPS_32]	= "MIPS_32",
 	[R_MIPS_26]	= "MIPS_26",
 	[R_MIPS_HI16]	= "MIPS_HI16",
@@ -695,7 +698,7 @@ static void dump_tclist(void)
 }
 
 /* We are prepared so configure and start the VPE... */
-int vpe_run(struct vpe * v)
+static int vpe_run(struct vpe * v)
 {
 	struct vpe_notifications *n;
 	unsigned long val, dmt_flag;
@@ -713,16 +716,16 @@ int vpe_run(struct vpe * v)
 	dvpe();
 
 	if (!list_empty(&v->tc)) {
-                if ((t = list_entry(v->tc.next, struct tc, tc)) == NULL) {
-                        printk(KERN_WARNING "VPE loader: TC %d is already in use.\n",
-                               t->index);
-                        return -ENOEXEC;
-                }
-        } else {
-                printk(KERN_WARNING "VPE loader: No TC's associated with VPE %d\n",
-                       v->minor);
-                return -ENOEXEC;
-        }
+		if ((t = list_entry(v->tc.next, struct tc, tc)) == NULL) {
+			printk(KERN_WARNING "VPE loader: TC %d is already in use.\n",
+			       t->index);
+			return -ENOEXEC;
+		}
+	} else {
+		printk(KERN_WARNING "VPE loader: No TC's associated with VPE %d\n",
+		       v->minor);
+		return -ENOEXEC;
+	}
 
 	/* Put MVPE's into 'configuration state' */
 	set_c0_mvpcontrol(MVPCONTROL_VPC);
@@ -775,14 +778,14 @@ int vpe_run(struct vpe * v)
 
 	back_to_back_c0_hazard();
 
-        /* Set up the XTC bit in vpeconf0 to point at our tc */
-        write_vpe_c0_vpeconf0( (read_vpe_c0_vpeconf0() & ~(VPECONF0_XTC))
-                               | (t->index << VPECONF0_XTC_SHIFT));
+	/* Set up the XTC bit in vpeconf0 to point at our tc */
+	write_vpe_c0_vpeconf0( (read_vpe_c0_vpeconf0() & ~(VPECONF0_XTC))
+	                      | (t->index << VPECONF0_XTC_SHIFT));
 
 	back_to_back_c0_hazard();
 
-        /* enable this VPE */
-        write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() | VPECONF0_VPA);
+	/* enable this VPE */
+	write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() | VPECONF0_VPA);
 
 	/* clear out any left overs from a previous program */
 	write_vpe_c0_status(0);
@@ -832,7 +835,7 @@ static int find_vpe_symbols(struct vpe * v, Elf_Shdr * sechdrs,
  * contents of the program (p)buffer performing relocatations/etc, free's it
  * when finished.
  */
-int vpe_elfload(struct vpe * v)
+static int vpe_elfload(struct vpe * v)
 {
 	Elf_Ehdr *hdr;
 	Elf_Shdr *sechdrs;
@@ -1205,7 +1208,7 @@ static ssize_t vpe_write(struct file *file, const char __user * buffer,
 	return ret;
 }
 
-static struct file_operations vpe_fops = {
+static const struct file_operations vpe_fops = {
 	.owner = THIS_MODULE,
 	.open = vpe_open,
 	.release = vpe_release,
@@ -1365,12 +1368,15 @@ static void kspd_sp_exit( int sp_id)
 }
 #endif
 
+static struct device *vpe_dev;
+
 static int __init vpe_module_init(void)
 {
 	struct vpe *v = NULL;
+	struct device *dev;
 	struct tc *t;
 	unsigned long val;
-	int i;
+	int i, err;
 
 	if (!cpu_has_mipsmt) {
 		printk("VPE loader: not a MIPS MT capable processor\n");
@@ -1382,6 +1388,14 @@ static int __init vpe_module_init(void)
 		printk("VPE loader: unable to register character device\n");
 		return major;
 	}
+
+	dev = device_create(mt_class, NULL, MKDEV(major, minor),
+	                    "tc%d", minor);
+	if (IS_ERR(dev)) {
+		err = PTR_ERR(dev);
+		goto out_chrdev;
+	}
+	vpe_dev = dev;
 
 	dmt();
 	dvpe();
@@ -1478,6 +1492,11 @@ static int __init vpe_module_init(void)
 	kspd_events.kspd_sp_exit = kspd_sp_exit;
 #endif
 	return 0;
+
+out_chrdev:
+	unregister_chrdev(major, module_name);
+
+	return err;
 }
 
 static void __exit vpe_module_exit(void)
@@ -1490,6 +1509,7 @@ static void __exit vpe_module_exit(void)
 		}
 	}
 
+	device_destroy(mt_class, MKDEV(major, minor));
 	unregister_chrdev(major, module_name);
 }
 

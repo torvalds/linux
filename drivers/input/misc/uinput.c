@@ -627,7 +627,7 @@ static long uinput_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return retval;
 }
 
-static struct file_operations uinput_fops = {
+static const struct file_operations uinput_fops = {
 	.owner		= THIS_MODULE,
 	.open		= uinput_open,
 	.release	= uinput_release,

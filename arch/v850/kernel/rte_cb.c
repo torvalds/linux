@@ -15,6 +15,7 @@
 #include <linux/irq.h>
 #include <linux/fs.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 
 #include <asm/machdep.h>
 #include <asm/v850e_uart.h>
@@ -176,8 +177,7 @@ static struct gbus_int_irq_init gbus_irq_inits[] = {
 #endif
 	{ 0 }
 };
-#define NUM_GBUS_IRQ_INITS  \
-   ((sizeof gbus_irq_inits / sizeof gbus_irq_inits[0]) - 1)
+#define NUM_GBUS_IRQ_INITS (ARRAY_SIZE(gbus_irq_inits) - 1)
 
 static struct hw_interrupt_type gbus_hw_itypes[NUM_GBUS_IRQ_INITS];
 

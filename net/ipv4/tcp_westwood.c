@@ -63,10 +63,10 @@ static void tcp_westwood_init(struct sock *sk)
 	struct westwood *w = inet_csk_ca(sk);
 
 	w->bk = 0;
-        w->bw_ns_est = 0;
-        w->bw_est = 0;
-        w->accounted = 0;
-        w->cumul_ack = 0;
+	w->bw_ns_est = 0;
+	w->bw_est = 0;
+	w->accounted = 0;
+	w->cumul_ack = 0;
 	w->reset_rtt_min = 1;
 	w->rtt_min = w->rtt = TCP_WESTWOOD_INIT_RTT;
 	w->rtt_win_sx = tcp_time_stamp;
@@ -121,7 +121,7 @@ static void westwood_update_window(struct sock *sk)
 	 * to fix mismatch between tp->snd_una and w->snd_una for the first
 	 * bandwidth sample
 	 */
-        if (w->first_ack) {
+	if (w->first_ack) {
 		w->snd_una = tcp_sk(sk)->snd_una;
 		w->first_ack = 0;
 	}
@@ -147,7 +147,7 @@ static inline void update_rtt_min(struct westwood *w)
 {
 	if (w->reset_rtt_min) {
 		w->rtt_min = w->rtt;
-		w->reset_rtt_min = 0;	
+		w->reset_rtt_min = 0;
 	} else
 		w->rtt_min = min(w->rtt, w->rtt_min);
 }
@@ -183,15 +183,15 @@ static inline u32 westwood_acked_count(struct sock *sk)
 
 	w->cumul_ack = tp->snd_una - w->snd_una;
 
-        /* If cumul_ack is 0 this is a dupack since it's not moving
-         * tp->snd_una.
-         */
-        if (!w->cumul_ack) {
+	/* If cumul_ack is 0 this is a dupack since it's not moving
+	 * tp->snd_una.
+	 */
+	if (!w->cumul_ack) {
 		w->accounted += tp->mss_cache;
 		w->cumul_ack = tp->mss_cache;
 	}
 
-        if (w->cumul_ack > tp->mss_cache) {
+	if (w->cumul_ack > tp->mss_cache) {
 		/* Partial or delayed ack */
 		if (w->accounted >= w->cumul_ack) {
 			w->accounted -= w->cumul_ack;
@@ -237,7 +237,7 @@ static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
 
 	case CA_EVENT_FRTO:
 		tp->snd_ssthresh = tcp_westwood_bw_rttmin(sk);
- 		/* Update RTT_min when next ack arrives */
+		/* Update RTT_min when next ack arrives */
 		w->reset_rtt_min = 1;
 		break;
 

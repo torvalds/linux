@@ -26,7 +26,7 @@ const struct file_operations minix_file_operations = {
 	.sendfile	= generic_file_sendfile,
 };
 
-struct inode_operations minix_file_inode_operations = {
+const struct inode_operations minix_file_inode_operations = {
 	.truncate	= minix_truncate,
 	.getattr	= minix_getattr,
 };

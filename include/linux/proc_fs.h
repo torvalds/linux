@@ -55,8 +55,8 @@ struct proc_dir_entry {
 	uid_t uid;
 	gid_t gid;
 	loff_t size;
-	struct inode_operations * proc_iops;
-	const struct file_operations * proc_fops;
+	const struct inode_operations *proc_iops;
+	const struct file_operations *proc_fops;
 	get_info_t *get_info;
 	struct module *owner;
 	struct proc_dir_entry *next, *parent, *subdir;

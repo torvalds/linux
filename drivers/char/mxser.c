@@ -321,8 +321,6 @@ struct mxser_struct {
 	unsigned long event;
 	int count;		/* # of fd on device */
 	int blocked_open;	/* # of blocked opens */
-	long session;		/* Session of opening process */
-	long pgrp;		/* pgrp of opening process */
 	unsigned char *xmit_buf;
 	int xmit_head;
 	int xmit_tail;
@@ -1001,15 +999,12 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 		mxser_change_speed(info, NULL);
 	}
 
-	info->session = process_session(current);
-	info->pgrp = process_group(current);
-
 	/*
 	status = mxser_get_msr(info->base, 0, info->port);
 	mxser_check_modem_status(info, status);
 	*/
 
-/* unmark here for very high baud rate (ex. 921600 bps) used */
+	/* unmark here for very high baud rate (ex. 921600 bps) used */
 	tty->low_latency = 1;
 	return 0;
 }
@@ -1254,9 +1249,7 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 	spin_unlock_irqrestore(&info->slock, flags);
 	/* above added by shinhay */
 
-	wake_up_interruptible(&tty->write_wait);
-	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) && tty->ldisc.write_wakeup)
-		(tty->ldisc.write_wakeup) (tty);
+	tty_wakeup(tty);
 }
 
 static int mxser_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg)

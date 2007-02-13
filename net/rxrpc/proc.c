@@ -37,7 +37,7 @@ static struct seq_operations rxrpc_proc_transports_ops = {
 	.show	= rxrpc_proc_transports_show,
 };
 
-static struct file_operations rxrpc_proc_transports_fops = {
+static const struct file_operations rxrpc_proc_transports_fops = {
 	.open		= rxrpc_proc_transports_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -57,7 +57,7 @@ static struct seq_operations rxrpc_proc_peers_ops = {
 	.show	= rxrpc_proc_peers_show,
 };
 
-static struct file_operations rxrpc_proc_peers_fops = {
+static const struct file_operations rxrpc_proc_peers_fops = {
 	.open		= rxrpc_proc_peers_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -77,7 +77,7 @@ static struct seq_operations rxrpc_proc_conns_ops = {
 	.show	= rxrpc_proc_conns_show,
 };
 
-static struct file_operations rxrpc_proc_conns_fops = {
+static const struct file_operations rxrpc_proc_conns_fops = {
 	.open		= rxrpc_proc_conns_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -97,7 +97,7 @@ static struct seq_operations rxrpc_proc_calls_ops = {
 	.show	= rxrpc_proc_calls_show,
 };
 
-static struct file_operations rxrpc_proc_calls_fops = {
+static const struct file_operations rxrpc_proc_calls_fops = {
 	.open		= rxrpc_proc_calls_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

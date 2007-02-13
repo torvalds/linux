@@ -223,13 +223,13 @@ static int fpga_slow_intr(adapter_t *adapter)
 		t1_sge_intr_error_handler(adapter->sge);
 
 	if (cause & FPGA_PCIX_INTERRUPT_GMAC)
-                fpga_phy_intr_handler(adapter);
+		fpga_phy_intr_handler(adapter);
 
 	if (cause & FPGA_PCIX_INTERRUPT_TP) {
-                /*
+		/*
 		 * FPGA doesn't support MC4 interrupts and it requires
 		 * this odd layer of indirection for MC5.
-                 */
+		 */
 		u32 tp_cause = readl(adapter->regs + FPGA_TP_ADDR_INTERRUPT_CAUSE);
 
 		/* Clear TP interrupt */
@@ -262,8 +262,7 @@ static int mi1_wait_until_ready(adapter_t *adapter, int mi1_reg)
 			udelay(10);
 	} while (busy && --attempts);
 	if (busy)
-		CH_ALERT("%s: MDIO operation timed out\n",
-			 adapter->name);
+		CH_ALERT("%s: MDIO operation timed out\n", adapter->name);
 	return busy;
 }
 
@@ -605,22 +604,23 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
 
 	switch (board_info(adapter)->board) {
 #ifdef CONFIG_CHELSIO_T1_1G
-        case CHBT_BOARD_CHT204:
-        case CHBT_BOARD_CHT204E:
-        case CHBT_BOARD_CHN204:
-        case CHBT_BOARD_CHT204V: {
-                int i, port_bit;
+	case CHBT_BOARD_CHT204:
+	case CHBT_BOARD_CHT204E:
+	case CHBT_BOARD_CHN204:
+	case CHBT_BOARD_CHT204V: {
+		int i, port_bit;
 		for_each_port(adapter, i) {
 			port_bit = i + 1;
-			if (!(cause & (1 << port_bit))) continue;
+			if (!(cause & (1 << port_bit)))
+				continue;
 
-	                phy = adapter->port[i].phy;
+			phy = adapter->port[i].phy;
 			phy_cause = phy->ops->interrupt_handler(phy);
 			if (phy_cause & cphy_cause_link_change)
 				t1_link_changed(adapter, i);
 		}
-                break;
-        }
+		break;
+	}
 	case CHBT_BOARD_CHT101:
 		if (cause & ELMER0_GP_BIT1) { /* Marvell 88E1111 interrupt */
 			phy = adapter->port[0].phy;
@@ -631,13 +631,13 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
 		break;
 	case CHBT_BOARD_7500: {
 		int p;
-    		/*
+		/*
 		 * Elmer0's interrupt cause isn't useful here because there is
 		 * only one bit that can be set for all 4 ports.  This means
 		 * we are forced to check every PHY's interrupt status
 		 * register to see who initiated the interrupt.
-     		 */
-    		for_each_port(adapter, p) {
+		 */
+		for_each_port(adapter, p) {
 			phy = adapter->port[p].phy;
 			phy_cause = phy->ops->interrupt_handler(phy);
 			if (phy_cause & cphy_cause_link_change)
@@ -658,7 +658,7 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
 		break;
 	case CHBT_BOARD_8000:
 	case CHBT_BOARD_CHT110:
-    		CH_DBG(adapter, INTR, "External interrupt cause 0x%x\n",
+		CH_DBG(adapter, INTR, "External interrupt cause 0x%x\n",
 		       cause);
 		if (cause & ELMER0_GP_BIT1) {        /* PMC3393 INTB */
 			struct cmac *mac = adapter->port[0].mac;
@@ -670,9 +670,9 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
 
 			t1_tpi_read(adapter,
 					A_ELMER0_GPI_STAT, &mod_detect);
-	    		CH_MSG(adapter, INFO, LINK, "XPAK %s\n",
+			CH_MSG(adapter, INFO, LINK, "XPAK %s\n",
 			       mod_detect ? "removed" : "inserted");
-    		}
+		}
 		break;
 #ifdef CONFIG_CHELSIO_T1_COUGAR
 	case CHBT_BOARD_COUGAR:
@@ -688,7 +688,8 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
 
 			for_each_port(adapter, i) {
 				port_bit = i ? i + 1 : 0;
-				if (!(cause & (1 << port_bit))) continue;
+				if (!(cause & (1 << port_bit)))
+					continue;
 
 				phy = adapter->port[i].phy;
 				phy_cause = phy->ops->interrupt_handler(phy);
@@ -755,7 +756,7 @@ void t1_interrupts_disable(adapter_t* adapter)
 
 	/* Disable PCIX & external chip interrupts. */
 	if (t1_is_asic(adapter))
-	    	writel(0, adapter->regs + A_PL_ENABLE);
+		writel(0, adapter->regs + A_PL_ENABLE);
 
 	/* PCI-X interrupts */
 	pci_write_config_dword(adapter->pdev, A_PCICFG_INTR_ENABLE, 0);
@@ -830,11 +831,11 @@ int t1_slow_intr_handler(adapter_t *adapter)
 /* Power sequencing is a work-around for Intel's XPAKs. */
 static void power_sequence_xpak(adapter_t* adapter)
 {
-    	u32 mod_detect;
-    	u32 gpo;
+	u32 mod_detect;
+	u32 gpo;
 
-    	/* Check for XPAK */
-    	t1_tpi_read(adapter, A_ELMER0_GPI_STAT, &mod_detect);
+	/* Check for XPAK */
+	t1_tpi_read(adapter, A_ELMER0_GPI_STAT, &mod_detect);
 	if (!(ELMER0_GP_BIT5 & mod_detect)) {
 		/* XPAK is present */
 		t1_tpi_read(adapter, A_ELMER0_GPO, &gpo);
@@ -877,31 +878,31 @@ static int board_init(adapter_t *adapter, const struct board_info *bi)
 	case CHBT_BOARD_N210:
 	case CHBT_BOARD_CHT210:
 	case CHBT_BOARD_COUGAR:
-    		t1_tpi_par(adapter, 0xf);
-    		t1_tpi_write(adapter, A_ELMER0_GPO, 0x800);
+		t1_tpi_par(adapter, 0xf);
+		t1_tpi_write(adapter, A_ELMER0_GPO, 0x800);
 		break;
 	case CHBT_BOARD_CHT110:
-    		t1_tpi_par(adapter, 0xf);
-    		t1_tpi_write(adapter, A_ELMER0_GPO, 0x1800);
+		t1_tpi_par(adapter, 0xf);
+		t1_tpi_write(adapter, A_ELMER0_GPO, 0x1800);
 
-    		/* TBD XXX Might not need.  This fixes a problem
-     		 *         described in the Intel SR XPAK errata.
-     		 */
-    		power_sequence_xpak(adapter);
+		/* TBD XXX Might not need.  This fixes a problem
+		 *         described in the Intel SR XPAK errata.
+		 */
+		power_sequence_xpak(adapter);
 		break;
 #ifdef CONFIG_CHELSIO_T1_1G
-    case CHBT_BOARD_CHT204E:
-		        /* add config space write here */
+	case CHBT_BOARD_CHT204E:
+		/* add config space write here */
 	case CHBT_BOARD_CHT204:
 	case CHBT_BOARD_CHT204V:
 	case CHBT_BOARD_CHN204:
-                t1_tpi_par(adapter, 0xf);
-                t1_tpi_write(adapter, A_ELMER0_GPO, 0x804);
-                break;
+		t1_tpi_par(adapter, 0xf);
+		t1_tpi_write(adapter, A_ELMER0_GPO, 0x804);
+		break;
 	case CHBT_BOARD_CHT101:
 	case CHBT_BOARD_7500:
-    		t1_tpi_par(adapter, 0xf);
-    		t1_tpi_write(adapter, A_ELMER0_GPO, 0x1804);
+		t1_tpi_par(adapter, 0xf);
+		t1_tpi_write(adapter, A_ELMER0_GPO, 0x1804);
 		break;
 #endif
 	}
@@ -941,7 +942,7 @@ int t1_init_hw_modules(adapter_t *adapter)
 		goto out_err;
 
 	err = 0;
- out_err:
+out_err:
 	return err;
 }
 
@@ -983,7 +984,7 @@ void t1_free_sw_modules(adapter_t *adapter)
 	if (adapter->espi)
 		t1_espi_destroy(adapter->espi);
 #ifdef CONFIG_CHELSIO_T1_COUGAR
-        if (adapter->cspi)
+	if (adapter->cspi)
 		t1_cspi_destroy(adapter->cspi);
 #endif
 }
@@ -1010,7 +1011,7 @@ static void __devinit init_link_config(struct link_config *lc,
 		CH_ERR("%s: CSPI initialization failed\n",
 		       adapter->name);
 		goto error;
-        }
+	}
 #endif
 
 /*

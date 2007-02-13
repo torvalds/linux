@@ -116,7 +116,7 @@ static void ocfs2_destroy_inode(struct inode *inode);
 
 static unsigned long long ocfs2_max_file_offset(unsigned int blockshift);
 
-static struct super_operations ocfs2_sops = {
+static const struct super_operations ocfs2_sops = {
 	.statfs		= ocfs2_statfs,
 	.alloc_inode	= ocfs2_alloc_inode,
 	.destroy_inode	= ocfs2_destroy_inode,

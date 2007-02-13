@@ -18,6 +18,7 @@
    with this program; if not, write to the Free Software Foundation, Inc.,
    51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
+#include <linux/kernel.h>
 #include "spu.h"
 
 /* This file holds the Spu opcode table */
@@ -40,5 +41,4 @@ const struct spu_opcode spu_opcodes[] = {
 #undef APUOPFB
 };
 
-const int spu_num_opcodes =
-  sizeof (spu_opcodes) / sizeof (spu_opcodes[0]);
+const int spu_num_opcodes = ARRAY_SIZE(spu_opcodes);

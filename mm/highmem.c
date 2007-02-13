@@ -47,7 +47,8 @@ unsigned int nr_free_highpages (void)
 	unsigned int pages = 0;
 
 	for_each_online_pgdat(pgdat)
-		pages += pgdat->node_zones[ZONE_HIGHMEM].free_pages;
+		pages += zone_page_state(&pgdat->node_zones[ZONE_HIGHMEM],
+			NR_FREE_PAGES);
 
 	return pages;
 }

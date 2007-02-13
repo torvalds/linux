@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_MODULE_H
 #define _ASM_M32R_MODULE_H
 
-/* $Id$ */
-
 struct mod_arch_specific { };
 
 #define Elf_Shdr	Elf32_Shdr
@@ -10,4 +8,3 @@ struct mod_arch_specific { };
 #define Elf_Ehdr	Elf32_Ehdr
 
 #endif /* _ASM_M32R_MODULE_H */
-

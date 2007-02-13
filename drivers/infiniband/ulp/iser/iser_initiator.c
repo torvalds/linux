@@ -567,7 +567,7 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 	opcode = hdr->opcode & ISCSI_OPCODE_MASK;
 
 	if (opcode == ISCSI_OP_SCSI_CMD_RSP) {
-	        itt = hdr->itt & ISCSI_ITT_MASK; /* mask out cid and age bits */
+	        itt = get_itt(hdr->itt); /* mask out cid and age bits */
 		if (!(itt < session->cmds_max))
 			iser_err("itt can't be matched to task!!!"
 				 "conn %p opcode %d cmds_max %d itt %d\n",
@@ -625,7 +625,7 @@ void iser_snd_completion(struct iser_desc *tx_desc)
 		/* this arithmetic is legal by libiscsi dd_data allocation */
 		mtask = (void *) ((long)(void *)tx_desc -
 				  sizeof(struct iscsi_mgmt_task));
-		if (mtask->hdr->itt == cpu_to_be32(ISCSI_RESERVED_TAG)) {
+		if (mtask->hdr->itt == RESERVED_ITT) {
 			struct iscsi_session *session = conn->session;
 
 			spin_lock(&conn->session->lock);

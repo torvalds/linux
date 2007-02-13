@@ -340,8 +340,6 @@ config HISAX_HFC_SX
 	  This enables HiSax support for the HFC-S+, HFC-SP and HFC-PCMCIA
 	  cards. This code is not finished yet.
 
-#      bool '  TESTEMULATOR (EXPERIMENTAL)' CONFIG_HISAX_TESTEMU
-
 config HISAX_ENTERNOW_PCI
 	bool "Formula-n enter:now PCI card"
 	depends on HISAX_NETJET && PCI && (BROKEN || !(SPARC || PPC || PARISC || M68K || (MIPS && !CPU_LITTLE_ENDIAN) || FRV))

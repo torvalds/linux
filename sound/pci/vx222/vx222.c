@@ -73,8 +73,8 @@ MODULE_DEVICE_TABLE(pci, snd_vx222_ids);
 /*
  */
 
-static DECLARE_TLV_DB_SCALE(db_scale_old_vol, -11350, 50, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_akm, -7350, 50, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_old_vol, -11350, 50, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_akm, -7350, 50, 0);
 
 static struct snd_vx_hardware vx222_old_hw = {
 

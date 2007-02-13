@@ -260,7 +260,7 @@ end_rename:
 	return error;
 }
 
-struct inode_operations bfs_dir_inops = {
+const struct inode_operations bfs_dir_inops = {
 	.create			= bfs_create,
 	.lookup			= bfs_lookup,
 	.link			= bfs_link,

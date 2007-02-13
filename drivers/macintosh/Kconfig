@@ -1,6 +1,6 @@
 
 menu "Macintosh device drivers"
-	depends on PPC || MAC
+	depends on PPC || MAC || X86
 
 config ADB
 	bool "Apple Desktop Bus (ADB) support"

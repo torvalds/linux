@@ -291,7 +291,7 @@ out:
 /*
  * directories can handle most operations...
  */
-struct inode_operations minix_dir_inode_operations = {
+const struct inode_operations minix_dir_inode_operations = {
 	.create		= minix_create,
 	.lookup		= minix_lookup,
 	.link		= minix_link,

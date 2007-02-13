@@ -153,7 +153,7 @@ int ams_input_init(void)
 }
 
 /* Call with ams_info.lock held! */
-void ams_input_exit()
+void ams_input_exit(void)
 {
 	ams_input_disable();
 	device_remove_file(&ams_info.of_dev->dev, &dev_attr_joystick);

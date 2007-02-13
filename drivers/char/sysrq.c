@@ -88,9 +88,9 @@ static struct sysrq_key_op sysrq_loglevel_op = {
 #ifdef CONFIG_VT
 static void sysrq_handle_SAK(int key, struct tty_struct *tty)
 {
-	if (tty)
-		do_SAK(tty);
-	reset_vc(vc_cons[fg_console].d);
+	struct work_struct *SAK_work = &vc_cons[fg_console].SAK_work;
+	PREPARE_WORK(SAK_work, vc_SAK);
+	schedule_work(SAK_work);
 }
 static struct sysrq_key_op sysrq_SAK_op = {
 	.handler	= sysrq_handle_SAK,

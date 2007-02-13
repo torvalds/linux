@@ -650,7 +650,7 @@ static unsigned int dasd_eer_poll(struct file *filp, poll_table *ptable)
 	return mask;
 }
 
-static struct file_operations dasd_eer_fops = {
+static const struct file_operations dasd_eer_fops = {
 	.open		= &dasd_eer_open,
 	.release	= &dasd_eer_close,
 	.read		= &dasd_eer_read,
@@ -658,18 +658,24 @@ static struct file_operations dasd_eer_fops = {
 	.owner		= THIS_MODULE,
 };
 
-static struct miscdevice dasd_eer_dev = {
-	.minor	    = MISC_DYNAMIC_MINOR,
-	.name	    = "dasd_eer",
-	.fops	    = &dasd_eer_fops,
-};
+static struct miscdevice *dasd_eer_dev = NULL;
 
 int __init dasd_eer_init(void)
 {
 	int rc;
 
-	rc = misc_register(&dasd_eer_dev);
+	dasd_eer_dev = kzalloc(sizeof(*dasd_eer_dev), GFP_KERNEL);
+	if (!dasd_eer_dev)
+		return -ENOMEM;
+
+	dasd_eer_dev->minor = MISC_DYNAMIC_MINOR;
+	dasd_eer_dev->name  = "dasd_eer";
+	dasd_eer_dev->fops  = &dasd_eer_fops;
+
+	rc = misc_register(dasd_eer_dev);
 	if (rc) {
+		kfree(dasd_eer_dev);
+		dasd_eer_dev = NULL;
 		MESSAGE(KERN_ERR, "%s", "dasd_eer_init could not "
 		       "register misc device");
 		return rc;
@@ -680,5 +686,9 @@ int __init dasd_eer_init(void)
 
 void dasd_eer_exit(void)
 {
-	WARN_ON(misc_deregister(&dasd_eer_dev) != 0);
+	if (dasd_eer_dev) {
+		WARN_ON(misc_deregister(dasd_eer_dev) != 0);
+		kfree(dasd_eer_dev);
+		dasd_eer_dev = NULL;
+	}
 }

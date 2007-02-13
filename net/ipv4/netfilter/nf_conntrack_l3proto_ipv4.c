@@ -66,7 +66,7 @@ static int ipv4_print_tuple(struct seq_file *s,
 			    const struct nf_conntrack_tuple *tuple)
 {
 	return seq_printf(s, "src=%u.%u.%u.%u dst=%u.%u.%u.%u ",
-		          NIPQUAD(tuple->src.u3.ip),
+			  NIPQUAD(tuple->src.u3.ip),
 			  NIPQUAD(tuple->dst.u3.ip));
 }
 
@@ -82,14 +82,14 @@ nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
 	skb_orphan(skb);
 
-        local_bh_disable();
-        skb = ip_defrag(skb, user);
-        local_bh_enable();
+	local_bh_disable();
+	skb = ip_defrag(skb, user);
+	local_bh_enable();
 
-        if (skb)
+	if (skb)
 		ip_send_check(skb->nh.iph);
 
-        return skb;
+	return skb;
 }
 
 static int
@@ -192,10 +192,10 @@ static unsigned int ipv4_conntrack_in(unsigned int hooknum,
 }
 
 static unsigned int ipv4_conntrack_local(unsigned int hooknum,
-				         struct sk_buff **pskb,
-				         const struct net_device *in,
-				         const struct net_device *out,
-				         int (*okfn)(struct sk_buff *))
+					 struct sk_buff **pskb,
+					 const struct net_device *in,
+					 const struct net_device *out,
+					 int (*okfn)(struct sk_buff *))
 {
 	/* root is playing with raw sockets. */
 	if ((*pskb)->len < sizeof(struct iphdr)
@@ -332,7 +332,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	struct inet_sock *inet = inet_sk(sk);
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_tuple tuple;
-	
+
 	NF_CT_TUPLE_U_BLANK(&tuple);
 	tuple.src.u3.ip = inet->rcv_saddr;
 	tuple.src.u.tcp.port = inet->sport;
@@ -501,7 +501,7 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 	return ret;
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
  cleanup_hooks:
- 	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
+	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
 #endif
  cleanup_ipv4:
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv4);

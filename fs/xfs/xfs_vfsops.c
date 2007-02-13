@@ -640,7 +640,7 @@ xfs_quiesce_fs(
 	 * we can write the unmount record.
 	 */
 	do {
-		xfs_syncsub(mp, SYNC_REMOUNT|SYNC_ATTR|SYNC_WAIT, 0, NULL);
+		xfs_syncsub(mp, SYNC_REMOUNT|SYNC_ATTR|SYNC_WAIT, NULL);
 		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
 		if (!pincount) {
 			delay(50);
@@ -806,7 +806,7 @@ xfs_statvfs(
 
 	statp->f_type = XFS_SB_MAGIC;
 
-	xfs_icsb_sync_counters_lazy(mp);
+	xfs_icsb_sync_counters_flags(mp, XFS_ICSB_LAZY_COUNT);
 	s = XFS_SB_LOCK(mp);
 	statp->f_bsize = sbp->sb_blocksize;
 	lsize = sbp->sb_logstart ? sbp->sb_logblocks : 0;
@@ -872,6 +872,10 @@ xfs_statvfs(
  *		       this by simply making sure the log gets flushed
  *		       if SYNC_BDFLUSH is set, and by actually writing it
  *		       out otherwise.
+ *	SYNC_IOWAIT  - The caller wants us to wait for all data I/O to complete
+ *		       before we return (including direct I/O). Forms the drain
+ *		       side of the write barrier needed to safely quiesce the
+ *		       filesystem.
  *
  */
 /*ARGSUSED*/
@@ -883,27 +887,20 @@ xfs_sync(
 {
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 
-	if (unlikely(flags == SYNC_QUIESCE))
-		return xfs_quiesce_fs(mp);
-	else
-		return xfs_syncsub(mp, flags, 0, NULL);
+	return xfs_syncsub(mp, flags, NULL);
 }
 
 /*
  * xfs sync routine for internal use
  *
  * This routine supports all of the flags defined for the generic vfs_sync
- * interface as explained above under xfs_sync.  In the interests of not
- * changing interfaces within the 6.5 family, additional internally-
- * required functions are specified within a separate xflags parameter,
- * only available by calling this routine.
+ * interface as explained above under xfs_sync.
  *
  */
 int
 xfs_sync_inodes(
 	xfs_mount_t	*mp,
 	int		flags,
-	int             xflags,
 	int             *bypassed)
 {
 	xfs_inode_t	*ip = NULL;
@@ -1176,6 +1173,13 @@ xfs_sync_inodes(
 			}
 
 		}
+		/*
+		 * When freezing, we need to wait ensure all I/O (including direct
+		 * I/O) is complete to ensure no further data modification can take
+		 * place after this point
+		 */
+		if (flags & SYNC_IOWAIT)
+			vn_iowait(vp);
 
 		if (flags & SYNC_BDFLUSH) {
 			if ((flags & SYNC_ATTR) &&
@@ -1412,17 +1416,13 @@ xfs_sync_inodes(
  * xfs sync routine for internal use
  *
  * This routine supports all of the flags defined for the generic vfs_sync
- * interface as explained above under xfs_sync.  In the interests of not
- * changing interfaces within the 6.5 family, additional internally-
- * required functions are specified within a separate xflags parameter,
- * only available by calling this routine.
+ * interface as explained above under xfs_sync.
  *
  */
 int
 xfs_syncsub(
 	xfs_mount_t	*mp,
 	int		flags,
-	int             xflags,
 	int             *bypassed)
 {
 	int		error = 0;
@@ -1444,7 +1444,7 @@ xfs_syncsub(
 		if (flags & SYNC_BDFLUSH)
 			xfs_finish_reclaim_all(mp, 1);
 		else
-			error = xfs_sync_inodes(mp, flags, xflags, bypassed);
+			error = xfs_sync_inodes(mp, flags, bypassed);
 	}
 
 	/*
@@ -1958,14 +1958,25 @@ xfs_showargs(
 	return 0;
 }
 
+/*
+ * Second stage of a freeze. The data is already frozen, now we have to take
+ * care of the metadata. New transactions are already blocked, so we need to
+ * wait for any remaining transactions to drain out before proceding.
+ */
 STATIC void
 xfs_freeze(
 	bhv_desc_t	*bdp)
 {
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 
+	/* wait for all modifications to complete */
 	while (atomic_read(&mp->m_active_trans) > 0)
 		delay(100);
+
+	/* flush inodes and push all remaining buffers out to disk */
+	xfs_quiesce_fs(mp);
+
+	ASSERT_ALWAYS(atomic_read(&mp->m_active_trans) == 0);
 
 	/* Push the superblock and write an unmount record */
 	xfs_log_unmount_write(mp);

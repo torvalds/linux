@@ -90,7 +90,7 @@ static int ncp_remount(struct super_block *sb, int *flags, char* data)
 	return 0;
 }
 
-static struct super_operations ncp_sops =
+static const struct super_operations ncp_sops =
 {
 	.alloc_inode	= ncp_alloc_inode,
 	.destroy_inode	= ncp_destroy_inode,
@@ -229,7 +229,7 @@ static void ncp_set_attr(struct inode *inode, struct ncp_entry_info *nwinfo)
 }
 
 #if defined(CONFIG_NCPFS_EXTRAS) || defined(CONFIG_NCPFS_NFS_NS)
-static struct inode_operations ncp_symlink_inode_operations = {
+static const struct inode_operations ncp_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
 	.put_link	= page_put_link,

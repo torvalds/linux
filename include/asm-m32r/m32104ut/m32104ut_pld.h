@@ -1,3 +1,6 @@
+#ifndef _M32104UT_M32104UT_PLD_H
+#define _M32104UT_M32104UT_PLD_H
+
 /*
  * include/asm-m32r/m32104ut/m32104ut_pld.h
  *
@@ -11,10 +14,6 @@
  * Public License.  See the file "COPYING" in the main directory of
  * this archive for more details.
  */
-
-#ifndef _M32104UT_M32104UT_PLD_H
-#define _M32104UT_M32104UT_PLD_H
-
 
 #if defined(CONFIG_PLAT_M32104UT)
 #define PLD_PLAT_BASE		0x02c00000
@@ -35,7 +34,7 @@
 #define __reg8
 #define __reg16
 #define __reg32
-#endif	/* __ASSEMBLY__ */
+#endif /* __ASSEMBLY__ */
 
 /* CFC */
 #define	PLD_CFRSTCR		__reg16(PLD_BASE + 0x0000)
@@ -159,4 +158,4 @@
 #define PLD_SCTXB		__reg16(PLD_BASE + 0x3800c)
 #define PLD_SCRXB		__reg16(PLD_BASE + 0x3800e)
 
-#endif	/* _M32104UT_M32104UT_PLD_H */
+#endif /* _M32104UT_M32104UT_PLD_H */

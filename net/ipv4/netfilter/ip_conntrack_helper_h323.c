@@ -42,7 +42,7 @@ MODULE_PARM_DESC(gkrouted_only, "only accept calls from gatekeeper");
 static int callforward_filter = 1;
 module_param(callforward_filter, bool, 0600);
 MODULE_PARM_DESC(callforward_filter, "only create call forwarding expectations "
-		                     "if both endpoints are on different sides "
+				     "if both endpoints are on different sides "
 				     "(determined by routing information)");
 
 /* Hooks for NAT */

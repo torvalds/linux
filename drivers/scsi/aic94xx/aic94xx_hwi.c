@@ -1052,10 +1052,9 @@ static inline struct asd_ascb *asd_ascb_alloc(struct asd_ha_struct *asd_ha,
 	struct asd_ascb *ascb;
 	unsigned long flags;
 
-	ascb = kmem_cache_alloc(asd_ascb_cache, gfp_flags);
+	ascb = kmem_cache_zalloc(asd_ascb_cache, gfp_flags);
 
 	if (ascb) {
-		memset(ascb, 0, sizeof(*ascb));
 		ascb->dma_scb.size = sizeof(struct scb);
 		ascb->dma_scb.vaddr = dma_pool_alloc(asd_ha->scb_pool,
 						     gfp_flags,

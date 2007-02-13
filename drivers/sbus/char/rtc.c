@@ -233,7 +233,7 @@ static int rtc_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations rtc_fops = {
+static const struct file_operations rtc_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.ioctl =	rtc_ioctl,

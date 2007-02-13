@@ -156,9 +156,9 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		tmp_inode->i_atime = cnvrtDosUnixTm(
 				le16_to_cpu(pfindData->LastAccessDate),
 				le16_to_cpu(pfindData->LastAccessTime));
-                tmp_inode->i_ctime = cnvrtDosUnixTm(
-                                le16_to_cpu(pfindData->LastWriteDate),
-                                le16_to_cpu(pfindData->LastWriteTime));
+		tmp_inode->i_ctime = cnvrtDosUnixTm(
+				le16_to_cpu(pfindData->LastWriteDate),
+				le16_to_cpu(pfindData->LastWriteTime));
 		AdjustForTZ(cifs_sb->tcon, tmp_inode);
 		attr = le16_to_cpu(pfindData->Attributes);
 		allocation_size = le32_to_cpu(pfindData->AllocationSize);

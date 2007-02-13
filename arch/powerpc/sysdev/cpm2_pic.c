@@ -36,8 +36,19 @@
 #include <asm/mpc8260.h>
 #include <asm/io.h>
 #include <asm/prom.h>
+#include <asm/fs_pd.h>
 
 #include "cpm2_pic.h"
+
+/* External IRQS */
+#define CPM2_IRQ_EXT1		19
+#define CPM2_IRQ_EXT7		25
+
+/* Port C IRQS */
+#define CPM2_IRQ_PORTC15	48
+#define CPM2_IRQ_PORTC0		63
+
+static intctl_cpm2_t *cpm2_intctl;
 
 static struct device_node *cpm2_pic_node;
 static struct irq_host *cpm2_pic_host;
@@ -68,68 +79,55 @@ static const u_char irq_to_siubit[] = {
 	24, 25, 26, 27, 28, 29, 30, 31,
 };
 
-static void cpm2_mask_irq(unsigned int irq_nr)
+static void cpm2_mask_irq(unsigned int virq)
 {
 	int	bit, word;
-	volatile uint	*simr;
-
-	irq_nr -= CPM_IRQ_OFFSET;
+	unsigned int irq_nr = virq_to_hw(virq);
 
 	bit = irq_to_siubit[irq_nr];
 	word = irq_to_siureg[irq_nr];
 
-	simr = &(cpm2_intctl->ic_simrh);
 	ppc_cached_irq_mask[word] &= ~(1 << bit);
-	simr[word] = ppc_cached_irq_mask[word];
+	out_be32(&cpm2_intctl->ic_simrh + word, ppc_cached_irq_mask[word]);
 }
 
-static void cpm2_unmask_irq(unsigned int irq_nr)
+static void cpm2_unmask_irq(unsigned int virq)
 {
 	int	bit, word;
-	volatile uint	*simr;
-
-	irq_nr -= CPM_IRQ_OFFSET;
+	unsigned int irq_nr = virq_to_hw(virq);
 
 	bit = irq_to_siubit[irq_nr];
 	word = irq_to_siureg[irq_nr];
 
-	simr = &(cpm2_intctl->ic_simrh);
 	ppc_cached_irq_mask[word] |= 1 << bit;
-	simr[word] = ppc_cached_irq_mask[word];
+	out_be32(&cpm2_intctl->ic_simrh + word, ppc_cached_irq_mask[word]);
 }
 
-static void cpm2_mask_and_ack(unsigned int irq_nr)
+static void cpm2_ack(unsigned int virq)
 {
 	int	bit, word;
-	volatile uint	*simr, *sipnr;
-
-	irq_nr -= CPM_IRQ_OFFSET;
+	unsigned int irq_nr = virq_to_hw(virq);
 
 	bit = irq_to_siubit[irq_nr];
 	word = irq_to_siureg[irq_nr];
 
-	simr = &(cpm2_intctl->ic_simrh);
-	sipnr = &(cpm2_intctl->ic_sipnrh);
-	ppc_cached_irq_mask[word] &= ~(1 << bit);
-	simr[word] = ppc_cached_irq_mask[word];
-	sipnr[word] = 1 << bit;
+	out_be32(&cpm2_intctl->ic_sipnrh + word, 1 << bit);
 }
 
-static void cpm2_end_irq(unsigned int irq_nr)
+static void cpm2_end_irq(unsigned int virq)
 {
 	int	bit, word;
-	volatile uint	*simr;
+	unsigned int irq_nr = virq_to_hw(virq);
 
 	if (!(irq_desc[irq_nr].status & (IRQ_DISABLED|IRQ_INPROGRESS))
 			&& irq_desc[irq_nr].action) {
 
-		irq_nr -= CPM_IRQ_OFFSET;
 		bit = irq_to_siubit[irq_nr];
 		word = irq_to_siureg[irq_nr];
 
-		simr = &(cpm2_intctl->ic_simrh);
 		ppc_cached_irq_mask[word] |= 1 << bit;
-		simr[word] = ppc_cached_irq_mask[word];
+		out_be32(&cpm2_intctl->ic_simrh + word, ppc_cached_irq_mask[word]);
+
 		/*
 		 * Work around large numbers of spurious IRQs on PowerPC 82xx
 		 * systems.
@@ -138,13 +136,59 @@ static void cpm2_end_irq(unsigned int irq_nr)
 	}
 }
 
+static int cpm2_set_irq_type(unsigned int virq, unsigned int flow_type)
+{
+	unsigned int src = virq_to_hw(virq);
+	struct irq_desc *desc = get_irq_desc(virq);
+	unsigned int vold, vnew, edibit;
+
+	if (flow_type == IRQ_TYPE_NONE)
+		flow_type = IRQ_TYPE_LEVEL_LOW;
+
+	if (flow_type & IRQ_TYPE_EDGE_RISING) {
+		printk(KERN_ERR "CPM2 PIC: sense type 0x%x not supported\n",
+			flow_type);
+		return -EINVAL;
+	}
+
+	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
+	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
+	if (flow_type & IRQ_TYPE_LEVEL_LOW)  {
+		desc->status |= IRQ_LEVEL;
+		desc->handle_irq = handle_level_irq;
+	} else
+		desc->handle_irq = handle_edge_irq;
+
+	/* internal IRQ senses are LEVEL_LOW
+	 * EXT IRQ and Port C IRQ senses are programmable
+	 */
+	if (src >= CPM2_IRQ_EXT1 && src <= CPM2_IRQ_EXT7)
+			edibit = (14 - (src - CPM2_IRQ_EXT1));
+	else
+		if (src >= CPM2_IRQ_PORTC15 && src <= CPM2_IRQ_PORTC0)
+			edibit = (31 - (src - CPM2_IRQ_PORTC15));
+		else
+			return (flow_type & IRQ_TYPE_LEVEL_LOW) ? 0 : -EINVAL;
+
+	vold = in_be32(&cpm2_intctl->ic_siexr);
+
+	if ((flow_type & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_FALLING)
+		vnew = vold | (1 << edibit);
+	else
+		vnew = vold & ~(1 << edibit);
+
+	if (vold != vnew)
+		out_be32(&cpm2_intctl->ic_siexr, vnew);
+	return 0;
+}
+
 static struct irq_chip cpm2_pic = {
 	.typename = " CPM2 SIU ",
-	.enable = cpm2_unmask_irq,
-	.disable = cpm2_mask_irq,
+	.mask = cpm2_mask_irq,
 	.unmask = cpm2_unmask_irq,
-	.mask_ack = cpm2_mask_and_ack,
-	.end = cpm2_end_irq,
+	.ack = cpm2_ack,
+	.eoi = cpm2_end_irq,
+	.set_type = cpm2_set_irq_type,
 };
 
 unsigned int cpm2_get_irq(void)
@@ -154,17 +198,17 @@ unsigned int cpm2_get_irq(void)
 
        /* For CPM2, read the SIVEC register and shift the bits down
          * to get the irq number.         */
-        bits = cpm2_intctl->ic_sivec;
+        bits = in_be32(&cpm2_intctl->ic_sivec);
         irq = bits >> 26;
 
 	if (irq == 0)
 		return(-1);
-	return irq+CPM_IRQ_OFFSET;
+	return irq_linear_revmap(cpm2_pic_host, irq);
 }
 
 static int cpm2_pic_host_match(struct irq_host *h, struct device_node *node)
 {
-	return cpm2_pic_node == NULL || cpm2_pic_node == node;
+	return cpm2_pic_node == node;
 }
 
 static int cpm2_pic_host_map(struct irq_host *h, unsigned int virq,
@@ -177,39 +221,21 @@ static int cpm2_pic_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static void cpm2_host_unmap(struct irq_host *h, unsigned int virq)
-{
-	/* Make sure irq is masked in hardware */
-	cpm2_mask_irq(virq);
-
-	/* remove chip and handler */
-	set_irq_chip_and_handler(virq, NULL, NULL);
-}
-
 static int cpm2_pic_host_xlate(struct irq_host *h, struct device_node *ct,
 			    u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
-	static const unsigned char map_cpm2_senses[4] = {
-		IRQ_TYPE_LEVEL_LOW,
-		IRQ_TYPE_LEVEL_HIGH,
-		IRQ_TYPE_EDGE_FALLING,
-		IRQ_TYPE_EDGE_RISING,
-	};
-
 	*out_hwirq = intspec[0];
-	if (intsize > 1 && intspec[1] < 4)
-		*out_flags = map_cpm2_senses[intspec[1]];
+	if (intsize > 1)
+		*out_flags = intspec[1];
 	else
 		*out_flags = IRQ_TYPE_NONE;
-
 	return 0;
 }
 
 static struct irq_host_ops cpm2_pic_host_ops = {
 	.match = cpm2_pic_host_match,
 	.map = cpm2_pic_host_map,
-	.unmap = cpm2_host_unmap,
 	.xlate = cpm2_pic_host_xlate,
 };
 
@@ -217,37 +243,37 @@ void cpm2_pic_init(struct device_node *node)
 {
 	int i;
 
+	cpm2_intctl = cpm2_map(im_intctl);
+
 	/* Clear the CPM IRQ controller, in case it has any bits set
 	 * from the bootloader
 	 */
 
 	/* Mask out everything */
 
-	cpm2_intctl->ic_simrh = 0x00000000;
-	cpm2_intctl->ic_simrl = 0x00000000;
+	out_be32(&cpm2_intctl->ic_simrh, 0x00000000);
+	out_be32(&cpm2_intctl->ic_simrl, 0x00000000);
 
 	wmb();
 
 	/* Ack everything */
-	cpm2_intctl->ic_sipnrh = 0xffffffff;
-	cpm2_intctl->ic_sipnrl = 0xffffffff;
+	out_be32(&cpm2_intctl->ic_sipnrh, 0xffffffff);
+	out_be32(&cpm2_intctl->ic_sipnrl, 0xffffffff);
 	wmb();
 
 	/* Dummy read of the vector */
-	i = cpm2_intctl->ic_sivec;
+	i = in_be32(&cpm2_intctl->ic_sivec);
 	rmb();
 
 	/* Initialize the default interrupt mapping priorities,
 	 * in case the boot rom changed something on us.
 	 */
-	cpm2_intctl->ic_sicr = 0;
-	cpm2_intctl->ic_scprrh = 0x05309770;
-	cpm2_intctl->ic_scprrl = 0x05309770;
+	out_be16(&cpm2_intctl->ic_sicr, 0);
+	out_be32(&cpm2_intctl->ic_scprrh, 0x05309770);
+	out_be32(&cpm2_intctl->ic_scprrl, 0x05309770);
 
 	/* create a legacy host */
-	if (node)
-		cpm2_pic_node = of_node_get(node);
-
+	cpm2_pic_node = of_node_get(node);
 	cpm2_pic_host = irq_alloc_host(IRQ_HOST_MAP_LINEAR, 64, &cpm2_pic_host_ops, 64);
 	if (cpm2_pic_host == NULL) {
 		printk(KERN_ERR "CPM2 PIC: failed to allocate irq host!\n");

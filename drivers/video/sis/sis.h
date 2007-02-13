@@ -526,7 +526,7 @@ struct sis_video_info {
 		u16 vmax;
 		u32 dclockmax;
 		u8  feature;
-		BOOLEAN datavalid;
+		bool datavalid;
 	}		sisfb_thismonitor;
 
 	unsigned short	chip_id;	/* PCI ID of chip */

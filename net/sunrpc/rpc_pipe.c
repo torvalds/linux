@@ -309,7 +309,7 @@ rpc_pipe_ioctl(struct inode *ino, struct file *filp,
 	}
 }
 
-static struct file_operations rpc_pipe_fops = {
+static const struct file_operations rpc_pipe_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= rpc_pipe_read,
@@ -366,7 +366,7 @@ rpc_info_release(struct inode *inode, struct file *file)
 	return single_release(inode, file);
 }
 
-static struct file_operations rpc_info_operations = {
+static const struct file_operations rpc_info_operations = {
 	.owner		= THIS_MODULE,
 	.open		= rpc_info_open,
 	.read		= seq_read,

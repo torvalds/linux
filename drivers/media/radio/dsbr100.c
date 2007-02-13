@@ -144,7 +144,7 @@ struct dsbr100_device {
 
 
 /* File system interface */
-static struct file_operations usb_dsbr100_fops = {
+static const struct file_operations usb_dsbr100_fops = {
 	.owner =	THIS_MODULE,
 	.open =		usb_dsbr100_open,
 	.release =     	usb_dsbr100_close,

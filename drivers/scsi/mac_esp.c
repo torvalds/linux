@@ -351,7 +351,7 @@ int mac_esp_detect(struct scsi_host_template * tpnt)
 	for (chipnum = 0; chipnum < chipspresent; chipnum ++) {
 		struct NCR_ESP * esp;
 
-		esp = esp_allocate(tpnt, (void *) NULL);
+		esp = esp_allocate(tpnt, NULL, 0);
 		esp->eregs = (struct ESP_regs *) get_base(chipnum);
 
 		esp->dma_irq_p = &esp_dafb_dma_irq_p;

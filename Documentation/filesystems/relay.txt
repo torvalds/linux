@@ -157,7 +157,7 @@ TBD(curr. line MT:/API/)
   channel management functions:
 
     relay_open(base_filename, parent, subbuf_size, n_subbufs,
-               callbacks)
+               callbacks, private_data)
     relay_close(chan)
     relay_flush(chan)
     relay_reset(chan)
@@ -251,7 +251,7 @@ static struct rchan_callbacks relay_callbacks =
 
 And an example relay_open() invocation using them:
 
-  chan = relay_open("cpu", NULL, SUBBUF_SIZE, N_SUBBUFS, &relay_callbacks);
+  chan = relay_open("cpu", NULL, SUBBUF_SIZE, N_SUBBUFS, &relay_callbacks, NULL);
 
 If the create_buf_file() callback fails, or isn't defined, channel
 creation and thus relay_open() will fail.
@@ -288,6 +288,11 @@ buffer - but since it is a global buffer, callers should make sure
 they use the proper locking for such a buffer, either by wrapping
 writes in a spinlock, or by copying a write function from relay.h and
 creating a local version that internally does the proper locking.
+
+The private_data passed into relay_open() allows clients to associate
+user-defined data with a channel, and is immediately available
+(including in create_buf_file()) via chan->private_data or
+buf->chan->private_data.
 
 Channel 'modes'
 ---------------

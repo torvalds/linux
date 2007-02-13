@@ -367,7 +367,7 @@ hysdn_conf_close(struct inode *ino, struct file *filep)
 /******************************************************/
 /* table for conf filesystem functions defined above. */
 /******************************************************/
-static struct file_operations conf_fops =
+static const struct file_operations conf_fops =
 {
 	.llseek         = no_llseek,
 	.read           = hysdn_conf_read,

@@ -4653,7 +4653,7 @@ ov51x_v4l1_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static struct file_operations ov511_fops = {
+static const struct file_operations ov511_fops = {
 	.owner =	THIS_MODULE,
 	.open =		ov51x_v4l1_open,
 	.release =	ov51x_v4l1_close,

@@ -25,6 +25,7 @@
 
 #define RIO_ANY_DESTID		0xff
 #define RIO_NO_HOPCOUNT		-1
+#define RIO_INVALID_DESTID	0xffff
 
 #define RIO_MAX_MPORT_RESOURCES	16
 #define RIO_MAX_DEV_RESOURCES	16

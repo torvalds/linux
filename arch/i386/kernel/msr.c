@@ -230,7 +230,7 @@ static int msr_open(struct inode *inode, struct file *file)
 /*
  * File operations we support
  */
-static struct file_operations msr_fops = {
+static const struct file_operations msr_fops = {
 	.owner = THIS_MODULE,
 	.llseek = msr_seek,
 	.read = msr_read,

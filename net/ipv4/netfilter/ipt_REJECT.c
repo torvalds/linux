@@ -22,6 +22,7 @@
 #include <net/tcp.h>
 #include <net/route.h>
 #include <net/dst.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_REJECT.h>
 #ifdef CONFIG_BRIDGE_NETFILTER
@@ -56,7 +57,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	oth = skb_header_pointer(oldskb, oldskb->nh.iph->ihl * 4,
 				 sizeof(_otcph), &_otcph);
 	if (oth == NULL)
- 		return;
+		return;
 
 	/* No RST for RST. */
 	if (oth->rst)
@@ -116,7 +117,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 
 	/* Adjust TCP checksum */
 	tcph->check = 0;
-	tcph->check = tcp_v4_check(tcph, sizeof(struct tcphdr),
+	tcph->check = tcp_v4_check(sizeof(struct tcphdr),
 				   nskb->nh.iph->saddr,
 				   nskb->nh.iph->daddr,
 				   csum_partial((char *)tcph,
@@ -144,7 +145,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 
 	/* Adjust IP checksum */
 	nskb->nh.iph->check = 0;
-	nskb->nh.iph->check = ip_fast_csum((unsigned char *)nskb->nh.iph, 
+	nskb->nh.iph->check = ip_fast_csum((unsigned char *)nskb->nh.iph,
 					   nskb->nh.iph->ihl);
 
 	/* "Never happens" */
@@ -164,7 +165,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 static inline void send_unreach(struct sk_buff *skb_in, int code)
 {
 	icmp_send(skb_in, ICMP_DEST_UNREACH, code, 0);
-}	
+}
 
 static unsigned int reject(struct sk_buff **pskb,
 			   const struct net_device *in,
@@ -176,33 +177,33 @@ static unsigned int reject(struct sk_buff **pskb,
 	const struct ipt_reject_info *reject = targinfo;
 
 	/* Our naive response construction doesn't deal with IP
-           options, and probably shouldn't try. */
+	   options, and probably shouldn't try. */
 	if ((*pskb)->nh.iph->ihl<<2 != sizeof(struct iphdr))
 		return NF_DROP;
 
 	/* WARNING: This code causes reentry within iptables.
 	   This means that the iptables jump stack is now crap.  We
 	   must return an absolute verdict. --RR */
-    	switch (reject->with) {
-    	case IPT_ICMP_NET_UNREACHABLE:
-    		send_unreach(*pskb, ICMP_NET_UNREACH);
-    		break;
-    	case IPT_ICMP_HOST_UNREACHABLE:
-    		send_unreach(*pskb, ICMP_HOST_UNREACH);
-    		break;
-    	case IPT_ICMP_PROT_UNREACHABLE:
-    		send_unreach(*pskb, ICMP_PROT_UNREACH);
-    		break;
-    	case IPT_ICMP_PORT_UNREACHABLE:
-    		send_unreach(*pskb, ICMP_PORT_UNREACH);
-    		break;
-    	case IPT_ICMP_NET_PROHIBITED:
-    		send_unreach(*pskb, ICMP_NET_ANO);
-    		break;
+	switch (reject->with) {
+	case IPT_ICMP_NET_UNREACHABLE:
+		send_unreach(*pskb, ICMP_NET_UNREACH);
+		break;
+	case IPT_ICMP_HOST_UNREACHABLE:
+		send_unreach(*pskb, ICMP_HOST_UNREACH);
+		break;
+	case IPT_ICMP_PROT_UNREACHABLE:
+		send_unreach(*pskb, ICMP_PROT_UNREACH);
+		break;
+	case IPT_ICMP_PORT_UNREACHABLE:
+		send_unreach(*pskb, ICMP_PORT_UNREACH);
+		break;
+	case IPT_ICMP_NET_PROHIBITED:
+		send_unreach(*pskb, ICMP_NET_ANO);
+		break;
 	case IPT_ICMP_HOST_PROHIBITED:
-    		send_unreach(*pskb, ICMP_HOST_ANO);
-    		break;
-    	case IPT_ICMP_ADMIN_PROHIBITED:
+		send_unreach(*pskb, ICMP_HOST_ANO);
+		break;
+	case IPT_ICMP_ADMIN_PROHIBITED:
 		send_unreach(*pskb, ICMP_PKT_FILTERED);
 		break;
 	case IPT_TCP_RESET:
@@ -221,7 +222,7 @@ static int check(const char *tablename,
 		 void *targinfo,
 		 unsigned int hook_mask)
 {
- 	const struct ipt_reject_info *rejinfo = targinfo;
+	const struct ipt_reject_info *rejinfo = targinfo;
 	const struct ipt_entry *e = e_void;
 
 	if (rejinfo->with == IPT_ICMP_ECHOREPLY) {
@@ -230,7 +231,7 @@ static int check(const char *tablename,
 	} else if (rejinfo->with == IPT_TCP_RESET) {
 		/* Must specify that it's a TCP packet */
 		if (e->ip.proto != IPPROTO_TCP
-		    || (e->ip.invflags & IPT_INV_PROTO)) {
+		    || (e->ip.invflags & XT_INV_PROTO)) {
 			DEBUGP("REJECT: TCP_RESET invalid for non-tcp\n");
 			return 0;
 		}
@@ -238,8 +239,9 @@ static int check(const char *tablename,
 	return 1;
 }
 
-static struct ipt_target ipt_reject_reg = {
+static struct xt_target ipt_reject_reg = {
 	.name		= "REJECT",
+	.family		= AF_INET,
 	.target		= reject,
 	.targetsize	= sizeof(struct ipt_reject_info),
 	.table		= "filter",
@@ -251,12 +253,12 @@ static struct ipt_target ipt_reject_reg = {
 
 static int __init ipt_reject_init(void)
 {
-	return ipt_register_target(&ipt_reject_reg);
+	return xt_register_target(&ipt_reject_reg);
 }
 
 static void __exit ipt_reject_fini(void)
 {
-	ipt_unregister_target(&ipt_reject_reg);
+	xt_unregister_target(&ipt_reject_reg);
 }
 
 module_init(ipt_reject_init);

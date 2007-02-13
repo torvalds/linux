@@ -51,7 +51,7 @@ static int ebt_target_reply(struct sk_buff **pskb, unsigned int hooknr,
 		return EBT_DROP;
 
 	arp_send(ARPOP_REPLY, ETH_P_ARP, *siptr, (struct net_device *)in,
-	         *diptr, shp, info->mac, shp);
+		 *diptr, shp, info->mac, shp);
 
 	return info->target;
 }

@@ -110,7 +110,7 @@ static int rxrpc_krxsecd(void *arg)
 
 		try_to_freeze();
 
-                /* discard pending signals */
+		/* discard pending signals */
 		rxrpc_discard_my_signals();
 
 	} while (!die);

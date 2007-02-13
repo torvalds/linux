@@ -251,19 +251,3 @@ static struct platform_driver ohci_hcd_lh7a404_driver = {
 	},
 };
 
-static int __init ohci_hcd_lh7a404_init (void)
-{
-	pr_debug (DRIVER_INFO " (LH7A404)");
-	pr_debug ("block sizes: ed %d td %d\n",
-		sizeof (struct ed), sizeof (struct td));
-
-	return platform_driver_register(&ohci_hcd_lh7a404_driver);
-}
-
-static void __exit ohci_hcd_lh7a404_cleanup (void)
-{
-	platform_driver_unregister(&ohci_hcd_lh7a404_driver);
-}
-
-module_init (ohci_hcd_lh7a404_init);
-module_exit (ohci_hcd_lh7a404_cleanup);

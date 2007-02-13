@@ -1,6 +1,6 @@
 /*
  * net/tipc/node_subscr.h: Include file for TIPC "node down" subscription handling
- * 
+ *
  * Copyright (c) 1995-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.

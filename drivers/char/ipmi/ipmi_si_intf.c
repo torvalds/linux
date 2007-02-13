@@ -1802,7 +1802,7 @@ static __devinit int try_init_acpi(struct SPMITable *spmi)
   	    return -ENODEV;
 	}
 
-	if (spmi->addr.address_space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+	if (spmi->addr.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		addr_space = IPMI_MEM_ADDR_SPACE;
 	else
 		addr_space = IPMI_IO_ADDR_SPACE;
@@ -1848,19 +1848,19 @@ static __devinit int try_init_acpi(struct SPMITable *spmi)
 		info->irq_setup = NULL;
 	}
 
-	if (spmi->addr.register_bit_width) {
+	if (spmi->addr.bit_width) {
 		/* A (hopefully) properly formed register bit width. */
-		info->io.regspacing = spmi->addr.register_bit_width / 8;
+		info->io.regspacing = spmi->addr.bit_width / 8;
 	} else {
 		info->io.regspacing = DEFAULT_REGSPACING;
 	}
 	info->io.regsize = info->io.regspacing;
-	info->io.regshift = spmi->addr.register_bit_offset;
+	info->io.regshift = spmi->addr.bit_offset;
 
-	if (spmi->addr.address_space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
+	if (spmi->addr.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
 		info->io_setup = mem_setup;
 		info->io.addr_type = IPMI_IO_ADDR_SPACE;
-	} else if (spmi->addr.address_space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+	} else if (spmi->addr.space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
 		info->io_setup = port_setup;
 		info->io.addr_type = IPMI_MEM_ADDR_SPACE;
 	} else {
@@ -1888,10 +1888,8 @@ static __devinit void acpi_find_bmc(void)
 		return;
 
 	for (i = 0; ; i++) {
-		status = acpi_get_firmware_table("SPMI", i+1,
-						 ACPI_LOGICAL_ADDRESSING,
-						 (struct acpi_table_header **)
-						 &spmi);
+		status = acpi_get_table(ACPI_SIG_SPMI, i+1,
+					(struct acpi_table_header **)&spmi);
 		if (status != AE_OK)
 			return;
 

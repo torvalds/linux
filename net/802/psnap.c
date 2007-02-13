@@ -117,7 +117,7 @@ module_exit(snap_exit);
  */
 struct datalink_proto *register_snap_client(unsigned char *desc,
 					    int (*rcvfunc)(struct sk_buff *,
-						    	   struct net_device *,
+							   struct net_device *,
 							   struct packet_type *,
 							   struct net_device *))
 {

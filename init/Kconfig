@@ -192,6 +192,24 @@ config TASK_DELAY_ACCT
 
 	  Say N if unsure.
 
+config TASK_XACCT
+	bool "Enable extended accounting over taskstats (EXPERIMENTAL)"
+	depends on TASKSTATS
+	help
+	  Collect extended task accounting data and send the data
+	  to userland for processing over the taskstats interface.
+
+	  Say N if unsure.
+
+config TASK_IO_ACCOUNTING
+	bool "Enable per-task storage I/O accounting (EXPERIMENTAL)"
+	depends on TASK_XACCT
+	help
+	  Collect information on the number of bytes of storage I/O which this
+	  task has caused.
+
+	  Say N if unsure.
+
 config UTS_NS
 	bool "UTS Namespaces"
 	default n
@@ -280,7 +298,11 @@ config RELAY
 
 	  If unsure, say N.
 
+if BLK_DEV_INITRD
+
 source "usr/Kconfig"
+
+endif
 
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size (Look out for broken compilers!)"
@@ -294,24 +316,6 @@ config CC_OPTIMIZE_FOR_SIZE
 	  option.  If problems are observed, a gcc upgrade may be needed.
 
 	  If unsure, say N.
-
-config TASK_XACCT
-	bool "Enable extended accounting over taskstats (EXPERIMENTAL)"
-	depends on TASKSTATS
-	help
-	  Collect extended task accounting data and send the data
-	  to userland for processing over the taskstats interface.
-
-	  Say N if unsure.
-
-config TASK_IO_ACCOUNTING
-	bool "Enable per-task storage I/O accounting (EXPERIMENTAL)"
-	depends on TASK_XACCT
-	help
-	  Collect information on the number of bytes of storage I/O which this
-	  task has caused.
-
-	  Say N if unsure.
 
 config SYSCTL
 	bool

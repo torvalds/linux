@@ -36,7 +36,7 @@ void ecryptfs_dump_auth_tok(struct ecryptfs_auth_tok *auth_tok)
 
 	ecryptfs_printk(KERN_DEBUG, "Auth tok at mem loc [%p]:\n",
 			auth_tok);
-	if (ECRYPTFS_CHECK_FLAG(auth_tok->flags, ECRYPTFS_PRIVATE_KEY)) {
+	if (auth_tok->flags & ECRYPTFS_PRIVATE_KEY) {
 		ecryptfs_printk(KERN_DEBUG, " * private key type\n");
 		ecryptfs_printk(KERN_DEBUG, " * (NO PRIVATE KEY SUPPORT "
 				"IN ECRYPTFS VERSION 0.1)\n");
@@ -46,8 +46,8 @@ void ecryptfs_dump_auth_tok(struct ecryptfs_auth_tok *auth_tok)
 				ECRYPTFS_SALT_SIZE);
 		salt[ECRYPTFS_SALT_SIZE * 2] = '\0';
 		ecryptfs_printk(KERN_DEBUG, " * salt = [%s]\n", salt);
-		if (ECRYPTFS_CHECK_FLAG(auth_tok->token.password.flags,
-					ECRYPTFS_PERSISTENT_PASSWORD)) {
+		if (auth_tok->token.password.flags &
+		    ECRYPTFS_PERSISTENT_PASSWORD) {
 			ecryptfs_printk(KERN_DEBUG, " * persistent\n");
 		}
 		memcpy(sig, auth_tok->token.password.signature,

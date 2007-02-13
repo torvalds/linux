@@ -263,7 +263,8 @@ void dlm_do_local_bast(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 
 
 
-int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data)
+int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
+			  void **ret_data)
 {
 	int ret;
 	unsigned int locklen;
@@ -311,8 +312,8 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data)
 	    past->type != DLM_BAST) {
 		mlog(ML_ERROR, "Unknown ast type! %d, cookie=%u:%llu"
 		     "name=%.*s\n", past->type, 
-		     dlm_get_lock_cookie_node(cookie),
-		     dlm_get_lock_cookie_seq(cookie),
+		     dlm_get_lock_cookie_node(be64_to_cpu(cookie)),
+		     dlm_get_lock_cookie_seq(be64_to_cpu(cookie)),
 		     locklen, name);
 		ret = DLM_IVLOCKID;
 		goto leave;
@@ -323,8 +324,8 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data)
 		mlog(0, "got %sast for unknown lockres! "
 		     "cookie=%u:%llu, name=%.*s, namelen=%u\n",
 		     past->type == DLM_AST ? "" : "b",
-		     dlm_get_lock_cookie_node(cookie),
-		     dlm_get_lock_cookie_seq(cookie),
+		     dlm_get_lock_cookie_node(be64_to_cpu(cookie)),
+		     dlm_get_lock_cookie_seq(be64_to_cpu(cookie)),
 		     locklen, name, locklen);
 		ret = DLM_IVLOCKID;
 		goto leave;
@@ -369,7 +370,8 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	mlog(0, "got %sast for unknown lock!  cookie=%u:%llu, "
 	     "name=%.*s, namelen=%u\n", past->type == DLM_AST ? "" : "b", 
-	     dlm_get_lock_cookie_node(cookie), dlm_get_lock_cookie_seq(cookie),
+	     dlm_get_lock_cookie_node(be64_to_cpu(cookie)),
+	     dlm_get_lock_cookie_seq(be64_to_cpu(cookie)),
 	     locklen, name, locklen);
 
 	ret = DLM_NORMAL;

@@ -3,7 +3,7 @@
  *
  *	This is ALPHA test software. This code may break your machine,
  *	randomly fail to work with new releases, misbehave and/or generally
- *	screw up. It might even work. 
+ *	screw up. It might even work.
  *
  *	This code REQUIRES 2.1.15 or higher
  *
@@ -78,7 +78,7 @@ int x25_output(struct sock *sk, struct sk_buff *skb)
 					       "sent\n", err, sent);
 				return err;
 			}
-				
+
 			skb_reserve(skbn, frontlen);
 
 			len = max_len > skb->len ? skb->len : max_len;
@@ -101,7 +101,7 @@ int x25_output(struct sock *sk, struct sk_buff *skb)
 			skb_queue_tail(&sk->sk_write_queue, skbn);
 			sent += len;
 		}
-		
+
 		kfree_skb(skb);
 	} else {
 		skb_queue_tail(&sk->sk_write_queue, skb);
@@ -110,7 +110,7 @@ int x25_output(struct sock *sk, struct sk_buff *skb)
 	return sent;
 }
 
-/* 
+/*
  *	This procedure is passed a buffer descriptor for an iframe. It builds
  *	the rest of the control part of the frame and then writes it out.
  */
@@ -131,7 +131,7 @@ static void x25_send_iframe(struct sock *sk, struct sk_buff *skb)
 		skb->data[2] |= (x25->vr << 5) & 0xE0;
 	}
 
-	x25_transmit_link(skb, x25->neighbour);	
+	x25_transmit_link(skb, x25->neighbour);
 }
 
 void x25_kick(struct sock *sk)

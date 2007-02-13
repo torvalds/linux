@@ -3,8 +3,6 @@
 
 #include <asm-generic/mman.h>
 
-/* orig : i386 2.6.0-test6 */
-
 #define MAP_GROWSDOWN	0x0100		/* stack-like segment */
 #define MAP_DENYWRITE	0x0800		/* ETXTBSY */
 #define MAP_EXECUTABLE	0x1000		/* mark it as an executable */

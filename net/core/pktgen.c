@@ -15,7 +15,7 @@
  *
  *
  * A tool for loading the network with preconfigurated packets.
- * The tool is implemented as a linux module.  Parameters are output 
+ * The tool is implemented as a linux module.  Parameters are output
  * device, delay (to hard_xmit), number of packets, and whether
  * to use multiple SKBs or just the same one.
  * pktgen uses the installed interface's output routine.
@@ -44,14 +44,14 @@
  *   *  Add IOCTL interface to easily get counters & configuration.
  *   --Ben Greear <greearb@candelatech.com>
  *
- * Renamed multiskb to clone_skb and cleaned up sending core for two distinct 
- * skb modes. A clone_skb=0 mode for Ben "ranges" work and a clone_skb != 0 
+ * Renamed multiskb to clone_skb and cleaned up sending core for two distinct
+ * skb modes. A clone_skb=0 mode for Ben "ranges" work and a clone_skb != 0
  * as a "fastpath" with a configurable number of clones after alloc's.
- * clone_skb=0 means all packets are allocated this also means ranges time 
- * stamps etc can be used. clone_skb=100 means 1 malloc is followed by 100 
+ * clone_skb=0 means all packets are allocated this also means ranges time
+ * stamps etc can be used. clone_skb=100 means 1 malloc is followed by 100
  * clones.
  *
- * Also moved to /proc/net/pktgen/ 
+ * Also moved to /proc/net/pktgen/
  * --ro
  *
  * Sept 10:  Fixed threading/locking.  Lots of bone-headed and more clever
@@ -60,28 +60,28 @@
  *
  * Integrated to 2.5.x 021029 --Lucio Maciel (luciomaciel@zipmail.com.br)
  *
- * 
+ *
  * 021124 Finished major redesign and rewrite for new functionality.
  * See Documentation/networking/pktgen.txt for how to use this.
  *
  * The new operation:
- * For each CPU one thread/process is created at start. This process checks 
- * for running devices in the if_list and sends packets until count is 0 it 
- * also the thread checks the thread->control which is used for inter-process 
- * communication. controlling process "posts" operations to the threads this 
+ * For each CPU one thread/process is created at start. This process checks
+ * for running devices in the if_list and sends packets until count is 0 it
+ * also the thread checks the thread->control which is used for inter-process
+ * communication. controlling process "posts" operations to the threads this
  * way. The if_lock should be possible to remove when add/rem_device is merged
  * into this too.
  *
- * By design there should only be *one* "controlling" process. In practice 
- * multiple write accesses gives unpredictable result. Understood by "write" 
+ * By design there should only be *one* "controlling" process. In practice
+ * multiple write accesses gives unpredictable result. Understood by "write"
  * to /proc gives result code thats should be read be the "writer".
  * For practical use this should be no problem.
  *
- * Note when adding devices to a specific CPU there good idea to also assign 
- * /proc/irq/XX/smp_affinity so TX-interrupts gets bound to the same CPU. 
+ * Note when adding devices to a specific CPU there good idea to also assign
+ * /proc/irq/XX/smp_affinity so TX-interrupts gets bound to the same CPU.
  * --ro
  *
- * Fix refcount off by one if first packet fails, potential null deref, 
+ * Fix refcount off by one if first packet fails, potential null deref,
  * memleak 030710- KJP
  *
  * First "ranges" functionality for ipv6 030726 --ro
@@ -89,22 +89,22 @@
  * Included flow support. 030802 ANK.
  *
  * Fixed unaligned access on IA-64 Grant Grundler <grundler@parisc-linux.org>
- * 
+ *
  * Remove if fix from added Harald Welte <laforge@netfilter.org> 040419
  * ia64 compilation fix from  Aron Griffis <aron@hp.com> 040604
  *
- * New xmit() return, do_div and misc clean up by Stephen Hemminger 
+ * New xmit() return, do_div and misc clean up by Stephen Hemminger
  * <shemminger@osdl.org> 040923
  *
- * Randy Dunlap fixed u64 printk compiler waring 
+ * Randy Dunlap fixed u64 printk compiler waring
  *
  * Remove FCS from BW calculation.  Lennert Buytenhek <buytenh@wantstofly.org>
  * New time handling. Lennert Buytenhek <buytenh@wantstofly.org> 041213
  *
- * Corrections from Nikolai Malykh (nmalykh@bilim.com) 
+ * Corrections from Nikolai Malykh (nmalykh@bilim.com)
  * Removed unused flags F_SET_SRCMAC & F_SET_SRCIP 041230
  *
- * interruptible_sleep_on_timeout() replaced Nishanth Aravamudan <nacc@us.ibm.com> 
+ * interruptible_sleep_on_timeout() replaced Nishanth Aravamudan <nacc@us.ibm.com>
  * 050103
  *
  * MPLS support by Steven Whitehouse <steve@chygwyn.com>
@@ -456,7 +456,7 @@ static inline __u64 pg_div64(__u64 n, __u64 base)
 /*
  * How do we know if the architecture we are running on
  * supports division with 64 bit base?
- * 
+ *
  */
 #if defined(__sparc_v9__) || defined(__powerpc64__) || defined(__alpha__) || defined(__x86_64__) || defined(__ia64__)
 
@@ -529,7 +529,7 @@ static struct notifier_block pktgen_notifier_block = {
 };
 
 /*
- * /proc handling functions 
+ * /proc handling functions
  *
  */
 
@@ -579,7 +579,7 @@ static int pgctrl_open(struct inode *inode, struct file *file)
 	return single_open(file, pgctrl_show, PDE(inode)->data);
 }
 
-static struct file_operations pktgen_fops = {
+static const struct file_operations pktgen_fops = {
 	.owner   = THIS_MODULE,
 	.open    = pgctrl_open,
 	.read    = seq_read,
@@ -1672,7 +1672,7 @@ static int pktgen_if_open(struct inode *inode, struct file *file)
 	return single_open(file, pktgen_if_show, PDE(inode)->data);
 }
 
-static struct file_operations pktgen_if_fops = {
+static const struct file_operations pktgen_if_fops = {
 	.owner   = THIS_MODULE,
 	.open    = pktgen_if_open,
 	.read    = seq_read,
@@ -1815,7 +1815,7 @@ static int pktgen_thread_open(struct inode *inode, struct file *file)
 	return single_open(file, pktgen_thread_show, PDE(inode)->data);
 }
 
-static struct file_operations pktgen_thread_fops = {
+static const struct file_operations pktgen_thread_fops = {
 	.owner   = THIS_MODULE,
 	.open    = pktgen_thread_open,
 	.read    = seq_read,
@@ -1979,7 +1979,7 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 
 	if (pkt_dev->flags & F_IPV6) {
 		/*
-		 * Skip this automatic address setting until locks or functions 
+		 * Skip this automatic address setting until locks or functions
 		 * gets exported
 		 */
 
@@ -2477,10 +2477,10 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 }
 
 /*
- * scan_ip6, fmt_ip taken from dietlibc-0.21 
+ * scan_ip6, fmt_ip taken from dietlibc-0.21
  * Author Felix von Leitner <felix-dietlibc@fefe.de>
  *
- * Slightly modified for kernel. 
+ * Slightly modified for kernel.
  * Should be candidate for net/ipv4/utils.c
  * --ro
  */
@@ -3256,7 +3256,7 @@ static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 out:;
 }
 
-/* 
+/*
  * Main loop of the thread goes here
  */
 
@@ -3365,8 +3365,8 @@ static struct pktgen_dev *pktgen_find_dev(struct pktgen_thread *t,
 	return pkt_dev;
 }
 
-/* 
- * Adds a dev at front of if_list. 
+/*
+ * Adds a dev at front of if_list.
  */
 
 static int add_dev_to_thread(struct pktgen_thread *t,
@@ -3510,8 +3510,8 @@ static int __init pktgen_create_thread(int cpu)
 	return 0;
 }
 
-/* 
- * Removes a device from the thread if_list. 
+/*
+ * Removes a device from the thread if_list.
  */
 static void _rem_dev_from_if_list(struct pktgen_thread *t,
 				  struct pktgen_dev *pkt_dev)

@@ -148,9 +148,9 @@ void __init arch_init_irq(void)
 {
 	clear_c0_status(ST0_IM);
 
-	mips_cpu_irq_init(0);
-	rm7k_cpu_irq_init(8);
-	rm9k_cpu_irq_init(12);
+	mips_cpu_irq_init();
+	rm7k_cpu_irq_init();
+	rm9k_cpu_irq_init();
 
 #ifdef CONFIG_KGDB
 	/* At this point, initialize the second serial port */

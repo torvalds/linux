@@ -1,6 +1,6 @@
 /* FTP extension for IP connection tracking. */
 
-/* (C) 1999-2001 Paul `Rusty' Russell  
+/* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -169,7 +169,7 @@ static int try_eprt(const char *data, size_t dlen, u_int32_t array[6],
 	int length;
 
 	/* First character is delimiter, then "1" for IPv4, then
-           delimiter again. */
+	   delimiter again. */
 	if (dlen <= 3) return 0;
 	delim = data[0];
 	if (isdigit(delim) || delim < 33 || delim > 126
@@ -344,14 +344,14 @@ static int help(struct sk_buff **pskb,
 	if (!find_nl_seq(ntohl(th->seq), ct_ftp_info, dir)) {
 		/* Now if this ends in \n, update ftp info. */
 		DEBUGP("ip_conntrack_ftp_help: wrong seq pos %s(%u) or %s(%u)\n",
-		       ct_ftp_info->seq_aft_nl[0][dir] 
+		       ct_ftp_info->seq_aft_nl[0][dir]
 		       old_seq_aft_nl_set ? "":"(UNSET) ", old_seq_aft_nl);
 		ret = NF_ACCEPT;
 		goto out_update_nl;
 	}
 
 	/* Initialize IP array to expected address (it's not mentioned
-           in EPSV responses) */
+	   in EPSV responses) */
 	array[0] = (ntohl(ct->tuplehash[dir].tuple.src.ip) >> 24) & 0xFF;
 	array[1] = (ntohl(ct->tuplehash[dir].tuple.src.ip) >> 16) & 0xFF;
 	array[2] = (ntohl(ct->tuplehash[dir].tuple.src.ip) >> 8) & 0xFF;
@@ -386,7 +386,7 @@ static int help(struct sk_buff **pskb,
 
 	DEBUGP("conntrack_ftp: match `%s' (%u bytes at %u)\n",
 	       fb_ptr + matchoff, matchlen, ntohl(th->seq) + matchoff);
-			 
+
 	/* Allocate expectation which will be inserted */
 	exp = ip_conntrack_expect_alloc(ct);
 	if (exp == NULL) {
@@ -504,7 +504,7 @@ static int __init ip_conntrack_ftp_init(void)
 			sprintf(tmpname, "ftp-%d", ports[i]);
 		ftp[i].name = tmpname;
 
-		DEBUGP("ip_ct_ftp: registering helper for port %d\n", 
+		DEBUGP("ip_ct_ftp: registering helper for port %d\n",
 				ports[i]);
 		ret = ip_conntrack_helper_register(&ftp[i]);
 

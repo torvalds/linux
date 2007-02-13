@@ -29,7 +29,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 
-struct class *class3270;
+static struct class *class3270;
 
 /* The main 3270 data structure. */
 struct raw3270 {
@@ -86,7 +86,7 @@ DECLARE_WAIT_QUEUE_HEAD(raw3270_wait_queue);
 /*
  * Encode array for 12 bit 3270 addresses.
  */
-unsigned char raw3270_ebcgraf[64] =	{
+static unsigned char raw3270_ebcgraf[64] =	{
 	0x40, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
 	0xc8, 0xc9, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
 	0x50, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7,

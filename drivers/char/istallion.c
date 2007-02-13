@@ -2424,7 +2424,6 @@ static int stli_hostcmd(struct stlibrd *brdp, struct stliport *portp)
 			if (tty != NULL) {
 				tty_wakeup(tty);
 				EBRDENABLE(brdp);
-				wake_up_interruptible(&tty->write_wait);
 			}
 		}
 

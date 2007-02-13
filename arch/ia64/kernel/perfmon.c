@@ -621,7 +621,7 @@ EXPORT_PER_CPU_SYMBOL_GPL(pfm_syst_info);
 
 
 /* forward declaration */
-static struct file_operations pfm_file_ops;
+static const struct file_operations pfm_file_ops;
 
 /*
  * forward declarations
@@ -2126,7 +2126,7 @@ pfm_no_open(struct inode *irrelevant, struct file *dontcare)
 
 
 
-static struct file_operations pfm_file_ops = {
+static const struct file_operations pfm_file_ops = {
 	.llseek   = no_llseek,
 	.read     = pfm_read,
 	.write    = pfm_write,
@@ -2301,12 +2301,11 @@ pfm_smpl_buffer_alloc(struct task_struct *task, pfm_context_t *ctx, unsigned lon
 	DPRINT(("smpl_buf @%p\n", smpl_buf));
 
 	/* allocate vma */
-	vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (!vma) {
 		DPRINT(("Cannot allocate vma\n"));
 		goto error_kmem;
 	}
-	memset(vma, 0, sizeof(*vma));
 
 	/*
 	 * partially initialize the vma for the sampling buffer
@@ -6597,7 +6596,7 @@ found:
 	return 0;
 }
 
-static struct file_operations pfm_proc_fops = {
+static const struct file_operations pfm_proc_fops = {
 	.open		= pfm_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

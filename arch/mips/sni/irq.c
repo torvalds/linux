@@ -37,7 +37,7 @@ static void end_pciasic_irq(unsigned int irq)
 }
 
 static struct irq_chip pciasic_irq_type = {
-	.typename = "ASIC-PCI",
+	.name = "ASIC-PCI",
 	.ack = disable_pciasic_irq,
 	.mask = disable_pciasic_irq,
 	.mask_ack = disable_pciasic_irq,

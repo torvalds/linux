@@ -40,6 +40,14 @@
 }
 #define zero_data(p) {p[0]=0;p[1]=0;p[2]=0;}
 
+/* initiator tags; opaque for target */
+typedef uint32_t __bitwise__ itt_t;
+/* below makes sense only for initiator that created this tag */
+#define build_itt(itt, id, age) ((__force itt_t)\
+	((itt) | ((id) << ISCSI_CID_SHIFT) | ((age) << ISCSI_AGE_SHIFT)))
+#define get_itt(itt) ((__force uint32_t)(itt_t)(itt) & ISCSI_ITT_MASK)
+#define RESERVED_ITT ((__force itt_t)0xffffffff)
+
 /*
  * iSCSI Template Message Header
  */
@@ -50,7 +58,7 @@ struct iscsi_hdr {
 	uint8_t		hlength;	/* AHSs total length */
 	uint8_t		dlength[3];	/* Data length */
 	uint8_t		lun[8];
-	__be32		itt;		/* Initiator Task Tag */
+	itt_t		itt;		/* Initiator Task Tag, opaque for target */
 	__be32		ttt;		/* Target Task Tag */
 	__be32		statsn;
 	__be32		exp_statsn;
@@ -111,7 +119,7 @@ struct iscsi_cmd {
 	uint8_t hlength;
 	uint8_t dlength[3];
 	uint8_t lun[8];
-	__be32 itt;	/* Initiator Task Tag */
+	itt_t	 itt;	/* Initiator Task Tag */
 	__be32 data_length;
 	__be32 cmdsn;
 	__be32 exp_statsn;
@@ -148,7 +156,7 @@ struct iscsi_cmd_rsp {
 	uint8_t hlength;
 	uint8_t dlength[3];
 	uint8_t rsvd[8];
-	__be32	itt;	/* Initiator Task Tag */
+	itt_t	 itt;	/* Initiator Task Tag */
 	__be32	rsvd1;
 	__be32	statsn;
 	__be32	exp_cmdsn;
@@ -206,7 +214,7 @@ struct iscsi_nopout {
 	uint8_t rsvd3;
 	uint8_t dlength[3];
 	uint8_t lun[8];
-	__be32	itt;	/* Initiator Task Tag */
+	itt_t	 itt;	/* Initiator Task Tag */
 	__be32	ttt;	/* Target Transfer Tag */
 	__be32	cmdsn;
 	__be32	exp_statsn;
@@ -221,7 +229,7 @@ struct iscsi_nopin {
 	uint8_t rsvd3;
 	uint8_t dlength[3];
 	uint8_t lun[8];
-	__be32	itt;	/* Initiator Task Tag */
+	itt_t	 itt;	/* Initiator Task Tag */
 	__be32	ttt;	/* Target Transfer Tag */
 	__be32	statsn;
 	__be32	exp_cmdsn;
@@ -237,8 +245,8 @@ struct iscsi_tm {
 	uint8_t hlength;
 	uint8_t dlength[3];
 	uint8_t lun[8];
-	__be32	itt;	/* Initiator Task Tag */
-	__be32	rtt;	/* Reference Task Tag */
+	itt_t	 itt;	/* Initiator Task Tag */
+	itt_t	 rtt;	/* Reference Task Tag */
 	__be32	cmdsn;
 	__be32	exp_statsn;
 	__be32	refcmdsn;
@@ -267,8 +275,8 @@ struct iscsi_tm_rsp {
 	uint8_t hlength;
 	uint8_t dlength[3];
 	uint8_t rsvd2[8];
-	__be32	itt;	/* Initiator Task Tag */
-	__be32	rtt;	/* Reference Task Tag */
+	itt_t	 itt;	/* Initiator Task Tag */
+	itt_t	 rtt;	/* Reference Task Tag */
 	__be32	statsn;
 	__be32	exp_cmdsn;
 	__be32	max_cmdsn;
@@ -293,7 +301,7 @@ struct iscsi_r2t_rsp {
 	uint8_t	hlength;
 	uint8_t	dlength[3];
 	uint8_t lun[8];
-	__be32	itt;	/* Initiator Task Tag */
+	itt_t	 itt;	/* Initiator Task Tag */
 	__be32	ttt;	/* Target Transfer Tag */
 	__be32	statsn;
 	__be32	exp_cmdsn;
@@ -311,7 +319,7 @@ struct iscsi_data {
 	uint8_t rsvd3;
 	uint8_t dlength[3];
 	uint8_t lun[8];
-	__be32	itt;
+	itt_t	 itt;
 	__be32	ttt;
 	__be32	rsvd4;
 	__be32	exp_statsn;
@@ -331,7 +339,7 @@ struct iscsi_data_rsp {
 	uint8_t hlength;
 	uint8_t dlength[3];
 	uint8_t lun[8];
-	__be32	itt;
+	itt_t	 itt;
 	__be32	ttt;
 	__be32	statsn;
 	__be32	exp_cmdsn;
@@ -355,7 +363,7 @@ struct iscsi_text {
 	uint8_t hlength;
 	uint8_t dlength[3];
 	uint8_t rsvd4[8];
-	__be32	itt;
+	itt_t	 itt;
 	__be32	ttt;
 	__be32	cmdsn;
 	__be32	exp_statsn;
@@ -373,7 +381,7 @@ struct iscsi_text_rsp {
 	uint8_t hlength;
 	uint8_t dlength[3];
 	uint8_t rsvd4[8];
-	__be32	itt;
+	itt_t	 itt;
 	__be32	ttt;
 	__be32	statsn;
 	__be32	exp_cmdsn;
@@ -392,7 +400,7 @@ struct iscsi_login {
 	uint8_t dlength[3];
 	uint8_t isid[6];	/* Initiator Session ID */
 	__be16	tsih;	/* Target Session Handle */
-	__be32	itt;	/* Initiator Task Tag */
+	itt_t	 itt;	/* Initiator Task Tag */
 	__be16	cid;
 	__be16	rsvd3;
 	__be32	cmdsn;
@@ -421,7 +429,7 @@ struct iscsi_login_rsp {
 	uint8_t dlength[3];
 	uint8_t isid[6];	/* Initiator Session ID */
 	__be16	tsih;	/* Target Session Handle */
-	__be32	itt;	/* Initiator Task Tag */
+	itt_t	 itt;	/* Initiator Task Tag */
 	__be32	rsvd3;
 	__be32	statsn;
 	__be32	exp_cmdsn;
@@ -478,7 +486,7 @@ struct iscsi_logout {
 	uint8_t hlength;
 	uint8_t dlength[3];
 	uint8_t rsvd2[8];
-	__be32	itt;	/* Initiator Task Tag */
+	itt_t	 itt;	/* Initiator Task Tag */
 	__be16	cid;
 	uint8_t rsvd3[2];
 	__be32	cmdsn;
@@ -505,7 +513,7 @@ struct iscsi_logout_rsp {
 	uint8_t hlength;
 	uint8_t dlength[3];
 	uint8_t rsvd3[8];
-	__be32	itt;	/* Initiator Task Tag */
+	itt_t	 itt;	/* Initiator Task Tag */
 	__be32	rsvd4;
 	__be32	statsn;
 	__be32	exp_cmdsn;
@@ -528,7 +536,7 @@ struct iscsi_snack {
 	uint8_t opcode;
 	uint8_t flags;
 	uint8_t rsvd2[14];
-	__be32	itt;
+	itt_t	 itt;
 	__be32	begrun;
 	__be32	runlength;
 	__be32	exp_statsn;

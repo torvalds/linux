@@ -87,7 +87,7 @@ int __init irlap_init(void)
 	/* Allocate master array */
 	irlap = hashbin_new(HB_LOCK);
 	if (irlap == NULL) {
-	        IRDA_ERROR("%s: can't allocate irlap hashbin!\n",
+		IRDA_ERROR("%s: can't allocate irlap hashbin!\n",
 			   __FUNCTION__);
 		return -ENOMEM;
 	}
@@ -701,8 +701,8 @@ void irlap_update_nr_received(struct irlap_cb *self, int nr)
 	int count = 0;
 
 	/*
-         * Remove all the ack-ed frames from the window queue.
-         */
+	 * Remove all the ack-ed frames from the window queue.
+	 */
 
 	/*
 	 *  Optimize for the common case. It is most likely that the receiver
@@ -1109,13 +1109,13 @@ static void *irlap_seq_start(struct seq_file *seq, loff_t *pos)
 	spin_lock_irq(&irlap->hb_spinlock);
 	iter->id = 0;
 
-	for (self = (struct irlap_cb *) hashbin_get_first(irlap); 
+	for (self = (struct irlap_cb *) hashbin_get_first(irlap);
 	     self; self = (struct irlap_cb *) hashbin_get_next(irlap)) {
 		if (iter->id == *pos)
 			break;
 		++iter->id;
 	}
-		
+
 	return self;
 }
 
@@ -1137,7 +1137,7 @@ static int irlap_seq_show(struct seq_file *seq, void *v)
 {
 	const struct irlap_iter_state *iter = seq->private;
 	const struct irlap_cb *self = v;
-	
+
 	IRDA_ASSERT(self->magic == LAP_MAGIC, return -EINVAL;);
 
 	seq_printf(seq, "irlap%d ", iter->id);
@@ -1222,7 +1222,7 @@ static int irlap_seq_open(struct inode *inode, struct file *file)
 	struct seq_file *seq;
 	int rc = -ENOMEM;
 	struct irlap_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
-       
+
 	if (!s)
 		goto out;
 
@@ -1244,7 +1244,7 @@ out_kfree:
 	goto out;
 }
 
-struct file_operations irlap_seq_fops = {
+const struct file_operations irlap_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open           = irlap_seq_open,
 	.read           = seq_read,

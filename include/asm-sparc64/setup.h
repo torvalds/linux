@@ -5,6 +5,6 @@
 #ifndef _SPARC64_SETUP_H
 #define _SPARC64_SETUP_H
 
-#define COMMAND_LINE_SIZE	256
+#define COMMAND_LINE_SIZE	2048
 
 #endif /* _SPARC64_SETUP_H */

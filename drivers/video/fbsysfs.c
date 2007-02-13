@@ -175,7 +175,7 @@ static ssize_t store_modes(struct device *device,
 
 	acquire_console_sem();
 	list_splice(&fb_info->modelist, &old_list);
-	fb_videomode_to_modelist((struct fb_videomode *)buf, i,
+	fb_videomode_to_modelist((const struct fb_videomode *)buf, i,
 				 &fb_info->modelist);
 	if (fb_new_modelist(fb_info)) {
 		fb_destroy_modelist(&fb_info->modelist);

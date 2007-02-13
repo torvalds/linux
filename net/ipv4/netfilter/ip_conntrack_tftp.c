@@ -33,7 +33,7 @@ MODULE_PARM_DESC(ports, "port numbers of tftp servers");
 
 #if 0
 #define DEBUGP(format, args...) printk("%s:%s:" format, \
-                                       __FILE__, __FUNCTION__ , ## args)
+				       __FILE__, __FUNCTION__ , ## args)
 #else
 #define DEBUGP(format, args...)
 #endif
@@ -113,7 +113,7 @@ static void ip_conntrack_tftp_fini(void)
 		DEBUGP("unregistering helper for port %d\n",
 			ports[i]);
 		ip_conntrack_helper_unregister(&tftp[i]);
-	} 
+	}
 }
 
 static int __init ip_conntrack_tftp_init(void)

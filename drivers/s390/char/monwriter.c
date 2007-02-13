@@ -67,8 +67,8 @@ static int monwrite_diag(struct monwrite_hdr *myhdr, char *buffer, int fcn)
 	return -EINVAL;
 }
 
-static inline struct mon_buf *monwrite_find_hdr(struct mon_private *monpriv,
-						struct monwrite_hdr *monhdr)
+static struct mon_buf *monwrite_find_hdr(struct mon_private *monpriv,
+					 struct monwrite_hdr *monhdr)
 {
 	struct mon_buf *entry, *next;
 
@@ -255,7 +255,7 @@ out_error:
 	return rc;
 }
 
-static struct file_operations monwrite_fops = {
+static const struct file_operations monwrite_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = &monwrite_open,
 	.release = &monwrite_close,

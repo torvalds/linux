@@ -78,6 +78,7 @@ static const struct file_operations rng_chrdev_ops = {
 	.read		= rng_dev_read,
 };
 
+/* rng_init shouldn't be called more than once at boot time */
 static struct miscdevice rng_miscdev = {
 	RNG_MISCDEV_MINOR,
 	RNG_MODULE_NAME,

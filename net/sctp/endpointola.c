@@ -369,7 +369,7 @@ static void sctp_endpoint_bh_rcv(struct work_struct *work)
 			chunk->transport->last_time_heard = jiffies;
 
 		error = sctp_do_sm(SCTP_EVENT_T_CHUNK, subtype, state,
-                                   ep, asoc, chunk, GFP_ATOMIC);
+				   ep, asoc, chunk, GFP_ATOMIC);
 
 		if (error && chunk)
 			chunk->pdiscard = 1;

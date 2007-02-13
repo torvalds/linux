@@ -798,7 +798,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 		return gsi;
 
 	/* Don't set up the ACPI SCI because it's already set up */
-	if (acpi_fadt.sci_int == gsi)
+	if (acpi_gbl_FADT.sci_interrupt == gsi)
 		return gsi;
 
 	ioapic = mp_find_ioapic(gsi);

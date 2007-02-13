@@ -1,4 +1,4 @@
-/* net/sched/sch_ingress.c - Ingress qdisc 
+/* net/sched/sch_ingress.c - Ingress qdisc
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
@@ -47,7 +47,7 @@
 */
 #ifndef CONFIG_NET_CLS_ACT
 #ifdef CONFIG_NETFILTER
-static int nf_registered; 
+static int nf_registered;
 #endif
 #endif
 
@@ -70,7 +70,7 @@ static int ingress_graft(struct Qdisc *sch,unsigned long arg,
 	DPRINTK("ingress_graft(sch %p,[qdisc %p],new %p,old %p)\n",
 		sch, p, new, old);
 	DPRINTK("\n ingress_graft: You cannot add qdiscs to classes");
-        return 1;
+	return 1;
 }
 
 
@@ -162,7 +162,7 @@ static int ingress_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 		case TC_ACT_QUEUED:
 			result = TC_ACT_STOLEN;
 			break;
-		case TC_ACT_RECLASSIFY: 
+		case TC_ACT_RECLASSIFY:
 		case TC_ACT_OK:
 		case TC_ACT_UNSPEC:
 		default:
@@ -172,7 +172,7 @@ static int ingress_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 	};
 /* backward compat */
 #else
-#ifdef	CONFIG_NET_CLS_POLICE  
+#ifdef	CONFIG_NET_CLS_POLICE
 	switch (result) {
 		case TC_POLICE_SHOT:
 		result = NF_DROP;
@@ -232,14 +232,14 @@ static unsigned int ingress_drop(struct Qdisc *sch)
 #ifdef CONFIG_NETFILTER
 static unsigned int
 ing_hook(unsigned int hook, struct sk_buff **pskb,
-                             const struct net_device *indev,
-                             const struct net_device *outdev,
-	                     int (*okfn)(struct sk_buff *))
+			     const struct net_device *indev,
+			     const struct net_device *outdev,
+			     int (*okfn)(struct sk_buff *))
 {
-	
+
 	struct Qdisc *q;
 	struct sk_buff *skb = *pskb;
-        struct net_device *dev = skb->dev;
+	struct net_device *dev = skb->dev;
 	int fwres=NF_ACCEPT;
 
 	DPRINTK("ing_hook: skb %s dev=%s len=%u\n",
@@ -247,7 +247,7 @@ ing_hook(unsigned int hook, struct sk_buff **pskb,
 		skb->dev ? (*pskb)->dev->name : "(no dev)",
 		skb->len);
 
-/* 
+/*
 revisit later: Use a private since lock dev->queue_lock is also
 used on the egress (might slow things for an iota)
 */
@@ -257,8 +257,8 @@ used on the egress (might slow things for an iota)
 		if ((q = dev->qdisc_ingress) != NULL)
 			fwres = q->enqueue(skb, q);
 		spin_unlock(&dev->queue_lock);
-        }
-			
+	}
+
 	return fwres;
 }
 
@@ -296,7 +296,7 @@ static int ingress_init(struct Qdisc *sch,struct rtattr *opt)
 	printk("Ingress scheduler: Classifier actions prefered over netfilter\n");
 #endif
 #endif
-                                                                                
+
 #ifndef CONFIG_NET_CLS_ACT
 #ifdef CONFIG_NETFILTER
 	if (!nf_registered) {
@@ -417,7 +417,7 @@ static int __init ingress_module_init(void)
 
 	return ret;
 }
-static void __exit ingress_module_exit(void) 
+static void __exit ingress_module_exit(void)
 {
 	unregister_qdisc(&ingress_qdisc_ops);
 #ifndef CONFIG_NET_CLS_ACT

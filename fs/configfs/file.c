@@ -162,14 +162,17 @@ fill_write_buffer(struct configfs_buffer * buffer, const char __user * buf, size
 	int error;
 
 	if (!buffer->page)
-		buffer->page = (char *)get_zeroed_page(GFP_KERNEL);
+		buffer->page = (char *)__get_free_pages(GFP_KERNEL, 0);
 	if (!buffer->page)
 		return -ENOMEM;
 
-	if (count > PAGE_SIZE)
-		count = PAGE_SIZE;
+	if (count >= PAGE_SIZE)
+		count = PAGE_SIZE - 1;
 	error = copy_from_user(buffer->page,buf,count);
 	buffer->needs_read_fill = 1;
+	/* if buf is assumed to contain a string, terminate it by \0,
+	 * so e.g. sscanf() can scan the string easily */
+	buffer->page[count] = 0;
 	return error ? -EFAULT : count;
 }
 

@@ -1185,7 +1185,7 @@ static int se401_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static struct file_operations se401_fops = {
+static const struct file_operations se401_fops = {
 	.owner =	THIS_MODULE,
 	.open =         se401_open,
 	.release =      se401_close,

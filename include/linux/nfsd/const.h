@@ -30,10 +30,6 @@
 
 #include <linux/sunrpc/msg_prot.h>
 
-#ifndef NFS_SUPER_MAGIC
-# define NFS_SUPER_MAGIC	0x6969
-#endif
-
 /*
  * Largest number of bytes we need to allocate for an NFS
  * call or reply.  Used to control buffer sizes.  We use

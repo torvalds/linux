@@ -148,7 +148,7 @@ static int cpuid_open(struct inode *inode, struct file *file)
 /*
  * File operations we support
  */
-static struct file_operations cpuid_fops = {
+static const struct file_operations cpuid_fops = {
 	.owner = THIS_MODULE,
 	.llseek = cpuid_seek,
 	.read = cpuid_read,

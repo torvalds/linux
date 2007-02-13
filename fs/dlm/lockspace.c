@@ -236,7 +236,7 @@ static int dlm_scand(void *data)
 	while (!kthread_should_stop()) {
 		list_for_each_entry(ls, &lslist, ls_list)
 			dlm_scan_rsbs(ls);
-		schedule_timeout_interruptible(dlm_config.scan_secs * HZ);
+		schedule_timeout_interruptible(dlm_config.ci_scan_secs * HZ);
 	}
 	return 0;
 }
@@ -422,7 +422,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	ls->ls_count = 0;
 	ls->ls_flags = 0;
 
-	size = dlm_config.rsbtbl_size;
+	size = dlm_config.ci_rsbtbl_size;
 	ls->ls_rsbtbl_size = size;
 
 	ls->ls_rsbtbl = kmalloc(sizeof(struct dlm_rsbtable) * size, GFP_KERNEL);
@@ -434,7 +434,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 		rwlock_init(&ls->ls_rsbtbl[i].lock);
 	}
 
-	size = dlm_config.lkbtbl_size;
+	size = dlm_config.ci_lkbtbl_size;
 	ls->ls_lkbtbl_size = size;
 
 	ls->ls_lkbtbl = kmalloc(sizeof(struct dlm_lkbtable) * size, GFP_KERNEL);
@@ -446,7 +446,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 		ls->ls_lkbtbl[i].counter = 1;
 	}
 
-	size = dlm_config.dirtbl_size;
+	size = dlm_config.ci_dirtbl_size;
 	ls->ls_dirtbl_size = size;
 
 	ls->ls_dirtbl = kmalloc(sizeof(struct dlm_dirtable) * size, GFP_KERNEL);
@@ -489,7 +489,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	mutex_init(&ls->ls_requestqueue_mutex);
 	mutex_init(&ls->ls_clear_proc_locks);
 
-	ls->ls_recover_buf = kmalloc(dlm_config.buffer_size, GFP_KERNEL);
+	ls->ls_recover_buf = kmalloc(dlm_config.ci_buffer_size, GFP_KERNEL);
 	if (!ls->ls_recover_buf)
 		goto out_dirfree;
 

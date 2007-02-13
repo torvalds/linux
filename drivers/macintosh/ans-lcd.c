@@ -121,7 +121,7 @@ anslcd_open( struct inode * inode, struct file * file )
 	return 0;
 }
 
-struct file_operations anslcd_fops = {
+const struct file_operations anslcd_fops = {
 	.write	= anslcd_write,
 	.ioctl	= anslcd_ioctl,
 	.open	= anslcd_open,

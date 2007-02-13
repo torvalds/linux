@@ -20,9 +20,6 @@
 #define SCC3_IRQ	(CPM_IRQ_OFFSET + CPMVEC_SCC3)
 #define SCC4_IRQ	(CPM_IRQ_OFFSET + CPMVEC_SCC4)
 
-/* the CPM address */
-#define CPM_ADDR	IMAP_ADDR
-
 static inline void cpm_set_brg(int brg, int baud)
 {
 	cpm_setbrg(brg, baud);

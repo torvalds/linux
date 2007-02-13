@@ -42,7 +42,7 @@ static void wm_put(struct snd_ice1712 *ice, int reg, unsigned short val)
 
 static int __devinit snd_vt1724_amp_init(struct snd_ice1712 *ice)
 {
-	static unsigned short wm_inits[] = {
+	static const unsigned short wm_inits[] = {
 		WM_ATTEN_L,	0x0000,	/* 0 db */
 		WM_ATTEN_R,	0x0000,	/* 0 db */
 		WM_DAC_CTRL,	0x0008,	/* 24bit I2S */
@@ -75,7 +75,7 @@ static int __devinit snd_vt1724_amp_add_controls(struct snd_ice1712 *ice)
 
 
 /* entry point */
-struct snd_ice1712_card_info snd_vt1724_amp_cards[] __devinitdata = {
+const struct snd_ice1712_card_info snd_vt1724_amp_cards[] __devinitdata = {
 	{
 		.subvendor = VT1724_SUBDEVICE_AV710,
 		.name = "Chaintech AV-710",

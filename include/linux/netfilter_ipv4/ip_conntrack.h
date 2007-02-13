@@ -301,6 +301,12 @@ extern unsigned int ip_conntrack_htable_size;
 extern int ip_conntrack_checksum;
  
 #define CONNTRACK_STAT_INC(count) (__get_cpu_var(ip_conntrack_stat).count++)
+#define CONNTRACK_STAT_INC_ATOMIC(count)		\
+do {							\
+	local_bh_disable();				\
+	__get_cpu_var(ip_conntrack_stat).count++;	\
+	local_bh_enable();				\
+} while (0)
 
 #ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
 #include <linux/notifier.h>

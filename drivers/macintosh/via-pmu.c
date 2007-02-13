@@ -516,7 +516,6 @@ static int __init via_pmu_dev_init(void)
 					proc_get_irqstats, NULL);
 		proc_pmu_options = create_proc_entry("options", 0600, proc_pmu_root);
 		if (proc_pmu_options) {
-			proc_pmu_options->nlink = 1;
 			proc_pmu_options->read_proc = proc_read_options;
 			proc_pmu_options->write_proc = proc_write_options;
 		}
@@ -2673,7 +2672,7 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 	return error;
 }
 
-static struct file_operations pmu_device_fops = {
+static const struct file_operations pmu_device_fops = {
 	.read		= pmu_read,
 	.write		= pmu_write,
 	.poll		= pmu_fpoll,

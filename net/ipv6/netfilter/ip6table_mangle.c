@@ -29,25 +29,6 @@ MODULE_DESCRIPTION("ip6tables mangle table");
 #define DEBUGP(x, args...)
 #endif
 
-/* Standard entry. */
-struct ip6t_standard
-{
-	struct ip6t_entry entry;
-	struct ip6t_standard_target target;
-};
-
-struct ip6t_error_target
-{
-	struct ip6t_entry_target target;
-	char errorname[IP6T_FUNCTION_MAXNAMELEN];
-};
-
-struct ip6t_error
-{
-	struct ip6t_entry entry;
-	struct ip6t_error_target target;
-};
-
 static struct
 {
 	struct ip6t_replace repl;
@@ -69,7 +50,7 @@ static struct
       0, NULL, { } },
     {
 	    /* PRE_ROUTING */
-            { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
+	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
 		0,
 		sizeof(struct ip6t_entry),
 		sizeof(struct ip6t_standard),
@@ -77,7 +58,7 @@ static struct
 	      { { { { IP6T_ALIGN(sizeof(struct ip6t_standard_target)), "" } }, { } },
 		-NF_ACCEPT - 1 } },
 	    /* LOCAL_IN */
-            { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
+	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
 		0,
 		sizeof(struct ip6t_entry),
 		sizeof(struct ip6t_standard),
@@ -85,7 +66,7 @@ static struct
 	      { { { { IP6T_ALIGN(sizeof(struct ip6t_standard_target)), "" } }, { } },
 		-NF_ACCEPT - 1 } },
 	    /* FORWARD */
-            { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
+	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
 		0,
 		sizeof(struct ip6t_entry),
 		sizeof(struct ip6t_standard),
@@ -93,7 +74,7 @@ static struct
 	      { { { { IP6T_ALIGN(sizeof(struct ip6t_standard_target)), "" } }, { } },
 		-NF_ACCEPT - 1 } },
 	    /* LOCAL_OUT */
-            { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
+	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
 		0,
 		sizeof(struct ip6t_entry),
 		sizeof(struct ip6t_standard),
@@ -122,7 +103,7 @@ static struct
     }
 };
 
-static struct ip6t_table packet_mangler = {
+static struct xt_table packet_mangler = {
 	.name		= "mangle",
 	.valid_hooks	= MANGLE_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
@@ -175,7 +156,7 @@ ip6t_local_hook(unsigned int hook,
 
 	ret = ip6t_do_table(pskb, hook, in, out, &packet_mangler);
 
-	if (ret != NF_DROP && ret != NF_STOLEN 
+	if (ret != NF_DROP && ret != NF_STOLEN
 		&& (memcmp(&(*pskb)->nh.ipv6h->saddr, &saddr, sizeof(saddr))
 		    || memcmp(&(*pskb)->nh.ipv6h->daddr, &daddr, sizeof(daddr))
 		    || (*pskb)->mark != mark

@@ -3299,14 +3299,12 @@ static void pm3fb_detect(void)
 		fb_info[i].dev = NULL;
 	}
 
-	dev =
-	    pci_find_device(PCI_VENDOR_ID_3DLABS,
+	dev = pci_get_device(PCI_VENDOR_ID_3DLABS,
 			    PCI_DEVICE_ID_3DLABS_PERMEDIA3, dev);
 
 	for (i = 0; ((i < PM3_MAX_BOARD) && dev); i++) {
 		dev_array[i] = dev;
-		dev =
-		    pci_find_device(PCI_VENDOR_ID_3DLABS,
+		dev = pci_get_device(PCI_VENDOR_ID_3DLABS,
 				    PCI_DEVICE_ID_3DLABS_PERMEDIA3, dev);
 	}
 
@@ -3353,7 +3351,7 @@ static void pm3fb_detect(void)
 	/* now, initialize... or not */
 	for (i = 0; i < PM3_MAX_BOARD; i++) {
 		l_fb_info = &(fb_info[i]);
-		if ((l_fb_info->dev) && (!disable[i])) {	/* PCI device was found and not disabled by user */
+		if (l_fb_info->dev && !disable[i]) {	/* PCI device was found and not disabled by user */
 			DPRINTK(2,
 				"found @%lx Vendor %lx Device %lx ; base @ : %lx - %lx - %lx - %lx - %lx - %lx, irq %ld\n",
 				(unsigned long) l_fb_info->dev,
@@ -3608,7 +3606,7 @@ int init_module(void)
 
 	pm3fb_init();
 
-	return (0);
+	return 0;
 }
 
 void cleanup_module(void)
@@ -3619,23 +3617,18 @@ void cleanup_module(void)
 		struct pm3fb_info *l_fb_info;
 		for (i = 0; i < PM3_MAX_BOARD; i++) {
 			l_fb_info = &(fb_info[i]);
-			if ((l_fb_info->dev != NULL)
-			    && (!(disable[l_fb_info->board_num]))) {
-				if (l_fb_info->vIOBase !=
-				    (unsigned char *) -1) {
+			pci_dev_put(l_fb_info->dev);
+			if (l_fb_info->dev != NULL  && !(disable[l_fb_info->board_num])) {
+				if (l_fb_info->vIOBase != (unsigned char *) -1) {
 					pm3fb_unmapIO(l_fb_info);
 					release_mem_region(l_fb_info->p_fb,
-							   l_fb_info->
-							   fb_size);
-					release_mem_region(l_fb_info->
-							   pIOBase,
-							   PM3_REGS_SIZE);
+						   l_fb_info->fb_size);
+					release_mem_region(l_fb_info->pIOBase,
+						   PM3_REGS_SIZE);
 				}
-				unregister_framebuffer(&l_fb_info->gen.
-						       info);
+				unregister_framebuffer(&l_fb_info->gen.info);
 			}
 		}
 	}
-	return;
 }
 #endif /* MODULE */

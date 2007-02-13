@@ -220,7 +220,7 @@ static int maps_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-struct file_operations proc_maps_operations = {
+const struct file_operations proc_maps_operations = {
 	.open		= maps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

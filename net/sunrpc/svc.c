@@ -386,7 +386,7 @@ svc_destroy(struct svc_serv *serv)
 		svsk = list_entry(serv->sv_tempsocks.next,
 				  struct svc_sock,
 				  sk_list);
-		svc_delete_socket(svsk);
+		svc_close_socket(svsk);
 	}
 	if (serv->sv_shutdown)
 		serv->sv_shutdown(serv);
@@ -395,9 +395,9 @@ svc_destroy(struct svc_serv *serv)
 		svsk = list_entry(serv->sv_permsocks.next,
 				  struct svc_sock,
 				  sk_list);
-		svc_delete_socket(svsk);
+		svc_close_socket(svsk);
 	}
-	
+
 	cache_clean_deferred(serv);
 
 	/* Unregister service with the portmapper */
@@ -415,7 +415,7 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size)
 {
 	int pages;
 	int arghi;
-	
+
 	pages = size / PAGE_SIZE + 1; /* extra page as we hold both request and reply.
 				       * We assume one is at most one page
 				       */
@@ -514,7 +514,7 @@ choose_pool(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
 	if (pool != NULL)
 		return pool;
 
- 	return &serv->sv_pools[(*state)++ % serv->sv_nrpools];
+	return &serv->sv_pools[(*state)++ % serv->sv_nrpools];
 }
 
 /*
@@ -530,13 +530,13 @@ choose_victim(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
 		spin_lock_bh(&pool->sp_lock);
 	} else {
 		/* choose a pool in round-robin fashion */
- 		for (i = 0; i < serv->sv_nrpools; i++) {
- 			pool = &serv->sv_pools[--(*state) % serv->sv_nrpools];
+		for (i = 0; i < serv->sv_nrpools; i++) {
+			pool = &serv->sv_pools[--(*state) % serv->sv_nrpools];
 			spin_lock_bh(&pool->sp_lock);
- 			if (!list_empty(&pool->sp_all_threads))
- 				goto found_pool;
+			if (!list_empty(&pool->sp_all_threads))
+				goto found_pool;
 			spin_unlock_bh(&pool->sp_lock);
- 		}
+		}
 		return NULL;
 	}
 
@@ -551,7 +551,7 @@ found_pool:
 		rqstp = list_entry(pool->sp_all_threads.next, struct svc_rqst, rq_all);
 		list_del_init(&rqstp->rq_all);
 		task = rqstp->rq_task;
-    	}
+	}
 	spin_unlock_bh(&pool->sp_lock);
 
 	return task;
@@ -636,7 +636,7 @@ svc_exit_thread(struct svc_rqst *rqstp)
 
 /*
  * Register an RPC service with the local portmapper.
- * To unregister a service, call this routine with 
+ * To unregister a service, call this routine with
  * proto and port == 0.
  */
 int
@@ -709,7 +709,7 @@ svc_process(struct svc_rqst *rqstp)
 		goto err_short_len;
 
 	/* setup response xdr_buf.
-	 * Initially it has just one page 
+	 * Initially it has just one page
 	 */
 	rqstp->rq_resused = 1;
 	resv->iov_base = page_address(rqstp->rq_respages[0]);
@@ -811,7 +811,7 @@ svc_process(struct svc_rqst *rqstp)
 	memset(rqstp->rq_argp, 0, procp->pc_argsize);
 	memset(rqstp->rq_resp, 0, procp->pc_ressize);
 
-	/* un-reserve some of the out-queue now that we have a 
+	/* un-reserve some of the out-queue now that we have a
 	 * better idea of reply size
 	 */
 	if (procp->pc_xdrressize)

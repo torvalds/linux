@@ -466,7 +466,8 @@ CONFIG_FW_LOADER=y
 #
 # Plug and Play support
 #
-# CONFIG_PNP is not set
+CONFIG_PNP=y
+CONFIG_PNPACPI=y
 
 #
 # Block devices

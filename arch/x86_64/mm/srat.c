@@ -101,7 +101,7 @@ static __init inline int srat_disabled(void)
 static __init int slit_valid(struct acpi_table_slit *slit)
 {
 	int i, j;
-	int d = slit->localities;
+	int d = slit->locality_count;
 	for (i = 0; i < d; i++) {
 		for (j = 0; j < d; j++)  {
 			u8 val = slit->entry[d*i + j];
@@ -127,18 +127,18 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 
 /* Callback for Proximity Domain -> LAPIC mapping */
 void __init
-acpi_numa_processor_affinity_init(struct acpi_table_processor_affinity *pa)
+acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 {
 	int pxm, node;
 	if (srat_disabled())
 		return;
-	if (pa->header.length != sizeof(struct acpi_table_processor_affinity)) {
+	if (pa->header.length != sizeof(struct acpi_srat_cpu_affinity)) {
 		bad_srat();
 		return;
 	}
-	if (pa->flags.enabled == 0)
+	if ((pa->flags & ACPI_SRAT_CPU_ENABLED) == 0)
 		return;
-	pxm = pa->proximity_domain;
+	pxm = pa->proximity_domain_lo;
 	node = setup_node(pxm);
 	if (node < 0) {
 		printk(KERN_ERR "SRAT: Too many proximity domains %x\n", pxm);
@@ -254,21 +254,21 @@ static int reserve_hotadd(int node, unsigned long start, unsigned long end)
 	/* Looks good */
 
 	if (nd->start == nd->end) {
- 		nd->start = start;
- 		nd->end = end;
+		nd->start = start;
+		nd->end = end;
 		changed = 1;
- 	} else {
- 		if (nd->start == end) {
- 			nd->start = start;
+	} else {
+		if (nd->start == end) {
+			nd->start = start;
 			changed = 1;
 		}
- 		if (nd->end == start) {
- 			nd->end = end;
+		if (nd->end == start) {
+			nd->end = end;
 			changed = 1;
 		}
 		if (!changed)
 			printk(KERN_ERR "SRAT: Hotplug zone not continuous. Partly ignored\n");
- 	}
+	}
 
 	ret = update_end_of_memory(nd->end);
 
@@ -279,7 +279,7 @@ static int reserve_hotadd(int node, unsigned long start, unsigned long end)
 
 /* Callback for parsing of the Proximity Domain <-> Memory Area mappings */
 void __init
-acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
+acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 {
 	struct bootnode *nd, oldnode;
 	unsigned long start, end;
@@ -288,16 +288,17 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 
 	if (srat_disabled())
 		return;
-	if (ma->header.length != sizeof(struct acpi_table_memory_affinity)) {
+	if (ma->header.length != sizeof(struct acpi_srat_mem_affinity)) {
 		bad_srat();
 		return;
 	}
-	if (ma->flags.enabled == 0)
+	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
 		return;
- 	if (ma->flags.hot_pluggable && !save_add_info())
+
+	if ((ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) && !save_add_info())
 		return;
-	start = ma->base_addr_lo | ((u64)ma->base_addr_hi << 32);
-	end = start + (ma->length_lo | ((u64)ma->length_hi << 32));
+	start = ma->base_address;
+	end = start + ma->length;
 	pxm = ma->proximity_domain;
 	node = setup_node(pxm);
 	if (node < 0) {
@@ -337,7 +338,8 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 	push_node_boundaries(node, nd->start >> PAGE_SHIFT,
 						nd->end >> PAGE_SHIFT);
 
- 	if (ma->flags.hot_pluggable && (reserve_hotadd(node, start, end) < 0)) {
+	if ((ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) &&
+	    (reserve_hotadd(node, start, end) < 0)) {
 		/* Ignore hotadd region. Undo damage */
 		printk(KERN_NOTICE "SRAT: Hotplug region ignored\n");
 		*nd = oldnode;
@@ -394,7 +396,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 
 	/* First clean up the node list */
 	for (i = 0; i < MAX_NUMNODES; i++) {
- 		cutoff_node(i, start, end);
+		cutoff_node(i, start, end);
 		if ((nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
 			unparse_node(i);
 			node_set_offline(i);
@@ -426,7 +428,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 		if (!node_online(i))
 			setup_node_bootmem(i, nodes[i].start, nodes[i].end);
 
-	for (i = 0; i < NR_CPUS; i++) { 
+	for (i = 0; i < NR_CPUS; i++) {
 		if (cpu_to_node[i] == NUMA_NO_NODE)
 			continue;
 		if (!node_isset(cpu_to_node[i], nodes_parsed))
@@ -461,7 +463,7 @@ int __node_distance(int a, int b)
 
 	if (!acpi_slit)
 		return a == b ? 10 : 20;
-	index = acpi_slit->localities * node_to_pxm(a);
+	index = acpi_slit->locality_count * node_to_pxm(a);
 	return acpi_slit->entry[index + node_to_pxm(b)];
 }
 

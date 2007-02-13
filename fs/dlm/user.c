@@ -25,7 +25,7 @@
 
 static const char *name_prefix="dlm";
 static struct miscdevice ctl_device;
-static struct file_operations device_fops;
+static const struct file_operations device_fops;
 
 #ifdef CONFIG_COMPAT
 
@@ -178,6 +178,14 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 
 	if (type == AST_COMP && lkb->lkb_grmode == DLM_LOCK_IV &&
 	    ua->lksb.sb_status == -EAGAIN && !list_empty(&lkb->lkb_ownqueue))
+		remove_ownqueue = 1;
+
+	/* unlocks or cancels of waiting requests need to be removed from the
+	   proc's unlocking list, again there must be a better way...  */
+
+	if (ua->lksb.sb_status == -DLM_EUNLOCK ||
+	    (ua->lksb.sb_status == -DLM_ECANCEL &&
+	     lkb->lkb_grmode == DLM_LOCK_IV))
 		remove_ownqueue = 1;
 
 	/* We want to copy the lvb to userspace when the completion
@@ -523,6 +531,7 @@ static int device_open(struct inode *inode, struct file *file)
 	proc->lockspace = ls->ls_local_handle;
 	INIT_LIST_HEAD(&proc->asts);
 	INIT_LIST_HEAD(&proc->locks);
+	INIT_LIST_HEAD(&proc->unlocking);
 	spin_lock_init(&proc->asts_spin);
 	spin_lock_init(&proc->locks_spin);
 	init_waitqueue_head(&proc->wait);
@@ -750,7 +759,7 @@ static int ctl_device_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations device_fops = {
+static const struct file_operations device_fops = {
 	.open    = device_open,
 	.release = device_close,
 	.read    = device_read,
@@ -759,7 +768,7 @@ static struct file_operations device_fops = {
 	.owner   = THIS_MODULE,
 };
 
-static struct file_operations ctl_device_fops = {
+static const struct file_operations ctl_device_fops = {
 	.open    = ctl_device_open,
 	.release = ctl_device_close,
 	.write   = device_write,

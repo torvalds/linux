@@ -71,14 +71,6 @@
 #define	qword  u64
 #endif
 
-#ifndef	TRUE
-#define	TRUE	1
-#endif
-
-#ifndef	FALSE
-#define	FALSE	0
-#endif
-
 #ifndef	NULL
 #define	NULL	((void *) 0)
 #endif
@@ -130,10 +122,6 @@
 #define DIVA_OS_MEM_DETACH_ADDRESS(a, x)	do { } while(0)
 #define DIVA_OS_MEM_DETACH_CONFIG(a, x)	do { } while(0)
 #define DIVA_OS_MEM_DETACH_CONTROL(a, x)	do { } while(0)
-
-#if !defined(DIM)
-#define DIM(array)  (sizeof (array)/sizeof ((array)[0]))
-#endif
 
 #define DIVA_INVALID_FILE_HANDLE  ((dword)(-1))
 

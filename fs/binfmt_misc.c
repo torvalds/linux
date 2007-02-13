@@ -719,7 +719,7 @@ static const struct file_operations bm_status_operations = {
 
 /* Superblock handling */
 
-static struct super_operations s_ops = {
+static const struct super_operations s_ops = {
 	.statfs		= simple_statfs,
 	.clear_inode	= bm_clear_inode,
 };

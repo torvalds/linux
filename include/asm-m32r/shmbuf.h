@@ -1,10 +1,6 @@
 #ifndef _ASM_M32R_SHMBUF_H
 #define _ASM_M32R_SHMBUF_H
 
-/* $Id$ */
-
-/* orig : i386 2.4.18 */
-
 /*
  * The shmid64_ds structure for M32R architecture.
  * Note extra padding because this structure is passed back and forth

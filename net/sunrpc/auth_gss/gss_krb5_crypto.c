@@ -58,7 +58,7 @@ krb5_encrypt(
 	int length)
 {
 	u32 ret = -EINVAL;
-        struct scatterlist sg[1];
+	struct scatterlist sg[1];
 	u8 local_iv[16] = {0};
 	struct blkcipher_desc desc = { .tfm = tfm, .info = local_iv };
 

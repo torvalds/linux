@@ -12,7 +12,6 @@ obj-y				:= entry.o traps.o time.o misc.o \
 					setup.o \
 					ppc_htab.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
-obj-$(CONFIG_NOT_COHERENT_CACHE)	+= dma-mapping.o
 obj-$(CONFIG_PCI)		+= pci.o
 obj-$(CONFIG_RAPIDIO)		+= rio.o
 obj-$(CONFIG_KGDB)		+= ppc-stub.o

@@ -1,10 +1,6 @@
 #ifndef _ASM_M32R_STAT_H
 #define _ASM_M32R_STAT_H
 
-/* $Id$ */
-
-/* orig : i386 2.4.18 */
-
 #include <asm/byteorder.h>
 
 struct __old_kernel_stat {

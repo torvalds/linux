@@ -233,6 +233,8 @@ edd_show_interface(struct edd_device *edev, char *buf)
 
 /**
  * edd_show_raw_data() - copies raw data to buffer for userspace to parse
+ * @edev: target edd_device
+ * @buf: output buffer
  *
  * Returns: number of bytes written, or -EINVAL on failure
  */
@@ -634,8 +636,8 @@ static decl_subsys(edd,&ktype_edd,NULL);
 
 /**
  * edd_dev_is_type() - is this EDD device a 'type' device?
- * @edev
- * @type - a host bus or interface identifier string per the EDD spec
+ * @edev: target edd_device
+ * @type: a host bus or interface identifier string per the EDD spec
  *
  * Returns 1 (TRUE) if it is a 'type' device, 0 otherwise.
  */
@@ -657,7 +659,7 @@ edd_dev_is_type(struct edd_device *edev, const char *type)
 
 /**
  * edd_get_pci_dev() - finds pci_dev that matches edev
- * @edev - edd_device
+ * @edev: edd_device
  *
  * Returns pci_dev if found, or NULL
  */

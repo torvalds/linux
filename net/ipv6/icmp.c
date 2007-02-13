@@ -107,7 +107,7 @@ static __inline__ void icmpv6_xmit_unlock(void)
 	spin_unlock_bh(&icmpv6_socket->sk->sk_lock.slock);
 }
 
-/* 
+/*
  * Slightly more convenient version of icmpv6_send.
  */
 void icmpv6_param_prob(struct sk_buff *skb, int code, int pos)
@@ -153,8 +153,8 @@ static int is_ineligible(struct sk_buff *skb)
 
 static int sysctl_icmpv6_time __read_mostly = 1*HZ;
 
-/* 
- * Check the ICMP output rate limit 
+/*
+ * Check the ICMP output rate limit
  */
 static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
 				     struct flowi *fl)
@@ -170,7 +170,7 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
 	if (type == ICMPV6_PKT_TOOBIG)
 		return 1;
 
-	/* 
+	/*
 	 * Look up the output route.
 	 * XXX: perhaps the expire for routing entries cloned by
 	 * this lookup should be more aggressive (not longer than timeout).
@@ -198,7 +198,7 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
 /*
  *	an inline helper for the "simple" if statement below
  *	checks if parameter problem report is caused by an
- *	unrecognized IPv6 option that has the Option Type 
+ *	unrecognized IPv6 option that has the Option Type
  *	highest-order two bits set to 10
  */
 
@@ -298,7 +298,7 @@ static inline void mip6_addr_swap(struct sk_buff *skb) {}
 /*
  *	Send an ICMP message in response to a packet in error
  */
-void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info, 
+void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		 struct net_device *dev)
 {
 	struct inet6_dev *idev = NULL;
@@ -320,7 +320,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		return;
 
 	/*
-	 *	Make sure we respect the rules 
+	 *	Make sure we respect the rules
 	 *	i.e. RFC 1885 2.4(e)
 	 *	Rule (e.1) is enforced by not using icmpv6_send
 	 *	in any code that processes icmp errors.
@@ -336,8 +336,8 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 
 	if ((addr_type & IPV6_ADDR_MULTICAST || skb->pkt_type != PACKET_HOST)) {
 		if (type != ICMPV6_PKT_TOOBIG &&
-		    !(type == ICMPV6_PARAMPROB && 
-		      code == ICMPV6_UNK_OPTION && 
+		    !(type == ICMPV6_PARAMPROB &&
+		      code == ICMPV6_UNK_OPTION &&
 		      (opt_unrec(skb, info))))
 			return;
 
@@ -364,7 +364,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		return;
 	}
 
-	/* 
+	/*
 	 *	Never answer to a ICMP packet.
 	 */
 	if (is_ineligible(skb)) {
@@ -543,14 +543,14 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	}
 	err = icmpv6_push_pending_frames(sk, &fl, &tmp_hdr, skb->len + sizeof(struct icmp6hdr));
 
-        ICMP6_INC_STATS_BH(idev, ICMP6_MIB_OUTECHOREPLIES);
-        ICMP6_INC_STATS_BH(idev, ICMP6_MIB_OUTMSGS);
+	ICMP6_INC_STATS_BH(idev, ICMP6_MIB_OUTECHOREPLIES);
+	ICMP6_INC_STATS_BH(idev, ICMP6_MIB_OUTMSGS);
 
-out_put: 
+out_put:
 	if (likely(idev != NULL))
 		in6_dev_put(idev);
 	dst_release(dst);
-out: 
+out:
 	icmpv6_xmit_unlock();
 }
 
@@ -608,7 +608,7 @@ static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
 	}
 	read_unlock(&raw_v6_lock);
 }
-  
+
 /*
  *	Handle icmp messages
  */
@@ -722,9 +722,9 @@ static int icmpv6_rcv(struct sk_buff **pskb)
 		if (type & ICMPV6_INFOMSG_MASK)
 			break;
 
-		/* 
-		 * error of unknown type. 
-		 * must pass to upper level 
+		/*
+		 * error of unknown type.
+		 * must pass to upper level
 		 */
 
 		icmpv6_notify(skb, type, hdr->icmp6_code, hdr->icmp6_mtu);
@@ -852,7 +852,7 @@ int icmpv6_err_convert(int type, int code, int *err)
 	case ICMPV6_PKT_TOOBIG:
 		*err = EMSGSIZE;
 		break;
-		
+
 	case ICMPV6_PARAMPROB:
 		*err = EPROTO;
 		fatal = 1;

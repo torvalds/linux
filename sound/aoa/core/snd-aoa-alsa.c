@@ -14,7 +14,7 @@ MODULE_PARM_DESC(index, "index for AOA sound card.");
 
 static struct aoa_card *aoa_card;
 
-int aoa_alsa_init(char *name, struct module *mod)
+int aoa_alsa_init(char *name, struct module *mod, struct device *dev)
 {
 	struct snd_card *alsa_card;
 	int err;
@@ -28,6 +28,7 @@ int aoa_alsa_init(char *name, struct module *mod)
 		return -ENOMEM;
 	aoa_card = alsa_card->private_data;
 	aoa_card->alsa_card = alsa_card;
+	alsa_card->dev = dev;
 	strlcpy(alsa_card->driver, "AppleOnbdAudio", sizeof(alsa_card->driver));
 	strlcpy(alsa_card->shortname, name, sizeof(alsa_card->shortname));
 	strlcpy(alsa_card->longname, name, sizeof(alsa_card->longname));
@@ -59,7 +60,7 @@ void aoa_alsa_cleanup(void)
 }
 
 int aoa_snd_device_new(snd_device_type_t type,
-        void * device_data, struct snd_device_ops * ops)
+		       void * device_data, struct snd_device_ops * ops)
 {
 	struct snd_card *card = aoa_get_card();
 	int err;

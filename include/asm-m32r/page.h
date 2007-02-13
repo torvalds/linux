@@ -1,7 +1,6 @@
 #ifndef _ASM_M32R_PAGE_H
 #define _ASM_M32R_PAGE_H
 
-
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT	12
 #define PAGE_SIZE	(1UL << PAGE_SHIFT)
@@ -57,9 +56,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  * and CONFIG_HIGHMEM64G options in the kernel configuration.
  */
 
-
-/* This handles the memory map.. */
-
 #define __MEMORY_START  CONFIG_MEMORY_START
 #define __MEMORY_SIZE   CONFIG_MEMORY_SIZE
 
@@ -92,4 +88,3 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_M32R_PAGE_H */
-

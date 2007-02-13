@@ -28,7 +28,7 @@ static struct proc_dir_entry *dasd_proc_root_entry = NULL;
 static struct proc_dir_entry *dasd_devices_entry = NULL;
 static struct proc_dir_entry *dasd_statistics_entry = NULL;
 
-static inline char *
+static char *
 dasd_get_user_string(const char __user *user_buf, size_t user_len)
 {
 	char *buffer;
@@ -147,14 +147,14 @@ static int dasd_devices_open(struct inode *inode, struct file *file)
 	return seq_open(file, &dasd_devices_seq_ops);
 }
 
-static struct file_operations dasd_devices_file_ops = {
+static const struct file_operations dasd_devices_file_ops = {
 	.open		= dasd_devices_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
 
-static inline int
+static int
 dasd_calc_metrics(char *page, char **start, off_t off,
 		  int count, int *eof, int len)
 {
@@ -167,8 +167,8 @@ dasd_calc_metrics(char *page, char **start, off_t off,
 	return len;
 }
 
-static inline char *
-dasd_statistics_array(char *str, int *array, int shift)
+static char *
+dasd_statistics_array(char *str, unsigned int *array, int shift)
 {
 	int i;
 

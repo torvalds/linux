@@ -1556,7 +1556,7 @@ const struct file_operations reiserfs_file_operations = {
 	.splice_write = generic_file_splice_write,
 };
 
-struct inode_operations reiserfs_file_inode_operations = {
+const struct inode_operations reiserfs_file_inode_operations = {
 	.truncate = reiserfs_vfs_truncate_file,
 	.setattr = reiserfs_setattr,
 	.setxattr = reiserfs_setxattr,

@@ -1380,7 +1380,7 @@ static ssize_t stv680_read (struct file *file, char __user *buf,
 	return realcount;
 }				/* stv680_read */
 
-static struct file_operations stv680_fops = {
+static const struct file_operations stv680_fops = {
 	.owner =	THIS_MODULE,
 	.open =		stv_open,
 	.release =     	stv_close,

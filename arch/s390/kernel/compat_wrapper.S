@@ -517,10 +517,10 @@ sys32_swapoff_wrapper:
 	llgtr	%r2,%r2			# const char *
 	jg	sys_swapoff		# branch to system call
 
-	.globl	sys32_sysinfo_wrapper
-sys32_sysinfo_wrapper:
+	.globl	compat_sys_sysinfo_wrapper
+compat_sys_sysinfo_wrapper:
 	llgtr	%r2,%r2			# struct sysinfo_emu31 *
-	jg	sys32_sysinfo		# branch to system call
+	jg	compat_sys_sysinfo	# branch to system call
 
 	.globl	sys32_ipc_wrapper
 sys32_ipc_wrapper:

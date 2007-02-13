@@ -755,18 +755,8 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 
 	tty = mos7840_port->port->tty;
 
-	if (tty && mos7840_port->open) {
-		/* let the tty driver wakeup if it has a special *
-		 * write_wakeup function                         */
-
-		if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP))
-		    && tty->ldisc.write_wakeup) {
-			(tty->ldisc.write_wakeup) (tty);
-		}
-
-		/* tell the tty driver that something has changed */
-		wake_up_interruptible(&tty->write_wait);
-	}
+	if (tty && mos7840_port->open)
+		tty_wakeup(tty);
 
 }
 
@@ -2834,12 +2824,21 @@ static void mos7840_shutdown(struct usb_serial *serial)
 
 }
 
+static struct usb_driver io_driver = {
+	.name = "mos7840",
+	.probe = usb_serial_probe,
+	.disconnect = usb_serial_disconnect,
+	.id_table = moschip_id_table_combined,
+	.no_dynamic_id = 1,
+};
+
 static struct usb_serial_driver moschip7840_4port_device = {
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = "mos7840",
 		   },
 	.description = DRIVER_DESC,
+	.usb_driver = &io_driver,
 	.id_table = moschip_port_id_table,
 	.num_interrupt_in = 1,	//NUM_DONT_CARE,//1,
 #ifdef check
@@ -2867,13 +2866,6 @@ static struct usb_serial_driver moschip7840_4port_device = {
 	.shutdown = mos7840_shutdown,
 	.read_bulk_callback = mos7840_bulk_in_callback,
 	.read_int_callback = mos7840_interrupt_callback,
-};
-
-static struct usb_driver io_driver = {
-	.name = "mos7840",
-	.probe = usb_serial_probe,
-	.disconnect = usb_serial_disconnect,
-	.id_table = moschip_id_table_combined,
 };
 
 /****************************************************************************

@@ -11,7 +11,7 @@ extern long elf_aux_hwcap;
 
 #define elf_check_arch(x) (1)
 
-#ifdef CONFIG_64_BIT
+#ifdef CONFIG_64BIT
 #define ELF_CLASS ELFCLASS64
 #else
 #define ELF_CLASS ELFCLASS32

@@ -106,8 +106,7 @@ int via_driver_load(drm_device_t *dev, unsigned long chipset)
 
 	dev->dev_private = (void *)dev_priv;
 
-	if (chipset == VIA_PRO_GROUP_A)
-		dev_priv->pro_group_a = 1;
+	dev_priv->chipset = chipset;
 
 	ret = drm_sman_init(&dev_priv->sman, 2, 12, 8);
 	if (ret) {

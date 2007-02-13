@@ -44,7 +44,7 @@
 static void dlm_wait_timer_fn(unsigned long data)
 {
 	struct dlm_ls *ls = (struct dlm_ls *) data;
-	mod_timer(&ls->ls_timer, jiffies + (dlm_config.recover_timer * HZ));
+	mod_timer(&ls->ls_timer, jiffies + (dlm_config.ci_recover_timer * HZ));
 	wake_up(&ls->ls_wait_general);
 }
 
@@ -55,7 +55,7 @@ int dlm_wait_function(struct dlm_ls *ls, int (*testfn) (struct dlm_ls *ls))
 	init_timer(&ls->ls_timer);
 	ls->ls_timer.function = dlm_wait_timer_fn;
 	ls->ls_timer.data = (long) ls;
-	ls->ls_timer.expires = jiffies + (dlm_config.recover_timer * HZ);
+	ls->ls_timer.expires = jiffies + (dlm_config.ci_recover_timer * HZ);
 	add_timer(&ls->ls_timer);
 
 	wait_event(ls->ls_wait_general, testfn(ls) || dlm_recovery_stopped(ls));
@@ -397,7 +397,9 @@ int dlm_recover_masters(struct dlm_ls *ls)
 
 		if (dlm_no_directory(ls))
 			count += recover_master_static(r);
-		else if (!is_master(r) && dlm_is_removed(ls, r->res_nodeid)) {
+		else if (!is_master(r) &&
+			 (dlm_is_removed(ls, r->res_nodeid) ||
+			  rsb_flag(r, RSB_NEW_MASTER))) {
 			recover_master(r);
 			count++;
 		}

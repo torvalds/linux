@@ -323,11 +323,19 @@ struct sas_ha_event {
 	struct sas_ha_struct *ha;
 };
 
+enum sas_ha_state {
+	SAS_HA_REGISTERED,
+	SAS_HA_UNREGISTERED
+};
+
 struct sas_ha_struct {
 /* private: */
 	spinlock_t       event_lock;
 	struct sas_ha_event ha_events[HA_NUM_EVENTS];
 	unsigned long	 pending;
+
+	enum sas_ha_state state;
+	spinlock_t 	  state_lock;
 
 	struct scsi_core core;
 
@@ -553,15 +561,15 @@ struct sas_task {
 #define SAS_TASK_STATE_PENDING      1
 #define SAS_TASK_STATE_DONE         2
 #define SAS_TASK_STATE_ABORTED      4
-#define SAS_TASK_INITIATOR_ABORTED  8
+#define SAS_TASK_NEED_DEV_RESET     8
+#define SAS_TASK_AT_INITIATOR       16
 
 static inline struct sas_task *sas_alloc_task(gfp_t flags)
 {
 	extern struct kmem_cache *sas_task_cache;
-	struct sas_task *task = kmem_cache_alloc(sas_task_cache, flags);
+	struct sas_task *task = kmem_cache_zalloc(sas_task_cache, flags);
 
 	if (task) {
-		memset(task, 0, sizeof(*task));
 		INIT_LIST_HEAD(&task->list);
 		spin_lock_init(&task->task_state_lock);
 		task->task_state_flags = SAS_TASK_STATE_PENDING;
@@ -613,6 +621,9 @@ struct sas_domain_function_template {
 extern int sas_register_ha(struct sas_ha_struct *);
 extern int sas_unregister_ha(struct sas_ha_struct *);
 
+int sas_set_phy_speed(struct sas_phy *phy,
+		      struct sas_phy_linkrates *rates);
+int sas_phy_enable(struct sas_phy *phy, int enabled);
 int sas_phy_reset(struct sas_phy *phy, int hard_reset);
 extern int sas_queuecommand(struct scsi_cmnd *,
 		     void (*scsi_done)(struct scsi_cmnd *));
@@ -646,6 +657,9 @@ void sas_unregister_dev(struct domain_device *);
 
 void sas_init_dev(struct domain_device *);
 
-void sas_task_abort(struct work_struct *);
+void sas_task_abort(struct sas_task *);
+int __sas_task_abort(struct sas_task *);
+int sas_eh_device_reset_handler(struct scsi_cmnd *cmd);
+int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd);
 
 #endif /* _SASLIB_H_ */

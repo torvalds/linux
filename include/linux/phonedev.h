@@ -9,7 +9,7 @@
 
 struct phone_device {
 	struct phone_device *next;
-	struct file_operations *f_op;
+	const struct file_operations *f_op;
 	int (*open) (struct phone_device *, struct file *);
 	int board;		/* Device private index */
 	int minor;

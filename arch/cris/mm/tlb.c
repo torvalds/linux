@@ -8,6 +8,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <asm/tlb.h>
 
 #define D(x)
@@ -100,7 +101,7 @@ tlb_init(void)
 
 	/* clear the page_id map */
 
-	for (i = 1; i < sizeof (page_id_map) / sizeof (page_id_map[0]); i++)
+	for (i = 1; i < ARRAY_SIZE(page_id_map); i++)
 		page_id_map[i] = NULL;
 	
 	/* invalidate the entire TLB */

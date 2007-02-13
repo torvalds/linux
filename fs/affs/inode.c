@@ -12,7 +12,7 @@
 
 #include "affs.h"
 
-extern struct inode_operations affs_symlink_inode_operations;
+extern const struct inode_operations affs_symlink_inode_operations;
 extern struct timezone sys_tz;
 
 void

@@ -33,7 +33,7 @@ static struct seq_operations proc_keys_ops = {
 	.show	= proc_keys_show,
 };
 
-static struct file_operations proc_keys_fops = {
+static const struct file_operations proc_keys_fops = {
 	.open		= proc_keys_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -54,7 +54,7 @@ static struct seq_operations proc_key_users_ops = {
 	.show	= proc_key_users_show,
 };
 
-static struct file_operations proc_key_users_fops = {
+static const struct file_operations proc_key_users_fops = {
 	.open		= proc_key_users_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

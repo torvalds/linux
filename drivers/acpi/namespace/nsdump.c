@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -205,7 +205,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 		if (!acpi_ut_valid_acpi_name(this_node->name.integer)) {
 			this_node->name.integer =
-			    acpi_ut_repair_name(this_node->name.integer);
+			    acpi_ut_repair_name(this_node->name.ascii);
 
 			ACPI_WARNING((AE_INFO, "Invalid ACPI Name %08X",
 				      this_node->name.integer));
@@ -225,6 +225,12 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 	acpi_dbg_level = 0;
 	obj_desc = acpi_ns_get_attached_object(this_node);
 	acpi_dbg_level = dbg_level;
+
+	/* Temp nodes are those nodes created by a control method */
+
+	if (this_node->flags & ANOBJ_TEMPORARY) {
+		acpi_os_printf("(T) ");
+	}
 
 	switch (info->display_type & ACPI_DISPLAY_MASK) {
 	case ACPI_DISPLAY_SUMMARY:
@@ -623,7 +629,8 @@ acpi_ns_dump_objects(acpi_object_type type,
 	info.display_type = display_type;
 
 	(void)acpi_ns_walk_namespace(type, start_handle, max_depth,
-				     ACPI_NS_WALK_NO_UNLOCK,
+				     ACPI_NS_WALK_NO_UNLOCK |
+				     ACPI_NS_WALK_TEMP_NODES,
 				     acpi_ns_dump_one_object, (void *)&info,
 				     NULL);
 }

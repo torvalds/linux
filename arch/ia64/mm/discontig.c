@@ -37,7 +37,9 @@ struct early_node_data {
 	unsigned long pernode_size;
 	struct bootmem_data bootmem_data;
 	unsigned long num_physpages;
+#ifdef CONFIG_ZONE_DMA
 	unsigned long num_dma_physpages;
+#endif
 	unsigned long min_pfn;
 	unsigned long max_pfn;
 };
@@ -412,37 +414,6 @@ static void __init memory_less_nodes(void)
 	return;
 }
 
-#ifdef CONFIG_SPARSEMEM
-/**
- * register_sparse_mem - notify SPARSEMEM that this memory range exists.
- * @start: physical start of range
- * @end: physical end of range
- * @arg: unused
- *
- * Simply calls SPARSEMEM to register memory section(s).
- */
-static int __init register_sparse_mem(unsigned long start, unsigned long end,
-	void *arg)
-{
-	int nid;
-
-	start = __pa(start) >> PAGE_SHIFT;
-	end = __pa(end) >> PAGE_SHIFT;
-	nid = early_pfn_to_nid(start);
-	memory_present(nid, start, end);
-
-	return 0;
-}
-
-static void __init arch_sparse_init(void)
-{
-	efi_memmap_walk(register_sparse_mem, NULL);
-	sparse_init();
-}
-#else
-#define arch_sparse_init() do {} while (0)
-#endif
-
 /**
  * find_memory - walk the EFI memory map and setup the bootmem allocator
  *
@@ -473,6 +444,9 @@ void __init find_memory(void)
 			node_clear(node, memory_less_mask);
 			mem_data[node].min_pfn = ~0UL;
 		}
+
+	efi_memmap_walk(register_active_ranges, NULL);
+
 	/*
 	 * Initialize the boot memory maps in reverse order since that's
 	 * what the bootmem allocator expects
@@ -506,6 +480,12 @@ void __init find_memory(void)
 	max_pfn = max_low_pfn;
 
 	find_initrd();
+
+#ifdef CONFIG_CRASH_DUMP
+	/* If we are doing a crash dump, we still need to know the real mem
+	 * size before original memory map is reset. */
+        saved_max_pfn = max_pfn;
+#endif
 }
 
 #ifdef CONFIG_SMP
@@ -654,11 +634,12 @@ static __init int count_node_pages(unsigned long start, unsigned long len, int n
 {
 	unsigned long end = start + len;
 
-	add_active_range(node, start >> PAGE_SHIFT, end >> PAGE_SHIFT);
 	mem_data[node].num_physpages += len >> PAGE_SHIFT;
+#ifdef CONFIG_ZONE_DMA
 	if (start <= __pa(MAX_DMA_ADDRESS))
 		mem_data[node].num_dma_physpages +=
 			(min(end, __pa(MAX_DMA_ADDRESS)) - start) >>PAGE_SHIFT;
+#endif
 	start = GRANULEROUNDDOWN(start);
 	start = ORDERROUNDDOWN(start);
 	end = GRANULEROUNDUP(end);
@@ -686,9 +667,10 @@ void __init paging_init(void)
 
 	max_dma = virt_to_phys((void *) MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 
-	arch_sparse_init();
-
 	efi_memmap_walk(filter_rsvd_memory, count_node_pages);
+
+	sparse_memory_present_with_active_regions(MAX_NUMNODES);
+	sparse_init();
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 	vmalloc_end -= PAGE_ALIGN(ALIGN(max_low_pfn, MAX_ORDER_NR_PAGES) *
@@ -710,7 +692,9 @@ void __init paging_init(void)
 	}
 
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+#ifdef CONFIG_ZONE_DMA
 	max_zone_pfns[ZONE_DMA] = max_dma;
+#endif
 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
 	free_area_init_nodes(max_zone_pfns);
 

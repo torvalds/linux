@@ -3,7 +3,7 @@
  *	Linux INET6 implementation
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *	Alexey Kuznetsov	<kuznet@ms2.inr.ac.ru>
  *
  *	$Id: sit.c,v 1.53 2001/09/25 05:09:53 davem Exp $
@@ -410,7 +410,7 @@ static inline __be32 try_6to4(struct in6_addr *v6dst)
 	__be32 dst = 0;
 
 	if (v6dst->s6_addr16[0] == htons(0x2002)) {
-	        /* 6to4 v6 addr has 16 bits prefix, 32 v4addr, 16 SLA, ... */
+		/* 6to4 v6 addr has 16 bits prefix, 32 v4addr, 16 SLA, ... */
 		memcpy(&dst, &v6dst->s6_addr16[1], 4);
 	}
 	return dst;
@@ -434,7 +434,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	int    max_headroom;			/* The extra header space needed */
 	__be32 dst = tiph->daddr;
 	int    mtu;
-	struct in6_addr *addr6;	
+	struct in6_addr *addr6;
 	int addr_type;
 
 	if (tunnel->recursion++) {
@@ -537,7 +537,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct sk_buff *new_skb = skb_realloc_headroom(skb, max_headroom);
 		if (!new_skb) {
 			ip_rt_put(rt);
-  			stats->tx_dropped++;
+			stats->tx_dropped++;
 			dev_kfree_skb(skb);
 			tunnel->recursion--;
 			return 0;
@@ -686,7 +686,8 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 				goto done;
 			dev = t->dev;
 		}
-		err = unregister_netdevice(dev);
+		unregister_netdevice(dev);
+		err = 0;
 		break;
 
 	default:
@@ -830,7 +831,7 @@ static int __init sit_init(void)
 		return -EAGAIN;
 	}
 
-	ipip6_fb_tunnel_dev = alloc_netdev(sizeof(struct ip_tunnel), "sit0", 
+	ipip6_fb_tunnel_dev = alloc_netdev(sizeof(struct ip_tunnel), "sit0",
 					   ipip6_tunnel_setup);
 	if (!ipip6_fb_tunnel_dev) {
 		err = -ENOMEM;

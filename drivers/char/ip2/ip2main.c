@@ -1271,8 +1271,8 @@ static void do_input(struct work_struct *work)
 // code duplicated from n_tty (ldisc)
 static inline void  isig(int sig, struct tty_struct *tty, int flush)
 {
-	if (tty->pgrp > 0)
-		kill_pg(tty->pgrp, sig, 1);
+	if (tty->pgrp)
+		kill_pgrp(tty->pgrp, sig, 1);
 	if (flush || !L_NOFLSH(tty)) {
 		if ( tty->ldisc.flush_buffer )  
 			tty->ldisc.flush_buffer(tty);

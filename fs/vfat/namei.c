@@ -996,7 +996,7 @@ error_inode:
 	goto out;
 }
 
-static struct inode_operations vfat_dir_inode_operations = {
+static const struct inode_operations vfat_dir_inode_operations = {
 	.create		= vfat_create,
 	.lookup		= vfat_lookup,
 	.unlink		= vfat_unlink,

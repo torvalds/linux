@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2001-2002  MontaVista Software Inc.
  *    Author: Yoichi Yuasa <yyuasa@mvista.com or source@mvista.com>
- *  Copyright (C) 2003-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2003-2006  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -68,6 +68,7 @@ static unsigned char sysint2_assign[16] = {
 #define MPIUINTREG	0x0e
 #define MAIUINTREG	0x10
 #define MKIUINTREG	0x12
+#define MMACINTREG	0x12
 #define MGIUINTLREG	0x14
 #define MDSIUINTREG	0x16
 #define NMIREG		0x18
@@ -240,6 +241,30 @@ void vr41xx_disable_kiuint(uint16_t mask)
 }
 
 EXPORT_SYMBOL(vr41xx_disable_kiuint);
+
+void vr41xx_enable_macint(uint16_t mask)
+{
+	struct irq_desc *desc = irq_desc + ETHERNET_IRQ;
+	unsigned long flags;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	icu1_set(MMACINTREG, mask);
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+
+EXPORT_SYMBOL(vr41xx_enable_macint);
+
+void vr41xx_disable_macint(uint16_t mask)
+{
+	struct irq_desc *desc = irq_desc + ETHERNET_IRQ;
+	unsigned long flags;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	icu1_clear(MMACINTREG, mask);
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+
+EXPORT_SYMBOL(vr41xx_disable_macint);
 
 void vr41xx_enable_dsiuint(uint16_t mask)
 {
@@ -428,7 +453,7 @@ static void enable_sysint1_irq(unsigned int irq)
 }
 
 static struct irq_chip sysint1_irq_type = {
-	.typename	= "SYSINT1",
+	.name		= "SYSINT1",
 	.ack		= disable_sysint1_irq,
 	.mask		= disable_sysint1_irq,
 	.mask_ack	= disable_sysint1_irq,
@@ -446,7 +471,7 @@ static void enable_sysint2_irq(unsigned int irq)
 }
 
 static struct irq_chip sysint2_irq_type = {
-	.typename	= "SYSINT2",
+	.name		= "SYSINT2",
 	.ack		= disable_sysint2_irq,
 	.mask		= disable_sysint2_irq,
 	.mask_ack	= disable_sysint2_irq,

@@ -191,7 +191,7 @@ config MOXA_INTELLIO
 	  module will be called moxa.
 
 config MOXA_SMARTIO
-	tristate "Moxa SmartIO support"
+	tristate "Moxa SmartIO support (OBSOLETE)"
 	depends on SERIAL_NONSTANDARD
 	help
 	  Say Y here if you have a Moxa SmartIO multiport serial card.
@@ -202,7 +202,7 @@ config MOXA_SMARTIO
 	  here.
 
 config MOXA_SMARTIO_NEW
-	tristate "Moxa SmartIO support v. 2.0 (EXPERIMENTAL)"
+	tristate "Moxa SmartIO support v. 2.0"
 	depends on SERIAL_NONSTANDARD && (PCI || EISA || ISA)
 	help
 	  Say Y here if you have a Moxa SmartIO multiport serial card and/or
@@ -609,6 +609,13 @@ config HVC_RTAS
 	select HVC_DRIVER
 	help
 	  IBM Console device driver which makes use of RTAS
+
+config HVC_BEAT
+	bool "Toshiba's Beat Hypervisor Console support"
+	depends on PPC_CELLEB
+	select HVC_DRIVER
+	help
+	  Toshiba's Cell Reference Set Beat Console device driver
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"

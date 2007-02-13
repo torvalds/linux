@@ -443,31 +443,17 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 {
 	struct guest_walker walker;
-	pt_element_t guest_pte;
-	gpa_t gpa;
+	gpa_t gpa = UNMAPPED_GVA;
+	int r;
 
-	FNAME(walk_addr)(&walker, vcpu, vaddr, 0, 0, 0);
-	guest_pte = *walker.ptep;
-	FNAME(release_walker)(&walker);
+	r = FNAME(walk_addr)(&walker, vcpu, vaddr, 0, 0, 0);
 
-	if (!is_present_pte(guest_pte))
-		return UNMAPPED_GVA;
-
-	if (walker.level == PT_DIRECTORY_LEVEL) {
-		ASSERT((guest_pte & PT_PAGE_SIZE_MASK));
-		ASSERT(PTTYPE == 64 || is_pse(vcpu));
-
-		gpa = (guest_pte & PT_DIR_BASE_ADDR_MASK) | (vaddr &
-			(PT_LEVEL_MASK(PT_PAGE_TABLE_LEVEL) | ~PAGE_MASK));
-
-		if (PTTYPE == 32 && is_cpuid_PSE36())
-			gpa |= (guest_pte & PT32_DIR_PSE36_MASK) <<
-					(32 - PT32_DIR_PSE36_SHIFT);
-	} else {
-		gpa = (guest_pte & PT_BASE_ADDR_MASK);
-		gpa |= (vaddr & ~PAGE_MASK);
+	if (r) {
+		gpa = (gpa_t)walker.gfn << PAGE_SHIFT;
+		gpa |= vaddr & ~PAGE_MASK;
 	}
 
+	FNAME(release_walker)(&walker);
 	return gpa;
 }
 

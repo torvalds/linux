@@ -916,6 +916,11 @@ config SERIAL_TXX9
 config HAS_TXX9_SERIAL
 	bool
 
+config SERIAL_TXX9_NR_UARTS
+	int "Maximum number of TMPTX39XX/49XX SIO ports"
+	depends on SERIAL_TXX9
+	default "6"
+
 config SERIAL_TXX9_CONSOLE
 	bool "TMPTX39XX/49XX SIO Console support"
 	depends on SERIAL_TXX9=y

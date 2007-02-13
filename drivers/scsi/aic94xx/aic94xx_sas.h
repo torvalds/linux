@@ -34,6 +34,7 @@
  * domain that this sequencer can maintain low-level connections for
  * us.  They are be 64 bytes.
  */
+#define ASD_MAX_DDBS	128
 
 struct asd_ddb_ssp_smp_target_port {
 	u8     conn_type;	  /* byte 0 */

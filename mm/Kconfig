@@ -157,3 +157,9 @@ config RESOURCES_64BIT
 	default 64BIT
 	help
 	  This option allows memory and IO resources to be 64 bit.
+
+config ZONE_DMA_FLAG
+	int
+	default "0" if !ZONE_DMA
+	default "1"
+

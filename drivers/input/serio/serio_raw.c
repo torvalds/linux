@@ -234,7 +234,7 @@ static unsigned int serio_raw_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-static struct file_operations serio_raw_fops = {
+static const struct file_operations serio_raw_fops = {
 	.owner =	THIS_MODULE,
 	.open =		serio_raw_open,
 	.release =	serio_raw_release,

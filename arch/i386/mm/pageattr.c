@@ -224,7 +224,7 @@ void global_flush_tlb(void)
 	list_replace_init(&df_list, &l);
 	spin_unlock_irq(&cpa_lock);
 	if (!cpu_has_clflush)
-		flush_map(0);
+		flush_map(NULL);
 	list_for_each_entry_safe(pg, next, &l, lru) {
 		if (cpu_has_clflush)
 			flush_map(page_address(pg));

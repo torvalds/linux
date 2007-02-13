@@ -431,7 +431,6 @@ reterror:
 	return(ret);
 }
 
-extern void BChannel_bh(struct BCState *);
 #define B_LL_NOCARRIER	8
 #define B_LL_CONNECT	9
 #define B_LL_OK		10

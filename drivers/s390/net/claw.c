@@ -121,7 +121,7 @@ MODULE_LICENSE("GPL");
 #define DEBUG
 #endif
 
- char debug_buffer[255];
+static char debug_buffer[255];
 /**
  * Debug Facility Stuff
  */
@@ -223,16 +223,14 @@ static void claw_timer ( struct chbk * p_ch );
 /* Functions */
 static int add_claw_reads(struct net_device *dev,
 	struct ccwbk* p_first, struct ccwbk* p_last);
-static void inline ccw_check_return_code (struct ccw_device *cdev,
-        int return_code);
-static void inline ccw_check_unit_check (struct chbk * p_ch,
-	unsigned char sense );
+static void ccw_check_return_code (struct ccw_device *cdev, int return_code);
+static void ccw_check_unit_check (struct chbk * p_ch, unsigned char sense );
 static int find_link(struct net_device *dev, char *host_name, char *ws_name );
 static int claw_hw_tx(struct sk_buff *skb, struct net_device *dev, long linkid);
 static int init_ccw_bk(struct net_device *dev);
 static void probe_error( struct ccwgroup_device *cgdev);
 static struct net_device_stats *claw_stats(struct net_device *dev);
-static int inline pages_to_order_of_mag(int num_of_pages);
+static int pages_to_order_of_mag(int num_of_pages);
 static struct sk_buff *claw_pack_skb(struct claw_privbk *privptr);
 #ifdef DEBUG
 static void dumpit (char *buf, int len);
@@ -1310,7 +1308,7 @@ claw_timer ( struct chbk * p_ch )
 *    of magnitude get_free_pages() has an upper order of 9           *
 *--------------------------------------------------------------------*/
 
-static int inline
+static int
 pages_to_order_of_mag(int num_of_pages)
 {
 	int	order_of_mag=1;		/* assume 2 pages */
@@ -1482,7 +1480,7 @@ add_claw_reads(struct net_device *dev, struct ccwbk* p_first,
  *                                                                   *
  *-------------------------------------------------------------------*/
 
-static void inline
+static void
 ccw_check_return_code(struct ccw_device *cdev, int return_code)
 {
 #ifdef FUNCTRACE
@@ -1529,7 +1527,7 @@ ccw_check_return_code(struct ccw_device *cdev, int return_code)
 *       ccw_check_unit_check                                         *
 *--------------------------------------------------------------------*/
 
-static void inline
+static void
 ccw_check_unit_check(struct chbk * p_ch, unsigned char sense )
 {
 	struct net_device *dev = p_ch->ndev;

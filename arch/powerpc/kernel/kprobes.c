@@ -46,8 +46,8 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	if ((unsigned long)p->addr & 0x03) {
 		printk("Attempt to register kprobe at an unaligned address\n");
 		ret = -EINVAL;
-	} else if (IS_MTMSRD(insn) || IS_RFID(insn)) {
-		printk("Cannot register a kprobe on rfid or mtmsrd\n");
+	} else if (IS_MTMSRD(insn) || IS_RFID(insn) || IS_RFI(insn)) {
+		printk("Cannot register a kprobe on rfi/rfid or mtmsr[d]\n");
 		ret = -EINVAL;
 	}
 
@@ -483,8 +483,12 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	memcpy(&kcb->jprobe_saved_regs, regs, sizeof(struct pt_regs));
 
 	/* setup return addr to the jprobe handler routine */
+#ifdef CONFIG_PPC64
 	regs->nip = (unsigned long)(((func_descr_t *)jp->entry)->entry);
 	regs->gpr[2] = (unsigned long)(((func_descr_t *)jp->entry)->toc);
+#else
+	regs->nip = (unsigned long)jp->entry;
+#endif
 
 	return 1;
 }

@@ -265,8 +265,6 @@ do {									\
  */
 #define __get_user_asm_ll32(val, addr)					\
 {									\
-        unsigned long long __gu_tmp;					\
-									\
 	__asm__ __volatile__(						\
 	"1:	lw	%1, (%3)				\n"	\
 	"2:	lw	%D1, 4(%3)				\n"	\
@@ -281,9 +279,8 @@ do {									\
 	"	" __UA_ADDR "	1b, 4b				\n"	\
 	"	" __UA_ADDR "	2b, 4b				\n"	\
 	"	.previous					\n"	\
-	: "=r" (__gu_err), "=&r" (__gu_tmp)				\
+	: "=r" (__gu_err), "=&r" (val)					\
 	: "0" (0), "r" (addr), "i" (-EFAULT));				\
-	(val) = (__typeof__(*(addr))) __gu_tmp;				\
 }
 
 /*
@@ -488,7 +485,8 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 })
 
 /*
- * __copy_from_user: - Copy a block of data from user space, with less checking. * @to:   Destination address, in kernel space.
+ * __copy_from_user: - Copy a block of data from user space, with less checking.
+ * @to:   Destination address, in kernel space.
  * @from: Source address, in user space.
  * @n:    Number of bytes to copy.
  *

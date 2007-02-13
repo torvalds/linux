@@ -1,3 +1,6 @@
+#ifndef _OPSPUT_OPSPUT_LAN_H
+#define _OPSPUT_OPSPUT_LAN_H
+
 /*
  * include/asm-m32r/opsput/opsput_lan.h
  *
@@ -8,13 +11,7 @@
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file "COPYING" in the main directory of
  * this archive for more details.
- *
- * $Id: opsput_lan.h,v 1.1 2004/07/27 06:54:20 sakugawa Exp $
  */
-
-#ifndef _OPSPUT_OPSPUT_LAN_H
-#define _OPSPUT_OPSPUT_LAN_H
-
 
 #ifndef __ASSEMBLY__
 /*
@@ -23,7 +20,7 @@
 #define OPSPUT_LAN_BASE	(0x10000000 /* + NONCACHE_OFFSET */)
 #else
 #define OPSPUT_LAN_BASE	(0x10000000 + NONCACHE_OFFSET)
-#endif	/* __ASSEMBLY__ */
+#endif /* __ASSEMBLY__ */
 
 /* ICU
  *  ICUISTS:	status register
@@ -52,4 +49,4 @@
 #define OPSPUT_LAN_ICUCR1	__reg16(OPSPUT_LAN_BASE + 0xc0010)
 #define OPSPUT_LAN_ICUCR3	__reg16(OPSPUT_LAN_BASE + 0xc0014)
 
-#endif	/* _OPSPUT_OPSPUT_LAN_H */
+#endif /* _OPSPUT_OPSPUT_LAN_H */

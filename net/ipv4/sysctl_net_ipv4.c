@@ -24,7 +24,7 @@ extern int sysctl_ip_nonlocal_bind;
 
 #ifdef CONFIG_SYSCTL
 static int zero;
-static int tcp_retr1_max = 255; 
+static int tcp_retr1_max = 255;
 static int ip_local_port_range_min[] = { 1, 1 };
 static int ip_local_port_range_max[] = { 65535, 65535 };
 #endif
@@ -187,7 +187,7 @@ static int strategy_allowed_congestion_control(ctl_table *table, int __user *nam
 }
 
 ctl_table ipv4_table[] = {
-        {
+	{
 		.ctl_name	= NET_IPV4_TCP_TIMESTAMPS,
 		.procname	= "tcp_timestamps",
 		.data		= &sysctl_tcp_timestamps,
@@ -195,7 +195,7 @@ ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
-        {
+	{
 		.ctl_name	= NET_IPV4_TCP_WINDOW_SCALING,
 		.procname	= "tcp_window_scaling",
 		.data		= &sysctl_tcp_window_scaling,
@@ -203,7 +203,7 @@ ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
-        {
+	{
 		.ctl_name	= NET_IPV4_TCP_SACK,
 		.procname	= "tcp_sack",
 		.data		= &sysctl_tcp_sack,
@@ -211,7 +211,7 @@ ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
-        {
+	{
 		.ctl_name	= NET_IPV4_TCP_RETRANS_COLLAPSE,
 		.procname	= "tcp_retrans_collapse",
 		.data		= &sysctl_tcp_retrans_collapse,
@@ -219,7 +219,7 @@ ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
-        {
+	{
 		.ctl_name	= NET_IPV4_FORWARD,
 		.procname	= "ip_forward",
 		.data		= &ipv4_devconf.forwarding,
@@ -228,16 +228,16 @@ ctl_table ipv4_table[] = {
 		.proc_handler	= &ipv4_sysctl_forward,
 		.strategy	= &ipv4_sysctl_forward_strategy
 	},
-        {
+	{
 		.ctl_name	= NET_IPV4_DEFAULT_TTL,
 		.procname	= "ip_default_ttl",
- 		.data		= &sysctl_ip_default_ttl,
+		.data		= &sysctl_ip_default_ttl,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &ipv4_doint_and_flush,
 		.strategy	= &ipv4_doint_and_flush_strategy,
 	},
-        {
+	{
 		.ctl_name	= NET_IPV4_NO_PMTU_DISC,
 		.procname	= "ip_no_pmtu_disc",
 		.data		= &ipv4_config.no_pmtu_disc,
@@ -728,7 +728,7 @@ ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
-        {
+	{
 		.ctl_name	= NET_IPV4_TCP_WORKAROUND_SIGNED_WINDOWS,
 		.procname	= "tcp_workaround_signed_windows",
 		.data		= &sysctl_tcp_workaround_signed_windows,

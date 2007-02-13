@@ -50,7 +50,7 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/cpm2_pic.h>
 
-#include "pq2ads_pd.h"
+#include "pq2ads.h"
 
 static int __init get_freq(char *name, unsigned long *val)
 {

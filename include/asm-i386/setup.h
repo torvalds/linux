@@ -6,7 +6,7 @@
 #ifndef _i386_SETUP_H
 #define _i386_SETUP_H
 
-#define COMMAND_LINE_SIZE 256
+#define COMMAND_LINE_SIZE 2048
 
 #ifdef __KERNEL__
 #include <linux/pfn.h>

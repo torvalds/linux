@@ -306,8 +306,8 @@ int                  ocfs2_journal_dirty_data(handle_t *handle,
  * for the dinode, one for the new block. */
 #define OCFS2_SIMPLE_DIR_EXTEND_CREDITS (2)
 
-/* file update (nlink, etc) + dir entry block */
-#define OCFS2_LINK_CREDITS  (OCFS2_INODE_UPDATE_CREDITS + 1)
+/* file update (nlink, etc) + directory mtime/ctime + dir entry block */
+#define OCFS2_LINK_CREDITS  (2*OCFS2_INODE_UPDATE_CREDITS + 1)
 
 /* inode + dir inode (if we unlink a dir), + dir entry block + orphan
  * dir inode link */

@@ -392,7 +392,7 @@ enum {
 static inline long snd_ctl_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct snd_ctl_file *ctl;
-	struct list_head *list;
+	struct snd_kctl_ioctl *p;
 	void __user *argp = compat_ptr(arg);
 	int err;
 
@@ -427,8 +427,7 @@ static inline long snd_ctl_ioctl_compat(struct file *file, unsigned int cmd, uns
 	}
 
 	down_read(&snd_ioctl_rwsem);
-	list_for_each(list, &snd_control_compat_ioctls) {
-		struct snd_kctl_ioctl *p = list_entry(list, struct snd_kctl_ioctl, list);
+	list_for_each_entry(p, &snd_control_compat_ioctls, list) {
 		if (p->fioctl) {
 			err = p->fioctl(ctl->card, ctl, cmd, arg);
 			if (err != -ENOIOCTLCMD) {

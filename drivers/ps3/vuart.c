@@ -783,8 +783,8 @@ static int ps3_vuart_probe(struct device *_dev)
 
 	vuart_private.in_use++;
 	if (vuart_private.in_use == 1) {
-		result = ps3_alloc_vuart_irq((void*)&vuart_private.bmp.status,
-			&vuart_private.virq);
+		result = ps3_alloc_vuart_irq(PS3_BINDING_CPU_ANY,
+			(void*)&vuart_private.bmp.status, &vuart_private.virq);
 
 		if (result) {
 			dev_dbg(&dev->core,
@@ -867,6 +867,22 @@ static int ps3_vuart_remove(struct device *_dev)
 	return 0;
 }
 
+static void ps3_vuart_shutdown(struct device *_dev)
+{
+	struct ps3_vuart_port_device *dev = to_ps3_vuart_port_device(_dev);
+	struct ps3_vuart_port_driver *drv =
+		to_ps3_vuart_port_driver(_dev->driver);
+
+	dev_dbg(&dev->core, "%s:%d: %s\n", __func__, __LINE__,
+		dev->core.bus_id);
+
+	if (drv->shutdown)
+		drv->shutdown(dev);
+	else
+		dev_dbg(&dev->core, "%s:%d: %s no shutdown method\n", __func__,
+			__LINE__, dev->core.bus_id);
+}
+
 /**
  * ps3_vuart - The vuart instance.
  *
@@ -878,6 +894,7 @@ struct bus_type ps3_vuart = {
 	.match = ps3_vuart_match,
 	.probe = ps3_vuart_probe,
 	.remove = ps3_vuart_remove,
+	.shutdown = ps3_vuart_shutdown,
 };
 
 int __init ps3_vuart_init(void)

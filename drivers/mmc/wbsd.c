@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/mmc/wbsd.c - Winbond W83L51xD SD/MMC driver
  *
- *  Copyright (C) 2004-2005 Pierre Ossman, All Rights Reserved.
+ *  Copyright (C) 2004-2006 Pierre Ossman, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,7 +42,6 @@
 #include "wbsd.h"
 
 #define DRIVER_NAME "wbsd"
-#define DRIVER_VERSION "1.6"
 
 #define DBG(x...) \
 	pr_debug(DRIVER_NAME ": " x)
@@ -272,16 +271,9 @@ static inline int wbsd_next_sg(struct wbsd_host *host)
 	return host->num_sg;
 }
 
-static inline char *wbsd_kmap_sg(struct wbsd_host *host)
+static inline char *wbsd_sg_to_buffer(struct wbsd_host *host)
 {
-	host->mapped_sg = kmap_atomic(host->cur_sg->page, KM_BIO_SRC_IRQ) +
-		host->cur_sg->offset;
-	return host->mapped_sg;
-}
-
-static inline void wbsd_kunmap_sg(struct wbsd_host *host)
-{
-	kunmap_atomic(host->mapped_sg, KM_BIO_SRC_IRQ);
+	return page_address(host->cur_sg->page) + host->cur_sg->offset;
 }
 
 static inline void wbsd_sg_to_dma(struct wbsd_host *host, struct mmc_data *data)
@@ -302,12 +294,11 @@ static inline void wbsd_sg_to_dma(struct wbsd_host *host, struct mmc_data *data)
 	 * we do not transfer too much.
 	 */
 	for (i = 0; i < len; i++) {
-		sgbuf = kmap_atomic(sg[i].page, KM_BIO_SRC_IRQ) + sg[i].offset;
+		sgbuf = page_address(sg[i].page) + sg[i].offset;
 		if (size < sg[i].length)
 			memcpy(dmabuf, sgbuf, size);
 		else
 			memcpy(dmabuf, sgbuf, sg[i].length);
-		kunmap_atomic(sgbuf, KM_BIO_SRC_IRQ);
 		dmabuf += sg[i].length;
 
 		if (size < sg[i].length)
@@ -347,12 +338,11 @@ static inline void wbsd_dma_to_sg(struct wbsd_host *host, struct mmc_data *data)
 	 * we do not transfer too much.
 	 */
 	for (i = 0; i < len; i++) {
-		sgbuf = kmap_atomic(sg[i].page, KM_BIO_SRC_IRQ) + sg[i].offset;
+		sgbuf = page_address(sg[i].page) + sg[i].offset;
 		if (size < sg[i].length)
 			memcpy(sgbuf, dmabuf, size);
 		else
 			memcpy(sgbuf, dmabuf, sg[i].length);
-		kunmap_atomic(sgbuf, KM_BIO_SRC_IRQ);
 		dmabuf += sg[i].length;
 
 		if (size < sg[i].length)
@@ -497,7 +487,7 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 	if (data->bytes_xfered == host->size)
 		return;
 
-	buffer = wbsd_kmap_sg(host) + host->offset;
+	buffer = wbsd_sg_to_buffer(host) + host->offset;
 
 	/*
 	 * Drain the fifo. This has a tendency to loop longer
@@ -526,17 +516,13 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 			/*
 			 * Transfer done?
 			 */
-			if (data->bytes_xfered == host->size) {
-				wbsd_kunmap_sg(host);
+			if (data->bytes_xfered == host->size)
 				return;
-			}
 
 			/*
 			 * End of scatter list entry?
 			 */
 			if (host->remain == 0) {
-				wbsd_kunmap_sg(host);
-
 				/*
 				 * Get next entry. Check if last.
 				 */
@@ -554,12 +540,10 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 					return;
 				}
 
-				buffer = wbsd_kmap_sg(host);
+				buffer = wbsd_sg_to_buffer(host);
 			}
 		}
 	}
-
-	wbsd_kunmap_sg(host);
 
 	/*
 	 * This is a very dirty hack to solve a
@@ -583,7 +567,7 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 	if (data->bytes_xfered == host->size)
 		return;
 
-	buffer = wbsd_kmap_sg(host) + host->offset;
+	buffer = wbsd_sg_to_buffer(host) + host->offset;
 
 	/*
 	 * Fill the fifo. This has a tendency to loop longer
@@ -612,17 +596,13 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 			/*
 			 * Transfer done?
 			 */
-			if (data->bytes_xfered == host->size) {
-				wbsd_kunmap_sg(host);
+			if (data->bytes_xfered == host->size)
 				return;
-			}
 
 			/*
 			 * End of scatter list entry?
 			 */
 			if (host->remain == 0) {
-				wbsd_kunmap_sg(host);
-
 				/*
 				 * Get next entry. Check if last.
 				 */
@@ -640,12 +620,10 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 					return;
 				}
 
-				buffer = wbsd_kmap_sg(host);
+				buffer = wbsd_sg_to_buffer(host);
 			}
 		}
 	}
-
-	wbsd_kunmap_sg(host);
 
 	/*
 	 * The controller stops sending interrupts for
@@ -909,6 +887,45 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	 * transfered.
 	 */
 	if (cmd->data && (cmd->error == MMC_ERR_NONE)) {
+		/*
+		 * The hardware is so delightfully stupid that it has a list
+		 * of "data" commands. If a command isn't on this list, it'll
+		 * just go back to the idle state and won't send any data
+		 * interrupts.
+		 */
+		switch (cmd->opcode) {
+		case 11:
+		case 17:
+		case 18:
+		case 20:
+		case 24:
+		case 25:
+		case 26:
+		case 27:
+		case 30:
+		case 42:
+		case 56:
+			break;
+
+		/* ACMDs. We don't keep track of state, so we just treat them
+		 * like any other command. */
+		case 51:
+			break;
+
+		default:
+#ifdef CONFIG_MMC_DEBUG
+			printk(KERN_WARNING "%s: Data command %d is not "
+				"supported by this controller.\n",
+				mmc_hostname(host->mmc), cmd->opcode);
+#endif
+			cmd->data->error = MMC_ERR_INVALID;
+
+			if (cmd->data->stop)
+				wbsd_send_command(host, cmd->data->stop);
+
+			goto done;
+		};
+
 		/*
 		 * Dirty fix for hardware bug.
 		 */
@@ -1343,16 +1360,27 @@ static int __devinit wbsd_alloc_mmc(struct device *dev)
 	mmc->max_phys_segs = 128;
 
 	/*
-	 * Maximum number of sectors in one transfer. Also limited by 64kB
-	 * buffer.
+	 * Maximum request size. Also limited by 64KiB buffer.
 	 */
-	mmc->max_sectors = 128;
+	mmc->max_req_size = 65536;
 
 	/*
 	 * Maximum segment size. Could be one segment with the maximum number
-	 * of segments.
+	 * of bytes.
 	 */
-	mmc->max_seg_size = mmc->max_sectors * 512;
+	mmc->max_seg_size = mmc->max_req_size;
+
+	/*
+	 * Maximum block size. We have 12 bits (= 4095) but have to subtract
+	 * space for CRC. So the maximum is 4095 - 4*2 = 4087.
+	 */
+	mmc->max_blk_size = 4087;
+
+	/*
+	 * Maximum block count. There is no real limit so the maximum
+	 * request size will be the only restriction.
+	 */
+	mmc->max_blk_count = mmc->max_req_size;
 
 	dev_set_drvdata(dev, mmc);
 
@@ -2071,8 +2099,7 @@ static int __init wbsd_drv_init(void)
 	int result;
 
 	printk(KERN_INFO DRIVER_NAME
-		": Winbond W83L51xD SD/MMC card interface driver, "
-		DRIVER_VERSION "\n");
+		": Winbond W83L51xD SD/MMC card interface driver\n");
 	printk(KERN_INFO DRIVER_NAME ": Copyright(c) Pierre Ossman\n");
 
 #ifdef CONFIG_PNP
@@ -2136,7 +2163,6 @@ module_param(dma, int, 0444);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Winbond W83L51xD SD/MMC card interface driver");
-MODULE_VERSION(DRIVER_VERSION);
 
 #ifdef CONFIG_PNP
 MODULE_PARM_DESC(nopnp, "Scan for device instead of relying on PNP. (default 0)");

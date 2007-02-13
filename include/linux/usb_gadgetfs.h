@@ -2,7 +2,7 @@
 #include <asm/types.h>
 #include <asm/ioctl.h>
 
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 
 /*
  * Filesystem based user-mode API to USB Gadget controller hardware

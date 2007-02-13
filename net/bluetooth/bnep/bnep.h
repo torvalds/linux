@@ -1,7 +1,7 @@
 /*
   BNEP protocol definition for Linux Bluetooth stack (BlueZ).
   Copyright (C) 2002 Maxim Krasnyansky <maxk@qualcomm.com>
-	
+
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2, as
   published by the Free Software Foundation.
@@ -60,7 +60,7 @@
 // Extension types
 #define BNEP_EXT_CONTROL           0x00
 
-// Response messages 
+// Response messages
 #define BNEP_SUCCESS               0x00
 
 #define BNEP_CONN_INVALID_DST      0x01
@@ -81,7 +81,7 @@
 #define BNEP_CONNECT_TO  15
 #define BNEP_FILTER_TO   15
 
-// Headers 
+// Headers
 #define BNEP_TYPE_MASK	 0x7f
 #define BNEP_EXT_HEADER	 0x80
 
@@ -132,7 +132,7 @@ struct bnep_conndel_req {
 struct bnep_conninfo {
 	__u32 flags;
 	__u16 role;
-	__u16 state;	
+	__u16 state;
 	__u8  dst[ETH_ALEN];
 	char  device[16];
 };
@@ -155,10 +155,10 @@ int bnep_get_conninfo(struct bnep_conninfo *ci);
 // BNEP sessions
 struct bnep_session {
 	struct list_head list;
-	
+
 	unsigned int  role;
-        unsigned long state;
-        unsigned long flags;
+	unsigned long state;
+	unsigned long flags;
 	atomic_t      killed;
 
 	struct ethhdr eh;
@@ -166,7 +166,7 @@ struct bnep_session {
 
 	struct bnep_proto_filter proto_filter[BNEP_MAX_PROTO_FILTERS];
 	u64    mc_filter;
-	
+
 	struct socket    *sock;
 	struct net_device *dev;
 	struct net_device_stats stats;
@@ -178,7 +178,7 @@ int bnep_sock_cleanup(void);
 
 static inline int bnep_mc_hash(__u8 *addr)
 {
-        return (crc32_be(~0, addr, ETH_ALEN) >> 26);
+	return (crc32_be(~0, addr, ETH_ALEN) >> 26);
 }
 
 #endif

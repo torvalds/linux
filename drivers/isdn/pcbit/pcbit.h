@@ -166,6 +166,12 @@ struct pcbit_ioctl {
 #define L2_RUNNING  5
 #define L2_ERROR    6
 
-extern void pcbit_deliver(struct work_struct *work);
+void pcbit_deliver(struct work_struct *work);
+int pcbit_init_dev(int board, int mem_base, int irq);
+void pcbit_terminate(int board);
+void pcbit_l3_receive(struct pcbit_dev * dev, ulong msg, struct sk_buff * skb,
+		      ushort hdr_len, ushort refnum);
+void pcbit_state_change(struct pcbit_dev * dev, struct pcbit_chan * chan,
+			unsigned short i, unsigned short ev, unsigned short f);
 
 #endif

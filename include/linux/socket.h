@@ -16,7 +16,7 @@ struct __kernel_sockaddr_storage {
 				/* _SS_MAXSIZE value minus size of ss_family */
 } __attribute__ ((aligned(_K_SS_ALIGNSIZE)));	/* force desired alignment */
 
-#if defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2)
+#ifdef __KERNEL__
 
 #include <asm/socket.h>			/* arch-dependent defines	*/
 #include <linux/sockios.h>		/* the SIOCxxx I/O controls	*/
@@ -187,7 +187,8 @@ struct ucred {
 #define AF_LLC		26	/* Linux LLC			*/
 #define AF_TIPC		30	/* TIPC sockets			*/
 #define AF_BLUETOOTH	31	/* Bluetooth sockets 		*/
-#define AF_MAX		32	/* For now.. */
+#define AF_IUCV		32	/* IUCV sockets			*/
+#define AF_MAX		33	/* For now.. */
 
 /* Protocol families, same as address families. */
 #define PF_UNSPEC	AF_UNSPEC
@@ -220,6 +221,7 @@ struct ucred {
 #define PF_LLC		AF_LLC
 #define PF_TIPC		AF_TIPC
 #define PF_BLUETOOTH	AF_BLUETOOTH
+#define PF_IUCV		AF_IUCV
 #define PF_MAX		AF_MAX
 
 /* Maximum queue length specifiable by listen.  */

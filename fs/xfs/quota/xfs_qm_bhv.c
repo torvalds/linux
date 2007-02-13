@@ -44,8 +44,6 @@
 #include "xfs_error.h"
 #include "xfs_rw.h"
 #include "xfs_acl.h"
-#include "xfs_cap.h"
-#include "xfs_mac.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_qm.h"
@@ -384,7 +382,7 @@ xfs_qm_dqrele_null(
 }
 
 
-STATIC struct xfs_qmops xfs_qmcore_xfs = {
+static struct xfs_qmops xfs_qmcore_xfs = {
 	.xfs_qminit		= xfs_qm_newmount,
 	.xfs_qmdone		= xfs_qm_unmount_quotadestroy,
 	.xfs_qmmount		= xfs_qm_endmount,

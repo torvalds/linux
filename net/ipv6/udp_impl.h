@@ -11,9 +11,9 @@ extern void 	__udp6_lib_err(struct sk_buff *, struct inet6_skb_parm *,
 			       int , int , int , __be32 , struct hlist_head []);
 
 extern int	udpv6_getsockopt(struct sock *sk, int level, int optname,
-		     		 char __user *optval, int __user *optlen);
+				 char __user *optval, int __user *optlen);
 extern int	udpv6_setsockopt(struct sock *sk, int level, int optname,
-			  	 char __user *optval, int optlen);
+				 char __user *optval, int optlen);
 #ifdef CONFIG_COMPAT
 extern int	compat_udpv6_setsockopt(struct sock *sk, int level, int optname,
 					char __user *optval, int optlen);
@@ -24,7 +24,7 @@ extern int	udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 			      struct msghdr *msg, size_t len);
 extern int	udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 			      struct msghdr *msg, size_t len,
-		  	      int noblock, int flags, int *addr_len);
+			      int noblock, int flags, int *addr_len);
 extern int	udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb);
 extern int	udpv6_destroy_sock(struct sock *sk);
 

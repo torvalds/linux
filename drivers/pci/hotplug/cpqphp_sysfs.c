@@ -202,7 +202,7 @@ static int release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations debug_ops = {
+static const struct file_operations debug_ops = {
 	.owner = THIS_MODULE,
 	.open = open,
 	.llseek = lseek,

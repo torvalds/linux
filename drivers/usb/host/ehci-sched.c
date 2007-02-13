@@ -433,20 +433,20 @@ static int enable_periodic (struct ehci_hcd *ehci)
 	/* did clearing PSE did take effect yet?
 	 * takes effect only at frame boundaries...
 	 */
-	status = handshake (&ehci->regs->status, STS_PSS, 0, 9 * 125);
+	status = handshake(ehci, &ehci->regs->status, STS_PSS, 0, 9 * 125);
 	if (status != 0) {
 		ehci_to_hcd(ehci)->state = HC_STATE_HALT;
 		return status;
 	}
 
-	cmd = readl (&ehci->regs->command) | CMD_PSE;
-	writel (cmd, &ehci->regs->command);
+	cmd = ehci_readl(ehci, &ehci->regs->command) | CMD_PSE;
+	ehci_writel(ehci, cmd, &ehci->regs->command);
 	/* posted write ... PSS happens later */
 	ehci_to_hcd(ehci)->state = HC_STATE_RUNNING;
 
 	/* make sure ehci_work scans these */
-	ehci->next_uframe = readl (&ehci->regs->frame_index)
-				% (ehci->periodic_size << 3);
+	ehci->next_uframe = ehci_readl(ehci, &ehci->regs->frame_index)
+		% (ehci->periodic_size << 3);
 	return 0;
 }
 
@@ -458,14 +458,14 @@ static int disable_periodic (struct ehci_hcd *ehci)
 	/* did setting PSE not take effect yet?
 	 * takes effect only at frame boundaries...
 	 */
-	status = handshake (&ehci->regs->status, STS_PSS, STS_PSS, 9 * 125);
+	status = handshake(ehci, &ehci->regs->status, STS_PSS, STS_PSS, 9 * 125);
 	if (status != 0) {
 		ehci_to_hcd(ehci)->state = HC_STATE_HALT;
 		return status;
 	}
 
-	cmd = readl (&ehci->regs->command) & ~CMD_PSE;
-	writel (cmd, &ehci->regs->command);
+	cmd = ehci_readl(ehci, &ehci->regs->command) & ~CMD_PSE;
+	ehci_writel(ehci, cmd, &ehci->regs->command);
 	/* posted write ... */
 
 	ehci->next_uframe = -1;
@@ -1336,7 +1336,7 @@ iso_stream_schedule (
 		goto fail;
 	}
 
-	now = readl (&ehci->regs->frame_index) % mod;
+	now = ehci_readl(ehci, &ehci->regs->frame_index) % mod;
 
 	/* when's the last uframe this urb could start? */
 	max = now + mod;
@@ -2088,7 +2088,7 @@ scan_periodic (struct ehci_hcd *ehci)
 	 */
 	now_uframe = ehci->next_uframe;
 	if (HC_IS_RUNNING (ehci_to_hcd(ehci)->state))
-		clock = readl (&ehci->regs->frame_index);
+		clock = ehci_readl(ehci, &ehci->regs->frame_index);
 	else
 		clock = now_uframe + mod - 1;
 	clock %= mod;
@@ -2213,7 +2213,7 @@ restart:
 			if (!HC_IS_RUNNING (ehci_to_hcd(ehci)->state))
 				break;
 			ehci->next_uframe = now_uframe;
-			now = readl (&ehci->regs->frame_index) % mod;
+			now = ehci_readl(ehci, &ehci->regs->frame_index) % mod;
 			if (now_uframe == now)
 				break;
 

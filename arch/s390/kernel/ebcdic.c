@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <asm/types.h>
+#include <asm/ebcdic.h>
 
 /*
  * ASCII (IBM PC 437)  -> EBCDIC 037

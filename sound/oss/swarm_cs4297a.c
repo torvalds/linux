@@ -77,6 +77,7 @@
 #include <linux/poll.h>
 #include <linux/smp_lock.h>
 #include <linux/mutex.h>
+#include <linux/kernel.h>
 
 #include <asm/byteorder.h>
 #include <asm/dma.h>
@@ -2676,7 +2677,7 @@ static int __init cs4297a_init(void)
 #if 0
                 val = SOUND_MASK_LINE;
                 mixer_ioctl(s, SOUND_MIXER_WRITE_RECSRC, (unsigned long) &val);
-                for (i = 0; i < sizeof(initvol) / sizeof(initvol[0]); i++) {
+                for (i = 0; i < ARRAY_SIZE(initvol); i++) {
                         val = initvol[i].vol;
                         mixer_ioctl(s, initvol[i].mixch, (unsigned long) &val);
                 }

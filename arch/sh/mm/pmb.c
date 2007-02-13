@@ -378,7 +378,7 @@ static int pmb_debugfs_open(struct inode *inode, struct file *file)
 	return single_open(file, pmb_seq_show, NULL);
 }
 
-static struct file_operations pmb_debugfs_fops = {
+static const struct file_operations pmb_debugfs_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pmb_debugfs_open,
 	.read		= seq_read,

@@ -161,7 +161,7 @@ qeth_procfile_open(struct inode *inode, struct file *file)
 	return seq_open(file, &qeth_procfile_seq_ops);
 }
 
-static struct file_operations qeth_procfile_fops = {
+static const struct file_operations qeth_procfile_fops = {
 	.owner   = THIS_MODULE,
 	.open    = qeth_procfile_open,
 	.read    = seq_read,
@@ -273,7 +273,7 @@ qeth_perf_procfile_open(struct inode *inode, struct file *file)
 	return seq_open(file, &qeth_perf_procfile_seq_ops);
 }
 
-static struct file_operations qeth_perf_procfile_fops = {
+static const struct file_operations qeth_perf_procfile_fops = {
 	.owner   = THIS_MODULE,
 	.open    = qeth_perf_procfile_open,
 	.read    = seq_read,

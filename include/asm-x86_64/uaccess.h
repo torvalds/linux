@@ -37,11 +37,11 @@
  * Uhhuh, this needs 65-bit arithmetic. We have a carry..
  */
 #define __range_not_ok(addr,size) ({ \
-	unsigned long flag,sum; \
+	unsigned long flag,roksum; \
 	__chk_user_ptr(addr); \
 	asm("# range_ok\n\r" \
 		"addq %3,%1 ; sbbq %0,%0 ; cmpq %1,%4 ; sbbq $0,%0"  \
-		:"=&r" (flag), "=r" (sum) \
+		:"=&r" (flag), "=r" (roksum) \
 		:"1" (addr),"g" ((long)(size)),"g" (current_thread_info()->addr_limit.seg)); \
 	flag; })
 

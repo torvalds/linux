@@ -52,7 +52,7 @@ extern int sysctl_userprocess_debug;
 extern void die(const char *,struct pt_regs *,long);
 
 #ifdef CONFIG_KPROBES
-ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
+static ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
 int register_page_fault_notifier(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_register(&notify_page_fault_chain, nb);
@@ -83,12 +83,10 @@ static inline int notify_page_fault(enum die_val val, const char *str,
 }
 #endif
 
-extern spinlock_t timerlist_lock;
 
 /*
  * Unlock any spinlocks which will prevent us from getting the
- * message out (timerlist_lock is acquired through the
- * console unblank code)
+ * message out.
  */
 void bust_spinlocks(int yes)
 {
@@ -137,7 +135,9 @@ static int __check_access_register(struct pt_regs *regs, int error_code)
 
 /*
  * Check which address space the address belongs to.
- * Returns 1 for user space and 0 for kernel space.
+ * May return 1 or 2 for user space and 0 for kernel space.
+ * Returns 2 for user space in primary addressing mode with
+ * CONFIG_S390_EXEC_PROTECT on and kernel parameter noexec=on.
  */
 static inline int check_user_space(struct pt_regs *regs, int error_code)
 {
@@ -154,7 +154,7 @@ static inline int check_user_space(struct pt_regs *regs, int error_code)
 		return __check_access_register(regs, error_code);
 	if (descriptor == 2)
 		return current->thread.mm_segment.ar4;
-	return descriptor != 0;
+	return ((descriptor != 0) ^ (switch_amode)) << s390_noexec;
 }
 
 /*
@@ -182,6 +182,77 @@ static void do_sigsegv(struct pt_regs *regs, unsigned long error_code,
 	si.si_addr = (void __user *) address;
 	force_sig_info(SIGSEGV, &si, current);
 }
+
+#ifdef CONFIG_S390_EXEC_PROTECT
+extern long sys_sigreturn(struct pt_regs *regs);
+extern long sys_rt_sigreturn(struct pt_regs *regs);
+extern long sys32_sigreturn(struct pt_regs *regs);
+extern long sys32_rt_sigreturn(struct pt_regs *regs);
+
+static inline void do_sigreturn(struct mm_struct *mm, struct pt_regs *regs,
+				int rt)
+{
+	up_read(&mm->mmap_sem);
+	clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
+#ifdef CONFIG_COMPAT
+	if (test_tsk_thread_flag(current, TIF_31BIT)) {
+		if (rt)
+			sys32_rt_sigreturn(regs);
+		else
+			sys32_sigreturn(regs);
+		return;
+	}
+#endif /* CONFIG_COMPAT */
+	if (rt)
+		sys_rt_sigreturn(regs);
+	else
+		sys_sigreturn(regs);
+	return;
+}
+
+static int signal_return(struct mm_struct *mm, struct pt_regs *regs,
+			 unsigned long address, unsigned long error_code)
+{
+	pgd_t *pgd;
+	pmd_t *pmd;
+	pte_t *pte;
+	u16 *instruction;
+	unsigned long pfn, uaddr = regs->psw.addr;
+
+	spin_lock(&mm->page_table_lock);
+	pgd = pgd_offset(mm, uaddr);
+	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
+		goto out_fault;
+	pmd = pmd_offset(pgd, uaddr);
+	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
+		goto out_fault;
+	pte = pte_offset_map(pmd_offset(pgd_offset(mm, uaddr), uaddr), uaddr);
+	if (!pte || !pte_present(*pte))
+		goto out_fault;
+	pfn = pte_pfn(*pte);
+	if (!pfn_valid(pfn))
+		goto out_fault;
+	spin_unlock(&mm->page_table_lock);
+
+	instruction = (u16 *) ((pfn << PAGE_SHIFT) + (uaddr & (PAGE_SIZE-1)));
+	if (*instruction == 0x0a77)
+		do_sigreturn(mm, regs, 0);
+	else if (*instruction == 0x0aad)
+		do_sigreturn(mm, regs, 1);
+	else {
+		printk("- XXX - do_exception: task = %s, primary, NO EXEC "
+		       "-> SIGSEGV\n", current->comm);
+		up_read(&mm->mmap_sem);
+		current->thread.prot_addr = address;
+		current->thread.trap_no = error_code;
+		do_sigsegv(regs, error_code, SEGV_MAPERR, address);
+	}
+	return 0;
+out_fault:
+	spin_unlock(&mm->page_table_lock);
+	return -EFAULT;
+}
+#endif /* CONFIG_S390_EXEC_PROTECT */
 
 /*
  * This routine handles page faults.  It determines the address,
@@ -260,6 +331,17 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
         vma = find_vma(mm, address);
         if (!vma)
                 goto bad_area;
+
+#ifdef CONFIG_S390_EXEC_PROTECT
+	if (unlikely((user_address == 2) && !(vma->vm_flags & VM_EXEC)))
+		if (!signal_return(mm, regs, address, error_code))
+			/*
+			 * signal_return() has done an up_read(&mm->mmap_sem)
+			 * if it returns 0.
+			 */
+			return;
+#endif
+
         if (vma->vm_start <= address) 
                 goto good_area;
         if (!(vma->vm_flags & VM_GROWSDOWN))
@@ -452,8 +534,7 @@ void pfault_fini(void)
 		: : "a" (&refbk), "m" (refbk) : "cc");
 }
 
-asmlinkage void
-pfault_interrupt(__u16 error_code)
+static void pfault_interrupt(__u16 error_code)
 {
 	struct task_struct *tsk;
 	__u16 subcode;

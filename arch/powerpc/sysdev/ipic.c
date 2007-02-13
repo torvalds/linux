@@ -557,8 +557,7 @@ static struct irq_host_ops ipic_host_ops = {
 	.xlate	= ipic_host_xlate,
 };
 
-void __init ipic_init(struct device_node *node,
-		unsigned int flags)
+struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 {
 	struct ipic	*ipic;
 	struct resource res;
@@ -566,22 +565,24 @@ void __init ipic_init(struct device_node *node,
 
 	ipic = alloc_bootmem(sizeof(struct ipic));
 	if (ipic == NULL)
-		return;
+		return NULL;
 
 	memset(ipic, 0, sizeof(struct ipic));
-	ipic->of_node = node ? of_node_get(node) : NULL;
+	ipic->of_node = of_node_get(node);
 
 	ipic->irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR,
 				       NR_IPIC_INTS,
 				       &ipic_host_ops, 0);
 	if (ipic->irqhost == NULL) {
 		of_node_put(node);
-		return;
+		return NULL;
 	}
 
 	ret = of_address_to_resource(node, 0, &res);
-	if (ret)
-		return;
+	if (ret) {
+		of_node_put(node);
+		return NULL;
+	}
 
 	ipic->regs = ioremap(res.start, res.end - res.start + 1);
 
@@ -625,6 +626,8 @@ void __init ipic_init(struct device_node *node,
 
 	printk ("IPIC (%d IRQ sources) at %p\n", NR_IPIC_INTS,
 			primary_ipic->regs);
+
+	return ipic;
 }
 
 int ipic_set_priority(unsigned int virq, unsigned int priority)

@@ -36,7 +36,7 @@ static void *ufs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return NULL;
 }
 
-struct inode_operations ufs_fast_symlink_inode_operations = {
+const struct inode_operations ufs_fast_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= ufs_follow_link,
 };

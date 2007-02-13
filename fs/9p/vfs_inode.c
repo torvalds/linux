@@ -41,10 +41,10 @@
 #include "v9fs_vfs.h"
 #include "fid.h"
 
-static struct inode_operations v9fs_dir_inode_operations;
-static struct inode_operations v9fs_dir_inode_operations_ext;
-static struct inode_operations v9fs_file_inode_operations;
-static struct inode_operations v9fs_symlink_inode_operations;
+static const struct inode_operations v9fs_dir_inode_operations;
+static const struct inode_operations v9fs_dir_inode_operations_ext;
+static const struct inode_operations v9fs_file_inode_operations;
+static const struct inode_operations v9fs_symlink_inode_operations;
 
 /**
  * unixmode2p9mode - convert unix mode bits to plan 9
@@ -585,16 +585,13 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		inode = NULL;
-		goto clean_up_fids;
+		v9fs_fid_destroy(vfid);
+		goto error;
 	}
 
 	dentry->d_op = &v9fs_dentry_operations;
 	d_instantiate(dentry, inode);
 	return 0;
-
-clean_up_fids:
-	if (vfid)
-		v9fs_fid_destroy(vfid);
 
 clean_up_dfid:
 	v9fs_fid_clunk(v9ses, dfid);
@@ -1306,7 +1303,7 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 	return retval;
 }
 
-static struct inode_operations v9fs_dir_inode_operations_ext = {
+static const struct inode_operations v9fs_dir_inode_operations_ext = {
 	.create = v9fs_vfs_create,
 	.lookup = v9fs_vfs_lookup,
 	.symlink = v9fs_vfs_symlink,
@@ -1321,7 +1318,7 @@ static struct inode_operations v9fs_dir_inode_operations_ext = {
 	.setattr = v9fs_vfs_setattr,
 };
 
-static struct inode_operations v9fs_dir_inode_operations = {
+static const struct inode_operations v9fs_dir_inode_operations = {
 	.create = v9fs_vfs_create,
 	.lookup = v9fs_vfs_lookup,
 	.unlink = v9fs_vfs_unlink,
@@ -1333,12 +1330,12 @@ static struct inode_operations v9fs_dir_inode_operations = {
 	.setattr = v9fs_vfs_setattr,
 };
 
-static struct inode_operations v9fs_file_inode_operations = {
+static const struct inode_operations v9fs_file_inode_operations = {
 	.getattr = v9fs_vfs_getattr,
 	.setattr = v9fs_vfs_setattr,
 };
 
-static struct inode_operations v9fs_symlink_inode_operations = {
+static const struct inode_operations v9fs_symlink_inode_operations = {
 	.readlink = v9fs_vfs_readlink,
 	.follow_link = v9fs_vfs_follow_link,
 	.put_link = v9fs_vfs_put_link,

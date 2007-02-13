@@ -58,6 +58,7 @@ static struct usb_serial_driver funsoft_device = {
 		.name =		"funsoft",
 	},
 	.id_table =		id_table,
+	.usb_driver = 		&funsoft_driver,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
 	.num_bulk_out =		NUM_DONT_CARE,

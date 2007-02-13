@@ -372,10 +372,8 @@ static int read_log(struct tpm_bios_log *log)
 	}
 
 	/* Find TCPA entry in RSDT (ACPI_LOGICAL_ADDRESSING) */
-	status = acpi_get_firmware_table(ACPI_TCPA_SIG, 1,
-					 ACPI_LOGICAL_ADDRESSING,
-					 (struct acpi_table_header **)
-					 &buff);
+	status = acpi_get_table(ACPI_SIG_TCPA, 1,
+				(struct acpi_table_header **)&buff);
 
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_ERR "%s: ERROR - Could not get TCPA table\n",
@@ -409,7 +407,7 @@ static int read_log(struct tpm_bios_log *log)
 
 	log->bios_event_log_end = log->bios_event_log + len;
 
-	acpi_os_map_memory(start, len, (void *) &virt);
+	virt = acpi_os_map_memory(start, len);
 
 	memcpy(log->bios_event_log, virt, len);
 
@@ -443,7 +441,7 @@ static int tpm_ascii_bios_measurements_open(struct inode *inode,
 	return err;
 }
 
-struct file_operations tpm_ascii_bios_measurements_ops = {
+const struct file_operations tpm_ascii_bios_measurements_ops = {
 	.open = tpm_ascii_bios_measurements_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -476,7 +474,7 @@ static int tpm_binary_bios_measurements_open(struct inode *inode,
 	return err;
 }
 
-struct file_operations tpm_binary_bios_measurements_ops = {
+const struct file_operations tpm_binary_bios_measurements_ops = {
 	.open = tpm_binary_bios_measurements_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

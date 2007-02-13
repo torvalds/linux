@@ -53,7 +53,7 @@ ccwgroup_uevent (struct device *dev, char **envp, int num_envp, char *buffer,
 
 static struct bus_type ccwgroup_bus_type;
 
-static inline void
+static void
 __ccwgroup_remove_symlinks(struct ccwgroup_device *gdev)
 {
 	int i;
@@ -104,7 +104,7 @@ ccwgroup_release (struct device *dev)
 	kfree(gdev);
 }
 
-static inline int
+static int
 __ccwgroup_create_symlinks(struct ccwgroup_device *gdev)
 {
 	char str[8];
@@ -424,7 +424,7 @@ ccwgroup_probe_ccwdev(struct ccw_device *cdev)
 	return 0;
 }
 
-static inline struct ccwgroup_device *
+static struct ccwgroup_device *
 __ccwgroup_get_gdev_by_cdev(struct ccw_device *cdev)
 {
 	struct ccwgroup_device *gdev;

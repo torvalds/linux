@@ -42,7 +42,7 @@ rpc_register_sysctl(void)
 			sunrpc_table[0].de->owner = THIS_MODULE;
 #endif
 	}
-			
+
 }
 
 void
@@ -126,7 +126,7 @@ static ctl_table debug_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dodebug
-	}, 
+	},
 	{
 		.ctl_name	= CTL_NFSDEBUG,
 		.procname	= "nfs_debug",
@@ -134,7 +134,7 @@ static ctl_table debug_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dodebug
-	}, 
+	},
 	{
 		.ctl_name	= CTL_NFSDDEBUG,
 		.procname	= "nfsd_debug",
@@ -142,7 +142,7 @@ static ctl_table debug_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dodebug
-	}, 
+	},
 	{
 		.ctl_name	= CTL_NLMDEBUG,
 		.procname	= "nlm_debug",
@@ -150,7 +150,7 @@ static ctl_table debug_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dodebug
-	}, 
+	},
 	{ .ctl_name = 0 }
 };
 

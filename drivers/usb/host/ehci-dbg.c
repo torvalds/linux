@@ -43,7 +43,7 @@
  */
 static void dbg_hcs_params (struct ehci_hcd *ehci, char *label)
 {
-	u32	params = readl (&ehci->caps->hcs_params);
+	u32	params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
 	ehci_dbg (ehci,
 		"%s hcs_params 0x%x dbg=%d%s cc=%d pcc=%d%s%s ports=%d\n",
@@ -87,7 +87,7 @@ static inline void dbg_hcs_params (struct ehci_hcd *ehci, char *label) {}
  * */
 static void dbg_hcc_params (struct ehci_hcd *ehci, char *label)
 {
-	u32	params = readl (&ehci->caps->hcc_params);
+	u32	params = ehci_readl(ehci, &ehci->caps->hcc_params);
 
 	if (HCC_ISOC_CACHE (params)) {
 		ehci_dbg (ehci,
@@ -653,7 +653,7 @@ show_registers (struct class_device *class_dev, char *buf)
 	}
 
 	/* Capability Registers */
-	i = HC_VERSION(readl (&ehci->caps->hc_capbase));
+	i = HC_VERSION(ehci_readl(ehci, &ehci->caps->hc_capbase));
 	temp = scnprintf (next, size,
 		"bus %s, device %s (driver " DRIVER_VERSION ")\n"
 		"%s\n"
@@ -673,7 +673,7 @@ show_registers (struct class_device *class_dev, char *buf)
 		unsigned	count = 256/4;
 
 		pdev = to_pci_dev(ehci_to_hcd(ehci)->self.controller);
-		offset = HCC_EXT_CAPS (readl (&ehci->caps->hcc_params));
+		offset = HCC_EXT_CAPS (ehci_readl(ehci, &ehci->caps->hcc_params));
 		while (offset && count--) {
 			pci_read_config_dword (pdev, offset, &cap);
 			switch (cap & 0xff) {
@@ -704,50 +704,50 @@ show_registers (struct class_device *class_dev, char *buf)
 #endif
 
 	// FIXME interpret both types of params
-	i = readl (&ehci->caps->hcs_params);
+	i = ehci_readl(ehci, &ehci->caps->hcs_params);
 	temp = scnprintf (next, size, "structural params 0x%08x\n", i);
 	size -= temp;
 	next += temp;
 
-	i = readl (&ehci->caps->hcc_params);
+	i = ehci_readl(ehci, &ehci->caps->hcc_params);
 	temp = scnprintf (next, size, "capability params 0x%08x\n", i);
 	size -= temp;
 	next += temp;
 
 	/* Operational Registers */
 	temp = dbg_status_buf (scratch, sizeof scratch, label,
-			readl (&ehci->regs->status));
+			ehci_readl(ehci, &ehci->regs->status));
 	temp = scnprintf (next, size, fmt, temp, scratch);
 	size -= temp;
 	next += temp;
 
 	temp = dbg_command_buf (scratch, sizeof scratch, label,
-			readl (&ehci->regs->command));
+			ehci_readl(ehci, &ehci->regs->command));
 	temp = scnprintf (next, size, fmt, temp, scratch);
 	size -= temp;
 	next += temp;
 
 	temp = dbg_intr_buf (scratch, sizeof scratch, label,
-			readl (&ehci->regs->intr_enable));
+			ehci_readl(ehci, &ehci->regs->intr_enable));
 	temp = scnprintf (next, size, fmt, temp, scratch);
 	size -= temp;
 	next += temp;
 
 	temp = scnprintf (next, size, "uframe %04x\n",
-			readl (&ehci->regs->frame_index));
+			ehci_readl(ehci, &ehci->regs->frame_index));
 	size -= temp;
 	next += temp;
 
 	for (i = 1; i <= HCS_N_PORTS (ehci->hcs_params); i++) {
 		temp = dbg_port_buf (scratch, sizeof scratch, label, i,
-				readl (&ehci->regs->port_status [i - 1]));
+				ehci_readl(ehci, &ehci->regs->port_status [i - 1]));
 		temp = scnprintf (next, size, fmt, temp, scratch);
 		size -= temp;
 		next += temp;
 		if (i == HCS_DEBUG_PORT(ehci->hcs_params) && ehci->debug) {
 			temp = scnprintf (next, size,
 					"    debug control %08x\n",
-					readl (&ehci->debug->control));
+					ehci_readl(ehci, &ehci->debug->control));
 			size -= temp;
 			next += temp;
 		}

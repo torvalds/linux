@@ -28,8 +28,8 @@
 
 extern const struct file_operations ocfs2_fops;
 extern const struct file_operations ocfs2_dops;
-extern struct inode_operations ocfs2_file_iops;
-extern struct inode_operations ocfs2_special_file_iops;
+extern const struct inode_operations ocfs2_file_iops;
+extern const struct inode_operations ocfs2_special_file_iops;
 struct ocfs2_alloc_context;
 
 enum ocfs2_alloc_restarted {

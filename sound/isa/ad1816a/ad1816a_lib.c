@@ -906,11 +906,11 @@ static int snd_ad1816a_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	return change;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_4bit, -4500, 300, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_5bit, -4650, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_4bit, -4500, 300, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit, -4650, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
 
 static struct snd_kcontrol_new snd_ad1816a_controls[] __devinitdata = {
 AD1816A_DOUBLE("Master Playback Switch", AD1816A_MASTER_ATT, 15, 7, 1, 1),

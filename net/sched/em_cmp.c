@@ -88,7 +88,7 @@ static int __init init_em_cmp(void)
 	return tcf_em_register(&em_cmp_ops);
 }
 
-static void __exit exit_em_cmp(void) 
+static void __exit exit_em_cmp(void)
 {
 	tcf_em_unregister(&em_cmp_ops);
 }

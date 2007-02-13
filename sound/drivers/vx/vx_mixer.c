@@ -716,7 +716,7 @@ static int vx_monitor_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 	return 0;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_audio_gain, -10975, 25, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_audio_gain, -10975, 25, 0);
 
 static struct snd_kcontrol_new vx_control_audio_gain = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,

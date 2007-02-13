@@ -18,7 +18,7 @@
 #ifdef CONFIG_I8259
 static inline int irq_canonicalize(int irq)
 {
-	return ((irq == 2) ? 9 : irq);
+	return ((irq == I8259A_IRQ_BASE + 2) ? I8259A_IRQ_BASE + 9 : irq);
 }
 #else
 #define irq_canonicalize(irq) (irq)	/* Sane hardware, sane code ... */

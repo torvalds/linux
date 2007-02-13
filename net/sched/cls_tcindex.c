@@ -222,7 +222,7 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 	err = tcf_exts_validate(tp, tb, est, &e, &tcindex_ext_map);
 	if (err < 0)
 		return err;
-	
+
 	memcpy(&cp, p, sizeof(cp));
 	memset(&new_filter_result, 0, sizeof(new_filter_result));
 
@@ -316,12 +316,12 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 		f = kzalloc(sizeof(*f), GFP_KERNEL);
 		if (!f)
 			goto errout_alloc;
- 	}
+	}
 
 	if (tb[TCA_TCINDEX_CLASSID-1]) {
 		cr.res.classid = *(u32 *) RTA_DATA(tb[TCA_TCINDEX_CLASSID-1]);
 		tcf_bind_filter(tp, &cr.res, base);
- 	}
+	}
 
 	tcf_exts_change(tp, &cr.exts, &e);
 
@@ -341,7 +341,7 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 		for (fp = p->h+(handle % p->hash); *fp; fp = &(*fp)->next)
 			/* nothing */;
 		*fp = f;
- 	}
+	}
 	tcf_tree_unlock(tp);
 
 	return 0;
@@ -491,7 +491,7 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 		if (tcf_exts_dump_stats(skb, &r->exts, &tcindex_ext_map) < 0)
 			goto rtattr_failure;
 	}
-	
+
 	return skb->len;
 
 rtattr_failure:
@@ -519,7 +519,7 @@ static int __init init_tcindex(void)
 	return register_tcf_proto_ops(&cls_tcindex_ops);
 }
 
-static void __exit exit_tcindex(void) 
+static void __exit exit_tcindex(void)
 {
 	unregister_tcf_proto_ops(&cls_tcindex_ops);
 }

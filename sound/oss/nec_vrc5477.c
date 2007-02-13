@@ -1381,11 +1381,11 @@ static int vrc5477_ac97_ioctl(struct inode *inode, struct file *file,
 	int val, ret;
 
 #ifdef VRC5477_AC97_DEBUG
-	for (count=0; count<sizeof(ioctl_str)/sizeof(ioctl_str[0]); count++) {
+	for (count = 0; count < ARRAY_SIZE(ioctl_str); count++) {
 		if (ioctl_str[count].cmd == cmd)
 			break;
 	}
-	if (count < sizeof(ioctl_str)/sizeof(ioctl_str[0]))
+	if (count < ARRAY_SIZE(ioctl_str))
 		printk(KERN_INFO PFX "ioctl %s\n", ioctl_str[count].str);
 	else
 		printk(KERN_INFO PFX "ioctl unknown, 0x%x\n", cmd);

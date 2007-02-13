@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,78 @@ ACPI_MODULE_NAME("utmisc")
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_validate_exception
+ *
+ * PARAMETERS:  Status       - The acpi_status code to be formatted
+ *
+ * RETURN:      A string containing the exception text. NULL if exception is
+ *              not valid.
+ *
+ * DESCRIPTION: This function validates and translates an ACPI exception into
+ *              an ASCII string.
+ *
+ ******************************************************************************/
+const char *acpi_ut_validate_exception(acpi_status status)
+{
+	acpi_status sub_status;
+	const char *exception = NULL;
+
+	ACPI_FUNCTION_ENTRY();
+
+	/*
+	 * Status is composed of two parts, a "type" and an actual code
+	 */
+	sub_status = (status & ~AE_CODE_MASK);
+
+	switch (status & AE_CODE_MASK) {
+	case AE_CODE_ENVIRONMENTAL:
+
+		if (sub_status <= AE_CODE_ENV_MAX) {
+			exception = acpi_gbl_exception_names_env[sub_status];
+		}
+		break;
+
+	case AE_CODE_PROGRAMMER:
+
+		if (sub_status <= AE_CODE_PGM_MAX) {
+			exception =
+			    acpi_gbl_exception_names_pgm[sub_status - 1];
+		}
+		break;
+
+	case AE_CODE_ACPI_TABLES:
+
+		if (sub_status <= AE_CODE_TBL_MAX) {
+			exception =
+			    acpi_gbl_exception_names_tbl[sub_status - 1];
+		}
+		break;
+
+	case AE_CODE_AML:
+
+		if (sub_status <= AE_CODE_AML_MAX) {
+			exception =
+			    acpi_gbl_exception_names_aml[sub_status - 1];
+		}
+		break;
+
+	case AE_CODE_CONTROL:
+
+		if (sub_status <= AE_CODE_CTRL_MAX) {
+			exception =
+			    acpi_gbl_exception_names_ctrl[sub_status - 1];
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return (ACPI_CAST_PTR(const char, exception));
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_is_aml_table
  *
  * PARAMETERS:  Table               - An ACPI table
@@ -62,14 +134,15 @@ ACPI_MODULE_NAME("utmisc")
  *              data tables that do not contain AML code.
  *
  ******************************************************************************/
+
 u8 acpi_ut_is_aml_table(struct acpi_table_header *table)
 {
 
 	/* These are the only tables that contain executable AML */
 
-	if (ACPI_COMPARE_NAME(table->signature, DSDT_SIG) ||
-	    ACPI_COMPARE_NAME(table->signature, PSDT_SIG) ||
-	    ACPI_COMPARE_NAME(table->signature, SSDT_SIG)) {
+	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT) ||
+	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_PSDT) ||
+	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_SSDT)) {
 		return (TRUE);
 	}
 
@@ -418,7 +491,7 @@ u32 acpi_ut_dword_byte_swap(u32 value)
 void acpi_ut_set_integer_width(u8 revision)
 {
 
-	if (revision <= 1) {
+	if (revision < 2) {
 
 		/* 32-bit case */
 
@@ -582,26 +655,25 @@ u8 acpi_ut_valid_acpi_name(u32 name)
  *
  ******************************************************************************/
 
-acpi_name acpi_ut_repair_name(acpi_name name)
+acpi_name acpi_ut_repair_name(char *name)
 {
-	char *name_ptr = ACPI_CAST_PTR(char, &name);
-	char new_name[ACPI_NAME_SIZE];
 	acpi_native_uint i;
+	char new_name[ACPI_NAME_SIZE];
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		new_name[i] = name_ptr[i];
+		new_name[i] = name[i];
 
 		/*
 		 * Replace a bad character with something printable, yet technically
 		 * still invalid. This prevents any collisions with existing "good"
 		 * names in the namespace.
 		 */
-		if (!acpi_ut_valid_acpi_char(name_ptr[i], i)) {
+		if (!acpi_ut_valid_acpi_char(name[i], i)) {
 			new_name[i] = '*';
 		}
 	}
 
-	return (*ACPI_CAST_PTR(u32, new_name));
+	return (*(u32 *) new_name);
 }
 
 /*******************************************************************************
@@ -996,9 +1068,13 @@ acpi_ut_info(char *module_name, u32 line_number, char *format, ...)
 {
 	va_list args;
 
-	acpi_os_printf("ACPI (%s-%04d): ", module_name, line_number);
+	/*
+	 * Removed module_name, line_number, and acpica version, not needed
+	 * for info output
+	 */
+	acpi_os_printf("ACPI: ");
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
-	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
+	acpi_os_printf("\n");
 }

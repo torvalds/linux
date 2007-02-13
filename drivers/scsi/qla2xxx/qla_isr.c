@@ -86,12 +86,8 @@ qla2100_intr_handler(int irq, void *dev_id)
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
-		spin_lock_irqsave(&ha->mbx_reg_lock, flags);
-
 		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 		up(&ha->mbx_intr_sem);
-
-		spin_unlock_irqrestore(&ha->mbx_reg_lock, flags);
 	}
 
 	return (IRQ_HANDLED);
@@ -199,12 +195,8 @@ qla2300_intr_handler(int irq, void *dev_id)
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
-		spin_lock_irqsave(&ha->mbx_reg_lock, flags);
-
 		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 		up(&ha->mbx_intr_sem);
-
-		spin_unlock_irqrestore(&ha->mbx_reg_lock, flags);
 	}
 
 	return (IRQ_HANDLED);
@@ -654,10 +646,8 @@ qla2x00_ramp_up_queue_depth(scsi_qla_host_t *ha, srb_t *sp)
 	    fcport->last_queue_full + ql2xqfullrampup * HZ))
 		return;
 
-	spin_unlock_irq(&ha->hardware_lock);
 	starget_for_each_device(sdev->sdev_target, fcport,
 	    qla2x00_adjust_sdev_qdepth_up);
-	spin_lock_irq(&ha->hardware_lock);
 }
 
 /**
@@ -927,10 +917,8 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 			/* Adjust queue depth for all luns on the port. */
 			fcport->last_queue_full = jiffies;
-			spin_unlock_irq(&ha->hardware_lock);
 			starget_for_each_device(cp->device->sdev_target,
 			    fcport, qla2x00_adjust_sdev_qdepth_down);
-			spin_lock_irq(&ha->hardware_lock);
 			break;
 		}
 		if (lscsi_status != SS_CHECK_CONDITION)
@@ -995,6 +983,22 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		if (lscsi_status != 0) {
 			cp->result = DID_OK << 16 | lscsi_status;
 
+			if (lscsi_status == SAM_STAT_TASK_SET_FULL) {
+				DEBUG2(printk(KERN_INFO
+				    "scsi(%ld): QUEUE FULL status detected "
+				    "0x%x-0x%x.\n", ha->host_no, comp_status,
+				    scsi_status));
+
+				/*
+				 * Adjust queue depth for all luns on the
+				 * port.
+				 */
+				fcport->last_queue_full = jiffies;
+				starget_for_each_device(
+				    cp->device->sdev_target, fcport,
+				    qla2x00_adjust_sdev_qdepth_down);
+				break;
+			}
 			if (lscsi_status != SS_CHECK_CONDITION)
 				break;
 
@@ -1482,12 +1486,8 @@ qla24xx_intr_handler(int irq, void *dev_id)
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
-		spin_lock_irqsave(&ha->mbx_reg_lock, flags);
-
 		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 		up(&ha->mbx_intr_sem);
-
-		spin_unlock_irqrestore(&ha->mbx_reg_lock, flags);
 	}
 
 	return IRQ_HANDLED;
@@ -1536,3 +1536,216 @@ qla24xx_ms_entry(scsi_qla_host_t *ha, struct ct_entry_24xx *pkt)
 	qla2x00_sp_compl(ha, sp);
 }
 
+static irqreturn_t
+qla24xx_msix_rsp_q(int irq, void *dev_id)
+{
+	scsi_qla_host_t	*ha;
+	struct device_reg_24xx __iomem *reg;
+	unsigned long flags;
+
+	ha = dev_id;
+	reg = &ha->iobase->isp24;
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+
+	qla24xx_process_response_queue(ha);
+
+	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+	RD_REG_DWORD_RELAXED(&reg->hccr);
+
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t
+qla24xx_msix_default(int irq, void *dev_id)
+{
+	scsi_qla_host_t	*ha;
+	struct device_reg_24xx __iomem *reg;
+	int		status;
+	unsigned long	flags;
+	unsigned long	iter;
+	uint32_t	stat;
+	uint32_t	hccr;
+	uint16_t	mb[4];
+
+	ha = dev_id;
+	reg = &ha->iobase->isp24;
+	status = 0;
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	for (iter = 50; iter--; ) {
+		stat = RD_REG_DWORD(&reg->host_status);
+		if (stat & HSRX_RISC_PAUSED) {
+			hccr = RD_REG_DWORD(&reg->hccr);
+
+			qla_printk(KERN_INFO, ha, "RISC paused -- HCCR=%x, "
+			    "Dumping firmware!\n", hccr);
+			ha->isp_ops.fw_dump(ha, 1);
+			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
+			break;
+		} else if ((stat & HSRX_RISC_INT) == 0)
+			break;
+
+		switch (stat & 0xff) {
+		case 0x1:
+		case 0x2:
+		case 0x10:
+		case 0x11:
+			qla24xx_mbx_completion(ha, MSW(stat));
+			status |= MBX_INTERRUPT;
+
+			break;
+		case 0x12:
+			mb[0] = MSW(stat);
+			mb[1] = RD_REG_WORD(&reg->mailbox1);
+			mb[2] = RD_REG_WORD(&reg->mailbox2);
+			mb[3] = RD_REG_WORD(&reg->mailbox3);
+			qla2x00_async_event(ha, mb);
+			break;
+		case 0x13:
+			qla24xx_process_response_queue(ha);
+			break;
+		default:
+			DEBUG2(printk("scsi(%ld): Unrecognized interrupt type "
+			    "(%d).\n",
+			    ha->host_no, stat & 0xff));
+			break;
+		}
+		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+		RD_REG_DWORD_RELAXED(&reg->hccr);
+	}
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
+	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
+		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+		up(&ha->mbx_intr_sem);
+	}
+
+	return IRQ_HANDLED;
+}
+
+/* Interrupt handling helpers. */
+
+struct qla_init_msix_entry {
+	uint16_t entry;
+	uint16_t index;
+	const char *name;
+	irqreturn_t (*handler)(int, void *);
+};
+
+static struct qla_init_msix_entry imsix_entries[QLA_MSIX_ENTRIES] = {
+	{ QLA_MSIX_DEFAULT, QLA_MIDX_DEFAULT,
+		"qla2xxx (default)", qla24xx_msix_default },
+
+	{ QLA_MSIX_RSP_Q, QLA_MIDX_RSP_Q,
+		"qla2xxx (rsp_q)", qla24xx_msix_rsp_q },
+};
+
+static void
+qla24xx_disable_msix(scsi_qla_host_t *ha)
+{
+	int i;
+	struct qla_msix_entry *qentry;
+
+	for (i = 0; i < QLA_MSIX_ENTRIES; i++) {
+		qentry = &ha->msix_entries[imsix_entries[i].index];
+		if (qentry->have_irq)
+			free_irq(qentry->msix_vector, ha);
+	}
+	pci_disable_msix(ha->pdev);
+}
+
+static int
+qla24xx_enable_msix(scsi_qla_host_t *ha)
+{
+	int i, ret;
+	struct msix_entry entries[QLA_MSIX_ENTRIES];
+	struct qla_msix_entry *qentry;
+
+	for (i = 0; i < QLA_MSIX_ENTRIES; i++)
+		entries[i].entry = imsix_entries[i].entry;
+
+	ret = pci_enable_msix(ha->pdev, entries, ARRAY_SIZE(entries));
+	if (ret) {
+		qla_printk(KERN_WARNING, ha,
+		    "MSI-X: Failed to enable support -- %d/%d\n",
+		    QLA_MSIX_ENTRIES, ret);
+		goto msix_out;
+	}
+	ha->flags.msix_enabled = 1;
+
+	for (i = 0; i < QLA_MSIX_ENTRIES; i++) {
+		qentry = &ha->msix_entries[imsix_entries[i].index];
+		qentry->msix_vector = entries[i].vector;
+		qentry->msix_entry = entries[i].entry;
+		qentry->have_irq = 0;
+		ret = request_irq(qentry->msix_vector,
+		    imsix_entries[i].handler, 0, imsix_entries[i].name, ha);
+		if (ret) {
+			qla_printk(KERN_WARNING, ha,
+			    "MSI-X: Unable to register handler -- %x/%d.\n",
+			    imsix_entries[i].index, ret);
+			qla24xx_disable_msix(ha);
+			goto msix_out;
+		}
+		qentry->have_irq = 1;
+	}
+
+msix_out:
+	return ret;
+}
+
+int
+qla2x00_request_irqs(scsi_qla_host_t *ha)
+{
+	int ret;
+
+	/* If possible, enable MSI-X. */
+	if (!IS_QLA2432(ha))
+		goto skip_msix;
+
+        if (ha->chip_revision < QLA_MSIX_CHIP_REV_24XX ||
+	    !QLA_MSIX_FW_MODE_1(ha->fw_attributes)) {
+		DEBUG2(qla_printk(KERN_WARNING, ha,
+		    "MSI-X: Unsupported ISP2432 (0x%X, 0x%X).\n",
+		    ha->chip_revision, ha->fw_attributes));
+
+		goto skip_msix;
+	}
+
+	ret = qla24xx_enable_msix(ha);
+	if (!ret) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "MSI-X: Enabled (0x%X, 0x%X).\n", ha->chip_revision,
+		    ha->fw_attributes));
+		return ret;
+	}
+	qla_printk(KERN_WARNING, ha,
+	    "MSI-X: Falling back-to INTa mode -- %d.\n", ret);
+skip_msix:
+	ret = request_irq(ha->pdev->irq, ha->isp_ops.intr_handler,
+	    IRQF_DISABLED|IRQF_SHARED, QLA2XXX_DRIVER_NAME, ha);
+	if (!ret) {
+		ha->flags.inta_enabled = 1;
+		ha->host->irq = ha->pdev->irq;
+	} else {
+		qla_printk(KERN_WARNING, ha,
+		    "Failed to reserve interrupt %d already in use.\n",
+		    ha->pdev->irq);
+	}
+
+	return ret;
+}
+
+void
+qla2x00_free_irqs(scsi_qla_host_t *ha)
+{
+
+	if (ha->flags.msix_enabled)
+		qla24xx_disable_msix(ha);
+	else if (ha->flags.inta_enabled)
+		free_irq(ha->host->irq, ha);
+}

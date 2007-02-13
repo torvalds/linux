@@ -17,6 +17,10 @@ config SWAP
 	bool
 	default n
 
+config ZONE_DMA
+	bool
+	default y
+
 config FPU
 	bool
 	default n
@@ -52,6 +56,9 @@ config GENERIC_CALIBRATE_DELAY
 config TIME_LOW_RES
 	bool
 	default y
+
+config NO_IOPORT
+	def_bool y
 
 config ISA
 	bool

@@ -79,7 +79,6 @@
 #define MADV_DOFORK	11		/* do inherit across fork */
 
 /* compatibility flags */
-#define MAP_ANON	MAP_ANONYMOUS
 #define MAP_FILE	0
 
 #endif /* _XTENSA_MMAN_H */
