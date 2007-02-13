@@ -98,7 +98,7 @@ static ssize_t acpi_thermal_write_polling(struct file *, const char __user *,
 					  size_t, loff_t *);
 
 static struct acpi_driver acpi_thermal_driver = {
-	.name = ACPI_THERMAL_DRIVER_NAME,
+	.name = "thermal",
 	.class = ACPI_THERMAL_CLASS,
 	.ids = ACPI_THERMAL_HID,
 	.ops = {

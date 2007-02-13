@@ -51,7 +51,7 @@ static int acpi_bay_add(struct acpi_device *device);
 static int acpi_bay_remove(struct acpi_device *device, int type);
 
 static struct acpi_driver acpi_bay_driver = {
-	.name = ACPI_BAY_DRIVER_NAME,
+	.name = "bay",
 	.class = ACPI_BAY_CLASS,
 	.ids = ACPI_BAY_HID,
 	.ops = {

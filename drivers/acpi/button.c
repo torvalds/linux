@@ -73,7 +73,7 @@ static int acpi_button_info_open_fs(struct inode *inode, struct file *file);
 static int acpi_button_state_open_fs(struct inode *inode, struct file *file);
 
 static struct acpi_driver acpi_button_driver = {
-	.name = ACPI_BUTTON_DRIVER_NAME,
+	.name = "button",
 	.class = ACPI_BUTTON_CLASS,
 	.ids = "button_power,button_sleep,PNP0C0D,PNP0C0C,PNP0C0E",
 	.ops = {

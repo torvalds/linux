@@ -52,7 +52,7 @@ static int acpi_fan_suspend(struct acpi_device *device, pm_message_t state);
 static int acpi_fan_resume(struct acpi_device *device);
 
 static struct acpi_driver acpi_fan_driver = {
-	.name = ACPI_FAN_DRIVER_NAME,
+	.name = "fan",
 	.class = ACPI_FAN_CLASS,
 	.ids = "PNP0C0B",
 	.ops = {

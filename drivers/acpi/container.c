@@ -56,7 +56,7 @@ static int acpi_container_add(struct acpi_device *device);
 static int acpi_container_remove(struct acpi_device *device, int type);
 
 static struct acpi_driver acpi_container_driver = {
-	.name = ACPI_CONTAINER_DRIVER_NAME,
+	.name = "container",
 	.class = ACPI_CONTAINER_CLASS,
 	.ids = "ACPI0004,PNP0A05,PNP0A06",
 	.ops = {

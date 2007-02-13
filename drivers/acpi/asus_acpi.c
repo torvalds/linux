@@ -421,7 +421,7 @@ static struct asus_hotk *hotk;
 static int asus_hotk_add(struct acpi_device *device);
 static int asus_hotk_remove(struct acpi_device *device, int type);
 static struct acpi_driver asus_hotk_driver = {
-	.name = ACPI_HOTK_NAME,
+	.name = "asus_acpi",
 	.class = ACPI_HOTK_CLASS,
 	.ids = ACPI_HOTK_HID,
 	.ops = {

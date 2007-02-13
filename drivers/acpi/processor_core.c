@@ -89,7 +89,7 @@ static acpi_status acpi_processor_hotadd_init(acpi_handle handle, int *p_cpu);
 static int acpi_processor_handle_eject(struct acpi_processor *pr);
 
 static struct acpi_driver acpi_processor_driver = {
-	.name = ACPI_PROCESSOR_DRIVER_NAME,
+	.name = "processor",
 	.class = ACPI_PROCESSOR_CLASS,
 	.ids = ACPI_PROCESSOR_HID,
 	.ops = {

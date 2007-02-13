@@ -58,7 +58,7 @@ static int acpi_ac_remove(struct acpi_device *device, int type);
 static int acpi_ac_open_fs(struct inode *inode, struct file *file);
 
 static struct acpi_driver acpi_ac_driver = {
-	.name = ACPI_AC_DRIVER_NAME,
+	.name = "ac",
 	.class = ACPI_AC_CLASS,
 	.ids = ACPI_AC_HID,
 	.ops = {

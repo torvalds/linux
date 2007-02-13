@@ -60,7 +60,7 @@ static int acpi_memory_device_remove(struct acpi_device *device, int type);
 static int acpi_memory_device_start(struct acpi_device *device);
 
 static struct acpi_driver acpi_memory_device_driver = {
-	.name = ACPI_MEMORY_DEVICE_DRIVER_NAME,
+	.name = "acpi_memhotplug",
 	.class = ACPI_MEMORY_DEVICE_CLASS,
 	.ids = ACPI_MEMORY_DEVICE_HID,
 	.ops = {

@@ -67,7 +67,7 @@ static int acpi_battery_remove(struct acpi_device *device, int type);
 static int acpi_battery_resume(struct acpi_device *device);
 
 static struct acpi_driver acpi_battery_driver = {
-	.name = ACPI_BATTERY_DRIVER_NAME,
+	.name = "battery",
 	.class = ACPI_BATTERY_CLASS,
 	.ids = ACPI_BATTERY_HID,
 	.ops = {

@@ -110,7 +110,7 @@ static void acpi_battery_smbus_err_handler(struct acpi_ec_smbus *smbus);
 static void acpi_sbs_update_queue(void *data);
 
 static struct acpi_driver acpi_sbs_driver = {
-	.name = ACPI_SBS_DRIVER_NAME,
+	.name = "sbs",
 	.class = ACPI_SBS_CLASS,
 	.ids = ACPI_SBS_HID,
 	.ops = {

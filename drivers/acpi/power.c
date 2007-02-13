@@ -60,7 +60,7 @@ static int acpi_power_remove(struct acpi_device *device, int type);
 static int acpi_power_open_fs(struct inode *inode, struct file *file);
 
 static struct acpi_driver acpi_power_driver = {
-	.name = ACPI_POWER_DRIVER_NAME,
+	.name = "power",
 	.class = ACPI_POWER_CLASS,
 	.ids = ACPI_POWER_HID,
 	.ops = {

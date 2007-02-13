@@ -75,7 +75,7 @@ static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device, int type);
 
 static struct acpi_driver acpi_video_bus = {
-	.name = ACPI_VIDEO_DRIVER_NAME,
+	.name = "video",
 	.class = ACPI_VIDEO_CLASS,
 	.ids = ACPI_VIDEO_HID,
 	.ops = {

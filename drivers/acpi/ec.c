@@ -80,7 +80,7 @@ static int acpi_ec_stop(struct acpi_device *device, int type);
 static int acpi_ec_add(struct acpi_device *device);
 
 static struct acpi_driver acpi_ec_driver = {
-	.name = ACPI_EC_DRIVER_NAME,
+	.name = "ec",
 	.class = ACPI_EC_CLASS,
 	.ids = ACPI_EC_HID,
 	.ops = {

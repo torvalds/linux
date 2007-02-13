@@ -46,7 +46,7 @@ static int acpi_pci_root_remove(struct acpi_device *device, int type);
 static int acpi_pci_root_start(struct acpi_device *device);
 
 static struct acpi_driver acpi_pci_root_driver = {
-	.name = ACPI_PCI_ROOT_DRIVER_NAME,
+	.name = "pci_root",
 	.class = ACPI_PCI_ROOT_CLASS,
 	.ids = ACPI_PCI_ROOT_HID,
 	.ops = {
