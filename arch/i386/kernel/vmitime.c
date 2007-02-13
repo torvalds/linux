@@ -180,7 +180,9 @@ unsigned long long vmi_sched_clock(void)
 void __init vmi_time_init(void)
 {
 	unsigned long long cycles_per_sec, cycles_per_msec;
+	unsigned long flags;
 
+	local_irq_save(flags);
 	setup_irq(0, &vmi_timer_irq);
 #ifdef CONFIG_X86_LOCAL_APIC
 	set_intr_gate(LOCAL_TIMER_VECTOR, apic_vmi_timer_interrupt);
@@ -224,6 +226,8 @@ void __init vmi_time_init(void)
 		      VMI_ALARM_WIRED_IRQ0 | VMI_ALARM_IS_PERIODIC | VMI_CYCLES_AVAILABLE,
 		      per_cpu(process_times_cycles_accounted_cpu, 0) + cycles_per_alarm,
 		      cycles_per_alarm);
+
+	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC
