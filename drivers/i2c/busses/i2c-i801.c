@@ -442,6 +442,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter i801_adapter = {
 	.owner		= THIS_MODULE,
+	.id		= I2C_HW_SMBUS_I801,
 	.class		= I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
 };

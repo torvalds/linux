@@ -351,6 +351,7 @@ static int __devinit amd8111_probe(struct pci_dev *dev, const struct pci_device_
 	smbus->adapter.owner = THIS_MODULE;
 	snprintf(smbus->adapter.name, I2C_NAME_SIZE,
 		"SMBus2 AMD8111 adapter at %04x", smbus->base);
+	smbus->adapter.id = I2C_HW_SMBUS_AMD8111;
 	smbus->adapter.class = I2C_CLASS_HWMON;
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;

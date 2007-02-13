@@ -236,6 +236,7 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
 		return -1;
 	}
 	smbus->adapter.owner = THIS_MODULE;
+	smbus->adapter.id = I2C_HW_SMBUS_NFORCE2;
 	smbus->adapter.class = I2C_CLASS_HWMON;
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
