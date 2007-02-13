@@ -83,6 +83,13 @@ static inline int bad_addr(unsigned long *addrp, unsigned long size)
 		return 1;
 	}
 
+#ifdef CONFIG_NUMA
+	/* NUMA memory to node map */
+	if (last >= nodemap_addr && addr < nodemap_addr + nodemap_size) {
+		*addrp = nodemap_addr + nodemap_size;
+		return 1;
+	}
+#endif
 	/* XXX ramdisk image here? */ 
 	return 0;
 } 
