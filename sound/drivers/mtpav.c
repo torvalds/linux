@@ -583,7 +583,7 @@ static irqreturn_t snd_mtpav_irqh(int irq, void *dev_id)
 /*
  * get ISA resources
  */
-static int __init snd_mtpav_get_ISA(struct mtpav * mcard)
+static int __devinit snd_mtpav_get_ISA(struct mtpav * mcard)
 {
 	if ((mcard->res_port = request_region(port, 3, "MotuMTPAV MIDI")) == NULL) {
 		snd_printk("MTVAP port 0x%lx is busy\n", port);
@@ -619,7 +619,7 @@ static struct snd_rawmidi_ops snd_mtpav_input = {
  * get RAWMIDI resources
  */
 
-static void __init snd_mtpav_set_name(struct mtpav *chip,
+static void __devinit snd_mtpav_set_name(struct mtpav *chip,
 				      struct snd_rawmidi_substream *substream)
 {
 	if (substream->number >= 0 && substream->number < chip->num_ports)
@@ -634,7 +634,7 @@ static void __init snd_mtpav_set_name(struct mtpav *chip,
 		strcpy(substream->name, "MTP broadcast");
 }
 
-static int __init snd_mtpav_get_RAWMIDI(struct mtpav *mcard)
+static int __devinit snd_mtpav_get_RAWMIDI(struct mtpav *mcard)
 {
 	int rval;
 	struct snd_rawmidi *rawmidi;
@@ -691,7 +691,7 @@ static void snd_mtpav_free(struct snd_card *card)
 
 /*
  */
-static int __init snd_mtpav_probe(struct platform_device *dev)
+static int __devinit snd_mtpav_probe(struct platform_device *dev)
 {
 	struct snd_card *card;
 	int err;
@@ -745,7 +745,7 @@ static int __init snd_mtpav_probe(struct platform_device *dev)
 	return err;
 }
 
-static int snd_mtpav_remove(struct platform_device *devptr)
+static int __devexit snd_mtpav_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
 	platform_set_drvdata(devptr, NULL);
@@ -756,7 +756,7 @@ static int snd_mtpav_remove(struct platform_device *devptr)
 
 static struct platform_driver snd_mtpav_driver = {
 	.probe		= snd_mtpav_probe,
-	.remove		= snd_mtpav_remove,
+	.remove		= __devexit_p(snd_mtpav_remove),
 	.driver		= {
 		.name	= SND_MTPAV_DRIVER
 	},

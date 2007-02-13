@@ -811,7 +811,7 @@ __err:
 	return err;
 }
 
-static int snd_portman_remove(struct platform_device *pdev)
+static int __devexit snd_portman_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 
@@ -824,7 +824,7 @@ static int snd_portman_remove(struct platform_device *pdev)
 
 static struct platform_driver snd_portman_driver = {
 	.probe  = snd_portman_probe,
-	.remove = snd_portman_remove,
+	.remove = __dev_exit_p(snd_portman_remove),
 	.driver = {
 		.name = PLATFORM_DRIVER
 	}
@@ -833,7 +833,7 @@ static struct platform_driver snd_portman_driver = {
 /*********************************************************************
  * module init stuff
  *********************************************************************/
-static void snd_portman_unregister_all(void)
+static void __init_or_module snd_portman_unregister_all(void)
 {
 	int i;
 

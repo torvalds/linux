@@ -73,7 +73,7 @@ static struct platform_device *devices[SNDRV_CARDS];
 
 #define PFX	"es1688: "
 
-static int __init snd_es1688_probe(struct platform_device *pdev)
+static int __devinit snd_es1688_probe(struct platform_device *pdev)
 {
 	int dev = pdev->id;
 	static int possible_irqs[] = {5, 9, 10, 7, -1};
@@ -171,7 +171,7 @@ static int __init snd_es1688_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int snd_es1688_remove(struct platform_device *devptr)
+static int __devexit snd_es1688_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
 	platform_set_drvdata(devptr, NULL);
@@ -182,7 +182,7 @@ static int snd_es1688_remove(struct platform_device *devptr)
 
 static struct platform_driver snd_es1688_driver = {
 	.probe		= snd_es1688_probe,
-	.remove		= snd_es1688_remove,
+	.remove		= __devexit_p(snd_es1688_remove),
 	/* FIXME: suspend/resume */
 	.driver		= {
 		.name	= ES1688_DRIVER

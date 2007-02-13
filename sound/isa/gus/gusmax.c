@@ -85,7 +85,7 @@ struct snd_gusmax {
 
 #define PFX	"gusmax: "
 
-static int __init snd_gusmax_detect(struct snd_gus_card * gus)
+static int __devinit snd_gusmax_detect(struct snd_gus_card * gus)
 {
 	unsigned char d;
 
@@ -127,7 +127,8 @@ static irqreturn_t snd_gusmax_interrupt(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-static void __init snd_gusmax_init(int dev, struct snd_card *card, struct snd_gus_card * gus)
+static void __devinit snd_gusmax_init(int dev, struct snd_card *card,
+				      struct snd_gus_card * gus)
 {
 	gus->equal_irq = 1;
 	gus->codec_flag = 1;
@@ -145,7 +146,7 @@ static void __init snd_gusmax_init(int dev, struct snd_card *card, struct snd_gu
 #define CS4231_PRIVATE( left, right, shift, mute ) \
 			((left << 24)|(right << 16)|(shift<<8)|mute)
 
-static int __init snd_gusmax_mixer(struct snd_cs4231 *chip)
+static int __devinit snd_gusmax_mixer(struct snd_cs4231 *chip)
 {
 	struct snd_card *card = chip->card;
 	struct snd_ctl_elem_id id1, id2;
@@ -204,7 +205,7 @@ static void snd_gusmax_free(struct snd_card *card)
 		free_irq(maxcard->irq, (void *)maxcard);
 }
 
-static int __init snd_gusmax_probe(struct platform_device *pdev)
+static int __devinit snd_gusmax_probe(struct platform_device *pdev)
 {
 	int dev = pdev->id;
 	static int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, -1};
@@ -348,7 +349,7 @@ static int __init snd_gusmax_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int snd_gusmax_remove(struct platform_device *devptr)
+static int __devexit snd_gusmax_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
 	platform_set_drvdata(devptr, NULL);
@@ -359,7 +360,7 @@ static int snd_gusmax_remove(struct platform_device *devptr)
 
 static struct platform_driver snd_gusmax_driver = {
 	.probe		= snd_gusmax_probe,
-	.remove		= snd_gusmax_remove,
+	.remove		= __devexit_p(snd_gusmax_remove),
 	/* FIXME: suspend/resume */
 	.driver		= {
 		.name	= GUSMAX_DRIVER
