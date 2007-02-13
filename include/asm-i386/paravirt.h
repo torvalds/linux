@@ -59,102 +59,102 @@ struct paravirt_ops
 	   convention.  This makes it easier to implement inline
 	   assembler replacements. */
 
-	void (fastcall *cpuid)(unsigned int *eax, unsigned int *ebx,
+	void (*cpuid)(unsigned int *eax, unsigned int *ebx,
 		      unsigned int *ecx, unsigned int *edx);
 
-	unsigned long (fastcall *get_debugreg)(int regno);
-	void (fastcall *set_debugreg)(int regno, unsigned long value);
+	unsigned long (*get_debugreg)(int regno);
+	void (*set_debugreg)(int regno, unsigned long value);
 
-	void (fastcall *clts)(void);
+	void (*clts)(void);
 
-	unsigned long (fastcall *read_cr0)(void);
-	void (fastcall *write_cr0)(unsigned long);
+	unsigned long (*read_cr0)(void);
+	void (*write_cr0)(unsigned long);
 
-	unsigned long (fastcall *read_cr2)(void);
-	void (fastcall *write_cr2)(unsigned long);
+	unsigned long (*read_cr2)(void);
+	void (*write_cr2)(unsigned long);
 
-	unsigned long (fastcall *read_cr3)(void);
-	void (fastcall *write_cr3)(unsigned long);
+	unsigned long (*read_cr3)(void);
+	void (*write_cr3)(unsigned long);
 
-	unsigned long (fastcall *read_cr4_safe)(void);
-	unsigned long (fastcall *read_cr4)(void);
-	void (fastcall *write_cr4)(unsigned long);
+	unsigned long (*read_cr4_safe)(void);
+	unsigned long (*read_cr4)(void);
+	void (*write_cr4)(unsigned long);
 
-	unsigned long (fastcall *save_fl)(void);
-	void (fastcall *restore_fl)(unsigned long);
-	void (fastcall *irq_disable)(void);
-	void (fastcall *irq_enable)(void);
-	void (fastcall *safe_halt)(void);
-	void (fastcall *halt)(void);
-	void (fastcall *wbinvd)(void);
+	unsigned long (*save_fl)(void);
+	void (*restore_fl)(unsigned long);
+	void (*irq_disable)(void);
+	void (*irq_enable)(void);
+	void (*safe_halt)(void);
+	void (*halt)(void);
+	void (*wbinvd)(void);
 
 	/* err = 0/-EFAULT.  wrmsr returns 0/-EFAULT. */
-	u64 (fastcall *read_msr)(unsigned int msr, int *err);
-	int (fastcall *write_msr)(unsigned int msr, u64 val);
+	u64 (*read_msr)(unsigned int msr, int *err);
+	int (*write_msr)(unsigned int msr, u64 val);
 
-	u64 (fastcall *read_tsc)(void);
-	u64 (fastcall *read_pmc)(void);
+	u64 (*read_tsc)(void);
+	u64 (*read_pmc)(void);
 
-	void (fastcall *load_tr_desc)(void);
-	void (fastcall *load_gdt)(const struct Xgt_desc_struct *);
-	void (fastcall *load_idt)(const struct Xgt_desc_struct *);
-	void (fastcall *store_gdt)(struct Xgt_desc_struct *);
-	void (fastcall *store_idt)(struct Xgt_desc_struct *);
-	void (fastcall *set_ldt)(const void *desc, unsigned entries);
-	unsigned long (fastcall *store_tr)(void);
-	void (fastcall *load_tls)(struct thread_struct *t, unsigned int cpu);
-	void (fastcall *write_ldt_entry)(void *dt, int entrynum,
+	void (*load_tr_desc)(void);
+	void (*load_gdt)(const struct Xgt_desc_struct *);
+	void (*load_idt)(const struct Xgt_desc_struct *);
+	void (*store_gdt)(struct Xgt_desc_struct *);
+	void (*store_idt)(struct Xgt_desc_struct *);
+	void (*set_ldt)(const void *desc, unsigned entries);
+	unsigned long (*store_tr)(void);
+	void (*load_tls)(struct thread_struct *t, unsigned int cpu);
+	void (*write_ldt_entry)(void *dt, int entrynum,
 					 u32 low, u32 high);
-	void (fastcall *write_gdt_entry)(void *dt, int entrynum,
+	void (*write_gdt_entry)(void *dt, int entrynum,
 					 u32 low, u32 high);
-	void (fastcall *write_idt_entry)(void *dt, int entrynum,
+	void (*write_idt_entry)(void *dt, int entrynum,
 					 u32 low, u32 high);
-	void (fastcall *load_esp0)(struct tss_struct *tss,
+	void (*load_esp0)(struct tss_struct *tss,
 				   struct thread_struct *thread);
 
-	void (fastcall *set_iopl_mask)(unsigned mask);
+	void (*set_iopl_mask)(unsigned mask);
 
-	void (fastcall *io_delay)(void);
+	void (*io_delay)(void);
 	void (*const_udelay)(unsigned long loops);
 
 #ifdef CONFIG_X86_LOCAL_APIC
-	void (fastcall *apic_write)(unsigned long reg, unsigned long v);
-	void (fastcall *apic_write_atomic)(unsigned long reg, unsigned long v);
-	unsigned long (fastcall *apic_read)(unsigned long reg);
+	void (*apic_write)(unsigned long reg, unsigned long v);
+	void (*apic_write_atomic)(unsigned long reg, unsigned long v);
+	unsigned long (*apic_read)(unsigned long reg);
 	void (*setup_boot_clock)(void);
 	void (*setup_secondary_clock)(void);
 #endif
 
-	void (fastcall *flush_tlb_user)(void);
-	void (fastcall *flush_tlb_kernel)(void);
-	void (fastcall *flush_tlb_single)(u32 addr);
+	void (*flush_tlb_user)(void);
+	void (*flush_tlb_kernel)(void);
+	void (*flush_tlb_single)(u32 addr);
 
-	void (fastcall *alloc_pt)(u32 pfn);
-	void (fastcall *alloc_pd)(u32 pfn);
-	void (fastcall *alloc_pd_clone)(u32 pfn, u32 clonepfn, u32 start, u32 count);
-	void (fastcall *release_pt)(u32 pfn);
-	void (fastcall *release_pd)(u32 pfn);
+	void (*alloc_pt)(u32 pfn);
+	void (*alloc_pd)(u32 pfn);
+	void (*alloc_pd_clone)(u32 pfn, u32 clonepfn, u32 start, u32 count);
+	void (*release_pt)(u32 pfn);
+	void (*release_pd)(u32 pfn);
 
-	void (fastcall *set_pte)(pte_t *ptep, pte_t pteval);
-	void (fastcall *set_pte_at)(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pteval);
-	void (fastcall *set_pmd)(pmd_t *pmdp, pmd_t pmdval);
-	void (fastcall *pte_update)(struct mm_struct *mm, u32 addr, pte_t *ptep);
-	void (fastcall *pte_update_defer)(struct mm_struct *mm, u32 addr, pte_t *ptep);
+	void (*set_pte)(pte_t *ptep, pte_t pteval);
+	void (*set_pte_at)(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pteval);
+	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
+	void (*pte_update)(struct mm_struct *mm, u32 addr, pte_t *ptep);
+	void (*pte_update_defer)(struct mm_struct *mm, u32 addr, pte_t *ptep);
 #ifdef CONFIG_X86_PAE
-	void (fastcall *set_pte_atomic)(pte_t *ptep, pte_t pteval);
-	void (fastcall *set_pte_present)(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte);
-	void (fastcall *set_pud)(pud_t *pudp, pud_t pudval);
-	void (fastcall *pte_clear)(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-	void (fastcall *pmd_clear)(pmd_t *pmdp);
+	void (*set_pte_atomic)(pte_t *ptep, pte_t pteval);
+	void (*set_pte_present)(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte);
+	void (*set_pud)(pud_t *pudp, pud_t pudval);
+	void (*pte_clear)(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+	void (*pmd_clear)(pmd_t *pmdp);
 #endif
 
-	void (fastcall *set_lazy_mode)(int mode);
+	void (*set_lazy_mode)(int mode);
 
 	/* These two are jmp to, not actually called. */
-	void (fastcall *irq_enable_sysexit)(void);
-	void (fastcall *iret)(void);
+	void (*irq_enable_sysexit)(void);
+	void (*iret)(void);
 
-	void (fastcall *startup_ipi_hook)(int phys_apicid, unsigned long start_eip, unsigned long start_esp);
+	void (*startup_ipi_hook)(int phys_apicid, unsigned long start_eip, unsigned long start_esp);
 };
 
 /* Mark a paravirt probe function. */

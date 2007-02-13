@@ -92,7 +92,7 @@ static unsigned native_patch(u8 type, u16 clobbers, void *insns, unsigned len)
 	return insn_len;
 }
 
-static fastcall unsigned long native_get_debugreg(int regno)
+static unsigned long native_get_debugreg(int regno)
 {
 	unsigned long val = 0; 	/* Damn you, gcc! */
 
@@ -115,7 +115,7 @@ static fastcall unsigned long native_get_debugreg(int regno)
 	return val;
 }
 
-static fastcall void native_set_debugreg(int regno, unsigned long value)
+static void native_set_debugreg(int regno, unsigned long value)
 {
 	switch (regno) {
 	case 0:
@@ -146,55 +146,55 @@ void init_IRQ(void)
 	paravirt_ops.init_IRQ();
 }
 
-static fastcall void native_clts(void)
+static void native_clts(void)
 {
 	asm volatile ("clts");
 }
 
-static fastcall unsigned long native_read_cr0(void)
+static unsigned long native_read_cr0(void)
 {
 	unsigned long val;
 	asm volatile("movl %%cr0,%0\n\t" :"=r" (val));
 	return val;
 }
 
-static fastcall void native_write_cr0(unsigned long val)
+static void native_write_cr0(unsigned long val)
 {
 	asm volatile("movl %0,%%cr0": :"r" (val));
 }
 
-static fastcall unsigned long native_read_cr2(void)
+static unsigned long native_read_cr2(void)
 {
 	unsigned long val;
 	asm volatile("movl %%cr2,%0\n\t" :"=r" (val));
 	return val;
 }
 
-static fastcall void native_write_cr2(unsigned long val)
+static void native_write_cr2(unsigned long val)
 {
 	asm volatile("movl %0,%%cr2": :"r" (val));
 }
 
-static fastcall unsigned long native_read_cr3(void)
+static unsigned long native_read_cr3(void)
 {
 	unsigned long val;
 	asm volatile("movl %%cr3,%0\n\t" :"=r" (val));
 	return val;
 }
 
-static fastcall void native_write_cr3(unsigned long val)
+static void native_write_cr3(unsigned long val)
 {
 	asm volatile("movl %0,%%cr3": :"r" (val));
 }
 
-static fastcall unsigned long native_read_cr4(void)
+static unsigned long native_read_cr4(void)
 {
 	unsigned long val;
 	asm volatile("movl %%cr4,%0\n\t" :"=r" (val));
 	return val;
 }
 
-static fastcall unsigned long native_read_cr4_safe(void)
+static unsigned long native_read_cr4_safe(void)
 {
 	unsigned long val;
 	/* This could fault if %cr4 does not exist */
@@ -207,51 +207,51 @@ static fastcall unsigned long native_read_cr4_safe(void)
 	return val;
 }
 
-static fastcall void native_write_cr4(unsigned long val)
+static void native_write_cr4(unsigned long val)
 {
 	asm volatile("movl %0,%%cr4": :"r" (val));
 }
 
-static fastcall unsigned long native_save_fl(void)
+static unsigned long native_save_fl(void)
 {
 	unsigned long f;
 	asm volatile("pushfl ; popl %0":"=g" (f): /* no input */);
 	return f;
 }
 
-static fastcall void native_restore_fl(unsigned long f)
+static void native_restore_fl(unsigned long f)
 {
 	asm volatile("pushl %0 ; popfl": /* no output */
 			     :"g" (f)
 			     :"memory", "cc");
 }
 
-static fastcall void native_irq_disable(void)
+static void native_irq_disable(void)
 {
 	asm volatile("cli": : :"memory");
 }
 
-static fastcall void native_irq_enable(void)
+static void native_irq_enable(void)
 {
 	asm volatile("sti": : :"memory");
 }
 
-static fastcall void native_safe_halt(void)
+static void native_safe_halt(void)
 {
 	asm volatile("sti; hlt": : :"memory");
 }
 
-static fastcall void native_halt(void)
+static void native_halt(void)
 {
 	asm volatile("hlt": : :"memory");
 }
 
-static fastcall void native_wbinvd(void)
+static void native_wbinvd(void)
 {
 	asm volatile("wbinvd": : :"memory");
 }
 
-static fastcall unsigned long long native_read_msr(unsigned int msr, int *err)
+static unsigned long long native_read_msr(unsigned int msr, int *err)
 {
 	unsigned long long val;
 
@@ -270,7 +270,7 @@ static fastcall unsigned long long native_read_msr(unsigned int msr, int *err)
 	return val;
 }
 
-static fastcall int native_write_msr(unsigned int msr, unsigned long long val)
+static int native_write_msr(unsigned int msr, unsigned long long val)
 {
 	int err;
 	asm volatile("2: wrmsr ; xorl %0,%0\n"
@@ -288,53 +288,53 @@ static fastcall int native_write_msr(unsigned int msr, unsigned long long val)
 	return err;
 }
 
-static fastcall unsigned long long native_read_tsc(void)
+static unsigned long long native_read_tsc(void)
 {
 	unsigned long long val;
 	asm volatile("rdtsc" : "=A" (val));
 	return val;
 }
 
-static fastcall unsigned long long native_read_pmc(void)
+static unsigned long long native_read_pmc(void)
 {
 	unsigned long long val;
 	asm volatile("rdpmc" : "=A" (val));
 	return val;
 }
 
-static fastcall void native_load_tr_desc(void)
+static void native_load_tr_desc(void)
 {
 	asm volatile("ltr %w0"::"q" (GDT_ENTRY_TSS*8));
 }
 
-static fastcall void native_load_gdt(const struct Xgt_desc_struct *dtr)
+static void native_load_gdt(const struct Xgt_desc_struct *dtr)
 {
 	asm volatile("lgdt %0"::"m" (*dtr));
 }
 
-static fastcall void native_load_idt(const struct Xgt_desc_struct *dtr)
+static void native_load_idt(const struct Xgt_desc_struct *dtr)
 {
 	asm volatile("lidt %0"::"m" (*dtr));
 }
 
-static fastcall void native_store_gdt(struct Xgt_desc_struct *dtr)
+static void native_store_gdt(struct Xgt_desc_struct *dtr)
 {
 	asm ("sgdt %0":"=m" (*dtr));
 }
 
-static fastcall void native_store_idt(struct Xgt_desc_struct *dtr)
+static void native_store_idt(struct Xgt_desc_struct *dtr)
 {
 	asm ("sidt %0":"=m" (*dtr));
 }
 
-static fastcall unsigned long native_store_tr(void)
+static unsigned long native_store_tr(void)
 {
 	unsigned long tr;
 	asm ("str %0":"=r" (tr));
 	return tr;
 }
 
-static fastcall void native_load_tls(struct thread_struct *t, unsigned int cpu)
+static void native_load_tls(struct thread_struct *t, unsigned int cpu)
 {
 #define C(i) get_cpu_gdt_table(cpu)[GDT_ENTRY_TLS_MIN + i] = t->tls_array[i]
 	C(0); C(1); C(2);
@@ -348,22 +348,22 @@ static inline void native_write_dt_entry(void *dt, int entry, u32 entry_low, u32
 	lp[1] = entry_high;
 }
 
-static fastcall void native_write_ldt_entry(void *dt, int entrynum, u32 low, u32 high)
+static void native_write_ldt_entry(void *dt, int entrynum, u32 low, u32 high)
 {
 	native_write_dt_entry(dt, entrynum, low, high);
 }
 
-static fastcall void native_write_gdt_entry(void *dt, int entrynum, u32 low, u32 high)
+static void native_write_gdt_entry(void *dt, int entrynum, u32 low, u32 high)
 {
 	native_write_dt_entry(dt, entrynum, low, high);
 }
 
-static fastcall void native_write_idt_entry(void *dt, int entrynum, u32 low, u32 high)
+static void native_write_idt_entry(void *dt, int entrynum, u32 low, u32 high)
 {
 	native_write_dt_entry(dt, entrynum, low, high);
 }
 
-static fastcall void native_load_esp0(struct tss_struct *tss,
+static void native_load_esp0(struct tss_struct *tss,
 				      struct thread_struct *thread)
 {
 	tss->esp0 = thread->esp0;
@@ -375,12 +375,12 @@ static fastcall void native_load_esp0(struct tss_struct *tss,
 	}
 }
 
-static fastcall void native_io_delay(void)
+static void native_io_delay(void)
 {
 	asm volatile("outb %al,$0x80");
 }
 
-static fastcall void native_flush_tlb(void)
+static void native_flush_tlb(void)
 {
 	__native_flush_tlb();
 }
@@ -389,49 +389,49 @@ static fastcall void native_flush_tlb(void)
  * Global pages have to be flushed a bit differently. Not a real
  * performance problem because this does not happen often.
  */
-static fastcall void native_flush_tlb_global(void)
+static void native_flush_tlb_global(void)
 {
 	__native_flush_tlb_global();
 }
 
-static fastcall void native_flush_tlb_single(u32 addr)
+static void native_flush_tlb_single(u32 addr)
 {
 	__native_flush_tlb_single(addr);
 }
 
 #ifndef CONFIG_X86_PAE
-static fastcall void native_set_pte(pte_t *ptep, pte_t pteval)
+static void native_set_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
 }
 
-static fastcall void native_set_pte_at(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pteval)
+static void native_set_pte_at(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
 }
 
-static fastcall void native_set_pmd(pmd_t *pmdp, pmd_t pmdval)
+static void native_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 	*pmdp = pmdval;
 }
 
 #else /* CONFIG_X86_PAE */
 
-static fastcall void native_set_pte(pte_t *ptep, pte_t pte)
+static void native_set_pte(pte_t *ptep, pte_t pte)
 {
 	ptep->pte_high = pte.pte_high;
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
 }
 
-static fastcall void native_set_pte_at(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pte)
+static void native_set_pte_at(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pte)
 {
 	ptep->pte_high = pte.pte_high;
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
 }
 
-static fastcall void native_set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
+static void native_set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
 {
 	ptep->pte_low = 0;
 	smp_wmb();
@@ -440,29 +440,29 @@ static fastcall void native_set_pte_present(struct mm_struct *mm, unsigned long 
 	ptep->pte_low = pte.pte_low;
 }
 
-static fastcall void native_set_pte_atomic(pte_t *ptep, pte_t pteval)
+static void native_set_pte_atomic(pte_t *ptep, pte_t pteval)
 {
 	set_64bit((unsigned long long *)ptep,pte_val(pteval));
 }
 
-static fastcall void native_set_pmd(pmd_t *pmdp, pmd_t pmdval)
+static void native_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 	set_64bit((unsigned long long *)pmdp,pmd_val(pmdval));
 }
 
-static fastcall void native_set_pud(pud_t *pudp, pud_t pudval)
+static void native_set_pud(pud_t *pudp, pud_t pudval)
 {
 	*pudp = pudval;
 }
 
-static fastcall void native_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+static void native_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	ptep->pte_low = 0;
 	smp_wmb();
 	ptep->pte_high = 0;
 }
 
-static fastcall void native_pmd_clear(pmd_t *pmd)
+static void native_pmd_clear(pmd_t *pmd)
 {
 	u32 *tmp = (u32 *)pmd;
 	*tmp = 0;
@@ -472,8 +472,8 @@ static fastcall void native_pmd_clear(pmd_t *pmd)
 #endif /* CONFIG_X86_PAE */
 
 /* These are in entry.S */
-extern fastcall void native_iret(void);
-extern fastcall void native_irq_enable_sysexit(void);
+extern void native_iret(void);
+extern void native_irq_enable_sysexit(void);
 
 static int __init print_banner(void)
 {
