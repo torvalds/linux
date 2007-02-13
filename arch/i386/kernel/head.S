@@ -53,6 +53,7 @@
  * any particular GDT layout, because we load our own as soon as we
  * can.
  */
+.section .text.head,"ax",@progbits
 ENTRY(startup_32)
 
 #ifdef CONFIG_PARAVIRT
@@ -141,16 +142,25 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 	jb 10b
 	movl %edi,(init_pg_tables_end - __PAGE_OFFSET)
 
-#ifdef CONFIG_SMP
 	xorl %ebx,%ebx				/* This is the boot CPU (BSP) */
 	jmp 3f
-
 /*
  * Non-boot CPU entry point; entered from trampoline.S
  * We can't lgdt here, because lgdt itself uses a data segment, but
  * we know the trampoline has already loaded the boot_gdt_table GDT
  * for us.
+ *
+ * If cpu hotplug is not supported then this code can go in init section
+ * which will be freed later
  */
+
+#ifdef CONFIG_HOTPLUG_CPU
+.section .text,"ax",@progbits
+#else
+.section .init.text,"ax",@progbits
+#endif
+
+#ifdef CONFIG_SMP
 ENTRY(startup_32_smp)
 	cld
 	movl $(__BOOT_DS),%eax
@@ -208,8 +218,8 @@ ENTRY(startup_32_smp)
 	xorl %ebx,%ebx
 	incl %ebx
 
-3:
 #endif /* CONFIG_SMP */
+3:
 
 /*
  * Enable paging
@@ -492,6 +502,7 @@ ignore_int:
 #endif
 	iret
 
+.section .text
 #ifdef CONFIG_PARAVIRT
 startup_paravirt:
 	cld

@@ -641,10 +641,18 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	if (f1 && f2)
 		return 1;
 
-	/* Whitelist all references from .pci_fixup section if vmlinux */
+	/* Whitelist all references from .pci_fixup section if vmlinux
+	 * Whitelist all refereces from .text.head to .init.data if vmlinux
+	 * Whitelist all refereces from .text.head to .init.text if vmlinux
+	 */
 	if (is_vmlinux(modname)) {
 		if ((strcmp(fromsec, ".pci_fixup") == 0) &&
 		    (strcmp(tosec, ".init.text") == 0))
+		return 1;
+
+		if ((strcmp(fromsec, ".text.head") == 0) &&
+			((strcmp(tosec, ".init.data") == 0) ||
+			(strcmp(tosec, ".init.text") == 0)))
 		return 1;
 
 		/* Check for pattern 3 */
