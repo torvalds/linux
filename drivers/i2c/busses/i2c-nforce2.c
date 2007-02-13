@@ -57,7 +57,6 @@ MODULE_DESCRIPTION("nForce2/3/4/5xx SMBus driver");
 
 
 struct nforce2_smbus {
-	struct pci_dev *dev;
 	struct i2c_adapter adapter;
 	int base;
 	int size;
@@ -230,7 +229,6 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
 		smbus->base = iobase & PCI_BASE_ADDRESS_IO_MASK;
 		smbus->size = 64;
 	}
-	smbus->dev = dev;
 
 	if (!request_region(smbus->base, smbus->size, nforce2_driver.name)) {
 		dev_err(&smbus->adapter.dev, "Error requesting region %02x .. %02X for %s\n",
