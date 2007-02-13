@@ -892,7 +892,6 @@ load_up_spe:
 	REST_GPR(9, r11)
 	REST_GPR(12, r11)
 	lwz	r11,GPR11(r11)
-	SYNC
 	rfi
 
 /*
@@ -956,7 +955,6 @@ _GLOBAL(giveup_altivec)
 _GLOBAL(giveup_spe)
 	mfmsr	r5
 	oris	r5,r5,MSR_SPE@h
-	SYNC
 	mtmsr	r5			/* enable use of SPE now */
 	isync
 	cmpi	0,r3,0
