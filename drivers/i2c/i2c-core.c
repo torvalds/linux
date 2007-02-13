@@ -32,6 +32,7 @@
 #include <linux/seq_file.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
+#include <linux/completion.h>
 #include <asm/uaccess.h>
 
 
