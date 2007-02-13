@@ -1074,7 +1074,8 @@ static inline void remove_sect_attrs(struct module *mod)
 }
 #endif /* CONFIG_KALLSYMS */
 
-static int module_add_modinfo_attrs(struct module *mod)
+#ifdef CONFIG_SYSFS
+int module_add_modinfo_attrs(struct module *mod)
 {
 	struct module_attribute *attr;
 	struct module_attribute *temp_attr;
@@ -1100,7 +1101,7 @@ static int module_add_modinfo_attrs(struct module *mod)
 	return error;
 }
 
-static void module_remove_modinfo_attrs(struct module *mod)
+void module_remove_modinfo_attrs(struct module *mod)
 {
 	struct module_attribute *attr;
 	int i;
@@ -1115,8 +1116,10 @@ static void module_remove_modinfo_attrs(struct module *mod)
 	}
 	kfree(mod->modinfo_attrs);
 }
+#endif
 
-static int mod_sysfs_init(struct module *mod)
+#ifdef CONFIG_SYSFS
+int mod_sysfs_init(struct module *mod)
 {
 	int err;
 
@@ -1139,7 +1142,7 @@ out:
 	return err;
 }
 
-static int mod_sysfs_setup(struct module *mod,
+int mod_sysfs_setup(struct module *mod,
 			   struct kernel_param *kparam,
 			   unsigned int num_params)
 {
@@ -1175,6 +1178,7 @@ out_unreg:
 out:
 	return err;
 }
+#endif
 
 static void mod_kobject_remove(struct module *mod)
 {
@@ -2348,6 +2352,7 @@ void print_modules(void)
 	printk("\n");
 }
 
+#ifdef CONFIG_SYSFS
 static char *make_driver_name(struct device_driver *drv)
 {
 	char *driver_name;
@@ -2422,6 +2427,7 @@ void module_remove_driver(struct device_driver *drv)
 	}
 }
 EXPORT_SYMBOL(module_remove_driver);
+#endif
 
 #ifdef CONFIG_MODVERSIONS
 /* Generate the signature for struct module here, too, for modversions. */

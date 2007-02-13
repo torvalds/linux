@@ -169,10 +169,22 @@ extern int param_get_string(char *buffer, struct kernel_param *kp);
 
 struct module;
 
+#if defined(CONFIG_SYSFS) && defined(CONFIG_MODULES)
 extern int module_param_sysfs_setup(struct module *mod,
 				    struct kernel_param *kparam,
 				    unsigned int num_params);
 
 extern void module_param_sysfs_remove(struct module *mod);
+#else
+static inline int module_param_sysfs_setup(struct module *mod,
+			     struct kernel_param *kparam,
+			     unsigned int num_params)
+{
+	return 0;
+}
+
+static inline void module_param_sysfs_remove(struct module *mod)
+{ }
+#endif
 
 #endif /* _LINUX_MODULE_PARAMS_H */
