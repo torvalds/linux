@@ -3735,13 +3735,23 @@ out:
 	tg3_full_unlock(tp);
 }
 
+static void tg3_dump_short_state(struct tg3 *tp)
+{
+	printk(KERN_ERR PFX "DEBUG: MAC_TX_STATUS[%08x] MAC_RX_STATUS[%08x]\n",
+	       tr32(MAC_TX_STATUS), tr32(MAC_RX_STATUS));
+	printk(KERN_ERR PFX "DEBUG: RDMAC_STATUS[%08x] WDMAC_STATUS[%08x]\n",
+	       tr32(RDMAC_STATUS), tr32(WDMAC_STATUS));
+}
+
 static void tg3_tx_timeout(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	if (netif_msg_tx_err(tp))
+	if (netif_msg_tx_err(tp)) {
 		printk(KERN_ERR PFX "%s: transmit timed out, resetting\n",
 		       dev->name);
+		tg3_dump_short_state(tp);
+	}
 
 	schedule_work(&tp->reset_task);
 }
