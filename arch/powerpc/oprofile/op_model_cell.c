@@ -39,6 +39,9 @@
 #include "../platforms/cell/interrupt.h"
 
 #define PPU_CYCLES_EVENT_NUM 1	/*  event number for CYCLES */
+#define PPU_CYCLES_GRP_NUM   1  /* special group number for identifying
+                                 * PPU_CYCLES event
+                                 */
 #define CBE_COUNT_ALL_CYCLES 0x42800000	/* PPU cycle event specifier */
 
 #define NUM_THREADS 2         /* number of physical threads in
@@ -62,7 +65,7 @@ struct pmc_cntrl_data {
 struct pm_signal {
 	u16 cpu;		/* Processor to modify */
 	u16 sub_unit;		/* hw subunit this applies to (if applicable) */
-	u16 signal_group;	/* Signal Group to Enable/Disable */
+	short int signal_group;	/* Signal Group to Enable/Disable */
 	u8 bus_word;		/* Enable/Disable on this Trace/Trigger/Event
 				 * Bus Word(s) (bitmask)
 				 */
@@ -179,26 +182,40 @@ static void pm_rtas_reset_signals(u32 node)
 static void pm_rtas_activate_signals(u32 node, u32 count)
 {
 	int ret;
-	int j;
+	int i, j;
 	struct pm_signal pm_signal_local[NR_PHYS_CTRS];
 
+	/* There is no debug setup required for the cycles event.
+	 * Note that only events in the same group can be used.
+	 * Otherwise, there will be conflicts in correctly routing
+	 * the signals on the debug bus.  It is the responsiblity
+	 * of the OProfile user tool to check the events are in
+	 * the same group.
+	 */
+	i = 0;
 	for (j = 0; j < count; j++) {
-		/* fw expects physical cpu # */
-		pm_signal_local[j].cpu = node;
-		pm_signal_local[j].signal_group
-			= pm_signal[j].signal_group;
-		pm_signal_local[j].bus_word = pm_signal[j].bus_word;
-		pm_signal_local[j].sub_unit = pm_signal[j].sub_unit;
-		pm_signal_local[j].bit = pm_signal[j].bit;
+		if (pm_signal[j].signal_group != PPU_CYCLES_GRP_NUM) {
+
+			/* fw expects physical cpu # */
+			pm_signal_local[i].cpu = node;
+			pm_signal_local[i].signal_group
+				= pm_signal[j].signal_group;
+			pm_signal_local[i].bus_word = pm_signal[j].bus_word;
+			pm_signal_local[i].sub_unit = pm_signal[j].sub_unit;
+			pm_signal_local[i].bit = pm_signal[j].bit;
+			i++;
+		}
 	}
 
-	ret = rtas_ibm_cbe_perftools(SUBFUNC_ACTIVATE, PASSTHRU_ENABLE,
-				     pm_signal_local,
-				     count * sizeof(struct pm_signal));
+	if (i != 0) {
+		ret = rtas_ibm_cbe_perftools(SUBFUNC_ACTIVATE, PASSTHRU_ENABLE,
+					     pm_signal_local,
+					     i * sizeof(struct pm_signal));
 
-	if (ret)
-		printk(KERN_WARNING "%s: rtas returned: %d\n",
-		       __FUNCTION__, ret);
+		if (ret)
+			printk(KERN_WARNING "%s: rtas returned: %d\n",
+			       __FUNCTION__, ret);
+	}
 }
 
 /*
@@ -215,7 +232,7 @@ static void set_pm_event(u32 ctr, int event, u32 unit_mask)
 		/* Special Event: Count all cpu cycles */
 		pm_regs.pm07_cntrl[ctr] = CBE_COUNT_ALL_CYCLES;
 		p = &(pm_signal[ctr]);
-		p->signal_group = 21;
+		p->signal_group = PPU_CYCLES_GRP_NUM;
 		p->bus_word = 1;
 		p->sub_unit = 0;
 		p->bit = 0;
