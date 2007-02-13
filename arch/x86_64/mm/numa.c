@@ -78,11 +78,8 @@ static int __init allocate_cachealigned_memnodemap(void)
 	unsigned long pad, pad_addr;
 
 	memnodemap = memnode.embedded_map;
-	if (memnodemapsize <= 48) {
-		printk(KERN_DEBUG "NUMA: Allocated memnodemap from %lx - %lx\n",
-		       nodemap_addr, nodemap_addr + nodemap_size);
+	if (memnodemapsize <= 48)
 		return 0;
-	}
 
 	pad = L1_CACHE_BYTES - 1;
 	pad_addr = 0x8000;
@@ -110,7 +107,7 @@ static int __init allocate_cachealigned_memnodemap(void)
 static int __init
 extract_lsb_from_nodes (const struct bootnode *nodes, int numnodes)
 {
-	int i;
+	int i, nodes_used = 0;
 	unsigned long start, end;
 	unsigned long bitfield = 0, memtop = 0;
 
@@ -119,11 +116,15 @@ extract_lsb_from_nodes (const struct bootnode *nodes, int numnodes)
 		end = nodes[i].end;
 		if (start >= end)
 			continue;
-		bitfield |= start | end;
+		bitfield |= start;
+		nodes_used++;
 		if (end > memtop)
 			memtop = end;
 	}
-	i = find_first_bit(&bitfield, sizeof(unsigned long)*8);
+	if (nodes_used <= 1)
+		i = 63;
+	else
+		i = find_first_bit(&bitfield, sizeof(unsigned long)*8);
 	memnodemapsize = (memtop >> i)+1;
 	return i;
 }
