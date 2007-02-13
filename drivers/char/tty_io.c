@@ -3442,7 +3442,6 @@ void do_SAK(struct tty_struct *tty)
 {
 	if (!tty)
 		return;
-	PREPARE_WORK(&tty->SAK_work, do_SAK_work);
 	schedule_work(&tty->SAK_work);
 }
 
@@ -3568,7 +3567,7 @@ static void initialize_tty_struct(struct tty_struct *tty)
 	mutex_init(&tty->atomic_write_lock);
 	spin_lock_init(&tty->read_lock);
 	INIT_LIST_HEAD(&tty->tty_files);
-	INIT_WORK(&tty->SAK_work, NULL);
+	INIT_WORK(&tty->SAK_work, do_SAK_work);
 }
 
 /*
