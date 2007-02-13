@@ -54,7 +54,9 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
 	ctx->rt_priority = current->rt_priority;
+	ctx->policy = current->policy;
 	ctx->prio = current->prio;
+	INIT_DELAYED_WORK(&ctx->sched_work, spu_sched_tick);
 	goto out;
 out_free:
 	kfree(ctx);

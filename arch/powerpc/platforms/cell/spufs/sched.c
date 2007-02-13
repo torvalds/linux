@@ -44,7 +44,7 @@
 #include <asm/spu_priv1.h>
 #include "spufs.h"
 
-#define SPU_MIN_TIMESLICE 	(100 * HZ / 1000)
+#define SPU_TIMESLICE	(HZ)
 
 struct spu_prio_array {
 	DECLARE_BITMAP(bitmap, MAX_PRIO);
@@ -55,6 +55,7 @@ struct spu_prio_array {
 };
 
 static struct spu_prio_array *spu_prio;
+static struct workqueue_struct *spu_sched_wq;
 
 static inline int node_allowed(int node)
 {
@@ -66,6 +67,40 @@ static inline int node_allowed(int node)
 	if (!cpus_intersects(mask, current->cpus_allowed))
 		return 0;
 	return 1;
+}
+
+void spu_start_tick(struct spu_context *ctx)
+{
+	if (ctx->policy == SCHED_RR)
+		queue_delayed_work(spu_sched_wq, &ctx->sched_work, SPU_TIMESLICE);
+}
+
+void spu_stop_tick(struct spu_context *ctx)
+{
+	if (ctx->policy == SCHED_RR)
+		cancel_delayed_work(&ctx->sched_work);
+}
+
+void spu_sched_tick(struct work_struct *work)
+{
+	struct spu_context *ctx =
+		container_of(work, struct spu_context, sched_work.work);
+	struct spu *spu;
+	int rearm = 1;
+
+	mutex_lock(&ctx->state_mutex);
+	spu = ctx->spu;
+	if (spu) {
+		int best = sched_find_first_bit(spu_prio->bitmap);
+		if (best <= ctx->prio) {
+			spu_deactivate(ctx);
+			rearm = 0;
+		}
+	}
+	mutex_unlock(&ctx->state_mutex);
+
+	if (rearm)
+		spu_start_tick(ctx);
 }
 
 /**
@@ -437,10 +472,15 @@ int __init spu_sched_init(void)
 {
 	int i;
 
+	spu_sched_wq = create_singlethread_workqueue("spusched");
+	if (!spu_sched_wq)
+		return 1;
+
 	spu_prio = kzalloc(sizeof(struct spu_prio_array), GFP_KERNEL);
 	if (!spu_prio) {
 		printk(KERN_WARNING "%s: Unable to allocate priority queue.\n",
 		       __FUNCTION__);
+		       destroy_workqueue(spu_sched_wq);
 		return 1;
 	}
 	for (i = 0; i < MAX_PRIO; i++) {
@@ -471,4 +511,5 @@ void __exit spu_sched_exit(void)
 		mutex_unlock(&spu_prio->active_mutex[node]);
 	}
 	kfree(spu_prio);
+	destroy_workqueue(spu_sched_wq);
 }

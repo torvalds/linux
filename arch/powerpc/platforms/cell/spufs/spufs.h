@@ -82,8 +82,10 @@ struct spu_context {
 
 	/* scheduler fields */
  	struct list_head rq;
+	struct delayed_work sched_work;
 	unsigned long sched_flags;
 	unsigned long rt_priority;
+	int policy;
 	int prio;
 };
 
@@ -195,6 +197,9 @@ enum {
 int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);
+void spu_start_tick(struct spu_context *ctx);
+void spu_stop_tick(struct spu_context *ctx);
+void spu_sched_tick(struct work_struct *work);
 int __init spu_sched_init(void);
 void __exit spu_sched_exit(void);
 
