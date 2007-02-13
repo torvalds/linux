@@ -32,7 +32,7 @@ static void save_stack_address(void *data, unsigned long addr)
 		trace->skip--;
 		return;
 	}
-	if (trace->nr_entries < trace->max_entries - 1)
+	if (trace->nr_entries < trace->max_entries)
 		trace->entries[trace->nr_entries++] = addr;
 }
 
@@ -49,7 +49,8 @@ static struct stacktrace_ops save_stack_ops = {
 void save_stack_trace(struct stack_trace *trace, struct task_struct *task)
 {
 	dump_trace(task, NULL, NULL, &save_stack_ops, trace);
-	trace->entries[trace->nr_entries++] = ULONG_MAX;
+	if (trace->nr_entries < trace->max_entries)
+		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL(save_stack_trace);
 
