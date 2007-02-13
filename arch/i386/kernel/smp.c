@@ -375,8 +375,7 @@ static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 	/*
 	 * i'm not happy about this global shared spinlock in the
 	 * MM hot path, but we'll see how contended it is.
-	 * Temporarily this turns IRQs off, so that lockups are
-	 * detected by the NMI watchdog.
+	 * AK: x86-64 has a faster method that could be ported.
 	 */
 	spin_lock(&tlbstate_lock);
 	
@@ -401,7 +400,7 @@ static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 
 	while (!cpus_empty(flush_cpumask))
 		/* nothing. lockup detection does not belong here */
-		mb();
+		cpu_relax();
 
 	flush_mm = NULL;
 	flush_va = 0;
