@@ -457,6 +457,10 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 		      "Dell Latitude 120L", STAC_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cc,
 		      "Dell Latitude D820", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cd,
+		      "Dell Inspiron E1705/9400", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ce,
+		      "Dell XPS M1710", STAC_REF),
 	{} /* terminator */
 };
 
