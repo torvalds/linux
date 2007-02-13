@@ -87,7 +87,7 @@ config DOUBLEFAULT
 
 config DEBUG_PARAVIRT
 	bool "Enable some paravirtualization debugging"
-	default y
+	default n
 	depends on PARAVIRT && DEBUG_KERNEL
 	help
 	  Currently deliberately clobbers regs which are allowed to be
