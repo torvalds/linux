@@ -145,7 +145,6 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	ctx->spu = spu;
 	ctx->ops = &spu_hw_ops;
 	spu->pid = current->pid;
-	spu->prio = current->prio;
 	spu->mm = ctx->owner;
 	mm_needs_global_tlbie(spu->mm);
 	spu->ibox_callback = spufs_ibox_callback;
@@ -189,7 +188,6 @@ static int spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu->dma_callback = NULL;
 	spu->mm = NULL;
 	spu->pid = 0;
-	spu->prio = MAX_PRIO;
 	ctx->ops = &spu_backing_ops;
 	ctx->spu = NULL;
 	spu->flags = 0;
@@ -223,7 +221,7 @@ static inline void spu_del_wq(wait_queue_head_t * wq, wait_queue_t * wait,
 
 static void spu_prio_wait(struct spu_context *ctx, u64 flags)
 {
-	int prio = current->prio;
+	int prio = ctx->prio;
 	wait_queue_head_t *wq = &spu_prio->waitq[prio];
 	DEFINE_WAIT(wait);
 
@@ -342,8 +340,6 @@ void spu_yield(struct spu_context *ctx)
 					 __FUNCTION__, spu->number, spu->node);
 				spu_deactivate(ctx);
 				need_yield = 1;
-			} else {
-				spu->prio = MAX_PRIO;
 			}
 		}
 		mutex_unlock(&ctx->state_mutex);

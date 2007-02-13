@@ -53,6 +53,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	ctx->owner = get_task_mm(current);
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
+	ctx->prio = current->prio;
 	goto out;
 out_free:
 	kfree(ctx);
@@ -176,8 +177,7 @@ int spu_acquire_runnable(struct spu_context *ctx)
 		ret = spu_activate(ctx, 0);
 		if (ret)
 			goto out_unlock;
-	} else
-		ctx->spu->prio = current->prio;
+	}
 
 	return 0;
 
