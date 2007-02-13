@@ -40,8 +40,8 @@
 
 #define _COMPONENT		ACPI_MEMORY_DEVICE_COMPONENT
 
-ACPI_MODULE_NAME("acpi_memory")
-    MODULE_AUTHOR("Naveen B S <naveen.b.s@intel.com>");
+ACPI_MODULE_NAME("acpi_memhotplug");
+MODULE_AUTHOR("Naveen B S <naveen.b.s@intel.com>");
 MODULE_DESCRIPTION(ACPI_MEMORY_DEVICE_DRIVER_NAME);
 MODULE_LICENSE("GPL");
 

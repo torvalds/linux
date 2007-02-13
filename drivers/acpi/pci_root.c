@@ -36,7 +36,7 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_PCI_COMPONENT
-ACPI_MODULE_NAME("pci_root")
+ACPI_MODULE_NAME("pci_root");
 #define ACPI_PCI_ROOT_CLASS		"pci_bridge"
 #define ACPI_PCI_ROOT_HID		"PNP0A03"
 #define ACPI_PCI_ROOT_DRIVER_NAME	"ACPI PCI Root Bridge Driver"

@@ -38,7 +38,7 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_PCI_COMPONENT
-ACPI_MODULE_NAME("pci_irq")
+ACPI_MODULE_NAME("pci_irq");
 
 static struct acpi_prt_list acpi_prt;
 static DEFINE_SPINLOCK(acpi_prt_lock);

@@ -38,7 +38,7 @@
 #include <acpi/actypes.h>
 
 #define _COMPONENT		ACPI_EC_COMPONENT
-ACPI_MODULE_NAME("acpi_ec")
+ACPI_MODULE_NAME("ec");
 #define ACPI_EC_COMPONENT		0x00100000
 #define ACPI_EC_CLASS			"embedded_controller"
 #define ACPI_EC_HID			"PNP0C09"

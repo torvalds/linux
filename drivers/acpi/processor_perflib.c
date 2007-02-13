@@ -47,7 +47,7 @@
 #define ACPI_PROCESSOR_DRIVER_NAME	"ACPI Processor Driver"
 #define ACPI_PROCESSOR_FILE_PERFORMANCE	"performance"
 #define _COMPONENT		ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME("acpi_processor")
+ACPI_MODULE_NAME("processor_perflib");
 
 static DEFINE_MUTEX(performance_mutex);
 

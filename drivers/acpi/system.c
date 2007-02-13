@@ -31,7 +31,7 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
-ACPI_MODULE_NAME("acpi_system")
+ACPI_MODULE_NAME("system");
 #ifdef MODULE_PARAM_PREFIX
 #undef MODULE_PARAM_PREFIX
 #endif

@@ -33,7 +33,7 @@
 
 #define ACPI_NUMA	0x80000000
 #define _COMPONENT	ACPI_NUMA
-ACPI_MODULE_NAME("numa")
+ACPI_MODULE_NAME("numa");
 
 static nodemask_t nodes_found_map = NODE_MASK_NONE;
 #define PXM_INVAL	-1

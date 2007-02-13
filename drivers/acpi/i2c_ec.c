@@ -33,7 +33,7 @@
 
 #define _COMPONENT		ACPI_EC_HC_COMPONENT
 
-ACPI_MODULE_NAME("acpi_smbus")
+ACPI_MODULE_NAME("i2c_ec");
 
 static int acpi_ec_hc_add(struct acpi_device *device);
 static int acpi_ec_hc_remove(struct acpi_device *device, int type);

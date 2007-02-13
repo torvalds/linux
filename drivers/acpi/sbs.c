@@ -78,7 +78,7 @@ extern void acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
 #define	MAX_SBS_BAT			4
 #define	MAX_SMBUS_ERR			1
 
-ACPI_MODULE_NAME("acpi_sbs");
+ACPI_MODULE_NAME("sbs");
 
 MODULE_AUTHOR("Rich Townsend");
 MODULE_DESCRIPTION("Smart Battery System ACPI interface driver");
