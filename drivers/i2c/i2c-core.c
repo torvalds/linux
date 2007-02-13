@@ -217,9 +217,8 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 	 */
 	if (adap->dev.parent == NULL) {
 		adap->dev.parent = &platform_bus;
-		printk(KERN_WARNING "**WARNING** I2C adapter driver [%s] "
-		       "forgot to specify physical device; fix it!\n",
-		       adap->name);
+		pr_debug("I2C adapter driver [%s] forgot to specify "
+			 "physical device\n", adap->name);
 	}
 	sprintf(adap->dev.bus_id, "i2c-%d", adap->nr);
 	adap->dev.driver = &i2c_adapter_driver;
