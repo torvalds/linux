@@ -325,6 +325,21 @@ void bcm43xx_ilt_write(struct bcm43xx_private *bcm, u16 offset, u16 val)
 	}
 }
 
+void bcm43xx_ilt_write32(struct bcm43xx_private *bcm, u16 offset, u32 val)
+{
+	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_A) {
+		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_CTRL, offset);
+		mmiowb();
+		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_DATA2, (val & 0xFFFF0000) >> 16);
+		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_DATA1, val & 0x0000FFFF);
+	} else {
+		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_G_CTRL, offset);
+		mmiowb();
+		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_G_DATA2, (val & 0xFFFF0000) >> 16);
+		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_G_DATA1, val & 0x0000FFFF);
+	}
+}
+
 u16 bcm43xx_ilt_read(struct bcm43xx_private *bcm, u16 offset)
 {
 	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_A) {
