@@ -23,7 +23,7 @@
 #define SPUFS_H
 
 #include <linux/kref.h>
-#include <linux/rwsem.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/fs.h>
 
@@ -53,7 +53,7 @@ struct spu_context {
 	u64 object_id;		   /* user space pointer for oprofile */
 
 	enum { SPU_STATE_RUNNABLE, SPU_STATE_SAVED } state;
-	struct rw_semaphore state_sema;
+	struct mutex state_mutex;
 	struct semaphore run_sema;
 
 	struct mm_struct *owner;
@@ -173,7 +173,7 @@ int spu_acquire_exclusive(struct spu_context *ctx);
 
 static inline void spu_release_exclusive(struct spu_context *ctx)
 {
-	up_write(&ctx->state_sema);
+	mutex_unlock(&ctx->state_mutex);
 }
 
 int spu_activate(struct spu_context *ctx, u64 flags);

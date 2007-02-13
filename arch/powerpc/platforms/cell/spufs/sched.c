@@ -233,11 +233,11 @@ static void spu_prio_wait(struct spu_context *ctx, u64 flags)
 	spu_add_wq(wq, &wait, prio);
 
 	if (!signal_pending(current)) {
-		up_write(&ctx->state_sema);
+		mutex_unlock(&ctx->state_mutex);
 		pr_debug("%s: pid=%d prio=%d\n", __FUNCTION__,
 			 current->pid, current->prio);
 		schedule();
-		down_write(&ctx->state_sema);
+		mutex_lock(&ctx->state_mutex);
 	}
 
 	spu_del_wq(wq, &wait, prio);
@@ -334,7 +334,7 @@ void spu_yield(struct spu_context *ctx)
 	struct spu *spu;
 	int need_yield = 0;
 
-	if (down_write_trylock(&ctx->state_sema)) {
+	if (mutex_trylock(&ctx->state_mutex)) {
 		if ((spu = ctx->spu) != NULL) {
 			int best = sched_find_first_bit(spu_prio->bitmap);
 			if (best < MAX_PRIO) {
@@ -346,7 +346,7 @@ void spu_yield(struct spu_context *ctx)
 				spu->prio = MAX_PRIO;
 			}
 		}
-		up_write(&ctx->state_sema);
+		mutex_unlock(&ctx->state_mutex);
 	}
 	if (unlikely(need_yield))
 		yield();

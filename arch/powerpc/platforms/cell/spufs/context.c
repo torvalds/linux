@@ -42,7 +42,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	}
 	spin_lock_init(&ctx->mmio_lock);
 	kref_init(&ctx->kref);
-	init_rwsem(&ctx->state_sema);
+	mutex_init(&ctx->state_mutex);
 	init_MUTEX(&ctx->run_sema);
 	init_waitqueue_head(&ctx->ibox_wq);
 	init_waitqueue_head(&ctx->wbox_wq);
@@ -65,9 +65,9 @@ void destroy_spu_context(struct kref *kref)
 {
 	struct spu_context *ctx;
 	ctx = container_of(kref, struct spu_context, kref);
-	down_write(&ctx->state_sema);
+	mutex_lock(&ctx->state_mutex);
 	spu_deactivate(ctx);
-	up_write(&ctx->state_sema);
+	mutex_unlock(&ctx->state_mutex);
 	spu_fini_csa(&ctx->csa);
 	if (ctx->gang)
 		spu_gang_remove_ctx(ctx->gang, ctx);
@@ -98,12 +98,12 @@ void spu_forget(struct spu_context *ctx)
 
 void spu_acquire(struct spu_context *ctx)
 {
-	down_read(&ctx->state_sema);
+	mutex_lock(&ctx->state_mutex);
 }
 
 void spu_release(struct spu_context *ctx)
 {
-	up_read(&ctx->state_sema);
+	mutex_unlock(&ctx->state_mutex);
 }
 
 void spu_unmap_mappings(struct spu_context *ctx)
@@ -128,7 +128,7 @@ int spu_acquire_exclusive(struct spu_context *ctx)
 {
 	int ret = 0;
 
-	down_write(&ctx->state_sema);
+	mutex_lock(&ctx->state_mutex);
 	/* ctx is about to be freed, can't acquire any more */
 	if (!ctx->owner) {
 		ret = -EINVAL;
@@ -146,7 +146,7 @@ int spu_acquire_exclusive(struct spu_context *ctx)
 
 out:
 	if (ret)
-		up_write(&ctx->state_sema);
+		mutex_unlock(&ctx->state_mutex);
 	return ret;
 }
 
@@ -154,14 +154,12 @@ int spu_acquire_runnable(struct spu_context *ctx)
 {
 	int ret = 0;
 
-	down_read(&ctx->state_sema);
+	mutex_lock(&ctx->state_mutex);
 	if (ctx->state == SPU_STATE_RUNNABLE) {
 		ctx->spu->prio = current->prio;
 		return 0;
 	}
-	up_read(&ctx->state_sema);
 
-	down_write(&ctx->state_sema);
 	/* ctx is about to be freed, can't acquire any more */
 	if (!ctx->owner) {
 		ret = -EINVAL;
@@ -174,29 +172,18 @@ int spu_acquire_runnable(struct spu_context *ctx)
 			goto out;
 	}
 
-	downgrade_write(&ctx->state_sema);
 	/* On success, we return holding the lock */
-
 	return ret;
 out:
 	/* Release here, to simplify calling code. */
-	up_write(&ctx->state_sema);
+	mutex_unlock(&ctx->state_mutex);
 
 	return ret;
 }
 
 void spu_acquire_saved(struct spu_context *ctx)
 {
-	down_read(&ctx->state_sema);
-
-	if (ctx->state == SPU_STATE_SAVED)
-		return;
-
-	up_read(&ctx->state_sema);
-	down_write(&ctx->state_sema);
-
+	mutex_lock(&ctx->state_mutex);
 	if (ctx->state == SPU_STATE_RUNNABLE)
 		spu_deactivate(ctx);
-
-	downgrade_write(&ctx->state_sema);
 }
