@@ -158,6 +158,16 @@ void spu_gang_remove_ctx(struct spu_gang *gang, struct spu_context *ctx);
 void spu_gang_add_ctx(struct spu_gang *gang, struct spu_context *ctx);
 
 /* context management */
+static inline void spu_acquire(struct spu_context *ctx)
+{
+	mutex_lock(&ctx->state_mutex);
+}
+
+static inline void spu_release(struct spu_context *ctx)
+{
+	mutex_unlock(&ctx->state_mutex);
+}
+
 struct spu_context * alloc_spu_context(struct spu_gang *gang);
 void destroy_spu_context(struct kref *kref);
 struct spu_context * get_spu_context(struct spu_context *ctx);
@@ -165,17 +175,9 @@ int put_spu_context(struct spu_context *ctx);
 void spu_unmap_mappings(struct spu_context *ctx);
 
 void spu_forget(struct spu_context *ctx);
-void spu_acquire(struct spu_context *ctx);
-void spu_release(struct spu_context *ctx);
 int spu_acquire_runnable(struct spu_context *ctx);
 void spu_acquire_saved(struct spu_context *ctx);
 int spu_acquire_exclusive(struct spu_context *ctx);
-
-static inline void spu_release_exclusive(struct spu_context *ctx)
-{
-	mutex_unlock(&ctx->state_mutex);
-}
-
 int spu_activate(struct spu_context *ctx, u64 flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);

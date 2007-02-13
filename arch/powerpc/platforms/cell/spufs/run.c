@@ -133,7 +133,7 @@ out_drop_priv:
 	spu_mfc_sr1_set(ctx->spu, sr1);
 
 out_unlock:
-	spu_release_exclusive(ctx);
+	spu_release(ctx);
 out:
 	return ret;
 }
