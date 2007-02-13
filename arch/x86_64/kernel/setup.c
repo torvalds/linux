@@ -138,128 +138,6 @@ struct resource code_resource = {
 	.flags = IORESOURCE_RAM,
 };
 
-#define IORESOURCE_ROM (IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM)
-
-static struct resource system_rom_resource = {
-	.name = "System ROM",
-	.start = 0xf0000,
-	.end = 0xfffff,
-	.flags = IORESOURCE_ROM,
-};
-
-static struct resource extension_rom_resource = {
-	.name = "Extension ROM",
-	.start = 0xe0000,
-	.end = 0xeffff,
-	.flags = IORESOURCE_ROM,
-};
-
-static struct resource adapter_rom_resources[] = {
-	{ .name = "Adapter ROM", .start = 0xc8000, .end = 0,
-		.flags = IORESOURCE_ROM },
-	{ .name = "Adapter ROM", .start = 0, .end = 0,
-		.flags = IORESOURCE_ROM },
-	{ .name = "Adapter ROM", .start = 0, .end = 0,
-		.flags = IORESOURCE_ROM },
-	{ .name = "Adapter ROM", .start = 0, .end = 0,
-		.flags = IORESOURCE_ROM },
-	{ .name = "Adapter ROM", .start = 0, .end = 0,
-		.flags = IORESOURCE_ROM },
-	{ .name = "Adapter ROM", .start = 0, .end = 0,
-		.flags = IORESOURCE_ROM }
-};
-
-static struct resource video_rom_resource = {
-	.name = "Video ROM",
-	.start = 0xc0000,
-	.end = 0xc7fff,
-	.flags = IORESOURCE_ROM,
-};
-
-static struct resource video_ram_resource = {
-	.name = "Video RAM area",
-	.start = 0xa0000,
-	.end = 0xbffff,
-	.flags = IORESOURCE_RAM,
-};
-
-#define romsignature(x) (*(unsigned short *)(x) == 0xaa55)
-
-static int __init romchecksum(unsigned char *rom, unsigned long length)
-{
-	unsigned char *p, sum = 0;
-
-	for (p = rom; p < rom + length; p++)
-		sum += *p;
-	return sum == 0;
-}
-
-static void __init probe_roms(void)
-{
-	unsigned long start, length, upper;
-	unsigned char *rom;
-	int	      i;
-
-	/* video rom */
-	upper = adapter_rom_resources[0].start;
-	for (start = video_rom_resource.start; start < upper; start += 2048) {
-		rom = isa_bus_to_virt(start);
-		if (!romsignature(rom))
-			continue;
-
-		video_rom_resource.start = start;
-
-		/* 0 < length <= 0x7f * 512, historically */
-		length = rom[2] * 512;
-
-		/* if checksum okay, trust length byte */
-		if (length && romchecksum(rom, length))
-			video_rom_resource.end = start + length - 1;
-
-		request_resource(&iomem_resource, &video_rom_resource);
-		break;
-			}
-
-	start = (video_rom_resource.end + 1 + 2047) & ~2047UL;
-	if (start < upper)
-		start = upper;
-
-	/* system rom */
-	request_resource(&iomem_resource, &system_rom_resource);
-	upper = system_rom_resource.start;
-
-	/* check for extension rom (ignore length byte!) */
-	rom = isa_bus_to_virt(extension_rom_resource.start);
-	if (romsignature(rom)) {
-		length = extension_rom_resource.end - extension_rom_resource.start + 1;
-		if (romchecksum(rom, length)) {
-			request_resource(&iomem_resource, &extension_rom_resource);
-			upper = extension_rom_resource.start;
-		}
-	}
-
-	/* check for adapter roms on 2k boundaries */
-	for (i = 0; i < ARRAY_SIZE(adapter_rom_resources) && start < upper;
-	     start += 2048) {
-		rom = isa_bus_to_virt(start);
-		if (!romsignature(rom))
-			continue;
-
-		/* 0 < length <= 0x7f * 512, historically */
-		length = rom[2] * 512;
-
-		/* but accept any length that fits if checksum okay */
-		if (!length || start + length > upper || !romchecksum(rom, length))
-			continue;
-
-		adapter_rom_resources[i].start = start;
-		adapter_rom_resources[i].end = start + length - 1;
-		request_resource(&iomem_resource, &adapter_rom_resources[i]);
-
-		start = adapter_rom_resources[i++].end & ~2047UL;
-	}
-}
-
 #ifdef CONFIG_PROC_VMCORE
 /* elfcorehdr= specifies the location of elf core header
  * stored by the crashed kernel. This option will be passed
@@ -524,14 +402,10 @@ void __init setup_arch(char **cmdline_p)
 	init_apic_mappings();
 
 	/*
-	 * Request address space for all standard RAM and ROM resources
-	 * and also for regions reported as reserved by the e820.
-	 */
-	probe_roms();
+	 * We trust e820 completely. No explicit ROM probing in memory.
+ 	 */
 	e820_reserve_resources(); 
 	e820_mark_nosave_regions();
-
-	request_resource(&iomem_resource, &video_ram_resource);
 
 	{
 	unsigned i;
