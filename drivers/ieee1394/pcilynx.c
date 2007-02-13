@@ -1434,6 +1434,7 @@ static int __devinit add_card(struct pci_dev *dev,
                 i2c_adapter_data = bit_data;
                 i2c_ad->algo_data = &i2c_adapter_data;
                 i2c_adapter_data.data = lynx;
+		i2c_ad->dev.parent = &dev->dev;
 
 		PRINTD(KERN_DEBUG, lynx->id,"original eeprom control: %d",
 		       reg_read(lynx, SERIAL_EEPROM_CONTROL));

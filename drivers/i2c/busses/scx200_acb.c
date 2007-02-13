@@ -428,7 +428,7 @@ static __init int scx200_acb_probe(struct scx200_acb_iface *iface)
 }
 
 static __init struct scx200_acb_iface *scx200_create_iface(const char *text,
-		int index)
+		struct device *dev, int index)
 {
 	struct scx200_acb_iface *iface;
 	struct i2c_adapter *adapter;
@@ -446,6 +446,7 @@ static __init struct scx200_acb_iface *scx200_create_iface(const char *text,
 	adapter->id = I2C_HW_SMBUS_SCX200;
 	adapter->algo = &scx200_acb_algorithm;
 	adapter->class = I2C_CLASS_HWMON;
+	adapter->dev.parent = dev;
 
 	mutex_init(&iface->mutex);
 
@@ -486,7 +487,7 @@ static __init int scx200_create_pci(const char *text, struct pci_dev *pdev,
 	struct scx200_acb_iface *iface;
 	int rc;
 
-	iface = scx200_create_iface(text, 0);
+	iface = scx200_create_iface(text, &pdev->dev, 0);
 
 	if (iface == NULL)
 		return -ENOMEM;
@@ -524,7 +525,7 @@ static int __init scx200_create_isa(const char *text, unsigned long base,
 	struct scx200_acb_iface *iface;
 	int rc;
 
-	iface = scx200_create_iface(text, index);
+	iface = scx200_create_iface(text, NULL, index);
 
 	if (iface == NULL)
 		return -ENOMEM;

@@ -115,6 +115,7 @@ static int i2c_bus_reg(struct i2c_bit_adapter* b, struct matrox_fb_info* minfo,
 		minfo->fbcon.node);
 	i2c_set_adapdata(&b->adapter, b);
 	b->adapter.algo_data = &b->bac;
+	b->adapter.dev.parent = &ACCESS_FBINFO(pcidev)->dev;
 	b->bac = matrox_i2c_algo_template;
 	b->bac.data = b;
 	err = i2c_bit_add_bus(&b->adapter);
