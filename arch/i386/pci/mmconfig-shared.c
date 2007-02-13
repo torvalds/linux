@@ -191,9 +191,16 @@ static void __init pci_mmcfg_insert_resources(void)
 	}
 }
 
-static void __init pci_mmcfg_reject_broken(void)
+static void __init pci_mmcfg_reject_broken(int type)
 {
-	typeof(pci_mmcfg_config[0]) *cfg = &pci_mmcfg_config[0];
+	typeof(pci_mmcfg_config[0]) *cfg;
+
+	if ((pci_mmcfg_config_num == 0) ||
+	    (pci_mmcfg_config == NULL) ||
+	    (pci_mmcfg_config[0].address == 0))
+		return;
+
+	cfg = &pci_mmcfg_config[0];
 
 	/*
 	 * Handle more broken MCFG tables on Asus etc.
@@ -202,13 +209,29 @@ static void __init pci_mmcfg_reject_broken(void)
 	if (pci_mmcfg_config_num == 1 &&
 	    cfg->pci_segment == 0 &&
 	    (cfg->start_bus_number | cfg->end_bus_number) == 0) {
-		kfree(pci_mmcfg_config);
-		pci_mmcfg_config = NULL;
-		pci_mmcfg_config_num = 0;
-
 		printk(KERN_ERR "PCI: start and end of bus number is 0. "
-		       "Rejected as broken MCFG.");
+		       "Rejected as broken MCFG.\n");
+		goto reject;
 	}
+
+	/*
+	 * Only do this check when type 1 works. If it doesn't work
+	 * assume we run on a Mac and always use MCFG
+	 */
+	if (type == 1 && !e820_all_mapped(cfg->address,
+					  cfg->address + MMCONFIG_APER_MIN,
+					  E820_RESERVED)) {
+		printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %Lx is not"
+		       " E820-reserved\n", cfg->address);
+		goto reject;
+	}
+	return;
+
+reject:
+	printk(KERN_ERR "PCI: Not using MMCONFIG.\n");
+	kfree(pci_mmcfg_config);
+	pci_mmcfg_config = NULL;
+	pci_mmcfg_config_num = 0;
 }
 
 void __init pci_mmcfg_init(int type)
@@ -223,25 +246,13 @@ void __init pci_mmcfg_init(int type)
 
 	if (!known_bridge) {
 		acpi_table_parse(ACPI_SIG_MCFG, acpi_parse_mcfg);
-		pci_mmcfg_reject_broken();
+		pci_mmcfg_reject_broken(type);
 	}
 
 	if ((pci_mmcfg_config_num == 0) ||
 	    (pci_mmcfg_config == NULL) ||
 	    (pci_mmcfg_config[0].address == 0))
 		return;
-
-	/* Only do this check when type 1 works. If it doesn't work
-           assume we run on a Mac and always use MCFG */
-	if (type == 1 && !known_bridge &&
-	    !e820_all_mapped(pci_mmcfg_config[0].address,
-			     pci_mmcfg_config[0].address + MMCONFIG_APER_MIN,
-			     E820_RESERVED)) {
-		printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %Lx is not E820-reserved\n",
-				pci_mmcfg_config[0].address);
-		printk(KERN_ERR "PCI: Not using MMCONFIG.\n");
-		return;
-	}
 
 	if (pci_mmcfg_arch_init()) {
 		if (type == 1)
