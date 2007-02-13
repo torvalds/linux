@@ -118,6 +118,8 @@ static inline void bind_context(struct spu *spu, struct spu_context *ctx)
 	spu->timestamp = jiffies;
 	spu_cpu_affinity_set(spu, raw_smp_processor_id());
 	spu_switch_notify(spu, ctx);
+
+	ctx->state = SPU_STATE_RUNNABLE;
 }
 
 static inline void unbind_context(struct spu *spu, struct spu_context *ctx)

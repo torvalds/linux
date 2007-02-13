@@ -139,7 +139,6 @@ int spu_acquire_exclusive(struct spu_context *ctx)
 		ret = spu_activate(ctx, 0);
 		if (ret)
 			goto out;
-		ctx->state = SPU_STATE_RUNNABLE;
 	} else {
 		/* We need to exclude userspace access to the context. */
 		spu_unmap_mappings(ctx);
@@ -173,7 +172,6 @@ int spu_acquire_runnable(struct spu_context *ctx)
 		ret = spu_activate(ctx, 0);
 		if (ret)
 			goto out;
-		ctx->state = SPU_STATE_RUNNABLE;
 	}
 
 	downgrade_write(&ctx->state_sema);
