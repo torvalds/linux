@@ -1175,8 +1175,18 @@ static void tg3_nvram_unlock(struct tg3 *);
 
 static void tg3_power_down_phy(struct tg3 *tp)
 {
-	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
+	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) {
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
+			u32 sg_dig_ctrl = tr32(SG_DIG_CTRL);
+			u32 serdes_cfg = tr32(MAC_SERDES_CFG);
+
+			sg_dig_ctrl |=
+				SG_DIG_USING_HW_AUTONEG | SG_DIG_SOFT_RESET;
+			tw32(SG_DIG_CTRL, sg_dig_ctrl);
+			tw32(MAC_SERDES_CFG, serdes_cfg | (1 << 15));
+		}
 		return;
+	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 		u32 val;
