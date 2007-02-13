@@ -136,6 +136,12 @@ static struct pci_raw_ops pci_mmcfg = {
 	.write =	pci_mmcfg_write,
 };
 
+int __init pci_mmcfg_arch_reachable(unsigned int seg, unsigned int bus,
+				    unsigned int devfn)
+{
+	return get_base_addr(seg, bus, devfn) != 0;
+}
+
 int __init pci_mmcfg_arch_init(void)
 {
 	printk(KERN_INFO "PCI: Using MMCONFIG\n");

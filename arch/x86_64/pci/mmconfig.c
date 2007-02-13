@@ -126,6 +126,12 @@ static void __iomem * __init mcfg_ioremap(struct acpi_mcfg_allocation *cfg)
 	return addr;
 }
 
+int __init pci_mmcfg_arch_reachable(unsigned int seg, unsigned int bus,
+				    unsigned int devfn)
+{
+	return pci_dev_base(seg, bus, devfn) != NULL;
+}
+
 int __init pci_mmcfg_arch_init(void)
 {
 	int i;

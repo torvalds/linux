@@ -43,12 +43,14 @@ static void __init unreachable_devices(void)
 			if (val1 == 0xffffffff)
 				continue;
 
-			raw_pci_ops->read(0, bus, devfn, 0, 4, &val2);
-			if (val1 != val2) {
-				set_bit(i + 32 * bus, pci_mmcfg_fallback_slots);
-				printk(KERN_NOTICE "PCI: No mmconfig possible"
-				       " on device %02x:%02x\n", bus, i);
+			if (pci_mmcfg_arch_reachable(0, bus, devfn)) {
+				raw_pci_ops->read(0, bus, devfn, 0, 4, &val2);
+				if (val1 == val2)
+					continue;
 			}
+			set_bit(i + 32 * bus, pci_mmcfg_fallback_slots);
+			printk(KERN_NOTICE "PCI: No mmconfig possible on device"
+			       " %02x:%02x\n", bus, i);
 		}
 	}
 }
