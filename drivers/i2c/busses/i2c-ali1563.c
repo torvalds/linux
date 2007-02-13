@@ -328,7 +328,6 @@ static int __devinit ali1563_setup(struct pci_dev * dev)
 	u16 ctrl;
 
 	pci_read_config_word(dev,ALI1563_SMBBA,&ctrl);
-	printk("ali1563: SMBus control = %04x\n",ctrl);
 
 	/* Check if device is even enabled first */
 	if (!(ctrl & ALI1563_SMB_IOEN)) {
@@ -353,9 +352,11 @@ static int __devinit ali1563_setup(struct pci_dev * dev)
 	}
 	if (!request_region(ali1563_smba, ALI1563_SMB_IOSIZE,
 			    ali1563_pci_driver.name)) {
-		dev_warn(&dev->dev,"Could not allocate I/O space");
+		dev_err(&dev->dev, "Could not allocate I/O space at 0x%04x\n",
+			ali1563_smba);
 		goto Err;
 	}
+	dev_info(&dev->dev, "Found ALi1563 SMBus at 0x%04x\n", ali1563_smba);
 
 	return 0;
 Err:
@@ -384,13 +385,18 @@ static int __devinit ali1563_probe(struct pci_dev * dev,
 	int error;
 
 	if ((error = ali1563_setup(dev)))
-		return error;
+		goto exit;
 	ali1563_adapter.dev.parent = &dev->dev;
 	sprintf(ali1563_adapter.name,"SMBus ALi 1563 Adapter @ %04x",
 		ali1563_smba);
 	if ((error = i2c_add_adapter(&ali1563_adapter)))
-		ali1563_shutdown(dev);
-	printk("%s: Returning %d\n",__FUNCTION__,error);
+		goto exit_shutdown;
+	return 0;
+
+exit_shutdown:
+	ali1563_shutdown(dev);
+exit:
+	dev_warn(&dev->dev, "ALi1563 SMBus probe failed (%d)\n", error);
 	return error;
 }
 
