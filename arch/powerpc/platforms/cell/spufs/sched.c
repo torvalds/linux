@@ -247,8 +247,8 @@ static void spu_prio_wait(struct spu_context *ctx)
 {
 	DEFINE_WAIT(wait);
 
+	set_bit(SPU_SCHED_WAKE, &ctx->sched_flags);
 	prepare_to_wait_exclusive(&ctx->stop_wq, &wait, TASK_INTERRUPTIBLE);
-
 	if (!signal_pending(current)) {
 		mutex_unlock(&ctx->state_mutex);
 		schedule();
@@ -256,6 +256,7 @@ static void spu_prio_wait(struct spu_context *ctx)
 	}
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&ctx->stop_wq, &wait);
+	clear_bit(SPU_SCHED_WAKE, &ctx->sched_flags);
 }
 
 /**
@@ -275,7 +276,7 @@ static void spu_reschedule(struct spu *spu)
 	best = sched_find_first_bit(spu_prio->bitmap);
 	if (best < MAX_PRIO) {
 		struct spu_context *ctx = spu_grab_context(best);
-		if (ctx)
+		if (ctx && test_bit(SPU_SCHED_WAKE, &ctx->sched_flags))
 			wake_up(&ctx->stop_wq);
 	}
 	spin_unlock(&spu_prio->runq_lock);
@@ -315,7 +316,7 @@ static struct spu *spu_get_idle(struct spu_context *ctx)
  * add the context to the runqueue so it gets woken up once an spu
  * is available.
  */
-int spu_activate(struct spu_context *ctx, u64 flags)
+int spu_activate(struct spu_context *ctx, unsigned long flags)
 {
 
 	if (ctx->spu)
@@ -331,7 +332,8 @@ int spu_activate(struct spu_context *ctx, u64 flags)
 		}
 
 		spu_add_to_rq(ctx);
-		spu_prio_wait(ctx);
+		if (!(flags & SPU_ACTIVATE_NOWAKE))
+			spu_prio_wait(ctx);
 		spu_del_from_rq(ctx);
 	} while (!signal_pending(current));
 

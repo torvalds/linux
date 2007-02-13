@@ -163,7 +163,7 @@ int spu_acquire_exclusive(struct spu_context *ctx)
  *	Returns 0 and with the context locked on success
  *	Returns negative error and with the context _unlocked_ on failure.
  */
-int spu_acquire_runnable(struct spu_context *ctx)
+int spu_acquire_runnable(struct spu_context *ctx, unsigned long flags)
 {
 	int ret = -EINVAL;
 
@@ -174,7 +174,7 @@ int spu_acquire_runnable(struct spu_context *ctx)
 		 */
 		if (!ctx->owner)
 			goto out_unlock;
-		ret = spu_activate(ctx, 0);
+		ret = spu_activate(ctx, flags);
 		if (ret)
 			goto out_unlock;
 	}
