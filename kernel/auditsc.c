@@ -1289,6 +1289,7 @@ void __audit_getname(const char *name)
 	context->names[context->name_count].name_len = AUDIT_NAME_FULL;
 	context->names[context->name_count].name_put = 1;
 	context->names[context->name_count].ino  = (unsigned long)-1;
+	context->names[context->name_count].osid = 0;
 	++context->name_count;
 	if (!context->pwd) {
 		read_lock(&current->fs->lock);
