@@ -147,8 +147,52 @@ static struct s3c24xx_dma_selection __initdata s3c2440_dma_sel = {
 	.map_size	= ARRAY_SIZE(s3c2440_dma_mappings),
 };
 
+static struct s3c24xx_dma_order __initdata s3c2440_dma_order = {
+	.channels	= {
+		[DMACH_SDI]	= {
+			.list	= {
+				[0]	= 3 | DMA_CH_VALID,
+				[1]	= 2 | DMA_CH_VALID,
+				[2]	= 1 | DMA_CH_VALID,
+				[3]	= 0 | DMA_CH_VALID,
+			},
+		},
+		[DMACH_I2S_IN]	= {
+			.list	= {
+				[0]	= 1 | DMA_CH_VALID,
+				[1]	= 2 | DMA_CH_VALID,
+			},
+		},
+		[DMACH_I2S_OUT]	= {
+			.list	= {
+				[0]	= 2 | DMA_CH_VALID,
+				[1]	= 1 | DMA_CH_VALID,
+			},
+		},
+		[DMACH_PCM_IN] = {
+			.list	= {
+				[0]	= 2 | DMA_CH_VALID,
+				[1]	= 1 | DMA_CH_VALID,
+			},
+		},
+		[DMACH_PCM_OUT] = {
+			.list	= {
+				[0]	= 1 | DMA_CH_VALID,
+				[1]	= 3 | DMA_CH_VALID,
+			},
+		},
+		[DMACH_MIC_IN] = {
+			.list	= {
+				[0]	= 3 | DMA_CH_VALID,
+				[1]	= 2 | DMA_CH_VALID,
+			},
+		},
+	},
+};
+
 static int s3c2440_dma_add(struct sys_device *sysdev)
 {
+	s3c24xx_dma_order_set(&s3c2440_dma_order);
 	return s3c24xx_dma_init_map(&s3c2440_dma_sel);
 }
 
