@@ -355,7 +355,6 @@ extern void audit_putname(const char *name);
 extern void __audit_inode(const char *name, const struct inode *inode);
 extern void __audit_inode_child(const char *dname, const struct inode *inode,
 				const struct inode *parent);
-extern void __audit_inode_update(const struct inode *inode);
 extern void __audit_ptrace(struct task_struct *t);
 
 static inline int audit_dummy_context(void)
@@ -377,10 +376,6 @@ static inline void audit_inode_child(const char *dname,
 				     const struct inode *parent) {
 	if (unlikely(!audit_dummy_context()))
 		__audit_inode_child(dname, inode, parent);
-}
-static inline void audit_inode_update(const struct inode *inode) {
-	if (unlikely(!audit_dummy_context()))
-		__audit_inode_update(inode);
 }
 
 static inline void audit_ptrace(struct task_struct *t)
@@ -470,10 +465,8 @@ extern int audit_signals;
 #define audit_putname(n) do { ; } while (0)
 #define __audit_inode(n,i) do { ; } while (0)
 #define __audit_inode_child(d,i,p) do { ; } while (0)
-#define __audit_inode_update(i) do { ; } while (0)
 #define audit_inode(n,i) do { ; } while (0)
 #define audit_inode_child(d,i,p) do { ; } while (0)
-#define audit_inode_update(i) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
 #define audit_log_task_context(b) do { ; } while (0)

@@ -1476,33 +1476,6 @@ update_context:
 }
 
 /**
- * audit_inode_update - update inode info for last collected name
- * @inode: inode being audited
- *
- * When open() is called on an existing object with the O_CREAT flag, the inode
- * data audit initially collects is incorrect.  This additional hook ensures
- * audit has the inode data for the actual object to be opened.
- */
-void __audit_inode_update(const struct inode *inode)
-{
-	struct audit_context *context = current->audit_context;
-	int idx;
-
-	if (!context->in_syscall || !inode)
-		return;
-
-	if (context->name_count == 0) {
-		context->name_count++;
-#if AUDIT_DEBUG
-		context->ino_count++;
-#endif
-	}
-	idx = context->name_count - 1;
-
-	audit_copy_inode(&context->names[idx], inode);
-}
-
-/**
  * auditsc_get_stamp - get local copies of audit_context values
  * @ctx: audit_context for the task
  * @t: timespec to store time recorded in the audit_context

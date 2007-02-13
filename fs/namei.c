@@ -1719,7 +1719,7 @@ do_last:
 	 * It already exists.
 	 */
 	mutex_unlock(&dir->d_inode->i_mutex);
-	audit_inode_update(path.dentry->d_inode);
+	audit_inode(pathname, path.dentry->d_inode);
 
 	error = -EEXIST;
 	if (flag & O_EXCL)
