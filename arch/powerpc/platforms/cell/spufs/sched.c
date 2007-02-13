@@ -46,9 +46,8 @@
 
 #define SPU_MIN_TIMESLICE 	(100 * HZ / 1000)
 
-#define SPU_BITMAP_SIZE (((MAX_PRIO+BITS_PER_LONG)/BITS_PER_LONG)+1)
 struct spu_prio_array {
-	unsigned long bitmap[SPU_BITMAP_SIZE];
+	DECLARE_BITMAP(bitmap, MAX_PRIO);
 	struct list_head runq[MAX_PRIO];
 	spinlock_t runq_lock;
 	struct list_head active_list[MAX_NUMNODES];
