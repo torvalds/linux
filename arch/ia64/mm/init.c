@@ -19,6 +19,7 @@
 #include <linux/swap.h>
 #include <linux/proc_fs.h>
 #include <linux/bitops.h>
+#include <linux/kexec.h>
 
 #include <asm/a.out.h>
 #include <asm/dma.h>
@@ -126,6 +127,25 @@ lazy_mmu_prot_update (pte_t pte)
 	else
 		flush_icache_range(addr, addr + PAGE_SIZE);
 	set_bit(PG_arch_1, &page->flags);	/* mark page as clean */
+}
+
+/*
+ * Since DMA is i-cache coherent, any (complete) pages that were written via
+ * DMA can be marked as "clean" so that lazy_mmu_prot_update() doesn't have to
+ * flush them when they get mapped into an executable vm-area.
+ */
+void
+dma_mark_clean(void *addr, size_t size)
+{
+	unsigned long pg_addr, end;
+
+	pg_addr = PAGE_ALIGN((unsigned long) addr);
+	end = (unsigned long) addr + size;
+	while (pg_addr + PAGE_SIZE <= end) {
+		struct page *page = virt_to_page(pg_addr);
+		set_bit(PG_arch_1, &page->flags);
+		pg_addr += PAGE_SIZE;
+	}
 }
 
 inline void
@@ -595,13 +615,27 @@ find_largest_hole (u64 start, u64 end, void *arg)
 	return 0;
 }
 
+#endif /* CONFIG_VIRTUAL_MEM_MAP */
+
 int __init
 register_active_ranges(u64 start, u64 end, void *arg)
 {
-	add_active_range(0, __pa(start) >> PAGE_SHIFT, __pa(end) >> PAGE_SHIFT);
+	int nid = paddr_to_nid(__pa(start));
+
+	if (nid < 0)
+		nid = 0;
+#ifdef CONFIG_KEXEC
+	if (start > crashk_res.start && start < crashk_res.end)
+		start = crashk_res.end;
+	if (end > crashk_res.start && end < crashk_res.end)
+		end = crashk_res.start;
+#endif
+
+	if (start < end)
+		add_active_range(nid, __pa(start) >> PAGE_SHIFT,
+			__pa(end) >> PAGE_SHIFT);
 	return 0;
 }
-#endif /* CONFIG_VIRTUAL_MEM_MAP */
 
 static int __init
 count_reserved_pages (u64 start, u64 end, void *arg)

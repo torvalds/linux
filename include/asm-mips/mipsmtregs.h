@@ -165,8 +165,6 @@
 
 #ifndef __ASSEMBLY__
 
-extern void mips_mt_regdump(unsigned long previous_mvpcontrol_value);
-
 static inline unsigned int dvpe(void)
 {
 	int res = 0;

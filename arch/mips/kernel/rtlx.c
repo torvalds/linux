@@ -63,7 +63,7 @@ extern void *vpe_get_shared(int index);
 
 static void rtlx_dispatch(void)
 {
-	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_RTLX_IRQ);
+	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_RTLX_IRQ);
 }
 
 
@@ -491,7 +491,7 @@ static struct irqaction rtlx_irq = {
 	.name		= "RTLX",
 };
 
-static int rtlx_irq_num = MIPSCPU_INT_BASE + MIPS_CPU_RTLX_IRQ;
+static int rtlx_irq_num = MIPS_CPU_IRQ_BASE + MIPS_CPU_RTLX_IRQ;
 
 static char register_chrdev_failed[] __initdata =
 	KERN_ERR "rtlx_module_init: unable to register device\n";

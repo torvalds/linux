@@ -79,28 +79,6 @@ void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area)
 }
 
 #if __OS_HAS_AGP
-/*
- * Find the drm_map that covers the range [offset, offset+size).
- */
-static drm_map_t *drm_lookup_map(unsigned long offset,
-				 unsigned long size, drm_device_t * dev)
-{
-	struct list_head *list;
-	drm_map_list_t *r_list;
-	drm_map_t *map;
-
-	list_for_each(list, &dev->maplist->head) {
-		r_list = (drm_map_list_t *) list;
-		map = r_list->map;
-		if (!map)
-			continue;
-		if (map->offset <= offset
-		    && (offset + size) <= (map->offset + map->size))
-			return map;
-	}
-	return NULL;
-}
-
 static void *agp_remap(unsigned long offset, unsigned long size,
 		       drm_device_t * dev)
 {
@@ -169,13 +147,6 @@ int drm_unbind_agp(DRM_AGP_MEM * handle)
 }
 
 #else  /*  __OS_HAS_AGP  */
-
-static inline drm_map_t *drm_lookup_map(unsigned long offset,
-					unsigned long size, drm_device_t * dev)
-{
-	return NULL;
-}
-
 static inline void *agp_remap(unsigned long offset, unsigned long size,
 			      drm_device_t * dev)
 {
@@ -184,57 +155,28 @@ static inline void *agp_remap(unsigned long offset, unsigned long size,
 
 #endif				/* agp */
 
-void *drm_ioremap(unsigned long offset, unsigned long size,
-				drm_device_t * dev)
-{
-	if (drm_core_has_AGP(dev) && dev->agp && dev->agp->cant_use_aperture) {
-		drm_map_t *map = drm_lookup_map(offset, size, dev);
-
-		if (map && map->type == _DRM_AGP)
-			return agp_remap(offset, size, dev);
-	}
-	return ioremap(offset, size);
-}
-EXPORT_SYMBOL(drm_ioremap);
-
-#if 0
-void *drm_ioremap_nocache(unsigned long offset,
-					unsigned long size, drm_device_t * dev)
-{
-	if (drm_core_has_AGP(dev) && dev->agp && dev->agp->cant_use_aperture) {
-		drm_map_t *map = drm_lookup_map(offset, size, dev);
-
-		if (map && map->type == _DRM_AGP)
-			return agp_remap(offset, size, dev);
-	}
-	return ioremap_nocache(offset, size);
-}
-#endif  /*  0  */
-
-void drm_ioremapfree(void *pt, unsigned long size,
-				   drm_device_t * dev)
-{
-	/*
-	 * This is a bit ugly.  It would be much cleaner if the DRM API would use separate
-	 * routines for handling mappings in the AGP space.  Hopefully this can be done in
-	 * a future revision of the interface...
-	 */
-	if (drm_core_has_AGP(dev) && dev->agp && dev->agp->cant_use_aperture
-	    && ((unsigned long)pt >= VMALLOC_START
-		&& (unsigned long)pt < VMALLOC_END)) {
-		unsigned long offset;
-		drm_map_t *map;
-
-		offset = drm_follow_page(pt) | ((unsigned long)pt & ~PAGE_MASK);
-		map = drm_lookup_map(offset, size, dev);
-		if (map && map->type == _DRM_AGP) {
-			vunmap(pt);
-			return;
-		}
-	}
-
-	iounmap(pt);
-}
-EXPORT_SYMBOL(drm_ioremapfree);
-
 #endif				/* debug_memory */
+
+void drm_core_ioremap(struct drm_map *map, struct drm_device *dev)
+{
+	if (drm_core_has_AGP(dev) &&
+	    dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
+		map->handle = agp_remap(map->offset, map->size, dev);
+	else
+		map->handle = ioremap(map->offset, map->size);
+}
+EXPORT_SYMBOL(drm_core_ioremap);
+
+void drm_core_ioremapfree(struct drm_map *map, struct drm_device *dev)
+{
+	if (!map->handle || !map->size)
+		return;
+
+	if (drm_core_has_AGP(dev) &&
+	    dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
+		vunmap(map->handle);
+	else
+		iounmap(map->handle);
+}
+EXPORT_SYMBOL(drm_core_ioremapfree);
+

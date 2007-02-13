@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -529,7 +529,7 @@ static struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32
 
 	/* Install new interrupt handler if not SCI_INT */
 
-	if (interrupt_number != acpi_gbl_FADT->sci_int) {
+	if (interrupt_number != acpi_gbl_FADT.sci_interrupt) {
 		status = acpi_os_install_interrupt_handler(interrupt_number,
 							   acpi_ev_gpe_xrupt_handler,
 							   gpe_xrupt);
@@ -567,7 +567,7 @@ acpi_ev_delete_gpe_xrupt(struct acpi_gpe_xrupt_info *gpe_xrupt)
 
 	/* We never want to remove the SCI interrupt handler */
 
-	if (gpe_xrupt->interrupt_number == acpi_gbl_FADT->sci_int) {
+	if (gpe_xrupt->interrupt_number == acpi_gbl_FADT.sci_interrupt) {
 		gpe_xrupt->gpe_block_list_head = NULL;
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -796,30 +796,31 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 		    (u8) (gpe_block->block_base_number +
 			  (i * ACPI_GPE_REGISTER_WIDTH));
 
-		ACPI_STORE_ADDRESS(this_register->status_address.address,
-				   (gpe_block->block_address.address + i));
+		this_register->status_address.address =
+		    gpe_block->block_address.address + i;
 
-		ACPI_STORE_ADDRESS(this_register->enable_address.address,
-				   (gpe_block->block_address.address
-				    + i + gpe_block->register_count));
+		this_register->enable_address.address =
+		    gpe_block->block_address.address + i +
+		    gpe_block->register_count;
 
-		this_register->status_address.address_space_id =
-		    gpe_block->block_address.address_space_id;
-		this_register->enable_address.address_space_id =
-		    gpe_block->block_address.address_space_id;
-		this_register->status_address.register_bit_width =
+		this_register->status_address.space_id =
+		    gpe_block->block_address.space_id;
+		this_register->enable_address.space_id =
+		    gpe_block->block_address.space_id;
+		this_register->status_address.bit_width =
 		    ACPI_GPE_REGISTER_WIDTH;
-		this_register->enable_address.register_bit_width =
+		this_register->enable_address.bit_width =
 		    ACPI_GPE_REGISTER_WIDTH;
-		this_register->status_address.register_bit_offset =
+		this_register->status_address.bit_offset =
 		    ACPI_GPE_REGISTER_WIDTH;
-		this_register->enable_address.register_bit_offset =
+		this_register->enable_address.bit_offset =
 		    ACPI_GPE_REGISTER_WIDTH;
 
 		/* Init the event_info for each GPE within this register */
 
 		for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
-			this_event->register_bit = acpi_gbl_decode_to8bit[j];
+			this_event->gpe_number =
+			    (u8) (this_register->base_gpe_number + j);
 			this_event->register_info = this_register;
 			this_event++;
 		}
@@ -1109,11 +1110,12 @@ acpi_status acpi_ev_gpe_initialize(void)
 	 * If EITHER the register length OR the block address are zero, then that
 	 * particular block is not supported.
 	 */
-	if (acpi_gbl_FADT->gpe0_blk_len && acpi_gbl_FADT->xgpe0_blk.address) {
+	if (acpi_gbl_FADT.gpe0_block_length &&
+	    acpi_gbl_FADT.xgpe0_block.address) {
 
 		/* GPE block 0 exists (has both length and address > 0) */
 
-		register_count0 = (u16) (acpi_gbl_FADT->gpe0_blk_len / 2);
+		register_count0 = (u16) (acpi_gbl_FADT.gpe0_block_length / 2);
 
 		gpe_number_max =
 		    (register_count0 * ACPI_GPE_REGISTER_WIDTH) - 1;
@@ -1121,9 +1123,9 @@ acpi_status acpi_ev_gpe_initialize(void)
 		/* Install GPE Block 0 */
 
 		status = acpi_ev_create_gpe_block(acpi_gbl_fadt_gpe_device,
-						  &acpi_gbl_FADT->xgpe0_blk,
+						  &acpi_gbl_FADT.xgpe0_block,
 						  register_count0, 0,
-						  acpi_gbl_FADT->sci_int,
+						  acpi_gbl_FADT.sci_interrupt,
 						  &acpi_gbl_gpe_fadt_blocks[0]);
 
 		if (ACPI_FAILURE(status)) {
@@ -1132,20 +1134,21 @@ acpi_status acpi_ev_gpe_initialize(void)
 		}
 	}
 
-	if (acpi_gbl_FADT->gpe1_blk_len && acpi_gbl_FADT->xgpe1_blk.address) {
+	if (acpi_gbl_FADT.gpe1_block_length &&
+	    acpi_gbl_FADT.xgpe1_block.address) {
 
 		/* GPE block 1 exists (has both length and address > 0) */
 
-		register_count1 = (u16) (acpi_gbl_FADT->gpe1_blk_len / 2);
+		register_count1 = (u16) (acpi_gbl_FADT.gpe1_block_length / 2);
 
 		/* Check for GPE0/GPE1 overlap (if both banks exist) */
 
 		if ((register_count0) &&
-		    (gpe_number_max >= acpi_gbl_FADT->gpe1_base)) {
+		    (gpe_number_max >= acpi_gbl_FADT.gpe1_base)) {
 			ACPI_ERROR((AE_INFO,
 				    "GPE0 block (GPE 0 to %d) overlaps the GPE1 block (GPE %d to %d) - Ignoring GPE1",
-				    gpe_number_max, acpi_gbl_FADT->gpe1_base,
-				    acpi_gbl_FADT->gpe1_base +
+				    gpe_number_max, acpi_gbl_FADT.gpe1_base,
+				    acpi_gbl_FADT.gpe1_base +
 				    ((register_count1 *
 				      ACPI_GPE_REGISTER_WIDTH) - 1)));
 
@@ -1157,10 +1160,11 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 			status =
 			    acpi_ev_create_gpe_block(acpi_gbl_fadt_gpe_device,
-						     &acpi_gbl_FADT->xgpe1_blk,
+						     &acpi_gbl_FADT.xgpe1_block,
 						     register_count1,
-						     acpi_gbl_FADT->gpe1_base,
-						     acpi_gbl_FADT->sci_int,
+						     acpi_gbl_FADT.gpe1_base,
+						     acpi_gbl_FADT.
+						     sci_interrupt,
 						     &acpi_gbl_gpe_fadt_blocks
 						     [1]);
 
@@ -1173,7 +1177,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 			 * GPE0 and GPE1 do not have to be contiguous in the GPE number
 			 * space. However, GPE0 always starts at GPE number zero.
 			 */
-			gpe_number_max = acpi_gbl_FADT->gpe1_base +
+			gpe_number_max = acpi_gbl_FADT.gpe1_base +
 			    ((register_count1 * ACPI_GPE_REGISTER_WIDTH) - 1);
 		}
 	}

@@ -642,7 +642,8 @@ static void snoop_recv(struct ib_mad_qp_info *qp_info,
 	spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
 }
 
-static void build_smp_wc(u64 wr_id, u16 slid, u16 pkey_index, u8 port_num,
+static void build_smp_wc(struct ib_qp *qp,
+			 u64 wr_id, u16 slid, u16 pkey_index, u8 port_num,
 			 struct ib_wc *wc)
 {
 	memset(wc, 0, sizeof *wc);
@@ -652,7 +653,7 @@ static void build_smp_wc(u64 wr_id, u16 slid, u16 pkey_index, u8 port_num,
 	wc->pkey_index = pkey_index;
 	wc->byte_len = sizeof(struct ib_mad) + sizeof(struct ib_grh);
 	wc->src_qp = IB_QP0;
-	wc->qp_num = IB_QP0;
+	wc->qp = qp;
 	wc->slid = slid;
 	wc->sl = 0;
 	wc->dlid_path_bits = 0;
@@ -713,7 +714,8 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 		goto out;
 	}
 
-	build_smp_wc(send_wr->wr_id, be16_to_cpu(smp->dr_slid),
+	build_smp_wc(mad_agent_priv->agent.qp,
+		     send_wr->wr_id, be16_to_cpu(smp->dr_slid),
 		     send_wr->wr.ud.pkey_index,
 		     send_wr->wr.ud.port_num, &mad_wc);
 
@@ -2355,7 +2357,8 @@ static void local_completions(struct work_struct *work)
 			 * Defined behavior is to complete response
 			 * before request
 			 */
-			build_smp_wc((unsigned long) local->mad_send_wr,
+			build_smp_wc(recv_mad_agent->agent.qp,
+				     (unsigned long) local->mad_send_wr,
 				     be16_to_cpu(IB_LID_PERMISSIVE),
 				     0, recv_mad_agent->agent.port_num, &wc);
 

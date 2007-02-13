@@ -13,14 +13,11 @@
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME("debug")
-#define ACPI_SYSTEM_FILE_DEBUG_LAYER	"debug_layer"
-#define ACPI_SYSTEM_FILE_DEBUG_LEVEL	"debug_level"
+
 #ifdef MODULE_PARAM_PREFIX
 #undef MODULE_PARAM_PREFIX
 #endif
-#define MODULE_PARAM_PREFIX
-    module_param(acpi_dbg_layer, uint, 0400);
-module_param(acpi_dbg_level, uint, 0400);
+#define MODULE_PARAM_PREFIX "acpi."
 
 struct acpi_dlayer {
 	const char *name;
@@ -85,6 +82,60 @@ static const struct acpi_dlevel acpi_debug_levels[] = {
 	ACPI_DEBUG_INIT(ACPI_LV_FULL_TABLES),
 	ACPI_DEBUG_INIT(ACPI_LV_EVENTS),
 };
+
+/* --------------------------------------------------------------------------
+                              FS Interface (/sys)
+   -------------------------------------------------------------------------- */
+static int param_get_debug_layer(char *buffer, struct kernel_param *kp) {
+	int result = 0;
+	int i;
+
+	result = sprintf(buffer, "%-25s\tHex        SET\n", "Description");
+
+	for(i = 0; i <ARRAY_SIZE(acpi_debug_layers); i++) {
+		result += sprintf(buffer+result, "%-25s\t0x%08lX [%c]\n",
+					acpi_debug_layers[i].name,
+					acpi_debug_layers[i].value,
+					(acpi_dbg_layer & acpi_debug_layers[i].value) ? '*' : ' ');
+	}
+	result += sprintf(buffer+result, "%-25s\t0x%08X [%c]\n", "ACPI_ALL_DRIVERS",
+					ACPI_ALL_DRIVERS,
+					(acpi_dbg_layer & ACPI_ALL_DRIVERS) ==
+					ACPI_ALL_DRIVERS ? '*' : (acpi_dbg_layer &
+					ACPI_ALL_DRIVERS) == 0 ? ' ' : '-');
+	result += sprintf(buffer+result, "--\ndebug_layer = 0x%08X ( * = enabled)\n", acpi_dbg_layer);
+
+	return result;
+}
+
+static int param_get_debug_level(char *buffer, struct kernel_param *kp) {
+	int result = 0;
+	int i;
+
+	result = sprintf(buffer, "%-25s\tHex        SET\n", "Description");
+
+	for (i = 0; i < ARRAY_SIZE(acpi_debug_levels); i++) {
+		result += sprintf(buffer+result, "%-25s\t0x%08lX [%c]\n",
+				     acpi_debug_levels[i].name,
+				     acpi_debug_levels[i].value,
+				     (acpi_dbg_level & acpi_debug_levels[i].
+				      value) ? '*' : ' ');
+	}
+	result += sprintf(buffer+result, "--\ndebug_level = 0x%08X (* = enabled)\n",
+			     acpi_dbg_level);
+
+	return result;
+}
+
+module_param_call(debug_layer, param_set_uint, param_get_debug_layer, &acpi_dbg_layer, 0644);
+module_param_call(debug_level, param_set_uint, param_get_debug_level, &acpi_dbg_level, 0644);
+
+/* --------------------------------------------------------------------------
+                              FS Interface (/proc)
+   -------------------------------------------------------------------------- */
+#ifdef CONFIG_ACPI_PROCFS
+#define ACPI_SYSTEM_FILE_DEBUG_LAYER	"debug_layer"
+#define ACPI_SYSTEM_FILE_DEBUG_LEVEL		"debug_level"
 
 static int
 acpi_system_read_debug(char *page,
@@ -221,3 +272,4 @@ static int __init acpi_debug_init(void)
 }
 
 subsys_initcall(acpi_debug_init);
+#endif

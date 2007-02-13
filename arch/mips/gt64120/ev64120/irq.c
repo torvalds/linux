@@ -88,7 +88,7 @@ static void end_ev64120_irq(unsigned int irq)
 }
 
 static struct irq_chip ev64120_irq_type = {
-	.typename	= "EV64120",
+	.name		= "EV64120",
 	.ack		= disable_ev64120_irq,
 	.mask		= disable_ev64120_irq,
 	.mask_ack	= disable_ev64120_irq,

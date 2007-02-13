@@ -36,7 +36,7 @@
 #include <linux/stat.h>
 #include <linux/timer.h>
 #include <linux/types.h>
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/workqueue.h>
 
 #include "usbatm.h"

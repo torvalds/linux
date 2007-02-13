@@ -275,8 +275,8 @@ sys32_sigaltstack(const stack_t32 __user *uss, stack_t32 __user *uoss,
 	}
 
 	set_fs (KERNEL_DS);
-	ret = do_sigaltstack((stack_t __user *) (uss ? &kss : NULL),
-			     (stack_t __user *) (uoss ? &koss : NULL),
+	ret = do_sigaltstack((stack_t __force __user *) (uss ? &kss : NULL),
+			     (stack_t __force __user *) (uoss ? &koss : NULL),
 			     regs->gprs[15]);
 	set_fs (old_fs);
 
@@ -298,7 +298,7 @@ static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 	_s390_regs_common32 regs32;
 	int err, i;
 
-	regs32.psw.mask = PSW32_MASK_MERGE(PSW32_USER_BITS,
+	regs32.psw.mask = PSW32_MASK_MERGE(psw32_user_bits,
 					   (__u32)(regs->psw.mask >> 32));
 	regs32.psw.addr = PSW32_ADDR_AMODE31 | (__u32) regs->psw.addr;
 	for (i = 0; i < NUM_GPRS; i++)
@@ -401,7 +401,7 @@ asmlinkage long sys32_rt_sigreturn(struct pt_regs *regs)
 		goto badframe; 
 
 	set_fs (KERNEL_DS);
-	do_sigaltstack((stack_t __user *)&st, NULL, regs->gprs[15]);
+	do_sigaltstack((stack_t __force __user *)&st, NULL, regs->gprs[15]);
 	set_fs (old_fs);
 
 	return regs->gprs[2];

@@ -222,13 +222,15 @@ config USB_NET_MCS7830
 	  adapters marketed under the DeLOCK brand.
 
 config USB_NET_RNDIS_HOST
-	tristate "Host for RNDIS devices (EXPERIMENTAL)"
+	tristate "Host for RNDIS and ActiveSync devices (EXPERIMENTAL)"
 	depends on USB_USBNET && EXPERIMENTAL
 	select USB_NET_CDCETHER
 	help
 	  This option enables hosting "Remote NDIS" USB networking links,
 	  as encouraged by Microsoft (instead of CDC Ethernet!) for use in
-	  various devices that may only support this protocol.
+	  various devices that may only support this protocol.  A variant
+	  of this protocol (with even less public documentation) seems to
+	  be at the root of Microsoft's "ActiveSync" too.
 
 	  Avoid using this protocol unless you have no better options.
 	  The protocol specification is incomplete, and is controlled by

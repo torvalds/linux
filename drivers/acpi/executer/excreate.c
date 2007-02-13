@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -359,8 +359,9 @@ acpi_status acpi_ex_create_table_region(struct acpi_walk_state *walk_state)
 	union acpi_operand_object **operand = &walk_state->operands[0];
 	union acpi_operand_object *obj_desc;
 	struct acpi_namespace_node *node;
-	struct acpi_table_header *table;
 	union acpi_operand_object *region_obj2;
+	acpi_native_uint table_index;
+	struct acpi_table_header *table;
 
 	ACPI_FUNCTION_TRACE(ex_create_table_region);
 
@@ -380,7 +381,7 @@ acpi_status acpi_ex_create_table_region(struct acpi_walk_state *walk_state)
 
 	status = acpi_tb_find_table(operand[1]->string.pointer,
 				    operand[2]->string.pointer,
-				    operand[3]->string.pointer, &table);
+				    operand[3]->string.pointer, &table_index);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -394,6 +395,11 @@ acpi_status acpi_ex_create_table_region(struct acpi_walk_state *walk_state)
 
 	region_obj2 = obj_desc->common.next_object;
 	region_obj2->extra.region_context = NULL;
+
+	status = acpi_get_table_by_index(table_index, &table);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	/* Init the region from the operands */
 
@@ -553,7 +559,8 @@ acpi_ex_create_method(u8 * aml_start,
 
 	obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
 	if (!obj_desc) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		status = AE_NO_MEMORY;
+		goto exit;
 	}
 
 	/* Save the method's AML pointer and length  */
@@ -576,10 +583,7 @@ acpi_ex_create_method(u8 * aml_start,
 	 * Get the sync_level. If method is serialized, a mutex will be
 	 * created for this method when it is parsed.
 	 */
-	if (acpi_gbl_all_methods_serialized) {
-		obj_desc->method.sync_level = 0;
-		obj_desc->method.method_flags |= AML_METHOD_SERIALIZED;
-	} else if (method_flags & AML_METHOD_SERIALIZED) {
+	if (method_flags & AML_METHOD_SERIALIZED) {
 		/*
 		 * ACPI 1.0: sync_level = 0
 		 * ACPI 2.0: sync_level = sync_level in method declaration
@@ -597,6 +601,7 @@ acpi_ex_create_method(u8 * aml_start,
 
 	acpi_ut_remove_reference(obj_desc);
 
+      exit:
 	/* Remove a reference to the operand */
 
 	acpi_ut_remove_reference(operand[1]);

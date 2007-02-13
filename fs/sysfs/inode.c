@@ -13,6 +13,7 @@
 #include <linux/backing-dev.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
+#include <asm/semaphore.h>
 #include "sysfs.h"
 
 extern struct super_block * sysfs_sb;
@@ -31,6 +32,16 @@ static struct backing_dev_info sysfs_backing_dev_info = {
 static struct inode_operations sysfs_inode_operations ={
 	.setattr	= sysfs_setattr,
 };
+
+void sysfs_delete_inode(struct inode *inode)
+{
+	/* Free the shadowed directory inode operations */
+	if (sysfs_is_shadowed_inode(inode)) {
+		kfree(inode->i_op);
+		inode->i_op = NULL;
+	}
+	return generic_delete_inode(inode);
+}
 
 int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
 {
@@ -209,6 +220,22 @@ const unsigned char * sysfs_get_name(struct sysfs_dirent *sd)
 	return NULL;
 }
 
+static inline void orphan_all_buffers(struct inode *node)
+{
+	struct sysfs_buffer_collection *set = node->i_private;
+	struct sysfs_buffer *buf;
+
+	mutex_lock_nested(&node->i_mutex, I_MUTEX_CHILD);
+	if (node->i_private) {
+		list_for_each_entry(buf, &set->associates, associates) {
+			down(&buf->sem);
+			buf->orphaned = 1;
+			up(&buf->sem);
+		}
+	}
+	mutex_unlock(&node->i_mutex);
+}
+
 
 /*
  * Unhashes the dentry corresponding to given sysfs_dirent
@@ -217,16 +244,23 @@ const unsigned char * sysfs_get_name(struct sysfs_dirent *sd)
 void sysfs_drop_dentry(struct sysfs_dirent * sd, struct dentry * parent)
 {
 	struct dentry * dentry = sd->s_dentry;
+	struct inode *inode;
 
 	if (dentry) {
 		spin_lock(&dcache_lock);
 		spin_lock(&dentry->d_lock);
 		if (!(d_unhashed(dentry) && dentry->d_inode)) {
+			inode = dentry->d_inode;
+			spin_lock(&inode->i_lock);
+			__iget(inode);
+			spin_unlock(&inode->i_lock);
 			dget_locked(dentry);
 			__d_drop(dentry);
 			spin_unlock(&dentry->d_lock);
 			spin_unlock(&dcache_lock);
 			simple_unlink(parent->d_inode, dentry);
+			orphan_all_buffers(inode);
+			iput(inode);
 		} else {
 			spin_unlock(&dentry->d_lock);
 			spin_unlock(&dcache_lock);
@@ -248,7 +282,7 @@ int sysfs_hash_and_remove(struct dentry * dir, const char * name)
 		return -ENOENT;
 
 	parent_sd = dir->d_fsdata;
-	mutex_lock(&dir->d_inode->i_mutex);
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (!sd->s_element)
 			continue;

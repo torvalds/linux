@@ -721,7 +721,7 @@ static void b44_recycle_rx(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 	struct ring_info *src_map, *dest_map;
 	struct rx_header *rh;
 	int dest_idx;
-	u32 ctrl;
+	__le32 ctrl;
 
 	dest_idx = dest_idx_unmasked & (B44_RX_RING_SIZE - 1);
 	dest_desc = &bp->rx_ring[dest_idx];
@@ -783,7 +783,7 @@ static int b44_rx(struct b44 *bp, int budget)
 					    RX_PKT_BUF_SZ,
 					    PCI_DMA_FROMDEVICE);
 		rh = (struct rx_header *) skb->data;
-		len = cpu_to_le16(rh->len);
+		len = le16_to_cpu(rh->len);
 		if ((len > (RX_PKT_BUF_SZ - bp->rx_offset)) ||
 		    (rh->flags & cpu_to_le16(RX_FLAG_ERRORS))) {
 		drop_it:
@@ -799,7 +799,7 @@ static int b44_rx(struct b44 *bp, int budget)
 			do {
 				udelay(2);
 				barrier();
-				len = cpu_to_le16(rh->len);
+				len = le16_to_cpu(rh->len);
 			} while (len == 0 && i++ < 5);
 			if (len == 0)
 				goto drop_it;
@@ -2061,7 +2061,7 @@ out:
 static int b44_read_eeprom(struct b44 *bp, u8 *data)
 {
 	long i;
-	u16 *ptr = (u16 *) data;
+	__le16 *ptr = (__le16 *) data;
 
 	for (i = 0; i < 128; i += 2)
 		ptr[i / 2] = cpu_to_le16(readw(bp->regs + 4096 + i));

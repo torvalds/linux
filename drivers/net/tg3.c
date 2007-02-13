@@ -58,11 +58,7 @@
 #define TG3_VLAN_TAG_USED 0
 #endif
 
-#ifdef NETIF_F_TSO
 #define TG3_TSO_SUPPORT	1
-#else
-#define TG3_TSO_SUPPORT	0
-#endif
 
 #include "tg3.h"
 
@@ -3873,7 +3869,6 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	entry = tp->tx_prod;
 	base_flags = 0;
-#if TG3_TSO_SUPPORT != 0
 	mss = 0;
 	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
 	    (mss = skb_shinfo(skb)->gso_size) != 0) {
@@ -3906,11 +3901,6 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	else if (skb->ip_summed == CHECKSUM_PARTIAL)
 		base_flags |= TXD_FLAG_TCPUDP_CSUM;
-#else
-	mss = 0;
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		base_flags |= TXD_FLAG_TCPUDP_CSUM;
-#endif
 #if TG3_VLAN_TAG_USED
 	if (tp->vlgrp != NULL && vlan_tx_tag_present(skb))
 		base_flags |= (TXD_FLAG_VLAN |
@@ -3970,7 +3960,6 @@ out_unlock:
 	return NETDEV_TX_OK;
 }
 
-#if TG3_TSO_SUPPORT != 0
 static int tg3_start_xmit_dma_bug(struct sk_buff *, struct net_device *);
 
 /* Use GSO to workaround a rare TSO bug that may be triggered when the
@@ -4002,7 +3991,6 @@ tg3_tso_bug_end:
 
 	return NETDEV_TX_OK;
 }
-#endif
 
 /* hard_start_xmit for devices that have the 4G bug and/or 40-bit bug and
  * support TG3_FLG2_HW_TSO_1 or firmware TSO only.
@@ -4036,7 +4024,6 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	base_flags = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		base_flags |= TXD_FLAG_TCPUDP_CSUM;
-#if TG3_TSO_SUPPORT != 0
 	mss = 0;
 	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
 	    (mss = skb_shinfo(skb)->gso_size) != 0) {
@@ -4091,9 +4078,6 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 			}
 		}
 	}
-#else
-	mss = 0;
-#endif
 #if TG3_VLAN_TAG_USED
 	if (tp->vlgrp != NULL && vlan_tx_tag_present(skb))
 		base_flags |= (TXD_FLAG_VLAN |
@@ -5329,7 +5313,6 @@ static int tg3_load_5701_a0_firmware_fix(struct tg3 *tp)
 	return 0;
 }
 
-#if TG3_TSO_SUPPORT != 0
 
 #define TG3_TSO_FW_RELEASE_MAJOR	0x1
 #define TG3_TSO_FW_RELASE_MINOR		0x6
@@ -5906,7 +5889,6 @@ static int tg3_load_tso_firmware(struct tg3 *tp)
 	return 0;
 }
 
-#endif /* TG3_TSO_SUPPORT != 0 */
 
 /* tp->lock is held. */
 static void __tg3_set_mac_addr(struct tg3 *tp)
@@ -6120,7 +6102,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tw32(BUFMGR_DMA_DESC_POOL_ADDR, NIC_SRAM_DMA_DESC_POOL_BASE);
 		tw32(BUFMGR_DMA_DESC_POOL_SIZE, NIC_SRAM_DMA_DESC_POOL_SIZE);
 	}
-#if TG3_TSO_SUPPORT != 0
 	else if (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) {
 		int fw_len;
 
@@ -6135,7 +6116,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tw32(BUFMGR_MB_POOL_SIZE,
 		     NIC_SRAM_MBUF_POOL_SIZE5705 - fw_len - 0xa00);
 	}
-#endif
 
 	if (tp->dev->mtu <= ETH_DATA_LEN) {
 		tw32(BUFMGR_MB_RDMA_LOW_WATER,
@@ -6337,10 +6317,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)
 		rdmac_mode |= RDMAC_MODE_FIFO_LONG_BURST;
 
-#if TG3_TSO_SUPPORT != 0
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
 		rdmac_mode |= (1 << 27);
-#endif
 
 	/* Receive/send statistics. */
 	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
@@ -6511,10 +6489,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	tw32(RCVBDI_MODE, RCVBDI_MODE_ENABLE | RCVBDI_MODE_RCB_ATTN_ENAB);
 	tw32(RCVDBDI_MODE, RCVDBDI_MODE_ENABLE | RCVDBDI_MODE_INV_RING_SZ);
 	tw32(SNDDATAI_MODE, SNDDATAI_MODE_ENABLE);
-#if TG3_TSO_SUPPORT != 0
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
 		tw32(SNDDATAI_MODE, SNDDATAI_MODE_ENABLE | 0x8);
-#endif
 	tw32(SNDBDI_MODE, SNDBDI_MODE_ENABLE | SNDBDI_MODE_ATTN_ENABLE);
 	tw32(SNDBDS_MODE, SNDBDS_MODE_ENABLE | SNDBDS_MODE_ATTN_ENABLE);
 
@@ -6524,13 +6500,11 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 			return err;
 	}
 
-#if TG3_TSO_SUPPORT != 0
 	if (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) {
 		err = tg3_load_tso_firmware(tp);
 		if (err)
 			return err;
 	}
-#endif
 
 	tp->tx_mode = TX_MODE_ENABLE;
 	tw32_f(MAC_TX_MODE, tp->tx_mode);
@@ -8062,7 +8036,6 @@ static void tg3_set_msglevel(struct net_device *dev, u32 value)
 	tp->msg_enable = value;
 }
 
-#if TG3_TSO_SUPPORT != 0
 static int tg3_set_tso(struct net_device *dev, u32 value)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -8081,7 +8054,6 @@ static int tg3_set_tso(struct net_device *dev, u32 value)
 	}
 	return ethtool_op_set_tso(dev, value);
 }
-#endif
 
 static int tg3_nway_reset(struct net_device *dev)
 {
@@ -9212,10 +9184,8 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.set_tx_csum		= tg3_set_tx_csum,
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
-#if TG3_TSO_SUPPORT != 0
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= tg3_set_tso,
-#endif
 	.self_test_count	= tg3_get_test_count,
 	.self_test		= tg3_self_test,
 	.get_strings		= tg3_get_strings,
@@ -11856,7 +11826,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 	tg3_init_bufmgr_config(tp);
 
-#if TG3_TSO_SUPPORT != 0
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
 		tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE;
 	}
@@ -11881,7 +11850,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 			dev->features |= NETIF_F_TSO6;
 	}
 
-#endif
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5705_A1 &&
 	    !(tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) &&

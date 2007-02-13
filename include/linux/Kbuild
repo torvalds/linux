@@ -11,6 +11,7 @@ header-y += netfilter_arp/
 header-y += netfilter_bridge/
 header-y += netfilter_ipv4/
 header-y += netfilter_ipv6/
+header-y += usb/
 
 header-y += affs_hardblocks.h
 header-y += aio_abi.h
@@ -326,7 +327,6 @@ unifdef-y += udp.h
 unifdef-y += uinput.h
 unifdef-y += uio.h
 unifdef-y += unistd.h
-unifdef-y += usb_ch9.h
 unifdef-y += usbdevice_fs.h
 unifdef-y += user.h
 unifdef-y += utsname.h

@@ -11,6 +11,7 @@
 
 #include "acpi/acglobal.h"
 
-#define SN_ACPI_BASE_SUPPORT()   (acpi_gbl_DSDT->oem_revision >= 0x20101)
+extern int sn_acpi_rev;
+#define SN_ACPI_BASE_SUPPORT()   (sn_acpi_rev >= 0x20101)
 
 #endif /* _ASM_IA64_SN_ACPI_H */

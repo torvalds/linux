@@ -32,7 +32,7 @@
 #include <linux/hid.h>
 #include "usbhid.h"
 
-struct device_type {
+struct dev_type {
 	u16 idVendor;
 	u16 idProduct;
 	const signed short *ff;
@@ -48,7 +48,7 @@ static const signed short ff_joystick[] = {
 	-1
 };
 
-static const struct device_type devices[] = {
+static const struct dev_type devices[] = {
 	{ 0x046d, 0xc211, ff_rumble },
 	{ 0x046d, 0xc219, ff_rumble },
 	{ 0x046d, 0xc283, ff_joystick },

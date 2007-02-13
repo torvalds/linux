@@ -21,15 +21,16 @@
  * HAL2 driver). This will prevent many complications, trust me ;-)
  */
 
+#include <irq.h>
 #include <asm/sgi/ioc.h>
 
 #define SGINT_EISA	0	/* 16 EISA irq levels (Indigo2) */
-#define SGINT_CPU	16	/* MIPS CPU define 8 interrupt sources */
-#define SGINT_LOCAL0	24	/* 8 local0 irq levels */
-#define SGINT_LOCAL1	32	/* 8 local1 irq levels */
-#define SGINT_LOCAL2	40	/* 8 local2 vectored irq levels */
-#define SGINT_LOCAL3	48	/* 8 local3 vectored irq levels */
-#define SGINT_END	56	/* End of 'spaces' */
+#define SGINT_CPU	MIPS_CPU_IRQ_BASE	/* MIPS CPU define 8 interrupt sources */
+#define SGINT_LOCAL0	(SGINT_CPU+8)	/* 8 local0 irq levels */
+#define SGINT_LOCAL1	(SGINT_CPU+16)	/* 8 local1 irq levels */
+#define SGINT_LOCAL2	(SGINT_CPU+24)	/* 8 local2 vectored irq levels */
+#define SGINT_LOCAL3	(SGINT_CPU+32)	/* 8 local3 vectored irq levels */
+#define SGINT_END	(SGINT_CPU+40)	/* End of 'spaces' */
 
 /*
  * Individual interrupt definitions for the Indy and Indigo2

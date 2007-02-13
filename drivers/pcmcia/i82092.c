@@ -161,7 +161,7 @@ static int __devinit i82092aa_pci_probe(struct pci_dev *dev, const struct pci_de
 	pci_set_drvdata(dev, &sockets[i].socket);
 
 	for (i = 0; i<socket_count; i++) {
-		sockets[i].socket.dev.dev = &dev->dev;
+		sockets[i].socket.dev.parent = &dev->dev;
 		sockets[i].socket.ops = &i82092aa_operations;
 		sockets[i].socket.resource_ops = &pccard_nonstatic_ops;
 		ret = pcmcia_register_socket(&sockets[i].socket);

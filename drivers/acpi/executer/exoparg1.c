@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -104,9 +104,7 @@ acpi_status acpi_ex_opcode_0A_0T_1R(struct acpi_walk_state *walk_state)
 			status = AE_NO_MEMORY;
 			goto cleanup;
 		}
-#if ACPI_MACHINE_WIDTH != 16
 		return_desc->integer.value = acpi_os_get_timer();
-#endif
 		break;
 
 	default:		/*  Unknown opcode  */

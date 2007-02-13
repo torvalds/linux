@@ -345,19 +345,3 @@ static struct platform_driver ohci_hcd_au1xxx_driver = {
 	},
 };
 
-static int __init ohci_hcd_au1xxx_init (void)
-{
-	pr_debug (DRIVER_INFO " (Au1xxx)");
-	pr_debug ("block sizes: ed %d td %d\n",
-		sizeof (struct ed), sizeof (struct td));
-
-	return platform_driver_register(&ohci_hcd_au1xxx_driver);
-}
-
-static void __exit ohci_hcd_au1xxx_cleanup (void)
-{
-	platform_driver_unregister(&ohci_hcd_au1xxx_driver);
-}
-
-module_init (ohci_hcd_au1xxx_init);
-module_exit (ohci_hcd_au1xxx_cleanup);

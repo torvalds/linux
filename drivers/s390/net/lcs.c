@@ -828,7 +828,7 @@ lcs_notify_lancmd_waiters(struct lcs_card *card, struct lcs_cmd *cmd)
 /**
  * Emit buffer of a lan comand.
  */
-void
+static void
 lcs_lancmd_timeout(unsigned long data)
 {
 	struct lcs_reply *reply, *list_reply, *r;
@@ -1360,7 +1360,7 @@ lcs_get_problem(struct ccw_device *cdev, struct irb *irb)
 	return 0;
 }
 
-void
+static void
 lcs_schedule_recovery(struct lcs_card *card)
 {
 	LCS_DBF_TEXT(2, trace, "startrec");
@@ -1990,7 +1990,7 @@ lcs_timeout_store (struct device *dev, struct device_attribute *attr, const char
 
 }
 
-DEVICE_ATTR(lancmd_timeout, 0644, lcs_timeout_show, lcs_timeout_store);
+static DEVICE_ATTR(lancmd_timeout, 0644, lcs_timeout_show, lcs_timeout_store);
 
 static ssize_t
 lcs_dev_recover_store(struct device *dev, struct device_attribute *attr,

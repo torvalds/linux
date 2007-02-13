@@ -364,7 +364,6 @@
  * USB-TTY activ, USB-TTY passiv.  Some PIDs are used by several devices
  * and I'm not entirely sure which are used by which.
  */
-#define FTDI_4N_GALAXY_DE_0_PID	0x8372
 #define FTDI_4N_GALAXY_DE_1_PID	0xF3C0
 #define FTDI_4N_GALAXY_DE_2_PID	0xF3C1
 

@@ -442,6 +442,7 @@ static struct usb_serial_driver ipw_device = {
 		.name =		"ipw",
 	},
 	.description =		"IPWireless converter",
+	.usb_driver = 		&usb_ipw_driver,
 	.id_table =		usb_ipw_ids,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		1,

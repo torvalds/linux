@@ -71,17 +71,12 @@ void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_atime_quantum = 3600;
 	gt->gt_new_files_jdata = 0;
 	gt->gt_new_files_directio = 0;
-	gt->gt_max_atomic_write = 4 << 20;
 	gt->gt_max_readahead = 1 << 18;
 	gt->gt_lockdump_size = 131072;
 	gt->gt_stall_secs = 600;
 	gt->gt_complain_secs = 10;
 	gt->gt_reclaim_limit = 5000;
 	gt->gt_entries_per_readdir = 32;
-	gt->gt_prefetch_secs = 10;
-	gt->gt_greedy_default = HZ / 10;
-	gt->gt_greedy_quantum = HZ / 40;
-	gt->gt_greedy_max = HZ / 4;
 	gt->gt_statfs_quantum = 30;
 	gt->gt_statfs_slow = 0;
 }
@@ -359,8 +354,7 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 	mutex_lock(&sdp->sd_jindex_mutex);
 
 	for (;;) {
-		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED,
-					   GL_LOCAL_EXCL, ji_gh);
+		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, ji_gh);
 		if (error)
 			break;
 
@@ -529,8 +523,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	struct gfs2_log_header_host head;
 	int error;
 
-	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED,
-				   GL_LOCAL_EXCL, &t_gh);
+	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED, 0, &t_gh);
 	if (error)
 		return error;
 
@@ -583,9 +576,8 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	gfs2_quota_sync(sdp);
 	gfs2_statfs_sync(sdp);
 
-	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED,
-				GL_LOCAL_EXCL | GL_NOCACHE,
-				&t_gh);
+	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED, GL_NOCACHE,
+				   &t_gh);
 	if (error && !test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
 		return error;
 

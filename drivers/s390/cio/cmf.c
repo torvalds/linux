@@ -519,8 +519,8 @@ struct cmb {
 /* insert a single device into the cmb_area list
  * called with cmb_area.lock held from alloc_cmb
  */
-static inline int alloc_cmb_single (struct ccw_device *cdev,
-				    struct cmb_data *cmb_data)
+static int alloc_cmb_single(struct ccw_device *cdev,
+			    struct cmb_data *cmb_data)
 {
 	struct cmb *cmb;
 	struct ccw_device_private *node;

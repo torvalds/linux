@@ -22,6 +22,7 @@
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
+#include "ops_dentry.h"
 #include "ops_export.h"
 #include "rgrp.h"
 #include "util.h"
@@ -112,13 +113,12 @@ struct get_name_filldir {
 	char *name;
 };
 
-static int get_name_filldir(void *opaque, const char *name, unsigned int length,
-			    u64 offset, struct gfs2_inum_host *inum,
-			    unsigned int type)
+static int get_name_filldir(void *opaque, const char *name, int length,
+			    loff_t offset, u64 inum, unsigned int type)
 {
-	struct get_name_filldir *gnfd = (struct get_name_filldir *)opaque;
+	struct get_name_filldir *gnfd = opaque;
 
-	if (!gfs2_inum_equal(inum, &gnfd->inum))
+	if (inum != gnfd->inum.no_addr)
 		return 0;
 
 	memcpy(gnfd->name, name, length);
@@ -189,6 +189,7 @@ static struct dentry *gfs2_get_parent(struct dentry *child)
 		return ERR_PTR(-ENOMEM);
 	}
 
+	dentry->d_op = &gfs2_dops;
 	return dentry;
 }
 
@@ -215,8 +216,7 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_obj)
 	}
 
 	error = gfs2_glock_nq_num(sdp, inum->no_addr, &gfs2_inode_glops,
-				  LM_ST_SHARED, LM_FLAG_ANY | GL_LOCAL_EXCL,
-				  &i_gh);
+				  LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 	if (error)
 		return ERR_PTR(error);
 
@@ -269,6 +269,7 @@ out_inode:
 		return ERR_PTR(-ENOMEM);
 	}
 
+	dentry->d_op = &gfs2_dops;
 	return dentry;
 
 fail_rgd:

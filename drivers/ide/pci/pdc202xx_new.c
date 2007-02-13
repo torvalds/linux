@@ -92,26 +92,6 @@ static u8 pdcnew_ratemask(ide_drive_t *drive)
 	return	mode;
 }
 
-static int check_in_drive_lists(ide_drive_t *drive, const char **list)
-{
-	struct hd_driveid *id = drive->id;
-
-	if (pdc_quirk_drives == list) {
-		while (*list) {
-			if (strstr(id->model, *list++)) {
-				return 2;
-			}
-		}
-	} else {
-		while (*list) {
-			if (!strcmp(*list++,id->model)) {
-				return 1;
-			}
-		}
-	}
-	return 0;
-}
-
 /**
  * get_indexed_reg - Get indexed register
  * @hwif: for the port address
@@ -249,13 +229,6 @@ static int pdcnew_tune_chipset(ide_drive_t *drive, u8 speed)
 	return err;
 }
 
-/*   0    1    2    3    4    5    6   7   8
- * 960, 480, 390, 300, 240, 180, 120, 90, 60
- *           180, 150, 120,  90,  60
- * DMA_Speed
- * 180, 120,  90,  90,  90,  60,  30
- *  11,   5,   4,   3,   2,   1,   0
- */
 static void pdcnew_tune_drive(ide_drive_t *drive, u8 pio)
 {
 	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
@@ -313,12 +286,10 @@ static int pdcnew_config_drive_xfer_rate(ide_drive_t *drive)
 
 	drive->init_speed = 0;
 
-	if (id && (id->capability & 1) && drive->autodma) {
+	if ((id->capability & 1) && drive->autodma) {
 
-		if (ide_use_dma(drive)) {
-			if (config_chipset_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
+		if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+			return hwif->ide_dma_on(drive);
 
 		goto fast_ata_pio;
 
@@ -333,21 +304,12 @@ fast_ata_pio:
 
 static int pdcnew_quirkproc(ide_drive_t *drive)
 {
-	return check_in_drive_lists(drive, pdc_quirk_drives);
-}
+	const char **list, *model = drive->id->model;
 
-static int pdcnew_ide_dma_lostirq(ide_drive_t *drive)
-{
-	if (HWIF(drive)->resetproc != NULL)
-		HWIF(drive)->resetproc(drive);
-	return __ide_dma_lostirq(drive);
-}
-
-static int pdcnew_ide_dma_timeout(ide_drive_t *drive)
-{
-	if (HWIF(drive)->resetproc != NULL)
-		HWIF(drive)->resetproc(drive);
-	return __ide_dma_timeout(drive);
+	for (list = pdc_quirk_drives; *list != NULL; list++)
+		if (strstr(model, *list) != NULL)
+			return 2;
+	return 0;
 }
 
 static void pdcnew_reset(ide_drive_t *drive)
@@ -599,8 +561,6 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 	hwif->err_stops_fifo = 1;
 
 	hwif->ide_dma_check = &pdcnew_config_drive_xfer_rate;
-	hwif->ide_dma_lostirq = &pdcnew_ide_dma_lostirq;
-	hwif->ide_dma_timeout = &pdcnew_ide_dma_timeout;
 
 	if (!hwif->udma_four)
 		hwif->udma_four = pdcnew_cable_detect(hwif) ? 0 : 1;

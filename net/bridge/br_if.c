@@ -286,7 +286,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	kobject_init(&p->kobj);
 	kobject_set_name(&p->kobj, SYSFS_BRIDGE_PORT_ATTR);
 	p->kobj.ktype = &brport_ktype;
-	p->kobj.parent = &(dev->class_dev.kobj);
+	p->kobj.parent = &(dev->dev.kobj);
 	p->kobj.kset = NULL;
 
 	return p;

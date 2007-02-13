@@ -173,6 +173,9 @@ static void gfs2_write_super_lockfs(struct super_block *sb)
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
 
+	if (test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
+		return;
+
 	for (;;) {
 		error = gfs2_freeze_fs(sdp);
 		if (!error)
@@ -426,6 +429,12 @@ static void gfs2_delete_inode(struct inode *inode)
 	}
 
 	error = gfs2_dinode_dealloc(ip);
+	/*
+	 * Must do this before unlock to avoid trying to write back
+	 * potentially dirty data now that inode no longer exists
+	 * on disk.
+	 */
+	truncate_inode_pages(&inode->i_data, 0);
 
 out_unlock:
 	gfs2_glock_dq(&ip->i_iopen_gh);
@@ -443,14 +452,12 @@ out:
 
 static struct inode *gfs2_alloc_inode(struct super_block *sb)
 {
-	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_inode *ip;
 
 	ip = kmem_cache_alloc(gfs2_inode_cachep, GFP_KERNEL);
 	if (ip) {
 		ip->i_flags = 0;
 		ip->i_gl = NULL;
-		ip->i_greedy = gfs2_tune_get(sdp, gt_greedy_default);
 		ip->i_last_pfault = jiffies;
 	}
 	return &ip->i_inode;

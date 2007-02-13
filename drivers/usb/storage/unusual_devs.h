@@ -573,7 +573,7 @@ UNUSUAL_DEV(  0x054c, 0x002b, 0x0100, 0x0110,
 #endif
 
 /* Submitted by Olaf Hering, <olh@suse.de> SuSE Bugzilla #49049 */
-UNUSUAL_DEV(  0x054c, 0x002c, 0x0501, 0x0501,
+UNUSUAL_DEV(  0x054c, 0x002c, 0x0501, 0x2000,
 		"Sony",
 		"USB Floppy Drive",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -1322,13 +1322,6 @@ UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
 UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"M600i",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
-
-/* Reported by Jan Mate <mate@fiit.stuba.sk> */
-UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
-		"Sony Ericsson",
-		"P990i",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 

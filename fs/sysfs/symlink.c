@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/namei.h>
+#include <asm/semaphore.h>
 
 #include "sysfs.h"
 

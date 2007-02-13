@@ -14,6 +14,7 @@
 #include <linux/kexec.h>
 #include <linux/cpu.h>
 #include <linux/irq.h>
+#include <linux/efi.h>
 #include <asm/mmu_context.h>
 #include <asm/setup.h>
 #include <asm/delay.h>
@@ -68,22 +69,10 @@ void machine_kexec_cleanup(struct kimage *image)
 {
 }
 
-void machine_shutdown(void)
-{
-	int cpu;
-
-	for_each_online_cpu(cpu) {
-		if (cpu != smp_processor_id())
-			cpu_down(cpu);
-	}
-	kexec_disable_iosapic();
-}
-
 /*
  * Do not allocate memory (or fail in any way) in machine_kexec().
  * We are past the point of no return, committed to rebooting now.
  */
-extern void *efi_get_pal_addr(void);
 static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 {
 	struct kimage *image = arg;
@@ -93,6 +82,7 @@ static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 	unsigned long vector;
 	int ii;
 
+	BUG_ON(!image);
 	if (image->type == KEXEC_TYPE_CRASH) {
 		crash_save_this_cpu();
 		current->thread.ksp = (__u64)info->sw - 16;
@@ -131,6 +121,7 @@ static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 
 void machine_kexec(struct kimage *image)
 {
+	BUG_ON(!image);
 	unw_init_running(ia64_machine_kexec, image);
 	for(;;);
 }

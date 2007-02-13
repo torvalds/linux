@@ -757,6 +757,11 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 			nsplit = 0;
 
 		/* push (bn, index) of the parent page/entry */
+		if (BT_STACK_FULL(btstack)) {
+			jfs_error(ip->i_sb, "stack overrun in xtSearch!");
+			XT_PUTPAGE(mp);
+			return -EIO;
+		}
 		BT_PUSH(btstack, bn, index);
 
 		/* get the child page block number */
@@ -3915,6 +3920,11 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 	 */
       getChild:
 	/* save current parent entry for the child page */
+	if (BT_STACK_FULL(&btstack)) {
+		jfs_error(ip->i_sb, "stack overrun in xtTruncate!");
+		XT_PUTPAGE(mp);
+		return -EIO;
+	}
 	BT_PUSH(&btstack, bn, index);
 
 	/* get child page */
@@ -4112,6 +4122,11 @@ s64 xtTruncate_pmap(tid_t tid, struct inode *ip, s64 committed_size)
 	 */
       getChild:
 	/* save current parent entry for the child page */
+	if (BT_STACK_FULL(&btstack)) {
+		jfs_error(ip->i_sb, "stack overrun in xtTruncate_pmap!");
+		XT_PUTPAGE(mp);
+		return -EIO;
+	}
 	BT_PUSH(&btstack, bn, index);
 
 	/* get child page */

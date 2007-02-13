@@ -38,7 +38,7 @@ static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 		if ((temp & (3 << 13)) == (1 << 13)) {
 			temp &= 0x1fff;
 			ehci->debug = ehci_to_hcd(ehci)->regs + temp;
-			temp = readl(&ehci->debug->control);
+			temp = ehci_readl(ehci, &ehci->debug->control);
 			ehci_info(ehci, "debug port %d%s\n",
 				HCS_DEBUG_PORT(ehci->hcs_params),
 				(temp & DBGP_ENABLED)
@@ -71,8 +71,24 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	u32			temp;
 	int			retval;
 
+	switch (pdev->vendor) {
+	case PCI_VENDOR_ID_TOSHIBA_2:
+		/* celleb's companion chip */
+		if (pdev->device == 0x01b5) {
+#ifdef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
+			ehci->big_endian_mmio = 1;
+#else
+			ehci_warn(ehci,
+				  "unsupported big endian Toshiba quirk\n");
+#endif
+		}
+		break;
+	}
+
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs + HC_LENGTH(readl(&ehci->caps->hc_capbase));
+	ehci->regs = hcd->regs +
+		HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+
 	dbg_hcs_params(ehci, "reset");
 	dbg_hcc_params(ehci, "reset");
 
@@ -101,7 +117,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	}
 
 	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = readl(&ehci->caps->hcs_params);
+	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
 	retval = ehci_halt(ehci);
 	if (retval)
@@ -235,8 +251,8 @@ static int ehci_pci_suspend(struct usb_hcd *hcd, pm_message_t message)
 		rc = -EINVAL;
 		goto bail;
 	}
-	writel (0, &ehci->regs->intr_enable);
-	(void)readl(&ehci->regs->intr_enable);
+	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
+	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
 
 	/* make sure snapshot being resumed re-enumerates everything */
 	if (message.event == PM_EVENT_PRETHAW) {
@@ -270,13 +286,13 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 	/* If CF is still set, we maintained PCI Vaux power.
 	 * Just undo the effect of ehci_pci_suspend().
 	 */
-	if (readl(&ehci->regs->configured_flag) == FLAG_CF) {
+	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF) {
 		int	mask = INTR_MASK;
 
 		if (!device_may_wakeup(&hcd->self.root_hub->dev))
 			mask &= ~STS_PCD;
-		writel(mask, &ehci->regs->intr_enable);
-		readl(&ehci->regs->intr_enable);
+		ehci_writel(ehci, mask, &ehci->regs->intr_enable);
+		ehci_readl(ehci, &ehci->regs->intr_enable);
 		return 0;
 	}
 
@@ -300,9 +316,9 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 	/* here we "know" root ports should always stay powered */
 	ehci_port_power(ehci, 1);
 
-	writel(ehci->command, &ehci->regs->command);
-	writel(FLAG_CF, &ehci->regs->configured_flag);
-	readl(&ehci->regs->command);	/* unblock posted writes */
+	ehci_writel(ehci, ehci->command, &ehci->regs->command);
+	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
+	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
 
 	hcd->state = HC_STATE_SUSPENDED;
 	return 0;

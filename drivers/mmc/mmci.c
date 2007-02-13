@@ -524,15 +524,24 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	/*
 	 * Since we only have a 16-bit data length register, we must
 	 * ensure that we don't exceed 2^16-1 bytes in a single request.
-	 * Choose 64 (512-byte) sectors as the limit.
 	 */
-	mmc->max_sectors = 64;
+	mmc->max_req_size = 65535;
 
 	/*
 	 * Set the maximum segment size.  Since we aren't doing DMA
 	 * (yet) we are only limited by the data length register.
 	 */
-	mmc->max_seg_size = mmc->max_sectors << 9;
+	mmc->max_seg_size = mmc->max_req_size;
+
+	/*
+	 * Block size can be up to 2048 bytes, but must be a power of two.
+	 */
+	mmc->max_blk_size = 2048;
+
+	/*
+	 * No limit on the number of blocks transferred.
+	 */
+	mmc->max_blk_count = mmc->max_req_size;
 
 	spin_lock_init(&host->lock);
 

@@ -14,6 +14,7 @@
 #ifndef __ASM_DEC_INTERRUPTS_H
 #define __ASM_DEC_INTERRUPTS_H
 
+#include <irq.h>
 #include <asm/mipsregs.h>
 
 
@@ -87,7 +88,7 @@
 #define DEC_CPU_INR_SW1		1	/* software #1 */
 #define DEC_CPU_INR_SW0		0	/* software #0 */
 
-#define DEC_CPU_IRQ_BASE	0	/* first IRQ assigned to CPU */
+#define DEC_CPU_IRQ_BASE	MIPS_CPU_IRQ_BASE	/* first IRQ assigned to CPU */
 
 #define DEC_CPU_IRQ_NR(n)	((n) + DEC_CPU_IRQ_BASE)
 #define DEC_CPU_IRQ_MASK(n)	(1 << ((n) + CAUSEB_IP))

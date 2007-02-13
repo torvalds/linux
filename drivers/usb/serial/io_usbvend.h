@@ -30,6 +30,7 @@
 
 #define	USB_VENDOR_ID_ION	0x1608		// Our VID
 #define	USB_VENDOR_ID_TI	0x0451		// TI VID
+#define USB_VENDOR_ID_AXIOHM	0x05D9		/* Axiohm VID */
 
 //
 // Definitions of USB product IDs (PID)
@@ -333,6 +334,10 @@ struct edge_compatibility_bits
 	__u32	GenUnused		: 31;	// Available for future expansion, must be 0
 
 };
+
+#define EDGE_COMPATIBILITY_MASK0	0x0001
+#define EDGE_COMPATIBILITY_MASK1	0x3FFF
+#define EDGE_COMPATIBILITY_MASK2	0x0001
 
 struct edge_compatibility_descriptor
 {

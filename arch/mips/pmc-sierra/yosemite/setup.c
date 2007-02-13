@@ -171,6 +171,7 @@ static void __init py_map_ocd(void)
 
 static void __init py_uart_setup(void)
 {
+#ifdef CONFIG_SERIAL_8250
 	struct uart_port up;
 
 	/*
@@ -188,6 +189,7 @@ static void __init py_uart_setup(void)
 
 	if (early_serial_setup(&up))
 		printk(KERN_ERR "Early serial init of port 0 failed\n");
+#endif /* CONFIG_SERIAL_8250 */
 }
 
 static void __init py_rtc_setup(void)

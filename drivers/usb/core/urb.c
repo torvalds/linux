@@ -235,16 +235,15 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 
 	urb->status = -EINPROGRESS;
 	urb->actual_length = 0;
-	urb->bandwidth = 0;
 
 	/* Lots of sanity checks, so HCDs can rely on clean data
 	 * and don't need to duplicate tests
 	 */
 	pipe = urb->pipe;
-	temp = usb_pipetype (pipe);
-	is_out = usb_pipeout (pipe);
+	temp = usb_pipetype(pipe);
+	is_out = usb_pipeout(pipe);
 
-	if (!usb_pipecontrol (pipe) && dev->state < USB_STATE_CONFIGURED)
+	if (!usb_pipecontrol(pipe) && dev->state < USB_STATE_CONFIGURED)
 		return -ENODEV;
 
 	/* FIXME there should be a sharable lock protecting us against
@@ -253,11 +252,11 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 * checks get made.)
 	 */
 
-	max = usb_maxpacket (dev, pipe, is_out);
+	max = usb_maxpacket(dev, pipe, is_out);
 	if (max <= 0) {
 		dev_dbg(&dev->dev,
 			"bogus endpoint ep%d%s in %s (bad maxpacket %d)\n",
-			usb_pipeendpoint (pipe), is_out ? "out" : "in",
+			usb_pipeendpoint(pipe), is_out ? "out" : "in",
 			__FUNCTION__, max);
 		return -EMSGSIZE;
 	}
@@ -279,11 +278,11 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		if (urb->number_of_packets <= 0)		    
 			return -EINVAL;
 		for (n = 0; n < urb->number_of_packets; n++) {
-			len = urb->iso_frame_desc [n].length;
+			len = urb->iso_frame_desc[n].length;
 			if (len < 0 || len > max) 
 				return -EMSGSIZE;
-			urb->iso_frame_desc [n].status = -EXDEV;
-			urb->iso_frame_desc [n].actual_length = 0;
+			urb->iso_frame_desc[n].status = -EXDEV;
+			urb->iso_frame_desc[n].actual_length = 0;
 		}
 	}
 
@@ -322,7 +321,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 
 	/* fail if submitter gave bogus flags */
 	if (urb->transfer_flags != orig_flags) {
-		err ("BOGUS urb flags, %x --> %x",
+		err("BOGUS urb flags, %x --> %x",
 			orig_flags, urb->transfer_flags);
 		return -EINVAL;
 	}
@@ -373,7 +372,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		urb->interval = temp;
 	}
 
-	return usb_hcd_submit_urb (urb, mem_flags);
+	return usb_hcd_submit_urb(urb, mem_flags);
 }
 
 /*-------------------------------------------------------------------*/

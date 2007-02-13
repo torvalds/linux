@@ -137,33 +137,20 @@ static void pb1200_shutdown_irq( unsigned int irq_nr )
 	return;
 }
 
-static inline void pb1200_mask_and_ack_irq(unsigned int irq_nr)
-{
-	pb1200_disable_irq( irq_nr );
-}
-
-static void pb1200_end_irq(unsigned int irq_nr)
-{
-	if (!(irq_desc[irq_nr].status & (IRQ_DISABLED|IRQ_INPROGRESS))) {
-		pb1200_enable_irq(irq_nr);
-	}
-}
-
 static struct irq_chip external_irq_type =
 {
 #ifdef CONFIG_MIPS_PB1200
-	"Pb1200 Ext",
+	.name = "Pb1200 Ext",
 #endif
 #ifdef CONFIG_MIPS_DB1200
-	"Db1200 Ext",
+	.name = "Db1200 Ext",
 #endif
-	pb1200_startup_irq,
-	pb1200_shutdown_irq,
-	pb1200_enable_irq,
-	pb1200_disable_irq,
-	pb1200_mask_and_ack_irq,
-	pb1200_end_irq,
-	NULL
+	.startup  = pb1200_startup_irq,
+	.shutdown = pb1200_shutdown_irq,
+	.ack      = pb1200_disable_irq,
+	.mask     = pb1200_disable_irq,
+	.mask_ack = pb1200_disable_irq,
+	.unmask   = pb1200_enable_irq,
 };
 
 void _board_init_irq(void)
@@ -172,7 +159,8 @@ void _board_init_irq(void)
 
 	for (irq_nr = PB1200_INT_BEGIN; irq_nr <= PB1200_INT_END; irq_nr++)
 	{
-		irq_desc[irq_nr].chip = &external_irq_type;
+		set_irq_chip_and_handler(irq_nr, &external_irq_type,
+					 handle_level_irq);
 		pb1200_disable_irq(irq_nr);
 	}
 

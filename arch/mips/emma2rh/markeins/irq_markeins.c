@@ -49,7 +49,7 @@ static void emma2rh_sw_irq_disable(unsigned int irq)
 }
 
 struct irq_chip emma2rh_sw_irq_controller = {
-	.typename = "emma2rh_sw_irq",
+	.name = "emma2rh_sw_irq",
 	.ack = emma2rh_sw_irq_disable,
 	.mask = emma2rh_sw_irq_disable,
 	.mask_ack = emma2rh_sw_irq_disable,
@@ -115,7 +115,7 @@ static void emma2rh_gpio_irq_end(unsigned int irq)
 }
 
 struct irq_chip emma2rh_gpio_irq_controller = {
-	.typename = "emma2rh_gpio_irq",
+	.name = "emma2rh_gpio_irq",
 	.ack = emma2rh_gpio_irq_ack,
 	.mask = emma2rh_gpio_irq_disable,
 	.mask_ack = emma2rh_gpio_irq_ack,

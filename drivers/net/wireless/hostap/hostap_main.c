@@ -84,7 +84,7 @@ struct net_device * hostap_add_interface(struct local_info *local,
 	if (strchr(dev->name, '%'))
 		ret = dev_alloc_name(dev, dev->name);
 
-	SET_NETDEV_DEV(dev, mdev->class_dev.dev);
+	SET_NETDEV_DEV(dev, mdev->dev.parent);
 	if (ret >= 0)
 		ret = register_netdevice(dev);
 

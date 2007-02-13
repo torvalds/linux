@@ -202,9 +202,9 @@ static void espi_setup_for_pm3393(adapter_t *adapter)
 
 static void espi_setup_for_vsc7321(adapter_t *adapter)
 {
-        writel(0x1f4, adapter->regs + A_ESPI_SCH_TOKEN0);
-        writel(0x1f401f4, adapter->regs + A_ESPI_SCH_TOKEN1);
-        writel(0x1f4, adapter->regs + A_ESPI_SCH_TOKEN2);
+	writel(0x1f4, adapter->regs + A_ESPI_SCH_TOKEN0);
+	writel(0x1f401f4, adapter->regs + A_ESPI_SCH_TOKEN1);
+	writel(0x1f4, adapter->regs + A_ESPI_SCH_TOKEN2);
 	writel(0xa00, adapter->regs + A_ESPI_RX_FIFO_ALMOST_FULL_WATERMARK);
 	writel(0x1ff, adapter->regs + A_ESPI_RX_FIFO_ALMOST_EMPTY_WATERMARK);
 	writel(1, adapter->regs + A_ESPI_CALENDAR_LENGTH);
@@ -247,10 +247,10 @@ int t1_espi_init(struct peespi *espi, int mac_type, int nports)
 		writel(V_OUT_OF_SYNC_COUNT(4) |
 		       V_DIP2_PARITY_ERR_THRES(3) |
 		       V_DIP4_THRES(1), adapter->regs + A_ESPI_MISC_CONTROL);
-        	writel(nports == 4 ? 0x200040 : 0x1000080,
+		writel(nports == 4 ? 0x200040 : 0x1000080,
 		       adapter->regs + A_ESPI_MAXBURST1_MAXBURST2);
 	} else
-        	writel(0x800100, adapter->regs + A_ESPI_MAXBURST1_MAXBURST2);
+		writel(0x800100, adapter->regs + A_ESPI_MAXBURST1_MAXBURST2);
 
 	if (mac_type == CHBT_MAC_PM3393)
 		espi_setup_for_pm3393(adapter);
@@ -301,7 +301,8 @@ void t1_espi_set_misc_ctrl(adapter_t *adapter, u32 val)
 {
 	struct peespi *espi = adapter->espi;
 
-	if (!is_T2(adapter)) return;
+	if (!is_T2(adapter))
+		return;
 	spin_lock(&espi->lock);
 	espi->misc_ctrl = (val & ~MON_MASK) |
 			  (espi->misc_ctrl & MON_MASK);
@@ -340,32 +341,31 @@ u32 t1_espi_get_mon(adapter_t *adapter, u32 addr, u8 wait)
  * compare with t1_espi_get_mon(), it reads espiInTxSop[0 ~ 3] in
  * one shot, since there is no per port counter on the out side.
  */
-int
-t1_espi_get_mon_t204(adapter_t *adapter, u32 *valp, u8 wait)
+int t1_espi_get_mon_t204(adapter_t *adapter, u32 *valp, u8 wait)
 {
-        struct peespi *espi = adapter->espi;
+	struct peespi *espi = adapter->espi;
 	u8 i, nport = (u8)adapter->params.nports;
 
-        if (!wait) {
-                if (!spin_trylock(&espi->lock))
-                        return -1;
-        } else
-                spin_lock(&espi->lock);
+	if (!wait) {
+		if (!spin_trylock(&espi->lock))
+			return -1;
+	} else
+		spin_lock(&espi->lock);
 
-	if ( (espi->misc_ctrl & MON_MASK) != F_MONITORED_DIRECTION ) {
+	if ((espi->misc_ctrl & MON_MASK) != F_MONITORED_DIRECTION) {
 		espi->misc_ctrl = (espi->misc_ctrl & ~MON_MASK) |
 					F_MONITORED_DIRECTION;
-                writel(espi->misc_ctrl, adapter->regs + A_ESPI_MISC_CONTROL);
- 	}
+		writel(espi->misc_ctrl, adapter->regs + A_ESPI_MISC_CONTROL);
+	}
 	for (i = 0 ; i < nport; i++, valp++) {
 		if (i) {
 			writel(espi->misc_ctrl | V_MONITORED_PORT_NUM(i),
 			       adapter->regs + A_ESPI_MISC_CONTROL);
 		}
-                *valp = readl(adapter->regs + A_ESPI_SCH_TOKEN3);
-        }
+		*valp = readl(adapter->regs + A_ESPI_SCH_TOKEN3);
+	}
 
-        writel(espi->misc_ctrl, adapter->regs + A_ESPI_MISC_CONTROL);
-        spin_unlock(&espi->lock);
-        return 0;
+	writel(espi->misc_ctrl, adapter->regs + A_ESPI_MISC_CONTROL);
+	spin_unlock(&espi->lock);
+	return 0;
 }

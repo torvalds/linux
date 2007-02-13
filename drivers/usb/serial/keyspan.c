@@ -1275,11 +1275,31 @@ static int keyspan_fake_startup (struct usb_serial *serial)
 }
 
 /* Helper functions used by keyspan_setup_urbs */
+static struct usb_endpoint_descriptor const *find_ep(struct usb_serial const *serial,
+						     int endpoint)
+{
+	struct usb_host_interface *iface_desc;
+	struct usb_endpoint_descriptor *ep;
+	int i;
+
+	iface_desc = serial->interface->cur_altsetting;
+	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
+		ep = &iface_desc->endpoint[i].desc;
+		if (ep->bEndpointAddress == endpoint)
+			return ep;
+	}
+	dev_warn(&serial->interface->dev, "found no endpoint descriptor for "
+		 "endpoint %x\n", endpoint);
+	return NULL;
+}
+
 static struct urb *keyspan_setup_urb (struct usb_serial *serial, int endpoint,
 				      int dir, void *ctx, char *buf, int len,
 				      void (*callback)(struct urb *))
 {
 	struct urb *urb;
+	struct usb_endpoint_descriptor const *ep_desc;
+	char const *ep_type_name;
 
 	if (endpoint == -1)
 		return NULL;		/* endpoint not needed */
@@ -1291,11 +1311,32 @@ static struct urb *keyspan_setup_urb (struct usb_serial *serial, int endpoint,
 		return NULL;
 	}
 
-		/* Fill URB using supplied data. */
-	usb_fill_bulk_urb(urb, serial->dev,
-		      usb_sndbulkpipe(serial->dev, endpoint) | dir,
-		      buf, len, callback, ctx);
+	ep_desc = find_ep(serial, endpoint);
+	if (!ep_desc) {
+		/* leak the urb, something's wrong and the callers don't care */
+		return urb;
+	}
+	if (usb_endpoint_xfer_int(ep_desc)) {
+		ep_type_name = "INT";
+		usb_fill_int_urb(urb, serial->dev,
+				 usb_sndintpipe(serial->dev, endpoint) | dir,
+				 buf, len, callback, ctx,
+				 ep_desc->bInterval);
+	} else if (usb_endpoint_xfer_bulk(ep_desc)) {
+		ep_type_name = "BULK";
+		usb_fill_bulk_urb(urb, serial->dev,
+				  usb_sndbulkpipe(serial->dev, endpoint) | dir,
+				  buf, len, callback, ctx);
+	} else {
+		dev_warn(&serial->interface->dev,
+			 "unsupported endpoint type %x\n",
+			 ep_desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK);
+		usb_free_urb(urb);
+		return NULL;
+	}
 
+	dbg("%s - using urb %p for %s endpoint %x",
+	    __func__, urb, ep_type_name, endpoint);
 	return urb;
 }
 

@@ -200,7 +200,7 @@ void zfcp_fsf_start_timer(struct zfcp_fsf_req *fsf_req, unsigned long timeout)
  * returns:	0	- initiated action successfully
  *		<0	- failed to initiate action
  */
-int
+static int
 zfcp_erp_adapter_reopen_internal(struct zfcp_adapter *adapter, int clear_mask)
 {
 	int retval;
@@ -295,7 +295,7 @@ zfcp_erp_unit_shutdown(struct zfcp_unit *unit, int clear_mask)
  * zfcp_erp_adisc - send ADISC ELS command
  * @port: port structure
  */
-int
+static int
 zfcp_erp_adisc(struct zfcp_port *port)
 {
 	struct zfcp_adapter *adapter = port->adapter;
@@ -380,7 +380,7 @@ zfcp_erp_adisc(struct zfcp_port *port)
  *
  * If ADISC failed (LS_RJT or timed out) forced reopen of the port is triggered.
  */
-void
+static void
 zfcp_erp_adisc_handler(unsigned long data)
 {
 	struct zfcp_send_els *send_els;
@@ -3141,7 +3141,6 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 		break;
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		if (result != ZFCP_ERP_SUCCEEDED) {
-			struct zfcp_port *port;
 			list_for_each_entry(port, &adapter->port_list_head, list)
 				if (port->rport &&
 				    !atomic_test_mask(ZFCP_STATUS_PORT_WKA,

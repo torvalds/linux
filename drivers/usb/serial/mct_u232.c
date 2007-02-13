@@ -137,6 +137,7 @@ static struct usb_serial_driver mct_u232_device = {
 		.name =		"mct_u232",
 	},
 	.description =	     "MCT U232",
+	.usb_driver = 	     &mct_u232_driver,
 	.id_table =	     id_table_combined,
 	.num_interrupt_in =  2,
 	.num_bulk_in =	     0,

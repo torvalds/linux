@@ -27,8 +27,6 @@
 
 #include "macb.h"
 
-#define to_net_dev(class) container_of(class, struct net_device, class_dev)
-
 #define RX_BUFFER_SIZE		128
 #define RX_RING_SIZE		512
 #define RX_RING_BYTES		(sizeof(struct dma_desc) * RX_RING_SIZE)
@@ -945,10 +943,10 @@ static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return ret;
 }
 
-static ssize_t macb_mii_show(const struct class_device *cd, char *buf,
+static ssize_t macb_mii_show(const struct device *_dev, char *buf,
 			unsigned long addr)
 {
-	struct net_device *dev = to_net_dev(cd);
+	struct net_device *dev = to_net_dev(_dev);
 	struct macb *bp = netdev_priv(dev);
 	ssize_t ret = -EINVAL;
 
@@ -962,11 +960,13 @@ static ssize_t macb_mii_show(const struct class_device *cd, char *buf,
 }
 
 #define MII_ENTRY(name, addr)					\
-static ssize_t show_##name(struct class_device *cd, char *buf)	\
+static ssize_t show_##name(struct device *_dev,			\
+			   struct device_attribute *attr,	\
+			   char *buf)				\
 {								\
-	return macb_mii_show(cd, buf, addr);			\
+	return macb_mii_show(_dev, buf, addr);			\
 }								\
-static CLASS_DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
+static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
 
 MII_ENTRY(bmcr, MII_BMCR);
 MII_ENTRY(bmsr, MII_BMSR);
@@ -977,13 +977,13 @@ MII_ENTRY(lpa, MII_LPA);
 MII_ENTRY(expansion, MII_EXPANSION);
 
 static struct attribute *macb_mii_attrs[] = {
-	&class_device_attr_bmcr.attr,
-	&class_device_attr_bmsr.attr,
-	&class_device_attr_physid1.attr,
-	&class_device_attr_physid2.attr,
-	&class_device_attr_advertise.attr,
-	&class_device_attr_lpa.attr,
-	&class_device_attr_expansion.attr,
+	&dev_attr_bmcr.attr,
+	&dev_attr_bmsr.attr,
+	&dev_attr_physid1.attr,
+	&dev_attr_physid2.attr,
+	&dev_attr_advertise.attr,
+	&dev_attr_lpa.attr,
+	&dev_attr_expansion.attr,
 	NULL,
 };
 
@@ -994,17 +994,17 @@ static struct attribute_group macb_mii_group = {
 
 static void macb_unregister_sysfs(struct net_device *net)
 {
-	struct class_device *class_dev = &net->class_dev;
+	struct device *_dev = &net->dev;
 
-	sysfs_remove_group(&class_dev->kobj, &macb_mii_group);
+	sysfs_remove_group(&_dev->kobj, &macb_mii_group);
 }
 
 static int macb_register_sysfs(struct net_device *net)
 {
-	struct class_device *class_dev = &net->class_dev;
+	struct device *_dev = &net->dev;
 	int ret;
 
-	ret = sysfs_create_group(&class_dev->kobj, &macb_mii_group);
+	ret = sysfs_create_group(&_dev->kobj, &macb_mii_group);
 	if (ret)
 		printk(KERN_WARNING
 		       "%s: sysfs mii attribute registration failed: %d\n",
@@ -1046,6 +1046,14 @@ static int __devinit macb_probe(struct platform_device *pdev)
 
 	spin_lock_init(&bp->lock);
 
+#if defined(CONFIG_ARCH_AT91)
+	bp->pclk = clk_get(&pdev->dev, "macb_clk");
+	if (IS_ERR(bp->pclk)) {
+		dev_err(&pdev->dev, "failed to get macb_clk\n");
+		goto err_out_free_dev;
+	}
+	clk_enable(bp->pclk);
+#else
 	bp->pclk = clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(bp->pclk)) {
 		dev_err(&pdev->dev, "failed to get pclk\n");
@@ -1059,6 +1067,7 @@ static int __devinit macb_probe(struct platform_device *pdev)
 
 	clk_enable(bp->pclk);
 	clk_enable(bp->hclk);
+#endif
 
 	bp->regs = ioremap(regs->start, regs->end - regs->start + 1);
 	if (!bp->regs) {
@@ -1119,9 +1128,17 @@ static int __devinit macb_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	if (pdata && pdata->is_rmii)
+#if defined(CONFIG_ARCH_AT91)
+		macb_writel(bp, USRIO, (MACB_BIT(RMII) | MACB_BIT(CLKEN)) );
+#else
 		macb_writel(bp, USRIO, 0);
+#endif
 	else
+#if defined(CONFIG_ARCH_AT91)
+		macb_writel(bp, USRIO, MACB_BIT(CLKEN));
+#else
 		macb_writel(bp, USRIO, MACB_BIT(MII));
+#endif
 
 	bp->tx_pending = DEF_TX_RING_PENDING;
 
@@ -1148,9 +1165,11 @@ err_out_free_irq:
 err_out_iounmap:
 	iounmap(bp->regs);
 err_out_disable_clocks:
+#ifndef CONFIG_ARCH_AT91
 	clk_disable(bp->hclk);
-	clk_disable(bp->pclk);
 	clk_put(bp->hclk);
+#endif
+	clk_disable(bp->pclk);
 err_out_put_pclk:
 	clk_put(bp->pclk);
 err_out_free_dev:
@@ -1173,9 +1192,11 @@ static int __devexit macb_remove(struct platform_device *pdev)
 		unregister_netdev(dev);
 		free_irq(dev->irq, dev);
 		iounmap(bp->regs);
+#ifndef CONFIG_ARCH_AT91
 		clk_disable(bp->hclk);
-		clk_disable(bp->pclk);
 		clk_put(bp->hclk);
+#endif
+		clk_disable(bp->pclk);
 		clk_put(bp->pclk);
 		free_netdev(dev);
 		platform_set_drvdata(pdev, NULL);

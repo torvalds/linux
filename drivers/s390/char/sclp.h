@@ -12,7 +12,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
-
+#include <asm/sclp.h>
 #include <asm/ebcdic.h>
 
 /* maximum number of pages concerning our own memory management */
@@ -49,9 +49,11 @@
 
 typedef unsigned int sclp_cmdw_t;
 
-#define SCLP_CMDW_READDATA	0x00770005
-#define SCLP_CMDW_WRITEDATA	0x00760005
-#define SCLP_CMDW_WRITEMASK	0x00780005
+#define SCLP_CMDW_READ_EVENT_DATA	0x00770005
+#define SCLP_CMDW_WRITE_EVENT_DATA	0x00760005
+#define SCLP_CMDW_WRITE_EVENT_MASK	0x00780005
+#define SCLP_CMDW_READ_SCP_INFO		0x00020001
+#define SCLP_CMDW_READ_SCP_INFO_FORCED	0x00120001
 
 #define GDS_ID_MDSMU		0x1310
 #define GDS_ID_MDSRouteInfo	0x1311
@@ -65,13 +67,6 @@ typedef unsigned int sclp_cmdw_t;
 #define GDS_KEY_SelfDefTextMsg	0x31
 
 typedef u32 sccb_mask_t;	/* ATTENTION: assumes 32bit mask !!! */
-
-struct sccb_header {
-	u16	length;
-	u8	function_code;
-	u8	control_mask[3];
-	u16	response_code;
-} __attribute__((packed));
 
 struct gds_subvector {
 	u8	length;
@@ -131,6 +126,7 @@ void sclp_unregister(struct sclp_register *reg);
 int sclp_remove_processed(struct sccb_header *sccb);
 int sclp_deactivate(void);
 int sclp_reactivate(void);
+int sclp_service_call(sclp_cmdw_t command, void *sccb);
 
 /* useful inlines */
 

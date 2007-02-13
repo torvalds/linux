@@ -1545,11 +1545,7 @@ int usb_driver_set_configuration(struct usb_device *udev, int config)
 	INIT_WORK(&req->work, driver_set_config_work);
 
 	usb_get_dev(udev);
-	if (!schedule_work(&req->work)) {
-		usb_put_dev(udev);
-		kfree(req);
-		return -EINVAL;
-	}
+	schedule_work(&req->work);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_driver_set_configuration);
