@@ -25,14 +25,19 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
-#define dprintk(args...) do { if (debug) {printk(KERN_DEBUG "QT1010: " args); printk("\n"); }} while (0)
+#define dprintk(args...) \
+	do { \
+		if (debug) printk(KERN_DEBUG "QT1010: " args); \
+	} while (0)
 
 /* read single register */
 static int qt1010_readreg(struct qt1010_priv *priv, u8 reg, u8 *val)
 {
 	struct i2c_msg msg[2] = {
-		{ .addr = priv->cfg->i2c_address, .flags = 0,        .buf = &reg, .len = 1 },
-		{ .addr = priv->cfg->i2c_address, .flags = I2C_M_RD, .buf = val,  .len = 1 },
+		{ .addr = priv->cfg->i2c_address,
+		  .flags = 0, .buf = &reg, .len = 1 },
+		{ .addr = priv->cfg->i2c_address,
+		  .flags = I2C_M_RD, .buf = val, .len = 1 },
 	};
 
 	if (i2c_transfer(priv->i2c, msg, 2) != 2) {
@@ -46,9 +51,8 @@ static int qt1010_readreg(struct qt1010_priv *priv, u8 reg, u8 *val)
 static int qt1010_writereg(struct qt1010_priv *priv, u8 reg, u8 val)
 {
 	u8 buf[2] = { reg, val };
-	struct i2c_msg msg = {
-		.addr = priv->cfg->i2c_address, .flags = 0, .buf = buf, .len = 2
-	};
+	struct i2c_msg msg = { .addr = priv->cfg->i2c_address,
+			       .flags = 0, .buf = buf, .len = 2 };
 
 	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
 		printk(KERN_WARNING "qt1010 I2C write failed\n");
@@ -80,7 +84,8 @@ static void qt1010_dump_regs(struct qt1010_priv *priv)
 	printk("%s\n", buf);
 }
 
-static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int qt1010_set_params(struct dvb_frontend *fe,
+			     struct dvb_frontend_parameters *params)
 {
 	struct qt1010_priv *priv;
 	int err;
@@ -146,7 +151,8 @@ static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 	freq = (div * QT1010_STEP) - QT1010_OFFSET;
 	mod1 = (freq + QT1010_OFFSET) % FREQ1;
 	mod2 = (freq + QT1010_OFFSET) % FREQ2;
-	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
+	priv->bandwidth =
+		(fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
 	priv->frequency = freq;
 
 	if (fe->ops.i2c_gate_ctrl)
@@ -227,8 +233,9 @@ static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 	/* 00 */
 	rd[45].val = 0x92; /* TODO: correct value calculation */
 
-	dprintk("freq:%u 05:%02x 07:%02x 09:%02x 0a:%02x 0b:%02x 1a:%02x 11:%02x " \
-		"12:%02x 22:%02x 05:%02x 1f:%02x 20:%02x 25:%02x 00:%02x", \
+	dprintk("freq:%u 05:%02x 07:%02x 09:%02x 0a:%02x 0b:%02x " \
+		"1a:%02x 11:%02x 12:%02x 22:%02x 05:%02x 1f:%02x " \
+		"20:%02x 25:%02x 00:%02x", \
 		freq, rd[2].val, rd[4].val, rd[6].val, rd[7].val, rd[8].val, \
 		rd[10].val, rd[13].val, rd[14].val, rd[15].val, rd[35].val, \
 		rd[40].val, rd[41].val, rd[43].val, rd[45].val);
@@ -251,7 +258,8 @@ static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 	return 0;
 }
 
-static int qt1010_init_meas1(struct qt1010_priv *priv, u8 oper, u8 reg, u8 reg_init_val, u8 *retval)
+static int qt1010_init_meas1(struct qt1010_priv *priv,
+			     u8 oper, u8 reg, u8 reg_init_val, u8 *retval)
 {
 	u8 i, val1, val2;
 	int err;
@@ -265,7 +273,8 @@ static int qt1010_init_meas1(struct qt1010_priv *priv, u8 oper, u8 reg, u8 reg_i
 
 	for (i = 0; i < ARRAY_SIZE(i2c_data); i++) {
 		if (i2c_data[i].oper == QT1010_WR) {
-			err = qt1010_writereg(priv, i2c_data[i].reg, i2c_data[i].val);
+			err = qt1010_writereg(priv, i2c_data[i].reg,
+					      i2c_data[i].val);
 		} else {
 			err = qt1010_readreg(priv, i2c_data[i].reg, &val2);
 		}
@@ -283,7 +292,8 @@ static int qt1010_init_meas1(struct qt1010_priv *priv, u8 oper, u8 reg, u8 reg_i
 	return qt1010_writereg(priv, 0x1e, 0x00);
 }
 
-static u8 qt1010_init_meas2(struct qt1010_priv *priv, u8 reg_init_val, u8 *retval)
+static u8 qt1010_init_meas2(struct qt1010_priv *priv,
+			    u8 reg_init_val, u8 *retval)
 {
 	u8 i, val;
 	int err;
@@ -298,7 +308,8 @@ static u8 qt1010_init_meas2(struct qt1010_priv *priv, u8 reg_init_val, u8 *retva
 	};
 	for (i = 0; i < ARRAY_SIZE(i2c_data); i++) {
 		if (i2c_data[i].oper == QT1010_WR) {
-			err = qt1010_writereg(priv, i2c_data[i].reg, i2c_data[i].val);
+			err = qt1010_writereg(priv, i2c_data[i].reg,
+					      i2c_data[i].val);
 		} else {
 			err = qt1010_readreg(priv, i2c_data[i].reg, &val);
 		}
@@ -358,19 +369,26 @@ static int qt1010_init(struct dvb_frontend *fe)
 	for (i = 0; i < ARRAY_SIZE(i2c_data); i++) {
 		switch (i2c_data[i].oper) {
 		case QT1010_WR:
-			err = qt1010_writereg(priv, i2c_data[i].reg, i2c_data[i].val);
+			err = qt1010_writereg(priv, i2c_data[i].reg,
+					      i2c_data[i].val);
 			break;
 		case QT1010_RD:
-			if (i2c_data[i].val == 0x20) valptr = &priv->reg20_init_val;
-			else valptr = &tmpval;
+			if (i2c_data[i].val == 0x20)
+				valptr = &priv->reg20_init_val;
+			else
+				valptr = &tmpval;
 			err = qt1010_readreg(priv, i2c_data[i].reg, valptr);
 			break;
 		case QT1010_M1:
-			if (i2c_data[i].val == 0x25) valptr = &priv->reg25_init_val;
-			else if (i2c_data[i].val == 0x1f) valptr = &priv->reg1f_init_val;
-			else valptr = &tmpval;
-			err = qt1010_init_meas1(priv, i2c_data[i+1].reg, i2c_data[i].reg,
-						      i2c_data[i].val, valptr);
+			if (i2c_data[i].val == 0x25)
+				valptr = &priv->reg25_init_val;
+			else if (i2c_data[i].val == 0x1f)
+				valptr = &priv->reg1f_init_val;
+			else
+				valptr = &tmpval;
+			err = qt1010_init_meas1(priv, i2c_data[i+1].reg,
+						i2c_data[i].reg,
+						i2c_data[i].val, valptr);
 			i++;
 			break;
 		}
@@ -435,8 +453,8 @@ struct dvb_frontend * qt1010_attach(struct dvb_frontend *fe,
 	if (priv == NULL)
 		return NULL;
 
-	priv->cfg      = cfg;
-	priv->i2c      = i2c;
+	priv->cfg = cfg;
+	priv->i2c = i2c;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
@@ -452,7 +470,8 @@ struct dvb_frontend * qt1010_attach(struct dvb_frontend *fe,
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
 	printk(KERN_INFO "Quantek QT1010 successfully identified.\n");
-	memcpy(&fe->ops.tuner_ops, &qt1010_tuner_ops, sizeof(struct dvb_tuner_ops));
+	memcpy(&fe->ops.tuner_ops, &qt1010_tuner_ops,
+	       sizeof(struct dvb_tuner_ops));
 
 	fe->tuner_priv = priv;
 	return fe;
