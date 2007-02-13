@@ -272,31 +272,113 @@ void __init numa_init_array(void)
 }
 
 #ifdef CONFIG_NUMA_EMU
+/* Numa emulation */
 int numa_fake __initdata = 0;
 
-/* Numa emulation */
+/*
+ * This function is used to find out if the start and end correspond to
+ * different zones.
+ */
+int zone_cross_over(unsigned long start, unsigned long end)
+{
+	if ((start < (MAX_DMA32_PFN << PAGE_SHIFT)) &&
+			(end >= (MAX_DMA32_PFN << PAGE_SHIFT)))
+		return 1;
+	return 0;
+}
+
 static int __init numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
 {
- 	int i;
+ 	int i, big;
  	struct bootnode nodes[MAX_NUMNODES];
- 	unsigned long sz = ((end_pfn - start_pfn)<<PAGE_SHIFT) / numa_fake;
+ 	unsigned long sz, old_sz;
+	unsigned long hole_size;
+	unsigned long start, end;
+	unsigned long max_addr = (end_pfn << PAGE_SHIFT);
+
+	start = (start_pfn << PAGE_SHIFT);
+	hole_size = e820_hole_size(start, max_addr);
+	sz = (max_addr - start - hole_size) / numa_fake;
 
  	/* Kludge needed for the hash function */
- 	if (hweight64(sz) > 1) {
- 		unsigned long x = 1;
- 		while ((x << 1) < sz)
- 			x <<= 1;
- 		if (x < sz/2)
- 			printk(KERN_ERR "Numa emulation unbalanced. Complain to maintainer\n");
- 		sz = x;
- 	}
 
+	old_sz = sz;
+	/*
+	 * Round down to the nearest FAKE_NODE_MIN_SIZE.
+	 */
+	sz &= FAKE_NODE_MIN_HASH_MASK;
+
+	/*
+	 * We ensure that each node is at least 64MB big.  Smaller than this
+	 * size can cause VM hiccups.
+	 */
+	if (sz == 0) {
+		printk(KERN_INFO "Not enough memory for %d nodes.  Reducing "
+				"the number of nodes\n", numa_fake);
+		numa_fake = (max_addr - start - hole_size) / FAKE_NODE_MIN_SIZE;
+		printk(KERN_INFO "Number of fake nodes will be = %d\n",
+				numa_fake);
+		sz = FAKE_NODE_MIN_SIZE;
+	}
+	/*
+	 * Find out how many nodes can get an extra NODE_MIN_SIZE granule.
+	 * This logic ensures the extra memory gets distributed among as many
+	 * nodes as possible (as compared to one single node getting all that
+	 * extra memory.
+	 */
+	big = ((old_sz - sz) * numa_fake) / FAKE_NODE_MIN_SIZE;
+	printk(KERN_INFO "Fake node Size: %luMB hole_size: %luMB big nodes: "
+			"%d\n",
+			(sz >> 20), (hole_size >> 20), big);
  	memset(&nodes,0,sizeof(nodes));
+	end = start;
  	for (i = 0; i < numa_fake; i++) {
- 		nodes[i].start = (start_pfn<<PAGE_SHIFT) + i*sz;
+		/*
+		 * In case we are not able to allocate enough memory for all
+		 * the nodes, we reduce the number of fake nodes.
+		 */
+		if (end >= max_addr) {
+			numa_fake = i - 1;
+			break;
+		}
+ 		start = nodes[i].start = end;
+		/*
+		 * Final node can have all the remaining memory.
+		 */
  		if (i == numa_fake-1)
- 			sz = (end_pfn<<PAGE_SHIFT) - nodes[i].start;
- 		nodes[i].end = nodes[i].start + sz;
+ 			sz = max_addr - start;
+ 		end = nodes[i].start + sz;
+		/*
+		 * Fir "big" number of nodes get extra granule.
+		 */
+		if (i < big)
+			end += FAKE_NODE_MIN_SIZE;
+		/*
+		 * Iterate over the range to ensure that this node gets at
+		 * least sz amount of RAM (excluding holes)
+		 */
+		while ((end - start - e820_hole_size(start, end)) < sz) {
+			end += FAKE_NODE_MIN_SIZE;
+			if (end >= max_addr)
+				break;
+		}
+		/*
+		 * Look at the next node to make sure there is some real memory
+		 * to map.  Bad things happen when the only memory present
+		 * in a zone on a fake node is IO hole.
+		 */
+		while (e820_hole_size(end, end + FAKE_NODE_MIN_SIZE) > 0) {
+			if (zone_cross_over(start, end + sz)) {
+				end = (MAX_DMA32_PFN << PAGE_SHIFT);
+				break;
+			}
+			if (end >= max_addr)
+				break;
+			end += FAKE_NODE_MIN_SIZE;
+		}
+		if (end > max_addr)
+			end = max_addr;
+		nodes[i].end = end;
  		printk(KERN_INFO "Faking node %d at %016Lx-%016Lx (%LuMB)\n",
  		       i,
  		       nodes[i].start, nodes[i].end,
