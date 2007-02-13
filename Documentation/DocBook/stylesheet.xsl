@@ -4,4 +4,5 @@
 <param name="funcsynopsis.style">ansi</param>
 <param name="funcsynopsis.tabular.threshold">80</param>
 <!-- <param name="paper.type">A4</param> -->
+<param name="generate.section.toc.level">2</param>
 </stylesheet>

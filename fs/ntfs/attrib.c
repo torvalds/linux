@@ -1921,7 +1921,7 @@ s64 ntfs_attr_extend_allocation(ntfs_inode *ni, s64 new_alloc_size,
 	u32 attr_len = 0; /* Silence stupid gcc warning. */
 	bool mp_rebuilt;
 
-#ifdef NTFS_DEBUG
+#ifdef DEBUG
 	read_lock_irqsave(&ni->size_lock, flags);
 	allocated_size = ni->allocated_size;
 	read_unlock_irqrestore(&ni->size_lock, flags);

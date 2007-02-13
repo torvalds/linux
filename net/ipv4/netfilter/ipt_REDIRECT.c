@@ -18,6 +18,7 @@
 #include <net/protocol.h>
 #include <net/checksum.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/netfilter/x_tables.h>
 #ifdef CONFIG_NF_NAT_NEEDED
 #include <net/netfilter/nf_nat_rule.h>
 #else
@@ -83,7 +84,7 @@ redirect_target(struct sk_buff **pskb,
 		struct in_ifaddr *ifa;
 
 		newdst = 0;
-		
+
 		rcu_read_lock();
 		indev = __in_dev_get_rcu((*pskb)->dev);
 		if (indev && (ifa = indev->ifa_list))
@@ -104,8 +105,9 @@ redirect_target(struct sk_buff **pskb,
 	return ip_nat_setup_info(ct, &newrange, hooknum);
 }
 
-static struct ipt_target redirect_reg = {
+static struct xt_target redirect_reg = {
 	.name		= "REDIRECT",
+	.family		= AF_INET,
 	.target		= redirect_target,
 	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
 	.table		= "nat",
@@ -116,12 +118,12 @@ static struct ipt_target redirect_reg = {
 
 static int __init ipt_redirect_init(void)
 {
-	return ipt_register_target(&redirect_reg);
+	return xt_register_target(&redirect_reg);
 }
 
 static void __exit ipt_redirect_fini(void)
 {
-	ipt_unregister_target(&redirect_reg);
+	xt_unregister_target(&redirect_reg);
 }
 
 module_init(ipt_redirect_init);

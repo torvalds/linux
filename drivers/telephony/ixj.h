@@ -48,14 +48,10 @@
 typedef __u16 WORD;
 typedef __u32 DWORD;
 typedef __u8 BYTE;
-typedef __u8 BOOL;
 
 #ifndef IXJMAX
 #define IXJMAX 16
 #endif
-
-#define TRUE 1
-#define FALSE 0
 
 /******************************************************************************
 *

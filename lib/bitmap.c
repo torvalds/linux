@@ -95,7 +95,7 @@ void __bitmap_complement(unsigned long *dst, const unsigned long *src, int bits)
 }
 EXPORT_SYMBOL(__bitmap_complement);
 
-/*
+/**
  * __bitmap_shift_right - logical right shift of the bits in a bitmap
  *   @dst - destination bitmap
  *   @src - source bitmap
@@ -139,7 +139,7 @@ void __bitmap_shift_right(unsigned long *dst,
 EXPORT_SYMBOL(__bitmap_shift_right);
 
 
-/*
+/**
  * __bitmap_shift_left - logical left shift of the bits in a bitmap
  *   @dst - destination bitmap
  *   @src - source bitmap
@@ -529,7 +529,7 @@ int bitmap_parselist(const char *bp, unsigned long *maskp, int nmaskbits)
 }
 EXPORT_SYMBOL(bitmap_parselist);
 
-/*
+/**
  * bitmap_pos_to_ord(buf, pos, bits)
  *	@buf: pointer to a bitmap
  *	@pos: a bit position in @buf (0 <= @pos < @bits)
@@ -804,7 +804,7 @@ EXPORT_SYMBOL(bitmap_find_free_region);
  *	@pos: beginning of bit region to release
  *	@order: region size (log base 2 of number of bits) to release
  *
- * This is the complement to __bitmap_find_free_region and releases
+ * This is the complement to __bitmap_find_free_region() and releases
  * the found region (by clearing it in the bitmap).
  *
  * No return value.

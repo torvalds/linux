@@ -161,10 +161,13 @@ int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep)
  */
 static void snd_sb_csp_free(struct snd_hwdep *hwdep)
 {
+	int i;
 	struct snd_sb_csp *p = hwdep->private_data;
 	if (p) {
 		if (p->running & SNDRV_SB_CSP_ST_RUNNING)
 			snd_sb_csp_stop(p);
+		for (i = 0; i < ARRAY_SIZE(p->csp_programs); ++i)
+			release_firmware(p->csp_programs[i]);
 		kfree(p);
 	}
 }
@@ -687,7 +690,49 @@ static int snd_sb_csp_load_user(struct snd_sb_csp * p, const unsigned char __use
 	return err;
 }
 
+#define FIRMWARE_IN_THE_KERNEL
+
+#ifdef FIRMWARE_IN_THE_KERNEL
 #include "sb16_csp_codecs.h"
+
+static const struct firmware snd_sb_csp_static_programs[] = {
+	{ .data = mulaw_main, .size = sizeof mulaw_main },
+	{ .data = alaw_main, .size = sizeof alaw_main },
+	{ .data = ima_adpcm_init, .size = sizeof ima_adpcm_init },
+	{ .data = ima_adpcm_playback, .size = sizeof ima_adpcm_playback },
+	{ .data = ima_adpcm_capture, .size = sizeof ima_adpcm_capture },
+};
+#endif
+
+static int snd_sb_csp_firmware_load(struct snd_sb_csp *p, int index, int flags)
+{
+	static const char *const names[] = {
+		"sb16/mulaw_main.csp",
+		"sb16/alaw_main.csp",
+		"sb16/ima_adpcm_init.csp",
+		"sb16/ima_adpcm_playback.csp",
+		"sb16/ima_adpcm_capture.csp",
+	};
+	const struct firmware *program;
+	int err;
+
+	BUILD_BUG_ON(ARRAY_SIZE(names) != CSP_PROGRAM_COUNT);
+	program = p->csp_programs[index];
+	if (!program) {
+		err = request_firmware(&program, names[index],
+				       p->chip->card->dev);
+		if (err >= 0)
+			p->csp_programs[index] = program;
+		else {
+#ifdef FIRMWARE_IN_THE_KERNEL
+			program = &snd_sb_csp_static_programs[index];
+#else
+			return err;
+#endif
+		}
+	}
+	return snd_sb_csp_load(p, program->data, program->size, flags);
+}
 
 /*
  * autoload hardware codec if necessary
@@ -708,27 +753,27 @@ static int snd_sb_csp_autoload(struct snd_sb_csp * p, int pcm_sfmt, int play_rec
 	} else {
 		switch (pcm_sfmt) {
 		case SNDRV_PCM_FORMAT_MU_LAW:
-			err = snd_sb_csp_load(p, &mulaw_main[0], sizeof(mulaw_main), 0);
+			err = snd_sb_csp_firmware_load(p, CSP_PROGRAM_MULAW, 0);
 			p->acc_format = SNDRV_PCM_FMTBIT_MU_LAW;
 			p->mode = SNDRV_SB_CSP_MODE_DSP_READ | SNDRV_SB_CSP_MODE_DSP_WRITE;
 			break;
 		case SNDRV_PCM_FORMAT_A_LAW:
-			err = snd_sb_csp_load(p, &alaw_main[0], sizeof(alaw_main), 0);
+			err = snd_sb_csp_firmware_load(p, CSP_PROGRAM_ALAW, 0);
 			p->acc_format = SNDRV_PCM_FMTBIT_A_LAW;
 			p->mode = SNDRV_SB_CSP_MODE_DSP_READ | SNDRV_SB_CSP_MODE_DSP_WRITE;
 			break;
 		case SNDRV_PCM_FORMAT_IMA_ADPCM:
-			err = snd_sb_csp_load(p, &ima_adpcm_init[0], sizeof(ima_adpcm_init),
-					      SNDRV_SB_CSP_LOAD_INITBLOCK);
+			err = snd_sb_csp_firmware_load(p, CSP_PROGRAM_ADPCM_INIT,
+						       SNDRV_SB_CSP_LOAD_INITBLOCK);
 			if (err)
 				break;
 			if (play_rec_mode == SNDRV_SB_CSP_MODE_DSP_WRITE) {
-				err = snd_sb_csp_load(p, &ima_adpcm_playback[0],
-						      sizeof(ima_adpcm_playback), 0);
+				err = snd_sb_csp_firmware_load
+					(p, CSP_PROGRAM_ADPCM_PLAYBACK, 0);
 				p->mode = SNDRV_SB_CSP_MODE_DSP_WRITE;
 			} else {
-				err = snd_sb_csp_load(p, &ima_adpcm_capture[0],
-						      sizeof(ima_adpcm_capture), 0);
+				err = snd_sb_csp_firmware_load
+					(p, CSP_PROGRAM_ADPCM_CAPTURE, 0);
 				p->mode = SNDRV_SB_CSP_MODE_DSP_READ;
 			}
 			p->acc_format = SNDRV_PCM_FMTBIT_IMA_ADPCM;

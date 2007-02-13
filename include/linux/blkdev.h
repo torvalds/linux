@@ -82,7 +82,6 @@ struct cfq_io_context {
 
 	unsigned long last_end_request;
 	sector_t last_request_pos;
- 	unsigned long last_queue;
 
 	unsigned long ttime_total;
 	unsigned long ttime_samples;

@@ -89,7 +89,7 @@ extern int  zfcp_fsf_control_file(struct zfcp_adapter *, struct zfcp_fsf_req **,
 				  u32, u32, struct zfcp_sg_list *);
 extern void zfcp_fsf_start_timer(struct zfcp_fsf_req *, unsigned long);
 extern void zfcp_erp_start_timer(struct zfcp_fsf_req *);
-extern int  zfcp_fsf_req_dismiss_all(struct zfcp_adapter *);
+extern void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *);
 extern int  zfcp_fsf_status_read(struct zfcp_adapter *, int);
 extern int zfcp_fsf_req_create(struct zfcp_adapter *, u32, int, mempool_t *,
 			       unsigned long *, struct zfcp_fsf_req **);

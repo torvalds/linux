@@ -646,7 +646,7 @@ out:
 	return err;
 }
 
-static struct inode_operations msdos_dir_inode_operations = {
+static const struct inode_operations msdos_dir_inode_operations = {
 	.create		= msdos_create,
 	.lookup		= msdos_lookup,
 	.unlink		= msdos_unlink,

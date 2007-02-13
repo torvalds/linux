@@ -78,3 +78,31 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 
 EXPORT_SYMBOL(snd_verbose_printd);
 #endif
+
+#ifdef CONFIG_PCI
+#include <linux/pci.h>
+/**
+ * snd_pci_quirk_lookup - look up a PCI SSID quirk list
+ * @pci: pci_dev handle
+ * @list: quirk list, terminated by a null entry
+ *
+ * Look through the given quirk list and finds a matching entry
+ * with the same PCI SSID.  When subdevice is 0, all subdevice
+ * values may match.
+ *
+ * Returns the matched entry pointer, or NULL if nothing matched.
+ */
+const struct snd_pci_quirk *
+snd_pci_quirk_lookup(struct pci_dev *pci, const struct snd_pci_quirk *list)
+{
+	const struct snd_pci_quirk *q;
+
+	for (q = list; q->subvendor; q++)
+		if (q->subvendor == pci->subsystem_vendor &&
+		    (!q->subdevice || q->subdevice == pci->subsystem_device))
+			return q;
+	return NULL;
+}
+
+EXPORT_SYMBOL(snd_pci_quirk_lookup);
+#endif

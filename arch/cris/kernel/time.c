@@ -55,7 +55,6 @@ void do_gettimeofday(struct timeval *tv)
 	unsigned long flags;
 	signed long usec, sec;
 	local_irq_save(flags);
-	local_irq_disable();
 	usec = do_gettimeoffset();
 
         /*
@@ -215,14 +214,6 @@ cris_do_profile(struct pt_regs* regs)
 #if CONFIG_PROFILING
         profile_tick(CPU_PROFILING, regs);
 #endif
-}
-
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies * (1000000000 / HZ);
 }
 
 static int

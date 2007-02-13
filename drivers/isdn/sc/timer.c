@@ -20,14 +20,6 @@
 #include "message.h"
 #include "card.h"
 
-extern board *sc_adapter[];
-
-extern void flushreadfifo(int);
-extern int  startproc(int);
-extern int  indicate_status(int, int, unsigned long, char *);
-extern int  sendmessage(int, unsigned int, unsigned int, unsigned int,
-        unsigned int, unsigned int, unsigned int, unsigned int *);
-
 
 /*
  * Write the proper values into the I/O ports following a reset

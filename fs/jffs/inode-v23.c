@@ -54,11 +54,11 @@
 
 static int jffs_remove(struct inode *dir, struct dentry *dentry, int type);
 
-static struct super_operations jffs_ops;
+static const struct super_operations jffs_ops;
 static const struct file_operations jffs_file_operations;
-static struct inode_operations jffs_file_inode_operations;
+static const struct inode_operations jffs_file_inode_operations;
 static const struct file_operations jffs_dir_operations;
-static struct inode_operations jffs_dir_inode_operations;
+static const struct inode_operations jffs_dir_inode_operations;
 static const struct address_space_operations jffs_address_operations;
 
 struct kmem_cache     *node_cache = NULL;
@@ -296,7 +296,7 @@ jffs_setattr(struct dentry *dentry, struct iattr *iattr)
 		inode->i_blocks = (inode->i_size + 511) >> 9;
 
 		if (len) {
-			invalidate_inode_pages(inode->i_mapping);
+			invalidate_mapping_pages(inode->i_mapping, 0, -1);
 		}
 		inode->i_ctime = CURRENT_TIME_SEC;
 		inode->i_mtime = inode->i_ctime;
@@ -1518,7 +1518,7 @@ jffs_file_write(struct file *filp, const char *buf, size_t count,
 	}
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
-	invalidate_inode_pages(inode->i_mapping);
+	invalidate_mapping_pages(inode->i_mapping, 0, -1);
 
  out_isem:
 	return err;
@@ -1642,7 +1642,7 @@ static const struct file_operations jffs_file_operations =
 };
 
 
-static struct inode_operations jffs_file_inode_operations =
+static const struct inode_operations jffs_file_inode_operations =
 {
 	.lookup		= jffs_lookup,          /* lookup */
 	.setattr	= jffs_setattr,
@@ -1655,7 +1655,7 @@ static const struct file_operations jffs_dir_operations =
 };
 
 
-static struct inode_operations jffs_dir_inode_operations =
+static const struct inode_operations jffs_dir_inode_operations =
 {
 	.create		= jffs_create,
 	.lookup		= jffs_lookup,
@@ -1774,7 +1774,7 @@ static int jffs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations jffs_ops =
+static const struct super_operations jffs_ops =
 {
 	.read_inode	= jffs_read_inode,
 	.delete_inode 	= jffs_delete_inode,

@@ -75,7 +75,7 @@ struct nfulnl_instance {
 	u_int32_t seq;			/* instance-local sequential counter */
 	u_int16_t group_num;		/* number of this queue */
 	u_int16_t flags;
-	u_int8_t copy_mode;	
+	u_int8_t copy_mode;
 };
 
 static DEFINE_RWLOCK(instances_lock);
@@ -146,7 +146,7 @@ instance_create(u_int16_t group_num, int pid)
 	UDEBUG("entering (group_num=%u, pid=%d)\n", group_num,
 		pid);
 
-	write_lock_bh(&instances_lock);	
+	write_lock_bh(&instances_lock);
 	if (__instance_lookup(group_num)) {
 		inst = NULL;
 		UDEBUG("aborting, instance already exists\n");
@@ -179,10 +179,10 @@ instance_create(u_int16_t group_num, int pid)
 	if (!try_module_get(THIS_MODULE))
 		goto out_free;
 
-	hlist_add_head(&inst->hlist, 
+	hlist_add_head(&inst->hlist,
 		       &instance_table[instance_hashfn(group_num)]);
 
-	UDEBUG("newly added node: %p, next=%p\n", &inst->hlist, 
+	UDEBUG("newly added node: %p, next=%p\n", &inst->hlist,
 		inst->hlist.next);
 
 	write_unlock_bh(&instances_lock);
@@ -251,14 +251,14 @@ nfulnl_set_mode(struct nfulnl_instance *inst, u_int8_t mode,
 	int status = 0;
 
 	spin_lock_bh(&inst->lock);
-	
+
 	switch (mode) {
 	case NFULNL_COPY_NONE:
 	case NFULNL_COPY_META:
 		inst->copy_mode = mode;
 		inst->copy_range = 0;
 		break;
-		
+
 	case NFULNL_COPY_PACKET:
 		inst->copy_mode = mode;
 		/* we're using struct nfattr which has 16bit nfa_len */
@@ -267,7 +267,7 @@ nfulnl_set_mode(struct nfulnl_instance *inst, u_int8_t mode,
 		else
 			inst->copy_range = range;
 		break;
-		
+
 	default:
 		status = -EINVAL;
 		break;
@@ -327,7 +327,7 @@ nfulnl_set_flags(struct nfulnl_instance *inst, u_int16_t flags)
 	return 0;
 }
 
-static struct sk_buff *nfulnl_alloc_skb(unsigned int inst_size, 
+static struct sk_buff *nfulnl_alloc_skb(unsigned int inst_size,
 					unsigned int pkt_size)
 {
 	struct sk_buff *skb;
@@ -387,7 +387,7 @@ __nfulnl_send(struct nfulnl_instance *inst)
 
 static void nfulnl_timer(unsigned long data)
 {
-	struct nfulnl_instance *inst = (struct nfulnl_instance *)data; 
+	struct nfulnl_instance *inst = (struct nfulnl_instance *)data;
 
 	UDEBUG("timer function called, flushing buffer\n");
 
@@ -399,9 +399,9 @@ static void nfulnl_timer(unsigned long data)
 
 /* This is an inline function, we don't really care about a long
  * list of arguments */
-static inline int 
+static inline int
 __build_packet_message(struct nfulnl_instance *inst,
-			const struct sk_buff *skb, 
+			const struct sk_buff *skb,
 			unsigned int data_len,
 			unsigned int pf,
 			unsigned int hooknum,
@@ -417,9 +417,9 @@ __build_packet_message(struct nfulnl_instance *inst,
 	__be32 tmp_uint;
 
 	UDEBUG("entered\n");
-		
+
 	old_tail = inst->skb->tail;
-	nlh = NLMSG_PUT(inst->skb, 0, 0, 
+	nlh = NLMSG_PUT(inst->skb, 0, 0,
 			NFNL_SUBSYS_ULOG << 8 | NFULNL_MSG_PACKET,
 			sizeof(struct nfgenmsg));
 	nfmsg = NLMSG_DATA(nlh);
@@ -457,7 +457,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 			NFA_PUT(inst->skb, NFULA_IFINDEX_INDEV,
 				sizeof(tmp_uint), &tmp_uint);
 			if (skb->nf_bridge && skb->nf_bridge->physindev) {
-				tmp_uint = 
+				tmp_uint =
 				    htonl(skb->nf_bridge->physindev->ifindex);
 				NFA_PUT(inst->skb, NFULA_IFINDEX_PHYSINDEV,
 					sizeof(tmp_uint), &tmp_uint);
@@ -488,7 +488,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 			NFA_PUT(inst->skb, NFULA_IFINDEX_OUTDEV,
 				sizeof(tmp_uint), &tmp_uint);
 			if (skb->nf_bridge) {
-				tmp_uint = 
+				tmp_uint =
 				    htonl(skb->nf_bridge->physoutdev->ifindex);
 				NFA_PUT(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
 					sizeof(tmp_uint), &tmp_uint);
@@ -558,7 +558,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 		if (skb_copy_bits(skb, 0, NFA_DATA(nfa), data_len))
 			BUG();
 	}
-		
+
 	nlh->nlmsg_len = inst->skb->tail - old_tail;
 	return 0;
 
@@ -599,7 +599,7 @@ nfulnl_log_packet(unsigned int pf,
 	unsigned int nlbufsiz;
 	unsigned int plen;
 
-	if (li_user && li_user->type == NF_LOG_TYPE_ULOG) 
+	if (li_user && li_user->type == NF_LOG_TYPE_ULOG)
 		li = li_user;
 	else
 		li = &default_loginfo;
@@ -648,24 +648,24 @@ nfulnl_log_packet(unsigned int pf,
 	/* per-rule qthreshold overrides per-instance */
 	if (qthreshold > li->u.ulog.qthreshold)
 		qthreshold = li->u.ulog.qthreshold;
-	
+
 	switch (inst->copy_mode) {
 	case NFULNL_COPY_META:
 	case NFULNL_COPY_NONE:
 		data_len = 0;
 		break;
-	
+
 	case NFULNL_COPY_PACKET:
-		if (inst->copy_range == 0 
+		if (inst->copy_range == 0
 		    || inst->copy_range > skb->len)
 			data_len = skb->len;
 		else
 			data_len = inst->copy_range;
-		
+
 		size += NFA_SPACE(data_len);
 		UDEBUG("copy_packet, therefore size now %u\n", size);
 		break;
-	
+
 	default:
 		spin_unlock_bh(&inst->lock);
 		instance_put(inst);
@@ -991,9 +991,9 @@ static int seq_show(struct seq_file *s, void *v)
 {
 	const struct nfulnl_instance *inst = v;
 
-	return seq_printf(s, "%5d %6d %5d %1d %5d %6d %2d\n", 
+	return seq_printf(s, "%5d %6d %5d %1d %5d %6d %2d\n",
 			  inst->group_num,
-			  inst->peer_pid, inst->qlen, 
+			  inst->peer_pid, inst->qlen,
 			  inst->copy_mode, inst->copy_range,
 			  inst->flushtimeout, atomic_read(&inst->use));
 }
@@ -1025,7 +1025,7 @@ out_free:
 	return ret;
 }
 
-static struct file_operations nful_file_ops = {
+static const struct file_operations nful_file_ops = {
 	.owner	 = THIS_MODULE,
 	.open	 = nful_open,
 	.read	 = seq_read,
@@ -1041,10 +1041,10 @@ static int __init nfnetlink_log_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *proc_nful;
 #endif
-	
+
 	for (i = 0; i < INSTANCE_BUCKETS; i++)
 		INIT_HLIST_HEAD(&instance_table[i]);
-	
+
 	/* it's not really all that important to have a random value, so
 	 * we can do this from the init function, even if there hasn't
 	 * been that much entropy yet */
@@ -1077,7 +1077,7 @@ cleanup_netlink_notifier:
 
 static void __exit nfnetlink_log_fini(void)
 {
-	nf_log_unregister_logger(&nfulnl_logger);
+	nf_log_unregister(&nfulnl_logger);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_log", proc_net_netfilter);
 #endif

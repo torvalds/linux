@@ -154,7 +154,7 @@ static int raw_ctl_ioctl(struct inode *inode, struct file *filp,
 			goto out;
 		}
 
-		if (rq.raw_minor < 0 || rq.raw_minor >= MAX_RAW_MINORS) {
+		if (rq.raw_minor <= 0 || rq.raw_minor >= MAX_RAW_MINORS) {
 			err = -EINVAL;
 			goto out;
 		}

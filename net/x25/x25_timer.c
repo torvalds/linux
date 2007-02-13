@@ -3,7 +3,7 @@
  *
  *	This is ALPHA test software. This code may break your machine,
  *	randomly fail to work with new releases, misbehave and/or generally
- *	screw up. It might even work. 
+ *	screw up. It might even work.
  *
  *	This code REQUIRES 2.1.15 or higher
  *
@@ -99,8 +99,8 @@ static void x25_heartbeat_expiry(unsigned long param)
 {
 	struct sock *sk = (struct sock *)param;
 
-        bh_lock_sock(sk);
-        if (sock_owned_by_user(sk)) /* can currently only occur in state 3 */ 
+	bh_lock_sock(sk);
+	if (sock_owned_by_user(sk)) /* can currently only occur in state 3 */
 		goto restart_heartbeat;
 
 	switch (x25_sk(sk)->state) {

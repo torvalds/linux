@@ -38,6 +38,7 @@ static void ssl_announce(char *dev_name, int dev)
 	       dev_name);
 }
 
+/* Almost const, except that xterm_title may be changed in an initcall */
 static struct chan_opts opts = {
 	.announce 	= ssl_announce,
 	.xterm_title	= "Serial Line #%d",
@@ -46,10 +47,12 @@ static struct chan_opts opts = {
 	.in_kernel 	= 1,
 };
 
-static int ssl_config(char *str);
+static int ssl_config(char *str, char **error_out);
 static int ssl_get_config(char *dev, char *str, int size, char **error_out);
-static int ssl_remove(int n);
+static int ssl_remove(int n, char **error_out);
 
+
+/* Const, except for .mc.list */
 static struct line_driver driver = {
 	.name 			= "UML serial line",
 	.device_name 		= "ttyS",
@@ -61,9 +64,8 @@ static struct line_driver driver = {
 	.read_irq_name 		= "ssl",
 	.write_irq 		= SSL_WRITE_IRQ,
 	.write_irq_name 	= "ssl-write",
-	.symlink_from 		= "serial",
-	.symlink_to 		= "tts",
 	.mc  = {
+		.list		= LIST_HEAD_INIT(driver.mc.list),
 		.name  		= "ssl",
 		.config 	= ssl_config,
 		.get_config 	= ssl_get_config,
@@ -72,17 +74,16 @@ static struct line_driver driver = {
 	},
 };
 
-/* The array is initialized by line_init, which is an initcall.  The 
- * individual elements are protected by individual semaphores.
+/* The array is initialized by line_init, at initcall time.  The
+ * elements are locked individually as needed.
  */
 static struct line serial_lines[NR_PORTS] =
 	{ [0 ... NR_PORTS - 1] = LINE_INIT(CONFIG_SSL_CHAN, &driver) };
 
-static struct lines lines = LINES_INIT(NR_PORTS);
-
-static int ssl_config(char *str)
+static int ssl_config(char *str, char **error_out)
 {
-	return line_config(serial_lines, ARRAY_SIZE(serial_lines), str, &opts);
+	return line_config(serial_lines, ARRAY_SIZE(serial_lines), str, &opts,
+			   error_out);
 }
 
 static int ssl_get_config(char *dev, char *str, int size, char **error_out)
@@ -91,9 +92,10 @@ static int ssl_get_config(char *dev, char *str, int size, char **error_out)
 			       size, error_out);
 }
 
-static int ssl_remove(int n)
+static int ssl_remove(int n, char **error_out)
 {
-	return line_remove(serial_lines, ARRAY_SIZE(serial_lines), n);
+	return line_remove(serial_lines, ARRAY_SIZE(serial_lines), n,
+			   error_out);
 }
 
 static int ssl_open(struct tty_struct *tty, struct file *filp)
@@ -168,9 +170,10 @@ static int ssl_console_setup(struct console *co, char *options)
 {
 	struct line *line = &serial_lines[co->index];
 
-	return console_open_chan(line, co, &opts);
+	return console_open_chan(line, co);
 }
 
+/* No locking for register_console call - relies on single-threaded initcalls */
 static struct console ssl_cons = {
 	.name		= "ttyS",
 	.write		= ssl_console_write,
@@ -186,9 +189,8 @@ static int ssl_init(void)
 
 	printk(KERN_INFO "Initializing software serial port version %d\n",
 	       ssl_version);
-	ssl_driver = line_register_devfs(&lines, &driver, &ssl_ops,
-					 serial_lines,
-					 ARRAY_SIZE(serial_lines));
+	ssl_driver = register_lines(&driver, &ssl_ops, serial_lines,
+				    ARRAY_SIZE(serial_lines));
 
 	lines_init(serial_lines, ARRAY_SIZE(serial_lines), &opts);
 
@@ -212,7 +214,15 @@ __uml_exitcall(ssl_exit);
 
 static int ssl_chan_setup(char *str)
 {
-	return line_setup(serial_lines, ARRAY_SIZE(serial_lines), str);
+	char *error;
+	int ret;
+
+	ret = line_setup(serial_lines, ARRAY_SIZE(serial_lines), str, &error);
+	if(ret < 0)
+		printk(KERN_ERR "Failed to set up serial line with "
+		       "configuration string \"%s\" : %s\n", str, error);
+
+	return 1;
 }
 
 __setup("ssl", ssl_chan_setup);

@@ -12,9 +12,6 @@
 
 #define VERBOSE_USB_DEBUG
 
-#define TRUE  1
-#define FALSE 0
-
 
 /***********/
 /* defines */

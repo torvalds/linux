@@ -16,6 +16,7 @@ enum nf_nat_manip_type
 
 #define IP_NAT_RANGE_MAP_IPS 1
 #define IP_NAT_RANGE_PROTO_SPECIFIED 2
+#define IP_NAT_RANGE_PROTO_RANDOM 4
 
 /* NAT sequence number modifications */
 struct nf_nat_seq {

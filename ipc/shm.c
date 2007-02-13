@@ -42,7 +42,7 @@
 
 #include "util.h"
 
-static struct file_operations shm_file_operations;
+static const struct file_operations shm_file_operations;
 static struct vm_operations_struct shm_vm_ops;
 
 static struct ipc_ids init_shm_ids;
@@ -249,7 +249,7 @@ static int shm_release(struct inode *ino, struct file *file)
 	return 0;
 }
 
-static struct file_operations shm_file_operations = {
+static const struct file_operations shm_file_operations = {
 	.mmap		= shm_mmap,
 	.release	= shm_release,
 #ifndef CONFIG_MMU

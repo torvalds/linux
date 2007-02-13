@@ -1521,13 +1521,13 @@ static const struct SiS_LVDSCRT1Data SiS_LVDSCRT1640x480_1_H[] =
    0x00}}
 };
 
-BOOLEAN		SiSInitPtr(struct SiS_Private *SiS_Pr);
+bool		SiSInitPtr(struct SiS_Private *SiS_Pr);
 #ifdef SIS_XORG_XF86
 unsigned short	SiS_GetModeID(int VGAEngine, unsigned int VBFlags, int HDisplay, int VDisplay,
-				int Depth, BOOLEAN FSTN, int LCDwith, int LCDheight);
+				int Depth, bool FSTN, int LCDwith, int LCDheight);
 #endif
 unsigned short	SiS_GetModeID_LCD(int VGAEngine, unsigned int VBFlags, int HDisplay,
-				int VDisplay, int Depth, BOOLEAN FSTN,
+				int VDisplay, int Depth, bool FSTN,
 				unsigned short CustomT, int LCDwith, int LCDheight,
 				unsigned int VBFlags2);
 unsigned short	SiS_GetModeID_TV(int VGAEngine, unsigned int VBFlags, int HDisplay,
@@ -1558,12 +1558,12 @@ void		SiS_SetEnableDstn(struct SiS_Private *SiS_Pr, int enable);
 void		SiS_SetEnableFstn(struct SiS_Private *SiS_Pr, int enable);
 unsigned short	SiS_GetModeFlag(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 				unsigned short ModeIdIndex);
-BOOLEAN		SiSDetermineROMLayout661(struct SiS_Private *SiS_Pr);
+bool		SiSDetermineROMLayout661(struct SiS_Private *SiS_Pr);
 #ifndef SIS_LINUX_KERNEL
 void		SiS_GetVBType(struct SiS_Private *SiS_Pr);
 #endif
 
-BOOLEAN		SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo,
+bool		SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo,
 				unsigned short *ModeIdIndex);
 unsigned short	SiS_GetModePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 				unsigned short ModeIdIndex);
@@ -1581,17 +1581,17 @@ unsigned short	SiS_GetLatencyFactor630(struct SiS_Private *SiS_Pr, unsigned shor
 #endif
 void		SiS_LoadDAC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex);
 #ifdef SIS_XORG_XF86
-BOOLEAN		SiSSetMode(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn, unsigned short ModeNo,
-				BOOLEAN dosetpitch);
-BOOLEAN		SiSBIOSSetMode(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
-				DisplayModePtr mode, BOOLEAN IsCustom);
-BOOLEAN		SiSBIOSSetModeCRT2(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
-				DisplayModePtr mode, BOOLEAN IsCustom);
-BOOLEAN		SiSBIOSSetModeCRT1(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
-				DisplayModePtr mode, BOOLEAN IsCustom);
+bool		SiSSetMode(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn, unsigned short ModeNo,
+				bool dosetpitch);
+bool		SiSBIOSSetMode(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
+				DisplayModePtr mode, bool IsCustom);
+bool		SiSBIOSSetModeCRT2(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
+				DisplayModePtr mode, bool IsCustom);
+bool		SiSBIOSSetModeCRT1(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
+				DisplayModePtr mode, bool IsCustom);
 #endif
 #ifdef SIS_LINUX_KERNEL
-BOOLEAN		SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
+bool		SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
 #endif
 void		SiS_CalcCRRegisters(struct SiS_Private *SiS_Pr, int depth);
 void		SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
@@ -1602,7 +1602,7 @@ void		SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdat
 #endif
 #ifdef SIS_LINUX_KERNEL
 void		SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata, int xres,
-				int yres, struct fb_var_screeninfo *var, BOOLEAN writeres);
+				int yres, struct fb_var_screeninfo *var, bool writeres);
 #endif
 
 /* From init301.c: */
@@ -1615,7 +1615,7 @@ extern void		SiS_SetTVMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 				unsigned short ModeIdIndex);
 extern void		SiS_UnLockCRT2(struct SiS_Private *SiS_Pr);
 extern void		SiS_DisableBridge(struct SiS_Private *);
-extern BOOLEAN		SiS_SetCRT2Group(struct SiS_Private *, unsigned short);
+extern bool		SiS_SetCRT2Group(struct SiS_Private *, unsigned short);
 extern unsigned short	SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 				unsigned short ModeIdIndex);
 extern void		SiS_WaitRetrace1(struct SiS_Private *SiS_Pr);
@@ -1624,8 +1624,8 @@ extern unsigned short	SiS_GetResInfo(struct SiS_Private *SiS_Pr, unsigned short 
 extern unsigned short	SiS_GetCH700x(struct SiS_Private *SiS_Pr, unsigned short tempax);
 extern unsigned short	SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 				unsigned short ModeIdIndex, unsigned short RRTI);
-extern BOOLEAN		SiS_IsVAMode(struct SiS_Private *);
-extern BOOLEAN		SiS_IsDualEdge(struct SiS_Private *);
+extern bool		SiS_IsVAMode(struct SiS_Private *);
+extern bool		SiS_IsDualEdge(struct SiS_Private *);
 
 #ifdef SIS_XORG_XF86
 /* From other modules: */

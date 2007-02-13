@@ -26,7 +26,7 @@
 #ifndef OCFS2_NAMEI_H
 #define OCFS2_NAMEI_H
 
-extern struct inode_operations ocfs2_dir_iops;
+extern const struct inode_operations ocfs2_dir_iops;
 
 struct dentry *ocfs2_get_parent(struct dentry *child);
 

@@ -1601,8 +1601,8 @@ static int audit_filter_user_rules(struct netlink_skb_parms *cb,
 
 int audit_filter_user(struct netlink_skb_parms *cb, int type)
 {
+	enum audit_state state = AUDIT_DISABLED;
 	struct audit_entry *e;
-	enum audit_state   state;
 	int ret = 1;
 
 	rcu_read_lock();

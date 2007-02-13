@@ -704,7 +704,7 @@ static int openprom_release(struct inode * inode, struct file * file)
 	return 0;
 }
 
-static struct file_operations openprom_fops = {
+static const struct file_operations openprom_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.ioctl =	openprom_ioctl,

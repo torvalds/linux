@@ -308,7 +308,7 @@ static int proc_lpevents_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_lpevents_show, NULL);
 }
 
-static struct file_operations proc_lpevents_operations = {
+static const struct file_operations proc_lpevents_operations = {
 	.open		= proc_lpevents_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

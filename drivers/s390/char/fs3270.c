@@ -493,7 +493,7 @@ fs3270_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations fs3270_fops = {
+static const struct file_operations fs3270_fops = {
 	.owner		 = THIS_MODULE,		/* owner */
 	.read		 = fs3270_read,		/* read */
 	.write		 = fs3270_write,	/* write */

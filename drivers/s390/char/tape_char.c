@@ -39,7 +39,7 @@ static int tapechar_ioctl(struct inode *, struct file *, unsigned int,
 static long tapechar_compat_ioctl(struct file *, unsigned int,
 			  unsigned long);
 
-static struct file_operations tape_fops =
+static const struct file_operations tape_fops =
 {
 	.owner = THIS_MODULE,
 	.read = tapechar_read,

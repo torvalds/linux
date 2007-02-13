@@ -123,6 +123,7 @@ sim710_probe_common(struct device *dev, unsigned long base_addr,
 	hostdata->differential = differential;
 	hostdata->clock = clock;
 	hostdata->chip710 = 1;
+	hostdata->burst_length = 8;
 
 	/* and register the chip */
 	if((host = NCR_700_detect(&sim710_driver_template, hostdata, dev))

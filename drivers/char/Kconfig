@@ -191,7 +191,7 @@ config MOXA_INTELLIO
 	  module will be called moxa.
 
 config MOXA_SMARTIO
-	tristate "Moxa SmartIO support"
+	tristate "Moxa SmartIO support (OBSOLETE)"
 	depends on SERIAL_NONSTANDARD
 	help
 	  Say Y here if you have a Moxa SmartIO multiport serial card.
@@ -202,7 +202,7 @@ config MOXA_SMARTIO
 	  here.
 
 config MOXA_SMARTIO_NEW
-	tristate "Moxa SmartIO support v. 2.0 (EXPERIMENTAL)"
+	tristate "Moxa SmartIO support v. 2.0"
 	depends on SERIAL_NONSTANDARD && (PCI || EISA || ISA)
 	help
 	  Say Y here if you have a Moxa SmartIO multiport serial card and/or

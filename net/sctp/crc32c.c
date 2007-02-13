@@ -1,40 +1,40 @@
 /* SCTP kernel reference Implementation
  * Copyright (c) 1999-2001 Motorola, Inc.
  * Copyright (c) 2001-2003 International Business Machines, Corp.
- * 
+ *
  * This file is part of the SCTP kernel reference Implementation
- * 
+ *
  * SCTP Checksum functions
- * 
- * The SCTP reference implementation is free software; 
- * you can redistribute it and/or modify it under the terms of 
+ *
+ * The SCTP reference implementation is free software;
+ * you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
- * 
- * The SCTP reference implementation is distributed in the hope that it 
+ *
+ * The SCTP reference implementation is distributed in the hope that it
  * will be useful, but WITHOUT ANY WARRANTY; without even the implied
  *                 ************************
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with GNU CC; see the file COPYING.  If not, write to
  * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.  
- * 
+ * Boston, MA 02111-1307, USA.
+ *
  * Please send any bug reports or fixes you make to the
  * email address(es):
  *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- * 
+ *
  * Or submit a bug report through the following website:
  *    http://www.sf.net/projects/lksctp
  *
- * Written or modified by: 
- *    Dinakaran Joseph 
+ * Written or modified by:
+ *    Dinakaran Joseph
  *    Jon Grimm <jgrimm@us.ibm.com>
  *    Sridhar Samudrala <sri@us.ibm.com>
- * 
+ *
  * Any bugs reported given to us we will try to fix... any fixes shared will
  * be incorporated into the next SCTP release.
  */
@@ -135,10 +135,10 @@ static const __u32 crc_c[256] = {
 	0x79B737BA, 0x8BDCB4B9, 0x988C474D, 0x6AE7C44E,
 	0xBE2DA0A5, 0x4C4623A6, 0x5F16D052, 0xAD7D5351,
 };
-     
+
 __u32 sctp_start_cksum(__u8 *buffer, __u16 length)
 {
-    	__u32 crc32 = ~(__u32) 0;
+	__u32 crc32 = ~(__u32) 0;
 	__u32 i;
 
 	/* Optimize this routine to be SCTP specific, knowing how
@@ -147,7 +147,7 @@ __u32 sctp_start_cksum(__u8 *buffer, __u16 length)
 
 	/* Calculate CRC up to the checksum. */
 	for (i = 0; i < (sizeof(struct sctphdr) - sizeof(__u32)); i++)
-      		CRC32C(crc32, buffer[i]);
+		CRC32C(crc32, buffer[i]);
 
 	/* Skip checksum field of the header. */
 	for (i = 0; i < sizeof(__u32); i++)
@@ -175,13 +175,13 @@ __u32 sctp_update_copy_cksum(__u8 *to, __u8 *from, __u16 length, __u32 crc32)
 	__u32 i;
 	__u32 *_to = (__u32 *)to;
 	__u32 *_from = (__u32 *)from;
-	
+
 	for (i = 0; i < (length/4); i++) {
 		_to[i] = _from[i];
 		CRC32C(crc32, from[i*4]);
 		CRC32C(crc32, from[i*4+1]);
 		CRC32C(crc32, from[i*4+2]);
-		CRC32C(crc32, from[i*4+3]);	
+		CRC32C(crc32, from[i*4+3]);
 	}
 
 	return crc32;

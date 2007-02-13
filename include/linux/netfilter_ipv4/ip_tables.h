@@ -272,25 +272,9 @@ ipt_get_target(struct ipt_entry *e)
 #include <linux/init.h>
 extern void ipt_init(void) __init;
 
-#define ipt_register_target(tgt) 	\
-({	(tgt)->family = AF_INET;	\
- 	xt_register_target(tgt); })
-#define ipt_unregister_target(tgt) xt_unregister_target(tgt)
-
-#define ipt_register_match(mtch) 	\
-({	(mtch)->family = AF_INET;	\
-	xt_register_match(mtch); })
-#define ipt_unregister_match(mtch) xt_unregister_match(mtch)
-
-//#define ipt_register_table(tbl, repl) xt_register_table(AF_INET, tbl, repl)
-//#define ipt_unregister_table(tbl) xt_unregister_table(AF_INET, tbl)
-
-extern int ipt_register_table(struct ipt_table *table,
+extern int ipt_register_table(struct xt_table *table,
 			      const struct ipt_replace *repl);
-extern void ipt_unregister_table(struct ipt_table *table);
-
-/* net/sched/ipt.c: Gimme access to your targets!  Gets target->me. */
-extern struct ipt_target *ipt_find_target(const char *name, u8 revision);
+extern void ipt_unregister_table(struct xt_table *table);
 
 /* Standard entry. */
 struct ipt_standard
@@ -315,7 +299,7 @@ extern unsigned int ipt_do_table(struct sk_buff **pskb,
 				 unsigned int hook,
 				 const struct net_device *in,
 				 const struct net_device *out,
-				 struct ipt_table *table);
+				 struct xt_table *table);
 
 #define IPT_ALIGN(s) XT_ALIGN(s)
 

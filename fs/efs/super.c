@@ -105,7 +105,7 @@ static int efs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations efs_superblock_operations = {
+static const struct super_operations efs_superblock_operations = {
 	.alloc_inode	= efs_alloc_inode,
 	.destroy_inode	= efs_destroy_inode,
 	.read_inode	= efs_read_inode,

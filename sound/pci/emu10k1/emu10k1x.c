@@ -460,7 +460,7 @@ static int snd_emu10k1x_pcm_prepare(struct snd_pcm_substream *substream)
 	u32 period_size_bytes = frames_to_bytes(runtime, runtime->period_size);
 	int i;
 	
-	for(i=0; i < runtime->periods; i++) {
+	for(i = 0; i < runtime->periods; i++) {
 		*table_base++=runtime->dma_addr+(i*period_size_bytes);
 		*table_base++=period_size_bytes<<16;
 	}
@@ -1042,8 +1042,8 @@ static void snd_emu10k1x_proc_reg_write(struct snd_info_entry *entry,
 		if (sscanf(line, "%x %x %x", &reg, &channel_id, &val) != 3)
 			continue;
 
-		if ((reg < 0x49) && (reg >=0) && (val <= 0xffffffff) 
-		    && (channel_id >=0) && (channel_id <= 2) )
+		if ((reg < 0x49) && (reg >= 0) && (val <= 0xffffffff) 
+		    && (channel_id >= 0) && (channel_id <= 2) )
 			snd_emu10k1x_ptr_write(emu, reg, channel_id, val);
 	}
 }

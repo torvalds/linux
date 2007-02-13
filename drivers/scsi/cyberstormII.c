@@ -98,7 +98,7 @@ int __init cyberII_esp_detect(struct scsi_host_template *tpnt)
 		address = (unsigned long)ZTWO_VADDR(board);
 		eregs = (struct ESP_regs *)(address + CYBERII_ESP_ADDR);
 
-		esp = esp_allocate(tpnt, (void *)board+CYBERII_ESP_ADDR);
+		esp = esp_allocate(tpnt, (void *)board + CYBERII_ESP_ADDR, 0);
 
 		esp_write(eregs->esp_cfg1, (ESP_CONFIG1_PENABLE | 7));
 		udelay(5);

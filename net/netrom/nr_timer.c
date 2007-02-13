@@ -43,7 +43,7 @@ void nr_init_timers(struct sock *sk)
 	init_timer(&nr->t1timer);
 	nr->t1timer.data     = (unsigned long)sk;
 	nr->t1timer.function = &nr_t1timer_expiry;
-	
+
 	init_timer(&nr->t2timer);
 	nr->t2timer.data     = (unsigned long)sk;
 	nr->t2timer.function = &nr_t2timer_expiry;

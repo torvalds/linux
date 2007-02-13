@@ -85,7 +85,7 @@ get_index_for_opcode (unsigned int insn)
   if ((index = spu_disassemble_table[opcode & 0x7ff]) != 0)
     return index;
 
-  return 0;
+  return NULL;
 }
 
 /* Print a Spu instruction.  */

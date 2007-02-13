@@ -21,6 +21,7 @@
 
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <linux/hardirq.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/rtnetlink.h>
@@ -47,7 +48,7 @@ static u_int32_t ks[12] = {0x01010101, 0x01010101, 0x01010101, 0x01010101,
  * +------------------------
  */
 struct crypto_xcbc_ctx {
-	struct crypto_tfm *child;
+	struct crypto_cipher *child;
 	u8 *odds;
 	u8 *prev;
 	u8 *key;
@@ -75,8 +76,7 @@ static int _crypto_xcbc_digest_setkey(struct crypto_hash *parent,
 	if ((err = crypto_cipher_setkey(ctx->child, ctx->key, ctx->keylen)))
 	    return err;
 
-	ctx->child->__crt_alg->cra_cipher.cia_encrypt(ctx->child, key1,
-			ctx->consts);
+	crypto_cipher_encrypt_one(ctx->child, key1, ctx->consts);
 
 	return crypto_cipher_setkey(ctx->child, key1, bs);
 }
@@ -86,7 +86,7 @@ static int crypto_xcbc_digest_setkey(struct crypto_hash *parent,
 {
 	struct crypto_xcbc_ctx *ctx = crypto_hash_ctx_aligned(parent);
 
-	if (keylen != crypto_tfm_alg_blocksize(ctx->child))
+	if (keylen != crypto_cipher_blocksize(ctx->child))
 		return -EINVAL;
 
 	ctx->keylen = keylen;
@@ -108,13 +108,13 @@ static int crypto_xcbc_digest_init(struct hash_desc *pdesc)
 	return 0;
 }
 
-static int crypto_xcbc_digest_update(struct hash_desc *pdesc,
-				     struct scatterlist *sg,
-				     unsigned int nbytes)
+static int crypto_xcbc_digest_update2(struct hash_desc *pdesc,
+				      struct scatterlist *sg,
+				      unsigned int nbytes)
 {
 	struct crypto_hash *parent = pdesc->tfm;
 	struct crypto_xcbc_ctx *ctx = crypto_hash_ctx_aligned(parent);
-	struct crypto_tfm *tfm = ctx->child;
+	struct crypto_cipher *tfm = ctx->child;
 	int bs = crypto_hash_blocksize(parent);
 	unsigned int i = 0;
 
@@ -142,7 +142,7 @@ static int crypto_xcbc_digest_update(struct hash_desc *pdesc,
 					offset += len;
 
 				crypto_kunmap(p, 0);
-				crypto_yield(tfm->crt_flags);
+				crypto_yield(pdesc->flags);
 				continue;
 			}
 
@@ -152,7 +152,7 @@ static int crypto_xcbc_digest_update(struct hash_desc *pdesc,
 			p += bs - ctx->len;
 
 			ctx->xor(ctx->prev, ctx->odds, bs);
-			tfm->__crt_alg->cra_cipher.cia_encrypt(tfm, ctx->prev, ctx->prev);
+			crypto_cipher_encrypt_one(tfm, ctx->prev, ctx->prev);
 
 			/* clearing the length */
 			ctx->len = 0;
@@ -160,7 +160,8 @@ static int crypto_xcbc_digest_update(struct hash_desc *pdesc,
 			/* encrypting the rest of data */
 			while (len > bs) {
 				ctx->xor(ctx->prev, p, bs);
-				tfm->__crt_alg->cra_cipher.cia_encrypt(tfm, ctx->prev, ctx->prev);
+				crypto_cipher_encrypt_one(tfm, ctx->prev,
+							  ctx->prev);
 				p += bs;
 				len -= bs;
 			}
@@ -171,7 +172,7 @@ static int crypto_xcbc_digest_update(struct hash_desc *pdesc,
 				ctx->len = len;
 			}
 			crypto_kunmap(p, 0);
-			crypto_yield(tfm->crt_flags);
+			crypto_yield(pdesc->flags);
 			slen -= min(slen, ((unsigned int)(PAGE_SIZE)) - offset);
 			offset = 0;
 			pg++;
@@ -183,11 +184,20 @@ static int crypto_xcbc_digest_update(struct hash_desc *pdesc,
 	return 0;
 }
 
+static int crypto_xcbc_digest_update(struct hash_desc *pdesc,
+				     struct scatterlist *sg,
+				     unsigned int nbytes)
+{
+	if (WARN_ON_ONCE(in_irq()))
+		return -EDEADLK;
+	return crypto_xcbc_digest_update2(pdesc, sg, nbytes);
+}
+
 static int crypto_xcbc_digest_final(struct hash_desc *pdesc, u8 *out)
 {
 	struct crypto_hash *parent = pdesc->tfm;
 	struct crypto_xcbc_ctx *ctx = crypto_hash_ctx_aligned(parent);
-	struct crypto_tfm *tfm = ctx->child;
+	struct crypto_cipher *tfm = ctx->child;
 	int bs = crypto_hash_blocksize(parent);
 	int err = 0;
 
@@ -197,13 +207,14 @@ static int crypto_xcbc_digest_final(struct hash_desc *pdesc, u8 *out)
 		if ((err = crypto_cipher_setkey(tfm, ctx->key, ctx->keylen)) != 0)
 			return err;
 
-		tfm->__crt_alg->cra_cipher.cia_encrypt(tfm, key2, (const u8*)(ctx->consts+bs));
+		crypto_cipher_encrypt_one(tfm, key2,
+					  (u8 *)(ctx->consts + bs));
 
 		ctx->xor(ctx->prev, ctx->odds, bs);
 		ctx->xor(ctx->prev, key2, bs);
 		_crypto_xcbc_digest_setkey(parent, ctx);
 
-		tfm->__crt_alg->cra_cipher.cia_encrypt(tfm, out, ctx->prev);
+		crypto_cipher_encrypt_one(tfm, out, ctx->prev);
 	} else {
 		u8 key3[bs];
 		unsigned int rlen;
@@ -218,14 +229,15 @@ static int crypto_xcbc_digest_final(struct hash_desc *pdesc, u8 *out)
 		if ((err = crypto_cipher_setkey(tfm, ctx->key, ctx->keylen)) != 0)
 			return err;
 
-		tfm->__crt_alg->cra_cipher.cia_encrypt(tfm, key3, (const u8*)(ctx->consts+bs*2));
+		crypto_cipher_encrypt_one(tfm, key3,
+					  (u8 *)(ctx->consts + bs * 2));
 
 		ctx->xor(ctx->prev, ctx->odds, bs);
 		ctx->xor(ctx->prev, key3, bs);
 
 		_crypto_xcbc_digest_setkey(parent, ctx);
 
-		tfm->__crt_alg->cra_cipher.cia_encrypt(tfm, out, ctx->prev);
+		crypto_cipher_encrypt_one(tfm, out, ctx->prev);
 	}
 
 	return 0;
@@ -234,21 +246,25 @@ static int crypto_xcbc_digest_final(struct hash_desc *pdesc, u8 *out)
 static int crypto_xcbc_digest(struct hash_desc *pdesc,
 		  struct scatterlist *sg, unsigned int nbytes, u8 *out)
 {
+	if (WARN_ON_ONCE(in_irq()))
+		return -EDEADLK;
+
 	crypto_xcbc_digest_init(pdesc);
-	crypto_xcbc_digest_update(pdesc, sg, nbytes);
+	crypto_xcbc_digest_update2(pdesc, sg, nbytes);
 	return crypto_xcbc_digest_final(pdesc, out);
 }
 
 static int xcbc_init_tfm(struct crypto_tfm *tfm)
 {
+	struct crypto_cipher *cipher;
 	struct crypto_instance *inst = (void *)tfm->__crt_alg;
 	struct crypto_spawn *spawn = crypto_instance_ctx(inst);
 	struct crypto_xcbc_ctx *ctx = crypto_hash_ctx_aligned(__crypto_hash_cast(tfm));
 	int bs = crypto_hash_blocksize(__crypto_hash_cast(tfm));
 
-	tfm = crypto_spawn_tfm(spawn);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
+	cipher = crypto_spawn_cipher(spawn);
+	if (IS_ERR(cipher))
+		return PTR_ERR(cipher);
 
 	switch(bs) {
 	case 16:
@@ -258,7 +274,7 @@ static int xcbc_init_tfm(struct crypto_tfm *tfm)
 		return -EINVAL;
 	}
 
-	ctx->child = crypto_cipher_cast(tfm);
+	ctx->child = cipher;
 	ctx->odds = (u8*)(ctx+1);
 	ctx->prev = ctx->odds + bs;
 	ctx->key = ctx->prev + bs;

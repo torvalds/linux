@@ -179,6 +179,7 @@
 
 #ifndef __ASSEMBLY__
 /* setup setup routines, called from board init or driver probe() */
+extern int __init_or_module at91_set_GPIO_periph(unsigned pin, int use_pullup);
 extern int __init_or_module at91_set_A_periph(unsigned pin, int use_pullup);
 extern int __init_or_module at91_set_B_periph(unsigned pin, int use_pullup);
 extern int __init_or_module at91_set_gpio_input(unsigned pin, int use_pullup);
@@ -193,7 +194,50 @@ extern int at91_get_gpio_value(unsigned pin);
 /* callable only from core power-management code */
 extern void at91_gpio_suspend(void);
 extern void at91_gpio_resume(void);
-#endif
+
+/*-------------------------------------------------------------------------*/
+
+/* wrappers for "new style" GPIO calls. the old AT91-specfic ones should
+ * eventually be removed (along with this errno.h inclusion), and the
+ * gpio request/free calls should probably be implemented.
+ */
+
+#include <asm/errno.h>
+
+static inline int gpio_request(unsigned gpio, const char *label)
+{
+	return 0;
+}
+
+static inline void gpio_free(unsigned gpio)
+{
+}
+
+extern int gpio_direction_input(unsigned gpio);
+extern int gpio_direction_output(unsigned gpio);
+
+static inline int gpio_get_value(unsigned gpio)
+{
+	return at91_get_gpio_value(gpio);
+}
+
+static inline void gpio_set_value(unsigned gpio, int value)
+{
+	at91_set_gpio_value(gpio, value);
+}
+
+#include <asm-generic/gpio.h>		/* cansleep wrappers */
+
+static inline int gpio_to_irq(unsigned gpio)
+{
+	return gpio;
+}
+
+static inline int irq_to_gpio(unsigned irq)
+{
+	return irq;
+}
+
+#endif	/* __ASSEMBLY__ */
 
 #endif
-

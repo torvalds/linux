@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_MMU_CONTEXT_H
 #define _ASM_M32R_MMU_CONTEXT_H
-
 #ifdef __KERNEL__
-
 
 #include <asm/m32r.h>
 
@@ -10,7 +8,6 @@
 #define MMU_CONTEXT_VERSION_MASK   (0xFFFFFF00)
 #define MMU_CONTEXT_FIRST_VERSION  (0x00000100)
 #define NO_CONTEXT                 (0x00000000)
-
 
 #ifndef __ASSEMBLY__
 
@@ -147,7 +144,7 @@ static inline void switch_mm(struct mm_struct *prev,
 #define activate_mm(prev, next)	\
 	switch_mm((prev), (next), NULL)
 
-#else
+#else /* not CONFIG_MMU */
 #define get_mmu_context(mm)             do { } while (0)
 #define init_new_context(tsk,mm)        (0)
 #define destroy_context(mm)             do { } while (0)
@@ -158,11 +155,9 @@ static inline void switch_mm(struct mm_struct *prev,
 #define deactivate_mm(mm,tsk)           do { } while (0)
 #define activate_mm(prev,next)          do { } while (0)
 #define enter_lazy_tlb(mm,tsk)          do { } while (0)
-#endif /* CONFIG_MMU */
-
+#endif /* not CONFIG_MMU */
 
 #endif /* not __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
-
 #endif /* _ASM_M32R_MMU_CONTEXT_H */

@@ -30,8 +30,8 @@ match(const struct sk_buff *skb,
 		q->quota -= skb->len;
 		ret ^= 1;
 	} else {
-	        /* we do not allow even small packets from now on */
-	        q->quota = 0;
+		/* we do not allow even small packets from now on */
+		q->quota = 0;
 	}
 	spin_unlock_bh(&quota_lock);
 

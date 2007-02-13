@@ -36,10 +36,10 @@ match(const struct sk_buff *skb,
 
 static int
 checkentry(const char *tablename,
-           const void *entry,
+	   const void *entry,
 	   const struct xt_match *match,
-           void *matchinfo,
-           unsigned int hook_mask)
+	   void *matchinfo,
+	   unsigned int hook_mask)
 {
 	const struct xt_mark_info *minfo = matchinfo;
 

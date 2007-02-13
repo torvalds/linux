@@ -227,7 +227,7 @@ xfs_efi_item_committing(xfs_efi_log_item_t *efip, xfs_lsn_t lsn)
 /*
  * This is the ops vector shared by all efi log items.
  */
-STATIC struct xfs_item_ops xfs_efi_item_ops = {
+static struct xfs_item_ops xfs_efi_item_ops = {
 	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_efi_item_size,
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_efi_item_format,
@@ -525,7 +525,7 @@ xfs_efd_item_committing(xfs_efd_log_item_t *efip, xfs_lsn_t lsn)
 /*
  * This is the ops vector shared by all efd log items.
  */
-STATIC struct xfs_item_ops xfs_efd_item_ops = {
+static struct xfs_item_ops xfs_efd_item_ops = {
 	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_efd_item_size,
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_efd_item_format,

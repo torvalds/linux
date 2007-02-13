@@ -149,7 +149,7 @@ RTC class framework, but can't be supported by the older driver.
 	is connected to an IRQ line, it can often issue an alarm IRQ up to
 	24 hours in the future.
 
-    *	RTC_WKALM_SET, RTC_WKALM_READ ... RTCs that can issue alarms beyond
+    *	RTC_WKALM_SET, RTC_WKALM_RD ... RTCs that can issue alarms beyond
 	the next 24 hours use a slightly more powerful API, which supports
 	setting the longer alarm time and enabling its IRQ using a single
 	request (using the same model as EFI firmware).
@@ -166,6 +166,28 @@ In many cases, the RTC alarm can be a system wake event, used to force
 Linux out of a low power sleep state (or hibernation) back to a fully
 operational state.  For example, a system could enter a deep power saving
 state until it's time to execute some scheduled tasks.
+
+Note that many of these ioctls need not actually be implemented by your
+driver.  The common rtc-dev interface handles many of these nicely if your
+driver returns ENOIOCTLCMD.  Some common examples:
+
+    *	RTC_RD_TIME, RTC_SET_TIME: the read_time/set_time functions will be
+	called with appropriate values.
+
+    *	RTC_ALM_SET, RTC_ALM_READ, RTC_WKALM_SET, RTC_WKALM_RD: the
+	set_alarm/read_alarm functions will be called.  To differentiate
+	between the ALM and WKALM, check the larger fields of the rtc_wkalrm
+	struct (like tm_year).  These will be set to -1 when using ALM and
+	will be set to proper values when using WKALM.
+
+    *	RTC_IRQP_SET, RTC_IRQP_READ: the irq_set_freq function will be called
+	to set the frequency while the framework will handle the read for you
+	since the frequency is stored in the irq_freq member of the rtc_device
+	structure.  Also make sure you set the max_user_freq member in your
+	initialization routines so the framework can sanity check the user
+	input for you.
+
+If all else fails, check out the rtc-test.c driver!
 
 
 -------------------- 8< ---------------- 8< -----------------------------
@@ -237,7 +259,7 @@ int main(int argc, char **argv)
 				"\n...Update IRQs not supported.\n");
 			goto test_READ;
 		}
-		perror("ioctl");
+		perror("RTC_UIE_ON ioctl");
 		exit(errno);
 	}
 
@@ -284,7 +306,7 @@ int main(int argc, char **argv)
 	/* Turn off update interrupts */
 	retval = ioctl(fd, RTC_UIE_OFF, 0);
 	if (retval == -1) {
-		perror("ioctl");
+		perror("RTC_UIE_OFF ioctl");
 		exit(errno);
 	}
 
@@ -292,7 +314,7 @@ test_READ:
 	/* Read the RTC time/date */
 	retval = ioctl(fd, RTC_RD_TIME, &rtc_tm);
 	if (retval == -1) {
-		perror("ioctl");
+		perror("RTC_RD_TIME ioctl");
 		exit(errno);
 	}
 
@@ -320,14 +342,14 @@ test_READ:
 				"\n...Alarm IRQs not supported.\n");
 			goto test_PIE;
 		}
-		perror("ioctl");
+		perror("RTC_ALM_SET ioctl");
 		exit(errno);
 	}
 
 	/* Read the current alarm settings */
 	retval = ioctl(fd, RTC_ALM_READ, &rtc_tm);
 	if (retval == -1) {
-		perror("ioctl");
+		perror("RTC_ALM_READ ioctl");
 		exit(errno);
 	}
 
@@ -337,7 +359,7 @@ test_READ:
 	/* Enable alarm interrupts */
 	retval = ioctl(fd, RTC_AIE_ON, 0);
 	if (retval == -1) {
-		perror("ioctl");
+		perror("RTC_AIE_ON ioctl");
 		exit(errno);
 	}
 
@@ -355,7 +377,7 @@ test_READ:
 	/* Disable alarm interrupts */
 	retval = ioctl(fd, RTC_AIE_OFF, 0);
 	if (retval == -1) {
-		perror("ioctl");
+		perror("RTC_AIE_OFF ioctl");
 		exit(errno);
 	}
 
@@ -368,7 +390,7 @@ test_PIE:
 			fprintf(stderr, "\nNo periodic IRQ support\n");
 			return 0;
 		}
-		perror("ioctl");
+		perror("RTC_IRQP_READ ioctl");
 		exit(errno);
 	}
 	fprintf(stderr, "\nPeriodic IRQ rate is %ldHz.\n", tmp);
@@ -387,7 +409,7 @@ test_PIE:
 					"\n...Periodic IRQ rate is fixed\n");
 				goto done;
 			}
-		        perror("ioctl");
+		        perror("RTC_IRQP_SET ioctl");
 		        exit(errno);
 		}
 
@@ -397,7 +419,7 @@ test_PIE:
 		/* Enable periodic interrupts */
 		retval = ioctl(fd, RTC_PIE_ON, 0);
 		if (retval == -1) {
-		        perror("ioctl");
+		        perror("RTC_PIE_ON ioctl");
 		        exit(errno);
 		}
 
@@ -416,7 +438,7 @@ test_PIE:
 		/* Disable periodic interrupts */
 		retval = ioctl(fd, RTC_PIE_OFF, 0);
 		if (retval == -1) {
-		        perror("ioctl");
+		        perror("RTC_PIE_OFF ioctl");
 		        exit(errno);
 		}
 	}

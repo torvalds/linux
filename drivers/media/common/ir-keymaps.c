@@ -698,7 +698,6 @@ IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE] = {
 	[ 0x29 ] = KEY_TEXT,
 	[ 0x2a ] = KEY_MEDIA,
 	[ 0x18 ] = KEY_EPG,
-	[ 0x27 ] = KEY_RECORD,
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_pinnacle_grey);

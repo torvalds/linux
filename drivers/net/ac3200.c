@@ -327,8 +327,7 @@ static void ac_block_input(struct net_device *dev, int count, struct sk_buff *sk
 		memcpy_fromio(skb->data + semi_count,
 				ei_status.mem + TX_PAGES*256, count);
 	} else {
-		/* Packet is in one chunk -- we can copy + cksum. */
-		eth_io_copy_and_sum(skb, start, count, 0);
+		memcpy_fromio(skb->data, start, count);
 	}
 }
 

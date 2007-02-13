@@ -6,12 +6,15 @@
 #include <asm/page.h>
 
 OUTPUT_ARCH(m32r)
-ENTRY(startup_32)
 #if defined(__LITTLE_ENDIAN__)
        jiffies = jiffies_64;
 #else
        jiffies = jiffies_64 + 4;
 #endif
+
+kernel_entry = boot - 0x80000000;
+ENTRY(kernel_entry)
+
 SECTIONS
 {
   . = CONFIG_MEMORY_START + __PAGE_OFFSET;
@@ -99,10 +102,14 @@ SECTIONS
      from .altinstructions and .eh_frame */
   .exit.text : { *(.exit.text) }
   .exit.data : { *(.exit.data) }
+
+#ifdef CONFIG_BLK_DEV_INITRD
   . = ALIGN(4096);
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
   __initramfs_end = .;
+#endif
+
   . = ALIGN(32);
   __per_cpu_start = .;
   .data.percpu  : { *(.data.percpu) }

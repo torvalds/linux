@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_SCATTERLIST_H
 #define _ASM_M32R_SCATTERLIST_H
 
-/* $Id$ */
-
 struct scatterlist {
     char *  address;    /* Location data is to be transferred to, NULL for
                          * highmem page */

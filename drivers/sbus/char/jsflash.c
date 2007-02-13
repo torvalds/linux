@@ -431,7 +431,7 @@ static int jsf_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations jsf_fops = {
+static const struct file_operations jsf_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	jsf_lseek,
 	.read =		jsf_read,

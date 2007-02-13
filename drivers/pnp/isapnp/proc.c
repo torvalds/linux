@@ -85,7 +85,7 @@ static ssize_t isapnp_proc_bus_read(struct file *file, char __user *buf, size_t 
 	return nbytes;
 }
 
-static struct file_operations isapnp_proc_bus_file_operations =
+static const struct file_operations isapnp_proc_bus_file_operations =
 {
 	.llseek		= isapnp_proc_bus_lseek,
 	.read		= isapnp_proc_bus_read,

@@ -4920,7 +4920,7 @@ static unsigned int mdstat_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
-static struct file_operations md_seq_fops = {
+static const struct file_operations md_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open           = md_seq_open,
 	.read           = seq_read,

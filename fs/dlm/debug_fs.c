@@ -287,7 +287,7 @@ static int rsb_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations rsb_fops = {
+static const struct file_operations rsb_fops = {
 	.owner   = THIS_MODULE,
 	.open    = rsb_open,
 	.read    = seq_read,
@@ -331,7 +331,7 @@ static ssize_t waiters_read(struct file *file, char __user *userbuf,
 	return rv;
 }
 
-static struct file_operations waiters_fops = {
+static const struct file_operations waiters_fops = {
 	.owner   = THIS_MODULE,
 	.open    = waiters_open,
 	.read    = waiters_read

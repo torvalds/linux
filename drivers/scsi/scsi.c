@@ -673,27 +673,6 @@ void __scsi_done(struct scsi_cmnd *cmd)
 }
 
 /*
- * Function:    scsi_retry_command
- *
- * Purpose:     Send a command back to the low level to be retried.
- *
- * Notes:       This command is always executed in the context of the
- *              bottom half handler, or the error handler thread. Low
- *              level drivers should not become re-entrant as a result of
- *              this.
- */
-int scsi_retry_command(struct scsi_cmnd *cmd)
-{
-        /*
-         * Zero the sense information from the last time we tried
-         * this command.
-         */
-	memset(cmd->sense_buffer, 0, sizeof(cmd->sense_buffer));
-
-	return scsi_queue_insert(cmd, SCSI_MLQUEUE_EH_RETRY);
-}
-
-/*
  * Function:    scsi_finish_command
  *
  * Purpose:     Pass command off to upper layer for finishing of I/O

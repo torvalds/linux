@@ -8,6 +8,10 @@ mainmenu "Linux/MIPS Kernel Configuration"
 
 menu "Machine selection"
 
+config ZONE_DMA
+	bool
+	default y
+
 choice
 	prompt "System type"
 	default SGI_IP22
@@ -753,6 +757,7 @@ config TOSHIBA_JMR3927
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_TX39XX
 	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select TOSHIBA_BOARDS
 
@@ -767,6 +772,7 @@ config TOSHIBA_RBTX4927
 	select SYS_HAS_CPU_TX49XX
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select TOSHIBA_BOARDS
 	select GENERIC_HARDIRQS_NO__DO_IRQ
@@ -934,6 +940,9 @@ config CPU_LITTLE_ENDIAN
 
 endchoice
 
+config SYS_SUPPORTS_APM_EMULATION
+	bool
+
 config SYS_SUPPORTS_BIG_ENDIAN
 	bool
 
@@ -1001,6 +1010,7 @@ config SOC_AU1X00
 	bool
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_APM_EMULATION
 
 config PNX8550
 	bool
@@ -2071,35 +2081,11 @@ config BINFMT_ELF32
 	bool
 	default y if MIPS32_O32 || MIPS32_N32
 
-config PM
-	bool "Power Management support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && SOC_AU1X00
+endmenu
 
-config APM
-        tristate "Advanced Power Management Emulation"
-	depends on PM
-        ---help---
-	  APM is a BIOS specification for saving power using several different
-	  techniques. This is mostly useful for battery powered systems with
-	  APM compliant BIOSes. If you say Y here, the system time will be
-	  reset after a RESUME operation, the /proc/apm device will provide
-	  battery status information, and user-space programs will receive
-	  notification of APM "events" (e.g. battery status change).
+menu "Power management options"
 
-	  In order to use APM, you will need supporting software. For location
-	  and more information, read <file:Documentation/pm.txt> and the
-	  Battery Powered Linux mini-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  This driver does not spin down disk drives (see the hdparm(8)
-	  manpage ("man 8 hdparm") for that), and it doesn't turn off
-	  VESA-compliant "green" monitors.
-
-	  Generally, if you don't have a battery in your machine, there isn't
-	  much point in using this driver and you should say N. If you get
-	  random kernel OOPSes or reboots that don't seem to be related to
-	  anything, try disabling/enabling this option (or disabling/enabling
-	  APM in your BIOS).
+source "kernel/power/Kconfig"
 
 endmenu
 

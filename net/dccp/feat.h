@@ -30,7 +30,7 @@ static inline int dccp_feat_is_reserved(const u8 feat)
 {
 	return (feat > DCCPF_DATA_CHECKSUM &&
 		feat < DCCPF_MIN_CCID_SPECIFIC) ||
-	        feat == DCCPF_RESERVED;
+		feat == DCCPF_RESERVED;
 }
 
 /* feature negotiation knows only these four option types (RFC 4340, sec. 6) */

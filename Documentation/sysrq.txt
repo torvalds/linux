@@ -64,11 +64,6 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 
 *  What are the 'command' keys?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-'r'     - Turns off keyboard raw mode and sets it to XLATE.
-
-'k'     - Secure Access Key (SAK) Kills all programs on the current virtual
-          console. NOTE: See important comments below in SAK section.
-
 'b'     - Will immediately reboot the system without syncing or unmounting
           your disks.
 
@@ -76,20 +71,36 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 
 'd'	- Shows all locks that are held.
 
-'o'     - Will shut your system off (if configured and supported).
+'e'     - Send a SIGTERM to all processes, except for init.
 
-'s'     - Will attempt to sync all mounted filesystems.
+'f'	- Will call oom_kill to kill a memory hog process.
 
-'u'     - Will attempt to remount all mounted filesystems read-only.
+'g'	- Used by kgdb on ppc platforms.
 
-'p'     - Will dump the current registers and flags to your console.
+'h'     - Will display help (actually any other key than those listed
+          above will display help. but 'h' is easy to remember :-)
 
-'t'     - Will dump a list of current tasks and their information to your
-          console.
+'i'     - Send a SIGKILL to all processes, except for init.
+
+'k'     - Secure Access Key (SAK) Kills all programs on the current virtual
+          console. NOTE: See important comments below in SAK section.
 
 'm'     - Will dump current memory info to your console.
 
 'n'	- Used to make RT tasks nice-able
+
+'o'     - Will shut your system off (if configured and supported).
+
+'p'     - Will dump the current registers and flags to your console.
+
+'r'     - Turns off keyboard raw mode and sets it to XLATE.
+
+'s'     - Will attempt to sync all mounted filesystems.
+
+'t'     - Will dump a list of current tasks and their information to your
+          console.
+
+'u'     - Will attempt to remount all mounted filesystems read-only.
 
 'v'	- Dumps Voyager SMP processor info to your console.
 
@@ -101,17 +112,6 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
           will be printed to your console. ('0', for example would make
           it so that only emergency messages like PANICs or OOPSes would
           make it to your console.)
-
-'f'	- Will call oom_kill to kill a memory hog process.
-
-'e'     - Send a SIGTERM to all processes, except for init.
-
-'g'	- Used by kgdb on ppc platforms.
-
-'i'     - Send a SIGKILL to all processes, except for init.
-
-'h'     - Will display help (actually any other key than those listed
-          above will display help. but 'h' is easy to remember :-)
 
 *  Okay, so what can I use them for?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

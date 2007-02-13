@@ -94,9 +94,9 @@ static int icmp_packet(struct ip_conntrack *ct,
 		       enum ip_conntrack_info ctinfo)
 {
 	/* Try to delete connection immediately after all replies:
-           won't actually vanish as we still have skb, and del_timer
-           means this will only run once even if count hits zero twice
-           (theoretically possible with SMP) */
+	   won't actually vanish as we still have skb, and del_timer
+	   means this will only run once even if count hits zero twice
+	   (theoretically possible with SMP) */
 	if (CTINFO2DIR(ctinfo) == IP_CT_DIR_REPLY) {
 		if (atomic_dec_and_test(&ct->proto.icmp.count)
 		    && del_timer(&ct->timeout))
@@ -114,11 +114,11 @@ static int icmp_packet(struct ip_conntrack *ct,
 static int icmp_new(struct ip_conntrack *conntrack,
 		    const struct sk_buff *skb)
 {
-	static const u_int8_t valid_new[] = { 
+	static const u_int8_t valid_new[] = {
 		[ICMP_ECHO] = 1,
 		[ICMP_TIMESTAMP] = 1,
 		[ICMP_INFO_REQUEST] = 1,
-		[ICMP_ADDRESS] = 1 
+		[ICMP_ADDRESS] = 1
 	};
 
 	if (conntrack->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new)
@@ -282,7 +282,7 @@ static int icmp_nfattr_to_tuple(struct nfattr *tb[],
 	    || !tb[CTA_PROTO_ICMP_ID-1])
 		return -EINVAL;
 
-	tuple->dst.u.icmp.type = 
+	tuple->dst.u.icmp.type =
 			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMP_TYPE-1]);
 	tuple->dst.u.icmp.code =
 			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMP_CODE-1]);

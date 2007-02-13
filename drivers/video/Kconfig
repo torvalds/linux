@@ -85,6 +85,14 @@ config FB_CFB_IMAGEBLIT
 	  blitting. This is used by drivers that don't provide their own
 	  (accelerated) version.
 
+config FB_SVGALIB
+	tristate
+	depends on FB
+	default n
+	---help---
+	  Common utility functions useful to fbdev drivers of VGA-based
+	  cards.
+
 config FB_MACMODES
        tristate
        depends on FB
@@ -346,42 +354,6 @@ config FB_AMIGA_AGA
 	  and CD32. If you intend to run Linux on any of these systems, say Y;
 	  otherwise say N.
 
-config FB_CYBER
-	tristate "Amiga CyberVision 64 support"
-	depends on FB && ZORRO && BROKEN
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  This enables support for the Cybervision 64 graphics card from
-	  Phase5. Please note that its use is not all that intuitive (i.e. if
-	  you have any questions, be sure to ask!). Say N unless you have a
-	  Cybervision 64 or plan to get one before you next recompile the
-	  kernel. Please note that this driver DOES NOT support the
-	  Cybervision 64/3D card, as they use incompatible video chips.
-
-config FB_VIRGE
-	bool "Amiga CyberVision 64/3D support "
-	depends on (FB = y) && ZORRO && BROKEN
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  This enables support for the Cybervision 64/3D graphics card from
-	  Phase5. Please note that its use is not all that intuitive (i.e. if
-	  you have any questions, be sure to ask!). Say N unless you have a
-	  Cybervision 64/3D or plan to get one before you next recompile the
-	  kernel. Please note that this driver DOES NOT support the older
-	  Cybervision 64 card, as they use incompatible video chips.
-
-config FB_RETINAZ3
-	tristate "Amiga Retina Z3 support"
-	depends on (FB = y) && ZORRO && BROKEN
-	help
-	  This enables support for the Retina Z3 graphics card. Say N unless
-	  you have a Retina Z3 or plan to get one before you next recompile
-	  the kernel.
-
 config FB_FM2
 	bool "Amiga FrameMaster II/Rainbow II support"
 	depends on (FB = y) && ZORRO
@@ -617,10 +589,6 @@ config FB_GBE_MEM
 	  This is the amount of memory reserved for the framebuffer,
 	  which can be any value between 1MB and 8MB.
 
-config FB_SUN3
-	bool "Sun3 framebuffer support"
-	depends on (FB = y) && (SUN3 || SUN3X) && BROKEN
-
 config FB_SBUS
 	bool "SBUS and UPA framebuffers"
 	depends on (FB = y) && SPARC
@@ -629,7 +597,7 @@ config FB_SBUS
 
 config FB_BW2
 	bool "BWtwo support"
-	depends on (FB = y) && (SPARC && FB_SBUS || (SUN3 || SUN3X) && FB_SUN3)
+	depends on (FB = y) && (SPARC && FB_SBUS)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -638,7 +606,7 @@ config FB_BW2
 
 config FB_CG3
 	bool "CGthree support"
-	depends on (FB = y) && (SPARC && FB_SBUS || (SUN3 || SUN3X) && FB_SUN3)
+	depends on (FB = y) && (SPARC && FB_SBUS)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -647,7 +615,7 @@ config FB_CG3
 
 config FB_CG6
 	bool "CGsix (GX,TurboGX) support"
-	depends on (FB = y) && (SPARC && FB_SBUS || (SUN3 || SUN3X) && FB_SUN3)
+	depends on (FB = y) && (SPARC && FB_SBUS)
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	help
@@ -1141,11 +1109,16 @@ config FB_ATY_BACKLIGHT
 	help
 	  Say Y here if you want to control the backlight of your display.
 
-config FB_S3TRIO
-	bool "S3 Trio display support"
-	depends on (FB = y) && PPC && BROKEN
-	help
-	  If you have a S3 Trio say Y. Say N for S3 Virge.
+config FB_S3
+	tristate "S3 Trio/Virge support"
+	depends on FB && PCI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_TILEBLITTING
+	select FB_SVGALIB
+	---help---
+	  Driver for graphics boards with S3 Trio / S3 Virge chip.
 
 config FB_SAVAGE
 	tristate "S3 Savage support"
@@ -1444,8 +1417,8 @@ config FB_PMAG_AA
 	  used mainly in the MIPS-based DECstation series.
 
 config FB_PMAG_BA
-	bool "PMAG-BA TURBOchannel framebuffer support"
-	depends on (FB = y) && TC
+	tristate "PMAG-BA TURBOchannel framebuffer support"
+	depends on FB && TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
@@ -1454,8 +1427,8 @@ config FB_PMAG_BA
 	  used mainly in the MIPS-based DECstation series.
 
 config FB_PMAGB_B
-	bool "PMAGB-B TURBOchannel framebuffer support"
-	depends on (FB = y) && TC
+	tristate "PMAGB-B TURBOchannel framebuffer support"
+	depends on TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
@@ -1624,6 +1597,26 @@ config FB_IBM_GXT4500
 	---help---
 	  Say Y here to enable support for the IBM GXT4500P display
 	  adaptor, found on some IBM System P (pSeries) machines.
+
+config FB_PS3
+	bool "PS3 GPU framebuffer driver"
+	depends on FB && PPC_PS3
+	select PS3_PS3AV
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Include support for the virtual frame buffer in the PS3 platform.
+
+config FB_PS3_DEFAULT_SIZE_M
+	int "PS3 default frame buffer size (in MiB)"
+	depends on FB_PS3
+	default 18
+	---help---
+	  This is the default size (in MiB) of the virtual frame buffer in
+	  the PS3.
+	  The default value can be overridden on the kernel command line
+	  using the "ps3fb" option (e.g. "ps3fb=9M");
 
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"

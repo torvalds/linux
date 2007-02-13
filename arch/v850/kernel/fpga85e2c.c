@@ -138,7 +138,7 @@ struct v850e_intc_irq_init irq_inits[] = {
 	{ "RPU", IRQ_RPU(0),	IRQ_RPU_NUM,	1, 6 },
 	{ 0 }
 };
-#define NUM_IRQ_INITS ((sizeof irq_inits / sizeof irq_inits[0]) - 1)
+#define NUM_IRQ_INITS (ARRAY_SIZE(irq_inits) - 1)
 
 struct hw_interrupt_type hw_itypes[NUM_IRQ_INITS];
 

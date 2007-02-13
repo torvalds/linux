@@ -55,7 +55,6 @@
 #define MADV_64M_PAGES  26              /* Use 64 Megabyte pages */
 
 /* compatibility flags */
-#define MAP_ANON	MAP_ANONYMOUS
 #define MAP_FILE	0
 #define MAP_VARIABLE	0
 

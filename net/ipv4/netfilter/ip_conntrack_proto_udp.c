@@ -70,7 +70,7 @@ static int udp_packet(struct ip_conntrack *conntrack,
 	/* If we've seen traffic both ways, this is some kind of UDP
 	   stream.  Extend timeout. */
 	if (test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status)) {
-		ip_ct_refresh_acct(conntrack, ctinfo, skb, 
+		ip_ct_refresh_acct(conntrack, ctinfo, skb,
 				   ip_ct_udp_timeout_stream);
 		/* Also, more likely to be important, and not a probe */
 		if (!test_and_set_bit(IPS_ASSURED_BIT, &conntrack->status))
@@ -102,7 +102,7 @@ static int udp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 				  "ip_ct_udp: short packet ");
 		return -NF_ACCEPT;
 	}
-	
+
 	/* Truncated/malformed packets */
 	if (ntohs(hdr->len) > udplen || ntohs(hdr->len) < sizeof(*hdr)) {
 		if (LOG_INVALID(IPPROTO_UDP))
@@ -110,7 +110,7 @@ static int udp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 				  "ip_ct_udp: truncated/malformed packet ");
 		return -NF_ACCEPT;
 	}
-	
+
 	/* Packet with no checksum */
 	if (!hdr->check)
 		return NF_ACCEPT;
@@ -126,7 +126,7 @@ static int udp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 				  "ip_ct_udp: bad UDP checksum ");
 		return -NF_ACCEPT;
 	}
-	
+
 	return NF_ACCEPT;
 }
 

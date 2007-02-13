@@ -610,10 +610,8 @@ done:
 	diff = refresh;
 	best = -1;
 	for (i = 0; i < dbsize; i++) {
-		if ((name_matches(db[i], name, namelen) &&
-			!fb_try_mode(var, info, &db[i], bpp)))
-			return 1;
-		if (res_specified && res_matches(db[i], xres, yres)) {
+		if (name_matches(db[i], name, namelen) ||
+		    (res_specified && res_matches(db[i], xres, yres))) {
 			if(!fb_try_mode(var, info, &db[i], bpp)) {
 				if(!refresh_specified || db[i].refresh == refresh)
 					return 1;
@@ -670,7 +668,7 @@ done:
  * @var: pointer to struct fb_var_screeninfo
  */
 void fb_var_to_videomode(struct fb_videomode *mode,
-			 struct fb_var_screeninfo *var)
+			 const struct fb_var_screeninfo *var)
 {
 	u32 pixclock, hfreq, htotal, vtotal;
 
@@ -714,17 +712,21 @@ void fb_var_to_videomode(struct fb_videomode *mode,
  * @mode: pointer to struct fb_videomode
  */
 void fb_videomode_to_var(struct fb_var_screeninfo *var,
-			       struct fb_videomode *mode)
+			 const struct fb_videomode *mode)
 {
 	var->xres = mode->xres;
 	var->yres = mode->yres;
+	var->xres_virtual = mode->xres;
+	var->yres_virtual = mode->yres;
+	var->xoffset = 0;
+	var->yoffset = 0;
 	var->pixclock = mode->pixclock;
 	var->left_margin = mode->left_margin;
-	var->hsync_len = mode->hsync_len;
-	var->vsync_len = mode->vsync_len;
 	var->right_margin = mode->right_margin;
 	var->upper_margin = mode->upper_margin;
 	var->lower_margin = mode->lower_margin;
+	var->hsync_len = mode->hsync_len;
+	var->vsync_len = mode->vsync_len;
 	var->sync = mode->sync;
 	var->vmode = mode->vmode & FB_VMODE_MASK;
 }
@@ -737,8 +739,8 @@ void fb_videomode_to_var(struct fb_var_screeninfo *var,
  * RETURNS:
  * 1 if equal, 0 if not
  */
-int fb_mode_is_equal(struct fb_videomode *mode1,
-		     struct fb_videomode *mode2)
+int fb_mode_is_equal(const struct fb_videomode *mode1,
+		     const struct fb_videomode *mode2)
 {
 	return (mode1->xres         == mode2->xres &&
 		mode1->yres         == mode2->yres &&
@@ -770,8 +772,8 @@ int fb_mode_is_equal(struct fb_videomode *mode1,
  * var->xres and var->yres.  If more than 1 videomode is found, will return
  * the videomode with the highest refresh rate
  */
-struct fb_videomode *fb_find_best_mode(struct fb_var_screeninfo *var,
-				       struct list_head *head)
+const struct fb_videomode *fb_find_best_mode(const struct fb_var_screeninfo *var,
+					     struct list_head *head)
 {
 	struct list_head *pos;
 	struct fb_modelist *modelist;
@@ -808,8 +810,8 @@ struct fb_videomode *fb_find_best_mode(struct fb_var_screeninfo *var,
  * If more than 1 videomode is found, will return the videomode with
  * the closest refresh rate.
  */
-struct fb_videomode *fb_find_nearest_mode(struct fb_videomode *mode,
-					  struct list_head *head)
+const struct fb_videomode *fb_find_nearest_mode(const struct fb_videomode *mode,
+					        struct list_head *head)
 {
 	struct list_head *pos;
 	struct fb_modelist *modelist;
@@ -847,8 +849,8 @@ struct fb_videomode *fb_find_nearest_mode(struct fb_videomode *mode,
  * RETURNS:
  * struct fb_videomode, NULL if none found
  */
-struct fb_videomode *fb_match_mode(struct fb_var_screeninfo *var,
-				   struct list_head *head)
+const struct fb_videomode *fb_match_mode(const struct fb_var_screeninfo *var,
+					 struct list_head *head)
 {
 	struct list_head *pos;
 	struct fb_modelist *modelist;
@@ -872,7 +874,7 @@ struct fb_videomode *fb_match_mode(struct fb_var_screeninfo *var,
  * NOTES:
  * Will only add unmatched mode entries
  */
-int fb_add_videomode(struct fb_videomode *mode, struct list_head *head)
+int fb_add_videomode(const struct fb_videomode *mode, struct list_head *head)
 {
 	struct list_head *pos;
 	struct fb_modelist *modelist;
@@ -907,7 +909,8 @@ int fb_add_videomode(struct fb_videomode *mode, struct list_head *head)
  * NOTES:
  * Will remove all matching mode entries
  */
-void fb_delete_videomode(struct fb_videomode *mode, struct list_head *head)
+void fb_delete_videomode(const struct fb_videomode *mode,
+			 struct list_head *head)
 {
 	struct list_head *pos, *n;
 	struct fb_modelist *modelist;
@@ -943,7 +946,7 @@ void fb_destroy_modelist(struct list_head *head)
  * @num: number of entries in array
  * @head: struct list_head of modelist
  */
-void fb_videomode_to_modelist(struct fb_videomode *modedb, int num,
+void fb_videomode_to_modelist(const struct fb_videomode *modedb, int num,
 			      struct list_head *head)
 {
 	int i;
@@ -956,12 +959,12 @@ void fb_videomode_to_modelist(struct fb_videomode *modedb, int num,
 	}
 }
 
-struct fb_videomode *fb_find_best_display(struct fb_monspecs *specs,
-					  struct list_head *head)
+const struct fb_videomode *fb_find_best_display(const struct fb_monspecs *specs,
+					        struct list_head *head)
 {
 	struct list_head *pos;
 	struct fb_modelist *modelist;
-	struct fb_videomode *m, *m1 = NULL, *md = NULL, *best = NULL;
+	const struct fb_videomode *m, *m1 = NULL, *md = NULL, *best = NULL;
 	int first = 0;
 
 	if (!head->prev || !head->next || list_empty(head))

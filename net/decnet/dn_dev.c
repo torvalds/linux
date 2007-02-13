@@ -224,27 +224,27 @@ static struct dn_dev_sysctl_table {
 	{0}
 	},
 	{{
-		.ctl_name = 0, 
-		.procname = "", 
-		.mode = 0555, 
+		.ctl_name = 0,
+		.procname = "",
+		.mode = 0555,
 		.child = dn_dev_sysctl.dn_dev_vars
 	}, {0}},
 	{{
 		.ctl_name = NET_DECNET_CONF,
-		.procname = "conf", 
-		.mode = 0555, 
+		.procname = "conf",
+		.mode = 0555,
 		.child = dn_dev_sysctl.dn_dev_dev
 	}, {0}},
 	{{
-		.ctl_name = NET_DECNET, 
-		.procname = "decnet", 
-		.mode = 0555, 
+		.ctl_name = NET_DECNET,
+		.procname = "decnet",
+		.mode = 0555,
 		.child = dn_dev_sysctl.dn_dev_conf_dir
 	}, {0}},
 	{{
-		.ctl_name = CTL_NET, 
-		.procname = "net", 
-		.mode = 0555, 
+		.ctl_name = CTL_NET,
+		.procname = "net",
+		.mode = 0555,
 		.child = dn_dev_sysctl.dn_dev_proto_dir
 	}, {0}}
 };
@@ -299,7 +299,7 @@ static void dn_dev_sysctl_unregister(struct dn_dev_parms *parms)
 	}
 }
 
-static int dn_forwarding_proc(ctl_table *table, int write, 
+static int dn_forwarding_proc(ctl_table *table, int write,
 				struct file *filep,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
@@ -456,7 +456,7 @@ static int dn_dev_insert_ifa(struct dn_dev *dn_db, struct dn_ifaddr *ifa)
 
 	ASSERT_RTNL();
 
-	/* Check for duplicates */	
+	/* Check for duplicates */
 	for(ifa1 = dn_db->ifa_list; ifa1; ifa1 = ifa1->ifa_next) {
 		if (ifa1->ifa_local == ifa->ifa_local)
 			return -EEXIST;
@@ -708,7 +708,7 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		if (!dn_db)
 			return err;
 	}
-	
+
 	if ((ifa = dn_dev_alloc_ifa()) == NULL)
 		return -ENOBUFS;
 
@@ -749,7 +749,7 @@ static int dn_nl_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*ifm), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	ifm = nlmsg_data(nlh);
 	ifm->ifa_family = AF_DECnet;
@@ -768,7 +768,8 @@ static int dn_nl_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa)
@@ -781,9 +782,12 @@ static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa)
 		goto errout;
 
 	err = dn_nl_fill_ifaddr(skb, ifa, 0, 0, event, 0);
-	/* failure implies BUG in dn_ifaddr_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in dn_ifaddr_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, 0, RTNLGRP_DECnet_IFADDR, NULL, GFP_KERNEL);
 errout:
 	if (err < 0)
@@ -849,7 +853,7 @@ out:
 	return rv;
 }
 
-/* 
+/*
  * Find a default address to bind to.
  *
  * This is one of those areas where the initial VMS concepts don't really
@@ -880,39 +884,39 @@ last_chance:
 
 static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 {
-        struct endnode_hello_message *msg;
-        struct sk_buff *skb = NULL;
-        __le16 *pktlen;
+	struct endnode_hello_message *msg;
+	struct sk_buff *skb = NULL;
+	__le16 *pktlen;
 	struct dn_dev *dn_db = (struct dn_dev *)dev->dn_ptr;
 
-        if ((skb = dn_alloc_skb(NULL, sizeof(*msg), GFP_ATOMIC)) == NULL)
+	if ((skb = dn_alloc_skb(NULL, sizeof(*msg), GFP_ATOMIC)) == NULL)
 		return;
 
-        skb->dev = dev;
+	skb->dev = dev;
 
-        msg = (struct endnode_hello_message *)skb_put(skb,sizeof(*msg));
+	msg = (struct endnode_hello_message *)skb_put(skb,sizeof(*msg));
 
-        msg->msgflg  = 0x0D;
-        memcpy(msg->tiver, dn_eco_version, 3);
+	msg->msgflg  = 0x0D;
+	memcpy(msg->tiver, dn_eco_version, 3);
 	dn_dn2eth(msg->id, ifa->ifa_local);
-        msg->iinfo   = DN_RT_INFO_ENDN;
-        msg->blksize = dn_htons(mtu2blksize(dev));
-        msg->area    = 0x00;
-        memset(msg->seed, 0, 8);
-        memcpy(msg->neighbor, dn_hiord, ETH_ALEN);
+	msg->iinfo   = DN_RT_INFO_ENDN;
+	msg->blksize = dn_htons(mtu2blksize(dev));
+	msg->area    = 0x00;
+	memset(msg->seed, 0, 8);
+	memcpy(msg->neighbor, dn_hiord, ETH_ALEN);
 
 	if (dn_db->router) {
 		struct dn_neigh *dn = (struct dn_neigh *)dn_db->router;
 		dn_dn2eth(msg->neighbor, dn->addr);
 	}
 
-        msg->timer   = dn_htons((unsigned short)dn_db->parms.t3);
-        msg->mpd     = 0x00;
-        msg->datalen = 0x02;
-        memset(msg->data, 0xAA, 2);
-        
-        pktlen = (__le16 *)skb_push(skb,2);
-        *pktlen = dn_htons(skb->len - 2);
+	msg->timer   = dn_htons((unsigned short)dn_db->parms.t3);
+	msg->mpd     = 0x00;
+	msg->datalen = 0x02;
+	memset(msg->data, 0xAA, 2);
+
+	pktlen = (__le16 *)skb_push(skb,2);
+	*pktlen = dn_htons(skb->len - 2);
 
 	skb->nh.raw = skb->data;
 
@@ -982,11 +986,11 @@ static void dn_send_router_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 	dn_dn2eth(ptr, ifa->ifa_local);
 	src = ptr;
 	ptr += ETH_ALEN;
-	*ptr++ = dn_db->parms.forwarding == 1 ? 
+	*ptr++ = dn_db->parms.forwarding == 1 ?
 			DN_RT_INFO_L1RT : DN_RT_INFO_L2RT;
 	*((__le16 *)ptr) = dn_htons(mtu2blksize(dev));
 	ptr += 2;
-	*ptr++ = dn_db->parms.priority; /* Priority */ 
+	*ptr++ = dn_db->parms.priority; /* Priority */
 	*ptr++ = 0; /* Area: Reserved */
 	*((__le16 *)ptr) = dn_htons((unsigned short)dn_db->parms.t3);
 	ptr += 2;
@@ -1404,18 +1408,18 @@ static char *dn_type2asc(char type)
 static int dn_dev_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN)
-        	seq_puts(seq, "Name     Flags T1   Timer1 T3   Timer3 BlkSize Pri State DevType    Router Peer\n");
+		seq_puts(seq, "Name     Flags T1   Timer1 T3   Timer3 BlkSize Pri State DevType    Router Peer\n");
 	else {
 		struct net_device *dev = v;
 		char peer_buf[DN_ASCBUF_LEN];
 		char router_buf[DN_ASCBUF_LEN];
 		struct dn_dev *dn_db = dev->dn_ptr;
 
-                seq_printf(seq, "%-8s %1s     %04u %04u   %04lu %04lu"
+		seq_printf(seq, "%-8s %1s     %04u %04u   %04lu %04lu"
 				"   %04hu    %03d %02x    %-10s %-7s %-7s\n",
-                             	dev->name ? dev->name : "???",
-                             	dn_type2asc(dn_db->parms.mode),
-                             	0, 0,
+				dev->name ? dev->name : "???",
+				dn_type2asc(dn_db->parms.mode),
+				0, 0,
 				dn_db->t3, dn_db->parms.t3,
 				mtu2blksize(dev),
 				dn_db->parms.priority,
@@ -1438,7 +1442,7 @@ static int dn_dev_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &dn_dev_seq_ops);
 }
 
-static struct file_operations dn_dev_seq_fops = {
+static const struct file_operations dn_dev_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = dn_dev_seq_open,
 	.read	 = seq_read,
@@ -1472,17 +1476,17 @@ MODULE_PARM_DESC(addr, "The DECnet address of this machine: area,node");
 
 void __init dn_dev_init(void)
 {
-        if (addr[0] > 63 || addr[0] < 0) {
-                printk(KERN_ERR "DECnet: Area must be between 0 and 63");
-                return;
-        }
+	if (addr[0] > 63 || addr[0] < 0) {
+		printk(KERN_ERR "DECnet: Area must be between 0 and 63");
+		return;
+	}
 
-        if (addr[1] > 1023 || addr[1] < 0) {
-                printk(KERN_ERR "DECnet: Node must be between 0 and 1023");
-                return;
-        }
+	if (addr[1] > 1023 || addr[1] < 0) {
+		printk(KERN_ERR "DECnet: Node must be between 0 and 1023");
+		return;
+	}
 
-        decnet_address = dn_htons((addr[0] << 10) | addr[1]);
+	decnet_address = dn_htons((addr[0] << 10) | addr[1]);
 
 	dn_dev_devices_on();
 

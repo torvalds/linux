@@ -181,7 +181,7 @@ out:
 	return retval;
 }
  
-struct file_operations event_buffer_fops = {
+const struct file_operations event_buffer_fops = {
 	.open		= event_buffer_open,
 	.release	= event_buffer_release,
 	.read		= event_buffer_read,

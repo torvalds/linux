@@ -1,6 +1,6 @@
 /*
  * net/tipc/addr.c: TIPC address utility routines
- *     
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2004-2005, Wind River Systems
  * All rights reserved.
@@ -48,10 +48,10 @@ u32 tipc_get_addr(void)
 
 /**
  * tipc_addr_domain_valid - validates a network domain address
- * 
- * Accepts <Z.C.N>, <Z.C.0>, <Z.0.0>, and <0.0.0>, 
+ *
+ * Accepts <Z.C.N>, <Z.C.0>, <Z.0.0>, and <0.0.0>,
  * where Z, C, and N are non-zero and do not exceed the configured limits.
- * 
+ *
  * Returns 1 if domain address is valid, otherwise 0
  */
 
@@ -80,10 +80,10 @@ int tipc_addr_domain_valid(u32 addr)
 
 /**
  * tipc_addr_node_valid - validates a proposed network address for this node
- * 
- * Accepts <Z.C.N>, where Z, C, and N are non-zero and do not exceed 
+ *
+ * Accepts <Z.C.N>, where Z, C, and N are non-zero and do not exceed
  * the configured limits.
- * 
+ *
  * Returns 1 if address can be used, otherwise 0
  */
 

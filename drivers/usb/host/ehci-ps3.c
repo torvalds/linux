@@ -104,7 +104,7 @@ static int ps3_ehci_sb_probe(struct ps3_system_bus_device *dev)
 	dev_dbg(&dev->core, "%s:%d: mmio mapped_addr %lxh\n", __func__,
 		__LINE__, dev->m_region->lpar_addr);
 
-	result = ps3_alloc_io_irq(dev->interrupt_id, &virq);
+	result = ps3_alloc_io_irq(PS3_BINDING_CPU_ANY, dev->interrupt_id, &virq);
 
 	if (result) {
 		dev_dbg(&dev->core, "%s:%d: ps3_construct_io_irq(%d) failed.\n",

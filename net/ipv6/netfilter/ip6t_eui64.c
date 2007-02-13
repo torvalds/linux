@@ -12,6 +12,7 @@
 #include <linux/ipv6.h>
 #include <linux/if_ether.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 
 MODULE_DESCRIPTION("IPv6 EUI64 address checking match");
@@ -61,8 +62,9 @@ match(const struct sk_buff *skb,
 	return 0;
 }
 
-static struct ip6t_match eui64_match = {
+static struct xt_match eui64_match = {
 	.name		= "eui64",
+	.family		= AF_INET6,
 	.match		= match,
 	.matchsize	= sizeof(int),
 	.hooks		= (1 << NF_IP6_PRE_ROUTING) | (1 << NF_IP6_LOCAL_IN) |
@@ -72,12 +74,12 @@ static struct ip6t_match eui64_match = {
 
 static int __init ip6t_eui64_init(void)
 {
-	return ip6t_register_match(&eui64_match);
+	return xt_register_match(&eui64_match);
 }
 
 static void __exit ip6t_eui64_fini(void)
 {
-	ip6t_unregister_match(&eui64_match);
+	xt_unregister_match(&eui64_match);
 }
 
 module_init(ip6t_eui64_init);

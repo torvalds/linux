@@ -70,7 +70,7 @@ int sctp_primitive_ ## name(struct sctp_association *asoc, \
 	\
 	error = sctp_do_sm(event_type, subtype, state, ep, asoc, \
 			   arg, GFP_KERNEL); \
- 	return error; \
+	return error; \
 }
 
 /* 10.1 ULP-to-SCTP
@@ -207,7 +207,7 @@ DECLARE_PRIMITIVE(REQUESTHEARTBEAT);
 
 /* ADDIP
 * 3.1.1 Address Configuration Change Chunk (ASCONF)
-* 
+*
 * This chunk is used to communicate to the remote endpoint one of the
 * configuration change requests that MUST be acknowledged.  The
 * information carried in the ASCONF Chunk uses the form of a

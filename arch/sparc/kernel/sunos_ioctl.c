@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/termios.h>
+#include <linux/tty.h>
 #include <linux/ioctl.h>
 #include <linux/route.h>
 #include <linux/sockios.h>

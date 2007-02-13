@@ -359,8 +359,7 @@ static struct mtd_info *flash_probe(void)
 		 * So we use the MTD concatenation layer instead of further
 		 * complicating the probing procedure.
 		 */
-		mtd_cse = mtd_concat_create(mtds,
-					    sizeof(mtds) / sizeof(mtds[0]),
+		mtd_cse = mtd_concat_create(mtds, ARRAY_SIZE(mtds),
 					    "cse0+cse1");
 #else
 		printk(KERN_ERR "%s and %s: Cannot concatenate due to kernel "

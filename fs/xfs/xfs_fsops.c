@@ -250,8 +250,7 @@ xfs_growfs_data_private(
 		block->bb_numrecs = cpu_to_be16(1);
 		block->bb_leftsib = cpu_to_be32(NULLAGBLOCK);
 		block->bb_rightsib = cpu_to_be32(NULLAGBLOCK);
-		arec = XFS_BTREE_REC_ADDR(mp->m_sb.sb_blocksize, xfs_alloc,
-			block, 1, mp->m_alloc_mxr[0]);
+		arec = XFS_BTREE_REC_ADDR(xfs_alloc, block, 1);
 		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
 		arec->ar_blockcount = cpu_to_be32(
 			agsize - be32_to_cpu(arec->ar_startblock));
@@ -272,8 +271,7 @@ xfs_growfs_data_private(
 		block->bb_numrecs = cpu_to_be16(1);
 		block->bb_leftsib = cpu_to_be32(NULLAGBLOCK);
 		block->bb_rightsib = cpu_to_be32(NULLAGBLOCK);
-		arec = XFS_BTREE_REC_ADDR(mp->m_sb.sb_blocksize, xfs_alloc,
-			block, 1, mp->m_alloc_mxr[0]);
+		arec = XFS_BTREE_REC_ADDR(xfs_alloc, block, 1);
 		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
 		arec->ar_blockcount = cpu_to_be32(
 			agsize - be32_to_cpu(arec->ar_startblock));
@@ -460,7 +458,7 @@ xfs_fs_counts(
 {
 	unsigned long	s;
 
-	xfs_icsb_sync_counters_lazy(mp);
+	xfs_icsb_sync_counters_flags(mp, XFS_ICSB_LAZY_COUNT);
 	s = XFS_SB_LOCK(mp);
 	cnt->freedata = mp->m_sb.sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
 	cnt->freertx = mp->m_sb.sb_frextents;
@@ -491,7 +489,7 @@ xfs_reserve_blocks(
 	__uint64_t              *inval,
 	xfs_fsop_resblks_t      *outval)
 {
-	__int64_t		lcounter, delta;
+	__int64_t		lcounter, delta, fdblks_delta;
 	__uint64_t		request;
 	unsigned long		s;
 
@@ -504,17 +502,35 @@ xfs_reserve_blocks(
 	}
 
 	request = *inval;
+
+	/*
+	 * With per-cpu counters, this becomes an interesting
+	 * problem. we needto work out if we are freeing or allocation
+	 * blocks first, then we can do the modification as necessary.
+	 *
+	 * We do this under the XFS_SB_LOCK so that if we are near
+	 * ENOSPC, we will hold out any changes while we work out
+	 * what to do. This means that the amount of free space can
+	 * change while we do this, so we need to retry if we end up
+	 * trying to reserve more space than is available.
+	 *
+	 * We also use the xfs_mod_incore_sb() interface so that we
+	 * don't have to care about whether per cpu counter are
+	 * enabled, disabled or even compiled in....
+	 */
+retry:
 	s = XFS_SB_LOCK(mp);
+	xfs_icsb_sync_counters_flags(mp, XFS_ICSB_SB_LOCKED);
 
 	/*
 	 * If our previous reservation was larger than the current value,
 	 * then move any unused blocks back to the free pool.
 	 */
-
+	fdblks_delta = 0;
 	if (mp->m_resblks > request) {
 		lcounter = mp->m_resblks_avail - request;
 		if (lcounter  > 0) {		/* release unused blocks */
-			mp->m_sb.sb_fdblocks += lcounter;
+			fdblks_delta = lcounter;
 			mp->m_resblks_avail -= lcounter;
 		}
 		mp->m_resblks = request;
@@ -522,24 +538,50 @@ xfs_reserve_blocks(
 		__int64_t	free;
 
 		free =  mp->m_sb.sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
+		if (!free)
+			goto out; /* ENOSPC and fdblks_delta = 0 */
+
 		delta = request - mp->m_resblks;
 		lcounter = free - delta;
 		if (lcounter < 0) {
 			/* We can't satisfy the request, just get what we can */
 			mp->m_resblks += free;
 			mp->m_resblks_avail += free;
+			fdblks_delta = -free;
 			mp->m_sb.sb_fdblocks = XFS_ALLOC_SET_ASIDE(mp);
 		} else {
+			fdblks_delta = -delta;
 			mp->m_sb.sb_fdblocks =
 				lcounter + XFS_ALLOC_SET_ASIDE(mp);
 			mp->m_resblks = request;
 			mp->m_resblks_avail += delta;
 		}
 	}
-
+out:
 	outval->resblks = mp->m_resblks;
 	outval->resblks_avail = mp->m_resblks_avail;
 	XFS_SB_UNLOCK(mp, s);
+
+	if (fdblks_delta) {
+		/*
+		 * If we are putting blocks back here, m_resblks_avail is
+		 * already at it's max so this will put it in the free pool.
+		 *
+		 * If we need space, we'll either succeed in getting it
+		 * from the free block count or we'll get an enospc. If
+		 * we get a ENOSPC, it means things changed while we were
+		 * calculating fdblks_delta and so we should try again to
+		 * see if there is anything left to reserve.
+		 *
+		 * Don't set the reserved flag here - we don't want to reserve
+		 * the extra reserve blocks from the reserve.....
+		 */
+		int error;
+		error = xfs_mod_incore_sb(mp, XFS_SBS_FDBLOCKS, fdblks_delta, 0);
+		if (error == ENOSPC)
+			goto retry;
+	}
+
 	return 0;
 }
 

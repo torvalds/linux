@@ -264,7 +264,8 @@ struct i810fb_par {
 	struct heap_data         cursor_heap;
 	struct vgastate          state;
 	struct i810fb_i2c_chan   chan[3];
-	atomic_t                 use_count;
+	struct mutex		 open_lock;
+	unsigned int		 use_count;
 	u32 pseudo_palette[17];
 	unsigned long mmio_start_phys;
 	u8 __iomem *mmio_start_virtual;

@@ -184,10 +184,10 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 
 	/* mangle packet */
 	if (nf_nat_mangle_tcp_packet(pskb, ct, ctinfo,
-	                             cid_off + sizeof(struct pptp_pkt_hdr) +
-	                             sizeof(struct PptpControlHeader),
-	                             sizeof(new_callid), (char *)&new_callid,
-	                             sizeof(new_callid)) == 0)
+				     cid_off + sizeof(struct pptp_pkt_hdr) +
+				     sizeof(struct PptpControlHeader),
+				     sizeof(new_callid), (char *)&new_callid,
+				     sizeof(new_callid)) == 0)
 		return NF_DROP;
 	return NF_ACCEPT;
 }
@@ -276,7 +276,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 		ntohs(REQ_CID(pptpReq, pcid_off)), ntohs(new_pcid));
 
 	if (nf_nat_mangle_tcp_packet(pskb, ct, ctinfo,
-	                             pcid_off + sizeof(struct pptp_pkt_hdr) +
+				     pcid_off + sizeof(struct pptp_pkt_hdr) +
 				     sizeof(struct PptpControlHeader),
 				     sizeof(new_pcid), (char *)&new_pcid,
 				     sizeof(new_pcid)) == 0)

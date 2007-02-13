@@ -90,7 +90,7 @@ static int map_sip_addr(struct sk_buff **pskb, enum ip_conntrack_info ctinfo,
 		return 1;
 
 	if (!nf_nat_mangle_udp_packet(pskb, ct, ctinfo,
-	                              matchoff, matchlen, addr, addrlen))
+				      matchoff, matchlen, addr, addrlen))
 		return 0;
 	*dptr = (*pskb)->data + (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
 	return 1;
@@ -151,7 +151,7 @@ static unsigned int mangle_sip_packet(struct sk_buff **pskb,
 		return 0;
 
 	if (!nf_nat_mangle_udp_packet(pskb, ct, ctinfo,
-	                              matchoff, matchlen, buffer, bufflen))
+				      matchoff, matchlen, buffer, bufflen))
 		return 0;
 
 	/* We need to reload this. Thanks Patrick. */
@@ -172,7 +172,7 @@ static int mangle_content_len(struct sk_buff **pskb,
 
 	/* Get actual SDP lenght */
 	if (ct_sip_get_info(ct, dptr, (*pskb)->len - dataoff, &matchoff,
-	                    &matchlen, POS_SDP_HEADER) > 0) {
+			    &matchlen, POS_SDP_HEADER) > 0) {
 
 		/* since ct_sip_get_info() give us a pointer passing 'v='
 		   we need to add 2 bytes in this count. */
@@ -180,7 +180,7 @@ static int mangle_content_len(struct sk_buff **pskb,
 
 		/* Now, update SDP length */
 		if (ct_sip_get_info(ct, dptr, (*pskb)->len - dataoff, &matchoff,
-		                    &matchlen, POS_CONTENT) > 0) {
+				    &matchlen, POS_CONTENT) > 0) {
 
 			bufflen = sprintf(buffer, "%u", c_len);
 			return nf_nat_mangle_udp_packet(pskb, ct, ctinfo,
@@ -205,17 +205,17 @@ static unsigned int mangle_sdp(struct sk_buff **pskb,
 	/* Mangle owner and contact info. */
 	bufflen = sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(newip));
 	if (!mangle_sip_packet(pskb, ctinfo, ct, &dptr, (*pskb)->len - dataoff,
-	                       buffer, bufflen, POS_OWNER_IP4))
+			       buffer, bufflen, POS_OWNER_IP4))
 		return 0;
 
 	if (!mangle_sip_packet(pskb, ctinfo, ct, &dptr, (*pskb)->len - dataoff,
-	                       buffer, bufflen, POS_CONNECTION_IP4))
+			       buffer, bufflen, POS_CONNECTION_IP4))
 		return 0;
 
 	/* Mangle media port. */
 	bufflen = sprintf(buffer, "%u", port);
 	if (!mangle_sip_packet(pskb, ctinfo, ct, &dptr, (*pskb)->len - dataoff,
-	                       buffer, bufflen, POS_MEDIA))
+			       buffer, bufflen, POS_MEDIA))
 		return 0;
 
 	return mangle_content_len(pskb, ctinfo, ct, dptr);

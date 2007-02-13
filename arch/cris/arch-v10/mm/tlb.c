@@ -42,8 +42,7 @@ flush_tlb_all(void)
 	 * in the same 4-way entry group. details.. 
 	 */
 
-	local_save_flags(flags);
-	local_irq_disable();
+	local_irq_save(flags);
 	for(i = 0; i < NUM_TLB_ENTRIES; i++) {
 		*R_TLB_SELECT = ( IO_FIELD(R_TLB_SELECT, index, i) );
 		*R_TLB_HI = ( IO_FIELD(R_TLB_HI, page_id, INVALID_PAGEID ) |
@@ -78,8 +77,7 @@ flush_tlb_mm(struct mm_struct *mm)
 	 * global pages. is it worth the extra I/O ? 
 	 */
 
-	local_save_flags(flags);
-	local_irq_disable();
+	local_irq_save(flags);
 	for(i = 0; i < NUM_TLB_ENTRIES; i++) {
 		*R_TLB_SELECT = IO_FIELD(R_TLB_SELECT, index, i);
 		if (IO_EXTRACT(R_TLB_HI, page_id, *R_TLB_HI) == page_id) {
@@ -118,8 +116,7 @@ flush_tlb_page(struct vm_area_struct *vma,
 	 * and the virtual address requested 
 	 */
 
-	local_save_flags(flags);
-	local_irq_disable();
+	local_irq_save(flags);
 	for(i = 0; i < NUM_TLB_ENTRIES; i++) {
 		unsigned long tlb_hi;
 		*R_TLB_SELECT = IO_FIELD(R_TLB_SELECT, index, i);

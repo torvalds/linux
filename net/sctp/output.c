@@ -85,8 +85,8 @@ struct sctp_packet *sctp_packet_config(struct sctp_packet *packet,
 		chunk = sctp_get_ecne_prepend(packet->transport->asoc);
 
 		/* If there a is a prepend chunk stick it on the list before
-	 	 * any other chunks get appended.
-	 	 */
+		 * any other chunks get appended.
+		 */
 		if (chunk)
 			sctp_packet_append_chunk(packet, chunk);
 	}
@@ -110,8 +110,8 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 	packet->destination_port = dport;
 	INIT_LIST_HEAD(&packet->chunk_list);
 	if (asoc) {
-		struct sctp_sock *sp = sctp_sk(asoc->base.sk);	
-		overhead = sp->pf->af->net_header_len; 
+		struct sctp_sock *sp = sctp_sk(asoc->base.sk);
+		overhead = sp->pf->af->net_header_len;
 	} else {
 		overhead = sizeof(struct ipv6hdr);
 	}
@@ -442,7 +442,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 		 * acknowledged or have failed.
 		 */
 		if (!sctp_chunk_is_data(chunk))
-    			sctp_chunk_free(chunk);
+			sctp_chunk_free(chunk);
 	}
 
 	/* Perform final transformation on checksum. */
@@ -528,7 +528,7 @@ err:
 	list_for_each_entry_safe(chunk, tmp, &packet->chunk_list, list) {
 		list_del_init(&chunk->list);
 		if (!sctp_chunk_is_data(chunk))
-    			sctp_chunk_free(chunk);
+			sctp_chunk_free(chunk);
 	}
 	goto out;
 nomem:

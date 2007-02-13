@@ -31,15 +31,13 @@ typedef struct {
 	do { (mrp)->mr_writer = 0; init_rwsem(&(mrp)->mr_lock); } while (0)
 #define mrlock_init(mrp, t,n,s)	mrinit(mrp, n)
 #define mrfree(mrp)		do { } while (0)
-#define mraccess(mrp)		mraccessf(mrp, 0)
-#define mrupdate(mrp)		mrupdatef(mrp, 0)
 
-static inline void mraccessf(mrlock_t *mrp, int flags)
+static inline void mraccess(mrlock_t *mrp)
 {
 	down_read(&mrp->mr_lock);
 }
 
-static inline void mrupdatef(mrlock_t *mrp, int flags)
+static inline void mrupdate(mrlock_t *mrp)
 {
 	down_write(&mrp->mr_lock);
 	mrp->mr_writer = 1;

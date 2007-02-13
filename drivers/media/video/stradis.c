@@ -1901,7 +1901,7 @@ static int saa_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations saa_fops = {
+static const struct file_operations saa_fops = {
 	.owner = THIS_MODULE,
 	.open = saa_open,
 	.release = saa_release,

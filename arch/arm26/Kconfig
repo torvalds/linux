@@ -60,6 +60,10 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_BUST_SPINLOCK
 	bool
 
+config ZONE_DMA
+	bool
+	default y
+
 config GENERIC_ISA_DMA
 	bool
 

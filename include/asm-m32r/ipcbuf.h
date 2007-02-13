@@ -1,10 +1,6 @@
 #ifndef _ASM_M32R_IPCBUF_H
 #define _ASM_M32R_IPCBUF_H
 
-/* $Id$ */
-
-/* orig : i386 2.4.18 */
-
 /*
  * The ipc64_perm structure for m32r architecture.
  * Note extra padding because this structure is passed back and forth

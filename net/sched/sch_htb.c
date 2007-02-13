@@ -11,7 +11,7 @@
  * Credits (in time order) for older HTB versions:
  *              Stef Coene <stef.coene@docum.org>
  *			HTB support at LARTC mailing list
- *		Ondrej Kraus, <krauso@barr.cz> 
+ *		Ondrej Kraus, <krauso@barr.cz>
  *			found missing INIT_QDISC(htb)
  *		Vladimir Smelhaus, Aamer Akhter, Bert Hubert
  *			helped a lot to locate nasty class stall bug
@@ -59,11 +59,11 @@
     Author: devik@cdi.cz
     ========================================================================
     HTB is like TBF with multiple classes. It is also similar to CBQ because
-    it allows to assign priority to each class in hierarchy. 
+    it allows to assign priority to each class in hierarchy.
     In fact it is another implementation of Floyd's formal sharing.
 
     Levels:
-    Each class is assigned level. Leaf has ALWAYS level 0 and root 
+    Each class is assigned level. Leaf has ALWAYS level 0 and root
     classes have level TC_HTB_MAXDEPTH-1. Interior nodes has level
     one less than their parent.
 */
@@ -245,7 +245,7 @@ static inline struct htb_class *htb_find(u32 handle, struct Qdisc *sch)
  * We allow direct class selection by classid in priority. The we examine
  * filters in qdisc and in inner nodes (if higher filter points to the inner
  * node). If we end up with classid MAJOR:0 we enqueue the skb into special
- * internal fifo (direct). These packets then go directly thru. If we still 
+ * internal fifo (direct). These packets then go directly thru. If we still
  * have no valid leaf we try to use MAJOR:default leaf. It still unsuccessfull
  * then finish and return direct queue.
  */
@@ -433,7 +433,7 @@ static inline void htb_remove_class_from_row(struct htb_sched *q,
  * htb_activate_prios - creates active classe's feed chain
  *
  * The class is connected to ancestors and/or appropriate rows
- * for priorities it is participating on. cl->cmode must be new 
+ * for priorities it is participating on. cl->cmode must be new
  * (activated) mode. It does nothing if cl->prio_activity == 0.
  */
 static void htb_activate_prios(struct htb_sched *q, struct htb_class *cl)
@@ -466,7 +466,7 @@ static void htb_activate_prios(struct htb_sched *q, struct htb_class *cl)
 /**
  * htb_deactivate_prios - remove class from feed chain
  *
- * cl->cmode must represent old mode (before deactivation). It does 
+ * cl->cmode must represent old mode (before deactivation). It does
  * nothing if cl->prio_activity == 0. Class is removed from all feed
  * chains and rows.
  */
@@ -524,9 +524,9 @@ static inline long htb_hiwater(const struct htb_class *cl)
  *
  * It computes cl's mode at time cl->t_c+diff and returns it. If mode
  * is not HTB_CAN_SEND then cl->pq_key is updated to time difference
- * from now to time when cl will change its state. 
+ * from now to time when cl will change its state.
  * Also it is worth to note that class mode doesn't change simply
- * at cl->{c,}tokens == 0 but there can rather be hysteresis of 
+ * at cl->{c,}tokens == 0 but there can rather be hysteresis of
  * 0 .. -cl->{c,}buffer range. It is meant to limit number of
  * mode transitions per time unit. The speed gain is about 1/6.
  */
@@ -575,7 +575,7 @@ htb_change_class_mode(struct htb_sched *q, struct htb_class *cl, long *diff)
 }
 
 /**
- * htb_activate - inserts leaf cl into appropriate active feeds 
+ * htb_activate - inserts leaf cl into appropriate active feeds
  *
  * Routine learns (new) priority of leaf and activates feed chain
  * for the prio. It can be called on already active leaf safely.
@@ -594,7 +594,7 @@ static inline void htb_activate(struct htb_sched *q, struct htb_class *cl)
 }
 
 /**
- * htb_deactivate - remove leaf cl from active feeds 
+ * htb_deactivate - remove leaf cl from active feeds
  *
  * Make sure that leaf is active. In the other words it can't be called
  * with non-active leaf. It also removes class from the drop list.
@@ -854,7 +854,7 @@ static struct htb_class *htb_lookup_leaf(struct rb_root *tree, int prio,
 
 	for (i = 0; i < 65535; i++) {
 		if (!*sp->pptr && *sp->pid) {
-			/* ptr was invalidated but id is valid - try to recover 
+			/* ptr was invalidated but id is valid - try to recover
 			   the original or next ptr */
 			*sp->pptr =
 			    htb_id_find_next_upper(prio, sp->root, *sp->pid);
@@ -906,7 +906,7 @@ next:
 
 		/* class can be empty - it is unlikely but can be true if leaf
 		   qdisc drops packets in enqueue routine or if someone used
-		   graft operation on the leaf since last dequeue; 
+		   graft operation on the leaf since last dequeue;
 		   simply deactivate and skip such class */
 		if (unlikely(cl->un.leaf.q->q.qlen == 0)) {
 			struct htb_class *next;
@@ -1229,7 +1229,7 @@ static int htb_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	if (cl && !cl->level) {
 		if (new == NULL &&
 		    (new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
-		    			     cl->classid))
+					     cl->classid))
 		    == NULL)
 			return -ENOBUFS;
 		sch_tree_lock(sch);
@@ -1347,7 +1347,7 @@ static void htb_destroy(struct Qdisc *sch)
 	del_timer_sync(&q->rttim);
 #endif
 	/* This line used to be after htb_destroy_class call below
-	   and surprisingly it worked in 2.4. But it must precede it 
+	   and surprisingly it worked in 2.4. But it must precede it
 	   because filter need its target class alive to be able to call
 	   unbind_filter on it (without Oops). */
 	htb_destroy_filters(&q->filter_list);

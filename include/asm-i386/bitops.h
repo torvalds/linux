@@ -371,7 +371,7 @@ static inline unsigned long ffz(unsigned long word)
  *
  * This is defined the same way as
  * the libc and compiler builtin ffs routines, therefore
- * differs in spirit from the above ffz (man ffs).
+ * differs in spirit from the above ffz() (man ffs).
  */
 static inline int ffs(int x)
 {
@@ -388,7 +388,7 @@ static inline int ffs(int x)
  * fls - find last bit set
  * @x: the word to search
  *
- * This is defined the same way as ffs.
+ * This is defined the same way as ffs().
  */
 static inline int fls(int x)
 {

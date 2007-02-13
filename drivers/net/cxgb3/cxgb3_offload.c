@@ -396,7 +396,7 @@ static int rx_offload_blackhole(struct t3cdev *dev, struct sk_buff **skbs,
 				int n)
 {
 	CH_ERR(tdev2adap(dev), "%d unexpected offload packets, first data %u\n",
-	       n, ntohl(*(u32 *)skbs[0]->data));
+	       n, ntohl(*(__be32 *)skbs[0]->data));
 	while (n--)
 		dev_kfree_skb_any(skbs[n]);
 	return 0;
@@ -755,7 +755,7 @@ static int do_trace(struct t3cdev *dev, struct sk_buff *skb)
 {
 	struct cpl_trace_pkt *p = cplhdr(skb);
 
-	skb->protocol = 0xffff;
+	skb->protocol = htons(0xffff);
 	skb->dev = dev->lldev;
 	skb_pull(skb, sizeof(*p));
 	skb->mac.raw = skb->data;

@@ -539,7 +539,7 @@ static int iTCO_wdt_ioctl (struct inode *inode, struct file *file,
  *	Kernel Interfaces
  */
 
-static struct file_operations iTCO_wdt_fops = {
+static const struct file_operations iTCO_wdt_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.write =	iTCO_wdt_write,

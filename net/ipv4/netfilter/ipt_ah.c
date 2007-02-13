@@ -6,12 +6,13 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/in.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 
 #include <linux/netfilter_ipv4/ipt_ah.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter/x_tables.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yon Uriarte <yon@astaro.de>");
@@ -28,8 +29,8 @@ static inline int
 spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, int invert)
 {
 	int r=0;
-        duprintf("ah spi_match:%c 0x%x <= 0x%x <= 0x%x",invert? '!':' ',
-        	min,spi,max);
+	duprintf("ah spi_match:%c 0x%x <= 0x%x <= 0x%x",invert? '!':' ',
+		min,spi,max);
 	r=(spi >= min && spi <= max) ^ invert;
 	duprintf(" result %s\n",r? "PASS" : "FAILED");
 	return r;
@@ -86,8 +87,9 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ipt_match ah_match = {
+static struct xt_match ah_match = {
 	.name		= "ah",
+	.family		= AF_INET,
 	.match		= match,
 	.matchsize	= sizeof(struct ipt_ah),
 	.proto		= IPPROTO_AH,
@@ -97,12 +99,12 @@ static struct ipt_match ah_match = {
 
 static int __init ipt_ah_init(void)
 {
-	return ipt_register_match(&ah_match);
+	return xt_register_match(&ah_match);
 }
 
 static void __exit ipt_ah_fini(void)
 {
-	ipt_unregister_match(&ah_match);
+	xt_unregister_match(&ah_match);
 }
 
 module_init(ipt_ah_init);

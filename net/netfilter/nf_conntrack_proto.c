@@ -66,7 +66,7 @@ __nf_ct_l4proto_find(u_int16_t l3proto, u_int8_t l4proto)
 	if (unlikely(l3proto >= AF_MAX || nf_ct_protos[l3proto] == NULL))
 		return &nf_conntrack_l4proto_generic;
 
-	return nf_ct_protos[l3proto][l4proto];
+	return rcu_dereference(nf_ct_protos[l3proto][l4proto]);
 }
 EXPORT_SYMBOL_GPL(__nf_ct_l4proto_find);
 
@@ -77,11 +77,11 @@ nf_ct_l4proto_find_get(u_int16_t l3proto, u_int8_t l4proto)
 {
 	struct nf_conntrack_l4proto *p;
 
-	preempt_disable();
+	rcu_read_lock();
 	p = __nf_ct_l4proto_find(l3proto, l4proto);
 	if (!try_module_get(p->me))
 		p = &nf_conntrack_l4proto_generic;
-	preempt_enable();
+	rcu_read_unlock();
 
 	return p;
 }
@@ -98,11 +98,11 @@ nf_ct_l3proto_find_get(u_int16_t l3proto)
 {
 	struct nf_conntrack_l3proto *p;
 
-	preempt_disable();
+	rcu_read_lock();
 	p = __nf_ct_l3proto_find(l3proto);
 	if (!try_module_get(p->me))
 		p = &nf_conntrack_l3proto_generic;
-	preempt_enable();
+	rcu_read_unlock();
 
 	return p;
 }
@@ -137,10 +137,8 @@ void nf_ct_l3proto_module_put(unsigned short l3proto)
 {
 	struct nf_conntrack_l3proto *p;
 
-	preempt_disable();
+	/* rcu_read_lock not necessary since the caller holds a reference */
 	p = __nf_ct_l3proto_find(l3proto);
-	preempt_enable();
-
 	module_put(p->me);
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_module_put);
@@ -202,7 +200,7 @@ int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto)
 		ret = -EBUSY;
 		goto out_unlock;
 	}
-	nf_ct_l3protos[proto->l3proto] = proto;
+	rcu_assign_pointer(nf_ct_l3protos[proto->l3proto], proto);
 	write_unlock_bh(&nf_conntrack_lock);
 
 	ret = nf_ct_l3proto_register_sysctl(proto);
@@ -217,35 +215,21 @@ out:
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_register);
 
-int nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
+void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 {
-	int ret = 0;
-
-	if (proto->l3proto >= AF_MAX) {
-		ret = -EBUSY;
-		goto out;
-	}
+	BUG_ON(proto->l3proto >= AF_MAX);
 
 	write_lock_bh(&nf_conntrack_lock);
-	if (nf_ct_l3protos[proto->l3proto] != proto) {
-		write_unlock_bh(&nf_conntrack_lock);
-		ret = -EBUSY;
-		goto out;
-	}
-
-	nf_ct_l3protos[proto->l3proto] = &nf_conntrack_l3proto_generic;
+	BUG_ON(nf_ct_l3protos[proto->l3proto] != proto);
+	rcu_assign_pointer(nf_ct_l3protos[proto->l3proto],
+			   &nf_conntrack_l3proto_generic);
 	write_unlock_bh(&nf_conntrack_lock);
+	synchronize_rcu();
 
 	nf_ct_l3proto_unregister_sysctl(proto);
 
-	/* Somebody could be still looking at the proto in bh. */
-	synchronize_net();
-
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(kill_l3proto, proto);
-
-out:
-	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_unregister);
 
@@ -356,7 +340,7 @@ retry:
 		goto retry;
 	}
 
-	nf_ct_protos[l4proto->l3proto][l4proto->l4proto] = l4proto;
+	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto], l4proto);
 	write_unlock_bh(&nf_conntrack_lock);
 
 	ret = nf_ct_l4proto_register_sysctl(l4proto);
@@ -371,40 +355,25 @@ out:
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_register);
 
-int nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
+void nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 {
-	int ret = 0;
-
-	if (l4proto->l3proto >= PF_MAX) {
-		ret = -EBUSY;
-		goto out;
-	}
+	BUG_ON(l4proto->l3proto >= PF_MAX);
 
 	if (l4proto == &nf_conntrack_l4proto_generic) {
 		nf_ct_l4proto_unregister_sysctl(l4proto);
-		goto out;
+		return;
 	}
 
 	write_lock_bh(&nf_conntrack_lock);
-	if (nf_ct_protos[l4proto->l3proto][l4proto->l4proto]
-	    != l4proto) {
-		write_unlock_bh(&nf_conntrack_lock);
-		ret = -EBUSY;
-		goto out;
-	}
-	nf_ct_protos[l4proto->l3proto][l4proto->l4proto]
-		= &nf_conntrack_l4proto_generic;
+	BUG_ON(nf_ct_protos[l4proto->l3proto][l4proto->l4proto] != l4proto);
+	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto],
+			   &nf_conntrack_l4proto_generic);
 	write_unlock_bh(&nf_conntrack_lock);
+	synchronize_rcu();
 
 	nf_ct_l4proto_unregister_sysctl(l4proto);
 
-	/* Somebody could be still looking at the proto in bh. */
-	synchronize_net();
-
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(kill_l4proto, l4proto);
-
-out:
-	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_unregister);

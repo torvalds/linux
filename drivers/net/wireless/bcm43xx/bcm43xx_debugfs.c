@@ -355,37 +355,37 @@ out_up:
 #undef fappend
 
 
-static struct file_operations devinfo_fops = {
+static const struct file_operations devinfo_fops = {
 	.read = devinfo_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
 };
 
-static struct file_operations spromdump_fops = {
+static const struct file_operations spromdump_fops = {
 	.read = spromdump_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
 };
 
-static struct file_operations drvinfo_fops = {
+static const struct file_operations drvinfo_fops = {
 	.read = drvinfo_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
 };
 
-static struct file_operations tsf_fops = {
+static const struct file_operations tsf_fops = {
 	.read = tsf_read_file,
 	.write = tsf_write_file,
 	.open = open_file_generic,
 };
 
-static struct file_operations txstat_fops = {
+static const struct file_operations txstat_fops = {
 	.read = txstat_read_file,
 	.write = write_file_dummy,
 	.open = open_file_generic,
 };
 
-static struct file_operations restart_fops = {
+static const struct file_operations restart_fops = {
 	.write = restart_write_file,
 	.open = open_file_generic,
 };

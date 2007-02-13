@@ -211,9 +211,40 @@ extern struct class *sound_class;
 
 void snd_request_card(int card);
 
-int snd_register_device(int type, struct snd_card *card, int dev,
-			const struct file_operations *f_ops, void *private_data,
-			const char *name);
+int snd_register_device_for_dev(int type, struct snd_card *card,
+				int dev,
+				const struct file_operations *f_ops,
+				void *private_data,
+				const char *name,
+				struct device *device);
+
+/**
+ * snd_register_device - Register the ALSA device file for the card
+ * @type: the device type, SNDRV_DEVICE_TYPE_XXX
+ * @card: the card instance
+ * @dev: the device index
+ * @f_ops: the file operations
+ * @private_data: user pointer for f_ops->open()
+ * @name: the device file name
+ *
+ * Registers an ALSA device file for the given card.
+ * The operators have to be set in reg parameter.
+ *
+ * This function uses the card's device pointer to link to the
+ * correct &struct device.
+ *
+ * Returns zero if successful, or a negative error code on failure.
+ */
+static inline int snd_register_device(int type, struct snd_card *card, int dev,
+				      const struct file_operations *f_ops,
+				      void *private_data,
+				      const char *name)
+{
+	return snd_register_device_for_dev(type, card, dev, f_ops,
+					   private_data, name,
+					   snd_card_get_device_link(card));
+}
+
 int snd_unregister_device(int type, struct snd_card *card, int dev);
 void *snd_lookup_minor_data(unsigned int minor, int type);
 int snd_add_device_sysfs_file(int type, struct snd_card *card, int dev,
@@ -396,6 +427,29 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 #endif
 #endif
 
-#include "typedefs.h"
+/* PCI quirk list helper */
+struct snd_pci_quirk {
+	unsigned short subvendor;	/* PCI subvendor ID */
+	unsigned short subdevice;	/* PCI subdevice ID */
+	int value;			/* value */
+#ifdef CONFIG_SND_DEBUG_DETECT
+	const char *name;		/* name of the device (optional) */
+#endif
+};
+
+#define _SND_PCI_QUIRK_ID(vend,dev) \
+	.subvendor = (vend), .subdevice = (dev)
+#define SND_PCI_QUIRK_ID(vend,dev) {_SND_PCI_QUIRK_ID(vend, dev)}
+#ifdef CONFIG_SND_DEBUG_DETECT
+#define SND_PCI_QUIRK(vend,dev,xname,val) \
+	{_SND_PCI_QUIRK_ID(vend, dev), .value = (val), .name = (xname)}
+#else
+#define SND_PCI_QUIRK(vend,dev,xname,val) \
+	{_SND_PCI_QUIRK_ID(vend, dev), .value = (val)}
+#endif
+
+const struct snd_pci_quirk *
+snd_pci_quirk_lookup(struct pci_dev *pci, const struct snd_pci_quirk *list);
+
 
 #endif /* __SOUND_CORE_H */

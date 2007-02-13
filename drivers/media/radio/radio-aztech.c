@@ -314,7 +314,7 @@ static int az_ioctl(struct inode *inode, struct file *file,
 
 static struct az_device aztech_unit;
 
-static struct file_operations aztech_fops = {
+static const struct file_operations aztech_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

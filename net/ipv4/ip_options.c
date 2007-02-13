@@ -8,7 +8,7 @@
  * Version:	$Id: ip_options.c,v 1.21 2001/09/01 00:31:50 davem Exp $
  *
  * Authors:	A.N.Kuznetsov
- *		
+ *
  */
 
 #include <linux/capability.h>
@@ -26,7 +26,7 @@
 #include <net/route.h>
 #include <net/cipso_ipv4.h>
 
-/* 
+/*
  * Write options to IP header, record destination address to
  * source route option, address of outgoing interface
  * (we should already know it, so that this  function is allowed be
@@ -76,7 +76,7 @@ void ip_options_build(struct sk_buff * skb, struct ip_options * opt,
 	}
 }
 
-/* 
+/*
  * Provided (sopt, skb) points to received options,
  * build in dopt compiled option set appropriate for answering.
  * i.e. invert SRR option, copy anothers,
@@ -85,7 +85,7 @@ void ip_options_build(struct sk_buff * skb, struct ip_options * opt,
  * NOTE: dopt cannot point to skb.
  */
 
-int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb) 
+int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 {
 	struct ip_options *sopt;
 	unsigned char *sptr, *dptr;
@@ -215,7 +215,7 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
  *	Simple and stupid 8), but the most efficient way.
  */
 
-void ip_options_fragment(struct sk_buff * skb) 
+void ip_options_fragment(struct sk_buff * skb)
 {
 	unsigned char * optptr = skb->nh.raw + sizeof(struct iphdr);
 	struct ip_options * opt = &(IPCB(skb)->opt);
@@ -370,7 +370,7 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 				switch (optptr[3]&0xF) {
 				      case IPOPT_TS_TSONLY:
 					opt->ts = optptr - iph;
-					if (skb) 
+					if (skb)
 						timeptr = (__be32*)&optptr[optptr[2]-1];
 					opt->ts_needtime = 1;
 					optptr[2] += 4;
@@ -448,7 +448,7 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 				goto error;
 			}
 			opt->cipso = optptr - iph;
-		        if (cipso_v4_validate(&optptr)) {
+			if (cipso_v4_validate(&optptr)) {
 				pp_ptr = optptr;
 				goto error;
 			}

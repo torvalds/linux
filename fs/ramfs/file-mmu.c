@@ -31,7 +31,7 @@ const struct address_space_operations ramfs_aops = {
 	.readpage	= simple_readpage,
 	.prepare_write	= simple_prepare_write,
 	.commit_write	= simple_commit_write,
-	.set_page_dirty = __set_page_dirty_nobuffers,
+	.set_page_dirty = __set_page_dirty_no_writeback,
 };
 
 const struct file_operations ramfs_file_operations = {
@@ -45,6 +45,6 @@ const struct file_operations ramfs_file_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-struct inode_operations ramfs_file_inode_operations = {
+const struct inode_operations ramfs_file_inode_operations = {
 	.getattr	= simple_getattr,
 };

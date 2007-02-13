@@ -41,7 +41,7 @@ void wake_up_buffer_waiter(void);
 /* add data to the event buffer */
 void add_event_entry(unsigned long data);
  
-extern struct file_operations event_buffer_fops;
+extern const struct file_operations event_buffer_fops;
  
 /* mutex between sync_cpu_buffers() and the
  * file reading code.

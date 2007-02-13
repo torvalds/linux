@@ -19,7 +19,9 @@
 struct cache_sizes {
 	size_t		 	cs_size;
 	struct kmem_cache	*cs_cachep;
+#ifdef CONFIG_ZONE_DMA
 	struct kmem_cache	*cs_dmacachep;
+#endif
 };
 extern struct cache_sizes malloc_sizes[];
 
@@ -39,9 +41,12 @@ static inline void *kmalloc(size_t size, gfp_t flags)
 			__you_cannot_kmalloc_that_much();
 		}
 found:
-		return kmem_cache_alloc((flags & GFP_DMA) ?
-			malloc_sizes[i].cs_dmacachep :
-			malloc_sizes[i].cs_cachep, flags);
+#ifdef CONFIG_ZONE_DMA
+		if (flags & GFP_DMA)
+			return kmem_cache_alloc(malloc_sizes[i].cs_dmacachep,
+						flags);
+#endif
+		return kmem_cache_alloc(malloc_sizes[i].cs_cachep, flags);
 	}
 	return __kmalloc(size, flags);
 }
@@ -62,9 +67,12 @@ static inline void *kzalloc(size_t size, gfp_t flags)
 			__you_cannot_kzalloc_that_much();
 		}
 found:
-		return kmem_cache_zalloc((flags & GFP_DMA) ?
-			malloc_sizes[i].cs_dmacachep :
-			malloc_sizes[i].cs_cachep, flags);
+#ifdef CONFIG_ZONE_DMA
+		if (flags & GFP_DMA)
+			return kmem_cache_zalloc(malloc_sizes[i].cs_dmacachep,
+						flags);
+#endif
+		return kmem_cache_zalloc(malloc_sizes[i].cs_cachep, flags);
 	}
 	return __kzalloc(size, flags);
 }
@@ -88,9 +96,13 @@ static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 			__you_cannot_kmalloc_that_much();
 		}
 found:
-		return kmem_cache_alloc_node((flags & GFP_DMA) ?
-			malloc_sizes[i].cs_dmacachep :
-			malloc_sizes[i].cs_cachep, flags, node);
+#ifdef CONFIG_ZONE_DMA
+		if (flags & GFP_DMA)
+			return kmem_cache_alloc_node(malloc_sizes[i].cs_dmacachep,
+						flags, node);
+#endif
+		return kmem_cache_alloc_node(malloc_sizes[i].cs_cachep,
+						flags, node);
 	}
 	return __kmalloc_node(size, flags, node);
 }

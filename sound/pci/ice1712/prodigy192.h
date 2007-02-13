@@ -6,6 +6,6 @@
 
 #define VT1724_SUBDEVICE_PRODIGY192VE	 0x34495345	/* PRODIGY 192 VE */
 
-extern struct snd_ice1712_card_info  snd_vt1724_prodigy192_cards[];
+extern const struct snd_ice1712_card_info  snd_vt1724_prodigy192_cards[];
 
 #endif	/* __SOUND_PRODIGY192_H */

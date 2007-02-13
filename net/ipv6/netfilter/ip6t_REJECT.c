@@ -26,6 +26,7 @@
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
 #include <net/flow.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/netfilter_ipv6/ip6t_REJECT.h>
 
@@ -188,23 +189,23 @@ static unsigned int reject6_target(struct sk_buff **pskb,
 	/* WARNING: This code causes reentry within ip6tables.
 	   This means that the ip6tables jump stack is now crap.  We
 	   must return an absolute verdict. --RR */
-    	switch (reject->with) {
-    	case IP6T_ICMP6_NO_ROUTE:
-    		send_unreach(*pskb, ICMPV6_NOROUTE, hooknum);
-    		break;
-    	case IP6T_ICMP6_ADM_PROHIBITED:
-    		send_unreach(*pskb, ICMPV6_ADM_PROHIBITED, hooknum);
-    		break;
-    	case IP6T_ICMP6_NOT_NEIGHBOUR:
-    		send_unreach(*pskb, ICMPV6_NOT_NEIGHBOUR, hooknum);
-    		break;
-    	case IP6T_ICMP6_ADDR_UNREACH:
-    		send_unreach(*pskb, ICMPV6_ADDR_UNREACH, hooknum);
-    		break;
-    	case IP6T_ICMP6_PORT_UNREACH:
-    		send_unreach(*pskb, ICMPV6_PORT_UNREACH, hooknum);
-    		break;
-    	case IP6T_ICMP6_ECHOREPLY:
+	switch (reject->with) {
+	case IP6T_ICMP6_NO_ROUTE:
+		send_unreach(*pskb, ICMPV6_NOROUTE, hooknum);
+		break;
+	case IP6T_ICMP6_ADM_PROHIBITED:
+		send_unreach(*pskb, ICMPV6_ADM_PROHIBITED, hooknum);
+		break;
+	case IP6T_ICMP6_NOT_NEIGHBOUR:
+		send_unreach(*pskb, ICMPV6_NOT_NEIGHBOUR, hooknum);
+		break;
+	case IP6T_ICMP6_ADDR_UNREACH:
+		send_unreach(*pskb, ICMPV6_ADDR_UNREACH, hooknum);
+		break;
+	case IP6T_ICMP6_PORT_UNREACH:
+		send_unreach(*pskb, ICMPV6_PORT_UNREACH, hooknum);
+		break;
+	case IP6T_ICMP6_ECHOREPLY:
 		/* Do nothing */
 		break;
 	case IP6T_TCP_RESET:
@@ -225,7 +226,7 @@ static int check(const char *tablename,
 		 void *targinfo,
 		 unsigned int hook_mask)
 {
- 	const struct ip6t_reject_info *rejinfo = targinfo;
+	const struct ip6t_reject_info *rejinfo = targinfo;
 	const struct ip6t_entry *e = entry;
 
 	if (rejinfo->with == IP6T_ICMP6_ECHOREPLY) {
@@ -234,7 +235,7 @@ static int check(const char *tablename,
 	} else if (rejinfo->with == IP6T_TCP_RESET) {
 		/* Must specify that it's a TCP packet */
 		if (e->ipv6.proto != IPPROTO_TCP
-		    || (e->ipv6.invflags & IP6T_INV_PROTO)) {
+		    || (e->ipv6.invflags & XT_INV_PROTO)) {
 			DEBUGP("ip6t_REJECT: TCP_RESET illegal for non-tcp\n");
 			return 0;
 		}
@@ -242,8 +243,9 @@ static int check(const char *tablename,
 	return 1;
 }
 
-static struct ip6t_target ip6t_reject_reg = {
+static struct xt_target ip6t_reject_reg = {
 	.name		= "REJECT",
+	.family		= AF_INET6,
 	.target		= reject6_target,
 	.targetsize	= sizeof(struct ip6t_reject_info),
 	.table		= "filter",
@@ -255,12 +257,12 @@ static struct ip6t_target ip6t_reject_reg = {
 
 static int __init ip6t_reject_init(void)
 {
-	return ip6t_register_target(&ip6t_reject_reg);
+	return xt_register_target(&ip6t_reject_reg);
 }
 
 static void __exit ip6t_reject_fini(void)
 {
-	ip6t_unregister_target(&ip6t_reject_reg);
+	xt_unregister_target(&ip6t_reject_reg);
 }
 
 module_init(ip6t_reject_init);

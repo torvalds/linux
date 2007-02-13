@@ -91,7 +91,7 @@ module_param(radio_nr, int, 0);
 static int radio_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg);
 
-static struct file_operations maxiradio_fops = {
+static const struct file_operations maxiradio_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

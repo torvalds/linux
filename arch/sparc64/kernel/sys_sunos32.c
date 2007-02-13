@@ -824,10 +824,17 @@ asmlinkage int sunos_wait4(compat_pid_t pid, compat_uint_t __user *stat_addr, in
 	return ret;
 }
 
-extern int kill_pg(int, int, int);
 asmlinkage int sunos_killpg(int pgrp, int sig)
 {
-	return kill_pg(pgrp, sig, 0);
+	int ret;
+
+	rcu_read_lock();
+	ret = -EINVAL;
+	if (pgrp > 0)
+		ret = kill_pgrp(find_pid(pgrp), sig, 0);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 asmlinkage int sunos_audit(void)

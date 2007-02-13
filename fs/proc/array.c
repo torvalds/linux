@@ -351,7 +351,7 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 		struct signal_struct *sig = task->signal;
 
 		if (sig->tty) {
-			tty_pgrp = sig->tty->pgrp;
+			tty_pgrp = pid_nr(sig->tty->pgrp);
 			tty_nr = new_encode_dev(tty_devnum(sig->tty));
 		}
 

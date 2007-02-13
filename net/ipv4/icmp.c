@@ -304,7 +304,7 @@ static inline int icmpv4_xrlim_allow(struct rtable *rt, int type, int code)
 
 	/* No rate limit on loopback */
 	if (dst->dev && (dst->dev->flags&IFF_LOOPBACK))
- 		goto out;
+		goto out;
 
 	/* Limit if icmp type is enabled in ratemask. */
 	if ((1 << type) & sysctl_icmp_ratemask)
@@ -350,9 +350,9 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 	struct sk_buff *skb;
 
 	if (ip_append_data(icmp_socket->sk, icmp_glue_bits, icmp_param,
-		           icmp_param->data_len+icmp_param->head_len,
-		           icmp_param->head_len,
-		           ipc, rt, MSG_DONTWAIT) < 0)
+			   icmp_param->data_len+icmp_param->head_len,
+			   icmp_param->head_len,
+			   ipc, rt, MSG_DONTWAIT) < 0)
 		ip_flush_pending_frames(icmp_socket->sk);
 	else if ((skb = skb_peek(&icmp_socket->sk->sk_write_queue)) != NULL) {
 		struct icmphdr *icmph = skb->h.icmph;
@@ -755,7 +755,7 @@ static void icmp_redirect(struct sk_buff *skb)
 			       skb->h.icmph->un.gateway,
 			       iph->saddr, skb->dev);
 		break;
-  	}
+	}
 out:
 	return;
 out_err:
@@ -959,7 +959,7 @@ int icmp_rcv(struct sk_buff *skb)
 	 *	Parse the ICMP message
 	 */
 
- 	if (rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST)) {
+	if (rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST)) {
 		/*
 		 *	RFC 1122: 3.2.2.6 An ICMP_ECHO to broadcast MAY be
 		 *	  silently ignored (we let user decide with a sysctl).
@@ -976,7 +976,7 @@ int icmp_rcv(struct sk_buff *skb)
 		    icmph->type != ICMP_ADDRESS &&
 		    icmph->type != ICMP_ADDRESSREPLY) {
 			goto error;
-  		}
+		}
 	}
 
 	ICMP_INC_STATS_BH(icmp_pointers[icmph->type].input_entry);
@@ -1085,7 +1085,7 @@ static const struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
 		.input_entry = ICMP_MIB_DUMMY,
 		.handler = icmp_discard,
 	},
- 	[ICMP_INFO_REPLY] = {
+	[ICMP_INFO_REPLY] = {
 		.output_entry = ICMP_MIB_DUMMY,
 		.input_entry = ICMP_MIB_DUMMY,
 		.handler = icmp_discard,

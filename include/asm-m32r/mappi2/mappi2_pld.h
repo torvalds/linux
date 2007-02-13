@@ -1,17 +1,16 @@
+#ifndef _MAPPI2_PLD_H
+#define _MAPPI2_PLD_H
+
 /*
  * include/asm-m32r/mappi2/mappi2_pld.h
  *
  * Definitions for Extended IO Logic on MAPPI2 board.
- *  based on m32700ut_pld.h by
+ *  based on m32700ut_pld.h
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file "COPYING" in the main directory of
  * this archive for more details.
- *
  */
-
-#ifndef _MAPPI2_PLD_H
-#define _MAPPI2_PLD_H
 
 #ifndef __ASSEMBLY__
 /* FIXME:
@@ -26,7 +25,7 @@
 #define __reg8
 #define __reg16
 #define __reg32
-#endif	/* __ASSEMBLY__ */
+#endif /* __ASSEMBLY__ */
 
 /* CFC */
 #define	PLD_CFRSTCR		__reg16(PLD_BASE + 0x0000)
@@ -148,4 +147,4 @@
 
 #endif
 
-#endif	/* _MAPPI2_PLD.H */
+#endif /* _MAPPI2_PLD.H */

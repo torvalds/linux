@@ -1,6 +1,6 @@
 /*
  * net/tipc/subscr.h: Include file for TIPC subscription service
- * 
+ *
  * Copyright (c) 2003-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -48,7 +48,7 @@
  * @timer_ref: reference to timer governing subscription duration (may be NULL)
  * @owner: pointer to subscriber object associated with this subscription
  */
- 
+
 struct subscription {
 	struct tipc_name_seq seq;
 	u32 timeout;
@@ -60,15 +60,15 @@ struct subscription {
 	struct subscriber *owner;
 };
 
-int tipc_subscr_overlap(struct subscription * sub, 
-			u32 found_lower, 
+int tipc_subscr_overlap(struct subscription * sub,
+			u32 found_lower,
 			u32 found_upper);
 
-void tipc_subscr_report_overlap(struct subscription * sub, 
-				u32 found_lower, 
+void tipc_subscr_report_overlap(struct subscription * sub,
+				u32 found_lower,
 				u32 found_upper,
-				u32 event, 
-				u32 port_ref, 
+				u32 event,
+				u32 port_ref,
 				u32 node,
 				int must_report);
 

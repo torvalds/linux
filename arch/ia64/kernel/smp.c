@@ -221,13 +221,13 @@ send_IPI_self (int op)
 
 #ifdef CONFIG_KEXEC
 void
-kdump_smp_send_stop()
+kdump_smp_send_stop(void)
 {
  	send_IPI_allbutself(IPI_KDUMP_CPU_STOP);
 }
 
 void
-kdump_smp_send_init()
+kdump_smp_send_init(void)
 {
 	unsigned int cpu, self_cpu;
 	self_cpu = smp_processor_id();

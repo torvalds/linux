@@ -6,9 +6,7 @@
 #ifndef _LINUX_ATMARP_H
 #define _LINUX_ATMARP_H
 
-#ifdef __KERNEL__
 #include <linux/types.h>
-#endif
 #include <linux/atmapi.h>
 #include <linux/atmioc.h>
 

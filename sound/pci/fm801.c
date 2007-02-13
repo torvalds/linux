@@ -1157,7 +1157,7 @@ static int snd_fm801_put_mux(struct snd_kcontrol *kcontrol,
 	return snd_fm801_update_bits(chip, FM801_REC_SRC, 7, val);
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_dsp, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_dsp, -3450, 150, 0);
 
 #define FM801_CONTROLS ARRAY_SIZE(snd_fm801_controls)
 

@@ -134,7 +134,7 @@ static void drr_select_route(const struct flowi *flp,
 			     struct rtable *first, struct rtable **rp)
 {
 	struct rtable *nh, *result, *cur_min;
-	int min_usecount = -1; 
+	int min_usecount = -1;
 	int devidx = -1;
 	int cur_min_devidx = -1;
 
@@ -143,7 +143,7 @@ static void drr_select_route(const struct flowi *flp,
 	result = NULL;
 	cur_min = NULL;
 	for (nh = rcu_dereference(first); nh;
-	     nh = rcu_dereference(nh->u.rt_next)) {
+	     nh = rcu_dereference(nh->u.dst.rt_next)) {
 		if ((nh->u.dst.flags & DST_BALANCED) != 0 &&
 		    multipath_comparekeys(&nh->fl, flp)) {
 			int nh_ifidx = nh->u.dst.dev->ifindex;
@@ -161,7 +161,7 @@ static void drr_select_route(const struct flowi *flp,
 			 */
 			devidx = __multipath_finddev(nh_ifidx);
 			if (devidx == -1) {
-				/* add the interface to the array 
+				/* add the interface to the array
 				 * SMP safe
 				 */
 				spin_lock_bh(&state_lock);

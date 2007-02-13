@@ -32,13 +32,13 @@ int nf_register_sockopt(struct nf_sockopt_ops *reg)
 	list_for_each(i, &nf_sockopts) {
 		struct nf_sockopt_ops *ops = (struct nf_sockopt_ops *)i;
 		if (ops->pf == reg->pf
-		    && (overlap(ops->set_optmin, ops->set_optmax, 
+		    && (overlap(ops->set_optmin, ops->set_optmax,
 				reg->set_optmin, reg->set_optmax)
-			|| overlap(ops->get_optmin, ops->get_optmax, 
+			|| overlap(ops->get_optmin, ops->get_optmax,
 				   reg->get_optmin, reg->get_optmax))) {
 			NFDEBUG("nf_sock overlap: %u-%u/%u-%u v %u-%u/%u-%u\n",
-				ops->set_optmin, ops->set_optmax, 
-				ops->get_optmin, ops->get_optmax, 
+				ops->set_optmin, ops->set_optmax,
+				ops->get_optmin, ops->get_optmax,
 				reg->set_optmin, reg->set_optmax,
 				reg->get_optmin, reg->get_optmax);
 			ret = -EBUSY;
@@ -73,7 +73,7 @@ void nf_unregister_sockopt(struct nf_sockopt_ops *reg)
 EXPORT_SYMBOL(nf_unregister_sockopt);
 
 /* Call get/setsockopt() */
-static int nf_sockopt(struct sock *sk, int pf, int val, 
+static int nf_sockopt(struct sock *sk, int pf, int val,
 		      char __user *opt, int *len, int get)
 {
 	struct list_head *i;
@@ -107,7 +107,7 @@ static int nf_sockopt(struct sock *sk, int pf, int val,
 	}
 	mutex_unlock(&nf_sockopt_mutex);
 	return -ENOPROTOOPT;
-	
+
  out:
 	mutex_lock(&nf_sockopt_mutex);
 	ops->use--;

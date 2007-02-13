@@ -150,7 +150,7 @@ static irqreturn_t sw_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct file_operations swdrv_fops = {
+static const struct file_operations swdrv_fops = {
 	.read = swdrv_read,	/* read */
 	.write = swdrv_write,	/* write */
 	.open = swdrv_open,	/* open */

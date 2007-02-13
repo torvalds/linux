@@ -54,7 +54,7 @@ Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  Frame  |  fcs |
       |      | tion | (BSSID) |         |         | ence |  data   |      |
       `--------------------------------------------------|         |------'
 Total: 28 non-data bytes                                 `----.----'
-                                                              |
+							      |
        .- 'Frame data' expands, if WEP enabled, to <----------'
        |
        V
@@ -64,8 +64,8 @@ Bytes |  4  |   0-2296  |  4  |
 Desc. | IV  | Encrypted | ICV |
       |     | Packet    |     |
       `-----|           |-----'
-            `-----.-----'
-                  |
+	    `-----.-----'
+		  |
        .- 'Encrypted Packet' expands to
        |
        V

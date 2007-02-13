@@ -235,6 +235,19 @@ config NF_CONNTRACK_PPTP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_CONNTRACK_SANE
+	tristate "SANE protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  SANE is a protocol for remote access to scanners as implemented
+	  by the 'saned' daemon. Like FTP, it uses separate control and
+	  data connections.
+
+	  With this module you can support SANE on a connection tracking
+	  firewall.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NF_CONNTRACK_SIP
 	tristate "SIP protocol support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && NF_CONNTRACK
@@ -289,7 +302,9 @@ config NETFILTER_XT_TARGET_CONNMARK
 	tristate  '"CONNMARK" target support'
 	depends on NETFILTER_XTABLES
 	depends on IP_NF_MANGLE || IP6_NF_MANGLE
-	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK)
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK
+	select IP_NF_CONNTRACK_MARK if IP_NF_CONNTRACK
+	select NF_CONNTRACK_MARK if NF_CONNTRACK
 	help
 	  This option adds a `CONNMARK' target, which allows one to manipulate
 	  the connection mark value.  Similar to the MARK target, but
@@ -382,6 +397,32 @@ config NETFILTER_XT_TARGET_CONNSECMARK
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_TARGET_TCPMSS
+	tristate '"TCPMSS" target support'
+	depends on NETFILTER_XTABLES && (IPV6 || IPV6=n)
+	---help---
+	  This option adds a `TCPMSS' target, which allows you to alter the
+	  MSS value of TCP SYN packets, to control the maximum size for that
+	  connection (usually limiting it to your outgoing interface's MTU
+	  minus 40).
+
+	  This is used to overcome criminally braindead ISPs or servers which
+	  block ICMP Fragmentation Needed packets.  The symptoms of this
+	  problem are that everything works fine from your Linux
+	  firewall/router, but machines behind it can never exchange large
+	  packets:
+	        1) Web browsers connect, then hang with no data received.
+	        2) Small mail works fine, but large emails hang.
+	        3) ssh works fine, but scp hangs after initial handshaking.
+
+	  Workaround: activate this option and add a rule to your firewall
+	  configuration like:
+
+	  iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN \
+	                 -j TCPMSS --clamp-mss-to-pmtu
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_COMMENT
 	tristate  '"comment" match support'
 	depends on NETFILTER_XTABLES
@@ -395,7 +436,9 @@ config NETFILTER_XT_MATCH_COMMENT
 config NETFILTER_XT_MATCH_CONNBYTES
 	tristate  '"connbytes" per-connection counter match support'
 	depends on NETFILTER_XTABLES
-	depends on (IP_NF_CONNTRACK && IP_NF_CT_ACCT) || (NF_CT_ACCT && NF_CONNTRACK)
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK
+	select IP_NF_CT_ACCT if IP_NF_CONNTRACK
+	select NF_CT_ACCT if NF_CONNTRACK
 	help
 	  This option adds a `connbytes' match, which allows you to match the
 	  number of bytes and/or packets for each direction within a connection.
@@ -406,7 +449,9 @@ config NETFILTER_XT_MATCH_CONNBYTES
 config NETFILTER_XT_MATCH_CONNMARK
 	tristate  '"connmark" connection mark match support'
 	depends on NETFILTER_XTABLES
-	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK)
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK
+	select IP_NF_CONNTRACK_MARK if IP_NF_CONNTRACK
+	select NF_CONNTRACK_MARK if NF_CONNTRACK
 	help
 	  This option adds a `connmark' match, which allows you to match the
 	  connection mark value previously set for the session by `CONNMARK'. 

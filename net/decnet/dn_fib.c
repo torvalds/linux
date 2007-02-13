@@ -527,7 +527,7 @@ int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		return -EINVAL;
 
 	tb = dn_fib_get_table(rtm_get_table(rta, r->rtm_table), 1);
-	if (tb) 
+	if (tb)
 		return tb->insert(tb, r, (struct dn_kern_rta *)rta, nlh, &NETLINK_CB(skb));
 
 	return -ENOBUFS;
@@ -654,80 +654,80 @@ static int dn_fib_dnaddr_event(struct notifier_block *this, unsigned long event,
 
 static int dn_fib_sync_down(__le16 local, struct net_device *dev, int force)
 {
-        int ret = 0;
-        int scope = RT_SCOPE_NOWHERE;
+	int ret = 0;
+	int scope = RT_SCOPE_NOWHERE;
 
-        if (force)
-                scope = -1;
+	if (force)
+		scope = -1;
 
-        for_fib_info() {
-                /* 
-                 * This makes no sense for DECnet.... we will almost
-                 * certainly have more than one local address the same
-                 * over all our interfaces. It needs thinking about
-                 * some more.
-                 */
-                if (local && fi->fib_prefsrc == local) {
-                        fi->fib_flags |= RTNH_F_DEAD;
-                        ret++;
-                } else if (dev && fi->fib_nhs) {
-                        int dead = 0;
+	for_fib_info() {
+		/*
+		 * This makes no sense for DECnet.... we will almost
+		 * certainly have more than one local address the same
+		 * over all our interfaces. It needs thinking about
+		 * some more.
+		 */
+		if (local && fi->fib_prefsrc == local) {
+			fi->fib_flags |= RTNH_F_DEAD;
+			ret++;
+		} else if (dev && fi->fib_nhs) {
+			int dead = 0;
 
-                        change_nexthops(fi) {
-                                if (nh->nh_flags&RTNH_F_DEAD)
-                                        dead++;
-                                else if (nh->nh_dev == dev &&
-                                                nh->nh_scope != scope) {
+			change_nexthops(fi) {
+				if (nh->nh_flags&RTNH_F_DEAD)
+					dead++;
+				else if (nh->nh_dev == dev &&
+						nh->nh_scope != scope) {
 					spin_lock_bh(&dn_fib_multipath_lock);
-                                        nh->nh_flags |= RTNH_F_DEAD;
-                                        fi->fib_power -= nh->nh_power;
-                                        nh->nh_power = 0;
+					nh->nh_flags |= RTNH_F_DEAD;
+					fi->fib_power -= nh->nh_power;
+					nh->nh_power = 0;
 					spin_unlock_bh(&dn_fib_multipath_lock);
-                                        dead++;
-                                }
-                        } endfor_nexthops(fi)
-                        if (dead == fi->fib_nhs) {
-                                fi->fib_flags |= RTNH_F_DEAD;
-                                ret++;
-                        }
-                }
-        } endfor_fib_info();
-        return ret;
+					dead++;
+				}
+			} endfor_nexthops(fi)
+			if (dead == fi->fib_nhs) {
+				fi->fib_flags |= RTNH_F_DEAD;
+				ret++;
+			}
+		}
+	} endfor_fib_info();
+	return ret;
 }
 
 
 static int dn_fib_sync_up(struct net_device *dev)
 {
-        int ret = 0;
+	int ret = 0;
 
-        if (!(dev->flags&IFF_UP))
-                return 0;
+	if (!(dev->flags&IFF_UP))
+		return 0;
 
-        for_fib_info() {
-                int alive = 0;
+	for_fib_info() {
+		int alive = 0;
 
-                change_nexthops(fi) {
-                        if (!(nh->nh_flags&RTNH_F_DEAD)) {
-                                alive++;
-                                continue;
-                        }
-                        if (nh->nh_dev == NULL || !(nh->nh_dev->flags&IFF_UP))
-                                continue;
-                        if (nh->nh_dev != dev || dev->dn_ptr == NULL)
-                                continue;
-                        alive++;
+		change_nexthops(fi) {
+			if (!(nh->nh_flags&RTNH_F_DEAD)) {
+				alive++;
+				continue;
+			}
+			if (nh->nh_dev == NULL || !(nh->nh_dev->flags&IFF_UP))
+				continue;
+			if (nh->nh_dev != dev || dev->dn_ptr == NULL)
+				continue;
+			alive++;
 			spin_lock_bh(&dn_fib_multipath_lock);
-                        nh->nh_power = 0;
-                        nh->nh_flags &= ~RTNH_F_DEAD;
+			nh->nh_power = 0;
+			nh->nh_flags &= ~RTNH_F_DEAD;
 			spin_unlock_bh(&dn_fib_multipath_lock);
-                } endfor_nexthops(fi);
+		} endfor_nexthops(fi);
 
-                if (alive > 0) {
-                        fi->fib_flags &= ~RTNH_F_DEAD;
-                        ret++;
-                }
-        } endfor_fib_info();
-        return ret;
+		if (alive > 0) {
+			fi->fib_flags &= ~RTNH_F_DEAD;
+			ret++;
+		}
+	} endfor_fib_info();
+	return ret;
 }
 
 static struct notifier_block dn_fib_dnaddr_notifier = {

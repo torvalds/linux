@@ -329,7 +329,7 @@ static int xdr_decode_bool(struct rpc_rqst *req, __be32 *p, unsigned int *boolp)
 static struct rpc_procinfo	pmap_procedures[] = {
 [PMAP_SET] = {
 	  .p_proc		= PMAP_SET,
-	  .p_encode		= (kxdrproc_t) xdr_encode_mapping,	
+	  .p_encode		= (kxdrproc_t) xdr_encode_mapping,
 	  .p_decode		= (kxdrproc_t) xdr_decode_bool,
 	  .p_bufsiz		= 4,
 	  .p_count		= 1,
@@ -338,7 +338,7 @@ static struct rpc_procinfo	pmap_procedures[] = {
 	},
 [PMAP_UNSET] = {
 	  .p_proc		= PMAP_UNSET,
-	  .p_encode		= (kxdrproc_t) xdr_encode_mapping,	
+	  .p_encode		= (kxdrproc_t) xdr_encode_mapping,
 	  .p_decode		= (kxdrproc_t) xdr_decode_bool,
 	  .p_bufsiz		= 4,
 	  .p_count		= 1,

@@ -681,7 +681,7 @@ static int emu10k1_mixer_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct file_operations emu10k1_mixer_fops = {
+const struct file_operations emu10k1_mixer_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.ioctl		= emu10k1_mixer_ioctl,

@@ -650,7 +650,7 @@ static unsigned int dasd_eer_poll(struct file *filp, poll_table *ptable)
 	return mask;
 }
 
-static struct file_operations dasd_eer_fops = {
+static const struct file_operations dasd_eer_fops = {
 	.open		= &dasd_eer_open,
 	.release	= &dasd_eer_close,
 	.read		= &dasd_eer_read,

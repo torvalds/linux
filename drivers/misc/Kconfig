@@ -42,7 +42,7 @@ config SGI_IOC4
 
 config TIFM_CORE
 	tristate "TI Flash Media interface support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && PCI
 	help
 	  If you want support for Texas Instruments(R) Flash Media adapters
 	  you should select this option and then also choose an appropriate

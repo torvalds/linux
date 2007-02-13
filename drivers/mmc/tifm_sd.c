@@ -36,8 +36,8 @@ module_param(fixed_timeout, bool, 0644);
 #define TIFM_MMCSD_INAB       0x0080   /* abort / initialize command */
 #define TIFM_MMCSD_READ       0x8000
 
-#define TIFM_MMCSD_DATAMASK   0x001d   /* set bits: EOFB, BRS, CB, EOC */
-#define TIFM_MMCSD_ERRMASK    0x41e0   /* set bits: CERR, CCRC, CTO, DCRC, DTO */
+#define TIFM_MMCSD_DATAMASK   0x401d   /* set bits: CERR, EOFB, BRS, CB, EOC */
+#define TIFM_MMCSD_ERRMASK    0x01e0   /* set bits: CCRC, CTO, DCRC, DTO */
 #define TIFM_MMCSD_EOC        0x0001   /* end of command phase  */
 #define TIFM_MMCSD_CB         0x0004   /* card enter busy state */
 #define TIFM_MMCSD_BRS        0x0008   /* block received/sent   */
@@ -242,7 +242,7 @@ change_state:
 	case IDLE:
 		return;
 	case CMD:
-		if (host_status & TIFM_MMCSD_EOC) {
+		if (host_status & (TIFM_MMCSD_EOC | TIFM_MMCSD_CERR)) {
 			tifm_sd_fetch_resp(cmd, sock);
 			if (cmd->data) {
 				host->state = BRS;
@@ -341,10 +341,7 @@ static void tifm_sd_signal_irq(struct tifm_dev *sock,
 			goto done;
 
 		if (host_status & TIFM_MMCSD_ERRMASK) {
-			if (host_status & TIFM_MMCSD_CERR)
-				error_code = MMC_ERR_FAILED;
-			else if (host_status
-				 & (TIFM_MMCSD_CTO | TIFM_MMCSD_DTO))
+			if (host_status & (TIFM_MMCSD_CTO | TIFM_MMCSD_DTO))
 				error_code = MMC_ERR_TIMEOUT;
 			else if (host_status
 				 & (TIFM_MMCSD_CCRC | TIFM_MMCSD_DCRC))

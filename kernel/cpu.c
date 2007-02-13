@@ -309,6 +309,8 @@ void enable_nonboot_cpus(void)
 	mutex_lock(&cpu_add_remove_lock);
 	cpu_hotplug_disabled = 0;
 	mutex_unlock(&cpu_add_remove_lock);
+	if (cpus_empty(frozen_cpus))
+		return;
 
 	printk("Enabling non-boot CPUs ...\n");
 	for_each_cpu_mask(cpu, frozen_cpus) {

@@ -142,7 +142,7 @@ out:
 	return weight;
 }
 
-static void wrandom_init_state(void) 
+static void wrandom_init_state(void)
 {
 	int i;
 
@@ -167,7 +167,7 @@ static void wrandom_select_route(const struct flowi *flp,
 
 	/* collect all candidates and identify their weights */
 	for (rt = rcu_dereference(first); rt;
-	     rt = rcu_dereference(rt->u.rt_next)) {
+	     rt = rcu_dereference(rt->u.dst.rt_next)) {
 		if ((rt->u.dst.flags & DST_BALANCED) != 0 &&
 		    multipath_comparekeys(&rt->fl, flp)) {
 			struct multipath_candidate* mpc =
@@ -287,7 +287,7 @@ static void __multipath_free(struct rcu_head *head)
 
 static void __multipath_free_dst(struct rcu_head *head)
 {
-  	struct multipath_dest *dst = container_of(head,
+	struct multipath_dest *dst = container_of(head,
 						  struct multipath_dest,
 						  rcu);
 	kfree(dst);

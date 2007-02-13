@@ -2736,7 +2736,7 @@ static int sn9c102_ioctl(struct inode* inode, struct file* filp,
 
 /*****************************************************************************/
 
-static struct file_operations sn9c102_fops = {
+static const struct file_operations sn9c102_fops = {
 	.owner = THIS_MODULE,
 	.open =    sn9c102_open,
 	.release = sn9c102_release,

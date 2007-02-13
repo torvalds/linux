@@ -187,7 +187,7 @@ static struct sync_port ports[]=
 
 #define NUMBER_OF_PORTS (sizeof(ports)/sizeof(sync_port))
 
-static struct file_operations sync_serial_fops = {
+static const struct file_operations sync_serial_fops = {
 	.owner   = THIS_MODULE,
 	.write   = sync_serial_write,
 	.read    = sync_serial_read,

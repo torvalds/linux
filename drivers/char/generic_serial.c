@@ -382,7 +382,6 @@ void gs_flush_buffer(struct tty_struct *tty)
 	port->xmit_cnt = port->xmit_head = port->xmit_tail = 0;
 	spin_unlock_irqrestore (&port->driver_lock, flags);
 
-	wake_up_interruptible(&tty->write_wait);
 	tty_wakeup(tty);
 	func_exit ();
 }

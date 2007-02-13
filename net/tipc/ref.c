@@ -1,6 +1,6 @@
 /*
  * net/tipc/ref.c: TIPC object registry code
- * 
+ *
  * Copyright (c) 1991-2006, Ericsson AB
  * Copyright (c) 2004-2005, Wind River Systems
  * All rights reserved.
@@ -50,11 +50,11 @@
  * Object reference table consists of 2**N entries.
  *
  * A used entry has object ptr != 0, reference == XXXX|own index
- *				     (XXXX changes each time entry is acquired) 
+ *				     (XXXX changes each time entry is acquired)
  * A free entry has object ptr == 0, reference == YYYY|next free index
  *				     (YYYY is one more than last used XXXX)
  *
- * Free list is initially chained from entry (2**N)-1 to entry 1. 
+ * Free list is initially chained from entry (2**N)-1 to entry 1.
  * Entry 0 is not used to allow index 0 to indicate the end of the free list.
  *
  * Note: Any accidental reference of the form XXXX|0--0 won't match entry 0
@@ -113,9 +113,9 @@ void tipc_ref_table_stop(void)
 
 /**
  * tipc_ref_acquire - create reference to an object
- * 
+ *
  * Return a unique reference value which can be translated back to the pointer
- * 'object' at a later time.  Also, pass back a pointer to the lock protecting 
+ * 'object' at a later time.  Also, pass back a pointer to the lock protecting
  * the object, but without locking it.
  */
 
@@ -141,15 +141,15 @@ u32 tipc_ref_acquire(void *object, spinlock_t **lock)
 		index = tipc_ref_table.first_free;
 		entry = &(tipc_ref_table.entries[index]);
 		index_mask = tipc_ref_table.index_mask;
-		/* take lock in case a previous user of entry still holds it */ 
-		spin_lock_bh(&entry->lock);  
+		/* take lock in case a previous user of entry still holds it */
+		spin_lock_bh(&entry->lock);
 		next_plus_upper = entry->data.next_plus_upper;
 		tipc_ref_table.first_free = next_plus_upper & index_mask;
 		reference = (next_plus_upper & ~index_mask) + index;
 		entry->data.reference = reference;
 		entry->object = object;
-                if (lock != 0)
-                        *lock = &entry->lock;
+		if (lock != 0)
+			*lock = &entry->lock;
 		spin_unlock_bh(&entry->lock);
 	}
 	write_unlock_bh(&ref_table_lock);
@@ -158,7 +158,7 @@ u32 tipc_ref_acquire(void *object, spinlock_t **lock)
 
 /**
  * tipc_ref_discard - invalidate references to an object
- * 
+ *
  * Disallow future references to an object and free up the entry for re-use.
  * Note: The entry's spin_lock may still be busy after discard
  */
@@ -166,7 +166,7 @@ u32 tipc_ref_acquire(void *object, spinlock_t **lock)
 void tipc_ref_discard(u32 ref)
 {
 	struct reference *entry;
-	u32 index; 
+	u32 index;
 	u32 index_mask;
 
 	if (!ref) {
@@ -198,7 +198,7 @@ void tipc_ref_discard(u32 ref)
 		tipc_ref_table.first_free = index;
 	else
 		/* next_plus_upper is always XXXX|0--0 for last free entry */
-		tipc_ref_table.entries[tipc_ref_table.last_free].data.next_plus_upper 
+		tipc_ref_table.entries[tipc_ref_table.last_free].data.next_plus_upper
 			|= index;
 	tipc_ref_table.last_free = index;
 

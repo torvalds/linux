@@ -854,7 +854,7 @@ static void llc_sk_init(struct sock* sk)
 	llc->n2 = 2;   /* max retransmit */
 	llc->k  = 2;   /* tx win size, will adjust dynam */
 	llc->rw = 128; /* rx win size (opt and equal to
-		        * tx_win of remote LLC) */
+			* tx_win of remote LLC) */
 	skb_queue_head_init(&llc->pdu_unack_q);
 	sk->sk_backlog_rcv = llc_backlog_rcv;
 }

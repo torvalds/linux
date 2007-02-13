@@ -338,7 +338,8 @@ static void com20020_set_mc_list(struct net_device *dev)
 }
 
 #if defined(CONFIG_ARCNET_COM20020_PCI_MODULE) || \
-    defined(CONFIG_ARCNET_COM20020_ISA_MODULE)
+    defined(CONFIG_ARCNET_COM20020_ISA_MODULE) || \
+    defined(CONFIG_ARCNET_COM20020_CS_MODULE)
 EXPORT_SYMBOL(com20020_check);
 EXPORT_SYMBOL(com20020_found);
 #endif

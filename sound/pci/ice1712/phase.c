@@ -71,7 +71,7 @@
  * Logarithmic volume values for WM8770
  * Computed as 20 * Log10(255 / x)
  */
-static unsigned char wm_vol[256] = {
+static const unsigned char wm_vol[256] = {
 	127, 48, 42, 39, 36, 34, 33, 31, 30, 29, 28, 27, 27, 26, 25, 25, 24, 24, 23,
 	23, 22, 22, 21, 21, 21, 20, 20, 20, 19, 19, 19, 18, 18, 18, 18, 17, 17, 17,
 	17, 16, 16, 16, 16, 15, 15, 15, 15, 15, 15, 14, 14, 14, 14, 14, 13, 13, 13,
@@ -89,13 +89,13 @@ static unsigned char wm_vol[256] = {
 #define WM_VOL_MAX	(sizeof(wm_vol) - 1)
 #define WM_VOL_MUTE	0x8000
 
-static struct snd_akm4xxx akm_phase22 __devinitdata = {
+static const struct snd_akm4xxx akm_phase22 __devinitdata = {
 	.type = SND_AK4524,
 	.num_dacs = 2,
 	.num_adcs = 2,
 };
 
-static struct snd_ak4xxx_private akm_phase22_priv __devinitdata = {
+static const struct snd_ak4xxx_private akm_phase22_priv __devinitdata = {
 	.caddr =	2,
 	.cif =		1,
 	.data_mask =	1 << 4,
@@ -152,36 +152,36 @@ static int __devinit phase22_add_controls(struct snd_ice1712 *ice)
 	return 0;
 }
 
-static unsigned char phase22_eeprom[] __devinitdata = {
-	0x00,	/* SYSCONF: 1xADC, 1xDACs */
-	0x80,	/* ACLINK: I2S */
-	0xf8,	/* I2S: vol, 96k, 24bit*/
-	0xc3,	/* SPDIF: out-en, out-int, spdif-in */
-	0xFF,	/* GPIO_DIR */
-	0xFF,	/* GPIO_DIR1 */
-	0xFF,	/* GPIO_DIR2 */
-	0x00,	/* GPIO_MASK */
-	0x00,	/* GPIO_MASK1 */
-	0x00,	/* GPIO_MASK2 */
-	0x00,	/* GPIO_STATE: */
-	0x00,	/* GPIO_STATE1: */
-	0x00,	/* GPIO_STATE2 */
+static const unsigned char phase22_eeprom[] __devinitdata = {
+	[ICE_EEP2_SYSCONF]     = 0x00,	/* 1xADC, 1xDACs */
+	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
+	[ICE_EEP2_I2S]         = 0xf8,	/* vol, 96k, 24bit */
+	[ICE_EEP2_SPDIF]       = 0xc3,	/* out-en, out-int, spdif-in */
+	[ICE_EEP2_GPIO_DIR]    = 0xff,
+	[ICE_EEP2_GPIO_DIR1]   = 0xff,
+	[ICE_EEP2_GPIO_DIR2]   = 0xff,
+	[ICE_EEP2_GPIO_MASK]   = 0x00,
+	[ICE_EEP2_GPIO_MASK1]  = 0x00,
+	[ICE_EEP2_GPIO_MASK2]  = 0x00,
+	[ICE_EEP2_GPIO_STATE]  = 0x00,
+	[ICE_EEP2_GPIO_STATE1] = 0x00,
+	[ICE_EEP2_GPIO_STATE2] = 0x00,
 };
 
-static unsigned char phase28_eeprom[] __devinitdata = {
-	0x0b,	/* SYSCONF: clock 512, spdif-in/ADC, 4DACs */
-	0x80,	/* ACLINK: I2S */
-	0xfc,	/* I2S: vol, 96k, 24bit, 192k */
-	0xc3,	/* SPDIF: out-en, out-int, spdif-in */
-	0xff,	/* GPIO_DIR */
-	0xff,	/* GPIO_DIR1 */
-	0x5f,	/* GPIO_DIR2 */
-	0x00,	/* GPIO_MASK */
-	0x00,	/* GPIO_MASK1 */
-	0x00,	/* GPIO_MASK2 */
-	0x00,	/* GPIO_STATE */
-	0x00,	/* GPIO_STATE1 */
-	0x00,	/* GPIO_STATE2 */
+static const unsigned char phase28_eeprom[] __devinitdata = {
+	[ICE_EEP2_SYSCONF]     = 0x0b,	/* clock 512, spdif-in/ADC, 4DACs */
+	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
+	[ICE_EEP2_I2S]         = 0xfc,	/* vol, 96k, 24bit, 192k */
+	[ICE_EEP2_SPDIF]       = 0xc3,	/* out-en, out-int, spdif-in */
+	[ICE_EEP2_GPIO_DIR]    = 0xff,
+	[ICE_EEP2_GPIO_DIR1]   = 0xff,
+	[ICE_EEP2_GPIO_DIR2]   = 0x5f,
+	[ICE_EEP2_GPIO_MASK]   = 0x00,
+	[ICE_EEP2_GPIO_MASK1]  = 0x00,
+	[ICE_EEP2_GPIO_MASK2]  = 0x00,
+	[ICE_EEP2_GPIO_STATE]  = 0x00,
+	[ICE_EEP2_GPIO_STATE1] = 0x00,
+	[ICE_EEP2_GPIO_STATE2] = 0x00,
 };
 
 /*
@@ -343,7 +343,7 @@ static int wm_master_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 
 static int __devinit phase28_init(struct snd_ice1712 *ice)
 {
-	static unsigned short wm_inits_phase28[] = {
+	static const unsigned short wm_inits_phase28[] = {
 		/* These come first to reduce init pop noise */
 		0x1b, 0x044,		/* ADC Mux (AC'97 source) */
 		0x1c, 0x00B,		/* Out Mux1 (VOUT1 = DAC+AUX, VOUT2 = DAC) */
@@ -382,7 +382,7 @@ static int __devinit phase28_init(struct snd_ice1712 *ice)
 
 	unsigned int tmp;
 	struct snd_akm4xxx *ak;
-	unsigned short *p;
+	const unsigned short *p;
 	int i;
 
 	ice->num_total_dacs = 8;
@@ -697,10 +697,10 @@ static int phase28_oversampling_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	return 0;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_wm_dac, -12700, 100, 1);
-static DECLARE_TLV_DB_SCALE(db_scale_wm_pcm, -6400, 50, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_wm_dac, -12700, 100, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_wm_pcm, -6400, 50, 1);
 
-static struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
+static const struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -815,7 +815,7 @@ static struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	}
 };
 
-static struct snd_kcontrol_new wm_controls[] __devinitdata = {
+static const struct snd_kcontrol_new wm_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Switch",
@@ -870,7 +870,7 @@ static int __devinit phase28_add_controls(struct snd_ice1712 *ice)
 	return 0;
 }
 
-struct snd_ice1712_card_info snd_vt1724_phase_cards[] __devinitdata = {
+const struct snd_ice1712_card_info snd_vt1724_phase_cards[] __devinitdata = {
 	{
 		.subvendor = VT1724_SUBDEVICE_PHASE22,
 		.name = "Terratec PHASE 22",

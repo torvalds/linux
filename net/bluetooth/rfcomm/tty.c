@@ -1,4 +1,4 @@
-/* 
+/*
    RFCOMM implementation for Linux Bluetooth stack (BlueZ).
    Copyright (C) 2002 Maxim Krasnyansky <maxk@qualcomm.com>
    Copyright (C) 2002 Marcel Holtmann <marcel@holtmann.org>
@@ -11,13 +11,13 @@
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
    IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
+   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
+   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS,
+   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS
    SOFTWARE IS DISCLAIMED.
 */
 
@@ -110,7 +110,7 @@ static void rfcomm_dev_destruct(struct rfcomm_dev *dev)
 
 	kfree(dev);
 
-	/* It's safe to call module_put() here because socket still 
+	/* It's safe to call module_put() here because socket still
 	   holds reference to this module. */
 	module_put(THIS_MODULE);
 }
@@ -185,7 +185,7 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 	int err = 0;
 
 	BT_DBG("id %d channel %d", req->dev_id, req->channel);
-	
+
 	dev = kzalloc(sizeof(struct rfcomm_dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
@@ -234,7 +234,7 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 	bacpy(&dev->dst, &req->dst);
 	dev->channel = req->channel;
 
-	dev->flags = req->flags & 
+	dev->flags = req->flags &
 		((1 << RFCOMM_RELEASE_ONHUP) | (1 << RFCOMM_REUSE_DLC));
 
 	init_waitqueue_head(&dev->wait);
@@ -249,7 +249,7 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 	dev->dlc   = dlc;
 	rfcomm_dlc_unlock(dlc);
 
-	/* It's safe to call __module_get() here because socket already 
+	/* It's safe to call __module_get() here because socket already
 	   holds reference to this module. */
 	__module_get(THIS_MODULE);
 
@@ -487,7 +487,7 @@ static void rfcomm_dev_data_ready(struct rfcomm_dlc *dlc, struct sk_buff *skb)
 {
 	struct rfcomm_dev *dev = dlc->owner;
 	struct tty_struct *tty;
-       
+
 	if (!dev || !(tty = dev->tty)) {
 		kfree_skb(skb);
 		return;
@@ -506,7 +506,7 @@ static void rfcomm_dev_state_change(struct rfcomm_dlc *dlc, int err)
 	struct rfcomm_dev *dev = dlc->owner;
 	if (!dev)
 		return;
-	
+
 	BT_DBG("dlc %p dev %p err %d", dlc, dev, err);
 
 	dev->err = err;
@@ -525,7 +525,7 @@ static void rfcomm_dev_state_change(struct rfcomm_dlc *dlc, int err)
 				rfcomm_dev_put(dev);
 				rfcomm_dlc_lock(dlc);
 			}
-		} else 
+		} else
 			tty_hangup(dev->tty);
 	}
 }
@@ -543,7 +543,7 @@ static void rfcomm_dev_modem_status(struct rfcomm_dlc *dlc, u8 v24_sig)
 			tty_hangup(dev->tty);
 	}
 
-	dev->modem_status = 
+	dev->modem_status =
 		((v24_sig & RFCOMM_V24_RTC) ? (TIOCM_DSR | TIOCM_DTR) : 0) |
 		((v24_sig & RFCOMM_V24_RTR) ? (TIOCM_RTS | TIOCM_CTS) : 0) |
 		((v24_sig & RFCOMM_V24_IC)  ? TIOCM_RI : 0) |
@@ -561,7 +561,7 @@ static void rfcomm_tty_wakeup(unsigned long arg)
 	BT_DBG("dev %p tty %p", dev, tty);
 
 	if (test_bit(TTY_DO_WRITE_WAKEUP, &tty->flags) && tty->ldisc.write_wakeup)
-                (tty->ldisc.write_wakeup)(tty);
+		(tty->ldisc.write_wakeup)(tty);
 
 	wake_up_interruptible(&tty->write_wait);
 #ifdef SERIAL_HAVE_POLL_WAIT
@@ -576,7 +576,7 @@ static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)
 	struct rfcomm_dlc *dlc;
 	int err, id;
 
-        id = tty->index;
+	id = tty->index;
 
 	BT_DBG("tty %p id %d", tty, id);
 
@@ -670,7 +670,7 @@ static int rfcomm_tty_write(struct tty_struct *tty, const unsigned char *buf, in
 		size = min_t(uint, count, dlc->mtu);
 
 		skb = rfcomm_wmalloc(dev, size + RFCOMM_SKB_RESERVE, GFP_ATOMIC);
-		
+
 		if (!skb)
 			break;
 
@@ -773,7 +773,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		return;
 
 	/* Handle turning off CRTSCTS */
-	if ((old->c_cflag & CRTSCTS) && !(new->c_cflag & CRTSCTS)) 
+	if ((old->c_cflag & CRTSCTS) && !(new->c_cflag & CRTSCTS))
 		BT_DBG("Turning off CRTSCTS unsupported");
 
 	/* Parity on/off and when on, odd/even */
@@ -830,7 +830,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	}
 
 	/* Handle number of data bits [5-8] */
-	if ((old->c_cflag & CSIZE) != (new->c_cflag & CSIZE)) 
+	if ((old->c_cflag & CSIZE) != (new->c_cflag & CSIZE))
 		changes |= RFCOMM_RPN_PM_DATA;
 
 	switch (new->c_cflag & CSIZE) {
@@ -868,7 +868,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	case 9600:
 		baud = RFCOMM_RPN_BR_9600;
 		break;
-	case 19200: 
+	case 19200:
 		baud = RFCOMM_RPN_BR_19200;
 		break;
 	case 38400:
@@ -887,7 +887,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		/* 9600 is standard accordinag to the RFCOMM specification */
 		baud = RFCOMM_RPN_BR_9600;
 		break;
-	
+
 	}
 
 	if (changes)
@@ -978,11 +978,11 @@ static int rfcomm_tty_read_proc(char *buf, char **start, off_t offset, int len, 
 
 static int rfcomm_tty_tiocmget(struct tty_struct *tty, struct file *filp)
 {
- 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
+	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
 
 	BT_DBG("tty %p dev %p", tty, dev);
 
- 	return dev->modem_status;
+	return dev->modem_status;
 }
 
 static int rfcomm_tty_tiocmset(struct tty_struct *tty, struct file *filp, unsigned int set, unsigned int clear)

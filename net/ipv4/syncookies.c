@@ -2,16 +2,16 @@
  *  Syncookies implementation for the Linux kernel
  *
  *  Copyright (C) 1997 Andi Kleen
- *  Based on ideas by D.J.Bernstein and Eric Schenk. 
+ *  Based on ideas by D.J.Bernstein and Eric Schenk.
  *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
  *      2 of the License, or (at your option) any later version.
- * 
+ *
  *  $Id: syncookies.c,v 1.18 2002/02/01 22:01:04 davem Exp $
  *
- *  Missing: IPv6 support. 
+ *  Missing: IPv6 support.
  */
 
 #include <linux/tcp.h>
@@ -57,7 +57,7 @@ static __u32 secure_tcp_syn_cookie(__be32 saddr, __be32 daddr, __be16 sport,
 	/*
 	 * Compute the secure sequence number.
 	 * The output should be:
-   	 *   HASH(sec1,saddr,sport,daddr,dport,sec1) + sseq + (count * 2^24)
+	 *   HASH(sec1,saddr,sport,daddr,dport,sec1) + sseq + (count * 2^24)
 	 *      + (HASH(sec2,saddr,sport,daddr,dport,count,sec2) % 2^24).
 	 * Where sseq is their sequence number and count increases every
 	 * minute by 1.
@@ -99,17 +99,17 @@ static __u32 check_tcp_syn_cookie(__u32 cookie, __be32 saddr, __be32 daddr,
 		& COOKIEMASK;	/* Leaving the data behind */
 }
 
-/* 
+/*
  * This table has to be sorted and terminated with (__u16)-1.
  * XXX generate a better table.
  * Unresolved Issues: HIPPI with a 64k MSS is not well supported.
  */
 static __u16 const msstab[] = {
 	64 - 1,
-	256 - 1,	
+	256 - 1,
 	512 - 1,
 	536 - 1,
-	1024 - 1,	
+	1024 - 1,
 	1440 - 1,
 	1460 - 1,
 	4312 - 1,
@@ -128,7 +128,7 @@ __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 	int mssind;
 	const __u16 mss = *mssp;
 
-	
+
 	tp->last_synq_overflow = jiffies;
 
 	/* XXX sort msstab[] by probability?  Binary search? */
@@ -144,23 +144,23 @@ __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 				     jiffies / (HZ * 60), mssind);
 }
 
-/* 
+/*
  * This (misnamed) value is the age of syncookie which is permitted.
  * Its ideal value should be dependent on TCP_TIMEOUT_INIT and
  * sysctl_tcp_retries1. It's a rather complicated formula (exponential
  * backoff) to compute at runtime so it's currently hardcoded here.
  */
 #define COUNTER_TRIES 4
-/*  
- * Check if a ack sequence number is a valid syncookie. 
+/*
+ * Check if a ack sequence number is a valid syncookie.
  * Return the decoded mss if it is, or 0 if not.
  */
 static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
 {
-	__u32 seq; 
+	__u32 seq;
 	__u32 mssind;
 
-	seq = ntohl(skb->h.th->seq)-1; 
+	seq = ntohl(skb->h.th->seq)-1;
 	mssind = check_tcp_syn_cookie(cookie,
 				      skb->nh.iph->saddr, skb->nh.iph->daddr,
 				      skb->h.th->source, skb->h.th->dest,
@@ -191,19 +191,19 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	struct inet_request_sock *ireq;
 	struct tcp_request_sock *treq;
 	struct tcp_sock *tp = tcp_sk(sk);
-	__u32 cookie = ntohl(skb->h.th->ack_seq) - 1; 
+	__u32 cookie = ntohl(skb->h.th->ack_seq) - 1;
 	struct sock *ret = sk;
-	struct request_sock *req; 
-	int mss; 
-	struct rtable *rt; 
+	struct request_sock *req;
+	int mss;
+	struct rtable *rt;
 	__u8 rcv_wscale;
 
 	if (!sysctl_tcp_syncookies || !skb->h.th->ack)
 		goto out;
 
-  	if (time_after(jiffies, tp->last_synq_overflow + TCP_TIMEOUT_INIT) ||
+	if (time_after(jiffies, tp->last_synq_overflow + TCP_TIMEOUT_INIT) ||
 	    (mss = cookie_check(skb, cookie)) == 0) {
-	 	NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESFAILED);
+		NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESFAILED);
 		goto out;
 	}
 
@@ -221,9 +221,9 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	ireq = inet_rsk(req);
 	treq = tcp_rsk(req);
 	treq->rcv_isn		= ntohl(skb->h.th->seq) - 1;
-	treq->snt_isn		= cookie; 
+	treq->snt_isn		= cookie;
 	req->mss		= mss;
- 	ireq->rmt_port		= skb->h.th->source;
+	ireq->rmt_port		= skb->h.th->source;
 	ireq->loc_addr		= skb->nh.iph->daddr;
 	ireq->rmt_addr		= skb->nh.iph->saddr;
 	ireq->opt		= NULL;
@@ -242,15 +242,15 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	}
 
 	ireq->snd_wscale = ireq->rcv_wscale = ireq->tstamp_ok = 0;
-	ireq->wscale_ok	 = ireq->sack_ok = 0; 
-	req->expires	= 0UL; 
-	req->retrans	= 0; 
-	
+	ireq->wscale_ok	 = ireq->sack_ok = 0;
+	req->expires	= 0UL;
+	req->retrans	= 0;
+
 	/*
 	 * We need to lookup the route here to get at the correct
 	 * window size. We should better make sure that the window size
 	 * hasn't changed since we received the original syn, but I see
-	 * no easy way to do this. 
+	 * no easy way to do this.
 	 */
 	{
 		struct flowi fl = { .nl_u = { .ip4_u =
@@ -266,17 +266,17 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 		security_req_classify_flow(req, &fl);
 		if (ip_route_output_key(&rt, &fl)) {
 			reqsk_free(req);
-			goto out; 
+			goto out;
 		}
 	}
 
 	/* Try to redo what tcp_v4_send_synack did. */
 	req->window_clamp = dst_metric(&rt->u.dst, RTAX_WINDOW);
 	tcp_select_initial_window(tcp_full_space(sk), req->mss,
-				  &req->rcv_wnd, &req->window_clamp, 
+				  &req->rcv_wnd, &req->window_clamp,
 				  0, &rcv_wscale);
 	/* BTW win scale with syncookies is 0 by definition */
-	ireq->rcv_wscale  = rcv_wscale; 
+	ireq->rcv_wscale  = rcv_wscale;
 
 	ret = get_cookie_sock(sk, skb, req, &rt->u.dst);
 out:	return ret;

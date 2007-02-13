@@ -3174,7 +3174,7 @@ bttv_mmap(struct file *file, struct vm_area_struct *vma)
 	return videobuf_mmap_mapper(bttv_queue(fh),vma);
 }
 
-static struct file_operations bttv_fops =
+static const struct file_operations bttv_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = bttv_open,
@@ -3332,7 +3332,7 @@ static unsigned int radio_poll(struct file *file, poll_table *wait)
 	return cmd.result;
 }
 
-static struct file_operations radio_fops =
+static const struct file_operations radio_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = radio_open,

@@ -57,7 +57,7 @@ static void smp_ext_bitcall(int, ec_bit_sig);
 static void smp_ext_bitcall_others(ec_bit_sig);
 
 /*
-5B * Structure and data for smp_call_function(). This is designed to minimise
+ * Structure and data for smp_call_function(). This is designed to minimise
  * static memory requirements. It also looks cleaner.
  */
 static DEFINE_SPINLOCK(call_lock);
@@ -104,7 +104,7 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
  * remote CPUs are nearly ready to execute <<func>> or are or have executed.
  *
  * You must not call this function with disabled interrupts or from a
- * hardware interrupt handler or from a bottom half handler.
+ * hardware interrupt handler.
  */
 {
 	struct call_data_struct data;
@@ -113,8 +113,8 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 	if (cpus <= 0)
 		return 0;
 
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
+	/* Can deadlock when interrupts are disabled or if in wrong context */
+	WARN_ON(irqs_disabled() || in_irq());
 
 	data.func = func;
 	data.info = info;
@@ -123,7 +123,7 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 	if (wait)
 		atomic_set(&data.finished, 0);
 
-	spin_lock(&call_lock);
+	spin_lock_bh(&call_lock);
 	call_data = &data;
 	/* Send a message to all other CPUs and wait for them to respond */
         smp_ext_bitcall_others(ec_call_function);
@@ -135,7 +135,7 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 	if (wait)
 		while (atomic_read(&data.finished) != cpus)
 			cpu_relax();
-	spin_unlock(&call_lock);
+	spin_unlock_bh(&call_lock);
 
 	return 0;
 }
@@ -158,6 +158,9 @@ int smp_call_function_on(void (*func) (void *info), void *info,
 
 	if (!cpu_online(cpu))
 		return -EINVAL;
+
+	/* Can deadlock when interrupts are disabled or if in wrong context */
+	WARN_ON(irqs_disabled() || in_irq());
 
 	/* disable preemption for local function call */
 	curr_cpu = get_cpu();

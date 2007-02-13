@@ -236,7 +236,7 @@ config SND_CS5535AUDIO
 config SND_DARLA20
 	tristate "(Echoaudio) Darla20"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_PCM
 	help
 	  Say 'Y' or 'M' to include support for Echoaudio Darla.
@@ -247,7 +247,7 @@ config SND_DARLA20
 config SND_GINA20
 	tristate "(Echoaudio) Gina20"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_PCM
 	help
 	  Say 'Y' or 'M' to include support for Echoaudio Gina.
@@ -258,7 +258,7 @@ config SND_GINA20
 config SND_LAYLA20
 	tristate "(Echoaudio) Layla20"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_RAWMIDI
 	select SND_PCM
 	help
@@ -270,7 +270,7 @@ config SND_LAYLA20
 config SND_DARLA24
 	tristate "(Echoaudio) Darla24"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_PCM
 	help
 	  Say 'Y' or 'M' to include support for Echoaudio Darla24.
@@ -281,7 +281,7 @@ config SND_DARLA24
 config SND_GINA24
 	tristate "(Echoaudio) Gina24"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_PCM
 	help
 	  Say 'Y' or 'M' to include support for Echoaudio Gina24.
@@ -292,7 +292,7 @@ config SND_GINA24
 config SND_LAYLA24
 	tristate "(Echoaudio) Layla24"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_RAWMIDI
 	select SND_PCM
 	help
@@ -304,7 +304,7 @@ config SND_LAYLA24
 config SND_MONA
 	tristate "(Echoaudio) Mona"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_RAWMIDI
 	select SND_PCM
 	help
@@ -316,7 +316,7 @@ config SND_MONA
 config SND_MIA
 	tristate "(Echoaudio) Mia"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_RAWMIDI
 	select SND_PCM
 	help
@@ -328,7 +328,7 @@ config SND_MIA
 config SND_ECHO3G
 	tristate "(Echoaudio) 3G cards"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_RAWMIDI
 	select SND_PCM
 	help
@@ -340,7 +340,7 @@ config SND_ECHO3G
 config SND_INDIGO
 	tristate "(Echoaudio) Indigo"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_PCM
 	help
 	  Say 'Y' or 'M' to include support for Echoaudio Indigo.
@@ -351,7 +351,7 @@ config SND_INDIGO
 config SND_INDIGOIO
 	tristate "(Echoaudio) Indigo IO"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_PCM
 	help
 	  Say 'Y' or 'M' to include support for Echoaudio Indigo IO.
@@ -362,7 +362,7 @@ config SND_INDIGOIO
 config SND_INDIGODJ
 	tristate "(Echoaudio) Indigo DJ"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_PCM
 	help
 	  Say 'Y' or 'M' to include support for Echoaudio Indigo DJ.
@@ -373,6 +373,7 @@ config SND_INDIGODJ
 config SND_EMU10K1
 	tristate "Emu10k1 (SB Live!, Audigy, E-mu APS)"
 	depends on SND
+	select FW_LOADER
 	select SND_HWDEP
 	select SND_RAWMIDI
 	select SND_AC97_CODEC
@@ -575,6 +576,7 @@ config SND_INTEL8X0M
 config SND_KORG1212
 	tristate "Korg 1212 IO"
 	depends on SND
+	select FW_LOADER
 	select SND_PCM
 	help
 	  Say Y here to include support for Korg 1212IO soundcards.
@@ -585,6 +587,7 @@ config SND_KORG1212
 config SND_MAESTRO3
 	tristate "ESS Allegro/Maestro3"
 	depends on SND
+	select FW_LOADER
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for soundcards based on ESS Maestro 3
@@ -629,7 +632,7 @@ config SND_PCXHR
 config SND_RIPTIDE
 	tristate "Conexant Riptide"
 	depends on SND
-	depends on FW_LOADER
+	select FW_LOADER
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
@@ -734,6 +737,7 @@ config SND_VX222
 config SND_YMFPCI
 	tristate "Yamaha YMF724/740/744/754"
 	depends on SND
+	select FW_LOADER
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_AC97_CODEC

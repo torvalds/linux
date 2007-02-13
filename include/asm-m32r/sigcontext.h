@@ -1,9 +1,6 @@
 #ifndef _ASM_M32R_SIGCONTEXT_H
 #define _ASM_M32R_SIGCONTEXT_H
 
-/* $Id$ */
-
-
 struct sigcontext {
 	/* CPU registers */
 	/* Saved main processor registers. */

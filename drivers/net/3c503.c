@@ -600,8 +600,7 @@ el2_block_input(struct net_device *dev, int count, struct sk_buff *skb, int ring
 	    count -= semi_count;
 	    memcpy_fromio(skb->data + semi_count, base + ei_status.priv, count);
 	} else {
-		/* Packet is in one chunk -- we can copy + cksum. */
-		eth_io_copy_and_sum(skb, base + ring_offset, count, 0);
+		memcpy_fromio(skb->data, base + ring_offset, count);
 	}
 	return;
     }

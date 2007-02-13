@@ -1480,7 +1480,7 @@ static int em28xx_v4l2_ioctl(struct inode *inode, struct file *filp,
 	return ret;
 }
 
-static struct file_operations em28xx_v4l_fops = {
+static const struct file_operations em28xx_v4l_fops = {
 	.owner = THIS_MODULE,
 	.open = em28xx_v4l2_open,
 	.release = em28xx_v4l2_close,

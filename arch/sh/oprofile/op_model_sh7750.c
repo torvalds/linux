@@ -187,7 +187,7 @@ static ssize_t sh7750_write_count(struct file *file, const char __user *buf,
 	return count;
 }
 
-static struct file_operations count_fops = {
+static const struct file_operations count_fops = {
 	.read		= sh7750_read_count,
 	.write		= sh7750_write_count,
 };

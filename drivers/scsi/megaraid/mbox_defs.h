@@ -748,7 +748,7 @@ typedef struct {
 
 
 /**
- * private_bios_data - bios private data for boot devices
+ * struct private_bios_data - bios private data for boot devices
  * @geometry	: bits 0-3 - BIOS geometry, 0x0001 - 1GB, 0x0010 - 2GB,
  *		0x1000 - 8GB, Others values are invalid
  * @unused	: bits 4-7 are unused

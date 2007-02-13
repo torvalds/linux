@@ -871,7 +871,7 @@ static void __devinit quirk_sb600_sata(struct pci_dev *pdev)
 		pci_write_config_byte(pdev, 0xa, 6);
 		pci_write_config_byte(pdev, 0x40, tmp);
 
-		pdev->class = 0x010601;
+		pdev->class = PCI_CLASS_STORAGE_SATA_AHCI;
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP600_SATA, quirk_sb600_sata);

@@ -2699,7 +2699,7 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 /**
  * The complete super operations.
  */
-static struct super_operations ntfs_sops = {
+static const struct super_operations ntfs_sops = {
 	.alloc_inode	= ntfs_alloc_big_inode,	  /* VFS: Allocate new inode. */
 	.destroy_inode	= ntfs_destroy_big_inode, /* VFS: Deallocate inode. */
 #ifdef NTFS_RW

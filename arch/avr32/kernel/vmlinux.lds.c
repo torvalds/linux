@@ -46,10 +46,12 @@ SECTIONS
 		__security_initcall_start = .;
 			*(.security_initcall.init)
 		__security_initcall_end = .;
+#ifdef CONFIG_BLK_DEV_INITRD
 		. = ALIGN(32);
 		__initramfs_start = .;
 			*(.init.ramfs)
 		__initramfs_end = .;
+#endif
 		. = ALIGN(4096);
 		__init_end = .;
 	}

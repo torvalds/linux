@@ -107,7 +107,7 @@ static __inline__ struct atm_flow_data *lookup_flow(struct Qdisc *sch,
 	struct atm_qdisc_data *p = PRIV(sch);
 	struct atm_flow_data *flow;
 
-        for (flow = p->flows; flow; flow = flow->next)
+	for (flow = p->flows; flow; flow = flow->next)
 		if (flow->classid == classid) break;
 	return flow;
 }
@@ -125,7 +125,7 @@ static int atm_tc_graft(struct Qdisc *sch,unsigned long arg,
 	if (!new) new = &noop_qdisc;
 	*old = xchg(&flow->q,new);
 	if (*old) qdisc_reset(*old);
-        return 0;
+	return 0;
 }
 
 
@@ -145,7 +145,7 @@ static unsigned long atm_tc_get(struct Qdisc *sch,u32 classid)
 
 	DPRINTK("atm_tc_get(sch %p,[qdisc %p],classid %x)\n",sch,p,classid);
 	flow = lookup_flow(sch,classid);
-        if (flow) flow->ref++;
+	if (flow) flow->ref++;
 	DPRINTK("atm_tc_get: flow %p\n",flow);
 	return (unsigned long) flow;
 }
@@ -280,9 +280,9 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	    opt->rta_type,RTA_PAYLOAD(opt),hdr_len);
 	if (!(sock = sockfd_lookup(fd,&error))) return error; /* f_count++ */
 	DPRINTK("atm_tc_change: f_count %d\n",file_count(sock->file));
-        if (sock->ops->family != PF_ATMSVC && sock->ops->family != PF_ATMPVC) {
+	if (sock->ops->family != PF_ATMSVC && sock->ops->family != PF_ATMPVC) {
 		error = -EPROTOTYPE;
-                goto err_out;
+		goto err_out;
 	}
 	/* @@@ should check if the socket is really operational or we'll crash
 	   on vcc->send */
@@ -320,9 +320,9 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		flow->q = &noop_qdisc;
 	DPRINTK("atm_tc_change: qdisc %p\n",flow->q);
 	flow->sock = sock;
-        flow->vcc = ATM_SD(sock); /* speedup */
+	flow->vcc = ATM_SD(sock); /* speedup */
 	flow->vcc->user_back = flow;
-        DPRINTK("atm_tc_change: vcc %p\n",flow->vcc);
+	DPRINTK("atm_tc_change: vcc %p\n",flow->vcc);
 	flow->old_pop = flow->vcc->pop;
 	flow->parent = p;
 	flow->vcc->pop = sch_atm_pop;
@@ -391,7 +391,7 @@ static struct tcf_proto **atm_tc_find_tcf(struct Qdisc *sch,unsigned long cl)
 	struct atm_flow_data *flow = (struct atm_flow_data *) cl;
 
 	DPRINTK("atm_tc_find_tcf(sch %p,[qdisc %p],flow %p)\n",sch,p,flow);
-        return flow ? &flow->filter_list : &p->link.filter_list;
+	return flow ? &flow->filter_list : &p->link.filter_list;
 }
 
 
@@ -546,8 +546,8 @@ static int atm_tc_requeue(struct sk_buff *skb,struct Qdisc *sch)
 	D2PRINTK("atm_tc_requeue(skb %p,sch %p,[qdisc %p])\n",skb,sch,p);
 	ret = p->link.q->ops->requeue(skb,p->link.q);
 	if (!ret) {
-        sch->q.qlen++;
-        sch->qstats.requeues++;
+	sch->q.qlen++;
+	sch->qstats.requeues++;
     } else {
 		sch->qstats.drops++;
 		p->link.qstats.drops++;
@@ -726,7 +726,7 @@ static int __init atm_init(void)
 	return register_qdisc(&atm_qdisc_ops);
 }
 
-static void __exit atm_exit(void) 
+static void __exit atm_exit(void)
 {
 	unregister_qdisc(&atm_qdisc_ops);
 }

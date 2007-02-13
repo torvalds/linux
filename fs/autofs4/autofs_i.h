@@ -168,11 +168,11 @@ int autofs4_expire_multi(struct super_block *, struct vfsmount *,
 
 /* Operations structures */
 
-extern struct inode_operations autofs4_symlink_inode_operations;
-extern struct inode_operations autofs4_dir_inode_operations;
-extern struct inode_operations autofs4_root_inode_operations;
-extern struct inode_operations autofs4_indirect_root_inode_operations;
-extern struct inode_operations autofs4_direct_root_inode_operations;
+extern const struct inode_operations autofs4_symlink_inode_operations;
+extern const struct inode_operations autofs4_dir_inode_operations;
+extern const struct inode_operations autofs4_root_inode_operations;
+extern const struct inode_operations autofs4_indirect_root_inode_operations;
+extern const struct inode_operations autofs4_direct_root_inode_operations;
 extern const struct file_operations autofs4_dir_operations;
 extern const struct file_operations autofs4_root_operations;
 

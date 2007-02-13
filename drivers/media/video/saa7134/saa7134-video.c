@@ -2336,7 +2336,7 @@ static int radio_ioctl(struct inode *inode, struct file *file,
 	return video_usercopy(inode, file, cmd, arg, radio_do_ioctl);
 }
 
-static struct file_operations video_fops =
+static const struct file_operations video_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = video_open,
@@ -2349,7 +2349,7 @@ static struct file_operations video_fops =
 	.llseek   = no_llseek,
 };
 
-static struct file_operations radio_fops =
+static const struct file_operations radio_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = video_open,

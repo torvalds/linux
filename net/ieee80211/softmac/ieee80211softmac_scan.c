@@ -62,12 +62,12 @@ ieee80211softmac_stop_scan(struct ieee80211softmac_device *sm)
 	unsigned long flags;
 
 	spin_lock_irqsave(&sm->lock, flags);
-	
+
 	if (!sm->scanning) {
 		spin_unlock_irqrestore(&sm->lock, flags);
 		return;
 	}
-	
+
 	spin_unlock_irqrestore(&sm->lock, flags);
 	sm->stop_scan(sm->dev);
 }
@@ -78,12 +78,12 @@ ieee80211softmac_wait_for_scan(struct ieee80211softmac_device *sm)
 	unsigned long flags;
 
 	spin_lock_irqsave(&sm->lock, flags);
-	
+
 	if (!sm->scanning) {
 		spin_unlock_irqrestore(&sm->lock, flags);
 		return;
 	}
-	
+
 	spin_unlock_irqrestore(&sm->lock, flags);
 	sm->wait_for_scan(sm->dev);
 }
@@ -158,14 +158,14 @@ int ieee80211softmac_start_scan_implementation(struct net_device *dev)
 {
 	struct ieee80211softmac_device *sm = ieee80211_priv(dev);
 	unsigned long flags;
-	
+
 	if (!(dev->flags & IFF_UP))
 		return -ENODEV;
 
 	assert(ieee80211softmac_scan_handlers_check_self(sm));
 	if (!ieee80211softmac_scan_handlers_check_self(sm))
 		return -EINVAL;
-		
+
 	spin_lock_irqsave(&sm->lock, flags);
 	/* it looks like we need to hold the lock here
 	 * to make sure we don't allocate two of these... */
@@ -241,7 +241,7 @@ void ieee80211softmac_scan_finished(struct ieee80211softmac_device *sm)
 	spin_lock_irqsave(&sm->lock, flags);
 	sm->scanning = 0;
 	spin_unlock_irqrestore(&sm->lock, flags);
-	
+
 	if (sm->associnfo.bssvalid) {
 		struct ieee80211softmac_network *net;
 

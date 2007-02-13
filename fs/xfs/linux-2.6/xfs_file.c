@@ -46,7 +46,7 @@ static struct vm_operations_struct xfs_file_vm_ops;
 static struct vm_operations_struct xfs_dmapi_file_vm_ops;
 #endif
 
-STATIC inline ssize_t
+STATIC_INLINE ssize_t
 __xfs_file_read(
 	struct kiocb		*iocb,
 	const struct iovec	*iov,
@@ -84,7 +84,7 @@ xfs_file_aio_read_invis(
 	return __xfs_file_read(iocb, iov, nr_segs, IO_ISAIO|IO_INVIS, pos);
 }
 
-STATIC inline ssize_t
+STATIC_INLINE ssize_t
 __xfs_file_write(
 	struct kiocb		*iocb,
 	const struct iovec	*iov,

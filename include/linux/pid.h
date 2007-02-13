@@ -105,20 +105,6 @@ static inline pid_t pid_nr(struct pid *pid)
 	return nr;
 }
 
-
-#define do_each_task_pid(who, type, task)				\
-	do {								\
-		struct hlist_node *pos___;				\
-		struct pid *pid___ = find_pid(who);			\
-		if (pid___ != NULL)					\
-			hlist_for_each_entry_rcu((task), pos___,	\
-				&pid___->tasks[type], pids[type].node) {
-
-#define while_each_task_pid(who, type, task)				\
-			}						\
-	} while (0)
-
-
 #define do_each_pid_task(pid, type, task)				\
 	do {								\
 		struct hlist_node *pos___;				\

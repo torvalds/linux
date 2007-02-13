@@ -305,7 +305,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 	case RTC_IRQP_READ:
 		if (ops->irq_set_freq)
-			err = put_user(rtc->irq_freq, (unsigned long *) arg);
+			err = put_user(rtc->irq_freq, (unsigned long __user *)uarg);
 		break;
 
 	case RTC_IRQP_SET:
@@ -384,7 +384,7 @@ static int rtc_dev_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &rtc->async_queue);
 }
 
-static struct file_operations rtc_dev_fops = {
+static const struct file_operations rtc_dev_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= rtc_dev_read,

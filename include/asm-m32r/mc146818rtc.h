@@ -7,7 +7,6 @@
 #include <asm/io.h>
 
 #ifndef RTC_PORT
-// #define RTC_PORT(x)	(0x70 + (x))
 #define RTC_PORT(x)	((x))
 #define RTC_ALWAYS_BCD	1	/* RTC operates in binary mode */
 #endif
@@ -26,7 +25,5 @@ outb_p((val),RTC_PORT(1)); \
 })
 
 #define RTC_IRQ 8
-#if 0
-#endif
 
 #endif /* _ASM_MC146818RTC_H */

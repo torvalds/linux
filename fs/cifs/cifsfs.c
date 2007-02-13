@@ -64,7 +64,7 @@ extern struct task_struct * oplockThread; /* remove sparse warning */
 struct task_struct * oplockThread = NULL;
 extern struct task_struct * dnotifyThread; /* remove sparse warning */
 struct task_struct * dnotifyThread = NULL;
-static struct super_operations cifs_super_ops; 
+static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
 MODULE_PARM_DESC(CIFSMaxBufSize,"Network buffer size (not including header). Default: 16384 Range: 8192 to 130048");
@@ -453,7 +453,7 @@ static int cifs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations cifs_super_ops = {
+static const struct super_operations cifs_super_ops = {
 	.read_inode = cifs_read_inode,
 	.put_super = cifs_put_super,
 	.statfs = cifs_statfs,
@@ -533,7 +533,7 @@ static struct file_system_type cifs_fs_type = {
 	.kill_sb = kill_anon_super,
 	/*  .fs_flags */
 };
-struct inode_operations cifs_dir_inode_ops = {
+const struct inode_operations cifs_dir_inode_ops = {
 	.create = cifs_create,
 	.lookup = cifs_lookup,
 	.getattr = cifs_getattr,
@@ -555,7 +555,7 @@ struct inode_operations cifs_dir_inode_ops = {
 #endif
 };
 
-struct inode_operations cifs_file_inode_ops = {
+const struct inode_operations cifs_file_inode_ops = {
 /*	revalidate:cifs_revalidate, */
 	.setattr = cifs_setattr,
 	.getattr = cifs_getattr, /* do we need this anymore? */
@@ -569,7 +569,7 @@ struct inode_operations cifs_file_inode_ops = {
 #endif 
 };
 
-struct inode_operations cifs_symlink_inode_ops = {
+const struct inode_operations cifs_symlink_inode_ops = {
 	.readlink = generic_readlink, 
 	.follow_link = cifs_follow_link,
 	.put_link = cifs_put_link,

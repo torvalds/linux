@@ -230,7 +230,7 @@ omap_wdt_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-static struct file_operations omap_wdt_fops = {
+static const struct file_operations omap_wdt_fops = {
 	.owner = THIS_MODULE,
 	.write = omap_wdt_write,
 	.ioctl = omap_wdt_ioctl,

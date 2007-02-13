@@ -23,6 +23,12 @@ static inline void ipip_ecn_decapsulate(struct sk_buff *skb)
 		IP_ECN_set_ce(inner_iph);
 }
 
+static inline void ipip6_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
+{
+	if (INET_ECN_is_ce(iph->tos))
+		IP6_ECN_set_ce(skb->nh.ipv6h);
+}
+
 /* Add encapsulation header.
  *
  * The top IP header will be constructed per RFC 2401.  The following fields
@@ -36,6 +42,7 @@ static inline void ipip_ecn_decapsulate(struct sk_buff *skb)
 static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
+	struct xfrm_dst *xdst = (struct xfrm_dst*)dst;
 	struct iphdr *iph, *top_iph;
 	int flags;
 
@@ -48,15 +55,27 @@ static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->ihl = 5;
 	top_iph->version = 4;
 
-	/* DS disclosed */
-	top_iph->tos = INET_ECN_encapsulate(iph->tos, iph->tos);
-
 	flags = x->props.flags;
+
+	/* DS disclosed */
+	if (xdst->route->ops->family == AF_INET) {
+		top_iph->protocol = IPPROTO_IPIP;
+		top_iph->tos = INET_ECN_encapsulate(iph->tos, iph->tos);
+		top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
+			0 : (iph->frag_off & htons(IP_DF));
+	}
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+	else {
+		struct ipv6hdr *ipv6h = (struct ipv6hdr*)iph;
+		top_iph->protocol = IPPROTO_IPV6;
+		top_iph->tos = INET_ECN_encapsulate(iph->tos, ipv6_get_dsfield(ipv6h));
+		top_iph->frag_off = 0;
+	}
+#endif
+
 	if (flags & XFRM_STATE_NOECN)
 		IP_ECN_clear(top_iph);
 
-	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
-		0 : (iph->frag_off & htons(IP_DF));
 	if (!top_iph->frag_off)
 		__ip_select_ident(top_iph, dst->child, 0);
 
@@ -64,7 +83,6 @@ static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	top_iph->saddr = x->props.saddr.a4;
 	top_iph->daddr = x->id.daddr.a4;
-	top_iph->protocol = IPPROTO_IPIP;
 
 	memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));
 	return 0;
@@ -75,8 +93,16 @@ static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct iphdr *iph = skb->nh.iph;
 	int err = -EINVAL;
 
-	if (iph->protocol != IPPROTO_IPIP)
-		goto out;
+	switch(iph->protocol){
+		case IPPROTO_IPIP:
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+		case IPPROTO_IPV6:
+			break;
+#endif
+		default:
+			goto out;
+	}
+
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto out;
 
@@ -84,10 +110,19 @@ static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
 		goto out;
 
-	if (x->props.flags & XFRM_STATE_DECAP_DSCP)
-		ipv4_copy_dscp(iph, skb->h.ipiph);
-	if (!(x->props.flags & XFRM_STATE_NOECN))
-		ipip_ecn_decapsulate(skb);
+	if (iph->protocol == IPPROTO_IPIP) {
+		if (x->props.flags & XFRM_STATE_DECAP_DSCP)
+			ipv4_copy_dscp(iph, skb->h.ipiph);
+		if (!(x->props.flags & XFRM_STATE_NOECN))
+			ipip_ecn_decapsulate(skb);
+	}
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+	else {
+		if (!(x->props.flags & XFRM_STATE_NOECN))
+			ipip6_ecn_decapsulate(iph, skb);
+		skb->protocol = htons(ETH_P_IPV6);
+	}
+#endif
 	skb->mac.raw = memmove(skb->data - skb->mac_len,
 			       skb->mac.raw, skb->mac_len);
 	skb->nh.raw = skb->data;

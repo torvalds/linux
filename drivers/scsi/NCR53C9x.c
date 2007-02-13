@@ -528,12 +528,16 @@ void esp_bootup_reset(struct NCR_ESP *esp, struct ESP_regs *eregs)
 /* Allocate structure and insert basic data such as SCSI chip frequency
  * data and a pointer to the device
  */
-struct NCR_ESP* esp_allocate(struct scsi_host_template *tpnt, void *esp_dev)
+struct NCR_ESP* esp_allocate(struct scsi_host_template *tpnt, void *esp_dev,
+			     int hotplug)
 {
 	struct NCR_ESP *esp, *elink;
 	struct Scsi_Host *esp_host;
 
-	esp_host = scsi_register(tpnt, sizeof(struct NCR_ESP));
+	if (hotplug)
+		esp_host = scsi_host_alloc(tpnt, sizeof(struct NCR_ESP));
+	else
+		esp_host = scsi_register(tpnt, sizeof(struct NCR_ESP));
 	if(!esp_host)
 		panic("Cannot register ESP SCSI host");
 	esp = (struct NCR_ESP *) esp_host->hostdata;

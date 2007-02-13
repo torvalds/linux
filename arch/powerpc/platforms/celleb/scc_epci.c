@@ -47,7 +47,7 @@
 #if 0 /* test code for epci dummy read */
 static void celleb_epci_dummy_read(struct pci_dev *dev)
 {
-	void *epci_base;
+	void __iomem *epci_base;
 	struct device_node *node;
 	struct pci_controller *hose;
 	u32 val;
@@ -58,7 +58,7 @@ static void celleb_epci_dummy_read(struct pci_dev *dev)
 	if (!hose)
 		return;
 
-	epci_base = (void *)hose->cfg_addr;
+	epci_base = hose->cfg_addr;
 
 	val = in_be32(epci_base + SCC_EPCI_WATRP);
 	iosync();
@@ -71,18 +71,18 @@ static inline void clear_and_disable_master_abort_interrupt(
 					struct pci_controller *hose)
 {
 	void __iomem *addr;
-	addr = (void *)hose->cfg_addr + PCI_COMMAND;
+	addr = hose->cfg_addr + PCI_COMMAND;
 	out_be32(addr, in_be32(addr) | (PCI_STATUS_REC_MASTER_ABORT << 16));
 }
 
 static int celleb_epci_check_abort(struct pci_controller *hose,
-				   unsigned long addr)
+				   void __iomem *addr)
 {
 	void __iomem *reg, *epci_base;
 	u32 val;
 
 	iob();
-	epci_base = (void *)hose->cfg_addr;
+	epci_base = hose->cfg_addr;
 
 	reg = epci_base + PCI_COMMAND;
 	val = in_be32(reg);
@@ -108,23 +108,23 @@ static int celleb_epci_check_abort(struct pci_controller *hose,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static unsigned long celleb_epci_make_config_addr(struct pci_controller *hose,
+static void __iomem *celleb_epci_make_config_addr(struct pci_controller *hose,
 					unsigned int devfn, int where)
 {
-	unsigned long addr;
+	void __iomem *addr;
 	struct pci_bus *bus = hose->bus;
 
 	if (bus->self)
-		addr = (unsigned long)hose->cfg_data +
+		addr = hose->cfg_data +
 		       (((bus->number & 0xff) << 16)
 		        | ((devfn & 0xff) << 8)
 		        | (where & 0xff)
 		        | 0x01000000);
 	else
-		addr = (unsigned long)hose->cfg_data +
+		addr = hose->cfg_data +
 		       (((devfn & 0xff) << 8) | (where & 0xff));
 
-	pr_debug("EPCI: config_addr = 0x%016lx\n", addr);
+	pr_debug("EPCI: config_addr = 0x%p\n", addr);
 
 	return addr;
 }
@@ -132,7 +132,7 @@ static unsigned long celleb_epci_make_config_addr(struct pci_controller *hose,
 static int celleb_epci_read_config(struct pci_bus *bus,
 			unsigned int devfn, int where, int size, u32 * val)
 {
-	unsigned long addr;
+	void __iomem *addr;
 	struct device_node *node;
 	struct pci_controller *hose;
 
@@ -148,17 +148,17 @@ static int celleb_epci_read_config(struct pci_bus *bus,
 	if (bus->number == hose->first_busno && devfn == 0) {
 		/* EPCI controller self */
 
-		addr = (unsigned long)hose->cfg_addr + where;
+		addr = hose->cfg_addr + where;
 
 		switch (size) {
 		case 1:
-			*val = in_8((u8 *)addr);
+			*val = in_8(addr);
 			break;
 		case 2:
-			*val = in_be16((u16 *)addr);
+			*val = in_be16(addr);
 			break;
 		case 4:
-			*val = in_be32((u32 *)addr);
+			*val = in_be32(addr);
 			break;
 		default:
 			return PCIBIOS_DEVICE_NOT_FOUND;
@@ -171,13 +171,13 @@ static int celleb_epci_read_config(struct pci_bus *bus,
 
 		switch (size) {
 		case 1:
-			*val = in_8((u8 *)addr);
+			*val = in_8(addr);
 			break;
 		case 2:
-			*val = in_le16((u16 *)addr);
+			*val = in_le16(addr);
 			break;
 		case 4:
-			*val = in_le32((u32 *)addr);
+			*val = in_le32(addr);
 			break;
 		default:
 			return PCIBIOS_DEVICE_NOT_FOUND;
@@ -188,13 +188,13 @@ static int celleb_epci_read_config(struct pci_bus *bus,
 		 "addr=0x%lx, devfn=0x%x, where=0x%x, size=0x%x, val=0x%x\n",
 		 addr, devfn, where, size, *val);
 
-	return celleb_epci_check_abort(hose, 0);
+	return celleb_epci_check_abort(hose, NULL);
 }
 
 static int celleb_epci_write_config(struct pci_bus *bus,
 			unsigned int devfn, int where, int size, u32 val)
 {
-	unsigned long addr;
+	void __iomem *addr;
 	struct device_node *node;
 	struct pci_controller *hose;
 
@@ -210,17 +210,17 @@ static int celleb_epci_write_config(struct pci_bus *bus,
 	if (bus->number == hose->first_busno && devfn == 0) {
 		/* EPCI controller self */
 
-		addr = (unsigned long)hose->cfg_addr + where;
+		addr = hose->cfg_addr + where;
 
 		switch (size) {
 		case 1:
-			out_8((u8 *)addr, val);
+			out_8(addr, val);
 			break;
 		case 2:
-			out_be16((u16 *)addr, val);
+			out_be16(addr, val);
 			break;
 		case 4:
-			out_be32((u32 *)addr, val);
+			out_be32(addr, val);
 			break;
 		default:
 			return PCIBIOS_DEVICE_NOT_FOUND;
@@ -233,13 +233,13 @@ static int celleb_epci_write_config(struct pci_bus *bus,
 
 		switch (size) {
 		case 1:
-			out_8((u8 *)addr, val);
+			out_8(addr, val);
 			break;
 		case 2:
-			out_le16((u16 *)addr, val);
+			out_le16(addr, val);
 			break;
 		case 4:
-			out_le32((u32 *)addr, val);
+			out_le32(addr, val);
 			break;
 		default:
 			return PCIBIOS_DEVICE_NOT_FOUND;
@@ -261,7 +261,7 @@ static int __devinit celleb_epci_init(struct pci_controller *hose)
 	void __iomem *reg, *epci_base;
 	int hwres = 0;
 
-	epci_base = (void *)hose->cfg_addr;
+	epci_base = hose->cfg_addr;
 
 	/* PCI core reset(Internal bus and PCI clock) */
 	reg = epci_base + SCC_EPCI_CKCTRL;

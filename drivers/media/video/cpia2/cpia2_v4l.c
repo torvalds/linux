@@ -1924,7 +1924,7 @@ static void reset_camera_struct_v4l(struct camera_data *cam)
 /***
  * The v4l video device structure initialized for this device
  ***/
-static struct file_operations fops_template = {
+static const struct file_operations fops_template = {
 	.owner		= THIS_MODULE,
 	.open		= cpia2_open,
 	.release	= cpia2_close,

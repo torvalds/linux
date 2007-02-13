@@ -187,13 +187,13 @@
 
 <chapter><title>USB-Standard Types</title>
 
-    <para>In <filename>&lt;linux/usb_ch9.h&gt;</filename> you will find
+    <para>In <filename>&lt;linux/usb/ch9.h&gt;</filename> you will find
     the USB data types defined in chapter 9 of the USB specification.
     These data types are used throughout USB, and in APIs including
     this host side API, gadget APIs, and usbfs.
     </para>
 
-!Iinclude/linux/usb_ch9.h
+!Iinclude/linux/usb/ch9.h
 
     </chapter>
 
@@ -574,7 +574,7 @@ for (;;) {
 #include &lt;asm/byteorder.h&gt;</programlisting>
 	    The standard USB device model requests, from "Chapter 9" of
 	    the USB 2.0 specification, are automatically included from
-	    the <filename>&lt;linux/usb_ch9.h&gt;</filename> header.
+	    the <filename>&lt;linux/usb/ch9.h&gt;</filename> header.
 	    </para>
 
 	    <para>Unless noted otherwise, the ioctl requests

@@ -59,7 +59,7 @@ static ssize_t ipath_diag_read(struct file *fp, char __user *data,
 static ssize_t ipath_diag_write(struct file *fp, const char __user *data,
 				size_t count, loff_t *off);
 
-static struct file_operations diag_file_ops = {
+static const struct file_operations diag_file_ops = {
 	.owner = THIS_MODULE,
 	.write = ipath_diag_write,
 	.read = ipath_diag_read,
@@ -71,7 +71,7 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 				   const char __user *data,
 				   size_t count, loff_t *off);
 
-static struct file_operations diagpkt_file_ops = {
+static const struct file_operations diagpkt_file_ops = {
 	.owner = THIS_MODULE,
 	.write = ipath_diagpkt_write,
 };

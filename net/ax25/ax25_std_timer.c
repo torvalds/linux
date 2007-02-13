@@ -34,7 +34,7 @@
 void ax25_std_heartbeat_expiry(ax25_cb *ax25)
 {
 	struct sock *sk=ax25->sk;
-	
+
 	if (sk)
 		bh_lock_sock(sk);
 

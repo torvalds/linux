@@ -21,7 +21,7 @@ struct kmem_cache *sysfs_dir_cachep;
 
 static void sysfs_clear_inode(struct inode *inode);
 
-static struct super_operations sysfs_ops = {
+static const struct super_operations sysfs_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= sysfs_delete_inode,
 	.clear_inode	= sysfs_clear_inode,

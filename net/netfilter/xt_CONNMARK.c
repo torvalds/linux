@@ -61,7 +61,7 @@ target(struct sk_buff **pskb,
 #else
 				nf_conntrack_event_cache(IPCT_MARK, *pskb);
 #endif
-		}
+			}
 			break;
 		case XT_CONNMARK_SAVE:
 			newmark = (*ctmark & ~markinfo->mask) |
@@ -78,8 +78,7 @@ target(struct sk_buff **pskb,
 		case XT_CONNMARK_RESTORE:
 			mark = (*pskb)->mark;
 			diff = (*ctmark ^ mark) & markinfo->mask;
-			if (diff != 0)
-				(*pskb)->mark = mark ^ diff;
+			(*pskb)->mark = mark ^ diff;
 			break;
 		}
 	}

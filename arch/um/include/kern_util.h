@@ -61,7 +61,6 @@ extern int set_signals(int enable);
 extern void force_sigbus(void);
 extern int pid_to_processor_id(int pid);
 extern void deliver_signals(void *t);
-extern int next_syscall_index(int max);
 extern int next_trap_index(int max);
 extern void default_idle(void);
 extern void finish_fork(void);
@@ -88,7 +87,6 @@ extern void timer_irq(union uml_pt_regs *regs);
 extern void unprotect_stack(unsigned long stack);
 extern void do_uml_exitcalls(void);
 extern int attach_debugger(int idle_pid, int pid, int stop);
-extern void bad_segv(struct faultinfo fi, unsigned long ip);
 extern int config_gdb(char *str);
 extern int remove_gdb(void);
 extern char *uml_strdup(char *string);
@@ -104,8 +102,6 @@ extern int clear_user_proc(void *buf, int size);
 extern int copy_to_user_proc(void *to, void *from, int size);
 extern int copy_from_user_proc(void *to, void *from, int size);
 extern int strlen_user_proc(char *str);
-extern void bus_handler(int sig, union uml_pt_regs *regs);
-extern void winch(int sig, union uml_pt_regs *regs);
 extern long execute_syscall(void *r);
 extern int smp_sigio_handler(void);
 extern void *get_current(void);
@@ -120,7 +116,6 @@ extern void time_init_kern(void);
 
 /* Are we disallowed to sleep? Used to choose between GFP_KERNEL and GFP_ATOMIC. */
 extern int __cant_sleep(void);
-extern void segv_handler(int sig, union uml_pt_regs *regs);
 extern void sigio_handler(int sig, union uml_pt_regs *regs);
 
 #endif

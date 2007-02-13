@@ -21,7 +21,6 @@
 struct ufs_sb_private_info;
 struct ufs_cg_private_info;
 struct ufs_csum;
-#define UFS_MAXCSBUFS 31
 
 struct ufs_sb_info {
 	struct ufs_sb_private_info * s_uspi;	

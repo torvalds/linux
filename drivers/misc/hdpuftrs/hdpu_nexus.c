@@ -72,11 +72,9 @@ static int hdpu_nexus_probe(struct platform_device *pdev)
 		printk("Could not map slot id\n");
 	hdpu_slot_id = create_proc_entry("sky_slot_id", 0666, &proc_root);
 	hdpu_slot_id->read_proc = hdpu_slot_id_read;
-	hdpu_slot_id->nlink = 1;
 
 	hdpu_chassis_id = create_proc_entry("sky_chassis_id", 0666, &proc_root);
 	hdpu_chassis_id->read_proc = hdpu_chassis_id_read;
-	hdpu_chassis_id->nlink = 1;
 	return 0;
 }
 

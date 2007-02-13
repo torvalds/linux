@@ -4,7 +4,7 @@
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
  *  Copyright (c) 1999-2007 LSI Logic Corporation
- *  (mailto:mpt_linux_developer@lsil.com)
+ *  (mailto:mpt_linux_developer@lsi.com)
  *
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -85,6 +85,12 @@ MODULE_PARM_DESC(mptfc_dev_loss_tmo, " Initial time the driver programs the "
     				     " transport to wait for an rport to "
 				     " return following a device loss event."
 				     "  Default=60.");
+
+/* scsi-mid layer global parmeter is max_report_luns, which is 511 */
+#define MPTFC_MAX_LUN (16895)
+static int max_lun = MPTFC_MAX_LUN;
+module_param(max_lun, int, 0);
+MODULE_PARM_DESC(max_lun, " max lun, default=16895 ");
 
 static int	mptfcDoneCtx = -1;
 static int	mptfcTaskCtx = -1;
@@ -292,10 +298,9 @@ mptfc_GetFcDevPage0(MPT_ADAPTER *ioc, int ioc_port,
 	U32			 port_id = 0xffffff;
 	int			 num_targ = 0;
 	int			 max_bus = ioc->facts.MaxBuses;
-	int			 max_targ = ioc->facts.MaxDevices;
+	int			 max_targ;
 
-	if (max_bus == 0 || max_targ == 0)
-		goto out;
+	max_targ = (ioc->facts.MaxDevices == 0) ? 256 : ioc->facts.MaxDevices;
 
 	data_sz = sizeof(FCDevicePage0_t) * max_bus * max_targ;
 	p_p0 = p0_array =  kzalloc(data_sz, GFP_KERNEL);
@@ -467,8 +472,8 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 			if (ri->starget) {
 				vtarget = ri->starget->hostdata;
 				if (vtarget) {
-					vtarget->target_id = pg0->CurrentTargetID;
-					vtarget->bus_id = pg0->CurrentBus;
+					vtarget->id = pg0->CurrentTargetID;
+					vtarget->channel = pg0->CurrentBus;
 				}
 			}
 			*((struct mptfc_rport_info **)rport->dd_data) = ri;
@@ -540,8 +545,8 @@ mptfc_target_alloc(struct scsi_target *starget)
 	if (rport) {
 		ri = *((struct mptfc_rport_info **)rport->dd_data);
 		if (ri) {	/* better be! */
-			vtarget->target_id = ri->pg0.CurrentTargetID;
-			vtarget->bus_id = ri->pg0.CurrentBus;
+			vtarget->id = ri->pg0.CurrentTargetID;
+			vtarget->channel = ri->pg0.CurrentBus;
 			ri->starget = starget;
 			rc = 0;
 		}
@@ -592,7 +597,6 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 	if (vtarget->num_luns == 0) {
 		vtarget->ioc_id = hd->ioc->id;
 		vtarget->tflags = MPT_TARGET_FLAGS_Q_YES;
-		hd->Targets[sdev->id] = vtarget;
 	}
 
 	vdev->vtarget = vtarget;
@@ -630,16 +634,17 @@ mptfc_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	struct mptfc_rport_info	*ri;
 	struct fc_rport	*rport = starget_to_rport(scsi_target(SCpnt->device));
 	int		err;
+	VirtDevice	*vdev = SCpnt->device->hostdata;
 
-	err = fc_remote_port_chkready(rport);
-	if (unlikely(err)) {
-		SCpnt->result = err;
+	if (!vdev || !vdev->vtarget) {
+		SCpnt->result = DID_NO_CONNECT << 16;
 		done(SCpnt);
 		return 0;
 	}
 
-	if (!SCpnt->device->hostdata) {	/* vdev */
-		SCpnt->result = DID_NO_CONNECT << 16;
+	err = fc_remote_port_chkready(rport);
+	if (unlikely(err)) {
+		SCpnt->result = err;
 		done(SCpnt);
 		return 0;
 	}
@@ -1143,7 +1148,7 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(MYIOC_s_WARN_FMT
 			"Skipping ioc=%p because SCSI Initiator mode is NOT enabled!\n",
 			ioc->name, ioc);
-		return -ENODEV;
+		return 0;
 	}
 
 	sh = scsi_host_alloc(&mptfc_driver_template, sizeof(MPT_SCSI_HOST));
@@ -1173,10 +1178,9 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* set 16 byte cdb's */
 	sh->max_cmd_len = 16;
 
-	sh->max_id = MPT_MAX_FC_DEVICES<256 ? MPT_MAX_FC_DEVICES : 255;
+	sh->max_id = ioc->pfacts->MaxDevices;
+	sh->max_lun = max_lun;
 
-	sh->max_lun = MPT_LAST_LUN + 1;
-	sh->max_channel = 0;
 	sh->this_id = ioc->pfacts[0].PortSCSIID;
 
 	/* Required entry.
@@ -1229,19 +1233,6 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dprintk((MYIOC_s_INFO_FMT "ScsiLookup @ %p\n",
 		 ioc->name, hd->ScsiLookup));
-
-	/* Allocate memory for the device structures.
-	 * A non-Null pointer at an offset
-	 * indicates a device exists.
-	 * max_id = 1 + maximum id (hosts.h)
-	 */
-	hd->Targets = kcalloc(sh->max_id, sizeof(void *), GFP_ATOMIC);
-	if (!hd->Targets) {
-		error = -ENOMEM;
-		goto out_mptfc_probe;
-	}
-
-	dprintk((KERN_INFO "  vdev @ %p\n", hd->Targets));
 
 	/* Clear the TM flags
 	 */

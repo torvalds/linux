@@ -242,6 +242,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     ac97_clock		- AC'97 clock (default = 48000)
     ac97_quirk		- AC'97 workaround for strange hardware
 			  See "AC97 Quirk Option" section below.
+    ac97_codec		- Workaround to specify which AC'97 codec 
+			  instead of probing.  If this works for you
+			  file a bug with your `lspci -vn` output.
+			  -2  -- Force probing.
+			  -1  -- Default behavior.
+			  0-2 -- Use the specified codec.
     spdif_aclink	- S/PDIF transfer over AC-link (default = 1)
 
     This module supports one card and autoprobe.
@@ -779,6 +785,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  asus-dig	ASUS with SPDIF out
 	  asus-dig2	ASUS with SPDIF out (using GPIO2)
 	  uniwill	3-jack
+	  fujitsu	Fujitsu Laptops (Pi1536)
 	  F1734		2-jack
 	  lg		LG laptop (m1 express dual)
 	  lg-lw		LG LW20/LW25 laptop
@@ -800,14 +807,18 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	ALC262
 	  fujitsu	Fujitsu Laptop
 	  hp-bpc	HP xw4400/6400/8400/9400 laptops
+	  hp-bpc-d7000	HP BPC D7000
 	  benq		Benq ED8
+	  hippo		Hippo (ATI) with jack detection, Sony UX-90s
+	  hippo_1	Hippo (Benq) with jack detection
 	  basic		fixed pin assignment w/o SPDIF
 	  auto		auto-config reading BIOS (default)
 
 	ALC882/885
 	  3stack-dig	3-jack with SPDIF I/O
-	  6stck-dig	6-jack digital with SPDIF I/O
+	  6stack-dig	6-jack digital with SPDIF I/O
 	  arima		Arima W820Di1
+	  macpro	MacPro support
 	  auto		auto-config reading BIOS (default)
 
 	ALC883/888
@@ -817,6 +828,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-6ch-dig 3-jack 6-channel with SPDIF I/O
 	  6stack-dig-demo  6-jack digital for Intel demo board
 	  acer		Acer laptops (Travelmate 3012WTMi, Aspire 5600, etc)
+	  medion	Medion Laptops
+	  targa-dig	Targa/MSI
+	  targa-2ch-dig	Targs/MSI with 2-channel
+	  laptop-eapd   3-jack with SPDIF I/O and EAPD (Clevo M540JE, M550JE)
 	  auto		auto-config reading BIOS (default)
 
 	ALC861/660
@@ -825,6 +840,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  6stack-dig	6-jack with SPDIF I/O
 	  3stack-660	3-jack (for ALC660)
 	  uniwill-m31	Uniwill M31 laptop
+	  toshiba	Toshiba laptop support
+	  asus		Asus laptop support
+	  asus-laptop	ASUS F2/F3 laptops
+	  auto		auto-config reading BIOS (default)
+
+	ALC861VD/660VD
+	  3stack	3-jack
+	  3stack-dig	3-jack with SPDIF OUT
+	  6stack-dig	6-jack with SPDIF OUT
+	  3stack-660	3-jack (for ALC660VD)
 	  auto		auto-config reading BIOS (default)
 
 	CMI9880
@@ -845,6 +870,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack	3-stack, shared surrounds
 	  laptop	2-channel only (FSC V2060, Samsung M50)
 	  laptop-eapd	2-channel with EAPD (Samsung R65, ASUS A6J)
+	  ultra		2-channel with EAPD (Samsung Ultra tablet PC)
 
 	AD1988
 	  6stack	6-jack
@@ -854,11 +880,30 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  laptop	3-jack with hp-jack automute
 	  laptop-dig	ditto with SPDIF
 	  auto		auto-config reading BIOS (default)
+	
+	Conexant 5045
+	  laptop	Laptop config 
+	  test		for testing/debugging purpose, almost all controls
+			can be adjusted.  Appearing only when compiled with
+			$CONFIG_SND_DEBUG=y
+
+	Conexant 5047
+	  laptop	Basic Laptop config 
+	  laptop-hp	Laptop config for some HP models (subdevice 30A5)
+	  laptop-eapd	Laptop config with EAPD support
+	  test		for testing/debugging purpose, almost all controls
+			can be adjusted.  Appearing only when compiled with
+			$CONFIG_SND_DEBUG=y
 
 	STAC9200/9205/9220/9221/9254
 	  ref		Reference board
 	  3stack	D945 3stack
 	  5stack	D945 5stack + SPDIF
+
+	STAC9202/9250/9251
+	  ref		Reference board, base config
+	  m2-2		Some Gateway MX series laptops
+	  m6		Some Gateway NX series laptops
 
 	STAC9227/9228/9229/927x
 	  ref		Reference board
@@ -974,6 +1019,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for Envy24HT (VT/ICE1724), Envy24PT (VT1720) based PCI sound cards.
 			* MidiMan M Audio Revolution 5.1
 			* MidiMan M Audio Revolution 7.1
+			* MidiMan M Audio Audiophile 192
 			* AMP Ltd AUDIO2000
 			* TerraTec Aureon 5.1 Sky
 			* TerraTec Aureon 7.1 Space
@@ -993,7 +1039,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     model       - Use the given board model, one of the following:
 		  revo51, revo71, amp2000, prodigy71, prodigy71lt,
-		  prodigy192, aureon51, aureon71, universe,
+		  prodigy192, aureon51, aureon71, universe, ap192,
 		  k8x800, phase22, phase28, ms300, av710
 
     This module supports multiple cards and autoprobe.
@@ -1049,6 +1095,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     buggy_semaphore - Enable workaround for hardwares with buggy
 		    semaphores (e.g. on some ASUS laptops)
 		    (default off)
+    spdif_aclink  - Use S/PDIF over AC-link instead of direct connection
+		    from the controller chip
+		    (0 = off, 1 = on, -1 = default)
 
     This module supports one chip and autoprobe.
 
@@ -1368,6 +1417,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   ----------------
 
     Module for Digigram PCXHR boards
+
+    This module supports multiple cards.
+
+  Module snd-portman2x4
+  ---------------------
+
+    Module for Midiman Portman 2x4 parallel port MIDI interface
 
     This module supports multiple cards.
 

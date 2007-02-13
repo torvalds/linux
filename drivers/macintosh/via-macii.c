@@ -107,10 +107,10 @@ static enum macii_state {
 	awaiting_reply
 } macii_state;
 
-static int need_poll    = 0;
-static int command_byte = 0;
-static int last_reply   = 0;
-static int last_active  = 0;
+static int need_poll;
+static int command_byte;
+static int last_reply;
+static int last_active;
 
 static struct adb_request *current_req;
 static struct adb_request *last_req;
@@ -124,7 +124,7 @@ static int first_byte;
 static int prefix_len;
 static int status = ST_IDLE|TREQ;
 static int last_status;
-static int driver_running = 0;
+static int driver_running;
 
 /* debug level 10 required for ADB logging (should be && debug_adb, ideally) */
 

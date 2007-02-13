@@ -28,7 +28,7 @@ static int get_bridge_ifindices(int *indices, int num)
 	int i = 0;
 
 	for (dev = dev_base; dev && i < num; dev = dev->next) {
-		if (dev->priv_flags & IFF_EBRIDGE) 
+		if (dev->priv_flags & IFF_EBRIDGE)
 			indices[i++] = dev->ifindex;
 	}
 
@@ -53,7 +53,7 @@ static void get_port_ifindices(struct net_bridge *br, int *ifindices, int num)
  *            (limited to a page for sanity)
  * offset  -- number of records to skip
  */
-static int get_fdb_entries(struct net_bridge *br, void __user *userbuf, 
+static int get_fdb_entries(struct net_bridge *br, void __user *userbuf,
 			   unsigned long maxnum, unsigned long offset)
 {
 	int num;
@@ -69,7 +69,7 @@ static int get_fdb_entries(struct net_bridge *br, void __user *userbuf,
 	buf = kmalloc(size, GFP_USER);
 	if (!buf)
 		return -ENOMEM;
-	
+
 	num = br_fdb_fillbuf(br, buf, maxnum, offset);
 	if (num > 0) {
 		if (copy_to_user(userbuf, buf, num*sizeof(struct __fdb_entry)))
@@ -91,7 +91,7 @@ static int add_del_if(struct net_bridge *br, int ifindex, int isadd)
 	dev = dev_get_by_index(ifindex);
 	if (dev == NULL)
 		return -EINVAL;
-	
+
 	if (isadd)
 		ret = br_add_if(br, dev);
 	else
@@ -110,7 +110,7 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	unsigned long args[4];
-	
+
 	if (copy_from_user(args, rq->ifr_data, sizeof(args)))
 		return -EFAULT;
 
@@ -143,7 +143,7 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		b.tcn_timer_value = br_timer_value(&br->tcn_timer);
 		b.topology_change_timer_value = br_timer_value(&br->topology_change_timer);
 		b.gc_timer_value = br_timer_value(&br->gc_timer);
-	        rcu_read_unlock();
+		rcu_read_unlock();
 
 		if (copy_to_user((void __user *)args[1], &b, sizeof(b)))
 			return -EFAULT;
@@ -275,7 +275,7 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			return -ERANGE;
 
 		spin_lock_bh(&br->lock);
-		if ((p = br_get_port(br, args[1])) == NULL) 
+		if ((p = br_get_port(br, args[1])) == NULL)
 			ret = -EINVAL;
 		else
 			br_stp_set_port_priority(p, args[2]);
@@ -301,7 +301,7 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 
 	case BRCTL_GET_FDB_ENTRIES:
-		return get_fdb_entries(br, (void __user *)args[1], 
+		return get_fdb_entries(br, (void __user *)args[1],
 				       args[2], args[3]);
 	}
 
@@ -368,7 +368,7 @@ int br_ioctl_deviceless_stub(unsigned int cmd, void __user *uarg)
 	case SIOCGIFBR:
 	case SIOCSIFBR:
 		return old_deviceless(uarg);
-		
+
 	case SIOCBRADDBR:
 	case SIOCBRDELBR:
 	{

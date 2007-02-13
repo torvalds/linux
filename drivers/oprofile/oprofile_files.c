@@ -44,7 +44,7 @@ static ssize_t depth_write(struct file * file, char const __user * buf, size_t c
 }
 
 
-static struct file_operations depth_fops = {
+static const struct file_operations depth_fops = {
 	.read		= depth_read,
 	.write		= depth_write
 };
@@ -56,7 +56,7 @@ static ssize_t pointer_size_read(struct file * file, char __user * buf, size_t c
 }
 
 
-static struct file_operations pointer_size_fops = {
+static const struct file_operations pointer_size_fops = {
 	.read		= pointer_size_read,
 };
 
@@ -67,7 +67,7 @@ static ssize_t cpu_type_read(struct file * file, char __user * buf, size_t count
 }
  
  
-static struct file_operations cpu_type_fops = {
+static const struct file_operations cpu_type_fops = {
 	.read		= cpu_type_read,
 };
  
@@ -101,7 +101,7 @@ static ssize_t enable_write(struct file * file, char const __user * buf, size_t 
 }
 
  
-static struct file_operations enable_fops = {
+static const struct file_operations enable_fops = {
 	.read		= enable_read,
 	.write		= enable_write,
 };
@@ -114,7 +114,7 @@ static ssize_t dump_write(struct file * file, char const __user * buf, size_t co
 }
 
 
-static struct file_operations dump_fops = {
+static const struct file_operations dump_fops = {
 	.write		= dump_write,
 };
  

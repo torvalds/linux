@@ -3,9 +3,10 @@
  *
  * Copyright (C) 1997-2003 Erez Zadok
  * Copyright (C) 2001-2003 Stony Brook University
- * Copyright (C) 2004-2006 International Business Machines Corp.
+ * Copyright (C) 2004-2007 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *              Michael C. Thompson <mcthomps@us.ibm.com>
+ *              Tyler Hicks <tyhicks@ou.edu>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -47,6 +48,43 @@ module_param(ecryptfs_verbosity, int, 0);
 MODULE_PARM_DESC(ecryptfs_verbosity,
 		 "Initial verbosity level (0 or 1; defaults to "
 		 "0, which is Quiet)");
+
+/**
+ * Module parameter that defines the number of netlink message buffer
+ * elements
+ */
+unsigned int ecryptfs_message_buf_len = ECRYPTFS_DEFAULT_MSG_CTX_ELEMS;
+
+module_param(ecryptfs_message_buf_len, uint, 0);
+MODULE_PARM_DESC(ecryptfs_message_buf_len,
+		 "Number of message buffer elements");
+
+/**
+ * Module parameter that defines the maximum guaranteed amount of time to wait
+ * for a response through netlink.  The actual sleep time will be, more than
+ * likely, a small amount greater than this specified value, but only less if
+ * the netlink message successfully arrives.
+ */
+signed long ecryptfs_message_wait_timeout = ECRYPTFS_MAX_MSG_CTX_TTL / HZ;
+
+module_param(ecryptfs_message_wait_timeout, long, 0);
+MODULE_PARM_DESC(ecryptfs_message_wait_timeout,
+		 "Maximum number of seconds that an operation will "
+		 "sleep while waiting for a message response from "
+		 "userspace");
+
+/**
+ * Module parameter that is an estimate of the maximum number of users
+ * that will be concurrently using eCryptfs. Set this to the right
+ * value to balance performance and memory use.
+ */
+unsigned int ecryptfs_number_of_users = ECRYPTFS_DEFAULT_NUM_USERS;
+
+module_param(ecryptfs_number_of_users, uint, 0);
+MODULE_PARM_DESC(ecryptfs_number_of_users, "An estimate of the number of "
+		 "concurrent users of eCryptfs");
+
+unsigned int ecryptfs_transport = ECRYPTFS_DEFAULT_TRANSPORT;
 
 void __ecryptfs_printk(const char *fmt, ...)
 {
@@ -124,7 +162,8 @@ out:
 enum { ecryptfs_opt_sig, ecryptfs_opt_ecryptfs_sig, ecryptfs_opt_debug,
        ecryptfs_opt_ecryptfs_debug, ecryptfs_opt_cipher,
        ecryptfs_opt_ecryptfs_cipher, ecryptfs_opt_ecryptfs_key_bytes,
-       ecryptfs_opt_passthrough, ecryptfs_opt_err };
+       ecryptfs_opt_passthrough, ecryptfs_opt_xattr_metadata,
+       ecryptfs_opt_encrypted_view, ecryptfs_opt_err };
 
 static match_table_t tokens = {
 	{ecryptfs_opt_sig, "sig=%s"},
@@ -135,6 +174,8 @@ static match_table_t tokens = {
 	{ecryptfs_opt_ecryptfs_cipher, "ecryptfs_cipher=%s"},
 	{ecryptfs_opt_ecryptfs_key_bytes, "ecryptfs_key_bytes=%u"},
 	{ecryptfs_opt_passthrough, "ecryptfs_passthrough"},
+	{ecryptfs_opt_xattr_metadata, "ecryptfs_xattr_metadata"},
+	{ecryptfs_opt_encrypted_view, "ecryptfs_encrypted_view"},
 	{ecryptfs_opt_err, NULL}
 };
 
@@ -275,6 +316,16 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 			mount_crypt_stat->flags |=
 				ECRYPTFS_PLAINTEXT_PASSTHROUGH_ENABLED;
 			break;
+		case ecryptfs_opt_xattr_metadata:
+			mount_crypt_stat->flags |=
+				ECRYPTFS_XATTR_METADATA_ENABLED;
+			break;
+		case ecryptfs_opt_encrypted_view:
+			mount_crypt_stat->flags |=
+				ECRYPTFS_XATTR_METADATA_ENABLED;
+			mount_crypt_stat->flags |=
+				ECRYPTFS_ENCRYPTED_VIEW_ENABLED;
+			break;
 		case ecryptfs_opt_err:
 		default:
 			ecryptfs_printk(KERN_WARNING,
@@ -347,9 +398,10 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		rc = -EINVAL;
 		goto out;
 	}
-	if (auth_tok->token_type != ECRYPTFS_PASSWORD) {
+	if (auth_tok->token_type != ECRYPTFS_PASSWORD
+	    && auth_tok->token_type != ECRYPTFS_PRIVATE_KEY) {
 		ecryptfs_printk(KERN_ERR, "Invalid auth_tok structure "
-				"returned from key\n");
+				"returned from key query\n");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -378,15 +430,13 @@ ecryptfs_fill_super(struct super_block *sb, void *raw_data, int silent)
 
 	/* Released in ecryptfs_put_super() */
 	ecryptfs_set_superblock_private(sb,
-					kmem_cache_alloc(ecryptfs_sb_info_cache,
+					kmem_cache_zalloc(ecryptfs_sb_info_cache,
 							 GFP_KERNEL));
 	if (!ecryptfs_superblock_to_private(sb)) {
 		ecryptfs_printk(KERN_WARNING, "Out of memory\n");
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(ecryptfs_superblock_to_private(sb), 0,
-	       sizeof(struct ecryptfs_sb_info));
 	sb->s_op = &ecryptfs_sops;
 	/* Released through deactivate_super(sb) from get_sb_nodev */
 	sb->s_root = d_alloc(NULL, &(const struct qstr) {
@@ -402,7 +452,7 @@ ecryptfs_fill_super(struct super_block *sb, void *raw_data, int silent)
 	/* Released in d_release when dput(sb->s_root) is called */
 	/* through deactivate_super(sb) from get_sb_nodev() */
 	ecryptfs_set_dentry_private(sb->s_root,
-				    kmem_cache_alloc(ecryptfs_dentry_info_cache,
+				    kmem_cache_zalloc(ecryptfs_dentry_info_cache,
 						     GFP_KERNEL));
 	if (!ecryptfs_dentry_to_private(sb->s_root)) {
 		ecryptfs_printk(KERN_ERR,
@@ -410,8 +460,6 @@ ecryptfs_fill_super(struct super_block *sb, void *raw_data, int silent)
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(ecryptfs_dentry_to_private(sb->s_root), 0,
-	       sizeof(struct ecryptfs_dentry_info));
 	rc = 0;
 out:
 	/* Should be able to rely on deactivate_super called from
@@ -594,6 +642,11 @@ static struct ecryptfs_cache_info {
 		.size = PAGE_CACHE_SIZE,
 	},
 	{
+		.cache = &ecryptfs_xattr_cache,
+		.name = "ecryptfs_xattr_cache",
+		.size = PAGE_CACHE_SIZE,
+	},
+	{
 		.cache = &ecryptfs_lower_page_cache,
 		.name = "ecryptfs_lower_page_cache",
 		.size = PAGE_CACHE_SIZE,
@@ -699,7 +752,8 @@ static struct ecryptfs_version_str_map_elem {
 	{ECRYPTFS_VERSIONING_PASSPHRASE, "passphrase"},
 	{ECRYPTFS_VERSIONING_PUBKEY, "pubkey"},
 	{ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH, "plaintext passthrough"},
-	{ECRYPTFS_VERSIONING_POLICY, "policy"}
+	{ECRYPTFS_VERSIONING_POLICY, "policy"},
+	{ECRYPTFS_VERSIONING_XATTR, "metadata in extended attribute"}
 };
 
 static ssize_t version_str_show(struct ecryptfs_obj *obj, char *buff)
@@ -798,6 +852,11 @@ static int __init ecryptfs_init(void)
 		ecryptfs_free_kmem_caches();
 		goto out;
 	}
+	rc = ecryptfs_init_messaging(ecryptfs_transport);
+	if (rc) {
+		ecryptfs_printk(KERN_ERR, "Failure occured while attempting to "
+				"initialize the eCryptfs netlink socket\n");
+	}
 out:
 	return rc;
 }
@@ -809,6 +868,7 @@ static void __exit ecryptfs_exit(void)
 	sysfs_remove_file(&ecryptfs_subsys.kset.kobj,
 			  &sysfs_attr_version_str.attr);
 	subsystem_unregister(&ecryptfs_subsys);
+	ecryptfs_release_messaging(ecryptfs_transport);
 	unregister_filesystem(&ecryptfs_fs_type);
 	ecryptfs_free_kmem_caches();
 }

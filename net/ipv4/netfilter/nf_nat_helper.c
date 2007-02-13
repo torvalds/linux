@@ -176,10 +176,10 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 	datalen = (*pskb)->len - iph->ihl*4;
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
 		tcph->check = 0;
-		tcph->check = tcp_v4_check(tcph, datalen,
+		tcph->check = tcp_v4_check(datalen,
 					   iph->saddr, iph->daddr,
 					   csum_partial((char *)tcph,
-					   		datalen, 0));
+							datalen, 0));
 	} else
 		nf_proto_csum_replace2(&tcph->check, *pskb,
 				       htons(oldlen), htons(datalen), 1);
@@ -223,7 +223,7 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 	/* UDP helpers might accidentally mangle the wrong packet */
 	iph = (*pskb)->nh.iph;
 	if ((*pskb)->len < iph->ihl*4 + sizeof(*udph) +
-	                       match_offset + match_len)
+			       match_offset + match_len)
 		return 0;
 
 	if (!skb_make_writable(pskb, (*pskb)->len))
@@ -252,9 +252,9 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
 		udph->check = 0;
 		udph->check = csum_tcpudp_magic(iph->saddr, iph->daddr,
-		                                datalen, IPPROTO_UDP,
-		                                csum_partial((char *)udph,
-		                                             datalen, 0));
+						datalen, IPPROTO_UDP,
+						csum_partial((char *)udph,
+							     datalen, 0));
 		if (!udph->check)
 			udph->check = CSUM_MANGLED_0;
 	} else

@@ -151,10 +151,10 @@ static int dn_fib_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	}
 
 	if (tb[FRA_SRC])
-		r->src = nla_get_u16(tb[FRA_SRC]);
+		r->src = nla_get_le16(tb[FRA_SRC]);
 
 	if (tb[FRA_DST])
-		r->dst = nla_get_u16(tb[FRA_DST]);
+		r->dst = nla_get_le16(tb[FRA_DST]);
 
 	r->src_len = frh->src_len;
 	r->srcmask = dnet_make_mask(r->src_len);
@@ -176,10 +176,10 @@ static int dn_fib_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 	if (frh->dst_len && (r->dst_len != frh->dst_len))
 		return 0;
 
-	if (tb[FRA_SRC] && (r->src != nla_get_u16(tb[FRA_SRC])))
+	if (tb[FRA_SRC] && (r->src != nla_get_le16(tb[FRA_SRC])))
 		return 0;
 
-	if (tb[FRA_DST] && (r->dst != nla_get_u16(tb[FRA_DST])))
+	if (tb[FRA_DST] && (r->dst != nla_get_le16(tb[FRA_DST])))
 		return 0;
 
 	return 1;
@@ -214,9 +214,9 @@ static int dn_fib_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	frh->tos = 0;
 
 	if (r->dst_len)
-		NLA_PUT_U16(skb, FRA_DST, r->dst);
+		NLA_PUT_LE16(skb, FRA_DST, r->dst);
 	if (r->src_len)
-		NLA_PUT_U16(skb, FRA_SRC, r->src);
+		NLA_PUT_LE16(skb, FRA_SRC, r->src);
 
 	return 0;
 
