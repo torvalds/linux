@@ -151,6 +151,8 @@ struct paravirt_ops
 	/* These two are jmp to, not actually called. */
 	void (fastcall *irq_enable_sysexit)(void);
 	void (fastcall *iret)(void);
+
+	void (fastcall *startup_ipi_hook)(int phys_apicid, unsigned long start_eip, unsigned long start_esp);
 };
 
 /* Mark a paravirt probe function. */
@@ -323,6 +325,13 @@ static inline unsigned long apic_read(unsigned long reg)
 }
 #endif
 
+#ifdef CONFIG_SMP
+static inline void startup_ipi_hook(int phys_apicid, unsigned long start_eip,
+				    unsigned long start_esp)
+{
+	return paravirt_ops.startup_ipi_hook(phys_apicid, start_eip, start_esp);
+}
+#endif
 
 #define __flush_tlb() paravirt_ops.flush_tlb_user()
 #define __flush_tlb_global() paravirt_ops.flush_tlb_kernel()
