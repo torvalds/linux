@@ -16,6 +16,7 @@
 
 #include <asm/byteorder.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/netfilter_ipv6/ip6t_opts.h>
 

@@ -126,7 +126,7 @@ static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned i
  */
 static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
 {
-	volatile struct io_apic *io_apic = io_apic_base(apic);
+	volatile struct io_apic __iomem *io_apic = io_apic_base(apic);
 	if (sis_apic_bug)
 		writel(reg, &io_apic->index);
 	writel(value, &io_apic->data);

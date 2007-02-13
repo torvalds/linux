@@ -63,14 +63,14 @@ extern struct cachefs_index_def afs_cache_cell_index_def;
 /*
  * dir.c
  */
-extern struct inode_operations afs_dir_inode_operations;
+extern const struct inode_operations afs_dir_inode_operations;
 extern const struct file_operations afs_dir_file_operations;
 
 /*
  * file.c
  */
 extern const struct address_space_operations afs_fs_aops;
-extern struct inode_operations afs_file_inode_operations;
+extern const struct inode_operations afs_file_inode_operations;
 
 #ifdef AFS_CACHING_SUPPORT
 extern int afs_cache_get_page_cookie(struct page *page,
@@ -104,7 +104,7 @@ extern struct cachefs_netfs afs_cache_netfs;
 /*
  * mntpt.c
  */
-extern struct inode_operations afs_mntpt_inode_operations;
+extern const struct inode_operations afs_mntpt_inode_operations;
 extern const struct file_operations afs_mntpt_file_operations;
 extern struct afs_timer afs_mntpt_expiry_timer;
 extern struct afs_timer_ops afs_mntpt_expiry_timer_ops;

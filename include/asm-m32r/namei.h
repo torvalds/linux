@@ -1,10 +1,6 @@
 #ifndef _ASM_M32R_NAMEI_H
 #define _ASM_M32R_NAMEI_H
 
-/* $Id$ */
-
-/* orig : i386 2.4.18 */
-
 /*
  * linux/include/asm-m32r/namei.h
  *

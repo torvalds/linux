@@ -83,7 +83,7 @@ use strict;
 #  * my_function
 #  **/
 #
-# If the Description: header tag is ommitted, then there must be a blank line
+# If the Description: header tag is omitted, then there must be a blank line
 # after the last parameter specification.
 # e.g.
 # /**
@@ -265,7 +265,7 @@ my $doc_start = '^/\*\*\s*$'; # Allow whitespace at end of comment start.
 my $doc_end = '\*/';
 my $doc_com = '\s*\*\s*';
 my $doc_decl = $doc_com.'(\w+)';
-my $doc_sect = $doc_com.'(['.$doc_special.']?[\w ]+):(.*)';
+my $doc_sect = $doc_com.'(['.$doc_special.']?[\w\s]+):(.*)';
 my $doc_content = $doc_com.'(.*)';
 my $doc_block = $doc_com.'DOC:\s*(.*)?';
 
@@ -365,7 +365,7 @@ sub dump_section {
 #  parameterlist => @list of parameters
 #  parameterdescs => %parameter descriptions
 #  sectionlist => @list of sections
-#  sections => %descriont descriptions
+#  sections => %section descriptions
 #
 
 sub output_highlight {
@@ -583,14 +583,14 @@ sub output_function_xml(%) {
     $id = "API-".$args{'function'};
     $id =~ s/[^A-Za-z0-9]/-/g;
 
-    print "<refentry>\n";
+    print "<refentry id=\"$id\">\n";
     print "<refentryinfo>\n";
     print " <title>LINUX</title>\n";
     print " <productname>Kernel Hackers Manual</productname>\n";
     print " <date>$man_date</date>\n";
     print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print " <refentrytitle><phrase id=\"$id\">".$args{'function'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase>".$args{'function'}."</phrase></refentrytitle>\n";
     print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
@@ -659,14 +659,14 @@ sub output_struct_xml(%) {
     $id = "API-struct-".$args{'struct'};
     $id =~ s/[^A-Za-z0-9]/-/g;
 
-    print "<refentry>\n";
+    print "<refentry id=\"$id\">\n";
     print "<refentryinfo>\n";
     print " <title>LINUX</title>\n";
     print " <productname>Kernel Hackers Manual</productname>\n";
     print " <date>$man_date</date>\n";
     print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print " <refentrytitle><phrase id=\"$id\">".$args{'type'}." ".$args{'struct'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase>".$args{'type'}." ".$args{'struct'}."</phrase></refentrytitle>\n";
     print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
@@ -743,14 +743,14 @@ sub output_enum_xml(%) {
     $id = "API-enum-".$args{'enum'};
     $id =~ s/[^A-Za-z0-9]/-/g;
 
-    print "<refentry>\n";
+    print "<refentry id=\"$id\">\n";
     print "<refentryinfo>\n";
     print " <title>LINUX</title>\n";
     print " <productname>Kernel Hackers Manual</productname>\n";
     print " <date>$man_date</date>\n";
     print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print " <refentrytitle><phrase id=\"$id\">enum ".$args{'enum'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase>enum ".$args{'enum'}."</phrase></refentrytitle>\n";
     print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
@@ -809,14 +809,14 @@ sub output_typedef_xml(%) {
     $id = "API-typedef-".$args{'typedef'};
     $id =~ s/[^A-Za-z0-9]/-/g;
 
-    print "<refentry>\n";
+    print "<refentry id=\"$id\">\n";
     print "<refentryinfo>\n";
     print " <title>LINUX</title>\n";
     print " <productname>Kernel Hackers Manual</productname>\n";
     print " <date>$man_date</date>\n";
     print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print " <refentrytitle><phrase id=\"$id\">typedef ".$args{'typedef'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase>typedef ".$args{'typedef'}."</phrase></refentrytitle>\n";
     print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
@@ -953,7 +953,11 @@ sub output_function_man(%) {
     print $args{'function'}." \\- ".$args{'purpose'}."\n";
 
     print ".SH SYNOPSIS\n";
-    print ".B \"".$args{'functiontype'}."\" ".$args{'function'}."\n";
+    if ($args{'functiontype'} ne "") {
+	print ".B \"".$args{'functiontype'}."\" ".$args{'function'}."\n";
+    } else {
+	print ".B \"".$args{'function'}."\n";
+    }
     $count = 0;
     my $parenth = "(";
     my $post = ",";
@@ -1118,13 +1122,19 @@ sub output_intro_man(%) {
 sub output_function_text(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
+    my $start;
 
     print "Name:\n\n";
     print $args{'function'}." - ".$args{'purpose'}."\n";
 
     print "\nSynopsis:\n\n";
-    my $start=$args{'functiontype'}." ".$args{'function'}." (";
+    if ($args{'functiontype'} ne "") {
+	$start = $args{'functiontype'}." ".$args{'function'}." (";
+    } else {
+	$start = $args{'function'}." (";
+    }
     print $start;
+
     my $count = 0;
     foreach my $parameter (@{$args{'parameterlist'}}) {
 	$type = $args{'parametertypes'}{$parameter};
@@ -1433,7 +1443,7 @@ sub create_parameterlist($$$) {
 	} elsif ($arg =~ m/\(.*\*/) {
 	    # pointer-to-function
 	    $arg =~ tr/#/,/;
-	    $arg =~ m/[^\(]+\(\*([^\)]+)\)/;
+	    $arg =~ m/[^\(]+\(\*\s*([^\)]+)\)/;
 	    $param = $1;
 	    $type = $arg;
 	    $type =~ s/([^\(]+\(\*)$param/$1/;
@@ -1536,7 +1546,7 @@ sub dump_function($$) {
     $prototype =~ s/^__always_inline +//;
     $prototype =~ s/^noinline +//;
     $prototype =~ s/__devinit +//;
-    $prototype =~ s/^#define +//; #ak added
+    $prototype =~ s/^#define\s+//; #ak added
     $prototype =~ s/__attribute__ \(\([a-z,]*\)\)//;
 
     # Yes, this truly is vile.  We are looking for:
@@ -1570,7 +1580,8 @@ sub dump_function($$) {
 	$prototype =~ m/^(\w+\s+\w+\s+\w+)\s+([a-zA-Z0-9_~:]+)\s*\(([^\{]*)\)/ ||
 	$prototype =~ m/^(\w+\s+\w+\s+\w+\s*\*)\s*([a-zA-Z0-9_~:]+)\s*\(([^\{]*)\)/ ||
 	$prototype =~ m/^(\w+\s+\w+\s+\w+\s+\w+)\s+([a-zA-Z0-9_~:]+)\s*\(([^\{]*)\)/ ||
-	$prototype =~ m/^(\w+\s+\w+\s+\w+\s+\w+\s*\*)\s*([a-zA-Z0-9_~:]+)\s*\(([^\{]*)\)/)  {
+	$prototype =~ m/^(\w+\s+\w+\s+\w+\s+\w+\s*\*)\s*([a-zA-Z0-9_~:]+)\s*\(([^\{]*)\)/ ||
+	$prototype =~ m/^(\w+\s+\w+\s*\*\s*\w+\s*\*\s*)\s*([a-zA-Z0-9_~:]+)\s*\(([^\{]*)\)/)  {
 	$return_type = $1;
 	$declaration_name = $2;
 	my $args = $3;
@@ -1710,6 +1721,7 @@ sub process_file($) {
     my $file;
     my $identifier;
     my $func;
+    my $descr;
     my $initial_section_counter = $section_counter;
 
     if (defined($ENV{'SRCTREE'})) {
@@ -1753,7 +1765,12 @@ sub process_file($) {
 
 		$state = 2;
 		if (/-(.*)/) {
-		    $declaration_purpose = xml_escape($1);
+		    # strip leading/trailing/multiple spaces #RDD:T:
+		    $descr= $1;
+		    $descr =~ s/^\s*//;
+		    $descr =~ s/\s*$//;
+		    $descr =~ s/\s+/ /;
+		    $declaration_purpose = xml_escape($descr);
 		} else {
 		    $declaration_purpose = "";
 		}

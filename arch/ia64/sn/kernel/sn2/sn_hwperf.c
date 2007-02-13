@@ -865,7 +865,7 @@ error:
 	return r;
 }
 
-static struct file_operations sn_hwperf_fops = {
+static const struct file_operations sn_hwperf_fops = {
 	.ioctl = sn_hwperf_ioctl,
 };
 

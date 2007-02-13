@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_SOCKIOS_H
 #define _ASM_M32R_SOCKIOS_H
 
-/* $Id$ */
-
 /* Socket-level I/O control calls. */
 #define FIOSETOWN 	0x8901
 #define SIOCSPGRP	0x8902

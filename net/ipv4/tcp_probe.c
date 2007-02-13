@@ -143,7 +143,7 @@ out_free:
 	return error ? error : cnt;
 }
 
-static struct file_operations tcpprobe_fops = {
+static const struct file_operations tcpprobe_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = tcpprobe_open,
 	.read    = tcpprobe_read,

@@ -75,7 +75,7 @@ const struct file_operations ext2_xip_file_operations = {
 };
 #endif
 
-struct inode_operations ext2_file_inode_operations = {
+const struct inode_operations ext2_file_inode_operations = {
 	.truncate	= ext2_truncate,
 #ifdef CONFIG_EXT2_FS_XATTR
 	.setxattr	= generic_setxattr,

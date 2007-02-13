@@ -1822,7 +1822,7 @@ isdn_close(struct inode *ino, struct file *filep)
 	return 0;
 }
 
-static struct file_operations isdn_fops =
+static const struct file_operations isdn_fops =
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,

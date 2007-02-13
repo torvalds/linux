@@ -43,10 +43,10 @@ static int get_range(char **str, int *pint)
  *	comma as well.
  *
  *	Return values:
- *	0 : no int in string
- *	1 : int found, no subsequent comma
- *	2 : int found including a subsequent comma
- *	3 : hyphen found to denote a range
+ *	0 - no int in string
+ *	1 - int found, no subsequent comma
+ *	2 - int found including a subsequent comma
+ *	3 - hyphen found to denote a range
  */
 
 int get_option (char **str, int *pint)

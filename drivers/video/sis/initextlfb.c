@@ -38,14 +38,14 @@ int		sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr,
 			unsigned char modeno, unsigned char rateindex);
 int		sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
 			unsigned char rateindex, struct fb_var_screeninfo *var);
-BOOLEAN		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno,
+bool		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno,
 			int *htotal, int *vtotal, unsigned char rateindex);
 
-extern BOOLEAN	SiSInitPtr(struct SiS_Private *SiS_Pr);
-extern BOOLEAN	SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo,
+extern bool	SiSInitPtr(struct SiS_Private *SiS_Pr);
+extern bool	SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo,
 			unsigned short *ModeIdIndex);
 extern void	SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
-			int xres, int yres, struct fb_var_screeninfo *var, BOOLEAN writeres);
+			int xres, int yres, struct fb_var_screeninfo *var, bool writeres);
 
 int
 sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr, unsigned char modeno,
@@ -131,7 +131,7 @@ sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
 			(unsigned char *)&SiS_Pr->SiS_CRT1Table[index].CR[0],
 			SiS_Pr->SiS_RefIndex[RRTI].XRes,
 			SiS_Pr->SiS_RefIndex[RRTI].YRes,
-			var, FALSE);
+			var, false);
 
     if(SiS_Pr->SiS_RefIndex[RRTI].Ext_InfoFlag & 0x8000)
        var->sync &= ~FB_SYNC_VERT_HIGH_ACT;
@@ -175,7 +175,7 @@ sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
     return 1;
 }
 
-BOOLEAN
+bool
 sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno, int *htotal,
 			int *vtotal, unsigned char rateindex)
 {
@@ -184,7 +184,7 @@ sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno, int *ht
     unsigned short RRTI = 0;
     unsigned char  sr_data, cr_data, cr_data2;
 
-    if(!SiSInitPtr(SiS_Pr)) return FALSE;
+    if(!SiSInitPtr(SiS_Pr)) return false;
 
     if(rateindex > 0) rateindex--;
 
@@ -195,7 +195,7 @@ sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno, int *ht
     }
 #endif
 
-    if(!(SiS_SearchModeID(SiS_Pr, &ModeNo, &ModeIdIndex))) return FALSE;
+    if(!(SiS_SearchModeID(SiS_Pr, &ModeNo, &ModeIdIndex))) return false;
 
     RRTI = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].REFindex;
     if(SiS_Pr->SiS_RefIndex[RRTI].Ext_InfoFlag & HaveWideTiming) {
@@ -226,7 +226,7 @@ sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno, int *ht
     if(SiS_Pr->SiS_RefIndex[RRTI].Ext_InfoFlag & InterlaceMode)
        *vtotal *= 2;
 
-    return TRUE;
+    return true;
 }
 
 

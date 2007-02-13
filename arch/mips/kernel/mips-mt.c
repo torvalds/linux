@@ -3,9 +3,11 @@
  * Copyright (C) 2005 Mips Technologies, Inc
  */
 
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/cpumask.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/security.h>
 
@@ -453,3 +455,20 @@ void mt_cflush_release(void)
 #endif /* CONFIG_MIPS_MT_SMTC */
 	/* FILL IN VSMP and AP/SP VERSIONS HERE */
 }
+
+struct class *mt_class;
+
+static int __init mt_init(void)
+{
+	struct class *mtc;
+
+	mtc = class_create(THIS_MODULE, "mt");
+	if (IS_ERR(mtc))
+		return PTR_ERR(mtc);
+
+	mt_class = mtc;
+
+	return 0;
+}
+
+subsys_initcall(mt_init);

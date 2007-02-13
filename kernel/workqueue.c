@@ -656,8 +656,7 @@ void flush_scheduled_work(void)
 EXPORT_SYMBOL(flush_scheduled_work);
 
 /**
- * cancel_rearming_delayed_workqueue - reliably kill off a delayed
- *			work whose handler rearms the delayed work.
+ * cancel_rearming_delayed_workqueue - reliably kill off a delayed work whose handler rearms the delayed work.
  * @wq:   the controlling workqueue structure
  * @dwork: the delayed work struct
  */
@@ -670,8 +669,7 @@ void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
 EXPORT_SYMBOL(cancel_rearming_delayed_workqueue);
 
 /**
- * cancel_rearming_delayed_work - reliably kill off a delayed keventd
- *			work whose handler rearms the delayed work.
+ * cancel_rearming_delayed_work - reliably kill off a delayed keventd work whose handler rearms the delayed work.
  * @dwork: the delayed work struct
  */
 void cancel_rearming_delayed_work(struct delayed_work *dwork)

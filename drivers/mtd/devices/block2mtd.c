@@ -278,7 +278,8 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 	kfree(dev->mtd.name);
 
 	if (dev->blkdev) {
-		invalidate_inode_pages(dev->blkdev->bd_inode->i_mapping);
+		invalidate_mapping_pages(dev->blkdev->bd_inode->i_mapping,
+					0, -1);
 		close_bdev_excl(dev->blkdev);
 	}
 

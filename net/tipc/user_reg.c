@@ -1,6 +1,6 @@
 /*
  * net/tipc/user_reg.c: TIPC user registry code
- * 
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2004-2005, Wind River Systems
  * All rights reserved.
@@ -40,7 +40,7 @@
 /*
  * TIPC user registry keeps track of users of the tipc_port interface.
  *
- * The registry utilizes an array of "TIPC user" entries; 
+ * The registry utilizes an array of "TIPC user" entries;
  * a user's ID is the index of their associated array entry.
  * Array entry 0 is not used, so userid 0 is not valid;
  * TIPC sometimes uses this value to denote an anonymous user.
@@ -51,7 +51,7 @@
  * struct tipc_user - registered TIPC user info
  * @next: index of next free registry entry (or -1 for an allocated entry)
  * @callback: ptr to routine to call when TIPC mode changes (NULL if none)
- * @usr_handle: user-defined value passed to callback routine 
+ * @usr_handle: user-defined value passed to callback routine
  * @ports: list of user ports owned by the user
  */
 
@@ -71,7 +71,7 @@ static DEFINE_SPINLOCK(reg_lock);
 
 /**
  * reg_init - create TIPC user registry (but don't activate it)
- * 
+ *
  * If registry has been pre-initialized it is left "as is".
  * NOTE: This routine may be called when TIPC is inactive.
  */
@@ -79,7 +79,7 @@ static DEFINE_SPINLOCK(reg_lock);
 static int reg_init(void)
 {
 	u32 i;
-	
+
 	spin_lock_bh(&reg_lock);
 	if (!users) {
 		users = kzalloc(USER_LIST_SIZE, GFP_ATOMIC);
@@ -137,7 +137,7 @@ int tipc_reg_start(void)
  */
 
 void tipc_reg_stop(void)
-{               
+{
 	int id;
 
 	if (!users)
@@ -174,14 +174,14 @@ int tipc_attach(u32 *userid, tipc_mode_event cb, void *usr_handle)
 	user_ptr = &users[next_free_user];
 	*userid = next_free_user;
 	next_free_user = user_ptr->next;
-	user_ptr->next = -1; 
+	user_ptr->next = -1;
 	spin_unlock_bh(&reg_lock);
 
 	user_ptr->callback = cb;
 	user_ptr->usr_handle = usr_handle;
 	INIT_LIST_HEAD(&user_ptr->ports);
 	atomic_inc(&tipc_user_count);
-	
+
 	if (cb && (tipc_mode != TIPC_NOT_RUNNING))
 		tipc_k_signal((Handler)reg_callback, (unsigned long)user_ptr);
 	return TIPC_OK;
@@ -207,16 +207,16 @@ void tipc_detach(u32 userid)
 	}
 
 	user_ptr = &users[userid];
-        user_ptr->callback = NULL;              
+	user_ptr->callback = NULL;
 	INIT_LIST_HEAD(&ports_temp);
-        list_splice(&user_ptr->ports, &ports_temp);
+	list_splice(&user_ptr->ports, &ports_temp);
 	user_ptr->next = next_free_user;
 	next_free_user = userid;
 	spin_unlock_bh(&reg_lock);
 
 	atomic_dec(&tipc_user_count);
 
-        list_for_each_entry_safe(up_ptr, temp_up_ptr, &ports_temp, uport_list) {
+	list_for_each_entry_safe(up_ptr, temp_up_ptr, &ports_temp, uport_list) {
 		tipc_deleteport(up_ptr->ref);
 	}
 }

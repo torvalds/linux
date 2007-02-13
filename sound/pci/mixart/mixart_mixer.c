@@ -389,7 +389,7 @@ static int mixart_analog_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return changed;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_analog, -9600, 50, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_analog, -9600, 50, 0);
 
 static struct snd_kcontrol_new mixart_control_analog_level = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -872,7 +872,7 @@ static int mixart_pcm_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	return changed;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_digital, -10950, 50, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_digital, -10950, 50, 0);
 
 static struct snd_kcontrol_new snd_mixart_pcm_vol =
 {

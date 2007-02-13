@@ -70,6 +70,9 @@ static int graph_lock(void)
 
 static inline int graph_unlock(void)
 {
+	if (debug_locks && !__raw_spin_is_locked(&lockdep_lock))
+		return DEBUG_LOCKS_WARN_ON(1);
+
 	__raw_spin_unlock(&lockdep_lock);
 	return 0;
 }
@@ -487,7 +490,7 @@ static void print_lock_dependencies(struct lock_class *class, int depth)
  * Add a new dependency to the head of the list:
  */
 static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
-			    struct list_head *head, unsigned long ip)
+			    struct list_head *head, unsigned long ip, int distance)
 {
 	struct lock_list *entry;
 	/*
@@ -499,6 +502,7 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 		return 0;
 
 	entry->class = this;
+	entry->distance = distance;
 	if (!save_trace(&entry->trace))
 		return 0;
 
@@ -712,6 +716,9 @@ find_usage_backwards(struct lock_class *source, unsigned int depth)
 	struct lock_list *entry;
 	int ret;
 
+	if (!__raw_spin_is_locked(&lockdep_lock))
+		return DEBUG_LOCKS_WARN_ON(1);
+
 	if (depth > max_recursion_depth)
 		max_recursion_depth = depth;
 	if (depth >= RECURSION_LIMIT)
@@ -900,7 +907,7 @@ check_deadlock(struct task_struct *curr, struct held_lock *next,
  */
 static int
 check_prev_add(struct task_struct *curr, struct held_lock *prev,
-	       struct held_lock *next)
+	       struct held_lock *next, int distance)
 {
 	struct lock_list *entry;
 	int ret;
@@ -978,8 +985,11 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 *  L2 added to its dependency list, due to the first chain.)
 	 */
 	list_for_each_entry(entry, &prev->class->locks_after, entry) {
-		if (entry->class == next->class)
+		if (entry->class == next->class) {
+			if (distance == 1)
+				entry->distance = 1;
 			return 2;
+		}
 	}
 
 	/*
@@ -987,12 +997,13 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 * to the previous lock's dependency list:
 	 */
 	ret = add_lock_to_list(prev->class, next->class,
-			       &prev->class->locks_after, next->acquire_ip);
+			       &prev->class->locks_after, next->acquire_ip, distance);
+
 	if (!ret)
 		return 0;
 
 	ret = add_lock_to_list(next->class, prev->class,
-			       &next->class->locks_before, next->acquire_ip);
+			       &next->class->locks_before, next->acquire_ip, distance);
 	if (!ret)
 		return 0;
 
@@ -1040,13 +1051,14 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 		goto out_bug;
 
 	for (;;) {
+		int distance = curr->lockdep_depth - depth + 1;
 		hlock = curr->held_locks + depth-1;
 		/*
 		 * Only non-recursive-read entries get new dependencies
 		 * added:
 		 */
 		if (hlock->read != 2) {
-			if (!check_prev_add(curr, hlock, next))
+			if (!check_prev_add(curr, hlock, next, distance))
 				return 0;
 			/*
 			 * Stop after the first non-trylock entry,
@@ -1293,7 +1305,8 @@ out_unlock_set:
 	if (!subclass || force)
 		lock->class_cache = class;
 
-	DEBUG_LOCKS_WARN_ON(class->subclass != subclass);
+	if (DEBUG_LOCKS_WARN_ON(class->subclass != subclass))
+		return NULL;
 
 	return class;
 }
@@ -1308,7 +1321,8 @@ static inline int lookup_chain_cache(u64 chain_key, struct lock_class *class)
 	struct list_head *hash_head = chainhashentry(chain_key);
 	struct lock_chain *chain;
 
-	DEBUG_LOCKS_WARN_ON(!irqs_disabled());
+	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
+		return 0;
 	/*
 	 * We can walk it lock-free, because entries only get added
 	 * to the hash:
@@ -1394,7 +1408,9 @@ static void check_chain_key(struct task_struct *curr)
 			return;
 		}
 		id = hlock->class - lock_classes;
-		DEBUG_LOCKS_WARN_ON(id >= MAX_LOCKDEP_KEYS);
+		if (DEBUG_LOCKS_WARN_ON(id >= MAX_LOCKDEP_KEYS))
+			return;
+
 		if (prev_hlock && (prev_hlock->irq_context !=
 							hlock->irq_context))
 			chain_key = 0;
@@ -2205,7 +2221,11 @@ out_calc_hash:
 			if (!check_prevs_add(curr, hlock))
 				return 0;
 		graph_unlock();
-	}
+	} else
+		/* after lookup_chain_cache(): */
+		if (unlikely(!debug_locks))
+			return 0;
+
 	curr->lockdep_depth++;
 	check_chain_key(curr);
 	if (unlikely(curr->lockdep_depth >= MAX_LOCK_DEPTH)) {
@@ -2214,6 +2234,7 @@ out_calc_hash:
 		printk("turning off the locking correctness validator.\n");
 		return 0;
 	}
+
 	if (unlikely(curr->lockdep_depth > max_lockdep_depth))
 		max_lockdep_depth = curr->lockdep_depth;
 
@@ -2764,4 +2785,3 @@ void debug_show_held_locks(struct task_struct *task)
 }
 
 EXPORT_SYMBOL_GPL(debug_show_held_locks);
-

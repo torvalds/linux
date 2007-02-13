@@ -521,10 +521,10 @@ static void osst_init_aux(struct osst_tape * STp, int frame_type, int frame_seq_
 		break;
 	  default: ; /* probably FILL */
 	}
-	aux->filemark_cnt = ntohl(STp->filemark_cnt);
-	aux->phys_fm = ntohl(0xffffffff);
-	aux->last_mark_ppos = ntohl(STp->last_mark_ppos);
-	aux->last_mark_lbn  = ntohl(STp->last_mark_lbn);
+	aux->filemark_cnt = htonl(STp->filemark_cnt);
+	aux->phys_fm = htonl(0xffffffff);
+	aux->last_mark_ppos = htonl(STp->last_mark_ppos);
+	aux->last_mark_lbn  = htonl(STp->last_mark_lbn);
 }
 
 /*
@@ -5522,7 +5522,7 @@ __setup("osst=", osst_setup);
 
 #endif
 
-static struct file_operations osst_fops = {
+static const struct file_operations osst_fops = {
 	.owner =        THIS_MODULE,
 	.read =         osst_read,
 	.write =        osst_write,

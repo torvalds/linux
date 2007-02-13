@@ -78,6 +78,7 @@ EXPORT_SYMBOL(__lock_buffer);
 
 void fastcall unlock_buffer(struct buffer_head *bh)
 {
+	smp_mb__before_clear_bit();
 	clear_buffer_locked(bh);
 	smp_mb__after_clear_bit();
 	wake_up_bit(&bh->b_state, BH_Lock);
@@ -345,7 +346,7 @@ void invalidate_bdev(struct block_device *bdev, int destroy_dirty_buffers)
 	 * We really want to use invalidate_inode_pages2() for
 	 * that, but not until that's cleaned up.
 	 */
-	invalidate_inode_pages(mapping);
+	invalidate_mapping_pages(mapping, 0, -1);
 }
 
 /*
@@ -1282,11 +1283,11 @@ static void bh_lru_install(struct buffer_head *bh)
  * Look up the bh in this cpu's LRU.  If it's there, move it to the head.
  */
 static struct buffer_head *
-lookup_bh_lru(struct block_device *bdev, sector_t block, int size)
+lookup_bh_lru(struct block_device *bdev, sector_t block, unsigned size)
 {
 	struct buffer_head *ret = NULL;
 	struct bh_lru *lru;
-	int i;
+	unsigned int i;
 
 	check_irqs_on();
 	bh_lru_lock();
@@ -1318,7 +1319,7 @@ lookup_bh_lru(struct block_device *bdev, sector_t block, int size)
  * NULL
  */
 struct buffer_head *
-__find_get_block(struct block_device *bdev, sector_t block, int size)
+__find_get_block(struct block_device *bdev, sector_t block, unsigned size)
 {
 	struct buffer_head *bh = lookup_bh_lru(bdev, block, size);
 
@@ -1346,7 +1347,7 @@ EXPORT_SYMBOL(__find_get_block);
  * attempt is failing.  FIXME, perhaps?
  */
 struct buffer_head *
-__getblk(struct block_device *bdev, sector_t block, int size)
+__getblk(struct block_device *bdev, sector_t block, unsigned size)
 {
 	struct buffer_head *bh = __find_get_block(bdev, block, size);
 
@@ -1360,7 +1361,7 @@ EXPORT_SYMBOL(__getblk);
 /*
  * Do async read-ahead on a buffer..
  */
-void __breadahead(struct block_device *bdev, sector_t block, int size)
+void __breadahead(struct block_device *bdev, sector_t block, unsigned size)
 {
 	struct buffer_head *bh = __getblk(bdev, block, size);
 	if (likely(bh)) {
@@ -1380,7 +1381,7 @@ EXPORT_SYMBOL(__breadahead);
  *  It returns NULL if the block was unreadable.
  */
 struct buffer_head *
-__bread(struct block_device *bdev, sector_t block, int size)
+__bread(struct block_device *bdev, sector_t block, unsigned size)
 {
 	struct buffer_head *bh = __getblk(bdev, block, size);
 
@@ -1439,6 +1440,7 @@ static void discard_buffer(struct buffer_head * bh)
 	clear_buffer_req(bh);
 	clear_buffer_new(bh);
 	clear_buffer_delay(bh);
+	clear_buffer_unwritten(bh);
 	unlock_buffer(bh);
 }
 
@@ -1822,6 +1824,7 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 			continue; 
 		}
 		if (!buffer_uptodate(bh) && !buffer_delay(bh) &&
+		    !buffer_unwritten(bh) &&
 		     (block_start < from || block_end > to)) {
 			ll_rw_block(READ, 1, &bh);
 			*wait_bh++=bh;
@@ -2543,7 +2546,7 @@ int block_truncate_page(struct address_space *mapping,
 	if (PageUptodate(page))
 		set_buffer_uptodate(bh);
 
-	if (!buffer_uptodate(bh) && !buffer_delay(bh)) {
+	if (!buffer_uptodate(bh) && !buffer_delay(bh) && !buffer_unwritten(bh)) {
 		err = -EIO;
 		ll_rw_block(READ, 1, &bh);
 		wait_on_buffer(bh);

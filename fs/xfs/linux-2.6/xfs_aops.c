@@ -56,8 +56,6 @@ xfs_count_page_state(
 	do {
 		if (buffer_uptodate(bh) && !buffer_mapped(bh))
 			(*unmapped) = 1;
-		else if (buffer_unwritten(bh) && !buffer_delay(bh))
-			clear_buffer_unwritten(bh);
 		else if (buffer_unwritten(bh))
 			(*unwritten) = 1;
 		else if (buffer_delay(bh))
@@ -249,7 +247,7 @@ xfs_map_blocks(
 	return -error;
 }
 
-STATIC inline int
+STATIC_INLINE int
 xfs_iomap_valid(
 	xfs_iomap_t		*iomapp,
 	loff_t			offset)
@@ -1272,7 +1270,6 @@ __xfs_get_blocks(
 			if (direct)
 				bh_result->b_private = inode;
 			set_buffer_unwritten(bh_result);
-			set_buffer_delay(bh_result);
 		}
 	}
 
@@ -1283,13 +1280,18 @@ __xfs_get_blocks(
 	bh_result->b_bdev = iomap.iomap_target->bt_bdev;
 
 	/*
-	 * If we previously allocated a block out beyond eof and we are
-	 * now coming back to use it then we will need to flag it as new
-	 * even if it has a disk address.
+	 * If we previously allocated a block out beyond eof and we are now
+	 * coming back to use it then we will need to flag it as new even if it
+	 * has a disk address.
+	 *
+	 * With sub-block writes into unwritten extents we also need to mark
+	 * the buffer as new so that the unwritten parts of the buffer gets
+	 * correctly zeroed.
 	 */
 	if (create &&
 	    ((!buffer_mapped(bh_result) && !buffer_uptodate(bh_result)) ||
-	     (offset >= i_size_read(inode)) || (iomap.iomap_flags & IOMAP_NEW)))
+	     (offset >= i_size_read(inode)) ||
+	     (iomap.iomap_flags & (IOMAP_NEW|IOMAP_UNWRITTEN))))
 		set_buffer_new(bh_result);
 
 	if (iomap.iomap_flags & IOMAP_DELAY) {

@@ -96,6 +96,7 @@ ebt_log_packet(unsigned int pf, unsigned int hooknum,
 		       NIPQUAD(ih->daddr), ih->tos, ih->protocol);
 		if (ih->protocol == IPPROTO_TCP ||
 		    ih->protocol == IPPROTO_UDP ||
+		    ih->protocol == IPPROTO_UDPLITE ||
 		    ih->protocol == IPPROTO_SCTP ||
 		    ih->protocol == IPPROTO_DCCP) {
 			struct tcpudphdr _ports, *pptr;
@@ -168,10 +169,10 @@ static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
 
 	if (info->bitmask & EBT_LOG_NFLOG)
 		nf_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li,
-		              "%s", info->prefix);
+			      "%s", info->prefix);
 	else
 		ebt_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li,
-		               info->prefix);
+			       info->prefix);
 }
 
 static struct ebt_watcher log =
@@ -198,7 +199,7 @@ static int __init ebt_log_init(void)
 	if (nf_log_register(PF_BRIDGE, &ebt_log_logger) < 0) {
 		printk(KERN_WARNING "ebt_log: not logging via system console "
 		       "since somebody else already registered for PF_INET\n");
-		/* we cannot make module load fail here, since otherwise 
+		/* we cannot make module load fail here, since otherwise
 		 * ebtables userspace would abort */
 	}
 
@@ -207,7 +208,7 @@ static int __init ebt_log_init(void)
 
 static void __exit ebt_log_fini(void)
 {
-	nf_log_unregister_logger(&ebt_log_logger);
+	nf_log_unregister(&ebt_log_logger);
 	ebt_unregister_watcher(&log);
 }
 

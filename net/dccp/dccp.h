@@ -22,7 +22,7 @@
  * 	DCCP - specific warning and debugging macros.
  */
 #define DCCP_WARN(fmt, a...) LIMIT_NETDEBUG(KERN_WARNING "%s: " fmt,       \
-						        __FUNCTION__, ##a)
+							__FUNCTION__, ##a)
 #define DCCP_CRIT(fmt, a...) printk(KERN_CRIT fmt " at %s:%d/%s()\n", ##a, \
 					 __FILE__, __LINE__, __FUNCTION__)
 #define DCCP_BUG(a...)       do { DCCP_CRIT("BUG: " a); dump_stack(); } while(0)
@@ -34,7 +34,7 @@
 #ifdef MODULE
 #define DCCP_PRINTK(enable, fmt, args...)	do { if (enable)	     \
 							printk(fmt, ##args); \
-					 	} while(0)
+						} while(0)
 #else
 #define DCCP_PRINTK(enable, fmt, args...)	printk(fmt, ##args)
 #endif
@@ -128,7 +128,7 @@ enum {
 	DCCP_MIB_ACTIVEOPENS,			/* ActiveOpens */
 	DCCP_MIB_ESTABRESETS,			/* EstabResets */
 	DCCP_MIB_CURRESTAB,			/* CurrEstab */
-	DCCP_MIB_OUTSEGS,			/* OutSegs */ 
+	DCCP_MIB_OUTSEGS,			/* OutSegs */
 	DCCP_MIB_OUTRSTS,
 	DCCP_MIB_ABORTONTIMEOUT,
 	DCCP_MIB_TIMEOUTS,
@@ -372,7 +372,7 @@ static inline void dccp_update_gss(struct sock *sk, u64 seq)
 		       (dp->dccps_gss -
 			dccp_msk(sk)->dccpms_sequence_window + 1));
 }
-				
+
 static inline int dccp_ack_pending(const struct sock *sk)
 {
 	const struct dccp_sock *dp = dccp_sk(sk);

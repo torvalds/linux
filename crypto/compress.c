@@ -34,11 +34,6 @@ static int crypto_decompress(struct crypto_tfm *tfm,
 	                                                   dlen);
 }
 
-int crypto_init_compress_flags(struct crypto_tfm *tfm, u32 flags)
-{
-	return flags ? -EINVAL : 0;
-}
-
 int crypto_init_compress_ops(struct crypto_tfm *tfm)
 {
 	struct compress_tfm *ops = &tfm->crt_compress;

@@ -56,7 +56,7 @@ static const unsigned char days_in_month[] =
 
 int pcf8563_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
 
-static struct file_operations pcf8563_fops = {
+static const struct file_operations pcf8563_fops = {
 	.owner = THIS_MODULE,
 	.ioctl = pcf8563_ioctl,
 };

@@ -183,7 +183,7 @@ static DEFINE_TIMER(tx, isicom_tx, 0, 0);
 /*   baud index mappings from linux defns to isi */
 
 static signed char linuxb_to_isib[] = {
-	-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 16, 17, 18, 19
+	-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 16, 17, 18, 19, 20, 21
 };
 
 struct	isi_board {
@@ -213,8 +213,6 @@ struct	isi_port {
 	struct tty_struct 	* tty;
 	wait_queue_head_t	close_wait;
 	wait_queue_head_t	open_wait;
-	struct work_struct	hangup_tq;
-	struct work_struct	bh_tqueue;
 	unsigned char		* xmit_buf;
 	int			xmit_head;
 	int			xmit_tail;
@@ -510,7 +508,7 @@ static void isicom_tx(unsigned long _data)
 		if (port->xmit_cnt <= 0)
 			port->status &= ~ISI_TXOK;
 		if (port->xmit_cnt <= WAKEUP_CHARS)
-			schedule_work(&port->bh_tqueue);
+			tty_wakeup(tty);
 		unlock_card(&isi_card[card]);
 	}
 
@@ -522,21 +520,6 @@ sched_again:
 	}
 
 	mod_timer(&tx, jiffies + msecs_to_jiffies(10));
-}
-
-/* 	Interrupt handlers 	*/
-
-
-static void isicom_bottomhalf(struct work_struct *work)
-{
-	struct isi_port *port = container_of(work, struct isi_port, bh_tqueue);
-	struct tty_struct *tty = port->tty;
-
-	if (!tty)
-		return;
-
-	tty_wakeup(tty);
-	wake_up_interruptible(&tty->write_wait);
 }
 
 /*
@@ -557,6 +540,11 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	base = card->base;
+
+	/* did the card interrupt us? */
+	if (!(inw(base + 0x0e) & 0x02))
+		return IRQ_NONE;
+
 	spin_lock(&card->card_lock);
 
 	/*
@@ -581,6 +569,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 	port = card->ports + channel;
 	if (!(port->flags & ASYNC_INITIALIZED)) {
 		outw(0x0000, base+0x04); /* enable interrupts */
+		spin_unlock(&card->card_lock);
 		return IRQ_HANDLED;
 	}
 
@@ -609,7 +598,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 						pr_dbg("interrupt: DCD->low.\n"
 							);
 						port->status &= ~ISI_DCD;
-						schedule_work(&port->hangup_tq);
+						tty_hangup(tty);
 					}
 				} else if (header & ISI_DCD) {
 				/* Carrier has been detected */
@@ -631,7 +620,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 						/* start tx ing */
 						port->status |= (ISI_TXOK
 							| ISI_CTS);
-						schedule_work(&port->bh_tqueue);
+						tty_wakeup(tty);
 					}
 				} else if (!(header & ISI_CTS)) {
 					port->tty->hw_stopped = 1;
@@ -695,6 +684,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		tty_flip_buffer_push(tty);
 	}
 	outw(0x0000, base+0x04); /* enable interrupts */
+	spin_unlock(&card->card_lock);
 
 	return IRQ_HANDLED;
 }
@@ -720,7 +710,8 @@ static void isicom_config_port(struct isi_port *port)
 		 *  respectively.
 		 */
 
-		if (baud < 1 || baud > 2)
+		/* 1,2,3,4 => 57.6, 115.2, 230, 460 kbps resp. */
+		if (baud < 1 || baud > 4)
 			port->tty->termios->c_cflag &= ~CBAUDEX;
 		else
 			baud += 15;
@@ -736,6 +727,10 @@ static void isicom_config_port(struct isi_port *port)
 			baud++; /*  57.6 Kbps */
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
 			baud +=2; /*  115  Kbps */
+		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
+			baud += 3; /* 230 kbps*/
+		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
+			baud += 4; /* 460 kbps*/
 	}
 	if (linuxb_to_isib[baud] == -1) {
 		/* hang up */
@@ -1460,17 +1455,6 @@ static void isicom_start(struct tty_struct *tty)
 	port->status |= ISI_TXOK;
 }
 
-/* hangup et all */
-static void do_isicom_hangup(struct work_struct *work)
-{
-	struct isi_port *port = container_of(work, struct isi_port, hangup_tq);
-	struct tty_struct *tty;
-
-	tty = port->tty;
-	if (tty)
-		tty_hangup(tty);
-}
-
 static void isicom_hangup(struct tty_struct *tty)
 {
 	struct isi_port *port = tty->driver_data;
@@ -1503,7 +1487,6 @@ static void isicom_flush_buffer(struct tty_struct *tty)
 	port->xmit_cnt = port->xmit_head = port->xmit_tail = 0;
 	spin_unlock_irqrestore(&card->card_lock, flags);
 
-	wake_up_interruptible(&tty->write_wait);
 	tty_wakeup(tty);
 }
 
@@ -1536,7 +1519,7 @@ static int __devinit reset_card(struct pci_dev *pdev,
 {
 	struct isi_board *board = pci_get_drvdata(pdev);
 	unsigned long base = board->base;
-	unsigned int portcount = 0;
+	unsigned int sig, portcount = 0;
 	int retval = 0;
 
 	dev_dbg(&pdev->dev, "ISILoad:Resetting Card%d at 0x%lx\n", card + 1,
@@ -1544,27 +1527,35 @@ static int __devinit reset_card(struct pci_dev *pdev,
 
 	inw(base + 0x8);
 
-	mdelay(10);
+	msleep(10);
 
 	outw(0, base + 0x8); /* Reset */
 
-	msleep(3000);
+	msleep(1000);
 
-	*signature = inw(base + 0x4) & 0xff;
+	sig = inw(base + 0x4) & 0xff;
 
-	portcount = inw(base + 0x2);
-	if (!(inw(base + 0xe) & 0x1) || ((portcount != 0) &&
-			(portcount != 4) && (portcount != 8))) {
-		dev_dbg(&pdev->dev, "base+0x2=0x%lx, base+0xe=0x%lx\n",
-			inw(base + 0x2), inw(base + 0xe));
-		dev_err(&pdev->dev, "ISILoad:PCI Card%d reset failure "
-			"(Possible bad I/O Port Address 0x%lx).\n",
-			card + 1, base);
+	if (sig != 0xa5 && sig != 0xbb && sig != 0xcc && sig != 0xdd &&
+			sig != 0xee) {
+		dev_warn(&pdev->dev, "ISILoad:Card%u reset failure (Possible "
+			"bad I/O Port Address 0x%lx).\n", card + 1, base);
+		dev_dbg(&pdev->dev, "Sig=0x%x\n", sig);
 		retval = -EIO;
 		goto end;
 	}
 
-	switch (*signature) {
+	msleep(10);
+
+	portcount = inw(base + 0x2);
+	if (!inw(base + 0xe) & 0x1 || (portcount != 0 && portcount != 4 &&
+				portcount != 8 && portcount != 16)) {
+		dev_err(&pdev->dev, "ISILoad:PCI Card%d reset failure.",
+			card + 1);
+		retval = -EIO;
+		goto end;
+	}
+
+	switch (sig) {
 	case 0xa5:
 	case 0xbb:
 	case 0xdd:
@@ -1572,16 +1563,13 @@ static int __devinit reset_card(struct pci_dev *pdev,
 		board->shift_count = 12;
 		break;
 	case 0xcc:
+	case 0xee:
 		board->port_count = 16;
 		board->shift_count = 11;
 		break;
-	default:
-		dev_warn(&pdev->dev, "ISILoad:Card%d reset failure (Possible "
-			"bad I/O Port Address 0x%lx).\n", card + 1, base);
-		dev_dbg(&pdev->dev, "Sig=0x%lx\n", signature);
-		retval = -EIO;
 	}
 	dev_info(&pdev->dev, "-Done\n");
+	*signature = sig;
 
 end:
 	return retval;
@@ -1757,7 +1745,7 @@ end:
 /*
  *	Insmod can set static symbols so keep these static
  */
-static int card;
+static unsigned int card_count;
 
 static int __devinit isicom_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
@@ -1767,7 +1755,7 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 	u8 pciirq;
 	struct isi_board *board = NULL;
 
-	if (card >= BOARD_COUNT)
+	if (card_count >= BOARD_COUNT)
 		goto err;
 
 	ioaddr = pci_resource_start(pdev, 3);
@@ -1785,7 +1773,7 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 	board->index = index;
 	board->base = ioaddr;
 	board->irq = pciirq;
-	card++;
+	card_count++;
 
 	pci_set_drvdata(pdev, board);
 
@@ -1795,7 +1783,7 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 			"will be disabled.\n", board->base, board->base + 15,
 			index + 1);
 		retval = -EBUSY;
-		goto err;
+		goto errdec;
  	}
 
 	retval = request_irq(board->irq, isicom_interrupt,
@@ -1824,8 +1812,10 @@ errunri:
 	free_irq(board->irq, board);
 errunrr:
 	pci_release_region(pdev, 3);
-err:
+errdec:
 	board->base = 0;
+	card_count--;
+err:
 	return retval;
 }
 
@@ -1839,14 +1829,14 @@ static void __devexit isicom_remove(struct pci_dev *pdev)
 
 	free_irq(board->irq, board);
 	pci_release_region(pdev, 3);
+	board->base = 0;
+	card_count--;
 }
 
 static int __init isicom_init(void)
 {
 	int retval, idx, channel;
 	struct isi_port *port;
-
-	card = 0;
 
 	for(idx = 0; idx < BOARD_COUNT; idx++) {
 		port = &isi_ports[idx * 16];
@@ -1858,8 +1848,6 @@ static int __init isicom_init(void)
 			port->channel = channel;
 			port->close_delay = 50 * HZ/100;
 			port->closing_wait = 3000 * HZ/100;
-			INIT_WORK(&port->hangup_tq, do_isicom_hangup);
-			INIT_WORK(&port->bh_tqueue, isicom_bottomhalf);
 			port->status = 0;
 			init_waitqueue_head(&port->open_wait);
 			init_waitqueue_head(&port->close_wait);

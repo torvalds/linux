@@ -1582,7 +1582,7 @@ static void emu10k1_waveout_bh(unsigned long refdata)
 	return;
 }
 
-struct file_operations emu10k1_audio_fops = {
+const struct file_operations emu10k1_audio_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= emu10k1_audio_read,

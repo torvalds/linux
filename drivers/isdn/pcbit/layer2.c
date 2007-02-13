@@ -47,22 +47,6 @@
 #undef DEBUG_FRAG
 
 
-
-/*
- *  task queue struct
- */
-
-
-
-/*
- *  Layer 3 packet demultiplexer
- *  drv.c
- */
-
-extern void pcbit_l3_receive(struct pcbit_dev *dev, ulong msg,
-			     struct sk_buff *skb,
-			     ushort hdr_len, ushort refnum);
-
 /*
  *  Prototypes
  */

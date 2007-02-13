@@ -1,7 +1,7 @@
 /*
  * Lite5200B board Device Tree Source
  *
- * Copyright 2006 Secret Lab Technologies Ltd.
+ * Copyright 2006-2007 Secret Lab Technologies Ltd.
  * Grant Likely <grant.likely@secretlab.ca>
  *
  * This program is free software; you can redistribute  it and/or modify it
@@ -17,8 +17,9 @@
  */
 
 / {
-	model = "Lite5200b";
-	compatible = "lite5200b\0lite52xx\0mpc5200b\0mpc52xx";
+	model = "fsl,lite5200b";
+	// revision = "1.0";
+	compatible = "fsl,lite5200b\0generic-mpc5200";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -47,14 +48,17 @@
 	};
 
 	soc5200@f0000000 {
+		model = "fsl,mpc5200b";
+		revision = "";			// from bootloader
 		#interrupt-cells = <3>;
 		device_type = "soc";
 		ranges = <0 f0000000 f0010000>;
 		reg = <f0000000 00010000>;
 		bus-frequency = <0>;		// from bootloader
+		system-frequency = <0>;		// from bootloader
 
 		cdm@200 {
-			compatible = "mpc5200b-cdm\0mpc52xx-cdm";
+			compatible = "mpc5200b-cdm\0mpc5200-cdm";
 			reg = <200 38>;
 		};
 
@@ -64,77 +68,86 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			device_type = "interrupt-controller";
-			compatible = "mpc5200b-pic\0mpc52xx-pic";
+			compatible = "mpc5200b-pic\0mpc5200-pic";
 			reg = <500 80>;
 			built-in;
 		};
 
 		gpt@600 {	// General Purpose Timer
-			compatible = "mpc5200b-gpt\0mpc52xx-gpt";
+			compatible = "mpc5200b-gpt\0mpc5200-gpt";
 			device_type = "gpt";
+			cell-index = <0>;
 			reg = <600 10>;
 			interrupts = <1 9 0>;
 			interrupt-parent = <500>;
+			has-wdt;
 		};
 
 		gpt@610 {	// General Purpose Timer
-			compatible = "mpc5200b-gpt\0mpc52xx-gpt";
+			compatible = "mpc5200b-gpt\0mpc5200-gpt";
 			device_type = "gpt";
+			cell-index = <1>;
 			reg = <610 10>;
 			interrupts = <1 a 0>;
 			interrupt-parent = <500>;
 		};
 
 		gpt@620 {	// General Purpose Timer
-			compatible = "mpc5200b-gpt\0mpc52xx-gpt";
+			compatible = "mpc5200b-gpt\0mpc5200-gpt";
 			device_type = "gpt";
+			cell-index = <2>;
 			reg = <620 10>;
 			interrupts = <1 b 0>;
 			interrupt-parent = <500>;
 		};
 
 		gpt@630 {	// General Purpose Timer
-			compatible = "mpc5200b-gpt\0mpc52xx-gpt";
+			compatible = "mpc5200b-gpt\0mpc5200-gpt";
 			device_type = "gpt";
+			cell-index = <3>;
 			reg = <630 10>;
 			interrupts = <1 c 0>;
 			interrupt-parent = <500>;
 		};
 
 		gpt@640 {	// General Purpose Timer
-			compatible = "mpc5200b-gpt\0mpc52xx-gpt";
+			compatible = "mpc5200b-gpt\0mpc5200-gpt";
 			device_type = "gpt";
+			cell-index = <4>;
 			reg = <640 10>;
 			interrupts = <1 d 0>;
 			interrupt-parent = <500>;
 		};
 
 		gpt@650 {	// General Purpose Timer
-			compatible = "mpc5200b-gpt\0mpc52xx-gpt";
+			compatible = "mpc5200b-gpt\0mpc5200-gpt";
 			device_type = "gpt";
+			cell-index = <5>;
 			reg = <650 10>;
 			interrupts = <1 e 0>;
 			interrupt-parent = <500>;
 		};
 
 		gpt@660 {	// General Purpose Timer
-			compatible = "mpc5200b-gpt\0mpc52xx-gpt";
+			compatible = "mpc5200b-gpt\0mpc5200-gpt";
 			device_type = "gpt";
+			cell-index = <6>;
 			reg = <660 10>;
 			interrupts = <1 f 0>;
 			interrupt-parent = <500>;
 		};
 
 		gpt@670 {	// General Purpose Timer
-			compatible = "mpc5200b-gpt\0mpc52xx-gpt";
+			compatible = "mpc5200b-gpt\0mpc5200-gpt";
 			device_type = "gpt";
+			cell-index = <7>;
 			reg = <670 10>;
 			interrupts = <1 10 0>;
 			interrupt-parent = <500>;
 		};
 
 		rtc@800 {	// Real time clock
-			compatible = "mpc5200b-rtc\0mpc52xx-rtc";
+			compatible = "mpc5200b-rtc\0mpc5200-rtc";
 			device_type = "rtc";
 			reg = <800 100>;
 			interrupts = <1 5 0 1 6 0>;
@@ -143,7 +156,8 @@
 
 		mscan@900 {
 			device_type = "mscan";
-			compatible = "mpc5200b-mscan\0mpc52xx-mscan";
+			compatible = "mpc5200b-mscan\0mpc5200-mscan";
+			cell-index = <0>;
 			interrupts = <2 11 0>;
 			interrupt-parent = <500>;
 			reg = <900 80>;
@@ -151,21 +165,22 @@
 
 		mscan@980 {
 			device_type = "mscan";
-			compatible = "mpc5200b-mscan\0mpc52xx-mscan";
+			compatible = "mpc5200b-mscan\0mpc5200-mscan";
+			cell-index = <1>;
 			interrupts = <1 12 0>;
 			interrupt-parent = <500>;
 			reg = <980 80>;
 		};
 
 		gpio@b00 {
-			compatible = "mpc5200b-gpio\0mpc52xx-gpio";
+			compatible = "mpc5200b-gpio\0mpc5200-gpio";
 			reg = <b00 40>;
 			interrupts = <1 7 0>;
 			interrupt-parent = <500>;
 		};
 
 		gpio-wkup@b00 {
-			compatible = "mpc5200b-gpio-wkup\0mpc52xx-gpio-wkup";
+			compatible = "mpc5200b-gpio-wkup\0mpc5200-gpio-wkup";
 			reg = <c00 40>;
 			interrupts = <1 8 0 0 3 0>;
 			interrupt-parent = <500>;
@@ -176,7 +191,7 @@
 			#size-cells = <2>;
 			#address-cells = <3>;
 			device_type = "pci";
-			compatible = "mpc5200b-pci\0mpc52xx-pci";
+			compatible = "mpc5200b-pci\0mpc5200-pci";
 			reg = <d00 100>;
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <c000 0 0 1 500 0 0 3 // 1st slot
@@ -199,7 +214,7 @@
 
 		spi@f00 {
 			device_type = "spi";
-			compatible = "mpc5200b-spi\0mpc52xx-spi";
+			compatible = "mpc5200b-spi\0mpc5200-spi";
 			reg = <f00 20>;
 			interrupts = <2 d 0 2 e 0>;
 			interrupt-parent = <500>;
@@ -207,7 +222,7 @@
 
 		usb@1000 {
 			device_type = "usb-ohci-be";
-			compatible = "mpc5200b-ohci\0mpc52xx-ohci\0ohci-be";
+			compatible = "mpc5200b-ohci\0mpc5200-ohci\0ohci-be";
 			reg = <1000 ff>;
 			interrupts = <2 6 0>;
 			interrupt-parent = <500>;
@@ -215,7 +230,7 @@
 
 		bestcomm@1200 {
 			device_type = "dma-controller";
-			compatible = "mpc5200b-bestcomm\0mpc52xx-bestcomm";
+			compatible = "mpc5200b-bestcomm\0mpc5200-bestcomm";
 			reg = <1200 80>;
 			interrupts = <3 0 0  3 1 0  3 2 0  3 3 0
 			              3 4 0  3 5 0  3 6 0  3 7 0
@@ -225,67 +240,73 @@
 		};
 
 		xlb@1f00 {
-			compatible = "mpc5200b-xlb\0mpc52xx-xlb";
+			compatible = "mpc5200b-xlb\0mpc5200-xlb";
 			reg = <1f00 100>;
 		};
 
 		serial@2000 {		// PSC1
 			device_type = "serial";
-			compatible = "mpc5200b-psc-uart\0mpc52xx-psc-uart";
+			compatible = "mpc5200b-psc-uart\0mpc5200-psc-uart";
 			port-number = <0>;  // Logical port assignment
+			cell-index = <0>;
 			reg = <2000 100>;
 			interrupts = <2 1 0>;
 			interrupt-parent = <500>;
 		};
 
-		// PSC2 in spi mode example
-		spi@2200 {		// PSC2
-			device_type = "spi";
-			compatible = "mpc5200b-psc-spi\0mpc52xx-psc-spi";
-			reg = <2200 100>;
-			interrupts = <2 2 0>;
-			interrupt-parent = <500>;
-		};
+		// PSC2 in ac97 mode example
+		//ac97@2200 {		// PSC2
+		//	device_type = "sound";
+		//	compatible = "mpc5200b-psc-ac97\0mpc5200-psc-ac97";
+		//	cell-index = <1>;
+		//	reg = <2200 100>;
+		//	interrupts = <2 2 0>;
+		//	interrupt-parent = <500>;
+		//};
 
 		// PSC3 in CODEC mode example
-		i2s@2400 {		// PSC3
-			device_type = "sound";
-			compatible = "mpc5200b-psc-i2s\0mpc52xx-psc-i2s";
-			reg = <2400 100>;
-			interrupts = <2 3 0>;
-			interrupt-parent = <500>;
-		};
+		//i2s@2400 {		// PSC3
+		//	device_type = "sound";
+		//	compatible = "mpc5200b-psc-i2s"; //not 5200 compatible
+		//	cell-index = <2>;
+		//	reg = <2400 100>;
+		//	interrupts = <2 3 0>;
+		//	interrupt-parent = <500>;
+		//};
 
-		// PSC4 unconfigured
+		// PSC4 in uart mode example
 		//serial@2600 {		// PSC4
 		//	device_type = "serial";
-		//	compatible = "mpc5200b-psc-uart\0mpc52xx-psc-uart";
+		//	compatible = "mpc5200b-psc-uart\0mpc5200-psc-uart";
+		//	cell-index = <3>;
 		//	reg = <2600 100>;
 		//	interrupts = <2 b 0>;
 		//	interrupt-parent = <500>;
 		//};
 
-		// PSC5 unconfigured
+		// PSC5 in uart mode example
 		//serial@2800 {		// PSC5
 		//	device_type = "serial";
-		//	compatible = "mpc5200b-psc-uart\0mpc52xx-psc-uart";
+		//	compatible = "mpc5200b-psc-uart\0mpc5200-psc-uart";
+		//	cell-index = <4>;
 		//	reg = <2800 100>;
 		//	interrupts = <2 c 0>;
 		//	interrupt-parent = <500>;
 		//};
 
-		// PSC6 in AC97 mode example
-		ac97@2c00 {		// PSC6
-			device_type = "sound";
-			compatible = "mpc5200b-psc-ac97\0mpc52xx-psc-ac97";
-			reg = <2c00 100>;
-			interrupts = <2 4 0>;
-			interrupt-parent = <500>;
-		};
+		// PSC6 in spi mode example
+		//spi@2c00 {		// PSC6
+		//	device_type = "spi";
+		//	compatible = "mpc5200b-psc-spi\0mpc5200-psc-spi";
+		//	cell-index = <5>;
+		//	reg = <2c00 100>;
+		//	interrupts = <2 4 0>;
+		//	interrupt-parent = <500>;
+		//};
 
 		ethernet@3000 {
 			device_type = "network";
-			compatible = "mpc5200b-fec\0mpc52xx-fec";
+			compatible = "mpc5200b-fec\0mpc5200-fec";
 			reg = <3000 800>;
 			mac-address = [ 02 03 04 05 06 07 ]; // Bad!
 			interrupts = <2 5 0>;
@@ -294,7 +315,7 @@
 
 		ata@3a00 {
 			device_type = "ata";
-			compatible = "mpc5200b-ata\0mpc52xx-ata";
+			compatible = "mpc5200b-ata\0mpc5200-ata";
 			reg = <3a00 100>;
 			interrupts = <2 7 0>;
 			interrupt-parent = <500>;
@@ -302,7 +323,8 @@
 
 		i2c@3d00 {
 			device_type = "i2c";
-			compatible = "mpc5200b-i2c\0mpc52xx-i2c";
+			compatible = "mpc5200b-i2c\0mpc5200-i2c";
+			cell-index = <0>;
 			reg = <3d00 40>;
 			interrupts = <2 f 0>;
 			interrupt-parent = <500>;
@@ -310,14 +332,15 @@
 
 		i2c@3d40 {
 			device_type = "i2c";
-			compatible = "mpc5200b-i2c\0mpc52xx-i2c";
+			compatible = "mpc5200b-i2c\0mpc5200-i2c";
+			cell-index = <1>;
 			reg = <3d40 40>;
 			interrupts = <2 10 0>;
 			interrupt-parent = <500>;
 		};
 		sram@8000 {
 			device_type = "sram";
-			compatible = "mpc5200b-sram\0mpc52xx-sram\0sram";
+			compatible = "mpc5200b-sram\0mpc5200-sram\0sram";
 			reg = <8000 4000>;
 		};
 	};

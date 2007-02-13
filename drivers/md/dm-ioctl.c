@@ -1473,7 +1473,7 @@ static int ctl_ioctl(struct inode *inode, struct file *file,
 	return r;
 }
 
-static struct file_operations _ctl_fops = {
+static const struct file_operations _ctl_fops = {
 	.ioctl	 = ctl_ioctl,
 	.owner	 = THIS_MODULE,
 };

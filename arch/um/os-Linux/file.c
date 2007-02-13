@@ -162,25 +162,6 @@ int os_set_owner(int fd, int pid)
 	return 0;
 }
 
-/* FIXME? moved wholesale from sigio_user.c to get fcntls out of that file */
-int os_sigio_async(int master, int slave)
-{
-	int flags;
-
-	flags = fcntl(master, F_GETFL);
-	if(flags < 0)
-		return -errno;
-
-	if((fcntl(master, F_SETFL, flags | O_NONBLOCK | O_ASYNC) < 0) ||
-	   (fcntl(master, F_SETOWN, os_getpid()) < 0))
-		return -errno;
-
-	if((fcntl(slave, F_SETFL, flags | O_NONBLOCK) < 0))
-		return -errno;
-
-	return(0);
-}
-
 int os_mode_fd(int fd, int mode)
 {
 	int err;

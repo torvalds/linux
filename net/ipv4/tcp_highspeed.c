@@ -14,8 +14,8 @@
  * with fixed-point MD scaled <<8.
  */
 static const struct hstcp_aimd_val {
-        unsigned int cwnd;
-        unsigned int md;
+	unsigned int cwnd;
+	unsigned int md;
 } hstcp_aimd_vals[] = {
  {     38,  128, /*  0.50 */ },
  {    118,  112, /*  0.44 */ },

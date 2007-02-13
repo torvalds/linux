@@ -9,6 +9,7 @@
 #include <linux/sysdev.h>
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
+#include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/param.h>
 #include <linux/errno.h>

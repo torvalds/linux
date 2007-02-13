@@ -257,10 +257,10 @@ static inline void dump_urb(enum debuglevel level, const char *tag,
 			urb->transfer_flags);
 		gig_dbg(level,
 			"  transfer_buffer=0x%08lx[%d], actual_length=%d, "
-			"bandwidth=%d, setup_packet=0x%08lx,",
+			"setup_packet=0x%08lx,",
 			(unsigned long) urb->transfer_buffer,
 			urb->transfer_buffer_length, urb->actual_length,
-			urb->bandwidth, (unsigned long) urb->setup_packet);
+			(unsigned long) urb->setup_packet);
 		gig_dbg(level,
 			"  start_frame=%d, number_of_packets=%d, interval=%d, "
 			"error_count=%d,",

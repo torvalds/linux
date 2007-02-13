@@ -163,7 +163,7 @@ static inline ktime_t ktime_sub(const ktime_t lhs, const ktime_t rhs)
  * @add1:	addend1
  * @add2:	addend2
  *
- * Returns the sum of addend1 and addend2
+ * Returns the sum of @add1 and @add2.
  */
 static inline ktime_t ktime_add(const ktime_t add1, const ktime_t add2)
 {
@@ -189,7 +189,7 @@ static inline ktime_t ktime_add(const ktime_t add1, const ktime_t add2)
  * @kt:		addend
  * @nsec:	the scalar nsec value to add
  *
- * Returns the sum of kt and nsec in ktime_t format
+ * Returns the sum of @kt and @nsec in ktime_t format
  */
 extern ktime_t ktime_add_ns(const ktime_t kt, u64 nsec);
 
@@ -246,7 +246,7 @@ static inline struct timeval ktime_to_timeval(const ktime_t kt)
  * ktime_to_ns - convert a ktime_t variable to scalar nanoseconds
  * @kt:		the ktime_t variable to convert
  *
- * Returns the scalar nanoseconds representation of kt
+ * Returns the scalar nanoseconds representation of @kt
  */
 static inline s64 ktime_to_ns(const ktime_t kt)
 {

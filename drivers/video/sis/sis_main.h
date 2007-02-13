@@ -411,54 +411,54 @@ static const struct _sis_vrate {
 	u16 xres;
 	u16 yres;
 	u16 refresh;
-	BOOLEAN SiS730valid32bpp;
+	bool SiS730valid32bpp;
 } sisfb_vrate[] = {
-	{1,  320,  200,  70,  TRUE},
-	{1,  320,  240,  60,  TRUE},
-	{1,  400,  300,  60,  TRUE},
-	{1,  512,  384,  60,  TRUE},
-	{1,  640,  400,  72,  TRUE},
-	{1,  640,  480,  60,  TRUE}, {2,  640,  480,  72,  TRUE}, {3,  640,  480,  75,  TRUE},
-	{4,  640,  480,  85,  TRUE}, {5,  640,  480, 100,  TRUE}, {6,  640,  480, 120,  TRUE},
-	{7,  640,  480, 160,  TRUE}, {8,  640,  480, 200,  TRUE},
-	{1,  720,  480,  60,  TRUE},
-	{1,  720,  576,  58,  TRUE},
-	{1,  768,  576,  58,  TRUE},
-	{1,  800,  480,  60,  TRUE}, {2,  800,  480,  75,  TRUE}, {3,  800,  480,  85,  TRUE},
-	{1,  800,  600,  56,  TRUE}, {2,  800,  600,  60,  TRUE}, {3,  800,  600,  72,  TRUE},
-	{4,  800,  600,  75,  TRUE}, {5,  800,  600,  85,  TRUE}, {6,  800,  600, 105,  TRUE},
-	{7,  800,  600, 120,  TRUE}, {8,  800,  600, 160,  TRUE},
-	{1,  848,  480,  39,  TRUE}, {2,  848,  480,  60,  TRUE},
-	{1,  856,  480,  39,  TRUE}, {2,  856,  480,  60,  TRUE},
-	{1,  960,  540,  60,  TRUE},
-	{1,  960,  600,  60,  TRUE},
-	{1, 1024,  576,  60,  TRUE}, {2, 1024,  576,  75,  TRUE}, {3, 1024,  576,  85,  TRUE},
-	{1, 1024,  600,  60,  TRUE},
-	{1, 1024,  768,  43,  TRUE}, {2, 1024,  768,  60,  TRUE}, {3, 1024,  768,  70, FALSE},
-	{4, 1024,  768,  75, FALSE}, {5, 1024,  768,  85,  TRUE}, {6, 1024,  768, 100,  TRUE},
-	{7, 1024,  768, 120,  TRUE},
-	{1, 1152,  768,  60,  TRUE},
-	{1, 1152,  864,  60,  TRUE}, {2, 1152,  864,  75,  TRUE}, {3, 1152,  864,  84,  TRUE},
-	{1, 1280,  720,  60,  TRUE}, {2, 1280,  720,  75,  TRUE}, {3, 1280,  720,  85,  TRUE},
-	{1, 1280,  768,  60,  TRUE},
-	{1, 1280,  800,  60,  TRUE},
-	{1, 1280,  854,  60,  TRUE},
-	{1, 1280,  960,  60,  TRUE}, {2, 1280,  960,  85,  TRUE},
-	{1, 1280, 1024,  43,  TRUE}, {2, 1280, 1024,  60,  TRUE}, {3, 1280, 1024,  75,  TRUE},
-	{4, 1280, 1024,  85,  TRUE},
-	{1, 1360,  768,  60,  TRUE},
-	{1, 1360, 1024,  59,  TRUE},
-	{1, 1400, 1050,  60,  TRUE}, {2, 1400, 1050,  75,  TRUE},
-	{1, 1600, 1200,  60,  TRUE}, {2, 1600, 1200,  65,  TRUE}, {3, 1600, 1200,  70,  TRUE},
-	{4, 1600, 1200,  75,  TRUE}, {5, 1600, 1200,  85,  TRUE}, {6, 1600, 1200, 100,  TRUE},
-	{7, 1600, 1200, 120,  TRUE},
-	{1, 1680, 1050,  60,  TRUE},
-	{1, 1920, 1080,  30,  TRUE},
-	{1, 1920, 1440,  60,  TRUE}, {2, 1920, 1440,  65,  TRUE}, {3, 1920, 1440,  70,  TRUE},
-	{4, 1920, 1440,  75,  TRUE}, {5, 1920, 1440,  85,  TRUE}, {6, 1920, 1440, 100,  TRUE},
-	{1, 2048, 1536,  60,  TRUE}, {2, 2048, 1536,  65,  TRUE}, {3, 2048, 1536,  70,  TRUE},
-	{4, 2048, 1536,  75,  TRUE}, {5, 2048, 1536,  85,  TRUE},
-	{0,    0,    0,   0, FALSE}
+	{1,  320,  200,  70,  true},
+	{1,  320,  240,  60,  true},
+	{1,  400,  300,  60,  true},
+	{1,  512,  384,  60,  true},
+	{1,  640,  400,  72,  true},
+	{1,  640,  480,  60,  true}, {2,  640,  480,  72,  true}, {3,  640,  480,  75,  true},
+	{4,  640,  480,  85,  true}, {5,  640,  480, 100,  true}, {6,  640,  480, 120,  true},
+	{7,  640,  480, 160,  true}, {8,  640,  480, 200,  true},
+	{1,  720,  480,  60,  true},
+	{1,  720,  576,  58,  true},
+	{1,  768,  576,  58,  true},
+	{1,  800,  480,  60,  true}, {2,  800,  480,  75,  true}, {3,  800,  480,  85,  true},
+	{1,  800,  600,  56,  true}, {2,  800,  600,  60,  true}, {3,  800,  600,  72,  true},
+	{4,  800,  600,  75,  true}, {5,  800,  600,  85,  true}, {6,  800,  600, 105,  true},
+	{7,  800,  600, 120,  true}, {8,  800,  600, 160,  true},
+	{1,  848,  480,  39,  true}, {2,  848,  480,  60,  true},
+	{1,  856,  480,  39,  true}, {2,  856,  480,  60,  true},
+	{1,  960,  540,  60,  true},
+	{1,  960,  600,  60,  true},
+	{1, 1024,  576,  60,  true}, {2, 1024,  576,  75,  true}, {3, 1024,  576,  85,  true},
+	{1, 1024,  600,  60,  true},
+	{1, 1024,  768,  43,  true}, {2, 1024,  768,  60,  true}, {3, 1024,  768,  70, false},
+	{4, 1024,  768,  75, false}, {5, 1024,  768,  85,  true}, {6, 1024,  768, 100,  true},
+	{7, 1024,  768, 120,  true},
+	{1, 1152,  768,  60,  true},
+	{1, 1152,  864,  60,  true}, {2, 1152,  864,  75,  true}, {3, 1152,  864,  84,  true},
+	{1, 1280,  720,  60,  true}, {2, 1280,  720,  75,  true}, {3, 1280,  720,  85,  true},
+	{1, 1280,  768,  60,  true},
+	{1, 1280,  800,  60,  true},
+	{1, 1280,  854,  60,  true},
+	{1, 1280,  960,  60,  true}, {2, 1280,  960,  85,  true},
+	{1, 1280, 1024,  43,  true}, {2, 1280, 1024,  60,  true}, {3, 1280, 1024,  75,  true},
+	{4, 1280, 1024,  85,  true},
+	{1, 1360,  768,  60,  true},
+	{1, 1360, 1024,  59,  true},
+	{1, 1400, 1050,  60,  true}, {2, 1400, 1050,  75,  true},
+	{1, 1600, 1200,  60,  true}, {2, 1600, 1200,  65,  true}, {3, 1600, 1200,  70,  true},
+	{4, 1600, 1200,  75,  true}, {5, 1600, 1200,  85,  true}, {6, 1600, 1200, 100,  true},
+	{7, 1600, 1200, 120,  true},
+	{1, 1680, 1050,  60,  true},
+	{1, 1920, 1080,  30,  true},
+	{1, 1920, 1440,  60,  true}, {2, 1920, 1440,  65,  true}, {3, 1920, 1440,  70,  true},
+	{4, 1920, 1440,  75,  true}, {5, 1920, 1440,  85,  true}, {6, 1920, 1440, 100,  true},
+	{1, 2048, 1536,  60,  true}, {2, 2048, 1536,  65,  true}, {3, 2048, 1536,  70,  true},
+	{4, 2048, 1536,  75,  true}, {5, 2048, 1536,  85,  true},
+	{0,    0,    0,   0, false}
 };
 
 static struct _sisfbddcsmodes {
@@ -691,7 +691,7 @@ extern int	sisfb_initaccel(struct sis_video_info *ivideo);
 extern void	sisfb_syncaccel(struct sis_video_info *ivideo);
 
 /* Internal general routines */
-static void	sisfb_search_mode(char *name, BOOLEAN quiet);
+static void	sisfb_search_mode(char *name, bool quiet);
 static int	sisfb_validate_mode(struct sis_video_info *ivideo, int modeindex, u32 vbflags);
 static u8	sisfb_search_refresh_rate(struct sis_video_info *ivideo, unsigned int rate,
 				int index);
@@ -702,10 +702,10 @@ static int	sisfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 				struct fb_info *info);
 static void	sisfb_pre_setmode(struct sis_video_info *ivideo);
 static void	sisfb_post_setmode(struct sis_video_info *ivideo);
-static BOOLEAN	sisfb_CheckVBRetrace(struct sis_video_info *ivideo);
-static BOOLEAN	sisfbcheckvretracecrt2(struct sis_video_info *ivideo);
-static BOOLEAN	sisfbcheckvretracecrt1(struct sis_video_info *ivideo);
-static BOOLEAN	sisfb_bridgeisslave(struct sis_video_info *ivideo);
+static bool	sisfb_CheckVBRetrace(struct sis_video_info *ivideo);
+static bool	sisfbcheckvretracecrt2(struct sis_video_info *ivideo);
+static bool	sisfbcheckvretracecrt1(struct sis_video_info *ivideo);
+static bool	sisfb_bridgeisslave(struct sis_video_info *ivideo);
 static void	sisfb_detect_VB_connect(struct sis_video_info *ivideo);
 static void	sisfb_get_VB_type(struct sis_video_info *ivideo);
 static void	sisfb_set_TVxposoffset(struct sis_video_info *ivideo, int val);
@@ -737,20 +737,20 @@ static void		sisfb_free_node(struct SIS_HEAP *memheap, struct SIS_OH *poh);
 
 /* Routines from init.c/init301.c */
 extern unsigned short	SiS_GetModeID_LCD(int VGAEngine, unsigned int VBFlags, int HDisplay,
-				int VDisplay, int Depth, BOOLEAN FSTN, unsigned short CustomT,
+				int VDisplay, int Depth, bool FSTN, unsigned short CustomT,
 				int LCDwith, int LCDheight, unsigned int VBFlags2);
 extern unsigned short	SiS_GetModeID_TV(int VGAEngine, unsigned int VBFlags, int HDisplay,
 				int VDisplay, int Depth, unsigned int VBFlags2);
 extern unsigned short	SiS_GetModeID_VGA2(int VGAEngine, unsigned int VBFlags, int HDisplay,
 				int VDisplay, int Depth, unsigned int VBFlags2);
 extern void		SiSRegInit(struct SiS_Private *SiS_Pr, SISIOADDRESS BaseAddr);
-extern BOOLEAN		SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
+extern bool		SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
 extern void		SiS_SetEnableDstn(struct SiS_Private *SiS_Pr, int enable);
 extern void		SiS_SetEnableFstn(struct SiS_Private *SiS_Pr, int enable);
 
-extern BOOLEAN		SiSDetermineROMLayout661(struct SiS_Private *SiS_Pr);
+extern bool		SiSDetermineROMLayout661(struct SiS_Private *SiS_Pr);
 
-extern BOOLEAN		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno,
+extern bool		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno,
 				int *htotal, int *vtotal, unsigned char rateindex);
 extern int		sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr,
 				unsigned char modeno, unsigned char rateindex);

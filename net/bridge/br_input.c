@@ -119,7 +119,7 @@ static inline int is_link_local(const unsigned char *dest)
  * Called via br_handle_frame_hook.
  * Return 0 if *pskb should be processed furthur
  *	  1 if *pskb is handled
- * note: already called with rcu_read_lock (preempt_disabled) 
+ * note: already called with rcu_read_lock (preempt_disabled)
  */
 int br_handle_frame(struct net_bridge_port *p, struct sk_buff **pskb)
 {
@@ -137,7 +137,7 @@ int br_handle_frame(struct net_bridge_port *p, struct sk_buff **pskb)
 
 	if (p->state == BR_STATE_FORWARDING || p->state == BR_STATE_LEARNING) {
 		if (br_should_route_hook) {
-			if (br_should_route_hook(pskb)) 
+			if (br_should_route_hook(pskb))
 				return 0;
 			skb = *pskb;
 			dest = eth_hdr(skb)->h_dest;

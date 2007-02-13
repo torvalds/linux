@@ -496,8 +496,6 @@ ahd_insb(struct ahd_softc * ahd, long port, uint8_t *array, int count)
 int		ahd_linux_register_host(struct ahd_softc *,
 					struct scsi_host_template *);
 
-uint64_t	ahd_linux_get_memsize(void);
-
 /*************************** Pretty Printing **********************************/
 struct info_str {
 	char *buffer;

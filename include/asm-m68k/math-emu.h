@@ -226,6 +226,21 @@ extern unsigned int fp_debugprint;
 	.previous
 .endm
 
+/* work around binutils idiocy */
+old_gas=-1
+.irp    gas_ident.x .x
+old_gas=old_gas+1
+.endr
+.if !old_gas
+.irp	m b,w,l
+.macro	getuser.\m src,dest,label,addr
+	getuser .\m,\src,\dest,\label,\addr
+.endm
+.macro	putuser.\m src,dest,label,addr
+	putuser .\m,\src,\dest,\label,\addr
+.endm
+.endr
+.endif
 
 .macro	movestack	nr,arg1,arg2,arg3,arg4,arg5
 	.if	\nr

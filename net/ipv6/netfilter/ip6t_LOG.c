@@ -21,6 +21,7 @@
 #include <net/tcp.h>
 #include <net/ipv6.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 
 MODULE_AUTHOR("Jan Rekorajski <baggins@pld.org.pl>");
@@ -144,7 +145,7 @@ static void dump_packet(const struct nf_loginfo *info,
 							&_ahdr);
 				if (ah == NULL) {
 					/*
-					 * Max length: 26 "INCOMPLETE [65535 	
+					 * Max length: 26 "INCOMPLETE [65535
 					 *  bytes] )"
 					 */
 					printk("INCOMPLETE [%u bytes] )",
@@ -386,7 +387,7 @@ ip6t_log_packet(unsigned int pf,
 		loginfo = &default_loginfo;
 
 	spin_lock_bh(&log_lock);
-	printk("<%d>%sIN=%s OUT=%s ", loginfo->u.log.level, 
+	printk("<%d>%sIN=%s OUT=%s ", loginfo->u.log.level,
 		prefix,
 		in ? in->name : "",
 		out ? out->name : "");
@@ -441,8 +442,8 @@ ip6t_log_target(struct sk_buff **pskb,
 	li.u.log.logflags = loginfo->logflags;
 
 	ip6t_log_packet(PF_INET6, hooknum, *pskb, in, out, &li,
-	                loginfo->prefix);
-	return IP6T_CONTINUE;
+			loginfo->prefix);
+	return XT_CONTINUE;
 }
 
 
@@ -466,11 +467,12 @@ static int ip6t_log_checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ip6t_target ip6t_log_reg = {
+static struct xt_target ip6t_log_reg = {
 	.name 		= "LOG",
-	.target 	= ip6t_log_target, 
+	.family		= AF_INET6,
+	.target 	= ip6t_log_target,
 	.targetsize	= sizeof(struct ip6t_log_info),
-	.checkentry	= ip6t_log_checkentry, 
+	.checkentry	= ip6t_log_checkentry,
 	.me 		= THIS_MODULE,
 };
 
@@ -482,8 +484,11 @@ static struct nf_logger ip6t_logger = {
 
 static int __init ip6t_log_init(void)
 {
-	if (ip6t_register_target(&ip6t_log_reg))
-		return -EINVAL;
+	int ret;
+
+	ret = xt_register_target(&ip6t_log_reg);
+	if (ret < 0)
+		return ret;
 	if (nf_log_register(PF_INET6, &ip6t_logger) < 0) {
 		printk(KERN_WARNING "ip6t_LOG: not logging via system console "
 		       "since somebody else already registered for PF_INET6\n");
@@ -496,8 +501,8 @@ static int __init ip6t_log_init(void)
 
 static void __exit ip6t_log_fini(void)
 {
-	nf_log_unregister_logger(&ip6t_logger);
-	ip6t_unregister_target(&ip6t_log_reg);
+	nf_log_unregister(&ip6t_logger);
+	xt_unregister_target(&ip6t_log_reg);
 }
 
 module_init(ip6t_log_init);

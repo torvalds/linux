@@ -1,4 +1,4 @@
-\#
+#
 # RTC class/drivers configuration
 #
 
@@ -94,6 +94,29 @@ config RTC_INTF_DEV_UIE_EMUL
 
 comment "RTC drivers"
 	depends on RTC_CLASS
+
+# this 'CMOS' RTC driver is arch dependent because <asm-generic/rtc.h>
+# requires <asm/mc146818rtc.h> defining CMOS_READ/CMOS_WRITE, and a
+# global rtc_lock ... it's not yet just another platform_device.
+
+config RTC_DRV_CMOS
+	tristate "PC-style 'CMOS' real time clock"
+	depends on RTC_CLASS && (X86_PC || ALPHA || ARM26 || ARM \
+		|| M32R || ATARI || POWERPC)
+	help
+	  Say "yes" here to get direct support for the real time clock
+	  found in every PC or ACPI-based system, and some other boards.
+	  Specifically the original MC146818, compatibles like those in
+	  PC south bridges, the DS12887 or M48T86, some multifunction
+	  or LPC bus chips, and so on.
+
+	  Your system will need to define the platform device used by
+	  this driver, otherwise it won't be accessible.  This means
+	  you can safely enable this driver if you don't know whether
+	  or not your board has this kind of hardware.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-cmos.
 
 config RTC_DRV_X1205
 	tristate "Xicor/Intersil X1205"

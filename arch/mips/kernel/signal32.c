@@ -33,6 +33,8 @@
 #include <asm/fpu.h>
 #include <asm/war.h>
 
+#include "signal-common.h"
+
 #define SI_PAD_SIZE32   ((SI_MAX_SIZE/sizeof(int)) - 3)
 
 typedef struct compat_siginfo {
@@ -102,8 +104,6 @@ typedef struct compat_siginfo {
 #define __NR_O32_rt_sigreturn		4193
 #define __NR_O32_restart_syscall	4253
 
-#define DEBUG_SIG 0
-
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 /* 32-bit compatibility types */
@@ -139,6 +139,123 @@ struct ucontext32 {
 	sigset_t32          uc_sigmask;   /* mask last for extensibility */
 };
 
+#if ICACHE_REFILLS_WORKAROUND_WAR == 0
+
+struct rt_sigframe32 {
+	u32 rs_ass[4];			/* argument save space for o32 */
+	u32 rs_code[2];			/* signal trampoline */
+	compat_siginfo_t rs_info;
+	struct ucontext32 rs_uc;
+};
+
+#else  /* ICACHE_REFILLS_WORKAROUND_WAR */
+
+struct rt_sigframe32 {
+	u32 rs_ass[4];			/* argument save space for o32 */
+	u32 rs_pad[2];
+	compat_siginfo_t rs_info;
+	struct ucontext32 rs_uc;
+	u32 rs_code[8] __attribute__((aligned(32)));	/* signal trampoline */
+};
+
+#endif	/* !ICACHE_REFILLS_WORKAROUND_WAR */
+
+/*
+ * sigcontext handlers
+ */
+static int setup_sigcontext32(struct pt_regs *regs,
+			      struct sigcontext32 __user *sc)
+{
+	int err = 0;
+	int i;
+
+	err |= __put_user(regs->cp0_epc, &sc->sc_pc);
+
+	err |= __put_user(0, &sc->sc_regs[0]);
+	for (i = 1; i < 32; i++)
+		err |= __put_user(regs->regs[i], &sc->sc_regs[i]);
+
+	err |= __put_user(regs->hi, &sc->sc_mdhi);
+	err |= __put_user(regs->lo, &sc->sc_mdlo);
+	if (cpu_has_dsp) {
+		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
+		err |= __put_user(mfhi1(), &sc->sc_hi1);
+		err |= __put_user(mflo1(), &sc->sc_lo1);
+		err |= __put_user(mfhi2(), &sc->sc_hi2);
+		err |= __put_user(mflo2(), &sc->sc_lo2);
+		err |= __put_user(mfhi3(), &sc->sc_hi3);
+		err |= __put_user(mflo3(), &sc->sc_lo3);
+	}
+
+	err |= __put_user(!!used_math(), &sc->sc_used_math);
+
+	if (used_math()) {
+		/*
+		 * Save FPU state to signal context.  Signal handler
+		 * will "inherit" current FPU state.
+		 */
+		preempt_disable();
+
+		if (!is_fpu_owner()) {
+			own_fpu();
+			restore_fp(current);
+		}
+		err |= save_fp_context32(sc);
+
+		preempt_enable();
+	}
+	return err;
+}
+
+static int restore_sigcontext32(struct pt_regs *regs,
+				struct sigcontext32 __user *sc)
+{
+	u32 used_math;
+	int err = 0;
+	s32 treg;
+	int i;
+
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
+	err |= __get_user(regs->cp0_epc, &sc->sc_pc);
+	err |= __get_user(regs->hi, &sc->sc_mdhi);
+	err |= __get_user(regs->lo, &sc->sc_mdlo);
+	if (cpu_has_dsp) {
+		err |= __get_user(treg, &sc->sc_hi1); mthi1(treg);
+		err |= __get_user(treg, &sc->sc_lo1); mtlo1(treg);
+		err |= __get_user(treg, &sc->sc_hi2); mthi2(treg);
+		err |= __get_user(treg, &sc->sc_lo2); mtlo2(treg);
+		err |= __get_user(treg, &sc->sc_hi3); mthi3(treg);
+		err |= __get_user(treg, &sc->sc_lo3); mtlo3(treg);
+		err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
+	}
+
+	for (i = 1; i < 32; i++)
+		err |= __get_user(regs->regs[i], &sc->sc_regs[i]);
+
+	err |= __get_user(used_math, &sc->sc_used_math);
+	conditional_used_math(used_math);
+
+	preempt_disable();
+
+	if (used_math()) {
+		/* restore fpu context if we have used it before */
+		own_fpu();
+		err |= restore_fp_context32(sc);
+	} else {
+		/* signal handler may have used FPU.  Give it up. */
+		lose_fpu();
+	}
+
+	preempt_enable();
+
+	return err;
+}
+
+/*
+ *
+ */
 extern void __put_sigset_unknown_nsig(void);
 extern void __get_sigset_unknown_nsig(void);
 
@@ -191,9 +308,7 @@ static inline int get_sigset(sigset_t *kbuf, const compat_sigset_t __user *ubuf)
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 
-save_static_function(sys32_sigsuspend);
-__attribute_used__ noinline static int
-_sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
+asmlinkage int sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	compat_sigset_t __user *uset;
 	sigset_t newset;
@@ -215,9 +330,7 @@ _sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	return -ERESTARTNOHAND;
 }
 
-save_static_function(sys32_rt_sigsuspend);
-__attribute_used__ noinline static int
-_sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
+asmlinkage int sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	compat_sigset_t __user *uset;
 	sigset_t newset;
@@ -326,91 +439,6 @@ asmlinkage int sys32_sigaltstack(nabi_no_regargs struct pt_regs regs)
 	return ret;
 }
 
-static int restore_sigcontext32(struct pt_regs *regs, struct sigcontext32 __user *sc)
-{
-	u32 used_math;
-	int err = 0;
-	s32 treg;
-
-	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
-
-	err |= __get_user(regs->cp0_epc, &sc->sc_pc);
-	err |= __get_user(regs->hi, &sc->sc_mdhi);
-	err |= __get_user(regs->lo, &sc->sc_mdlo);
-	if (cpu_has_dsp) {
-		err |= __get_user(treg, &sc->sc_hi1); mthi1(treg);
-		err |= __get_user(treg, &sc->sc_lo1); mtlo1(treg);
-		err |= __get_user(treg, &sc->sc_hi2); mthi2(treg);
-		err |= __get_user(treg, &sc->sc_lo2); mtlo2(treg);
-		err |= __get_user(treg, &sc->sc_hi3); mthi3(treg);
-		err |= __get_user(treg, &sc->sc_lo3); mtlo3(treg);
-		err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
-	}
-
-#define restore_gp_reg(i) do {						\
-	err |= __get_user(regs->regs[i], &sc->sc_regs[i]);		\
-} while(0)
-	restore_gp_reg( 1); restore_gp_reg( 2); restore_gp_reg( 3);
-	restore_gp_reg( 4); restore_gp_reg( 5); restore_gp_reg( 6);
-	restore_gp_reg( 7); restore_gp_reg( 8); restore_gp_reg( 9);
-	restore_gp_reg(10); restore_gp_reg(11); restore_gp_reg(12);
-	restore_gp_reg(13); restore_gp_reg(14); restore_gp_reg(15);
-	restore_gp_reg(16); restore_gp_reg(17); restore_gp_reg(18);
-	restore_gp_reg(19); restore_gp_reg(20); restore_gp_reg(21);
-	restore_gp_reg(22); restore_gp_reg(23); restore_gp_reg(24);
-	restore_gp_reg(25); restore_gp_reg(26); restore_gp_reg(27);
-	restore_gp_reg(28); restore_gp_reg(29); restore_gp_reg(30);
-	restore_gp_reg(31);
-#undef restore_gp_reg
-
-	err |= __get_user(used_math, &sc->sc_used_math);
-	conditional_used_math(used_math);
-
-	preempt_disable();
-
-	if (used_math()) {
-		/* restore fpu context if we have used it before */
-		own_fpu();
-		err |= restore_fp_context32(sc);
-	} else {
-		/* signal handler may have used FPU.  Give it up. */
-		lose_fpu();
-	}
-
-	preempt_enable();
-
-	return err;
-}
-
-struct sigframe {
-	u32 sf_ass[4];			/* argument save space for o32 */
-#if ICACHE_REFILLS_WORKAROUND_WAR
-	u32 sf_pad[2];
-#else
-	u32 sf_code[2];			/* signal trampoline */
-#endif
-	struct sigcontext32 sf_sc;
-	sigset_t sf_mask;
-#if ICACHE_REFILLS_WORKAROUND_WAR
-	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
-#endif
-};
-
-struct rt_sigframe32 {
-	u32 rs_ass[4];			/* argument save space for o32 */
-#if ICACHE_REFILLS_WORKAROUND_WAR
-	u32 rs_pad[2];
-#else
-	u32 rs_code[2];			/* signal trampoline */
-#endif
-	compat_siginfo_t rs_info;
-	struct ucontext32 rs_uc;
-#if ICACHE_REFILLS_WORKAROUND_WAR
-	u32 rs_code[8] __attribute__((aligned(32)));	/* signal trampoline */
-#endif
-};
-
 int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
 {
 	int err;
@@ -463,9 +491,7 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
 	return err;
 }
 
-save_static_function(sys32_sigreturn);
-__attribute_used__ noinline static void
-_sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
+asmlinkage void sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct sigframe __user *frame;
 	sigset_t blocked;
@@ -499,9 +525,7 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-save_static_function(sys32_rt_sigreturn);
-__attribute_used__ noinline static void
-_sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
+asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct rt_sigframe32 __user *frame;
 	mm_segment_t old_fs;
@@ -554,89 +578,6 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-static inline int setup_sigcontext32(struct pt_regs *regs,
-				     struct sigcontext32 __user *sc)
-{
-	int err = 0;
-
-	err |= __put_user(regs->cp0_epc, &sc->sc_pc);
-	err |= __put_user(regs->cp0_status, &sc->sc_status);
-
-#define save_gp_reg(i) {						\
-	err |= __put_user(regs->regs[i], &sc->sc_regs[i]);		\
-} while(0)
-	__put_user(0, &sc->sc_regs[0]); save_gp_reg(1); save_gp_reg(2);
-	save_gp_reg(3); save_gp_reg(4); save_gp_reg(5); save_gp_reg(6);
-	save_gp_reg(7); save_gp_reg(8); save_gp_reg(9); save_gp_reg(10);
-	save_gp_reg(11); save_gp_reg(12); save_gp_reg(13); save_gp_reg(14);
-	save_gp_reg(15); save_gp_reg(16); save_gp_reg(17); save_gp_reg(18);
-	save_gp_reg(19); save_gp_reg(20); save_gp_reg(21); save_gp_reg(22);
-	save_gp_reg(23); save_gp_reg(24); save_gp_reg(25); save_gp_reg(26);
-	save_gp_reg(27); save_gp_reg(28); save_gp_reg(29); save_gp_reg(30);
-	save_gp_reg(31);
-#undef save_gp_reg
-
-	err |= __put_user(regs->hi, &sc->sc_mdhi);
-	err |= __put_user(regs->lo, &sc->sc_mdlo);
-	if (cpu_has_dsp) {
-		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
-		err |= __put_user(mfhi1(), &sc->sc_hi1);
-		err |= __put_user(mflo1(), &sc->sc_lo1);
-		err |= __put_user(mfhi2(), &sc->sc_hi2);
-		err |= __put_user(mflo2(), &sc->sc_lo2);
-		err |= __put_user(mfhi3(), &sc->sc_hi3);
-		err |= __put_user(mflo3(), &sc->sc_lo3);
-	}
-
-	err |= __put_user(!!used_math(), &sc->sc_used_math);
-
-	if (!used_math())
-		goto out;
-
-	/*
-	 * Save FPU state to signal context.  Signal handler will "inherit"
-	 * current FPU state.
-	 */
-	preempt_disable();
-
-	if (!is_fpu_owner()) {
-		own_fpu();
-		restore_fp(current);
-	}
-	err |= save_fp_context32(sc);
-
-	preempt_enable();
-
-out:
-	return err;
-}
-
-/*
- * Determine which stack to use..
- */
-static inline void __user *get_sigframe(struct k_sigaction *ka,
-					struct pt_regs *regs,
-					size_t frame_size)
-{
-	unsigned long sp;
-
-	/* Default to using normal stack */
-	sp = regs->regs[29];
-
-	/*
-	 * FPU emulator may have it's own trampoline active just
-	 * above the user stack, 16-bytes before the next lowest
-	 * 16 byte boundary.  Try to avoid trashing it.
-	 */
-	sp -= 32;
-
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags (sp) == 0))
-		sp = current->sas_ss_sp + current->sas_ss_size;
-
-	return (void __user *)((sp - frame_size) & ALMASK);
-}
-
 int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set)
 {
@@ -647,15 +588,7 @@ int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
 
-	/*
-	 * Set up the return code ...
-	 *
-	 *         li      v0, __NR_O32_sigreturn
-	 *         syscall
-	 */
-	err |= __put_user(0x24020000 + __NR_O32_sigreturn, frame->sf_code + 0);
-	err |= __put_user(0x0000000c                     , frame->sf_code + 1);
-	flush_cache_sigtramp((unsigned long) frame->sf_code);
+	err |= install_sigtramp(frame->sf_code, __NR_O32_sigreturn);
 
 	err |= setup_sigcontext32(regs, &frame->sf_sc);
 	err |= __copy_to_user(&frame->sf_mask, set, sizeof(*set));
@@ -679,11 +612,10 @@ int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	regs->regs[31] = (unsigned long) frame->sf_code;
 	regs->cp0_epc = regs->regs[25] = (unsigned long) ka->sa.sa_handler;
 
-#if DEBUG_SIG
-	printk("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%p\n",
+	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
 	       current->comm, current->pid,
-	       frame, regs->cp0_epc, frame->sf_code);
-#endif
+	       frame, regs->cp0_epc, regs->regs[31]);
+
 	return 0;
 
 give_sigsegv:
@@ -702,17 +634,7 @@ int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
 
-	/* Set up to return from userspace.  If provided, use a stub already
-	   in userspace.  */
-	/*
-	 * Set up the return code ...
-	 *
-	 *         li      v0, __NR_O32_rt_sigreturn
-	 *         syscall
-	 */
-	err |= __put_user(0x24020000 + __NR_O32_rt_sigreturn, frame->rs_code + 0);
-	err |= __put_user(0x0000000c                      , frame->rs_code + 1);
-	flush_cache_sigtramp((unsigned long) frame->rs_code);
+	err |= install_sigtramp(frame->rs_code, __NR_O32_rt_sigreturn);
 
 	/* Convert (siginfo_t -> compat_siginfo_t) and copy to user. */
 	err |= copy_siginfo_to_user32(&frame->rs_info, info);
@@ -750,11 +672,10 @@ int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	regs->regs[31] = (unsigned long) frame->rs_code;
 	regs->cp0_epc = regs->regs[25] = (unsigned long) ka->sa.sa_handler;
 
-#if DEBUG_SIG
-	printk("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%p\n",
+	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
 	       current->comm, current->pid,
-	       frame, regs->cp0_epc, frame->rs_code);
-#endif
+	       frame, regs->cp0_epc, regs->regs[31]);
+
 	return 0;
 
 give_sigsegv:

@@ -54,7 +54,7 @@
 #define __page_to_pfn(pg)					\
 ({	struct page *__pg = (pg);				\
 	int __sec = page_to_section(__pg);			\
-	__pg - __section_mem_map_addr(__nr_to_section(__sec));	\
+	(unsigned long)(__pg - __section_mem_map_addr(__nr_to_section(__sec)));	\
 })
 
 #define __pfn_to_page(pfn)				\

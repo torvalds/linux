@@ -727,12 +727,12 @@ struct lro {
 	struct iphdr	*iph;
 	struct tcphdr	*tcph;
 	u32		tcp_next_seq;
-	u32		tcp_ack;
+	__be32		tcp_ack;
 	int		total_len;
 	int		frags_len;
 	int		sg_num;
 	int		in_use;
-	u16		window;
+	__be16		window;
 	u32		cur_tsval;
 	u32		cur_tsecr;
 	u8		saw_ts;
@@ -1005,7 +1005,7 @@ static int s2io_set_swapper(struct s2io_nic * sp);
 static void s2io_card_down(struct s2io_nic *nic);
 static int s2io_card_up(struct s2io_nic *nic);
 static int get_xena_rev_id(struct pci_dev *pdev);
-static int wait_for_cmd_complete(void *addr, u64 busy_bit);
+static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit);
 static int s2io_add_isr(struct s2io_nic * sp);
 static void s2io_rem_isr(struct s2io_nic * sp);
 

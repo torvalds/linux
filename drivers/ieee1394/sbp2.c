@@ -51,7 +51,6 @@
  * Grep for inline FIXME comments below.
  */
 
-#include <linux/blkdev.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -304,10 +303,11 @@ static struct scsi_host_template sbp2_shost_template = {
 	.use_clustering		 = ENABLE_CLUSTERING,
 	.cmd_per_lun		 = SBP2_MAX_CMDS,
 	.can_queue		 = SBP2_MAX_CMDS,
-	.emulated		 = 1,
 	.sdev_attrs		 = sbp2_sysfs_sdev_attrs,
 };
 
+/* for match-all entries in sbp2_workarounds_table */
+#define SBP2_ROM_VALUE_WILDCARD 0x1000000
 
 /*
  * List of devices with known bugs.
@@ -329,22 +329,14 @@ static const struct {
 	},
 	/* Initio bridges, actually only needed for some older ones */ {
 		.firmware_revision	= 0x000200,
+		.model_id		= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36,
 	},
 	/* Symbios bridge */ {
 		.firmware_revision	= 0xa0b800,
+		.model_id		= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
 	},
-	/*
-	 * Note about the following Apple iPod blacklist entries:
-	 *
-	 * There are iPods (2nd gen, 3rd gen) with model_id==0.  Since our
-	 * matching logic treats 0 as a wildcard, we cannot match this ID
-	 * without rewriting the matching routine.  Fortunately these iPods
-	 * do not feature the read_capacity bug according to one report.
-	 * Read_capacity behaviour as well as model_id could change due to
-	 * Apple-supplied firmware updates though.
-	 */
 	/* iPod 4th generation */ {
 		.firmware_revision	= 0x0a2700,
 		.model_id		= 0x000021,
@@ -1307,11 +1299,13 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 
 	if (!(workarounds & SBP2_WORKAROUND_OVERRIDE))
 		for (i = 0; i < ARRAY_SIZE(sbp2_workarounds_table); i++) {
-			if (sbp2_workarounds_table[i].firmware_revision &&
+			if (sbp2_workarounds_table[i].firmware_revision !=
+			    SBP2_ROM_VALUE_WILDCARD &&
 			    sbp2_workarounds_table[i].firmware_revision !=
 			    (firmware_revision & 0xffff00))
 				continue;
-			if (sbp2_workarounds_table[i].model_id &&
+			if (sbp2_workarounds_table[i].model_id !=
+			    SBP2_ROM_VALUE_WILDCARD &&
 			    sbp2_workarounds_table[i].model_id != ud->model_id)
 				continue;
 			workarounds |= sbp2_workarounds_table[i].workarounds;
@@ -2017,7 +2011,6 @@ static int sbp2scsi_slave_configure(struct scsi_device *sdev)
 {
 	struct sbp2_lu *lu = (struct sbp2_lu *)sdev->host->hostdata[0];
 
-	blk_queue_dma_alignment(sdev->request_queue, (512 - 1));
 	sdev->use_10_for_rw = 1;
 
 	if (sdev->type == TYPE_ROM)

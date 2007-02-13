@@ -616,15 +616,7 @@ static void digi_wakeup_write_lock(struct work_struct *work)
 
 static void digi_wakeup_write( struct usb_serial_port *port )
 {
-
-	struct tty_struct *tty = port->tty;
-
-
-	/* wake up port processes */
-	wake_up_interruptible( &port->write_wait );
-
-	/* wake up line discipline */
-	tty_wakeup(tty);
+	tty_wakeup(port->tty);
 }
 
 

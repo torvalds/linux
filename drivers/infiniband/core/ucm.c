@@ -1221,7 +1221,7 @@ static void ib_ucm_release_class_dev(struct class_device *class_dev)
 	kfree(dev);
 }
 
-static struct file_operations ucm_fops = {
+static const struct file_operations ucm_fops = {
 	.owner 	 = THIS_MODULE,
 	.open 	 = ib_ucm_open,
 	.release = ib_ucm_close,

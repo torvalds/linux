@@ -45,7 +45,7 @@
 
 /*
  * spkm3_read_token()
- * 
+ *
  * only SPKM_MIC_TOK with md5 intg-alg is supported
  */
 u32

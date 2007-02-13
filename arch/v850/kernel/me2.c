@@ -44,7 +44,7 @@ static struct v850e_intc_irq_init irq_inits[] = {
 	{ "UBTITO", IRQ_INTUBTITO(0), IRQ_INTUBTITO_NUM, 5, 4 },
 	{ 0 }
 };
-#define NUM_IRQ_INITS ((sizeof irq_inits / sizeof irq_inits[0]) - 1)
+#define NUM_IRQ_INITS (ARRAY_SIZE(irq_inits) - 1)
 
 static struct hw_interrupt_type hw_itypes[NUM_IRQ_INITS];
 

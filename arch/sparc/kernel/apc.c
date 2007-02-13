@@ -127,7 +127,7 @@ static int apc_ioctl(struct inode *inode, struct file *f,
 	return 0;
 }
 
-static struct file_operations apc_fops = {
+static const struct file_operations apc_fops = {
 	.ioctl =	apc_ioctl,
 	.open =		apc_open,
 	.release =	apc_release,

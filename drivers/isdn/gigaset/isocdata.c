@@ -921,6 +921,8 @@ static void cmd_loop(unsigned char *src, int numbytes, struct inbuf_t *inbuf)
 			/* end of line */
 			gig_dbg(DEBUG_TRANSCMD, "%s: End of Command (%d Bytes)",
 				__func__, cbytes);
+			if (cbytes >= MAX_RESP_SIZE - 1)
+				dev_warn(cs->dev, "response too large\n");
 			cs->cbytes = cbytes;
 			gigaset_handle_modem_response(cs);
 			cbytes = 0;
@@ -929,8 +931,6 @@ static void cmd_loop(unsigned char *src, int numbytes, struct inbuf_t *inbuf)
 			/* advance in line buffer, checking for overflow */
 			if (cbytes < MAX_RESP_SIZE - 1)
 				cbytes++;
-			else
-				dev_warn(cs->dev, "response too large\n");
 		}
 	}
 

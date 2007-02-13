@@ -1,6 +1,6 @@
 /*
  * net/tipc/ref.h: Include file for TIPC object registry code
- * 
+ *
  * Copyright (c) 1991-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -43,7 +43,7 @@
  * @lock: spinlock controlling access to object
  * @data: reference value associated with object (or link to next unused entry)
  */
- 
+
 struct reference {
 	void *object;
 	spinlock_t lock;
@@ -96,7 +96,7 @@ static inline void *tipc_ref_lock(u32 ref)
 }
 
 /**
- * tipc_ref_unlock - unlock referenced object 
+ * tipc_ref_unlock - unlock referenced object
  */
 
 static inline void tipc_ref_unlock(u32 ref)
@@ -119,7 +119,7 @@ static inline void tipc_ref_unlock(u32 ref)
 static inline void *tipc_ref_deref(u32 ref)
 {
 	if (likely(tipc_ref_table.entries)) {
-		struct reference *r = 
+		struct reference *r =
 			&tipc_ref_table.entries[ref & tipc_ref_table.index_mask];
 
 		if (likely(r->data.reference == ref))

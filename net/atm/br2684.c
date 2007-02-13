@@ -182,7 +182,7 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct br2684_dev *brdev,
 	ATM_SKB(skb)->vcc = atmvcc = brvcc->atmvcc;
 	DPRINTK("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, atmvcc, atmvcc->dev);
 	if (!atm_may_send(atmvcc, skb->truesize)) {
-		/* we free this here for now, because we cannot know in a higher 
+		/* we free this here for now, because we cannot know in a higher
 			layer whether the skb point it supplied wasn't freed yet.
 			now, it always is.
 		*/
@@ -718,7 +718,7 @@ static void *br2684_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	++*pos;
 
-	brd = list_entry(brd->br2684_devs.next, 
+	brd = list_entry(brd->br2684_devs.next,
 			 struct br2684_dev, br2684_devs);
 	return (&brd->br2684_devs != &br2684_devs) ? brd : NULL;
 }
@@ -784,7 +784,7 @@ static int br2684_proc_open(struct inode *inode, struct file *file)
 	return seq_open(file, &br2684_seq_ops);
 }
 
-static struct file_operations br2684_proc_ops = {
+static const struct file_operations br2684_proc_ops = {
 	.owner   = THIS_MODULE,
 	.open    = br2684_proc_open,
 	.read    = seq_read,

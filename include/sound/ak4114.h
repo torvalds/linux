@@ -181,7 +181,6 @@ struct ak4114 {
 	unsigned long ccrc_errors;
 	unsigned char rcs0;
 	unsigned char rcs1;
-	struct workqueue_struct *workqueue;
 	struct delayed_work work;
 	void *change_callback_private;
 	void (*change_callback)(struct ak4114 *ak4114, unsigned char c0, unsigned char c1);
@@ -189,7 +188,7 @@ struct ak4114 {
 
 int snd_ak4114_create(struct snd_card *card,
 		      ak4114_read_t *read, ak4114_write_t *write,
-		      unsigned char pgm[7], unsigned char txcsb[5],
+		      const unsigned char pgm[7], const unsigned char txcsb[5],
 		      void *private_data, struct ak4114 **r_ak4114);
 void snd_ak4114_reg_write(struct ak4114 *ak4114, unsigned char reg, unsigned char mask, unsigned char val);
 void snd_ak4114_reinit(struct ak4114 *ak4114);

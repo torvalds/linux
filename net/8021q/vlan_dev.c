@@ -5,14 +5,14 @@
  * Authors:	Ben Greear <greearb@candelatech.com>
  *              Please send support related email to: vlan@scry.wanfear.com
  *              VLAN Home Page: http://www.candelatech.com/~greear/vlan.html
- * 
+ *
  * Fixes:       Mar 22 2001: Martin Bokaemper <mbokaemper@unispherenetworks.com>
  *                - reset skb->pkt_type on incoming packets when MAC was changed
  *                - see that changed MAC is saddr for outgoing packets
  *              Oct 20, 2001:  Ard van Breeman:
  *                - Fix MC-list, finally.
  *                - Flush MC-list on VLAN destroy.
- *                
+ *
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -58,12 +58,12 @@ int vlan_dev_rebuild_header(struct sk_buff *skb)
 
 		/* TODO:  Confirm this will work with VLAN headers... */
 		return arp_find(veth->h_dest, skb);
-#endif	
+#endif
 	default:
 		printk(VLAN_DBG
-		       "%s: unable to resolve type %X addresses.\n", 
+		       "%s: unable to resolve type %X addresses.\n",
 		       dev->name, ntohs(veth->h_vlan_encapsulated_proto));
-	 
+
 		memcpy(veth->h_source, dev->dev_addr, ETH_ALEN);
 		break;
 	};
@@ -91,7 +91,7 @@ static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
 }
 
 /*
- *	Determine the packet's protocol ID. The rule here is that we 
+ *	Determine the packet's protocol ID. The rule here is that we
  *	assume 802.3 if the type field is short enough to be a length.
  *	This is normal practice and works for any 'now in use' protocol.
  *
@@ -113,7 +113,7 @@ static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
  *
  */
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
-                  struct packet_type* ptype, struct net_device *orig_dev)
+		  struct packet_type* ptype, struct net_device *orig_dev)
 {
 	unsigned char *rawp = NULL;
 	struct vlan_hdr *vhdr = (struct vlan_hdr *)(skb->data);
@@ -175,8 +175,8 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 #ifdef VLAN_DEBUG
 		printk(VLAN_DBG "%s: dropping skb: %p because came in on wrong device, dev: %s  real_dev: %s, skb_dev: %s\n",
-			__FUNCTION__, skb, dev->name, 
-			VLAN_DEV_INFO(skb->dev)->real_dev->name, 
+			__FUNCTION__, skb, dev->name,
+			VLAN_DEV_INFO(skb->dev)->real_dev->name,
 			skb->dev->name);
 #endif
 		kfree_skb(skb);
@@ -191,7 +191,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 #ifdef VLAN_DEBUG
 	printk(VLAN_DBG "%s: priority: %lu  for TCI: %hu (hbo)\n",
-		__FUNCTION__, (unsigned long)(skb->priority), 
+		__FUNCTION__, (unsigned long)(skb->priority),
 		ntohs(vhdr->h_vlan_TCI));
 #endif
 
@@ -207,7 +207,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		stats->multicast++;
 		break;
 
-	case PACKET_OTHERHOST: 
+	case PACKET_OTHERHOST:
 		/* Our lower layer thinks this is not local, let's make sure.
 		 * This allows the VLAN to have a different MAC than the underlying
 		 * device, and still route correctly.
@@ -319,7 +319,7 @@ static inline unsigned short vlan_dev_get_egress_qos_mask(struct net_device* dev
 }
 
 /*
- *	Create the VLAN header for an arbitrary protocol layer 
+ *	Create the VLAN header for an arbitrary protocol layer
  *
  *	saddr=NULL	means use device source address
  *	daddr=NULL	means leave destination address (eg unresolved arp)
@@ -328,8 +328,8 @@ static inline unsigned short vlan_dev_get_egress_qos_mask(struct net_device* dev
  *  physical devices.
  */
 int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
-                         unsigned short type, void *daddr, void *saddr,
-                         unsigned len)
+			 unsigned short type, void *daddr, void *saddr,
+			 unsigned len)
 {
 	struct vlan_hdr *vhdr;
 	unsigned short veth_TCI = 0;
@@ -346,7 +346,7 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	 * fixes some programs that get confused when they see a VLAN device
 	 * sending a frame that is VLAN encoded (the consensus is that the VLAN
 	 * device should look completely like an Ethernet device when the
-	 * REORDER_HEADER flag is set)	The drawback to this is some extra 
+	 * REORDER_HEADER flag is set)	The drawback to this is some extra
 	 * header shuffling in the hard_start_xmit.  Users can turn off this
 	 * REORDER behaviour with the vconfig tool.
 	 */
@@ -553,7 +553,7 @@ int vlan_dev_set_egress_priority(char *dev_name, __u32 skb_prio, short vlan_prio
 	struct net_device *dev = dev_get_by_name(dev_name);
 	struct vlan_priority_tci_mapping *mp = NULL;
 	struct vlan_priority_tci_mapping *np;
-   
+
 	if (dev) {
 		if (dev->priv_flags & IFF_802_1Q_VLAN) {
 			/* See if a priority mapping exists.. */
@@ -610,13 +610,13 @@ int vlan_dev_set_vlan_flag(char *dev_name, __u32 flag, short flag_val)
 				return -EINVAL;
 			}
 		} else {
-			printk(KERN_ERR 
+			printk(KERN_ERR
 			       "%s: %s is not a vlan device, priv_flags: %hX.\n",
 			       __FUNCTION__, dev->name, dev->priv_flags);
 			dev_put(dev);
 		}
 	} else {
-		printk(KERN_ERR  "%s: Could not find device: %s\n", 
+		printk(KERN_ERR  "%s: Could not find device: %s\n",
 			__FUNCTION__, dev_name);
 	}
 
@@ -700,7 +700,7 @@ int vlan_dev_set_mac_address(struct net_device *dev, void *addr_struct_p)
 }
 
 static inline int vlan_dmi_equals(struct dev_mc_list *dmi1,
-                                  struct dev_mc_list *dmi2)
+				  struct dev_mc_list *dmi2)
 {
 	return ((dmi1->dmi_addrlen == dmi2->dmi_addrlen) &&
 		(memcmp(dmi1->dmi_addr, dmi2->dmi_addr, dmi1->dmi_addrlen) == 0));
@@ -810,7 +810,7 @@ int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
-		if (real_dev->do_ioctl && netif_device_present(real_dev)) 
+		if (real_dev->do_ioctl && netif_device_present(real_dev))
 			err = real_dev->do_ioctl(real_dev, &ifrr, cmd);
 		break;
 
@@ -818,7 +818,7 @@ int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		err = dev_ethtool(&ifrr);
 	}
 
-	if (!err) 
+	if (!err)
 		ifr->ifr_ifru = ifrr.ifr_ifru;
 
 	return err;

@@ -23,7 +23,7 @@ struct nbyte_data
 	struct tcf_em_nbyte	hdr;
 	char			pattern[0];
 };
-	
+
 static int em_nbyte_change(struct tcf_proto *tp, void *data, int data_len,
 			   struct tcf_ematch *em)
 {
@@ -68,7 +68,7 @@ static int __init init_em_nbyte(void)
 	return tcf_em_register(&em_nbyte_ops);
 }
 
-static void __exit exit_em_nbyte(void) 
+static void __exit exit_em_nbyte(void)
 {
 	tcf_em_unregister(&em_nbyte_ops);
 }

@@ -139,7 +139,7 @@ static int ccid2_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		return 0;
 	}
 
-        hctx = ccid2_hc_tx_sk(sk);
+	hctx = ccid2_hc_tx_sk(sk);
 
 	ccid2_pr_debug("pipe=%d cwnd=%d\n", hctx->ccid2hctx_pipe,
 		       hctx->ccid2hctx_cwnd);
@@ -368,13 +368,13 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 static int ccid2_ackvector(struct sock *sk, struct sk_buff *skb, int offset,
 			   unsigned char **vec, unsigned char *veclen)
 {
-        const struct dccp_hdr *dh = dccp_hdr(skb);
-        unsigned char *options = (unsigned char *)dh + dccp_hdr_len(skb);
-        unsigned char *opt_ptr;
-        const unsigned char *opt_end = (unsigned char *)dh +
-                                        (dh->dccph_doff * 4);
-        unsigned char opt, len;
-        unsigned char *value;
+	const struct dccp_hdr *dh = dccp_hdr(skb);
+	unsigned char *options = (unsigned char *)dh + dccp_hdr_len(skb);
+	unsigned char *opt_ptr;
+	const unsigned char *opt_end = (unsigned char *)dh +
+					(dh->dccph_doff * 4);
+	unsigned char opt, len;
+	unsigned char *value;
 
 	BUG_ON(offset < 0);
 	options += offset;
@@ -383,29 +383,29 @@ static int ccid2_ackvector(struct sock *sk, struct sk_buff *skb, int offset,
 		return -1;
 
 	while (opt_ptr != opt_end) {
-                opt   = *opt_ptr++;
-                len   = 0;
-                value = NULL;
+		opt   = *opt_ptr++;
+		len   = 0;
+		value = NULL;
 
-                /* Check if this isn't a single byte option */
-                if (opt > DCCPO_MAX_RESERVED) {
-                        if (opt_ptr == opt_end)
-                                goto out_invalid_option;
+		/* Check if this isn't a single byte option */
+		if (opt > DCCPO_MAX_RESERVED) {
+			if (opt_ptr == opt_end)
+				goto out_invalid_option;
 
-                        len = *opt_ptr++;
-                        if (len < 3)
-                                goto out_invalid_option;
-                        /*
-                         * Remove the type and len fields, leaving
-                         * just the value size
-                         */
-                        len     -= 2;
-                        value   = opt_ptr;
-                        opt_ptr += len;
+			len = *opt_ptr++;
+			if (len < 3)
+				goto out_invalid_option;
+			/*
+			 * Remove the type and len fields, leaving
+			 * just the value size
+			 */
+			len     -= 2;
+			value   = opt_ptr;
+			opt_ptr += len;
 
-                        if (opt_ptr > opt_end)
-                                goto out_invalid_option;
-                }
+			if (opt_ptr > opt_end)
+				goto out_invalid_option;
+		}
 
 		switch (opt) {
 		case DCCPO_ACK_VECTOR_0:
@@ -432,7 +432,7 @@ static void ccid2_hc_tx_kill_rto_timer(struct sock *sk)
 }
 
 static inline void ccid2_new_ack(struct sock *sk,
-			         struct ccid2_seq *seqp,
+				 struct ccid2_seq *seqp,
 				 unsigned int *maxincr)
 {
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
@@ -759,7 +759,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 {
-        struct ccid2_hc_tx_sock *hctx = ccid_priv(ccid);
+	struct ccid2_hc_tx_sock *hctx = ccid_priv(ccid);
 
 	ccid2_change_cwnd(hctx, 1);
 	/* Initialize ssthresh to infinity.  This means that we will exit the
@@ -793,7 +793,7 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 
 static void ccid2_hc_tx_exit(struct sock *sk)
 {
-        struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
+	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 	int i;
 
 	ccid2_hc_tx_kill_rto_timer(sk);

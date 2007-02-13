@@ -5,6 +5,20 @@
 #
 # Prompt user for primary drivers.
 
+config OBSOLETE_OSS
+	bool "Obsolete OSS drivers"
+	depends on SOUND_PRIME
+	help
+	  This option enables support for obsolete OSS drivers that
+	  are scheduled for removal in the near future since there
+	  are ALSA drivers for the same hardware.
+
+	  Please contact Adrian Bunk <bunk@stusta.de> if you had to
+	  say Y here because your soundcard is not properly supported
+	  by ALSA.
+
+	  If unsure, say N.
+
 config SOUND_BT878
 	tristate "BT878 audio dma"
 	depends on SOUND_PRIME && PCI
@@ -33,7 +47,7 @@ config SOUND_BCM_CS4297A
 
 config SOUND_ES1371
 	tristate "Creative Ensoniq AudioPCI 97 (ES1371)"
-	depends on SOUND_PRIME && PCI
+	depends on SOUND_PRIME && PCI && OBSOLETE_OSS
 	help
 	  Say Y or M if you have a PCI sound card utilizing the Ensoniq
 	  ES1371 chipset, such as Ensoniq's AudioPCI97. To find out if
@@ -704,18 +718,6 @@ config AEDSP16_SBPRO
 	  command line.
 
 endchoice
-
-config AEDSP16_MPU401
-	bool "Audio Excel DSP 16 (MPU401 emulation)"
-	depends on SOUND_AEDSP16 && SOUND_MPU401
-	help
-	  Answer Y if you want your audio card to emulate the MPU-401 midi
-	  interface. You should then also say Y to "MPU-401 support".
-
-	  Note that the I/O base for MPU-401 support of aedsp16 is the same
-	  you have selected for "MPU-401 support". If you are using this
-	  driver as a module you have to specify the MPU I/O base address with
-	  the parameter 'mpu_base=0xNNN'.
 
 config SOUND_VIDC
 	tristate "VIDC 16-bit sound"

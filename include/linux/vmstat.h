@@ -3,20 +3,15 @@
 
 #include <linux/types.h>
 #include <linux/percpu.h>
+#include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <asm/atomic.h>
 
-#ifdef CONFIG_VM_EVENT_COUNTERS
-/*
- * Light weight per cpu counter implementation.
- *
- * Counters should only be incremented.  You need to set EMBEDDED
- * to disable VM_EVENT_COUNTERS.  Things like procps (vmstat,
- * top, etc) use /proc/vmstat and depend on these counters.
- *
- * Counters are handled completely inline. On many platforms the code
- * generated will simply be the increment of a global address.
- */
+#ifdef CONFIG_ZONE_DMA
+#define DMA_ZONE(xx) xx##_DMA,
+#else
+#define DMA_ZONE(xx)
+#endif
 
 #ifdef CONFIG_ZONE_DMA32
 #define DMA32_ZONE(xx) xx##_DMA32,
@@ -30,7 +25,7 @@
 #define HIGHMEM_ZONE(xx)
 #endif
 
-#define FOR_ALL_ZONES(xx) xx##_DMA, DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx)
+#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx)
 
 enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		FOR_ALL_ZONES(PGALLOC),
@@ -44,6 +39,17 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
 		NR_VM_EVENT_ITEMS
 };
+
+#ifdef CONFIG_VM_EVENT_COUNTERS
+/*
+ * Light weight per cpu counter implementation.
+ *
+ * Counters should only be incremented and no critical kernel component
+ * should rely on the counter values.
+ *
+ * Counters are handled completely inline. On many platforms the code
+ * generated will simply be the increment of a global address.
+ */
 
 struct vm_event_state {
 	unsigned long event[NR_VM_EVENT_ITEMS];
@@ -85,17 +91,30 @@ static inline void vm_events_fold_cpu(int cpu)
 #else
 
 /* Disable counters */
-#define get_cpu_vm_events(e)	0L
-#define count_vm_event(e)	do { } while (0)
-#define count_vm_events(e,d)	do { } while (0)
-#define __count_vm_event(e)	do { } while (0)
-#define __count_vm_events(e,d)	do { } while (0)
-#define vm_events_fold_cpu(x)	do { } while (0)
+static inline void count_vm_event(enum vm_event_item item)
+{
+}
+static inline void count_vm_events(enum vm_event_item item, long delta)
+{
+}
+static inline void __count_vm_event(enum vm_event_item item)
+{
+}
+static inline void __count_vm_events(enum vm_event_item item, long delta)
+{
+}
+static inline void all_vm_events(unsigned long *ret)
+{
+}
+static inline void vm_events_fold_cpu(int cpu)
+{
+}
 
 #endif /* CONFIG_VM_EVENT_COUNTERS */
 
 #define __count_zone_vm_events(item, zone, delta) \
-			__count_vm_events(item##_DMA + zone_idx(zone), delta)
+		__count_vm_events(item##_NORMAL - ZONE_NORMAL + \
+		zone_idx(zone), delta)
 
 /*
  * Zone based page accounting with per cpu differentials.
@@ -142,14 +161,16 @@ static inline unsigned long node_page_state(int node,
 	struct zone *zones = NODE_DATA(node)->node_zones;
 
 	return
+#ifdef CONFIG_ZONE_DMA
+		zone_page_state(&zones[ZONE_DMA], item) +
+#endif
 #ifdef CONFIG_ZONE_DMA32
 		zone_page_state(&zones[ZONE_DMA32], item) +
 #endif
-		zone_page_state(&zones[ZONE_NORMAL], item) +
 #ifdef CONFIG_HIGHMEM
 		zone_page_state(&zones[ZONE_HIGHMEM], item) +
 #endif
-		zone_page_state(&zones[ZONE_DMA], item);
+		zone_page_state(&zones[ZONE_NORMAL], item);
 }
 
 extern void zone_statistics(struct zonelist *, struct zone *);
@@ -186,6 +207,9 @@ void inc_zone_page_state(struct page *, enum zone_stat_item);
 void dec_zone_page_state(struct page *, enum zone_stat_item);
 
 extern void inc_zone_state(struct zone *, enum zone_stat_item);
+extern void __inc_zone_state(struct zone *, enum zone_stat_item);
+extern void dec_zone_state(struct zone *, enum zone_stat_item);
+extern void __dec_zone_state(struct zone *, enum zone_stat_item);
 
 void refresh_cpu_vm_stats(int);
 void refresh_vm_stats(void);
@@ -212,6 +236,12 @@ static inline void __inc_zone_page_state(struct page *page,
 			enum zone_stat_item item)
 {
 	__inc_zone_state(page_zone(page), item);
+}
+
+static inline void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
+{
+	atomic_long_dec(&zone->vm_stat[item]);
+	atomic_long_dec(&vm_stat[item]);
 }
 
 static inline void __dec_zone_page_state(struct page *page,

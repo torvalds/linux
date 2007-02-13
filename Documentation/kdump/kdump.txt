@@ -311,10 +311,10 @@ Following are the arch specific command line options to be used while
 loading dump-capture kernel.
 
 For i386, x86_64 and ia64:
-	"init 1 irqpoll maxcpus=1"
+	"1 irqpoll maxcpus=1"
 
 For ppc64:
-	"init 1 maxcpus=1 noirqdistrib"
+	"1 maxcpus=1 noirqdistrib"
 
 
 Notes on loading the dump-capture kernel:
@@ -332,8 +332,8 @@ Notes on loading the dump-capture kernel:
 * You must specify <root-dev> in the format corresponding to the root
   device name in the output of mount command.
 
-* "init 1" boots the dump-capture kernel into single-user mode without
-  networking. If you want networking, use "init 3."
+* Boot parameter "1" boots the dump-capture kernel into single-user
+  mode without networking. If you want networking, use "3".
 
 * We generally don' have to bring up a SMP kernel just to capture the
   dump. Hence generally it is useful either to build a UP dump-capture

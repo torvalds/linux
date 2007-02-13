@@ -89,7 +89,6 @@ typedef	struct xfs_btree_sblock xfs_inobt_block_t;
 /*
  * Real block structures have a size equal to the disk block size.
  */
-#define	XFS_INOBT_BLOCK_SIZE(lev,cur)	(1 << (cur)->bc_blocklog)
 #define	XFS_INOBT_BLOCK_MAXRECS(lev,cur) ((cur)->bc_mp->m_inobt_mxr[lev != 0])
 #define	XFS_INOBT_BLOCK_MINRECS(lev,cur) ((cur)->bc_mp->m_inobt_mnr[lev != 0])
 #define	XFS_INOBT_IS_LAST_REC(cur)	\
@@ -110,14 +109,13 @@ typedef	struct xfs_btree_sblock xfs_inobt_block_t;
  * Record, key, and pointer address macros for btree blocks.
  */
 #define XFS_INOBT_REC_ADDR(bb,i,cur) \
-	(XFS_BTREE_REC_ADDR(XFS_INOBT_BLOCK_SIZE(0,cur), xfs_inobt, bb, \
-				i, XFS_INOBT_BLOCK_MAXRECS(0, cur)))
+	(XFS_BTREE_REC_ADDR(xfs_inobt, bb, i))
+
 #define	XFS_INOBT_KEY_ADDR(bb,i,cur) \
-	(XFS_BTREE_KEY_ADDR(XFS_INOBT_BLOCK_SIZE(1,cur), xfs_inobt, bb, \
-				i, XFS_INOBT_BLOCK_MAXRECS(1, cur)))
+	(XFS_BTREE_KEY_ADDR(xfs_inobt, bb, i))
 
 #define	XFS_INOBT_PTR_ADDR(bb,i,cur) \
-	(XFS_BTREE_PTR_ADDR(XFS_INOBT_BLOCK_SIZE(1,cur), xfs_inobt, bb, \
+	(XFS_BTREE_PTR_ADDR(xfs_inobt, bb, \
 				i, XFS_INOBT_BLOCK_MAXRECS(1, cur)))
 
 /*

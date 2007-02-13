@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_DMA_H
 #define _ASM_M32R_DMA_H
 
-/* $Id$ */
-
 #include <asm/io.h>
 
 /*

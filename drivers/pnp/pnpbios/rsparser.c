@@ -530,7 +530,6 @@ pnpbios_parse_compatible_ids(unsigned char *p, unsigned char *end, struct pnp_de
 			dev_id =  kzalloc(sizeof (struct pnp_id), GFP_KERNEL);
 			if (!dev_id)
 				return NULL;
-			memset(dev_id, 0, sizeof(struct pnp_id));
 			pnpid32_to_pnpid(p[1] | p[2] << 8 | p[3] << 16 | p[4] << 24,id);
 			memcpy(&dev_id->id, id, 7);
 			pnp_add_id(dev_id, dev);

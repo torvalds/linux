@@ -65,7 +65,7 @@ int tcf_hash_release(struct tcf_common *p, int bind,
 			p->tcfc_bindcnt--;
 
 		p->tcfc_refcnt--;
-	       	if (p->tcfc_bindcnt <= 0 && p->tcfc_refcnt <= 0) {
+		if (p->tcfc_bindcnt <= 0 && p->tcfc_refcnt <= 0) {
 			tcf_hash_destroy(p, hinfo);
 			ret = 1;
 		}
@@ -362,7 +362,7 @@ static struct tc_action_ops *tc_lookup_action_id(u32 type)
 #endif
 
 int tcf_action_exec(struct sk_buff *skb, struct tc_action *act,
-                    struct tcf_result *res)
+		    struct tcf_result *res)
 {
 	struct tc_action *a;
 	int ret = -1;
@@ -473,7 +473,7 @@ errout:
 }
 
 struct tc_action *tcf_action_init_1(struct rtattr *rta, struct rtattr *est,
-                                    char *name, int ovr, int bind, int *err)
+				    char *name, int ovr, int bind, int *err)
 {
 	struct tc_action *a;
 	struct tc_action_ops *a_o;
@@ -553,7 +553,7 @@ err_out:
 }
 
 struct tc_action *tcf_action_init(struct rtattr *rta, struct rtattr *est,
-                                  char *name, int ovr, int bind, int *err)
+				  char *name, int ovr, int bind, int *err)
 {
 	struct rtattr *tb[TCA_ACT_MAX_PRIO+1];
 	struct tc_action *head = NULL, *act, *act_prev = NULL;
@@ -590,7 +590,7 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *a,
 	int err = 0;
 	struct gnet_dump d;
 	struct tcf_act_hdr *h = a->priv;
-	
+
 	if (h == NULL)
 		goto errout;
 
@@ -632,7 +632,7 @@ errout:
 
 static int
 tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
-             u16 flags, int event, int bind, int ref)
+	     u16 flags, int event, int bind, int ref)
 {
 	struct tcamsg *t;
 	struct nlmsghdr *nlh;
@@ -645,7 +645,7 @@ tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
 	t->tca_family = AF_UNSPEC;
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
-	
+
 	x = (struct rtattr*) skb->tail;
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
 
@@ -653,7 +653,7 @@ tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
 		goto rtattr_failure;
 
 	x->rta_len = skb->tail - (u8*)x;
-	
+
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
 
@@ -852,7 +852,7 @@ tca_action_gd(struct rtattr *rta, struct nlmsghdr *n, u32 pid, int event)
 		}
 
 		if (tca_get_fill(skb, head, pid, n->nlmsg_seq, 0, event,
-		                 0, 1) <= 0) {
+				 0, 1) <= 0) {
 			kfree_skb(skb);
 			ret = -EINVAL;
 			goto err;
@@ -861,7 +861,7 @@ tca_action_gd(struct rtattr *rta, struct nlmsghdr *n, u32 pid, int event)
 		/* now do the delete */
 		tcf_action_destroy(head, 0);
 		ret = rtnetlink_send(skb, pid, RTNLGRP_TC,
-		                     n->nlmsg_flags&NLM_F_ECHO);
+				     n->nlmsg_flags&NLM_F_ECHO);
 		if (ret > 0)
 			return 0;
 		return ret;
@@ -872,7 +872,7 @@ err:
 }
 
 static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
-                          u16 flags)
+			  u16 flags)
 {
 	struct tcamsg *t;
 	struct nlmsghdr *nlh;
@@ -900,10 +900,10 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 		goto rtattr_failure;
 
 	x->rta_len = skb->tail - (u8*)x;
-	
+
 	nlh->nlmsg_len = skb->tail - b;
 	NETLINK_CB(skb).dst_group = RTNLGRP_TC;
-	
+
 	err = rtnetlink_send(skb, pid, RTNLGRP_TC, flags&NLM_F_ECHO);
 	if (err > 0)
 		err = 0;
@@ -915,7 +915,7 @@ nlmsg_failure:
 	return -1;
 }
 
-	
+
 static int
 tcf_action_add(struct rtattr *rta, struct nlmsghdr *n, u32 pid, int ovr)
 {
@@ -999,13 +999,13 @@ find_dump_kind(struct nlmsghdr *n)
 		return NULL;
 
 	if (rtattr_parse(tb, TCA_ACT_MAX_PRIO, RTA_DATA(tb1),
-	                 NLMSG_ALIGN(RTA_PAYLOAD(tb1))) < 0)
+			 NLMSG_ALIGN(RTA_PAYLOAD(tb1))) < 0)
 		return NULL;
 	if (tb[0] == NULL)
 		return NULL;
 
 	if (rtattr_parse(tb2, TCA_ACT_MAX, RTA_DATA(tb[0]),
-	                 RTA_PAYLOAD(tb[0])) < 0)
+			 RTA_PAYLOAD(tb[0])) < 0)
 		return NULL;
 	kind = tb2[TCA_ACT_KIND-1];
 
@@ -1043,7 +1043,7 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 
 	nlh = NLMSG_PUT(skb, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq,
-	                cb->nlh->nlmsg_type, sizeof(*t));
+			cb->nlh->nlmsg_type, sizeof(*t));
 	t = NLMSG_DATA(nlh);
 	t->tca_family = AF_UNSPEC;
 	t->tca__pad1 = 0;

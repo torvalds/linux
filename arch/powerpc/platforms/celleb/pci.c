@@ -65,13 +65,13 @@ static inline u8 celleb_fake_config_readb(void *addr)
 
 static inline u16 celleb_fake_config_readw(void *addr)
 {
-	u16 *p = addr;
+	__le16 *p = addr;
 	return le16_to_cpu(*p);
 }
 
 static inline u32 celleb_fake_config_readl(void *addr)
 {
-	u32 *p = addr;
+	__le32 *p = addr;
 	return le32_to_cpu(*p);
 }
 
@@ -83,16 +83,16 @@ static inline void celleb_fake_config_writeb(u32 val, void *addr)
 
 static inline void celleb_fake_config_writew(u32 val, void *addr)
 {
-	u16 val16;
-	u16 *p = addr;
+	__le16 val16;
+	__le16 *p = addr;
 	val16 = cpu_to_le16(val);
 	*p = val16;
 }
 
 static inline void celleb_fake_config_writel(u32 val, void *addr)
 {
-	u32 val32;
-	u32 *p = addr;
+	__le32 val32;
+	__le32 *p = addr;
 	val32 = cpu_to_le32(val);
 	*p = val32;
 }

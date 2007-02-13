@@ -92,7 +92,7 @@ static struct mega_hbas mega_hbas[MAX_CONTROLLERS];
 /*
  * The File Operations structure for the serial/ioctl interface of the driver
  */
-static struct file_operations megadev_fops = {
+static const struct file_operations megadev_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= megadev_ioctl,
 	.open		= megadev_open,

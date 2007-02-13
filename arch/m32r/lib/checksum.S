@@ -25,8 +25,6 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  */
-/* $Id$ */
-
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
@@ -319,3 +317,4 @@ ENTRY(csum_partial_copy_generic)
 	nop
 	nop
 
+	.end

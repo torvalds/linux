@@ -376,10 +376,8 @@ via_dmablit_handler(drm_device_t *dev, int engine, int from_irq)
 			blitq->cur = cur;
 			blitq->num_outstanding--;
 			blitq->end = jiffies + DRM_HZ;
-			if (!timer_pending(&blitq->poll_timer)) {
-				blitq->poll_timer.expires = jiffies+1;
-				add_timer(&blitq->poll_timer);
-			}
+			if (!timer_pending(&blitq->poll_timer))
+				mod_timer(&blitq->poll_timer, jiffies + 1);
 		} else {
 			if (timer_pending(&blitq->poll_timer)) {
 				del_timer(&blitq->poll_timer);
@@ -478,8 +476,7 @@ via_dmablit_timer(unsigned long data)
 	via_dmablit_handler(dev, engine, 0);
 	
 	if (!timer_pending(&blitq->poll_timer)) {
-		blitq->poll_timer.expires = jiffies+1;
-		add_timer(&blitq->poll_timer);
+		mod_timer(&blitq->poll_timer, jiffies + 1);
 
 	       /*
 		* Rerun handler to delete timer if engines are off, and
@@ -574,9 +571,8 @@ via_init_dmablit(drm_device_t *dev)
 		}
 		DRM_INIT_WAITQUEUE(&blitq->busy_queue);
 		INIT_WORK(&blitq->wq, via_dmablit_workqueue);
-		init_timer(&blitq->poll_timer);
-		blitq->poll_timer.function = &via_dmablit_timer;
-		blitq->poll_timer.data = (unsigned long) blitq;
+		setup_timer(&blitq->poll_timer, via_dmablit_timer,
+				(unsigned long)blitq);
 	}	
 }
 

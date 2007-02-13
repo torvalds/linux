@@ -318,6 +318,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	struct nf_conn_help *help = nfct_help(ct);
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
+	typeof(nf_conntrack_destroyed) destroyed;
 
 	DEBUGP("destroy_conntrack(%p)\n", ct);
 	NF_CT_ASSERT(atomic_read(&nfct->use) == 0);
@@ -332,16 +333,21 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	/* To make sure we don't get any weird locking issues here:
 	 * destroy_conntrack() MUST NOT be called with a write lock
 	 * to nf_conntrack_lock!!! -HW */
+	rcu_read_lock();
 	l3proto = __nf_ct_l3proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num);
 	if (l3proto && l3proto->destroy)
 		l3proto->destroy(ct);
 
-	l4proto = __nf_ct_l4proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num, ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
+	l4proto = __nf_ct_l4proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num,
+				       ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
 	if (l4proto && l4proto->destroy)
 		l4proto->destroy(ct);
 
-	if (nf_conntrack_destroyed)
-		nf_conntrack_destroyed(ct);
+	destroyed = rcu_dereference(nf_conntrack_destroyed);
+	if (destroyed)
+		destroyed(ct);
+
+	rcu_read_unlock();
 
 	write_lock_bh(&nf_conntrack_lock);
 	/* Expectations will have been removed in clean_from_lists,
@@ -418,7 +424,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_find_get);
 
 static void __nf_conntrack_hash_insert(struct nf_conn *ct,
 				       unsigned int hash,
-				       unsigned int repl_hash) 
+				       unsigned int repl_hash)
 {
 	ct->id = ++nf_conntrack_next_id;
 	list_add(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list,
@@ -560,7 +566,7 @@ static int early_drop(struct list_head *chain)
 	if (del_timer(&ct->timeout)) {
 		death_by_timeout((unsigned long)ct);
 		dropped = 1;
-		NF_CT_STAT_INC(early_drop);
+		NF_CT_STAT_INC_ATOMIC(early_drop);
 	}
 	nf_ct_put(ct);
 	return dropped;
@@ -647,9 +653,14 @@ struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 				   const struct nf_conntrack_tuple *repl)
 {
 	struct nf_conntrack_l3proto *l3proto;
+	struct nf_conn *ct;
 
+	rcu_read_lock();
 	l3proto = __nf_ct_l3proto_find(orig->src.l3num);
-	return __nf_conntrack_alloc(orig, repl, l3proto, 0);
+	ct = __nf_conntrack_alloc(orig, repl, l3proto, 0);
+	rcu_read_unlock();
+
+	return ct;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alloc);
 
@@ -813,11 +824,13 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 
 	/* Previously seen (loopback or untracked)?  Ignore. */
 	if ((*pskb)->nfct) {
-		NF_CT_STAT_INC(ignore);
+		NF_CT_STAT_INC_ATOMIC(ignore);
 		return NF_ACCEPT;
 	}
 
+	/* rcu_read_lock()ed by nf_hook_slow */
 	l3proto = __nf_ct_l3proto_find((u_int16_t)pf);
+
 	if ((ret = l3proto->prepare(pskb, hooknum, &dataoff, &protonum)) <= 0) {
 		DEBUGP("not prepared to track yet or error occured\n");
 		return -ret;
@@ -830,8 +843,8 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 	 * core what to do with the packet. */
 	if (l4proto->error != NULL &&
 	    (ret = l4proto->error(*pskb, dataoff, &ctinfo, pf, hooknum)) <= 0) {
-		NF_CT_STAT_INC(error);
-		NF_CT_STAT_INC(invalid);
+		NF_CT_STAT_INC_ATOMIC(error);
+		NF_CT_STAT_INC_ATOMIC(invalid);
 		return -ret;
 	}
 
@@ -839,13 +852,13 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 			       &set_reply, &ctinfo);
 	if (!ct) {
 		/* Not valid part of a connection */
-		NF_CT_STAT_INC(invalid);
+		NF_CT_STAT_INC_ATOMIC(invalid);
 		return NF_ACCEPT;
 	}
 
 	if (IS_ERR(ct)) {
 		/* Too stressed to deal. */
-		NF_CT_STAT_INC(drop);
+		NF_CT_STAT_INC_ATOMIC(drop);
 		return NF_DROP;
 	}
 
@@ -858,7 +871,7 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 		DEBUGP("nf_conntrack_in: Can't track with proto module\n");
 		nf_conntrack_put((*pskb)->nfct);
 		(*pskb)->nfct = NULL;
-		NF_CT_STAT_INC(invalid);
+		NF_CT_STAT_INC_ATOMIC(invalid);
 		return -ret;
 	}
 
@@ -872,10 +885,15 @@ EXPORT_SYMBOL_GPL(nf_conntrack_in);
 int nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 			 const struct nf_conntrack_tuple *orig)
 {
-	return nf_ct_invert_tuple(inverse, orig,
-				  __nf_ct_l3proto_find(orig->src.l3num),
-				  __nf_ct_l4proto_find(orig->src.l3num,
-						     orig->dst.protonum));
+	int ret;
+
+	rcu_read_lock();
+	ret = nf_ct_invert_tuple(inverse, orig,
+				 __nf_ct_l3proto_find(orig->src.l3num),
+				 __nf_ct_l4proto_find(orig->src.l3num,
+						      orig->dst.protonum));
+	rcu_read_unlock();
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_invert_tuplepr);
 
@@ -1048,7 +1066,7 @@ get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 			if (iter(ct, data))
 				goto found;
 		}
- 	}
+	}
 	list_for_each_entry(h, &unconfirmed, list) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
 		if (iter(ct, data))
@@ -1089,7 +1107,7 @@ static void free_conntrack_hash(struct list_head *hash, int vmalloced, int size)
 	if (vmalloced)
 		vfree(hash);
 	else
-		free_pages((unsigned long)hash, 
+		free_pages((unsigned long)hash,
 			   get_order(sizeof(struct list_head) * size));
 }
 
@@ -1105,7 +1123,7 @@ void nf_conntrack_cleanup(void)
 {
 	int i;
 
-	ip_ct_attach = NULL;
+	rcu_assign_pointer(ip_ct_attach, NULL);
 
 	/* This makes sure all current packets have passed through
 	   netfilter framework.  Roll on, two-stage module
@@ -1150,18 +1168,18 @@ static struct list_head *alloc_hashtable(int size, int *vmalloced)
 	struct list_head *hash;
 	unsigned int i;
 
-	*vmalloced = 0; 
-	hash = (void*)__get_free_pages(GFP_KERNEL, 
+	*vmalloced = 0;
+	hash = (void*)__get_free_pages(GFP_KERNEL,
 				       get_order(sizeof(struct list_head)
 						 * size));
-	if (!hash) { 
+	if (!hash) {
 		*vmalloced = 1;
 		printk(KERN_WARNING "nf_conntrack: falling back to vmalloc.\n");
 		hash = vmalloc(sizeof(struct list_head) * size);
 	}
 
 	if (hash)
-		for (i = 0; i < size; i++) 
+		for (i = 0; i < size; i++)
 			INIT_LIST_HEAD(&hash[i]);
 
 	return hash;
@@ -1268,12 +1286,12 @@ int __init nf_conntrack_init(void)
 
 	/* Don't NEED lock here, but good form anyway. */
 	write_lock_bh(&nf_conntrack_lock);
-        for (i = 0; i < AF_MAX; i++)
+	for (i = 0; i < AF_MAX; i++)
 		nf_ct_l3protos[i] = &nf_conntrack_l3proto_generic;
-        write_unlock_bh(&nf_conntrack_lock);
+	write_unlock_bh(&nf_conntrack_lock);
 
 	/* For use by REJECT target */
-	ip_ct_attach = __nf_conntrack_attach;
+	rcu_assign_pointer(ip_ct_attach, __nf_conntrack_attach);
 
 	/* Set up fake conntrack:
 	    - to never be deleted, not in any hashes */

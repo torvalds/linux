@@ -97,7 +97,7 @@ static int eisa_eeprom_release(struct inode *inode, struct file *file)
 /*
  *	The various file operations we support.
  */
-static struct file_operations eisa_eeprom_fops = {
+static const struct file_operations eisa_eeprom_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	eisa_eeprom_llseek,
 	.read =		eisa_eeprom_read,

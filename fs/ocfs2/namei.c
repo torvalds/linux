@@ -2306,7 +2306,7 @@ leave:
 	return status;
 }
 
-struct inode_operations ocfs2_dir_iops = {
+const struct inode_operations ocfs2_dir_iops = {
 	.create		= ocfs2_create,
 	.lookup		= ocfs2_lookup,
 	.link		= ocfs2_link,

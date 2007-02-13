@@ -182,13 +182,8 @@ static void keyspan_pda_wakeup_write(struct work_struct *work)
 	struct keyspan_pda_private *priv =
 		container_of(work, struct keyspan_pda_private, wakeup_work);
 	struct usb_serial_port *port = priv->port;
-	struct tty_struct *tty = port->tty;
 
-	/* wake up port processes */
-	wake_up_interruptible( &port->write_wait );
-
-	/* wake up line discipline */
-	tty_wakeup(tty);
+	tty_wakeup(port->tty);
 }
 
 static void keyspan_pda_request_unthrottle(struct work_struct *work)

@@ -14,7 +14,7 @@
  *	LAPB 002	Jonathan Naylor	New timer architecture.
  *	2000-10-29	Henner Eisen	lapb_data_indication() return status.
  */
- 
+
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -43,7 +43,7 @@ static struct list_head lapb_list = LIST_HEAD_INIT(lapb_list);
 static DEFINE_RWLOCK(lapb_list_lock);
 
 /*
- *	Free an allocated lapb control block. 
+ *	Free an allocated lapb control block.
  */
 static void lapb_free_cb(struct lapb_cb *lapb)
 {
@@ -407,7 +407,7 @@ int lapb_data_indication(struct lapb_cb *lapb, struct sk_buff *skb)
 		return lapb->callbacks.data_indication(lapb->dev, skb);
 
 	kfree_skb(skb);
-	return NET_RX_CN_HIGH; /* For now; must be != NET_RX_DROP */ 
+	return NET_RX_CN_HIGH; /* For now; must be != NET_RX_DROP */
 }
 
 int lapb_data_transmit(struct lapb_cb *lapb, struct sk_buff *skb)

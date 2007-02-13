@@ -129,7 +129,7 @@ static struct scsi_driver ch_template =
 	},
 };
 
-static struct file_operations changer_fops =
+static const struct file_operations changer_fops =
 {
 	.owner        = THIS_MODULE,
 	.open         = ch_open,

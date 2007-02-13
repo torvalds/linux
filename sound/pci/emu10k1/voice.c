@@ -83,7 +83,7 @@ static int voice_alloc(struct snd_emu10k1 *emu, int type, int number,
 	if (first_voice == last_voice)
 		return -ENOMEM;
 	
-	for (i=0; i < number; i++) {
+	for (i = 0; i < number; i++) {
 		voice = &emu->voices[(first_voice + i) % NUM_G];
 		// printk("voice alloc - %i, %i of %i\n", voice->number, idx-first_voice+1, number);
 		voice->use = 1;

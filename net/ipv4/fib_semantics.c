@@ -85,12 +85,12 @@ for (nhsel=0; nhsel < 1; nhsel++)
 #define endfor_nexthops(fi) }
 
 
-static const struct 
+static const struct
 {
 	int	error;
 	u8	scope;
 } fib_props[RTA_MAX + 1] = {
-        {
+	{
 		.error	= 0,
 		.scope	= RT_SCOPE_NOWHERE,
 	},	/* RTN_UNSPEC */
@@ -314,9 +314,12 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 	err = fib_dump_info(skb, info->pid, seq, event, tb_id,
 			    fa->fa_type, fa->fa_scope, key, dst_len,
 			    fa->fa_tos, fa->fa_info, 0);
-	/* failure implies BUG in fib_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in fib_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, info->pid, RTNLGRP_IPV4_ROUTE,
 			  info->nlh, GFP_KERNEL);
 errout:
@@ -436,7 +439,7 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
 
 	rtnh = cfg->fc_mp;
 	remaining = cfg->fc_mp_len;
-	
+
 	for_nexthops(fi) {
 		int attrlen;
 
@@ -505,9 +508,9 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
    Normally it looks as following.
 
    {universe prefix}  -> (gw, oif) [scope link]
-                          |
+			  |
 			  |-> {link prefix} -> (gw, oif) [scope local]
-			                        |
+						|
 						|-> {local prefix} (terminal node)
  */
 
@@ -861,7 +864,7 @@ err_inval:
 	err = -EINVAL;
 
 failure:
-        if (fi) {
+	if (fi) {
 		fi->fib_dead = 1;
 		free_fib_info(fi);
 	}
@@ -960,7 +963,7 @@ int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*rtm), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	rtm = nlmsg_data(nlh);
 	rtm->rtm_family = AF_INET;
@@ -1031,7 +1034,8 @@ int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 /*
@@ -1045,7 +1049,7 @@ int fib_sync_down(__be32 local, struct net_device *dev, int force)
 {
 	int ret = 0;
 	int scope = RT_SCOPE_NOWHERE;
-	
+
 	if (force)
 		scope = -1;
 

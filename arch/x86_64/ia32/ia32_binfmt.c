@@ -300,11 +300,9 @@ int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top,
 		bprm->loader += stack_base;
 	bprm->exec += stack_base;
 
-	mpnt = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+	mpnt = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (!mpnt) 
 		return -ENOMEM; 
-
-	memset(mpnt, 0, sizeof(*mpnt));
 
 	down_write(&mm->mmap_sem);
 	{

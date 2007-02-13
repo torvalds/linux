@@ -482,7 +482,7 @@ static int input_proc_devices_open(struct inode *inode, struct file *file)
 	return seq_open(file, &input_devices_seq_ops);
 }
 
-static struct file_operations input_devices_fileops = {
+static const struct file_operations input_devices_fileops = {
 	.owner		= THIS_MODULE,
 	.open		= input_proc_devices_open,
 	.poll		= input_proc_devices_poll,
@@ -533,7 +533,7 @@ static int input_proc_handlers_open(struct inode *inode, struct file *file)
 	return seq_open(file, &input_handlers_seq_ops);
 }
 
-static struct file_operations input_handlers_fileops = {
+static const struct file_operations input_handlers_fileops = {
 	.owner		= THIS_MODULE,
 	.open		= input_proc_handlers_open,
 	.read		= seq_read,
@@ -1142,7 +1142,7 @@ static int input_open_file(struct inode *inode, struct file *file)
 	return err;
 }
 
-static struct file_operations input_fops = {
+static const struct file_operations input_fops = {
 	.owner = THIS_MODULE,
 	.open = input_open_file,
 };

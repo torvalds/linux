@@ -167,7 +167,7 @@ static DECLARE_MUTEX(debug_lock);
 
 static int initialized;
 
-static struct file_operations debug_file_ops = {
+static const struct file_operations debug_file_ops = {
 	.owner   = THIS_MODULE,
 	.read    = debug_output,
 	.write   = debug_input,

@@ -83,12 +83,10 @@ static inline int notify_page_fault(enum die_val val, const char *str,
 }
 #endif
 
-extern spinlock_t timerlist_lock;
 
 /*
  * Unlock any spinlocks which will prevent us from getting the
- * message out (timerlist_lock is acquired through the
- * console unblank code)
+ * message out.
  */
 void bust_spinlocks(int yes)
 {

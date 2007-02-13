@@ -20,7 +20,7 @@
 #include <net/route.h>
 
 #include <linux/netfilter.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ipt_LOG.h>
 
 MODULE_LICENSE("GPL");
@@ -289,7 +289,7 @@ static void dump_packet(const struct nf_loginfo *info,
 
 		if (ntohs(ih->frag_off) & IP_OFFSET)
 			break;
-		
+
 		/* Max length: 9 "PROTO=AH " */
 		printk("PROTO=AH ");
 
@@ -334,10 +334,10 @@ static void dump_packet(const struct nf_loginfo *info,
 	}
 
 	/* Max length: 15 "UID=4294967295 " */
- 	if ((logflags & IPT_LOG_UID) && !iphoff && skb->sk) {
+	if ((logflags & IPT_LOG_UID) && !iphoff && skb->sk) {
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file)
- 			printk("UID=%u ", skb->sk->sk_socket->file->f_uid);
+			printk("UID=%u ", skb->sk->sk_socket->file->f_uid);
 		read_unlock_bh(&skb->sk->sk_callback_lock);
 	}
 
@@ -431,8 +431,8 @@ ipt_log_target(struct sk_buff **pskb,
 	li.u.log.logflags = loginfo->logflags;
 
 	ipt_log_packet(PF_INET, hooknum, *pskb, in, out, &li,
-	               loginfo->prefix);
-	return IPT_CONTINUE;
+		       loginfo->prefix);
+	return XT_CONTINUE;
 }
 
 static int ipt_log_checkentry(const char *tablename,
@@ -455,8 +455,9 @@ static int ipt_log_checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ipt_target ipt_log_reg = {
+static struct xt_target ipt_log_reg = {
 	.name		= "LOG",
+	.family		= AF_INET,
 	.target		= ipt_log_target,
 	.targetsize	= sizeof(struct ipt_log_info),
 	.checkentry	= ipt_log_checkentry,
@@ -471,22 +472,25 @@ static struct nf_logger ipt_log_logger ={
 
 static int __init ipt_log_init(void)
 {
-	if (ipt_register_target(&ipt_log_reg))
-		return -EINVAL;
+	int ret;
+
+	ret = xt_register_target(&ipt_log_reg);
+	if (ret < 0)
+		return ret;
 	if (nf_log_register(PF_INET, &ipt_log_logger) < 0) {
 		printk(KERN_WARNING "ipt_LOG: not logging via system console "
 		       "since somebody else already registered for PF_INET\n");
 		/* we cannot make module load fail here, since otherwise
 		 * iptables userspace would abort */
 	}
-	
+
 	return 0;
 }
 
 static void __exit ipt_log_fini(void)
 {
-	nf_log_unregister_logger(&ipt_log_logger);
-	ipt_unregister_target(&ipt_log_reg);
+	nf_log_unregister(&ipt_log_logger);
+	xt_unregister_target(&ipt_log_reg);
 }
 
 module_init(ipt_log_init);

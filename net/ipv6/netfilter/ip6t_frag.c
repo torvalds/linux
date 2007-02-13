@@ -14,6 +14,7 @@
 #include <net/checksum.h>
 #include <net/ipv6.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/netfilter_ipv6/ip6t_frag.h>
 
@@ -135,8 +136,9 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ip6t_match frag_match = {
+static struct xt_match frag_match = {
 	.name		= "frag",
+	.family		= AF_INET6,
 	.match		= match,
 	.matchsize	= sizeof(struct ip6t_frag),
 	.checkentry	= checkentry,
@@ -145,12 +147,12 @@ static struct ip6t_match frag_match = {
 
 static int __init ip6t_frag_init(void)
 {
-	return ip6t_register_match(&frag_match);
+	return xt_register_match(&frag_match);
 }
 
 static void __exit ip6t_frag_fini(void)
 {
-	ip6t_unregister_match(&frag_match);
+	xt_unregister_match(&frag_match);
 }
 
 module_init(ip6t_frag_init);

@@ -91,7 +91,7 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 		}
 	}
 
- 	return minfo->invert;
+	return minfo->invert;
 }
 
 static int

@@ -1,6 +1,6 @@
 /*
  * net/tipc/node.h: Include file for TIPC node management routines
- * 
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -67,7 +67,7 @@
  *    @deferred_tail: newest OOS b'cast message received from node
  *    @defragm: list of partially reassembled b'cast message fragments from node
  */
- 
+
 struct node {
 	u32 addr;
 	spinlock_t lock;
@@ -85,8 +85,8 @@ struct node {
 		int supported;
 		u32 acked;
 		u32 last_in;
-		u32 gap_after; 
-		u32 gap_to; 
+		u32 gap_after;
+		u32 gap_to;
 		u32 nack_sync;
 		struct sk_buff *deferred_head;
 		struct sk_buff *deferred_tail;

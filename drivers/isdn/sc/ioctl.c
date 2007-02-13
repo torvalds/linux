@@ -12,16 +12,6 @@
 #include "card.h"
 #include "scioc.h"
 
-extern int indicate_status(int, int, unsigned long, char *);
-extern int startproc(int);
-extern int reset(int);
-extern int send_and_receive(int, unsigned int, unsigned char,unsigned char,
-		unsigned char,unsigned char, 
-		unsigned char, unsigned char *, RspMessage *, int);
-
-extern board *sc_adapter[];
-
-
 static int GetStatus(int card, boardInfo *);
 
 /*

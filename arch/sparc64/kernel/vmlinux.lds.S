@@ -81,10 +81,14 @@ SECTIONS
   __sun4v_2insn_patch = .;
   .sun4v_2insn_patch : { *(.sun4v_2insn_patch) }
   __sun4v_2insn_patch_end = .;
+
+#ifdef CONFIG_BLK_DEV_INITRD
   . = ALIGN(8192); 
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
   __initramfs_end = .;
+#endif
+
   . = ALIGN(8192);
   __per_cpu_start = .;
   .data.percpu  : { *(.data.percpu) }

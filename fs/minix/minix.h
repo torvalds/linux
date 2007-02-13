@@ -7,11 +7,10 @@
  * truncated. Else they will be disallowed (ENAMETOOLONG).
  */
 #define NO_TRUNCATE 1
-
 #define INODE_VERSION(inode)	minix_sb(inode->i_sb)->s_version
-
 #define MINIX_V1		0x0001		/* original minix fs */
 #define MINIX_V2		0x0002		/* minix V2 fs */
+#define MINIX_V3		0x0003		/* minix V3 fs */
 
 /*
  * minix fs inode data in memory
@@ -52,12 +51,10 @@ extern struct inode * minix_new_inode(const struct inode * dir, int * error);
 extern void minix_free_inode(struct inode * inode);
 extern unsigned long minix_count_free_inodes(struct minix_sb_info *sbi);
 extern int minix_new_block(struct inode * inode);
-extern void minix_free_block(struct inode * inode, int block);
+extern void minix_free_block(struct inode *inode, unsigned long block);
 extern unsigned long minix_count_free_blocks(struct minix_sb_info *sbi);
-
 extern int minix_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 
-extern void V2_minix_truncate(struct inode *);
 extern void V1_minix_truncate(struct inode *);
 extern void V2_minix_truncate(struct inode *);
 extern void minix_truncate(struct inode *);
@@ -65,8 +62,8 @@ extern int minix_sync_inode(struct inode *);
 extern void minix_set_inode(struct inode *, dev_t);
 extern int V1_minix_get_block(struct inode *, long, struct buffer_head *, int);
 extern int V2_minix_get_block(struct inode *, long, struct buffer_head *, int);
-extern unsigned V1_minix_blocks(loff_t);
-extern unsigned V2_minix_blocks(loff_t);
+extern unsigned V1_minix_blocks(loff_t, struct super_block *);
+extern unsigned V2_minix_blocks(loff_t, struct super_block *);
 
 extern struct minix_dir_entry *minix_find_entry(struct dentry*, struct page**);
 extern int minix_add_link(struct dentry*, struct inode*);
@@ -76,11 +73,10 @@ extern int minix_empty_dir(struct inode*);
 extern void minix_set_link(struct minix_dir_entry*, struct page*, struct inode*);
 extern struct minix_dir_entry *minix_dotdot(struct inode*, struct page**);
 extern ino_t minix_inode_by_name(struct dentry*);
-
 extern int minix_sync_file(struct file *, struct dentry *, int);
 
-extern struct inode_operations minix_file_inode_operations;
-extern struct inode_operations minix_dir_inode_operations;
+extern const struct inode_operations minix_file_inode_operations;
+extern const struct inode_operations minix_dir_inode_operations;
 extern const struct file_operations minix_file_operations;
 extern const struct file_operations minix_dir_operations;
 extern struct dentry_operations minix_dentry_operations;

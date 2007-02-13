@@ -352,7 +352,7 @@ retry:
 	return size;
 }
 
-static struct file_operations salinfo_event_fops = {
+static const struct file_operations salinfo_event_fops = {
 	.open  = salinfo_event_open,
 	.read  = salinfo_event_read,
 };
@@ -568,7 +568,7 @@ salinfo_log_write(struct file *file, const char __user *buffer, size_t count, lo
 	return count;
 }
 
-static struct file_operations salinfo_data_fops = {
+static const struct file_operations salinfo_data_fops = {
 	.open    = salinfo_log_open,
 	.release = salinfo_log_release,
 	.read    = salinfo_log_read,

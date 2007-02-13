@@ -451,7 +451,7 @@ static ssize_t microcode_write (struct file *file, const char __user *buf, size_
 	return ret;
 }
 
-static struct file_operations microcode_fops = {
+static const struct file_operations microcode_fops = {
 	.owner		= THIS_MODULE,
 	.write		= microcode_write,
 	.open		= microcode_open,

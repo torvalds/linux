@@ -79,7 +79,7 @@ struct sock *__inet6_lookup_established(struct inet_hashinfo *hashinfo,
 			goto hit; /* You sunk my battleship! */
 	}
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_for_each(sk, node, &(head + hashinfo->ehash_size)->chain) {
+	sk_for_each(sk, node, &head->twchain) {
 		const struct inet_timewait_sock *tw = inet_twsk(sk);
 
 		if(*((__portpair *)&(tw->tw_dport))	== ports	&&
@@ -115,7 +115,7 @@ struct sock *inet6_lookup_listener(struct inet_hashinfo *hashinfo,
 	sk_for_each(sk, node, &hashinfo->listening_hash[inet_lhashfn(hnum)]) {
 		if (inet_sk(sk)->num == hnum && sk->sk_family == PF_INET6) {
 			const struct ipv6_pinfo *np = inet6_sk(sk);
-			
+
 			score = 1;
 			if (!ipv6_addr_any(&np->rcv_saddr)) {
 				if (!ipv6_addr_equal(&np->rcv_saddr, daddr))
@@ -183,7 +183,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	write_lock(&head->lock);
 
 	/* Check TIME-WAIT sockets first. */
-	sk_for_each(sk2, node, &(head + hinfo->ehash_size)->chain) {
+	sk_for_each(sk2, node, &head->twchain) {
 		const struct inet6_timewait_sock *tw6 = inet6_twsk(sk2);
 
 		tw = inet_twsk(sk2);
@@ -249,81 +249,81 @@ int inet6_hash_connect(struct inet_timewait_death_row *death_row,
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	const unsigned short snum = inet_sk(sk)->num;
- 	struct inet_bind_hashbucket *head;
- 	struct inet_bind_bucket *tb;
+	struct inet_bind_hashbucket *head;
+	struct inet_bind_bucket *tb;
 	int ret;
 
- 	if (snum == 0) {
- 		const int low = sysctl_local_port_range[0];
- 		const int high = sysctl_local_port_range[1];
+	if (snum == 0) {
+		const int low = sysctl_local_port_range[0];
+		const int high = sysctl_local_port_range[1];
 		const int range = high - low;
- 		int i, port;
+		int i, port;
 		static u32 hint;
 		const u32 offset = hint + inet6_sk_port_offset(sk);
 		struct hlist_node *node;
- 		struct inet_timewait_sock *tw = NULL;
+		struct inet_timewait_sock *tw = NULL;
 
- 		local_bh_disable();
+		local_bh_disable();
 		for (i = 1; i <= range; i++) {
 			port = low + (i + offset) % range;
- 			head = &hinfo->bhash[inet_bhashfn(port, hinfo->bhash_size)];
- 			spin_lock(&head->lock);
+			head = &hinfo->bhash[inet_bhashfn(port, hinfo->bhash_size)];
+			spin_lock(&head->lock);
 
- 			/* Does not bother with rcv_saddr checks,
- 			 * because the established check is already
- 			 * unique enough.
- 			 */
+			/* Does not bother with rcv_saddr checks,
+			 * because the established check is already
+			 * unique enough.
+			 */
 			inet_bind_bucket_for_each(tb, node, &head->chain) {
- 				if (tb->port == port) {
- 					BUG_TRAP(!hlist_empty(&tb->owners));
- 					if (tb->fastreuse >= 0)
- 						goto next_port;
- 					if (!__inet6_check_established(death_row,
+				if (tb->port == port) {
+					BUG_TRAP(!hlist_empty(&tb->owners));
+					if (tb->fastreuse >= 0)
+						goto next_port;
+					if (!__inet6_check_established(death_row,
 								       sk, port,
 								       &tw))
- 						goto ok;
- 					goto next_port;
- 				}
- 			}
+						goto ok;
+					goto next_port;
+				}
+			}
 
- 			tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep,
+			tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep,
 						     head, port);
- 			if (!tb) {
- 				spin_unlock(&head->lock);
- 				break;
- 			}
- 			tb->fastreuse = -1;
- 			goto ok;
+			if (!tb) {
+				spin_unlock(&head->lock);
+				break;
+			}
+			tb->fastreuse = -1;
+			goto ok;
 
- 		next_port:
- 			spin_unlock(&head->lock);
- 		}
- 		local_bh_enable();
+		next_port:
+			spin_unlock(&head->lock);
+		}
+		local_bh_enable();
 
- 		return -EADDRNOTAVAIL;
+		return -EADDRNOTAVAIL;
 
 ok:
 		hint += i;
 
- 		/* Head lock still held and bh's disabled */
- 		inet_bind_hash(sk, tb, port);
+		/* Head lock still held and bh's disabled */
+		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
- 			inet_sk(sk)->sport = htons(port);
- 			__inet6_hash(hinfo, sk);
- 		}
- 		spin_unlock(&head->lock);
+			inet_sk(sk)->sport = htons(port);
+			__inet6_hash(hinfo, sk);
+		}
+		spin_unlock(&head->lock);
 
- 		if (tw) {
- 			inet_twsk_deschedule(tw, death_row);
- 			inet_twsk_put(tw);
- 		}
+		if (tw) {
+			inet_twsk_deschedule(tw, death_row);
+			inet_twsk_put(tw);
+		}
 
 		ret = 0;
 		goto out;
- 	}
+	}
 
- 	head = &hinfo->bhash[inet_bhashfn(snum, hinfo->bhash_size)];
- 	tb   = inet_csk(sk)->icsk_bind_hash;
+	head = &hinfo->bhash[inet_bhashfn(snum, hinfo->bhash_size)];
+	tb   = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 
 	if (sk_head(&tb->owners) == sk && sk->sk_bind_node.next == NULL) {

@@ -254,7 +254,7 @@ static void destroy_inodecache(void)
 	kmem_cache_destroy(adfs_inode_cachep);
 }
 
-static struct super_operations adfs_sops = {
+static const struct super_operations adfs_sops = {
 	.alloc_inode	= adfs_alloc_inode,
 	.destroy_inode	= adfs_destroy_inode,
 	.write_inode	= adfs_write_inode,

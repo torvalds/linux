@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_UCONTEXT_H
 #define _ASM_M32R_UCONTEXT_H
 
-/* orig : i386 2.4.18 */
-
 struct ucontext {
 	unsigned long	  uc_flags;
 	struct ucontext  *uc_link;

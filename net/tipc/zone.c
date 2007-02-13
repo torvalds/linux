@@ -1,6 +1,6 @@
 /*
  * net/tipc/zone.c: TIPC zone management routines
- * 
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -92,7 +92,7 @@ void tipc_zone_remove_as_router(struct _zone *z_ptr, u32 router)
 
 	for (c_num = 1; c_num <= tipc_max_clusters; c_num++) {
 		if (z_ptr->clusters[c_num]) {
-			tipc_cltr_remove_as_router(z_ptr->clusters[c_num], 
+			tipc_cltr_remove_as_router(z_ptr->clusters[c_num],
 						   router);
 		}
 	}

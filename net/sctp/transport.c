@@ -130,9 +130,9 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 struct sctp_transport *sctp_transport_new(const union sctp_addr *addr,
 					  gfp_t gfp)
 {
-        struct sctp_transport *transport;
+	struct sctp_transport *transport;
 
-        transport = t_new(struct sctp_transport, gfp);
+	transport = t_new(struct sctp_transport, gfp);
 	if (!transport)
 		goto fail;
 
@@ -185,7 +185,7 @@ static void sctp_transport_destroy(struct sctp_transport *transport)
 	if (transport->asoc)
 		sctp_association_put(transport->asoc);
 
-        sctp_packet_free(&transport->packet);
+	sctp_packet_free(&transport->packet);
 
 	dst_release(transport->dst);
 	kfree(transport);
@@ -268,7 +268,7 @@ void sctp_transport_route(struct sctp_transport *transport,
 
 		/* Initialize sk->sk_rcv_saddr, if the transport is the
 		 * association's active path for getsockname().
-		 */ 
+		 */
 		if (asoc && (transport == asoc->peer.active_path))
 			opt->pf->af->to_sk_saddr(&transport->saddr,
 						 asoc->base.sk);
@@ -459,8 +459,8 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 * destination address(es) to which the missing DATA chunks
 		 * were last sent, according to the formula described in
 		 * Section 7.2.3.
-	 	 *
-	 	 * RFC 2960 7.2.3, sctpimpguide Upon detection of packet
+		 *
+		 * RFC 2960 7.2.3, sctpimpguide Upon detection of packet
 		 * losses from SACK (see Section 7.2.4), An endpoint
 		 * should do the following:
 		 *      ssthresh = max(cwnd/2, 4*MTU)
@@ -488,7 +488,7 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		if ((jiffies - transport->last_time_ecne_reduced) >
 		    transport->rtt) {
 			transport->ssthresh = max(transport->cwnd/2,
-					  	  4*transport->asoc->pathmtu);
+						  4*transport->asoc->pathmtu);
 			transport->cwnd = transport->ssthresh;
 			transport->last_time_ecne_reduced = jiffies;
 		}

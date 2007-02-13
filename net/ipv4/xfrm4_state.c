@@ -51,6 +51,7 @@ static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.family			= AF_INET,
 	.init_flags		= xfrm4_init_flags,
 	.init_tempsel		= __xfrm4_init_tempsel,
+	.output			= xfrm4_output,
 };
 
 void __init xfrm4_state_init(void)

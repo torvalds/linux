@@ -1242,7 +1242,7 @@ static int fuse_removexattr(struct dentry *entry, const char *name)
 	return err;
 }
 
-static struct inode_operations fuse_dir_inode_operations = {
+static const struct inode_operations fuse_dir_inode_operations = {
 	.lookup		= fuse_lookup,
 	.mkdir		= fuse_mkdir,
 	.symlink	= fuse_symlink,
@@ -1270,7 +1270,7 @@ static const struct file_operations fuse_dir_operations = {
 	.fsync		= fuse_dir_fsync,
 };
 
-static struct inode_operations fuse_common_inode_operations = {
+static const struct inode_operations fuse_common_inode_operations = {
 	.setattr	= fuse_setattr,
 	.permission	= fuse_permission,
 	.getattr	= fuse_getattr,
@@ -1280,7 +1280,7 @@ static struct inode_operations fuse_common_inode_operations = {
 	.removexattr	= fuse_removexattr,
 };
 
-static struct inode_operations fuse_symlink_inode_operations = {
+static const struct inode_operations fuse_symlink_inode_operations = {
 	.setattr	= fuse_setattr,
 	.follow_link	= fuse_follow_link,
 	.put_link	= fuse_put_link,

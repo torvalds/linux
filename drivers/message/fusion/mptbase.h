@@ -6,7 +6,7 @@
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
  *  Copyright (c) 1999-2007 LSI Logic Corporation
- *  (mailto:mpt_linux_developer@lsil.com)
+ *  (mailto:mpt_linux_developer@lsi.com)
  *
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -75,8 +75,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2007 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.04.03"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.03"
+#define MPT_LINUX_VERSION_COMMON	"3.04.04"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.04"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -171,6 +171,9 @@
 #else
 #define MPT_SCSI_SG_DEPTH	40
 #endif
+
+/* debug print string length used for events and iocstatus */
+# define EVENT_DESCR_STR_SZ             100
 
 #ifdef __KERNEL__	/* { */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -334,8 +337,8 @@ typedef struct _VirtTarget {
 	struct scsi_target	*starget;
 	u8			 tflags;
 	u8			 ioc_id;
-	u8			 target_id;
-	u8			 bus_id;
+	u8			 id;
+	u8			 channel;
 	u8			 minSyncFactor;	/* 0xFF is async */
 	u8			 maxOffset;	/* 0 if async */
 	u8			 maxWidth;	/* 0 if narrow, 1 if wide */
@@ -344,13 +347,12 @@ typedef struct _VirtTarget {
 	u8			 type;		/* byte 0 of Inquiry data */
 	u8			 deleted;	/* target in process of being removed */
 	u32			 num_luns;
-	u32			 luns[8];		/* Max LUNs is 256 */
 } VirtTarget;
 
 typedef struct _VirtDevice {
 	VirtTarget		*vtarget;
 	u8			 configured_lun;
-	u32			 lun;
+	int			 lun;
 } VirtDevice;
 
 /*
@@ -412,7 +414,7 @@ typedef struct _MPT_IOCTL {
 	u8			 rsvd;
 	u8			 status;	/* current command status */
 	u8			 reset;		/* 1 if bus reset allowed */
-	u8			 target;	/* target for reset */
+	u8			 id;		/* target for reset */
 	struct mutex		 ioctl_mutex;
 } MPT_IOCTL;
 
@@ -483,10 +485,24 @@ typedef	struct _SasCfgData {
 						 */
 }SasCfgData;
 
+/*
+ * Inactive volume link list of raid component data
+ * @inactive_list
+ */
+struct inactive_raid_component_info {
+	struct 	 list_head list;
+	u8		 volumeID;		/* volume target id */
+	u8		 volumeBus;		/* volume channel */
+	IOC_3_PHYS_DISK	 d;			/* phys disk info */
+};
+
 typedef	struct _RaidCfgData {
 	IOCPage2_t	*pIocPg2;		/* table of Raid Volumes */
 	IOCPage3_t	*pIocPg3;		/* table of physical disks */
-	int		 isRaid;		/* bit field, 1 if RAID */
+	struct semaphore	inactive_list_mutex;
+	struct list_head	inactive_list; /* link list for physical
+						disk that belong in
+						inactive volumes */
 }RaidCfgData;
 
 typedef struct _FcCfgData {
@@ -528,6 +544,8 @@ typedef struct _MPT_ADAPTER
 	u32			 mem_phys;	/* == f4020000 (mmap) */
 	u32			 pio_mem_phys;	/* Programmed IO (downloadboot) */
 	int			 mem_size;	/* mmap memory size */
+	int			 number_of_buses;
+	int			 devices_per_bus;
 	int			 alloc_total;
 	u32			 last_state;
 	int			 active;
@@ -607,6 +625,8 @@ typedef struct _MPT_ADAPTER
 	u8			 persist_reply_frame[MPT_DEFAULT_FRAME_SIZE]; /* persist reply */
 	LANPage0_t		 lan_cnfg_page0;
 	LANPage1_t		 lan_cnfg_page1;
+
+	u8			 ir_firmware; /* =1 if IR firmware detected */
 	/*
 	 * Description: errata_flag_1064
 	 * If a PCIX read occurs within 1 or 2 cycles after the chip receives
@@ -790,12 +810,6 @@ typedef struct _mpt_sge {
 #define ddvprintk(x)
 #endif
 
-#ifdef MPT_DEBUG_NEGO
-#define dnegoprintk(x)  printk x
-#else
-#define dnegoprintk(x)
-#endif
-
 #if defined(MPT_DEBUG_DV) || defined(MPT_DEBUG_DV_TINY)
 #define ddvtprintk(x)  printk x
 #else
@@ -957,7 +971,6 @@ typedef struct _MPT_SCSI_HOST {
 	int			  port;
 	u32			  pad0;
 	struct scsi_cmnd	**ScsiLookup;
-	VirtTarget		**Targets;
 	MPT_LOCAL_REPLY		 *pLocal;		/* used for internal commands */
 	struct timer_list	  timer;
 		/* Pool of memory for holding SCpnts before doing
@@ -981,6 +994,7 @@ typedef struct _MPT_SCSI_HOST {
 	int			  scandv_wait_done;
 	long			  last_queue_full;
 	u16			  tm_iocstatus;
+	struct list_head	  target_reset_list;
 } MPT_SCSI_HOST;
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -1046,6 +1060,7 @@ extern void	 mpt_alloc_fw_memory(MPT_ADAPTER *ioc, int size);
 extern void	 mpt_free_fw_memory(MPT_ADAPTER *ioc);
 extern int	 mpt_findImVolumes(MPT_ADAPTER *ioc);
 extern int	 mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode);
+extern int	 mpt_raid_phys_disk_pg0(MPT_ADAPTER *ioc, u8 phys_disk_num, pRaidPhysDiskPage0_t phys_disk);
 
 /*
  *  Public data decl's...

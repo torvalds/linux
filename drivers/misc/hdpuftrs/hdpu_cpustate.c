@@ -169,7 +169,7 @@ static struct platform_driver hdpu_cpustate_driver = {
 /*
  *	The various file operations we support.
  */
-static struct file_operations cpustate_fops = {
+static const struct file_operations cpustate_fops = {
       owner:THIS_MODULE,
       open:cpustate_open,
       release:cpustate_release,

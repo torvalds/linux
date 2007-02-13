@@ -7,7 +7,13 @@ config ISDN_DRV_GIGASET
 	select CRC_CCITT
 	select BITREVERSE
 	help
-	  Say m here if you have a Gigaset or Sinus isdn device.
+	  This driver supports the Siemens Gigaset SX205/255 family of
+	  ISDN DECT bases, including the predecessors Gigaset 3070/3075
+	  and 4170/4175 and their T-Com versions Sinus 45isdn and Sinus
+	  721X.
+	  If you have one of these devices, say M here and for at least
+	  one of the connection specific parts that follow.
+	  This will build a module called "gigaset".
 
 if ISDN_DRV_GIGASET!=n
 
@@ -15,14 +21,25 @@ config GIGASET_BASE
 	tristate "Gigaset base station support"
 	depends on ISDN_DRV_GIGASET && USB
 	help
-	  Say m here if you need to communicate with the base
-	  directly via USB.
+	  Say M here if you want to use the USB interface of the Gigaset
+	  base for connection to your system.
+	  This will build a module called "bas_gigaset".
 
 config GIGASET_M105
 	tristate "Gigaset M105 support"
 	depends on ISDN_DRV_GIGASET && USB
 	help
-	  Say m here if you need the driver for the Gigaset M105 device.
+	  Say M here if you want to connect to the Gigaset base via DECT
+	  using a Gigaset M105 (Sinus 45 Data 2) USB DECT device.
+	  This will build a module called "usb_gigaset".
+
+config GIGASET_M101
+	tristate "Gigaset M101 support"
+	depends on ISDN_DRV_GIGASET
+	help
+	  Say M here if you want to connect to the Gigaset base via DECT
+	  using a Gigaset M101 (Sinus 45 Data 1) RS232 DECT device.
+	  This will build a module called "ser_gigaset".
 
 config GIGASET_DEBUG
 	bool "Gigaset debugging"

@@ -2335,6 +2335,17 @@ config QLA3XXX
 	  To compile this driver as a module, choose M here: the module
 	  will be called qla3xxx.
 
+config ATL1
+	tristate "Attansic L1 Gigabit Ethernet support (EXPERIMENTAL)"
+	depends on NET_PCI && PCI && EXPERIMENTAL
+	select CRC32
+	select MII
+	help
+	  This driver supports the Attansic L1 gigabit ethernet adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl1.
+
 endmenu
 
 #
@@ -2534,7 +2545,7 @@ config RIONET_RX_SIZE
 
 config FDDI
 	bool "FDDI driver support"
-	depends on (PCI || EISA)
+	depends on (PCI || EISA || TC)
 	help
 	  Fiber Distributed Data Interface is a high speed local area network
 	  design; essentially a replacement for high speed Ethernet. FDDI can
@@ -2544,11 +2555,31 @@ config FDDI
 	  will say N.
 
 config DEFXX
-	tristate "Digital DEFEA and DEFPA adapter support"
-	depends on FDDI && (PCI || EISA)
-	help
-	  This is support for the DIGITAL series of EISA (DEFEA) and PCI
-	  (DEFPA) controllers which can connect you to a local FDDI network.
+	tristate "Digital DEFTA/DEFEA/DEFPA adapter support"
+	depends on FDDI && (PCI || EISA || TC)
+	---help---
+	  This is support for the DIGITAL series of TURBOchannel (DEFTA),
+	  EISA (DEFEA) and PCI (DEFPA) controllers which can connect you
+	  to a local FDDI network.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called defxx.  If unsure, say N.
+
+config DEFXX_MMIO
+	bool
+	prompt "Use MMIO instead of PIO" if PCI || EISA
+	depends on DEFXX
+	default n if PCI || EISA
+	default y
+	---help---
+	  This instructs the driver to use EISA or PCI memory-mapped I/O
+	  (MMIO) as appropriate instead of programmed I/O ports (PIO).
+	  Enabling this gives an improvement in processing time in parts
+	  of the driver, but it may cause problems with EISA (DEFEA)
+	  adapters.  TURBOchannel does not have the concept of I/O ports,
+	  so MMIO is always used for these (DEFTA) adapters.
+
+	  If unsure, say N.
 
 config SKFP
 	tristate "SysKonnect FDDI PCI support"

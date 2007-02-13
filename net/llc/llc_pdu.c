@@ -39,7 +39,7 @@ void llc_pdu_set_pf_bit(struct sk_buff *skb, u8 bit_value)
 
 	llc_pdu_decode_pdu_type(skb, &pdu_type);
 	pdu = llc_pdu_sn_hdr(skb);
-	
+
 	switch (pdu_type) {
 	case LLC_PDU_TYPE_I:
 	case LLC_PDU_TYPE_S:

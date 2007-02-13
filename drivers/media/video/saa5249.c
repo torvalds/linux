@@ -699,7 +699,7 @@ static void __exit cleanup_saa_5249 (void)
 module_init(init_saa_5249);
 module_exit(cleanup_saa_5249);
 
-static struct file_operations saa_fops = {
+static const struct file_operations saa_fops = {
 	.owner		= THIS_MODULE,
 	.open		= saa5249_open,
 	.release       	= saa5249_release,

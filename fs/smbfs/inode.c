@@ -98,7 +98,7 @@ static int smb_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations smb_sops =
+static const struct super_operations smb_sops =
 {
 	.alloc_inode	= smb_alloc_inode,
 	.destroy_inode	= smb_destroy_inode,

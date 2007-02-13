@@ -274,7 +274,7 @@ static void svm_hardware_disable(void *garbage)
 		wrmsrl(MSR_VM_HSAVE_PA, 0);
 		rdmsrl(MSR_EFER, efer);
 		wrmsrl(MSR_EFER, efer & ~MSR_EFER_SVME_MASK);
-		per_cpu(svm_data, raw_smp_processor_id()) = 0;
+		per_cpu(svm_data, raw_smp_processor_id()) = NULL;
 		__free_page(svm_data->save_area);
 		kfree(svm_data);
 	}
@@ -528,7 +528,13 @@ static void init_vmcb(struct vmcb *vmcb)
 	save->cs.attrib = SVM_SELECTOR_READ_MASK | SVM_SELECTOR_P_MASK |
 		SVM_SELECTOR_S_MASK | SVM_SELECTOR_CODE_MASK;
 	save->cs.limit = 0xffff;
-	save->cs.base = 0xffff0000;
+	/*
+	 * cs.base should really be 0xffff0000, but vmx can't handle that, so
+	 * be consistent with it.
+	 *
+	 * Replace when we have real mode working for vmx.
+	 */
+	save->cs.base = 0xf0000;
 
 	save->gdtr.limit = 0xffff;
 	save->idtr.limit = 0xffff;
@@ -603,6 +609,10 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 	put_cpu();
 }
 
+static void svm_vcpu_decache(struct kvm_vcpu *vcpu)
+{
+}
+
 static void svm_cache_regs(struct kvm_vcpu *vcpu)
 {
 	vcpu->regs[VCPU_REGS_RAX] = vcpu->svm->vmcb->save.rax;
@@ -642,7 +652,7 @@ static struct vmcb_seg *svm_seg(struct kvm_vcpu *vcpu, int seg)
 	case VCPU_SREG_LDTR: return &save->ldtr;
 	}
 	BUG();
-	return 0;
+	return NULL;
 }
 
 static u64 svm_get_segment_base(struct kvm_vcpu *vcpu, int seg)
@@ -723,7 +733,7 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	}
 #endif
 	vcpu->svm->cr0 = cr0;
-	vcpu->svm->vmcb->save.cr0 = cr0 | CR0_PG_MASK;
+	vcpu->svm->vmcb->save.cr0 = cr0 | CR0_PG_MASK | CR0_WP_MASK;
 	vcpu->cr0 = cr0;
 }
 
@@ -934,7 +944,7 @@ static int io_get_override(struct kvm_vcpu *vcpu,
 		return 0;
 
 	*addr_override = 0;
-	*seg = 0;
+	*seg = NULL;
 	for (i = 0; i < ins_length; i++)
 		switch (inst[i]) {
 		case 0xf0:
@@ -1087,7 +1097,7 @@ static int cpuid_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 static int emulate_on_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	if (emulate_instruction(vcpu, 0, 0, 0) != EMULATE_DONE)
+	if (emulate_instruction(vcpu, NULL, 0, 0) != EMULATE_DONE)
 		printk(KERN_ERR "%s: failed\n", __FUNCTION__);
 	return 1;
 }
@@ -1671,6 +1681,7 @@ static struct kvm_arch_ops svm_arch_ops = {
 
 	.vcpu_load = svm_vcpu_load,
 	.vcpu_put = svm_vcpu_put,
+	.vcpu_decache = svm_vcpu_decache,
 
 	.set_guest_debug = svm_guest_debug,
 	.get_msr = svm_get_msr,

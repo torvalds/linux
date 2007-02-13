@@ -417,8 +417,10 @@ config BLK_DEV_INITRD
 	  etc. See <file:Documentation/initrd.txt> for details.
 
 	  If RAM disk support (BLK_DEV_RAM) is also included, this
-	  also enables initial RAM disk (initrd) support.
+	  also enables initial RAM disk (initrd) support and adds
+	  15 Kbytes (more on some other architectures) to the kernel size.
 
+	  If unsure say Y.
 
 config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media"

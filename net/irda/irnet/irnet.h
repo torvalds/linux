@@ -44,7 +44,7 @@
  * the generic Linux PPP driver. Because IrNET depend on recent
  * changes of the PPP driver interface, IrNET will work only with very
  * recent kernel (2.3.99-pre6 and up).
- * 
+ *
  * The present implementation offer the following features :
  *	o simple user interface using pppd
  *	o efficient implementation (interface directly to PPP and IrTTP)
@@ -327,7 +327,7 @@
 
 #define DEBUG_ASSERT		0	/* Verify all assertions */
 
-/* 
+/*
  * These are the macros we are using to actually print the debug
  * statements. Don't look at it, it's ugly...
  *

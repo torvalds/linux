@@ -63,6 +63,7 @@ int asd_pause_lseq(struct asd_ha_struct *asd_ha, u8 lseq_mask);
 int asd_unpause_lseq(struct asd_ha_struct *asd_ha, u8 lseq_mask);
 int asd_init_seqs(struct asd_ha_struct *asd_ha);
 int asd_start_seqs(struct asd_ha_struct *asd_ha);
+int asd_release_firmware(void);
 
 void asd_update_port_links(struct asd_ha_struct *asd_ha, struct asd_phy *phy);
 #endif

@@ -224,6 +224,9 @@ extern irqreturn_t qla24xx_intr_handler(int, void *);
 extern void qla2x00_process_response_queue(struct scsi_qla_host *);
 extern void qla24xx_process_response_queue(struct scsi_qla_host *);
 
+extern int qla2x00_request_irqs(scsi_qla_host_t *);
+extern void qla2x00_free_irqs(scsi_qla_host_t *);
+
 /*
  * Global Function Prototypes in qla_sup.c source file.
  */
@@ -258,6 +261,9 @@ extern uint8_t *qla24xx_read_optrom_data(struct scsi_qla_host *, uint8_t *,
     uint32_t, uint32_t);
 extern int qla24xx_write_optrom_data(struct scsi_qla_host *, uint8_t *,
     uint32_t, uint32_t);
+
+extern int qla2x00_get_flash_version(scsi_qla_host_t *, void *);
+extern int qla24xx_get_flash_version(scsi_qla_host_t *, void *);
 
 /*
  * Global Function Prototypes in qla_dbg.c source file.

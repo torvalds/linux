@@ -319,7 +319,7 @@ static int ts_ioctl(struct inode *inode, struct file *file,
 	return video_usercopy(inode, file, cmd, arg, ts_do_ioctl);
 }
 
-static struct file_operations ts_fops =
+static const struct file_operations ts_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = ts_open,

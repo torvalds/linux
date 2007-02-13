@@ -52,12 +52,12 @@ struct lane2_ops {
 
 /*
  * ATM LAN Emulation supports both LLC & Dix Ethernet EtherType
- * frames. 
+ * frames.
  *
  * 1. Dix Ethernet EtherType frames encoded by placing EtherType
  *    field in h_type field. Data follows immediatelly after header.
  * 2. LLC Data frames whose total length, including LLC field and data,
- *    but not padding required to meet the minimum data frame length, 
+ *    but not padding required to meet the minimum data frame length,
  *    is less than 1536(0x0600) MUST be encoded by placing that length
  *    in the h_type field. The LLC field follows header immediatelly.
  * 3. LLC data frames longer than this maximum MUST be encoded by placing

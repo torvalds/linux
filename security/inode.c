@@ -50,7 +50,7 @@ static int default_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations default_file_ops = {
+static const struct file_operations default_file_ops = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		default_open,
@@ -215,7 +215,7 @@ static int create_by_name(const char *name, mode_t mode,
  */
 struct dentry *securityfs_create_file(const char *name, mode_t mode,
 				   struct dentry *parent, void *data,
-				   struct file_operations *fops)
+				   const struct file_operations *fops)
 {
 	struct dentry *dentry = NULL;
 	int error;

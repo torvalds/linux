@@ -81,7 +81,6 @@ extern void swap_low_mappings(void);
 extern void __show_regs(struct pt_regs * regs);
 extern void show_regs(struct pt_regs * regs);
 
-extern char *syscall32_page;
 extern void syscall32_cpu_init(void);
 
 extern void setup_node_bootmem(int nodeid, unsigned long start, unsigned long end);

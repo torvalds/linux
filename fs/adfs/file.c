@@ -36,6 +36,6 @@ const struct file_operations adfs_file_operations = {
 	.sendfile	= generic_file_sendfile,
 };
 
-struct inode_operations adfs_file_inode_operations = {
+const struct inode_operations adfs_file_inode_operations = {
 	.setattr	= adfs_notify_change,
 };

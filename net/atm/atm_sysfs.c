@@ -30,15 +30,15 @@ static ssize_t show_address(struct class_device *cdev, char *buf)
 
 static ssize_t show_atmaddress(struct class_device *cdev, char *buf)
 {
-        unsigned long flags;
+	unsigned long flags;
 	char *pos = buf;
 	struct atm_dev *adev = to_atm_dev(cdev);
-        struct atm_dev_addr *aaddr;
+	struct atm_dev_addr *aaddr;
 	int bin[] = { 1, 2, 10, 6, 1 }, *fmt = bin;
 	int i, j;
 
-        spin_lock_irqsave(&adev->lock, flags);
-        list_for_each_entry(aaddr, &adev->local, entry) {
+	spin_lock_irqsave(&adev->lock, flags);
+	list_for_each_entry(aaddr, &adev->local, entry) {
 		for(i = 0, j = 0; i < ATM_ESA_LEN; ++i, ++j) {
 			if (j == *fmt) {
 				pos += sprintf(pos, ".");
@@ -49,7 +49,7 @@ static ssize_t show_atmaddress(struct class_device *cdev, char *buf)
 		}
 		pos += sprintf(pos, "\n");
 	}
-        spin_unlock_irqrestore(&adev->lock, flags);
+	spin_unlock_irqrestore(&adev->lock, flags);
 
 	return pos - buf;
 }
@@ -61,7 +61,7 @@ static ssize_t show_carrier(struct class_device *cdev, char *buf)
 
 	pos += sprintf(pos, "%d\n",
 		       adev->signal == ATM_PHY_SIG_LOST ? 0 : 1);
-		
+
 	return pos - buf;
 }
 
@@ -86,7 +86,7 @@ static ssize_t show_link_rate(struct class_device *cdev, char *buf)
 			link_rate = adev->link_rate * 8 * 53;
 	}
 	pos += sprintf(pos, "%d\n", link_rate);
-		
+
 	return pos - buf;
 }
 

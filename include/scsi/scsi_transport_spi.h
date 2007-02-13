@@ -85,6 +85,7 @@ struct spi_host_attrs {
 #define spi_pcomp_en(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->pcomp_en)
 #define spi_hold_mcs(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->hold_mcs)
 #define spi_initial_dv(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->initial_dv)
+#define spi_dv_pending(x) (((struct spi_transport_attrs *)&(x)->starget_data)->dv_pending)
 
 #define spi_support_sync(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->support_sync)
 #define spi_support_wide(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->support_wide)

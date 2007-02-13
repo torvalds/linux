@@ -121,11 +121,6 @@ static inline void writel(unsigned int b, volatile void __iomem *addr)
 #define memcpy_fromio(a,b,c)	memcpy((a),(void *)(b),(c))
 #define memcpy_toio(a,b,c)	memcpy((void *)(a),(b),(c))
 
-/*
- * Again, CRIS does not require mem IO specific function.
- */
-
-#define eth_io_copy_and_sum(a,b,c,d)	eth_copy_and_sum((a),(void __force *)(b),(c),(d))
 
 /* The following is junk needed for the arch-independent code but which
  * we never use in the CRIS port

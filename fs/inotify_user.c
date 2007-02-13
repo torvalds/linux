@@ -455,8 +455,16 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 			break;
 
 		kevent = inotify_dev_get_event(dev);
-		if (event_size + kevent->event.len > count)
+		if (event_size + kevent->event.len > count) {
+			if (ret == 0 && count > 0) {
+				/*
+				 * could not get a single event because we
+				 * didn't have enough buffer space.
+				 */
+				ret = -EINVAL;
+			}
 			break;
+		}
 
 		if (copy_to_user(buf, &kevent->event, event_size)) {
 			ret = -EFAULT;

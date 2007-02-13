@@ -96,10 +96,10 @@ static int data_index;
 static int data_len;
 static int adb_int_pending;
 static int pmu_adb_flags;
-static int adb_dev_map = 0;
+static int adb_dev_map;
 static struct adb_request bright_req_1, bright_req_2, bright_req_3;
 static int pmu_kind = PMU_UNKNOWN;
-static int pmu_fully_inited = 0;
+static int pmu_fully_inited;
 
 int asleep;
 BLOCKING_NOTIFIER_HEAD(sleep_notifier_list);
@@ -1040,7 +1040,7 @@ static int pmu_ioctl(struct inode * inode, struct file *filp,
 	return -EINVAL;
 }
 
-static struct file_operations pmu_device_fops = {
+static const struct file_operations pmu_device_fops = {
 	.read		= pmu_read,
 	.write		= pmu_write,
 	.ioctl		= pmu_ioctl,

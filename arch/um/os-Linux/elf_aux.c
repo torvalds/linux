@@ -21,12 +21,11 @@ typedef Elf32_auxv_t elf_auxv_t;
 typedef Elf64_auxv_t elf_auxv_t;
 #endif
 
+/* These are initialized very early in boot and never changed */
 char * elf_aux_platform;
 long elf_aux_hwcap;
-
 unsigned long vsyscall_ehdr;
 unsigned long vsyscall_end;
-
 unsigned long __kernel_vsyscall;
 
 __init void scan_elf_aux( char **envp)

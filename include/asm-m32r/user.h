@@ -1,12 +1,6 @@
 #ifndef _ASM_M32R_USER_H
 #define _ASM_M32R_USER_H
 
-/* $Id$ */
-
-/* orig : sh 2.4.18
- * mod  : remove fpu registers
- */
-
 #include <linux/types.h>
 #include <asm/ptrace.h>
 #include <asm/page.h>

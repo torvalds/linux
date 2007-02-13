@@ -53,7 +53,7 @@ match(const struct sk_buff *skb,
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
 	int ret = info->invert;
-	
+
 	ct = ip_conntrack_get((struct sk_buff *)skb, &ctinfo);
 	if (!ct) {
 		DEBUGP("xt_helper: Eek! invalid conntrack?\n");
@@ -67,19 +67,19 @@ match(const struct sk_buff *skb,
 
 	read_lock_bh(&ip_conntrack_lock);
 	if (!ct->master->helper) {
-		DEBUGP("xt_helper: master ct %p has no helper\n", 
+		DEBUGP("xt_helper: master ct %p has no helper\n",
 			exp->expectant);
 		goto out_unlock;
 	}
 
-	DEBUGP("master's name = %s , info->name = %s\n", 
+	DEBUGP("master's name = %s , info->name = %s\n",
 		ct->master->helper->name, info->name);
 
 	if (info->name[0] == '\0')
 		ret ^= 1;
 	else
-		ret ^= !strncmp(ct->master->helper->name, info->name, 
-		                strlen(ct->master->helper->name));
+		ret ^= !strncmp(ct->master->helper->name, info->name,
+				strlen(ct->master->helper->name));
 out_unlock:
 	read_unlock_bh(&ip_conntrack_lock);
 	return ret;
@@ -102,7 +102,7 @@ match(const struct sk_buff *skb,
 	struct nf_conn_help *master_help;
 	enum ip_conntrack_info ctinfo;
 	int ret = info->invert;
-	
+
 	ct = nf_ct_get((struct sk_buff *)skb, &ctinfo);
 	if (!ct) {
 		DEBUGP("xt_helper: Eek! invalid conntrack?\n");
@@ -117,19 +117,19 @@ match(const struct sk_buff *skb,
 	read_lock_bh(&nf_conntrack_lock);
 	master_help = nfct_help(ct->master);
 	if (!master_help || !master_help->helper) {
-		DEBUGP("xt_helper: master ct %p has no helper\n", 
+		DEBUGP("xt_helper: master ct %p has no helper\n",
 			exp->expectant);
 		goto out_unlock;
 	}
 
-	DEBUGP("master's name = %s , info->name = %s\n", 
+	DEBUGP("master's name = %s , info->name = %s\n",
 		ct->master->helper->name, info->name);
 
 	if (info->name[0] == '\0')
 		ret ^= 1;
 	else
 		ret ^= !strncmp(master_help->helper->name, info->name,
-		                strlen(master_help->helper->name));
+				strlen(master_help->helper->name));
 out_unlock:
 	read_unlock_bh(&nf_conntrack_lock);
 	return ret;

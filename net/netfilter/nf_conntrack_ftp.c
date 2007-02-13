@@ -126,7 +126,7 @@ get_ipv6_addr(const char *src, size_t dlen, struct in6_addr *dst, u_int8_t term)
 }
 
 static int try_number(const char *data, size_t dlen, u_int32_t array[],
-                      int array_size, char sep, char term)
+		      int array_size, char sep, char term)
 {
 	u_int32_t i, len;
 
@@ -413,8 +413,8 @@ static int help(struct sk_buff **pskb,
 		goto out_update_nl;
 	}
 
-        /* Initialize IP/IPv6 addr to expected address (it's not mentioned
-           in EPSV responses) */
+	/* Initialize IP/IPv6 addr to expected address (it's not mentioned
+	   in EPSV responses) */
 	cmd.l3num = ct->tuplehash[dir].tuple.src.l3num;
 	memcpy(cmd.u3.all, &ct->tuplehash[dir].tuple.src.u3.all,
 	       sizeof(cmd.u3.all));
@@ -466,11 +466,11 @@ static int help(struct sk_buff **pskb,
 	    memcmp(&cmd.u3.all, &ct->tuplehash[dir].tuple.src.u3.all,
 		     sizeof(cmd.u3.all))) {
 		/* Enrico Scholz's passive FTP to partially RNAT'd ftp
-                   server: it really wants us to connect to a
-                   different IP address.  Simply don't record it for
-                   NAT. */
+		   server: it really wants us to connect to a
+		   different IP address.  Simply don't record it for
+		   NAT. */
 		if (cmd.l3num == PF_INET) {
-                	DEBUGP("conntrack_ftp: NOT RECORDING: " NIPQUAD_FMT " != " NIPQUAD_FMT "\n",
+			DEBUGP("conntrack_ftp: NOT RECORDING: " NIPQUAD_FMT " != " NIPQUAD_FMT "\n",
 			       NIPQUAD(cmd.u3.ip),
 			       NIPQUAD(ct->tuplehash[dir].tuple.src.u3.ip));
 		} else {

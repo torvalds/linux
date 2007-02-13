@@ -1327,7 +1327,7 @@ static int mini_rtc_release(struct inode *inode, struct file *file)
 }
 
 
-static struct file_operations mini_rtc_fops = {
+static const struct file_operations mini_rtc_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= mini_rtc_ioctl,
 	.open		= mini_rtc_open,

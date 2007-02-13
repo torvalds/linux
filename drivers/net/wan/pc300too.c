@@ -101,8 +101,8 @@ typedef struct port_s {
 typedef struct card_s {
 	int type;		/* RSV, X21, etc. */
 	int n_ports;		/* 1 or 2 ports */
-	u8* __iomem rambase;	/* buffer memory base (virtual) */
-	u8* __iomem scabase;	/* SCA memory base (virtual) */
+	u8 __iomem *rambase;	/* buffer memory base (virtual) */
+	u8 __iomem *scabase;	/* SCA memory base (virtual) */
 	plx9050 __iomem *plxbase; /* PLX registers memory base (virtual) */
 	u32 init_ctrl_value;	/* Saved value - 9050 bug workaround */
 	u16 rx_ring_buffers;	/* number of buffers in a ring */
@@ -134,7 +134,7 @@ typedef struct card_s {
 static void pc300_set_iface(port_t *port)
 {
 	card_t *card = port->card;
-	u32* init_ctrl = &card->plxbase->init_ctrl;
+	u32 __iomem * init_ctrl = &card->plxbase->init_ctrl;
 	u16 msci = get_msci(port);
 	u8 rxs = port->rxs & CLK_BRG_MASK;
 	u8 txs = port->txs & CLK_BRG_MASK;
@@ -393,7 +393,7 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 
 	/* PLX PCI 9050 workaround for local configuration register read bug */
 	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, scaphys);
-	card->init_ctrl_value = readl(&((plx9050*)card->scabase)->init_ctrl);
+	card->init_ctrl_value = readl(&((plx9050 __iomem *)card->scabase)->init_ctrl);
 	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, plxphys);
 
 	/* Reset PLX */
@@ -519,10 +519,10 @@ static struct pci_device_id pc300_pci_tbl[] __devinitdata = {
 
 
 static struct pci_driver pc300_pci_driver = {
-	name:           "PC300",
-	id_table:       pc300_pci_tbl,
-	probe:          pc300_pci_init_one,
-	remove:         pc300_pci_remove_one,
+	.name =          "PC300",
+	.id_table =      pc300_pci_tbl,
+	.probe =         pc300_pci_init_one,
+	.remove =        pc300_pci_remove_one,
 };
 
 

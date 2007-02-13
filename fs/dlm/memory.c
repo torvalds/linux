@@ -76,9 +76,7 @@ struct dlm_lkb *allocate_lkb(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb;
 
-	lkb = kmem_cache_alloc(lkb_cache, GFP_KERNEL);
-	if (lkb)
-		memset(lkb, 0, sizeof(*lkb));
+	lkb = kmem_cache_zalloc(lkb_cache, GFP_KERNEL);
 	return lkb;
 }
 

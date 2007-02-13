@@ -19,6 +19,7 @@
 #include <linux/unistd.h>
 #include <linux/slab.h>
 
+#include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/cache.h>
@@ -147,10 +148,10 @@ nfsd_proc_read(struct svc_rqst *rqstp, struct nfsd_readargs *argp,
 	 */
 
 	if (NFSSVC_MAXBLKSIZE_V2 < argp->count) {
+		char buf[RPC_MAX_ADDRBUFLEN];
 		printk(KERN_NOTICE
-			"oversized read request from %u.%u.%u.%u:%d (%d bytes)\n",
-				NIPQUAD(rqstp->rq_addr.sin_addr.s_addr),
-				ntohs(rqstp->rq_addr.sin_port),
+			"oversized read request from %s (%d bytes)\n",
+				svc_print_addr(rqstp, buf, sizeof(buf)),
 				argp->count);
 		argp->count = NFSSVC_MAXBLKSIZE_V2;
 	}

@@ -444,7 +444,7 @@ static int snd_als300_capture_close(struct snd_pcm_substream *substream)
 }
 
 static int snd_als300_pcm_hw_params(struct snd_pcm_substream *substream,
-					snd_pcm_hw_params_t * hw_params)
+				    struct snd_pcm_hw_params *hw_params)
 {
 	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
@@ -673,7 +673,7 @@ static void snd_als300_init(struct snd_als300 *chip)
 	snd_als300_dbgcallleave();
 }
 
-static int __devinit snd_als300_create(snd_card_t *card,
+static int __devinit snd_als300_create(struct snd_card *card,
 				       struct pci_dev *pci, int chip_type,
 				       struct snd_als300 **rchip)
 {
@@ -681,7 +681,7 @@ static int __devinit snd_als300_create(snd_card_t *card,
 	void *irq_handler;
 	int err;
 
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free = snd_als300_dev_free,
 	};
 	*rchip = NULL;

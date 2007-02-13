@@ -663,7 +663,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	 * any security data (IV, ICV, etc) that was left behind */
 	if (!can_be_decrypted && (fc & IEEE80211_FCTL_PROTECTED) &&
 	    ieee->host_strip_iv_icv) {
-	    	int trimlen = 0;
+		int trimlen = 0;
 
 		/* Top two-bits of byte 3 are the key index */
 		if (skb->len >= hdrlen + 3)
@@ -852,7 +852,7 @@ void ieee80211_rx_any(struct ieee80211_device *ieee,
 
 	if ((fc & IEEE80211_FCTL_VERS) != 0)
 		goto drop_free;
-		
+
 	switch (fc & IEEE80211_FCTL_FTYPE) {
 	case IEEE80211_FTYPE_MGMT:
 		if (skb->len < sizeof(struct ieee80211_hdr_3addr))
@@ -1489,7 +1489,7 @@ static void update_network(struct ieee80211_network *dst,
 
 	/* We only update the statistics if they were created by receiving
 	 * the network information on the actual channel the network is on.
-	 * 
+	 *
 	 * This keeps beacons received on neighbor channels from bringing
 	 * down the signal level of an AP. */
 	if (dst->channel == src->stats.received_channel)

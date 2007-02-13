@@ -1,10 +1,6 @@
 #ifndef _ASM_M32R_POSIX_TYPES_H
 #define _ASM_M32R_POSIX_TYPES_H
 
-/* $Id$ */
-
-/* orig : i386, sh 2.4.18 */
-
 /*
  * This file is generally used by user-level software, so you need to
  * be a little careful about namespace pollution etc.  Also, we cannot

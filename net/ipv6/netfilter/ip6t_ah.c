@@ -15,6 +15,7 @@
 #include <net/checksum.h>
 #include <net/ipv6.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/netfilter_ipv6/ip6t_ah.h>
 
@@ -77,13 +78,13 @@ match(const struct sk_buff *skb,
 
 	DEBUGP("IPv6 AH spi %02X ",
 	       (spi_match(ahinfo->spis[0], ahinfo->spis[1],
-	                  ntohl(ah->spi),
-	                  !!(ahinfo->invflags & IP6T_AH_INV_SPI))));
+			  ntohl(ah->spi),
+			  !!(ahinfo->invflags & IP6T_AH_INV_SPI))));
 	DEBUGP("len %02X %04X %02X ",
 	       ahinfo->hdrlen, hdrlen,
 	       (!ahinfo->hdrlen ||
-	        (ahinfo->hdrlen == hdrlen) ^
-	        !!(ahinfo->invflags & IP6T_AH_INV_LEN)));
+		(ahinfo->hdrlen == hdrlen) ^
+		!!(ahinfo->invflags & IP6T_AH_INV_LEN)));
 	DEBUGP("res %02X %04X %02X\n",
 	       ahinfo->hdrres, ah->reserved,
 	       !(ahinfo->hdrres && ah->reserved));
@@ -91,12 +92,12 @@ match(const struct sk_buff *skb,
 	return (ah != NULL)
 	       &&
 	       (spi_match(ahinfo->spis[0], ahinfo->spis[1],
-	                  ntohl(ah->spi),
-	                  !!(ahinfo->invflags & IP6T_AH_INV_SPI)))
+			  ntohl(ah->spi),
+			  !!(ahinfo->invflags & IP6T_AH_INV_SPI)))
 	       &&
 	       (!ahinfo->hdrlen ||
-	        (ahinfo->hdrlen == hdrlen) ^
-	        !!(ahinfo->invflags & IP6T_AH_INV_LEN))
+		(ahinfo->hdrlen == hdrlen) ^
+		!!(ahinfo->invflags & IP6T_AH_INV_LEN))
 	       &&
 	       !(ahinfo->hdrres && ah->reserved);
 }
@@ -104,10 +105,10 @@ match(const struct sk_buff *skb,
 /* Called when user tries to insert an entry of this type. */
 static int
 checkentry(const char *tablename,
-          const void *entry,
+	  const void *entry,
 	  const struct xt_match *match,
-          void *matchinfo,
-          unsigned int hook_mask)
+	  void *matchinfo,
+	  unsigned int hook_mask)
 {
 	const struct ip6t_ah *ahinfo = matchinfo;
 
@@ -118,8 +119,9 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ip6t_match ah_match = {
+static struct xt_match ah_match = {
 	.name		= "ah",
+	.family		= AF_INET6,
 	.match		= match,
 	.matchsize	= sizeof(struct ip6t_ah),
 	.checkentry	= checkentry,
@@ -128,12 +130,12 @@ static struct ip6t_match ah_match = {
 
 static int __init ip6t_ah_init(void)
 {
-	return ip6t_register_match(&ah_match);
+	return xt_register_match(&ah_match);
 }
 
 static void __exit ip6t_ah_fini(void)
 {
-	ip6t_unregister_match(&ah_match);
+	xt_unregister_match(&ah_match);
 }
 
 module_init(ip6t_ah_init);

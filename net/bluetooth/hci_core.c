@@ -1,4 +1,4 @@
-/* 
+/*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
 
@@ -12,13 +12,13 @@
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
    IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
+   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
+   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS,
+   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS
    SOFTWARE IS DISCLAIMED.
 */
 
@@ -116,7 +116,7 @@ static void hci_req_cancel(struct hci_dev *hdev, int err)
 }
 
 /* Execute request and wait for completion. */
-static int __hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev, unsigned long opt), 
+static int __hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev, unsigned long opt),
 				unsigned long opt, __u32 timeout)
 {
 	DECLARE_WAITQUEUE(wait, current);
@@ -278,7 +278,7 @@ static void hci_encrypt_req(struct hci_dev *hdev, unsigned long opt)
 	hci_send_cmd(hdev, OGF_HOST_CTL, OCF_WRITE_ENCRYPT_MODE, 1, &encrypt);
 }
 
-/* Get HCI device by index. 
+/* Get HCI device by index.
  * Device is held on return. */
 struct hci_dev *hci_dev_get(int index)
 {
@@ -405,7 +405,7 @@ int hci_inquiry(void __user *arg)
 		return -ENODEV;
 
 	hci_dev_lock_bh(hdev);
-	if (inquiry_cache_age(hdev) > INQUIRY_CACHE_AGE_MAX || 
+	if (inquiry_cache_age(hdev) > INQUIRY_CACHE_AGE_MAX ||
 					inquiry_cache_empty(hdev) ||
 					ir.flags & IREQ_CACHE_FLUSH) {
 		inquiry_cache_flush(hdev);
@@ -439,7 +439,7 @@ int hci_inquiry(void __user *arg)
 		if (copy_to_user(ptr, buf, sizeof(struct inquiry_info) *
 					ir.num_rsp))
 			err = -EFAULT;
-	} else 
+	} else
 		err = -EFAULT;
 
 	kfree(buf);
@@ -491,7 +491,7 @@ int hci_dev_open(__u16 dev)
 		hci_dev_hold(hdev);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
-	} else {	
+	} else {
 		/* Init failed, cleanup */
 		tasklet_kill(&hdev->rx_task);
 		tasklet_kill(&hdev->tx_task);
@@ -619,7 +619,7 @@ int hci_dev_reset(__u16 dev)
 	if (hdev->flush)
 		hdev->flush(hdev);
 
-	atomic_set(&hdev->cmd_cnt, 1); 
+	atomic_set(&hdev->cmd_cnt, 1);
 	hdev->acl_cnt = 0; hdev->sco_cnt = 0;
 
 	if (!test_bit(HCI_RAW, &hdev->flags))
@@ -841,7 +841,7 @@ int hci_register_dev(struct hci_dev *hdev)
 			break;
 		head = p; id++;
 	}
-	
+
 	sprintf(hdev->name, "hci%d", id);
 	hdev->id = id;
 	list_add(&hdev->list, head);
@@ -1109,7 +1109,7 @@ int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 		__skb_queue_tail(&conn->data_q, skb);
 		do {
 			skb = list; list = list->next;
-			
+
 			skb->dev = (void *) hdev;
 			bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
 			hci_add_acl_hdr(skb, conn->handle, flags | ACL_CONT);
@@ -1164,7 +1164,7 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int
 	int num = 0, min = ~0;
 	struct list_head *p;
 
-	/* We don't have to lock device here. Connections are always 
+	/* We don't have to lock device here. Connections are always
 	 * added and removed with TX task disabled. */
 	list_for_each(p, &h->list) {
 		struct hci_conn *c;
@@ -1306,7 +1306,7 @@ static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 	conn = hci_conn_hash_lookup_handle(hdev, handle);
 	hci_dev_unlock(hdev);
-	
+
 	if (conn) {
 		register struct hci_proto *hp;
 
@@ -1318,7 +1318,7 @@ static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 			return;
 		}
 	} else {
-		BT_ERR("%s ACL packet for unknown connection handle %d", 
+		BT_ERR("%s ACL packet for unknown connection handle %d",
 			hdev->name, handle);
 	}
 
@@ -1353,7 +1353,7 @@ static inline void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 			return;
 		}
 	} else {
-		BT_ERR("%s SCO packet for unknown connection handle %d", 
+		BT_ERR("%s SCO packet for unknown connection handle %d",
 			hdev->name, handle);
 	}
 

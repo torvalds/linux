@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_IDE_H
 #define _ASM_M32R_IDE_H
 
-/* $Id$ */
-
 /*
  *  linux/include/asm-m32r/ide.h
  *
@@ -15,6 +13,7 @@
 
 #ifdef __KERNEL__
 
+#include <asm/m32r.h>
 
 #ifndef MAX_HWIFS
 # ifdef CONFIG_BLK_DEV_IDEPCI
@@ -23,9 +22,6 @@
 #define MAX_HWIFS	2
 # endif
 #endif
-
-#include <asm/m32r.h>
-
 
 #define IDE_ARCH_OBSOLETE_DEFAULTS
 

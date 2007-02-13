@@ -240,7 +240,7 @@ static int atalk_seq_socket_open(struct inode *inode, struct file *file)
 	return seq_open(file, &atalk_seq_socket_ops);
 }
 
-static struct file_operations atalk_seq_interface_fops = {
+static const struct file_operations atalk_seq_interface_fops = {
 	.owner		= THIS_MODULE,
 	.open		= atalk_seq_interface_open,
 	.read		= seq_read,
@@ -248,7 +248,7 @@ static struct file_operations atalk_seq_interface_fops = {
 	.release	= seq_release,
 };
 
-static struct file_operations atalk_seq_route_fops = {
+static const struct file_operations atalk_seq_route_fops = {
 	.owner		= THIS_MODULE,
 	.open		= atalk_seq_route_open,
 	.read		= seq_read,
@@ -256,7 +256,7 @@ static struct file_operations atalk_seq_route_fops = {
 	.release	= seq_release,
 };
 
-static struct file_operations atalk_seq_socket_fops = {
+static const struct file_operations atalk_seq_socket_fops = {
 	.owner		= THIS_MODULE,
 	.open		= atalk_seq_socket_open,
 	.read		= seq_read,
@@ -292,7 +292,7 @@ int __init atalk_proc_init(void)
 	p->proc_fops = &atalk_seq_socket_fops;
 
 	p = create_proc_entry("arp", S_IRUGO, atalk_proc_dir);
-	if (!p) 
+	if (!p)
 		goto out_arp;
 	p->proc_fops = &atalk_seq_arp_fops;
 

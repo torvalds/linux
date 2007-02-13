@@ -190,15 +190,6 @@ static struct attribute *kobj_pkt_attrs_wqueue[] = {
 	NULL
 };
 
-/* declares a char buffer[64] _dbuf, copies data from
- * _b with length _l into it and ensures that _dbuf ends
- * with a \0 character.
- */
-#define DECLARE_BUF_AS_STRING(_dbuf, _b, _l) \
-	char _dbuf[64]; int dlen = (_l) < 0 ? 0 : (_l); \
-	if (dlen >= sizeof(_dbuf)) dlen = sizeof(_dbuf)-1; \
-	memcpy(_dbuf, _b, dlen); _dbuf[dlen] = 0
-
 static ssize_t kobj_pkt_show(struct kobject *kobj,
 			struct attribute *attr, char *data)
 {
@@ -264,9 +255,8 @@ static ssize_t kobj_pkt_store(struct kobject *kobj,
 {
 	struct pktcdvd_device *pd = to_pktcdvdkobj(kobj)->pd;
 	int val;
-	DECLARE_BUF_AS_STRING(dbuf, data, len); /* ensure sscanf scans a string */
 
-	if (strcmp(attr->name, "reset") == 0 && dlen > 0) {
+	if (strcmp(attr->name, "reset") == 0 && len > 0) {
 		pd->stats.pkt_started = 0;
 		pd->stats.pkt_ended = 0;
 		pd->stats.secs_w = 0;
@@ -274,7 +264,7 @@ static ssize_t kobj_pkt_store(struct kobject *kobj,
 		pd->stats.secs_r = 0;
 
 	} else if (strcmp(attr->name, "congestion_off") == 0
-		   && sscanf(dbuf, "%d", &val) == 1) {
+		   && sscanf(data, "%d", &val) == 1) {
 		spin_lock(&pd->lock);
 		pd->write_congestion_off = val;
 		init_write_congestion_marks(&pd->write_congestion_off,
@@ -282,7 +272,7 @@ static ssize_t kobj_pkt_store(struct kobject *kobj,
 		spin_unlock(&pd->lock);
 
 	} else if (strcmp(attr->name, "congestion_on") == 0
-		   && sscanf(dbuf, "%d", &val) == 1) {
+		   && sscanf(data, "%d", &val) == 1) {
 		spin_lock(&pd->lock);
 		pd->write_congestion_on = val;
 		init_write_congestion_marks(&pd->write_congestion_off,
@@ -369,8 +359,7 @@ static ssize_t class_pktcdvd_store_add(struct class *c, const char *buf,
 					size_t count)
 {
 	unsigned int major, minor;
-	DECLARE_BUF_AS_STRING(dbuf, buf, count);
-	if (sscanf(dbuf, "%u:%u", &major, &minor) == 2) {
+	if (sscanf(buf, "%u:%u", &major, &minor) == 2) {
 		pkt_setup_dev(MKDEV(major, minor), NULL);
 		return count;
 	}
@@ -381,8 +370,7 @@ static ssize_t class_pktcdvd_store_remove(struct class *c, const char *buf,
 					size_t count)
 {
 	unsigned int major, minor;
-	DECLARE_BUF_AS_STRING(dbuf, buf, count);
-	if (sscanf(dbuf, "%u:%u", &major, &minor) == 2) {
+	if (sscanf(buf, "%u:%u", &major, &minor) == 2) {
 		pkt_remove_dev(MKDEV(major, minor));
 		return count;
 	}
@@ -447,7 +435,7 @@ static int pkt_debugfs_fops_open(struct inode *inode, struct file *file)
 	return single_open(file, pkt_debugfs_seq_show, inode->i_private);
 }
 
-static struct file_operations debug_fops = {
+static const struct file_operations debug_fops = {
 	.open		= pkt_debugfs_fops_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1377,7 +1365,7 @@ try_next_bio:
 	 		&& pd->bio_queue_size <= pd->write_congestion_off);
 	spin_unlock(&pd->lock);
 	if (wakeup)
-		blk_clear_queue_congested(pd->disk->queue, WRITE);
+		clear_bdi_congested(&pd->disk->queue->backing_dev_info, WRITE);
 
 	pkt->sleep_time = max(PACKET_WAIT_TIME, 1);
 	pkt_set_state(pkt, PACKET_WAITING_STATE);
@@ -2598,7 +2586,7 @@ static int pkt_make_request(request_queue_t *q, struct bio *bio)
 	spin_lock(&pd->lock);
 	if (pd->write_congestion_on > 0
 	    && pd->bio_queue_size >= pd->write_congestion_on) {
-		blk_set_queue_congested(q, WRITE);
+		set_bdi_congested(&q->backing_dev_info, WRITE);
 		do {
 			spin_unlock(&pd->lock);
 			congestion_wait(WRITE, HZ);
@@ -2737,7 +2725,7 @@ static int pkt_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, pkt_seq_show, PDE(inode)->data);
 }
 
-static struct file_operations pkt_proc_fops = {
+static const struct file_operations pkt_proc_fops = {
 	.open	= pkt_seq_open,
 	.read	= seq_read,
 	.llseek	= seq_lseek,
@@ -3064,7 +3052,7 @@ static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cm
 }
 
 
-static struct file_operations pkt_ctl_fops = {
+static const struct file_operations pkt_ctl_fops = {
 	.ioctl	 = pkt_ctl_ioctl,
 	.owner	 = THIS_MODULE,
 };

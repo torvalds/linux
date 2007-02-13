@@ -260,7 +260,7 @@ static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations hfsplus_sops = {
+static const struct super_operations hfsplus_sops = {
 	.alloc_inode	= hfsplus_alloc_inode,
 	.destroy_inode	= hfsplus_destroy_inode,
 	.read_inode	= hfsplus_read_inode,

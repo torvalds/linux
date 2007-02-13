@@ -920,12 +920,16 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 #ifdef __i386__
 		outb(0xff, 0x080);
 #endif
-		scratch2 = serial_inp(up, UART_IER);
+		/*
+		 * Mask out IER[7:4] bits for test as some UARTs (e.g. TL
+		 * 16C754B) allow only to modify them if an EFR bit is set.
+		 */
+		scratch2 = serial_inp(up, UART_IER) & 0x0f;
 		serial_outp(up, UART_IER, 0x0F);
 #ifdef __i386__
 		outb(0, 0x080);
 #endif
-		scratch3 = serial_inp(up, UART_IER);
+		scratch3 = serial_inp(up, UART_IER) & 0x0f;
 		serial_outp(up, UART_IER, scratch);
 		if (scratch2 != 0 || scratch3 != 0x0F) {
 			/*

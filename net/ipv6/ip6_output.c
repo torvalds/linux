@@ -1,9 +1,9 @@
 /*
  *	IPv6 output functions
- *	Linux INET6 implementation 
+ *	Linux INET6 implementation
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	$Id: ip6_output.c,v 1.34 2002/02/01 22:01:04 davem Exp $
  *
@@ -363,7 +363,7 @@ int ip6_forward(struct sk_buff *skb)
 	struct dst_entry *dst = skb->dst;
 	struct ipv6hdr *hdr = skb->nh.ipv6h;
 	struct inet6_skb_parm *opt = IP6CB(skb);
-	
+
 	if (ipv6_devconf.forwarding == 0)
 		goto error;
 
@@ -473,7 +473,7 @@ int ip6_forward(struct sk_buff *skb)
 	hdr = skb->nh.ipv6h;
 
 	/* Mangling hops number delayed to point after skb COW */
- 
+
 	hdr->hop_limit--;
 
 	IP6_INC_STATS_BH(ip6_dst_idev(dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
@@ -659,7 +659,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 				frag->nh.ipv6h->payload_len = htons(frag->len - sizeof(struct ipv6hdr));
 				ip6_copy_metadata(frag, skb);
 			}
-			
+
 			err = output(skb);
 			if(!err)
 				IP6_INC_STATS(ip6_dst_idev(&rt->u.dst), IPSTATS_MIB_FRAGCREATES);
@@ -792,7 +792,7 @@ slow_path:
 fail:
 	IP6_INC_STATS(ip6_dst_idev(skb->dst),
 		      IPSTATS_MIB_FRAGFAILS);
-	kfree_skb(skb); 
+	kfree_skb(skb);
 	return err;
 }
 
@@ -955,7 +955,7 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 		struct frag_hdr fhdr;
 
 		/* specify the length of each IP datagram fragment*/
-		skb_shinfo(skb)->gso_size = mtu - fragheaderlen - 
+		skb_shinfo(skb)->gso_size = mtu - fragheaderlen -
 					    sizeof(struct frag_hdr);
 		skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
 		ipv6_select_ident(skb, &fhdr);
@@ -1058,13 +1058,13 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	 * fragment alignment (= 8-15 octects, in total).
 	 *
 	 * Note that we may need to "move" the data from the tail of
-	 * of the buffer to the new fragment when we split 
+	 * of the buffer to the new fragment when we split
 	 * the message.
 	 *
-	 * FIXME: It may be fragmented into multiple chunks 
+	 * FIXME: It may be fragmented into multiple chunks
 	 *        at once if non-fragmentable extension headers
 	 *        are too large.
-	 * --yoshfuji 
+	 * --yoshfuji
 	 */
 
 	inet->cork.length += length;
@@ -1129,7 +1129,7 @@ alloc_new_skb:
 
 			/*
 			 * We just reserve space for fragment header.
-			 * Note: this may be overallocation if the message 
+			 * Note: this may be overallocation if the message
 			 * (without MSG_MORE) fits into the MTU.
 			 */
 			alloclen += sizeof(struct frag_hdr);
@@ -1310,7 +1310,7 @@ int ip6_push_pending_frames(struct sock *sk)
 		ipv6_push_nfrag_opts(skb, opt, &proto, &final_dst);
 
 	skb->nh.ipv6h = hdr = (struct ipv6hdr*) skb_push(skb, sizeof(struct ipv6hdr));
-	
+
 	*(__be32*)hdr = fl->fl6_flowlabel |
 		     htonl(0x60000000 | ((int)np->cork.tclass << 20));
 

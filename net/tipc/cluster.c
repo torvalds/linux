@@ -1,6 +1,6 @@
 /*
  * net/tipc/cluster.c: TIPC cluster management routines
- * 
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -56,7 +56,7 @@ struct cluster *tipc_cltr_create(u32 addr)
 {
 	struct _zone *z_ptr;
 	struct cluster *c_ptr;
-	int max_nodes; 
+	int max_nodes;
 
 	c_ptr = kzalloc(sizeof(*c_ptr), GFP_ATOMIC);
 	if (c_ptr == NULL) {
@@ -81,7 +81,7 @@ struct cluster *tipc_cltr_create(u32 addr)
 		tipc_local_nodes = c_ptr->nodes;
 	c_ptr->highest_slave = LOWEST_SLAVE - 1;
 	c_ptr->highest_node = 0;
-	
+
 	z_ptr = tipc_zone_find(tipc_zone(addr));
 	if (!z_ptr) {
 		z_ptr = tipc_zone_create(addr);
@@ -150,7 +150,7 @@ void tipc_cltr_attach_node(struct cluster *c_ptr, struct node *n_ptr)
 
 /**
  * tipc_cltr_select_router - select router to a cluster
- * 
+ *
  * Uses deterministic and fair algorithm.
  */
 
@@ -192,7 +192,7 @@ u32 tipc_cltr_select_router(struct cluster *c_ptr, u32 ref)
 
 /**
  * tipc_cltr_select_node - select destination node within a remote cluster
- * 
+ *
  * Uses deterministic and fair algorithm.
  */
 
@@ -295,7 +295,7 @@ void tipc_cltr_send_slave_routes(struct cluster *c_ptr, u32 dest)
 		msg_set_remote_node(msg, c_ptr->addr);
 		msg_set_type(msg, SLAVE_ROUTING_TABLE);
 		for (n_num = LOWEST_SLAVE; n_num <= highest; n_num++) {
-			if (c_ptr->nodes[n_num] && 
+			if (c_ptr->nodes[n_num] &&
 			    tipc_node_has_active_links(c_ptr->nodes[n_num])) {
 				send = 1;
 				msg_set_dataoctet(msg, n_num);
@@ -329,7 +329,7 @@ void tipc_cltr_send_ext_routes(struct cluster *c_ptr, u32 dest)
 		msg_set_remote_node(msg, c_ptr->addr);
 		msg_set_type(msg, EXT_ROUTING_TABLE);
 		for (n_num = 1; n_num <= highest; n_num++) {
-			if (c_ptr->nodes[n_num] && 
+			if (c_ptr->nodes[n_num] &&
 			    tipc_node_has_active_links(c_ptr->nodes[n_num])) {
 				send = 1;
 				msg_set_dataoctet(msg, n_num);
@@ -360,7 +360,7 @@ void tipc_cltr_send_local_routes(struct cluster *c_ptr, u32 dest)
 		msg_set_remote_node(msg, c_ptr->addr);
 		msg_set_type(msg, LOCAL_ROUTING_TABLE);
 		for (n_num = 1; n_num <= highest; n_num++) {
-			if (c_ptr->nodes[n_num] && 
+			if (c_ptr->nodes[n_num] &&
 			    tipc_node_has_active_links(c_ptr->nodes[n_num])) {
 				send = 1;
 				msg_set_dataoctet(msg, n_num);
@@ -492,7 +492,7 @@ void tipc_cltr_remove_as_router(struct cluster *c_ptr, u32 router)
 }
 
 /**
- * tipc_cltr_multicast - multicast message to local nodes 
+ * tipc_cltr_multicast - multicast message to local nodes
  */
 
 static void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf,
@@ -554,9 +554,9 @@ void tipc_cltr_broadcast(struct sk_buff *buf)
 					buf_copy = skb_copy(buf, GFP_ATOMIC);
 					if (buf_copy == NULL)
 						goto exit;
-					msg_set_destnode(buf_msg(buf_copy), 
+					msg_set_destnode(buf_msg(buf_copy),
 							 n_ptr->addr);
-					tipc_link_send(buf_copy, n_ptr->addr, 
+					tipc_link_send(buf_copy, n_ptr->addr,
 						       n_ptr->addr);
 				}
 			}

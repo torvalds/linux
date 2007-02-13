@@ -1,6 +1,6 @@
 /*
  * net/tipc/zone.h: Include file for TIPC zone management routines
- * 
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
@@ -47,7 +47,7 @@
  * @clusters: array of pointers to all clusters within zone
  * @links: number of (unicast) links to zone
  */
- 
+
 struct _zone {
 	u32 addr;
 	struct cluster *clusters[2]; /* currently limited to just 1 cluster */

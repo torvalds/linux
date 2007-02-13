@@ -57,18 +57,6 @@
 #include <linux/version.h>
 #endif
 
-#ifndef FALSE
-#define FALSE   0
-#endif
-
-#ifndef TRUE
-#define TRUE    1
-#endif
-
-#ifndef BOOLEAN
-typedef unsigned int BOOLEAN;
-#endif
-
 #define SISIOMEMTYPE
 
 #ifdef SIS_LINUX_KERNEL

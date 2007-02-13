@@ -833,7 +833,8 @@ static void savage_set_default_par(struct savagefb_par *par,
 	vga_out8(0x3d5, cr66, par);
 }
 
-static void savage_update_var(struct fb_var_screeninfo *var, struct fb_videomode *modedb)
+static void savage_update_var(struct fb_var_screeninfo *var,
+			      const struct fb_videomode *modedb)
 {
 	var->xres = var->xres_virtual = modedb->xres;
 	var->yres = modedb->yres;
@@ -902,7 +903,7 @@ static int savagefb_check_var(struct fb_var_screeninfo   *var,
 	}
 
 	if (!mode_valid) {
-		struct fb_videomode *mode;
+		const struct fb_videomode *mode;
 
 		mode = fb_find_best_mode(var, &info->modelist);
 		if (mode) {
@@ -2206,11 +2207,10 @@ static int __devinit savagefb_probe(struct pci_dev* dev,
 			     info->monspecs.modedb, info->monspecs.modedb_len,
 			     NULL, 8);
 	} else if (info->monspecs.modedb != NULL) {
-		struct fb_videomode *modedb;
+		const struct fb_videomode *mode;
 
-		modedb = fb_find_best_display(&info->monspecs,
-					      &info->modelist);
-		savage_update_var(&info->var, modedb);
+		mode = fb_find_best_display(&info->monspecs, &info->modelist);
+		savage_update_var(&info->var, mode);
 	}
 
 	/* maximize virtual vertical length */

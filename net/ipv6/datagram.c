@@ -1,9 +1,9 @@
 /*
  *	common UDP/RAW code
- *	Linux INET6 implementation 
+ *	Linux INET6 implementation
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	$Id: datagram.c,v 1.24 2002/02/01 22:01:04 davem Exp $
  *
@@ -55,10 +55,10 @@ int ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	}
 
 	if (addr_len < SIN6_LEN_RFC2133)
-	  	return -EINVAL;
+		return -EINVAL;
 
-	if (usin->sin6_family != AF_INET6) 
-	  	return -EAFNOSUPPORT;
+	if (usin->sin6_family != AF_INET6)
+		return -EAFNOSUPPORT;
 
 	memset(&fl, 0, sizeof(fl));
 	if (np->sndflow) {
@@ -93,14 +93,14 @@ int ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		sin.sin_addr.s_addr = daddr->s6_addr32[3];
 		sin.sin_port = usin->sin6_port;
 
-		err = ip4_datagram_connect(sk, 
-					   (struct sockaddr*) &sin, 
+		err = ip4_datagram_connect(sk,
+					   (struct sockaddr*) &sin,
 					   sizeof(sin));
 
 ipv4_connected:
 		if (err)
 			goto out;
-		
+
 		ipv6_addr_set(&np->daddr, 0, 0, htonl(0x0000ffff), inet->daddr);
 
 		if (ipv6_addr_any(&np->saddr)) {
@@ -178,7 +178,7 @@ ipv4_connected:
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
+	if ((err = xfrm_lookup(&dst, &fl, sk, 1)) < 0)
 		goto out;
 
 	/* source address lookup done in ip6_dst_lookup */
@@ -206,7 +206,7 @@ out:
 	return err;
 }
 
-void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err, 
+void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 		     __be16 port, u32 info, u8 *payload)
 {
 	struct ipv6_pinfo *np  = inet6_sk(sk);
@@ -223,7 +223,7 @@ void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 	serr = SKB_EXT_ERR(skb);
 	serr->ee.ee_errno = err;
 	serr->ee.ee_origin = SO_EE_ORIGIN_ICMP6;
-	serr->ee.ee_type = icmph->icmp6_type; 
+	serr->ee.ee_type = icmph->icmp6_type;
 	serr->ee.ee_code = icmph->icmp6_code;
 	serr->ee.ee_pad = 0;
 	serr->ee.ee_info = info;
@@ -259,7 +259,7 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi *fl, u32 info)
 	serr = SKB_EXT_ERR(skb);
 	serr->ee.ee_errno = err;
 	serr->ee.ee_origin = SO_EE_ORIGIN_LOCAL;
-	serr->ee.ee_type = 0; 
+	serr->ee.ee_type = 0;
 	serr->ee.ee_code = 0;
 	serr->ee.ee_pad = 0;
 	serr->ee.ee_info = info;
@@ -274,7 +274,7 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi *fl, u32 info)
 		kfree_skb(skb);
 }
 
-/* 
+/*
  *	Handle MSG_ERRQUEUE
  */
 int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
@@ -312,7 +312,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 	if (sin) {
 		sin->sin6_family = AF_INET6;
 		sin->sin6_flowinfo = 0;
-		sin->sin6_port = serr->port; 
+		sin->sin6_port = serr->port;
 		sin->sin6_scope_id = 0;
 		if (serr->ee.ee_origin == SO_EE_ORIGIN_ICMP6) {
 			ipv6_addr_copy(&sin->sin6_addr,
@@ -370,7 +370,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 		spin_unlock_bh(&sk->sk_error_queue.lock);
 	}
 
-out_free_skb:	
+out_free_skb:
 	kfree_skb(skb);
 out:
 	return err;
@@ -419,7 +419,7 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 		 * report extension headers (except for HbH)
 		 * in order.
 		 *
-		 * Also note that IPV6_RECVRTHDRDSTOPTS is NOT 
+		 * Also note that IPV6_RECVRTHDRDSTOPTS is NOT
 		 * (and WILL NOT be) defined because
 		 * IPV6_RECVDSTOPTS is more generic. --yoshfuji
 		 */
@@ -512,15 +512,15 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 			continue;
 
 		switch (cmsg->cmsg_type) {
- 		case IPV6_PKTINFO:
- 		case IPV6_2292PKTINFO:
- 			if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct in6_pktinfo))) {
+		case IPV6_PKTINFO:
+		case IPV6_2292PKTINFO:
+			if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct in6_pktinfo))) {
 				err = -EINVAL;
 				goto exit_f;
 			}
 
 			src_info = (struct in6_pktinfo *)CMSG_DATA(cmsg);
-			
+
 			if (src_info->ipi6_ifindex) {
 				if (fl->oif && src_info->ipi6_ifindex != fl->oif)
 					return -EINVAL;
@@ -531,7 +531,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 
 			if (addr_type == IPV6_ADDR_ANY)
 				break;
-			
+
 			if (addr_type & IPV6_ADDR_LINKLOCAL) {
 				if (!src_info->ipi6_ifindex)
 					return -EINVAL;
@@ -554,7 +554,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 			break;
 
 		case IPV6_FLOWINFO:
-                        if (cmsg->cmsg_len < CMSG_LEN(4)) {
+			if (cmsg->cmsg_len < CMSG_LEN(4)) {
 				err = -EINVAL;
 				goto exit_f;
 			}
@@ -570,7 +570,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 
 		case IPV6_2292HOPOPTS:
 		case IPV6_HOPOPTS:
-                        if (opt->hopopt || cmsg->cmsg_len < CMSG_LEN(sizeof(struct ipv6_opt_hdr))) {
+			if (opt->hopopt || cmsg->cmsg_len < CMSG_LEN(sizeof(struct ipv6_opt_hdr))) {
 				err = -EINVAL;
 				goto exit_f;
 			}
@@ -590,7 +590,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 			break;
 
 		case IPV6_2292DSTOPTS:
-                        if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct ipv6_opt_hdr))) {
+			if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct ipv6_opt_hdr))) {
 				err = -EINVAL;
 				goto exit_f;
 			}
@@ -641,7 +641,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 
 		case IPV6_2292RTHDR:
 		case IPV6_RTHDR:
-                        if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct ipv6_rt_hdr))) {
+			if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct ipv6_rt_hdr))) {
 				err = -EINVAL;
 				goto exit_f;
 			}
@@ -661,7 +661,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 
 			len = ((rthdr->hdrlen + 1) << 3);
 
-                        if (cmsg->cmsg_len < CMSG_LEN(len)) {
+			if (cmsg->cmsg_len < CMSG_LEN(len)) {
 				err = -EINVAL;
 				goto exit_f;
 			}
@@ -716,7 +716,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 		    }
 		default:
 			LIMIT_NETDEBUG(KERN_DEBUG "invalid cmsg type: %d\n",
-			               cmsg->cmsg_type);
+				       cmsg->cmsg_type);
 			err = -EINVAL;
 			break;
 		};

@@ -1,5 +1,5 @@
 /* String matching match for iptables
- * 
+ *
  * (C) 2005 Pablo Neira Ayuso <pablo@eurodev.net>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -35,8 +35,8 @@ static int match(const struct sk_buff *skb,
 
 	memset(&state, 0, sizeof(struct ts_state));
 
-	return (skb_find_text((struct sk_buff *)skb, conf->from_offset, 
-			     conf->to_offset, conf->config, &state) 
+	return (skb_find_text((struct sk_buff *)skb, conf->from_offset,
+			     conf->to_offset, conf->config, &state)
 			     != UINT_MAX) ^ conf->invert;
 }
 
@@ -55,7 +55,7 @@ static int checkentry(const char *tablename,
 	if (conf->from_offset > conf->to_offset)
 		return 0;
 	if (conf->algo[XT_STRING_MAX_ALGO_NAME_SIZE - 1] != '\0')
-	    	return 0;
+		return 0;
 	if (conf->patlen > XT_STRING_MAX_PATTERN_SIZE)
 		return 0;
 	ts_conf = textsearch_prepare(conf->algo, conf->pattern, conf->patlen,

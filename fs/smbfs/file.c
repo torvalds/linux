@@ -418,7 +418,7 @@ const struct file_operations smb_file_operations =
 	.sendfile	= smb_file_sendfile,
 };
 
-struct inode_operations smb_file_inode_operations =
+const struct inode_operations smb_file_inode_operations =
 {
 	.permission	= smb_file_permission,
 	.getattr	= smb_getattr,

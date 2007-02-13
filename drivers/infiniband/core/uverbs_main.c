@@ -375,7 +375,7 @@ static int ib_uverbs_event_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations uverbs_event_fops = {
+static const struct file_operations uverbs_event_fops = {
 	.owner	 = THIS_MODULE,
 	.read 	 = ib_uverbs_event_read,
 	.poll    = ib_uverbs_event_poll,
@@ -679,14 +679,14 @@ static int ib_uverbs_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations uverbs_fops = {
+static const struct file_operations uverbs_fops = {
 	.owner 	 = THIS_MODULE,
 	.write 	 = ib_uverbs_write,
 	.open 	 = ib_uverbs_open,
 	.release = ib_uverbs_close
 };
 
-static struct file_operations uverbs_mmap_fops = {
+static const struct file_operations uverbs_mmap_fops = {
 	.owner 	 = THIS_MODULE,
 	.write 	 = ib_uverbs_write,
 	.mmap    = ib_uverbs_mmap,

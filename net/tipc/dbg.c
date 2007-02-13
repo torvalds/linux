@@ -1,6 +1,6 @@
 /*
  * net/tipc/dbg.c: TIPC print buffer routines for debugging
- * 
+ *
  * Copyright (c) 1996-2006, Ericsson AB
  * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
@@ -123,34 +123,34 @@ int tipc_printbuf_empty(struct print_buf *pb)
 /**
  * tipc_printbuf_validate - check for print buffer overflow
  * @pb: pointer to print buffer structure
- * 
- * Verifies that a print buffer has captured all data written to it. 
+ *
+ * Verifies that a print buffer has captured all data written to it.
  * If data has been lost, linearize buffer and prepend an error message
- * 
+ *
  * Returns length of print buffer data string (including trailing NUL)
  */
 
 int tipc_printbuf_validate(struct print_buf *pb)
 {
-        char *err = "\n\n*** PRINT BUFFER OVERFLOW ***\n\n";
-        char *cp_buf;
-        struct print_buf cb;
+	char *err = "\n\n*** PRINT BUFFER OVERFLOW ***\n\n";
+	char *cp_buf;
+	struct print_buf cb;
 
 	if (!pb->buf)
 		return 0;
 
 	if (pb->buf[pb->size - 1] == 0) {
-                cp_buf = kmalloc(pb->size, GFP_ATOMIC);
-                if (cp_buf != NULL){
-                        tipc_printbuf_init(&cb, cp_buf, pb->size);
-                        tipc_printbuf_move(&cb, pb);
-                        tipc_printbuf_move(pb, &cb);
-                        kfree(cp_buf);
-                        memcpy(pb->buf, err, strlen(err));
-                } else {
-                        tipc_printbuf_reset(pb);
-                        tipc_printf(pb, err);
-                }
+		cp_buf = kmalloc(pb->size, GFP_ATOMIC);
+		if (cp_buf != NULL){
+			tipc_printbuf_init(&cb, cp_buf, pb->size);
+			tipc_printbuf_move(&cb, pb);
+			tipc_printbuf_move(pb, &cb);
+			kfree(cp_buf);
+			memcpy(pb->buf, err, strlen(err));
+		} else {
+			tipc_printbuf_reset(pb);
+			tipc_printf(pb, err);
+		}
 	}
 	return (pb->crs - pb->buf + 1);
 }
@@ -159,7 +159,7 @@ int tipc_printbuf_validate(struct print_buf *pb)
  * tipc_printbuf_move - move print buffer contents to another print buffer
  * @pb_to: pointer to destination print buffer structure
  * @pb_from: pointer to source print buffer structure
- * 
+ *
  * Current contents of destination print buffer (if any) are discarded.
  * Source print buffer becomes empty if a successful move occurs.
  */
@@ -234,13 +234,13 @@ void tipc_printf(struct print_buf *pb, const char *fmt, ...)
 				pb->crs = pb->buf + pb->size - 1;
 			} else {
 				strcpy(pb->buf, print_string + chars_left);
-                                save_char = print_string[chars_left];
-                                print_string[chars_left] = 0;
-                                strcpy(pb->crs, print_string);
-                                print_string[chars_left] = save_char;
-                                pb->crs = pb->buf + chars_to_add - chars_left;
-                        }
-                }
+				save_char = print_string[chars_left];
+				print_string[chars_left] = 0;
+				strcpy(pb->crs, print_string);
+				print_string[chars_left] = save_char;
+				pb->crs = pb->buf + chars_to_add - chars_left;
+			}
+		}
 		pb_next = pb->next;
 		pb->next = NULL;
 		pb = pb_next;
@@ -249,7 +249,7 @@ void tipc_printf(struct print_buf *pb, const char *fmt, ...)
 }
 
 /**
- * TIPC_TEE - perform next output operation on both print buffers  
+ * TIPC_TEE - perform next output operation on both print buffers
  * @b0: pointer to chain of print buffers (may be NULL)
  * @b1: pointer to print buffer to add to chain
  *
@@ -350,7 +350,7 @@ void tipc_dump(struct print_buf *pb, const char *fmt, ...)
 }
 
 /**
- * tipc_log_stop - free up TIPC log print buffer 
+ * tipc_log_stop - free up TIPC log print buffer
  */
 
 void tipc_log_stop(void)

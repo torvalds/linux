@@ -401,7 +401,6 @@ static __cpuinit int allocate_threshold_blocks(unsigned int cpu,
 	b = kzalloc(sizeof(struct threshold_block), GFP_KERNEL);
 	if (!b)
 		return -ENOMEM;
-	memset(b, 0, sizeof(struct threshold_block));
 
 	b->block = block;
 	b->bank = bank;
@@ -490,7 +489,6 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		err = -ENOMEM;
 		goto out;
 	}
-	memset(b, 0, sizeof(struct threshold_bank));
 
 	kobject_set_name(&b->kobj, "threshold_bank%i", bank);
 	b->kobj.parent = &per_cpu(device_mce, cpu).kobj;

@@ -62,7 +62,7 @@ static int ebt_filter_config(struct ebt_stp_info *info,
 		verdict = 0;
 		for (i = 0; i < 6; i++)
 			verdict |= (stpc->root[2+i] ^ c->root_addr[i]) &
-			           c->root_addrmsk[i];
+				   c->root_addrmsk[i];
 		if (FWINV(verdict != 0, EBT_STP_ROOTADDR))
 			return EBT_NOMATCH;
 	}
@@ -82,7 +82,7 @@ static int ebt_filter_config(struct ebt_stp_info *info,
 		verdict = 0;
 		for (i = 0; i < 6; i++)
 			verdict |= (stpc->sender[2+i] ^ c->sender_addr[i]) &
-			           c->sender_addrmsk[i];
+				   c->sender_addrmsk[i];
 		if (FWINV(verdict != 0, EBT_STP_SENDERADDR))
 			return EBT_NOMATCH;
 	}

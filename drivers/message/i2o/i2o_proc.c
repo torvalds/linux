@@ -1703,133 +1703,133 @@ static int i2o_seq_open_dev_name(struct inode *inode, struct file *file)
 	return single_open(file, i2o_seq_show_dev_name, PDE(inode)->data);
 };
 
-static struct file_operations i2o_seq_fops_lct = {
+static const struct file_operations i2o_seq_fops_lct = {
 	.open = i2o_seq_open_lct,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_hrt = {
+static const struct file_operations i2o_seq_fops_hrt = {
 	.open = i2o_seq_open_hrt,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_status = {
+static const struct file_operations i2o_seq_fops_status = {
 	.open = i2o_seq_open_status,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_hw = {
+static const struct file_operations i2o_seq_fops_hw = {
 	.open = i2o_seq_open_hw,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_ddm_table = {
+static const struct file_operations i2o_seq_fops_ddm_table = {
 	.open = i2o_seq_open_ddm_table,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_driver_store = {
+static const struct file_operations i2o_seq_fops_driver_store = {
 	.open = i2o_seq_open_driver_store,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_drivers_stored = {
+static const struct file_operations i2o_seq_fops_drivers_stored = {
 	.open = i2o_seq_open_drivers_stored,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_groups = {
+static const struct file_operations i2o_seq_fops_groups = {
 	.open = i2o_seq_open_groups,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_phys_device = {
+static const struct file_operations i2o_seq_fops_phys_device = {
 	.open = i2o_seq_open_phys_device,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_claimed = {
+static const struct file_operations i2o_seq_fops_claimed = {
 	.open = i2o_seq_open_claimed,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_users = {
+static const struct file_operations i2o_seq_fops_users = {
 	.open = i2o_seq_open_users,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_priv_msgs = {
+static const struct file_operations i2o_seq_fops_priv_msgs = {
 	.open = i2o_seq_open_priv_msgs,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_authorized_users = {
+static const struct file_operations i2o_seq_fops_authorized_users = {
 	.open = i2o_seq_open_authorized_users,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_dev_name = {
+static const struct file_operations i2o_seq_fops_dev_name = {
 	.open = i2o_seq_open_dev_name,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_dev_identity = {
+static const struct file_operations i2o_seq_fops_dev_identity = {
 	.open = i2o_seq_open_dev_identity,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_ddm_identity = {
+static const struct file_operations i2o_seq_fops_ddm_identity = {
 	.open = i2o_seq_open_ddm_identity,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_uinfo = {
+static const struct file_operations i2o_seq_fops_uinfo = {
 	.open = i2o_seq_open_uinfo,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_sgl_limits = {
+static const struct file_operations i2o_seq_fops_sgl_limits = {
 	.open = i2o_seq_open_sgl_limits,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static struct file_operations i2o_seq_fops_sensors = {
+static const struct file_operations i2o_seq_fops_sensors = {
 	.open = i2o_seq_open_sensors,
 	.read = seq_read,
 	.llseek = seq_lseek,

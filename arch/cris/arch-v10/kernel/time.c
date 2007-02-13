@@ -38,7 +38,6 @@ unsigned long get_ns_in_jiffie(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	local_irq_disable();
 	timer_count = *R_TIMER0_DATA;
 	presc_count = *R_TIM_PRESC_STATUS;  
 	/* presc_count might be wrapped */

@@ -13,39 +13,6 @@
 #include <linux/module.h>
 #include <linux/cpu.h>
 
-void __get_zone_counts(unsigned long *active, unsigned long *inactive,
-			unsigned long *free, struct pglist_data *pgdat)
-{
-	struct zone *zones = pgdat->node_zones;
-	int i;
-
-	*active = 0;
-	*inactive = 0;
-	*free = 0;
-	for (i = 0; i < MAX_NR_ZONES; i++) {
-		*active += zones[i].nr_active;
-		*inactive += zones[i].nr_inactive;
-		*free += zones[i].free_pages;
-	}
-}
-
-void get_zone_counts(unsigned long *active,
-		unsigned long *inactive, unsigned long *free)
-{
-	struct pglist_data *pgdat;
-
-	*active = 0;
-	*inactive = 0;
-	*free = 0;
-	for_each_online_pgdat(pgdat) {
-		unsigned long l, m, n;
-		__get_zone_counts(&l, &m, &n, pgdat);
-		*active += l;
-		*inactive += m;
-		*free += n;
-	}
-}
-
 #ifdef CONFIG_VM_EVENT_COUNTERS
 DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
 EXPORT_PER_CPU_SYMBOL(vm_event_states);
@@ -239,7 +206,7 @@ EXPORT_SYMBOL(mod_zone_page_state);
  * in between and therefore the atomicity vs. interrupt cannot be exploited
  * in a useful way here.
  */
-static void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
+void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
 {
 	struct per_cpu_pageset *pcp = zone_pcp(zone, smp_processor_id());
 	s8 *p = pcp->vm_stat_diff + item;
@@ -260,9 +227,8 @@ void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
 }
 EXPORT_SYMBOL(__inc_zone_page_state);
 
-void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
+void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
 {
-	struct zone *zone = page_zone(page);
 	struct per_cpu_pageset *pcp = zone_pcp(zone, smp_processor_id());
 	s8 *p = pcp->vm_stat_diff + item;
 
@@ -274,6 +240,11 @@ void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
 		zone_page_state_add(*p - overstep, zone, item);
 		*p = overstep;
 	}
+}
+
+void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
+{
+	__dec_zone_state(page_zone(page), item);
 }
 EXPORT_SYMBOL(__dec_zone_page_state);
 
@@ -437,6 +408,12 @@ const struct seq_operations fragmentation_op = {
 	.show	= frag_show,
 };
 
+#ifdef CONFIG_ZONE_DMA
+#define TEXT_FOR_DMA(xx) xx "_dma",
+#else
+#define TEXT_FOR_DMA(xx)
+#endif
+
 #ifdef CONFIG_ZONE_DMA32
 #define TEXT_FOR_DMA32(xx) xx "_dma32",
 #else
@@ -449,19 +426,22 @@ const struct seq_operations fragmentation_op = {
 #define TEXT_FOR_HIGHMEM(xx)
 #endif
 
-#define TEXTS_FOR_ZONES(xx) xx "_dma", TEXT_FOR_DMA32(xx) xx "_normal", \
+#define TEXTS_FOR_ZONES(xx) TEXT_FOR_DMA(xx) TEXT_FOR_DMA32(xx) xx "_normal", \
 					TEXT_FOR_HIGHMEM(xx)
 
 static const char * const vmstat_text[] = {
 	/* Zoned VM counters */
+	"nr_free_pages",
+	"nr_active",
+	"nr_inactive",
 	"nr_anon_pages",
 	"nr_mapped",
 	"nr_file_pages",
+	"nr_dirty",
+	"nr_writeback",
 	"nr_slab_reclaimable",
 	"nr_slab_unreclaimable",
 	"nr_page_table_pages",
-	"nr_dirty",
-	"nr_writeback",
 	"nr_unstable",
 	"nr_bounce",
 	"nr_vmscan_write",
@@ -529,17 +509,13 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 			   "\n        min      %lu"
 			   "\n        low      %lu"
 			   "\n        high     %lu"
-			   "\n        active   %lu"
-			   "\n        inactive %lu"
 			   "\n        scanned  %lu (a: %lu i: %lu)"
 			   "\n        spanned  %lu"
 			   "\n        present  %lu",
-			   zone->free_pages,
+			   zone_page_state(zone, NR_FREE_PAGES),
 			   zone->pages_min,
 			   zone->pages_low,
 			   zone->pages_high,
-			   zone->nr_active,
-			   zone->nr_inactive,
 			   zone->pages_scanned,
 			   zone->nr_scan_active, zone->nr_scan_inactive,
 			   zone->spanned_pages,
@@ -562,12 +538,6 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 			int j;
 
 			pageset = zone_pcp(zone, i);
-			for (j = 0; j < ARRAY_SIZE(pageset->pcp); j++) {
-				if (pageset->pcp[j].count)
-					break;
-			}
-			if (j == ARRAY_SIZE(pageset->pcp))
-				continue;
 			for (j = 0; j < ARRAY_SIZE(pageset->pcp); j++) {
 				seq_printf(m,
 					   "\n    cpu: %i pcp: %i"

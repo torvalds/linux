@@ -15,9 +15,9 @@
  * 2 of the License, or (at your option) any later version.
  *
  * Fixes:
- *		Alan Cox	:	Removed the Ethernet assumptions in 
+ *		Alan Cox	:	Removed the Ethernet assumptions in
  *					Florian's code
- *		Alan Cox	:	Fixed some small errors in the ARP 
+ *		Alan Cox	:	Fixed some small errors in the ARP
  *					logic
  *		Alan Cox	:	Allow >4K in /proc
  *		Alan Cox	:	Make ARP add its own protocol entry
@@ -39,18 +39,18 @@
  *		Jonathan Naylor :	Only lookup the hardware address for
  *					the correct hardware type.
  *		Germano Caronni	:	Assorted subtle races.
- *		Craig Schlenter :	Don't modify permanent entry 
+ *		Craig Schlenter :	Don't modify permanent entry
  *					during arp_rcv.
  *		Russ Nelson	:	Tidied up a few bits.
  *		Alexey Kuznetsov:	Major changes to caching and behaviour,
- *					eg intelligent arp probing and 
+ *					eg intelligent arp probing and
  *					generation
  *					of host down events.
  *		Alan Cox	:	Missing unlock in device events.
  *		Eckes		:	ARP ioctl control errors.
  *		Alexey Kuznetsov:	Arp free fix.
  *		Manuel Rodriguez:	Gratuitous ARP.
- *              Jonathan Layes  :       Added arpd support through kerneld 
+ *              Jonathan Layes  :       Added arpd support through kerneld
  *                                      message queue (960314)
  *		Mike Shaver	:	/proc/sys/net/ipv4/arp_* support
  *		Mike McLagan    :	Routing by source
@@ -210,7 +210,7 @@ int arp_mc_map(__be32 addr, u8 *haddr, struct net_device *dev, int dir)
 	case ARPHRD_FDDI:
 	case ARPHRD_IEEE802:
 		ip_eth_mc_map(addr, haddr);
-		return 0; 
+		return 0;
 	case ARPHRD_IEEE802_TR:
 		ip_tr_mc_map(addr, haddr);
 		return 0;
@@ -288,7 +288,7 @@ static int arp_constructor(struct neighbour *neigh)
 		switch (dev->type) {
 		default:
 			break;
-		case ARPHRD_ROSE:	
+		case ARPHRD_ROSE:
 #if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
 		case ARPHRD_AX25:
 #if defined(CONFIG_NETROM) || defined(CONFIG_NETROM_MODULE)
@@ -425,18 +425,18 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = sip,
 						 .saddr = tip } } };
 	struct rtable *rt;
-	int flag = 0; 
+	int flag = 0;
 	/*unsigned long now; */
 
-	if (ip_route_output_key(&rt, &fl) < 0) 
+	if (ip_route_output_key(&rt, &fl) < 0)
 		return 1;
-	if (rt->u.dst.dev != dev) { 
+	if (rt->u.dst.dev != dev) {
 		NET_INC_STATS_BH(LINUX_MIB_ARPFILTER);
 		flag = 1;
-	} 
-	ip_rt_put(rt); 
-	return flag; 
-} 
+	}
+	ip_rt_put(rt);
+	return flag;
+}
 
 /* OBSOLETE FUNCTIONS */
 
@@ -490,7 +490,7 @@ int arp_find(unsigned char *haddr, struct sk_buff *skb)
 		n->used = jiffies;
 		if (n->nud_state&NUD_VALID || neigh_event_send(n, skb) == 0) {
 			read_lock_bh(&n->lock);
- 			memcpy(haddr, n->ha, dev->addr_len);
+			memcpy(haddr, n->ha, dev->addr_len);
 			read_unlock_bh(&n->lock);
 			neigh_release(n);
 			return 0;
@@ -572,7 +572,7 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 	/*
 	 *	Allocate a buffer
 	 */
-	
+
 	skb = alloc_skb(sizeof(struct arphdr)+ 2*(dev->addr_len+4)
 				+ LL_RESERVED_SPACE(dev), GFP_ATOMIC);
 	if (skb == NULL)
@@ -685,7 +685,7 @@ void arp_send(int type, int ptype, __be32 dest_ip,
 	/*
 	 *	No arp on this interface.
 	 */
-	
+
 	if (dev->flags&IFF_NOARP)
 		return;
 
@@ -725,7 +725,7 @@ static int arp_process(struct sk_buff *skb)
 	arp = skb->nh.arph;
 
 	switch (dev_type) {
-	default:	
+	default:
 		if (arp->ar_pro != htons(ETH_P_IP) ||
 		    htons(dev_type) != arp->ar_hrd)
 			goto out;
@@ -792,7 +792,7 @@ static int arp_process(struct sk_buff *skb)
 	tha	= arp_ptr;
 	arp_ptr += dev->addr_len;
 	memcpy(&tip, arp_ptr, 4);
-/* 
+/*
  *	Check for bad requests for 127.x.x.x and requests for multicast
  *	addresses.  If this is one such, delete it.
  */
@@ -809,16 +809,16 @@ static int arp_process(struct sk_buff *skb)
  *  Process entry.  The idea here is we want to send a reply if it is a
  *  request for us or if it is a request for someone else that we hold
  *  a proxy for.  We want to add an entry to our cache if it is a reply
- *  to us or if it is a request for our address.  
- *  (The assumption for this last is that if someone is requesting our 
- *  address, they are probably intending to talk to us, so it saves time 
- *  if we cache their address.  Their address is also probably not in 
+ *  to us or if it is a request for our address.
+ *  (The assumption for this last is that if someone is requesting our
+ *  address, they are probably intending to talk to us, so it saves time
+ *  if we cache their address.  Their address is also probably not in
  *  our cache, since ours is not in their cache.)
- * 
+ *
  *  Putting this another way, we only care about replies if they are to
  *  us, in which case we add them to the cache.  For requests, we care
  *  about those for us and those for our proxies.  We reply to both,
- *  and in the case of requests for us we add the requester to the arp 
+ *  and in the case of requests for us we add the requester to the arp
  *  cache.
  */
 
@@ -845,7 +845,7 @@ static int arp_process(struct sk_buff *skb)
 				if (!dont_send)
 					dont_send |= arp_ignore(in_dev,dev,sip,tip);
 				if (!dont_send && IN_DEV_ARPFILTER(in_dev))
-					dont_send |= arp_filter(sip,tip,dev); 
+					dont_send |= arp_filter(sip,tip,dev);
 				if (!dont_send)
 					arp_send(ARPOP_REPLY,ETH_P_ARP,sip,dev,tip,sha,dev->dev_addr,sha);
 
@@ -860,7 +860,7 @@ static int arp_process(struct sk_buff *skb)
 				if (n)
 					neigh_release(n);
 
-				if (NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED || 
+				if (NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED ||
 				    skb->pkt_type == PACKET_HOST ||
 				    in_dev->arp_parms->proxy_delay == 0) {
 					arp_send(ARPOP_REPLY,ETH_P_ARP,sip,dev,tip,sha,dev->dev_addr,sha);
@@ -1039,7 +1039,7 @@ static int arp_req_set(struct arpreq *r, struct net_device * dev)
 		if (r->arp_flags & ATF_PERM)
 			state = NUD_PERMANENT;
 		err = neigh_update(neigh, (r->arp_flags&ATF_COM) ?
-				   r->arp_ha.sa_data : NULL, state, 
+				   r->arp_ha.sa_data : NULL, state,
 				   NEIGH_UPDATE_F_OVERRIDE|
 				   NEIGH_UPDATE_F_ADMIN);
 		neigh_release(neigh);
@@ -1121,7 +1121,7 @@ static int arp_req_delete(struct arpreq *r, struct net_device * dev)
 	neigh = neigh_lookup(&arp_tbl, &ip, dev);
 	if (neigh) {
 		if (neigh->nud_state&~NUD_NOARP)
-			err = neigh_update(neigh, NULL, NUD_FAILED, 
+			err = neigh_update(neigh, NULL, NUD_FAILED,
 					   NEIGH_UPDATE_F_OVERRIDE|
 					   NEIGH_UPDATE_F_ADMIN);
 		neigh_release(neigh);
@@ -1181,7 +1181,7 @@ int arp_ioctl(unsigned int cmd, void __user *arg)
 
 	switch(cmd) {
 	case SIOCDARP:
-	        err = arp_req_delete(&r, dev);
+		err = arp_req_delete(&r, dev);
 		break;
 	case SIOCSARP:
 		err = arp_req_set(&r, dev);
@@ -1268,14 +1268,14 @@ static char *ax2asc2(ax25_address *a, char *buf)
 
 		if (c != ' ') *s++ = c;
 	}
-	
+
 	*s++ = '-';
 
 	if ((n = ((a->ax25_call[6] >> 1) & 0x0F)) > 9) {
 		*s++ = '1';
 		n -= 10;
 	}
-	
+
 	*s++ = n + '0';
 	*s++ = '\0';
 
@@ -1373,7 +1373,7 @@ static int arp_seq_open(struct inode *inode, struct file *file)
 	struct seq_file *seq;
 	int rc = -ENOMEM;
 	struct neigh_seq_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
-       
+
 	if (!s)
 		goto out;
 
@@ -1390,7 +1390,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations arp_seq_fops = {
+static const struct file_operations arp_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open           = arp_seq_open,
 	.read           = seq_read,

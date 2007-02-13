@@ -252,7 +252,7 @@ static void __inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 
 	ASSERT_RTNL();
 
-	/* 1. Deleting primary ifaddr forces deletion all secondaries 
+	/* 1. Deleting primary ifaddr forces deletion all secondaries
 	 * unless alias promotion is set
 	 **/
 
@@ -260,7 +260,7 @@ static void __inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 		struct in_ifaddr **ifap1 = &ifa1->ifa_next;
 
 		while ((ifa = *ifap1) != NULL) {
-			if (!(ifa->ifa_flags & IFA_F_SECONDARY) && 
+			if (!(ifa->ifa_flags & IFA_F_SECONDARY) &&
 			    ifa1->ifa_scope <= ifa->ifa_scope)
 				last_prim = ifa;
 
@@ -583,8 +583,8 @@ static __inline__ int inet_abc_len(__be32 addr)
 {
 	int rc = -1;	/* Something else, probably a multicast. */
 
-  	if (ZERONET(addr))
-  		rc = 0;
+	if (ZERONET(addr))
+		rc = 0;
 	else {
 		__u32 haddr = ntohl(addr);
 
@@ -596,7 +596,7 @@ static __inline__ int inet_abc_len(__be32 addr)
 			rc = 24;
 	}
 
-  	return rc;
+	return rc;
 }
 
 
@@ -1020,29 +1020,29 @@ int unregister_inetaddr_notifier(struct notifier_block *nb)
  * alias numbering and to create unique labels if possible.
 */
 static void inetdev_changename(struct net_device *dev, struct in_device *in_dev)
-{ 
+{
 	struct in_ifaddr *ifa;
 	int named = 0;
 
-	for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) { 
-		char old[IFNAMSIZ], *dot; 
+	for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
+		char old[IFNAMSIZ], *dot;
 
 		memcpy(old, ifa->ifa_label, IFNAMSIZ);
-		memcpy(ifa->ifa_label, dev->name, IFNAMSIZ); 
+		memcpy(ifa->ifa_label, dev->name, IFNAMSIZ);
 		if (named++ == 0)
 			continue;
 		dot = strchr(ifa->ifa_label, ':');
-		if (dot == NULL) { 
-			sprintf(old, ":%d", named); 
+		if (dot == NULL) {
+			sprintf(old, ":%d", named);
 			dot = old;
 		}
-		if (strlen(dot) + strlen(dev->name) < IFNAMSIZ) { 
-			strcat(ifa->ifa_label, dot); 
-		} else { 
-			strcpy(ifa->ifa_label + (IFNAMSIZ - strlen(dot) - 1), dot); 
-		} 
-	}	
-} 
+		if (strlen(dot) + strlen(dev->name) < IFNAMSIZ) {
+			strcat(ifa->ifa_label, dot);
+		} else {
+			strcpy(ifa->ifa_label + (IFNAMSIZ - strlen(dot) - 1), dot);
+		}
+	}
+}
 
 /* Called only under RTNL semaphore */
 
@@ -1140,7 +1140,7 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*ifm), flags);
 	if (nlh == NULL)
-		return -ENOBUFS;
+		return -EMSGSIZE;
 
 	ifm = nlmsg_data(nlh);
 	ifm->ifa_family = AF_INET;
@@ -1167,7 +1167,8 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
-	return nlmsg_cancel(skb, nlh);
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
@@ -1225,9 +1226,12 @@ static void rtmsg_ifa(int event, struct in_ifaddr* ifa, struct nlmsghdr *nlh,
 		goto errout;
 
 	err = inet_fill_ifaddr(skb, ifa, pid, seq, event, 0);
-	/* failure implies BUG in inet_nlmsg_size() */
-	BUG_ON(err < 0);
-
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in inet_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
 	err = rtnl_notify(skb, pid, RTNLGRP_IPV4_IFADDR, nlh, GFP_KERNEL);
 errout:
 	if (err < 0)
@@ -1535,7 +1539,7 @@ static struct devinet_sysctl_table {
 		},
 	},
 	.devinet_conf_dir = {
-	        {
+		{
 			.ctl_name	= NET_IPV4_CONF,
 			.procname	= "conf",
 			.mode		= 0555,
@@ -1577,18 +1581,18 @@ static void devinet_sysctl_register(struct in_device *in_dev,
 	}
 
 	if (dev) {
-		dev_name = dev->name; 
+		dev_name = dev->name;
 		t->devinet_dev[0].ctl_name = dev->ifindex;
 	} else {
 		dev_name = "default";
 		t->devinet_dev[0].ctl_name = NET_PROTO_CONF_DEFAULT;
 	}
 
-	/* 
-	 * Make a copy of dev_name, because '.procname' is regarded as const 
+	/*
+	 * Make a copy of dev_name, because '.procname' is regarded as const
 	 * by sysctl and we wouldn't want anyone to change it under our feet
 	 * (see SIOCSIFNAME).
-	 */	
+	 */
 	dev_name = kstrdup(dev_name, GFP_KERNEL);
 	if (!dev_name)
 	    goto free;

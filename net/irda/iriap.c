@@ -79,10 +79,10 @@ static int iriap_data_indication(void *instance, void *sap,
 
 static void iriap_watchdog_timer_expired(void *data);
 
-static inline void iriap_start_watchdog_timer(struct iriap_cb *self, 
-					      int timeout) 
+static inline void iriap_start_watchdog_timer(struct iriap_cb *self,
+					      int timeout)
 {
-	irda_start_timer(&self->watchdog_timer, timeout, self, 
+	irda_start_timer(&self->watchdog_timer, timeout, self,
 			 iriap_watchdog_timer_expired);
 }
 
@@ -674,7 +674,7 @@ static void iriap_getvaluebyclass_indication(struct iriap_cb *self,
 	if (attrib == NULL) {
 		IRDA_DEBUG(2, "LM-IAS: Attribute %s not found\n", attr);
 		iriap_getvaluebyclass_response(self, obj->id,
-					       IAS_ATTRIB_UNKNOWN, 
+					       IAS_ATTRIB_UNKNOWN,
 					       &irias_missing);
 		return;
 	}
@@ -971,7 +971,7 @@ static const char *ias_value_types[] = {
 	"IAS_STRING"
 };
 
-static inline struct ias_object *irias_seq_idx(loff_t pos) 
+static inline struct ias_object *irias_seq_idx(loff_t pos)
 {
 	struct ias_object *obj;
 
@@ -980,7 +980,7 @@ static inline struct ias_object *irias_seq_idx(loff_t pos)
 		if (pos-- == 0)
 			break;
 	}
-		
+
 	return obj;
 }
 
@@ -995,7 +995,7 @@ static void *irias_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
 
-	return (v == SEQ_START_TOKEN) 
+	return (v == SEQ_START_TOKEN)
 		? (void *) hashbin_get_first(irias_objects)
 		: (void *) hashbin_get_next(irias_objects);
 }
@@ -1027,7 +1027,7 @@ static int irias_seq_show(struct seq_file *seq, void *v)
 		for (attrib = (struct ias_attrib *) hashbin_get_first(obj->attribs);
 		     attrib != NULL;
 		     attrib = (struct ias_attrib *) hashbin_get_next(obj->attribs)) {
-		     
+
 			IRDA_ASSERT(attrib->magic == IAS_ATTRIB_MAGIC,
 				    goto outloop; );
 
@@ -1046,14 +1046,14 @@ static int irias_seq_show(struct seq_file *seq, void *v)
 					   attrib->value->t.string);
 				break;
 			case IAS_OCT_SEQ:
-				seq_printf(seq, "octet sequence (%d bytes)\n", 
+				seq_printf(seq, "octet sequence (%d bytes)\n",
 					   attrib->value->len);
 				break;
 			case IAS_MISSING:
 				seq_puts(seq, "missing\n");
 				break;
 			default:
-				seq_printf(seq, "type %d?\n", 
+				seq_printf(seq, "type %d?\n",
 					   attrib->value->type);
 			}
 			seq_putc(seq, '\n');
@@ -1080,7 +1080,7 @@ static int irias_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &irias_seq_ops);
 }
 
-struct file_operations irias_seq_fops = {
+const struct file_operations irias_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open           = irias_seq_open,
 	.read           = seq_read,

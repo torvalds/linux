@@ -31,19 +31,6 @@ static int setl2(int card, unsigned long arg);
 static int setl3(int card, unsigned long arg);
 static int acceptb(int card, unsigned long channel);
 
-extern int cinst;
-extern board *sc_adapter[];
-
-extern int sc_ioctl(int, scs_ioctl *);
-extern int setup_buffers(int, int, unsigned int);
-extern int indicate_status(int, int,ulong,char*);
-extern void check_reset(unsigned long);
-extern int send_and_receive(int, unsigned int, unsigned char, unsigned char,
-                unsigned char, unsigned char, unsigned char, unsigned char *,
-                RspMessage *, int);
-extern int sendmessage(int, unsigned int, unsigned int, unsigned int,
-                unsigned int, unsigned int, unsigned int, unsigned int *);
-
 #ifdef DEBUG
 /*
  * Translate command codes to strings
@@ -208,7 +195,7 @@ static int answer(int card, unsigned long channel)
 		return -ENODEV;
 	}
 
-	if(setup_buffers(card, channel+1, BUFFER_SIZE)) {
+	if(setup_buffers(card, channel+1)) {
 		hangup(card, channel+1);
 		return -ENOBUFS;
 	}
@@ -297,7 +284,7 @@ static int acceptb(int card, unsigned long channel)
 		return -ENODEV;
 	}
 
-	if(setup_buffers(card, channel+1, BUFFER_SIZE))
+	if(setup_buffers(card, channel+1))
 	{
 		hangup(card, channel+1);
 		return -ENOBUFS;

@@ -1106,7 +1106,7 @@ static irqreturn_t intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct file_operations dev_fileops = {
+static const struct file_operations dev_fileops = {
 	.owner		= THIS_MODULE,
 	.read		= dev_read,
 	.write		= dev_write,

@@ -144,7 +144,7 @@ static void est_timer(unsigned long arg)
  * configuration TLV is created. Upon each interval, the latest statistics
  * will be read from &bstats and the estimated rate will be stored in
  * &rate_est with the statistics lock grabed during this period.
- * 
+ *
  * Returns 0 on success or a negative error code.
  */
 int gen_new_estimator(struct gnet_stats_basic *bstats,
@@ -231,7 +231,7 @@ void gen_kill_estimator(struct gnet_stats_basic *bstats,
  *
  * Replaces the configuration of a rate estimator by calling
  * gen_kill_estimator() and gen_new_estimator().
- * 
+ *
  * Returns 0 on success or a negative error code.
  */
 int
@@ -242,7 +242,7 @@ gen_replace_estimator(struct gnet_stats_basic *bstats,
     gen_kill_estimator(bstats, rate_est);
     return gen_new_estimator(bstats, rate_est, stats_lock, opt);
 }
-    
+
 
 EXPORT_SYMBOL(gen_kill_estimator);
 EXPORT_SYMBOL(gen_new_estimator);

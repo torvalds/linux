@@ -339,7 +339,7 @@ static int mtrr_open(struct inode *inode, struct file *file)
 	return single_open(file, mtrr_seq_show, NULL);
 }
 
-static struct file_operations mtrr_fops = {
+static const struct file_operations mtrr_fops = {
 	.owner   = THIS_MODULE,
 	.open	 = mtrr_open, 
 	.read    = seq_read,

@@ -548,7 +548,7 @@ int sas_discover_sata(struct domain_device *dev)
 
 	res = sas_notify_lldd_dev_found(dev);
 	if (res)
-		return res;
+		goto out_err2;
 
 	switch (dev->dev_type) {
 	case SATA_DEV:
@@ -560,11 +560,23 @@ int sas_discover_sata(struct domain_device *dev)
 	default:
 		break;
 	}
+	if (res)
+		goto out_err;
 
 	sas_notify_lldd_dev_gone(dev);
-	if (!res) {
-		sas_notify_lldd_dev_found(dev);
-	}
+	res = sas_notify_lldd_dev_found(dev);
+	if (res)
+		goto out_err2;
+
+	res = sas_rphy_add(dev->rphy);
+	if (res)
+		goto out_err;
+
+	return res;
+
+out_err:
+	sas_notify_lldd_dev_gone(dev);
+out_err2:
 	return res;
 }
 
@@ -580,21 +592,17 @@ int sas_discover_end_dev(struct domain_device *dev)
 
 	res = sas_notify_lldd_dev_found(dev);
 	if (res)
-		return res;
+		goto out_err2;
 
 	res = sas_rphy_add(dev->rphy);
 	if (res)
 		goto out_err;
 
-	/* do this to get the end device port attributes which will have
-	 * been scanned in sas_rphy_add */
-	sas_notify_lldd_dev_gone(dev);
-	sas_notify_lldd_dev_found(dev);
-
 	return 0;
 
 out_err:
 	sas_notify_lldd_dev_gone(dev);
+out_err2:
 	return res;
 }
 
@@ -649,6 +657,7 @@ void sas_unregister_domain_devices(struct asd_sas_port *port)
  */
 static void sas_discover_domain(struct work_struct *work)
 {
+	struct domain_device *dev;
 	int error = 0;
 	struct sas_discovery_event *ev =
 		container_of(work, struct sas_discovery_event, work);
@@ -658,35 +667,42 @@ static void sas_discover_domain(struct work_struct *work)
 			&port->disc.pending);
 
 	if (port->port_dev)
-		return ;
-	else {
-		error = sas_get_port_device(port);
-		if (error)
-			return;
-	}
+		return;
+
+	error = sas_get_port_device(port);
+	if (error)
+		return;
+	dev = port->port_dev;
 
 	SAS_DPRINTK("DOING DISCOVERY on port %d, pid:%d\n", port->id,
 		    current->pid);
 
-	switch (port->port_dev->dev_type) {
+	switch (dev->dev_type) {
 	case SAS_END_DEV:
-		error = sas_discover_end_dev(port->port_dev);
+		error = sas_discover_end_dev(dev);
 		break;
 	case EDGE_DEV:
 	case FANOUT_DEV:
-		error = sas_discover_root_expander(port->port_dev);
+		error = sas_discover_root_expander(dev);
 		break;
 	case SATA_DEV:
 	case SATA_PM:
-		error = sas_discover_sata(port->port_dev);
+		error = sas_discover_sata(dev);
 		break;
 	default:
-		SAS_DPRINTK("unhandled device %d\n", port->port_dev->dev_type);
+		SAS_DPRINTK("unhandled device %d\n", dev->dev_type);
 		break;
 	}
 
 	if (error) {
-		kfree(port->port_dev); /* not kobject_register-ed yet */
+		sas_rphy_free(dev->rphy);
+		dev->rphy = NULL;
+
+		spin_lock(&port->dev_list_lock);
+		list_del_init(&dev->dev_list_node);
+		spin_unlock(&port->dev_list_lock);
+
+		kfree(dev); /* not kobject_register-ed yet */
 		port->port_dev = NULL;
 	}
 
@@ -726,7 +742,7 @@ int sas_discover_event(struct asd_sas_port *port, enum discover_event ev)
 	BUG_ON(ev >= DISC_NUM_EVENTS);
 
 	sas_queue_event(ev, &disc->disc_event_lock, &disc->pending,
-			&disc->disc_work[ev].work, port->ha->core.shost);
+			&disc->disc_work[ev].work, port->ha);
 
 	return 0;
 }

@@ -699,7 +699,7 @@ finished:
  *	that it is big enough to cover the vma. Will return failure if
  *	that criteria isn't met.
  *
- *	Similar to remap_pfn_range (see mm/memory.c)
+ *	Similar to remap_pfn_range() (see mm/memory.c)
  */
 int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
 						unsigned long pgoff)

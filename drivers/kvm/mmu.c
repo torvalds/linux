@@ -333,7 +333,7 @@ static void rmap_desc_remove_entry(struct kvm_vcpu *vcpu,
 	for (j = RMAP_EXT - 1; !desc->shadow_ptes[j] && j > i; --j)
 		;
 	desc->shadow_ptes[i] = desc->shadow_ptes[j];
-	desc->shadow_ptes[j] = 0;
+	desc->shadow_ptes[j] = NULL;
 	if (j != 0)
 		return;
 	if (!prev_desc && !desc->more)

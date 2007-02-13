@@ -98,6 +98,12 @@ config OCOTEA
 	help
 	  This option enables support for the IBM PPC440GX evaluation board.
 
+config TAISHAN
+	bool "Taishan"
+	select WANT_EARLY_SERIAL
+	help
+	  This option enables support for the AMCC PPC440GX evaluation board.
+
 endchoice
 
 config EP405PC
@@ -126,7 +132,7 @@ config 440GP
 
 config 440GX
 	bool
-	depends on OCOTEA
+	depends on OCOTEA || TAISHAN
 	default y
 
 config 440SP
@@ -173,7 +179,7 @@ config BOOKE
 
 config IBM_OCP
 	bool
-	depends on ASH || BAMBOO || BUBINGA || CPCI405 || EBONY || EP405 || LUAN || YUCCA || OCOTEA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
+	depends on ASH || BAMBOO || BUBINGA || CPCI405 || EBONY || EP405 || LUAN || YUCCA || OCOTEA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || TAISHAN || WALNUT
 	default y
 
 config IBM_EMAC4

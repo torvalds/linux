@@ -1,6 +1,6 @@
 /*
  * net/tipc/port.h: Include file for TIPC port code
- * 
+ *
  * Copyright (c) 1994-2006, Ericsson AB
  * Copyright (c) 2004-2005, Wind River Systems
  * All rights reserved.
@@ -52,17 +52,17 @@
  * <various callback routines>
  * @uport_list: adjacent user ports in list of ports held by user
  */
- 
+
 struct user_port {
 	u32 user_ref;
-	void *usr_handle; 
+	void *usr_handle;
 	u32 ref;
-	tipc_msg_err_event err_cb; 
-	tipc_named_msg_err_event named_err_cb; 
-	tipc_conn_shutdown_event conn_err_cb; 
-	tipc_msg_event msg_cb; 
-	tipc_named_msg_event named_msg_cb; 
-	tipc_conn_msg_event conn_msg_cb; 
+	tipc_msg_err_event err_cb;
+	tipc_named_msg_err_event named_err_cb;
+	tipc_conn_shutdown_event conn_err_cb;
+	tipc_msg_event msg_cb;
+	tipc_named_msg_event named_msg_cb;
+	tipc_conn_msg_event conn_msg_cb;
 	tipc_continue_event continue_event_cb;
 	struct list_head uport_list;
 };
@@ -113,7 +113,7 @@ struct port {
 extern spinlock_t tipc_port_list_lock;
 struct port_list;
 
-int tipc_port_recv_sections(struct port *p_ptr, u32 num_sect, 
+int tipc_port_recv_sections(struct port *p_ptr, u32 num_sect,
 			    struct iovec const *msg_sect);
 int tipc_port_reject_sections(struct port *p_ptr, struct tipc_msg *hdr,
 			      struct iovec const *msg_sect, u32 num_sect,
@@ -133,9 +133,9 @@ static inline struct port *tipc_port_lock(u32 ref)
 	return (struct port *)tipc_ref_lock(ref);
 }
 
-/** 
+/**
  * tipc_port_unlock - unlock a port instance
- * 
+ *
  * Can use pointer instead of tipc_ref_unlock() since port is already locked.
  */
 
@@ -164,7 +164,7 @@ static inline int tipc_port_congested(struct port *p_ptr)
 	return((p_ptr->sent - p_ptr->acked) >= (TIPC_FLOW_CONTROL_WIN * 2));
 }
 
-/** 
+/**
  * tipc_port_recv_msg - receive message from lower layer and deliver to port user
  */
 
@@ -175,7 +175,7 @@ static inline int tipc_port_recv_msg(struct sk_buff *buf)
 	u32 destport = msg_destport(msg);
 	u32 dsz = msg_data_sz(msg);
 	u32 err;
-	
+
 	/* forward unresolved named message */
 	if (unlikely(!destport)) {
 		tipc_net_route_msg(buf);

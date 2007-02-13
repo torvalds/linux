@@ -302,7 +302,7 @@ _copy_from_pages(char *p, struct page **pages, size_t pgbase, size_t len)
  * @buf: xdr_buf
  * @len: bytes to remove from buf->head[0]
  *
- * Shrinks XDR buffer's header kvec buf->head[0] by 
+ * Shrinks XDR buffer's header kvec buf->head[0] by
  * 'len' bytes. The extra data is not lost, but is instead
  * moved into the inlined pages and/or the tail.
  */
@@ -375,7 +375,7 @@ xdr_shrink_bufhead(struct xdr_buf *buf, size_t len)
  * @buf: xdr_buf
  * @len: bytes to remove from buf->pages
  *
- * Shrinks XDR buffer's page array buf->pages by 
+ * Shrinks XDR buffer's page array buf->pages by
  * 'len' bytes. The extra data is not lost, but is instead
  * moved into the tail.
  */
@@ -1024,7 +1024,7 @@ xdr_encode_array2(struct xdr_buf *buf, unsigned int base,
 
 int
 xdr_process_buf(struct xdr_buf *buf, unsigned int offset, unsigned int len,
-                int (*actor)(struct scatterlist *, void *), void *data)
+		int (*actor)(struct scatterlist *, void *), void *data)
 {
 	int i, ret = 0;
 	unsigned page_len, thislen, page_offset;

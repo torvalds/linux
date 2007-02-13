@@ -218,7 +218,7 @@ static unsigned int get_linear_data(unsigned int consumed, const u8 **dst,
  * Call textsearch_next() to retrieve subsequent matches.
  *
  * Returns the position of first occurrence of the pattern or
- * UINT_MAX if no occurrence was found.
+ * %UINT_MAX if no occurrence was found.
  */ 
 unsigned int textsearch_find_continuous(struct ts_config *conf,
 					struct ts_state *state,

@@ -26,8 +26,8 @@
 #ifndef OCFS2_SYMLINK_H
 #define OCFS2_SYMLINK_H
 
-extern struct inode_operations ocfs2_symlink_inode_operations;
-extern struct inode_operations ocfs2_fast_symlink_inode_operations;
+extern const struct inode_operations ocfs2_symlink_inode_operations;
+extern const struct inode_operations ocfs2_fast_symlink_inode_operations;
 
 /*
  * Test whether an inode is a fast symlink.

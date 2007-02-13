@@ -679,7 +679,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 		nr_taken = isolate_lru_pages(sc->swap_cluster_max,
 					     &zone->inactive_list,
 					     &page_list, &nr_scan);
-		zone->nr_inactive -= nr_taken;
+		__mod_zone_page_state(zone, NR_INACTIVE, -nr_taken);
 		zone->pages_scanned += nr_scan;
 		spin_unlock_irq(&zone->lru_lock);
 
@@ -740,7 +740,8 @@ static inline void note_zone_scanning_priority(struct zone *zone, int priority)
 
 static inline int zone_is_near_oom(struct zone *zone)
 {
-	return zone->pages_scanned >= (zone->nr_active + zone->nr_inactive)*3;
+	return zone->pages_scanned >= (zone_page_state(zone, NR_ACTIVE)
+				+ zone_page_state(zone, NR_INACTIVE))*3;
 }
 
 /*
@@ -825,7 +826,7 @@ force_reclaim_mapped:
 	pgmoved = isolate_lru_pages(nr_pages, &zone->active_list,
 				    &l_hold, &pgscanned);
 	zone->pages_scanned += pgscanned;
-	zone->nr_active -= pgmoved;
+	__mod_zone_page_state(zone, NR_ACTIVE, -pgmoved);
 	spin_unlock_irq(&zone->lru_lock);
 
 	while (!list_empty(&l_hold)) {
@@ -857,7 +858,7 @@ force_reclaim_mapped:
 		list_move(&page->lru, &zone->inactive_list);
 		pgmoved++;
 		if (!pagevec_add(&pvec, page)) {
-			zone->nr_inactive += pgmoved;
+			__mod_zone_page_state(zone, NR_INACTIVE, pgmoved);
 			spin_unlock_irq(&zone->lru_lock);
 			pgdeactivate += pgmoved;
 			pgmoved = 0;
@@ -867,7 +868,7 @@ force_reclaim_mapped:
 			spin_lock_irq(&zone->lru_lock);
 		}
 	}
-	zone->nr_inactive += pgmoved;
+	__mod_zone_page_state(zone, NR_INACTIVE, pgmoved);
 	pgdeactivate += pgmoved;
 	if (buffer_heads_over_limit) {
 		spin_unlock_irq(&zone->lru_lock);
@@ -885,14 +886,14 @@ force_reclaim_mapped:
 		list_move(&page->lru, &zone->active_list);
 		pgmoved++;
 		if (!pagevec_add(&pvec, page)) {
-			zone->nr_active += pgmoved;
+			__mod_zone_page_state(zone, NR_ACTIVE, pgmoved);
 			pgmoved = 0;
 			spin_unlock_irq(&zone->lru_lock);
 			__pagevec_release(&pvec);
 			spin_lock_irq(&zone->lru_lock);
 		}
 	}
-	zone->nr_active += pgmoved;
+	__mod_zone_page_state(zone, NR_ACTIVE, pgmoved);
 
 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
 	__count_vm_events(PGDEACTIVATE, pgdeactivate);
@@ -918,14 +919,16 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 	 * Add one to `nr_to_scan' just to make sure that the kernel will
 	 * slowly sift through the active list.
 	 */
-	zone->nr_scan_active += (zone->nr_active >> priority) + 1;
+	zone->nr_scan_active +=
+		(zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
 	nr_active = zone->nr_scan_active;
 	if (nr_active >= sc->swap_cluster_max)
 		zone->nr_scan_active = 0;
 	else
 		nr_active = 0;
 
-	zone->nr_scan_inactive += (zone->nr_inactive >> priority) + 1;
+	zone->nr_scan_inactive +=
+		(zone_page_state(zone, NR_INACTIVE) >> priority) + 1;
 	nr_inactive = zone->nr_scan_inactive;
 	if (nr_inactive >= sc->swap_cluster_max)
 		zone->nr_scan_inactive = 0;
@@ -1037,7 +1040,8 @@ unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
 			continue;
 
-		lru_pages += zone->nr_active + zone->nr_inactive;
+		lru_pages += zone_page_state(zone, NR_ACTIVE)
+				+ zone_page_state(zone, NR_INACTIVE);
 	}
 
 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
@@ -1182,7 +1186,8 @@ loop_again:
 		for (i = 0; i <= end_zone; i++) {
 			struct zone *zone = pgdat->node_zones + i;
 
-			lru_pages += zone->nr_active + zone->nr_inactive;
+			lru_pages += zone_page_state(zone, NR_ACTIVE)
+					+ zone_page_state(zone, NR_INACTIVE);
 		}
 
 		/*
@@ -1219,8 +1224,9 @@ loop_again:
 			if (zone->all_unreclaimable)
 				continue;
 			if (nr_slab == 0 && zone->pages_scanned >=
-				    (zone->nr_active + zone->nr_inactive) * 6)
-				zone->all_unreclaimable = 1;
+				(zone_page_state(zone, NR_ACTIVE)
+				+ zone_page_state(zone, NR_INACTIVE)) * 6)
+					zone->all_unreclaimable = 1;
 			/*
 			 * If we've done a decent amount of scanning and
 			 * the reclaim ratio is low, start doing writepage
@@ -1385,18 +1391,22 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
 
 		/* For pass = 0 we don't shrink the active list */
 		if (pass > 0) {
-			zone->nr_scan_active += (zone->nr_active >> prio) + 1;
+			zone->nr_scan_active +=
+				(zone_page_state(zone, NR_ACTIVE) >> prio) + 1;
 			if (zone->nr_scan_active >= nr_pages || pass > 3) {
 				zone->nr_scan_active = 0;
-				nr_to_scan = min(nr_pages, zone->nr_active);
+				nr_to_scan = min(nr_pages,
+					zone_page_state(zone, NR_ACTIVE));
 				shrink_active_list(nr_to_scan, zone, sc, prio);
 			}
 		}
 
-		zone->nr_scan_inactive += (zone->nr_inactive >> prio) + 1;
+		zone->nr_scan_inactive +=
+			(zone_page_state(zone, NR_INACTIVE) >> prio) + 1;
 		if (zone->nr_scan_inactive >= nr_pages || pass > 3) {
 			zone->nr_scan_inactive = 0;
-			nr_to_scan = min(nr_pages, zone->nr_inactive);
+			nr_to_scan = min(nr_pages,
+				zone_page_state(zone, NR_INACTIVE));
 			ret += shrink_inactive_list(nr_to_scan, zone, sc);
 			if (ret >= nr_pages)
 				return ret;
@@ -1408,12 +1418,7 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
 
 static unsigned long count_lru_pages(void)
 {
-	struct zone *zone;
-	unsigned long ret = 0;
-
-	for_each_zone(zone)
-		ret += zone->nr_active + zone->nr_inactive;
-	return ret;
+	return global_page_state(NR_ACTIVE) + global_page_state(NR_INACTIVE);
 }
 
 /*

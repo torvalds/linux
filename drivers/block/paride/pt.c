@@ -232,7 +232,7 @@ static char pt_scratch[512];	/* scratch block buffer */
 
 /* kernel glue structures */
 
-static struct file_operations pt_fops = {
+static const struct file_operations pt_fops = {
 	.owner = THIS_MODULE,
 	.read = pt_read,
 	.write = pt_write,

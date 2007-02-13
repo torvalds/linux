@@ -7609,7 +7609,7 @@ FlashPoint__AbortCCB(FlashPoint_CardHandle_T CardHandle,
 	FlashPoint_AbortCCB(CardHandle, (struct sccb *)CCB);
 }
 
-static inline boolean
+static inline bool
 FlashPoint__InterruptPending(FlashPoint_CardHandle_T CardHandle)
 {
 	return FlashPoint_InterruptPending(CardHandle);
@@ -7640,7 +7640,7 @@ extern FlashPoint_CardHandle_T
 FlashPoint_HardwareResetHostAdapter(struct FlashPoint_Info *);
 extern void FlashPoint_StartCCB(FlashPoint_CardHandle_T, struct BusLogic_CCB *);
 extern int FlashPoint_AbortCCB(FlashPoint_CardHandle_T, struct BusLogic_CCB *);
-extern boolean FlashPoint_InterruptPending(FlashPoint_CardHandle_T);
+extern bool FlashPoint_InterruptPending(FlashPoint_CardHandle_T);
 extern int FlashPoint_HandleInterrupt(FlashPoint_CardHandle_T);
 extern void FlashPoint_ReleaseHostAdapter(FlashPoint_CardHandle_T);
 

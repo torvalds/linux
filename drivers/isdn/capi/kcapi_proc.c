@@ -113,14 +113,14 @@ static int seq_contrstats_open(struct inode *inode, struct file *file)
 	return seq_open(file, &seq_contrstats_ops);
 }
 
-static struct file_operations proc_controller_ops = {
+static const struct file_operations proc_controller_ops = {
 	.open		= seq_controller_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
 
-static struct file_operations proc_contrstats_ops = {
+static const struct file_operations proc_contrstats_ops = {
 	.open		= seq_contrstats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -218,14 +218,14 @@ seq_applstats_open(struct inode *inode, struct file *file)
 	return seq_open(file, &seq_applstats_ops);
 }
 
-static struct file_operations proc_applications_ops = {
+static const struct file_operations proc_applications_ops = {
 	.open		= seq_applications_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
 
-static struct file_operations proc_applstats_ops = {
+static const struct file_operations proc_applstats_ops = {
 	.open		= seq_applstats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -302,7 +302,7 @@ seq_capi_driver_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-static struct file_operations proc_driver_ops = {
+static const struct file_operations proc_driver_ops = {
 	.open		= seq_capi_driver_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

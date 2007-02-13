@@ -458,7 +458,7 @@ int emu10k1_midi_callback(unsigned long msg, unsigned long refdata, unsigned lon
 }
 
 /* MIDI file operations */
-struct file_operations emu10k1_midi_fops = {
+const struct file_operations emu10k1_midi_fops = {
 	.owner		= THIS_MODULE,
 	.read		= emu10k1_midi_read,
 	.write		= emu10k1_midi_write,

@@ -45,7 +45,7 @@
 #include "fid.h"
 
 static void v9fs_clear_inode(struct inode *);
-static struct super_operations v9fs_super_ops;
+static const struct super_operations v9fs_super_ops;
 
 /**
  * v9fs_clear_inode - release an inode
@@ -263,7 +263,7 @@ v9fs_umount_begin(struct vfsmount *vfsmnt, int flags)
 		v9fs_session_cancel(v9ses);
 }
 
-static struct super_operations v9fs_super_ops = {
+static const struct super_operations v9fs_super_ops = {
 	.statfs = simple_statfs,
 	.clear_inode = v9fs_clear_inode,
 	.show_options = v9fs_show_options,

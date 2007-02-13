@@ -78,8 +78,8 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	if (__sk_del_node_init(sk))
 		sock_prot_dec_use(sk->sk_prot);
 
-	/* Step 3: Hash TW into TIMEWAIT half of established hash table. */
-	inet_twsk_add_node(tw, &(ehead + hashinfo->ehash_size)->chain);
+	/* Step 3: Hash TW into TIMEWAIT chain. */
+	inet_twsk_add_node(tw, &ehead->twchain);
 	atomic_inc(&tw->tw_refcnt);
 
 	write_unlock(&ehead->lock);

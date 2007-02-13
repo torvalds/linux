@@ -13,6 +13,10 @@
 #define XATTR_CREATE	0x1	/* set value, fail if attr already exists */
 #define XATTR_REPLACE	0x2	/* set value, fail if attr does not exist */
 
+#ifdef  __KERNEL__
+
+#include <linux/types.h>
+
 /* Namespaces */
 #define XATTR_OS2_PREFIX "os2."
 #define XATTR_OS2_PREFIX_LEN (sizeof (XATTR_OS2_PREFIX) - 1)
@@ -29,6 +33,8 @@
 #define XATTR_USER_PREFIX "user."
 #define XATTR_USER_PREFIX_LEN (sizeof (XATTR_USER_PREFIX) - 1)
 
+struct inode;
+struct dentry;
 
 struct xattr_handler {
 	char *prefix;
@@ -49,5 +55,7 @@ ssize_t generic_getxattr(struct dentry *dentry, const char *name, void *buffer, 
 ssize_t generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size);
 int generic_setxattr(struct dentry *dentry, const char *name, const void *value, size_t size, int flags);
 int generic_removexattr(struct dentry *dentry, const char *name);
+
+#endif  /*  __KERNEL__  */
 
 #endif	/* _LINUX_XATTR_H */

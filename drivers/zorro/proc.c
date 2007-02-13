@@ -75,7 +75,7 @@ proc_bus_zorro_read(struct file *file, char __user *buf, size_t nbytes, loff_t *
 	return nbytes;
 }
 
-static struct file_operations proc_bus_zorro_operations = {
+static const struct file_operations proc_bus_zorro_operations = {
 	.llseek		= proc_bus_zorro_lseek,
 	.read		= proc_bus_zorro_read,
 };

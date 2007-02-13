@@ -130,7 +130,7 @@ void nf_ct_remove_expectations(struct nf_conn *ct)
 		if (i->master == ct && del_timer(&i->timeout)) {
 			nf_ct_unlink_expect(i);
 			nf_conntrack_expect_put(i);
- 		}
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(nf_ct_remove_expectations);
@@ -435,7 +435,7 @@ static int exp_open(struct inode *inode, struct file *file)
 	return seq_open(file, &exp_seq_ops);
 }
 
-struct file_operations exp_file_ops = {
+const struct file_operations exp_file_ops = {
 	.owner   = THIS_MODULE,
 	.open    = exp_open,
 	.read    = seq_read,

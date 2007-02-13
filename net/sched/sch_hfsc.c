@@ -284,7 +284,7 @@ static inline struct hfsc_class *
 eltree_get_minel(struct hfsc_sched *q)
 {
 	struct rb_node *n;
-	
+
 	n = rb_first(&q->eligible);
 	if (n == NULL)
 		return NULL;
@@ -773,7 +773,7 @@ init_vf(struct hfsc_class *cl, unsigned int len)
 			/* update the virtual curve */
 			vt = cl->cl_vt + cl->cl_vtoff;
 			rtsc_min(&cl->cl_virtual, &cl->cl_fsc, vt,
-			                              cl->cl_total);
+						      cl->cl_total);
 			if (cl->cl_virtual.x == vt) {
 				cl->cl_virtual.x -= cl->cl_vtoff;
 				cl->cl_vtoff = 0;
@@ -796,10 +796,10 @@ init_vf(struct hfsc_class *cl, unsigned int len)
 
 				/* update the ulimit curve */
 				rtsc_min(&cl->cl_ulimit, &cl->cl_usc, cur_time,
-				         cl->cl_total);
+					 cl->cl_total);
 				/* compute myf */
 				cl->cl_myf = rtsc_y2x(&cl->cl_ulimit,
-				                      cl->cl_total);
+						      cl->cl_total);
 				cl->cl_myfadj = 0;
 			}
 		}
@@ -853,7 +853,7 @@ update_vf(struct hfsc_class *cl, unsigned int len, u64 cur_time)
 		 * update vt and f
 		 */
 		cl->cl_vt = rtsc_y2x(&cl->cl_virtual, cl->cl_total)
-		            - cl->cl_vtoff + cl->cl_vtadj;
+			    - cl->cl_vtoff + cl->cl_vtadj;
 
 		/*
 		 * if vt of the class is smaller than cvtmin,
@@ -870,7 +870,7 @@ update_vf(struct hfsc_class *cl, unsigned int len, u64 cur_time)
 
 		if (cl->cl_flags & HFSC_USC) {
 			cl->cl_myf = cl->cl_myfadj + rtsc_y2x(&cl->cl_ulimit,
-			                                      cl->cl_total);
+							      cl->cl_total);
 #if 0
 			/*
 			 * This code causes classes to stay way under their
@@ -1001,7 +1001,7 @@ hfsc_find_class(u32 classid, struct Qdisc *sch)
 
 static void
 hfsc_change_rsc(struct hfsc_class *cl, struct tc_service_curve *rsc,
-                u64 cur_time)
+		u64 cur_time)
 {
 	sc2isc(rsc, &cl->cl_rsc);
 	rtsc_init(&cl->cl_deadline, &cl->cl_rsc, cur_time, cl->cl_cumul);
@@ -1023,7 +1023,7 @@ hfsc_change_fsc(struct hfsc_class *cl, struct tc_service_curve *fsc)
 
 static void
 hfsc_change_usc(struct hfsc_class *cl, struct tc_service_curve *usc,
-                u64 cur_time)
+		u64 cur_time)
 {
 	sc2isc(usc, &cl->cl_usc);
 	rtsc_init(&cl->cl_ulimit, &cl->cl_usc, cur_time, cl->cl_total);
@@ -1032,7 +1032,7 @@ hfsc_change_usc(struct hfsc_class *cl, struct tc_service_curve *usc,
 
 static int
 hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
-                  struct rtattr **tca, unsigned long *arg)
+		  struct rtattr **tca, unsigned long *arg)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
 	struct hfsc_class *cl = (struct hfsc_class *)*arg;
@@ -1228,9 +1228,9 @@ hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
 		case TC_ACT_QUEUED:
-		case TC_ACT_STOLEN: 
+		case TC_ACT_STOLEN:
 			*qerr = NET_XMIT_SUCCESS;
-		case TC_ACT_SHOT: 
+		case TC_ACT_SHOT:
 			return NULL;
 		}
 #elif defined(CONFIG_NET_CLS_POLICE)
@@ -1259,7 +1259,7 @@ hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 
 static int
 hfsc_graft_class(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
-                 struct Qdisc **old)
+		 struct Qdisc **old)
 {
 	struct hfsc_class *cl = (struct hfsc_class *)arg;
 
@@ -1397,7 +1397,7 @@ hfsc_dump_curves(struct sk_buff *skb, struct hfsc_class *cl)
 
 static int
 hfsc_dump_class(struct Qdisc *sch, unsigned long arg, struct sk_buff *skb,
-                struct tcmsg *tcm)
+		struct tcmsg *tcm)
 {
 	struct hfsc_class *cl = (struct hfsc_class *)arg;
 	unsigned char *b = skb->tail;

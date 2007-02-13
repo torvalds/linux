@@ -114,6 +114,17 @@ static inline void spi_set_ctldata(struct spi_device *spi, void *state)
 	spi->controller_state = state;
 }
 
+/* device driver data */
+
+static inline void spi_set_drvdata(struct spi_device *spi, void *data)
+{
+	dev_set_drvdata(&spi->dev, data);
+}
+
+static inline void *spi_get_drvdata(struct spi_device *spi)
+{
+	return dev_get_drvdata(&spi->dev);
+}
 
 struct spi_message;
 
@@ -137,11 +148,9 @@ extern int spi_register_driver(struct spi_driver *sdrv);
 
 static inline void spi_unregister_driver(struct spi_driver *sdrv)
 {
-	if (!sdrv)
-		return;
-	driver_unregister(&sdrv->driver);
+	if (sdrv)
+		driver_unregister(&sdrv->driver);
 }
-
 
 
 /**
@@ -154,7 +163,8 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	each slave has a chipselect signal, but it's common that not
  *	every chipselect is connected to a slave.
  * @setup: updates the device mode and clocking records used by a
- *	device's SPI controller; protocol code may call this.
+ *	device's SPI controller; protocol code may call this.  This
+ *	must fail if an unrecognized or unsupported mode is requested.
  * @transfer: adds a message to the controller's transfer queue.
  * @cleanup: frees controller-specific state
  *
@@ -211,7 +221,7 @@ struct spi_master {
 						struct spi_message *mesg);
 
 	/* called on release() to free memory provided by spi_master */
-	void			(*cleanup)(const struct spi_device *spi);
+	void			(*cleanup)(struct spi_device *spi);
 };
 
 static inline void *spi_master_get_devdata(struct spi_master *master)
@@ -295,6 +305,16 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * It's an error to try to shift out a partial word.  (For example, by
  * shifting out three bytes with word size of sixteen or twenty bits;
  * the former uses two bytes per word, the latter uses four bytes.)
+ *
+ * In-memory data values are always in native CPU byte order, translated
+ * from the wire byte order (big-endian except with SPI_LSB_FIRST).  So
+ * for example when bits_per_word is sixteen, buffers are 2N bytes long
+ * and hold N sixteen bit words in CPU byte order.
+ *
+ * When the word size of the SPI transfer is not a power-of-two multiple
+ * of eight bits, those in-memory words include extra bits.  In-memory
+ * words are always seen by protocol drivers as right-justified, so the
+ * undefined (rx) or unused (tx) bits are always the most significant bits.
  *
  * All SPI transfers start with the relevant chipselect active.  Normally
  * it stays selected until after the last transfer in a message.  Drivers
@@ -453,6 +473,11 @@ static inline void spi_message_free(struct spi_message *m)
  * changes those settings, and must be called from a context that can sleep.
  * The changes take effect the next time the device is selected and data
  * is transferred to or from it.
+ *
+ * Note that this call wil fail if the protocol driver specifies an option
+ * that the underlying controller or its driver does not support.  For
+ * example, not all hardware supports wire transfers using nine bit words,
+ * LSB-first wire encoding, or active-high chipselects.
  */
 static inline int
 spi_setup(struct spi_device *spi)

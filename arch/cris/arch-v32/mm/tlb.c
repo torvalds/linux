@@ -54,8 +54,7 @@ __flush_tlb_all(void)
 	 * Mask with 0xf so similar TLB entries aren't written in the same 4-way
 	 * entry group.
 	 */
-	local_save_flags(flags);
-	local_irq_disable();
+	local_irq_save(flags);
 
 	for (mmu = 1; mmu <= 2; mmu++) {
 		SUPP_BANK_SEL(mmu); /* Select the MMU */
@@ -92,8 +91,7 @@ __flush_tlb_mm(struct mm_struct *mm)
 		return;
 
 	/* Mark the TLB entries that match the page_id as invalid. */
-	local_save_flags(flags);
-	local_irq_disable();
+	local_irq_save(flags);
 
 	for (mmu = 1; mmu <= 2; mmu++) {
 		SUPP_BANK_SEL(mmu);
@@ -140,8 +138,7 @@ __flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
 	 * Invalidate those TLB entries that match both the mm context and the
 	 * requested virtual address.
 	 */
-	local_save_flags(flags);
-	local_irq_disable();
+	local_irq_save(flags);
 
 	for (mmu = 1; mmu <= 2; mmu++) {
 		SUPP_BANK_SEL(mmu);

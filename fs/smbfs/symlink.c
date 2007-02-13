@@ -62,7 +62,7 @@ static void smb_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
 		__putname(s);
 }
 
-struct inode_operations smb_link_inode_operations =
+const struct inode_operations smb_link_inode_operations =
 {
 	.readlink	= generic_readlink,
 	.follow_link	= smb_follow_link,

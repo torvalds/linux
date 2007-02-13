@@ -1,9 +1,6 @@
 #ifndef __M32R_KMAP_TYPES_H
 #define __M32R_KMAP_TYPES_H
 
-/* Dummy header just to define km_type. */
-
-
 #ifdef CONFIG_DEBUG_HIGHMEM
 # define D(n) __KM_FENCE_##n ,
 #else
@@ -30,4 +27,3 @@ D(13)	KM_TYPE_NR
 #undef D
 
 #endif /* __M32R_KMAP_TYPES_H */
-

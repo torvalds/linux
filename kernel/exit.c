@@ -185,21 +185,19 @@ repeat:
  * This checks not only the pgrp, but falls back on the pid if no
  * satisfactory pgrp is found. I dunno - gdb doesn't work correctly
  * without this...
+ *
+ * The caller must hold rcu lock or the tasklist lock.
  */
-int session_of_pgrp(int pgrp)
+struct pid *session_of_pgrp(struct pid *pgrp)
 {
 	struct task_struct *p;
-	int sid = 0;
+	struct pid *sid = NULL;
 
-	read_lock(&tasklist_lock);
-
-	p = find_task_by_pid_type(PIDTYPE_PGID, pgrp);
+	p = pid_task(pgrp, PIDTYPE_PGID);
 	if (p == NULL)
-		p = find_task_by_pid(pgrp);
+		p = pid_task(pgrp, PIDTYPE_PID);
 	if (p != NULL)
-		sid = process_session(p);
-
-	read_unlock(&tasklist_lock);
+		sid = task_session(p);
 
 	return sid;
 }
@@ -212,53 +210,52 @@ int session_of_pgrp(int pgrp)
  *
  * "I ask you, have you ever known what it is to be an orphan?"
  */
-static int will_become_orphaned_pgrp(int pgrp, struct task_struct *ignored_task)
+static int will_become_orphaned_pgrp(struct pid *pgrp, struct task_struct *ignored_task)
 {
 	struct task_struct *p;
 	int ret = 1;
 
-	do_each_task_pid(pgrp, PIDTYPE_PGID, p) {
+	do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
 		if (p == ignored_task
 				|| p->exit_state
 				|| is_init(p->real_parent))
 			continue;
-		if (process_group(p->real_parent) != pgrp &&
-		    process_session(p->real_parent) == process_session(p)) {
+		if (task_pgrp(p->real_parent) != pgrp &&
+		    task_session(p->real_parent) == task_session(p)) {
 			ret = 0;
 			break;
 		}
-	} while_each_task_pid(pgrp, PIDTYPE_PGID, p);
+	} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
 	return ret;	/* (sighing) "Often!" */
 }
 
-int is_orphaned_pgrp(int pgrp)
+int is_current_pgrp_orphaned(void)
 {
 	int retval;
 
 	read_lock(&tasklist_lock);
-	retval = will_become_orphaned_pgrp(pgrp, NULL);
+	retval = will_become_orphaned_pgrp(task_pgrp(current), NULL);
 	read_unlock(&tasklist_lock);
 
 	return retval;
 }
 
-static int has_stopped_jobs(int pgrp)
+static int has_stopped_jobs(struct pid *pgrp)
 {
 	int retval = 0;
 	struct task_struct *p;
 
-	do_each_task_pid(pgrp, PIDTYPE_PGID, p) {
+	do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
 		if (p->state != TASK_STOPPED)
 			continue;
 		retval = 1;
 		break;
-	} while_each_task_pid(pgrp, PIDTYPE_PGID, p);
+	} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
 	return retval;
 }
 
 /**
- * reparent_to_init - Reparent the calling kernel thread to the init task
- * of the pid space that the thread belongs to.
+ * reparent_to_init - Reparent the calling kernel thread to the init task of the pid space that the thread belongs to.
  *
  * If a kernel thread is launched as a result of a system call, or if
  * it ever exits, it should generally reparent itself to init so that
@@ -431,8 +428,10 @@ static void close_files(struct files_struct * files)
 		while (set) {
 			if (set & 1) {
 				struct file * file = xchg(&fdt->fd[i], NULL);
-				if (file)
+				if (file) {
 					filp_close(file, files);
+					cond_resched();
+				}
 			}
 			i++;
 			set >>= 1;
@@ -649,14 +648,14 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 	 * than we are, and it was the only connection
 	 * outside, so the child pgrp is now orphaned.
 	 */
-	if ((process_group(p) != process_group(father)) &&
-	    (process_session(p) == process_session(father))) {
-		int pgrp = process_group(p);
+	if ((task_pgrp(p) != task_pgrp(father)) &&
+	    (task_session(p) == task_session(father))) {
+		struct pid *pgrp = task_pgrp(p);
 
 		if (will_become_orphaned_pgrp(pgrp, NULL) &&
 		    has_stopped_jobs(pgrp)) {
-			__kill_pg_info(SIGHUP, SEND_SIG_PRIV, pgrp);
-			__kill_pg_info(SIGCONT, SEND_SIG_PRIV, pgrp);
+			__kill_pgrp_info(SIGHUP, SEND_SIG_PRIV, pgrp);
+			__kill_pgrp_info(SIGCONT, SEND_SIG_PRIV, pgrp);
 		}
 	}
 }
@@ -736,6 +735,7 @@ static void exit_notify(struct task_struct *tsk)
 	int state;
 	struct task_struct *t;
 	struct list_head ptrace_dead, *_p, *_n;
+	struct pid *pgrp;
 
 	if (signal_pending(tsk) && !(tsk->signal->flags & SIGNAL_GROUP_EXIT)
 	    && !thread_group_empty(tsk)) {
@@ -788,12 +788,13 @@ static void exit_notify(struct task_struct *tsk)
 	 
 	t = tsk->real_parent;
 	
-	if ((process_group(t) != process_group(tsk)) &&
-	    (process_session(t) == process_session(tsk)) &&
-	    will_become_orphaned_pgrp(process_group(tsk), tsk) &&
-	    has_stopped_jobs(process_group(tsk))) {
-		__kill_pg_info(SIGHUP, SEND_SIG_PRIV, process_group(tsk));
-		__kill_pg_info(SIGCONT, SEND_SIG_PRIV, process_group(tsk));
+	pgrp = task_pgrp(tsk);
+	if ((task_pgrp(t) != pgrp) &&
+	    (task_session(t) != task_session(tsk)) &&
+	    will_become_orphaned_pgrp(pgrp, tsk) &&
+	    has_stopped_jobs(pgrp)) {
+		__kill_pgrp_info(SIGHUP, SEND_SIG_PRIV, pgrp);
+		__kill_pgrp_info(SIGCONT, SEND_SIG_PRIV, pgrp);
 	}
 
 	/* Let father know we died 

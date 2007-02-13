@@ -30,7 +30,6 @@
 #include "kern.h"
 #include "mem_user.h"
 #include "mem.h"
-#include "umid.h"
 #include "initrd.h"
 #include "init.h"
 #include "os.h"
@@ -44,9 +43,9 @@
 #define DEFAULT_COMMAND_LINE "root=98:0"
 
 /* Changed in linux_main and setup_arch, which run before SMP is started */
-static char command_line[COMMAND_LINE_SIZE] = { 0 };
+static char __initdata command_line[COMMAND_LINE_SIZE] = { 0 };
 
-static void add_arg(char *arg)
+static void __init add_arg(char *arg)
 {
 	if (strlen(command_line) + strlen(arg) + 1 > COMMAND_LINE_SIZE) {
 		printf("add_arg: Too many command line arguments!\n");
@@ -331,7 +330,7 @@ EXPORT_SYMBOL(end_iomem);
 
 extern char __binary_start;
 
-int linux_main(int argc, char **argv)
+int __init linux_main(int argc, char **argv)
 {
 	unsigned long avail, diff;
 	unsigned long virtmem_size, max_physmem;
@@ -482,7 +481,7 @@ void __init setup_arch(char **cmdline_p)
 	atomic_notifier_chain_register(&panic_notifier_list,
 			&panic_exit_notifier);
 	paging_init();
-        strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
+	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
  	*cmdline_p = command_line;
 	setup_hostinfo();
 }

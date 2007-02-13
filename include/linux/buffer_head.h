@@ -34,6 +34,7 @@ enum bh_state_bits {
 	BH_Write_EIO,	/* I/O error on write */
 	BH_Ordered,	/* ordered write */
 	BH_Eopnotsupp,	/* operation not supported (barrier) */
+	BH_Unwritten,	/* Buffer is allocated on disk but not written */
 
 	BH_PrivateStart,/* not a state bit, but the first bit available
 			 * for private allocation by other entities
@@ -126,6 +127,7 @@ BUFFER_FNS(Boundary, boundary)
 BUFFER_FNS(Write_EIO, write_io_error)
 BUFFER_FNS(Ordered, ordered)
 BUFFER_FNS(Eopnotsupp, eopnotsupp)
+BUFFER_FNS(Unwritten, unwritten)
 
 #define bh_offset(bh)		((unsigned long)(bh)->b_data & ~PAGE_MASK)
 #define touch_buffer(bh)	mark_page_accessed(bh->b_page)
@@ -172,12 +174,14 @@ struct super_block *freeze_bdev(struct block_device *);
 void thaw_bdev(struct block_device *, struct super_block *);
 int fsync_super(struct super_block *);
 int fsync_no_super(struct block_device *);
-struct buffer_head *__find_get_block(struct block_device *, sector_t, int);
-struct buffer_head * __getblk(struct block_device *, sector_t, int);
+struct buffer_head *__find_get_block(struct block_device *bdev, sector_t block,
+			unsigned size);
+struct buffer_head *__getblk(struct block_device *bdev, sector_t block,
+			unsigned size);
 void __brelse(struct buffer_head *);
 void __bforget(struct buffer_head *);
-void __breadahead(struct block_device *, sector_t block, int size);
-struct buffer_head *__bread(struct block_device *, sector_t block, int size);
+void __breadahead(struct block_device *, sector_t block, unsigned int size);
+struct buffer_head *__bread(struct block_device *, sector_t block, unsigned size);
 struct buffer_head *alloc_buffer_head(gfp_t gfp_flags);
 void free_buffer_head(struct buffer_head * bh);
 void FASTCALL(unlock_buffer(struct buffer_head *bh));

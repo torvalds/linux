@@ -52,7 +52,7 @@
 static struct dentry *	vxfs_lookup(struct inode *, struct dentry *, struct nameidata *);
 static int		vxfs_readdir(struct file *, void *, filldir_t);
 
-struct inode_operations vxfs_dir_inode_ops = {
+const struct inode_operations vxfs_dir_inode_ops = {
 	.lookup =		vxfs_lookup,
 };
 

@@ -7,13 +7,13 @@
  *   Robert Olsson <robert.olsson@its.uu.se> Uppsala Universitet
  *     & Swedish University of Agricultural Sciences.
  *
- *   Jens Laas <jens.laas@data.slu.se> Swedish University of 
+ *   Jens Laas <jens.laas@data.slu.se> Swedish University of
  *     Agricultural Sciences.
- * 
+ *
  *   Hans Liss <hans.liss@its.uu.se>  Uppsala Universitet
  *
  * This work is based on the LPC-trie which is originally descibed in:
- * 
+ *
  * An experimental study of compression methods for dynamic tries
  * Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
  * http://www.nada.kth.se/~snilsson/public/papers/dyntrie2/
@@ -224,34 +224,34 @@ static inline int tkey_mismatch(t_key a, int offset, t_key b)
 }
 
 /*
-  To understand this stuff, an understanding of keys and all their bits is 
-  necessary. Every node in the trie has a key associated with it, but not 
+  To understand this stuff, an understanding of keys and all their bits is
+  necessary. Every node in the trie has a key associated with it, but not
   all of the bits in that key are significant.
 
   Consider a node 'n' and its parent 'tp'.
 
-  If n is a leaf, every bit in its key is significant. Its presence is 
-  necessitated by path compression, since during a tree traversal (when 
-  searching for a leaf - unless we are doing an insertion) we will completely 
-  ignore all skipped bits we encounter. Thus we need to verify, at the end of 
-  a potentially successful search, that we have indeed been walking the 
+  If n is a leaf, every bit in its key is significant. Its presence is
+  necessitated by path compression, since during a tree traversal (when
+  searching for a leaf - unless we are doing an insertion) we will completely
+  ignore all skipped bits we encounter. Thus we need to verify, at the end of
+  a potentially successful search, that we have indeed been walking the
   correct key path.
 
-  Note that we can never "miss" the correct key in the tree if present by 
-  following the wrong path. Path compression ensures that segments of the key 
-  that are the same for all keys with a given prefix are skipped, but the 
-  skipped part *is* identical for each node in the subtrie below the skipped 
-  bit! trie_insert() in this implementation takes care of that - note the 
+  Note that we can never "miss" the correct key in the tree if present by
+  following the wrong path. Path compression ensures that segments of the key
+  that are the same for all keys with a given prefix are skipped, but the
+  skipped part *is* identical for each node in the subtrie below the skipped
+  bit! trie_insert() in this implementation takes care of that - note the
   call to tkey_sub_equals() in trie_insert().
 
-  if n is an internal node - a 'tnode' here, the various parts of its key 
+  if n is an internal node - a 'tnode' here, the various parts of its key
   have many different meanings.
 
-  Example:  
+  Example:
   _________________________________________________________________
   | i | i | i | i | i | i | i | N | N | N | S | S | S | S | S | C |
   -----------------------------------------------------------------
-    0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15 
+    0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
 
   _________________________________________________________________
   | C | C | C | u | u | u | u | u | u | u | u | u | u | u | u | u |
@@ -263,23 +263,23 @@ static inline int tkey_mismatch(t_key a, int offset, t_key b)
   n->pos = 15
   n->bits = 4
 
-  First, let's just ignore the bits that come before the parent tp, that is 
-  the bits from 0 to (tp->pos-1). They are *known* but at this point we do 
+  First, let's just ignore the bits that come before the parent tp, that is
+  the bits from 0 to (tp->pos-1). They are *known* but at this point we do
   not use them for anything.
 
   The bits from (tp->pos) to (tp->pos + tp->bits - 1) - "N", above - are the
-  index into the parent's child array. That is, they will be used to find 
+  index into the parent's child array. That is, they will be used to find
   'n' among tp's children.
 
   The bits from (tp->pos + tp->bits) to (n->pos - 1) - "S" - are skipped bits
   for the node n.
 
-  All the bits we have seen so far are significant to the node n. The rest 
+  All the bits we have seen so far are significant to the node n. The rest
   of the bits are really not needed or indeed known in n->key.
 
-  The bits from (n->pos) to (n->pos + n->bits - 1) - "C" - are the index into 
+  The bits from (n->pos) to (n->pos + n->bits - 1) - "C" - are the index into
   n's child array, and will of course be different for each child.
-  
+
 
   The rest of the bits, from (n->pos + n->bits) onward, are completely unknown
   at this point.
@@ -294,7 +294,7 @@ static inline void check_tnode(const struct tnode *tn)
 static int halve_threshold = 25;
 static int inflate_threshold = 50;
 static int halve_threshold_root = 15;
-static int inflate_threshold_root = 25; 
+static int inflate_threshold_root = 25;
 
 
 static void __alias_free_mem(struct rcu_head *head)
@@ -355,7 +355,7 @@ static inline void tnode_free(struct tnode *tn)
 		struct leaf *l = (struct leaf *) tn;
 		call_rcu_bh(&l->rcu, __leaf_free_rcu);
 	}
-        else
+	else
 		call_rcu(&tn->rcu, __tnode_free_rcu);
 }
 
@@ -461,7 +461,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 	int inflate_threshold_use;
 	int halve_threshold_use;
 
- 	if (!tn)
+	if (!tn)
 		return NULL;
 
 	pr_debug("In tnode_resize %p inflate_threshold=%d threshold=%d\n",
@@ -556,7 +556,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 
 	if(!tn->parent)
 		inflate_threshold_use = inflate_threshold_root;
-	else 
+	else
 		inflate_threshold_use = inflate_threshold;
 
 	err = 0;
@@ -587,7 +587,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 
 	if(!tn->parent)
 		halve_threshold_use = halve_threshold_root;
-	else 
+	else
 		halve_threshold_use = halve_threshold;
 
 	err = 0;
@@ -665,10 +665,10 @@ static struct tnode *inflate(struct trie *t, struct tnode *tn)
 			right = tnode_new(inode->key|m, inode->pos + 1,
 					  inode->bits - 1);
 
-                        if (!right) {
+			if (!right) {
 				tnode_free(left);
 				goto nomem;
-                        }
+			}
 
 			put_child(t, tn, 2*i, (struct node *) left);
 			put_child(t, tn, 2*i+1, (struct node *) right);
@@ -890,23 +890,23 @@ static inline struct list_head * get_fa_head(struct leaf *l, int plen)
 
 static void insert_leaf_info(struct hlist_head *head, struct leaf_info *new)
 {
-        struct leaf_info *li = NULL, *last = NULL;
-        struct hlist_node *node;
+	struct leaf_info *li = NULL, *last = NULL;
+	struct hlist_node *node;
 
-        if (hlist_empty(head)) {
-                hlist_add_head_rcu(&new->hlist, head);
-        } else {
-                hlist_for_each_entry(li, node, head, hlist) {
-                        if (new->plen > li->plen)
-                                break;
+	if (hlist_empty(head)) {
+		hlist_add_head_rcu(&new->hlist, head);
+	} else {
+		hlist_for_each_entry(li, node, head, hlist) {
+			if (new->plen > li->plen)
+				break;
 
-                        last = li;
-                }
-                if (last)
-                        hlist_add_after_rcu(&last->hlist, &new->hlist);
-                else
-                        hlist_add_before_rcu(&new->hlist, &li->hlist);
-        }
+			last = li;
+		}
+		if (last)
+			hlist_add_after_rcu(&last->hlist, &new->hlist);
+		else
+			hlist_add_before_rcu(&new->hlist, &li->hlist);
+	}
 }
 
 /* rcu_read_lock needs to be hold by caller from readside */
@@ -1700,7 +1700,7 @@ static struct leaf *nextleaf(struct trie *t, struct leaf *thisleaf)
 			/* Decend if tnode */
 			while (IS_TNODE(c)) {
 				p = (struct tnode *) c;
-  				idx = 0;
+				idx = 0;
 
 				/* Rightmost non-NULL branch */
 				if (p && IS_TNODE(p))
@@ -2173,7 +2173,7 @@ static int fib_triestat_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, fib_triestat_seq_show, NULL);
 }
 
-static struct file_operations fib_triestat_fops = {
+static const struct file_operations fib_triestat_fops = {
 	.owner	= THIS_MODULE,
 	.open	= fib_triestat_seq_open,
 	.read	= seq_read,
@@ -2303,9 +2303,9 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 
 		seq_indent(seq, iter->depth-1);
 		seq_printf(seq, "  +-- %d.%d.%d.%d/%d %d %d %d\n",
-			   NIPQUAD(prf), tn->pos, tn->bits, tn->full_children, 
+			   NIPQUAD(prf), tn->pos, tn->bits, tn->full_children,
 			   tn->empty_children);
-		
+
 	} else {
 		struct leaf *l = (struct leaf *) n;
 		int i;
@@ -2364,7 +2364,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations fib_trie_fops = {
+static const struct file_operations fib_trie_fops = {
 	.owner  = THIS_MODULE,
 	.open   = fib_trie_seq_open,
 	.read   = seq_read,
@@ -2485,7 +2485,7 @@ out_kfree:
 	goto out;
 }
 
-static struct file_operations fib_route_fops = {
+static const struct file_operations fib_route_fops = {
 	.owner  = THIS_MODULE,
 	.open   = fib_route_seq_open,
 	.read   = seq_read,

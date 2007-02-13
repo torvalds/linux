@@ -47,7 +47,7 @@ const struct file_operations autofs4_dir_operations = {
 	.readdir	= autofs4_dir_readdir,
 };
 
-struct inode_operations autofs4_indirect_root_inode_operations = {
+const struct inode_operations autofs4_indirect_root_inode_operations = {
 	.lookup		= autofs4_lookup,
 	.unlink		= autofs4_dir_unlink,
 	.symlink	= autofs4_dir_symlink,
@@ -55,7 +55,7 @@ struct inode_operations autofs4_indirect_root_inode_operations = {
 	.rmdir		= autofs4_dir_rmdir,
 };
 
-struct inode_operations autofs4_direct_root_inode_operations = {
+const struct inode_operations autofs4_direct_root_inode_operations = {
 	.lookup		= autofs4_lookup,
 	.unlink		= autofs4_dir_unlink,
 	.mkdir		= autofs4_dir_mkdir,
@@ -63,7 +63,7 @@ struct inode_operations autofs4_direct_root_inode_operations = {
 	.follow_link	= autofs4_follow_link,
 };
 
-struct inode_operations autofs4_dir_inode_operations = {
+const struct inode_operations autofs4_dir_inode_operations = {
 	.lookup		= autofs4_lookup,
 	.unlink		= autofs4_dir_unlink,
 	.symlink	= autofs4_dir_symlink,

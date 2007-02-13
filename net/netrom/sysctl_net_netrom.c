@@ -35,7 +35,7 @@ static int min_reset[]   = {0}, max_reset[]   = {1};
 static struct ctl_table_header *nr_table_header;
 
 static ctl_table nr_table[] = {
-        {
+	{
 		.ctl_name	= NET_NETROM_DEFAULT_PATH_QUALITY,
 		.procname	= "default_path_quality",
 		.data		= &sysctl_netrom_default_path_quality,
@@ -46,18 +46,18 @@ static ctl_table nr_table[] = {
 		.extra1		= &min_quality,
 		.extra2		= &max_quality
 	},
-        {
+	{
 		.ctl_name	= NET_NETROM_OBSOLESCENCE_COUNT_INITIALISER,
 		.procname	= "obsolescence_count_initialiser",
 		.data		= &sysctl_netrom_obsolescence_count_initialiser,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
- 		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= &proc_dointvec_minmax,
 		.strategy	= &sysctl_intvec,
 		.extra1		= &min_obs,
 		.extra2		= &max_obs
 	},
-        {
+	{
 		.ctl_name	= NET_NETROM_NETWORK_TTL_INITIALISER,
 		.procname	= "network_ttl_initialiser",
 		.data		= &sysctl_netrom_network_ttl_initialiser,
@@ -68,7 +68,7 @@ static ctl_table nr_table[] = {
 		.extra1		= &min_ttl,
 		.extra2		= &max_ttl
 	},
-        {
+	{
 		.ctl_name	= NET_NETROM_TRANSPORT_TIMEOUT,
 		.procname	= "transport_timeout",
 		.data		= &sysctl_netrom_transport_timeout,
@@ -79,7 +79,7 @@ static ctl_table nr_table[] = {
 		.extra1		= &min_t1,
 		.extra2		= &max_t1
 	},
-        {
+	{
 		.ctl_name	= NET_NETROM_TRANSPORT_MAXIMUM_TRIES,
 		.procname	= "transport_maximum_tries",
 		.data		= &sysctl_netrom_transport_maximum_tries,
@@ -90,7 +90,7 @@ static ctl_table nr_table[] = {
 		.extra1		= &min_n2,
 		.extra2		= &max_n2
 	},
-        {
+	{
 		.ctl_name	= NET_NETROM_TRANSPORT_ACKNOWLEDGE_DELAY,
 		.procname	= "transport_acknowledge_delay",
 		.data		= &sysctl_netrom_transport_acknowledge_delay,
@@ -101,7 +101,7 @@ static ctl_table nr_table[] = {
 		.extra1		= &min_t2,
 		.extra2		= &max_t2
 	},
-        {
+	{
 		.ctl_name	= NET_NETROM_TRANSPORT_BUSY_DELAY,
 		.procname	= "transport_busy_delay",
 		.data		= &sysctl_netrom_transport_busy_delay,
@@ -112,7 +112,7 @@ static ctl_table nr_table[] = {
 		.extra1		= &min_t4,
 		.extra2		= &max_t4
 	},
-        {
+	{
 		.ctl_name	= NET_NETROM_TRANSPORT_REQUESTED_WINDOW_SIZE,
 		.procname	= "transport_requested_window_size",
 		.data		= &sysctl_netrom_transport_requested_window_size,
@@ -123,7 +123,7 @@ static ctl_table nr_table[] = {
 		.extra1		= &min_window,
 		.extra2		= &max_window
 	},
-        {
+	{
 		.ctl_name	= NET_NETROM_TRANSPORT_NO_ACTIVITY_TIMEOUT,
 		.procname	= "transport_no_activity_timeout",
 		.data		= &sysctl_netrom_transport_no_activity_timeout,
@@ -134,7 +134,7 @@ static ctl_table nr_table[] = {
 		.extra1		= &min_idle,
 		.extra2		= &max_idle
 	},
-        {
+	{
 		.ctl_name	= NET_NETROM_ROUTING_CONTROL,
 		.procname	= "routing_control",
 		.data		= &sysctl_netrom_routing_control,
@@ -145,7 +145,7 @@ static ctl_table nr_table[] = {
 		.extra1		= &min_route,
 		.extra2		= &max_route
 	},
-        {
+	{
 		.ctl_name	= NET_NETROM_LINK_FAILS_COUNT,
 		.procname	= "link_fails_count",
 		.data		= &sysctl_netrom_link_fails_count,
@@ -156,7 +156,7 @@ static ctl_table nr_table[] = {
 		.extra1		= &min_fails,
 		.extra2		= &max_fails
 	},
-        {
+	{
 		.ctl_name	= NET_NETROM_RESET,
 		.procname	= "reset",
 		.data		= &sysctl_netrom_reset_circuit,

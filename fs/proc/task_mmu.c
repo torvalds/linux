@@ -434,7 +434,7 @@ static int maps_open(struct inode *inode, struct file *file)
 	return do_maps_open(inode, file, &proc_pid_maps_op);
 }
 
-struct file_operations proc_maps_operations = {
+const struct file_operations proc_maps_operations = {
 	.open		= maps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -456,7 +456,7 @@ static int numa_maps_open(struct inode *inode, struct file *file)
 	return do_maps_open(inode, file, &proc_pid_numa_maps_op);
 }
 
-struct file_operations proc_numa_maps_operations = {
+const struct file_operations proc_numa_maps_operations = {
 	.open		= numa_maps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -469,7 +469,7 @@ static int smaps_open(struct inode *inode, struct file *file)
 	return do_maps_open(inode, file, &proc_pid_smaps_op);
 }
 
-struct file_operations proc_smaps_operations = {
+const struct file_operations proc_smaps_operations = {
 	.open		= smaps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

@@ -599,19 +599,9 @@ out:
 static void if_wake(unsigned long data)
 {
 	struct cardstate *cs = (struct cardstate *) data;
-	struct tty_struct *tty;
 
-	tty = cs->tty;
-	if (!tty)
-		return;
-
-	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-	    tty->ldisc.write_wakeup) {
-		gig_dbg(DEBUG_IF, "write wakeup call");
-		tty->ldisc.write_wakeup(tty);
-	}
-
-	wake_up_interruptible(&tty->write_wait);
+	if (cs->tty)
+		tty_wakeup(cs->tty);
 }
 
 /*** interface to common ***/
@@ -625,6 +615,8 @@ void gigaset_if_init(struct cardstate *cs)
 		return;
 
 	tasklet_init(&cs->if_wake_tasklet, &if_wake, (unsigned long) cs);
+
+	mutex_lock(&cs->mutex);
 	cs->tty_dev = tty_register_device(drv->tty, cs->minor_index, NULL);
 
 	if (!IS_ERR(cs->tty_dev))
@@ -633,6 +625,7 @@ void gigaset_if_init(struct cardstate *cs)
 		warn("could not register device to the tty subsystem");
 		cs->tty_dev = NULL;
 	}
+	mutex_unlock(&cs->mutex);
 }
 
 void gigaset_if_free(struct cardstate *cs)

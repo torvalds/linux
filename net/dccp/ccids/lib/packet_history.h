@@ -137,7 +137,7 @@ extern void 		dccp_rx_hist_delete(struct dccp_rx_hist *hist);
 static inline struct dccp_rx_hist_entry *
 			dccp_rx_hist_entry_new(struct dccp_rx_hist *hist,
 					       const struct sock *sk,
-				     	       const u32 ndp,
+					       const u32 ndp,
 					       const struct sk_buff *skb,
 					       const gfp_t prio)
 {
@@ -169,7 +169,7 @@ static inline struct dccp_rx_hist_entry *
 }
 
 extern int dccp_rx_hist_find_entry(const struct list_head *list, const u64 seq,
-   				   u8 *ccval);
+				   u8 *ccval);
 extern struct dccp_rx_hist_entry *
 		dccp_rx_hist_find_data_packet(const struct list_head *list);
 

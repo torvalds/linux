@@ -25,7 +25,7 @@
 
 static const char *name_prefix="dlm";
 static struct miscdevice ctl_device;
-static struct file_operations device_fops;
+static const struct file_operations device_fops;
 
 #ifdef CONFIG_COMPAT
 
@@ -759,7 +759,7 @@ static int ctl_device_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations device_fops = {
+static const struct file_operations device_fops = {
 	.open    = device_open,
 	.release = device_close,
 	.read    = device_read,
@@ -768,7 +768,7 @@ static struct file_operations device_fops = {
 	.owner   = THIS_MODULE,
 };
 
-static struct file_operations ctl_device_fops = {
+static const struct file_operations ctl_device_fops = {
 	.open    = ctl_device_open,
 	.release = ctl_device_close,
 	.write   = device_write,

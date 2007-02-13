@@ -705,7 +705,7 @@ envctrl_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations envctrl_fops = {
+static const struct file_operations envctrl_fops = {
 	.owner =		THIS_MODULE,
 	.read =			envctrl_read,
 	.unlocked_ioctl =	envctrl_ioctl,
