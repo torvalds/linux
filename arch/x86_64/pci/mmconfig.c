@@ -28,39 +28,6 @@ struct mmcfg_virt {
 };
 static struct mmcfg_virt *pci_mmcfg_virt;
 
-static inline int mcfg_broken(void)
-{
-	struct acpi_mcfg_allocation *cfg = &pci_mmcfg_config[0];
-
-	/* Handle more broken MCFG tables on Asus etc.
-	   They only contain a single entry for bus 0-0. Assume
- 	   this applies to all busses. */
-	if (pci_mmcfg_config_num == 1 &&
-	    cfg->pci_segment_group_number == 0 &&
-	    (cfg->start_bus_number | cfg->end_bus_number) == 0)
-		return 1;
-	return 0;
-}
-
-static void __iomem *mcfg_ioremap(struct acpi_mcfg_allocation *cfg)
-{
-	void __iomem *addr;
-	u32 size;
-
-	if (mcfg_broken())
-		size = 256 << 20;
-	else
-		size = (cfg->end_bus_number + 1) << 20;
-
-	addr = ioremap_nocache(cfg->base_address, size);
-	if (addr) {
-		printk(KERN_INFO "PCI: Using MMCONFIG at %x - %x\n",
-		       cfg->base_address,
-		       cfg->base_address + size - 1);
-	}
-	return addr;
-}
-
 static char __iomem *get_virt(unsigned int seg, unsigned bus)
 {
 	int cfg_num = -1;
@@ -77,9 +44,6 @@ static char __iomem *get_virt(unsigned int seg, unsigned bus)
 		    (cfg->end_bus_number >= bus))
 			return pci_mmcfg_virt[cfg_num].virt;
 	}
-
-	if (mcfg_broken())
-		return pci_mmcfg_virt[0].virt;
 
 	/* Fall back to type 0 */
 	return NULL;
@@ -159,6 +123,20 @@ static struct pci_raw_ops pci_mmcfg = {
 	.read =		pci_mmcfg_read,
 	.write =	pci_mmcfg_write,
 };
+
+static void __iomem * __init mcfg_ioremap(struct acpi_mcfg_allocation *cfg)
+{
+	void __iomem *addr;
+	u32 size;
+
+	size = (cfg->end_bus_number + 1) << 20;
+	addr = ioremap_nocache(cfg->address, size);
+	if (addr) {
+		printk(KERN_INFO "PCI: Using MMCONFIG at %Lx - %Lx\n",
+		       cfg->address, cfg->address + size - 1);
+	}
+	return addr;
+}
 
 int __init pci_mmcfg_arch_init(void)
 {

@@ -197,6 +197,26 @@ static __init void pci_mmcfg_insert_resources(void)
 	}
 }
 
+static void __init pci_mmcfg_reject_broken(void)
+{
+	typeof(pci_mmcfg_config[0]) *cfg = &pci_mmcfg_config[0];
+
+	/*
+	 * Handle more broken MCFG tables on Asus etc.
+	 * They only contain a single entry for bus 0-0.
+	 */
+	if (pci_mmcfg_config_num == 1 &&
+	    cfg->pci_segment == 0 &&
+	    (cfg->start_bus_number | cfg->end_bus_number) == 0) {
+		kfree(pci_mmcfg_config);
+		pci_mmcfg_config = NULL;
+		pci_mmcfg_config_num = 0;
+
+		printk(KERN_ERR "PCI: start and end of bus number is 0. "
+		       "Rejected as broken MCFG.");
+	}
+}
+
 void __init pci_mmcfg_init(int type)
 {
 	int known_bridge = 0;
@@ -207,8 +227,10 @@ void __init pci_mmcfg_init(int type)
 	if (type == 1 && pci_mmcfg_check_hostbridge())
 		known_bridge = 1;
 
-	if (!known_bridge)
+	if (!known_bridge) {
 		acpi_table_parse(ACPI_SIG_MCFG, acpi_parse_mcfg);
+		pci_mmcfg_reject_broken();
+	}
 
 	if ((pci_mmcfg_config_num == 0) ||
 	    (pci_mmcfg_config == NULL) ||

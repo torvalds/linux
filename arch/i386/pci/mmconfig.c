@@ -47,15 +47,6 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 			return cfg->address;
 	}
 
-	/* Handle more broken MCFG tables on Asus etc.
-	   They only contain a single entry for bus 0-0. Assume
- 	   this applies to all busses. */
-	cfg = &pci_mmcfg_config[0];
-	if (pci_mmcfg_config_num == 1 &&
-		cfg->pci_segment == 0 &&
-		(cfg->start_bus_number | cfg->end_bus_number) == 0)
-		return cfg->address;
-
 	/* Fall back to type 0 */
 	return 0;
 }
