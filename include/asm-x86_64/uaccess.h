@@ -367,4 +367,18 @@ __copy_to_user_inatomic(void __user *dst, const void *src, unsigned size)
 	return copy_user_generic((__force void *)dst, src, size);
 }
 
+#define ARCH_HAS_NOCACHE_UACCESS 1
+extern long __copy_user_nocache(void *dst, const void __user *src, unsigned size, int zerorest);
+
+static inline int __copy_from_user_nocache(void *dst, const void __user *src, unsigned size)
+{
+	might_sleep();
+	return __copy_user_nocache(dst, (__force void *)src, size, 1);
+}
+
+static inline int __copy_from_user_inatomic_nocache(void *dst, const void __user *src, unsigned size)
+{
+	return __copy_user_nocache(dst, (__force void *)src, size, 0);
+}
+
 #endif /* __X86_64_UACCESS_H */
