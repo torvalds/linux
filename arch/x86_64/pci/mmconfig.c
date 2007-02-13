@@ -28,6 +28,39 @@ struct mmcfg_virt {
 };
 static struct mmcfg_virt *pci_mmcfg_virt;
 
+static inline int mcfg_broken(void)
+{
+	struct acpi_mcfg_allocation *cfg = &pci_mmcfg_config[0];
+
+	/* Handle more broken MCFG tables on Asus etc.
+	   They only contain a single entry for bus 0-0. Assume
+ 	   this applies to all busses. */
+	if (pci_mmcfg_config_num == 1 &&
+	    cfg->pci_segment_group_number == 0 &&
+	    (cfg->start_bus_number | cfg->end_bus_number) == 0)
+		return 1;
+	return 0;
+}
+
+static void __iomem *mcfg_ioremap(struct acpi_mcfg_allocation *cfg)
+{
+	void __iomem *addr;
+	u32 size;
+
+	if (mcfg_broken())
+		size = 256 << 20;
+	else
+		size = (cfg->end_bus_number + 1) << 20;
+
+	addr = ioremap_nocache(cfg->base_address, size);
+	if (addr) {
+		printk(KERN_INFO "PCI: Using MMCONFIG at %x - %x\n",
+		       cfg->base_address,
+		       cfg->base_address + size - 1);
+	}
+	return addr;
+}
+
 static char __iomem *get_virt(unsigned int seg, unsigned bus)
 {
 	int cfg_num = -1;
@@ -45,13 +78,7 @@ static char __iomem *get_virt(unsigned int seg, unsigned bus)
 			return pci_mmcfg_virt[cfg_num].virt;
 	}
 
-	/* Handle more broken MCFG tables on Asus etc.
-	   They only contain a single entry for bus 0-0. Assume
- 	   this applies to all busses. */
-	cfg = &pci_mmcfg_config[0];
-	if (pci_mmcfg_config_num == 1 &&
-		cfg->pci_segment == 0 &&
-		(cfg->start_bus_number | cfg->end_bus_number) == 0)
+	if (mcfg_broken())
 		return pci_mmcfg_virt[0].virt;
 
 	/* Fall back to type 0 */
@@ -145,16 +172,13 @@ int __init pci_mmcfg_arch_init(void)
 
 	for (i = 0; i < pci_mmcfg_config_num; ++i) {
 		pci_mmcfg_virt[i].cfg = &pci_mmcfg_config[i];
-		pci_mmcfg_virt[i].virt = ioremap_nocache(pci_mmcfg_config[i].address,
-							 MMCONFIG_APER_MAX);
+		pci_mmcfg_virt[i].virt = mcfg_ioremap(&pci_mmcfg_config[i]);
 		if (!pci_mmcfg_virt[i].virt) {
 			printk(KERN_ERR "PCI: Cannot map mmconfig aperture for "
 					"segment %d\n",
 				pci_mmcfg_config[i].pci_segment);
 			return 0;
 		}
-		printk(KERN_INFO "PCI: Using MMCONFIG at %Lx\n",
-				pci_mmcfg_config[i].address);
 	}
 	raw_pci_ops = &pci_mmcfg;
 	return 1;
