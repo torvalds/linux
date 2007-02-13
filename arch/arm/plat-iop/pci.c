@@ -196,8 +196,8 @@ int iop3xx_pci_setup(int nr, struct pci_sys_data *sys)
 	if (!res)
 		panic("PCI: unable to alloc resources");
 
-	res[0].start = IOP3XX_PCI_LOWER_IO_VA;
-	res[0].end   = IOP3XX_PCI_LOWER_IO_VA + IOP3XX_PCI_IO_WINDOW_SIZE - 1;
+	res[0].start = IOP3XX_PCI_LOWER_IO_PA;
+	res[0].end   = IOP3XX_PCI_LOWER_IO_PA + IOP3XX_PCI_IO_WINDOW_SIZE - 1;
 	res[0].name  = "IOP3XX PCI I/O Space";
 	res[0].flags = IORESOURCE_IO;
 	request_resource(&ioport_resource, &res[0]);
@@ -209,7 +209,7 @@ int iop3xx_pci_setup(int nr, struct pci_sys_data *sys)
 	request_resource(&iomem_resource, &res[1]);
 
 	sys->mem_offset = IOP3XX_PCI_LOWER_MEM_PA - IOP3XX_PCI_LOWER_MEM_BA;
-	sys->io_offset  = IOP3XX_PCI_LOWER_IO_VA - IOP3XX_PCI_LOWER_IO_BA;
+	sys->io_offset  = IOP3XX_PCI_LOWER_IO_PA - IOP3XX_PCI_LOWER_IO_BA;
 
 	sys->resource[0] = &res[0];
 	sys->resource[1] = &res[1];
