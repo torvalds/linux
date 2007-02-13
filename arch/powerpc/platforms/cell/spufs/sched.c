@@ -49,7 +49,8 @@
 #define SPU_BITMAP_SIZE (((MAX_PRIO+BITS_PER_LONG)/BITS_PER_LONG)+1)
 struct spu_prio_array {
 	unsigned long bitmap[SPU_BITMAP_SIZE];
-	wait_queue_head_t waitq[MAX_PRIO];
+	struct list_head runq[MAX_PRIO];
+	spinlock_t runq_lock;
 	struct list_head active_list[MAX_NUMNODES];
 	struct mutex active_mutex[MAX_NUMNODES];
 };
@@ -196,61 +197,91 @@ static int spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	return was_active;
 }
 
-static inline void spu_add_wq(wait_queue_head_t * wq, wait_queue_t * wait,
-			      int prio)
+/**
+ * spu_add_to_rq - add a context to the runqueue
+ * @ctx:       context to add
+ */
+static void spu_add_to_rq(struct spu_context *ctx)
 {
-	prepare_to_wait_exclusive(wq, wait, TASK_INTERRUPTIBLE);
-	set_bit(prio, spu_prio->bitmap);
+	spin_lock(&spu_prio->runq_lock);
+	list_add_tail(&ctx->rq, &spu_prio->runq[ctx->prio]);
+	set_bit(ctx->prio, spu_prio->bitmap);
+	spin_unlock(&spu_prio->runq_lock);
 }
 
-static inline void spu_del_wq(wait_queue_head_t * wq, wait_queue_t * wait,
-			      int prio)
+/**
+ * spu_del_from_rq - remove a context from the runqueue
+ * @ctx:       context to remove
+ */
+static void spu_del_from_rq(struct spu_context *ctx)
 {
-	u64 flags;
-
-	__set_current_state(TASK_RUNNING);
-
-	spin_lock_irqsave(&wq->lock, flags);
-
-	remove_wait_queue_locked(wq, wait);
-	if (list_empty(&wq->task_list))
-		clear_bit(prio, spu_prio->bitmap);
-
-	spin_unlock_irqrestore(&wq->lock, flags);
+	spin_lock(&spu_prio->runq_lock);
+	list_del_init(&ctx->rq);
+	if (list_empty(&spu_prio->runq[ctx->prio]))
+		clear_bit(ctx->prio, spu_prio->bitmap);
+	spin_unlock(&spu_prio->runq_lock);
 }
 
-static void spu_prio_wait(struct spu_context *ctx, u64 flags)
+/**
+ * spu_grab_context - remove one context from the runqueue
+ * @prio:      priority of the context to be removed
+ *
+ * This function removes one context from the runqueue for priority @prio.
+ * If there is more than one context with the given priority the first
+ * task on the runqueue will be taken.
+ *
+ * Returns the spu_context it just removed.
+ *
+ * Must be called with spu_prio->runq_lock held.
+ */
+static struct spu_context *spu_grab_context(int prio)
 {
-	int prio = ctx->prio;
-	wait_queue_head_t *wq = &spu_prio->waitq[prio];
+	struct list_head *rq = &spu_prio->runq[prio];
+
+	if (list_empty(rq))
+		return NULL;
+	return list_entry(rq->next, struct spu_context, rq);
+}
+
+static void spu_prio_wait(struct spu_context *ctx)
+{
 	DEFINE_WAIT(wait);
 
-	if (ctx->spu)
-		return;
-
-	spu_add_wq(wq, &wait, prio);
+	prepare_to_wait_exclusive(&ctx->stop_wq, &wait, TASK_INTERRUPTIBLE);
 
 	if (!signal_pending(current)) {
 		mutex_unlock(&ctx->state_mutex);
-		pr_debug("%s: pid=%d prio=%d\n", __FUNCTION__,
-			 current->pid, current->prio);
 		schedule();
 		mutex_lock(&ctx->state_mutex);
 	}
-
-	spu_del_wq(wq, &wait, prio);
+	__set_current_state(TASK_RUNNING);
+	remove_wait_queue(&ctx->stop_wq, &wait);
 }
 
-static void spu_prio_wakeup(void)
+/**
+ * spu_reschedule - try to find a runnable context for a spu
+ * @spu:       spu available
+ *
+ * This function is called whenever a spu becomes idle.  It looks for the
+ * most suitable runnable spu context and schedules it for execution.
+ */
+static void spu_reschedule(struct spu *spu)
 {
-	int best = sched_find_first_bit(spu_prio->bitmap);
+	int best;
+
+	spu_free(spu);
+
+	spin_lock(&spu_prio->runq_lock);
+	best = sched_find_first_bit(spu_prio->bitmap);
 	if (best < MAX_PRIO) {
-		wait_queue_head_t *wq = &spu_prio->waitq[best];
-		wake_up_interruptible_nr(wq, 1);
+		struct spu_context *ctx = spu_grab_context(best);
+		if (ctx)
+			wake_up(&ctx->stop_wq);
 	}
+	spin_unlock(&spu_prio->runq_lock);
 }
 
-static struct spu *spu_get_idle(struct spu_context *ctx, u64 flags)
+static struct spu *spu_get_idle(struct spu_context *ctx)
 {
 	struct spu *spu = NULL;
 	int node = cpu_to_node(raw_smp_processor_id());
@@ -267,15 +298,6 @@ static struct spu *spu_get_idle(struct spu_context *ctx, u64 flags)
 	return spu;
 }
 
-static inline struct spu *spu_get(struct spu_context *ctx, u64 flags)
-{
-	/* Future: spu_get_idle() if possible,
-	 * otherwise try to preempt an active
-	 * context.
-	 */
-	return spu_get_idle(ctx, flags);
-}
-
 /* The three externally callable interfaces
  * for the scheduler begin here.
  *
@@ -284,32 +306,36 @@ static inline struct spu *spu_get(struct spu_context *ctx, u64 flags)
  *	spu_yield	- yield an SPU if others are waiting.
  */
 
+/**
+ * spu_activate - find a free spu for a context and execute it
+ * @ctx:	spu context to schedule
+ * @flags:	flags (currently ignored)
+ *
+ * Tries to find a free spu to run @ctx.  If no free spu is availble
+ * add the context to the runqueue so it gets woken up once an spu
+ * is available.
+ */
 int spu_activate(struct spu_context *ctx, u64 flags)
 {
-	struct spu *spu;
-	int ret = 0;
 
-	for (;;) {
-		if (ctx->spu)
-			return 0;
-		spu = spu_get(ctx, flags);
-		if (spu != NULL) {
-			if (ctx->spu != NULL) {
-				spu_free(spu);
-				spu_prio_wakeup();
-				break;
-			}
+	if (ctx->spu)
+		return 0;
+
+	do {
+		struct spu *spu;
+
+		spu = spu_get_idle(ctx);
+		if (spu) {
 			spu_bind_context(spu, ctx);
-			break;
+			return 0;
 		}
-		spu_prio_wait(ctx, flags);
-		if (signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			spu_prio_wakeup();
-			break;
-		}
-	}
-	return ret;
+
+		spu_add_to_rq(ctx);
+		spu_prio_wait(ctx);
+		spu_del_from_rq(ctx);
+	} while (!signal_pending(current));
+
+	return -ERESTARTSYS;
 }
 
 void spu_deactivate(struct spu_context *ctx)
@@ -321,10 +347,8 @@ void spu_deactivate(struct spu_context *ctx)
 	if (!spu)
 		return;
 	was_active = spu_unbind_context(spu, ctx);
-	if (was_active) {
-		spu_free(spu);
-		spu_prio_wakeup();
-	}
+	if (was_active)
+		spu_reschedule(spu);
 }
 
 void spu_yield(struct spu_context *ctx)
@@ -359,7 +383,7 @@ int __init spu_sched_init(void)
 		return 1;
 	}
 	for (i = 0; i < MAX_PRIO; i++) {
-		init_waitqueue_head(&spu_prio->waitq[i]);
+		INIT_LIST_HEAD(&spu_prio->runq[i]);
 		__clear_bit(i, spu_prio->bitmap);
 	}
 	__set_bit(MAX_PRIO, spu_prio->bitmap);
@@ -367,6 +391,7 @@ int __init spu_sched_init(void)
 		mutex_init(&spu_prio->active_mutex[i]);
 		INIT_LIST_HEAD(&spu_prio->active_list[i]);
 	}
+	spin_lock_init(&spu_prio->runq_lock);
 	return 0;
 }
 

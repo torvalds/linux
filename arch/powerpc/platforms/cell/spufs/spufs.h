@@ -76,6 +76,7 @@ struct spu_context {
 	struct spu_gang *gang;
 
 	/* scheduler fields */
+ 	struct list_head rq;
 	int prio;
 };
 
