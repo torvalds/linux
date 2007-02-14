@@ -1451,6 +1451,12 @@ static int selinux_sysctl_get_sid(ctl_table *table, u16 tclass, u32 *sid)
 		path = end;
 		table = table->parent;
 	}
+	buflen -= 4;
+	if (buflen < 0)
+		goto out_free;
+	end -= 4;
+	memcpy(end, "/sys", 4);
+	path = end;
 	rc = security_genfs_sid("proc", path, tclass, sid);
 out_free:
 	free_page((unsigned long)buffer);
