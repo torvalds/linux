@@ -457,6 +457,10 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 		      "Dell Latitude 120L", STAC_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cc,
 		      "Dell Latitude D820", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cd,
+		      "Dell Inspiron E1705/9400", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ce,
+		      "Dell XPS M1710", STAC_REF),
 	{} /* terminator */
 };
 
@@ -1800,6 +1804,7 @@ static int patch_stac925x(struct hda_codec *codec)
 	spec->board_config = snd_hda_check_board_config(codec, STAC_925x_MODELS,
 							stac925x_models,
 							stac925x_cfg_tbl);
+ again:
 	if (spec->board_config < 0) {
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC925x, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
@@ -1825,6 +1830,15 @@ static int patch_stac925x(struct hda_codec *codec)
 	spec->mixer = stac925x_mixer;
 
 	err = stac92xx_parse_auto_config(codec, 0x8, 0x7);
+	if (!err) {
+		if (spec->board_config < 0) {
+			printk(KERN_WARNING "hda_codec: No auto-config is "
+			       "available, default to model=ref\n");
+			spec->board_config = STAC_925x_REF;
+			goto again;
+		}
+		err = -EINVAL;
+	}
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -1850,6 +1864,7 @@ static int patch_stac922x(struct hda_codec *codec)
 	spec->board_config = snd_hda_check_board_config(codec, STAC_922X_MODELS,
 							stac922x_models,
 							stac922x_cfg_tbl);
+ again:
 	if (spec->board_config < 0) {
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC922x, "
 			"using BIOS defaults\n");
@@ -1875,6 +1890,15 @@ static int patch_stac922x(struct hda_codec *codec)
 	spec->multiout.dac_nids = spec->dac_nids;
 	
 	err = stac92xx_parse_auto_config(codec, 0x08, 0x09);
+	if (!err) {
+		if (spec->board_config < 0) {
+			printk(KERN_WARNING "hda_codec: No auto-config is "
+			       "available, default to model=ref\n");
+			spec->board_config = STAC_D945_REF;
+			goto again;
+		}
+		err = -EINVAL;
+	}
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -1903,6 +1927,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->board_config = snd_hda_check_board_config(codec, STAC_927X_MODELS,
 							stac927x_models,
 							stac927x_cfg_tbl);
+ again:
 	if (spec->board_config < 0) {
                 snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC927x, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
@@ -1945,6 +1970,15 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->multiout.dac_nids = spec->dac_nids;
 
 	err = stac92xx_parse_auto_config(codec, 0x1e, 0x20);
+	if (!err) {
+		if (spec->board_config < 0) {
+			printk(KERN_WARNING "hda_codec: No auto-config is "
+			       "available, default to model=ref\n");
+			spec->board_config = STAC_D965_REF;
+			goto again;
+		}
+		err = -EINVAL;
+	}
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -1970,6 +2004,7 @@ static int patch_stac9205(struct hda_codec *codec)
 	spec->board_config = snd_hda_check_board_config(codec, STAC_9205_MODELS,
 							stac9205_models,
 							stac9205_cfg_tbl);
+ again:
 	if (spec->board_config < 0) {
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC9205, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
@@ -2008,6 +2043,15 @@ static int patch_stac9205(struct hda_codec *codec)
 			    AC_VERB_SET_GPIO_MASK, 0x00000001);
 
 	err = stac92xx_parse_auto_config(codec, 0x1f, 0x20);
+	if (!err) {
+		if (spec->board_config < 0) {
+			printk(KERN_WARNING "hda_codec: No auto-config is "
+			       "available, default to model=ref\n");
+			spec->board_config = STAC_9205_REF;
+			goto again;
+		}
+		err = -EINVAL;
+	}
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;

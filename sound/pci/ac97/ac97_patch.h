@@ -39,6 +39,7 @@ int patch_sigmatel_stac9758(struct snd_ac97 * ac97);
 int patch_cirrus_cs4299(struct snd_ac97 * ac97);
 int patch_cirrus_spdif(struct snd_ac97 * ac97);
 int patch_conexant(struct snd_ac97 * ac97);
+int patch_cx20551(struct snd_ac97 * ac97);
 int patch_ad1819(struct snd_ac97 * ac97);
 int patch_ad1881(struct snd_ac97 * ac97);
 int patch_ad1885(struct snd_ac97 * ac97);

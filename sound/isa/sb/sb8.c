@@ -83,7 +83,7 @@ static void snd_sb8_free(struct snd_card *card)
 	release_and_free_resource(acard->fm_res);
 }
 
-static int __init snd_sb8_probe(struct platform_device *pdev)
+static int __devinit snd_sb8_probe(struct platform_device *pdev)
 {
 	int dev = pdev->id;
 	struct snd_sb *chip;
@@ -193,7 +193,7 @@ static int __init snd_sb8_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int snd_sb8_remove(struct platform_device *pdev)
+static int __devexit snd_sb8_remove(struct platform_device *pdev)
 {
 	snd_card_free(platform_get_drvdata(pdev));
 	platform_set_drvdata(pdev, NULL);
@@ -230,7 +230,7 @@ static int snd_sb8_resume(struct platform_device *dev)
 
 static struct platform_driver snd_sb8_driver = {
 	.probe		= snd_sb8_probe,
-	.remove		= snd_sb8_remove,
+	.remove		= __devexit_p(snd_sb8_remove),
 #ifdef CONFIG_PM
 	.suspend	= snd_sb8_suspend,
 	.resume		= snd_sb8_resume,

@@ -65,7 +65,7 @@ MODULE_PARM_DESC(thinkpad, "Enable only for the onboard CS4248 of IBM Thinkpad 3
 static struct platform_device *devices[SNDRV_CARDS];
 
 
-static int __init snd_ad1848_probe(struct platform_device *pdev)
+static int __devinit snd_ad1848_probe(struct platform_device *pdev)
 {
 	int dev = pdev->id;
 	struct snd_card *card;

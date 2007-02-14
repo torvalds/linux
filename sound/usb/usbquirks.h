@@ -948,6 +948,29 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 },
 	/* TODO: add Edirol M-100FX support */
 {
+	/* has ID 0x004e when not in "Advanced Driver" mode */
+	USB_DEVICE(0x0582, 0x004c),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "EDIROL",
+		.product_name = "PCR-A",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+{
 	/* has ID 0x004f when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x004d),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {

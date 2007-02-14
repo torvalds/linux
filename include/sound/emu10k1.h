@@ -628,7 +628,7 @@
 #define FXWC_SPDIFLEFT          (1<<22)		/* 0x00400000 */
 #define FXWC_SPDIFRIGHT         (1<<23)		/* 0x00800000 */
 
-#define A_TBLSZ	`		0x43	/* Effects Tank Internal Table Size. Only low byte or register used */
+#define A_TBLSZ			0x43	/* Effects Tank Internal Table Size. Only low byte or register used */
 
 #define TCBS			0x44		/* Tank cache buffer size register			*/
 #define TCBS_MASK		0x00000007	/* Tank cache buffer size field				*/

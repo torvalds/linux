@@ -325,16 +325,6 @@ static int prepare_capture_urb(struct snd_usb_substream *subs,
 	}
 	urb->transfer_buffer_length = offs;
 	urb->number_of_packets = ctx->packets;
-#if 0 // for check
-	if (! urb->bandwidth) {
-		int bustime;
-		bustime = usb_check_bandwidth(urb->dev, urb);
-		if (bustime < 0)
-			return bustime;
-		printk("urb %d: bandwidth = %d (packets = %d)\n", ctx->index, bustime, urb->number_of_packets);
-		usb_claim_bandwidth(urb->dev, urb, bustime, 1);
-	}
-#endif // for check
 	return 0;
 }
 
