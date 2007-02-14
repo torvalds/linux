@@ -332,7 +332,6 @@ struct lm85_autofan {
 struct lm85_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct mutex lock;
 	enum chips type;
 
 	struct mutex update_lock;
