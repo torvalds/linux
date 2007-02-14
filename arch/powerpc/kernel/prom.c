@@ -1599,6 +1599,7 @@ struct property *of_find_property(const struct device_node *np,
 
 	return pp;
 }
+EXPORT_SYMBOL(of_find_property);
 
 /*
  * Find a property with a given name for a given node
