@@ -47,6 +47,7 @@ static struct inode *proc_sys_make_inode(struct inode *dir, struct ctl_table *ta
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	inode->i_op = &proc_sys_inode_operations;
 	inode->i_fop = &proc_sys_file_operations;
+	inode->i_flags |= S_PRIVATE; /* tell selinux to ignore this inode */
 	proc_sys_refresh_inode(inode, table);
 out:
 	return inode;
