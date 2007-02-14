@@ -13,7 +13,6 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/crc32.h>
 #include <linux/jffs2.h>

@@ -19,7 +19,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/smp_lock.h>
 #include <linux/delay.h>

@@ -1,7 +1,6 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/blkdev.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 
 #include <asm/page.h>

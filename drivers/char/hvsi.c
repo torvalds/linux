@@ -39,7 +39,6 @@
 #include <linux/module.h>
 #include <linux/major.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/sysrq.h>
 #include <linux/tty.h>

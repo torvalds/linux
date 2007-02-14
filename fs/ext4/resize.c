@@ -11,7 +11,6 @@
 
 #define EXT4FS_DEBUG
 
-#include <linux/sched.h>
 #include <linux/smp_lock.h>
 #include <linux/ext4_jbd2.h>
 

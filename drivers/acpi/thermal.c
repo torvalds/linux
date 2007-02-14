@@ -36,7 +36,8 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
-#include <linux/sched.h>
+#include <linux/timer.h>
+#include <linux/jiffies.h>
 #include <linux/kmod.h>
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>

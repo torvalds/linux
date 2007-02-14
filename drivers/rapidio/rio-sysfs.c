@@ -14,7 +14,6 @@
 #include <linux/rio.h>
 #include <linux/rio_drv.h>
 #include <linux/stat.h>
-#include <linux/sched.h>	/* for capable() */
 
 #include "rio.h"
 

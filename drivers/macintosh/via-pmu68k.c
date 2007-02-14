@@ -22,7 +22,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
 #include <linux/miscdevice.h>
 #include <linux/blkdev.h>
 #include <linux/pci.h>

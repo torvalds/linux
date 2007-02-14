@@ -31,7 +31,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>

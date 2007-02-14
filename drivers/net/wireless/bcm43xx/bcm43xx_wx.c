@@ -33,7 +33,6 @@
 #include <net/ieee80211softmac.h>
 #include <net/ieee80211softmac_wx.h>
 #include <linux/capability.h>
-#include <linux/sched.h> /* for capable() */
 #include <linux/delay.h>
 
 #include "bcm43xx.h"

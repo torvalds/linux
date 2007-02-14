@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <linux/ioport.h>

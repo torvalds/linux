@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include <linux/sched.h>
 #include <linux/kernel.h> /* printk() */
 #include <linux/delay.h>
 #include <linux/slab.h>

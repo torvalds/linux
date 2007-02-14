@@ -16,7 +16,6 @@
  */
 
 /* used for print_string */
-#include <linux/sched.h>
 #include <linux/tty.h>
 
 #include <linux/kmod.h>

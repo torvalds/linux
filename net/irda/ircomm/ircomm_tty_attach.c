@@ -29,7 +29,6 @@
  *
  ********************************************************************/
 
-#include <linux/sched.h>
 #include <linux/init.h>
 
 #include <net/irda/irda.h>

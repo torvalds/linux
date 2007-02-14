@@ -7,7 +7,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
 #include "flask.h"
 #include "security.h"
 #include "sidtab.h"

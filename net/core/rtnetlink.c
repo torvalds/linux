@@ -21,7 +21,6 @@
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/sockios.h>

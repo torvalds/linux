@@ -20,7 +20,6 @@
 
 #include <linux/module.h>
 #include <linux/signal.h>
-#include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>

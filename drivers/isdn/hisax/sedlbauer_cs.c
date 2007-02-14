@@ -38,7 +38,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/string.h>

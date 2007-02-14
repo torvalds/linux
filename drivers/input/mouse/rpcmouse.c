@@ -18,7 +18,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>

@@ -1437,7 +1437,6 @@ static void lane2_associate_ind(struct net_device *dev, u8 *mac_addr,
  */
 
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <asm/param.h>
 #include <asm/atomic.h>

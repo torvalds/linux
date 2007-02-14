@@ -9,7 +9,6 @@
  * ... and again Southern-Winter 2001 to support export_operations
  */
 
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/fs.h>

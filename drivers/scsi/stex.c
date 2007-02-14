@@ -17,7 +17,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/pci.h>
 #include <linux/blkdev.h>

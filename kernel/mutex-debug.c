@@ -13,7 +13,6 @@
  *  Released under the General Public License (GPL).
  */
 #include <linux/mutex.h>
-#include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/poison.h>

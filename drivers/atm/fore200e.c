@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/capability.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <linux/pci.h>

@@ -64,7 +64,6 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
-#include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>

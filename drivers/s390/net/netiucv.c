@@ -41,7 +41,6 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
-#include <linux/sched.h>
 #include <linux/bitops.h>
 
 #include <linux/signal.h>

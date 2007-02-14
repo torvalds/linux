@@ -32,7 +32,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/smp_lock.h>
 #include <linux/fs.h>

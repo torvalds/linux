@@ -19,7 +19,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
 #include <linux/adb.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>

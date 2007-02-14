@@ -50,7 +50,6 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/nfsd_idmap.h>
 #include <linux/list.h>
-#include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/seq_file.h>
 #include <linux/sunrpc/svcauth.h>

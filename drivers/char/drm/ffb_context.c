@@ -7,7 +7,6 @@
  * for authors.
  */
 
-#include <linux/sched.h>
 #include <asm/upa.h>
 
 #include "ffb.h"

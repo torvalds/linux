@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/socket.h>
-#include <linux/sched.h>
 #include <linux/netdevice.h>
 #include <linux/proc_fs.h>
 #ifdef CONFIG_SYSCTL

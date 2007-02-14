@@ -41,7 +41,6 @@
 
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>

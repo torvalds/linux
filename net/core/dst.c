@@ -12,7 +12,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/string.h>
 #include <linux/types.h>

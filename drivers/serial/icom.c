@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>

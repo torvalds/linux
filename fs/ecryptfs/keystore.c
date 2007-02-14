@@ -26,7 +26,6 @@
  */
 
 #include <linux/string.h>
-#include <linux/sched.h>
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
 #include <linux/key.h>

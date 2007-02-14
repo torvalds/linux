@@ -38,7 +38,6 @@
 #include <linux/stat.h>
 #include <linux/mm.h>
 #include <linux/blkdev.h>
-#include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/dma-mapping.h>
 

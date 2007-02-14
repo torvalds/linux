@@ -23,7 +23,6 @@
 #include <linux/fs.h>
 #include <linux/sysfs.h>
 #include <linux/cpu.h>
-#include <linux/sched.h>
 #include <linux/kmod.h>
 #include <linux/workqueue.h>
 #include <linux/jiffies.h>

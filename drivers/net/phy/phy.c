@@ -16,7 +16,6 @@
  *
  */
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>

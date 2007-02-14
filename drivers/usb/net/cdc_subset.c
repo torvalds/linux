@@ -19,7 +19,6 @@
 
 #include <linux/module.h>
 #include <linux/kmod.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>

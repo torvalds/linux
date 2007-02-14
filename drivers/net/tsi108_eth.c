@@ -38,7 +38,6 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/crc32.h>

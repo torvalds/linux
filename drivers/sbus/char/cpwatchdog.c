@@ -20,7 +20,6 @@
 #include <linux/major.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/timer.h>

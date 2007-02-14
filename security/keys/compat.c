@@ -9,7 +9,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/sched.h>
 #include <linux/syscalls.h>
 #include <linux/keyctl.h>
 #include <linux/compat.h>

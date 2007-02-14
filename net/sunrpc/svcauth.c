@@ -10,7 +10,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>

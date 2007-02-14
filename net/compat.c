@@ -13,7 +13,6 @@
 
 #include <linux/kernel.h>
 #include <linux/fs.h>
-#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/file.h>
 #include <linux/icmpv6.h>

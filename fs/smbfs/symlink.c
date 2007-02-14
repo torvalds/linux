@@ -6,7 +6,6 @@
  *  Please add a note about your changes to smbfs in the ChangeLog file.
  */
 
-#include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/fcntl.h>

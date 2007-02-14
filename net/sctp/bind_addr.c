@@ -43,7 +43,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/in.h>
 #include <net/sock.h>
 #include <net/ipv6.h>

@@ -12,7 +12,6 @@
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/sched.h>	/* for 'current' */
 #include <asm/uaccess.h>
 
 /*

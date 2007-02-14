@@ -34,7 +34,6 @@
 #include <asm/uaccess.h>
 #include <linux/ioport.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include "usbvision.h"

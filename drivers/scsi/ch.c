@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/major.h>
 #include <linux/string.h>

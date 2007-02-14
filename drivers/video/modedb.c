@@ -13,7 +13,6 @@
 
 #include <linux/module.h>
 #include <linux/fb.h>
-#include <linux/sched.h>
 
 #undef DEBUG
 

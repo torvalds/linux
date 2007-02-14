@@ -27,7 +27,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>

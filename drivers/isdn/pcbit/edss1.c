@@ -15,7 +15,6 @@
  *              move state/event descriptions to a user space logger
  */
 
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 

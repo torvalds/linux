@@ -14,7 +14,6 @@
 #include <linux/module.h>	/* For EXPORT_SYMBOL */
 
 #include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>

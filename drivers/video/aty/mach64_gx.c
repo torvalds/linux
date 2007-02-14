@@ -5,7 +5,6 @@
 
 #include <linux/delay.h>
 #include <linux/fb.h>
-#include <linux/sched.h>
 
 #include <asm/io.h>
 

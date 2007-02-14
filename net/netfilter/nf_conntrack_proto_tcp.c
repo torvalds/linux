@@ -25,7 +25,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/netfilter.h>
 #include <linux/module.h>

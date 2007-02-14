@@ -16,7 +16,6 @@
 
 #include <linux/unistd.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 #include <linux/stat.h>
 #include <linux/in.h>
 #include <linux/seq_file.h>

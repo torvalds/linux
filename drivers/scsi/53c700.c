@@ -121,7 +121,6 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/blkdev.h>

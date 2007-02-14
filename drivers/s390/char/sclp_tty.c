@@ -13,7 +13,6 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
-#include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/err.h>

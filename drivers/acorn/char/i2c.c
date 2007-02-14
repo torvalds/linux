@@ -14,7 +14,6 @@
  */
 #include <linux/capability.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/miscdevice.h>
 #include <linux/rtc.h>

@@ -12,7 +12,6 @@
 #include <linux/utsname.h>
 #include <linux/utsrelease.h>
 #include <linux/version.h>
-#include <linux/sched.h>
 
 #define version(a) Version_ ## a
 #define version_string(a) version(a)

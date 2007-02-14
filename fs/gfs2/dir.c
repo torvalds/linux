@@ -53,7 +53,6 @@
  * but never before the maximum hash table size has been reached.
  */
 
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/buffer_head.h>

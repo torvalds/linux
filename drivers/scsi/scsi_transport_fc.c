@@ -26,7 +26,6 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>	/* workqueue stuff, HZ */
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>

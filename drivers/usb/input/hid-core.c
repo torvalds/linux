@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/smp_lock.h>

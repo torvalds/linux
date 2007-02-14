@@ -18,7 +18,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/capability.h>
-#include <linux/sched.h>
 #include <linux/pagemap.h>
 #include <linux/errno.h>
 #include <linux/socket.h>
