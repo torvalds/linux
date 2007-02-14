@@ -207,11 +207,21 @@
 #define REALVIEW_GIC_CPU_BASE         0x10040000	/* Generic interrupt controller CPU interface */
 #define REALVIEW_GIC_DIST_BASE        0x10041000	/* Generic interrupt controller distributor */
 #else
+#ifdef CONFIG_REALVIEW_MPCORE_REVB
 #define REALVIEW_MPCORE_SCU_BASE	0x10100000	/*  SCU registers */
 #define REALVIEW_GIC_CPU_BASE		0x10100100	/* Generic interrupt controller CPU interface */
 #define REALVIEW_TWD_BASE		0x10100700
 #define REALVIEW_TWD_SIZE		0x00000100
 #define REALVIEW_GIC_DIST_BASE		0x10101000	/* Generic interrupt controller distributor */
+#define REALVIEW_MPCORE_SYS_PLD_CTRL1 0xD8		/*  Register offset for MPCore sysctl */
+#else
+#define REALVIEW_MPCORE_SCU_BASE      0x1F000000	/*  SCU registers */
+#define REALVIEW_GIC_CPU_BASE         0x1F000100	/* Generic interrupt controller CPU interface */
+#define REALVIEW_TWD_BASE             0x1F000700
+#define REALVIEW_TWD_SIZE             0x00000100
+#define REALVIEW_GIC_DIST_BASE        0x1F001000	/* Generic interrupt controller distributor */
+#define REALVIEW_MPCORE_SYS_PLD_CTRL1 0x74		/*  Register offset for MPCore sysctl */
+#endif
 #define REALVIEW_GIC1_CPU_BASE        0x10040000	/* Generic interrupt controller CPU interface */
 #define REALVIEW_GIC1_DIST_BASE       0x10041000	/* Generic interrupt controller distributor */
 #endif

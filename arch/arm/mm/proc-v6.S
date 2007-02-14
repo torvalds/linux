@@ -14,9 +14,12 @@
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 #include <asm/elf.h>
-#include <asm/hardware/arm_scu.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
+
+#ifdef CONFIG_SMP
+#include <asm/hardware/arm_scu.h>
+#endif
 
 #include "proc-macros.S"
 
@@ -183,8 +186,7 @@ __v6_setup:
 	/* Set up the SCU on core 0 only */
 	mrc	p15, 0, r0, c0, c0, 5		@ CPU core number
 	ands	r0, r0, #15
-	moveq	r0, #0x10000000 @ SCU_BASE
-	orreq	r0, r0, #0x00100000
+	ldreq	r0, =SCU_BASE
 	ldreq	r5, [r0, #SCU_CTRL]
 	orreq	r5, r5, #1
 	streq	r5, [r0, #SCU_CTRL]

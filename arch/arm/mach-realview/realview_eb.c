@@ -152,9 +152,9 @@ static void __init gic_init_irq(void)
 #ifdef CONFIG_REALVIEW_MPCORE
 	unsigned int pldctrl;
 	writel(0x0000a05f, __io_address(REALVIEW_SYS_LOCK));
-	pldctrl = readl(__io_address(REALVIEW_SYS_BASE)	+ 0xd8);
+	pldctrl = readl(__io_address(REALVIEW_SYS_BASE)	+ REALVIEW_MPCORE_SYS_PLD_CTRL1);
 	pldctrl |= 0x00800000;	/* New irq mode */
-	writel(pldctrl, __io_address(REALVIEW_SYS_BASE) + 0xd8);
+	writel(pldctrl, __io_address(REALVIEW_SYS_BASE) + REALVIEW_MPCORE_SYS_PLD_CTRL1);
 	writel(0x00000000, __io_address(REALVIEW_SYS_LOCK));
 #endif
 	gic_dist_init(0, __io_address(REALVIEW_GIC_DIST_BASE), 29);
