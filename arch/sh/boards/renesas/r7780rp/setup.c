@@ -2,7 +2,7 @@
  * arch/sh/boards/renesas/r7780rp/setup.c
  *
  * Copyright (C) 2002 Atom Create Engineering Co., Ltd.
- * Copyright (C) 2005, 2006 Paul Mundt
+ * Copyright (C) 2005 - 2007 Paul Mundt
  *
  * Renesas Solutions Highlander R7780RP-1 Support.
  *
@@ -12,6 +12,7 @@
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/pata_platform.h>
 #include <asm/machvec.h>
 #include <asm/r7780rp.h>
 #include <asm/clock.h>
@@ -45,14 +46,14 @@ static struct platform_device m66596_usb_host_device = {
 
 static struct resource cf_ide_resources[] = {
 	[0] = {
-		.start	= 0x1f0,
-		.end	= 0x1f0 + 8,
-		.flags	= IORESOURCE_IO,
+		.start	= PA_AREA5_IO + 0x1000,
+		.end	= PA_AREA5_IO + 0x1000 + 0x08 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 0x1f0 + 0x206,
-		.end	= 0x1f0 + 8 + 0x206 + 8,
-		.flags	= IORESOURCE_IO,
+		.start	= PA_AREA5_IO + 0x80c,
+		.end	= PA_AREA5_IO + 0x80c + 0x16 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {
 #ifdef CONFIG_SH_R7780MP
@@ -64,11 +65,18 @@ static struct resource cf_ide_resources[] = {
 	},
 };
 
+static struct pata_platform_info pata_info = {
+	.ioport_shift	= 1,
+};
+
 static struct platform_device cf_ide_device  = {
 	.name		= "pata_platform",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(cf_ide_resources),
 	.resource	= cf_ide_resources,
+	.dev	= {
+		.platform_data	= &pata_info,
+	},
 };
 
 static unsigned char heartbeat_bit_pos[] = { 2, 1, 0, 3, 6, 5, 4, 7 };
