@@ -35,7 +35,6 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
 
 		PowerPC,603e { /* Really 8241 */
 			linux,phandle = <2100>;
-			linux,boot-cpu;
 			device_type = "cpu";
 			reg = <0>;
 			clock-frequency = <bebc200>;	/* Fixed by bootwrapper */

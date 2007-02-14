@@ -497,7 +497,7 @@ looks like in practice.
       |   |- device_type = "cpu"
       |   |- reg = <0>
       |   |- clock-frequency = <5f5e1000>
-      |   |- linux,boot-cpu
+      |   |- 64-bit
       |   |- linux,phandle = <2>
       |
       o memory@0
@@ -519,7 +519,7 @@ physical memory layout.  It also includes misc information passed
 through /chosen, like in this example, the platform type (mandatory)
 and the kernel command line arguments (optional).
 
-The /cpus/PowerPC,970@0/linux,boot-cpu property is an example of a
+The /cpus/PowerPC,970@0/64-bit property is an example of a
 property without a value. All other properties have a value. The
 significance of the #address-cells and #size-cells properties will be
 explained in chapter IV which defines precisely the required nodes and
@@ -778,7 +778,6 @@ address which can extend beyond that limit.
       bytes
     - d-cache-size : one cell, size of L1 data cache in bytes
     - i-cache-size : one cell, size of L1 instruction cache in bytes
-    - linux, boot-cpu : Should be defined if this cpu is the boot cpu.
 
   Recommended properties:
 

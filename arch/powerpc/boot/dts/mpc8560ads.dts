@@ -35,7 +35,6 @@
 			clock-frequency = <312c8040>;
 			32-bit;
 			linux,phandle = <201>;
-			linux,boot-cpu;
 		};
 	};
 

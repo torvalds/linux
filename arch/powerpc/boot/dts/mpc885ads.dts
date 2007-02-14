@@ -37,7 +37,6 @@
 			interrupts = <f 2>;	// decrementer interrupt
 			interrupt-parent = <ff000000>;
 			linux,phandle = <201>;
-			linux,boot-cpu;
 		};
 	};
 
