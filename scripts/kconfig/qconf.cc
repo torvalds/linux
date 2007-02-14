@@ -606,6 +606,8 @@ void ConfigList::updateMenuList(P* parent, struct menu* menu)
 
 		visible = menu_is_visible(child);
 		if (showAll || visible) {
+			if (!child->sym && !child->list && !child->prompt)
+				continue;
 			if (!item || item->menu != child)
 				item = new ConfigItem(parent, last, child, visible);
 			else
