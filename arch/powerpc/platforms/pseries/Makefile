@@ -9,6 +9,7 @@ obj-$(CONFIG_SMP)	+= smp.o
 obj-$(CONFIG_XICS)	+= xics.o
 obj-$(CONFIG_SCANLOG)	+= scanlog.o
 obj-$(CONFIG_EEH)	+= eeh.o eeh_cache.o eeh_driver.o eeh_event.o
+obj-$(CONFIG_KEXEC)	+= kexec.o
 
 obj-$(CONFIG_HOTPLUG_CPU)	+= hotplug-cpu.o
 

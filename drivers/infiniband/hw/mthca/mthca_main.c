@@ -379,7 +379,7 @@ static int mthca_load_fw(struct mthca_dev *mdev)
 
 	mdev->fw.arbel.fw_icm =
 		mthca_alloc_icm(mdev, mdev->fw.arbel.fw_pages,
-				GFP_HIGHUSER | __GFP_NOWARN);
+				GFP_HIGHUSER | __GFP_NOWARN, 0);
 	if (!mdev->fw.arbel.fw_icm) {
 		mthca_err(mdev, "Couldn't allocate FW area, aborting.\n");
 		return -ENOMEM;
@@ -412,7 +412,7 @@ err_unmap_fa:
 	mthca_UNMAP_FA(mdev, &status);
 
 err_free:
-	mthca_free_icm(mdev, mdev->fw.arbel.fw_icm);
+	mthca_free_icm(mdev, mdev->fw.arbel.fw_icm, 0);
 	return err;
 }
 
@@ -441,7 +441,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 		  (unsigned long long) aux_pages << 2);
 
 	mdev->fw.arbel.aux_icm = mthca_alloc_icm(mdev, aux_pages,
-						 GFP_HIGHUSER | __GFP_NOWARN);
+						 GFP_HIGHUSER | __GFP_NOWARN, 0);
 	if (!mdev->fw.arbel.aux_icm) {
 		mthca_err(mdev, "Couldn't allocate aux memory, aborting.\n");
 		return -ENOMEM;
@@ -464,10 +464,15 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 		goto err_unmap_aux;
 	}
 
+	/* CPU writes to non-reserved MTTs, while HCA might DMA to reserved mtts */
+	mdev->limits.reserved_mtts = ALIGN(mdev->limits.reserved_mtts * MTHCA_MTT_SEG_SIZE,
+					   dma_get_cache_alignment()) / MTHCA_MTT_SEG_SIZE;
+
 	mdev->mr_table.mtt_table = mthca_alloc_icm_table(mdev, init_hca->mtt_base,
 							 MTHCA_MTT_SEG_SIZE,
 							 mdev->limits.num_mtt_segs,
-							 mdev->limits.reserved_mtts, 1);
+							 mdev->limits.reserved_mtts,
+							 1, 0);
 	if (!mdev->mr_table.mtt_table) {
 		mthca_err(mdev, "Failed to map MTT context memory, aborting.\n");
 		err = -ENOMEM;
@@ -477,7 +482,8 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 	mdev->mr_table.mpt_table = mthca_alloc_icm_table(mdev, init_hca->mpt_base,
 							 dev_lim->mpt_entry_sz,
 							 mdev->limits.num_mpts,
-							 mdev->limits.reserved_mrws, 1);
+							 mdev->limits.reserved_mrws,
+							 1, 1);
 	if (!mdev->mr_table.mpt_table) {
 		mthca_err(mdev, "Failed to map MPT context memory, aborting.\n");
 		err = -ENOMEM;
@@ -487,7 +493,8 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 	mdev->qp_table.qp_table = mthca_alloc_icm_table(mdev, init_hca->qpc_base,
 							dev_lim->qpc_entry_sz,
 							mdev->limits.num_qps,
-							mdev->limits.reserved_qps, 0);
+							mdev->limits.reserved_qps,
+							0, 0);
 	if (!mdev->qp_table.qp_table) {
 		mthca_err(mdev, "Failed to map QP context memory, aborting.\n");
 		err = -ENOMEM;
@@ -497,7 +504,8 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 	mdev->qp_table.eqp_table = mthca_alloc_icm_table(mdev, init_hca->eqpc_base,
 							 dev_lim->eqpc_entry_sz,
 							 mdev->limits.num_qps,
-							 mdev->limits.reserved_qps, 0);
+							 mdev->limits.reserved_qps,
+							 0, 0);
 	if (!mdev->qp_table.eqp_table) {
 		mthca_err(mdev, "Failed to map EQP context memory, aborting.\n");
 		err = -ENOMEM;
@@ -507,7 +515,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 	mdev->qp_table.rdb_table = mthca_alloc_icm_table(mdev, init_hca->rdb_base,
 							 MTHCA_RDB_ENTRY_SIZE,
 							 mdev->limits.num_qps <<
-							 mdev->qp_table.rdb_shift,
+							 mdev->qp_table.rdb_shift, 0,
 							 0, 0);
 	if (!mdev->qp_table.rdb_table) {
 		mthca_err(mdev, "Failed to map RDB context memory, aborting\n");
@@ -518,7 +526,8 @@ static int mthca_init_icm(struct mthca_dev *mdev,
        mdev->cq_table.table = mthca_alloc_icm_table(mdev, init_hca->cqc_base,
 						    dev_lim->cqc_entry_sz,
 						    mdev->limits.num_cqs,
-						    mdev->limits.reserved_cqs, 0);
+						    mdev->limits.reserved_cqs,
+						    0, 0);
 	if (!mdev->cq_table.table) {
 		mthca_err(mdev, "Failed to map CQ context memory, aborting.\n");
 		err = -ENOMEM;
@@ -530,7 +539,8 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 			mthca_alloc_icm_table(mdev, init_hca->srqc_base,
 					      dev_lim->srq_entry_sz,
 					      mdev->limits.num_srqs,
-					      mdev->limits.reserved_srqs, 0);
+					      mdev->limits.reserved_srqs,
+					      0, 0);
 		if (!mdev->srq_table.table) {
 			mthca_err(mdev, "Failed to map SRQ context memory, "
 				  "aborting.\n");
@@ -550,7 +560,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 						      mdev->limits.num_amgms,
 						      mdev->limits.num_mgms +
 						      mdev->limits.num_amgms,
-						      0);
+						      0, 0);
 	if (!mdev->mcg_table.table) {
 		mthca_err(mdev, "Failed to map MCG context memory, aborting.\n");
 		err = -ENOMEM;
@@ -588,7 +598,7 @@ err_unmap_aux:
 	mthca_UNMAP_ICM_AUX(mdev, &status);
 
 err_free_aux:
-	mthca_free_icm(mdev, mdev->fw.arbel.aux_icm);
+	mthca_free_icm(mdev, mdev->fw.arbel.aux_icm, 0);
 
 	return err;
 }
@@ -609,7 +619,7 @@ static void mthca_free_icms(struct mthca_dev *mdev)
 	mthca_unmap_eq_icm(mdev);
 
 	mthca_UNMAP_ICM_AUX(mdev, &status);
-	mthca_free_icm(mdev, mdev->fw.arbel.aux_icm);
+	mthca_free_icm(mdev, mdev->fw.arbel.aux_icm, 0);
 }
 
 static int mthca_init_arbel(struct mthca_dev *mdev)
@@ -693,7 +703,7 @@ err_free_icm:
 
 err_stop_fw:
 	mthca_UNMAP_FA(mdev, &status);
-	mthca_free_icm(mdev, mdev->fw.arbel.fw_icm);
+	mthca_free_icm(mdev, mdev->fw.arbel.fw_icm, 0);
 
 err_disable:
 	if (!(mdev->mthca_flags & MTHCA_FLAG_NO_LAM))
@@ -712,7 +722,7 @@ static void mthca_close_hca(struct mthca_dev *mdev)
 		mthca_free_icms(mdev);
 
 		mthca_UNMAP_FA(mdev, &status);
-		mthca_free_icm(mdev, mdev->fw.arbel.fw_icm);
+		mthca_free_icm(mdev, mdev->fw.arbel.fw_icm, 0);
 
 		if (!(mdev->mthca_flags & MTHCA_FLAG_NO_LAM))
 			mthca_DISABLE_LAM(mdev, &status);

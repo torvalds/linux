@@ -49,23 +49,22 @@
 /* Max supported size for symbol names */
 #define MAX_SYMNAME	64
 
-#define VDSO32_MAXPAGES	(((0x3000 + PAGE_MASK) >> PAGE_SHIFT) + 2)
-#define VDSO64_MAXPAGES	(((0x3000 + PAGE_MASK) >> PAGE_SHIFT) + 2)
-
 extern char vdso32_start, vdso32_end;
 static void *vdso32_kbase = &vdso32_start;
-unsigned int vdso32_pages;
-static struct page *vdso32_pagelist[VDSO32_MAXPAGES];
+static unsigned int vdso32_pages;
+static struct page **vdso32_pagelist;
 unsigned long vdso32_sigtramp;
 unsigned long vdso32_rt_sigtramp;
 
 #ifdef CONFIG_PPC64
 extern char vdso64_start, vdso64_end;
 static void *vdso64_kbase = &vdso64_start;
-unsigned int vdso64_pages;
-static struct page *vdso64_pagelist[VDSO64_MAXPAGES];
+static unsigned int vdso64_pages;
+static struct page **vdso64_pagelist;
 unsigned long vdso64_rt_sigtramp;
 #endif /* CONFIG_PPC64 */
+
+static int vdso_ready;
 
 /*
  * The vdso data page (aka. systemcfg for old ppc64 fans) is here.
@@ -181,6 +180,9 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	unsigned long vdso_pages;
 	unsigned long vdso_base;
 	int rc;
+
+	if (!vdso_ready)
+		return 0;
 
 #ifdef CONFIG_PPC64
 	if (test_thread_flag(TIF_32BIT)) {
@@ -661,7 +663,7 @@ static void __init vdso_setup_syscall_map(void)
 }
 
 
-void __init vdso_init(void)
+static int __init vdso_init(void)
 {
 	int i;
 
@@ -716,11 +718,13 @@ void __init vdso_init(void)
 #ifdef CONFIG_PPC64
 		vdso64_pages = 0;
 #endif
-		return;
+		return 0;
 	}
 
 	/* Make sure pages are in the correct state */
-	BUG_ON(vdso32_pages + 2 > VDSO32_MAXPAGES);
+	vdso32_pagelist = kzalloc(sizeof(struct page *) * (vdso32_pages + 2),
+				  GFP_KERNEL);
+	BUG_ON(vdso32_pagelist == NULL);
 	for (i = 0; i < vdso32_pages; i++) {
 		struct page *pg = virt_to_page(vdso32_kbase + i*PAGE_SIZE);
 		ClearPageReserved(pg);
@@ -731,7 +735,9 @@ void __init vdso_init(void)
 	vdso32_pagelist[i] = NULL;
 
 #ifdef CONFIG_PPC64
-	BUG_ON(vdso64_pages + 2 > VDSO64_MAXPAGES);
+	vdso64_pagelist = kzalloc(sizeof(struct page *) * (vdso64_pages + 2),
+				  GFP_KERNEL);
+	BUG_ON(vdso64_pagelist == NULL);
 	for (i = 0; i < vdso64_pages; i++) {
 		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
 		ClearPageReserved(pg);
@@ -743,7 +749,13 @@ void __init vdso_init(void)
 #endif /* CONFIG_PPC64 */
 
 	get_page(virt_to_page(vdso_data));
+
+	smp_wmb();
+	vdso_ready = 1;
+
+	return 0;
 }
+arch_initcall(vdso_init);
 
 int in_gate_area_no_task(unsigned long addr)
 {

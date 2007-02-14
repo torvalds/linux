@@ -383,16 +383,16 @@ void __init mpc52xx_init_irq(void)
 	struct device_node *picnode;
 
 	/* Remap the necessary zones */
-	picnode = of_find_compatible_node(NULL, NULL, "mpc52xx-pic");
+	picnode = of_find_compatible_node(NULL, NULL, "mpc5200-pic");
 
-	intr = mpc52xx_find_and_map("mpc52xx-pic");
+	intr = mpc52xx_find_and_map("mpc5200-pic");
 	if (!intr)
-		panic(__FILE__	": find_and_map failed on 'mpc52xx-pic'. "
+		panic(__FILE__	": find_and_map failed on 'mpc5200-pic'. "
 				"Check node !");
 
-	sdma = mpc52xx_find_and_map("mpc52xx-bestcomm");
+	sdma = mpc52xx_find_and_map("mpc5200-bestcomm");
 	if (!sdma)
-		panic(__FILE__	": find_and_map failed on 'mpc52xx-bestcomm'. "
+		panic(__FILE__	": find_and_map failed on 'mpc5200-bestcomm'. "
 				"Check node !");
 
 	/* Disable all interrupt sources. */

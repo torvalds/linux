@@ -95,7 +95,6 @@ static long beat_lpar_hpte_insert(unsigned long hpte_group,
 	unsigned long lpar_rc;
 	unsigned long slot;
 	unsigned long hpte_v, hpte_r;
-	unsigned long flags;
 
 	/* same as iseries */
 	if (vflags & HPTE_V_SECONDARY)
@@ -115,17 +114,17 @@ static long beat_lpar_hpte_insert(unsigned long hpte_group,
 	if (rflags & (_PAGE_GUARDED|_PAGE_NO_CACHE))
 		hpte_r &= ~_PAGE_COHERENT;
 
-	spin_lock_irqsave(&beat_htab_lock, flags);
+	spin_lock(&beat_htab_lock);
 	if ((lpar_rc = beat_read_mask(hpte_group)) == 0) {
 		if (!(vflags & HPTE_V_BOLTED))
 			DBG_LOW(" full\n");
-		spin_unlock_irqrestore(&beat_htab_lock, flags);
+		spin_unlock(&beat_htab_lock);
 		return -1;
 	}
 
 	lpar_rc = beat_insert_htab_entry(0, hpte_group, lpar_rc << 48,
 		hpte_v, hpte_r, &slot);
-	spin_unlock_irqrestore(&beat_htab_lock, flags);
+	spin_unlock(&beat_htab_lock);
 
 	/*
 	 * Since we try and ioremap PHBs we don't own, the pte insert
@@ -189,7 +188,6 @@ static long beat_lpar_hpte_updatepp(unsigned long slot,
 {
 	unsigned long lpar_rc;
 	unsigned long dummy0, dummy1, want_v;
-	unsigned long flags;
 
 	want_v = hpte_encode_v(va, psize);
 
@@ -197,17 +195,17 @@ static long beat_lpar_hpte_updatepp(unsigned long slot,
 		"avpnv=%016lx, slot=%016lx, psize: %d, newpp %016lx ... ",
 		want_v & HPTE_V_AVPN, slot, psize, newpp);
 
-	spin_lock_irqsave(&beat_htab_lock, flags);
+	spin_lock(&beat_htab_lock);
 	dummy0 = beat_lpar_hpte_getword0(slot);
 	if ((dummy0 & ~0x7FUL) != (want_v & ~0x7FUL)) {
 		DBG_LOW("not found !\n");
-		spin_unlock_irqrestore(&beat_htab_lock, flags);
+		spin_unlock(&beat_htab_lock);
 		return -1;
 	}
 
 	lpar_rc = beat_write_htab_entry(0, slot, 0, newpp, 0, 7, &dummy0,
 					&dummy1);
-	spin_unlock_irqrestore(&beat_htab_lock, flags);
+	spin_unlock(&beat_htab_lock);
 	if (lpar_rc != 0 || dummy0 == 0) {
 		DBG_LOW("not found !\n");
 		return -1;
@@ -256,18 +254,17 @@ static void beat_lpar_hpte_updateboltedpp(unsigned long newpp,
 					  int psize)
 {
 	unsigned long lpar_rc, slot, vsid, va, dummy0, dummy1;
-	unsigned long flags;
 
 	vsid = get_kernel_vsid(ea);
 	va = (vsid << 28) | (ea & 0x0fffffff);
 
-	spin_lock_irqsave(&beat_htab_lock, flags);
+	spin_lock(&beat_htab_lock);
 	slot = beat_lpar_hpte_find(va, psize);
 	BUG_ON(slot == -1);
 
 	lpar_rc = beat_write_htab_entry(0, slot, 0, newpp, 0, 7,
 		&dummy0, &dummy1);
-	spin_unlock_irqrestore(&beat_htab_lock, flags);
+	spin_unlock(&beat_htab_lock);
 
 	BUG_ON(lpar_rc != 0);
 }

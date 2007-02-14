@@ -206,7 +206,8 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	rlwimi	r7,r3,16,4,15	/* Setup MAS0 = TLBSEL | ESEL(r3) */
 	mtspr	SPRN_MAS0,r7
 	tlbre
-	li	r6,0
+	mfspr	r6,SPRN_MAS1
+	rlwinm	r6,r6,0,2,0	/* clear IPROT */
 	mtspr	SPRN_MAS1,r6
 	tlbwe
 	/* Invalidate TLB1 */
@@ -248,6 +249,8 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	rlwimi	r7,r5,16,4,15	/* Setup MAS0 = TLBSEL | ESEL(r5) */
 	mtspr	SPRN_MAS0,r7
 	tlbre
+	mfspr	r8,SPRN_MAS1
+	rlwinm	r8,r8,0,2,0	/* clear IPROT */
 	mtspr	SPRN_MAS1,r8
 	tlbwe
 	/* Invalidate TLB1 */
@@ -889,7 +892,6 @@ load_up_spe:
 	REST_GPR(9, r11)
 	REST_GPR(12, r11)
 	lwz	r11,GPR11(r11)
-	SYNC
 	rfi
 
 /*
@@ -953,7 +955,6 @@ _GLOBAL(giveup_altivec)
 _GLOBAL(giveup_spe)
 	mfmsr	r5
 	oris	r5,r5,MSR_SPE@h
-	SYNC
 	mtmsr	r5			/* enable use of SPE now */
 	isync
 	cmpi	0,r3,0

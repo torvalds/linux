@@ -48,11 +48,11 @@ static u8 FAN_SPD_SET[2] = {0x30, 0x31};
 
 static u8 default_limits_local[3] = {70, 50, 70};    /* local, sensor1, sensor2 */
 static u8 default_limits_chip[3] = {80, 65, 80};    /* local, sensor1, sensor2 */
-static const char *sensor_location[3] = {NULL, NULL, NULL};
+static const char *sensor_location[3];
 
-static int limit_adjust = 0;
+static int limit_adjust;
 static int fan_speed = -1;
-static int verbose = 0;
+static int verbose;
 
 MODULE_AUTHOR("Colin Leroy <colin@colino.net>");
 MODULE_DESCRIPTION("Driver for ADT746x thermostat in iBook G4 and "

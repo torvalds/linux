@@ -1015,6 +1015,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	int shift, n, len;
 	int i, j, k;
 	int err = 0;
+	int write_mtt_size;
 
 	shift = ffs(region->page_size) - 1;
 
@@ -1040,6 +1041,8 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 
 	i = n = 0;
 
+	write_mtt_size = min(mthca_write_mtt_size(dev), (int) (PAGE_SIZE / sizeof *pages));
+
 	list_for_each_entry(chunk, &region->chunk_list, list)
 		for (j = 0; j < chunk->nmap; ++j) {
 			len = sg_dma_len(&chunk->page_list[j]) >> shift;
@@ -1047,14 +1050,11 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 				pages[i++] = sg_dma_address(&chunk->page_list[j]) +
 					region->page_size * k;
 				/*
-				 * Be friendly to WRITE_MTT command
-				 * and leave two empty slots for the
-				 * index and reserved fields of the
-				 * mailbox.
+				 * Be friendly to write_mtt and pass it chunks
+				 * of appropriate size.
 				 */
-				if (i == PAGE_SIZE / sizeof (u64) - 2) {
-					err = mthca_write_mtt(dev, mr->mtt,
-							      n, pages, i);
+				if (i == write_mtt_size) {
+					err = mthca_write_mtt(dev, mr->mtt, n, pages, i);
 					if (err)
 						goto mtt_done;
 					n += i;

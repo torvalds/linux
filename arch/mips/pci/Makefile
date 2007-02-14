@@ -2,7 +2,7 @@
 # Makefile for the PCI specific kernel interface routines under Linux.
 #
 
-obj-y				+= pci.o
+obj-y				+= pci.o pci-dac.o
 
 #
 # PCI bus host bridge specific code

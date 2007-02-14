@@ -2,8 +2,8 @@
 # Makefile for the Linux/MIPS-specific parts of the memory manager.
 #
 
-obj-y				+= cache.o extable.o fault.o init.o pgtable.o \
-				   tlbex.o tlbex-fault.o
+obj-y				+= cache.o dma-default.o extable.o fault.o \
+				   init.o pgtable.o tlbex.o tlbex-fault.o
 
 obj-$(CONFIG_32BIT)		+= ioremap.o pgtable-32.o
 obj-$(CONFIG_64BIT)		+= pgtable-64.o
@@ -31,15 +31,5 @@ obj-$(CONFIG_IP22_CPU_SCACHE)	+= sc-ip22.o
 obj-$(CONFIG_R5000_CPU_SCACHE)  += sc-r5k.o
 obj-$(CONFIG_RM7000_CPU_SCACHE)	+= sc-rm7k.o
 obj-$(CONFIG_MIPS_CPU_SCACHE)	+= sc-mips.o
-
-#
-# Choose one DMA coherency model
-#
-ifndef CONFIG_OWN_DMA
-obj-$(CONFIG_DMA_COHERENT)	+= dma-coherent.o
-obj-$(CONFIG_DMA_NONCOHERENT)	+= dma-noncoherent.o
-endif
-obj-$(CONFIG_DMA_IP27)		+= dma-ip27.o
-obj-$(CONFIG_DMA_IP32)		+= dma-ip32.o
 
 EXTRA_AFLAGS := $(CFLAGS)

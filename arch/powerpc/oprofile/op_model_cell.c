@@ -39,10 +39,17 @@
 #include "../platforms/cell/interrupt.h"
 
 #define PPU_CYCLES_EVENT_NUM 1	/*  event number for CYCLES */
+#define PPU_CYCLES_GRP_NUM   1  /* special group number for identifying
+                                 * PPU_CYCLES event
+                                 */
 #define CBE_COUNT_ALL_CYCLES 0x42800000	/* PPU cycle event specifier */
 
-#define NUM_THREADS 2
-#define VIRT_CNTR_SW_TIME_NS 100000000	// 0.5 seconds
+#define NUM_THREADS 2         /* number of physical threads in
+			       * physical processor
+			       */
+#define NUM_TRACE_BUS_WORDS 4
+#define NUM_INPUT_BUS_WORDS 2
+
 
 struct pmc_cntrl_data {
 	unsigned long vcntr;
@@ -58,7 +65,7 @@ struct pmc_cntrl_data {
 struct pm_signal {
 	u16 cpu;		/* Processor to modify */
 	u16 sub_unit;		/* hw subunit this applies to (if applicable) */
-	u16 signal_group;	/* Signal Group to Enable/Disable */
+	short int signal_group;	/* Signal Group to Enable/Disable */
 	u8 bus_word;		/* Enable/Disable on this Trace/Trigger/Event
 				 * Bus Word(s) (bitmask)
 				 */
@@ -93,14 +100,12 @@ static struct {
 	u32 pm07_cntrl[NR_PHYS_CTRS];
 } pm_regs;
 
-
 #define GET_SUB_UNIT(x) ((x & 0x0000f000) >> 12)
 #define GET_BUS_WORD(x) ((x & 0x000000f0) >> 4)
 #define GET_BUS_TYPE(x) ((x & 0x00000300) >> 8)
 #define GET_POLARITY(x) ((x & 0x00000002) >> 1)
 #define GET_COUNT_CYCLES(x) (x & 0x00000001)
 #define GET_INPUT_CONTROL(x) ((x & 0x00000004) >> 2)
-
 
 static DEFINE_PER_CPU(unsigned long[NR_PHYS_CTRS], pmc_values);
 
@@ -129,8 +134,8 @@ static spinlock_t virt_cntr_lock = SPIN_LOCK_UNLOCKED;
 
 static u32 ctr_enabled;
 
-static unsigned char trace_bus[4];
-static unsigned char input_bus[2];
+static unsigned char trace_bus[NUM_TRACE_BUS_WORDS];
+static unsigned char input_bus[NUM_INPUT_BUS_WORDS];
 
 /*
  * Firmware interface functions
@@ -177,25 +182,40 @@ static void pm_rtas_reset_signals(u32 node)
 static void pm_rtas_activate_signals(u32 node, u32 count)
 {
 	int ret;
-	int j;
+	int i, j;
 	struct pm_signal pm_signal_local[NR_PHYS_CTRS];
 
+	/* There is no debug setup required for the cycles event.
+	 * Note that only events in the same group can be used.
+	 * Otherwise, there will be conflicts in correctly routing
+	 * the signals on the debug bus.  It is the responsiblity
+	 * of the OProfile user tool to check the events are in
+	 * the same group.
+	 */
+	i = 0;
 	for (j = 0; j < count; j++) {
-		/* fw expects physical cpu # */
-		pm_signal_local[j].cpu = node;
-		pm_signal_local[j].signal_group = pm_signal[j].signal_group;
-		pm_signal_local[j].bus_word = pm_signal[j].bus_word;
-		pm_signal_local[j].sub_unit = pm_signal[j].sub_unit;
-		pm_signal_local[j].bit = pm_signal[j].bit;
+		if (pm_signal[j].signal_group != PPU_CYCLES_GRP_NUM) {
+
+			/* fw expects physical cpu # */
+			pm_signal_local[i].cpu = node;
+			pm_signal_local[i].signal_group
+				= pm_signal[j].signal_group;
+			pm_signal_local[i].bus_word = pm_signal[j].bus_word;
+			pm_signal_local[i].sub_unit = pm_signal[j].sub_unit;
+			pm_signal_local[i].bit = pm_signal[j].bit;
+			i++;
+		}
 	}
 
-	ret = rtas_ibm_cbe_perftools(SUBFUNC_ACTIVATE, PASSTHRU_ENABLE,
-				     pm_signal_local,
-				     count * sizeof(struct pm_signal));
+	if (i != 0) {
+		ret = rtas_ibm_cbe_perftools(SUBFUNC_ACTIVATE, PASSTHRU_ENABLE,
+					     pm_signal_local,
+					     i * sizeof(struct pm_signal));
 
-	if (ret)
-		printk(KERN_WARNING "%s: rtas returned: %d\n",
-		       __FUNCTION__, ret);
+		if (ret)
+			printk(KERN_WARNING "%s: rtas returned: %d\n",
+			       __FUNCTION__, ret);
+	}
 }
 
 /*
@@ -212,7 +232,7 @@ static void set_pm_event(u32 ctr, int event, u32 unit_mask)
 		/* Special Event: Count all cpu cycles */
 		pm_regs.pm07_cntrl[ctr] = CBE_COUNT_ALL_CYCLES;
 		p = &(pm_signal[ctr]);
-		p->signal_group = 21;
+		p->signal_group = PPU_CYCLES_GRP_NUM;
 		p->bus_word = 1;
 		p->sub_unit = 0;
 		p->bit = 0;
@@ -232,13 +252,21 @@ static void set_pm_event(u32 ctr, int event, u32 unit_mask)
 
 	p->signal_group = event / 100;
 	p->bus_word = bus_word;
-	p->sub_unit = unit_mask & 0x0000f000;
+	p->sub_unit = (unit_mask & 0x0000f000) >> 12;
 
 	pm_regs.pm07_cntrl[ctr] = 0;
 	pm_regs.pm07_cntrl[ctr] |= PM07_CTR_COUNT_CYCLES(count_cycles);
 	pm_regs.pm07_cntrl[ctr] |= PM07_CTR_POLARITY(polarity);
 	pm_regs.pm07_cntrl[ctr] |= PM07_CTR_INPUT_CONTROL(input_control);
 
+	/* Some of the islands signal selection is based on 64 bit words.
+	 * The debug bus words are 32 bits, the input words to the performance
+	 * counters are defined as 32 bits.  Need to convert the 64 bit island
+	 * specification to the appropriate 32 input bit and bus word for the
+	 * performance counter event selection.  See the CELL Performance
+	 * monitoring signals manual and the Perf cntr hardware descriptions
+	 * for the details.
+	 */
 	if (input_control == 0) {
 		if (signal_bit > 31) {
 			signal_bit -= 32;
@@ -259,12 +287,12 @@ static void set_pm_event(u32 ctr, int event, u32 unit_mask)
 		p->bit = signal_bit;
 	}
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < NUM_TRACE_BUS_WORDS; i++) {
 		if (bus_word & (1 << i)) {
 			pm_regs.debug_bus_control |=
 			    (bus_type << (31 - (2 * i) + 1));
 
-			for (j = 0; j < 2; j++) {
+			for (j = 0; j < NUM_INPUT_BUS_WORDS; j++) {
 				if (input_bus[j] == 0xff) {
 					input_bus[j] = i;
 					pm_regs.group_control |=
@@ -278,52 +306,58 @@ out:
 	;
 }
 
-static void write_pm_cntrl(int cpu, struct pm_cntrl *pm_cntrl)
+static void write_pm_cntrl(int cpu)
 {
-	/* Oprofile will use 32 bit counters, set bits 7:10 to 0 */
+	/* Oprofile will use 32 bit counters, set bits 7:10 to 0
+	 * pmregs.pm_cntrl is a global
+	 */
+
 	u32 val = 0;
-	if (pm_cntrl->enable == 1)
+	if (pm_regs.pm_cntrl.enable == 1)
 		val |= CBE_PM_ENABLE_PERF_MON;
 
-	if (pm_cntrl->stop_at_max == 1)
+	if (pm_regs.pm_cntrl.stop_at_max == 1)
 		val |= CBE_PM_STOP_AT_MAX;
 
-	if (pm_cntrl->trace_mode == 1)
-		val |= CBE_PM_TRACE_MODE_SET(pm_cntrl->trace_mode);
+	if (pm_regs.pm_cntrl.trace_mode == 1)
+		val |= CBE_PM_TRACE_MODE_SET(pm_regs.pm_cntrl.trace_mode);
 
-	if (pm_cntrl->freeze == 1)
+	if (pm_regs.pm_cntrl.freeze == 1)
 		val |= CBE_PM_FREEZE_ALL_CTRS;
 
 	/* Routine set_count_mode must be called previously to set
 	 * the count mode based on the user selection of user and kernel.
 	 */
-	val |= CBE_PM_COUNT_MODE_SET(pm_cntrl->count_mode);
+	val |= CBE_PM_COUNT_MODE_SET(pm_regs.pm_cntrl.count_mode);
 	cbe_write_pm(cpu, pm_control, val);
 }
 
 static inline void
-set_count_mode(u32 kernel, u32 user, struct pm_cntrl *pm_cntrl)
+set_count_mode(u32 kernel, u32 user)
 {
 	/* The user must specify user and kernel if they want them. If
-	 *  neither is specified, OProfile will count in hypervisor mode
+	 *  neither is specified, OProfile will count in hypervisor mode.
+	 *  pm_regs.pm_cntrl is a global
 	 */
 	if (kernel) {
 		if (user)
-			pm_cntrl->count_mode = CBE_COUNT_ALL_MODES;
+			pm_regs.pm_cntrl.count_mode = CBE_COUNT_ALL_MODES;
 		else
-			pm_cntrl->count_mode = CBE_COUNT_SUPERVISOR_MODE;
+			pm_regs.pm_cntrl.count_mode =
+				CBE_COUNT_SUPERVISOR_MODE;
 	} else {
 		if (user)
-			pm_cntrl->count_mode = CBE_COUNT_PROBLEM_MODE;
+			pm_regs.pm_cntrl.count_mode = CBE_COUNT_PROBLEM_MODE;
 		else
-			pm_cntrl->count_mode = CBE_COUNT_HYPERVISOR_MODE;
+			pm_regs.pm_cntrl.count_mode =
+				CBE_COUNT_HYPERVISOR_MODE;
 	}
 }
 
 static inline void enable_ctr(u32 cpu, u32 ctr, u32 * pm07_cntrl)
 {
 
-	pm07_cntrl[ctr] |= PM07_CTR_ENABLE(1);
+	pm07_cntrl[ctr] |= CBE_PM_CTR_ENABLE;
 	cbe_write_pm07_control(cpu, ctr, pm07_cntrl[ctr]);
 }
 
@@ -365,6 +399,14 @@ static void cell_virtual_cntr(unsigned long data)
 	hdw_thread = 1 ^ hdw_thread;
 	next_hdw_thread = hdw_thread;
 
+	for (i = 0; i < num_counters; i++)
+	/* There are some per thread events.  Must do the
+	 * set event, for the thread that is being started
+	 */
+		set_pm_event(i,
+			pmc_cntrl[next_hdw_thread][i].evnts,
+			pmc_cntrl[next_hdw_thread][i].masks);
+
 	/* The following is done only once per each node, but
 	 * we need cpu #, not node #, to pass to the cbe_xxx functions.
 	 */
@@ -385,12 +427,13 @@ static void cell_virtual_cntr(unsigned long data)
 			    == 0xFFFFFFFF)
 				/* If the cntr value is 0xffffffff, we must
 				 * reset that to 0xfffffff0 when the current
-				 * thread is restarted.  This will generate a new
-				 * interrupt and make sure that we never restore
-				 * the counters to the max value.  If the counters
-				 * were restored to the max value, they do not
-				 * increment and no interrupts are generated.  Hence
-				 * no more samples will be collected on that cpu.
+				 * thread is restarted.  This will generate a
+				 * new interrupt and make sure that we never
+				 * restore the counters to the max value.  If
+				 * the counters were restored to the max value,
+				 * they do not increment and no interrupts are
+				 * generated.  Hence no more samples will be
+				 * collected on that cpu.
 				 */
 				cbe_write_ctr(cpu, i, 0xFFFFFFF0);
 			else
@@ -410,9 +453,6 @@ static void cell_virtual_cntr(unsigned long data)
 				 * Must do the set event, enable_cntr
 				 * for each cpu.
 				 */
-				set_pm_event(i,
-				     pmc_cntrl[next_hdw_thread][i].evnts,
-				     pmc_cntrl[next_hdw_thread][i].masks);
 				enable_ctr(cpu, i,
 					   pm_regs.pm07_cntrl);
 			} else {
@@ -465,8 +505,7 @@ cell_reg_setup(struct op_counter_config *ctr,
 	pm_regs.pm_cntrl.trace_mode = 0;
 	pm_regs.pm_cntrl.freeze = 1;
 
-	set_count_mode(sys->enable_kernel, sys->enable_user,
-		       &pm_regs.pm_cntrl);
+	set_count_mode(sys->enable_kernel, sys->enable_user);
 
 	/* Setup the thread 0 events */
 	for (i = 0; i < num_ctrs; ++i) {
@@ -498,10 +537,10 @@ cell_reg_setup(struct op_counter_config *ctr,
 		pmc_cntrl[1][i].vcntr = i;
 	}
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < NUM_TRACE_BUS_WORDS; i++)
 		trace_bus[i] = 0xff;
 
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < NUM_INPUT_BUS_WORDS; i++)
 		input_bus[i] = 0xff;
 
 	/* Our counters count up, and "count" refers to
@@ -560,7 +599,7 @@ static void cell_cpu_setup(struct op_counter_config *cntr)
 	cbe_write_pm(cpu, pm_start_stop, 0);
 	cbe_write_pm(cpu, group_control, pm_regs.group_control);
 	cbe_write_pm(cpu, debug_bus_control, pm_regs.debug_bus_control);
-	write_pm_cntrl(cpu, &pm_regs.pm_cntrl);
+	write_pm_cntrl(cpu);
 
 	for (i = 0; i < num_counters; ++i) {
 		if (ctr_enabled & (1 << i)) {
@@ -602,7 +641,7 @@ static void cell_global_start(struct op_counter_config *ctr)
 			}
 		}
 
-		cbe_clear_pm_interrupts(cpu);
+		cbe_get_and_clear_pm_interrupts(cpu);
 		cbe_enable_pm_interrupts(cpu, hdw_thread, interrupt_mask);
 		cbe_enable_pm(cpu);
 	}
@@ -672,7 +711,7 @@ cell_handle_interrupt(struct pt_regs *regs, struct op_counter_config *ctr)
 
 	cbe_disable_pm(cpu);
 
-	interrupt_mask = cbe_clear_pm_interrupts(cpu);
+	interrupt_mask = cbe_get_and_clear_pm_interrupts(cpu);
 
 	/* If the interrupt mask has been cleared, then the virt cntr
 	 * has cleared the interrupt.  When the thread that generated

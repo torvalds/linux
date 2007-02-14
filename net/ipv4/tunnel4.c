@@ -14,9 +14,10 @@
 #include <net/xfrm.h>
 
 static struct xfrm_tunnel *tunnel4_handlers;
+static struct xfrm_tunnel *tunnel64_handlers;
 static DEFINE_MUTEX(tunnel4_mutex);
 
-int xfrm4_tunnel_register(struct xfrm_tunnel *handler)
+int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family)
 {
 	struct xfrm_tunnel **pprev;
 	int ret = -EEXIST;
@@ -24,7 +25,8 @@ int xfrm4_tunnel_register(struct xfrm_tunnel *handler)
 
 	mutex_lock(&tunnel4_mutex);
 
-	for (pprev = &tunnel4_handlers; *pprev; pprev = &(*pprev)->next) {
+	for (pprev = (family == AF_INET) ? &tunnel4_handlers : &tunnel64_handlers;
+	     *pprev; pprev = &(*pprev)->next) {
 		if ((*pprev)->priority > priority)
 			break;
 		if ((*pprev)->priority == priority)
@@ -44,14 +46,15 @@ err:
 
 EXPORT_SYMBOL(xfrm4_tunnel_register);
 
-int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler)
+int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family)
 {
 	struct xfrm_tunnel **pprev;
 	int ret = -ENOENT;
 
 	mutex_lock(&tunnel4_mutex);
 
-	for (pprev = &tunnel4_handlers; *pprev; pprev = &(*pprev)->next) {
+	for (pprev = (family == AF_INET) ? &tunnel4_handlers : &tunnel64_handlers;
+	     *pprev; pprev = &(*pprev)->next) {
 		if (*pprev == handler) {
 			*pprev = handler->next;
 			ret = 0;
@@ -86,6 +89,26 @@ drop:
 	return 0;
 }
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static int tunnel64_rcv(struct sk_buff *skb)
+{
+	struct xfrm_tunnel *handler;
+
+	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+		goto drop;
+
+	for (handler = tunnel64_handlers; handler; handler = handler->next)
+		if (!handler->handler(skb))
+			return 0;
+
+	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
+
+drop:
+	kfree_skb(skb);
+	return 0;
+}
+#endif
+
 static void tunnel4_err(struct sk_buff *skb, u32 info)
 {
 	struct xfrm_tunnel *handler;
@@ -101,17 +124,36 @@ static struct net_protocol tunnel4_protocol = {
 	.no_policy	=	1,
 };
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static struct net_protocol tunnel64_protocol = {
+	.handler	=	tunnel64_rcv,
+	.err_handler	=	tunnel4_err,
+	.no_policy	=	1,
+};
+#endif
+
 static int __init tunnel4_init(void)
 {
 	if (inet_add_protocol(&tunnel4_protocol, IPPROTO_IPIP)) {
 		printk(KERN_ERR "tunnel4 init: can't add protocol\n");
 		return -EAGAIN;
 	}
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	if (inet_add_protocol(&tunnel64_protocol, IPPROTO_IPV6)) {
+		printk(KERN_ERR "tunnel64 init: can't add protocol\n");
+		inet_del_protocol(&tunnel4_protocol, IPPROTO_IPIP);
+		return -EAGAIN;
+	}
+#endif
 	return 0;
 }
 
 static void __exit tunnel4_fini(void)
 {
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	if (inet_del_protocol(&tunnel64_protocol, IPPROTO_IPV6))
+		printk(KERN_ERR "tunnel64 close: can't remove protocol\n");
+#endif
 	if (inet_del_protocol(&tunnel4_protocol, IPPROTO_IPIP))
 		printk(KERN_ERR "tunnel4 close: can't remove protocol\n");
 }

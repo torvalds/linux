@@ -25,7 +25,6 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
-#include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <asm/prom.h>

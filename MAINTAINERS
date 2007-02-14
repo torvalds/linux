@@ -2523,6 +2523,12 @@ M:	olof@lixom.net
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+PA SEMI SMBUS DRIVER
+P:	Olof Johansson
+M:	olof@lixom.net
+L:	i2c@lm-sensors.org
+S:	Maintained
+
 PARALLEL PORT SUPPORT
 P:	Phil Blundell
 M:	philb@gnu.org

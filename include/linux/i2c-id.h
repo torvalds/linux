@@ -232,7 +232,6 @@
 #define I2C_HW_SMBUS_PIIX4	0x040000
 #define I2C_HW_SMBUS_ALI15X3	0x040001
 #define I2C_HW_SMBUS_VIA2	0x040002
-#define I2C_HW_SMBUS_VOODOO3	0x040003
 #define I2C_HW_SMBUS_I801	0x040004
 #define I2C_HW_SMBUS_AMD756	0x040005
 #define I2C_HW_SMBUS_SIS5595	0x040006
@@ -248,12 +247,10 @@
 #define I2C_HW_SMBUS_OV519	0x040010 /* OV519 USB 1.1 webcam IC */
 #define I2C_HW_SMBUS_OVFX2	0x040011 /* Cypress/OmniVision FX2 webcam */
 #define I2C_HW_SMBUS_CAFE	0x040012 /* Marvell 88ALP01 "CAFE" cam  */
+#define I2C_HW_SMBUS_ALI1563	0x040013
 
 /* --- ISA pseudo-adapter						*/
 #define I2C_HW_ISA		0x050000
-
-/* --- IPMI pseudo-adapter						*/
-#define I2C_HW_IPMI		0x0b0000
 
 /* --- IPMB adapter						*/
 #define I2C_HW_IPMB		0x0c0000

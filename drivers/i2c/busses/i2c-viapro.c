@@ -4,7 +4,7 @@
     Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,
     Philip Edelbrock <phil@netroedge.com>, Kyösti Mälkki <kmalkki@cc.hut.fi>,
     Mark D. Studebaker <mdsxyz123@yahoo.com>
-    Copyright (C) 2005  Jean Delvare <khali@linux-fr.org>
+    Copyright (C) 2005 - 2007  Jean Delvare <khali@linux-fr.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
    VT8237R            0x3227             yes
    VT8237A            0x3337             yes
    VT8251             0x3287             yes
+   CX700              0x8324             yes
 
    Note: we assume there can only be one device, with one SMBus interface.
 */
@@ -306,6 +307,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter vt596_adapter = {
 	.owner		= THIS_MODULE,
+	.id		= I2C_HW_SMBUS_VIA2,
 	.class		= I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
 };
@@ -383,6 +385,7 @@ found:
 	dev_dbg(&pdev->dev, "VT596_smba = 0x%X\n", vt596_smba);
 
 	switch (pdev->device) {
+	case PCI_DEVICE_ID_VIA_CX700:
 	case PCI_DEVICE_ID_VIA_8251:
 	case PCI_DEVICE_ID_VIA_8237:
 	case PCI_DEVICE_ID_VIA_8237A:
@@ -441,6 +444,8 @@ static struct pci_device_id vt596_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8231_4),
 	  .driver_data = SMBBA1 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8251),
+	  .driver_data = SMBBA3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_CX700),
 	  .driver_data = SMBBA3 },
 	{ 0, }
 };

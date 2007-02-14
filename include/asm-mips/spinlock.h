@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1999, 2000, 06 by Ralf Baechle
+ * Copyright (C) 1999, 2000, 06 Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #ifndef _ASM_SPINLOCK_H
@@ -49,11 +49,18 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		__asm__ __volatile__(
 		"	.set	noreorder	# __raw_spin_lock	\n"
 		"1:	ll	%1, %2					\n"
-		"	bnez	%1, 1b					\n"
+		"	bnez	%1, 2f					\n"
 		"	 li	%1, 1					\n"
 		"	sc	%1, %0					\n"
-		"	beqz	%1, 1b					\n"
+		"	beqz	%1, 2f					\n"
 		"	 nop						\n"
+		"	.subsection 2					\n"
+		"2:	ll	%1, %2					\n"
+		"	bnez	%1, 2b					\n"
+		"	 li	%1, 1					\n"
+		"	b	1b					\n"
+		"	 nop						\n"
+		"	.previous					\n"
 		"	.set	reorder					\n"
 		: "=m" (lock->lock), "=&r" (tmp)
 		: "m" (lock->lock)
@@ -99,8 +106,12 @@ static inline unsigned int __raw_spin_trylock(raw_spinlock_t *lock)
 		"1:	ll	%0, %3					\n"
 		"	ori	%2, %0, 1				\n"
 		"	sc	%2, %1					\n"
-		"	beqz	%2, 1b					\n"
+		"	beqz	%2, 2f					\n"
 		"	 andi	%2, %0, 1				\n"
+		"	.subsection 2					\n"
+		"2:	b	1b					\n"
+		"	 nop						\n"
+		"	.previous					\n"
 		"	.set	reorder"
 		: "=&r" (temp), "=m" (lock->lock), "=&r" (res)
 		: "m" (lock->lock)
@@ -154,11 +165,18 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 		__asm__ __volatile__(
 		"	.set	noreorder	# __raw_read_lock	\n"
 		"1:	ll	%1, %2					\n"
-		"	bltz	%1, 1b					\n"
+		"	bltz	%1, 2f					\n"
 		"	 addu	%1, 1					\n"
 		"	sc	%1, %0					\n"
 		"	beqz	%1, 1b					\n"
 		"	 nop						\n"
+		"	.subsection 2					\n"
+		"2:	ll	%1, %2					\n"
+		"	bltz	%1, 2b					\n"
+		"	 addu	%1, 1					\n"
+		"	b	1b					\n"
+		"	 nop						\n"
+		"	.previous					\n"
 		"	.set	reorder					\n"
 		: "=m" (rw->lock), "=&r" (tmp)
 		: "m" (rw->lock)
@@ -192,8 +210,12 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 		"1:	ll	%1, %2					\n"
 		"	sub	%1, 1					\n"
 		"	sc	%1, %0					\n"
-		"	beqz	%1, 1b					\n"
+		"	beqz	%1, 2f					\n"
 		"	 nop						\n"
+		"	.subsection 2					\n"
+		"2:	b	1b					\n"
+		"	 nop						\n"
+		"	.previous					\n"
 		"	.set	reorder					\n"
 		: "=m" (rw->lock), "=&r" (tmp)
 		: "m" (rw->lock)
@@ -222,11 +244,18 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 		__asm__ __volatile__(
 		"	.set	noreorder	# __raw_write_lock	\n"
 		"1:	ll	%1, %2					\n"
-		"	bnez	%1, 1b					\n"
+		"	bnez	%1, 2f					\n"
 		"	 lui	%1, 0x8000				\n"
 		"	sc	%1, %0					\n"
-		"	beqz	%1, 1b					\n"
+		"	beqz	%1, 2f					\n"
 		"	 nop						\n"
+		"	.subsection 2					\n"
+		"2:	ll	%1, %2					\n"
+		"	bnez	%1, 2b					\n"
+		"	 lui	%1, 0x8000				\n"
+		"	b	1b					\n"
+		"	 nop						\n"
+		"	.previous					\n"
 		"	.set	reorder					\n"
 		: "=m" (rw->lock), "=&r" (tmp)
 		: "m" (rw->lock)
@@ -322,12 +351,15 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 		"	bnez	%1, 2f					\n"
 		"	lui	%1, 0x8000				\n"
 		"	sc	%1, %0					\n"
-		"	beqz	%1, 1b					\n"
-		"	 nop						\n"
-		__WEAK_ORDERING_MB
-		"	li	%2, 1					\n"
-		"	.set	reorder					\n"
+		"	beqz	%1, 3f					\n"
+		"	 li	%2, 1					\n"
 		"2:							\n"
+		__WEAK_ORDERING_MB
+		"	.subsection 2					\n"
+		"3:	b	1b					\n"
+		"	 li	%2, 0					\n"
+		"	.previous					\n"
+		"	.set	reorder					\n"
 		: "=m" (rw->lock), "=&r" (tmp), "=&r" (ret)
 		: "m" (rw->lock)
 		: "memory");

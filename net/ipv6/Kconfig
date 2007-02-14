@@ -156,6 +156,7 @@ config INET6_XFRM_MODE_ROUTEOPTIMIZATION
 config IPV6_SIT
 	tristate "IPv6: IPv6-in-IPv4 tunnel (SIT driver)"
 	depends on IPV6
+	select INET_TUNNEL
 	default y
 	---help---
 	  Tunneling means encapsulating data of one protocol type within

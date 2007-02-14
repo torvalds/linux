@@ -129,7 +129,6 @@ struct spu {
 	struct spu_runqueue *rq;
 	unsigned long long timestamp;
 	pid_t pid;
-	int prio;
 	int class_0_pending;
 	spinlock_t register_lock;
 

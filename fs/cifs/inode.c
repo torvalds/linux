@@ -140,7 +140,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		inode->i_gid = le64_to_cpu(findData.Gid);
 		inode->i_nlink = le64_to_cpu(findData.Nlinks);
 
-		if (is_size_safe_to_change(cifsInfo)) {
+		if (is_size_safe_to_change(cifsInfo, end_of_file)) {
 		/* can not safely change the file size here if the
 		   client is writing to it due to potential races */
 
@@ -491,8 +491,8 @@ int cifs_get_inode_info(struct inode **pinode,
 		/* BB add code here -
 		   validate if device or weird share or device type? */
 		}
-		if (is_size_safe_to_change(cifsInfo)) {
-			/* can not safely change the file size here if the
+		if (is_size_safe_to_change(cifsInfo, le64_to_cpu(pfindData->EndOfFile))) {
+			/* can not safely shrink the file size here if the
 			   client is writing to it due to potential races */
 			i_size_write(inode,le64_to_cpu(pfindData->EndOfFile));
 

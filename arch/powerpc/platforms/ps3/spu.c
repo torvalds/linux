@@ -170,31 +170,6 @@ static int __init construct_spu(struct spu *spu)
 	return result;
 }
 
-static int __init add_spu_pages(unsigned long start_addr, unsigned long size)
-{
-	int result;
-	unsigned long start_pfn;
-	unsigned long nr_pages;
-	struct pglist_data *pgdata;
-	struct zone *zone;
-
-	BUG_ON(!mem_init_done);
-
-	start_pfn = start_addr >> PAGE_SHIFT;
-	nr_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-
-	pgdata = NODE_DATA(0);
-	zone = pgdata->node_zones;
-
-	result = __add_pages(zone, start_pfn, nr_pages);
-
-	if (result)
-		pr_debug("%s:%d: __add_pages failed: (%d)\n",
-			__func__, __LINE__, result);
-
-	return result;
-}
-
 static void spu_unmap(struct spu *spu)
 {
 	iounmap(spu->priv2);
@@ -206,19 +181,6 @@ static void spu_unmap(struct spu *spu)
 static int __init setup_areas(struct spu *spu)
 {
 	struct table {char* name; unsigned long addr; unsigned long size;};
-	int result;
-
-	/* setup pages */
-
-	result = add_spu_pages(spu->local_store_phys, LS_SIZE);
-	if (result)
-		goto fail_add;
-
-	result = add_spu_pages(spu->problem_phys, sizeof(struct spu_problem));
-	if (result)
-		goto fail_add;
-
-	/* ioremap */
 
 	spu_pdata(spu)->shadow = __ioremap(
 		spu_pdata(spu)->shadow_addr, sizeof(struct spe_shadow),
@@ -260,8 +222,8 @@ static int __init setup_areas(struct spu *spu)
 
 fail_ioremap:
 	spu_unmap(spu);
-fail_add:
-	return result;
+
+	return -ENOMEM;
 }
 
 static int __init setup_interrupts(struct spu *spu)

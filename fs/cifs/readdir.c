@@ -222,7 +222,7 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		atomic_set(&cifsInfo->inUse, 1);
 	}
 
-	if (is_size_safe_to_change(cifsInfo)) {
+	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
 		/* can not safely change the file size here if the 
 		client is writing to it due to potential races */
 		i_size_write(tmp_inode, end_of_file);
@@ -351,10 +351,10 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 	tmp_inode->i_gid = le64_to_cpu(pfindData->Gid);
 	tmp_inode->i_nlink = le64_to_cpu(pfindData->Nlinks);
 
-	if (is_size_safe_to_change(cifsInfo)) {
+	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
 		/* can not safely change the file size here if the 
 		client is writing to it due to potential races */
-		i_size_write(tmp_inode,end_of_file);
+		i_size_write(tmp_inode, end_of_file);
 
 	/* 512 bytes (2**9) is the fake blocksize that must be used */
 	/* for this calculation, not the real blocksize */

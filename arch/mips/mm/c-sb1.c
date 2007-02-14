@@ -259,6 +259,12 @@ static void sb1_flush_cache_data_page(unsigned long addr)
 		on_each_cpu(sb1_flush_cache_data_page_ipi, (void *) addr, 1, 1);
 }
 #else
+
+static void local_sb1_flush_cache_data_page(unsigned long addr)
+{
+	__sb1_writeback_inv_dcache_range(addr, addr + PAGE_SIZE);
+}
+
 void sb1_flush_cache_data_page(unsigned long)
 	__attribute__((alias("local_sb1_flush_cache_data_page")));
 #endif

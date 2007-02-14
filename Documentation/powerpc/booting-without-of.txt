@@ -1334,6 +1334,9 @@ platforms are moved over to use the flattened-device-tree model.
       fsl-usb2-mph compatible controllers.  Either this property or
       "port0" (or both) must be defined for "fsl-usb2-mph" compatible 
       controllers.
+    - dr_mode : indicates the working mode for "fsl-usb2-dr" compatible
+      controllers.  Can be "host", "peripheral", or "otg".  Default to
+      "host" if not defined for backward compatibility.
 
    Recommended properties :
     - interrupts : <a b> where a is the interrupt number and b is a
@@ -1367,6 +1370,7 @@ platforms are moved over to use the flattened-device-tree model.
 		#size-cells = <0>;
 		interrupt-parent = <700>;
 		interrupts = <26 1>;
+		dr_mode = "otg";
 		phy = "ulpi";
 	};
 

@@ -258,6 +258,7 @@ int usbvision_init_i2c(struct usb_usbvision *usbvision)
 	sprintf(usbvision->i2c_adap.name + strlen(usbvision->i2c_adap.name),
 		" #%d", usbvision->vdev->minor & 0x1f);
 	PDEBUG(DBG_I2C,"Adaptername: %s", usbvision->i2c_adap.name);
+	usbvision->i2c_adap.dev.parent = &usbvision->dev->dev;
 
 	i2c_set_adapdata(&usbvision->i2c_adap, usbvision);
 	i2c_set_clientdata(&usbvision->i2c_client, usbvision);

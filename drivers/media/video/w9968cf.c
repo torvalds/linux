@@ -1573,6 +1573,7 @@ static int w9968cf_i2c_init(struct w9968cf_device* cam)
 
 	memcpy(&cam->i2c_adapter, &adap, sizeof(struct i2c_adapter));
 	strcpy(cam->i2c_adapter.name, "w9968cf");
+	cam->i2c_adapter.dev.parent = &cam->usbdev->dev;
 	i2c_set_adapdata(&cam->i2c_adapter, cam);
 
 	DBG(6, "Registering I2C adapter with kernel...")
