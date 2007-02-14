@@ -283,7 +283,7 @@ static int bay_add(acpi_handle handle, int id)
 
 	/* initialize platform device stuff */
 	pdev = platform_device_register_simple(ACPI_BAY_CLASS, id, NULL, 0);
-	if (pdev == NULL) {
+	if (IS_ERR(pdev)) {
 		printk(KERN_ERR PREFIX "Error registering bay device\n");
 		goto bay_add_err;
 	}
