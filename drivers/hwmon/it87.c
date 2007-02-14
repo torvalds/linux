@@ -221,7 +221,6 @@ static const unsigned int pwm_freq[8] = {
 struct it87_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct mutex lock;
 	enum chips type;
 
 	struct mutex update_lock;
@@ -548,9 +547,10 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct it87_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
-	u8 reg = it87_read_value(client, IT87_REG_FAN_DIV);
+	u8 reg;
 
 	mutex_lock(&data->update_lock);
+	reg = it87_read_value(client, IT87_REG_FAN_DIV);
 	switch (nr) {
 	case 0: data->fan_div[nr] = reg & 0x07; break;
 	case 1: data->fan_div[nr] = (reg >> 3) & 0x07; break;
@@ -949,7 +949,6 @@ static int it87_detect(struct i2c_adapter *adapter)
 	}
 
 	new_client = &data->client;
-	mutex_init(&data->lock);
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = isa_address;
 	new_client->adapter = adapter;
@@ -1127,33 +1126,22 @@ static int it87_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-/* ISA access must be locked explicitly!
+/* Must be called with data->update_lock held, except during initialization.
    We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,
    would slow down the IT87 access and should not be necessary. */
 static int it87_read_value(struct i2c_client *client, u8 reg)
 {
-	struct it87_data *data = i2c_get_clientdata(client);
-	int res;
-
-	mutex_lock(&data->lock);
 	outb_p(reg, client->addr + IT87_ADDR_REG_OFFSET);
-	res = inb_p(client->addr + IT87_DATA_REG_OFFSET);
-	mutex_unlock(&data->lock);
-
-	return res;
+	return inb_p(client->addr + IT87_DATA_REG_OFFSET);
 }
 
-/* ISA access must be locked explicitly!
+/* Must be called with data->update_lock held, except during initialization.
    We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,
    would slow down the IT87 access and should not be necessary. */
 static void it87_write_value(struct i2c_client *client, u8 reg, u8 value)
 {
-	struct it87_data *data = i2c_get_clientdata(client);
-
-	mutex_lock(&data->lock);
 	outb_p(reg, client->addr + IT87_ADDR_REG_OFFSET);
 	outb_p(value, client->addr + IT87_DATA_REG_OFFSET);
-	mutex_unlock(&data->lock);
 }
 
 /* Return 1 if and only if the PWM interface is safe to use */
