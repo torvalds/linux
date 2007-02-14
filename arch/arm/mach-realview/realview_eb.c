@@ -143,8 +143,8 @@ static void __init gic_init_irq(void)
 	writel(pldctrl, __io_address(REALVIEW_SYS_BASE) + 0xd8);
 	writel(0x00000000, __io_address(REALVIEW_SYS_LOCK));
 #endif
-	gic_dist_init(__io_address(REALVIEW_GIC_DIST_BASE));
-	gic_cpu_init(__io_address(REALVIEW_GIC_CPU_BASE));
+	gic_dist_init(0, __io_address(REALVIEW_GIC_DIST_BASE), 29);
+	gic_cpu_init(0, __io_address(REALVIEW_GIC_CPU_BASE));
 }
 
 static void __init realview_eb_init(void)
