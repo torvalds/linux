@@ -212,9 +212,7 @@ static int debugfs_create_by_name(const char *name, mode_t mode,
  * you are responsible here.)  If an error occurs, %NULL will be returned.
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
- * returned.  It is not wise to check for this value, but rather, check for
- * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
- * code.
+ * returned.
  */
 struct dentry *debugfs_create_file(const char *name, mode_t mode,
 				   struct dentry *parent, void *data,
@@ -264,9 +262,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_file);
  * you are responsible here.)  If an error occurs, %NULL will be returned.
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
- * returned.  It is not wise to check for this value, but rather, check for
- * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
- * code.
+ * returned.
  */
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent)
 {
@@ -297,9 +293,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_dir);
  * returned.
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
- * returned.  It is not wise to check for this value, but rather, check for
- * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
- * code.
+ * returned.
  */
 struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 				      const char *target)
