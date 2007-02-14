@@ -334,10 +334,9 @@ static int serial_probe(struct pcmcia_device *link)
 	DEBUG(0, "serial_attach()\n");
 
 	/* Create new serial device */
-	info = kmalloc(sizeof (*info), GFP_KERNEL);
+	info = kzalloc(sizeof (*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
-	memset(info, 0, sizeof (*info));
 	info->p_dev = link;
 	link->priv = info;
 

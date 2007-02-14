@@ -1523,9 +1523,8 @@ static struct uart_state *uart_get(struct uart_driver *drv, int line)
 	}
 
 	if (!state->info) {
-		state->info = kmalloc(sizeof(struct uart_info), GFP_KERNEL);
+		state->info = kzalloc(sizeof(struct uart_info), GFP_KERNEL);
 		if (state->info) {
-			memset(state->info, 0, sizeof(struct uart_info));
 			init_waitqueue_head(&state->info->open_wait);
 			init_waitqueue_head(&state->info->delta_msr_wait);
 
@@ -2178,12 +2177,10 @@ int uart_register_driver(struct uart_driver *drv)
 	 * Maybe we should be using a slab cache for this, especially if
 	 * we have a large number of ports to handle.
 	 */
-	drv->state = kmalloc(sizeof(struct uart_state) * drv->nr, GFP_KERNEL);
+	drv->state = kzalloc(sizeof(struct uart_state) * drv->nr, GFP_KERNEL);
 	retval = -ENOMEM;
 	if (!drv->state)
 		goto out;
-
-	memset(drv->state, 0, sizeof(struct uart_state) * drv->nr);
 
 	normal  = alloc_tty_driver(drv->nr);
 	if (!normal)

@@ -2019,13 +2019,12 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 
 	DPRINT_CONFIG(("%s (0x%p, 0x%p)\n", __FUNCTION__, is, idd));
 
-	card_ptr = kmalloc(sizeof(struct ioc3_card), GFP_KERNEL);
+	card_ptr = kzalloc(sizeof(struct ioc3_card), GFP_KERNEL);
 	if (!card_ptr) {
 		printk(KERN_WARNING "ioc3_attach_one"
 		       ": unable to get memory for the IOC3\n");
 		return -ENOMEM;
 	}
-	memset(card_ptr, 0, sizeof(struct ioc3_card));
 	idd->data[is->id] = card_ptr;
 	Submodule_slot = is->id;
 
@@ -2040,13 +2039,12 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 
 	/* Create port structures for each port */
 	for (phys_port = 0; phys_port < PORTS_PER_CARD; phys_port++) {
-		port = kmalloc(sizeof(struct ioc3_port), GFP_KERNEL);
+		port = kzalloc(sizeof(struct ioc3_port), GFP_KERNEL);
 		if (!port) {
 			printk(KERN_WARNING
 			       "IOC3 serial memory not available for port\n");
 			goto out4;
 		}
-		memset(port, 0, sizeof(struct ioc3_port));
 		spin_lock_init(&port->ip_lock);
 
 		/* we need to remember the previous ones, to point back to

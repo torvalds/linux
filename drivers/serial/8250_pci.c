@@ -1628,16 +1628,13 @@ pciserial_init_ports(struct pci_dev *dev, struct pciserial_board *board)
 			nr_ports = rc;
 	}
 
-	priv = kmalloc(sizeof(struct serial_private) +
+	priv = kzalloc(sizeof(struct serial_private) +
 		       sizeof(unsigned int) * nr_ports,
 		       GFP_KERNEL);
 	if (!priv) {
 		priv = ERR_PTR(-ENOMEM);
 		goto err_deinit;
 	}
-
-	memset(priv, 0, sizeof(struct serial_private) +
-			sizeof(unsigned int) * nr_ports);
 
 	priv->dev = dev;
 	priv->quirk = quirk;

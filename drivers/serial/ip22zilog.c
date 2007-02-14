@@ -922,13 +922,7 @@ static int zilog_irq = -1;
 
 static void * __init alloc_one_table(unsigned long size)
 {
-	void *ret;
-
-	ret = kmalloc(size, GFP_KERNEL);
-	if (ret != NULL)
-		memset(ret, 0, size);
-
-	return ret;
+	return kzalloc(size, GFP_KERNEL);
 }
 
 static void __init ip22zilog_alloc_tables(void)

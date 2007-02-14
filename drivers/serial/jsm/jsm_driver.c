@@ -71,14 +71,13 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_disable_device;
 	}
 
-	brd = kmalloc(sizeof(struct jsm_board), GFP_KERNEL);
+	brd = kzalloc(sizeof(struct jsm_board), GFP_KERNEL);
 	if (!brd) {
 		dev_err(&pdev->dev,
 			"memory allocation for board structure failed\n");
 		rc = -ENOMEM;
 		goto out_release_regions;
 	}
-	memset(brd, 0, sizeof(struct jsm_board));
 
 	/* store the info for the board we've found */
 	brd->boardnum = adapter_count++;
@@ -152,7 +151,7 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * Okay to malloc with GFP_KERNEL, we are not at interrupt
 	 * context, and there are no locks held.
 	 */
-	brd->flipbuf = kmalloc(MYFLIPLEN, GFP_KERNEL);
+	brd->flipbuf = kzalloc(MYFLIPLEN, GFP_KERNEL);
 	if (!brd->flipbuf) {
 		/* XXX: leaking all resources from jsm_tty_init and
 		 	jsm_uart_port_init here! */
@@ -160,7 +159,6 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		retval = -ENOMEM;
 		goto out_free_irq;
 	}
-	memset(brd->flipbuf, 0, MYFLIPLEN);
 
 	pci_set_drvdata(pdev, brd);
 

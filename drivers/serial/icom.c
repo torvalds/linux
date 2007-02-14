@@ -1417,13 +1417,11 @@ static int __devinit icom_alloc_adapter(struct icom_adapter
 	struct list_head *tmp;
 
 	icom_adapter = (struct icom_adapter *)
-	    kmalloc(sizeof(struct icom_adapter), GFP_KERNEL);
+	    kzalloc(sizeof(struct icom_adapter), GFP_KERNEL);
 
 	if (!icom_adapter) {
 		return -ENOMEM;
 	}
-
-	memset(icom_adapter, 0, sizeof(struct icom_adapter));
 
 	list_for_each(tmp, &icom_adapter_head) {
 		cur_adapter_entry =
