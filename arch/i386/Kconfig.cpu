@@ -226,11 +226,6 @@ config X86_CMPXCHG
 	depends on !M386
 	default y
 
-config X86_XADD
-	bool
-	depends on !M386
-	default y
-
 config X86_L1_CACHE_SHIFT
 	int
 	default "7" if MPENTIUM4 || X86_GENERIC

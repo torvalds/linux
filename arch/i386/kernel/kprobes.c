@@ -363,7 +363,7 @@ no_kprobe:
 			"	pushf\n"
 			/* skip cs, eip, orig_eax */
 			"	subl $12, %esp\n"
-			"	pushl %gs\n"
+			"	pushl %fs\n"
 			"	pushl %ds\n"
 			"	pushl %es\n"
 			"	pushl %eax\n"
@@ -387,7 +387,7 @@ no_kprobe:
 			"	popl %edi\n"
 			"	popl %ebp\n"
 			"	popl %eax\n"
-			/* skip eip, orig_eax, es, ds, gs */
+			/* skip eip, orig_eax, es, ds, fs */
 			"	addl $20, %esp\n"
 			"	popf\n"
 			"	ret\n");
@@ -408,7 +408,7 @@ fastcall void *__kprobes trampoline_handler(struct pt_regs *regs)
 	spin_lock_irqsave(&kretprobe_lock, flags);
 	head = kretprobe_inst_table_head(current);
 	/* fixup registers */
-	regs->xcs = __KERNEL_CS;
+	regs->xcs = __KERNEL_CS | get_kernel_rpl();
 	regs->eip = trampoline_address;
 	regs->orig_eax = 0xffffffff;
 

@@ -48,6 +48,7 @@
 #include <asm/i387.h>
 #include <asm/desc.h>
 #include <asm/vm86.h>
+#include <asm/idle.h>
 #ifdef CONFIG_MATH_EMULATION
 #include <asm/math_emu.h>
 #endif
@@ -79,6 +80,42 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 void (*pm_idle)(void);
 EXPORT_SYMBOL(pm_idle);
 static DEFINE_PER_CPU(unsigned int, cpu_idle_state);
+
+static ATOMIC_NOTIFIER_HEAD(idle_notifier);
+
+void idle_notifier_register(struct notifier_block *n)
+{
+	atomic_notifier_chain_register(&idle_notifier, n);
+}
+
+void idle_notifier_unregister(struct notifier_block *n)
+{
+	atomic_notifier_chain_unregister(&idle_notifier, n);
+}
+
+static DEFINE_PER_CPU(volatile unsigned long, idle_state);
+
+void enter_idle(void)
+{
+	/* needs to be atomic w.r.t. interrupts, not against other CPUs */
+	__set_bit(0, &__get_cpu_var(idle_state));
+	atomic_notifier_call_chain(&idle_notifier, IDLE_START, NULL);
+}
+
+static void __exit_idle(void)
+{
+	/* needs to be atomic w.r.t. interrupts, not against other CPUs */
+	if (__test_and_clear_bit(0, &__get_cpu_var(idle_state)) == 0)
+		return;
+	atomic_notifier_call_chain(&idle_notifier, IDLE_END, NULL);
+}
+
+void exit_idle(void)
+{
+	if (current->pid)
+		return;
+	__exit_idle();
+}
 
 void disable_hlt(void)
 {
@@ -130,6 +167,7 @@ EXPORT_SYMBOL(default_idle);
  */
 static void poll_idle (void)
 {
+	local_irq_enable();
 	cpu_relax();
 }
 
@@ -189,7 +227,16 @@ void cpu_idle(void)
 				play_dead();
 
 			__get_cpu_var(irq_stat).idle_timestamp = jiffies;
+
+			/*
+			 * Idle routines should keep interrupts disabled
+			 * from here on, until they go to idle.
+			 * Otherwise, idle callbacks can misfire.
+			 */
+			local_irq_disable();
+			enter_idle();
 			idle();
+			__exit_idle();
 		}
 		preempt_enable_no_resched();
 		schedule();
@@ -243,7 +290,11 @@ void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
 		if (!need_resched())
-			__mwait(eax, ecx);
+			__sti_mwait(eax, ecx);
+		else
+			local_irq_enable();
+	} else {
+		local_irq_enable();
 	}
 }
 
@@ -308,8 +359,8 @@ void show_regs(struct pt_regs * regs)
 		regs->eax,regs->ebx,regs->ecx,regs->edx);
 	printk("ESI: %08lx EDI: %08lx EBP: %08lx",
 		regs->esi, regs->edi, regs->ebp);
-	printk(" DS: %04x ES: %04x GS: %04x\n",
-	       0xffff & regs->xds,0xffff & regs->xes, 0xffff & regs->xgs);
+	printk(" DS: %04x ES: %04x FS: %04x\n",
+	       0xffff & regs->xds,0xffff & regs->xes, 0xffff & regs->xfs);
 
 	cr0 = read_cr0();
 	cr2 = read_cr2();
@@ -340,7 +391,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 
 	regs.xds = __USER_DS;
 	regs.xes = __USER_DS;
-	regs.xgs = __KERNEL_PDA;
+	regs.xfs = __KERNEL_PDA;
 	regs.orig_eax = -1;
 	regs.eip = (unsigned long) kernel_thread_helper;
 	regs.xcs = __KERNEL_CS | get_kernel_rpl();
@@ -425,7 +476,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 
 	p->thread.eip = (unsigned long) ret_from_fork;
 
-	savesegment(fs,p->thread.fs);
+	savesegment(gs,p->thread.gs);
 
 	tsk = current;
 	if (unlikely(test_tsk_thread_flag(tsk, TIF_IO_BITMAP))) {
@@ -501,8 +552,8 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	dump->regs.eax = regs->eax;
 	dump->regs.ds = regs->xds;
 	dump->regs.es = regs->xes;
-	savesegment(fs,dump->regs.fs);
-	dump->regs.gs = regs->xgs;
+	dump->regs.fs = regs->xfs;
+	savesegment(gs,dump->regs.gs);
 	dump->regs.orig_eax = regs->orig_eax;
 	dump->regs.eip = regs->eip;
 	dump->regs.cs = regs->xcs;
@@ -653,7 +704,7 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	load_esp0(tss, next);
 
 	/*
-	 * Save away %fs. No need to save %gs, as it was saved on the
+	 * Save away %gs. No need to save %fs, as it was saved on the
 	 * stack on entry.  No need to save %es and %ds, as those are
 	 * always kernel segments while inside the kernel.  Doing this
 	 * before setting the new TLS descriptors avoids the situation
@@ -662,7 +713,7 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	 * used %fs or %gs (it does not today), or if the kernel is
 	 * running inside of a hypervisor layer.
 	 */
-	savesegment(fs, prev->fs);
+	savesegment(gs, prev->gs);
 
 	/*
 	 * Load the per-thread Thread-Local Storage descriptor.
@@ -670,14 +721,13 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	load_TLS(next, cpu);
 
 	/*
-	 * Restore %fs if needed.
-	 *
-	 * Glibc normally makes %fs be zero.
+	 * Restore IOPL if needed.  In normal use, the flags restore
+	 * in the switch assembly will handle this.  But if the kernel
+	 * is running virtualized at a non-zero CPL, the popf will
+	 * not restore flags, so it must be done in a separate step.
 	 */
-	if (unlikely(prev->fs | next->fs))
-		loadsegment(fs, next->fs);
-
-	write_pda(pcurrent, next_p);
+	if (get_kernel_rpl() && unlikely(prev->iopl != next->iopl))
+		set_iopl_mask(next->iopl);
 
 	/*
 	 * Now maybe handle debug registers and/or IO bitmaps
@@ -688,12 +738,29 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 
 	disable_tsc(prev_p, next_p);
 
+	/*
+	 * Leave lazy mode, flushing any hypercalls made here.
+	 * This must be done before restoring TLS segments so
+	 * the GDT and LDT are properly updated, and must be
+	 * done before math_state_restore, so the TS bit is up
+	 * to date.
+	 */
+	arch_leave_lazy_cpu_mode();
+
 	/* If the task has used fpu the last 5 timeslices, just do a full
 	 * restore of the math state immediately to avoid the trap; the
 	 * chances of needing FPU soon are obviously high now
 	 */
 	if (next_p->fpu_counter > 5)
 		math_state_restore();
+
+	/*
+	 * Restore %gs if needed (which is common)
+	 */
+	if (prev->gs | next->gs)
+		loadsegment(gs, next->gs);
+
+	write_pda(pcurrent, next_p);
 
 	return prev_p;
 }

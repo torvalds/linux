@@ -536,8 +536,12 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 		ret = 0;
 		for (ui = 0; ui < sizeof(struct user_regs_struct); ui += sizeof(long)) {
-			ret |= __get_user(tmp, (unsigned long __user *) data);
-			putreg(child, ui, tmp);
+			ret = __get_user(tmp, (unsigned long __user *) data);
+			if (ret)
+				break;
+			ret = putreg(child, ui, tmp);
+			if (ret)
+				break;
 			data += sizeof(long);
 		}
 		break;

@@ -131,15 +131,13 @@ unsigned long profile_pc(struct pt_regs *regs)
 	unsigned long pc = instruction_pointer(regs);
 
 #ifdef CONFIG_SMP
-	if (!user_mode_vm(regs) && in_lock_functions(pc)) {
+	if (!v8086_mode(regs) && SEGMENT_IS_KERNEL_CODE(regs->xcs) &&
+	    in_lock_functions(pc)) {
 #ifdef CONFIG_FRAME_POINTER
 		return *(unsigned long *)(regs->ebp + 4);
 #else
-		unsigned long *sp;
-		if ((regs->xcs & 3) == 0)
-			sp = (unsigned long *)&regs->esp;
-		else
-			sp = (unsigned long *)regs->esp;
+		unsigned long *sp = (unsigned long *)&regs->esp;
+
 		/* Return address is either directly at stack pointer
 		   or above a saved eflags. Eflags has bits 22-31 zero,
 		   kernel addresses don't. */
@@ -232,6 +230,7 @@ EXPORT_SYMBOL(get_cmos_time);
 static void sync_cmos_clock(unsigned long dummy);
 
 static DEFINE_TIMER(sync_cmos_timer, sync_cmos_clock, 0, 0);
+int no_sync_cmos_clock;
 
 static void sync_cmos_clock(unsigned long dummy)
 {
@@ -275,7 +274,8 @@ static void sync_cmos_clock(unsigned long dummy)
 
 void notify_arch_cmos_timer(void)
 {
-	mod_timer(&sync_cmos_timer, jiffies + 1);
+	if (!no_sync_cmos_clock)
+		mod_timer(&sync_cmos_timer, jiffies + 1);
 }
 
 static long clock_cmos_diff;

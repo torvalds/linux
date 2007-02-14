@@ -39,19 +39,19 @@ extern struct i386_pda _proxy_pda;
 		if (0) { T__ tmp__; tmp__ = (val); }			\
 		switch (sizeof(_proxy_pda.field)) {			\
 		case 1:							\
-			asm(op "b %1,%%gs:%c2"				\
+			asm(op "b %1,%%fs:%c2"				\
 			    : "+m" (_proxy_pda.field)			\
 			    :"ri" ((T__)val),				\
 			     "i"(pda_offset(field)));			\
 			break;						\
 		case 2:							\
-			asm(op "w %1,%%gs:%c2"				\
+			asm(op "w %1,%%fs:%c2"				\
 			    : "+m" (_proxy_pda.field)			\
 			    :"ri" ((T__)val),				\
 			     "i"(pda_offset(field)));			\
 			break;						\
 		case 4:							\
-			asm(op "l %1,%%gs:%c2"				\
+			asm(op "l %1,%%fs:%c2"				\
 			    : "+m" (_proxy_pda.field)			\
 			    :"ri" ((T__)val),				\
 			     "i"(pda_offset(field)));			\
@@ -65,19 +65,19 @@ extern struct i386_pda _proxy_pda;
 		typeof(_proxy_pda.field) ret__;				\
 		switch (sizeof(_proxy_pda.field)) {			\
 		case 1:							\
-			asm(op "b %%gs:%c1,%0"				\
+			asm(op "b %%fs:%c1,%0"				\
 			    : "=r" (ret__)				\
 			    : "i" (pda_offset(field)),			\
 			      "m" (_proxy_pda.field));			\
 			break;						\
 		case 2:							\
-			asm(op "w %%gs:%c1,%0"				\
+			asm(op "w %%fs:%c1,%0"				\
 			    : "=r" (ret__)				\
 			    : "i" (pda_offset(field)),			\
 			      "m" (_proxy_pda.field));			\
 			break;						\
 		case 4:							\
-			asm(op "l %%gs:%c1,%0"				\
+			asm(op "l %%fs:%c1,%0"				\
 			    : "=r" (ret__)				\
 			    : "i" (pda_offset(field)),			\
 			      "m" (_proxy_pda.field));			\

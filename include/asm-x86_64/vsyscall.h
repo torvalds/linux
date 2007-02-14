@@ -56,11 +56,6 @@ extern struct vxtime_data vxtime;
 extern int vgetcpu_mode;
 extern struct timezone sys_tz;
 extern int sysctl_vsyscall;
-extern seqlock_t xtime_lock;
-
-extern int sysctl_vsyscall;
-
-#define ARCH_HAVE_XTIME_LOCK 1
 
 #endif /* __KERNEL__ */
 

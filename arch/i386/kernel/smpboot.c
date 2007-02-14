@@ -63,6 +63,7 @@
 #include <mach_apic.h>
 #include <mach_wakecpu.h>
 #include <smpboot_hooks.h>
+#include <asm/vmi.h>
 
 /* Set if we find a B stepping CPU */
 static int __devinitdata smp_b_stepping;
@@ -545,12 +546,15 @@ static void __cpuinit start_secondary(void *unused)
 	 * booting is too fragile that we want to limit the
 	 * things done here to the most necessary things.
 	 */
+#ifdef CONFIG_VMI
+	vmi_bringup();
+#endif
 	secondary_cpu_init();
 	preempt_disable();
 	smp_callin();
 	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
 		rep_nop();
-	setup_secondary_APIC_clock();
+	setup_secondary_clock();
 	if (nmi_watchdog == NMI_IO_APIC) {
 		disable_8259A_irq(0);
 		enable_NMI_through_LVT0(NULL);
@@ -619,7 +623,6 @@ extern struct {
 	unsigned short ss;
 } stack_start;
 extern struct i386_pda *start_pda;
-extern struct Xgt_desc_struct cpu_gdt_descr;
 
 #ifdef CONFIG_NUMA
 
@@ -833,6 +836,13 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		num_starts = 2;
 	else
 		num_starts = 0;
+
+	/*
+	 * Paravirt / VMI wants a startup IPI hook here to set up the
+	 * target processor state.
+	 */
+	startup_ipi_hook(phys_apicid, (unsigned long) start_secondary,
+		         (unsigned long) stack_start.esp);
 
 	/*
 	 * Run STARTUP IPI loop.
@@ -1320,7 +1330,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 	smpboot_setup_io_apic();
 
-	setup_boot_APIC_clock();
+	setup_boot_clock();
 
 	/*
 	 * Synchronize the TSC with the AP

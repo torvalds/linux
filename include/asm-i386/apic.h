@@ -43,6 +43,8 @@ extern void generic_apic_probe(void);
 #define apic_write native_apic_write
 #define apic_write_atomic native_apic_write_atomic
 #define apic_read native_apic_read
+#define setup_boot_clock setup_boot_APIC_clock
+#define setup_secondary_clock setup_secondary_APIC_clock
 #endif
 
 static __inline fastcall void native_apic_write(unsigned long reg,

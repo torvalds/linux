@@ -103,6 +103,8 @@ void mce_log_therm_throt_event(unsigned int cpu, __u64 status);
 
 extern atomic_t mce_entry;
 
+extern void do_machine_check(struct pt_regs *, long);
+
 #endif
 
 #endif

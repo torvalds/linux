@@ -59,6 +59,7 @@ struct linux_binfmt {
 	int (*load_shlib)(struct file *);
 	int (*core_dump)(long signr, struct pt_regs * regs, struct file * file);
 	unsigned long min_coredump;	/* minimal dump size */
+	int hasvdso;
 };
 
 extern int register_binfmt(struct linux_binfmt *);
