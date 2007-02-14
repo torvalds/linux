@@ -9,11 +9,6 @@
 
 #include <linux/kernel.h>
 
-#ifdef CONFIG_SH_EC3104
-#include <asm/serial-ec3104.h>
-#elif defined (CONFIG_SH_BIGSUR)
-#include <asm/serial-bigsur.h>
-#else
 /*
  * This assumes you have a 1.8432 MHz clock for your UART.
  *
@@ -41,5 +36,4 @@
 
 #endif
 
-#endif
 #endif /* _ASM_SERIAL_H */

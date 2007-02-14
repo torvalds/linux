@@ -135,12 +135,6 @@ config SH_HP6XX
 	  More information (hardware only) at
 	  <http://www.hp.com/jornada/>.
 
-config SH_EC3104
-	bool "EC3104"
-	help
-	  Select EC3104 if configuring for a system with an Eclipse
-	  International EC3104 chip, e.g. the Harris AD2000.
-
 config SH_SATURN
 	bool "Saturn"
 	select CPU_SUBTYPE_SH7604
@@ -155,9 +149,6 @@ config SH_DREAMCAST
 	  More information at
 	  <http://www.m17n.org/linux-sh/dreamcast/>.  There is a
 	  Dreamcast project is at <http://linuxdc.sourceforge.net/>.
-
-config SH_BIGSUR
-	bool "BigSur"
 
 config SH_MPC1211
 	bool "Interface MPC1211"
@@ -511,7 +502,7 @@ source "arch/sh/cchips/Kconfig"
 config HEARTBEAT
 	bool "Heartbeat LED"
 	depends on SH_MPC1211 || SH_SH03 || \
-		   SH_BIGSUR || SOLUTION_ENGINE || \
+		   SOLUTION_ENGINE || \
 		   SH_RTS7751R2D || SH_SH4202_MICRODEV || SH_LANDISK || \
 		   SH_R7780RP
 	help
