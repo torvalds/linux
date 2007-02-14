@@ -1,12 +1,26 @@
 config INFINIBAND_IPOIB
 	tristate "IP-over-InfiniBand"
-	depends on INFINIBAND && NETDEVICES && INET
+	depends on INFINIBAND && NETDEVICES && INET && (IPV6 || IPV6=n)
 	---help---
 	  Support for the IP-over-InfiniBand protocol (IPoIB). This
 	  transports IP packets over InfiniBand so you can use your IB
 	  device as a fancy NIC.
 
 	  See Documentation/infiniband/ipoib.txt for more information
+
+config INFINIBAND_IPOIB_CM
+	bool "IP-over-InfiniBand Connected Mode support"
+	depends on INFINIBAND_IPOIB && EXPERIMENTAL
+	default n
+	---help---
+	  This option enables experimental support for IPoIB connected mode.
+	  After enabling this option, you need to switch to connected mode through
+	  /sys/class/net/ibXXX/mode to actually create connections, and then increase
+	  the interface MTU with e.g. ifconfig ib0 mtu 65520.
+
+	  WARNING: Enabling connected mode will trigger some
+	  packet drops for multicast and UD mode traffic from this interface,
+	  unless you limit mtu for these destinations to 2044.
 
 config INFINIBAND_IPOIB_DEBUG
 	bool "IP-over-InfiniBand debugging" if EMBEDDED

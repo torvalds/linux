@@ -35,6 +35,9 @@
  */
 
 #include <linux/mm.h>
+#include <linux/scatterlist.h>
+
+#include <asm/page.h>
 
 #include "mthca_memfree.h"
 #include "mthca_dev.h"
@@ -58,22 +61,42 @@ struct mthca_user_db_table {
 	}                page[0];
 };
 
-void mthca_free_icm(struct mthca_dev *dev, struct mthca_icm *icm)
+static void mthca_free_icm_pages(struct mthca_dev *dev, struct mthca_icm_chunk *chunk)
+{
+	int i;
+
+	if (chunk->nsg > 0)
+		pci_unmap_sg(dev->pdev, chunk->mem, chunk->npages,
+			     PCI_DMA_BIDIRECTIONAL);
+
+	for (i = 0; i < chunk->npages; ++i)
+		__free_pages(chunk->mem[i].page,
+			     get_order(chunk->mem[i].length));
+}
+
+static void mthca_free_icm_coherent(struct mthca_dev *dev, struct mthca_icm_chunk *chunk)
+{
+	int i;
+
+	for (i = 0; i < chunk->npages; ++i) {
+		dma_free_coherent(&dev->pdev->dev, chunk->mem[i].length,
+				  lowmem_page_address(chunk->mem[i].page),
+				  sg_dma_address(&chunk->mem[i]));
+	}
+}
+
+void mthca_free_icm(struct mthca_dev *dev, struct mthca_icm *icm, int coherent)
 {
 	struct mthca_icm_chunk *chunk, *tmp;
-	int i;
 
 	if (!icm)
 		return;
 
 	list_for_each_entry_safe(chunk, tmp, &icm->chunk_list, list) {
-		if (chunk->nsg > 0)
-			pci_unmap_sg(dev->pdev, chunk->mem, chunk->npages,
-				     PCI_DMA_BIDIRECTIONAL);
-
-		for (i = 0; i < chunk->npages; ++i)
-			__free_pages(chunk->mem[i].page,
-				     get_order(chunk->mem[i].length));
+		if (coherent)
+			mthca_free_icm_coherent(dev, chunk);
+		else
+			mthca_free_icm_pages(dev, chunk);
 
 		kfree(chunk);
 	}
@@ -81,12 +104,41 @@ void mthca_free_icm(struct mthca_dev *dev, struct mthca_icm *icm)
 	kfree(icm);
 }
 
+static int mthca_alloc_icm_pages(struct scatterlist *mem, int order, gfp_t gfp_mask)
+{
+	mem->page = alloc_pages(gfp_mask, order);
+	if (!mem->page)
+		return -ENOMEM;
+
+	mem->length = PAGE_SIZE << order;
+	mem->offset = 0;
+	return 0;
+}
+
+static int mthca_alloc_icm_coherent(struct device *dev, struct scatterlist *mem,
+				    int order, gfp_t gfp_mask)
+{
+	void *buf = dma_alloc_coherent(dev, PAGE_SIZE << order, &sg_dma_address(mem),
+				       gfp_mask);
+	if (!buf)
+		return -ENOMEM;
+
+	sg_set_buf(mem, buf, PAGE_SIZE << order);
+	BUG_ON(mem->offset);
+	sg_dma_len(mem) = PAGE_SIZE << order;
+	return 0;
+}
+
 struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
-				  gfp_t gfp_mask)
+				  gfp_t gfp_mask, int coherent)
 {
 	struct mthca_icm *icm;
 	struct mthca_icm_chunk *chunk = NULL;
 	int cur_order;
+	int ret;
+
+	/* We use sg_set_buf for coherent allocs, which assumes low memory */
+	BUG_ON(coherent && (gfp_mask & __GFP_HIGHMEM));
 
 	icm = kmalloc(sizeof *icm, gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
 	if (!icm)
@@ -112,21 +164,28 @@ struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
 		while (1 << cur_order > npages)
 			--cur_order;
 
-		chunk->mem[chunk->npages].page = alloc_pages(gfp_mask, cur_order);
-		if (chunk->mem[chunk->npages].page) {
-			chunk->mem[chunk->npages].length = PAGE_SIZE << cur_order;
-			chunk->mem[chunk->npages].offset = 0;
+		if (coherent)
+			ret = mthca_alloc_icm_coherent(&dev->pdev->dev,
+						       &chunk->mem[chunk->npages],
+						       cur_order, gfp_mask);
+		else
+			ret = mthca_alloc_icm_pages(&chunk->mem[chunk->npages],
+						    cur_order, gfp_mask);
 
-			if (++chunk->npages == MTHCA_ICM_CHUNK_LEN) {
+		if (!ret) {
+			++chunk->npages;
+
+			if (!coherent && chunk->npages == MTHCA_ICM_CHUNK_LEN) {
 				chunk->nsg = pci_map_sg(dev->pdev, chunk->mem,
 							chunk->npages,
 							PCI_DMA_BIDIRECTIONAL);
 
 				if (chunk->nsg <= 0)
 					goto fail;
-
-				chunk = NULL;
 			}
+
+			if (chunk->npages == MTHCA_ICM_CHUNK_LEN)
+				chunk = NULL;
 
 			npages -= 1 << cur_order;
 		} else {
@@ -136,7 +195,7 @@ struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
 		}
 	}
 
-	if (chunk) {
+	if (!coherent && chunk) {
 		chunk->nsg = pci_map_sg(dev->pdev, chunk->mem,
 					chunk->npages,
 					PCI_DMA_BIDIRECTIONAL);
@@ -148,7 +207,7 @@ struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
 	return icm;
 
 fail:
-	mthca_free_icm(dev, icm);
+	mthca_free_icm(dev, icm, coherent);
 	return NULL;
 }
 
@@ -167,7 +226,7 @@ int mthca_table_get(struct mthca_dev *dev, struct mthca_icm_table *table, int ob
 
 	table->icm[i] = mthca_alloc_icm(dev, MTHCA_TABLE_CHUNK_SIZE >> PAGE_SHIFT,
 					(table->lowmem ? GFP_KERNEL : GFP_HIGHUSER) |
-					__GFP_NOWARN);
+					__GFP_NOWARN, table->coherent);
 	if (!table->icm[i]) {
 		ret = -ENOMEM;
 		goto out;
@@ -175,7 +234,7 @@ int mthca_table_get(struct mthca_dev *dev, struct mthca_icm_table *table, int ob
 
 	if (mthca_MAP_ICM(dev, table->icm[i], table->virt + i * MTHCA_TABLE_CHUNK_SIZE,
 			  &status) || status) {
-		mthca_free_icm(dev, table->icm[i]);
+		mthca_free_icm(dev, table->icm[i], table->coherent);
 		table->icm[i] = NULL;
 		ret = -ENOMEM;
 		goto out;
@@ -204,16 +263,16 @@ void mthca_table_put(struct mthca_dev *dev, struct mthca_icm_table *table, int o
 		mthca_UNMAP_ICM(dev, table->virt + i * MTHCA_TABLE_CHUNK_SIZE,
 				MTHCA_TABLE_CHUNK_SIZE / MTHCA_ICM_PAGE_SIZE,
 				&status);
-		mthca_free_icm(dev, table->icm[i]);
+		mthca_free_icm(dev, table->icm[i], table->coherent);
 		table->icm[i] = NULL;
 	}
 
 	mutex_unlock(&table->mutex);
 }
 
-void *mthca_table_find(struct mthca_icm_table *table, int obj)
+void *mthca_table_find(struct mthca_icm_table *table, int obj, dma_addr_t *dma_handle)
 {
-	int idx, offset, i;
+	int idx, offset, dma_offset, i;
 	struct mthca_icm_chunk *chunk;
 	struct mthca_icm *icm;
 	struct page *page = NULL;
@@ -225,13 +284,22 @@ void *mthca_table_find(struct mthca_icm_table *table, int obj)
 
 	idx = (obj & (table->num_obj - 1)) * table->obj_size;
 	icm = table->icm[idx / MTHCA_TABLE_CHUNK_SIZE];
-	offset = idx % MTHCA_TABLE_CHUNK_SIZE;
+	dma_offset = offset = idx % MTHCA_TABLE_CHUNK_SIZE;
 
 	if (!icm)
 		goto out;
 
 	list_for_each_entry(chunk, &icm->chunk_list, list) {
 		for (i = 0; i < chunk->npages; ++i) {
+			if (dma_handle && dma_offset >= 0) {
+				if (sg_dma_len(&chunk->mem[i]) > dma_offset)
+					*dma_handle = sg_dma_address(&chunk->mem[i]) +
+						dma_offset;
+				dma_offset -= sg_dma_len(&chunk->mem[i]);
+			}
+			/* DMA mapping can merge pages but not split them,
+			 * so if we found the page, dma_handle has already
+			 * been assigned to. */
 			if (chunk->mem[i].length > offset) {
 				page = chunk->mem[i].page;
 				goto out;
@@ -283,7 +351,7 @@ void mthca_table_put_range(struct mthca_dev *dev, struct mthca_icm_table *table,
 struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 					      u64 virt, int obj_size,
 					      int nobj, int reserved,
-					      int use_lowmem)
+					      int use_lowmem, int use_coherent)
 {
 	struct mthca_icm_table *table;
 	int num_icm;
@@ -302,6 +370,7 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 	table->num_obj  = nobj;
 	table->obj_size = obj_size;
 	table->lowmem   = use_lowmem;
+	table->coherent = use_coherent;
 	mutex_init(&table->mutex);
 
 	for (i = 0; i < num_icm; ++i)
@@ -314,12 +383,12 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 
 		table->icm[i] = mthca_alloc_icm(dev, chunk_size >> PAGE_SHIFT,
 						(use_lowmem ? GFP_KERNEL : GFP_HIGHUSER) |
-						__GFP_NOWARN);
+						__GFP_NOWARN, use_coherent);
 		if (!table->icm[i])
 			goto err;
 		if (mthca_MAP_ICM(dev, table->icm[i], virt + i * MTHCA_TABLE_CHUNK_SIZE,
 				  &status) || status) {
-			mthca_free_icm(dev, table->icm[i]);
+			mthca_free_icm(dev, table->icm[i], table->coherent);
 			table->icm[i] = NULL;
 			goto err;
 		}
@@ -339,7 +408,7 @@ err:
 			mthca_UNMAP_ICM(dev, virt + i * MTHCA_TABLE_CHUNK_SIZE,
 					MTHCA_TABLE_CHUNK_SIZE / MTHCA_ICM_PAGE_SIZE,
 				        &status);
-			mthca_free_icm(dev, table->icm[i]);
+			mthca_free_icm(dev, table->icm[i], table->coherent);
 		}
 
 	kfree(table);
@@ -357,7 +426,7 @@ void mthca_free_icm_table(struct mthca_dev *dev, struct mthca_icm_table *table)
 			mthca_UNMAP_ICM(dev, table->virt + i * MTHCA_TABLE_CHUNK_SIZE,
 					MTHCA_TABLE_CHUNK_SIZE / MTHCA_ICM_PAGE_SIZE,
 					&status);
-			mthca_free_icm(dev, table->icm[i]);
+			mthca_free_icm(dev, table->icm[i], table->coherent);
 		}
 
 	kfree(table);

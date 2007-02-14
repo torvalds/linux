@@ -89,6 +89,7 @@ struct mthca_fmr {
 		struct {
 			struct mthca_mpt_entry *mpt;
 			__be64 *mtts;
+			dma_addr_t dma_handle;
 		} arbel;
 	} mem;
 };

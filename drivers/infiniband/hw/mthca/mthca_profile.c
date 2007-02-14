@@ -277,7 +277,7 @@ u64 mthca_make_profile(struct mthca_dev *dev,
 	 * out of the MR pool. They don't use additional memory, but
 	 * we assign them as part of the HCA profile anyway.
 	 */
-	if (mthca_is_memfree(dev))
+	if (mthca_is_memfree(dev) || BITS_PER_LONG == 64)
 		dev->limits.fmr_reserved_mtts = 0;
 	else
 		dev->limits.fmr_reserved_mtts = request->fmr_reserved_mtts;

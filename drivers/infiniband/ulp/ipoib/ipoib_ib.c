@@ -50,8 +50,6 @@ MODULE_PARM_DESC(data_debug_level,
 		 "Enable data path debug tracing if > 0");
 #endif
 
-#define	IPOIB_OP_RECV	(1ul << 31)
-
 static DEFINE_MUTEX(pkey_mutex);
 
 struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
@@ -268,10 +266,11 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	++priv->tx_tail;
-	if (netif_queue_stopped(dev) &&
-	    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags) &&
-	    priv->tx_head - priv->tx_tail <= ipoib_sendq_size >> 1)
+	if (unlikely(test_bit(IPOIB_FLAG_NETIF_STOPPED, &priv->flags)) &&
+	    priv->tx_head - priv->tx_tail <= ipoib_sendq_size >> 1) {
+		clear_bit(IPOIB_FLAG_NETIF_STOPPED, &priv->flags);
 		netif_wake_queue(dev);
+	}
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	if (wc->status != IB_WC_SUCCESS &&
@@ -283,7 +282,9 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 
 static void ipoib_ib_handle_wc(struct net_device *dev, struct ib_wc *wc)
 {
-	if (wc->wr_id & IPOIB_OP_RECV)
+	if (wc->wr_id & IPOIB_CM_OP_SRQ)
+		ipoib_cm_handle_rx_wc(dev, wc);
+	else if (wc->wr_id & IPOIB_OP_RECV)
 		ipoib_ib_handle_rx_wc(dev, wc);
 	else
 		ipoib_ib_handle_tx_wc(dev, wc);
@@ -327,12 +328,12 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	struct ipoib_tx_buf *tx_req;
 	u64 addr;
 
-	if (unlikely(skb->len > dev->mtu + INFINIBAND_ALEN)) {
+	if (unlikely(skb->len > priv->mcast_mtu + INFINIBAND_ALEN)) {
 		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
-			   skb->len, dev->mtu + INFINIBAND_ALEN);
+			   skb->len, priv->mcast_mtu + INFINIBAND_ALEN);
 		++priv->stats.tx_dropped;
 		++priv->stats.tx_errors;
-		dev_kfree_skb_any(skb);
+		ipoib_cm_skb_too_long(dev, skb, priv->mcast_mtu);
 		return;
 	}
 
@@ -372,6 +373,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		if (priv->tx_head - priv->tx_tail == ipoib_sendq_size) {
 			ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");
 			netif_stop_queue(dev);
+			set_bit(IPOIB_FLAG_NETIF_STOPPED, &priv->flags);
 		}
 	}
 }
@@ -418,6 +420,13 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	}
 
 	ret = ipoib_ib_post_receives(dev);
+	if (ret) {
+		ipoib_warn(priv, "ipoib_ib_post_receives returned %d\n", ret);
+		ipoib_ib_dev_stop(dev);
+		return -1;
+	}
+
+	ret = ipoib_cm_dev_open(dev);
 	if (ret) {
 		ipoib_warn(priv, "ipoib_ib_post_receives returned %d\n", ret);
 		ipoib_ib_dev_stop(dev);
@@ -508,6 +517,8 @@ int ipoib_ib_dev_stop(struct net_device *dev)
 	int i;
 
 	clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
+
+	ipoib_cm_dev_stop(dev);
 
 	/*
 	 * Move our QP to the error state and then reinitialize in
