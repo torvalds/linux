@@ -125,6 +125,8 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 #endif
 			}
 		}
+
+		vec[i] = present;
 	}
 	pte_unmap_unlock(ptep-1, ptl);
 
@@ -135,6 +137,9 @@ none_mapped:
 		pgoff = linear_page_index(vma, addr);
 		for (i = 0; i < nr; i++, pgoff++)
 			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
+	} else {
+		for (i = 0; i < nr; i++)
+			vec[i] = 0;
 	}
 
 	return nr;
