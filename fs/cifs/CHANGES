@@ -4,7 +4,12 @@ Fix oops in list_del during mount caused by unaligned string.
 Fix file corruption which could occur on some large file
 copies caused by writepages page i/o completion bug.
 Seek to SEEK_END forces check for update of file size for non-cached
-files.
+files. Allow file size to be updated on remote extend of locally open,
+non-cached file.  Fix reconnect to newer Samba servers (or other servers
+which support the CIFS Unix/POSIX extensions) so that we again tell the
+server the Unix/POSIX cifs capabilities which we support (SetFSInfo).
+Add experimental support for new POSIX Open/Mkdir (which returns
+stat information on the open, and allows setting the mode).
 
 Version 1.46
 ------------

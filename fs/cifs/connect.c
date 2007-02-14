@@ -1613,6 +1613,76 @@ ipv6_connect(struct sockaddr_in6 *psin_server, struct socket **csocket)
 	return rc;
 }
 
+void reset_cifs_unix_caps(int xid, struct cifsTconInfo * tcon, 
+			  struct super_block * sb, struct smb_vol * vol_info)
+{
+	/* if we are reconnecting then should we check to see if
+	 * any requested capabilities changed locally e.g. via
+	 * remount but we can not do much about it here
+	 * if they have (even if we could detect it by the following)
+	 * Perhaps we could add a backpointer to array of sb from tcon
+	 * or if we change to make all sb to same share the same
+	 * sb as NFS - then we only have one backpointer to sb.
+	 * What if we wanted to mount the server share twice once with
+	 * and once without posixacls or posix paths? */
+	__u64 saved_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
+	   
+	 
+	if(!CIFSSMBQFSUnixInfo(xid, tcon)) {
+		__u64 cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
+		
+		/* check for reconnect case in which we do not
+		   want to change the mount behavior if we can avoid it */
+		if(vol_info == NULL) {
+			/* turn off POSIX ACL and PATHNAMES if not set 
+			   originally at mount time */
+			if ((saved_cap & CIFS_UNIX_POSIX_ACL_CAP) == 0)
+				cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
+			if ((saved_cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) == 0)
+				cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
+				
+
+			 
+			
+		}
+		
+		cap &= CIFS_UNIX_CAP_MASK;
+		if(vol_info && vol_info->no_psx_acl)
+			cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
+		else if(CIFS_UNIX_POSIX_ACL_CAP & cap) {
+			cFYI(1,("negotiated posix acl support"));
+			if(sb)
+				sb->s_flags |= MS_POSIXACL;
+		}
+
+		if(vol_info && vol_info->posix_paths == 0)
+			cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
+		else if(cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) {
+			cFYI(1,("negotiate posix pathnames"));
+			if(sb)
+				CIFS_SB(sb)->mnt_cifs_flags |= 
+					CIFS_MOUNT_POSIX_PATHS;
+		}
+			
+		cFYI(1,("Negotiate caps 0x%x",(int)cap));
+#ifdef CONFIG_CIFS_DEBUG2
+		if(cap & CIFS_UNIX_FCNTL_CAP)
+			cFYI(1,("FCNTL cap"));
+		if(cap & CIFS_UNIX_EXTATTR_CAP)
+			cFYI(1,("EXTATTR cap"));
+		if(cap & CIFS_UNIX_POSIX_PATHNAMES_CAP)
+			cFYI(1,("POSIX path cap"));
+		if(cap & CIFS_UNIX_XATTR_CAP)
+			cFYI(1,("XATTR cap"));
+		if(cap & CIFS_UNIX_POSIX_ACL_CAP)
+			cFYI(1,("POSIX ACL cap"));
+#endif /* CIFS_DEBUG2 */
+		if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
+			cFYI(1,("setting capabilities failed"));
+		}
+	}
+}
+
 int
 cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	   char *mount_data, const char *devname)
@@ -1928,20 +1998,25 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			if (tcon == NULL)
 				rc = -ENOMEM;
 			else {
-				/* check for null share name ie connect to dfs root */
+				/* check for null share name ie connecting to 
+				 * dfs root */
 
-				/* BB check if this works for exactly length three strings */
+				/* BB check if this works for exactly length 
+				 * three strings */
 				if ((strchr(volume_info.UNC + 3, '\\') == NULL)
 				    && (strchr(volume_info.UNC + 3, '/') ==
 					NULL)) {
 					rc = connect_to_dfs_path(xid, pSesInfo,
-							"", cifs_sb->local_nls,
-							cifs_sb->mnt_cifs_flags & 
-							  CIFS_MOUNT_MAP_SPECIAL_CHR);
+						"", cifs_sb->local_nls,
+						cifs_sb->mnt_cifs_flags & 
+						  CIFS_MOUNT_MAP_SPECIAL_CHR);
 					kfree(volume_info.UNC);
 					FreeXid(xid);
 					return -ENODEV;
 				} else {
+					/* BB Do we need to wrap sesSem around
+					 * this TCon call and Unix SetFS as
+					 * we do on SessSetup and reconnect? */
 					rc = CIFSTCon(xid, pSesInfo, 
 						volume_info.UNC,
 						tcon, cifs_sb->local_nls);
@@ -1962,6 +2037,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			sb->s_maxbytes = (u64) 1 << 31;	/* 2 GB */
 	}
 
+	/* BB FIXME fix time_gran to be larger for LANMAN sessions */
 	sb->s_time_gran = 100;
 
 /* on error free sesinfo and tcon struct if needed */
@@ -2006,45 +2082,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		/* do not care if following two calls succeed - informational */
 		CIFSSMBQFSDeviceInfo(xid, tcon);
 		CIFSSMBQFSAttributeInfo(xid, tcon);
-
-		if (tcon->ses->capabilities & CAP_UNIX) {
-			if(!CIFSSMBQFSUnixInfo(xid, tcon)) {
-				__u64 cap = 
-				       le64_to_cpu(tcon->fsUnixInfo.Capability);
-				cap &= CIFS_UNIX_CAP_MASK;
-				if(volume_info.no_psx_acl)
-					cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
-				else if(CIFS_UNIX_POSIX_ACL_CAP & cap) {
-					cFYI(1,("negotiated posix acl support"));
-					sb->s_flags |= MS_POSIXACL;
-				}
-
-				if(volume_info.posix_paths == 0)
-					cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
-				else if(cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) {
-					cFYI(1,("negotiate posix pathnames"));
-					cifs_sb->mnt_cifs_flags |= 
-						CIFS_MOUNT_POSIX_PATHS;
-				}
-					
-				cFYI(1,("Negotiate caps 0x%x",(int)cap));
-#ifdef CONFIG_CIFS_DEBUG2
-				if(cap & CIFS_UNIX_FCNTL_CAP)
-					cFYI(1,("FCNTL cap"));
-				if(cap & CIFS_UNIX_EXTATTR_CAP)
-					cFYI(1,("EXTATTR cap"));
-				if(cap & CIFS_UNIX_POSIX_PATHNAMES_CAP)
-					cFYI(1,("POSIX path cap"));
-				if(cap & CIFS_UNIX_XATTR_CAP)
-					cFYI(1,("XATTR cap"));
-				if(cap & CIFS_UNIX_POSIX_ACL_CAP)
-					cFYI(1,("POSIX ACL cap"));
-#endif /* CIFS_DEBUG2 */
-				if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
-					cFYI(1,("setting capabilities failed"));
-				}
-			}
-		}
+		
+		/* tell server which Unix caps we support */
+		if (tcon->ses->capabilities & CAP_UNIX)
+			reset_cifs_unix_caps(xid, tcon, sb, &volume_info);
+		
 		if (!(tcon->ses->capabilities & CAP_LARGE_WRITE_X))
 			cifs_sb->wsize = min(cifs_sb->wsize,
 					     (tcon->ses->server->maxBuf -

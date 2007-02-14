@@ -2108,7 +2108,7 @@ typedef struct {
 
 typedef struct {
 	/* reply varies based on requested level */
-} __atribute__((packed)) OPEN_PSX_RSP; /* level 0x209 SetPathInfo data */
+} __attribute__((packed)) OPEN_PSX_RSP; /* level 0x209 SetPathInfo data */
 
 
 struct file_internal_info {

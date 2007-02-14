@@ -23,6 +23,7 @@
 #include <linux/nls.h>
 
 struct statfs;
+struct smb_vol;
 
 /*
  *****************************************************************
@@ -147,6 +148,8 @@ extern int get_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 			unsigned int *pnum_referrals, 
 			unsigned char ** preferrals,
 			int remap);
+extern void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
+				 struct super_block * sb, struct smb_vol * vol);
 extern int CIFSSMBQFSInfo(const int xid, struct cifsTconInfo *tcon,
 			struct kstatfs *FSData);
 extern int SMBOldQFSInfo(const int xid, struct cifsTconInfo *tcon,
