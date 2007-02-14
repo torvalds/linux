@@ -1472,7 +1472,10 @@ void ConfigMainWindow::searchConfig(void)
 void ConfigMainWindow::changeMenu(struct menu *menu)
 {
 	configList->setRootMenu(menu);
-	backAction->setEnabled(TRUE);
+	if (configList->rootEntry->parent == &rootmenu)
+		backAction->setEnabled(FALSE);
+	else
+		backAction->setEnabled(TRUE);
 }
 
 void ConfigMainWindow::setMenuLink(struct menu *menu)
