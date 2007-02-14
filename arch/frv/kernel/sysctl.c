@@ -197,7 +197,7 @@ static struct ctl_table frv_dir_table[] =
  */
 static int __init frv_sysctl_init(void)
 {
-	register_sysctl_table(frv_dir_table, 1);
+	register_sysctl_table(frv_dir_table, 0);
 	return 0;
 }
 
