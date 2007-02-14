@@ -357,7 +357,7 @@ static ctl_table abi_root_table2[] = {
 
 static __init int ia32_binfmt_init(void)
 { 
-	register_sysctl_table(abi_root_table2, 1);
+	register_sysctl_table(abi_root_table2, 0);
 	return 0;
 }
 __initcall(ia32_binfmt_init);
