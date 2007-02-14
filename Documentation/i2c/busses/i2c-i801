@@ -48,13 +48,8 @@ following:
 The SMBus controller is function 3 in device 1f. Class 0c05 is SMBus Serial
 Controller.
 
-If you do NOT see the 24x3 device at function 3, and you can't figure out
-any way in the BIOS to enable it,
-
 The ICH chips are quite similar to Intel's PIIX4 chip, at least in the
 SMBus controller.
-
-See the file i2c-piix4 for some additional information.
 
 
 Process Call Support
@@ -73,6 +68,61 @@ SMBus 2.0 Support
 -----------------
 
 The 82801DB (ICH4) and later chips support several SMBus 2.0 features.
+
+
+Hidden ICH SMBus
+----------------
+
+If your system has an Intel ICH south bridge, but you do NOT see the
+SMBus device at 00:1f.3 in lspci, and you can't figure out any way in the
+BIOS to enable it, it means it has been hidden by the BIOS code. Asus is
+well known for first doing this on their P4B motherboard, and many other
+boards after that. Some vendor machines are affected as well.
+
+The first thing to try is the "i2c_ec" ACPI driver. It could be that the
+SMBus was hidden on purpose because it'll be driven by ACPI. If the
+i2c_ec driver works for you, just forget about the i2c-i801 driver and
+don't try to unhide the ICH SMBus. Even if i2c_ec doesn't work, you
+better make sure that the SMBus isn't used by the ACPI code. Try loading
+the "fan" and "thermal" drivers, and check in /proc/acpi/fan and
+/proc/acpi/thermal_zone. If you find anything there, it's likely that
+the ACPI is accessing the SMBus and it's safer not to unhide it. Only
+once you are certain that ACPI isn't using the SMBus, you can attempt
+to unhide it.
+
+In order to unhide the SMBus, we need to change the value of a PCI
+register before the kernel enumerates the PCI devices. This is done in
+drivers/pci/quirks.c, where all affected boards must be listed (see
+function asus_hides_smbus_hostbridge.) If the SMBus device is missing,
+and you think there's something interesting on the SMBus (e.g. a
+hardware monitoring chip), you need to add your board to the list.
+
+The motherboard is identified using the subvendor and subdevice IDs of the
+host bridge PCI device. Get yours with "lspci -n -v -s 00:00.0":
+
+00:00.0 Class 0600: 8086:2570 (rev 02)
+        Subsystem: 1043:80f2
+        Flags: bus master, fast devsel, latency 0
+        Memory at fc000000 (32-bit, prefetchable) [size=32M]
+        Capabilities: [e4] #09 [2106]
+        Capabilities: [a0] AGP version 3.0
+
+Here the host bridge ID is 2570 (82865G/PE/P), the subvendor ID is 1043
+(Asus) and the subdevice ID is 80f2 (P4P800-X). You can find the symbolic
+names for the bridge ID and the subvendor ID in include/linux/pci_ids.h,
+and then add a case for your subdevice ID at the right place in
+drivers/pci/quirks.c. Then please give it very good testing, to make sure
+that the unhidden SMBus doesn't conflict with e.g. ACPI.
+
+If it works, proves useful (i.e. there are usable chips on the SMBus)
+and seems safe, please submit a patch for inclusion into the kernel.
+
+Note: There's a useful script in lm_sensors 2.10.2 and later, named
+unhide_ICH_SMBus (in prog/hotplug), which uses the fakephp driver to
+temporarily unhide the SMBus without having to patch and recompile your
+kernel. It's very convenient if you just want to check if there's
+anything interesting on your hidden ICH SMBus.
+
 
 **********************
 The lm_sensors project gratefully acknowledges the support of Texas

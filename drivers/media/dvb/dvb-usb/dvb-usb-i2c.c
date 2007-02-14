@@ -27,6 +27,7 @@ int dvb_usb_i2c_init(struct dvb_usb_device *d)
 #endif
 	d->i2c_adap.algo      = d->props.i2c_algo;
 	d->i2c_adap.algo_data = NULL;
+	d->i2c_adap.dev.parent = &d->udev->dev;
 
 	i2c_set_adapdata(&d->i2c_adap, d);
 

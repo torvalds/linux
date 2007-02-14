@@ -190,6 +190,7 @@ int flexcop_i2c_init(struct flexcop_device *fc)
 	fc->i2c_adap.class	    = I2C_CLASS_TV_DIGITAL;
 	fc->i2c_adap.algo       = &flexcop_algo;
 	fc->i2c_adap.algo_data  = NULL;
+	fc->i2c_adap.dev.parent	= fc->dev;
 
 	if ((ret = i2c_add_adapter(&fc->i2c_adap)) < 0)
 		return ret;

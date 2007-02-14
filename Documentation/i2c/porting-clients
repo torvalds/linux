@@ -129,6 +129,12 @@ Technical changes:
   structure, those name member should be initialized to a driver name
   string. i2c_driver itself has no name member anymore.
 
+* [Driver model] Instead of shutdown or reboot notifiers, provide a
+  shutdown() method in your driver.
+
+* [Power management] Use the driver model suspend() and resume()
+  callbacks instead of the obsolete pm_register() calls.
+
 Coding policy:
 
 * [Copyright] Use (C), not (c), for copyright.

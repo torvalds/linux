@@ -549,6 +549,7 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	adap->client_unregister = cafe_smbus_detach;
 	adap->algo = &cafe_smbus_algo;
 	strcpy(adap->name, "cafe_ccic");
+	adap->dev.parent = &cam->pdev->dev;
 	i2c_set_adapdata(adap, cam);
 	ret = i2c_add_adapter(adap);
 	if (ret)

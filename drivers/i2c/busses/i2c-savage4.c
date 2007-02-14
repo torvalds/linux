@@ -145,6 +145,7 @@ static struct i2c_algo_bit_data sav_i2c_bit_data = {
 
 static struct i2c_adapter savage4_i2c_adapter = {
 	.owner		= THIS_MODULE,
+	.id		= I2C_HW_B_SAVAGE,
 	.name		= "I2C Savage4 adapter",
 	.algo_data	= &sav_i2c_bit_data,
 };

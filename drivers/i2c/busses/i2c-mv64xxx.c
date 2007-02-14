@@ -520,6 +520,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 		rc = -ENXIO;
 		goto exit_unmap_regs;
 	}
+	drv_data->adapter.dev.parent = &pd->dev;
 	drv_data->adapter.id = I2C_HW_MV64XXX;
 	drv_data->adapter.algo = &mv64xxx_i2c_algo;
 	drv_data->adapter.owner = THIS_MODULE;

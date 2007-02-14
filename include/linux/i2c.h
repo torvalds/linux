@@ -125,7 +125,12 @@ struct i2c_driver {
 	 * it must be freed here.
 	 */
 	int (*detach_client)(struct i2c_client *);
-	
+
+	/* driver model interfaces that don't relate to enumeration  */
+	void (*shutdown)(struct i2c_client *);
+	int (*suspend)(struct i2c_client *, pm_message_t mesg);
+	int (*resume)(struct i2c_client *);
+
 	/* a ioctl like command that can be used to perform specific functions
 	 * with the device.
 	 */

@@ -1690,6 +1690,7 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 #endif
 	ttusb->i2c_adap.algo              = &ttusb_dec_algo;
 	ttusb->i2c_adap.algo_data         = NULL;
+	ttusb->i2c_adap.dev.parent	  = &udev->dev;
 
 	result = i2c_add_adapter(&ttusb->i2c_adap);
 	if (result) {
