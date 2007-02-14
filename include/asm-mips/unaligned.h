@@ -3,12 +3,27 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1996, 1999, 2000, 2001, 2003 by Ralf Baechle
- * Copyright (C) 1999, 2000, 2001 Silicon Graphics, Inc.
+ * Copyright (C) 2007 Ralf Baechle (ralf@linux-mips.org)
  */
-#ifndef _ASM_UNALIGNED_H
-#define _ASM_UNALIGNED_H
+#ifndef __ASM_GENERIC_UNALIGNED_H
+#define __ASM_GENERIC_UNALIGNED_H
 
-#include <asm-generic/unaligned.h>
+#include <linux/compiler.h>
 
-#endif /* _ASM_UNALIGNED_H */
+#define get_unaligned(ptr)					\
+({								\
+	struct __packed {					\
+		typeof(*(ptr)) __v;				\
+	} *__p = (void *) (ptr);				\
+	__p->__v;						\
+})
+
+#define put_unaligned(val, ptr)					\
+do {								\
+	struct __packed {					\
+		typeof(*(ptr)) __v;				\
+	} *__p = (void *) (ptr);				\
+	__p->__v = (val);					\
+} while(0)
+
+#endif /* __ASM_GENERIC_UNALIGNED_H */
