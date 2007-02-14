@@ -116,8 +116,13 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 				/* migration entries are always uptodate */
 				present = 1;
 			} else {
+#ifdef CONFIG_SWAP
 				pgoff = entry.val;
 				present = mincore_page(&swapper_space, pgoff);
+#else
+				WARN_ON(1);
+				present = 1;
+#endif
 			}
 		}
 	}
