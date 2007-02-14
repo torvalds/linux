@@ -95,7 +95,7 @@ MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 #define PFX "machzwd"
 
@@ -118,12 +118,14 @@ static int action = 0;
 module_param(action, int, 0);
 MODULE_PARM_DESC(action, "after watchdog resets, generate: 0 = RESET(*)  1 = SMI  2 = NMI  3 = SCI");
 
+static void zf_ping(unsigned long data);
+
 static int zf_action = GEN_RESET;
 static unsigned long zf_is_open;
 static char zf_expect_close;
 static spinlock_t zf_lock;
 static spinlock_t zf_port_lock;
-static struct timer_list zf_timer;
+static DEFINE_TIMER(zf_timer, zf_ping, 0, 0);
 static unsigned long next_heartbeat = 0;
 
 
@@ -220,9 +222,7 @@ static void zf_timer_on(void)
 	next_heartbeat = jiffies + ZF_USER_TIMEO;
 
 	/* start the timer for internal ping */
-	zf_timer.expires = jiffies + ZF_HW_TIMEO;
-
-	add_timer(&zf_timer);
+	mod_timer(&zf_timer, jiffies + ZF_HW_TIMEO);
 
 	/* start watchdog timer */
 	ctrl_reg = zf_get_control();
@@ -260,8 +260,7 @@ static void zf_ping(unsigned long data)
 		zf_set_control(ctrl_reg);
 		spin_unlock_irqrestore(&zf_port_lock, flags);
 
-		zf_timer.expires = jiffies + ZF_HW_TIMEO;
-		add_timer(&zf_timer);
+		mod_timer(&zf_timer, jiffies + ZF_HW_TIMEO);
 	}else{
 		printk(KERN_CRIT PFX ": I will reset your machine\n");
 	}
@@ -464,11 +463,6 @@ static int __init zf_init(void)
 
 	zf_set_status(0);
 	zf_set_control(0);
-
-	/* this is the timer that will do the hard work */
-	init_timer(&zf_timer);
-	zf_timer.function = zf_ping;
-	zf_timer.data = 0;
 
 	return 0;
 

@@ -80,10 +80,8 @@ static void cpu5wdt_trigger(unsigned long unused)
 	outb(1, port + CPU5WDT_TRIGGER_REG);
 
 	/* requeue?? */
-	if( cpu5wdt_device.queue && ticks ) {
-		cpu5wdt_device.timer.expires = jiffies + CPU5WDT_INTERVAL;
-		add_timer(&cpu5wdt_device.timer);
-	}
+	if (cpu5wdt_device.queue && ticks)
+		mod_timer(&cpu5wdt_device.timer, jiffies + CPU5WDT_INTERVAL);
 	else {
 		/* ticks doesn't matter anyway */
 		complete(&cpu5wdt_device.stop);
@@ -109,8 +107,7 @@ static void cpu5wdt_start(void)
 		outb(1, port + CPU5WDT_MODE_REG);
 		outb(0, port + CPU5WDT_RESET_REG);
 		outb(0, port + CPU5WDT_ENABLE_REG);
-		cpu5wdt_device.timer.expires = jiffies + CPU5WDT_INTERVAL;
-		add_timer(&cpu5wdt_device.timer);
+		mod_timer(&cpu5wdt_device.timer, jiffies + CPU5WDT_INTERVAL);
 	}
 	/* if process dies, counter is not decremented */
 	cpu5wdt_device.running++;
@@ -245,9 +242,7 @@ static int __devinit cpu5wdt_init(void)
 
 	clear_bit(0, &cpu5wdt_device.inuse);
 
-	init_timer(&cpu5wdt_device.timer);
-	cpu5wdt_device.timer.function = cpu5wdt_trigger;
-	cpu5wdt_device.timer.data = 0;
+	setup_timer(&cpu5wdt_device.timer, cpu5wdt_trigger, 0);
 
 	cpu5wdt_device.default_ticks = ticks;
 

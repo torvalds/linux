@@ -1,7 +1,7 @@
 /*
  *	Berkshire PCI-PC Watchdog Card Driver
  *
- *	(c) Copyright 2003-2005 Wim Van Sebroeck <wim@iguana.be>.
+ *	(c) Copyright 2003-2007 Wim Van Sebroeck <wim@iguana.be>.
  *
  *	Based on source code of the following authors:
  *	  Ken Hollis <kenji@bitgate.com>,
@@ -51,8 +51,8 @@
 #include <asm/io.h>		/* For inb/outb/... */
 
 /* Module and version information */
-#define WATCHDOG_VERSION "1.02"
-#define WATCHDOG_DATE "03 Sep 2005"
+#define WATCHDOG_VERSION "1.03"
+#define WATCHDOG_DATE "21 Jan 2007"
 #define WATCHDOG_DRIVER_NAME "PCI-PC Watchdog"
 #define WATCHDOG_NAME "pcwd_pci"
 #define PFX WATCHDOG_NAME ": "
@@ -96,6 +96,18 @@
 #define CMD_WRITE_WATCHDOG_TIMEOUT		0x19
 #define CMD_GET_CLEAR_RESET_COUNT		0x84
 
+/* Watchdog's Dip Switch heartbeat values */
+static const int heartbeat_tbl [] = {
+	5,	/* OFF-OFF-OFF	=  5 Sec  */
+	10,	/* OFF-OFF-ON	= 10 Sec  */
+	30,	/* OFF-ON-OFF	= 30 Sec  */
+	60,	/* OFF-ON-ON	=  1 Min  */
+	300,	/* ON-OFF-OFF	=  5 Min  */
+	600,	/* ON-OFF-ON	= 10 Min  */
+	1800,	/* ON-ON-OFF	= 30 Min  */
+	3600,	/* ON-ON-ON	=  1 hour */
+};
+
 /* We can only use 1 card due to the /dev/watchdog restriction */
 static int cards_found;
 
@@ -119,14 +131,14 @@ static int debug = QUIET;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level: 0=Quiet, 1=Verbose, 2=Debug (default=0)");
 
-#define WATCHDOG_HEARTBEAT 2	/* 2 sec default heartbeat */
+#define WATCHDOG_HEARTBEAT 0	/* default heartbeat = delay-time from dip-switches */
 static int heartbeat = WATCHDOG_HEARTBEAT;
 module_param(heartbeat, int, 0);
-MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (0<heartbeat<65536, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
+MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (0<heartbeat<65536 or 0=delay-time from dip-switches, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Internal functions
@@ -286,7 +298,9 @@ static int pcipcwd_stop(void)
 static int pcipcwd_keepalive(void)
 {
 	/* Re-trigger watchdog by writing to port 0 */
+	spin_lock(&pcipcwd_private.io_lock);
 	outb_p(0x42, pcipcwd_private.io_addr);	/* send out any data */
+	spin_unlock(&pcipcwd_private.io_lock);
 
 	if (debug >= DEBUG)
 		printk(KERN_DEBUG PFX "Watchdog keepalive signal send\n");
@@ -373,7 +387,9 @@ static int pcipcwd_get_temperature(int *temperature)
 	if (!pcipcwd_private.supports_temp)
 		return -ENODEV;
 
+	spin_lock(&pcipcwd_private.io_lock);
 	*temperature = inb_p(pcipcwd_private.io_addr);
+	spin_unlock(&pcipcwd_private.io_lock);
 
 	/*
 	 * Convert celsius to fahrenheit, since this was
@@ -711,6 +727,10 @@ static int __devinit pcipcwd_card_init(struct pci_dev *pdev,
 	/* Show info about the card itself */
 	pcipcwd_show_card_info();
 
+	/* If heartbeat = 0 then we use the heartbeat from the dip-switches */
+	if (heartbeat == 0)
+		heartbeat = heartbeat_tbl[(pcipcwd_get_option_switches() & 0x07)];
+
 	/* Check that the heartbeat value is within it's range ; if not reset to the default */
 	if (pcipcwd_set_heartbeat(heartbeat)) {
 		pcipcwd_set_heartbeat(WATCHDOG_HEARTBEAT);
@@ -798,6 +818,8 @@ static int __init pcipcwd_init_module(void)
 static void __exit pcipcwd_cleanup_module(void)
 {
 	pci_unregister_driver(&pcipcwd_driver);
+
+	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
 }
 
 module_init(pcipcwd_init_module);

@@ -87,10 +87,10 @@ MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. (1<=timeout<=3600, defau
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static void wdt_timer_ping(unsigned long);
-static struct timer_list timer;
+static DEFINE_TIMER(timer, wdt_timer_ping, 0, 0);
 static unsigned long next_heartbeat;
 static unsigned long wdt_is_open;
 static char wdt_expect_close;
@@ -114,8 +114,7 @@ static void wdt_timer_ping(unsigned long data)
 		inb_p(WDT_PING);
 
 		/* Re-set the timer interval */
-		timer.expires = jiffies + WDT_INTERVAL;
-		add_timer(&timer);
+		mod_timer(&timer, jiffies + WDT_INTERVAL);
 
 		spin_unlock(&wdt_spinlock);
 
@@ -155,8 +154,7 @@ static void wdt_startup(void)
 	next_heartbeat = jiffies + (timeout * HZ);
 
 	/* Start the timer */
-	timer.expires = jiffies + WDT_INTERVAL;
-	add_timer(&timer);
+	mod_timer(&timer, jiffies + WDT_INTERVAL);
 
 	wdt_change(WDT_ENABLE);
 
@@ -376,10 +374,6 @@ static int __init w83877f_wdt_init(void)
 		rc = -EIO;
 		goto err_out_region1;
 	}
-
-	init_timer(&timer);
-	timer.function = wdt_timer_ping;
-	timer.data = 0;
 
 	rc = misc_register(&wdt_miscdev);
 	if (rc)
