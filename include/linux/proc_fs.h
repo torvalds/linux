@@ -113,8 +113,6 @@ extern struct vfsmount *proc_mnt;
 extern int proc_fill_super(struct super_block *,void *,int);
 extern struct inode *proc_get_inode(struct super_block *, unsigned int, struct proc_dir_entry *);
 
-extern int proc_match(int, const char *,struct proc_dir_entry *);
-
 /*
  * These are generic /proc routines that use the internal
  * "struct proc_dir_entry" tree to traverse the filesystem.

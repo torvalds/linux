@@ -86,7 +86,6 @@ extern void init_IRQ(void);
 extern void fork_init(unsigned long);
 extern void mca_init(void);
 extern void sbus_init(void);
-extern void sysctl_init(void);
 extern void signals_init(void);
 extern void pidhash_init(void);
 extern void pidmap_init(void);
@@ -702,9 +701,6 @@ static void __init do_basic_setup(void)
 	usermodehelper_init();
 	driver_init();
 
-#ifdef CONFIG_SYSCTL
-	sysctl_init();
-#endif
 #ifdef CONFIG_PROC_FS
 	init_irq_proc();
 #endif

@@ -11,6 +11,8 @@
 
 #include <linux/proc_fs.h>
 
+extern int proc_sys_init(void);
+
 struct vmalloc_info {
 	unsigned long	used;
 	unsigned long	largest_chunk;

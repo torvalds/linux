@@ -159,26 +159,6 @@ int sysctl_legacy_va_layout;
 #endif
 
 
-/* /proc declarations: */
-
-#ifdef CONFIG_PROC_SYSCTL
-
-static ssize_t proc_readsys(struct file *, char __user *, size_t, loff_t *);
-static ssize_t proc_writesys(struct file *, const char __user *, size_t, loff_t *);
-static int proc_opensys(struct inode *, struct file *);
-
-const struct file_operations proc_sys_file_operations = {
-	.open		= proc_opensys,
-	.read		= proc_readsys,
-	.write		= proc_writesys,
-};
-
-extern struct proc_dir_entry *proc_sys_root;
-
-static void register_proc_table(ctl_table *, struct proc_dir_entry *, void *);
-static void unregister_proc_table(ctl_table *, struct proc_dir_entry *);
-#endif
-
 /* The default sysctl tables: */
 
 static ctl_table root_table[] = {
@@ -1106,13 +1086,6 @@ struct ctl_table_header *sysctl_head_next(struct ctl_table_header *prev)
 	return NULL;
 }
 
-void __init sysctl_init(void)
-{
-#ifdef CONFIG_PROC_SYSCTL
-	register_proc_table(root_table, proc_sys_root, &root_table_header);
-#endif
-}
-
 #ifdef CONFIG_SYSCTL_SYSCALL
 int do_sysctl(int __user *name, int nlen, void __user *oldval, size_t __user *oldlenp,
 	       void __user *newval, size_t newlen)
@@ -1348,9 +1321,6 @@ struct ctl_table_header *register_sysctl_table(ctl_table * table)
 	spin_lock(&sysctl_lock);
 	list_add_tail(&tmp->ctl_entry, &root_table_header.ctl_entry);
 	spin_unlock(&sysctl_lock);
-#ifdef CONFIG_PROC_SYSCTL
-	register_proc_table(table, proc_sys_root, tmp);
-#endif
 	return tmp;
 }
 
@@ -1366,9 +1336,6 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 	might_sleep();
 	spin_lock(&sysctl_lock);
 	start_unregistering(header);
-#ifdef CONFIG_PROC_SYSCTL
-	unregister_proc_table(header->ctl_table, proc_sys_root);
-#endif
 	spin_unlock(&sysctl_lock);
 	kfree(header);
 }
@@ -1391,155 +1358,6 @@ void unregister_sysctl_table(struct ctl_table_header * table)
  */
 
 #ifdef CONFIG_PROC_SYSCTL
-
-/* Scan the sysctl entries in table and add them all into /proc */
-static void register_proc_table(ctl_table * table, struct proc_dir_entry *root, void *set)
-{
-	struct proc_dir_entry *de;
-	int len;
-	mode_t mode;
-	
-	for (; table->ctl_name || table->procname; table++) {
-		/* Can't do anything without a proc name. */
-		if (!table->procname)
-			continue;
-		/* Maybe we can't do anything with it... */
-		if (!table->proc_handler && !table->child) {
-			printk(KERN_WARNING "SYSCTL: Can't register %s\n",
-				table->procname);
-			continue;
-		}
-
-		len = strlen(table->procname);
-		mode = table->mode;
-
-		de = NULL;
-		if (table->proc_handler)
-			mode |= S_IFREG;
-		else {
-			mode |= S_IFDIR;
-			for (de = root->subdir; de; de = de->next) {
-				if (proc_match(len, table->procname, de))
-					break;
-			}
-			/* If the subdir exists already, de is non-NULL */
-		}
-
-		if (!de) {
-			de = create_proc_entry(table->procname, mode, root);
-			if (!de)
-				continue;
-			de->set = set;
-			de->data = (void *) table;
-			if (table->proc_handler)
-				de->proc_fops = &proc_sys_file_operations;
-		}
-		table->de = de;
-		if (de->mode & S_IFDIR)
-			register_proc_table(table->child, de, set);
-	}
-}
-
-/*
- * Unregister a /proc sysctl table and any subdirectories.
- */
-static void unregister_proc_table(ctl_table * table, struct proc_dir_entry *root)
-{
-	struct proc_dir_entry *de;
-	for (; table->ctl_name || table->procname; table++) {
-		if (!(de = table->de))
-			continue;
-		if (de->mode & S_IFDIR) {
-			if (!table->child) {
-				printk (KERN_ALERT "Help - malformed sysctl tree on free\n");
-				continue;
-			}
-			unregister_proc_table(table->child, de);
-
-			/* Don't unregister directories which still have entries.. */
-			if (de->subdir)
-				continue;
-		}
-
-		/*
-		 * In any case, mark the entry as goner; we'll keep it
-		 * around if it's busy, but we'll know to do nothing with
-		 * its fields.  We are under sysctl_lock here.
-		 */
-		de->data = NULL;
-
-		/* Don't unregister proc entries that are still being used.. */
-		if (atomic_read(&de->count))
-			continue;
-
-		table->de = NULL;
-		remove_proc_entry(table->procname, root);
-	}
-}
-
-static ssize_t do_rw_proc(int write, struct file * file, char __user * buf,
-			  size_t count, loff_t *ppos)
-{
-	int op;
-	struct proc_dir_entry *de = PDE(file->f_path.dentry->d_inode);
-	struct ctl_table *table;
-	size_t res;
-	ssize_t error = -ENOTDIR;
-	
-	spin_lock(&sysctl_lock);
-	if (de && de->data && use_table(de->set)) {
-		/*
-		 * at that point we know that sysctl was not unregistered
-		 * and won't be until we finish
-		 */
-		spin_unlock(&sysctl_lock);
-		table = (struct ctl_table *) de->data;
-		if (!table || !table->proc_handler)
-			goto out;
-		error = -EPERM;
-		op = (write ? 002 : 004);
-		if (sysctl_perm(table, op))
-			goto out;
-		
-		/* careful: calling conventions are nasty here */
-		res = count;
-		error = (*table->proc_handler)(table, write, file,
-						buf, &res, ppos);
-		if (!error)
-			error = res;
-	out:
-		spin_lock(&sysctl_lock);
-		unuse_table(de->set);
-	}
-	spin_unlock(&sysctl_lock);
-	return error;
-}
-
-static int proc_opensys(struct inode *inode, struct file *file)
-{
-	if (file->f_mode & FMODE_WRITE) {
-		/*
-		 * sysctl entries that are not writable,
-		 * are _NOT_ writable, capabilities or not.
-		 */
-		if (!(inode->i_mode & S_IWUSR))
-			return -EPERM;
-	}
-
-	return 0;
-}
-
-static ssize_t proc_readsys(struct file * file, char __user * buf,
-			    size_t count, loff_t *ppos)
-{
-	return do_rw_proc(0, file, buf, count, ppos);
-}
-
-static ssize_t proc_writesys(struct file * file, const char __user * buf,
-			     size_t count, loff_t *ppos)
-{
-	return do_rw_proc(1, file, (char __user *) buf, count, ppos);
-}
 
 static int _proc_do_string(void* data, int maxlen, int write,
 			   struct file *filp, void __user *buffer,
