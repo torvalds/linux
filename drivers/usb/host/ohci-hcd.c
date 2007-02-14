@@ -42,6 +42,9 @@
 #include <asm/system.h>
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
+#ifdef CONFIG_PPC_PS3
+#include <asm/firmware.h>
+#endif
 
 #include "../core/hcd.h"
 
@@ -944,9 +947,12 @@ static int __init ohci_hcd_mod_init(void)
 		sizeof (struct ed), sizeof (struct td));
 
 #ifdef PS3_SYSTEM_BUS_DRIVER
-	retval = ps3_system_bus_driver_register(&PS3_SYSTEM_BUS_DRIVER);
-	if (retval < 0)
-		goto error_ps3;
+	if (firmware_has_feature(FW_FEATURE_PS3_LV1)) {
+		retval = ps3_system_bus_driver_register(
+				&PS3_SYSTEM_BUS_DRIVER);
+		if (retval < 0)
+			goto error_ps3;
+	}
 #endif
 
 #ifdef PLATFORM_DRIVER
@@ -992,7 +998,8 @@ static int __init ohci_hcd_mod_init(void)
  error_platform:
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
-	ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+	if (firmware_has_feature(FW_FEATURE_PS3_LV1))
+		ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
  error_ps3:
 #endif
 	return retval;
@@ -1014,7 +1021,8 @@ static void __exit ohci_hcd_mod_exit(void)
 	platform_driver_unregister(&PLATFORM_DRIVER);
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
-	ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+	if (firmware_has_feature(FW_FEATURE_PS3_LV1))
+		ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
 #endif
 }
 module_exit(ohci_hcd_mod_exit);
