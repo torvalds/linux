@@ -1005,7 +1005,7 @@ static int __init acpi_processor_init(void)
 #ifdef CONFIG_SMP
 	if (ACPI_FAILURE(acpi_get_table(ACPI_SIG_MADT, 0,
 				(struct acpi_table_header **)&madt)))
-		madt = 0;
+		madt = NULL;
 #endif
 
 	acpi_processor_dir = proc_mkdir(ACPI_PROCESSOR_CLASS, acpi_root_dir);

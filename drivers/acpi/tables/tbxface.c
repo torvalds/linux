@@ -408,7 +408,7 @@ acpi_get_table(char *signature,
 		}
 
 		if (!acpi_gbl_permanent_mmap) {
-			acpi_gbl_root_table_list.tables[i].pointer = 0;
+			acpi_gbl_root_table_list.tables[i].pointer = NULL;
 		}
 
 		return (status);

@@ -205,7 +205,7 @@ void __iomem *acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
 	if (phys > ULONG_MAX) {
 		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
-		return 0;
+		return NULL;
 	}
 	if (acpi_gbl_permanent_mmap)
 		/*
