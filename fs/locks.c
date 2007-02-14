@@ -1738,7 +1738,7 @@ again:
 	else {
 		for (;;) {
 			error = posix_lock_file(filp, file_lock);
-			if ((error != -EAGAIN) || (cmd == F_SETLK))
+			if (error != -EAGAIN || cmd == F_SETLK)
 				break;
 			error = wait_event_interruptible(file_lock->fl_wait,
 					!file_lock->fl_next);
@@ -1881,7 +1881,7 @@ again:
 	else {
 		for (;;) {
 			error = posix_lock_file(filp, file_lock);
-			if ((error != -EAGAIN) || (cmd == F_SETLK64))
+			if (error != -EAGAIN || cmd == F_SETLK64)
 				break;
 			error = wait_event_interruptible(file_lock->fl_wait,
 					!file_lock->fl_next);
