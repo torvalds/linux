@@ -856,6 +856,18 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 		goto out_done;
 	}
 
+	switch (scmd->cmnd[0]) {
+	case SYNCHRONIZE_CACHE:
+		/*
+		 * FW takes care of flush cache on its own
+		 * No need to send it down
+		 */
+		scmd->result = DID_OK << 16;
+		goto out_done;
+	default:
+		break;
+	}
+
 	cmd = megasas_get_cmd(instance);
 	if (!cmd)
 		return SCSI_MLQUEUE_HOST_BUSY;
