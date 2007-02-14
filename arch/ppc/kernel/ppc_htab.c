@@ -442,11 +442,16 @@ static ctl_table htab_ctl_table[]={
 		.mode		= 0644,
 		.proc_handler	= &proc_dol2crvec,
 	},
-	{ 0, },
+	{}
 };
 static ctl_table htab_sysctl_root[] = {
-	{ 1, "kernel", NULL, 0, 0755, htab_ctl_table, },
- 	{ 0,},
+	{
+		.ctl_name	= CTL_KERN,
+		.procname	= "kernel",
+		.mode		= 0555,
+		.child		= htab_ctl_table,
+	},
+	{}
 };
 
 static int __init
