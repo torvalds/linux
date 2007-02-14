@@ -1035,7 +1035,7 @@ static int sc92031_open(struct net_device *dev)
 	priv->tx_head = priv->tx_tail = 0;
 
 	err = request_irq(pdev->irq, sc92031_interrupt,
-			SA_SHIRQ, dev->name, dev);
+			IRQF_SHARED, dev->name, dev);
 	if (unlikely(err < 0))
 		goto out_request_irq;
 

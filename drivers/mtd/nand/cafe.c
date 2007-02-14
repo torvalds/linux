@@ -597,7 +597,8 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		cafe_writel(cafe, 0xffffffff, NAND_TIMING3);
 	}
 	cafe_writel(cafe, 0xffffffff, NAND_IRQ_MASK);
-	err = request_irq(pdev->irq, &cafe_nand_interrupt, SA_SHIRQ, "CAFE NAND", mtd);
+	err = request_irq(pdev->irq, &cafe_nand_interrupt, IRQF_SHARED,
+			  "CAFE NAND", mtd);
 	if (err) {
 		dev_warn(&pdev->dev, "Could not register IRQ %d\n", pdev->irq);
 
