@@ -33,20 +33,28 @@
 #include "sysctl.h"
 #include "debug.h"
 
-#define FS_NTFS	1
-
 /* Definition of the ntfs sysctl. */
 static ctl_table ntfs_sysctls[] = {
-	{ FS_NTFS, "ntfs-debug",		/* Binary and text IDs. */
-	  &debug_msgs,sizeof(debug_msgs),	/* Data pointer and size. */
-	  0644,	NULL, &proc_dointvec },		/* Mode, child, proc handler. */
-	{ 0 }
+	{
+		.ctl_name	= CTL_UNNUMBERED,	/* Binary and text IDs. */
+		.procname	= "ntfs-debug",
+		.data		= &debug_msgs,		/* Data pointer and size. */
+		.maxlen		= sizeof(debug_msgs),
+		.mode		= 0644,			/* Mode, proc handler. */
+		.proc_handler	= &proc_dointvec
+	},
+	{}
 };
 
 /* Define the parent directory /proc/sys/fs. */
 static ctl_table sysctls_root[] = {
-	{ CTL_FS, "fs", NULL, 0, 0555, ntfs_sysctls },
-	{ 0 }
+	{
+		.ctl_name	= CTL_FS,
+		.procname	= "fs",
+		.mode		= 0555,
+		.child		= ntfs_sysctls
+	},
+	{}
 };
 
 /* Storage for the sysctls header. */
