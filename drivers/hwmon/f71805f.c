@@ -1290,14 +1290,11 @@ static int __init f71805f_device_add(unsigned short address,
 	if (err) {
 		printk(KERN_ERR DRVNAME ": Device addition failed (%d)\n",
 		       err);
-		goto exit_kfree_data;
+		goto exit_device_put;
 	}
 
 	return 0;
 
-exit_kfree_data:
-	kfree(pdev->dev.platform_data);
-	pdev->dev.platform_data = NULL;
 exit_device_put:
 	platform_device_put(pdev);
 exit:
@@ -1390,10 +1387,7 @@ exit:
 
 static void __exit f71805f_exit(void)
 {
-	kfree(pdev->dev.platform_data);
-	pdev->dev.platform_data = NULL;
 	platform_device_unregister(pdev);
-
 	platform_driver_unregister(&f71805f_driver);
 }
 
