@@ -1248,6 +1248,7 @@ void ConfigSearchWindow::search(void)
 
 	free(result);
 	list->list->clear();
+	info->clear();
 
 	result = sym_re_search(editField->text().latin1());
 	if (!result)
