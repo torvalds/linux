@@ -51,6 +51,13 @@ config SPI_MASTER
 comment "SPI Master Controller Drivers"
 	depends on SPI_MASTER
 
+config SPI_ATMEL
+	tristate "Atmel SPI Controller"
+	depends on (ARCH_AT91 || AVR32) && SPI_MASTER
+	help
+	  This selects a driver for the Atmel SPI Controller, present on
+	  many AT32 (AVR32) and AT91 (ARM) chips.
+
 config SPI_BITBANG
 	tristate "Bitbanging SPI master"
 	depends on SPI_MASTER && EXPERIMENTAL

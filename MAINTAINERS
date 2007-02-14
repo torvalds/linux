@@ -620,6 +620,11 @@ P:	Haavard Skinnemoen
 M:	hskinnemoen@atmel.com
 S:	Supported
 
+ATMEL SPI DRIVER
+P:	Haavard Skinnemoen
+M:	hskinnemoen@atmel.com
+S:	Supported
+
 ATMEL WIRELESS DRIVER
 P:	Simon Kelley
 M:	simon@thekelleys.org.uk
