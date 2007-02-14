@@ -2580,10 +2580,9 @@ static int i810_open(struct inode *inode, struct file *file)
 		for (i = 0; i < NR_HW_CH && card && !card->initializing; i++) {
 			if (card->states[i] == NULL) {
 				state = card->states[i] = (struct i810_state *)
-					kmalloc(sizeof(struct i810_state), GFP_KERNEL);
+					kzalloc(sizeof(struct i810_state), GFP_KERNEL);
 				if (state == NULL)
 					return -ENOMEM;
-				memset(state, 0, sizeof(struct i810_state));
 				dmabuf = &state->dmabuf;
 				goto found_virt;
 			}
@@ -3205,10 +3204,9 @@ static void __devinit i810_configure_clocking (void)
 	 */
 	if(card != NULL) {
 		state = card->states[0] = (struct i810_state *)
-					kmalloc(sizeof(struct i810_state), GFP_KERNEL);
+					kzalloc(sizeof(struct i810_state), GFP_KERNEL);
 		if (state == NULL)
 			return;
-		memset(state, 0, sizeof(struct i810_state));
 		dmabuf = &state->dmabuf;
 
 		dmabuf->write_channel = card->alloc_pcm_channel(card);
@@ -3273,11 +3271,10 @@ static int __devinit i810_probe(struct pci_dev *pci_dev, const struct pci_device
 		return -ENODEV;
 	}
 	
-	if ((card = kmalloc(sizeof(struct i810_card), GFP_KERNEL)) == NULL) {
+	if ((card = kzalloc(sizeof(struct i810_card), GFP_KERNEL)) == NULL) {
 		printk(KERN_ERR "i810_audio: out of memory\n");
 		return -ENOMEM;
 	}
-	memset(card, 0, sizeof(*card));
 
 	card->initializing = 1;
 	card->pci_dev = pci_dev;

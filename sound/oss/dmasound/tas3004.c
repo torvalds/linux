@@ -1092,10 +1092,9 @@ tas3004_init(struct i2c_client *client)
 	char mcr2 = 0;
 	int i, j;
 
-	self = kmalloc(sz, GFP_KERNEL);
+	self = kzalloc(sz, GFP_KERNEL);
 	if (!self)
 		return -ENOMEM;
-	memset(self, 0, sz);
 
 	self->super.client = client;
 	self->super.shadow = (tas_shadow_t *)(self+1);

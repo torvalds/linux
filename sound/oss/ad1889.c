@@ -230,9 +230,8 @@ static ad1889_dev_t *ad1889_alloc_dev(struct pci_dev *pci)
 	struct dmabuf *dmabuf;
 	int i;
 
-	if ((dev = kmalloc(sizeof(ad1889_dev_t), GFP_KERNEL)) == NULL) 
+	if ((dev = kzalloc(sizeof(ad1889_dev_t), GFP_KERNEL)) == NULL)
 		return NULL;
-	memset(dev, 0, sizeof(ad1889_dev_t));
 	spin_lock_init(&dev->lock);
 	dev->pci = pci;
 

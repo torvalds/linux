@@ -915,12 +915,11 @@ static int __devinit btaudio_probe(struct pci_dev *pci_dev,
 		return -EBUSY;
 	}
 
-	bta = kmalloc(sizeof(*bta),GFP_ATOMIC);
+	bta = kzalloc(sizeof(*bta),GFP_ATOMIC);
 	if (!bta) {
 		rc = -ENOMEM;
 		goto fail0;
 	}
-	memset(bta,0,sizeof(*bta));
 
 	bta->pci  = pci_dev;
 	bta->irq  = pci_dev->irq;

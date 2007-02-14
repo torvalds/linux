@@ -1860,11 +1860,10 @@ static int __devinit vrc5477_ac97_probe(struct pci_dev *pcidev,
 	if (pcidev->irq == 0) 
 		return -1;
 
-	if (!(s = kmalloc(sizeof(struct vrc5477_ac97_state), GFP_KERNEL))) {
+	if (!(s = kzalloc(sizeof(struct vrc5477_ac97_state), GFP_KERNEL))) {
 		printk(KERN_ERR PFX "alloc of device struct failed\n");
 		return -1;
 	}
-	memset(s, 0, sizeof(struct vrc5477_ac97_state));
 
 	init_waitqueue_head(&s->dma_adc.wait);
 	init_waitqueue_head(&s->dma_dac.wait);

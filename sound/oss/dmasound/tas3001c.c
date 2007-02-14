@@ -807,10 +807,9 @@ tas3001c_init(struct i2c_client *client)
 	size_t sz = sizeof(*self) + (TAS3001C_REG_MAX*sizeof(tas_shadow_t));
 	int i, j;
 
-	self = kmalloc(sz, GFP_KERNEL);
+	self = kzalloc(sz, GFP_KERNEL);
 	if (!self)
 		return -ENOMEM;
-	memset(self, 0, sz);
 
 	self->super.client = client;
 	self->super.shadow = (tas_shadow_t *)(self+1);
