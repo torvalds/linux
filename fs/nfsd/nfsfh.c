@@ -119,9 +119,6 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 
 	dprintk("nfsd: fh_verify(%s)\n", SVCFH_fmt(fhp));
 
-	/* keep this filehandle for possible reference  when encoding attributes */
-	rqstp->rq_reffh = fh;
-
 	if (!fhp->fh_dentry) {
 		__u32 *datap=NULL;
 		__u32 tfh[3];		/* filehandle fragment for oldstyle filehandles */
@@ -146,10 +143,10 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 			}
 			len = key_len(fh->fh_fsid_type) / 4;
 			if (len == 0) goto out;
-			if  (fh->fh_fsid_type == 2) {
+			if  (fh->fh_fsid_type == FSID_MAJOR_MINOR) {
 				/* deprecated, convert to type 3 */
-				len = 3;
-				fh->fh_fsid_type = 3;
+				len = key_len(FSID_ENCODE_DEV)/4;
+				fh->fh_fsid_type = FSID_ENCODE_DEV;
 				fh->fh_fsid[0] = new_encode_dev(MKDEV(ntohl(fh->fh_fsid[0]), ntohl(fh->fh_fsid[1])));
 				fh->fh_fsid[1] = fh->fh_fsid[2];
 			}
@@ -164,8 +161,9 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 			/* assume old filehandle format */
 			xdev = old_decode_dev(fh->ofh_xdev);
 			xino = u32_to_ino_t(fh->ofh_xino);
-			mk_fsid_v0(tfh, xdev, xino);
-			exp = exp_find(rqstp->rq_client, 0, tfh, &rqstp->rq_chandle);
+			mk_fsid(FSID_DEV, tfh, xdev, xino, 0, NULL);
+			exp = exp_find(rqstp->rq_client, FSID_DEV, tfh,
+				       &rqstp->rq_chandle);
 		}
 
 		if (IS_ERR(exp) && (PTR_ERR(exp) == -EAGAIN
@@ -334,6 +332,7 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	struct dentry *parent = dentry->d_parent;
 	__u32 *datap;
 	dev_t ex_dev = exp->ex_dentry->d_inode->i_sb->s_dev;
+	int root_export = (exp->ex_dentry == exp->ex_dentry->d_sb->s_root);
 
 	dprintk("nfsd: fh_compose(exp %02x:%02x/%ld %s/%s, ino=%ld)\n",
 		MAJOR(ex_dev), MINOR(ex_dev),
@@ -348,19 +347,31 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	if (ref_fh && ref_fh->fh_export == exp) {
 		version = ref_fh->fh_handle.fh_version;
 		if (version == 0xca)
-			fsid_type = 0;
+			fsid_type = FSID_DEV;
 		else
 			fsid_type = ref_fh->fh_handle.fh_fsid_type;
 		/* We know this version/type works for this export
 		 * so there is no need for further checks.
 		 */
+	} else if (exp->ex_uuid) {
+		if (fhp->fh_maxsize >= 64) {
+			if (root_export)
+				fsid_type = FSID_UUID16;
+			else
+				fsid_type = FSID_UUID16_INUM;
+		} else {
+			if (root_export)
+				fsid_type = FSID_UUID8;
+			else
+				fsid_type = FSID_UUID4_INUM;
+		}
 	} else if (exp->ex_flags & NFSEXP_FSID)
-		fsid_type = 1;
+		fsid_type = FSID_NUM;
 	else if (!old_valid_dev(ex_dev))
 		/* for newer device numbers, we must use a newer fsid format */
-		fsid_type = 3;
+		fsid_type = FSID_ENCODE_DEV;
 	else
-		fsid_type = 0;
+		fsid_type = FSID_DEV;
 
 	if (ref_fh == fhp)
 		fh_put(ref_fh);
@@ -396,36 +407,10 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 		fhp->fh_handle.fh_auth_type = 0;
 		datap = fhp->fh_handle.fh_auth+0;
 		fhp->fh_handle.fh_fsid_type = fsid_type;
-		switch (fsid_type) {
-		case 0:
-			/*
-			 * fsid_type 0:
-			 * 2byte major, 2byte minor, 4byte inode
-			 */
-			mk_fsid_v0(datap, ex_dev,
-				   exp->ex_dentry->d_inode->i_ino);
-			break;
-		case 1:
-			/* fsid_type 1 == 4 bytes filesystem id */
-			mk_fsid_v1(datap, exp->ex_fsid);
-			break;
-		case 2:
-			/*
-			 * fsid_type 2:
-			 * 4byte major, 4byte minor, 4byte inode
-			 */
-			mk_fsid_v2(datap, ex_dev,
-				   exp->ex_dentry->d_inode->i_ino);
-			break;
-		case 3:
-			/*
-			 * fsid_type 3:
-			 * 4byte devicenumber, 4byte inode
-			 */
-			mk_fsid_v3(datap, ex_dev,
-				   exp->ex_dentry->d_inode->i_ino);
-			break;
-		}
+		mk_fsid(fsid_type, datap, ex_dev,
+			exp->ex_dentry->d_inode->i_ino,
+			exp->ex_fsid, exp->ex_uuid);
+
 		len = key_len(fsid_type);
 		datap += len/4;
 		fhp->fh_handle.fh_size = 4 + len;
@@ -529,4 +514,23 @@ char * SVCFH_fmt(struct svc_fh *fhp)
 		fh->fh_base.fh_pad[4],
 		fh->fh_base.fh_pad[5]);
 	return buf;
+}
+
+enum fsid_source fsid_source(struct svc_fh *fhp)
+{
+	if (fhp->fh_handle.fh_version != 1)
+		return FSIDSOURCE_DEV;
+	switch(fhp->fh_handle.fh_fsid_type) {
+	case FSID_DEV:
+	case FSID_ENCODE_DEV:
+	case FSID_MAJOR_MINOR:
+		return FSIDSOURCE_DEV;
+	case FSID_NUM:
+		return FSIDSOURCE_FSID;
+	default:
+		if (fhp->fh_export->ex_flags & NFSEXP_FSID)
+			return FSIDSOURCE_FSID;
+		else
+			return FSIDSOURCE_UUID;
+	}
 }

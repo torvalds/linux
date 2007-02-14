@@ -1563,14 +1563,20 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 		if (exp->ex_fslocs.migrated) {
 			WRITE64(NFS4_REFERRAL_FSID_MAJOR);
 			WRITE64(NFS4_REFERRAL_FSID_MINOR);
-		} else if (is_fsid(fhp, rqstp->rq_reffh)) {
+		} else switch(fsid_source(fhp)) {
+		case FSIDSOURCE_FSID:
 			WRITE64((u64)exp->ex_fsid);
 			WRITE64((u64)0);
-		} else {
+			break;
+		case FSIDSOURCE_DEV:
 			WRITE32(0);
 			WRITE32(MAJOR(stat.dev));
 			WRITE32(0);
 			WRITE32(MINOR(stat.dev));
+			break;
+		case FSIDSOURCE_UUID:
+			WRITEMEM(exp->ex_uuid, 16);
+			break;
 		}
 	}
 	if (bmval0 & FATTR4_WORD0_UNIQUE_HANDLES) {
