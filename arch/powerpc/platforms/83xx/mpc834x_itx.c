@@ -38,8 +38,6 @@
 
 #include "mpc83xx.h"
 
-#include <platforms/83xx/mpc834x_sys.h>
-
 #ifndef CONFIG_PCI
 unsigned long isa_io_base = 0;
 unsigned long isa_mem_base = 0;

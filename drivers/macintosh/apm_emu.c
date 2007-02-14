@@ -102,7 +102,7 @@ static struct pmu_sleep_notifier apm_sleep_notifier = {
 	SLEEP_LEVEL_USERLAND,
 };
 
-static char			driver_version[] = "0.5";	/* no spaces */
+static const char driver_version[] = "0.5";	/* no spaces */
 
 #ifdef DEBUG
 static char *	apm_event_name[] = {

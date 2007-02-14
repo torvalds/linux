@@ -179,7 +179,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	uccs->us_info = us_info;
 	uccs->saved_uccm = 0;
 	uccs->p_rx_frame = 0;
-	uccs->us_regs = us_info->us_regs;
+	uccs->us_regs = us_info->regs;
 	us_regs = uccs->us_regs;
 	uccs->p_ucce = (u16 *) & (us_regs->ucce);
 	uccs->p_uccm = (u16 *) & (us_regs->uccm);
@@ -206,7 +206,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	uccs->us_pram = qe_muram_addr(uccs->us_pram_offset);
 
 	/* Init Guemr register */
-	if ((ret = ucc_init_guemr((struct ucc_common *) (us_info->us_regs)))) {
+	if ((ret = ucc_init_guemr((struct ucc_common *) (us_info->regs)))) {
 		uccs_err("ucc_slow_init: Could not init the guemr register.");
 		ucc_slow_free(uccs);
 		return ret;
@@ -214,7 +214,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 
 	/* Set UCC to slow type */
 	if ((ret = ucc_set_type(us_info->ucc_num,
-				(struct ucc_common *) (us_info->us_regs),
+				(struct ucc_common *) (us_info->regs),
 				UCC_SPEED_TYPE_SLOW))) {
 		uccs_err("ucc_slow_init: Could not init the guemr register.");
 		ucc_slow_free(uccs);

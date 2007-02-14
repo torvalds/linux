@@ -48,6 +48,7 @@
 #include <asm/vdso_datapage.h>
 
 #include "plpar_wrappers.h"
+#include "pseries.h"
 
 #ifdef DEBUG
 #include <asm/udbg.h>

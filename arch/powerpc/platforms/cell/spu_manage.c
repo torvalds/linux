@@ -59,63 +59,6 @@ static u64 __init find_spu_unit_number(struct device_node *spe)
 	return 0;
 }
 
-static int __init cell_spuprop_present(struct spu *spu, struct device_node *spe,
-		const char *prop)
-{
-	const struct address_prop {
-		unsigned long address;
-		unsigned int len;
-	} __attribute__((packed)) *p;
-	int proplen;
-
-	unsigned long start_pfn, nr_pages;
-	struct pglist_data *pgdata;
-	struct zone *zone;
-	int ret;
-
-	p = get_property(spe, prop, &proplen);
-	WARN_ON(proplen != sizeof (*p));
-
-	start_pfn = p->address >> PAGE_SHIFT;
-	nr_pages = ((unsigned long)p->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-
-	pgdata = NODE_DATA(spu->node);
-	zone = pgdata->node_zones;
-
-	ret = __add_pages(zone, start_pfn, nr_pages);
-
-	return ret;
-}
-
-static void __iomem * __init map_spe_prop(struct spu *spu,
-		struct device_node *n, const char *name)
-{
-	const struct address_prop {
-		unsigned long address;
-		unsigned int len;
-	} __attribute__((packed)) *prop;
-
-	const void *p;
-	int proplen;
-	void __iomem *ret = NULL;
-	int err = 0;
-
-	p = get_property(n, name, &proplen);
-	if (proplen != sizeof (struct address_prop))
-		return NULL;
-
-	prop = p;
-
-	err = cell_spuprop_present(spu, n, name);
-	if (err && (err != -EEXIST))
-		goto out;
-
-	ret = ioremap(prop->address, prop->len);
-
- out:
-	return ret;
-}
-
 static void spu_unmap(struct spu *spu)
 {
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
@@ -157,6 +100,23 @@ static int __init spu_map_interrupts_old(struct spu *spu,
 	return spu->irqs[2] == NO_IRQ ? -EINVAL : 0;
 }
 
+static void __iomem * __init spu_map_prop_old(struct spu *spu,
+					      struct device_node *n,
+					      const char *name)
+{
+	const struct address_prop {
+		unsigned long address;
+		unsigned int len;
+	} __attribute__((packed)) *prop;
+	int proplen;
+
+	prop = get_property(n, name, &proplen);
+	if (prop == NULL || proplen != sizeof (struct address_prop))
+		return NULL;
+
+	return ioremap(prop->address, prop->len);
+}
+
 static int __init spu_map_device_old(struct spu *spu)
 {
 	struct device_node *node = spu->devnode;
@@ -175,7 +135,7 @@ static int __init spu_map_device_old(struct spu *spu)
 
 	/* we use local store as ram, not io memory */
 	spu->local_store = (void __force *)
-		map_spe_prop(spu, node, "local-store");
+		spu_map_prop_old(spu, node, "local-store");
 	if (!spu->local_store)
 		goto out;
 
@@ -184,16 +144,16 @@ static int __init spu_map_device_old(struct spu *spu)
 		goto out_unmap;
 	spu->problem_phys = *(unsigned long *)prop;
 
-	spu->problem = map_spe_prop(spu, node, "problem");
+	spu->problem = spu_map_prop_old(spu, node, "problem");
 	if (!spu->problem)
 		goto out_unmap;
 
-	spu->priv2 = map_spe_prop(spu, node, "priv2");
+	spu->priv2 = spu_map_prop_old(spu, node, "priv2");
 	if (!spu->priv2)
 		goto out_unmap;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		spu->priv1 = map_spe_prop(spu, node, "priv1");
+		spu->priv1 = spu_map_prop_old(spu, node, "priv1");
 		if (!spu->priv1)
 			goto out_unmap;
 	}
@@ -245,34 +205,20 @@ static int spu_map_resource(struct spu *spu, int nr,
 			    void __iomem** virt, unsigned long *phys)
 {
 	struct device_node *np = spu->devnode;
-	unsigned long start_pfn, nr_pages;
-	struct pglist_data *pgdata;
-	struct zone *zone;
 	struct resource resource = { };
 	unsigned long len;
 	int ret;
 
 	ret = of_address_to_resource(np, nr, &resource);
 	if (ret)
-		goto out;
-
+		return ret;
 	if (phys)
 		*phys = resource.start;
 	len = resource.end - resource.start + 1;
 	*virt = ioremap(resource.start, len);
 	if (!*virt)
-		ret = -EINVAL;
-
-	start_pfn = resource.start >> PAGE_SHIFT;
-	nr_pages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-
-	pgdata = NODE_DATA(spu->node);
-	zone = pgdata->node_zones;
-
-	ret = __add_pages(zone, start_pfn, nr_pages);
-
-out:
-	return ret;
+		return -EINVAL;
+	return 0;
 }
 
 static int __init spu_map_device(struct spu *spu)

@@ -574,8 +574,8 @@ static struct adb_request led_request;
 static int leds_pending[16];
 static int leds_req_pending;
 static int pending_devs[16];
-static int pending_led_start=0;
-static int pending_led_end=0;
+static int pending_led_start;
+static int pending_led_end;
 static DEFINE_SPINLOCK(leds_lock);
 
 static void leds_done(struct adb_request *req)
