@@ -73,7 +73,7 @@ static struct ctl_table_header *atalk_table_header;
 
 void atalk_register_sysctl(void)
 {
-	atalk_table_header = register_sysctl_table(atalk_root_table, 1);
+	atalk_table_header = register_sysctl_table(atalk_root_table, 0);
 }
 
 void atalk_unregister_sysctl(void)
