@@ -101,7 +101,7 @@ static int xpc_disengage_request_max_timelimit = 120;
 
 static ctl_table xpc_sys_xpc_hb_dir[] = {
 	{
-		1,
+		CTL_UNNUMBERED,
 		"hb_interval",
 		&xpc_hb_interval,
 		sizeof(int),
@@ -114,7 +114,7 @@ static ctl_table xpc_sys_xpc_hb_dir[] = {
 		&xpc_hb_max_interval
 	},
 	{
-		2,
+		CTL_UNNUMBERED,
 		"hb_check_interval",
 		&xpc_hb_check_interval,
 		sizeof(int),
@@ -130,7 +130,7 @@ static ctl_table xpc_sys_xpc_hb_dir[] = {
 };
 static ctl_table xpc_sys_xpc_dir[] = {
 	{
-		1,
+		CTL_UNNUMBERED,
 		"hb",
 		NULL,
 		0,
@@ -138,7 +138,7 @@ static ctl_table xpc_sys_xpc_dir[] = {
 		xpc_sys_xpc_hb_dir
 	},
 	{
-		2,
+		CTL_UNNUMBERED,
 		"disengage_request_timelimit",
 		&xpc_disengage_request_timelimit,
 		sizeof(int),
@@ -154,7 +154,7 @@ static ctl_table xpc_sys_xpc_dir[] = {
 };
 static ctl_table xpc_sys_dir[] = {
 	{
-		1,
+		CTL_UNNUMBERED,
 		"xpc",
 		NULL,
 		0,
@@ -1251,7 +1251,7 @@ xpc_init(void)
 	snprintf(xpc_part->bus_id, BUS_ID_SIZE, "part");
 	snprintf(xpc_chan->bus_id, BUS_ID_SIZE, "chan");
 
-	xpc_sysctl = register_sysctl_table(xpc_sys_dir, 1);
+	xpc_sysctl = register_sysctl_table(xpc_sys_dir, 0);
 
 	/*
 	 * The first few fields of each entry of xpc_partitions[] need to
