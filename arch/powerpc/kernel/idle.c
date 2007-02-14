@@ -125,7 +125,7 @@ static ctl_table powersave_nap_sysctl_root[] = {
 static int __init
 register_powersave_nap_sysctl(void)
 {
-	register_sysctl_table(powersave_nap_sysctl_root, 0);
+	register_sysctl_table(powersave_nap_sysctl_root);
 
 	return 0;
 }

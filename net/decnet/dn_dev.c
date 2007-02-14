@@ -282,7 +282,7 @@ static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *
 	t->dn_dev_root_dir[0].de = NULL;
 	t->dn_dev_vars[0].extra1 = (void *)dev;
 
-	t->sysctl_header = register_sysctl_table(t->dn_dev_root_dir, 0);
+	t->sysctl_header = register_sysctl_table(t->dn_dev_root_dir);
 	if (t->sysctl_header == NULL)
 		kfree(t);
 	else

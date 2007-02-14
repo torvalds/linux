@@ -6726,7 +6726,7 @@ pfm_init(void)
 	/*
 	 * create /proc/sys/kernel/perfmon (for debugging purposes)
 	 */
-	pfm_sysctl_header = register_sysctl_table(pfm_sysctl_root, 0);
+	pfm_sysctl_header = register_sysctl_table(pfm_sysctl_root);
 
 	/*
 	 * initialize all our spinlocks

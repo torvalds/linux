@@ -245,7 +245,7 @@ void ax25_register_sysctl(void)
 
 	ax25_dir_table[0].child = ax25_table;
 
-	ax25_table_header = register_sysctl_table(ax25_root_table, 0);
+	ax25_table_header = register_sysctl_table(ax25_root_table);
 }
 
 void ax25_unregister_sysctl(void)

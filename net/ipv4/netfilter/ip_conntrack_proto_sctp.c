@@ -622,7 +622,7 @@ static int __init ip_conntrack_proto_sctp_init(void)
 	}
 
 #ifdef CONFIG_SYSCTL
-	ip_ct_sysctl_header = register_sysctl_table(ip_ct_net_table, 0);
+	ip_ct_sysctl_header = register_sysctl_table(ip_ct_net_table);
 	if (ip_ct_sysctl_header == NULL) {
 		ret = -ENOMEM;
 		printk("ip_conntrack_proto_sctp: can't register to sysctl.\n");

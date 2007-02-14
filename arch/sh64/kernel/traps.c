@@ -960,7 +960,7 @@ static ctl_table sh64_root[] = {
 static struct ctl_table_header *sysctl_header;
 static int __init init_sysctl(void)
 {
-	sysctl_header = register_sysctl_table(sh64_root, 0);
+	sysctl_header = register_sysctl_table(sh64_root);
 	return 0;
 }
 

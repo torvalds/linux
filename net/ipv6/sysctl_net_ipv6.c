@@ -107,7 +107,7 @@ static ctl_table ipv6_root_table[] = {
 
 void ipv6_sysctl_register(void)
 {
-	ipv6_sysctl_header = register_sysctl_table(ipv6_root_table, 0);
+	ipv6_sysctl_header = register_sysctl_table(ipv6_root_table);
 }
 
 void ipv6_sysctl_unregister(void)

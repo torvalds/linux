@@ -693,7 +693,7 @@ static int __init ip_queue_init(void)
 	}
 
 	register_netdevice_notifier(&ipq_dev_notifier);
-	ipq_sysctl_header = register_sysctl_table(ipq_root_table, 0);
+	ipq_sysctl_header = register_sysctl_table(ipq_root_table);
 
 	status = nf_register_queue_handler(PF_INET, &nfqh);
 	if (status < 0) {

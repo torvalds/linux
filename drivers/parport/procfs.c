@@ -518,7 +518,7 @@ int parport_proc_register(struct parport *port)
 	t->parport_dir[0].child = t->port_dir;
 	t->dev_dir[0].child = t->parport_dir;
 
-	t->sysctl_header = register_sysctl_table(t->dev_dir, 0);
+	t->sysctl_header = register_sysctl_table(t->dev_dir);
 	if (t->sysctl_header == NULL) {
 		kfree(t);
 		t = NULL;
@@ -574,7 +574,7 @@ int parport_device_proc_register(struct pardevice *device)
 	t->device_dir[0].child = t->vars;
 	t->vars[0].data = &device->timeslice;
 
-	t->sysctl_header = register_sysctl_table(t->dev_dir, 0);
+	t->sysctl_header = register_sysctl_table(t->dev_dir);
 	if (t->sysctl_header == NULL) {
 		kfree(t);
 		t = NULL;
@@ -597,7 +597,7 @@ int parport_device_proc_unregister(struct pardevice *device)
 static int __init parport_default_proc_register(void)
 {
 	parport_default_sysctl_table.sysctl_header =
-		register_sysctl_table(parport_default_sysctl_table.dev_dir, 0);
+		register_sysctl_table(parport_default_sysctl_table.dev_dir);
 	return 0;
 }
 

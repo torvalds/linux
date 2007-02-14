@@ -848,7 +848,7 @@ static int __init ip_conntrack_standalone_init(void)
 		goto cleanup_proc_stat;
 	}
 #ifdef CONFIG_SYSCTL
-	ip_ct_sysctl_header = register_sysctl_table(ip_ct_net_table, 0);
+	ip_ct_sysctl_header = register_sysctl_table(ip_ct_net_table);
 	if (ip_ct_sysctl_header == NULL) {
 		printk("ip_conntrack: can't register to sysctl.\n");
 		ret = -ENOMEM;

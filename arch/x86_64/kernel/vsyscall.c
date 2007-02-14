@@ -301,7 +301,7 @@ static int __init vsyscall_init(void)
 	BUG_ON((unsigned long) &vgetcpu != VSYSCALL_ADDR(__NR_vgetcpu));
 	map_vsyscall();
 #ifdef CONFIG_SYSCTL
-	register_sysctl_table(kernel_root_table2, 0);
+	register_sysctl_table(kernel_root_table2);
 #endif
 	on_each_cpu(cpu_vsyscall_init, NULL, 0, 1);
 	hotcpu_notifier(cpu_vsyscall_notifier, 0);

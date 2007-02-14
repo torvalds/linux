@@ -176,7 +176,7 @@ static struct ctl_table ipc_root_table[] = {
 
 static int __init ipc_sysctl_init(void)
 {
-	register_sysctl_table(ipc_root_table, 0);
+	register_sysctl_table(ipc_root_table);
 	return 0;
 }
 

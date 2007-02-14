@@ -583,7 +583,7 @@ static struct ip_vs_scheduler ip_vs_lblc_scheduler =
 static int __init ip_vs_lblc_init(void)
 {
 	INIT_LIST_HEAD(&ip_vs_lblc_scheduler.n_list);
-	sysctl_header = register_sysctl_table(lblc_root_table, 0);
+	sysctl_header = register_sysctl_table(lblc_root_table);
 	return register_ip_vs_scheduler(&ip_vs_lblc_scheduler);
 }
 

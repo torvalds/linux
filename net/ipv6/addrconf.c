@@ -4029,7 +4029,7 @@ static void addrconf_sysctl_register(struct inet6_dev *idev, struct ipv6_devconf
 	t->addrconf_root_dir[0].child = t->addrconf_proto_dir;
 	t->addrconf_root_dir[0].de = NULL;
 
-	t->sysctl_header = register_sysctl_table(t->addrconf_root_dir, 0);
+	t->sysctl_header = register_sysctl_table(t->addrconf_root_dir);
 	if (t->sysctl_header == NULL)
 		goto free_procname;
 	else
@@ -4114,7 +4114,7 @@ int __init addrconf_init(void)
 	rtnetlink_links[PF_INET6] = inet6_rtnetlink_table;
 #ifdef CONFIG_SYSCTL
 	addrconf_sysctl.sysctl_header =
-		register_sysctl_table(addrconf_sysctl.addrconf_root_dir, 0);
+		register_sysctl_table(addrconf_sysctl.addrconf_root_dir);
 	addrconf_sysctl_register(NULL, &ipv6_devconf_dflt);
 #endif
 

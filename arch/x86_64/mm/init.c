@@ -734,7 +734,7 @@ static ctl_table debug_root_table2[] = {
 
 static __init int x8664_sysctl_init(void)
 { 
-	register_sysctl_table(debug_root_table2, 0);
+	register_sysctl_table(debug_root_table2);
 	return 0;
 }
 __initcall(x8664_sysctl_init);

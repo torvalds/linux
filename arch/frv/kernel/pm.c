@@ -455,7 +455,7 @@ static struct ctl_table pm_dir_table[] =
  */
 static int __init pm_init(void)
 {
-	register_sysctl_table(pm_dir_table, 0);
+	register_sysctl_table(pm_dir_table);
 	return 0;
 }
 

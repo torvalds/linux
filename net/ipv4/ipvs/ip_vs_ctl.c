@@ -2359,7 +2359,7 @@ int ip_vs_control_init(void)
 	proc_net_fops_create("ip_vs", 0, &ip_vs_info_fops);
 	proc_net_fops_create("ip_vs_stats",0, &ip_vs_stats_fops);
 
-	sysctl_header = register_sysctl_table(vs_root_table, 0);
+	sysctl_header = register_sysctl_table(vs_root_table);
 
 	/* Initialize ip_vs_svc_table, ip_vs_svc_fwm_table, ip_vs_rtable */
 	for(idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++)  {

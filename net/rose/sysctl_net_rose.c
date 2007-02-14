@@ -160,7 +160,7 @@ static ctl_table rose_root_table[] = {
 
 void __init rose_register_sysctl(void)
 {
-	rose_table_header = register_sysctl_table(rose_root_table, 0);
+	rose_table_header = register_sysctl_table(rose_root_table);
 }
 
 void rose_unregister_sysctl(void)

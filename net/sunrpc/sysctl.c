@@ -36,7 +36,7 @@ void
 rpc_register_sysctl(void)
 {
 	if (!sunrpc_table_header)
-		sunrpc_table_header = register_sysctl_table(sunrpc_table, 0);
+		sunrpc_table_header = register_sysctl_table(sunrpc_table);
 }
 
 void

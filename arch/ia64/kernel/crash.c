@@ -222,7 +222,7 @@ machine_crash_setup(void)
 	if((ret = register_die_notifier(&kdump_init_notifier_nb)) != 0)
 		return ret;
 #ifdef CONFIG_SYSCTL
-	register_sysctl_table(sys_table, 0);
+	register_sysctl_table(sys_table);
 #endif
 	return 0;
 }

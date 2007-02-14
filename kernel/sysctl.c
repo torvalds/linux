@@ -1244,7 +1244,6 @@ int do_sysctl_strategy (ctl_table *table,
 /**
  * register_sysctl_table - register a sysctl hierarchy
  * @table: the top-level table structure
- * @insert_at_head: whether the entry should be inserted in front or at the end
  *
  * Register a sysctl table hierarchy. @table should be a filled in ctl_table
  * array. An entry with a ctl_name of 0 terminates the table. 
@@ -1310,8 +1309,7 @@ int do_sysctl_strategy (ctl_table *table,
  * This routine returns %NULL on a failure to register, and a pointer
  * to the table header on success.
  */
-struct ctl_table_header *register_sysctl_table(ctl_table * table, 
-					       int insert_at_head)
+struct ctl_table_header *register_sysctl_table(ctl_table * table)
 {
 	struct ctl_table_header *tmp;
 	tmp = kmalloc(sizeof(struct ctl_table_header), GFP_KERNEL);
@@ -1322,10 +1320,7 @@ struct ctl_table_header *register_sysctl_table(ctl_table * table,
 	tmp->used = 0;
 	tmp->unregistering = NULL;
 	spin_lock(&sysctl_lock);
-	if (insert_at_head)
-		list_add(&tmp->ctl_entry, &root_table_header.ctl_entry);
-	else
-		list_add_tail(&tmp->ctl_entry, &root_table_header.ctl_entry);
+	list_add_tail(&tmp->ctl_entry, &root_table_header.ctl_entry);
 	spin_unlock(&sysctl_lock);
 #ifdef CONFIG_PROC_SYSCTL
 	register_proc_table(table, proc_sys_root, tmp);

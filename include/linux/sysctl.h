@@ -1035,8 +1035,8 @@ struct ctl_table_header
 	struct completion *unregistering;
 };
 
-struct ctl_table_header * register_sysctl_table(ctl_table * table, 
-						int insert_at_head);
+struct ctl_table_header * register_sysctl_table(ctl_table * table);
+
 void unregister_sysctl_table(struct ctl_table_header * table);
 
 #else /* __KERNEL__ */

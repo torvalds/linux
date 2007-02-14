@@ -957,7 +957,7 @@ int __init br_netfilter_init(void)
 	if (ret < 0)
 		return ret;
 #ifdef CONFIG_SYSCTL
-	brnf_sysctl_header = register_sysctl_table(brnf_net_table, 0);
+	brnf_sysctl_header = register_sysctl_table(brnf_net_table);
 	if (brnf_sysctl_header == NULL) {
 		printk(KERN_WARNING
 		       "br_netfilter: can't register to sysctl.\n");

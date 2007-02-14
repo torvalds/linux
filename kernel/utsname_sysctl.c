@@ -139,7 +139,7 @@ static struct ctl_table uts_root_table[] = {
 
 static int __init utsname_sysctl_init(void)
 {
-	register_sysctl_table(uts_root_table, 0);
+	register_sysctl_table(uts_root_table);
 	return 0;
 }
 

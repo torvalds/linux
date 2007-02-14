@@ -56,7 +56,7 @@ nf_register_sysctl_table(struct ctl_table *path, struct ctl_table *table)
 	path = path_dup(path, table);
 	if (path == NULL)
 		return NULL;
-	header = register_sysctl_table(path, 0);
+	header = register_sysctl_table(path);
 	if (header == NULL)
 		path_free(path, table);
 	return header;

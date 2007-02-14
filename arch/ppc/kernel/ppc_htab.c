@@ -457,7 +457,7 @@ static ctl_table htab_sysctl_root[] = {
 static int __init
 register_ppc_htab_sysctl(void)
 {
-	register_sysctl_table(htab_sysctl_root, 0);
+	register_sysctl_table(htab_sysctl_root);
 
 	return 0;
 }

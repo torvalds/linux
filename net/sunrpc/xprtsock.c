@@ -1636,7 +1636,7 @@ int init_socket_xprt(void)
 {
 #ifdef RPC_DEBUG
 	if (!sunrpc_table_header)
-		sunrpc_table_header = register_sysctl_table(sunrpc_table, 0);
+		sunrpc_table_header = register_sysctl_table(sunrpc_table);
 #endif
 
 	return 0;

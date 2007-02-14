@@ -491,7 +491,7 @@ static ctl_table dn_root_table[] = {
 
 void dn_register_sysctl(void)
 {
-	dn_table_header = register_sysctl_table(dn_root_table, 0);
+	dn_table_header = register_sysctl_table(dn_root_table);
 }
 
 void dn_unregister_sysctl(void)

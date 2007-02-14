@@ -1241,7 +1241,7 @@ xpc_init(void)
 	snprintf(xpc_part->bus_id, BUS_ID_SIZE, "part");
 	snprintf(xpc_chan->bus_id, BUS_ID_SIZE, "chan");
 
-	xpc_sysctl = register_sysctl_table(xpc_sys_dir, 0);
+	xpc_sysctl = register_sysctl_table(xpc_sys_dir);
 
 	/*
 	 * The first few fields of each entry of xpc_partitions[] need to

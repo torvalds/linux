@@ -432,7 +432,7 @@ static int __init lasat_register_sysctl(void)
 	struct ctl_table_header *lasat_table_header;
 
 	lasat_table_header =
-		register_sysctl_table(lasat_root_table, 0);
+		register_sysctl_table(lasat_root_table);
 
 	return 0;
 }

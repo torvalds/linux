@@ -52,7 +52,7 @@ static struct ctl_table_header *ipx_table_header;
 
 void ipx_register_sysctl(void)
 {
-	ipx_table_header = register_sysctl_table(ipx_root_table, 0);
+	ipx_table_header = register_sysctl_table(ipx_root_table);
 }
 
 void ipx_unregister_sysctl(void)

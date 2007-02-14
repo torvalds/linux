@@ -1244,7 +1244,7 @@ int __init init_arlan_proc(void)
 		return 0;
 	for (i = 0; i < MAX_ARLANS && arlan_device[i]; i++)
 		arlan_table[i].ctl_name = i + 1;
-	arlan_device_sysctl_header = register_sysctl_table(arlan_root_table, 0);
+	arlan_device_sysctl_header = register_sysctl_table(arlan_root_table);
 	if (!arlan_device_sysctl_header)
 		return -1;
 
