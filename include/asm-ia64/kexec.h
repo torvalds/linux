@@ -22,7 +22,6 @@
         } while(0)
 
 extern struct kimage *ia64_kimage;
-DECLARE_PER_CPU(u64, ia64_mca_pal_base);
 extern const unsigned int relocate_new_kernel_size;
 extern void relocate_new_kernel(unsigned long, unsigned long,
 		struct ia64_boot_param *, unsigned long);
