@@ -89,6 +89,7 @@ void ConfigItem::okRename(int col)
 {
 	Parent::okRename(col);
 	sym_set_string_value(menu->sym, text(dataColIdx).latin1());
+	listView()->updateList(this);
 }
 #endif
 
