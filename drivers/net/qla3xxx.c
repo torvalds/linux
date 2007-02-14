@@ -3228,7 +3228,7 @@ static int ql_adapter_up(struct ql3_adapter *qdev)
 {
 	struct net_device *ndev = qdev->ndev;
 	int err;
-	unsigned long irq_flags = SA_SAMPLE_RANDOM | SA_SHIRQ;
+	unsigned long irq_flags = IRQF_SAMPLE_RANDOM | IRQF_SHARED;
 	unsigned long hw_flags;
 
 	if (ql_alloc_mem_resources(qdev)) {
@@ -3247,7 +3247,7 @@ static int ql_adapter_up(struct ql3_adapter *qdev)
 		} else {
 			printk(KERN_INFO PFX "%s: MSI Enabled...\n", qdev->ndev->name);
 			set_bit(QL_MSI_ENABLED,&qdev->flags);
-			irq_flags &= ~SA_SHIRQ;
+			irq_flags &= ~IRQF_SHARED;
 		}
 	}
 

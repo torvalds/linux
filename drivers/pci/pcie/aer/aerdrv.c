@@ -220,7 +220,7 @@ static int __devinit aer_probe (struct pcie_device *dev,
 	}
 
 	/* Request IRQ ISR */
-	if ((status = request_irq(dev->irq, aer_irq, SA_SHIRQ, "aerdrv",
+	if ((status = request_irq(dev->irq, aer_irq, IRQF_SHARED, "aerdrv",
 				dev))) {
 		printk(KERN_DEBUG "%s: Request ISR fails on PCIE device[%s]\n",
 			__FUNCTION__, device->bus_id);

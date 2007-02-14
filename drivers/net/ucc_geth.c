@@ -3939,8 +3939,8 @@ static void ugeth_phy_startup_timer(unsigned long data)
 	/* Grab the PHY interrupt, if necessary/possible */
 	if (ugeth->ug_info->board_flags & FSL_UGETH_BRD_HAS_PHY_INTR) {
 		if (request_irq(ugeth->ug_info->phy_interrupt,
-				phy_interrupt,
-				SA_SHIRQ, "phy_interrupt", mii_info->dev) < 0) {
+				phy_interrupt, IRQF_SHARED,
+				"phy_interrupt", mii_info->dev) < 0) {
 			ugeth_err("%s: Can't get IRQ %d (PHY)",
 				  mii_info->dev->name,
 				  ugeth->ug_info->phy_interrupt);

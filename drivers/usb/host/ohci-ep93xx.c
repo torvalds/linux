@@ -78,7 +78,7 @@ static int usb_hcd_ep93xx_probe(const struct hc_driver *driver,
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
-	retval = usb_add_hcd(hcd, pdev->resource[1].start, SA_INTERRUPT);
+	retval = usb_add_hcd(hcd, pdev->resource[1].start, IRQF_DISABLED);
 	if (retval == 0)
 		return retval;
 

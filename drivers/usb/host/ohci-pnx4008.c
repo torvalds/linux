@@ -421,7 +421,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	ohci_hcd_init(ohci);
 
 	dev_info(&pdev->dev, "at 0x%p, irq %d\n", hcd->regs, hcd->irq);
-	ret = usb_add_hcd(hcd, irq, SA_INTERRUPT);
+	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
 	if (ret == 0)
 		return ret;
 

@@ -796,7 +796,7 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 	probe_ent->port_ops	= pdc2027x_port_info[board_idx].port_ops;
 
        	probe_ent->irq = pdev->irq;
-       	probe_ent->irq_flags = SA_SHIRQ;
+       	probe_ent->irq_flags = IRQF_SHARED;
 	probe_ent->iomap = pcim_iomap_table(pdev);
 
 	mmio_base = probe_ent->iomap[PDC_MMIO_BAR];

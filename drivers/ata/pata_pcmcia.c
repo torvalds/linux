@@ -264,7 +264,7 @@ next_entry:
 	ae.n_ports = 1;
 	ae.pio_mask = 1;		/* ISA so PIO 0 cycles */
 	ae.irq = pdev->irq.AssignedIRQ;
-	ae.irq_flags = SA_SHIRQ;
+	ae.irq_flags = IRQF_SHARED;
 	ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
 	ae.port[0].cmd_addr = io_addr;
 	ae.port[0].altstatus_addr = ctl_addr;
