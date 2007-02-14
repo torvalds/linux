@@ -23,7 +23,7 @@
 #define SPUFS_H
 
 #include <linux/kref.h>
-#include <linux/rwsem.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/fs.h>
 
@@ -37,10 +37,12 @@ enum {
 };
 
 struct spu_context_ops;
-
-#define SPU_CONTEXT_PREEMPT          0UL
-
 struct spu_gang;
+
+/* ctx->sched_flags */
+enum {
+	SPU_SCHED_WAKE = 0,
+};
 
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
@@ -56,7 +58,7 @@ struct spu_context {
 	u64 object_id;		   /* user space pointer for oprofile */
 
 	enum { SPU_STATE_RUNNABLE, SPU_STATE_SAVED } state;
-	struct rw_semaphore state_sema;
+	struct mutex state_mutex;
 	struct semaphore run_sema;
 
 	struct mm_struct *owner;
@@ -77,6 +79,14 @@ struct spu_context {
 
 	struct list_head gang_list;
 	struct spu_gang *gang;
+
+	/* scheduler fields */
+ 	struct list_head rq;
+	struct delayed_work sched_work;
+	unsigned long sched_flags;
+	unsigned long rt_priority;
+	int policy;
+	int prio;
 };
 
 struct spu_gang {
@@ -161,6 +171,16 @@ void spu_gang_remove_ctx(struct spu_gang *gang, struct spu_context *ctx);
 void spu_gang_add_ctx(struct spu_gang *gang, struct spu_context *ctx);
 
 /* context management */
+static inline void spu_acquire(struct spu_context *ctx)
+{
+	mutex_lock(&ctx->state_mutex);
+}
+
+static inline void spu_release(struct spu_context *ctx)
+{
+	mutex_unlock(&ctx->state_mutex);
+}
+
 struct spu_context * alloc_spu_context(struct spu_gang *gang);
 void destroy_spu_context(struct kref *kref);
 struct spu_context * get_spu_context(struct spu_context *ctx);
@@ -168,20 +188,18 @@ int put_spu_context(struct spu_context *ctx);
 void spu_unmap_mappings(struct spu_context *ctx);
 
 void spu_forget(struct spu_context *ctx);
-void spu_acquire(struct spu_context *ctx);
-void spu_release(struct spu_context *ctx);
-int spu_acquire_runnable(struct spu_context *ctx);
+int spu_acquire_runnable(struct spu_context *ctx, unsigned long flags);
 void spu_acquire_saved(struct spu_context *ctx);
 int spu_acquire_exclusive(struct spu_context *ctx);
-
-static inline void spu_release_exclusive(struct spu_context *ctx)
-{
-	up_write(&ctx->state_sema);
-}
-
-int spu_activate(struct spu_context *ctx, u64 flags);
+enum {
+	SPU_ACTIVATE_NOWAKE = 1,
+};
+int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);
+void spu_start_tick(struct spu_context *ctx);
+void spu_stop_tick(struct spu_context *ctx);
+void spu_sched_tick(struct work_struct *work);
 int __init spu_sched_init(void);
 void __exit spu_sched_exit(void);
 

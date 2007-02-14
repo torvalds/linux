@@ -345,18 +345,12 @@ EXPORT_SYMBOL_GPL(cbe_read_trace_buffer);
  * Enabling/disabling interrupts for the entire performance monitoring unit.
  */
 
-u32 cbe_query_pm_interrupts(u32 cpu)
-{
-	return cbe_read_pm(cpu, pm_status);
-}
-EXPORT_SYMBOL_GPL(cbe_query_pm_interrupts);
-
-u32 cbe_clear_pm_interrupts(u32 cpu)
+u32 cbe_get_and_clear_pm_interrupts(u32 cpu)
 {
 	/* Reading pm_status clears the interrupt bits. */
-	return cbe_query_pm_interrupts(cpu);
+	return cbe_read_pm(cpu, pm_status);
 }
-EXPORT_SYMBOL_GPL(cbe_clear_pm_interrupts);
+EXPORT_SYMBOL_GPL(cbe_get_and_clear_pm_interrupts);
 
 void cbe_enable_pm_interrupts(u32 cpu, u32 thread, u32 mask)
 {
@@ -371,7 +365,7 @@ EXPORT_SYMBOL_GPL(cbe_enable_pm_interrupts);
 
 void cbe_disable_pm_interrupts(u32 cpu)
 {
-	cbe_clear_pm_interrupts(cpu);
+	cbe_get_and_clear_pm_interrupts(cpu);
 	cbe_write_pm(cpu, pm_status, 0);
 }
 EXPORT_SYMBOL_GPL(cbe_disable_pm_interrupts);

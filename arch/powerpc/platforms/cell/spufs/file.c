@@ -103,6 +103,9 @@ static unsigned long spufs_mem_mmap_nopfn(struct vm_area_struct *vma,
 
 	offset += vma->vm_pgoff << PAGE_SHIFT;
 
+	if (offset >= LS_SIZE)
+		return NOPFN_SIGBUS;
+
 	spu_acquire(ctx);
 
 	if (ctx->state == SPU_STATE_SAVED) {
@@ -164,7 +167,7 @@ static unsigned long spufs_ps_nopfn(struct vm_area_struct *vma,
 	/* error here usually means a signal.. we might want to test
 	 * the error code more precisely though
 	 */
-	ret = spu_acquire_runnable(ctx);
+	ret = spu_acquire_runnable(ctx, 0);
 	if (ret)
 		return NOPFN_REFAULT;
 
@@ -1306,7 +1309,7 @@ static ssize_t spufs_mfc_write(struct file *file, const char __user *buffer,
 	if (ret)
 		goto out;
 
-	spu_acquire_runnable(ctx);
+	spu_acquire_runnable(ctx, 0);
 	if (file->f_flags & O_NONBLOCK) {
 		ret = ctx->ops->send_mfc_command(ctx, &cmd);
 	} else {
