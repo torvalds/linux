@@ -107,8 +107,8 @@ static struct clk tcb_clk = {
 	.pmc_mask	= 1 << AT91SAM9263_ID_TCB,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
-static struct clk ether_clk = {
-	.name		= "ether_clk",
+static struct clk macb_clk = {
+	.name		= "macb_clk",
 	.pmc_mask	= 1 << AT91SAM9263_ID_EMAC,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
@@ -150,7 +150,7 @@ static struct clk *periph_clocks[] __initdata = {
 	// ac97
 	&tcb_clk,
 	// pwmc
-	&ether_clk,
+	&macb_clk,
 	// 2dge
 	&udc_clk,
 	&isi_clk,
