@@ -881,6 +881,12 @@ static ctl_table vm_table[] = {
 	{ .ctl_name = 0 }
 };
 
+#if defined(CONFIG_BINFMT_MISC) || defined(CONFIG_BINFMT_MISC_MODULE)
+static ctl_table binfmt_misc_table[] = {
+	{ .ctl_name = 0 }
+};
+#endif
+
 static ctl_table fs_table[] = {
 	{
 		.ctl_name	= FS_NRINODE,
@@ -1004,6 +1010,14 @@ static ctl_table fs_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+#if defined(CONFIG_BINFMT_MISC) || defined(CONFIG_BINFMT_MISC_MODULE)
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "binfmt_misc",
+		.mode		= 0555,
+		.child		= binfmt_misc_table,
+	},
+#endif
 	{ .ctl_name = 0 }
 };
 
