@@ -419,15 +419,41 @@ static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 
 
 static struct ctl_table pm_table[] = {
-	{CTL_UNNUMBERED, "suspend", NULL, 0, 0600, NULL, &pm_do_suspend},
-	{CTL_UNNUMBERED, "sleep", NULL, 0, 0600, NULL, &pm_do_sleep},
-	{CTL_UNNUMBERED, "freq", NULL, 0, 0600, NULL, &pm_do_freq},
-	{0}
+	{
+		.ctl_name 	= CTL_UNNUMBERED,
+		.procname	= "suspend",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0600,
+		.proc_handler	= &pm_do_suspend
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sleep",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0600,
+		.proc_handler	= &pm_do_sleep
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "freq",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0600,
+		.proc_handler	= &pm_do_freq
+	},
+	{}
 };
 
 static struct ctl_table pm_dir_table[] = {
-	{CTL_UNNUMBERED, "pm", NULL, 0, 0555, pm_table},
-	{0}
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "pm",
+		.mode		= 0555,
+		.child		= pm_table
+	},
+	{}
 };
 
 /*
