@@ -33,8 +33,6 @@
 
 static struct ctl_table_header *fs_table_header;
 
-#define FS_CODA         1       /* Coda file system */
-
 #define CODA_TIMEOUT    3       /* timeout on upcalls to become intrble */
 #define CODA_HARD       5       /* mount type "hard" or "soft" */
 #define CODA_VFS 	 6       /* vfs statistics */
@@ -183,17 +181,57 @@ static const struct file_operations proc_cache_inv_stats_fops = {
 };
 
 static ctl_table coda_table[] = {
- 	{CODA_TIMEOUT, "timeout", &coda_timeout, sizeof(int), 0644, NULL, &proc_dointvec},
- 	{CODA_HARD, "hard", &coda_hard, sizeof(int), 0644, NULL, &proc_dointvec},
- 	{CODA_VFS, "vfs_stats", NULL, 0, 0644, NULL, &do_reset_coda_vfs_stats},
- 	{CODA_CACHE_INV, "cache_inv_stats", NULL, 0, 0644, NULL, &do_reset_coda_cache_inv_stats},
- 	{CODA_FAKE_STATFS, "fake_statfs", &coda_fake_statfs, sizeof(int), 0600, NULL, &proc_dointvec},
-	{ 0 }
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "timeout",
+		.data		= &coda_timeout,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "hard",
+		.data		= &coda_hard,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "vfs_stats",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0644,
+		.proc_handler	= &do_reset_coda_vfs_stats
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "cache_inv_stats",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0644,
+		.proc_handler	= &do_reset_coda_cache_inv_stats
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "fake_statfs",
+		.data		= &coda_fake_statfs,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= &proc_dointvec
+	},
+	{}
 };
 
 static ctl_table fs_table[] = {
-       {FS_CODA, "coda",    NULL, 0, 0555, coda_table},
-       {0}
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "coda",
+		.mode		= 0555,
+		.child		= coda_table
+	},
+	{}
 };
 
 
