@@ -212,6 +212,8 @@
 #define REALVIEW_TWD_BASE		0x10100700
 #define REALVIEW_TWD_SIZE		0x00000100
 #define REALVIEW_GIC_DIST_BASE		0x10101000	/* Generic interrupt controller distributor */
+#define REALVIEW_GIC1_CPU_BASE        0x10040000	/* Generic interrupt controller CPU interface */
+#define REALVIEW_GIC1_DIST_BASE       0x10041000	/* Generic interrupt controller distributor */
 #endif
 #define REALVIEW_SMC_BASE             0x10080000	/* SMC */
 	/* Reserved 0x10090000 - 0x100EFFFF */
@@ -306,7 +308,11 @@
 #define INT_USB				29	/* USB controller */
 #define INT_TSPENINT			30	/* Touchscreen pen */
 #define INT_TSKPADINT			31	/* Touchscreen keypad */
+
 #else
+
+#define MAX_GIC_NR			2
+
 #define INT_AACI			0
 #define INT_TIMERINT0_1			1
 #define INT_TIMERINT2_3			2

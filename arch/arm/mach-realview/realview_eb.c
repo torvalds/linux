@@ -57,7 +57,21 @@ static struct map_desc realview_eb_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(REALVIEW_GIC_DIST_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
+	},
+#ifdef CONFIG_REALVIEW_MPCORE
+	{
+		.virtual	= IO_ADDRESS(REALVIEW_GIC1_CPU_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_GIC1_CPU_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
 	}, {
+		.virtual	= IO_ADDRESS(REALVIEW_GIC1_DIST_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_GIC1_DIST_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	},
+#endif
+	{
 		.virtual	= IO_ADDRESS(REALVIEW_SCTL_BASE),
 		.pfn		= __phys_to_pfn(REALVIEW_SCTL_BASE),
 		.length		= SZ_4K,
@@ -145,6 +159,11 @@ static void __init gic_init_irq(void)
 #endif
 	gic_dist_init(0, __io_address(REALVIEW_GIC_DIST_BASE), 29);
 	gic_cpu_init(0, __io_address(REALVIEW_GIC_CPU_BASE));
+#ifdef CONFIG_REALVIEW_MPCORE
+	gic_dist_init(1, __io_address(REALVIEW_GIC1_DIST_BASE), 64);
+	gic_cpu_init(1, __io_address(REALVIEW_GIC1_CPU_BASE));
+	gic_cascade_irq(1, IRQ_EB_IRQ1);
+#endif
 }
 
 static void __init realview_eb_init(void)
