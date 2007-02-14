@@ -29,8 +29,8 @@ static inline smp_init_pseries_xics(void) { };
 extern void setup_kexec_cpu_down_xics(void);
 extern void setup_kexec_cpu_down_mpic(void);
 #else
-static inline setup_kexec_cpu_down_xics(void) { };
-static inline setup_kexec_cpu_down_mpic(void) { };
+static inline void setup_kexec_cpu_down_xics(void) { }
+static inline void setup_kexec_cpu_down_mpic(void) { }
 #endif
 
 #endif /* _PSERIES_PSERIES_H */
