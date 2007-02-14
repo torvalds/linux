@@ -202,6 +202,17 @@ static int DIV_TO_REG(int val)
 }
 #define DIV_FROM_REG(val) (1 << (val))
 
+static const unsigned int pwm_freq[8] = {
+	48000000 / 128,
+	24000000 / 128,
+	12000000 / 128,
+	8000000 / 128,
+	6000000 / 128,
+	3000000 / 128,
+	1500000 / 128,
+	750000 / 128,
+};
+
 
 /* For each registered IT87, we need to keep some data in memory. That
    data is pointed to by it87_list[NR]->data. The structure itself is
@@ -232,6 +243,7 @@ struct it87_data {
 	u8 vrm;
 	u32 alarms;		/* Register encoding, combined */
 	u8 fan_main_ctrl;	/* Register value */
+	u8 fan_ctl;		/* Register value */
 	u8 manual_pwm_ctl[3];   /* manual PWM value set by user */
 };
 
@@ -519,6 +531,14 @@ static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
 	struct it87_data *data = it87_update_device(dev);
 	return sprintf(buf,"%d\n", data->manual_pwm_ctl[nr]);
 }
+static ssize_t show_pwm_freq(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct it87_data *data = it87_update_device(dev);
+	int index = (data->fan_ctl >> 4) & 0x07;
+
+	return sprintf(buf, "%u\n", pwm_freq[index]);
+}
 static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
@@ -639,6 +659,28 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	mutex_unlock(&data->update_lock);
 	return count;
 }
+static ssize_t set_pwm_freq(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct it87_data *data = i2c_get_clientdata(client);
+	unsigned long val = simple_strtoul(buf, NULL, 10);
+	int i;
+
+	/* Search for the nearest available frequency */
+	for (i = 0; i < 7; i++) {
+		if (val > (pwm_freq[i] + pwm_freq[i+1]) / 2)
+			break;
+	}
+
+	mutex_lock(&data->update_lock);
+	data->fan_ctl = it87_read_value(client, IT87_REG_FAN_CTL) & 0x8f;
+	data->fan_ctl |= i << 4;
+	it87_write_value(client, IT87_REG_FAN_CTL, data->fan_ctl);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
 
 #define show_fan_offset(offset)					\
 static SENSOR_DEVICE_ATTR(fan##offset##_input, S_IRUGO,		\
@@ -656,7 +698,10 @@ show_fan_offset(3);
 static SENSOR_DEVICE_ATTR(pwm##offset##_enable, S_IRUGO | S_IWUSR,	\
 		show_pwm_enable, set_pwm_enable, offset - 1);		\
 static SENSOR_DEVICE_ATTR(pwm##offset, S_IRUGO | S_IWUSR,		\
-		show_pwm, set_pwm, offset - 1);
+		show_pwm, set_pwm, offset - 1);				\
+static DEVICE_ATTR(pwm##offset##_freq,					\
+		(offset == 1 ? S_IRUGO | S_IWUSR : S_IRUGO),		\
+		show_pwm_freq, (offset == 1 ? set_pwm_freq : NULL));
 
 show_pwm_offset(1);
 show_pwm_offset(2);
@@ -1021,7 +1066,13 @@ static int it87_detect(struct i2c_adapter *adapter)
 		 || (err = device_create_file(&new_client->dev,
 		     &sensor_dev_attr_pwm2.dev_attr))
 		 || (err = device_create_file(&new_client->dev,
-		     &sensor_dev_attr_pwm3.dev_attr)))
+		     &sensor_dev_attr_pwm3.dev_attr))
+		 || (err = device_create_file(&new_client->dev,
+		     &dev_attr_pwm1_freq))
+		 || (err = device_create_file(&new_client->dev,
+		     &dev_attr_pwm2_freq))
+		 || (err = device_create_file(&new_client->dev,
+		     &dev_attr_pwm3_freq)))
 			goto ERROR4;
 	}
 
@@ -1316,6 +1367,7 @@ static struct it87_data *it87_update_device(struct device *dev)
 			(it87_read_value(client, IT87_REG_ALARM2) << 8) |
 			(it87_read_value(client, IT87_REG_ALARM3) << 16);
 		data->fan_main_ctrl = it87_read_value(client, IT87_REG_FAN_MAIN_CTRL);
+		data->fan_ctl = it87_read_value(client, IT87_REG_FAN_CTL);
 
 		data->sensor = it87_read_value(client, IT87_REG_TEMP_ENABLE);
 		/* The 8705 does not have VID capability */
