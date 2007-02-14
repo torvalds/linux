@@ -3998,7 +3998,6 @@ static void addrconf_sysctl_register(struct inet6_dev *idev, struct ipv6_devconf
 		return;
 	for (i=0; t->addrconf_vars[i].data; i++) {
 		t->addrconf_vars[i].data += (char*)p - (char*)&ipv6_devconf;
-		t->addrconf_vars[i].de = NULL;
 		t->addrconf_vars[i].extra1 = idev; /* embedded; no ref */
 	}
 	if (dev) {
@@ -4021,13 +4020,9 @@ static void addrconf_sysctl_register(struct inet6_dev *idev, struct ipv6_devconf
 	t->addrconf_dev[0].procname = dev_name;
 
 	t->addrconf_dev[0].child = t->addrconf_vars;
-	t->addrconf_dev[0].de = NULL;
 	t->addrconf_conf_dir[0].child = t->addrconf_dev;
-	t->addrconf_conf_dir[0].de = NULL;
 	t->addrconf_proto_dir[0].child = t->addrconf_conf_dir;
-	t->addrconf_proto_dir[0].de = NULL;
 	t->addrconf_root_dir[0].child = t->addrconf_proto_dir;
-	t->addrconf_root_dir[0].de = NULL;
 
 	t->sysctl_header = register_sysctl_table(t->addrconf_root_dir);
 	if (t->sysctl_header == NULL)

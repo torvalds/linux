@@ -73,14 +73,6 @@ int ntfs_sysctl(int add)
 		sysctls_root_table = register_sysctl_table(sysctls_root);
 		if (!sysctls_root_table)
 			return -ENOMEM;
-#ifdef CONFIG_PROC_FS
-		/*
-		 * If the proc filesystem is in use and we are a module, need
-		 * to set the owner of our proc entry to our module. In the
-		 * non-modular case, THIS_MODULE is NULL, so this is ok.
-		 */
-		ntfs_sysctls[0].de->owner = THIS_MODULE;
-#endif
 	} else {
 		BUG_ON(!sysctls_root_table);
 		unregister_sysctl_table(sysctls_root_table);

@@ -1025,7 +1025,6 @@ struct ctl_table
 	ctl_table *parent;		/* Automatically set */
 	proc_handler *proc_handler;	/* Callback for text formatting */
 	ctl_handler *strategy;		/* Callback function for all r/w */
-	struct proc_dir_entry *de;	/* /proc control block */
 	void *extra1;
 	void *extra2;
 };
