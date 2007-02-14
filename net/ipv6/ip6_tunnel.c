@@ -1,14 +1,15 @@
 /*
- *	IPv6 over IPv6 tunnel device
+ *	IPv6 tunneling device
  *	Linux INET6 implementation
  *
  *	Authors:
  *	Ville Nuorvala		<vnuorval@tcs.hut.fi>
+ *	Yasuyuki Kozakai	<kozakai@linux-ipv6.org>
  *
  *	$Id$
  *
  *      Based on:
- *      linux/net/ipv6/sit.c
+ *      linux/net/ipv6/sit.c and linux/net/ipv4/ipip.c
  *
  *      RFC 2473
  *
@@ -24,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/sockios.h>
+#include <linux/icmp.h>
 #include <linux/if.h>
 #include <linux/in.h>
 #include <linux/ip.h>
@@ -41,6 +43,7 @@
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
 
+#include <net/icmp.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
@@ -51,7 +54,7 @@
 #include <net/inet_ecn.h>
 
 MODULE_AUTHOR("Ville Nuorvala");
-MODULE_DESCRIPTION("IPv6-in-IPv6 tunnel");
+MODULE_DESCRIPTION("IPv6 tunneling device");
 MODULE_LICENSE("GPL");
 
 #define IPV6_TLV_TEL_DST_SIZE 8
@@ -63,6 +66,7 @@ MODULE_LICENSE("GPL");
 #endif
 
 #define IPV6_TCLASS_MASK (IPV6_FLOWINFO_MASK & ~IPV6_FLOWLABEL_MASK)
+#define IPV6_TCLASS_SHIFT 20
 
 #define HASH_SIZE  32
 
@@ -470,6 +474,104 @@ out:
 }
 
 static int
+ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+	   int type, int code, int offset, __u32 info)
+{
+	int rel_msg = 0;
+	int rel_type = type;
+	int rel_code = code;
+	__u32 rel_info = info;
+	int err;
+	struct sk_buff *skb2;
+	struct iphdr *eiph;
+	struct flowi fl;
+	struct rtable *rt;
+
+	err = ip6_tnl_err(skb, opt, &rel_type, &rel_code, &rel_msg, &rel_info,
+			  offset);
+	if (err < 0)
+		return err;
+
+	if (rel_msg == 0)
+		return 0;
+
+	switch (rel_type) {
+	case ICMPV6_DEST_UNREACH:
+		if (rel_code != ICMPV6_ADDR_UNREACH)
+			return 0;
+		rel_type = ICMP_DEST_UNREACH;
+		rel_code = ICMP_HOST_UNREACH;
+		break;
+	case ICMPV6_PKT_TOOBIG:
+		if (rel_code != 0)
+			return 0;
+		rel_type = ICMP_DEST_UNREACH;
+		rel_code = ICMP_FRAG_NEEDED;
+		break;
+	default:
+		return 0;
+	}
+
+	if (!pskb_may_pull(skb, offset + sizeof(struct iphdr)))
+		return 0;
+
+	skb2 = skb_clone(skb, GFP_ATOMIC);
+	if (!skb2)
+		return 0;
+
+	dst_release(skb2->dst);
+	skb2->dst = NULL;
+	skb_pull(skb2, offset);
+	skb2->nh.raw = skb2->data;
+	eiph = skb2->nh.iph;
+
+	/* Try to guess incoming interface */
+	memset(&fl, 0, sizeof(fl));
+	fl.fl4_dst = eiph->saddr;
+	fl.fl4_tos = RT_TOS(eiph->tos);
+	fl.proto = IPPROTO_IPIP;
+	if (ip_route_output_key(&rt, &fl))
+		goto out;
+
+	skb2->dev = rt->u.dst.dev;
+
+	/* route "incoming" packet */
+	if (rt->rt_flags & RTCF_LOCAL) {
+		ip_rt_put(rt);
+		rt = NULL;
+		fl.fl4_dst = eiph->daddr;
+		fl.fl4_src = eiph->saddr;
+		fl.fl4_tos = eiph->tos;
+		if (ip_route_output_key(&rt, &fl) ||
+		    rt->u.dst.dev->type != ARPHRD_TUNNEL) {
+			ip_rt_put(rt);
+			goto out;
+		}
+	} else {
+		ip_rt_put(rt);
+		if (ip_route_input(skb2, eiph->daddr, eiph->saddr, eiph->tos,
+				   skb2->dev) ||
+		    skb2->dst->dev->type != ARPHRD_TUNNEL)
+			goto out;
+	}
+
+	/* change mtu on this route */
+	if (rel_type == ICMP_DEST_UNREACH && rel_code == ICMP_FRAG_NEEDED) {
+		if (rel_info > dst_mtu(skb2->dst))
+			goto out;
+
+		skb2->dst->ops->update_pmtu(skb2->dst, rel_info);
+		rel_info = htonl(rel_info);
+	}
+
+	icmp_send(skb2, rel_type, rel_code, rel_info);
+
+out:
+	kfree_skb(skb2);
+	return 0;
+}
+
+static int
 ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	   int type, int code, int offset, __u32 info)
 {
@@ -511,6 +613,19 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	}
 
 	return 0;
+}
+
+static void ip4ip6_dscp_ecn_decapsulate(struct ip6_tnl *t,
+					struct ipv6hdr *ipv6h,
+					struct sk_buff *skb)
+{
+	__u8 dsfield = ipv6_get_dsfield(ipv6h) & ~INET_ECN_MASK;
+
+	if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
+		ipv4_change_dsfield(skb->nh.iph, INET_ECN_MASK, dsfield);
+
+	if (INET_ECN_is_ce(dsfield))
+		IP_ECN_set_ce(skb->nh.iph);
 }
 
 static void ip6ip6_dscp_ecn_decapsulate(struct ip6_tnl *t,
@@ -605,6 +720,11 @@ discard:
 	return 0;
 }
 
+static int ip4ip6_rcv(struct sk_buff *skb)
+{
+	return ip6_tnl_rcv(skb, ETH_P_IP, ip4ip6_dscp_ecn_decapsulate);
+}
+
 static int ip6ip6_rcv(struct sk_buff *skb)
 {
 	return ip6_tnl_rcv(skb, ETH_P_IPV6, ip6ip6_dscp_ecn_decapsulate);
@@ -691,7 +811,7 @@ static inline int ip6_tnl_xmit_ctl(struct ip6_tnl *t)
  *   it.
  *
  * Return:
- *   0
+ *   0 on success
  *   -1 fail
  *   %-EMSGSIZE message too big. return mtu in this case.
  **/
@@ -809,6 +929,44 @@ tx_err_dst_release:
 }
 
 static inline int
+ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct ip6_tnl *t = netdev_priv(dev);
+	struct iphdr  *iph = skb->nh.iph;
+	int encap_limit = -1;
+	struct flowi fl;
+	__u8 dsfield;
+	__u32 mtu;
+	int err;
+
+	if (!ip6_tnl_xmit_ctl(t))
+		return -1;
+
+	if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
+		encap_limit = t->parms.encap_limit;
+
+	memcpy(&fl, &t->fl, sizeof (fl));
+	fl.proto = IPPROTO_IPIP;
+
+	dsfield = ipv4_get_dsfield(iph);
+
+	if ((t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS))
+		fl.fl6_flowlabel |= ntohl(((__u32)iph->tos << IPV6_TCLASS_SHIFT)
+					  & IPV6_TCLASS_MASK);
+
+	err = ip6_tnl_xmit2(skb, dev, dsfield, &fl, encap_limit, &mtu);
+	if (err != 0) {
+		/* XXX: send ICMP error even if DF is not set. */
+		if (err == -EMSGSIZE)
+			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
+				  htonl(mtu));
+		return -1;
+	}
+
+	return 0;
+}
+
+static inline int
 ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
@@ -867,6 +1025,9 @@ ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	switch (skb->protocol) {
+	case __constant_htons(ETH_P_IP):
+		ret = ip4ip6_tnl_xmit(skb, dev);
+		break;
 	case __constant_htons(ETH_P_IPV6):
 		ret = ip6ip6_tnl_xmit(skb, dev);
 		break;
@@ -1199,6 +1360,12 @@ ip6ip6_fb_tnl_dev_init(struct net_device *dev)
 	return 0;
 }
 
+static struct xfrm6_tunnel ip4ip6_handler = {
+	.handler	= ip4ip6_rcv,
+	.err_handler	= ip4ip6_err,
+	.priority	=	1,
+};
+
 static struct xfrm6_tunnel ip6ip6_handler = {
 	.handler	= ip6ip6_rcv,
 	.err_handler	= ip6ip6_err,
@@ -1215,9 +1382,16 @@ static int __init ip6_tunnel_init(void)
 {
 	int  err;
 
+	if (xfrm6_tunnel_register(&ip4ip6_handler, AF_INET)) {
+		printk(KERN_ERR "ip4ip6 init: can't register tunnel\n");
+		err = -EAGAIN;
+		goto out;
+	}
+
 	if (xfrm6_tunnel_register(&ip6ip6_handler, AF_INET6)) {
 		printk(KERN_ERR "ip6ip6 init: can't register tunnel\n");
-		return -EAGAIN;
+		err = -EAGAIN;
+		goto unreg_ip4ip6;
 	}
 	ip6ip6_fb_tnl_dev = alloc_netdev(sizeof(struct ip6_tnl), "ip6tnl0",
 					 ip6ip6_tnl_dev_setup);
@@ -1235,6 +1409,9 @@ static int __init ip6_tunnel_init(void)
 	return 0;
 fail:
 	xfrm6_tunnel_deregister(&ip6ip6_handler, AF_INET6);
+unreg_ip4ip6:
+	xfrm6_tunnel_deregister(&ip4ip6_handler, AF_INET);
+out:
 	return err;
 }
 
@@ -1258,6 +1435,9 @@ static void __exit ip6ip6_destroy_tunnels(void)
 
 static void __exit ip6_tunnel_cleanup(void)
 {
+	if (xfrm6_tunnel_deregister(&ip4ip6_handler, AF_INET))
+		printk(KERN_INFO "ip4ip6 close: can't deregister tunnel\n");
+
 	if (xfrm6_tunnel_deregister(&ip6ip6_handler, AF_INET6))
 		printk(KERN_INFO "ip6ip6 close: can't deregister tunnel\n");
 
