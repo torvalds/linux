@@ -867,15 +867,11 @@ static int cfq_arm_slice_timer(struct cfq_data *cfqd)
 
 static void cfq_dispatch_insert(request_queue_t *q, struct request *rq)
 {
-	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct cfq_queue *cfqq = RQ_CFQQ(rq);
 
 	cfq_remove_request(rq);
 	cfqq->on_dispatch[rq_is_sync(rq)]++;
 	elv_dispatch_sort(q, rq);
-
-	rq = list_entry(q->queue_head.prev, struct request, queuelist);
-	cfqd->last_sector = rq->sector + rq->nr_sectors;
 }
 
 /*
@@ -1585,6 +1581,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 		   struct request *rq)
 {
 	struct cfq_queue *cfqq = cfqd->active_queue;
+	sector_t dist;
 
 	if (cfq_class_idle(new_cfqq))
 		return 0;
@@ -1594,19 +1591,34 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 
 	if (cfq_class_idle(cfqq))
 		return 1;
-	if (!cfq_cfqq_wait_request(new_cfqq))
-		return 0;
+
 	/*
 	 * if the new request is sync, but the currently running queue is
 	 * not, let the sync request have priority.
 	 */
 	if (rq_is_sync(rq) && !cfq_cfqq_sync(cfqq))
 		return 1;
+
 	/*
 	 * So both queues are sync. Let the new request get disk time if
 	 * it's a metadata request and the current queue is doing regular IO.
 	 */
 	if (rq_is_meta(rq) && !cfqq->meta_pending)
+		return 1;
+
+	if (!cfqd->active_cic || !cfq_cfqq_wait_request(cfqq))
+		return 0;
+
+	/*
+	 * if this request is as-good as one we would expect from the
+	 * current cfqq, let it preempt
+	 */
+	if (rq->sector > cfqd->last_sector)
+		dist = rq->sector - cfqd->last_sector;
+	else
+		dist = cfqd->last_sector - rq->sector;
+
+	if (dist <= cfqd->active_cic->seek_mean)
 		return 1;
 
 	return 0;
@@ -1718,6 +1730,8 @@ static void cfq_completed_request(request_queue_t *q, struct request *rq)
 	cfqd->rq_in_driver--;
 	cfqq->on_dispatch[sync]--;
 	cfqq->service_last = now;
+
+	cfqd->last_sector = rq->hard_sector + rq->hard_nr_sectors;
 
 	if (!cfq_class_idle(cfqq))
 		cfqd->last_end_request = now;
