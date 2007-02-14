@@ -77,8 +77,16 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 	 * PTE array for our address.
 	 */
 	nr = PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1));
-	if (nr > pages)
-		nr = pages;
+
+	/*
+	 * Don't overrun this vma
+	 */
+	nr = min(nr, (vma->vm_end - addr) >> PAGE_SHIFT);
+
+	/*
+	 * Don't return more than the caller asked for
+	 */
+	nr = min(nr, pages);
 
 	pgd = pgd_offset(vma->vm_mm, addr);
 	if (pgd_none_or_clear_bad(pgd))
