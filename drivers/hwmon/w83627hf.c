@@ -286,9 +286,8 @@ static inline u8 DIV_TO_REG(long val)
 	return ((u8) i);
 }
 
-/* For each registered chip, we need to keep some data in memory. That
-   data is pointed to by w83627hf_list[NR]->data. The structure itself is
-   dynamically allocated, at the same time when a new client is allocated. */
+/* For each registered chip, we need to keep some data in memory.
+   The structure is dynamically allocated. */
 struct w83627hf_data {
 	struct i2c_client client;
 	struct class_device *class_dev;

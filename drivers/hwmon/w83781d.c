@@ -221,14 +221,8 @@ DIV_TO_REG(long val, enum chips type)
    a bit - except if there could be more than one SMBus. Groan. No solution
    for this yet. */
 
-/* This module may seem overly long and complicated. In fact, it is not so
-   bad. Quite a lot of bookkeeping is done. A real driver can often cut
-   some corners. */
-
-/* For each registered W83781D, we need to keep some data in memory. That
-   data is pointed to by w83781d_list[NR]->data. The structure itself is
-   dynamically allocated, at the same time when a new w83781d client is
-   allocated. */
+/* For each registered chip, we need to keep some data in memory.
+   The structure is dynamically allocated. */
 struct w83781d_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
