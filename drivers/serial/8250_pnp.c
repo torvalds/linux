@@ -450,11 +450,11 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	port.dev = &dev->dev;
 
 	line = serial8250_register_port(&port);
+	if (line < 0)
+		return -ENODEV;
 
-	if (line >= 0)
-		pnp_set_drvdata(dev, (void *)((long)line + 1));
-	return line >= 0 ? 0 : -ENODEV;
-
+	pnp_set_drvdata(dev, (void *)((long)line + 1));
+	return 0;
 }
 
 static void __devexit serial_pnp_remove(struct pnp_dev *dev)
