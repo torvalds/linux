@@ -158,9 +158,15 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 							nls_codepage);
 			if(!rc && (tcon->tidStatus == CifsNeedReconnect)) {
 				mark_open_files_invalid(tcon);
-				rc = CIFSTCon(0, tcon->ses, tcon->treeName, tcon
-					, nls_codepage);
+				rc = CIFSTCon(0, tcon->ses, tcon->treeName, 
+					      tcon, nls_codepage);
 				up(&tcon->ses->sesSem);
+				/* tell server which Unix caps we support */
+				if (tcon->ses->capabilities & CAP_UNIX)
+					reset_cifs_unix_caps(0 /* no xid */,
+						tcon, 
+						NULL /* we do not know sb */,
+						NULL /* no vol info */);	
 				/* BB FIXME add code to check if wsize needs
 				   update due to negotiated smb buffer size
 				   shrinking */
@@ -298,6 +304,12 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 				rc = CIFSTCon(0, tcon->ses, tcon->treeName,
 					      tcon, nls_codepage);
 				up(&tcon->ses->sesSem);
+				/* tell server which Unix caps we support */
+				if (tcon->ses->capabilities & CAP_UNIX)
+					reset_cifs_unix_caps(0 /* no xid */,
+						tcon, 
+						NULL /* do not know sb */,
+						NULL /* no vol info */);
 				/* BB FIXME add code to check if wsize needs
 				update due to negotiated smb buffer size
 				shrinking */
