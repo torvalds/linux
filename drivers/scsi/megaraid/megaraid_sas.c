@@ -841,6 +841,11 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 
 	instance = (struct megasas_instance *)
 	    scmd->device->host->hostdata;
+
+	/* Don't process if we have already declared adapter dead */
+	if (instance->hw_crit_error)
+		return SCSI_MLQUEUE_HOST_BUSY;
+
 	scmd->scsi_done = done;
 	scmd->result = 0;
 
@@ -1282,11 +1287,13 @@ megasas_deplete_reply_queue(struct megasas_instance *instance, u8 alt_status)
 	if(instance->instancet->clear_intr(instance->reg_set))
 		return IRQ_NONE;
 
+	if (instance->hw_crit_error)
+		goto out_done;
         /*
 	 * Schedule the tasklet for cmd completion
 	 */
 	tasklet_schedule(&instance->isr_tasklet);
-
+out_done:
 	return IRQ_HANDLED;
 }
 
@@ -1740,6 +1747,10 @@ static void megasas_complete_cmd_dpc(unsigned long instance_addr)
 	u32 context;
 	struct megasas_cmd *cmd;
 	struct megasas_instance *instance = (struct megasas_instance *)instance_addr;
+
+	/* If we have already declared adapter dead, donot complete cmds */
+	if (instance->hw_crit_error)
+		return;
 
 	producer = *instance->producer;
 	consumer = *instance->consumer;
