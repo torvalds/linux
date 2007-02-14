@@ -137,7 +137,7 @@ EXPORT_SYMBOL(nlm_debug);
 
 extern int register_rpc_pipefs(void);
 extern void unregister_rpc_pipefs(void);
-extern struct cache_detail ip_map_cache;
+extern struct cache_detail ip_map_cache, unix_gid_cache;
 extern int init_socket_xprt(void);
 extern void cleanup_socket_xprt(void);
 
@@ -157,6 +157,7 @@ init_sunrpc(void)
 	rpc_proc_init();
 #endif
 	cache_register(&ip_map_cache);
+	cache_register(&unix_gid_cache);
 	init_socket_xprt();
 out:
 	return err;
@@ -170,6 +171,8 @@ cleanup_sunrpc(void)
 	rpc_destroy_mempool();
 	if (cache_unregister(&ip_map_cache))
 		printk(KERN_ERR "sunrpc: failed to unregister ip_map cache\n");
+	if (cache_unregister(&unix_gid_cache))
+	      printk(KERN_ERR "sunrpc: failed to unregister unix_gid cache\n");
 #ifdef RPC_DEBUG
 	rpc_unregister_sysctl();
 #endif
