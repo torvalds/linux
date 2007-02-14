@@ -8,6 +8,7 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/cache.h>
+#include <linux/compat.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -24,6 +25,7 @@
 
 #include <asm/abi.h>
 #include <asm/asm.h>
+#include <asm/compat-signal.h>
 #include <linux/bitops.h>
 #include <asm/cacheflush.h>
 #include <asm/sim.h>
@@ -104,8 +106,6 @@ typedef struct compat_siginfo {
 #define __NR_O32_rt_sigreturn		4193
 #define __NR_O32_restart_syscall	4253
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /* 32-bit compatibility types */
 
 #define _NSIG_BPW32	32
@@ -139,7 +139,19 @@ struct ucontext32 {
 	sigset_t32          uc_sigmask;   /* mask last for extensibility */
 };
 
+/*
+ * Horribly complicated - with the bloody RM9000 workarounds enabled
+ * the signal trampolines is moving to the end of the structure so we can
+ * increase the alignment without breaking software compatibility.
+ */
 #if ICACHE_REFILLS_WORKAROUND_WAR == 0
+
+struct sigframe32 {
+	u32 sf_ass[4];		/* argument save space for o32 */
+	u32 sf_code[2];		/* signal trampoline */
+	struct sigcontext32 sf_sc;
+	sigset_t sf_mask;
+};
 
 struct rt_sigframe32 {
 	u32 rs_ass[4];			/* argument save space for o32 */
@@ -149,6 +161,14 @@ struct rt_sigframe32 {
 };
 
 #else  /* ICACHE_REFILLS_WORKAROUND_WAR */
+
+struct sigframe32 {
+	u32 sf_ass[4];			/* argument save space for o32 */
+	u32 sf_pad[2];
+	struct sigcontext32 sf_sc;	/* hw context */
+	sigset_t sf_mask;
+	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
+};
 
 struct rt_sigframe32 {
 	u32 rs_ass[4];			/* argument save space for o32 */
@@ -493,13 +513,13 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
 
 asmlinkage void sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
-	struct sigframe __user *frame;
+	struct sigframe32 __user *frame;
 	sigset_t blocked;
 
-	frame = (struct sigframe __user *) regs.regs[29];
+	frame = (struct sigframe32 __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
-	if (__copy_from_user(&blocked, &frame->sf_mask, sizeof(blocked)))
+	if (__copy_conv_sigset_from_user(&blocked, &frame->sf_mask))
 		goto badframe;
 
 	sigdelsetmask(&blocked, ~_BLOCKABLE);
@@ -536,7 +556,7 @@ asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	frame = (struct rt_sigframe32 __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
-	if (__copy_from_user(&set, &frame->rs_uc.uc_sigmask, sizeof(set)))
+	if (__copy_conv_sigset_from_user(&set, &frame->rs_uc.uc_sigmask))
 		goto badframe;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -581,7 +601,7 @@ badframe:
 int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set)
 {
-	struct sigframe __user *frame;
+	struct sigframe32 __user *frame;
 	int err = 0;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
@@ -591,7 +611,8 @@ int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	err |= install_sigtramp(frame->sf_code, __NR_O32_sigreturn);
 
 	err |= setup_sigcontext32(regs, &frame->sf_sc);
-	err |= __copy_to_user(&frame->sf_mask, set, sizeof(*set));
+	err |= __copy_conv_sigset_to_user(&frame->sf_mask, set);
+
 	if (err)
 		goto give_sigsegv;
 
@@ -650,7 +671,7 @@ int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	err |= __put_user(current->sas_ss_size,
 	                  &frame->rs_uc.uc_stack.ss_size);
 	err |= setup_sigcontext32(regs, &frame->rs_uc.uc_mcontext);
-	err |= __copy_to_user(&frame->rs_uc.uc_sigmask, set, sizeof(*set));
+	err |= __copy_conv_sigset_to_user(&frame->rs_uc.uc_sigmask, set);
 
 	if (err)
 		goto give_sigsegv;

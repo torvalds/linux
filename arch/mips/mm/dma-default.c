@@ -4,17 +4,20 @@
  * for more details.
  *
  * Copyright (C) 2000  Ani Joshi <ajoshi@unixbox.com>
- * Copyright (C) 2000, 2001  Ralf Baechle <ralf@gnu.org>
+ * Copyright (C) 2000, 2001, 06  Ralf Baechle <ralf@linux-mips.org>
  * swiped from i386, and cloned for MIPS by Geert, polished by Ralf.
  */
+
 #include <linux/types.h>
+#include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/dma-mapping.h>
 
 #include <asm/cache.h>
 #include <asm/io.h>
+
+#include <dma-coherence.h>
 
 /*
  * Warning on the terminology - Linux calls an uncached area coherent;
@@ -22,10 +25,18 @@
  * coherent.
  */
 
+static inline int cpu_is_noncoherent_r10000(struct device *dev)
+{
+	return !plat_device_is_coherent(dev) &&
+	       (current_cpu_data.cputype == CPU_R10000 &&
+	       current_cpu_data.cputype == CPU_R12000);
+}
+
 void *dma_alloc_noncoherent(struct device *dev, size_t size,
 	dma_addr_t * dma_handle, gfp_t gfp)
 {
 	void *ret;
+
 	/* ignore region specifiers */
 	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM);
 
@@ -35,7 +46,7 @@ void *dma_alloc_noncoherent(struct device *dev, size_t size,
 
 	if (ret != NULL) {
 		memset(ret, 0, size);
-		*dma_handle = virt_to_phys(ret);
+		*dma_handle = plat_map_dma_mem(dev, ret, size);
 	}
 
 	return ret;
@@ -48,10 +59,21 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 {
 	void *ret;
 
-	ret = dma_alloc_noncoherent(dev, size, dma_handle, gfp);
+	/* ignore region specifiers */
+	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM);
+
+	if (dev == NULL || (dev->coherent_dma_mask < 0xffffffff))
+		gfp |= GFP_DMA;
+	ret = (void *) __get_free_pages(gfp, get_order(size));
+
 	if (ret) {
-		dma_cache_wback_inv((unsigned long) ret, size);
-		ret = UNCAC_ADDR(ret);
+		memset(ret, 0, size);
+		*dma_handle = plat_map_dma_mem(dev, ret, size);
+
+		if (!plat_device_is_coherent(dev)) {
+			dma_cache_wback_inv((unsigned long) ret, size);
+			ret = UNCAC_ADDR(ret);
+		}
 	}
 
 	return ret;
@@ -72,7 +94,9 @@ void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 {
 	unsigned long addr = (unsigned long) vaddr;
 
-	addr = CAC_ADDR(addr);
+	if (!plat_device_is_coherent(dev))
+		addr = CAC_ADDR(addr);
+
 	free_pages(addr, get_order(size));
 }
 
@@ -104,9 +128,10 @@ dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 {
 	unsigned long addr = (unsigned long) ptr;
 
-	__dma_sync(addr, size, direction);
+	if (!plat_device_is_coherent(dev))
+		__dma_sync(addr, size, direction);
 
-	return virt_to_phys(ptr);
+	return plat_map_dma_mem(dev, ptr, size);
 }
 
 EXPORT_SYMBOL(dma_map_single);
@@ -114,10 +139,11 @@ EXPORT_SYMBOL(dma_map_single);
 void dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 	enum dma_data_direction direction)
 {
-	unsigned long addr;
-	addr = dma_addr + PAGE_OFFSET;
+	if (cpu_is_noncoherent_r10000(dev))
+		__dma_sync(plat_dma_addr_to_phys(dma_addr) + PAGE_OFFSET, size,
+		           direction);
 
-	//__dma_sync(addr, size, direction);
+	plat_unmap_dma_mem(dma_addr);
 }
 
 EXPORT_SYMBOL(dma_unmap_single);
@@ -133,11 +159,10 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		unsigned long addr;
 
 		addr = (unsigned long) page_address(sg->page);
-		if (addr) {
+		if (!plat_device_is_coherent(dev) && addr)
 			__dma_sync(addr + sg->offset, sg->length, direction);
-			sg->dma_address = (dma_addr_t)page_to_phys(sg->page)
-					  + sg->offset;
-		}
+		sg->dma_address = plat_map_dma_mem_page(dev, sg->page) +
+		                  sg->offset;
 	}
 
 	return nents;
@@ -148,14 +173,16 @@ EXPORT_SYMBOL(dma_map_sg);
 dma_addr_t dma_map_page(struct device *dev, struct page *page,
 	unsigned long offset, size_t size, enum dma_data_direction direction)
 {
-	unsigned long addr;
-
 	BUG_ON(direction == DMA_NONE);
 
-	addr = (unsigned long) page_address(page) + offset;
-	dma_cache_wback_inv(addr, size);
+	if (!plat_device_is_coherent(dev)) {
+		unsigned long addr;
 
-	return page_to_phys(page) + offset;
+		addr = (unsigned long) page_address(page) + offset;
+		dma_cache_wback_inv(addr, size);
+	}
+
+	return plat_map_dma_mem_page(dev, page) + offset;
 }
 
 EXPORT_SYMBOL(dma_map_page);
@@ -165,12 +192,14 @@ void dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
 {
 	BUG_ON(direction == DMA_NONE);
 
-	if (direction != DMA_TO_DEVICE) {
+	if (!plat_device_is_coherent(dev) && direction != DMA_TO_DEVICE) {
 		unsigned long addr;
 
-		addr = dma_address + PAGE_OFFSET;
+		addr = plat_dma_addr_to_phys(dma_address);
 		dma_cache_wback_inv(addr, size);
 	}
+
+	plat_unmap_dma_mem(dma_address);
 }
 
 EXPORT_SYMBOL(dma_unmap_page);
@@ -183,13 +212,15 @@ void dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
 
 	BUG_ON(direction == DMA_NONE);
 
-	if (direction == DMA_TO_DEVICE)
-		return;
-
 	for (i = 0; i < nhwentries; i++, sg++) {
-		addr = (unsigned long) page_address(sg->page);
-		if (addr)
-			__dma_sync(addr + sg->offset, sg->length, direction);
+		if (!plat_device_is_coherent(dev) &&
+		    direction != DMA_TO_DEVICE) {
+			addr = (unsigned long) page_address(sg->page);
+			if (addr)
+				__dma_sync(addr + sg->offset, sg->length,
+				           direction);
+		}
+		plat_unmap_dma_mem(sg->dma_address);
 	}
 }
 
@@ -198,12 +229,14 @@ EXPORT_SYMBOL(dma_unmap_sg);
 void dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,
 	size_t size, enum dma_data_direction direction)
 {
-	unsigned long addr;
-
 	BUG_ON(direction == DMA_NONE);
 
-	addr = dma_handle + PAGE_OFFSET;
-	__dma_sync(addr, size, direction);
+	if (cpu_is_noncoherent_r10000(dev)) {
+		unsigned long addr;
+
+		addr = PAGE_OFFSET + plat_dma_addr_to_phys(dma_handle);
+		__dma_sync(addr, size, direction);
+	}
 }
 
 EXPORT_SYMBOL(dma_sync_single_for_cpu);
@@ -211,12 +244,14 @@ EXPORT_SYMBOL(dma_sync_single_for_cpu);
 void dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
 	size_t size, enum dma_data_direction direction)
 {
-	unsigned long addr;
-
 	BUG_ON(direction == DMA_NONE);
 
-	addr = dma_handle + PAGE_OFFSET;
-	__dma_sync(addr, size, direction);
+	if (cpu_is_noncoherent_r10000(dev)) {
+		unsigned long addr;
+
+		addr = plat_dma_addr_to_phys(dma_handle);
+		__dma_sync(addr, size, direction);
+	}
 }
 
 EXPORT_SYMBOL(dma_sync_single_for_device);
@@ -224,12 +259,14 @@ EXPORT_SYMBOL(dma_sync_single_for_device);
 void dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t dma_handle,
 	unsigned long offset, size_t size, enum dma_data_direction direction)
 {
-	unsigned long addr;
-
 	BUG_ON(direction == DMA_NONE);
 
-	addr = dma_handle + offset + PAGE_OFFSET;
-	__dma_sync(addr, size, direction);
+	if (cpu_is_noncoherent_r10000(dev)) {
+		unsigned long addr;
+
+		addr = PAGE_OFFSET + plat_dma_addr_to_phys(dma_handle);
+		__dma_sync(addr + offset, size, direction);
+	}
 }
 
 EXPORT_SYMBOL(dma_sync_single_range_for_cpu);
@@ -237,12 +274,14 @@ EXPORT_SYMBOL(dma_sync_single_range_for_cpu);
 void dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_handle,
 	unsigned long offset, size_t size, enum dma_data_direction direction)
 {
-	unsigned long addr;
-
 	BUG_ON(direction == DMA_NONE);
 
-	addr = dma_handle + offset + PAGE_OFFSET;
-	__dma_sync(addr, size, direction);
+	if (cpu_is_noncoherent_r10000(dev)) {
+		unsigned long addr;
+
+		addr = PAGE_OFFSET + plat_dma_addr_to_phys(dma_handle);
+		__dma_sync(addr + offset, size, direction);
+	}
 }
 
 EXPORT_SYMBOL(dma_sync_single_range_for_device);
@@ -255,9 +294,12 @@ void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
 	BUG_ON(direction == DMA_NONE);
 
 	/* Make sure that gcc doesn't leave the empty loop body.  */
-	for (i = 0; i < nelems; i++, sg++)
-		__dma_sync((unsigned long)page_address(sg->page),
-		           sg->length, direction);
+	for (i = 0; i < nelems; i++, sg++) {
+		if (!plat_device_is_coherent(dev))
+			__dma_sync((unsigned long)page_address(sg->page),
+			           sg->length, direction);
+		plat_unmap_dma_mem(sg->dma_address);
+	}
 }
 
 EXPORT_SYMBOL(dma_sync_sg_for_cpu);
@@ -270,9 +312,12 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nele
 	BUG_ON(direction == DMA_NONE);
 
 	/* Make sure that gcc doesn't leave the empty loop body.  */
-	for (i = 0; i < nelems; i++, sg++)
-		__dma_sync((unsigned long)page_address(sg->page),
-		           sg->length, direction);
+	for (i = 0; i < nelems; i++, sg++) {
+		if (!plat_device_is_coherent(dev))
+			__dma_sync((unsigned long)page_address(sg->page),
+			           sg->length, direction);
+		plat_unmap_dma_mem(sg->dma_address);
+	}
 }
 
 EXPORT_SYMBOL(dma_sync_sg_for_device);
@@ -301,70 +346,18 @@ EXPORT_SYMBOL(dma_supported);
 
 int dma_is_consistent(struct device *dev, dma_addr_t dma_addr)
 {
-	return 1;
+	return plat_device_is_coherent(dev);
 }
 
 EXPORT_SYMBOL(dma_is_consistent);
 
 void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
-	enum dma_data_direction direction)
+	       enum dma_data_direction direction)
 {
-	if (direction == DMA_NONE)
-		return;
+	BUG_ON(direction == DMA_NONE);
 
-	dma_cache_wback_inv((unsigned long)vaddr, size);
+	if (!plat_device_is_coherent(dev))
+		dma_cache_wback_inv((unsigned long)vaddr, size);
 }
 
 EXPORT_SYMBOL(dma_cache_sync);
-
-/* The DAC routines are a PCIism.. */
-
-#ifdef CONFIG_PCI
-
-#include <linux/pci.h>
-
-dma64_addr_t pci_dac_page_to_dma(struct pci_dev *pdev,
-	struct page *page, unsigned long offset, int direction)
-{
-	return (dma64_addr_t)page_to_phys(page) + offset;
-}
-
-EXPORT_SYMBOL(pci_dac_page_to_dma);
-
-struct page *pci_dac_dma_to_page(struct pci_dev *pdev,
-	dma64_addr_t dma_addr)
-{
-	return mem_map + (dma_addr >> PAGE_SHIFT);
-}
-
-EXPORT_SYMBOL(pci_dac_dma_to_page);
-
-unsigned long pci_dac_dma_to_offset(struct pci_dev *pdev,
-	dma64_addr_t dma_addr)
-{
-	return dma_addr & ~PAGE_MASK;
-}
-
-EXPORT_SYMBOL(pci_dac_dma_to_offset);
-
-void pci_dac_dma_sync_single_for_cpu(struct pci_dev *pdev,
-	dma64_addr_t dma_addr, size_t len, int direction)
-{
-	BUG_ON(direction == PCI_DMA_NONE);
-
-	dma_cache_wback_inv(dma_addr + PAGE_OFFSET, len);
-}
-
-EXPORT_SYMBOL(pci_dac_dma_sync_single_for_cpu);
-
-void pci_dac_dma_sync_single_for_device(struct pci_dev *pdev,
-	dma64_addr_t dma_addr, size_t len, int direction)
-{
-	BUG_ON(direction == PCI_DMA_NONE);
-
-	dma_cache_wback_inv(dma_addr + PAGE_OFFSET, len);
-}
-
-EXPORT_SYMBOL(pci_dac_dma_sync_single_for_device);
-
-#endif /* CONFIG_PCI */
