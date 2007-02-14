@@ -21,6 +21,36 @@
 #if !defined(_PS3_VUART_H)
 #define _PS3_VUART_H
 
+#include <asm/ps3.h>
+
+struct ps3_vuart_stats {
+	unsigned long bytes_written;
+	unsigned long bytes_read;
+	unsigned long tx_interrupts;
+	unsigned long rx_interrupts;
+	unsigned long disconnect_interrupts;
+};
+
+/**
+ * struct ps3_vuart_port_priv - private vuart device data.
+ */
+
+struct ps3_vuart_port_priv {
+	unsigned int port_number;
+	u64 interrupt_mask;
+
+	struct {
+		spinlock_t lock;
+		struct list_head head;
+	} tx_list;
+	struct {
+		unsigned long bytes_held;
+		spinlock_t lock;
+		struct list_head head;
+	} rx_list;
+	struct ps3_vuart_stats stats;
+};
+
 /**
  * struct ps3_vuart_port_driver - a driver for a device on a vuart port
  */
