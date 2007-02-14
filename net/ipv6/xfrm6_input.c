@@ -40,7 +40,8 @@ int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 		if (xfrm_nr == XFRM_MAX_DEPTH)
 			goto drop;
 
-		x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, spi, nexthdr, AF_INET6);
+		x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, spi,
+				nexthdr != IPPROTO_IPIP ? nexthdr : IPPROTO_IPV6, AF_INET6);
 		if (x == NULL)
 			goto drop;
 		spin_lock(&x->lock);

@@ -216,7 +216,7 @@ static void ipip6_tunnel_uninit(struct net_device *dev)
 }
 
 
-static void ipip6_err(struct sk_buff *skb, u32 info)
+static int ipip6_err(struct sk_buff *skb, u32 info)
 {
 #ifndef I_WISH_WORLD_WERE_PERFECT
 
@@ -228,21 +228,22 @@ static void ipip6_err(struct sk_buff *skb, u32 info)
 	int type = skb->h.icmph->type;
 	int code = skb->h.icmph->code;
 	struct ip_tunnel *t;
+	int err;
 
 	switch (type) {
 	default:
 	case ICMP_PARAMETERPROB:
-		return;
+		return 0;
 
 	case ICMP_DEST_UNREACH:
 		switch (code) {
 		case ICMP_SR_FAILED:
 		case ICMP_PORT_UNREACH:
 			/* Impossible event. */
-			return;
+			return 0;
 		case ICMP_FRAG_NEEDED:
 			/* Soft state for pmtu is maintained by IP core. */
-			return;
+			return 0;
 		default:
 			/* All others are translated to HOST_UNREACH.
 			   rfc2003 contains "deep thoughts" about NET_UNREACH,
@@ -253,14 +254,18 @@ static void ipip6_err(struct sk_buff *skb, u32 info)
 		break;
 	case ICMP_TIME_EXCEEDED:
 		if (code != ICMP_EXC_TTL)
-			return;
+			return 0;
 		break;
 	}
+
+	err = -ENOENT;
 
 	read_lock(&ipip6_lock);
 	t = ipip6_tunnel_lookup(iph->daddr, iph->saddr);
 	if (t == NULL || t->parms.iph.daddr == 0)
 		goto out;
+
+	err = 0;
 	if (t->parms.iph.ttl == 0 && type == ICMP_TIME_EXCEEDED)
 		goto out;
 
@@ -271,7 +276,7 @@ static void ipip6_err(struct sk_buff *skb, u32 info)
 	t->err_time = jiffies;
 out:
 	read_unlock(&ipip6_lock);
-	return;
+	return err;
 #else
 	struct iphdr *iph = (struct iphdr*)dp;
 	int hlen = iph->ihl<<2;
@@ -332,7 +337,7 @@ out:
 	/* Prepare fake skb to feed it to icmpv6_send */
 	skb2 = skb_clone(skb, GFP_ATOMIC);
 	if (skb2 == NULL)
-		return;
+		return 0;
 	dst_release(skb2->dst);
 	skb2->dst = NULL;
 	skb_pull(skb2, skb->data - (u8*)iph6);
@@ -355,7 +360,7 @@ out:
 		}
 	}
 	kfree_skb(skb2);
-	return;
+	return 0;
 #endif
 }
 
@@ -791,9 +796,10 @@ static int __init ipip6_fb_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
-static struct net_protocol sit_protocol = {
+static struct xfrm_tunnel sit_handler = {
 	.handler	=	ipip6_rcv,
 	.err_handler	=	ipip6_err,
+	.priority	=	1,
 };
 
 static void __exit sit_destroy_tunnels(void)
@@ -812,7 +818,7 @@ static void __exit sit_destroy_tunnels(void)
 
 static void __exit sit_cleanup(void)
 {
-	inet_del_protocol(&sit_protocol, IPPROTO_IPV6);
+	xfrm4_tunnel_deregister(&sit_handler, AF_INET6);
 
 	rtnl_lock();
 	sit_destroy_tunnels();
@@ -826,7 +832,7 @@ static int __init sit_init(void)
 
 	printk(KERN_INFO "IPv6 over IPv4 tunneling driver\n");
 
-	if (inet_add_protocol(&sit_protocol, IPPROTO_IPV6) < 0) {
+	if (xfrm4_tunnel_register(&sit_handler, AF_INET6) < 0) {
 		printk(KERN_INFO "sit init: Can't add protocol\n");
 		return -EAGAIN;
 	}
@@ -848,7 +854,7 @@ static int __init sit_init(void)
  err2:
 	free_netdev(ipip6_fb_tunnel_dev);
  err1:
-	inet_del_protocol(&sit_protocol, IPPROTO_IPV6);
+	xfrm4_tunnel_deregister(&sit_handler, AF_INET6);
 	goto out;
 }
 

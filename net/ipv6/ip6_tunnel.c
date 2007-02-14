@@ -1128,7 +1128,7 @@ static int __init ip6_tunnel_init(void)
 {
 	int  err;
 
-	if (xfrm6_tunnel_register(&ip6ip6_handler)) {
+	if (xfrm6_tunnel_register(&ip6ip6_handler, AF_INET6)) {
 		printk(KERN_ERR "ip6ip6 init: can't register tunnel\n");
 		return -EAGAIN;
 	}
@@ -1147,7 +1147,7 @@ static int __init ip6_tunnel_init(void)
 	}
 	return 0;
 fail:
-	xfrm6_tunnel_deregister(&ip6ip6_handler);
+	xfrm6_tunnel_deregister(&ip6ip6_handler, AF_INET6);
 	return err;
 }
 
@@ -1171,7 +1171,7 @@ static void __exit ip6ip6_destroy_tunnels(void)
 
 static void __exit ip6_tunnel_cleanup(void)
 {
-	if (xfrm6_tunnel_deregister(&ip6ip6_handler))
+	if (xfrm6_tunnel_deregister(&ip6ip6_handler, AF_INET6))
 		printk(KERN_INFO "ip6ip6 close: can't deregister tunnel\n");
 
 	rtnl_lock();
