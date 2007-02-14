@@ -137,6 +137,7 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 {
 	int err = 0;
 	u64 p_blkno, past_eof;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry("(0x%p, %llu, 0x%p, %d)\n", inode,
 		   (unsigned long long)iblock, bh_result, create);
@@ -151,15 +152,6 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
-	/* this can happen if another node truncs after our extend! */
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-	if (iblock >= ocfs2_clusters_to_blocks(inode->i_sb,
-					       OCFS2_I(inode)->ip_clusters))
-		err = -EIO;
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
-	if (err)
-		goto bail;
-
 	err = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno, NULL);
 	if (err) {
 		mlog(ML_ERROR, "Error %d from get_blocks(0x%p, %llu, 1, "
@@ -168,22 +160,38 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
-	map_bh(bh_result, inode->i_sb, p_blkno);
+	/*
+	 * ocfs2 never allocates in this function - the only time we
+	 * need to use BH_New is when we're extending i_size on a file
+	 * system which doesn't support holes, in which case BH_New
+	 * allows block_prepare_write() to zero.
+	 */
+	mlog_bug_on_msg(create && p_blkno == 0 && ocfs2_sparse_alloc(osb),
+			"ino %lu, iblock %llu\n", inode->i_ino,
+			(unsigned long long)iblock);
 
-	if (bh_result->b_blocknr == 0) {
-		err = -EIO;
-		mlog(ML_ERROR, "iblock = %llu p_blkno = %llu blkno=(%llu)\n",
-		     (unsigned long long)iblock,
-		     (unsigned long long)p_blkno,
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+	if (p_blkno)
+		map_bh(bh_result, inode->i_sb, p_blkno);
+
+	if (!ocfs2_sparse_alloc(osb)) {
+		if (p_blkno == 0) {
+			err = -EIO;
+			mlog(ML_ERROR,
+			     "iblock = %llu p_blkno = %llu blkno=(%llu)\n",
+			     (unsigned long long)iblock,
+			     (unsigned long long)p_blkno,
+			     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+			mlog(ML_ERROR, "Size %llu, clusters %u\n", (unsigned long long)i_size_read(inode), OCFS2_I(inode)->ip_clusters);
+			dump_stack();
+		}
+
+		past_eof = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
+		mlog(0, "Inode %lu, past_eof = %llu\n", inode->i_ino,
+		     (unsigned long long)past_eof);
+
+		if (create && (iblock >= past_eof))
+			set_buffer_new(bh_result);
 	}
-
-	past_eof = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
-	mlog(0, "Inode %lu, past_eof = %llu\n", inode->i_ino,
-	     (unsigned long long)past_eof);
-
-	if (create && (iblock >= past_eof))
-		set_buffer_new(bh_result);
 
 bail:
 	if (err < 0)
@@ -436,28 +444,15 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	 * nicely aligned and of the right size, so there's no need
 	 * for us to check any of that. */
 
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-	inode_blocks = ocfs2_clusters_to_blocks(inode->i_sb,
-						OCFS2_I(inode)->ip_clusters);
-
-	/*
-	 * For a read which begins past the end of file, we return a hole.
-	 */
-	if (!create && (iblock >= inode_blocks)) {
-		spin_unlock(&OCFS2_I(inode)->ip_lock);
-		ret = 0;
-		goto bail;
-	}
+	inode_blocks = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
 
 	/*
 	 * Any write past EOF is not allowed because we'd be extending.
 	 */
 	if (create && (iblock + max_blocks) > inode_blocks) {
-		spin_unlock(&OCFS2_I(inode)->ip_lock);
 		ret = -EIO;
 		goto bail;
 	}
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
 
 	/* This figures out the size of the next contiguous block, and
 	 * our logical offset */
@@ -470,7 +465,35 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
-	map_bh(bh_result, inode->i_sb, p_blkno);
+	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)) && !p_blkno) {
+		ocfs2_error(inode->i_sb,
+			    "Inode %llu has a hole at block %llu\n",
+			    (unsigned long long)OCFS2_I(inode)->ip_blkno,
+			    (unsigned long long)iblock);
+		ret = -EROFS;
+		goto bail;
+	}
+
+	/*
+	 * get_more_blocks() expects us to describe a hole by clearing
+	 * the mapped bit on bh_result().
+	 */
+	if (p_blkno)
+		map_bh(bh_result, inode->i_sb, p_blkno);
+	else {
+		/*
+		 * ocfs2_prepare_inode_for_write() should have caught
+		 * the case where we'd be filling a hole and triggered
+		 * a buffered write instead.
+		 */
+		if (create) {
+			ret = -EIO;
+			mlog_errno(ret);
+			goto bail;
+		}
+
+		clear_buffer_mapped(bh_result);
+	}
 
 	/* make sure we don't map more than max_blocks blocks here as
 	   that's all the kernel will handle at this point. */
