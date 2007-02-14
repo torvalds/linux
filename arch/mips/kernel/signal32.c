@@ -150,7 +150,7 @@ struct sigframe32 {
 	u32 sf_ass[4];		/* argument save space for o32 */
 	u32 sf_code[2];		/* signal trampoline */
 	struct sigcontext32 sf_sc;
-	sigset_t sf_mask;
+	compat_sigset_t sf_mask;
 };
 
 struct rt_sigframe32 {
@@ -166,7 +166,7 @@ struct sigframe32 {
 	u32 sf_ass[4];			/* argument save space for o32 */
 	u32 sf_pad[2];
 	struct sigcontext32 sf_sc;	/* hw context */
-	sigset_t sf_mask;
+	compat_sigset_t sf_mask;
 	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
 };
 
