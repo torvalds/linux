@@ -2177,6 +2177,14 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 	int run_pending = 0;
 
 	switch(event) {
+	case NETDEV_REGISTER:
+		if (!idev) {
+			idev = ipv6_add_dev(dev);
+			if (!idev)
+				printk(KERN_WARNING "IPv6: add_dev failed for %s\n",
+					dev->name);
+		}
+		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
 		if (event == NETDEV_UP) {
