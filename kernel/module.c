@@ -1180,11 +1180,8 @@ static void mod_kobject_remove(struct module *mod)
 {
 	module_remove_modinfo_attrs(mod);
 	module_param_sysfs_remove(mod);
-	if (mod->mkobj.drivers_dir)
-		kobject_unregister(mod->mkobj.drivers_dir);
-	if (mod->holders_dir)
-		kobject_unregister(mod->holders_dir);
-
+	kobject_unregister(mod->mkobj.drivers_dir);
+	kobject_unregister(mod->holders_dir);
 	kobject_unregister(&mod->mkobj.kobj);
 }
 
