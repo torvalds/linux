@@ -1317,7 +1317,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 	conf_changed();
 	QAction *saveAsAction = new QAction("Save As...", "Save &As...", 0, this);
 	  connect(saveAsAction, SIGNAL(activated()), SLOT(saveConfigAs()));
-	QAction *searchAction = new QAction("Search", "&Search", CTRL+Key_F, this);
+	QAction *searchAction = new QAction("Find", "&Find", CTRL+Key_F, this);
 	  connect(searchAction, SIGNAL(activated()), SLOT(searchConfig()));
 	QAction *singleViewAction = new QAction("Single View", QPixmap(xpm_single_view), "Split View", 0, this);
 	  connect(singleViewAction, SIGNAL(activated()), SLOT(showSingleView()));
@@ -1374,9 +1374,12 @@ ConfigMainWindow::ConfigMainWindow(void)
 	saveAction->addTo(config);
 	saveAsAction->addTo(config);
 	config->insertSeparator();
-	searchAction->addTo(config);
-	config->insertSeparator();
 	quitAction->addTo(config);
+
+	// create edit menu
+	QPopupMenu* editMenu = new QPopupMenu(this);
+	menu->insertItem("&Edit", editMenu);
+	searchAction->addTo(editMenu);
 
 	// create options menu
 	QPopupMenu* optionMenu = new QPopupMenu(this);
