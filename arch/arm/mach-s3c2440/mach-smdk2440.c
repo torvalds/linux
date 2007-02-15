@@ -144,6 +144,7 @@ static struct s3c2410fb_mach_info smdk2440_lcd_cfg __initdata = {
 #endif
 
 	.lpcsel		= ((0xCE6) & ~7) | 1<<4,
+	.type		= S3C2410_LCDCON1_TFT16BPP,
 
 	.width		= 240,
 	.height		= 320,
