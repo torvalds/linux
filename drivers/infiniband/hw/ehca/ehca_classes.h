@@ -277,6 +277,7 @@ extern struct idr ehca_cq_idr;
 extern int ehca_static_rate;
 extern int ehca_port_act_time;
 extern int ehca_use_hp_mr;
+extern int ehca_scaling_code;
 
 struct ipzu_queue_resp {
 	u32 qe_size;      /* queue entry size */

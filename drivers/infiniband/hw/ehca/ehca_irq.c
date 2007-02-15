@@ -63,14 +63,10 @@
 #define ERROR_DATA_LENGTH      EHCA_BMASK_IBM(52,63)
 #define ERROR_DATA_TYPE        EHCA_BMASK_IBM(0,7)
 
-#ifdef CONFIG_INFINIBAND_EHCA_SCALING
-
 static void queue_comp_task(struct ehca_cq *__cq);
 
 static struct ehca_comp_pool* pool;
 static struct notifier_block comp_pool_callback_nb;
-
-#endif
 
 static inline void comp_event_callback(struct ehca_cq *cq)
 {
@@ -423,13 +419,13 @@ static inline void process_eqe(struct ehca_shca *shca, struct ehca_eqe *eqe)
 			return;
 		}
 		reset_eq_pending(cq);
-#ifdef CONFIG_INFINIBAND_EHCA_SCALING
-		queue_comp_task(cq);
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
-#else
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
-		comp_event_callback(cq);
-#endif
+		if (ehca_scaling_code) {
+			queue_comp_task(cq);
+			spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+		} else {
+			spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+			comp_event_callback(cq);
+		}
 	} else {
 		ehca_dbg(&shca->ib_device,
 			 "Got non completion event");
@@ -508,13 +504,12 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 	/* call completion handler for cached eqes */
 	for (i = 0; i < eqe_cnt; i++)
 		if (eq->eqe_cache[i].cq) {
-#ifdef CONFIG_INFINIBAND_EHCA_SCALING
-			spin_lock(&ehca_cq_idr_lock);
-			queue_comp_task(eq->eqe_cache[i].cq);
-			spin_unlock(&ehca_cq_idr_lock);
-#else
-			comp_event_callback(eq->eqe_cache[i].cq);
-#endif
+			if (ehca_scaling_code) {
+				spin_lock(&ehca_cq_idr_lock);
+				queue_comp_task(eq->eqe_cache[i].cq);
+				spin_unlock(&ehca_cq_idr_lock);
+			} else
+				comp_event_callback(eq->eqe_cache[i].cq);
 		} else {
 			ehca_dbg(&shca->ib_device, "Got non completion event");
 			parse_identifier(shca, eq->eqe_cache[i].eqe->entry);
@@ -539,8 +534,6 @@ void ehca_tasklet_eq(unsigned long data)
 {
 	ehca_process_eq((struct ehca_shca*)data, 1);
 }
-
-#ifdef CONFIG_INFINIBAND_EHCA_SCALING
 
 static inline int find_next_online_cpu(struct ehca_comp_pool* pool)
 {
@@ -764,13 +757,13 @@ static int comp_pool_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-#endif
-
 int ehca_create_comp_pool(void)
 {
-#ifdef CONFIG_INFINIBAND_EHCA_SCALING
 	int cpu;
 	struct task_struct *task;
+
+	if (!ehca_scaling_code)
+		return 0;
 
 	pool = kzalloc(sizeof(struct ehca_comp_pool), GFP_KERNEL);
 	if (pool == NULL)
@@ -796,15 +789,18 @@ int ehca_create_comp_pool(void)
 	comp_pool_callback_nb.notifier_call = comp_pool_callback;
 	comp_pool_callback_nb.priority =0;
 	register_cpu_notifier(&comp_pool_callback_nb);
-#endif
+
+	printk(KERN_INFO "eHCA scaling code enabled\n");
 
 	return 0;
 }
 
 void ehca_destroy_comp_pool(void)
 {
-#ifdef CONFIG_INFINIBAND_EHCA_SCALING
 	int i;
+
+	if (!ehca_scaling_code)
+		return;
 
 	unregister_cpu_notifier(&comp_pool_callback_nb);
 
@@ -814,5 +810,4 @@ void ehca_destroy_comp_pool(void)
 	}
 	free_percpu(pool->cpu_comp_tasks);
 	kfree(pool);
-#endif
 }
