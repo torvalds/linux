@@ -578,14 +578,9 @@ struct tvcard bttv_tvcards[] = {
 		.svhs		= 2,
 		.gpiomask	= 0x01fe00,
 		.muxsel		= { 2, 3, 1, 1 },
-	#if 0
-		/* old */
-		.gpiomux 	= { 0x01c000, 0, 0x018000, 0x014000, 0x002000 },
-	#else
 		/* 2003-10-20 by "Anton A. Arapov" <arapov@mail.ru> */
 		.gpiomux        = { 0x001e00, 0, 0x018000, 0x014000 },
 		.gpiomute 	= 0x002000,
-	#endif
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
 		.tuner_type	= -1,
@@ -894,15 +889,10 @@ struct tvcard bttv_tvcards[] = {
 		.tuner		= 0,
 		.svhs		= 2,
 		.muxsel		= { 2, 3, 1, 1, 0 }, /* TV, CVid, SVid, CVid over SVid connector */
-	#if 0
-		.gpiomask	= 0xc33000,
-		.gpiomux 	= { 0x422000,0x1000,0x0000,0x620000,0x800000 },
-	#else
 		/* Alexander Varakin <avarakin@hotmail.com> [stereo version] */
 		.gpiomask	= 0xb33000,
 		.gpiomux 	= { 0x122000,0x1000,0x0000,0x620000 },
 		.gpiomute 	= 0x800000,
-	#endif
 		/* Audio Routing for "WinFast 2000 XP" (no tv stereo !)
 			gpio23 -- hef4052:nEnable (0x800000)
 			gpio12 -- hef4052:A1
@@ -1937,11 +1927,6 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs   = 4,
 		.audio_inputs   = 1,
 		.tuner          = -1,
-	#if 0 /* TODO ... */
-		.svhs           = OSPREY540_SVID_ANALOG,
-		.muxsel         = {       [OSPREY540_COMP_ANALOG] = 2,
-					[OSPREY540_SVID_ANALOG] = 3, },
-	#endif
 		.pll            = PLL_28,
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
@@ -1949,10 +1934,6 @@ struct tvcard bttv_tvcards[] = {
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
-	#if 0 /* TODO ... */
-		.muxsel_hook    = osprey_540_muxsel,
-		.picture_hook   = osprey_540_set_picture,
-	#endif
 	},
 
 		/* ---- card 0x5C ---------------------------------- */
@@ -2627,9 +2608,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_radio      = 0,
-	#if 0
-		.has_remote     = 1,
-	#endif
 	},
 	[BTTV_BOARD_SUPER_TV] = {
 		/* Rick C <cryptdragoon@gmail.com> */
