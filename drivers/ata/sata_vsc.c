@@ -346,6 +346,7 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	struct ata_probe_ent *probe_ent;
 	void __iomem *mmio_base;
 	int rc;
+	u8 cls;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
@@ -383,9 +384,12 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	INIT_LIST_HEAD(&probe_ent->node);
 
 	/*
-	 * Due to a bug in the chip, the default cache line size can't be used
+	 * Due to a bug in the chip, the default cache line size can't be
+	 * used (unless the default is non-zero).
 	 */
-	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, 0x80);
+	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &cls);
+	if (cls == 0x00)
+		pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, 0x80);
 
 	if (pci_enable_msi(pdev) == 0)
 		pci_intx(pdev, 0);
