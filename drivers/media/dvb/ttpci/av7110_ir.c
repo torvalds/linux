@@ -4,6 +4,7 @@
 #include <linux/moduleparam.h>
 #include <linux/input.h>
 #include <linux/proc_fs.h>
+#include <linux/kernel.h>
 #include <asm/bitops.h>
 
 #include "av7110.h"
@@ -218,7 +219,7 @@ int __devinit av7110_ir_init(struct av7110 *av7110)
 	static struct proc_dir_entry *e;
 	int err;
 
-	if (av_cnt >= sizeof av_list/sizeof av_list[0])
+	if (av_cnt >= ARRAY_SIZE(av_list))
 		return -ENOSPC;
 
 	av7110_setup_irc_config(av7110, 0x0001);

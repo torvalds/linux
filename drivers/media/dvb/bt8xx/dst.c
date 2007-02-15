@@ -1161,7 +1161,7 @@ static int dst_get_device_id(struct dst_state *state)
 		}
 	}
 
-	if (i >= sizeof (dst_tlist) / sizeof (dst_tlist [0])) {
+	if (i >= ARRAY_SIZE(dst_tlist)) {
 		dprintk(verbose, DST_ERROR, 1, "Unable to recognize %s or %s", &state->rxbuffer[0], &state->rxbuffer[1]);
 		dprintk(verbose, DST_ERROR, 1, "please email linux-dvb@linuxtv.org with this type in");
 		use_dst_type = DST_TYPE_IS_SAT;

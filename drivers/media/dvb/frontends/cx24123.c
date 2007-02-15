@@ -507,7 +507,7 @@ static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_pa
 	int i = 0;
 	int pump = 2;
 	int band = 0;
-	int num_bands = sizeof(cx24123_bandselect_vals) / sizeof(cx24123_bandselect_vals[0]);
+	int num_bands = ARRAY_SIZE(cx24123_bandselect_vals);
 
 	/* Defaults for low freq, low rate */
 	state->VCAarg = cx24123_AGC_vals[0].VCAprogdata;
@@ -516,7 +516,7 @@ static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_pa
 	vco_div = cx24123_bandselect_vals[0].VCOdivider;
 
 	/* For the given symbol rate, determine the VCA, VGA and FILTUNE programming bits */
-	for (i = 0; i < sizeof(cx24123_AGC_vals) / sizeof(cx24123_AGC_vals[0]); i++)
+	for (i = 0; i < ARRAY_SIZE(cx24123_AGC_vals); i++)
 	{
 		if ((cx24123_AGC_vals[i].symbolrate_low <= p->u.qpsk.symbol_rate) &&
 		    (cx24123_AGC_vals[i].symbolrate_high >= p->u.qpsk.symbol_rate) ) {
@@ -658,7 +658,7 @@ static int cx24123_initfe(struct dvb_frontend* fe)
 	dprintk("%s:  init frontend\n",__FUNCTION__);
 
 	/* Configure the demod to a good set of defaults */
-	for (i = 0; i < sizeof(cx24123_regdata) / sizeof(cx24123_regdata[0]); i++)
+	for (i = 0; i < ARRAY_SIZE(cx24123_regdata); i++)
 		cx24123_writereg(state, cx24123_regdata[i].reg, cx24123_regdata[i].data);
 
 	/* Set the LNB polarity */
