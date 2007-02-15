@@ -82,7 +82,7 @@
 
 #include "atl1.h"
 
-#define DRIVER_VERSION "2.0.6"
+#define DRIVER_VERSION "2.0.7"
 
 char atl1_driver_name[] = "atl1";
 static const char atl1_driver_string[] = "Attansic L1 Ethernet Network Driver";
