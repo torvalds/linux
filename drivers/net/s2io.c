@@ -3758,7 +3758,6 @@ static int s2io_close(struct net_device *dev)
 {
 	struct s2io_nic *sp = dev->priv;
 
-	flush_scheduled_work();
 	netif_stop_queue(dev);
 	/* Reset card, kill tasklet and free Tx and Rx buffers. */
 	s2io_card_down(sp);
@@ -5847,9 +5846,14 @@ static void s2io_set_link(struct work_struct *work)
 	register u64 val64;
 	u16 subid;
 
+	rtnl_lock();
+
+	if (!netif_running(dev))
+		goto out_unlock;
+
 	if (test_and_set_bit(0, &(nic->link_state))) {
 		/* The card is being reset, no point doing anything */
-		return;
+		goto out_unlock;
 	}
 
 	subid = nic->pdev->subsystem_device;
@@ -5903,6 +5907,9 @@ static void s2io_set_link(struct work_struct *work)
 		s2io_link(nic, LINK_DOWN);
 	}
 	clear_bit(0, &(nic->link_state));
+
+out_unlock:
+	rtnl_lock();
 }
 
 static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
@@ -6356,6 +6363,11 @@ static void s2io_restart_nic(struct work_struct *work)
 	struct s2io_nic *sp = container_of(work, struct s2io_nic, rst_timer_task);
 	struct net_device *dev = sp->dev;
 
+	rtnl_lock();
+
+	if (!netif_running(dev))
+		goto out_unlock;
+
 	s2io_card_down(sp);
 	if (s2io_card_up(sp)) {
 		DBG_PRINT(ERR_DBG, "%s: Device bring up failed\n",
@@ -6364,7 +6376,8 @@ static void s2io_restart_nic(struct work_struct *work)
 	netif_wake_queue(dev);
 	DBG_PRINT(ERR_DBG, "%s: was reset by Tx watchdog timer\n",
 		  dev->name);
-
+out_unlock:
+	rtnl_unlock();
 }
 
 /**
@@ -7172,6 +7185,8 @@ static void __devexit s2io_rem_nic(struct pci_dev *pdev)
 		DBG_PRINT(ERR_DBG, "Driver Data is NULL!!\n");
 		return;
 	}
+
+	flush_scheduled_work();
 
 	sp = dev->priv;
 	unregister_netdev(dev);
