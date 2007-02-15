@@ -280,8 +280,10 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 	mutex_lock(&ec->lock);
 	if (ec->global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
-		if (ACPI_FAILURE(status))
+		if (ACPI_FAILURE(status)) {
+			mutex_unlock(&ec->lock);
 			return -ENODEV;
+		}
 	}
 
 	/* Make sure GPE is enabled before doing transaction */
