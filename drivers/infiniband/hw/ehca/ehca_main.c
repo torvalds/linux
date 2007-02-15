@@ -52,7 +52,7 @@
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
 MODULE_DESCRIPTION("IBM eServer HCA InfiniBand Device Driver");
-MODULE_VERSION("SVNEHCA_0020");
+MODULE_VERSION("SVNEHCA_0021");
 
 int ehca_open_aqp1     = 0;
 int ehca_debug_level   = 0;
@@ -432,8 +432,8 @@ static int ehca_destroy_aqp1(struct ehca_sport *sport)
 
 static ssize_t ehca_show_debug_level(struct device_driver *ddp, char *buf)
 {
-	return  snprintf(buf, PAGE_SIZE, "%d\n",
-			 ehca_debug_level);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			ehca_debug_level);
 }
 
 static ssize_t ehca_store_debug_level(struct device_driver *ddp,
@@ -778,8 +778,24 @@ void ehca_poll_eqs(unsigned long data)
 
 	spin_lock(&shca_list_lock);
 	list_for_each_entry(shca, &shca_list, shca_list) {
-		if (shca->eq.is_initialized)
-			ehca_tasklet_eq((unsigned long)(void*)shca);
+		if (shca->eq.is_initialized) {
+			/* call deadman proc only if eq ptr does not change */
+			struct ehca_eq *eq = &shca->eq;
+			int max = 3;
+			volatile u64 q_ofs, q_ofs2;
+			u64 flags;
+			spin_lock_irqsave(&eq->spinlock, flags);
+			q_ofs = eq->ipz_queue.current_q_offset;
+			spin_unlock_irqrestore(&eq->spinlock, flags);
+			do {
+				spin_lock_irqsave(&eq->spinlock, flags);
+				q_ofs2 = eq->ipz_queue.current_q_offset;
+				spin_unlock_irqrestore(&eq->spinlock, flags);
+				max--;
+			} while (q_ofs == q_ofs2 && max > 0);
+			if (q_ofs == q_ofs2)
+				ehca_process_eq(shca, 0);
+		}
 	}
 	mod_timer(&poll_eqs_timer, jiffies + HZ);
 	spin_unlock(&shca_list_lock);
@@ -790,7 +806,7 @@ int __init ehca_module_init(void)
 	int ret;
 
 	printk(KERN_INFO "eHCA Infiniband Device Driver "
-	                 "(Rel.: SVNEHCA_0020)\n");
+	       "(Rel.: SVNEHCA_0021)\n");
 	idr_init(&ehca_qp_idr);
 	idr_init(&ehca_cq_idr);
 	spin_lock_init(&ehca_qp_idr_lock);

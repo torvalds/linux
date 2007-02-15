@@ -61,6 +61,7 @@ int ehca_create_eq(struct ehca_shca *shca,
 	struct ib_device *ib_dev = &shca->ib_device;
 
 	spin_lock_init(&eq->spinlock);
+	spin_lock_init(&eq->irq_spinlock);
 	eq->is_initialized = 0;
 
 	if (type != EHCA_EQ && type != EHCA_NEQ) {
