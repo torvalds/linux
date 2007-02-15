@@ -947,9 +947,9 @@ static int onenand_do_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
 
 /**
  * onenand_read_oob - [MTD Interface] NAND write data and/or out-of-band
- * @mtd:	MTD device structure
- * @from:	offset to read from
- * @ops:	oob operation description structure
+ * @param mtd:		MTD device structure
+ * @param from:		offset to read from
+ * @param ops:		oob operation description structure
  */
 static int onenand_read_oob(struct mtd_info *mtd, loff_t from,
 			    struct mtd_oob_ops *ops)
@@ -1017,7 +1017,7 @@ static int onenand_bbt_wait(struct mtd_info *mtd, int state)
  * onenand_bbt_read_oob - [MTD Interface] OneNAND read out-of-band for bbt scan
  * @param mtd		MTD device structure
  * @param from		offset to read from
- * @param @ops		oob operation description structure
+ * @param ops		oob operation description structure
  *
  * OneNAND read out-of-band data from the spare area for bbt scan
  */
@@ -1403,9 +1403,9 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 
 /**
  * onenand_write_oob - [MTD Interface] NAND write data and/or out-of-band
- * @mtd:	MTD device structure
- * @from:	offset to read from
- * @ops:	oob operation description structure
+ * @param mtd:		MTD device structure
+ * @param to:		offset to write
+ * @param ops:		oob operation description structure
  */
 static int onenand_write_oob(struct mtd_info *mtd, loff_t to,
 			     struct mtd_oob_ops *ops)
@@ -1619,6 +1619,7 @@ static int onenand_block_markbad(struct mtd_info *mtd, loff_t ofs)
  * @param mtd		MTD device structure
  * @param ofs		offset relative to mtd start
  * @param len		number of bytes to lock or unlock
+ * @param cmd		lock or unlock command
  *
  * Lock or unlock one or more blocks
  */
@@ -2120,10 +2121,11 @@ static void onenand_check_features(struct mtd_info *mtd)
 }
 
 /**
- * onenand_print_device_info - Print device ID
+ * onenand_print_device_info - Print device & version ID
  * @param device        device ID
+ * @param version	version ID
  *
- * Print device ID
+ * Print device & version ID
  */
 static void onenand_print_device_info(int device, int version)
 {
