@@ -60,9 +60,6 @@ vmlinux-32		= vmlinux.32
 vmlinux-64		= vmlinux
 
 cflags-y		+= -mabi=64
-ifndef CONFIG_BUILD_ELF64
-cflags-y		+= $(call cc-option,-msym32)
-endif
 endif
 
 all-$(CONFIG_BOOT_ELF32)	:= $(vmlinux-32)
@@ -574,6 +571,26 @@ JIFFIES			= jiffies_64 + 4
 endif
 else
 JIFFIES			= jiffies_64
+endif
+
+#
+# Automatically detect the build format. By default we choose
+# the elf format according to the load address.
+# We can always force a build with a 64-bits symbol format by
+# passing 'BUILD_ELF32=no' option to the make's command line.
+#
+ifdef CONFIG_64BIT
+  ifndef BUILD_ELF32
+    ifeq ($(shell expr $(load-y) \< 0xffffffff80000000), 0)
+      BUILD_ELF32 = y
+    endif
+  endif
+
+  ifeq ($(BUILD_ELF32), y)
+    cflags-y += -msym32
+  else
+    cflags-y += -DCONFIG_BUILD_ELF64
+  endif
 endif
 
 AFLAGS		+= $(cflags-y)
