@@ -29,7 +29,8 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <asm/arch/regs-serial.h>
+#include <asm/arch/regs-s3c2443-clock.h>
+#include <asm/arch/reset.h>
 
 #include <asm/plat-s3c24xx/s3c2443.h>
 #include <asm/plat-s3c24xx/devs.h>
@@ -49,9 +50,16 @@ static struct sys_device s3c2443_sysdev = {
 	.cls		= &s3c2443_sysclass,
 };
 
+static void s3c2443_hard_reset(void)
+{
+	__raw_writel(S3C2443_SWRST_RESET, S3C2443_SWRST);
+}
+
 int __init s3c2443_init(void)
 {
 	printk("S3C2443: Initialising architecture\n");
+
+	s3c24xx_reset_hook = s3c2443_hard_reset;
 
 	s3c_device_nand.name = "s3c2412-nand";
 
