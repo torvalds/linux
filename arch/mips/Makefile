@@ -577,19 +577,17 @@ endif
 # Automatically detect the build format. By default we choose
 # the elf format according to the load address.
 # We can always force a build with a 64-bits symbol format by
-# passing 'BUILD_ELF32=no' option to the make's command line.
+# passing 'KBUILD_SYM32=no' option to the make's command line.
 #
 ifdef CONFIG_64BIT
-  ifndef BUILD_ELF32
+  ifndef KBUILD_SYM32
     ifeq ($(shell expr $(load-y) \< 0xffffffff80000000), 0)
-      BUILD_ELF32 = y
+      KBUILD_SYM32 = y
     endif
   endif
 
-  ifeq ($(BUILD_ELF32), y)
-    cflags-y += -msym32
-  else
-    cflags-y += -DCONFIG_BUILD_ELF64
+  ifeq ($(KBUILD_SYM32), y)
+    cflags-y += -msym32 -DKBUILD_64BIT_SYM32
   endif
 endif
 
