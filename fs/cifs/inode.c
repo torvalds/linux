@@ -1359,7 +1359,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		and this check ensures that we are not being called from
 		sys_utimes in which case we ought to fail the call back to
 		the user when the server rejects the call */
-		if((rc) && (attrs->ia_valid &&
+		if((rc) && (attrs->ia_valid &
 			 (ATTR_MODE | ATTR_GID | ATTR_UID | ATTR_SIZE)))
 			rc = 0;
 	}
