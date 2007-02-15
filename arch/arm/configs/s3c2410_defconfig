@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Tue Feb 13 16:43:14 2007
+# Thu Feb 15 11:26:24 2007
 #
 CONFIG_ARM=y
 # CONFIG_GENERIC_TIME is not set
@@ -189,6 +189,12 @@ CONFIG_CPU_S3C2442=y
 # S3C2442 Machines
 #
 CONFIG_SMDK2440_CPU2442=y
+CONFIG_CPU_S3C2443=y
+
+#
+# S3C2443 Machines
+#
+CONFIG_MACH_SMDK2443=y
 
 #
 # Processor Type
