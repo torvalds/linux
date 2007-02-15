@@ -8,10 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-#if !defined(CONFIG_NFSD) && !defined(CONFIG_NFSD_MODULE)
-#define sys_nfsservctl sys_ni_syscall
-#endif
-
 	.section .rodata,"a",@progbits
 	.type	sys_call_table,@object
 	.global	sys_call_table
