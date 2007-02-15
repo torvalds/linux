@@ -29,10 +29,7 @@
 
 #else
 
-#define SERIAL_PORT_DFNS			\
-	/* UART CLK   PORT IRQ     FLAGS        */			\
-	{ 0, BASE_BAUD, 0x3F8, 4, STD_COM_FLAGS },	/* ttyS0 */	\
-	{ 0, BASE_BAUD, 0x2F8, 3, STD_COM_FLAGS }	/* ttyS1 */
+#define SERIAL_PORT_DFNS
 
 #endif
 
