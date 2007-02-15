@@ -82,7 +82,6 @@
 
 #include "atl1.h"
 
-#define RUN_REALTIME 0
 #define DRIVER_VERSION "2.0.6"
 
 char atl1_driver_name[] = "atl1";
