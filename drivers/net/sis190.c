@@ -909,6 +909,9 @@ static void sis190_phy_task(struct work_struct *work)
 
 	rtnl_lock();
 
+	if (!netif_running(dev))
+		goto out_unlock;
+
 	val = mdio_read(ioaddr, phy_id, MII_BMCR);
 	if (val & BMCR_RESET) {
 		// FIXME: needlessly high ?  -- FR 02/07/2005
@@ -981,6 +984,7 @@ static void sis190_phy_task(struct work_struct *work)
 		netif_carrier_on(dev);
 	}
 
+out_unlock:
 	rtnl_unlock();
 }
 
@@ -1101,8 +1105,6 @@ static void sis190_down(struct net_device *dev)
 	sis190_delete_timer(dev);
 
 	netif_stop_queue(dev);
-
-	flush_scheduled_work();
 
 	do {
 		spin_lock_irq(&tp->lock);
@@ -1857,6 +1859,7 @@ static void __devexit sis190_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 
 	sis190_mii_remove(dev);
+	flush_scheduled_work();
 	unregister_netdev(dev);
 	sis190_release_board(pdev);
 	pci_set_drvdata(pdev, NULL);
