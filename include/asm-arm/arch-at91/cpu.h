@@ -22,10 +22,23 @@
 #define ARCH_ID_AT91SAM9261	0x019703a0
 #define ARCH_ID_AT91SAM9263	0x019607a0
 
+#define ARCH_ID_AT91SAM9XE128	0x329973a0
+#define ARCH_ID_AT91SAM9XE256	0x329a93a0
+#define ARCH_ID_AT91SAM9XE512	0x329aa3a0
 
 static inline unsigned long at91_cpu_identify(void)
 {
 	return (at91_sys_read(AT91_DBGU_CIDR) & ~AT91_CIDR_VERSION);
+}
+
+
+#define ARCH_FAMILY_AT91X92	0x09200000
+#define ARCH_FAMILY_AT91SAM9	0x01900000
+#define ARCH_FAMILY_AT91SAM9XE	0x02900000
+
+static inline unsigned long at91_arch_identify(void)
+{
+	return (at91_sys_read(AT91_DBGU_CIDR) & AT91_CIDR_ARCH);
 }
 
 
@@ -36,8 +49,10 @@ static inline unsigned long at91_cpu_identify(void)
 #endif
 
 #ifdef CONFIG_ARCH_AT91SAM9260
-#define cpu_is_at91sam9260()	(at91_cpu_identify() == ARCH_ID_AT91SAM9260)
+#define cpu_is_at91sam9xe()	(at91_arch_identify() == ARCH_FAMILY_AT91SAM9XE)
+#define cpu_is_at91sam9260()	((at91_cpu_identify() == ARCH_ID_AT91SAM9260) || cpu_is_at91sam9xe())
 #else
+#define cpu_is_at91sam9xe()	(0)
 #define cpu_is_at91sam9260()	(0)
 #endif
 

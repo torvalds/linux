@@ -14,6 +14,7 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/arch/cpu.h>
 #include <asm/arch/at91sam9260.h>
 #include <asm/arch/at91_pmc.h>
 #include <asm/arch/at91_rstc.h>
@@ -27,7 +28,11 @@ static struct map_desc at91sam9260_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(AT91_BASE_SYS),
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
-	}, {
+	}
+};
+
+static struct map_desc at91sam9260_sram_desc[] __initdata = {
+	{
 		.virtual	= AT91_IO_VIRT_BASE - AT91SAM9260_SRAM0_SIZE,
 		.pfn		= __phys_to_pfn(AT91SAM9260_SRAM0_BASE),
 		.length		= AT91SAM9260_SRAM0_SIZE,
@@ -37,7 +42,14 @@ static struct map_desc at91sam9260_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(AT91SAM9260_SRAM1_BASE),
 		.length		= AT91SAM9260_SRAM1_SIZE,
 		.type		= MT_DEVICE,
-	},
+	}
+};
+
+static struct map_desc at91sam9xe_sram_desc[] __initdata = {
+	{
+		.pfn		= __phys_to_pfn(AT91SAM9XE_SRAM_BASE),
+		.type		= MT_DEVICE,
+	}
 };
 
 /* --------------------------------------------------------------------
@@ -255,10 +267,36 @@ static void at91sam9260_reset(void)
  *  AT91SAM9260 processor initialization
  * -------------------------------------------------------------------- */
 
+static void __init at91sam9xe_initialize(void)
+{
+	unsigned long cidr, sram_size;
+
+	cidr = at91_sys_read(AT91_DBGU_CIDR);
+
+	switch (cidr & AT91_CIDR_SRAMSIZ) {
+		case AT91_CIDR_SRAMSIZ_32K:
+			sram_size = 2 * SZ_16K;
+			break;
+		case AT91_CIDR_SRAMSIZ_16K:
+		default:
+			sram_size = SZ_16K;
+	}
+
+	at91sam9xe_sram_desc->virtual = AT91_IO_VIRT_BASE - sram_size;
+	at91sam9xe_sram_desc->length = sram_size;
+
+	iotable_init(at91sam9xe_sram_desc, ARRAY_SIZE(at91sam9xe_sram_desc));
+}
+
 void __init at91sam9260_initialize(unsigned long main_clock)
 {
 	/* Map peripherals */
 	iotable_init(at91sam9260_io_desc, ARRAY_SIZE(at91sam9260_io_desc));
+
+	if (cpu_is_at91sam9xe())
+		at91sam9xe_initialize();
+	else
+		iotable_init(at91sam9260_sram_desc, ARRAY_SIZE(at91sam9260_sram_desc));
 
 	at91_arch_reset = at91sam9260_reset;
 	at91_extern_irq = (1 << AT91SAM9260_ID_IRQ0) | (1 << AT91SAM9260_ID_IRQ1)

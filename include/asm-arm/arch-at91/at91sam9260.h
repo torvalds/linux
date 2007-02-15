@@ -113,6 +113,10 @@
 
 #define AT91SAM9260_UHP_BASE	0x00500000	/* USB Host controller */
 
+#define AT91SAM9XE_FLASH_BASE	0x00200000	/* Internal FLASH base address */
+#define AT91SAM9XE_SRAM_BASE	0x00300000	/* Internal SRAM base address */
+
+
 #if 0
 /*
  * PIO pin definitions (peripheral A/B multiplexing).

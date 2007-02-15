@@ -35,6 +35,20 @@
 #define		AT91_CIDR_NVPSIZ	(0xf  << 8)		/* Nonvolatile Program Memory Size */
 #define		AT91_CIDR_NVPSIZ2	(0xf  << 12)		/* Second Nonvolatile Program Memory Size */
 #define		AT91_CIDR_SRAMSIZ	(0xf  << 16)		/* Internal SRAM Size */
+#define			AT91_CIDR_SRAMSIZ_1K	(1 << 16)
+#define			AT91_CIDR_SRAMSIZ_2K	(2 << 16)
+#define			AT91_CIDR_SRAMSIZ_112K	(4 << 16)
+#define			AT91_CIDR_SRAMSIZ_4K	(5 << 16)
+#define			AT91_CIDR_SRAMSIZ_80K	(6 << 16)
+#define			AT91_CIDR_SRAMSIZ_160K	(7 << 16)
+#define			AT91_CIDR_SRAMSIZ_8K	(8 << 16)
+#define			AT91_CIDR_SRAMSIZ_16K	(9 << 16)
+#define			AT91_CIDR_SRAMSIZ_32K	(10 << 16)
+#define			AT91_CIDR_SRAMSIZ_64K	(11 << 16)
+#define			AT91_CIDR_SRAMSIZ_128K	(12 << 16)
+#define			AT91_CIDR_SRAMSIZ_256K	(13 << 16)
+#define			AT91_CIDR_SRAMSIZ_96K	(14 << 16)
+#define			AT91_CIDR_SRAMSIZ_512K	(15 << 16)
 #define		AT91_CIDR_ARCH		(0xff << 20)		/* Architecture Identifier */
 #define		AT91_CIDR_NVPTYP	(7    << 28)		/* Nonvolatile Program Memory Type */
 #define		AT91_CIDR_EXT		(1    << 31)		/* Extension Flag */

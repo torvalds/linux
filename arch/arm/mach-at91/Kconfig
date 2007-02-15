@@ -9,7 +9,7 @@ config ARCH_AT91RM9200
 	bool "AT91RM9200"
 
 config ARCH_AT91SAM9260
-	bool "AT91SAM9260"
+	bool "AT91SAM9260 or AT91SAM9XE"
 
 config ARCH_AT91SAM9261
 	bool "AT91SAM9261"
@@ -93,13 +93,22 @@ endif
 
 if ARCH_AT91SAM9260
 
-comment "AT91SAM9260 Board Type"
+comment "AT91SAM9260 Variants"
 
-config MACH_AT91SAM9260EK
-	bool "Atmel AT91SAM9260-EK Evaluation Kit"
+config ARCH_AT91SAM9260_SAM9XE
+	bool "AT91SAM9XE"
 	depends on ARCH_AT91SAM9260
 	help
-	  Select this if you are using Atmel's AT91SAM9260-EK Evaluation Kit.
+	  Select this if you are using Atmel's AT91SAM9XE System-on-Chip.
+	  They are basicaly AT91SAM9260s with various sizes of embedded Flash.
+
+comment "AT91SAM9260 / AT91SAM9XE Board Type"
+
+config MACH_AT91SAM9260EK
+	bool "Atmel AT91SAM9260-EK / AT91SAM9XE Evaluation Kit"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using Atmel's AT91SAM9260-EK or AT91SAM9XE Evaluation Kit
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3933>
 
 endif
