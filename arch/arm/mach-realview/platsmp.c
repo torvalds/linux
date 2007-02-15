@@ -52,7 +52,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
 	 */
-	gic_cpu_init(__io_address(REALVIEW_GIC_CPU_BASE));
+	gic_cpu_init(0, __io_address(REALVIEW_GIC_CPU_BASE));
 
 	/*
 	 * let the primary processor know we're out of the
