@@ -59,6 +59,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * pen, then head off into the C entry point
 	 */
 	pen_release = -1;
+	smp_wmb();
 
 	/*
 	 * Synchronise with the boot thread.
@@ -102,6 +103,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
+		smp_rmb();
 		if (pen_release == -1)
 			break;
 
