@@ -14,3 +14,5 @@ obj-$(CONFIG_CPU_S3C2443)	+= irq.o
 obj-$(CONFIG_CPU_S3C2443)	+= clock.o
 
 # Machine support
+
+obj-$(CONFIG_MACH_SMDK2443)	+= mach-smdk2443.o
