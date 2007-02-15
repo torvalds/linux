@@ -145,7 +145,7 @@ partial_error:
 	for (; i >= 0; --i)
 		ib_dma_unmap_single(priv->ca, mapping[i + 1], PAGE_SIZE, DMA_FROM_DEVICE);
 
-	kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return -ENOMEM;
 }
 
