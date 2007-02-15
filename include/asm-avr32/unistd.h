@@ -120,7 +120,7 @@
 #define __NR_getitimer		105
 #define __NR_swapoff		106
 #define __NR_sysinfo		107
-#define __NR_ipc		108
+/* 108 was __NR_ipc for a little while */
 #define __NR_sendfile		109
 #define __NR_setdomainname	110
 #define __NR_uname		111
@@ -282,8 +282,21 @@
 #define __NR_vmsplice		264
 #define __NR_epoll_pwait	265
 
+#define __NR_msgget		266
+#define __NR_msgsnd		267
+#define __NR_msgrcv		268
+#define __NR_msgctl		269
+#define __NR_semget		270
+#define __NR_semop		271
+#define __NR_semctl		272
+#define __NR_semtimedop		273
+#define __NR_shmat		274
+#define __NR_shmget		275
+#define __NR_shmdt		276
+#define __NR_shmctl		277
+
 #ifdef __KERNEL__
-#define NR_syscalls		266
+#define NR_syscalls		278
 
 
 #define __ARCH_WANT_IPC_PARSE_VERSION

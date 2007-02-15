@@ -12,10 +12,6 @@
 #define sys_nfsservctl sys_ni_syscall
 #endif
 
-#if !defined(CONFIG_SYSV_IPC)
-# define sys_ipc	sys_ni_syscall
-#endif
-
 	.section .rodata,"a",@progbits
 	.type	sys_call_table,@object
 	.global	sys_call_table
@@ -129,7 +125,7 @@ sys_call_table:
 	.long	sys_getitimer		/* 105 */
 	.long	sys_swapoff
 	.long	sys_sysinfo
-	.long	sys_ipc
+	.long	sys_ni_syscall		/* was sys_ipc briefly */
 	.long	sys_sendfile
 	.long	sys_setdomainname	/* 110 */
 	.long	sys_newuname
@@ -287,4 +283,16 @@ sys_call_table:
 	.long	sys_tee
 	.long	sys_vmsplice
 	.long	__sys_epoll_pwait	/* 265 */
+	.long	sys_msgget
+	.long	sys_msgsnd
+	.long	sys_msgrcv
+	.long	sys_msgctl
+	.long	sys_semget		/* 270 */
+	.long	sys_semop
+	.long	sys_semctl
+	.long	sys_semtimedop
+	.long	sys_shmat
+	.long	sys_shmget		/* 275 */
+	.long	sys_shmdt
+	.long	sys_shmctl
 	.long	sys_ni_syscall		/* r8 is saturated at nr_syscalls */
