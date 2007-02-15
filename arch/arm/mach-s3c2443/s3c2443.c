@@ -53,6 +53,8 @@ int __init s3c2443_init(void)
 {
 	printk("S3C2443: Initialising architecture\n");
 
+	s3c_device_nand.name = "s3c2412-nand";
+
 	return sysdev_register(&s3c2443_sysdev);
 }
 
