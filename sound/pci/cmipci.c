@@ -57,7 +57,7 @@ static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable switches */
 static long mpu_port[SNDRV_CARDS];
-static long fm_port[SNDRV_CARDS];
+static long fm_port[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)]=1};
 static int soft_ac3[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)]=1};
 #ifdef SUPPORT_JOYSTICK
 static int joystick_port[SNDRV_CARDS];
@@ -2779,6 +2779,9 @@ static int __devinit snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
 	struct snd_opl3 *opl3;
 	int err;
 
+	if (!fm_port)
+		goto disable_fm;
+
 	/* first try FM regs in PCI port range */
 	iosynth = cm->iobase + CM_REG_FM_PCI;
 	err = snd_opl3_create(cm->card, iosynth, iosynth + 2,
@@ -2793,7 +2796,7 @@ static int __devinit snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
 		case 0x3C8: val |= CM_FMSEL_3C8; break;
 		case 0x388: val |= CM_FMSEL_388; break;
 		default:
-			    return 0;
+			goto disable_fm;
 		}
 		snd_cmipci_write(cm, CM_REG_LEGACY_CTRL, val);
 		/* enable FM */
@@ -2803,17 +2806,18 @@ static int __devinit snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
 				    OPL3_HW_OPL3, 0, &opl3) < 0) {
 			printk(KERN_ERR "cmipci: no OPL device at %#lx, "
 			       "skipping...\n", iosynth);
-			/* disable FM */
-			snd_cmipci_write(cm, CM_REG_LEGACY_CTRL,
-					 val & ~CM_FMSEL_MASK);
-			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_FM_EN);
-			return 0;
+			goto disable_fm;
 		}
 	}
 	if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
 		printk(KERN_ERR "cmipci: cannot create OPL3 hwdep\n");
 		return err;
 	}
+	return 0;
+
+ disable_fm:
+	snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_FMSEL_MASK);
+	snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_FM_EN);
 	return 0;
 }
 
