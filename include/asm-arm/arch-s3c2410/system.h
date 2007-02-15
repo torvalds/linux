@@ -15,11 +15,13 @@
 
 #include <asm/arch/map.h>
 #include <asm/arch/idle.h>
+#include <asm/arch/reset.h>
 
 #include <asm/arch/regs-watchdog.h>
 #include <asm/arch/regs-clock.h>
 
 void (*s3c24xx_idle)(void);
+void (*s3c24xx_reset_hook)(void);
 
 void s3c24xx_default_idle(void)
 {
@@ -54,13 +56,15 @@ static void arch_idle(void)
 		s3c24xx_default_idle();
 }
 
-
 static void
 arch_reset(char mode)
 {
 	if (mode == 's') {
 		cpu_reset(0);
 	}
+
+	if (s3c24xx_reset_hook)
+		s3c24xx_reset_hook();
 
 	printk("arch_reset: attempting watchdog reset\n");
 
