@@ -4942,9 +4942,16 @@ static int patch_alc882(struct hda_codec *codec)
 						  alc882_cfg_tbl);
 
 	if (board_config < 0 || board_config >= ALC882_MODEL_LAST) {
-		printk(KERN_INFO "hda_codec: Unknown model for ALC882, "
-		       "trying auto-probe from BIOS...\n");
-		board_config = ALC882_AUTO;
+		/* Pick up systems that don't supply PCI SSID */
+		switch (codec->subsystem_id) {
+		case 0x106b0c00: /* Mac Pro */
+			board_config = ALC885_MACPRO;
+			break;
+		default:
+			printk(KERN_INFO "hda_codec: Unknown model for ALC882, "
+		       			 "trying auto-probe from BIOS...\n");
+			board_config = ALC882_AUTO;
+		}
 	}
 
 	if (board_config == ALC882_AUTO) {
