@@ -60,9 +60,7 @@ vmlinux-32		= vmlinux.32
 vmlinux-64		= vmlinux
 
 cflags-y		+= -mabi=64
-ifdef CONFIG_BUILD_ELF64
-cflags-y		+= $(call cc-option,-mno-explicit-relocs)
-else
+ifndef CONFIG_BUILD_ELF64
 cflags-y		+= $(call cc-option,-msym32)
 endif
 endif
