@@ -6,13 +6,42 @@
  * SH-Mobile SolutionEngine 7300 Support.
  *
  */
-
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <asm/machvec.h>
 #include <asm/se7300.h>
 
-void heartbeat_7300se(void);
 void init_7300se_IRQ(void);
+
+static unsigned char heartbeat_bit_pos[] = { 8, 9, 10, 11, 12, 13, 14, 15 };
+
+static struct resource heartbeat_resources[] = {
+	[0] = {
+		.start	= PA_LED,
+		.end	= PA_LED + ARRAY_SIZE(heartbeat_bit_pos) - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device heartbeat_device = {
+	.name		= "heartbeat",
+	.id		= -1,
+	.dev	= {
+		.platform_data	= heartbeat_bit_pos,
+	},
+	.num_resources	= ARRAY_SIZE(heartbeat_resources),
+	.resource	= heartbeat_resources,
+};
+
+static struct platform_device *se7300_devices[] __initdata = {
+	&heartbeat_device,
+};
+
+static int __init se7300_devices_setup(void)
+{
+	return platform_add_devices(se7300_devices, ARRAY_SIZE(se7300_devices));
+}
+__initcall(se7300_devices_setup);
 
 /*
  * The Machine Vector
@@ -42,8 +71,5 @@ struct sh_machine_vector mv_7300se __initmv = {
 	.mv_outsl = sh7300se_outsl,
 
 	.mv_init_irq = init_7300se_IRQ,
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat = heartbeat_7300se,
-#endif
 };
 ALIAS_MV(7300se)

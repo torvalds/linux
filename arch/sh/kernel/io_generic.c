@@ -1,9 +1,8 @@
-/* $Id: io_generic.c,v 1.2 2003/05/04 19:29:53 lethal Exp $
- *
- * linux/arch/sh/kernel/io_generic.c
+/*
+ * arch/sh/kernel/io_generic.c
  *
  * Copyright (C) 2000  Niibe Yutaka
- * Copyright (C) 2005  Paul Mundt
+ * Copyright (C) 2005 - 2007 Paul Mundt
  *
  * Generic I/O routine. These can be used where a machine specific version
  * is not required.
@@ -13,8 +12,9 @@
  * for more details.
  */
 #include <linux/module.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/machvec.h>
+#include <asm/cacheflush.h>
 
 #ifdef CONFIG_CPU_SH3
 /* SH3 has a PCMCIA bug that needs a dummy read from area 6 for a
@@ -96,6 +96,7 @@ void generic_insw(unsigned long port, void *dst, unsigned long count)
 	while (count--)
 		*buf++ = *port_addr;
 
+	flush_dcache_all();
 	dummy_read();
 }
 
@@ -170,6 +171,7 @@ void generic_outsw(unsigned long port, const void *src, unsigned long count)
 	while (count--)
 		*port_addr = *buf++;
 
+	flush_dcache_all();
 	dummy_read();
 }
 

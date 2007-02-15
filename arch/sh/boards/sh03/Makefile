@@ -3,4 +3,3 @@
 #
 
 obj-y	 := setup.o rtc.o
-obj-$(CONFIG_HEARTBEAT) += led.o

@@ -178,12 +178,10 @@ interrupt_entry:
 8:	.long	do_exception_error
 	
 trap_entry:
-	/* verbose BUG trapa entry check */
-	mov	#0x3e,r8
-	cmp/ge	r8,r9
-	bf/s	1f
-	 add	#-0x10,r9
-	add	#0x10,r9
+	mov	#0x30,r8
+	cmp/ge	r8,r9		! vector 0x20-0x2f is systemcall
+	bt	1f
+	add	#-0x10,r9	! convert SH2 to SH3/4 ABI
 1:	
 	shll2	r9			! TRA
 	mov	#OFF_TRA,r8
@@ -206,7 +204,7 @@ trap_entry:
 
 #if defined(CONFIG_SH_STANDARD_BIOS)
 	/* Unwind the stack and jmp to the debug entry */
-debug_kernel_fw:
+ENTRY(sh_bios_handler)
 	mov	r15,r0
 	add	#(22-4)*4-4,r0
 	ldc.l	@r0+,gbr

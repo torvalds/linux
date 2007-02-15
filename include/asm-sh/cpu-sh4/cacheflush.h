@@ -17,6 +17,7 @@
  *  so we need them.
  */
 void flush_cache_all(void);
+void flush_dcache_all(void);
 void flush_cache_mm(struct mm_struct *mm);
 #define flush_cache_dup_mm(mm) flush_cache_mm(mm)
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
@@ -38,16 +39,4 @@ void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
 /* Initialization of P3 area for copy_user_page */
 void p3_cache_init(void);
 
-#define PG_mapped	PG_arch_1
-
-#ifdef CONFIG_MMU
-extern int remap_area_pages(unsigned long addr, unsigned long phys_addr,
-			    unsigned long size, unsigned long flags);
-#else /* CONFIG_MMU */
-static inline int remap_area_pages(unsigned long addr, unsigned long phys_addr,
-				   unsigned long size, unsigned long flags)
-{
-	return 0;
-}
-#endif /* CONFIG_MMU */
 #endif /* __ASM_CPU_SH4_CACHEFLUSH_H */

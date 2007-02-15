@@ -57,54 +57,51 @@ static int __init sh7206_devices_setup(void)
 }
 __initcall(sh7206_devices_setup);
 
-#define INTC_IPR08     0xfffe0c04UL
-#define INTC_IPR09     0xfffe0c06UL
-#define INTC_IPR14     0xfffe0c10UL
-
-#define CMI0_IRQ       140
-
-#define MTU1_TGI1A     164
-
-#define SCIF0_BRI_IRQ  240
-#define SCIF0_ERI_IRQ  241
-#define SCIF0_RXI_IRQ  242
-#define SCIF0_TXI_IRQ  243
-
-#define SCIF1_BRI_IRQ  244
-#define SCIF1_ERI_IRQ  245
-#define SCIF1_RXI_IRQ  246
-#define SCIF1_TXI_IRQ  247
-
-#define SCIF2_BRI_IRQ  248
-#define SCIF2_ERI_IRQ  249
-#define SCIF2_RXI_IRQ  250
-#define SCIF2_TXI_IRQ  251
-
-#define SCIF3_BRI_IRQ  252
-#define SCIF3_ERI_IRQ  253
-#define SCIF3_RXI_IRQ  254
-#define SCIF3_TXI_IRQ  255
-
 static struct ipr_data sh7206_ipr_map[] = {
-	{ CMI0_IRQ,      INTC_IPR08, 3, 2 },
-	{ MTU2_TGI1A,    INTC_IPR09, 1, 2 },
-	{ SCIF0_ERI_IRQ, INTC_IPR14, 3, 3 },
-	{ SCIF0_RXI_IRQ, INTC_IPR14, 3, 3 },
-	{ SCIF0_BRI_IRQ, INTC_IPR14, 3, 3 },
-	{ SCIF0_TXI_IRQ, INTC_IPR14, 3, 3 },
-	{ SCIF1_ERI_IRQ, INTC_IPR14, 2, 3 },
-	{ SCIF1_RXI_IRQ, INTC_IPR14, 2, 3 },
-	{ SCIF1_BRI_IRQ, INTC_IPR14, 2, 3 },
-	{ SCIF1_TXI_IRQ, INTC_IPR14, 2, 3 },
-	{ SCIF2_ERI_IRQ, INTC_IPR14, 1, 3 },
-	{ SCIF2_RXI_IRQ, INTC_IPR14, 1, 3 },
-	{ SCIF2_BRI_IRQ, INTC_IPR14, 1, 3 },
-	{ SCIF2_TXI_IRQ, INTC_IPR14, 1, 3 },
-	{ SCIF3_ERI_IRQ, INTC_IPR14, 0, 3 },
-	{ SCIF3_RXI_IRQ, INTC_IPR14, 0, 3 },
-	{ SCIF3_BRI_IRQ, INTC_IPR14, 0, 3 },
-	{ SCIF3_TXI_IRQ, INTC_IPR14, 0, 3 },
+	{ 140,  7, 12, 2 },	/* CMI0 */
+	{ 164,  8,  4, 2 },	/* MTU2_TGI1A */
+	{ 240, 13, 12, 3 },	/* SCIF0_BRI */
+	{ 241, 13, 12, 3 },	/* SCIF0_ERI */
+	{ 242, 13, 12, 3 },	/* SCIF0_RXI */
+	{ 243, 13, 12, 3 },	/* SCIF0_TXI */
+	{ 244, 13,  8, 3 },	/* SCIF1_BRI */
+	{ 245, 13,  8, 3 },	/* SCIF1_ERI */
+	{ 246, 13,  8, 3 },	/* SCIF1_RXI */
+	{ 247, 13,  8, 3 },	/* SCIF1_TXI */
+	{ 248, 13,  4, 3 },	/* SCIF2_BRI */
+	{ 249, 13,  4, 3 },	/* SCIF2_ERI */
+	{ 250, 13,  4, 3 },	/* SCIF2_RXI */
+	{ 251, 13,  4, 3 },	/* SCIF2_TXI */
+	{ 252, 13,  0, 3 },	/* SCIF3_BRI */
+	{ 253, 13,  0, 3 },	/* SCIF3_ERI */
+	{ 254, 13,  0, 3 },	/* SCIF3_RXI */
+	{ 255, 13,  0, 3 },	/* SCIF3_TXI */
 };
+
+static unsigned int ipr_offsets[] = {
+	0xfffe0818,	/* IPR01 */
+	0xfffe081a,	/* IPR02 */
+	0,		/* unused */
+	0,		/* unused */
+	0xfffe0820,	/* IPR05 */
+	0xfffe0c00,	/* IPR06 */
+	0xfffe0c02,	/* IPR07 */
+	0xfffe0c04,	/* IPR08 */
+	0xfffe0c06,	/* IPR09 */
+	0xfffe0c08,	/* IPR10 */
+	0xfffe0c0a,	/* IPR11 */
+	0xfffe0c0c,	/* IPR12 */
+	0xfffe0c0e,	/* IPR13 */
+	0xfffe0c10,	/* IPR14 */
+};
+
+/* given the IPR index return the address of the IPR register */
+unsigned int map_ipridx_to_addr(int idx)
+{
+	if (unlikely(idx >= ARRAY_SIZE(ipr_offsets)))
+		return 0;
+	return ipr_offsets[idx];
+}
 
 void __init init_IRQ_ipr(void)
 {

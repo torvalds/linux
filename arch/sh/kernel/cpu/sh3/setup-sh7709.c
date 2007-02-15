@@ -51,3 +51,24 @@ static int __init sh7709_devices_setup(void)
 				    ARRAY_SIZE(sh7709_devices));
 }
 __initcall(sh7709_devices_setup);
+
+#define IPRx(A,N) .addr=A, .shift=0*N*-1
+#define IPRA(N)	IPRx(0xfffffee2UL,N)
+#define IPRB(N)	IPRx(0xfffffee4UL,N)
+#define IPRE(N)	IPRx(0xa400001aUL,N)
+
+static struct ipr_data sh7709_ipr_map[] = {
+	[16]		= { IPRA(15-12), 2 }, /* TMU TUNI0 */
+	[17]		= { IPRA(11-8),  4 }, /* TMU TUNI1 */
+	[22]		= { IPRA(3-0),   2 }, /* RTC CUI */
+	[23 ... 26]	= { IPRB(7-4),   3 }, /* SCI */
+	[27]		= { IPRB(15-12), 2 }, /* WDT ITI */
+	[48 ... 51]	= { IPRE(15-12), 7 }, /* DMA */
+	[52 ... 55]	= { IPRE(11-8),  3 }, /* IRDA */
+	[56 ... 59]	= { IPRE(7-4),   3 }, /* SCIF */
+};
+
+void __init init_IRQ_ipr()
+{
+	make_ipr_irq(sh7709_ipr_map, ARRAY_SIZE(sh7709_ipr_map));
+}

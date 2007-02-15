@@ -1,14 +1,11 @@
 /*
- *  linux/arch/sh/kernel/setup.c
+ * arch/sh/kernel/setup.c
+ *
+ * This file handles the architecture-dependent parts of initialization
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2002, 2003  Paul Mundt
+ *  Copyright (C) 2002 - 2006 Paul Mundt
  */
-
-/*
- * This file handles the architecture-dependent parts of initialization
- */
-
 #include <linux/screen_info.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -395,9 +392,9 @@ static const char *cpu_name[] = {
 	[CPU_SH_NONE]	= "Unknown"
 };
 
-const char *get_cpu_subtype(void)
+const char *get_cpu_subtype(struct sh_cpuinfo *c)
 {
-	return cpu_name[boot_cpu_data.type];
+	return cpu_name[c->type];
 }
 
 #ifdef CONFIG_PROC_FS
@@ -407,19 +404,19 @@ static const char *cpu_flags[] = {
 	"ptea", "llsc", "l2", NULL
 };
 
-static void show_cpuflags(struct seq_file *m)
+static void show_cpuflags(struct seq_file *m, struct sh_cpuinfo *c)
 {
 	unsigned long i;
 
 	seq_printf(m, "cpu flags\t:");
 
-	if (!cpu_data->flags) {
+	if (!c->flags) {
 		seq_printf(m, " %s\n", cpu_flags[0]);
 		return;
 	}
 
 	for (i = 0; cpu_flags[i]; i++)
-		if ((cpu_data->flags & (1 << i)))
+		if ((c->flags & (1 << i)))
 			seq_printf(m, " %s", cpu_flags[i+1]);
 
 	seq_printf(m, "\n");
@@ -441,16 +438,20 @@ static void show_cacheinfo(struct seq_file *m, const char *type,
  */
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	unsigned int cpu = smp_processor_id();
+	struct sh_cpuinfo *c = v;
+	unsigned int cpu = c - cpu_data;
 
-	if (!cpu && cpu_online(cpu))
+	if (!cpu_online(cpu))
+		return 0;
+
+	if (cpu == 0)
 		seq_printf(m, "machine\t\t: %s\n", get_system_type());
 
 	seq_printf(m, "processor\t: %d\n", cpu);
 	seq_printf(m, "cpu family\t: %s\n", init_utsname()->machine);
-	seq_printf(m, "cpu type\t: %s\n", get_cpu_subtype());
+	seq_printf(m, "cpu type\t: %s\n", get_cpu_subtype(c));
 
-	show_cpuflags(m);
+	show_cpuflags(m, c);
 
 	seq_printf(m, "cache type\t: ");
 
@@ -459,22 +460,22 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	 * unified cache on the SH-2 and SH-3, as well as the harvard
 	 * style cache on the SH-4.
 	 */
-	if (boot_cpu_data.icache.flags & SH_CACHE_COMBINED) {
+	if (c->icache.flags & SH_CACHE_COMBINED) {
 		seq_printf(m, "unified\n");
-		show_cacheinfo(m, "cache", boot_cpu_data.icache);
+		show_cacheinfo(m, "cache", c->icache);
 	} else {
 		seq_printf(m, "split (harvard)\n");
-		show_cacheinfo(m, "icache", boot_cpu_data.icache);
-		show_cacheinfo(m, "dcache", boot_cpu_data.dcache);
+		show_cacheinfo(m, "icache", c->icache);
+		show_cacheinfo(m, "dcache", c->dcache);
 	}
 
 	/* Optional secondary cache */
-	if (boot_cpu_data.flags & CPU_HAS_L2_CACHE)
-		show_cacheinfo(m, "scache", boot_cpu_data.scache);
+	if (c->flags & CPU_HAS_L2_CACHE)
+		show_cacheinfo(m, "scache", c->scache);
 
 	seq_printf(m, "bogomips\t: %lu.%02lu\n",
-		     boot_cpu_data.loops_per_jiffy/(500000/HZ),
-		     (boot_cpu_data.loops_per_jiffy/(5000/HZ)) % 100);
+		     c->loops_per_jiffy/(500000/HZ),
+		     (c->loops_per_jiffy/(5000/HZ)) % 100);
 
 	return show_clocks(m);
 }

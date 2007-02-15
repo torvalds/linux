@@ -19,7 +19,7 @@ static int __init setup_voyagergx(void)
 {
 	unsigned long val;
 
-	val = inl(DRAM_CTRL);
+	val = readl((void __iomem *)DRAM_CTRL);
 	val |= (DRAM_CTRL_CPU_COLUMN_SIZE_256	|
 		DRAM_CTRL_CPU_ACTIVE_PRECHARGE	|
 		DRAM_CTRL_CPU_RESET		|
@@ -29,7 +29,7 @@ static int __init setup_voyagergx(void)
 		DRAM_CTRL_ACTIVE_PRECHARGE	|
 		DRAM_CTRL_RESET			|
 		DRAM_CTRL_REMAIN_ACTIVE);
-	outl(val, DRAM_CTRL);
+	writel(val, (void __iomem *)DRAM_CTRL);
 
 	return 0;
 }

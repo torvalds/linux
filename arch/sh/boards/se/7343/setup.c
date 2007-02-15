@@ -4,7 +4,6 @@
 #include <asm/mach/se7343.h>
 #include <asm/irq.h>
 
-void heartbeat_7343se(void);
 void init_7343se_IRQ(void);
 
 static struct resource smc91x_resources[] = {
@@ -31,14 +30,30 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-static struct platform_device *smc91x_platform_devices[] __initdata = {
+static struct resource heartbeat_resources[] = {
+	[0] = {
+		.start	= PA_LED,
+		.end	= PA_LED + 8 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device heartbeat_device = {
+	.name		= "heartbeat",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(heartbeat_resources),
+	.resource	= heartbeat_resources,
+};
+
+static struct platform_device *sh7343se_platform_devices[] __initdata = {
 	&smc91x_device,
+	&heartbeat_device,
 };
 
 static int __init sh7343se_devices_setup(void)
 {
-	return platform_add_devices(smc91x_platform_devices,
-				    ARRAY_SIZE(smc91x_platform_devices));
+	return platform_add_devices(sh7343se_platform_devices,
+				    ARRAY_SIZE(sh7343se_platform_devices));
 }
 
 static void __init sh7343se_setup(char **cmdline_p)
@@ -76,8 +91,5 @@ struct sh_machine_vector mv_7343se __initmv = {
 
 	.mv_init_irq = init_7343se_IRQ,
 	.mv_irq_demux = shmse_irq_demux,
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat = heartbeat_7343se,
-#endif
 };
 ALIAS_MV(7343se)

@@ -45,12 +45,6 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 		return NULL;
 
 	/*
-	 * Don't remap the low PCI/ISA area, it's always mapped..
-	 */
-	if (phys_addr >= 0xA0000 && last_addr < 0x100000)
-		return (void __iomem *)phys_to_virt(phys_addr);
-
-	/*
 	 * If we're on an SH7751 or SH7780 PCI controller, PCI memory is
 	 * mapped at the end of the address space (typically 0xfd000000)
 	 * in a non-translatable area, so mapping through page tables for

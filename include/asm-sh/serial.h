@@ -9,11 +9,6 @@
 
 #include <linux/kernel.h>
 
-#ifdef CONFIG_SH_EC3104
-#include <asm/serial-ec3104.h>
-#elif defined (CONFIG_SH_BIGSUR)
-#include <asm/serial-bigsur.h>
-#else
 /*
  * This assumes you have a 1.8432 MHz clock for your UART.
  *
@@ -34,12 +29,8 @@
 
 #else
 
-#define SERIAL_PORT_DFNS			\
-	/* UART CLK   PORT IRQ     FLAGS        */			\
-	{ 0, BASE_BAUD, 0x3F8, 4, STD_COM_FLAGS },	/* ttyS0 */	\
-	{ 0, BASE_BAUD, 0x2F8, 3, STD_COM_FLAGS }	/* ttyS1 */
+#define SERIAL_PORT_DFNS
 
 #endif
 
-#endif
 #endif /* _ASM_SERIAL_H */

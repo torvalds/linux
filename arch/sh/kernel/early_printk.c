@@ -106,12 +106,32 @@ static struct console scif_console = {
 };
 
 #if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SH_STANDARD_BIOS)
+#define DEFAULT_BAUD 115200
 /*
  * Simple SCIF init, primarily aimed at SH7750 and other similar SH-4
  * devices that aren't using sh-ipl+g.
  */
-static void scif_sercon_init(int baud)
+static void scif_sercon_init(char *s)
 {
+	unsigned baud = DEFAULT_BAUD;
+	char *e;
+
+	if (*s == ',')
+		++s;
+
+	if (*s) {
+		/* ignore ioport/device name */
+		s += strcspn(s, ",");
+		if (*s == ',')
+			s++;
+	}
+
+	if (*s) {
+		baud = simple_strtoul(s, &e, 0);
+		if (baud == 0 || s == e)
+			baud = DEFAULT_BAUD;
+	}
+
 	ctrl_outw(0, scif_port.mapbase + 8);
 	ctrl_outw(0, scif_port.mapbase);
 
@@ -167,7 +187,7 @@ int __init setup_early_printk(char *buf)
 		early_console = &scif_console;
 
 #if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SH_STANDARD_BIOS)
-		scif_sercon_init(115200);
+		scif_sercon_init(buf + 6);
 #endif
 	}
 #endif

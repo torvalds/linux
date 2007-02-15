@@ -3,6 +3,7 @@
  * linux/arch/sh/boards/se/7206/setup.c
  *
  * Copyright (C) 2006  Yoshinori Sato
+ * Copyright (C) 2007  Paul Mundt
  *
  * Hitachi 7206 SolutionEngine Support.
  *
@@ -34,14 +35,36 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
+static unsigned char heartbeat_bit_pos[] = { 8, 9, 10, 11, 12, 13, 14, 15 };
+
+static struct resource heartbeat_resources[] = {
+	[0] = {
+		.start	= PA_LED,
+		.end	= PA_LED + ARRAY_SIZE(heartbeat_bit_pos) - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device heartbeat_device = {
+	.name		= "heartbeat",
+	.id		= -1,
+	.dev	= {
+		.platform_data	= heartbeat_bit_pos,
+	},
+	.num_resources	= ARRAY_SIZE(heartbeat_resources),
+	.resource	= heartbeat_resources,
+};
+
+static struct platform_device *se7206_devices[] __initdata = {
+	&smc91x_device,
+	&heartbeat_device,
+};
+
 static int __init se7206_devices_setup(void)
 {
-	return platform_device_register(&smc91x_device);
+	return platform_add_devices(se7206_devices, ARRAY_SIZE(se7206_devices));
 }
-
 __initcall(se7206_devices_setup);
-
-void heartbeat_se(void);
 
 /*
  * The Machine Vector
@@ -72,8 +95,5 @@ struct sh_machine_vector mv_se __initmv = {
 	.mv_outsl		= se7206_outsl,
 
 	.mv_init_irq		= init_se7206_IRQ,
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat		= heartbeat_se,
-#endif
 };
 ALIAS_MV(se)

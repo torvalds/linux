@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/rtc.h>
 #include <asm/sh03/io.h>
@@ -48,15 +49,36 @@ static void __init sh03_setup(char **cmdline_p)
 	board_time_init = sh03_time_init;
 }
 
+static struct resource heartbeat_resources[] = {
+	[0] = {
+		.start	= 0xa0800000,
+		.end	= 0xa0800000 + 8 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device heartbeat_device = {
+	.name		= "heartbeat",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(heartbeat_resources),
+	.resource	= heartbeat_resources,
+};
+
+static struct platform_device *sh03_devices[] __initdata = {
+	&heartbeat_device,
+};
+
+static int __init sh03_devices_setup(void)
+{
+	return platform_add_devices(sh03_devices, ARRAY_SIZE(sh03_devices));
+}
+__initcall(sh03_devices_setup);
+
 struct sh_machine_vector mv_sh03 __initmv = {
 	.mv_name		= "Interface (CTP/PCI-SH03)",
 	.mv_setup		= sh03_setup,
 	.mv_nr_irqs		= 48,
 	.mv_ioport_map		= sh03_ioport_map,
 	.mv_init_irq		= init_sh03_IRQ,
-
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat		= heartbeat_sh03,
-#endif
 };
 ALIAS_MV(sh03)

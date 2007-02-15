@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 1999 Niibe Yutaka
- * Copyright (C) 2003 Paul Mundt
+ * Copyright (C) 2003 - 2006 Paul Mundt
  *
  * ASID handling idea taken from MIPS implementation.
  */
@@ -19,11 +19,6 @@
  *    (b) ASID (Address Space IDentifier)
  */
 
-/*
- * Cache of MMU context last used.
- */
-extern unsigned long mmu_context_cache;
-
 #define MMU_CONTEXT_ASID_MASK		0x000000ff
 #define MMU_CONTEXT_VERSION_MASK	0xffffff00
 #define MMU_CONTEXT_FIRST_VERSION	0x00000100
@@ -31,6 +26,11 @@ extern unsigned long mmu_context_cache;
 
 /* ASID is 8-bit value, so it can't be 0x100 */
 #define MMU_NO_ASID			0x100
+
+#define cpu_context(cpu, mm)	((mm)->context.id[cpu])
+#define cpu_asid(cpu, mm)	(cpu_context((cpu), (mm)) & \
+				 MMU_CONTEXT_ASID_MASK)
+#define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
 
 /*
  * Virtual Page Number mask
@@ -41,18 +41,17 @@ extern unsigned long mmu_context_cache;
 /*
  * Get MMU context if needed.
  */
-static inline void get_mmu_context(struct mm_struct *mm)
+static inline void get_mmu_context(struct mm_struct *mm, unsigned int cpu)
 {
-	unsigned long mc = mmu_context_cache;
+	unsigned long asid = asid_cache(cpu);
 
 	/* Check if we have old version of context. */
-	if (((mm->context.id ^ mc) & MMU_CONTEXT_VERSION_MASK) == 0)
+	if (((cpu_context(cpu, mm) ^ asid) & MMU_CONTEXT_VERSION_MASK) == 0)
 		/* It's up to date, do nothing */
 		return;
 
 	/* It's old, we need to get new context with new version. */
-	mc = ++mmu_context_cache;
-	if (!(mc & MMU_CONTEXT_ASID_MASK)) {
+	if (!(++asid & MMU_CONTEXT_ASID_MASK)) {
 		/*
 		 * We exhaust ASID of this version.
 		 * Flush all TLB and start new cycle.
@@ -63,10 +62,11 @@ static inline void get_mmu_context(struct mm_struct *mm)
 		 * Fix version; Note that we avoid version #0
 		 * to distingush NO_CONTEXT.
 		 */
-		if (!mc)
-			mmu_context_cache = mc = MMU_CONTEXT_FIRST_VERSION;
+		if (!asid)
+			asid = MMU_CONTEXT_FIRST_VERSION;
 	}
-	mm->context.id = mc;
+
+	cpu_context(cpu, mm) = asid_cache(cpu) = asid;
 }
 
 /*
@@ -74,9 +74,13 @@ static inline void get_mmu_context(struct mm_struct *mm)
  * instance.
  */
 static inline int init_new_context(struct task_struct *tsk,
-				       struct mm_struct *mm)
+				   struct mm_struct *mm)
 {
-	mm->context.id = NO_CONTEXT;
+	int i;
+
+	for (i = 0; i < num_online_cpus(); i++)
+		cpu_context(i, mm) = NO_CONTEXT;
+
 	return 0;
 }
 
@@ -117,10 +121,10 @@ static inline unsigned long get_asid(void)
  * After we have set current->mm to a new value, this activates
  * the context for the new mm so we see the new mappings.
  */
-static inline void activate_context(struct mm_struct *mm)
+static inline void activate_context(struct mm_struct *mm, unsigned int cpu)
 {
-	get_mmu_context(mm);
-	set_asid(mm->context.id & MMU_CONTEXT_ASID_MASK);
+	get_mmu_context(mm, cpu);
+	set_asid(cpu_asid(cpu, mm));
 }
 
 /* MMU_TTB is used for optimizing the fault handling. */
@@ -138,10 +142,15 @@ static inline void switch_mm(struct mm_struct *prev,
 			     struct mm_struct *next,
 			     struct task_struct *tsk)
 {
+	unsigned int cpu = smp_processor_id();
+
 	if (likely(prev != next)) {
+		cpu_set(cpu, next->cpu_vm_mask);
 		set_TTB(next->pgd);
-		activate_context(next);
-	}
+		activate_context(next, cpu);
+	} else
+		if (!cpu_test_and_set(cpu, next->cpu_vm_mask))
+			activate_context(next, cpu);
 }
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
@@ -159,7 +168,7 @@ enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 #define destroy_context(mm)		do { } while (0)
 #define set_asid(asid)			do { } while (0)
 #define get_asid()			(0)
-#define activate_context(mm)		do { } while (0)
+#define activate_context(mm,cpu)	do { } while (0)
 #define switch_mm(prev,next,tsk)	do { } while (0)
 #define deactivate_mm(tsk,mm)		do { } while (0)
 #define activate_mm(prev,next)		do { } while (0)
@@ -174,14 +183,16 @@ enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
  */
 static inline void enable_mmu(void)
 {
+	unsigned int cpu = smp_processor_id();
+
 	/* Enable MMU */
 	ctrl_outl(MMU_CONTROL_INIT, MMUCR);
 	ctrl_barrier();
 
-	if (mmu_context_cache == NO_CONTEXT)
-		mmu_context_cache = MMU_CONTEXT_FIRST_VERSION;
+	if (asid_cache(cpu) == NO_CONTEXT)
+		asid_cache(cpu) = MMU_CONTEXT_FIRST_VERSION;
 
-	set_asid(mmu_context_cache & MMU_CONTEXT_ASID_MASK);
+	set_asid(asid_cache(cpu) & MMU_CONTEXT_ASID_MASK);
 }
 
 static inline void disable_mmu(void)
