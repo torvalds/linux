@@ -37,7 +37,7 @@
  */
 #define FWSEND 48
 
-#define FWDEV(x) &((x)->adapter->dev)
+#define FWDEV(x) &((x)->dev)
 
 static char *firmware = FWFILE;
 

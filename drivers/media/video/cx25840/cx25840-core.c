@@ -903,12 +903,12 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	state->vbi_line_offset = 8;
 	state->id = id;
 
+	i2c_attach_client(client);
+
 	if (state->is_cx25836)
 		cx25836_initialize(client);
 	else
 		cx25840_initialize(client, 1);
-
-	i2c_attach_client(client);
 
 	return 0;
 }
