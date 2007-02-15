@@ -846,6 +846,8 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 			break;
 		case IWCH_QP_STATE_TERMINATE:
 			qhp->attr.state = IWCH_QP_STATE_TERMINATE;
+			if (t3b_device(qhp->rhp))
+				cxio_set_wq_in_error(&qhp->wq);
 			if (!internal)
 				terminate = 1;
 			break;
