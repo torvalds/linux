@@ -5,6 +5,9 @@
 #include <linux/compat.h>
 #include <linux/compiler.h>
 
+#include <asm/signal.h>
+#include <asm/siginfo.h>
+
 #include <asm/uaccess.h>
 
 static inline int __copy_conv_sigset_to_user(compat_sigset_t __user *d,
