@@ -222,34 +222,6 @@ out_no_tsc:
 
 #ifdef CONFIG_CPU_FREQ
 
-static unsigned int cpufreq_delayed_issched = 0;
-static unsigned int cpufreq_init = 0;
-static struct work_struct cpufreq_delayed_get_work;
-
-static void handle_cpufreq_delayed_get(struct work_struct *work)
-{
-	unsigned int cpu;
-
-	for_each_online_cpu(cpu)
-		cpufreq_get(cpu);
-
-	cpufreq_delayed_issched = 0;
-}
-
-/*
- * if we notice cpufreq oddness, schedule a call to cpufreq_get() as it tries
- * to verify the CPU frequency the timing core thinks the CPU is running
- * at is still correct.
- */
-static inline void cpufreq_delayed_get(void)
-{
-	if (cpufreq_init && !cpufreq_delayed_issched) {
-		cpufreq_delayed_issched = 1;
-		printk(KERN_DEBUG "Checking if CPU frequency changed.\n");
-		schedule_work(&cpufreq_delayed_get_work);
-	}
-}
-
 /*
  * if the CPU frequency is scaled, TSC-based delays will need a different
  * loops_per_jiffy value to function properly.
@@ -313,17 +285,9 @@ static struct notifier_block time_cpufreq_notifier_block = {
 
 static int __init cpufreq_tsc(void)
 {
-	int ret;
-
-	INIT_WORK(&cpufreq_delayed_get_work, handle_cpufreq_delayed_get);
-	ret = cpufreq_register_notifier(&time_cpufreq_notifier_block,
-					CPUFREQ_TRANSITION_NOTIFIER);
-	if (!ret)
-		cpufreq_init = 1;
-
-	return ret;
+	return cpufreq_register_notifier(&time_cpufreq_notifier_block,
+					 CPUFREQ_TRANSITION_NOTIFIER);
 }
-
 core_initcall(cpufreq_tsc);
 
 #endif
