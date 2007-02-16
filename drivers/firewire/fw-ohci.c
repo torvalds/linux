@@ -1583,10 +1583,7 @@ ohci_queue_iso_receive(struct fw_iso_context *base,
 					  descriptor_branch_always);
 		db->first_size = cpu_to_le16(ctx->base.header_size);
 		db->first_req_count = cpu_to_le16(p->header_length);
-		db->second_req_count = cpu_to_le16(p->payload_length);
-		db->first_res_count = cpu_to_le16(db->first_req_count);
-		db->second_res_count = cpu_to_le16(db->second_req_count);
-
+		db->first_res_count = db->first_req_count;
 		db->first_buffer = cpu_to_le32(d_bus + sizeof *db);
 		
 		if (offset + rest < PAGE_SIZE)
@@ -1594,6 +1591,8 @@ ohci_queue_iso_receive(struct fw_iso_context *base,
 		else
 			length = PAGE_SIZE - offset;
 
+		db->second_req_count = cpu_to_le16(length);
+		db->second_res_count = db->second_req_count;
 		page_bus = page_private(buffer->pages[page]);
 		db->second_buffer = cpu_to_le32(page_bus + offset);
 
