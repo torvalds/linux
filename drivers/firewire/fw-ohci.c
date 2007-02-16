@@ -1621,14 +1621,14 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 		page_bus = page_private(buffer->pages[page]);
 		db->second_buffer = cpu_to_le32(page_bus + offset);
 
+		if (p->interrupt && length == rest)
+			db->control |= cpu_to_le16(descriptor_irq_always);
+
 		context_append(&ctx->context, d, z, header_z);
 		offset = (offset + length) & ~PAGE_MASK;
 		rest -= length;
 		page++;
 	}
-
-	if (p->interrupt)
-		db->control |= cpu_to_le16(descriptor_irq_always);
 
 	return 0;
 }
@@ -1668,15 +1668,15 @@ ohci_queue_iso_receive_bufferfill(struct fw_iso_context *base,
 		d->req_count = cpu_to_le16(length);
 		d->res_count = cpu_to_le16(length);
 
+		if (packet->interrupt && length == rest)
+			d->control |= cpu_to_le16(descriptor_irq_always);
+
 		context_append(&ctx->context, d, 1, 0);
 
 		offset = (offset + length) & ~PAGE_MASK;
 		rest -= length;
 		page++;
 	}
-
-	if (packet->interrupt)
-		d->control |= cpu_to_le16(descriptor_irq_always);
 
 	return 0;
 }
