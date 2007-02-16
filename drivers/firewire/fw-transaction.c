@@ -575,7 +575,7 @@ allocate_request(struct fw_packet *p)
 	request->ack = p->ack;
 	request->length = length;
 	if (data)
-		memcpy(request->data, p->payload, length);
+		memcpy(request->data, data, length);
 
 	memcpy(request->request_header, p->header, sizeof p->header);
 
