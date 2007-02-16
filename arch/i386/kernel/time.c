@@ -159,15 +159,6 @@ EXPORT_SYMBOL(profile_pc);
  */
 irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
-	/*
-	 * Here we are in the timer irq handler. We just have irqs locally
-	 * disabled but we don't know if the timer_bh is running on the other
-	 * CPU. We need to avoid to SMP race with it. NOTE: we don' t need
-	 * the irq version of write_lock because as just said we have irq
-	 * locally disabled. -arca
-	 */
-	write_seqlock(&xtime_lock);
-
 #ifdef CONFIG_X86_IO_APIC
 	if (timer_ack) {
 		/*
@@ -186,7 +177,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 	do_timer_interrupt_hook();
 
-
 	if (MCA_bus) {
 		/* The PS/2 uses level-triggered interrupts.  You can't
 		turn them off, nor would you want to (any attempt to
@@ -200,13 +190,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 		u8 irq_v = inb_p( 0x61 );	/* read the current state */
 		outb_p( irq_v|0x80, 0x61 );	/* reset the IRQ */
 	}
-
-	write_sequnlock(&xtime_lock);
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	if (using_apic_timer)
-		smp_send_timer_broadcast_ipi();
-#endif
 
 	return IRQ_HANDLED;
 }
@@ -277,63 +260,16 @@ void notify_arch_cmos_timer(void)
 		mod_timer(&sync_cmos_timer, jiffies + 1);
 }
 
-static int timer_resume(struct sys_device *dev)
-{
-#ifdef CONFIG_HPET_TIMER
-	if (is_hpet_enabled())
-		hpet_reenable();
-#endif
-	setup_pit_timer();
-	touch_softlockup_watchdog();
-	return 0;
-}
-
-static struct sysdev_class timer_sysclass = {
-	.resume = timer_resume,
-	set_kset_name("timer"),
-};
-
-
-/* XXX this driverfs stuff should probably go elsewhere later -john */
-static struct sys_device device_timer = {
-	.id	= 0,
-	.cls	= &timer_sysclass,
-};
-
-static int time_init_device(void)
-{
-	int error = sysdev_class_register(&timer_sysclass);
-	if (!error)
-		error = sysdev_register(&device_timer);
-	return error;
-}
-
-device_initcall(time_init_device);
-
-#ifdef CONFIG_HPET_TIMER
 extern void (*late_time_init)(void);
 /* Duplicate of time_init() below, with hpet_enable part added */
 static void __init hpet_time_init(void)
 {
-	if ((hpet_enable() >= 0) && hpet_use_timer) {
-		printk("Using HPET for base-timer\n");
-	}
-
+	if (!hpet_enable())
+		setup_pit_timer();
 	do_time_init();
 }
-#endif
 
 void __init time_init(void)
 {
-#ifdef CONFIG_HPET_TIMER
-	if (is_hpet_capable()) {
-		/*
-		 * HPET initialization needs to do memory-mapped io. So, let
-		 * us do a late initialization after mem_init().
-		 */
-		late_time_init = hpet_time_init;
-		return;
-	}
-#endif
-	do_time_init();
+	late_time_init = hpet_time_init;
 }

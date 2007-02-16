@@ -79,7 +79,12 @@ void __init trap_init_hook(void)
 {
 }
 
-static struct irqaction irq0  = { timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL};
+static struct irqaction irq0  = {
+	.handler = timer_interrupt,
+	.flags = IRQF_DISABLED | IRQF_NOBALANCING,
+	.mask = CPU_MASK_NONE,
+	.name = "timer"
+};
 
 /**
  * time_init_hook - do any specific initialisations for the system timer.
@@ -90,6 +95,7 @@ static struct irqaction irq0  = { timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE,
  **/
 void __init time_init_hook(void)
 {
+	irq0.mask = cpumask_of_cpu(0);
 	setup_irq(0, &irq0);
 }
 

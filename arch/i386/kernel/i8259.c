@@ -410,12 +410,6 @@ void __init native_init_IRQ(void)
 	intr_init_hook();
 
 	/*
-	 * Set the clock to HZ Hz, we already have a valid
-	 * vector now:
-	 */
-	setup_pit_timer();
-
-	/*
 	 * External FPU? Set up irq13 if so, for
 	 * original braindamaged IBM FERR coupling.
 	 */

@@ -287,9 +287,7 @@ static void __cpuinit smp_callin(void)
 	/*
 	 * Save our processor parameters
 	 */
- 	smp_store_cpu_info(cpuid);
-
-	disable_APIC_timer();
+	smp_store_cpu_info(cpuid);
 
 	/*
 	 * Allow the master to continue.
@@ -408,7 +406,6 @@ static void __cpuinit start_secondary(void *unused)
 		enable_NMI_through_LVT0(NULL);
 		enable_8259A_irq(0);
 	}
-	enable_APIC_timer();
 	/*
 	 * low-memory mappings have been cleared, flush them from
 	 * the local TLBs too.
