@@ -152,6 +152,7 @@ struct iso_context {
 struct fw_ohci {
 	struct fw_card card;
 
+	u32 version;
 	__iomem char *registers;
 	dma_addr_t self_id_bus;
 	__le32 *self_id_cpu;
@@ -210,6 +211,7 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define OHCI1394_PCI_HCI_Control	0x40
 #define SELF_ID_BUF_SIZE		0x800
 #define OHCI_TCODE_PHY_PACKET		0x0e
+#define OHCI_VERSION_1_1		0x010010
 
 static char ohci_driver_name[] = KBUILD_MODNAME;
 
@@ -1357,6 +1359,10 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 			callback = handle_ir_bufferfill_packet;
 	}
 
+	if (callback == handle_ir_dualbuffer_packet &&
+	    ohci->version < OHCI_VERSION_1_1)
+		return ERR_PTR(-EINVAL);
+
 	spin_lock_irqsave(&ohci->lock, flags);
 	index = ffs(*mask) - 1;
 	if (index >= 0)
@@ -1687,14 +1693,19 @@ ohci_queue_iso(struct fw_iso_context *base,
 	       struct fw_iso_buffer *buffer,
 	       unsigned long payload)
 {
+	struct iso_context *ctx = container_of(base, struct iso_context, base);
+
 	if (base->type == FW_ISO_CONTEXT_TRANSMIT)
 		return ohci_queue_iso_transmit(base, packet, buffer, payload);
 	else if (base->header_size == 0)
 		return ohci_queue_iso_receive_bufferfill(base, packet,
 							 buffer, payload);
-	else
+	else if (ctx->context.ohci->version >= OHCI_VERSION_1_1)
 		return ohci_queue_iso_receive_dualbuffer(base, packet,
 							 buffer, payload);
+	else
+		/* FIXME: Implement fallback for OHCI 1.0 controllers. */
+		return -EINVAL;
 }
 
 static const struct fw_card_driver ohci_driver = {
@@ -1767,7 +1778,7 @@ static int __devinit
 pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct fw_ohci *ohci;
-	u32 bus_options, max_receive, link_speed, version;
+	u32 bus_options, max_receive, link_speed;
 	u64 guid;
 	int error_code;
 	size_t size;
@@ -1894,9 +1905,9 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	if (error_code < 0)
 		return cleanup(ohci, CLEANUP_SELF_ID, error_code);
 
-	version = reg_read(ohci, OHCI1394_Version);
+	ohci->version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	fw_notify("Added fw-ohci device %s, OHCI version %x.%x\n",
-		  dev->dev.bus_id, (version >> 16) & 0xff, version & 0xff);
+		  dev->dev.bus_id, ohci->version >> 16, ohci->version & 0xff);
 
 	return 0;
 }
