@@ -18,18 +18,37 @@
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/arch/board.h>
+#include <asm/arch/cpu.h>
 
 #ifndef CONFIG_ARCH_AT91
 #error "CONFIG_ARCH_AT91 must be defined."
 #endif
 
-/* interface and function clocks */
-static struct clk *iclk, *fclk;
+/* interface and function clocks; sometimes also an AHB clock */
+static struct clk *iclk, *fclk, *hclk;
 static int clocked;
 
 extern int usb_disabled(void);
 
 /*-------------------------------------------------------------------------*/
+
+static void at91_start_clock(void)
+{
+	if (cpu_is_at91sam9261())
+		clk_enable(hclk);
+	clk_enable(iclk);
+	clk_enable(fclk);
+	clocked = 1;
+}
+
+static void at91_stop_clock(void)
+{
+	clk_disable(fclk);
+	clk_disable(iclk);
+	if (cpu_is_at91sam9261())
+		clk_disable(hclk);
+	clocked = 0;
+}
 
 static void at91_start_hc(struct platform_device *pdev)
 {
@@ -41,9 +60,7 @@ static void at91_start_hc(struct platform_device *pdev)
 	/*
 	 * Start the USB clocks.
 	 */
-	clk_enable(iclk);
-	clk_enable(fclk);
-	clocked = 1;
+	at91_start_clock();
 
 	/*
 	 * The USB host controller must remain in reset.
@@ -66,9 +83,7 @@ static void at91_stop_hc(struct platform_device *pdev)
 	/*
 	 * Stop the USB clocks.
 	 */
-	clk_disable(fclk);
-	clk_disable(iclk);
-	clocked = 0;
+	at91_stop_clock();
 }
 
 
@@ -126,6 +141,8 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 
 	iclk = clk_get(&pdev->dev, "ohci_clk");
 	fclk = clk_get(&pdev->dev, "uhpck");
+	if (cpu_is_at91sam9261())
+		hclk = clk_get(&pdev->dev, "hck0");
 
 	at91_start_hc(pdev);
 	ohci_hcd_init(hcd_to_ohci(hcd));
@@ -137,6 +154,8 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	/* Error handling */
 	at91_stop_hc(pdev);
 
+	if (cpu_is_at91sam9261())
+		clk_put(hclk);
 	clk_put(fclk);
 	clk_put(iclk);
 
@@ -171,9 +190,11 @@ static int usb_hcd_at91_remove(struct usb_hcd *hcd,
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 
+	if (cpu_is_at91sam9261())
+		clk_put(hclk);
 	clk_put(fclk);
 	clk_put(iclk);
-	fclk = iclk = NULL;
+	fclk = iclk = hclk = NULL;
 
 	dev_set_drvdata(&pdev->dev, NULL);
 	return 0;
@@ -280,9 +301,7 @@ ohci_hcd_at91_drv_suspend(struct platform_device *pdev, pm_message_t mesg)
 	 */
 	if (at91_suspend_entering_slow_clock()) {
 		ohci_usb_reset (ohci);
-		clk_disable(fclk);
-		clk_disable(iclk);
-		clocked = 0;
+		at91_stop_clock();
 	}
 
 	return 0;
@@ -295,11 +314,8 @@ static int ohci_hcd_at91_drv_resume(struct platform_device *pdev)
 	if (device_may_wakeup(&pdev->dev))
 		disable_irq_wake(hcd->irq);
 
-	if (!clocked) {
-		clk_enable(iclk);
-		clk_enable(fclk);
-		clocked = 1;
-	}
+	if (!clocked)
+		at91_start_clock();
 
 	return 0;
 }
