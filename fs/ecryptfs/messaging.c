@@ -169,7 +169,8 @@ int ecryptfs_process_helo(unsigned int transport, uid_t uid, pid_t pid)
 	if (!new_id) {
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR, "Failed to allocate memory; unable "
-				"to register daemon [%d] for user\n", pid, uid);
+				"to register daemon [%d] for user [%d]\n",
+				pid, uid);
 		goto unlock;
 	}
 	if (!ecryptfs_find_daemon_id(uid, &old_id)) {
