@@ -12,7 +12,7 @@ ib_core-y :=			packer.o ud_header.o verbs.o sysfs.o \
 
 ib_mad-y :=			mad.o smi.o agent.o mad_rmpp.o
 
-ib_sa-y :=			sa_query.o
+ib_sa-y :=			sa_query.o multicast.o
 
 ib_cm-y :=			cm.o
 
