@@ -26,6 +26,7 @@
 #include <linux/sysdev.h>
 #include <linux/cpu.h>
 #include <linux/clockchips.h>
+#include <linux/acpi_pmtmr.h>
 #include <linux/module.h>
 
 #include <asm/atomic.h>
@@ -59,8 +60,8 @@
  */
 static int enable_local_apic __initdata = 0;
 
-/* Enable local APIC timer for highres/dyntick on UP */
-static int enable_local_apic_timer __initdata = 0;
+/* Local APIC timer verification ok */
+static int local_apic_timer_verify_ok;
 
 /*
  * Debug level, exported for io_apic.c
@@ -82,7 +83,7 @@ static void apic_pm_activate(void);
 static struct clock_event_device lapic_clockevent = {
 	.name		= "lapic",
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT
-			| CLOCK_EVT_FEAT_C3STOP,
+			| CLOCK_EVT_FEAT_C3STOP | CLOCK_EVT_FEAT_DUMMY,
 	.shift		= 32,
 	.set_mode	= lapic_timer_setup,
 	.set_next_event	= lapic_next_event,
@@ -159,64 +160,8 @@ int lapic_get_maxlvt(void)
  * Local APIC timer
  */
 
-/*
- * This part sets up the APIC 32 bit clock in LVTT1, with HZ interrupts
- * per second. We assume that the caller has already set up the local
- * APIC.
- *
- * The APIC timer is not exactly sync with the external timer chip, it
- * closely follows bus clocks.
- */
-
-/*
- * FIXME: Move this to i8253.h. There is no need to keep the access to
- * the PIT scattered all around the place -tglx
- */
-
-/*
- * The timer chip is already set up at HZ interrupts per second here,
- * but we do not accept timer interrupts yet. We only allow the BP
- * to calibrate.
- */
-static unsigned int __devinit get_8254_timer_count(void)
-{
-	unsigned long flags;
-
-	unsigned int count;
-
-	spin_lock_irqsave(&i8253_lock, flags);
-
-	outb_p(0x00, PIT_MODE);
-	count = inb_p(PIT_CH0);
-	count |= inb_p(PIT_CH0) << 8;
-
-	spin_unlock_irqrestore(&i8253_lock, flags);
-
-	return count;
-}
-
-/* next tick in 8254 can be caught by catching timer wraparound */
-static void __devinit wait_8254_wraparound(void)
-{
-	unsigned int curr_count, prev_count;
-
-	curr_count = get_8254_timer_count();
-	do {
-		prev_count = curr_count;
-		curr_count = get_8254_timer_count();
-
-		/* workaround for broken Mercury/Neptune */
-		if (prev_count >= curr_count + 0x100)
-			curr_count = get_8254_timer_count();
-
-	} while (prev_count >= curr_count);
-}
-
-/*
- * Default initialization for 8254 timers. If we use other timers like HPET,
- * we override this later
- */
-void (*wait_timer_tick)(void) __devinitdata = wait_8254_wraparound;
+/* Clock divisor is set to 16 */
+#define APIC_DIVISOR 16
 
 /*
  * This function sets up the local APIC timer, with a timeout of
@@ -228,9 +173,6 @@ void (*wait_timer_tick)(void) __devinitdata = wait_8254_wraparound;
  * We do reads before writes even if unnecessary, to get around the
  * P5 APIC double write bug.
  */
-
-#define APIC_DIVISOR 16
-
 static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 {
 	unsigned int lvtt_value, tmp_value;
@@ -277,6 +219,10 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 	unsigned long flags;
 	unsigned int v;
 
+	/* Lapic used for broadcast ? */
+	if (!local_apic_timer_verify_ok)
+		return;
+
 	local_irq_save(flags);
 
 	switch (mode) {
@@ -321,111 +267,238 @@ static void __devinit setup_APIC_timer(void)
 }
 
 /*
- * In this function we calibrate APIC bus clocks to the external
- * timer. Unfortunately we cannot use jiffies and the timer irq
- * to calibrate, since some later bootup code depends on getting
- * the first irq? Ugh.
+ * In this functions we calibrate APIC bus clocks to the external timer.
  *
- * TODO: Fix this rather than saying "Ugh" -tglx
+ * We want to do the calibration only once since we want to have local timer
+ * irqs syncron. CPUs connected by the same APIC bus have the very same bus
+ * frequency.
  *
- * We want to do the calibration only once since we
- * want to have local timer irqs syncron. CPUs connected
- * by the same APIC bus have the very same bus frequency.
- * And we want to have irqs off anyways, no accidental
- * APIC irq that way.
+ * This was previously done by reading the PIT/HPET and waiting for a wrap
+ * around to find out, that a tick has elapsed. I have a box, where the PIT
+ * readout is broken, so it never gets out of the wait loop again. This was
+ * also reported by others.
+ *
+ * Monitoring the jiffies value is inaccurate and the clockevents
+ * infrastructure allows us to do a simple substitution of the interrupt
+ * handler.
+ *
+ * The calibration routine also uses the pm_timer when possible, as the PIT
+ * happens to run way too slow (factor 2.3 on my VAIO CoreDuo, which goes
+ * back to normal later in the boot process).
  */
 
-static int __init calibrate_APIC_clock(void)
-{
-	unsigned long long t1 = 0, t2 = 0;
-	long tt1, tt2;
-	long result;
-	int i;
-	const int LOOPS = HZ/10;
+#define LAPIC_CAL_LOOPS		(HZ/10)
 
-	apic_printk(APIC_VERBOSE, "calibrating APIC timer ...\n");
+static __initdata volatile int lapic_cal_loops = -1;
+static __initdata long lapic_cal_t1, lapic_cal_t2;
+static __initdata unsigned long long lapic_cal_tsc1, lapic_cal_tsc2;
+static __initdata unsigned long lapic_cal_pm1, lapic_cal_pm2;
+static __initdata unsigned long lapic_cal_j1, lapic_cal_j2;
+
+/*
+ * Temporary interrupt handler.
+ */
+static void __init lapic_cal_handler(struct clock_event_device *dev)
+{
+	unsigned long long tsc = 0;
+	long tapic = apic_read(APIC_TMCCT);
+	unsigned long pm = acpi_pm_read_early();
+
+	if (cpu_has_tsc)
+		rdtscll(tsc);
+
+	switch (lapic_cal_loops++) {
+	case 0:
+		lapic_cal_t1 = tapic;
+		lapic_cal_tsc1 = tsc;
+		lapic_cal_pm1 = pm;
+		lapic_cal_j1 = jiffies;
+		break;
+
+	case LAPIC_CAL_LOOPS:
+		lapic_cal_t2 = tapic;
+		lapic_cal_tsc2 = tsc;
+		if (pm < lapic_cal_pm1)
+			pm += ACPI_PM_OVRRUN;
+		lapic_cal_pm2 = pm;
+		lapic_cal_j2 = jiffies;
+		break;
+	}
+}
+
+/*
+ * Setup the boot APIC
+ *
+ * Calibrate and verify the result.
+ */
+void __init setup_boot_APIC_clock(void)
+{
+	struct clock_event_device *levt = &__get_cpu_var(lapic_events);
+	const long pm_100ms = PMTMR_TICKS_PER_SEC/10;
+	const long pm_thresh = pm_100ms/100;
+	void (*real_handler)(struct clock_event_device *dev);
+	unsigned long deltaj;
+	long delta, deltapm;
+
+	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n"
+		    "calibrating APIC timer ...\n");
+
+	local_irq_disable();
+
+	/* Replace the global interrupt handler */
+	real_handler = global_clock_event->event_handler;
+	global_clock_event->event_handler = lapic_cal_handler;
 
 	/*
-	 * Put whatever arbitrary (but long enough) timeout
-	 * value into the APIC clock, we just want to get the
-	 * counter running for calibration.
+	 * Setup the APIC counter to 1e9. There is no way the lapic
+	 * can underflow in the 100ms detection time frame
 	 */
 	__setup_APIC_LVTT(1000000000, 0, 0);
 
-	/*
-	 * The timer chip counts down to zero. Let's wait
-	 * for a wraparound to start exact measurement:
-	 * (the current tick might have been already half done)
-	 */
+	/* Let the interrupts run */
+	local_irq_enable();
 
-	wait_timer_tick();
+	while(lapic_cal_loops <= LAPIC_CAL_LOOPS);
 
-	/*
-	 * We wrapped around just now. Let's start:
-	 */
-	if (cpu_has_tsc)
-		rdtscll(t1);
-	tt1 = apic_read(APIC_TMCCT);
+	local_irq_disable();
 
-	/*
-	 * Let's wait LOOPS wraprounds:
-	 */
-	for (i = 0; i < LOOPS; i++)
-		wait_timer_tick();
+	/* Restore the real event handler */
+	global_clock_event->event_handler = real_handler;
 
-	tt2 = apic_read(APIC_TMCCT);
-	if (cpu_has_tsc)
-		rdtscll(t2);
+	/* Build delta t1-t2 as apic timer counts down */
+	delta = lapic_cal_t1 - lapic_cal_t2;
+	apic_printk(APIC_VERBOSE, "... lapic delta = %ld\n", delta);
 
-	/*
-	 * The APIC bus clock counter is 32 bits only, it
-	 * might have overflown, but note that we use signed
-	 * longs, thus no extra care needed.
-	 *
-	 * underflown to be exact, as the timer counts down ;)
-	 */
+	/* Check, if the PM timer is available */
+	deltapm = lapic_cal_pm2 - lapic_cal_pm1;
+	apic_printk(APIC_VERBOSE, "... PM timer delta = %ld\n", deltapm);
 
-	result = (tt1-tt2)*APIC_DIVISOR/LOOPS;
+	if (deltapm) {
+		unsigned long mult;
+		u64 res;
+
+		mult = clocksource_hz2mult(PMTMR_TICKS_PER_SEC, 22);
+
+		if (deltapm > (pm_100ms - pm_thresh) &&
+		    deltapm < (pm_100ms + pm_thresh)) {
+			apic_printk(APIC_VERBOSE, "... PM timer result ok\n");
+		} else {
+			res = (((u64) deltapm) *  mult) >> 22;
+			do_div(res, 1000000);
+			printk(KERN_WARNING "APIC calibration not consistent "
+			       "with PM Timer: %ldms instead of 100ms\n",
+			       (long)res);
+			/* Correct the lapic counter value */
+			res = (((u64) delta ) * pm_100ms);
+			do_div(res, deltapm);
+			printk(KERN_INFO "APIC delta adjusted to PM-Timer: "
+			       "%lu (%ld)\n", (unsigned long) res, delta);
+			delta = (long) res;
+		}
+	}
 
 	/* Calculate the scaled math multiplication factor */
-	lapic_clockevent.mult = div_sc(tt1-tt2, TICK_NSEC * LOOPS, 32);
+	lapic_clockevent.mult = div_sc(delta, TICK_NSEC * LAPIC_CAL_LOOPS, 32);
 	lapic_clockevent.max_delta_ns =
 		clockevent_delta2ns(0x7FFFFF, &lapic_clockevent);
 	lapic_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xF, &lapic_clockevent);
 
-	apic_printk(APIC_VERBOSE, "..... tt1-tt2 %ld\n", tt1 - tt2);
-	apic_printk(APIC_VERBOSE, "..... mult: %ld\n", lapic_clockevent.mult);
-	apic_printk(APIC_VERBOSE, "..... calibration result: %ld\n", result);
+	calibration_result = (delta * APIC_DIVISOR) / LAPIC_CAL_LOOPS;
 
-	if (cpu_has_tsc)
+	apic_printk(APIC_VERBOSE, "..... delta %ld\n", delta);
+	apic_printk(APIC_VERBOSE, "..... mult: %ld\n", lapic_clockevent.mult);
+	apic_printk(APIC_VERBOSE, "..... calibration result: %u\n",
+		    calibration_result);
+
+	if (cpu_has_tsc) {
+		delta = (long)(lapic_cal_tsc2 - lapic_cal_tsc1);
 		apic_printk(APIC_VERBOSE, "..... CPU clock speed is "
-			"%ld.%04ld MHz.\n",
-			((long)(t2-t1)/LOOPS)/(1000000/HZ),
-			((long)(t2-t1)/LOOPS)%(1000000/HZ));
+			    "%ld.%04ld MHz.\n",
+			    (delta / LAPIC_CAL_LOOPS) / (1000000 / HZ),
+			    (delta / LAPIC_CAL_LOOPS) % (1000000 / HZ));
+	}
 
 	apic_printk(APIC_VERBOSE, "..... host bus clock speed is "
-		"%ld.%04ld MHz.\n",
-		result/(1000000/HZ),
-		result%(1000000/HZ));
+		    "%u.%04u MHz.\n",
+		    calibration_result / (1000000 / HZ),
+		    calibration_result % (1000000 / HZ));
 
-	return result;
-}
 
-void __init setup_boot_APIC_clock(void)
-{
-	unsigned long flags;
-	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n");
+	apic_printk(APIC_VERBOSE, "... verify APIC timer\n");
 
-	local_irq_save(flags);
-
-	calibration_result = calibrate_APIC_clock();
 	/*
-	 * Now set up the timer for real.
+	 * Setup the apic timer manually
 	 */
-	setup_APIC_timer();
+	local_apic_timer_verify_ok = 1;
+	levt->event_handler = lapic_cal_handler;
+	lapic_timer_setup(CLOCK_EVT_MODE_PERIODIC, levt);
+	lapic_cal_loops = -1;
 
-	local_irq_restore(flags);
+	/* Let the interrupts run */
+	local_irq_enable();
+
+	while(lapic_cal_loops <= LAPIC_CAL_LOOPS);
+
+	local_irq_disable();
+
+	/* Stop the lapic timer */
+	lapic_timer_setup(CLOCK_EVT_MODE_SHUTDOWN, levt);
+
+	local_irq_enable();
+
+	/* Jiffies delta */
+	deltaj = lapic_cal_j2 - lapic_cal_j1;
+	apic_printk(APIC_VERBOSE, "... jiffies delta = %lu\n", deltaj);
+
+	/* Check, if the PM timer is available */
+	deltapm = lapic_cal_pm2 - lapic_cal_pm1;
+	apic_printk(APIC_VERBOSE, "... PM timer delta = %ld\n", deltapm);
+
+	local_apic_timer_verify_ok = 0;
+
+	if (deltapm) {
+		if (deltapm > (pm_100ms - pm_thresh) &&
+		    deltapm < (pm_100ms + pm_thresh)) {
+			apic_printk(APIC_VERBOSE, "... PM timer result ok\n");
+			/* Check, if the jiffies result is consistent */
+			if (deltaj < LAPIC_CAL_LOOPS-2 ||
+			    deltaj > LAPIC_CAL_LOOPS+2) {
+				/*
+				 * Not sure, what we can do about this one.
+				 * When high resultion timers are active
+				 * and the lapic timer does not stop in C3
+				 * we are fine. Otherwise more trouble might
+				 * be waiting. -- tglx
+				 */
+				printk(KERN_WARNING "Global event device %s "
+				       "has wrong frequency "
+				       "(%lu ticks instead of %d)\n",
+				       global_clock_event->name, deltaj,
+				       LAPIC_CAL_LOOPS);
+			}
+			local_apic_timer_verify_ok = 1;
+		}
+	} else {
+		/* Check, if the jiffies result is consistent */
+		if (deltaj >= LAPIC_CAL_LOOPS-2 &&
+		    deltaj <= LAPIC_CAL_LOOPS+2) {
+			apic_printk(APIC_VERBOSE, "... jiffies result ok\n");
+			local_apic_timer_verify_ok = 1;
+		}
+	}
+
+	if (!local_apic_timer_verify_ok) {
+		printk(KERN_WARNING
+		       "APIC timer disabled due to verification failure.\n");
+		/* No broadcast on UP ! */
+		if (num_possible_cpus() == 1)
+			return;
+	} else
+		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
+
+	/* Setup the lapic or request the broadcast */
+	setup_APIC_timer();
 }
 
 void __devinit setup_secondary_APIC_clock(void)
@@ -442,16 +515,15 @@ static void local_apic_timer_interrupt(void)
 	struct clock_event_device *evt = &per_cpu(lapic_events, cpu);
 
 	/*
-	 * Normally we should not be here till LAPIC has been
-	 * initialized but in some cases like kdump, its possible that
-	 * there is a pending LAPIC timer interrupt from previous
-	 * kernel's context and is delivered in new kernel the moment
-	 * interrupts are enabled.
+	 * Normally we should not be here till LAPIC has been initialized but
+	 * in some cases like kdump, its possible that there is a pending LAPIC
+	 * timer interrupt from previous kernel's context and is delivered in
+	 * new kernel the moment interrupts are enabled.
 	 *
-	 * Interrupts are enabled early and LAPIC is setup much later,
-	 * hence its possible that when we get here evt->event_handler
-	 * is NULL. Check for event_handler being NULL and discard
-	 * the interrupt as spurious.
+	 * Interrupts are enabled early and LAPIC is setup much later, hence
+	 * its possible that when we get here evt->event_handler is NULL.
+	 * Check for event_handler being NULL and discard the interrupt as
+	 * spurious.
 	 */
 	if (!evt->event_handler) {
 		printk(KERN_WARNING
@@ -1125,13 +1197,6 @@ static int __init parse_nolapic(char *arg)
 	return 0;
 }
 early_param("nolapic", parse_nolapic);
-
-static int __init apic_enable_lapic_timer(char *str)
-{
-	enable_local_apic_timer = 1;
-	return 0;
-}
-early_param("lapictimer", apic_enable_lapic_timer);
 
 static int __init apic_set_verbosity(char *str)
 {
