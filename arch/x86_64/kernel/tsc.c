@@ -9,31 +9,10 @@
 
 #include <asm/timex.h>
 
-int notsc __initdata = 0;
+static int notsc __initdata = 0;
 
 unsigned int cpu_khz;		/* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
-
-/*
- * do_gettimeoffset() returns microseconds since last timer interrupt was
- * triggered by hardware. A memory read of HPET is slower than a register read
- * of TSC, but much more reliable. It's also synchronized to the timer
- * interrupt. Note that do_gettimeoffset() may return more than hpet_tick, if a
- * timer interrupt has happened already, but vxtime.trigger wasn't updated yet.
- * This is not a problem, because jiffies hasn't updated either. They are bound
- * together by xtime_lock.
- */
-
-unsigned int do_gettimeoffset_tsc(void)
-{
-	unsigned long t;
-	unsigned long x;
-	t = get_cycles_sync();
-	if (t < vxtime.last_tsc)
-		t = vxtime.last_tsc; /* hack */
-	x = ((t - vxtime.last_tsc) * vxtime.tsc_quot) >> US_SCALE;
-	return x;
-}
 
 static unsigned int cyc2ns_scale __read_mostly;
 
@@ -42,7 +21,7 @@ void set_cyc2ns_scale(unsigned long khz)
 	cyc2ns_scale = (NSEC_PER_MSEC << NS_SCALE) / khz;
 }
 
-unsigned long long cycles_2_ns(unsigned long long cyc)
+static unsigned long long cycles_2_ns(unsigned long long cyc)
 {
 	return (cyc * cyc2ns_scale) >> NS_SCALE;
 }
@@ -61,6 +40,12 @@ unsigned long long sched_clock(void)
 	return cycles_2_ns(a);
 }
 
+static int tsc_unstable;
+
+static inline int check_tsc_unstable(void)
+{
+	return tsc_unstable;
+}
 #ifdef CONFIG_CPU_FREQ
 
 /* Frequency scaling support. Adjust the TSC based timer when the cpu frequency
@@ -87,24 +72,6 @@ static void handle_cpufreq_delayed_get(struct work_struct *v)
 		cpufreq_get(cpu);
 	}
 	cpufreq_delayed_issched = 0;
-}
-
-/* if we notice lost ticks, schedule a call to cpufreq_get() as it tries
- * to verify the CPU frequency the timing core thinks the CPU is running
- * at is still correct.
- */
-void cpufreq_delayed_get(void)
-{
-	static int warned;
-	if (cpufreq_init && !cpufreq_delayed_issched) {
-		cpufreq_delayed_issched = 1;
-		if (!warned) {
-			warned = 1;
-			printk(KERN_DEBUG "Losing some ticks... "
-				"checking if CPU frequency changed.\n");
-		}
-		schedule_work(&cpufreq_delayed_get_work);
-	}
 }
 
 static unsigned int  ref_freq = 0;
@@ -142,7 +109,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 
 		cpu_khz = cpufreq_scale(cpu_khz_ref, ref_freq, freq->new);
 		if (!(freq->flags & CPUFREQ_CONST_LOOPS))
-			vxtime.tsc_quot = (USEC_PER_MSEC << US_SCALE) / cpu_khz;
+			mark_tsc_unstable();
 	}
 
 	set_cyc2ns_scale(cpu_khz_ref);
@@ -168,12 +135,6 @@ core_initcall(cpufreq_tsc);
 #endif
 
 static int tsc_unstable = 0;
-
-void mark_tsc_unstable(void)
-{
-	tsc_unstable = 1;
-}
-EXPORT_SYMBOL_GPL(mark_tsc_unstable);
 
 /*
  * Make an educated guess if the TSC is trustworthy and synchronized
@@ -210,3 +171,49 @@ int __init notsc_setup(char *s)
 }
 
 __setup("notsc", notsc_setup);
+
+
+/* clock source code: */
+static cycle_t read_tsc(void)
+{
+	cycle_t ret = (cycle_t)get_cycles_sync();
+	return ret;
+}
+
+static struct clocksource clocksource_tsc = {
+	.name			= "tsc",
+	.rating			= 300,
+	.read			= read_tsc,
+	.mask			= CLOCKSOURCE_MASK(64),
+	.shift			= 22,
+	.flags			= CLOCK_SOURCE_IS_CONTINUOUS |
+				  CLOCK_SOURCE_MUST_VERIFY,
+};
+
+void mark_tsc_unstable(void)
+{
+	if (!tsc_unstable) {
+		tsc_unstable = 1;
+		/* Change only the rating, when not registered */
+		if (clocksource_tsc.mult)
+			clocksource_change_rating(&clocksource_tsc, 0);
+		else
+			clocksource_tsc.rating = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(mark_tsc_unstable);
+
+static int __init init_tsc_clocksource(void)
+{
+	if (!notsc) {
+		clocksource_tsc.mult = clocksource_khz2mult(cpu_khz,
+							clocksource_tsc.shift);
+		if (check_tsc_unstable())
+			clocksource_tsc.rating = 0;
+
+		return clocksource_register(&clocksource_tsc);
+	}
+	return 0;
+}
+
+module_init(init_tsc_clocksource);

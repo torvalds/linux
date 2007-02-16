@@ -982,7 +982,6 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	smp_cleanup_boot();
 	setup_ioapic_dest();
 	check_nmi_watchdog();
-	time_init_gtod();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

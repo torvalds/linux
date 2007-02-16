@@ -28,9 +28,6 @@ extern int read_current_timer(unsigned long *timer_value);
 #define US_SCALE        32 /* 2^32, arbitralrily chosen */
 
 extern struct vxtime_data vxtime;
-
-extern unsigned int do_gettimeoffset_hpet(void);
-extern unsigned int do_gettimeoffset_tsc(void);
+extern void mark_tsc_unstable(void);
 extern void set_cyc2ns_scale(unsigned long khz);
-extern int notsc;
 #endif

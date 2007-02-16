@@ -44,9 +44,6 @@
 #include <asm/apic.h>
 #include <asm/hpet.h>
 
-#ifdef CONFIG_CPU_FREQ
-extern void cpufreq_delayed_get(void);
-#endif
 extern void i8254_timer_resume(void);
 extern int using_apic_timer;
 
@@ -57,84 +54,12 @@ EXPORT_SYMBOL(rtc_lock);
 DEFINE_SPINLOCK(i8253_lock);
 
 unsigned long vxtime_hz = PIT_TICK_RATE;
-int report_lost_ticks;				/* command line option */
-unsigned long long monotonic_base;
 
 struct vxtime_data __vxtime __section_vxtime;	/* for vsyscalls */
 
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
 struct timespec __xtime __section_xtime;
 struct timezone __sys_tz __section_sys_tz;
-
-unsigned int (*do_gettimeoffset)(void) = do_gettimeoffset_tsc;
-
-/*
- * This version of gettimeofday() has microsecond resolution and better than
- * microsecond precision, as we're using at least a 10 MHz (usually 14.31818
- * MHz) HPET timer.
- */
-
-void do_gettimeofday(struct timeval *tv)
-{
-	unsigned long seq;
- 	unsigned int sec, usec;
-
-	do {
-		seq = read_seqbegin(&xtime_lock);
-
-		sec = xtime.tv_sec;
-		usec = xtime.tv_nsec / NSEC_PER_USEC;
-
-		/* i386 does some correction here to keep the clock 
-		   monotonous even when ntpd is fixing drift.
-		   But they didn't work for me, there is a non monotonic
-		   clock anyways with ntp.
-		   I dropped all corrections now until a real solution can
-		   be found. Note when you fix it here you need to do the same
-		   in arch/x86_64/kernel/vsyscall.c and export all needed
-		   variables in vmlinux.lds. -AK */ 
-		usec += do_gettimeoffset();
-
-	} while (read_seqretry(&xtime_lock, seq));
-
-	tv->tv_sec = sec + usec / USEC_PER_SEC;
-	tv->tv_usec = usec % USEC_PER_SEC;
-}
-
-EXPORT_SYMBOL(do_gettimeofday);
-
-/*
- * settimeofday() first undoes the correction that gettimeofday would do
- * on the time, and then saves it. This is ugly, but has been like this for
- * ages already.
- */
-
-int do_settimeofday(struct timespec *tv)
-{
-	time_t wtm_sec, sec = tv->tv_sec;
-	long wtm_nsec, nsec = tv->tv_nsec;
-
-	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
-		return -EINVAL;
-
-	write_seqlock_irq(&xtime_lock);
-
-	nsec -= do_gettimeoffset() * NSEC_PER_USEC;
-
-	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
-	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
-
-	set_normalized_timespec(&xtime, sec, nsec);
-	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
-
-	ntp_clear();
-
-	write_sequnlock_irq(&xtime_lock);
-	clock_was_set();
-	return 0;
-}
-
-EXPORT_SYMBOL(do_settimeofday);
 
 unsigned long profile_pc(struct pt_regs *regs)
 {
@@ -225,85 +150,9 @@ static void set_rtc_mmss(unsigned long nowtime)
 }
 
 
-/* monotonic_clock(): returns # of nanoseconds passed since time_init()
- *		Note: This function is required to return accurate
- *		time even in the absence of multiple timer ticks.
- */
-extern unsigned long long cycles_2_ns(unsigned long long cyc);
-unsigned long long monotonic_clock(void)
-{
-	unsigned long seq;
- 	u32 last_offset, this_offset, offset;
-	unsigned long long base;
-
-	if (vxtime.mode == VXTIME_HPET) {
-		do {
-			seq = read_seqbegin(&xtime_lock);
-
-			last_offset = vxtime.last;
-			base = monotonic_base;
-			this_offset = hpet_readl(HPET_COUNTER);
-		} while (read_seqretry(&xtime_lock, seq));
-		offset = (this_offset - last_offset);
-		offset *= NSEC_PER_TICK / hpet_tick;
-	} else {
-		do {
-			seq = read_seqbegin(&xtime_lock);
-
-			last_offset = vxtime.last_tsc;
-			base = monotonic_base;
-		} while (read_seqretry(&xtime_lock, seq));
-		this_offset = get_cycles_sync();
-		offset = cycles_2_ns(this_offset - last_offset);
-	}
-	return base + offset;
-}
-EXPORT_SYMBOL(monotonic_clock);
-
-static noinline void handle_lost_ticks(int lost)
-{
-	static long lost_count;
-	static int warned;
-	if (report_lost_ticks) {
-		printk(KERN_WARNING "time.c: Lost %d timer tick(s)! ", lost);
-		print_symbol("rip %s)\n", get_irq_regs()->rip);
-	}
-
-	if (lost_count == 1000 && !warned) {
-		printk(KERN_WARNING "warning: many lost ticks.\n"
-		       KERN_WARNING "Your time source seems to be instable or "
-		   		"some driver is hogging interupts\n");
-		print_symbol("rip %s\n", get_irq_regs()->rip);
-		if (vxtime.mode == VXTIME_TSC && hpet_address) {
-			printk(KERN_WARNING "Falling back to HPET\n");
-			if (hpet_use_timer)
-				vxtime.last = hpet_readl(HPET_T0_CMP) - 
-							hpet_tick;
-			else
-				vxtime.last = hpet_readl(HPET_COUNTER);
-			vxtime.mode = VXTIME_HPET;
-			vxtime.hpet_address = hpet_address;
-			do_gettimeoffset = do_gettimeoffset_hpet;
-		}
-		/* else should fall back to PIT, but code missing. */
-		warned = 1;
-	} else
-		lost_count++;
-
-#ifdef CONFIG_CPU_FREQ
-	/* In some cases the CPU can change frequency without us noticing
-	   Give cpufreq a change to catch up. */
-	if ((lost_count+1) % 25 == 0)
-		cpufreq_delayed_get();
-#endif
-}
-
 void main_timer_handler(void)
 {
 	static unsigned long rtc_update = 0;
-	unsigned long tsc;
-	int delay = 0, offset = 0, lost = 0;
-
 /*
  * Here we are in the timer irq handler. We have irqs locally disabled (so we
  * don't need spin_lock_irqsave()) but we don't know if the timer_bh is running
@@ -313,72 +162,11 @@ void main_timer_handler(void)
 
 	write_seqlock(&xtime_lock);
 
-	if (hpet_address)
-		offset = hpet_readl(HPET_COUNTER);
-
-	if (hpet_use_timer) {
-		/* if we're using the hpet timer functionality,
-		 * we can more accurately know the counter value
-		 * when the timer interrupt occured.
-		 */
-		offset = hpet_readl(HPET_T0_CMP) - hpet_tick;
-		delay = hpet_readl(HPET_COUNTER) - offset;
-	} else if (!pmtmr_ioport) {
-		spin_lock(&i8253_lock);
-		outb_p(0x00, 0x43);
-		delay = inb_p(0x40);
-		delay |= inb(0x40) << 8;
-		spin_unlock(&i8253_lock);
-		delay = LATCH - 1 - delay;
-	}
-
-	tsc = get_cycles_sync();
-
-	if (vxtime.mode == VXTIME_HPET) {
-		if (offset - vxtime.last > hpet_tick) {
-			lost = (offset - vxtime.last) / hpet_tick - 1;
-		}
-
-		monotonic_base += 
-			(offset - vxtime.last) * NSEC_PER_TICK / hpet_tick;
-
-		vxtime.last = offset;
-#ifdef CONFIG_X86_PM_TIMER
-	} else if (vxtime.mode == VXTIME_PMTMR) {
-		lost = pmtimer_mark_offset();
-#endif
-	} else {
-		offset = (((tsc - vxtime.last_tsc) *
-			   vxtime.tsc_quot) >> US_SCALE) - USEC_PER_TICK;
-
-		if (offset < 0)
-			offset = 0;
-
-		if (offset > USEC_PER_TICK) {
-			lost = offset / USEC_PER_TICK;
-			offset %= USEC_PER_TICK;
-		}
-
-		monotonic_base += cycles_2_ns(tsc - vxtime.last_tsc);
-
-		vxtime.last_tsc = tsc - vxtime.quot * delay / vxtime.tsc_quot;
-
-		if ((((tsc - vxtime.last_tsc) *
-		      vxtime.tsc_quot) >> US_SCALE) < offset)
-			vxtime.last_tsc = tsc -
-				(((long) offset << US_SCALE) / vxtime.tsc_quot) - 1;
-	}
-
-	if (lost > 0)
-		handle_lost_ticks(lost);
-	else
-		lost = 0;
-
 /*
  * Do the timer stuff.
  */
 
-	do_timer(lost + 1);
+	do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(get_irq_regs()));
 #endif
@@ -537,12 +325,6 @@ void __init stop_timer_interrupt(void)
 	printk(KERN_INFO "timer: %s interrupt stopped.\n", name);
 }
 
-int __init time_setup(char *str)
-{
-	report_lost_ticks = 1;
-	return 1;
-}
-
 static struct irqaction irq0 = {
 	timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL
 };
@@ -557,9 +339,7 @@ void __init time_init(void)
 	set_normalized_timespec(&wall_to_monotonic,
 	                        -xtime.tv_sec, -xtime.tv_nsec);
 
-	if (!hpet_arch_init())
-                vxtime_hz = (FSEC_PER_SEC + hpet_period / 2) / hpet_period;
-	else
+	if (hpet_arch_init())
 		hpet_address = 0;
 
 	if (hpet_use_timer) {
@@ -567,82 +347,26 @@ void __init time_init(void)
 	  	tick_nsec = TICK_NSEC_HPET;
 		cpu_khz = hpet_calibrate_tsc();
 		timename = "HPET";
-#ifdef CONFIG_X86_PM_TIMER
-	} else if (pmtmr_ioport && !hpet_address) {
-		vxtime_hz = PM_TIMER_FREQUENCY;
-		timename = "PM";
-		pit_init();
-		cpu_khz = pit_calibrate_tsc();
-#endif
 	} else {
 		pit_init();
 		cpu_khz = pit_calibrate_tsc();
 		timename = "PIT";
 	}
 
-	vxtime.mode = VXTIME_TSC;
-	vxtime.quot = (USEC_PER_SEC << US_SCALE) / vxtime_hz;
-	vxtime.tsc_quot = (USEC_PER_MSEC << US_SCALE) / cpu_khz;
-	vxtime.last_tsc = get_cycles_sync();
-	set_cyc2ns_scale(cpu_khz);
-	setup_irq(0, &irq0);
-
-#ifndef CONFIG_SMP
-	time_init_gtod();
-#endif
-}
-
-/*
- * Decide what mode gettimeofday should use.
- */
-void time_init_gtod(void)
-{
-	char *timetype;
-
 	if (unsynchronized_tsc())
-		notsc = 1;
+		mark_tsc_unstable();
 
 	if (cpu_has(&boot_cpu_data, X86_FEATURE_RDTSCP))
 		vgetcpu_mode = VGETCPU_RDTSCP;
 	else
 		vgetcpu_mode = VGETCPU_LSL;
 
-	if (hpet_address && notsc) {
-		timetype = hpet_use_timer ? "HPET" : "PIT/HPET";
-		if (hpet_use_timer)
-			vxtime.last = hpet_readl(HPET_T0_CMP) - hpet_tick;
-		else
-			vxtime.last = hpet_readl(HPET_COUNTER);
-		vxtime.mode = VXTIME_HPET;
-		vxtime.hpet_address = hpet_address;
-		do_gettimeoffset = do_gettimeoffset_hpet;
-#ifdef CONFIG_X86_PM_TIMER
-	/* Using PM for gettimeofday is quite slow, but we have no other
-	   choice because the TSC is too unreliable on some systems. */
-	} else if (pmtmr_ioport && !hpet_address && notsc) {
-		timetype = "PM";
-		do_gettimeoffset = do_gettimeoffset_pm;
-		vxtime.mode = VXTIME_PMTMR;
-		sysctl_vsyscall = 0;
-		printk(KERN_INFO "Disabling vsyscall due to use of PM timer\n");
-#endif
-	} else {
-		timetype = hpet_use_timer ? "HPET/TSC" : "PIT/TSC";
-		vxtime.mode = VXTIME_TSC;
-	}
-
-	printk(KERN_INFO "time.c: Using %ld.%06ld MHz WALL %s GTOD %s timer.\n",
-	       vxtime_hz / 1000000, vxtime_hz % 1000000, timename, timetype);
+	set_cyc2ns_scale(cpu_khz);
 	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
 		cpu_khz / 1000, cpu_khz % 1000);
-	vxtime.quot = (USEC_PER_SEC << US_SCALE) / vxtime_hz;
-	vxtime.tsc_quot = (USEC_PER_MSEC << US_SCALE) / cpu_khz;
-	vxtime.last_tsc = get_cycles_sync();
-
-	set_cyc2ns_scale(cpu_khz);
+	setup_irq(0, &irq0);
 }
 
-__setup("report_lost_ticks", time_setup);
 
 static long clock_cmos_diff;
 static unsigned long sleep_start;
@@ -688,20 +412,8 @@ static int timer_resume(struct sys_device *dev)
 	write_seqlock_irqsave(&xtime_lock,flags);
 	xtime.tv_sec = sec;
 	xtime.tv_nsec = 0;
-	if (vxtime.mode == VXTIME_HPET) {
-		if (hpet_use_timer)
-			vxtime.last = hpet_readl(HPET_T0_CMP) - hpet_tick;
-		else
-			vxtime.last = hpet_readl(HPET_COUNTER);
-#ifdef CONFIG_X86_PM_TIMER
-	} else if (vxtime.mode == VXTIME_PMTMR) {
-		pmtimer_resume();
-#endif
-	} else
-		vxtime.last_tsc = get_cycles_sync();
-	write_sequnlock_irqrestore(&xtime_lock,flags);
 	jiffies += sleep_length;
-	monotonic_base += sleep_length * (NSEC_PER_SEC/HZ);
+	write_sequnlock_irqrestore(&xtime_lock,flags);
 	touch_softlockup_watchdog();
 	return 0;
 }
