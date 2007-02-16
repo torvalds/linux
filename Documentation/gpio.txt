@@ -78,7 +78,8 @@ Identifying GPIOs
 -----------------
 GPIOs are identified by unsigned integers in the range 0..MAX_INT.  That
 reserves "negative" numbers for other purposes like marking signals as
-"not available on this board", or indicating faults.
+"not available on this board", or indicating faults.  Code that doesn't
+touch the underlying hardware treats these integers as opaque cookies.
 
 Platforms define how they use those integers, and usually #define symbols
 for the GPIO lines so that board-specific setup code directly corresponds
@@ -139,10 +140,10 @@ issues including wire-OR and output latencies.
 The get/set calls have no error returns because "invalid GPIO" should have
 been reported earlier in gpio_set_direction().  However, note that not all
 platforms can read the value of output pins; those that can't should always
-return zero.  Also, these calls will be ignored for GPIOs that can't safely
-be accessed wihtout sleeping (see below).
+return zero.  Also, using these calls for GPIOs that can't safely be accessed
+without sleeping (see below) is an error.
 
-Platform-specific implementations are encouraged to optimise the two
+Platform-specific implementations are encouraged to optimize the two
 calls to access the GPIO value in cases where the GPIO number (and for
 output, value) are constant.  It's normal for them to need only a couple
 of instructions in such cases (reading or writing a hardware register),
@@ -239,7 +240,8 @@ options are part of the IRQ interface, e.g. IRQF_TRIGGER_FALLING, as are
 system wakeup capabilities.
 
 Non-error values returned from irq_to_gpio() would most commonly be used
-with gpio_get_value().
+with gpio_get_value(), for example to initialize or update driver state
+when the IRQ is edge-triggered.
 
 
 
@@ -260,9 +262,10 @@ pullups (or pulldowns) so that the on-chip ones should not be used.
 There are other system-specific mechanisms that are not specified here,
 like the aforementioned options for input de-glitching and wire-OR output.
 Hardware may support reading or writing GPIOs in gangs, but that's usually
-configuration dependednt:  for GPIOs sharing the same bank.  (GPIOs are
+configuration dependent:  for GPIOs sharing the same bank.  (GPIOs are
 commonly grouped in banks of 16 or 32, with a given SOC having several such
-banks.)  Code relying on such mechanisms will necessarily be nonportable.
+banks.)  Some systems can trigger IRQs from output GPIOs.  Code relying on
+such mechanisms will necessarily be nonportable.
 
 Dynamic definition of GPIOs is not currently supported; for example, as
 a side effect of configuring an add-on board with some GPIO expanders.
