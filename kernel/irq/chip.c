@@ -168,7 +168,7 @@ EXPORT_SYMBOL(set_irq_data);
 /**
  *	set_irq_data - set irq type data for an irq
  *	@irq:	Interrupt number
- *	@data:	Pointer to interrupt specific data
+ *	@entry:	Pointer to MSI descriptor data
  *
  *	Set the hardware irq controller data for an irq
  */
