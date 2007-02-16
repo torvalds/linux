@@ -1174,6 +1174,7 @@ static void update_wall_time(void)
 
 	/* check to see if there is a new clocksource to use */
 	change_clocksource();
+	update_vsyscall(&xtime, clock);
 }
 
 /*
