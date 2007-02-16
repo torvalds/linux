@@ -255,8 +255,6 @@ arch_initcall(init_acpi_device_notify);
 static struct cmos_rtc_board_info rtc_info;
 
 
-#ifdef CONFIG_PNPACPI
-
 /* PNP devices are registered in a subsys_initcall();
  * ACPI specifies the PNP IDs to use.
  */
@@ -279,31 +277,6 @@ static struct device *__init get_rtc_dev(void)
 {
 	return bus_find_device(&pnp_bus_type, NULL, NULL, pnp_match);
 }
-
-#else
-
-/* We expect non-PNPACPI platforms to register an RTC device, usually
- * at or near arch_initcall().  That also helps for example PCs that
- * aren't configured with ACPI (where this code wouldn't run, but the
- * RTC would still be available).  The device name matches the driver;
- * that's how the platform bus works.
- */
-#include <linux/platform_device.h>
-
-static int __init platform_match(struct device *dev, void *data)
-{
-	struct platform_device	*pdev;
-
-	pdev = container_of(dev, struct platform_device, dev);
-	return strcmp(pdev->name, "rtc_cmos") == 0;
-}
-
-static struct device *__init get_rtc_dev(void)
-{
-	return bus_find_device(&platform_bus_type, NULL, NULL, platform_match);
-}
-
-#endif
 
 static int __init acpi_rtc_init(void)
 {
