@@ -270,7 +270,7 @@ static int acpi_thermal_set_polling(struct acpi_thermal *tz, int seconds)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Polling frequency set to %lu seconds\n",
-			  tz->polling_frequency));
+			  tz->polling_frequency/10));
 
 	return 0;
 }

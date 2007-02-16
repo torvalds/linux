@@ -496,6 +496,10 @@ static int ibm_acpi_driver_init(void)
 	printk(IBM_INFO "%s v%s\n", IBM_DESC, IBM_VERSION);
 	printk(IBM_INFO "%s\n", IBM_URL);
 
+	if (ibm_thinkpad_ec_found)
+		printk(IBM_INFO "ThinkPad EC firmware %s\n",
+		       ibm_thinkpad_ec_found);
+
 	return 0;
 }
 
@@ -2617,7 +2621,7 @@ static void __init ibm_handle_init(char *name,
 	ibm_handle_init(#object, &object##_handle, *object##_parent,	\
 		object##_paths, ARRAY_SIZE(object##_paths), &object##_path)
 
-static int set_ibm_param(const char *val, struct kernel_param *kp)
+static int __init set_ibm_param(const char *val, struct kernel_param *kp)
 {
 	unsigned int i;
 
@@ -2659,7 +2663,8 @@ static void acpi_ibm_exit(void)
 	for (i = ARRAY_SIZE(ibms) - 1; i >= 0; i--)
 		ibm_exit(&ibms[i]);
 
-	remove_proc_entry(IBM_DIR, acpi_root_dir);
+	if (proc_dir)
+		remove_proc_entry(IBM_DIR, acpi_root_dir);
 
 	if (ibm_thinkpad_ec_found)
 		kfree(ibm_thinkpad_ec_found);
@@ -2710,9 +2715,6 @@ static int __init acpi_ibm_init(void)
 
 	/* Models with newer firmware report the EC in DMI */
 	ibm_thinkpad_ec_found = check_dmi_for_ec();
-	if (ibm_thinkpad_ec_found)
-		printk(IBM_INFO "ThinkPad EC firmware %s\n",
-		       ibm_thinkpad_ec_found);
 
 	/* these handles are not required */
 	IBM_HANDLE_INIT(vid);
@@ -2742,6 +2744,7 @@ static int __init acpi_ibm_init(void)
 	proc_dir = proc_mkdir(IBM_DIR, acpi_root_dir);
 	if (!proc_dir) {
 		printk(IBM_ERR "unable to create proc dir %s", IBM_DIR);
+		acpi_ibm_exit();
 		return -ENODEV;
 	}
 	proc_dir->owner = THIS_MODULE;

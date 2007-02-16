@@ -205,7 +205,7 @@ void __iomem *acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
 	if (phys > ULONG_MAX) {
 		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
-		return 0;
+		return NULL;
 	}
 	if (acpi_gbl_permanent_mmap)
 		/*
@@ -889,26 +889,6 @@ u32 acpi_os_get_line(char *buffer)
 	return 0;
 }
 #endif				/*  ACPI_FUTURE_USAGE  */
-
-/* Assumes no unreadable holes inbetween */
-u8 acpi_os_readable(void *ptr, acpi_size len)
-{
-#if defined(__i386__) || defined(__x86_64__)
-	char tmp;
-	return !__get_user(tmp, (char __user *)ptr)
-	    && !__get_user(tmp, (char __user *)ptr + len - 1);
-#endif
-	return 1;
-}
-
-#ifdef ACPI_FUTURE_USAGE
-u8 acpi_os_writable(void *ptr, acpi_size len)
-{
-	/* could do dummy write (racy) or a kernel page table lookup.
-	   The later may be difficult at early boot when kmap doesn't work yet. */
-	return 1;
-}
-#endif
 
 acpi_status acpi_os_signal(u32 function, void *info)
 {

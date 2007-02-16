@@ -13,6 +13,7 @@ config ACPI
 	depends on IA64 || X86
 	depends on PCI
 	depends on PM
+	select PNP
 	default y
 	---help---
 	  Advanced Configuration and Power Interface (ACPI) support for 
