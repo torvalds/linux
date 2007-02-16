@@ -17,7 +17,7 @@
 #define		AT91_RSTC_PROCRST	(1 << 0)		/* Processor Reset */
 #define		AT91_RSTC_PERRST	(1 << 2)		/* Peripheral Reset */
 #define		AT91_RSTC_EXTRST	(1 << 3)		/* External Reset */
-#define		AT91_RSTC_KEY		(0xff << 24)		/* KEY Password */
+#define		AT91_RSTC_KEY		(0xa5 << 24)		/* KEY Password */
 
 #define AT91_RSTC_SR		(AT91_RSTC + 0x04)	/* Reset Controller Status Register */
 #define		AT91_RSTC_URSTS		(1 << 0)		/* User Reset Status */
@@ -34,6 +34,5 @@
 #define		AT91_RSTC_URSTEN	(1 << 0)		/* User Reset Enable */
 #define		AT91_RSTC_URSTIEN	(1 << 4)		/* User Reset Interrupt Enable */
 #define		AT91_RSTC_ERSTL		(0xf << 8)		/* External Reset Length */
-#define		AT91_RSTC_KEY		(0xff << 24)		/* KEY Password */
 
 #endif
