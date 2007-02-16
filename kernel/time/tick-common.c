@@ -20,17 +20,19 @@
 #include <linux/sched.h>
 #include <linux/tick.h>
 
+#include "tick-internal.h"
+
 /*
  * Tick devices
  */
-static DEFINE_PER_CPU(struct tick_device, tick_cpu_device);
+DEFINE_PER_CPU(struct tick_device, tick_cpu_device);
 /*
  * Tick next event: keeps track of the tick time
  */
-static ktime_t tick_next_period;
-static ktime_t tick_period;
+ktime_t tick_next_period;
+ktime_t tick_period;
 static int tick_do_timer_cpu = -1;
-static DEFINE_SPINLOCK(tick_device_lock);
+DEFINE_SPINLOCK(tick_device_lock);
 
 /*
  * Periodic tick
@@ -78,9 +80,13 @@ void tick_handle_periodic(struct clock_event_device *dev)
 /*
  * Setup the device for a periodic tick
  */
-void tick_setup_periodic(struct clock_event_device *dev)
+void tick_setup_periodic(struct clock_event_device *dev, int broadcast)
 {
-	dev->event_handler = tick_handle_periodic;
+	tick_set_periodic_handler(dev, broadcast);
+
+	/* Broadcast setup ? */
+	if (!tick_device_is_functional(dev))
+		return;
 
 	if (dev->features & CLOCK_EVT_FEAT_PERIODIC) {
 		clockevents_set_mode(dev, CLOCK_EVT_MODE_PERIODIC);
@@ -145,6 +151,15 @@ static void tick_setup_device(struct tick_device *td,
 	if (!cpus_equal(newdev->cpumask, cpumask))
 		irq_set_affinity(newdev->irq, cpumask);
 
+	/*
+	 * When global broadcasting is active, check if the current
+	 * device is registered as a placeholder for broadcast mode.
+	 * This allows us to handle this x86 misfeature in a generic
+	 * way.
+	 */
+	if (tick_device_uses_broadcast(newdev, cpu))
+		return;
+
 	if (td->mode == TICKDEV_MODE_PERIODIC)
 		tick_setup_periodic(newdev, 0);
 }
@@ -197,19 +212,33 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 		 * Check the rating
 		 */
 		if (curdev->rating >= newdev->rating)
-			goto out;
+			goto out_bc;
 	}
 
 	/*
 	 * Replace the eventually existing device by the new
-	 * device.
+	 * device. If the current device is the broadcast device, do
+	 * not give it back to the clockevents layer !
 	 */
+	if (tick_is_broadcast_device(curdev)) {
+		clockevents_set_mode(curdev, CLOCK_EVT_MODE_SHUTDOWN);
+		curdev = NULL;
+	}
 	clockevents_exchange_device(curdev, newdev);
 	tick_setup_device(td, newdev, cpu, cpumask);
-	ret = NOTIFY_STOP;
 
+	spin_unlock_irqrestore(&tick_device_lock, flags);
+	return NOTIFY_STOP;
+
+out_bc:
+	/*
+	 * Can the new device be used as a broadcast device ?
+	 */
+	if (tick_check_broadcast_device(newdev))
+		ret = NOTIFY_STOP;
 out:
 	spin_unlock_irqrestore(&tick_device_lock, flags);
+
 	return ret;
 }
 
@@ -251,7 +280,13 @@ static int tick_notify(struct notifier_block *nb, unsigned long reason,
 	case CLOCK_EVT_NOTIFY_ADD:
 		return tick_check_new_device(dev);
 
+	case CLOCK_EVT_NOTIFY_BROADCAST_ON:
+	case CLOCK_EVT_NOTIFY_BROADCAST_OFF:
+		tick_broadcast_on_off(reason, dev);
+		break;
+
 	case CLOCK_EVT_NOTIFY_CPU_DEAD:
+		tick_shutdown_broadcast(dev);
 		tick_shutdown(dev);
 		break;
 
