@@ -323,8 +323,7 @@ static int tsc_update_callback(void)
 
 	/* check to see if we should switch to the safe clocksource: */
 	if (clocksource_tsc.rating != 0 && check_tsc_unstable()) {
-		clocksource_tsc.rating = 0;
-		clocksource_reselect();
+		clocksource_change_rating(&clocksource_tsc, 0);
 		change = 1;
 	}
 

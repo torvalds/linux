@@ -178,8 +178,8 @@ static inline void clocksource_calculate_interval(struct clocksource *c,
 
 
 /* used to install a new clocksource */
-int clocksource_register(struct clocksource*);
-void clocksource_reselect(void);
-struct clocksource* clocksource_get_next(void);
+extern int clocksource_register(struct clocksource*);
+extern struct clocksource* clocksource_get_next(void);
+extern void clocksource_change_rating(struct clocksource *cs, int rating);
 
 #endif /* _LINUX_CLOCKSOURCE_H */
