@@ -1134,7 +1134,7 @@ static int futex_lock_pi(u32 __user *uaddr, int detect, unsigned long sec,
 
 	if (sec != MAX_SCHEDULE_TIMEOUT) {
 		to = &timeout;
-		hrtimer_init(&to->timer, CLOCK_REALTIME, HRTIMER_ABS);
+		hrtimer_init(&to->timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
 		hrtimer_init_sleeper(to, current);
 		to->timer.expires = ktime_set(sec, nsec);
 	}

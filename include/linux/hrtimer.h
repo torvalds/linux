@@ -25,16 +25,17 @@
  * Mode arguments of xxx_hrtimer functions:
  */
 enum hrtimer_mode {
-	HRTIMER_ABS,	/* Time value is absolute */
-	HRTIMER_REL,	/* Time value is relative to now */
+	HRTIMER_MODE_ABS,	/* Time value is absolute */
+	HRTIMER_MODE_REL,	/* Time value is relative to now */
 };
 
+/*
+ * Return values for the callback function
+ */
 enum hrtimer_restart {
-	HRTIMER_NORESTART,
-	HRTIMER_RESTART,
+	HRTIMER_NORESTART,	/* Timer is not restarted */
+	HRTIMER_RESTART,	/* Timer must be restarted */
 };
-
-#define HRTIMER_INACTIVE	((void *)1UL)
 
 struct hrtimer_base;
 
@@ -52,7 +53,7 @@ struct hrtimer_base;
 struct hrtimer {
 	struct rb_node		node;
 	ktime_t			expires;
-	int			(*function)(struct hrtimer *);
+	enum hrtimer_restart	(*function)(struct hrtimer *);
 	struct hrtimer_base	*base;
 };
 
@@ -114,7 +115,10 @@ extern int hrtimer_start(struct hrtimer *timer, ktime_t tim,
 extern int hrtimer_cancel(struct hrtimer *timer);
 extern int hrtimer_try_to_cancel(struct hrtimer *timer);
 
-#define hrtimer_restart(timer) hrtimer_start((timer), (timer)->expires, HRTIMER_ABS)
+static inline int hrtimer_restart(struct hrtimer *timer)
+{
+	return hrtimer_start(timer, timer->expires, HRTIMER_MODE_ABS);
+}
 
 /* Query timers: */
 extern ktime_t hrtimer_get_remaining(const struct hrtimer *timer);

@@ -128,7 +128,7 @@ asmlinkage long sys_getitimer(int which, struct itimerval __user *value)
 /*
  * The timer is automagically restarted, when interval != 0
  */
-int it_real_fn(struct hrtimer *timer)
+enum hrtimer_restart it_real_fn(struct hrtimer *timer)
 {
 	struct signal_struct *sig =
 	    container_of(timer, struct signal_struct, real_timer);
@@ -235,7 +235,7 @@ again:
 			timeval_to_ktime(value->it_interval);
 		expires = timeval_to_ktime(value->it_value);
 		if (expires.tv64 != 0)
-			hrtimer_start(timer, expires, HRTIMER_REL);
+			hrtimer_start(timer, expires, HRTIMER_MODE_REL);
 		spin_unlock_irq(&tsk->sighand->siglock);
 		break;
 	case ITIMER_VIRTUAL:

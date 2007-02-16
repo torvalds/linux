@@ -444,7 +444,7 @@ hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
 	/* Switch the timer base, if necessary: */
 	new_base = switch_hrtimer_base(timer, base);
 
-	if (mode == HRTIMER_REL) {
+	if (mode == HRTIMER_MODE_REL) {
 		tim = ktime_add(tim, new_base->get_time());
 		/*
 		 * CONFIG_TIME_LOW_RES is a temporary way for architectures
@@ -583,7 +583,7 @@ void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 
 	bases = __raw_get_cpu_var(hrtimer_bases);
 
-	if (clock_id == CLOCK_REALTIME && mode != HRTIMER_ABS)
+	if (clock_id == CLOCK_REALTIME && mode != HRTIMER_MODE_ABS)
 		clock_id = CLOCK_MONOTONIC;
 
 	timer->base = &bases[clock_id];
@@ -627,7 +627,7 @@ static inline void run_hrtimer_queue(struct hrtimer_base *base)
 
 	while ((node = base->first)) {
 		struct hrtimer *timer;
-		int (*fn)(struct hrtimer *);
+		enum hrtimer_restart (*fn)(struct hrtimer *);
 		int restart;
 
 		timer = rb_entry(node, struct hrtimer, node);
@@ -669,7 +669,7 @@ void hrtimer_run_queues(void)
 /*
  * Sleep related functions:
  */
-static int hrtimer_wakeup(struct hrtimer *timer)
+static enum hrtimer_restart hrtimer_wakeup(struct hrtimer *timer)
 {
 	struct hrtimer_sleeper *t =
 		container_of(timer, struct hrtimer_sleeper, timer);
@@ -699,7 +699,7 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 		schedule();
 
 		hrtimer_cancel(&t->timer);
-		mode = HRTIMER_ABS;
+		mode = HRTIMER_MODE_ABS;
 
 	} while (t->task && !signal_pending(current));
 
@@ -715,10 +715,10 @@ long __sched hrtimer_nanosleep_restart(struct restart_block *restart)
 
 	restart->fn = do_no_restart_syscall;
 
-	hrtimer_init(&t.timer, restart->arg0, HRTIMER_ABS);
+	hrtimer_init(&t.timer, restart->arg0, HRTIMER_MODE_ABS);
 	t.timer.expires.tv64 = ((u64)restart->arg3 << 32) | (u64) restart->arg2;
 
-	if (do_nanosleep(&t, HRTIMER_ABS))
+	if (do_nanosleep(&t, HRTIMER_MODE_ABS))
 		return 0;
 
 	rmtp = (struct timespec __user *) restart->arg1;
@@ -751,7 +751,7 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 		return 0;
 
 	/* Absolute timers do not update the rmtp value and restart: */
-	if (mode == HRTIMER_ABS)
+	if (mode == HRTIMER_MODE_ABS)
 		return -ERESTARTNOHAND;
 
 	if (rmtp) {
@@ -784,7 +784,7 @@ sys_nanosleep(struct timespec __user *rqtp, struct timespec __user *rmtp)
 	if (!timespec_valid(&tu))
 		return -EINVAL;
 
-	return hrtimer_nanosleep(&tu, rmtp, HRTIMER_REL, CLOCK_MONOTONIC);
+	return hrtimer_nanosleep(&tu, rmtp, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 }
 
 /*
