@@ -310,8 +310,6 @@ static void genclk_mode(struct clk *clk, int enabled)
 {
 	u32 control;
 
-	BUG_ON(clk->index > 7);
-
 	control = sm_readl(&system_manager, PM_GCCTRL + 4 * clk->index);
 	if (enabled)
 		control |= SM_BIT(CEN);
@@ -325,11 +323,6 @@ static unsigned long genclk_get_rate(struct clk *clk)
 	u32 control;
 	unsigned long div = 1;
 
-	BUG_ON(clk->index > 7);
-
-	if (!clk->parent)
-		return 0;
-
 	control = sm_readl(&system_manager, PM_GCCTRL + 4 * clk->index);
 	if (control & SM_BIT(DIVEN))
 		div = 2 * (SM_BFEXT(DIV, control) + 1);
@@ -341,11 +334,6 @@ static long genclk_set_rate(struct clk *clk, unsigned long rate, int apply)
 {
 	u32 control;
 	unsigned long parent_rate, actual_rate, div;
-
-	BUG_ON(clk->index > 7);
-
-	if (!clk->parent)
-		return 0;
 
 	parent_rate = clk->parent->get_rate(clk->parent);
 	control = sm_readl(&system_manager, PM_GCCTRL + 4 * clk->index);
@@ -373,11 +361,8 @@ int genclk_set_parent(struct clk *clk, struct clk *parent)
 {
 	u32 control;
 
-	BUG_ON(clk->index > 7);
-
 	printk("clk %s: new parent %s (was %s)\n",
-	       clk->name, parent->name,
-	       clk->parent ? clk->parent->name : "(null)");
+	       clk->name, parent->name, clk->parent->name);
 
 	control = sm_readl(&system_manager, PM_GCCTRL + 4 * clk->index);
 
@@ -397,6 +382,22 @@ int genclk_set_parent(struct clk *clk, struct clk *parent)
 	clk->parent = parent;
 
 	return 0;
+}
+
+static void __init genclk_init_parent(struct clk *clk)
+{
+	u32 control;
+	struct clk *parent;
+
+	BUG_ON(clk->index > 7);
+
+	control = sm_readl(&system_manager, PM_GCCTRL + 4 * clk->index);
+	if (control & SM_BIT(OSCSEL))
+		parent = (control & SM_BIT(PLLSEL)) ? &pll1 : &osc1;
+	else
+		parent = (control & SM_BIT(PLLSEL)) ? &pll0 : &osc0;
+
+	clk->parent = parent;
 }
 
 /* --------------------------------------------------------------------
@@ -872,6 +873,50 @@ at32_add_device_lcdc(unsigned int id, struct lcdc_platform_data *data)
 	return pdev;
 }
 
+/* --------------------------------------------------------------------
+ *  GCLK
+ * -------------------------------------------------------------------- */
+static struct clk gclk0 = {
+	.name		= "gclk0",
+	.mode		= genclk_mode,
+	.get_rate	= genclk_get_rate,
+	.set_rate	= genclk_set_rate,
+	.set_parent	= genclk_set_parent,
+	.index		= 0,
+};
+static struct clk gclk1 = {
+	.name		= "gclk1",
+	.mode		= genclk_mode,
+	.get_rate	= genclk_get_rate,
+	.set_rate	= genclk_set_rate,
+	.set_parent	= genclk_set_parent,
+	.index		= 1,
+};
+static struct clk gclk2 = {
+	.name		= "gclk2",
+	.mode		= genclk_mode,
+	.get_rate	= genclk_get_rate,
+	.set_rate	= genclk_set_rate,
+	.set_parent	= genclk_set_parent,
+	.index		= 2,
+};
+static struct clk gclk3 = {
+	.name		= "gclk3",
+	.mode		= genclk_mode,
+	.get_rate	= genclk_get_rate,
+	.set_rate	= genclk_set_rate,
+	.set_parent	= genclk_set_parent,
+	.index		= 3,
+};
+static struct clk gclk4 = {
+	.name		= "gclk4",
+	.mode		= genclk_mode,
+	.get_rate	= genclk_get_rate,
+	.set_rate	= genclk_set_rate,
+	.set_parent	= genclk_set_parent,
+	.index		= 4,
+};
+
 struct clk *at32_clock_list[] = {
 	&osc32k,
 	&osc0,
@@ -908,6 +953,11 @@ struct clk *at32_clock_list[] = {
 	&atmel_spi1_spi_clk,
 	&lcdc0_hclk,
 	&lcdc0_pixclk,
+	&gclk0,
+	&gclk1,
+	&gclk2,
+	&gclk3,
+	&gclk4,
 };
 unsigned int at32_nr_clocks = ARRAY_SIZE(at32_clock_list);
 
@@ -935,6 +985,13 @@ void __init at32_clock_init(void)
 		pll0.parent = &osc1;
 	if (sm_readl(sm, PM_PLL1) & SM_BIT(PLLOSC))
 		pll1.parent = &osc1;
+
+	genclk_init_parent(&gclk0);
+	genclk_init_parent(&gclk1);
+	genclk_init_parent(&gclk2);
+	genclk_init_parent(&gclk3);
+	genclk_init_parent(&gclk4);
+	genclk_init_parent(&lcdc0_pixclk);
 
 	/*
 	 * Turn on all clocks that have at least one user already, and
