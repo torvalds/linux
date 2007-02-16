@@ -412,6 +412,10 @@ int acpi_power_transition(struct acpi_device *device, int state)
 			goto end;
 	}
 
+	if (device->power.state == state) {
+		goto end;
+	}
+
 	/*
 	 * Then we dereference all power resources used in the current list.
 	 */
