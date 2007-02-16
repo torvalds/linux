@@ -143,6 +143,8 @@ struct at_context {
 struct iso_context {
 	struct fw_iso_context base;
 	struct context context;
+	void *header;
+	size_t header_length;
 };
 
 #define CONFIG_ROM_SIZE 1024
@@ -501,7 +503,7 @@ context_init(struct context *ctx, struct fw_ohci *ohci,
 	return 0;
 }
 
- static void
+static void
 context_release(struct context *ctx)
 {
 	struct fw_card *card = &ctx->ohci->card;
@@ -1273,16 +1275,23 @@ static int handle_ir_packet(struct context *context,
 	struct iso_context *ctx =
 		container_of(context, struct iso_context, context);
 	struct db_descriptor *db = (struct db_descriptor *) d;
+	size_t header_length;
  
 	if (db->first_res_count > 0 && db->second_res_count > 0)
 		/* This descriptor isn't done yet, stop iteration. */
 		return 0;
 
-	if (le16_to_cpu(db->control) & descriptor_irq_always)
-		/* FIXME: we should pass payload address here. */
-		ctx->base.callback(&ctx->base,
-				   0, 0,
+	header_length = db->first_req_count - db->first_res_count;
+	if (ctx->header_length + header_length <= PAGE_SIZE)
+		memcpy(ctx->header + ctx->header_length, db + 1, header_length);
+	ctx->header_length += header_length;
+
+	if (le16_to_cpu(db->control) & descriptor_irq_always) {
+		ctx->base.callback(&ctx->base, 0,
+				   ctx->header_length, ctx->header,
 				   ctx->base.callback_data);
+		ctx->header_length = 0;
+	}
 
 	return 1;
 }
@@ -1301,9 +1310,8 @@ static int handle_it_packet(struct context *context,
 		return 0;
 
 	if (le16_to_cpu(last->control) & descriptor_irq_always)
-		ctx->base.callback(&ctx->base,
-				   0, le16_to_cpu(last->res_count),
-				   ctx->base.callback_data);
+		ctx->base.callback(&ctx->base, le16_to_cpu(last->res_count),
+				   0, NULL, ctx->base.callback_data);
 
 	return 1;
 }
@@ -1316,7 +1324,7 @@ ohci_allocate_iso_context(struct fw_card *card, int type)
 	descriptor_callback_t callback;
 	u32 *mask, regs;
 	unsigned long flags;
-	int index, retval;
+	int index, retval = -ENOMEM;
 
 	if (type == FW_ISO_CONTEXT_TRANSMIT) {
 		mask = &ohci->it_context_mask;
@@ -1344,16 +1352,26 @@ ohci_allocate_iso_context(struct fw_card *card, int type)
  
 	ctx = &list[index];
 	memset(ctx, 0, sizeof *ctx);
+	ctx->header_length = 0;
+	ctx->header = (void *) __get_free_page(GFP_KERNEL);
+	if (ctx->header == NULL)
+		goto out;
+
 	retval = context_init(&ctx->context, ohci, ISO_BUFFER_SIZE,
 			      regs, callback);
-	if (retval < 0) {
-		spin_lock_irqsave(&ohci->lock, flags);
-		*mask |= 1 << index;
-		spin_unlock_irqrestore(&ohci->lock, flags);
-		return ERR_PTR(retval);
-	}
+	if (retval < 0)
+		goto out_with_header;
 
 	return &ctx->base;
+
+ out_with_header:
+	free_page((unsigned long)ctx->header);
+ out:
+	spin_lock_irqsave(&ohci->lock, flags);
+	*mask |= 1 << index;
+	spin_unlock_irqrestore(&ohci->lock, flags);
+
+	return ERR_PTR(retval);
 }
 
 static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
@@ -1413,6 +1431,7 @@ static void ohci_free_iso_context(struct fw_iso_context *base)
 
 	ohci_stop_iso(base);
 	context_release(&ctx->context);
+	free_page((unsigned long)ctx->header);
 
 	spin_lock_irqsave(&ohci->lock, flags);
 

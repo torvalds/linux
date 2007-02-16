@@ -335,7 +335,10 @@ struct fw_iso_packet {
 struct fw_iso_context;
 
 typedef void (*fw_iso_callback_t) (struct fw_iso_context *context,
-				   int status, u32 cycle, void *data);
+				   u32 cycle,
+				   size_t header_length,
+				   void *header,
+				   void *data);
 
 /* An iso buffer is just a set of pages mapped for DMA in the
  * specified direction.  Since the pages are to be used for DMA, they

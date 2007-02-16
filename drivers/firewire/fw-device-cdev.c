@@ -383,20 +383,24 @@ static int ioctl_send_response(struct client *client, void __user *arg)
 }
 
 static void
-iso_callback(struct fw_iso_context *context, int status, u32 cycle, void *data)
+iso_callback(struct fw_iso_context *context, u32 cycle,
+	     size_t header_length, void *header, void *data)
 {
 	struct client *client = data;
 	struct iso_interrupt *interrupt;
 
-	interrupt = kzalloc(sizeof *interrupt, GFP_ATOMIC);
+	interrupt = kzalloc(sizeof *interrupt + header_length, GFP_ATOMIC);
 	if (interrupt == NULL)
 		return;
 
 	interrupt->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
 	interrupt->interrupt.closure   = 0;
 	interrupt->interrupt.cycle     = cycle;
+	interrupt->interrupt.header_length = header_length;
+	memcpy(interrupt->interrupt.header, header, header_length);
 	queue_event(client, &interrupt->event,
-		    &interrupt->interrupt, sizeof interrupt->interrupt, NULL, 0);
+		    &interrupt->interrupt,
+		    sizeof interrupt->interrupt + header_length, NULL, 0);
 }
 
 static int ioctl_create_iso_context(struct client *client, void __user *arg)
@@ -423,6 +427,7 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 {
 	struct fw_cdev_queue_iso request;
 	struct fw_cdev_iso_packet __user *p, *end, *next;
+	struct fw_iso_context *ctx = client->iso_context;
 	unsigned long payload, payload_end, header_length;
 	int count;
 	struct {
@@ -430,7 +435,7 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 		u8 header[256];
 	} u;
 
-	if (client->iso_context == NULL)
+	if (ctx == NULL)
 		return -EINVAL;
 	if (copy_from_user(&request, arg, sizeof request))
 		return -EFAULT;
@@ -461,13 +466,17 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 		if (__copy_from_user(&u.packet, p, sizeof *p))
 			return -EFAULT;
 
-		if (client->iso_context->type == FW_ISO_CONTEXT_TRANSMIT) {
+		if (ctx->type == FW_ISO_CONTEXT_TRANSMIT) {
 			header_length = u.packet.header_length;
 		} else {
 			/* We require that header_length is a multiple of
 			 * the fixed header size, ctx->header_size */
-			if (u.packet.header_length % client->iso_context->header_size != 0)
+			if (ctx->header_size == 0) {
+				if (u.packet.header_length > 0)
+					return -EINVAL;
+			} else if (u.packet.header_length % ctx->header_size != 0) {
 				return -EINVAL;
+			}
 			header_length = 0;
 		}
 
@@ -484,8 +493,8 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 		if (payload + u.packet.payload_length > payload_end)
 			return -EINVAL;
 
-		if (fw_iso_context_queue(client->iso_context,
-					 &u.packet, &client->buffer, payload))
+		if (fw_iso_context_queue(ctx, &u.packet,
+					 &client->buffer, payload))
 			break;
 
 		p = next;

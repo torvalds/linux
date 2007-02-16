@@ -89,6 +89,8 @@ struct fw_cdev_event_iso_interrupt {
 	__u32 type;
 	__u32 cycle;
 	__u64 closure;
+	__u32 header_length;	/* Length in bytes of following headers. */
+	__u32 header[0];
 };
 
 #define FW_CDEV_IOC_GET_CONFIG_ROM	_IOR('#', 0x00, struct fw_cdev_get_config_rom)
