@@ -165,6 +165,11 @@ static const struct driver_info	epson2888_info = {
 #endif	/* CONFIG_USB_EPSON2888 */
 
 
+/*-------------------------------------------------------------------------
+ *
+ * info from Jonathan McDowell <noodles@earth.li>
+ *
+ *-------------------------------------------------------------------------*/
 #ifdef CONFIG_USB_KC2190
 #define HAVE_HARDWARE
 static const struct driver_info kc2190_info = {

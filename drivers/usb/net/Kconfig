@@ -240,6 +240,7 @@ config USB_NET_RNDIS_HOST
 config USB_NET_CDC_SUBSET
 	tristate "Simple USB Network Links (CDC Ethernet subset)"
 	depends on USB_USBNET
+	default y
 	help
 	  This driver module supports USB network devices that can work
 	  without any device-specific information.  Select it if you have
@@ -298,6 +299,13 @@ config USB_EPSON2888
 	help
 	  Choose this option to support the usb networking links used
 	  by some sample firmware from Epson.
+
+config USB_KC2190
+	boolean "KT Technology KC2190 based cables (InstaNet)"
+	depends on USB_NET_CDC_SUBSET && EXPERIMENTAL
+	help
+	  Choose this option if you're using a host-to-host cable
+	  with one of these chips.
 
 config USB_NET_ZAURUS
 	tristate "Sharp Zaurus (stock ROMs) and compatible"
