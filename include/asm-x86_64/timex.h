@@ -20,6 +20,17 @@
 extern int read_current_timer(unsigned long *timer_value);
 #define ARCH_HAS_READ_CURRENT_TIMER	1
 
+#define USEC_PER_TICK (USEC_PER_SEC / HZ)
+#define NSEC_PER_TICK (NSEC_PER_SEC / HZ)
+#define FSEC_PER_TICK (FSEC_PER_SEC / HZ)
+
+#define NS_SCALE        10 /* 2^10, carefully chosen */
+#define US_SCALE        32 /* 2^32, arbitralrily chosen */
+
 extern struct vxtime_data vxtime;
 
+extern unsigned int do_gettimeoffset_hpet(void);
+extern unsigned int do_gettimeoffset_tsc(void);
+extern void set_cyc2ns_scale(unsigned long khz);
+extern int notsc;
 #endif
