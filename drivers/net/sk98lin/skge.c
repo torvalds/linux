@@ -5188,6 +5188,9 @@ static struct pci_driver skge_driver = {
 
 static int __init skge_init(void)
 {
+	printk(KERN_NOTICE "sk98lin: driver has been replaced by the skge driver"
+	       " and is scheduled for removal\n");
+
 	return pci_register_driver(&skge_driver);
 }
 
