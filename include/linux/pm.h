@@ -120,15 +120,48 @@ typedef int __bitwise suspend_disk_method_t;
 #define	PM_DISK_TESTPROC	((__force suspend_disk_method_t) 6)
 #define	PM_DISK_MAX		((__force suspend_disk_method_t) 7)
 
+/**
+ * struct pm_ops - Callbacks for managing platform dependent suspend states.
+ * @valid: Callback to determine whether the given state can be entered.
+ * 	If %CONFIG_SOFTWARE_SUSPEND is set then %PM_SUSPEND_DISK is
+ *	always valid and never passed to this call.
+ *	If not assigned, all suspend states are advertised as valid
+ *	in /sys/power/state (but can still be rejected by prepare or enter.)
+ *
+ * @prepare: Prepare the platform for the given suspend state. Can return a
+ *	negative error code if necessary.
+ *
+ * @enter: Enter the given suspend state, must be assigned. Can return a
+ *	negative error code if necessary.
+ *
+ * @finish: Called when the system has left the given state and all devices
+ *	are resumed. The return value is ignored.
+ *
+ * @pm_disk_mode: Set to the disk method that the user should be able to
+ *	configure for suspend-to-disk. Since %PM_DISK_SHUTDOWN,
+ *	%PM_DISK_REBOOT, %PM_DISK_TEST and %PM_DISK_TESTPROC
+ *	are always allowed, currently only %PM_DISK_PLATFORM
+ *	makes sense. If the user then choses %PM_DISK_PLATFORM,
+ *	the @prepare call will be called before suspending to disk
+ *	(if present), the @enter call should be present and will
+ *	be called after all state has been saved and the machine
+ *	is ready to be shut down/suspended/..., and the @finish
+ *	callback is called after state has been restored. All
+ *	these calls are called with %PM_SUSPEND_DISK as the state.
+ */
 struct pm_ops {
-	suspend_disk_method_t pm_disk_mode;
 	int (*valid)(suspend_state_t state);
 	int (*prepare)(suspend_state_t state);
 	int (*enter)(suspend_state_t state);
 	int (*finish)(suspend_state_t state);
+	suspend_disk_method_t pm_disk_mode;
 };
 
-extern void pm_set_ops(struct pm_ops *);
+/**
+ * pm_set_ops - set platform dependent power management ops
+ * @pm_ops: The new power management operations to set.
+ */
+extern void pm_set_ops(struct pm_ops *pm_ops);
 extern struct pm_ops *pm_ops;
 extern int pm_suspend(suspend_state_t state);
 
