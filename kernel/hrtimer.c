@@ -172,8 +172,6 @@ static inline int hrtimer_callback_running(struct hrtimer *timer)
  */
 #ifdef CONFIG_SMP
 
-#define set_curr_timer(b, t)		do { (b)->curr_timer = (t); } while (0)
-
 /*
  * We are using hashed locking: holding per_cpu(hrtimer_bases)[n].lock
  * means that all timers which are tied to this base via timer->base are
@@ -227,7 +225,7 @@ switch_hrtimer_base(struct hrtimer *timer, struct hrtimer_clock_base *base)
 		 * completed. There is no conflict as we hold the lock until
 		 * the timer is enqueued.
 		 */
-		if (unlikely(base->cpu_base->curr_timer == timer))
+		if (unlikely(timer->state & HRTIMER_STATE_CALLBACK))
 			return base;
 
 		/* See the comment in lock_timer_base() */
@@ -240,8 +238,6 @@ switch_hrtimer_base(struct hrtimer *timer, struct hrtimer_clock_base *base)
 }
 
 #else /* CONFIG_SMP */
-
-#define set_curr_timer(b, t)		do { } while (0)
 
 static inline struct hrtimer_clock_base *
 lock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
@@ -670,7 +666,6 @@ static inline void run_hrtimer_queue(struct hrtimer_cpu_base *cpu_base,
 			break;
 
 		fn = timer->function;
-		set_curr_timer(cpu_base, timer);
 		__remove_hrtimer(timer, base, HRTIMER_STATE_CALLBACK);
 		spin_unlock_irq(&cpu_base->lock);
 
@@ -684,7 +679,6 @@ static inline void run_hrtimer_queue(struct hrtimer_cpu_base *cpu_base,
 			enqueue_hrtimer(timer, base);
 		}
 	}
-	set_curr_timer(cpu_base, NULL);
 	spin_unlock_irq(&cpu_base->lock);
 }
 
@@ -871,8 +865,6 @@ static void migrate_hrtimers(int cpu)
 	spin_lock(&old_base->lock);
 
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
-		BUG_ON(old_base->curr_timer);
-
 		migrate_hrtimer_list(&old_base->clock_base[i],
 				     &new_base->clock_base[i]);
 	}
