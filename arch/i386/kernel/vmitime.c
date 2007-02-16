@@ -115,7 +115,7 @@ static struct clocksource clocksource_vmi = {
 	.mask			= CLOCKSOURCE_MASK(64),
 	.mult			= 0, /* to be set */
 	.shift			= 22,
-	.is_continuous		= 1,
+	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 

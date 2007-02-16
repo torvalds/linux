@@ -871,7 +871,7 @@ int timekeeping_is_continuous(void)
 	do {
 		seq = read_seqbegin(&xtime_lock);
 
-		ret = clock->is_continuous;
+		ret = clock->flags & CLOCK_SOURCE_IS_CONTINUOUS;
 
 	} while (read_seqretry(&xtime_lock, seq));
 

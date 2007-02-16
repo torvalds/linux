@@ -72,7 +72,8 @@ static struct clocksource clocksource_acpi_pm = {
 	.mask		= (cycle_t)ACPI_PM_MASK,
 	.mult		= 0, /*to be caluclated*/
 	.shift		= 22,
-	.is_continuous	= 1,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+
 };
 
 

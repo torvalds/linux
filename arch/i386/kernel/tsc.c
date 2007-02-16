@@ -314,7 +314,8 @@ static struct clocksource clocksource_tsc = {
 	.mult			= 0, /* to be set */
 	.shift			= 22,
 	.update_callback	= tsc_update_callback,
-	.is_continuous		= 1,
+	.flags			= CLOCK_SOURCE_IS_CONTINUOUS |
+				  CLOCK_SOURCE_MUST_VERIFY,
 };
 
 static int tsc_update_callback(void)
@@ -434,8 +435,10 @@ static int __init init_tsc_clocksource(void)
 		clocksource_tsc.mult = clocksource_khz2mult(current_tsc_khz,
 							clocksource_tsc.shift);
 		/* lower the rating if we already know its unstable: */
-		if (check_tsc_unstable())
+		if (check_tsc_unstable()) {
 			clocksource_tsc.rating = 0;
+			clocksource_tsc.flags &= ~CLOCK_SOURCE_IS_CONTINUOUS;
+		}
 
 		init_timer(&verify_tsc_freq_timer);
 		verify_tsc_freq_timer.function = verify_tsc_freq;

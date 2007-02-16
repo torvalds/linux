@@ -45,7 +45,7 @@ typedef u64 cycle_t;
  * @mult:		cycle to nanosecond multiplier
  * @shift:		cycle to nanosecond divisor (power of two)
  * @update_callback:	called when safe to alter clocksource values
- * @is_continuous:	defines if clocksource is free-running.
+ * @flags:		flags describing special properties
  * @cycle_interval:	Used internally by timekeeping core, please ignore.
  * @xtime_interval:	Used internally by timekeeping core, please ignore.
  */
@@ -58,13 +58,19 @@ struct clocksource {
 	u32 mult;
 	u32 shift;
 	int (*update_callback)(void);
-	int is_continuous;
+	unsigned long flags;
 
 	/* timekeeping specific data, ignore */
 	cycle_t cycle_last, cycle_interval;
 	u64 xtime_nsec, xtime_interval;
 	s64 error;
 };
+
+/*
+ * Clock source flags bits::
+ */
+#define CLOCK_SOURCE_IS_CONTINUOUS	0x01
+#define CLOCK_SOURCE_MUST_VERIFY	0x02
 
 /* simplify initialization of mask field */
 #define CLOCKSOURCE_MASK(bits) (cycle_t)(bits<64 ? ((1ULL<<bits)-1) : -1)
