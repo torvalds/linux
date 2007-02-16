@@ -337,7 +337,6 @@ struct e1000_adapter {
 	struct e1000_rx_ring test_rx_ring;
 
 
-	uint32_t *config_space;
 	int msg_enable;
 #ifdef CONFIG_PCI_MSI
 	boolean_t have_msi;
