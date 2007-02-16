@@ -61,9 +61,11 @@
 
 /* flags used to simulate posix default ACLs */
 #define NFS4_INHERITANCE_FLAGS (NFS4_ACE_FILE_INHERIT_ACE \
-		| NFS4_ACE_DIRECTORY_INHERIT_ACE | NFS4_ACE_INHERIT_ONLY_ACE)
+		| NFS4_ACE_DIRECTORY_INHERIT_ACE)
 
-#define NFS4_SUPPORTED_FLAGS (NFS4_INHERITANCE_FLAGS | NFS4_ACE_IDENTIFIER_GROUP)
+#define NFS4_SUPPORTED_FLAGS (NFS4_INHERITANCE_FLAGS \
+		| NFS4_ACE_INHERIT_ONLY_ACE \
+		| NFS4_ACE_IDENTIFIER_GROUP)
 
 #define MASK_EQUAL(mask1, mask2) \
 	( ((mask1) & NFS4_ACE_MASK_ALL) == ((mask2) & NFS4_ACE_MASK_ALL) )
@@ -707,11 +709,16 @@ nfs4_acl_split(struct nfs4_acl *acl, struct nfs4_acl *dacl)
 		if (ace->flag & ~NFS4_SUPPORTED_FLAGS)
 			return -EINVAL;
 
-		switch (ace->flag & NFS4_INHERITANCE_FLAGS) {
-		case 0:
+		if ((ace->flag & NFS4_INHERITANCE_FLAGS) == 0) {
 			/* Leave this ace in the effective acl: */
 			continue;
-		case NFS4_INHERITANCE_FLAGS:
+		}
+		/*
+		 * Note that when only one of FILE_INHERIT or DIRECTORY_INHERIT
+		 * is set, we're effectively turning on the other.  That's OK,
+		 * according to rfc 3530.
+		 */
+		if (ace->flag & NFS4_ACE_INHERIT_ONLY_ACE) {
 			/* Add this ace to the default acl and remove it
 			 * from the effective acl: */
 			error = nfs4_acl_add_ace(dacl, ace->type, ace->flag,
@@ -721,17 +728,13 @@ nfs4_acl_split(struct nfs4_acl *acl, struct nfs4_acl *dacl)
 			list_del(h);
 			kfree(ace);
 			acl->naces--;
-			break;
-		case NFS4_INHERITANCE_FLAGS & ~NFS4_ACE_INHERIT_ONLY_ACE:
+		} else {
 			/* Add this ace to the default, but leave it in
 			 * the effective acl as well: */
 			error = nfs4_acl_add_ace(dacl, ace->type, ace->flag,
 				ace->access_mask, ace->whotype, ace->who);
 			if (error)
 				return error;
-			break;
-		default:
-			return -EINVAL;
 		}
 	}
 	return 0;
