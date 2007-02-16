@@ -1138,7 +1138,7 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(mode, S_IWUGO | S_IRUGO, show_mode, set_mode);
+static DEVICE_ATTR(mode, S_IWUSR | S_IRUGO, show_mode, set_mode);
 
 int ipoib_cm_add_mode_attr(struct net_device *dev)
 {
