@@ -37,7 +37,7 @@ static struct clocksource clocksource_avr32 = {
 	.read		= read_cycle_count,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.shift		= 16,
-	.is_continuous	= 1,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 /*
