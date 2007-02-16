@@ -46,7 +46,7 @@
  *
  * returns the time in ktime_t format
  */
-static ktime_t ktime_get(void)
+ktime_t ktime_get(void)
 {
 	struct timespec now;
 
@@ -60,7 +60,7 @@ static ktime_t ktime_get(void)
  *
  * returns the time in ktime_t format
  */
-static ktime_t ktime_get_real(void)
+ktime_t ktime_get_real(void)
 {
 	struct timespec now;
 
@@ -309,14 +309,6 @@ static unsigned long ktime_divns(const ktime_t kt, s64 div)
 #else /* BITS_PER_LONG < 64 */
 # define ktime_divns(kt, div)		(unsigned long)((kt).tv64 / (div))
 #endif /* BITS_PER_LONG >= 64 */
-
-/*
- * Timekeeping resumed notification
- */
-void hrtimer_notify_resume(void)
-{
-	clock_was_set();
-}
 
 /*
  * Counterpart to lock_timer_base above:
@@ -889,6 +881,7 @@ static int __cpuinit hrtimer_cpu_notify(struct notifier_block *self,
 
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:
+		clockevents_notify(CLOCK_EVT_NOTIFY_CPU_DEAD, &cpu);
 		migrate_hrtimers(cpu);
 		break;
 #endif

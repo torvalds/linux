@@ -34,6 +34,7 @@
 #include <linux/cpu.h>
 #include <linux/syscalls.h>
 #include <linux/delay.h>
+#include <linux/clockchips.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -970,7 +971,8 @@ static int timekeeping_resume(struct sys_device *dev)
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
 	touch_softlockup_watchdog();
-	hrtimer_notify_resume();
+	/* Resume hrtimers */
+	clock_was_set();
 
 	return 0;
 }
