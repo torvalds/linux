@@ -503,15 +503,15 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 	return count;
 }
 
-static int ioctl_send_iso(struct client *client, void __user *arg)
+static int ioctl_start_iso(struct client *client, void __user *arg)
 {
-	struct fw_cdev_send_iso request;
+	struct fw_cdev_start_iso request;
 
 	if (copy_from_user(&request, arg, sizeof request))
 		return -EFAULT;
 
-	return fw_iso_context_send(client->iso_context, request.channel,
-				   request.speed, request.cycle);
+	return fw_iso_context_start(client->iso_context, request.channel,
+				    request.speed, request.cycle);
 }
 
 static int
@@ -530,8 +530,8 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 		return ioctl_create_iso_context(client, arg);
 	case FW_CDEV_IOC_QUEUE_ISO:
 		return ioctl_queue_iso(client, arg);
-	case FW_CDEV_IOC_SEND_ISO:
-		return ioctl_send_iso(client, arg);
+	case FW_CDEV_IOC_START_ISO:
+		return ioctl_start_iso(client, arg);
 	default:
 		return -EINVAL;
 	}

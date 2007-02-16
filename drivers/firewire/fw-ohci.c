@@ -1350,7 +1350,7 @@ ohci_allocate_iso_context(struct fw_card *card, int type)
 	return &ctx->base;
 }
 
-static int ohci_send_iso(struct fw_iso_context *base, s32 cycle)
+static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
 {
  	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct fw_ohci *ohci = ctx->context.ohci;
@@ -1594,7 +1594,7 @@ static const struct fw_card_driver ohci_driver = {
 	.allocate_iso_context	= ohci_allocate_iso_context,
 	.free_iso_context	= ohci_free_iso_context,
 	.queue_iso		= ohci_queue_iso,
-	.send_iso		= ohci_send_iso,
+	.start_iso		= ohci_start_iso,
 };
 
 static int software_reset(struct fw_ohci *ohci)

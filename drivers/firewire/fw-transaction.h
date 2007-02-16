@@ -376,10 +376,6 @@ fw_iso_context_create(struct fw_card *card, int type, size_t header_size,
 void
 fw_iso_context_destroy(struct fw_iso_context *ctx);
 
-void
-fw_iso_context_start(struct fw_iso_context *ctx,
-		     int channel, int speed, int cycle);
-
 int
 fw_iso_context_queue(struct fw_iso_context *ctx,
 		     struct fw_iso_packet *packet,
@@ -387,7 +383,7 @@ fw_iso_context_queue(struct fw_iso_context *ctx,
 		     unsigned long payload);
 
 int
-fw_iso_context_send(struct fw_iso_context *ctx,
+fw_iso_context_start(struct fw_iso_context *ctx,
 		    int channel, int speed, int cycle);
 
 struct fw_card_driver {
@@ -426,7 +422,7 @@ struct fw_card_driver {
 	(*allocate_iso_context)(struct fw_card *card, int type);
 	void (*free_iso_context)(struct fw_iso_context *ctx);
 
-	int (*send_iso)(struct fw_iso_context *ctx, s32 cycle);
+	int (*start_iso)(struct fw_iso_context *ctx, s32 cycle);
 
 	int (*queue_iso)(struct fw_iso_context *ctx,
 			 struct fw_iso_packet *packet,

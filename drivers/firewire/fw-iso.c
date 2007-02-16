@@ -134,15 +134,15 @@ void fw_iso_context_destroy(struct fw_iso_context *ctx)
 EXPORT_SYMBOL(fw_iso_context_destroy);
 
 int
-fw_iso_context_send(struct fw_iso_context *ctx,
-		    int channel, int speed, int cycle)
+fw_iso_context_start(struct fw_iso_context *ctx,
+		     int channel, int speed, int cycle)
 {
 	ctx->channel = channel;
 	ctx->speed = speed;
 
-	return ctx->card->driver->send_iso(ctx, cycle);
+	return ctx->card->driver->start_iso(ctx, cycle);
 }
-EXPORT_SYMBOL(fw_iso_context_send);
+EXPORT_SYMBOL(fw_iso_context_start);
 
 int
 fw_iso_context_queue(struct fw_iso_context *ctx,

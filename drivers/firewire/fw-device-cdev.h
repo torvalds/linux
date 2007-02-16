@@ -97,7 +97,7 @@ struct fw_cdev_event_iso_interrupt {
 #define FW_CDEV_IOC_SEND_RESPONSE	_IO('#', 0x03)
 #define FW_CDEV_IOC_CREATE_ISO_CONTEXT	_IO('#', 0x04)
 #define FW_CDEV_IOC_QUEUE_ISO		_IO('#', 0x05)
-#define FW_CDEV_IOC_SEND_ISO		_IO('#', 0x06)
+#define FW_CDEV_IOC_START_ISO		_IO('#', 0x06)
 
 struct fw_cdev_get_config_rom {
 	__u32 length;
@@ -150,7 +150,7 @@ struct fw_cdev_queue_iso {
 	__u64 data;
 };
 
-struct fw_cdev_send_iso {
+struct fw_cdev_start_iso {
 	__u32 channel;
 	__u32 speed;
 	__s32 cycle;
