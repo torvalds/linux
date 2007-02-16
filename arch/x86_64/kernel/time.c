@@ -67,6 +67,7 @@ static int notsc __initdata = 0;
 
 unsigned int cpu_khz;					/* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
+unsigned long hpet_address;
 static unsigned long hpet_period;			/* fsecs / HPET clock */
 unsigned long hpet_tick;				/* HPET clocks / interrupt */
 int hpet_use_timer;				/* Use counter of hpet for time keeping, otherwise PIT */
@@ -316,7 +317,7 @@ static noinline void handle_lost_ticks(int lost)
 		       KERN_WARNING "Your time source seems to be instable or "
 		   		"some driver is hogging interupts\n");
 		print_symbol("rip %s\n", get_irq_regs()->rip);
-		if (vxtime.mode == VXTIME_TSC && vxtime.hpet_address) {
+		if (vxtime.mode == VXTIME_TSC && hpet_address) {
 			printk(KERN_WARNING "Falling back to HPET\n");
 			if (hpet_use_timer)
 				vxtime.last = hpet_readl(HPET_T0_CMP) - 
@@ -324,6 +325,7 @@ static noinline void handle_lost_ticks(int lost)
 			else
 				vxtime.last = hpet_readl(HPET_COUNTER);
 			vxtime.mode = VXTIME_HPET;
+			vxtime.hpet_address = hpet_address;
 			do_gettimeoffset = do_gettimeoffset_hpet;
 		}
 		/* else should fall back to PIT, but code missing. */
@@ -354,7 +356,7 @@ void main_timer_handler(void)
 
 	write_seqlock(&xtime_lock);
 
-	if (vxtime.hpet_address)
+	if (hpet_address)
 		offset = hpet_readl(HPET_COUNTER);
 
 	if (hpet_use_timer) {
@@ -739,7 +741,7 @@ static __init int late_hpet_init(void)
 	struct hpet_data	hd;
 	unsigned int 		ntimer;
 
-	if (!vxtime.hpet_address)
+	if (!hpet_address)
         	return 0;
 
 	memset(&hd, 0, sizeof (hd));
@@ -752,7 +754,7 @@ static __init int late_hpet_init(void)
 	 * Register with driver.
 	 * Timer0 and Timer1 is used by platform.
 	 */
-	hd.hd_phys_address = vxtime.hpet_address;
+	hd.hd_phys_address = hpet_address;
 	hd.hd_address = (void __iomem *)fix_to_virt(FIX_HPET_BASE);
 	hd.hd_nirqs = ntimer;
 	hd.hd_flags = HPET_DATA_PLATFORM;
@@ -821,10 +823,10 @@ static int hpet_init(void)
 {
 	unsigned int id;
 
-	if (!vxtime.hpet_address)
+	if (!hpet_address)
 		return -1;
-	set_fixmap_nocache(FIX_HPET_BASE, vxtime.hpet_address);
-	__set_fixmap(VSYSCALL_HPET, vxtime.hpet_address, PAGE_KERNEL_VSYSCALL_NOCACHE);
+	set_fixmap_nocache(FIX_HPET_BASE, hpet_address);
+	__set_fixmap(VSYSCALL_HPET, hpet_address, PAGE_KERNEL_VSYSCALL_NOCACHE);
 
 /*
  * Read the period, compute tick and quotient.
@@ -878,7 +880,7 @@ void __init pit_stop_interrupt(void)
 void __init stop_timer_interrupt(void)
 {
 	char *name;
-	if (vxtime.hpet_address) {
+	if (hpet_address) {
 		name = "HPET";
 		hpet_timer_stop_set_go(0);
 	} else {
@@ -901,8 +903,7 @@ static struct irqaction irq0 = {
 void __init time_init(void)
 {
 	if (nohpet)
-		vxtime.hpet_address = 0;
-
+		hpet_address = 0;
 	xtime.tv_sec = get_cmos_time();
 	xtime.tv_nsec = 0;
 
@@ -912,7 +913,7 @@ void __init time_init(void)
 	if (!hpet_init())
                 vxtime_hz = (FSEC_PER_SEC + hpet_period / 2) / hpet_period;
 	else
-		vxtime.hpet_address = 0;
+		hpet_address = 0;
 
 	if (hpet_use_timer) {
 		/* set tick_nsec to use the proper rate for HPET */
@@ -920,7 +921,7 @@ void __init time_init(void)
 		cpu_khz = hpet_calibrate_tsc();
 		timename = "HPET";
 #ifdef CONFIG_X86_PM_TIMER
-	} else if (pmtmr_ioport && !vxtime.hpet_address) {
+	} else if (pmtmr_ioport && !hpet_address) {
 		vxtime_hz = PM_TIMER_FREQUENCY;
 		timename = "PM";
 		pit_init();
@@ -990,23 +991,24 @@ void time_init_gtod(void)
 	if (unsynchronized_tsc())
 		notsc = 1;
 
- 	if (cpu_has(&boot_cpu_data, X86_FEATURE_RDTSCP))
+	if (cpu_has(&boot_cpu_data, X86_FEATURE_RDTSCP))
 		vgetcpu_mode = VGETCPU_RDTSCP;
 	else
 		vgetcpu_mode = VGETCPU_LSL;
 
-	if (vxtime.hpet_address && notsc) {
+	if (hpet_address && notsc) {
 		timetype = hpet_use_timer ? "HPET" : "PIT/HPET";
 		if (hpet_use_timer)
 			vxtime.last = hpet_readl(HPET_T0_CMP) - hpet_tick;
 		else
 			vxtime.last = hpet_readl(HPET_COUNTER);
 		vxtime.mode = VXTIME_HPET;
+		vxtime.hpet_address = hpet_address;
 		do_gettimeoffset = do_gettimeoffset_hpet;
 #ifdef CONFIG_X86_PM_TIMER
 	/* Using PM for gettimeofday is quite slow, but we have no other
 	   choice because the TSC is too unreliable on some systems. */
-	} else if (pmtmr_ioport && !vxtime.hpet_address && notsc) {
+	} else if (pmtmr_ioport && !hpet_address && notsc) {
 		timetype = "PM";
 		do_gettimeoffset = do_gettimeoffset_pm;
 		vxtime.mode = VXTIME_PMTMR;
@@ -1066,7 +1068,7 @@ static int timer_resume(struct sys_device *dev)
 		sleep_length = 0;
 		ctime = sleep_start;
 	}
-	if (vxtime.hpet_address)
+	if (hpet_address)
 		hpet_reenable();
 	else
 		i8254_timer_resume();
@@ -1150,7 +1152,7 @@ static unsigned int hpet_t1_cmp; /* cached comparator register */
 
 int is_hpet_enabled(void)
 {
-	return vxtime.hpet_address != 0;
+	return hpet_address != 0;
 }
 
 /*
