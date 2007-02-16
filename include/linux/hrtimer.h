@@ -316,6 +316,9 @@ extern unsigned long ktime_divns(const ktime_t kt, s64 div);
 # define ktime_divns(kt, div)		(unsigned long)((kt).tv64 / (div))
 #endif
 
+/* Show pending timers: */
+extern void sysrq_timer_list_show(void);
+
 /*
  * Timer-statistics info:
  */

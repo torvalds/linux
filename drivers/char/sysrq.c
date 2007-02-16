@@ -36,6 +36,7 @@
 #include <linux/workqueue.h>
 #include <linux/kexec.h>
 #include <linux/irq.h>
+#include <linux/hrtimer.h>
 
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
@@ -156,6 +157,17 @@ static struct sysrq_key_op sysrq_sync_op = {
 	.help_msg	= "Sync",
 	.action_msg	= "Emergency Sync",
 	.enable_mask	= SYSRQ_ENABLE_SYNC,
+};
+
+static void sysrq_handle_show_timers(int key, struct tty_struct *tty)
+{
+	sysrq_timer_list_show();
+}
+
+static struct sysrq_key_op sysrq_show_timers_op = {
+	.handler	= sysrq_handle_show_timers,
+	.help_msg	= "show-all-timers(Q)",
+	.action_msg	= "Show Pending Timers",
 };
 
 static void sysrq_handle_mountro(int key, struct tty_struct *tty)
@@ -335,7 +347,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	/* o: This will often be registered as 'Off' at init time */
 	NULL,				/* o */
 	&sysrq_showregs_op,		/* p */
-	NULL,				/* q */
+	&sysrq_show_timers_op,		/* q */
 	&sysrq_unraw_op,		/* r */
 	&sysrq_sync_op,			/* s */
 	&sysrq_showstate_op,		/* t */
