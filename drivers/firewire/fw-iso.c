@@ -155,3 +155,10 @@ fw_iso_context_queue(struct fw_iso_context *ctx,
 	return card->driver->queue_iso(ctx, packet, buffer, payload);
 }
 EXPORT_SYMBOL(fw_iso_context_queue);
+
+int
+fw_iso_context_stop(struct fw_iso_context *ctx)
+{
+	return ctx->card->driver->stop_iso(ctx);
+}
+EXPORT_SYMBOL(fw_iso_context_stop);

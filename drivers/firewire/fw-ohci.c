@@ -570,13 +570,19 @@ static void context_append(struct context *ctx,
 static void context_stop(struct context *ctx)
 {
 	u32 reg;
+	int i;
 
 	reg_write(ctx->ohci, control_clear(ctx->regs), CONTEXT_RUN);
+	flush_writes(ctx->ohci);
 
-	reg = reg_read(ctx->ohci, control_set(ctx->regs));
-	if (reg & CONTEXT_ACTIVE)
-		fw_notify("Tried to stop context, but it is still active "
-			  "(0x%08x).\n", reg);
+	for (i = 0; i < 10; i++) {
+		reg = reg_read(ctx->ohci, control_set(ctx->regs));
+		if ((reg & CONTEXT_ACTIVE) == 0)
+			break;
+
+		fw_notify("context_stop: still active (0x%08x)\n", reg);
+		msleep(1);
+	}
 }
 
 static void
@@ -1379,6 +1385,25 @@ static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
 	return 0;
 }
 
+static int ohci_stop_iso(struct fw_iso_context *base)
+{
+	struct fw_ohci *ohci = fw_ohci(base->card);
+ 	struct iso_context *ctx = container_of(base, struct iso_context, base);
+	int index;
+
+	if (ctx->base.type == FW_ISO_CONTEXT_TRANSMIT) {
+		index = ctx - ohci->it_context_list;
+		reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, 1 << index);
+	} else {
+		index = ctx - ohci->ir_context_list;
+		reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, 1 << index);
+	}
+	flush_writes(ohci);
+	context_stop(&ctx->context);
+
+	return 0;
+}
+
 static void ohci_free_iso_context(struct fw_iso_context *base)
 {
 	struct fw_ohci *ohci = fw_ohci(base->card);
@@ -1386,22 +1411,18 @@ static void ohci_free_iso_context(struct fw_iso_context *base)
 	unsigned long flags;
 	int index;
 
+	ohci_stop_iso(base);
+	context_release(&ctx->context);
+
 	spin_lock_irqsave(&ohci->lock, flags);
 
 	if (ctx->base.type == FW_ISO_CONTEXT_TRANSMIT) {
 		index = ctx - ohci->it_context_list;
-		reg_write(ohci, OHCI1394_IsoXmitContextControlClear(index), ~0);
-		reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, 1 << index);
 		ohci->it_context_mask |= 1 << index;
 	} else {
 		index = ctx - ohci->ir_context_list;
-		reg_write(ohci, OHCI1394_IsoRcvContextControlClear(index), ~0);
-		reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, 1 << index);
 		ohci->ir_context_mask |= 1 << index;
 	}
-	flush_writes(ohci);
-
-	context_release(&ctx->context);
 
 	spin_unlock_irqrestore(&ohci->lock, flags);
 }
@@ -1595,6 +1616,7 @@ static const struct fw_card_driver ohci_driver = {
 	.free_iso_context	= ohci_free_iso_context,
 	.queue_iso		= ohci_queue_iso,
 	.start_iso		= ohci_start_iso,
+	.stop_iso		= ohci_stop_iso,
 };
 
 static int software_reset(struct fw_ohci *ohci)

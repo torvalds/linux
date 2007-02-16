@@ -514,6 +514,11 @@ static int ioctl_start_iso(struct client *client, void __user *arg)
 				    request.speed, request.cycle);
 }
 
+static int ioctl_stop_iso(struct client *client, void __user *arg)
+{
+	return fw_iso_context_stop(client->iso_context);
+}
+
 static int
 dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 {
@@ -532,6 +537,8 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 		return ioctl_queue_iso(client, arg);
 	case FW_CDEV_IOC_START_ISO:
 		return ioctl_start_iso(client, arg);
+	case FW_CDEV_IOC_STOP_ISO:
+		return ioctl_stop_iso(client, arg);
 	default:
 		return -EINVAL;
 	}

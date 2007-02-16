@@ -386,6 +386,9 @@ int
 fw_iso_context_start(struct fw_iso_context *ctx,
 		    int channel, int speed, int cycle);
 
+int
+fw_iso_context_stop(struct fw_iso_context *ctx);
+
 struct fw_card_driver {
 	const char *name;
 
@@ -428,6 +431,8 @@ struct fw_card_driver {
 			 struct fw_iso_packet *packet,
 			 struct fw_iso_buffer *buffer,
 			 unsigned long payload);
+
+	int (*stop_iso)(struct fw_iso_context *ctx);
 };
 
 int

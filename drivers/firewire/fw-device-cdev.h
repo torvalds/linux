@@ -98,6 +98,7 @@ struct fw_cdev_event_iso_interrupt {
 #define FW_CDEV_IOC_CREATE_ISO_CONTEXT	_IO('#', 0x04)
 #define FW_CDEV_IOC_QUEUE_ISO		_IO('#', 0x05)
 #define FW_CDEV_IOC_START_ISO		_IO('#', 0x06)
+#define FW_CDEV_IOC_STOP_ISO		_IO('#', 0x07)
 
 struct fw_cdev_get_config_rom {
 	__u32 length;
