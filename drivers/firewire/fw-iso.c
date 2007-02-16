@@ -44,7 +44,7 @@ fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
 		goto out;
 
 	for (i = 0; i < buffer->page_count; i++) {
-		buffer->pages[i] = alloc_page(GFP_KERNEL | GFP_DMA32);
+		buffer->pages[i] = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
 		if (buffer->pages[i] == NULL)
 			goto out_pages;
 		
