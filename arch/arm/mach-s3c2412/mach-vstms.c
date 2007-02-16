@@ -28,7 +28,6 @@
 #include <asm/mach/irq.h>
 
 #include <asm/hardware.h>
-#include <asm/hardware/iomd.h>
 #include <asm/setup.h>
 #include <asm/io.h>
 #include <asm/irq.h>
