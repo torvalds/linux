@@ -413,8 +413,16 @@ static int ioctl_create_iso_context(struct client *client, void __user *arg)
 	if (request.type > FW_ISO_CONTEXT_RECEIVE)
 		return -EINVAL;
 
+	if (request.channel > 63)
+		return -EINVAL;
+
+	if (request.speed > SCODE_3200)
+		return -EINVAL;
+
 	client->iso_context = fw_iso_context_create(client->device->card,
 						    request.type,
+						    request.channel,
+						    request.speed,
 						    request.header_size,
 						    iso_callback, client);
 	if (IS_ERR(client->iso_context))
@@ -519,8 +527,7 @@ static int ioctl_start_iso(struct client *client, void __user *arg)
 	if (copy_from_user(&request, arg, sizeof request))
 		return -EFAULT;
 
-	return fw_iso_context_start(client->iso_context, request.channel,
-				    request.speed, request.cycle);
+	return fw_iso_context_start(client->iso_context, request.cycle);
 }
 
 static int ioctl_stop_iso(struct client *client, void __user *arg)

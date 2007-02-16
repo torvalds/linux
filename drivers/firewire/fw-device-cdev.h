@@ -134,7 +134,8 @@ struct fw_cdev_allocate {
 struct fw_cdev_create_iso_context {
 	__u32 type;
 	__u32 header_size;
-	__u32 handle;
+	__u32 channel;
+	__u32 speed;
 };
 
 struct fw_cdev_iso_packet {
@@ -154,8 +155,6 @@ struct fw_cdev_queue_iso {
 };
 
 struct fw_cdev_start_iso {
-	__u32 channel;
-	__u32 speed;
 	__s32 cycle;
 };
 

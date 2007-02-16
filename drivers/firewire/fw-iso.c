@@ -106,7 +106,8 @@ void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
 }
 
 struct fw_iso_context *
-fw_iso_context_create(struct fw_card *card, int type, size_t header_size,
+fw_iso_context_create(struct fw_card *card, int type,
+		      int channel, int speed, size_t header_size,
 		      fw_iso_callback_t callback, void *callback_data)
 {
 	struct fw_iso_context *ctx;
@@ -117,6 +118,8 @@ fw_iso_context_create(struct fw_card *card, int type, size_t header_size,
 
 	ctx->card = card;
 	ctx->type = type;
+	ctx->channel = channel;
+	ctx->speed = speed;
 	ctx->header_size = header_size;
 	ctx->callback = callback;
 	ctx->callback_data = callback_data;
@@ -134,12 +137,8 @@ void fw_iso_context_destroy(struct fw_iso_context *ctx)
 EXPORT_SYMBOL(fw_iso_context_destroy);
 
 int
-fw_iso_context_start(struct fw_iso_context *ctx,
-		     int channel, int speed, int cycle)
+fw_iso_context_start(struct fw_iso_context *ctx, int cycle)
 {
-	ctx->channel = channel;
-	ctx->speed = speed;
-
 	return ctx->card->driver->start_iso(ctx, cycle);
 }
 EXPORT_SYMBOL(fw_iso_context_start);

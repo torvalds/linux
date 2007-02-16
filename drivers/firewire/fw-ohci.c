@@ -1413,7 +1413,7 @@ static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
 		if (cycle > 0)
 			cycle_match = IT_CONTEXT_CYCLE_MATCH_ENABLE |
 				(cycle & 0x7fff) << 16;
-		
+
 		reg_write(ohci, OHCI1394_IsoXmitIntEventClear, 1 << index);
 		reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, 1 << index);
 		context_run(&ctx->context, cycle_match);
@@ -1638,7 +1638,7 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 
 	return 0;
 }
- 
+
 static int
 ohci_queue_iso_receive_bufferfill(struct fw_iso_context *base,
 				  struct fw_iso_packet *packet,

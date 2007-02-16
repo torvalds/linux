@@ -373,7 +373,8 @@ void
 fw_iso_buffer_destroy(struct fw_iso_buffer *buffer, struct fw_card *card);
 
 struct fw_iso_context *
-fw_iso_context_create(struct fw_card *card, int type, size_t header_size,
+fw_iso_context_create(struct fw_card *card, int type,
+		      int channel, int speed, size_t header_size,
 		      fw_iso_callback_t callback, void *callback_data);
 
 void
@@ -386,8 +387,7 @@ fw_iso_context_queue(struct fw_iso_context *ctx,
 		     unsigned long payload);
 
 int
-fw_iso_context_start(struct fw_iso_context *ctx,
-		    int channel, int speed, int cycle);
+fw_iso_context_start(struct fw_iso_context *ctx, int cycle);
 
 int
 fw_iso_context_stop(struct fw_iso_context *ctx);
