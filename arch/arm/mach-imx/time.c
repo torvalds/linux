@@ -87,7 +87,7 @@ static struct clocksource clocksource_imx = {
 	.read		= imx_get_cycles,
 	.mask		= 0xFFFFFFFF,
 	.shift 		= 20,
-	.is_continuous 	= 1,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static int __init imx_clocksource_init(void)
