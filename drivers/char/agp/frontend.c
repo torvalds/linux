@@ -41,9 +41,9 @@
 #include <asm/pgtable.h>
 #include "agp.h"
 
-static struct agp_front_data agp_fe;
+struct agp_front_data agp_fe;
 
-static struct agp_memory *agp_find_mem_by_key(int key)
+struct agp_memory *agp_find_mem_by_key(int key)
 {
 	struct agp_memory *curr;
 
@@ -159,7 +159,7 @@ static pgprot_t agp_convert_mmap_flags(int prot)
 	return vm_get_page_prot(prot_bits);
 }
 
-static int agp_create_segment(struct agp_client *client, struct agp_region *region)
+int agp_create_segment(struct agp_client *client, struct agp_region *region)
 {
 	struct agp_segment_priv **ret_seg;
 	struct agp_segment_priv *seg;
@@ -211,7 +211,7 @@ static void agp_insert_into_pool(struct agp_memory * temp)
 
 /* File private list routines */
 
-static struct agp_file_private *agp_find_private(pid_t pid)
+struct agp_file_private *agp_find_private(pid_t pid)
 {
 	struct agp_file_private *curr;
 
@@ -266,13 +266,13 @@ static void agp_remove_file_private(struct agp_file_private * priv)
  * Wrappers for agp_free_memory & agp_allocate_memory
  * These make sure that internal lists are kept updated.
  */
-static void agp_free_memory_wrap(struct agp_memory *memory)
+void agp_free_memory_wrap(struct agp_memory *memory)
 {
 	agp_remove_from_pool(memory);
 	agp_free_memory(memory);
 }
 
-static struct agp_memory *agp_allocate_memory_wrap(size_t pg_count, u32 type)
+struct agp_memory *agp_allocate_memory_wrap(size_t pg_count, u32 type)
 {
 	struct agp_memory *memory;
 
@@ -484,7 +484,7 @@ static struct agp_controller *agp_find_controller_for_client(pid_t id)
 	return NULL;
 }
 
-static struct agp_client *agp_find_client_by_pid(pid_t id)
+struct agp_client *agp_find_client_by_pid(pid_t id)
 {
 	struct agp_client *temp;
 
@@ -509,7 +509,7 @@ static void agp_insert_client(struct agp_client *client)
 	agp_fe.current_controller->num_clients++;
 }
 
-static struct agp_client *agp_create_client(pid_t id)
+struct agp_client *agp_create_client(pid_t id)
 {
 	struct agp_client *new_client;
 
@@ -522,7 +522,7 @@ static struct agp_client *agp_create_client(pid_t id)
 	return new_client;
 }
 
-static int agp_remove_client(pid_t id)
+int agp_remove_client(pid_t id)
 {
 	struct agp_client *client;
 	struct agp_client *prev_client;
@@ -746,7 +746,7 @@ static int agpioc_info_wrap(struct agp_file_private *priv, void __user *arg)
 	return 0;
 }
 
-static int agpioc_acquire_wrap(struct agp_file_private *priv)
+int agpioc_acquire_wrap(struct agp_file_private *priv)
 {
 	struct agp_controller *controller;
 
@@ -789,14 +789,14 @@ static int agpioc_acquire_wrap(struct agp_file_private *priv)
 	return 0;
 }
 
-static int agpioc_release_wrap(struct agp_file_private *priv)
+int agpioc_release_wrap(struct agp_file_private *priv)
 {
 	DBG("");
 	agp_controller_release_current(agp_fe.current_controller, priv);
 	return 0;
 }
 
-static int agpioc_setup_wrap(struct agp_file_private *priv, void __user *arg)
+int agpioc_setup_wrap(struct agp_file_private *priv, void __user *arg)
 {
 	struct agp_setup mode;
 
@@ -876,7 +876,7 @@ static int agpioc_reserve_wrap(struct agp_file_private *priv, void __user *arg)
 	return -EINVAL;
 }
 
-static int agpioc_protect_wrap(struct agp_file_private *priv)
+int agpioc_protect_wrap(struct agp_file_private *priv)
 {
 	DBG("");
 	/* This function is not currently implemented */
@@ -891,6 +891,9 @@ static int agpioc_allocate_wrap(struct agp_file_private *priv, void __user *arg)
 	DBG("");
 	if (copy_from_user(&alloc, arg, sizeof(struct agp_allocate)))
 		return -EFAULT;
+
+	if (alloc.type >= AGP_USER_TYPES)
+		return -EINVAL;
 
 	memory = agp_allocate_memory_wrap(alloc.pg_count, alloc.type);
 
@@ -907,7 +910,7 @@ static int agpioc_allocate_wrap(struct agp_file_private *priv, void __user *arg)
 	return 0;
 }
 
-static int agpioc_deallocate_wrap(struct agp_file_private *priv, int arg)
+int agpioc_deallocate_wrap(struct agp_file_private *priv, int arg)
 {
 	struct agp_memory *memory;
 
@@ -1043,6 +1046,9 @@ static const struct file_operations agp_fops =
 	.read		= agp_read,
 	.write		= agp_write,
 	.ioctl		= agp_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_agp_ioctl,
+#endif
 	.mmap		= agp_mmap,
 	.open		= agp_open,
 	.release	= agp_release,

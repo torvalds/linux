@@ -114,6 +114,7 @@ struct agp_bridge_driver {
 	void (*free_by_type)(struct agp_memory *);
 	void *(*agp_alloc_page)(struct agp_bridge_data *);
 	void (*agp_destroy_page)(void *);
+        int (*agp_type_to_mask_type) (struct agp_bridge_data *, int);
 };
 
 struct agp_bridge_data {
@@ -218,6 +219,7 @@ struct agp_bridge_data {
 #define I810_PTE_MAIN_UNCACHED	0x00000000
 #define I810_PTE_LOCAL		0x00000002
 #define I810_PTE_VALID		0x00000001
+#define I830_PTE_SYSTEM_CACHED  0x00000006
 #define I810_SMRAM_MISCC	0x70
 #define I810_GFX_MEM_WIN_SIZE	0x00010000
 #define I810_GFX_MEM_WIN_32M	0x00010000
@@ -270,7 +272,15 @@ void global_cache_flush(void);
 void get_agp_version(struct agp_bridge_data *bridge);
 unsigned long agp_generic_mask_memory(struct agp_bridge_data *bridge,
 	unsigned long addr, int type);
+int agp_generic_type_to_mask_type(struct agp_bridge_data *bridge,
+				  int type);
 struct agp_bridge_data *agp_generic_find_bridge(struct pci_dev *pdev);
+
+/* generic functions for user-populated AGP memory types */
+struct agp_memory *agp_generic_alloc_user(size_t page_count, int type);
+void agp_alloc_page_array(size_t size, struct agp_memory *mem);
+void agp_free_page_array(struct agp_memory *mem);
+
 
 /* generic routines for agp>=3 */
 int agp3_generic_fetch_size(void);
@@ -287,6 +297,8 @@ extern struct aper_size_info_16 agp3_generic_sizes[];
 
 extern int agp_off;
 extern int agp_try_unsupported_boot;
+
+long compat_agp_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
 /* Chipset independant registers (from AGP Spec) */
 #define AGP_APBASE	0x10

@@ -1,6 +1,7 @@
 agpgart-y := backend.o frontend.o generic.o isoch.o
 
 obj-$(CONFIG_AGP)		+= agpgart.o
+obj-$(CONFIG_COMPAT)		+= compat_ioctl.o
 obj-$(CONFIG_AGP_ALI)		+= ali-agp.o
 obj-$(CONFIG_AGP_ATI)		+= ati-agp.o
 obj-$(CONFIG_AGP_AMD)		+= amd-k7-agp.o
