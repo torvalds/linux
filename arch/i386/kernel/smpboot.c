@@ -94,12 +94,6 @@ cpumask_t cpu_possible_map;
 EXPORT_SYMBOL(cpu_possible_map);
 static cpumask_t smp_commenced_mask;
 
-/* TSC's upper 32 bits can't be written in eariler CPU (before prescott), there
- * is no way to resync one AP against BP. TBD: for prescott and above, we
- * should use IA64's algorithm
- */
-static int __devinitdata tsc_sync_disabled;
-
 /* Per CPU bogomips and other parameters */
 struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
 EXPORT_SYMBOL(cpu_data);
@@ -216,151 +210,6 @@ valid_k7:
 	;
 }
 
-/*
- * TSC synchronization.
- *
- * We first check whether all CPUs have their TSC's synchronized,
- * then we print a warning if not, and always resync.
- */
-
-static struct {
-	atomic_t start_flag;
-	atomic_t count_start;
-	atomic_t count_stop;
-	unsigned long long values[NR_CPUS];
-} tsc __cpuinitdata = {
-	.start_flag = ATOMIC_INIT(0),
-	.count_start = ATOMIC_INIT(0),
-	.count_stop = ATOMIC_INIT(0),
-};
-
-#define NR_LOOPS 5
-
-static void __init synchronize_tsc_bp(void)
-{
-	int i;
-	unsigned long long t0;
-	unsigned long long sum, avg;
-	long long delta;
-	unsigned int one_usec;
-	int buggy = 0;
-
-	printk(KERN_INFO "checking TSC synchronization across %u CPUs: ", num_booting_cpus());
-
-	/* convert from kcyc/sec to cyc/usec */
-	one_usec = cpu_khz / 1000;
-
-	atomic_set(&tsc.start_flag, 1);
-	wmb();
-
-	/*
-	 * We loop a few times to get a primed instruction cache,
-	 * then the last pass is more or less synchronized and
-	 * the BP and APs set their cycle counters to zero all at
-	 * once. This reduces the chance of having random offsets
-	 * between the processors, and guarantees that the maximum
-	 * delay between the cycle counters is never bigger than
-	 * the latency of information-passing (cachelines) between
-	 * two CPUs.
-	 */
-	for (i = 0; i < NR_LOOPS; i++) {
-		/*
-		 * all APs synchronize but they loop on '== num_cpus'
-		 */
-		while (atomic_read(&tsc.count_start) != num_booting_cpus()-1)
-			cpu_relax();
-		atomic_set(&tsc.count_stop, 0);
-		wmb();
-		/*
-		 * this lets the APs save their current TSC:
-		 */
-		atomic_inc(&tsc.count_start);
-
-		rdtscll(tsc.values[smp_processor_id()]);
-		/*
-		 * We clear the TSC in the last loop:
-		 */
-		if (i == NR_LOOPS-1)
-			write_tsc(0, 0);
-
-		/*
-		 * Wait for all APs to leave the synchronization point:
-		 */
-		while (atomic_read(&tsc.count_stop) != num_booting_cpus()-1)
-			cpu_relax();
-		atomic_set(&tsc.count_start, 0);
-		wmb();
-		atomic_inc(&tsc.count_stop);
-	}
-
-	sum = 0;
-	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_isset(i, cpu_callout_map)) {
-			t0 = tsc.values[i];
-			sum += t0;
-		}
-	}
-	avg = sum;
-	do_div(avg, num_booting_cpus());
-
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_isset(i, cpu_callout_map))
-			continue;
-		delta = tsc.values[i] - avg;
-		if (delta < 0)
-			delta = -delta;
-		/*
-		 * We report bigger than 2 microseconds clock differences.
-		 */
-		if (delta > 2*one_usec) {
-			long long realdelta;
-
-			if (!buggy) {
-				buggy = 1;
-				printk("\n");
-			}
-			realdelta = delta;
-			do_div(realdelta, one_usec);
-			if (tsc.values[i] < avg)
-				realdelta = -realdelta;
-
-			if (realdelta)
-				printk(KERN_INFO "CPU#%d had %Ld usecs TSC "
-					"skew, fixed it up.\n", i, realdelta);
-		}
-	}
-	if (!buggy)
-		printk("passed.\n");
-}
-
-static void __cpuinit synchronize_tsc_ap(void)
-{
-	int i;
-
-	/*
-	 * Not every cpu is online at the time
-	 * this gets called, so we first wait for the BP to
-	 * finish SMP initialization:
-	 */
-	while (!atomic_read(&tsc.start_flag))
-		cpu_relax();
-
-	for (i = 0; i < NR_LOOPS; i++) {
-		atomic_inc(&tsc.count_start);
-		while (atomic_read(&tsc.count_start) != num_booting_cpus())
-			cpu_relax();
-
-		rdtscll(tsc.values[smp_processor_id()]);
-		if (i == NR_LOOPS-1)
-			write_tsc(0, 0);
-
-		atomic_inc(&tsc.count_stop);
-		while (atomic_read(&tsc.count_stop) != num_booting_cpus())
-			cpu_relax();
-	}
-}
-#undef NR_LOOPS
-
 extern void calibrate_delay(void);
 
 static atomic_t init_deasserted;
@@ -446,12 +295,6 @@ static void __cpuinit smp_callin(void)
 	 * Allow the master to continue.
 	 */
 	cpu_set(cpuid, cpu_callin_map);
-
-	/*
-	 *      Synchronize the TSC with the BP
-	 */
-	if (cpu_has_tsc && cpu_khz && !tsc_sync_disabled)
-		synchronize_tsc_ap();
 }
 
 static int cpucount;
@@ -554,6 +397,11 @@ static void __cpuinit start_secondary(void *unused)
 	smp_callin();
 	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
 		rep_nop();
+	/*
+	 * Check TSC synchronization with the BP:
+	 */
+	check_tsc_sync_target();
+
 	setup_secondary_clock();
 	if (nmi_watchdog == NMI_IO_APIC) {
 		disable_8259A_irq(0);
@@ -1125,8 +973,6 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 	info.cpu = cpu;
 	INIT_WORK(&info.task, do_warm_boot_cpu);
 
-	tsc_sync_disabled = 1;
-
 	/* init low mem mapping */
 	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
 			min_t(unsigned long, KERNEL_PGD_PTRS, USER_PGD_PTRS));
@@ -1134,7 +980,6 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 	schedule_work(&info.task);
 	wait_for_completion(&done);
 
-	tsc_sync_disabled = 0;
 	zap_low_mappings();
 	ret = 0;
 exit:
@@ -1331,12 +1176,6 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	smpboot_setup_io_apic();
 
 	setup_boot_clock();
-
-	/*
-	 * Synchronize the TSC with the AP
-	 */
-	if (cpu_has_tsc && cpucount && cpu_khz)
-		synchronize_tsc_bp();
 }
 
 /* These are wrappers to interface to the new boot process.  Someone
@@ -1471,9 +1310,16 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	}
 
 	local_irq_enable();
+
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 	/* Unleash the CPU! */
 	cpu_set(cpu, smp_commenced_mask);
+
+	/*
+	 * Check TSC synchronization with the AP:
+	 */
+	check_tsc_sync_source(cpu);
+
 	while (!cpu_isset(cpu, cpu_online_map))
 		cpu_relax();
 

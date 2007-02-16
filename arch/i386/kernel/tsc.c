@@ -406,8 +406,10 @@ out:
  * Make an educated guess if the TSC is trustworthy and synchronized
  * over all CPUs.
  */
-static __init int unsynchronized_tsc(void)
+__cpuinit int unsynchronized_tsc(void)
 {
+	if (!cpu_has_tsc || tsc_unstable)
+		return 1;
 	/*
 	 * Intel systems are normally all synchronized.
 	 * Exceptions must mark TSC as unstable:

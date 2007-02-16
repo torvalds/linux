@@ -944,12 +944,23 @@ void __init time_init(void)
 #endif
 }
 
+static int tsc_unstable = 0;
+
+void mark_tsc_unstable(void)
+{
+	tsc_unstable = 1;
+}
+EXPORT_SYMBOL_GPL(mark_tsc_unstable);
+
 /*
  * Make an educated guess if the TSC is trustworthy and synchronized
  * over all CPUs.
  */
 __cpuinit int unsynchronized_tsc(void)
 {
+	if (tsc_unstable)
+		return 1;
+
 #ifdef CONFIG_SMP
 	if (apic_is_clustered_box())
 		return 1;
