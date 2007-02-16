@@ -1251,14 +1251,16 @@ static void ohci_free_iso_context(struct fw_iso_context *base)
 
 static int
 ohci_queue_iso(struct fw_iso_context *base,
-	       struct fw_iso_packet *packet, void *payload)
+	       struct fw_iso_packet *packet,
+	       struct fw_iso_buffer *buffer,
+	       unsigned long payload)
 {
 	struct iso_context *ctx = (struct iso_context *)base;
 	struct fw_ohci *ohci = fw_ohci(ctx->base.card);
 	struct descriptor *d, *end, *last, *tail, *pd;
 	struct fw_iso_packet *p;
 	__le32 *header;
-	dma_addr_t d_bus;
+	dma_addr_t d_bus, page_bus;
 	u32 z, header_z, payload_z, irq;
 	u32 payload_index, payload_end_index, next_page_index;
 	int index, page, end_page, i, length, offset;
@@ -1267,7 +1269,7 @@ ohci_queue_iso(struct fw_iso_context *base,
 	 * packet, retransmit or terminate.. */
 
 	p = packet;
-	payload_index = payload - ctx->base.buffer;
+	payload_index = payload;
 	d = ctx->head_descriptor;
 	tail = ctx->tail_descriptor;
 	end = ctx->buffer + ISO_BUFFER_SIZE / sizeof(struct descriptor);
@@ -1337,7 +1339,9 @@ ohci_queue_iso(struct fw_iso_context *base,
 		length             =
 			min(next_page_index, payload_end_index) - payload_index;
 		pd[i].req_count    = cpu_to_le16(length);
-		pd[i].data_address = cpu_to_le32(ctx->base.pages[page] + offset);
+
+		page_bus = page_private(buffer->pages[page]);
+		pd[i].data_address = cpu_to_le32(page_bus + offset);
 
 		payload_index += length;
 	}

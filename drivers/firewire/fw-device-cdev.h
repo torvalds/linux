@@ -126,7 +126,7 @@ struct fw_cdev_allocate {
 };
 
 struct fw_cdev_create_iso_context {
-	__u32 buffer_size;
+	__u32 handle;
 };
 
 struct fw_cdev_iso_packet {

@@ -28,68 +28,88 @@
 #include "fw-topology.h"
 #include "fw-device.h"
 
-static int
-setup_iso_buffer(struct fw_iso_context *ctx, size_t size,
-		 enum dma_data_direction direction)
+int
+fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
+		   int page_count, enum dma_data_direction direction)
 {
-	struct page *page;
-	int i, j;
-	void *p;
+	int i, j, retval = -ENOMEM;
+	dma_addr_t address;
 
-	ctx->buffer_size = PAGE_ALIGN(size);
-	if (size == 0)
-		return 0;
+	buffer->page_count = page_count;
+	buffer->direction = direction;
 
-	ctx->buffer = vmalloc_32_user(ctx->buffer_size);
-	if (ctx->buffer == NULL)
-		goto fail_buffer_alloc;
+	buffer->pages = kmalloc(page_count * sizeof(buffer->pages[0]),
+				GFP_KERNEL);
+	if (buffer->pages == NULL)
+		goto out;
 
-	ctx->page_count = ctx->buffer_size >> PAGE_SHIFT;
-	ctx->pages =
-	    kzalloc(ctx->page_count * sizeof(ctx->pages[0]), GFP_KERNEL);
-	if (ctx->pages == NULL)
-		goto fail_pages_alloc;
-
-	p = ctx->buffer;
-	for (i = 0; i < ctx->page_count; i++, p += PAGE_SIZE) {
-		page = vmalloc_to_page(p);
-		ctx->pages[i] = dma_map_page(ctx->card->device,
-					     page, 0, PAGE_SIZE, direction);
-		if (dma_mapping_error(ctx->pages[i]))
-			goto fail_mapping;
+	for (i = 0; i < buffer->page_count; i++) {
+		buffer->pages[i] = alloc_page(GFP_KERNEL | GFP_DMA32);
+		if (buffer->pages[i] == NULL)
+			goto out_pages;
+		
+		address = dma_map_page(card->device, buffer->pages[i],
+				       0, PAGE_SIZE, direction);
+		if (dma_mapping_error(address)) {
+			__free_page(buffer->pages[i]);
+			goto out_pages;
+		}
+		set_page_private(buffer->pages[i], address);
 	}
 
 	return 0;
 
- fail_mapping:
-	for (j = 0; j < i; j++)
-		dma_unmap_page(ctx->card->device, ctx->pages[j],
+ out_pages:
+	for (j = 0; j < i; j++) {
+		address = page_private(buffer->pages[j]);
+		dma_unmap_page(card->device, address,
 			       PAGE_SIZE, DMA_TO_DEVICE);
- fail_pages_alloc:
-	vfree(ctx->buffer);
- fail_buffer_alloc:
-	return -ENOMEM;
+		__free_page(buffer->pages[j]);
+	}
+	kfree(buffer->pages);
+ out:
+	buffer->pages = NULL;
+	return retval;
 }
 
-static void destroy_iso_buffer(struct fw_iso_context *ctx)
+int fw_iso_buffer_map(struct fw_iso_buffer *buffer, struct vm_area_struct *vma)
+{
+	unsigned long uaddr;
+	int i, retval;
+
+	uaddr = vma->vm_start;
+	for (i = 0; i < buffer->page_count; i++) {
+		retval = vm_insert_page(vma, uaddr, buffer->pages[i]);
+		if (retval)
+			return retval;
+		uaddr += PAGE_SIZE;
+	}
+
+	return 0;
+}
+
+void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
+			   struct fw_card *card)
 {
 	int i;
+	dma_addr_t address;
 
-	for (i = 0; i < ctx->page_count; i++)
-		dma_unmap_page(ctx->card->device, ctx->pages[i],
+	for (i = 0; i < buffer->page_count; i++) {
+		address = page_private(buffer->pages[i]);
+		dma_unmap_page(card->device, address,
 			       PAGE_SIZE, DMA_TO_DEVICE);
+		__free_page(buffer->pages[i]);
+	}
 
-	kfree(ctx->pages);
-	vfree(ctx->buffer);
+	kfree(buffer->pages);
+	buffer->pages = NULL;
 }
 
 struct fw_iso_context *fw_iso_context_create(struct fw_card *card, int type,
-					     size_t buffer_size,
 					     fw_iso_callback_t callback,
 					     void *callback_data)
 {
 	struct fw_iso_context *ctx;
-	int retval;
 
 	ctx = card->driver->allocate_iso_context(card, type);
 	if (IS_ERR(ctx))
@@ -100,12 +120,6 @@ struct fw_iso_context *fw_iso_context_create(struct fw_card *card, int type,
 	ctx->callback = callback;
 	ctx->callback_data = callback_data;
 
-	retval = setup_iso_buffer(ctx, buffer_size, DMA_TO_DEVICE);
-	if (retval < 0) {
-		card->driver->free_iso_context(ctx);
-		return ERR_PTR(retval);
-	}
-
 	return ctx;
 }
 EXPORT_SYMBOL(fw_iso_context_create);
@@ -113,8 +127,6 @@ EXPORT_SYMBOL(fw_iso_context_create);
 void fw_iso_context_destroy(struct fw_iso_context *ctx)
 {
 	struct fw_card *card = ctx->card;
-
-	destroy_iso_buffer(ctx);
 
 	card->driver->free_iso_context(ctx);
 }
@@ -133,10 +145,12 @@ EXPORT_SYMBOL(fw_iso_context_send);
 
 int
 fw_iso_context_queue(struct fw_iso_context *ctx,
-		     struct fw_iso_packet *packet, void *payload)
+		     struct fw_iso_packet *packet,
+		     struct fw_iso_buffer *buffer,
+		     unsigned long payload)
 {
 	struct fw_card *card = ctx->card;
 
-	return card->driver->queue_iso(ctx, packet, payload);
+	return card->driver->queue_iso(ctx, packet, buffer, payload);
 }
 EXPORT_SYMBOL(fw_iso_context_queue);

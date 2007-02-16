@@ -71,8 +71,10 @@ struct client {
 	struct list_head event_list;
 	struct semaphore event_list_sem;
 	wait_queue_head_t wait;
-	unsigned long vm_start;
+
 	struct fw_iso_context *iso_context;
+	struct fw_iso_buffer buffer;
+	unsigned long vm_start;
 };
 
 static inline void __user *
@@ -406,7 +408,6 @@ static int ioctl_create_iso_context(struct client *client, void __user *arg)
 
 	client->iso_context = fw_iso_context_create(client->device->card,
 						    FW_ISO_CONTEXT_TRANSMIT,
-						    request.buffer_size,
 						    iso_callback, client);
 	if (IS_ERR(client->iso_context))
 		return PTR_ERR(client->iso_context);
@@ -418,8 +419,7 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 {
 	struct fw_cdev_queue_iso request;
 	struct fw_cdev_iso_packet __user *p, *end, *next;
-	void *payload, *payload_end;
-	unsigned long index;
+	unsigned long payload, payload_end;
 	int count;
 	struct {
 		struct fw_iso_packet packet;
@@ -434,20 +434,17 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 	/* If the user passes a non-NULL data pointer, has mmap()'ed
 	 * the iso buffer, and the pointer points inside the buffer,
 	 * we setup the payload pointers accordingly.  Otherwise we
-	 * set them both to NULL, which will still let packets with
+	 * set them both to 0, which will still let packets with
 	 * payload_length == 0 through.  In other words, if no packets
 	 * use the indirect payload, the iso buffer need not be mapped
 	 * and the request.data pointer is ignored.*/
 
-	index = (unsigned long)request.data - client->vm_start;
-	if (request.data != 0 && client->vm_start != 0 &&
-	    index <= client->iso_context->buffer_size) {
-		payload = client->iso_context->buffer + index;
-		payload_end = client->iso_context->buffer +
-			client->iso_context->buffer_size;
-	} else {
-		payload = NULL;
-		payload_end = NULL;
+	payload = (unsigned long)request.data - client->vm_start;
+	payload_end = payload + (client->buffer.page_count << PAGE_SHIFT);
+	if (request.data == 0 || client->buffer.pages == NULL ||
+	    payload >= payload_end) {
+		payload = 0;
+		payload_end = 0;
 	}
 
 	if (!access_ok(VERIFY_READ, request.packets, request.size))
@@ -473,7 +470,7 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 			return -EINVAL;
 
 		if (fw_iso_context_queue(client->iso_context,
-					 &u.packet, payload))
+					 &u.packet, &client->buffer, payload))
 			break;
 
 		p = next;
@@ -483,8 +480,7 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 
 	request.size    -= uptr_to_u64(p) - request.packets;
 	request.packets  = uptr_to_u64(p);
-	request.data     =
-		client->vm_start + (payload - client->iso_context->buffer);
+	request.data     = client->vm_start + payload;
 
 	if (copy_to_user(arg, &request, sizeof request))
 		return -EFAULT;
@@ -549,13 +545,41 @@ fw_device_op_compat_ioctl(struct file *file,
 static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct client *client = file->private_data;
+	enum dma_data_direction direction;
+	unsigned long size;
+	int page_count, retval;
 
-	if (client->iso_context->buffer == NULL)
+	/* FIXME: We could support multiple buffers, but we don't. */
+	if (client->buffer.pages != NULL)
+		return -EBUSY;
+
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	if (vma->vm_start & ~PAGE_MASK)
 		return -EINVAL;
 
 	client->vm_start = vma->vm_start;
+	size = vma->vm_end - vma->vm_start;
+	page_count = size >> PAGE_SHIFT;
+	if (size & ~PAGE_MASK)
+		return -EINVAL;
 
-	return remap_vmalloc_range(vma, client->iso_context->buffer, 0);
+	if (vma->vm_flags & VM_WRITE)
+		direction = DMA_TO_DEVICE;
+	else
+		direction = DMA_FROM_DEVICE;
+
+	retval = fw_iso_buffer_init(&client->buffer, client->device->card,
+				    page_count, direction);
+	if (retval < 0)
+		return retval;
+
+	retval = fw_iso_buffer_map(&client->buffer, vma);
+	if (retval < 0)
+		fw_iso_buffer_destroy(&client->buffer, client->device->card);
+
+	return retval;
 }
 
 static int fw_device_op_release(struct inode *inode, struct file *file)
@@ -563,6 +587,9 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	struct client *client = file->private_data;
 	struct address_handler *h, *next;
 	struct request *r, *next_r;
+
+	if (client->buffer.pages)
+		fw_iso_buffer_destroy(&client->buffer, client->device->card);
 
 	if (client->iso_context)
 		fw_iso_context_destroy(client->iso_context);

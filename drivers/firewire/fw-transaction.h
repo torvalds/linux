@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/fs.h>
+#include <linux/dma-mapping.h>
 
 #define TCODE_WRITE_QUADLET_REQUEST	0
 #define TCODE_WRITE_BLOCK_REQUEST	1
@@ -336,6 +337,18 @@ struct fw_iso_context;
 typedef void (*fw_iso_callback_t) (struct fw_iso_context *context,
 				   int status, u32 cycle, void *data);
 
+/* An iso buffer is just a set of pages mapped for DMA in the
+ * specified direction.  Since the pages are to be used for DMA, they
+ * are not mapped into the kernel virtual address space.  We store the
+ * DMA address in the page private. The helper function
+ * fw_iso_buffer_map() will map the pages into a given vma. */
+
+struct fw_iso_buffer {
+	enum dma_data_direction direction;
+	struct page **pages;
+	int page_count;
+};
+
 struct fw_iso_context {
 	struct fw_card *card;
 	int type;
@@ -343,18 +356,23 @@ struct fw_iso_context {
 	int speed;
 	fw_iso_callback_t callback;
 	void *callback_data;
-
-	void *buffer;
-	size_t buffer_size;
-	dma_addr_t *pages;
-	int page_count;
 };
+
+int
+fw_iso_buffer_init(struct fw_iso_buffer *buffer,
+		   struct fw_card *card,
+		   int page_count,
+		   enum dma_data_direction direction);
+int
+fw_iso_buffer_map(struct fw_iso_buffer *buffer, struct vm_area_struct *vma);
+void
+fw_iso_buffer_destroy(struct fw_iso_buffer *buffer, struct fw_card *card);
 
 struct fw_iso_context *
 fw_iso_context_create(struct fw_card *card, int type,
-		      size_t buffer_size,
 		      fw_iso_callback_t callback,
 		      void *callback_data);
+
 
 void
 fw_iso_context_destroy(struct fw_iso_context *ctx);
@@ -365,7 +383,9 @@ fw_iso_context_start(struct fw_iso_context *ctx,
 
 int
 fw_iso_context_queue(struct fw_iso_context *ctx,
-		     struct fw_iso_packet *packet, void *payload);
+		     struct fw_iso_packet *packet,
+		     struct fw_iso_buffer *buffer,
+		     unsigned long payload);
 
 int
 fw_iso_context_send(struct fw_iso_context *ctx,
@@ -410,7 +430,9 @@ struct fw_card_driver {
 	int (*send_iso)(struct fw_iso_context *ctx, s32 cycle);
 
 	int (*queue_iso)(struct fw_iso_context *ctx,
-			 struct fw_iso_packet *packet, void *payload);
+			 struct fw_iso_packet *packet,
+			 struct fw_iso_buffer *buffer,
+			 unsigned long payload);
 };
 
 int
