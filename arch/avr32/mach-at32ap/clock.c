@@ -63,7 +63,11 @@ EXPORT_SYMBOL(clk_enable);
 
 static void __clk_disable(struct clk *clk)
 {
-	BUG_ON(clk->users == 0);
+	if (clk->users == 0) {
+		printk(KERN_ERR "%s: mismatched disable\n", clk->name);
+		WARN_ON(1);
+		return;
+	}
 
 	if (--clk->users == 0 && clk->mode)
 		clk->mode(clk, 0);
