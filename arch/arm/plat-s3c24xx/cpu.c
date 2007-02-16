@@ -49,6 +49,7 @@
 #include "s3c244x.h"
 #include <asm/plat-s3c24xx/s3c2440.h>
 #include <asm/plat-s3c24xx/s3c2442.h>
+#include <asm/plat-s3c24xx/s3c2443.h>
 
 struct cpu_table {
 	unsigned long	idcode;
@@ -67,6 +68,7 @@ static const char name_s3c2410[]  = "S3C2410";
 static const char name_s3c2412[]  = "S3C2412";
 static const char name_s3c2440[]  = "S3C2440";
 static const char name_s3c2442[]  = "S3C2442";
+static const char name_s3c2443[]  = "S3C2443";
 static const char name_s3c2410a[] = "S3C2410A";
 static const char name_s3c2440a[] = "S3C2440A";
 
@@ -133,6 +135,15 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init_uarts	= s3c2412_init_uarts,
 		.init		= s3c2412_init,
 		.name		= name_s3c2412,
+	},
+	{
+		.idcode		= 0x32443001,
+		.idmask		= 0xffffffff,
+		.map_io		= s3c2443_map_io,
+		.init_clocks	= s3c2443_init_clocks,
+		.init_uarts	= s3c2443_init_uarts,
+		.init		= s3c2443_init,
+		.name		= name_s3c2443,
 	},
 	{
 		.idcode		= 0x0,   /* S3C2400 doesn't have an idcode */

@@ -3,7 +3,7 @@
  * Copyright (c) 2004-2006 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
- * Samsung S3C2440 and S3C2442 Mobile CPU support
+ * Samsung S3C2440 and S3C2442 Mobile CPU support (not S3C2443)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

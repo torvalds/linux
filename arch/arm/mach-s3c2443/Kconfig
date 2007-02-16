@@ -1,0 +1,18 @@
+# arch/arm/mach-s3c2443/Kconfig
+#
+# Copyright 2007 Simtec Electronics
+#
+# Licensed under GPLv2
+
+config CPU_S3C2443
+	bool
+	depends on ARCH_S3C2410
+	select S3C2443_PM if PM
+	select S3C2443_DMA if S3C2410_DMA
+	help
+	  Support for the S3C2443 SoC from the S3C24XX line
+
+menu "S3C2443 Machines"
+
+endmenu
+
