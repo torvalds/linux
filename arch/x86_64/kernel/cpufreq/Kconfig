@@ -45,7 +45,6 @@ config X86_SPEEDSTEP_CENTRINO
 config X86_SPEEDSTEP_CENTRINO_ACPI
 	bool
 	depends on X86_SPEEDSTEP_CENTRINO
-	default y
 
 config X86_ACPI_CPUFREQ
 	tristate "ACPI Processor P-States driver"
