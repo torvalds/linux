@@ -1638,6 +1638,8 @@ out:
 	return rc;
 }
 
+struct kmem_cache *ecryptfs_key_record_cache;
+
 /**
  * ecryptfs_generate_key_packet_set
  * @dest: Virtual address from which to write the key record set
@@ -1664,50 +1666,55 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 		&ecryptfs_superblock_to_private(
 			ecryptfs_dentry->d_sb)->mount_crypt_stat;
 	size_t written;
-	struct ecryptfs_key_record key_rec;
+	struct ecryptfs_key_record *key_rec;
 	int rc = 0;
 
 	(*len) = 0;
+	key_rec = kmem_cache_alloc(ecryptfs_key_record_cache, GFP_KERNEL);
+	if (!key_rec) {
+		rc = -ENOMEM;
+		goto out;
+	}
 	if (mount_crypt_stat->global_auth_tok) {
 		auth_tok = mount_crypt_stat->global_auth_tok;
 		if (auth_tok->token_type == ECRYPTFS_PASSWORD) {
 			rc = write_tag_3_packet((dest_base + (*len)),
 						max, auth_tok,
-						crypt_stat, &key_rec,
+						crypt_stat, key_rec,
 						&written);
 			if (rc) {
 				ecryptfs_printk(KERN_WARNING, "Error "
 						"writing tag 3 packet\n");
-				goto out;
+				goto out_free;
 			}
 			(*len) += written;
 			/* Write auth tok signature packet */
 			rc = write_tag_11_packet(
 				(dest_base + (*len)),
 				(max - (*len)),
-				key_rec.sig, ECRYPTFS_SIG_SIZE, &written);
+				key_rec->sig, ECRYPTFS_SIG_SIZE, &written);
 			if (rc) {
 				ecryptfs_printk(KERN_ERR, "Error writing "
 						"auth tok signature packet\n");
-				goto out;
+				goto out_free;
 			}
 			(*len) += written;
 		} else if (auth_tok->token_type == ECRYPTFS_PRIVATE_KEY) {
 			rc = write_tag_1_packet(dest_base + (*len),
 						max, auth_tok,
 						crypt_stat,mount_crypt_stat,
-						&key_rec, &written);
+						key_rec, &written);
 			if (rc) {
 				ecryptfs_printk(KERN_WARNING, "Error "
 						"writing tag 1 packet\n");
-				goto out;
+				goto out_free;
 			}
 			(*len) += written;
 		} else {
 			ecryptfs_printk(KERN_WARNING, "Unsupported "
 					"authentication token type\n");
 			rc = -EINVAL;
-			goto out;
+			goto out_free;
 		}
 	} else
 		BUG();
@@ -1717,6 +1724,9 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 		ecryptfs_printk(KERN_ERR, "Error writing boundary byte\n");
 		rc = -EIO;
 	}
+
+out_free:
+	kmem_cache_free(ecryptfs_key_record_cache, key_rec);
 out:
 	if (rc)
 		(*len) = 0;
