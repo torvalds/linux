@@ -304,7 +304,7 @@ int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *tp)
 		 * should be able to see it.
 		 */
 		struct task_struct *p;
-		read_lock(&tasklist_lock);
+		rcu_read_lock();
 		p = find_task_by_pid(pid);
 		if (p) {
 			if (CPUCLOCK_PERTHREAD(which_clock)) {
@@ -312,12 +312,17 @@ int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *tp)
 					error = cpu_clock_sample(which_clock,
 								 p, &rtn);
 				}
-			} else if (p->tgid == pid && p->signal) {
-				error = cpu_clock_sample_group(which_clock,
-							       p, &rtn);
+			} else {
+				read_lock(&tasklist_lock);
+				if (p->tgid == pid && p->signal) {
+					error =
+					    cpu_clock_sample_group(which_clock,
+							           p, &rtn);
+				}
+				read_unlock(&tasklist_lock);
 			}
 		}
-		read_unlock(&tasklist_lock);
+		rcu_read_unlock();
 	}
 
 	if (error)
