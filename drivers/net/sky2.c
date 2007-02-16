@@ -2056,9 +2056,6 @@ static struct sk_buff *sky2_receive(struct net_device *dev,
 	if (!(status & GMR_FS_RX_OK))
 		goto resubmit;
 
-	if (length > dev->mtu + ETH_HLEN)
-		goto oversize;
-
 	if (length < copybreak)
 		skb = receive_copy(sky2, re, length);
 	else
@@ -2068,14 +2065,10 @@ resubmit:
 
 	return skb;
 
-oversize:
-	++sky2->net_stats.rx_over_errors;
-	goto resubmit;
-
 error:
 	++sky2->net_stats.rx_errors;
 	if (status & GMR_FS_RX_FF_OV) {
-		sky2->net_stats.rx_fifo_errors++;
+		sky2->net_stats.rx_over_errors++;
 		goto resubmit;
 	}
 
