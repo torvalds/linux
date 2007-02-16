@@ -847,7 +847,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	if (event & OHCI1394_respTxComplete)
 		tasklet_schedule(&ohci->at_response_ctx.tasklet);
 
-	iso_event = reg_read(ohci, OHCI1394_IsoRecvIntEventSet);
+	iso_event = reg_read(ohci, OHCI1394_IsoRecvIntEventClear);
 	reg_write(ohci, OHCI1394_IsoRecvIntEventClear, iso_event);
 
 	while (iso_event) {
@@ -856,7 +856,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 		iso_event &= ~(1 << i);
 	}
 
-	iso_event = reg_read(ohci, OHCI1394_IsoXmitIntEventSet);
+	iso_event = reg_read(ohci, OHCI1394_IsoXmitIntEventClear);
 	reg_write(ohci, OHCI1394_IsoXmitIntEventClear, iso_event);
 
 	while (iso_event) {
