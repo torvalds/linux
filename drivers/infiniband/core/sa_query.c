@@ -471,6 +471,7 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	ah_attr->sl = rec->sl;
 	ah_attr->src_path_bits = be16_to_cpu(rec->slid) & 0x7f;
 	ah_attr->port_num = port_num;
+	ah_attr->static_rate = rec->rate;
 
 	if (rec->hop_limit > 1) {
 		ah_attr->ah_flags = IB_AH_GRH;
