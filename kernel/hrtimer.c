@@ -585,6 +585,18 @@ static inline void hrtimer_init_timer_hres(struct hrtimer *timer) { }
 
 #endif /* CONFIG_HIGH_RES_TIMERS */
 
+#ifdef CONFIG_TIMER_STATS
+void __timer_stats_hrtimer_set_start_info(struct hrtimer *timer, void *addr)
+{
+	if (timer->start_site)
+		return;
+
+	timer->start_site = addr;
+	memcpy(timer->start_comm, current->comm, TASK_COMM_LEN);
+	timer->start_pid = current->pid;
+}
+#endif
+
 /*
  * Counterpart to lock_timer_base above:
  */
@@ -743,6 +755,7 @@ remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *base)
 		 * reprogramming happens in the interrupt handler. This is a
 		 * rare case and less expensive than a smp call.
 		 */
+		timer_stats_hrtimer_clear_start_info(timer);
 		reprogram = base->cpu_base == &__get_cpu_var(hrtimer_bases);
 		__remove_hrtimer(timer, base, HRTIMER_STATE_INACTIVE,
 				 reprogram);
@@ -790,6 +803,8 @@ hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
 #endif
 	}
 	timer->expires = tim;
+
+	timer_stats_hrtimer_set_start_info(timer);
 
 	enqueue_hrtimer(timer, new_base, base == new_base);
 
@@ -925,6 +940,12 @@ void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 
 	timer->base = &cpu_base->clock_base[clock_id];
 	hrtimer_init_timer_hres(timer);
+
+#ifdef CONFIG_TIMER_STATS
+	timer->start_site = NULL;
+	timer->start_pid = -1;
+	memset(timer->start_comm, 0, TASK_COMM_LEN);
+#endif
 }
 EXPORT_SYMBOL_GPL(hrtimer_init);
 
@@ -1006,6 +1027,7 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 
 			__remove_hrtimer(timer, base,
 					 HRTIMER_STATE_CALLBACK, 0);
+			timer_stats_account_hrtimer(timer);
 
 			/*
 			 * Note: We clear the CALLBACK bit after
@@ -1049,6 +1071,8 @@ static void run_hrtimer_softirq(struct softirq_action *h)
 
 		timer = list_entry(cpu_base->cb_pending.next,
 				   struct hrtimer, cb_entry);
+
+		timer_stats_account_hrtimer(timer);
 
 		fn = timer->function;
 		__remove_hrtimer(timer, timer->base, HRTIMER_STATE_CALLBACK, 0);
@@ -1105,6 +1129,8 @@ static inline void run_hrtimer_queue(struct hrtimer_cpu_base *cpu_base,
 		timer = rb_entry(node, struct hrtimer, node);
 		if (base->softirq_time.tv64 <= timer->expires.tv64)
 			break;
+
+		timer_stats_account_hrtimer(timer);
 
 		fn = timer->function;
 		__remove_hrtimer(timer, base, HRTIMER_STATE_CALLBACK, 0);
