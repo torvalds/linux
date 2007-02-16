@@ -458,6 +458,11 @@ static cycle_t read_hpet(void)
 	return (cycle_t)readl(hpet_ptr);
 }
 
+static cycle_t __vsyscall_fn vread_hpet(void)
+{
+	return readl((void __iomem *)fix_to_virt(VSYSCALL_HPET) + 0xf0);
+}
+
 struct clocksource clocksource_hpet = {
 	.name		= "hpet",
 	.rating		= 250,
@@ -466,6 +471,7 @@ struct clocksource clocksource_hpet = {
 	.mult		= 0, /* set below */
 	.shift		= HPET_SHIFT,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+	.vread		= vread_hpet,
 };
 
 static int __init init_hpet_clocksource(void)

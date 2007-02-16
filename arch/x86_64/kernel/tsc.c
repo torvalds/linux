@@ -180,6 +180,12 @@ static cycle_t read_tsc(void)
 	return ret;
 }
 
+static cycle_t __vsyscall_fn vread_tsc(void)
+{
+	cycle_t ret = (cycle_t)get_cycles_sync();
+	return ret;
+}
+
 static struct clocksource clocksource_tsc = {
 	.name			= "tsc",
 	.rating			= 300,
@@ -188,6 +194,7 @@ static struct clocksource clocksource_tsc = {
 	.shift			= 22,
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS |
 				  CLOCK_SOURCE_MUST_VERIFY,
+	.vread			= vread_tsc,
 };
 
 void mark_tsc_unstable(void)

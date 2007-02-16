@@ -53,13 +53,7 @@ DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 DEFINE_SPINLOCK(i8253_lock);
 
-unsigned long vxtime_hz = PIT_TICK_RATE;
-
-struct vxtime_data __vxtime __section_vxtime;	/* for vsyscalls */
-
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
-struct timespec __xtime __section_xtime;
-struct timezone __sys_tz __section_sys_tz;
 
 unsigned long profile_pc(struct pt_regs *regs)
 {
