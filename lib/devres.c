@@ -274,21 +274,21 @@ int pcim_iomap_regions(struct pci_dev *pdev, u16 mask, const char *name)
 
 		rc = pci_request_region(pdev, i, name);
 		if (rc)
-			goto err_region;
+			goto err_inval;
 
 		rc = -ENOMEM;
 		if (!pcim_iomap(pdev, i, 0))
-			goto err_iomap;
+			goto err_region;
 	}
 
 	return 0;
 
- err_iomap:
-	pcim_iounmap(pdev, iomap[i]);
  err_region:
 	pci_release_region(pdev, i);
  err_inval:
 	while (--i >= 0) {
+		if (!(mask & (1 << i)))
+			continue;
 		pcim_iounmap(pdev, iomap[i]);
 		pci_release_region(pdev, i);
 	}
