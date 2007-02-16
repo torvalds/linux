@@ -13,6 +13,12 @@
 		.macro	disable_fiq
 		.endm
 
+		.macro  get_irqnr_preamble, base, tmp
+		.endm
+
+		.macro  arch_ret_to_user, tmp1, tmp2
+		.endm
+
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
 		ldr	\base, =IO_ADDRESS(VERSATILE_VIC_BASE)
 		ldr	\irqstat, [\base, #VIC_IRQ_STATUS]	@ get masked status

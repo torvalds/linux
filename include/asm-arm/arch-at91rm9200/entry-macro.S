@@ -16,6 +16,12 @@
 	.macro	disable_fiq
 	.endm
 
+	.macro  get_irqnr_preamble, base, tmp
+	.endm
+
+	.macro  arch_ret_to_user, tmp1, tmp2
+	.endm
+
 	.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
 	ldr	\base, =(AT91_VA_BASE_SYS)		@ base virtual address of SYS peripherals
 	ldr	\irqnr, [\base, #AT91_AIC_IVR]		@ read IRQ vector register: de-asserts nIRQ to processor (and clears interrupt)
