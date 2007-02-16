@@ -1352,10 +1352,10 @@ ohci_queue_iso(struct fw_iso_context *base,
 	else
 		irq = descriptor_no_irq;
 
-	last->control = cpu_to_le16(descriptor_output_last |
-				    descriptor_status |
-				    descriptor_branch_always |
-				    irq);
+	last->control |= cpu_to_le16(descriptor_output_last |
+				     descriptor_status |
+				     descriptor_branch_always |
+				     irq);
 
 	dma_sync_single_for_device(ohci->card.device, ctx->buffer_bus,
 				   ISO_BUFFER_SIZE, DMA_TO_DEVICE);
