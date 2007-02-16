@@ -881,27 +881,15 @@ static struct net_device_stats *macb_get_stats(struct net_device *dev)
 static int macb_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct macb *bp = netdev_priv(dev);
-	int ret;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bp->lock, flags);
-	ret = mii_ethtool_gset(&bp->mii, cmd);
-	spin_unlock_irqrestore(&bp->lock, flags);
-
-	return ret;
+	return mii_ethtool_gset(&bp->mii, cmd);
 }
 
 static int macb_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct macb *bp = netdev_priv(dev);
-	int ret;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bp->lock, flags);
-	ret = mii_ethtool_sset(&bp->mii, cmd);
-	spin_unlock_irqrestore(&bp->lock, flags);
-
-	return ret;
+	return mii_ethtool_sset(&bp->mii, cmd);
 }
 
 static void macb_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
@@ -930,17 +918,11 @@ static struct ethtool_ops macb_ethtool_ops = {
 static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct macb *bp = netdev_priv(dev);
-	int ret;
-	unsigned long flags;
 
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	spin_lock_irqsave(&bp->lock, flags);
-	ret = generic_mii_ioctl(&bp->mii, if_mii(rq), cmd, NULL);
-	spin_unlock_irqrestore(&bp->lock, flags);
-
-	return ret;
+	return generic_mii_ioctl(&bp->mii, if_mii(rq), cmd, NULL);
 }
 
 static ssize_t macb_mii_show(const struct device *_dev, char *buf,
