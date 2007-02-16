@@ -1672,7 +1672,7 @@ static int __devinit
 pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct fw_ohci *ohci;
-	u32 bus_options, max_receive, link_speed;
+	u32 bus_options, max_receive, link_speed, version;
 	u64 guid;
 	int error_code;
 	size_t size;
@@ -1799,7 +1799,9 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	if (error_code < 0)
 		return cleanup(ohci, CLEANUP_SELF_ID, error_code);
 
-	fw_notify("Added fw-ohci device %s.\n", dev->dev.bus_id);
+	version = reg_read(ohci, OHCI1394_Version);
+	fw_notify("Added fw-ohci device %s, OHCI version %x.%x\n",
+		  dev->dev.bus_id, (version >> 16) & 0xff, version & 0xff);
 
 	return 0;
 }
