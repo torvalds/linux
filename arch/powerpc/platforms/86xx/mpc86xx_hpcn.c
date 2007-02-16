@@ -120,6 +120,8 @@ mpc86xx_hpcn_init_irq(void)
 	DBG("mpc86xxhpcn: cascade mapped to irq %d\n", cascade_irq);
 
 	i8259_init(cascade_node, 0);
+	of_node_put(cascade_node);
+
 	set_irq_chained_handler(cascade_irq, mpc86xx_8259_cascade);
 #endif
 }
