@@ -2052,7 +2052,7 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 	port->altstatus_addr = port->ctl_addr = shd_base + SHD_CTL_AST_OFS;
 
 	/* unused: */
-	port->cmd_addr = port->bmdma_addr = port->scr_addr = 0;
+	port->cmd_addr = port->bmdma_addr = port->scr_addr = NULL;
 
 	/* Clear any currently outstanding port interrupt conditions */
 	serr_ofs = mv_scr_offset(SCR_ERROR);

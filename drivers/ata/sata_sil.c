@@ -339,7 +339,7 @@ static inline void __iomem *sil_scr_addr(struct ata_port *ap, unsigned int sc_re
 		break;
 	}
 
-	return 0;
+	return NULL;
 }
 
 static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg)
