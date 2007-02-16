@@ -17,6 +17,7 @@
 struct kobject;
 struct module;
 struct nameidata;
+struct dentry;
 
 struct attribute {
 	const char		* name;
@@ -66,18 +67,6 @@ struct bin_attribute {
 struct sysfs_ops {
 	ssize_t	(*show)(struct kobject *, struct attribute *,char *);
 	ssize_t	(*store)(struct kobject *,struct attribute *,const char *, size_t);
-};
-
-struct sysfs_dirent {
-	atomic_t		s_count;
-	struct list_head	s_sibling;
-	struct list_head	s_children;
-	void 			* s_element;
-	int			s_type;
-	umode_t			s_mode;
-	struct dentry		* s_dentry;
-	struct iattr		* s_iattr;
-	atomic_t		s_event;
 };
 
 #define SYSFS_ROOT		0x0001
