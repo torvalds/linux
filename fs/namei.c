@@ -2688,10 +2688,11 @@ int __page_symlink(struct inode *inode, const char *symname, int len,
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
-	int err = -ENOMEM;
+	int err;
 	char *kaddr;
 
 retry:
+	err = -ENOMEM;
 	page = find_or_create_page(mapping, 0, gfp_mask);
 	if (!page)
 		goto fail;
