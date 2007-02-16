@@ -252,6 +252,9 @@ extern void __iounmap(void __iomem *addr);
 #define ioremap(offset, size)			\
 	__ioremap((offset), (size), 0)
 
+#define ioremap_nocache(offset, size)		\
+	__ioremap((offset), (size), 0)
+
 #define iounmap(addr)				\
 	__iounmap(addr)
 
@@ -262,6 +265,14 @@ extern void __iounmap(void __iomem *addr);
 #define bus_to_virt phys_to_virt
 #define page_to_bus page_to_phys
 #define bus_to_page phys_to_page
+
+/*
+ * Create a virtual mapping cookie for an IO port range.  There exists
+ * no such thing as port-based I/O on AVR32, so a regular ioremap()
+ * should do what we need.
+ */
+#define ioport_map(port, nr)	ioremap(port, nr)
+#define ioport_unmap(port)	iounmap(port)
 
 #define dma_cache_wback_inv(_start, _size)	\
 	flush_dcache_region(_start, _size)
