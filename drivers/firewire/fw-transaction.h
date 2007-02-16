@@ -332,6 +332,12 @@ struct fw_iso_packet {
 #define FW_ISO_CONTEXT_TRANSMIT	0
 #define FW_ISO_CONTEXT_RECEIVE	1
 
+#define FW_ISO_CONTEXT_MATCH_TAG0	 1
+#define FW_ISO_CONTEXT_MATCH_TAG1	 2
+#define FW_ISO_CONTEXT_MATCH_TAG2	 4
+#define FW_ISO_CONTEXT_MATCH_TAG3	 8
+#define FW_ISO_CONTEXT_MATCH_ALL_TAGS	15
+
 struct fw_iso_context;
 
 typedef void (*fw_iso_callback_t) (struct fw_iso_context *context,
@@ -357,6 +363,8 @@ struct fw_iso_context {
 	int type;
 	int channel;
 	int speed;
+	int sync;
+	int tags;
 	size_t header_size;
 	fw_iso_callback_t callback;
 	void *callback_data;
@@ -374,7 +382,8 @@ fw_iso_buffer_destroy(struct fw_iso_buffer *buffer, struct fw_card *card);
 
 struct fw_iso_context *
 fw_iso_context_create(struct fw_card *card, int type,
-		      int channel, int speed, size_t header_size,
+		      int channel, int speed,
+		      int sync, int tags, size_t header_size,
 		      fw_iso_callback_t callback, void *callback_data);
 
 void
@@ -425,7 +434,7 @@ struct fw_card_driver {
 				int node_id, int generation);
 
 	struct fw_iso_context *
-	(*allocate_iso_context)(struct fw_card *card,
+	(*allocate_iso_context)(struct fw_card *card, int sync, int tags,
 				int type, size_t header_size);
 	void (*free_iso_context)(struct fw_iso_context *ctx);
 

@@ -131,11 +131,19 @@ struct fw_cdev_allocate {
 #define FW_CDEV_ISO_CONTEXT_TRANSMIT	0
 #define FW_CDEV_ISO_CONTEXT_RECEIVE	1
 
+#define FW_CDEV_ISO_CONTEXT_MATCH_TAG0		 1
+#define FW_CDEV_ISO_CONTEXT_MATCH_TAG1		 2
+#define FW_CDEV_ISO_CONTEXT_MATCH_TAG2		 4
+#define FW_CDEV_ISO_CONTEXT_MATCH_TAG3		 8
+#define FW_CDEV_ISO_CONTEXT_MATCH_ALL_TAGS	15
+
 struct fw_cdev_create_iso_context {
 	__u32 type;
 	__u32 header_size;
 	__u32 channel;
 	__u32 speed;
+	__u32 sync;
+	__u32 tags;
 };
 
 struct fw_cdev_iso_packet {

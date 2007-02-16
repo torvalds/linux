@@ -416,6 +416,12 @@ static int ioctl_create_iso_context(struct client *client, void __user *arg)
 	if (request.channel > 63)
 		return -EINVAL;
 
+	if (request.sync > 15)
+		return -EINVAL;
+
+	if (request.tags == 0 || request.tags > 15)
+		return -EINVAL;
+
 	if (request.speed > SCODE_3200)
 		return -EINVAL;
 
@@ -424,6 +430,8 @@ static int ioctl_create_iso_context(struct client *client, void __user *arg)
 						    request.channel,
 						    request.speed,
 						    request.header_size,
+						    request.sync,
+						    request.tags,
 						    iso_callback, client);
 	if (IS_ERR(client->iso_context))
 		return PTR_ERR(client->iso_context);
@@ -495,7 +503,7 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 		if (__copy_from_user
 		    (u.packet.header, p->header, header_length))
 			return -EFAULT;
-		if (u.packet.skip &&
+		if (u.packet.skip && ctx->type == FW_ISO_CONTEXT_TRANSMIT &&
 		    u.packet.header_length + u.packet.payload_length > 0)
 			return -EINVAL;
 		if (payload + u.packet.payload_length > payload_end)

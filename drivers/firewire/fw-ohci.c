@@ -1337,7 +1337,8 @@ static int handle_it_packet(struct context *context,
 }
 
 static struct fw_iso_context *
-ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
+ohci_allocate_iso_context(struct fw_card *card, int type,
+			  int sync, int tags, size_t header_size)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct iso_context *ctx, *list;
@@ -1427,7 +1428,8 @@ static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
 		reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 1 << index);
 		reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, 1 << index);
 		reg_write(ohci, context_match(ctx->context.regs),
-			  0xf0000000 | ctx->base.channel);
+			  (ctx->base.tags << 28) |
+			  (ctx->base.sync << 8) | ctx->base.channel);
 		context_run(&ctx->context, mode);
 	}
 
@@ -1573,6 +1575,26 @@ ohci_queue_iso_transmit(struct fw_iso_context *base,
 
 	return 0;
 }
+ 
+static int
+setup_wait_descriptor(struct context *ctx)
+{
+	struct descriptor *d;
+	dma_addr_t d_bus;
+
+	d = context_get_descriptors(ctx, 1, &d_bus);
+	if (d == NULL)
+		return -ENOMEM;
+
+	d->control = cpu_to_le16(descriptor_input_more |
+				 descriptor_status |
+				 descriptor_branch_always |
+				 descriptor_wait);
+
+	context_append(ctx, d, 1, 0);
+
+	return 0;
+}
 
 static int
 ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
@@ -1590,6 +1612,9 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
  
 	/* FIXME: Cycle lost behavior should be configurable: lose
 	 * packet, retransmit or terminate.. */
+
+	if (packet->skip && setup_wait_descriptor(&ctx->context) < 0)
+		return -ENOMEM;
 
 	p = packet;
 	z = 2;
@@ -1654,6 +1679,9 @@ ohci_queue_iso_receive_bufferfill(struct fw_iso_context *base,
 	page   = payload >> PAGE_SHIFT;
 	offset = payload & ~PAGE_MASK;
 	rest   = packet->payload_length;
+
+	if (packet->skip && setup_wait_descriptor(&ctx->context) < 0)
+		return -ENOMEM;
 
 	while (rest > 0) {
 		d = context_get_descriptors(&ctx->context, 1, &d_bus);
