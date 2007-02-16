@@ -273,42 +273,42 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval, struct iattr *ia
 		iattr->ia_valid |= ATTR_SIZE;
 	}
 	if (bmval[0] & FATTR4_WORD0_ACL) {
-		int nace, i;
-		struct nfs4_ace ace;
+		int nace;
+		struct nfs4_ace *ace;
 
 		READ_BUF(4); len += 4;
 		READ32(nace);
 
-		*acl = nfs4_acl_new();
+		if (nace > NFS4_ACL_MAX)
+			return nfserr_resource;
+
+		*acl = nfs4_acl_new(nace);
 		if (*acl == NULL) {
 			host_err = -ENOMEM;
 			goto out_nfserr;
 		}
-		defer_free(argp, (void (*)(const void *))nfs4_acl_free, *acl);
+		defer_free(argp, kfree, *acl);
 
-		for (i = 0; i < nace; i++) {
+		(*acl)->naces = nace;
+		for (ace = (*acl)->aces; ace < (*acl)->aces + nace; ace++) {
 			READ_BUF(16); len += 16;
-			READ32(ace.type);
-			READ32(ace.flag);
-			READ32(ace.access_mask);
+			READ32(ace->type);
+			READ32(ace->flag);
+			READ32(ace->access_mask);
 			READ32(dummy32);
 			READ_BUF(dummy32);
 			len += XDR_QUADLEN(dummy32) << 2;
 			READMEM(buf, dummy32);
-			ace.whotype = nfs4_acl_get_whotype(buf, dummy32);
+			ace->whotype = nfs4_acl_get_whotype(buf, dummy32);
 			host_err = 0;
-			if (ace.whotype != NFS4_ACL_WHO_NAMED)
-				ace.who = 0;
-			else if (ace.flag & NFS4_ACE_IDENTIFIER_GROUP)
+			if (ace->whotype != NFS4_ACL_WHO_NAMED)
+				ace->who = 0;
+			else if (ace->flag & NFS4_ACE_IDENTIFIER_GROUP)
 				host_err = nfsd_map_name_to_gid(argp->rqstp,
-						buf, dummy32, &ace.who);
+						buf, dummy32, &ace->who);
 			else
 				host_err = nfsd_map_name_to_uid(argp->rqstp,
-						buf, dummy32, &ace.who);
-			if (host_err)
-				goto out_nfserr;
-			host_err = nfs4_acl_add_ace(*acl, ace.type, ace.flag,
-				 ace.access_mask, ace.whotype, ace.who);
+						buf, dummy32, &ace->who);
 			if (host_err)
 				goto out_nfserr;
 		}
@@ -1596,7 +1596,6 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	}
 	if (bmval0 & FATTR4_WORD0_ACL) {
 		struct nfs4_ace *ace;
-		struct list_head *h;
 
 		if (acl == NULL) {
 			if ((buflen -= 4) < 0)
@@ -1609,9 +1608,7 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 			goto out_resource;
 		WRITE32(acl->naces);
 
-		list_for_each(h, &acl->ace_head) {
-			ace = list_entry(h, struct nfs4_ace, l_ace);
-
+		for (ace = acl->aces; ace < acl->aces + acl->naces; ace++) {
 			if ((buflen -= 4*3) < 0)
 				goto out_resource;
 			WRITE32(ace->type);
@@ -1821,7 +1818,7 @@ out_acl:
 	status = nfs_ok;
 
 out:
-	nfs4_acl_free(acl);
+	kfree(acl);
 	if (fhp == &tempfh)
 		fh_put(&tempfh);
 	return status;

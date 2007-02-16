@@ -128,74 +128,58 @@ struct ace_container {
 };
 
 static short ace2type(struct nfs4_ace *);
-static int _posix_to_nfsv4_one(struct posix_acl *, struct nfs4_acl *, unsigned int);
-int nfs4_acl_add_ace(struct nfs4_acl *, u32, u32, u32, int, uid_t);
+static void _posix_to_nfsv4_one(struct posix_acl *, struct nfs4_acl *,
+				unsigned int);
+void nfs4_acl_add_ace(struct nfs4_acl *, u32, u32, u32, int, uid_t);
 
 struct nfs4_acl *
 nfs4_acl_posix_to_nfsv4(struct posix_acl *pacl, struct posix_acl *dpacl,
 			unsigned int flags)
 {
 	struct nfs4_acl *acl;
-	int error = -EINVAL;
+	int size = 0;
 
-	if ((pacl != NULL &&
-		(posix_acl_valid(pacl) < 0 || pacl->a_count == 0)) ||
-	    (dpacl != NULL &&
-		(posix_acl_valid(dpacl) < 0 || dpacl->a_count == 0)))
-		goto out_err;
-
-	acl = nfs4_acl_new();
-	if (acl == NULL) {
-		error = -ENOMEM;
-		goto out_err;
+	if (pacl) {
+		if (posix_acl_valid(pacl) < 0)
+			return ERR_PTR(-EINVAL);
+		size += 2*pacl->a_count;
+	}
+	if (dpacl) {
+		if (posix_acl_valid(dpacl) < 0)
+			return ERR_PTR(-EINVAL);
+		size += 2*dpacl->a_count;
 	}
 
-	if (pacl != NULL) {
-		error = _posix_to_nfsv4_one(pacl, acl,
-						flags & ~NFS4_ACL_TYPE_DEFAULT);
-		if (error < 0)
-			goto out_acl;
-	}
+	/* Allocate for worst case: one (deny, allow) pair each: */
+	acl = nfs4_acl_new(size);
+	if (acl == NULL)
+		return ERR_PTR(-ENOMEM);
 
-	if (dpacl != NULL) {
-		error = _posix_to_nfsv4_one(dpacl, acl,
-						flags | NFS4_ACL_TYPE_DEFAULT);
-		if (error < 0)
-			goto out_acl;
-	}
+	if (pacl)
+		_posix_to_nfsv4_one(pacl, acl, flags & ~NFS4_ACL_TYPE_DEFAULT);
 
-	return acl;
-
-out_acl:
-	nfs4_acl_free(acl);
-out_err:
-	acl = ERR_PTR(error);
+	if (dpacl)
+		_posix_to_nfsv4_one(dpacl, acl, flags | NFS4_ACL_TYPE_DEFAULT);
 
 	return acl;
 }
 
-static int
+static void
 nfs4_acl_add_pair(struct nfs4_acl *acl, int eflag, u32 mask, int whotype,
 		uid_t owner, unsigned int flags)
 {
-	int error;
-
-	error = nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE,
+	nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE,
 				 eflag, mask, whotype, owner);
-	if (error < 0)
-		return error;
-	error = nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
+	nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
 				eflag, deny_mask(mask, flags), whotype, owner);
-	return error;
 }
 
 /* We assume the acl has been verified with posix_acl_valid. */
-static int
+static void
 _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 						unsigned int flags)
 {
 	struct posix_acl_entry *pa, *pe, *group_owner_entry;
-	int error = -EINVAL;
 	u32 mask, mask_mask;
 	int eflag = ((flags & NFS4_ACL_TYPE_DEFAULT) ?
 					NFS4_INHERITANCE_FLAGS : 0);
@@ -211,23 +195,16 @@ _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 	pa = pacl->a_entries;
 	BUG_ON(pa->e_tag != ACL_USER_OBJ);
 	mask = mask_from_posix(pa->e_perm, flags | NFS4_ACL_OWNER);
-	error = nfs4_acl_add_pair(acl, eflag, mask, NFS4_ACL_WHO_OWNER, 0, flags);
-	if (error < 0)
-		goto out;
+	nfs4_acl_add_pair(acl, eflag, mask, NFS4_ACL_WHO_OWNER, 0, flags);
 	pa++;
 
 	while (pa->e_tag == ACL_USER) {
 		mask = mask_from_posix(pa->e_perm, flags);
-		error = nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
+		nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
 				eflag,  mask_mask, NFS4_ACL_WHO_NAMED, pa->e_id);
-		if (error < 0)
-			goto out;
 
-
-		error = nfs4_acl_add_pair(acl, eflag, mask,
+		nfs4_acl_add_pair(acl, eflag, mask,
 				NFS4_ACL_WHO_NAMED, pa->e_id, flags);
-		if (error < 0)
-			goto out;
 		pa++;
 	}
 
@@ -238,34 +215,25 @@ _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 
 	if (pacl->a_count > 3) {
 		BUG_ON(pa->e_tag != ACL_GROUP_OBJ);
-		error = nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
+		nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
 				NFS4_ACE_IDENTIFIER_GROUP | eflag, mask_mask,
 				NFS4_ACL_WHO_GROUP, 0);
-		if (error < 0)
-			goto out;
 	}
 	group_owner_entry = pa;
 	mask = mask_from_posix(pa->e_perm, flags);
-	error = nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE,
+	nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE,
 			NFS4_ACE_IDENTIFIER_GROUP | eflag, mask,
 			NFS4_ACL_WHO_GROUP, 0);
-	if (error < 0)
-		goto out;
 	pa++;
 
 	while (pa->e_tag == ACL_GROUP) {
 		mask = mask_from_posix(pa->e_perm, flags);
-		error = nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
+		nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
 				NFS4_ACE_IDENTIFIER_GROUP | eflag, mask_mask,
 				NFS4_ACL_WHO_NAMED, pa->e_id);
-		if (error < 0)
-			goto out;
-
-		error = nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE,
+		nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE,
 		    		NFS4_ACE_IDENTIFIER_GROUP | eflag, mask,
 		    		NFS4_ACL_WHO_NAMED, pa->e_id);
-		if (error < 0)
-			goto out;
 		pa++;
 	}
 
@@ -273,19 +241,15 @@ _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 
 	pa = group_owner_entry;
 	mask = mask_from_posix(pa->e_perm, flags);
-	error = nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
+	nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
 			NFS4_ACE_IDENTIFIER_GROUP | eflag,
 			deny_mask(mask, flags), NFS4_ACL_WHO_GROUP, 0);
-	if (error < 0)
-		goto out;
 	pa++;
 	while (pa->e_tag == ACL_GROUP) {
 		mask = mask_from_posix(pa->e_perm, flags);
-		error = nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
+		nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
 		    		NFS4_ACE_IDENTIFIER_GROUP | eflag,
 		    		deny_mask(mask, flags), NFS4_ACL_WHO_NAMED, pa->e_id);
-		if (error < 0)
-			goto out;
 		pa++;
 	}
 
@@ -293,10 +257,7 @@ _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 		pa++;
 	BUG_ON(pa->e_tag != ACL_OTHER);
 	mask = mask_from_posix(pa->e_perm, flags);
-	error = nfs4_acl_add_pair(acl, eflag, mask, NFS4_ACL_WHO_EVERYONE, 0, flags);
-
-out:
-	return error;
+	nfs4_acl_add_pair(acl, eflag, mask, NFS4_ACL_WHO_EVERYONE, 0, flags);
 }
 
 static void
@@ -640,7 +601,7 @@ int nfs4_acl_nfsv4_to_posix(struct nfs4_acl *acl, struct posix_acl **pacl,
 	if (ret)
 		goto out_estate;
 	ret = -EINVAL;
-	list_for_each_entry(ace, &acl->ace_head, l_ace) {
+	for (ace = acl->aces; ace < acl->aces + acl->naces; ace++) {
 		if (ace->type != NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE &&
 		    ace->type != NFS4_ACE_ACCESS_DENIED_ACE_TYPE)
 			goto out_dstate;
@@ -705,48 +666,22 @@ EXPORT_SYMBOL(nfs4_acl_posix_to_nfsv4);
 EXPORT_SYMBOL(nfs4_acl_nfsv4_to_posix);
 
 struct nfs4_acl *
-nfs4_acl_new(void)
+nfs4_acl_new(int n)
 {
 	struct nfs4_acl *acl;
 
-	if ((acl = kmalloc(sizeof(*acl), GFP_KERNEL)) == NULL)
+	acl = kmalloc(sizeof(*acl) + n*sizeof(struct nfs4_ace), GFP_KERNEL);
+	if (acl == NULL)
 		return NULL;
-
 	acl->naces = 0;
-	INIT_LIST_HEAD(&acl->ace_head);
-
 	return acl;
 }
 
 void
-nfs4_acl_free(struct nfs4_acl *acl)
-{
-	struct list_head *h;
-	struct nfs4_ace *ace;
-
-	if (!acl)
-		return;
-
-	while (!list_empty(&acl->ace_head)) {
-		h = acl->ace_head.next;
-		list_del(h);
-		ace = list_entry(h, struct nfs4_ace, l_ace);
-		kfree(ace);
-	}
-
-	kfree(acl);
-
-	return;
-}
-
-int
 nfs4_acl_add_ace(struct nfs4_acl *acl, u32 type, u32 flag, u32 access_mask,
 		int whotype, uid_t who)
 {
-	struct nfs4_ace *ace;
-
-	if ((ace = kmalloc(sizeof(*ace), GFP_KERNEL)) == NULL)
-		return -ENOMEM;
+	struct nfs4_ace *ace = acl->aces + acl->naces;
 
 	ace->type = type;
 	ace->flag = flag;
@@ -754,10 +689,7 @@ nfs4_acl_add_ace(struct nfs4_acl *acl, u32 type, u32 flag, u32 access_mask,
 	ace->whotype = whotype;
 	ace->who = who;
 
-	list_add_tail(&ace->l_ace, &acl->ace_head);
 	acl->naces++;
-
-	return 0;
 }
 
 static struct {
@@ -811,7 +743,6 @@ nfs4_acl_write_who(int who, char *p)
 }
 
 EXPORT_SYMBOL(nfs4_acl_new);
-EXPORT_SYMBOL(nfs4_acl_free);
 EXPORT_SYMBOL(nfs4_acl_add_ace);
 EXPORT_SYMBOL(nfs4_acl_get_whotype);
 EXPORT_SYMBOL(nfs4_acl_write_who);
