@@ -34,9 +34,24 @@ struct device;
 struct device_driver;
 struct class;
 struct class_device;
+struct bus_type;
+
+struct bus_attribute {
+	struct attribute	attr;
+	ssize_t (*show)(struct bus_type *, char * buf);
+	ssize_t (*store)(struct bus_type *, const char * buf, size_t count);
+};
+
+#define BUS_ATTR(_name,_mode,_show,_store)	\
+struct bus_attribute bus_attr_##_name = __ATTR(_name,_mode,_show,_store)
+
+extern int __must_check bus_create_file(struct bus_type *,
+					struct bus_attribute *);
+extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
 
 struct bus_type {
 	const char		* name;
+	struct module		* owner;
 
 	struct subsystem	subsys;
 	struct kset		drivers;
@@ -49,6 +64,8 @@ struct bus_type {
 	struct bus_attribute	* bus_attrs;
 	struct device_attribute	* dev_attrs;
 	struct driver_attribute	* drv_attrs;
+	struct bus_attribute drivers_autoprobe_attr;
+	struct bus_attribute drivers_probe_attr;
 
 	int		(*match)(struct device * dev, struct device_driver * drv);
 	int		(*uevent)(struct device *dev, char **envp,
@@ -61,6 +78,8 @@ struct bus_type {
 	int (*suspend_late)(struct device * dev, pm_message_t state);
 	int (*resume_early)(struct device * dev);
 	int (*resume)(struct device * dev);
+
+	unsigned int drivers_autoprobe:1;
 };
 
 extern int __must_check bus_register(struct bus_type * bus);
@@ -101,21 +120,6 @@ extern int bus_unregister_notifier(struct bus_type *bus,
 #define BUS_NOTIFY_BOUND_DRIVER		0x00000003 /* driver bound to device */
 #define BUS_NOTIFY_UNBIND_DRIVER	0x00000004 /* driver about to be
 						      unbound */
-
-/* sysfs interface for exporting bus attributes */
-
-struct bus_attribute {
-	struct attribute	attr;
-	ssize_t (*show)(struct bus_type *, char * buf);
-	ssize_t (*store)(struct bus_type *, const char * buf, size_t count);
-};
-
-#define BUS_ATTR(_name,_mode,_show,_store)	\
-struct bus_attribute bus_attr_##_name = __ATTR(_name,_mode,_show,_store)
-
-extern int __must_check bus_create_file(struct bus_type *,
-					struct bus_attribute *);
-extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
 
 struct device_driver {
 	const char		* name;

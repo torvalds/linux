@@ -27,6 +27,9 @@
 #define to_driver(obj) container_of(obj, struct device_driver, kobj)
 
 
+static int __must_check bus_rescan_devices_helper(struct device *dev,
+						void *data);
+
 static ssize_t
 drv_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
@@ -133,7 +136,6 @@ static decl_subsys(bus, &ktype_bus, NULL);
 
 
 #ifdef CONFIG_HOTPLUG
-
 /* Manually detach a device from its associated driver. */
 static int driver_helper(struct device *dev, void *data)
 {
@@ -199,6 +201,33 @@ static ssize_t driver_bind(struct device_driver *drv,
 }
 static DRIVER_ATTR(bind, S_IWUSR, NULL, driver_bind);
 
+static ssize_t show_drivers_autoprobe(struct bus_type *bus, char *buf)
+{
+	return sprintf(buf, "%d\n", bus->drivers_autoprobe);
+}
+
+static ssize_t store_drivers_autoprobe(struct bus_type *bus,
+				       const char *buf, size_t count)
+{
+	if (buf[0] == '0')
+		bus->drivers_autoprobe = 0;
+	else
+		bus->drivers_autoprobe = 1;
+	return count;
+}
+
+static ssize_t store_drivers_probe(struct bus_type *bus,
+				   const char *buf, size_t count)
+{
+	struct device *dev;
+
+	dev = bus_find_device(bus, NULL, (void *)buf, driver_helper);
+	if (!dev)
+		return -ENODEV;
+	if (bus_rescan_devices_helper(dev, NULL) != 0)
+		return -EINVAL;
+	return count;
+}
 #endif
 
 static struct device * next_device(struct klist_iter * i)
@@ -425,7 +454,8 @@ int bus_attach_device(struct device * dev)
 
 	if (bus) {
 		dev->is_registered = 1;
-		ret = device_attach(dev);
+		if (bus->drivers_autoprobe)
+			ret = device_attach(dev);
 		if (ret >= 0) {
 			klist_add_tail(&dev->knode_bus, &bus->klist_devices);
 			ret = 0;
@@ -515,9 +545,41 @@ static void remove_bind_files(struct device_driver *drv)
 	driver_remove_file(drv, &driver_attr_bind);
 	driver_remove_file(drv, &driver_attr_unbind);
 }
+
+static int add_probe_files(struct bus_type *bus)
+{
+	int retval;
+
+	bus->drivers_probe_attr.attr.name = "drivers_probe";
+	bus->drivers_probe_attr.attr.mode = S_IWUSR;
+	bus->drivers_probe_attr.attr.owner = bus->owner;
+	bus->drivers_probe_attr.store = store_drivers_probe;
+	retval = bus_create_file(bus, &bus->drivers_probe_attr);
+	if (retval)
+		goto out;
+
+	bus->drivers_autoprobe_attr.attr.name = "drivers_autoprobe";
+	bus->drivers_autoprobe_attr.attr.mode = S_IWUSR | S_IRUGO;
+	bus->drivers_autoprobe_attr.attr.owner = bus->owner;
+	bus->drivers_autoprobe_attr.show = show_drivers_autoprobe;
+	bus->drivers_autoprobe_attr.store = store_drivers_autoprobe;
+	retval = bus_create_file(bus, &bus->drivers_autoprobe_attr);
+	if (retval)
+		bus_remove_file(bus, &bus->drivers_probe_attr);
+out:
+	return retval;
+}
+
+static void remove_probe_files(struct bus_type *bus)
+{
+	bus_remove_file(bus, &bus->drivers_autoprobe_attr);
+	bus_remove_file(bus, &bus->drivers_probe_attr);
+}
 #else
 static inline int add_bind_files(struct device_driver *drv) { return 0; }
 static inline void remove_bind_files(struct device_driver *drv) {}
+static inline int add_probe_files(struct bus_type *bus) { return 0; }
+static inline void remove_probe_files(struct bus_type *bus) {}
 #endif
 
 /**
@@ -541,9 +603,11 @@ int bus_add_driver(struct device_driver *drv)
 	if ((error = kobject_register(&drv->kobj)))
 		goto out_put_bus;
 
-	error = driver_attach(drv);
-	if (error)
-		goto out_unregister;
+	if (drv->bus->drivers_autoprobe) {
+		error = driver_attach(drv);
+		if (error)
+			goto out_unregister;
+	}
 	klist_add_tail(&drv->knode_bus, &bus->klist_drivers);
 	module_add_driver(drv->owner, drv);
 
@@ -762,6 +826,12 @@ int bus_register(struct bus_type * bus)
 
 	klist_init(&bus->klist_devices, klist_devices_get, klist_devices_put);
 	klist_init(&bus->klist_drivers, NULL, NULL);
+
+	bus->drivers_autoprobe = 1;
+	retval = add_probe_files(bus);
+	if (retval)
+		goto bus_probe_files_fail;
+
 	retval = bus_add_attrs(bus);
 	if (retval)
 		goto bus_attrs_fail;
@@ -770,6 +840,8 @@ int bus_register(struct bus_type * bus)
 	return 0;
 
 bus_attrs_fail:
+	remove_probe_files(bus);
+bus_probe_files_fail:
 	kset_unregister(&bus->drivers);
 bus_drivers_fail:
 	kset_unregister(&bus->devices);
@@ -778,7 +850,6 @@ bus_devices_fail:
 out:
 	return retval;
 }
-
 
 /**
  *	bus_unregister - remove a bus from the system
@@ -791,6 +862,7 @@ void bus_unregister(struct bus_type * bus)
 {
 	pr_debug("bus %s: unregistering\n", bus->name);
 	bus_remove_attrs(bus);
+	remove_probe_files(bus);
 	kset_unregister(&bus->drivers);
 	kset_unregister(&bus->devices);
 	subsystem_unregister(&bus->subsys);
