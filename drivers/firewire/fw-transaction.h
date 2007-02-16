@@ -425,7 +425,8 @@ struct fw_card_driver {
 				int node_id, int generation);
 
 	struct fw_iso_context *
-	(*allocate_iso_context)(struct fw_card *card, int type);
+	(*allocate_iso_context)(struct fw_card *card,
+				int type, size_t header_size);
 	void (*free_iso_context)(struct fw_iso_context *ctx);
 
 	int (*start_iso)(struct fw_iso_context *ctx, s32 cycle);

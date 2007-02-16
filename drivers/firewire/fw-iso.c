@@ -111,7 +111,7 @@ fw_iso_context_create(struct fw_card *card, int type, size_t header_size,
 {
 	struct fw_iso_context *ctx;
 
-	ctx = card->driver->allocate_iso_context(card, type);
+	ctx = card->driver->allocate_iso_context(card, type, header_size);
 	if (IS_ERR(ctx))
 		return ctx;
 

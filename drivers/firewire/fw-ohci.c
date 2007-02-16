@@ -1267,16 +1267,34 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 	spin_unlock_irqrestore(&ohci->lock, flags);
 	return retval;
 }
+ 
+static int handle_ir_bufferfill_packet(struct context *context,
+				       struct descriptor *d,
+				       struct descriptor *last)
+{
+	struct iso_context *ctx =
+		container_of(context, struct iso_context, context);
 
-static int handle_ir_packet(struct context *context,
-			    struct descriptor *d,
-			    struct descriptor *last)
+	if (d->res_count > 0)
+		return 0;
+
+	if (le16_to_cpu(last->control) & descriptor_irq_always)
+		ctx->base.callback(&ctx->base,
+				   le16_to_cpu(last->res_count),
+				   0, NULL, ctx->base.callback_data);
+
+	return 1;
+}
+
+static int handle_ir_dualbuffer_packet(struct context *context,
+				       struct descriptor *d,
+				       struct descriptor *last)
 {
 	struct iso_context *ctx =
 		container_of(context, struct iso_context, context);
 	struct db_descriptor *db = (struct db_descriptor *) d;
 	size_t header_length;
- 
+
 	if (db->first_res_count > 0 && db->second_res_count > 0)
 		/* This descriptor isn't done yet, stop iteration. */
 		return 0;
@@ -1317,7 +1335,7 @@ static int handle_it_packet(struct context *context,
 }
 
 static struct fw_iso_context *
-ohci_allocate_iso_context(struct fw_card *card, int type)
+ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct iso_context *ctx, *list;
@@ -1333,7 +1351,10 @@ ohci_allocate_iso_context(struct fw_card *card, int type)
 	} else {
  		mask = &ohci->ir_context_mask;
  		list = ohci->ir_context_list;
-		callback = handle_ir_packet;
+		if (header_size > 0)
+			callback = handle_ir_dualbuffer_packet;
+		else
+			callback = handle_ir_bufferfill_packet;
 	}
 
 	spin_lock_irqsave(&ohci->lock, flags);
@@ -1378,7 +1399,7 @@ static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
 {
  	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct fw_ohci *ohci = ctx->context.ohci;
-	u32 cycle_match = 0;
+	u32 cycle_match = 0, mode;
 	int index;
 
 	if (ctx->base.type == FW_ISO_CONTEXT_TRANSMIT) {
@@ -1393,11 +1414,15 @@ static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
 	} else {
 		index = ctx - ohci->ir_context_list;
 
+		if (ctx->base.header_size > 0)
+			mode = IR_CONTEXT_DUAL_BUFFER_MODE;
+		else
+			mode = IR_CONTEXT_BUFFER_FILL;
 		reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 1 << index);
 		reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, 1 << index);
 		reg_write(ohci, context_match(ctx->context.regs),
 			  0xf0000000 | ctx->base.channel);
-		context_run(&ctx->context, IR_CONTEXT_DUAL_BUFFER_MODE);
+		context_run(&ctx->context, mode);
 	}
 
 	return 0;
@@ -1544,10 +1569,10 @@ ohci_queue_iso_transmit(struct fw_iso_context *base,
 }
 
 static int
-ohci_queue_iso_receive(struct fw_iso_context *base,
-		       struct fw_iso_packet *packet,
-		       struct fw_iso_buffer *buffer,
-		       unsigned long payload)
+ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
+				  struct fw_iso_packet *packet,
+				  struct fw_iso_buffer *buffer,
+				  unsigned long payload)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct db_descriptor *db = NULL;
@@ -1604,10 +1629,58 @@ ohci_queue_iso_receive(struct fw_iso_context *base,
 
 	if (p->interrupt)
 		db->control |= cpu_to_le16(descriptor_irq_always);
+
+	return 0;
+}
  
- 	return 0;
- }
+static int
+ohci_queue_iso_receive_bufferfill(struct fw_iso_context *base,
+				  struct fw_iso_packet *packet,
+				  struct fw_iso_buffer *buffer,
+				  unsigned long payload)
+{
+	struct iso_context *ctx = container_of(base, struct iso_context, base);
+	struct descriptor *d = NULL;
+	dma_addr_t d_bus, page_bus;
+	u32 length, rest;
+	int page, offset;
  
+	page   = payload >> PAGE_SHIFT;
+	offset = payload & ~PAGE_MASK;
+	rest   = packet->payload_length;
+
+	while (rest > 0) {
+		d = context_get_descriptors(&ctx->context, 1, &d_bus);
+		if (d == NULL)
+			return -ENOMEM;
+
+		d->control = cpu_to_le16(descriptor_input_more |
+					 descriptor_status |
+					 descriptor_branch_always);
+		
+		if (offset + rest < PAGE_SIZE)
+			length = rest;
+		else
+			length = PAGE_SIZE - offset;
+
+		page_bus = page_private(buffer->pages[page]);
+		d->data_address = cpu_to_le32(page_bus + offset);
+		d->req_count = cpu_to_le16(length);
+		d->res_count = cpu_to_le16(length);
+
+		context_append(&ctx->context, d, 1, 0);
+
+		offset = (offset + length) & ~PAGE_MASK;
+		rest -= length;
+		page++;
+	}
+
+	if (packet->interrupt)
+		d->control |= cpu_to_le16(descriptor_irq_always);
+
+	return 0;
+}
+
 static int
 ohci_queue_iso(struct fw_iso_context *base,
 	       struct fw_iso_packet *packet,
@@ -1616,8 +1689,12 @@ ohci_queue_iso(struct fw_iso_context *base,
 {
 	if (base->type == FW_ISO_CONTEXT_TRANSMIT)
 		return ohci_queue_iso_transmit(base, packet, buffer, payload);
+	else if (base->header_size == 0)
+		return ohci_queue_iso_receive_bufferfill(base, packet,
+							 buffer, payload);
 	else
-		return ohci_queue_iso_receive(base, packet, buffer, payload);
+		return ohci_queue_iso_receive_dualbuffer(base, packet,
+							 buffer, payload);
 }
 
 static const struct fw_card_driver ohci_driver = {
