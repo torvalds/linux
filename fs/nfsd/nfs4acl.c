@@ -416,6 +416,7 @@ struct posix_ace_state_array {
  * calculated so far: */
 
 struct posix_acl_state {
+	int empty;
 	struct posix_ace_state owner;
 	struct posix_ace_state group;
 	struct posix_ace_state other;
@@ -431,6 +432,7 @@ init_state(struct posix_acl_state *state, int cnt)
 	int alloc;
 
 	memset(state, 0, sizeof(struct posix_acl_state));
+	state->empty = 1;
 	/*
 	 * In the worst case, each individual acl could be for a distinct
 	 * named user or group, but we don't no which, so we allocate
@@ -498,6 +500,20 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 	int nace;
 	int i, error = 0;
 
+	/*
+	 * ACLs with no ACEs are treated differently in the inheritable
+	 * and effective cases: when there are no inheritable ACEs, we
+	 * set a zero-length default posix acl:
+	 */
+	if (state->empty && (flags & NFS4_ACL_TYPE_DEFAULT)) {
+		pacl = posix_acl_alloc(0, GFP_KERNEL);
+		return pacl ? pacl : ERR_PTR(-ENOMEM);
+	}
+	/*
+	 * When there are no effective ACEs, the following will end
+	 * up setting a 3-element effective posix ACL with all
+	 * permissions zero.
+	 */
 	nace = 4 + state->users->n + state->groups->n;
 	pacl = posix_acl_alloc(nace, GFP_KERNEL);
 	if (!pacl)
@@ -613,6 +629,8 @@ static void process_one_v4_ace(struct posix_acl_state *state,
 	u32 mask = ace->access_mask;
 	int i;
 
+	state->empty = 0;
+
 	switch (ace2type(ace)) {
 	case ACL_USER_OBJ:
 		if (ace->type == NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE) {
@@ -717,7 +735,8 @@ int nfs4_acl_nfsv4_to_posix(struct nfs4_acl *acl, struct posix_acl **pacl,
 		ret = PTR_ERR(*pacl);
 		goto out_dstate;
 	}
-	*dpacl = posix_state_to_acl(&default_acl_state, flags);
+	*dpacl = posix_state_to_acl(&default_acl_state,
+						flags | NFS4_ACL_TYPE_DEFAULT);
 	if (IS_ERR(*dpacl)) {
 		ret = PTR_ERR(*dpacl);
 		posix_acl_release(*pacl);
