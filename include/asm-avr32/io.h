@@ -28,13 +28,13 @@ static __inline__ void * phys_to_virt(unsigned long address)
  * Generic IO read/write.  These perform native-endian accesses.  Note
  * that some architectures will want to re-define __raw_{read,write}w.
  */
-extern void __raw_writesb(unsigned int addr, const void *data, int bytelen);
-extern void __raw_writesw(unsigned int addr, const void *data, int wordlen);
-extern void __raw_writesl(unsigned int addr, const void *data, int longlen);
+extern void __raw_writesb(void __iomem *addr, const void *data, int bytelen);
+extern void __raw_writesw(void __iomem *addr, const void *data, int wordlen);
+extern void __raw_writesl(void __iomem *addr, const void *data, int longlen);
 
-extern void __raw_readsb(unsigned int addr, void *data, int bytelen);
-extern void __raw_readsw(unsigned int addr, void *data, int wordlen);
-extern void __raw_readsl(unsigned int addr, void *data, int longlen);
+extern void __raw_readsb(const void __iomem *addr, void *data, int bytelen);
+extern void __raw_readsw(const void __iomem *addr, void *data, int wordlen);
+extern void __raw_readsl(const void __iomem *addr, void *data, int longlen);
 
 static inline void writeb(unsigned char b, volatile void __iomem *addr)
 {
@@ -252,6 +252,9 @@ extern void __iounmap(void __iomem *addr);
 #define ioremap(offset, size)			\
 	__ioremap((offset), (size), 0)
 
+#define ioremap_nocache(offset, size)		\
+	__ioremap((offset), (size), 0)
+
 #define iounmap(addr)				\
 	__iounmap(addr)
 
@@ -262,6 +265,14 @@ extern void __iounmap(void __iomem *addr);
 #define bus_to_virt phys_to_virt
 #define page_to_bus page_to_phys
 #define bus_to_page phys_to_page
+
+/*
+ * Create a virtual mapping cookie for an IO port range.  There exists
+ * no such thing as port-based I/O on AVR32, so a regular ioremap()
+ * should do what we need.
+ */
+#define ioport_map(port, nr)	ioremap(port, nr)
+#define ioport_unmap(port)	iounmap(port)
 
 #define dma_cache_wback_inv(_start, _size)	\
 	flush_dcache_region(_start, _size)

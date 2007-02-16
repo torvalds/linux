@@ -26,7 +26,9 @@ struct eth_platform_data {
 struct platform_device *
 at32_add_device_eth(unsigned int id, struct eth_platform_data *data);
 
-struct platform_device *at32_add_device_spi(unsigned int id);
+struct spi_board_info;
+struct platform_device *
+at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n);
 
 struct lcdc_platform_data {
 	unsigned long fbmem_start;
