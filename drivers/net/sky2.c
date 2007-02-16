@@ -1742,13 +1742,6 @@ static void sky2_link_down(struct sky2_port *sky2)
 	reg &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
 	gma_write16(hw, port, GM_GP_CTRL, reg);
 
-	if (sky2->flow_status == FC_RX) {
-		/* restore Asymmetric Pause bit */
-		gm_phy_write(hw, port, PHY_MARV_AUNE_ADV,
-			     gm_phy_read(hw, port, PHY_MARV_AUNE_ADV)
-			     | PHY_M_AN_ASP);
-	}
-
 	netif_carrier_off(sky2->netdev);
 	netif_stop_queue(sky2->netdev);
 
