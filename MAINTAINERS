@@ -3392,6 +3392,13 @@ L:	linux-usb-devel@lists.sourceforge.net
 S:	Maintained
 W:	http://www.kroah.com/linux-usb/
 
+USB DAVICOM DM9601 DRIVER
+P:	Peter Korsgaard
+M:	jacmet@sunsite.dk
+L:	linux-usb-devel@lists.sourceforge.net
+W:	http://www.linux-usb.org/usbnet
+S:	Maintained
+
 USB EHCI DRIVER
 P:	David Brownell
 M:	dbrownell@users.sourceforge.net
