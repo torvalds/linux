@@ -146,6 +146,9 @@ extern void hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
 /* Soft interrupt function to run the hrtimer queues: */
 extern void hrtimer_run_queues(void);
 
+/* Resume notification */
+void hrtimer_notify_resume(void);
+
 /* Bootup initialization: */
 extern void __init hrtimers_init(void);
 
