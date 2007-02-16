@@ -429,14 +429,12 @@ static void dbs_check_cpu(int cpu)
 static void do_dbs_timer(struct work_struct *work)
 { 
 	int i;
-	lock_cpu_hotplug();
 	mutex_lock(&dbs_mutex);
 	for_each_online_cpu(i)
 		dbs_check_cpu(i);
 	schedule_delayed_work(&dbs_work, 
 			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
 	mutex_unlock(&dbs_mutex);
-	unlock_cpu_hotplug();
 } 
 
 static inline void dbs_timer_init(void)

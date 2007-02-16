@@ -8,12 +8,11 @@
  *  VIA have currently 3 different versions of Longhaul.
  *  Version 1 (Longhaul) uses the BCR2 MSR at 0x1147.
  *   It is present only in Samuel 1 (C5A), Samuel 2 (C5B) stepping 0.
- *  Version 2 of longhaul is the same as v1, but adds voltage scaling.
- *   Present in Samuel 2 (steppings 1-7 only) (C5B), and Ezra (C5C)
- *   voltage scaling support has currently been disabled in this driver
- *   until we have code that gets it right.
+ *  Version 2 of longhaul is backward compatible with v1, but adds
+ *   LONGHAUL MSR for purpose of both frequency and voltage scaling.
+ *   Present in Samuel 2 (steppings 1-7 only) (C5B), and Ezra (C5C).
  *  Version 3 of longhaul got renamed to Powersaver and redesigned
- *   to use the POWERSAVER MSR at 0x110a.
+ *   to use only the POWERSAVER MSR at 0x110a.
  *   It is present in Ezra-T (C5M), Nehemiah (C5X) and above.
  *   It's pretty much the same feature wise to longhaul v2, though
  *   there is provision for scaling FSB too, but this doesn't work
@@ -51,10 +50,12 @@
 #define	CPU_EZRA	3
 #define	CPU_EZRA_T	4
 #define	CPU_NEHEMIAH	5
+#define	CPU_NEHEMIAH_C	6
 
 /* Flags */
 #define USE_ACPI_C3		(1 << 1)
 #define USE_NORTHBRIDGE		(1 << 2)
+#define USE_VT8235		(1 << 3)
 
 static int cpu_model;
 static unsigned int numscales=16;
@@ -63,7 +64,8 @@ static unsigned int fsb;
 static struct mV_pos *vrm_mV_table;
 static unsigned char *mV_vrm_table;
 struct f_msr {
-	unsigned char vrm;
+	u8 vrm;
+	u8 pos;
 };
 static struct f_msr f_msr_table[32];
 
@@ -73,10 +75,10 @@ static int can_scale_voltage;
 static struct acpi_processor *pr = NULL;
 static struct acpi_processor_cx *cx = NULL;
 static u8 longhaul_flags;
+static u8 longhaul_pos;
 
 /* Module parameters */
 static int scale_voltage;
-static int ignore_latency;
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "longhaul", msg)
 
@@ -164,26 +166,47 @@ static void do_longhaul1(unsigned int clock_ratio_index)
 static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 {
 	union msr_longhaul longhaul;
+	u8 dest_pos;
 	u32 t;
 
+	dest_pos = f_msr_table[clock_ratio_index].pos;
+
 	rdmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+	/* Setup new frequency */
 	longhaul.bits.RevisionKey = longhaul.bits.RevisionID;
 	longhaul.bits.SoftBusRatio = clock_ratio_index & 0xf;
 	longhaul.bits.SoftBusRatio4 = (clock_ratio_index & 0x10) >> 4;
-	longhaul.bits.EnableSoftBusRatio = 1;
-
-	if (can_scale_voltage) {
+	/* Setup new voltage */
+	if (can_scale_voltage)
 		longhaul.bits.SoftVID = f_msr_table[clock_ratio_index].vrm;
-		longhaul.bits.EnableSoftVID = 1;
-	}
-
 	/* Sync to timer tick */
 	safe_halt();
+	/* Raise voltage if necessary */
+	if (can_scale_voltage && longhaul_pos < dest_pos) {
+		longhaul.bits.EnableSoftVID = 1;
+		wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+		/* Change voltage */
+		if (!cx_address) {
+			ACPI_FLUSH_CPU_CACHE();
+			halt();
+		} else {
+			ACPI_FLUSH_CPU_CACHE();
+			/* Invoke C3 */
+			inb(cx_address);
+			/* Dummy op - must do something useless after P_LVL3
+			 * read */
+			t = inl(acpi_gbl_FADT.xpm_timer_block.address);
+		}
+		longhaul.bits.EnableSoftVID = 0;
+		wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+		longhaul_pos = dest_pos;
+	}
+
 	/* Change frequency on next halt or sleep */
+	longhaul.bits.EnableSoftBusRatio = 1;
 	wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
 	if (!cx_address) {
 		ACPI_FLUSH_CPU_CACHE();
-		/* Invoke C1 */
 		halt();
 	} else {
 		ACPI_FLUSH_CPU_CACHE();
@@ -193,12 +216,29 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 		t = inl(acpi_gbl_FADT.xpm_timer_block.address);
 	}
 	/* Disable bus ratio bit */
-	local_irq_disable();
-	longhaul.bits.RevisionKey = longhaul.bits.RevisionID;
 	longhaul.bits.EnableSoftBusRatio = 0;
-	longhaul.bits.EnableSoftBSEL = 0;
-	longhaul.bits.EnableSoftVID = 0;
 	wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+
+	/* Reduce voltage if necessary */
+	if (can_scale_voltage && longhaul_pos > dest_pos) {
+		longhaul.bits.EnableSoftVID = 1;
+		wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+		/* Change voltage */
+		if (!cx_address) {
+			ACPI_FLUSH_CPU_CACHE();
+			halt();
+		} else {
+			ACPI_FLUSH_CPU_CACHE();
+			/* Invoke C3 */
+			inb(cx_address);
+			/* Dummy op - must do something useless after P_LVL3
+			 * read */
+			t = inl(acpi_gbl_FADT.xpm_timer_block.address);
+		}
+		longhaul.bits.EnableSoftVID = 0;
+		wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+		longhaul_pos = dest_pos;
+	}
 }
 
 /**
@@ -257,26 +297,19 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	/*
 	 * Longhaul v1. (Samuel[C5A] and Samuel2 stepping 0[C5B])
 	 * Software controlled multipliers only.
-	 *
-	 * *NB* Until we get voltage scaling working v1 & v2 are the same code.
-	 * Longhaul v2 appears in Samuel2 Steppings 1->7 [C5b] and Ezra [C5C]
 	 */
 	case TYPE_LONGHAUL_V1:
-	case TYPE_LONGHAUL_V2:
 		do_longhaul1(clock_ratio_index);
 		break;
 
 	/*
+	 * Longhaul v2 appears in Samuel2 Steppings 1->7 [C5B] and Ezra [C5C]
+	 *
 	 * Longhaul v3 (aka Powersaver). (Ezra-T [C5M] & Nehemiah [C5N])
-	 * We can scale voltage with this too, but that's currently
-	 * disabled until we come up with a decent 'match freq to voltage'
-	 * algorithm.
-	 * When we add voltage scaling, we will also need to do the
-	 * voltage/freq setting in order depending on the direction
-	 * of scaling (like we do in powernow-k7.c)
 	 * Nehemiah can do FSB scaling too, but this has never been proven
 	 * to work in practice.
 	 */
+	case TYPE_LONGHAUL_V2:
 	case TYPE_POWERSAVER:
 		if (longhaul_flags & USE_ACPI_C3) {
 			/* Don't allow wakeup */
@@ -301,6 +334,7 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	local_irq_restore(flags);
 	preempt_enable();
 
+	freqs.new = calc_speed(longhaul_get_cpu_mult());
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 }
 
@@ -315,31 +349,19 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 
 #define ROUNDING	0xf
 
-static int _guess(int guess, int mult)
-{
-	int target;
-
-	target = ((mult/10)*guess);
-	if (mult%10 != 0)
-		target += (guess/2);
-	target += ROUNDING/2;
-	target &= ~ROUNDING;
-	return target;
-}
-
-
 static int guess_fsb(int mult)
 {
-	int speed = (cpu_khz/1000);
+	int speed = cpu_khz / 1000;
 	int i;
-	int speeds[] = { 66, 100, 133, 200 };
+	int speeds[] = { 666, 1000, 1333, 2000 };
+	int f_max, f_min;
 
-	speed += ROUNDING/2;
-	speed &= ~ROUNDING;
-
-	for (i=0; i<4; i++) {
-		if (_guess(speeds[i], mult) == speed)
-			return speeds[i];
+	for (i = 0; i < 4; i++) {
+		f_max = ((speeds[i] * mult) + 50) / 100;
+		f_max += (ROUNDING / 2);
+		f_min = f_max - ROUNDING;
+		if ((speed <= f_max) && (speed >= f_min))
+			return speeds[i] / 10;
 	}
 	return 0;
 }
@@ -347,66 +369,39 @@ static int guess_fsb(int mult)
 
 static int __init longhaul_get_ranges(void)
 {
-	unsigned long invalue;
-	unsigned int ezra_t_multipliers[32]= {
-			90,  30,  40, 100,  55,  35,  45,  95,
-			50,  70,  80,  60, 120,  75,  85,  65,
-			-1, 110, 120,  -1, 135, 115, 125, 105,
-			130, 150, 160, 140,  -1, 155,  -1, 145 };
 	unsigned int j, k = 0;
-	union msr_longhaul longhaul;
-	int mult = 0;
+	int mult;
 
-	switch (longhaul_version) {
-	case TYPE_LONGHAUL_V1:
-	case TYPE_LONGHAUL_V2:
-		/* Ugh, Longhaul v1 didn't have the min/max MSRs.
-		   Assume min=3.0x & max = whatever we booted at. */
-		minmult = 30;
-		maxmult = mult = longhaul_get_cpu_mult();
-		break;
-
-	case TYPE_POWERSAVER:
-		/* Ezra-T */
-		if (cpu_model==CPU_EZRA_T) {
-			minmult = 30;
-			rdmsrl (MSR_VIA_LONGHAUL, longhaul.val);
-			invalue = longhaul.bits.MaxMHzBR;
-			if (longhaul.bits.MaxMHzBR4)
-				invalue += 16;
-			maxmult = mult = ezra_t_multipliers[invalue];
-			break;
-		}
-
-		/* Nehemiah */
-		if (cpu_model==CPU_NEHEMIAH) {
-			rdmsrl (MSR_VIA_LONGHAUL, longhaul.val);
-
-			/*
-			 * TODO: This code works, but raises a lot of questions.
-			 * - Some Nehemiah's seem to have broken Min/MaxMHzBR's.
-			 *   We get around this by using a hardcoded multiplier of 4.0x
-			 *   for the minimimum speed, and the speed we booted up at for the max.
-			 *   This is done in longhaul_get_cpu_mult() by reading the EBLCR register.
-			 * - According to some VIA documentation EBLCR is only
-			 *   in pre-Nehemiah C3s. How this still works is a mystery.
-			 *   We're possibly using something undocumented and unsupported,
-			 *   But it works, so we don't grumble.
-			 */
-			minmult=40;
-			maxmult = mult = longhaul_get_cpu_mult();
-			break;
-		}
+	/* Get current frequency */
+	mult = longhaul_get_cpu_mult();
+	if (mult == -1) {
+		printk(KERN_INFO PFX "Invalid (reserved) multiplier!\n");
+		return -EINVAL;
 	}
 	fsb = guess_fsb(mult);
+	if (fsb == 0) {
+		printk(KERN_INFO PFX "Invalid (reserved) FSB!\n");
+		return -EINVAL;
+	}
+	/* Get max multiplier - as we always did.
+	 * Longhaul MSR is usefull only when voltage scaling is enabled.
+	 * C3 is booting at max anyway. */
+	maxmult = mult;
+	/* Get min multiplier */
+	switch (cpu_model) {
+	case CPU_NEHEMIAH:
+		minmult = 50;
+		break;
+	case CPU_NEHEMIAH_C:
+		minmult = 40;
+		break;
+	default:
+		minmult = 30;
+		break;
+	}
 
 	dprintk ("MinMult:%d.%dx MaxMult:%d.%dx\n",
 		 minmult/10, minmult%10, maxmult/10, maxmult%10);
-
-	if (fsb == 0) {
-		printk (KERN_INFO PFX "Invalid (reserved) FSB!\n");
-		return -EINVAL;
-	}
 
 	highest_speed = calc_speed(maxmult);
 	lowest_speed = calc_speed(minmult);
@@ -455,6 +450,7 @@ static void __init longhaul_setup_voltagescaling(void)
 	union msr_longhaul longhaul;
 	struct mV_pos minvid, maxvid;
 	unsigned int j, speed, pos, kHz_step, numvscales;
+	int min_vid_speed;
 
 	rdmsrl(MSR_VIA_LONGHAUL, longhaul.val);
 	if (!(longhaul.bits.RevisionID & 1)) {
@@ -468,14 +464,14 @@ static void __init longhaul_setup_voltagescaling(void)
 		mV_vrm_table = &mV_vrm85[0];
 	} else {
 		printk (KERN_INFO PFX "Mobile VRM\n");
+		if (cpu_model < CPU_NEHEMIAH)
+			return;
 		vrm_mV_table = &mobilevrm_mV[0];
 		mV_vrm_table = &mV_mobilevrm[0];
 	}
 
 	minvid = vrm_mV_table[longhaul.bits.MinimumVID];
 	maxvid = vrm_mV_table[longhaul.bits.MaximumVID];
-	numvscales = maxvid.pos - minvid.pos + 1;
-	kHz_step = (highest_speed - lowest_speed) / numvscales;
 
 	if (minvid.mV == 0 || maxvid.mV == 0 || minvid.mV > maxvid.mV) {
 		printk (KERN_INFO PFX "Bogus values Min:%d.%03d Max:%d.%03d. "
@@ -491,20 +487,59 @@ static void __init longhaul_setup_voltagescaling(void)
 		return;
 	}
 
-	printk(KERN_INFO PFX "Max VID=%d.%03d  Min VID=%d.%03d, %d possible voltage scales\n",
+	/* How many voltage steps */
+	numvscales = maxvid.pos - minvid.pos + 1;
+	printk(KERN_INFO PFX
+		"Max VID=%d.%03d  "
+		"Min VID=%d.%03d, "
+		"%d possible voltage scales\n",
 		maxvid.mV/1000, maxvid.mV%1000,
 		minvid.mV/1000, minvid.mV%1000,
 		numvscales);
 
+	/* Calculate max frequency at min voltage */
+	j = longhaul.bits.MinMHzBR;
+	if (longhaul.bits.MinMHzBR4)
+		j += 16;
+	min_vid_speed = eblcr_table[j];
+	if (min_vid_speed == -1)
+		return;
+	switch (longhaul.bits.MinMHzFSB) {
+	case 0:
+		min_vid_speed *= 13333;
+		break;
+	case 1:
+		min_vid_speed *= 10000;
+		break;
+	case 3:
+		min_vid_speed *= 6666;
+		break;
+	default:
+		return;
+		break;
+	}
+	if (min_vid_speed >= highest_speed)
+		return;
+	/* Calculate kHz for one voltage step */
+	kHz_step = (highest_speed - min_vid_speed) / numvscales;
+
+
 	j = 0;
 	while (longhaul_table[j].frequency != CPUFREQ_TABLE_END) {
 		speed = longhaul_table[j].frequency;
-		pos = (speed - lowest_speed) / kHz_step + minvid.pos;
+		if (speed > min_vid_speed)
+			pos = (speed - min_vid_speed) / kHz_step + minvid.pos;
+		else
+			pos = minvid.pos;
 		f_msr_table[longhaul_table[j].index].vrm = mV_vrm_table[pos];
+		f_msr_table[longhaul_table[j].index].pos = pos;
 		j++;
 	}
 
+	longhaul_pos = maxvid.pos;
 	can_scale_voltage = 1;
+	printk(KERN_INFO PFX "Voltage scaling enabled. "
+		"Use of \"conservative\" governor is highly recommended.\n");
 }
 
 
@@ -573,10 +608,39 @@ static int enable_arbiter_disable(void)
 	if (dev != NULL) {
 		/* Enable access to port 0x22 */
 		pci_read_config_byte(dev, reg, &pci_cmd);
-		if ( !(pci_cmd & 1<<7) ) {
+		if (!(pci_cmd & 1<<7)) {
 			pci_cmd |= 1<<7;
 			pci_write_config_byte(dev, reg, pci_cmd);
+			pci_read_config_byte(dev, reg, &pci_cmd);
+			if (!(pci_cmd & 1<<7)) {
+				printk(KERN_ERR PFX
+					"Can't enable access to port 0x22.\n");
+				return 0;
+			}
 		}
+		return 1;
+	}
+	return 0;
+}
+
+static int longhaul_setup_vt8235(void)
+{
+	struct pci_dev *dev;
+	u8 pci_cmd;
+
+	/* Find VT8235 southbridge */
+	dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235, NULL);
+	if (dev != NULL) {
+		/* Set transition time to max */
+		pci_read_config_byte(dev, 0xec, &pci_cmd);
+		pci_cmd &= ~(1 << 2);
+		pci_write_config_byte(dev, 0xec, pci_cmd);
+		pci_read_config_byte(dev, 0xe4, &pci_cmd);
+		pci_cmd &= ~(1 << 7);
+		pci_write_config_byte(dev, 0xe4, pci_cmd);
+		pci_read_config_byte(dev, 0xe5, &pci_cmd);
+		pci_cmd |= 1 << 7;
+		pci_write_config_byte(dev, 0xe5, pci_cmd);
 		return 1;
 	}
 	return 0;
@@ -587,6 +651,8 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	struct cpuinfo_x86 *c = cpu_data;
 	char *cpuname=NULL;
 	int ret;
+	u32 lo, hi;
+	int vt8235_present;
 
 	/* Check what we have on this motherboard */
 	switch (c->x86_model) {
@@ -599,16 +665,20 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		break;
 
 	case 7:
-		longhaul_version = TYPE_LONGHAUL_V1;
 		switch (c->x86_mask) {
 		case 0:
+			longhaul_version = TYPE_LONGHAUL_V1;
 			cpu_model = CPU_SAMUEL2;
 			cpuname = "C3 'Samuel 2' [C5B]";
-			/* Note, this is not a typo, early Samuel2's had Samuel1 ratios. */
-			memcpy (clock_ratio, samuel1_clock_ratio, sizeof(samuel1_clock_ratio));
-			memcpy (eblcr_table, samuel2_eblcr, sizeof(samuel2_eblcr));
+			/* Note, this is not a typo, early Samuel2's had
+			 * Samuel1 ratios. */
+			memcpy(clock_ratio, samuel1_clock_ratio,
+				sizeof(samuel1_clock_ratio));
+			memcpy(eblcr_table, samuel2_eblcr,
+				sizeof(samuel2_eblcr));
 			break;
 		case 1 ... 15:
+			longhaul_version = TYPE_LONGHAUL_V2;
 			if (c->x86_mask < 8) {
 				cpu_model = CPU_SAMUEL2;
 				cpuname = "C3 'Samuel 2' [C5B]";
@@ -616,8 +686,10 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 				cpu_model = CPU_EZRA;
 				cpuname = "C3 'Ezra' [C5C]";
 			}
-			memcpy (clock_ratio, ezra_clock_ratio, sizeof(ezra_clock_ratio));
-			memcpy (eblcr_table, ezra_eblcr, sizeof(ezra_eblcr));
+			memcpy(clock_ratio, ezra_clock_ratio,
+				sizeof(ezra_clock_ratio));
+			memcpy(eblcr_table, ezra_eblcr,
+				sizeof(ezra_eblcr));
 			break;
 		}
 		break;
@@ -632,24 +704,24 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		break;
 
 	case 9:
-		cpu_model = CPU_NEHEMIAH;
 		longhaul_version = TYPE_POWERSAVER;
-		numscales=32;
+		numscales = 32;
+		memcpy(clock_ratio,
+		       nehemiah_clock_ratio,
+		       sizeof(nehemiah_clock_ratio));
+		memcpy(eblcr_table, nehemiah_eblcr, sizeof(nehemiah_eblcr));
 		switch (c->x86_mask) {
 		case 0 ... 1:
-			cpuname = "C3 'Nehemiah A' [C5N]";
-			memcpy (clock_ratio, nehemiah_a_clock_ratio, sizeof(nehemiah_a_clock_ratio));
-			memcpy (eblcr_table, nehemiah_a_eblcr, sizeof(nehemiah_a_eblcr));
+			cpu_model = CPU_NEHEMIAH;
+			cpuname = "C3 'Nehemiah A' [C5XLOE]";
 			break;
 		case 2 ... 4:
-			cpuname = "C3 'Nehemiah B' [C5N]";
-			memcpy (clock_ratio, nehemiah_b_clock_ratio, sizeof(nehemiah_b_clock_ratio));
-			memcpy (eblcr_table, nehemiah_b_eblcr, sizeof(nehemiah_b_eblcr));
+			cpu_model = CPU_NEHEMIAH;
+			cpuname = "C3 'Nehemiah B' [C5XLOH]";
 			break;
 		case 5 ... 15:
-			cpuname = "C3 'Nehemiah C' [C5N]";
-			memcpy (clock_ratio, nehemiah_c_clock_ratio, sizeof(nehemiah_c_clock_ratio));
-			memcpy (eblcr_table, nehemiah_c_eblcr, sizeof(nehemiah_c_eblcr));
+			cpu_model = CPU_NEHEMIAH_C;
+			cpuname = "C3 'Nehemiah C' [C5P]";
 			break;
 		}
 		break;
@@ -657,6 +729,13 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	default:
 		cpuname = "Unknown";
 		break;
+	}
+	/* Check Longhaul ver. 2 */
+	if (longhaul_version == TYPE_LONGHAUL_V2) {
+		rdmsr(MSR_VIA_LONGHAUL, lo, hi);
+		if (lo == 0 && hi == 0)
+			/* Looks like MSR isn't present */
+			longhaul_version = TYPE_LONGHAUL_V1;
 	}
 
 	printk (KERN_INFO PFX "VIA %s CPU detected.  ", cpuname);
@@ -670,15 +749,18 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		break;
 	};
 
+	/* Doesn't hurt */
+	vt8235_present = longhaul_setup_vt8235();
+
 	/* Find ACPI data for processor */
-	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-			    &longhaul_walk_callback, NULL, (void *)&pr);
+	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
+				ACPI_UINT32_MAX, &longhaul_walk_callback,
+				NULL, (void *)&pr);
 
 	/* Check ACPI support for C3 state */
-	if ((pr != NULL) && (longhaul_version == TYPE_POWERSAVER)) {
+	if (pr != NULL && longhaul_version != TYPE_LONGHAUL_V1) {
 		cx = &pr->power.states[ACPI_STATE_C3];
-		if (cx->address > 0 &&
-		   (cx->latency <= 1000 || ignore_latency != 0) ) {
+		if (cx->address > 0 && cx->latency <= 1000) {
 			longhaul_flags |= USE_ACPI_C3;
 			goto print_support_type;
 		}
@@ -688,8 +770,11 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		longhaul_flags |= USE_NORTHBRIDGE;
 		goto print_support_type;
 	}
-
-	/* No ACPI C3 or we can't use it */
+	/* Use VT8235 southbridge if present */
+	if (longhaul_version == TYPE_POWERSAVER && vt8235_present) {
+		longhaul_flags |= USE_VT8235;
+		goto print_support_type;
+	}
 	/* Check ACPI support for bus master arbiter disable */
 	if ((pr == NULL) || !(pr->flags.bm_control)) {
 		printk(KERN_ERR PFX
@@ -698,18 +783,18 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	}
 
 print_support_type:
-	if (!(longhaul_flags & USE_NORTHBRIDGE)) {
-		printk (KERN_INFO PFX "Using ACPI support.\n");
-	} else {
+	if (longhaul_flags & USE_NORTHBRIDGE)
 		printk (KERN_INFO PFX "Using northbridge support.\n");
-	}
+	else if (longhaul_flags & USE_VT8235)
+		printk (KERN_INFO PFX "Using VT8235 support.\n");
+	else
+		printk (KERN_INFO PFX "Using ACPI support.\n");
 
 	ret = longhaul_get_ranges();
 	if (ret != 0)
 		return ret;
 
-	if ((longhaul_version==TYPE_LONGHAUL_V2 || longhaul_version==TYPE_POWERSAVER) &&
-		 (scale_voltage != 0))
+	if ((longhaul_version != TYPE_LONGHAUL_V1) && (scale_voltage != 0))
 		longhaul_setup_voltagescaling();
 
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
@@ -797,8 +882,6 @@ static void __exit longhaul_exit(void)
 
 module_param (scale_voltage, int, 0644);
 MODULE_PARM_DESC(scale_voltage, "Scale voltage of processor");
-module_param(ignore_latency, int, 0644);
-MODULE_PARM_DESC(ignore_latency, "Skip ACPI C3 latency test");
 
 MODULE_AUTHOR ("Dave Jones <davej@codemonkey.org.uk>");
 MODULE_DESCRIPTION ("Longhaul driver for VIA Cyrix processors.");
