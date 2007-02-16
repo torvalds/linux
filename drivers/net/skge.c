@@ -1419,7 +1419,8 @@ static void xm_link_timer(struct work_struct *work)
 	mutex_unlock(&hw->phy_mutex);
 
 nochange:
-	schedule_delayed_work(&skge->link_thread, LINK_HZ);
+	if (netif_running(dev))
+		schedule_delayed_work(&skge->link_thread, LINK_HZ);
 }
 
 static void genesis_mac_init(struct skge_hw *hw, int port)
@@ -2530,7 +2531,7 @@ static int skge_down(struct net_device *dev)
 
 	netif_stop_queue(dev);
 	if (hw->chip_id == CHIP_ID_GENESIS && hw->phy_type == SK_PHY_XMAC)
-		cancel_rearming_delayed_work(&skge->link_thread);
+		cancel_delayed_work(&skge->link_thread);
 
 	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_OFF);
 	if (hw->chip_id == CHIP_ID_GENESIS)
@@ -3690,6 +3691,8 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 	if (!hw)
 		return;
 
+	flush_scheduled_work();
+
 	if ((dev1 = hw->dev[1]))
 		unregister_netdev(dev1);
 	dev0 = hw->dev[0];
@@ -3703,8 +3706,6 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 
 	skge_write16(hw, B0_LED, LED_STAT_OFF);
 	skge_write8(hw, B0_CTST, CS_RST_SET);
-
-	flush_scheduled_work();
 
 	free_irq(pdev->irq, hw);
 	pci_release_regions(pdev);
