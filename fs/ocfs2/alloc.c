@@ -27,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
+#include <linux/swap.h>
 
 #define MLOG_MASK_PREFIX ML_DISK_ALLOC
 #include <cluster/masklog.h>
@@ -34,6 +35,7 @@
 #include "ocfs2.h"
 
 #include "alloc.h"
+#include "aops.h"
 #include "dlmglue.h"
 #include "extent_map.h"
 #include "inode.h"
@@ -3340,6 +3342,228 @@ bail:
 
 	mlog_exit(status);
 	return status;
+}
+
+static int ocfs2_writeback_zero_func(handle_t *handle, struct buffer_head *bh)
+{
+	set_buffer_uptodate(bh);
+	mark_buffer_dirty(bh);
+	return 0;
+}
+
+static int ocfs2_ordered_zero_func(handle_t *handle, struct buffer_head *bh)
+{
+	set_buffer_uptodate(bh);
+	mark_buffer_dirty(bh);
+	return ocfs2_journal_dirty_data(handle, bh);
+}
+
+static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t isize,
+				     struct page **pages, int numpages,
+				     u64 phys, handle_t *handle)
+{
+	int i, ret, partial = 0;
+	void *kaddr;
+	struct page *page;
+	unsigned int from, to = PAGE_CACHE_SIZE;
+	struct super_block *sb = inode->i_sb;
+
+	BUG_ON(!ocfs2_sparse_alloc(OCFS2_SB(sb)));
+
+	if (numpages == 0)
+		goto out;
+
+	from = isize & (PAGE_CACHE_SIZE - 1); /* 1st page offset */
+	if (PAGE_CACHE_SHIFT > OCFS2_SB(sb)->s_clustersize_bits) {
+		/*
+		 * Since 'from' has been capped to a value below page
+		 * size, this calculation won't be able to overflow
+		 * 'to'
+		 */
+		to = ocfs2_align_bytes_to_clusters(sb, from);
+
+		/*
+		 * The truncate tail in this case should never contain
+		 * more than one page at maximum. The loop below also
+		 * assumes this.
+		 */
+		BUG_ON(numpages != 1);
+	}
+
+	for(i = 0; i < numpages; i++) {
+		page = pages[i];
+
+		BUG_ON(from > PAGE_CACHE_SIZE);
+		BUG_ON(to > PAGE_CACHE_SIZE);
+
+		ret = ocfs2_map_page_blocks(page, &phys, inode, from, to, 0);
+		if (ret)
+			mlog_errno(ret);
+
+		kaddr = kmap_atomic(page, KM_USER0);
+		memset(kaddr + from, 0, to - from);
+		kunmap_atomic(kaddr, KM_USER0);
+
+		/*
+		 * Need to set the buffers we zero'd into uptodate
+		 * here if they aren't - ocfs2_map_page_blocks()
+		 * might've skipped some
+		 */
+		if (ocfs2_should_order_data(inode)) {
+			ret = walk_page_buffers(handle,
+						page_buffers(page),
+						from, to, &partial,
+						ocfs2_ordered_zero_func);
+			if (ret < 0)
+				mlog_errno(ret);
+		} else {
+			ret = walk_page_buffers(handle, page_buffers(page),
+						from, to, &partial,
+						ocfs2_writeback_zero_func);
+			if (ret < 0)
+				mlog_errno(ret);
+		}
+
+		if (!partial)
+			SetPageUptodate(page);
+
+		flush_dcache_page(page);
+
+		/*
+		 * Every page after the 1st one should be completely zero'd.
+		 */
+		from = 0;
+	}
+out:
+	if (pages) {
+		for (i = 0; i < numpages; i++) {
+			page = pages[i];
+			unlock_page(page);
+			mark_page_accessed(page);
+			page_cache_release(page);
+		}
+	}
+}
+
+static int ocfs2_grab_eof_pages(struct inode *inode, loff_t isize, struct page **pages,
+				int *num, u64 *phys)
+{
+	int i, numpages = 0, ret = 0;
+	unsigned int csize = OCFS2_SB(inode->i_sb)->s_clustersize;
+	struct super_block *sb = inode->i_sb;
+	struct address_space *mapping = inode->i_mapping;
+	unsigned long index;
+	u64 next_cluster_bytes;
+
+	BUG_ON(!ocfs2_sparse_alloc(OCFS2_SB(sb)));
+
+	/* Cluster boundary, so we don't need to grab any pages. */
+	if ((isize & (csize - 1)) == 0)
+		goto out;
+
+	ret = ocfs2_extent_map_get_blocks(inode, isize >> sb->s_blocksize_bits,
+					  phys, NULL);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	/* Tail is a hole. */
+	if (*phys == 0)
+		goto out;
+
+	next_cluster_bytes = ocfs2_align_bytes_to_clusters(inode->i_sb, isize);
+	index = isize >> PAGE_CACHE_SHIFT;
+	do {
+		pages[numpages] = grab_cache_page(mapping, index);
+		if (!pages[numpages]) {
+			ret = -ENOMEM;
+			mlog_errno(ret);
+			goto out;
+		}
+
+		numpages++;
+		index++;
+	} while (index < (next_cluster_bytes >> PAGE_CACHE_SHIFT));
+
+out:
+	if (ret != 0) {
+		if (pages) {
+			for (i = 0; i < numpages; i++) {
+				if (pages[i]) {
+					unlock_page(pages[i]);
+					page_cache_release(pages[i]);
+				}
+			}
+		}
+		numpages = 0;
+	}
+
+	*num = numpages;
+
+	return ret;
+}
+
+/*
+ * Zero the area past i_size but still within an allocated
+ * cluster. This avoids exposing nonzero data on subsequent file
+ * extends.
+ *
+ * We need to call this before i_size is updated on the inode because
+ * otherwise block_write_full_page() will skip writeout of pages past
+ * i_size. The new_i_size parameter is passed for this reason.
+ */
+int ocfs2_zero_tail_for_truncate(struct inode *inode, handle_t *handle,
+				 u64 new_i_size)
+{
+	int ret, numpages;
+	struct page **pages = NULL;
+	u64 phys;
+
+	/*
+	 * File systems which don't support sparse files zero on every
+	 * extend.
+	 */
+	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)))
+		return 0;
+
+	pages = kcalloc(ocfs2_pages_per_cluster(inode->i_sb),
+			sizeof(struct page *), GFP_NOFS);
+	if (pages == NULL) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_grab_eof_pages(inode, new_i_size, pages, &numpages, &phys);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	/*
+	 * Truncate on an i_size boundary - nothing more to do.
+	 */
+	if (numpages == 0)
+		goto out;
+
+	ocfs2_zero_cluster_pages(inode, new_i_size, pages, numpages, phys,
+				 handle);
+
+	/*
+	 * Initiate writeout of the pages we zero'd here. We don't
+	 * wait on them - the truncate_inode_pages() call later will
+	 * do that for us.
+	 */
+	ret = filemap_fdatawrite(inode->i_mapping);
+	if (ret)
+		mlog_errno(ret);
+
+out:
+	if (pages)
+		kfree(pages);
+
+	return ret;
 }
 
 /*

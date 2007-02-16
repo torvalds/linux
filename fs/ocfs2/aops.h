@@ -30,6 +30,18 @@ handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
 							 unsigned from,
 							 unsigned to);
 
+int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
+			  struct inode *inode, unsigned int from,
+			  unsigned int to, int new);
+
+int walk_page_buffers(	handle_t *handle,
+			struct buffer_head *head,
+			unsigned from,
+			unsigned to,
+			int *partial,
+			int (*fn)(	handle_t *handle,
+					struct buffer_head *bh));
+
 struct ocfs2_write_ctxt;
 typedef int (ocfs2_page_writer)(struct inode *, struct ocfs2_write_ctxt *,
 				u64 *, unsigned int *, unsigned int *);

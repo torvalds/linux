@@ -489,12 +489,38 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 	int status = 0;
 	struct ocfs2_truncate_context *tc = NULL;
 	struct ocfs2_dinode *fe;
+	handle_t *handle = NULL;
 
 	mlog_entry_void();
 
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
 	if (fe->i_clusters) {
+		handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
+		if (IS_ERR(handle)) {
+			status = PTR_ERR(handle);
+			mlog_errno(status);
+			goto out;
+		}
+
+		status = ocfs2_journal_access(handle, inode, fe_bh,
+					      OCFS2_JOURNAL_ACCESS_WRITE);
+		if (status < 0) {
+			mlog_errno(status);
+			goto out;
+		}
+
+		i_size_write(inode, 0);
+
+		status = ocfs2_mark_inode_dirty(handle, inode, fe_bh);
+		if (status < 0) {
+			mlog_errno(status);
+			goto out;
+		}
+
+		ocfs2_commit_trans(osb, handle);
+		handle = NULL;
+
 		status = ocfs2_prepare_truncate(osb, inode, fe_bh, &tc);
 		if (status < 0) {
 			mlog_errno(status);
@@ -507,8 +533,10 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 			goto out;
 		}
 	}
-out:
 
+out:
+	if (handle)
+		ocfs2_commit_trans(osb, handle);
 	mlog_exit(status);
 	return status;
 }

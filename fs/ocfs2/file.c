@@ -262,6 +262,7 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 {
 	int status;
 	handle_t *handle;
+	struct ocfs2_dinode *di;
 
 	mlog_entry_void();
 
@@ -275,12 +276,39 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 		goto out;
 	}
 
-	status = ocfs2_set_inode_size(handle, inode, fe_bh, new_i_size);
+	status = ocfs2_journal_access(handle, inode, fe_bh,
+				      OCFS2_JOURNAL_ACCESS_WRITE);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out_commit;
+	}
+
+	/*
+	 * Do this before setting i_size.
+	 */
+	status = ocfs2_zero_tail_for_truncate(inode, handle, new_i_size);
+	if (status) {
+		mlog_errno(status);
+		goto out_commit;
+	}
+
+	i_size_write(inode, new_i_size);
+	inode->i_blocks = ocfs2_align_bytes_to_sectors(new_i_size);
+	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+
+	di = (struct ocfs2_dinode *) fe_bh->b_data;
+	di->i_size = cpu_to_le64(new_i_size);
+	di->i_ctime = di->i_mtime = cpu_to_le64(inode->i_ctime.tv_sec);
+	di->i_ctime_nsec = di->i_mtime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
+
+	status = ocfs2_journal_dirty(handle, fe_bh);
 	if (status < 0)
 		mlog_errno(status);
 
+out_commit:
 	ocfs2_commit_trans(osb, handle);
 out:
+
 	mlog_exit(status);
 	return status;
 }
@@ -343,7 +371,6 @@ static int ocfs2_truncate_file(struct inode *inode,
 		mlog_errno(status);
 		goto bail;
 	}
-	ocfs2_data_unlock(inode, 1);
 
 	/* alright, we're going to need to do a full blown alloc size
 	 * change. Orphan the inode so that recovery can complete the
@@ -352,22 +379,25 @@ static int ocfs2_truncate_file(struct inode *inode,
 	status = ocfs2_orphan_for_truncate(osb, inode, di_bh, new_i_size);
 	if (status < 0) {
 		mlog_errno(status);
-		goto bail;
+		goto bail_unlock_data;
 	}
 
 	status = ocfs2_prepare_truncate(osb, inode, di_bh, &tc);
 	if (status < 0) {
 		mlog_errno(status);
-		goto bail;
+		goto bail_unlock_data;
 	}
 
 	status = ocfs2_commit_truncate(osb, inode, di_bh, tc);
 	if (status < 0) {
 		mlog_errno(status);
-		goto bail;
+		goto bail_unlock_data;
 	}
 
 	/* TODO: orphan dir cleanup here. */
+bail_unlock_data:
+	ocfs2_data_unlock(inode, 1);
+
 bail:
 
 	mlog_exit(status);

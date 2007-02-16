@@ -495,6 +495,17 @@ static inline unsigned long ocfs2_align_clusters_to_page_index(struct super_bloc
 	return index;
 }
 
+static inline unsigned int ocfs2_pages_per_cluster(struct super_block *sb)
+{
+	unsigned int cbits = OCFS2_SB(sb)->s_clustersize_bits;
+	unsigned int pages_per_cluster = 1;
+
+	if (PAGE_CACHE_SHIFT < cbits)
+		pages_per_cluster = 1 << (cbits - PAGE_CACHE_SHIFT);
+
+	return pages_per_cluster;
+}
+
 #define ocfs2_set_bit ext2_set_bit
 #define ocfs2_clear_bit ext2_clear_bit
 #define ocfs2_test_bit ext2_test_bit

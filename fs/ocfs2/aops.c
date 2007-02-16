@@ -308,13 +308,13 @@ int ocfs2_prepare_write_nolock(struct inode *inode, struct page *page,
  * functionality yet, but IMHO it's better to cut and paste the whole
  * thing so we can avoid introducing our own bugs (and easily pick up
  * their fixes when they happen) --Mark */
-static int walk_page_buffers(	handle_t *handle,
-				struct buffer_head *head,
-				unsigned from,
-				unsigned to,
-				int *partial,
-				int (*fn)(	handle_t *handle,
-						struct buffer_head *bh))
+int walk_page_buffers(	handle_t *handle,
+			struct buffer_head *head,
+			unsigned from,
+			unsigned to,
+			int *partial,
+			int (*fn)(	handle_t *handle,
+					struct buffer_head *bh))
 {
 	struct buffer_head *bh;
 	unsigned block_start, block_end;
@@ -654,9 +654,9 @@ static void ocfs2_clear_page_regions(struct page *page,
  *
  * This will also skip zeroing, which is handled externally.
  */
-static int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
-				 struct inode *inode, unsigned int from,
-				 unsigned int to, int new)
+int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
+			  struct inode *inode, unsigned int from,
+			  unsigned int to, int new)
 {
 	int ret = 0;
 	struct buffer_head *head, *bh, *wait[2], **wait_bh = wait;
@@ -675,8 +675,7 @@ static int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
 		 * Ignore blocks outside of our i/o range -
 		 * they may belong to unallocated clusters.
 		 */
-		if (block_start >= to ||
-		    (block_start + bsize) <= from) {
+		if (block_start >= to || block_end <= from) {
 			if (PageUptodate(page))
 				set_buffer_uptodate(bh);
 			continue;
@@ -971,7 +970,6 @@ static ssize_t ocfs2_write(struct file *file, u32 phys, handle_t *handle,
 	u64 v_blkno, p_blkno;
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = mapping->host;
-	unsigned int cbits = OCFS2_SB(inode->i_sb)->s_clustersize_bits;
 	unsigned long index, start;
 	struct page **cpages;
 
@@ -979,13 +977,11 @@ static ssize_t ocfs2_write(struct file *file, u32 phys, handle_t *handle,
 
 	/*
 	 * Figure out how many pages we'll be manipulating here. For
-	 * non-allocating write, or any writes where cluster size is
-	 * less than page size, we only need one page. Otherwise,
-	 * allocating writes of cluster size larger than page size
-	 * need cluster size pages.
+	 * non allocating write, we just change the one
+	 * page. Otherwise, we'll need a whole clusters worth.
 	 */
-	if (new && !wc->w_large_pages)
-		numpages = (1 << cbits) / PAGE_SIZE;
+	if (new)
+		numpages = ocfs2_pages_per_cluster(inode->i_sb);
 
 	cpages = kzalloc(sizeof(*cpages) * numpages, GFP_NOFS);
 	if (!cpages) {
