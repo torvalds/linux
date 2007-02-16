@@ -848,8 +848,6 @@ static int change_clocksource(void)
 		printk(KERN_INFO "Time: %s clocksource has been installed.\n",
 		       clock->name);
 		return 1;
-	} else if (clock->update_callback) {
-		return clock->update_callback();
 	}
 	return 0;
 }
