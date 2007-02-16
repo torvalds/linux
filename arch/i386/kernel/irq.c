@@ -10,7 +10,6 @@
  * io_apic.c.)
  */
 
-#include <asm/uaccess.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
@@ -21,19 +20,34 @@
 
 #include <asm/idle.h>
 
+#include <asm/apic.h>
+#include <asm/uaccess.h>
+
 DEFINE_PER_CPU(irq_cpustat_t, irq_stat) ____cacheline_internodealigned_in_smp;
 EXPORT_PER_CPU_SYMBOL(irq_stat);
 
-#ifndef CONFIG_X86_LOCAL_APIC
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.
  * each architecture has to answer this themselves.
  */
 void ack_bad_irq(unsigned int irq)
 {
-	printk("unexpected IRQ trap at vector %02x\n", irq);
-}
+	printk(KERN_ERR "unexpected IRQ trap at vector %02x\n", irq);
+
+#ifdef CONFIG_X86_LOCAL_APIC
+	/*
+	 * Currently unexpected vectors happen only on SMP and APIC.
+	 * We _must_ ack these because every local APIC has only N
+	 * irq slots per priority level, and a 'hanging, unacked' IRQ
+	 * holds up an irq slot - in excessive cases (when multiple
+	 * unexpected vectors occur) that might lock up the APIC
+	 * completely.
+	 * But only ack when the APIC is enabled -AK
+	 */
+	if (cpu_has_apic)
+		ack_APIC_irq();
 #endif
+}
 
 #ifdef CONFIG_4KSTACKS
 /*

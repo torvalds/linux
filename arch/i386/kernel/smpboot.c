@@ -600,7 +600,7 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 	/*
 	 * Due to the Pentium erratum 3AP.
 	 */
-	maxlvt = get_maxlvt();
+	maxlvt = lapic_get_maxlvt();
 	if (maxlvt > 3) {
 		apic_read_around(APIC_SPIV);
 		apic_write(APIC_ESR, 0);
@@ -697,7 +697,7 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	 */
 	Dprintk("#startup loops: %d.\n", num_starts);
 
-	maxlvt = get_maxlvt();
+	maxlvt = lapic_get_maxlvt();
 
 	for (j = 1; j <= num_starts; j++) {
 		Dprintk("Sending STARTUP #%d.\n",j);
