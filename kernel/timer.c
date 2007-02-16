@@ -591,7 +591,7 @@ static inline void __run_timers(tvec_base_t *base)
 	spin_unlock_irq(&base->lock);
 }
 
-#ifdef CONFIG_NO_IDLE_HZ
+#if defined(CONFIG_NO_IDLE_HZ) || defined(CONFIG_NO_HZ)
 /*
  * Find out when the next timer event is due to happen. This
  * is used on S/390 to stop all activity when a cpus is idle.
@@ -687,10 +687,10 @@ static unsigned long cmp_next_hrtimer_event(unsigned long now,
 /**
  * next_timer_interrupt - return the jiffy of the next pending timer
  */
-unsigned long next_timer_interrupt(void)
+unsigned long get_next_timer_interrupt(unsigned long now)
 {
 	tvec_base_t *base = __get_cpu_var(tvec_bases);
-	unsigned long expires, now = jiffies;
+	unsigned long expires;
 
 	spin_lock(&base->lock);
 	expires = __next_timer_interrupt(base);
@@ -701,6 +701,14 @@ unsigned long next_timer_interrupt(void)
 
 	return cmp_next_hrtimer_event(now, expires);
 }
+
+#ifdef CONFIG_NO_IDLE_HZ
+unsigned long next_timer_interrupt(void)
+{
+	return get_next_timer_interrupt(jiffies);
+}
+#endif
+
 #endif
 
 /******************************************************************/
