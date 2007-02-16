@@ -205,7 +205,7 @@ config PARAVIRT
 
 config VMI
 	bool "VMI Paravirt-ops support"
-	depends on PARAVIRT
+	depends on PARAVIRT && !NO_HZ
 	default y
 	help
 	  VMI provides a paravirtualized interface to multiple hypervisors
