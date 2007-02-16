@@ -57,10 +57,9 @@ typedef	void fastcall (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_NOPROBE		0x00020000	/* IRQ is not valid for probing */
 #define IRQ_NOREQUEST		0x00040000	/* IRQ cannot be requested */
 #define IRQ_NOAUTOEN		0x00080000	/* IRQ will not be enabled on request irq */
-#define IRQ_DELAYED_DISABLE	0x00100000	/* IRQ disable (masking) happens delayed. */
-#define IRQ_WAKEUP		0x00200000	/* IRQ triggers system wakeup */
-#define IRQ_MOVE_PENDING	0x00400000	/* need to re-target IRQ destination */
-#define IRQ_NO_BALANCING	0x00800000	/* IRQ is excluded from balancing */
+#define IRQ_WAKEUP		0x00100000	/* IRQ triggers system wakeup */
+#define IRQ_MOVE_PENDING	0x00200000	/* need to re-target IRQ destination */
+#define IRQ_NO_BALANCING	0x00400000	/* IRQ is excluded from balancing */
 
 #ifdef CONFIG_IRQ_PER_CPU
 # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)

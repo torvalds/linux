@@ -1281,11 +1281,9 @@ static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 			trigger == IOAPIC_LEVEL)
 		set_irq_chip_and_handler_name(irq, &ioapic_chip,
 					 handle_fasteoi_irq, "fasteoi");
-	else {
-		irq_desc[irq].status |= IRQ_DELAYED_DISABLE;
+	else
 		set_irq_chip_and_handler_name(irq, &ioapic_chip,
 					 handle_edge_irq, "edge");
-	}
 	set_intr_gate(vector, interrupt[irq]);
 }
 
