@@ -21,6 +21,9 @@
 #include <linux/list.h>
 #include <linux/wait.h>
 
+struct hrtimer_clock_base;
+struct hrtimer_cpu_base;
+
 /*
  * Mode arguments of xxx_hrtimer functions:
  */
@@ -37,8 +40,6 @@ enum hrtimer_restart {
 	HRTIMER_RESTART,	/* Timer must be restarted */
 };
 
-struct hrtimer_base;
-
 /**
  * struct hrtimer - the basic hrtimer structure
  * @node:	red black tree node for time ordered insertion
@@ -51,10 +52,10 @@ struct hrtimer_base;
  * The hrtimer structure must be initialized by init_hrtimer_#CLOCKTYPE()
  */
 struct hrtimer {
-	struct rb_node		node;
-	ktime_t			expires;
-	enum hrtimer_restart	(*function)(struct hrtimer *);
-	struct hrtimer_base	*base;
+	struct rb_node			node;
+	ktime_t				expires;
+	enum hrtimer_restart		(*function)(struct hrtimer *);
+	struct hrtimer_clock_base	*base;
 };
 
 /**
@@ -71,29 +72,41 @@ struct hrtimer_sleeper {
 
 /**
  * struct hrtimer_base - the timer base for a specific clock
- * @index:		clock type index for per_cpu support when moving a timer
- *			to a base on another cpu.
- * @lock:		lock protecting the base and associated timers
+ * @index:		clock type index for per_cpu support when moving a
+ *			timer to a base on another cpu.
  * @active:		red black tree root node for the active timers
  * @first:		pointer to the timer node which expires first
  * @resolution:		the resolution of the clock, in nanoseconds
  * @get_time:		function to retrieve the current time of the clock
  * @get_softirq_time:	function to retrieve the current time from the softirq
- * @curr_timer:		the timer which is executing a callback right now
  * @softirq_time:	the time when running the hrtimer queue in the softirq
- * @lock_key:		the lock_class_key for use with lockdep
  */
-struct hrtimer_base {
+struct hrtimer_clock_base {
+	struct hrtimer_cpu_base	*cpu_base;
 	clockid_t		index;
-	spinlock_t		lock;
 	struct rb_root		active;
 	struct rb_node		*first;
 	ktime_t			resolution;
 	ktime_t			(*get_time)(void);
 	ktime_t			(*get_softirq_time)(void);
-	struct hrtimer		*curr_timer;
 	ktime_t			softirq_time;
-	struct lock_class_key lock_key;
+};
+
+#define HRTIMER_MAX_CLOCK_BASES 2
+
+/*
+ * struct hrtimer_cpu_base - the per cpu clock bases
+ * @lock:		lock protecting the base and associated clock bases
+ *			and timers
+ * @lock_key:		the lock_class_key for use with lockdep
+ * @clock_base:		array of clock bases for this cpu
+ * @curr_timer:		the timer which is executing a callback right now
+ */
+struct hrtimer_cpu_base {
+	spinlock_t			lock;
+	struct lock_class_key		lock_key;
+	struct hrtimer_clock_base	clock_base[HRTIMER_MAX_CLOCK_BASES];
+	struct hrtimer			*curr_timer;
 };
 
 /*
