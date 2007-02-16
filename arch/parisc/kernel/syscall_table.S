@@ -377,9 +377,9 @@
 	ENTRY_SAME(inotify_init)
 	ENTRY_SAME(inotify_add_watch)	/* 270 */
 	ENTRY_SAME(inotify_rm_watch)
+	ENTRY_SAME(migrate_pages)
 	ENTRY_COMP(pselect6)
 	ENTRY_COMP(ppoll)
-	ENTRY_SAME(migrate_pages)
 	ENTRY_COMP(openat)		/* 275 */
 	ENTRY_SAME(mkdirat)
 	ENTRY_SAME(mknodat)
