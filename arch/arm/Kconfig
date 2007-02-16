@@ -271,6 +271,14 @@ config ARCH_L7200
 	  If you have any questions or comments about the Linux kernel port
 	  to this board, send e-mail to <sjhill@cotw.com>.
 
+config ARCH_NS9XXX
+	bool "NetSilicon NS9xxx"
+	help
+	  Say Y here if you intend to run this kernel on a NetSilicon NS9xxx
+	  System.
+
+	  <http://www.digi.com/products/microprocessors/index.jsp>
+
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	help
@@ -380,6 +388,8 @@ source "arch/arm/mach-realview/Kconfig"
 source "arch/arm/mach-at91rm9200/Kconfig"
 
 source "arch/arm/mach-netx/Kconfig"
+
+source "arch/arm/mach-ns9xxx/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
