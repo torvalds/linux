@@ -103,6 +103,11 @@ config MACH_VR1000
 	help
 	  Say Y here if you are using the Thorcom VR1000 board.
 
+config MACH_QT2410
+	bool "QT2410"
+	select CPU_S3C2410
+	help
+	   Say Y here if you are using the Armzone QT2410
 
 endmenu
 
