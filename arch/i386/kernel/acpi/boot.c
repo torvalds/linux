@@ -25,6 +25,7 @@
 
 #include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/acpi_pmtmr.h>
 #include <linux/efi.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
@@ -674,10 +675,6 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 }
 #else
 #define	acpi_parse_hpet	NULL
-#endif
-
-#ifdef CONFIG_X86_PM_TIMER
-extern u32 pmtmr_ioport;
 #endif
 
 static int __init acpi_parse_fadt(struct acpi_table_header *table)
