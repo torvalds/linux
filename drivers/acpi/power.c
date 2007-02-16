@@ -57,7 +57,7 @@ ACPI_MODULE_NAME("acpi_power")
 #define ACPI_POWER_RESOURCE_STATE_UNKNOWN 0xFF
 static int acpi_power_add(struct acpi_device *device);
 static int acpi_power_remove(struct acpi_device *device, int type);
-static int acpi_power_resume(struct acpi_device *device, int state);
+static int acpi_power_resume(struct acpi_device *device);
 static int acpi_power_open_fs(struct inode *inode, struct file *file);
 
 static struct acpi_driver acpi_power_driver = {
@@ -668,7 +668,7 @@ static int acpi_power_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int acpi_power_resume(struct acpi_device *device, int state)
+static int acpi_power_resume(struct acpi_device *device)
 {
 	int result = 0;
 	struct acpi_power_resource *resource = NULL;
