@@ -364,6 +364,25 @@ __cpuinit int unsynchronized_tsc(void)
 	return tsc_unstable;
 }
 
+/*
+ * Geode_LX - the OLPC CPU has a possibly a very reliable TSC
+ */
+#ifdef CONFIG_MGEODE_LX
+/* RTSC counts during suspend */
+#define RTSC_SUSP 0x100
+
+static void __init check_geode_tsc_reliable(void)
+{
+	unsigned long val;
+
+	rdmsrl(MSR_GEODE_BUSCONT_CONF0, val);
+	if ((val & RTSC_SUSP))
+		clocksource_tsc.flags &= ~CLOCK_SOURCE_MUST_VERIFY;
+}
+#else
+static inline void check_geode_tsc_reliable(void) { }
+#endif
+
 static int __init init_tsc_clocksource(void)
 {
 
@@ -372,6 +391,7 @@ static int __init init_tsc_clocksource(void)
 		dmi_check_system(bad_tsc_dmi_table);
 
 		unsynchronized_tsc();
+		check_geode_tsc_reliable();
 		current_tsc_khz = tsc_khz;
 		clocksource_tsc.mult = clocksource_khz2mult(current_tsc_khz,
 							clocksource_tsc.shift);
