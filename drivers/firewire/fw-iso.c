@@ -105,9 +105,9 @@ void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
 	buffer->pages = NULL;
 }
 
-struct fw_iso_context *fw_iso_context_create(struct fw_card *card, int type,
-					     fw_iso_callback_t callback,
-					     void *callback_data)
+struct fw_iso_context *
+fw_iso_context_create(struct fw_card *card, int type, size_t header_size,
+		      fw_iso_callback_t callback, void *callback_data)
 {
 	struct fw_iso_context *ctx;
 
@@ -117,6 +117,7 @@ struct fw_iso_context *fw_iso_context_create(struct fw_card *card, int type,
 
 	ctx->card = card;
 	ctx->type = type;
+	ctx->header_size = header_size;
 	ctx->callback = callback;
 	ctx->callback_data = callback_data;
 

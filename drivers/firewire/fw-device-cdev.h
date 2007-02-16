@@ -125,7 +125,12 @@ struct fw_cdev_allocate {
 	__u32 length;
 };
 
+#define FW_CDEV_ISO_CONTEXT_TRANSMIT	0
+#define FW_CDEV_ISO_CONTEXT_RECEIVE	1
+
 struct fw_cdev_create_iso_context {
+	__u32 type;
+	__u32 header_size;
 	__u32 handle;
 };
 

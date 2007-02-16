@@ -103,6 +103,7 @@
 #define OHCI1394_IsoXmitCommandPtr(n)            (0x20C + 16 * (n))
 
 /* Isochronous receive registers */
+#define OHCI1394_IsoRcvContextBase(n)         (0x400 + 32 * (n))
 #define OHCI1394_IsoRcvContextControlSet(n)   (0x400 + 32 * (n))
 #define OHCI1394_IsoRcvContextControlClear(n) (0x404 + 32 * (n))
 #define OHCI1394_IsoRcvCommandPtr(n)          (0x40C + 32 * (n))

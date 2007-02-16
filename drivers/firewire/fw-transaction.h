@@ -354,6 +354,7 @@ struct fw_iso_context {
 	int type;
 	int channel;
 	int speed;
+	size_t header_size;
 	fw_iso_callback_t callback;
 	void *callback_data;
 };
@@ -369,10 +370,8 @@ void
 fw_iso_buffer_destroy(struct fw_iso_buffer *buffer, struct fw_card *card);
 
 struct fw_iso_context *
-fw_iso_context_create(struct fw_card *card, int type,
-		      fw_iso_callback_t callback,
-		      void *callback_data);
-
+fw_iso_context_create(struct fw_card *card, int type, size_t header_size,
+		      fw_iso_callback_t callback, void *callback_data);
 
 void
 fw_iso_context_destroy(struct fw_iso_context *ctx);
