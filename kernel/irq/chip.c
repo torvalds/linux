@@ -565,10 +565,8 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 
 	/* Uninstall? */
 	if (handle == handle_bad_irq) {
-		if (desc->chip != &no_irq_chip) {
-			desc->chip->mask(irq);
-			desc->chip->ack(irq);
-		}
+		if (desc->chip != &no_irq_chip)
+			mask_ack_irq(desc, irq);
 		desc->status |= IRQ_DISABLED;
 		desc->depth = 1;
 	}
