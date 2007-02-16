@@ -8,6 +8,7 @@
 #include <linux/clk.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/spi/spi.h>
 
 #include <asm/io.h>
 
@@ -751,8 +752,41 @@ static struct resource atmel_spi1_resource[] = {
 DEFINE_DEV(atmel_spi, 1);
 DEV_CLK(spi_clk, atmel_spi1, pba, 1);
 
-struct platform_device *__init at32_add_device_spi(unsigned int id)
+static void
+at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b,
+		      unsigned int n, const u8 *pins)
 {
+	unsigned int pin, mode;
+
+	for (; n; n--, b++) {
+		b->bus_num = bus_num;
+		if (b->chip_select >= 4)
+			continue;
+		pin = (unsigned)b->controller_data;
+		if (!pin) {
+			pin = pins[b->chip_select];
+			b->controller_data = (void *)pin;
+		}
+		mode = AT32_GPIOF_OUTPUT;
+		if (!(b->mode & SPI_CS_HIGH))
+			mode |= AT32_GPIOF_HIGH;
+		at32_select_gpio(pin, mode);
+	}
+}
+
+struct platform_device *__init
+at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n)
+{
+	/*
+	 * Manage the chipselects as GPIOs, normally using the same pins
+	 * the SPI controller expects; but boards can use other pins.
+	 */
+	static u8 __initdata spi0_pins[] =
+		{ GPIO_PIN_PA(3), GPIO_PIN_PA(4),
+		  GPIO_PIN_PA(5), GPIO_PIN_PA(20), };
+	static u8 __initdata spi1_pins[] =
+		{ GPIO_PIN_PB(2), GPIO_PIN_PB(3),
+		  GPIO_PIN_PB(4), GPIO_PIN_PA(27), };
 	struct platform_device *pdev;
 
 	switch (id) {
@@ -761,14 +795,7 @@ struct platform_device *__init at32_add_device_spi(unsigned int id)
 		select_peripheral(PA(0),  PERIPH_A, 0);	/* MISO	 */
 		select_peripheral(PA(1),  PERIPH_A, 0);	/* MOSI	 */
 		select_peripheral(PA(2),  PERIPH_A, 0);	/* SCK	 */
-
-		/* NPCS[2:0] */
-		at32_select_gpio(GPIO_PIN_PA(3),
-				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
-		at32_select_gpio(GPIO_PIN_PA(4),
-				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
-		at32_select_gpio(GPIO_PIN_PA(5),
-				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		at32_spi_setup_slaves(0, b, n, spi0_pins);
 		break;
 
 	case 1:
@@ -776,20 +803,14 @@ struct platform_device *__init at32_add_device_spi(unsigned int id)
 		select_peripheral(PB(0),  PERIPH_B, 0);	/* MISO  */
 		select_peripheral(PB(1),  PERIPH_B, 0);	/* MOSI  */
 		select_peripheral(PB(5),  PERIPH_B, 0);	/* SCK   */
-
-		/* NPCS[2:0] */
-		at32_select_gpio(GPIO_PIN_PB(2),
-				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
-		at32_select_gpio(GPIO_PIN_PB(3),
-				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
-		at32_select_gpio(GPIO_PIN_PB(4),
-				 AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+		at32_spi_setup_slaves(1, b, n, spi1_pins);
 		break;
 
 	default:
 		return NULL;
 	}
 
+	spi_register_board_info(b, n);
 	platform_device_register(pdev);
 	return pdev;
 }
