@@ -150,6 +150,23 @@ static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 }
 
 /*
+ * Helper function to check, whether the timer is on one of the queues
+ */
+static inline int hrtimer_is_queued(struct hrtimer *timer)
+{
+	return timer->state & HRTIMER_STATE_ENQUEUED;
+}
+
+/*
+ * Helper function to check, whether the timer is running the callback
+ * function
+ */
+static inline int hrtimer_callback_running(struct hrtimer *timer)
+{
+	return timer->state & HRTIMER_STATE_CALLBACK;
+}
+
+/*
  * Functions and macros which are different for UP/SMP systems are kept in a
  * single place
  */
@@ -390,6 +407,11 @@ static void enqueue_hrtimer(struct hrtimer *timer,
 	 */
 	rb_link_node(&timer->node, parent, link);
 	rb_insert_color(&timer->node, &base->active);
+	/*
+	 * HRTIMER_STATE_ENQUEUED is or'ed to the current state to preserve the
+	 * state of a possibly running callback.
+	 */
+	timer->state |= HRTIMER_STATE_ENQUEUED;
 
 	if (!base->first || timer->expires.tv64 <
 	    rb_entry(base->first, struct hrtimer, node)->expires.tv64)
@@ -402,7 +424,8 @@ static void enqueue_hrtimer(struct hrtimer *timer,
  * Caller must hold the base lock.
  */
 static void __remove_hrtimer(struct hrtimer *timer,
-			     struct hrtimer_clock_base *base)
+			     struct hrtimer_clock_base *base,
+			     unsigned long newstate)
 {
 	/*
 	 * Remove the timer from the rbtree and replace the
@@ -411,7 +434,7 @@ static void __remove_hrtimer(struct hrtimer *timer,
 	if (base->first == &timer->node)
 		base->first = rb_next(&timer->node);
 	rb_erase(&timer->node, &base->active);
-	rb_set_parent(&timer->node, &timer->node);
+	timer->state = newstate;
 }
 
 /*
@@ -420,8 +443,8 @@ static void __remove_hrtimer(struct hrtimer *timer,
 static inline int
 remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *base)
 {
-	if (hrtimer_active(timer)) {
-		__remove_hrtimer(timer, base);
+	if (hrtimer_is_queued(timer)) {
+		__remove_hrtimer(timer, base, HRTIMER_STATE_INACTIVE);
 		return 1;
 	}
 	return 0;
@@ -493,7 +516,7 @@ int hrtimer_try_to_cancel(struct hrtimer *timer)
 
 	base = lock_hrtimer_base(timer, &flags);
 
-	if (base->cpu_base->curr_timer != timer)
+	if (!hrtimer_callback_running(timer))
 		ret = remove_hrtimer(timer, base);
 
 	unlock_hrtimer_base(timer, &flags);
@@ -598,7 +621,6 @@ void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 		clock_id = CLOCK_MONOTONIC;
 
 	timer->base = &cpu_base->clock_base[clock_id];
-	rb_set_parent(&timer->node, &timer->node);
 }
 EXPORT_SYMBOL_GPL(hrtimer_init);
 
@@ -649,13 +671,14 @@ static inline void run_hrtimer_queue(struct hrtimer_cpu_base *cpu_base,
 
 		fn = timer->function;
 		set_curr_timer(cpu_base, timer);
-		__remove_hrtimer(timer, base);
+		__remove_hrtimer(timer, base, HRTIMER_STATE_CALLBACK);
 		spin_unlock_irq(&cpu_base->lock);
 
 		restart = fn(timer);
 
 		spin_lock_irq(&cpu_base->lock);
 
+		timer->state &= ~HRTIMER_STATE_CALLBACK;
 		if (restart != HRTIMER_NORESTART) {
 			BUG_ON(hrtimer_active(timer));
 			enqueue_hrtimer(timer, base);
@@ -826,7 +849,8 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 
 	while ((node = rb_first(&old_base->active))) {
 		timer = rb_entry(node, struct hrtimer, node);
-		__remove_hrtimer(timer, old_base);
+		BUG_ON(timer->state & HRTIMER_STATE_CALLBACK);
+		__remove_hrtimer(timer, old_base, HRTIMER_STATE_INACTIVE);
 		timer->base = new_base;
 		enqueue_hrtimer(timer, new_base);
 	}

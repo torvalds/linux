@@ -40,6 +40,34 @@ enum hrtimer_restart {
 	HRTIMER_RESTART,	/* Timer must be restarted */
 };
 
+/*
+ * Bit values to track state of the timer
+ *
+ * Possible states:
+ *
+ * 0x00		inactive
+ * 0x01		enqueued into rbtree
+ * 0x02		callback function running
+ * 0x03		callback function running and enqueued
+ *		(was requeued on another CPU)
+ *
+ * The "callback function running and enqueued" status is only possible on
+ * SMP. It happens for example when a posix timer expired and the callback
+ * queued a signal. Between dropping the lock which protects the posix timer
+ * and reacquiring the base lock of the hrtimer, another CPU can deliver the
+ * signal and rearm the timer. We have to preserve the callback running state,
+ * as otherwise the timer could be removed before the softirq code finishes the
+ * the handling of the timer.
+ *
+ * The HRTIMER_STATE_ENQUEUE bit is always or'ed to the current state to
+ * preserve the HRTIMER_STATE_CALLBACK bit in the above scenario.
+ *
+ * All state transitions are protected by cpu_base->lock.
+ */
+#define HRTIMER_STATE_INACTIVE	0x00
+#define HRTIMER_STATE_ENQUEUED	0x01
+#define HRTIMER_STATE_CALLBACK	0x02
+
 /**
  * struct hrtimer - the basic hrtimer structure
  * @node:	red black tree node for time ordered insertion
@@ -48,6 +76,7 @@ enum hrtimer_restart {
  *		which the timer is based.
  * @function:	timer expiry callback function
  * @base:	pointer to the timer base (per cpu and per clock)
+ * @state:	state information (See bit values above)
  *
  * The hrtimer structure must be initialized by init_hrtimer_#CLOCKTYPE()
  */
@@ -56,6 +85,7 @@ struct hrtimer {
 	ktime_t				expires;
 	enum hrtimer_restart		(*function)(struct hrtimer *);
 	struct hrtimer_clock_base	*base;
+	unsigned long			state;
 };
 
 /**
@@ -141,9 +171,13 @@ extern int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp);
 extern ktime_t hrtimer_get_next_event(void);
 #endif
 
+/*
+ * A timer is active, when it is enqueued into the rbtree or the callback
+ * function is running.
+ */
 static inline int hrtimer_active(const struct hrtimer *timer)
 {
-	return rb_parent(&timer->node) != &timer->node;
+	return timer->state != HRTIMER_STATE_INACTIVE;
 }
 
 /* Forward a hrtimer so it expires after now: */
