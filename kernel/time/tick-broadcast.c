@@ -32,6 +32,19 @@ static cpumask_t tick_broadcast_mask;
 static DEFINE_SPINLOCK(tick_broadcast_lock);
 
 /*
+ * Debugging: see timer_list.c
+ */
+struct tick_device *tick_get_broadcast_device(void)
+{
+	return &tick_broadcast_device;
+}
+
+cpumask_t *tick_get_broadcast_mask(void)
+{
+	return &tick_broadcast_mask;
+}
+
+/*
  * Start the device in periodic mode
  */
 static void tick_broadcast_start_periodic(struct clock_event_device *bc)
@@ -274,6 +287,14 @@ void tick_shutdown_broadcast(unsigned int *cpup)
 #ifdef CONFIG_TICK_ONESHOT
 
 static cpumask_t tick_broadcast_oneshot_mask;
+
+/*
+ * Debugging: see timer_list.c
+ */
+cpumask_t *tick_get_broadcast_oneshot_mask(void)
+{
+	return &tick_broadcast_oneshot_mask;
+}
 
 static int tick_broadcast_set_event(ktime_t expires, int force)
 {

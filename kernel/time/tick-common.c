@@ -34,6 +34,14 @@ ktime_t tick_period;
 static int tick_do_timer_cpu = -1;
 DEFINE_SPINLOCK(tick_device_lock);
 
+/*
+ * Debugging: see timer_list.c
+ */
+struct tick_device *tick_get_device(int cpu)
+{
+	return &per_cpu(tick_cpu_device, cpu);
+}
+
 /**
  * tick_is_oneshot_available - check for a oneshot capable event device
  */

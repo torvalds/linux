@@ -59,6 +59,7 @@ struct tick_sched {
 
 extern void __init tick_init(void);
 extern int tick_is_oneshot_available(void);
+extern struct tick_device *tick_get_device(int cpu);
 
 # ifdef CONFIG_HIGH_RES_TIMERS
 extern int tick_init_highres(void);
@@ -68,6 +69,16 @@ extern void tick_cancel_sched_timer(int cpu);
 # else
 static inline void tick_cancel_sched_timer(int cpu) { }
 # endif /* HIGHRES */
+
+# ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+extern struct tick_device *tick_get_broadcast_device(void);
+extern cpumask_t *tick_get_broadcast_mask(void);
+
+#  ifdef CONFIG_TICK_ONESHOT
+extern cpumask_t *tick_get_broadcast_oneshot_mask(void);
+#  endif
+
+# endif /* BROADCAST */
 
 # ifdef CONFIG_TICK_ONESHOT
 extern void tick_clock_notify(void);
