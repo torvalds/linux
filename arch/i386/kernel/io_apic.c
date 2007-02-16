@@ -482,8 +482,8 @@ static void do_irq_balance(void)
 		package_index = CPU_TO_PACKAGEINDEX(i);
 		for (j = 0; j < NR_IRQS; j++) {
 			unsigned long value_now, delta;
-			/* Is this an active IRQ? */
-			if (!irq_desc[j].action)
+			/* Is this an active IRQ or balancing disabled ? */
+			if (!irq_desc[j].action || irq_balancing_disabled(j))
 				continue;
 			if ( package_index == i )
 				IRQ_DELTA(package_index,j) = 0;

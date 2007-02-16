@@ -31,7 +31,7 @@ typedef	void fastcall (*irq_flow_handler_t)(unsigned int irq,
 /*
  * IRQ line status.
  *
- * Bits 0-16 are reserved for the IRQF_* bits in linux/interrupt.h
+ * Bits 0-7 are reserved for the IRQF_* bits in linux/interrupt.h
  *
  * IRQ types
  */
@@ -45,27 +45,30 @@ typedef	void fastcall (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_TYPE_PROBE		0x00000010	/* Probing in progress */
 
 /* Internal flags */
-#define IRQ_INPROGRESS		0x00010000	/* IRQ handler active - do not enter! */
-#define IRQ_DISABLED		0x00020000	/* IRQ disabled - do not enter! */
-#define IRQ_PENDING		0x00040000	/* IRQ pending - replay on enable */
-#define IRQ_REPLAY		0x00080000	/* IRQ has been replayed but not acked yet */
-#define IRQ_AUTODETECT		0x00100000	/* IRQ is being autodetected */
-#define IRQ_WAITING		0x00200000	/* IRQ not yet seen - for autodetection */
-#define IRQ_LEVEL		0x00400000	/* IRQ level triggered */
-#define IRQ_MASKED		0x00800000	/* IRQ masked - shouldn't be seen again */
-#define IRQ_PER_CPU		0x01000000	/* IRQ is per CPU */
+#define IRQ_INPROGRESS		0x00000100	/* IRQ handler active - do not enter! */
+#define IRQ_DISABLED		0x00000200	/* IRQ disabled - do not enter! */
+#define IRQ_PENDING		0x00000400	/* IRQ pending - replay on enable */
+#define IRQ_REPLAY		0x00000800	/* IRQ has been replayed but not acked yet */
+#define IRQ_AUTODETECT		0x00001000	/* IRQ is being autodetected */
+#define IRQ_WAITING		0x00002000	/* IRQ not yet seen - for autodetection */
+#define IRQ_LEVEL		0x00004000	/* IRQ level triggered */
+#define IRQ_MASKED		0x00008000	/* IRQ masked - shouldn't be seen again */
+#define IRQ_PER_CPU		0x00010000	/* IRQ is per CPU */
+#define IRQ_NOPROBE		0x00020000	/* IRQ is not valid for probing */
+#define IRQ_NOREQUEST		0x00040000	/* IRQ cannot be requested */
+#define IRQ_NOAUTOEN		0x00080000	/* IRQ will not be enabled on request irq */
+#define IRQ_DELAYED_DISABLE	0x00100000	/* IRQ disable (masking) happens delayed. */
+#define IRQ_WAKEUP		0x00200000	/* IRQ triggers system wakeup */
+#define IRQ_MOVE_PENDING	0x00400000	/* need to re-target IRQ destination */
+#define IRQ_NO_BALANCING	0x00800000	/* IRQ is excluded from balancing */
+
 #ifdef CONFIG_IRQ_PER_CPU
 # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
+# define IRQ_NO_BALANCING_MASK	(IRQ_PER_CPU | IRQ_NO_BALANCING)
 #else
 # define CHECK_IRQ_PER_CPU(var) 0
+# define IRQ_NO_BALANCING_MASK	IRQ_NO_BALANCING
 #endif
-
-#define IRQ_NOPROBE		0x02000000	/* IRQ is not valid for probing */
-#define IRQ_NOREQUEST		0x04000000	/* IRQ cannot be requested */
-#define IRQ_NOAUTOEN		0x08000000	/* IRQ will not be enabled on request irq */
-#define IRQ_DELAYED_DISABLE	0x10000000	/* IRQ disable (masking) happens delayed. */
-#define IRQ_WAKEUP		0x20000000	/* IRQ triggers system wakeup */
-#define IRQ_MOVE_PENDING	0x40000000	/* need to re-target IRQ destination */
 
 struct proc_dir_entry;
 struct msi_desc;
@@ -260,6 +263,11 @@ static inline int select_smp_affinity(unsigned int irq)
 #endif
 
 extern int no_irq_affinity;
+
+static inline int irq_balancing_disabled(unsigned int irq)
+{
+	return irq_desc[irq].status & IRQ_NO_BALANCING_MASK;
+}
 
 /* Handle irq action chains: */
 extern int handle_IRQ_event(unsigned int irq, struct irqaction *action);

@@ -55,7 +55,7 @@ static int irq_affinity_write_proc(struct file *file, const char __user *buffer,
 	cpumask_t new_value, tmp;
 
 	if (!irq_desc[irq].chip->set_affinity || no_irq_affinity ||
-				CHECK_IRQ_PER_CPU(irq_desc[irq].status))
+	    irq_balancing_disabled(irq))
 		return -EIO;
 
 	err = cpumask_parse_user(buffer, count, new_value);
