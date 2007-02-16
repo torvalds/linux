@@ -609,6 +609,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			highmem otherwise. This also works to reduce highmem
 			size on bigger boxes.
 
+	highres=	[KNL] Enable/disable high resolution timer mode.
+			Valid parameters: "on", "off"
+			Default: "on"
+
 	hisax=		[HW,ISDN]
 			See Documentation/isdn/README.HiSax.
 

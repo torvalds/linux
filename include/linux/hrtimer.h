@@ -41,16 +41,35 @@ enum hrtimer_restart {
 };
 
 /*
- * Bit values to track state of the timer
+ * hrtimer callback modes:
+ *
+ *	HRTIMER_CB_SOFTIRQ:		Callback must run in softirq context
+ *	HRTIMER_CB_IRQSAFE:		Callback may run in hardirq context
+ *	HRTIMER_CB_IRQSAFE_NO_RESTART:	Callback may run in hardirq context and
+ *					does not restart the timer
+ *	HRTIMER_CB_IRQSAFE_NO_SOFTIRQ:	Callback must run in softirq context
+ *					Special mode for tick emultation
+ */
+enum hrtimer_cb_mode {
+	HRTIMER_CB_SOFTIRQ,
+	HRTIMER_CB_IRQSAFE,
+	HRTIMER_CB_IRQSAFE_NO_RESTART,
+	HRTIMER_CB_IRQSAFE_NO_SOFTIRQ,
+};
+
+/*
+ * Values to track state of the timer
  *
  * Possible states:
  *
  * 0x00		inactive
  * 0x01		enqueued into rbtree
  * 0x02		callback function running
+ * 0x04		callback pending (high resolution mode)
+ *
+ * Special case:
  * 0x03		callback function running and enqueued
  *		(was requeued on another CPU)
- *
  * The "callback function running and enqueued" status is only possible on
  * SMP. It happens for example when a posix timer expired and the callback
  * queued a signal. Between dropping the lock which protects the posix timer
@@ -67,6 +86,7 @@ enum hrtimer_restart {
 #define HRTIMER_STATE_INACTIVE	0x00
 #define HRTIMER_STATE_ENQUEUED	0x01
 #define HRTIMER_STATE_CALLBACK	0x02
+#define HRTIMER_STATE_PENDING	0x04
 
 /**
  * struct hrtimer - the basic hrtimer structure
@@ -77,8 +97,17 @@ enum hrtimer_restart {
  * @function:	timer expiry callback function
  * @base:	pointer to the timer base (per cpu and per clock)
  * @state:	state information (See bit values above)
+ * @cb_mode:	high resolution timer feature to select the callback execution
+ *		 mode
+ * @cb_entry:	list head to enqueue an expired timer into the callback list
+ * @start_site:	timer statistics field to store the site where the timer
+ *		was started
+ * @start_comm: timer statistics field to store the name of the process which
+ *		started the timer
+ * @start_pid: timer statistics field to store the pid of the task which
+ *		started the timer
  *
- * The hrtimer structure must be initialized by init_hrtimer_#CLOCKTYPE()
+ * The hrtimer structure must be initialized by hrtimer_init()
  */
 struct hrtimer {
 	struct rb_node			node;
@@ -86,6 +115,10 @@ struct hrtimer {
 	enum hrtimer_restart		(*function)(struct hrtimer *);
 	struct hrtimer_clock_base	*base;
 	unsigned long			state;
+#ifdef CONFIG_HIGH_RES_TIMERS
+	enum hrtimer_cb_mode		cb_mode;
+	struct list_head		cb_entry;
+#endif
 };
 
 /**
@@ -110,6 +143,9 @@ struct hrtimer_sleeper {
  * @get_time:		function to retrieve the current time of the clock
  * @get_softirq_time:	function to retrieve the current time from the softirq
  * @softirq_time:	the time when running the hrtimer queue in the softirq
+ * @cb_pending:		list of timers where the callback is pending
+ * @offset:		offset of this clock to the monotonic base
+ * @reprogram:		function to reprogram the timer event
  */
 struct hrtimer_clock_base {
 	struct hrtimer_cpu_base	*cpu_base;
@@ -120,6 +156,12 @@ struct hrtimer_clock_base {
 	ktime_t			(*get_time)(void);
 	ktime_t			(*get_softirq_time)(void);
 	ktime_t			softirq_time;
+#ifdef CONFIG_HIGH_RES_TIMERS
+	ktime_t			offset;
+	int			(*reprogram)(struct hrtimer *t,
+					     struct hrtimer_clock_base *b,
+					     ktime_t n);
+#endif
 };
 
 #define HRTIMER_MAX_CLOCK_BASES 2
@@ -131,19 +173,74 @@ struct hrtimer_clock_base {
  * @lock_key:		the lock_class_key for use with lockdep
  * @clock_base:		array of clock bases for this cpu
  * @curr_timer:		the timer which is executing a callback right now
+ * @expires_next:	absolute time of the next event which was scheduled
+ *			via clock_set_next_event()
+ * @hres_active:	State of high resolution mode
+ * @check_clocks:	Indictator, when set evaluate time source and clock
+ *			event devices whether high resolution mode can be
+ *			activated.
+ * @cb_pending:		Expired timers are moved from the rbtree to this
+ *			list in the timer interrupt. The list is processed
+ *			in the softirq.
+ * @nr_events:		Total number of timer interrupt events
  */
 struct hrtimer_cpu_base {
 	spinlock_t			lock;
 	struct lock_class_key		lock_key;
 	struct hrtimer_clock_base	clock_base[HRTIMER_MAX_CLOCK_BASES];
+#ifdef CONFIG_HIGH_RES_TIMERS
+	ktime_t				expires_next;
+	int				hres_active;
+	struct list_head		cb_pending;
+	unsigned long			nr_events;
+#endif
 };
+
+#ifdef CONFIG_HIGH_RES_TIMERS
+struct clock_event_device;
+
+extern void clock_was_set(void);
+extern void hrtimer_interrupt(struct clock_event_device *dev);
+
+/*
+ * In high resolution mode the time reference must be read accurate
+ */
+static inline ktime_t hrtimer_cb_get_time(struct hrtimer *timer)
+{
+	return timer->base->get_time();
+}
+
+/*
+ * The resolution of the clocks. The resolution value is returned in
+ * the clock_getres() system call to give application programmers an
+ * idea of the (in)accuracy of timers. Timer values are rounded up to
+ * this resolution values.
+ */
+# define KTIME_HIGH_RES		(ktime_t) { .tv64 = 1 }
+# define KTIME_MONOTONIC_RES	KTIME_HIGH_RES
+
+#else
+
+# define KTIME_MONOTONIC_RES	KTIME_LOW_RES
 
 /*
  * clock_was_set() is a NOP for non- high-resolution systems. The
  * time-sorted order guarantees that a timer does not expire early and
  * is expired in the next softirq when the clock was advanced.
  */
-#define clock_was_set()		do { } while (0)
+static inline void clock_was_set(void) { }
+
+/*
+ * In non high resolution mode the time reference is taken from
+ * the base softirq time variable.
+ */
+static inline ktime_t hrtimer_cb_get_time(struct hrtimer *timer)
+{
+	return timer->base->softirq_time;
+}
+
+#endif
+
 extern ktime_t ktime_get(void);
 extern ktime_t ktime_get_real(void);
 
@@ -168,9 +265,7 @@ static inline int hrtimer_restart(struct hrtimer *timer)
 extern ktime_t hrtimer_get_remaining(const struct hrtimer *timer);
 extern int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp);
 
-#ifdef CONFIG_NO_IDLE_HZ
 extern ktime_t hrtimer_get_next_event(void);
-#endif
 
 /*
  * A timer is active, when it is enqueued into the rbtree or the callback
@@ -179,6 +274,15 @@ extern ktime_t hrtimer_get_next_event(void);
 static inline int hrtimer_active(const struct hrtimer *timer)
 {
 	return timer->state != HRTIMER_STATE_INACTIVE;
+}
+
+/*
+ * Helper function to check, whether the timer is on one of the queues
+ */
+static inline int hrtimer_is_queued(struct hrtimer *timer)
+{
+	return timer->state &
+		(HRTIMER_STATE_ENQUEUED | HRTIMER_STATE_PENDING);
 }
 
 /* Forward a hrtimer so it expires after now: */
