@@ -166,7 +166,7 @@ e1000_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			ecmd->transceiver = XCVR_EXTERNAL;
 	}
 
-	if (netif_carrier_ok(adapter->netdev)) {
+	if (E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_LU) {
 
 		e1000_get_speed_and_duplex(hw, &adapter->link_speed,
 		                                   &adapter->link_duplex);
