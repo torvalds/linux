@@ -34,7 +34,7 @@
 #include <linux/cpu.h>
 #include <linux/syscalls.h>
 #include <linux/delay.h>
-#include <linux/clockchips.h>
+#include <linux/tick.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -874,6 +874,8 @@ static void change_clocksource(void)
 	clock->xtime_nsec = 0;
 	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
 
+	tick_clock_notify();
+
 	printk(KERN_INFO "Time: %s clocksource has been installed.\n",
 	       clock->name);
 }
@@ -936,7 +938,6 @@ void __init timekeeping_init(void)
 
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 }
-
 
 /* flag for if timekeeping is suspended */
 static int timekeeping_suspended;

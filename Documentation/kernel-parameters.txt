@@ -1078,6 +1078,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			in certain environments such as networked servers or
 			real-time systems.
 
+	nohz=		[KNL] Boottime enable/disable dynamic ticks
+			Valid arguments: on, off
+			Default: on
+
 	noirqbalance	[IA-32,SMP,KNL] Disable kernel irq balancing
 
 	noirqdebug	[IA-32] Disables the code which attempts to detect and

@@ -34,6 +34,16 @@ ktime_t tick_period;
 static int tick_do_timer_cpu = -1;
 DEFINE_SPINLOCK(tick_device_lock);
 
+/**
+ * tick_is_oneshot_available - check for a oneshot capable event device
+ */
+int tick_is_oneshot_available(void)
+{
+	struct clock_event_device *dev = __get_cpu_var(tick_cpu_device).evtdev;
+
+	return dev && (dev->features & CLOCK_EVT_FEAT_ONESHOT);
+}
+
 /*
  * Periodic tick
  */
@@ -162,6 +172,8 @@ static void tick_setup_device(struct tick_device *td,
 
 	if (td->mode == TICKDEV_MODE_PERIODIC)
 		tick_setup_periodic(newdev, 0);
+	else
+		tick_setup_oneshot(newdev, handler, next_event);
 }
 
 /*
@@ -209,6 +221,12 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 	 */
 	if (curdev) {
 		/*
+		 * Prefer one shot capable devices !
+		 */
+		if ((curdev->features & CLOCK_EVT_FEAT_ONESHOT) &&
+		    !(newdev->features & CLOCK_EVT_FEAT_ONESHOT))
+			goto out_bc;
+		/*
 		 * Check the rating
 		 */
 		if (curdev->rating >= newdev->rating)
@@ -226,6 +244,8 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 	}
 	clockevents_exchange_device(curdev, newdev);
 	tick_setup_device(td, newdev, cpu, cpumask);
+	if (newdev->features & CLOCK_EVT_FEAT_ONESHOT)
+		tick_oneshot_notify();
 
 	spin_unlock_irqrestore(&tick_device_lock, flags);
 	return NOTIFY_STOP;
@@ -285,7 +305,13 @@ static int tick_notify(struct notifier_block *nb, unsigned long reason,
 		tick_broadcast_on_off(reason, dev);
 		break;
 
+	case CLOCK_EVT_NOTIFY_BROADCAST_ENTER:
+	case CLOCK_EVT_NOTIFY_BROADCAST_EXIT:
+		tick_broadcast_oneshot_control(reason);
+		break;
+
 	case CLOCK_EVT_NOTIFY_CPU_DEAD:
+		tick_shutdown_broadcast_oneshot(dev);
 		tick_shutdown_broadcast(dev);
 		tick_shutdown(dev);
 		break;

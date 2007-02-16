@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/sched.h> /* for spin_unlock_irq() using preempt_count() m68k */
+#include <linux/tick.h>
 
 /* XXX - Would like a better way for initializing curr_clocksource */
 extern struct clocksource clocksource_jiffies;
@@ -109,6 +110,13 @@ static void clocksource_watchdog(unsigned long data)
 			if ((cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) &&
 			    (watchdog->flags & CLOCK_SOURCE_IS_CONTINUOUS)) {
 				cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
+				/*
+				 * We just marked the clocksource as
+				 * highres-capable, notify the rest of the
+				 * system as well so that we transition
+				 * into high-res mode:
+				 */
+				tick_clock_notify();
 			}
 			cs->flags |= CLOCK_SOURCE_WATCHDOG;
 			cs->wd_last = csnow;

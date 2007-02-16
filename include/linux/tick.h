@@ -20,12 +20,79 @@ struct tick_device {
 	enum tick_device_mode mode;
 };
 
+enum tick_nohz_mode {
+	NOHZ_MODE_INACTIVE,
+	NOHZ_MODE_LOWRES,
+	NOHZ_MODE_HIGHRES,
+};
+
+/**
+ * struct tick_sched - sched tick emulation and no idle tick control/stats
+ * @sched_timer:	hrtimer to schedule the periodic tick in high
+ *			resolution mode
+ * @idle_tick:		Store the last idle tick expiry time when the tick
+ *			timer is modified for idle sleeps. This is necessary
+ *			to resume the tick timer operation in the timeline
+ *			when the CPU returns from idle
+ * @tick_stopped:	Indicator that the idle tick has been stopped
+ * @idle_jiffies:	jiffies at the entry to idle for idle time accounting
+ * @idle_calls:		Total number of idle calls
+ * @idle_sleeps:	Number of idle calls, where the sched tick was stopped
+ * @idle_entrytime:	Time when the idle call was entered
+ * @idle_sleeptime:	Sum of the time slept in idle with sched tick stopped
+ */
+struct tick_sched {
+	struct hrtimer			sched_timer;
+	unsigned long			check_clocks;
+	enum tick_nohz_mode		nohz_mode;
+	ktime_t				idle_tick;
+	int				tick_stopped;
+	unsigned long			idle_jiffies;
+	unsigned long			idle_calls;
+	unsigned long			idle_sleeps;
+	ktime_t				idle_entrytime;
+	ktime_t				idle_sleeptime;
+	unsigned long			last_jiffies;
+	unsigned long			next_jiffies;
+	ktime_t				idle_expires;
+};
+
 extern void __init tick_init(void);
+extern int tick_is_oneshot_available(void);
 
-#else
+# ifdef CONFIG_HIGH_RES_TIMERS
+extern int tick_init_highres(void);
+extern int tick_program_event(ktime_t expires, int force);
+extern void tick_setup_sched_timer(void);
+extern void tick_cancel_sched_timer(int cpu);
+# else
+static inline void tick_cancel_sched_timer(int cpu) { }
+# endif /* HIGHRES */
 
+# ifdef CONFIG_TICK_ONESHOT
+extern void tick_clock_notify(void);
+extern int tick_check_oneshot_change(int allow_nohz);
+extern struct tick_sched *tick_get_tick_sched(int cpu);
+# else
+static inline void tick_clock_notify(void) { }
+static inline int tick_check_oneshot_change(int allow_nohz) { return 0; }
+# endif
+
+#else /* CONFIG_GENERIC_CLOCKEVENTS */
 static inline void tick_init(void) { }
+static inline void tick_cancel_sched_timer(int cpu) { }
+static inline void tick_clock_notify(void) { }
+static inline int tick_check_oneshot_change(int allow_nohz) { return 0; }
+#endif /* !CONFIG_GENERIC_CLOCKEVENTS */
 
-#endif
+# ifdef CONFIG_NO_HZ
+extern void tick_nohz_stop_sched_tick(void);
+extern void tick_nohz_restart_sched_tick(void);
+extern void tick_nohz_update_jiffies(void);
+# else
+static inline void tick_nohz_stop_sched_tick(void) { }
+static inline void tick_nohz_restart_sched_tick(void) { }
+static inline void tick_nohz_update_jiffies(void) { }
+# endif /* !NO_HZ */
 
 #endif

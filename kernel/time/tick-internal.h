@@ -10,12 +10,57 @@ extern void tick_setup_periodic(struct clock_event_device *dev, int broadcast);
 extern void tick_handle_periodic(struct clock_event_device *dev);
 
 /*
+ * NO_HZ / high resolution timer shared code
+ */
+#ifdef CONFIG_TICK_ONESHOT
+extern void tick_setup_oneshot(struct clock_event_device *newdev,
+			       void (*handler)(struct clock_event_device *),
+			       ktime_t nextevt);
+extern int tick_program_event(ktime_t expires, int force);
+extern void tick_oneshot_notify(void);
+extern int tick_switch_to_oneshot(void (*handler)(struct clock_event_device *));
+
+# ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+extern void tick_broadcast_setup_oneshot(struct clock_event_device *bc);
+extern void tick_broadcast_oneshot_control(unsigned long reason);
+extern void tick_broadcast_switch_to_oneshot(void);
+extern void tick_shutdown_broadcast_oneshot(unsigned int *cpup);
+# else /* BROADCAST */
+static inline void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
+{
+	BUG();
+}
+static inline void tick_broadcast_oneshot_control(unsigned long reason) { }
+static inline void tick_broadcast_switch_to_oneshot(void) { }
+static inline void tick_shutdown_broadcast_oneshot(unsigned int *cpup) { }
+# endif /* !BROADCAST */
+
+#else /* !ONESHOT */
+static inline
+void tick_setup_oneshot(struct clock_event_device *newdev,
+			void (*handler)(struct clock_event_device *),
+			ktime_t nextevt)
+{
+	BUG();
+}
+static inline int tick_program_event(ktime_t expires, int force)
+{
+	return 0;
+}
+static inline void tick_oneshot_notify(void) { }
+static inline void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
+{
+	BUG();
+}
+static inline void tick_broadcast_oneshot_control(unsigned long reason) { }
+static inline void tick_shutdown_broadcast_oneshot(unsigned int *cpup) { }
+#endif /* !TICK_ONESHOT */
+
+/*
  * Broadcasting support
  */
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 extern int tick_do_broadcast(cpumask_t mask);
-extern struct tick_device tick_broadcast_device;
-extern spinlock_t tick_broadcast_lock;
 
 extern int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu);
 extern int tick_check_broadcast_device(struct clock_event_device *dev);

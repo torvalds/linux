@@ -2,8 +2,8 @@
  *  linux/kernel/hrtimer.c
  *
  *  Copyright(C) 2005-2006, Thomas Gleixner <tglx@linutronix.de>
- *  Copyright(C) 2005-2006, Red Hat, Inc., Ingo Molnar
- *  Copyright(C) 2006	    Timesys Corp., Thomas Gleixner <tglx@timesys.com>
+ *  Copyright(C) 2005-2007, Red Hat, Inc., Ingo Molnar
+ *  Copyright(C) 2006-2007  Timesys Corp., Thomas Gleixner <tglx@timesys.com>
  *
  *  High-resolution kernel timers
  *
@@ -38,6 +38,7 @@
 #include <linux/notifier.h>
 #include <linux/syscalls.h>
 #include <linux/interrupt.h>
+#include <linux/tick.h>
 
 #include <asm/uaccess.h>
 
@@ -288,7 +289,7 @@ ktime_t ktime_add_ns(const ktime_t kt, u64 nsec)
 /*
  * Divide a ktime value by a nanosecond value
  */
-static unsigned long ktime_divns(const ktime_t kt, s64 div)
+unsigned long ktime_divns(const ktime_t kt, s64 div)
 {
 	u64 dclc, inc, dns;
 	int sft = 0;
@@ -305,9 +306,6 @@ static unsigned long ktime_divns(const ktime_t kt, s64 div)
 
 	return (unsigned long) dclc;
 }
-
-#else /* BITS_PER_LONG < 64 */
-# define ktime_divns(kt, div)		(unsigned long)((kt).tv64 / (div))
 #endif /* BITS_PER_LONG >= 64 */
 
 /*
@@ -681,6 +679,16 @@ void hrtimer_run_queues(void)
 {
 	struct hrtimer_cpu_base *cpu_base = &__get_cpu_var(hrtimer_bases);
 	int i;
+
+	/*
+	 * This _is_ ugly: We have to check in the softirq context,
+	 * whether we can switch to highres and / or nohz mode. The
+	 * clocksource switch happens in the timer interrupt with
+	 * xtime_lock held. Notification from there only sets the
+	 * check bit in the tick_oneshot code, otherwise we might
+	 * deadlock vs. xtime_lock.
+	 */
+	tick_check_oneshot_change(1);
 
 	hrtimer_get_softirq_time(cpu_base);
 

@@ -201,4 +201,10 @@ extern void hrtimer_run_queues(void);
 /* Bootup initialization: */
 extern void __init hrtimers_init(void);
 
+#if BITS_PER_LONG < 64
+extern unsigned long ktime_divns(const ktime_t kt, s64 div);
+#else /* BITS_PER_LONG < 64 */
+# define ktime_divns(kt, div)		(unsigned long)((kt).tv64 / (div))
+#endif
+
 #endif
