@@ -180,7 +180,8 @@ _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 						unsigned int flags)
 {
 	struct posix_acl_entry *pa, *pe, *group_owner_entry;
-	u32 mask, mask_mask;
+	u32 mask;
+	unsigned short mask_mask;
 	int eflag = ((flags & NFS4_ACL_TYPE_DEFAULT) ?
 					NFS4_INHERITANCE_FLAGS : 0);
 
@@ -188,9 +189,9 @@ _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 	pe = pacl->a_entries + pacl->a_count;
 	pa = pe - 2; /* if mask entry exists, it's second from the last. */
 	if (pa->e_tag == ACL_MASK)
-		mask_mask = deny_mask(mask_from_posix(pa->e_perm, flags), flags);
+		mask_mask = pa->e_perm;
 	else
-		mask_mask = 0;
+		mask_mask = S_IRWXO;
 
 	pa = pacl->a_entries;
 	BUG_ON(pa->e_tag != ACL_USER_OBJ);
@@ -199,10 +200,7 @@ _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 	pa++;
 
 	while (pa->e_tag == ACL_USER) {
-		mask = mask_from_posix(pa->e_perm, flags);
-		nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
-				eflag,  mask_mask, NFS4_ACL_WHO_NAMED, pa->e_id);
-
+		mask = mask_from_posix(pa->e_perm & mask_mask, flags);
 		nfs4_acl_add_pair(acl, eflag, mask,
 				NFS4_ACL_WHO_NAMED, pa->e_id, flags);
 		pa++;
@@ -213,24 +211,15 @@ _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 
 	/* allow ACEs */
 
-	if (pacl->a_count > 3) {
-		BUG_ON(pa->e_tag != ACL_GROUP_OBJ);
-		nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
-				NFS4_ACE_IDENTIFIER_GROUP | eflag, mask_mask,
-				NFS4_ACL_WHO_GROUP, 0);
-	}
 	group_owner_entry = pa;
-	mask = mask_from_posix(pa->e_perm, flags);
+	mask = mask_from_posix(pa->e_perm & mask_mask, flags);
 	nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE,
 			NFS4_ACE_IDENTIFIER_GROUP | eflag, mask,
 			NFS4_ACL_WHO_GROUP, 0);
 	pa++;
 
 	while (pa->e_tag == ACL_GROUP) {
-		mask = mask_from_posix(pa->e_perm, flags);
-		nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_DENIED_ACE_TYPE,
-				NFS4_ACE_IDENTIFIER_GROUP | eflag, mask_mask,
-				NFS4_ACL_WHO_NAMED, pa->e_id);
+		mask = mask_from_posix(pa->e_perm & mask_mask, flags);
 		nfs4_acl_add_ace(acl, NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE,
 		    		NFS4_ACE_IDENTIFIER_GROUP | eflag, mask,
 		    		NFS4_ACL_WHO_NAMED, pa->e_id);
