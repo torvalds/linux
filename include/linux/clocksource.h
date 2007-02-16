@@ -12,11 +12,13 @@
 #include <linux/timex.h>
 #include <linux/time.h>
 #include <linux/list.h>
+#include <linux/timer.h>
 #include <asm/div64.h>
 #include <asm/io.h>
 
 /* clocksource cycle base type */
 typedef u64 cycle_t;
+struct clocksource;
 
 /**
  * struct clocksource - hardware abstraction for a free running counter
@@ -62,13 +64,22 @@ struct clocksource {
 	cycle_t cycle_last, cycle_interval;
 	u64 xtime_nsec, xtime_interval;
 	s64 error;
+
+#ifdef CONFIG_CLOCKSOURCE_WATCHDOG
+	/* Watchdog related data, used by the framework */
+	struct list_head wd_list;
+	cycle_t wd_last;
+#endif
 };
 
 /*
  * Clock source flags bits::
  */
-#define CLOCK_SOURCE_IS_CONTINUOUS	0x01
-#define CLOCK_SOURCE_MUST_VERIFY	0x02
+#define CLOCK_SOURCE_IS_CONTINUOUS		0x01
+#define CLOCK_SOURCE_MUST_VERIFY		0x02
+
+#define CLOCK_SOURCE_WATCHDOG			0x10
+#define CLOCK_SOURCE_VALID_FOR_HRES		0x20
 
 /* simplify initialization of mask field */
 #define CLOCKSOURCE_MASK(bits) (cycle_t)(bits<64 ? ((1ULL<<bits)-1) : -1)

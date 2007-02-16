@@ -63,8 +63,115 @@ static int __init clocksource_done_booting(void)
 	finished_booting = 1;
 	return 0;
 }
-
 late_initcall(clocksource_done_booting);
+
+#ifdef CONFIG_CLOCKSOURCE_WATCHDOG
+static LIST_HEAD(watchdog_list);
+static struct clocksource *watchdog;
+static struct timer_list watchdog_timer;
+static DEFINE_SPINLOCK(watchdog_lock);
+static cycle_t watchdog_last;
+/*
+ * Interval: 0.5sec Treshold: 0.0625s
+ */
+#define WATCHDOG_INTERVAL (HZ >> 1)
+#define WATCHDOG_TRESHOLD (NSEC_PER_SEC >> 4)
+
+static void clocksource_ratewd(struct clocksource *cs, int64_t delta)
+{
+	if (delta > -WATCHDOG_TRESHOLD && delta < WATCHDOG_TRESHOLD)
+		return;
+
+	printk(KERN_WARNING "Clocksource %s unstable (delta = %Ld ns)\n",
+	       cs->name, delta);
+	cs->flags &= ~(CLOCK_SOURCE_VALID_FOR_HRES | CLOCK_SOURCE_WATCHDOG);
+	clocksource_change_rating(cs, 0);
+	cs->flags &= ~CLOCK_SOURCE_WATCHDOG;
+	list_del(&cs->wd_list);
+}
+
+static void clocksource_watchdog(unsigned long data)
+{
+	struct clocksource *cs, *tmp;
+	cycle_t csnow, wdnow;
+	int64_t wd_nsec, cs_nsec;
+
+	spin_lock(&watchdog_lock);
+
+	wdnow = watchdog->read();
+	wd_nsec = cyc2ns(watchdog, (wdnow - watchdog_last) & watchdog->mask);
+	watchdog_last = wdnow;
+
+	list_for_each_entry_safe(cs, tmp, &watchdog_list, wd_list) {
+		csnow = cs->read();
+		/* Initialized ? */
+		if (!(cs->flags & CLOCK_SOURCE_WATCHDOG)) {
+			if ((cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) &&
+			    (watchdog->flags & CLOCK_SOURCE_IS_CONTINUOUS)) {
+				cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
+			}
+			cs->flags |= CLOCK_SOURCE_WATCHDOG;
+			cs->wd_last = csnow;
+		} else {
+			cs_nsec = cyc2ns(cs, (csnow - cs->wd_last) & cs->mask);
+			cs->wd_last = csnow;
+			/* Check the delta. Might remove from the list ! */
+			clocksource_ratewd(cs, cs_nsec - wd_nsec);
+		}
+	}
+
+	if (!list_empty(&watchdog_list)) {
+		__mod_timer(&watchdog_timer,
+			    watchdog_timer.expires + WATCHDOG_INTERVAL);
+	}
+	spin_unlock(&watchdog_lock);
+}
+static void clocksource_check_watchdog(struct clocksource *cs)
+{
+	struct clocksource *cse;
+	unsigned long flags;
+
+	spin_lock_irqsave(&watchdog_lock, flags);
+	if (cs->flags & CLOCK_SOURCE_MUST_VERIFY) {
+		int started = !list_empty(&watchdog_list);
+
+		list_add(&cs->wd_list, &watchdog_list);
+		if (!started && watchdog) {
+			watchdog_last = watchdog->read();
+			watchdog_timer.expires = jiffies + WATCHDOG_INTERVAL;
+			add_timer(&watchdog_timer);
+		}
+	} else if (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) {
+			cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
+
+		if (!watchdog || cs->rating > watchdog->rating) {
+			if (watchdog)
+				del_timer(&watchdog_timer);
+			watchdog = cs;
+			init_timer(&watchdog_timer);
+			watchdog_timer.function = clocksource_watchdog;
+
+			/* Reset watchdog cycles */
+			list_for_each_entry(cse, &watchdog_list, wd_list)
+				cse->flags &= ~CLOCK_SOURCE_WATCHDOG;
+			/* Start if list is not empty */
+			if (!list_empty(&watchdog_list)) {
+				watchdog_last = watchdog->read();
+				watchdog_timer.expires =
+					jiffies + WATCHDOG_INTERVAL;
+				add_timer(&watchdog_timer);
+			}
+		}
+	}
+	spin_unlock_irqrestore(&watchdog_lock, flags);
+}
+#else
+static void clocksource_check_watchdog(struct clocksource *cs)
+{
+	if (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS)
+		cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
+}
+#endif
 
 /**
  * clocksource_get_next - Returns the selected clocksource
@@ -94,13 +201,21 @@ struct clocksource *clocksource_get_next(void)
  */
 static struct clocksource *select_clocksource(void)
 {
+	struct clocksource *next;
+
 	if (list_empty(&clocksource_list))
 		return NULL;
 
 	if (clocksource_override)
-		return clocksource_override;
+		next = clocksource_override;
+	else
+		next = list_entry(clocksource_list.next, struct clocksource,
+				  list);
 
-	return list_entry(clocksource_list.next, struct clocksource, list);
+	if (next == curr_clocksource)
+		return NULL;
+
+	return next;
 }
 
 /*
@@ -138,13 +253,15 @@ static int clocksource_enqueue(struct clocksource *c)
 int clocksource_register(struct clocksource *c)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	spin_lock_irqsave(&clocksource_lock, flags);
 	ret = clocksource_enqueue(c);
 	if (!ret)
 		next_clocksource = select_clocksource();
 	spin_unlock_irqrestore(&clocksource_lock, flags);
+	if (!ret)
+		clocksource_check_watchdog(c);
 	return ret;
 }
 EXPORT_SYMBOL(clocksource_register);
@@ -159,6 +276,7 @@ void clocksource_change_rating(struct clocksource *cs, int rating)
 
 	spin_lock_irqsave(&clocksource_lock, flags);
 	list_del(&cs->list);
+	cs->rating = rating;
 	clocksource_enqueue(cs);
 	next_clocksource = select_clocksource();
 	spin_unlock_irqrestore(&clocksource_lock, flags);

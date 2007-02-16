@@ -344,49 +344,6 @@ static struct dmi_system_id __initdata bad_tsc_dmi_table[] = {
 	 {}
 };
 
-#define TSC_FREQ_CHECK_INTERVAL (10*MSEC_PER_SEC) /* 10sec in MS */
-static struct timer_list verify_tsc_freq_timer;
-
-/* XXX - Probably should add locking */
-static void verify_tsc_freq(unsigned long unused)
-{
-	static u64 last_tsc;
-	static unsigned long last_jiffies;
-
-	u64 now_tsc, interval_tsc;
-	unsigned long now_jiffies, interval_jiffies;
-
-
-	if (check_tsc_unstable())
-		return;
-
-	rdtscll(now_tsc);
-	now_jiffies = jiffies;
-
-	if (!last_jiffies) {
-		goto out;
-	}
-
-	interval_jiffies = now_jiffies - last_jiffies;
-	interval_tsc = now_tsc - last_tsc;
-	interval_tsc *= HZ;
-	do_div(interval_tsc, cpu_khz*1000);
-
-	if (interval_tsc < (interval_jiffies * 3 / 4)) {
-		printk("TSC appears to be running slowly. "
-			"Marking it as unstable\n");
-		mark_tsc_unstable();
-		return;
-	}
-
-out:
-	last_tsc = now_tsc;
-	last_jiffies = now_jiffies;
-	/* set us up to go off on the next interval: */
-	mod_timer(&verify_tsc_freq_timer,
-		jiffies + msecs_to_jiffies(TSC_FREQ_CHECK_INTERVAL));
-}
-
 /*
  * Make an educated guess if the TSC is trustworthy and synchronized
  * over all CPUs.
@@ -423,12 +380,6 @@ static int __init init_tsc_clocksource(void)
 			clocksource_tsc.rating = 0;
 			clocksource_tsc.flags &= ~CLOCK_SOURCE_IS_CONTINUOUS;
 		}
-
-		init_timer(&verify_tsc_freq_timer);
-		verify_tsc_freq_timer.function = verify_tsc_freq;
-		verify_tsc_freq_timer.expires =
-			jiffies + msecs_to_jiffies(TSC_FREQ_CHECK_INTERVAL);
-		add_timer(&verify_tsc_freq_timer);
 
 		return clocksource_register(&clocksource_tsc);
 	}

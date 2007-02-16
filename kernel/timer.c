@@ -832,30 +832,33 @@ EXPORT_SYMBOL(do_settimeofday);
  *
  * Accumulates current time interval and initializes new clocksource
  */
-static int change_clocksource(void)
+static void change_clocksource(void)
 {
 	struct clocksource *new;
 	cycle_t now;
 	u64 nsec;
-	new = clocksource_get_next();
-	if (clock != new) {
-		now = clocksource_read(new);
-		nsec =  __get_nsec_offset();
-		timespec_add_ns(&xtime, nsec);
 
-		clock = new;
-		clock->cycle_last = now;
-		printk(KERN_INFO "Time: %s clocksource has been installed.\n",
-		       clock->name);
-		return 1;
-	}
-	return 0;
+	new = clocksource_get_next();
+
+	if (clock == new)
+		return;
+
+	now = clocksource_read(new);
+	nsec =  __get_nsec_offset();
+	timespec_add_ns(&xtime, nsec);
+
+	clock = new;
+	clock->cycle_last = now;
+
+	clock->error = 0;
+	clock->xtime_nsec = 0;
+	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
+
+	printk(KERN_INFO "Time: %s clocksource has been installed.\n",
+	       clock->name);
 }
 #else
-static inline int change_clocksource(void)
-{
-	return 0;
-}
+static inline void change_clocksource(void) { }
 #endif
 
 /**
@@ -869,7 +872,7 @@ int timekeeping_is_continuous(void)
 	do {
 		seq = read_seqbegin(&xtime_lock);
 
-		ret = clock->flags & CLOCK_SOURCE_IS_CONTINUOUS;
+		ret = clock->flags & CLOCK_SOURCE_VALID_FOR_HRES;
 
 	} while (read_seqretry(&xtime_lock, seq));
 
@@ -1124,11 +1127,7 @@ static void update_wall_time(void)
 	clock->xtime_nsec -= (s64)xtime.tv_nsec << clock->shift;
 
 	/* check to see if there is a new clocksource to use */
-	if (change_clocksource()) {
-		clock->error = 0;
-		clock->xtime_nsec = 0;
-		clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
-	}
+	change_clocksource();
 }
 
 /*
