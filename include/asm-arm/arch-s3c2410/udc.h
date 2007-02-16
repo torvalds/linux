@@ -12,6 +12,7 @@
  *	14-Mar-2005	RTP	Created file
  *	02-Aug-2005	RTP	File rename
  *	07-Sep-2005	BJD	Minor cleanups, changed cmd to enum
+ *	18-Jan-2007	HMW	Add per-platform vbus_draw function
 */
 
 #ifndef __ASM_ARM_ARCH_UDC_H
@@ -25,6 +26,7 @@ enum s3c2410_udc_cmd_e {
 
 struct s3c2410_udc_mach_info {
 	void	(*udc_command)(enum s3c2410_udc_cmd_e);
+ 	void	(*vbus_draw)(unsigned int ma);
 	unsigned int vbus_pin;
 	unsigned char vbus_pin_inverted;
 };
