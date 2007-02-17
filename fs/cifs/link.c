@@ -77,7 +77,8 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 		cifsInode = CIFS_I(old_file->d_inode);
 		if(rc == 0) {
 			old_file->d_inode->i_nlink++;
-			old_file->d_inode->i_ctime = CURRENT_TIME;
+/* BB should we make this contingent on superblock flag NOATIME? */
+/*			old_file->d_inode->i_ctime = CURRENT_TIME;*/
 			/* parent dir timestamps will update from srv
 			within a second, would it really be worth it
 			to set the parent dir cifs inode time to zero

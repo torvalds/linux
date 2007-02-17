@@ -90,6 +90,9 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 				(*pinode)->i_ino =
 					(unsigned long)findData.UniqueId;
 			} /* note ino incremented to unique num in new_inode */
+			if(sb->s_flags & MS_NOATIME)
+				(*pinode)->i_flags |= S_NOATIME | S_NOCMTIME;
+				
 			insert_inode_hash(*pinode);
 		}
 
@@ -421,6 +424,8 @@ int cifs_get_inode_info(struct inode **pinode,
 				} else /* do we need cast or hash to ino? */
 					(*pinode)->i_ino = inode_num;
 			} /* else ino incremented to unique num in new_inode*/
+			if(sb->s_flags & MS_NOATIME)
+				(*pinode)->i_flags |= S_NOATIME | S_NOCMTIME;
 			insert_inode_hash(*pinode);
 		}
 		inode = *pinode;

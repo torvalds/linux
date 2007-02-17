@@ -83,6 +83,8 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 				return rc;
 			rc = 1;
 		}
+		if(file->f_path.dentry->d_sb->s_flags & MS_NOATIME)
+			(*ptmp_inode)->i_flags |= S_NOATIME | S_NOCMTIME;
 	} else {
 		tmp_dentry = d_alloc(file->f_path.dentry, qstring);
 		if(tmp_dentry == NULL) {
@@ -98,6 +100,8 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 			tmp_dentry->d_op = &cifs_dentry_ops;
 		if(*ptmp_inode == NULL)
 			return rc;
+		if(file->f_path.dentry->d_sb->s_flags & MS_NOATIME)
+			(*ptmp_inode)->i_flags |= S_NOATIME | S_NOCMTIME;			
 		rc = 2;
 	}
 
