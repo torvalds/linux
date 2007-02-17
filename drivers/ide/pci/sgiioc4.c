@@ -729,8 +729,7 @@ out:
 	return ret;
 }
 
-static ide_pci_device_t sgiioc4_chipsets[] __devinitdata = {
-	{
+static ide_pci_device_t sgiioc4_chipset __devinitdata = {
 	 /* Channel 0 */
 	 .name = "SGIIOC4",
 	 .init_hwif = ide_init_sgiioc4,
@@ -739,7 +738,6 @@ static ide_pci_device_t sgiioc4_chipsets[] __devinitdata = {
 	 .autodma = AUTODMA,
 	 /* SGI IOC4 doesn't have enablebits. */
 	 .bootable = ON_BOARD,
-	}
 };
 
 int
@@ -751,8 +749,7 @@ ioc4_ide_attach_one(struct ioc4_driver_data *idd)
 	if (idd->idd_variant == IOC4_VARIANT_PCI_RT)
 		return 0;
 
-	return pci_init_sgiioc4(idd->idd_pdev,
-				&sgiioc4_chipsets[idd->idd_pci_id->driver_data]);
+	return pci_init_sgiioc4(idd->idd_pdev, &sgiioc4_chipset);
 }
 
 static struct ioc4_submodule ioc4_ide_submodule = {
