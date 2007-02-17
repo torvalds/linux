@@ -743,12 +743,10 @@ static int hpt366_config_drive_xfer_rate(ide_drive_t *drive)
 	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
 		return hwif->ide_dma_on(drive);
 
-	if (ide_use_fast_pio(drive)) {
+	if (ide_use_fast_pio(drive))
 		hpt3xx_tune_drive(drive, 255);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return hwif->ide_dma_off_quietly(drive);
 }
 
 /*

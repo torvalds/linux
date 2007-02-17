@@ -264,10 +264,9 @@ static int atiixp_dma_check(ide_drive_t *drive)
 		tspeed = ide_get_best_pio_mode(drive, 255, 5, NULL);
 		speed = atiixp_dma_2_pio(XFER_PIO_0 + tspeed) + XFER_PIO_0;
 		hwif->speedproc(drive, speed);
-		return hwif->ide_dma_off_quietly(drive);
 	}
-	/* IORDY not supported */
-	return 0;
+
+	return hwif->ide_dma_off_quietly(drive);
 }
 
 /**

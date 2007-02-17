@@ -678,12 +678,10 @@ static int sis5513_config_xfer_rate(ide_drive_t *drive)
 	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
 		return hwif->ide_dma_on(drive);
 
-	if (ide_use_fast_pio(drive)) {
+	if (ide_use_fast_pio(drive))
 		sis5513_tune_drive(drive, 5);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return hwif->ide_dma_off_quietly(drive);
 }
 
 /* Chip detection and general config */

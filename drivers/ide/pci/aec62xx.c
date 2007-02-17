@@ -214,12 +214,10 @@ static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
 	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
 		return hwif->ide_dma_on(drive);
 
-	if (ide_use_fast_pio(drive)) {
+	if (ide_use_fast_pio(drive))
 		aec62xx_tune_drive(drive, 5);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return hwif->ide_dma_off_quietly(drive);
 }
 
 static int aec62xx_irq_timeout (ide_drive_t *drive)

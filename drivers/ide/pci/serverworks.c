@@ -322,13 +322,10 @@ static int svwks_config_drive_xfer_rate (ide_drive_t *drive)
 	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
 		return hwif->ide_dma_on(drive);
 
-	if (ide_use_fast_pio(drive)) {
+	if (ide_use_fast_pio(drive))
 		config_chipset_for_pio(drive);
-		//	hwif->tuneproc(drive, 5);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return hwif->ide_dma_off_quietly(drive);
 }
 
 static unsigned int __devinit init_chipset_svwks (struct pci_dev *dev, const char *name)

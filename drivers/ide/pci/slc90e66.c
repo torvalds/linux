@@ -186,13 +186,11 @@ static int slc90e66_config_drive_xfer_rate (ide_drive_t *drive)
 	if (ide_use_dma(drive) && slc90e66_config_drive_for_dma(drive))
 		return hwif->ide_dma_on(drive);
 
-	if (ide_use_fast_pio(drive)) {
+	if (ide_use_fast_pio(drive))
 		(void) hwif->speedproc(drive, XFER_PIO_0 +
 				       ide_get_best_pio_mode(drive, 255, 4, NULL));
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return hwif->ide_dma_off_quietly(drive);
 }
 
 static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)

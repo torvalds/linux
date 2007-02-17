@@ -376,11 +376,10 @@ static int scc_config_drive_for_dma(ide_drive_t *drive)
 	if (ide_use_dma(drive) && scc_config_chipset_for_dma(drive))
 		return hwif->ide_dma_on(drive);
 
-	if (ide_use_fast_pio(drive)) {
+	if (ide_use_fast_pio(drive))
 		hwif->tuneproc(drive, 4);
-		hwif->ide_dma_off_quietly(drive);
-	}
-	return 1; /* DMA is not supported */
+
+	return hwif->ide_dma_off_quietly(drive);
 }
 
 /**

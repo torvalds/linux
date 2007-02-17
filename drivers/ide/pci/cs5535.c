@@ -206,10 +206,9 @@ static int cs5535_dma_check(ide_drive_t *drive)
 	if (ide_use_fast_pio(drive)) {
 		speed = ide_get_best_pio_mode(drive, 255, 4, NULL);
 		cs5535_set_drive(drive, speed);
-		return hwif->ide_dma_off_quietly(drive);
 	}
-	/* IORDY not supported */
-	return 0;
+
+	return hwif->ide_dma_off_quietly(drive);
 }
 
 static u8 __devinit cs5535_cable_detect(struct pci_dev *dev)

@@ -120,12 +120,10 @@ static int hpt34x_config_drive_xfer_rate (ide_drive_t *drive)
 		return hwif->ide_dma_on(drive);
 #endif
 
-	if (ide_use_fast_pio(drive)) {
+	if (ide_use_fast_pio(drive))
 		hpt34x_tune_drive(drive, 255);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return hwif->ide_dma_off_quietly(drive);
 }
 
 /*
