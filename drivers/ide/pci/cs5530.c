@@ -103,16 +103,13 @@ static int cs5530_config_dma (ide_drive_t *drive)
 	int			unit = drive->select.b.unit;
 	ide_drive_t		*mate = &hwif->drives[unit^1];
 	struct hd_driveid	*id = drive->id;
-	unsigned int		reg, timings;
+	unsigned int		reg, timings = 0;
 	unsigned long		basereg;
 
 	/*
 	 * Default to DMA-off in case we run into trouble here.
 	 */
 	hwif->ide_dma_off_quietly(drive);
-	/* turn off DMA while we fiddle */
-	hwif->ide_dma_host_off(drive);
-	/* clear DMA_capable bit */
 
 	/*
 	 * The CS5530 specifies that two drives sharing a cable cannot
@@ -182,9 +179,8 @@ static int cs5530_config_dma (ide_drive_t *drive)
 		case XFER_MW_DMA_1:	timings = 0x00012121; break;
 		case XFER_MW_DMA_2:	timings = 0x00002020; break;
 		default:
-			printk(KERN_ERR "%s: cs5530_config_dma: huh? mode=%02x\n",
-				drive->name, mode);
-			return 1;	/* failure */
+			BUG();
+			break;
 	}
 	basereg = CS5530_BASEREG(hwif);
 	reg = hwif->INL(basereg+4);		/* get drive0 config register */
@@ -199,8 +195,6 @@ static int cs5530_config_dma (ide_drive_t *drive)
 		hwif->OUTL(reg,     basereg+4);	/* write drive0 config register */
 		hwif->OUTL(timings, basereg+12);	/* write drive1 config register */
 	}
-	(void) hwif->ide_dma_host_on(drive);
-	/* set DMA_capable bit */
 
 	/*
 	 * Finally, turn DMA on in software, and exit.
