@@ -349,7 +349,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 	int use_iordy = 0;
 	struct hd_driveid* id = drive->id;
 	int overridden  = 0;
-	int blacklisted = 0;
 
 	if (mode_wanted != 255) {
 		pio_mode = mode_wanted;
@@ -357,7 +356,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 		pio_mode = 0;
 	} else if ((pio_mode = ide_scan_pio_blacklist(id->model)) != -1) {
 		overridden = 1;
-		blacklisted = 1;
 		use_iordy = (pio_mode > 2);
 	} else {
 		pio_mode = id->tPIO;
@@ -409,7 +407,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 		d->cycle_time = cycle_time ? cycle_time : ide_pio_timings[pio_mode].cycle_time;
 		d->use_iordy = use_iordy;
 		d->overridden = overridden;
-		d->blacklisted = blacklisted;
 	}
 	return pio_mode;
 }
