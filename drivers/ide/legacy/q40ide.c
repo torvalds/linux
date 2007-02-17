@@ -145,7 +145,7 @@ void q40ide_init(void)
 	index = ide_register_hw(&hw, &hwif);
 	// **FIXME**
 	if (index != -1)
-		hwif->mmio = 2;
+		hwif->mmio = 1;
     }
 }
 

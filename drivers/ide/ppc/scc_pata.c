@@ -668,7 +668,7 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 	hwif->irq = hwif->pci_dev->irq;
 	hwif->dma_base = dma_base;
 	hwif->config_data = ports->ctl;
-	hwif->mmio = 2;
+	hwif->mmio = 1;
 }
 
 /**

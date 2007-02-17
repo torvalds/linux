@@ -708,7 +708,8 @@ static int au_ide_probe(struct device *dev)
 
 	/* hold should be on in all cases */
 	hwif->hold                      = 1;
-	hwif->mmio                      = 2;
+
+	hwif->mmio  = 1;
 
 	/* If the user has selected DDMA assisted copies,
 	   then set up a few local I/O function entry points 

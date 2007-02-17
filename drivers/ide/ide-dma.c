@@ -565,7 +565,7 @@ int ide_dma_setup(ide_drive_t *drive)
 	}
 
 	/* PRD table */
-	if (hwif->mmio == 2)
+	if (hwif->mmio)
 		writel(hwif->dmatable_dma, (void __iomem *)hwif->dma_prdtable);
 	else
 		outl(hwif->dmatable_dma, hwif->dma_prdtable);
@@ -815,7 +815,7 @@ int ide_release_dma(ide_hwif_t *hwif)
 {
 	ide_release_dma_engine(hwif);
 
-	if (hwif->mmio == 2)
+	if (hwif->mmio)
 		return 1;
 	else
 		return ide_release_iomio_dma(hwif);
@@ -884,9 +884,9 @@ static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int port
 
 static int ide_dma_iobase(ide_hwif_t *hwif, unsigned long base, unsigned int ports)
 {
-	if (hwif->mmio == 2)
+	if (hwif->mmio)
 		return ide_mapped_mmio_dma(hwif, base,ports);
-	BUG_ON(hwif->mmio == 1);
+
 	return ide_iomio_dma(hwif, base, ports);
 }
 

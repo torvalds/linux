@@ -593,7 +593,7 @@ static int sgiioc4_ide_dma_setup(ide_drive_t *drive)
 static void __devinit
 ide_init_sgiioc4(ide_hwif_t * hwif)
 {
-	hwif->mmio = 2;
+	hwif->mmio = 1;
 	hwif->autodma = 1;
 	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x0;	/* Disable Ultra DMA */

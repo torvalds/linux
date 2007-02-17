@@ -888,7 +888,8 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
        	base = (unsigned long) addr;
 
 	hwif->dma_base			= base + (ch ? 0x08 : 0x00);
-	hwif->mmio			= 2;
+
+	hwif->mmio = 1;
 }
 
 static int is_dev_seagate_sata(ide_drive_t *drive)

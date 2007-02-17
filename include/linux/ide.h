@@ -772,7 +772,6 @@ typedef struct hwif_s {
 	unsigned int cursg;
 	unsigned int cursg_ofs;
 
-	int		mmio;		/* hosts iomio (0) or custom (2) select */
 	int		rqsize;		/* max sectors per request */
 	int		irq;		/* our irq number */
 
@@ -804,6 +803,7 @@ typedef struct hwif_s {
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 	unsigned	no_io_32bit : 1; /* 1 = can not do 32-bit IO ops */
 	unsigned	err_stops_fifo : 1; /* 1=data FIFO is cleared by an error */
+	unsigned	mmio       : 1; /* host uses MMIO */
 
 	struct device	gendev;
 	struct completion gendev_rel_comp; /* To deal with device release() */

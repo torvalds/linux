@@ -795,7 +795,7 @@ init_e100_ide (void)
 		                0, 0, cris_ide_ack_intr,
 		                ide_default_irq(0));
 		ide_register_hw(&hw, &hwif);
-		hwif->mmio = 2;
+		hwif->mmio = 1;
 		hwif->chipset = ide_etrax100;
 		hwif->tuneproc = &tune_cris_ide;
 		hwif->speedproc = &speed_cris_ide;

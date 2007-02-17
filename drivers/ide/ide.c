@@ -389,9 +389,8 @@ int ide_hwif_request_regions(ide_hwif_t *hwif)
 	unsigned long addr;
 	unsigned int i;
 
-	if (hwif->mmio == 2)
+	if (hwif->mmio)
 		return 0;
-	BUG_ON(hwif->mmio == 1);
 	addr = hwif->io_ports[IDE_CONTROL_OFFSET];
 	if (addr && !hwif_request_region(hwif, addr, 1))
 		goto control_region_busy;
@@ -438,7 +437,7 @@ void ide_hwif_release_regions(ide_hwif_t *hwif)
 {
 	u32 i = 0;
 
-	if (hwif->mmio == 2)
+	if (hwif->mmio)
 		return;
 	if (hwif->io_ports[IDE_CONTROL_OFFSET])
 		release_region(hwif->io_ports[IDE_CONTROL_OFFSET], 1);
