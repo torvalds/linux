@@ -491,11 +491,20 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 
 	blk_queue_hardsect_size(md->queue.queue, 1 << md->block_bits);
 
-	/*
-	 * The CSD capacity field is in units of read_blkbits.
-	 * set_capacity takes units of 512 bytes.
-	 */
-	set_capacity(md->disk, card->csd.capacity << (card->csd.read_blkbits - 9));
+	if (!mmc_card_sd(card) && mmc_card_blockaddr(card)) {
+		/*
+		 * The EXT_CSD sector count is in number or 512 byte
+		 * sectors.
+		 */
+		set_capacity(md->disk, card->ext_csd.sectors);
+	} else {
+		/*
+		 * The CSD capacity field is in units of read_blkbits.
+		 * set_capacity takes units of 512 bytes.
+		 */
+		set_capacity(md->disk,
+			card->csd.capacity << (card->csd.read_blkbits - 9));
+	}
 	return md;
 
  err_putdisk:

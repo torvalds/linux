@@ -41,6 +41,7 @@ struct mmc_csd {
 
 struct mmc_ext_csd {
 	unsigned int		hs_max_dtr;
+	unsigned int		sectors;
 };
 
 struct sd_scr {

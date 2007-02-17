@@ -1106,10 +1106,28 @@ static void mmc_process_ext_csds(struct mmc_host *host)
 		mmc_wait_for_req(host, &mrq);
 
 		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
-			printk("%s: unable to read EXT_CSD, performance "
-				"might suffer.\n", mmc_hostname(card->host));
+			if (card->csd.capacity == (4096 * 512)) {
+				printk(KERN_ERR "%s: unable to read EXT_CSD "
+					"on a possible high capacity card. "
+					"Card will be ignored.\n",
+					mmc_hostname(card->host));
+				mmc_card_set_dead(card);
+			} else {
+				printk(KERN_WARNING "%s: unable to read "
+					"EXT_CSD, performance might "
+					"suffer.\n",
+					mmc_hostname(card->host));
+			}
 			continue;
 		}
+
+		card->ext_csd.sectors =
+			ext_csd[EXT_CSD_SEC_CNT + 0] << 0 |
+			ext_csd[EXT_CSD_SEC_CNT + 1] << 8 |
+			ext_csd[EXT_CSD_SEC_CNT + 2] << 16 |
+			ext_csd[EXT_CSD_SEC_CNT + 3] << 24;
+		if (card->ext_csd.sectors)
+			mmc_card_set_blockaddr(card);
 
 		switch (ext_csd[EXT_CSD_CARD_TYPE]) {
 		case EXT_CSD_CARD_TYPE_52 | EXT_CSD_CARD_TYPE_26:
@@ -1499,7 +1517,8 @@ static void mmc_setup(struct mmc_host *host)
 			mmc_send_app_op_cond(host, host->ocr | (sd2 << 30), NULL);
 		}
 	} else {
-		mmc_send_op_cond(host, host->ocr, NULL);
+		/* The extra bit indicates that we support high capacity */
+		mmc_send_op_cond(host, host->ocr | (1 << 30), NULL);
 	}
 
 	mmc_discover_cards(host);
