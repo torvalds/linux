@@ -87,7 +87,6 @@ struct cpuinfo_parisc {
 	unsigned long hpa;          /* Host Physical address */
 	unsigned long txn_addr;     /* MMIO addr of EIR or id_eid */
 #ifdef CONFIG_SMP
-	spinlock_t lock;            /* synchronization for ipi's */
 	unsigned long pending_ipi;  /* bitmap of type ipi_message_type */
 	unsigned long ipi_count;    /* number ipi Interrupts */
 #endif

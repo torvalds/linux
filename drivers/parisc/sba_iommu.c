@@ -109,7 +109,7 @@ static unsigned long piranha_bad_128k = 0;
 
 #ifdef SBA_AGP_SUPPORT
 static int sba_reserve_agpgart = 1;
-module_param(sba_reserve_agpgart, int, 1);
+module_param(sba_reserve_agpgart, int, 0444);
 MODULE_PARM_DESC(sba_reserve_agpgart, "Reserve half of IO pdir as AGPGART");
 #endif
 
@@ -846,7 +846,7 @@ static void *sba_alloc_consistent(struct device *hwdev, size_t size,
 	if (!hwdev) {
 		/* only support PCI */
 		*dma_handle = 0;
-		return 0;
+		return NULL;
 	}
 
         ret = (void *) __get_free_pages(gfp, get_order(size));

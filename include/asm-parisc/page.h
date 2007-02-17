@@ -127,7 +127,11 @@ extern int npmem_ranges;
 /* This governs the relationship between virtual and physical addresses.
  * If you alter it, make sure to take care of our various fixed mapping
  * segments in fixmap.h */
-#define __PAGE_OFFSET           (0x10000000)
+#ifdef CONFIG_64BIT
+#define __PAGE_OFFSET	(0x40000000)	/* 1GB */
+#else
+#define __PAGE_OFFSET	(0x10000000)	/* 256MB */
+#endif
 
 #define PAGE_OFFSET		((unsigned long)__PAGE_OFFSET)
 

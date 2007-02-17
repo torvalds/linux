@@ -342,7 +342,7 @@ pcxl_dma_init(void)
 	pcxl_res_map = (char *)__get_free_pages(GFP_KERNEL,
 					    get_order(pcxl_res_size));
 	memset(pcxl_res_map, 0, pcxl_res_size);
-	proc_gsc_root = proc_mkdir("gsc", 0);
+	proc_gsc_root = proc_mkdir("gsc", NULL);
 	if (!proc_gsc_root)
     		printk(KERN_WARNING
 			"pcxl_dma_init: Unable to create gsc /proc dir entry\n");
