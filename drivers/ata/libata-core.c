@@ -5948,11 +5948,7 @@ ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
 {
 	struct ata_probe_ent *probe_ent;
 
-	/* XXX - the following if can go away once all LLDs are managed */
-	if (!list_empty(&dev->devres_head))
-		probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
-	else
-		probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
+	probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
 	if (!probe_ent) {
 		printk(KERN_ERR DRV_NAME "(%s): out of memory\n",
 		       kobject_name(&(dev->kobj)));
