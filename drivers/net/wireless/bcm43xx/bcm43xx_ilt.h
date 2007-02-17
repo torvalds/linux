@@ -27,6 +27,7 @@ extern const u16 bcm43xx_ilt_sigmasqr2[BCM43xx_ILT_SIGMASQR_SIZE];
 
 
 void bcm43xx_ilt_write(struct bcm43xx_private *bcm, u16 offset, u16 val);
+void bcm43xx_ilt_write32(struct bcm43xx_private *bcm, u16 offset, u32 val);
 u16 bcm43xx_ilt_read(struct bcm43xx_private *bcm, u16 offset);
 
 #endif /* BCM43xx_ILT_H_ */
