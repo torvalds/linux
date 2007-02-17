@@ -287,6 +287,7 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 
 	if (cifs_sb) {
 		if (cifs_sb->tcon) {
+/* BB add prepath to mount options displayed */
 			seq_printf(s, ",unc=%s", cifs_sb->tcon->treeName);
 			if (cifs_sb->tcon->ses) {
 				if (cifs_sb->tcon->ses->userName)
