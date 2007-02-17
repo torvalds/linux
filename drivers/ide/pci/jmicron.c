@@ -147,7 +147,9 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 {
 	u8 speed	= ide_dma_speed(drive, jmicron_ratemask(drive));
 
-	config_jmicron_chipset_for_pio(drive, !speed);
+	if (!speed)
+		return 0;
+
 	jmicron_tune_chipset(drive, speed);
 	return ide_dma_enable(drive);
 }

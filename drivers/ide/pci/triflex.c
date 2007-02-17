@@ -104,11 +104,9 @@ static int triflex_config_drive_for_dma(ide_drive_t *drive)
 {
 	int speed = ide_dma_speed(drive, 0); /* No ultra speeds */
 
-	if (!speed) { 
-		u8 pspeed = ide_get_best_pio_mode(drive, 255, 4, NULL);
-		speed = XFER_PIO_0 + pspeed;
-	}
-	
+	if (!speed)
+		return 0;
+
 	(void) triflex_tune_chipset(drive, speed);
 	 return ide_dma_enable(drive);
 }

@@ -235,11 +235,8 @@ static int atiixp_config_drive_for_dma(ide_drive_t *drive)
 {
 	u8 speed = ide_dma_speed(drive, atiixp_ratemask(drive));
 
-	/* If no DMA speed was available then disable DMA and use PIO. */
-	if (!speed) {
-		u8 tspeed = ide_get_best_pio_mode(drive, 255, 5, NULL);
-		speed = atiixp_dma_2_pio(XFER_PIO_0 + tspeed) + XFER_PIO_0;
-	}
+	if (!speed)
+		return 0;
 
 	(void) atiixp_speedproc(drive, speed);
 	return ide_dma_enable(drive);
