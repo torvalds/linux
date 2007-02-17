@@ -94,9 +94,9 @@ static u8 aec62xx_ratemask (ide_drive_t *drive)
 	switch(hwif->pci_dev->device) {
 		case PCI_DEVICE_ID_ARTOP_ATP865:
 		case PCI_DEVICE_ID_ARTOP_ATP865R:
-			mode = (hwif->INB(((hwif->channel) ?
-					hwif->mate->dma_status :
-					hwif->dma_status)) & 0x10) ? 4 : 3;
+			mode = (inb(hwif->channel ?
+				    hwif->mate->dma_status :
+				    hwif->dma_status) & 0x10) ? 4 : 3;
 			break;
 		case PCI_DEVICE_ID_ARTOP_ATP860:
 		case PCI_DEVICE_ID_ARTOP_ATP860R:

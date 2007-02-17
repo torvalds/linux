@@ -836,7 +836,7 @@ static int hpt374_ide_dma_test_irq(ide_drive_t *drive)
 		return 0;
 	}
 
-	dma_stat = hwif->INB(hwif->dma_status);
+	dma_stat = inb(hwif->dma_status);
 	/* return 1 if INTR asserted */
 	if (dma_stat & 4)
 		return 1;

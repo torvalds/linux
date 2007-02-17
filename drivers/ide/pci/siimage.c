@@ -460,11 +460,11 @@ static int siimage_mmio_ide_dma_test_irq (ide_drive_t *drive)
 	unsigned long addr	= siimage_selreg(hwif, 0x1);
 
 	if (SATA_ERROR_REG) {
-		u32 ext_stat = hwif->INL(base + 0x10);
+		u32 ext_stat = readl((void __iomem *)(base + 0x10));
 		u8 watchdog = 0;
 		if (ext_stat & ((hwif->channel) ? 0x40 : 0x10)) {
-			u32 sata_error = hwif->INL(SATA_ERROR_REG);
-			hwif->OUTL(sata_error, SATA_ERROR_REG);
+			u32 sata_error = readl((void __iomem *)SATA_ERROR_REG);
+			writel(sata_error, (void __iomem *)SATA_ERROR_REG);
 			watchdog = (sata_error & 0x00680000) ? 1 : 0;
 			printk(KERN_WARNING "%s: sata_error = 0x%08x, "
 				"watchdog = %d, %s\n",
@@ -481,11 +481,11 @@ static int siimage_mmio_ide_dma_test_irq (ide_drive_t *drive)
 	}
 
 	/* return 1 if INTR asserted */
-	if ((hwif->INB(hwif->dma_status) & 0x04) == 0x04)
+	if ((readb((void __iomem *)hwif->dma_status) & 0x04) == 0x04)
 		return 1;
 
 	/* return 1 if Device INTR asserted */
-	if ((hwif->INB(addr) & 8) == 8)
+	if ((readb((void __iomem *)addr) & 8) == 8)
 		return 0;	//return 1;
 
 	return 0;
@@ -507,9 +507,9 @@ static int siimage_busproc (ide_drive_t * drive, int state)
 	u32 stat_config		= 0;
 	unsigned long addr	= siimage_selreg(hwif, 0);
 
-	if (hwif->mmio) {
-		stat_config = hwif->INL(addr);
-	} else
+	if (hwif->mmio)
+		stat_config = readl((void __iomem *)addr);
+	else
 		pci_read_config_dword(hwif->pci_dev, addr, &stat_config);
 
 	switch (state) {
@@ -545,9 +545,10 @@ static int siimage_reset_poll (ide_drive_t *drive)
 	if (SATA_STATUS_REG) {
 		ide_hwif_t *hwif	= HWIF(drive);
 
-		if ((hwif->INL(SATA_STATUS_REG) & 0x03) != 0x03) {
+		/* SATA_STATUS_REG is valid only when in MMIO mode */
+		if ((readl((void __iomem *)SATA_STATUS_REG) & 0x03) != 0x03) {
 			printk(KERN_WARNING "%s: reset phy dead, status=0x%08x\n",
-				hwif->name, hwif->INL(SATA_STATUS_REG));
+				hwif->name, readl((void __iomem *)SATA_STATUS_REG));
 			HWGROUP(drive)->polling = 0;
 			return ide_started;
 		}
@@ -607,7 +608,8 @@ static void siimage_reset (ide_drive_t *drive)
 	}
 
 	if (SATA_STATUS_REG) {
-		u32 sata_stat = hwif->INL(SATA_STATUS_REG);
+		/* SATA_STATUS_REG is valid only when in MMIO mode */
+		u32 sata_stat = readl((void __iomem *)SATA_STATUS_REG);
 		printk(KERN_WARNING "%s: reset phy, status=0x%08x, %s\n",
 			hwif->name, sata_stat, __FUNCTION__);
 		if (!(sata_stat)) {

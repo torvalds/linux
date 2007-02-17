@@ -81,8 +81,6 @@ static inline void hwif_setup(ide_hwif_t *hwif)
 	hwif->OUTSW = mm_outsw;
 	hwif->INW   = mm_inw;
 	hwif->INSW  = mm_insw;
-	hwif->OUTL  = NULL;
-	hwif->INL   = NULL;
 	hwif->OUTSL = NULL;
 	hwif->INSL  = NULL;
 }

@@ -746,13 +746,11 @@ typedef struct hwif_s {
 	void (*OUTB)(u8 addr, unsigned long port);
 	void (*OUTBSYNC)(ide_drive_t *drive, u8 addr, unsigned long port);
 	void (*OUTW)(u16 addr, unsigned long port);
-	void (*OUTL)(u32 addr, unsigned long port);
 	void (*OUTSW)(unsigned long port, void *addr, u32 count);
 	void (*OUTSL)(unsigned long port, void *addr, u32 count);
 
 	u8  (*INB)(unsigned long port);
 	u16 (*INW)(unsigned long port);
-	u32 (*INL)(unsigned long port);
 	void (*INSW)(unsigned long port, void *addr, u32 count);
 	void (*INSL)(unsigned long port, void *addr, u32 count);
 

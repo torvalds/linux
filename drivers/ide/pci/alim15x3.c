@@ -852,8 +852,8 @@ static void __devinit init_dma_ali15x3 (ide_hwif_t *hwif, unsigned long dmabase)
 {
 	if (m5229_revision < 0x20)
 		return;
-	if (!(hwif->channel))
-		hwif->OUTB(hwif->INB(dmabase+2) & 0x60, dmabase+2);
+	if (!hwif->channel)
+		outb(inb(dmabase + 2) & 0x60, dmabase + 2);
 	ide_setup_dma(hwif, dmabase, 8);
 }
 

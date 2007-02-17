@@ -240,17 +240,17 @@ static u8 pdc202xx_old_cable_detect (ide_hwif_t *hwif)
 static void pdc_old_enable_66MHz_clock(ide_hwif_t *hwif)
 {
 	unsigned long clock_reg = hwif->dma_master + 0x11;
-	u8 clock = hwif->INB(clock_reg);
+	u8 clock = inb(clock_reg);
 
-	hwif->OUTB(clock | (hwif->channel ? 0x08 : 0x02), clock_reg);
+	outb(clock | (hwif->channel ? 0x08 : 0x02), clock_reg);
 }
 
 static void pdc_old_disable_66MHz_clock(ide_hwif_t *hwif)
 {
 	unsigned long clock_reg = hwif->dma_master + 0x11;
-	u8 clock = hwif->INB(clock_reg);
+	u8 clock = inb(clock_reg);
 
-	hwif->OUTB(clock & ~(hwif->channel ? 0x08 : 0x02), clock_reg);
+	outb(clock & ~(hwif->channel ? 0x08 : 0x02), clock_reg);
 }
 
 static int config_chipset_for_dma (ide_drive_t *drive)
@@ -357,14 +357,14 @@ static void pdc202xx_old_ide_dma_start(ide_drive_t *drive)
 		unsigned long high_16   = hwif->dma_master;
 		unsigned long atapi_reg	= high_16 + (hwif->channel ? 0x24 : 0x20);
 		u32 word_count	= 0;
-		u8 clock = hwif->INB(high_16 + 0x11);
+		u8 clock = inb(high_16 + 0x11);
 
-		hwif->OUTB(clock|(hwif->channel ? 0x08 : 0x02), high_16+0x11);
+		outb(clock | (hwif->channel ? 0x08 : 0x02), high_16 + 0x11);
 		word_count = (rq->nr_sectors << 8);
 		word_count = (rq_data_dir(rq) == READ) ?
 					word_count | 0x05000000 :
 					word_count | 0x06000000;
-		hwif->OUTL(word_count, atapi_reg);
+		outl(word_count, atapi_reg);
 	}
 	ide_dma_start(drive);
 }
@@ -377,9 +377,9 @@ static int pdc202xx_old_ide_dma_end(ide_drive_t *drive)
 		unsigned long atapi_reg	= high_16 + (hwif->channel ? 0x24 : 0x20);
 		u8 clock		= 0;
 
-		hwif->OUTL(0, atapi_reg); /* zero out extra */
-		clock = hwif->INB(high_16 + 0x11);
-		hwif->OUTB(clock & ~(hwif->channel ? 0x08:0x02), high_16+0x11);
+		outl(0, atapi_reg); /* zero out extra */
+		clock = inb(high_16 + 0x11);
+		outb(clock & ~(hwif->channel ? 0x08:0x02), high_16 + 0x11);
 	}
 	if (drive->current_speed > XFER_UDMA_2)
 		pdc_old_disable_66MHz_clock(drive->hwif);
@@ -390,8 +390,8 @@ static int pdc202xx_old_ide_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long high_16	= hwif->dma_master;
-	u8 dma_stat		= hwif->INB(hwif->dma_status);
-	u8 sc1d			= hwif->INB((high_16 + 0x001d));
+	u8 dma_stat		= inb(hwif->dma_status);
+	u8 sc1d			= inb(high_16 + 0x001d);
 
 	if (hwif->channel) {
 		/* bit7: Error, bit6: Interrupting, bit5: FIFO Full, bit4: FIFO Empty */
@@ -427,11 +427,11 @@ static int pdc202xx_ide_dma_timeout(ide_drive_t *drive)
 static void pdc202xx_reset_host (ide_hwif_t *hwif)
 {
 	unsigned long high_16	= hwif->dma_master;
-	u8 udma_speed_flag	= hwif->INB(high_16|0x001f);
+	u8 udma_speed_flag	= inb(high_16 | 0x001f);
 
-	hwif->OUTB((udma_speed_flag | 0x10), (high_16|0x001f));
+	outb(udma_speed_flag | 0x10, high_16 | 0x001f);
 	mdelay(100);
-	hwif->OUTB((udma_speed_flag & ~0x10), (high_16|0x001f));
+	outb(udma_speed_flag & ~0x10, high_16 | 0x001f);
 	mdelay(2000);	/* 2 seconds ?! */
 
 	printk(KERN_WARNING "PDC202XX: %s channel reset.\n",
@@ -519,9 +519,9 @@ static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
 		return;
 	}
 
-	udma_speed_flag	= hwif->INB((dmabase|0x1f));
-	primary_mode	= hwif->INB((dmabase|0x1a));
-	secondary_mode	= hwif->INB((dmabase|0x1b));
+	udma_speed_flag	= inb(dmabase | 0x1f);
+	primary_mode	= inb(dmabase | 0x1a);
+	secondary_mode	= inb(dmabase | 0x1b);
 	printk(KERN_INFO "%s: (U)DMA Burst Bit %sABLED " \
 		"Primary %s Mode " \
 		"Secondary %s Mode.\n", hwif->cds->name,
@@ -534,9 +534,8 @@ static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
 		printk(KERN_INFO "%s: FORCING BURST BIT 0x%02x->0x%02x ",
 			hwif->cds->name, udma_speed_flag,
 			(udma_speed_flag|1));
-		hwif->OUTB(udma_speed_flag|1,(dmabase|0x1f));
-		printk("%sACTIVE\n",
-			(hwif->INB(dmabase|0x1f)&1) ? "":"IN");
+		outb(udma_speed_flag | 1, dmabase | 0x1f);
+		printk("%sACTIVE\n", (inb(dmabase | 0x1f) & 1) ? "" : "IN");
 	}
 #endif /* CONFIG_PDC202XX_BURST */
 

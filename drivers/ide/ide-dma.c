@@ -565,7 +565,10 @@ int ide_dma_setup(ide_drive_t *drive)
 	}
 
 	/* PRD table */
-	hwif->OUTL(hwif->dmatable_dma, hwif->dma_prdtable);
+	if (hwif->mmio == 2)
+		writel(hwif->dmatable_dma, (void __iomem *)hwif->dma_prdtable);
+	else
+		outl(hwif->dmatable_dma, hwif->dma_prdtable);
 
 	/* specify r/w */
 	hwif->OUTB(reading, hwif->dma_command);

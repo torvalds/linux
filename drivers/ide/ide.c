@@ -518,13 +518,11 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->OUTB			= tmp_hwif->OUTB;
 	hwif->OUTBSYNC			= tmp_hwif->OUTBSYNC;
 	hwif->OUTW			= tmp_hwif->OUTW;
-	hwif->OUTL			= tmp_hwif->OUTL;
 	hwif->OUTSW			= tmp_hwif->OUTSW;
 	hwif->OUTSL			= tmp_hwif->OUTSL;
 
 	hwif->INB			= tmp_hwif->INB;
 	hwif->INW			= tmp_hwif->INW;
-	hwif->INL			= tmp_hwif->INL;
 	hwif->INSW			= tmp_hwif->INSW;
 	hwif->INSL			= tmp_hwif->INSL;
 

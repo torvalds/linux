@@ -197,8 +197,8 @@ static void cy82c693_dma_enable (ide_drive_t *drive, int mode, int single)
 #if CY82C693_DEBUG_LOGS
 	/* for debug let's show the previous values */
 
-	HWIF(drive)->OUTB(index, CY82_INDEX_PORT);
-	data = HWIF(drive)->INB(CY82_DATA_PORT);
+	outb(index, CY82_INDEX_PORT);
+	data = inb(CY82_DATA_PORT);
 
 	printk (KERN_INFO "%s (ch=%d, dev=%d): DMA mode is %d (single=%d)\n",
 		drive->name, HWIF(drive)->channel, drive->select.b.unit,
@@ -207,8 +207,8 @@ static void cy82c693_dma_enable (ide_drive_t *drive, int mode, int single)
 
 	data = (u8)mode|(u8)(single<<2);
 
-	HWIF(drive)->OUTB(index, CY82_INDEX_PORT);
-	HWIF(drive)->OUTB(data, CY82_DATA_PORT);
+	outb(index, CY82_INDEX_PORT);
+	outb(data, CY82_DATA_PORT);
 
 #if CY82C693_DEBUG_INFO
 	printk(KERN_INFO "%s (ch=%d, dev=%d): set DMA mode to %d (single=%d)\n",
@@ -227,8 +227,8 @@ static void cy82c693_dma_enable (ide_drive_t *drive, int mode, int single)
 	 */
 
 	data = BUSMASTER_TIMEOUT;
-	HWIF(drive)->OUTB(CY82_INDEX_TIMEOUT, CY82_INDEX_PORT);
-	HWIF(drive)->OUTB(data, CY82_DATA_PORT);
+	outb(CY82_INDEX_TIMEOUT, CY82_INDEX_PORT);
+	outb(data, CY82_DATA_PORT);
 
 #if CY82C693_DEBUG_INFO	
 	printk (KERN_INFO "%s: Set IDE Bus Master TimeOut Register to 0x%X\n",

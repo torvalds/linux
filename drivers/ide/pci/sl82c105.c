@@ -215,7 +215,7 @@ static int sl82c105_ide_dma_lost_irq(ide_drive_t *drive)
 	 * Was DMA enabled?  If so, disable it - we're resetting the
 	 * host.  The IDE layer will be handling the drive for us.
 	 */
-	val = hwif->INB(dma_base);
+	val = inb(dma_base);
 	if (val & 1) {
 		outb(val & ~1, dma_base);
 		printk("sl82c105: DMA was enabled\n");

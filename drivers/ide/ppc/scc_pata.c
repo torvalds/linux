@@ -132,12 +132,6 @@ static u16 scc_ide_inw(unsigned long port)
 	return (u16)data;
 }
 
-static u32 scc_ide_inl(unsigned long port)
-{
-	u32 data = in_be32((void*)port);
-	return data;
-}
-
 static void scc_ide_insw(unsigned long port, void *addr, u32 count)
 {
 	u16 *ptr = (u16 *)addr;
@@ -161,11 +155,6 @@ static void scc_ide_outb(u8 addr, unsigned long port)
 }
 
 static void scc_ide_outw(u16 addr, unsigned long port)
-{
-	out_be32((void*)port, addr);
-}
-
-static void scc_ide_outl(u32 addr, unsigned long port)
 {
 	out_be32((void*)port, addr);
 }
@@ -258,16 +247,16 @@ static void scc_tuneproc(ide_drive_t *drive, byte mode_wanted)
 		break;
 	}
 
-	reg = hwif->INL(cckctrl_port);
+	reg = in_be32((void __iomem *)cckctrl_port);
 	if (reg & CCKCTRL_ATACLKOEN) {
 		offset = 1; /* 133MHz */
 	} else {
 		offset = 0; /* 100MHz */
 	}
 	reg = JCHSTtbl[offset][mode_wanted] << 16 | JCHHTtbl[offset][mode_wanted];
-	hwif->OUTL(reg, piosht_port);
+	out_be32((void __iomem *)piosht_port, reg);
 	reg = JCHCTtbl[offset][mode_wanted];
-	hwif->OUTL(reg, pioct_port);
+	out_be32((void __iomem *)pioct_port, reg);
 
 	ide_config_drive_speed(drive, speed);
 }
@@ -299,7 +288,7 @@ static int scc_tune_chipset(ide_drive_t *drive, byte xferspeed)
 	unsigned long reg;
 	unsigned long jcactsel;
 
-	reg = hwif->INL(cckctrl_port);
+	reg = in_be32((void __iomem *)cckctrl_port);
 	if (reg & CCKCTRL_ATACLKOEN) {
 		offset = 1; /* 133MHz */
 	} else {
@@ -334,17 +323,17 @@ static int scc_tune_chipset(ide_drive_t *drive, byte xferspeed)
 
 	jcactsel = JCACTSELtbl[offset][idx];
 	if (is_slave) {
-		hwif->OUTL(JCHDCTxtbl[offset][idx], sdmact_port);
-		hwif->OUTL(JCSTWTxtbl[offset][idx], scrcst_port);
-		jcactsel = jcactsel << 2 ;
-		hwif->OUTL( (hwif->INL( tdvhsel_port ) & ~TDVHSEL_SLAVE) | jcactsel, tdvhsel_port );
+		out_be32((void __iomem *)sdmact_port, JCHDCTxtbl[offset][idx]);
+		out_be32((void __iomem *)scrcst_port, JCSTWTxtbl[offset][idx]);
+		jcactsel = jcactsel << 2;
+		out_be32((void __iomem *)tdvhsel_port, (in_be32((void __iomem *)tdvhsel_port) & ~TDVHSEL_SLAVE) | jcactsel);
 	} else {
-		hwif->OUTL(JCHDCTxtbl[offset][idx], mdmact_port);
-		hwif->OUTL(JCSTWTxtbl[offset][idx], mcrcst_port);
-		hwif->OUTL( (hwif->INL( tdvhsel_port ) & ~TDVHSEL_MASTER) | jcactsel, tdvhsel_port );
+		out_be32((void __iomem *)mdmact_port, JCHDCTxtbl[offset][idx]);
+		out_be32((void __iomem *)mcrcst_port, JCSTWTxtbl[offset][idx]);
+		out_be32((void __iomem *)tdvhsel_port, (in_be32((void __iomem *)tdvhsel_port) & ~TDVHSEL_MASTER) | jcactsel);
 	}
 	reg = JCTSStbl[offset][idx] << 16 | JCENVTtbl[offset][idx];
-	hwif->OUTL(reg, udenvt_port);
+	out_be32((void __iomem *)udenvt_port, reg);
 
 	return ide_config_drive_speed(drive, speed);
 }
@@ -395,6 +384,51 @@ static int scc_config_drive_for_dma(ide_drive_t *drive)
 }
 
 /**
+ *	scc_ide_dma_setup	-	begin a DMA phase
+ *	@drive: target device
+ *
+ *	Build an IDE DMA PRD (IDE speak for scatter gather table)
+ *	and then set up the DMA transfer registers.
+ *
+ *	Returns 0 on success. If a PIO fallback is required then 1
+ *	is returned.
+ */
+
+static int scc_dma_setup(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	struct request *rq = HWGROUP(drive)->rq;
+	unsigned int reading;
+	u8 dma_stat;
+
+	if (rq_data_dir(rq))
+		reading = 0;
+	else
+		reading = 1 << 3;
+
+	/* fall back to pio! */
+	if (!ide_build_dmatable(drive, rq)) {
+		ide_map_sg(drive, rq);
+		return 1;
+	}
+
+	/* PRD table */
+	out_be32((void __iomem *)hwif->dma_prdtable, hwif->dmatable_dma);
+
+	/* specify r/w */
+	out_be32((void __iomem *)hwif->dma_command, reading);
+
+	/* read dma_status for INTR & ERROR flags */
+	dma_stat = in_be32((void __iomem *)hwif->dma_status);
+
+	/* clear INTR & ERROR flags */
+	out_be32((void __iomem *)hwif->dma_status, dma_stat|6);
+	drive->waiting_for_dma = 1;
+	return 0;
+}
+
+
+/**
  *	scc_ide_dma_end	-	Stop DMA
  *	@drive: IDE drive
  *
@@ -409,14 +443,13 @@ static int scc_ide_dma_end(ide_drive_t * drive)
 	u32 reg;
 
 	while (1) {
-		reg = hwif->INL(intsts_port);
+		reg = in_be32((void __iomem *)intsts_port);
 
 		if (reg & INTSTS_SERROR) {
 			printk(KERN_WARNING "%s: SERROR\n", SCC_PATA_NAME);
-			hwif->OUTL(INTSTS_SERROR|INTSTS_BMSINT, intsts_port);
+			out_be32((void __iomem *)intsts_port, INTSTS_SERROR|INTSTS_BMSINT);
 
-			hwif->OUTB(hwif->INB(hwif->dma_command) & ~QCHCD_IOS_SS,
-				   hwif->dma_command);
+			out_be32((void __iomem *)hwif->dma_command, in_be32((void __iomem *)hwif->dma_command) & ~QCHCD_IOS_SS);
 			continue;
 		}
 
@@ -424,56 +457,53 @@ static int scc_ide_dma_end(ide_drive_t * drive)
 			u32 maea0, maec0;
 			unsigned long ctl_base = hwif->config_data;
 
-			maea0 = hwif->INL(ctl_base + 0xF50);
-			maec0 = hwif->INL(ctl_base + 0xF54);
+			maea0 = in_be32((void __iomem *)(ctl_base + 0xF50));
+			maec0 = in_be32((void __iomem *)(ctl_base + 0xF54));
 
 			printk(KERN_WARNING "%s: PRERR [addr:%x cmd:%x]\n", SCC_PATA_NAME, maea0, maec0);
 
-			hwif->OUTL(INTSTS_PRERR|INTSTS_BMSINT, intsts_port);
+			out_be32((void __iomem *)intsts_port, INTSTS_PRERR|INTSTS_BMSINT);
 
-			hwif->OUTB(hwif->INB(hwif->dma_command) & ~QCHCD_IOS_SS,
-				   hwif->dma_command);
+			out_be32((void __iomem *)hwif->dma_command, in_be32((void __iomem *)hwif->dma_command) & ~QCHCD_IOS_SS);
 			continue;
 		}
 
 		if (reg & INTSTS_RERR) {
 			printk(KERN_WARNING "%s: Response Error\n", SCC_PATA_NAME);
-			hwif->OUTL(INTSTS_RERR|INTSTS_BMSINT, intsts_port);
+			out_be32((void __iomem *)intsts_port, INTSTS_RERR|INTSTS_BMSINT);
 
-			hwif->OUTB(hwif->INB(hwif->dma_command) & ~QCHCD_IOS_SS,
-				   hwif->dma_command);
+			out_be32((void __iomem *)hwif->dma_command, in_be32((void __iomem *)hwif->dma_command) & ~QCHCD_IOS_SS);
 			continue;
 		}
 
 		if (reg & INTSTS_ICERR) {
-			hwif->OUTB(hwif->INB(hwif->dma_command) & ~QCHCD_IOS_SS,
-				   hwif->dma_command);
+			out_be32((void __iomem *)hwif->dma_command, in_be32((void __iomem *)hwif->dma_command) & ~QCHCD_IOS_SS);
 
 			printk(KERN_WARNING "%s: Illegal Configuration\n", SCC_PATA_NAME);
-			hwif->OUTL(INTSTS_ICERR|INTSTS_BMSINT, intsts_port);
+			out_be32((void __iomem *)intsts_port, INTSTS_ICERR|INTSTS_BMSINT);
 			continue;
 		}
 
 		if (reg & INTSTS_BMSINT) {
 			printk(KERN_WARNING "%s: Internal Bus Error\n", SCC_PATA_NAME);
-			hwif->OUTL(INTSTS_BMSINT, intsts_port);
+			out_be32((void __iomem *)intsts_port, INTSTS_BMSINT);
 
 			ide_do_reset(drive);
 			continue;
 		}
 
 		if (reg & INTSTS_BMHE) {
-			hwif->OUTL(INTSTS_BMHE, intsts_port);
+			out_be32((void __iomem *)intsts_port, INTSTS_BMHE);
 			continue;
 		}
 
 		if (reg & INTSTS_ACTEINT) {
-			hwif->OUTL(INTSTS_ACTEINT, intsts_port);
+			out_be32((void __iomem *)intsts_port, INTSTS_ACTEINT);
 			continue;
 		}
 
 		if (reg & INTSTS_IOIRQS) {
-			hwif->OUTL(INTSTS_IOIRQS, intsts_port);
+			out_be32((void __iomem *)intsts_port, INTSTS_IOIRQS);
 			continue;
 		}
 		break;
@@ -617,13 +647,11 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 
 	hwif->INB = scc_ide_inb;
 	hwif->INW = scc_ide_inw;
-	hwif->INL = scc_ide_inl;
 	hwif->INSW = scc_ide_insw;
 	hwif->INSL = scc_ide_insl;
 	hwif->OUTB = scc_ide_outb;
 	hwif->OUTBSYNC = scc_ide_outbsync;
 	hwif->OUTW = scc_ide_outw;
-	hwif->OUTL = scc_ide_outl;
 	hwif->OUTSW = scc_ide_outsw;
 	hwif->OUTSL = scc_ide_outsl;
 
@@ -679,8 +707,10 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	hwif->dma_status = hwif->dma_base + 0x04;
 	hwif->dma_prdtable = hwif->dma_base + 0x08;
 
-	hwif->OUTL(hwif->dmatable_dma, (hwif->dma_base + 0x018)); /* PTERADD */
+	/* PTERADD */
+	out_be32((void __iomem *)(hwif->dma_base + 0x018), hwif->dmatable_dma);
 
+	hwif->dma_setup = scc_dma_setup;
 	hwif->ide_dma_end = scc_ide_dma_end;
 	hwif->speedproc = scc_tune_chipset;
 	hwif->tuneproc = scc_tuneproc;
@@ -689,7 +719,7 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	hwif->drives[0].autotune = IDE_TUNE_AUTO;
 	hwif->drives[1].autotune = IDE_TUNE_AUTO;
 
-	if (hwif->INL(hwif->config_data + 0xff0) & CCKCTRL_ATACLKOEN) {
+	if (in_be32((void __iomem *)(hwif->config_data + 0xff0)) & CCKCTRL_ATACLKOEN) {
 		hwif->ultra_mask = 0x7f; /* 133MHz */
 	} else {
 		hwif->ultra_mask = 0x3f; /* 100MHz */

@@ -110,24 +110,24 @@ sgiioc4_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
 static void
 sgiioc4_maskproc(ide_drive_t * drive, int mask)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-	hwif->OUTB(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
-		   IDE_CONTROL_REG);
+	writeb(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
+	       (void __iomem *)IDE_CONTROL_REG);
 }
 
 
 static int
 sgiioc4_checkirq(ide_hwif_t * hwif)
 {
-	u8 intr_reg =
-	    hwif->INL(hwif->io_ports[IDE_IRQ_OFFSET] + IOC4_INTR_REG * 4);
+	unsigned long intr_addr =
+		hwif->io_ports[IDE_IRQ_OFFSET] + IOC4_INTR_REG * 4;
 
-	if (intr_reg & 0x03)
+	if ((u8)readl((void __iomem *)intr_addr) & 0x03)
 		return 1;
 
 	return 0;
 }
 
+static u8 sgiioc4_INB(unsigned long);
 
 static int
 sgiioc4_clearirq(ide_drive_t * drive)
@@ -138,21 +138,21 @@ sgiioc4_clearirq(ide_drive_t * drive)
 	    hwif->io_ports[IDE_IRQ_OFFSET] + (IOC4_INTR_REG << 2);
 
 	/* Code to check for PCI error conditions */
-	intr_reg = hwif->INL(other_ir);
+	intr_reg = readl((void __iomem *)other_ir);
 	if (intr_reg & 0x03) { /* Valid IOC4-IDE interrupt */
 		/*
-		 * Using hwif->INB to read the IDE_STATUS_REG has a side effect
+		 * Using sgiioc4_INB to read the IDE_STATUS_REG has a side effect
 		 * of clearing the interrupt.  The first read should clear it
 		 * if it is set.  The second read should return a "clear" status
 		 * if it got cleared.  If not, then spin for a bit trying to
 		 * clear it.
 		 */
-		u8 stat = hwif->INB(IDE_STATUS_REG);
+		u8 stat = sgiioc4_INB(IDE_STATUS_REG);
 		int count = 0;
-		stat = hwif->INB(IDE_STATUS_REG);
+		stat = sgiioc4_INB(IDE_STATUS_REG);
 		while ((stat & 0x80) && (count++ < 100)) {
 			udelay(1);
-			stat = hwif->INB(IDE_STATUS_REG);
+			stat = sgiioc4_INB(IDE_STATUS_REG);
 		}
 
 		if (intr_reg & 0x02) {
@@ -161,9 +161,9 @@ sgiioc4_clearirq(ide_drive_t * drive)
 			    pci_stat_cmd_reg;
 
 			pci_err_addr_low =
-				hwif->INL(hwif->io_ports[IDE_IRQ_OFFSET]);
+				readl((void __iomem *)hwif->io_ports[IDE_IRQ_OFFSET]);
 			pci_err_addr_high =
-				hwif->INL(hwif->io_ports[IDE_IRQ_OFFSET] + 4);
+				readl((void __iomem *)(hwif->io_ports[IDE_IRQ_OFFSET] + 4));
 			pci_read_config_dword(hwif->pci_dev, PCI_COMMAND,
 					      &pci_stat_cmd_reg);
 			printk(KERN_ERR
@@ -180,9 +180,9 @@ sgiioc4_clearirq(ide_drive_t * drive)
 		}
 
 		/* Clear the Interrupt, Error bits on the IOC4 */
-		hwif->OUTL(0x03, other_ir);
+		writel(0x03, (void __iomem *)other_ir);
 
-		intr_reg = hwif->INL(other_ir);
+		intr_reg = readl((void __iomem *)other_ir);
 	}
 
 	return intr_reg & 3;
@@ -191,23 +191,25 @@ sgiioc4_clearirq(ide_drive_t * drive)
 static void sgiioc4_ide_dma_start(ide_drive_t * drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	unsigned int reg = hwif->INL(hwif->dma_base + IOC4_DMA_CTRL * 4);
+	unsigned long ioc4_dma_addr = hwif->dma_base + IOC4_DMA_CTRL * 4;
+	unsigned int reg = readl((void __iomem *)ioc4_dma_addr);
 	unsigned int temp_reg = reg | IOC4_S_DMA_START;
 
-	hwif->OUTL(temp_reg, hwif->dma_base + IOC4_DMA_CTRL * 4);
+	writel(temp_reg, (void __iomem *)ioc4_dma_addr);
 }
 
 static u32
 sgiioc4_ide_dma_stop(ide_hwif_t *hwif, u64 dma_base)
 {
+	unsigned long ioc4_dma_addr = dma_base + IOC4_DMA_CTRL * 4;
 	u32	ioc4_dma;
 	int	count;
 
 	count = 0;
-	ioc4_dma = hwif->INL(dma_base + IOC4_DMA_CTRL * 4);
+	ioc4_dma = readl((void __iomem *)ioc4_dma_addr);
 	while ((ioc4_dma & IOC4_S_DMA_STOP) && (count++ < 200)) {
 		udelay(1);
-		ioc4_dma = hwif->INL(dma_base + IOC4_DMA_CTRL * 4);
+		ioc4_dma = readl((void __iomem *)ioc4_dma_addr);
 	}
 	return ioc4_dma;
 }
@@ -218,11 +220,11 @@ sgiioc4_ide_dma_end(ide_drive_t * drive)
 {
 	u32 ioc4_dma, bc_dev, bc_mem, num, valid = 0, cnt = 0;
 	ide_hwif_t *hwif = HWIF(drive);
-	u64 dma_base = hwif->dma_base;
+	unsigned long dma_base = hwif->dma_base;
 	int dma_stat = 0;
 	unsigned long *ending_dma = ide_get_hwifdata(hwif);
 
-	hwif->OUTL(IOC4_S_DMA_STOP, dma_base + IOC4_DMA_CTRL * 4);
+	writel(IOC4_S_DMA_STOP, (void __iomem *)(dma_base + IOC4_DMA_CTRL * 4));
 
 	ioc4_dma = sgiioc4_ide_dma_stop(hwif, dma_base);
 
@@ -254,8 +256,8 @@ sgiioc4_ide_dma_end(ide_drive_t * drive)
 		dma_stat = 1;
 	}
 
-	bc_dev = hwif->INL(dma_base + IOC4_BC_DEV * 4);
-	bc_mem = hwif->INL(dma_base + IOC4_BC_MEM * 4);
+	bc_dev = readl((void __iomem *)(dma_base + IOC4_BC_DEV * 4));
+	bc_mem = readl((void __iomem *)(dma_base + IOC4_BC_MEM * 4));
 
 	if ((bc_dev & 0x01FF) || (bc_mem & 0x1FF)) {
 		if (bc_dev > bc_mem + 8) {
@@ -436,16 +438,17 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 {
 	u32 ioc4_dma;
 	ide_hwif_t *hwif = HWIF(drive);
-	u64 dma_base = hwif->dma_base;
+	unsigned long dma_base = hwif->dma_base;
+	unsigned long ioc4_dma_addr = dma_base + IOC4_DMA_CTRL * 4;
 	u32 dma_addr, ending_dma_addr;
 
-	ioc4_dma = hwif->INL(dma_base + IOC4_DMA_CTRL * 4);
+	ioc4_dma = readl((void __iomem *)ioc4_dma_addr);
 
 	if (ioc4_dma & IOC4_S_DMA_ACTIVE) {
 		printk(KERN_WARNING
 			"%s(%s):Warning!! DMA from previous transfer was still active\n",
 		       __FUNCTION__, drive->name);
-		hwif->OUTL(IOC4_S_DMA_STOP, dma_base + IOC4_DMA_CTRL * 4);
+		writel(IOC4_S_DMA_STOP, (void __iomem *)ioc4_dma_addr);
 		ioc4_dma = sgiioc4_ide_dma_stop(hwif, dma_base);
 
 		if (ioc4_dma & IOC4_S_DMA_STOP)
@@ -454,13 +457,13 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 			       __FUNCTION__, drive->name);
 	}
 
-	ioc4_dma = hwif->INL(dma_base + IOC4_DMA_CTRL * 4);
+	ioc4_dma = readl((void __iomem *)ioc4_dma_addr);
 	if (ioc4_dma & IOC4_S_DMA_ERROR) {
 		printk(KERN_WARNING
 		       "%s(%s) : Warning!! - DMA Error during Previous"
 		       " transfer | status 0x%x\n",
 		       __FUNCTION__, drive->name, ioc4_dma);
-		hwif->OUTL(IOC4_S_DMA_STOP, dma_base + IOC4_DMA_CTRL * 4);
+		writel(IOC4_S_DMA_STOP, (void __iomem *)ioc4_dma_addr);
 		ioc4_dma = sgiioc4_ide_dma_stop(hwif, dma_base);
 
 		if (ioc4_dma & IOC4_S_DMA_STOP)
@@ -471,14 +474,14 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 
 	/* Address of the Scatter Gather List */
 	dma_addr = cpu_to_le32(hwif->dmatable_dma);
-	hwif->OUTL(dma_addr, dma_base + IOC4_DMA_PTR_L * 4);
+	writel(dma_addr, (void __iomem *)(dma_base + IOC4_DMA_PTR_L * 4));
 
 	/* Address of the Ending DMA */
 	memset(ide_get_hwifdata(hwif), 0, IOC4_IDE_CACHELINE_SIZE);
 	ending_dma_addr = cpu_to_le32(hwif->dma_status);
-	hwif->OUTL(ending_dma_addr, dma_base + IOC4_DMA_END_ADDR * 4);
+	writel(ending_dma_addr, (void __iomem *)(dma_base + IOC4_DMA_END_ADDR * 4));
 
-	hwif->OUTL(dma_direction, dma_base + IOC4_DMA_CTRL * 4);
+	writel(dma_direction, (void __iomem *)ioc4_dma_addr);
 	drive->waiting_for_dma = 1;
 }
 
@@ -688,7 +691,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t * d)
 	default_hwif_mmiops(hwif);
 
 	/* Initializing chipset IRQ Registers */
-	hwif->OUTL(0x03, irqport + IOC4_INTR_SET * 4);
+	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
 
 	ide_init_sgiioc4(hwif);
 

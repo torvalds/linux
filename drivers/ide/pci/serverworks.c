@@ -160,7 +160,7 @@ static int svwks_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	if ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE) ||
 	    (dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2)) {
 		if (!drive->init_speed) {
-			u8 dma_stat = hwif->INB(hwif->dma_status);
+			u8 dma_stat = inb(hwif->dma_status);
 
 dma_pio:
 			if (((ultra_enable << (7-drive->dn) & 0x80) == 0x80) &&
@@ -529,7 +529,7 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	if (!noautodma)
 		hwif->autodma = 1;
 
-	dma_stat = hwif->INB(hwif->dma_status);
+	dma_stat = inb(hwif->dma_status);
 	hwif->drives[0].autodma = (dma_stat & 0x20);
 	hwif->drives[1].autodma = (dma_stat & 0x40);
 	hwif->drives[0].autotune = (!(dma_stat & 0x20));
