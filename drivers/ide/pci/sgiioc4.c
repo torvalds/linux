@@ -275,21 +275,6 @@ sgiioc4_ide_dma_end(ide_drive_t * drive)
 }
 
 static int
-sgiioc4_ide_dma_check(ide_drive_t * drive)
-{
-	if (ide_config_drive_speed(drive, XFER_MW_DMA_2) != 0) {
-		printk(KERN_INFO
-		       "Couldnot set %s in Multimode-2 DMA mode | "
-			   "Drive %s using PIO instead\n",
-		       drive->name, drive->name);
-		drive->using_dma = 0;
-	} else
-		drive->using_dma = 1;
-
-	return 0;
-}
-
-static int
 sgiioc4_ide_dma_on(ide_drive_t * drive)
 {
 	drive->using_dma = 1;
@@ -303,6 +288,17 @@ sgiioc4_ide_dma_off_quietly(ide_drive_t * drive)
 	drive->using_dma = 0;
 
 	return HWIF(drive)->ide_dma_host_off(drive);
+}
+
+static int sgiioc4_ide_dma_check(ide_drive_t *drive)
+{
+	/* FIXME: check for available DMA modes */
+	if (ide_config_drive_speed(drive, XFER_MW_DMA_2) != 0) {
+		printk(KERN_WARNING "%s: couldn't set MWDMA2 mode, "
+				    "using PIO instead\n", drive->name);
+		return sgiioc4_ide_dma_off_quietly(drive);
+	} else
+		return sgiioc4_ide_dma_on(drive);
 }
 
 /* returns 1 if dma irq issued, 0 otherwise */
