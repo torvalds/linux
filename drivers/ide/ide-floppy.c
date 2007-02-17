@@ -1433,7 +1433,8 @@ static int idefloppy_get_capacity (ide_drive_t *drive)
 	
 	drive->bios_cyl = 0;
 	drive->bios_head = drive->bios_sect = 0;
-	floppy->blocks = floppy->bs_factor = 0;
+	floppy->blocks = 0;
+	floppy->bs_factor = 1;
 	set_capacity(floppy->disk, 0);
 
 	idefloppy_create_read_capacity_cmd(&pc);
