@@ -145,6 +145,8 @@ struct hidp_session {
 
 	struct input_dev *input;
 
+	struct hid_device *hid;
+
 	struct timer_list timer;
 
 	struct sk_buff_head ctrl_transmit;
