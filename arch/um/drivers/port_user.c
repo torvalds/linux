@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2001 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -38,18 +38,18 @@ static void *port_init(char *str, int device, const struct chan_opts *opts)
 	if(*str != ':'){
 		printk("port_init : channel type 'port' must specify a "
 		       "port number\n");
-		return(NULL);
+		return NULL;
 	}
 	str++;
 	port = strtoul(str, &end, 0);
 	if((*end != '\0') || (end == str)){
 		printk("port_init : couldn't parse port '%s'\n", str);
-		return(NULL);
+		return NULL;
 	}
 
 	kern_data = port_data(port);
 	if(kern_data == NULL)
-		return(NULL);
+		return NULL;
 
 	data = um_kmalloc(sizeof(*data));
 	if(data == NULL)
@@ -59,10 +59,10 @@ static void *port_init(char *str, int device, const struct chan_opts *opts)
 				      .kernel_data 	= kern_data });
 	sprintf(data->dev, "%d", port);
 
-	return(data);
+	return data;
  err:
 	port_kern_free(kern_data);
-	return(NULL);
+	return NULL;
 }
 
 static void port_free(void *d)
@@ -83,14 +83,14 @@ static int port_open(int input, int output, int primary, void *d,
 	if((fd >= 0) && data->raw){
 		CATCH_EINTR(err = tcgetattr(fd, &data->tt));
 		if(err)
-			return(err);
+			return err;
 
 		err = raw(fd);
 		if(err)
-			return(err);
+			return err;
 	}
 	*dev_out = data->dev;
-	return(fd);
+	return fd;
 }
 
 static void port_close(int fd, void *d)
@@ -120,8 +120,8 @@ int port_listen_fd(int port)
 	int fd, err, arg;
 
 	fd = socket(PF_INET, SOCK_STREAM, 0);
-	if(fd == -1) 
-		return(-errno);
+	if(fd == -1)
+		return -errno;
 
 	arg = 1;
 	if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) < 0){
@@ -136,7 +136,7 @@ int port_listen_fd(int port)
 		err = -errno;
 		goto out;
 	}
-  
+
 	if(listen(fd, 1) < 0){
 		err = -errno;
 		goto out;
@@ -146,10 +146,10 @@ int port_listen_fd(int port)
 	if(err < 0)
 		goto out;
 
-	return(fd);
+	return fd;
  out:
 	os_close_file(fd);
-	return(err);
+	return err;
 }
 
 struct port_pre_exec_data {
@@ -173,13 +173,13 @@ void port_pre_exec(void *arg)
 int port_connection(int fd, int *socket, int *pid_out)
 {
 	int new, err;
-	char *argv[] = { "/usr/sbin/in.telnetd", "-L", 
+	char *argv[] = { "/usr/sbin/in.telnetd", "-L",
 			 "/usr/lib/uml/port-helper", NULL };
 	struct port_pre_exec_data data;
 
 	new = os_accept_connection(fd);
 	if(new < 0)
-		return(new);
+		return new;
 
 	err = os_pipe(socket, 0, 0);
 	if(err < 0)
@@ -190,29 +190,18 @@ int port_connection(int fd, int *socket, int *pid_out)
 		  .pipe_fd 		= socket[1] });
 
 	err = run_helper(port_pre_exec, &data, argv, NULL);
-	if(err < 0) 
+	if(err < 0)
 		goto out_shutdown;
 
 	*pid_out = err;
-	return(new);
+	return new;
 
  out_shutdown:
 	os_shutdown_socket(socket[0], 1, 1);
 	os_close_file(socket[0]);
-	os_shutdown_socket(socket[1], 1, 1);	
+	os_shutdown_socket(socket[1], 1, 1);
 	os_close_file(socket[1]);
  out_close:
 	os_close_file(new);
-	return(err);
+	return err;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

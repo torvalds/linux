@@ -14,7 +14,7 @@
  */
 #if 1
 #define __RXACCT_DECL(X) X
-#define __RXACCT(X) do { X; } while(0) 
+#define __RXACCT(X) do { X; } while(0)
 #else
 #define __RXACCT_DECL(X)
 #define __RXACCT(X) do { } while(0)

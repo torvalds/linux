@@ -2045,6 +2045,29 @@ struct isp_operations {
 		uint32_t, uint32_t);
 	int (*write_optrom) (struct scsi_qla_host *, uint8_t *, uint32_t,
 		uint32_t);
+
+	int (*get_flash_version) (struct scsi_qla_host *, void *);
+};
+
+/* MSI-X Support *************************************************************/
+
+#define QLA_MSIX_CHIP_REV_24XX	3
+#define QLA_MSIX_FW_MODE(m)	(((m) & (BIT_7|BIT_8|BIT_9)) >> 7)
+#define QLA_MSIX_FW_MODE_1(m)	(QLA_MSIX_FW_MODE(m) == 1)
+
+#define QLA_MSIX_DEFAULT	0x00
+#define QLA_MSIX_RSP_Q		0x01
+
+#define QLA_MSIX_ENTRIES	2
+#define QLA_MIDX_DEFAULT	0
+#define QLA_MIDX_RSP_Q		1
+
+struct scsi_qla_host;
+
+struct qla_msix_entry {
+	int have_irq;
+	uint16_t msix_vector;
+	uint16_t msix_entry;
 };
 
 /*
@@ -2077,6 +2100,7 @@ typedef struct scsi_qla_host {
 		uint32_t	enable_lip_full_login	:1;
 		uint32_t	enable_target_reset	:1;
 		uint32_t	enable_led_scheme	:1;
+		uint32_t	inta_enabled		:1;
 		uint32_t	msi_enabled		:1;
 		uint32_t	msix_enabled		:1;
 		uint32_t	disable_serdes		:1;
@@ -2316,8 +2340,6 @@ typedef struct scsi_qla_host {
 #define MBX_INTR_WAIT	2
 #define MBX_UPDATE_FLASH_ACTIVE	3
 
-	spinlock_t	mbx_reg_lock;   /* Mbx Cmd Register Lock */
-
 	struct semaphore mbx_cmd_sem;	/* Serialialize mbx access */
 	struct semaphore mbx_intr_sem;  /* Used for completion notification */
 
@@ -2358,6 +2380,7 @@ typedef struct scsi_qla_host {
 
 	uint8_t		host_str[16];
 	uint32_t	pci_attr;
+	uint16_t	chip_revision;
 
 	uint16_t	product_id[4];
 
@@ -2379,6 +2402,15 @@ typedef struct scsi_qla_host {
 #define QLA_SREADING	1
 #define QLA_SWRITING	2
 
+        /* PCI expansion ROM image information. */
+#define ROM_CODE_TYPE_BIOS	0
+#define ROM_CODE_TYPE_FCODE	1
+#define ROM_CODE_TYPE_EFI	3
+	uint8_t		bios_revision[2];
+	uint8_t		efi_revision[2];
+	uint8_t		fcode_revision[16];
+	uint32_t	fw_revision[4];
+
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;
 	uint8_t		beacon_color_state;
@@ -2391,6 +2423,8 @@ typedef struct scsi_qla_host {
 	uint16_t	zio_mode;
 	uint16_t	zio_timer;
 	struct fc_host_statistics fc_host_stat;
+
+	struct qla_msix_entry msix_entries[QLA_MSIX_ENTRIES];
 } scsi_qla_host_t;
 
 

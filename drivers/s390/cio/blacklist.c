@@ -364,7 +364,7 @@ cio_ignore_proc_open(struct inode *inode, struct file *file)
 	return seq_open(file, &cio_ignore_proc_seq_ops);
 }
 
-static struct file_operations cio_ignore_proc_fops = {
+static const struct file_operations cio_ignore_proc_fops = {
 	.open    = cio_ignore_proc_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

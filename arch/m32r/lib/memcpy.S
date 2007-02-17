@@ -10,8 +10,6 @@
  *        src: r1
  *        n  : r2
  */
-/* $Id$ */
-
 
 	.text
 #include <linux/linkage.h>

@@ -19,7 +19,7 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("IP tables TTL modification module");
 MODULE_LICENSE("GPL");
 
-static unsigned int 
+static unsigned int
 ipt_ttl_target(struct sk_buff **pskb,
 	       const struct net_device *in, const struct net_device *out,
 	       unsigned int hooknum, const struct xt_target *target,
@@ -71,7 +71,7 @@ static int ipt_ttl_checkentry(const char *tablename,
 	struct ipt_TTL_info *info = targinfo;
 
 	if (info->mode > IPT_TTL_MAXMODE) {
-		printk(KERN_WARNING "ipt_TTL: invalid or unknown Mode %u\n", 
+		printk(KERN_WARNING "ipt_TTL: invalid or unknown Mode %u\n",
 			info->mode);
 		return 0;
 	}
@@ -83,10 +83,10 @@ static int ipt_ttl_checkentry(const char *tablename,
 static struct xt_target ipt_TTL = {
 	.name 		= "TTL",
 	.family		= AF_INET,
-	.target 	= ipt_ttl_target, 
+	.target 	= ipt_ttl_target,
 	.targetsize	= sizeof(struct ipt_TTL_info),
 	.table		= "mangle",
-	.checkentry 	= ipt_ttl_checkentry, 
+	.checkentry 	= ipt_ttl_checkentry,
 	.me 		= THIS_MODULE,
 };
 

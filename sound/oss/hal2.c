@@ -1377,7 +1377,7 @@ static int hal2_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations hal2_audio_fops = {
+static const struct file_operations hal2_audio_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= hal2_read,
@@ -1388,7 +1388,7 @@ static struct file_operations hal2_audio_fops = {
 	.release	= hal2_release,
 };
 
-static struct file_operations hal2_mixer_fops = {
+static const struct file_operations hal2_mixer_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.ioctl		= hal2_ioctl_mixdev,

@@ -338,7 +338,7 @@ static int tt_ioctl(struct inode *inode, struct file *file,
 
 static struct tt_device terratec_unit;
 
-static struct file_operations terratec_fops = {
+static const struct file_operations terratec_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

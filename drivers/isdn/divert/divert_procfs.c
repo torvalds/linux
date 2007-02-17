@@ -256,7 +256,7 @@ isdn_divert_ioctl(struct inode *inode, struct file *file,
 
 
 #ifdef CONFIG_PROC_FS
-static struct file_operations isdn_fops =
+static const struct file_operations isdn_fops =
 {
 	.owner          = THIS_MODULE,
 	.llseek         = no_llseek,

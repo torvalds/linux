@@ -228,7 +228,7 @@ static ssize_t vmwdt_write(struct file *f, const char __user *buf,
 	return count;
 }
 
-static struct file_operations vmwdt_fops = {
+static const struct file_operations vmwdt_fops = {
 	.open    = &vmwdt_open,
 	.release = &vmwdt_close,
 	.ioctl   = &vmwdt_ioctl,

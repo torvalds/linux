@@ -186,7 +186,7 @@ static ssize_t zoran_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static struct file_operations zoran_operations = {
+static const struct file_operations zoran_operations = {
 	.open		= zoran_open,
 	.read		= seq_read,
 	.write		= zoran_write,

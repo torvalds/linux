@@ -654,7 +654,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		ret = -ENODEV;
 		goto out_pci;
 	}
-	if (!request_region(idd->pma, IOC3_PCI_SIZE, "ioc3")) {
+	if (!request_mem_region(idd->pma, IOC3_PCI_SIZE, "ioc3")) {
 		printk(KERN_WARNING
 		       "%s: Unable to request IOC3 region "
 		       "for pci_dev %s.\n",
@@ -744,7 +744,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	return 0;
 
 out_misc_region:
-	release_region(idd->pma, IOC3_PCI_SIZE);
+	release_mem_region(idd->pma, IOC3_PCI_SIZE);
 out_pci:
 	kfree(idd);
 out_idd:
@@ -785,7 +785,7 @@ static void ioc3_remove(struct pci_dev *pdev)
 	if(idd->dual_irq)
 		free_irq(idd->irq_eth, (void *)idd);
 	iounmap(idd->vma);
-	release_region(idd->pma, IOC3_PCI_SIZE);
+	release_mem_region(idd->pma, IOC3_PCI_SIZE);
 
 	/* Disable IOC3 and relinquish */
 	pci_disable_device(pdev);

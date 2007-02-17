@@ -674,12 +674,6 @@ config ZISOFS
 	  necessary to create such a filesystem.  Say Y here if you want to be
 	  able to read such compressed CD-ROMs.
 
-config ZISOFS_FS
-# for fs/nls/Config.in
-	tristate
-	depends on ZISOFS
-	default ISO9660_FS
-
 config UDF_FS
 	tristate "UDF file system support"
 	help
@@ -1094,7 +1088,7 @@ config AFFS_FS
 
 config ECRYPT_FS
 	tristate "eCrypt filesystem layer support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && KEYS && CRYPTO
+	depends on EXPERIMENTAL && KEYS && CRYPTO && NET
 	help
 	  Encrypted filesystem that operates on the VFS layer.  See
 	  <file:Documentation/ecryptfs.txt> to learn more about

@@ -388,4 +388,13 @@ struct ps3_vuart_port_device {
 
 int ps3_vuart_port_device_register(struct ps3_vuart_port_device *dev);
 
+struct ps3_prealloc {
+    const char *name;
+    void *address;
+    unsigned long size;
+    unsigned long align;
+};
+
+extern struct ps3_prealloc ps3fb_videomemory;
+
 #endif

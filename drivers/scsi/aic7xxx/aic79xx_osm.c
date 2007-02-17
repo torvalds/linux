@@ -1126,15 +1126,6 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 	return 0;
 }
 
-uint64_t
-ahd_linux_get_memsize(void)
-{
-	struct sysinfo si;
-
-	si_meminfo(&si);
-	return ((uint64_t)si.totalram << PAGE_SHIFT);
-}
-
 /*
  * Place the SCSI bus into a known state by either resetting it,
  * or forcing transfer negotiations on the next command to any

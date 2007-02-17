@@ -437,15 +437,15 @@ static inline compound_page_dtor *get_compound_page_dtor(struct page *page)
 /* NODE:ZONE or SECTION:ZONE is used to ID a zone for the buddy allcator */
 #ifdef NODE_NOT_IN_PAGEFLAGS
 #define ZONEID_SHIFT		(SECTIONS_SHIFT + ZONES_SHIFT)
+#define ZONEID_PGOFF		((SECTIONS_PGOFF < ZONES_PGOFF)? \
+						SECTIONS_PGOFF : ZONES_PGOFF)
 #else
 #define ZONEID_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
+#define ZONEID_PGOFF		((NODES_PGOFF < ZONES_PGOFF)? \
+						NODES_PGOFF : ZONES_PGOFF)
 #endif
 
-#if ZONES_WIDTH > 0
-#define ZONEID_PGSHIFT		ZONES_PGSHIFT
-#else
-#define ZONEID_PGSHIFT		NODES_PGOFF
-#endif
+#define ZONEID_PGSHIFT		(ZONEID_PGOFF * (ZONEID_SHIFT != 0))
 
 #if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
 #error SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
@@ -471,7 +471,6 @@ static inline enum zone_type page_zonenum(struct page *page)
  */
 static inline int page_zone_id(struct page *page)
 {
-	BUILD_BUG_ON(ZONEID_PGSHIFT == 0 && ZONEID_MASK);
 	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
 }
 
@@ -638,6 +637,7 @@ static inline int page_mapped(struct page *page)
  */
 #define NOPFN_SIGBUS	((unsigned long) -1)
 #define NOPFN_OOM	((unsigned long) -2)
+#define NOPFN_REFAULT	((unsigned long) -3)
 
 /*
  * Different kinds of faults, as returned by handle_mm_fault().
@@ -786,6 +786,7 @@ extern int try_to_release_page(struct page * page, gfp_t gfp_mask);
 extern void do_invalidatepage(struct page *page, unsigned long offset);
 
 int __set_page_dirty_nobuffers(struct page *page);
+int __set_page_dirty_no_writeback(struct page *page);
 int redirty_page_for_writepage(struct writeback_control *wbc,
 				struct page *page);
 int FASTCALL(set_page_dirty(struct page *page));
@@ -1124,6 +1125,8 @@ unsigned long vmalloc_to_pfn(void *addr);
 int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
 			unsigned long pfn, unsigned long size, pgprot_t);
 int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
+int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+			unsigned long pfn);
 
 struct page *follow_page(struct vm_area_struct *, unsigned long address,
 			unsigned int foll_flags);

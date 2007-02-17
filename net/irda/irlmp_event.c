@@ -615,7 +615,7 @@ static int irlmp_state_connect(struct lsap_cb *self, IRLMP_EVENT event,
 	default:
 		/* LM_LAP_DISCONNECT_INDICATION : Should never happen, we
 		 * are *not* yet bound to the IrLAP link. Jean II */
-		IRDA_DEBUG(0, "%s(), Unknown event %s on LSAP %#02x\n", 
+		IRDA_DEBUG(0, "%s(), Unknown event %s on LSAP %#02x\n",
 			   __FUNCTION__, irlmp_event[event], self->slsap_sel);
 		break;
 	}

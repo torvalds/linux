@@ -70,7 +70,7 @@ static int ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int
 	}
 	if (t->u.kernel.target->checkentry
 	    && !t->u.kernel.target->checkentry(table, NULL,
-		    			       t->u.kernel.target, t->data,
+					       t->u.kernel.target, t->data,
 					       hook)) {
 		module_put(t->u.kernel.target->me);
 		ret = -EINVAL;
@@ -83,7 +83,7 @@ static void ipt_destroy_target(struct ipt_entry_target *t)
 {
 	if (t->u.kernel.target->destroy)
 		t->u.kernel.target->destroy(t->u.kernel.target, t->data);
-        module_put(t->u.kernel.target->me);
+	module_put(t->u.kernel.target->me);
 }
 
 static int tcf_ipt_release(struct tcf_ipt *ipt, int bind)

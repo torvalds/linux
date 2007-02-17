@@ -49,32 +49,6 @@ unsigned int tlb_entry_d_dat[NR_CPUS];
 
 extern void init_tlb(void);
 
-/*
- * Unlock any spinlocks which will prevent us from getting the
- * message out
- */
-void bust_spinlocks(int yes)
-{
-	int loglevel_save = console_loglevel;
-
-	if (yes) {
-		oops_in_progress = 1;
-		return;
-	}
-#ifdef CONFIG_VT
-	unblank_screen();
-#endif
-	oops_in_progress = 0;
-	/*
-	 * OK, the message is on the console.  Now we call printk()
-	 * without oops_in_progress set so that printk will give klogd
-	 * a poke.  Hold onto your hats...
-	 */
-	console_loglevel = 15;		/* NMI oopser may have shut the console up */
-	printk(" ");
-	console_loglevel = loglevel_save;
-}
-
 /*======================================================================*
  * do_page_fault()
  *======================================================================*
@@ -362,8 +336,10 @@ vmalloc_fault:
 		if (!pte_present(*pte_k))
 			goto no_context;
 
-		addr = (address & PAGE_MASK) | (error_code & ACE_INSTRUCTION);
+		addr = (address & PAGE_MASK);
+		set_thread_fault_code(error_code);
 		update_mmu_cache(NULL, addr, *pte_k);
+		set_thread_fault_code(0);
 		return;
 	}
 }
@@ -377,7 +353,7 @@ vmalloc_fault:
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr,
 	pte_t pte)
 {
-	unsigned long *entry1, *entry2;
+	volatile unsigned long *entry1, *entry2;
 	unsigned long pte_data, flags;
 	unsigned int *entry_dat;
 	int inst = get_thread_fault_code() & ACE_INSTRUCTION;
@@ -391,30 +367,26 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr,
 
 	vaddr = (vaddr & PAGE_MASK) | get_asid();
 
-#ifdef CONFIG_CHIP_OPSP
-	entry1 = (unsigned long *)ITLB_BASE;
-	for(i = 0 ; i < NR_TLB_ENTRIES; i++) {
-	        if(*entry1++ == vaddr) {
-	                pte_data = pte_val(pte);
-	                set_tlb_data(entry1, pte_data);
-	                break;
-	        }
-	        entry1++;
-	}
-	entry2 = (unsigned long *)DTLB_BASE;
-	for(i = 0 ; i < NR_TLB_ENTRIES ; i++) {
-	        if(*entry2++ == vaddr) {
-	                pte_data = pte_val(pte);
-	                set_tlb_data(entry2, pte_data);
-	                break;
-	        }
-	        entry2++;
-	}
-	local_irq_restore(flags);
-	return;
-#else
 	pte_data = pte_val(pte);
 
+#ifdef CONFIG_CHIP_OPSP
+	entry1 = (unsigned long *)ITLB_BASE;
+	for (i = 0; i < NR_TLB_ENTRIES; i++) {
+		if (*entry1++ == vaddr) {
+			set_tlb_data(entry1, pte_data);
+			break;
+		}
+		entry1++;
+	}
+	entry2 = (unsigned long *)DTLB_BASE;
+	for (i = 0; i < NR_TLB_ENTRIES; i++) {
+		if (*entry2++ == vaddr) {
+			set_tlb_data(entry2, pte_data);
+			break;
+		}
+		entry2++;
+	}
+#else
 	/*
 	 * Update TLB entries
 	 *  entry1: ITLB entry address
@@ -439,6 +411,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr,
 		"i" (MSVA_offset), "i" (MTOP_offset), "i" (MIDXI_offset)
 		: "r4", "memory"
 	);
+#endif
 
 	if ((!inst && entry2 >= DTLB_END) || (inst && entry1 >= ITLB_END))
 		goto notfound;
@@ -482,7 +455,6 @@ notfound:
 	set_tlb_data(entry1, pte_data);
 
 	goto found;
-#endif
 }
 
 /*======================================================================*

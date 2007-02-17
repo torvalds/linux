@@ -87,24 +87,24 @@ same_check(const char *tablename,
 			DEBUGP("same_check: bad MAP_IPS.\n");
 			return 0;
 		}
-		rangeip = (ntohl(mr->range[count].max_ip) - 
+		rangeip = (ntohl(mr->range[count].max_ip) -
 					ntohl(mr->range[count].min_ip) + 1);
 		mr->ipnum += rangeip;
-		
+
 		DEBUGP("same_check: range %u, ipnum = %u\n", count, rangeip);
 	}
 	DEBUGP("same_check: total ipaddresses = %u\n", mr->ipnum);
-	
+
 	mr->iparray = kmalloc((sizeof(u_int32_t) * mr->ipnum), GFP_KERNEL);
 	if (!mr->iparray) {
 		DEBUGP("same_check: Couldn't allocate %u bytes "
-			"for %u ipaddresses!\n", 
+			"for %u ipaddresses!\n",
 			(sizeof(u_int32_t) * mr->ipnum), mr->ipnum);
 		return 0;
 	}
 	DEBUGP("same_check: Allocated %u bytes for %u ipaddresses.\n",
 			(sizeof(u_int32_t) * mr->ipnum), mr->ipnum);
-	
+
 	for (count = 0; count < mr->rangesize; count++) {
 		for (countess = ntohl(mr->range[count].min_ip);
 				countess <= ntohl(mr->range[count].max_ip);
@@ -119,13 +119,13 @@ same_check(const char *tablename,
 	return 1;
 }
 
-static void 
+static void
 same_destroy(const struct xt_target *target, void *targinfo)
 {
 	struct ipt_same_info *mr = targinfo;
 
 	kfree(mr->iparray);
-	
+
 	DEBUGP("same_destroy: Deallocated %u bytes for %u ipaddresses.\n",
 			(sizeof(u_int32_t) * mr->ipnum), mr->ipnum);
 }
@@ -156,7 +156,7 @@ same_target(struct sk_buff **pskb,
 	   giving some hope for consistency across reboots.
 	   Here we calculate the index in same->iparray which
 	   holds the ipaddress we should use */
-	
+
 #ifdef CONFIG_NF_NAT_NEEDED
 	tmpip = ntohl(t->src.u3.ip);
 

@@ -1,11 +1,11 @@
-/* 
+/*
  * xfrm4_policy.c
  *
  * Changes:
  *	Kazunori MIYAZAWA @USAGI
  * 	YOSHIFUJI Hideaki @USAGI
  *		Split up af-specific portion
- * 	
+ *
  */
 
 #include <linux/compiler.h>
@@ -50,8 +50,8 @@ __xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 		struct xfrm_dst *xdst = (struct xfrm_dst*)dst;
 		if (xdst->u.rt.fl.oif == fl->oif &&	/*XXX*/
 		    xdst->u.rt.fl.fl4_dst == fl->fl4_dst &&
-	    	    xdst->u.rt.fl.fl4_src == fl->fl4_src &&
-	    	    xdst->u.rt.fl.fl4_tos == fl->fl4_tos &&
+		    xdst->u.rt.fl.fl4_src == fl->fl4_src &&
+		    xdst->u.rt.fl.fl4_tos == fl->fl4_tos &&
 		    xfrm_bundle_ok(policy, xdst, fl, AF_INET, 0)) {
 			dst_clone(dst);
 			break;

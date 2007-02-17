@@ -52,8 +52,8 @@ static int append = 0;
 
 #define HOSTFS_SUPER_MAGIC 0x00c0ffee
 
-static struct inode_operations hostfs_iops;
-static struct inode_operations hostfs_dir_iops;
+static const struct inode_operations hostfs_iops;
+static const struct inode_operations hostfs_dir_iops;
 static const struct address_space_operations hostfs_link_aops;
 
 #ifndef MODULE
@@ -309,7 +309,7 @@ static void hostfs_read_inode(struct inode *inode)
 	read_inode(inode);
 }
 
-static struct super_operations hostfs_sbops = {
+static const struct super_operations hostfs_sbops = {
 	.alloc_inode	= hostfs_alloc_inode,
 	.drop_inode	= generic_delete_inode,
 	.delete_inode   = hostfs_delete_inode,
@@ -880,7 +880,7 @@ int hostfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	return(0);
 }
 
-static struct inode_operations hostfs_iops = {
+static const struct inode_operations hostfs_iops = {
 	.create		= hostfs_create,
 	.link		= hostfs_link,
 	.unlink		= hostfs_unlink,
@@ -894,7 +894,7 @@ static struct inode_operations hostfs_iops = {
 	.getattr	= hostfs_getattr,
 };
 
-static struct inode_operations hostfs_dir_iops = {
+static const struct inode_operations hostfs_dir_iops = {
 	.create		= hostfs_create,
 	.lookup		= hostfs_lookup,
 	.link		= hostfs_link,

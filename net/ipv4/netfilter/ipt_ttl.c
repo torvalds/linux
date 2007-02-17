@@ -1,4 +1,4 @@
-/* IP tables module for matching the value of the TTL 
+/* IP tables module for matching the value of the TTL
  *
  * ipt_ttl.c,v 1.5 2000/11/13 11:16:08 laforge Exp
  *
@@ -41,7 +41,7 @@ static int match(const struct sk_buff *skb,
 			return (skb->nh.iph->ttl > info->ttl);
 			break;
 		default:
-			printk(KERN_WARNING "ipt_ttl: unknown mode %d\n", 
+			printk(KERN_WARNING "ipt_ttl: unknown mode %d\n",
 				info->mode);
 			return 0;
 	}

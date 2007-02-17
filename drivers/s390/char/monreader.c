@@ -547,7 +547,7 @@ static unsigned int mon_poll(struct file *filp, struct poll_table_struct *p)
 	return 0;
 }
 
-static struct file_operations mon_fops = {
+static const struct file_operations mon_fops = {
 	.owner   = THIS_MODULE,
 	.open    = &mon_open,
 	.release = &mon_close,

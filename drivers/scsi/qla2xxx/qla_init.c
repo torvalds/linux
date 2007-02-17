@@ -65,7 +65,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 	ha->flags.reset_active = 0;
 	atomic_set(&ha->loop_down_timer, LOOP_DOWN_TIME);
 	atomic_set(&ha->loop_state, LOOP_DOWN);
-	ha->device_flags = 0;
+	ha->device_flags = DFLG_NO_CABLE;
 	ha->dpc_flags = 0;
 	ha->flags.management_server_logged_in = 0;
 	ha->marker_needed = 0;
@@ -77,16 +77,23 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 	qla_printk(KERN_INFO, ha, "Configuring PCI space...\n");
 	rval = ha->isp_ops.pci_config(ha);
 	if (rval) {
-		DEBUG2(printk("scsi(%ld): Unable to configure PCI space=n",
+		DEBUG2(printk("scsi(%ld): Unable to configure PCI space.\n",
 		    ha->host_no));
 		return (rval);
 	}
 
 	ha->isp_ops.reset_chip(ha);
 
+	ha->isp_ops.get_flash_version(ha, ha->request_ring);
+
 	qla_printk(KERN_INFO, ha, "Configure NVRAM parameters...\n");
 
-	ha->isp_ops.nvram_config(ha);
+	rval = ha->isp_ops.nvram_config(ha);
+	if (rval) {
+		DEBUG2(printk("scsi(%ld): Unable to verify NVRAM data.\n",
+		    ha->host_no));
+		return rval;
+	}
 
 	if (ha->flags.disable_serdes) {
 		/* Mask HBA via NVRAM settings? */
@@ -292,6 +299,8 @@ qla24xx_pci_config(scsi_qla_host_t *ha)
 	pci_read_config_dword(ha->pdev, PCI_ROM_ADDRESS, &d);
 	d &= ~PCI_ROM_ADDRESS_ENABLE;
 	pci_write_config_dword(ha->pdev, PCI_ROM_ADDRESS, d);
+
+	pci_read_config_word(ha->pdev, PCI_REVISION_ID, &ha->chip_revision);
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1351,6 +1360,39 @@ qla2x00_configure_hba(scsi_qla_host_t *ha)
 	return(rval);
 }
 
+static inline void
+qla2x00_set_model_info(scsi_qla_host_t *ha, uint8_t *model, size_t len, char *def)
+{
+	char *st, *en;
+	uint16_t index;
+
+	if (memcmp(model, BINZERO, len) != 0) {
+		strncpy(ha->model_number, model, len);
+		st = en = ha->model_number;
+		en += len - 1;
+		while (en > st) {
+			if (*en != 0x20 && *en != 0x00)
+				break;
+			*en-- = '\0';
+		}
+
+		index = (ha->pdev->subsystem_device & 0xff);
+		if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_QLOGIC &&
+		    index < QLA_MODEL_NAMES)
+			ha->model_desc = qla2x00_model_name[index * 2 + 1];
+	} else {
+		index = (ha->pdev->subsystem_device & 0xff);
+		if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_QLOGIC &&
+		    index < QLA_MODEL_NAMES) {
+			strcpy(ha->model_number,
+			    qla2x00_model_name[index * 2]);
+			ha->model_desc = qla2x00_model_name[index * 2 + 1];
+		} else {
+			strcpy(ha->model_number, def);
+		}
+	}
+}
+
 /*
 * NVRAM configuration for ISP 2xxx
 *
@@ -1367,7 +1409,6 @@ qla2x00_configure_hba(scsi_qla_host_t *ha)
 int
 qla2x00_nvram_config(scsi_qla_host_t *ha)
 {
-	int             rval;
 	uint8_t         chksum = 0;
 	uint16_t        cnt;
 	uint8_t         *dptr1, *dptr2;
@@ -1375,8 +1416,6 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	nvram_t         *nv = (nvram_t *)ha->request_ring;
 	uint8_t         *ptr = (uint8_t *)ha->request_ring;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
-
-	rval = QLA_SUCCESS;
 
 	/* Determine NVRAM starting address. */
 	ha->nvram_size = sizeof(nvram_t);
@@ -1401,55 +1440,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 		qla_printk(KERN_WARNING, ha, "Inconsistent NVRAM detected: "
 		    "checksum=0x%x id=%c version=0x%x.\n", chksum, nv->id[0],
 		    nv->nvram_version);
-		qla_printk(KERN_WARNING, ha, "Falling back to functioning (yet "
-		    "invalid -- WWPN) defaults.\n");
-
-		/*
-		 * Set default initialization control block.
-		 */
-		memset(nv, 0, ha->nvram_size);
-		nv->parameter_block_version = ICB_VERSION;
-
-		if (IS_QLA23XX(ha)) {
-			nv->firmware_options[0] = BIT_2 | BIT_1;
-			nv->firmware_options[1] = BIT_7 | BIT_5;
-			nv->add_firmware_options[0] = BIT_5;
-			nv->add_firmware_options[1] = BIT_5 | BIT_4;
-			nv->frame_payload_size = __constant_cpu_to_le16(2048);
-			nv->special_options[1] = BIT_7;
-		} else if (IS_QLA2200(ha)) {
-			nv->firmware_options[0] = BIT_2 | BIT_1;
-			nv->firmware_options[1] = BIT_7 | BIT_5;
-			nv->add_firmware_options[0] = BIT_5;
-			nv->add_firmware_options[1] = BIT_5 | BIT_4;
-			nv->frame_payload_size = __constant_cpu_to_le16(1024);
-		} else if (IS_QLA2100(ha)) {
-			nv->firmware_options[0] = BIT_3 | BIT_1;
-			nv->firmware_options[1] = BIT_5;
-			nv->frame_payload_size = __constant_cpu_to_le16(1024);
-		}
-
-		nv->max_iocb_allocation = __constant_cpu_to_le16(256);
-		nv->execution_throttle = __constant_cpu_to_le16(16);
-		nv->retry_count = 8;
-		nv->retry_delay = 1;
-
-		nv->port_name[0] = 33;
-		nv->port_name[3] = 224;
-		nv->port_name[4] = 139;
-
-		nv->login_timeout = 4;
-
-		/*
-		 * Set default host adapter parameters
-		 */
-		nv->host_p[1] = BIT_2;
-		nv->reset_delay = 5;
-		nv->port_down_retry_count = 8;
-		nv->max_luns_per_target = __constant_cpu_to_le16(8);
-		nv->link_down_timeout = 60;
-
-		rval = 1;
+		return QLA_FUNCTION_FAILED;
 	}
 
 #if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_SGI_SN2)
@@ -1489,33 +1480,8 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 				strcpy(ha->model_number, "QLA2300");
 			}
 		} else {
-			if (rval == 0 &&
-			    memcmp(nv->model_number, BINZERO,
-				    sizeof(nv->model_number)) != 0) {
-				char *st, *en;
-
-				strncpy(ha->model_number, nv->model_number,
-				    sizeof(nv->model_number));
-				st = en = ha->model_number;
-				en += sizeof(nv->model_number) - 1;
-				while (en > st) {
-					if (*en != 0x20 && *en != 0x00)
-						break;
-					*en-- = '\0';
-				}
-			} else {
-				uint16_t        index;
-
-				index = (ha->pdev->subsystem_device & 0xff);
-				if (index < QLA_MODEL_NAMES) {
-					strcpy(ha->model_number,
-					    qla2x00_model_name[index * 2]);
-					ha->model_desc =
-					    qla2x00_model_name[index * 2 + 1];
-				} else {
-					strcpy(ha->model_number, "QLA23xx");
-				}
-			}
+			qla2x00_set_model_info(ha, nv->model_number,
+			    sizeof(nv->model_number), "QLA23xx");
 		}
 	} else if (IS_QLA2200(ha)) {
 		nv->firmware_options[0] |= BIT_2;
@@ -1687,11 +1653,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 		}
 	}
 
-	if (rval) {
-		DEBUG2_3(printk(KERN_WARNING
-		    "scsi(%ld): NVRAM configuration failed!\n", ha->host_no));
-	}
-	return (rval);
+	return QLA_SUCCESS;
 }
 
 static void
@@ -3107,7 +3069,11 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 		}
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-		ha->isp_ops.nvram_config(ha);
+		ha->isp_ops.get_flash_version(ha, ha->request_ring);
+
+		rval = ha->isp_ops.nvram_config(ha);
+		if (rval)
+			goto isp_abort_retry;
 
 		if (!qla2x00_restart_isp(ha)) {
 			clear_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
@@ -3137,6 +3103,7 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 				}
 			}
 		} else {	/* failed the ISP abort */
+isp_abort_retry:
 			ha->flags.online = 1;
 			if (test_bit(ISP_ABORT_RETRY, &ha->dpc_flags)) {
 				if (ha->isp_abort_cnt == 0) {
@@ -3326,7 +3293,6 @@ qla24xx_reset_adapter(scsi_qla_host_t *ha)
 int
 qla24xx_nvram_config(scsi_qla_host_t *ha)
 {
-	int   rval;
 	struct init_cb_24xx *icb;
 	struct nvram_24xx *nv;
 	uint32_t *dptr;
@@ -3334,7 +3300,6 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	uint32_t chksum;
 	uint16_t cnt;
 
-	rval = QLA_SUCCESS;
 	icb = (struct init_cb_24xx *)ha->init_cb;
 	nv = (struct nvram_24xx *)ha->request_ring;
 
@@ -3367,51 +3332,7 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 		qla_printk(KERN_WARNING, ha, "Inconsistent NVRAM detected: "
 		    "checksum=0x%x id=%c version=0x%x.\n", chksum, nv->id[0],
 		    le16_to_cpu(nv->nvram_version));
-		qla_printk(KERN_WARNING, ha, "Falling back to functioning (yet "
-		    "invalid -- WWPN) defaults.\n");
-
-		/*
-		 * Set default initialization control block.
-		 */
-		memset(nv, 0, ha->nvram_size);
-		nv->nvram_version = __constant_cpu_to_le16(ICB_VERSION);
-		nv->version = __constant_cpu_to_le16(ICB_VERSION);
-		nv->frame_payload_size = __constant_cpu_to_le16(2048);
-		nv->execution_throttle = __constant_cpu_to_le16(0xFFFF);
-		nv->exchange_count = __constant_cpu_to_le16(0);
-		nv->hard_address = __constant_cpu_to_le16(124);
-		nv->port_name[0] = 0x21;
-		nv->port_name[1] = 0x00 + PCI_FUNC(ha->pdev->devfn);
-		nv->port_name[2] = 0x00;
-		nv->port_name[3] = 0xe0;
-		nv->port_name[4] = 0x8b;
-		nv->port_name[5] = 0x1c;
-		nv->port_name[6] = 0x55;
-		nv->port_name[7] = 0x86;
-		nv->node_name[0] = 0x20;
-		nv->node_name[1] = 0x00;
-		nv->node_name[2] = 0x00;
-		nv->node_name[3] = 0xe0;
-		nv->node_name[4] = 0x8b;
-		nv->node_name[5] = 0x1c;
-		nv->node_name[6] = 0x55;
-		nv->node_name[7] = 0x86;
-		nv->login_retry_count = __constant_cpu_to_le16(8);
-		nv->interrupt_delay_timer = __constant_cpu_to_le16(0);
-		nv->login_timeout = __constant_cpu_to_le16(0);
-		nv->firmware_options_1 =
-		    __constant_cpu_to_le32(BIT_14|BIT_13|BIT_2|BIT_1);
-		nv->firmware_options_2 = __constant_cpu_to_le32(2 << 4);
-		nv->firmware_options_2 |= __constant_cpu_to_le32(BIT_12);
-		nv->firmware_options_3 = __constant_cpu_to_le32(2 << 13);
-		nv->host_p = __constant_cpu_to_le32(BIT_11|BIT_10);
-		nv->efi_parameters = __constant_cpu_to_le32(0);
-		nv->reset_delay = 5;
-		nv->max_luns_per_target = __constant_cpu_to_le16(128);
-		nv->port_down_retry_count = __constant_cpu_to_le16(30);
-		nv->link_down_timeout = __constant_cpu_to_le16(30);
-
-		rval = 1;
+		return QLA_FUNCTION_FAILED;
 	}
 
 	/* Reset Initialization control block */
@@ -3438,25 +3359,8 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	/*
 	 * Setup driver NVRAM options.
 	 */
-	if (memcmp(nv->model_name, BINZERO, sizeof(nv->model_name)) != 0) {
-		char *st, *en;
-		uint16_t index;
-
-		strncpy(ha->model_number, nv->model_name,
-		    sizeof(nv->model_name));
-		st = en = ha->model_number;
-		en += sizeof(nv->model_name) - 1;
-		while (en > st) {
-			if (*en != 0x20 && *en != 0x00)
-				break;
-			*en-- = '\0';
-		}
-
-		index = (ha->pdev->subsystem_device & 0xff);
-		if (index < QLA_MODEL_NAMES)
-			ha->model_desc = qla2x00_model_name[index * 2 + 1];
-	} else
-		strcpy(ha->model_number, "QLA2462");
+	qla2x00_set_model_info(ha, nv->model_name, sizeof(nv->model_name),
+	    "QLA2462");
 
 	/* Use alternate WWN? */
 	if (nv->host_p & __constant_cpu_to_le32(BIT_15)) {
@@ -3575,11 +3479,7 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 		ha->flags.process_response_queue = 1;
 	}
 
-	if (rval) {
-		DEBUG2_3(printk(KERN_WARNING
-		    "scsi(%ld): NVRAM configuration failed!\n", ha->host_no));
-	}
-	return (rval);
+	return QLA_SUCCESS;
 }
 
 static int

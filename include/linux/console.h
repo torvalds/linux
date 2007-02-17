@@ -21,6 +21,7 @@ struct vc_data;
 struct console_font_op;
 struct console_font;
 struct module;
+struct tty_struct;
 
 /*
  * this is what the terminal answers to a ESC-Z or csi0c query.
@@ -131,6 +132,9 @@ static inline void resume_console(void) {}
 
 int mda_console_init(void);
 void prom_con_init(void);
+
+void vcs_make_sysfs(struct tty_struct *tty);
+void vcs_remove_sysfs(struct tty_struct *tty);
 
 /* Some debug stub to catch some of the obvious races in the VT code */
 #if 1

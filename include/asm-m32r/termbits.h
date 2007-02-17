@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_TERMBITS_H
 #define _ASM_M32R_TERMBITS_H
 
-/* $Id$ */
-
 #include <linux/posix_types.h>
 
 typedef unsigned char	cc_t;
@@ -184,4 +182,4 @@ struct ktermios {
 #define	TCSADRAIN	1
 #define	TCSAFLUSH	2
 
-#endif  /* _ASM_M32R_TERMBITS_H */
+#endif /* _ASM_M32R_TERMBITS_H */

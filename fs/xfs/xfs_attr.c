@@ -57,9 +57,9 @@
  */
 
 #define ATTR_SYSCOUNT	2
-STATIC struct attrnames posix_acl_access;
-STATIC struct attrnames posix_acl_default;
-STATIC struct attrnames *attr_system_names[ATTR_SYSCOUNT];
+static struct attrnames posix_acl_access;
+static struct attrnames posix_acl_default;
+static struct attrnames *attr_system_names[ATTR_SYSCOUNT];
 
 /*========================================================================
  * Function prototypes for the kernel.
@@ -199,18 +199,14 @@ xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
 		return (error);
 
 	/*
-	 * Determine space new attribute will use, and if it would be
-	 * "local" or "remote" (note: local != inline).
-	 */
-	size = xfs_attr_leaf_newentsize(namelen, valuelen,
-					mp->m_sb.sb_blocksize, &local);
-
-	/*
 	 * If the inode doesn't have an attribute fork, add one.
 	 * (inode must not be locked when we call this routine)
 	 */
 	if (XFS_IFORK_Q(dp) == 0) {
-		if ((error = xfs_bmap_add_attrfork(dp, size, rsvd)))
+		int sf_size = sizeof(xfs_attr_sf_hdr_t) +
+			      XFS_ATTR_SF_ENTSIZE_BYNAME(namelen, valuelen);
+
+		if ((error = xfs_bmap_add_attrfork(dp, sf_size, rsvd)))
 			return(error);
 	}
 
@@ -230,6 +226,13 @@ xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
 	args.whichfork = XFS_ATTR_FORK;
 	args.addname = 1;
 	args.oknoent = 1;
+
+	/*
+	 * Determine space new attribute will use, and if it would be
+	 * "local" or "remote" (note: local != inline).
+	 */
+	size = xfs_attr_leaf_newentsize(namelen, valuelen,
+					mp->m_sb.sb_blocksize, &local);
 
 	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
 	if (local) {
@@ -346,7 +349,7 @@ xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
 		error = xfs_attr_shortform_to_leaf(&args);
 		if (!error) {
 			error = xfs_bmap_finish(&args.trans, args.flist,
-						*args.firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -973,7 +976,7 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 		error = xfs_attr_leaf_to_node(args);
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -1074,7 +1077,6 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 			if (!error) {
 				error = xfs_bmap_finish(&args->trans,
 							args->flist,
-							*args->firstblock,
 							&committed);
 			}
 			if (error) {
@@ -1152,7 +1154,7 @@ xfs_attr_leaf_removename(xfs_da_args_t *args)
 		/* bp is gone due to xfs_da_shrink_inode */
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -1307,7 +1309,6 @@ restart:
 			if (!error) {
 				error = xfs_bmap_finish(&args->trans,
 							args->flist,
-							*args->firstblock,
 							&committed);
 			}
 			if (error) {
@@ -1347,7 +1348,7 @@ restart:
 		error = xfs_da_split(state);
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -1459,7 +1460,6 @@ restart:
 			if (!error) {
 				error = xfs_bmap_finish(&args->trans,
 							args->flist,
-							*args->firstblock,
 							&committed);
 			}
 			if (error) {
@@ -1594,7 +1594,7 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 		error = xfs_da_join(state);
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -1646,7 +1646,6 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 			if (!error) {
 				error = xfs_bmap_finish(&args->trans,
 							args->flist,
-							*args->firstblock,
 							&committed);
 			}
 			if (error) {
@@ -2090,7 +2089,7 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 				  args->flist, NULL);
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -2246,7 +2245,7 @@ xfs_attr_rmtval_remove(xfs_da_args_t *args)
 				    NULL, &done);
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						*args->firstblock, &committed);
+						&committed);
 		}
 		if (error) {
 			ASSERT(committed);
@@ -2477,7 +2476,7 @@ posix_acl_default_exists(
 	return xfs_acl_vhasacl_default(vp);
 }
 
-STATIC struct attrnames posix_acl_access = {
+static struct attrnames posix_acl_access = {
 	.attr_name	= "posix_acl_access",
 	.attr_namelen	= sizeof("posix_acl_access") - 1,
 	.attr_get	= posix_acl_access_get,
@@ -2486,7 +2485,7 @@ STATIC struct attrnames posix_acl_access = {
 	.attr_exists	= posix_acl_access_exists,
 };
 
-STATIC struct attrnames posix_acl_default = {
+static struct attrnames posix_acl_default = {
 	.attr_name	= "posix_acl_default",
 	.attr_namelen	= sizeof("posix_acl_default") - 1,
 	.attr_get	= posix_acl_default_get,
@@ -2495,7 +2494,7 @@ STATIC struct attrnames posix_acl_default = {
 	.attr_exists	= posix_acl_default_exists,
 };
 
-STATIC struct attrnames *attr_system_names[] =
+static struct attrnames *attr_system_names[] =
 	{ &posix_acl_access, &posix_acl_default };
 
 

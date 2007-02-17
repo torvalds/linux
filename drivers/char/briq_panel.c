@@ -187,7 +187,7 @@ static ssize_t briq_panel_write(struct file *file, const char __user *buf, size_
 	return len;
 }
 
-static struct file_operations briq_panel_fops = {
+static const struct file_operations briq_panel_fops = {
 	.owner		= THIS_MODULE,
 	.read		= briq_panel_read,
 	.write		= briq_panel_write,

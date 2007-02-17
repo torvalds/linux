@@ -129,7 +129,7 @@ static struct mv643xx_eth_platform_data eth2_pd = {
 
 static struct platform_device eth2_device = {
 	.name		= MV643XX_ETH_NAME,
-	.id		= 1,
+	.id		= 2,
 	.num_resources	= ARRAY_SIZE(mv64x60_eth2_resources),
 	.resource	= mv64x60_eth2_resources,
 	.dev = {

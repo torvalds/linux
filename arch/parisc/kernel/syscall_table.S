@@ -197,7 +197,7 @@
 	/* struct rusage contains longs... */
 	ENTRY_COMP(wait4)
 	ENTRY_SAME(swapoff)		/* 115 */
-	ENTRY_DIFF(sysinfo)
+	ENTRY_COMP(sysinfo)
 	ENTRY_SAME(shutdown)
 	ENTRY_SAME(fsync)
 	ENTRY_SAME(madvise)

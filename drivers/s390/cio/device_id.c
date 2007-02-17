@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 
 #include <asm/ccwdev.h>
 #include <asm/delay.h>
@@ -138,7 +139,7 @@ VM_virtual_device_info (__u16 devno, struct senseid *ps)
 		ps->cu_model = 0x60;
 		return;
 	}
-	for (i = 0; i < sizeof(vm_devices) / sizeof(vm_devices[0]); i++)
+	for (i = 0; i < ARRAY_SIZE(vm_devices); i++)
 		if (diag_data.vrdcvcla == vm_devices[i].vrdcvcla &&
 		    diag_data.vrdcvtyp == vm_devices[i].vrdcvtyp) {
 			ps->cu_type = vm_devices[i].cu_type;

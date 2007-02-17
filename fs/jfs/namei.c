@@ -1503,7 +1503,7 @@ struct dentry *jfs_get_parent(struct dentry *dentry)
 	return parent;
 }
 
-struct inode_operations jfs_dir_inode_operations = {
+const struct inode_operations jfs_dir_inode_operations = {
 	.create		= jfs_create,
 	.lookup		= jfs_lookup,
 	.link		= jfs_link,

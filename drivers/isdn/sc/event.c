@@ -20,9 +20,6 @@
 #include "message.h"
 #include "card.h"
 
-extern int cinst;
-extern board *sc_adapter[];
-
 #ifdef DEBUG
 static char *events[] = { "ISDN_STAT_STAVAIL",
 			  "ISDN_STAT_ICALL",

@@ -72,7 +72,7 @@ int sgi_partition(struct parsed_partitions *state, struct block_device *bdev)
 		if (blocks) {
 			put_partition(state, slot, start, blocks);
 			if (be32_to_cpu(p->type) == LINUX_RAID_PARTITION)
-				state->parts[slot].flags = 1;
+				state->parts[slot].flags = ADDPART_FLAG_RAID;
 		}
 		slot++;
 	}

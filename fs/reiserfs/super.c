@@ -593,7 +593,7 @@ static ssize_t reiserfs_quota_read(struct super_block *, int, char *, size_t,
 				   loff_t);
 #endif
 
-static struct super_operations reiserfs_sops = {
+static const struct super_operations reiserfs_sops = {
 	.alloc_inode = reiserfs_alloc_inode,
 	.destroy_inode = reiserfs_destroy_inode,
 	.write_inode = reiserfs_write_inode,

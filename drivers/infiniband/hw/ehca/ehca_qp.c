@@ -450,13 +450,12 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 	if (pd->uobject && udata)
 		context = pd->uobject->context;
 
-	my_qp = kmem_cache_alloc(qp_cache, GFP_KERNEL);
+	my_qp = kmem_cache_zalloc(qp_cache, GFP_KERNEL);
 	if (!my_qp) {
 		ehca_err(pd->device, "pd=%p not enough memory to alloc qp", pd);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	memset(my_qp, 0, sizeof(struct ehca_qp));
 	memset (&parms, 0, sizeof(struct ehca_alloc_qp_parms));
 	spin_lock_init(&my_qp->spinlock_s);
 	spin_lock_init(&my_qp->spinlock_r);

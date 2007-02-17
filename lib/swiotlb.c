@@ -313,7 +313,7 @@ cleanup1:
 #endif
 
 #ifndef SWIOTLB_ARCH_HAS_NEEDS_MAPPING
-static inline int
+static int
 address_needs_mapping(struct device *hwdev, dma_addr_t addr)
 {
 	dma_addr_t mask = 0xffffffff;
@@ -672,7 +672,7 @@ swiotlb_unmap_single(struct device *hwdev, dma_addr_t dev_addr, size_t size,
  * address back to the card, you must first perform a
  * swiotlb_dma_sync_for_device, and then the device again owns the buffer
  */
-static inline void
+static void
 swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
 		    size_t size, int dir, int target)
 {
@@ -702,7 +702,7 @@ swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
 /*
  * Same as above, but for a sub-range of the mapping.
  */
-static inline void
+static void
 swiotlb_sync_single_range(struct device *hwdev, dma_addr_t dev_addr,
 			  unsigned long offset, size_t size,
 			  int dir, int target)
@@ -805,7 +805,7 @@ swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
  * The same as swiotlb_sync_single_* but for a scatter-gather list, same rules
  * and usage.
  */
-static inline void
+static void
 swiotlb_sync_sg(struct device *hwdev, struct scatterlist *sg,
 		int nelems, int dir, int target)
 {

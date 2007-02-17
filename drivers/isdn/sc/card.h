@@ -26,7 +26,9 @@
 #include <linux/timer.h>
 #include <linux/time.h>
 #include <linux/isdnif.h>
+#include <linux/irqreturn.h>
 #include "message.h"
+#include "scioc.h"
 
 /*
  * Amount of time to wait for a reset to complete
@@ -97,5 +99,33 @@ typedef struct {
 	int trace_mode;			/* Indicate if tracing is on */
 	spinlock_t lock;		/* local lock */
 } board;
+
+
+extern board *sc_adapter[];
+extern int cinst;
+
+void memcpy_toshmem(int card, void *dest, const void *src, size_t n);
+void memcpy_fromshmem(int card, void *dest, const void *src, size_t n);
+int get_card_from_id(int driver);
+int indicate_status(int card, int event, ulong Channel, char *Data);
+irqreturn_t interrupt_handler(int interrupt, void *cardptr);
+int sndpkt(int devId, int channel, struct sk_buff *data);
+void rcvpkt(int card, RspMessage *rcvmsg);
+int command(isdn_ctrl *cmd);
+int reset(int card);
+int startproc(int card);
+int send_and_receive(int card, unsigned int procid, unsigned char type,
+		     unsigned char class, unsigned char code,
+		     unsigned char link, unsigned char data_len,
+		     unsigned char *data,  RspMessage *mesgdata, int timeout);
+void flushreadfifo (int card);
+int sendmessage(int card, unsigned int procid, unsigned int type,
+		unsigned int class, unsigned int code, unsigned int link,
+		unsigned int data_len, unsigned int *data);
+int receivemessage(int card, RspMessage *rspmsg);
+int sc_ioctl(int card, scs_ioctl *data);
+int setup_buffers(int card, int c);
+void check_reset(unsigned long data);
+void check_phystat(unsigned long data);
 
 #endif /* CARD_H */

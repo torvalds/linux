@@ -46,7 +46,7 @@ DECLARE_PER_CPU(struct ip_conntrack_stat, ip_conntrack_stat);
 
 static int kill_proto(struct ip_conntrack *i, void *data)
 {
-	return (i->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum == 
+	return (i->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum ==
 			*((u_int8_t *) data));
 }
 
@@ -124,12 +124,12 @@ static void *ct_seq_next(struct seq_file *s, void *v, loff_t *pos)
 	(*pos)++;
 	return ct_get_next(s, v);
 }
-  
+
 static void ct_seq_stop(struct seq_file *s, void *v)
 {
 	read_unlock_bh(&ip_conntrack_lock);
 }
- 
+
 static int ct_seq_show(struct seq_file *s, void *v)
 {
 	const struct ip_conntrack_tuple_hash *hash = v;
@@ -155,12 +155,12 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 	if (proto->print_conntrack(s, conntrack))
 		return -ENOSPC;
-  
+
 	if (print_tuple(s, &conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 			proto))
 		return -ENOSPC;
 
- 	if (seq_print_counters(s, &conntrack->counters[IP_CT_DIR_ORIGINAL]))
+	if (seq_print_counters(s, &conntrack->counters[IP_CT_DIR_ORIGINAL]))
 		return -ENOSPC;
 
 	if (!(test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status)))
@@ -171,7 +171,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 			proto))
 		return -ENOSPC;
 
- 	if (seq_print_counters(s, &conntrack->counters[IP_CT_DIR_REPLY]))
+	if (seq_print_counters(s, &conntrack->counters[IP_CT_DIR_REPLY]))
 		return -ENOSPC;
 
 	if (test_bit(IPS_ASSURED_BIT, &conntrack->status))
@@ -200,7 +200,7 @@ static struct seq_operations ct_seq_ops = {
 	.stop  = ct_seq_stop,
 	.show  = ct_seq_show
 };
-  
+
 static int ct_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
@@ -222,14 +222,14 @@ out_free:
 	return ret;
 }
 
-static struct file_operations ct_file_ops = {
+static const struct file_operations ct_file_ops = {
 	.owner   = THIS_MODULE,
 	.open    = ct_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = seq_release_private,
 };
-  
+
 /* expects */
 static void *exp_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -253,7 +253,7 @@ static void *exp_seq_start(struct seq_file *s, loff_t *pos)
 
 static void *exp_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
- 	struct list_head *e = v;
+	struct list_head *e = v;
 
 	++*pos;
 	e = e->next;
@@ -297,8 +297,8 @@ static int exp_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &exp_seq_ops);
 }
-  
-static struct file_operations exp_file_ops = {
+
+static const struct file_operations exp_file_ops = {
 	.owner   = THIS_MODULE,
 	.open    = exp_open,
 	.read    = seq_read,
@@ -386,7 +386,7 @@ static int ct_cpu_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &ct_cpu_seq_ops);
 }
 
-static struct file_operations ct_cpu_seq_fops = {
+static const struct file_operations ct_cpu_seq_fops = {
 	.owner   = THIS_MODULE,
 	.open    = ct_cpu_seq_open,
 	.read    = seq_read,
@@ -426,14 +426,14 @@ static unsigned int ip_conntrack_help(unsigned int hooknum,
 }
 
 static unsigned int ip_conntrack_defrag(unsigned int hooknum,
-				        struct sk_buff **pskb,
-				        const struct net_device *in,
-				        const struct net_device *out,
-				        int (*okfn)(struct sk_buff *))
+					struct sk_buff **pskb,
+					const struct net_device *in,
+					const struct net_device *out,
+					int (*okfn)(struct sk_buff *))
 {
 #if !defined(CONFIG_IP_NF_NAT) && !defined(CONFIG_IP_NF_NAT_MODULE)
 	/* Previously seen (loopback)?  Ignore.  Do this before
-           fragment check. */
+	   fragment check. */
 	if ((*pskb)->nfct)
 		return NF_ACCEPT;
 #endif
@@ -441,7 +441,7 @@ static unsigned int ip_conntrack_defrag(unsigned int hooknum,
 	/* Gather fragments. */
 	if ((*pskb)->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
 		*pskb = ip_ct_gather_frags(*pskb,
-		                           hooknum == NF_IP_PRE_ROUTING ? 
+					   hooknum == NF_IP_PRE_ROUTING ?
 					   IP_DEFRAG_CONNTRACK_IN :
 					   IP_DEFRAG_CONNTRACK_OUT);
 		if (!*pskb)
@@ -776,7 +776,7 @@ static ctl_table ip_ct_net_table[] = {
 	{
 		.ctl_name	= CTL_NET,
 		.procname	= "net",
-		.mode		= 0555, 
+		.mode		= 0555,
 		.child		= ip_ct_ipv4_table,
 	},
 	{ .ctl_name = 0 }
@@ -796,7 +796,7 @@ int ip_conntrack_protocol_register(struct ip_conntrack_protocol *proto)
 		ret = -EBUSY;
 		goto out;
 	}
-	ip_ct_protos[proto->proto] = proto;
+	rcu_assign_pointer(ip_ct_protos[proto->proto], proto);
  out:
 	write_unlock_bh(&ip_conntrack_lock);
 	return ret;
@@ -805,11 +805,10 @@ int ip_conntrack_protocol_register(struct ip_conntrack_protocol *proto)
 void ip_conntrack_protocol_unregister(struct ip_conntrack_protocol *proto)
 {
 	write_lock_bh(&ip_conntrack_lock);
-	ip_ct_protos[proto->proto] = &ip_conntrack_generic_protocol;
+	rcu_assign_pointer(ip_ct_protos[proto->proto],
+			   &ip_conntrack_generic_protocol);
 	write_unlock_bh(&ip_conntrack_lock);
-
-	/* Somebody could be still looking at the proto in bh. */
-	synchronize_net();
+	synchronize_rcu();
 
 	/* Remove all contrack entries for this protocol */
 	ip_ct_iterate_cleanup(kill_proto, &proto->proto);

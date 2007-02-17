@@ -10,13 +10,13 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_mbox.c
- * Version	: v2.20.4.9 (Jul 16 2006)
+ * Version	: v2.20.5.1 (Nov 16 2006)
  *
  * Authors:
- * 	Atul Mukker		<Atul.Mukker@lsil.com>
- * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsil.com>
- * 	Manoj Jose		<Manoj.Jose@lsil.com>
- * 	Seokmann Ju		<Seokmann.Ju@lsil.com>
+ * 	Atul Mukker		<Atul.Mukker@lsi.com>
+ * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsi.com>
+ * 	Manoj Jose		<Manoj.Jose@lsi.com>
+ * 	Seokmann Ju
  *
  * List of supported controllers
  *
@@ -107,6 +107,7 @@ static int megaraid_mbox_support_random_del(adapter_t *);
 static int megaraid_mbox_get_max_sg(adapter_t *);
 static void megaraid_mbox_enum_raid_scsi(adapter_t *);
 static void megaraid_mbox_flush_cache(adapter_t *);
+static int megaraid_mbox_fire_sync_cmd(adapter_t *);
 
 static void megaraid_mbox_display_scb(adapter_t *, scb_t *);
 static void megaraid_mbox_setup_device_map(adapter_t *);
@@ -137,7 +138,7 @@ static int wait_till_fw_empty(adapter_t *);
 
 
 
-MODULE_AUTHOR("sju@lsil.com");
+MODULE_AUTHOR("megaraidlinux@lsi.com");
 MODULE_DESCRIPTION("LSI Logic MegaRAID Mailbox Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGARAID_VERSION);
@@ -146,7 +147,7 @@ MODULE_VERSION(MEGARAID_VERSION);
  * ### modules parameters for driver ###
  */
 
-/**
+/*
  * Set to enable driver to expose unconfigured disk to kernel
  */
 static int megaraid_expose_unconf_disks = 0;
@@ -154,7 +155,7 @@ module_param_named(unconf_disks, megaraid_expose_unconf_disks, int, 0);
 MODULE_PARM_DESC(unconf_disks,
 	"Set to expose unconfigured disks to kernel (default=0)");
 
-/**
+/*
  * driver wait time if the adapter's mailbox is busy
  */
 static unsigned int max_mbox_busy_wait = MBOX_BUSY_WAIT;
@@ -162,7 +163,7 @@ module_param_named(busy_wait, max_mbox_busy_wait, int, 0);
 MODULE_PARM_DESC(busy_wait,
 	"Max wait for mailbox in microseconds if busy (default=10)");
 
-/**
+/*
  * number of sectors per IO command
  */
 static unsigned int megaraid_max_sectors = MBOX_MAX_SECTORS;
@@ -170,7 +171,7 @@ module_param_named(max_sectors, megaraid_max_sectors, int, 0);
 MODULE_PARM_DESC(max_sectors,
 	"Maximum number of sectors per IO command (default=128)");
 
-/**
+/*
  * number of commands per logical unit
  */
 static unsigned int megaraid_cmd_per_lun = MBOX_DEF_CMD_PER_LUN;
@@ -179,7 +180,7 @@ MODULE_PARM_DESC(cmd_per_lun,
 	"Maximum number of commands per logical unit (default=64)");
 
 
-/**
+/*
  * Fast driver load option, skip scanning for physical devices during load.
  * This would result in non-disk devices being skipped during driver load
  * time. These can be later added though, using /proc/scsi/scsi
@@ -190,7 +191,7 @@ MODULE_PARM_DESC(fast_load,
 	"Faster loading of the driver, skips physical devices! (default=0)");
 
 
-/**
+/*
  * mraid_debug level - threshold for amount of information to be displayed by
  * the driver. This level can be changed through modules parameters, ioctl or
  * sysfs/proc interface. By default, print the announcement messages only.
@@ -337,7 +338,7 @@ static struct device_attribute *megaraid_sdev_attrs[] = {
  *
  * Return value:
  * 	actual depth set
- **/
+ */
 static int megaraid_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
 	if (qdepth > MBOX_MAX_SCSI_CMDS)
@@ -369,8 +370,8 @@ static struct scsi_host_template megaraid_template_g = {
  * megaraid_init - module load hook
  *
  * We register ourselves as hotplug enabled module and let PCI subsystem
- * discover our adaters
- **/
+ * discover our adapters.
+ */
 static int __init
 megaraid_init(void)
 {
@@ -405,7 +406,7 @@ megaraid_init(void)
 /**
  * megaraid_exit - driver unload entry point
  *
- * We simply unwrap the megaraid_init routine here
+ * We simply unwrap the megaraid_init routine here.
  */
 static void __exit
 megaraid_exit(void)
@@ -421,12 +422,12 @@ megaraid_exit(void)
 
 /**
  * megaraid_probe_one - PCI hotplug entry point
- * @param pdev	: handle to this controller's PCI configuration space
- * @param id	: pci device id of the class of controllers
+ * @pdev	: handle to this controller's PCI configuration space
+ * @id		: pci device id of the class of controllers
  *
  * This routine should be called whenever a new adapter is detected by the
  * PCI hotplug susbsytem.
- **/
+ */
 static int __devinit
 megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -542,16 +543,15 @@ out_probe_one:
 
 
 /**
- * megaraid_detach_one - release the framework resources and call LLD release
- * routine
- * @param pdev	: handle for our PCI cofiguration space
+ * megaraid_detach_one - release framework resources and call LLD release routine
+ * @pdev	: handle for our PCI cofiguration space
  *
  * This routine is called during driver unload. We free all the allocated
  * resources and call the corresponding LLD so that it can also release all
  * its resources.
  *
- * This routine is also called from the PCI hotplug system
- **/
+ * This routine is also called from the PCI hotplug system.
+ */
 static void
 megaraid_detach_one(struct pci_dev *pdev)
 {
@@ -615,9 +615,9 @@ megaraid_detach_one(struct pci_dev *pdev)
 
 /**
  * megaraid_mbox_shutdown - PCI shutdown for megaraid HBA
- * @param device	: generice driver model device
+ * @pdev		: generic driver model device
  *
- * Shutdown notification, perform flush cache
+ * Shutdown notification, perform flush cache.
  */
 static void
 megaraid_mbox_shutdown(struct pci_dev *pdev)
@@ -643,10 +643,10 @@ megaraid_mbox_shutdown(struct pci_dev *pdev)
 
 /**
  * megaraid_io_attach - attach a device with the IO subsystem
- * @param adapter	: controller's soft state
+ * @adapter		: controller's soft state
  *
- * Attach this device with the IO subsystem
- **/
+ * Attach this device with the IO subsystem.
+ */
 static int
 megaraid_io_attach(adapter_t *adapter)
 {
@@ -695,10 +695,10 @@ megaraid_io_attach(adapter_t *adapter)
 
 /**
  * megaraid_io_detach - detach a device from the IO subsystem
- * @param adapter	: controller's soft state
+ * @adapter		: controller's soft state
  *
- * Detach this device from the IO subsystem
- **/
+ * Detach this device from the IO subsystem.
+ */
 static void
 megaraid_io_detach(adapter_t *adapter)
 {
@@ -722,13 +722,13 @@ megaraid_io_detach(adapter_t *adapter)
 
 /**
  * megaraid_init_mbox - initialize controller
- * @param adapter	- our soft state
+ * @adapter		: our soft state
  *
- * . Allocate 16-byte aligned mailbox memory for firmware handshake
- * . Allocate controller's memory resources
- * . Find out all initialization data
- * . Allocate memory required for all the commands
- * . Use internal library of FW routines, build up complete soft state
+ * - Allocate 16-byte aligned mailbox memory for firmware handshake
+ * - Allocate controller's memory resources
+ * - Find out all initialization data
+ * - Allocate memory required for all the commands
+ * - Use internal library of FW routines, build up complete soft state
  */
 static int __devinit
 megaraid_init_mbox(adapter_t *adapter)
@@ -779,33 +779,39 @@ megaraid_init_mbox(adapter_t *adapter)
 		goto out_release_regions;
 	}
 
-	//
-	// Setup the rest of the soft state using the library of FW routines
-	//
+	/* initialize the mutual exclusion lock for the mailbox */
+	spin_lock_init(&raid_dev->mailbox_lock);
 
-	// request IRQ and register the interrupt service routine
+	/* allocate memory required for commands */
+	if (megaraid_alloc_cmd_packets(adapter) != 0)
+		goto out_iounmap;
+
+	/*
+	 * Issue SYNC cmd to flush the pending cmds in the adapter
+	 * and initialize its internal state
+	 */
+
+	if (megaraid_mbox_fire_sync_cmd(adapter))
+		con_log(CL_ANN, ("megaraid: sync cmd failed\n"));
+
+	/*
+	 * Setup the rest of the soft state using the library of
+	 * FW routines
+	 */
+
+	/* request IRQ and register the interrupt service routine */
 	if (request_irq(adapter->irq, megaraid_isr, IRQF_SHARED, "megaraid",
 		adapter)) {
 
 		con_log(CL_ANN, (KERN_WARNING
 			"megaraid: Couldn't register IRQ %d!\n", adapter->irq));
+		goto out_alloc_cmds;
 
-		goto out_iounmap;
-	}
-
-
-	// initialize the mutual exclusion lock for the mailbox
-	spin_lock_init(&raid_dev->mailbox_lock);
-
-	// allocate memory required for commands
-	if (megaraid_alloc_cmd_packets(adapter) != 0) {
-		goto out_free_irq;
 	}
 
 	// Product info
-	if (megaraid_mbox_product_info(adapter) != 0) {
-		goto out_alloc_cmds;
-	}
+	if (megaraid_mbox_product_info(adapter) != 0)
+		goto out_free_irq;
 
 	// Do we support extended CDBs
 	adapter->max_cdb_sz = 10;
@@ -874,9 +880,8 @@ megaraid_init_mbox(adapter_t *adapter)
 	 * Allocate resources required to issue FW calls, when sysfs is
 	 * accessed
 	 */
-	if (megaraid_sysfs_alloc_resources(adapter) != 0) {
-		goto out_alloc_cmds;
-	}
+	if (megaraid_sysfs_alloc_resources(adapter) != 0)
+		goto out_free_irq;
 
 	// Set the DMA mask to 64-bit. All supported controllers as capable of
 	// DMA in this range
@@ -920,10 +925,10 @@ megaraid_init_mbox(adapter_t *adapter)
 
 out_free_sysfs_res:
 	megaraid_sysfs_free_resources(adapter);
-out_alloc_cmds:
-	megaraid_free_cmd_packets(adapter);
 out_free_irq:
 	free_irq(adapter->irq, adapter);
+out_alloc_cmds:
+	megaraid_free_cmd_packets(adapter);
 out_iounmap:
 	iounmap(raid_dev->baseaddr);
 out_release_regions:
@@ -937,7 +942,7 @@ out_free_raid_dev:
 
 /**
  * megaraid_fini_mbox - undo controller initialization
- * @param adapter	: our soft state
+ * @adapter		: our soft state
  */
 static void
 megaraid_fini_mbox(adapter_t *adapter)
@@ -967,12 +972,12 @@ megaraid_fini_mbox(adapter_t *adapter)
 
 /**
  * megaraid_alloc_cmd_packets - allocate shared mailbox
- * @param adapter	: soft state of the raid controller
+ * @adapter		: soft state of the raid controller
  *
  * Allocate and align the shared mailbox. This maibox is used to issue
  * all the commands. For IO based controllers, the mailbox is also regsitered
  * with the FW. Allocate memory for all commands as well.
- * This is our big allocator
+ * This is our big allocator.
  */
 static int
 megaraid_alloc_cmd_packets(adapter_t *adapter)
@@ -1132,9 +1137,9 @@ out_free_common_mbox:
 
 /**
  * megaraid_free_cmd_packets - free memory
- * @param adapter	: soft state of the raid controller
+ * @adapter		: soft state of the raid controller
  *
- * Release memory resources allocated for commands
+ * Release memory resources allocated for commands.
  */
 static void
 megaraid_free_cmd_packets(adapter_t *adapter)
@@ -1156,10 +1161,10 @@ megaraid_free_cmd_packets(adapter_t *adapter)
 
 /**
  * megaraid_mbox_setup_dma_pools - setup dma pool for command packets
- * @param adapter	: HBA soft state
+ * @adapter		: HBA soft state
  *
- * setup the dma pools for mailbox, passthru and extended passthru structures,
- * and scatter-gather lists
+ * Setup the dma pools for mailbox, passthru and extended passthru structures,
+ * and scatter-gather lists.
  */
 static int
 megaraid_mbox_setup_dma_pools(adapter_t *adapter)
@@ -1252,10 +1257,10 @@ fail_setup_dma_pool:
 
 /**
  * megaraid_mbox_teardown_dma_pools - teardown dma pools for command packets
- * @param adapter	: HBA soft state
+ * @adapter		: HBA soft state
  *
- * teardown the dma pool for mailbox, passthru and extended passthru
- * structures, and scatter-gather lists
+ * Teardown the dma pool for mailbox, passthru and extended passthru
+ * structures, and scatter-gather lists.
  */
 static void
 megaraid_mbox_teardown_dma_pools(adapter_t *adapter)
@@ -1300,10 +1305,11 @@ megaraid_mbox_teardown_dma_pools(adapter_t *adapter)
 /**
  * megaraid_alloc_scb - detach and return a scb from the free list
  * @adapter	: controller's soft state
+ * @scp		: pointer to the scsi command to be executed
  *
- * return the scb from the head of the free list. NULL if there are none
- * available
- **/
+ * Return the scb from the head of the free list. %NULL if there are none
+ * available.
+ */
 static scb_t *
 megaraid_alloc_scb(adapter_t *adapter, struct scsi_cmnd *scp)
 {
@@ -1337,11 +1343,11 @@ megaraid_alloc_scb(adapter_t *adapter, struct scsi_cmnd *scp)
  * @adapter	: controller's soft state
  * @scb		: scb to be freed
  *
- * return the scb back to the free list of scbs. The caller must 'flush' the
+ * Return the scb back to the free list of scbs. The caller must 'flush' the
  * SCB before calling us. E.g., performing pci_unamp and/or pci_sync etc.
  * NOTE NOTE: Make sure the scb is not on any list before calling this
  * routine.
- **/
+ */
 static inline void
 megaraid_dealloc_scb(adapter_t *adapter, scb_t *scb)
 {
@@ -1362,10 +1368,10 @@ megaraid_dealloc_scb(adapter_t *adapter, scb_t *scb)
 
 /**
  * megaraid_mbox_mksgl - make the scatter-gather list
- * @adapter	- controller's soft state
- * @scb		- scsi control block
+ * @adapter	: controller's soft state
+ * @scb		: scsi control block
  *
- * prepare the scatter-gather list
+ * Prepare the scatter-gather list.
  */
 static int
 megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
@@ -1435,10 +1441,10 @@ megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
 
 /**
  * mbox_post_cmd - issue a mailbox command
- * @adapter	- controller's soft state
- * @scb		- command to be issued
+ * @adapter	: controller's soft state
+ * @scb		: command to be issued
  *
- * post the command to the controller if mailbox is availble.
+ * Post the command to the controller if mailbox is available.
  */
 static int
 mbox_post_cmd(adapter_t *adapter, scb_t *scb)
@@ -1518,7 +1524,7 @@ mbox_post_cmd(adapter_t *adapter, scb_t *scb)
  * Queue entry point for mailbox based controllers.
  */
 static int
-megaraid_queue_command(struct scsi_cmnd *scp, void (* done)(struct scsi_cmnd *))
+megaraid_queue_command(struct scsi_cmnd *scp, void (*done)(struct scsi_cmnd *))
 {
 	adapter_t	*adapter;
 	scb_t		*scb;
@@ -1548,15 +1554,15 @@ megaraid_queue_command(struct scsi_cmnd *scp, void (* done)(struct scsi_cmnd *))
 }
 
 /**
- * megaraid_mbox_build_cmd - transform the mid-layer scsi command to megaraid
- * firmware lingua
- * @adapter	- controller's soft state
- * @scp		- mid-layer scsi command pointer
- * @busy	- set if request could not be completed because of lack of
+ * megaraid_mbox_build_cmd - transform the mid-layer scsi commands
+ * @adapter	: controller's soft state
+ * @scp		: mid-layer scsi command pointer
+ * @busy	: set if request could not be completed because of lack of
  *		resources
  *
- * convert the command issued by mid-layer to format understood by megaraid
- * firmware. We also complete certain command without sending them to firmware
+ * Transform the mid-layer scsi command to megaraid firmware lingua.
+ * Convert the command issued by mid-layer to format understood by megaraid
+ * firmware. We also complete certain commands without sending them to firmware.
  */
 static scb_t *
 megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
@@ -1937,9 +1943,9 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 /**
  * megaraid_mbox_runpendq - execute commands queued in the pending queue
  * @adapter	: controller's soft state
- * @scb		: SCB to be queued in the pending list
+ * @scb_q	: SCB to be queued in the pending list
  *
- * scan the pending list for commands which are not yet issued and try to
+ * Scan the pending list for commands which are not yet issued and try to
  * post to the controller. The SCB can be a null pointer, which would indicate
  * no SCB to be queue, just try to execute the ones in the pending list.
  *
@@ -2012,11 +2018,11 @@ megaraid_mbox_runpendq(adapter_t *adapter, scb_t *scb_q)
 
 /**
  * megaraid_mbox_prepare_pthru - prepare a command for physical devices
- * @adapter	- pointer to controller's soft state
- * @scb		- scsi control block
- * @scp		- scsi command from the mid-layer
+ * @adapter	: pointer to controller's soft state
+ * @scb		: scsi control block
+ * @scp		: scsi command from the mid-layer
  *
- * prepare a command for the scsi physical devices
+ * Prepare a command for the scsi physical devices.
  */
 static void
 megaraid_mbox_prepare_pthru(adapter_t *adapter, scb_t *scb,
@@ -2060,12 +2066,12 @@ megaraid_mbox_prepare_pthru(adapter_t *adapter, scb_t *scb,
 
 /**
  * megaraid_mbox_prepare_epthru - prepare a command for physical devices
- * @adapter	- pointer to controller's soft state
- * @scb		- scsi control block
- * @scp		- scsi command from the mid-layer
+ * @adapter	: pointer to controller's soft state
+ * @scb		: scsi control block
+ * @scp		: scsi command from the mid-layer
  *
- * prepare a command for the scsi physical devices. This rountine prepares
- * commands for devices which can take extended CDBs (>10 bytes)
+ * Prepare a command for the scsi physical devices. This rountine prepares
+ * commands for devices which can take extended CDBs (>10 bytes).
  */
 static void
 megaraid_mbox_prepare_epthru(adapter_t *adapter, scb_t *scb,
@@ -2109,9 +2115,9 @@ megaraid_mbox_prepare_epthru(adapter_t *adapter, scb_t *scb,
 
 /**
  * megaraid_ack_sequence - interrupt ack sequence for memory mapped HBAs
- * @adapter	- controller's soft state
+ * @adapter	: controller's soft state
  *
- * Interrupt ackrowledgement sequence for memory mapped HBAs. Find out the
+ * Interrupt acknowledgement sequence for memory mapped HBAs. Find out the
  * completed command and put them on the completed list for later processing.
  *
  * Returns:	1 if the interrupt is valid, 0 otherwise
@@ -2224,9 +2230,8 @@ megaraid_ack_sequence(adapter_t *adapter)
 
 /**
  * megaraid_isr - isr for memory based mailbox based controllers
- * @irq		- irq
- * @devp	- pointer to our soft state
- * @regs	- unused
+ * @irq		: irq
+ * @devp	: pointer to our soft state
  *
  * Interrupt service routine for memory-mapped mailbox controllers.
  */
@@ -2671,7 +2676,7 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
  * the FW is still live, in which case the outstanding commands counter mut go
  * down to 0. If that happens, also issue the reservation reset command to
  * relinquish (possible) reservations on the logical drives connected to this
- * host
+ * host.
  **/
 static int
 megaraid_reset_handler(struct scsi_cmnd *scp)
@@ -2823,11 +2828,11 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
 
 /**
  * mbox_post_sync_cmd() - blocking command to the mailbox based controllers
- * @adapter	- controller's soft state
- * @raw_mbox	- the mailbox
+ * @adapter	: controller's soft state
+ * @raw_mbox	: the mailbox
  *
  * Issue a scb in synchronous and non-interrupt mode for mailbox based
- * controllers
+ * controllers.
  */
 static int
 mbox_post_sync_cmd(adapter_t *adapter, uint8_t raw_mbox[])
@@ -2955,12 +2960,12 @@ blocked_mailbox:
 
 /**
  * mbox_post_sync_cmd_fast - blocking command to the mailbox based controllers
- * @adapter	- controller's soft state
- * @raw_mbox	- the mailbox
+ * @adapter	: controller's soft state
+ * @raw_mbox	: the mailbox
  *
  * Issue a scb in synchronous and non-interrupt mode for mailbox based
  * controllers. This is a faster version of the synchronous command and
- * therefore can be called in interrupt-context as well
+ * therefore can be called in interrupt-context as well.
  */
 static int
 mbox_post_sync_cmd_fast(adapter_t *adapter, uint8_t raw_mbox[])
@@ -3008,10 +3013,10 @@ mbox_post_sync_cmd_fast(adapter_t *adapter, uint8_t raw_mbox[])
 
 /**
  * megaraid_busywait_mbox() - Wait until the controller's mailbox is available
- * @raid_dev	- RAID device (HBA) soft state
+ * @raid_dev	: RAID device (HBA) soft state
  *
- * wait until the controller's mailbox is available to accept more commands.
- * wait for at most 1 second
+ * Wait until the controller's mailbox is available to accept more commands.
+ * Wait for at most 1 second.
  */
 static int
 megaraid_busywait_mbox(mraid_device_t *raid_dev)
@@ -3032,9 +3037,9 @@ megaraid_busywait_mbox(mraid_device_t *raid_dev)
 
 /**
  * megaraid_mbox_product_info - some static information about the controller
- * @adapter	- our soft state
+ * @adapter	: our soft state
  *
- * issue commands to the controller to grab some parameters required by our
+ * Issue commands to the controller to grab some parameters required by our
  * caller.
  */
 static int
@@ -3157,10 +3162,10 @@ megaraid_mbox_product_info(adapter_t *adapter)
 
 /**
  * megaraid_mbox_extended_cdb - check for support for extended CDBs
- * @adapter	- soft state for the controller
+ * @adapter	: soft state for the controller
  *
- * this routine check whether the controller in question supports extended
- * ( > 10 bytes ) CDBs
+ * This routine check whether the controller in question supports extended
+ * ( > 10 bytes ) CDBs.
  */
 static int
 megaraid_mbox_extended_cdb(adapter_t *adapter)
@@ -3193,8 +3198,8 @@ megaraid_mbox_extended_cdb(adapter_t *adapter)
 
 /**
  * megaraid_mbox_support_ha - Do we support clustering
- * @adapter	- soft state for the controller
- * @init_id	- ID of the initiator
+ * @adapter	: soft state for the controller
+ * @init_id	: ID of the initiator
  *
  * Determine if the firmware supports clustering and the ID of the initiator.
  */
@@ -3236,9 +3241,9 @@ megaraid_mbox_support_ha(adapter_t *adapter, uint16_t *init_id)
 
 /**
  * megaraid_mbox_support_random_del - Do we support random deletion
- * @adapter	- soft state for the controller
+ * @adapter	: soft state for the controller
  *
- * Determine if the firmware supports random deletion
+ * Determine if the firmware supports random deletion.
  * Return:	1 is operation supported, 0 otherwise
  */
 static int
@@ -3271,10 +3276,10 @@ megaraid_mbox_support_random_del(adapter_t *adapter)
 
 /**
  * megaraid_mbox_get_max_sg - maximum sg elements supported by the firmware
- * @adapter	- soft state for the controller
+ * @adapter	: soft state for the controller
  *
  * Find out the maximum number of scatter-gather elements supported by the
- * firmware
+ * firmware.
  */
 static int
 megaraid_mbox_get_max_sg(adapter_t *adapter)
@@ -3311,10 +3316,10 @@ megaraid_mbox_get_max_sg(adapter_t *adapter)
 
 /**
  * megaraid_mbox_enum_raid_scsi - enumerate the RAID and SCSI channels
- * @adapter	- soft state for the controller
+ * @adapter	: soft state for the controller
  *
- * Enumerate the RAID and SCSI channels for ROMB platoforms so that channels
- * can be exported as regular SCSI channels
+ * Enumerate the RAID and SCSI channels for ROMB platforms so that channels
+ * can be exported as regular SCSI channels.
  */
 static void
 megaraid_mbox_enum_raid_scsi(adapter_t *adapter)
@@ -3348,9 +3353,9 @@ megaraid_mbox_enum_raid_scsi(adapter_t *adapter)
 
 /**
  * megaraid_mbox_flush_cache - flush adapter and disks cache
- * @param adapter	: soft state for the controller
+ * @adapter		: soft state for the controller
  *
- * Flush adapter cache followed by disks cache
+ * Flush adapter cache followed by disks cache.
  */
 static void
 megaraid_mbox_flush_cache(adapter_t *adapter)
@@ -3380,13 +3385,91 @@ megaraid_mbox_flush_cache(adapter_t *adapter)
 
 
 /**
+ * megaraid_mbox_fire_sync_cmd - fire the sync cmd
+ * @adapter		: soft state for the controller
+ *
+ * Clears the pending cmds in FW and reinits its RAID structs.
+ */
+static int
+megaraid_mbox_fire_sync_cmd(adapter_t *adapter)
+{
+	mbox_t	*mbox;
+	uint8_t	raw_mbox[sizeof(mbox_t)];
+	mraid_device_t	*raid_dev = ADAP2RAIDDEV(adapter);
+	mbox64_t *mbox64;
+	int	status = 0;
+	int i;
+	uint32_t dword;
+
+	mbox = (mbox_t *)raw_mbox;
+
+	memset((caddr_t)raw_mbox, 0, sizeof(mbox_t));
+
+	raw_mbox[0] = 0xFF;
+
+	mbox64	= raid_dev->mbox64;
+	mbox	= raid_dev->mbox;
+
+	/* Wait until mailbox is free */
+	if (megaraid_busywait_mbox(raid_dev) != 0) {
+		status = 1;
+		goto blocked_mailbox;
+	}
+
+	/* Copy mailbox data into host structure */
+	memcpy((caddr_t)mbox, (caddr_t)raw_mbox, 16);
+	mbox->cmdid		= 0xFE;
+	mbox->busy		= 1;
+	mbox->poll		= 0;
+	mbox->ack		= 0;
+	mbox->numstatus		= 0;
+	mbox->status		= 0;
+
+	wmb();
+	WRINDOOR(raid_dev, raid_dev->mbox_dma | 0x1);
+
+	/* Wait for maximum 1 min for status to post.
+	 * If the Firmware SUPPORTS the ABOVE COMMAND,
+	 * mbox->cmd will be set to 0
+	 * else
+	 * the firmware will reject the command with
+	 * mbox->numstatus set to 1
+	 */
+
+	i = 0;
+	status = 0;
+	while (!mbox->numstatus && mbox->cmd == 0xFF) {
+		rmb();
+		msleep(1);
+		i++;
+		if (i > 1000 * 60) {
+			status = 1;
+			break;
+		}
+	}
+	if (mbox->numstatus == 1)
+		status = 1; /*cmd not supported*/
+
+	/* Check for interrupt line */
+	dword = RDOUTDOOR(raid_dev);
+	WROUTDOOR(raid_dev, dword);
+	WRINDOOR(raid_dev,2);
+
+	return status;
+
+blocked_mailbox:
+	con_log(CL_ANN, (KERN_WARNING "megaraid: blocked mailbox\n"));
+	return status;
+}
+
+/**
  * megaraid_mbox_display_scb - display SCB information, mostly debug purposes
- * @param adapter	: controllers' soft state
- * @param scb		: SCB to be displayed
- * @param level	: debug level for console print
+ * @adapter		: controller's soft state
+ * @scb			: SCB to be displayed
+ * @level		: debug level for console print
  *
  * Diplay information about the given SCB iff the current debug level is
- * verbose
+ * verbose.
  */
 static void
 megaraid_mbox_display_scb(adapter_t *adapter, scb_t *scb)
@@ -3434,7 +3517,7 @@ megaraid_mbox_display_scb(adapter_t *adapter, scb_t *scb)
  * scsi addresses and megaraid scsi and logical drive addresses. We export
  * scsi devices on their actual addresses, whereas the logical drives are
  * exported on a virtual scsi channel.
- **/
+ */
 static void
 megaraid_mbox_setup_device_map(adapter_t *adapter)
 {
@@ -3472,7 +3555,7 @@ megaraid_mbox_setup_device_map(adapter_t *adapter)
 
 /**
  * megaraid_cmm_register - register with the mangement module
- * @param adapter	: HBA soft state
+ * @adapter		: HBA soft state
  *
  * Register with the management module, which allows applications to issue
  * ioctl calls to the drivers. This interface is used by the management module
@@ -3562,11 +3645,11 @@ megaraid_cmm_register(adapter_t *adapter)
 
 /**
  * megaraid_cmm_unregister - un-register with the mangement module
- * @param adapter	: HBA soft state
+ * @adapter		: HBA soft state
  *
  * Un-register with the management module.
  * FIXME: mgmt module must return failure for unregister if it has pending
- * commands in LLD
+ * commands in LLD.
  */
 static int
 megaraid_cmm_unregister(adapter_t *adapter)
@@ -3579,9 +3662,9 @@ megaraid_cmm_unregister(adapter_t *adapter)
 
 /**
  * megaraid_mbox_mm_handler - interface for CMM to issue commands to LLD
- * @param drvr_data	: LLD specific data
- * @param kioc		: CMM interface packet
- * @param action	: command action
+ * @drvr_data		: LLD specific data
+ * @kioc		: CMM interface packet
+ * @action		: command action
  *
  * This routine is invoked whenever the Common Mangement Module (CMM) has a
  * command for us. The 'action' parameter specifies if this is a new command
@@ -3634,8 +3717,8 @@ megaraid_mbox_mm_handler(unsigned long drvr_data, uioc_t *kioc, uint32_t action)
 
 /**
  * megaraid_mbox_mm_command - issues commands routed through CMM
- * @param adapter	: HBA soft state
- * @param kioc		: management command packet
+ * @adapter		: HBA soft state
+ * @kioc		: management command packet
  *
  * Issues commands, which are routed through the management module.
  */
@@ -3804,8 +3887,8 @@ megaraid_mbox_mm_done(adapter_t *adapter, scb_t *scb)
 
 /**
  * gather_hbainfo - HBA characteristics for the applications
- * @param adapter	: HBA soft state
- * @param hinfo		: pointer to the caller's host info strucuture
+ * @adapter		: HBA soft state
+ * @hinfo		: pointer to the caller's host info strucuture
  */
 static int
 gather_hbainfo(adapter_t *adapter, mraid_hba_info_t *hinfo)
@@ -3839,16 +3922,15 @@ gather_hbainfo(adapter_t *adapter, mraid_hba_info_t *hinfo)
 
 /**
  * megaraid_sysfs_alloc_resources - allocate sysfs related resources
+ * @adapter	: controller's soft state
  *
  * Allocate packets required to issue FW calls whenever the sysfs attributes
  * are read. These attributes would require up-to-date information from the
  * FW. Also set up resources for mutual exclusion to share these resources and
  * the wait queue.
  *
- * @param adapter : controller's soft state
- *
- * @return 0 on success
- * @return -ERROR_CODE on failure
+ * Return 0 on success.
+ * Return -ERROR_CODE on failure.
  */
 static int
 megaraid_sysfs_alloc_resources(adapter_t *adapter)
@@ -3885,10 +3967,9 @@ megaraid_sysfs_alloc_resources(adapter_t *adapter)
 
 /**
  * megaraid_sysfs_free_resources - free sysfs related resources
+ * @adapter	: controller's soft state
  *
  * Free packets allocated for sysfs FW commands
- *
- * @param adapter : controller's soft state
  */
 static void
 megaraid_sysfs_free_resources(adapter_t *adapter)
@@ -3907,10 +3988,9 @@ megaraid_sysfs_free_resources(adapter_t *adapter)
 
 /**
  * megaraid_sysfs_get_ldmap_done - callback for get ldmap
+ * @uioc	: completed packet
  *
  * Callback routine called in the ISR/tasklet context for get ldmap call
- *
- * @param uioc : completed packet
  */
 static void
 megaraid_sysfs_get_ldmap_done(uioc_t *uioc)
@@ -3926,12 +4006,11 @@ megaraid_sysfs_get_ldmap_done(uioc_t *uioc)
 
 /**
  * megaraid_sysfs_get_ldmap_timeout - timeout handling for get ldmap
+ * @data	: timed out packet
  *
  * Timeout routine to recover and return to application, in case the adapter
- * has stopped responding. A timeout of 60 seconds for this command seem like
- * a good value
- *
- * @param uioc : timed out packet
+ * has stopped responding. A timeout of 60 seconds for this command seems like
+ * a good value.
  */
 static void
 megaraid_sysfs_get_ldmap_timeout(unsigned long data)
@@ -3948,6 +4027,7 @@ megaraid_sysfs_get_ldmap_timeout(unsigned long data)
 
 /**
  * megaraid_sysfs_get_ldmap - get update logical drive map
+ * @adapter	: controller's soft state
  *
  * This routine will be called whenever user reads the logical drive
  * attributes, go get the current logical drive mapping table from the
@@ -3959,10 +4039,8 @@ megaraid_sysfs_get_ldmap_timeout(unsigned long data)
  * standalone libary. For now, this should suffice since there is no other
  * user of this interface.
  *
- * @param adapter : controller's soft state
- *
- * @return 0 on success
- * @return -1 on failure
+ * Return 0 on success.
+ * Return -1 on failure.
  */
 static int
 megaraid_sysfs_get_ldmap(adapter_t *adapter)
@@ -4064,13 +4142,12 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 
 /**
  * megaraid_sysfs_show_app_hndl - display application handle for this adapter
+ * @cdev	: class device object representation for the host
+ * @buf		: buffer to send data to
  *
  * Display the handle used by the applications while executing management
  * tasks on the adapter. We invoke a management module API to get the adapter
  * handle, since we do not interface with applications directly.
- *
- * @param cdev	: class device object representation for the host
- * @param buf	: buffer to send data to
  */
 static ssize_t
 megaraid_sysfs_show_app_hndl(struct class_device *cdev, char *buf)
@@ -4087,16 +4164,18 @@ megaraid_sysfs_show_app_hndl(struct class_device *cdev, char *buf)
 
 /**
  * megaraid_sysfs_show_ldnum - display the logical drive number for this device
+ * @dev		: device object representation for the scsi device
+ * @attr	: device attribute to show
+ * @buf		: buffer to send data to
  *
  * Display the logical drive number for the device in question, if it a valid
- * logical drive. For physical devices, "-1" is returned
- * The logical drive number is displayed in following format
+ * logical drive. For physical devices, "-1" is returned.
+ *
+ * The logical drive number is displayed in following format:
  *
  * <SCSI ID> <LD NUM> <LD STICKY ID> <APP ADAPTER HANDLE>
- *   <int>     <int>       <int>            <int>
  *
- * @param dev	: device object representation for the scsi device
- * @param buf	: buffer to send data to
+ *   <int>     <int>       <int>            <int>
  */
 static ssize_t
 megaraid_sysfs_show_ldnum(struct device *dev, struct device_attribute *attr, char *buf)

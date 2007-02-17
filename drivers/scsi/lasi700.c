@@ -123,6 +123,7 @@ lasi700_probe(struct parisc_device *dev)
 		hostdata->force_le_on_be = 0;
 		hostdata->chip710 = 1;
 		hostdata->dmode_extra = DMODE_FC2;
+		hostdata->burst_length = 8;
 	}
 
 	host = NCR_700_detect(&lasi700_template, hostdata, &dev->dev);

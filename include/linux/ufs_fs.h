@@ -40,13 +40,16 @@ typedef __u64 __fs64;
 typedef __u32 __fs32;
 typedef __u16 __fs16;
 #else
+#include <asm/div64.h>
 typedef __u64 __bitwise __fs64;
 typedef __u32 __bitwise __fs32;
 typedef __u16 __bitwise __fs16;
 #endif
 
+#ifdef __KERNEL__
 #include <linux/ufs_fs_i.h>
 #include <linux/ufs_fs_sb.h>
+#endif
 
 #define UFS_BBLOCK 0
 #define UFS_BBSIZE 8192
@@ -261,15 +264,8 @@ typedef __u16 __bitwise __fs16;
  */
 #define	ufs_inotocg(x)		((x) / uspi->s_ipg)
 #define	ufs_inotocgoff(x)	((x) % uspi->s_ipg)
-#define	ufs_inotofsba(x)	(ufs_cgimin(ufs_inotocg(x)) + ufs_inotocgoff(x) / uspi->s_inopf)
+#define	ufs_inotofsba(x)	(((u64)ufs_cgimin(ufs_inotocg(x))) + ufs_inotocgoff(x) / uspi->s_inopf)
 #define	ufs_inotofsbo(x)	((x) % uspi->s_inopf)
-
-/*
- * Give cylinder group number for a file system block.
- * Give cylinder group block number for a file system block.
- */
-#define	ufs_dtog(d)	((d) / uspi->s_fpg)
-#define	ufs_dtogd(d)	((d) % uspi->s_fpg)
 
 /*
  * Compute the cylinder and rotational position of a cyl block addr.
@@ -303,7 +299,7 @@ typedef __u16 __bitwise __fs16;
 #define UFS_MAXMNTLEN 512
 #define UFS2_MAXMNTLEN 468
 #define UFS2_MAXVOLLEN 32
-/* #define UFS_MAXCSBUFS 31 */
+#define UFS_MAXCSBUFS 31
 #define UFS_LINK_MAX 32000
 /*
 #define	UFS2_NOCSPTRS	((128 / sizeof(void *)) - 4)
@@ -721,6 +717,7 @@ struct ufs_cg_private_info {
 	__u32	c_nclusterblks;	/* number of clusters this cg */
 };	
 
+
 struct ufs_sb_private_info {
 	struct ufs_buffer_head s_ubh; /* buffer containing super block */
 	struct ufs_csum_core cs_total;
@@ -754,7 +751,7 @@ struct ufs_sb_private_info {
 	__u32	s_npsect;	/* # sectors/track including spares */
 	__u32	s_interleave;	/* hardware sector interleave */
 	__u32	s_trackskew;	/* sector 0 skew, per track */
-	__u32	s_csaddr;	/* blk addr of cyl grp summary area */
+	__u64	s_csaddr;	/* blk addr of cyl grp summary area */
 	__u32	s_cssize;	/* size of cyl grp summary area */
 	__u32	s_cgsize;	/* cylinder group size */
 	__u32	s_ntrak;	/* tracks per cylinder */
@@ -950,17 +947,17 @@ struct ufs_super_block_third {
 #ifdef __KERNEL__
 
 /* balloc.c */
-extern void ufs_free_fragments (struct inode *, unsigned, unsigned);
-extern void ufs_free_blocks (struct inode *, unsigned, unsigned);
-extern unsigned ufs_new_fragments(struct inode *, __fs32 *, unsigned, unsigned,
-				  unsigned, int *, struct page *);
+extern void ufs_free_fragments (struct inode *, u64, unsigned);
+extern void ufs_free_blocks (struct inode *, u64, unsigned);
+extern u64 ufs_new_fragments(struct inode *, void *, u64, u64,
+			     unsigned, int *, struct page *);
 
 /* cylinder.c */
 extern struct ufs_cg_private_info * ufs_load_cylinder (struct super_block *, unsigned);
 extern void ufs_put_cylinder (struct super_block *, unsigned);
 
 /* dir.c */
-extern struct inode_operations ufs_dir_inode_operations;
+extern const struct inode_operations ufs_dir_inode_operations;
 extern int ufs_add_link (struct dentry *, struct inode *);
 extern ino_t ufs_inode_by_name(struct inode *, struct dentry *);
 extern int ufs_make_empty(struct inode *, struct inode *);
@@ -972,7 +969,7 @@ extern void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 			 struct page *page, struct inode *inode);
 
 /* file.c */
-extern struct inode_operations ufs_file_inode_operations;
+extern const struct inode_operations ufs_file_inode_operations;
 extern const struct file_operations ufs_file_operations;
 
 extern const struct address_space_operations ufs_aops;
@@ -999,7 +996,7 @@ extern void ufs_error (struct super_block *, const char *, const char *, ...) __
 extern void ufs_panic (struct super_block *, const char *, const char *, ...) __attribute__ ((format (printf, 3, 4)));
 
 /* symlink.c */
-extern struct inode_operations ufs_fast_symlink_inode_operations;
+extern const struct inode_operations ufs_fast_symlink_inode_operations;
 
 /* truncate.c */
 extern int ufs_truncate (struct inode *, loff_t);
@@ -1012,6 +1009,22 @@ static inline struct ufs_sb_info *UFS_SB(struct super_block *sb)
 static inline struct ufs_inode_info *UFS_I(struct inode *inode)
 {
 	return container_of(inode, struct ufs_inode_info, vfs_inode);
+}
+
+/*
+ * Give cylinder group number for a file system block.
+ * Give cylinder group block number for a file system block.
+ */
+/* #define	ufs_dtog(d)	((d) / uspi->s_fpg) */
+static inline u64 ufs_dtog(struct ufs_sb_private_info * uspi, u64 b)
+{
+	do_div(b, uspi->s_fpg);
+	return b;
+}
+/* #define	ufs_dtogd(d)	((d) % uspi->s_fpg) */
+static inline u32 ufs_dtogd(struct ufs_sb_private_info * uspi, u64 b)
+{
+	return do_div(b, uspi->s_fpg);
 }
 
 #endif	/* __KERNEL__ */

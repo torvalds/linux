@@ -6,7 +6,7 @@
  *		Split up af-specific portion
  *	Derek Atkins <derek@ihtfp.com>
  *		Add Encapsulation support
- * 	
+ *
  */
 
 #include <linux/module.h>
@@ -42,7 +42,7 @@ static inline int xfrm4_rcv_encap_finish(struct sk_buff *skb)
 
 	if (skb->dst == NULL) {
 		if (ip_route_input(skb, iph->daddr, iph->saddr, iph->tos,
-		                   skb->dev))
+				   skb->dev))
 			goto drop;
 	}
 	return dst_input(skb);
@@ -149,7 +149,7 @@ int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 		ip_send_check(skb->nh.iph);
 
 		NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, skb->dev, NULL,
-		        xfrm4_rcv_encap_finish);
+			xfrm4_rcv_encap_finish);
 		return 0;
 #else
 		return -skb->nh.iph->protocol;

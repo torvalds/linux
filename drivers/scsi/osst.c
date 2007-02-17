@@ -5522,7 +5522,7 @@ __setup("osst=", osst_setup);
 
 #endif
 
-static struct file_operations osst_fops = {
+static const struct file_operations osst_fops = {
 	.owner =        THIS_MODULE,
 	.read =         osst_read,
 	.write =        osst_write,

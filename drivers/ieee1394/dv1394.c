@@ -2147,7 +2147,7 @@ out:
 }
 
 static struct cdev dv1394_cdev;
-static struct file_operations dv1394_fops=
+static const struct file_operations dv1394_fops=
 {
 	.owner =	THIS_MODULE,
 	.poll =         dv1394_poll,

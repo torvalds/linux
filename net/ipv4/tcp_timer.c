@@ -69,7 +69,7 @@ static int tcp_out_of_resources(struct sock *sk, int do_reset)
 	struct tcp_sock *tp = tcp_sk(sk);
 	int orphans = atomic_read(&tcp_orphan_count);
 
-	/* If peer does not open window for long time, or did not transmit 
+	/* If peer does not open window for long time, or did not transmit
 	 * anything for long time, penalize it. */
 	if ((s32)(tcp_time_stamp - tp->lsndtime) > 2*TCP_RTO_MAX || !do_reset)
 		orphans <<= 1;
@@ -137,7 +137,7 @@ static int tcp_write_timeout(struct sock *sk)
 					tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 				} else {
 					mss = min(sysctl_tcp_base_mss,
-					          tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_low)/2);
+						  tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_low)/2);
 					mss = max(mss, 68 - tp->tcp_header_len);
 					icsk->icsk_mtup.search_low = tcp_mss_to_mtu(sk, mss);
 					tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
@@ -150,7 +150,7 @@ static int tcp_write_timeout(struct sock *sk)
 		retry_until = sysctl_tcp_retries2;
 		if (sock_flag(sk, SOCK_DEAD)) {
 			const int alive = (icsk->icsk_rto < TCP_RTO_MAX);
- 
+
 			retry_until = tcp_orphan_retries(sk, alive);
 
 			if (tcp_out_of_resources(sk, alive || icsk->icsk_retransmits < retry_until))
@@ -257,7 +257,7 @@ static void tcp_probe_timer(struct sock *sk)
 
 	if (sock_flag(sk, SOCK_DEAD)) {
 		const int alive = ((icsk->icsk_rto << icsk->icsk_backoff) < TCP_RTO_MAX);
- 
+
 		max_probes = tcp_orphan_retries(sk, alive);
 
 		if (tcp_out_of_resources(sk, alive || icsk->icsk_probes_out <= max_probes))
@@ -453,7 +453,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	/* Only process if socket is not in use. */
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
-		/* Try again later. */ 
+		/* Try again later. */
 		inet_csk_reset_keepalive_timer (sk, HZ/20);
 		goto out;
 	}
@@ -515,7 +515,7 @@ resched:
 	inet_csk_reset_keepalive_timer (sk, elapsed);
 	goto out;
 
-death:	
+death:
 	tcp_done(sk);
 
 out:

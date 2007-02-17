@@ -1,6 +1,6 @@
 /* IRC extension for IP connection tracking, Version 1.21
  * (C) 2000-2002 by Harald Welte <laforge@gnumonks.org>
- * based on RR's ip_conntrack_ftp.c	
+ * based on RR's ip_conntrack_ftp.c
  *
  * ip_conntrack_irc.c,v 1.21 2002/02/05 14:49:26 laforge Exp
  *
@@ -12,12 +12,12 @@
  *	Module load syntax:
  * 	insmod ip_conntrack_irc.o ports=port1,port2,...port<MAX_PORTS>
  *			    max_dcc_channels=n dcc_timeout=secs
- *	
+ *
  * 	please give the ports of all IRC servers You wish to connect to.
  *	If You don't specify ports, the default will be port 6667.
  *	With max_dcc_channels you can define the maximum number of not
  *	yet answered DCC channels per IRC session (default 8).
- *	With dcc_timeout you can specify how long the system waits for 
+ *	With dcc_timeout you can specify how long the system waits for
  *	an expected DCC channel (default 300 seconds).
  *
  */
@@ -63,7 +63,7 @@ static const char *dccprotos[] = { "SEND ", "CHAT ", "MOVE ", "TSEND ", "SCHAT "
 
 #if 0
 #define DEBUGP(format, args...) printk(KERN_DEBUG "%s:%s:" format, \
-                                       __FILE__, __FUNCTION__ , ## args)
+				       __FILE__, __FUNCTION__ , ## args)
 #else
 #define DEBUGP(format, args...)
 #endif
@@ -71,7 +71,7 @@ static const char *dccprotos[] = { "SEND ", "CHAT ", "MOVE ", "TSEND ", "SCHAT "
 static int parse_dcc(char *data, char *data_end, u_int32_t *ip,
 		     u_int16_t *port, char **ad_beg_p, char **ad_end_p)
 /* tries to get the ip_addr and port out of a dcc command
-   return value: -1 on failure, 0 on success 
+   return value: -1 on failure, 0 on success
 	data		pointer to first byte of DCC command data
 	data_end	pointer to last byte of dcc command data
 	ip		returns parsed ip of dcc command
@@ -90,7 +90,7 @@ static int parse_dcc(char *data, char *data_end, u_int32_t *ip,
 
 	/* skip blanks between ip and port */
 	while (*data == ' ') {
-		if (data >= data_end) 
+		if (data >= data_end)
 			return -1;
 		data++;
 	}
@@ -171,7 +171,7 @@ static int help(struct sk_buff **pskb,
 
 			DEBUGP("DCC %s detected\n", dccprotos[i]);
 			data += strlen(dccprotos[i]);
-			/* we have at least 
+			/* we have at least
 			 * (19+MINMATCHLEN)-5-dccprotos[i].matchlen bytes valid
 			 * data left (== 14/13 bytes) */
 			if (parse_dcc((char *)data, data_limit, &dcc_ip,
@@ -260,7 +260,7 @@ static int __init ip_conntrack_irc_init(void)
 	irc_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!irc_buffer)
 		return -ENOMEM;
-	
+
 	/* If no port given, default to standard irc port */
 	if (ports_c == 0)
 		ports[ports_c++] = IRC_PORT;
@@ -297,7 +297,7 @@ static int __init ip_conntrack_irc_init(void)
 	return 0;
 }
 
-/* This function is intentionally _NOT_ defined as __exit, because 
+/* This function is intentionally _NOT_ defined as __exit, because
  * it is needed by the init function */
 static void ip_conntrack_irc_fini(void)
 {

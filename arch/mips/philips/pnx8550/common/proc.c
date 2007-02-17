@@ -79,10 +79,7 @@ static int pnx8550_proc_init( void )
 
 	// Create /proc/pnx8550
         pnx8550_dir = create_proc_entry("pnx8550", S_IFDIR|S_IRUGO, NULL);
-        if (pnx8550_dir){
-                pnx8550_dir->nlink = 1;
-        }
-        else {
+        if (!pnx8550_dir) {
                 printk(KERN_ERR "Can't create pnx8550 proc dir\n");
                 return -1;
         }
@@ -90,7 +87,6 @@ static int pnx8550_proc_init( void )
 	// Create /proc/pnx8550/timers
         pnx8550_timers = create_proc_entry("timers", S_IFREG|S_IRUGO, pnx8550_dir );
         if (pnx8550_timers){
-                pnx8550_timers->nlink = 1;
                 pnx8550_timers->read_proc = pnx8550_timers_read;
         }
         else {
@@ -100,7 +96,6 @@ static int pnx8550_proc_init( void )
 	// Create /proc/pnx8550/registers
         pnx8550_registers = create_proc_entry("registers", S_IFREG|S_IRUGO, pnx8550_dir );
         if (pnx8550_registers){
-                pnx8550_registers->nlink = 1;
                 pnx8550_registers->read_proc = pnx8550_registers_read;
         }
         else {

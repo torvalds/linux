@@ -66,9 +66,9 @@ match_packet(const struct sk_buff *skb,
 			duprintf("Dropping invalid SCTP packet.\n");
 			*hotdrop = 1;
 			return 0;
-        	}
+		}
 
-		duprintf("Chunk num: %d\toffset: %d\ttype: %d\tlength: %d\tflags: %x\n", 
+		duprintf("Chunk num: %d\toffset: %d\ttype: %d\tlength: %d\tflags: %x\n",
 				++i, offset, sch->type, htons(sch->length), sch->flags);
 
 		offset += (ntohs(sch->length) + 3) & ~3;
@@ -78,21 +78,21 @@ match_packet(const struct sk_buff *skb,
 		if (SCTP_CHUNKMAP_IS_SET(chunkmap, sch->type)) {
 			switch (chunk_match_type) {
 			case SCTP_CHUNK_MATCH_ANY:
-				if (match_flags(flag_info, flag_count, 
+				if (match_flags(flag_info, flag_count,
 					sch->type, sch->flags)) {
 					return 1;
 				}
 				break;
 
 			case SCTP_CHUNK_MATCH_ALL:
-				if (match_flags(flag_info, flag_count, 
+				if (match_flags(flag_info, flag_count,
 					sch->type, sch->flags)) {
 					SCTP_CHUNKMAP_CLEAR(chunkmapcopy, sch->type);
 				}
 				break;
 
 			case SCTP_CHUNK_MATCH_ONLY:
-				if (!match_flags(flag_info, flag_count, 
+				if (!match_flags(flag_info, flag_count,
 					sch->type, sch->flags)) {
 					return 0;
 				}
@@ -136,24 +136,24 @@ match(const struct sk_buff *skb,
 		duprintf("Dropping non-first fragment.. FIXME\n");
 		return 0;
 	}
-	
+
 	sh = skb_header_pointer(skb, protoff, sizeof(_sh), &_sh);
 	if (sh == NULL) {
 		duprintf("Dropping evil TCP offset=0 tinygram.\n");
 		*hotdrop = 1;
 		return 0;
-       	}
+	}
 	duprintf("spt: %d\tdpt: %d\n", ntohs(sh->source), ntohs(sh->dest));
 
-	return  SCCHECK(((ntohs(sh->source) >= info->spts[0]) 
-			&& (ntohs(sh->source) <= info->spts[1])), 
-		   	XT_SCTP_SRC_PORTS, info->flags, info->invflags)
-		&& SCCHECK(((ntohs(sh->dest) >= info->dpts[0]) 
-			&& (ntohs(sh->dest) <= info->dpts[1])), 
+	return  SCCHECK(((ntohs(sh->source) >= info->spts[0])
+			&& (ntohs(sh->source) <= info->spts[1])),
+			XT_SCTP_SRC_PORTS, info->flags, info->invflags)
+		&& SCCHECK(((ntohs(sh->dest) >= info->dpts[0])
+			&& (ntohs(sh->dest) <= info->dpts[1])),
 			XT_SCTP_DEST_PORTS, info->flags, info->invflags)
 		&& SCCHECK(match_packet(skb, protoff + sizeof (sctp_sctphdr_t),
 					info->chunkmap, info->chunk_match_type,
- 					info->flag_info, info->flag_count, 
+					info->flag_info, info->flag_count,
 					hotdrop),
 			   XT_SCTP_CHUNK_TYPES, info->flags, info->invflags);
 }
@@ -170,9 +170,9 @@ checkentry(const char *tablename,
 	return !(info->flags & ~XT_SCTP_VALID_FLAGS)
 		&& !(info->invflags & ~XT_SCTP_VALID_FLAGS)
 		&& !(info->invflags & ~info->flags)
-		&& ((!(info->flags & XT_SCTP_CHUNK_TYPES)) || 
+		&& ((!(info->flags & XT_SCTP_CHUNK_TYPES)) ||
 			(info->chunk_match_type &
-				(SCTP_CHUNK_MATCH_ALL 
+				(SCTP_CHUNK_MATCH_ALL
 				| SCTP_CHUNK_MATCH_ANY
 				| SCTP_CHUNK_MATCH_ONLY)));
 }

@@ -113,10 +113,12 @@ SECTIONS
      references from .rodata */
   .exit.text : { *(.exit.text) }
   .exit.data : { *(.exit.data) }
+#if defined(CONFIG_BLK_DEV_INITRD)
   . = ALIGN(_PAGE_SIZE);
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
   __initramfs_end = .;
+#endif
   . = ALIGN(32);
   __per_cpu_start = .;
   .data.percpu  : { *(.data.percpu) }

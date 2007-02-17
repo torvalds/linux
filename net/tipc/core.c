@@ -89,7 +89,7 @@ int tipc_mode = TIPC_NOT_RUNNING;
 int tipc_random;
 atomic_t tipc_user_count = ATOMIC_INIT(0);
 
-const char tipc_alphabet[] = 
+const char tipc_alphabet[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.";
 
 /* configurable TIPC parameters */
@@ -171,13 +171,13 @@ int tipc_core_start(void)
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
 	tipc_mode = TIPC_NODE_MODE;
 
-	if ((res = tipc_handler_start()) || 
+	if ((res = tipc_handler_start()) ||
 	    (res = tipc_ref_table_init(tipc_max_ports + tipc_max_subscriptions,
 				       tipc_random)) ||
 	    (res = tipc_reg_start()) ||
 	    (res = tipc_nametbl_init()) ||
-            (res = tipc_k_signal((Handler)tipc_subscr_start, 0)) ||
-	    (res = tipc_k_signal((Handler)tipc_cfg_init, 0)) || 
+	    (res = tipc_k_signal((Handler)tipc_subscr_start, 0)) ||
+	    (res = tipc_k_signal((Handler)tipc_cfg_init, 0)) ||
 	    (res = tipc_netlink_start()) ||
 	    (res = tipc_socket_init())) {
 		tipc_core_stop();
@@ -191,7 +191,7 @@ static int __init tipc_init(void)
 	int res;
 
 	tipc_log_reinit(CONFIG_TIPC_LOG);
-	info("Activated (version " TIPC_MOD_VER 
+	info("Activated (version " TIPC_MOD_VER
 	     " compiled " __DATE__ " " __TIME__ ")\n");
 
 	tipc_own_addr = 0;
@@ -207,9 +207,9 @@ static int __init tipc_init(void)
 
 	if ((res = tipc_core_start()))
 		err("Unable to start in single node mode\n");
-	else	
+	else
 		info("Started in single node mode\n");
-        return res;
+	return res;
 }
 
 static void __exit tipc_exit(void)
@@ -268,11 +268,11 @@ EXPORT_SYMBOL(tipc_available_nodes);
 /* TIPC API for external bearers (see tipc_bearer.h) */
 
 EXPORT_SYMBOL(tipc_block_bearer);
-EXPORT_SYMBOL(tipc_continue); 
+EXPORT_SYMBOL(tipc_continue);
 EXPORT_SYMBOL(tipc_disable_bearer);
 EXPORT_SYMBOL(tipc_enable_bearer);
 EXPORT_SYMBOL(tipc_recv_msg);
-EXPORT_SYMBOL(tipc_register_media); 
+EXPORT_SYMBOL(tipc_register_media);
 
 /* TIPC API for external APIs (see tipc_port.h) */
 

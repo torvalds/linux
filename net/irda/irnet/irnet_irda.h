@@ -146,7 +146,7 @@ static void
 			       void *);
 static void
 	irnet_discovervalue_confirm(int,
-				    __u16, 
+				    __u16,
 				    struct ias_value *,
 				    void *);
 #ifdef DISCOVERY_EVENTS

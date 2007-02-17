@@ -635,6 +635,12 @@ W:	http://people.redhat.com/sgrubb/audit/
 T:	git kernel.org:/pub/scm/linux/kernel/git/dwmw2/audit-2.6.git
 S:	Maintained
 
+AUXILIARY DISPLAY DRIVERS
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 AVR32 ARCHITECTURE
 P:	Haavard Skinnemoen
 M:	hskinnemoen@atmel.com
@@ -836,6 +842,18 @@ L:	linux-kernel@vger.kernel.org
 L:	discuss@x86-64.org
 S:	Maintained
 
+CFAG12864B LCD DRIVER
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+CFAG12864BFB LCD FRAMEBUFFER DRIVER
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 COMMON INTERNET FILE SYSTEM (CIFS)
 P:	Steve French
 M:	sfrench@samba.org
@@ -984,14 +1002,12 @@ L:	cycsyn-devel@bazar.conectiva.com.br
 S:	Maintained
 
 CYCLADES ASYNC MUX DRIVER
-M:	async@cyclades.com
 W:	http://www.cyclades.com/
-S:	Supported
+S:	Orphan
 
 CYCLADES PC300 DRIVER
-M:	pc300@cyclades.com
 W:	http://www.cyclades.com/
-S:	Supported
+S:	Orphan
 
 DAMA SLAVE for AX.25
 P:	Joerg Reuter
@@ -1968,6 +1984,12 @@ P:	Anil S Keshavamurthy
 M:	anil.s.keshavamurthy@intel.com
 P:	David S. Miller
 M:	davem@davemloft.net
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+KS0108 LCD CONTROLLER DRIVER
+P:	Miguel Ojeda Sandonis
+M:	maxextreme@gmail.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 

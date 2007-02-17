@@ -142,18 +142,18 @@ out:
 }
 
 static char *llc_conn_state_names[] = {
-	[LLC_CONN_STATE_ADM] =        "adm", 
-	[LLC_CONN_STATE_SETUP] =      "setup", 
+	[LLC_CONN_STATE_ADM] =        "adm",
+	[LLC_CONN_STATE_SETUP] =      "setup",
 	[LLC_CONN_STATE_NORMAL] =     "normal",
-	[LLC_CONN_STATE_BUSY] =       "busy", 
-	[LLC_CONN_STATE_REJ] =        "rej", 
-	[LLC_CONN_STATE_AWAIT] =      "await", 
+	[LLC_CONN_STATE_BUSY] =       "busy",
+	[LLC_CONN_STATE_REJ] =        "rej",
+	[LLC_CONN_STATE_AWAIT] =      "await",
 	[LLC_CONN_STATE_AWAIT_BUSY] = "await_busy",
 	[LLC_CONN_STATE_AWAIT_REJ] =  "await_rej",
 	[LLC_CONN_STATE_D_CONN]	=     "d_conn",
-	[LLC_CONN_STATE_RESET] =      "reset", 
-	[LLC_CONN_STATE_ERROR] =      "error", 
-	[LLC_CONN_STATE_TEMP] =       "temp", 
+	[LLC_CONN_STATE_RESET] =      "reset",
+	[LLC_CONN_STATE_ERROR] =      "error",
+	[LLC_CONN_STATE_TEMP] =       "temp",
 };
 
 static int llc_seq_core_show(struct seq_file *seq, void *v)
@@ -208,7 +208,7 @@ static int llc_seq_core_open(struct inode *inode, struct file *file)
 	return seq_open(file, &llc_seq_core_ops);
 }
 
-static struct file_operations llc_seq_socket_fops = {
+static const struct file_operations llc_seq_socket_fops = {
 	.owner		= THIS_MODULE,
 	.open		= llc_seq_socket_open,
 	.read		= seq_read,
@@ -216,7 +216,7 @@ static struct file_operations llc_seq_socket_fops = {
 	.release	= seq_release,
 };
 
-static struct file_operations llc_seq_core_fops = {
+static const struct file_operations llc_seq_core_fops = {
 	.owner		= THIS_MODULE,
 	.open		= llc_seq_core_open,
 	.read		= seq_read,

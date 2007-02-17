@@ -80,8 +80,11 @@ int sun_partition(struct parsed_partitions *state, struct block_device *bdev)
 		num_sectors = be32_to_cpu(p->num_sectors);
 		if (num_sectors) {
 			put_partition(state, slot, st_sector, num_sectors);
+			state->parts[slot].flags = 0;
 			if (label->infos[i].id == LINUX_RAID_PARTITION)
-				state->parts[slot].flags = 1;
+				state->parts[slot].flags |= ADDPART_FLAG_RAID;
+			if (label->infos[i].id == SUN_WHOLE_DISK)
+				state->parts[slot].flags |= ADDPART_FLAG_WHOLEDISK;
 		}
 		slot++;
 	}

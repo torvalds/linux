@@ -61,7 +61,7 @@ static struct smb_request *smb_do_alloc_request(struct smb_sb_info *server,
 	struct smb_request *req;
 	unsigned char *buf = NULL;
 
-	req = kmem_cache_alloc(req_cachep, GFP_KERNEL);
+	req = kmem_cache_zalloc(req_cachep, GFP_KERNEL);
 	VERBOSE("allocating request: %p\n", req);
 	if (!req)
 		goto out;
@@ -74,7 +74,6 @@ static struct smb_request *smb_do_alloc_request(struct smb_sb_info *server,
 		}
 	}
 
-	memset(req, 0, sizeof(struct smb_request));
 	req->rq_buffer = buf;
 	req->rq_bufsize = bufsize;
 	req->rq_server = server;

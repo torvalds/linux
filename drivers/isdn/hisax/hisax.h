@@ -795,19 +795,6 @@ struct w6692_hw {
 	struct timer_list timer;
 };
 
-#ifdef  CONFIG_HISAX_TESTEMU
-struct te_hw {
-	unsigned char *sfifo;
-	unsigned char *sfifo_w;
-	unsigned char *sfifo_r;
-	unsigned char *sfifo_e;
-	int sfifo_cnt;
-	unsigned int stat;
-	wait_queue_head_t rwaitq;
-	wait_queue_head_t swaitq;
-};
-#endif
-
 struct arcofi_msg {
 	struct arcofi_msg *next;
 	u_char receive;
@@ -916,9 +903,6 @@ struct IsdnCardState {
 		struct ix1_hw niccy;
 		struct isurf_hw isurf;
 		struct saphir_hw saphir;
-#ifdef CONFIG_HISAX_TESTEMU
-		struct te_hw te;
-#endif
 		struct bkm_hw ax;
 		struct gazel_hw gazel;
 		struct w6692_hw w6692;
@@ -1173,15 +1157,6 @@ struct IsdnCardState {
 #endif
 #else
 #define CARD_HSTSAPHIR 0
-#endif
-
-#ifdef	CONFIG_HISAX_TESTEMU
-#define	CARD_TESTEMU 1
-#define ISDN_CTYPE_TESTEMU 99
-#undef ISDN_CTYPE_COUNT
-#define  ISDN_CTYPE_COUNT ISDN_CTYPE_TESTEMU
-#else
-#define CARD_TESTEMU 0
 #endif
 
 #ifdef	CONFIG_HISAX_BKM_A4T

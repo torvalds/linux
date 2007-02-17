@@ -666,7 +666,7 @@ static void bitmap_file_put(struct bitmap *bitmap)
 
 	if (file) {
 		struct inode *inode = file->f_path.dentry->d_inode;
-		invalidate_inode_pages(inode->i_mapping);
+		invalidate_mapping_pages(inode->i_mapping, 0, -1);
 		fput(file);
 	}
 }

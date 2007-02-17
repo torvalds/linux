@@ -7,7 +7,7 @@
 
 #endif
 
-#if defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2)
+#ifdef __KERNEL__
 
 #define S_IFMT  00170000
 #define S_IFSOCK 0140000

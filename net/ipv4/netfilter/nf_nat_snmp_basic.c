@@ -150,8 +150,8 @@ struct asn1_octstr
 };
 
 static void asn1_open(struct asn1_ctx *ctx,
-                      unsigned char *buf,
-                      unsigned int len)
+		      unsigned char *buf,
+		      unsigned int len)
 {
 	ctx->begin = buf;
 	ctx->end = buf + len;
@@ -186,9 +186,9 @@ static unsigned char asn1_tag_decode(struct asn1_ctx *ctx, unsigned int *tag)
 }
 
 static unsigned char asn1_id_decode(struct asn1_ctx *ctx,
-                                    unsigned int *cls,
-                                    unsigned int *con,
-                                    unsigned int *tag)
+				    unsigned int *cls,
+				    unsigned int *con,
+				    unsigned int *tag)
 {
 	unsigned char ch;
 
@@ -207,8 +207,8 @@ static unsigned char asn1_id_decode(struct asn1_ctx *ctx,
 }
 
 static unsigned char asn1_length_decode(struct asn1_ctx *ctx,
-                                        unsigned int *def,
-                                        unsigned int *len)
+					unsigned int *def,
+					unsigned int *len)
 {
 	unsigned char ch, cnt;
 
@@ -239,10 +239,10 @@ static unsigned char asn1_length_decode(struct asn1_ctx *ctx,
 }
 
 static unsigned char asn1_header_decode(struct asn1_ctx *ctx,
-                                        unsigned char **eoc,
-                                        unsigned int *cls,
-                                        unsigned int *con,
-                                        unsigned int *tag)
+					unsigned char **eoc,
+					unsigned int *cls,
+					unsigned int *con,
+					unsigned int *tag)
 {
 	unsigned int def, len;
 
@@ -297,8 +297,8 @@ static unsigned char asn1_null_decode(struct asn1_ctx *ctx, unsigned char *eoc)
 }
 
 static unsigned char asn1_long_decode(struct asn1_ctx *ctx,
-                                      unsigned char *eoc,
-                                      long *integer)
+				      unsigned char *eoc,
+				      long *integer)
 {
 	unsigned char ch;
 	unsigned int  len;
@@ -325,8 +325,8 @@ static unsigned char asn1_long_decode(struct asn1_ctx *ctx,
 }
 
 static unsigned char asn1_uint_decode(struct asn1_ctx *ctx,
-                                      unsigned char *eoc,
-                                      unsigned int *integer)
+				      unsigned char *eoc,
+				      unsigned int *integer)
 {
 	unsigned char ch;
 	unsigned int  len;
@@ -354,8 +354,8 @@ static unsigned char asn1_uint_decode(struct asn1_ctx *ctx,
 }
 
 static unsigned char asn1_ulong_decode(struct asn1_ctx *ctx,
-                                       unsigned char *eoc,
-                                       unsigned long *integer)
+				       unsigned char *eoc,
+				       unsigned long *integer)
 {
 	unsigned char ch;
 	unsigned int  len;
@@ -383,9 +383,9 @@ static unsigned char asn1_ulong_decode(struct asn1_ctx *ctx,
 }
 
 static unsigned char asn1_octets_decode(struct asn1_ctx *ctx,
-                                        unsigned char *eoc,
-                                        unsigned char **octets,
-                                        unsigned int *len)
+					unsigned char *eoc,
+					unsigned char **octets,
+					unsigned int *len)
 {
 	unsigned char *ptr;
 
@@ -411,7 +411,7 @@ static unsigned char asn1_octets_decode(struct asn1_ctx *ctx,
 }
 
 static unsigned char asn1_subid_decode(struct asn1_ctx *ctx,
-                                       unsigned long *subid)
+				       unsigned long *subid)
 {
 	unsigned char ch;
 
@@ -428,9 +428,9 @@ static unsigned char asn1_subid_decode(struct asn1_ctx *ctx,
 }
 
 static unsigned char asn1_oid_decode(struct asn1_ctx *ctx,
-                                     unsigned char *eoc,
-                                     unsigned long **oid,
-                                     unsigned int *len)
+				     unsigned char *eoc,
+				     unsigned long **oid,
+				     unsigned int *len)
 {
 	unsigned long subid;
 	unsigned int  size;
@@ -611,9 +611,9 @@ struct snmp_v1_trap
 #define SERR_EOM    2
 
 static inline void mangle_address(unsigned char *begin,
-                                  unsigned char *addr,
-                                  const struct oct1_map *map,
-                                  __sum16 *check);
+				  unsigned char *addr,
+				  const struct oct1_map *map,
+				  __sum16 *check);
 struct snmp_cnv
 {
 	unsigned int class;
@@ -644,8 +644,8 @@ static struct snmp_cnv snmp_conv [] =
 };
 
 static unsigned char snmp_tag_cls2syntax(unsigned int tag,
-                                         unsigned int cls,
-                                         unsigned short *syntax)
+					 unsigned int cls,
+					 unsigned short *syntax)
 {
 	struct snmp_cnv *cnv;
 
@@ -662,7 +662,7 @@ static unsigned char snmp_tag_cls2syntax(unsigned int tag,
 }
 
 static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
-                                        struct snmp_object **obj)
+					struct snmp_object **obj)
 {
 	unsigned int cls, con, tag, len, idlen;
 	unsigned short type;
@@ -714,7 +714,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 				return 0;
 			}
 			*obj = kmalloc(sizeof(struct snmp_object) + len,
-			               GFP_ATOMIC);
+				       GFP_ATOMIC);
 			if (*obj == NULL) {
 				kfree(id);
 				if (net_ratelimit())
@@ -730,7 +730,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 				return 0;
 			}
 			*obj = kmalloc(sizeof(struct snmp_object) + len,
-			               GFP_ATOMIC);
+				       GFP_ATOMIC);
 			if (*obj == NULL) {
 				kfree(id);
 				if (net_ratelimit())
@@ -834,7 +834,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 }
 
 static unsigned char snmp_request_decode(struct asn1_ctx *ctx,
-                                         struct snmp_request *request)
+					 struct snmp_request *request)
 {
 	unsigned int cls, con, tag;
 	unsigned char *end;
@@ -874,9 +874,9 @@ static unsigned char snmp_request_decode(struct asn1_ctx *ctx,
  * code example in the draft.
  */
 static void fast_csum(__sum16 *csum,
-                      const unsigned char *optr,
-                      const unsigned char *nptr,
-                      int offset)
+		      const unsigned char *optr,
+		      const unsigned char *nptr,
+		      int offset)
 {
 	unsigned char s[4];
 
@@ -899,9 +899,9 @@ static void fast_csum(__sum16 *csum,
  *      - addr points to the start of the address
  */
 static inline void mangle_address(unsigned char *begin,
-                                  unsigned char *addr,
-                                  const struct oct1_map *map,
-                                  __sum16 *check)
+				  unsigned char *addr,
+				  const struct oct1_map *map,
+				  __sum16 *check)
 {
 	if (map->from == NOCT1(addr)) {
 		u_int32_t old;
@@ -914,7 +914,7 @@ static inline void mangle_address(unsigned char *begin,
 		/* Update UDP checksum if being used */
 		if (*check) {
 			fast_csum(check,
-			          &map->from, &map->to, addr - begin);
+				  &map->from, &map->to, addr - begin);
 
 		}
 
@@ -925,9 +925,9 @@ static inline void mangle_address(unsigned char *begin,
 }
 
 static unsigned char snmp_trap_decode(struct asn1_ctx *ctx,
-                                      struct snmp_v1_trap *trap,
-                                      const struct oct1_map *map,
-                                      __sum16 *check)
+				      struct snmp_v1_trap *trap,
+				      const struct oct1_map *map,
+				      __sum16 *check)
 {
 	unsigned int cls, con, tag, len;
 	unsigned char *end;
@@ -1019,9 +1019,9 @@ static void hex_dump(unsigned char *buf, size_t len)
  * (And this is the fucking 'basic' method).
  */
 static int snmp_parse_mangle(unsigned char *msg,
-                             u_int16_t len,
-                             const struct oct1_map *map,
-                             __sum16 *check)
+			     u_int16_t len,
+			     const struct oct1_map *map,
+			     __sum16 *check)
 {
 	unsigned char *eoc, *end;
 	unsigned int cls, con, tag, vers, pdutype;
@@ -1191,8 +1191,8 @@ static int snmp_parse_mangle(unsigned char *msg,
  * SNMP translation routine.
  */
 static int snmp_translate(struct nf_conn *ct,
-                          enum ip_conntrack_info ctinfo,
-                          struct sk_buff **pskb)
+			  enum ip_conntrack_info ctinfo,
+			  struct sk_buff **pskb)
 {
 	struct iphdr *iph = (*pskb)->nh.iph;
 	struct udphdr *udph = (struct udphdr *)((__be32 *)iph + iph->ihl);
@@ -1219,7 +1219,7 @@ static int snmp_translate(struct nf_conn *ct,
 		return NF_ACCEPT;
 
 	if (!snmp_parse_mangle((unsigned char *)udph + sizeof(struct udphdr),
-	                       paylen, &map, &udph->check)) {
+			       paylen, &map, &udph->check)) {
 		if (net_ratelimit())
 			printk(KERN_WARNING "bsalg: parser failed\n");
 		return NF_DROP;

@@ -158,7 +158,6 @@ void __init paging_init(void)
 	 * Setup some defaults for the zone sizes.. these should be safe
 	 * regardless of distcontiguous memory or MMU settings.
 	 */
-	zones_size[ZONE_DMA] = 0 >> PAGE_SHIFT;
 	zones_size[ZONE_NORMAL] = __MEMORY_SIZE >> PAGE_SHIFT;
 #ifdef CONFIG_HIGHMEM
 	zones_size[ZONE_HIGHMEM] = 0 >> PAGE_SHIFT;
@@ -170,8 +169,6 @@ void __init paging_init(void)
 	 * the zone sizes accordingly, in addition to turning it on.
 	 */
 	{
-		unsigned long max_dma, low, start_pfn;
-
 		/* We don't need to map the kernel through the TLB, as
 		 * it is permanatly mapped using P1. So clear the
 		 * entire pgd. */
@@ -179,19 +176,7 @@ void __init paging_init(void)
 
 		/* Turn on the MMU */
 		enable_mmu();
-
-		/* Fixup the zone sizes */
-		start_pfn = START_PFN;
-		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-		low = MAX_LOW_PFN;
-
-		if (low < max_dma) {
-			zones_size[ZONE_DMA] = low - start_pfn;
-			zones_size[ZONE_NORMAL] = 0;
-		} else {
-			zones_size[ZONE_DMA] = max_dma - start_pfn;
-			zones_size[ZONE_NORMAL] = low - max_dma;
-		}
+		zones_size[ZONE_NORMAL] = MAX_LOW_PFN - START_PFN;
 	}
 
 	/* Set an initial value for the MMU.TTB so we don't have to

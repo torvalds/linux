@@ -91,7 +91,7 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 		else
 			return -1;
 	}
-	
+
 	/*
 	 *   Step 6: Check sequence numbers
 	 *      Let LSWL = S.SWL and LAWL = S.AWL
@@ -136,7 +136,7 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 			  (unsigned long long) DCCP_SKB_CB(skb)->dccpd_seq,
 			  (unsigned long long) dp->dccps_swh,
 			  (DCCP_SKB_CB(skb)->dccpd_ack_seq ==
-			        DCCP_PKT_WITHOUT_ACK_SEQ) ? "doesn't exist" : "exists",
+				DCCP_PKT_WITHOUT_ACK_SEQ) ? "doesn't exist" : "exists",
 			  (unsigned long long) lawl,
 			  (unsigned long long) DCCP_SKB_CB(skb)->dccpd_ack_seq,
 			  (unsigned long long) dp->dccps_awh);
@@ -308,11 +308,11 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		if (dccp_parse_options(sk, skb))
 			goto out_invalid_packet;
 
-                if (dccp_msk(sk)->dccpms_send_ack_vector &&
-                    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
-                                    DCCP_SKB_CB(skb)->dccpd_seq,
-                                    DCCP_ACKVEC_STATE_RECEIVED))
-                        goto out_invalid_packet; /* FIXME: change error code */
+		if (dccp_msk(sk)->dccpms_send_ack_vector &&
+		    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
+				    DCCP_SKB_CB(skb)->dccpd_seq,
+				    DCCP_ACKVEC_STATE_RECEIVED))
+			goto out_invalid_packet; /* FIXME: change error code */
 
 		dp->dccps_isr = DCCP_SKB_CB(skb)->dccpd_seq;
 		dccp_update_gsr(sk, dp->dccps_isr);

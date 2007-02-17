@@ -2,7 +2,7 @@
  * net-sysfs.c - network device class and attributes
  *
  * Copyright (c) 2003 Stephen Hemminger <shemminger@osdl.org>
- * 
+ *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
@@ -23,7 +23,7 @@ static const char fmt_long_hex[] = "%#lx\n";
 static const char fmt_dec[] = "%d\n";
 static const char fmt_ulong[] = "%lu\n";
 
-static inline int dev_isalive(const struct net_device *dev) 
+static inline int dev_isalive(const struct net_device *dev)
 {
 	return dev->reg_state <= NETREG_REGISTERED;
 }
@@ -265,7 +265,7 @@ static ssize_t netstat_show(const struct device *d,
 
 	read_lock(&dev_base_lock);
 	if (dev_isalive(dev) && dev->get_stats &&
-	    (stats = (*dev->get_stats)(dev))) 
+	    (stats = (*dev->get_stats)(dev)))
 		ret = sprintf(buf, fmt_ulong,
 			      *(unsigned long *)(((u8 *) stats) + offset));
 
@@ -349,7 +349,7 @@ static ssize_t wireless_show(struct device *d, char *buf,
 	struct net_device *dev = to_net_dev(d);
 	const struct iw_statistics *iw = NULL;
 	ssize_t ret = -EINVAL;
-	
+
 	read_lock(&dev_base_lock);
 	if (dev_isalive(dev)) {
 		if(dev->wireless_handlers &&
@@ -430,7 +430,7 @@ static int netdev_uevent(struct device *d, char **envp,
 #endif
 
 /*
- *	netdev_release -- destroy and free a dead device. 
+ *	netdev_release -- destroy and free a dead device.
  *	Called when last reference to device kobject is gone.
  */
 static void netdev_release(struct device *d)

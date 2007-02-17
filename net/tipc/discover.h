@@ -41,7 +41,7 @@
 
 struct link_req;
 
-struct link_req *tipc_disc_init_link_req(struct bearer *b_ptr, 
+struct link_req *tipc_disc_init_link_req(struct bearer *b_ptr,
 					 const struct tipc_media_addr *dest,
 					 u32 dest_domain,
 					 u32 req_links);

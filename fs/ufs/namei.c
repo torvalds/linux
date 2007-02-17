@@ -355,7 +355,7 @@ out:
 	return err;
 }
 
-struct inode_operations ufs_dir_inode_operations = {
+const struct inode_operations ufs_dir_inode_operations = {
 	.create		= ufs_create,
 	.lookup		= ufs_lookup,
 	.link		= ufs_link,

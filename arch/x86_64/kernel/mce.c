@@ -516,7 +516,7 @@ static int mce_ioctl(struct inode *i, struct file *f,unsigned int cmd, unsigned 
 	} 
 }
 
-static struct file_operations mce_chrdev_ops = {
+static const struct file_operations mce_chrdev_ops = {
 	.read = mce_read,
 	.ioctl = mce_ioctl,
 };

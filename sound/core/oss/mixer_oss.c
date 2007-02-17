@@ -390,7 +390,7 @@ int snd_mixer_oss_ioctl_card(struct snd_card *card, unsigned int cmd, unsigned l
  *  REGISTRATION PART
  */
 
-static struct file_operations snd_mixer_oss_f_ops =
+static const struct file_operations snd_mixer_oss_f_ops =
 {
 	.owner =	THIS_MODULE,
 	.open =		snd_mixer_oss_open,

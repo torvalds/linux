@@ -29,12 +29,12 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	int oif;
 	int err;
 
-	
-	if (addr_len < sizeof(*usin)) 
-	  	return -EINVAL;
 
-	if (usin->sin_family != AF_INET) 
-	  	return -EAFNOSUPPORT;
+	if (addr_len < sizeof(*usin))
+		return -EINVAL;
+
+	if (usin->sin_family != AF_INET)
+		return -EAFNOSUPPORT;
 
 	sk_dst_reset(sk);
 
@@ -56,8 +56,8 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		ip_rt_put(rt);
 		return -EACCES;
 	}
-  	if (!inet->saddr)
-	  	inet->saddr = rt->rt_src;	/* Update source address */
+	if (!inet->saddr)
+		inet->saddr = rt->rt_src;	/* Update source address */
 	if (!inet->rcv_saddr)
 		inet->rcv_saddr = rt->rt_src;
 	inet->daddr = rt->rt_dst;

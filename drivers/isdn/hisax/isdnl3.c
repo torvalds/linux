@@ -231,18 +231,6 @@ no_l3_proto_spec(struct PStack *st, isdn_ctrl *ic)
 	return(-1);
 }
 
-#ifdef	CONFIG_HISAX_EURO
-extern void setstack_dss1(struct PStack *st);
-#endif
-
-#ifdef  CONFIG_HISAX_NI1
-extern void setstack_ni1(struct PStack *st);
-#endif
-
-#ifdef	CONFIG_HISAX_1TR6
-extern void setstack_1tr6(struct PStack *st);
-#endif
-
 struct l3_process
 *getl3proc(struct PStack *st, int cr)
 {

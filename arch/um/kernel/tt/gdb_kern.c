@@ -8,10 +8,11 @@
 
 #ifdef CONFIG_MCONSOLE
 
-extern int gdb_config(char *str);
-extern int gdb_remove(int n);
+extern int gdb_config(char *str, char **error_out);
+extern int gdb_remove(int n, char **error_out);
 
 static struct mc_device gdb_mc = {
+	.list		= INIT_LIST_HEAD(gdb_mc.list),
 	.name		= "gdb",
 	.config		= gdb_config,
 	.remove		= gdb_remove,

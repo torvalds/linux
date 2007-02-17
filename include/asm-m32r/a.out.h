@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_A_OUT_H
 #define _ASM_M32R_A_OUT_H
 
-/* orig : i386 2.4.18 */
-
 struct exec
 {
   unsigned long a_info;		/* Use macros N_MAGIC, etc for access */

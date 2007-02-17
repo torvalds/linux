@@ -3,7 +3,7 @@
  *
  *	This is ALPHA test software. This code may break your machine,
  *	randomly fail to work with new releases, misbehave and/or generally
- *	screw up. It might even work. 
+ *	screw up. It might even work.
  *
  *	This code REQUIRES 2.1.15 or higher
  *

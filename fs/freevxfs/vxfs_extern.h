@@ -62,7 +62,7 @@ extern void			vxfs_read_inode(struct inode *);
 extern void			vxfs_clear_inode(struct inode *);
 
 /* vxfs_lookup.c */
-extern struct inode_operations	vxfs_dir_inode_ops;
+extern const struct inode_operations	vxfs_dir_inode_ops;
 extern const struct file_operations	vxfs_dir_operations;
 
 /* vxfs_olt.c */

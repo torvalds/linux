@@ -53,8 +53,10 @@ struct rtable
 	union
 	{
 		struct dst_entry	dst;
-		struct rtable		*rt_next;
 	} u;
+
+	/* Cache lookup keys */
+	struct flowi		fl;
 
 	struct in_device	*idev;
 	
@@ -68,9 +70,6 @@ struct rtable
 
 	/* Info on neighbour */
 	__be32			rt_gateway;
-
-	/* Cache lookup keys */
-	struct flowi		fl;
 
 	/* Miscellaneous cached information */
 	__be32			rt_spec_dst; /* RFC1122 specific destination */

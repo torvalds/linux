@@ -36,7 +36,7 @@ static struct class *tape_class;
 struct tape_class_device *register_tape_dev(
 	struct device *		device,
 	dev_t			dev,
-	struct file_operations *fops,
+	const struct file_operations *fops,
 	char *			device_name,
 	char *			mode_name)
 {

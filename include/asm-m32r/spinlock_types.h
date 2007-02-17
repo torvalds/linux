@@ -20,4 +20,4 @@ typedef struct {
 
 #define __RAW_RW_LOCK_UNLOCKED		{ RW_LOCK_BIAS }
 
-#endif
+#endif /* _ASM_M32R_SPINLOCK_TYPES_H */

@@ -2538,7 +2538,7 @@ void snd_seq_info_clients_read(struct snd_info_entry *entry,
  *  REGISTRATION PART
  */
 
-static struct file_operations snd_seq_f_ops =
+static const struct file_operations snd_seq_f_ops =
 {
 	.owner =	THIS_MODULE,
 	.read =		snd_seq_read,

@@ -34,12 +34,17 @@
 #include <linux/highmem.h>
 #include <linux/file.h>
 #include <asm/desc.h>
+#include <linux/sysdev.h>
+#include <linux/cpu.h>
 
 #include "x86_emulate.h"
 #include "segment_descriptor.h"
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
+
+static DEFINE_SPINLOCK(kvm_lock);
+static LIST_HEAD(vm_list);
 
 struct kvm_arch_ops *kvm_arch_ops;
 struct kvm_stat kvm_stat;
@@ -230,9 +235,13 @@ static int kvm_dev_open(struct inode *inode, struct file *filp)
 		struct kvm_vcpu *vcpu = &kvm->vcpus[i];
 
 		mutex_init(&vcpu->mutex);
+		vcpu->cpu = -1;
 		vcpu->kvm = kvm;
 		vcpu->mmu.root_hpa = INVALID_PAGE;
 		INIT_LIST_HEAD(&vcpu->free_pages);
+		spin_lock(&kvm_lock);
+		list_add(&kvm->vm_list, &vm_list);
+		spin_unlock(&kvm_lock);
 	}
 	filp->private_data = kvm;
 	return 0;
@@ -272,7 +281,9 @@ static void kvm_free_physmem(struct kvm *kvm)
 
 static void kvm_free_vcpu(struct kvm_vcpu *vcpu)
 {
-	vcpu_load(vcpu->kvm, vcpu_slot(vcpu));
+	if (!vcpu_load(vcpu->kvm, vcpu_slot(vcpu)))
+		return;
+
 	kvm_mmu_destroy(vcpu);
 	vcpu_put(vcpu);
 	kvm_arch_ops->vcpu_free(vcpu);
@@ -290,6 +301,9 @@ static int kvm_dev_release(struct inode *inode, struct file *filp)
 {
 	struct kvm *kvm = filp->private_data;
 
+	spin_lock(&kvm_lock);
+	list_del(&kvm->vm_list);
+	spin_unlock(&kvm_lock);
 	kvm_free_vcpus(kvm);
 	kvm_free_physmem(kvm);
 	kfree(kvm);
@@ -544,7 +558,6 @@ static int kvm_dev_ioctl_create_vcpu(struct kvm *kvm, int n)
 					   FX_IMAGE_ALIGN);
 	vcpu->guest_fx_image = vcpu->host_fx_image + FX_IMAGE_SIZE;
 
-	vcpu->cpu = -1;  /* First load will set up TR */
 	r = kvm_arch_ops->vcpu_create(vcpu);
 	if (r < 0)
 		goto out_free_vcpus;
@@ -1360,6 +1373,9 @@ static int kvm_dev_ioctl_run(struct kvm *kvm, struct kvm_run *kvm_run)
 	if (!vcpu)
 		return -ENOENT;
 
+	/* re-sync apic's tpr */
+	vcpu->cr8 = kvm_run->cr8;
+
 	if (kvm_run->emulated) {
 		kvm_arch_ops->skip_emulated_instruction(vcpu);
 		kvm_run->emulated = 0;
@@ -2025,6 +2041,64 @@ static struct notifier_block kvm_reboot_notifier = {
 	.priority = 0,
 };
 
+/*
+ * Make sure that a cpu that is being hot-unplugged does not have any vcpus
+ * cached on it.
+ */
+static void decache_vcpus_on_cpu(int cpu)
+{
+	struct kvm *vm;
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	spin_lock(&kvm_lock);
+	list_for_each_entry(vm, &vm_list, vm_list)
+		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+			vcpu = &vm->vcpus[i];
+			/*
+			 * If the vcpu is locked, then it is running on some
+			 * other cpu and therefore it is not cached on the
+			 * cpu in question.
+			 *
+			 * If it's not locked, check the last cpu it executed
+			 * on.
+			 */
+			if (mutex_trylock(&vcpu->mutex)) {
+				if (vcpu->cpu == cpu) {
+					kvm_arch_ops->vcpu_decache(vcpu);
+					vcpu->cpu = -1;
+				}
+				mutex_unlock(&vcpu->mutex);
+			}
+		}
+	spin_unlock(&kvm_lock);
+}
+
+static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
+			   void *v)
+{
+	int cpu = (long)v;
+
+	switch (val) {
+	case CPU_DEAD:
+	case CPU_UP_CANCELED:
+		decache_vcpus_on_cpu(cpu);
+		smp_call_function_single(cpu, kvm_arch_ops->hardware_disable,
+					 NULL, 0, 1);
+		break;
+	case CPU_UP_PREPARE:
+		smp_call_function_single(cpu, kvm_arch_ops->hardware_enable,
+					 NULL, 0, 1);
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block kvm_cpu_notifier = {
+	.notifier_call = kvm_cpu_hotplug,
+	.priority = 20, /* must be > scheduler priority */
+};
+
 static __init void kvm_init_debug(void)
 {
 	struct kvm_stats_debugfs_item *p;
@@ -2043,6 +2117,30 @@ static void kvm_exit_debug(void)
 		debugfs_remove(p->dentry);
 	debugfs_remove(debugfs_dir);
 }
+
+static int kvm_suspend(struct sys_device *dev, pm_message_t state)
+{
+	decache_vcpus_on_cpu(raw_smp_processor_id());
+	on_each_cpu(kvm_arch_ops->hardware_disable, 0, 0, 1);
+	return 0;
+}
+
+static int kvm_resume(struct sys_device *dev)
+{
+	on_each_cpu(kvm_arch_ops->hardware_enable, 0, 0, 1);
+	return 0;
+}
+
+static struct sysdev_class kvm_sysdev_class = {
+	set_kset_name("kvm"),
+	.suspend = kvm_suspend,
+	.resume = kvm_resume,
+};
+
+static struct sys_device kvm_sysdev = {
+	.id = 0,
+	.cls = &kvm_sysdev_class,
+};
 
 hpa_t bad_page_address;
 
@@ -2071,7 +2169,18 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 	    return r;
 
 	on_each_cpu(kvm_arch_ops->hardware_enable, NULL, 0, 1);
+	r = register_cpu_notifier(&kvm_cpu_notifier);
+	if (r)
+		goto out_free_1;
 	register_reboot_notifier(&kvm_reboot_notifier);
+
+	r = sysdev_class_register(&kvm_sysdev_class);
+	if (r)
+		goto out_free_2;
+
+	r = sysdev_register(&kvm_sysdev);
+	if (r)
+		goto out_free_3;
 
 	kvm_chardev_ops.owner = module;
 
@@ -2084,7 +2193,13 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 	return r;
 
 out_free:
+	sysdev_unregister(&kvm_sysdev);
+out_free_3:
+	sysdev_class_unregister(&kvm_sysdev_class);
+out_free_2:
 	unregister_reboot_notifier(&kvm_reboot_notifier);
+	unregister_cpu_notifier(&kvm_cpu_notifier);
+out_free_1:
 	on_each_cpu(kvm_arch_ops->hardware_disable, NULL, 0, 1);
 	kvm_arch_ops->hardware_unsetup();
 	return r;
@@ -2093,8 +2208,10 @@ out_free:
 void kvm_exit_arch(void)
 {
 	misc_deregister(&kvm_dev);
-
+	sysdev_unregister(&kvm_sysdev);
+	sysdev_class_unregister(&kvm_sysdev_class);
 	unregister_reboot_notifier(&kvm_reboot_notifier);
+	unregister_cpu_notifier(&kvm_cpu_notifier);
 	on_each_cpu(kvm_arch_ops->hardware_disable, NULL, 0, 1);
 	kvm_arch_ops->hardware_unsetup();
 	kvm_arch_ops = NULL;

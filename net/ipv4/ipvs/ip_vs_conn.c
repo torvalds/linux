@@ -494,8 +494,8 @@ int ip_vs_check_template(struct ip_vs_conn *ct)
 	 * Checking the dest server status.
 	 */
 	if ((dest == NULL) ||
-	    !(dest->flags & IP_VS_DEST_F_AVAILABLE) || 
-	    (sysctl_ip_vs_expire_quiescent_template && 
+	    !(dest->flags & IP_VS_DEST_F_AVAILABLE) ||
+	    (sysctl_ip_vs_expire_quiescent_template &&
 	     (atomic_read(&dest->weight) == 0))) {
 		IP_VS_DBG(9, "check_template: dest not available for "
 			  "protocol %s s:%u.%u.%u.%u:%d v:%u.%u.%u.%u:%d "
@@ -603,13 +603,12 @@ ip_vs_conn_new(int proto, __be32 caddr, __be16 cport, __be32 vaddr, __be16 vport
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp = ip_vs_proto_get(proto);
 
-	cp = kmem_cache_alloc(ip_vs_conn_cachep, GFP_ATOMIC);
+	cp = kmem_cache_zalloc(ip_vs_conn_cachep, GFP_ATOMIC);
 	if (cp == NULL) {
 		IP_VS_ERR_RL("ip_vs_conn_new: no memory available.\n");
 		return NULL;
 	}
 
-	memset(cp, 0, sizeof(*cp));
 	INIT_LIST_HEAD(&cp->c_list);
 	init_timer(&cp->timer);
 	cp->timer.data     = (unsigned long)cp;
@@ -667,7 +666,7 @@ static void *ip_vs_conn_array(struct seq_file *seq, loff_t pos)
 {
 	int idx;
 	struct ip_vs_conn *cp;
-	
+
 	for(idx = 0; idx < IP_VS_CONN_TAB_SIZE; idx++) {
 		ct_read_lock_bh(idx);
 		list_for_each_entry(cp, &ip_vs_conn_tab[idx], c_list) {
@@ -695,7 +694,7 @@ static void *ip_vs_conn_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	int idx;
 
 	++*pos;
-	if (v == SEQ_START_TOKEN) 
+	if (v == SEQ_START_TOKEN)
 		return ip_vs_conn_array(seq, 0);
 
 	/* more on same hash chain? */
@@ -710,7 +709,7 @@ static void *ip_vs_conn_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		list_for_each_entry(cp, &ip_vs_conn_tab[idx], c_list) {
 			seq->private = &ip_vs_conn_tab[idx];
 			return cp;
-		}	
+		}
 		ct_read_unlock_bh(idx);
 	}
 	seq->private = NULL;
@@ -758,7 +757,7 @@ static int ip_vs_conn_open(struct inode *inode, struct file *file)
 	return seq_open(file, &ip_vs_conn_seq_ops);
 }
 
-static struct file_operations ip_vs_conn_fops = {
+static const struct file_operations ip_vs_conn_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = ip_vs_conn_open,
 	.read    = seq_read,

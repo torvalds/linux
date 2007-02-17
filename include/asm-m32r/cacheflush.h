@@ -67,4 +67,3 @@ do {								\
 	memcpy(dst, src, len)
 
 #endif /* _ASM_M32R_CACHEFLUSH_H */
-

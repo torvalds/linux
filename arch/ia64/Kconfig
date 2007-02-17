@@ -24,6 +24,10 @@ config 64BIT
 	bool
 	default y
 
+config ZONE_DMA
+	def_bool y
+	depends on !IA64_SGI_SN2
+
 config MMU
 	bool
 	default y

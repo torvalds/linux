@@ -91,7 +91,7 @@ static int devpts_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations devpts_sops = {
+static const struct super_operations devpts_sops = {
 	.statfs		= simple_statfs,
 	.remount_fs	= devpts_remount,
 };

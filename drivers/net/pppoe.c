@@ -1043,7 +1043,7 @@ static int pppoe_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &pppoe_seq_ops);
 }
 
-static struct file_operations pppoe_seq_fops = {
+static const struct file_operations pppoe_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pppoe_seq_open,
 	.read		= seq_read,

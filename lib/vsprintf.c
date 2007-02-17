@@ -247,12 +247,12 @@ static char * number(char * buf, char * end, unsigned long long num, int base, i
  * be generated for the given input, excluding the trailing
  * '\0', as per ISO C99. If you want to have the exact
  * number of characters written into @buf as return value
- * (not including the trailing '\0'), use vscnprintf. If the
+ * (not including the trailing '\0'), use vscnprintf(). If the
  * return is greater than or equal to @size, the resulting
  * string is truncated.
  *
  * Call this function if you are already dealing with a va_list.
- * You probably want snprintf instead.
+ * You probably want snprintf() instead.
  */
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
@@ -509,7 +509,7 @@ EXPORT_SYMBOL(vsnprintf);
  * returns 0.
  *
  * Call this function if you are already dealing with a va_list.
- * You probably want scnprintf instead.
+ * You probably want scnprintf() instead.
  */
 int vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
@@ -554,8 +554,7 @@ EXPORT_SYMBOL(snprintf);
  * @...: Arguments for the format string
  *
  * The return value is the number of characters written into @buf not including
- * the trailing '\0'. If @size is <= 0 the function returns 0. If the return is
- * greater than or equal to @size, the resulting string is truncated.
+ * the trailing '\0'. If @size is <= 0 the function returns 0.
  */
 
 int scnprintf(char * buf, size_t size, const char *fmt, ...)
@@ -577,11 +576,11 @@ EXPORT_SYMBOL(scnprintf);
  * @args: Arguments for the format string
  *
  * The function returns the number of characters written
- * into @buf. Use vsnprintf or vscnprintf in order to avoid
+ * into @buf. Use vsnprintf() or vscnprintf() in order to avoid
  * buffer overflows.
  *
  * Call this function if you are already dealing with a va_list.
- * You probably want sprintf instead.
+ * You probably want sprintf() instead.
  */
 int vsprintf(char *buf, const char *fmt, va_list args)
 {
@@ -597,7 +596,7 @@ EXPORT_SYMBOL(vsprintf);
  * @...: Arguments for the format string
  *
  * The function returns the number of characters written
- * into @buf. Use snprintf or scnprintf in order to avoid
+ * into @buf. Use snprintf() or scnprintf() in order to avoid
  * buffer overflows.
  */
 int sprintf(char * buf, const char *fmt, ...)

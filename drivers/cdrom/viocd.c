@@ -176,7 +176,7 @@ static int proc_viocd_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_viocd_show, NULL);
 }
 
-static struct file_operations proc_viocd_operations = {
+static const struct file_operations proc_viocd_operations = {
 	.open		= proc_viocd_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

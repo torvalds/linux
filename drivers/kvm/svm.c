@@ -528,7 +528,13 @@ static void init_vmcb(struct vmcb *vmcb)
 	save->cs.attrib = SVM_SELECTOR_READ_MASK | SVM_SELECTOR_P_MASK |
 		SVM_SELECTOR_S_MASK | SVM_SELECTOR_CODE_MASK;
 	save->cs.limit = 0xffff;
-	save->cs.base = 0xffff0000;
+	/*
+	 * cs.base should really be 0xffff0000, but vmx can't handle that, so
+	 * be consistent with it.
+	 *
+	 * Replace when we have real mode working for vmx.
+	 */
+	save->cs.base = 0xf0000;
 
 	save->gdtr.limit = 0xffff;
 	save->idtr.limit = 0xffff;
@@ -601,6 +607,10 @@ static struct kvm_vcpu *svm_vcpu_load(struct kvm_vcpu *vcpu)
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	put_cpu();
+}
+
+static void svm_vcpu_decache(struct kvm_vcpu *vcpu)
+{
 }
 
 static void svm_cache_regs(struct kvm_vcpu *vcpu)
@@ -723,7 +733,7 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	}
 #endif
 	vcpu->svm->cr0 = cr0;
-	vcpu->svm->vmcb->save.cr0 = cr0 | CR0_PG_MASK;
+	vcpu->svm->vmcb->save.cr0 = cr0 | CR0_PG_MASK | CR0_WP_MASK;
 	vcpu->cr0 = cr0;
 }
 
@@ -1671,6 +1681,7 @@ static struct kvm_arch_ops svm_arch_ops = {
 
 	.vcpu_load = svm_vcpu_load,
 	.vcpu_put = svm_vcpu_put,
+	.vcpu_decache = svm_vcpu_decache,
 
 	.set_guest_debug = svm_guest_debug,
 	.get_msr = svm_get_msr,

@@ -575,10 +575,6 @@ void handle_ra_miss(struct address_space *mapping,
  */
 unsigned long max_sane_readahead(unsigned long nr)
 {
-	unsigned long active;
-	unsigned long inactive;
-	unsigned long free;
-
-	__get_zone_counts(&active, &inactive, &free, NODE_DATA(numa_node_id()));
-	return min(nr, (inactive + free) / 2);
+	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE)
+		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
 }

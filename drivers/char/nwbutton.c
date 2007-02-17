@@ -23,8 +23,11 @@
 #define __NWBUTTON_C		/* Tell the header file who we are */
 #include "nwbutton.h"
 
+static void button_sequence_finished (unsigned long parameters);
+
 static int button_press_count;		/* The count of button presses */
-static struct timer_list button_timer;	/* Times for the end of a sequence */ 
+/* Times for the end of a sequence */
+static DEFINE_TIMER(button_timer, button_sequence_finished, 0, 0);
 static DECLARE_WAIT_QUEUE_HEAD(button_wait_queue); /* Used for blocking read */
 static char button_output_buffer[32];	/* Stores data to write out of device */
 static int bcount;			/* The number of bytes in the buffer */
@@ -146,14 +149,8 @@ static void button_sequence_finished (unsigned long parameters)
 
 static irqreturn_t button_handler (int irq, void *dev_id)
 {
-	if (button_press_count) {
-		del_timer (&button_timer);
-	}
 	button_press_count++;
-	init_timer (&button_timer);
-	button_timer.function = button_sequence_finished;
-	button_timer.expires = (jiffies + bdelay);
-	add_timer (&button_timer);
+	mod_timer(&button_timer, jiffies + bdelay);
 
 	return IRQ_HANDLED;
 }

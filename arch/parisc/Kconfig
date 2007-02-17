@@ -50,9 +50,6 @@ config TIME_LOW_RES
 	depends on SMP
 	default y
 
-config GENERIC_ISA_DMA
-	bool
-
 config GENERIC_HARDIRQS
 	def_bool y
 

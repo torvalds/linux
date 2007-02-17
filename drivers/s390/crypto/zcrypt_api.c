@@ -807,7 +807,7 @@ static long zcrypt_compat_ioctl(struct file *filp, unsigned int cmd,
 /**
  * Misc device file operations.
  */
-static struct file_operations zcrypt_fops = {
+static const struct file_operations zcrypt_fops = {
 	.owner		= THIS_MODULE,
 	.read		= zcrypt_read,
 	.write		= zcrypt_write,
@@ -1063,7 +1063,6 @@ int __init zcrypt_api_init(void)
 		rc = -ENOMEM;
 		goto out_misc;
 	}
-	zcrypt_entry->nlink = 1;
 	zcrypt_entry->data = NULL;
 	zcrypt_entry->read_proc = zcrypt_status_read;
 	zcrypt_entry->write_proc = zcrypt_status_write;

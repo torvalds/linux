@@ -1,9 +1,9 @@
 /*
  * Connection tracking protocol helper module for SCTP.
- * 
- * SCTP is defined in RFC 2960. References to various sections in this code 
+ *
+ * SCTP is defined in RFC 2960. References to various sections in this code
  * are to this RFC.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -45,7 +45,7 @@
 static DEFINE_RWLOCK(sctp_lock);
 
 /* FIXME: Examine ipfilter's timeouts and conntrack transitions more
-   closely.  They're more complex. --RR 
+   closely.  They're more complex. --RR
 
    And so for me for SCTP :D -Kiran */
 
@@ -94,32 +94,32 @@ static unsigned int * sctp_timeouts[]
 #define	sSA SCTP_CONNTRACK_SHUTDOWN_ACK_SENT
 #define	sIV SCTP_CONNTRACK_MAX
 
-/* 
+/*
 	These are the descriptions of the states:
 
-NOTE: These state names are tantalizingly similar to the states of an 
+NOTE: These state names are tantalizingly similar to the states of an
 SCTP endpoint. But the interpretation of the states is a little different,
-considering that these are the states of the connection and not of an end 
+considering that these are the states of the connection and not of an end
 point. Please note the subtleties. -Kiran
 
 NONE              - Nothing so far.
-COOKIE WAIT       - We have seen an INIT chunk in the original direction, or also 
-                    an INIT_ACK chunk in the reply direction.
+COOKIE WAIT       - We have seen an INIT chunk in the original direction, or also
+		    an INIT_ACK chunk in the reply direction.
 COOKIE ECHOED     - We have seen a COOKIE_ECHO chunk in the original direction.
 ESTABLISHED       - We have seen a COOKIE_ACK in the reply direction.
 SHUTDOWN_SENT     - We have seen a SHUTDOWN chunk in the original direction.
 SHUTDOWN_RECD     - We have seen a SHUTDOWN chunk in the reply directoin.
 SHUTDOWN_ACK_SENT - We have seen a SHUTDOWN_ACK chunk in the direction opposite
-                    to that of the SHUTDOWN chunk.
-CLOSED            - We have seen a SHUTDOWN_COMPLETE chunk in the direction of 
-                    the SHUTDOWN chunk. Connection is closed.
+		    to that of the SHUTDOWN chunk.
+CLOSED            - We have seen a SHUTDOWN_COMPLETE chunk in the direction of
+		    the SHUTDOWN chunk. Connection is closed.
 */
 
 /* TODO
- - I have assumed that the first INIT is in the original direction. 
+ - I have assumed that the first INIT is in the original direction.
  This messes things when an INIT comes in the reply direction in CLOSED
  state.
- - Check the error type in the reply dir before transitioning from 
+ - Check the error type in the reply dir before transitioning from
 cookie echoed to closed.
  - Sec 5.2.4 of RFC 2960
  - Multi Homing support.
@@ -237,7 +237,7 @@ static int do_basic_checks(struct nf_conn *conntrack,
 	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
 		DEBUGP("Chunk Num: %d  Type: %d\n", count, sch->type);
 
-		if (sch->type == SCTP_CID_INIT 
+		if (sch->type == SCTP_CID_INIT
 			|| sch->type == SCTP_CID_INIT_ACK
 			|| sch->type == SCTP_CID_SHUTDOWN_COMPLETE) {
 			flag = 1;
@@ -277,42 +277,42 @@ static int new_state(enum ip_conntrack_dir dir,
 	DEBUGP("Chunk type: %d\n", chunk_type);
 
 	switch (chunk_type) {
-		case SCTP_CID_INIT: 
+		case SCTP_CID_INIT:
 			DEBUGP("SCTP_CID_INIT\n");
 			i = 0; break;
-		case SCTP_CID_INIT_ACK: 
+		case SCTP_CID_INIT_ACK:
 			DEBUGP("SCTP_CID_INIT_ACK\n");
 			i = 1; break;
-		case SCTP_CID_ABORT: 
+		case SCTP_CID_ABORT:
 			DEBUGP("SCTP_CID_ABORT\n");
 			i = 2; break;
-		case SCTP_CID_SHUTDOWN: 
+		case SCTP_CID_SHUTDOWN:
 			DEBUGP("SCTP_CID_SHUTDOWN\n");
 			i = 3; break;
-		case SCTP_CID_SHUTDOWN_ACK: 
+		case SCTP_CID_SHUTDOWN_ACK:
 			DEBUGP("SCTP_CID_SHUTDOWN_ACK\n");
 			i = 4; break;
-		case SCTP_CID_ERROR: 
+		case SCTP_CID_ERROR:
 			DEBUGP("SCTP_CID_ERROR\n");
 			i = 5; break;
-		case SCTP_CID_COOKIE_ECHO: 
+		case SCTP_CID_COOKIE_ECHO:
 			DEBUGP("SCTP_CID_COOKIE_ECHO\n");
 			i = 6; break;
-		case SCTP_CID_COOKIE_ACK: 
+		case SCTP_CID_COOKIE_ACK:
 			DEBUGP("SCTP_CID_COOKIE_ACK\n");
 			i = 7; break;
-		case SCTP_CID_SHUTDOWN_COMPLETE: 
+		case SCTP_CID_SHUTDOWN_COMPLETE:
 			DEBUGP("SCTP_CID_SHUTDOWN_COMPLETE\n");
 			i = 8; break;
 		default:
 			/* Other chunks like DATA, SACK, HEARTBEAT and
 			its ACK do not cause a change in state */
-			DEBUGP("Unknown chunk type, Will stay in %s\n", 
+			DEBUGP("Unknown chunk type, Will stay in %s\n",
 						sctp_conntrack_names[cur_state]);
 			return cur_state;
 	}
 
-	DEBUGP("dir: %d   cur_state: %s  chunk_type: %d  new_state: %s\n", 
+	DEBUGP("dir: %d   cur_state: %s  chunk_type: %d  new_state: %s\n",
 			dir, sctp_conntrack_names[cur_state], chunk_type,
 			sctp_conntrack_names[sctp_conntracks[dir][i][cur_state]]);
 
@@ -377,7 +377,7 @@ static int sctp_packet(struct nf_conn *conntrack,
 			/* Sec 8.5.1 (C) */
 			if (!(sh->vtag == conntrack->proto.sctp.vtag[CTINFO2DIR(ctinfo)])
 				&& !(sh->vtag == conntrack->proto.sctp.vtag
-							[1 - CTINFO2DIR(ctinfo)] 
+							[1 - CTINFO2DIR(ctinfo)]
 					&& (sch->flags & 1))) {
 				write_unlock_bh(&sctp_lock);
 				return -1;
@@ -402,17 +402,17 @@ static int sctp_packet(struct nf_conn *conntrack,
 		}
 
 		/* If it is an INIT or an INIT ACK note down the vtag */
-		if (sch->type == SCTP_CID_INIT 
+		if (sch->type == SCTP_CID_INIT
 			|| sch->type == SCTP_CID_INIT_ACK) {
 			sctp_inithdr_t _inithdr, *ih;
 
 			ih = skb_header_pointer(skb, offset + sizeof(sctp_chunkhdr_t),
-			                        sizeof(_inithdr), &_inithdr);
+						sizeof(_inithdr), &_inithdr);
 			if (ih == NULL) {
 					write_unlock_bh(&sctp_lock);
 					return -1;
 			}
-			DEBUGP("Setting vtag %x for dir %d\n", 
+			DEBUGP("Setting vtag %x for dir %d\n",
 					ih->init_tag, !CTINFO2DIR(ctinfo));
 			conntrack->proto.sctp.vtag[!CTINFO2DIR(ctinfo)] = ih->init_tag;
 		}
@@ -466,7 +466,7 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 	newconntrack = SCTP_CONNTRACK_MAX;
 	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
 		/* Don't need lock here: this conntrack not in circulation yet */
-		newconntrack = new_state(IP_CT_DIR_ORIGINAL, 
+		newconntrack = new_state(IP_CT_DIR_ORIGINAL,
 					 SCTP_CONNTRACK_NONE, sch->type);
 
 		/* Invalid: delete conntrack */
@@ -481,14 +481,14 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 				sctp_inithdr_t _inithdr, *ih;
 
 				ih = skb_header_pointer(skb, offset + sizeof(sctp_chunkhdr_t),
-				                        sizeof(_inithdr), &_inithdr);
+							sizeof(_inithdr), &_inithdr);
 				if (ih == NULL)
 					return 0;
 
-				DEBUGP("Setting vtag %x for new conn\n", 
+				DEBUGP("Setting vtag %x for new conn\n",
 					ih->init_tag);
 
-				conntrack->proto.sctp.vtag[IP_CT_DIR_REPLY] = 
+				conntrack->proto.sctp.vtag[IP_CT_DIR_REPLY] =
 								ih->init_tag;
 			} else {
 				/* Sec 8.5.1 (A) */
@@ -498,7 +498,7 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 		/* If it is a shutdown ack OOTB packet, we expect a return
 		   shutdown complete, otherwise an ABORT Sec 8.4 (5) and (8) */
 		else {
-			DEBUGP("Setting vtag %x for new conn OOTB\n", 
+			DEBUGP("Setting vtag %x for new conn OOTB\n",
 				sh->vtag);
 			conntrack->proto.sctp.vtag[IP_CT_DIR_REPLY] = sh->vtag;
 		}
@@ -698,7 +698,7 @@ int __init nf_conntrack_proto_sctp_init(void)
  cleanup_sctp4:
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
  out:
-	DEBUGP("SCTP conntrack module loading %s\n", 
+	DEBUGP("SCTP conntrack module loading %s\n",
 					ret ? "failed": "succeeded");
 	return ret;
 }

@@ -54,7 +54,7 @@ static int ptrace_child(void *arg)
 		perror("ptrace");
 		os_kill_process(pid, 0);
 	}
-	os_stop_process(pid);
+	kill(pid, SIGSTOP);
 
 	/*This syscall will be intercepted by the parent. Don't call more than
 	 * once, please.*/
@@ -73,6 +73,34 @@ static int ptrace_child(void *arg)
 	_exit(ret);
 }
 
+static void fatal_perror(char *str)
+{
+	perror(str);
+	exit(1);
+}
+
+static void fatal(char *fmt, ...)
+{
+	va_list list;
+
+	va_start(list, fmt);
+	vprintf(fmt, list);
+	va_end(list);
+	fflush(stdout);
+
+	exit(1);
+}
+
+static void non_fatal(char *fmt, ...)
+{
+	va_list list;
+
+	va_start(list, fmt);
+	vprintf(fmt, list);
+	va_end(list);
+	fflush(stdout);
+}
+
 static int start_ptraced_child(void **stack_out)
 {
 	void *stack;
@@ -82,20 +110,20 @@ static int start_ptraced_child(void **stack_out)
 	stack = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
 		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if(stack == MAP_FAILED)
-		panic("check_ptrace : mmap failed, errno = %d", errno);
+		fatal_perror("check_ptrace : mmap failed");
 	sp = (unsigned long) stack + PAGE_SIZE - sizeof(void *);
 	pid = clone(ptrace_child, (void *) sp, SIGCHLD, NULL);
 	if(pid < 0)
-		panic("start_ptraced_child : clone failed, errno = %d", errno);
+		fatal_perror("start_ptraced_child : clone failed");
 	CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
 	if(n < 0)
-		panic("check_ptrace : clone failed, errno = %d", errno);
+		fatal_perror("check_ptrace : clone failed");
 	if(!WIFSTOPPED(status) || (WSTOPSIG(status) != SIGSTOP))
-		panic("check_ptrace : expected SIGSTOP, got status = %d",
+		fatal("check_ptrace : expected SIGSTOP, got status = %d",
 		      status);
 
 	*stack_out = stack;
-	return(pid);
+	return pid;
 }
 
 /* When testing for SYSEMU support, if it is one of the broken versions, we
@@ -105,34 +133,34 @@ static int start_ptraced_child(void **stack_out)
  * must work anyway!
  */
 static int stop_ptraced_child(int pid, void *stack, int exitcode,
-			      int mustpanic)
+			      int mustexit)
 {
 	int status, n, ret = 0;
 
 	if(ptrace(PTRACE_CONT, pid, 0, 0) < 0)
-		panic("check_ptrace : ptrace failed, errno = %d", errno);
+		fatal_perror("stop_ptraced_child : ptrace failed");
 	CATCH_EINTR(n = waitpid(pid, &status, 0));
 	if(!WIFEXITED(status) || (WEXITSTATUS(status) != exitcode)) {
 		int exit_with = WEXITSTATUS(status);
 		if (exit_with == 2)
-			printf("check_ptrace : child exited with status 2. "
-			       "Serious trouble happening! Try updating your "
-			       "host skas patch!\nDisabling SYSEMU support.");
-		printf("check_ptrace : child exited with exitcode %d, while "
-		      "expecting %d; status 0x%x", exit_with,
-		      exitcode, status);
-		if (mustpanic)
-			panic("\n");
-		else
-			printf("\n");
+			non_fatal("check_ptrace : child exited with status 2. "
+				  "Serious trouble happening! Try updating "
+				  "your host skas patch!\nDisabling SYSEMU "
+				  "support.");
+		non_fatal("check_ptrace : child exited with exitcode %d, while "
+			  "expecting %d; status 0x%x\n", exit_with,
+			  exitcode, status);
+		if (mustexit)
+			exit(1);
 		ret = -1;
 	}
 
 	if(munmap(stack, PAGE_SIZE) < 0)
-		panic("check_ptrace : munmap failed, errno = %d", errno);
+		fatal_perror("check_ptrace : munmap failed");
 	return ret;
 }
 
+/* Changed only during early boot */
 int ptrace_faultinfo = 1;
 int ptrace_ldt = 1;
 int proc_mm = 1;
@@ -160,6 +188,7 @@ __uml_setup("mode=skas0", mode_skas0_cmd_param,
 		"    specify mode=tt. Note that this was recently added - on \n"
 		"    older kernels you must use simply \"skas0\".\n\n");
 
+/* Changed only during early boot */
 static int force_sysemu_disabled = 0;
 
 static int __init nosysemu_cmd_param(char *str, int* add)
@@ -180,9 +209,9 @@ __uml_setup("nosysemu", nosysemu_cmd_param,
 static void __init check_sysemu(void)
 {
 	void *stack;
- 	int pid, n, status, count=0;
+	int pid, n, status, count=0;
 
-	printf("Checking syscall emulation patch for ptrace...");
+	non_fatal("Checking syscall emulation patch for ptrace...");
 	sysemu_supported = 0;
 	pid = start_ptraced_child(&stack);
 
@@ -191,31 +220,30 @@ static void __init check_sysemu(void)
 
 	CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
 	if (n < 0)
-		panic("check_sysemu : wait failed, errno = %d", errno);
+		fatal_perror("check_sysemu : wait failed");
 	if(!WIFSTOPPED(status) || (WSTOPSIG(status) != SIGTRAP))
-		panic("check_sysemu : expected SIGTRAP, "
-		      "got status = %d", status);
+		fatal("check_sysemu : expected SIGTRAP, got status = %d",
+		      status);
 
 	n = ptrace(PTRACE_POKEUSR, pid, PT_SYSCALL_RET_OFFSET,
 		   os_getpid());
 	if(n < 0)
-		panic("check_sysemu : failed to modify system "
-		      "call return, errno = %d", errno);
+		fatal_perror("check_sysemu : failed to modify system call "
+			     "return");
 
 	if (stop_ptraced_child(pid, stack, 0, 0) < 0)
 		goto fail_stopped;
 
 	sysemu_supported = 1;
-	printf("OK\n");
+	non_fatal("OK\n");
 	set_using_sysemu(!force_sysemu_disabled);
 
-	printf("Checking advanced syscall emulation patch for ptrace...");
+	non_fatal("Checking advanced syscall emulation patch for ptrace...");
 	pid = start_ptraced_child(&stack);
 
-	if(ptrace(PTRACE_OLDSETOPTIONS, pid, 0,
-		  (void *) PTRACE_O_TRACESYSGOOD) < 0)
-		panic("check_ptrace: PTRACE_OLDSETOPTIONS failed, errno = %d",
-		      errno);
+	if((ptrace(PTRACE_OLDSETOPTIONS, pid, 0,
+		   (void *) PTRACE_O_TRACESYSGOOD) < 0))
+		fatal_perror("check_ptrace: PTRACE_OLDSETOPTIONS failed");
 
 	while(1){
 		count++;
@@ -223,29 +251,30 @@ static void __init check_sysemu(void)
 			goto fail;
 		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
 		if(n < 0)
-			panic("check_ptrace : wait failed, errno = %d", errno);
+			fatal_perror("check_ptrace : wait failed");
+
 		if(WIFSTOPPED(status) && (WSTOPSIG(status) == (SIGTRAP|0x80))){
 			if (!count)
-				panic("check_ptrace : SYSEMU_SINGLESTEP "
+				fatal("check_ptrace : SYSEMU_SINGLESTEP "
 				      "doesn't singlestep");
 			n = ptrace(PTRACE_POKEUSR, pid, PT_SYSCALL_RET_OFFSET,
 				   os_getpid());
 			if(n < 0)
-				panic("check_sysemu : failed to modify system "
-				      "call return, errno = %d", errno);
+				fatal_perror("check_sysemu : failed to modify "
+					     "system call return");
 			break;
 		}
 		else if(WIFSTOPPED(status) && (WSTOPSIG(status) == SIGTRAP))
 			count++;
 		else
-			panic("check_ptrace : expected SIGTRAP or "
-			      "(SIGTRAP|0x80), got status = %d", status);
+			fatal("check_ptrace : expected SIGTRAP or "
+			      "(SIGTRAP | 0x80), got status = %d", status);
 	}
 	if (stop_ptraced_child(pid, stack, 0, 0) < 0)
 		goto fail_stopped;
 
 	sysemu_supported = 2;
-	printf("OK\n");
+	non_fatal("OK\n");
 
 	if ( !force_sysemu_disabled )
 		set_using_sysemu(sysemu_supported);
@@ -254,7 +283,7 @@ static void __init check_sysemu(void)
 fail:
 	stop_ptraced_child(pid, stack, 1, 0);
 fail_stopped:
-	printf("missing\n");
+	non_fatal("missing\n");
 }
 
 static void __init check_ptrace(void)
@@ -262,22 +291,25 @@ static void __init check_ptrace(void)
 	void *stack;
 	int pid, syscall, n, status;
 
-	printf("Checking that ptrace can change system call numbers...");
+	non_fatal("Checking that ptrace can change system call numbers...");
 	pid = start_ptraced_child(&stack);
 
-	if(ptrace(PTRACE_OLDSETOPTIONS, pid, 0, (void *)PTRACE_O_TRACESYSGOOD) < 0)
-		panic("check_ptrace: PTRACE_OLDSETOPTIONS failed, errno = %d", errno);
+	if((ptrace(PTRACE_OLDSETOPTIONS, pid, 0,
+		   (void *) PTRACE_O_TRACESYSGOOD) < 0))
+		fatal_perror("check_ptrace: PTRACE_OLDSETOPTIONS failed");
 
 	while(1){
 		if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0)
-			panic("check_ptrace : ptrace failed, errno = %d",
-			      errno);
+			fatal_perror("check_ptrace : ptrace failed");
+
 		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
 		if(n < 0)
-			panic("check_ptrace : wait failed, errno = %d", errno);
-		if(!WIFSTOPPED(status) || (WSTOPSIG(status) != (SIGTRAP|0x80)))
-			panic("check_ptrace : expected (SIGTRAP|0x80), "
-			      "got status = %d", status);
+			fatal_perror("check_ptrace : wait failed");
+
+		if(!WIFSTOPPED(status) ||
+		   (WSTOPSIG(status) != (SIGTRAP | 0x80)))
+			fatal("check_ptrace : expected (SIGTRAP|0x80), "
+			       "got status = %d", status);
 
 		syscall = ptrace(PTRACE_PEEKUSR, pid, PT_SYSCALL_NR_OFFSET,
 				 0);
@@ -285,13 +317,13 @@ static void __init check_ptrace(void)
 			n = ptrace(PTRACE_POKEUSR, pid, PT_SYSCALL_NR_OFFSET,
 				   __NR_getppid);
 			if(n < 0)
-				panic("check_ptrace : failed to modify system "
-				      "call, errno = %d", errno);
+				fatal_perror("check_ptrace : failed to modify "
+					     "system call");
 			break;
 		}
 	}
 	stop_ptraced_child(pid, stack, 0, 1);
-	printf("OK\n");
+	non_fatal("OK\n");
 	check_sysemu();
 }
 
@@ -350,22 +382,22 @@ static inline void check_skas3_ptrace_faultinfo(void)
 	void *stack;
 	int pid, n;
 
-	printf("  - PTRACE_FAULTINFO...");
+	non_fatal("  - PTRACE_FAULTINFO...");
 	pid = start_ptraced_child(&stack);
 
 	n = ptrace(PTRACE_FAULTINFO, pid, 0, &fi);
 	if (n < 0) {
 		ptrace_faultinfo = 0;
 		if(errno == EIO)
-			printf("not found\n");
+			non_fatal("not found\n");
 		else
 			perror("not found");
 	}
 	else {
 		if (!ptrace_faultinfo)
-			printf("found but disabled on command line\n");
+			non_fatal("found but disabled on command line\n");
 		else
-			printf("found\n");
+			non_fatal("found\n");
 	}
 
 	init_registers(pid);
@@ -383,13 +415,13 @@ static inline void check_skas3_ptrace_ldt(void)
 		.ptr = ldtbuf,
 		.bytecount = sizeof(ldtbuf)};
 
-	printf("  - PTRACE_LDT...");
+	non_fatal("  - PTRACE_LDT...");
 	pid = start_ptraced_child(&stack);
 
 	n = ptrace(PTRACE_LDT, pid, 0, (unsigned long) &ldt_op);
 	if (n < 0) {
 		if(errno == EIO)
-			printf("not found\n");
+			non_fatal("not found\n");
 		else {
 			perror("not found");
 		}
@@ -397,9 +429,9 @@ static inline void check_skas3_ptrace_ldt(void)
 	}
 	else {
 		if(ptrace_ldt)
-			printf("found\n");
+			non_fatal("found\n");
 		else
-			printf("found, but use is disabled\n");
+			non_fatal("found, but use is disabled\n");
 	}
 
 	stop_ptraced_child(pid, stack, 1, 1);
@@ -414,22 +446,22 @@ static inline void check_skas3_ptrace_ldt(void)
 
 static inline void check_skas3_proc_mm(void)
 {
-	printf("  - /proc/mm...");
-	if (os_access("/proc/mm", OS_ACC_W_OK) < 0) {
- 		proc_mm = 0;
-		printf("not found\n");
+	non_fatal("  - /proc/mm...");
+	if (access("/proc/mm", W_OK) < 0) {
+		proc_mm = 0;
+		perror("not found");
 	}
 	else {
 		if (!proc_mm)
-			printf("found but disabled on command line\n");
+			non_fatal("found but disabled on command line\n");
 		else
-			printf("found\n");
+			non_fatal("found\n");
 	}
 }
 
 int can_do_skas(void)
 {
-	printf("Checking for the skas3 patch in the host:\n");
+	non_fatal("Checking for the skas3 patch in the host:\n");
 
 	check_skas3_proc_mm();
 	check_skas3_ptrace_faultinfo();
@@ -443,16 +475,16 @@ int can_do_skas(void)
 #else
 int can_do_skas(void)
 {
-	return(0);
+	return 0;
 }
 #endif
 
 int __init parse_iomem(char *str, int *add)
 {
 	struct iomem_region *new;
-	struct uml_stat buf;
+	struct stat64 buf;
 	char *file, *driver;
-	int fd, err, size;
+	int fd, size;
 
 	driver = str;
 	file = strchr(str,',');
@@ -462,15 +494,14 @@ int __init parse_iomem(char *str, int *add)
 	}
 	*file = '\0';
 	file++;
-	fd = os_open_file(file, of_rdwr(OPENFLAGS()), 0);
+	fd = open(file, O_RDWR, 0);
 	if(fd < 0){
 		os_print_error(fd, "parse_iomem - Couldn't open io file");
 		goto out;
 	}
 
-	err = os_stat_fd(fd, &buf);
-	if(err < 0){
-		os_print_error(err, "parse_iomem - cannot stat_fd file");
+	if(fstat64(fd, &buf) < 0){
+		perror("parse_iomem - cannot stat_fd file");
 		goto out_close;
 	}
 
@@ -480,7 +511,7 @@ int __init parse_iomem(char *str, int *add)
 		goto out_close;
 	}
 
-	size = (buf.ust_size + UM_KERN_PAGE_SIZE) & ~(UM_KERN_PAGE_SIZE - 1);
+	size = (buf.st_size + UM_KERN_PAGE_SIZE) & ~(UM_KERN_PAGE_SIZE - 1);
 
 	*new = ((struct iomem_region) { .next		= iomem_regions,
 					.driver		= driver,
@@ -491,11 +522,11 @@ int __init parse_iomem(char *str, int *add)
 	iomem_regions = new;
 	iomem_size += new->size + UM_KERN_PAGE_SIZE;
 
-	return(0);
+	return 0;
  out_close:
-	os_close_file(fd);
+	close(fd);
  out:
-	return(1);
+	return 1;
 }
 
 
@@ -526,6 +557,24 @@ static void openpty_cb(void *arg)
 		info->err = -errno;
 }
 
+static int async_pty(int master, int slave)
+{
+	int flags;
+
+	flags = fcntl(master, F_GETFL);
+	if(flags < 0)
+		return -errno;
+
+	if((fcntl(master, F_SETFL, flags | O_NONBLOCK | O_ASYNC) < 0) ||
+	   (fcntl(master, F_SETOWN, os_getpid()) < 0))
+		return -errno;
+
+	if((fcntl(slave, F_SETFL, flags | O_NONBLOCK) < 0))
+		return -errno;
+
+	return(0);
+}
+
 static void __init check_one_sigio(void (*proc)(int, int))
 {
 	struct sigaction old, new;
@@ -551,7 +600,7 @@ static void __init check_one_sigio(void (*proc)(int, int))
 	if (err < 0)
 		panic("check_sigio : __raw failed, errno = %d\n", -err);
 
-	err = os_sigio_async(master, slave);
+	err = async_pty(master, slave);
 	if(err < 0)
 		panic("tty_fds : sigio_async failed, err = %d\n", -err);
 

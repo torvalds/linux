@@ -185,7 +185,7 @@ static struct Qdisc *red_create_dflt(struct Qdisc *sch, u32 limit)
 			      TC_H_MAKE(sch->handle, 1));
 	if (q) {
 		rta = kmalloc(RTA_LENGTH(sizeof(struct tc_fifo_qopt)),
-		              GFP_KERNEL);
+			      GFP_KERNEL);
 		if (rta) {
 			rta->rta_type = RTM_NEWQDISC;
 			rta->rta_len = RTA_LENGTH(sizeof(struct tc_fifo_qopt));

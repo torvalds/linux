@@ -105,7 +105,7 @@ static ssize_t rds_f_read(struct file *file, char __user *buffer, size_t length,
 	}
 }
 
-static struct file_operations rds_fops = {
+static const struct file_operations rds_fops = {
 	.owner		= THIS_MODULE,
 	.read		= rds_f_read,
 	.open		= rds_f_open,

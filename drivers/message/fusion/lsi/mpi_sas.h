@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2004 LSI Logic Corporation.
+ *  Copyright (c) 2004-2006 LSI Logic Corporation.
  *
  *
  *           Name:  mpi_sas.h
  *          Title:  MPI Serial Attached SCSI structures and definitions
  *  Creation Date:  August 19, 2004
  *
- *    mpi_sas.h Version:  01.05.03
+ *    mpi_sas.h Version:  01.05.04
  *
  *  Version History
  *  ---------------
@@ -21,6 +21,8 @@
  *                      and Remove Device operations to SAS IO Unit Control.
  *                      Added DevHandle field to SAS IO Unit Control request and
  *                      reply.
+ *  10-11-06  01.05.04  Fixed the name of a define for Operation field of SAS IO
+ *                      Unit Control request.
  *  --------------------------------------------------------------------------
  */
 
@@ -237,7 +239,8 @@ typedef struct _MSG_SAS_IOUNIT_CONTROL_REQUEST
 #define MPI_SAS_OP_SEND_PRIMITIVE               (0x0A)
 #define MPI_SAS_OP_FORCE_FULL_DISCOVERY         (0x0B)
 #define MPI_SAS_OP_TRANSMIT_PORT_SELECT_SIGNAL  (0x0C)
-#define MPI_SAS_OP_TRANSMIT_REMOVE_DEVICE       (0x0D)
+#define MPI_SAS_OP_TRANSMIT_REMOVE_DEVICE       (0x0D)  /* obsolete name */
+#define MPI_SAS_OP_REMOVE_DEVICE                (0x0D)
 
 /* values for the PrimFlags field */
 #define MPI_SAS_PRIMFLAGS_SINGLE                (0x08)

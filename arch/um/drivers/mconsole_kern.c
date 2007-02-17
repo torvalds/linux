@@ -33,7 +33,6 @@
 #include "irq_user.h"
 #include "init.h"
 #include "os.h"
-#include "umid.h"
 #include "irq_kern.h"
 #include "choose-mode.h"
 
@@ -337,13 +336,15 @@ void mconsole_stop(struct mc_request *req)
 	mconsole_reply(req, "", 0, 0);
 }
 
-/* This list is populated by __initcall routines. */
-
+static DEFINE_SPINLOCK(mc_devices_lock);
 static LIST_HEAD(mconsole_devices);
 
 void mconsole_register_dev(struct mc_device *new)
 {
+	spin_lock(&mc_devices_lock);
+	BUG_ON(!list_empty(&new->list));
 	list_add(&new->list, &mconsole_devices);
+	spin_unlock(&mc_devices_lock);
 }
 
 static struct mc_device *mconsole_find_dev(char *name)
@@ -367,18 +368,21 @@ struct unplugged_pages {
 	void *pages[UNPLUGGED_PER_PAGE];
 };
 
+static DECLARE_MUTEX(plug_mem_mutex);
 static unsigned long long unplugged_pages_count = 0;
-static struct list_head unplugged_pages = LIST_HEAD_INIT(unplugged_pages);
+static LIST_HEAD(unplugged_pages);
 static int unplug_index = UNPLUGGED_PER_PAGE;
 
-static int mem_config(char *str)
+static int mem_config(char *str, char **error_out)
 {
 	unsigned long long diff;
 	int err = -EINVAL, i, add;
 	char *ret;
 
-	if(str[0] != '=')
+	if(str[0] != '='){
+		*error_out = "Expected '=' after 'mem'";
 		goto out;
+	}
 
 	str++;
 	if(str[0] == '-')
@@ -386,15 +390,21 @@ static int mem_config(char *str)
 	else if(str[0] == '+'){
 		add = 1;
 	}
-	else goto out;
+	else {
+		*error_out = "Expected increment to start with '-' or '+'";
+		goto out;
+	}
 
 	str++;
 	diff = memparse(str, &ret);
-	if(*ret != '\0')
+	if(*ret != '\0'){
+		*error_out = "Failed to parse memory increment";
 		goto out;
+	}
 
 	diff /= PAGE_SIZE;
 
+	down(&plug_mem_mutex);
 	for(i = 0; i < diff; i++){
 		struct unplugged_pages *unplugged;
 		void *addr;
@@ -435,11 +445,14 @@ static int mem_config(char *str)
 				unplugged = list_entry(entry,
 						       struct unplugged_pages,
 						       list);
-				unplugged->pages[unplug_index++] = addr;
 				err = os_drop_memory(addr, PAGE_SIZE);
-				if(err)
+				if(err){
 					printk("Failed to release memory - "
 					       "errno = %d\n", err);
+					*error_out = "Failed to release memory";
+					goto out_unlock;
+				}
+				unplugged->pages[unplug_index++] = addr;
 			}
 
 			unplugged_pages_count++;
@@ -447,6 +460,8 @@ static int mem_config(char *str)
 	}
 
 	err = 0;
+out_unlock:
+	up(&plug_mem_mutex);
 out:
 	return err;
 }
@@ -470,12 +485,14 @@ static int mem_id(char **str, int *start_out, int *end_out)
 	return 0;
 }
 
-static int mem_remove(int n)
+static int mem_remove(int n, char **error_out)
 {
+	*error_out = "Memory doesn't support the remove operation";
 	return -EBUSY;
 }
 
 static struct mc_device mem_mc = {
+	.list		= LIST_HEAD_INIT(mem_mc.list),
 	.name		= "mem",
 	.config		= mem_config,
 	.get_config	= mem_get_config,
@@ -542,7 +559,7 @@ static void mconsole_get_config(int (*get_config)(char *, char *, int,
 void mconsole_config(struct mc_request *req)
 {
 	struct mc_device *dev;
-	char *ptr = req->request.data, *name;
+	char *ptr = req->request.data, *name, *error_string = "";
 	int err;
 
 	ptr += strlen("config");
@@ -559,8 +576,8 @@ void mconsole_config(struct mc_request *req)
 		ptr++;
 
 	if(*ptr == '='){
-		err = (*dev->config)(name);
-		mconsole_reply(req, "", err, 0);
+		err = (*dev->config)(name, &error_string);
+		mconsole_reply(req, error_string, err, 0);
 	}
 	else mconsole_get_config(dev->get_config, req, name);
 }
@@ -595,13 +612,16 @@ void mconsole_remove(struct mc_request *req)
 		goto out;
 	}
 
-	err = (*dev->remove)(n);
+	err_msg = NULL;
+	err = (*dev->remove)(n, &err_msg);
 	switch(err){
 	case -ENODEV:
-		err_msg = "Device doesn't exist";
+		if(err_msg == NULL)
+			err_msg = "Device doesn't exist";
 		break;
 	case -EBUSY:
-		err_msg = "Device is currently open";
+		if(err_msg == NULL)
+			err_msg = "Device is currently open";
 		break;
 	default:
 		break;
@@ -615,7 +635,7 @@ struct mconsole_output {
 	struct mc_request *req;
 };
 
-static DEFINE_SPINLOCK(console_lock);
+static DEFINE_SPINLOCK(client_lock);
 static LIST_HEAD(clients);
 static char console_buf[MCONSOLE_MAX_DATA];
 static int console_index = 0;
@@ -670,16 +690,18 @@ static void with_console(struct mc_request *req, void (*proc)(void *),
 	unsigned long flags;
 
 	entry.req = req;
+	spin_lock_irqsave(&client_lock, flags);
 	list_add(&entry.list, &clients);
-	spin_lock_irqsave(&console_lock, flags);
+	spin_unlock_irqrestore(&client_lock, flags);
 
 	(*proc)(arg);
 
 	mconsole_reply_len(req, console_buf, console_index, 0, 0);
 	console_index = 0;
 
-	spin_unlock_irqrestore(&console_lock, flags);
+	spin_lock_irqsave(&client_lock, flags);
 	list_del(&entry.list);
+	spin_unlock_irqrestore(&client_lock, flags);
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ

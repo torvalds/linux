@@ -43,4 +43,4 @@ extern int sound_nblocks;
 #undef PSEUDO_DMA_AUTOINIT
 #define ALLOW_BUFFER_MAPPING
 
-extern struct file_operations oss_sound_fops;
+extern const struct file_operations oss_sound_fops;

@@ -1616,21 +1616,6 @@ static int ext4_delete_entry (handle_t *handle,
 	return -ENOENT;
 }
 
-/*
- * ext4_mark_inode_dirty is somewhat expensive, so unlike ext2 we
- * do not perform it in these functions.  We perform it at the call site,
- * if it is needed.
- */
-static inline void ext4_inc_count(handle_t *handle, struct inode *inode)
-{
-	inc_nlink(inode);
-}
-
-static inline void ext4_dec_count(handle_t *handle, struct inode *inode)
-{
-	drop_nlink(inode);
-}
-
 static int ext4_add_nondir(handle_t *handle,
 		struct dentry *dentry, struct inode *inode)
 {
@@ -1640,7 +1625,7 @@ static int ext4_add_nondir(handle_t *handle,
 		d_instantiate(dentry, inode);
 		return 0;
 	}
-	ext4_dec_count(handle, inode);
+	drop_nlink(inode);
 	iput(inode);
 	return err;
 }
@@ -2161,7 +2146,7 @@ retry:
 		err = __page_symlink(inode, symname, l,
 				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
 		if (err) {
-			ext4_dec_count(handle, inode);
+			drop_nlink(inode);
 			ext4_mark_inode_dirty(handle, inode);
 			iput (inode);
 			goto out_stop;
@@ -2189,6 +2174,12 @@ static int ext4_link (struct dentry * old_dentry,
 
 	if (inode->i_nlink >= EXT4_LINK_MAX)
 		return -EMLINK;
+	/*
+	 * Return -ENOENT if we've raced with unlink and i_nlink is 0.  Doing
+	 * otherwise has the potential to corrupt the orphan inode list.
+	 */
+	if (inode->i_nlink == 0)
+		return -ENOENT;
 
 retry:
 	handle = ext4_journal_start(dir, EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
@@ -2200,7 +2191,7 @@ retry:
 		handle->h_sync = 1;
 
 	inode->i_ctime = CURRENT_TIME_SEC;
-	ext4_inc_count(handle, inode);
+	inc_nlink(inode);
 	atomic_inc(&inode->i_count);
 
 	err = ext4_add_nondir(handle, dentry, inode);
@@ -2372,7 +2363,7 @@ end_rename:
 /*
  * directories can handle most operations...
  */
-struct inode_operations ext4_dir_inode_operations = {
+const struct inode_operations ext4_dir_inode_operations = {
 	.create		= ext4_create,
 	.lookup		= ext4_lookup,
 	.link		= ext4_link,
@@ -2392,7 +2383,7 @@ struct inode_operations ext4_dir_inode_operations = {
 	.permission	= ext4_permission,
 };
 
-struct inode_operations ext4_special_inode_operations = {
+const struct inode_operations ext4_special_inode_operations = {
 	.setattr	= ext4_setattr,
 #ifdef CONFIG_EXT4DEV_FS_XATTR
 	.setxattr	= generic_setxattr,

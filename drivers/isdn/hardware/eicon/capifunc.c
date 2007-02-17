@@ -187,7 +187,7 @@ static diva_card *find_card_by_ctrl(word controller)
  */
 void *TransmitBufferSet(APPL * appl, dword ref)
 {
-	appl->xbuffer_used[ref] = TRUE;
+	appl->xbuffer_used[ref] = true;
 	DBG_PRV1(("%d:xbuf_used(%d)", appl->Id, ref + 1))
 	    return (void *) ref;
 }
@@ -202,7 +202,7 @@ void *TransmitBufferGet(APPL * appl, void *p)
 
 void TransmitBufferFree(APPL * appl, void *p)
 {
-	appl->xbuffer_used[(dword) p] = FALSE;
+	appl->xbuffer_used[(dword) p] = false;
 	DBG_PRV1(("%d:xbuf_free(%d)", appl->Id, ((dword) p) + 1))
 }
 

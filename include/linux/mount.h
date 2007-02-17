@@ -43,9 +43,8 @@ struct vfsmount {
 	struct super_block *mnt_sb;	/* pointer to superblock */
 	struct list_head mnt_mounts;	/* list of children, anchored here */
 	struct list_head mnt_child;	/* and going through their mnt_child */
-	atomic_t mnt_count;
 	int mnt_flags;
-	int mnt_expiry_mark;		/* true if marked for expiry */
+	/* 4 bytes hole on 64bits arches */
 	char *mnt_devname;		/* Name of device e.g. /dev/dsk/hda1 */
 	struct list_head mnt_list;
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
@@ -54,6 +53,13 @@ struct vfsmount {
 	struct list_head mnt_slave;	/* slave list entry */
 	struct vfsmount *mnt_master;	/* slave is on master->mnt_slave_list */
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
+	/*
+	 * We put mnt_count & mnt_expiry_mark at the end of struct vfsmount
+	 * to let these frequently modified fields in a separate cache line
+	 * (so that reads of mnt_flags wont ping-pong on SMP machines)
+	 */
+	atomic_t mnt_count;
+	int mnt_expiry_mark;		/* true if marked for expiry */
 	int mnt_pinned;
 };
 

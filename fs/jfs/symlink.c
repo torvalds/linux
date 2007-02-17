@@ -29,7 +29,7 @@ static void *jfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return NULL;
 }
 
-struct inode_operations jfs_symlink_inode_operations = {
+const struct inode_operations jfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= jfs_follow_link,
 	.setxattr	= jfs_setxattr,

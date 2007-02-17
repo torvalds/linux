@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -38,7 +38,7 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 	int in_fds[2], out_fds[2], pid, n, err;
 	char pid_buf[sizeof("nnnnn\0")], c;
 	char *pid_args[] = { "/usr/bin/uml_watchdog", "-pid", pid_buf, NULL };
-	char *mconsole_args[] = { "/usr/bin/uml_watchdog", "-mconsole", NULL, 
+	char *mconsole_args[] = { "/usr/bin/uml_watchdog", "-mconsole", NULL,
 				  NULL };
 	char **args = NULL;
 
@@ -96,7 +96,7 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 	}
 	*in_fd_ret = in_fds[0];
 	*out_fd_ret = out_fds[1];
-	return(0);
+	return 0;
 
  out_close_in:
 	os_close_file(in_fds[0]);
@@ -105,7 +105,7 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 	os_close_file(out_fds[0]);
 	os_close_file(out_fds[1]);
  out:
-	return(err);
+	return err;
 }
 
 void stop_watchdog(int in_fd, int out_fd)
@@ -123,20 +123,9 @@ int ping_watchdog(int fd)
 	if(n != sizeof(c)){
 		printk("ping_watchdog - write failed, err = %d\n", -n);
 		if(n < 0)
-			return(n);
-		return(-EIO);
+			return n;
+		return -EIO;
 	}
 	return 1;
 
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

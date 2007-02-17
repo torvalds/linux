@@ -317,7 +317,7 @@ static int snd_hwdep_control_ioctl(struct snd_card *card,
 
  */
 
-static struct file_operations snd_hwdep_f_ops =
+static const struct file_operations snd_hwdep_f_ops =
 {
 	.owner = 	THIS_MODULE,
 	.llseek =	snd_hwdep_llseek,

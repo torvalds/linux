@@ -955,16 +955,16 @@ do {								\
 extern const struct file_operations ext4_dir_operations;
 
 /* file.c */
-extern struct inode_operations ext4_file_inode_operations;
+extern const struct inode_operations ext4_file_inode_operations;
 extern const struct file_operations ext4_file_operations;
 
 /* namei.c */
-extern struct inode_operations ext4_dir_inode_operations;
-extern struct inode_operations ext4_special_inode_operations;
+extern const struct inode_operations ext4_dir_inode_operations;
+extern const struct inode_operations ext4_special_inode_operations;
 
 /* symlink.c */
-extern struct inode_operations ext4_symlink_inode_operations;
-extern struct inode_operations ext4_fast_symlink_inode_operations;
+extern const struct inode_operations ext4_symlink_inode_operations;
+extern const struct inode_operations ext4_fast_symlink_inode_operations;
 
 /* extents.c */
 extern int ext4_ext_tree_init(handle_t *handle, struct inode *);

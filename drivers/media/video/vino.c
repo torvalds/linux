@@ -4390,7 +4390,7 @@ static int vino_ioctl(struct inode *inode, struct file *file,
 // __initdata
 static int vino_init_stage = 0;
 
-static struct file_operations vino_fops = {
+static const struct file_operations vino_fops = {
 	.owner		= THIS_MODULE,
 	.open		= vino_open,
 	.release	= vino_close,

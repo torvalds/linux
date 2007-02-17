@@ -1,11 +1,11 @@
-/* 
+/*
  * xfrm algorithm interface
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
+ * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  */
 
@@ -32,14 +32,14 @@ static struct xfrm_algo_desc aalg_list[] = {
 {
 	.name = "hmac(digest_null)",
 	.compat = "digest_null",
-	
+
 	.uinfo = {
 		.auth = {
 			.icv_truncbits = 0,
 			.icv_fullbits = 0,
 		}
 	},
-	
+
 	.desc = {
 		.sadb_alg_id = SADB_X_AALG_NULL,
 		.sadb_alg_ivlen = 0,
@@ -57,7 +57,7 @@ static struct xfrm_algo_desc aalg_list[] = {
 			.icv_fullbits = 128,
 		}
 	},
-	
+
 	.desc = {
 		.sadb_alg_id = SADB_AALG_MD5HMAC,
 		.sadb_alg_ivlen = 0,
@@ -142,14 +142,14 @@ static struct xfrm_algo_desc ealg_list[] = {
 {
 	.name = "ecb(cipher_null)",
 	.compat = "cipher_null",
-	
+
 	.uinfo = {
 		.encr = {
 			.blockbits = 8,
 			.defkeybits = 0,
 		}
 	},
-	
+
 	.desc = {
 		.sadb_alg_id =	SADB_EALG_NULL,
 		.sadb_alg_ivlen = 0,
@@ -248,22 +248,22 @@ static struct xfrm_algo_desc ealg_list[] = {
 	}
 },
 {
-        .name = "cbc(serpent)",
-        .compat = "serpent",
+	.name = "cbc(serpent)",
+	.compat = "serpent",
 
-        .uinfo = {
-                .encr = {
-                        .blockbits = 128,
-                        .defkeybits = 128,
-                }
-        },
+	.uinfo = {
+		.encr = {
+			.blockbits = 128,
+			.defkeybits = 128,
+		}
+	},
 
-        .desc = {
-                .sadb_alg_id = SADB_X_EALG_SERPENTCBC,
-                .sadb_alg_ivlen = 8,
-                .sadb_alg_minbits = 128,
-                .sadb_alg_maxbits = 256,
-        }
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_SERPENTCBC,
+		.sadb_alg_ivlen = 8,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256,
+	}
 },
 {
 	.name = "cbc(camellia)",
@@ -283,22 +283,22 @@ static struct xfrm_algo_desc ealg_list[] = {
 	}
 },
 {
-        .name = "cbc(twofish)",
-        .compat = "twofish",
-                 
-        .uinfo = {
-                .encr = {
-                        .blockbits = 128,
-                        .defkeybits = 128,
-                }
-        },
+	.name = "cbc(twofish)",
+	.compat = "twofish",
 
-        .desc = {
-                .sadb_alg_id = SADB_X_EALG_TWOFISHCBC,
-                .sadb_alg_ivlen = 8,
-                .sadb_alg_minbits = 128,
-                .sadb_alg_maxbits = 256
-        }
+	.uinfo = {
+		.encr = {
+			.blockbits = 128,
+			.defkeybits = 128,
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_TWOFISHCBC,
+		.sadb_alg_ivlen = 8,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256
+	}
 },
 };
 
@@ -478,7 +478,7 @@ void xfrm_probe_algs(void)
 {
 #ifdef CONFIG_CRYPTO
 	int i, status;
-	
+
 	BUG_ON(in_softirq());
 
 	for (i = 0; i < aalg_entries(); i++) {
@@ -487,14 +487,14 @@ void xfrm_probe_algs(void)
 		if (aalg_list[i].available != status)
 			aalg_list[i].available = status;
 	}
-	
+
 	for (i = 0; i < ealg_entries(); i++) {
 		status = crypto_has_blkcipher(ealg_list[i].name, 0,
 					      CRYPTO_ALG_ASYNC);
 		if (ealg_list[i].available != status)
 			ealg_list[i].available = status;
 	}
-	
+
 	for (i = 0; i < calg_entries(); i++) {
 		status = crypto_has_comp(calg_list[i].name, 0,
 					 CRYPTO_ALG_ASYNC);
@@ -541,15 +541,15 @@ int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		
+
 		sg.page = virt_to_page(skb->data + offset);
 		sg.offset = (unsigned long)(skb->data + offset) % PAGE_SIZE;
 		sg.length = copy;
-		
+
 		err = icv_update(desc, &sg, copy);
 		if (unlikely(err))
 			return err;
-		
+
 		if ((len -= copy) == 0)
 			return 0;
 		offset += copy;
@@ -566,11 +566,11 @@ int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
 
 			if (copy > len)
 				copy = len;
-			
+
 			sg.page = frag->page;
 			sg.offset = frag->page_offset + offset-start;
 			sg.length = copy;
-			
+
 			err = icv_update(desc, &sg, copy);
 			if (unlikely(err))
 				return err;

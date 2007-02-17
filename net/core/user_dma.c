@@ -58,7 +58,7 @@ int dma_skb_copy_datagram_iovec(struct dma_chan *chan,
 		if (copy > len)
 			copy = len;
 		cookie = dma_memcpy_to_iovec(chan, to, pinned_list,
-		                            skb->data + offset, copy);
+					    skb->data + offset, copy);
 		if (cookie < 0)
 			goto fault;
 		len -= copy;
@@ -108,8 +108,8 @@ int dma_skb_copy_datagram_iovec(struct dma_chan *chan,
 				if (copy > len)
 					copy = len;
 				cookie = dma_skb_copy_datagram_iovec(chan, list,
-				                offset - start, to, copy,
-				                pinned_list);
+						offset - start, to, copy,
+						pinned_list);
 				if (cookie < 0)
 					goto fault;
 				len -= copy;
@@ -128,5 +128,5 @@ end:
 	}
 
 fault:
- 	return -EFAULT;
+	return -EFAULT;
 }

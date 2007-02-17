@@ -289,7 +289,7 @@ static void dump_packet(const struct nf_loginfo *info,
 
 		if (ntohs(ih->frag_off) & IP_OFFSET)
 			break;
-		
+
 		/* Max length: 9 "PROTO=AH " */
 		printk("PROTO=AH ");
 
@@ -334,10 +334,10 @@ static void dump_packet(const struct nf_loginfo *info,
 	}
 
 	/* Max length: 15 "UID=4294967295 " */
- 	if ((logflags & IPT_LOG_UID) && !iphoff && skb->sk) {
+	if ((logflags & IPT_LOG_UID) && !iphoff && skb->sk) {
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file)
- 			printk("UID=%u ", skb->sk->sk_socket->file->f_uid);
+			printk("UID=%u ", skb->sk->sk_socket->file->f_uid);
 		read_unlock_bh(&skb->sk->sk_callback_lock);
 	}
 
@@ -431,7 +431,7 @@ ipt_log_target(struct sk_buff **pskb,
 	li.u.log.logflags = loginfo->logflags;
 
 	ipt_log_packet(PF_INET, hooknum, *pskb, in, out, &li,
-	               loginfo->prefix);
+		       loginfo->prefix);
 	return XT_CONTINUE;
 }
 
@@ -483,13 +483,13 @@ static int __init ipt_log_init(void)
 		/* we cannot make module load fail here, since otherwise
 		 * iptables userspace would abort */
 	}
-	
+
 	return 0;
 }
 
 static void __exit ipt_log_fini(void)
 {
-	nf_log_unregister_logger(&ipt_log_logger);
+	nf_log_unregister(&ipt_log_logger);
 	xt_unregister_target(&ipt_log_reg);
 }
 

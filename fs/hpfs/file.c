@@ -132,7 +132,7 @@ const struct file_operations hpfs_file_ops =
 	.sendfile	= generic_file_sendfile,
 };
 
-struct inode_operations hpfs_file_iops =
+const struct inode_operations hpfs_file_iops =
 {
 	.truncate	= hpfs_truncate,
 	.setattr	= hpfs_notify_change,

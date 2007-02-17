@@ -34,7 +34,7 @@ struct hypfs_sb_info {
 	struct mutex lock;		/* lock to protect update process */
 };
 
-static struct file_operations hypfs_file_ops;
+static const struct file_operations hypfs_file_ops;
 static struct file_system_type hypfs_type;
 static struct super_operations hypfs_s_ops;
 
@@ -440,7 +440,7 @@ struct dentry *hypfs_create_str(struct super_block *sb, struct dentry *dir,
 	return dentry;
 }
 
-static struct file_operations hypfs_file_ops = {
+static const struct file_operations hypfs_file_ops = {
 	.open		= hypfs_open,
 	.release	= hypfs_release,
 	.read		= do_sync_read,

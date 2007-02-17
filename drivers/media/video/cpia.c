@@ -3791,7 +3791,7 @@ static int cpia_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static struct file_operations cpia_fops = {
+static const struct file_operations cpia_fops = {
 	.owner		= THIS_MODULE,
 	.open		= cpia_open,
 	.release       	= cpia_close,

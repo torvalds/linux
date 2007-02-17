@@ -1398,7 +1398,7 @@ static int snd_ctl_fasync(int fd, struct file * file, int on)
  *  INIT PART
  */
 
-static struct file_operations snd_ctl_f_ops =
+static const struct file_operations snd_ctl_f_ops =
 {
 	.owner =	THIS_MODULE,
 	.read =		snd_ctl_read,

@@ -360,7 +360,7 @@ static int tlb_open(struct inode *inode, struct file *file)
 	return seq_open(file, &tlb_ops);
 }
 
-static struct file_operations proc_tlb_operations = {
+static const struct file_operations proc_tlb_operations = {
 	.open		= tlb_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

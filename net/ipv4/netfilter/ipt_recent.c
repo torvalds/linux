@@ -79,7 +79,7 @@ static DEFINE_MUTEX(recent_mutex);
 
 #ifdef CONFIG_PROC_FS
 static struct proc_dir_entry	*proc_dir;
-static struct file_operations	recent_fops;
+static const struct file_operations	recent_fops;
 #endif
 
 static u_int32_t hash_rnd;
@@ -454,7 +454,7 @@ static ssize_t recent_proc_write(struct file *file, const char __user *input,
 	return size;
 }
 
-static struct file_operations recent_fops = {
+static const struct file_operations recent_fops = {
 	.open		= recent_seq_open,
 	.read		= seq_read,
 	.write		= recent_proc_write,

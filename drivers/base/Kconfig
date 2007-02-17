@@ -37,6 +37,18 @@ config DEBUG_DRIVER
 
 	  If you are unsure about this, say N here.
 
+config DEBUG_DEVRES
+	bool "Managed device resources verbose debug messages"
+	depends on DEBUG_KERNEL
+	help
+	  This option enables kernel parameter devres.log. If set to
+	  non-zero, devres debug messages are printed. Select this if
+	  you are having a problem with devres or want to debug
+	  resource management for a managed device. devres.log can be
+	  switched on and off from sysfs node.
+
+	  If you are unsure about this, Say N here.
+
 config SYS_HYPERVISOR
 	bool
 	default n

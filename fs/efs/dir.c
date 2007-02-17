@@ -15,7 +15,7 @@ const struct file_operations efs_dir_operations = {
 	.readdir	= efs_readdir,
 };
 
-struct inode_operations efs_dir_inode_operations = {
+const struct inode_operations efs_dir_inode_operations = {
 	.lookup		= efs_lookup,
 };
 

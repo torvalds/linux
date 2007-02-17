@@ -1156,7 +1156,7 @@ static int ibmveth_proc_open(struct inode *inode, struct file *file)
 	return rc;
 }
 
-static struct file_operations ibmveth_proc_fops = {
+static const struct file_operations ibmveth_proc_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = ibmveth_proc_open,
 	.read    = seq_read,

@@ -297,7 +297,7 @@ ipt_do_table(struct sk_buff **pskb,
 				e = get_entry(table_base, v);
 			} else {
 				/* Targets which reenter must return
-                                   abs. verdicts */
+				   abs. verdicts */
 #ifdef CONFIG_NETFILTER_DEBUG
 				((struct ipt_entry *)table_base)->comefrom
 					= 0xeeeeeeec;
@@ -556,9 +556,9 @@ err:
 
 static inline int check_target(struct ipt_entry *e, const char *name)
 {
- 	struct ipt_entry_target *t;
+	struct ipt_entry_target *t;
 	struct xt_target *target;
- 	int ret;
+	int ret;
 
 	t = ipt_get_target(e);
 	target = t->u.kernel.target;
@@ -652,7 +652,7 @@ check_entry_size_and_hooks(struct ipt_entry *e,
 	}
 
 	/* FIXME: underflows must be unconditional, standard verdicts
-           < 0 (not IPT_RETURN). --RR */
+	   < 0 (not IPT_RETURN). --RR */
 
 	/* Clear counters and comefrom */
 	e->counters = ((struct xt_counters) { 0, 0 });
@@ -2057,7 +2057,7 @@ void ipt_unregister_table(struct xt_table *table)
 	struct xt_table_info *private;
 	void *loc_cpu_entry;
 
- 	private = xt_unregister_table(table);
+	private = xt_unregister_table(table);
 
 	/* Decrease module usage counts and free resources */
 	loc_cpu_entry = private->entries[raw_smp_processor_id()];

@@ -42,7 +42,6 @@
 #include "wbsd.h"
 
 #define DRIVER_NAME "wbsd"
-#define DRIVER_VERSION "1.6"
 
 #define DBG(x...) \
 	pr_debug(DRIVER_NAME ": " x)
@@ -344,7 +343,6 @@ static inline void wbsd_dma_to_sg(struct wbsd_host *host, struct mmc_data *data)
 			memcpy(sgbuf, dmabuf, size);
 		else
 			memcpy(sgbuf, dmabuf, sg[i].length);
-		kunmap_atomic(sgbuf, KM_BIO_SRC_IRQ);
 		dmabuf += sg[i].length;
 
 		if (size < sg[i].length)
@@ -2101,8 +2099,7 @@ static int __init wbsd_drv_init(void)
 	int result;
 
 	printk(KERN_INFO DRIVER_NAME
-		": Winbond W83L51xD SD/MMC card interface driver, "
-		DRIVER_VERSION "\n");
+		": Winbond W83L51xD SD/MMC card interface driver\n");
 	printk(KERN_INFO DRIVER_NAME ": Copyright(c) Pierre Ossman\n");
 
 #ifdef CONFIG_PNP
@@ -2166,7 +2163,6 @@ module_param(dma, int, 0444);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Winbond W83L51xD SD/MMC card interface driver");
-MODULE_VERSION(DRIVER_VERSION);
 
 #ifdef CONFIG_PNP
 MODULE_PARM_DESC(nopnp, "Scan for device instead of relying on PNP. (default 0)");

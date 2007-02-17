@@ -510,7 +510,7 @@ static int wb_smsc_wdt_notify_sys(struct notifier_block *this, unsigned long cod
 
 /* -- Module's structures ---------------------------------------*/
 
-static struct file_operations wb_smsc_wdt_fops =
+static const struct file_operations wb_smsc_wdt_fops =
 {
 	.owner          = THIS_MODULE,
 	.llseek		= no_llseek,

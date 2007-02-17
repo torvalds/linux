@@ -94,8 +94,7 @@ Code	Seq#	Include File		Comments
 'L'	00-1F	linux/loop.h
 'L'	E0-FF	linux/ppdd.h		encrypted disk device driver
 					<http://linux01.gwdg.de/~alatham/ppdd.html>
-'M'	all	linux/soundcard.h	conflict!
-'M'	00-1F	linux/isicom.h		conflict!
+'M'	all	linux/soundcard.h
 'N'	00-1F	drivers/usb/scanner.h
 'P'	all	linux/soundcard.h
 'Q'	all	linux/soundcard.h

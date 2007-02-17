@@ -116,7 +116,7 @@ int __init irlmp_init(void)
  *    Remove IrLMP layer
  *
  */
-void __exit irlmp_cleanup(void) 
+void __exit irlmp_cleanup(void)
 {
 	/* Check for main structure */
 	IRDA_ASSERT(irlmp != NULL, return;);
@@ -892,7 +892,7 @@ void irlmp_discovery_request(int nslots)
 
 	/*
 	 * Start a single discovery operation if discovery is not already
-         * running
+	 * running
 	 */
 	if (!sysctl_discovery) {
 		/* Check if user wants to override the default */
@@ -1528,12 +1528,12 @@ int irlmp_unregister_service(void *handle)
 
 	/* Refresh current hint bits */
 	spin_lock_irqsave(&irlmp->services->hb_spinlock, flags);
-        service = (irlmp_service_t *) hashbin_get_first(irlmp->services);
-        while (service) {
+	service = (irlmp_service_t *) hashbin_get_first(irlmp->services);
+	while (service) {
 		irlmp->hints.word |= service->hints.word;
 
-                service = (irlmp_service_t *)hashbin_get_next(irlmp->services);
-        }
+		service = (irlmp_service_t *)hashbin_get_next(irlmp->services);
+	}
 	spin_unlock_irqrestore(&irlmp->services->hb_spinlock, flags);
 	return 0;
 }
@@ -1861,7 +1861,7 @@ static void *irlmp_seq_hb_idx(struct irlmp_iter_state *iter, loff_t *off)
 
 	spin_lock_irq(&iter->hashbin->hb_spinlock);
 	for (element = hashbin_get_first(iter->hashbin);
-	     element != NULL; 
+	     element != NULL;
 	     element = hashbin_get_next(iter->hashbin)) {
 		if (!off || *off-- == 0) {
 			/* NB: hashbin left locked */
@@ -1918,7 +1918,7 @@ static void *irlmp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (v == NULL) {			/* no more in this hash bin */
 		spin_unlock_irq(&iter->hashbin->hb_spinlock);
 
-		if (iter->hashbin == irlmp->unconnected_lsaps) 
+		if (iter->hashbin == irlmp->unconnected_lsaps)
 			v =  LINK_START_TOKEN;
 
 		iter->hashbin = NULL;
@@ -2026,7 +2026,7 @@ out_kfree:
 	goto out;
 }
 
-struct file_operations irlmp_seq_fops = {
+const struct file_operations irlmp_seq_fops = {
 	.owner		= THIS_MODULE,
 	.open           = irlmp_seq_open,
 	.read           = seq_read,

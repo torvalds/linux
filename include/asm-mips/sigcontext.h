@@ -19,7 +19,7 @@
  */
 struct sigcontext {
 	unsigned int		sc_regmask;	/* Unused */
-	unsigned int		sc_status;
+	unsigned int		sc_status;	/* Unused */
 	unsigned long long	sc_pc;
 	unsigned long long	sc_regs[32];
 	unsigned long long	sc_fpregs[32];
@@ -76,7 +76,7 @@ struct sigcontext {
 
 struct sigcontext32 {
 	__u32		sc_regmask;	/* Unused */
-	__u32		sc_status;
+	__u32		sc_status;	/* Unused */
 	__u64		sc_pc;
 	__u64		sc_regs[32];
 	__u64		sc_fpregs[32];

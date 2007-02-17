@@ -74,7 +74,7 @@ static void random_select_route(const struct flowi *flp,
 
 	/* count all candidate */
 	for (rt = rcu_dereference(first); rt;
-	     rt = rcu_dereference(rt->u.rt_next)) {
+	     rt = rcu_dereference(rt->u.dst.rt_next)) {
 		if ((rt->u.dst.flags & DST_BALANCED) != 0 &&
 		    multipath_comparekeys(&rt->fl, flp))
 			++candidate_count;
@@ -90,7 +90,7 @@ static void random_select_route(const struct flowi *flp,
 		/* find chosen candidate and adjust GC data for all candidates
 		 * to ensure they stay in cache
 		 */
-		for (rt = first; rt; rt = rt->u.rt_next) {
+		for (rt = first; rt; rt = rt->u.dst.rt_next) {
 			if ((rt->u.dst.flags & DST_BALANCED) != 0 &&
 			    multipath_comparekeys(&rt->fl, flp)) {
 				rt->u.dst.lastuse = jiffies;

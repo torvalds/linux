@@ -93,7 +93,7 @@ Notes
 Using the pktcdvd sysfs interface
 ---------------------------------
 
-Since Linux 2.6.19, the pktcdvd module has a sysfs interface
+Since Linux 2.6.20, the pktcdvd module has a sysfs interface
 and can be controlled by it. For example the "pktcdvd" tool uses
 this interface. (see http://people.freenet.de/BalaGi#pktcdvd )
 

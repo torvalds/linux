@@ -40,7 +40,7 @@ int llc_mac_hdr_init(struct sk_buff *skb,
 	case ARPHRD_IEEE802_TR: {
 		struct net_device *dev = skb->dev;
 		struct trh_hdr *trh;
-		
+
 		skb->mac.raw = skb_push(skb, sizeof(*trh));
 		trh = tr_hdr(skb);
 		trh->ac = AC;

@@ -1,5 +1,5 @@
 /*
- *	Linux NET3:	IP/IP protocol decoder. 
+ *	Linux NET3:	IP/IP protocol decoder.
  *
  *	Version: $Id: ipip.c,v 1.50 2001/10/02 02:22:36 davem Exp $
  *
@@ -35,14 +35,14 @@
 	Thanks for the great code!
 
 		-Sam Lantinga	(slouken@cs.ucdavis.edu)  02/01/95
-		
+
 	Minor tweaks:
 		Cleaned up the code a little and added some pre-1.3.0 tweaks.
 		dev->hard_header/hard_header_len changed to use no headers.
 		Comments/bracketing tweaked.
 		Made the tunnels use dev->name not tunnel: when error reporting.
 		Added tx_dropped stat
-		
+
 		-Alan Cox	(Alan.Cox@linux.org) 21 March 95
 
 	Reworked:
@@ -52,7 +52,7 @@
 		Note:  There is currently no firewall or ICMP handling done.
 
 		-Sam Lantinga	(slouken@cs.ucdavis.edu) 02/13/96
-		
+
 */
 
 /* Things I wish I had known when writing the tunnel driver:
@@ -75,7 +75,7 @@
 	"allocated" with skb_put().  You can then write up to skb->len
 	bytes to that buffer.  If you need more, you can call skb_put()
 	again with the additional amount of space you need.  You can
-	find out how much more space you can allocate by calling 
+	find out how much more space you can allocate by calling
 	"skb_tailroom(skb)".
 	Now, to add header space, call "skb_push(skb, header_len)".
 	This creates space at the beginning of the buffer and returns
@@ -92,7 +92,7 @@
    For comments look at net/ipv4/ip_gre.c --ANK
  */
 
- 
+
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -607,7 +607,7 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct sk_buff *new_skb = skb_realloc_headroom(skb, max_headroom);
 		if (!new_skb) {
 			ip_rt_put(rt);
-  			stats->tx_dropped++;
+			stats->tx_dropped++;
 			dev_kfree_skb(skb);
 			tunnel->recursion--;
 			return 0;

@@ -765,7 +765,7 @@ free_out:
 
 /*====================================================================*/
 
-static struct file_operations ds_fops = {
+static const struct file_operations ds_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ds_open,
 	.release	= ds_release,

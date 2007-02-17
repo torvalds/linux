@@ -21,16 +21,6 @@
 #include "card.h"
 #include <linux/interrupt.h>
 
-extern int indicate_status(int, int, ulong, char *);
-extern void check_phystat(unsigned long);
-extern int receivemessage(int, RspMessage *);
-extern int sendmessage(int, unsigned int, unsigned int, unsigned int,
-        unsigned int, unsigned int, unsigned int, unsigned int *);
-extern void rcvpkt(int, RspMessage *);
-
-extern int cinst;
-extern board *sc_adapter[];
-
 static int get_card_from_irq(int irq)
 {
 	int i;

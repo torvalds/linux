@@ -90,7 +90,7 @@ static int hcall_inst_seq_open(struct inode *inode, struct file *file)
 	return rc;
 }
 
-static struct file_operations hcall_inst_seq_fops = {
+static const struct file_operations hcall_inst_seq_fops = {
 	.open = hcall_inst_seq_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

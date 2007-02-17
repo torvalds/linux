@@ -170,7 +170,7 @@ extern void hfs_cat_build_key(struct super_block *, btree_key *, u32, struct qst
 
 /* dir.c */
 extern const struct file_operations hfs_dir_operations;
-extern struct inode_operations hfs_dir_inode_operations;
+extern const struct inode_operations hfs_dir_inode_operations;
 
 /* extent.c */
 extern int hfs_ext_keycmp(const btree_key *, const btree_key *);

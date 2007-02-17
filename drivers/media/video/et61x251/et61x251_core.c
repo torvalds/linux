@@ -2454,7 +2454,7 @@ static int et61x251_ioctl(struct inode* inode, struct file* filp,
 }
 
 
-static struct file_operations et61x251_fops = {
+static const struct file_operations et61x251_fops = {
 	.owner = THIS_MODULE,
 	.open =    et61x251_open,
 	.release = et61x251_release,

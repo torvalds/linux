@@ -154,7 +154,7 @@ static void hfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(hfs_inode_cachep, HFS_I(inode));
 }
 
-static struct super_operations hfs_super_operations = {
+static const struct super_operations hfs_super_operations = {
 	.alloc_inode	= hfs_alloc_inode,
 	.destroy_inode	= hfs_destroy_inode,
 	.write_inode	= hfs_write_inode,

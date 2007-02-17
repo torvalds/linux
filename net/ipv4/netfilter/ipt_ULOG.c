@@ -4,9 +4,9 @@
  * (C) 2000-2004 by Harald Welte <laforge@netfilter.org>
  *
  * 2000/09/22 ulog-cprange feature added
- * 2001/01/04 in-kernel queue as proposed by Sebastian Zander 
+ * 2001/01/04 in-kernel queue as proposed by Sebastian Zander
  * 						<zander@fokus.gmd.de>
- * 2001/01/30 per-rule nlgroup conflicts with global queue. 
+ * 2001/01/30 per-rule nlgroup conflicts with global queue.
  *            nlgroup now global (sysctl)
  * 2001/04/19 ulog-queue reworked, now fixed buffer size specified at
  * 	      module loadtime -HW
@@ -23,8 +23,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * This module accepts two parameters: 
- * 
+ * This module accepts two parameters:
+ *
  * nlbufsiz:
  *   The parameter specifies how big the buffer for each netlink multicast
  * group is. e.g. If you say nlbufsiz=8192, up to eight kb of packets will
@@ -72,7 +72,7 @@ MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NFLOG);
 
 #if 0
 #define DEBUGP(format, args...) printk("%s:%s:" format, \
-                                       __FILE__, __FUNCTION__ , ## args)
+				       __FILE__, __FUNCTION__ , ## args)
 #else
 #define DEBUGP(format, args...)
 #endif
@@ -162,7 +162,7 @@ static struct sk_buff *ulog_alloc_skb(unsigned int size)
 		PRINTR("ipt_ULOG: can't alloc whole buffer %ub!\n", n);
 
 		if (n > size) {
-			/* try to allocate only as much as we need for 
+			/* try to allocate only as much as we need for
 			 * current packet */
 
 			skb = alloc_skb(size, GFP_ATOMIC);
@@ -203,7 +203,7 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	size = NLMSG_SPACE(sizeof(*pm) + copy_len);
 
 	ub = &ulog_buffers[groupnum];
-	
+
 	spin_lock_bh(&ulog_lock);
 
 	if (!ub->skb) {
@@ -211,7 +211,7 @@ static void ipt_ulog_packet(unsigned int hooknum,
 			goto alloc_failure;
 	} else if (ub->qlen >= loginfo->qthreshold ||
 		   size > skb_tailroom(ub->skb)) {
-		/* either the queue len is too high or we don't have 
+		/* either the queue len is too high or we don't have
 		 * enough room in nlskb left. send it to userspace. */
 
 		ulog_send(groupnum);
@@ -220,11 +220,11 @@ static void ipt_ulog_packet(unsigned int hooknum,
 			goto alloc_failure;
 	}
 
-	DEBUGP("ipt_ULOG: qlen %d, qthreshold %d\n", ub->qlen, 
+	DEBUGP("ipt_ULOG: qlen %d, qthreshold %d\n", ub->qlen,
 		loginfo->qthreshold);
 
 	/* NLMSG_PUT contains a hidden goto nlmsg_failure !!! */
-	nlh = NLMSG_PUT(ub->skb, 0, ub->qlen, ULOG_NL_EVENT, 
+	nlh = NLMSG_PUT(ub->skb, 0, ub->qlen, ULOG_NL_EVENT,
 			sizeof(*pm)+copy_len);
 	ub->qlen++;
 
@@ -268,7 +268,7 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	/* copy_len <= skb->len, so can't fail. */
 	if (skb_copy_bits(skb, 0, pm->payload, copy_len) < 0)
 		BUG();
-	
+
 	/* check if we are building multi-part messages */
 	if (ub->qlen > 1) {
 		ub->lastnlh->nlmsg_flags |= NLM_F_MULTI;
@@ -312,10 +312,10 @@ static unsigned int ipt_ulog_target(struct sk_buff **pskb,
 	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;
 
 	ipt_ulog_packet(hooknum, *pskb, in, out, loginfo, NULL);
- 
+
 	return XT_CONTINUE;
 }
- 
+
 static void ipt_logfn(unsigned int pf,
 		      unsigned int hooknum,
 		      const struct sk_buff *skb,
@@ -396,7 +396,7 @@ static int __init ipt_ulog_init(void)
 	}
 
 	nflognl = netlink_kernel_create(NETLINK_NFLOG, ULOG_MAXNLGROUPS, NULL,
-	                                THIS_MODULE);
+					THIS_MODULE);
 	if (!nflognl)
 		return -ENOMEM;
 
@@ -407,7 +407,7 @@ static int __init ipt_ulog_init(void)
 	}
 	if (nflog)
 		nf_log_register(PF_INET, &ipt_ulog_logger);
-	
+
 	return 0;
 }
 
@@ -419,7 +419,7 @@ static void __exit ipt_ulog_fini(void)
 	DEBUGP("ipt_ULOG: cleanup_module\n");
 
 	if (nflog)
-		nf_log_unregister_logger(&ipt_ulog_logger);
+		nf_log_unregister(&ipt_ulog_logger);
 	xt_unregister_target(&ipt_ulog_reg);
 	sock_release(nflognl->sk_socket);
 

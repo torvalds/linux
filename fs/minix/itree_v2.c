@@ -23,10 +23,11 @@ static inline block_t *i_data(struct inode *inode)
 static int block_to_path(struct inode * inode, long block, int offsets[DEPTH])
 {
 	int n = 0;
+	struct super_block *sb = inode->i_sb;
 
 	if (block < 0) {
 		printk("minix_bmap: block<0\n");
-	} else if (block >= (minix_sb(inode->i_sb)->s_max_size/BLOCK_SIZE)) {
+	} else if (block >= (minix_sb(inode->i_sb)->s_max_size/sb->s_blocksize)) {
 		printk("minix_bmap: block>big\n");
 	} else if (block < 7) {
 		offsets[n++] = block;
@@ -60,7 +61,7 @@ void V2_minix_truncate(struct inode * inode)
 	truncate(inode);
 }
 
-unsigned V2_minix_blocks(loff_t size)
+unsigned V2_minix_blocks(loff_t size, struct super_block *sb)
 {
-	return nblocks(size);
+	return nblocks(size, sb);
 }

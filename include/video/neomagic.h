@@ -140,7 +140,8 @@ typedef volatile struct {
 
 struct neofb_par {
 	struct vgastate state;
-	atomic_t ref_count;
+	struct mutex open_lock;
+	unsigned int ref_count;
 
 	unsigned char MiscOutReg;	/* Misc */
 	unsigned char CRTC[25];		/* Crtc Controller */

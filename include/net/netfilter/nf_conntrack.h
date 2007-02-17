@@ -257,6 +257,12 @@ extern int nf_conntrack_max;
 
 DECLARE_PER_CPU(struct ip_conntrack_stat, nf_conntrack_stat);
 #define NF_CT_STAT_INC(count) (__get_cpu_var(nf_conntrack_stat).count++)
+#define NF_CT_STAT_INC_ATOMIC(count)			\
+do {							\
+	local_bh_disable();				\
+	__get_cpu_var(nf_conntrack_stat).count++;	\
+	local_bh_enable();				\
+} while (0)
 
 /* no helper, no nat */
 #define	NF_CT_F_BASIC	0

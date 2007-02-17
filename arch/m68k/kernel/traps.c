@@ -1011,7 +1011,7 @@ EXPORT_SYMBOL(dump_stack);
 void bad_super_trap (struct frame *fp)
 {
 	console_verbose();
-	if (fp->ptregs.vector < 4*sizeof(vec_names)/sizeof(vec_names[0]))
+	if (fp->ptregs.vector < 4 * ARRAY_SIZE(vec_names))
 		printk ("*** %s ***   FORMAT=%X\n",
 			vec_names[(fp->ptregs.vector) >> 2],
 			fp->ptregs.format);

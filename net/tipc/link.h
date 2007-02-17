@@ -1,6 +1,6 @@
 /*
  * net/tipc/link.h: Include file for TIPC link code
- * 
+ *
  * Copyright (c) 1995-2006, Ericsson AB
  * Copyright (c) 2004-2005, Wind River Systems
  * All rights reserved.
@@ -45,8 +45,8 @@
 #define PUSH_FAILED   1
 #define PUSH_FINISHED 2
 
-/* 
- * Link states 
+/*
+ * Link states
  */
 
 #define WORKING_WORKING 560810u
@@ -54,7 +54,7 @@
 #define RESET_UNKNOWN   560812u
 #define RESET_RESET     560813u
 
-/* 
+/*
  * Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
  */
@@ -74,7 +74,7 @@
  * @peer_session: link session # being used by peer end of link
  * @peer_bearer_id: bearer id used by link's peer endpoint
  * @b_ptr: pointer to bearer used by link
- * @tolerance: minimum link continuity loss needed to reset link [in ms] 
+ * @tolerance: minimum link continuity loss needed to reset link [in ms]
  * @continuity_interval: link continuity testing interval [in ms]
  * @abort_limit: # of unacknowledged continuity probes needed to reset link
  * @state: current state of link FSM
@@ -110,7 +110,7 @@
  * @stats: collects statistics regarding link activity
  * @print_buf: print buffer used to log link activity
  */
- 
+
 struct link {
 	u32 addr;
 	char name[TIPC_MAX_LINK_NAME];
@@ -143,18 +143,18 @@ struct link {
 	u32 exp_msg_count;
 	u32 reset_checkpoint;
 
-        /* Max packet negotiation */
-        u32 max_pkt;
-        u32 max_pkt_target;
-        u32 max_pkt_probes;
+	/* Max packet negotiation */
+	u32 max_pkt;
+	u32 max_pkt_target;
+	u32 max_pkt_probes;
 
 	/* Sending */
 	u32 out_queue_size;
 	struct sk_buff *first_out;
 	struct sk_buff *last_out;
 	u32 next_out_no;
-        u32 last_retransmitted;
-        u32 stale_count;
+	u32 last_retransmitted;
+	u32 stale_count;
 
 	/* Reception */
 	u32 next_in_no;
@@ -174,7 +174,7 @@ struct link {
 	u32 long_msg_seq_no;
 	struct sk_buff *defragm_buf;
 
-        /* Statistics */
+	/* Statistics */
 	struct {
 		u32 sent_info;		/* used in counting # sent packets */
 		u32 recv_info;		/* used in counting # recv'd packets */
@@ -239,9 +239,9 @@ void tipc_link_reset(struct link *l_ptr);
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
 int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf);
 u32 tipc_link_get_max_pkt(u32 dest,u32 selector);
-int tipc_link_send_sections_fast(struct port* sender, 
+int tipc_link_send_sections_fast(struct port* sender,
 				 struct iovec const *msg_sect,
-				 const u32 num_sect, 
+				 const u32 num_sect,
 				 u32 destnode);
 int tipc_link_send_long_buf(struct link *l_ptr, struct sk_buff *buf);
 void tipc_link_tunnel(struct link *l_ptr, struct tipc_msg *tnl_hdr,
@@ -250,7 +250,7 @@ void tipc_link_recv_bundle(struct sk_buff *buf);
 int  tipc_link_recv_fragment(struct sk_buff **pending,
 			     struct sk_buff **fb,
 			     struct tipc_msg **msg);
-void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int prob, u32 gap, 
+void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int prob, u32 gap,
 			      u32 tolerance, u32 priority, u32 acked_mtu);
 void tipc_link_push_queue(struct link *l_ptr);
 u32 tipc_link_defer_pkt(struct sk_buff **head, struct sk_buff **tail,

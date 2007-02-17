@@ -755,18 +755,8 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 
 	tty = mos7840_port->port->tty;
 
-	if (tty && mos7840_port->open) {
-		/* let the tty driver wakeup if it has a special *
-		 * write_wakeup function                         */
-
-		if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP))
-		    && tty->ldisc.write_wakeup) {
-			(tty->ldisc.write_wakeup) (tty);
-		}
-
-		/* tell the tty driver that something has changed */
-		wake_up_interruptible(&tty->write_wait);
-	}
+	if (tty && mos7840_port->open)
+		tty_wakeup(tty);
 
 }
 

@@ -152,7 +152,7 @@ static int  pwc_video_ioctl(struct inode *inode, struct file *file,
 			    unsigned int ioctlnr, unsigned long arg);
 static int  pwc_video_mmap(struct file *file, struct vm_area_struct *vma);
 
-static struct file_operations pwc_fops = {
+static const struct file_operations pwc_fops = {
 	.owner =	THIS_MODULE,
 	.open =		pwc_video_open,
 	.release =     	pwc_video_close,

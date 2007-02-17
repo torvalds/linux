@@ -43,8 +43,6 @@
 #include "xfs_itable.h"
 #include "xfs_rw.h"
 #include "xfs_acl.h"
-#include "xfs_cap.h"
-#include "xfs_mac.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_space.h"
@@ -484,7 +482,7 @@ xfs_qm_dqalloc(
 
 	xfs_trans_bhold(tp, bp);
 
-	if ((error = xfs_bmap_finish(tpp, &flist, firstblock, &committed))) {
+	if ((error = xfs_bmap_finish(tpp, &flist, &committed))) {
 		goto error1;
 	}
 

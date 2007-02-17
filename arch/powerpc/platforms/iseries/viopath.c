@@ -173,7 +173,7 @@ static int proc_viopath_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_viopath_show, NULL);
 }
 
-static struct file_operations proc_viopath_operations = {
+static const struct file_operations proc_viopath_operations = {
 	.open		= proc_viopath_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

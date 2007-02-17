@@ -565,7 +565,7 @@ xfs_rename(
 		IHOLD(target_ip);
 	IHOLD(src_ip);
 
-	error = xfs_bmap_finish(&tp, &free_list, first_block, &committed);
+	error = xfs_bmap_finish(&tp, &free_list, &committed);
 	if (error) {
 		xfs_bmap_cancel(&free_list);
 		xfs_trans_cancel(tp, (XFS_TRANS_RELEASE_LOG_RES |

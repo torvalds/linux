@@ -18,6 +18,7 @@
 #ifndef __XFS_MOUNT_H__
 #define	__XFS_MOUNT_H__
 
+
 typedef struct xfs_trans_reservations {
 	uint	tr_write;	/* extent alloc trans */
 	uint	tr_itruncate;	/* truncate trans */
@@ -306,11 +307,13 @@ typedef struct xfs_icsb_cnts {
 #define XFS_ICSB_LAZY_COUNT	(1 << 1)	/* accuracy not needed */
 
 extern int	xfs_icsb_init_counters(struct xfs_mount *);
-extern void	xfs_icsb_sync_counters_lazy(struct xfs_mount *);
+extern void	xfs_icsb_reinit_counters(struct xfs_mount *);
+extern void	xfs_icsb_sync_counters_flags(struct xfs_mount *, int);
 
 #else
 #define xfs_icsb_init_counters(mp)	(0)
-#define xfs_icsb_sync_counters_lazy(mp)	do { } while (0)
+#define xfs_icsb_reinit_counters(mp)	do { } while (0)
+#define xfs_icsb_sync_counters_flags(mp, flags)	do { } while (0)
 #endif
 
 typedef struct xfs_mount {
@@ -419,6 +422,7 @@ typedef struct xfs_mount {
 	xfs_icsb_cnts_t		*m_sb_cnts;	/* per-cpu superblock counters */
 	unsigned long		m_icsb_counters; /* disabled per-cpu counters */
 	struct notifier_block	m_icsb_notifier; /* hotplug cpu notifier */
+	struct mutex		m_icsb_mutex;	/* balancer sync lock */
 #endif
 } xfs_mount_t;
 
@@ -563,11 +567,32 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 }
 
 /*
+ * Per-cpu superblock locking functions
+ */
+#ifdef HAVE_PERCPU_SB
+STATIC_INLINE void
+xfs_icsb_lock(xfs_mount_t *mp)
+{
+	mutex_lock(&mp->m_icsb_mutex);
+}
+
+STATIC_INLINE void
+xfs_icsb_unlock(xfs_mount_t *mp)
+{
+	mutex_unlock(&mp->m_icsb_mutex);
+}
+#else
+#define xfs_icsb_lock(mp)
+#define xfs_icsb_unlock(mp)
+#endif
+
+/*
  * This structure is for use by the xfs_mod_incore_sb_batch() routine.
+ * xfs_growfs can specify a few fields which are more than int limit
  */
 typedef struct xfs_mod_sb {
 	xfs_sb_field_t	msb_field;	/* Field to modify, see below */
-	int		msb_delta;	/* Change to make to specified field */
+	int64_t		msb_delta;	/* Change to make to specified field */
 } xfs_mod_sb_t;
 
 #define	XFS_MOUNT_ILOCK(mp)	mutex_lock(&((mp)->m_ilock))
@@ -585,17 +610,17 @@ extern int	xfs_unmountfs(xfs_mount_t *, struct cred *);
 extern void	xfs_unmountfs_close(xfs_mount_t *, struct cred *);
 extern int	xfs_unmountfs_writesb(xfs_mount_t *);
 extern int	xfs_unmount_flush(xfs_mount_t *, int);
-extern int	xfs_mod_incore_sb(xfs_mount_t *, xfs_sb_field_t, int, int);
+extern int	xfs_mod_incore_sb(xfs_mount_t *, xfs_sb_field_t, int64_t, int);
 extern int	xfs_mod_incore_sb_unlocked(xfs_mount_t *, xfs_sb_field_t,
-			int, int);
+			int64_t, int);
 extern int	xfs_mod_incore_sb_batch(xfs_mount_t *, xfs_mod_sb_t *,
 			uint, int);
 extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);
 extern void	xfs_do_force_shutdown(bhv_desc_t *, int, char *, int);
-extern int	xfs_syncsub(xfs_mount_t *, int, int, int *);
-extern int	xfs_sync_inodes(xfs_mount_t *, int, int, int *);
+extern int	xfs_syncsub(xfs_mount_t *, int, int *);
+extern int	xfs_sync_inodes(xfs_mount_t *, int, int *);
 extern xfs_agnumber_t	xfs_initialize_perag(struct bhv_vfs *, xfs_mount_t *,
 						xfs_agnumber_t);
 extern void	xfs_xlatesb(void *, struct xfs_sb *, int, __int64_t);

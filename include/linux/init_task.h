@@ -66,7 +66,7 @@
 	.cpu_timers	= INIT_CPU_TIMERS(sig.cpu_timers),		\
 	.rlim		= INIT_RLIMITS,					\
 	.pgrp		= 1,						\
-	.tty_old_pgrp   = 0,						\
+	.tty_old_pgrp   = NULL,						\
 	{ .__session      = 1},						\
 }
 

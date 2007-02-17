@@ -295,7 +295,7 @@ async_unwrap_bof(struct net_device *dev,
 	case OUTSIDE_FRAME:
 	case BEGIN_FRAME:
 	default:
-		/* We may receive multiple BOF at the start of frame */ 
+		/* We may receive multiple BOF at the start of frame */
 		break;
 	}
 

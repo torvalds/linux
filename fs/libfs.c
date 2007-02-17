@@ -186,7 +186,7 @@ const struct file_operations simple_dir_operations = {
 	.fsync		= simple_sync_file,
 };
 
-struct inode_operations simple_dir_inode_operations = {
+const struct inode_operations simple_dir_inode_operations = {
 	.lookup		= simple_lookup,
 };
 
@@ -195,11 +195,11 @@ struct inode_operations simple_dir_inode_operations = {
  * will never be mountable)
  */
 int get_sb_pseudo(struct file_system_type *fs_type, char *name,
-	struct super_operations *ops, unsigned long magic,
+	const struct super_operations *ops, unsigned long magic,
 	struct vfsmount *mnt)
 {
 	struct super_block *s = sget(fs_type, NULL, set_anon_super, NULL);
-	static struct super_operations default_ops = {.statfs = simple_statfs};
+	static const struct super_operations default_ops = {.statfs = simple_statfs};
 	struct dentry *dentry;
 	struct inode *root;
 	struct qstr d_name = {.name = name, .len = strlen(name)};

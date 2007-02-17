@@ -1040,7 +1040,7 @@ static int tw_chrdev_open(struct inode *inode, struct file *file)
 } /* End tw_chrdev_open() */
 
 /* File operations struct for character device */
-static struct file_operations tw_fops = {
+static const struct file_operations tw_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= tw_chrdev_ioctl,
 	.open		= tw_chrdev_open,

@@ -126,10 +126,10 @@ int ax25cmp(const ax25_address *a, const ax25_address *b)
 		ct++;
 	}
 
- 	if ((a->ax25_call[ct] & 0x1E) == (b->ax25_call[ct] & 0x1E))	/* SSID without control bit */
- 		return 0;
+	if ((a->ax25_call[ct] & 0x1E) == (b->ax25_call[ct] & 0x1E))	/* SSID without control bit */
+		return 0;
 
- 	return 2;			/* Partial match */
+	return 2;			/* Partial match */
 }
 
 EXPORT_SYMBOL(ax25cmp);

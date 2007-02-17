@@ -71,8 +71,6 @@ int poke_user(struct task_struct *child, long addr, long data)
 
         if (addr < MAX_REG_OFFSET)
                 return putreg(child, addr, data);
-
-#if 0 /* Need x86_64 debugregs handling */
         else if((addr >= offsetof(struct user, u_debugreg[0])) &&
                 (addr <= offsetof(struct user, u_debugreg[7]))){
                 addr -= offsetof(struct user, u_debugreg[0]);
@@ -81,7 +79,6 @@ int poke_user(struct task_struct *child, long addr, long data)
                 child->thread.arch.debugregs[addr] = data;
                 return 0;
         }
-#endif
         return -EIO;
 }
 
@@ -119,14 +116,12 @@ int peek_user(struct task_struct *child, long addr, long data)
         if(addr < MAX_REG_OFFSET){
                 tmp = getreg(child, addr);
         }
-#if 0 /* Need x86_64 debugregs handling */
         else if((addr >= offsetof(struct user, u_debugreg[0])) &&
                 (addr <= offsetof(struct user, u_debugreg[7]))){
                 addr -= offsetof(struct user, u_debugreg[0]);
                 addr = addr >> 2;
                 tmp = child->thread.arch.debugregs[addr];
         }
-#endif
         return put_user(tmp, (unsigned long *) data);
 }
 

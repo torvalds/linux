@@ -33,9 +33,9 @@
 int net_msg_cost = 5*HZ;
 int net_msg_burst = 10;
 
-/* 
+/*
  * All net warning printk()s should be guarded by this function.
- */ 
+ */
 int net_ratelimit(void)
 {
 	return __printk_ratelimit(net_msg_cost, net_msg_burst);

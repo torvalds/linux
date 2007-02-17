@@ -2913,7 +2913,7 @@ megasas_mgmt_compat_ioctl(struct file *file, unsigned int cmd,
 /*
  * File operations structure for management interface
  */
-static struct file_operations megasas_mgmt_fops = {
+static const struct file_operations megasas_mgmt_fops = {
 	.owner = THIS_MODULE,
 	.open = megasas_mgmt_open,
 	.release = megasas_mgmt_release,

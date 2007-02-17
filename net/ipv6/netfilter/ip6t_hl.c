@@ -41,7 +41,7 @@ static int match(const struct sk_buff *skb,
 			return (ip6h->hop_limit > info->hop_limit);
 			break;
 		default:
-			printk(KERN_WARNING "ip6t_hl: unknown mode %d\n", 
+			printk(KERN_WARNING "ip6t_hl: unknown mode %d\n",
 				info->mode);
 			return 0;
 	}

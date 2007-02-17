@@ -399,10 +399,9 @@ EXPORT_SYMBOL_GPL(register_posix_clock);
 static struct k_itimer * alloc_posix_timer(void)
 {
 	struct k_itimer *tmr;
-	tmr = kmem_cache_alloc(posix_timers_cache, GFP_KERNEL);
+	tmr = kmem_cache_zalloc(posix_timers_cache, GFP_KERNEL);
 	if (!tmr)
 		return tmr;
-	memset(tmr, 0, sizeof (struct k_itimer));
 	if (unlikely(!(tmr->sigq = sigqueue_alloc()))) {
 		kmem_cache_free(posix_timers_cache, tmr);
 		tmr = NULL;

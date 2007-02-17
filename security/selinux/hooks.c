@@ -181,11 +181,10 @@ static int inode_alloc_security(struct inode *inode)
 	struct task_security_struct *tsec = current->security;
 	struct inode_security_struct *isec;
 
-	isec = kmem_cache_alloc(sel_inode_cache, GFP_KERNEL);
+	isec = kmem_cache_zalloc(sel_inode_cache, GFP_KERNEL);
 	if (!isec)
 		return -ENOMEM;
 
-	memset(isec, 0, sizeof(*isec));
 	mutex_init(&isec->lock);
 	INIT_LIST_HEAD(&isec->list);
 	isec->inode = inode;
@@ -2655,7 +2654,7 @@ static int selinux_file_send_sigiotask(struct task_struct *tsk,
 	struct file_security_struct *fsec;
 
 	/* struct fown_struct is never outside the context of a struct file */
-        file = (struct file *)((long)fown - offsetof(struct file,f_owner));
+        file = container_of(fown, struct file, f_owner);
 
 	tsec = tsk->security;
 	fsec = file->f_security;

@@ -789,7 +789,7 @@ $(vmlinux-dirs): prepare scripts
 
 pattern = ".*/localversion[^~]*"
 string  = $(shell cat /dev/null \
-	   `find $(objtree) $(srctree) -maxdepth 1 -regex $(pattern) | sort`)
+	   `find $(objtree) $(srctree) -maxdepth 1 -regex $(pattern) | sort -u`)
 
 localver = $(subst $(space),, $(string) \
 			      $(patsubst "%",%,$(CONFIG_LOCALVERSION)))

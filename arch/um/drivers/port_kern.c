@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2001, 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -55,9 +55,9 @@ static irqreturn_t pipe_interrupt(int irq, void *data)
 	fd = os_rcv_fd(conn->socket[0], &conn->helper_pid);
 	if(fd < 0){
 		if(fd == -EAGAIN)
-			return(IRQ_NONE);
+			return IRQ_NONE;
 
-		printk(KERN_ERR "pipe_interrupt : os_rcv_fd returned %d\n", 
+		printk(KERN_ERR "pipe_interrupt : os_rcv_fd returned %d\n",
 		       -fd);
 		os_close_file(conn->fd);
 	}
@@ -68,7 +68,7 @@ static irqreturn_t pipe_interrupt(int irq, void *data)
 	list_add(&conn->list, &conn->port->connections);
 
 	complete(&conn->port->done);
-	return(IRQ_HANDLED);
+	return IRQ_HANDLED;
 }
 
 #define NO_WAITER_MSG \
@@ -97,14 +97,14 @@ static int port_accept(struct port_list *port)
 		       "connection\n");
 		goto out_close;
 	}
-	*conn = ((struct connection) 
+	*conn = ((struct connection)
 		{ .list 	= LIST_HEAD_INIT(conn->list),
 		  .fd 		= fd,
 		  .socket  	= { socket[0], socket[1] },
 		  .telnetd_pid 	= pid,
 		  .port 	= port });
 
-	if(um_request_irq(TELNETD_IRQ, socket[0], IRQ_READ, pipe_interrupt, 
+	if(um_request_irq(TELNETD_IRQ, socket[0], IRQ_READ, pipe_interrupt,
 			  IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM,
 			  "telnetd", conn)){
 		printk(KERN_ERR "port_accept : failed to get IRQ for "
@@ -117,20 +117,20 @@ static int port_accept(struct port_list *port)
 		printk("No one waiting for port\n");
 	}
 	list_add(&conn->list, &port->pending);
-	return(1);
+	return 1;
 
  out_free:
 	kfree(conn);
  out_close:
 	os_close_file(fd);
-	if(pid != -1) 
+	if(pid != -1)
 		os_kill_process(pid, 1);
  out:
-	return(ret);
-} 
+	return ret;
+}
 
-DECLARE_MUTEX(ports_sem);
-struct list_head ports = LIST_HEAD_INIT(ports);
+static DECLARE_MUTEX(ports_sem);
+static LIST_HEAD(ports);
 
 void port_work_proc(struct work_struct *unused)
 {
@@ -158,8 +158,8 @@ static irqreturn_t port_interrupt(int irq, void *data)
 
 	port->has_connection = 1;
 	schedule_work(&port_work);
-	return(IRQ_HANDLED);
-} 
+	return IRQ_HANDLED;
+}
 
 void *port_data(int port_num)
 {
@@ -185,14 +185,14 @@ void *port_data(int port_num)
 		       port_num, -fd);
 		goto out_free;
 	}
-	if(um_request_irq(ACCEPT_IRQ, fd, IRQ_READ, port_interrupt, 
-			  IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM, "port",
-			  port)){
+	if(um_request_irq(ACCEPT_IRQ, fd, IRQ_READ, port_interrupt,
+			  IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM,
+			  "port", port)){
 		printk(KERN_ERR "Failed to get IRQ for port %d\n", port_num);
 		goto out_close;
 	}
 
-	*port = ((struct port_list) 
+	*port = ((struct port_list)
 		{ .list 	 	= LIST_HEAD_INIT(port->list),
 		  .wait_count		= ATOMIC_INIT(0),
 		  .has_connection 	= 0,
@@ -222,7 +222,7 @@ void *port_data(int port_num)
 	os_close_file(fd);
  out:
 	up(&ports_sem);
-	return(dev);
+	return dev;
 }
 
 int port_wait(void *data)
@@ -232,15 +232,15 @@ int port_wait(void *data)
 	struct port_list *port = dev->port;
 	int fd;
 
-        atomic_inc(&port->wait_count);
+	atomic_inc(&port->wait_count);
 	while(1){
 		fd = -ERESTARTSYS;
-                if(wait_for_completion_interruptible(&port->done))
-                        goto out;
+		if(wait_for_completion_interruptible(&port->done))
+			goto out;
 
 		spin_lock(&port->lock);
 
-		conn = list_entry(port->connections.next, struct connection, 
+		conn = list_entry(port->connections.next, struct connection,
 				  list);
 		list_del(&conn->list);
 		spin_unlock(&port->lock);
@@ -248,12 +248,12 @@ int port_wait(void *data)
 		os_shutdown_socket(conn->socket[0], 1, 1);
 		os_close_file(conn->socket[0]);
 		os_shutdown_socket(conn->socket[1], 1, 1);
-		os_close_file(conn->socket[1]);	
+		os_close_file(conn->socket[1]);
 
 		/* This is done here because freeing an IRQ can't be done
 		 * within the IRQ handler.  So, pipe_interrupt always ups
 		 * the semaphore regardless of whether it got a successful
-		 * connection.  Then we loop here throwing out failed 
+		 * connection.  Then we loop here throwing out failed
 		 * connections until a good one is found.
 		 */
 		free_irq(TELNETD_IRQ, conn);

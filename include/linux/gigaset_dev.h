@@ -9,8 +9,6 @@
  *    published by the Free Software Foundation; either version 2 of
  *    the License, or (at your option) any later version.
  * =====================================================================
- * Version: $Id: gigaset_dev.h,v 1.4.4.4 2005/11/21 22:28:09 hjlipp Exp $
- * =====================================================================
  */
 
 #ifndef GIGASET_INTERFACE_H

@@ -78,13 +78,13 @@ match(const struct sk_buff *skb,
 
 	DEBUGP("IPv6 AH spi %02X ",
 	       (spi_match(ahinfo->spis[0], ahinfo->spis[1],
-	                  ntohl(ah->spi),
-	                  !!(ahinfo->invflags & IP6T_AH_INV_SPI))));
+			  ntohl(ah->spi),
+			  !!(ahinfo->invflags & IP6T_AH_INV_SPI))));
 	DEBUGP("len %02X %04X %02X ",
 	       ahinfo->hdrlen, hdrlen,
 	       (!ahinfo->hdrlen ||
-	        (ahinfo->hdrlen == hdrlen) ^
-	        !!(ahinfo->invflags & IP6T_AH_INV_LEN)));
+		(ahinfo->hdrlen == hdrlen) ^
+		!!(ahinfo->invflags & IP6T_AH_INV_LEN)));
 	DEBUGP("res %02X %04X %02X\n",
 	       ahinfo->hdrres, ah->reserved,
 	       !(ahinfo->hdrres && ah->reserved));
@@ -92,12 +92,12 @@ match(const struct sk_buff *skb,
 	return (ah != NULL)
 	       &&
 	       (spi_match(ahinfo->spis[0], ahinfo->spis[1],
-	                  ntohl(ah->spi),
-	                  !!(ahinfo->invflags & IP6T_AH_INV_SPI)))
+			  ntohl(ah->spi),
+			  !!(ahinfo->invflags & IP6T_AH_INV_SPI)))
 	       &&
 	       (!ahinfo->hdrlen ||
-	        (ahinfo->hdrlen == hdrlen) ^
-	        !!(ahinfo->invflags & IP6T_AH_INV_LEN))
+		(ahinfo->hdrlen == hdrlen) ^
+		!!(ahinfo->invflags & IP6T_AH_INV_LEN))
 	       &&
 	       !(ahinfo->hdrres && ah->reserved);
 }
@@ -105,10 +105,10 @@ match(const struct sk_buff *skb,
 /* Called when user tries to insert an entry of this type. */
 static int
 checkentry(const char *tablename,
-          const void *entry,
+	  const void *entry,
 	  const struct xt_match *match,
-          void *matchinfo,
-          unsigned int hook_mask)
+	  void *matchinfo,
+	  unsigned int hook_mask)
 {
 	const struct ip6t_ah *ahinfo = matchinfo;
 

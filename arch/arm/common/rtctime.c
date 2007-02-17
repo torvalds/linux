@@ -329,7 +329,7 @@ static int rtc_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &rtc_async_queue);
 }
 
-static struct file_operations rtc_fops = {
+static const struct file_operations rtc_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= rtc_read,

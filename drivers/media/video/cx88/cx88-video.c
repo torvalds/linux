@@ -1808,7 +1808,7 @@ static irqreturn_t cx8800_irq(int irq, void *dev_id)
 /* ----------------------------------------------------------- */
 /* exported stuff                                              */
 
-static struct file_operations video_fops =
+static const struct file_operations video_fops =
 {
 	.owner	       = THIS_MODULE,
 	.open	       = video_open,
@@ -1839,7 +1839,7 @@ static struct video_device cx8800_vbi_template =
 	.minor         = -1,
 };
 
-static struct file_operations radio_fops =
+static const struct file_operations radio_fops =
 {
 	.owner         = THIS_MODULE,
 	.open          = video_open,

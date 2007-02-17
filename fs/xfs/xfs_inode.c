@@ -47,7 +47,6 @@
 #include "xfs_utils.h"
 #include "xfs_dir2_trace.h"
 #include "xfs_quota.h"
-#include "xfs_mac.h"
 #include "xfs_acl.h"
 
 
@@ -1699,8 +1698,7 @@ xfs_itruncate_finish(
 		 * Duplicate the transaction that has the permanent
 		 * reservation and commit the old transaction.
 		 */
-		error = xfs_bmap_finish(tp, &free_list, first_block,
-					&committed);
+		error = xfs_bmap_finish(tp, &free_list, &committed);
 		ntp = *tp;
 		if (error) {
 			/*
@@ -1810,7 +1808,7 @@ xfs_igrow_start(
 	 * and any blocks between the old and new file sizes.
 	 */
 	error = xfs_zero_eof(XFS_ITOV(ip), &ip->i_iocore, new_size,
-			     ip->i_d.di_size, new_size);
+			     ip->i_d.di_size);
 	return error;
 }
 
@@ -2125,7 +2123,7 @@ xfs_iunlink_remove(
 	return 0;
 }
 
-static __inline__ int xfs_inode_clean(xfs_inode_t *ip)
+STATIC_INLINE int xfs_inode_clean(xfs_inode_t *ip)
 {
 	return (((ip->i_itemp == NULL) ||
 		!(ip->i_itemp->ili_format.ilf_fields & XFS_ILOG_ALL)) &&
@@ -2707,10 +2705,24 @@ xfs_idestroy(
 	ktrace_free(ip->i_dir_trace);
 #endif
 	if (ip->i_itemp) {
-		/* XXXdpd should be able to assert this but shutdown
-		 * is leaving the AIL behind. */
-		ASSERT(((ip->i_itemp->ili_item.li_flags & XFS_LI_IN_AIL) == 0) ||
-		       XFS_FORCED_SHUTDOWN(ip->i_mount));
+		/*
+		 * Only if we are shutting down the fs will we see an
+		 * inode still in the AIL. If it is there, we should remove
+		 * it to prevent a use-after-free from occurring.
+		 */
+		xfs_mount_t	*mp = ip->i_mount;
+		xfs_log_item_t	*lip = &ip->i_itemp->ili_item;
+		int		s;
+
+		ASSERT(((lip->li_flags & XFS_LI_IN_AIL) == 0) ||
+				       XFS_FORCED_SHUTDOWN(ip->i_mount));
+		if (lip->li_flags & XFS_LI_IN_AIL) {
+			AIL_LOCK(mp, s);
+			if (lip->li_flags & XFS_LI_IN_AIL)
+				xfs_trans_delete_ail(mp, lip, s);
+			else
+				AIL_UNLOCK(mp, s);
+		}
 		xfs_inode_item_destroy(ip);
 	}
 	kmem_zone_free(xfs_inode_zone, ip);

@@ -1,6 +1,6 @@
 /*
  * net/tipc/core.h: Include file for TIPC global declarations
- * 
+ *
  * Copyright (c) 2005-2006, Ericsson AB
  * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
@@ -54,7 +54,7 @@
 #include <asm/atomic.h>
 #include <asm/hardirq.h>
 #include <linux/netdevice.h>
-#include <linux/in.h>	
+#include <linux/in.h>
 #include <linux/list.h>
 #include <linux/vmalloc.h>
 
@@ -88,7 +88,7 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
 #define dump(fmt, arg...) do {if (DBG_OUTPUT != TIPC_NULL) tipc_dump(DBG_OUTPUT, fmt, ##arg);} while(0)
 
 
-/*	
+/*
  * By default, TIPC_OUTPUT is defined to be system console and TIPC log buffer,
  * while DBG_OUTPUT is the null print buffer.  These defaults can be changed
  * here, or on a per .c file basis, by redefining these symbols.  The following
@@ -126,9 +126,9 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
 #define dump(fmt,arg...) do {} while (0)
 
 
-/*	
+/*
  * TIPC_OUTPUT is defined to be the system console, while DBG_OUTPUT is
- * the null print buffer.  Thes ensures that any system or debug messages 
+ * the null print buffer.  Thes ensures that any system or debug messages
  * that are generated without using the above macros are handled correctly.
  */
 
@@ -138,10 +138,10 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
 #undef  DBG_OUTPUT
 #define DBG_OUTPUT TIPC_NULL
 
-#endif			  
+#endif
 
 
-/* 
+/*
  * TIPC-specific error codes
  */
 
@@ -204,11 +204,11 @@ u32 tipc_k_signal(Handler routine, unsigned long argument);
  * @timer: pointer to timer structure
  * @routine: pointer to routine to invoke when timer expires
  * @argument: value to pass to routine when timer expires
- * 
+ *
  * Timer must be initialized before use (and terminated when no longer needed).
  */
 
-static inline void k_init_timer(struct timer_list *timer, Handler routine, 
+static inline void k_init_timer(struct timer_list *timer, Handler routine,
 				unsigned long argument)
 {
 	dbg("initializing timer %p\n", timer);
@@ -221,13 +221,13 @@ static inline void k_init_timer(struct timer_list *timer, Handler routine,
  * k_start_timer - start a timer
  * @timer: pointer to timer structure
  * @msec: time to delay (in ms)
- * 
+ *
  * Schedules a previously initialized timer for later execution.
  * If timer is already running, the new timeout overrides the previous request.
- * 
+ *
  * To ensure the timer doesn't expire before the specified delay elapses,
  * the amount of delay is rounded up when converting to the jiffies
- * then an additional jiffy is added to account for the fact that 
+ * then an additional jiffy is added to account for the fact that
  * the starting time may be in the middle of the current jiffy.
  */
 
@@ -240,10 +240,10 @@ static inline void k_start_timer(struct timer_list *timer, unsigned long msec)
 /**
  * k_cancel_timer - cancel a timer
  * @timer: pointer to timer structure
- * 
- * Cancels a previously initialized timer.  
+ *
+ * Cancels a previously initialized timer.
  * Can be called safely even if the timer is already inactive.
- * 
+ *
  * WARNING: Must not be called when holding locks required by the timer's
  *          timeout routine, otherwise deadlock can occur on SMP systems!
  */
@@ -257,11 +257,11 @@ static inline void k_cancel_timer(struct timer_list *timer)
 /**
  * k_term_timer - terminate a timer
  * @timer: pointer to timer structure
- * 
+ *
  * Prevents further use of a previously initialized timer.
- * 
+ *
  * WARNING: Caller must ensure timer isn't currently running.
- * 
+ *
  * (Do not "enhance" this routine to automatically cancel an active timer,
  * otherwise deadlock can arise when a timeout routine calls k_term_timer.)
  */
@@ -302,7 +302,7 @@ static inline struct tipc_msg *buf_msg(struct sk_buff *skb)
  * @size: message size (including TIPC header)
  *
  * Returns a new buffer with data pointers set to the specified size.
- * 
+ *
  * NOTE: Headroom is reserved to allow prepending of a data link header.
  *       There may also be unrequested tailroom present at the buffer's end.
  */
@@ -334,4 +334,4 @@ static inline void buf_discard(struct sk_buff *skb)
 		kfree_skb(skb);
 }
 
-#endif			
+#endif

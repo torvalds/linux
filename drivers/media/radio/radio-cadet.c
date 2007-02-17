@@ -507,7 +507,7 @@ cadet_poll(struct file *file, struct poll_table_struct *wait)
 }
 
 
-static struct file_operations cadet_fops = {
+static const struct file_operations cadet_fops = {
 	.owner		= THIS_MODULE,
 	.open		= cadet_open,
 	.release       	= cadet_release,

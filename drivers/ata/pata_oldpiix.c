@@ -25,7 +25,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_oldpiix"
-#define DRV_VERSION	"0.5.2"
+#define DRV_VERSION	"0.5.3"
 
 /**
  *	oldpiix_pre_reset		-	probe begin
@@ -94,19 +94,21 @@ static void oldpiix_set_piomode (struct ata_port *ap, struct ata_device *adev)
 			    { 2, 1 },
 			    { 2, 3 }, };
 
-	if (pio > 2)
-		control |= 1;	/* TIME1 enable */
+	if (pio > 1)
+		control |= 1;	/* TIME */
 	if (ata_pio_need_iordy(adev))
-		control |= 2;	/* IE IORDY */
+		control |= 2;	/* IE */
 
-	/* Intel specifies that the PPE functionality is for disk only */
+	/* Intel specifies that the prefetch/posting is for disk only */
 	if (adev->class == ATA_DEV_ATA)
-		control |= 4;	/* PPE enable */
+		control |= 4;	/* PPE */
 
 	pci_read_config_word(dev, idetm_port, &idetm_data);
 
-	/* Enable PPE, IE and TIME as appropriate. Clear the other
-	   drive timing bits */
+	/*
+	 * Set PPE, IE and TIME as appropriate.
+	 * Clear the other drive's timing bits.
+	 */
 	if (adev->devno == 0) {
 		idetm_data &= 0xCCE0;
 		idetm_data |= control;
@@ -259,14 +261,14 @@ static const struct ata_port_operations oldpiix_pata_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= oldpiix_qc_issue_prot,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
 
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
 };
 
 

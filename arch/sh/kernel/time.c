@@ -41,14 +41,6 @@ static int null_rtc_set_time(const time_t secs)
 void (*rtc_sh_get_time)(struct timespec *) = null_rtc_get_time;
 int (*rtc_sh_set_time)(const time_t) = null_rtc_set_time;
 
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long __attribute__ ((weak)) sched_clock(void)
-{
-	return (unsigned long long)jiffies * (1000000000 / HZ);
-}
-
 #ifndef CONFIG_GENERIC_TIME
 void do_gettimeofday(struct timeval *tv)
 {

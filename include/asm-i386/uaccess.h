@@ -54,10 +54,10 @@ extern struct movsl_mask {
  * This needs 33-bit arithmetic. We have a carry...
  */
 #define __range_ok(addr,size) ({ \
-	unsigned long flag,sum; \
+	unsigned long flag,roksum; \
 	__chk_user_ptr(addr); \
 	asm("addl %3,%1 ; sbbl %0,%0; cmpl %1,%4; sbbl $0,%0" \
-		:"=&r" (flag), "=r" (sum) \
+		:"=&r" (flag), "=r" (roksum) \
 		:"1" (addr),"g" ((int)(size)),"rm" (current_thread_info()->addr_limit.seg)); \
 	flag; })
 

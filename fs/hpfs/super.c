@@ -426,7 +426,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 
 /* Super operations */
 
-static struct super_operations hpfs_sops =
+static const struct super_operations hpfs_sops =
 {
 	.alloc_inode	= hpfs_alloc_inode,
 	.destroy_inode	= hpfs_destroy_inode,

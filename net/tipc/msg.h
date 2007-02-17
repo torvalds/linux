@@ -1,6 +1,6 @@
 /*
  * net/tipc/msg.h: Include file for TIPC message header routines
- * 
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -56,10 +56,10 @@
 
 /*
 		TIPC user data message header format, version 2
-		
+
 	- Fundamental definitions available to privileged TIPC users
 	  are located in tipc_msg.h.
-	- Remaining definitions available to TIPC internal users appear below. 
+	- Remaining definitions available to TIPC internal users appear below.
 */
 
 
@@ -75,7 +75,7 @@ static inline void msg_set_bits(struct tipc_msg *m, u32 w,
 	msg_set_word(m, w, (word |= (val << pos)));
 }
 
-/* 
+/*
  * Word 0
  */
 
@@ -84,7 +84,7 @@ static inline u32 msg_version(struct tipc_msg *m)
 	return msg_bits(m, 0, 29, 7);
 }
 
-static inline void msg_set_version(struct tipc_msg *m) 
+static inline void msg_set_version(struct tipc_msg *m)
 {
 	msg_set_bits(m, 0, 29, 0xf, TIPC_VERSION);
 }
@@ -99,47 +99,47 @@ static inline u32 msg_isdata(struct tipc_msg *m)
 	return (msg_user(m) <= DATA_CRITICAL);
 }
 
-static inline void msg_set_user(struct tipc_msg *m, u32 n) 
+static inline void msg_set_user(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 0, 25, 0xf, n);
 }
 
-static inline void msg_set_importance(struct tipc_msg *m, u32 i) 
+static inline void msg_set_importance(struct tipc_msg *m, u32 i)
 {
 	msg_set_user(m, i);
 }
 
-static inline void msg_set_hdr_sz(struct tipc_msg *m,u32 n) 
+static inline void msg_set_hdr_sz(struct tipc_msg *m,u32 n)
 {
 	msg_set_bits(m, 0, 21, 0xf, n>>2);
 }
 
-static inline int msg_non_seq(struct tipc_msg *m) 
+static inline int msg_non_seq(struct tipc_msg *m)
 {
 	return msg_bits(m, 0, 20, 1);
 }
 
-static inline void msg_set_non_seq(struct tipc_msg *m) 
+static inline void msg_set_non_seq(struct tipc_msg *m)
 {
 	msg_set_bits(m, 0, 20, 1, 1);
 }
 
-static inline int msg_dest_droppable(struct tipc_msg *m) 
+static inline int msg_dest_droppable(struct tipc_msg *m)
 {
 	return msg_bits(m, 0, 19, 1);
 }
 
-static inline void msg_set_dest_droppable(struct tipc_msg *m, u32 d) 
+static inline void msg_set_dest_droppable(struct tipc_msg *m, u32 d)
 {
 	msg_set_bits(m, 0, 19, 1, d);
 }
 
-static inline int msg_src_droppable(struct tipc_msg *m) 
+static inline int msg_src_droppable(struct tipc_msg *m)
 {
 	return msg_bits(m, 0, 18, 1);
 }
 
-static inline void msg_set_src_droppable(struct tipc_msg *m, u32 d) 
+static inline void msg_set_src_droppable(struct tipc_msg *m, u32 d)
 {
 	msg_set_bits(m, 0, 18, 1, d);
 }
@@ -150,31 +150,31 @@ static inline void msg_set_size(struct tipc_msg *m, u32 sz)
 }
 
 
-/* 
+/*
  * Word 1
  */
 
-static inline void msg_set_type(struct tipc_msg *m, u32 n) 
+static inline void msg_set_type(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 1, 29, 0x7, n);
 }
 
-static inline void msg_set_errcode(struct tipc_msg *m, u32 err) 
+static inline void msg_set_errcode(struct tipc_msg *m, u32 err)
 {
 	msg_set_bits(m, 1, 25, 0xf, err);
 }
 
-static inline u32 msg_reroute_cnt(struct tipc_msg *m) 
+static inline u32 msg_reroute_cnt(struct tipc_msg *m)
 {
 	return msg_bits(m, 1, 21, 0xf);
 }
 
-static inline void msg_incr_reroute_cnt(struct tipc_msg *m) 
+static inline void msg_incr_reroute_cnt(struct tipc_msg *m)
 {
 	msg_set_bits(m, 1, 21, 0xf, msg_reroute_cnt(m) + 1);
 }
 
-static inline void msg_reset_reroute_cnt(struct tipc_msg *m) 
+static inline void msg_reset_reroute_cnt(struct tipc_msg *m)
 {
 	msg_set_bits(m, 1, 21, 0xf, 0);
 }
@@ -184,12 +184,12 @@ static inline u32 msg_lookup_scope(struct tipc_msg *m)
 	return msg_bits(m, 1, 19, 0x3);
 }
 
-static inline void msg_set_lookup_scope(struct tipc_msg *m, u32 n) 
+static inline void msg_set_lookup_scope(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 1, 19, 0x3, n);
 }
 
-static inline void msg_set_options(struct tipc_msg *m, const char *opt, u32 sz) 
+static inline void msg_set_options(struct tipc_msg *m, const char *opt, u32 sz)
 {
 	u32 hsz = msg_hdr_sz(m);
 	char *to = (char *)&m->hdr[hsz/4];
@@ -206,13 +206,13 @@ static inline u32 msg_bcast_ack(struct tipc_msg *m)
 	return msg_bits(m, 1, 0, 0xffff);
 }
 
-static inline void msg_set_bcast_ack(struct tipc_msg *m, u32 n) 
+static inline void msg_set_bcast_ack(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 1, 0, 0xffff, n);
 }
 
 
-/* 
+/*
  * Word 2
  */
 
@@ -221,7 +221,7 @@ static inline u32 msg_ack(struct tipc_msg *m)
 	return msg_bits(m, 2, 16, 0xffff);
 }
 
-static inline void msg_set_ack(struct tipc_msg *m, u32 n) 
+static inline void msg_set_ack(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 2, 16, 0xffff, n);
 }
@@ -231,48 +231,48 @@ static inline u32 msg_seqno(struct tipc_msg *m)
 	return msg_bits(m, 2, 0, 0xffff);
 }
 
-static inline void msg_set_seqno(struct tipc_msg *m, u32 n) 
+static inline void msg_set_seqno(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 2, 0, 0xffff, n);
 }
 
 
-/* 
+/*
  * Words 3-10
  */
 
 
-static inline void msg_set_prevnode(struct tipc_msg *m, u32 a) 
+static inline void msg_set_prevnode(struct tipc_msg *m, u32 a)
 {
 	msg_set_word(m, 3, a);
 }
 
-static inline void msg_set_origport(struct tipc_msg *m, u32 p) 
+static inline void msg_set_origport(struct tipc_msg *m, u32 p)
 {
 	msg_set_word(m, 4, p);
 }
 
-static inline void msg_set_destport(struct tipc_msg *m, u32 p) 
+static inline void msg_set_destport(struct tipc_msg *m, u32 p)
 {
 	msg_set_word(m, 5, p);
 }
 
-static inline void msg_set_mc_netid(struct tipc_msg *m, u32 p) 
+static inline void msg_set_mc_netid(struct tipc_msg *m, u32 p)
 {
 	msg_set_word(m, 5, p);
 }
 
-static inline void msg_set_orignode(struct tipc_msg *m, u32 a) 
+static inline void msg_set_orignode(struct tipc_msg *m, u32 a)
 {
 	msg_set_word(m, 6, a);
 }
 
-static inline void msg_set_destnode(struct tipc_msg *m, u32 a) 
+static inline void msg_set_destnode(struct tipc_msg *m, u32 a)
 {
 	msg_set_word(m, 7, a);
 }
 
-static inline int msg_is_dest(struct tipc_msg *m, u32 d) 
+static inline int msg_is_dest(struct tipc_msg *m, u32 d)
 {
 	return(msg_short(m) || (msg_destnode(m) == d));
 }
@@ -284,7 +284,7 @@ static inline u32 msg_routed(struct tipc_msg *m)
 	return(msg_destnode(m) ^ msg_orignode(m)) >> 11;
 }
 
-static inline void msg_set_nametype(struct tipc_msg *m, u32 n) 
+static inline void msg_set_nametype(struct tipc_msg *m, u32 n)
 {
 	msg_set_word(m, 8, n);
 }
@@ -309,17 +309,17 @@ static inline void msg_set_transp_seqno(struct tipc_msg *m, u32 n)
 	msg_set_word(m, 8, n);
 }
 
-static inline void msg_set_namelower(struct tipc_msg *m, u32 n) 
+static inline void msg_set_namelower(struct tipc_msg *m, u32 n)
 {
 	msg_set_word(m, 9, n);
 }
 
-static inline void msg_set_nameinst(struct tipc_msg *m, u32 n) 
+static inline void msg_set_nameinst(struct tipc_msg *m, u32 n)
 {
 	msg_set_namelower(m, n);
 }
 
-static inline void msg_set_nameupper(struct tipc_msg *m, u32 n) 
+static inline void msg_set_nameupper(struct tipc_msg *m, u32 n)
 {
 	msg_set_word(m, 10, n);
 }
@@ -329,7 +329,7 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 	return (struct tipc_msg *)msg_data(m);
 }
 
-static inline void msg_expand(struct tipc_msg *m, u32 destnode) 
+static inline void msg_expand(struct tipc_msg *m, u32 destnode)
 {
 	if (!msg_short(m))
 		return;
@@ -344,7 +344,7 @@ static inline void msg_expand(struct tipc_msg *m, u32 destnode)
 /*
 		TIPC internal message header format, version 2
 
-       1 0 9 8 7 6 5 4|3 2 1 0 9 8 7 6|5 4 3 2 1 0 9 8|7 6 5 4 3 2 1 0 
+       1 0 9 8 7 6 5 4|3 2 1 0 9 8 7 6|5 4 3 2 1 0 9 8|7 6 5 4 3 2 1 0
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    w0:|vers |msg usr|hdr sz |n|resrv|            packet size          |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -372,9 +372,9 @@ static inline void msg_expand(struct tipc_msg *m, u32 destnode)
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
       NB: CONN_MANAGER use data message format. LINK_CONFIG has own format.
-*/   
+*/
 
-/* 
+/*
  * Internal users
  */
 
@@ -390,7 +390,7 @@ static inline void msg_expand(struct tipc_msg *m, u32 destnode)
 #define  INT_H_SIZE           40
 #define  DSC_H_SIZE           40
 
-/* 
+/*
  *  Connection management protocol messages
  */
 
@@ -398,7 +398,7 @@ static inline void msg_expand(struct tipc_msg *m, u32 destnode)
 #define CONN_PROBE_REPLY  1
 #define CONN_ACK          2
 
-/* 
+/*
  * Name distributor messages
  */
 
@@ -406,7 +406,7 @@ static inline void msg_expand(struct tipc_msg *m, u32 destnode)
 #define WITHDRAWAL        1
 
 
-/* 
+/*
  * Word 1
  */
 
@@ -425,13 +425,13 @@ static inline u32 msg_req_links(struct tipc_msg *m)
 	return msg_bits(m, 1, 16, 0xfff);
 }
 
-static inline void msg_set_req_links(struct tipc_msg *m, u32 n) 
+static inline void msg_set_req_links(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 1, 16, 0xfff, n);
 }
 
 
-/* 
+/*
  * Word 2
  */
 
@@ -440,7 +440,7 @@ static inline u32 msg_dest_domain(struct tipc_msg *m)
 	return msg_word(m, 2);
 }
 
-static inline void msg_set_dest_domain(struct tipc_msg *m, u32 n) 
+static inline void msg_set_dest_domain(struct tipc_msg *m, u32 n)
 {
 	msg_set_word(m, 2, n);
 }
@@ -460,13 +460,13 @@ static inline u32 msg_bcgap_to(struct tipc_msg *m)
 	return msg_bits(m, 2, 0, 0xffff);
 }
 
-static inline void msg_set_bcgap_to(struct tipc_msg *m, u32 n) 
+static inline void msg_set_bcgap_to(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 2, 0, 0xffff, n);
 }
 
 
-/* 
+/*
  * Word 4
  */
 
@@ -533,7 +533,7 @@ static inline void msg_set_link_selector(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 4, 0, 1, (n & 1));
 }
 
-/* 
+/*
  * Word 5
  */
 
@@ -603,7 +603,7 @@ static inline void msg_clear_redundant_link(struct tipc_msg *m)
 }
 
 
-/* 
+/*
  * Word 9
  */
 
@@ -627,12 +627,12 @@ static inline void msg_set_bcast_tag(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 9, 16, 0xffff, n);
 }
 
-static inline u32 msg_max_pkt(struct tipc_msg *m) 
+static inline u32 msg_max_pkt(struct tipc_msg *m)
 {
 	return (msg_bits(m, 9, 16, 0xffff) * 4);
 }
 
-static inline void msg_set_max_pkt(struct tipc_msg *m, u32 n) 
+static inline void msg_set_max_pkt(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 9, 16, 0xffff, (n / 4));
 }
@@ -647,7 +647,7 @@ static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 9, 0, 0xffff, n);
 }
 
-/* 
+/*
  * Routing table message data
  */
 
@@ -672,7 +672,7 @@ static inline void msg_set_dataoctet(struct tipc_msg *m, u32 pos)
 	msg_data(m)[pos + 4] = 1;
 }
 
-/* 
+/*
  * Segmentation message types
  */
 
@@ -680,7 +680,7 @@ static inline void msg_set_dataoctet(struct tipc_msg *m, u32 pos)
 #define FRAGMENT           1
 #define LAST_FRAGMENT      2
 
-/* 
+/*
  * Link management protocol message types
  */
 
@@ -688,13 +688,13 @@ static inline void msg_set_dataoctet(struct tipc_msg *m, u32 pos)
 #define RESET_MSG       1
 #define ACTIVATE_MSG    2
 
-/* 
+/*
  * Changeover tunnel message types
  */
 #define DUPLICATE_MSG    0
 #define ORIGINAL_MSG     1
 
-/* 
+/*
  * Routing table message types
  */
 #define EXT_ROUTING_TABLE    0
@@ -703,7 +703,7 @@ static inline void msg_set_dataoctet(struct tipc_msg *m, u32 pos)
 #define ROUTE_ADDITION       3
 #define ROUTE_REMOVAL        4
 
-/* 
+/*
  * Config protocol message types
  */
 
@@ -724,7 +724,7 @@ static inline u32 msg_tot_importance(struct tipc_msg *m)
 }
 
 
-static inline void msg_init(struct tipc_msg *m, u32 user, u32 type, 
+static inline void msg_init(struct tipc_msg *m, u32 user, u32 type,
 			    u32 err, u32 hsize, u32 destnode)
 {
 	memset(m, 0, hsize);
@@ -741,7 +741,7 @@ static inline void msg_init(struct tipc_msg *m, u32 user, u32 type,
 	}
 }
 
-/** 
+/**
  * msg_calc_data_size - determine total data size for message
  */
 
@@ -755,15 +755,15 @@ static inline int msg_calc_data_size(struct iovec const *msg_sect, u32 num_sect)
 	return dsz;
 }
 
-/** 
+/**
  * msg_build - create message using specified header and data
- * 
+ *
  * Note: Caller must not hold any locks in case copy_from_user() is interrupted!
- * 
+ *
  * Returns message data size or errno
  */
 
-static inline int msg_build(struct tipc_msg *hdr, 
+static inline int msg_build(struct tipc_msg *hdr,
 			    struct iovec const *msg_sect, u32 num_sect,
 			    int max_size, int usrmem, struct sk_buff** buf)
 {
@@ -789,11 +789,11 @@ static inline int msg_build(struct tipc_msg *hdr,
 	memcpy((*buf)->data, (unchar *)hdr, hsz);
 	for (res = 1, cnt = 0; res && (cnt < num_sect); cnt++) {
 		if (likely(usrmem))
-			res = !copy_from_user((*buf)->data + pos, 
-					      msg_sect[cnt].iov_base, 
+			res = !copy_from_user((*buf)->data + pos,
+					      msg_sect[cnt].iov_base,
 					      msg_sect[cnt].iov_len);
 		else
-			memcpy((*buf)->data + pos, msg_sect[cnt].iov_base, 
+			memcpy((*buf)->data + pos, msg_sect[cnt].iov_base,
 			       msg_sect[cnt].iov_len);
 		pos += msg_sect[cnt].iov_len;
 	}

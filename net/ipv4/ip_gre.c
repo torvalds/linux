@@ -1,5 +1,5 @@
 /*
- *	Linux NET3:	GRE over IP protocol decoder. 
+ *	Linux NET3:	GRE over IP protocol decoder.
  *
  *	Authors: Alexey Kuznetsov (kuznet@ms2.inr.ac.ru)
  *
@@ -63,7 +63,7 @@
    solution, but it supposes maintaing new variable in ALL
    skb, even if no tunneling is used.
 
-   Current solution: t->recursion lock breaks dead loops. It looks 
+   Current solution: t->recursion lock breaks dead loops. It looks
    like dev->tbusy flag, but I preferred new variable, because
    the semantics is different. One day, when hard_start_xmit
    will be multithreaded we will have to use skb->encapsulation.
@@ -613,7 +613,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 		if (flags == 0 &&
 		    skb->protocol == htons(ETH_P_WCCP)) {
 			skb->protocol = htons(ETH_P_IP);
-			if ((*(h + offset) & 0xF0) != 0x40) 
+			if ((*(h + offset) & 0xF0) != 0x40)
 				offset += 4;
 		}
 
@@ -816,7 +816,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct sk_buff *new_skb = skb_realloc_headroom(skb, max_headroom);
 		if (!new_skb) {
 			ip_rt_put(rt);
-  			stats->tx_dropped++;
+			stats->tx_dropped++;
 			dev_kfree_skb(skb);
 			tunnel->recursion--;
 			return 0;
@@ -1044,7 +1044,7 @@ static int ipgre_tunnel_change_mtu(struct net_device *dev, int new_mtu)
    so that I had to set ARPHRD_IPGRE to a random value.
    I have an impression, that Cisco could make something similar,
    but this feature is apparently missing in IOS<=11.2(8).
-   
+
    I set up 10.66.66/24 and fec0:6666:6666::0/96 as virtual networks
    with broadcast 224.66.66.66. If you have access to mbone, play with me :-)
 
@@ -1076,9 +1076,9 @@ static int ipgre_header(struct sk_buff *skb, struct net_device *dev, unsigned sh
 	p[1]		= htons(type);
 
 	/*
-	 *	Set the source hardware address. 
+	 *	Set the source hardware address.
 	 */
-	 
+
 	if (saddr)
 		memcpy(&iph->saddr, saddr, 4);
 
@@ -1088,7 +1088,7 @@ static int ipgre_header(struct sk_buff *skb, struct net_device *dev, unsigned sh
 	}
 	if (iph->daddr && !MULTICAST(iph->daddr))
 		return t->hlen;
-	
+
 	return -t->hlen;
 }
 

@@ -263,6 +263,6 @@ const struct file_operations udf_file_operations = {
 	.sendfile		= generic_file_sendfile,
 };
 
-struct inode_operations udf_file_inode_operations = {
+const struct inode_operations udf_file_inode_operations = {
 	.truncate		= udf_truncate,
 };

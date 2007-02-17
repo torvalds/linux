@@ -3,7 +3,7 @@
  *
  *	This is ALPHA test software. This code may break your machine,
  *	randomly fail to work with new releases, misbehave and/or generally
- *	screw up. It might even work. 
+ *	screw up. It might even work.
  *
  *	This code REQUIRES 2.1.15 or higher
  *
@@ -16,7 +16,7 @@
  *	History
  *	X.25 001	Jonathan Naylor	  Started coding.
  *	X.25 002	Jonathan Naylor	  New timer architecture.
- *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities 
+ *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities
  *					  negotiation.
  *	2000-09-04	Henner Eisen	  dev_hold() / dev_put() for x25_neigh.
  */
@@ -94,7 +94,7 @@ void x25_link_control(struct sk_buff *skb, struct x25_neigh *nb,
 			       skb->data[3], skb->data[4],
 			       skb->data[5], skb->data[6]);
 			break;
-			
+
 		default:
 			printk(KERN_WARNING "x25: received unknown %02X "
 			       "with LCI 000\n", frametype);

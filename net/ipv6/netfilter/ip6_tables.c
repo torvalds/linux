@@ -92,16 +92,16 @@ do {								\
 #endif
 
 /* Check for an extension */
-int 
+int
 ip6t_ext_hdr(u8 nexthdr)
 {
-        return ( (nexthdr == IPPROTO_HOPOPTS)   ||
-                 (nexthdr == IPPROTO_ROUTING)   ||
-                 (nexthdr == IPPROTO_FRAGMENT)  ||
-                 (nexthdr == IPPROTO_ESP)       ||
-                 (nexthdr == IPPROTO_AH)        ||
-                 (nexthdr == IPPROTO_NONE)      ||
-                 (nexthdr == IPPROTO_DSTOPTS) );
+	return ( (nexthdr == IPPROTO_HOPOPTS)   ||
+		 (nexthdr == IPPROTO_ROUTING)   ||
+		 (nexthdr == IPPROTO_FRAGMENT)  ||
+		 (nexthdr == IPPROTO_ESP)       ||
+		 (nexthdr == IPPROTO_AH)        ||
+		 (nexthdr == IPPROTO_NONE)      ||
+		 (nexthdr == IPPROTO_DSTOPTS) );
 }
 
 /* Returns whether matches rule or not. */
@@ -120,9 +120,9 @@ ip6_packet_match(const struct sk_buff *skb,
 #define FWINV(bool,invflg) ((bool) ^ !!(ip6info->invflags & invflg))
 
 	if (FWINV(ipv6_masked_addr_cmp(&ipv6->saddr, &ip6info->smsk,
-	                               &ip6info->src), IP6T_INV_SRCIP)
+				       &ip6info->src), IP6T_INV_SRCIP)
 	    || FWINV(ipv6_masked_addr_cmp(&ipv6->daddr, &ip6info->dmsk,
-	                                  &ip6info->dst), IP6T_INV_DSTIP)) {
+					  &ip6info->dst), IP6T_INV_DSTIP)) {
 		dprintf("Source or dest mismatch.\n");
 /*
 		dprintf("SRC: %u. Mask: %u. Target: %u.%s\n", ip->saddr,
@@ -177,7 +177,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		*fragoff = _frag_off;
 
 		dprintf("Packet protocol %hi ?= %s%hi.\n",
-				protohdr, 
+				protohdr,
 				ip6info->invflags & IP6T_INV_PROTO ? "!":"",
 				ip6info->proto);
 
@@ -197,7 +197,7 @@ ip6_packet_match(const struct sk_buff *skb,
 }
 
 /* should be ip6 safe */
-static inline int 
+static inline int
 ip6_checkentry(const struct ip6t_ip6 *ipv6)
 {
 	if (ipv6->flags & ~IP6T_F_MASK) {
@@ -337,7 +337,7 @@ ip6t_do_table(struct sk_buff **pskb,
 				e = get_entry(table_base, v);
 			} else {
 				/* Targets which reenter must return
-                                   abs. verdicts */
+				   abs. verdicts */
 #ifdef CONFIG_NETFILTER_DEBUG
 				((struct ip6t_entry *)table_base)->comefrom
 					= 0xeeeeeeec;
@@ -534,10 +534,10 @@ check_match(struct ip6t_entry_match *m,
 	int ret;
 
 	match = try_then_request_module(xt_find_match(AF_INET6, m->u.user.name,
-			      		m->u.user.revision),
+					m->u.user.revision),
 					"ip6t_%s", m->u.user.name);
 	if (IS_ERR(match) || !match) {
-	  	duprintf("check_match: `%s' not found\n", m->u.user.name);
+		duprintf("check_match: `%s' not found\n", m->u.user.name);
 		return match ? PTR_ERR(match) : -ENOENT;
 	}
 	m->u.kernel.match = match;
@@ -661,7 +661,7 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 	}
 
 	/* FIXME: underflows must be unconditional, standard verdicts
-           < 0 (not IP6T_RETURN). --RR */
+	   < 0 (not IP6T_RETURN). --RR */
 
 	/* Clear counters and comefrom */
 	e->counters = ((struct xt_counters) { 0, 0 });
@@ -1003,8 +1003,8 @@ do_replace(void __user *user, unsigned int len)
 	/* Update module usage count based on number of rules */
 	duprintf("do_replace: oldnum=%u, initnum=%u, newnum=%u\n",
 		oldinfo->number, oldinfo->initial_entries, newinfo->number);
-	if ((oldinfo->number > oldinfo->initial_entries) || 
-	    (newinfo->number <= oldinfo->initial_entries)) 
+	if ((oldinfo->number > oldinfo->initial_entries) ||
+	    (newinfo->number <= oldinfo->initial_entries))
 		module_put(t->me);
 	if ((oldinfo->number > oldinfo->initial_entries) &&
 	    (newinfo->number <= oldinfo->initial_entries))
@@ -1492,9 +1492,9 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 			}
 			hdrlen = 8;
 		} else if (nexthdr == NEXTHDR_AUTH)
-			hdrlen = (hp->hdrlen + 2) << 2; 
+			hdrlen = (hp->hdrlen + 2) << 2;
 		else
-			hdrlen = ipv6_optlen(hp); 
+			hdrlen = ipv6_optlen(hp);
 
 		nexthdr = hp->nexthdr;
 		len -= hdrlen;

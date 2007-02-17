@@ -113,7 +113,7 @@ static int divas_close(struct inode *inode, struct file *file)
 	return (0);
 }
 
-static struct file_operations divas_fops = {
+static const struct file_operations divas_fops = {
 	.owner   = THIS_MODULE,
 	.llseek  = no_llseek,
 	.read    = divas_read,

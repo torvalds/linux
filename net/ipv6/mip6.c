@@ -333,7 +333,7 @@ static struct xfrm_type mip6_destopt_type =
 	.destructor	= mip6_destopt_destroy,
 	.input		= mip6_destopt_input,
 	.output		= mip6_destopt_output,
- 	.reject		= mip6_destopt_reject,
+	.reject		= mip6_destopt_reject,
 	.hdr_offset	= mip6_destopt_offset,
 	.local_addr	= mip6_xfrm_addr,
 };

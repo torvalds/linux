@@ -140,6 +140,8 @@ qla2x00_sysfs_write_nvram(struct kobject *kobj, char *buf, loff_t off,
 	ha->isp_ops.write_nvram(ha, (uint8_t *)buf, ha->nvram_base, count);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
+	set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
+
 	return (count);
 }
 
@@ -653,6 +655,43 @@ qla2x00_beacon_store(struct class_device *cdev, const char *buf,
 	return count;
 }
 
+static ssize_t
+qla2x00_optrom_bios_version_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", ha->bios_revision[1],
+	    ha->bios_revision[0]);
+}
+
+static ssize_t
+qla2x00_optrom_efi_version_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", ha->efi_revision[1],
+	    ha->efi_revision[0]);
+}
+
+static ssize_t
+qla2x00_optrom_fcode_version_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", ha->fcode_revision[1],
+	    ha->fcode_revision[0]);
+}
+
+static ssize_t
+qla2x00_optrom_fw_version_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d %d\n",
+	    ha->fw_revision[0], ha->fw_revision[1], ha->fw_revision[2],
+	    ha->fw_revision[3]);
+}
+
 static CLASS_DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show,
 	NULL);
 static CLASS_DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
@@ -669,6 +708,14 @@ static CLASS_DEVICE_ATTR(zio_timer, S_IRUGO | S_IWUSR, qla2x00_zio_timer_show,
     qla2x00_zio_timer_store);
 static CLASS_DEVICE_ATTR(beacon, S_IRUGO | S_IWUSR, qla2x00_beacon_show,
     qla2x00_beacon_store);
+static CLASS_DEVICE_ATTR(optrom_bios_version, S_IRUGO,
+    qla2x00_optrom_bios_version_show, NULL);
+static CLASS_DEVICE_ATTR(optrom_efi_version, S_IRUGO,
+    qla2x00_optrom_efi_version_show, NULL);
+static CLASS_DEVICE_ATTR(optrom_fcode_version, S_IRUGO,
+    qla2x00_optrom_fcode_version_show, NULL);
+static CLASS_DEVICE_ATTR(optrom_fw_version, S_IRUGO,
+    qla2x00_optrom_fw_version_show, NULL);
 
 struct class_device_attribute *qla2x00_host_attrs[] = {
 	&class_device_attr_driver_version,
@@ -683,6 +730,10 @@ struct class_device_attribute *qla2x00_host_attrs[] = {
 	&class_device_attr_zio,
 	&class_device_attr_zio_timer,
 	&class_device_attr_beacon,
+	&class_device_attr_optrom_bios_version,
+	&class_device_attr_optrom_efi_version,
+	&class_device_attr_optrom_fcode_version,
+	&class_device_attr_optrom_fw_version,
 	NULL,
 };
 
@@ -836,21 +887,24 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	link_stat_t stat_buf;
 	struct fc_host_statistics *pfc_host_stat;
 
+	rval = QLA_FUNCTION_FAILED;
 	pfc_host_stat = &ha->fc_host_stat;
 	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
 
 	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		rval = qla24xx_get_isp_stats(ha, (uint32_t *)&stat_buf,
 		    sizeof(stat_buf) / 4, mb_stat);
-	} else {
+	} else if (atomic_read(&ha->loop_state) == LOOP_READY &&
+		    !test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags) &&
+		    !test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) &&
+		    !ha->dpc_active) {
+		/* Must be in a 'READY' state for statistics retrieval. */
 		rval = qla2x00_get_link_status(ha, ha->loop_id, &stat_buf,
 		    mb_stat);
 	}
-	if (rval != 0) {
-		qla_printk(KERN_WARNING, ha,
-		    "Unable to retrieve host statistics (%d).\n", mb_stat[0]);
-		return pfc_host_stat;
-	}
+
+	if (rval != QLA_SUCCESS)
+		goto done;
 
 	pfc_host_stat->link_failure_count = stat_buf.link_fail_cnt;
 	pfc_host_stat->loss_of_sync_count = stat_buf.loss_sync_cnt;
@@ -858,7 +912,7 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	pfc_host_stat->prim_seq_protocol_err_count = stat_buf.prim_seq_err_cnt;
 	pfc_host_stat->invalid_tx_word_count = stat_buf.inval_xmit_word_cnt;
 	pfc_host_stat->invalid_crc_count = stat_buf.inval_crc_cnt;
-
+done:
 	return pfc_host_stat;
 }
 

@@ -3099,7 +3099,6 @@ allocate_cmd (Scsi_Cmnd *cmd) {
         real = get_zeroed_page(GFP_ATOMIC);
         if (real == 0)
         	return NULL;
-        memset((void *)real, 0, 4096);
         cache_push(virt_to_phys((void *)real), 4096);
         cache_clear(virt_to_phys((void *)real), 4096);
         kernel_set_cachemode((void *)real, 4096, IOMAP_NOCACHE_SER);
@@ -4400,7 +4399,7 @@ abort_connected (struct Scsi_Host *host) {
  * account the current synchronous offset) 
  */
 
-    sstat = (NCR53c8x0_read8 (SSTAT2_REG);
+    sstat = NCR53c8x0_read8 (SSTAT2_REG);
     offset = OFFSET (sstat & SSTAT2_FF_MASK) >> SSTAT2_FF_SHIFT;
     phase = sstat & SSTAT2_PHASE_MASK;
 
@@ -5423,7 +5422,7 @@ insn_to_offset (Scsi_Cmnd *cmd, u32 *insn) {
     	    	     --buffers, offset += segment->length, ++segment)
 #if 0
 		    printk("scsi%d: comparing 0x%p to 0x%p\n", 
-			cmd->device->host->host_no, saved, page_address(segment->page+segment->offset);
+			cmd->device->host->host_no, saved, page_address(segment->page+segment->offset));
 #else
 		    ;
 #endif

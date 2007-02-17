@@ -43,7 +43,7 @@ static inline struct hppfs_inode_info *HPPFS_I(struct inode *inode)
 
 #define HPPFS_SUPER_MAGIC 0xb00000ee
 
-static struct super_operations hppfs_sbops;
+static const struct super_operations hppfs_sbops;
 
 static int is_pid(struct dentry *dentry)
 {
@@ -212,7 +212,7 @@ static struct dentry *hppfs_lookup(struct inode *ino, struct dentry *dentry,
 	return(ERR_PTR(err));
 }
 
-static struct inode_operations hppfs_file_iops = {
+static const struct inode_operations hppfs_file_iops = {
 };
 
 static ssize_t read_proc(struct file *file, char __user *buf, ssize_t count,
@@ -649,7 +649,7 @@ static void hppfs_destroy_inode(struct inode *inode)
 	kfree(HPPFS_I(inode));
 }
 
-static struct super_operations hppfs_sbops = {
+static const struct super_operations hppfs_sbops = {
 	.alloc_inode	= hppfs_alloc_inode,
 	.destroy_inode	= hppfs_destroy_inode,
 	.read_inode	= hppfs_read_inode,
@@ -693,11 +693,11 @@ static void* hppfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return ret;
 }
 
-static struct inode_operations hppfs_dir_iops = {
+static const struct inode_operations hppfs_dir_iops = {
 	.lookup		= hppfs_lookup,
 };
 
-static struct inode_operations hppfs_link_iops = {
+static const struct inode_operations hppfs_link_iops = {
 	.readlink	= hppfs_readlink,
 	.follow_link	= hppfs_follow_link,
 };

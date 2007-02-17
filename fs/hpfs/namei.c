@@ -659,7 +659,7 @@ end1:
 	return err;
 }
 
-struct inode_operations hpfs_dir_iops =
+const struct inode_operations hpfs_dir_iops =
 {
 	.create		= hpfs_create,
 	.lookup		= hpfs_lookup,

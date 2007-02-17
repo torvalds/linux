@@ -734,7 +734,7 @@ static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	   looks not very well thought. For now we latch
 	   options, received in the last packet, enqueued
 	   by tcp. Feel free to propose better solution.
-	                                       --ANK (980728)
+					       --ANK (980728)
 	 */
 	if (np->rxopt.all)
 	/*

@@ -370,7 +370,7 @@ static int __init ip_vs_ftp_init(void)
 		if (ret)
 			break;
 		IP_VS_INFO("%s: loaded support on port[%d] = %d\n",
-		 	   app->name, i, ports[i]);
+			   app->name, i, ports[i]);
 	}
 
 	if (ret)

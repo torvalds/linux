@@ -308,7 +308,7 @@ static int proc_scsi_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_scsi_show, NULL);
 }
 
-static struct file_operations proc_scsi_operations = {
+static const struct file_operations proc_scsi_operations = {
 	.open		= proc_scsi_open,
 	.read		= seq_read,
 	.write		= proc_scsi_write,

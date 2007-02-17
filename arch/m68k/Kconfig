@@ -42,6 +42,9 @@ config ARCH_MAY_HAVE_PC_FDC
 	depends on Q40 || (BROKEN && SUN3X)
 	default y
 
+config NO_IOPORT
+	def_bool y
+
 mainmenu "Linux/68k Kernel Configuration"
 
 source "init/Kconfig"
@@ -437,6 +440,10 @@ config ISA
 config GENERIC_ISA_DMA
 	bool
 	depends on Q40 || AMIGA_PCMCIA || GG2
+	default y
+
+config ZONE_DMA
+	bool
 	default y
 
 source "drivers/pci/Kconfig"

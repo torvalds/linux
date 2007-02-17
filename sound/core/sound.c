@@ -168,7 +168,7 @@ static int snd_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-static struct file_operations snd_fops =
+static const struct file_operations snd_fops =
 {
 	.owner =	THIS_MODULE,
 	.open =		snd_open

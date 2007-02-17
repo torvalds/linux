@@ -12,8 +12,6 @@
  *        ret: r0
  *
  */
-/* $Id$ */
-
 
 	.text
 	.global	memset

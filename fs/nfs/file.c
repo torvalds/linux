@@ -68,14 +68,14 @@ const struct file_operations nfs_file_operations = {
 	.check_flags	= nfs_check_flags,
 };
 
-struct inode_operations nfs_file_inode_operations = {
+const struct inode_operations nfs_file_inode_operations = {
 	.permission	= nfs_permission,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,
 };
 
 #ifdef CONFIG_NFS_V3
-struct inode_operations nfs3_file_inode_operations = {
+const struct inode_operations nfs3_file_inode_operations = {
 	.permission	= nfs_permission,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,

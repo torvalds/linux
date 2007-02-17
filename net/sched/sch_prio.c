@@ -7,7 +7,7 @@
  *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
- * Fixes:       19990609: J Hadi Salim <hadi@nortelnetworks.com>: 
+ * Fixes:       19990609: J Hadi Salim <hadi@nortelnetworks.com>:
  *              Init --  EINVAL when opt undefined
  */
 
@@ -105,7 +105,7 @@ prio_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return NET_XMIT_SUCCESS;
 	}
 	sch->qstats.drops++;
-	return ret; 
+	return ret;
 }
 
 
@@ -453,7 +453,7 @@ static int __init prio_module_init(void)
 	return register_qdisc(&prio_qdisc_ops);
 }
 
-static void __exit prio_module_exit(void) 
+static void __exit prio_module_exit(void)
 {
 	unregister_qdisc(&prio_qdisc_ops);
 }

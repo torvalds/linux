@@ -410,7 +410,7 @@ static int fmr2_ioctl(struct inode *inode, struct file *file,
 
 static struct fmr2_device fmr2_unit;
 
-static struct file_operations fmr2_fops = {
+static const struct file_operations fmr2_fops = {
 	.owner          = THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

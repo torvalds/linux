@@ -1,6 +1,6 @@
 /*
  * net/tipc/cluster.h: Include file for TIPC cluster management routines
- * 
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -50,7 +50,7 @@
  * @highest_node: id of highest numbered node within cluster
  * @highest_slave: (used for secondary node support)
  */
- 
+
 struct cluster {
 	u32 addr;
 	struct _zone *owner;

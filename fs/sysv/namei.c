@@ -292,7 +292,7 @@ out:
 /*
  * directories can handle most operations...
  */
-struct inode_operations sysv_dir_inode_operations = {
+const struct inode_operations sysv_dir_inode_operations = {
 	.create		= sysv_create,
 	.lookup		= sysv_lookup,
 	.link		= sysv_link,

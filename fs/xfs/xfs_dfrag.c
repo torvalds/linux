@@ -41,7 +41,6 @@
 #include "xfs_itable.h"
 #include "xfs_dfrag.h"
 #include "xfs_error.h"
-#include "xfs_mac.h"
 #include "xfs_rw.h"
 
 /*
