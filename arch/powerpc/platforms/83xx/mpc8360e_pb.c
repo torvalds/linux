@@ -79,17 +79,6 @@ static void __init mpc8360_sys_setup_arch(void)
 	if (ppc_md.progress)
 		ppc_md.progress("mpc8360_sys_setup_arch()", 0);
 
-	np = of_find_node_by_type(NULL, "cpu");
-	if (np != 0) {
-		const unsigned int *fp =
-		    get_property(np, "clock-frequency", NULL);
-		if (fp != 0)
-			loops_per_jiffy = *fp / HZ;
-		else
-			loops_per_jiffy = 50000000 / HZ;
-		of_node_put(np);
-	}
-
 	/* Map BCSR area */
 	np = of_find_node_by_name(NULL, "bcsr");
 	if (np != 0) {
