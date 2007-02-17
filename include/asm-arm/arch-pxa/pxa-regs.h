@@ -463,9 +463,6 @@
  * Serial Audio Controller
  */
 
-/* FIXME: This clash with SA1111 defines */
-#ifndef _ASM_ARCH_SA1111
-
 #define SACR0		__REG(0x40400000)  /* Global Control Register */
 #define SACR1		__REG(0x40400004)  /* Serial Audio I 2 S/MSB-Justified Control Register */
 #define SASR0		__REG(0x4040000C)  /* Serial Audio I 2 S/MSB-Justified Interface and FIFO Status Register */
@@ -502,8 +499,6 @@
 #define SAIMR_TUR	(1 << 5)	/* Enable Tx FIFO Underrun Condition Interrupt */
 #define SAIMR_RFS	(1 << 4)	/* Enable Rx FIFO Service Interrupt */
 #define SAIMR_TFS	(1 << 3)	/* Enable Tx FIFO Service Interrupt */
-
-#endif
 
 /*
  * AC97 Controller registers
