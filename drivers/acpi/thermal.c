@@ -1356,28 +1356,32 @@ static int acpi_thermal_remove(struct acpi_device *device, int type)
 static int acpi_thermal_resume(struct acpi_device *device)
 {
 	struct acpi_thermal *tz = NULL;
-	int i;
+	int i, j, power_state, result;
+
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
 	tz = acpi_driver_data(device);
 
-	acpi_thermal_get_temperature(tz);
-
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
-		if (tz->trips.active[i].flags.valid) {
- 			tz->temperature = tz->trips.active[i].temperature;
-			tz->trips.active[i].flags.enabled = 0;
-
-			acpi_thermal_active(tz);
-
-			tz->state.active |= tz->trips.active[i].flags.enabled;
-			tz->state.active_index = i;
+		if (!(&tz->trips.active[i]))
+			break;
+		if (!tz->trips.active[i].flags.valid)
+			break;
+		tz->trips.active[i].flags.enabled = 1;
+		for (j = 0; j < tz->trips.active[i].devices.count; j++) {
+			result = acpi_bus_get_power(tz->trips.active[i].devices.
+			    handles[j], &power_state);
+			if (result || (power_state != ACPI_STATE_D0)) {
+				tz->trips.active[i].flags.enabled = 0;
+				break;
+			}
 		}
+		tz->state.active |= tz->trips.active[i].flags.enabled;
 	}
 
- 	acpi_thermal_check(tz);
+	acpi_thermal_check(tz);
 
 	return AE_OK;
 }
