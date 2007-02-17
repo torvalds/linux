@@ -1391,9 +1391,6 @@ static void __devinit init_dma_hpt366(ide_hwif_t *hwif, unsigned long dmabase)
 	u8 dma_new	= 0, dma_old	= 0;
 	unsigned long flags;
 
-	if (!dmabase)
-		return;
-		
 	dma_old = hwif->INB(dmabase + 2);
 
 	local_irq_save(flags);
