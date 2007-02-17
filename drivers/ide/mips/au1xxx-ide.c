@@ -438,15 +438,15 @@ static int auide_dma_test_irq(ide_drive_t *drive)
 	return 0;
 }
 
-static int auide_dma_host_on(ide_drive_t *drive)
+static void auide_dma_host_on(ide_drive_t *drive)
 {
-	return 0;
 }
 
 static int auide_dma_on(ide_drive_t *drive)
 {
 	drive->using_dma = 1;
-	return auide_dma_host_on(drive);
+
+	return 0;
 }
 
 static void auide_dma_host_off(ide_drive_t *drive)
@@ -731,7 +731,7 @@ static int au_ide_probe(struct device *dev)
 	hwif->dma_setup                 = &auide_dma_setup;
 	hwif->ide_dma_test_irq          = &auide_dma_test_irq;
 	hwif->dma_host_off		= &auide_dma_host_off;
-	hwif->ide_dma_host_on           = &auide_dma_host_on;
+	hwif->dma_host_on		= &auide_dma_host_on;
 	hwif->ide_dma_lostirq           = &auide_dma_lostirq;
 	hwif->ide_dma_on                = &auide_dma_on;
 

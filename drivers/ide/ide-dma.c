@@ -468,14 +468,14 @@ EXPORT_SYMBOL(ide_dma_off);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
- *	__ide_dma_host_on	-	Enable DMA on a host
+ *	ide_dma_host_on	-	Enable DMA on a host
  *	@drive: drive to enable for DMA
  *
  *	Enable DMA on an IDE controller following generic bus mastering
  *	IDE controller behaviour
  */
- 
-int __ide_dma_host_on (ide_drive_t *drive)
+
+void ide_dma_host_on(ide_drive_t *drive)
 {
 	if (drive->using_dma) {
 		ide_hwif_t *hwif	= HWIF(drive);
@@ -483,12 +483,10 @@ int __ide_dma_host_on (ide_drive_t *drive)
 		u8 dma_stat		= hwif->INB(hwif->dma_status);
 
 		hwif->OUTB((dma_stat|(1<<(5+unit))), hwif->dma_status);
-		return 0;
 	}
-	return 1;
 }
 
-EXPORT_SYMBOL(__ide_dma_host_on);
+EXPORT_SYMBOL(ide_dma_host_on);
 
 /**
  *	__ide_dma_on		-	Enable DMA on a device
@@ -506,8 +504,7 @@ int __ide_dma_on (ide_drive_t *drive)
 	drive->using_dma = 1;
 	ide_toggle_bounce(drive, 1);
 
-	if (HWIF(drive)->ide_dma_host_on(drive))
-		return 1;
+	drive->hwif->dma_host_on(drive);
 
 	return 0;
 }
@@ -940,8 +937,8 @@ void ide_setup_dma (ide_hwif_t *hwif, unsigned long dma_base, unsigned int num_p
 		hwif->dma_host_off = &ide_dma_host_off;
 	if (!hwif->ide_dma_on)
 		hwif->ide_dma_on = &__ide_dma_on;
-	if (!hwif->ide_dma_host_on)
-		hwif->ide_dma_host_on = &__ide_dma_host_on;
+	if (!hwif->dma_host_on)
+		hwif->dma_host_on = &ide_dma_host_on;
 	if (!hwif->ide_dma_check)
 		hwif->ide_dma_check = &__ide_dma_check;
 	if (!hwif->dma_setup)

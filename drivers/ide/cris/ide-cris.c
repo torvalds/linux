@@ -818,7 +818,7 @@ init_e100_ide (void)
 		hwif->INB = &cris_ide_inb;
 		hwif->INW = &cris_ide_inw;
 		hwif->dma_host_off = &cris_dma_off;
-		hwif->ide_dma_host_on = &cris_dma_on;
+		hwif->dma_host_on = &cris_dma_on;
 		hwif->dma_off_quietly = &cris_dma_off;
 		hwif->udma_four = 0;
 		hwif->ultra_mask = cris_ultra_mask;
