@@ -154,7 +154,7 @@ EXPORT_SYMBOL_GPL(of_node_to_nid);
  * characteristics relative to its multiple connections.  We ignore
  * this for now.  We also assume that all cpu and memory sets have
  * their distances represented at a common level.  This won't be
- * true for heirarchical NUMA.
+ * true for hierarchical NUMA.
  *
  * In any case the ibm,associativity-reference-points should give
  * the correct depth for a normal NUMA system.

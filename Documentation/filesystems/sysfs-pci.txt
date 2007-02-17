@@ -65,7 +65,7 @@ Accessing legacy resources through sysfs
 ----------------------------------------
 
 Legacy I/O port and ISA memory resources are also provided in sysfs if the
-underlying platform supports them.  They're located in the PCI class heirarchy,
+underlying platform supports them.  They're located in the PCI class hierarchy,
 e.g.
 
 	/sys/class/pci_bus/0000:17/
