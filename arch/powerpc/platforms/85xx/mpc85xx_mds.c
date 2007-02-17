@@ -8,7 +8,7 @@
  *	   Yin Olivia <Hong-hua.Yin@freescale.com>
  *
  * Description:
- * MPC8568E MDS PB board specific routines.
+ * MPC85xx MDS board specific routines.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -69,13 +69,13 @@ unsigned long isa_mem_base = 0;
  * Setup the architecture
  *
  */
-static void __init mpc8568_mds_setup_arch(void)
+static void __init mpc85xx_mds_setup_arch(void)
 {
 	struct device_node *np;
 	static u8 *bcsr_regs = NULL;
 
 	if (ppc_md.progress)
-		ppc_md.progress("mpc8568_mds_setup_arch()", 0);
+		ppc_md.progress("mpc85xx_mds_setup_arch()", 0);
 
 	np = of_find_node_by_type(NULL, "cpu");
 	if (np != NULL) {
@@ -143,26 +143,26 @@ static void __init mpc8568_mds_setup_arch(void)
 #endif	/* CONFIG_QUICC_ENGINE */
 }
 
-static struct of_device_id mpc8568_ids[] = {
+static struct of_device_id mpc85xx_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
 	{ .type = "qe", },
 	{},
 };
 
-static int __init mpc8568_publish_devices(void)
+static int __init mpc85xx_publish_devices(void)
 {
-	if (!machine_is(mpc8568_mds))
+	if (!machine_is(mpc85xx_mds))
 		return 0;
 
 	/* Publish the QE devices */
-	of_platform_bus_probe(NULL,mpc8568_ids,NULL);
+	of_platform_bus_probe(NULL,mpc85xx_ids,NULL);
 
 	return 0;
 }
-device_initcall(mpc8568_publish_devices);
+device_initcall(mpc85xx_publish_devices);
 
-static void __init mpc8568_mds_pic_init(void)
+static void __init mpc85xx_mds_pic_init(void)
 {
 	struct mpic *mpic;
 	struct resource r;
@@ -215,18 +215,18 @@ static void __init mpc8568_mds_pic_init(void)
 #endif				/* CONFIG_QUICC_ENGINE */
 }
 
-static int __init mpc8568_mds_probe(void)
+static int __init mpc85xx_mds_probe(void)
 {
         unsigned long root = of_get_flat_dt_root();
 
         return of_flat_dt_is_compatible(root, "MPC85xxMDS");
 }
 
-define_machine(mpc8568_mds) {
+define_machine(mpc85xx_mds) {
 	.name		= "MPC85xx MDS",
-	.probe		= mpc8568_mds_probe,
-	.setup_arch	= mpc8568_mds_setup_arch,
-	.init_IRQ	= mpc8568_mds_pic_init,
+	.probe		= mpc85xx_mds_probe,
+	.setup_arch	= mpc85xx_mds_setup_arch,
+	.init_IRQ	= mpc85xx_mds_pic_init,
 	.get_irq	= mpic_get_irq,
 	.restart	= mpc85xx_restart,
 	.calibrate_decr	= generic_calibrate_decr,

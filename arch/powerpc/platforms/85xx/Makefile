@@ -5,4 +5,4 @@ obj-$(CONFIG_PPC_85xx)	+= misc.o pci.o
 obj-$(CONFIG_MPC8540_ADS) += mpc85xx_ads.o
 obj-$(CONFIG_MPC8560_ADS) += mpc85xx_ads.o
 obj-$(CONFIG_MPC85xx_CDS) += mpc85xx_cds.o
-obj-$(CONFIG_MPC8568_MDS) += mpc8568_mds.o
+obj-$(CONFIG_MPC85xx_MDS) += mpc85xx_mds.o

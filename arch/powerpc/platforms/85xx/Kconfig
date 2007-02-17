@@ -23,12 +23,12 @@ config MPC85xx_CDS
 	help
 	  This option enables support for the MPC85xx CDS board
 
-config MPC8568_MDS
-	bool "Freescale MPC8568 MDS"
+config MPC85xx_MDS
+	bool "Freescale MPC85xx MDS"
 	select DEFAULT_UIMAGE
 #	select QUICC_ENGINE
 	help
-	  This option enables support for the MPC8568 MDS board
+	  This option enables support for the MPC85xx MDS board
 
 endchoice
 
@@ -47,7 +47,7 @@ config MPC85xx
 	bool
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
-	default y if MPC8540_ADS || MPC85xx_CDS || MPC8560_ADS || MPC8568_MDS
+	default y if MPC8540_ADS || MPC85xx_CDS || MPC8560_ADS || MPC85xx_MDS
 
 config PPC_INDIRECT_PCI_BE
 	bool
