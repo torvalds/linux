@@ -4792,14 +4792,9 @@ static int idetape_open(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct ide_tape_obj *tape;
-	ide_drive_t *drive;
 
 	if (!(tape = ide_tape_get(disk)))
 		return -ENXIO;
-
-	drive = tape->drive;
-
-	drive->usage++;
 
 	return 0;
 }
@@ -4808,9 +4803,6 @@ static int idetape_release(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct ide_tape_obj *tape = ide_tape_g(disk);
-	ide_drive_t *drive = tape->drive;
-
-	drive->usage--;
 
 	ide_tape_put(tape);
 

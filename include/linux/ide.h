@@ -636,7 +636,6 @@ typedef struct ide_drive_s {
 	unsigned int	bios_cyl;	/* BIOS/fdisk/LILO number of cyls */
 	unsigned int	cyl;		/* "real" number of cyls */
 	unsigned int	drive_data;	/* use by tuneproc/selectproc */
-	unsigned int	usage;		/* current "open()" count for drive */
 	unsigned int	failures;	/* current failure count */
 	unsigned int	max_failures;	/* maximum allowed failure count */
 	u64		probed_capacity;/* initial reported media capacity (ide-cd only currently) */

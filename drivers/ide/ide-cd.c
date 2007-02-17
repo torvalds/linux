@@ -3353,21 +3353,16 @@ static int idecd_open(struct inode * inode, struct file * file)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct cdrom_info *info;
-	ide_drive_t *drive;
 	int rc = -ENOMEM;
 
 	if (!(info = ide_cd_get(disk)))
 		return -ENXIO;
 
-	drive = info->drive;
-
-	drive->usage++;
-
 	if (!info->buffer)
-		info->buffer = kmalloc(SECTOR_BUFFER_SIZE,
-					GFP_KERNEL|__GFP_REPEAT);
-        if (!info->buffer || (rc = cdrom_open(&info->devinfo, inode, file)))
-		drive->usage--;
+		info->buffer = kmalloc(SECTOR_BUFFER_SIZE, GFP_KERNEL|__GFP_REPEAT);
+
+	if (info->buffer)
+		rc = cdrom_open(&info->devinfo, inode, file);
 
 	if (rc < 0)
 		ide_cd_put(info);
@@ -3379,10 +3374,8 @@ static int idecd_release(struct inode * inode, struct file * file)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct cdrom_info *info = ide_cd_g(disk);
-	ide_drive_t *drive = info->drive;
 
 	cdrom_release (&info->devinfo, file);
-	drive->usage--;
 
 	ide_cd_put(info);
 
