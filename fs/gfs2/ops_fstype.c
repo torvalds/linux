@@ -840,7 +840,7 @@ static struct super_block* get_gfs2_sb(const char *dev_name)
 	}
 
 	printk(KERN_WARNING "GFS2: Unrecognized block device or "
-	       "mount point %s", dev_name);
+	       "mount point %s\n", dev_name);
 
 free_nd:
 	path_release(&nd);
