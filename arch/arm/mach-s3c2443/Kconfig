@@ -12,6 +12,12 @@ config CPU_S3C2443
 	help
 	  Support for the S3C2443 SoC from the S3C24XX line
 
+config S3C2443_DMA
+	bool
+	depends on CPU_S3C2443
+	help
+	  Internal config node for S3C2443 DMA support
+
 menu "S3C2443 Machines"
 
 config MACH_SMDK2443
