@@ -418,7 +418,7 @@ static struct sysdev_class timer_sysclass = {
 	set_kset_name("timer"),
 };
 
-/* XXX this driverfs stuff should probably go elsewhere later -john */
+/* XXX this sysfs stuff should probably go elsewhere later -john */
 static struct sys_device device_timer = {
 	.id	= 0,
 	.cls	= &timer_sysclass,

@@ -195,8 +195,8 @@ static int sgl_unmap_user_pages(struct scatterlist *, const unsigned int, int);
 static int st_probe(struct device *);
 static int st_remove(struct device *);
 
-static int do_create_driverfs_files(void);
-static void do_remove_driverfs_files(void);
+static int do_create_sysfs_files(void);
+static void do_remove_sysfs_files(void);
 static int do_create_class_files(struct scsi_tape *, int, int);
 
 static struct scsi_driver st_template = {
@@ -4193,7 +4193,7 @@ static int __init init_st(void)
 	if (err)
 		goto err_chrdev;
 
-	err = do_create_driverfs_files();
+	err = do_create_sysfs_files();
 	if (err)
 		goto err_scsidrv;
 
@@ -4211,7 +4211,7 @@ err_class:
 
 static void __exit exit_st(void)
 {
-	do_remove_driverfs_files();
+	do_remove_sysfs_files();
 	scsi_unregister_driver(&st_template.gendrv);
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
@@ -4249,43 +4249,43 @@ static ssize_t st_version_show(struct device_driver *ddd, char *buf)
 }
 static DRIVER_ATTR(version, S_IRUGO, st_version_show, NULL);
 
-static int do_create_driverfs_files(void)
+static int do_create_sysfs_files(void)
 {
-	struct device_driver *driverfs = &st_template.gendrv;
+	struct device_driver *sysfs = &st_template.gendrv;
 	int err;
 
-	err = driver_create_file(driverfs, &driver_attr_try_direct_io);
+	err = driver_create_file(sysfs, &driver_attr_try_direct_io);
 	if (err)
 		return err;
-	err = driver_create_file(driverfs, &driver_attr_fixed_buffer_size);
+	err = driver_create_file(sysfs, &driver_attr_fixed_buffer_size);
 	if (err)
 		goto err_try_direct_io;
-	err = driver_create_file(driverfs, &driver_attr_max_sg_segs);
+	err = driver_create_file(sysfs, &driver_attr_max_sg_segs);
 	if (err)
 		goto err_attr_fixed_buf;
-	err = driver_create_file(driverfs, &driver_attr_version);
+	err = driver_create_file(sysfs, &driver_attr_version);
 	if (err)
 		goto err_attr_max_sg;
 
 	return 0;
 
 err_attr_max_sg:
-	driver_remove_file(driverfs, &driver_attr_max_sg_segs);
+	driver_remove_file(sysfs, &driver_attr_max_sg_segs);
 err_attr_fixed_buf:
-	driver_remove_file(driverfs, &driver_attr_fixed_buffer_size);
+	driver_remove_file(sysfs, &driver_attr_fixed_buffer_size);
 err_try_direct_io:
-	driver_remove_file(driverfs, &driver_attr_try_direct_io);
+	driver_remove_file(sysfs, &driver_attr_try_direct_io);
 	return err;
 }
 
-static void do_remove_driverfs_files(void)
+static void do_remove_sysfs_files(void)
 {
-	struct device_driver *driverfs = &st_template.gendrv;
+	struct device_driver *sysfs = &st_template.gendrv;
 
-	driver_remove_file(driverfs, &driver_attr_version);
-	driver_remove_file(driverfs, &driver_attr_max_sg_segs);
-	driver_remove_file(driverfs, &driver_attr_fixed_buffer_size);
-	driver_remove_file(driverfs, &driver_attr_try_direct_io);
+	driver_remove_file(sysfs, &driver_attr_version);
+	driver_remove_file(sysfs, &driver_attr_max_sg_segs);
+	driver_remove_file(sysfs, &driver_attr_fixed_buffer_size);
+	driver_remove_file(sysfs, &driver_attr_try_direct_io);
 }
 
 

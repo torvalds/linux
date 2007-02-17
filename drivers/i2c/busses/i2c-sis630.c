@@ -477,7 +477,7 @@ static int __devinit sis630_probe(struct pci_dev *dev, const struct pci_device_i
 		return -ENODEV;
 	}
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	sis630_adapter.dev.parent = &dev->dev;
 
 	sprintf(sis630_adapter.name, "SMBus SIS630 adapter at %04x",

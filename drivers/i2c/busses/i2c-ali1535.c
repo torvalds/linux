@@ -494,7 +494,7 @@ static int __devinit ali1535_probe(struct pci_dev *dev, const struct pci_device_
 		return -ENODEV;
 	}
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	ali1535_adapter.dev.parent = &dev->dev;
 
 	snprintf(ali1535_adapter.name, I2C_NAME_SIZE, 

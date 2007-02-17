@@ -522,7 +522,7 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	else
 		dev_dbg(&dev->dev, "SMBus using PCI Interrupt\n");
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	i801_adapter.dev.parent = &dev->dev;
 
 	snprintf(i801_adapter.name, I2C_NAME_SIZE,

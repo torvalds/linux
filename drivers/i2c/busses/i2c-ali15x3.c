@@ -489,7 +489,7 @@ static int __devinit ali15x3_probe(struct pci_dev *dev, const struct pci_device_
 		return -ENODEV;
 	}
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	ali15x3_adapter.dev.parent = &dev->dev;
 
 	snprintf(ali15x3_adapter.name, I2C_NAME_SIZE,

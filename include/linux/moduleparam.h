@@ -59,7 +59,7 @@ struct kparam_array
 };
 
 /* This is the fundamental function for registering boot/module
-   parameters.  perm sets the visibility in driverfs: 000 means it's
+   parameters.  perm sets the visibility in sysfs: 000 means it's
    not there, read bits mean it's readable, write bits mean it's
    writable. */
 #define __module_param_call(prefix, name, set, get, arg, perm)		\

@@ -440,7 +440,7 @@ static ctl_table nlm_sysctl_root[] = {
 };
 
 /*
- * Module (and driverfs) parameters.
+ * Module (and sysfs) parameters.
  */
 
 #define param_set_min_max(name, type, which_strtol, min, max)		\

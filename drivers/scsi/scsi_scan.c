@@ -54,7 +54,7 @@
 #define SCSI_TIMEOUT (2*HZ)
 
 /*
- * Prefix values for the SCSI id's (stored in driverfs name field)
+ * Prefix values for the SCSI id's (stored in sysfs name field)
  */
 #define SCSI_UID_SER_NUM 'S'
 #define SCSI_UID_UNKNOWN 'Z'
