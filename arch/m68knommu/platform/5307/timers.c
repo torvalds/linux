@@ -104,7 +104,7 @@ unsigned long coldfire_timer_offset(void)
 
 /*
  *	Choose a reasonably fast profile timer. Make it an odd value to
- *	try and get good coverage of kernal operations.
+ *	try and get good coverage of kernel operations.
  */
 #define	PROFILEHZ	1013
 

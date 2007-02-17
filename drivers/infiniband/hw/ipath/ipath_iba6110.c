@@ -1534,7 +1534,7 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
  * @kbase: ipath_base_info pointer
  *
  * We set the PCIE flag because the lower bandwidth on PCIe vs
- * HyperTransport can affect some user packet algorithims.
+ * HyperTransport can affect some user packet algorithms.
  */
 static int ipath_ht_get_base_info(struct ipath_portdata *pd, void *kbase)
 {

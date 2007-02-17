@@ -1168,7 +1168,7 @@ wv_mmc_show(struct net_device *	dev)
 	 m.mmr_unused0[6],
 	 m.mmr_unused0[7]);
 #endif	/* DEBUG_SHOW_UNUSED */
-  printk(KERN_DEBUG "Encryption algorythm: %02X - Status: %02X\n",
+  printk(KERN_DEBUG "Encryption algorithm: %02X - Status: %02X\n",
 	 m.mmr_des_avail, m.mmr_des_status);
 #ifdef DEBUG_SHOW_UNUSED
   printk(KERN_DEBUG "mmc_unused1[]: %02X:%02X:%02X:%02X:%02X\n",
@@ -3590,9 +3590,9 @@ wv_82593_config(struct net_device *	dev)
   cfblk.acloc = TRUE;           /* Disable source addr insertion by i82593 */
   cfblk.preamb_len = 0;         /* 2 bytes preamble (SFD) */
   cfblk.loopback = FALSE;
-  cfblk.lin_prio = 0;   	/* conform to 802.3 backoff algoritm */
-  cfblk.exp_prio = 5;	        /* conform to 802.3 backoff algoritm */
-  cfblk.bof_met = 1;	        /* conform to 802.3 backoff algoritm */
+  cfblk.lin_prio = 0;   	/* conform to 802.3 backoff algorithm */
+  cfblk.exp_prio = 5;	        /* conform to 802.3 backoff algorithm */
+  cfblk.bof_met = 1;	        /* conform to 802.3 backoff algorithm */
   cfblk.ifrm_spc = 0x20 >> 4;	/* 32 bit times interframe spacing */
   cfblk.slottim_low = 0x20 >> 5;	/* 32 bit times slot time */
   cfblk.slottim_hi = 0x0;

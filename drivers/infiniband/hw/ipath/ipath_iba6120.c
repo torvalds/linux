@@ -1293,7 +1293,7 @@ int __attribute__((weak)) ipath_unordered_wc(void)
  * @kbase: ipath_base_info pointer
  *
  * We set the PCIE flag because the lower bandwidth on PCIe vs
- * HyperTransport can affect some user packet algorithims.
+ * HyperTransport can affect some user packet algorithms.
  */
 static int ipath_pe_get_base_info(struct ipath_portdata *pd, void *kbase)
 {
