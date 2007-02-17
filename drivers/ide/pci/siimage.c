@@ -1,8 +1,9 @@
 /*
- * linux/drivers/ide/pci/siimage.c		Version 1.07	Nov 30, 2003
+ * linux/drivers/ide/pci/siimage.c		Version 1.11	Jan 27, 2007
  *
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2003		Red Hat <alan@redhat.com>
+ * Copyright (C) 2007		MontaVista Software, Inc.
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *
@@ -205,41 +206,39 @@ static void siimage_tuneproc (ide_drive_t *drive, byte mode_wanted)
 	unsigned long tfaddr	= siimage_selreg(hwif, 0x02);
 	
 	/* cheat for now and use the docs */
-	switch(mode_wanted) {
-		case 4:	
-			speedp = 0x10c1; 
-			speedt = 0x10c1;
-			break;
-		case 3:	
-			speedp = 0x10C3; 
-			speedt = 0x10C3;
-			break;
-		case 2:	
-			speedp = 0x1104; 
-			speedt = 0x1281;
-			break;
-		case 1:		
-			speedp = 0x2283; 
-			speedt = 0x1281;
-			break;
-		case 0:
-		default:
-			speedp = 0x328A; 
-			speedt = 0x328A;
-			break;
+	switch (mode_wanted) {
+	case 4:
+		speedp = 0x10c1;
+		speedt = 0x10c1;
+		break;
+	case 3:
+		speedp = 0x10c3;
+		speedt = 0x10c3;
+		break;
+	case 2:
+		speedp = 0x1104;
+		speedt = 0x1281;
+		break;
+	case 1:
+		speedp = 0x2283;
+		speedt = 0x2283;
+		break;
+	case 0:
+	default:
+		speedp = 0x328a;
+		speedt = 0x328a;
+		break;
 	}
-	if (hwif->mmio)
-	{
-		hwif->OUTW(speedt, addr);
-		hwif->OUTW(speedp, tfaddr);
+
+	if (hwif->mmio) {
+		hwif->OUTW(speedp, addr);
+		hwif->OUTW(speedt, tfaddr);
 		/* Now set up IORDY */
 		if(mode_wanted == 3 || mode_wanted == 4)
 			hwif->OUTW(hwif->INW(tfaddr-2)|0x200, tfaddr-2);
 		else
 			hwif->OUTW(hwif->INW(tfaddr-2)&~0x200, tfaddr-2);
-	}
-	else
-	{
+	} else {
 		pci_write_config_word(hwif->pci_dev, addr, speedp);
 		pci_write_config_word(hwif->pci_dev, tfaddr, speedt);
 		pci_read_config_word(hwif->pci_dev, tfaddr-2, &speedp);
