@@ -512,7 +512,7 @@ module_param(nsm_use_hostnames, bool, 0644);
 
 static int __init init_nlm(void)
 {
-	nlm_sysctl_table = register_sysctl_table(nlm_sysctl_root, 0);
+	nlm_sysctl_table = register_sysctl_table(nlm_sysctl_root);
 	return nlm_sysctl_table ? 0 : -ENOMEM;
 }
 

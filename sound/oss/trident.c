@@ -2729,12 +2729,11 @@ trident_open(struct inode *inode, struct file *file)
 		}
 		for (i = 0; i < NR_HW_CH; i++) {
 			if (card->states[i] == NULL) {
-				state = card->states[i] = kmalloc(sizeof(*state), GFP_KERNEL);
+				state = card->states[i] = kzalloc(sizeof(*state), GFP_KERNEL);
 				if (state == NULL) {
 					mutex_unlock(&card->open_mutex);
 					return -ENOMEM;
 				}
-				memset(state, 0, sizeof(*state));
 				mutex_init(&state->sem);
 				dmabuf = &state->dmabuf;
 				goto found_virt;
@@ -3618,7 +3617,7 @@ ali_allocate_other_states_resources(struct trident_state *state, int chan_nums)
 			}
 			return -EBUSY;
 		}
-		s = card->states[i] = kmalloc(sizeof(*state), GFP_KERNEL);
+		s = card->states[i] = kzalloc(sizeof(*state), GFP_KERNEL);
 		if (!s) {
 			num = ali_multi_channels_5_1[state_count];
 			ali_free_pcm_channel(card, num);
@@ -3630,7 +3629,6 @@ ali_allocate_other_states_resources(struct trident_state *state, int chan_nums)
 			}
 			return -ENOMEM;
 		}
-		memset(s, 0, sizeof(*state));
 
 		s->dmabuf.channel = channel;
 		s->dmabuf.ossfragshift = s->dmabuf.ossmaxfrags =
@@ -4399,11 +4397,10 @@ trident_probe(struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 	}
 
 	rc = -ENOMEM;
-	if ((card = kmalloc(sizeof(*card), GFP_KERNEL)) == NULL) {
+	if ((card = kzalloc(sizeof(*card), GFP_KERNEL)) == NULL) {
 		printk(KERN_ERR "trident: out of memory\n");
 		goto out_release_region;
 	}
-	memset(card, 0, sizeof (*card));
 
 	init_timer(&card->timer);
 	card->iobase = iobase;

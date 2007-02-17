@@ -53,7 +53,6 @@
 #include <linux/delay.h>	/* for mdelay */
 #include <linux/interrupt.h>	/* needed for in_interrupt() proto */
 #include <linux/reboot.h>	/* notifier code */
-#include <linux/sched.h>
 #include <linux/workqueue.h>
 #include <linux/sort.h>
 

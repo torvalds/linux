@@ -1435,10 +1435,9 @@ static int hal2_init_card(struct hal2_card **phal2, struct hpc3_regs *hpc3)
 	int ret = 0;
 	struct hal2_card *hal2;
 
-	hal2 = kmalloc(sizeof(struct hal2_card), GFP_KERNEL);
+	hal2 = kzalloc(sizeof(struct hal2_card), GFP_KERNEL);
 	if (!hal2)
 		return -ENOMEM;
-	memset(hal2, 0, sizeof(struct hal2_card));
 
 	hal2->ctl_regs = (struct hal2_ctl_regs *)hpc3->pbus_extregs[0];
 	hal2->aes_regs = (struct hal2_aes_regs *)hpc3->pbus_extregs[1];

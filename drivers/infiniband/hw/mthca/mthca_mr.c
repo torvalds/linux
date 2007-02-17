@@ -243,8 +243,8 @@ void mthca_free_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt)
 	kfree(mtt);
 }
 
-int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
-		    int start_index, u64 *buffer_list, int list_len)
+static int __mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
+			     int start_index, u64 *buffer_list, int list_len)
 {
 	struct mthca_mailbox *mailbox;
 	__be64 *mtt_entry;
@@ -293,6 +293,84 @@ int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 out:
 	mthca_free_mailbox(dev, mailbox);
 	return err;
+}
+
+int mthca_write_mtt_size(struct mthca_dev *dev)
+{
+	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy)
+		/*
+		 * Be friendly to WRITE_MTT command
+		 * and leave two empty slots for the
+		 * index and reserved fields of the
+		 * mailbox.
+		 */
+		return PAGE_SIZE / sizeof (u64) - 2;
+
+	/* For Arbel, all MTTs must fit in the same page. */
+	return mthca_is_memfree(dev) ? (PAGE_SIZE / sizeof (u64)) : 0x7ffffff;
+}
+
+void mthca_tavor_write_mtt_seg(struct mthca_dev *dev, struct mthca_mtt *mtt,
+			      int start_index, u64 *buffer_list, int list_len)
+{
+	u64 __iomem *mtts;
+	int i;
+
+	mtts = dev->mr_table.tavor_fmr.mtt_base + mtt->first_seg * MTHCA_MTT_SEG_SIZE +
+		start_index * sizeof (u64);
+	for (i = 0; i < list_len; ++i)
+		mthca_write64_raw(cpu_to_be64(buffer_list[i] | MTHCA_MTT_FLAG_PRESENT),
+				  mtts + i);
+}
+
+void mthca_arbel_write_mtt_seg(struct mthca_dev *dev, struct mthca_mtt *mtt,
+			      int start_index, u64 *buffer_list, int list_len)
+{
+	__be64 *mtts;
+	dma_addr_t dma_handle;
+	int i;
+	int s = start_index * sizeof (u64);
+
+	/* For Arbel, all MTTs must fit in the same page. */
+	BUG_ON(s / PAGE_SIZE != (s + list_len * sizeof(u64) - 1) / PAGE_SIZE);
+	/* Require full segments */
+	BUG_ON(s % MTHCA_MTT_SEG_SIZE);
+
+	mtts = mthca_table_find(dev->mr_table.mtt_table, mtt->first_seg +
+				s / MTHCA_MTT_SEG_SIZE, &dma_handle);
+
+	BUG_ON(!mtts);
+
+	for (i = 0; i < list_len; ++i)
+		mtts[i] = cpu_to_be64(buffer_list[i] | MTHCA_MTT_FLAG_PRESENT);
+
+	dma_sync_single(&dev->pdev->dev, dma_handle, list_len * sizeof (u64), DMA_TO_DEVICE);
+}
+
+int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
+		    int start_index, u64 *buffer_list, int list_len)
+{
+	int size = mthca_write_mtt_size(dev);
+	int chunk;
+
+	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy)
+		return __mthca_write_mtt(dev, mtt, start_index, buffer_list, list_len);
+
+	while (list_len > 0) {
+		chunk = min(size, list_len);
+		if (mthca_is_memfree(dev))
+			mthca_arbel_write_mtt_seg(dev, mtt, start_index,
+						  buffer_list, chunk);
+		else
+			mthca_tavor_write_mtt_seg(dev, mtt, start_index,
+						  buffer_list, chunk);
+
+		list_len    -= chunk;
+		start_index += chunk;
+		buffer_list += chunk;
+	}
+
+	return 0;
 }
 
 static inline u32 tavor_hw_index_to_key(u32 ind)
@@ -524,7 +602,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		if (err)
 			goto err_out_mpt_free;
 
-		mr->mem.arbel.mpt = mthca_table_find(dev->mr_table.mpt_table, key);
+		mr->mem.arbel.mpt = mthca_table_find(dev->mr_table.mpt_table, key, NULL);
 		BUG_ON(!mr->mem.arbel.mpt);
 	} else
 		mr->mem.tavor.mpt = dev->mr_table.tavor_fmr.mpt_base +
@@ -538,7 +616,8 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 
 	if (mthca_is_memfree(dev)) {
 		mr->mem.arbel.mtts = mthca_table_find(dev->mr_table.mtt_table,
-						      mr->mtt->first_seg);
+						      mr->mtt->first_seg,
+						      &mr->mem.arbel.dma_handle);
 		BUG_ON(!mr->mem.arbel.mtts);
 	} else
 		mr->mem.tavor.mtts = dev->mr_table.tavor_fmr.mtt_base + mtt_seg;
@@ -712,6 +791,9 @@ int mthca_arbel_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 		fmr->mem.arbel.mtts[i] = cpu_to_be64(page_list[i] |
 						     MTHCA_MTT_FLAG_PRESENT);
 
+	dma_sync_single(&dev->pdev->dev, fmr->mem.arbel.dma_handle,
+			list_len * sizeof(u64), DMA_TO_DEVICE);
+
 	fmr->mem.arbel.mpt->key    = cpu_to_be32(key);
 	fmr->mem.arbel.mpt->lkey   = cpu_to_be32(key);
 	fmr->mem.arbel.mpt->length = cpu_to_be64(list_len * (1ull << fmr->attr.page_shift));
@@ -761,7 +843,7 @@ void mthca_arbel_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr)
 int mthca_init_mr_table(struct mthca_dev *dev)
 {
 	unsigned long addr;
-	int err, i;
+	int mpts, mtts, err, i;
 
 	err = mthca_alloc_init(&dev->mr_table.mpt_alloc,
 			       dev->limits.num_mpts,
@@ -795,13 +877,21 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 			err = -EINVAL;
 			goto err_fmr_mpt;
 		}
+		mpts = mtts = 1 << i;
+	} else {
+		mpts = dev->limits.num_mtt_segs;
+		mtts = dev->limits.num_mpts;
+	}
+
+	if (!mthca_is_memfree(dev) &&
+	    (dev->mthca_flags & MTHCA_FLAG_FMR)) {
 
 		addr = pci_resource_start(dev->pdev, 4) +
 			((pci_resource_len(dev->pdev, 4) - 1) &
 			 dev->mr_table.mpt_base);
 
 		dev->mr_table.tavor_fmr.mpt_base =
-			ioremap(addr, (1 << i) * sizeof(struct mthca_mpt_entry));
+			ioremap(addr, mpts * sizeof(struct mthca_mpt_entry));
 
 		if (!dev->mr_table.tavor_fmr.mpt_base) {
 			mthca_warn(dev, "MPT ioremap for FMR failed.\n");
@@ -814,19 +904,21 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 			 dev->mr_table.mtt_base);
 
 		dev->mr_table.tavor_fmr.mtt_base =
-			ioremap(addr, (1 << i) * MTHCA_MTT_SEG_SIZE);
+			ioremap(addr, mtts * MTHCA_MTT_SEG_SIZE);
 		if (!dev->mr_table.tavor_fmr.mtt_base) {
 			mthca_warn(dev, "MTT ioremap for FMR failed.\n");
 			err = -ENOMEM;
 			goto err_fmr_mtt;
 		}
+	}
 
-		err = mthca_buddy_init(&dev->mr_table.tavor_fmr.mtt_buddy, i);
+	if (dev->limits.fmr_reserved_mtts) {
+		err = mthca_buddy_init(&dev->mr_table.tavor_fmr.mtt_buddy, fls(mtts - 1));
 		if (err)
 			goto err_fmr_mtt_buddy;
 
 		/* Prevent regular MRs from using FMR keys */
-		err = mthca_buddy_alloc(&dev->mr_table.mtt_buddy, i);
+		err = mthca_buddy_alloc(&dev->mr_table.mtt_buddy, fls(mtts - 1));
 		if (err)
 			goto err_reserve_fmr;
 

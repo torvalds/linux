@@ -44,7 +44,6 @@
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/wait.h>
-#include <linux/sched.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/moduleparam.h>
@@ -85,7 +84,7 @@ struct snd_card_virmidi {
 static struct platform_device *devices[SNDRV_CARDS];
 
 
-static int __init snd_virmidi_probe(struct platform_device *devptr)
+static int __devinit snd_virmidi_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
 	struct snd_card_virmidi *vmidi;
@@ -129,7 +128,7 @@ static int __init snd_virmidi_probe(struct platform_device *devptr)
 	return err;
 }
 
-static int snd_virmidi_remove(struct platform_device *devptr)
+static int __devexit snd_virmidi_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
 	platform_set_drvdata(devptr, NULL);
@@ -140,7 +139,7 @@ static int snd_virmidi_remove(struct platform_device *devptr)
 
 static struct platform_driver snd_virmidi_driver = {
 	.probe		= snd_virmidi_probe,
-	.remove		= snd_virmidi_remove,
+	.remove		= __devexit_p(snd_virmidi_remove),
 	.driver		= {
 		.name	= SND_VIRMIDI_DRIVER
 	},

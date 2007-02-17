@@ -1954,7 +1954,7 @@ static int cifs_readpage(struct file *file, struct page *page)
    refreshing the inode only on increases in the file size 
    but this is tricky to do without racing with writebehind
    page caching in the current Linux kernel design */
-int is_size_safe_to_change(struct cifsInodeInfo *cifsInode)
+int is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file)
 {
 	struct cifsFileInfo *open_file = NULL;
 
@@ -1975,6 +1975,9 @@ int is_size_safe_to_change(struct cifsInodeInfo *cifsInode)
 			we can change size safely */
 			return 1;
 		}
+
+		if(i_size_read(&cifsInode->vfs_inode) < end_of_file)
+			return 1;
 
 		return 0;
 	} else

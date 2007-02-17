@@ -387,8 +387,10 @@ static int nfs4_stat_to_errno(int);
 				decode_putfh_maxsz + \
 				op_decode_hdr_maxsz + 12)
 #define NFS4_enc_server_caps_sz (compound_encode_hdr_maxsz + \
+				encode_putfh_maxsz + \
 				encode_getattr_maxsz)
 #define NFS4_dec_server_caps_sz (compound_decode_hdr_maxsz + \
+				decode_putfh_maxsz + \
 				decode_getattr_maxsz)
 #define NFS4_enc_delegreturn_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \

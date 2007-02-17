@@ -21,7 +21,6 @@
 
 #include <sound/driver.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/ioport.h>
 #include <sound/core.h>

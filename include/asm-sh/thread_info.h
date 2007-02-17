@@ -32,12 +32,20 @@ struct thread_info {
 
 #define PREEMPT_ACTIVE		0x10000000
 
-#ifdef CONFIG_4KSTACKS
-#define THREAD_SIZE		(PAGE_SIZE)
+#if defined(CONFIG_4KSTACKS)
+#define THREAD_SIZE_ORDER	(0)
+#elif defined(CONFIG_PAGE_SIZE_4KB)
+#define THREAD_SIZE_ORDER	(1)
+#elif defined(CONFIG_PAGE_SIZE_8KB)
+#define THREAD_SIZE_ORDER	(1)
+#elif defined(CONFIG_PAGE_SIZE_64KB)
+#define THREAD_SIZE_ORDER	(0)
 #else
-#define THREAD_SIZE		(PAGE_SIZE * 2)
+#error "Unknown thread size"
 #endif
-#define STACK_WARN		(THREAD_SIZE / 8)
+
+#define THREAD_SIZE	(PAGE_SIZE << THREAD_SIZE_ORDER)
+#define STACK_WARN	(THREAD_SIZE >> 3)
 
 /*
  * macros/functions for gaining access to the thread information structure

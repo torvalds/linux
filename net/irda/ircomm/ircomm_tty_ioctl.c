@@ -30,7 +30,6 @@
 
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/sched.h>
 #include <linux/termios.h>
 #include <linux/tty.h>
 #include <linux/serial.h>

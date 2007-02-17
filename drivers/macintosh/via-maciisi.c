@@ -18,7 +18,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/delay.h>
@@ -63,10 +62,10 @@ static volatile unsigned char *via;
 
 #undef DEBUG_MACIISI_ADB
 
-static struct adb_request* current_req = NULL;
-static struct adb_request* last_req = NULL;
+static struct adb_request* current_req;
+static struct adb_request* last_req;
 static unsigned char maciisi_rbuf[16];
-static unsigned char *reply_ptr = NULL;
+static unsigned char *reply_ptr;
 static int data_index;
 static int reading_reply;
 static int reply_len;

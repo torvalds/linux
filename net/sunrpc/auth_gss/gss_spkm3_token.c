@@ -209,7 +209,7 @@ spkm3_verify_mic_token(unsigned char **tokp, int *mic_hdrlen, unsigned char **ck
 
 	/* spkm3 innercontext token preamble */
 	if ((ptr[0] != 0xa4) || (ptr[2] != 0x30)) {
-		dprintk("RPC: BAD SPKM ictoken preamble\n");
+		dprintk("RPC:       BAD SPKM ictoken preamble\n");
 		goto out;
 	}
 
@@ -217,25 +217,25 @@ spkm3_verify_mic_token(unsigned char **tokp, int *mic_hdrlen, unsigned char **ck
 
 	/* token type */
 	if ((ptr[4] != 0x02) || (ptr[5] != 0x02)) {
-		dprintk("RPC: BAD asn1 SPKM3 token type\n");
+		dprintk("RPC:       BAD asn1 SPKM3 token type\n");
 		goto out;
 	}
 
 	/* only support SPKM_MIC_TOK */
 	if((ptr[6] != 0x01) || (ptr[7] != 0x01)) {
-		dprintk("RPC: ERROR unsupported SPKM3 token \n");
+		dprintk("RPC:       ERROR unsupported SPKM3 token \n");
 		goto out;
 	}
 
 	/* contextid */
 	if (ptr[8] != 0x03) {
-		dprintk("RPC: BAD SPKM3 asn1 context-id type\n");
+		dprintk("RPC:       BAD SPKM3 asn1 context-id type\n");
 		goto out;
 	}
 
 	ctxelen = ptr[9];
 	if (ctxelen > 17) {  /* length includes asn1 zbit octet */
-		dprintk("RPC: BAD SPKM3 contextid len %d\n", ctxelen);
+		dprintk("RPC:       BAD SPKM3 contextid len %d\n", ctxelen);
 		goto out;
 	}
 
@@ -251,7 +251,9 @@ spkm3_verify_mic_token(unsigned char **tokp, int *mic_hdrlen, unsigned char **ck
 	*/
 
 	if (*mic_hdrlen != 6 + ctxelen) {
-		dprintk("RPC: BAD SPKM_ MIC_TOK header len %d: we only support default int-alg (should be absent) and do not support snd-seq\n", *mic_hdrlen);
+		dprintk("RPC:       BAD SPKM_ MIC_TOK header len %d: we only "
+				"support default int-alg (should be absent) "
+				"and do not support snd-seq\n", *mic_hdrlen);
 		goto out;
 	}
 	/* checksum */

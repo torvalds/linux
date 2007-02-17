@@ -825,9 +825,6 @@ include/config/kernel.release: include/config/auto.conf FORCE
 # Listed in dependency order
 PHONY += prepare archprepare prepare0 prepare1 prepare2 prepare3
 
-# prepare-all is deprecated, use prepare as valid replacement
-PHONY += prepare-all
-
 # prepare3 is used to check if we are building in a separate output directory,
 # and if so do:
 # 1) Check that make has not been executed in the kernel src $(srctree)
@@ -860,7 +857,7 @@ prepare0: archprepare FORCE
 	$(Q)$(MAKE) $(build)=.
 
 # All the preparing..
-prepare prepare-all: prepare0
+prepare: prepare0
 
 # Leave this as default for preprocessing vmlinux.lds.S, which is now
 # done in arch/$(ARCH)/kernel/Makefile
@@ -930,6 +927,12 @@ headers_install: include/linux/version.h scripts_basic FORCE
 	  exit 1 ; fi
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.headersinst obj=include
+
+PHONY += headers_check_all
+headers_check_all: headers_install_all
+	$(Q)for arch in $(HDRARCHES); do \
+	 $(MAKE) ARCH=$$arch -f $(srctree)/scripts/Makefile.headersinst obj=include BIASMDIR=-bi-$$arch HDRCHECK=1 ;\
+	 done
 
 PHONY += headers_check
 headers_check: headers_install

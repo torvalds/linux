@@ -24,7 +24,6 @@
  *              re-write/remove debug printks
  */
 
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

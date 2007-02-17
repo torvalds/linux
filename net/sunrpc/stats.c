@@ -16,7 +16,6 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/sunrpc/clnt.h>
@@ -226,7 +225,7 @@ do_register(const char *name, void *data, const struct file_operations *fops)
 	struct proc_dir_entry *ent;
 
 	rpc_proc_init();
-	dprintk("RPC: registering /proc/net/rpc/%s\n", name);
+	dprintk("RPC:       registering /proc/net/rpc/%s\n", name);
 
 	ent = create_proc_entry(name, 0, proc_net_rpc);
 	if (ent) {
@@ -263,7 +262,7 @@ svc_proc_unregister(const char *name)
 void
 rpc_proc_init(void)
 {
-	dprintk("RPC: registering /proc/net/rpc\n");
+	dprintk("RPC:       registering /proc/net/rpc\n");
 	if (!proc_net_rpc) {
 		struct proc_dir_entry *ent;
 		ent = proc_mkdir("rpc", proc_net);
@@ -277,7 +276,7 @@ rpc_proc_init(void)
 void
 rpc_proc_exit(void)
 {
-	dprintk("RPC: unregistering /proc/net/rpc\n");
+	dprintk("RPC:       unregistering /proc/net/rpc\n");
 	if (proc_net_rpc) {
 		proc_net_rpc = NULL;
 		remove_proc_entry("net/rpc", NULL);

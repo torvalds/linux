@@ -24,6 +24,14 @@ config X86
 	bool
 	default y
 
+config GENERIC_TIME
+	bool
+	default y
+
+config GENERIC_TIME_VSYSCALL
+	bool
+	default y
+
 config ZONE_DMA32
 	bool
 	default y
@@ -152,18 +160,18 @@ config MPSC
 	  Optimize for Intel Pentium 4 and older Nocona/Dempsey Xeon CPUs
 	  with Intel Extended Memory 64 Technology(EM64T). For details see
 	  <http://www.intel.com/technology/64bitextensions/>.
-	  Note the the latest Xeons (Xeon 51xx and 53xx) are not based on the
-          Netburst core and shouldn't use this option. You can distingush them
+	  Note that the latest Xeons (Xeon 51xx and 53xx) are not based on the
+          Netburst core and shouldn't use this option. You can distinguish them
 	  using the cpu family field
-	  in /proc/cpuinfo. Family 15 is a older Xeon, Family 6 a newer one
-	  (this rule only applies to system that support EM64T)
+	  in /proc/cpuinfo. Family 15 is an older Xeon, Family 6 a newer one
+	  (this rule only applies to systems that support EM64T)
 
 config MCORE2
 	bool "Intel Core2 / newer Xeon"
 	help
 	  Optimize for Intel Core2 and newer Xeons (51xx)
-	  You can distingush the newer Xeons from the older ones using
-	  the cpu family field in /proc/cpuinfo. 15 is a older Xeon
+	  You can distinguish the newer Xeons from the older ones using
+	  the cpu family field in /proc/cpuinfo. 15 is an older Xeon
 	  (use CONFIG_MPSC then), 6 is a newer one. This rule only
 	  applies to CPUs that support EM64T.
 
@@ -458,8 +466,8 @@ config IOMMU
 	  on systems with more than 3GB. This is usually needed for USB,
 	  sound, many IDE/SATA chipsets and some other devices.
 	  Provides a driver for the AMD Athlon64/Opteron/Turion/Sempron GART
-	  based IOMMU and a software bounce buffer based IOMMU used on Intel
-	  systems and as fallback.
+	  based hardware IOMMU and a software bounce buffer based IOMMU used
+	  on Intel systems and as fallback.
 	  The code is only active when needed (enough memory and limited
 	  device) unless CONFIG_IOMMU_DEBUG or iommu=force is specified
 	  too.
@@ -496,6 +504,12 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
 	bool
+	help
+	  Support for software bounce buffers used on x86-64 systems
+	  which don't have a hardware IOMMU (e.g. the current generation
+	  of Intel's x86-64 CPUs). Using this PCI devices which can only
+	  access 32-bits of memory can be used on systems with more than
+	  3 GB of memory. If unsure, say Y.
 
 config X86_MCE
 	bool "Machine check support" if EMBEDDED

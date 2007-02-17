@@ -1550,7 +1550,7 @@ xfrm_state_ok(struct xfrm_tmpl *tmpl, struct xfrm_state *x,
 	      unsigned short family)
 {
 	if (xfrm_state_kern(x))
-		return tmpl->optional && !xfrm_state_addr_cmp(tmpl, x, family);
+		return tmpl->optional && !xfrm_state_addr_cmp(tmpl, x, tmpl->encap_family);
 	return	x->id.proto == tmpl->id.proto &&
 		(x->id.spi == tmpl->id.spi || !tmpl->id.spi) &&
 		(x->props.reqid == tmpl->reqid || !tmpl->reqid) &&

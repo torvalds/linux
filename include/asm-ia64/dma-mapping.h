@@ -8,9 +8,20 @@
 #include <asm/machvec.h>
 
 #define dma_alloc_coherent	platform_dma_alloc_coherent
-#define dma_alloc_noncoherent	platform_dma_alloc_coherent	/* coherent mem. is cheap */
+/* coherent mem. is cheap */
+static inline void *
+dma_alloc_noncoherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
+		      gfp_t flag)
+{
+	return dma_alloc_coherent(dev, size, dma_handle, flag);
+}
 #define dma_free_coherent	platform_dma_free_coherent
-#define dma_free_noncoherent	platform_dma_free_coherent
+static inline void
+dma_free_noncoherent(struct device *dev, size_t size, void *cpu_addr,
+		     dma_addr_t dma_handle)
+{
+	dma_free_coherent(dev, size, cpu_addr, dma_handle);
+}
 #define dma_map_single		platform_dma_map_single
 #define dma_map_sg		platform_dma_map_sg
 #define dma_unmap_single	platform_dma_unmap_single

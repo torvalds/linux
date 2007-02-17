@@ -86,7 +86,7 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 	unsigned char		*ptr = (unsigned char *)read_token->data;
 	int			bodysize;
 
-	dprintk("RPC:      krb5_read_token\n");
+	dprintk("RPC:       krb5_read_token\n");
 
 	if (g_verify_token_header(&ctx->mech_used, &bodysize, &ptr,
 					read_token->len))

@@ -89,9 +89,10 @@ static int probe_all;			/* Set to check all ISA port ranges */
 static int ht6560a;			/* HT 6560A on primary 1, secondary 2, both 3 */
 static int ht6560b;			/* HT 6560A on primary 1, secondary 2, both 3 */
 static int opti82c611a;			/* Opti82c611A on primary 1, secondary 2, both 3 */
-static int opti82c46x;		/* Opti 82c465MV present (pri/sec autodetect) */
+static int opti82c46x;			/* Opti 82c465MV present (pri/sec autodetect) */
 static int autospeed;			/* Chip present which snoops speed changes */
 static int pio_mask = 0x1F;		/* PIO range for autospeed devices */
+static int iordy_mask = 0xFFFFFFFF;	/* Use iordy if available */
 
 /**
  *	legacy_set_mode		-	mode setting
@@ -113,6 +114,7 @@ static int legacy_set_mode(struct ata_port *ap, struct ata_device **unused)
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
 		if (ata_dev_enabled(dev)) {
+			ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
 			dev->pio_mode = XFER_PIO_0;
 			dev->xfer_mode = XFER_PIO_0;
 			dev->xfer_shift = ATA_SHIFT_PIO;
@@ -695,6 +697,7 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	void __iomem *io_addr, *ctrl_addr;
 	int pio_modes = pio_mask;
 	u32 mask = (1 << port);
+	u32 iordy = (iordy_mask & mask) ? 0: ATA_FLAG_NO_IORDY;
 	int ret;
 
 	pdev = platform_device_register_simple(DRV_NAME, nr_legacy_host, NULL, 0);
@@ -715,6 +718,7 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	if (ht6560a & mask) {
 		ops = &ht6560a_port_ops;
 		pio_modes = 0x07;
+		iordy = ATA_FLAG_NO_IORDY;
 	}
 	if (ht6560b & mask) {
 		ops = &ht6560b_port_ops;
@@ -750,6 +754,7 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 			printk(KERN_INFO "PDC20230-C/20630 VLB ATA controller detected.\n");
 				pio_modes = 0x07;
 			ops = &pdc20230_port_ops;
+			iordy = ATA_FLAG_NO_IORDY;
 			udelay(100);
 			inb(0x1F5);
 		} else {
@@ -767,6 +772,7 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	/* Chip does mode setting by command snooping */
 	if (ops == &legacy_port_ops && (autospeed & mask))
 		ops = &simple_port_ops;
+
 	memset(&ae, 0, sizeof(struct ata_probe_ent));
 	INIT_LIST_HEAD(&ae.node);
 	ae.dev = &pdev->dev;
@@ -776,7 +782,7 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	ae.pio_mask = pio_modes;
 	ae.irq = irq;
 	ae.irq_flags = 0;
-	ae.port_flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST;
+	ae.port_flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST|iordy;
 	ae.port[0].cmd_addr = io_addr;
 	ae.port[0].altstatus_addr = ctrl_addr;
 	ae.port[0].ctl_addr = ctrl_addr;
@@ -945,6 +951,7 @@ module_param(ht6560b, int, 0);
 module_param(opti82c611a, int, 0);
 module_param(opti82c46x, int, 0);
 module_param(pio_mask, int, 0);
+module_param(iordy_mask, int, 0);
 
 module_init(legacy_init);
 module_exit(legacy_exit);

@@ -84,7 +84,7 @@ void get_mtrr_state(void);
 
 extern void set_mtrr_ops(struct mtrr_ops * ops);
 
-extern u32 size_or_mask, size_and_mask;
+extern u64 size_or_mask, size_and_mask;
 extern struct mtrr_ops * mtrr_if;
 
 #define is_cpu(vnd)	(mtrr_if && mtrr_if->vendor == X86_VENDOR_##vnd)

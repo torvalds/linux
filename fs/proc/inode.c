@@ -161,6 +161,7 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 	if (!inode)
 		goto out_ino;
 
+	PROC_I(inode)->fd = 0;
 	PROC_I(inode)->pde = de;
 	if (de) {
 		if (de->mode) {

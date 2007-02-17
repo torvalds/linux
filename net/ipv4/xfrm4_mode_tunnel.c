@@ -95,6 +95,7 @@ static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	switch(iph->protocol){
 		case IPPROTO_IPIP:
+			break;
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 		case IPPROTO_IPV6:
 			break;

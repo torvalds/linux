@@ -26,7 +26,6 @@
 
 #include <asm/uaccess.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/mm.h>

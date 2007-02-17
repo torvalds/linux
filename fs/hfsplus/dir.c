@@ -10,7 +10,6 @@
 
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/random.h>
 

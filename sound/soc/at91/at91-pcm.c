@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
+#include <linux/atmel_pdc.h>
 
 #include <sound/driver.h>
 #include <sound/core.h>
@@ -30,7 +31,6 @@
 
 #include <asm/arch/hardware.h>
 #include <asm/arch/at91_ssc.h>
-#include <asm/arch/at91_pdc.h>
 
 #include "at91-pcm.h"
 
@@ -83,7 +83,7 @@ static void at91_pcm_dma_irq(u32 ssc_sr,
 			params->name, ssc_sr, count);
 
 		/* re-start the PDC */
-		at91_ssc_write(params->ssc_base + AT91_PDC_PTCR, params->mask->pdc_disable);
+		at91_ssc_write(params->ssc_base + ATMEL_PDC_PTCR, params->mask->pdc_disable);
 
 		prtd->period_ptr += prtd->period_size;
 		if (prtd->period_ptr >= prtd->dma_buffer_end) {
@@ -94,7 +94,7 @@ static void at91_pcm_dma_irq(u32 ssc_sr,
 		at91_ssc_write(params->ssc_base + params->pdc->xcr,
 				prtd->period_size / params->pdc_xfer_size);
 
-		at91_ssc_write(params->ssc_base + AT91_PDC_PTCR, params->mask->pdc_enable);
+		at91_ssc_write(params->ssc_base + ATMEL_PDC_PTCR, params->mask->pdc_enable);
 	}
 
 	if (ssc_sr & params->mask->ssc_endx) {
@@ -143,7 +143,7 @@ static int at91_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct at91_pcm_dma_params *params = prtd->params;
 
 	if (params != NULL) {
-		at91_ssc_write(params->ssc_base + AT91_PDC_PTCR, params->mask->pdc_disable);
+		at91_ssc_write(params->ssc_base + ATMEL_PDC_PTCR, params->mask->pdc_disable);
 		prtd->params->dma_intr_handler = NULL;
 	}
 
@@ -158,7 +158,7 @@ static int at91_pcm_prepare(struct snd_pcm_substream *substream)
 	at91_ssc_write(params->ssc_base + AT91_SSC_IDR,
 			params->mask->ssc_endx | params->mask->ssc_endbuf);
 
-	at91_ssc_write(params->ssc_base + AT91_PDC_PTCR, params->mask->pdc_disable);
+	at91_ssc_write(params->ssc_base + ATMEL_PDC_PTCR, params->mask->pdc_disable);
 	return 0;
 }
 
@@ -192,7 +192,7 @@ static int at91_pcm_trigger(struct snd_pcm_substream *substream,
 		at91_ssc_write(params->ssc_base + AT91_SSC_IER,
 			params->mask->ssc_endx | params->mask->ssc_endbuf);
 
-		at91_ssc_write(params->ssc_base + AT91_PDC_PTCR, params->mask->pdc_enable);
+		at91_ssc_write(params->ssc_base + ATMEL_PDC_PTCR, params->mask->pdc_enable);
 
 		DBG("sr=%lx imr=%lx\n", at91_ssc_read(params->ssc_base + AT91_SSC_SR),
 					at91_ssc_read(params->ssc_base + AT91_SSC_IER));
@@ -201,12 +201,12 @@ static int at91_pcm_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		at91_ssc_write(params->ssc_base + AT91_PDC_PTCR, params->mask->pdc_disable);
+		at91_ssc_write(params->ssc_base + ATMEL_PDC_PTCR, params->mask->pdc_disable);
 		break;
 
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		at91_ssc_write(params->ssc_base + AT91_PDC_PTCR, params->mask->pdc_enable);
+		at91_ssc_write(params->ssc_base + ATMEL_PDC_PTCR, params->mask->pdc_enable);
 		break;
 
 	default:
@@ -379,7 +379,7 @@ static int at91_pcm_suspend(struct platform_device *pdev,
 
 	/* disable the PDC and save the PDC registers */
 
-	at91_ssc_write(params->ssc_base + AT91_PDC_PTCR, params->mask->pdc_disable);
+	at91_ssc_write(params->ssc_base + ATMEL_PDC_PTCR, params->mask->pdc_disable);
 
 	prtd->pdc_xpr_save  = at91_ssc_read(params->ssc_base + params->pdc->xpr);
 	prtd->pdc_xcr_save  = at91_ssc_read(params->ssc_base + params->pdc->xcr);
@@ -408,7 +408,7 @@ static int at91_pcm_resume(struct platform_device *pdev,
 	at91_ssc_write(params->ssc_base + params->pdc->xnpr, prtd->pdc_xnpr_save);
 	at91_ssc_write(params->ssc_base + params->pdc->xncr, prtd->pdc_xncr_save);
 
-	at91_ssc_write(params->ssc_base + AT91_PDC_PTCR, params->mask->pdc_enable);
+	at91_ssc_write(params->ssc_base + ATMEL_PDC_PTCR, params->mask->pdc_enable);
 	return 0;
 }
 #else

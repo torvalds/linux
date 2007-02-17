@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/utsname.h>
 #include <linux/sunrpc/clnt.h>
-#include <linux/sched.h>
 
 #ifdef RPC_DEBUG
 # define RPCDBG_FACILITY	RPCDBG_AUTH

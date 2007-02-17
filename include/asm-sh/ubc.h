@@ -17,7 +17,7 @@
 /* User Break Controller */
 #if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709) || \
     defined(CONFIG_CPU_SUBTYPE_SH7300)
-#define UBC_TYPE_SH7729	(cpu_data->type == CPU_SH7729)
+#define UBC_TYPE_SH7729	(current_cpu_data.type == CPU_SH7729)
 #else
 #define UBC_TYPE_SH7729	0
 #endif

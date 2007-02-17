@@ -102,7 +102,6 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>
-#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>

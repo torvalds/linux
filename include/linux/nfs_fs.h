@@ -11,14 +11,6 @@
 
 #include <linux/magic.h>
 
-/*
- * Enable debugging support for nfs client.
- * Requires RPC_DEBUG.
- */
-#ifdef RPC_DEBUG
-# define NFS_DEBUG
-#endif
-
 /* Default timeout values */
 #define NFS_MAX_UDP_TIMEOUT	(60*HZ)
 #define NFS_MAX_TCP_TIMEOUT	(600*HZ)
@@ -567,6 +559,15 @@ extern void * nfs_root_data(void);
 #define NFSDBG_ALL		0xFFFF
 
 #ifdef __KERNEL__
+
+/*
+ * Enable debugging support for nfs client.
+ * Requires RPC_DEBUG.
+ */
+#ifdef RPC_DEBUG
+# define NFS_DEBUG
+#endif
+
 # undef ifdebug
 # ifdef NFS_DEBUG
 #  define ifdebug(fac)		if (unlikely(nfs_debug & NFSDBG_##fac))

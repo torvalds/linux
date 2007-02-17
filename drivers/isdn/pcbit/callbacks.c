@@ -15,7 +15,6 @@
  * NULL pointer dereference in cb_in_1 (originally fixed in 2.0)
  */
 
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 

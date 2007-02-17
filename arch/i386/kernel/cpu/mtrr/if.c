@@ -211,6 +211,9 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 	default:
 		return -ENOTTY;
 	case MTRRIOC_ADD_ENTRY:
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_ADD_ENTRY:
+#endif
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		err =
@@ -218,21 +221,33 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 				  file, 0);
 		break;
 	case MTRRIOC_SET_ENTRY:
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_SET_ENTRY:
+#endif
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		err = mtrr_add(sentry.base, sentry.size, sentry.type, 0);
 		break;
 	case MTRRIOC_DEL_ENTRY:
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_DEL_ENTRY:
+#endif
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		err = mtrr_file_del(sentry.base, sentry.size, file, 0);
 		break;
 	case MTRRIOC_KILL_ENTRY:
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_KILL_ENTRY:
+#endif
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		err = mtrr_del(-1, sentry.base, sentry.size);
 		break;
 	case MTRRIOC_GET_ENTRY:
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_GET_ENTRY:
+#endif
 		if (gentry.regnum >= num_var_ranges)
 			return -EINVAL;
 		mtrr_if->get(gentry.regnum, &gentry.base, &size, &type);
@@ -249,6 +264,9 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 
 		break;
 	case MTRRIOC_ADD_PAGE_ENTRY:
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_ADD_PAGE_ENTRY:
+#endif
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		err =
@@ -256,21 +274,33 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 				  file, 1);
 		break;
 	case MTRRIOC_SET_PAGE_ENTRY:
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_SET_PAGE_ENTRY:
+#endif
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		err = mtrr_add_page(sentry.base, sentry.size, sentry.type, 0);
 		break;
 	case MTRRIOC_DEL_PAGE_ENTRY:
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_DEL_PAGE_ENTRY:
+#endif
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		err = mtrr_file_del(sentry.base, sentry.size, file, 1);
 		break;
 	case MTRRIOC_KILL_PAGE_ENTRY:
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_KILL_PAGE_ENTRY:
+#endif
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		err = mtrr_del_page(-1, sentry.base, sentry.size);
 		break;
 	case MTRRIOC_GET_PAGE_ENTRY:
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_GET_PAGE_ENTRY:
+#endif
 		if (gentry.regnum >= num_var_ranges)
 			return -EINVAL;
 		mtrr_if->get(gentry.regnum, &gentry.base, &size, &type);

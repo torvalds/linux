@@ -26,6 +26,7 @@ EXPORT_SYMBOL(__put_user_4);
 EXPORT_SYMBOL(__put_user_8);
 
 EXPORT_SYMBOL(copy_user_generic);
+EXPORT_SYMBOL(__copy_user_nocache);
 EXPORT_SYMBOL(copy_from_user);
 EXPORT_SYMBOL(copy_to_user);
 EXPORT_SYMBOL(__copy_from_user_inatomic);
@@ -34,8 +35,8 @@ EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(clear_page);
 
 #ifdef CONFIG_SMP
-extern void FASTCALL( __write_lock_failed(rwlock_t *rw));
-extern void FASTCALL( __read_lock_failed(rwlock_t *rw));
+extern void  __write_lock_failed(rwlock_t *rw);
+extern void  __read_lock_failed(rwlock_t *rw);
 EXPORT_SYMBOL(__write_lock_failed);
 EXPORT_SYMBOL(__read_lock_failed);
 #endif

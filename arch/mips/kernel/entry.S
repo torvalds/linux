@@ -21,24 +21,21 @@
 #endif
 
 #ifndef CONFIG_PREEMPT
-	.macro	preempt_stop
-	local_irq_disable
-	.endm
 #define resume_kernel	restore_all
+#else
+#define __ret_from_irq	ret_from_exception
 #endif
 
 	.text
 	.align	5
+#ifndef CONFIG_PREEMPT
+FEXPORT(ret_from_exception)
+	local_irq_disable			# preempt stop
+	b	__ret_from_irq
+#endif
 FEXPORT(ret_from_irq)
 	LONG_S	s0, TI_REGS($28)
-#ifdef CONFIG_PREEMPT
-FEXPORT(ret_from_exception)
-#else
-	b	_ret_from_irq
-FEXPORT(ret_from_exception)
-	preempt_stop
-#endif
-FEXPORT(_ret_from_irq)
+FEXPORT(__ret_from_irq)
 	LONG_L	t0, PT_STATUS(sp)		# returning to kernel mode?
 	andi	t0, t0, KU_USER
 	beqz	t0, resume_kernel

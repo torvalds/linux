@@ -21,6 +21,7 @@
 #include <linux/stddef.h>
 #include <linux/personality.h>
 #include <linux/compat.h>
+#include <linux/binfmts.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/i387.h>
@@ -449,7 +450,11 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 
 	/* Return stub is in 32bit vsyscall page */
 	{ 
-		void __user *restorer = VSYSCALL32_SIGRETURN; 
+		void __user *restorer;
+		if (current->binfmt->hasvdso)
+			restorer = VSYSCALL32_SIGRETURN;
+		else
+			restorer = (void *)&frame->retcode;
 		if (ka->sa.sa_flags & SA_RESTORER)
 			restorer = ka->sa.sa_restorer;       
 		err |= __put_user(ptr_to_compat(restorer), &frame->pretcode);
@@ -495,7 +500,7 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 		ptrace_notify(SIGTRAP);
 
 #if DEBUG_SIG
-	printk("SIG deliver (%s:%d): sp=%p pc=%p ra=%p\n",
+	printk("SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",
 		current->comm, current->pid, frame, regs->rip, frame->pretcode);
 #endif
 
@@ -601,7 +606,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		ptrace_notify(SIGTRAP);
 
 #if DEBUG_SIG
-	printk("SIG deliver (%s:%d): sp=%p pc=%p ra=%p\n",
+	printk("SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",
 		current->comm, current->pid, frame, regs->rip, frame->pretcode);
 #endif
 

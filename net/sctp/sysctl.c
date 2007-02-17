@@ -254,7 +254,7 @@ static struct ctl_table_header * sctp_sysctl_header;
 /* Sysctl registration.  */
 void sctp_sysctl_register(void)
 {
-	sctp_sysctl_header = register_sysctl_table(sctp_root_table, 0);
+	sctp_sysctl_header = register_sysctl_table(sctp_root_table);
 }
 
 /* Sysctl deregistration.  */

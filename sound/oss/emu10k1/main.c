@@ -455,14 +455,12 @@ static int __devinit emu10k1_midi_init(struct emu10k1_card *card)
 {
 	int ret;
 
-	card->mpuout = kmalloc(sizeof(struct emu10k1_mpuout), GFP_KERNEL);
+	card->mpuout = kzalloc(sizeof(struct emu10k1_mpuout), GFP_KERNEL);
 	if (card->mpuout == NULL) {
 		printk(KERN_WARNING "emu10k1: Unable to allocate emu10k1_mpuout: out of memory\n");
 		ret = -ENOMEM;
 		goto err_out1;
 	}
-
-	memset(card->mpuout, 0, sizeof(struct emu10k1_mpuout));
 
 	card->mpuout->intr = 1;
 	card->mpuout->status = FLAGS_AVAILABLE;
@@ -472,14 +470,12 @@ static int __devinit emu10k1_midi_init(struct emu10k1_card *card)
 
 	spin_lock_init(&card->mpuout->lock);
 
-	card->mpuin = kmalloc(sizeof(struct emu10k1_mpuin), GFP_KERNEL);
+	card->mpuin = kzalloc(sizeof(struct emu10k1_mpuin), GFP_KERNEL);
 	if (card->mpuin == NULL) {
 		printk(KERN_WARNING "emu10k1: Unable to allocate emu10k1_mpuin: out of memory\n");
 		ret = -ENOMEM;
                 goto err_out2;
 	}
-
-	memset(card->mpuin, 0, sizeof(struct emu10k1_mpuin));
 
 	card->mpuin->status = FLAGS_AVAILABLE;
 
@@ -1280,11 +1276,10 @@ static int __devinit emu10k1_probe(struct pci_dev *pci_dev, const struct pci_dev
 
 	pci_set_master(pci_dev);
 
-	if ((card = kmalloc(sizeof(struct emu10k1_card), GFP_KERNEL)) == NULL) {
+	if ((card = kzalloc(sizeof(struct emu10k1_card), GFP_KERNEL)) == NULL) {
                 printk(KERN_ERR "emu10k1: out of memory\n");
                 return -ENOMEM;
         }
-        memset(card, 0, sizeof(struct emu10k1_card));
 
 	card->iobase = pci_resource_start(pci_dev, 0);
 	card->length = pci_resource_len(pci_dev, 0); 

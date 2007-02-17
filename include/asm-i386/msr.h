@@ -307,4 +307,7 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
 #define MSR_CORE_PERF_GLOBAL_CTRL	0x38f
 #define MSR_CORE_PERF_GLOBAL_OVF_CTRL	0x390
 
+/* Geode defined MSRs */
+#define MSR_GEODE_BUSCONT_CONF0         0x1900
+
 #endif /* __ASM_MSR_H */

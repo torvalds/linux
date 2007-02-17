@@ -71,8 +71,6 @@
 #include <asm/system.h>
 #include <asm/div64.h>
 
-#define HFSC_DEBUG 1
-
 /*
  * kernel internal service curve representation:
  *   coordinates are given by 64 bit unsigned integers.
@@ -210,17 +208,6 @@ do {									\
 	(stamp) = 1ULL * USEC_PER_SEC * tv.tv_sec + tv.tv_usec;		\
 } while (0)
 #endif
-
-#if HFSC_DEBUG
-#define ASSERT(cond)							\
-do {									\
-	if (unlikely(!(cond)))						\
-		printk("assertion %s failed at %s:%i (%s)\n",		\
-		       #cond, __FILE__, __LINE__, __FUNCTION__);	\
-} while (0)
-#else
-#define ASSERT(cond)
-#endif /* HFSC_DEBUG */
 
 #define	HT_INFINITY	0xffffffffffffffffULL	/* infinite time value */
 
@@ -1492,7 +1479,7 @@ hfsc_schedule_watchdog(struct Qdisc *sch, u64 cur_time)
 		if (next_time == 0 || next_time > q->root.cl_cfmin)
 			next_time = q->root.cl_cfmin;
 	}
-	ASSERT(next_time != 0);
+	WARN_ON(next_time == 0);
 	delay = next_time - cur_time;
 	delay = PSCHED_US2JIFFIE(delay);
 

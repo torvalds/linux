@@ -274,7 +274,7 @@ static struct ctl_table_header *irda_table_header;
  */
 int __init irda_sysctl_register(void)
 {
-	irda_table_header = register_sysctl_table(irda_root_table, 0);
+	irda_table_header = register_sysctl_table(irda_root_table);
 	if (!irda_table_header)
 		return -ENOMEM;
 

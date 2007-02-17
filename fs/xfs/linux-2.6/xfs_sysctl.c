@@ -251,7 +251,7 @@ static ctl_table xfs_root_table[] = {
 void
 xfs_sysctl_register(void)
 {
-	xfs_table_header = register_sysctl_table(xfs_root_table, 0);
+	xfs_table_header = register_sysctl_table(xfs_root_table);
 }
 
 void

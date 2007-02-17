@@ -171,6 +171,7 @@ static struct i2c_algo_bit_data i810_i2c_bit_data = {
 
 static struct i2c_adapter i810_i2c_adapter = {
 	.owner		= THIS_MODULE,
+	.id		= I2C_HW_B_I810,
 	.name		= "I810/I815 I2C Adapter",
 	.algo_data	= &i810_i2c_bit_data,
 };
@@ -186,6 +187,7 @@ static struct i2c_algo_bit_data i810_ddc_bit_data = {
 
 static struct i2c_adapter i810_ddc_adapter = {
 	.owner		= THIS_MODULE,
+	.id		= I2C_HW_B_I810,
 	.name		= "I810/I815 DDC Adapter",
 	.algo_data	= &i810_ddc_bit_data,
 };

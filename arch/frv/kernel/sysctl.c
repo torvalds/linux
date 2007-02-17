@@ -175,22 +175,40 @@ static int procctl_frv_pin_cxnr(ctl_table *table, int write, struct file *filp,
  */
 static struct ctl_table frv_table[] =
 {
-	{ 1, "cache-mode",	NULL, 0, 0644, NULL, &procctl_frv_cachemode },
+	{
+		.ctl_name 	= 1,
+		.procname 	= "cache-mode",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0644,
+		.proc_handler	= &procctl_frv_cachemode,
+	},
 #ifdef CONFIG_MMU
-	{ 2, "pin-cxnr",	NULL, 0, 0644, NULL, &procctl_frv_pin_cxnr },
+	{
+		.ctl_name	= 2,
+		.procname	= "pin-cxnr",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0644,
+		.proc_handler	= &procctl_frv_pin_cxnr
+	},
 #endif
-	{ 0 }
+	{}
 };
 
 /*
  * Use a temporary sysctl number. Horrid, but will be cleaned up in 2.6
  * when all the PM interfaces exist nicely.
  */
-#define CTL_FRV 9898
 static struct ctl_table frv_dir_table[] =
 {
-	{CTL_FRV, "frv", NULL, 0, 0555, frv_table},
-	{0}
+	{
+		.ctl_name	= CTL_FRV,
+		.procname	= "frv",
+		.mode 		= 0555,
+		.child		= frv_table
+	},
+	{}
 };
 
 /*
@@ -198,7 +216,7 @@ static struct ctl_table frv_dir_table[] =
  */
 static int __init frv_sysctl_init(void)
 {
-	register_sysctl_table(frv_dir_table, 1);
+	register_sysctl_table(frv_dir_table);
 	return 0;
 }
 

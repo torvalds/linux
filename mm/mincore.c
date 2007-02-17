@@ -77,8 +77,16 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 	 * PTE array for our address.
 	 */
 	nr = PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1));
-	if (nr > pages)
-		nr = pages;
+
+	/*
+	 * Don't overrun this vma
+	 */
+	nr = min(nr, (vma->vm_end - addr) >> PAGE_SHIFT);
+
+	/*
+	 * Don't return more than the caller asked for
+	 */
+	nr = min(nr, pages);
 
 	pgd = pgd_offset(vma->vm_mm, addr);
 	if (pgd_none_or_clear_bad(pgd))
@@ -116,10 +124,17 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 				/* migration entries are always uptodate */
 				present = 1;
 			} else {
+#ifdef CONFIG_SWAP
 				pgoff = entry.val;
 				present = mincore_page(&swapper_space, pgoff);
+#else
+				WARN_ON(1);
+				present = 1;
+#endif
 			}
 		}
+
+		vec[i] = present;
 	}
 	pte_unmap_unlock(ptep-1, ptl);
 
@@ -130,6 +145,9 @@ none_mapped:
 		pgoff = linear_page_index(vma, addr);
 		for (i = 0; i < nr; i++, pgoff++)
 			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
+	} else {
+		for (i = 0; i < nr; i++)
+			vec[i] = 0;
 	}
 
 	return nr;

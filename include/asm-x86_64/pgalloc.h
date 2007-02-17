@@ -18,11 +18,6 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *p
 	set_pmd(pmd, __pmd(_PAGE_TABLE | (page_to_pfn(pte) << PAGE_SHIFT)));
 }
 
-static inline pmd_t *get_pmd(void)
-{
-	return (pmd_t *)get_zeroed_page(GFP_KERNEL);
-}
-
 static inline void pmd_free(pmd_t *pmd)
 {
 	BUG_ON((unsigned long)pmd & (PAGE_SIZE-1));

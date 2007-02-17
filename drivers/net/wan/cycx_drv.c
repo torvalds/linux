@@ -53,7 +53,6 @@
 #include <linux/kernel.h>	/* printk(), and other useful stuff */
 #include <linux/stddef.h>	/* offsetof(), etc. */
 #include <linux/errno.h>	/* return codes */
-#include <linux/sched.h>	/* for jiffies, HZ, etc. */
 #include <linux/cycx_drv.h>	/* API definitions */
 #include <linux/cycx_cfm.h>	/* CYCX firmware module definitions */
 #include <linux/delay.h>	/* udelay, msleep_interruptible */

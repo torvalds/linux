@@ -620,6 +620,11 @@ P:	Haavard Skinnemoen
 M:	hskinnemoen@atmel.com
 S:	Supported
 
+ATMEL SPI DRIVER
+P:	Haavard Skinnemoen
+M:	hskinnemoen@atmel.com
+S:	Supported
+
 ATMEL WIRELESS DRIVER
 P:	Simon Kelley
 M:	simon@thekelleys.org.uk
@@ -2523,6 +2528,12 @@ M:	olof@lixom.net
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+PA SEMI SMBUS DRIVER
+P:	Olof Johansson
+M:	olof@lixom.net
+L:	i2c@lm-sensors.org
+S:	Maintained
+
 PARALLEL PORT SUPPORT
 P:	Phil Blundell
 M:	philb@gnu.org
@@ -3768,6 +3779,7 @@ P:	Andi Kleen
 M:	ak@suse.de
 L:	discuss@x86-64.org
 W:	http://www.x86-64.org
+T:	quilt ftp://ftp.firstfloor.org/pub/ak/x86_64/quilt-current
 S:	Maintained
 
 YAM DRIVER FOR AX.25

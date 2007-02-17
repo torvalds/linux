@@ -37,6 +37,7 @@
 #include <asm/idle.h>
 #include <asm/proto.h>
 #include <asm/timex.h>
+#include <asm/hpet.h>
 #include <asm/apic.h>
 
 int apic_mapped;
@@ -763,7 +764,7 @@ static void setup_APIC_timer(unsigned int clocks)
 	local_irq_save(flags);
 
 	/* wait for irq slice */
- 	if (vxtime.hpet_address && hpet_use_timer) {
+ 	if (hpet_address && hpet_use_timer) {
  		int trigger = hpet_readl(HPET_T0_CMP);
  		while (hpet_readl(HPET_COUNTER) >= trigger)
  			/* do nothing */ ;
@@ -785,7 +786,7 @@ static void setup_APIC_timer(unsigned int clocks)
 	/* Turn off PIT interrupt if we use APIC timer as main timer.
 	   Only works with the PM timer right now
 	   TBD fix it for HPET too. */
-	if (vxtime.mode == VXTIME_PMTMR &&
+	if ((pmtmr_ioport != 0) &&
 		smp_processor_id() == boot_cpu_id &&
 		apic_runs_main_timer == 1 &&
 		!cpu_isset(boot_cpu_id, timer_interrupt_broadcast_ipi_mask)) {

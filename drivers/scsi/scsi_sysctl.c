@@ -41,7 +41,7 @@ static struct ctl_table_header *scsi_table_header;
 
 int __init scsi_init_sysctl(void)
 {
-	scsi_table_header = register_sysctl_table(scsi_root_table, 1);
+	scsi_table_header = register_sysctl_table(scsi_root_table);
 	if (!scsi_table_header)
 		return -ENOMEM;
 	return 0;

@@ -37,7 +37,6 @@
 #define NVRAM_VERSION	"1.2"
 
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/smp_lock.h>
 #include <linux/nvram.h>
 

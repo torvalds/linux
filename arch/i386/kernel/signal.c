@@ -21,6 +21,7 @@
 #include <linux/suspend.h>
 #include <linux/ptrace.h>
 #include <linux/elf.h>
+#include <linux/binfmts.h>
 #include <asm/processor.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
@@ -128,8 +129,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *peax
 			 X86_EFLAGS_TF | X86_EFLAGS_SF | X86_EFLAGS_ZF | \
 			 X86_EFLAGS_AF | X86_EFLAGS_PF | X86_EFLAGS_CF)
 
-	COPY_SEG(gs);
-	GET_SEG(fs);
+	GET_SEG(gs);
+	COPY_SEG(fs);
 	COPY_SEG(es);
 	COPY_SEG(ds);
 	COPY(edi);
@@ -244,9 +245,9 @@ setup_sigcontext(struct sigcontext __user *sc, struct _fpstate __user *fpstate,
 {
 	int tmp, err = 0;
 
-	err |= __put_user(regs->xgs, (unsigned int __user *)&sc->gs);
-	savesegment(fs, tmp);
-	err |= __put_user(tmp, (unsigned int __user *)&sc->fs);
+	err |= __put_user(regs->xfs, (unsigned int __user *)&sc->fs);
+	savesegment(gs, tmp);
+	err |= __put_user(tmp, (unsigned int __user *)&sc->gs);
 
 	err |= __put_user(regs->xes, (unsigned int __user *)&sc->es);
 	err |= __put_user(regs->xds, (unsigned int __user *)&sc->ds);
@@ -349,7 +350,10 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 			goto give_sigsegv;
 	}
 
-	restorer = (void *)VDSO_SYM(&__kernel_sigreturn);
+	if (current->binfmt->hasvdso)
+		restorer = (void *)VDSO_SYM(&__kernel_sigreturn);
+	else
+		restorer = (void *)&frame->retcode;
 	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = ka->sa.sa_restorer;
 

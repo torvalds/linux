@@ -41,7 +41,6 @@
  * EF: compute checksum (?)
  */
 
-#include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 

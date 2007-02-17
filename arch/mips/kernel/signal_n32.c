@@ -31,6 +31,7 @@
 
 #include <asm/asm.h>
 #include <asm/cacheflush.h>
+#include <asm/compat-signal.h>
 #include <asm/sim.h>
 #include <asm/uaccess.h>
 #include <asm/ucontext.h>
@@ -47,7 +48,9 @@
 #define __NR_N32_rt_sigreturn		6211
 #define __NR_N32_restart_syscall	6214
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
+extern int setup_sigcontext(struct pt_regs *, struct sigcontext __user *);
+extern int restore_sigcontext(struct pt_regs *, struct sigcontext __user *);
+
 
 /* IRIX compatible stack_t  */
 typedef struct sigaltstack32 {
@@ -61,7 +64,7 @@ struct ucontextn32 {
 	s32                 uc_link;
 	stack32_t           uc_stack;
 	struct sigcontext   uc_mcontext;
-	sigset_t            uc_sigmask;   /* mask last for extensibility */
+	compat_sigset_t     uc_sigmask;   /* mask last for extensibility */
 };
 
 #if ICACHE_REFILLS_WORKAROUND_WAR == 0
@@ -127,7 +130,7 @@ asmlinkage void sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	frame = (struct rt_sigframe_n32 __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
-	if (__copy_from_user(&set, &frame->rs_uc.uc_sigmask, sizeof(set)))
+	if (__copy_conv_sigset_from_user(&set, &frame->rs_uc.uc_sigmask))
 		goto badframe;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -193,7 +196,7 @@ int setup_rt_frame_n32(struct k_sigaction * ka,
 	err |= __put_user(current->sas_ss_size,
 	                  &frame->rs_uc.uc_stack.ss_size);
 	err |= setup_sigcontext(regs, &frame->rs_uc.uc_mcontext);
-	err |= __copy_to_user(&frame->rs_uc.uc_sigmask, set, sizeof(*set));
+	err |= __copy_conv_sigset_to_user(&frame->rs_uc.uc_sigmask, set);
 
 	if (err)
 		goto give_sigsegv;

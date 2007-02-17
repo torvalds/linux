@@ -1073,7 +1073,7 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 	     0xffffc000) / sizeof(struct c2_rxp_desc);
 
 	/* Request an interrupt line for the driver */
-	ret = request_irq(pcidev->irq, c2_interrupt, SA_SHIRQ, DRV_NAME, c2dev);
+	ret = request_irq(pcidev->irq, c2_interrupt, IRQF_SHARED, DRV_NAME, c2dev);
 	if (ret) {
 		printk(KERN_ERR PFX "%s: requested IRQ %u is busy\n",
 			pci_name(pcidev), pcidev->irq);

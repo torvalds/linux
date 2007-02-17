@@ -184,12 +184,14 @@ static int __init amd756_s4882_init(void)
 	s4882_algo[0].smbus_xfer = amd756_access_virt0;
 	s4882_adapter[0] = amd756_smbus;
 	s4882_adapter[0].algo = s4882_algo;
+	s4882_adapter[0].dev.parent = amd756_smbus.dev.parent;
 	for (i = 1; i < 5; i++) {
 		s4882_algo[i] = *(amd756_smbus.algo);
 		s4882_adapter[i] = amd756_smbus;
 		sprintf(s4882_adapter[i].name,
 			"SMBus 8111 adapter (CPU%d)", i-1);
 		s4882_adapter[i].algo = s4882_algo+i;
+		s4882_adapter[i].dev.parent = amd756_smbus.dev.parent;
 	}
 	s4882_algo[1].smbus_xfer = amd756_access_virt1;
 	s4882_algo[2].smbus_xfer = amd756_access_virt2;

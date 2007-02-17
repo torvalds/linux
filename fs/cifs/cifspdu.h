@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifspdu.h
  *
- *   Copyright (c) International Business Machines  Corp., 2002,2005
+ *   Copyright (c) International Business Machines  Corp., 2002,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -544,7 +544,8 @@ typedef union smb_com_session_setup_andx {
 /*      unsigned char  * NativeOS;      */
 /*	unsigned char  * NativeLanMan;  */
 /*      unsigned char  * PrimaryDomain; */
-	} __attribute__((packed)) resp;	/* NTLM response with or without extended sec*/
+	} __attribute__((packed)) resp;	/* NTLM response 
+					   (with or without extended sec) */
 
 	struct {		/* request format */
 		struct smb_hdr hdr;	/* wct = 10 */
@@ -794,6 +795,8 @@ typedef struct smb_com_openx_rsp {
 	__u16  Reserved;
 	__u16  ByteCount;
 } __attribute__((packed)) OPENX_RSP; 
+
+/* For encoding of POSIX Open Request - see trans2 function 0x209 data struct */
 
 /* Legacy write request for older servers */
 typedef struct smb_com_writex_req {
@@ -1352,11 +1355,13 @@ struct smb_t2_rsp {
 #define SMB_QUERY_FILE_UNIX_BASIC       0x200
 #define SMB_QUERY_FILE_UNIX_LINK        0x201
 #define SMB_QUERY_POSIX_ACL             0x204
-#define SMB_QUERY_XATTR                 0x205
+#define SMB_QUERY_XATTR                 0x205  /* e.g. system EA name space */
 #define SMB_QUERY_ATTR_FLAGS            0x206  /* append,immutable etc. */
 #define SMB_QUERY_POSIX_PERMISSION      0x207
 #define SMB_QUERY_POSIX_LOCK            0x208
-/* #define SMB_POSIX_OPEN  		0x209 */
+/* #define SMB_POSIX_OPEN               0x209 */
+/* #define SMB_POSIX_UNLINK             0x20a */
+#define SMB_QUERY_FILE__UNIX_INFO2      0x20b
 #define SMB_QUERY_FILE_INTERNAL_INFO    0x3ee
 #define SMB_QUERY_FILE_ACCESS_INFO      0x3f0
 #define SMB_QUERY_FILE_NAME_INFO2       0x3f1 /* 0x30 bytes */
@@ -1377,8 +1382,10 @@ struct smb_t2_rsp {
 #define SMB_SET_ATTR_FLAGS              0x206  /* append, immutable etc. */
 #define SMB_SET_POSIX_LOCK              0x208
 #define SMB_POSIX_OPEN                  0x209
+#define SMB_POSIX_UNLINK                0x20a
+#define SMB_SET_FILE_UNIX_INFO2
 #define SMB_SET_FILE_BASIC_INFO2        0x3ec
-#define SMB_SET_FILE_RENAME_INFORMATION 0x3f2 /* BB check if qpathinfo level too */
+#define SMB_SET_FILE_RENAME_INFORMATION 0x3f2 /* BB check if qpathinfo too */
 #define SMB_FILE_ALL_INFO2              0x3fa
 #define SMB_SET_FILE_ALLOCATION_INFO2   0x3fb
 #define SMB_SET_FILE_END_OF_FILE_INFO2  0x3fc
@@ -1428,7 +1435,7 @@ typedef struct smb_com_transaction2_qpi_rsp {
 	struct smb_hdr hdr;	/* wct = 10 + SetupCount */
 	struct trans2_resp t2;
 	__u16 ByteCount;
-	__u16 Reserved2;	/* parameter word reserved - present for infolevels > 100 */
+	__u16 Reserved2; /* parameter word is present for infolevels > 100 */
 } __attribute__((packed)) TRANSACTION2_QPI_RSP;
 
 typedef struct smb_com_transaction2_spi_req {
@@ -1461,7 +1468,7 @@ typedef struct smb_com_transaction2_spi_rsp {
 	struct smb_hdr hdr;	/* wct = 10 + SetupCount */
 	struct trans2_resp t2;
 	__u16 ByteCount;
-	__u16 Reserved2;	/* parameter word reserved - present for infolevels > 100 */
+	__u16 Reserved2; /* parameter word is present for infolevels > 100 */
 } __attribute__((packed)) TRANSACTION2_SPI_RSP;
 
 struct set_file_rename {
@@ -1627,6 +1634,7 @@ typedef struct smb_com_transaction2_fnext_rsp_parms {
 #define SMB_QUERY_FS_ATTRIBUTE_INFO 0x105
 #define SMB_QUERY_CIFS_UNIX_INFO    0x200
 #define SMB_QUERY_POSIX_FS_INFO     0x201
+#define SMB_QUERY_POSIX_WHO_AM_I    0x202
 #define SMB_QUERY_LABEL_INFO        0x3ea
 #define SMB_QUERY_FS_QUOTA_INFO     0x3ee
 #define SMB_QUERY_FS_FULL_SIZE_INFO 0x3ef
@@ -1659,9 +1667,21 @@ typedef struct smb_com_transaction_qfsi_rsp {
 	struct smb_hdr hdr;	/* wct = 10 + SetupCount */
 	struct trans2_resp t2;
 	__u16 ByteCount;
-	__u8 Pad;		/* may be three bytes *//* followed by data area */
+	__u8 Pad;	/* may be three bytes? *//* followed by data area */
 } __attribute__((packed)) TRANSACTION2_QFSI_RSP;
 
+typedef struct whoami_rsp_data { /* Query level 0x202 */
+	__u32 flags; /* 0 = Authenticated user 1 = GUEST */
+	__u32 mask; /* which flags bits server understands ie 0x0001 */
+	__u64 unix_user_id;
+	__u64 unix_user_gid;
+	__u32 number_of_supplementary_gids; /* may be zero */
+	__u32 number_of_sids; /* may be zero */
+	__u32 length_of_sid_array; /* in bytes - may be zero */
+	__u32 pad; /* reserved - MBZ */
+	/* __u64 gid_array[0]; */  /* may be empty */
+	/* __u8 * psid_list */  /* may be empty */
+} __attribute__((packed)) WHOAMI_RSP_DATA;
 
 /* SETFSInfo Levels */
 #define SMB_SET_CIFS_UNIX_INFO    0x200
@@ -1858,8 +1878,11 @@ typedef struct {
 #define CIFS_UNIX_XATTR_CAP             0x00000004 /* support new namespace   */
 #define CIFS_UNIX_EXTATTR_CAP           0x00000008 /* support chattr/chflag   */
 #define CIFS_UNIX_POSIX_PATHNAMES_CAP   0x00000010 /* Allow POSIX path chars  */
+#define CIFS_UNIX_POSIX_PATH_OPS_CAP    0x00000020 /* Allow new POSIX path based
+						      calls including posix open
+						      and posix unlink */ 
 #ifdef CONFIG_CIFS_POSIX
-#define CIFS_UNIX_CAP_MASK              0x0000001b
+#define CIFS_UNIX_CAP_MASK              0x0000003b
 #else 
 #define CIFS_UNIX_CAP_MASK              0x00000013
 #endif /* CONFIG_CIFS_POSIX */
@@ -1946,7 +1969,7 @@ typedef struct { /* data block encoding of response to level 263 QPathInfo */
 	__le32 AlignmentRequirement;
 	__le32 FileNameLength;
 	char FileName[1];
-} __attribute__((packed)) FILE_ALL_INFO;		/* level 0x107 QPathInfo */
+} __attribute__((packed)) FILE_ALL_INFO;	/* level 0x107 QPathInfo */
 
 /* defines for enumerating possible values of the Unix type field below */
 #define UNIX_FILE      0
@@ -1970,11 +1993,11 @@ typedef struct {
 	__u64 UniqueId;
 	__le64 Permissions;
 	__le64 Nlinks;
-} __attribute__((packed)) FILE_UNIX_BASIC_INFO;		/* level 0x200 QPathInfo */
+} __attribute__((packed)) FILE_UNIX_BASIC_INFO;	/* level 0x200 QPathInfo */
 
 typedef struct {
 	char LinkDest[1];
-} __attribute__((packed)) FILE_UNIX_LINK_INFO;		/* level 0x201 QPathInfo */
+} __attribute__((packed)) FILE_UNIX_LINK_INFO;	/* level 0x201 QPathInfo */
 
 /* The following three structures are needed only for
 	setting time to NT4 and some older servers via
@@ -2011,7 +2034,7 @@ typedef struct {
 	__le64 ChangeTime;
 	__le32 Attributes;
 	__u32 Pad;
-} __attribute__((packed)) FILE_BASIC_INFO;		/* size info, level 0x101 */
+} __attribute__((packed)) FILE_BASIC_INFO;	/* size info, level 0x101 */
 
 struct file_allocation_info {
 	__le64 AllocationSize; /* Note old Samba srvr rounds this up too much */
@@ -2020,7 +2043,7 @@ struct file_allocation_info {
 
 struct file_end_of_file_info {
 	__le64 FileSize;		/* offset to end of file */
-} __attribute__((packed));	/* size info, level 0x104 for set, 0x106 for query */
+} __attribute__((packed)); /* size info, level 0x104 for set, 0x106 for query */
 
 struct file_alt_name_info {
 	__u8   alt_name[1];
@@ -2074,6 +2097,19 @@ struct cifs_posix_acl { /* access conrol list  (ACL) */
 #define CIFS_POSIX_ACL_READ	     0x04 */
 
 /* end of POSIX ACL definitions */
+
+typedef struct {
+	__u32 OpenFlags; /* same as NT CreateX */
+	__u32 PosixOpenFlags;
+	__u32 Mode;
+	__u16 Level; /* reply level requested (see QPathInfo levels) */
+	__u16 Pad;  /* reserved - MBZ */
+} __attribute__((packed)) OPEN_PSX_REQ; /* level 0x209 SetPathInfo data */
+
+typedef struct {
+	/* reply varies based on requested level */
+} __attribute__((packed)) OPEN_PSX_RSP; /* level 0x209 SetPathInfo data */
+
 
 struct file_internal_info {
 	__u64  UniqueId; /* inode number */
@@ -2238,7 +2274,8 @@ struct data_blob {
 	1) PosixCreateX - to set and return the mode, inode#, device info and
 	perhaps add a CreateDevice - to create Pipes and other special .inodes
 	Also note POSIX open flags
-	2) Close - to return the last write time to do cache across close more safely
+	2) Close - to return the last write time to do cache across close 
+		more safely
 	3) FindFirst return unique inode number - what about resume key, two 
 	forms short (matches readdir) and full (enough info to cache inodes)
 	4) Mkdir - set mode
@@ -2273,7 +2310,8 @@ struct data_blob {
 	TRANSACTION2 (18 cases)
 		SMB_SET_FILE_END_OF_FILE_INFO2 SMB_SET_PATH_END_OF_FILE_INFO2
 		(BB verify that never need to set allocation size)
-		SMB_SET_FILE_BASIC_INFO2 (setting times - BB can it be done via Unix ext?)
+		SMB_SET_FILE_BASIC_INFO2 (setting times - BB can it be done via
+			 Unix ext?)
 	
 	COPY (note support for copy across directories) - FUTURE, OPTIONAL
 	setting/getting OS/2 EAs - FUTURE (BB can this handle
@@ -2293,13 +2331,13 @@ struct data_blob {
 	T2 QUERY_PATH_INFO (SMB_QUERY_FILE_UNIX_BASIC) - BB check for missing inode fields
 					Actually need QUERY_FILE_UNIX_INFO since has inode num
 					BB what about a) blksize/blkbits/blocks
-								  b) i_version
-								  c) i_rdev
-								  d) notify mask?
-								  e) generation
-								  f) size_seqcount
+							  b) i_version
+							  c) i_rdev
+							  d) notify mask?
+							  e) generation
+							  f) size_seqcount
 	T2 FIND_FIRST/FIND_NEXT FIND_FILE_UNIX
-	TRANS2_GET_DFS_REFERRAL				  - OPTIONAL but recommended
+	TRANS2_GET_DFS_REFERRAL			  - OPTIONAL but recommended
 	T2_QFS_INFO QueryDevice/AttributeInfo - OPTIONAL
 	
 	
@@ -2338,7 +2376,7 @@ typedef struct file_xattr_info {
 	__u32 xattr_value_len;
 	char  xattr_name[0];
 	/* followed by xattr_value[xattr_value_len], no pad */
-} __attribute__((packed)) FILE_XATTR_INFO;	/* extended attribute, info level 0x205 */
+} __attribute__((packed)) FILE_XATTR_INFO; /* extended attribute, info level 0x205 */
 
 
 /* flags for chattr command */

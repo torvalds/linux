@@ -18,6 +18,18 @@ config GENERIC_TIME
 	bool
 	default y
 
+config CLOCKSOURCE_WATCHDOG
+	bool
+	default y
+
+config GENERIC_CLOCKEVENTS
+	bool
+	default y
+
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+	default y
+
 config LOCKDEP_SUPPORT
 	bool
 	default y
@@ -73,6 +85,8 @@ config DMI
 source "init/Kconfig"
 
 menu "Processor type and features"
+
+source "kernel/time/Kconfig"
 
 config SMP
 	bool "Symmetric multi-processing support"
@@ -202,6 +216,15 @@ config PARAVIRT
 	  under a hypervisor, improving performance significantly.
 	  However, when run without a hypervisor the kernel is
 	  theoretically slower.  If in doubt, say N.
+
+config VMI
+	bool "VMI Paravirt-ops support"
+	depends on PARAVIRT && !NO_HZ
+	default y
+	help
+	  VMI provides a paravirtualized interface to multiple hypervisors
+	  include VMware ESX server and Xen by connecting to a ROM module
+	  provided by the hypervisor.
 
 config ACPI_SRAT
 	bool
@@ -1263,3 +1286,12 @@ config X86_TRAMPOLINE
 config KTIME_SCALAR
 	bool
 	default y
+
+config NO_IDLE_HZ
+	bool
+	depends on PARAVIRT
+	default y
+	help
+	  Switches the regular HZ timer off when the system is going idle.
+	  This helps a hypervisor detect that the Linux system is idle,
+	  reducing the overhead of idle systems.

@@ -38,7 +38,6 @@
 #include <linux/usb.h>
 #include <linux/kernel.h>
 #include <linux/smp_lock.h>
-#include <linux/sched.h>
 #include "hisax.h"
 #include "hisax_if.h"
 #include "hfc_usb.h"

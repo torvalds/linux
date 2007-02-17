@@ -39,11 +39,6 @@
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
-/*
- * Cache of MMU context last used.
- */
-unsigned long mmu_context_cache = NO_CONTEXT;
-
 #ifdef CONFIG_MMU
 /* It'd be good if these lines were in the standard header file. */
 #define START_PFN	(NODE_DATA(0)->bdata->node_boot_start >> PAGE_SHIFT)
@@ -111,7 +106,7 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 
 	set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, prot));
 
-	__flush_tlb_page(get_asid(), addr);
+	flush_tlb_one(get_asid(), addr);
 }
 
 /*

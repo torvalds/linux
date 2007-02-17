@@ -62,7 +62,7 @@ static struct clocksource clocksource_netx = {
 	.read		= netx_get_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.shift 		= 20,
-	.is_continuous 	= 1,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 /*

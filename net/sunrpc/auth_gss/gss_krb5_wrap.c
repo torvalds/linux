@@ -129,7 +129,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	struct page		**tmp_pages;
 	u32			seq_send;
 
-	dprintk("RPC:     gss_wrap_kerberos\n");
+	dprintk("RPC:       gss_wrap_kerberos\n");
 
 	now = get_seconds();
 
@@ -215,7 +215,7 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	int			data_len;
 	int			blocksize;
 
-	dprintk("RPC:      gss_unwrap_kerberos\n");
+	dprintk("RPC:       gss_unwrap_kerberos\n");
 
 	ptr = (u8 *)buf->head[0].iov_base + offset;
 	if (g_verify_token_header(&kctx->mech_used, &bodysize, &ptr,

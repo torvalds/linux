@@ -1026,7 +1026,7 @@ __err:
 	return err;
 }
 
-static int snd_mts64_remove(struct platform_device *pdev)
+static int __devexit snd_mts64_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 
@@ -1039,7 +1039,7 @@ static int snd_mts64_remove(struct platform_device *pdev)
 
 static struct platform_driver snd_mts64_driver = {
 	.probe  = snd_mts64_probe,
-	.remove = snd_mts64_remove,
+	.remove = __devexit_p(snd_mts64_remove),
 	.driver = {
 		.name = PLATFORM_DRIVER
 	}
@@ -1048,7 +1048,7 @@ static struct platform_driver snd_mts64_driver = {
 /*********************************************************************
  * module init stuff
  *********************************************************************/
-static void snd_mts64_unregister_all(void)
+static void __init_or_module snd_mts64_unregister_all(void)
 {
 	int i;
 

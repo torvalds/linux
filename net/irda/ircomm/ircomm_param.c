@@ -28,7 +28,6 @@
  *
  ********************************************************************/
 
-#include <linux/sched.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 

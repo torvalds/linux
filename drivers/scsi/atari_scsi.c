@@ -86,7 +86,6 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/blkdev.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/nvram.h>

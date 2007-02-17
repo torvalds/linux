@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/fs.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vfs.h>
 #include <linux/nls.h>

@@ -74,19 +74,20 @@ struct svc_export {
 	uid_t			ex_anon_uid;
 	gid_t			ex_anon_gid;
 	int			ex_fsid;
+	unsigned char *		ex_uuid; /* 16 byte fsid */
 	struct nfsd4_fs_locations ex_fslocs;
 };
 
 /* an "export key" (expkey) maps a filehandlefragement to an
- * svc_export for a given client.  There can be two per export, one
- * for type 0 (dev/ino), one for type 1 (fsid)
+ * svc_export for a given client.  There can be several per export,
+ * for the different fsid types.
  */
 struct svc_expkey {
 	struct cache_head	h;
 
 	struct auth_domain *	ek_client;
 	int			ek_fsidtype;
-	u32			ek_fsid[3];
+	u32			ek_fsid[6];
 
 	struct vfsmount *	ek_mnt;
 	struct dentry *		ek_dentry;

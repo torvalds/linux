@@ -312,7 +312,7 @@ static struct clocksource clocksource_tod = {
 	.mask		= -1ULL,
 	.mult		= 1000,
 	.shift		= 12,
-	.is_continuous	= 1,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 

@@ -319,15 +319,15 @@ ENTRY(sys_call_table)
 	.long sys_mq_getsetattr
 	.long sys_kexec_load
 	.long sys_waitid
-	.long sys_ni_syscall		/* 285 */
-	.long sys_add_key
+	.long sys_add_key		/* 285 */
 	.long sys_request_key
 	.long sys_keyctl
 	.long sys_ioprio_set
-	.long sys_ioprio_get		/* 290 */
-	.long sys_inotify_init
+	.long sys_ioprio_get
+	.long sys_inotify_init		/* 290 */
 	.long sys_inotify_add_watch
 	.long sys_inotify_rm_watch
+	.long sys_ni_syscall
 	.long sys_migrate_pages
 	.long sys_openat		/* 295 */
 	.long sys_mkdirat

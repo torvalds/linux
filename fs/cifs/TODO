@@ -128,3 +128,11 @@ negotiated size) and send larger write sizes to modern servers.
 
 4) More exhaustively test against less common servers.  More testing
 against Windows 9x, Windows ME servers.
+
+DOS attrs - returned as pseudo-xattr in Samba format (check VFAT and NTFS for this too)
+
+mount check for unmatched uids - and uid override
+
+Add mount option for Linux extension disable per mount, and partial disable per mount (uid off, symlink/fifo/mknod on but what about posix acls?) 
+
+Free threads at umount --force that are stuck on the sesSem

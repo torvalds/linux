@@ -841,7 +841,7 @@ static struct ip_vs_scheduler ip_vs_lblcr_scheduler =
 static int __init ip_vs_lblcr_init(void)
 {
 	INIT_LIST_HEAD(&ip_vs_lblcr_scheduler.n_list);
-	sysctl_header = register_sysctl_table(lblcr_root_table, 0);
+	sysctl_header = register_sysctl_table(lblcr_root_table);
 #ifdef CONFIG_IP_VS_LBLCR_DEBUG
 	proc_net_create("ip_vs_lblcr", 0, ip_vs_lblcr_getinfo);
 #endif

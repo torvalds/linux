@@ -185,7 +185,7 @@ static void iommu_full(struct device *dev, size_t size, int dir)
 static inline int need_iommu(struct device *dev, unsigned long addr, size_t size)
 { 
 	u64 mask = *dev->dma_mask;
-	int high = addr + size >= mask;
+	int high = addr + size > mask;
 	int mmu = high;
 	if (force_iommu) 
 		mmu = 1; 
@@ -195,7 +195,7 @@ static inline int need_iommu(struct device *dev, unsigned long addr, size_t size
 static inline int nonforced_iommu(struct device *dev, unsigned long addr, size_t size)
 { 
 	u64 mask = *dev->dma_mask;
-	int high = addr + size >= mask;
+	int high = addr + size > mask;
 	int mmu = high;
 	return mmu; 
 }

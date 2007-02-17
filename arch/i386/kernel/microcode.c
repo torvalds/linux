@@ -384,7 +384,7 @@ static int do_microcode_update (void)
 {
 	long cursor = 0;
 	int error = 0;
-	void *new_mc;
+	void *new_mc = NULL;
 	int cpu;
 	cpumask_t old;
 

@@ -39,6 +39,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-isa.h>
 #include <linux/platform_device.h>
+#include <linux/completion.h>
 
 static u32 isa_func(struct i2c_adapter *adapter);
 

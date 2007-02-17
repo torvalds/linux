@@ -6,7 +6,6 @@
 
 #ifdef CONFIG_MODULES
 
-#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>

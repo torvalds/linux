@@ -253,29 +253,6 @@ static int nfs3_proc_readlink(struct inode *inode, struct page *page,
 	return status;
 }
 
-static int nfs3_proc_read(struct nfs_read_data *rdata)
-{
-	int			flags = rdata->flags;
-	struct inode *		inode = rdata->inode;
-	struct nfs_fattr *	fattr = rdata->res.fattr;
-	struct rpc_message	msg = {
-		.rpc_proc	= &nfs3_procedures[NFS3PROC_READ],
-		.rpc_argp	= &rdata->args,
-		.rpc_resp	= &rdata->res,
-		.rpc_cred	= rdata->cred,
-	};
-	int			status;
-
-	dprintk("NFS call  read %d @ %Ld\n", rdata->args.count,
-			(long long) rdata->args.offset);
-	nfs_fattr_init(fattr);
-	status = rpc_call_sync(NFS_CLIENT(inode), &msg, flags);
-	if (status >= 0)
-		nfs_refresh_inode(inode, fattr);
-	dprintk("NFS reply read: %d\n", status);
-	return status;
-}
-
 /*
  * Create a regular file.
  * For now, we don't implement O_EXCL.
@@ -855,7 +832,6 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.lookup		= nfs3_proc_lookup,
 	.access		= nfs3_proc_access,
 	.readlink	= nfs3_proc_readlink,
-	.read		= nfs3_proc_read,
 	.create		= nfs3_proc_create,
 	.remove		= nfs3_proc_remove,
 	.unlink_setup	= nfs3_proc_unlink_setup,

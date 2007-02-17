@@ -68,6 +68,10 @@
 #define IRQ_PCISLOT2	10		/* PCI Slot #2 IRQ */
 #define	IRQ_EXTENTION	11		/* EXTn IRQ */
 
+/* arch/sh/boards/renesas/rts7751r2d/irq.c */
+void init_rts7751r2d_IRQ(void);
+int rts7751r2d_irq_demux(int);
+
 #define __IO_PREFIX rts7751r2d
 #include <asm/io_generic.h>
 

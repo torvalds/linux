@@ -2,7 +2,7 @@
  * arch/sh/boards/renesas/r7780rp/setup.c
  *
  * Copyright (C) 2002 Atom Create Engineering Co., Ltd.
- * Copyright (C) 2005, 2006 Paul Mundt
+ * Copyright (C) 2005 - 2007 Paul Mundt
  *
  * Renesas Solutions Highlander R7780RP-1 Support.
  *
@@ -12,12 +12,12 @@
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/pata_platform.h>
 #include <asm/machvec.h>
 #include <asm/r7780rp.h>
 #include <asm/clock.h>
 #include <asm/io.h>
 
-extern void heartbeat_r7780rp(void);
 extern void init_r7780rp_IRQ(void);
 
 static struct resource m66596_usb_host_resources[] = {
@@ -46,14 +46,14 @@ static struct platform_device m66596_usb_host_device = {
 
 static struct resource cf_ide_resources[] = {
 	[0] = {
-		.start	= 0x1f0,
-		.end	= 0x1f0 + 8,
-		.flags	= IORESOURCE_IO,
+		.start	= PA_AREA5_IO + 0x1000,
+		.end	= PA_AREA5_IO + 0x1000 + 0x08 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 0x1f0 + 0x206,
-		.end	= 0x1f0 + 8 + 0x206 + 8,
-		.flags	= IORESOURCE_IO,
+		.start	= PA_AREA5_IO + 0x80c,
+		.end	= PA_AREA5_IO + 0x80c + 0x16 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {
 #ifdef CONFIG_SH_R7780MP
@@ -65,16 +65,44 @@ static struct resource cf_ide_resources[] = {
 	},
 };
 
+static struct pata_platform_info pata_info = {
+	.ioport_shift	= 1,
+};
+
 static struct platform_device cf_ide_device  = {
 	.name		= "pata_platform",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(cf_ide_resources),
 	.resource	= cf_ide_resources,
+	.dev	= {
+		.platform_data	= &pata_info,
+	},
+};
+
+static unsigned char heartbeat_bit_pos[] = { 2, 1, 0, 3, 6, 5, 4, 7 };
+
+static struct resource heartbeat_resources[] = {
+	[0] = {
+		.start	= PA_OBLED,
+		.end	= PA_OBLED + ARRAY_SIZE(heartbeat_bit_pos) - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device heartbeat_device = {
+	.name		= "heartbeat",
+	.id		= -1,
+	.dev	= {
+		.platform_data	= heartbeat_bit_pos,
+	},
+	.num_resources	= ARRAY_SIZE(heartbeat_resources),
+	.resource	= heartbeat_resources,
 };
 
 static struct platform_device *r7780rp_devices[] __initdata = {
 	&m66596_usb_host_device,
 	&cf_ide_device,
+	&heartbeat_device,
 };
 
 static int __init r7780rp_devices_setup(void)
@@ -148,7 +176,7 @@ static void __init r7780rp_setup(char **cmdline_p)
 #ifndef CONFIG_SH_R7780MP
 	ctrl_outw(0x0001, PA_SDPOW);	/* SD Power ON */
 #endif
-	ctrl_outw(ctrl_inw(PA_IVDRCTL) | 0x0100, PA_IVDRCTL);	/* Si13112 */
+	ctrl_outw(ctrl_inw(PA_IVDRCTL) | 0x01, PA_IVDRCTL);	/* Si13112 */
 
 	pm_power_off = r7780rp_power_off;
 }
@@ -185,8 +213,5 @@ struct sh_machine_vector mv_r7780rp __initmv = {
 
 	.mv_ioport_map		= r7780rp_ioport_map,
 	.mv_init_irq		= init_r7780rp_IRQ,
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat		= heartbeat_r7780rp,
-#endif
 };
 ALIAS_MV(r7780rp)

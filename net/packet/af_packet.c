@@ -50,7 +50,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/capability.h>
 #include <linux/fcntl.h>

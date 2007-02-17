@@ -116,11 +116,16 @@ static void mthca_arbel_init_srq_context(struct mthca_dev *dev,
 					 struct mthca_srq *srq,
 					 struct mthca_arbel_srq_context *context)
 {
-	int logsize;
+	int logsize, max;
 
 	memset(context, 0, sizeof *context);
 
-	logsize = ilog2(srq->max);
+	/*
+	 * Put max in a temporary variable to work around gcc bug
+	 * triggered by ilog2() on sparc64.
+	 */
+	max = srq->max;
+	logsize = ilog2(max);
 	context->state_logsize_srqn = cpu_to_be32(logsize << 24 | srq->srqn);
 	context->lkey = cpu_to_be32(srq->mr.ibmr.lkey);
 	context->db_index = cpu_to_be32(srq->db_index);

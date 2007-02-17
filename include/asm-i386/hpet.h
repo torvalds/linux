@@ -90,16 +90,19 @@
 #define HPET_MIN_PERIOD (100000UL)
 #define HPET_TICK_RATE  (HZ * 100000UL)
 
-extern unsigned long hpet_tick;  	/* hpet clks count per tick */
 extern unsigned long hpet_address;	/* hpet memory map physical address */
-extern int hpet_use_timer;
+extern int is_hpet_enabled(void);
 
+#ifdef CONFIG_X86_64
+extern unsigned long hpet_tick;	/* hpet clks count per tick */
+extern int hpet_use_timer;
 extern int hpet_rtc_timer_init(void);
 extern int hpet_enable(void);
-extern int hpet_reenable(void);
-extern int is_hpet_enabled(void);
 extern int is_hpet_capable(void);
 extern int hpet_readl(unsigned long a);
+#else
+extern int hpet_enable(void);
+#endif
 
 #ifdef CONFIG_HPET_EMULATE_RTC
 extern int hpet_mask_rtc_irq_bit(unsigned long bit_mask);
@@ -110,5 +113,10 @@ extern int hpet_rtc_dropped_irq(void);
 extern int hpet_rtc_timer_init(void);
 extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id);
 #endif /* CONFIG_HPET_EMULATE_RTC */
+
+#else
+
+static inline int hpet_enable(void) { return 0; }
+
 #endif /* CONFIG_HPET_TIMER */
 #endif /* _I386_HPET_H */

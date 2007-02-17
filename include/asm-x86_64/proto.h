@@ -45,11 +45,7 @@ extern u32 pmtmr_ioport;
 #else
 #define pmtmr_ioport 0
 #endif
-extern unsigned long long monotonic_base;
-extern int sysctl_vsyscall;
 extern int nohpet;
-extern unsigned long vxtime_hz;
-extern void time_init_gtod(void);
 
 extern void early_printk(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
@@ -90,8 +86,6 @@ extern void quirk_intel_irqbalance(void);
 extern void check_efer(void);
 
 extern int unhandled_signal(struct task_struct *tsk, int sig);
-
-extern int unsynchronized_tsc(void);
 
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
 

@@ -5,4 +5,4 @@ ser_gigaset-y := ser-gigaset.o asyncdata.o
 
 obj-$(CONFIG_GIGASET_M105) += usb_gigaset.o gigaset.o
 obj-$(CONFIG_GIGASET_BASE) += bas_gigaset.o gigaset.o
-obj-$(CONFIG_GIGASET_M105) += ser_gigaset.o gigaset.o
+obj-$(CONFIG_GIGASET_M101) += ser_gigaset.o gigaset.o

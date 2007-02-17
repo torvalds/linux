@@ -620,8 +620,8 @@ static int netxen_nic_open(struct net_device *netdev)
 		}
 		adapter->irq = adapter->ahw.pdev->irq;
 		err = request_irq(adapter->ahw.pdev->irq, &netxen_intr,
-				  SA_SHIRQ | SA_SAMPLE_RANDOM, netdev->name,
-				  adapter);
+				  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
+				  netdev->name, adapter);
 		if (err) {
 			printk(KERN_ERR "request_irq failed with: %d\n", err);
 			netxen_free_hw_resources(adapter);

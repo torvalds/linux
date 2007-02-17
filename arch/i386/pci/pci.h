@@ -94,3 +94,13 @@ extern void pci_pcbios_init(void);
 extern void pci_mmcfg_init(int type);
 extern void pcibios_sort(void);
 
+/* pci-mmconfig.c */
+
+/* Verify the first 16 busses. We assume that systems with more busses
+   get MCFG right. */
+#define PCI_MMCFG_MAX_CHECK_BUS 16
+extern DECLARE_BITMAP(pci_mmcfg_fallback_slots, 32*PCI_MMCFG_MAX_CHECK_BUS);
+
+extern int __init pci_mmcfg_arch_reachable(unsigned int seg, unsigned int bus,
+					   unsigned int devfn);
+extern int __init pci_mmcfg_arch_init(void);

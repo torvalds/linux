@@ -308,6 +308,9 @@
 #define AC97C_READ			(1 << 19)
 #define AC97C_WD_BIT			(1 << 2)
 #define AC97C_INDEX_MASK		0x7f
-/* -------------------------------------------------------------------- */
+
+/* arch/sh/cchips/voyagergx/consistent.c */
+void *voyagergx_consistent_alloc(struct device *, size_t, dma_addr_t *, gfp_t);
+int voyagergx_consistent_free(struct device *, size_t, void *, dma_addr_t);
 
 #endif /* _VOYAGER_GX_REG_H */

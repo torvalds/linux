@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/socket.h>
-#include <linux/sched.h>
 #include <linux/netdevice.h>
 #include <linux/proc_fs.h>
 #ifdef CONFIG_SYSCTL
@@ -2708,7 +2707,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	t->neigh_proto_dir[0].child    = t->neigh_neigh_dir;
 	t->neigh_root_dir[0].child     = t->neigh_proto_dir;
 
-	t->sysctl_header = register_sysctl_table(t->neigh_root_dir, 0);
+	t->sysctl_header = register_sysctl_table(t->neigh_root_dir);
 	if (!t->sysctl_header) {
 		err = -ENOBUFS;
 		goto free_procname;

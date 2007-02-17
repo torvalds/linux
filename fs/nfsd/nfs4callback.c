@@ -387,7 +387,6 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 		.address	= (struct sockaddr *)&addr,
 		.addrsize	= sizeof(addr),
 		.timeout	= &timeparms,
-		.servername	= clp->cl_name.data,
 		.program	= program,
 		.version	= nfs_cb_version[1]->number,
 		.authflavor	= RPC_AUTH_UNIX,	/* XXX: need AUTH_GSS... */
@@ -397,6 +396,7 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 		.rpc_proc       = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL],
 		.rpc_argp       = clp,
 	};
+	char clientname[16];
 	int status;
 
 	if (atomic_read(&cb->cb_set))
@@ -418,6 +418,11 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	/* Initialize rpc_stat */
 	memset(program->stats, 0, sizeof(cb->cb_stat));
 	program->stats->program = program;
+
+	/* Just here to make some printk's more useful: */
+	snprintf(clientname, sizeof(clientname),
+		"%u.%u.%u.%u", NIPQUAD(addr.sin_addr));
+	args.servername = clientname;
 
 	/* Create RPC client */
 	cb->cb_client = rpc_create(&args);

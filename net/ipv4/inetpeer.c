@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/random.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/time.h>
 #include <linux/kernel.h>

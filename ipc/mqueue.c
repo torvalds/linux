@@ -1255,7 +1255,7 @@ static int __init init_mqueue_fs(void)
 		return -ENOMEM;
 
 	/* ignore failues - they are not fatal */
-	mq_sysctl_table = register_sysctl_table(mq_sysctl_root, 0);
+	mq_sysctl_table = register_sysctl_table(mq_sysctl_root);
 
 	error = register_filesystem(&mqueue_fs_type);
 	if (error)

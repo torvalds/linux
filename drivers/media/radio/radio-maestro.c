@@ -22,7 +22,6 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/mutex.h>

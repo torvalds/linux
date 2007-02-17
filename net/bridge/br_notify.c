@@ -56,7 +56,9 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 
 	case NETDEV_CHANGE:
 		if (br->dev->flags & IFF_UP)
-			schedule_delayed_work(&p->carrier_check, BR_PORT_DEBOUNCE);
+			if (schedule_delayed_work(&p->carrier_check,
+						BR_PORT_DEBOUNCE))
+				dev_hold(dev);
 		break;
 
 	case NETDEV_FEAT_CHANGE:

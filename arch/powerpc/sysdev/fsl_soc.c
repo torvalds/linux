@@ -441,7 +441,8 @@ static int __init fsl_usb_of_init(void)
 {
 	struct device_node *np;
 	unsigned int i;
-	struct platform_device *usb_dev_mph = NULL, *usb_dev_dr = NULL;
+	struct platform_device *usb_dev_mph = NULL, *usb_dev_dr_host = NULL,
+		*usb_dev_dr_client = NULL;
 	int ret;
 
 	for (np = NULL, i = 0;
@@ -507,33 +508,72 @@ static int __init fsl_usb_of_init(void)
 
 		of_irq_to_resource(np, 0, &r[1]);
 
-		usb_dev_dr =
-		    platform_device_register_simple("fsl-ehci", i, r, 2);
-		if (IS_ERR(usb_dev_dr)) {
-			ret = PTR_ERR(usb_dev_dr);
+		prop = get_property(np, "dr_mode", NULL);
+
+		if (!prop || !strcmp(prop, "host")) {
+			usb_data.operating_mode = FSL_USB2_DR_HOST;
+			usb_dev_dr_host = platform_device_register_simple(
+					"fsl-ehci", i, r, 2);
+			if (IS_ERR(usb_dev_dr_host)) {
+				ret = PTR_ERR(usb_dev_dr_host);
+				goto err;
+			}
+		} else if (prop && !strcmp(prop, "peripheral")) {
+			usb_data.operating_mode = FSL_USB2_DR_DEVICE;
+			usb_dev_dr_client = platform_device_register_simple(
+					"fsl-usb2-udc", i, r, 2);
+			if (IS_ERR(usb_dev_dr_client)) {
+				ret = PTR_ERR(usb_dev_dr_client);
+				goto err;
+			}
+		} else if (prop && !strcmp(prop, "otg")) {
+			usb_data.operating_mode = FSL_USB2_DR_OTG;
+			usb_dev_dr_host = platform_device_register_simple(
+					"fsl-ehci", i, r, 2);
+			if (IS_ERR(usb_dev_dr_host)) {
+				ret = PTR_ERR(usb_dev_dr_host);
+				goto err;
+			}
+			usb_dev_dr_client = platform_device_register_simple(
+					"fsl-usb2-udc", i, r, 2);
+			if (IS_ERR(usb_dev_dr_client)) {
+				ret = PTR_ERR(usb_dev_dr_client);
+				goto err;
+			}
+		} else {
+			ret = -EINVAL;
 			goto err;
 		}
-
-		usb_dev_dr->dev.coherent_dma_mask = 0xffffffffUL;
-		usb_dev_dr->dev.dma_mask = &usb_dev_dr->dev.coherent_dma_mask;
-
-		usb_data.operating_mode = FSL_USB2_DR_HOST;
 
 		prop = get_property(np, "phy_type", NULL);
 		usb_data.phy_mode = determine_usb_phy(prop);
 
-		ret =
-		    platform_device_add_data(usb_dev_dr, &usb_data,
-					     sizeof(struct
-						    fsl_usb2_platform_data));
-		if (ret)
-			goto unreg_dr;
+		if (usb_dev_dr_host) {
+			usb_dev_dr_host->dev.coherent_dma_mask = 0xffffffffUL;
+			usb_dev_dr_host->dev.dma_mask = &usb_dev_dr_host->
+				dev.coherent_dma_mask;
+			if ((ret = platform_device_add_data(usb_dev_dr_host,
+						&usb_data, sizeof(struct
+						fsl_usb2_platform_data))))
+				goto unreg_dr;
+		}
+		if (usb_dev_dr_client) {
+			usb_dev_dr_client->dev.coherent_dma_mask = 0xffffffffUL;
+			usb_dev_dr_client->dev.dma_mask = &usb_dev_dr_client->
+				dev.coherent_dma_mask;
+			if ((ret = platform_device_add_data(usb_dev_dr_client,
+						&usb_data, sizeof(struct
+						fsl_usb2_platform_data))))
+				goto unreg_dr;
+		}
 	}
 	return 0;
 
 unreg_dr:
-	if (usb_dev_dr)
-		platform_device_unregister(usb_dev_dr);
+	if (usb_dev_dr_host)
+		platform_device_unregister(usb_dev_dr_host);
+	if (usb_dev_dr_client)
+		platform_device_unregister(usb_dev_dr_client);
 unreg_mph:
 	if (usb_dev_mph)
 		platform_device_unregister(usb_dev_mph);
@@ -699,7 +739,7 @@ static int __init fs_enet_of_init(void)
 				if (ret)
 					goto unreg;
 			}
-			
+
 			of_node_put(phy);
 			of_node_put(mdio);
 

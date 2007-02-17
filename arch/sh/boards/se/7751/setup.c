@@ -9,11 +9,11 @@
  * Ian da Silva and Jeremy Siegel, 2001.
  */
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <asm/machvec.h>
 #include <asm/se7751.h>
 #include <asm/io.h>
 
-void heartbeat_7751se(void);
 void init_7751se_IRQ(void);
 
 #ifdef CONFIG_SH_KGDB
@@ -161,11 +161,40 @@ static int kgdb_uart_setup(void)
 }
 #endif /* CONFIG_SH_KGDB */
 
+static unsigned char heartbeat_bit_pos[] = { 8, 9, 10, 11, 12, 13, 14, 15 };
+
+static struct resource heartbeat_resources[] = {
+	[0] = {
+		.start	= PA_LED,
+		.end	= PA_LED + ARRAY_SIZE(heartbeat_bit_pos) - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device heartbeat_device = {
+	.name		= "heartbeat",
+	.id		= -1,
+	.dev	= {
+		.platform_data	= heartbeat_bit_pos,
+	},
+	.num_resources	= ARRAY_SIZE(heartbeat_resources),
+	.resource	= heartbeat_resources,
+};
+
+static struct platform_device *se7751_devices[] __initdata = {
+	&smc91x_device,
+	&heartbeat_device,
+};
+
+static int __init se7751_devices_setup(void)
+{
+	return platform_add_devices(se7751_devices, ARRAY_SIZE(se7751_devices));
+}
+__initcall(se7751_devices_setup);
 
 /*
  * The Machine Vector
  */
-
 struct sh_machine_vector mv_7751se __initmv = {
 	.mv_name		= "7751 SolutionEngine",
 	.mv_setup		= sh7751se_setup,
@@ -189,8 +218,5 @@ struct sh_machine_vector mv_7751se __initmv = {
 	.mv_outsl		= sh7751se_outsl,
 
 	.mv_init_irq		= init_7751se_IRQ,
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat		= heartbeat_7751se,
-#endif
 };
 ALIAS_MV(7751se)

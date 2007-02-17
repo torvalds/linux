@@ -65,7 +65,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/socket.h>
 #include <linux/un.h>

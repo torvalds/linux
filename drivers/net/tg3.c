@@ -4,7 +4,7 @@
  * Copyright (C) 2001, 2002, 2003, 2004 David S. Miller (davem@redhat.com)
  * Copyright (C) 2001, 2002, 2003 Jeff Garzik (jgarzik@pobox.com)
  * Copyright (C) 2004 Sun Microsystems Inc.
- * Copyright (C) 2005 Broadcom Corporation.
+ * Copyright (C) 2005-2007 Broadcom Corporation.
  *
  * Firmware is:
  *	Derived from proprietary unpublished source code,
@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.72"
-#define DRV_MODULE_RELDATE	"January 8, 2007"
+#define DRV_MODULE_VERSION	"3.73"
+#define DRV_MODULE_RELDATE	"February 12, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -1175,8 +1175,18 @@ static void tg3_nvram_unlock(struct tg3 *);
 
 static void tg3_power_down_phy(struct tg3 *tp)
 {
-	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
+	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) {
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
+			u32 sg_dig_ctrl = tr32(SG_DIG_CTRL);
+			u32 serdes_cfg = tr32(MAC_SERDES_CFG);
+
+			sg_dig_ctrl |=
+				SG_DIG_USING_HW_AUTONEG | SG_DIG_SOFT_RESET;
+			tw32(SG_DIG_CTRL, sg_dig_ctrl);
+			tw32(MAC_SERDES_CFG, serdes_cfg | (1 << 15));
+		}
 		return;
+	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 		u32 val;
@@ -1340,7 +1350,8 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 
 		tw32_wait_f(TG3PCI_CLOCK_CTRL, base_val | CLOCK_CTRL_ALTCLK |
 			    CLOCK_CTRL_PWRDOWN_PLL133, 40);
-	} else if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS) {
+	} else if ((tp->tg3_flags2 & TG3_FLG2_5780_CLASS) ||
+		   (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)) {
 		/* do nothing */
 	} else if (!((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
 		     (tp->tg3_flags & TG3_FLAG_ENABLE_ASF))) {
@@ -3724,13 +3735,23 @@ out:
 	tg3_full_unlock(tp);
 }
 
+static void tg3_dump_short_state(struct tg3 *tp)
+{
+	printk(KERN_ERR PFX "DEBUG: MAC_TX_STATUS[%08x] MAC_RX_STATUS[%08x]\n",
+	       tr32(MAC_TX_STATUS), tr32(MAC_RX_STATUS));
+	printk(KERN_ERR PFX "DEBUG: RDMAC_STATUS[%08x] WDMAC_STATUS[%08x]\n",
+	       tr32(RDMAC_STATUS), tr32(WDMAC_STATUS));
+}
+
 static void tg3_tx_timeout(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	if (netif_msg_tx_err(tp))
+	if (netif_msg_tx_err(tp)) {
 		printk(KERN_ERR PFX "%s: transmit timed out, resetting\n",
 		       dev->name);
+		tg3_dump_short_state(tp);
+	}
 
 	schedule_work(&tp->reset_task);
 }
@@ -6583,8 +6604,9 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		u32 tmp;
 
 		/* Clear CRC stats. */
-		if (!tg3_readphy(tp, 0x1e, &tmp)) {
-			tg3_writephy(tp, 0x1e, tmp | 0x8000);
+		if (!tg3_readphy(tp, MII_TG3_TEST1, &tmp)) {
+			tg3_writephy(tp, MII_TG3_TEST1,
+				     tmp | MII_TG3_TEST1_CRC_EN);
 			tg3_readphy(tp, 0x14, &tmp);
 		}
 	}
@@ -7408,8 +7430,9 @@ static unsigned long calc_crc_errors(struct tg3 *tp)
 		u32 val;
 
 		spin_lock_bh(&tp->lock);
-		if (!tg3_readphy(tp, 0x1e, &val)) {
-			tg3_writephy(tp, 0x1e, val | 0x8000);
+		if (!tg3_readphy(tp, MII_TG3_TEST1, &val)) {
+			tg3_writephy(tp, MII_TG3_TEST1,
+				     val | MII_TG3_TEST1_CRC_EN);
 			tg3_readphy(tp, 0x14, &val);
 		} else
 			val = 0;
@@ -10779,7 +10802,9 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS) {
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787) {
-			tp->tg3_flags2 |= TG3_FLG2_PHY_JITTER_BUG;
+			if (tp->pdev->device != PCI_DEVICE_ID_TIGON3_5756 &&
+			    tp->pdev->device != PCI_DEVICE_ID_TIGON3_5722)
+				tp->tg3_flags2 |= TG3_FLG2_PHY_JITTER_BUG;
 			if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5755M)
 				tp->tg3_flags2 |= TG3_FLG2_PHY_ADJUST_TRIM;
 		} else if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906)
@@ -11314,6 +11339,7 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5703 ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
 			u32 ccval = (tr32(TG3PCI_CLOCK_CTRL) & 0x1f);
+			u32 read_water = 0x7;
 
 			/* If the 5704 is behind the EPB bridge, we can
 			 * do the less restrictive ONE_DMA workaround for
@@ -11325,8 +11351,13 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 			else if (ccval == 0x6 || ccval == 0x7)
 				tp->dma_rwctrl |= DMA_RWCTRL_ONE_DMA;
 
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5703)
+				read_water = 4;
 			/* Set bit 23 to enable PCIX hw bug fix */
-			tp->dma_rwctrl |= 0x009f0000;
+			tp->dma_rwctrl |=
+				(read_water << DMA_RWCTRL_READ_WATER_SHIFT) |
+				(0x3 << DMA_RWCTRL_WRITE_WATER_SHIFT) |
+				(1 << 23);
 		} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780) {
 			/* 5780 always in PCIX mode */
 			tp->dma_rwctrl |= 0x00144000;
@@ -12015,6 +12046,9 @@ static int tg3_suspend(struct pci_dev *pdev, pm_message_t state)
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
 	tg3_full_unlock(tp);
+
+	/* Save MSI address and data for resume.  */
+	pci_save_state(pdev);
 
 	err = tg3_set_power_state(tp, pci_choose_state(pdev, state));
 	if (err) {

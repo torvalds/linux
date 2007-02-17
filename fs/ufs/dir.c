@@ -20,7 +20,6 @@
 #include <linux/fs.h>
 #include <linux/ufs_fs.h>
 #include <linux/smp_lock.h>
-#include <linux/sched.h>
 
 #include "swab.h"
 #include "util.h"

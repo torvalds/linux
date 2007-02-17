@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/initrd.h>
-#include <linux/root_dev.h>
 #include <linux/mtd/physmap.h>
 
 #include <asm/time.h>
@@ -89,17 +88,6 @@ static void __init linkstation_setup_arch(void)
 #ifdef CONFIG_MTD_PHYSMAP
 	physmap_set_partitions(linkstation_physmap_partitions,
 			       ARRAY_SIZE(linkstation_physmap_partitions));
-#endif
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	if (initrd_start)
-		ROOT_DEV = Root_RAM0;
-	else
-#endif
-#ifdef	CONFIG_ROOT_NFS
-		ROOT_DEV = Root_NFS;
-#else
-		ROOT_DEV = Root_HDA1;
 #endif
 
 	/* Lookup PCI host bridges */

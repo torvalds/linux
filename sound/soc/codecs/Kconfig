@@ -1,15 +1,15 @@
 config SND_SOC_AC97_CODEC
 	tristate
-	depends SND_SOC
+	depends on SND_SOC
 
 config SND_SOC_WM8731
 	tristate
-	depends SND_SOC
+	depends on SND_SOC
 
 config SND_SOC_WM8750
 	tristate
-	depends SND_SOC
+	depends on SND_SOC
 
 config SND_SOC_WM9712
 	tristate
-	depends SND_SOC
+	depends on SND_SOC

@@ -264,9 +264,6 @@
 		 srlv	t3,t1,t2
 
 handle_it:
-		LONG_L	s0, TI_REGS($28)
-		LONG_S	sp, TI_REGS($28)
-		PTR_LA	ra, ret_from_irq
 		j	dec_irq_dispatch
 		 nop
 
@@ -277,7 +274,6 @@ fpu:
 #endif
 
 spurious:
-		PTR_LA	ra, _ret_from_irq
 		j	spurious_interrupt
 		 nop
 		END(plat_irq_dispatch)

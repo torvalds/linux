@@ -39,7 +39,6 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
 #include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>

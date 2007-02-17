@@ -166,7 +166,7 @@ int opl3_detect(int ioaddr, int *osp)
 		return 0;
 	}
 
-	devc = kmalloc(sizeof(*devc), GFP_KERNEL);
+	devc = kzalloc(sizeof(*devc), GFP_KERNEL);
 
 	if (devc == NULL)
 	{
@@ -175,7 +175,6 @@ int opl3_detect(int ioaddr, int *osp)
 		return 0;
 	}
 
-	memset(devc, 0, sizeof(*devc));
 	strcpy(devc->fm_info.name, "OPL2");
 
 	if (!request_region(ioaddr, 4, devc->fm_info.name)) {

@@ -105,12 +105,11 @@ struct nfs4_ace {
 	uint32_t	access_mask;
 	int		whotype;
 	uid_t		who;
-	struct list_head l_ace;
 };
 
 struct nfs4_acl {
 	uint32_t	naces;
-	struct list_head ace_head;
+	struct nfs4_ace	aces[0];
 };
 
 typedef struct { char data[NFS4_VERIFIER_SIZE]; } nfs4_verifier;

@@ -37,7 +37,6 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
 #include <linux/device.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -120,9 +119,7 @@ static u32 pdc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void pdc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static irqreturn_t pdc_interrupt (int irq, void *dev_instance);
-static void pdc_eng_timeout(struct ata_port *ap);
 static int pdc_port_start(struct ata_port *ap);
-static void pdc_pata_phy_reset(struct ata_port *ap);
 static void pdc_qc_prep(struct ata_queued_cmd *qc);
 static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
@@ -216,12 +213,12 @@ static const struct ata_port_operations pdc_pata_ops = {
 	.dev_select		= ata_std_dev_select,
 	.check_atapi_dma	= pdc_check_atapi_dma,
 
-	.phy_reset		= pdc_pata_phy_reset,
-
 	.qc_prep		= pdc_qc_prep,
 	.qc_issue		= pdc_qc_issue_prot,
+	.freeze			= pdc_freeze,
+	.thaw			= pdc_thaw,
+	.error_handler		= pdc_error_handler,
 	.data_xfer		= ata_data_xfer,
-	.eng_timeout		= pdc_eng_timeout,
 	.irq_handler		= pdc_interrupt,
 	.irq_clear		= pdc_irq_clear,
 	.irq_on			= ata_irq_on,
@@ -254,7 +251,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_20619 */
 	{
 		.sht		= &pdc_ata_sht,
-		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SRST | ATA_FLAG_SLAVE_POSS,
+		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -388,14 +385,6 @@ static void pdc_pata_cbl_detect(struct ata_port *ap)
 		ap->udma_mask &= ATA_UDMA_MASK_40C;
 	} else
 		ap->cbl = ATA_CBL_PATA80;
-}
-
-static void pdc_pata_phy_reset(struct ata_port *ap)
-{
-	pdc_pata_cbl_detect(ap);
-	pdc_reset_port(ap);
-	ata_port_probe(ap);
-	ata_bus_reset(ap);
 }
 
 static u32 pdc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
@@ -565,6 +554,13 @@ static void pdc_thaw(struct ata_port *ap)
 	readl(mmio + PDC_CTLSTAT); /* flush */
 }
 
+static int pdc_pre_reset(struct ata_port *ap)
+{
+	if (!sata_scr_valid(ap))
+		pdc_pata_cbl_detect(ap);
+	return ata_std_prereset(ap);
+}
+
 static void pdc_error_handler(struct ata_port *ap)
 {
 	ata_reset_fn_t hardreset;
@@ -577,7 +573,7 @@ static void pdc_error_handler(struct ata_port *ap)
 		hardreset = sata_std_hardreset;
 
 	/* perform recovery */
-	ata_do_eh(ap, ata_std_prereset, ata_std_softreset, hardreset,
+	ata_do_eh(ap, pdc_pre_reset, ata_std_softreset, hardreset,
 		  ata_std_postreset);
 }
 
@@ -591,43 +587,6 @@ static void pdc_post_internal_cmd(struct ata_queued_cmd *qc)
 	/* make DMA engine forget about the failed command */
 	if (qc->err_mask)
 		pdc_reset_port(ap);
-}
-
-static void pdc_eng_timeout(struct ata_port *ap)
-{
-	struct ata_host *host = ap->host;
-	u8 drv_stat;
-	struct ata_queued_cmd *qc;
-	unsigned long flags;
-
-	DPRINTK("ENTER\n");
-
-	spin_lock_irqsave(&host->lock, flags);
-
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-
-	switch (qc->tf.protocol) {
-	case ATA_PROT_DMA:
-	case ATA_PROT_NODATA:
-		ata_port_printk(ap, KERN_ERR, "command timeout\n");
-		drv_stat = ata_wait_idle(ap);
-		qc->err_mask |= __ac_err_mask(drv_stat);
-		break;
-
-	default:
-		drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
-
-		ata_port_printk(ap, KERN_ERR,
-				"unknown timeout, cmd 0x%x stat 0x%x\n",
-				qc->tf.command, drv_stat);
-
-		qc->err_mask |= ac_err_mask(drv_stat);
-		break;
-	}
-
-	spin_unlock_irqrestore(&host->lock, flags);
-	ata_eh_qc_complete(qc);
-	DPRINTK("EXIT\n");
 }
 
 static inline unsigned int pdc_host_intr( struct ata_port *ap,

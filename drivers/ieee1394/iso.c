@@ -10,7 +10,6 @@
  */
 
 #include <linux/pci.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 
 #include "hosts.h"

@@ -4,7 +4,6 @@
 
 #include <linux/atm.h>
 #include <linux/atmdev.h>
-#include <linux/sched.h>
 #include <asm/uaccess.h>
 
 #include "signaling.h"

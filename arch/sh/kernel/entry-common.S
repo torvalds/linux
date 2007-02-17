@@ -54,79 +54,24 @@
 #  define resume_kernel		__restore_all
 #endif
 
-#if defined(CONFIG_SH_STANDARD_BIOS) || defined(CONFIG_SH_KGDB)
-! Handle kernel debug if either kgdb (SW) or gdb-stub (FW) is present.
-! If both are configured, handle the debug traps (breakpoints) in SW,
-! but still allow BIOS traps to FW.
-
-	.align	2
-debug_kernel:
-#if defined(CONFIG_SH_STANDARD_BIOS) && defined(CONFIG_SH_KGDB)
-	/* Force BIOS call to FW (debug_trap put TRA in r8) */
-	mov	r8,r0
-	shlr2	r0
-	cmp/eq	#0x3f,r0
-	bt	debug_kernel_fw
-#endif /* CONFIG_SH_STANDARD_BIOS && CONFIG_SH_KGDB */
-
-debug_enter:		
-#if defined(CONFIG_SH_KGDB)
-	/* Jump to kgdb, pass stacked regs as arg */
-debug_kernel_sw:
-	mov.l	3f, r0
-	jmp	@r0
-	 mov	r15, r4
-	.align	2
-3:	.long	kgdb_handle_exception
-#endif /* CONFIG_SH_KGDB */
-#ifdef CONFIG_SH_STANDARD_BIOS
-	bra	debug_kernel_fw
-	 nop
-#endif
-#endif /* CONFIG_SH_STANDARD_BIOS || CONFIG_SH_KGDB */
-
-	.align	2
-debug_trap:	
-#if defined(CONFIG_SH_STANDARD_BIOS) || defined(CONFIG_SH_KGDB)
-	mov	r8, r0
-	shlr2	r0
-	cmp/eq	#0x3f, r0		! sh_bios() trap
-	bf	1f
-#ifdef CONFIG_SH_KGDB
-	cmp/eq	#0xff, r0		! XXX: KGDB trap, fix for SH-2.
-	bf	1f
-#endif
-	mov	#OFF_SR, r0
-	mov.l	@(r0,r15), r0		! get status register
-	shll	r0
-	shll	r0			! kernel space?
-	bt/s	debug_kernel
-1:
-#endif
-	 mov.l	@r15, r0		! Restore R0 value
-	mov.l	1f, r8
-	jmp	@r8
-	 nop
 
 	.align	2
 ENTRY(exception_error)
 	!
 #ifdef CONFIG_TRACE_IRQFLAGS
-	mov.l	3f, r0
+	mov.l	2f, r0
 	jsr	@r0
 	 nop
 #endif
 	sti
-	mov.l	2f, r0
+	mov.l	1f, r0
 	jmp	@r0
 	 nop
 
-!
 	.align	2
-1:	.long	break_point_trap_software
-2:	.long	do_exception_error
+1:	.long	do_exception_error
 #ifdef CONFIG_TRACE_IRQFLAGS
-3:	.long	trace_hardirqs_on
+2:	.long	trace_hardirqs_on
 #endif
 
 	.align	2
@@ -331,16 +276,31 @@ __restore_all:
 1:	.long	restore_all
 
 	.align	2
-not_syscall_tra:	
-	bra	debug_trap
-	 nop
-
-	.align	2
 syscall_badsys:			! Bad syscall number
 	mov	#-ENOSYS, r0
 	bra	resume_userspace
 	 mov.l	r0, @(OFF_R0,r15)	! Return value
-	
+
+/*
+ * The main debug trap handler.
+ *
+ * r8=TRA (not the trap number!)
+ *
+ * Note: This assumes that the trapa value is left in its original
+ * form (without the shlr2 shift) so the calculation for the jump
+ * call table offset remains a simple in place mask.
+ */
+debug_trap:
+	mov	r8, r0
+	and	#(0xf << 2), r0
+	mov.l	1f, r8
+	add	r0, r8
+	mov.l	@r8, r8
+	jmp	@r8
+	 nop
+
+	.align	2
+1:	.long	debug_trap_table
 
 /*
  * Syscall interface:
@@ -348,17 +308,19 @@ syscall_badsys:			! Bad syscall number
  *	Syscall #: R3
  *	Arguments #0 to #3: R4--R7
  *	Arguments #4 to #6: R0, R1, R2
- *	TRA: (number of arguments + 0x10) x 4
+ *	TRA: (number of arguments + ABI revision) x 4
  *
  * This code also handles delegating other traps to the BIOS/gdb stub
  * according to:
  *
  * Trap number
- * (TRA>>2) 	    Purpose
- * -------- 	    -------
- * 0x0-0xf  	    old syscall ABI
- * 0x10-0x1f  	    new syscall ABI
- * 0x20-0xff  	    delegated through debug_trap to BIOS/gdb stub.
+ * (TRA>>2)	Purpose
+ * --------	-------
+ * 0x00-0x0f	original SH-3/4 syscall ABI (not in general use).
+ * 0x10-0x1f	general SH-3/4 syscall ABI.
+ * 0x20-0x2f	syscall ABI for SH-2 parts.
+ * 0x30-0x3f	debug traps used by the kernel.
+ * 0x40-0xff	Not supported by all parts, so left unhandled.
  *
  * Note: When we're first called, the TRA value must be shifted
  * right 2 bits in order to get the value that was used as the "trapa"
@@ -375,17 +337,22 @@ ret_from_fork:
 	 nop
 	.align	2
 1:	.long	schedule_tail
-	!
+
+/*
+ * The poorly named main trapa decode and dispatch routine, for
+ * system calls and debug traps through their respective jump tables.
+ */
 ENTRY(system_call)
 #if !defined(CONFIG_CPU_SH2)
 	mov.l	1f, r9
 	mov.l	@r9, r8		! Read from TRA (Trap Address) Register
 #endif
-	!
-	! Is the trap argument >= 0x20? (TRA will be >= 0x80)
-	mov	#0x7f, r9
+	/*
+	 * Check the trap type
+	 */
+	mov	#((0x20 << 2) - 1), r9
 	cmp/hi	r9, r8
-	bt/s	not_syscall_tra
+	bt/s	debug_trap		! it's a debug trap..
 	 mov	#OFF_TRA, r9
 	add	r15, r9
 	mov.l	r8, @r9			! set TRA value to tra

@@ -293,6 +293,9 @@ static int i460_insert_memory_small_io_page (struct agp_memory *mem,
 	pr_debug("i460_insert_memory_small_io_page(mem=%p, pg_start=%ld, type=%d, paddr0=0x%lx)\n",
 		 mem, pg_start, type, mem->memory[0]);
 
+	if (type >= AGP_USER_TYPES || mem->type >= AGP_USER_TYPES)
+		return -EINVAL;
+
 	io_pg_start = I460_IOPAGES_PER_KPAGE * pg_start;
 
 	temp = agp_bridge->current_size;
@@ -395,6 +398,9 @@ static int i460_insert_memory_large_io_page (struct agp_memory *mem,
 	int i, start_offset, end_offset, idx, pg, num_entries;
 	struct lp_desc *start, *end, *lp;
 	void *temp;
+
+	if (type >= AGP_USER_TYPES || mem->type >= AGP_USER_TYPES)
+		return -EINVAL;
 
 	temp = agp_bridge->current_size;
 	num_entries = A_SIZE_8(temp)->num_entries;
@@ -572,6 +578,7 @@ struct agp_bridge_driver intel_i460_driver = {
 #endif
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
+	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 	.cant_use_aperture	= 1,
 };
 

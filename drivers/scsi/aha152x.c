@@ -236,7 +236,6 @@
  **************************************************************************/
 
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <asm/irq.h>
 #include <linux/io.h>
 #include <linux/blkdev.h>

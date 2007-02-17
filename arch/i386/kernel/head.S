@@ -53,6 +53,7 @@
  * any particular GDT layout, because we load our own as soon as we
  * can.
  */
+.section .text.head,"ax",@progbits
 ENTRY(startup_32)
 
 #ifdef CONFIG_PARAVIRT
@@ -141,16 +142,25 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 	jb 10b
 	movl %edi,(init_pg_tables_end - __PAGE_OFFSET)
 
-#ifdef CONFIG_SMP
 	xorl %ebx,%ebx				/* This is the boot CPU (BSP) */
 	jmp 3f
-
 /*
  * Non-boot CPU entry point; entered from trampoline.S
  * We can't lgdt here, because lgdt itself uses a data segment, but
  * we know the trampoline has already loaded the boot_gdt_table GDT
  * for us.
+ *
+ * If cpu hotplug is not supported then this code can go in init section
+ * which will be freed later
  */
+
+#ifdef CONFIG_HOTPLUG_CPU
+.section .text,"ax",@progbits
+#else
+.section .init.text,"ax",@progbits
+#endif
+
+#ifdef CONFIG_SMP
 ENTRY(startup_32_smp)
 	cld
 	movl $(__BOOT_DS),%eax
@@ -208,8 +218,8 @@ ENTRY(startup_32_smp)
 	xorl %ebx,%ebx
 	incl %ebx
 
-3:
 #endif /* CONFIG_SMP */
+3:
 
 /*
  * Enable paging
@@ -309,7 +319,7 @@ is386:	movl $2,%ecx		# set MP
 
 	call check_x87
 	call setup_pda
-	lgdt cpu_gdt_descr
+	lgdt early_gdt_descr
 	lidt idt_descr
 	ljmp $(__KERNEL_CS),$1f
 1:	movl $(__KERNEL_DS),%eax	# reload all the segment registers
@@ -319,12 +329,12 @@ is386:	movl $2,%ecx		# set MP
 	movl %eax,%ds
 	movl %eax,%es
 
-	xorl %eax,%eax			# Clear FS and LDT
-	movl %eax,%fs
+	xorl %eax,%eax			# Clear GS and LDT
+	movl %eax,%gs
 	lldt %ax
 
 	movl $(__KERNEL_PDA),%eax
-	mov  %eax,%gs
+	mov  %eax,%fs
 
 	cld			# gcc2 wants the direction flag cleared at all times
 	pushl $0		# fake return address for unwinder
@@ -360,12 +370,12 @@ check_x87:
  * cpu_gdt_table and boot_pda; for secondary CPUs, these will be
  * that CPU's GDT and PDA.
  */
-setup_pda:
+ENTRY(setup_pda)
 	/* get the PDA pointer */
 	movl start_pda, %eax
 
 	/* slot the PDA address into the GDT */
-	mov cpu_gdt_descr+2, %ecx
+	mov early_gdt_descr+2, %ecx
 	mov %ax, (__KERNEL_PDA+0+2)(%ecx)		/* base & 0x0000ffff */
 	shr $16, %eax
 	mov %al, (__KERNEL_PDA+4+0)(%ecx)		/* base & 0x00ff0000 */
@@ -492,6 +502,7 @@ ignore_int:
 #endif
 	iret
 
+.section .text
 #ifdef CONFIG_PARAVIRT
 startup_paravirt:
 	cld
@@ -502,10 +513,11 @@ startup_paravirt:
 	pushl	%ecx
 	pushl	%eax
 
-	/* paravirt.o is last in link, and that probe fn never returns */
 	pushl	$__start_paravirtprobe
 1:
 	movl	0(%esp), %eax
+	cmpl	$__stop_paravirtprobe, %eax
+	je	unhandled_paravirt
 	pushl	(%eax)
 	movl	8(%esp), %eax
 	call	*(%esp)
@@ -517,6 +529,10 @@ startup_paravirt:
 
 	addl	$4, (%esp)
 	jmp	1b
+
+unhandled_paravirt:
+	/* Nothing wanted us: we're screwed. */
+	ud2
 #endif
 
 /*
@@ -581,7 +597,7 @@ idt_descr:
 
 # boot GDT descriptor (later on used by CPU#0):
 	.word 0				# 32 bit align gdt_desc.address
-ENTRY(cpu_gdt_descr)
+ENTRY(early_gdt_descr)
 	.word GDT_ENTRIES*8-1
 	.long cpu_gdt_table
 

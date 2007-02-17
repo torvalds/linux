@@ -5,7 +5,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>

@@ -16,7 +16,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/bitops.h>

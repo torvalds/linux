@@ -445,7 +445,7 @@ static int __init nf_conntrack_standalone_init(void)
 	proc_stat->owner = THIS_MODULE;
 #endif
 #ifdef CONFIG_SYSCTL
-	nf_ct_sysctl_header = register_sysctl_table(nf_ct_net_table, 0);
+	nf_ct_sysctl_header = register_sysctl_table(nf_ct_net_table);
 	if (nf_ct_sysctl_header == NULL) {
 		printk("nf_conntrack: can't register to sysctl.\n");
 		ret = -ENOMEM;

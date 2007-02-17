@@ -52,41 +52,37 @@ static int __init sh7619_devices_setup(void)
 }
 __initcall(sh7619_devices_setup);
 
-#define INTC_IPRC      0xf8080000UL
-#define INTC_IPRD      0xf8080002UL
-
-#define CMI0_IRQ       86
-
-#define SCIF0_ERI_IRQ  88
-#define SCIF0_RXI_IRQ  89
-#define SCIF0_BRI_IRQ  90
-#define SCIF0_TXI_IRQ  91
-
-#define SCIF1_ERI_IRQ  92
-#define SCIF1_RXI_IRQ  93
-#define SCIF1_BRI_IRQ  94
-#define SCIF1_TXI_IRQ  95
-
-#define SCIF2_BRI_IRQ  96
-#define SCIF2_ERI_IRQ  97
-#define SCIF2_RXI_IRQ  98
-#define SCIF2_TXI_IRQ  99
-
 static struct ipr_data sh7619_ipr_map[] = {
-	{ CMI0_IRQ,      INTC_IPRC, 1, 2 },
-	{ SCIF0_ERI_IRQ, INTC_IPRD, 3, 3 },
-	{ SCIF0_RXI_IRQ, INTC_IPRD, 3, 3 },
-	{ SCIF0_BRI_IRQ, INTC_IPRD, 3, 3 },
-	{ SCIF0_TXI_IRQ, INTC_IPRD, 3, 3 },
-	{ SCIF1_ERI_IRQ, INTC_IPRD, 2, 3 },
-	{ SCIF1_RXI_IRQ, INTC_IPRD, 2, 3 },
-	{ SCIF1_BRI_IRQ, INTC_IPRD, 2, 3 },
-	{ SCIF1_TXI_IRQ, INTC_IPRD, 2, 3 },
-	{ SCIF2_ERI_IRQ, INTC_IPRD, 1, 3 },
-	{ SCIF2_RXI_IRQ, INTC_IPRD, 1, 3 },
-	{ SCIF2_BRI_IRQ, INTC_IPRD, 1, 3 },
-	{ SCIF2_TXI_IRQ, INTC_IPRD, 1, 3 },
+	{ 86, 0,  4, 2 },	/* CMI0 */
+	{ 88, 1, 12, 3 },	/* SCIF0_ERI */
+	{ 89, 1, 12, 3 },	/* SCIF0_RXI */
+	{ 90, 1, 12, 3 },	/* SCIF0_BRI */
+	{ 91, 1, 12, 3 },	/* SCIF0_TXI */
+	{ 92, 1,  8, 3 },	/* SCIF1_ERI */
+	{ 93, 1,  8, 3 },	/* SCIF1_RXI */
+	{ 94, 1,  8, 3 },	/* SCIF1_BRI */
+	{ 95, 1,  8, 3 },	/* SCIF1_TXI */
+	{ 96, 1,  4, 3 },	/* SCIF2_ERI */
+	{ 97, 1,  4, 3 },	/* SCIF2_RXI */
+	{ 98, 1,  4, 3 },	/* SCIF2_BRI */
+	{ 99, 1,  4, 3 },	/* SCIF2_TXI */
 };
+
+static unsigned int ipr_offsets[] = {
+	0xf8080000,	/* IPRC */
+	0xf8080002,	/* IPRD */
+	0xf8080004,	/* IPRE */
+	0xf8080006,	/* IPRF */
+	0xf8080008,	/* IPRG */
+};
+
+/* given the IPR index return the address of the IPR register */
+unsigned int map_ipridx_to_addr(int idx)
+{
+	if (unlikely(idx >= ARRAY_SIZE(ipr_offsets)))
+		return 0;
+	return ipr_offsets[idx];
+}
 
 void __init init_IRQ_ipr(void)
 {

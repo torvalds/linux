@@ -3,7 +3,6 @@
  *   thermometer driver (as used in the Rebel.com NetWinder)
  */
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/miscdevice.h>
 #include <linux/smp_lock.h>
 #include <linux/delay.h>

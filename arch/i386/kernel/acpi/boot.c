@@ -25,6 +25,7 @@
 
 #include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/acpi_pmtmr.h>
 #include <linux/efi.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
@@ -615,6 +616,7 @@ static int __init acpi_parse_sbf(struct acpi_table_header *table)
 }
 
 #ifdef CONFIG_HPET_TIMER
+#include <asm/hpet.h>
 
 static int __init acpi_parse_hpet(struct acpi_table_header *table)
 {
@@ -645,24 +647,11 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 		hpet_res->end = (1 * 1024) - 1;
 	}
 
-#ifdef CONFIG_X86_64
-	vxtime.hpet_address = hpet_tbl->address.address;
-
+	hpet_address = hpet_tbl->address.address;
 	printk(KERN_INFO PREFIX "HPET id: %#x base: %#lx\n",
-		hpet_tbl->id, vxtime.hpet_address);
+	       hpet_tbl->id, hpet_address);
 
-	res_start = vxtime.hpet_address;
-#else                          /* X86 */
-	{
-		extern unsigned long hpet_address;
-
-		hpet_address = hpet_tbl->address.address;
-		printk(KERN_INFO PREFIX "HPET id: %#x base: %#lx\n",
-			hpet_tbl->id, hpet_address);
-
-		res_start = hpet_address;
-	}
-#endif                         /* X86 */
+	res_start = hpet_address;
 
 	if (hpet_res) {
 		hpet_res->start = res_start;
@@ -674,10 +663,6 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 }
 #else
 #define	acpi_parse_hpet	NULL
-#endif
-
-#ifdef CONFIG_X86_PM_TIMER
-extern u32 pmtmr_ioport;
 #endif
 
 static int __init acpi_parse_fadt(struct acpi_table_header *table)

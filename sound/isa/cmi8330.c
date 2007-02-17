@@ -574,7 +574,7 @@ static int __devinit snd_cmi8330_nonpnp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int snd_cmi8330_nonpnp_remove(struct platform_device *devptr)
+static int __devexit snd_cmi8330_nonpnp_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
 	platform_set_drvdata(devptr, NULL);
@@ -597,7 +597,7 @@ static int snd_cmi8330_nonpnp_resume(struct platform_device *dev)
 
 static struct platform_driver snd_cmi8330_driver = {
 	.probe		= snd_cmi8330_nonpnp_probe,
-	.remove		= snd_cmi8330_nonpnp_remove,
+	.remove		= __devexit_p(snd_cmi8330_nonpnp_remove),
 #ifdef CONFIG_PM
 	.suspend	= snd_cmi8330_nonpnp_suspend,
 	.resume		= snd_cmi8330_nonpnp_resume,

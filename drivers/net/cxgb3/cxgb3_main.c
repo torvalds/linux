@@ -757,7 +757,8 @@ static int cxgb_up(struct adapter *adap)
 				      t3_intr_handler(adap,
 						      adap->sge.qs[0].rspq.
 						      polling),
-				      (adap->flags & USING_MSI) ? 0 : SA_SHIRQ,
+				      (adap->flags & USING_MSI) ?
+				       0 : IRQF_SHARED,
 				      adap->name, adap)))
 		goto irq_err;
 

@@ -34,9 +34,19 @@
 
 #include "signal-common.h"
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
+/*
+ * Horribly complicated - with the bloody RM9000 workarounds enabled
+ * the signal trampolines is moving to the end of the structure so we can
+ * increase the alignment without breaking software compatibility.
+ */
 #if ICACHE_REFILLS_WORKAROUND_WAR == 0
+
+struct sigframe {
+	u32 sf_ass[4];		/* argument save space for o32 */
+	u32 sf_code[2];		/* signal trampoline */
+	struct sigcontext sf_sc;
+	sigset_t sf_mask;
+};
 
 struct rt_sigframe {
 	u32 rs_ass[4];		/* argument save space for o32 */
@@ -46,6 +56,14 @@ struct rt_sigframe {
 };
 
 #else
+
+struct sigframe {
+	u32 sf_ass[4];			/* argument save space for o32 */
+	u32 sf_pad[2];
+	struct sigcontext sf_sc;	/* hw context */
+	sigset_t sf_mask;
+	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
+};
 
 struct rt_sigframe {
 	u32 rs_ass[4];			/* argument save space for o32 */

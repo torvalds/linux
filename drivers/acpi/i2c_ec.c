@@ -14,7 +14,6 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/acpi.h>
@@ -340,6 +339,7 @@ static int acpi_ec_hc_add(struct acpi_device *device)
 	smbus->adapter.owner = THIS_MODULE;
 	smbus->adapter.algo = &acpi_ec_smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
+	smbus->adapter.dev.parent = &device->dev;
 
 	if (i2c_add_adapter(&smbus->adapter)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,

@@ -23,6 +23,7 @@
  * an extra value to store the TSC freq
  */
 unsigned int tsc_khz;
+unsigned long long (*custom_sched_clock)(void);
 
 int tsc_disable;
 
@@ -58,12 +59,6 @@ static inline int check_tsc_unstable(void)
 {
 	return tsc_unstable;
 }
-
-void mark_tsc_unstable(void)
-{
-	tsc_unstable = 1;
-}
-EXPORT_SYMBOL_GPL(mark_tsc_unstable);
 
 /* Accellerators for sched_clock()
  * convert from cycles(64bits) => nanoseconds (64bits)
@@ -107,14 +102,14 @@ unsigned long long sched_clock(void)
 {
 	unsigned long long this_offset;
 
+	if (unlikely(custom_sched_clock))
+		return (*custom_sched_clock)();
+
 	/*
-	 * in the NUMA case we dont use the TSC as they are not
-	 * synchronized across all CPUs.
+	 * Fall back to jiffies if there's no TSC available:
 	 */
-#ifndef CONFIG_NUMA
-	if (!cpu_khz || check_tsc_unstable())
-#endif
-		/* no locking but a rare wrong value is not a big deal */
+	if (unlikely(tsc_disable))
+		/* No locking but a rare wrong value is not a big deal: */
 		return (jiffies_64 - INITIAL_JIFFIES) * (1000000000 / HZ);
 
 	/* read the Time Stamp Counter: */
@@ -194,13 +189,13 @@ EXPORT_SYMBOL(recalibrate_cpu_khz);
 void __init tsc_init(void)
 {
 	if (!cpu_has_tsc || tsc_disable)
-		return;
+		goto out_no_tsc;
 
 	cpu_khz = calculate_cpu_khz();
 	tsc_khz = cpu_khz;
 
 	if (!cpu_khz)
-		return;
+		goto out_no_tsc;
 
 	printk("Detected %lu.%03lu MHz processor.\n",
 				(unsigned long)cpu_khz / 1000,
@@ -208,37 +203,18 @@ void __init tsc_init(void)
 
 	set_cyc2ns_scale(cpu_khz);
 	use_tsc_delay();
+	return;
+
+out_no_tsc:
+	/*
+	 * Set the tsc_disable flag if there's no TSC support, this
+	 * makes it a fast flag for the kernel to see whether it
+	 * should be using the TSC.
+	 */
+	tsc_disable = 1;
 }
 
 #ifdef CONFIG_CPU_FREQ
-
-static unsigned int cpufreq_delayed_issched = 0;
-static unsigned int cpufreq_init = 0;
-static struct work_struct cpufreq_delayed_get_work;
-
-static void handle_cpufreq_delayed_get(struct work_struct *work)
-{
-	unsigned int cpu;
-
-	for_each_online_cpu(cpu)
-		cpufreq_get(cpu);
-
-	cpufreq_delayed_issched = 0;
-}
-
-/*
- * if we notice cpufreq oddness, schedule a call to cpufreq_get() as it tries
- * to verify the CPU frequency the timing core thinks the CPU is running
- * at is still correct.
- */
-static inline void cpufreq_delayed_get(void)
-{
-	if (cpufreq_init && !cpufreq_delayed_issched) {
-		cpufreq_delayed_issched = 1;
-		printk(KERN_DEBUG "Checking if CPU frequency changed.\n");
-		schedule_work(&cpufreq_delayed_get_work);
-	}
-}
 
 /*
  * if the CPU frequency is scaled, TSC-based delays will need a different
@@ -303,17 +279,9 @@ static struct notifier_block time_cpufreq_notifier_block = {
 
 static int __init cpufreq_tsc(void)
 {
-	int ret;
-
-	INIT_WORK(&cpufreq_delayed_get_work, handle_cpufreq_delayed_get);
-	ret = cpufreq_register_notifier(&time_cpufreq_notifier_block,
-					CPUFREQ_TRANSITION_NOTIFIER);
-	if (!ret)
-		cpufreq_init = 1;
-
-	return ret;
+	return cpufreq_register_notifier(&time_cpufreq_notifier_block,
+					 CPUFREQ_TRANSITION_NOTIFIER);
 }
-
 core_initcall(cpufreq_tsc);
 
 #endif
@@ -321,7 +289,6 @@ core_initcall(cpufreq_tsc);
 /* clock source code */
 
 static unsigned long current_tsc_khz = 0;
-static int tsc_update_callback(void);
 
 static cycle_t read_tsc(void)
 {
@@ -339,37 +306,28 @@ static struct clocksource clocksource_tsc = {
 	.mask			= CLOCKSOURCE_MASK(64),
 	.mult			= 0, /* to be set */
 	.shift			= 22,
-	.update_callback	= tsc_update_callback,
-	.is_continuous		= 1,
+	.flags			= CLOCK_SOURCE_IS_CONTINUOUS |
+				  CLOCK_SOURCE_MUST_VERIFY,
 };
 
-static int tsc_update_callback(void)
+void mark_tsc_unstable(void)
 {
-	int change = 0;
-
-	/* check to see if we should switch to the safe clocksource: */
-	if (clocksource_tsc.rating != 0 && check_tsc_unstable()) {
-		clocksource_tsc.rating = 0;
-		clocksource_reselect();
-		change = 1;
+	if (!tsc_unstable) {
+		tsc_unstable = 1;
+		/* Can be called before registration */
+		if (clocksource_tsc.mult)
+			clocksource_change_rating(&clocksource_tsc, 0);
+		else
+			clocksource_tsc.rating = 0;
 	}
-
-	/* only update if tsc_khz has changed: */
-	if (current_tsc_khz != tsc_khz) {
-		current_tsc_khz = tsc_khz;
-		clocksource_tsc.mult = clocksource_khz2mult(current_tsc_khz,
-							clocksource_tsc.shift);
-		change = 1;
-	}
-
-	return change;
 }
+EXPORT_SYMBOL_GPL(mark_tsc_unstable);
 
 static int __init dmi_mark_tsc_unstable(struct dmi_system_id *d)
 {
 	printk(KERN_NOTICE "%s detected: marking TSC unstable.\n",
 		       d->ident);
-	mark_tsc_unstable();
+	tsc_unstable = 1;
 	return 0;
 }
 
@@ -386,65 +344,44 @@ static struct dmi_system_id __initdata bad_tsc_dmi_table[] = {
 	 {}
 };
 
-#define TSC_FREQ_CHECK_INTERVAL (10*MSEC_PER_SEC) /* 10sec in MS */
-static struct timer_list verify_tsc_freq_timer;
-
-/* XXX - Probably should add locking */
-static void verify_tsc_freq(unsigned long unused)
-{
-	static u64 last_tsc;
-	static unsigned long last_jiffies;
-
-	u64 now_tsc, interval_tsc;
-	unsigned long now_jiffies, interval_jiffies;
-
-
-	if (check_tsc_unstable())
-		return;
-
-	rdtscll(now_tsc);
-	now_jiffies = jiffies;
-
-	if (!last_jiffies) {
-		goto out;
-	}
-
-	interval_jiffies = now_jiffies - last_jiffies;
-	interval_tsc = now_tsc - last_tsc;
-	interval_tsc *= HZ;
-	do_div(interval_tsc, cpu_khz*1000);
-
-	if (interval_tsc < (interval_jiffies * 3 / 4)) {
-		printk("TSC appears to be running slowly. "
-			"Marking it as unstable\n");
-		mark_tsc_unstable();
-		return;
-	}
-
-out:
-	last_tsc = now_tsc;
-	last_jiffies = now_jiffies;
-	/* set us up to go off on the next interval: */
-	mod_timer(&verify_tsc_freq_timer,
-		jiffies + msecs_to_jiffies(TSC_FREQ_CHECK_INTERVAL));
-}
-
 /*
  * Make an educated guess if the TSC is trustworthy and synchronized
  * over all CPUs.
  */
-static __init int unsynchronized_tsc(void)
+__cpuinit int unsynchronized_tsc(void)
 {
+	if (!cpu_has_tsc || tsc_unstable)
+		return 1;
 	/*
 	 * Intel systems are normally all synchronized.
 	 * Exceptions must mark TSC as unstable:
 	 */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
- 		return 0;
-
-	/* assume multi socket systems are not synchronized: */
- 	return num_possible_cpus() > 1;
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) {
+		/* assume multi socket systems are not synchronized: */
+		if (num_possible_cpus() > 1)
+			tsc_unstable = 1;
+	}
+	return tsc_unstable;
 }
+
+/*
+ * Geode_LX - the OLPC CPU has a possibly a very reliable TSC
+ */
+#ifdef CONFIG_MGEODE_LX
+/* RTSC counts during suspend */
+#define RTSC_SUSP 0x100
+
+static void __init check_geode_tsc_reliable(void)
+{
+	unsigned long val;
+
+	rdmsrl(MSR_GEODE_BUSCONT_CONF0, val);
+	if ((val & RTSC_SUSP))
+		clocksource_tsc.flags &= ~CLOCK_SOURCE_MUST_VERIFY;
+}
+#else
+static inline void check_geode_tsc_reliable(void) { }
+#endif
 
 static int __init init_tsc_clocksource(void)
 {
@@ -453,20 +390,16 @@ static int __init init_tsc_clocksource(void)
 		/* check blacklist */
 		dmi_check_system(bad_tsc_dmi_table);
 
-		if (unsynchronized_tsc()) /* mark unstable if unsynced */
-			mark_tsc_unstable();
+		unsynchronized_tsc();
+		check_geode_tsc_reliable();
 		current_tsc_khz = tsc_khz;
 		clocksource_tsc.mult = clocksource_khz2mult(current_tsc_khz,
 							clocksource_tsc.shift);
 		/* lower the rating if we already know its unstable: */
-		if (check_tsc_unstable())
+		if (check_tsc_unstable()) {
 			clocksource_tsc.rating = 0;
-
-		init_timer(&verify_tsc_freq_timer);
-		verify_tsc_freq_timer.function = verify_tsc_freq;
-		verify_tsc_freq_timer.expires =
-			jiffies + msecs_to_jiffies(TSC_FREQ_CHECK_INTERVAL);
-		add_timer(&verify_tsc_freq_timer);
+			clocksource_tsc.flags &= ~CLOCK_SOURCE_IS_CONTINUOUS;
+		}
 
 		return clocksource_register(&clocksource_tsc);
 	}

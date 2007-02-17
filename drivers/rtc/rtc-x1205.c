@@ -506,7 +506,7 @@ static int x1205_probe(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *client;
 	struct rtc_device *rtc;
 
-	dev_dbg(adapter->class_dev.dev, "%s\n", __FUNCTION__);
+	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;

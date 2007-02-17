@@ -97,7 +97,7 @@ static ctl_table rxrpc_dir_sysctl_table[] = {
 int rxrpc_sysctl_init(void)
 {
 #ifdef CONFIG_SYSCTL
-	rxrpc_sysctl = register_sysctl_table(rxrpc_dir_sysctl_table, 0);
+	rxrpc_sysctl = register_sysctl_table(rxrpc_dir_sysctl_table);
 	if (!rxrpc_sysctl)
 		return -ENOMEM;
 #endif /* CONFIG_SYSCTL */

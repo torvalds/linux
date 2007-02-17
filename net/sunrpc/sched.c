@@ -74,7 +74,7 @@ static DEFINE_SPINLOCK(rpc_sched_lock);
 static inline void
 __rpc_disable_timer(struct rpc_task *task)
 {
-	dprintk("RPC: %4d disabling timer\n", task->tk_pid);
+	dprintk("RPC: %5u disabling timer\n", task->tk_pid);
 	task->tk_timeout_fn = NULL;
 	task->tk_timeout = 0;
 }
@@ -93,7 +93,7 @@ static void rpc_run_timer(struct rpc_task *task)
 	callback = task->tk_timeout_fn;
 	task->tk_timeout_fn = NULL;
 	if (callback && RPC_IS_QUEUED(task)) {
-		dprintk("RPC: %4d running timer\n", task->tk_pid);
+		dprintk("RPC: %5u running timer\n", task->tk_pid);
 		callback(task);
 	}
 	smp_mb__before_clear_bit();
@@ -110,7 +110,7 @@ __rpc_add_timer(struct rpc_task *task, rpc_action timer)
 	if (!task->tk_timeout)
 		return;
 
-	dprintk("RPC: %4d setting alarm for %lu ms\n",
+	dprintk("RPC: %5u setting alarm for %lu ms\n",
 			task->tk_pid, task->tk_timeout * 1000 / HZ);
 
 	if (timer)
@@ -132,7 +132,7 @@ rpc_delete_timer(struct rpc_task *task)
 		return;
 	if (test_and_clear_bit(RPC_TASK_HAS_TIMER, &task->tk_runstate)) {
 		del_singleshot_timer_sync(&task->tk_timer);
-		dprintk("RPC: %4d deleting timer\n", task->tk_pid);
+		dprintk("RPC: %5u deleting timer\n", task->tk_pid);
 	}
 }
 
@@ -179,8 +179,8 @@ static void __rpc_add_wait_queue(struct rpc_wait_queue *queue, struct rpc_task *
 	queue->qlen++;
 	rpc_set_queued(task);
 
-	dprintk("RPC: %4d added to queue %p \"%s\"\n",
-				task->tk_pid, queue, rpc_qname(queue));
+	dprintk("RPC: %5u added to queue %p \"%s\"\n",
+			task->tk_pid, queue, rpc_qname(queue));
 }
 
 /*
@@ -212,8 +212,8 @@ static void __rpc_remove_wait_queue(struct rpc_task *task)
 	else
 		list_del(&task->u.tk_wait.list);
 	queue->qlen--;
-	dprintk("RPC: %4d removed from queue %p \"%s\"\n",
-				task->tk_pid, queue, rpc_qname(queue));
+	dprintk("RPC: %5u removed from queue %p \"%s\"\n",
+			task->tk_pid, queue, rpc_qname(queue));
 }
 
 static inline void rpc_set_waitqueue_priority(struct rpc_wait_queue *queue, int priority)
@@ -344,8 +344,8 @@ static void rpc_make_runnable(struct rpc_task *task)
 static void __rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 			rpc_action action, rpc_action timer)
 {
-	dprintk("RPC: %4d sleep_on(queue \"%s\" time %ld)\n", task->tk_pid,
-				rpc_qname(q), jiffies);
+	dprintk("RPC: %5u sleep_on(queue \"%s\" time %lu)\n",
+			task->tk_pid, rpc_qname(q), jiffies);
 
 	if (!RPC_IS_ASYNC(task) && !RPC_IS_ACTIVATED(task)) {
 		printk(KERN_ERR "RPC: Inactive synchronous task put to sleep!\n");
@@ -381,7 +381,8 @@ void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
  */
 static void __rpc_do_wake_up_task(struct rpc_task *task)
 {
-	dprintk("RPC: %4d __rpc_wake_up_task (now %ld)\n", task->tk_pid, jiffies);
+	dprintk("RPC: %5u __rpc_wake_up_task (now %lu)\n",
+			task->tk_pid, jiffies);
 
 #ifdef RPC_DEBUG
 	BUG_ON(task->tk_magic != RPC_TASK_MAGIC_ID);
@@ -397,7 +398,7 @@ static void __rpc_do_wake_up_task(struct rpc_task *task)
 
 	rpc_make_runnable(task);
 
-	dprintk("RPC:      __rpc_wake_up_task done\n");
+	dprintk("RPC:       __rpc_wake_up_task done\n");
 }
 
 /*
@@ -418,7 +419,7 @@ static void __rpc_wake_up_task(struct rpc_task *task)
 static void
 __rpc_default_timer(struct rpc_task *task)
 {
-	dprintk("RPC: %d timeout (default timer)\n", task->tk_pid);
+	dprintk("RPC: %5u timeout (default timer)\n", task->tk_pid);
 	task->tk_status = -ETIMEDOUT;
 	rpc_wake_up_task(task);
 }
@@ -502,7 +503,8 @@ struct rpc_task * rpc_wake_up_next(struct rpc_wait_queue *queue)
 {
 	struct rpc_task	*task = NULL;
 
-	dprintk("RPC:      wake_up_next(%p \"%s\")\n", queue, rpc_qname(queue));
+	dprintk("RPC:       wake_up_next(%p \"%s\")\n",
+			queue, rpc_qname(queue));
 	rcu_read_lock_bh();
 	spin_lock(&queue->lock);
 	if (RPC_IS_PRIORITY(queue))
@@ -625,12 +627,12 @@ void rpc_release_calldata(const struct rpc_call_ops *ops, void *calldata)
 /*
  * This is the RPC `scheduler' (or rather, the finite state machine).
  */
-static int __rpc_execute(struct rpc_task *task)
+static void __rpc_execute(struct rpc_task *task)
 {
 	int		status = 0;
 
-	dprintk("RPC: %4d rpc_execute flgs %x\n",
-				task->tk_pid, task->tk_flags);
+	dprintk("RPC: %5u __rpc_execute flags=0x%x\n",
+			task->tk_pid, task->tk_flags);
 
 	BUG_ON(RPC_IS_QUEUED(task));
 
@@ -679,14 +681,14 @@ static int __rpc_execute(struct rpc_task *task)
 		if (RPC_IS_ASYNC(task)) {
 			/* Careful! we may have raced... */
 			if (RPC_IS_QUEUED(task))
-				return 0;
+				return;
 			if (rpc_test_and_set_running(task))
-				return 0;
+				return;
 			continue;
 		}
 
 		/* sync task: sleep here */
-		dprintk("RPC: %4d sync task going to sleep\n", task->tk_pid);
+		dprintk("RPC: %5u sync task going to sleep\n", task->tk_pid);
 		/* Note: Caller should be using rpc_clnt_sigmask() */
 		status = out_of_line_wait_on_bit(&task->tk_runstate,
 				RPC_TASK_QUEUED, rpc_wait_bit_interruptible,
@@ -698,19 +700,19 @@ static int __rpc_execute(struct rpc_task *task)
 			 * clean up after sleeping on some queue, we don't
 			 * break the loop here, but go around once more.
 			 */
-			dprintk("RPC: %4d got signal\n", task->tk_pid);
+			dprintk("RPC: %5u got signal\n", task->tk_pid);
 			task->tk_flags |= RPC_TASK_KILLED;
 			rpc_exit(task, -ERESTARTSYS);
 			rpc_wake_up_task(task);
 		}
 		rpc_set_running(task);
-		dprintk("RPC: %4d sync task resuming\n", task->tk_pid);
+		dprintk("RPC: %5u sync task resuming\n", task->tk_pid);
 	}
 
-	dprintk("RPC: %4d, return %d, status %d\n", task->tk_pid, status, task->tk_status);
+	dprintk("RPC: %5u return %d, status %d\n", task->tk_pid, status,
+			task->tk_status);
 	/* Release all resources associated with the task */
 	rpc_release_task(task);
-	return status;
 }
 
 /*
@@ -722,12 +724,11 @@ static int __rpc_execute(struct rpc_task *task)
  *	 released. In particular note that tk_release() will have
  *	 been called, so your task memory may have been freed.
  */
-int
-rpc_execute(struct rpc_task *task)
+void rpc_execute(struct rpc_task *task)
 {
 	rpc_set_active(task);
 	rpc_set_running(task);
-	return __rpc_execute(task);
+	__rpc_execute(task);
 }
 
 static void rpc_async_schedule(struct work_struct *work)
@@ -826,7 +827,7 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, cons
 	/* starting timestamp */
 	task->tk_start = jiffies;
 
-	dprintk("RPC: %4d new task procpid %d\n", task->tk_pid,
+	dprintk("RPC:       new task initialized, procpid %u\n",
 				current->pid);
 }
 
@@ -839,7 +840,7 @@ rpc_alloc_task(void)
 static void rpc_free_task(struct rcu_head *rcu)
 {
 	struct rpc_task *task = container_of(rcu, struct rpc_task, u.tk_rcu);
-	dprintk("RPC: %4d freeing task\n", task->tk_pid);
+	dprintk("RPC: %5u freeing task\n", task->tk_pid);
 	mempool_free(task, rpc_task_mempool);
 }
 
@@ -858,7 +859,7 @@ struct rpc_task *rpc_new_task(struct rpc_clnt *clnt, int flags, const struct rpc
 
 	rpc_init_task(task, clnt, flags, tk_ops, calldata);
 
-	dprintk("RPC: %4d allocated task\n", task->tk_pid);
+	dprintk("RPC:       allocated task %p\n", task);
 	task->tk_flags |= RPC_TASK_DYNAMIC;
 out:
 	return task;
@@ -902,7 +903,7 @@ static void rpc_release_task(struct rpc_task *task)
 #ifdef RPC_DEBUG
 	BUG_ON(task->tk_magic != RPC_TASK_MAGIC_ID);
 #endif
-	dprintk("RPC: %4d release task\n", task->tk_pid);
+	dprintk("RPC: %5u release task\n", task->tk_pid);
 
 	/* Remove from global task list */
 	spin_lock(&rpc_sched_lock);
@@ -955,7 +956,7 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 	struct rpc_task	*rovr;
 	struct list_head *le;
 
-	dprintk("RPC:      killing all tasks for client %p\n", clnt);
+	dprintk("RPC:       killing all tasks for client %p\n", clnt);
 
 	/*
 	 * Spin lock all_tasks to prevent changes...
@@ -984,7 +985,8 @@ static void rpciod_killall(void)
 		rpc_killall_tasks(NULL);
 		flush_workqueue(rpciod_workqueue);
 		if (!list_empty(&all_tasks)) {
-			dprintk("rpciod_killall: waiting for tasks to exit\n");
+			dprintk("RPC:       rpciod_killall: waiting for tasks "
+					"to exit\n");
 			yield();
 		}
 	}
@@ -1004,7 +1006,7 @@ rpciod_up(void)
 	int error = 0;
 
 	mutex_lock(&rpciod_mutex);
-	dprintk("rpciod_up: users %d\n", rpciod_users);
+	dprintk("RPC:       rpciod_up: users %u\n", rpciod_users);
 	rpciod_users++;
 	if (rpciod_workqueue)
 		goto out;
@@ -1012,7 +1014,7 @@ rpciod_up(void)
 	 * If there's no pid, we should be the first user.
 	 */
 	if (rpciod_users > 1)
-		printk(KERN_WARNING "rpciod_up: no workqueue, %d users??\n", rpciod_users);
+		printk(KERN_WARNING "rpciod_up: no workqueue, %u users??\n", rpciod_users);
 	/*
 	 * Create the rpciod thread and wait for it to start.
 	 */
@@ -1034,7 +1036,7 @@ void
 rpciod_down(void)
 {
 	mutex_lock(&rpciod_mutex);
-	dprintk("rpciod_down sema %d\n", rpciod_users);
+	dprintk("RPC:       rpciod_down sema %u\n", rpciod_users);
 	if (rpciod_users) {
 		if (--rpciod_users)
 			goto out;
@@ -1042,7 +1044,7 @@ rpciod_down(void)
 		printk(KERN_WARNING "rpciod_down: no users??\n");
 
 	if (!rpciod_workqueue) {
-		dprintk("rpciod_down: Nothing to do!\n");
+		dprintk("RPC:       rpciod_down: Nothing to do!\n");
 		goto out;
 	}
 	rpciod_killall();
@@ -1072,7 +1074,7 @@ void rpc_show_tasks(void)
 		if (RPC_IS_QUEUED(t))
 			rpc_waitq = rpc_qname(t->u.tk_wait.rpc_waitq);
 
-		printk("%05d %04d %04x %06d %8p %6d %8p %08ld %8s %8p %8p\n",
+		printk("%5u %04d %04x %6d %8p %6d %8p %8ld %8s %8p %8p\n",
 			t->tk_pid,
 			(t->tk_msg.rpc_proc ? t->tk_msg.rpc_proc->p_proc : -1),
 			t->tk_flags, t->tk_status,

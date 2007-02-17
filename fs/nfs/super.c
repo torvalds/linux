@@ -1045,7 +1045,7 @@ static int nfs4_referral_get_sb(struct file_system_type *fs_type, int flags,
 		nfs4_fill_super(s);
 	}
 
-	mntroot = nfs4_get_root(s, data->fh);
+	mntroot = nfs4_get_root(s, &mntfh);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;

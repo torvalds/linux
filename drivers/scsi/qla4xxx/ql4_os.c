@@ -1270,7 +1270,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	INIT_WORK(&ha->dpc_work, qla4xxx_do_dpc);
 
 	ret = request_irq(pdev->irq, qla4xxx_intr_handler,
-			  SA_INTERRUPT|SA_SHIRQ, "qla4xxx", ha);
+			  IRQF_DISABLED | IRQF_SHARED, "qla4xxx", ha);
 	if (ret) {
 		dev_warn(&ha->pdev->dev, "Failed to reserve interrupt %d"
 			" already in use.\n", pdev->irq);

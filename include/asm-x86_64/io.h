@@ -100,7 +100,7 @@ __OUTS(l)
 
 #define IO_SPACE_LIMIT 0xffff
 
-#if defined(__KERNEL__) && __x86_64__
+#if defined(__KERNEL__) && defined(__x86_64__)
 
 #include <linux/vmalloc.h>
 

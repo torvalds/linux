@@ -17,7 +17,6 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>

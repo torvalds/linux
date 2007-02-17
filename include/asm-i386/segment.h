@@ -83,13 +83,7 @@
  * The GDT has 32 entries
  */
 #define GDT_ENTRIES 32
-
 #define GDT_SIZE (GDT_ENTRIES * 8)
-
-/* Matches __KERNEL_CS and __USER_CS (they must be 2 entries apart) */
-#define SEGMENT_IS_FLAT_CODE(x)  (((x) & 0xec) == GDT_ENTRY_KERNEL_CS * 8)
-/* Matches PNP_CS32 and PNP_CS16 (they must be consecutive) */
-#define SEGMENT_IS_PNP_CODE(x)   (((x) & 0xf4) == GDT_ENTRY_PNPBIOS_BASE * 8)
 
 /* Simple and small GDT entries for booting only */
 
@@ -134,4 +128,17 @@
 #ifndef CONFIG_PARAVIRT
 #define get_kernel_rpl()  0
 #endif
+/*
+ * Matching rules for certain types of segments.
+ */
+
+/* Matches only __KERNEL_CS, ignoring PnP / USER / APM segments */
+#define SEGMENT_IS_KERNEL_CODE(x) (((x) & 0xfc) == GDT_ENTRY_KERNEL_CS * 8)
+
+/* Matches __KERNEL_CS and __USER_CS (they must be 2 entries apart) */
+#define SEGMENT_IS_FLAT_CODE(x)  (((x) & 0xec) == GDT_ENTRY_KERNEL_CS * 8)
+
+/* Matches PNP_CS32 and PNP_CS16 (they must be consecutive) */
+#define SEGMENT_IS_PNP_CODE(x)   (((x) & 0xf4) == GDT_ENTRY_PNPBIOS_BASE * 8)
+
 #endif

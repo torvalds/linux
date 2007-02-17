@@ -125,6 +125,12 @@ config IPC_NS
 	  environments, to use ipc namespaces to provide different ipc
 	  objects for different servers.  If unsure, say N.
 
+config SYSVIPC_SYSCTL
+	bool
+	depends on SYSVIPC
+	depends on SYSCTL
+	default y
+
 config POSIX_MQUEUE
 	bool "POSIX Message Queues"
 	depends on NET && EXPERIMENTAL

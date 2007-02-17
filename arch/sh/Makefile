@@ -35,6 +35,7 @@ endif
 endif
 
 cflags-$(CONFIG_CPU_SH2)		:= -m2
+cflags-$(CONFIG_CPU_SH2A)		:= -m2a $(call cc-option,-m2a-nofpu,)
 cflags-$(CONFIG_CPU_SH3)		:= -m3
 cflags-$(CONFIG_CPU_SH4)		:= -m4 \
 	$(call cc-option,-mno-implicit-fp,-m4-nofpu)
@@ -93,10 +94,8 @@ machdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)	:= se/7300
 machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	:= se/7343
 machdir-$(CONFIG_SH_73180_SOLUTION_ENGINE)	:= se/73180
 machdir-$(CONFIG_SH_HP6XX)			:= hp6xx
-machdir-$(CONFIG_SH_EC3104)			:= ec3104
 machdir-$(CONFIG_SH_SATURN)			:= saturn
 machdir-$(CONFIG_SH_DREAMCAST)			:= dreamcast
-machdir-$(CONFIG_SH_BIGSUR)			:= bigsur
 machdir-$(CONFIG_SH_MPC1211)			:= mpc1211
 machdir-$(CONFIG_SH_SH03)			:= sh03
 machdir-$(CONFIG_SH_SECUREEDGE5410)		:= snapgear

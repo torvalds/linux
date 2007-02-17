@@ -352,7 +352,7 @@ static inline int ata_drive_40wire(const u16 *dev_id)
 {
 	if (ata_id_major_version(dev_id) >= 5 && ata_id_is_sata(dev_id))
 		return 0;	/* SATA */
-	if (dev_id[93] & 0x4000)
+	if ((dev_id[93] & 0xE000) == 0x6000)
 		return 0;	/* 80 wire */
 	return 1;
 }

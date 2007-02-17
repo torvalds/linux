@@ -466,7 +466,10 @@ out:
 	posix_acl_release(dpacl);
 	return (error);
 out_nfserr:
-	error = nfserrno(host_error);
+	if (host_error == -EOPNOTSUPP)
+		error = nfserr_attrnotsupp;
+	else
+		error = nfserrno(host_error);
 	goto out;
 }
 

@@ -137,11 +137,10 @@ static int __init sb_init_legacy(void)
 {
 	struct sb_module_options sbmo = {0};
 
-	if((legacy = kmalloc(sizeof(struct sb_card_config), GFP_KERNEL)) == NULL) {
+	if((legacy = kzalloc(sizeof(struct sb_card_config), GFP_KERNEL)) == NULL) {
 		printk(KERN_ERR "sb: Error: Could not allocate memory\n");
 		return -ENOMEM;
 	}
-	memset(legacy, 0, sizeof(struct sb_card_config));
 
 	legacy->conf.io_base      = io;
 	legacy->conf.irq          = irq;
@@ -247,11 +246,10 @@ static int sb_pnp_probe(struct pnp_card_link *card, const struct pnp_card_device
 		return -EBUSY;
 	}
 
-	if((scc = kmalloc(sizeof(struct sb_card_config), GFP_KERNEL)) == NULL) {
+	if((scc = kzalloc(sizeof(struct sb_card_config), GFP_KERNEL)) == NULL) {
 		printk(KERN_ERR "sb: Error: Could not allocate memory\n");
 		return -ENOMEM;
 	}
-	memset(scc, 0, sizeof(struct sb_card_config));
 
 	printk(KERN_INFO "sb: PnP: Found Card Named = \"%s\", Card PnP id = " \
 	       "%s, Device PnP id = %s\n", card->card->name, card_id->id,

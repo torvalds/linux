@@ -23,7 +23,6 @@
  *
  */
 
-#include <linux/sched.h>
 #include <linux/poll.h>
 #include <linux/spinlock.h>
 #include "tpm.h"

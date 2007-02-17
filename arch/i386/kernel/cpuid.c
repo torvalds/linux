@@ -48,7 +48,6 @@ static struct class *cpuid_class;
 #ifdef CONFIG_SMP
 
 struct cpuid_command {
-	int cpu;
 	u32 reg;
 	u32 *data;
 };
@@ -57,8 +56,7 @@ static void cpuid_smp_cpuid(void *cmd_block)
 {
 	struct cpuid_command *cmd = (struct cpuid_command *)cmd_block;
 
-	if (cmd->cpu == smp_processor_id())
-		cpuid(cmd->reg, &cmd->data[0], &cmd->data[1], &cmd->data[2],
+	cpuid(cmd->reg, &cmd->data[0], &cmd->data[1], &cmd->data[2],
 		      &cmd->data[3]);
 }
 
@@ -70,11 +68,10 @@ static inline void do_cpuid(int cpu, u32 reg, u32 * data)
 	if (cpu == smp_processor_id()) {
 		cpuid(reg, &data[0], &data[1], &data[2], &data[3]);
 	} else {
-		cmd.cpu = cpu;
 		cmd.reg = reg;
 		cmd.data = data;
 
-		smp_call_function(cpuid_smp_cpuid, &cmd, 1, 1);
+		smp_call_function_single(cpu, cpuid_smp_cpuid, &cmd, 1, 1);
 	}
 	preempt_enable();
 }

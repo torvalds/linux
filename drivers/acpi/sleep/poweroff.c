@@ -12,7 +12,6 @@
 #include <linux/pm.h>
 #include <linux/init.h>
 #include <acpi/acpi_bus.h>
-#include <linux/sched.h>
 #include <linux/sysdev.h>
 #include <asm/io.h>
 #include "sleep.h"

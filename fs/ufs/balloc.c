@@ -16,7 +16,6 @@
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/capability.h>
-#include <linux/sched.h>
 #include <linux/bitops.h>
 #include <asm/byteorder.h>
 

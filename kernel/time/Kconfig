@@ -1,0 +1,25 @@
+#
+# Timer subsystem related configuration options
+#
+config TICK_ONESHOT
+	bool
+	default n
+
+config NO_HZ
+	bool "Tickless System (Dynamic Ticks)"
+	depends on GENERIC_TIME && GENERIC_CLOCKEVENTS
+	select TICK_ONESHOT
+	help
+	  This option enables a tickless system: timer interrupts will
+	  only trigger on an as-needed basis both when the system is
+	  busy and when the system is idle.
+
+config HIGH_RES_TIMERS
+	bool "High Resolution Timer Support"
+	depends on GENERIC_TIME && GENERIC_CLOCKEVENTS
+	select TICK_ONESHOT
+	help
+	  This option enables high resolution timer support. If your
+	  hardware is not capable then this option only increases
+	  the size of the kernel image.
+

@@ -16,7 +16,6 @@
 
 #include <linux/unistd.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 #include <linux/stat.h>
 #include <linux/in.h>
 #include <linux/seq_file.h>
@@ -190,18 +189,17 @@ static int expkey_show(struct seq_file *m,
 		       struct cache_head *h)
 {
 	struct svc_expkey *ek ;
+	int i;
 
 	if (h ==NULL) {
 		seq_puts(m, "#domain fsidtype fsid [path]\n");
 		return 0;
 	}
 	ek = container_of(h, struct svc_expkey, h);
-	seq_printf(m, "%s %d 0x%08x", ek->ek_client->name,
-		   ek->ek_fsidtype, ek->ek_fsid[0]);
-	if (ek->ek_fsidtype != 1)
-		seq_printf(m, "%08x", ek->ek_fsid[1]);
-	if (ek->ek_fsidtype == 2)
-		seq_printf(m, "%08x", ek->ek_fsid[2]);
+	seq_printf(m, "%s %d 0x", ek->ek_client->name,
+		   ek->ek_fsidtype);
+	for (i=0; i < key_len(ek->ek_fsidtype)/4; i++)
+		seq_printf(m, "%08x", ek->ek_fsid[i]);
 	if (test_bit(CACHE_VALID, &h->flags) && 
 	    !test_bit(CACHE_NEGATIVE, &h->flags)) {
 		seq_printf(m, " ");
@@ -232,9 +230,8 @@ static inline void expkey_init(struct cache_head *cnew,
 	kref_get(&item->ek_client->ref);
 	new->ek_client = item->ek_client;
 	new->ek_fsidtype = item->ek_fsidtype;
-	new->ek_fsid[0] = item->ek_fsid[0];
-	new->ek_fsid[1] = item->ek_fsid[1];
-	new->ek_fsid[2] = item->ek_fsid[2];
+
+	memcpy(new->ek_fsid, item->ek_fsid, sizeof(new->ek_fsid));
 }
 
 static inline void expkey_update(struct cache_head *cnew,
@@ -363,7 +360,7 @@ static struct svc_export *svc_export_update(struct svc_export *new,
 					    struct svc_export *old);
 static struct svc_export *svc_export_lookup(struct svc_export *);
 
-static int check_export(struct inode *inode, int flags)
+static int check_export(struct inode *inode, int flags, unsigned char *uuid)
 {
 
 	/* We currently export only dirs and regular files.
@@ -376,12 +373,13 @@ static int check_export(struct inode *inode, int flags)
 	/* There are two requirements on a filesystem to be exportable.
 	 * 1:  We must be able to identify the filesystem from a number.
 	 *       either a device number (so FS_REQUIRES_DEV needed)
-	 *       or an FSID number (so NFSEXP_FSID needed).
+	 *       or an FSID number (so NFSEXP_FSID or ->uuid is needed).
 	 * 2:  We must be able to find an inode from a filehandle.
 	 *       This means that s_export_op must be set.
 	 */
 	if (!(inode->i_sb->s_type->fs_flags & FS_REQUIRES_DEV) &&
-	    !(flags & NFSEXP_FSID)) {
+	    !(flags & NFSEXP_FSID) &&
+	    uuid == NULL) {
 		dprintk("exp_export: export of non-dev fs without fsid\n");
 		return -EINVAL;
 	}
@@ -405,10 +403,6 @@ fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc)
 {
 	int len;
 	int migrated, i, err;
-
-	len = qword_get(mesg, buf, PAGE_SIZE);
-	if (len != 5 || memcmp(buf, "fsloc", 5))
-		return 0;
 
 	/* listsize */
 	err = get_int(mesg, &fsloc->locations_count);
@@ -520,6 +514,8 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	exp.ex_fslocs.locations_count = 0;
 	exp.ex_fslocs.migrated = 0;
 
+	exp.ex_uuid = NULL;
+
 	/* flags */
 	err = get_int(&mesg, &an_int);
 	if (err == -ENOENT)
@@ -543,12 +539,33 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 		if (err) goto out;
 		exp.ex_fsid = an_int;
 
-		err = check_export(nd.dentry->d_inode, exp.ex_flags);
-		if (err) goto out;
+		while ((len = qword_get(&mesg, buf, PAGE_SIZE)) > 0) {
+			if (strcmp(buf, "fsloc") == 0)
+				err = fsloc_parse(&mesg, buf, &exp.ex_fslocs);
+			else if (strcmp(buf, "uuid") == 0) {
+				/* expect a 16 byte uuid encoded as \xXXXX... */
+				len = qword_get(&mesg, buf, PAGE_SIZE);
+				if (len != 16)
+					err  = -EINVAL;
+				else {
+					exp.ex_uuid =
+						kmemdup(buf, 16, GFP_KERNEL);
+					if (exp.ex_uuid == NULL)
+						err = -ENOMEM;
+				}
+			} else
+				/* quietly ignore unknown words and anything
+				 * following. Newer user-space can try to set
+				 * new values, then see what the result was.
+				 */
+				break;
+			if (err)
+				goto out;
+		}
 
-		err = fsloc_parse(&mesg, buf, &exp.ex_fslocs);
-		if (err)
-			goto out;
+		err = check_export(nd.dentry->d_inode, exp.ex_flags,
+				   exp.ex_uuid);
+		if (err) goto out;
 	}
 
 	expp = svc_export_lookup(&exp);
@@ -562,6 +579,8 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	else
 		exp_put(expp);
  out:
+	nfsd4_fslocs_free(&exp.ex_fslocs);
+	kfree(exp.ex_uuid);
  	kfree(exp.ex_path);
 	if (nd.dentry)
 		path_release(&nd);
@@ -591,9 +610,19 @@ static int svc_export_show(struct seq_file *m,
 	seq_escape(m, exp->ex_client->name, " \t\n\\");
 	seq_putc(m, '(');
 	if (test_bit(CACHE_VALID, &h->flags) && 
-	    !test_bit(CACHE_NEGATIVE, &h->flags))
+	    !test_bit(CACHE_NEGATIVE, &h->flags)) {
 		exp_flags(m, exp->ex_flags, exp->ex_fsid,
 			  exp->ex_anon_uid, exp->ex_anon_gid, &exp->ex_fslocs);
+		if (exp->ex_uuid) {
+			int i;
+			seq_puts(m, ",uuid=");
+			for (i=0; i<16; i++) {
+				if ((i&3) == 0 && i)
+					seq_putc(m, ':');
+				seq_printf(m, "%02x", exp->ex_uuid[i]);
+			}
+		}
+	}
 	seq_puts(m, ")\n");
 	return 0;
 }
@@ -630,6 +659,8 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 	new->ex_anon_uid = item->ex_anon_uid;
 	new->ex_anon_gid = item->ex_anon_gid;
 	new->ex_fsid = item->ex_fsid;
+	new->ex_uuid = item->ex_uuid;
+	item->ex_uuid = NULL;
 	new->ex_path = item->ex_path;
 	item->ex_path = NULL;
 	new->ex_fslocs.locations = item->ex_fslocs.locations;
@@ -752,11 +783,11 @@ exp_get_key(svc_client *clp, dev_t dev, ino_t ino)
 	u32 fsidv[3];
 	
 	if (old_valid_dev(dev)) {
-		mk_fsid_v0(fsidv, dev, ino);
-		return exp_find_key(clp, 0, fsidv, NULL);
+		mk_fsid(FSID_DEV, fsidv, dev, ino, 0, NULL);
+		return exp_find_key(clp, FSID_DEV, fsidv, NULL);
 	}
-	mk_fsid_v3(fsidv, dev, ino);
-	return exp_find_key(clp, 3, fsidv, NULL);
+	mk_fsid(FSID_ENCODE_DEV, fsidv, dev, ino, 0, NULL);
+	return exp_find_key(clp, FSID_ENCODE_DEV, fsidv, NULL);
 }
 
 /*
@@ -767,9 +798,9 @@ exp_get_fsid_key(svc_client *clp, int fsid)
 {
 	u32 fsidv[2];
 
-	mk_fsid_v1(fsidv, fsid);
+	mk_fsid(FSID_NUM, fsidv, 0, 0, fsid, NULL);
 
-	return exp_find_key(clp, 1, fsidv, NULL);
+	return exp_find_key(clp, FSID_NUM, fsidv, NULL);
 }
 
 svc_export *
@@ -883,8 +914,8 @@ static int exp_fsid_hash(svc_client *clp, struct svc_export *exp)
 	if ((exp->ex_flags & NFSEXP_FSID) == 0)
 		return 0;
 
-	mk_fsid_v1(fsid, exp->ex_fsid);
-	return exp_set_key(clp, 1, fsid, exp);
+	mk_fsid(FSID_NUM, fsid, 0, 0, exp->ex_fsid, NULL);
+	return exp_set_key(clp, FSID_NUM, fsid, exp);
 }
 
 static int exp_hash(struct auth_domain *clp, struct svc_export *exp)
@@ -894,11 +925,11 @@ static int exp_hash(struct auth_domain *clp, struct svc_export *exp)
 	dev_t dev = inode->i_sb->s_dev;
 
 	if (old_valid_dev(dev)) {
-		mk_fsid_v0(fsid, dev, inode->i_ino);
-		return exp_set_key(clp, 0, fsid, exp);
+		mk_fsid(FSID_DEV, fsid, dev, inode->i_ino, 0, NULL);
+		return exp_set_key(clp, FSID_DEV, fsid, exp);
 	}
-	mk_fsid_v3(fsid, dev, inode->i_ino);
-	return exp_set_key(clp, 3, fsid, exp);
+	mk_fsid(FSID_ENCODE_DEV, fsid, dev, inode->i_ino, 0, NULL);
+	return exp_set_key(clp, FSID_ENCODE_DEV, fsid, exp);
 }
 
 static void exp_unhash(struct svc_export *exp)
@@ -977,7 +1008,7 @@ exp_export(struct nfsctl_export *nxp)
 		goto finish;
 	}
 
-	err = check_export(nd.dentry->d_inode, nxp->ex_flags);
+	err = check_export(nd.dentry->d_inode, nxp->ex_flags, NULL);
 	if (err) goto finish;
 
 	err = -ENOMEM;
@@ -1170,9 +1201,9 @@ exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 	__be32 rv;
 	u32 fsidv[2];
 
-	mk_fsid_v1(fsidv, 0);
+	mk_fsid(FSID_NUM, fsidv, 0, 0, 0, NULL);
 
-	exp = exp_find(clp, 1, fsidv, creq);
+	exp = exp_find(clp, FSID_NUM, fsidv, creq);
 	if (IS_ERR(exp))
 		return nfserrno(PTR_ERR(exp));
 	if (exp == NULL)

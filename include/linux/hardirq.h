@@ -106,12 +106,17 @@ static inline void account_system_vtime(struct task_struct *tsk)
  * always balanced, so the interrupted value of ->hardirq_context
  * will always be restored.
  */
-#define irq_enter()					\
+#define __irq_enter()					\
 	do {						\
 		account_system_vtime(current);		\
 		add_preempt_count(HARDIRQ_OFFSET);	\
 		trace_hardirq_enter();			\
 	} while (0)
+
+/*
+ * Enter irq context (on NO_HZ, update jiffies):
+ */
+extern void irq_enter(void);
 
 /*
  * Exit irq context without processing softirqs:
@@ -128,7 +133,7 @@ static inline void account_system_vtime(struct task_struct *tsk)
  */
 extern void irq_exit(void);
 
-#define nmi_enter()		do { lockdep_off(); irq_enter(); } while (0)
+#define nmi_enter()		do { lockdep_off(); __irq_enter(); } while (0)
 #define nmi_exit()		do { __irq_exit(); lockdep_on(); } while (0)
 
 #endif /* LINUX_HARDIRQ_H */
