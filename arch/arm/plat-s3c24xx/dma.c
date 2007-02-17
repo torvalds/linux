@@ -1426,22 +1426,8 @@ struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
 	return dmach;
 }
 
-static void s3c24xx_dma_show_ch(struct s3c24xx_dma_map *map, int ch)
-{
-	/* show the channel configuration */
-
-	printk("%2d: %20s, channels %c%c%c%c\n", ch, map->name,
-	       (is_channel_valid(map->channels[0]) ? '0' : '-'),
-	       (is_channel_valid(map->channels[1]) ? '1' : '-'),
-	       (is_channel_valid(map->channels[2]) ? '2' : '-'),
-	       (is_channel_valid(map->channels[3]) ? '3' : '-'));
-}
-
 static int s3c24xx_dma_check_entry(struct s3c24xx_dma_map *map, int ch)
 {
-	if (1)
-		s3c24xx_dma_show_ch(map, ch);
-
 	return 0;
 }
 
