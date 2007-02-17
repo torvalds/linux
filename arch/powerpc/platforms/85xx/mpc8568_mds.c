@@ -74,7 +74,6 @@ static void __init mpc8568_mds_setup_arch(void)
 	struct device_node *np;
 	static u8 *bcsr_regs = NULL;
 
-
 	if (ppc_md.progress)
 		ppc_md.progress("mpc8568_mds_setup_arch()", 0);
 
@@ -206,7 +205,6 @@ static void __init mpc8568_mds_pic_init(void)
 
 	mpic_init(mpic);
 
-
 #ifdef CONFIG_QUICC_ENGINE
 	np = of_find_node_by_type(NULL, "qeic");
 	if (!np)
@@ -217,24 +215,15 @@ static void __init mpc8568_mds_pic_init(void)
 #endif				/* CONFIG_QUICC_ENGINE */
 }
 
-
 static int __init mpc8568_mds_probe(void)
 {
-	char *model = of_get_flat_dt_prop(of_get_flat_dt_root(),
-					  "model", NULL);
-	if (model == NULL)
-		return 0;
-	if (strcmp(model, "MPC8568EMDS"))
-		return 0;
+        unsigned long root = of_get_flat_dt_root();
 
-	DBG("MPC8568EMDS found\n");
-
-	return 1;
+        return of_flat_dt_is_compatible(root, "MPC85xxMDS");
 }
 
-
 define_machine(mpc8568_mds) {
-	.name		= "MPC8568E MDS",
+	.name		= "MPC85xx MDS",
 	.probe		= mpc8568_mds_probe,
 	.setup_arch	= mpc8568_mds_setup_arch,
 	.init_IRQ	= mpc8568_mds_pic_init,
