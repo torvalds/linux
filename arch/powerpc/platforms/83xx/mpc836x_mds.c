@@ -5,12 +5,12 @@
  *	   Yin Olivia <Hong-hua.Yin@freescale.com>
  *
  * Description:
- * MPC8360E MDS PB board specific routines.
+ * MPC8360E MDS board specific routines.
  *
  * Changelog:
  * Jun 21, 2006	Initial version
  *
- * This program is free software; you can redistribute  it and/or modify it
+ * This program is free software; you can redistribute it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
@@ -62,22 +62,17 @@ unsigned long isa_mem_base = 0;
 
 static u8 *bcsr_regs = NULL;
 
-u8 *get_bcsr(void)
-{
-	return bcsr_regs;
-}
-
 /* ************************************************************************
  *
  * Setup the architecture
  *
  */
-static void __init mpc8360_sys_setup_arch(void)
+static void __init mpc836x_mds_setup_arch(void)
 {
 	struct device_node *np;
 
 	if (ppc_md.progress)
-		ppc_md.progress("mpc8360_sys_setup_arch()", 0);
+		ppc_md.progress("mpc836x_mds_setup_arch()", 0);
 
 	/* Map BCSR area */
 	np = of_find_node_by_name(NULL, "bcsr");
@@ -128,7 +123,7 @@ static struct of_device_id mpc836x_ids[] = {
 
 static int __init mpc836x_declare_of_platform_devices(void)
 {
-	if (!machine_is(mpc8360_sys))
+	if (!machine_is(mpc836x_mds))
 		return 0;
 
 	/* Publish the QE devices */
@@ -138,9 +133,8 @@ static int __init mpc836x_declare_of_platform_devices(void)
 }
 device_initcall(mpc836x_declare_of_platform_devices);
 
-static void __init mpc8360_sys_init_IRQ(void)
+static void __init mpc836x_mds_init_IRQ(void)
 {
-
 	struct device_node *np;
 
 	np = of_find_node_by_type(NULL, "ipic");
@@ -173,7 +167,7 @@ static int __init mpc8360_rtc_hookup(void)
 {
 	struct timespec tv;
 
-	if (!machine_is(mpc8360_sys))
+	if (!machine_is(mpc836x_mds))
 		return 0;
 
 	ppc_md.get_rtc_time = ds1374_get_rtc_time;
@@ -192,21 +186,21 @@ late_initcall(mpc8360_rtc_hookup);
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
-static int __init mpc8360_sys_probe(void)
+static int __init mpc836x_mds_probe(void)
 {
         unsigned long root = of_get_flat_dt_root();
 
         return of_flat_dt_is_compatible(root, "MPC836xMDS");
 }
 
-define_machine(mpc8360_sys) {
-	.name 		= "MPC8360E PB",
-	.probe 		= mpc8360_sys_probe,
-	.setup_arch 	= mpc8360_sys_setup_arch,
-	.init_IRQ 	= mpc8360_sys_init_IRQ,
-	.get_irq 	= ipic_get_irq,
-	.restart 	= mpc83xx_restart,
-	.time_init 	= mpc83xx_time_init,
+define_machine(mpc836x_mds) {
+	.name		= "MPC836x MDS",
+	.probe		= mpc836x_mds_probe,
+	.setup_arch	= mpc836x_mds_setup_arch,
+	.init_IRQ	= mpc836x_mds_init_IRQ,
+	.get_irq	= ipic_get_irq,
+	.restart	= mpc83xx_restart,
+	.time_init	= mpc83xx_time_init,
 	.calibrate_decr	= generic_calibrate_decr,
-	.progress 	= udbg_progress,
+	.progress	= udbg_progress,
 };

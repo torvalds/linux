@@ -38,12 +38,12 @@ config MPC834x_ITX
 	  Be aware that PCI initialization is the bootloader's
 	  responsibility.
 
-config MPC8360E_PB
-	bool "Freescale MPC8360E PB"
+config MPC836x_MDS
+	bool "Freescale MPC836x MDS"
 	select DEFAULT_UIMAGE
 	select QUICC_ENGINE
 	help
-	  This option enables support for the MPC836x EMDS Processor Board.
+	  This option enables support for the MPC836x MDS Processor Board.
 
 endchoice
 
@@ -69,6 +69,6 @@ config PPC_MPC836x
 	bool
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
-	default y if MPC8360E_PB
+	default y if MPC836x_MDS
 
 endmenu
