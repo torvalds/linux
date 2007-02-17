@@ -509,7 +509,6 @@ looks like in practice.
       o chosen
         |- name = "chosen"
         |- bootargs = "root=/dev/sda2"
-        |- linux,platform = <00000600>
         |- linux,phandle = <4>
 
 This tree is almost a minimal tree. It pretty much contains the
@@ -733,8 +732,7 @@ address which can extend beyond that limit.
       that typically get driven by the same platform code in the
       kernel, you would use a different "model" property but put a
       value in "compatible". The kernel doesn't directly use that
-      value (see /chosen/linux,platform for how the kernel chooses a
-      platform type) but it is generally useful.
+      value but it is generally useful.
 
   The root node is also generally where you add additional properties
   specific to your board like the serial number if any, that sort of
@@ -841,11 +839,6 @@ address which can extend beyond that limit.
   some linux-specific properties that would be normally constructed by
   the prom_init() trampoline when booting with an OF client interface,
   but that you have to provide yourself when using the flattened format.
-
-  Required properties:
-
-    - linux,platform : This is your platform number as assigned by the
-      architecture maintainers
 
   Recommended properties:
 
