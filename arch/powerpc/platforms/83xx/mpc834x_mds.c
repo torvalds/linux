@@ -176,6 +176,9 @@ static int __init mpc834x_rtc_hookup(void)
 {
 	struct timespec tv;
 
+	if (!machine_is(mpc834x_mds))
+		return 0;
+
 	ppc_md.get_rtc_time = ds1374_get_rtc_time;
 	ppc_md.set_rtc_time = ds1374_set_rtc_time;
 
@@ -194,10 +197,9 @@ late_initcall(mpc834x_rtc_hookup);
  */
 static int __init mpc834x_mds_probe(void)
 {
-	/* We always match for now, eventually we should look at the flat
-	   dev tree to ensure this is the board we are suppose to run on
-	*/
-	return 1;
+        unsigned long root = of_get_flat_dt_root();
+
+        return of_flat_dt_is_compatible(root, "MPC834xMDS");
 }
 
 define_machine(mpc834x_mds) {

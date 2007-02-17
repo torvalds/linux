@@ -57,11 +57,6 @@ unsigned long isa_mem_base = 0;
 
 static u8 *bcsr_regs = NULL;
 
-u8 *get_bcsr(void)
-{
-	return bcsr_regs;
-}
-
 /* ************************************************************************
  *
  * Setup the architecture
@@ -140,6 +135,9 @@ static int __init mpc832x_declare_of_platform_devices(void)
 {
 	struct device_node *np;
 
+	if (!machine_is(mpc832x_mds))
+		return 0;
+
 	for (np = NULL; (np = of_find_compatible_node(np, "network",
 					"ucc_geth")) != NULL;) {
 		int ucc_num;
@@ -189,6 +187,9 @@ static int __init mpc832x_rtc_hookup(void)
 {
 	struct timespec tv;
 
+	if (!machine_is(mpc832x_mds))
+		return 0;
+
 	ppc_md.get_rtc_time = ds1374_get_rtc_time;
 	ppc_md.set_rtc_time = ds1374_set_rtc_time;
 
@@ -207,17 +208,9 @@ late_initcall(mpc832x_rtc_hookup);
  */
 static int __init mpc832x_sys_probe(void)
 {
-	char *model = of_get_flat_dt_prop(of_get_flat_dt_root(),
-					  "model", NULL);
+        unsigned long root = of_get_flat_dt_root();
 
-	if (model == NULL)
-		return 0;
-	if (strcmp(model, "MPC8323EMDS"))
-		return 0;
-
-	DBG("%s found\n", model);
-
-	return 1;
+        return of_flat_dt_is_compatible(root, "MPC832xMDS");
 }
 
 define_machine(mpc832x_mds) {
