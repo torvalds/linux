@@ -68,3 +68,10 @@ struct s3c24xx_dma_order {
 };
 
 extern int s3c24xx_dma_order_set(struct s3c24xx_dma_order *map);
+
+/* DMA init code, called from the cpu support code */
+
+extern int s3c2410_dma_init(void);
+
+extern int s3c24xx_dma_init(unsigned int channels, unsigned int irq,
+			    unsigned int stride);

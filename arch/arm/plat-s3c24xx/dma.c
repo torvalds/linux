@@ -42,6 +42,8 @@
 static void __iomem *dma_base;
 static struct kmem_cache *dma_kmem;
 
+static int dma_channels;
+
 struct s3c24xx_dma_selection dma_sel;
 
 /* dma channel state information */
@@ -1278,7 +1280,42 @@ static void s3c2410_dma_cache_ctor(void *p, struct kmem_cache *c, unsigned long 
 
 /* initialisation code */
 
-static int __init s3c2410_init_dma(void)
+int __init s3c24xx_dma_sysclass_init(void)
+{
+	int ret = sysdev_class_register(&dma_sysclass);
+
+	if (ret != 0)
+		printk(KERN_ERR "dma sysclass registration failed\n");
+
+	return ret;
+}
+
+core_initcall(s3c24xx_dma_sysclass_init);
+
+int __init s3c24xx_dma_sysdev_register(void)
+{
+	struct s3c2410_dma_chan *cp = s3c2410_chans;
+	int channel, ret;
+
+	for (channel = 0; channel < dma_channels; cp++, channel++) {
+		cp->dev.cls = &dma_sysclass;
+		cp->dev.id  = channel;
+		ret = sysdev_register(&cp->dev);
+
+		if (ret) {
+			printk(KERN_ERR "error registering dev for dma %d\n",
+			       channel);
+ 			return ret;
+		}
+	}
+
+	return 0;
+}
+
+late_initcall(s3c24xx_dma_sysdev_register);
+
+int __init s3c24xx_dma_init(unsigned int channels, unsigned int irq,
+			    unsigned int stride)
 {
 	struct s3c2410_dma_chan *cp;
 	int channel;
@@ -1286,21 +1323,16 @@ static int __init s3c2410_init_dma(void)
 
 	printk("S3C24XX DMA Driver, (c) 2003-2004,2006 Simtec Electronics\n");
 
-	dma_base = ioremap(S3C24XX_PA_DMA, 0x200);
+	dma_channels = channels;
+
+	dma_base = ioremap(S3C24XX_PA_DMA, stride * channels);
 	if (dma_base == NULL) {
 		printk(KERN_ERR "dma failed to remap register block\n");
 		return -ENOMEM;
 	}
 
-	printk("Registering sysclass\n");
-
-	ret = sysdev_class_register(&dma_sysclass);
-	if (ret != 0) {
-		printk(KERN_ERR "dma sysclass registration failed\n");
-		goto err;
-	}
-
-	dma_kmem = kmem_cache_create("dma_desc", sizeof(struct s3c2410_dma_buf), 0,
+	dma_kmem = kmem_cache_create("dma_desc",
+				     sizeof(struct s3c2410_dma_buf), 0,
 				     SLAB_HWCACHE_ALIGN,
 				     s3c2410_dma_cache_ctor, NULL);
 
@@ -1310,15 +1342,15 @@ static int __init s3c2410_init_dma(void)
 		goto err;
 	}
 
-	for (channel = 0; channel < S3C2410_DMA_CHANNELS; channel++) {
+	for (channel = 0; channel < channels;  channel++) {
 		cp = &s3c2410_chans[channel];
 
 		memset(cp, 0, sizeof(struct s3c2410_dma_chan));
 
 		/* dma channel irqs are in order.. */
 		cp->number = channel;
-		cp->irq    = channel + IRQ_DMA0;
-		cp->regs   = dma_base + (channel*0x40);
+		cp->irq    = channel + irq;
+		cp->regs   = dma_base + (channel * stride);
 
 		/* point current stats somewhere */
 		cp->stats  = &cp->stats_store;
@@ -1327,12 +1359,6 @@ static int __init s3c2410_init_dma(void)
 		/* basic channel configuration */
 
 		cp->load_timeout = 1<<18;
-
-		/* register system device */
-
-		cp->dev.cls = &dma_sysclass;
-		cp->dev.id  = channel;
-		ret = sysdev_register(&cp->dev);
 
 		printk("DMA channel %d at %p, irq %d\n",
 		       cp->number, cp->regs, cp->irq);
@@ -1347,7 +1373,10 @@ static int __init s3c2410_init_dma(void)
 	return ret;
 }
 
-core_initcall(s3c2410_init_dma);
+int s3c2410_dma_init(void)
+{
+	return s3c24xx_dma_init(4, IRQ_DMA0, 0x40);
+}
 
 static inline int is_channel_valid(unsigned int channel)
 {
@@ -1384,7 +1413,7 @@ struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
 	if (dma_order) {
 		ord = &dma_order->channels[channel];
 
-		for (ch = 0; ch < S3C2410_DMA_CHANNELS; ch++) {
+		for (ch = 0; ch < dma_channels; ch++) {
 			if (!is_channel_valid(ord->list[ch]))
 				continue;
 
@@ -1400,7 +1429,7 @@ struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
 
 	/* second, search the channel map for first free */
 
-	for (ch = 0; ch < S3C2410_DMA_CHANNELS; ch++) {
+	for (ch = 0; ch < dma_channels; ch++) {
 		if (!is_channel_valid(ch_map->channels[ch]))
 			continue;
 
@@ -1410,7 +1439,7 @@ struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
 		}
 	}
 
-	if (ch >= S3C2410_DMA_CHANNELS)
+	if (ch >= dma_channels)
 		return NULL;
 
 	/* update our channel mapping */

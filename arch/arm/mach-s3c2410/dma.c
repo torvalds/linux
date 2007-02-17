@@ -19,9 +19,9 @@
 
 #include <asm/dma.h>
 #include <asm/arch/dma.h>
-#include <asm/plat-s3c24xx/dma.h>
 
 #include <asm/plat-s3c24xx/cpu.h>
+#include <asm/plat-s3c24xx/dma.h>
 
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
@@ -147,6 +147,7 @@ static struct s3c24xx_dma_order __initdata s3c2410_dma_order = {
 
 static int s3c2410_dma_add(struct sys_device *sysdev)
 {
+	s3c2410_dma_init();
 	s3c24xx_dma_order_set(&s3c2410_dma_order);
 	return s3c24xx_dma_init_map(&s3c2410_dma_sel);
 }
@@ -156,12 +157,12 @@ static struct sysdev_driver s3c2410_dma_driver = {
 	.add	= s3c2410_dma_add,
 };
 
-static int __init s3c2410_dma_init(void)
+static int __init s3c2410_dma_drvinit(void)
 {
 	return sysdev_driver_register(&s3c2410_sysclass, &s3c2410_dma_driver);
 }
 
-arch_initcall(s3c2410_dma_init);
+arch_initcall(s3c2410_dma_drvinit);
 #endif
 
 #if defined(CONFIG_CPU_S3C2442)
@@ -170,11 +171,11 @@ static struct sysdev_driver s3c2442_dma_driver = {
 	.add	= s3c2410_dma_add,
 };
 
-static int __init s3c2442_dma_init(void)
+static int __init s3c2442_dma_drvinit(void)
 {
 	return sysdev_driver_register(&s3c2442_sysclass, &s3c2442_dma_driver);
 }
 
-arch_initcall(s3c2442_dma_init);
+arch_initcall(s3c2442_dma_drvinit);
 #endif
 

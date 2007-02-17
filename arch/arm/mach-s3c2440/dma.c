@@ -19,8 +19,8 @@
 
 #include <asm/dma.h>
 #include <asm/arch/dma.h>
-#include <asm/plat-s3c24xx/dma.h>
 
+#include <asm/plat-s3c24xx/dma.h>
 #include <asm/plat-s3c24xx/cpu.h>
 
 #include <asm/arch/regs-serial.h>
@@ -192,6 +192,7 @@ static struct s3c24xx_dma_order __initdata s3c2440_dma_order = {
 
 static int s3c2440_dma_add(struct sys_device *sysdev)
 {
+	s3c2410_dma_init();
 	s3c24xx_dma_order_set(&s3c2440_dma_order);
 	return s3c24xx_dma_init_map(&s3c2440_dma_sel);
 }
