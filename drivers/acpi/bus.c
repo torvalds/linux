@@ -147,7 +147,7 @@ int acpi_bus_get_power(acpi_handle handle, int *state)
 			*state = ACPI_STATE_D0;
 	} else {
 		/*
-		 * Get the device's power state either directly (via _PSC) or 
+		 * Get the device's power state either directly (via _PSC) or
 		 * indirectly (via power resources).
 		 */
 		if (device->power.flags.explicit_get) {
@@ -461,7 +461,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 				  "Received BUS CHECK notification for device [%s]\n",
 				  device->pnp.bus_id));
 		result = acpi_bus_check_scope(device);
-		/* 
+		/*
 		 * TBD: We'll need to outsource certain events to non-ACPI
 		 *      drivers via the device manager (device.c).
 		 */
@@ -472,7 +472,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 				  "Received DEVICE CHECK notification for device [%s]\n",
 				  device->pnp.bus_id));
 		result = acpi_bus_check_device(device, NULL);
-		/* 
+		/*
 		 * TBD: We'll need to outsource certain events to non-ACPI
 		 *      drivers via the device manager (device.c).
 		 */
@@ -542,7 +542,7 @@ static int __init acpi_bus_init_irq(void)
 	char *message = NULL;
 
 
-	/* 
+	/*
 	 * Let the system know what interrupt model we are using by
 	 * evaluating the \_PIC object, if exists.
 	 */
@@ -683,7 +683,7 @@ static int __init acpi_bus_init(void)
 	 * the EC device is found in the namespace (i.e. before acpi_initialize_objects()
 	 * is called).
 	 *
-	 * This is accomplished by looking for the ECDT table, and getting 
+	 * This is accomplished by looking for the ECDT table, and getting
 	 * the EC parameters out of that.
 	 */
 	status = acpi_ec_ecdt_probe();
@@ -697,6 +697,9 @@ static int __init acpi_bus_init(void)
 	}
 
 	printk(KERN_INFO PREFIX "Interpreter enabled\n");
+
+	/* Initialize sleep structures */
+	acpi_sleep_init();
 
 	/*
 	 * Get the system interrupt model and evaluate \_PIC.
