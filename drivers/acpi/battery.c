@@ -323,6 +323,13 @@ static int acpi_battery_check(struct acpi_battery *battery)
 	return result;
 }
 
+static void acpi_battery_check_present(struct acpi_battery *battery)
+{
+	if (!battery->flags.present) {
+		acpi_battery_check(battery);
+	}
+}
+
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
@@ -338,6 +345,8 @@ static int acpi_battery_read_info(struct seq_file *seq, void *offset)
 
 	if (!battery)
 		goto end;
+
+	acpi_battery_check_present(battery);
 
 	if (battery->flags.present)
 		seq_printf(seq, "present:                 yes\n");
@@ -423,6 +432,8 @@ static int acpi_battery_read_state(struct seq_file *seq, void *offset)
 	if (!battery)
 		goto end;
 
+	acpi_battery_check_present(battery);
+
 	if (battery->flags.present)
 		seq_printf(seq, "present:                 yes\n");
 	else {
@@ -498,6 +509,8 @@ static int acpi_battery_read_alarm(struct seq_file *seq, void *offset)
 	if (!battery)
 		goto end;
 
+	acpi_battery_check_present(battery);
+
 	if (!battery->flags.present) {
 		seq_printf(seq, "present:                 no\n");
 		goto end;
@@ -534,6 +547,8 @@ acpi_battery_write_alarm(struct file *file,
 
 	if (!battery || (count > sizeof(alarm_string) - 1))
 		return -EINVAL;
+
+	acpi_battery_check_present(battery);
 
 	if (!battery->flags.present)
 		return -ENODEV;
