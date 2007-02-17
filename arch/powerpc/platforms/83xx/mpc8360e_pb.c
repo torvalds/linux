@@ -119,26 +119,24 @@ static void __init mpc8360_sys_setup_arch(void)
 #endif				/* CONFIG_QUICC_ENGINE */
 }
 
-static int __init mpc8360_declare_of_platform_devices(void)
-{
-	struct device_node *np;
+static struct of_device_id mpc836x_ids[] = {
+	{ .type = "soc", },
+	{ .compatible = "soc", },
+	{ .type = "qe", },
+	{},
+};
 
+static int __init mpc836x_declare_of_platform_devices(void)
+{
 	if (!machine_is(mpc8360_sys))
 		return 0;
 
-	for (np = NULL; (np = of_find_compatible_node(np, "network",
-					"ucc_geth")) != NULL;) {
-		int ucc_num;
-		char bus_id[BUS_ID_SIZE];
-
-		ucc_num = *((uint *) get_property(np, "device-id", NULL)) - 1;
-		snprintf(bus_id, BUS_ID_SIZE, "ucc_geth.%u", ucc_num);
-		of_platform_device_create(np, bus_id, NULL);
-	}
+	/* Publish the QE devices */
+	of_platform_bus_probe(NULL, mpc836x_ids, NULL);
 
 	return 0;
 }
-device_initcall(mpc8360_declare_of_platform_devices);
+device_initcall(mpc836x_declare_of_platform_devices);
 
 static void __init mpc8360_sys_init_IRQ(void)
 {
