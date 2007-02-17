@@ -670,6 +670,15 @@ static inline void hidp_setup_input(struct hidp_session *session, struct hidp_co
 	input_register_device(input);
 }
 
+static int hidp_open(struct hid_device *hid)
+{
+	return 0;
+}
+
+static void hidp_close(struct hid_device *hid)
+{
+}
+
 static inline void hidp_setup_hid(struct hidp_session *session, struct hidp_connadd_req *req)
 {
 	struct hid_device *hid = session->hid;
@@ -693,6 +702,9 @@ static inline void hidp_setup_hid(struct hidp_session *session, struct hidp_conn
 	strncpy(hid->uniq, batostr(&dst), 64);
 
 	hid->dev = hidp_get_device(session);
+
+	hid->hid_open  = hidp_open;
+	hid->hid_close = hidp_close;
 
 	hid->hidinput_input_event = hidp_hidinput_event;
 
