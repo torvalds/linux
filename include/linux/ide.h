@@ -1352,6 +1352,7 @@ extern int ide_dma_enable(ide_drive_t *drive);
 extern char *ide_xfer_verbose(u8 xfer_rate);
 extern void ide_toggle_bounce(ide_drive_t *drive, int on);
 extern int ide_set_xfer_rate(ide_drive_t *drive, u8 rate);
+int ide_use_fast_pio(ide_drive_t *);
 
 u8 ide_dump_status(ide_drive_t *, const char *, u8);
 

@@ -737,18 +737,13 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 static int hpt366_config_drive_xfer_rate(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
 
 	drive->init_speed = 0;
 
-	if ((id->capability & 1) && drive->autodma) {
-		if (ide_use_dma(drive) && config_chipset_for_dma(drive))
-			return hwif->ide_dma_on(drive);
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return hwif->ide_dma_on(drive);
 
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
+	if (ide_use_fast_pio(drive)) {
 		hpt3xx_tune_drive(drive, 255);
 		return hwif->ide_dma_off_quietly(drive);
 	}

@@ -253,22 +253,14 @@ static int atiixp_config_drive_for_dma(ide_drive_t *drive)
 static int atiixp_dma_check(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
 	u8 tspeed, speed;
 
 	drive->init_speed = 0;
 
-	if ((id->capability & 1) && drive->autodma) {
+	if (ide_use_dma(drive) && atiixp_config_drive_for_dma(drive))
+		return hwif->ide_dma_on(drive);
 
-		if (ide_use_dma(drive)) {
-			if (atiixp_config_drive_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
-
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
+	if (ide_use_fast_pio(drive)) {
 		tspeed = ide_get_best_pio_mode(drive, 255, 5, NULL);
 		speed = atiixp_dma_2_pio(XFER_PIO_0 + tspeed) + XFER_PIO_0;
 		hwif->speedproc(drive, speed);

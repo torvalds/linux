@@ -680,6 +680,9 @@ int ide_use_dma(ide_drive_t *drive)
 	struct hd_driveid *id = drive->id;
 	ide_hwif_t *hwif = drive->hwif;
 
+	if ((id->capability & 1) == 0 || drive->autodma == 0)
+		return 0;
+
 	/* consult the list of known "bad" drives */
 	if (__ide_dma_bad_drive(drive))
 		return 0;

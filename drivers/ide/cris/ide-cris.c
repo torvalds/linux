@@ -821,6 +821,9 @@ init_e100_ide (void)
 		hwif->ultra_mask = cris_ultra_mask;
 		hwif->mwdma_mask = 0x07; /* Multiword DMA 0-2 */
 		hwif->swdma_mask = 0x07; /* Singleword DMA 0-2 */
+		hwif->autodma = 1;
+		hwif->drives[0].autodma = 1;
+		hwif->drives[1].autodma = 1;
 	}
 
 	/* Reset pulse */
@@ -1046,14 +1049,9 @@ static ide_startstop_t cris_dma_intr (ide_drive_t *drive)
 static int cris_dma_check(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct hd_driveid* id = drive->id;
 
-	if (id && (id->capability & 1)) {
-		if (ide_use_dma(drive)) {
-			if (cris_config_drive_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
-	}
+	if (ide_use_dma(drive) && cris_config_drive_for_dma(drive))
+		return hwif->ide_dma_on(drive);
 
 	return hwif->ide_dma_off_quietly(drive);
 }
