@@ -217,7 +217,7 @@ menu "Processor type and features"
    # Some platforms pre-zero memory, in which case the kernel doesn't need to
    config ZERO_BSS
    	  bool
-	  depends !V850E2_SIM85E2C
+	  depends on !V850E2_SIM85E2C
 	  default y
 
    # The crappy-ass zone allocator requires that the start of allocatable
