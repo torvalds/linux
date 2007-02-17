@@ -1189,32 +1189,6 @@ config EFS_FS
 	  To compile the EFS file system support as a module, choose M here: the
 	  module will be called efs.
 
-config JFFS_FS
-	tristate "Journalling Flash File System (JFFS) support"
-	depends on MTD && BLOCK && BROKEN
-	help
-	  JFFS is the Journalling Flash File System developed by Axis
-	  Communications in Sweden, aimed at providing a crash/powerdown-safe
-	  file system for disk-less embedded devices. Further information is
-	  available at (<http://developer.axis.com/software/jffs/>).
-
-	  NOTE: This filesystem is deprecated and is scheduled for removal in
-	  2.6.21.  See Documentation/feature-removal-schedule.txt
-
-config JFFS_FS_VERBOSE
-	int "JFFS debugging verbosity (0 = quiet, 3 = noisy)"
-	depends on JFFS_FS
-	default "0"
-	help
-	  Determines the verbosity level of the JFFS debugging messages.
-
-config JFFS_PROC_FS
-	bool "JFFS stats available in /proc filesystem"
-	depends on JFFS_FS && PROC_FS
-	help
-	  Enabling this option will cause statistics from mounted JFFS file systems
-	  to be made available to the user in the /proc/fs/jffs/ directory.
-
 config JFFS2_FS
 	tristate "Journalling Flash File System v2 (JFFS2) support"
 	select CRC32
