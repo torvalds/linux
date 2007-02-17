@@ -147,7 +147,7 @@
  * in UP:
  * 	- we need to protect against PMU overflow interrupts (local_irq_disable)
  *
- * spin_lock_irqsave()/spin_lock_irqrestore():
+ * spin_lock_irqsave()/spin_unlock_irqrestore():
  * 	in SMP: local_irq_disable + spin_lock
  * 	in UP : local_irq_disable
  *
