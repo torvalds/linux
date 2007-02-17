@@ -258,9 +258,13 @@ map_single(struct device *dev, void *ptr, size_t size,
 		ptr = buf->safe;
 
 		dma_addr = buf->safe_dma_addr;
+	} else {
+		/*
+		 * We don't need to sync the DMA buffer since
+		 * it was allocated via the coherent allocators.
+		 */
+		consistent_sync(ptr, size, dir);
 	}
-
-	consistent_sync(ptr, size, dir);
 
 	return dma_addr;
 }
@@ -294,12 +298,12 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		DO_STATS ( device_info->bounce_count++ );
 
 		if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL) {
-			unsigned long ptr;
+			void *ptr = buf->ptr;
 
 			dev_dbg(dev,
 				"%s: copy back safe %p to unsafe %p size %d\n",
-				__func__, buf->safe, buf->ptr, size);
-			memcpy(buf->ptr, buf->safe, size);
+				__func__, buf->safe, ptr, size);
+			memcpy(ptr, buf->safe, size);
 
 			/*
 			 * DMA buffers must have the same cache properties
@@ -309,8 +313,8 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 			 * bidirectional case because we know the cache
 			 * lines will be coherent with the data written.
 			 */
-			ptr = (unsigned long)buf->ptr;
 			dmac_clean_range(ptr, ptr + size);
+			outer_clean_range(__pa(ptr), __pa(ptr) + size);
 		}
 		free_safe_buffer(device_info, buf);
 	}
@@ -374,7 +378,10 @@ sync_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		default:
 			BUG();
 		}
-		consistent_sync(buf->safe, size, dir);
+		/*
+		 * No need to sync the safe buffer - it was allocated
+		 * via the coherent allocators.
+		 */
 	} else {
 		consistent_sync(dma_to_virt(dev, dma_addr), size, dir);
 	}

@@ -15,15 +15,16 @@
 
 #include <asm/arch/map.h>
 #include <asm/arch/idle.h>
+#include <asm/arch/reset.h>
 
 #include <asm/arch/regs-watchdog.h>
 #include <asm/arch/regs-clock.h>
 
 void (*s3c24xx_idle)(void);
+void (*s3c24xx_reset_hook)(void);
 
 void s3c24xx_default_idle(void)
 {
-	void __iomem *reg = S3C2410_CLKCON;
 	unsigned long tmp;
 	int i;
 
@@ -33,16 +34,18 @@ void s3c24xx_default_idle(void)
 
 	/* Warning: going into idle state upsets jtag scanning */
 
-	__raw_writel(__raw_readl(reg) | (1<<2), reg);
+	__raw_writel(__raw_readl(S3C2410_CLKCON) | S3C2410_CLKCON_IDLE,
+		     S3C2410_CLKCON);
 
 	/* the samsung port seems to do a loop and then unset idle.. */
 	for (i = 0; i < 50; i++) {
-		tmp += __raw_readl(reg); /* ensure loop not optimised out */
+		tmp += __raw_readl(S3C2410_CLKCON); /* ensure loop not optimised out */
 	}
 
 	/* this bit is not cleared on re-start... */
 
-	__raw_writel(__raw_readl(reg) & ~(1<<2), reg);
+	__raw_writel(__raw_readl(S3C2410_CLKCON) & ~S3C2410_CLKCON_IDLE,
+		     S3C2410_CLKCON);
 }
 
 static void arch_idle(void)
@@ -53,13 +56,15 @@ static void arch_idle(void)
 		s3c24xx_default_idle();
 }
 
-
 static void
 arch_reset(char mode)
 {
 	if (mode == 's') {
 		cpu_reset(0);
 	}
+
+	if (s3c24xx_reset_hook)
+		s3c24xx_reset_hook();
 
 	printk("arch_reset: attempting watchdog reset\n");
 

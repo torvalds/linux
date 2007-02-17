@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2006 Atmel Corporation
  *
- * Based on arch/arm/mach-at91rm9200/clock.c
+ * Based on arch/arm/mach-at91/clock.c
  *   Copyright (C) 2005 David Brownell
  *   Copyright (C) 2005 Ivan Kokshaysky
  *

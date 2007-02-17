@@ -280,6 +280,7 @@ config ARCH_PXA
 	bool "PXA2xx-based"
 	depends on MMU
 	select ARCH_MTD_XIP
+	select GENERIC_TIME
 	help
 	  Support for Intel's PXA2XX processor line.
 
@@ -303,7 +304,7 @@ config ARCH_SA1100
 	  Support for StrongARM 11x0 based boards.
 
 config ARCH_S3C2410
-	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2440, S3C2442"
+	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2440, S3C2442, S3C2443"
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
@@ -363,7 +364,16 @@ source "arch/arm/mach-omap1/Kconfig"
 
 source "arch/arm/mach-omap2/Kconfig"
 
+source "arch/arm/plat-s3c24xx/Kconfig"
+
+if ARCH_S3C2410
+source "arch/arm/mach-s3c2400/Kconfig"
 source "arch/arm/mach-s3c2410/Kconfig"
+source "arch/arm/mach-s3c2412/Kconfig"
+source "arch/arm/mach-s3c2440/Kconfig"
+source "arch/arm/mach-s3c2442/Kconfig"
+source "arch/arm/mach-s3c2443/Kconfig"
+endif
 
 source "arch/arm/mach-lh7a40x/Kconfig"
 
@@ -377,7 +387,7 @@ source "arch/arm/mach-aaec2000/Kconfig"
 
 source "arch/arm/mach-realview/Kconfig"
 
-source "arch/arm/mach-at91rm9200/Kconfig"
+source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-netx/Kconfig"
 

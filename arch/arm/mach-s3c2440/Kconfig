@@ -1,0 +1,71 @@
+# arch/arm/mach-s3c2440/Kconfig
+#
+# Copyright 2007 Simtec Electronics
+#
+# Licensed under GPLv2
+
+config CPU_S3C2440
+	bool
+	depends on ARCH_S3C2410
+	select S3C2410_CLOCK
+	select S3C2410_PM if PM
+	select S3C2410_GPIO
+	select S3C2440_DMA if S3C2410_DMA
+	select CPU_S3C244X
+	help
+	  Support for S3C2440 Samsung Mobile CPU based systems.
+
+config S3C2440_DMA
+	bool
+	depends on ARCH_S3C2410 && CPU_S3C24405B
+	help
+	  Support for S3C2440 specific DMA code5A
+
+
+menu "S3C2440 Machines"
+
+config MACH_ANUBIS
+	bool "Simtec Electronics ANUBIS"
+	select CPU_S3C2440
+	select PM_SIMTEC if PM
+	help
+	  Say Y here if you are using the Simtec Electronics ANUBIS
+	  development system
+
+config MACH_OSIRIS
+	bool "Simtec IM2440D20 (OSIRIS) module"
+	select CPU_S3C2440
+	select PM_SIMTEC if PM
+	help
+	  Say Y here if you are using the Simtec IM2440D20 module, also
+	  known as the Osiris.
+
+config MACH_RX3715
+	bool "HP iPAQ rx3715"
+	select CPU_S3C2440
+	select PM_H1940 if PM
+	help
+	  Say Y here if you are using the HP iPAQ rx3715.
+
+config ARCH_S3C2440
+	bool "SMDK2440"
+	select CPU_S3C2440
+	select MACH_SMDK
+	help
+	  Say Y here if you are using the SMDK2440.
+
+config MACH_NEXCODER_2440
+ 	bool "NexVision NEXCODER 2440 Light Board"
+ 	select CPU_S3C2440
+	help
+ 	  Say Y here if you are using the Nex Vision NEXCODER 2440 Light Board
+
+config SMDK2440_CPU2440
+	bool "SMDK2440 with S3C2440 CPU module"
+	depends on ARCH_S3C2440
+	default y if ARCH_S3C2440
+	select CPU_S3C2440
+
+
+endmenu
+

@@ -17,7 +17,7 @@
  * platforms with CONFIG_DMABOUNCE.
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
-extern void consistent_sync(void *kaddr, size_t size, int rw);
+extern void consistent_sync(const void *kaddr, size_t size, int rw);
 
 /*
  * Return whether the given device DMA address mask can be supported

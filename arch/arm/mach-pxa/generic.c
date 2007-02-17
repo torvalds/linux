@@ -338,6 +338,27 @@ static struct platform_device i2c_device = {
 	.num_resources	= ARRAY_SIZE(i2c_resources),
 };
 
+#ifdef CONFIG_PXA27x
+static struct resource i2c_power_resources[] = {
+	{
+		.start	= 0x40f00180,
+		.end	= 0x40f001a3,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_PWRI2C,
+		.end	= IRQ_PWRI2C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device i2c_power_device = {
+	.name		= "pxa2xx-i2c",
+	.id		= 1,
+	.resource	= i2c_power_resources,
+	.num_resources	= ARRAY_SIZE(i2c_resources),
+};
+#endif
+
 void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
 {
 	i2c_device.dev.platform_data = info;
@@ -392,6 +413,9 @@ static struct platform_device *devices[] __initdata = {
 	&stuart_device,
 	&pxaficp_device,
 	&i2c_device,
+#ifdef CONFIG_PXA27x
+	&i2c_power_device,
+#endif
 	&i2s_device,
 	&pxartc_device,
 };

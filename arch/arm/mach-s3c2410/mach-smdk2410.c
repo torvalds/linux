@@ -1,4 +1,4 @@
-/***********************************************************************
+/* linux/arch/arm/mach-s3c2410/mach-smdk2410.c
  *
  * linux/arch/arm/mach-s3c2410/mach-smdk2410.c
  *
@@ -49,10 +49,10 @@
 
 #include <asm/arch/regs-serial.h>
 
-#include "devs.h"
-#include "cpu.h"
+#include <asm/plat-s3c24xx/devs.h>
+#include <asm/plat-s3c24xx/cpu.h>
 
-#include "common-smdk.h"
+#include <asm/plat-s3c24xx/common-smdk.h>
 
 static struct map_desc smdk2410_iodesc[] __initdata = {
   /* nothing here yet */

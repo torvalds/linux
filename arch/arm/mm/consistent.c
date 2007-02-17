@@ -205,9 +205,10 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	 * kernel direct-mapped region for device DMA.
 	 */
 	{
-		unsigned long kaddr = (unsigned long)page_address(page);
-		memset(page_address(page), 0, size);
-		dmac_flush_range(kaddr, kaddr + size);
+		void *ptr = page_address(page);
+		memset(ptr, 0, size);
+		dmac_flush_range(ptr, ptr + size);
+		outer_flush_range(__pa(ptr), __pa(ptr) + size);
 	}
 
 	/*
@@ -480,20 +481,24 @@ core_initcall(consistent_init);
  * platforms with CONFIG_DMABOUNCE.
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
-void consistent_sync(void *vaddr, size_t size, int direction)
+void consistent_sync(const void *start, size_t size, int direction)
 {
-	unsigned long start = (unsigned long)vaddr;
-	unsigned long end   = start + size;
+	const void *end = start + size;
+
+	BUG_ON(!virt_addr_valid(start) || !virt_addr_valid(end - 1));
 
 	switch (direction) {
 	case DMA_FROM_DEVICE:		/* invalidate only */
 		dmac_inv_range(start, end);
+		outer_inv_range(__pa(start), __pa(end));
 		break;
 	case DMA_TO_DEVICE:		/* writeback only */
 		dmac_clean_range(start, end);
+		outer_clean_range(__pa(start), __pa(end));
 		break;
 	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
 		dmac_flush_range(start, end);
+		outer_flush_range(__pa(start), __pa(end));
 		break;
 	default:
 		BUG();

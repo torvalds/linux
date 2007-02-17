@@ -19,7 +19,8 @@ unsigned int cpu_last_asid = { 1 << ASID_BITS };
 /*
  * We fork()ed a process, and we need a new context for the child
  * to run in.  We reserve version 0 for initial tasks so we will
- * always allocate an ASID.
+ * always allocate an ASID. The ASID 0 is reserved for the TTBR
+ * register changing sequence.
  */
 void __init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
@@ -38,8 +39,15 @@ void __new_context(struct mm_struct *mm)
 	 * If we've used up all our ASIDs, we need
 	 * to start a new version and flush the TLB.
 	 */
-	if ((asid & ~ASID_MASK) == 0)
+	if ((asid & ~ASID_MASK) == 0) {
+		asid = ++cpu_last_asid;
+		/* set the reserved ASID before flushing the TLB */
+		asm("mcr	p15, 0, %0, c13, c0, 1	@ set reserved context ID\n"
+		    :
+		    : "r" (0));
+		isb();
 		flush_tlb_all();
+	}
 
 	mm->context.id = asid;
 }

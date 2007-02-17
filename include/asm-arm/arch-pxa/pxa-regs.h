@@ -471,8 +471,8 @@
 #define SADIV		__REG(0x40400060)  /* Audio Clock Divider Register. */
 #define SADR		__REG(0x40400080)  /* Serial Audio Data Register (TX and RX FIFO access Register). */
 
-#define SACR0_RFTH(x)	(x << 12)	/* Rx FIFO Interrupt or DMA Trigger Threshold */
-#define SACR0_TFTH(x)	(x << 8)	/* Tx FIFO Interrupt or DMA Trigger Threshold */
+#define SACR0_RFTH(x)	((x) << 12)	/* Rx FIFO Interrupt or DMA Trigger Threshold */
+#define SACR0_TFTH(x)	((x) << 8)	/* Tx FIFO Interrupt or DMA Trigger Threshold */
 #define SACR0_STRF	(1 << 5)	/* FIFO Select for EFWR Special Function */
 #define SACR0_EFWR	(1 << 4)	/* Enable EFWR Function  */
 #define SACR0_RST	(1 << 3)	/* FIFO, i2s Register Reset */
@@ -1677,15 +1677,18 @@
 #define SSSR_PINT		(1 << 18)	/* Peripheral Trailing Byte Interrupt */
 
 #define SSPSP_FSRT		(1 << 25)	/* Frame Sync Relative Timing */
-#define SSPSP_DMYSTOP(x)	(x << 23)	/* Dummy Stop */
-#define SSPSP_SFRMWDTH(x)	(x << 16)	/* Serial Frame Width */
-#define SSPSP_SFRMDLY(x)	(x << 9)	/* Serial Frame Delay */
-#define SSPSP_DMYSTRT(x)	(x << 7)	/* Dummy Start */
-#define SSPSP_STRTDLY(x)	(x << 4)	/* Start Delay */
+#define SSPSP_DMYSTOP(x)	((x) << 23)	/* Dummy Stop */
+#define SSPSP_SFRMWDTH(x)	((x) << 16)	/* Serial Frame Width */
+#define SSPSP_SFRMDLY(x)	((x) << 9)	/* Serial Frame Delay */
+#define SSPSP_DMYSTRT(x)	((x) << 7)	/* Dummy Start */
+#define SSPSP_STRTDLY(x)	((x) << 4)	/* Start Delay */
 #define SSPSP_ETDS			(1 << 3)	/* End of Transfer data State */
 #define SSPSP_SFRMP			(1 << 2)	/* Serial Frame Polarity */
-#define SSPSP_SCMODE(x)		(x << 0)	/* Serial Bit Rate Clock Mode */
+#define SSPSP_SCMODE(x)		((x) << 0)	/* Serial Bit Rate Clock Mode */
 
+#define SSACD_SCDB		(1 << 3)	/* SSPSYSCLK Divider Bypass */
+#define SSACD_ACPS(x)		((x) << 4)	/* Audio clock PLL select */
+#define SSACD_ACDS(x)		((x) << 0)	/* Audio clock divider select */
 
 #define SSCR0_P1	__REG(0x41000000)  /* SSP Port 1 Control Register 0 */
 #define SSCR1_P1	__REG(0x41000004)  /* SSP Port 1 Control Register 1 */

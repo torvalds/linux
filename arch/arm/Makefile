@@ -124,7 +124,7 @@ endif
  machine-$(CONFIG_ARCH_H720X)	   := h720x
  machine-$(CONFIG_ARCH_AAEC2000)   := aaec2000
  machine-$(CONFIG_ARCH_REALVIEW)   := realview
- machine-$(CONFIG_ARCH_AT91)       := at91rm9200
+ machine-$(CONFIG_ARCH_AT91)       := at91
  machine-$(CONFIG_ARCH_EP93XX)     := ep93xx
  machine-$(CONFIG_ARCH_PNX4008)    := pnx4008
  machine-$(CONFIG_ARCH_NETX)       := netx
@@ -149,7 +149,7 @@ MACHINE  := arch/arm/mach-$(machine-y)/
 else
 MACHINE  :=
 endif
-  
+
 export	TEXT_OFFSET GZFLAGS MMUEXT
 
 # Do we have FASTFPE?
@@ -161,6 +161,11 @@ endif
 # If we have a machine-specific directory, then include it in the build.
 core-y				+= arch/arm/kernel/ arch/arm/mm/ arch/arm/common/
 core-y				+= $(MACHINE)
+core-$(CONFIG_ARCH_S3C2410)	+= arch/arm/mach-s3c2400/
+core-$(CONFIG_ARCH_S3C2410)	+= arch/arm/mach-s3c2412/
+core-$(CONFIG_ARCH_S3C2410)	+= arch/arm/mach-s3c2440/
+core-$(CONFIG_ARCH_S3C2410)	+= arch/arm/mach-s3c2442/
+core-$(CONFIG_ARCH_S3C2410)	+= arch/arm/mach-s3c2443/
 core-$(CONFIG_FPE_NWFPE)	+= arch/arm/nwfpe/
 core-$(CONFIG_FPE_FASTFPE)	+= $(FASTFPE_OBJ)
 core-$(CONFIG_VFP)		+= arch/arm/vfp/
@@ -168,6 +173,7 @@ core-$(CONFIG_VFP)		+= arch/arm/vfp/
 # If we have a common platform directory, then include it in the build.
 core-$(CONFIG_PLAT_IOP)		+= arch/arm/plat-iop/
 core-$(CONFIG_ARCH_OMAP)	+= arch/arm/plat-omap/
+core-$(CONFIG_PLAT_S3C24XX)		+= arch/arm/plat-s3c24xx/
 
 drivers-$(CONFIG_OPROFILE)      += arch/arm/oprofile/
 drivers-$(CONFIG_ARCH_CLPS7500)	+= drivers/acorn/char/

@@ -64,6 +64,7 @@
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
+#include <linux/atmel_pdc.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/protocol.h>
@@ -75,7 +76,6 @@
 #include <asm/arch/cpu.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/at91_mci.h>
-#include <asm/arch/at91_pdc.h>
 
 #define DRIVER_NAME "at91_mci"
 
@@ -211,13 +211,13 @@ static void at91mci_pre_dma_read(struct at91mci_host *host)
 
 		/* Check to see if this needs filling */
 		if (i == 0) {
-			if (at91_mci_read(host, AT91_PDC_RCR) != 0) {
+			if (at91_mci_read(host, ATMEL_PDC_RCR) != 0) {
 				pr_debug("Transfer active in current\n");
 				continue;
 			}
 		}
 		else {
-			if (at91_mci_read(host, AT91_PDC_RNCR) != 0) {
+			if (at91_mci_read(host, ATMEL_PDC_RNCR) != 0) {
 				pr_debug("Transfer active in next\n");
 				continue;
 			}
@@ -234,12 +234,12 @@ static void at91mci_pre_dma_read(struct at91mci_host *host)
 		pr_debug("dma address = %08X, length = %d\n", sg->dma_address, sg->length);
 
 		if (i == 0) {
-			at91_mci_write(host, AT91_PDC_RPR, sg->dma_address);
-			at91_mci_write(host, AT91_PDC_RCR, sg->length / 4);
+			at91_mci_write(host, ATMEL_PDC_RPR, sg->dma_address);
+			at91_mci_write(host, ATMEL_PDC_RCR, sg->length / 4);
 		}
 		else {
-			at91_mci_write(host, AT91_PDC_RNPR, sg->dma_address);
-			at91_mci_write(host, AT91_PDC_RNCR, sg->length / 4);
+			at91_mci_write(host, ATMEL_PDC_RNPR, sg->dma_address);
+			at91_mci_write(host, ATMEL_PDC_RNCR, sg->length / 4);
 		}
 	}
 
@@ -303,7 +303,7 @@ static void at91mci_post_dma_read(struct at91mci_host *host)
 		at91mci_pre_dma_read(host);
 	else {
 		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_RXBUFF);
-		at91_mci_write(host, AT91_PDC_PTCR, AT91_PDC_RXTDIS | AT91_PDC_TXTDIS);
+		at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTDIS | ATMEL_PDC_TXTDIS);
 	}
 
 	pr_debug("post dma read done\n");
@@ -320,7 +320,7 @@ static void at91_mci_handle_transmitted(struct at91mci_host *host)
 	pr_debug("Handling the transmit\n");
 
 	/* Disable the transfer */
-	at91_mci_write(host, AT91_PDC_PTCR, AT91_PDC_RXTDIS | AT91_PDC_TXTDIS);
+	at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTDIS | ATMEL_PDC_TXTDIS);
 
 	/* Now wait for cmd ready */
 	at91_mci_write(host, AT91_MCI_IDR, AT91_MCI_TXBUFE);
@@ -431,15 +431,15 @@ static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_
 		cmd->opcode, cmdr, cmd->arg, blocks, block_length, at91_mci_read(host, AT91_MCI_MR));
 
 	if (!data) {
-		at91_mci_write(host, AT91_PDC_PTCR, AT91_PDC_TXTDIS | AT91_PDC_RXTDIS);
-		at91_mci_write(host, AT91_PDC_RPR, 0);
-		at91_mci_write(host, AT91_PDC_RCR, 0);
-		at91_mci_write(host, AT91_PDC_RNPR, 0);
-		at91_mci_write(host, AT91_PDC_RNCR, 0);
-		at91_mci_write(host, AT91_PDC_TPR, 0);
-		at91_mci_write(host, AT91_PDC_TCR, 0);
-		at91_mci_write(host, AT91_PDC_TNPR, 0);
-		at91_mci_write(host, AT91_PDC_TNCR, 0);
+		at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_TXTDIS | ATMEL_PDC_RXTDIS);
+		at91_mci_write(host, ATMEL_PDC_RPR, 0);
+		at91_mci_write(host, ATMEL_PDC_RCR, 0);
+		at91_mci_write(host, ATMEL_PDC_RNPR, 0);
+		at91_mci_write(host, ATMEL_PDC_RNCR, 0);
+		at91_mci_write(host, ATMEL_PDC_TPR, 0);
+		at91_mci_write(host, ATMEL_PDC_TCR, 0);
+		at91_mci_write(host, ATMEL_PDC_TNPR, 0);
+		at91_mci_write(host, ATMEL_PDC_TNCR, 0);
 
 		at91_mci_write(host, AT91_MCI_ARGR, cmd->arg);
 		at91_mci_write(host, AT91_MCI_CMDR, cmdr);
@@ -452,7 +452,7 @@ static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_
 	/*
 	 * Disable the PDC controller
 	 */
-	at91_mci_write(host, AT91_PDC_PTCR, AT91_PDC_RXTDIS | AT91_PDC_TXTDIS);
+	at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTDIS | ATMEL_PDC_TXTDIS);
 
 	if (cmdr & AT91_MCI_TRCMD_START) {
 		data->bytes_xfered = 0;
@@ -481,8 +481,8 @@ static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_
 
 			pr_debug("Transmitting %d bytes\n", host->total_length);
 
-			at91_mci_write(host, AT91_PDC_TPR, host->physical_address);
-			at91_mci_write(host, AT91_PDC_TCR, host->total_length / 4);
+			at91_mci_write(host, ATMEL_PDC_TPR, host->physical_address);
+			at91_mci_write(host, ATMEL_PDC_TCR, host->total_length / 4);
 			ier = AT91_MCI_TXBUFE;
 		}
 	}
@@ -497,9 +497,9 @@ static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_
 
 	if (cmdr & AT91_MCI_TRCMD_START) {
 		if (cmdr & AT91_MCI_TRDIR)
-			at91_mci_write(host, AT91_PDC_PTCR, AT91_PDC_RXTEN);
+			at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTEN);
 		else
-			at91_mci_write(host, AT91_PDC_PTCR, AT91_PDC_TXTEN);
+			at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_TXTEN);
 	}
 	return ier;
 }
