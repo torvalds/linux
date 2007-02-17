@@ -48,19 +48,6 @@ static u8 hpt34x_ratemask (ide_drive_t *drive)
 	return 1;
 }
 
-static void hpt34x_clear_chipset (ide_drive_t *drive)
-{
-	struct pci_dev *dev	= HWIF(drive)->pci_dev;
-	u32 reg1 = 0, tmp1 = 0, reg2 = 0, tmp2 = 0;
-
-	pci_read_config_dword(dev, 0x44, &reg1);
-	pci_read_config_dword(dev, 0x48, &reg2);
-	tmp1 = ((0x00 << (3*drive->dn)) | (reg1 & ~(7 << (3*drive->dn))));
-	tmp2 = (reg2 & ~(0x11 << drive->dn));
-	pci_write_config_dword(dev, 0x44, tmp1);
-	pci_write_config_dword(dev, 0x48, tmp2);
-}
-
 static int hpt34x_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 {
 	struct pci_dev *dev	= HWIF(drive)->pci_dev;
@@ -81,7 +68,7 @@ static int hpt34x_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	pci_read_config_dword(dev, 0x44, &reg1);
 	pci_read_config_dword(dev, 0x48, &reg2);
 	tmp1 = ((lo_speed << (3*drive->dn)) | (reg1 & ~(7 << (3*drive->dn))));
-	tmp2 = ((hi_speed << drive->dn) | reg2);
+	tmp2 = ((hi_speed << drive->dn) | (reg2 & ~(0x11 << drive->dn)));
 	pci_write_config_dword(dev, 0x44, tmp1);
 	pci_write_config_dword(dev, 0x48, tmp2);
 
@@ -99,7 +86,6 @@ static int hpt34x_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 static void hpt34x_tune_drive (ide_drive_t *drive, u8 pio)
 {
 	pio = ide_get_best_pio_mode(drive, pio, 5, NULL);
-	hpt34x_clear_chipset(drive);
 	(void) hpt34x_tune_chipset(drive, (XFER_PIO_0 + pio));
 }
 
@@ -117,7 +103,6 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 	if (!(speed))
 		return 0;
 
-	hpt34x_clear_chipset(drive);
 	(void) hpt34x_tune_chipset(drive, speed);
 	return ide_dma_enable(drive);
 }
