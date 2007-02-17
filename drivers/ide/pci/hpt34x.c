@@ -194,7 +194,6 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 
 	hwif->tuneproc = &hpt34x_tune_drive;
 	hwif->speedproc = &hpt34x_tune_chipset;
-	hwif->no_dsc = 1;
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;
 

@@ -3255,14 +3255,6 @@ int ide_cdrom_setup (ide_drive_t *drive)
 	if (drive->autotune == IDE_TUNE_DEFAULT ||
 	    drive->autotune == IDE_TUNE_AUTO)
 		drive->dsc_overlap = (drive->next != drive);
-#if 0
-	drive->dsc_overlap = (HWIF(drive)->no_dsc) ? 0 : 1;
-	if (HWIF(drive)->no_dsc) {
-		printk(KERN_INFO "ide-cd: %s: disabling DSC overlap\n",
-			drive->name);
-		drive->dsc_overlap = 0;
-	}
-#endif
 
 	if (ide_cdrom_register(drive, nslots)) {
 		printk (KERN_ERR "%s: ide_cdrom_setup failed to register device with the cdrom driver.\n", drive->name);

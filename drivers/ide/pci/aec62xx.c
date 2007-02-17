@@ -286,10 +286,8 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	hwif->tuneproc = &aec62xx_tune_drive;
 	hwif->speedproc = &aec62xx_tune_chipset;
 
-	if (hwif->pci_dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {
+	if (hwif->pci_dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
 		hwif->serialized = hwif->channel;
-		hwif->no_dsc = 1;
-	}
 
 	if (hwif->mate)
 		hwif->mate->serialized = hwif->serialized;
