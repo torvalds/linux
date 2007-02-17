@@ -547,25 +547,6 @@ static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
 			(hwif->INB(dmabase|0x1f)&1) ? "":"IN");
 	}
 #endif /* CONFIG_PDC202XX_BURST */
-#ifdef CONFIG_PDC202XX_MASTER
-	if (!(primary_mode & 1)) {
-		printk(KERN_INFO "%s: FORCING PRIMARY MODE BIT "
-			"0x%02x -> 0x%02x ", hwif->cds->name,
-			primary_mode, (primary_mode|1));
-		hwif->OUTB(primary_mode|1, (dmabase|0x1a));
-		printk("%s\n",
-			(hwif->INB((dmabase|0x1a)) & 1) ? "MASTER" : "PCI");
-	}
-
-	if (!(secondary_mode & 1)) {
-		printk(KERN_INFO "%s: FORCING SECONDARY MODE BIT "
-			"0x%02x -> 0x%02x ", hwif->cds->name,
-			secondary_mode, (secondary_mode|1));
-		hwif->OUTB(secondary_mode|1, (dmabase|0x1b));
-		printk("%s\n",
-			(hwif->INB((dmabase|0x1b)) & 1) ? "MASTER" : "PCI");
-	}
-#endif /* CONFIG_PDC202XX_MASTER */
 
 	ide_setup_dma(hwif, dmabase, 8);
 }
