@@ -449,16 +449,13 @@ static int auide_dma_on(ide_drive_t *drive)
 	return auide_dma_host_on(drive);
 }
 
-
-static int auide_dma_host_off(ide_drive_t *drive)
+static void auide_dma_host_off(ide_drive_t *drive)
 {
-	return 0;
 }
 
-static int auide_dma_off_quietly(ide_drive_t *drive)
+static void auide_dma_off_quietly(ide_drive_t *drive)
 {
 	drive->using_dma = 0;
-	return auide_dma_host_off(drive);
 }
 
 static int auide_dma_lostirq(ide_drive_t *drive)
@@ -724,7 +721,7 @@ static int au_ide_probe(struct device *dev)
 	hwif->speedproc                 = &auide_tune_chipset;
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-	hwif->ide_dma_off_quietly       = &auide_dma_off_quietly;
+	hwif->dma_off_quietly		= &auide_dma_off_quietly;
 	hwif->ide_dma_timeout           = &auide_dma_timeout;
 
 	hwif->ide_dma_check             = &auide_dma_check;
@@ -733,7 +730,7 @@ static int au_ide_probe(struct device *dev)
 	hwif->ide_dma_end               = &auide_dma_end;
 	hwif->dma_setup                 = &auide_dma_setup;
 	hwif->ide_dma_test_irq          = &auide_dma_test_irq;
-	hwif->ide_dma_host_off          = &auide_dma_host_off;
+	hwif->dma_host_off		= &auide_dma_host_off;
 	hwif->ide_dma_host_on           = &auide_dma_host_on;
 	hwif->ide_dma_lostirq           = &auide_dma_lostirq;
 	hwif->ide_dma_on                = &auide_dma_on;

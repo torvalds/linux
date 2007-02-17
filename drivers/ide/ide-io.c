@@ -1351,7 +1351,7 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	 */
 	drive->retry_pio++;
 	drive->state = DMA_PIO_RETRY;
-	(void) hwif->ide_dma_off_quietly(drive);
+	hwif->dma_off_quietly(drive);
 
 	/*
 	 * un-busy drive etc (hwgroup->busy is cleared on return) and

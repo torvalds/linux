@@ -161,7 +161,7 @@ static int sc1200_config_dma2 (ide_drive_t *drive, int mode)
 	/*
 	 * Default to DMA-off in case we run into trouble here.
 	 */
-	hwif->ide_dma_off_quietly(drive);			/* turn off DMA while we fiddle */
+	hwif->dma_off_quietly(drive);	/* turn off DMA while we fiddle */
 	outb(inb(hwif->dma_base+2)&~(unit?0x40:0x20), hwif->dma_base+2); /* clear DMA_capable bit */
 
 	/*
@@ -439,10 +439,10 @@ static int sc1200_resume (struct pci_dev *dev)
 			ide_drive_t *drive = &(hwif->drives[d]);
 			if (drive->present && !__ide_dma_bad_drive(drive)) {
 				int was_using_dma = drive->using_dma;
-				hwif->ide_dma_off_quietly(drive);
+				hwif->dma_off_quietly(drive);
 				sc1200_config_dma(drive);
 				if (!was_using_dma && drive->using_dma) {
-					hwif->ide_dma_off_quietly(drive);
+					hwif->dma_off_quietly(drive);
 				}
 			}
 		}

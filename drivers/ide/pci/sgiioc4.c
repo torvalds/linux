@@ -282,12 +282,11 @@ sgiioc4_ide_dma_on(ide_drive_t * drive)
 	return HWIF(drive)->ide_dma_host_on(drive);
 }
 
-static int
-sgiioc4_ide_dma_off_quietly(ide_drive_t * drive)
+static void sgiioc4_dma_off_quietly(ide_drive_t *drive)
 {
 	drive->using_dma = 0;
 
-	return HWIF(drive)->ide_dma_host_off(drive);
+	drive->hwif->dma_host_off(drive);
 }
 
 static int sgiioc4_ide_dma_check(ide_drive_t *drive)
@@ -317,12 +316,9 @@ sgiioc4_ide_dma_host_on(ide_drive_t * drive)
 	return 1;
 }
 
-static int
-sgiioc4_ide_dma_host_off(ide_drive_t * drive)
+static void sgiioc4_dma_host_off(ide_drive_t * drive)
 {
 	sgiioc4_clearirq(drive);
-
-	return 0;
 }
 
 static int
@@ -612,10 +608,10 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	hwif->ide_dma_end = &sgiioc4_ide_dma_end;
 	hwif->ide_dma_check = &sgiioc4_ide_dma_check;
 	hwif->ide_dma_on = &sgiioc4_ide_dma_on;
-	hwif->ide_dma_off_quietly = &sgiioc4_ide_dma_off_quietly;
+	hwif->dma_off_quietly = &sgiioc4_dma_off_quietly;
 	hwif->ide_dma_test_irq = &sgiioc4_ide_dma_test_irq;
 	hwif->ide_dma_host_on = &sgiioc4_ide_dma_host_on;
-	hwif->ide_dma_host_off = &sgiioc4_ide_dma_host_off;
+	hwif->dma_host_off = &sgiioc4_dma_host_off;
 	hwif->ide_dma_lostirq = &sgiioc4_ide_dma_lostirq;
 	hwif->ide_dma_timeout = &__ide_dma_timeout;
 

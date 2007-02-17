@@ -735,11 +735,11 @@ typedef struct hwif_s {
 	int (*ide_dma_end)(ide_drive_t *drive);
 	int (*ide_dma_check)(ide_drive_t *drive);
 	int (*ide_dma_on)(ide_drive_t *drive);
-	int (*ide_dma_off_quietly)(ide_drive_t *drive);
+	void (*dma_off_quietly)(ide_drive_t *drive);
 	int (*ide_dma_test_irq)(ide_drive_t *drive);
 	void (*ide_dma_clear_irq)(ide_drive_t *drive);
 	int (*ide_dma_host_on)(ide_drive_t *drive);
-	int (*ide_dma_host_off)(ide_drive_t *drive);
+	void (*dma_host_off)(ide_drive_t *drive);
 	int (*ide_dma_lostirq)(ide_drive_t *drive);
 	int (*ide_dma_timeout)(ide_drive_t *drive);
 
@@ -1276,7 +1276,7 @@ int ide_in_drive_list(struct hd_driveid *, const struct drive_list_entry *);
 int __ide_dma_bad_drive(ide_drive_t *);
 int __ide_dma_good_drive(ide_drive_t *);
 int ide_use_dma(ide_drive_t *);
-int __ide_dma_off(ide_drive_t *);
+void ide_dma_off(ide_drive_t *);
 void ide_dma_verbose(ide_drive_t *);
 int ide_set_dma(ide_drive_t *);
 ide_startstop_t ide_dma_intr(ide_drive_t *);
@@ -1288,8 +1288,8 @@ extern void ide_destroy_dmatable(ide_drive_t *);
 extern int ide_release_dma(ide_hwif_t *);
 extern void ide_setup_dma(ide_hwif_t *, unsigned long, unsigned int);
 
-extern int __ide_dma_host_off(ide_drive_t *);
-extern int __ide_dma_off_quietly(ide_drive_t *);
+void ide_dma_host_off(ide_drive_t *);
+void ide_dma_off_quietly(ide_drive_t *);
 extern int __ide_dma_host_on(ide_drive_t *);
 extern int __ide_dma_on(ide_drive_t *);
 extern int __ide_dma_check(ide_drive_t *);
@@ -1302,7 +1302,7 @@ extern int __ide_dma_timeout(ide_drive_t *);
 
 #else
 static inline int ide_use_dma(ide_drive_t *drive) { return 0; }
-static inline int __ide_dma_off(ide_drive_t *drive) { return 0; }
+static inline void ide_dma_off(ide_drive_t *drive) { ; }
 static inline void ide_dma_verbose(ide_drive_t *drive) { ; }
 static inline int ide_set_dma(ide_drive_t *drive) { return 1; }
 #endif /* CONFIG_BLK_DEV_IDEDMA */

@@ -867,7 +867,7 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	if (test_and_clear_bit(PC_DMA_IN_PROGRESS, &pc->flags)) {
 		printk(KERN_ERR "ide-floppy: The floppy wants to issue "
 			"more interrupts in DMA mode\n");
-		(void)__ide_dma_off(drive);
+		ide_dma_off(drive);
 		return ide_do_reset(drive);
 	}
 
@@ -1097,9 +1097,9 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 	pc->current_position = pc->buffer;
 	bcount.all = min(pc->request_transfer, 63 * 1024);
 
-	if (test_and_clear_bit(PC_DMA_ERROR, &pc->flags)) {
-		(void)__ide_dma_off(drive);
-	}
+	if (test_and_clear_bit(PC_DMA_ERROR, &pc->flags))
+		ide_dma_off(drive);
+
 	feature.all = 0;
 
 	if (test_bit(PC_DMA_RECOMMENDED, &pc->flags) && drive->using_dma)

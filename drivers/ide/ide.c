@@ -506,11 +506,11 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->ide_dma_end		= tmp_hwif->ide_dma_end;
 	hwif->ide_dma_check		= tmp_hwif->ide_dma_check;
 	hwif->ide_dma_on		= tmp_hwif->ide_dma_on;
-	hwif->ide_dma_off_quietly	= tmp_hwif->ide_dma_off_quietly;
+	hwif->dma_off_quietly		= tmp_hwif->dma_off_quietly;
 	hwif->ide_dma_test_irq		= tmp_hwif->ide_dma_test_irq;
 	hwif->ide_dma_clear_irq		= tmp_hwif->ide_dma_clear_irq;
 	hwif->ide_dma_host_on		= tmp_hwif->ide_dma_host_on;
-	hwif->ide_dma_host_off		= tmp_hwif->ide_dma_host_off;
+	hwif->dma_host_off		= tmp_hwif->dma_host_off;
 	hwif->ide_dma_lostirq		= tmp_hwif->ide_dma_lostirq;
 	hwif->ide_dma_timeout		= tmp_hwif->ide_dma_timeout;
 
@@ -1138,10 +1138,8 @@ static int set_using_dma (ide_drive_t *drive, int arg)
 		if (ide_set_dma(drive))
 			return -EIO;
 		if (HWIF(drive)->ide_dma_on(drive)) return -EIO;
-	} else {
-		if (__ide_dma_off(drive))
-			return -EIO;
-	}
+	} else
+		ide_dma_off(drive);
 	return 0;
 #else
 	return -EPERM;

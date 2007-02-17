@@ -121,7 +121,7 @@ static int atiixp_ide_dma_host_on(ide_drive_t *drive)
 	return __ide_dma_host_on(drive);
 }
 
-static int atiixp_ide_dma_host_off(ide_drive_t *drive)
+static void atiixp_dma_host_off(ide_drive_t *drive)
 {
 	struct pci_dev *dev = drive->hwif->pci_dev;
 	unsigned long flags;
@@ -135,7 +135,7 @@ static int atiixp_ide_dma_host_off(ide_drive_t *drive)
 
 	spin_unlock_irqrestore(&atiixp_lock, flags);
 
-	return __ide_dma_host_off(drive);
+	ide_dma_host_off(drive);
 }
 
 /**
@@ -306,7 +306,7 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 		hwif->udma_four = 0;
 
 	hwif->ide_dma_host_on = &atiixp_ide_dma_host_on;
-	hwif->ide_dma_host_off = &atiixp_ide_dma_host_off;
+	hwif->dma_host_off = &atiixp_dma_host_off;
 	hwif->ide_dma_check = &atiixp_dma_check;
 	if (!noautodma)
 		hwif->autodma = 1;

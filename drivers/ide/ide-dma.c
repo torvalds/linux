@@ -414,61 +414,57 @@ static int dma_timer_expiry (ide_drive_t *drive)
 }
 
 /**
- *	__ide_dma_host_off	-	Generic DMA kill
+ *	ide_dma_host_off	-	Generic DMA kill
  *	@drive: drive to control
  *
  *	Perform the generic IDE controller DMA off operation. This
  *	works for most IDE bus mastering controllers
  */
 
-int __ide_dma_host_off (ide_drive_t *drive)
+void ide_dma_host_off(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 unit			= (drive->select.b.unit & 0x01);
 	u8 dma_stat		= hwif->INB(hwif->dma_status);
 
 	hwif->OUTB((dma_stat & ~(1<<(5+unit))), hwif->dma_status);
-	return 0;
 }
 
-EXPORT_SYMBOL(__ide_dma_host_off);
+EXPORT_SYMBOL(ide_dma_host_off);
 
 /**
- *	__ide_dma_host_off_quietly	-	Generic DMA kill
+ *	ide_dma_off_quietly	-	Generic DMA kill
  *	@drive: drive to control
  *
  *	Turn off the current DMA on this IDE controller. 
  */
 
-int __ide_dma_off_quietly (ide_drive_t *drive)
+void ide_dma_off_quietly(ide_drive_t *drive)
 {
 	drive->using_dma = 0;
 	ide_toggle_bounce(drive, 0);
 
-	if (HWIF(drive)->ide_dma_host_off(drive))
-		return 1;
-
-	return 0;
+	drive->hwif->dma_host_off(drive);
 }
 
-EXPORT_SYMBOL(__ide_dma_off_quietly);
+EXPORT_SYMBOL(ide_dma_off_quietly);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 /**
- *	__ide_dma_off	-	disable DMA on a device
+ *	ide_dma_off	-	disable DMA on a device
  *	@drive: drive to disable DMA on
  *
  *	Disable IDE DMA for a device on this IDE controller.
  *	Inform the user that DMA has been disabled.
  */
 
-int __ide_dma_off (ide_drive_t *drive)
+void ide_dma_off(ide_drive_t *drive)
 {
 	printk(KERN_INFO "%s: DMA disabled\n", drive->name);
-	return HWIF(drive)->ide_dma_off_quietly(drive);
+	drive->hwif->dma_off_quietly(drive);
 }
 
-EXPORT_SYMBOL(__ide_dma_off);
+EXPORT_SYMBOL(ide_dma_off);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
@@ -758,7 +754,7 @@ void ide_dma_verbose(ide_drive_t *drive)
 	return;
 bug_dma_off:
 	printk(", BUG DMA OFF");
-	hwif->ide_dma_off_quietly(drive);
+	hwif->dma_off_quietly(drive);
 	return;
 }
 
@@ -773,7 +769,8 @@ int ide_set_dma(ide_drive_t *drive)
 
 	switch(rc) {
 	case -1: /* DMA needs to be disabled */
-		return hwif->ide_dma_off_quietly(drive);
+		hwif->dma_off_quietly(drive);
+		return 0;
 	case  0: /* DMA needs to be enabled */
 		return hwif->ide_dma_on(drive);
 	case  1: /* DMA setting cannot be changed */
@@ -937,10 +934,10 @@ void ide_setup_dma (ide_hwif_t *hwif, unsigned long dma_base, unsigned int num_p
 	if (!(hwif->dma_prdtable))
 		hwif->dma_prdtable	= (hwif->dma_base + 4);
 
-	if (!hwif->ide_dma_off_quietly)
-		hwif->ide_dma_off_quietly = &__ide_dma_off_quietly;
-	if (!hwif->ide_dma_host_off)
-		hwif->ide_dma_host_off = &__ide_dma_host_off;
+	if (!hwif->dma_off_quietly)
+		hwif->dma_off_quietly = &ide_dma_off_quietly;
+	if (!hwif->dma_host_off)
+		hwif->dma_host_off = &ide_dma_host_off;
 	if (!hwif->ide_dma_on)
 		hwif->ide_dma_on = &__ide_dma_on;
 	if (!hwif->ide_dma_host_on)

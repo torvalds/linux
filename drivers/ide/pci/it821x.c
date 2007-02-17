@@ -606,7 +606,7 @@ static void __devinit it821x_fixups(ide_hwif_t *hwif)
 				printk(".\n");
 			/* Now the core code will have wrongly decided no DMA
 			   so we need to fix this */
-			hwif->ide_dma_off_quietly(drive);
+			hwif->dma_off_quietly(drive);
 #ifdef CONFIG_IDEDMA_ONLYDISK
 			if (drive->media == ide_disk)
 #endif

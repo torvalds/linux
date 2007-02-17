@@ -109,7 +109,7 @@ static int cs5530_config_dma (ide_drive_t *drive)
 	/*
 	 * Default to DMA-off in case we run into trouble here.
 	 */
-	hwif->ide_dma_off_quietly(drive);
+	hwif->dma_off_quietly(drive);
 
 	/*
 	 * The CS5530 specifies that two drives sharing a cable cannot

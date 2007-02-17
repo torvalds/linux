@@ -265,19 +265,16 @@ static int sl82c105_ide_dma_on (ide_drive_t *drive)
 	return __ide_dma_on(drive);
 }
 
-static int sl82c105_ide_dma_off_quietly (ide_drive_t *drive)
+static void sl82c105_dma_off_quietly(ide_drive_t *drive)
 {
 	u8 speed = XFER_PIO_0;
-	int rc;
-	
-	DBG(("sl82c105_ide_dma_off_quietly(drive:%s)\n", drive->name));
 
-	rc = __ide_dma_off_quietly(drive);
+	DBG(("sl82c105_dma_off_quietly(drive:%s)\n", drive->name));
+
+	ide_dma_off_quietly(drive);
 	if (drive->pio_speed)
 		speed = drive->pio_speed - XFER_PIO_0;
 	config_for_pio(drive, speed, 0, 1);
-
-	return rc;
 }
 
 /*
@@ -440,7 +437,7 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 
 		hwif->ide_dma_check = &sl82c105_check_drive;
 		hwif->ide_dma_on = &sl82c105_ide_dma_on;
-		hwif->ide_dma_off_quietly = &sl82c105_ide_dma_off_quietly;
+		hwif->dma_off_quietly = &sl82c105_dma_off_quietly;
 		hwif->ide_dma_lostirq = &sl82c105_ide_dma_lost_irq;
 		hwif->dma_start = &sl82c105_ide_dma_start;
 		hwif->ide_dma_timeout = &sl82c105_ide_dma_timeout;

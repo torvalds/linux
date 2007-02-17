@@ -1104,7 +1104,7 @@ static ide_startstop_t cdrom_read_intr (ide_drive_t *drive)
 	if (dma) {
 		info->dma = 0;
 		if ((dma_error = HWIF(drive)->ide_dma_end(drive)))
-			__ide_dma_off(drive);
+			ide_dma_off(drive);
 	}
 
 	if (cdrom_decode_status(drive, 0, &stat))
@@ -1700,7 +1700,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	if (dma) {
 		if (dma_error) {
 			printk(KERN_ERR "ide-cd: dma error\n");
-			__ide_dma_off(drive);
+			ide_dma_off(drive);
 			return ide_error(drive, "dma error", stat);
 		}
 
@@ -1826,7 +1826,7 @@ static ide_startstop_t cdrom_write_intr(ide_drive_t *drive)
 		info->dma = 0;
 		if ((dma_error = HWIF(drive)->ide_dma_end(drive))) {
 			printk(KERN_ERR "ide-cd: write dma error\n");
-			__ide_dma_off(drive);
+			ide_dma_off(drive);
 		}
 	}
 
