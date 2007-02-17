@@ -71,12 +71,6 @@ static void __init mpc834x_itx_setup_arch(void)
 
 	ppc_md.pci_exclude_device = mpc83xx_exclude_device;
 #endif
-
-#ifdef  CONFIG_ROOT_NFS
-	ROOT_DEV = Root_NFS;
-#else
-	ROOT_DEV = Root_HDA1;
-#endif
 }
 
 static void __init mpc834x_itx_init_IRQ(void)

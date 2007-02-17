@@ -118,17 +118,6 @@ static void __init mpc832x_sys_setup_arch(void)
 	}
 
 #endif				/* CONFIG_QUICC_ENGINE */
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	if (initrd_start)
-		ROOT_DEV = Root_RAM0;
-	else
-#endif
-#ifdef  CONFIG_ROOT_NFS
-		ROOT_DEV = Root_NFS;
-#else
-		ROOT_DEV = Root_HDA1;
-#endif
 }
 
 static int __init mpc832x_declare_of_platform_devices(void)

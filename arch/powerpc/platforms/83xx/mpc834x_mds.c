@@ -144,12 +144,6 @@ static void __init mpc834x_mds_setup_arch(void)
 #endif
 
 	mpc834x_usb_cfg();
-
-#ifdef  CONFIG_ROOT_NFS
-	ROOT_DEV = Root_NFS;
-#else
-	ROOT_DEV = Root_HDA1;
-#endif
 }
 
 static void __init mpc834x_mds_init_IRQ(void)
