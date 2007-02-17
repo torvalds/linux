@@ -11,6 +11,7 @@
 #include <endian.h>
 
 #define MAX_SHDRS 100
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 static Elf32_Ehdr ehdr;
 static Elf32_Shdr shdr[MAX_SHDRS];
 static Elf32_Sym  *symtab[MAX_SHDRS];
@@ -71,7 +72,7 @@ static const char *sym_type(unsigned type)
 #undef SYM_TYPE
 	};
 	const char *name = "unknown sym type name";
-	if (type < sizeof(type_name)/sizeof(type_name[0])) {
+	if (type < ARRAY_SIZE(type_name)) {
 		name = type_name[type];
 	}
 	return name;
@@ -87,7 +88,7 @@ static const char *sym_bind(unsigned bind)
 #undef SYM_BIND
 	};
 	const char *name = "unknown sym bind name";
-	if (bind < sizeof(bind_name)/sizeof(bind_name[0])) {
+	if (bind < ARRAY_SIZE(bind_name)) {
 		name = bind_name[bind];
 	}
 	return name;
@@ -104,7 +105,7 @@ static const char *sym_visibility(unsigned visibility)
 #undef SYM_VISIBILITY
 	};
 	const char *name = "unknown sym visibility name";
-	if (visibility < sizeof(visibility_name)/sizeof(visibility_name[0])) {
+	if (visibility < ARRAY_SIZE(visibility_name)) {
 		name = visibility_name[visibility];
 	}
 	return name;
@@ -128,7 +129,7 @@ static const char *rel_type(unsigned type)
 #undef REL_TYPE
 	};
 	const char *name = "unknown type rel type name";
-	if (type < sizeof(type_name)/sizeof(type_name[0])) {
+	if (type < ARRAY_SIZE(type_name)) {
 		name = type_name[type];
 	}
 	return name;
