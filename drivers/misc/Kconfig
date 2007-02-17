@@ -107,4 +107,19 @@ config MSI_LAPTOP
 
 	  If you have an MSI S270 laptop, say Y or M here.
 
+config SONY_LAPTOP
+	tristate "Sony Laptop Extras"
+	depends on X86 && ACPI
+	select BACKLIGHT_CLASS_DEVICE
+	  ---help---
+	  This mini-driver drives the SNC device present in the ACPI BIOS of
+	  the Sony Vaio laptops.
+
+	  It gives access to some extra laptop functionalities. In its current
+	  form, this driver let the user set or query the screen brightness
+	  through the backlight subsystem and remove/apply power to some
+	  devices.
+
+	  Read <file:Documentation/sony-laptop.txt> for more information.
+
 endmenu
