@@ -736,17 +736,15 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 
 static int hpt366_config_drive_xfer_rate(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-
 	drive->init_speed = 0;
 
 	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
-		return hwif->ide_dma_on(drive);
+		return 0;
 
 	if (ide_use_fast_pio(drive))
 		hpt3xx_tune_drive(drive, 255);
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 /*

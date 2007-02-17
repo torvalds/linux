@@ -164,14 +164,12 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 static int jmicron_config_drive_for_dma (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return 0;
 
-	if (ide_use_dma(drive)) {
-		if (config_chipset_for_dma(drive))
-			return hwif->ide_dma_on(drive);
-	}
 	config_jmicron_chipset_for_pio(drive, 1);
-	return hwif->ide_dma_off_quietly(drive);
+
+	return -1;
 }
 
 /**

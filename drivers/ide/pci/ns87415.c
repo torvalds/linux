@@ -190,7 +190,8 @@ static int ns87415_ide_dma_setup(ide_drive_t *drive)
 static int ns87415_ide_dma_check (ide_drive_t *drive)
 {
 	if (drive->media != ide_disk)
-		return HWIF(drive)->ide_dma_off_quietly(drive);
+		return -1;
+
 	return __ide_dma_check(drive);
 }
 

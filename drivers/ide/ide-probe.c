@@ -857,7 +857,7 @@ static void probe_hwif(ide_hwif_t *hwif)
 #ifdef CONFIG_IDEDMA_ONLYDISK
 				if (drive->media == ide_disk)
 #endif
-					hwif->ide_dma_check(drive);
+					ide_set_dma(drive);
 			}
 		}
 	}

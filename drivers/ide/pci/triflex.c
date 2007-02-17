@@ -113,13 +113,12 @@ static int triflex_config_drive_for_dma(ide_drive_t *drive)
 
 static int triflex_config_drive_xfer_rate(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-
 	if (ide_use_dma(drive) && triflex_config_drive_for_dma(drive))
-		return hwif->ide_dma_on(drive);
+		return 0;
 
-	hwif->tuneproc(drive, 255);
-	return hwif->ide_dma_off_quietly(drive);
+	triflex_tune_drive(drive, 255);
+
+	return -1;
 }
 
 static void __devinit init_hwif_triflex(ide_hwif_t *hwif)

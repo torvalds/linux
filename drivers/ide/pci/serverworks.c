@@ -315,17 +315,15 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 static int svwks_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-
 	drive->init_speed = 0;
 
 	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
-		return hwif->ide_dma_on(drive);
+		return 0;
 
 	if (ide_use_fast_pio(drive))
 		config_chipset_for_pio(drive);
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 static unsigned int __devinit init_chipset_svwks (struct pci_dev *dev, const char *name)

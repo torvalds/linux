@@ -1135,7 +1135,8 @@ static int set_using_dma (ide_drive_t *drive, int arg)
 	if (HWIF(drive)->ide_dma_check == NULL)
 		return -EPERM;
 	if (arg) {
-		if (HWIF(drive)->ide_dma_check(drive)) return -EIO;
+		if (ide_set_dma(drive))
+			return -EIO;
 		if (HWIF(drive)->ide_dma_on(drive)) return -EIO;
 	} else {
 		if (__ide_dma_off(drive))

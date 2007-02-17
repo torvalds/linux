@@ -365,10 +365,7 @@ static int icside_dma_check(ide_drive_t *drive)
 out:
 	on = icside_set_speed(drive, xfer_mode);
 
-	if (on)
-		return icside_dma_on(drive);
-	else
-		return icside_dma_off_quietly(drive);
+	return on ? 0 : -1;
 }
 
 static int icside_dma_end(ide_drive_t *drive)

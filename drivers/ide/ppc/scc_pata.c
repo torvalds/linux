@@ -371,15 +371,13 @@ static int scc_config_chipset_for_dma(ide_drive_t *drive)
 
 static int scc_config_drive_for_dma(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-
 	if (ide_use_dma(drive) && scc_config_chipset_for_dma(drive))
-		return hwif->ide_dma_on(drive);
+		return 0;
 
 	if (ide_use_fast_pio(drive))
-		hwif->tuneproc(drive, 4);
+		scc_tuneproc(drive, 4);
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 /**

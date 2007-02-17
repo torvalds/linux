@@ -241,10 +241,7 @@ static int sc1200_config_dma2 (ide_drive_t *drive, int mode)
 
 	outb(inb(hwif->dma_base+2)|(unit?0x40:0x20), hwif->dma_base+2);	/* set DMA_capable bit */
 
-	/*
-	 * Finally, turn DMA on in software, and exit.
-	 */
-	return hwif->ide_dma_on(drive);	/* success */
+	return 0;	/* success */
 }
 
 /*

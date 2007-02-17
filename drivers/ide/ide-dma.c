@@ -348,15 +348,14 @@ EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
 static int config_drive_for_dma (ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;
-	ide_hwif_t *hwif = HWIF(drive);
 
-	if ((id->capability & 1) && hwif->autodma) {
+	if ((id->capability & 1) && drive->hwif->autodma) {
 		/*
 		 * Enable DMA on any drive that has
 		 * UltraDMA (mode 0/1/2/3/4/5/6) enabled
 		 */
 		if ((id->field_valid & 4) && ((id->dma_ultra >> 8) & 0x7f))
-			return hwif->ide_dma_on(drive);
+			return 0;
 		/*
 		 * Enable DMA on any drive that has mode2 DMA
 		 * (multi or single) enabled
@@ -364,14 +363,14 @@ static int config_drive_for_dma (ide_drive_t *drive)
 		if (id->field_valid & 2)	/* regular DMA */
 			if ((id->dma_mword & 0x404) == 0x404 ||
 			    (id->dma_1word & 0x404) == 0x404)
-				return hwif->ide_dma_on(drive);
+				return 0;
 
 		/* Consult the list of known "good" drives */
 		if (__ide_dma_good_drive(drive))
-			return hwif->ide_dma_on(drive);
+			return 0;
 	}
-//	if (hwif->tuneproc != NULL) hwif->tuneproc(drive, 255);
-	return hwif->ide_dma_off_quietly(drive);
+
+	return -1;
 }
 
 /**
@@ -764,6 +763,30 @@ bug_dma_off:
 }
 
 EXPORT_SYMBOL(ide_dma_verbose);
+
+int ide_set_dma(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	int rc;
+
+	rc = hwif->ide_dma_check(drive);
+
+	switch(rc) {
+	case -1: /* DMA needs to be disabled */
+		return hwif->ide_dma_off_quietly(drive);
+	case  0: /* DMA needs to be enabled */
+		return hwif->ide_dma_on(drive);
+	case  1: /* DMA setting cannot be changed */
+		break;
+	default:
+		BUG();
+		break;
+	}
+
+	return rc;
+}
+
+EXPORT_SYMBOL_GPL(ide_set_dma);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 int __ide_dma_lostirq (ide_drive_t *drive)

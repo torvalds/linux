@@ -109,21 +109,19 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 static int hpt34x_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-
 	drive->init_speed = 0;
 
 	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
 #ifndef CONFIG_HPT34X_AUTODMA
-		return hwif->ide_dma_off_quietly(drive);
+		return -1;
 #else
-		return hwif->ide_dma_on(drive);
+		return 0;
 #endif
 
 	if (ide_use_fast_pio(drive))
 		hpt34x_tune_drive(drive, 255);
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 /*

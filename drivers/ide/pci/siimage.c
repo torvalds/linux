@@ -414,15 +414,13 @@ static int config_chipset_for_dma (ide_drive_t *drive)
  
 static int siimage_config_drive_for_dma (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-
 	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
-		return hwif->ide_dma_on(drive);
+		return 0;
 
 	if (ide_use_fast_pio(drive))
 		config_chipset_for_pio(drive, 1);
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 /* returns 1 if dma irq issued, 0 otherwise */

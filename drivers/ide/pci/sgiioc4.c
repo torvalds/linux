@@ -296,9 +296,9 @@ static int sgiioc4_ide_dma_check(ide_drive_t *drive)
 	if (ide_config_drive_speed(drive, XFER_MW_DMA_2) != 0) {
 		printk(KERN_WARNING "%s: couldn't set MWDMA2 mode, "
 				    "using PIO instead\n", drive->name);
-		return sgiioc4_ide_dma_off_quietly(drive);
+		return -1;
 	} else
-		return sgiioc4_ide_dma_on(drive);
+		return 0;
 }
 
 /* returns 1 if dma irq issued, 0 otherwise */

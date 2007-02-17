@@ -252,21 +252,20 @@ static int atiixp_config_drive_for_dma(ide_drive_t *drive)
 
 static int atiixp_dma_check(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
 	u8 tspeed, speed;
 
 	drive->init_speed = 0;
 
 	if (ide_use_dma(drive) && atiixp_config_drive_for_dma(drive))
-		return hwif->ide_dma_on(drive);
+		return 0;
 
 	if (ide_use_fast_pio(drive)) {
 		tspeed = ide_get_best_pio_mode(drive, 255, 5, NULL);
 		speed = atiixp_dma_2_pio(XFER_PIO_0 + tspeed) + XFER_PIO_0;
-		hwif->speedproc(drive, speed);
+		atiixp_speedproc(drive, speed);
 	}
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 /**

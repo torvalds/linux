@@ -195,20 +195,19 @@ static int cs5535_config_drive_for_dma(ide_drive_t *drive)
 
 static int cs5535_dma_check(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	u8 speed;
 
 	drive->init_speed = 0;
 
 	if (ide_use_dma(drive) && cs5535_config_drive_for_dma(drive))
-		return hwif->ide_dma_on(drive);
+		return 0;
 
 	if (ide_use_fast_pio(drive)) {
 		speed = ide_get_best_pio_mode(drive, 255, 4, NULL);
 		cs5535_set_drive(drive, speed);
 	}
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 static u8 __devinit cs5535_cable_detect(struct pci_dev *dev)

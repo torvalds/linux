@@ -161,14 +161,14 @@ static int sl82c105_check_drive (ide_drive_t *drive)
 		if (id->field_valid & 2) {
 			if ((id->dma_mword & hwif->mwdma_mask) ||
 			    (id->dma_1word & hwif->swdma_mask))
-				return hwif->ide_dma_on(drive);
+				return 0;
 		}
 
 		if (__ide_dma_good_drive(drive) && id->eide_dma_time < 150)
-			return hwif->ide_dma_on(drive);
+			return 0;
 	} while (0);
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 /*

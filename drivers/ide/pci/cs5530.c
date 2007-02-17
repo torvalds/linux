@@ -196,10 +196,7 @@ static int cs5530_config_dma (ide_drive_t *drive)
 		outl(timings, basereg + 12);	/* write drive1 config register */
 	}
 
-	/*
-	 * Finally, turn DMA on in software, and exit.
-	 */
-	return hwif->ide_dma_on(drive);	/* success */
+	return 0;	/* success */
 }
 
 /**

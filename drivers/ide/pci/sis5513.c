@@ -669,19 +669,17 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 static int sis5513_config_xfer_rate(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-
 	config_art_rwp_pio(drive, 5);
 
 	drive->init_speed = 0;
 
 	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
-		return hwif->ide_dma_on(drive);
+		return 0;
 
 	if (ide_use_fast_pio(drive))
 		sis5513_tune_drive(drive, 5);
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 /* Chip detection and general config */

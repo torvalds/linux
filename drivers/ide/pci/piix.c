@@ -386,19 +386,17 @@ static int piix_config_drive_for_dma (ide_drive_t *drive)
  
 static int piix_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-
 	drive->init_speed = 0;
 
 	if (ide_use_dma(drive) && piix_config_drive_for_dma(drive))
-		return hwif->ide_dma_on(drive);
+		return 0;
 
 	if (ide_use_fast_pio(drive))
 		/* Find best PIO mode. */
-		(void) hwif->speedproc(drive, XFER_PIO_0 +
-				       ide_get_best_pio_mode(drive, 255, 4, NULL));
+		piix_tune_chipset(drive, XFER_PIO_0 +
+				  ide_get_best_pio_mode(drive, 255, 4, NULL));
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 /**

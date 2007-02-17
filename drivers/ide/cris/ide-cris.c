@@ -1048,12 +1048,10 @@ static ide_startstop_t cris_dma_intr (ide_drive_t *drive)
 
 static int cris_dma_check(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
-
 	if (ide_use_dma(drive) && cris_config_drive_for_dma(drive))
-		return hwif->ide_dma_on(drive);
+		return 0;
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 static int cris_dma_end(ide_drive_t *drive)

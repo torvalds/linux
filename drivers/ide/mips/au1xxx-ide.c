@@ -414,9 +414,9 @@ static int auide_dma_check(ide_drive_t *drive)
 	speed = ide_find_best_mode(drive, XFER_PIO | XFER_MWDMA);
 	
 	if (drive->autodma && (speed & XFER_MODE) != XFER_PIO)
-		return HWIF(drive)->ide_dma_on(drive);
+		return 0;
 
-	return HWIF(drive)->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 static int auide_dma_test_irq(ide_drive_t *drive)

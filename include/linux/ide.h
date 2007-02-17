@@ -1278,6 +1278,7 @@ int __ide_dma_good_drive(ide_drive_t *);
 int ide_use_dma(ide_drive_t *);
 int __ide_dma_off(ide_drive_t *);
 void ide_dma_verbose(ide_drive_t *);
+int ide_set_dma(ide_drive_t *);
 ide_startstop_t ide_dma_intr(ide_drive_t *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
@@ -1303,6 +1304,7 @@ extern int __ide_dma_timeout(ide_drive_t *);
 static inline int ide_use_dma(ide_drive_t *drive) { return 0; }
 static inline int __ide_dma_off(ide_drive_t *drive) { return 0; }
 static inline void ide_dma_verbose(ide_drive_t *drive) { ; }
+static inline int ide_set_dma(ide_drive_t *drive) { return 1; }
 #endif /* CONFIG_BLK_DEV_IDEDMA */
 
 #ifndef CONFIG_BLK_DEV_IDEDMA_PCI

@@ -226,7 +226,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 			break;
 		if (drive->hwif->ide_dma_check == NULL)
 			break;
-		drive->hwif->ide_dma_check(drive);
+		ide_set_dma(drive);
 		break;
 	}
 	pm->pm_step = ide_pm_state_completed;

@@ -244,17 +244,15 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 static int it8213_config_drive_for_dma (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
+	u8 pio;
 
-	if (ide_use_dma(drive)) {
-		if (config_chipset_for_dma(drive))
-			return hwif->ide_dma_on(drive);
-	}
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return 0;
 
-	hwif->speedproc(drive, XFER_PIO_0
-			+ ide_get_best_pio_mode(drive, 255, 4, NULL));
+	pio = ide_get_best_pio_mode(drive, 255, 4, NULL);
+	it8213_tune_chipset(drive, XFER_PIO_0 + pio);
 
- 	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 /**
