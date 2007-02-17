@@ -369,7 +369,7 @@ static int piix_config_drive_for_dma (ide_drive_t *drive)
 	 * If no DMA speed was available or the chipset has DMA bugs
 	 * then disable DMA and use PIO
 	 */
-	if (!speed || no_piix_dma)
+	if (!speed)
 		return 0;
 
 	(void) piix_tune_chipset(drive, speed);
@@ -479,6 +479,16 @@ static void piix_dma_clear_irq(ide_drive_t *drive)
 	hwif->OUTB(dma_stat, hwif->dma_status);
 }
 
+static int __devinit piix_cable_detect(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev = hwif->pci_dev;
+	u8 reg54h = 0, mask = hwif->channel ? 0xc0 : 0x30;
+
+	pci_read_config_byte(dev, 0x54, &reg54h);
+
+	return (reg54h & mask) ? 1 : 0;
+}
+
 /**
  *	init_hwif_piix		-	fill in the hwif for the PIIX
  *	@hwif: IDE interface
@@ -489,9 +499,6 @@ static void piix_dma_clear_irq(ide_drive_t *drive)
 
 static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 {
-	u8 reg54h = 0, reg55h = 0, ata66 = 0;
-	u8 mask = hwif->channel ? 0xc0 : 0x30;
-
 #ifndef CONFIG_IA64
 	if (!hwif->irq)
 		hwif->irq = hwif->channel ? 15 : 14;
@@ -521,9 +528,6 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	hwif->swdma_mask = 0x04;
 
 	switch(hwif->pci_dev->device) {
-		case PCI_DEVICE_ID_INTEL_82371MX:
-			hwif->mwdma_mask = 0x80;
-			hwif->swdma_mask = 0x80;
 		case PCI_DEVICE_ID_INTEL_82371FB_0:
 		case PCI_DEVICE_ID_INTEL_82371FB_1:
 		case PCI_DEVICE_ID_INTEL_82371SB_1:
@@ -536,14 +540,14 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 			hwif->ultra_mask = 0x07;
 			break;
 		default:
-			pci_read_config_byte(hwif->pci_dev, 0x54, &reg54h);
-			pci_read_config_byte(hwif->pci_dev, 0x55, &reg55h);
-			ata66 = (reg54h & mask) ? 1 : 0;
+			if (!hwif->udma_four)
+				hwif->udma_four = piix_cable_detect(hwif);
 			break;
 	}
 
-	if (!(hwif->udma_four))
-		hwif->udma_four = ata66;
+	if (no_piix_dma)
+		hwif->ultra_mask = hwif->mwdma_mask = hwif->swdma_mask = 0;
+
 	hwif->ide_dma_check = &piix_config_drive_xfer_rate;
 	if (!noautodma)
 		hwif->autodma = 1;
