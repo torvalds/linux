@@ -29,6 +29,7 @@ config GENERIC_CLOCKEVENTS
 config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
 	default y
+	depends on X86_LOCAL_APIC
 
 config LOCKDEP_SUPPORT
 	bool
