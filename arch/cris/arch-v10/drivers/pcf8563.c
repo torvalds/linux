@@ -311,7 +311,7 @@ pcf8563_register(void)
 {
 	pcf8563_init();
 	if (register_chrdev(PCF8563_MAJOR, DEVICE_NAME, &pcf8563_fops) < 0) {
-		printk(KERN_INFO "%s: Unable to get major numer %d for RTC device.\n",
+		printk(KERN_INFO "%s: Unable to get major number %d for RTC device.\n",
 		       PCF8563_NAME, PCF8563_MAJOR);
 		return -1;
 	}
