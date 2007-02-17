@@ -138,7 +138,7 @@ config BAYCOM_SER_HDX
 	---help---
 	  This is one of two drivers for Baycom style simple amateur radio
 	  modems that connect to a serial interface. The driver supports the
-	  ser12 design in full-duplex mode. This is the old driver.  It is
+	  ser12 design in half-duplex mode. This is the old driver.  It is
 	  still provided in case your serial interface chip does not work with
 	  the full-duplex driver. This driver is depreciated.  To configure
 	  the driver, use the sethdlc utility available in the standard ax25
@@ -190,3 +190,4 @@ config YAM
 	  To compile this driver as a module, choose M here: the module
 	  will be called yam.
 
+ 
