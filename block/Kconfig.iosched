@@ -16,10 +16,10 @@ config IOSCHED_AS
 	tristate "Anticipatory I/O scheduler"
 	default y
 	---help---
-	  The anticipatory I/O scheduler is the default disk scheduler. It is
-	  generally a good choice for most environments, but is quite large and
-	  complex when compared to the deadline I/O scheduler, it can also be
-	  slower in some cases especially some database loads.
+	  The anticipatory I/O scheduler is generally a good choice for most
+	  environments, but is quite large and complex when compared to the
+	  deadline I/O scheduler, it can also be slower in some cases
+	  especially some database loads.
 
 config IOSCHED_DEADLINE
 	tristate "Deadline I/O scheduler"
@@ -38,6 +38,7 @@ config IOSCHED_CFQ
 	  The CFQ I/O scheduler tries to distribute bandwidth equally
 	  among all processes in the system. It should provide a fair
 	  working environment, suitable for desktop systems.
+	  This is the default I/O scheduler.
 
 choice
 	prompt "Default I/O scheduler"
