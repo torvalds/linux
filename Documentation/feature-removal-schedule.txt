@@ -253,29 +253,6 @@ Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
 
 ---------------------------
 
-<<<<<<< test:Documentation/feature-removal-schedule.txt
-What:	ACPI hotkey driver (CONFIG_ACPI_HOTKEY)
-When:	2.6.21
-Why:	hotkey.c was an attempt to consolidate multiple drivers that use
-	ACPI to implement hotkeys.  However, hotkeys are not documented
-	in the ACPI specification, so the drivers used undocumented
-	vendor-specific hooks and turned out to be more different than
-	the same.
-
-	Further, the keys and the features supplied by each platform
-	are different, so there will always be a need for
-	platform-specific drivers.
-
-	So the new plan is to delete hotkey.c and instead, work on the
-	platform specific drivers to try to make them look the same
-	to the user when they supply the same features.
-
-	hotkey.c has always depended on CONFIG_EXPERIMENTAL
-
-Who:	Len Brown <len.brown@intel.com>
-
----------------------------
-
 What:	/sys/firmware/acpi/namespace
 When:	2.6.21
 Why:	The ACPI namespace is effectively the symbol list for

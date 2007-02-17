@@ -133,15 +133,6 @@ config ACPI_VIDEO
 	  Note that this is an ref. implementation only.  It may or may not work
 	  for your integrated video device.
 
-config ACPI_HOTKEY
-	tristate "Generic Hotkey (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	depends on X86
-	default n
-	help
-	  Experimental consolidated hotkey driver.
-	  If you are unsure, say N.
-
 config ACPI_FAN
 	tristate "Fan"
 	default y
