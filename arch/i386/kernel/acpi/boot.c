@@ -850,10 +850,9 @@ static inline int acpi_parse_madt_ioapic_entries(void)
 static void __init acpi_process_madt(void)
 {
 #ifdef CONFIG_X86_LOCAL_APIC
-	int count, error;
+	int error;
 
-	count = acpi_table_parse(ACPI_SIG_MADT, acpi_parse_madt);
-	if (count >= 1) {
+	if (!acpi_table_parse(ACPI_SIG_MADT, acpi_parse_madt)) {
 
 		/*
 		 * Parse MADT LAPIC entries

@@ -75,7 +75,7 @@ enum acpi_address_range_id {
 
 typedef int (*acpi_table_handler) (struct acpi_table_header *table);
 
-typedef int (*acpi_madt_entry_handler) (struct acpi_subtable_header *header, const unsigned long end);
+typedef int (*acpi_table_entry_handler) (struct acpi_subtable_header *header, const unsigned long end);
 
 char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
 unsigned long acpi_find_rsdp (void);
@@ -85,8 +85,10 @@ int acpi_numa_init (void);
 
 int acpi_table_init (void);
 int acpi_table_parse (char *id, acpi_table_handler handler);
-int acpi_table_parse_madt (enum acpi_madt_type id, acpi_madt_entry_handler handler, unsigned int max_entries);
-int acpi_table_parse_srat (enum acpi_srat_type id, acpi_madt_entry_handler handler, unsigned int max_entries);
+int __init acpi_table_parse_entries(char *id, unsigned long table_size,
+	int entry_id, acpi_table_entry_handler handler, unsigned int max_entries);
+int acpi_table_parse_madt (enum acpi_madt_type id, acpi_table_entry_handler handler, unsigned int max_entries);
+int acpi_table_parse_srat (enum acpi_srat_type id, acpi_table_entry_handler handler, unsigned int max_entries);
 int acpi_parse_mcfg (struct acpi_table_header *header);
 void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
 void acpi_table_print_srat_entry (struct acpi_subtable_header *srat);

@@ -59,7 +59,6 @@ extern void acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
 #define ACPI_AC_CLASS			"ac_adapter"
 #define ACPI_BATTERY_CLASS		"battery"
 #define ACPI_SBS_HID			"ACPI0002"
-#define ACPI_SBS_DRIVER_NAME		"ACPI Smart Battery System Driver"
 #define ACPI_SBS_DEVICE_NAME		"Smart Battery System"
 #define ACPI_SBS_FILE_INFO		"info"
 #define ACPI_SBS_FILE_STATE		"state"
@@ -78,7 +77,7 @@ extern void acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
 #define	MAX_SBS_BAT			4
 #define	MAX_SMBUS_ERR			1
 
-ACPI_MODULE_NAME("acpi_sbs");
+ACPI_MODULE_NAME("sbs");
 
 MODULE_AUTHOR("Rich Townsend");
 MODULE_DESCRIPTION("Smart Battery System ACPI interface driver");
@@ -110,7 +109,7 @@ static void acpi_battery_smbus_err_handler(struct acpi_ec_smbus *smbus);
 static void acpi_sbs_update_queue(void *data);
 
 static struct acpi_driver acpi_sbs_driver = {
-	.name = ACPI_SBS_DRIVER_NAME,
+	.name = "sbs",
 	.class = ACPI_SBS_CLASS,
 	.ids = ACPI_SBS_HID,
 	.ops = {

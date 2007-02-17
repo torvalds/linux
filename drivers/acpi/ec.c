@@ -38,11 +38,10 @@
 #include <acpi/actypes.h>
 
 #define _COMPONENT		ACPI_EC_COMPONENT
-ACPI_MODULE_NAME("acpi_ec")
+ACPI_MODULE_NAME("ec");
 #define ACPI_EC_COMPONENT		0x00100000
 #define ACPI_EC_CLASS			"embedded_controller"
 #define ACPI_EC_HID			"PNP0C09"
-#define ACPI_EC_DRIVER_NAME		"ACPI Embedded Controller Driver"
 #define ACPI_EC_DEVICE_NAME		"Embedded Controller"
 #define ACPI_EC_FILE_INFO		"info"
 #undef PREFIX
@@ -80,7 +79,7 @@ static int acpi_ec_stop(struct acpi_device *device, int type);
 static int acpi_ec_add(struct acpi_device *device);
 
 static struct acpi_driver acpi_ec_driver = {
-	.name = ACPI_EC_DRIVER_NAME,
+	.name = "ec",
 	.class = ACPI_EC_CLASS,
 	.ids = ACPI_EC_HID,
 	.ops = {

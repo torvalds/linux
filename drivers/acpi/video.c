@@ -40,7 +40,6 @@
 
 #define ACPI_VIDEO_COMPONENT		0x08000000
 #define ACPI_VIDEO_CLASS		"video"
-#define ACPI_VIDEO_DRIVER_NAME		"ACPI Video Driver"
 #define ACPI_VIDEO_BUS_NAME		"Video Bus"
 #define ACPI_VIDEO_DEVICE_NAME		"Video Device"
 #define ACPI_VIDEO_NOTIFY_SWITCH	0x80
@@ -65,17 +64,17 @@
 #define ACPI_VIDEO_DISPLAY_LCD	4
 
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
-ACPI_MODULE_NAME("acpi_video")
+ACPI_MODULE_NAME("video");
 
-    MODULE_AUTHOR("Bruno Ducrot");
-MODULE_DESCRIPTION(ACPI_VIDEO_DRIVER_NAME);
+MODULE_AUTHOR("Bruno Ducrot");
+MODULE_DESCRIPTION("ACPI Video Driver");
 MODULE_LICENSE("GPL");
 
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device, int type);
 
 static struct acpi_driver acpi_video_bus = {
-	.name = ACPI_VIDEO_DRIVER_NAME,
+	.name = "video",
 	.class = ACPI_VIDEO_CLASS,
 	.ids = ACPI_VIDEO_HID,
 	.ops = {

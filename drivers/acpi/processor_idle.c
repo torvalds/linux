@@ -67,9 +67,8 @@
 
 #define ACPI_PROCESSOR_COMPONENT        0x01000000
 #define ACPI_PROCESSOR_CLASS            "processor"
-#define ACPI_PROCESSOR_DRIVER_NAME      "ACPI Processor Driver"
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME("acpi_processor")
+ACPI_MODULE_NAME("processor_idle");
 #define ACPI_PROCESSOR_FILE_POWER	"power"
 #define US_TO_PM_TIMER_TICKS(t)		((t * (PM_TIMER_FREQUENCY/1000)) / 1000)
 #define C2_OVERHEAD			4	/* 1us (3.579 ticks per us) */

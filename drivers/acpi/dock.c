@@ -32,11 +32,11 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
-#define ACPI_DOCK_DRIVER_NAME "ACPI Dock Station Driver"
+#define ACPI_DOCK_DRIVER_DESCRIPTION "ACPI Dock Station Driver"
 
-ACPI_MODULE_NAME("dock")
+ACPI_MODULE_NAME("dock");
 MODULE_AUTHOR("Kristen Carlson Accardi");
-MODULE_DESCRIPTION(ACPI_DOCK_DRIVER_NAME);
+MODULE_DESCRIPTION(ACPI_DOCK_DRIVER_DESCRIPTION);
 MODULE_LICENSE("GPL");
 
 static struct atomic_notifier_head dock_notifier_list;
@@ -741,7 +741,7 @@ static int dock_add(acpi_handle handle)
 		goto dock_add_err;
 	}
 
-	printk(KERN_INFO PREFIX "%s \n", ACPI_DOCK_DRIVER_NAME);
+	printk(KERN_INFO PREFIX "%s \n", ACPI_DOCK_DRIVER_DESCRIPTION);
 
 	return 0;
 

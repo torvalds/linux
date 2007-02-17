@@ -27,18 +27,17 @@
 #define ACPI_EC_HC_COMPONENT	0x00080000
 #define ACPI_EC_HC_CLASS	"ec_hc_smbus"
 #define ACPI_EC_HC_HID		"ACPI0001"
-#define ACPI_EC_HC_DRIVER_NAME	"ACPI EC HC smbus driver"
 #define ACPI_EC_HC_DEVICE_NAME	"EC HC smbus"
 
 #define _COMPONENT		ACPI_EC_HC_COMPONENT
 
-ACPI_MODULE_NAME("acpi_smbus")
+ACPI_MODULE_NAME("i2c_ec");
 
 static int acpi_ec_hc_add(struct acpi_device *device);
 static int acpi_ec_hc_remove(struct acpi_device *device, int type);
 
 static struct acpi_driver acpi_ec_hc_driver = {
-	.name = ACPI_EC_HC_DRIVER_NAME,
+	.name = "i2c_ec",
 	.class = ACPI_EC_HC_CLASS,
 	.ids = ACPI_EC_HC_HID,
 	.ops = {

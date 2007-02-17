@@ -32,11 +32,9 @@
 #include <asm/uaccess.h>
 #include <linux/platform_device.h>
 
-#define ACPI_BAY_DRIVER_NAME "ACPI Removable Drive Bay Driver"
-
-ACPI_MODULE_NAME("bay")
+ACPI_MODULE_NAME("bay");
 MODULE_AUTHOR("Kristen Carlson Accardi");
-MODULE_DESCRIPTION(ACPI_BAY_DRIVER_NAME);
+MODULE_DESCRIPTION("ACPI Removable Drive Bay Driver");
 MODULE_LICENSE("GPL");
 #define ACPI_BAY_CLASS "bay"
 #define ACPI_BAY_COMPONENT	0x10000000

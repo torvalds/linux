@@ -34,7 +34,6 @@
 #include <acpi/acpi_drivers.h>
 
 #define ACPI_BUTTON_COMPONENT		0x00080000
-#define ACPI_BUTTON_DRIVER_NAME		"ACPI Button Driver"
 #define ACPI_BUTTON_CLASS		"button"
 #define ACPI_BUTTON_FILE_INFO		"info"
 #define ACPI_BUTTON_FILE_STATE		"state"
@@ -61,10 +60,10 @@
 #define ACPI_BUTTON_TYPE_LID		0x05
 
 #define _COMPONENT		ACPI_BUTTON_COMPONENT
-ACPI_MODULE_NAME("acpi_button")
+ACPI_MODULE_NAME("button");
 
 MODULE_AUTHOR("Paul Diefenbaugh");
-MODULE_DESCRIPTION(ACPI_BUTTON_DRIVER_NAME);
+MODULE_DESCRIPTION("ACPI Button Driver");
 MODULE_LICENSE("GPL");
 
 static int acpi_button_add(struct acpi_device *device);
@@ -73,7 +72,7 @@ static int acpi_button_info_open_fs(struct inode *inode, struct file *file);
 static int acpi_button_state_open_fs(struct inode *inode, struct file *file);
 
 static struct acpi_driver acpi_button_driver = {
-	.name = ACPI_BUTTON_DRIVER_NAME,
+	.name = "button",
 	.class = ACPI_BUTTON_CLASS,
 	.ids = "button_power,button_sleep,PNP0C0D,PNP0C0C,PNP0C0E",
 	.ops = {

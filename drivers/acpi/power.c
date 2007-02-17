@@ -45,10 +45,9 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_POWER_COMPONENT
-ACPI_MODULE_NAME("acpi_power")
+ACPI_MODULE_NAME("power");
 #define ACPI_POWER_COMPONENT		0x00800000
 #define ACPI_POWER_CLASS		"power_resource"
-#define ACPI_POWER_DRIVER_NAME		"ACPI Power Resource Driver"
 #define ACPI_POWER_DEVICE_NAME		"Power Resource"
 #define ACPI_POWER_FILE_INFO		"info"
 #define ACPI_POWER_FILE_STATUS		"state"
@@ -60,7 +59,7 @@ static int acpi_power_remove(struct acpi_device *device, int type);
 static int acpi_power_open_fs(struct inode *inode, struct file *file);
 
 static struct acpi_driver acpi_power_driver = {
-	.name = ACPI_POWER_DRIVER_NAME,
+	.name = "power",
 	.class = ACPI_POWER_CLASS,
 	.ids = ACPI_POWER_HID,
 	.ops = {

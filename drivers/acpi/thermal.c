@@ -47,7 +47,6 @@
 
 #define ACPI_THERMAL_COMPONENT		0x04000000
 #define ACPI_THERMAL_CLASS		"thermal_zone"
-#define ACPI_THERMAL_DRIVER_NAME	"ACPI Thermal Zone Driver"
 #define ACPI_THERMAL_DEVICE_NAME	"Thermal Zone"
 #define ACPI_THERMAL_FILE_STATE		"state"
 #define ACPI_THERMAL_FILE_TEMPERATURE	"temperature"
@@ -71,10 +70,10 @@
 #define CELSIUS_TO_KELVIN(t)	((t+273)*10)
 
 #define _COMPONENT		ACPI_THERMAL_COMPONENT
-ACPI_MODULE_NAME("acpi_thermal")
+ACPI_MODULE_NAME("thermal");
 
 MODULE_AUTHOR("Paul Diefenbaugh");
-MODULE_DESCRIPTION(ACPI_THERMAL_DRIVER_NAME);
+MODULE_DESCRIPTION("ACPI Thermal Zone Driver");
 MODULE_LICENSE("GPL");
 
 static int tzp;
@@ -99,7 +98,7 @@ static ssize_t acpi_thermal_write_polling(struct file *, const char __user *,
 					  size_t, loff_t *);
 
 static struct acpi_driver acpi_thermal_driver = {
-	.name = ACPI_THERMAL_DRIVER_NAME,
+	.name = "thermal",
 	.class = ACPI_THERMAL_CLASS,
 	.ids = ACPI_THERMAL_HID,
 	.ops = {

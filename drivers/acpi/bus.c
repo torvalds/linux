@@ -39,7 +39,7 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_BUS_COMPONENT
-ACPI_MODULE_NAME("acpi_bus")
+ACPI_MODULE_NAME("bus");
 #ifdef	CONFIG_X86
 extern void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger);
 #endif

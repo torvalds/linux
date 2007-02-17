@@ -36,14 +36,13 @@
 
 #define ACPI_FAN_COMPONENT		0x00200000
 #define ACPI_FAN_CLASS			"fan"
-#define ACPI_FAN_DRIVER_NAME		"ACPI Fan Driver"
 #define ACPI_FAN_FILE_STATE		"state"
 
 #define _COMPONENT		ACPI_FAN_COMPONENT
-ACPI_MODULE_NAME("acpi_fan")
+ACPI_MODULE_NAME("fan");
 
-    MODULE_AUTHOR("Paul Diefenbaugh");
-MODULE_DESCRIPTION(ACPI_FAN_DRIVER_NAME);
+MODULE_AUTHOR("Paul Diefenbaugh");
+MODULE_DESCRIPTION("ACPI Fan Driver");
 MODULE_LICENSE("GPL");
 
 static int acpi_fan_add(struct acpi_device *device);
@@ -52,7 +51,7 @@ static int acpi_fan_suspend(struct acpi_device *device, pm_message_t state);
 static int acpi_fan_resume(struct acpi_device *device);
 
 static struct acpi_driver acpi_fan_driver = {
-	.name = ACPI_FAN_DRIVER_NAME,
+	.name = "fan",
 	.class = ACPI_FAN_CLASS,
 	.ids = "PNP0C0B",
 	.ops = {

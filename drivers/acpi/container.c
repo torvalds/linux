@@ -35,7 +35,6 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/container.h>
 
-#define ACPI_CONTAINER_DRIVER_NAME	"ACPI container driver"
 #define ACPI_CONTAINER_DEVICE_NAME	"ACPI container device"
 #define ACPI_CONTAINER_CLASS		"container"
 
@@ -44,10 +43,10 @@
 
 #define ACPI_CONTAINER_COMPONENT	0x01000000
 #define _COMPONENT			ACPI_CONTAINER_COMPONENT
-ACPI_MODULE_NAME("acpi_container")
+ACPI_MODULE_NAME("container");
 
-    MODULE_AUTHOR("Anil S Keshavamurthy");
-MODULE_DESCRIPTION(ACPI_CONTAINER_DRIVER_NAME);
+MODULE_AUTHOR("Anil S Keshavamurthy");
+MODULE_DESCRIPTION("ACPI container driver");
 MODULE_LICENSE("GPL");
 
 #define ACPI_STA_PRESENT		(0x00000001)
@@ -56,7 +55,7 @@ static int acpi_container_add(struct acpi_device *device);
 static int acpi_container_remove(struct acpi_device *device, int type);
 
 static struct acpi_driver acpi_container_driver = {
-	.name = ACPI_CONTAINER_DRIVER_NAME,
+	.name = "container",
 	.class = ACPI_CONTAINER_CLASS,
 	.ids = "ACPI0004,PNP0A05,PNP0A06",
 	.ops = {
