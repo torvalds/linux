@@ -459,8 +459,6 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 		return -1;
 }
 
-EXPORT_SYMBOL_GPL(ide_set_xfer_rate);
-
 static void ide_dump_opcode(ide_drive_t *drive)
 {
 	struct request *rq;

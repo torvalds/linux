@@ -363,11 +363,8 @@ static int scc_config_chipset_for_dma(ide_drive_t *drive)
 	if (!speed)
 		return 0;
 
-	if (ide_set_xfer_rate(drive, speed))
+	if (scc_tune_chipset(drive, speed))
 		return 0;
-
-	if (!drive->init_speed)
-		drive->init_speed = speed;
 
 	return ide_dma_enable(drive);
 }
