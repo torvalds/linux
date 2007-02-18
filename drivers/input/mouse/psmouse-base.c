@@ -28,6 +28,7 @@
 #include "alps.h"
 #include "lifebook.h"
 #include "trackpoint.h"
+#include "touchkit_ps2.h"
 
 #define DRIVER_DESC	"PS/2 mouse driver"
 
@@ -605,14 +606,20 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		}
 	}
 
-	if (max_proto > PSMOUSE_IMEX && genius_detect(psmouse, set_properties) == 0)
-		return PSMOUSE_GENPS;
+	if (max_proto > PSMOUSE_IMEX) {
 
-	if (max_proto > PSMOUSE_IMEX && ps2pp_init(psmouse, set_properties) == 0)
-		return PSMOUSE_PS2PP;
+		if (genius_detect(psmouse, set_properties) == 0)
+			return PSMOUSE_GENPS;
 
-	if (max_proto > PSMOUSE_IMEX && trackpoint_detect(psmouse, set_properties) == 0)
-		return PSMOUSE_TRACKPOINT;
+		if (ps2pp_init(psmouse, set_properties) == 0)
+			return PSMOUSE_PS2PP;
+
+		if (trackpoint_detect(psmouse, set_properties) == 0)
+			return PSMOUSE_TRACKPOINT;
+
+		if (touchkit_ps2_detect(psmouse, set_properties) == 0)
+			return PSMOUSE_TOUCHKIT_PS2;
+	}
 
 /*
  * Reset to defaults in case the device got confused by extended
@@ -711,6 +718,12 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.name		= "TPPS/2",
 		.alias		= "trackpoint",
 		.detect		= trackpoint_detect,
+	},
+	{
+		.type		= PSMOUSE_TOUCHKIT_PS2,
+		.name		= "touchkitPS/2",
+		.alias		= "touchkit",
+		.detect		= touchkit_ps2_detect,
 	},
 	{
 		.type		= PSMOUSE_AUTO,
