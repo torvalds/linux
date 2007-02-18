@@ -988,9 +988,9 @@ int jffs2_check_oob_empty(struct jffs2_sb_info *c,
 
 	ret = c->mtd->read_oob(c->mtd, jeb->offset, &ops);
 	if (ret || ops.oobretlen != ops.ooblen) {
-		printk(KERN_ERR "cannot read OOB for EB at %08x, requested %d "
-				"bytes, read %d bytes, error %d\n", jeb->offset,
-				ops.ooblen, ops.oobretlen, ret);
+		printk(KERN_ERR "cannot read OOB for EB at %08x, requested %zd"
+				" bytes, read %zd bytes, error %d\n",
+				jeb->offset, ops.ooblen, ops.oobretlen, ret);
 		if (!ret)
 			ret = -EIO;
 		return ret;
@@ -1031,9 +1031,9 @@ int jffs2_check_nand_cleanmarker(struct jffs2_sb_info *c,
 
 	ret = c->mtd->read_oob(c->mtd, jeb->offset, &ops);
 	if (ret || ops.oobretlen != ops.ooblen) {
-		printk(KERN_ERR "cannot read OOB for EB at %08x, requested %d "
-				"bytes, read %d bytes, error %d\n", jeb->offset,
-				ops.ooblen, ops.oobretlen, ret);
+		printk(KERN_ERR "cannot read OOB for EB at %08x, requested %zd"
+				" bytes, read %zd bytes, error %d\n",
+				jeb->offset, ops.ooblen, ops.oobretlen, ret);
 		if (!ret)
 			ret = -EIO;
 		return ret;
@@ -1057,9 +1057,9 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c,
 
 	ret = c->mtd->write_oob(c->mtd, jeb->offset, &ops);
 	if (ret || ops.oobretlen != ops.ooblen) {
-		printk(KERN_ERR "cannot write OOB for EB at %08x, requested %d "
-				"bytes, read %d bytes, error %d\n", jeb->offset,
-				ops.ooblen, ops.oobretlen, ret);
+		printk(KERN_ERR "cannot write OOB for EB at %08x, requested %zd"
+				" bytes, read %zd bytes, error %d\n",
+				jeb->offset, ops.ooblen, ops.oobretlen, ret);
 		if (!ret)
 			ret = -EIO;
 		return ret;
