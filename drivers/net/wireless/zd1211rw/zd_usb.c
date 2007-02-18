@@ -413,7 +413,7 @@ int zd_usb_enable_int(struct zd_usb *usb)
 
 	dev_dbg_f(zd_usb_dev(usb), "\n");
 
-	urb = usb_alloc_urb(0, GFP_NOFS);
+	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb) {
 		r = -ENOMEM;
 		goto out;
@@ -431,7 +431,7 @@ int zd_usb_enable_int(struct zd_usb *usb)
 
 	/* TODO: make it a DMA buffer */
 	r = -ENOMEM;
-	transfer_buffer = kmalloc(USB_MAX_EP_INT_BUFFER, GFP_NOFS);
+	transfer_buffer = kmalloc(USB_MAX_EP_INT_BUFFER, GFP_KERNEL);
 	if (!transfer_buffer) {
 		dev_dbg_f(zd_usb_dev(usb),
 			"couldn't allocate transfer_buffer\n");
@@ -445,7 +445,7 @@ int zd_usb_enable_int(struct zd_usb *usb)
 			 intr->interval);
 
 	dev_dbg_f(zd_usb_dev(usb), "submit urb %p\n", intr->urb);
-	r = usb_submit_urb(urb, GFP_NOFS);
+	r = usb_submit_urb(urb, GFP_KERNEL);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
 			 "Couldn't submit urb. Error number %d\n", r);
@@ -594,10 +594,10 @@ static struct urb *alloc_urb(struct zd_usb *usb)
 	struct urb *urb;
 	void *buffer;
 
-	urb = usb_alloc_urb(0, GFP_NOFS);
+	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
 		return NULL;
-	buffer = usb_buffer_alloc(udev, USB_MAX_RX_SIZE, GFP_NOFS,
+	buffer = usb_buffer_alloc(udev, USB_MAX_RX_SIZE, GFP_KERNEL,
 		                  &urb->transfer_dma);
 	if (!buffer) {
 		usb_free_urb(urb);
@@ -630,7 +630,7 @@ int zd_usb_enable_rx(struct zd_usb *usb)
 	dev_dbg_f(zd_usb_dev(usb), "\n");
 
 	r = -ENOMEM;
-	urbs = kcalloc(URBS_COUNT, sizeof(struct urb *), GFP_NOFS);
+	urbs = kcalloc(URBS_COUNT, sizeof(struct urb *), GFP_KERNEL);
 	if (!urbs)
 		goto error;
 	for (i = 0; i < URBS_COUNT; i++) {
@@ -651,7 +651,7 @@ int zd_usb_enable_rx(struct zd_usb *usb)
 	spin_unlock_irq(&rx->lock);
 
 	for (i = 0; i < URBS_COUNT; i++) {
-		r = usb_submit_urb(urbs[i], GFP_NOFS);
+		r = usb_submit_urb(urbs[i], GFP_KERNEL);
 		if (r)
 			goto error_submit;
 	}
@@ -1157,7 +1157,7 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 	}
 
 	req_len = sizeof(struct usb_req_read_regs) + count * sizeof(__le16);
-	req = kmalloc(req_len, GFP_NOFS);
+	req = kmalloc(req_len, GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 	req->id = cpu_to_le16(USB_REQ_READ_REGS);
@@ -1220,7 +1220,7 @@ int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 
 	req_len = sizeof(struct usb_req_write_regs) +
 		  count * sizeof(struct reg_data);
-	req = kmalloc(req_len, GFP_NOFS);
+	req = kmalloc(req_len, GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
@@ -1300,7 +1300,7 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 	bit_value_template &= ~(RF_IF_LE|RF_CLK|RF_DATA);
 
 	req_len = sizeof(struct usb_req_rfwrite) + bits * sizeof(__le16);
-	req = kmalloc(req_len, GFP_NOFS);
+	req = kmalloc(req_len, GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
