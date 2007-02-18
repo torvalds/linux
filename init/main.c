@@ -41,6 +41,7 @@
 #include <linux/cpuset.h>
 #include <linux/efi.h>
 #include <linux/tick.h>
+#include <linux/interrupt.h>
 #include <linux/taskstats_kern.h>
 #include <linux/delayacct.h>
 #include <linux/unistd.h>
@@ -702,11 +703,7 @@ static void __init do_basic_setup(void)
 	init_workqueues();
 	usermodehelper_init();
 	driver_init();
-
-#ifdef CONFIG_PROC_FS
 	init_irq_proc();
-#endif
-
 	do_initcalls();
 }
 

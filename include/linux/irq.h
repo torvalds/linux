@@ -328,9 +328,6 @@ extern void note_interrupt(unsigned int irq, struct irq_desc *desc,
 /* Resending of interrupts :*/
 void check_irq_resend(struct irq_desc *desc, unsigned int irq);
 
-/* Initialize /proc/irq/ */
-extern void init_irq_proc(void);
-
 /* Enable/disable irq debugging output: */
 extern int noirqdebug_setup(char *str);
 

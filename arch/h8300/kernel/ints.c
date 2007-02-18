@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
+#include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/random.h>
 #include <linux/bootmem.h>
