@@ -271,6 +271,8 @@ struct video_device
 					struct v4l2_jpegcompression *a);
 	int (*vidioc_s_jpegcomp)       (struct file *file, void *fh,
 					struct v4l2_jpegcompression *a);
+	int (*vidioc_g_enc_index)      (struct file *file, void *fh,
+					struct v4l2_enc_idx *a);
 
 	/* Stream type-dependent parameter ioctls */
 	int (*vidioc_g_parm)           (struct file *file, void *fh,

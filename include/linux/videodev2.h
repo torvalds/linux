@@ -1193,6 +1193,35 @@ struct v4l2_audioout
 };
 
 /*
+ *	M P E G   I N D E X
+ *
+ *	NOTE: EXPERIMENTAL API
+ */
+#if 1
+#define V4L2_ENC_IDX_FRAME_I    (0)
+#define V4L2_ENC_IDX_FRAME_P    (1)
+#define V4L2_ENC_IDX_FRAME_B    (2)
+#define V4L2_ENC_IDX_FRAME_MASK (0xf)
+
+struct v4l2_enc_idx_entry {
+	__u64 offset;
+	__u64 pts;
+	__u32 length;
+	__u32 flags;
+	__u32 reserved[2];
+};
+
+#define V4L2_ENC_IDX_ENTRIES (64)
+struct v4l2_enc_idx {
+	__u32 entries;
+	__u32 entries_cap;
+	__u32 reserved[4];
+	struct v4l2_enc_idx_entry entry[V4L2_ENC_IDX_ENTRIES];
+};
+#endif
+
+
+/*
  *	D A T A   S E R V I C E S   ( V B I )
  *
  *	Data services API by Michael Schimek
@@ -1385,6 +1414,7 @@ struct v4l2_register {
 #if 1
 #define VIDIOC_ENUM_FRAMESIZES	_IOWR ('V', 74, struct v4l2_frmsizeenum)
 #define VIDIOC_ENUM_FRAMEINTERVALS	_IOWR ('V', 75, struct v4l2_frmivalenum)
+#define VIDIOC_G_ENC_INDEX      _IOR  ('V', 76, struct v4l2_enc_idx)
 #endif
 /* only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
 #define	VIDIOC_DBG_S_REGISTER 	_IOW ('d', 100, struct v4l2_register)
