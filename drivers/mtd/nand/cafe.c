@@ -265,10 +265,10 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	ndelay(100);
 
 	if (1) {
-		int c = 500000;
+		int c;
 		uint32_t irqs;
 
-		while (c--) {
+		for (c = 500000; c != 0; c--) {
 			irqs = cafe_readl(cafe, NAND_IRQ);
 			if (irqs & doneint)
 				break;
