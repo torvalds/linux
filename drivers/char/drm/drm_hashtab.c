@@ -43,6 +43,7 @@ int drm_ht_create(drm_open_hash_t *ht, unsigned int order)
 	ht->size = 1 << order;
 	ht->order = order;
 	ht->fill = 0;
+	ht->table = NULL;
 	ht->use_vmalloc = ((ht->size * sizeof(*ht->table)) > PAGE_SIZE);
 	if (!ht->use_vmalloc) {
 		ht->table = drm_calloc(ht->size, sizeof(*ht->table),
