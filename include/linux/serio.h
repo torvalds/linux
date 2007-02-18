@@ -108,12 +108,6 @@ static inline void serio_drv_write_wakeup(struct serio *serio)
 		serio->drv->write_wakeup(serio);
 }
 
-static inline void serio_cleanup(struct serio *serio)
-{
-	if (serio->drv && serio->drv->cleanup)
-		serio->drv->cleanup(serio);
-}
-
 /*
  * Use the following functions to manipulate serio's per-port
  * driver-specific data.
