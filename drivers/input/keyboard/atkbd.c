@@ -63,10 +63,6 @@ static int atkbd_extra;
 module_param_named(extra, atkbd_extra, bool, 0);
 MODULE_PARM_DESC(extra, "Enable extra LEDs and keys on IBM RapidAcces, EzKey and similar keyboards");
 
-__obsolete_setup("atkbd_set=");
-__obsolete_setup("atkbd_reset");
-__obsolete_setup("atkbd_softrepeat=");
-
 /*
  * Scancode to keycode tables. These are just the default setting, and
  * are loadable via an userland utility.

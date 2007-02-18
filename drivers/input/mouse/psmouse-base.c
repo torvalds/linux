@@ -93,12 +93,6 @@ static struct attribute_group psmouse_attribute_group = {
 	.attrs	= psmouse_attributes,
 };
 
-__obsolete_setup("psmouse_noext");
-__obsolete_setup("psmouse_resolution=");
-__obsolete_setup("psmouse_smartscroll=");
-__obsolete_setup("psmouse_resetafter=");
-__obsolete_setup("psmouse_rate=");
-
 /*
  * psmouse_mutex protects all operations changing state of mouse
  * (connecting, disconnecting, changing rate or resolution via

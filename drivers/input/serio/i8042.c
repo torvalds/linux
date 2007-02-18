@@ -76,13 +76,6 @@ module_param_named(debug, i8042_debug, bool, 0600);
 MODULE_PARM_DESC(debug, "Turn i8042 debugging mode on and off");
 #endif
 
-__obsolete_setup("i8042_noaux");
-__obsolete_setup("i8042_nomux");
-__obsolete_setup("i8042_unlock");
-__obsolete_setup("i8042_reset");
-__obsolete_setup("i8042_direct");
-__obsolete_setup("i8042_dumbkbd");
-
 #include "i8042.h"
 
 static DEFINE_SPINLOCK(i8042_lock);
