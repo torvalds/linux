@@ -213,7 +213,7 @@ int dump_task_fpu (struct task_struct *t, elf_fpregset_t *fpr)
 /*
  * Create a kernel thread
  */
-ATTRIB_NORET void kernel_thread_helper(void *arg, int (*fn)(void *))
+static ATTRIB_NORET void kernel_thread_helper(void *arg, int (*fn)(void *))
 {
 	do_exit(fn(arg));
 }
