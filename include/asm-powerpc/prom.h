@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
+#include <asm/irq.h>
 #include <asm/atomic.h>
 
 /* Definitions used by the flattened device tree */
