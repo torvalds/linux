@@ -130,4 +130,6 @@ static inline void pmd_free(pmd_t *pmd)
 
 #define check_pgt_cache()	do { } while (0)
 
+extern void pagetable_init(void);
+
 #endif /* _ASM_PGALLOC_H */

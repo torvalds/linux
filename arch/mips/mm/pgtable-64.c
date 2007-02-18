@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <asm/fixmap.h>
 #include <asm/pgtable.h>
+#include <asm/pgalloc.h>
 
 void pgd_init(unsigned long page)
 {
