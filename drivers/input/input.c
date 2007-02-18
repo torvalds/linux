@@ -588,18 +588,9 @@ static inline void input_proc_exit(void) { }
 static ssize_t input_dev_show_##name(struct class_device *dev, char *buf)	\
 {										\
 	struct input_dev *input_dev = to_input_dev(dev);			\
-	int retval;								\
 										\
-	retval = mutex_lock_interruptible(&input_dev->mutex);			\
-	if (retval)								\
-		return retval;							\
-										\
-	retval = scnprintf(buf, PAGE_SIZE,					\
-			   "%s\n", input_dev->name ? input_dev->name : "");	\
-										\
-	mutex_unlock(&input_dev->mutex);					\
-										\
-	return retval;								\
+	return scnprintf(buf, PAGE_SIZE, "%s\n",				\
+			 input_dev->name ? input_dev->name : "");		\
 }										\
 static CLASS_DEVICE_ATTR(name, S_IRUGO, input_dev_show_##name, NULL);
 
@@ -1048,10 +1039,6 @@ void input_unregister_device(struct input_dev *dev)
 	sysfs_remove_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
 	sysfs_remove_group(&dev->cdev.kobj, &input_dev_id_attr_group);
 	sysfs_remove_group(&dev->cdev.kobj, &input_dev_attr_group);
-
-	mutex_lock(&dev->mutex);
-	dev->name = dev->phys = dev->uniq = NULL;
-	mutex_unlock(&dev->mutex);
 
 	class_device_unregister(&dev->cdev);
 
