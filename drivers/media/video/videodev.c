@@ -1354,6 +1354,30 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 					p->entries,p->entries_cap);
 		break;
 	}
+	case VIDIOC_ENCODER_CMD:
+	{
+		struct v4l2_encoder_cmd *p=arg;
+
+		if (!vfd->vidioc_encoder_cmd)
+			break;
+		ret=vfd->vidioc_encoder_cmd(file, fh, p);
+		if (!ret)
+			dbgarg (cmd, "cmd=%d, flags=%d\n",
+					p->cmd,p->flags);
+		break;
+	}
+	case VIDIOC_TRY_ENCODER_CMD:
+	{
+		struct v4l2_encoder_cmd *p=arg;
+
+		if (!vfd->vidioc_try_encoder_cmd)
+			break;
+		ret=vfd->vidioc_try_encoder_cmd(file, fh, p);
+		if (!ret)
+			dbgarg (cmd, "cmd=%d, flags=%d\n",
+					p->cmd,p->flags);
+		break;
+	}
 	case VIDIOC_G_PARM:
 	{
 		struct v4l2_streamparm *p=arg;

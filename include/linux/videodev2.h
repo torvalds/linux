@@ -1193,7 +1193,7 @@ struct v4l2_audioout
 };
 
 /*
- *	M P E G   I N D E X
+ *	M P E G   S E R V I C E S
  *
  *	NOTE: EXPERIMENTAL API
  */
@@ -1218,6 +1218,26 @@ struct v4l2_enc_idx {
 	__u32 reserved[4];
 	struct v4l2_enc_idx_entry entry[V4L2_ENC_IDX_ENTRIES];
 };
+
+
+#define V4L2_ENC_CMD_START      (0)
+#define V4L2_ENC_CMD_STOP       (1)
+#define V4L2_ENC_CMD_PAUSE      (2)
+#define V4L2_ENC_CMD_RESUME     (3)
+
+/* Flags for V4L2_ENC_CMD_STOP */
+#define V4L2_ENC_CMD_STOP_AT_GOP_END    (1 << 0)
+
+struct v4l2_encoder_cmd {
+	__u32 cmd;
+	__u32 flags;
+	union {
+		struct {
+			__u32 data[8];
+		} raw;
+	};
+};
+
 #endif
 
 
@@ -1415,6 +1435,8 @@ struct v4l2_register {
 #define VIDIOC_ENUM_FRAMESIZES	_IOWR ('V', 74, struct v4l2_frmsizeenum)
 #define VIDIOC_ENUM_FRAMEINTERVALS	_IOWR ('V', 75, struct v4l2_frmivalenum)
 #define VIDIOC_G_ENC_INDEX      _IOR  ('V', 76, struct v4l2_enc_idx)
+#define VIDIOC_ENCODER_CMD      _IOWR ('V', 77, struct v4l2_encoder_cmd)
+#define VIDIOC_TRY_ENCODER_CMD  _IOWR ('V', 78, struct v4l2_encoder_cmd)
 #endif
 /* only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
 #define	VIDIOC_DBG_S_REGISTER 	_IOW ('d', 100, struct v4l2_register)
