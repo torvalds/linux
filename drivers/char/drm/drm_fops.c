@@ -46,6 +46,7 @@ static int drm_setup(drm_device_t * dev)
 	drm_local_map_t *map;
 	int i;
 	int ret;
+	u32 sareapage;
 
 	if (dev->driver->firstopen) {
 		ret = dev->driver->firstopen(dev);
@@ -56,7 +57,8 @@ static int drm_setup(drm_device_t * dev)
 	dev->magicfree.next = NULL;
 
 	/* prebuild the SAREA */
-	i = drm_addmap(dev, 0, SAREA_MAX, _DRM_SHM, _DRM_CONTAINS_LOCK, &map);
+	sareapage = max(SAREA_MAX, PAGE_SIZE);
+	i = drm_addmap(dev, 0, sareapage, _DRM_SHM, _DRM_CONTAINS_LOCK, &map);
 	if (i != 0)
 		return i;
 
@@ -84,7 +86,7 @@ static int drm_setup(drm_device_t * dev)
 	INIT_LIST_HEAD(&dev->ctxlist->head);
 
 	dev->vmalist = NULL;
-	dev->sigdata.lock = dev->lock.hw_lock = NULL;
+	dev->sigdata.lock = NULL;
 	init_waitqueue_head(&dev->lock.lock_queue);
 	dev->queue_count = 0;
 	dev->queue_reserved = 0;
