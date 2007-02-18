@@ -37,6 +37,13 @@ extern void gpio_line_set(int line, int value);
 #define IOP3XX_PERIPHERAL_PHYS_BASE	0xffffe000
 #define IOP3XX_PERIPHERAL_VIRT_BASE	0xfeffe000
 #define IOP3XX_PERIPHERAL_SIZE		0x00002000
+#define IOP3XX_PERIPHERAL_UPPER_PA (IOP3XX_PERIPHERAL_PHYS_BASE +\
+					IOP3XX_PERIPHERAL_SIZE - 1)
+#define IOP3XX_PERIPHERAL_UPPER_VA (IOP3XX_PERIPHERAL_VIRT_BASE +\
+					IOP3XX_PERIPHERAL_SIZE - 1)
+#define IOP3XX_PMMR_PHYS_TO_VIRT(addr) (u32) ((u32) addr -\
+					(IOP3XX_PERIPHERAL_PHYS_BASE\
+					- IOP3XX_PERIPHERAL_VIRT_BASE))
 #define IOP3XX_REG_ADDR(reg)		(IOP3XX_PERIPHERAL_VIRT_BASE + (reg))
 
 /* Address Translation Unit  */
@@ -258,12 +265,20 @@ extern void gpio_line_set(int line, int value);
 #define IOP3XX_PCI_LOWER_IO_PA		0x90000000
 #define IOP3XX_PCI_LOWER_IO_VA		0xfe000000
 #define IOP3XX_PCI_LOWER_IO_BA		(*IOP3XX_OIOWTVR)
+#define IOP3XX_PCI_UPPER_IO_PA		(IOP3XX_PCI_LOWER_IO_PA +\
+					IOP3XX_PCI_IO_WINDOW_SIZE - 1)
+#define IOP3XX_PCI_UPPER_IO_VA		(IOP3XX_PCI_LOWER_IO_VA +\
+					IOP3XX_PCI_IO_WINDOW_SIZE - 1)
+#define IOP3XX_PCI_IO_PHYS_TO_VIRT(addr) (((u32) addr -\
+					IOP3XX_PCI_LOWER_IO_PA) +\
+					IOP3XX_PCI_LOWER_IO_VA)
 
 
 #ifndef __ASSEMBLY__
 void iop3xx_map_io(void);
 void iop3xx_init_time(unsigned long);
 unsigned long iop3xx_gettimeoffset(void);
+void iop_init_cp6_handler(void);
 
 extern struct platform_device iop3xx_i2c0_device;
 extern struct platform_device iop3xx_i2c1_device;

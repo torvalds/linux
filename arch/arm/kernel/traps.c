@@ -282,7 +282,10 @@ asmlinkage void do_undefinstr(struct pt_regs *regs)
 	regs->ARM_pc -= correction;
 
 	pc = (void __user *)instruction_pointer(regs);
-	if (thumb_mode(regs)) {
+
+	if (processor_mode(regs) == SVC_MODE) {
+		instr = *(u32 *) pc;
+	} else if (thumb_mode(regs)) {
 		get_user(instr, (u16 __user *)pc);
 	} else {
 		get_user(instr, (u32 __user *)pc);

@@ -233,6 +233,8 @@ config ARCH_IOP33X
 
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
+	depends on MMU
+	select PLAT_IOP
 	select PCI
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
