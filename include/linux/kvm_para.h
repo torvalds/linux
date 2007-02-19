@@ -52,4 +52,22 @@ struct kvm_vcpu_para_state {
 
 #define KVM_EINVAL 1
 
+/*
+ * Hypercall calling convention:
+ *
+ * Each hypercall may have 0-6 parameters.
+ *
+ * 64-bit hypercall index is in RAX, goes from 0 to __NR_hypercalls-1
+ *
+ * 64-bit parameters 1-6 are in the standard gcc x86_64 calling convention
+ * order: RDI, RSI, RDX, RCX, R8, R9.
+ *
+ * 32-bit index is EBX, parameters are: EAX, ECX, EDX, ESI, EDI, EBP.
+ * (the first 3 are according to the gcc regparm calling convention)
+ *
+ * No registers are clobbered by the hypercall, except that the
+ * return value is in RAX.
+ */
+#define __NR_hypercalls			0
+
 #endif

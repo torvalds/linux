@@ -1657,6 +1657,20 @@ static int handle_halt(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 0;
 }
 
+static int handle_vmcall(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	kvm_run->exit_reason = KVM_EXIT_DEBUG;
+	printk(KERN_DEBUG "got vmcall at RIP %08lx\n", vmcs_readl(GUEST_RIP));
+	printk(KERN_DEBUG "vmcall params: %08lx, %08lx, %08lx, %08lx\n",
+		vcpu->regs[VCPU_REGS_RAX],
+		vcpu->regs[VCPU_REGS_RCX],
+		vcpu->regs[VCPU_REGS_RDX],
+		vcpu->regs[VCPU_REGS_RBP]);
+	vcpu->regs[VCPU_REGS_RAX] = 0;
+	vmcs_writel(GUEST_RIP, vmcs_readl(GUEST_RIP)+3);
+	return 1;
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -1675,6 +1689,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[EXIT_REASON_MSR_WRITE]               = handle_wrmsr,
 	[EXIT_REASON_PENDING_INTERRUPT]       = handle_interrupt_window,
 	[EXIT_REASON_HLT]                     = handle_halt,
+	[EXIT_REASON_VMCALL]                  = handle_vmcall,
 };
 
 static const int kvm_vmx_max_exit_handlers =
