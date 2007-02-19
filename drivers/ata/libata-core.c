@@ -93,6 +93,10 @@ static int ata_probe_timeout = ATA_TMOUT_INTERNAL / HZ;
 module_param(ata_probe_timeout, int, 0444);
 MODULE_PARM_DESC(ata_probe_timeout, "Set ATA probing timeout (seconds)");
 
+int noacpi;
+module_param(noacpi, int, 0444);
+MODULE_PARM_DESC(noacpi, "Disables the use of ACPI in suspend/resume when set");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
@@ -1563,6 +1567,16 @@ int ata_dev_configure(struct ata_device *dev)
 	if (ata_msg_probe(ap))
 		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER, host %u, dev %u\n",
 			       __FUNCTION__, ap->id, dev->devno);
+
+	/* set _SDD */
+	rc = ata_acpi_push_id(ap, dev->devno);
+	if (rc) {
+		ata_dev_printk(dev, KERN_WARNING, "failed to set _SDD(%d)\n",
+			rc);
+	}
+
+	/* retrieve and execute the ATA task file of _GTF */
+	ata_acpi_exec_tfs(ap);
 
 	/* print device capabilities */
 	if (ata_msg_probe(ap))

@@ -35,6 +35,7 @@
 #include <linux/ata.h>
 #include <linux/workqueue.h>
 #include <scsi/scsi_host.h>
+#include <linux/acpi.h>
 
 /*
  * Define if arch has non-standard setup.  This is a _PCI_ standard
@@ -495,6 +496,10 @@ struct ata_device {
 	/* error history */
 	struct ata_ering	ering;
 	unsigned int		horkage;	/* List of broken features */
+#ifdef CONFIG_SATA_ACPI
+	/* ACPI objects info */
+	acpi_handle obj_handle;
+#endif
 };
 
 /* Offset into struct ata_device.  Fields above it are maintained
