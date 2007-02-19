@@ -227,8 +227,8 @@ static int __devinit ichxrom_init_one (struct pci_dev *pdev,
 			(((unsigned long)(window->virt)) + offset);
 		map->map.size = 0xffffffffUL - map_top + 1UL;
 		/* Set the name of the map to the address I am trying */
-		sprintf(map->map_name, "%s @%08lx",
-			MOD_NAME, map->map.phys);
+		sprintf(map->map_name, "%s @%08Lx",
+			MOD_NAME, (unsigned long long)map->map.phys);
 
 		/* Firmware hubs only use vpp when being programmed
 		 * in a factory setting.  So in-place programming

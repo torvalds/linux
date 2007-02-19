@@ -450,16 +450,20 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	if (jffs2_cleanmarker_oob(c)) {
-		int ret = jffs2_check_nand_cleanmarker(c, jeb);
+		int ret;
+
+		if (c->mtd->block_isbad(c->mtd, jeb->offset))
+			return BLK_STATE_BADBLOCK;
+
+		ret = jffs2_check_nand_cleanmarker(c, jeb);
 		D2(printk(KERN_NOTICE "jffs_check_nand_cleanmarker returned %d\n",ret));
+
 		/* Even if it's not found, we still scan to see
 		   if the block is empty. We use this information
 		   to decide whether to erase it or not. */
 		switch (ret) {
 		case 0:		cleanmarkerfound = 1; break;
 		case 1: 	break;
-		case 2: 	return BLK_STATE_BADBLOCK;
-		case 3:		return BLK_STATE_ALLDIRTY; /* Block has failed to erase min. once */
 		default: 	return ret;
 		}
 	}

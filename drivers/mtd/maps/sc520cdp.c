@@ -237,8 +237,9 @@ static int __init init_sc520cdp(void)
 #endif
 
 	for (i = 0; i < NUM_FLASH_BANKS; i++) {
-		printk(KERN_NOTICE "SC520 CDP flash device: 0x%lx at 0x%lx\n",
-		       sc520cdp_map[i].size, sc520cdp_map[i].phys);
+		printk(KERN_NOTICE "SC520 CDP flash device: 0x%Lx at 0x%Lx\n",
+			(unsigned long long)sc520cdp_map[i].size,
+			(unsigned long long)sc520cdp_map[i].phys);
 
 		sc520cdp_map[i].virt = ioremap_nocache(sc520cdp_map[i].phys, sc520cdp_map[i].size);
 

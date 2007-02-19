@@ -419,8 +419,9 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		info.erasesize	= mtd->erasesize;
 		info.writesize	= mtd->writesize;
 		info.oobsize	= mtd->oobsize;
-		info.ecctype	= mtd->ecctype;
-		info.eccsize	= mtd->eccsize;
+		/* The below fields are obsolete */
+		info.ecctype	= -1;
+		info.eccsize	= 0;
 		if (copy_to_user(argp, &info, sizeof(struct mtd_info_user)))
 			return -EFAULT;
 		break;

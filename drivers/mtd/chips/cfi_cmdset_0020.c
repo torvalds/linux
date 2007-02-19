@@ -662,7 +662,7 @@ static int cfi_staa_write_buffers (struct mtd_info *mtd, loff_t to,
  * a small buffer for this.
  * XXX: If the buffer size is not a multiple of 2, this will break
  */
-#define ECCBUF_SIZE (mtd->eccsize)
+#define ECCBUF_SIZE (mtd->writesize)
 #define ECCBUF_DIV(x) ((x) & ~(ECCBUF_SIZE - 1))
 #define ECCBUF_MOD(x) ((x) &  (ECCBUF_SIZE - 1))
 static int

@@ -397,9 +397,23 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 	cfi_fixup(mtd, fixup_table);
 
 	for (i=0; i< cfi->numchips; i++) {
-		cfi->chips[i].word_write_time = 1<<cfi->cfiq->WordWriteTimeoutTyp;
-		cfi->chips[i].buffer_write_time = 1<<cfi->cfiq->BufWriteTimeoutTyp;
-		cfi->chips[i].erase_time = 1000<<cfi->cfiq->BlockEraseTimeoutTyp;
+		if (cfi->cfiq->WordWriteTimeoutTyp)
+			cfi->chips[i].word_write_time =
+				1<<cfi->cfiq->WordWriteTimeoutTyp;
+		else
+			cfi->chips[i].word_write_time = 50000;
+
+		if (cfi->cfiq->BufWriteTimeoutTyp)
+			cfi->chips[i].buffer_write_time =
+				1<<cfi->cfiq->BufWriteTimeoutTyp;
+		/* No default; if it isn't specified, we won't use it */
+
+		if (cfi->cfiq->BlockEraseTimeoutTyp)
+			cfi->chips[i].erase_time =
+				1000<<cfi->cfiq->BlockEraseTimeoutTyp;
+		else
+			cfi->chips[i].erase_time = 2000000;
+
 		cfi->chips[i].ref_point_counter = 0;
 		init_waitqueue_head(&(cfi->chips[i].wq));
 	}
@@ -546,13 +560,11 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 			struct cfi_intelext_programming_regioninfo *prinfo;
 			prinfo = (struct cfi_intelext_programming_regioninfo *)&extp->extra[offs];
 			mtd->writesize = cfi->interleave << prinfo->ProgRegShift;
-			MTD_PROGREGION_CTRLMODE_VALID(mtd) = cfi->interleave * prinfo->ControlValid;
-			MTD_PROGREGION_CTRLMODE_INVALID(mtd) = cfi->interleave * prinfo->ControlInvalid;
 			mtd->flags &= ~MTD_BIT_WRITEABLE;
 			printk(KERN_DEBUG "%s: program region size/ctrl_valid/ctrl_inval = %d/%d/%d\n",
 			       map->name, mtd->writesize,
-			       MTD_PROGREGION_CTRLMODE_VALID(mtd),
-			       MTD_PROGREGION_CTRLMODE_INVALID(mtd));
+			       cfi->interleave * prinfo->ControlValid,
+			       cfi->interleave * prinfo->ControlInvalid);
 		}
 
 		/*
