@@ -128,8 +128,10 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 			goto access_error;
 #endif
 
-		if (!(*ptep & PT_ACCESSED_MASK))
-			*ptep |= PT_ACCESSED_MASK; 	/* avoid rmw */
+		if (!(*ptep & PT_ACCESSED_MASK)) {
+			mark_page_dirty(vcpu->kvm, table_gfn);
+			*ptep |= PT_ACCESSED_MASK;
+		}
 
 		if (walker->level == PT_PAGE_TABLE_LEVEL) {
 			walker->gfn = (*ptep & PT_BASE_ADDR_MASK)
@@ -183,6 +185,12 @@ static void FNAME(release_walker)(struct guest_walker *walker)
 {
 	if (walker->table)
 		kunmap_atomic(walker->table, KM_USER0);
+}
+
+static void FNAME(mark_pagetable_dirty)(struct kvm *kvm,
+					struct guest_walker *walker)
+{
+	mark_page_dirty(kvm, walker->table_gfn[walker->level - 1]);
 }
 
 static void FNAME(set_pte)(struct kvm_vcpu *vcpu, u64 guest_pte,
@@ -348,12 +356,15 @@ static int FNAME(fix_write_pf)(struct kvm_vcpu *vcpu,
 	} else if (kvm_mmu_lookup_page(vcpu, gfn)) {
 		pgprintk("%s: found shadow page for %lx, marking ro\n",
 			 __FUNCTION__, gfn);
+		mark_page_dirty(vcpu->kvm, gfn);
+		FNAME(mark_pagetable_dirty)(vcpu->kvm, walker);
 		*guest_ent |= PT_DIRTY_MASK;
 		*write_pt = 1;
 		return 0;
 	}
 	mark_page_dirty(vcpu->kvm, gfn);
 	*shadow_ent |= PT_WRITABLE_MASK;
+	FNAME(mark_pagetable_dirty)(vcpu->kvm, walker);
 	*guest_ent |= PT_DIRTY_MASK;
 	rmap_add(vcpu, shadow_ent);
 
