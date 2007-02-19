@@ -297,7 +297,7 @@ static int __devinit sis96x_probe(struct pci_dev *dev,
 		return -EINVAL;
 	}
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	sis96x_adapter.dev.parent = &dev->dev;
 
 	snprintf(sis96x_adapter.name, I2C_NAME_SIZE,

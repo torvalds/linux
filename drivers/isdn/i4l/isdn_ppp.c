@@ -1680,7 +1680,7 @@ static void isdn_ppp_mp_receive(isdn_net_dev * net_dev, isdn_net_local * lp,
 	 * - we hit a gap in the sequence, so no reassembly/processing is 
 	 *   possible ('start' would be set to NULL)
 	 *
-	 * algorightm for this code is derived from code in the book
+	 * algorithm for this code is derived from code in the book
 	 * 'PPP Design And Debugging' by James Carlson (Addison-Wesley)
 	 */
   	while (start != NULL || newfrag != NULL) {

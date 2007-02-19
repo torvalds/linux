@@ -14,7 +14,7 @@
 /* NOTE: It seems to me that the documentation regarding the
 pcd8584t/pcf8584 does not show the correct way to address the i2c bus.
 Based on the information on the I2C bus itself and the remainder of
-the Phillips docs the following algorithims apper to be correct.  I am
+the Phillips docs the following algorithms appear to be correct.  I am
 fairly certain that the flowcharts in the phillips docs are wrong. */
 
 

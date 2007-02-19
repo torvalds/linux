@@ -102,7 +102,7 @@ extern int bus_unregister_notifier(struct bus_type *bus,
 #define BUS_NOTIFY_UNBIND_DRIVER	0x00000004 /* driver about to be
 						      unbound */
 
-/* driverfs interface for exporting bus attributes */
+/* sysfs interface for exporting bus attributes */
 
 struct bus_attribute {
 	struct attribute	attr;
@@ -147,7 +147,7 @@ extern void put_driver(struct device_driver * drv);
 extern struct device_driver *driver_find(const char *name, struct bus_type *bus);
 extern int driver_probe_done(void);
 
-/* driverfs interface for exporting driver attributes */
+/* sysfs interface for exporting driver attributes */
 
 struct driver_attribute {
 	struct attribute	attr;

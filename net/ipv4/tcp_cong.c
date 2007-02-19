@@ -29,7 +29,7 @@ static struct tcp_congestion_ops *tcp_ca_find(const char *name)
 }
 
 /*
- * Attach new congestion control algorthim to the list
+ * Attach new congestion control algorithm to the list
  * of available options.
  */
 int tcp_register_congestion_control(struct tcp_congestion_ops *ca)

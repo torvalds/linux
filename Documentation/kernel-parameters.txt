@@ -864,7 +864,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <1-256>
 
 	maxcpus=	[SMP] Maximum number of processors that	an SMP kernel
-			should make use of
+			should make use of.
+			Using "nosmp" or "maxcpus=0" will disable SMP
+			entirely (the MPS table probe still happens, though).
+			A command-line option of "maxcpus=<NUM>", where <NUM>
+			is an integer greater than 0, limits the maximum number
+			of CPUs activated in SMP mode to <NUM>.
+			Using "maxcpus=1" on an SMP kernel is the trivial
+			case of an SMP kernel with only one CPU.
 
 	max_addr=[KMG]	[KNL,BOOT,ia64] All physical memory greater than or
 			equal to this physical address is ignored.

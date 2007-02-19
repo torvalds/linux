@@ -22,12 +22,12 @@
 #include <linux/ext4_fs.h>
 
 /*
- * With AGRESSIVE_TEST defined, the capacity of index/leaf blocks
+ * With AGGRESSIVE_TEST defined, the capacity of index/leaf blocks
  * becomes very small, so index split, in-depth growing and
  * other hard changes happen much more often.
  * This is for debug purposes only.
  */
-#define AGRESSIVE_TEST_
+#define AGGRESSIVE_TEST_
 
 /*
  * With EXTENTS_STATS defined, the number of blocks and extents

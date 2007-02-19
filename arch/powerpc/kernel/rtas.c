@@ -182,7 +182,7 @@ void rtas_progress(char *s, unsigned short hex)
 	char *os;
 	static int display_character, set_indicator;
 	static int display_width, display_lines, form_feed;
-	const static int *row_width;
+	static const int *row_width;
 	static DEFINE_SPINLOCK(progress_lock);
 	static int current_line;
 	static int pending_newline = 0;  /* did last write end with unprinted newline? */

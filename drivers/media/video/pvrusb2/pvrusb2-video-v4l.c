@@ -201,7 +201,7 @@ static unsigned int decoder_describe(struct pvr2_v4l_decoder *ctxt,char *buf,uns
 }
 
 
-const static struct pvr2_i2c_handler_functions hfuncs = {
+static const struct pvr2_i2c_handler_functions hfuncs = {
 	.detach = (void (*)(void *))decoder_detach,
 	.check = (int (*)(void *))decoder_check,
 	.update = (void (*)(void *))decoder_update,

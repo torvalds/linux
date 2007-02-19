@@ -180,7 +180,7 @@ static int alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
 static void ohci1394_pci_remove(struct pci_dev *pdev);
 
 #ifndef __LITTLE_ENDIAN
-const static size_t hdr_sizes[] = {
+static const size_t hdr_sizes[] = {
 	3,	/* TCODE_WRITEQ */
 	4,	/* TCODE_WRITEB */
 	3,	/* TCODE_WRITE_RESPONSE */

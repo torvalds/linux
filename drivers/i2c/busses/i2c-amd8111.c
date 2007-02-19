@@ -371,7 +371,7 @@ static int __devinit amd8111_probe(struct pci_dev *dev,
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	smbus->adapter.dev.parent = &dev->dev;
 
 	pci_write_config_dword(smbus->dev, AMD_PCI_MISC, 0);

@@ -1098,7 +1098,7 @@ static int ocfs2_rename(struct inode *old_dir,
 			BUG();
 	}
 
-	/* Assume a directory heirarchy thusly:
+	/* Assume a directory hierarchy thusly:
 	 * a/b/c
 	 * a/d
 	 * a,b,c, and d are all directories.

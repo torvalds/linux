@@ -525,7 +525,7 @@ config CPU_BIG_ENDIAN
 	  of your chipset/board/processor.
 
 config CPU_HIGH_VECTOR
-	depends !MMU && CPU_CP15 && !CPU_ARM740T
+	depends on !MMU && CPU_CP15 && !CPU_ARM740T
 	bool "Select the High exception vector"
 	default n
 	help

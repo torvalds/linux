@@ -18,8 +18,8 @@
 #include <asm/freq.h>
 #include <asm/io.h>
 
-const static int pll1rate[]={1,2};
-const static int pfc_divisors[]={1,2,0,4};
+static const int pll1rate[] = {1,2};
+static const int pfc_divisors[] = {1,2,0,4};
 
 #if (CONFIG_SH_CLK_MD == 1) || (CONFIG_SH_CLK_MD == 2)
 #define PLL2 (4)
