@@ -752,7 +752,7 @@ static struct resource atmel_spi1_resource[] = {
 DEFINE_DEV(atmel_spi, 1);
 DEV_CLK(spi_clk, atmel_spi1, pba, 1);
 
-static void
+static void __init
 at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b,
 		      unsigned int n, const u8 *pins)
 {
