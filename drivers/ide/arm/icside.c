@@ -307,26 +307,24 @@ static int icside_set_speed(ide_drive_t *drive, u8 xfer_mode)
 	return on;
 }
 
-static int icside_dma_host_off(ide_drive_t *drive)
+static void icside_dma_host_off(ide_drive_t *drive)
 {
-	return 0;
 }
 
-static int icside_dma_off_quietly(ide_drive_t *drive)
+static void icside_dma_off_quietly(ide_drive_t *drive)
 {
 	drive->using_dma = 0;
-	return icside_dma_host_off(drive);
 }
 
-static int icside_dma_host_on(ide_drive_t *drive)
+static void icside_dma_host_on(ide_drive_t *drive)
 {
-	return 0;
 }
 
 static int icside_dma_on(ide_drive_t *drive)
 {
 	drive->using_dma = 1;
-	return icside_dma_host_on(drive);
+
+	return 0;
 }
 
 static int icside_dma_check(ide_drive_t *drive)
@@ -365,10 +363,7 @@ static int icside_dma_check(ide_drive_t *drive)
 out:
 	on = icside_set_speed(drive, xfer_mode);
 
-	if (on)
-		return icside_dma_on(drive);
-	else
-		return icside_dma_off_quietly(drive);
+	return on ? 0 : -1;
 }
 
 static int icside_dma_end(ide_drive_t *drive)
@@ -497,9 +492,9 @@ static void icside_dma_init(ide_hwif_t *hwif)
 	hwif->autodma		= autodma;
 
 	hwif->ide_dma_check	= icside_dma_check;
-	hwif->ide_dma_host_off	= icside_dma_host_off;
-	hwif->ide_dma_off_quietly = icside_dma_off_quietly;
-	hwif->ide_dma_host_on	= icside_dma_host_on;
+	hwif->dma_host_off	= icside_dma_host_off;
+	hwif->dma_off_quietly	= icside_dma_off_quietly;
+	hwif->dma_host_on	= icside_dma_host_on;
 	hwif->ide_dma_on	= icside_dma_on;
 	hwif->dma_setup		= icside_dma_setup;
 	hwif->dma_exec_cmd	= icside_dma_exec_cmd;
@@ -556,7 +551,7 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 		 * Ensure we're using MMIO
 		 */
 		default_hwif_mmiops(hwif);
-		hwif->mmio = 2;
+		hwif->mmio = 1;
 
 		for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
 			hwif->hw.io_ports[i] = port;

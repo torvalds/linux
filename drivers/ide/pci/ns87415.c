@@ -166,10 +166,10 @@ static int ns87415_ide_dma_end (ide_drive_t *drive)
 	/* get dma command mode */
 	dma_cmd = hwif->INB(hwif->dma_command);
 	/* stop DMA */
-	hwif->OUTB(dma_cmd & ~1, hwif->dma_command);
+	outb(dma_cmd & ~1, hwif->dma_command);
 	/* from ERRATA: clear the INTR & ERROR bits */
 	dma_cmd = hwif->INB(hwif->dma_command);
-	hwif->OUTB(dma_cmd|6, hwif->dma_command);
+	outb(dma_cmd | 6, hwif->dma_command);
 	/* and free any DMA resources */
 	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
@@ -190,7 +190,8 @@ static int ns87415_ide_dma_setup(ide_drive_t *drive)
 static int ns87415_ide_dma_check (ide_drive_t *drive)
 {
 	if (drive->media != ide_disk)
-		return HWIF(drive)->ide_dma_off_quietly(drive);
+		return -1;
+
 	return __ide_dma_check(drive);
 }
 
@@ -243,9 +244,9 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 		 *      to SELECT_DRIVE() properly during first probe_hwif().
 		 */
 		timeout = 10000;
-		hwif->OUTB(12, hwif->io_ports[IDE_CONTROL_OFFSET]);
+		outb(12, hwif->io_ports[IDE_CONTROL_OFFSET]);
 		udelay(10);
-		hwif->OUTB(8, hwif->io_ports[IDE_CONTROL_OFFSET]);
+		outb(8, hwif->io_ports[IDE_CONTROL_OFFSET]);
 		do {
 			udelay(50);
 			stat = hwif->INB(hwif->io_ports[IDE_STATUS_OFFSET]);
@@ -263,7 +264,7 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	hwif->OUTB(0x60, hwif->dma_status);
+	outb(0x60, hwif->dma_status);
 	hwif->dma_setup = &ns87415_ide_dma_setup;
 	hwif->ide_dma_check = &ns87415_ide_dma_check;
 	hwif->ide_dma_end = &ns87415_ide_dma_end;

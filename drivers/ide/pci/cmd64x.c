@@ -466,36 +466,21 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 	if (!speed)
 		return 0;
 
-	if(ide_set_xfer_rate(drive, speed))
-		return 0; 
-
-	if (!drive->init_speed)
-		drive->init_speed = speed;
+	if (cmd64x_tune_chipset(drive, speed))
+		return 0;
 
 	return ide_dma_enable(drive);
 }
 
 static int cmd64x_config_drive_for_dma (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return 0;
 
-	if ((id != NULL) && ((id->capability & 1) != 0) && drive->autodma) {
-
-		if (ide_use_dma(drive)) {
-			if (config_chipset_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
-
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
+	if (ide_use_fast_pio(drive))
 		config_chipset_for_pio(drive, 1);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return -1;
 }
 
 static int cmd64x_alt_dma_status (struct pci_dev *dev)
@@ -518,13 +503,13 @@ static int cmd64x_ide_dma_end (ide_drive_t *drive)
 
 	drive->waiting_for_dma = 0;
 	/* read DMA command state */
-	dma_cmd = hwif->INB(hwif->dma_command);
+	dma_cmd = inb(hwif->dma_command);
 	/* stop DMA */
-	hwif->OUTB((dma_cmd & ~1), hwif->dma_command);
+	outb(dma_cmd & ~1, hwif->dma_command);
 	/* get DMA status */
-	dma_stat = hwif->INB(hwif->dma_status);
+	dma_stat = inb(hwif->dma_status);
 	/* clear the INTR & ERROR bits */
-	hwif->OUTB(dma_stat|6, hwif->dma_status);
+	outb(dma_stat | 6, hwif->dma_status);
 	if (cmd64x_alt_dma_status(dev)) {
 		u8 dma_intr	= 0;
 		u8 dma_mask	= (hwif->channel) ? ARTTIM23_INTR_CH1 :
@@ -546,7 +531,7 @@ static int cmd64x_ide_dma_test_irq (ide_drive_t *drive)
 	struct pci_dev *dev		= hwif->pci_dev;
         u8 dma_alt_stat = 0, mask	= (hwif->channel) ? MRDMODE_INTR_CH1 :
 							    MRDMODE_INTR_CH0;
-	u8 dma_stat = hwif->INB(hwif->dma_status);
+	u8 dma_stat = inb(hwif->dma_status);
 
 	(void) pci_read_config_byte(dev, MRDMODE, &dma_alt_stat);
 #ifdef DEBUG
@@ -576,13 +561,13 @@ static int cmd646_1_ide_dma_end (ide_drive_t *drive)
 
 	drive->waiting_for_dma = 0;
 	/* get DMA status */
-	dma_stat = hwif->INB(hwif->dma_status);
+	dma_stat = inb(hwif->dma_status);
 	/* read DMA command state */
-	dma_cmd = hwif->INB(hwif->dma_command);
+	dma_cmd = inb(hwif->dma_command);
 	/* stop DMA */
-	hwif->OUTB((dma_cmd & ~1), hwif->dma_command);
+	outb(dma_cmd & ~1, hwif->dma_command);
 	/* clear the INTR & ERROR bits */
-	hwif->OUTB(dma_stat|6, hwif->dma_status);
+	outb(dma_stat | 6, hwif->dma_status);
 	/* and free any DMA resources */
 	ide_destroy_dmatable(drive);
 	/* verify good DMA status */

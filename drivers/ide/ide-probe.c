@@ -853,11 +853,11 @@ static void probe_hwif(ide_hwif_t *hwif)
 				 * things, if not checked and cleared.
 				 *   PARANOIA!!!
 				 */
-				hwif->ide_dma_off_quietly(drive);
+				hwif->dma_off_quietly(drive);
 #ifdef CONFIG_IDEDMA_ONLYDISK
 				if (drive->media == ide_disk)
 #endif
-					hwif->ide_dma_check(drive);
+					ide_set_dma(drive);
 			}
 		}
 	}

@@ -104,29 +104,21 @@ static int triflex_config_drive_for_dma(ide_drive_t *drive)
 {
 	int speed = ide_dma_speed(drive, 0); /* No ultra speeds */
 
-	if (!speed) { 
-		u8 pspeed = ide_get_best_pio_mode(drive, 255, 4, NULL);
-		speed = XFER_PIO_0 + pspeed;
-	}
-	
+	if (!speed)
+		return 0;
+
 	(void) triflex_tune_chipset(drive, speed);
 	 return ide_dma_enable(drive);
 }
 
 static int triflex_config_drive_xfer_rate(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
+	if (ide_use_dma(drive) && triflex_config_drive_for_dma(drive))
+		return 0;
 
-	if ((id->capability & 1) && drive->autodma) {
-		if (ide_use_dma(drive)) {
-			if (triflex_config_drive_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
-	}
+	triflex_tune_drive(drive, 255);
 
-	hwif->tuneproc(drive, 255);
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 static void __devinit init_hwif_triflex(ide_hwif_t *hwif)

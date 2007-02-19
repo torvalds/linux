@@ -46,7 +46,7 @@ rapide_locate_hwif(void __iomem *base, void __iomem *ctrl, unsigned int sz, int 
 	hwif->hw.io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
 	hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
 	hwif->hw.irq = hwif->irq = irq;
-	hwif->mmio = 2;
+	hwif->mmio = 1;
 	default_hwif_mmiops(hwif);
 
 	return hwif;

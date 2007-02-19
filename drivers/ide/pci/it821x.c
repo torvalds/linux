@@ -520,14 +520,12 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 static int it821x_config_drive_for_dma (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return 0;
 
-	if (ide_use_dma(drive)) {
-		if (config_chipset_for_dma(drive))
-			return hwif->ide_dma_on(drive);
-	}
 	config_it821x_chipset_for_pio(drive, 1);
-	return hwif->ide_dma_off_quietly(drive);
+
+	return -1;
 }
 
 /**
@@ -608,11 +606,11 @@ static void __devinit it821x_fixups(ide_hwif_t *hwif)
 				printk(".\n");
 			/* Now the core code will have wrongly decided no DMA
 			   so we need to fix this */
-			hwif->ide_dma_off_quietly(drive);
+			hwif->dma_off_quietly(drive);
 #ifdef CONFIG_IDEDMA_ONLYDISK
 			if (drive->media == ide_disk)
 #endif
-				hwif->ide_dma_check(drive);
+				ide_set_dma(drive);
 		} else {
 			/* Non RAID volume. Fixups to stop the core code
 			   doing unsupported things */

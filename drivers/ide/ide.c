@@ -389,9 +389,8 @@ int ide_hwif_request_regions(ide_hwif_t *hwif)
 	unsigned long addr;
 	unsigned int i;
 
-	if (hwif->mmio == 2)
+	if (hwif->mmio)
 		return 0;
-	BUG_ON(hwif->mmio == 1);
 	addr = hwif->io_ports[IDE_CONTROL_OFFSET];
 	if (addr && !hwif_request_region(hwif, addr, 1))
 		goto control_region_busy;
@@ -438,7 +437,7 @@ void ide_hwif_release_regions(ide_hwif_t *hwif)
 {
 	u32 i = 0;
 
-	if (hwif->mmio == 2)
+	if (hwif->mmio)
 		return;
 	if (hwif->io_ports[IDE_CONTROL_OFFSET])
 		release_region(hwif->io_ports[IDE_CONTROL_OFFSET], 1);
@@ -507,23 +506,22 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->ide_dma_end		= tmp_hwif->ide_dma_end;
 	hwif->ide_dma_check		= tmp_hwif->ide_dma_check;
 	hwif->ide_dma_on		= tmp_hwif->ide_dma_on;
-	hwif->ide_dma_off_quietly	= tmp_hwif->ide_dma_off_quietly;
+	hwif->dma_off_quietly		= tmp_hwif->dma_off_quietly;
 	hwif->ide_dma_test_irq		= tmp_hwif->ide_dma_test_irq;
-	hwif->ide_dma_host_on		= tmp_hwif->ide_dma_host_on;
-	hwif->ide_dma_host_off		= tmp_hwif->ide_dma_host_off;
+	hwif->ide_dma_clear_irq		= tmp_hwif->ide_dma_clear_irq;
+	hwif->dma_host_on		= tmp_hwif->dma_host_on;
+	hwif->dma_host_off		= tmp_hwif->dma_host_off;
 	hwif->ide_dma_lostirq		= tmp_hwif->ide_dma_lostirq;
 	hwif->ide_dma_timeout		= tmp_hwif->ide_dma_timeout;
 
 	hwif->OUTB			= tmp_hwif->OUTB;
 	hwif->OUTBSYNC			= tmp_hwif->OUTBSYNC;
 	hwif->OUTW			= tmp_hwif->OUTW;
-	hwif->OUTL			= tmp_hwif->OUTL;
 	hwif->OUTSW			= tmp_hwif->OUTSW;
 	hwif->OUTSL			= tmp_hwif->OUTSL;
 
 	hwif->INB			= tmp_hwif->INB;
 	hwif->INW			= tmp_hwif->INW;
-	hwif->INL			= tmp_hwif->INL;
 	hwif->INSW			= tmp_hwif->INSW;
 	hwif->INSL			= tmp_hwif->INSL;
 
@@ -551,7 +549,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->extra_ports		= tmp_hwif->extra_ports;
 	hwif->autodma			= tmp_hwif->autodma;
 	hwif->udma_four			= tmp_hwif->udma_four;
-	hwif->no_dsc			= tmp_hwif->no_dsc;
 
 	hwif->hwif_data			= tmp_hwif->hwif_data;
 }
@@ -1138,12 +1135,11 @@ static int set_using_dma (ide_drive_t *drive, int arg)
 	if (HWIF(drive)->ide_dma_check == NULL)
 		return -EPERM;
 	if (arg) {
-		if (HWIF(drive)->ide_dma_check(drive)) return -EIO;
-		if (HWIF(drive)->ide_dma_on(drive)) return -EIO;
-	} else {
-		if (__ide_dma_off(drive))
+		if (ide_set_dma(drive))
 			return -EIO;
-	}
+		if (HWIF(drive)->ide_dma_on(drive)) return -EIO;
+	} else
+		ide_dma_off(drive);
 	return 0;
 #else
 	return -EPERM;

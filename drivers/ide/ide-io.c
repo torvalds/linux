@@ -226,7 +226,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 			break;
 		if (drive->hwif->ide_dma_check == NULL)
 			break;
-		drive->hwif->ide_dma_check(drive);
+		ide_set_dma(drive);
 		break;
 	}
 	pm->pm_step = ide_pm_state_completed;
@@ -1351,7 +1351,7 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	 */
 	drive->retry_pio++;
 	drive->state = DMA_PIO_RETRY;
-	(void) hwif->ide_dma_off_quietly(drive);
+	hwif->dma_off_quietly(drive);
 
 	/*
 	 * un-busy drive etc (hwgroup->busy is cleared on return) and
@@ -1645,6 +1645,17 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	hwgroup->handler = NULL;
 	del_timer(&hwgroup->timer);
 	spin_unlock(&ide_lock);
+
+	/* Some controllers might set DMA INTR no matter DMA or PIO;
+	 * bmdma status might need to be cleared even for
+	 * PIO interrupts to prevent spurious/lost irq.
+	 */
+	if (hwif->ide_dma_clear_irq && !(drive->waiting_for_dma))
+		/* ide_dma_end() needs bmdma status for error checking.
+		 * So, skip clearing bmdma status here and leave it
+		 * to ide_dma_end() if this is dma interrupt.
+		 */
+		hwif->ide_dma_clear_irq(drive);
 
 	if (drive->unmask)
 		local_irq_enable_in_hardirq();

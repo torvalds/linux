@@ -279,6 +279,7 @@ typedef struct ide_floppy_obj {
 	ide_driver_t	*driver;
 	struct gendisk	*disk;
 	struct kref	kref;
+	unsigned int	openers;	/* protected by BKL for now */
 
 	/* Current packet command */
 	idefloppy_pc_t *pc;
@@ -866,7 +867,7 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	if (test_and_clear_bit(PC_DMA_IN_PROGRESS, &pc->flags)) {
 		printk(KERN_ERR "ide-floppy: The floppy wants to issue "
 			"more interrupts in DMA mode\n");
-		(void)__ide_dma_off(drive);
+		ide_dma_off(drive);
 		return ide_do_reset(drive);
 	}
 
@@ -1096,9 +1097,9 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 	pc->current_position = pc->buffer;
 	bcount.all = min(pc->request_transfer, 63 * 1024);
 
-	if (test_and_clear_bit(PC_DMA_ERROR, &pc->flags)) {
-		(void)__ide_dma_off(drive);
-	}
+	if (test_and_clear_bit(PC_DMA_ERROR, &pc->flags))
+		ide_dma_off(drive);
+
 	feature.all = 0;
 
 	if (test_bit(PC_DMA_RECOMMENDED, &pc->flags) && drive->using_dma)
@@ -1433,7 +1434,8 @@ static int idefloppy_get_capacity (ide_drive_t *drive)
 	
 	drive->bios_cyl = 0;
 	drive->bios_head = drive->bios_sect = 0;
-	floppy->blocks = floppy->bs_factor = 0;
+	floppy->blocks = 0;
+	floppy->bs_factor = 1;
 	set_capacity(floppy->disk, 0);
 
 	idefloppy_create_read_capacity_cmd(&pc);
@@ -1949,9 +1951,9 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 
 	drive = floppy->drive;
 
-	drive->usage++;
+	floppy->openers++;
 
-	if (drive->usage == 1) {
+	if (floppy->openers == 1) {
 		clear_bit(IDEFLOPPY_FORMAT_IN_PROGRESS, &floppy->flags);
 		/* Just in case */
 
@@ -1969,13 +1971,11 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 		    ** capacity of the drive or begin the format - Sam
 		    */
 		    ) {
-			drive->usage--;
 			ret = -EIO;
 			goto out_put_floppy;
 		}
 
 		if (floppy->wp && (filp->f_mode & 2)) {
-			drive->usage--;
 			ret = -EROFS;
 			goto out_put_floppy;
 		}
@@ -1987,13 +1987,13 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 		}
 		check_disk_change(inode->i_bdev);
 	} else if (test_bit(IDEFLOPPY_FORMAT_IN_PROGRESS, &floppy->flags)) {
-		drive->usage--;
 		ret = -EBUSY;
 		goto out_put_floppy;
 	}
 	return 0;
 
 out_put_floppy:
+	floppy->openers--;
 	ide_floppy_put(floppy);
 	return ret;
 }
@@ -2007,7 +2007,7 @@ static int idefloppy_release(struct inode *inode, struct file *filp)
 	
 	debug_log(KERN_INFO "Reached idefloppy_release\n");
 
-	if (drive->usage == 1) {
+	if (floppy->openers == 1) {
 		/* IOMEGA Clik! drives do not support lock/unlock commands */
                 if (!test_bit(IDEFLOPPY_CLIK_DRIVE, &floppy->flags)) {
 			idefloppy_create_prevent_cmd(&pc, 0);
@@ -2016,7 +2016,8 @@ static int idefloppy_release(struct inode *inode, struct file *filp)
 
 		clear_bit(IDEFLOPPY_FORMAT_IN_PROGRESS, &floppy->flags);
 	}
-	drive->usage--;
+
+	floppy->openers--;
 
 	ide_floppy_put(floppy);
 
@@ -2050,7 +2051,7 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 		prevent = 0;
 		/* fall through */
 	case CDROM_LOCKDOOR:
-		if (drive->usage > 1)
+		if (floppy->openers > 1)
 			return -EBUSY;
 
 		/* The IOMEGA Clik! Drive doesn't support this command - no room for an eject mechanism */
@@ -2072,7 +2073,7 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 		if (!(file->f_mode & 2))
 			return -EPERM;
 
-		if (drive->usage > 1) {
+		if (floppy->openers > 1) {
 			/* Don't format if someone is using the disk */
 
 			clear_bit(IDEFLOPPY_FORMAT_IN_PROGRESS,

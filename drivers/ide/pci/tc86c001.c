@@ -45,7 +45,7 @@ static int tc86c001_tune_chipset(ide_drive_t *drive, u8 speed)
 
 	scr &= (speed < XFER_MW_DMA_0) ? 0xf8ff : 0xff0f;
 	scr |= mode;
-	hwif->OUTW(scr, scr_port);
+	outw(scr, scr_port);
 
 	return ide_config_drive_speed(drive, speed);
 }
@@ -89,15 +89,15 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 		       "attempting recovery...\n", drive->name);
 
 		/* Stop DMA */
-		hwif->OUTB(dma_cmd & ~0x01, hwif->dma_command);
+		outb(dma_cmd & ~0x01, hwif->dma_command);
 
 		/* Setup the dummy DMA transfer */
-		hwif->OUTW(0, sc_base + 0x0a);	/* Sector Count */
-		hwif->OUTW(0, twcr_port);	/* Transfer Word Count 1 or 2 */
+		outw(0, sc_base + 0x0a);	/* Sector Count */
+		outw(0, twcr_port);	/* Transfer Word Count 1 or 2 */
 
 		/* Start the dummy DMA transfer */
-		hwif->OUTB(0x00, hwif->dma_command); /* clear R_OR_WCTR for write */
-		hwif->OUTB(0x01, hwif->dma_command); /* set START_STOPBM */
+		outb(0x00, hwif->dma_command); /* clear R_OR_WCTR for write */
+		outb(0x01, hwif->dma_command); /* set START_STOPBM */
 
 		/*
 		 * If an interrupt was pending, it should come thru shortly.
@@ -128,8 +128,8 @@ static void tc86c001_dma_start(ide_drive_t *drive)
 	 * the appropriate system control registers for DMA to work
 	 * with LBA48 and ATAPI devices...
 	 */
-	hwif->OUTW(nsectors, sc_base + 0x0a);	/* Sector Count */
-	hwif->OUTW(SECTOR_SIZE / 2, twcr_port); /* Transfer Word Count 1/2 */
+	outw(nsectors, sc_base + 0x0a);	/* Sector Count */
+	outw(SECTOR_SIZE / 2, twcr_port); /* Transfer Word Count 1/2 */
 
 	/* Install our timeout expiry hook, saving the current handler... */
 	ide_set_hwifdata(hwif, hwgroup->expiry);
@@ -168,7 +168,7 @@ static int tc86c001_busproc(ide_drive_t *drive, int state)
 	}
 
 	/* System Control 1 Register bit 11 (ATA Hard Reset) write */
-	hwif->OUTW(scr1, sc_base + 0x00);
+	outw(scr1, sc_base + 0x00);
 	return 0;
 }
 
@@ -185,23 +185,13 @@ static int config_chipset_for_dma(ide_drive_t *drive)
 
 static int tc86c001_config_drive_xfer_rate(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return 0;
 
-	if ((id->capability & 1) && drive->autodma) {
-
-		if (ide_use_dma(drive) && config_chipset_for_dma(drive))
-			return hwif->ide_dma_on(drive);
-
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
+	if (ide_use_fast_pio(drive))
 		tc86c001_tune_drive(drive, 255);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return -1;
 }
 
 static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
@@ -210,13 +200,13 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	u16 scr1		= hwif->INW(sc_base + 0x00);;
 
 	/* System Control 1 Register bit 15 (Soft Reset) set */
-	hwif->OUTW(scr1 |  0x8000, sc_base + 0x00);
+	outw(scr1 |  0x8000, sc_base + 0x00);
 
 	/* System Control 1 Register bit 14 (FIFO Reset) set */
-	hwif->OUTW(scr1 |  0x4000, sc_base + 0x00);
+	outw(scr1 |  0x4000, sc_base + 0x00);
 
 	/* System Control 1 Register: reset clear */
-	hwif->OUTW(scr1 & ~0xc000, sc_base + 0x00);
+	outw(scr1 & ~0xc000, sc_base + 0x00);
 
 	/* Store the system control register base for convenience... */
 	hwif->config_data = sc_base;
@@ -234,7 +224,7 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	 * Sector Count Control Register bits 0 and 1 set:
 	 * software sets Sector Count Register for master and slave device
 	 */
-	hwif->OUTW(0x0003, sc_base + 0x0c);
+	outw(0x0003, sc_base + 0x0c);
 
 	/* Sector Count Register limit */
 	hwif->rqsize	 = 0xffff;

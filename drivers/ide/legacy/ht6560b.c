@@ -143,16 +143,16 @@ static void ht6560b_selectproc (ide_drive_t *drive)
 		current_timing = timing;
 		if (drive->media != ide_disk || !drive->present)
 			select |= HT_PREFETCH_MODE;
-		(void) HWIF(drive)->INB(HT_CONFIG_PORT);
-		(void) HWIF(drive)->INB(HT_CONFIG_PORT);
-		(void) HWIF(drive)->INB(HT_CONFIG_PORT);
-		(void) HWIF(drive)->INB(HT_CONFIG_PORT);
-		HWIF(drive)->OUTB(select, HT_CONFIG_PORT);
+		(void)inb(HT_CONFIG_PORT);
+		(void)inb(HT_CONFIG_PORT);
+		(void)inb(HT_CONFIG_PORT);
+		(void)inb(HT_CONFIG_PORT);
+		outb(select, HT_CONFIG_PORT);
 		/*
 		 * Set timing for this drive:
 		 */
-		HWIF(drive)->OUTB(timing, IDE_SELECT_REG);
-		(void) HWIF(drive)->INB(IDE_STATUS_REG);
+		outb(timing, IDE_SELECT_REG);
+		(void)inb(IDE_STATUS_REG);
 #ifdef DEBUG
 		printk("ht6560b: %s: select=%#x timing=%#x\n",
 			drive->name, select, timing);
