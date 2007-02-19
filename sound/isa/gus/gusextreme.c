@@ -283,6 +283,7 @@ static int __devinit snd_gusextreme_probe(struct device *dev, unsigned int n)
 			"detected at 0x%lx\n", dev->bus_id, gus->gf1.port);
 		goto out;
 	}
+	gus->codec_flag = 1;
 
 	error = snd_es1688_pcm(es1688, 0, NULL);
 	if (error < 0)
