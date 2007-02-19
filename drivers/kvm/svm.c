@@ -1078,16 +1078,8 @@ static int halt_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 static int vmmcall_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	printk(KERN_DEBUG "got vmmcall at RIP %08llx\n",
-	       vcpu->svm->vmcb->save.rip);
-	printk(KERN_DEBUG "vmmcall params: %08llx, %08lx, %08lx, %08lx\n",
-	       vcpu->svm->vmcb->save.rax,
-	       vcpu->regs[VCPU_REGS_RCX],
-	       vcpu->regs[VCPU_REGS_RDX],
-	       vcpu->regs[VCPU_REGS_RBP]);
-	vcpu->svm->vmcb->save.rax = 0;
 	vcpu->svm->vmcb->save.rip += 3;
-	return 1;
+	return kvm_hypercall(vcpu, kvm_run);
 }
 
 static int invalid_op_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)

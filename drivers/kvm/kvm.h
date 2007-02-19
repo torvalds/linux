@@ -482,6 +482,8 @@ void kvm_mmu_post_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes);
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva);
 void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);
 
+int kvm_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run);
+
 static inline int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 				     u32 error_code)
 {

@@ -1659,16 +1659,8 @@ static int handle_halt(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 static int handle_vmcall(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	kvm_run->exit_reason = KVM_EXIT_DEBUG;
-	printk(KERN_DEBUG "got vmcall at RIP %08lx\n", vmcs_readl(GUEST_RIP));
-	printk(KERN_DEBUG "vmcall params: %08lx, %08lx, %08lx, %08lx\n",
-		vcpu->regs[VCPU_REGS_RAX],
-		vcpu->regs[VCPU_REGS_RCX],
-		vcpu->regs[VCPU_REGS_RDX],
-		vcpu->regs[VCPU_REGS_RBP]);
-	vcpu->regs[VCPU_REGS_RAX] = 0;
 	vmcs_writel(GUEST_RIP, vmcs_readl(GUEST_RIP)+3);
-	return 1;
+	return kvm_hypercall(vcpu, kvm_run);
 }
 
 /*
