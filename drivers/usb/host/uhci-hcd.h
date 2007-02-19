@@ -129,6 +129,8 @@ struct uhci_qh {
 	__le32 element;			/* Queue element (TD) pointer */
 
 	/* Software fields */
+	dma_addr_t dma_handle;
+
 	struct list_head node;		/* Node in the list of QHs */
 	struct usb_host_endpoint *hep;	/* Endpoint information */
 	struct usb_device *udev;
@@ -150,8 +152,6 @@ struct uhci_qh {
 	int state;			/* QH_STATE_xxx; see above */
 	int type;			/* Queue type (control, bulk, etc) */
 
-	dma_addr_t dma_handle;
-
 	unsigned int initial_toggle:1;	/* Endpoint's current toggle value */
 	unsigned int needs_fixup:1;	/* Must fix the TD toggle values */
 	unsigned int is_stopped:1;	/* Queue was stopped by error/unlink */
@@ -170,6 +170,8 @@ static inline __le32 qh_element(struct uhci_qh *qh) {
 	barrier();
 	return element;
 }
+
+#define LINK_TO_QH(qh)		(UHCI_PTR_QH | cpu_to_le32((qh)->dma_handle))
 
 
 /*
@@ -263,6 +265,8 @@ static inline u32 td_status(struct uhci_td *td) {
 	barrier();
 	return le32_to_cpu(status);
 }
+
+#define LINK_TO_TD(td)		(cpu_to_le32((td)->dma_handle))
 
 
 /*

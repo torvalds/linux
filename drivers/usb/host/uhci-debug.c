@@ -196,7 +196,7 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 		struct uhci_td *td = list_entry(urbp->td_list.next,
 				struct uhci_td, list);
 
-		if (cpu_to_le32(td->dma_handle) != (element & ~UHCI_PTR_BITS))
+		if (element != LINK_TO_TD(td))
 			out += sprintf(out, "%*s Element != First TD\n",
 					space, "");
 		i = nurbs = 0;
@@ -393,7 +393,7 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 		do {
 			td = list_entry(tmp, struct uhci_td, fl_list);
 			tmp = tmp->next;
-			if (cpu_to_le32(td->dma_handle) != link) {
+			if (link != LINK_TO_TD(td)) {
 				if (nframes > 0)
 					out += sprintf(out, "    link does "
 						"not match list entry!\n");
@@ -440,7 +440,7 @@ check_link:
 			if (qh->link != UHCI_PTR_TERM)
 				out += sprintf(out, "    bandwidth reclamation on!\n");
 
-			if (qh_element(qh) != cpu_to_le32(uhci->term_td->dma_handle))
+			if (qh_element(qh) != LINK_TO_TD(uhci->term_td))
 				out += sprintf(out, "    skel_term_qh element is not set to term_td!\n");
 
 			continue;
@@ -461,8 +461,7 @@ check_link:
 			out += sprintf(out, "    Skipped %d QHs\n", cnt);
 
 		if (i > 1 && i < UHCI_NUM_SKELQH - 1) {
-			if (qh->link !=
-			    (cpu_to_le32(uhci->skelqh[j]->dma_handle) | UHCI_PTR_QH))
+			if (qh->link != LINK_TO_QH(uhci->skelqh[j]))
 				out += sprintf(out, "    last QH not linked to next skeleton!\n");
 		}
 	}

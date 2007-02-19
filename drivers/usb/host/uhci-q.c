@@ -46,8 +46,7 @@ static inline void uhci_clear_next_interrupt(struct uhci_hcd *uhci)
 static void uhci_fsbr_on(struct uhci_hcd *uhci)
 {
 	uhci->fsbr_is_on = 1;
-	uhci->skel_term_qh->link = cpu_to_le32(
-			uhci->skel_fs_control_qh->dma_handle) | UHCI_PTR_QH;
+	uhci->skel_term_qh->link = LINK_TO_QH(uhci->skel_fs_control_qh);
 }
 
 static void uhci_fsbr_off(struct uhci_hcd *uhci)
@@ -158,11 +157,11 @@ static inline void uhci_insert_td_in_frame_list(struct uhci_hcd *uhci,
 
 		td->link = ltd->link;
 		wmb();
-		ltd->link = cpu_to_le32(td->dma_handle);
+		ltd->link = LINK_TO_TD(td);
 	} else {
 		td->link = uhci->frame[framenum];
 		wmb();
-		uhci->frame[framenum] = cpu_to_le32(td->dma_handle);
+		uhci->frame[framenum] = LINK_TO_TD(td);
 		uhci->frame_cpu[framenum] = td;
 	}
 }
@@ -184,7 +183,7 @@ static inline void uhci_remove_td_from_frame_list(struct uhci_hcd *uhci,
 			struct uhci_td *ntd;
 
 			ntd = list_entry(td->fl_list.next, struct uhci_td, fl_list);
-			uhci->frame[td->frame] = cpu_to_le32(ntd->dma_handle);
+			uhci->frame[td->frame] = LINK_TO_TD(ntd);
 			uhci->frame_cpu[td->frame] = ntd;
 		}
 	} else {
@@ -421,7 +420,7 @@ static void uhci_activate_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		struct uhci_td *td = list_entry(urbp->td_list.next,
 				struct uhci_td, list);
 
-		qh->element = cpu_to_le32(td->dma_handle);
+		qh->element = LINK_TO_TD(td);
 	}
 
 	/* Treat the queue as if it has just advanced */
@@ -443,7 +442,7 @@ static void uhci_activate_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	pqh = list_entry(qh->node.prev, struct uhci_qh, node);
 	qh->link = pqh->link;
 	wmb();
-	pqh->link = UHCI_PTR_QH | cpu_to_le32(qh->dma_handle);
+	pqh->link = LINK_TO_QH(qh);
 }
 
 /*
@@ -737,7 +736,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 		td = uhci_alloc_td(uhci);
 		if (!td)
 			goto nomem;
-		*plink = cpu_to_le32(td->dma_handle);
+		*plink = LINK_TO_TD(td);
 
 		/* Alternate Data0/1 (start with Data1) */
 		destination ^= TD_TOKEN_TOGGLE;
@@ -757,7 +756,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	td = uhci_alloc_td(uhci);
 	if (!td)
 		goto nomem;
-	*plink = cpu_to_le32(td->dma_handle);
+	*plink = LINK_TO_TD(td);
 
 	/*
 	 * It's IN if the pipe is an output pipe or we're not expecting
@@ -784,7 +783,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	td = uhci_alloc_td(uhci);
 	if (!td)
 		goto nomem;
-	*plink = cpu_to_le32(td->dma_handle);
+	*plink = LINK_TO_TD(td);
 
 	uhci_fill_td(td, 0, USB_PID_OUT | uhci_explen(0), 0);
 	wmb();
@@ -860,7 +859,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 			td = uhci_alloc_td(uhci);
 			if (!td)
 				goto nomem;
-			*plink = cpu_to_le32(td->dma_handle);
+			*plink = LINK_TO_TD(td);
 		}
 		uhci_add_td_to_urbp(td, urbp);
 		uhci_fill_td(td, status,
@@ -888,7 +887,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 		td = uhci_alloc_td(uhci);
 		if (!td)
 			goto nomem;
-		*plink = cpu_to_le32(td->dma_handle);
+		*plink = LINK_TO_TD(td);
 
 		uhci_add_td_to_urbp(td, urbp);
 		uhci_fill_td(td, status,
@@ -914,7 +913,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	td = uhci_alloc_td(uhci);
 	if (!td)
 		goto nomem;
-	*plink = cpu_to_le32(td->dma_handle);
+	*plink = LINK_TO_TD(td);
 
 	uhci_fill_td(td, 0, USB_PID_OUT | uhci_explen(0), 0);
 	wmb();
@@ -1005,7 +1004,7 @@ static int uhci_fixup_short_transfer(struct uhci_hcd *uhci,
 		 * the queue at the status stage transaction, which is
 		 * the last TD. */
 		WARN_ON(list_empty(&urbp->td_list));
-		qh->element = cpu_to_le32(td->dma_handle);
+		qh->element = LINK_TO_TD(td);
 		tmp = td->list.prev;
 		ret = -EINPROGRESS;
 
@@ -1566,8 +1565,7 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	if (time_after(jiffies, qh->advance_jiffies + QH_WAIT_TIMEOUT)) {
 
 		/* Detect the Intel bug and work around it */
-		if (qh->post_td && qh_element(qh) ==
-				cpu_to_le32(qh->post_td->dma_handle)) {
+		if (qh->post_td && qh_element(qh) == LINK_TO_TD(qh->post_td)) {
 			qh->element = qh->post_td->link;
 			qh->advance_jiffies = jiffies;
 			ret = 1;

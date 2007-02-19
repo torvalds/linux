@@ -116,7 +116,7 @@ static __le32 uhci_frame_skel_link(struct uhci_hcd *uhci, int frame)
 	skelnum = 8 - (int) __ffs(frame | UHCI_NUMFRAMES);
 	if (skelnum <= 1)
 		skelnum = 9;
-	return UHCI_PTR_QH | cpu_to_le32(uhci->skelqh[skelnum]->dma_handle);
+	return LINK_TO_QH(uhci->skelqh[skelnum]);
 }
 
 #include "uhci-debug.c"
@@ -635,25 +635,21 @@ static int uhci_start(struct usb_hcd *hcd)
 			uhci->skel_int16_qh->link =
 			uhci->skel_int8_qh->link =
 			uhci->skel_int4_qh->link =
-			uhci->skel_int2_qh->link = UHCI_PTR_QH |
-			cpu_to_le32(uhci->skel_int1_qh->dma_handle);
+			uhci->skel_int2_qh->link = LINK_TO_QH(
+				uhci->skel_int1_qh);
 
-	uhci->skel_int1_qh->link = UHCI_PTR_QH |
-			cpu_to_le32(uhci->skel_ls_control_qh->dma_handle);
-	uhci->skel_ls_control_qh->link = UHCI_PTR_QH |
-			cpu_to_le32(uhci->skel_fs_control_qh->dma_handle);
-	uhci->skel_fs_control_qh->link = UHCI_PTR_QH |
-			cpu_to_le32(uhci->skel_bulk_qh->dma_handle);
-	uhci->skel_bulk_qh->link = UHCI_PTR_QH |
-			cpu_to_le32(uhci->skel_term_qh->dma_handle);
+	uhci->skel_int1_qh->link = LINK_TO_QH(uhci->skel_ls_control_qh);
+	uhci->skel_ls_control_qh->link = LINK_TO_QH(uhci->skel_fs_control_qh);
+	uhci->skel_fs_control_qh->link = LINK_TO_QH(uhci->skel_bulk_qh);
+	uhci->skel_bulk_qh->link = LINK_TO_QH(uhci->skel_term_qh);
 
 	/* This dummy TD is to work around a bug in Intel PIIX controllers */
 	uhci_fill_td(uhci->term_td, 0, uhci_explen(0) |
 		(0x7f << TD_TOKEN_DEVADDR_SHIFT) | USB_PID_IN, 0);
-	uhci->term_td->link = cpu_to_le32(uhci->term_td->dma_handle);
+	uhci->term_td->link = LINK_TO_TD(uhci->term_td);
 
 	uhci->skel_term_qh->link = UHCI_PTR_TERM;
-	uhci->skel_term_qh->element = cpu_to_le32(uhci->term_td->dma_handle);
+	uhci->skel_term_qh->element = LINK_TO_TD(uhci->term_td);
 
 	/*
 	 * Fill the frame list: make all entries point to the proper
