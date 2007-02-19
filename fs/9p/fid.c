@@ -136,7 +136,8 @@ struct v9fs_fid *v9fs_fid_lookup(struct dentry *dentry)
 }
 
 /**
- * v9fs_fid_clone - lookup the fid for a dentry, clone a private copy and release it
+ * v9fs_fid_clone - lookup the fid for a dentry, clone a private copy and
+ * 			release it
  * @dentry: dentry to look for fid in
  *
  * find a fid in the dentry and then clone to a new private fid

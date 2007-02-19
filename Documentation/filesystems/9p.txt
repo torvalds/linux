@@ -40,6 +40,10 @@ OPTIONS
   aname=name	aname specifies the file tree to access when the server is
   		offering several exported file systems.
 
+  cache=mode	specifies a cacheing policy.  By default, no caches are used.
+			loose = no attempts are made at consistency,
+                                intended for exclusive, read-only mounts
+
   debug=n	specifies debug level.  The debug level is a bitmask.
   			0x01 = display verbose error messages
 			0x02 = developer debug (DEBUG_CURRENT)

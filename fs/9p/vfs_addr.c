@@ -63,6 +63,8 @@ static int v9fs_vfs_readpage(struct file *filp, struct page *page)
 	int total = 0;
 	int result = 0;
 
+	dprintk(DEBUG_VFS, "\n");
+
 	buffer = kmap(page);
 	do {
 		if (count < rsize)
