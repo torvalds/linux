@@ -104,7 +104,7 @@ int com20020_check(struct net_device *dev)
 	SET_SUBADR(SUB_SETUP1);
 	outb(lp->setup, _XREG);
 
-	if (lp->card_flags & ARC_CAN_10MBIT)
+	if (lp->clockm != 0)
 	{
 		SET_SUBADR(SUB_SETUP2);
 		outb(lp->setup2, _XREG);

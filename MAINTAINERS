@@ -2630,8 +2630,8 @@ T:	git kernel.org:/pub/scm/linux/kernel/git/brodo/pcmcia-2.6.git
 S:	Maintained
 
 PCNET32 NETWORK DRIVER
-P:	Thomas Bogendörfer
-M:	tsbogend@alpha.franken.de
+P:	Don Fry
+M:	pcnet32@verizon.net
 L:	netdev@vger.kernel.org
 S:	Maintained
 

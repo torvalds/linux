@@ -717,6 +717,14 @@ netxen_flash_erase_primary(struct netxen_adapter *adapter)
 	return ret;
 }
 
+void netxen_halt_pegs(struct netxen_adapter *adapter)
+{
+	 netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_0 + 0x3c, 1);
+	 netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_1 + 0x3c, 1);
+	 netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_2 + 0x3c, 1);
+	 netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_3 + 0x3c, 1);
+}
+
 int netxen_flash_unlock(struct netxen_adapter *adapter)
 {
 	int ret = 0;
@@ -1246,7 +1254,7 @@ int netxen_process_cmd_ring(unsigned long data)
 	 * the netdev which is associated with that device.
 	 */
 
-	consumer = *(adapter->cmd_consumer);
+	consumer = le32_to_cpu(*(adapter->cmd_consumer));
 	if (last_consumer == consumer) {	/* Ring is empty    */
 		DPRINTK(INFO, "last_consumer %d == consumer %d\n",
 			last_consumer, consumer);
@@ -1340,7 +1348,7 @@ int netxen_process_cmd_ring(unsigned long data)
 	if (adapter->last_cmd_consumer == consumer &&
 	    (((adapter->cmd_producer + 1) %
 	      adapter->max_tx_desc_count) == adapter->last_cmd_consumer)) {
-		consumer = *(adapter->cmd_consumer);
+		consumer = le32_to_cpu(*(adapter->cmd_consumer));
 	}
 	done = (adapter->last_cmd_consumer == consumer);
 

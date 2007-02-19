@@ -458,7 +458,7 @@ int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
 
 int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
 {
-	long reg = 0, ret = 0;
+	u32 reg = 0, ret = 0;
 
 	if (adapter->ahw.boardcfg.board_type == NETXEN_BRDTYPE_P2_SB31_10G_IMEZ) {
 		netxen_crb_writelit_adapter(adapter,

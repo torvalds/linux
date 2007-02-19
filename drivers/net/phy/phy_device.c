@@ -138,7 +138,7 @@ void phy_prepare_link(struct phy_device *phydev,
  */
 struct phy_device * phy_connect(struct net_device *dev, const char *phy_id,
 		void (*handler)(struct net_device *), u32 flags,
-		u32 interface)
+		phy_interface_t interface)
 {
 	struct phy_device *phydev;
 
@@ -187,7 +187,7 @@ static int phy_compare_id(struct device *dev, void *data)
 }
 
 struct phy_device *phy_attach(struct net_device *dev,
-		const char *phy_id, u32 flags, u32 interface)
+		const char *phy_id, u32 flags, phy_interface_t interface)
 {
 	struct bus_type *bus = &mdio_bus_type;
 	struct phy_device *phydev;

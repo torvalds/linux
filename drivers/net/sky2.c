@@ -49,7 +49,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.12"
+#define DRV_VERSION		"1.13"
 #define PFX			DRV_NAME " "
 
 /*
@@ -1742,13 +1742,6 @@ static void sky2_link_down(struct sky2_port *sky2)
 	reg &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
 	gma_write16(hw, port, GM_GP_CTRL, reg);
 
-	if (sky2->flow_status == FC_RX) {
-		/* restore Asymmetric Pause bit */
-		gm_phy_write(hw, port, PHY_MARV_AUNE_ADV,
-			     gm_phy_read(hw, port, PHY_MARV_AUNE_ADV)
-			     | PHY_M_AN_ASP);
-	}
-
 	netif_carrier_off(sky2->netdev);
 	netif_stop_queue(sky2->netdev);
 
@@ -1773,10 +1766,10 @@ static int sky2_autoneg_done(struct sky2_port *sky2, u16 aux)
 {
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
-	u16 lpa;
+	u16 advert, lpa;
 
+	advert = gm_phy_read(hw, port, PHY_MARV_AUNE_ADV);
 	lpa = gm_phy_read(hw, port, PHY_MARV_AUNE_LP);
-
 	if (lpa & PHY_M_AN_RF) {
 		printk(KERN_ERR PFX "%s: remote fault", sky2->netdev->name);
 		return -1;
@@ -1791,20 +1784,40 @@ static int sky2_autoneg_done(struct sky2_port *sky2, u16 aux)
 	sky2->speed = sky2_phy_speed(hw, aux);
 	sky2->duplex = (aux & PHY_M_PS_FULL_DUP) ? DUPLEX_FULL : DUPLEX_HALF;
 
-	/* Pause bits are offset (9..8) */
-	if (hw->chip_id == CHIP_ID_YUKON_XL
-	    || hw->chip_id == CHIP_ID_YUKON_EC_U
-	    || hw->chip_id == CHIP_ID_YUKON_EX)
-		aux >>= 6;
+	/* Since the pause result bits seem to in different positions on
+	 * different chips. look at registers.
+	 */
+	if (!sky2_is_copper(hw)) {
+		/* Shift for bits in fiber PHY */
+		advert &= ~(ADVERTISE_PAUSE_CAP|ADVERTISE_PAUSE_ASYM);
+		lpa &= ~(LPA_PAUSE_CAP|LPA_PAUSE_ASYM);
 
-	sky2->flow_status = sky2_flow(aux & PHY_M_PS_RX_P_EN,
-				      aux & PHY_M_PS_TX_P_EN);
+		if (advert & ADVERTISE_1000XPAUSE)
+			advert |= ADVERTISE_PAUSE_CAP;
+		if (advert & ADVERTISE_1000XPSE_ASYM)
+			advert |= ADVERTISE_PAUSE_ASYM;
+		if (lpa & LPA_1000XPAUSE)
+			lpa |= LPA_PAUSE_CAP;
+		if (lpa & LPA_1000XPAUSE_ASYM)
+			lpa |= LPA_PAUSE_ASYM;
+	}
+
+	sky2->flow_status = FC_NONE;
+	if (advert & ADVERTISE_PAUSE_CAP) {
+		if (lpa & LPA_PAUSE_CAP)
+			sky2->flow_status = FC_BOTH;
+		else if (advert & ADVERTISE_PAUSE_ASYM)
+			sky2->flow_status = FC_RX;
+	} else if (advert & ADVERTISE_PAUSE_ASYM) {
+		if ((lpa & LPA_PAUSE_CAP) && (lpa & LPA_PAUSE_ASYM))
+			sky2->flow_status = FC_TX;
+	}
 
 	if (sky2->duplex == DUPLEX_HALF && sky2->speed < SPEED_1000
 	    && !(hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX))
 		sky2->flow_status = FC_NONE;
 
-	if (aux & PHY_M_PS_RX_P_EN)
+	if (sky2->flow_status & FC_TX)
 		sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_ON);
 	else
 		sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);
@@ -1853,16 +1866,13 @@ out:
 	spin_unlock(&sky2->phy_lock);
 }
 
-
 /* Transmit timeout is only called if we are running, carrier is up
  * and tx queue is full (stopped).
- * Called with netif_tx_lock held.
  */
 static void sky2_tx_timeout(struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
-	u32 imask;
 
 	if (netif_msg_timer(sky2))
 		printk(KERN_ERR PFX "%s: tx timeout\n", dev->name);
@@ -1872,19 +1882,8 @@ static void sky2_tx_timeout(struct net_device *dev)
 	       sky2_read16(hw, sky2->port == 0 ? STAT_TXA1_RIDX : STAT_TXA2_RIDX),
 	       sky2_read16(hw, Q_ADDR(txqaddr[sky2->port], Q_DONE)));
 
-	imask = sky2_read32(hw, B0_IMSK);	/* block IRQ in hw */
-	sky2_write32(hw, B0_IMSK, 0);
-	sky2_read32(hw, B0_IMSK);
-
-	netif_poll_disable(hw->dev[0]);		/* stop NAPI poll */
-	synchronize_irq(hw->pdev->irq);
-
-	netif_start_queue(dev);			/* don't wakeup during flush */
-	sky2_tx_complete(sky2, sky2->tx_prod);	/* Flush transmit queue */
-
-	sky2_write32(hw, B0_IMSK, imask);
-
-	sky2_phy_reinit(sky2);			/* this clears flow control etc */
+	/* can't restart safely under softirq */
+	schedule_work(&hw->restart_work);
 }
 
 static int sky2_change_mtu(struct net_device *dev, int new_mtu)
@@ -2057,9 +2056,6 @@ static struct sk_buff *sky2_receive(struct net_device *dev,
 	if (!(status & GMR_FS_RX_OK))
 		goto resubmit;
 
-	if (length > dev->mtu + ETH_HLEN)
-		goto oversize;
-
 	if (length < copybreak)
 		skb = receive_copy(sky2, re, length);
 	else
@@ -2069,14 +2065,10 @@ resubmit:
 
 	return skb;
 
-oversize:
-	++sky2->net_stats.rx_over_errors;
-	goto resubmit;
-
 error:
 	++sky2->net_stats.rx_errors;
 	if (status & GMR_FS_RX_FF_OV) {
-		sky2->net_stats.rx_fifo_errors++;
+		sky2->net_stats.rx_over_errors++;
 		goto resubmit;
 	}
 
@@ -2636,6 +2628,49 @@ static void sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
 	sky2_write8(hw, STAT_LEV_TIMER_CTRL, TIM_START);
 	sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_START);
+}
+
+static void sky2_restart(struct work_struct *work)
+{
+	struct sky2_hw *hw = container_of(work, struct sky2_hw, restart_work);
+	struct net_device *dev;
+	int i, err;
+
+	dev_dbg(&hw->pdev->dev, "restarting\n");
+
+	del_timer_sync(&hw->idle_timer);
+
+	rtnl_lock();
+	sky2_write32(hw, B0_IMSK, 0);
+	sky2_read32(hw, B0_IMSK);
+
+	netif_poll_disable(hw->dev[0]);
+
+	for (i = 0; i < hw->ports; i++) {
+		dev = hw->dev[i];
+		if (netif_running(dev))
+			sky2_down(dev);
+	}
+
+	sky2_reset(hw);
+	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
+	netif_poll_enable(hw->dev[0]);
+
+	for (i = 0; i < hw->ports; i++) {
+		dev = hw->dev[i];
+		if (netif_running(dev)) {
+			err = sky2_up(dev);
+			if (err) {
+				printk(KERN_INFO PFX "%s: could not restart %d\n",
+				       dev->name, err);
+				dev_close(dev);
+			}
+		}
+	}
+
+	sky2_idle_start(hw);
+
+	rtnl_unlock();
 }
 
 static inline u8 sky2_wol_supported(const struct sky2_hw *hw)
@@ -3600,6 +3635,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	}
 
 	setup_timer(&hw->idle_timer, sky2_idle, (unsigned long) hw);
+	INIT_WORK(&hw->restart_work, sky2_restart);
+
 	sky2_idle_start(hw);
 
 	pci_set_drvdata(pdev, hw);
@@ -3635,6 +3672,8 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 		return;
 
 	del_timer_sync(&hw->idle_timer);
+
+	flush_scheduled_work();
 
 	sky2_write32(hw, B0_IMSK, 0);
 	synchronize_irq(hw->pdev->irq);

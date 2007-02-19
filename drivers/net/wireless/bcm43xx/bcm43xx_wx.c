@@ -260,22 +260,22 @@ static int bcm43xx_wx_get_rangeparams(struct net_device *net_dev,
 	if (phy->type == BCM43xx_PHYTYPE_A ||
 	    phy->type == BCM43xx_PHYTYPE_G) {
 		range->num_bitrates = 8;
-		range->bitrate[i++] = IEEE80211_OFDM_RATE_6MB;
-		range->bitrate[i++] = IEEE80211_OFDM_RATE_9MB;
-		range->bitrate[i++] = IEEE80211_OFDM_RATE_12MB;
-		range->bitrate[i++] = IEEE80211_OFDM_RATE_18MB;
-		range->bitrate[i++] = IEEE80211_OFDM_RATE_24MB;
-		range->bitrate[i++] = IEEE80211_OFDM_RATE_36MB;
-		range->bitrate[i++] = IEEE80211_OFDM_RATE_48MB;
-		range->bitrate[i++] = IEEE80211_OFDM_RATE_54MB;
+		range->bitrate[i++] = IEEE80211_OFDM_RATE_6MB * 500000;
+		range->bitrate[i++] = IEEE80211_OFDM_RATE_9MB * 500000;
+		range->bitrate[i++] = IEEE80211_OFDM_RATE_12MB * 500000;
+		range->bitrate[i++] = IEEE80211_OFDM_RATE_18MB * 500000;
+		range->bitrate[i++] = IEEE80211_OFDM_RATE_24MB * 500000;
+		range->bitrate[i++] = IEEE80211_OFDM_RATE_36MB * 500000;
+		range->bitrate[i++] = IEEE80211_OFDM_RATE_48MB * 500000;
+		range->bitrate[i++] = IEEE80211_OFDM_RATE_54MB * 500000;
 	}
 	if (phy->type == BCM43xx_PHYTYPE_B ||
 	    phy->type == BCM43xx_PHYTYPE_G) {
 		range->num_bitrates += 4;
-		range->bitrate[i++] = IEEE80211_CCK_RATE_1MB;
-		range->bitrate[i++] = IEEE80211_CCK_RATE_2MB;
-		range->bitrate[i++] = IEEE80211_CCK_RATE_5MB;
-		range->bitrate[i++] = IEEE80211_CCK_RATE_11MB;
+		range->bitrate[i++] = IEEE80211_CCK_RATE_1MB * 500000;
+		range->bitrate[i++] = IEEE80211_CCK_RATE_2MB * 500000;
+		range->bitrate[i++] = IEEE80211_CCK_RATE_5MB * 500000;
+		range->bitrate[i++] = IEEE80211_CCK_RATE_11MB * 500000;
 	}
 
 	geo = ieee80211_get_geo(bcm->ieee);
@@ -285,7 +285,7 @@ static int bcm43xx_wx_get_rangeparams(struct net_device *net_dev,
 		if (j == IW_MAX_FREQUENCIES)
 			break;
 		range->freq[j].i = j + 1;
-		range->freq[j].m = geo->a[i].freq;//FIXME?
+		range->freq[j].m = geo->a[i].freq * 100000;
 		range->freq[j].e = 1;
 		j++;
 	}
@@ -293,7 +293,7 @@ static int bcm43xx_wx_get_rangeparams(struct net_device *net_dev,
 		if (j == IW_MAX_FREQUENCIES)
 			break;
 		range->freq[j].i = j + 1;
-		range->freq[j].m = geo->bg[i].freq;//FIXME?
+		range->freq[j].m = geo->bg[i].freq * 100000;
 		range->freq[j].e = 1;
 		j++;
 	}

@@ -402,7 +402,7 @@ netxen_nic_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	wol->wolopts = 0;
 }
 
-static u32 netxen_nic_get_link(struct net_device *dev)
+static u32 netxen_nic_test_link(struct net_device *dev)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
@@ -459,6 +459,7 @@ netxen_nic_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	int ret;
 
 	if (flash_start == 0) {
+		netxen_halt_pegs(adapter);
 		ret = netxen_flash_unlock(adapter);
 		if (ret < 0) {
 			printk(KERN_ERR "%s: Flash unlock failed.\n",
@@ -712,7 +713,7 @@ netxen_nic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 {
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {	/* offline tests */
 		/* link test */
-		if (!(data[4] = (u64) netxen_nic_get_link(dev)))
+		if (!(data[4] = (u64) netxen_nic_test_link(dev)))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		if (netif_running(dev))
@@ -727,7 +728,7 @@ netxen_nic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 			dev->open(dev);
 	} else {		/* online tests */
 		/* link test */
-		if (!(data[4] = (u64) netxen_nic_get_link(dev)))
+		if (!(data[4] = (u64) netxen_nic_test_link(dev)))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		/* other tests pass by default */
@@ -783,7 +784,7 @@ struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_regs_len = netxen_nic_get_regs_len,
 	.get_regs = netxen_nic_get_regs,
 	.get_wol = netxen_nic_get_wol,
-	.get_link = netxen_nic_get_link,
+	.get_link = ethtool_op_get_link,
 	.get_eeprom_len = netxen_nic_get_eeprom_len,
 	.get_eeprom = netxen_nic_get_eeprom,
 	.set_eeprom = netxen_nic_set_eeprom,

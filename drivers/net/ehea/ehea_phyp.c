@@ -612,3 +612,13 @@ u64 ehea_h_reset_events(const u64 adapter_handle, const u64 neq_handle,
 				       event_mask,		/* R6 */
 				       0, 0, 0, 0);		/* R7-R12 */
 }
+
+u64 ehea_h_error_data(const u64 adapter_handle, const u64 ressource_handle,
+		      void *rblock)
+{
+	return ehea_plpar_hcall_norets(H_ERROR_DATA,
+				       adapter_handle,          /* R4 */
+				       ressource_handle,        /* R5 */
+				       virt_to_abs(rblock),     /* R6 */
+				       0, 0, 0, 0);             /* R7-R12 */
+}
