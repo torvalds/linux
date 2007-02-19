@@ -104,7 +104,7 @@ typedef struct compat_siginfo {
  */
 #define __NR_O32_sigreturn		4119
 #define __NR_O32_rt_sigreturn		4193
-#define __NR_O32_restart_syscall	4253
+#define __NR_O32_restart_syscall        4253
 
 /* 32-bit compatibility types */
 
@@ -150,7 +150,7 @@ struct sigframe32 {
 	u32 sf_ass[4];		/* argument save space for o32 */
 	u32 sf_code[2];		/* signal trampoline */
 	struct sigcontext32 sf_sc;
-	sigset_t sf_mask;
+	compat_sigset_t sf_mask;
 };
 
 struct rt_sigframe32 {
@@ -166,7 +166,7 @@ struct sigframe32 {
 	u32 sf_ass[4];			/* argument save space for o32 */
 	u32 sf_pad[2];
 	struct sigcontext32 sf_sc;	/* hw context */
-	sigset_t sf_mask;
+	compat_sigset_t sf_mask;
 	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
 };
 
@@ -598,7 +598,7 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+static int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set)
 {
 	struct sigframe32 __user *frame;
@@ -644,7 +644,7 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+static int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe32 __user *frame;
@@ -704,110 +704,14 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-static inline int handle_signal(unsigned long sig, siginfo_t *info,
-	struct k_sigaction *ka, sigset_t *oldset, struct pt_regs * regs)
-{
-	int ret;
-
-	switch (regs->regs[0]) {
-	case ERESTART_RESTARTBLOCK:
-	case ERESTARTNOHAND:
-		regs->regs[2] = EINTR;
-		break;
-	case ERESTARTSYS:
-		if (!(ka->sa.sa_flags & SA_RESTART)) {
-			regs->regs[2] = EINTR;
-			break;
-		}
-	/* fallthrough */
-	case ERESTARTNOINTR:		/* Userland will reload $v0.  */
-		regs->regs[7] = regs->regs[26];
-		regs->cp0_epc -= 8;
-	}
-
-	regs->regs[0] = 0;		/* Don't deal with this again.  */
-
-	if (ka->sa.sa_flags & SA_SIGINFO)
-		ret = current->thread.abi->setup_rt_frame(ka, regs, sig, oldset, info);
-	else
-		ret = current->thread.abi->setup_frame(ka, regs, sig, oldset);
-
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&current->blocked,sig);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	return ret;
-}
-
-void do_signal32(struct pt_regs *regs)
-{
-	struct k_sigaction ka;
-	sigset_t *oldset;
-	siginfo_t info;
-	int signr;
-
-	/*
-	 * We want the common case to go fast, which is why we may in certain
-	 * cases get here from kernel mode. Just return without doing anything
-	 * if so.
-	 */
-	if (!user_mode(regs))
-		return;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	if (signr > 0) {
-		/* Whee! Actually deliver the signal. */
-		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
-			/*
-			* A signal was successfully delivered; the saved
-			* sigmask will have been stored in the signal frame,
-			* and will be restored by sigreturn, so we can simply
-			* clear the TIF_RESTORE_SIGMASK flag.
-			*/
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
-
-		return;
-	}
-
-	/*
-	 * Who's code doesn't conform to the restartable syscall convention
-	 * dies here!!!  The li instruction, a single machine instruction,
-	 * must directly be followed by the syscall instruction.
-	 */
-	if (regs->regs[0]) {
-		if (regs->regs[2] == ERESTARTNOHAND ||
-		    regs->regs[2] == ERESTARTSYS ||
-		    regs->regs[2] == ERESTARTNOINTR) {
-			regs->regs[7] = regs->regs[26];
-			regs->cp0_epc -= 8;
-		}
-		if (regs->regs[2] == ERESTART_RESTARTBLOCK) {
-			regs->regs[2] = __NR_O32_restart_syscall;
-			regs->regs[7] = regs->regs[26];
-			regs->cp0_epc -= 4;
-		}
-		regs->regs[0] = 0;	/* Don't deal with this again.  */
-	}
-
-	/*
-	* If there's no signal to deliver, we just put the saved sigmask
-	* back
-	*/
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
-}
+/*
+ * o32 compatibility on 64-bit kernels, without DSP ASE
+ */
+struct mips_abi mips_abi_32 = {
+	.setup_frame	= setup_frame_32,
+	.setup_rt_frame	= setup_rt_frame_32,
+	.restart	= __NR_O32_restart_syscall
+};
 
 asmlinkage int sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
 				  struct sigaction32 __user *oact,

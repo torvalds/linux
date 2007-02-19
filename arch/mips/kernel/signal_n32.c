@@ -29,6 +29,7 @@
 #include <linux/compat.h>
 #include <linux/bitops.h>
 
+#include <asm/abi.h>
 #include <asm/asm.h>
 #include <asm/cacheflush.h>
 #include <asm/compat-signal.h>
@@ -169,7 +170,7 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-int setup_rt_frame_n32(struct k_sigaction * ka,
+static int setup_rt_frame_n32(struct k_sigaction * ka,
 	struct pt_regs *regs, int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe_n32 __user *frame;
@@ -228,3 +229,8 @@ give_sigsegv:
 	force_sigsegv(signr, current);
 	return -EFAULT;
 }
+
+struct mips_abi mips_abi_n32 = {
+	.setup_rt_frame	= setup_rt_frame_n32,
+	.restart	= __NR_N32_restart_syscall
+};

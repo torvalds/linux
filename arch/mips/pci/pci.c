@@ -79,6 +79,14 @@ void __init register_pci_controller(struct pci_controller *hose)
 {
 	*hose_tail = hose;
 	hose_tail = &hose->next;
+
+	/*
+	 * Do not panic here but later - this might hapen before console init.
+	 */
+	if (!hose->io_map_base) {
+		printk(KERN_WARNING
+		       "registering PCI controller with io_map_base unset\n");
+	}
 }
 
 /* Most MIPS systems have straight-forward swizzling needs.  */

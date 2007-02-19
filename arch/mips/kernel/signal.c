@@ -398,7 +398,7 @@ badframe:
 }
 
 #ifdef CONFIG_TRAD_SIGNALS
-int setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
+static int setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set)
 {
 	struct sigframe __user *frame;
@@ -443,7 +443,7 @@ give_sigsegv:
 }
 #endif
 
-int setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
+static int setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe __user *frame;
@@ -501,6 +501,14 @@ give_sigsegv:
 	return -EFAULT;
 }
 
+struct mips_abi mips_abi = {
+#ifdef CONFIG_TRAD_SIGNALS
+	.setup_frame	= setup_frame,
+#endif
+	.setup_rt_frame	= setup_rt_frame,
+	.restart	= __NR_restart_syscall
+};
+
 static int handle_signal(unsigned long sig, siginfo_t *info,
 	struct k_sigaction *ka, sigset_t *oldset, struct pt_regs *regs)
 {
@@ -539,7 +547,7 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 	return ret;
 }
 
-void do_signal(struct pt_regs *regs)
+static void do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction ka;
 	sigset_t *oldset;
@@ -589,7 +597,7 @@ void do_signal(struct pt_regs *regs)
 			regs->cp0_epc -= 8;
 		}
 		if (regs->regs[2] == ERESTART_RESTARTBLOCK) {
-			regs->regs[2] = __NR_restart_syscall;
+			regs->regs[2] = current->thread.abi->restart;
 			regs->regs[7] = regs->regs[26];
 			regs->cp0_epc -= 4;
 		}
@@ -615,5 +623,5 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 {
 	/* deal with pending signal delivery */
 	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
-		current->thread.abi->do_signal(regs);
+		do_signal(regs);
 }
