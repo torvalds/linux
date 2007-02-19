@@ -97,3 +97,8 @@
 /* Huawei E620 UMTS/HSDPA card (ID: 12d1:1001) */
 #define HUAWEI_VENDOR_ID	0x12d1
 #define HUAWEI_PRODUCT_ID	0x1001
+
+/* Willcom WS002IN Data Driver (by NetIndex Inc.) */
+#define WS002IN_VENDOR_ID	0x11f6
+#define WS002IN_PRODUCT_ID	0x2001
+

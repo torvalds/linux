@@ -1316,6 +1316,14 @@ static void release_interface(struct device *dev)
  * use this kind of configurability; many devices only have one
  * configuration.
  *
+ * @configuration is the value of the configuration to be installed.
+ * According to the USB spec (e.g. section 9.1.1.5), configuration values
+ * must be non-zero; a value of zero indicates that the device in
+ * unconfigured.  However some devices erroneously use 0 as one of their
+ * configuration values.  To help manage such devices, this routine will
+ * accept @configuration = -1 as indicating the device should be put in
+ * an unconfigured state.
+ *
  * USB device configurations may affect Linux interoperability,
  * power consumption and the functionality available.  For example,
  * the default configuration is limited to using 100mA of bus power,
@@ -1347,10 +1355,15 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	struct usb_interface **new_interfaces = NULL;
 	int n, nintf;
 
-	for (i = 0; i < dev->descriptor.bNumConfigurations; i++) {
-		if (dev->config[i].desc.bConfigurationValue == configuration) {
-			cp = &dev->config[i];
-			break;
+	if (configuration == -1)
+		configuration = 0;
+	else {
+		for (i = 0; i < dev->descriptor.bNumConfigurations; i++) {
+			if (dev->config[i].desc.bConfigurationValue ==
+					configuration) {
+				cp = &dev->config[i];
+				break;
+			}
 		}
 	}
 	if ((!cp && configuration != 0))
@@ -1359,6 +1372,7 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	/* The USB spec says configuration 0 means unconfigured.
 	 * But if a device includes a configuration numbered 0,
 	 * we will accept it as a correctly configured state.
+	 * Use -1 if you really want to unconfigure the device.
 	 */
 	if (cp && configuration == 0)
 		dev_warn(&dev->dev, "config 0 descriptor??\n");

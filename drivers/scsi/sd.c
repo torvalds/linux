@@ -1269,8 +1269,17 @@ repeat:
 
 	/* Some devices return the total number of sectors, not the
 	 * highest sector number.  Make the necessary adjustment. */
-	if (sdp->fix_capacity)
+	if (sdp->fix_capacity) {
 		--sdkp->capacity;
+
+	/* Some devices have version which report the correct sizes
+	 * and others which do not. We guess size according to a heuristic
+	 * and err on the side of lowering the capacity. */
+	} else {
+		if (sdp->guess_capacity)
+			if (sdkp->capacity & 0x01) /* odd sizes are odd */
+				--sdkp->capacity;
+	}
 
 got_data:
 	if (sector_size == 0) {

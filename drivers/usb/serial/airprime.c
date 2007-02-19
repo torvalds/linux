@@ -58,11 +58,6 @@ static void airprime_read_bulk_callback(struct urb *urb)
 	if (urb->status) {
 		dbg("%s - nonzero read bulk status received: %d",
 		    __FUNCTION__, urb->status);
-		/* something happened, so free up the memory for this urb */
-		if (urb->transfer_buffer) {
-			kfree (urb->transfer_buffer);
-			urb->transfer_buffer = NULL;
-		}
 		return;
 	}
 	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
@@ -146,6 +141,8 @@ static int airprime_open(struct usb_serial_port *port, struct file *filp)
 				  airprime_read_bulk_callback, port);
 		result = usb_submit_urb(urb, GFP_KERNEL);
 		if (result) {
+			usb_free_urb(urb);
+			kfree(buffer);
 			dev_err(&port->dev,
 				"%s - failed submitting read urb %d for port %d, error %d\n",
 				__FUNCTION__, i, port->number, result);
@@ -160,27 +157,12 @@ static int airprime_open(struct usb_serial_port *port, struct file *filp)
 	/* some error happened, cancel any submitted urbs and clean up anything that
 	   got allocated successfully */
 
-	for ( ; i >= 0; --i) {
+	while (i-- != 0) {
 		urb = priv->read_urbp[i];
-		if (urb) {
-			/* This urb was submitted successfully. So we have to
-			   cancel it.
-			   Unlinking the urb will invoke read_bulk_callback()
-			   with an error status, so its transfer buffer will
-			   be freed there */
-			if (usb_unlink_urb (urb) != -EINPROGRESS) {
-				/* comments in drivers/usb/core/urb.c say this
-				   can only happen if the urb was never submitted,
-				   or has completed already.
-				   Either way we may have to free the transfer
-				   buffer here. */
-				if (urb->transfer_buffer) {
-					kfree (urb->transfer_buffer);
-					urb->transfer_buffer = NULL;
-				}
-			}
-			usb_free_urb (urb);
-		}
+		buffer = urb->transfer_buffer;
+		usb_kill_urb (urb);
+		usb_free_urb (urb);
+		kfree (buffer);
 	}
 
  out:
@@ -194,10 +176,9 @@ static void airprime_close(struct usb_serial_port *port, struct file * filp)
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	/* killing the urb will invoke read_bulk_callback() with an error status,
-	   so the transfer buffer will be freed there */
 	for (i = 0; i < NUM_READ_URBS; ++i) {
 		usb_kill_urb (priv->read_urbp[i]);
+		kfree (priv->read_urbp[i]->transfer_buffer);
 		usb_free_urb (priv->read_urbp[i]);
 	}
 

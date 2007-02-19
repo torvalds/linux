@@ -326,10 +326,16 @@ static void acm_rx_tasklet(unsigned long _acm)
 	struct tty_struct *tty = acm->tty;
 	struct acm_ru *rcv;
 	unsigned long flags;
-	int i = 0;
+	unsigned char throttled;
 	dbg("Entering acm_rx_tasklet");
 
-	if (!ACM_READY(acm) || acm->throttle)
+	if (!ACM_READY(acm))
+		return;
+
+	spin_lock(&acm->throttle_lock);
+	throttled = acm->throttle;
+	spin_unlock(&acm->throttle_lock);
+	if (throttled)
 		return;
 
 next_buffer:
@@ -346,22 +352,20 @@ next_buffer:
 	dbg("acm_rx_tasklet: procesing buf 0x%p, size = %d", buf, buf->size);
 
 	tty_buffer_request_room(tty, buf->size);
-	if (!acm->throttle)
+	spin_lock(&acm->throttle_lock);
+	throttled = acm->throttle;
+	spin_unlock(&acm->throttle_lock);
+	if (!throttled)
 		tty_insert_flip_string(tty, buf->base, buf->size);
 	tty_flip_buffer_push(tty);
 
-	spin_lock(&acm->throttle_lock);
-	if (acm->throttle) {
-		dbg("Throtteling noticed");
-		memmove(buf->base, buf->base + i, buf->size - i);
-		buf->size -= i;
-		spin_unlock(&acm->throttle_lock);
+	if (throttled) {
+		dbg("Throttling noticed");
 		spin_lock_irqsave(&acm->read_lock, flags);
 		list_add(&buf->list, &acm->filled_read_bufs);
 		spin_unlock_irqrestore(&acm->read_lock, flags);
 		return;
 	}
-	spin_unlock(&acm->throttle_lock);
 
 	spin_lock_irqsave(&acm->read_lock, flags);
 	list_add(&buf->list, &acm->spare_read_bufs);
@@ -467,7 +471,8 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 		goto bail_out;
 	}
 
-	if (0 > acm_set_control(acm, acm->ctrlout = ACM_CTRL_DTR | ACM_CTRL_RTS))
+	if (0 > acm_set_control(acm, acm->ctrlout = ACM_CTRL_DTR | ACM_CTRL_RTS) &&
+	    (acm->ctrl_caps & USB_CDC_CAP_LINE))
 		goto full_bailout;
 
 	INIT_LIST_HEAD(&acm->spare_read_urbs);
@@ -479,6 +484,8 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	for (i = 0; i < acm->rx_buflimit; i++) {
 		list_add(&(acm->rb[i].list), &acm->spare_read_bufs);
 	}
+
+	acm->throttle = 0;
 
 	tasklet_schedule(&acm->urb_task);
 
@@ -1092,6 +1099,10 @@ static struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x0ace, 0x1611), /* ZyDAS 56K USB MODEM - new version */
 	.driver_info = SINGLE_RX_URB, /* firmware bug */
 	},
+	{ USB_DEVICE(0x22b8, 0x7000), /* Motorola Q Phone */
+	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
+
 	/* control interfaces with various AT-command sets */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
 		USB_CDC_ACM_PROTO_AT_V25TER) },

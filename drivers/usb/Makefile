@@ -51,6 +51,7 @@ obj-$(CONFIG_USB_SERIAL)	+= serial/
 obj-$(CONFIG_USB_ADUTUX)	+= misc/
 obj-$(CONFIG_USB_APPLEDISPLAY)	+= misc/
 obj-$(CONFIG_USB_AUERSWALD)	+= misc/
+obj-$(CONFIG_USB_BERRY_CHARGE)	+= misc/
 obj-$(CONFIG_USB_CYPRESS_CY7C63)+= misc/
 obj-$(CONFIG_USB_CYTHERM)	+= misc/
 obj-$(CONFIG_USB_EMI26)		+= misc/

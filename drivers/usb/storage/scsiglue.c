@@ -153,6 +153,12 @@ static int slave_configure(struct scsi_device *sdev)
 		if (us->flags & US_FL_FIX_CAPACITY)
 			sdev->fix_capacity = 1;
 
+		/* A few disks have two indistinguishable version, one of
+		 * which reports the correct capacity and the other does not.
+		 * The sd driver has to guess which is the case. */
+		if (us->flags & US_FL_CAPACITY_HEURISTICS)
+			sdev->guess_capacity = 1;
+
 		/* Some devices report a SCSI revision level above 2 but are
 		 * unable to handle the REPORT LUNS command (for which
 		 * support is mandatory at level 3).  Since we already have
