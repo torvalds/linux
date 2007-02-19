@@ -275,6 +275,12 @@ M:	khali@linux-fr.org
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
+ADM1029 HARDWARE MONITOR DRIVER
+P:	Corentin Labbe
+M:	corentin.labbe@geomatys.fr
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 ADT746X FAN DRIVER
 P:	Colin Leroy
 M:	colin@colino.net

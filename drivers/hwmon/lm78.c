@@ -125,10 +125,8 @@ static inline int TEMP_FROM_REG(s8 val)
    bad. Quite a lot of bookkeeping is done. A real driver can often cut
    some corners. */
 
-/* For each registered LM78, we need to keep some data in memory. That
-   data is pointed to by lm78_list[NR]->data. The structure itself is
-   dynamically allocated, at the same time when a new lm78 client is
-   allocated. */
+/* For each registered chip, we need to keep some data in memory.
+   The structure is dynamically allocated. */
 struct lm78_data {
 	struct i2c_client client;
 	struct class_device *class_dev;

@@ -298,11 +298,6 @@ static int ZONE_TO_REG( int zone )
 #define LM85_DATA_INTERVAL  (HZ + HZ / 2)
 #define LM85_CONFIG_INTERVAL  (1 * 60 * HZ)
 
-/* For each registered LM85, we need to keep some data in memory. That
-   data is pointed to by lm85_list[NR]->data. The structure itself is
-   dynamically allocated, at the same time when a new lm85 client is
-   allocated. */
-
 /* LM85 can automatically adjust fan speeds based on temperature
  * This structure encapsulates an entire Zone config.  There are
  * three zones (one for each temperature input) on the lm85
@@ -329,10 +324,11 @@ struct lm85_autofan {
 	u8 min_off;	/* Min PWM or OFF below "limit", flag */
 };
 
+/* For each registered chip, we need to keep some data in memory.
+   The structure is dynamically allocated. */
 struct lm85_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct mutex lock;
 	enum chips type;
 
 	struct mutex update_lock;
