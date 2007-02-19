@@ -20,11 +20,6 @@ EXPORT_SYMBOL_GPL(fsstack_copy_inode_size);
 void fsstack_copy_attr_all(struct inode *dest, const struct inode *src,
 				int (*get_nlinks)(struct inode *))
 {
-	if (!get_nlinks)
-		dest->i_nlink = src->i_nlink;
-	else
-		dest->i_nlink = (*get_nlinks)(dest);
-
 	dest->i_mode = src->i_mode;
 	dest->i_uid = src->i_uid;
 	dest->i_gid = src->i_gid;
@@ -34,5 +29,14 @@ void fsstack_copy_attr_all(struct inode *dest, const struct inode *src,
 	dest->i_ctime = src->i_ctime;
 	dest->i_blkbits = src->i_blkbits;
 	dest->i_flags = src->i_flags;
+
+	/*
+	 * Update the nlinks AFTER updating the above fields, because the
+	 * get_links callback may depend on them.
+	 */
+	if (!get_nlinks)
+		dest->i_nlink = src->i_nlink;
+	else
+		dest->i_nlink = (*get_nlinks)(dest);
 }
 EXPORT_SYMBOL_GPL(fsstack_copy_attr_all);
