@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2006 Chelsio, Inc. All rights reserved.
- * Copyright (c) 2006 Open Grid Computing, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -846,6 +845,8 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 			break;
 		case IWCH_QP_STATE_TERMINATE:
 			qhp->attr.state = IWCH_QP_STATE_TERMINATE;
+			if (t3b_device(qhp->rhp))
+				cxio_set_wq_in_error(&qhp->wq);
 			if (!internal)
 				terminate = 1;
 			break;

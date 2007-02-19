@@ -573,6 +573,11 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 		goto out;
 	}
 
+	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
+		err = 0;
+		goto out;
+	}
+
 	if ((attr_mask & IB_QP_PKEY_INDEX) &&
 	     attr->pkey_index >= dev->limits.pkey_table_len) {
 		mthca_dbg(dev, "P_Key index (%u) too large. max is %d\n",

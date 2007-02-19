@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2006 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Voltaire, Inc.  All rights reserved.
+ * Copyright (c) 2006 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,38 +31,36 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef __IWCH_USER_H__
-#define __IWCH_USER_H__
 
-#define IWCH_UVERBS_ABI_VERSION	1
+#ifndef SA_H
+#define SA_H
 
-/*
- * Make sure that all structs defined in this file remain laid out so
- * that they pack the same way on 32-bit and 64-bit architectures (to
- * avoid incompatibility between 32-bit userspace and 64-bit kernels).
- * In particular do not use pointer types -- pass pointers in __u64
- * instead.
- */
-struct iwch_create_cq_req {
-	__u64 user_rptr_addr;
-};
+#include <rdma/ib_sa.h>
 
-struct iwch_create_cq_resp {
-	__u64 key;
-	__u32 cqid;
-	__u32 size_log2;
-};
+static inline void ib_sa_client_get(struct ib_sa_client *client)
+{
+	atomic_inc(&client->users);
+}
 
-struct iwch_create_qp_resp {
-	__u64 key;
-	__u64 db_key;
-	__u32 qpid;
-	__u32 size_log2;
-	__u32 sq_size_log2;
-	__u32 rq_size_log2;
-};
+static inline void ib_sa_client_put(struct ib_sa_client *client)
+{
+	if (atomic_dec_and_test(&client->users))
+		complete(&client->comp);
+}
 
-struct iwch_reg_user_mr_resp {
-	__u32 pbl_addr;
-};
-#endif
+int ib_sa_mcmember_rec_query(struct ib_sa_client *client,
+			     struct ib_device *device, u8 port_num,
+			     u8 method,
+			     struct ib_sa_mcmember_rec *rec,
+			     ib_sa_comp_mask comp_mask,
+			     int timeout_ms, gfp_t gfp_mask,
+			     void (*callback)(int status,
+					      struct ib_sa_mcmember_rec *resp,
+					      void *context),
+			     void *context,
+			     struct ib_sa_query **sa_query);
+
+int mcast_init(void);
+void mcast_cleanup(void);
+
+#endif /* SA_H */

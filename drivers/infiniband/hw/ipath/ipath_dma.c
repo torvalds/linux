@@ -96,8 +96,8 @@ static void ipath_dma_unmap_page(struct ib_device *dev,
 	BUG_ON(!valid_dma_direction(direction));
 }
 
-int ipath_map_sg(struct ib_device *dev, struct scatterlist *sg, int nents,
-		 enum dma_data_direction direction)
+static int ipath_map_sg(struct ib_device *dev, struct scatterlist *sg, int nents,
+			enum dma_data_direction direction)
 {
 	u64 addr;
 	int i;

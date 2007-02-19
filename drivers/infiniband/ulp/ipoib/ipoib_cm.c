@@ -145,7 +145,7 @@ partial_error:
 	for (; i >= 0; --i)
 		ib_dma_unmap_single(priv->ca, mapping[i + 1], PAGE_SIZE, DMA_FROM_DEVICE);
 
-	kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return -ENOMEM;
 }
 
@@ -1138,7 +1138,7 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(mode, S_IWUGO | S_IRUGO, show_mode, set_mode);
+static DEVICE_ATTR(mode, S_IWUSR | S_IRUGO, show_mode, set_mode);
 
 int ipoib_cm_add_mode_attr(struct net_device *dev)
 {
