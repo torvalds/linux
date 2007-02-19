@@ -1,6 +1,7 @@
 #ifndef __KVM_SVM_H
 #define __KVM_SVM_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <asm/msr.h>
@@ -18,7 +19,7 @@ static const u32 host_save_msrs[] = {
 	MSR_IA32_LASTBRANCHTOIP, MSR_IA32_LASTINTFROMIP,MSR_IA32_LASTINTTOIP,*/
 };
 
-#define NR_HOST_SAVE_MSRS (sizeof(host_save_msrs) / sizeof(*host_save_msrs))
+#define NR_HOST_SAVE_MSRS ARRAY_SIZE(host_save_msrs)
 #define NUM_DB_REGS 4
 
 struct vcpu_svm {
