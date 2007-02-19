@@ -33,7 +33,10 @@
 #include <linux/skbuff.h>
 #include <linux/suspend.h>
 #include <linux/kthread.h>
+#include <linux/preempt.h>
+#include <linux/time.h>
 
+#include <asm/system.h>
 #include <asm/byteorder.h>
 
 #include "ieee1394_types.h"
@@ -186,6 +189,45 @@ int hpsb_reset_bus(struct hpsb_host *host, int type)
 	}
 }
 
+/**
+ * hpsb_read_cycle_timer - read cycle timer register and system time
+ * @host: host whose isochronous cycle timer register is read
+ * @cycle_timer: address of bitfield to return the register contents
+ * @local_time: address to return the system time
+ *
+ * The format of * @cycle_timer, is described in OHCI 1.1 clause 5.13. This
+ * format is also read from non-OHCI controllers. * @local_time contains the
+ * system time in microseconds since the Epoch, read at the moment when the
+ * cycle timer was read.
+ *
+ * Return value: 0 for success or error number otherwise.
+ */
+int hpsb_read_cycle_timer(struct hpsb_host *host, u32 *cycle_timer,
+			  u64 *local_time)
+{
+	int ctr;
+	struct timeval tv;
+	unsigned long flags;
+
+	if (!host || !cycle_timer || !local_time)
+		return -EINVAL;
+
+	preempt_disable();
+	local_irq_save(flags);
+
+	ctr = host->driver->devctl(host, GET_CYCLE_COUNTER, 0);
+	if (ctr)
+		do_gettimeofday(&tv);
+
+	local_irq_restore(flags);
+	preempt_enable();
+
+	if (!ctr)
+		return -EIO;
+	*cycle_timer = ctr;
+	*local_time = tv.tv_sec * 1000000ULL + tv.tv_usec;
+	return 0;
+}
 
 int hpsb_bus_reset(struct hpsb_host *host)
 {
@@ -1190,6 +1232,7 @@ EXPORT_SYMBOL(hpsb_alloc_packet);
 EXPORT_SYMBOL(hpsb_free_packet);
 EXPORT_SYMBOL(hpsb_send_packet);
 EXPORT_SYMBOL(hpsb_reset_bus);
+EXPORT_SYMBOL(hpsb_read_cycle_timer);
 EXPORT_SYMBOL(hpsb_bus_reset);
 EXPORT_SYMBOL(hpsb_selfid_received);
 EXPORT_SYMBOL(hpsb_selfid_complete);
