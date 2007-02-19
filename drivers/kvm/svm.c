@@ -1042,21 +1042,21 @@ static int io_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 		addr_mask = io_adress(vcpu, _in, &kvm_run->io.address);
 		if (!addr_mask) {
-			printk(KERN_DEBUG "%s: get io address failed\n", __FUNCTION__);
+			printk(KERN_DEBUG "%s: get io address failed\n",
+			       __FUNCTION__);
 			return 1;
 		}
 
 		if (kvm_run->io.rep) {
-			kvm_run->io.count = vcpu->regs[VCPU_REGS_RCX] & addr_mask;
+			kvm_run->io.count
+				= vcpu->regs[VCPU_REGS_RCX] & addr_mask;
 			kvm_run->io.string_down = (vcpu->svm->vmcb->save.rflags
 						   & X86_EFLAGS_DF) != 0;
 		}
-	} else {
+	} else
 		kvm_run->io.value = vcpu->svm->vmcb->save.rax;
-	}
 	return 0;
 }
-
 
 static int nop_on_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {

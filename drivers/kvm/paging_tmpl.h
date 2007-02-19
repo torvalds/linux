@@ -441,9 +441,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	/*
 	 * mmio: emulate if accessible, otherwise its a guest fault.
 	 */
-	if (is_io_pte(*shadow_pte)) {
+	if (is_io_pte(*shadow_pte))
 		return 1;
-	}
 
 	++kvm_stat.pf_fixed;
 	kvm_mmu_audit(vcpu, "post page fault (fixed)");
