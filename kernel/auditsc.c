@@ -170,6 +170,11 @@ struct audit_aux_data_sockaddr {
 	char			a[0];
 };
 
+struct audit_aux_data_fd_pair {
+	struct	audit_aux_data d;
+	int	fd[2];
+};
+
 struct audit_aux_data_path {
 	struct audit_aux_data	d;
 	struct dentry		*dentry;
@@ -959,6 +964,11 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		case AUDIT_AVC_PATH: {
 			struct audit_aux_data_path *axi = (void *)aux;
 			audit_log_d_path(ab, "path=", axi->dentry, axi->mnt);
+			break; }
+
+		case AUDIT_FD_PAIR: {
+			struct audit_aux_data_fd_pair *axs = (void *)aux;
+			audit_log_format(ab, "fd0=%d fd1=%d", axs->fd[0], axs->fd[1]);
 			break; }
 
 		}
@@ -1809,6 +1819,36 @@ int audit_socketcall(int nargs, unsigned long *args)
 	memcpy(ax->args, args, nargs * sizeof(unsigned long));
 
 	ax->d.type = AUDIT_SOCKETCALL;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+/**
+ * __audit_fd_pair - record audit data for pipe and socketpair
+ * @fd1: the first file descriptor
+ * @fd2: the second file descriptor
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ */
+int __audit_fd_pair(int fd1, int fd2)
+{
+	struct audit_context *context = current->audit_context;
+	struct audit_aux_data_fd_pair *ax;
+
+	if (likely(!context)) {
+		return 0;
+	}
+
+	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
+	if (!ax) {
+		return -ENOMEM;
+	}
+
+	ax->fd[0] = fd1;
+	ax->fd[1] = fd2;
+
+	ax->d.type = AUDIT_FD_PAIR;
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 	return 0;

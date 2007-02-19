@@ -937,9 +937,10 @@ static void audit_update_watch(struct audit_parent *parent,
 		}
 
 		ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
-		audit_log_format(ab, "audit updated rules specifying path=");
+		audit_log_format(ab, "op=updated rules specifying path=");
 		audit_log_untrustedstring(ab, owatch->path);
 		audit_log_format(ab, " with dev=%u ino=%lu\n", dev, ino);
+		audit_log_format(ab, " list=%d res=1", r->listnr);
 		audit_log_end(ab);
 
 		audit_remove_watch(owatch);
@@ -969,14 +970,14 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 			e = container_of(r, struct audit_entry, rule);
 
 			ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
-			audit_log_format(ab, "audit implicitly removed rule path=");
+			audit_log_format(ab, "op=remove rule path=");
 			audit_log_untrustedstring(ab, w->path);
 			if (r->filterkey) {
 				audit_log_format(ab, " key=");
 				audit_log_untrustedstring(ab, r->filterkey);
 			} else
 				audit_log_format(ab, " key=(null)");
-			audit_log_format(ab, " list=%d", r->listnr);
+			audit_log_format(ab, " list=%d res=1", r->listnr);
 			audit_log_end(ab);
 
 			list_del(&r->rlist);
@@ -1410,7 +1411,7 @@ static void audit_log_rule_change(uid_t loginuid, u32 sid, char *action,
 			audit_log_format(ab, " subj=%s", ctx);
 		kfree(ctx);
 	}
-	audit_log_format(ab, " %s rule key=", action);
+	audit_log_format(ab, " op=%s rule key=", action);
 	if (rule->filterkey)
 		audit_log_untrustedstring(ab, rule->filterkey);
 	else
