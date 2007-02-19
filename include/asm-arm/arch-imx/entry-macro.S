@@ -13,19 +13,13 @@
 		.endm
 #define AITC_NIVECSR   0x40
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		ldr	\irqstat, =IO_ADDRESS(IMX_AITC_BASE)
+		ldr	\base, =IO_ADDRESS(IMX_AITC_BASE)
 		@ Load offset & priority of the highest priority
 		@ interrupt pending.
-		ldr	\irqnr, [\irqstat, #AITC_NIVECSR]
+		ldr	\irqstat, [\base, #AITC_NIVECSR]
 		@ Shift off the priority leaving the offset or
-		@ "interrupt number"
-		mov	\irqnr, \irqnr, lsr #16
- 		ldr	\irqstat, =1	@ dummy compare
-		ldr	\base, =0xFFFF		// invalid interrupt
-		cmp	\irqnr, \base
-		bne	1001f
-		ldr	\irqstat, =0
-1001:
-		tst	\irqstat, #1	@ to make the condition code = TRUE
+		@ "interrupt number", use arithmetic shift to
+		@ transform illegal source (0xffff) as -1
+		mov	\irqnr, \irqstat, asr #16
+		adds	\tmp, \irqnr, #1
 		.endm
-

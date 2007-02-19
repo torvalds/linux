@@ -250,11 +250,14 @@ static struct irq_chip iop13xx_irqchip4 = {
 	.unmask = iop13xx_irq_unmask3,
 };
 
+extern void iop_init_cp6_handler(void);
+
 void __init iop13xx_init_irq(void)
 {
 	unsigned int i;
 
 	u32 cp_flags = iop13xx_cp6_save();
+	iop_init_cp6_handler();
 
 	/* disable all interrupts */
 	write_intctl_0(0);

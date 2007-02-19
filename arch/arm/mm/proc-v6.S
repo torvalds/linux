@@ -14,9 +14,12 @@
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 #include <asm/elf.h>
-#include <asm/hardware/arm_scu.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
+
+#ifdef CONFIG_SMP
+#include <asm/hardware/arm_scu.h>
+#endif
 
 #include "proc-macros.S"
 
@@ -29,6 +32,12 @@
 #define TTB_RGN_WBWA	(1 << 3)
 #define TTB_RGN_WT	(2 << 3)
 #define TTB_RGN_WB	(3 << 3)
+
+#ifndef CONFIG_SMP
+#define TTB_FLAGS	TTB_RGN_WBWA
+#else
+#define TTB_FLAGS	TTB_RGN_WBWA|TTB_S
+#endif
 
 ENTRY(cpu_v6_proc_init)
 	mov	pc, lr
@@ -92,9 +101,7 @@ ENTRY(cpu_v6_switch_mm)
 #ifdef CONFIG_MMU
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
-#ifdef CONFIG_SMP
-	orr	r0, r0, #TTB_RGN_WBWA|TTB_S	@ mark PTWs shared, outer cacheable
-#endif
+	orr	r0, r0, #TTB_FLAGS
 	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
 	mcr	p15, 0, r2, c7, c10, 4		@ drain write buffer
 	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
@@ -183,8 +190,7 @@ __v6_setup:
 	/* Set up the SCU on core 0 only */
 	mrc	p15, 0, r0, c0, c0, 5		@ CPU core number
 	ands	r0, r0, #15
-	moveq	r0, #0x10000000 @ SCU_BASE
-	orreq	r0, r0, #0x00100000
+	ldreq	r0, =SCU_BASE
 	ldreq	r5, [r0, #SCU_CTRL]
 	orreq	r5, r5, #1
 	streq	r5, [r0, #SCU_CTRL]
@@ -204,9 +210,7 @@ __v6_setup:
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7, 0		@ invalidate I + D TLBs
 	mcr	p15, 0, r0, c2, c0, 2		@ TTB control register
-#ifdef CONFIG_SMP
-	orr	r4, r4, #TTB_RGN_WBWA|TTB_S	@ mark PTWs shared, outer cacheable
-#endif
+	orr	r4, r4, #TTB_FLAGS
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 #endif /* CONFIG_MMU */
 	adr	r5, v6_crval

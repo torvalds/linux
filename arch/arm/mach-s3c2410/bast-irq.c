@@ -39,7 +39,7 @@
 #include <asm/arch/bast-map.h>
 #include <asm/arch/bast-irq.h>
 
-#include "irq.h"
+#include <asm/plat-s3c24xx/irq.h>
 
 #if 0
 #include <asm/debug-ll.h>

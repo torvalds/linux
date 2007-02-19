@@ -32,7 +32,6 @@
 
 #include <asm/cacheflush.h>
 
-#undef DEBUG
 #undef STATS
 
 #ifdef STATS
@@ -66,14 +65,13 @@ struct dmabounce_pool {
 };
 
 struct dmabounce_device_info {
-	struct list_head node;
-
 	struct device *dev;
 	struct list_head safe_buffers;
 #ifdef STATS
 	unsigned long total_allocs;
 	unsigned long map_op_count;
 	unsigned long bounce_count;
+	int attr_res;
 #endif
 	struct dmabounce_pool	small;
 	struct dmabounce_pool	large;
@@ -81,33 +79,23 @@ struct dmabounce_device_info {
 	rwlock_t lock;
 };
 
-static LIST_HEAD(dmabounce_devs);
-
 #ifdef STATS
-static void print_alloc_stats(struct dmabounce_device_info *device_info)
+static ssize_t dmabounce_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
-	printk(KERN_INFO
-		"%s: dmabounce: sbp: %lu, lbp: %lu, other: %lu, total: %lu\n",
-		device_info->dev->bus_id,
-		device_info->small.allocs, device_info->large.allocs,
+	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
+	return sprintf(buf, "%lu %lu %lu %lu %lu %lu\n",
+		device_info->small.allocs,
+		device_info->large.allocs,
 		device_info->total_allocs - device_info->small.allocs -
 			device_info->large.allocs,
-		device_info->total_allocs);
+		device_info->total_allocs,
+		device_info->map_op_count,
+		device_info->bounce_count);
 }
+
+static DEVICE_ATTR(dmabounce_stats, 0400, dmabounce_show, NULL);
 #endif
-
-/* find the given device in the dmabounce device list */
-static inline struct dmabounce_device_info *
-find_dmabounce_dev(struct device *dev)
-{
-	struct dmabounce_device_info *d;
-
-	list_for_each_entry(d, &dmabounce_devs, node)
-		if (d->dev == dev)
-			return d;
-
-	return NULL;
-}
 
 
 /* allocate a 'safe' buffer and keep track of it */
@@ -162,8 +150,6 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 	if (pool)
 		pool->allocs++;
 	device_info->total_allocs++;
-	if (device_info->total_allocs % 1000 == 0)
-		print_alloc_stats(device_info);
 #endif
 
 	write_lock_irqsave(&device_info->lock, flags);
@@ -218,20 +204,11 @@ free_safe_buffer(struct dmabounce_device_info *device_info, struct safe_buffer *
 
 /* ************************************************** */
 
-#ifdef STATS
-static void print_map_stats(struct dmabounce_device_info *device_info)
-{
-	dev_info(device_info->dev,
-		"dmabounce: map_op_count=%lu, bounce_count=%lu\n",
-		device_info->map_op_count, device_info->bounce_count);
-}
-#endif
-
 static inline dma_addr_t
 map_single(struct device *dev, void *ptr, size_t size,
 		enum dma_data_direction dir)
 {
-	struct dmabounce_device_info *device_info = find_dmabounce_dev(dev);
+	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
 	dma_addr_t dma_addr;
 	int needs_bounce = 0;
 
@@ -281,9 +258,13 @@ map_single(struct device *dev, void *ptr, size_t size,
 		ptr = buf->safe;
 
 		dma_addr = buf->safe_dma_addr;
+	} else {
+		/*
+		 * We don't need to sync the DMA buffer since
+		 * it was allocated via the coherent allocators.
+		 */
+		consistent_sync(ptr, size, dir);
 	}
-
-	consistent_sync(ptr, size, dir);
 
 	return dma_addr;
 }
@@ -292,7 +273,7 @@ static inline void
 unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		enum dma_data_direction dir)
 {
-	struct dmabounce_device_info *device_info = find_dmabounce_dev(dev);
+	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
 	struct safe_buffer *buf = NULL;
 
 	/*
@@ -317,12 +298,12 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		DO_STATS ( device_info->bounce_count++ );
 
 		if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL) {
-			unsigned long ptr;
+			void *ptr = buf->ptr;
 
 			dev_dbg(dev,
 				"%s: copy back safe %p to unsafe %p size %d\n",
-				__func__, buf->safe, buf->ptr, size);
-			memcpy(buf->ptr, buf->safe, size);
+				__func__, buf->safe, ptr, size);
+			memcpy(ptr, buf->safe, size);
 
 			/*
 			 * DMA buffers must have the same cache properties
@@ -332,8 +313,8 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 			 * bidirectional case because we know the cache
 			 * lines will be coherent with the data written.
 			 */
-			ptr = (unsigned long)buf->ptr;
 			dmac_clean_range(ptr, ptr + size);
+			outer_clean_range(__pa(ptr), __pa(ptr) + size);
 		}
 		free_safe_buffer(device_info, buf);
 	}
@@ -343,7 +324,7 @@ static inline void
 sync_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		enum dma_data_direction dir)
 {
-	struct dmabounce_device_info *device_info = find_dmabounce_dev(dev);
+	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
 	struct safe_buffer *buf = NULL;
 
 	if (device_info)
@@ -397,7 +378,10 @@ sync_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		default:
 			BUG();
 		}
-		consistent_sync(buf->safe, size, dir);
+		/*
+		 * No need to sync the safe buffer - it was allocated
+		 * via the coherent allocators.
+		 */
 	} else {
 		consistent_sync(dma_to_virt(dev, dma_addr), size, dir);
 	}
@@ -604,9 +588,10 @@ dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 	device_info->total_allocs = 0;
 	device_info->map_op_count = 0;
 	device_info->bounce_count = 0;
+	device_info->attr_res = device_create_file(dev, &dev_attr_dmabounce_stats);
 #endif
 
-	list_add(&device_info->node, &dmabounce_devs);
+	dev->archdata.dmabounce = device_info;
 
 	printk(KERN_INFO "dmabounce: registered device %s on %s bus\n",
 		dev->bus_id, dev->bus->name);
@@ -623,7 +608,9 @@ dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 void
 dmabounce_unregister_dev(struct device *dev)
 {
-	struct dmabounce_device_info *device_info = find_dmabounce_dev(dev);
+	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
+
+	dev->archdata.dmabounce = NULL;
 
 	if (!device_info) {
 		printk(KERN_WARNING
@@ -645,11 +632,9 @@ dmabounce_unregister_dev(struct device *dev)
 		dma_pool_destroy(device_info->large.pool);
 
 #ifdef STATS
-	print_alloc_stats(device_info);
-	print_map_stats(device_info);
+	if (device_info->attr_res == 0)
+		device_remove_file(dev, &dev_attr_dmabounce_stats);
 #endif
-
-	list_del(&device_info->node);
 
 	kfree(device_info);
 

@@ -88,6 +88,9 @@ struct cpu_user_fns cpu_user;
 #ifdef MULTI_CACHE
 struct cpu_cache_fns cpu_cache;
 #endif
+#ifdef CONFIG_OUTER_CACHE
+struct outer_cache_fns outer_cache;
+#endif
 
 struct stack {
 	u32 irq[3];

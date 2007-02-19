@@ -154,7 +154,7 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 {
 	struct circ_buf *xmit = &sport->port.info->xmit;
 
-	do {
+	while (!(UTS((u32)sport->port.membase) & UTS_TXFULL)) {
 		/* send xmit->buf[xmit->tail]
 		 * out the port here */
 		URTX0((u32)sport->port.membase) = xmit->buf[xmit->tail];
@@ -163,7 +163,7 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 		sport->port.icount.tx++;
 		if (uart_circ_empty(xmit))
 			break;
-	} while (!(UTS((u32)sport->port.membase) & UTS_TXFULL));
+	}
 
 	if (uart_circ_empty(xmit))
 		imx_stop_tx(&sport->port);
@@ -178,8 +178,7 @@ static void imx_start_tx(struct uart_port *port)
 
 	UCR1((u32)sport->port.membase) |= UCR1_TXMPTYEN;
 
-	if(UTS((u32)sport->port.membase) & UTS_TXEMPTY)
-		imx_transmit_buffer(sport);
+	imx_transmit_buffer(sport);
 }
 
 static irqreturn_t imx_rtsint(int irq, void *dev_id)
@@ -404,7 +403,8 @@ static int imx_startup(struct uart_port *port)
 	if (retval) goto error_out2;
 
 	retval = request_irq(sport->rtsirq, imx_rtsint,
-			     IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+			     (sport->rtsirq < IMX_IRQS) ? 0 :
+			       IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			     DRIVER_NAME, sport);
 	if (retval) goto error_out3;
 
@@ -678,7 +678,7 @@ static struct imx_port imx_ports[] = {
 		.mapbase	= IMX_UART1_BASE, /* FIXME */
 		.irq		= UART1_MINT_RX,
 		.uartclk	= 16000000,
-		.fifosize	= 8,
+		.fifosize	= 32,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.ops		= &imx_pops,
 		.line		= 0,
@@ -694,7 +694,7 @@ static struct imx_port imx_ports[] = {
 		.mapbase	= IMX_UART2_BASE, /* FIXME */
 		.irq		= UART2_MINT_RX,
 		.uartclk	= 16000000,
-		.fifosize	= 8,
+		.fifosize	= 32,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.ops		= &imx_pops,
 		.line		= 1,

@@ -140,6 +140,40 @@ static inline int cpu_is_xsc3(void)
 #define	cpu_is_xscale()	1
 #endif
 
+#define UDBG_UNDEFINED	(1 << 0)
+#define UDBG_SYSCALL	(1 << 1)
+#define UDBG_BADABORT	(1 << 2)
+#define UDBG_SEGV	(1 << 3)
+#define UDBG_BUS	(1 << 4)
+
+extern unsigned int user_debug;
+
+#if __LINUX_ARM_ARCH__ >= 4
+#define vectors_high()	(cr_alignment & CR_V)
+#else
+#define vectors_high()	(0)
+#endif
+
+#if __LINUX_ARM_ARCH__ >= 6
+#define isb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c5, 4" \
+				    : : "r" (0) : "memory")
+#define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \
+				    : : "r" (0) : "memory")
+#define dmb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" \
+				    : : "r" (0) : "memory")
+#else
+#define isb() __asm__ __volatile__ ("" : : : "memory")
+#define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \
+				    : : "r" (0) : "memory")
+#define dmb() __asm__ __volatile__ ("" : : : "memory")
+#endif
+#define mb() dmb()
+#define rmb() mb()
+#define wmb() mb()
+#define read_barrier_depends() do { } while(0)
+#define set_mb(var, value)  do { var = value; mb(); } while (0)
+#define nop() __asm__ __volatile__("mov\tr0,r0\t@ nop\n\t");
+
 extern unsigned long cr_no_alignment;	/* defined in entry-armv.S */
 extern unsigned long cr_alignment;	/* defined in entry-armv.S */
 
@@ -154,6 +188,7 @@ static inline void set_cr(unsigned int val)
 {
 	asm volatile("mcr p15, 0, %0, c1, c0, 0	@ set CR"
 	  : : "r" (val) : "cc");
+	isb();
 }
 
 #ifndef CONFIG_SMP
@@ -176,33 +211,8 @@ static inline void set_copro_access(unsigned int val)
 {
 	asm volatile("mcr p15, 0, %0, c1, c0, 2 @ set copro access"
 	  : : "r" (val) : "cc");
+	isb();
 }
-
-#define UDBG_UNDEFINED	(1 << 0)
-#define UDBG_SYSCALL	(1 << 1)
-#define UDBG_BADABORT	(1 << 2)
-#define UDBG_SEGV	(1 << 3)
-#define UDBG_BUS	(1 << 4)
-
-extern unsigned int user_debug;
-
-#if __LINUX_ARM_ARCH__ >= 4
-#define vectors_high()	(cr_alignment & CR_V)
-#else
-#define vectors_high()	(0)
-#endif
-
-#if __LINUX_ARM_ARCH__ >= 6
-#define mb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" \
-                                   : : "r" (0) : "memory")
-#else
-#define mb() __asm__ __volatile__ ("" : : : "memory")
-#endif
-#define rmb() mb()
-#define wmb() mb()
-#define read_barrier_depends() do { } while(0)
-#define set_mb(var, value)  do { var = value; mb(); } while (0)
-#define nop() __asm__ __volatile__("mov\tr0,r0\t@ nop\n\t");
 
 /*
  * switch_mm() may do a full cache flush over the context switch,

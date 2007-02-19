@@ -34,6 +34,7 @@
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
+#include <asm/io.h>
 #include <asm/arch/i2c.h>
 #include <asm/arch/pxa-regs.h>
 
@@ -54,7 +55,20 @@ struct pxa_i2c {
 	unsigned int		irqlogidx;
 	u32			isrlog[32];
 	u32			icrlog[32];
+
+	void __iomem		*reg_base;
+
+	unsigned long		iobase;
+	unsigned long		iosize;
+
+	int			irq;
 };
+
+#define _IBMR(i2c)	((i2c)->reg_base + 0)
+#define _IDBR(i2c)	((i2c)->reg_base + 8)
+#define _ICR(i2c)	((i2c)->reg_base + 0x10)
+#define _ISR(i2c)	((i2c)->reg_base + 0x18)
+#define _ISAR(i2c)	((i2c)->reg_base + 0x20)
 
 /*
  * I2C Slave mode address
@@ -130,7 +144,8 @@ static unsigned int i2c_debug = DEBUG;
 
 static void i2c_pxa_show_state(struct pxa_i2c *i2c, int lno, const char *fname)
 {
-	dev_dbg(&i2c->adap.dev, "state:%s:%d: ISR=%08x, ICR=%08x, IBMR=%02x\n", fname, lno, ISR, ICR, IBMR);
+	dev_dbg(&i2c->adap.dev, "state:%s:%d: ISR=%08x, ICR=%08x, IBMR=%02x\n", fname, lno,
+		readl(_ISR(i2c)), readl(_ICR(i2c)), readl(_IBMR(i2c)));
 }
 
 #define show_state(i2c) i2c_pxa_show_state(i2c, __LINE__, __FUNCTION__)
@@ -153,7 +168,7 @@ static void i2c_pxa_scream_blue_murder(struct pxa_i2c *i2c, const char *why)
 	printk("i2c: msg_num: %d msg_idx: %d msg_ptr: %d\n",
 		i2c->msg_num, i2c->msg_idx, i2c->msg_ptr);
 	printk("i2c: ICR: %08x ISR: %08x\n"
-	       "i2c: log: ", ICR, ISR);
+	       "i2c: log: ", readl(_ICR(i2c)), readl(_ISR(i2c)));
 	for (i = 0; i < i2c->irqlogidx; i++)
 		printk("[%08x:%08x] ", i2c->isrlog[i], i2c->icrlog[i]);
 	printk("\n");
@@ -161,7 +176,7 @@ static void i2c_pxa_scream_blue_murder(struct pxa_i2c *i2c, const char *why)
 
 static inline int i2c_pxa_is_slavemode(struct pxa_i2c *i2c)
 {
-	return !(ICR & ICR_SCLE);
+	return !(readl(_ICR(i2c)) & ICR_SCLE);
 }
 
 static void i2c_pxa_abort(struct pxa_i2c *i2c)
@@ -173,28 +188,29 @@ static void i2c_pxa_abort(struct pxa_i2c *i2c)
 		return;
 	}
 
-	while (time_before(jiffies, timeout) && (IBMR & 0x1) == 0) {
-		unsigned long icr = ICR;
+	while (time_before(jiffies, timeout) && (readl(_IBMR(i2c)) & 0x1) == 0) {
+		unsigned long icr = readl(_ICR(i2c));
 
 		icr &= ~ICR_START;
 		icr |= ICR_ACKNAK | ICR_STOP | ICR_TB;
 
-		ICR = icr;
+		writel(icr, _ICR(i2c));
 
 		show_state(i2c);
 
 		msleep(1);
 	}
 
-	ICR &= ~(ICR_MA | ICR_START | ICR_STOP);
+	writel(readl(_ICR(i2c)) & ~(ICR_MA | ICR_START | ICR_STOP),
+	       _ICR(i2c));
 }
 
 static int i2c_pxa_wait_bus_not_busy(struct pxa_i2c *i2c)
 {
 	int timeout = DEF_TIMEOUT;
 
-	while (timeout-- && ISR & (ISR_IBB | ISR_UB)) {
-		if ((ISR & ISR_SAD) != 0)
+	while (timeout-- && readl(_ISR(i2c)) & (ISR_IBB | ISR_UB)) {
+		if ((readl(_ISR(i2c)) & ISR_SAD) != 0)
 			timeout += 4;
 
 		msleep(2);
@@ -214,9 +230,9 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 	while (time_before(jiffies, timeout)) {
 		if (i2c_debug > 1)
 			dev_dbg(&i2c->adap.dev, "%s: %ld: ISR=%08x, ICR=%08x, IBMR=%02x\n",
-				__func__, (long)jiffies, ISR, ICR, IBMR);
+				__func__, (long)jiffies, readl(_ISR(i2c)), readl(_ICR(i2c)), readl(_IBMR(i2c)));
 
-		if (ISR & ISR_SAD) {
+		if (readl(_ISR(i2c)) & ISR_SAD) {
 			if (i2c_debug > 0)
 				dev_dbg(&i2c->adap.dev, "%s: Slave detected\n", __func__);
 			goto out;
@@ -226,7 +242,7 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 		 * quick check of the i2c lines themselves to ensure they've
 		 * gone high...
 		 */
-		if ((ISR & (ISR_UB | ISR_IBB)) == 0 && IBMR == 3) {
+		if ((readl(_ISR(i2c)) & (ISR_UB | ISR_IBB)) == 0 && readl(_IBMR(i2c)) == 3) {
 			if (i2c_debug > 0)
 				dev_dbg(&i2c->adap.dev, "%s: done\n", __func__);
 			return 1;
@@ -246,7 +262,7 @@ static int i2c_pxa_set_master(struct pxa_i2c *i2c)
 	if (i2c_debug)
 		dev_dbg(&i2c->adap.dev, "setting to bus master\n");
 
-	if ((ISR & (ISR_UB | ISR_IBB)) != 0) {
+	if ((readl(_ISR(i2c)) & (ISR_UB | ISR_IBB)) != 0) {
 		dev_dbg(&i2c->adap.dev, "%s: unit is busy\n", __func__);
 		if (!i2c_pxa_wait_master(i2c)) {
 			dev_dbg(&i2c->adap.dev, "%s: error: unit busy\n", __func__);
@@ -254,7 +270,7 @@ static int i2c_pxa_set_master(struct pxa_i2c *i2c)
 		}
 	}
 
-	ICR |= ICR_SCLE;
+	writel(readl(_ICR(i2c)) | ICR_SCLE, _ICR(i2c));
 	return 0;
 }
 
@@ -270,11 +286,11 @@ static int i2c_pxa_wait_slave(struct pxa_i2c *i2c)
 	while (time_before(jiffies, timeout)) {
 		if (i2c_debug > 1)
 			dev_dbg(&i2c->adap.dev, "%s: %ld: ISR=%08x, ICR=%08x, IBMR=%02x\n",
-				__func__, (long)jiffies, ISR, ICR, IBMR);
+				__func__, (long)jiffies, readl(_ISR(i2c)), readl(_ICR(i2c)), readl(_IBMR(i2c)));
 
-		if ((ISR & (ISR_UB|ISR_IBB)) == 0 ||
-		    (ISR & ISR_SAD) != 0 ||
-		    (ICR & ICR_SCLE) == 0) {
+		if ((readl(_ISR(i2c)) & (ISR_UB|ISR_IBB)) == 0 ||
+		    (readl(_ISR(i2c)) & ISR_SAD) != 0 ||
+		    (readl(_ICR(i2c)) & ICR_SCLE) == 0) {
 			if (i2c_debug > 1)
 				dev_dbg(&i2c->adap.dev, "%s: done\n", __func__);
 			return 1;
@@ -302,9 +318,9 @@ static void i2c_pxa_set_slave(struct pxa_i2c *i2c, int errcode)
 		/* we need to wait for the stop condition to end */
 
 		/* if we where in stop, then clear... */
-		if (ICR & ICR_STOP) {
+		if (readl(_ICR(i2c)) & ICR_STOP) {
 			udelay(100);
-			ICR &= ~ICR_STOP;
+			writel(readl(_ICR(i2c)) & ~ICR_STOP, _ICR(i2c));
 		}
 
 		if (!i2c_pxa_wait_slave(i2c)) {
@@ -314,12 +330,12 @@ static void i2c_pxa_set_slave(struct pxa_i2c *i2c, int errcode)
 		}
 	}
 
-	ICR &= ~(ICR_STOP|ICR_ACKNAK|ICR_MA);
-	ICR &= ~ICR_SCLE;
+	writel(readl(_ICR(i2c)) & ~(ICR_STOP|ICR_ACKNAK|ICR_MA), _ICR(i2c));
+	writel(readl(_ICR(i2c)) & ~ICR_SCLE, _ICR(i2c));
 
 	if (i2c_debug) {
-		dev_dbg(&i2c->adap.dev, "ICR now %08x, ISR %08x\n", ICR, ISR);
-		decode_ICR(ICR);
+		dev_dbg(&i2c->adap.dev, "ICR now %08x, ISR %08x\n", readl(_ICR(i2c)), readl(_ISR(i2c)));
+		decode_ICR(readl(_ICR(i2c)));
 	}
 }
 #else
@@ -334,24 +350,24 @@ static void i2c_pxa_reset(struct pxa_i2c *i2c)
 	i2c_pxa_abort(i2c);
 
 	/* reset according to 9.8 */
-	ICR = ICR_UR;
-	ISR = I2C_ISR_INIT;
-	ICR &= ~ICR_UR;
+	writel(ICR_UR, _ICR(i2c));
+	writel(I2C_ISR_INIT, _ISR(i2c));
+	writel(readl(_ICR(i2c)) & ~ICR_UR, _ICR(i2c));
 
-	ISAR = i2c->slave_addr;
+	writel(i2c->slave_addr, _ISAR(i2c));
 
 	/* set control register values */
-	ICR = I2C_ICR_INIT;
+	writel(I2C_ICR_INIT, _ICR(i2c));
 
 #ifdef CONFIG_I2C_PXA_SLAVE
 	dev_info(&i2c->adap.dev, "Enabling slave mode\n");
-	ICR |= ICR_SADIE | ICR_ALDIE | ICR_SSDIE;
+	writel(readl(_ICR(i2c)) | ICR_SADIE | ICR_ALDIE | ICR_SSDIE, _ICR(i2c));
 #endif
 
 	i2c_pxa_set_slave(i2c, 0);
 
 	/* enable unit */
-	ICR |= ICR_IUE;
+	writel(readl(_ICR(i2c)) | ICR_IUE, _ICR(i2c));
 	udelay(100);
 }
 
@@ -371,19 +387,19 @@ static void i2c_pxa_slave_txempty(struct pxa_i2c *i2c, u32 isr)
 		if (i2c->slave != NULL)
 			ret = i2c->slave->read(i2c->slave->data);
 
-		IDBR = ret;
-		ICR |= ICR_TB;   /* allow next byte */
+		writel(ret, _IDBR(i2c));
+		writel(readl(_ICR(i2c)) | ICR_TB, _ICR(i2c));   /* allow next byte */
 	}
 }
 
 static void i2c_pxa_slave_rxfull(struct pxa_i2c *i2c, u32 isr)
 {
-	unsigned int byte = IDBR;
+	unsigned int byte = readl(_IDBR(i2c));
 
 	if (i2c->slave != NULL)
 		i2c->slave->write(i2c->slave->data, byte);
 
-	ICR |= ICR_TB;
+	writel(readl(_ICR(i2c)) | ICR_TB, _ICR(i2c));
 }
 
 static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
@@ -403,13 +419,13 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 	 * start condition... if this happens, we'd better back off
 	 * and stop holding the poor thing up
 	 */
-	ICR &= ~(ICR_START|ICR_STOP);
-	ICR |= ICR_TB;
+	writel(readl(_ICR(i2c)) & ~(ICR_START|ICR_STOP), _ICR(i2c));
+	writel(readl(_ICR(i2c)) | ICR_TB, _ICR(i2c));
 
 	timeout = 0x10000;
 
 	while (1) {
-		if ((IBMR & 2) == 2)
+		if ((readl(_IBMR(i2c)) & 2) == 2)
 			break;
 
 		timeout--;
@@ -420,7 +436,7 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 		}
 	}
 
-	ICR &= ~ICR_SCLE;
+	writel(readl(_ICR(i2c)) & ~ICR_SCLE, _ICR(i2c));
 }
 
 static void i2c_pxa_slave_stop(struct pxa_i2c *i2c)
@@ -447,14 +463,14 @@ static void i2c_pxa_slave_txempty(struct pxa_i2c *i2c, u32 isr)
 	if (isr & ISR_BED) {
 		/* what should we do here? */
 	} else {
-		IDBR = 0;
-		ICR |= ICR_TB;
+		writel(0, _IDBR(i2c));
+		writel(readl(_ICR(i2c)) | ICR_TB, _ICR(i2c));
 	}
 }
 
 static void i2c_pxa_slave_rxfull(struct pxa_i2c *i2c, u32 isr)
 {
-	ICR |= ICR_TB | ICR_ACKNAK;
+	writel(readl(_ICR(i2c)) | ICR_TB | ICR_ACKNAK, _ICR(i2c));
 }
 
 static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
@@ -466,13 +482,13 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 	 * start condition... if this happens, we'd better back off
 	 * and stop holding the poor thing up
 	 */
-	ICR &= ~(ICR_START|ICR_STOP);
-	ICR |= ICR_TB | ICR_ACKNAK;
+	writel(readl(_ICR(i2c)) & ~(ICR_START|ICR_STOP), _ICR(i2c));
+	writel(readl(_ICR(i2c)) | ICR_TB | ICR_ACKNAK, _ICR(i2c));
 
 	timeout = 0x10000;
 
 	while (1) {
-		if ((IBMR & 2) == 2)
+		if ((readl(_IBMR(i2c)) & 2) == 2)
 			break;
 
 		timeout--;
@@ -483,7 +499,7 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 		}
 	}
 
-	ICR &= ~ICR_SCLE;
+	writel(readl(_ICR(i2c)) & ~ICR_SCLE, _ICR(i2c));
 }
 
 static void i2c_pxa_slave_stop(struct pxa_i2c *i2c)
@@ -514,13 +530,13 @@ static inline void i2c_pxa_start_message(struct pxa_i2c *i2c)
 	/*
 	 * Step 1: target slave address into IDBR
 	 */
-	IDBR = i2c_pxa_addr_byte(i2c->msg);
+	writel(i2c_pxa_addr_byte(i2c->msg), _IDBR(i2c));
 
 	/*
 	 * Step 2: initiate the write.
 	 */
-	icr = ICR & ~(ICR_STOP | ICR_ALDIE);
-	ICR = icr | ICR_START | ICR_TB;
+	icr = readl(_ICR(i2c)) & ~(ICR_STOP | ICR_ALDIE);
+	writel(icr | ICR_START | ICR_TB, _ICR(i2c));
 }
 
 /*
@@ -594,7 +610,7 @@ static void i2c_pxa_master_complete(struct pxa_i2c *i2c, int ret)
 
 static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 {
-	u32 icr = ICR & ~(ICR_START|ICR_STOP|ICR_ACKNAK|ICR_TB);
+	u32 icr = readl(_ICR(i2c)) & ~(ICR_START|ICR_STOP|ICR_ACKNAK|ICR_TB);
 
  again:
 	/*
@@ -645,7 +661,7 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 		/*
 		 * Write mode.  Write the next data byte.
 		 */
-		IDBR = i2c->msg->buf[i2c->msg_ptr++];
+		writel(i2c->msg->buf[i2c->msg_ptr++], _IDBR(i2c));
 
 		icr |= ICR_ALDIE | ICR_TB;
 
@@ -675,7 +691,7 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 		/*
 		 * Write the next address.
 		 */
-		IDBR = i2c_pxa_addr_byte(i2c->msg);
+		writel(i2c_pxa_addr_byte(i2c->msg), _IDBR(i2c));
 
 		/*
 		 * And trigger a repeated start, and send the byte.
@@ -696,18 +712,18 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 
 	i2c->icrlog[i2c->irqlogidx-1] = icr;
 
-	ICR = icr;
+	writel(icr, _ICR(i2c));
 	show_state(i2c);
 }
 
 static void i2c_pxa_irq_rxfull(struct pxa_i2c *i2c, u32 isr)
 {
-	u32 icr = ICR & ~(ICR_START|ICR_STOP|ICR_ACKNAK|ICR_TB);
+	u32 icr = readl(_ICR(i2c)) & ~(ICR_START|ICR_STOP|ICR_ACKNAK|ICR_TB);
 
 	/*
 	 * Read the byte.
 	 */
-	i2c->msg->buf[i2c->msg_ptr++] = IDBR;
+	i2c->msg->buf[i2c->msg_ptr++] = readl(_IDBR(i2c));
 
 	if (i2c->msg_ptr < i2c->msg->len) {
 		/*
@@ -724,17 +740,17 @@ static void i2c_pxa_irq_rxfull(struct pxa_i2c *i2c, u32 isr)
 
 	i2c->icrlog[i2c->irqlogidx-1] = icr;
 
-	ICR = icr;
+	writel(icr, _ICR(i2c));
 }
 
 static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id)
 {
 	struct pxa_i2c *i2c = dev_id;
-	u32 isr = ISR;
+	u32 isr = readl(_ISR(i2c));
 
 	if (i2c_debug > 2 && 0) {
 		dev_dbg(&i2c->adap.dev, "%s: ISR=%08x, ICR=%08x, IBMR=%02x\n",
-			__func__, isr, ICR, IBMR);
+			__func__, isr, readl(_ICR(i2c)), readl(_IBMR(i2c)));
 		decode_ISR(isr);
 	}
 
@@ -746,7 +762,7 @@ static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id)
 	/*
 	 * Always clear all pending IRQs.
 	 */
-	ISR = isr & (ISR_SSD|ISR_ALD|ISR_ITE|ISR_IRF|ISR_SAD|ISR_BED);
+	writel(isr & (ISR_SSD|ISR_ALD|ISR_ITE|ISR_IRF|ISR_SAD|ISR_BED), _ISR(i2c));
 
 	if (isr & ISR_SAD)
 		i2c_pxa_slave_start(i2c, isr);
@@ -779,7 +795,7 @@ static int i2c_pxa_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num
 	/* If the I2C controller is disabled we need to reset it (probably due
  	   to a suspend/resume destroying state). We do this here as we can then
  	   avoid worrying about resuming the controller before its users. */
-	if (!(ICR & ICR_IUE))
+	if (!(readl(_ICR(i2c)) & ICR_IUE))
 		i2c_pxa_reset(i2c);
 
 	for (i = adap->retries; i >= 0; i--) {
@@ -810,28 +826,53 @@ static const struct i2c_algorithm i2c_pxa_algorithm = {
 
 static struct pxa_i2c i2c_pxa = {
 	.lock	= SPIN_LOCK_UNLOCKED,
-	.wait	= __WAIT_QUEUE_HEAD_INITIALIZER(i2c_pxa.wait),
 	.adap	= {
 		.owner		= THIS_MODULE,
 		.algo		= &i2c_pxa_algorithm,
-		.name		= "pxa2xx-i2c",
+		.name		= "pxa2xx-i2c.0",
 		.retries	= 5,
 	},
 };
 
+#define res_len(r)		((r)->end - (r)->start + 1)
 static int i2c_pxa_probe(struct platform_device *dev)
 {
 	struct pxa_i2c *i2c = &i2c_pxa;
+	struct resource *res;
 #ifdef CONFIG_I2C_PXA_SLAVE
 	struct i2c_pxa_platform_data *plat = dev->dev.platform_data;
 #endif
 	int ret;
+	int irq;
 
-#ifdef CONFIG_PXA27x
-	pxa_gpio_mode(GPIO117_I2CSCL_MD);
-	pxa_gpio_mode(GPIO118_I2CSDA_MD);
-	udelay(100);
-#endif
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	irq = platform_get_irq(dev, 0);
+	if (res == NULL || irq < 0)
+		return -ENODEV;
+
+	if (!request_mem_region(res->start, res_len(res), res->name))
+		return -ENOMEM;
+
+	i2c = kmalloc(sizeof(struct pxa_i2c), GFP_KERNEL);
+	if (!i2c) {
+		ret = -ENOMEM;
+		goto emalloc;
+	}
+
+	memcpy(i2c, &i2c_pxa, sizeof(struct pxa_i2c));
+	init_waitqueue_head(&i2c->wait);
+	i2c->adap.name[strlen(i2c->adap.name) - 1] = '0' + dev->id % 10;
+
+	i2c->reg_base = ioremap(res->start, res_len(res));
+	if (!i2c->reg_base) {
+		ret = -EIO;
+		goto eremap;
+	}
+
+	i2c->iobase = res->start;
+	i2c->iosize = res_len(res);
+
+	i2c->irq = irq;
 
 	i2c->slave_addr = I2C_PXA_SLAVE_ADDR;
 
@@ -842,11 +883,28 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	}
 #endif
 
-	pxa_set_cken(CKEN14_I2C, 1);
-	ret = request_irq(IRQ_I2C, i2c_pxa_handler, IRQF_DISABLED,
-			  "pxa2xx-i2c", i2c);
+	switch (dev->id) {
+	case 0:
+#ifdef CONFIG_PXA27x
+		pxa_gpio_mode(GPIO117_I2CSCL_MD);
+		pxa_gpio_mode(GPIO118_I2CSDA_MD);
+#endif
+		pxa_set_cken(CKEN14_I2C, 1);
+		break;
+#ifdef CONFIG_PXA27x
+	case 1:
+		local_irq_disable();
+		PCFR |= PCFR_PI2CEN;
+		local_irq_enable();
+		pxa_set_cken(CKEN15_PWRI2C, 1);
+#endif
+	}
+
+	ret = request_irq(irq, i2c_pxa_handler, IRQF_DISABLED,
+			  i2c->adap.name, i2c);
 	if (ret)
-		goto out;
+		goto ereqirq;
+
 
 	i2c_pxa_reset(i2c);
 
@@ -856,7 +914,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
 		printk(KERN_INFO "I2C: Failed to add bus\n");
-		goto err_irq;
+		goto eadapt;
 	}
 
 	platform_set_drvdata(dev, i2c);
@@ -870,9 +928,25 @@ static int i2c_pxa_probe(struct platform_device *dev)
 #endif
 	return 0;
 
- err_irq:
-	free_irq(IRQ_I2C, i2c);
- out:
+eadapt:
+	free_irq(irq, i2c);
+ereqirq:
+	switch (dev->id) {
+	case 0:
+		pxa_set_cken(CKEN14_I2C, 0);
+		break;
+#ifdef CONFIG_PXA27x
+	case 1:
+		pxa_set_cken(CKEN15_PWRI2C, 0);
+		local_irq_disable();
+		PCFR &= ~PCFR_PI2CEN;
+		local_irq_enable();
+#endif
+	}
+eremap:
+	kfree(i2c);
+emalloc:
+	release_mem_region(res->start, res_len(res));
 	return ret;
 }
 
@@ -883,8 +957,21 @@ static int i2c_pxa_remove(struct platform_device *dev)
 	platform_set_drvdata(dev, NULL);
 
 	i2c_del_adapter(&i2c->adap);
-	free_irq(IRQ_I2C, i2c);
-	pxa_set_cken(CKEN14_I2C, 0);
+	free_irq(i2c->irq, i2c);
+	switch (dev->id) {
+	case 0:
+		pxa_set_cken(CKEN14_I2C, 0);
+		break;
+#ifdef CONFIG_PXA27x
+	case 1:
+		pxa_set_cken(CKEN15_PWRI2C, 0);
+		local_irq_disable();
+		PCFR &= ~PCFR_PI2CEN;
+		local_irq_enable();
+#endif
+	}
+	release_mem_region(i2c->iobase, i2c->iosize);
+	kfree(i2c);
 
 	return 0;
 }

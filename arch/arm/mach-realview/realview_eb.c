@@ -31,6 +31,7 @@
 #include <asm/mach-types.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/icst307.h>
+#include <asm/hardware/cache-l2x0.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -57,7 +58,26 @@ static struct map_desc realview_eb_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(REALVIEW_GIC_DIST_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
+	},
+#ifdef CONFIG_REALVIEW_MPCORE
+	{
+		.virtual	= IO_ADDRESS(REALVIEW_GIC1_CPU_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_GIC1_CPU_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
 	}, {
+		.virtual	= IO_ADDRESS(REALVIEW_GIC1_DIST_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_GIC1_DIST_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= IO_ADDRESS(REALVIEW_MPCORE_L220_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_MPCORE_L220_BASE),
+		.length		= SZ_8K,
+		.type		= MT_DEVICE,
+	},
+#endif
+	{
 		.virtual	= IO_ADDRESS(REALVIEW_SCTL_BASE),
 		.pfn		= __phys_to_pfn(REALVIEW_SCTL_BASE),
 		.length		= SZ_4K,
@@ -138,19 +158,29 @@ static void __init gic_init_irq(void)
 #ifdef CONFIG_REALVIEW_MPCORE
 	unsigned int pldctrl;
 	writel(0x0000a05f, __io_address(REALVIEW_SYS_LOCK));
-	pldctrl = readl(__io_address(REALVIEW_SYS_BASE)	+ 0xd8);
+	pldctrl = readl(__io_address(REALVIEW_SYS_BASE)	+ REALVIEW_MPCORE_SYS_PLD_CTRL1);
 	pldctrl |= 0x00800000;	/* New irq mode */
-	writel(pldctrl, __io_address(REALVIEW_SYS_BASE) + 0xd8);
+	writel(pldctrl, __io_address(REALVIEW_SYS_BASE) + REALVIEW_MPCORE_SYS_PLD_CTRL1);
 	writel(0x00000000, __io_address(REALVIEW_SYS_LOCK));
 #endif
-	gic_dist_init(__io_address(REALVIEW_GIC_DIST_BASE));
-	gic_cpu_init(__io_address(REALVIEW_GIC_CPU_BASE));
+	gic_dist_init(0, __io_address(REALVIEW_GIC_DIST_BASE), 29);
+	gic_cpu_init(0, __io_address(REALVIEW_GIC_CPU_BASE));
+#ifdef CONFIG_REALVIEW_MPCORE
+	gic_dist_init(1, __io_address(REALVIEW_GIC1_DIST_BASE), 64);
+	gic_cpu_init(1, __io_address(REALVIEW_GIC1_CPU_BASE));
+	gic_cascade_irq(1, IRQ_EB_IRQ1);
+#endif
 }
 
 static void __init realview_eb_init(void)
 {
 	int i;
 
+#ifdef CONFIG_REALVIEW_MPCORE
+	/* 1MB (128KB/way), 8-way associativity, evmon/parity/share enabled
+	 * Bits:  .... ...0 0111 1001 0000 .... .... .... */
+	l2x0_init(__io_address(REALVIEW_MPCORE_L220_BASE), 0x00790000, 0xfe000fff);
+#endif
 	clk_register(&realview_clcd_clk);
 
 	platform_device_register(&realview_flash_device);
