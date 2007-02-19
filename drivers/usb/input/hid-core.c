@@ -27,9 +27,6 @@
 #include <linux/input.h>
 #include <linux/wait.h>
 
-#undef DEBUG
-#undef DEBUG_DATA
-
 #include <linux/usb.h>
 
 #include <linux/hid.h>
@@ -1109,7 +1106,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	if ((quirks & HID_QUIRK_CYMOTION))
 		hid_fixup_cymotion_descriptor(rdesc, rsize);
 
-#ifdef DEBUG_DATA
+#ifdef CONFIG_HID_DEBUG
 	printk(KERN_DEBUG __FILE__ ": report descriptor (size %u, read %d) = ", rsize, n);
 	for (n = 0; n < rsize; n++)
 		printk(" %02x", (unsigned char) rdesc[n]);
