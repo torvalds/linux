@@ -1669,6 +1669,18 @@ static int is_disabled(void)
 	return 0;
 }
 
+static void
+svm_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
+{
+	/*
+	 * Patch in the VMMCALL instruction:
+	 */
+	hypercall[0] = 0x0f;
+	hypercall[1] = 0x01;
+	hypercall[2] = 0xd9;
+	hypercall[3] = 0xc3;
+}
+
 static struct kvm_arch_ops svm_arch_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -1717,6 +1729,7 @@ static struct kvm_arch_ops svm_arch_ops = {
 	.run = svm_vcpu_run,
 	.skip_emulated_instruction = skip_emulated_instruction,
 	.vcpu_setup = svm_vcpu_setup,
+	.patch_hypercall = svm_patch_hypercall,
 };
 
 static int __init svm_init(void)

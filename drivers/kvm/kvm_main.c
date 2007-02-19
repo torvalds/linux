@@ -1204,6 +1204,73 @@ void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 	}
 }
 
+/*
+ * Register the para guest with the host:
+ */
+static int vcpu_register_para(struct kvm_vcpu *vcpu, gpa_t para_state_gpa)
+{
+	struct kvm_vcpu_para_state *para_state;
+	hpa_t para_state_hpa, hypercall_hpa;
+	struct page *para_state_page;
+	unsigned char *hypercall;
+	gpa_t hypercall_gpa;
+
+	printk(KERN_DEBUG "kvm: guest trying to enter paravirtual mode\n");
+	printk(KERN_DEBUG ".... para_state_gpa: %08Lx\n", para_state_gpa);
+
+	/*
+	 * Needs to be page aligned:
+	 */
+	if (para_state_gpa != PAGE_ALIGN(para_state_gpa))
+		goto err_gp;
+
+	para_state_hpa = gpa_to_hpa(vcpu, para_state_gpa);
+	printk(KERN_DEBUG ".... para_state_hpa: %08Lx\n", para_state_hpa);
+	if (is_error_hpa(para_state_hpa))
+		goto err_gp;
+
+	para_state_page = pfn_to_page(para_state_hpa >> PAGE_SHIFT);
+	para_state = kmap_atomic(para_state_page, KM_USER0);
+
+	printk(KERN_DEBUG "....  guest version: %d\n", para_state->guest_version);
+	printk(KERN_DEBUG "....           size: %d\n", para_state->size);
+
+	para_state->host_version = KVM_PARA_API_VERSION;
+	/*
+	 * We cannot support guests that try to register themselves
+	 * with a newer API version than the host supports:
+	 */
+	if (para_state->guest_version > KVM_PARA_API_VERSION) {
+		para_state->ret = -KVM_EINVAL;
+		goto err_kunmap_skip;
+	}
+
+	hypercall_gpa = para_state->hypercall_gpa;
+	hypercall_hpa = gpa_to_hpa(vcpu, hypercall_gpa);
+	printk(KERN_DEBUG ".... hypercall_hpa: %08Lx\n", hypercall_hpa);
+	if (is_error_hpa(hypercall_hpa)) {
+		para_state->ret = -KVM_EINVAL;
+		goto err_kunmap_skip;
+	}
+
+	printk(KERN_DEBUG "kvm: para guest successfully registered.\n");
+	vcpu->para_state_page = para_state_page;
+	vcpu->para_state_gpa = para_state_gpa;
+	vcpu->hypercall_gpa = hypercall_gpa;
+
+	hypercall = kmap_atomic(pfn_to_page(hypercall_hpa >> PAGE_SHIFT),
+				KM_USER1) + (hypercall_hpa & ~PAGE_MASK);
+	kvm_arch_ops->patch_hypercall(vcpu, hypercall);
+	kunmap_atomic(hypercall, KM_USER1);
+
+	para_state->ret = 0;
+err_kunmap_skip:
+	kunmap_atomic(para_state, KM_USER0);
+	return 0;
+err_gp:
+	return 1;
+}
+
 int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 {
 	u64 data;
@@ -1312,6 +1379,12 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	case MSR_IA32_MISC_ENABLE:
 		vcpu->ia32_misc_enable_msr = data;
 		break;
+	/*
+	 * This is the 'probe whether the host is KVM' logic:
+	 */
+	case MSR_KVM_API_MAGIC:
+		return vcpu_register_para(vcpu, data);
+
 	default:
 		printk(KERN_ERR "kvm: unhandled wrmsr: 0x%x\n", msr);
 		return 1;

@@ -1469,6 +1469,18 @@ static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 0;
 }
 
+static void
+vmx_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
+{
+	/*
+	 * Patch in the VMCALL instruction:
+	 */
+	hypercall[0] = 0x0f;
+	hypercall[1] = 0x01;
+	hypercall[2] = 0xc1;
+	hypercall[3] = 0xc3;
+}
+
 static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	u64 exit_qualification;
@@ -2064,6 +2076,7 @@ static struct kvm_arch_ops vmx_arch_ops = {
 	.run = vmx_vcpu_run,
 	.skip_emulated_instruction = skip_emulated_instruction,
 	.vcpu_setup = vmx_vcpu_setup,
+	.patch_hypercall = vmx_patch_hypercall,
 };
 
 static int __init vmx_init(void)

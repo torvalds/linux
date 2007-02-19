@@ -14,6 +14,7 @@
 
 #include "vmx.h"
 #include <linux/kvm.h>
+#include <linux/kvm_para.h>
 
 #define CR0_PE_MASK (1ULL << 0)
 #define CR0_TS_MASK (1ULL << 3)
@@ -237,6 +238,9 @@ struct kvm_vcpu {
 	unsigned long cr0;
 	unsigned long cr2;
 	unsigned long cr3;
+	gpa_t para_state_gpa;
+	struct page *para_state_page;
+	gpa_t hypercall_gpa;
 	unsigned long cr4;
 	unsigned long cr8;
 	u64 pdptrs[4]; /* pae */
@@ -382,6 +386,8 @@ struct kvm_arch_ops {
 	int (*run)(struct kvm_vcpu *vcpu, struct kvm_run *run);
 	int (*vcpu_setup)(struct kvm_vcpu *vcpu);
 	void (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
+	void (*patch_hypercall)(struct kvm_vcpu *vcpu,
+				unsigned char *hypercall_addr);
 };
 
 extern struct kvm_stat kvm_stat;
