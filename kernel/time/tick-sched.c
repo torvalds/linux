@@ -165,7 +165,9 @@ void tick_nohz_stop_sched_tick(void)
 		goto end;
 
 	cpu = smp_processor_id();
-	BUG_ON(local_softirq_pending());
+	if (unlikely(local_softirq_pending()))
+		printk(KERN_ERR "NOHZ: local_softirq_pending %02x\n",
+		       local_softirq_pending());
 
 	now = ktime_get();
 	/*
