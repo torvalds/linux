@@ -832,8 +832,7 @@ address which can extend beyond that limit.
 
   This node is a bit "special". Normally, that's where open firmware
   puts some variable environment information, like the arguments, or
-  phandle pointers to nodes like the main interrupt controller, or the
-  default input/output devices.
+  the default input/output devices.
 
   This specification makes a few of these mandatory, but also defines
   some linux-specific properties that would be normally constructed by
@@ -853,13 +852,13 @@ address which can extend beyond that limit.
       that the kernel tries to find out the default console and has
       knowledge of various types like 8250 serial ports. You may want
       to extend this function to add your own.
-    - interrupt-controller : This is one cell containing a phandle
-      value that matches the "linux,phandle" property of your main
-      interrupt controller node. May be used for interrupt routing.
-
 
   Note that u-boot creates and fills in the chosen node for platforms
   that use it.
+
+  (Note: a practice that is now obsolete was to include a property
+  under /chosen called interrupt-controller which had a phandle value
+  that pointed to the main interrupt controller)
 
   f) the /soc<SOCname> node
 
