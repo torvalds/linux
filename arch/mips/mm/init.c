@@ -61,8 +61,6 @@
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-unsigned long highstart_pfn, highend_pfn;
-
 /*
  * We have up to 8 empty zeroed pages so we can map one of the right colour
  * when needed.  This is necessary only on R4000 / R4400 SC and MC versions
@@ -261,6 +259,8 @@ EXPORT_SYMBOL(copy_from_user_page);
 
 
 #ifdef CONFIG_HIGHMEM
+unsigned long highstart_pfn, highend_pfn;
+
 pte_t *kmap_pte;
 pgprot_t kmap_prot;
 
