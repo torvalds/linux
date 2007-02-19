@@ -1076,6 +1076,20 @@ static int halt_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 0;
 }
 
+static int vmmcall_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	printk(KERN_DEBUG "got vmmcall at RIP %08llx\n",
+	       vcpu->svm->vmcb->save.rip);
+	printk(KERN_DEBUG "vmmcall params: %08llx, %08lx, %08lx, %08lx\n",
+	       vcpu->svm->vmcb->save.rax,
+	       vcpu->regs[VCPU_REGS_RCX],
+	       vcpu->regs[VCPU_REGS_RDX],
+	       vcpu->regs[VCPU_REGS_RBP]);
+	vcpu->svm->vmcb->save.rax = 0;
+	vcpu->svm->vmcb->save.rip += 3;
+	return 1;
+}
+
 static int invalid_op_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	inject_ud(vcpu);
@@ -1276,7 +1290,7 @@ static int (*svm_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[SVM_EXIT_TASK_SWITCH]			= task_switch_interception,
 	[SVM_EXIT_SHUTDOWN]			= shutdown_interception,
 	[SVM_EXIT_VMRUN]			= invalid_op_interception,
-	[SVM_EXIT_VMMCALL]			= invalid_op_interception,
+	[SVM_EXIT_VMMCALL]			= vmmcall_interception,
 	[SVM_EXIT_VMLOAD]			= invalid_op_interception,
 	[SVM_EXIT_VMSAVE]			= invalid_op_interception,
 	[SVM_EXIT_STGI]				= invalid_op_interception,
