@@ -77,13 +77,48 @@ static int __devinit snd_es1688_match(struct device *dev, unsigned int n)
 	return enable[n];
 }
 
-static int __devinit snd_es1688_probe(struct device *dev, unsigned int n)
+static int __devinit snd_es1688_legacy_create(struct snd_card *card, 
+		struct device *dev, unsigned int n, struct snd_es1688 **rchip)
 {
-	static unsigned long possible_ports[] = {0x220, 0x240, 0x260};
+	static long possible_ports[] = {0x220, 0x240, 0x260};
 	static int possible_irqs[] = {5, 9, 10, 7, -1};
 	static int possible_dmas[] = {1, 3, 0, -1};
-	int i, xirq, xdma;
 
+	int i, error;
+
+	if (irq[n] == SNDRV_AUTO_IRQ) {
+		irq[n] = snd_legacy_find_free_irq(possible_irqs);
+		if (irq[n] < 0) {
+			snd_printk(KERN_ERR "%s: unable to find a free IRQ\n",
+				dev->bus_id);
+			return -EBUSY;
+		}
+	}
+	if (dma8[n] == SNDRV_AUTO_DMA) {
+		dma8[n] = snd_legacy_find_free_dma(possible_dmas);
+		if (dma8[n] < 0) {
+			snd_printk(KERN_ERR "%s: unable to find a free DMA\n",
+				dev->bus_id);
+			return -EBUSY;
+		}
+	}
+
+	if (port[n] != SNDRV_AUTO_PORT)
+		return snd_es1688_create(card, port[n], mpu_port[n], irq[n],
+				mpu_irq[n], dma8[n], ES1688_HW_AUTO, rchip);
+
+	i = 0;
+	do {
+		port[n] = possible_ports[i];
+		error = snd_es1688_create(card, port[n], mpu_port[n], irq[n],
+				mpu_irq[n], dma8[n], ES1688_HW_AUTO, rchip);
+	} while (error < 0 && ++i < ARRAY_SIZE(possible_ports));
+
+	return error;
+}
+
+static int __devinit snd_es1688_probe(struct device *dev, unsigned int n)
+{
 	struct snd_card *card;
 	struct snd_es1688 *chip;
 	struct snd_opl3 *opl3;
@@ -94,33 +129,7 @@ static int __devinit snd_es1688_probe(struct device *dev, unsigned int n)
 	if (!card)
 		return -EINVAL;
 
-	error = -EBUSY;
-
-	xirq = irq[n];
-	if (xirq == SNDRV_AUTO_IRQ) {
-		xirq = snd_legacy_find_free_irq(possible_irqs);
-		if (xirq < 0) {
-			snd_printk(KERN_ERR "%s: unable to find a free IRQ\n", dev->bus_id);
-			goto out;
-		}
-	}
-
-	xdma = dma8[n];
-	if (xdma == SNDRV_AUTO_DMA) {
-		xdma = snd_legacy_find_free_dma(possible_dmas);
-		if (xdma < 0) {
-			snd_printk(KERN_ERR "%s: unable to find a free DMA\n", dev->bus_id);
-			goto out;
-		}
-	}
-
-	if (port[n] == SNDRV_AUTO_PORT)
-		for (i = 0; i < ARRAY_SIZE(possible_ports) && error < 0; i++)
-			error = snd_es1688_create(card, possible_ports[i], mpu_port[n],
-					xirq, mpu_irq[n], xdma, ES1688_HW_AUTO, &chip);
-	else
-		error = snd_es1688_create(card, port[n], mpu_port[n],
-				xirq, mpu_irq[n], xdma, ES1688_HW_AUTO, &chip);
+	error = snd_es1688_legacy_create(card, dev, n, &chip);
 	if (error < 0)
 		goto out;
 
@@ -134,19 +143,24 @@ static int __devinit snd_es1688_probe(struct device *dev, unsigned int n)
 
 	strcpy(card->driver, "ES1688");
 	strcpy(card->shortname, pcm->name);
-	sprintf(card->longname, "%s at 0x%lx, irq %i, dma %i", pcm->name, chip->port, xirq, xdma);
+	sprintf(card->longname, "%s at 0x%lx, irq %i, dma %i", pcm->name,
+		chip->port, chip->irq, chip->dma8);
 
-	if (snd_opl3_create(card, chip->port, chip->port + 2, OPL3_HW_OPL3, 0, &opl3) < 0)
-		printk(KERN_WARNING "%s: opl3 not detected at 0x%lx\n", dev->bus_id, chip->port);
+	if (snd_opl3_create(card, chip->port, chip->port + 2,
+			OPL3_HW_OPL3, 0, &opl3) < 0)
+		printk(KERN_WARNING "%s: opl3 not detected at 0x%lx\n",
+			dev->bus_id, chip->port);
 	else {
 		error =	snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 		if (error < 0)
 			goto out;
 	}
 
-	if (mpu_irq[n] >= 0 && mpu_irq[n] != SNDRV_AUTO_IRQ && chip->mpu_port > 0) {
-		error = snd_mpu401_uart_new(card, 0, MPU401_HW_ES1688, chip->mpu_port,
-				0, mpu_irq[n], IRQF_DISABLED, NULL);
+	if (mpu_irq[n] >= 0 && mpu_irq[n] != SNDRV_AUTO_IRQ &&
+			chip->mpu_port > 0) {
+		error = snd_mpu401_uart_new(card, 0, MPU401_HW_ES1688,
+				chip->mpu_port, 0,
+				mpu_irq[n], IRQF_DISABLED, NULL);
 		if (error < 0)
 			goto out;
 	}
