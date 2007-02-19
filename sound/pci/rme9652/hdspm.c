@@ -4468,6 +4468,8 @@ static int __devinit snd_hdspm_probe(struct pci_dev *pci,
 	hdspm->dev = dev;
 	hdspm->pci = pci;
 
+	snd_card_set_dev(card, &pci->dev);
+
 	if ((err =
 	     snd_hdspm_create(card, hdspm, precise_ptr[dev],
 			      enable_monitor[dev])) < 0) {
