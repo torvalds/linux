@@ -326,6 +326,7 @@ int kobject_rename(struct kobject * kobj, const char *new_name)
 /**
  *	kobject_rename - change the name of an object
  *	@kobj:	object in question.
+ *	@new_parent: object's new parent
  *	@new_name: object's new name
  */
 

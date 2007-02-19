@@ -21,6 +21,12 @@
 
 unsigned int pci_pm_d3_delay = 10;
 
+#define DEFAULT_CARDBUS_IO_SIZE		(256)
+#define DEFAULT_CARDBUS_MEM_SIZE	(64*1024*1024)
+/* pci=cbmemsize=nnM,cbiosize=nn can override this */
+unsigned long pci_cardbus_io_size = DEFAULT_CARDBUS_IO_SIZE;
+unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
+
 /**
  * pci_bus_max_busnr - returns maximum PCI bus number of given bus' children
  * @bus: pointer to PCI bus structure to search
@@ -1300,7 +1306,7 @@ pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 
 /**
  * pci_select_bars - Make BAR mask from the type of resource
- * @pdev: the PCI device for which BAR mask is made
+ * @dev: the PCI device for which BAR mask is made
  * @flags: resource type mask to be selected
  *
  * This helper routine makes bar mask from the type of resource.
@@ -1333,6 +1339,10 @@ static int __devinit pci_setup(char *str)
 		if (*str && (str = pcibios_setup(str)) && *str) {
 			if (!strcmp(str, "nomsi")) {
 				pci_no_msi();
+			} else if (!strncmp(str, "cbiosize=", 9)) {
+				pci_cardbus_io_size = memparse(str + 9, &str);
+			} else if (!strncmp(str, "cbmemsize=", 10)) {
+				pci_cardbus_mem_size = memparse(str + 10, &str);
 			} else {
 				printk(KERN_ERR "PCI: Unknown option `%s'\n",
 						str);
