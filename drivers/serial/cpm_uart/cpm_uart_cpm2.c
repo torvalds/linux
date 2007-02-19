@@ -285,7 +285,7 @@ void cpm_uart_freebuf(struct uart_cpm_port *pinfo)
 int __init cpm_uart_init_portdesc(void)
 {
 #if defined(CONFIG_SERIAL_CPM_SMC1) || defined(CONFIG_SERIAL_CPM_SMC2)
-	u32 addr;
+	u16 *addr;
 #endif
 	pr_debug("CPM uart[-]:init portdesc\n");
 

@@ -233,14 +233,7 @@ static int __init gfar_of_init(void)
 			goto err;
 		}
 
-		mac_addr = get_property(np, "local-mac-address", NULL);
-		if (mac_addr == NULL)
-			mac_addr = get_property(np, "mac-address", NULL);
-		if (mac_addr == NULL) {
-			/* Obsolete */
-			mac_addr = get_property(np, "address", NULL);
-		}
-
+		mac_addr = of_get_mac_address(np);
 		if (mac_addr)
 			memcpy(gfar_data.mac_addr, mac_addr, 6);
 
@@ -646,8 +639,9 @@ static int __init fs_enet_of_init(void)
 			goto unreg;
 		}
 
-		mac_addr = get_property(np, "mac-address", NULL);
-		memcpy(fs_enet_data.macaddr, mac_addr, 6);
+		mac_addr = of_get_mac_address(np);
+		if (mac_addr)
+			memcpy(fs_enet_data.macaddr, mac_addr, 6);
 
 		ph = get_property(np, "phy-handle", NULL);
 		phy = of_find_node_by_phandle(*ph);
@@ -931,8 +925,9 @@ static int __init fs_enet_of_init(void)
 			goto err;
 		r[0].name = enet_regs;
 
-		mac_addr = (void *)get_property(np, "mac-address", NULL);
-		memcpy(fs_enet_data.macaddr, mac_addr, 6);
+		mac_addr = of_get_mac_address(np);
+		if (mac_addr)
+			memcpy(fs_enet_data.macaddr, mac_addr, 6);
 
 		ph = (phandle *) get_property(np, "phy-handle", NULL);
 		if (ph != NULL)

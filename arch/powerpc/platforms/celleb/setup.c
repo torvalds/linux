@@ -137,10 +137,12 @@ static int celleb_check_legacy_ioport(unsigned int baseport)
 	return -ENODEV;
 }
 
+#ifdef CONFIG_KEXEC
 static void celleb_kexec_cpu_down(int crash, int secondary)
 {
 	beatic_deinit_IRQ();
 }
+#endif
 
 static struct of_device_id celleb_bus_ids[] = {
 	{ .type = "scc", },

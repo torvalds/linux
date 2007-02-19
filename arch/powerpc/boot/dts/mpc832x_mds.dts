@@ -11,16 +11,14 @@
 
 / {
 	model = "MPC8323EMDS";
-	compatible = "MPC83xx";
+	compatible = "MPC8323EMDS", "MPC832xMDS", "MPC83xxMDS";
 	#address-cells = <1>;
 	#size-cells = <1>;
-	linux,phandle = <100>;
 
 	cpus {
 		#cpus = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		linux,phandle = <200>;
 
 		PowerPC,8323@0 {
 			device_type = "cpu";
@@ -33,14 +31,11 @@
 			bus-frequency = <0>;
 			clock-frequency = <0>;
 			32-bit;
-			linux,phandle = <201>;
-			linux,boot-cpu;
 		};
 	};
 
 	memory {
 		device_type = "memory";
-		linux,phandle = <300>;
 		reg = <00000000 08000000>;
 	};
 
@@ -69,7 +64,7 @@
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <e 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			dfsrr;
 		};
 
@@ -79,7 +74,7 @@
 			reg = <4500 100>;
 			clock-frequency = <0>;
 			interrupts = <9 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 		};
 
 		serial@4600 {
@@ -88,7 +83,7 @@
 			reg = <4600 100>;
 			clock-frequency = <0>;
 			interrupts = <a 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 		};
 
 		crypto@30000 {
@@ -97,7 +92,7 @@
 			compatible = "talitos";
 			reg = <30000 7000>;
 			interrupts = <b 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			/* Rev. 2.2 */
 			num-channels = <1>;
 			channel-fifo-len = <18>;
@@ -106,51 +101,50 @@
 		};
 
 		pci@8500 {
-			linux,phandle = <8500>;
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
 					/* IDSEL 0x11 AD17 */
-					 8800 0 0 1 700 14 8
-					 8800 0 0 2 700 15 8
-					 8800 0 0 3 700 16 8
-					 8800 0 0 4 700 17 8
+					 8800 0 0 1 &ipic 14 8
+					 8800 0 0 2 &ipic 15 8
+					 8800 0 0 3 &ipic 16 8
+					 8800 0 0 4 &ipic 17 8
 
 					/* IDSEL 0x12 AD18 */
-					 9000 0 0 1 700 16 8
-					 9000 0 0 2 700 17 8
-					 9000 0 0 3 700 14 8
-					 9000 0 0 4 700 15 8
+					 9000 0 0 1 &ipic 16 8
+					 9000 0 0 2 &ipic 17 8
+					 9000 0 0 3 &ipic 14 8
+					 9000 0 0 4 &ipic 15 8
 
 					/* IDSEL 0x13 AD19 */
-					 9800 0 0 1 700 17 8
-					 9800 0 0 2 700 14 8
-					 9800 0 0 3 700 15 8
-					 9800 0 0 4 700 16 8
+					 9800 0 0 1 &ipic 17 8
+					 9800 0 0 2 &ipic 14 8
+					 9800 0 0 3 &ipic 15 8
+					 9800 0 0 4 &ipic 16 8
 
 					/* IDSEL 0x15 AD21*/
-					 a800 0 0 1 700 14 8
-					 a800 0 0 2 700 15 8
-					 a800 0 0 3 700 16 8
-					 a800 0 0 4 700 17 8
+					 a800 0 0 1 &ipic 14 8
+					 a800 0 0 2 &ipic 15 8
+					 a800 0 0 3 &ipic 16 8
+					 a800 0 0 4 &ipic 17 8
 
 					/* IDSEL 0x16 AD22*/
-					 b000 0 0 1 700 17 8
-					 b000 0 0 2 700 14 8
-					 b000 0 0 3 700 15 8
-					 b000 0 0 4 700 16 8
+					 b000 0 0 1 &ipic 17 8
+					 b000 0 0 2 &ipic 14 8
+					 b000 0 0 3 &ipic 15 8
+					 b000 0 0 4 &ipic 16 8
 
 					/* IDSEL 0x17 AD23*/
-					 b800 0 0 1 700 16 8
-					 b800 0 0 2 700 17 8
-					 b800 0 0 3 700 14 8
-					 b800 0 0 4 700 15 8
+					 b800 0 0 1 &ipic 16 8
+					 b800 0 0 2 &ipic 17 8
+					 b800 0 0 3 &ipic 14 8
+					 b800 0 0 4 &ipic 15 8
 
 					/* IDSEL 0x18 AD24*/
-					 c000 0 0 1 700 15 8
-					 c000 0 0 2 700 16 8
-					 c000 0 0 3 700 17 8
-					 c000 0 0 4 700 14 8>;
-			interrupt-parent = <700>;
+					 c000 0 0 1 &ipic 15 8
+					 c000 0 0 2 &ipic 16 8
+					 c000 0 0 3 &ipic 17 8
+					 c000 0 0 4 &ipic 14 8>;
+			interrupt-parent = < &ipic >;
 			interrupts = <42 8>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 a0000000 90000000 0 10000000
@@ -165,8 +159,7 @@
 			device_type = "pci";
 		};
 
-		pic@700 {
-			linux,phandle = <700>;
+		ipic: pic@700 {
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
@@ -180,8 +173,7 @@
 			device_type = "par_io";
 			num-ports = <7>;
 
-			ucc_pin@03 {
-				linux,phandle = <140003>;
+			pio3: ucc_pin@03 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					3  4  3  0  2  0  /* MDIO */
@@ -204,8 +196,7 @@
 					1  c  1  0  1  0 	/* TX_EN */
 					1  d  2  0  1  0>;/* CRS */
 			};
-			ucc_pin@04 {
-				linux,phandle = <140004>;
+			pio4: ucc_pin@04 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					3 1f  2  0  1  0 	/* RX_CLK (CLK7) */
@@ -252,7 +243,7 @@
 			compatible = "fsl_spi";
 			reg = <4c0 40>;
 			interrupts = <2>;
-			interrupt-parent = <80>;
+			interrupt-parent = < &qeic >;
 			mode = "cpu";
 		};
 
@@ -261,7 +252,7 @@
 			compatible = "fsl_spi";
 			reg = <500 40>;
 			interrupts = <1>;
-			interrupt-parent = <80>;
+			interrupt-parent = < &qeic >;
 			mode = "cpu";
 		};
 
@@ -270,7 +261,7 @@
 			compatible = "qe_udc";
 			reg = <6c0 40 8B00 100>;
 			interrupts = <b>;
-			interrupt-parent = <80>;
+			interrupt-parent = < &qeic >;
 			mode = "slave";
 		};
 
@@ -281,12 +272,12 @@
 			device-id = <3>;
 			reg = <2200 200>;
 			interrupts = <22>;
-			interrupt-parent = <80>;
+			interrupt-parent = < &qeic >;
 			mac-address = [ 00 04 9f 00 23 23 ];
 			rx-clock = <19>;
 			tx-clock = <1a>;
-			phy-handle = <212003>;
-			pio-handle = <140003>;
+			phy-handle = < &phy3 >;
+			pio-handle = < &pio3 >;
 		};
 
 		ucc@3200 {
@@ -296,12 +287,12 @@
 			device-id = <4>;
 			reg = <3000 200>;
 			interrupts = <23>;
-			interrupt-parent = <80>;
+			interrupt-parent = < &qeic >;
 			mac-address = [ 00 11 22 33 44 55 ];
 			rx-clock = <17>;
 			tx-clock = <18>;
-			phy-handle = <212004>;
-			pio-handle = <140004>;
+			phy-handle = < &phy4 >;
+			pio-handle = < &pio4 >;
 		};
 
 		mdio@2320 {
@@ -311,26 +302,23 @@
 			device_type = "mdio";
 			compatible = "ucc_geth_phy";
 
-			ethernet-phy@03 {
-				linux,phandle = <212003>;
-				interrupt-parent = <700>;
-				interrupts = <11 2>;
+			phy3: ethernet-phy@03 {
+				interrupt-parent = < &ipic >;
+				interrupts = <11 8>;
 				reg = <3>;
 				device_type = "ethernet-phy";
 				interface = <3>; //ENET_100_MII
 			};
-			ethernet-phy@04 {
-				linux,phandle = <212004>;
-				interrupt-parent = <700>;
-				interrupts = <12 2>;
+			phy4: ethernet-phy@04 {
+				interrupt-parent = < &ipic >;
+				interrupts = <12 8>;
 				reg = <4>;
 				device_type = "ethernet-phy";
 				interface = <3>;
 			};
 		};
 
-		qeic@80 {
-			linux,phandle = <80>;
+		qeic: qeic@80 {
 			interrupt-controller;
 			device_type = "qeic";
 			#address-cells = <0>;
@@ -339,7 +327,7 @@
 			built-in;
 			big-endian;
 			interrupts = <20 8 21 8>; //high:32 low:33
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 		};
 	};
 };

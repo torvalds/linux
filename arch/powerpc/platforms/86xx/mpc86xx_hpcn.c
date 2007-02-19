@@ -18,7 +18,6 @@
 #include <linux/kdev_t.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <linux/root_dev.h>
 
 #include <asm/system.h>
 #include <asm/time.h>
@@ -120,6 +119,8 @@ mpc86xx_hpcn_init_irq(void)
 	DBG("mpc86xxhpcn: cascade mapped to irq %d\n", cascade_irq);
 
 	i8259_init(cascade_node, 0);
+	of_node_put(cascade_node);
+
 	set_irq_chained_handler(cascade_irq, mpc86xx_8259_cascade);
 #endif
 }
@@ -364,12 +365,6 @@ mpc86xx_hpcn_setup_arch(void)
 #endif
 
 	printk("MPC86xx HPCN board from Freescale Semiconductor\n");
-
-#ifdef  CONFIG_ROOT_NFS
-	ROOT_DEV = Root_NFS;
-#else
-	ROOT_DEV = Root_HDA1;
-#endif
 
 #ifdef CONFIG_SMP
 	mpc86xx_smp_init();

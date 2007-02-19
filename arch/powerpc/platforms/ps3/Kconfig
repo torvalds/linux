@@ -62,4 +62,14 @@ config PS3_PS3AV
 	  This support is required for graphics and sound. In
 	  general, all users will say Y or M.
 
+config PS3_SYS_MANAGER
+	bool "PS3 System Manager driver"
+	select PS3_VUART
+	default y
+	help
+	  Include support for the PS3 System Manager.
+
+	  This support is required for system control.  In
+	  general, all users will say Y.
+
 endmenu

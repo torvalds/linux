@@ -36,7 +36,6 @@
 			bus-frequency = <0>;		// From U-Boot
 			32-bit;
 			linux,phandle = <201>;
-			linux,boot-cpu;
 		};
 	};
 

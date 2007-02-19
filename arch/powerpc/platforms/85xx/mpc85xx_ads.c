@@ -17,7 +17,6 @@
 #include <linux/kdev_t.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <linux/root_dev.h>
 
 #include <asm/system.h>
 #include <asm/time.h>
@@ -245,12 +244,6 @@ static void __init mpc85xx_ads_setup_arch(void)
 		add_bridge(np);
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 #endif
-
-#ifdef  CONFIG_ROOT_NFS
-	ROOT_DEV = Root_NFS;
-#else
-	ROOT_DEV = Root_HDA1;
-#endif
 }
 
 static void mpc85xx_ads_show_cpuinfo(struct seq_file *m)
@@ -279,10 +272,9 @@ static void mpc85xx_ads_show_cpuinfo(struct seq_file *m)
  */
 static int __init mpc85xx_ads_probe(void)
 {
-	/* We always match for now, eventually we should look at the flat
-	   dev tree to ensure this is the board we are suppose to run on
-	*/
-	return 1;
+        unsigned long root = of_get_flat_dt_root();
+
+        return of_flat_dt_is_compatible(root, "MPC85xxADS");
 }
 
 define_machine(mpc85xx_ads) {

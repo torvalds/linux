@@ -55,27 +55,11 @@ static void __init mpc834x_itx_setup_arch(void)
 	if (ppc_md.progress)
 		ppc_md.progress("mpc834x_itx_setup_arch()", 0);
 
-	np = of_find_node_by_type(NULL, "cpu");
-	if (np != 0) {
-		const unsigned int *fp =
-			get_property(np, "clock-frequency", NULL);
-		if (fp != 0)
-			loops_per_jiffy = *fp / HZ;
-		else
-			loops_per_jiffy = 50000000 / HZ;
-		of_node_put(np);
-	}
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
 		add_bridge(np);
 
 	ppc_md.pci_exclude_device = mpc83xx_exclude_device;
-#endif
-
-#ifdef  CONFIG_ROOT_NFS
-	ROOT_DEV = Root_NFS;
-#else
-	ROOT_DEV = Root_HDA1;
 #endif
 }
 
@@ -100,10 +84,9 @@ static void __init mpc834x_itx_init_IRQ(void)
  */
 static int __init mpc834x_itx_probe(void)
 {
-	/* We always match for now, eventually we should look at the flat
-	   dev tree to ensure this is the board we are suppose to run on
-	*/
-	return 1;
+        unsigned long root = of_get_flat_dt_root();
+
+        return of_flat_dt_is_compatible(root, "MPC834xMITX");
 }
 
 define_machine(mpc834x_itx) {
