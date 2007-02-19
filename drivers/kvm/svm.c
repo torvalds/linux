@@ -1078,7 +1078,8 @@ static int halt_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 static int vmmcall_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	vcpu->svm->vmcb->save.rip += 3;
+	vcpu->svm->next_rip = vcpu->svm->vmcb->save.rip + 3;
+	skip_emulated_instruction(vcpu);
 	return kvm_hypercall(vcpu, kvm_run);
 }
 

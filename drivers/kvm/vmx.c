@@ -1658,7 +1658,7 @@ static int handle_halt(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 static int handle_vmcall(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	vmcs_writel(GUEST_RIP, vmcs_readl(GUEST_RIP)+3);
+	skip_emulated_instruction(vcpu);
 	return kvm_hypercall(vcpu, kvm_run);
 }
 
