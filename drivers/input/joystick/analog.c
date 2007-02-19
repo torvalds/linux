@@ -58,8 +58,6 @@ static int analog_options[ANALOG_PORTS];
 module_param_array_named(map, js, charp, &js_nargs, 0);
 MODULE_PARM_DESC(map, "Describes analog joysticks type/capabilities");
 
-__obsolete_setup("js=");
-
 /*
  * Times, feature definitions.
  */

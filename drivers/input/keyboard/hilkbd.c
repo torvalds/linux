@@ -294,8 +294,10 @@ err3:
 	disable_irq(HIL_IRQ);
 	free_irq(HIL_IRQ, hil_dev.dev_id);
 err2:
+#if defined(CONFIG_HP300)
 	release_region(HILBASE + HIL_DATA, 2);
 err1:
+#endif
 	input_free_device(hil_dev.dev);
 	hil_dev.dev = NULL;
 	return err;

@@ -84,8 +84,6 @@ static int inport_irq = INPORT_IRQ;
 module_param_named(irq, inport_irq, uint, 0);
 MODULE_PARM_DESC(irq, "IRQ number (5=default)");
 
-__obsolete_setup("inport_irq=");
-
 static struct input_dev *inport_dev;
 
 static irqreturn_t inport_interrupt(int irq, void *dev_id)

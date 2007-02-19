@@ -24,7 +24,7 @@
 #include <linux/input.h>
 #include <linux/irq.h>
 
-#include <asm/arch/pxa-regs.h>
+#include <asm/gpio.h>
 #include <asm/arch/hardware.h>
 
 #include <asm/hardware/gpio_keys.h>
@@ -38,8 +38,8 @@ static irqreturn_t gpio_keys_isr(int irq, void *dev_id)
 
 	for (i = 0; i < pdata->nbuttons; i++) {
 		int gpio = pdata->buttons[i].gpio;
-		if (irq == IRQ_GPIO(gpio)) {
-			int state = ((GPLR(gpio) & GPIO_bit(gpio)) ? 1 : 0) ^ (pdata->buttons[i].active_low);
+		if (irq == gpio_to_irq(gpio)) {
+			int state = (gpio_get_value(gpio) ? 1 : 0) ^ (pdata->buttons[i].active_low);
 
 			input_report_key(input, pdata->buttons[i].keycode, state);
 			input_sync(input);
@@ -75,14 +75,15 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 	for (i = 0; i < pdata->nbuttons; i++) {
 		int code = pdata->buttons[i].keycode;
-		int irq = IRQ_GPIO(pdata->buttons[i].gpio);
+		int irq = gpio_to_irq(pdata->buttons[i].gpio);
 
 		set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
 		error = request_irq(irq, gpio_keys_isr, IRQF_SAMPLE_RANDOM,
 				     pdata->buttons[i].desc ? pdata->buttons[i].desc : "gpio_keys",
 				     pdev);
 		if (error) {
-			printk(KERN_ERR "gpio-keys: unable to claim irq %d; error %d\n", irq, ret);
+			printk(KERN_ERR "gpio-keys: unable to claim irq %d; error %d\n",
+				irq, error);
 			goto fail;
 		}
 		set_bit(code, input->keybit);
@@ -98,7 +99,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
  fail:
 	for (i = i - 1; i >= 0; i--)
-		free_irq(IRQ_GPIO(pdata->buttons[i].gpio), pdev);
+		free_irq(gpio_to_irq(pdata->buttons[i].gpio), pdev);
 
 	input_free_device(input);
 
@@ -112,7 +113,7 @@ static int __devexit gpio_keys_remove(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < pdata->nbuttons; i++) {
-		int irq = IRQ_GPIO(pdata->buttons[i].gpio);
+		int irq = gpio_to_irq(pdata->buttons[i].gpio);
 		free_irq(irq, pdev);
 	}
 
