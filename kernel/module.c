@@ -653,19 +653,10 @@ static void wait_for_zero_refcount(struct module *mod)
 	mutex_lock(&module_mutex);
 }
 
-asmlinkage long
-sys_delete_module(const char __user *name_user, unsigned int flags)
+int delete_module(const char *name, unsigned int flags)
 {
 	struct module *mod;
-	char name[MODULE_NAME_LEN];
 	int ret, forced = 0;
-
-	if (!capable(CAP_SYS_MODULE))
-		return -EPERM;
-
-	if (strncpy_from_user(name, name_user, MODULE_NAME_LEN-1) < 0)
-		return -EFAULT;
-	name[MODULE_NAME_LEN-1] = '\0';
 
 	if (mutex_lock_interruptible(&module_mutex) != 0)
 		return -EINTR;
@@ -725,6 +716,21 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
  out:
 	mutex_unlock(&module_mutex);
 	return ret;
+}
+
+asmlinkage long
+sys_delete_module(const char __user *name_user, unsigned int flags)
+{
+	char name[MODULE_NAME_LEN];
+
+	if (!capable(CAP_SYS_MODULE))
+		return -EPERM;
+
+	if (strncpy_from_user(name, name_user, MODULE_NAME_LEN-1) < 0)
+		return -EFAULT;
+	name[MODULE_NAME_LEN-1] = '\0';
+
+	return delete_module(name, flags);
 }
 
 static void print_unload_info(struct seq_file *m, struct module *mod)
@@ -1068,7 +1074,8 @@ static inline void remove_sect_attrs(struct module *mod)
 }
 #endif /* CONFIG_KALLSYMS */
 
-static int module_add_modinfo_attrs(struct module *mod)
+#ifdef CONFIG_SYSFS
+int module_add_modinfo_attrs(struct module *mod)
 {
 	struct module_attribute *attr;
 	struct module_attribute *temp_attr;
@@ -1094,7 +1101,7 @@ static int module_add_modinfo_attrs(struct module *mod)
 	return error;
 }
 
-static void module_remove_modinfo_attrs(struct module *mod)
+void module_remove_modinfo_attrs(struct module *mod)
 {
 	struct module_attribute *attr;
 	int i;
@@ -1109,8 +1116,10 @@ static void module_remove_modinfo_attrs(struct module *mod)
 	}
 	kfree(mod->modinfo_attrs);
 }
+#endif
 
-static int mod_sysfs_init(struct module *mod)
+#ifdef CONFIG_SYSFS
+int mod_sysfs_init(struct module *mod)
 {
 	int err;
 
@@ -1133,7 +1142,7 @@ out:
 	return err;
 }
 
-static int mod_sysfs_setup(struct module *mod,
+int mod_sysfs_setup(struct module *mod,
 			   struct kernel_param *kparam,
 			   unsigned int num_params)
 {
@@ -1169,16 +1178,14 @@ out_unreg:
 out:
 	return err;
 }
+#endif
 
 static void mod_kobject_remove(struct module *mod)
 {
 	module_remove_modinfo_attrs(mod);
 	module_param_sysfs_remove(mod);
-	if (mod->mkobj.drivers_dir)
-		kobject_unregister(mod->mkobj.drivers_dir);
-	if (mod->holders_dir)
-		kobject_unregister(mod->holders_dir);
-
+	kobject_unregister(mod->mkobj.drivers_dir);
+	kobject_unregister(mod->holders_dir);
 	kobject_unregister(&mod->mkobj.kobj);
 }
 
@@ -2345,6 +2352,7 @@ void print_modules(void)
 	printk("\n");
 }
 
+#ifdef CONFIG_SYSFS
 static char *make_driver_name(struct device_driver *drv)
 {
 	char *driver_name;
@@ -2419,6 +2427,7 @@ void module_remove_driver(struct device_driver *drv)
 	}
 }
 EXPORT_SYMBOL(module_remove_driver);
+#endif
 
 #ifdef CONFIG_MODVERSIONS
 /* Generate the signature for struct module here, too, for modversions. */

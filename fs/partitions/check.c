@@ -358,8 +358,7 @@ void delete_partition(struct gendisk *disk, int part)
 	p->ios[0] = p->ios[1] = 0;
 	p->sectors[0] = p->sectors[1] = 0;
 	sysfs_remove_link(&p->kobj, "subsystem");
-	if (p->holder_dir)
-		kobject_unregister(p->holder_dir);
+	kobject_unregister(p->holder_dir);
 	kobject_uevent(&p->kobj, KOBJ_REMOVE);
 	kobject_del(&p->kobj);
 	kobject_put(&p->kobj);
@@ -603,10 +602,8 @@ void del_gendisk(struct gendisk *disk)
 	disk->stamp = 0;
 
 	kobject_uevent(&disk->kobj, KOBJ_REMOVE);
-	if (disk->holder_dir)
-		kobject_unregister(disk->holder_dir);
-	if (disk->slave_dir)
-		kobject_unregister(disk->slave_dir);
+	kobject_unregister(disk->holder_dir);
+	kobject_unregister(disk->slave_dir);
 	if (disk->driverfs_dev) {
 		char *disk_name = make_block_name(disk);
 		sysfs_remove_link(&disk->kobj, "device");

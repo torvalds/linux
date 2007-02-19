@@ -30,8 +30,6 @@
 #define DEBUGP(fmt, a...)
 #endif
 
-static struct kobj_type module_ktype;
-
 static inline char dash2underscore(char c)
 {
 	if (c == '-')
@@ -391,6 +389,7 @@ struct module_param_attrs
 	struct param_attribute attrs[0];
 };
 
+#ifdef CONFIG_SYSFS
 #define to_param_attr(n) container_of(n, struct param_attribute, mattr);
 
 static ssize_t param_attr_show(struct module_attribute *mattr,
@@ -426,6 +425,7 @@ static ssize_t param_attr_store(struct module_attribute *mattr,
 		return len;
 	return err;
 }
+#endif
 
 #ifdef CONFIG_MODULES
 #define __modinit
@@ -433,6 +433,7 @@ static ssize_t param_attr_store(struct module_attribute *mattr,
 #define __modinit __init
 #endif
 
+#ifdef CONFIG_SYSFS
 /*
  * param_sysfs_setup - setup sysfs support for one module or KBUILD_MODNAME
  * @mk: struct module_kobject (contains parent kobject)
@@ -500,9 +501,7 @@ param_sysfs_setup(struct module_kobject *mk,
 	return mp;
 }
 
-
 #ifdef CONFIG_MODULES
-
 /*
  * module_param_sysfs_setup - setup sysfs support for one module
  * @mod: module
@@ -625,7 +624,6 @@ static void __init param_sysfs_builtin(void)
 
 
 /* module-related sysfs stuff */
-#ifdef CONFIG_SYSFS
 
 #define to_module_attr(n) container_of(n, struct module_attribute, attr);
 #define to_module_kobject(n) container_of(n, struct module_kobject, kobj);
@@ -673,6 +671,8 @@ static struct sysfs_ops module_sysfs_ops = {
 	.store = module_attr_store,
 };
 
+static struct kobj_type module_ktype;
+
 static int uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	struct kobj_type *ktype = get_ktype(kobj);
@@ -686,18 +686,11 @@ static struct kset_uevent_ops module_uevent_ops = {
 	.filter = uevent_filter,
 };
 
-#else
-static struct sysfs_ops module_sysfs_ops = {
-	.show = NULL,
-	.store = NULL,
-};
-#endif
+decl_subsys(module, &module_ktype, &module_uevent_ops);
 
 static struct kobj_type module_ktype = {
 	.sysfs_ops =	&module_sysfs_ops,
 };
-
-decl_subsys(module, &module_ktype, &module_uevent_ops);
 
 /*
  * param_sysfs_init - wrapper for built-in params support
@@ -714,10 +707,20 @@ static int __init param_sysfs_init(void)
 	}
 
 	param_sysfs_builtin();
+	kmod_sysfs_init();
 
 	return 0;
 }
 subsys_initcall(param_sysfs_init);
+
+#else
+#if 0
+static struct sysfs_ops module_sysfs_ops = {
+	.show = NULL,
+	.store = NULL,
+};
+#endif
+#endif
 
 EXPORT_SYMBOL(param_set_byte);
 EXPORT_SYMBOL(param_get_byte);
