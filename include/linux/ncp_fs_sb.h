@@ -50,6 +50,8 @@ struct ncp_server {
 	int packet_size;
 	unsigned char *packet;	/* Here we prepare requests and
 				   receive replies */
+	unsigned char *txbuf;	/* Storage for current request */
+	unsigned char *rxbuf;	/* Storage for reply to current request */
 
 	int lock;		/* To prevent mismatch in protocols. */
 	struct mutex mutex;
