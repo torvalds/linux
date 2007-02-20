@@ -322,9 +322,9 @@ struct board_info {
 	unsigned char           mdio_mdiinv;
 	unsigned char           mdio_mdc;
 	unsigned char           mdio_phybaseaddr;
-	struct gmac            *gmac;
-	struct gphy            *gphy;
-	struct mdio_ops        *mdio_ops;
+	const struct gmac      *gmac;
+	const struct gphy      *gphy;
+	const struct mdio_ops  *mdio_ops;
 	const char             *desc;
 };
 

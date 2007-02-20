@@ -321,7 +321,7 @@ static int mi1_mdio_write(adapter_t *adapter, int phy_addr, int mmd_addr,
 }
 
 #if defined(CONFIG_CHELSIO_T1_1G) || defined(CONFIG_CHELSIO_T1_COUGAR)
-static struct mdio_ops mi1_mdio_ops = {
+static const struct mdio_ops mi1_mdio_ops = {
 	.init = mi1_mdio_init,
 	.read = mi1_mdio_read,
 	.write = mi1_mdio_write
@@ -377,7 +377,7 @@ static int mi1_mdio_ext_write(adapter_t *adapter, int phy_addr, int mmd_addr,
 	return 0;
 }
 
-static struct mdio_ops mi1_mdio_ext_ops = {
+static const struct mdio_ops mi1_mdio_ext_ops = {
 	.init = mi1_mdio_init,
 	.read = mi1_mdio_ext_read,
 	.write = mi1_mdio_ext_write

@@ -208,7 +208,7 @@ static struct cphy_ops mv88x201x_ops = {
 };
 
 static struct cphy *mv88x201x_phy_create(adapter_t *adapter, int phy_addr,
-					 struct mdio_ops *mdio_ops)
+					 const struct mdio_ops *mdio_ops)
 {
 	u32 val;
 	struct cphy *cphy = kzalloc(sizeof(*cphy), GFP_KERNEL);
@@ -252,7 +252,7 @@ static int mv88x201x_phy_reset(adapter_t *adapter)
 	return 0;
 }
 
-struct gphy t1_mv88x201x_ops = {
-	mv88x201x_phy_create,
-	mv88x201x_phy_reset
+const struct gphy t1_mv88x201x_ops = {
+	.create = mv88x201x_phy_create,
+	.reset = mv88x201x_phy_reset
 };
