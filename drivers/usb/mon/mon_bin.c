@@ -1165,7 +1165,7 @@ err_dev:
 	return rc;
 }
 
-void __exit mon_bin_exit(void)
+void mon_bin_exit(void)
 {
 	cdev_del(&mon_bin_cdev);
 	unregister_chrdev_region(mon_bin_dev0, MON_BIN_MAX_MINOR);

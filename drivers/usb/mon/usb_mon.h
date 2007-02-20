@@ -57,9 +57,9 @@ void mon_text_del(struct mon_bus *mbus);
 // void mon_bin_add(struct mon_bus *);
 
 int __init mon_text_init(void);
-void __exit mon_text_exit(void);
+void mon_text_exit(void);
 int __init mon_bin_init(void);
-void __exit mon_bin_exit(void);
+void mon_bin_exit(void);
 
 /*
  * DMA interface.
