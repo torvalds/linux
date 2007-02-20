@@ -310,8 +310,9 @@ int mthca_write_mtt_size(struct mthca_dev *dev)
 	return mthca_is_memfree(dev) ? (PAGE_SIZE / sizeof (u64)) : 0x7ffffff;
 }
 
-void mthca_tavor_write_mtt_seg(struct mthca_dev *dev, struct mthca_mtt *mtt,
-			      int start_index, u64 *buffer_list, int list_len)
+static void mthca_tavor_write_mtt_seg(struct mthca_dev *dev,
+				      struct mthca_mtt *mtt, int start_index,
+				      u64 *buffer_list, int list_len)
 {
 	u64 __iomem *mtts;
 	int i;
@@ -323,8 +324,9 @@ void mthca_tavor_write_mtt_seg(struct mthca_dev *dev, struct mthca_mtt *mtt,
 				  mtts + i);
 }
 
-void mthca_arbel_write_mtt_seg(struct mthca_dev *dev, struct mthca_mtt *mtt,
-			      int start_index, u64 *buffer_list, int list_len)
+static void mthca_arbel_write_mtt_seg(struct mthca_dev *dev,
+				      struct mthca_mtt *mtt, int start_index,
+				      u64 *buffer_list, int list_len)
 {
 	__be64 *mtts;
 	dma_addr_t dma_handle;
