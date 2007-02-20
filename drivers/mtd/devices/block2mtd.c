@@ -308,9 +308,9 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 		/* We might not have rootfs mounted at this point. Try
 		   to resolve the device name by other means. */
 
-		dev_t dev = name_to_dev_t(devname);
-		if (dev != 0) {
-			bdev = open_by_devnum(dev, FMODE_WRITE | FMODE_READ);
+		dev_t devt = name_to_dev_t(devname);
+		if (devt) {
+			bdev = open_by_devnum(devt, FMODE_WRITE | FMODE_READ);
 		}
 	}
 #endif
