@@ -7,6 +7,13 @@
  * 		SL82C105/Winbond 553 IDE driver
  *
  * and in part on the documentation and errata sheet
+ *
+ *
+ * Note: The controller like many controllers has shared timings for
+ * PIO and DMA. We thus flip to the DMA timings in dma_start and flip back
+ * in the dma_stop function. Thus we actually don't need a set_dmamode
+ * method as the PIO method is always called and will set the right PIO
+ * timing parameters.
  */
 
 #include <linux/kernel.h>
@@ -19,7 +26,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_sl82c105"
-#define DRV_VERSION "0.2.3"
+#define DRV_VERSION "0.2.5"
 
 enum {
 	/*
@@ -126,33 +133,6 @@ static void sl82c105_configure_dmamode(struct ata_port *ap, struct ata_device *a
 }
 
 /**
- *	sl82c105_set_dmamode	-	set initial DMA mode data
- *	@ap: ATA interface
- *	@adev: ATA device
- *
- *	Called to do the DMA mode setup. This replaces the PIO timings
- *	for the device in question. Set appropriate PIO timings not DMA
- *	timings at this point.
- */
-
-static void sl82c105_set_dmamode(struct ata_port *ap, struct ata_device *adev)
-{
-	switch(adev->dma_mode) {
-		case XFER_MW_DMA_0:
-			sl82c105_configure_piomode(ap, adev, 0);
-			break;
-		case XFER_MW_DMA_1:
-			sl82c105_configure_piomode(ap, adev, 3);
-			break;
-		case XFER_MW_DMA_2:
-			sl82c105_configure_piomode(ap, adev, 4);
-			break;
-		default:
-			BUG();
-	}
-}
-
-/**
  *	sl82c105_reset_engine	-	Reset the DMA engine
  *	@ap: ATA interface
  *
@@ -222,7 +202,7 @@ static void sl82c105_bmdma_stop(struct ata_queued_cmd *qc)
 
 	/* This will redo the initial setup of the DMA device to matching
 	   PIO timings */
-	sl82c105_set_dmamode(ap, qc->dev);
+	sl82c105_set_piomode(ap, qc->dev);
 }
 
 static struct scsi_host_template sl82c105_sht = {
@@ -246,7 +226,6 @@ static struct scsi_host_template sl82c105_sht = {
 static struct ata_port_operations sl82c105_port_ops = {
 	.port_disable	= ata_port_disable,
 	.set_piomode	= sl82c105_set_piomode,
-	.set_dmamode	= sl82c105_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
 
 	.tf_load	= ata_tf_load,
