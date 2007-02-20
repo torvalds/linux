@@ -398,11 +398,11 @@ extern cpumask_t cpu_present_map;
 #endif
 
 #ifdef CONFIG_SMP
-int highest_possible_processor_id(void);
+extern int nr_cpu_ids;
 #define any_online_cpu(mask) __any_online_cpu(&(mask))
 int __any_online_cpu(const cpumask_t *mask);
 #else
-#define highest_possible_processor_id()	0
+#define nr_cpu_ids			1
 #define any_online_cpu(mask)		0
 #endif
 

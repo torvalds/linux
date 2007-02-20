@@ -15,22 +15,8 @@ int __next_cpu(int n, const cpumask_t *srcp)
 }
 EXPORT_SYMBOL(__next_cpu);
 
-/*
- * Find the highest possible smp_processor_id()
- *
- * Note: if we're prepared to assume that cpu_possible_map never changes
- * (reasonable) then this function should cache its return value.
- */
-int highest_possible_processor_id(void)
-{
-	unsigned int cpu;
-	unsigned highest = 0;
-
-	for_each_cpu_mask(cpu, cpu_possible_map)
-		highest = cpu;
-	return highest;
-}
-EXPORT_SYMBOL(highest_possible_processor_id);
+int nr_cpu_ids;
+EXPORT_SYMBOL(nr_cpu_ids);
 
 int __any_online_cpu(const cpumask_t *mask)
 {
