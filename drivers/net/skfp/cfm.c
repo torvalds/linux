@@ -73,7 +73,7 @@ static const char * const cfm_events[] = {
 /*
  * map from state to downstream port type
  */
-static const u_char cf_to_ptype[] = {
+static const unsigned char cf_to_ptype[] = {
 	TNONE,TNONE,TNONE,TNONE,TNONE,
 	TNONE,TB,TB,TS,
 	TA,TB,TS,TB
