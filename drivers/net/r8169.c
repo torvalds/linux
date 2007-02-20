@@ -8,19 +8,6 @@
  May 20 2002	- Add link status force-mode and TBI mode support.
 	2004	- Massive updates. See kernel SCM system for details.
 =========================================================================
-  1. [DEPRECATED: use ethtool instead] The media can be forced in 5 modes.
-	 Command: 'insmod r8169 media = SET_MEDIA'
-	 Ex:	  'insmod r8169 media = 0x04' will force PHY to operate in 100Mpbs Half-duplex.
-
-	 SET_MEDIA can be:
- 		_10_Half	= 0x01
- 		_10_Full	= 0x02
- 		_100_Half	= 0x04
- 		_100_Full	= 0x08
- 		_1000_Full	= 0x10
-
-  2. Support TBI mode.
-=========================================================================
 VERSION 1.1	<2002/10/4>
 
 	The bit4:0 of MII register 4 is called "selector field", and have to be
@@ -107,11 +94,6 @@ VERSION 2.2LK	<2005/01/25>
 #define rtl8169_rx_hwaccel_skb		vlan_hwaccel_rx
 #define rtl8169_rx_quota(count, quota)	count
 #endif
-
-/* media options */
-#define MAX_UNITS 8
-static int media[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-static int num_media = 0;
 
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 static const int max_interrupt_work = 20;
@@ -364,13 +346,6 @@ enum RTL8169_register_content {
 	LinkStatus = 0x02,
 	FullDup = 0x01,
 
-	/* _MediaType */
-	_10_Half = 0x01,
-	_10_Full = 0x02,
-	_100_Half = 0x04,
-	_100_Full = 0x08,
-	_1000_Full = 0x10,
-
 	/* _TBICSRBit */
 	TBILinkOK = 0x02000000,
 
@@ -472,8 +447,6 @@ struct rtl8169_private {
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
 MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
-module_param_array(media, int, &num_media, 0);
-MODULE_PARM_DESC(media, "force phy operation. Deprecated by ethtool (8).");
 module_param(rx_copybreak, int, 0);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 module_param(use_dac, int, 0);
@@ -599,38 +572,6 @@ static void rtl8169_check_link_status(struct net_device *dev,
 		netif_carrier_off(dev);
 	}
 	spin_unlock_irqrestore(&tp->lock, flags);
-}
-
-static void rtl8169_link_option(int idx, u8 *autoneg, u16 *speed, u8 *duplex)
-{
-	struct {
-		u16 speed;
-		u8 duplex;
-		u8 autoneg;
-		u8 media;
-	} link_settings[] = {
-		{ SPEED_10,	DUPLEX_HALF, AUTONEG_DISABLE,	_10_Half },
-		{ SPEED_10,	DUPLEX_FULL, AUTONEG_DISABLE,	_10_Full },
-		{ SPEED_100,	DUPLEX_HALF, AUTONEG_DISABLE,	_100_Half },
-		{ SPEED_100,	DUPLEX_FULL, AUTONEG_DISABLE,	_100_Full },
-		{ SPEED_1000,	DUPLEX_FULL, AUTONEG_DISABLE,	_1000_Full },
-		/* Make TBI happy */
-		{ SPEED_1000,	DUPLEX_FULL, AUTONEG_ENABLE,	0xff }
-	}, *p;
-	unsigned char option;
-
-	option = ((idx < MAX_UNITS) && (idx >= 0)) ? media[idx] : 0xff;
-
-	if ((option != 0xff) && !idx && netif_msg_drv(&debug))
-		printk(KERN_WARNING PFX "media option is deprecated.\n");
-
-	for (p = link_settings; p->media != 0xff; p++) {
-		if (p->media == option)
-			break;
-	}
-	*autoneg = p->autoneg;
-	*speed = p->speed;
-	*duplex = p->duplex;
 }
 
 static void rtl8169_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -1425,11 +1366,6 @@ static void rtl8169_phy_reset(struct net_device *dev,
 static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
-	static int board_idx = -1;
-	u8 autoneg, duplex;
-	u16 speed;
-
-	board_idx++;
 
 	rtl8169_hw_phy_config(dev);
 
@@ -1448,11 +1384,13 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 		mdio_write(ioaddr, 0x0b, 0x0000); //w 0x0b 15 0 0
 	}
 
-	rtl8169_link_option(board_idx, &autoneg, &speed, &duplex);
-
 	rtl8169_phy_reset(dev, tp);
 
-	rtl8169_set_speed(dev, autoneg, speed, duplex);
+	/*
+	 * rtl8169_set_speed_xmii takes good care of the Fast Ethernet
+	 * only 8101. Don't panic.
+	 */
+	rtl8169_set_speed(dev, AUTONEG_ENABLE, SPEED_1000, DUPLEX_FULL);
 
 	if ((RTL_R8(PHYstatus) & TBI_Enable) && netif_msg_link(tp))
 		printk(KERN_INFO PFX "%s: TBI auto-negotiating\n", dev->name);
