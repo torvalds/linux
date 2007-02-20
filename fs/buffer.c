@@ -1743,7 +1743,6 @@ recover:
 	SetPageError(page);
 	BUG_ON(PageWriteback(page));
 	set_page_writeback(page);
-	unlock_page(page);
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
@@ -1753,6 +1752,7 @@ recover:
 		}
 		bh = next;
 	} while (bh != head);
+	unlock_page(page);
 	goto done;
 }
 
