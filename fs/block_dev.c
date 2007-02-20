@@ -1101,6 +1101,13 @@ static int __blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags,
 			int for_part);
 static int __blkdev_put(struct block_device *bdev, int for_part);
 
+/*
+ * bd_mutex locking:
+ *
+ *  mutex_lock(part->bd_mutex)
+ *    mutex_lock_nested(whole->bd_mutex, 1)
+ */
+
 static int do_open(struct block_device *bdev, struct file *file, int for_part)
 {
 	struct module *owner = NULL;
