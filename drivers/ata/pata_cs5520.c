@@ -325,6 +325,30 @@ static int cs5520_reinit_one(struct pci_dev *pdev)
 		pci_write_config_byte(pdev, 0x60, pcicfg | 0x40);
 	return ata_pci_device_resume(pdev);
 }
+
+/**
+ *	cs5520_pci_device_suspend	-	device suspend
+ *	@pdev: PCI device
+ *
+ *	We have to cut and waste bits from the standard method because
+ *	the 5520 is a bit odd and not just a pure ATA device. As a result
+ *	we must not disable it. The needed code is short and this avoids
+ *	chip specific mess in the core code.
+ */
+
+static int cs5520_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc = 0;
+
+	rc = ata_host_suspend(host, mesg);
+	if (rc)
+		return rc;
+
+	pci_save_state(pdev);
+	return 0;
+}
+ 
 /* For now keep DMA off. We can set it for all but A rev CS5510 once the
    core ATA code can handle it */
 
@@ -340,7 +364,7 @@ static struct pci_driver cs5520_pci_driver = {
 	.id_table	= pata_cs5520,
 	.probe 		= cs5520_init_one,
 	.remove		= cs5520_remove_one,
-	.suspend	= ata_pci_device_suspend,
+	.suspend	= cs5520_pci_device_suspend,
 	.resume		= cs5520_reinit_one,
 };
 
