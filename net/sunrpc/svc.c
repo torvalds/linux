@@ -115,7 +115,7 @@ fail:
 static int
 svc_pool_map_init_percpu(struct svc_pool_map *m)
 {
-	unsigned int maxpools = highest_possible_processor_id()+1;
+	unsigned int maxpools = highest_possible_processor_id() + 1;
 	unsigned int pidx = 0;
 	unsigned int cpu;
 	int err;
@@ -143,7 +143,7 @@ svc_pool_map_init_percpu(struct svc_pool_map *m)
 static int
 svc_pool_map_init_pernode(struct svc_pool_map *m)
 {
-	unsigned int maxpools = highest_possible_node_id()+1;
+	unsigned int maxpools = nr_node_ids;
 	unsigned int pidx = 0;
 	unsigned int node;
 	int err;

@@ -664,6 +664,26 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 	return i;
 }
 
+#if MAX_NUMNODES > 1
+int nr_node_ids __read_mostly;
+EXPORT_SYMBOL(nr_node_ids);
+
+/*
+ * Figure out the number of possible node ids.
+ */
+static void __init setup_nr_node_ids(void)
+{
+	unsigned int node;
+	unsigned int highest = 0;
+
+	for_each_node_mask(node, node_possible_map)
+		highest = node;
+	nr_node_ids = highest + 1;
+}
+#else
+static void __init setup_nr_node_ids(void) {}
+#endif
+
 #ifdef CONFIG_NUMA
 /*
  * Called from the slab reaper to drain pagesets on a particular node that
@@ -3169,6 +3189,7 @@ static int __init init_per_zone_pages_min(void)
 		min_free_kbytes = 65536;
 	setup_per_zone_pages_min();
 	setup_per_zone_lowmem_reserve();
+	setup_nr_node_ids();
 	return 0;
 }
 module_init(init_per_zone_pages_min)
@@ -3370,18 +3391,4 @@ EXPORT_SYMBOL(pfn_to_page);
 EXPORT_SYMBOL(page_to_pfn);
 #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
 
-#if MAX_NUMNODES > 1
-/*
- * Find the highest possible node id.
- */
-int highest_possible_node_id(void)
-{
-	unsigned int node;
-	unsigned int highest = 0;
 
-	for_each_node_mask(node, node_possible_map)
-		highest = node;
-	return highest;
-}
-EXPORT_SYMBOL(highest_possible_node_id);
-#endif
