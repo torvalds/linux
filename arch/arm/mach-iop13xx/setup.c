@@ -24,6 +24,7 @@
 #include <asm/mach/map.h>
 #include <asm/hardware.h>
 #include <asm/irq.h>
+#include <asm/io.h>
 
 #define IOP13XX_UART_XTAL 33334000
 #define IOP13XX_SETUP_DEBUG 0
