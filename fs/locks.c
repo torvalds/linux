@@ -1611,6 +1611,38 @@ asmlinkage long sys_flock(unsigned int fd, unsigned int cmd)
 	return error;
 }
 
+static int posix_lock_to_flock(struct flock *flock, struct file_lock *fl)
+{
+	flock->l_pid = fl->fl_pid;
+#if BITS_PER_LONG == 32
+	/*
+	 * Make sure we can represent the posix lock via
+	 * legacy 32bit flock.
+	 */
+	if (fl->fl_start > OFFT_OFFSET_MAX)
+		return -EOVERFLOW;
+	if (fl->fl_end != OFFSET_MAX && fl->fl_end > OFFT_OFFSET_MAX)
+		return -EOVERFLOW;
+#endif
+	flock->l_start = fl->fl_start;
+	flock->l_len = fl->fl_end == OFFSET_MAX ? 0 :
+		fl->fl_end - fl->fl_start + 1;
+	flock->l_whence = 0;
+	return 0;
+}
+
+#if BITS_PER_LONG == 32
+static void posix_lock_to_flock64(struct flock64 *flock, struct file_lock *fl)
+{
+	flock->l_pid = fl->fl_pid;
+	flock->l_start = fl->fl_start;
+	flock->l_len = fl->fl_end == OFFSET_MAX ? 0 :
+		fl->fl_end - fl->fl_start + 1;
+	flock->l_whence = 0;
+	flock->l_type = fl->fl_type;
+}
+#endif
+
 /* Report the first existing lock that would conflict with l.
  * This implements the F_GETLK command of fcntl().
  */
@@ -1645,24 +1677,9 @@ int fcntl_getlk(struct file *filp, struct flock __user *l)
  
 	flock.l_type = F_UNLCK;
 	if (fl != NULL) {
-		flock.l_pid = fl->fl_pid;
-#if BITS_PER_LONG == 32
-		/*
-		 * Make sure we can represent the posix lock via
-		 * legacy 32bit flock.
-		 */
-		error = -EOVERFLOW;
-		if (fl->fl_start > OFFT_OFFSET_MAX)
+		error = posix_lock_to_flock(&flock, fl);
+		if (error)
 			goto out;
-		if ((fl->fl_end != OFFSET_MAX)
-		    && (fl->fl_end > OFFT_OFFSET_MAX))
-			goto out;
-#endif
-		flock.l_start = fl->fl_start;
-		flock.l_len = fl->fl_end == OFFSET_MAX ? 0 :
-			fl->fl_end - fl->fl_start + 1;
-		flock.l_whence = 0;
-		flock.l_type = fl->fl_type;
 	}
 	error = -EFAULT;
 	if (!copy_to_user(l, &flock, sizeof(flock)))
@@ -1798,14 +1815,8 @@ int fcntl_getlk64(struct file *filp, struct flock64 __user *l)
 	}
  
 	flock.l_type = F_UNLCK;
-	if (fl != NULL) {
-		flock.l_pid = fl->fl_pid;
-		flock.l_start = fl->fl_start;
-		flock.l_len = fl->fl_end == OFFSET_MAX ? 0 :
-			fl->fl_end - fl->fl_start + 1;
-		flock.l_whence = 0;
-		flock.l_type = fl->fl_type;
-	}
+	if (fl != NULL)
+		posix_lock_to_flock64(&flock, fl);
 	error = -EFAULT;
 	if (!copy_to_user(l, &flock, sizeof(flock)))
 		error = 0;
