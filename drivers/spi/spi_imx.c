@@ -1361,10 +1361,9 @@ err_first_setup:
 	return status;
 }
 
-static void cleanup(const struct spi_device *spi)
+static void cleanup(struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata((struct spi_device *)spi);
-	kfree(chip);
+	kfree(spi_get_ctldata(spi));
 }
 
 static int init_queue(struct driver_data *drv_data)

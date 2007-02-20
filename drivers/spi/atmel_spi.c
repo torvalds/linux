@@ -23,6 +23,10 @@
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 
+#ifdef CONFIG_ARCH_AT91
+#include <asm/arch/cpu.h>
+#endif
+
 #include "atmel_spi.h"
 
 /*
@@ -491,7 +495,7 @@ static int atmel_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 	return 0;
 }
 
-static void atmel_spi_cleanup(const struct spi_device *spi)
+static void atmel_spi_cleanup(struct spi_device *spi)
 {
 	if (spi->controller_state)
 		gpio_free((unsigned int)spi->controller_data);
