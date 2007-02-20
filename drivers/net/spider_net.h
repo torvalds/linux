@@ -25,7 +25,7 @@
 #ifndef _SPIDER_NET_H
 #define _SPIDER_NET_H
 
-#define VERSION "1.6 B"
+#define VERSION "1.6 C"
 
 #include "sungem_phy.h"
 
@@ -364,8 +364,8 @@ enum spider_net_int2_status {
 #define SPIDER_NET_DESCR_NOT_IN_USE		0xF0000000
 #define SPIDER_NET_DESCR_TXDESFLG		0x00800000
 
-struct spider_net_descr {
-	/* as defined by the hardware */
+/* Descriptor, as defined by the hardware */
+struct spider_net_hw_descr {
 	u32 buf_addr;
 	u32 buf_size;
 	u32 next_descr_addr;
@@ -374,13 +374,15 @@ struct spider_net_descr {
 	u32 valid_size;	/* all zeroes for tx */
 	u32 data_status;
 	u32 data_error;	/* all zeroes for tx */
+} __attribute__((aligned(32)));
 
-	/* used in the driver */
+struct spider_net_descr {
+	struct spider_net_hw_descr *hwdescr;
 	struct sk_buff *skb;
 	u32 bus_addr;
 	struct spider_net_descr *next;
 	struct spider_net_descr *prev;
-} __attribute__((aligned(32)));
+};
 
 struct spider_net_descr_chain {
 	spinlock_t lock;
@@ -388,6 +390,7 @@ struct spider_net_descr_chain {
 	struct spider_net_descr *tail;
 	struct spider_net_descr *ring;
 	int num_desc;
+	struct spider_net_hw_descr *hwring;
 	dma_addr_t dma_addr;
 };
 
@@ -464,6 +467,9 @@ struct spider_net_card {
 	struct net_device_stats netdev_stats;
 	struct spider_net_extra_stats spider_stats;
 	struct spider_net_options options;
+
+	/* Must be last item in struct */
+	struct spider_net_descr darray[0];
 };
 
 #define pr_err(fmt,arg...) \
