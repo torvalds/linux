@@ -1496,11 +1496,9 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 static int ata_scmd_need_defer(struct ata_device *dev, int is_io)
 {
 	struct ata_port *ap = dev->ap;
+	int is_ncq = is_io && ata_ncq_enabled(dev);
 
-	if (!(dev->flags & ATA_DFLAG_NCQ))
-		return 0;
-
-	if (is_io) {
+	if (is_ncq) {
 		if (!ata_tag_valid(ap->active_tag))
 			return 0;
 	} else {
