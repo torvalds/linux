@@ -109,6 +109,7 @@ static unsigned char virt_irq_alloc(unsigned int real_irq)
 	return ent;
 }
 
+#ifdef CONFIG_PCI_MSI
 static void virt_irq_free(unsigned int virt_irq)
 {
 	unsigned int real_irq;
@@ -121,6 +122,7 @@ static void virt_irq_free(unsigned int virt_irq)
 
 	__bucket(real_irq)->virt_irq = 0;
 }
+#endif
 
 static unsigned int virt_to_real_irq(unsigned char virt_irq)
 {
