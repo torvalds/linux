@@ -189,7 +189,7 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 			case AF_INET6:
 				ipv6_addr_copy(&fl_tunnel.fl6_dst, __xfrm6_bundle_addr_remote(xfrm[i], &fl->fl6_dst));
 
-				ipv6_addr_copy(&fl_tunnel.fl6_src, __xfrm6_bundle_addr_remote(xfrm[i], &fl->fl6_src));
+				ipv6_addr_copy(&fl_tunnel.fl6_src, __xfrm6_bundle_addr_local(xfrm[i], &fl->fl6_src));
 				break;
 			default:
 				BUG_ON(1);
