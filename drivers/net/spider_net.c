@@ -1705,174 +1705,6 @@ spider_net_enable_card(struct spider_net_card *card)
 }
 
 /**
- * spider_net_open - called upon ifonfig up
- * @netdev: interface device structure
- *
- * returns 0 on success, <0 on failure
- *
- * spider_net_open allocates all the descriptors and memory needed for
- * operation, sets up multicast list and enables interrupts
- */
-int
-spider_net_open(struct net_device *netdev)
-{
-	struct spider_net_card *card = netdev_priv(netdev);
-	int result;
-
-	/* start probing with copper */
-	spider_net_setup_aneg(card);
-	if (card->phy.def->phy_id)
-		mod_timer(&card->aneg_timer, jiffies + SPIDER_NET_ANEG_TIMER);
-
-	result = spider_net_init_chain(card, &card->tx_chain);
-	if (result)
-		goto alloc_tx_failed;
-	card->low_watermark = NULL;
-
-	result = spider_net_init_chain(card, &card->rx_chain);
-	if (result)
-		goto alloc_rx_failed;
-
-	/* Allocate rx skbs */
-	if (spider_net_alloc_rx_skbs(card))
-		goto alloc_skbs_failed;
-
-	spider_net_set_multi(netdev);
-
-	/* further enhancement: setup hw vlan, if needed */
-
-	result = -EBUSY;
-	if (request_irq(netdev->irq, spider_net_interrupt,
-			     IRQF_SHARED, netdev->name, netdev))
-		goto register_int_failed;
-
-	spider_net_enable_card(card);
-
-	netif_start_queue(netdev);
-	netif_carrier_on(netdev);
-	netif_poll_enable(netdev);
-
-	return 0;
-
-register_int_failed:
-	spider_net_free_rx_chain_contents(card);
-alloc_skbs_failed:
-	spider_net_free_chain(card, &card->rx_chain);
-alloc_rx_failed:
-	spider_net_free_chain(card, &card->tx_chain);
-alloc_tx_failed:
-	del_timer_sync(&card->aneg_timer);
-	return result;
-}
-
-/**
- * spider_net_link_phy
- * @data: used for pointer to card structure
- *
- */
-static void spider_net_link_phy(unsigned long data)
-{
-	struct spider_net_card *card = (struct spider_net_card *)data;
-	struct mii_phy *phy = &card->phy;
-
-	/* if link didn't come up after SPIDER_NET_ANEG_TIMEOUT tries, setup phy again */
-	if (card->aneg_count > SPIDER_NET_ANEG_TIMEOUT) {
-
-		pr_info("%s: link is down trying to bring it up\n", card->netdev->name);
-
-		switch (phy->medium) {
-		case GMII_COPPER:
-			/* enable fiber with autonegotiation first */
-			if (phy->def->ops->enable_fiber)
-				phy->def->ops->enable_fiber(phy, 1);
-			phy->medium = GMII_FIBER;
-			break;
-
-		case GMII_FIBER:
-			/* fiber didn't come up, try to disable fiber autoneg */
-			if (phy->def->ops->enable_fiber)
-				phy->def->ops->enable_fiber(phy, 0);
-			phy->medium = GMII_UNKNOWN;
-			break;
-
-		case GMII_UNKNOWN:
-			/* copper, fiber with and without failed,
-			 * retry from beginning */
-			spider_net_setup_aneg(card);
-			phy->medium = GMII_COPPER;
-			break;
-		}
-
-		card->aneg_count = 0;
-		mod_timer(&card->aneg_timer, jiffies + SPIDER_NET_ANEG_TIMER);
-		return;
-	}
-
-	/* link still not up, try again later */
-	if (!(phy->def->ops->poll_link(phy))) {
-		card->aneg_count++;
-		mod_timer(&card->aneg_timer, jiffies + SPIDER_NET_ANEG_TIMER);
-		return;
-	}
-
-	/* link came up, get abilities */
-	phy->def->ops->read_link(phy);
-
-	spider_net_write_reg(card, SPIDER_NET_GMACST,
-			     spider_net_read_reg(card, SPIDER_NET_GMACST));
-	spider_net_write_reg(card, SPIDER_NET_GMACINTEN, 0x4);
-
-	if (phy->speed == 1000)
-		spider_net_write_reg(card, SPIDER_NET_GMACMODE, 0x00000001);
-	else
-		spider_net_write_reg(card, SPIDER_NET_GMACMODE, 0);
-
-	card->aneg_count = 0;
-
-	pr_debug("Found %s with %i Mbps, %s-duplex %sautoneg.\n",
-		phy->def->name, phy->speed, phy->duplex==1 ? "Full" : "Half",
-		phy->autoneg==1 ? "" : "no ");
-
-	return;
-}
-
-/**
- * spider_net_setup_phy - setup PHY
- * @card: card structure
- *
- * returns 0 on success, <0 on failure
- *
- * spider_net_setup_phy is used as part of spider_net_probe.
- **/
-static int
-spider_net_setup_phy(struct spider_net_card *card)
-{
-	struct mii_phy *phy = &card->phy;
-
-	spider_net_write_reg(card, SPIDER_NET_GDTDMASEL,
-			     SPIDER_NET_DMASEL_VALUE);
-	spider_net_write_reg(card, SPIDER_NET_GPCCTRL,
-			     SPIDER_NET_PHY_CTRL_VALUE);
-
-	phy->dev = card->netdev;
-	phy->mdio_read = spider_net_read_phy;
-	phy->mdio_write = spider_net_write_phy;
-
-	for (phy->mii_id = 1; phy->mii_id <= 31; phy->mii_id++) {
-		unsigned short id;
-		id = spider_net_read_phy(card->netdev, phy->mii_id, MII_BMSR);
-		if (id != 0x0000 && id != 0xffff) {
-			if (!mii_phy_probe(phy, phy->mii_id)) {
-				pr_info("Found %s.\n", phy->def->name);
-				break;
-			}
-		}
-	}
-
-	return 0;
-}
-
-/**
  * spider_net_download_firmware - loads firmware into the adapter
  * @card: card structure
  * @firmware_ptr: pointer to firmware data
@@ -1991,6 +1823,179 @@ out_err:
 }
 
 /**
+ * spider_net_open - called upon ifonfig up
+ * @netdev: interface device structure
+ *
+ * returns 0 on success, <0 on failure
+ *
+ * spider_net_open allocates all the descriptors and memory needed for
+ * operation, sets up multicast list and enables interrupts
+ */
+int
+spider_net_open(struct net_device *netdev)
+{
+	struct spider_net_card *card = netdev_priv(netdev);
+	int result;
+
+	result = spider_net_init_firmware(card);
+	if (result)
+		goto init_firmware_failed;
+
+	/* start probing with copper */
+	spider_net_setup_aneg(card);
+	if (card->phy.def->phy_id)
+		mod_timer(&card->aneg_timer, jiffies + SPIDER_NET_ANEG_TIMER);
+
+	result = spider_net_init_chain(card, &card->tx_chain);
+	if (result)
+		goto alloc_tx_failed;
+	card->low_watermark = NULL;
+
+	result = spider_net_init_chain(card, &card->rx_chain);
+	if (result)
+		goto alloc_rx_failed;
+
+	/* Allocate rx skbs */
+	if (spider_net_alloc_rx_skbs(card))
+		goto alloc_skbs_failed;
+
+	spider_net_set_multi(netdev);
+
+	/* further enhancement: setup hw vlan, if needed */
+
+	result = -EBUSY;
+	if (request_irq(netdev->irq, spider_net_interrupt,
+			     IRQF_SHARED, netdev->name, netdev))
+		goto register_int_failed;
+
+	spider_net_enable_card(card);
+
+	netif_start_queue(netdev);
+	netif_carrier_on(netdev);
+	netif_poll_enable(netdev);
+
+	return 0;
+
+register_int_failed:
+	spider_net_free_rx_chain_contents(card);
+alloc_skbs_failed:
+	spider_net_free_chain(card, &card->rx_chain);
+alloc_rx_failed:
+	spider_net_free_chain(card, &card->tx_chain);
+alloc_tx_failed:
+	del_timer_sync(&card->aneg_timer);
+init_firmware_failed:
+	return result;
+}
+
+/**
+ * spider_net_link_phy
+ * @data: used for pointer to card structure
+ *
+ */
+static void spider_net_link_phy(unsigned long data)
+{
+	struct spider_net_card *card = (struct spider_net_card *)data;
+	struct mii_phy *phy = &card->phy;
+
+	/* if link didn't come up after SPIDER_NET_ANEG_TIMEOUT tries, setup phy again */
+	if (card->aneg_count > SPIDER_NET_ANEG_TIMEOUT) {
+
+		pr_info("%s: link is down trying to bring it up\n", card->netdev->name);
+
+		switch (phy->medium) {
+		case GMII_COPPER:
+			/* enable fiber with autonegotiation first */
+			if (phy->def->ops->enable_fiber)
+				phy->def->ops->enable_fiber(phy, 1);
+			phy->medium = GMII_FIBER;
+			break;
+
+		case GMII_FIBER:
+			/* fiber didn't come up, try to disable fiber autoneg */
+			if (phy->def->ops->enable_fiber)
+				phy->def->ops->enable_fiber(phy, 0);
+			phy->medium = GMII_UNKNOWN;
+			break;
+
+		case GMII_UNKNOWN:
+			/* copper, fiber with and without failed,
+			 * retry from beginning */
+			spider_net_setup_aneg(card);
+			phy->medium = GMII_COPPER;
+			break;
+		}
+
+		card->aneg_count = 0;
+		mod_timer(&card->aneg_timer, jiffies + SPIDER_NET_ANEG_TIMER);
+		return;
+	}
+
+	/* link still not up, try again later */
+	if (!(phy->def->ops->poll_link(phy))) {
+		card->aneg_count++;
+		mod_timer(&card->aneg_timer, jiffies + SPIDER_NET_ANEG_TIMER);
+		return;
+	}
+
+	/* link came up, get abilities */
+	phy->def->ops->read_link(phy);
+
+	spider_net_write_reg(card, SPIDER_NET_GMACST,
+			     spider_net_read_reg(card, SPIDER_NET_GMACST));
+	spider_net_write_reg(card, SPIDER_NET_GMACINTEN, 0x4);
+
+	if (phy->speed == 1000)
+		spider_net_write_reg(card, SPIDER_NET_GMACMODE, 0x00000001);
+	else
+		spider_net_write_reg(card, SPIDER_NET_GMACMODE, 0);
+
+	card->aneg_count = 0;
+
+	pr_debug("Found %s with %i Mbps, %s-duplex %sautoneg.\n",
+		phy->def->name, phy->speed, phy->duplex==1 ? "Full" : "Half",
+		phy->autoneg==1 ? "" : "no ");
+
+	return;
+}
+
+/**
+ * spider_net_setup_phy - setup PHY
+ * @card: card structure
+ *
+ * returns 0 on success, <0 on failure
+ *
+ * spider_net_setup_phy is used as part of spider_net_probe.
+ **/
+static int
+spider_net_setup_phy(struct spider_net_card *card)
+{
+	struct mii_phy *phy = &card->phy;
+
+	spider_net_write_reg(card, SPIDER_NET_GDTDMASEL,
+			     SPIDER_NET_DMASEL_VALUE);
+	spider_net_write_reg(card, SPIDER_NET_GPCCTRL,
+			     SPIDER_NET_PHY_CTRL_VALUE);
+
+	phy->dev = card->netdev;
+	phy->mdio_read = spider_net_read_phy;
+	phy->mdio_write = spider_net_write_phy;
+
+	for (phy->mii_id = 1; phy->mii_id <= 31; phy->mii_id++) {
+		unsigned short id;
+		id = spider_net_read_phy(card->netdev, phy->mii_id, MII_BMSR);
+		if (id != 0x0000 && id != 0xffff) {
+			if (!mii_phy_probe(phy, phy->mii_id)) {
+				pr_info("Found %s.\n", phy->def->name);
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/**
  * spider_net_workaround_rxramfull - work around firmware bug
  * @card: card structure
  *
@@ -2089,8 +2094,6 @@ spider_net_tx_timeout_task(struct work_struct *work)
 	spider_net_init_card(card);
 
 	if (spider_net_setup_phy(card))
-		goto out;
-	if (spider_net_init_firmware(card))
 		goto out;
 
 	spider_net_open(netdev);
@@ -2360,10 +2363,6 @@ spider_net_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spider_net_init_card(card);
 
 	err = spider_net_setup_phy(card);
-	if (err)
-		goto out_undo_pci;
-
-	err = spider_net_init_firmware(card);
 	if (err)
 		goto out_undo_pci;
 
