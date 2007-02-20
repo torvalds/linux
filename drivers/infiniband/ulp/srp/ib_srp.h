@@ -158,6 +158,7 @@ struct srp_target_port {
 	struct completion	done;
 	int			status;
 	enum srp_target_state	state;
+	int			qp_in_error;
 };
 
 struct srp_iu {

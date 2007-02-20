@@ -20,8 +20,8 @@
 #define K3  0x8F1BBCDCL			/* Rounds 40-59: sqrt(5) * 2^30 */
 #define K4  0xCA62C1D6L			/* Rounds 60-79: sqrt(10) * 2^30 */
 
-/*
- * sha_transform: single block SHA1 transform
+/**
+ * sha_transform - single block SHA1 transform
  *
  * @digest: 160 bit digest to update
  * @data:   512 bits of data to hash
@@ -80,9 +80,8 @@ void sha_transform(__u32 *digest, const char *in, __u32 *W)
 }
 EXPORT_SYMBOL(sha_transform);
 
-/*
- * sha_init: initialize the vectors for a SHA1 digest
- *
+/**
+ * sha_init - initialize the vectors for a SHA1 digest
  * @buf: vector to initialize
  */
 void sha_init(__u32 *buf)

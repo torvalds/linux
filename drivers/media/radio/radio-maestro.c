@@ -22,7 +22,6 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/mutex.h>
@@ -99,7 +98,7 @@ static struct pci_driver maestro_r_driver = {
 	.remove		= __devexit_p(maestro_remove),
 };
 
-static struct file_operations maestro_fops = {
+static const struct file_operations maestro_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

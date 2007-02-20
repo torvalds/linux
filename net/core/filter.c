@@ -18,7 +18,6 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/fcntl.h>
 #include <linux/socket.h>
@@ -53,7 +52,7 @@ static void *__load_pointer(struct sk_buff *skb, int k)
 }
 
 static inline void *load_pointer(struct sk_buff *skb, int k,
-                                 unsigned int size, void *buffer)
+				 unsigned int size, void *buffer)
 {
 	if (k >= 0)
 		return skb_header_pointer(skb, k, size, buffer);
@@ -91,7 +90,7 @@ unsigned int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int 
 	 */
 	for (pc = 0; pc < flen; pc++) {
 		fentry = &filter[pc];
-			
+
 		switch (fentry->code) {
 		case BPF_ALU|BPF_ADD|BPF_X:
 			A += X;
@@ -399,7 +398,7 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
  */
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 {
-	struct sk_filter *fp; 
+	struct sk_filter *fp;
 	unsigned int fsize = sizeof(struct sock_filter) * fprog->len;
 	int err;
 
@@ -411,7 +410,7 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 	if (!fp)
 		return -ENOMEM;
 	if (copy_from_user(fp->insns, fprog->filter, fsize)) {
-		sock_kfree_s(sk, fp, fsize+sizeof(*fp)); 
+		sock_kfree_s(sk, fp, fsize+sizeof(*fp));
 		return -EFAULT;
 	}
 

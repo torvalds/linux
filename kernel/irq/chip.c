@@ -39,6 +39,7 @@ void dynamic_irq_init(unsigned int irq)
 	desc->chip = &no_irq_chip;
 	desc->handle_irq = handle_bad_irq;
 	desc->depth = 1;
+	desc->msi_desc = NULL;
 	desc->handler_data = NULL;
 	desc->chip_data = NULL;
 	desc->action = NULL;
@@ -74,6 +75,9 @@ void dynamic_irq_cleanup(unsigned int irq)
 		WARN_ON(1);
 		return;
 	}
+	desc->msi_desc = NULL;
+	desc->handler_data = NULL;
+	desc->chip_data = NULL;
 	desc->handle_irq = handle_bad_irq;
 	desc->chip = &no_irq_chip;
 	spin_unlock_irqrestore(&desc->lock, flags);
@@ -162,6 +166,30 @@ int set_irq_data(unsigned int irq, void *data)
 EXPORT_SYMBOL(set_irq_data);
 
 /**
+ *	set_irq_data - set irq type data for an irq
+ *	@irq:	Interrupt number
+ *	@entry:	Pointer to MSI descriptor data
+ *
+ *	Set the hardware irq controller data for an irq
+ */
+int set_irq_msi(unsigned int irq, struct msi_desc *entry)
+{
+	struct irq_desc *desc;
+	unsigned long flags;
+
+	if (irq >= NR_IRQS) {
+		printk(KERN_ERR
+		       "Trying to install msi data for IRQ%d\n", irq);
+		return -EINVAL;
+	}
+	desc = irq_desc + irq;
+	spin_lock_irqsave(&desc->lock, flags);
+	desc->msi_desc = entry;
+	spin_unlock_irqrestore(&desc->lock, flags);
+	return 0;
+}
+
+/**
  *	set_irq_chip_data - set irq chip data for an irq
  *	@irq:	Interrupt number
  *	@data:	Pointer to chip specific data
@@ -202,10 +230,6 @@ static void default_enable(unsigned int irq)
  */
 static void default_disable(unsigned int irq)
 {
-	struct irq_desc *desc = irq_desc + irq;
-
-	if (!(desc->status & IRQ_DELAYED_DISABLE))
-		desc->chip->mask(irq);
 }
 
 /*
@@ -270,13 +294,18 @@ handle_simple_irq(unsigned int irq, struct irq_desc *desc)
 
 	if (unlikely(desc->status & IRQ_INPROGRESS))
 		goto out_unlock;
-	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
 	kstat_cpu(cpu).irqs[irq]++;
 
 	action = desc->action;
-	if (unlikely(!action || (desc->status & IRQ_DISABLED)))
+	if (unlikely(!action || (desc->status & IRQ_DISABLED))) {
+		if (desc->chip->mask)
+			desc->chip->mask(irq);
+		desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
+		desc->status |= IRQ_PENDING;
 		goto out_unlock;
+	}
 
+	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING | IRQ_PENDING);
 	desc->status |= IRQ_INPROGRESS;
 	spin_unlock(&desc->lock);
 
@@ -368,11 +397,13 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 
 	/*
 	 * If its disabled or no action available
-	 * keep it masked and get out of here
+	 * then mask it and get out of here:
 	 */
 	action = desc->action;
 	if (unlikely(!action || (desc->status & IRQ_DISABLED))) {
 		desc->status |= IRQ_PENDING;
+		if (desc->chip->mask)
+			desc->chip->mask(irq);
 		goto out;
 	}
 
@@ -534,10 +565,8 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 
 	/* Uninstall? */
 	if (handle == handle_bad_irq) {
-		if (desc->chip != &no_irq_chip) {
-			desc->chip->mask(irq);
-			desc->chip->ack(irq);
-		}
+		if (desc->chip != &no_irq_chip)
+			mask_ack_irq(desc, irq);
 		desc->status |= IRQ_DISABLED;
 		desc->depth = 1;
 	}

@@ -12,14 +12,14 @@
  *		Mark Evans, <evansmp@uhura.aston.ac.uk>
  *		Florian  La Roche, <rzsfl@rz.uni-sb.de>
  *		Alan Cox, <gw4pts@gw4pts.ampr.org>
- * 
+ *
  * Fixes:
  *		Mr Linux	: Arp problems
  *		Alan Cox	: Generic queue tidyup (very tiny here)
  *		Alan Cox	: eth_header ntohs should be htons
  *		Alan Cox	: eth_rebuild_header missing an htons and
  *				  minor other things.
- *		Tegge		: Arp bug fixes. 
+ *		Tegge		: Arp bug fixes.
  *		Florian		: Removed many unnecessary functions, code cleanup
  *				  and changes for new arp and skbuff.
  *		Alan Cox	: Redid header building to reflect new format.
@@ -40,7 +40,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -307,9 +306,9 @@ void ether_setup(struct net_device *dev)
 	dev->hard_header_len 	= ETH_HLEN;
 	dev->mtu		= ETH_DATA_LEN;
 	dev->addr_len		= ETH_ALEN;
-	dev->tx_queue_len	= 1000;	/* Ethernet wants good queues */	
+	dev->tx_queue_len	= 1000;	/* Ethernet wants good queues */
 	dev->flags		= IFF_BROADCAST|IFF_MULTICAST;
-	
+
 	memset(dev->broadcast, 0xFF, ETH_ALEN);
 
 }

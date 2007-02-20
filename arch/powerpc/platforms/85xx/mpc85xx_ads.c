@@ -17,7 +17,6 @@
 #include <linux/kdev_t.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <linux/root_dev.h>
 
 #include <asm/system.h>
 #include <asm/time.h>
@@ -45,8 +44,7 @@ unsigned long isa_mem_base = 0;
 #endif
 
 #ifdef CONFIG_PCI
-int
-mpc85xx_exclude_device(u_char bus, u_char devfn)
+static int mpc85xx_exclude_device(u_char bus, u_char devfn)
 {
 	if (bus == 0 && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -69,7 +67,7 @@ static void cpm2_cascade(unsigned int irq, struct irq_desc *desc)
 
 #endif /* CONFIG_CPM2 */
 
-void __init mpc85xx_ads_pic_init(void)
+static void __init mpc85xx_ads_pic_init(void)
 {
 	struct mpic *mpic;
 	struct resource r;
@@ -246,15 +244,9 @@ static void __init mpc85xx_ads_setup_arch(void)
 		add_bridge(np);
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 #endif
-
-#ifdef  CONFIG_ROOT_NFS
-	ROOT_DEV = Root_NFS;
-#else
-	ROOT_DEV = Root_HDA1;
-#endif
 }
 
-void mpc85xx_ads_show_cpuinfo(struct seq_file *m)
+static void mpc85xx_ads_show_cpuinfo(struct seq_file *m)
 {
 	uint pvid, svid, phid1;
 	uint memsize = total_memory;
@@ -280,10 +272,9 @@ void mpc85xx_ads_show_cpuinfo(struct seq_file *m)
  */
 static int __init mpc85xx_ads_probe(void)
 {
-	/* We always match for now, eventually we should look at the flat
-	   dev tree to ensure this is the board we are suppose to run on
-	*/
-	return 1;
+        unsigned long root = of_get_flat_dt_root();
+
+        return of_flat_dt_is_compatible(root, "MPC85xxADS");
 }
 
 define_machine(mpc85xx_ads) {

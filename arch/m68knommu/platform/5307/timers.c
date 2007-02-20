@@ -62,7 +62,7 @@ void coldfire_tick(void)
 
 /***************************************************************************/
 
-void coldfire_timer_init(irqreturn_t (*handler)(int, void *, struct pt_regs *))
+void coldfire_timer_init(irq_handler_t handler)
 {
 	__raw_writew(MCFTIMER_TMR_DISABLE, TA(MCFTIMER_TMR));
 	__raw_writetrr(((MCF_BUSCLK / 16) / HZ), TA(MCFTIMER_TRR));
@@ -104,19 +104,20 @@ unsigned long coldfire_timer_offset(void)
 
 /*
  *	Choose a reasonably fast profile timer. Make it an odd value to
- *	try and get good coverage of kernal operations.
+ *	try and get good coverage of kernel operations.
  */
 #define	PROFILEHZ	1013
 
 /*
  *	Use the other timer to provide high accuracy profiling info.
  */
-void coldfire_profile_tick(int irq, void *dummy, struct pt_regs *regs)
+irqreturn_t coldfire_profile_tick(int irq, void *dummy)
 {
 	/* Reset ColdFire timer2 */
 	__raw_writeb(MCFTIMER_TER_CAP | MCFTIMER_TER_REF, PA(MCFTIMER_TER));
 	if (current->pid)
 		profile_tick(CPU_PROFILING, regs);
+	return IRQ_HANDLED;
 }
 
 /***************************************************************************/

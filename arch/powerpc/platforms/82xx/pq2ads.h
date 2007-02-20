@@ -22,6 +22,7 @@
 #ifndef __MACH_ADS8260_DEFS
 #define __MACH_ADS8260_DEFS
 
+#include <linux/seq_file.h>
 #include <asm/ppcboot.h>
 
 /* For our show_cpuinfo hooks. */
@@ -46,12 +47,12 @@
 #define BCSR1_RS232_EN1		((uint)0x02000000)      /* 0 ==enable */
 #define BCSR1_RS232_EN2		((uint)0x01000000)      /* 0 ==enable */
 #define BCSR3_FETHIEN2		((uint)0x10000000)      /* 0 == enable*/
-#define BCSR3_FETH2_RS		((uint)0x80000000)      /* 0 == reset */
+#define BCSR3_FETH2_RST		((uint)0x80000000)      /* 0 == reset */
 
 /* cpm serial driver works with constants below */
 
 #define SIU_INT_SMC1		((uint)0x04+CPM_IRQ_OFFSET)
-#define SIU_INT_SMC2i		((uint)0x05+CPM_IRQ_OFFSET)
+#define SIU_INT_SMC2		((uint)0x05+CPM_IRQ_OFFSET)
 #define SIU_INT_SCC1		((uint)0x28+CPM_IRQ_OFFSET)
 #define SIU_INT_SCC2		((uint)0x29+CPM_IRQ_OFFSET)
 #define SIU_INT_SCC3		((uint)0x2a+CPM_IRQ_OFFSET)

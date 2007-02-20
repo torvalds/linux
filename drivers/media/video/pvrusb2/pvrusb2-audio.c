@@ -158,7 +158,7 @@ static unsigned int pvr2_msp3400_describe(struct pvr2_msp3400_handler *ctxt,
 }
 
 
-const static struct pvr2_i2c_handler_functions msp3400_funcs = {
+static const struct pvr2_i2c_handler_functions msp3400_funcs = {
 	.detach = (void (*)(void *))pvr2_msp3400_detach,
 	.check = (int (*)(void *))msp3400_check,
 	.update = (void (*)(void *))msp3400_update,

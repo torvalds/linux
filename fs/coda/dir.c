@@ -66,7 +66,7 @@ static struct dentry_operations coda_dentry_operations =
 	.d_delete	= coda_dentry_delete,
 };
 
-struct inode_operations coda_dir_inode_operations =
+const struct inode_operations coda_dir_inode_operations =
 {
 	.create		= coda_create,
 	.lookup		= coda_lookup,

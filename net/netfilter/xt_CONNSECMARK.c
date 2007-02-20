@@ -41,8 +41,7 @@ static void secmark_save(struct sk_buff *skb)
 
 		connsecmark = nf_ct_get_secmark(skb, &ctinfo);
 		if (connsecmark && !*connsecmark)
-			if (*connsecmark != skb->secmark)
-				*connsecmark = skb->secmark;
+			*connsecmark = skb->secmark;
 	}
 }
 
@@ -58,8 +57,7 @@ static void secmark_restore(struct sk_buff *skb)
 
 		connsecmark = nf_ct_get_secmark(skb, &ctinfo);
 		if (connsecmark && *connsecmark)
-			if (skb->secmark != *connsecmark)
-				skb->secmark = *connsecmark;
+			skb->secmark = *connsecmark;
 	}
 }
 

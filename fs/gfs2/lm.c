@@ -7,7 +7,6 @@
  * of the GNU General Public License version 2.
  */
 
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -104,14 +103,8 @@ int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...)
 	vprintk(fmt, args);
 	va_end(args);
 
-	fs_err(sdp, "about to withdraw from the cluster\n");
+	fs_err(sdp, "about to withdraw this file system\n");
 	BUG_ON(sdp->sd_args.ar_debug);
-
-
-	fs_err(sdp, "waiting for outstanding I/O\n");
-
-	/* FIXME: suspend dm device so oustanding bio's complete
-	   and all further io requests fail */
 
 	fs_err(sdp, "telling LM to withdraw\n");
 	gfs2_withdraw_lockproto(&sdp->sd_lockstruct);

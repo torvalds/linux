@@ -791,6 +791,8 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 
 	info = fbinfo->par;
 	info->fb = fbinfo;
+	info->dev = &pdev->dev;
+
 	platform_set_drvdata(pdev, fbinfo);
 
 	dprintk("devinit\n");

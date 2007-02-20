@@ -321,7 +321,7 @@ int ct_sip_get_info(const char *dptr, size_t dlen,
 			continue;
 		}
 		aux = ct_sip_search(hnfo->ln_str, dptr, hnfo->ln_strlen,
-		                    ct_sip_lnlen(dptr, limit),
+				    ct_sip_lnlen(dptr, limit),
 				    hnfo->case_sensitive);
 		if (!aux) {
 			DEBUGP("'%s' not found in '%s'.\n", hnfo->ln_str,
@@ -406,7 +406,7 @@ static int sip_help(struct sk_buff **pskb,
 	if (dataoff >= (*pskb)->len) {
 		DEBUGP("skb->len = %u\n", (*pskb)->len);
 		return NF_ACCEPT;
-        }
+	}
 
 	ip_ct_refresh(ct, *pskb, sip_timeout * HZ);
 
@@ -439,16 +439,16 @@ static int sip_help(struct sk_buff **pskb,
 	}
 	/* Get ip and port address from SDP packet. */
 	if (ct_sip_get_info(dptr, datalen, &matchoff, &matchlen,
-	                    POS_CONNECTION) > 0) {
+			    POS_CONNECTION) > 0) {
 
 		/* We'll drop only if there are parse problems. */
 		if (parse_ipaddr(dptr + matchoff, NULL, &ipaddr,
-		                 dptr + datalen) < 0) {
+				 dptr + datalen) < 0) {
 			ret = NF_DROP;
 			goto out;
 		}
 		if (ct_sip_get_info(dptr, datalen, &matchoff, &matchlen,
-		                    POS_MEDIA) > 0) {
+				    POS_MEDIA) > 0) {
 
 			port = simple_strtoul(dptr + matchoff, NULL, 10);
 			if (port < 1024) {

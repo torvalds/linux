@@ -81,7 +81,7 @@ static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 	}
 }
 #endif
-		
+
 static unsigned int
 ip_nat_fn(unsigned int hooknum,
 	  struct sk_buff **pskb,
@@ -107,8 +107,8 @@ ip_nat_fn(unsigned int hooknum,
 	   protocol. 8) --RR */
 	if (!ct) {
 		/* Exception: ICMP redirect to new connection (not in
-                   hash table yet).  We must not let this through, in
-                   case we're doing NAT to the same network. */
+		   hash table yet).  We must not let this through, in
+		   case we're doing NAT to the same network. */
 		if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP) {
 			struct icmphdr _hdr, *hp;
 
@@ -148,7 +148,7 @@ ip_nat_fn(unsigned int hooknum,
 			if (unlikely(is_confirmed(ct)))
 				/* NAT module was loaded late */
 				ret = alloc_null_binding_confirmed(ct, info,
-				                                   hooknum);
+								   hooknum);
 			else if (hooknum == NF_IP_LOCAL_IN)
 				/* LOCAL_IN hook doesn't have a chain!  */
 				ret = alloc_null_binding(ct, info, hooknum);
@@ -179,10 +179,10 @@ ip_nat_fn(unsigned int hooknum,
 
 static unsigned int
 ip_nat_in(unsigned int hooknum,
-          struct sk_buff **pskb,
-          const struct net_device *in,
-          const struct net_device *out,
-          int (*okfn)(struct sk_buff *))
+	  struct sk_buff **pskb,
+	  const struct net_device *in,
+	  const struct net_device *out,
+	  int (*okfn)(struct sk_buff *))
 {
 	unsigned int ret;
 	__be32 daddr = (*pskb)->nh.iph->daddr;
@@ -277,9 +277,9 @@ ip_nat_adjust(unsigned int hooknum,
 
 	ct = ip_conntrack_get(*pskb, &ctinfo);
 	if (ct && test_bit(IPS_SEQ_ADJUST_BIT, &ct->status)) {
-	        DEBUGP("ip_nat_standalone: adjusting sequence number\n");
-	        if (!ip_nat_seq_adjust(pskb, ct, ctinfo))
-	                return NF_DROP;
+		DEBUGP("ip_nat_standalone: adjusting sequence number\n");
+		if (!ip_nat_seq_adjust(pskb, ct, ctinfo))
+			return NF_DROP;
 	}
 	return NF_ACCEPT;
 }

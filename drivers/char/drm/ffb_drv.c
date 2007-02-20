@@ -9,7 +9,6 @@
 
 #include "ffb_drv.h"
 
-#include <linux/sched.h>
 #include <linux/smp_lock.h>
 #include <asm/shmparam.h>
 #include <asm/oplib.h>

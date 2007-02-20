@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>
 #include <linux/proc_fs.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -197,7 +196,7 @@ static void eesoxscsi_buffer_in(void *buf, int length, void __iomem *base)
 	const void __iomem *reg_fas = base + EESOX_FAS216_OFFSET;
 	const void __iomem *reg_dmastat = base + EESOX_DMASTAT;
 	const void __iomem *reg_dmadata = base + EESOX_DMADATA;
-	const register unsigned long mask = 0xffff;
+	register const unsigned long mask = 0xffff;
 
 	do {
 		unsigned int status;

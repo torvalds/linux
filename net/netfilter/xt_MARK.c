@@ -31,9 +31,7 @@ target_v0(struct sk_buff **pskb,
 {
 	const struct xt_mark_target_info *markinfo = targinfo;
 
-	if((*pskb)->mark != markinfo->mark)
-		(*pskb)->mark = markinfo->mark;
-
+	(*pskb)->mark = markinfo->mark;
 	return XT_CONTINUE;
 }
 
@@ -52,19 +50,17 @@ target_v1(struct sk_buff **pskb,
 	case XT_MARK_SET:
 		mark = markinfo->mark;
 		break;
-		
+
 	case XT_MARK_AND:
 		mark = (*pskb)->mark & markinfo->mark;
 		break;
-		
+
 	case XT_MARK_OR:
 		mark = (*pskb)->mark | markinfo->mark;
 		break;
 	}
 
-	if((*pskb)->mark != mark)
-		(*pskb)->mark = mark;
-
+	(*pskb)->mark = mark;
 	return XT_CONTINUE;
 }
 

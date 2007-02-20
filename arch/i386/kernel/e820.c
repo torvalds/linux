@@ -14,6 +14,7 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/e820.h>
+#include <asm/setup.h>
 
 #ifdef CONFIG_EFI
 int efi_enabled = 0;
@@ -156,21 +157,22 @@ static struct resource standard_io_resources[] = { {
 	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
 } };
 
-static int romsignature(const unsigned char *x)
+#define ROMSIGNATURE 0xaa55
+
+static int __init romsignature(const unsigned char *rom)
 {
 	unsigned short sig;
-	int ret = 0;
-	if (probe_kernel_address((const unsigned short *)x, sig) == 0)
-		ret = (sig == 0xaa55);
-	return ret;
+
+	return probe_kernel_address((const unsigned short *)rom, sig) == 0 &&
+	       sig == ROMSIGNATURE;
 }
 
 static int __init romchecksum(unsigned char *rom, unsigned long length)
 {
-	unsigned char *p, sum = 0;
+	unsigned char sum;
 
-	for (p = rom; p < rom + length; p++)
-		sum += *p;
+	for (sum = 0; length; length--)
+		sum += *rom++;
 	return sum == 0;
 }
 

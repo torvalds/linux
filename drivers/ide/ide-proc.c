@@ -26,7 +26,6 @@
 
 #include <asm/uaccess.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/mm.h>
@@ -413,7 +412,6 @@ void ide_add_proc_entries(struct proc_dir_entry *dir, ide_proc_entry_t *p, void 
 	while (p->name != NULL) {
 		ent = create_proc_entry(p->name, p->mode, dir);
 		if (!ent) return;
-		ent->nlink = 1;
 		ent->data = data;
 		ent->read_proc = p->read_proc;
 		ent->write_proc = p->write_proc;
@@ -549,7 +547,7 @@ static int ide_drivers_open(struct inode *inode, struct file *file)
 	return single_open(file, &ide_drivers_show, NULL);
 }
 
-static struct file_operations ide_drivers_operations = {
+static const struct file_operations ide_drivers_operations = {
 	.open		= ide_drivers_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

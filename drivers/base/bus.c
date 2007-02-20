@@ -324,26 +324,24 @@ int bus_for_each_drv(struct bus_type * bus, struct device_driver * start,
 	return error;
 }
 
-static int device_add_attrs(struct bus_type * bus, struct device * dev)
+static int device_add_attrs(struct bus_type *bus, struct device *dev)
 {
 	int error = 0;
 	int i;
 
-	if (bus->dev_attrs) {
-		for (i = 0; attr_name(bus->dev_attrs[i]); i++) {
-			error = device_create_file(dev,&bus->dev_attrs[i]);
-			if (error)
-				goto Err;
+	if (!bus->dev_attrs)
+		return 0;
+
+	for (i = 0; attr_name(bus->dev_attrs[i]); i++) {
+		error = device_create_file(dev,&bus->dev_attrs[i]);
+		if (error) {
+			while (--i >= 0)
+				device_remove_file(dev, &bus->dev_attrs[i]);
+			break;
 		}
 	}
- Done:
 	return error;
- Err:
-	while (--i >= 0)
-		device_remove_file(dev,&bus->dev_attrs[i]);
-	goto Done;
 }
-
 
 static void device_remove_attrs(struct bus_type * bus, struct device * dev)
 {

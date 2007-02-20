@@ -161,6 +161,14 @@ struct x25_sock {
 	unsigned long 		vc_facil_mask;	/* inc_call facilities mask */
 };
 
+struct x25_forward {
+	struct list_head	node;
+	unsigned int		lci;
+	struct net_device	*dev1;
+	struct net_device	*dev2;
+	atomic_t		refcnt;
+};
+
 static inline struct x25_sock *x25_sk(const struct sock *sk)
 {
 	return (struct x25_sock *)sk;
@@ -172,6 +180,7 @@ extern int  sysctl_x25_call_request_timeout;
 extern int  sysctl_x25_reset_request_timeout;
 extern int  sysctl_x25_clear_request_timeout;
 extern int  sysctl_x25_ack_holdback_timeout;
+extern int  sysctl_x25_forward;
 
 extern int  x25_addr_ntoa(unsigned char *, struct x25_address *,
 			  struct x25_address *);
@@ -197,6 +206,13 @@ extern int x25_negotiate_facilities(struct sk_buff *, struct sock *,
 				struct x25_facilities *,
 				struct x25_dte_facilities *);
 extern void x25_limit_facilities(struct x25_facilities *, struct x25_neigh *);
+
+/* x25_forward.c */
+extern void x25_clear_forward_by_lci(unsigned int lci);
+extern void x25_clear_forward_by_dev(struct net_device *);
+extern int x25_forward_data(int, struct x25_neigh *, struct sk_buff *);
+extern int x25_forward_call(struct x25_address *, struct x25_neigh *,
+				struct sk_buff *, int);
 
 /* x25_in.c */
 extern int  x25_process_rx_frame(struct sock *, struct sk_buff *);
@@ -282,6 +298,8 @@ extern struct hlist_head x25_list;
 extern rwlock_t x25_list_lock;
 extern struct list_head x25_route_list;
 extern rwlock_t x25_route_list_lock;
+extern struct list_head x25_forward_list;
+extern rwlock_t x25_forward_list_lock;
 
 extern int x25_proc_init(void);
 extern void x25_proc_exit(void);

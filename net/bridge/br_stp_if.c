@@ -28,7 +28,7 @@
  */
 static inline port_id br_make_port_id(__u8 priority, __u16 port_no)
 {
-	return ((u16)priority << BR_PORT_BITS) 
+	return ((u16)priority << BR_PORT_BITS)
 		| (port_no & ((1<<BR_PORT_BITS)-1));
 }
 
@@ -50,7 +50,7 @@ void br_stp_enable_bridge(struct net_bridge *br)
 	spin_lock_bh(&br->lock);
 	mod_timer(&br->hello_timer, jiffies + br->hello_time);
 	mod_timer(&br->gc_timer, jiffies + HZ/10);
-	
+
 	br_config_bpdu_generation(br);
 
 	list_for_each_entry(p, &br->port_list, list) {

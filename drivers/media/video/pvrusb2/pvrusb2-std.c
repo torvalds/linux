@@ -78,14 +78,14 @@ struct std_name {
 #define CSTD_ALL (CSTD_PAL|CSTD_NTSC|CSTD_SECAM)
 
 /* Mapping of standard bits to color system */
-const static struct std_name std_groups[] = {
+static const struct std_name std_groups[] = {
 	{"PAL",CSTD_PAL},
 	{"NTSC",CSTD_NTSC},
 	{"SECAM",CSTD_SECAM},
 };
 
 /* Mapping of standard bits to modulation system */
-const static struct std_name std_items[] = {
+static const struct std_name std_items[] = {
 	{"B",TSTD_B},
 	{"B1",TSTD_B1},
 	{"D",TSTD_D},

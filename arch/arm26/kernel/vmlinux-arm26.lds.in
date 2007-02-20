@@ -47,10 +47,12 @@ SECTIONS
 		__con_initcall_start = .;
 			*(.con_initcall.init)
 		__con_initcall_end = .;
+#ifdef CONFIG_BLK_DEV_INITRD
 		. = ALIGN(32);
 		__initramfs_start = .;
 			usr/built-in.o(.init.ramfs)
 		__initramfs_end = .;
+#endif
 		. = ALIGN(32768);
 		__init_end = .;
 	}

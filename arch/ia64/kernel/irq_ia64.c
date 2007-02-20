@@ -275,7 +275,7 @@ static struct irqaction ipi_irqaction = {
 
 static struct irqaction resched_irqaction = {
 	.handler =	dummy_handler,
-	.flags =	SA_INTERRUPT,
+	.flags =	IRQF_DISABLED,
 	.name =		"resched"
 };
 #endif

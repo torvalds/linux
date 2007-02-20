@@ -53,7 +53,8 @@ struct riva_par {
 #ifdef CONFIG_X86
 	struct vgastate state;
 #endif
-	atomic_t ref_count;
+	struct mutex open_lock;
+	unsigned int ref_count;
 	unsigned char *EDID;
 	unsigned int Chipset;
 	int forceCRTC;

@@ -7,7 +7,6 @@
  * of the GNU General Public License version 2.
  */
 
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -264,13 +263,23 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 	struct gfs2_inode *dip = GFS2_I(dir);
 	struct gfs2_sbd *sdp = GFS2_SB(dir);
 	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
-	struct gfs2_holder ghs[2];
+	struct gfs2_holder ghs[3];
+	struct gfs2_rgrpd *rgd;
+	struct gfs2_holder ri_gh;
 	int error;
 
-	gfs2_holder_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, ghs + 1);
+	error = gfs2_rindex_hold(sdp, &ri_gh);
+	if (error)
+		return error;
 
-	error = gfs2_glock_nq_m(2, ghs);
+	gfs2_holder_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
+	gfs2_holder_init(ip->i_gl,  LM_ST_EXCLUSIVE, 0, ghs + 1);
+
+	rgd = gfs2_blk2rgrpd(sdp, ip->i_num.no_addr);
+	gfs2_holder_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, ghs + 2);
+
+
+	error = gfs2_glock_nq_m(3, ghs);
 	if (error)
 		goto out;
 
@@ -291,10 +300,12 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 out_end_trans:
 	gfs2_trans_end(sdp);
 out_gunlock:
-	gfs2_glock_dq_m(2, ghs);
+	gfs2_glock_dq_m(3, ghs);
 out:
 	gfs2_holder_uninit(ghs);
 	gfs2_holder_uninit(ghs + 1);
+	gfs2_holder_uninit(ghs + 2);
+	gfs2_glock_dq_uninit(&ri_gh);
 	return error;
 }
 
@@ -449,13 +460,22 @@ static int gfs2_rmdir(struct inode *dir, struct dentry *dentry)
 	struct gfs2_inode *dip = GFS2_I(dir);
 	struct gfs2_sbd *sdp = GFS2_SB(dir);
 	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
-	struct gfs2_holder ghs[2];
+	struct gfs2_holder ghs[3];
+	struct gfs2_rgrpd *rgd;
+	struct gfs2_holder ri_gh;
 	int error;
 
+
+	error = gfs2_rindex_hold(sdp, &ri_gh);
+	if (error)
+		return error;
 	gfs2_holder_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, ghs + 1);
 
-	error = gfs2_glock_nq_m(2, ghs);
+	rgd = gfs2_blk2rgrpd(sdp, ip->i_num.no_addr);
+	gfs2_holder_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, ghs + 2);
+
+	error = gfs2_glock_nq_m(3, ghs);
 	if (error)
 		goto out;
 
@@ -483,10 +503,12 @@ static int gfs2_rmdir(struct inode *dir, struct dentry *dentry)
 	gfs2_trans_end(sdp);
 
 out_gunlock:
-	gfs2_glock_dq_m(2, ghs);
+	gfs2_glock_dq_m(3, ghs);
 out:
 	gfs2_holder_uninit(ghs);
 	gfs2_holder_uninit(ghs + 1);
+	gfs2_holder_uninit(ghs + 2);
+	gfs2_glock_dq_uninit(&ri_gh);
 	return error;
 }
 
@@ -547,7 +569,8 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	struct gfs2_inode *ip = GFS2_I(odentry->d_inode);
 	struct gfs2_inode *nip = NULL;
 	struct gfs2_sbd *sdp = GFS2_SB(odir);
-	struct gfs2_holder ghs[4], r_gh;
+	struct gfs2_holder ghs[5], r_gh;
+	struct gfs2_rgrpd *nrgd;
 	unsigned int num_gh;
 	int dir_rename = 0;
 	int alloc_required;
@@ -587,6 +610,13 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	if (nip) {
 		gfs2_holder_init(nip->i_gl, LM_ST_EXCLUSIVE, 0, ghs + num_gh);
 		num_gh++;
+		/* grab the resource lock for unlink flag twiddling 
+		 * this is the case of the target file already existing
+		 * so we unlink before doing the rename
+		 */
+		nrgd = gfs2_blk2rgrpd(sdp, nip->i_num.no_addr);
+		if (nrgd)
+			gfs2_holder_init(nrgd->rd_gl, LM_ST_EXCLUSIVE, 0, ghs + num_gh++);
 	}
 
 	error = gfs2_glock_nq_m(num_gh, ghs);
@@ -684,12 +714,12 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
 					 al->al_rgd->rd_ri.ri_length +
 					 4 * RES_DINODE + 4 * RES_LEAF +
-					 RES_STATFS + RES_QUOTA, 0);
+					 RES_STATFS + RES_QUOTA + 4, 0);
 		if (error)
 			goto out_ipreserv;
 	} else {
 		error = gfs2_trans_begin(sdp, 4 * RES_DINODE +
-					 5 * RES_LEAF, 0);
+					 5 * RES_LEAF + 4, 0);
 		if (error)
 			goto out_gunlock;
 	}
@@ -728,7 +758,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		error = gfs2_meta_inode_buffer(ip, &dibh);
 		if (error)
 			goto out_end_trans;
-		ip->i_inode.i_ctime.tv_sec = get_seconds();
+		ip->i_inode.i_ctime = CURRENT_TIME_SEC;
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);
@@ -1018,7 +1048,7 @@ static int gfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	}
 
 	generic_fillattr(inode, stat);
-	if (unlock);
+	if (unlock)
 		gfs2_glock_dq_uninit(&gh);
 
 	return 0;
@@ -1084,7 +1114,7 @@ static int gfs2_removexattr(struct dentry *dentry, const char *name)
 	return gfs2_ea_remove(GFS2_I(dentry->d_inode), &er);
 }
 
-struct inode_operations gfs2_file_iops = {
+const struct inode_operations gfs2_file_iops = {
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,
@@ -1094,7 +1124,7 @@ struct inode_operations gfs2_file_iops = {
 	.removexattr = gfs2_removexattr,
 };
 
-struct inode_operations gfs2_dev_iops = {
+const struct inode_operations gfs2_dev_iops = {
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,
@@ -1104,7 +1134,7 @@ struct inode_operations gfs2_dev_iops = {
 	.removexattr = gfs2_removexattr,
 };
 
-struct inode_operations gfs2_dir_iops = {
+const struct inode_operations gfs2_dir_iops = {
 	.create = gfs2_create,
 	.lookup = gfs2_lookup,
 	.link = gfs2_link,
@@ -1123,7 +1153,7 @@ struct inode_operations gfs2_dir_iops = {
 	.removexattr = gfs2_removexattr,
 };
 
-struct inode_operations gfs2_symlink_iops = {
+const struct inode_operations gfs2_symlink_iops = {
 	.readlink = gfs2_readlink,
 	.follow_link = gfs2_follow_link,
 	.permission = gfs2_permission,

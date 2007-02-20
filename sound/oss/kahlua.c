@@ -139,13 +139,12 @@ static int __devinit probe_one(struct pci_dev *pdev, const struct pci_device_id 
 	printk(KERN_INFO "kahlua: XpressAudio on IRQ %d, DMA %d, %d\n",
 		irq, dma8, dma16);
 	
-	hw_config = kmalloc(sizeof(struct address_info), GFP_KERNEL);
+	hw_config = kzalloc(sizeof(struct address_info), GFP_KERNEL);
 	if(hw_config == NULL)
 	{
 		printk(KERN_ERR "kahlua: out of memory.\n");
 		return 1;
 	}
-	memset(hw_config, 0, sizeof(*hw_config));
 	
 	pci_set_drvdata(pdev, hw_config);
 	

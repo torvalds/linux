@@ -1,3 +1,6 @@
+#ifndef _M32700UT_M32700UT_LCD_H
+#define _M32700UT_M32700UT_LCD_H
+
 /*
  * include/asm-m32r/m32700ut/m32700ut_lcd.h
  *
@@ -8,13 +11,7 @@
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file "COPYING" in the main directory of
  * this archive for more details.
- *
- * $Id$
  */
-
-#ifndef _M32700UT_M32700UT_LCD_H
-#define _M32700UT_M32700UT_LCD_H
-
 
 #ifndef __ASSEMBLY__
 /*
@@ -23,7 +20,7 @@
 #define M32700UT_LCD_BASE	(0x10000000 /* + NONCACHE_OFFSET */)
 #else
 #define M32700UT_LCD_BASE	(0x10000000 + NONCACHE_OFFSET)
-#endif	/* __ASSEMBLY__ */
+#endif /* __ASSEMBLY__ */
 
 /*
  * ICU
@@ -55,4 +52,4 @@
 #define M32700UT_LCD_ICUCR19	__reg16(M32700UT_LCD_BASE + 0x300036)
 #define M32700UT_LCD_ICUCR21	__reg16(M32700UT_LCD_BASE + 0x30003a)
 
-#endif	/* _M32700UT_M32700UT_LCD_H */
+#endif /* _M32700UT_M32700UT_LCD_H */

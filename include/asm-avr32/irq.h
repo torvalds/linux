@@ -2,8 +2,12 @@
 #define __ASM_AVR32_IRQ_H
 
 #define NR_INTERNAL_IRQS	64
-#define NR_EXTERNAL_IRQS	64
-#define NR_IRQS			(NR_INTERNAL_IRQS + NR_EXTERNAL_IRQS)
+
+#include <asm/arch/irq.h>
+
+#ifndef NR_IRQS
+#define NR_IRQS			(NR_INTERNAL_IRQS)
+#endif
 
 #define irq_canonicalize(i)	(i)
 

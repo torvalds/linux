@@ -1,6 +1,6 @@
 /*
  * net/tipc/addr.h: Include file for TIPC address utility routines
- * 
+ *
  * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2004-2005, Wind River Systems
  * All rights reserved.
@@ -100,8 +100,8 @@ static inline int addr_scope(u32 domain)
 
 /**
  * addr_domain - convert 2-bit scope value to equivalent message lookup domain
- *  
- * Needed when address of a named message must be looked up a second time 
+ *
+ * Needed when address of a named message must be looked up a second time
  * after a network hop.
  */
 

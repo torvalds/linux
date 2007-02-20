@@ -1523,9 +1523,8 @@ static struct uart_state *uart_get(struct uart_driver *drv, int line)
 	}
 
 	if (!state->info) {
-		state->info = kmalloc(sizeof(struct uart_info), GFP_KERNEL);
+		state->info = kzalloc(sizeof(struct uart_info), GFP_KERNEL);
 		if (state->info) {
-			memset(state->info, 0, sizeof(struct uart_info));
 			init_waitqueue_head(&state->info->open_wait);
 			init_waitqueue_head(&state->info->delta_msr_wait);
 
@@ -1660,6 +1659,7 @@ static const char *uart_type(struct uart_port *port)
 static int uart_line_info(char *buf, struct uart_driver *drv, int i)
 {
 	struct uart_state *state = drv->state + i;
+	int pm_state;
 	struct uart_port *port = state->port;
 	char stat_buf[32];
 	unsigned int status;
@@ -1682,9 +1682,16 @@ static int uart_line_info(char *buf, struct uart_driver *drv, int i)
 
 	if(capable(CAP_SYS_ADMIN))
 	{
+		mutex_lock(&state->mutex);
+		pm_state = state->pm_state;
+		if (pm_state)
+			uart_change_pm(state, 0);
 		spin_lock_irq(&port->lock);
 		status = port->ops->get_mctrl(port);
 		spin_unlock_irq(&port->lock);
+		if (pm_state)
+			uart_change_pm(state, pm_state);
+		mutex_unlock(&state->mutex);
 
 		ret += sprintf(buf + ret, " tx:%d rx:%d",
 				port->icount.tx, port->icount.rx);
@@ -2100,6 +2107,9 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 
 		uart_report_port(drv, port);
 
+		/* Power up port for set_mctrl() */
+		uart_change_pm(state, 0);
+
 		/*
 		 * Ensure that the modem control lines are de-activated.
 		 * We probably don't need a spinlock around this, but
@@ -2167,12 +2177,10 @@ int uart_register_driver(struct uart_driver *drv)
 	 * Maybe we should be using a slab cache for this, especially if
 	 * we have a large number of ports to handle.
 	 */
-	drv->state = kmalloc(sizeof(struct uart_state) * drv->nr, GFP_KERNEL);
+	drv->state = kzalloc(sizeof(struct uart_state) * drv->nr, GFP_KERNEL);
 	retval = -ENOMEM;
 	if (!drv->state)
 		goto out;
-
-	memset(drv->state, 0, sizeof(struct uart_state) * drv->nr);
 
 	normal  = alloc_tty_driver(drv->nr);
 	if (!normal)

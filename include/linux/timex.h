@@ -255,10 +255,10 @@ struct time_interpolator {
 	u8 jitter;			/* if set compensate for fluctuations */
 	u32 nsec_per_cyc;		/* set by register_time_interpolator() */
 	void *addr;			/* address of counter or function */
-	u64 mask;			/* mask the valid bits of the counter */
+	cycles_t mask;			/* mask the valid bits of the counter */
 	unsigned long offset;		/* nsec offset at last update of interpolator */
 	u64 last_counter;		/* counter value in units of the counter at last update */
-	u64 last_cycle;			/* Last timer value if TIME_SOURCE_JITTER is set */
+	cycles_t last_cycle;		/* Last timer value if TIME_SOURCE_JITTER is set */
 	u64 frequency;			/* frequency in counts/second */
 	long drift;			/* drift in parts-per-million (or -1) */
 	unsigned long skips;		/* skips forward */
@@ -285,6 +285,13 @@ static inline void time_interpolator_update(long delta_nsec)
 #endif /* !CONFIG_TIME_INTERPOLATION */
 
 #define TICK_LENGTH_SHIFT	32
+
+#ifdef CONFIG_NO_HZ
+#define NTP_INTERVAL_FREQ  (2)
+#else
+#define NTP_INTERVAL_FREQ  (HZ)
+#endif
+#define NTP_INTERVAL_LENGTH (NSEC_PER_SEC/NTP_INTERVAL_FREQ)
 
 /* Returns how long ticks are at present, in ns / 2^(SHIFT_SCALE-10). */
 extern u64 current_tick_length(void);

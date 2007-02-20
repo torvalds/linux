@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <linux/textsearch.h>
@@ -125,7 +124,7 @@ static int em_text_dump(struct sk_buff *skb, struct tcf_ematch *m)
 
 rtattr_failure:
 	return -1;
-}		
+}
 
 static struct tcf_ematch_ops em_text_ops = {
 	.kind	  = TCF_EM_TEXT,
@@ -142,7 +141,7 @@ static int __init init_em_text(void)
 	return tcf_em_register(&em_text_ops);
 }
 
-static void __exit exit_em_text(void) 
+static void __exit exit_em_text(void)
 {
 	tcf_em_unregister(&em_text_ops);
 }

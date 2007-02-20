@@ -53,7 +53,7 @@ static struct nf_nat_protocol *nf_nat_protos[MAX_IP_NAT_PROTO];
 static inline struct nf_nat_protocol *
 __nf_nat_proto_find(u_int8_t protonum)
 {
-	return nf_nat_protos[protonum];
+	return rcu_dereference(nf_nat_protos[protonum]);
 }
 
 struct nf_nat_protocol *
@@ -61,13 +61,11 @@ nf_nat_proto_find_get(u_int8_t protonum)
 {
 	struct nf_nat_protocol *p;
 
-	/* we need to disable preemption to make sure 'p' doesn't get
-	 * removed until we've grabbed the reference */
-	preempt_disable();
+	rcu_read_lock();
 	p = __nf_nat_proto_find(protonum);
 	if (!try_module_get(p->me))
 		p = &nf_nat_unknown_protocol;
-	preempt_enable();
+	rcu_read_unlock();
 
 	return p;
 }
@@ -126,8 +124,8 @@ in_range(const struct nf_conntrack_tuple *tuple,
 	 const struct nf_nat_range *range)
 {
 	struct nf_nat_protocol *proto;
+	int ret = 0;
 
-	proto = __nf_nat_proto_find(tuple->dst.protonum);
 	/* If we are supposed to map IPs, then we must be in the
 	   range specified, otherwise let this drag us onto a new src IP. */
 	if (range->flags & IP_NAT_RANGE_MAP_IPS) {
@@ -136,12 +134,15 @@ in_range(const struct nf_conntrack_tuple *tuple,
 			return 0;
 	}
 
+	rcu_read_lock();
+	proto = __nf_nat_proto_find(tuple->dst.protonum);
 	if (!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED) ||
 	    proto->in_range(tuple, IP_NAT_MANIP_SRC,
 			    &range->min, &range->max))
-		return 1;
+		ret = 1;
+	rcu_read_unlock();
 
-	return 0;
+	return ret;
 }
 
 static inline int
@@ -254,8 +255,9 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	if (maniptype == IP_NAT_MANIP_SRC) {
 		if (find_appropriate_src(orig_tuple, tuple, range)) {
 			DEBUGP("get_unique_tuple: Found current src map\n");
-			if (!nf_nat_used_tuple(tuple, ct))
-				return;
+			if (!(range->flags & IP_NAT_RANGE_PROTO_RANDOM))
+				if (!nf_nat_used_tuple(tuple, ct))
+					return;
 		}
 	}
 
@@ -267,20 +269,25 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	/* 3) The per-protocol part of the manip is made to map into
 	   the range to make a unique tuple. */
 
-	proto = nf_nat_proto_find_get(orig_tuple->dst.protonum);
+	rcu_read_lock();
+	proto = __nf_nat_proto_find(orig_tuple->dst.protonum);
+
+	/* Change protocol info to have some randomization */
+	if (range->flags & IP_NAT_RANGE_PROTO_RANDOM) {
+		proto->unique_tuple(tuple, range, maniptype, ct);
+		goto out;
+	}
 
 	/* Only bother mapping if it's not already in range and unique */
 	if ((!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED) ||
 	     proto->in_range(tuple, maniptype, &range->min, &range->max)) &&
-	    !nf_nat_used_tuple(tuple, ct)) {
-		nf_nat_proto_put(proto);
-		return;
-	}
+	    !nf_nat_used_tuple(tuple, ct))
+		goto out;
 
 	/* Last change: get protocol to try to obtain unique tuple. */
 	proto->unique_tuple(tuple, range, maniptype, ct);
-
-	nf_nat_proto_put(proto);
+out:
+	rcu_read_unlock();
 }
 
 unsigned int
@@ -361,12 +368,11 @@ manip_pkt(u_int16_t proto,
 	iph = (void *)(*pskb)->data + iphdroff;
 
 	/* Manipulate protcol part. */
-	p = nf_nat_proto_find_get(proto);
-	if (!p->manip_pkt(pskb, iphdroff, target, maniptype)) {
-		nf_nat_proto_put(p);
+
+	/* rcu_read_lock()ed by nf_hook_slow */
+	p = __nf_nat_proto_find(proto);
+	if (!p->manip_pkt(pskb, iphdroff, target, maniptype))
 		return 0;
-	}
-	nf_nat_proto_put(p);
 
 	iph = (void *)(*pskb)->data + iphdroff;
 
@@ -423,6 +429,7 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 		struct icmphdr icmp;
 		struct iphdr ip;
 	} *inside;
+	struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple inner, target;
 	int hdrlen = (*pskb)->nh.iph->ihl * 4;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
@@ -444,8 +451,8 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 		     (*pskb)->nfctinfo == IP_CT_RELATED+IP_CT_IS_REPLY);
 
 	/* Redirects on non-null nats must be dropped, else they'll
-           start talking to each other without our translation, and be
-           confused... --RR */
+	   start talking to each other without our translation, and be
+	   confused... --RR */
 	if (inside->icmp.type == ICMP_REDIRECT) {
 		/* If NAT isn't finished, assume it and drop. */
 		if ((ct->status & IPS_NAT_DONE_MASK) != IPS_NAT_DONE_MASK)
@@ -458,16 +465,16 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 	DEBUGP("icmp_reply_translation: translating error %p manp %u dir %s\n",
 	       *pskb, manip, dir == IP_CT_DIR_ORIGINAL ? "ORIG" : "REPLY");
 
+	/* rcu_read_lock()ed by nf_hook_slow */
+	l4proto = __nf_ct_l4proto_find(PF_INET, inside->ip.protocol);
+
 	if (!nf_ct_get_tuple(*pskb,
 			     (*pskb)->nh.iph->ihl*4 + sizeof(struct icmphdr),
 			     (*pskb)->nh.iph->ihl*4 +
-	                     sizeof(struct icmphdr) + inside->ip.ihl*4,
-	                     (u_int16_t)AF_INET,
-	                     inside->ip.protocol,
-	                     &inner,
-	                     l3proto,
-			     __nf_ct_l4proto_find((u_int16_t)PF_INET,
-			     			  inside->ip.protocol)))
+			     sizeof(struct icmphdr) + inside->ip.ihl*4,
+			     (u_int16_t)AF_INET,
+			     inside->ip.protocol,
+			     &inner, l3proto, l4proto))
 		return 0;
 
 	/* Change inner back to look like incoming packet.  We do the
@@ -521,7 +528,7 @@ int nf_nat_protocol_register(struct nf_nat_protocol *proto)
 		ret = -EBUSY;
 		goto out;
 	}
-	nf_nat_protos[proto->protonum] = proto;
+	rcu_assign_pointer(nf_nat_protos[proto->protonum], proto);
  out:
 	write_unlock_bh(&nf_nat_lock);
 	return ret;
@@ -532,11 +539,10 @@ EXPORT_SYMBOL(nf_nat_protocol_register);
 void nf_nat_protocol_unregister(struct nf_nat_protocol *proto)
 {
 	write_lock_bh(&nf_nat_lock);
-	nf_nat_protos[proto->protonum] = &nf_nat_unknown_protocol;
+	rcu_assign_pointer(nf_nat_protos[proto->protonum],
+			   &nf_nat_unknown_protocol);
 	write_unlock_bh(&nf_nat_lock);
-
-	/* Someone could be still looking at the proto in a bh. */
-	synchronize_net();
+	synchronize_rcu();
 }
 EXPORT_SYMBOL(nf_nat_protocol_unregister);
 
@@ -600,10 +606,10 @@ static int __init nf_nat_init(void)
 	/* Sew in builtin protocols. */
 	write_lock_bh(&nf_nat_lock);
 	for (i = 0; i < MAX_IP_NAT_PROTO; i++)
-		nf_nat_protos[i] = &nf_nat_unknown_protocol;
-	nf_nat_protos[IPPROTO_TCP] = &nf_nat_protocol_tcp;
-	nf_nat_protos[IPPROTO_UDP] = &nf_nat_protocol_udp;
-	nf_nat_protos[IPPROTO_ICMP] = &nf_nat_protocol_icmp;
+		rcu_assign_pointer(nf_nat_protos[i], &nf_nat_unknown_protocol);
+	rcu_assign_pointer(nf_nat_protos[IPPROTO_TCP], &nf_nat_protocol_tcp);
+	rcu_assign_pointer(nf_nat_protos[IPPROTO_UDP], &nf_nat_protocol_udp);
+	rcu_assign_pointer(nf_nat_protos[IPPROTO_ICMP], &nf_nat_protocol_icmp);
 	write_unlock_bh(&nf_nat_lock);
 
 	for (i = 0; i < nf_nat_htable_size; i++) {
@@ -611,8 +617,8 @@ static int __init nf_nat_init(void)
 	}
 
 	/* FIXME: Man, this is a hack.  <SIGH> */
-	NF_CT_ASSERT(nf_conntrack_destroyed == NULL);
-	nf_conntrack_destroyed = &nf_nat_cleanup_conntrack;
+	NF_CT_ASSERT(rcu_dereference(nf_conntrack_destroyed) == NULL);
+	rcu_assign_pointer(nf_conntrack_destroyed, nf_nat_cleanup_conntrack);
 
 	/* Initialize fake conntrack so that NAT will skip it */
 	nf_conntrack_untracked.status |= IPS_NAT_DONE_MASK;
@@ -636,7 +642,8 @@ static int clean_nat(struct nf_conn *i, void *data)
 static void __exit nf_nat_cleanup(void)
 {
 	nf_ct_iterate_cleanup(&clean_nat, NULL);
-	nf_conntrack_destroyed = NULL;
+	rcu_assign_pointer(nf_conntrack_destroyed, NULL);
+	synchronize_rcu();
 	vfree(bysource);
 	nf_ct_l3proto_put(l3proto);
 }

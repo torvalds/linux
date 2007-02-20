@@ -32,7 +32,7 @@
 #include <linux/hid.h>
 #include "usbhid.h"
 
-struct device_type {
+struct dev_type {
 	u16 idVendor;
 	u16 idProduct;
 	const signed short *ff;
@@ -48,11 +48,13 @@ static const signed short ff_joystick[] = {
 	-1
 };
 
-static const struct device_type devices[] = {
+static const struct dev_type devices[] = {
 	{ 0x046d, 0xc211, ff_rumble },
 	{ 0x046d, 0xc219, ff_rumble },
 	{ 0x046d, 0xc283, ff_joystick },
-	{ 0x0000, 0x0000, ff_joystick }
+	{ 0x046d, 0xc294, ff_joystick },
+	{ 0x046d, 0xc295, ff_joystick },
+	{ 0x046d, 0xca03, ff_joystick },
 };
 
 static int hid_lgff_play(struct input_dev *dev, void *data, struct ff_effect *effect)
@@ -104,8 +106,9 @@ int hid_lgff_init(struct hid_device* hid)
 	struct input_dev *dev = hidinput->input;
 	struct hid_report *report;
 	struct hid_field *field;
+	const signed short *ff_bits = ff_joystick;
 	int error;
-	int i, j;
+	int i;
 
 	/* Find the report to use */
 	if (list_empty(report_list)) {
@@ -129,11 +132,13 @@ int hid_lgff_init(struct hid_device* hid)
 	for (i = 0; i < ARRAY_SIZE(devices); i++) {
 		if (dev->id.vendor == devices[i].idVendor &&
 		    dev->id.product == devices[i].idProduct) {
-			for (j = 0; devices[i].ff[j] >= 0; j++)
-				set_bit(devices[i].ff[j], dev->ffbit);
+			ff_bits = devices[i].ff;
 			break;
 		}
 	}
+
+	for (i = 0; ff_bits[i] >= 0; i++)
+		set_bit(ff_bits[i], dev->ffbit);
 
 	error = input_ff_create_memless(dev, NULL, hid_lgff_play);
 	if (error)

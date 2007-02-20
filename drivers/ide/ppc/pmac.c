@@ -24,7 +24,6 @@
  */
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
@@ -1238,7 +1237,7 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
        	hwif->OUTBSYNC = pmac_outbsync;
 
 	/* Tell common code _not_ to mess with resources */
-	hwif->mmio = 2;
+	hwif->mmio = 1;
 	hwif->hwif_data = pmif;
 	pmac_ide_init_hwif_ports(&hwif->hw, pmif->regbase, 0, &hwif->irq);
 	memcpy(hwif->io_ports, hwif->hw.io_ports, sizeof(hwif->io_ports));
@@ -1980,16 +1979,12 @@ pmac_ide_dma_test_irq (ide_drive_t *drive)
 	return 1;
 }
 
-static int
-pmac_ide_dma_host_off (ide_drive_t *drive)
+static void pmac_ide_dma_host_off(ide_drive_t *drive)
 {
-	return 0;
 }
 
-static int
-pmac_ide_dma_host_on (ide_drive_t *drive)
+static int pmac_ide_dma_host_on(ide_drive_t *drive)
 {
-	return 0;
 }
 
 static int
@@ -2035,7 +2030,7 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->ide_dma_off_quietly = &__ide_dma_off_quietly;
+	hwif->dma_off_quietly = &ide_dma_off_quietly;
 	hwif->ide_dma_on = &__ide_dma_on;
 	hwif->ide_dma_check = &pmac_ide_dma_check;
 	hwif->dma_setup = &pmac_ide_dma_setup;
@@ -2043,8 +2038,8 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->dma_start = &pmac_ide_dma_start;
 	hwif->ide_dma_end = &pmac_ide_dma_end;
 	hwif->ide_dma_test_irq = &pmac_ide_dma_test_irq;
-	hwif->ide_dma_host_off = &pmac_ide_dma_host_off;
-	hwif->ide_dma_host_on = &pmac_ide_dma_host_on;
+	hwif->dma_host_off = &pmac_ide_dma_host_off;
+	hwif->dma_host_on = &pmac_ide_dma_host_on;
 	hwif->ide_dma_timeout = &__ide_dma_timeout;
 	hwif->ide_dma_lostirq = &pmac_ide_dma_lostirq;
 

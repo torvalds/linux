@@ -68,7 +68,7 @@ static inline void set_fs(mm_segment_t s)
  * This needs 33-bit arithmetic. We have a carry...
  */
 #define __range_ok(addr,size) ({					\
-	unsigned long flag, sum; 					\
+	unsigned long flag, roksum; 					\
 	__chk_user_ptr(addr);						\
 	asm ( 								\
 		"	cmpu	%1, %1    ; clear cbit\n"		\
@@ -76,7 +76,7 @@ static inline void set_fs(mm_segment_t s)
 		"	subx	%0, %0\n"				\
 		"	cmpu	%4, %1\n"				\
 		"	subx	%0, %5\n"				\
-		: "=&r" (flag), "=r" (sum)				\
+		: "=&r" (flag), "=r" (roksum)				\
 		: "1" (addr), "r" ((int)(size)), 			\
 		  "r" (current_thread_info()->addr_limit.seg), "r" (0)	\
 		: "cbit" );						\

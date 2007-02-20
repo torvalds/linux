@@ -120,7 +120,7 @@ struct debug_view debug_hex_ascii_view = {
 	NULL
 };
 
-struct debug_view debug_level_view = {
+static struct debug_view debug_level_view = {
 	"level",
 	&debug_prolog_level_fn,
 	NULL,
@@ -129,7 +129,7 @@ struct debug_view debug_level_view = {
 	NULL
 };
 
-struct debug_view debug_pages_view = {
+static struct debug_view debug_pages_view = {
 	"pages",
 	&debug_prolog_pages_fn,
 	NULL,
@@ -138,7 +138,7 @@ struct debug_view debug_pages_view = {
 	NULL
 };
 
-struct debug_view debug_flush_view = {
+static struct debug_view debug_flush_view = {
         "flush",
         NULL,
         NULL,
@@ -156,18 +156,18 @@ struct debug_view debug_sprintf_view = {
 	NULL
 };
 
-
+/* used by dump analysis tools to determine version of debug feature */
 unsigned int debug_feature_version = __DEBUG_FEATURE_VERSION;
 
 /* static globals */
 
 static debug_info_t *debug_area_first = NULL;
 static debug_info_t *debug_area_last = NULL;
-DECLARE_MUTEX(debug_lock);
+static DECLARE_MUTEX(debug_lock);
 
 static int initialized;
 
-static struct file_operations debug_file_ops = {
+static const struct file_operations debug_file_ops = {
 	.owner   = THIS_MODULE,
 	.read    = debug_output,
 	.write   = debug_input,
@@ -852,7 +852,6 @@ debug_finish_entry(debug_info_t * id, debug_entry_t* active, int level,
 static int debug_stoppable=1;
 static int debug_active=1;
 
-#define CTL_S390DBF 5677
 #define CTL_S390DBF_STOPPABLE 5678
 #define CTL_S390DBF_ACTIVE 5679
 
@@ -905,7 +904,7 @@ static struct ctl_table s390dbf_dir_table[] = {
 	{ .ctl_name = 0 }
 };
 
-struct ctl_table_header *s390dbf_sysctl_header;
+static struct ctl_table_header *s390dbf_sysctl_header;
 
 void
 debug_stop_all(void)
@@ -1054,7 +1053,7 @@ __init debug_init(void)
 {
 	int rc = 0;
 
-	s390dbf_sysctl_header = register_sysctl_table(s390dbf_dir_table, 1);
+	s390dbf_sysctl_header = register_sysctl_table(s390dbf_dir_table);
 	down(&debug_lock);
 	debug_debugfs_root_entry = debugfs_create_dir(DEBUG_DIR_ROOT,NULL);
 	printk(KERN_INFO "debug: Initialization complete\n");
@@ -1300,8 +1299,7 @@ out:
  * flushes debug areas
  */
  
-void
-debug_flush(debug_info_t* id, int area)
+static void debug_flush(debug_info_t* id, int area)
 {
         unsigned long flags;
         int i,j;
@@ -1511,8 +1509,7 @@ out:
 /*
  * clean up module
  */
-void
-__exit debug_exit(void)
+static void __exit debug_exit(void)
 {
 	debugfs_remove(debug_debugfs_root_entry);
 	unregister_sysctl_table(s390dbf_sysctl_header);

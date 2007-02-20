@@ -1,9 +1,9 @@
 /*
  *	PF_INET6 socket protocol family
- *	Linux INET6 implementation 
+ *	Linux INET6 implementation
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	Adapted from linux/net/ipv4/af_inet.c
  *
@@ -28,7 +28,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/sockios.h>
@@ -191,7 +190,7 @@ lookup_protocol:
 	np->mc_loop	= 1;
 	np->pmtudisc	= IPV6_PMTUDISC_WANT;
 	np->ipv6only	= sysctl_ipv6_bindv6only;
-	
+
 	/* Init the ipv4 part of the socket since we can have sockets
 	 * using v6 API for ipv4.
 	 */
@@ -206,7 +205,7 @@ lookup_protocol:
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;
-	/* 
+	/*
 	 * Increment only the relevant sk_prot->socks debug field, this changes
 	 * the previous behaviour of incrementing both the equivalent to
 	 * answer->prot->socks (inet6_sock_nr) and inet_sock_nr.
@@ -293,7 +292,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 					 */
 					sk->sk_bound_dev_if = addr->sin6_scope_id;
 				}
-				
+
 				/* Binding to link-local address requires an interface */
 				if (!sk->sk_bound_dev_if) {
 					err = -EINVAL;
@@ -327,7 +326,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	inet->saddr = v4addr;
 
 	ipv6_addr_copy(&np->rcv_saddr, &addr->sin6_addr);
-		
+
 	if (!(addr_type & IPV6_ADDR_MULTICAST))
 		ipv6_addr_copy(&np->saddr, &addr->sin6_addr);
 
@@ -393,7 +392,7 @@ EXPORT_SYMBOL_GPL(inet6_destroy_sock);
 /*
  *	This does both peername and sockname.
  */
- 
+
 int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 		 int *uaddr_len, int peer)
 {
@@ -401,7 +400,7 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 	struct sock *sk = sock->sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
-  
+
 	sin->sin6_family = AF_INET6;
 	sin->sin6_flowinfo = 0;
 	sin->sin6_scope_id = 0;
@@ -433,14 +432,14 @@ int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
 
-	switch(cmd) 
+	switch(cmd)
 	{
 	case SIOCGSTAMP:
 		return sock_get_timestamp(sk, (struct timeval __user *)arg);
 
 	case SIOCADDRT:
 	case SIOCDELRT:
-	  
+
 		return(ipv6_route_ioctl(cmd,(void __user *)arg));
 
 	case SIOCSIFADDR:
@@ -584,7 +583,7 @@ inet6_register_protosw(struct inet_protosw *p)
 	/* Add the new entry after the last permanent entry if any, so that
 	 * the new entry does not override a permanent entry when matched with
 	 * a wild-card protocol. But it is allowed to override any existing
-	 * non-permanent entry.  This means that when we remove this entry, the 
+	 * non-permanent entry.  This means that when we remove this entry, the
 	 * system automatically returns to the old behavior.
 	 */
 	list_add_rcu(&p->list, last_perm);
@@ -749,7 +748,7 @@ err_icmp_mib:
 	snmp6_mib_free((void **)ipv6_statistics);
 err_ip_mib:
 	return -ENOMEM;
-	
+
 }
 
 static void cleanup_ipv6_mibs(void)
@@ -763,7 +762,7 @@ static void cleanup_ipv6_mibs(void)
 static int __init inet6_init(void)
 {
 	struct sk_buff *dummy_skb;
-        struct list_head *r;
+	struct list_head *r;
 	int err;
 
 	BUILD_BUG_ON(sizeof(struct inet6_skb_parm) > sizeof(dummy_skb->cb));
@@ -814,7 +813,7 @@ static int __init inet6_init(void)
 	err = init_ipv6_mibs();
 	if (err)
 		goto out_unregister_sock;
-	
+
 	/*
 	 *	ipngwg API draft makes clear that the correct semantics
 	 *	for TCP and UDP is to consider one TCP and UDP instance
@@ -933,11 +932,11 @@ static void __exit inet6_exit(void)
 #ifdef CONFIG_PROC_FS
 	if6_proc_exit();
 	ac6_proc_exit();
- 	ipv6_misc_proc_exit();
- 	udp6_proc_exit();
- 	udplite6_proc_exit();
- 	tcp6_proc_exit();
- 	raw6_proc_exit();
+	ipv6_misc_proc_exit();
+	udp6_proc_exit();
+	udplite6_proc_exit();
+	tcp6_proc_exit();
+	raw6_proc_exit();
 #endif
 #ifdef CONFIG_IPV6_MIP6
 	mip6_fini();
@@ -952,7 +951,7 @@ static void __exit inet6_exit(void)
 	ndisc_cleanup();
 	icmpv6_cleanup();
 #ifdef CONFIG_SYSCTL
-	ipv6_sysctl_unregister();	
+	ipv6_sysctl_unregister();
 #endif
 	cleanup_ipv6_mibs();
 	proto_unregister(&rawv6_prot);

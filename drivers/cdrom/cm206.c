@@ -183,7 +183,6 @@ History:
 #include <linux/errno.h>	/* These include what we really need */
 #include <linux/delay.h>
 #include <linux/string.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
 #include <linux/cdrom.h>

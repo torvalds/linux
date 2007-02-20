@@ -1,4 +1,4 @@
-/* 
+/*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
@@ -26,9 +26,10 @@
  * @port: port to convert
  *
  * Legacy in/out instructions are converted to ld/st instructions
- * on IA64.  This routine will convert a port number into a valid 
+ * on IA64.  This routine will convert a port number into a valid
  * SN i/o address.  Used by sn_in*() and sn_out*().
  */
+
 void *sn_io_addr(unsigned long port)
 {
 	if (!IS_RUNNING_ON_SIMULATOR()) {

@@ -1,5 +1,4 @@
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/errno.h>

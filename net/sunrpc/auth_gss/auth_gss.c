@@ -2,7 +2,7 @@
  * linux/net/sunrpc/auth_gss/auth_gss.c
  *
  * RPCSEC_GSS client authentication.
- * 
+ *
  *  Copyright (c) 2000 The Regents of the University of Michigan.
  *  All rights reserved.
  *
@@ -74,7 +74,7 @@ static struct rpc_credops gss_credops;
 * as it is passed to gssd to signal the use of
 * machine creds should be part of the shared rpc interface */
 
-#define CA_RUN_AS_MACHINE  0x00000200 
+#define CA_RUN_AS_MACHINE  0x00000200
 
 /* dump the buffer in `emacs-hexl' style */
 #define isprint(c)      ((c > 0x1f) && (c < 0x7f))
@@ -241,7 +241,7 @@ gss_fill_context(const void *p, const void *end, struct gss_cl_ctx *ctx, struct 
 	}
 	return q;
 err:
-	dprintk("RPC:      gss_fill_context returning %ld\n", -PTR_ERR(p));
+	dprintk("RPC:       gss_fill_context returning %ld\n", -PTR_ERR(p));
 	return p;
 }
 
@@ -276,10 +276,10 @@ __gss_find_upcall(struct gss_auth *gss_auth, uid_t uid)
 		if (pos->uid != uid)
 			continue;
 		atomic_inc(&pos->count);
-		dprintk("RPC:      gss_find_upcall found msg %p\n", pos);
+		dprintk("RPC:       gss_find_upcall found msg %p\n", pos);
 		return pos;
 	}
-	dprintk("RPC:      gss_find_upcall found nothing\n");
+	dprintk("RPC:       gss_find_upcall found nothing\n");
 	return NULL;
 }
 
@@ -393,7 +393,8 @@ gss_refresh_upcall(struct rpc_task *task)
 	struct gss_upcall_msg *gss_msg;
 	int err = 0;
 
-	dprintk("RPC: %4u gss_refresh_upcall for uid %u\n", task->tk_pid, cred->cr_uid);
+	dprintk("RPC: %5u gss_refresh_upcall for uid %u\n", task->tk_pid,
+								cred->cr_uid);
 	gss_msg = gss_setup_upcall(task->tk_client, gss_auth, cred);
 	if (IS_ERR(gss_msg)) {
 		err = PTR_ERR(gss_msg);
@@ -413,8 +414,8 @@ gss_refresh_upcall(struct rpc_task *task)
 	spin_unlock(&gss_auth->lock);
 	gss_release_msg(gss_msg);
 out:
-	dprintk("RPC: %4u gss_refresh_upcall for uid %u result %d\n", task->tk_pid,
-			cred->cr_uid, err);
+	dprintk("RPC: %5u gss_refresh_upcall for uid %u result %d\n",
+			task->tk_pid, cred->cr_uid, err);
 	return err;
 }
 
@@ -426,7 +427,7 @@ gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 	DEFINE_WAIT(wait);
 	int err = 0;
 
-	dprintk("RPC: gss_upcall for uid %u\n", cred->cr_uid);
+	dprintk("RPC:       gss_upcall for uid %u\n", cred->cr_uid);
 	gss_msg = gss_setup_upcall(gss_auth->client, gss_auth, cred);
 	if (IS_ERR(gss_msg)) {
 		err = PTR_ERR(gss_msg);
@@ -454,7 +455,8 @@ out_intr:
 	finish_wait(&gss_msg->waitqueue, &wait);
 	gss_release_msg(gss_msg);
 out:
-	dprintk("RPC: gss_create_upcall for uid %u result %d\n", cred->cr_uid, err);
+	dprintk("RPC:       gss_create_upcall for uid %u result %d\n",
+			cred->cr_uid, err);
 	return err;
 }
 
@@ -546,14 +548,14 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	}
 	gss_put_ctx(ctx);
 	kfree(buf);
-	dprintk("RPC:      gss_pipe_downcall returning length %Zu\n", mlen);
+	dprintk("RPC:       gss_pipe_downcall returning length %Zu\n", mlen);
 	return mlen;
 err_put_ctx:
 	gss_put_ctx(ctx);
 err:
 	kfree(buf);
 out:
-	dprintk("RPC:      gss_pipe_downcall returning %d\n", err);
+	dprintk("RPC:       gss_pipe_downcall returning %d\n", err);
 	return err;
 }
 
@@ -591,7 +593,7 @@ gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	static unsigned long ratelimit;
 
 	if (msg->errno < 0) {
-		dprintk("RPC:      gss_pipe_destroy_msg releasing msg %p\n",
+		dprintk("RPC:       gss_pipe_destroy_msg releasing msg %p\n",
 				gss_msg);
 		atomic_inc(&gss_msg->count);
 		gss_unhash_msg(gss_msg);
@@ -607,8 +609,8 @@ gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	}
 }
 
-/* 
- * NOTE: we have the opportunity to use different 
+/*
+ * NOTE: we have the opportunity to use different
  * parameters based on the input flavor (which must be a pseudoflavor)
  */
 static struct rpc_auth *
@@ -618,7 +620,7 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	struct rpc_auth * auth;
 	int err = -ENOMEM; /* XXX? */
 
-	dprintk("RPC:      creating GSS authenticator for client %p\n",clnt);
+	dprintk("RPC:       creating GSS authenticator for client %p\n", clnt);
 
 	if (!try_module_get(THIS_MODULE))
 		return ERR_PTR(err);
@@ -670,8 +672,8 @@ gss_destroy(struct rpc_auth *auth)
 {
 	struct gss_auth *gss_auth;
 
-	dprintk("RPC:      destroying GSS authenticator %p flavor %d\n",
-		auth, auth->au_flavor);
+	dprintk("RPC:       destroying GSS authenticator %p flavor %d\n",
+			auth, auth->au_flavor);
 
 	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
 	rpc_unlink(gss_auth->dentry);
@@ -689,7 +691,7 @@ gss_destroy(struct rpc_auth *auth)
 static void
 gss_destroy_ctx(struct gss_cl_ctx *ctx)
 {
-	dprintk("RPC:      gss_destroy_ctx\n");
+	dprintk("RPC:       gss_destroy_ctx\n");
 
 	if (ctx->gc_gss_ctx)
 		gss_delete_sec_context(&ctx->gc_gss_ctx);
@@ -703,7 +705,7 @@ gss_destroy_cred(struct rpc_cred *rc)
 {
 	struct gss_cred *cred = container_of(rc, struct gss_cred, gc_base);
 
-	dprintk("RPC:      gss_destroy_cred \n");
+	dprintk("RPC:       gss_destroy_cred \n");
 
 	if (cred->gc_ctx)
 		gss_put_ctx(cred->gc_ctx);
@@ -726,7 +728,7 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	struct gss_cred	*cred = NULL;
 	int err = -ENOMEM;
 
-	dprintk("RPC:      gss_create_cred for uid %d, flavor %d\n",
+	dprintk("RPC:       gss_create_cred for uid %d, flavor %d\n",
 		acred->uid, auth->au_flavor);
 
 	if (!(cred = kzalloc(sizeof(*cred), GFP_KERNEL)))
@@ -745,7 +747,7 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	return &cred->gc_base;
 
 out_err:
-	dprintk("RPC:      gss_create_cred failed with error %d\n", err);
+	dprintk("RPC:       gss_create_cred failed with error %d\n", err);
 	return ERR_PTR(err);
 }
 
@@ -799,7 +801,7 @@ gss_marshal(struct rpc_task *task, __be32 *p)
 	struct kvec	iov;
 	struct xdr_buf	verf_buf;
 
-	dprintk("RPC: %4u gss_marshal\n", task->tk_pid);
+	dprintk("RPC: %5u gss_marshal\n", task->tk_pid);
 
 	*p++ = htonl(RPC_AUTH_GSS);
 	cred_len = p++;
@@ -865,11 +867,11 @@ gss_validate(struct rpc_task *task, __be32 *p)
 	u32		flav,len;
 	u32		maj_stat;
 
-	dprintk("RPC: %4u gss_validate\n", task->tk_pid);
+	dprintk("RPC: %5u gss_validate\n", task->tk_pid);
 
 	flav = ntohl(*p++);
 	if ((len = ntohl(*p++)) > RPC_MAX_AUTH_SIZE)
-                goto out_bad;
+		goto out_bad;
 	if (flav != RPC_AUTH_GSS)
 		goto out_bad;
 	seq = htonl(task->tk_rqstp->rq_seqno);
@@ -888,12 +890,12 @@ gss_validate(struct rpc_task *task, __be32 *p)
 	 * calculate the length of the verifier: */
 	task->tk_auth->au_verfsize = XDR_QUADLEN(len) + 2;
 	gss_put_ctx(ctx);
-	dprintk("RPC: %4u GSS gss_validate: gss_verify_mic succeeded.\n",
+	dprintk("RPC: %5u gss_validate: gss_verify_mic succeeded.\n",
 			task->tk_pid);
 	return p + XDR_QUADLEN(len);
 out_bad:
 	gss_put_ctx(ctx);
-	dprintk("RPC: %4u gss_validate failed.\n", task->tk_pid);
+	dprintk("RPC: %5u gss_validate failed.\n", task->tk_pid);
 	return NULL;
 }
 
@@ -925,7 +927,7 @@ gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	*integ_len = htonl(integ_buf.len);
 
 	/* guess whether we're in the head or the tail: */
-	if (snd_buf->page_len || snd_buf->tail[0].iov_len) 
+	if (snd_buf->page_len || snd_buf->tail[0].iov_len)
 		iov = snd_buf->tail;
 	else
 		iov = snd_buf->head;
@@ -1030,7 +1032,7 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	maj_stat = gss_wrap(ctx->gc_gss_ctx, offset, snd_buf, inpages);
 	/* RPC_SLACK_SPACE should prevent this ever happening: */
 	BUG_ON(snd_buf->len > snd_buf->buflen);
-        status = -EIO;
+	status = -EIO;
 	/* We're assuming that when GSS_S_CONTEXT_EXPIRED, the encryption was
 	 * done anyway, so it's safe to put the request on the wire: */
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
@@ -1063,7 +1065,7 @@ gss_wrap_req(struct rpc_task *task,
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
 	int             status = -EIO;
 
-	dprintk("RPC: %4u gss_wrap_req\n", task->tk_pid);
+	dprintk("RPC: %5u gss_wrap_req\n", task->tk_pid);
 	if (ctx->gc_proc != RPC_GSS_PROC_DATA) {
 		/* The spec seems a little ambiguous here, but I think that not
 		 * wrapping context destruction requests makes the most sense.
@@ -1079,14 +1081,14 @@ gss_wrap_req(struct rpc_task *task,
 			status = gss_wrap_req_integ(cred, ctx, encode,
 								rqstp, p, obj);
 			break;
-       		case RPC_GSS_SVC_PRIVACY:
+		case RPC_GSS_SVC_PRIVACY:
 			status = gss_wrap_req_priv(cred, ctx, encode,
 					rqstp, p, obj);
 			break;
 	}
 out:
 	gss_put_ctx(ctx);
-	dprintk("RPC: %4u gss_wrap_req returning %d\n", task->tk_pid, status);
+	dprintk("RPC: %5u gss_wrap_req returning %d\n", task->tk_pid, status);
 	return status;
 }
 
@@ -1179,7 +1181,7 @@ gss_unwrap_resp(struct rpc_task *task,
 			if (status)
 				goto out;
 			break;
-       		case RPC_GSS_SVC_PRIVACY:
+		case RPC_GSS_SVC_PRIVACY:
 			status = gss_unwrap_resp_priv(cred, ctx, rqstp, &p);
 			if (status)
 				goto out;
@@ -1192,11 +1194,11 @@ out_decode:
 	status = decode(rqstp, p, obj);
 out:
 	gss_put_ctx(ctx);
-	dprintk("RPC: %4u gss_unwrap_resp returning %d\n", task->tk_pid,
+	dprintk("RPC: %5u gss_unwrap_resp returning %d\n", task->tk_pid,
 			status);
 	return status;
 }
-  
+
 static struct rpc_authops authgss_ops = {
 	.owner		= THIS_MODULE,
 	.au_flavor	= RPC_AUTH_GSS,

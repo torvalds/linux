@@ -19,7 +19,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/sockios.h>
@@ -34,7 +33,7 @@
 #include <linux/interrupt.h>
 #include <net/lapb.h>
 
-/* 
+/*
  *  This procedure is passed a buffer descriptor for an iframe. It builds
  *  the rest of the control part of the frame and then writes it out.
  */
@@ -66,7 +65,7 @@ static void lapb_send_iframe(struct lapb_cb *lapb, struct sk_buff *skb, int poll
 	       lapb->dev, lapb->state, poll_bit, lapb->vs, lapb->vr);
 #endif
 
-	lapb_transmit_buffer(lapb, skb, LAPB_COMMAND);	
+	lapb_transmit_buffer(lapb, skb, LAPB_COMMAND);
 }
 
 void lapb_kick(struct lapb_cb *lapb)

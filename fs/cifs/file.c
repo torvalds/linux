@@ -1146,7 +1146,7 @@ static int cifs_writepages(struct address_space *mapping,
 	pgoff_t end;
 	pgoff_t index;
  	int range_whole = 0;
-	struct kvec iov[32];
+	struct kvec * iov;
 	int len;
 	int n_iov = 0;
 	pgoff_t next;
@@ -1171,8 +1171,13 @@ static int cifs_writepages(struct address_space *mapping,
 	if((cifs_sb->tcon->ses) && (cifs_sb->tcon->ses->server))
 		if(cifs_sb->tcon->ses->server->secMode &
                           (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-			if(!experimEnabled)
+			if(!experimEnabled) 
 				return generic_writepages(mapping, wbc);
+
+	iov = kmalloc(32 * sizeof(struct kvec), GFP_KERNEL);
+	if(iov == NULL)
+		return generic_writepages(mapping, wbc);
+
 
 	/*
 	 * BB: Is this meaningful for a non-block-device file system?
@@ -1180,6 +1185,7 @@ static int cifs_writepages(struct address_space *mapping,
 	 */
 	if (wbc->nonblocking && bdi_write_congested(bdi)) {
 		wbc->encountered_congestion = 1;
+		kfree(iov);
 		return 0;
 	}
 
@@ -1345,7 +1351,7 @@ retry:
 		mapping->writeback_index = index;
 
 	FreeXid(xid);
-
+	kfree(iov);
 	return rc;
 }
 
@@ -1948,7 +1954,7 @@ static int cifs_readpage(struct file *file, struct page *page)
    refreshing the inode only on increases in the file size 
    but this is tricky to do without racing with writebehind
    page caching in the current Linux kernel design */
-int is_size_safe_to_change(struct cifsInodeInfo *cifsInode)
+int is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file)
 {
 	struct cifsFileInfo *open_file = NULL;
 
@@ -1969,6 +1975,9 @@ int is_size_safe_to_change(struct cifsInodeInfo *cifsInode)
 			we can change size safely */
 			return 1;
 		}
+
+		if(i_size_read(&cifsInode->vfs_inode) < end_of_file)
+			return 1;
 
 		return 0;
 	} else

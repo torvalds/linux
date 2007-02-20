@@ -123,7 +123,7 @@ static ssize_t nfsctl_transaction_write(struct file *file, const char __user *bu
 		return PTR_ERR(data);
 
 	rv =  write_op[ino](file, data, size);
-	if (rv>0) {
+	if (rv >= 0) {
 		simple_transaction_set(file, rv);
 		rv = size;
 	}

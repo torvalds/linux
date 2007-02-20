@@ -181,7 +181,7 @@ rpcauth_gc_credcache(struct rpc_auth *auth, struct hlist_head *free)
 	struct rpc_cred	*cred;
 	int		i;
 
-	dprintk("RPC: gc'ing RPC credentials for auth %p\n", auth);
+	dprintk("RPC:       gc'ing RPC credentials for auth %p\n", auth);
 	for (i = 0; i < RPC_CREDCACHE_NR; i++) {
 		hlist_for_each_safe(pos, next, &cache->hashtable[i]) {
 			cred = hlist_entry(pos, struct rpc_cred, cr_hash);
@@ -213,7 +213,7 @@ retry:
 		rpcauth_gc_credcache(auth, &free);
 	hlist_for_each_safe(pos, next, &cache->hashtable[nr]) {
 		struct rpc_cred *entry;
-	       	entry = hlist_entry(pos, struct rpc_cred, cr_hash);
+		entry = hlist_entry(pos, struct rpc_cred, cr_hash);
 		if (entry->cr_ops->crmatch(acred, entry, flags)) {
 			hlist_del(&entry->cr_hash);
 			cred = entry;
@@ -267,7 +267,7 @@ rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 	};
 	struct rpc_cred *ret;
 
-	dprintk("RPC:     looking up %s cred\n",
+	dprintk("RPC:       looking up %s cred\n",
 		auth->au_ops->au_name);
 	get_group_info(acred.group_info);
 	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
@@ -287,7 +287,7 @@ rpcauth_bindcred(struct rpc_task *task)
 	struct rpc_cred *ret;
 	int flags = 0;
 
-	dprintk("RPC: %4d looking up %s cred\n",
+	dprintk("RPC: %5u looking up %s cred\n",
 		task->tk_pid, task->tk_auth->au_ops->au_name);
 	get_group_info(acred.group_info);
 	if (task->tk_flags & RPC_TASK_ROOTCREDS)
@@ -304,8 +304,9 @@ rpcauth_bindcred(struct rpc_task *task)
 void
 rpcauth_holdcred(struct rpc_task *task)
 {
-	dprintk("RPC: %4d holding %s cred %p\n",
-		task->tk_pid, task->tk_auth->au_ops->au_name, task->tk_msg.rpc_cred);
+	dprintk("RPC: %5u holding %s cred %p\n",
+		task->tk_pid, task->tk_auth->au_ops->au_name,
+		task->tk_msg.rpc_cred);
 	if (task->tk_msg.rpc_cred)
 		get_rpccred(task->tk_msg.rpc_cred);
 }
@@ -324,7 +325,7 @@ rpcauth_unbindcred(struct rpc_task *task)
 {
 	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
 
-	dprintk("RPC: %4d releasing %s cred %p\n",
+	dprintk("RPC: %5u releasing %s cred %p\n",
 		task->tk_pid, task->tk_auth->au_ops->au_name, cred);
 
 	put_rpccred(cred);
@@ -336,7 +337,7 @@ rpcauth_marshcred(struct rpc_task *task, __be32 *p)
 {
 	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
 
-	dprintk("RPC: %4d marshaling %s cred %p\n",
+	dprintk("RPC: %5u marshaling %s cred %p\n",
 		task->tk_pid, task->tk_auth->au_ops->au_name, cred);
 
 	return cred->cr_ops->crmarshal(task, p);
@@ -347,7 +348,7 @@ rpcauth_checkverf(struct rpc_task *task, __be32 *p)
 {
 	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
 
-	dprintk("RPC: %4d validating %s cred %p\n",
+	dprintk("RPC: %5u validating %s cred %p\n",
 		task->tk_pid, task->tk_auth->au_ops->au_name, cred);
 
 	return cred->cr_ops->crvalidate(task, p);
@@ -359,7 +360,7 @@ rpcauth_wrap_req(struct rpc_task *task, kxdrproc_t encode, void *rqstp,
 {
 	struct rpc_cred *cred = task->tk_msg.rpc_cred;
 
-	dprintk("RPC: %4d using %s cred %p to wrap rpc data\n",
+	dprintk("RPC: %5u using %s cred %p to wrap rpc data\n",
 			task->tk_pid, cred->cr_ops->cr_name, cred);
 	if (cred->cr_ops->crwrap_req)
 		return cred->cr_ops->crwrap_req(task, encode, rqstp, data, obj);
@@ -373,7 +374,7 @@ rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
 {
 	struct rpc_cred *cred = task->tk_msg.rpc_cred;
 
-	dprintk("RPC: %4d using %s cred %p to unwrap rpc data\n",
+	dprintk("RPC: %5u using %s cred %p to unwrap rpc data\n",
 			task->tk_pid, cred->cr_ops->cr_name, cred);
 	if (cred->cr_ops->crunwrap_resp)
 		return cred->cr_ops->crunwrap_resp(task, decode, rqstp,
@@ -388,7 +389,7 @@ rpcauth_refreshcred(struct rpc_task *task)
 	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
 	int err;
 
-	dprintk("RPC: %4d refreshing %s cred %p\n",
+	dprintk("RPC: %5u refreshing %s cred %p\n",
 		task->tk_pid, task->tk_auth->au_ops->au_name, cred);
 
 	err = cred->cr_ops->crrefresh(task);
@@ -400,7 +401,7 @@ rpcauth_refreshcred(struct rpc_task *task)
 void
 rpcauth_invalcred(struct rpc_task *task)
 {
-	dprintk("RPC: %4d invalidating %s cred %p\n",
+	dprintk("RPC: %5u invalidating %s cred %p\n",
 		task->tk_pid, task->tk_auth->au_ops->au_name, task->tk_msg.rpc_cred);
 	spin_lock(&rpc_credcache_lock);
 	if (task->tk_msg.rpc_cred)

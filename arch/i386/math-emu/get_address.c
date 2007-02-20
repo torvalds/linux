@@ -56,15 +56,14 @@ static int reg_offset_vm86[] = {
 #define VM86_REG_(x) (*(unsigned short *) \
 		      (reg_offset_vm86[((unsigned)x)]+(u_char *) FPU_info))
 
-/* These are dummy, fs and gs are not saved on the stack. */
-#define ___FS ___ds
+/* This dummy, gs is not saved on the stack. */
 #define ___GS ___ds
 
 static int reg_offset_pm[] = {
 	offsetof(struct info,___cs),
 	offsetof(struct info,___ds),
 	offsetof(struct info,___es),
-	offsetof(struct info,___FS),
+	offsetof(struct info,___fs),
 	offsetof(struct info,___GS),
 	offsetof(struct info,___ss),
 	offsetof(struct info,___ds)
@@ -169,13 +168,10 @@ static long pm_address(u_char FPU_modrm, u_char segment,
 
   switch ( segment )
     {
-      /* fs and gs aren't used by the kernel, so they still have their
-	 user-space values. */
-    case PREFIX_FS_-1:
-      /* N.B. - movl %seg, mem is a 2 byte write regardless of prefix */
-      savesegment(fs, addr->selector);
-      break;
+      /* gs isn't used by the kernel, so it still has its
+	 user-space value. */
     case PREFIX_GS_-1:
+      /* N.B. - movl %seg, mem is a 2 byte write regardless of prefix */
       savesegment(gs, addr->selector);
       break;
     default:

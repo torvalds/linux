@@ -65,10 +65,12 @@ static int clock_division_ratio = WTCSR_CKS_4096;
 
 #define next_ping_period(cks)	msecs_to_jiffies(cks - 4)
 
+static void sh_wdt_ping(unsigned long data);
+
 static unsigned long shwdt_is_open;
 static struct watchdog_info sh_wdt_info;
 static char shwdt_expect_close;
-static struct timer_list timer;
+static DEFINE_TIMER(timer, sh_wdt_ping, 0, 0);
 static unsigned long next_heartbeat;
 
 #define WATCHDOG_HEARTBEAT 30			/* 30 sec default heartbeat */
@@ -432,10 +434,6 @@ static int __init sh_wdt_init(void)
 		printk(KERN_INFO PFX "heartbeat value must "
 		       "be 1<=x<=3600, using %d\n", heartbeat);
 	}
-
-	init_timer(&timer);
-	timer.function = sh_wdt_ping;
-	timer.data = 0;
 
 	rc = register_reboot_notifier(&sh_wdt_notifier);
 	if (unlikely(rc)) {

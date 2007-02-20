@@ -79,6 +79,13 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	vfid->filp = file;
 	kfree(fcall);
 
+	if((vfid->qid.version) && (v9ses->cache)) {
+		dprintk(DEBUG_VFS, "cached");
+		/* enable cached file options */
+		if(file->f_op == &v9fs_file_operations)
+			file->f_op = &v9fs_cached_file_operations;
+	}
+
 	return 0;
 
 Clunk_Fid:
@@ -110,7 +117,7 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 
 	if ((IS_SETLK(cmd) || IS_SETLKW(cmd)) && fl->fl_type != F_UNLCK) {
 		filemap_write_and_wait(inode->i_mapping);
-		invalidate_inode_pages(&inode->i_data);
+		invalidate_mapping_pages(&inode->i_data, 0, -1);
 	}
 
 	return res;
@@ -234,9 +241,20 @@ v9fs_file_write(struct file *filp, const char __user * data,
 		total += result;
 	} while (count);
 
-		invalidate_inode_pages2(inode->i_mapping);
+	invalidate_inode_pages2(inode->i_mapping);
 	return total;
 }
+
+const struct file_operations v9fs_cached_file_operations = {
+	.llseek = generic_file_llseek,
+	.read = do_sync_read,
+	.aio_read = generic_file_aio_read,
+	.write = v9fs_file_write,
+	.open = v9fs_file_open,
+	.release = v9fs_dir_release,
+	.lock = v9fs_file_lock,
+	.mmap = generic_file_mmap,
+};
 
 const struct file_operations v9fs_file_operations = {
 	.llseek = generic_file_llseek,

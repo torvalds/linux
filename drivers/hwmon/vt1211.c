@@ -178,9 +178,10 @@ struct vt1211_data {
  * Super-I/O constants and functions
  * --------------------------------------------------------------------- */
 
-/* Configuration & data index port registers */
-#define SIO_REG_CIP		0x2e
-#define SIO_REG_DIP		0x2f
+/* Configuration index port registers
+ * The vt1211 can live at 2 different addresses so we need to probe both */
+#define SIO_REG_CIP1		0x2e
+#define SIO_REG_CIP2		0x4e
 
 /* Configuration registers */
 #define SIO_VT1211_LDN		0x07	/* logical device number */
@@ -193,33 +194,33 @@ struct vt1211_data {
 /* VT1211 logical device numbers */
 #define SIO_VT1211_LDN_HWMON	0x0b	/* HW monitor */
 
-static inline void superio_outb(int reg, int val)
+static inline void superio_outb(int sio_cip, int reg, int val)
 {
-	outb(reg, SIO_REG_CIP);
-	outb(val, SIO_REG_DIP);
+	outb(reg, sio_cip);
+	outb(val, sio_cip + 1);
 }
 
-static inline int superio_inb(int reg)
+static inline int superio_inb(int sio_cip, int reg)
 {
-	outb(reg, SIO_REG_CIP);
-	return inb(SIO_REG_DIP);
+	outb(reg, sio_cip);
+	return inb(sio_cip + 1);
 }
 
-static inline void superio_select(int ldn)
+static inline void superio_select(int sio_cip, int ldn)
 {
-	outb(SIO_VT1211_LDN, SIO_REG_CIP);
-	outb(ldn, SIO_REG_DIP);
+	outb(SIO_VT1211_LDN, sio_cip);
+	outb(ldn, sio_cip + 1);
 }
 
-static inline void superio_enter(void)
+static inline void superio_enter(int sio_cip)
 {
-	outb(0x87, SIO_REG_CIP);
-	outb(0x87, SIO_REG_CIP);
+	outb(0x87, sio_cip);
+	outb(0x87, sio_cip);
 }
 
-static inline void superio_exit(void)
+static inline void superio_exit(int sio_cip)
 {
-	outb(0xaa, SIO_REG_CIP);
+	outb(0xaa, sio_cip);
 }
 
 /* ---------------------------------------------------------------------
@@ -1263,26 +1264,26 @@ EXIT:
 	return err;
 }
 
-static int __init vt1211_find(unsigned short *address)
+static int __init vt1211_find(int sio_cip, unsigned short *address)
 {
 	int err = -ENODEV;
 
-	superio_enter();
+	superio_enter(sio_cip);
 
-	if (superio_inb(SIO_VT1211_DEVID) != SIO_VT1211_ID) {
+	if (superio_inb(sio_cip, SIO_VT1211_DEVID) != SIO_VT1211_ID) {
 		goto EXIT;
 	}
 
-	superio_select(SIO_VT1211_LDN_HWMON);
+	superio_select(sio_cip, SIO_VT1211_LDN_HWMON);
 
-	if ((superio_inb(SIO_VT1211_ACTIVE) & 1) == 0) {
+	if ((superio_inb(sio_cip, SIO_VT1211_ACTIVE) & 1) == 0) {
 		printk(KERN_WARNING DRVNAME ": HW monitor is disabled, "
 		       "skipping\n");
 		goto EXIT;
 	}
 
-	*address = ((superio_inb(SIO_VT1211_BADDR) << 8) |
-		    (superio_inb(SIO_VT1211_BADDR + 1))) & 0xff00;
+	*address = ((superio_inb(sio_cip, SIO_VT1211_BADDR) << 8) |
+		    (superio_inb(sio_cip, SIO_VT1211_BADDR + 1))) & 0xff00;
 	if (*address == 0) {
 		printk(KERN_WARNING DRVNAME ": Base address is not set, "
 		       "skipping\n");
@@ -1291,10 +1292,11 @@ static int __init vt1211_find(unsigned short *address)
 
 	err = 0;
 	printk(KERN_INFO DRVNAME ": Found VT1211 chip at 0x%04x, "
-	       "revision %u\n", *address, superio_inb(SIO_VT1211_DEVREV));
+	       "revision %u\n", *address,
+	       superio_inb(sio_cip, SIO_VT1211_DEVREV));
 
 EXIT:
-	superio_exit();
+	superio_exit(sio_cip);
 	return err;
 }
 
@@ -1303,8 +1305,8 @@ static int __init vt1211_init(void)
 	int err;
 	unsigned short address = 0;
 
-	err = vt1211_find(&address);
-	if (err) {
+	if ((err = vt1211_find(SIO_REG_CIP1, &address)) &&
+	    (err = vt1211_find(SIO_REG_CIP2, &address))) {
 		goto EXIT;
 	}
 

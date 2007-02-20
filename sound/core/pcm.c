@@ -45,11 +45,9 @@ static int snd_pcm_dev_disconnect(struct snd_device *device);
 
 static struct snd_pcm *snd_pcm_search(struct snd_card *card, int device)
 {
-	struct list_head *p;
 	struct snd_pcm *pcm;
 
-	list_for_each(p, &snd_pcm_devices) {
-		pcm = list_entry(p, struct snd_pcm, list);
+	list_for_each_entry(pcm, &snd_pcm_devices, list) {
 		if (pcm->card == card && pcm->device == device)
 			return pcm;
 	}
@@ -782,7 +780,6 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	struct snd_pcm_runtime *runtime;
 	struct snd_ctl_file *kctl;
 	struct snd_card *card;
-	struct list_head *list;
 	int prefer_subdevice = -1;
 	size_t size;
 
@@ -795,8 +792,7 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 
 	card = pcm->card;
 	down_read(&card->controls_rwsem);
-	list_for_each(list, &card->ctl_files) {
-		kctl = snd_ctl_file(list);
+	list_for_each_entry(kctl, &card->ctl_files, list) {
 		if (kctl->pid == current->pid) {
 			prefer_subdevice = kctl->prefer_pcm_subdevice;
 			if (prefer_subdevice != -1)
@@ -941,9 +937,10 @@ static int snd_pcm_dev_register(struct snd_device *device)
 {
 	int cidx, err;
 	struct snd_pcm_substream *substream;
-	struct list_head *list;
+	struct snd_pcm_notify *notify;
 	char str[16];
 	struct snd_pcm *pcm = device->device_data;
+	struct device *dev;
 
 	snd_assert(pcm != NULL && device != NULL, return -ENXIO);
 	mutex_lock(&register_mutex);
@@ -966,11 +963,18 @@ static int snd_pcm_dev_register(struct snd_device *device)
 			devtype = SNDRV_DEVICE_TYPE_PCM_CAPTURE;
 			break;
 		}
-		if ((err = snd_register_device(devtype, pcm->card,
-					       pcm->device,
-					       &snd_pcm_f_ops[cidx],
-					       pcm, str)) < 0)
-		{
+		/* device pointer to use, pcm->dev takes precedence if
+		 * it is assigned, otherwise fall back to card's device
+		 * if possible */
+		dev = pcm->dev;
+		if (!dev)
+			dev = snd_card_get_device_link(pcm->card);
+		/* register pcm */
+		err = snd_register_device_for_dev(devtype, pcm->card,
+						  pcm->device,
+						  &snd_pcm_f_ops[cidx],
+						  pcm, str, dev);
+		if (err < 0) {
 			list_del(&pcm->list);
 			mutex_unlock(&register_mutex);
 			return err;
@@ -980,11 +984,10 @@ static int snd_pcm_dev_register(struct snd_device *device)
 		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next)
 			snd_pcm_timer_init(substream);
 	}
-	list_for_each(list, &snd_pcm_notify_list) {
-		struct snd_pcm_notify *notify;
-		notify = list_entry(list, struct snd_pcm_notify, list);
+
+	list_for_each_entry(notify, &snd_pcm_notify_list, list)
 		notify->n_register(pcm);
-	}
+
 	mutex_unlock(&register_mutex);
 	return 0;
 }
@@ -1027,7 +1030,7 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 
 int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 {
-	struct list_head *p;
+	struct snd_pcm *pcm;
 
 	snd_assert(notify != NULL &&
 		   notify->n_register != NULL &&
@@ -1036,13 +1039,12 @@ int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 	mutex_lock(&register_mutex);
 	if (nfree) {
 		list_del(&notify->list);
-		list_for_each(p, &snd_pcm_devices)
-			notify->n_unregister(list_entry(p,
-							struct snd_pcm, list));
+		list_for_each_entry(pcm, &snd_pcm_devices, list)
+			notify->n_unregister(pcm);
 	} else {
 		list_add_tail(&notify->list, &snd_pcm_notify_list);
-		list_for_each(p, &snd_pcm_devices)
-			notify->n_register(list_entry(p, struct snd_pcm, list));
+		list_for_each_entry(pcm, &snd_pcm_devices, list)
+			notify->n_register(pcm);
 	}
 	mutex_unlock(&register_mutex);
 	return 0;
@@ -1058,12 +1060,10 @@ EXPORT_SYMBOL(snd_pcm_notify);
 static void snd_pcm_proc_read(struct snd_info_entry *entry,
 			      struct snd_info_buffer *buffer)
 {
-	struct list_head *p;
 	struct snd_pcm *pcm;
 
 	mutex_lock(&register_mutex);
-	list_for_each(p, &snd_pcm_devices) {
-		pcm = list_entry(p, struct snd_pcm, list);
+	list_for_each_entry(pcm, &snd_pcm_devices, list) {
 		snd_iprintf(buffer, "%02i-%02i: %s : %s",
 			    pcm->card->number, pcm->device, pcm->id, pcm->name);
 		if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream)

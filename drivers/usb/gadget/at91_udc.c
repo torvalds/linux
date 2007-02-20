@@ -30,7 +30,6 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/errno.h>
@@ -39,7 +38,7 @@
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
 #include <linux/clk.h>
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 
 #include <asm/byteorder.h>
@@ -785,7 +784,7 @@ static int at91_ep_set_halt(struct usb_ep *_ep, int value)
 	return status;
 }
 
-static struct usb_ep_ops at91_ep_ops = {
+static const struct usb_ep_ops at91_ep_ops = {
 	.enable		= at91_ep_enable,
 	.disable	= at91_ep_disable,
 	.alloc_request	= at91_ep_alloc_request,
@@ -1652,7 +1651,7 @@ static void at91udc_shutdown(struct platform_device *dev)
 	pullup(platform_get_drvdata(dev), 0);
 }
 
-static int __devinit at91udc_probe(struct platform_device *pdev)
+static int __init at91udc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct at91_udc	*udc;
@@ -1763,7 +1762,7 @@ fail0:
 	return retval;
 }
 
-static int __devexit at91udc_remove(struct platform_device *pdev)
+static int __exit at91udc_remove(struct platform_device *pdev)
 {
 	struct at91_udc *udc = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -1807,16 +1806,13 @@ static int at91udc_suspend(struct platform_device *pdev, pm_message_t mesg)
 			|| !wake
 			|| at91_suspend_entering_slow_clock()) {
 		pullup(udc, 0);
-		disable_irq_wake(udc->udp_irq);
+		wake = 0;
 	} else
 		enable_irq_wake(udc->udp_irq);
 
-	if (udc->board.vbus_pin > 0) {
-		if (wake)
-			enable_irq_wake(udc->board.vbus_pin);
-		else
-			disable_irq_wake(udc->board.vbus_pin);
-	}
+	udc->active_suspend = wake;
+	if (udc->board.vbus_pin > 0 && wake)
+		enable_irq_wake(udc->board.vbus_pin);
 	return 0;
 }
 
@@ -1824,8 +1820,14 @@ static int at91udc_resume(struct platform_device *pdev)
 {
 	struct at91_udc *udc = platform_get_drvdata(pdev);
 
+	if (udc->board.vbus_pin > 0 && udc->active_suspend)
+		disable_irq_wake(udc->board.vbus_pin);
+
 	/* maybe reconnect to host; if so, clocks on */
-	pullup(udc, 1);
+	if (udc->active_suspend)
+		disable_irq_wake(udc->udp_irq);
+	else
+		pullup(udc, 1);
 	return 0;
 }
 #else
@@ -1834,8 +1836,7 @@ static int at91udc_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver at91_udc = {
-	.probe		= at91udc_probe,
-	.remove		= __devexit_p(at91udc_remove),
+	.remove		= __exit_p(at91udc_remove),
 	.shutdown	= at91udc_shutdown,
 	.suspend	= at91udc_suspend,
 	.resume		= at91udc_resume,
@@ -1845,13 +1846,13 @@ static struct platform_driver at91_udc = {
 	},
 };
 
-static int __devinit udc_init_module(void)
+static int __init udc_init_module(void)
 {
-	return platform_driver_register(&at91_udc);
+	return platform_driver_probe(&at91_udc, at91udc_probe);
 }
 module_init(udc_init_module);
 
-static void __devexit udc_exit_module(void)
+static void __exit udc_exit_module(void)
 {
 	platform_driver_unregister(&at91_udc);
 }

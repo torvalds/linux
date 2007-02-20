@@ -16,8 +16,10 @@ static int __init set_umid_arg(char *name, int *add)
 {
 	int err;
 
-	if(umid_inited)
+	if(umid_inited){
+		printf("umid already set\n");
 		return 0;
+	}
 
 	*add = 0;
 	err = set_umid(name);

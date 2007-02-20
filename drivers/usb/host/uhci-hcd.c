@@ -28,7 +28,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
@@ -91,6 +90,34 @@ static struct kmem_cache *uhci_up_cachep;	/* urb_priv */
 static void suspend_rh(struct uhci_hcd *uhci, enum uhci_rh_state new_state);
 static void wakeup_rh(struct uhci_hcd *uhci);
 static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
+
+/*
+ * Calculate the link pointer DMA value for the first Skeleton QH in a frame.
+ */
+static __le32 uhci_frame_skel_link(struct uhci_hcd *uhci, int frame)
+{
+	int skelnum;
+
+	/*
+	 * The interrupt queues will be interleaved as evenly as possible.
+	 * There's not much to be done about period-1 interrupts; they have
+	 * to occur in every frame.  But we can schedule period-2 interrupts
+	 * in odd-numbered frames, period-4 interrupts in frames congruent
+	 * to 2 (mod 4), and so on.  This way each frame only has two
+	 * interrupt QHs, which will help spread out bandwidth utilization.
+	 *
+	 * ffs (Find First bit Set) does exactly what we need:
+	 * 1,3,5,...  => ffs = 0 => use skel_int2_qh = skelqh[8],
+	 * 2,6,10,... => ffs = 1 => use skel_int4_qh = skelqh[7], etc.
+	 * ffs >= 7 => not on any high-period queue, so use
+	 *	skel_int1_qh = skelqh[9].
+	 * Add in UHCI_NUMFRAMES to insure at least one bit is set.
+	 */
+	skelnum = 8 - (int) __ffs(frame | UHCI_NUMFRAMES);
+	if (skelnum <= 1)
+		skelnum = 9;
+	return UHCI_PTR_QH | cpu_to_le32(uhci->skelqh[skelnum]->dma_handle);
+}
 
 #include "uhci-debug.c"
 #include "uhci-q.c"
@@ -631,32 +658,11 @@ static int uhci_start(struct usb_hcd *hcd)
 	/*
 	 * Fill the frame list: make all entries point to the proper
 	 * interrupt queue.
-	 *
-	 * The interrupt queues will be interleaved as evenly as possible.
-	 * There's not much to be done about period-1 interrupts; they have
-	 * to occur in every frame.  But we can schedule period-2 interrupts
-	 * in odd-numbered frames, period-4 interrupts in frames congruent
-	 * to 2 (mod 4), and so on.  This way each frame only has two
-	 * interrupt QHs, which will help spread out bandwidth utilization.
 	 */
 	for (i = 0; i < UHCI_NUMFRAMES; i++) {
-		int irq;
-
-		/*
-		 * ffs (Find First bit Set) does exactly what we need:
-		 * 1,3,5,...  => ffs = 0 => use skel_int2_qh = skelqh[8],
-		 * 2,6,10,... => ffs = 1 => use skel_int4_qh = skelqh[7], etc.
-		 * ffs >= 7 => not on any high-period queue, so use
-		 *	skel_int1_qh = skelqh[9].
-		 * Add UHCI_NUMFRAMES to insure at least one bit is set.
-		 */
-		irq = 8 - (int) __ffs(i + UHCI_NUMFRAMES);
-		if (irq <= 1)
-			irq = 9;
 
 		/* Only place we don't use the frame list routines */
-		uhci->frame[i] = UHCI_PTR_QH |
-				cpu_to_le32(uhci->skelqh[irq]->dma_handle);
+		uhci->frame[i] = uhci_frame_skel_link(uhci, i);
 	}
 
 	/*

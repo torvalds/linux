@@ -76,7 +76,7 @@ void ehea_dump(void *adr, int len, char *msg) {
 	int x;
 	unsigned char *deb = adr;
 	for (x = 0; x < len; x += 16) {
-		printk(DRV_NAME "%s adr=%p ofs=%04x %016lx %016lx\n", msg,
+		printk(DRV_NAME " %s adr=%p ofs=%04x %016lx %016lx\n", msg,
 			  deb, x, *((u64*)&deb[0]), *((u64*)&deb[8]));
 		deb += 16;
 	}
@@ -555,6 +555,7 @@ static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param)
 {
 	struct ehea_port *port = param;
 	struct ehea_eqe *eqe;
+	struct ehea_qp *qp;
 	u32 qp_token;
 
 	eqe = ehea_poll_eq(port->qp_eq);
@@ -563,8 +564,13 @@ static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param)
 		qp_token = EHEA_BMASK_GET(EHEA_EQE_QP_TOKEN, eqe->entry);
 		ehea_error("QP aff_err: entry=0x%lx, token=0x%x",
 			   eqe->entry, qp_token);
+
+		qp = port->port_res[qp_token].qp;
+		ehea_error_data(port->adapter, qp->fw_handle);
 		eqe = ehea_poll_eq(port->qp_eq);
 	}
+
+	queue_work(port->adapter->ehea_wq, &port->reset_task);
 
 	return IRQ_HANDLED;
 }
@@ -882,7 +888,7 @@ static int ehea_reg_interrupts(struct net_device *dev)
 			 , "%s-recv%d", dev->name, i);
 		ret = ibmebus_request_irq(NULL, pr->recv_eq->attr.ist1,
 					  ehea_recv_irq_handler,
-					  SA_INTERRUPT, pr->int_recv_name, pr);
+					  IRQF_DISABLED, pr->int_recv_name, pr);
 		if (ret) {
 			ehea_error("failed registering irq for ehea_recv_int:"
 				   "port_res_nr:%d, ist=%X", i,
@@ -899,7 +905,7 @@ static int ehea_reg_interrupts(struct net_device *dev)
 
 	ret = ibmebus_request_irq(NULL, port->qp_eq->attr.ist1,
 				  ehea_qp_aff_irq_handler,
-				  SA_INTERRUPT, port->int_aff_name, port);
+				  IRQF_DISABLED, port->int_aff_name, port);
 	if (ret) {
 		ehea_error("failed registering irq for qp_aff_irq_handler:"
 			   "ist=%X", port->qp_eq->attr.ist1);
@@ -916,7 +922,7 @@ static int ehea_reg_interrupts(struct net_device *dev)
 			 "%s-send%d", dev->name, i);
 		ret = ibmebus_request_irq(NULL, pr->send_eq->attr.ist1,
 					  ehea_send_irq_handler,
-					  SA_INTERRUPT, pr->int_send_name,
+					  IRQF_DISABLED, pr->int_send_name,
 					  pr);
 		if (ret) {
 			ehea_error("failed registering irq for ehea_send "
@@ -2539,7 +2545,7 @@ static int __devinit ehea_probe(struct ibmebus_dev *dev,
 		     (unsigned long)adapter);
 
 	ret = ibmebus_request_irq(NULL, adapter->neq->attr.ist1,
-				  ehea_interrupt_neq, SA_INTERRUPT,
+				  ehea_interrupt_neq, IRQF_DISABLED,
 				  "ehea_neq", adapter);
 	if (ret) {
 		dev_err(&dev->ofdev.dev, "requesting NEQ IRQ failed");

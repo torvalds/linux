@@ -9,10 +9,13 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/in.h>
+#include <linux/ip.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/tcp.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_ecn.h>
 
@@ -109,8 +112,9 @@ static int checkentry(const char *tablename, const void *ip_void,
 	return 1;
 }
 
-static struct ipt_match ecn_match = {
+static struct xt_match ecn_match = {
 	.name		= "ecn",
+	.family		= AF_INET,
 	.match		= match,
 	.matchsize	= sizeof(struct ipt_ecn_info),
 	.checkentry	= checkentry,
@@ -119,12 +123,12 @@ static struct ipt_match ecn_match = {
 
 static int __init ipt_ecn_init(void)
 {
-	return ipt_register_match(&ecn_match);
+	return xt_register_match(&ecn_match);
 }
 
 static void __exit ipt_ecn_fini(void)
 {
-	ipt_unregister_match(&ecn_match);
+	xt_unregister_match(&ecn_match);
 }
 
 module_init(ipt_ecn_init);

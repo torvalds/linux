@@ -47,7 +47,7 @@
 static struct super_block *ipath_super;
 
 static int ipathfs_mknod(struct inode *dir, struct dentry *dentry,
-			 int mode, struct file_operations *fops,
+			 int mode, const struct file_operations *fops,
 			 void *data)
 {
 	int error;
@@ -81,7 +81,7 @@ bail:
 
 static int create_file(const char *name, mode_t mode,
 		       struct dentry *parent, struct dentry **dentry,
-		       struct file_operations *fops, void *data)
+		       const struct file_operations *fops, void *data)
 {
 	int error;
 
@@ -105,7 +105,7 @@ static ssize_t atomic_stats_read(struct file *file, char __user *buf,
 				       sizeof ipath_stats);
 }
 
-static struct file_operations atomic_stats_ops = {
+static const struct file_operations atomic_stats_ops = {
 	.read = atomic_stats_read,
 };
 
@@ -127,7 +127,7 @@ static ssize_t atomic_counters_read(struct file *file, char __user *buf,
 				       sizeof counters);
 }
 
-static struct file_operations atomic_counters_ops = {
+static const struct file_operations atomic_counters_ops = {
 	.read = atomic_counters_read,
 };
 
@@ -166,7 +166,7 @@ static ssize_t atomic_node_info_read(struct file *file, char __user *buf,
 				       sizeof nodeinfo);
 }
 
-static struct file_operations atomic_node_info_ops = {
+static const struct file_operations atomic_node_info_ops = {
 	.read = atomic_node_info_read,
 };
 
@@ -291,7 +291,7 @@ static ssize_t atomic_port_info_read(struct file *file, char __user *buf,
 				       sizeof portinfo);
 }
 
-static struct file_operations atomic_port_info_ops = {
+static const struct file_operations atomic_port_info_ops = {
 	.read = atomic_port_info_read,
 };
 
@@ -394,7 +394,7 @@ bail:
 	return ret;
 }
 
-static struct file_operations flash_ops = {
+static const struct file_operations flash_ops = {
 	.read = flash_read,
 	.write = flash_write,
 };

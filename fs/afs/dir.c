@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
@@ -37,7 +36,7 @@ const struct file_operations afs_dir_file_operations = {
 	.readdir	= afs_dir_readdir,
 };
 
-struct inode_operations afs_dir_inode_operations = {
+const struct inode_operations afs_dir_inode_operations = {
 	.lookup		= afs_dir_lookup,
 	.getattr	= afs_inode_getattr,
 #if 0 /* TODO */

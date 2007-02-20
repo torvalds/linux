@@ -486,8 +486,8 @@ static int snd_opl3sa2_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	return change;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_master, -3000, 200, 0);
-static DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_master, -3000, 200, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
 
 static struct snd_kcontrol_new snd_opl3sa2_controls[] = {
 OPL3SA2_DOUBLE("Master Playback Switch", 0, 0x07, 0x08, 7, 7, 1, 1),
@@ -919,7 +919,7 @@ static int __devinit snd_opl3sa2_nonpnp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int snd_opl3sa2_nonpnp_remove(struct platform_device *devptr)
+static int __devexit snd_opl3sa2_nonpnp_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
 	platform_set_drvdata(devptr, NULL);
@@ -942,7 +942,7 @@ static int snd_opl3sa2_nonpnp_resume(struct platform_device *dev)
 
 static struct platform_driver snd_opl3sa2_nonpnp_driver = {
 	.probe		= snd_opl3sa2_nonpnp_probe,
-	.remove		= snd_opl3sa2_nonpnp_remove,
+	.remove		= __devexit( snd_opl3sa2_nonpnp_remove),
 #ifdef CONFIG_PM
 	.suspend	= snd_opl3sa2_nonpnp_suspend,
 	.resume		= snd_opl3sa2_nonpnp_resume,

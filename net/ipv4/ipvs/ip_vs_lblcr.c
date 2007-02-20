@@ -307,7 +307,7 @@ static ctl_table vs_vars_table[] = {
 		.procname	= "lblcr_expiration",
 		.data		= &sysctl_ip_vs_lblcr_expiration,
 		.maxlen		= sizeof(int),
-		.mode		= 0644, 
+		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{ .ctl_name = 0 }
@@ -326,7 +326,7 @@ static ctl_table vs_table[] = {
 static ctl_table ipvs_ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4,
-		.procname	= "ipv4", 
+		.procname	= "ipv4",
 		.mode		= 0555,
 		.child		= vs_table
 	},
@@ -336,8 +336,8 @@ static ctl_table ipvs_ipv4_table[] = {
 static ctl_table lblcr_root_table[] = {
 	{
 		.ctl_name	= CTL_NET,
-		.procname	= "net", 
-		.mode		= 0555, 
+		.procname	= "net",
+		.mode		= 0555,
 		.child		= ipvs_ipv4_table
 	},
 	{ .ctl_name = 0 }
@@ -841,7 +841,7 @@ static struct ip_vs_scheduler ip_vs_lblcr_scheduler =
 static int __init ip_vs_lblcr_init(void)
 {
 	INIT_LIST_HEAD(&ip_vs_lblcr_scheduler.n_list);
-	sysctl_header = register_sysctl_table(lblcr_root_table, 0);
+	sysctl_header = register_sysctl_table(lblcr_root_table);
 #ifdef CONFIG_IP_VS_LBLCR_DEBUG
 	proc_net_create("ip_vs_lblcr", 0, ip_vs_lblcr_getinfo);
 #endif

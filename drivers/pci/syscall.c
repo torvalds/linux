@@ -7,7 +7,6 @@
  * magic northbridge registers..
  */
 
-#include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/smp_lock.h>

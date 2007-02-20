@@ -24,6 +24,7 @@
 #include <linux/root_dev.h>
 #include <linux/console.h>
 #include <linux/kexec.h>
+#include <linux/bootmem.h>
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>
@@ -41,10 +42,22 @@
 #define DBG(fmt...) do{if(0)printk(fmt);}while(0)
 #endif
 
-static void ps3_show_cpuinfo(struct seq_file *m)
+#if !defined(CONFIG_SMP)
+static void smp_send_stop(void) {}
+#endif
+
+int ps3_get_firmware_version(union ps3_firmware_version *v)
 {
-	seq_printf(m, "machine\t\t: %s\n", ppc_md.name);
+	int result = lv1_get_version_info(&v->raw);
+
+	if (result) {
+		v->raw = 0;
+		return -1;
+	}
+
+	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_get_firmware_version);
 
 static void ps3_power_save(void)
 {
@@ -57,24 +70,83 @@ static void ps3_power_save(void)
 	lv1_pause(0);
 }
 
+static void ps3_restart(char *cmd)
+{
+	DBG("%s:%d cmd '%s'\n", __func__, __LINE__, cmd);
+
+	smp_send_stop();
+	ps3_sys_manager_restart(); /* never returns */
+}
+
+static void ps3_power_off(void)
+{
+	DBG("%s:%d\n", __func__, __LINE__);
+
+	smp_send_stop();
+	ps3_sys_manager_power_off(); /* never returns */
+}
+
 static void ps3_panic(char *str)
 {
 	DBG("%s:%d %s\n", __func__, __LINE__, str);
 
-#ifdef CONFIG_SMP
 	smp_send_stop();
-#endif
 	printk("\n");
 	printk("   System does not reboot automatically.\n");
 	printk("   Please press POWER button.\n");
 	printk("\n");
 
-	for (;;) ;
+	while(1);
 }
+
+static void prealloc(struct ps3_prealloc *p)
+{
+	if (!p->size)
+		return;
+
+	p->address = __alloc_bootmem(p->size, p->align, __pa(MAX_DMA_ADDRESS));
+	if (!p->address) {
+		printk(KERN_ERR "%s: Cannot allocate %s\n", __FUNCTION__,
+		       p->name);
+		return;
+	}
+
+	printk(KERN_INFO "%s: %lu bytes at %p\n", p->name, p->size,
+	       p->address);
+}
+
+#ifdef CONFIG_FB_PS3
+struct ps3_prealloc ps3fb_videomemory = {
+    .name = "ps3fb videomemory",
+    .size = CONFIG_FB_PS3_DEFAULT_SIZE_M*1024*1024,
+    .align = 1024*1024			/* the GPU requires 1 MiB alignment */
+};
+#define prealloc_ps3fb_videomemory()	prealloc(&ps3fb_videomemory)
+
+static int __init early_parse_ps3fb(char *p)
+{
+	if (!p)
+		return 1;
+
+	ps3fb_videomemory.size = _ALIGN_UP(memparse(p, &p),
+					   ps3fb_videomemory.align);
+	return 0;
+}
+early_param("ps3fb", early_parse_ps3fb);
+#else
+#define prealloc_ps3fb_videomemory()	do { } while (0)
+#endif
+
 
 static void __init ps3_setup_arch(void)
 {
+	union ps3_firmware_version v;
+
 	DBG(" -> %s:%d\n", __func__, __LINE__);
+
+	ps3_get_firmware_version(&v);
+	printk(KERN_INFO "PS3 firmware version %u.%u.%u\n", v.major, v.minor,
+		v.rev);
 
 	ps3_spu_set_platform();
 	ps3_map_htab();
@@ -87,6 +159,7 @@ static void __init ps3_setup_arch(void)
 	conswitchp = &dummy_con;
 #endif
 
+	prealloc_ps3fb_videomemory();
 	ppc_md.power_save = ps3_power_save;
 
 	DBG(" <- %s:%d\n", __func__, __LINE__);
@@ -156,7 +229,6 @@ define_machine(ps3) {
 	.name				= "PS3",
 	.probe				= ps3_probe,
 	.setup_arch			= ps3_setup_arch,
-	.show_cpuinfo			= ps3_show_cpuinfo,
 	.init_IRQ			= ps3_init_IRQ,
 	.panic				= ps3_panic,
 	.get_boot_time			= ps3_get_boot_time,
@@ -164,6 +236,8 @@ define_machine(ps3) {
 	.get_rtc_time			= ps3_get_rtc_time,
 	.calibrate_decr			= ps3_calibrate_decr,
 	.progress			= ps3_progress,
+	.restart			= ps3_restart,
+	.power_off			= ps3_power_off,
 #if defined(CONFIG_KEXEC)
 	.kexec_cpu_down			= ps3_kexec_cpu_down,
 	.machine_kexec			= ps3_machine_kexec,

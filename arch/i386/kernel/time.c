@@ -131,15 +131,13 @@ unsigned long profile_pc(struct pt_regs *regs)
 	unsigned long pc = instruction_pointer(regs);
 
 #ifdef CONFIG_SMP
-	if (!user_mode_vm(regs) && in_lock_functions(pc)) {
+	if (!v8086_mode(regs) && SEGMENT_IS_KERNEL_CODE(regs->xcs) &&
+	    in_lock_functions(pc)) {
 #ifdef CONFIG_FRAME_POINTER
 		return *(unsigned long *)(regs->ebp + 4);
 #else
-		unsigned long *sp;
-		if ((regs->xcs & 3) == 0)
-			sp = (unsigned long *)&regs->esp;
-		else
-			sp = (unsigned long *)regs->esp;
+		unsigned long *sp = (unsigned long *)&regs->esp;
+
 		/* Return address is either directly at stack pointer
 		   or above a saved eflags. Eflags has bits 22-31 zero,
 		   kernel addresses don't. */
@@ -161,15 +159,6 @@ EXPORT_SYMBOL(profile_pc);
  */
 irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
-	/*
-	 * Here we are in the timer irq handler. We just have irqs locally
-	 * disabled but we don't know if the timer_bh is running on the other
-	 * CPU. We need to avoid to SMP race with it. NOTE: we don' t need
-	 * the irq version of write_lock because as just said we have irq
-	 * locally disabled. -arca
-	 */
-	write_seqlock(&xtime_lock);
-
 #ifdef CONFIG_X86_IO_APIC
 	if (timer_ack) {
 		/*
@@ -188,7 +177,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 	do_timer_interrupt_hook();
 
-
 	if (MCA_bus) {
 		/* The PS/2 uses level-triggered interrupts.  You can't
 		turn them off, nor would you want to (any attempt to
@@ -203,18 +191,11 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 		outb_p( irq_v|0x80, 0x61 );	/* reset the IRQ */
 	}
 
-	write_sequnlock(&xtime_lock);
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	if (using_apic_timer)
-		smp_send_timer_broadcast_ipi();
-#endif
-
 	return IRQ_HANDLED;
 }
 
 /* not static: needed by APM */
-unsigned long get_cmos_time(void)
+unsigned long read_persistent_clock(void)
 {
 	unsigned long retval;
 	unsigned long flags;
@@ -227,11 +208,11 @@ unsigned long get_cmos_time(void)
 
 	return retval;
 }
-EXPORT_SYMBOL(get_cmos_time);
 
 static void sync_cmos_clock(unsigned long dummy);
 
 static DEFINE_TIMER(sync_cmos_timer, sync_cmos_clock, 0, 0);
+int no_sync_cmos_clock;
 
 static void sync_cmos_clock(unsigned long dummy)
 {
@@ -275,117 +256,20 @@ static void sync_cmos_clock(unsigned long dummy)
 
 void notify_arch_cmos_timer(void)
 {
-	mod_timer(&sync_cmos_timer, jiffies + 1);
+	if (!no_sync_cmos_clock)
+		mod_timer(&sync_cmos_timer, jiffies + 1);
 }
 
-static long clock_cmos_diff;
-static unsigned long sleep_start;
-
-static int timer_suspend(struct sys_device *dev, pm_message_t state)
-{
-	/*
-	 * Estimate time zone so that set_time can update the clock
-	 */
-	unsigned long ctime =  get_cmos_time();
-
-	clock_cmos_diff = -ctime;
-	clock_cmos_diff += get_seconds();
-	sleep_start = ctime;
-	return 0;
-}
-
-static int timer_resume(struct sys_device *dev)
-{
-	unsigned long flags;
-	unsigned long sec;
-	unsigned long ctime = get_cmos_time();
-	long sleep_length = (ctime - sleep_start) * HZ;
-	struct timespec ts;
-
-	if (sleep_length < 0) {
-		printk(KERN_WARNING "CMOS clock skew detected in timer resume!\n");
-		/* The time after the resume must not be earlier than the time
-		 * before the suspend or some nasty things will happen
-		 */
-		sleep_length = 0;
-		ctime = sleep_start;
-	}
-#ifdef CONFIG_HPET_TIMER
-	if (is_hpet_enabled())
-		hpet_reenable();
-#endif
-	setup_pit_timer();
-
-	sec = ctime + clock_cmos_diff;
-	ts.tv_sec = sec;
-	ts.tv_nsec = 0;
-	do_settimeofday(&ts);
-	write_seqlock_irqsave(&xtime_lock, flags);
-	jiffies_64 += sleep_length;
-	write_sequnlock_irqrestore(&xtime_lock, flags);
-	touch_softlockup_watchdog();
-	return 0;
-}
-
-static struct sysdev_class timer_sysclass = {
-	.resume = timer_resume,
-	.suspend = timer_suspend,
-	set_kset_name("timer"),
-};
-
-
-/* XXX this driverfs stuff should probably go elsewhere later -john */
-static struct sys_device device_timer = {
-	.id	= 0,
-	.cls	= &timer_sysclass,
-};
-
-static int time_init_device(void)
-{
-	int error = sysdev_class_register(&timer_sysclass);
-	if (!error)
-		error = sysdev_register(&device_timer);
-	return error;
-}
-
-device_initcall(time_init_device);
-
-#ifdef CONFIG_HPET_TIMER
 extern void (*late_time_init)(void);
 /* Duplicate of time_init() below, with hpet_enable part added */
 static void __init hpet_time_init(void)
 {
-	struct timespec ts;
-	ts.tv_sec = get_cmos_time();
-	ts.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-
-	do_settimeofday(&ts);
-
-	if ((hpet_enable() >= 0) && hpet_use_timer) {
-		printk("Using HPET for base-timer\n");
-	}
-
+	if (!hpet_enable())
+		setup_pit_timer();
 	do_time_init();
 }
-#endif
 
 void __init time_init(void)
 {
-	struct timespec ts;
-#ifdef CONFIG_HPET_TIMER
-	if (is_hpet_capable()) {
-		/*
-		 * HPET initialization needs to do memory-mapped io. So, let
-		 * us do a late initialization after mem_init().
-		 */
-		late_time_init = hpet_time_init;
-		return;
-	}
-#endif
-	ts.tv_sec = get_cmos_time();
-	ts.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-
-	do_settimeofday(&ts);
-
-	do_time_init();
+	late_time_init = hpet_time_init;
 }

@@ -28,7 +28,6 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <asm/io.h>
-#include <linux/sched.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <linux/mutex.h>
@@ -881,7 +880,7 @@ static ssize_t pms_read(struct file *file, char __user *buf,
 	return len;
 }
 
-static struct file_operations pms_fops = {
+static const struct file_operations pms_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

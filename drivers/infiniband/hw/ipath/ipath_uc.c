@@ -49,7 +49,7 @@ static void complete_last_send(struct ipath_qp *qp, struct ipath_swqe *wqe,
 		wc->opcode = ib_ipath_wc_opcode[wqe->wr.opcode];
 		wc->vendor_err = 0;
 		wc->byte_len = wqe->length;
-		wc->qp_num = qp->ibqp.qp_num;
+		wc->qp = &qp->ibqp;
 		wc->src_qp = qp->remote_qpn;
 		wc->pkey_index = 0;
 		wc->slid = qp->remote_ah_attr.dlid;
@@ -411,7 +411,7 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		wc.status = IB_WC_SUCCESS;
 		wc.opcode = IB_WC_RECV;
 		wc.vendor_err = 0;
-		wc.qp_num = qp->ibqp.qp_num;
+		wc.qp = &qp->ibqp;
 		wc.src_qp = qp->remote_qpn;
 		wc.pkey_index = 0;
 		wc.slid = qp->remote_ah_attr.dlid;

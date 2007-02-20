@@ -27,12 +27,12 @@ static int move_registers(int pid, int int_op, int fp_op,
 			  union uml_pt_regs *regs)
 {
 	if(ptrace(int_op, pid, 0, regs->skas.regs) < 0)
-		return(-errno);
+		return -errno;
 
 	if(ptrace(fp_op, pid, 0, regs->skas.fp) < 0)
-		return(-errno);
+		return -errno;
 
-	return(0);
+	return 0;
 }
 
 void save_registers(int pid, union uml_pt_regs *regs)

@@ -31,19 +31,36 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
-ACPI_MODULE_NAME("acpi_system")
+ACPI_MODULE_NAME("system");
+#ifdef MODULE_PARAM_PREFIX
+#undef MODULE_PARAM_PREFIX
+#endif
+#define MODULE_PARAM_PREFIX "acpi."
+
 #define ACPI_SYSTEM_CLASS		"system"
-#define ACPI_SYSTEM_DRIVER_NAME		"ACPI System Driver"
 #define ACPI_SYSTEM_DEVICE_NAME		"System"
 #define ACPI_SYSTEM_FILE_INFO		"info"
 #define ACPI_SYSTEM_FILE_EVENT		"event"
 #define ACPI_SYSTEM_FILE_DSDT		"dsdt"
 #define ACPI_SYSTEM_FILE_FADT		"fadt"
-extern struct fadt_descriptor acpi_fadt;
+
+/*
+ * Make ACPICA version work as module param
+ */
+static int param_get_acpica_version(char *buffer, struct kernel_param *kp) {
+	int result;
+
+	result = sprintf(buffer, "%x", ACPI_CA_VERSION);
+
+	return result;
+}
+
+module_param_call(acpica_version, NULL, param_get_acpica_version, NULL, 0444);
 
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
+#ifdef CONFIG_ACPI_PROCFS
 
 static int acpi_system_read_info(struct seq_file *seq, void *offset)
 {
@@ -63,6 +80,7 @@ static const struct file_operations acpi_system_info_ops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+#endif
 
 static ssize_t acpi_system_read_dsdt(struct file *, char __user *, size_t,
 				     loff_t *);
@@ -76,17 +94,16 @@ acpi_system_read_dsdt(struct file *file,
 		      char __user * buffer, size_t count, loff_t * ppos)
 {
 	acpi_status status = AE_OK;
-	struct acpi_buffer dsdt = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_table_header *dsdt = NULL;
 	ssize_t res;
 
 
-	status = acpi_get_table(ACPI_TABLE_ID_DSDT, 1, &dsdt);
+	status = acpi_get_table(ACPI_SIG_DSDT, 1, &dsdt);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
 	res = simple_read_from_buffer(buffer, count, ppos,
-				      dsdt.pointer, dsdt.length);
-	kfree(dsdt.pointer);
+				      dsdt, dsdt->length);
 
 	return res;
 }
@@ -103,17 +120,16 @@ acpi_system_read_fadt(struct file *file,
 		      char __user * buffer, size_t count, loff_t * ppos)
 {
 	acpi_status status = AE_OK;
-	struct acpi_buffer fadt = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_table_header *fadt = NULL;
 	ssize_t res;
 
 
-	status = acpi_get_table(ACPI_TABLE_ID_FADT, 1, &fadt);
+	status = acpi_get_table(ACPI_SIG_FADT, 1, &fadt);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
 	res = simple_read_from_buffer(buffer, count, ppos,
-				      fadt.pointer, fadt.length);
-	kfree(fadt.pointer);
+				      fadt, fadt->length);
 
 	return res;
 }
@@ -128,6 +144,7 @@ static int __init acpi_system_init(void)
 	if (acpi_disabled)
 		return 0;
 
+#ifdef CONFIG_ACPI_PROCFS
 	/* 'info' [R] */
 	name = ACPI_SYSTEM_FILE_INFO;
 	entry = create_proc_entry(name, S_IRUGO, acpi_root_dir);
@@ -136,6 +153,7 @@ static int __init acpi_system_init(void)
 	else {
 		entry->proc_fops = &acpi_system_info_ops;
 	}
+#endif
 
 	/* 'dsdt' [R] */
 	name = ACPI_SYSTEM_FILE_DSDT;
@@ -159,7 +177,9 @@ static int __init acpi_system_init(void)
       Error:
 	remove_proc_entry(ACPI_SYSTEM_FILE_FADT, acpi_root_dir);
 	remove_proc_entry(ACPI_SYSTEM_FILE_DSDT, acpi_root_dir);
+#ifdef CONFIG_ACPI_PROCFS
 	remove_proc_entry(ACPI_SYSTEM_FILE_INFO, acpi_root_dir);
+#endif
 
 	error = -EFAULT;
 	goto Done;

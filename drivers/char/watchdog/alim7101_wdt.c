@@ -69,7 +69,7 @@ module_param(use_gpio, int, 0);
 MODULE_PARM_DESC(use_gpio, "Use the gpio watchdog.  (required by old cobalt boards)");
 
 static void wdt_timer_ping(unsigned long);
-static struct timer_list timer;
+static DEFINE_TIMER(timer, wdt_timer_ping, 0, 1);
 static unsigned long next_heartbeat;
 static unsigned long wdt_is_open;
 static char wdt_expect_close;
@@ -78,7 +78,7 @@ static struct pci_dev *alim7101_pmu;
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __stringify(CONFIG_WATCHDOG_NOWAYOUT) ")");
+		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Whack the dog
@@ -108,8 +108,7 @@ static void wdt_timer_ping(unsigned long data)
 		printk(KERN_WARNING PFX "Heartbeat lost! Will not ping the watchdog\n");
 	}
 	/* Re-set the timer interval */
-	timer.expires = jiffies + WDT_INTERVAL;
-	add_timer(&timer);
+	mod_timer(&timer, jiffies + WDT_INTERVAL);
 }
 
 /*
@@ -147,9 +146,7 @@ static void wdt_startup(void)
 	wdt_change(WDT_ENABLE);
 
 	/* Start the timer */
-	timer.expires = jiffies + WDT_INTERVAL;
-	add_timer(&timer);
-
+	mod_timer(&timer, jiffies + WDT_INTERVAL);
 
 	printk(KERN_INFO PFX "Watchdog timer is now enabled.\n");
 }
@@ -380,10 +377,6 @@ static int __init alim7101_wdt_init(void)
 			timeout);
 	}
 
-	init_timer(&timer);
-	timer.function = wdt_timer_ping;
-	timer.data = 1;
-
 	rc = misc_register(&wdt_miscdev);
 	if (rc) {
 		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
@@ -417,10 +410,8 @@ module_init(alim7101_wdt_init);
 module_exit(alim7101_wdt_unload);
 
 static struct pci_device_id alim7101_pci_tbl[] __devinitdata = {
-	{ PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101) },
 	{ }
 };
 

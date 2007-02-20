@@ -163,10 +163,9 @@ static int daca_detect_client(struct i2c_adapter *adapter, int address)
 	struct i2c_client *new_client;
 	int rc = -ENODEV;
 
-	new_client = kmalloc(sizeof(*new_client), GFP_KERNEL);
+	new_client = kzalloc(sizeof(*new_client), GFP_KERNEL);
 	if (!new_client)
 		return -ENOMEM;
-	memset(new_client, 0, sizeof(*new_client));
 
 	new_client->addr = address;
 	new_client->adapter = adapter;

@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/string.h>
@@ -1561,7 +1560,7 @@ out:
 }
 
 
-static struct file_operations video_fops;
+static const struct file_operations video_fops;
 
 /**
  *	video_register_device - register video4linux devices
@@ -1709,7 +1708,7 @@ void video_unregister_device(struct video_device *vfd)
 /*
  * Video fs operations
  */
-static struct file_operations video_fops=
+static const struct file_operations video_fops=
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,

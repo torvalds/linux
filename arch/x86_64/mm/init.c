@@ -711,20 +711,30 @@ int kern_addr_valid(unsigned long addr)
 extern int exception_trace, page_fault_trace;
 
 static ctl_table debug_table2[] = {
-	{ 99, "exception-trace", &exception_trace, sizeof(int), 0644, NULL,
-	  proc_dointvec },
-	{ 0, }
+	{
+		.ctl_name	= 99,
+		.procname	= "exception-trace",
+		.data		= &exception_trace,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{}
 }; 
 
 static ctl_table debug_root_table2[] = { 
-	{ .ctl_name = CTL_DEBUG, .procname = "debug", .mode = 0555, 
-	   .child = debug_table2 }, 
-	{ 0 }, 
+	{
+		.ctl_name = CTL_DEBUG,
+		.procname = "debug",
+		.mode = 0555,
+		.child = debug_table2
+	},
+	{}
 }; 
 
 static __init int x8664_sysctl_init(void)
 { 
-	register_sysctl_table(debug_root_table2, 1);
+	register_sysctl_table(debug_root_table2);
 	return 0;
 }
 __initcall(x8664_sysctl_init);

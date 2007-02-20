@@ -23,6 +23,7 @@
    Supports:
 	Intel PIIX4, 440MX
 	Serverworks OSB4, CSB5, CSB6, HT-1000
+	ATI IXP200, IXP300, IXP400, SB600
 	SMSC Victory66
 
    Note: we assume there can only be one device, with one SMBus interface.
@@ -34,7 +35,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/stddef.h>
-#include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -383,6 +383,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter piix4_adapter = {
 	.owner		= THIS_MODULE,
+	.id		= I2C_HW_SMBUS_PIIX4,
 	.class		= I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
 };
@@ -395,6 +396,8 @@ static struct pci_device_id piix4_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP300_SMBUS),
 	  .driver_data = 0 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP400_SMBUS),
+	  .driver_data = 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP600_SMBUS),
 	  .driver_data = 0 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_OSB4),
 	  .driver_data = 0 },
@@ -422,7 +425,7 @@ static int __devinit piix4_probe(struct pci_dev *dev,
 	if (retval)
 		return retval;
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	piix4_adapter.dev.parent = &dev->dev;
 
 	snprintf(piix4_adapter.name, I2C_NAME_SIZE,

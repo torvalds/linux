@@ -295,7 +295,7 @@ adfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 /*
  * directories can handle most operations...
  */
-struct inode_operations adfs_dir_inode_operations = {
+const struct inode_operations adfs_dir_inode_operations = {
 	.lookup		= adfs_lookup,
 	.setattr	= adfs_notify_change,
 };

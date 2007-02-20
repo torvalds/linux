@@ -7,7 +7,6 @@
  * of the GNU General Public License version 2.
  */
 
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -42,15 +41,6 @@
 #include "trans.h"
 #include "util.h"
 #include "eaops.h"
-
-/* For regular, non-NFS */
-struct filldir_reg {
-	struct gfs2_sbd *fdr_sbd;
-	int fdr_prefetch;
-
-	filldir_t fdr_filldir;
-	void *fdr_opaque;
-};
 
 /*
  * Most fields left uninitialised to catch anybody who tries to
@@ -128,41 +118,6 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int origin)
 }
 
 /**
- * filldir_func - Report a directory entry to the caller of gfs2_dir_read()
- * @opaque: opaque data used by the function
- * @name: the name of the directory entry
- * @length: the length of the name
- * @offset: the entry's offset in the directory
- * @inum: the inode number the entry points to
- * @type: the type of inode the entry points to
- *
- * Returns: 0 on success, 1 if buffer full
- */
-
-static int filldir_func(void *opaque, const char *name, unsigned int length,
-			u64 offset, struct gfs2_inum_host *inum,
-			unsigned int type)
-{
-	struct filldir_reg *fdr = (struct filldir_reg *)opaque;
-	struct gfs2_sbd *sdp = fdr->fdr_sbd;
-	int error;
-
-	error = fdr->fdr_filldir(fdr->fdr_opaque, name, length, offset,
-				 inum->no_addr, type);
-	if (error)
-		return 1;
-
-	if (fdr->fdr_prefetch && !(length == 1 && *name == '.')) {
-		gfs2_glock_prefetch_num(sdp, inum->no_addr, &gfs2_inode_glops,
-				       LM_ST_SHARED, LM_FLAG_TRY | LM_FLAG_ANY);
-		gfs2_glock_prefetch_num(sdp, inum->no_addr, &gfs2_iopen_glops,
-				       LM_ST_SHARED, LM_FLAG_TRY);
-	}
-
-	return 0;
-}
-
-/**
  * gfs2_readdir - Read directory entries from a directory
  * @file: The directory to read from
  * @dirent: Buffer for dirents
@@ -175,15 +130,9 @@ static int gfs2_readdir(struct file *file, void *dirent, filldir_t filldir)
 {
 	struct inode *dir = file->f_mapping->host;
 	struct gfs2_inode *dip = GFS2_I(dir);
-	struct filldir_reg fdr;
 	struct gfs2_holder d_gh;
 	u64 offset = file->f_pos;
 	int error;
-
-	fdr.fdr_sbd = GFS2_SB(dir);
-	fdr.fdr_prefetch = 1;
-	fdr.fdr_filldir = filldir;
-	fdr.fdr_opaque = dirent;
 
 	gfs2_holder_init(dip->i_gl, LM_ST_SHARED, GL_ATIME, &d_gh);
 	error = gfs2_glock_nq_atime(&d_gh);
@@ -192,7 +141,7 @@ static int gfs2_readdir(struct file *file, void *dirent, filldir_t filldir)
 		return error;
 	}
 
-	error = gfs2_dir_read(dir, &offset, &fdr, filldir_func);
+	error = gfs2_dir_read(dir, &offset, dirent, filldir);
 
 	gfs2_glock_dq_uninit(&d_gh);
 

@@ -24,7 +24,6 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -91,7 +90,7 @@ static __inline__ int fw_hash(u32 handle)
 	else if (HTSIZE == 256) {
 		u8 *t = (u8 *) &handle;
 		return t[0] ^ t[1] ^ t[2] ^ t[3];
-	} else 
+	} else
 		return handle & (HTSIZE - 1);
 }
 
@@ -407,7 +406,7 @@ static int __init init_fw(void)
 	return register_tcf_proto_ops(&cls_fw_ops);
 }
 
-static void __exit exit_fw(void) 
+static void __exit exit_fw(void)
 {
 	unregister_tcf_proto_ops(&cls_fw_ops);
 }

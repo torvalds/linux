@@ -38,7 +38,7 @@
 #include "aic94xx_seq.h"
 
 /* The format is "version.release.patchlevel" */
-#define ASD_DRIVER_VERSION "1.0.2"
+#define ASD_DRIVER_VERSION "1.0.3"
 
 static int use_msi = 0;
 module_param_named(use_msi, use_msi, int, S_IRUGO);
@@ -57,6 +57,8 @@ MODULE_PARM_DESC(collector, "\n"
 char sas_addr_str[2*SAS_ADDR_SIZE + 1] = "";
 
 static struct scsi_transport_template *aic94xx_transport_template;
+static int asd_scan_finished(struct Scsi_Host *, unsigned long);
+static void asd_scan_start(struct Scsi_Host *);
 
 static struct scsi_host_template aic94xx_sht = {
 	.module			= THIS_MODULE,
@@ -66,6 +68,8 @@ static struct scsi_host_template aic94xx_sht = {
 	.target_alloc		= sas_target_alloc,
 	.slave_configure	= sas_slave_configure,
 	.slave_destroy		= sas_slave_destroy,
+	.scan_finished		= asd_scan_finished,
+	.scan_start		= asd_scan_start,
 	.change_queue_depth	= sas_change_queue_depth,
 	.change_queue_type	= sas_change_queue_type,
 	.bios_param		= sas_bios_param,
@@ -75,6 +79,8 @@ static struct scsi_host_template aic94xx_sht = {
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.use_clustering		= ENABLE_CLUSTERING,
+	.eh_device_reset_handler	= sas_eh_device_reset_handler,
+	.eh_bus_reset_handler	= sas_eh_bus_reset_handler,
 };
 
 static int __devinit asd_map_memio(struct asd_ha_struct *asd_ha)
@@ -234,7 +240,7 @@ static int __devinit asd_common_setup(struct asd_ha_struct *asd_ha)
 	}
 	/* Provide some sane default values. */
 	asd_ha->hw_prof.max_scbs = 512;
-	asd_ha->hw_prof.max_ddbs = 128;
+	asd_ha->hw_prof.max_ddbs = ASD_MAX_DDBS;
 	asd_ha->hw_prof.num_phys = ASD_MAX_PHYS;
 	/* All phys are enabled, by default. */
 	asd_ha->hw_prof.enabled_phys = 0xFF;
@@ -526,6 +532,7 @@ static int asd_register_sas_ha(struct asd_ha_struct *asd_ha)
 	asd_ha->sas_ha.num_phys= ASD_MAX_PHYS;
 
 	asd_ha->sas_ha.lldd_queue_size = asd_ha->seq.can_queue;
+	asd_ha->sas_ha.lldd_max_execute_num = lldd_max_execute_num;
 
 	return sas_register_ha(&asd_ha->sas_ha);
 }
@@ -646,7 +653,7 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 	if (use_msi)
 		pci_enable_msi(asd_ha->pcidev);
 
-	err = request_irq(asd_ha->pcidev->irq, asd_hw_isr, SA_SHIRQ,
+	err = request_irq(asd_ha->pcidev->irq, asd_hw_isr, IRQF_SHARED,
 			  ASD_DRIVER_NAME, asd_ha);
 	if (err) {
 		asd_printk("couldn't get irq %d for %s\n",
@@ -671,21 +678,10 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 	if (err)
 		goto Err_reg_sas;
 
-	err = asd_enable_phys(asd_ha, asd_ha->hw_prof.enabled_phys);
-	if (err) {
-		asd_printk("coudln't enable phys, err:%d\n", err);
-		goto Err_en_phys;
-	}
-	ASD_DPRINTK("enabled phys\n");
-	/* give the phy enabling interrupt event time to come in (1s
-	 * is empirically about all it takes) */
-	ssleep(1);
-	/* Wait for discovery to finish */
-	scsi_flush_work(asd_ha->sas_ha.core.shost);
+	scsi_scan_host(shost);
 
 	return 0;
-Err_en_phys:
-	asd_unregister_sas_ha(asd_ha);
+
 Err_reg_sas:
 	asd_remove_dev_attrs(asd_ha);
 Err_dev_attrs:
@@ -776,6 +772,28 @@ static void __devexit asd_pci_remove(struct pci_dev *dev)
 	kfree(asd_ha);
 	pci_disable_device(dev);
 	return;
+}
+
+static void asd_scan_start(struct Scsi_Host *shost)
+{
+	struct asd_ha_struct *asd_ha;
+	int err;
+
+	asd_ha = SHOST_TO_SAS_HA(shost)->lldd_ha;
+	err = asd_enable_phys(asd_ha, asd_ha->hw_prof.enabled_phys);
+	if (err)
+		asd_printk("Couldn't enable phys, err:%d\n", err);
+}
+
+static int asd_scan_finished(struct Scsi_Host *shost, unsigned long time)
+{
+	/* give the phy enabling interrupt event time to come in (1s
+	 * is empirically about all it takes) */
+	if (time < HZ)
+		return 0;
+	/* Wait for discovery to finish */
+	scsi_flush_work(shost);
+	return 1;
 }
 
 static ssize_t asd_version_show(struct device_driver *driver, char *buf)
@@ -885,6 +903,7 @@ static void __exit aic94xx_exit(void)
 	asd_remove_driver_attrs(&aic94xx_pci_driver.driver);
 	pci_unregister_driver(&aic94xx_pci_driver);
 	sas_release_transport(aic94xx_transport_template);
+	asd_release_firmware();
 	asd_destroy_global_caches();
 	asd_printk("%s version %s unloaded\n", ASD_DRIVER_DESCRIPTION,
 		   ASD_DRIVER_VERSION);

@@ -179,9 +179,8 @@ static int proc_print_scsidevice(struct device *dev, void *data)
 	seq_printf(s, "\n");
 
 	seq_printf(s, "  Type:   %s ", scsi_device_type(sdev->type));
-	seq_printf(s, "               ANSI"
-		     " SCSI revision: %02x", (sdev->scsi_level - 1) ?
-		     sdev->scsi_level - 1 : 1);
+	seq_printf(s, "               ANSI  SCSI revision: %02x",
+			sdev->scsi_level - (sdev->scsi_level > 1));
 	if (sdev->scsi_level == 2)
 		seq_printf(s, " CCS\n");
 	else
@@ -308,7 +307,7 @@ static int proc_scsi_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_scsi_show, NULL);
 }
 
-static struct file_operations proc_scsi_operations = {
+static const struct file_operations proc_scsi_operations = {
 	.open		= proc_scsi_open,
 	.read		= seq_read,
 	.write		= proc_scsi_write,

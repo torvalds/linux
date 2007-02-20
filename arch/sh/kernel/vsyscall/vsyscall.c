@@ -37,11 +37,12 @@ __setup("vdso=", vdso_setup);
  * of the ELF DSO images included therein.
  */
 extern const char vsyscall_trapa_start, vsyscall_trapa_end;
-static void *syscall_page;
+static struct page *syscall_pages[1];
 
 int __init vsyscall_init(void)
 {
-	syscall_page = (void *)get_zeroed_page(GFP_ATOMIC);
+	void *syscall_page = (void *)get_zeroed_page(GFP_ATOMIC);
+	syscall_pages[0] = virt_to_page(syscall_page);
 
 	/*
 	 * XXX: Map this page to a fixmap entry if we get around
@@ -55,37 +56,10 @@ int __init vsyscall_init(void)
 	return 0;
 }
 
-static struct page *syscall_vma_nopage(struct vm_area_struct *vma,
-				       unsigned long address, int *type)
-{
-	unsigned long offset = address - vma->vm_start;
-	struct page *page;
-
-	if (address < vma->vm_start || address > vma->vm_end)
-		return NOPAGE_SIGBUS;
-
-	page = virt_to_page(syscall_page + offset);
-
-	get_page(page);
-
-	return page;
-}
-
-/* Prevent VMA merging */
-static void syscall_vma_close(struct vm_area_struct *vma)
-{
-}
-
-static struct vm_operations_struct syscall_vm_ops = {
-	.nopage	= syscall_vma_nopage,
-	.close	= syscall_vma_close,
-};
-
 /* Setup a VMA at program startup for the vsyscall page */
 int arch_setup_additional_pages(struct linux_binprm *bprm,
 				int executable_stack)
 {
-	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
 	unsigned long addr;
 	int ret;
@@ -97,30 +71,16 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 		goto up_fail;
 	}
 
-	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
-	if (!vma) {
-		ret = -ENOMEM;
+	ret = install_special_mapping(mm, addr, PAGE_SIZE,
+				      VM_READ | VM_EXEC |
+				      VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC |
+				      VM_ALWAYSDUMP,
+				      syscall_pages);
+	if (unlikely(ret))
 		goto up_fail;
-	}
-
-	vma->vm_start = addr;
-	vma->vm_end = addr + PAGE_SIZE;
-	/* MAYWRITE to allow gdb to COW and set breakpoints */
-	vma->vm_flags = VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYEXEC|VM_MAYWRITE;
-	vma->vm_flags |= mm->def_flags;
-	vma->vm_page_prot = protection_map[vma->vm_flags & 7];
-	vma->vm_ops = &syscall_vm_ops;
-	vma->vm_mm = mm;
-
-	ret = insert_vm_struct(mm, vma);
-	if (unlikely(ret)) {
-		kmem_cache_free(vm_area_cachep, vma);
-		goto up_fail;
-	}
 
 	current->mm->context.vdso = (void *)addr;
 
-	mm->total_vm++;
 up_fail:
 	up_write(&mm->mmap_sem);
 	return ret;

@@ -16,7 +16,6 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
-#include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/major.h>
@@ -207,7 +206,7 @@ __sclp_vt220_emit(struct sclp_vt220_request *request)
 		request->sclp_req.status = SCLP_REQ_FAILED;
 		return -EIO;
 	}
-	request->sclp_req.command = SCLP_CMDW_WRITEDATA;
+	request->sclp_req.command = SCLP_CMDW_WRITE_EVENT_DATA;
 	request->sclp_req.status = SCLP_REQ_FILLED;
 	request->sclp_req.callback = sclp_vt220_callback;
 	request->sclp_req.callback_data = (void *) request;
@@ -669,7 +668,7 @@ static const struct tty_operations sclp_vt220_ops = {
 /*
  * Register driver with SCLP and Linux and initialize internal tty structures.
  */
-int __init
+static int __init
 sclp_vt220_tty_init(void)
 {
 	struct tty_driver *driver;

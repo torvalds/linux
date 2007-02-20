@@ -2,7 +2,7 @@
  * PC Watchdog Driver
  * by Ken Hollis (khollis@bitgate.com)
  *
- * Permission granted from Simon Machell (73244.1270@compuserve.com)
+ * Permission granted from Simon Machell (smachell@berkprod.com)
  * Written for the Linux Kernel, and GPLed by Ken Hollis
  *
  * 960107	Added request_region routines, modulized the whole thing.
@@ -70,8 +70,8 @@
 #include <asm/io.h>		/* For inb/outb/... */
 
 /* Module and version information */
-#define WATCHDOG_VERSION "1.17"
-#define WATCHDOG_DATE "12 Feb 2006"
+#define WATCHDOG_VERSION "1.18"
+#define WATCHDOG_DATE "21 Jan 2007"
 #define WATCHDOG_DRIVER_NAME "ISA-PC Watchdog"
 #define WATCHDOG_NAME "pcwd"
 #define PFX WATCHDOG_NAME ": "
@@ -132,6 +132,18 @@
 #define CMD_ISA_DELAY_TIME_8SECS	0x0C
 #define CMD_ISA_RESET_RELAYS		0x0D
 
+/* Watchdog's Dip Switch heartbeat values */
+static const int heartbeat_tbl [] = {
+	20,	/* OFF-OFF-OFF	= 20 Sec  */
+	40,	/* OFF-OFF-ON	= 40 Sec  */
+	60,	/* OFF-ON-OFF	=  1 Min  */
+	300,	/* OFF-ON-ON	=  5 Min  */
+	600,	/* ON-OFF-OFF	= 10 Min  */
+	1800,	/* ON-OFF-ON	= 30 Min  */
+	3600,	/* ON-ON-OFF	=  1 Hour */
+	7200,	/* ON-ON-ON	=  2 hour */
+};
+
 /*
  * We are using an kernel timer to do the pinging of the watchdog
  * every ~500ms. We try to set the internal heartbeat of the
@@ -167,14 +179,14 @@ static int debug = QUIET;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level: 0=Quiet, 1=Verbose, 2=Debug (default=0)");
 
-#define WATCHDOG_HEARTBEAT 60		/* 60 sec default heartbeat */
+#define WATCHDOG_HEARTBEAT 0		/* default heartbeat = delay-time from dip-switches */
 static int heartbeat = WATCHDOG_HEARTBEAT;
 module_param(heartbeat, int, 0);
-MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (2<=heartbeat<=7200, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
+MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (2<=heartbeat<=7200 or 0=delay-time from dip-switches, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Internal functions
@@ -831,9 +843,7 @@ static int __devinit pcwatchdog_init(int base_addr)
 	/* clear the "card caused reboot" flag */
 	pcwd_clear_status();
 
-	init_timer(&pcwd_private.timer);
-	pcwd_private.timer.function = pcwd_timer_ping;
-	pcwd_private.timer.data = 0;
+	setup_timer(&pcwd_private.timer, pcwd_timer_ping, 0);
 
 	/*  Disable the board  */
 	pcwd_stop();
@@ -843,6 +853,10 @@ static int __devinit pcwatchdog_init(int base_addr)
 
 	/* Show info about the card itself */
 	pcwd_show_card_info();
+
+	/* If heartbeat = 0 then we use the heartbeat from the dip-switches */
+	if (heartbeat == 0)
+		heartbeat = heartbeat_tbl[(pcwd_get_option_switches() & 0x07)];
 
 	/* Check that the heartbeat value is within it's range ; if not reset to the default */
 	if (pcwd_set_heartbeat(heartbeat)) {

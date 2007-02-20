@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@ acpi_status acpi_get_timer_resolution(u32 * resolution)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	if (acpi_gbl_FADT->tmr_val_ext == 0) {
+	if ((acpi_gbl_FADT.flags & ACPI_FADT_32BIT_TIMER) == 0) {
 		*resolution = 24;
 	} else {
 		*resolution = 32;
@@ -98,7 +98,8 @@ acpi_status acpi_get_timer(u32 * ticks)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_hw_low_level_read(32, ticks, &acpi_gbl_FADT->xpm_tmr_blk);
+	status =
+	    acpi_hw_low_level_read(32, ticks, &acpi_gbl_FADT.xpm_timer_block);
 
 	return_ACPI_STATUS(status);
 }
@@ -153,7 +154,7 @@ acpi_get_timer_duration(u32 start_ticks, u32 end_ticks, u32 * time_elapsed)
 	if (start_ticks < end_ticks) {
 		delta_ticks = end_ticks - start_ticks;
 	} else if (start_ticks > end_ticks) {
-		if (acpi_gbl_FADT->tmr_val_ext == 0) {
+		if ((acpi_gbl_FADT.flags & ACPI_FADT_32BIT_TIMER) == 0) {
 
 			/* 24-bit Timer */
 

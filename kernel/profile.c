@@ -449,7 +449,6 @@ void create_prof_cpu_mask(struct proc_dir_entry *root_irq_dir)
 	/* create /proc/irq/prof_cpu_mask */
 	if (!(entry = create_proc_entry("prof_cpu_mask", 0600, root_irq_dir)))
 		return;
-	entry->nlink = 1;
 	entry->data = (void *)&prof_cpu_mask;
 	entry->read_proc = prof_cpu_mask_read_proc;
 	entry->write_proc = prof_cpu_mask_write_proc;

@@ -101,7 +101,7 @@ static u8 atiixp_dma_2_pio(u8 xfer_rate) {
 	}
 }
 
-static int atiixp_ide_dma_host_on(ide_drive_t *drive)
+static void atiixp_dma_host_on(ide_drive_t *drive)
 {
 	struct pci_dev *dev = drive->hwif->pci_dev;
 	unsigned long flags;
@@ -118,10 +118,10 @@ static int atiixp_ide_dma_host_on(ide_drive_t *drive)
 
 	spin_unlock_irqrestore(&atiixp_lock, flags);
 
-	return __ide_dma_host_on(drive);
+	ide_dma_host_on(drive);
 }
 
-static int atiixp_ide_dma_host_off(ide_drive_t *drive)
+static void atiixp_dma_host_off(ide_drive_t *drive)
 {
 	struct pci_dev *dev = drive->hwif->pci_dev;
 	unsigned long flags;
@@ -135,7 +135,7 @@ static int atiixp_ide_dma_host_off(ide_drive_t *drive)
 
 	spin_unlock_irqrestore(&atiixp_lock, flags);
 
-	return __ide_dma_host_off(drive);
+	ide_dma_host_off(drive);
 }
 
 /**
@@ -235,11 +235,8 @@ static int atiixp_config_drive_for_dma(ide_drive_t *drive)
 {
 	u8 speed = ide_dma_speed(drive, atiixp_ratemask(drive));
 
-	/* If no DMA speed was available then disable DMA and use PIO. */
-	if (!speed) {
-		u8 tspeed = ide_get_best_pio_mode(drive, 255, 5, NULL);
-		speed = atiixp_dma_2_pio(XFER_PIO_0 + tspeed) + XFER_PIO_0;
-	}
+	if (!speed)
+		return 0;
 
 	(void) atiixp_speedproc(drive, speed);
 	return ide_dma_enable(drive);
@@ -255,30 +252,20 @@ static int atiixp_config_drive_for_dma(ide_drive_t *drive)
 
 static int atiixp_dma_check(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
 	u8 tspeed, speed;
 
 	drive->init_speed = 0;
 
-	if ((id->capability & 1) && drive->autodma) {
+	if (ide_use_dma(drive) && atiixp_config_drive_for_dma(drive))
+		return 0;
 
-		if (ide_use_dma(drive)) {
-			if (atiixp_config_drive_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
-
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
+	if (ide_use_fast_pio(drive)) {
 		tspeed = ide_get_best_pio_mode(drive, 255, 5, NULL);
 		speed = atiixp_dma_2_pio(XFER_PIO_0 + tspeed) + XFER_PIO_0;
-		hwif->speedproc(drive, speed);
-		return hwif->ide_dma_off_quietly(drive);
+		atiixp_speedproc(drive, speed);
 	}
-	/* IORDY not supported */
-	return 0;
+
+	return -1;
 }
 
 /**
@@ -318,8 +305,8 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 	else
 		hwif->udma_four = 0;
 
-	hwif->ide_dma_host_on = &atiixp_ide_dma_host_on;
-	hwif->ide_dma_host_off = &atiixp_ide_dma_host_off;
+	hwif->dma_host_on = &atiixp_dma_host_on;
+	hwif->dma_host_off = &atiixp_dma_host_off;
 	hwif->ide_dma_check = &atiixp_dma_check;
 	if (!noautodma)
 		hwif->autodma = 1;

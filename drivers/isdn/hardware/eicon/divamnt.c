@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <asm/uaccess.h>
@@ -164,7 +163,7 @@ static ssize_t divas_maint_read(struct file *file, char __user *buf,
 	return (maint_read_write(buf, (int) count));
 }
 
-static struct file_operations divas_maint_fops = {
+static const struct file_operations divas_maint_fops = {
 	.owner   = THIS_MODULE,
 	.llseek  = no_llseek,
 	.read    = divas_maint_read,

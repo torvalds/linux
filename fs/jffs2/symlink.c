@@ -20,7 +20,7 @@
 
 static void *jffs2_follow_link(struct dentry *dentry, struct nameidata *nd);
 
-struct inode_operations jffs2_symlink_inode_operations =
+const struct inode_operations jffs2_symlink_inode_operations =
 {
 	.readlink =	generic_readlink,
 	.follow_link =	jffs2_follow_link,

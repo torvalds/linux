@@ -74,7 +74,11 @@ struct ehci_hcd {			/* one per controller */
 
 	/* per root hub port */
 	unsigned long		reset_done [EHCI_MAX_ROOT_PORTS];
-	unsigned long		bus_suspended;
+	/* bit vectors (one bit per port) */
+	unsigned long		bus_suspended;		/* which ports were
+			already suspended at the start of a bus suspend */
+	unsigned long		companion_ports;	/* which ports are
+			dedicated to the companion controller */
 
 	/* per-HC memory pools (could be per-bus, but ...) */
 	struct dma_pool		*qh_pool;	/* qh per active urb */
@@ -92,6 +96,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		is_tdi_rh_tt:1;	/* TDI roothub with TT */
 	unsigned		no_selective_suspend:1;
 	unsigned		has_fsl_port_bug:1; /* FreeScale */
+	unsigned		big_endian_mmio:1;
 
 	u8			sbrn;		/* packed release number */
 
@@ -651,6 +656,45 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 #define	ehci_has_fsl_portno_bug(e)		(0)
 #endif
 
+/*
+ * While most USB host controllers implement their registers in
+ * little-endian format, a minority (celleb companion chip) implement
+ * them in big endian format.
+ *
+ * This attempts to support either format at compile time without a
+ * runtime penalty, or both formats with the additional overhead
+ * of checking a flag bit.
+ */
+
+#ifdef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
+#define ehci_big_endian_mmio(e)		((e)->big_endian_mmio)
+#else
+#define ehci_big_endian_mmio(e)		0
+#endif
+
+static inline unsigned int ehci_readl (const struct ehci_hcd *ehci,
+				       __u32 __iomem * regs)
+{
+#ifdef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
+	return ehci_big_endian_mmio(ehci) ?
+		readl_be(regs) :
+		readl(regs);
+#else
+	return readl(regs);
+#endif
+}
+
+static inline void ehci_writel (const struct ehci_hcd *ehci,
+				const unsigned int val, __u32 __iomem *regs)
+{
+#ifdef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
+	ehci_big_endian_mmio(ehci) ?
+		writel_be(val, regs) :
+		writel(val, regs);
+#else
+	writel(val, regs);
+#endif
+}
 
 /*-------------------------------------------------------------------------*/
 

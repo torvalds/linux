@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ipt_iprange.h>
 
 MODULE_LICENSE("GPL");
@@ -41,7 +41,7 @@ match(const struct sk_buff *skb,
 			DEBUGP("src IP %u.%u.%u.%u NOT in range %s"
 			       "%u.%u.%u.%u-%u.%u.%u.%u\n",
 				NIPQUAD(iph->saddr),
-			        info->flags & IPRANGE_SRC_INV ? "(INV) " : "",
+				info->flags & IPRANGE_SRC_INV ? "(INV) " : "",
 				NIPQUAD(info->src.min_ip),
 				NIPQUAD(info->src.max_ip));
 			return 0;
@@ -54,7 +54,7 @@ match(const struct sk_buff *skb,
 			DEBUGP("dst IP %u.%u.%u.%u NOT in range %s"
 			       "%u.%u.%u.%u-%u.%u.%u.%u\n",
 				NIPQUAD(iph->daddr),
-			        info->flags & IPRANGE_DST_INV ? "(INV) " : "",
+				info->flags & IPRANGE_DST_INV ? "(INV) " : "",
 				NIPQUAD(info->dst.min_ip),
 				NIPQUAD(info->dst.max_ip));
 			return 0;
@@ -63,22 +63,22 @@ match(const struct sk_buff *skb,
 	return 1;
 }
 
-static struct ipt_match iprange_match = {
+static struct xt_match iprange_match = {
 	.name		= "iprange",
+	.family		= AF_INET,
 	.match		= match,
 	.matchsize	= sizeof(struct ipt_iprange_info),
-	.destroy	= NULL,
 	.me		= THIS_MODULE
 };
 
 static int __init ipt_iprange_init(void)
 {
-	return ipt_register_match(&iprange_match);
+	return xt_register_match(&iprange_match);
 }
 
 static void __exit ipt_iprange_fini(void)
 {
-	ipt_unregister_match(&iprange_match);
+	xt_unregister_match(&iprange_match);
 }
 
 module_init(ipt_iprange_init);

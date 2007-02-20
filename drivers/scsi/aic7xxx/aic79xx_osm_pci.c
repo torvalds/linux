@@ -132,6 +132,7 @@ ahd_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct		 ahd_pci_identity *entry;
 	char		*name;
 	int		 error;
+	struct device	*dev = &pdev->dev;
 
 	pci = pdev;
 	entry = ahd_find_pci_device(pci);
@@ -161,20 +162,18 @@ ahd_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 
 	if (sizeof(dma_addr_t) > 4) {
-		uint64_t   memsize;
-		const uint64_t mask_39bit = 0x7FFFFFFFFFULL;
+		const u64 required_mask = dma_get_required_mask(dev);
 
-		memsize = ahd_linux_get_memsize();
-
-		if (memsize >= 0x8000000000ULL
-	 	 && pci_set_dma_mask(pdev, DMA_64BIT_MASK) == 0) {
+		if (required_mask > DMA_39BIT_MASK &&
+		    dma_set_mask(dev, DMA_64BIT_MASK) == 0)
 			ahd->flags |= AHD_64BIT_ADDRESSING;
-		} else if (memsize > 0x80000000
-			&& pci_set_dma_mask(pdev, mask_39bit) == 0) {
+		else if (required_mask > DMA_32BIT_MASK &&
+			 dma_set_mask(dev, DMA_39BIT_MASK) == 0)
 			ahd->flags |= AHD_39BIT_ADDRESSING;
-		}
+		else
+			dma_set_mask(dev, DMA_32BIT_MASK);
 	} else {
-		pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		dma_set_mask(dev, DMA_32BIT_MASK);
 	}
 	ahd->dev_softc = pci;
 	error = ahd_pci_config(ahd, entry);

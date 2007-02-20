@@ -636,27 +636,32 @@ static int state_initialized(struct file_info *fi, struct pending_request *req)
 
 	case RAW1394_REQ_SET_CARD:
 		spin_lock_irqsave(&host_info_lock, flags);
-		if (req->req.misc < host_count) {
-			list_for_each_entry(hi, &host_info_list, list) {
-				if (!req->req.misc--)
-					break;
-			}
-			get_device(&hi->host->device);	// XXX Need to handle failure case
-			list_add_tail(&fi->list, &hi->file_info_list);
-			fi->host = hi->host;
-			fi->state = connected;
-
-			req->req.error = RAW1394_ERROR_NONE;
-			req->req.generation = get_hpsb_generation(fi->host);
-			req->req.misc = (fi->host->node_id << 16)
-			    | fi->host->node_count;
-			if (fi->protocol_version > 3) {
-				req->req.misc |=
-				    NODEID_TO_NODE(fi->host->irm_id) << 8;
-			}
-		} else {
+		if (req->req.misc >= host_count) {
 			req->req.error = RAW1394_ERROR_INVALID_ARG;
+			goto out_set_card;
 		}
+		list_for_each_entry(hi, &host_info_list, list)
+			if (!req->req.misc--)
+				break;
+		get_device(&hi->host->device); /* FIXME handle failure case */
+		list_add_tail(&fi->list, &hi->file_info_list);
+
+		/* prevent unloading of the host's low-level driver */
+		if (!try_module_get(hi->host->driver->owner)) {
+			req->req.error = RAW1394_ERROR_ABORTED;
+			goto out_set_card;
+		}
+		WARN_ON(fi->host);
+		fi->host = hi->host;
+		fi->state = connected;
+
+		req->req.error = RAW1394_ERROR_NONE;
+		req->req.generation = get_hpsb_generation(fi->host);
+		req->req.misc = (fi->host->node_id << 16)
+				| fi->host->node_count;
+		if (fi->protocol_version > 3)
+			req->req.misc |= NODEID_TO_NODE(fi->host->irm_id) << 8;
+out_set_card:
 		spin_unlock_irqrestore(&host_info_lock, flags);
 
 		req->req.length = 0;
@@ -2664,6 +2669,18 @@ static void raw1394_iso_shutdown(struct file_info *fi)
 	fi->iso_state = RAW1394_ISO_INACTIVE;
 }
 
+static int raw1394_read_cycle_timer(struct file_info *fi, void __user * uaddr)
+{
+	struct raw1394_cycle_timer ct;
+	int err;
+
+	err = hpsb_read_cycle_timer(fi->host, &ct.cycle_timer, &ct.local_time);
+	if (!err)
+		if (copy_to_user(uaddr, &ct, sizeof(ct)))
+			err = -EFAULT;
+	return err;
+}
+
 /* mmap the rawiso xmit/recv buffer */
 static int raw1394_mmap(struct file *file, struct vm_area_struct *vma)
 {
@@ -2768,6 +2785,14 @@ static int raw1394_ioctl(struct inode *inode, struct file *file,
 			return 0;
 		}
 		break;
+	default:
+		break;
+	}
+
+	/* state-independent commands */
+	switch(cmd) {
+	case RAW1394_IOC_GET_CYCLE_TIMER:
+		return raw1394_read_cycle_timer(fi, argp);
 	default:
 		break;
 	}
@@ -2955,6 +2980,11 @@ static int raw1394_release(struct inode *inode, struct file *file)
 		put_device(&fi->host->device);
 	}
 
+	spin_lock_irqsave(&host_info_lock, flags);
+	if (fi->host)
+		module_put(fi->host->driver->owner);
+	spin_unlock_irqrestore(&host_info_lock, flags);
+
 	kfree(fi);
 
 	return 0;
@@ -3003,7 +3033,7 @@ static struct hpsb_highlevel raw1394_highlevel = {
 };
 
 static struct cdev raw1394_cdev;
-static struct file_operations raw1394_fops = {
+static const struct file_operations raw1394_fops = {
 	.owner = THIS_MODULE,
 	.read = raw1394_read,
 	.write = raw1394_write,

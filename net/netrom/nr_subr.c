@@ -11,7 +11,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/sockios.h>
@@ -57,7 +56,7 @@ void nr_frames_acked(struct sock *sk, unsigned short nr)
 	 */
 	if (nrom->va != nr) {
 		while (skb_peek(&nrom->ack_queue) != NULL && nrom->va != nr) {
-		        skb = skb_dequeue(&nrom->ack_queue);
+			skb = skb_dequeue(&nrom->ack_queue);
 			kfree_skb(skb);
 			nrom->va = (nrom->va + 1) % NR_MODULUS;
 		}

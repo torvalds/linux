@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/crc32.h>
 #include <linux/spinlock.h>
+#include <linux/bitrev.h>
 #include <asm/prom.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
@@ -74,7 +75,6 @@ struct mace_data {
 #define PRIV_BYTES	(sizeof(struct mace_data) \
 	+ (N_RX_RING + NCMDS_TX * N_TX_RING + 3) * sizeof(struct dbdma_cmd))
 
-static int bitrev(int);
 static int mace_open(struct net_device *dev);
 static int mace_close(struct net_device *dev);
 static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev);
@@ -95,18 +95,6 @@ static void __mace_set_address(struct net_device *dev, void *addr);
  * If we can't get a skbuff when we need it, we use this area for DMA.
  */
 static unsigned char *dummy_buf;
-
-/* Bit-reverse one byte of an ethernet hardware address. */
-static inline int
-bitrev(int b)
-{
-    int d = 0, i;
-
-    for (i = 0; i < 8; ++i, b >>= 1)
-	d = (d << 1) | (b & 1);
-    return d;
-}
-
 
 static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
@@ -173,7 +161,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 
 	rev = addr[0] == 0 && addr[1] == 0xA0;
 	for (j = 0; j < 6; ++j) {
-		dev->dev_addr[j] = rev? bitrev(addr[j]): addr[j];
+		dev->dev_addr[j] = rev ? bitrev8(addr[j]): addr[j];
 	}
 	mp->chipid = (in_8(&mp->mace->chipid_hi) << 8) |
 			in_8(&mp->mace->chipid_lo);

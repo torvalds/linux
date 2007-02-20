@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/namei.h>
 #include <linux/debugfs.h>
 
 static ssize_t default_read_file(struct file *file, char __user *buf,
@@ -42,6 +43,17 @@ const struct file_operations debugfs_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		default_open,
+};
+
+static void *debugfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+{
+	nd_set_link(nd, dentry->d_inode->i_private);
+	return NULL;
+}
+
+const struct inode_operations debugfs_link_operations = {
+	.readlink       = generic_readlink,
+	.follow_link    = debugfs_follow_link,
 };
 
 static void debugfs_u8_set(void *data, u64 val)
@@ -254,7 +266,7 @@ static ssize_t read_file_blob(struct file *file, char __user *user_buf,
 			blob->size);
 }
 
-static struct file_operations fops_blob = {
+static const struct file_operations fops_blob = {
 	.read =		read_file_blob,
 	.open =		default_open,
 };

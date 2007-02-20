@@ -2,7 +2,7 @@
  * linux/net/sunrpc/svcauth.c
  *
  * The generic interface for RPC authentication on the server side.
- * 
+ *
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  *
  * CHANGES
@@ -10,7 +10,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>
@@ -74,7 +73,7 @@ int svc_authorise(struct svc_rqst *rqstp)
 	int rv = 0;
 
 	rqstp->rq_authop = NULL;
-	
+
 	if (aops) {
 		rv = aops->release(rqstp);
 		module_put(aops->owner);

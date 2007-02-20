@@ -57,7 +57,7 @@ static struct clocksource cs_hrt = {
 	.rating		= 250,
 	.read		= read_hrt,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.is_continuous	= 1,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 	/* mult, shift are set based on mhz27 flag */
 };
 

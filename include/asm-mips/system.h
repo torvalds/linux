@@ -110,7 +110,10 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 		"	move	%2, %z4					\n"
 		"	.set	mips3					\n"
 		"	sc	%2, %1					\n"
-		"	beqz	%2, 1b					\n"
+		"	beqz	%2, 2f					\n"
+		"	.subsection 2					\n"
+		"2:	b	1b					\n"
+		"	.previous					\n"
 		"	.set	mips0					\n"
 		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
 		: "R" (*m), "Jr" (val)
@@ -155,7 +158,10 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 		"1:	lld	%0, %3			# xchg_u64	\n"
 		"	move	%2, %z4					\n"
 		"	scd	%2, %1					\n"
-		"	beqz	%2, 1b					\n"
+		"	beqz	%2, 2f					\n"
+		"	.subsection 2					\n"
+		"2:	b	1b					\n"
+		"	.previous					\n"
 		"	.set	mips0					\n"
 		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
 		: "R" (*m), "Jr" (val)
@@ -232,8 +238,11 @@ static inline unsigned long __cmpxchg_u32(volatile int * m, unsigned long old,
 		"	move	$1, %z4					\n"
 		"	.set	mips3					\n"
 		"	sc	$1, %1					\n"
-		"	beqz	$1, 1b					\n"
+		"	beqz	$1, 3f					\n"
 		"2:							\n"
+		"	.subsection 2					\n"
+		"3:	b	1b					\n"
+		"	.previous					\n"
 		"	.set	pop					\n"
 		: "=&r" (retval), "=R" (*m)
 		: "R" (*m), "Jr" (old), "Jr" (new)
@@ -283,8 +292,11 @@ static inline unsigned long __cmpxchg_u64(volatile int * m, unsigned long old,
 		"	bne	%0, %z3, 2f				\n"
 		"	move	$1, %z4					\n"
 		"	scd	$1, %1					\n"
-		"	beqz	$1, 1b					\n"
+		"	beqz	$1, 3f					\n"
 		"2:							\n"
+		"	.subsection 2					\n"
+		"3:	b	1b					\n"
+		"	.previous					\n"
 		"	.set	pop					\n"
 		: "=&r" (retval), "=R" (*m)
 		: "R" (*m), "Jr" (old), "Jr" (new)

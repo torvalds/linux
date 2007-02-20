@@ -59,7 +59,6 @@ typedef struct user_info_t {
 
 #ifdef DEBUG
 extern int ds_pc_debug;
-#define cs_socket_name(skt)    ((skt)->dev.class_id)
 
 #define ds_dbg(lvl, fmt, arg...) do {		\
 	if (ds_pc_debug >= lvl)				\
@@ -766,7 +765,7 @@ free_out:
 
 /*====================================================================*/
 
-static struct file_operations ds_fops = {
+static const struct file_operations ds_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ds_open,
 	.release	= ds_release,

@@ -24,7 +24,6 @@
  *              re-write/remove debug printks
  */
 
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -46,22 +45,6 @@
 
 #undef DEBUG_FRAG
 
-
-
-/*
- *  task queue struct
- */
-
-
-
-/*
- *  Layer 3 packet demultiplexer
- *  drv.c
- */
-
-extern void pcbit_l3_receive(struct pcbit_dev *dev, ulong msg,
-			     struct sk_buff *skb,
-			     ushort hdr_len, ushort refnum);
 
 /*
  *  Prototypes

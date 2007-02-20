@@ -1051,7 +1051,11 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_EQ_OFFSET);
 	dev_lim->max_eqs = 1 << (field & 0x7);
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_RSVD_MTT_OFFSET);
-	dev_lim->reserved_mtts = 1 << (field >> 4);
+	if (mthca_is_memfree(dev))
+		dev_lim->reserved_mtts = ALIGN((1 << (field >> 4)) * sizeof(u64),
+					       MTHCA_MTT_SEG_SIZE) / MTHCA_MTT_SEG_SIZE;
+	else
+		dev_lim->reserved_mtts = 1 << (field >> 4);
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_MRW_SZ_OFFSET);
 	dev_lim->max_mrw_sz = 1 << field;
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_RSVD_MRW_OFFSET);
@@ -1854,7 +1858,7 @@ int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
 
 		memset(inbox + 256, 0, 256);
 
-		MTHCA_PUT(inbox, in_wc->qp_num,     MAD_IFC_MY_QPN_OFFSET);
+		MTHCA_PUT(inbox, in_wc->qp->qp_num, MAD_IFC_MY_QPN_OFFSET);
 		MTHCA_PUT(inbox, in_wc->src_qp,     MAD_IFC_RQPN_OFFSET);
 
 		val = in_wc->sl << 4;

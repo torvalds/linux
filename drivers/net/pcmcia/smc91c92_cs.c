@@ -1927,7 +1927,7 @@ static void media_check(u_long arg)
     if (smc->watchdog++ && ((i>>8) & i)) {
 	if (!smc->fast_poll)
 	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-	smc_interrupt(dev->irq, smc);
+	smc_interrupt(dev->irq, dev);
 	smc->fast_poll = HZ;
     }
     if (smc->fast_poll) {

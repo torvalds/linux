@@ -197,13 +197,13 @@ int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count
 	struct inode *inode;
 	loff_t pos;
 
+	inode = file->f_path.dentry->d_inode;
 	if (unlikely((ssize_t) count < 0))
 		goto Einval;
 	pos = *ppos;
 	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0))
 		goto Einval;
 
-	inode = file->f_path.dentry->d_inode;
 	if (unlikely(inode->i_flock && MANDATORY_LOCK(inode))) {
 		int retval = locks_mandatory_area(
 			read_write == READ ? FLOCK_VERIFY_READ : FLOCK_VERIFY_WRITE,
@@ -274,9 +274,9 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 				ret = do_sync_read(file, buf, count, pos);
 			if (ret > 0) {
 				fsnotify_access(file->f_path.dentry);
-				current->rchar += ret;
+				add_rchar(current, ret);
 			}
-			current->syscr++;
+			inc_syscr(current);
 		}
 	}
 
@@ -332,9 +332,9 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 				ret = do_sync_write(file, buf, count, pos);
 			if (ret > 0) {
 				fsnotify_modify(file->f_path.dentry);
-				current->wchar += ret;
+				add_wchar(current, ret);
 			}
-			current->syscw++;
+			inc_syscw(current);
 		}
 	}
 
@@ -675,8 +675,8 @@ sys_readv(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
 	}
 
 	if (ret > 0)
-		current->rchar += ret;
-	current->syscr++;
+		add_rchar(current, ret);
+	inc_syscr(current);
 	return ret;
 }
 
@@ -696,8 +696,8 @@ sys_writev(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
 	}
 
 	if (ret > 0)
-		current->wchar += ret;
-	current->syscw++;
+		add_wchar(current, ret);
+	inc_syscw(current);
 	return ret;
 }
 
@@ -779,12 +779,12 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	retval = in_file->f_op->sendfile(in_file, ppos, count, file_send_actor, out_file);
 
 	if (retval > 0) {
-		current->rchar += retval;
-		current->wchar += retval;
+		add_rchar(current, retval);
+		add_wchar(current, retval);
 	}
-	current->syscr++;
-	current->syscw++;
 
+	inc_syscr(current);
+	inc_syscw(current);
 	if (*ppos > max)
 		retval = -EOVERFLOW;
 

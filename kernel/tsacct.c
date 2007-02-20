@@ -22,8 +22,6 @@
 #include <linux/acct.h>
 #include <linux/jiffies.h>
 
-
-#define USEC_PER_TICK	(USEC_PER_SEC/HZ)
 /*
  * fill in basic accounting fields
  */

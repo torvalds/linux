@@ -399,7 +399,7 @@ MODULE_PARM_DESC(specific_debug,
  ****************************************************************************/
 
 /* Video4linux interface */
-static struct file_operations w9968cf_fops;
+static const struct file_operations w9968cf_fops;
 static int w9968cf_open(struct inode*, struct file*);
 static int w9968cf_release(struct inode*, struct file*);
 static int w9968cf_mmap(struct file*, struct vm_area_struct*);
@@ -1573,6 +1573,7 @@ static int w9968cf_i2c_init(struct w9968cf_device* cam)
 
 	memcpy(&cam->i2c_adapter, &adap, sizeof(struct i2c_adapter));
 	strcpy(cam->i2c_adapter.name, "w9968cf");
+	cam->i2c_adapter.dev.parent = &cam->usbdev->dev;
 	i2c_set_adapdata(&cam->i2c_adapter, cam);
 
 	DBG(6, "Registering I2C adapter with kernel...")
@@ -3466,7 +3467,7 @@ ioctl_fail:
 }
 
 
-static struct file_operations w9968cf_fops = {
+static const struct file_operations w9968cf_fops = {
 	.owner =   THIS_MODULE,
 	.open =    w9968cf_open,
 	.release = w9968cf_release,

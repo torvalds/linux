@@ -12,7 +12,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -29,7 +28,7 @@
  * 4) All operations modify state, so a spinlock is used.
  */
 static struct dst_entry 	*dst_garbage_list;
-#if RT_CACHE_DEBUG >= 2 
+#if RT_CACHE_DEBUG >= 2
 static atomic_t			 dst_total = ATOMIC_INIT(0);
 #endif
 static DEFINE_SPINLOCK(dst_lock);
@@ -99,7 +98,14 @@ static void dst_run_gc(unsigned long dummy)
 	printk("dst_total: %d/%d %ld\n",
 	       atomic_read(&dst_total), delayed,  dst_gc_timer_expires);
 #endif
-	mod_timer(&dst_gc_timer, jiffies + dst_gc_timer_expires);
+	/* if the next desired timer is more than 4 seconds in the future
+	 * then round the timer to whole seconds
+	 */
+	if (dst_gc_timer_expires > 4*HZ)
+		mod_timer(&dst_gc_timer,
+			round_jiffies(jiffies + dst_gc_timer_expires));
+	else
+		mod_timer(&dst_gc_timer, jiffies + dst_gc_timer_expires);
 
 out:
 	spin_unlock(&dst_lock);
@@ -125,17 +131,16 @@ void * dst_alloc(struct dst_ops * ops)
 		if (ops->gc())
 			return NULL;
 	}
-	dst = kmem_cache_alloc(ops->kmem_cachep, GFP_ATOMIC);
+	dst = kmem_cache_zalloc(ops->kmem_cachep, GFP_ATOMIC);
 	if (!dst)
 		return NULL;
-	memset(dst, 0, ops->entry_size);
 	atomic_set(&dst->__refcnt, 0);
 	dst->ops = ops;
 	dst->lastuse = jiffies;
 	dst->path = dst;
 	dst->input = dst_discard_in;
 	dst->output = dst_discard_out;
-#if RT_CACHE_DEBUG >= 2 
+#if RT_CACHE_DEBUG >= 2
 	atomic_inc(&dst_total);
 #endif
 	atomic_inc(&ops->entries);
@@ -196,7 +201,7 @@ again:
 		dst->ops->destroy(dst);
 	if (dst->dev)
 		dev_put(dst->dev);
-#if RT_CACHE_DEBUG >= 2 
+#if RT_CACHE_DEBUG >= 2
 	atomic_dec(&dst_total);
 #endif
 	kmem_cache_free(dst->ops->kmem_cachep, dst);

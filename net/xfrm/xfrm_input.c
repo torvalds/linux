@@ -4,7 +4,7 @@
  * Changes:
  * 	YOSHIFUJI Hideaki @USAGI
  * 		Split up af-specific portion
- * 	
+ *
  */
 
 #include <linux/slab.h>

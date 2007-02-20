@@ -61,7 +61,7 @@ MODULE_LICENSE("GPL");
 #define INPORT_REG_MODE		0x07
 #define INPORT_RESET		0x80
 
-#ifdef CONFIG_INPUT_ATIXL
+#ifdef CONFIG_MOUSE_ATIXL
 #define INPORT_NAME		"ATI XL Mouse"
 #define INPORT_VENDOR		0x0002
 #define INPORT_SPEED_30HZ	0x01
@@ -83,8 +83,6 @@ MODULE_LICENSE("GPL");
 static int inport_irq = INPORT_IRQ;
 module_param_named(irq, inport_irq, uint, 0);
 MODULE_PARM_DESC(irq, "IRQ number (5=default)");
-
-__obsolete_setup("inport_irq=");
 
 static struct input_dev *inport_dev;
 

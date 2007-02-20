@@ -80,16 +80,6 @@ static unsigned long dummy_gettimeoffset(void)
 #endif
 
 /*
- * Scheduler clock - returns current time in nanosec units.
- * This is the default implementation.  Sub-architecture
- * implementations can override this.
- */
-unsigned long long __attribute__((weak)) sched_clock(void)
-{
-	return (unsigned long long)jiffies * (1000000000 / HZ);
-}
-
-/*
  * An implementation of printk_clock() independent from
  * sched_clock().  This avoids non-bootable kernels when
  * printk_clock is enabled.

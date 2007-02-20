@@ -91,17 +91,6 @@ static inline __u32 rpcc(void)
 }
 
 /*
- * Scheduler clock - returns current time in nanosec units.
- *
- * Copied from ARM code for expediency... ;-}
- */
-unsigned long long sched_clock(void)
-{
-        return (unsigned long long)jiffies * (1000000000 / HZ);
-}
-
-
-/*
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */

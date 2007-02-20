@@ -95,13 +95,9 @@ static int modparam_noleds;
 module_param_named(noleds, modparam_noleds, int, 0444);
 MODULE_PARM_DESC(noleds, "Turn off all LED activity");
 
-#ifdef CONFIG_BCM43XX_DEBUG
 static char modparam_fwpostfix[64];
 module_param_string(fwpostfix, modparam_fwpostfix, 64, 0444);
-MODULE_PARM_DESC(fwpostfix, "Postfix for .fw files. Useful for debugging.");
-#else
-# define modparam_fwpostfix  ""
-#endif /* CONFIG_BCM43XX_DEBUG*/
+MODULE_PARM_DESC(fwpostfix, "Postfix for .fw files. Useful for using multiple firmware image versions.");
 
 
 /* If you want to debug with just a single device, enable this,
@@ -2441,6 +2437,9 @@ static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 	if (err)
 		goto err_gpio_cleanup;
 	bcm43xx_radio_turn_on(bcm);
+	bcm->radio_hw_enable = bcm43xx_is_hw_radio_enabled(bcm);
+	dprintk(KERN_INFO PFX "Radio %s by hardware\n",
+		(bcm->radio_hw_enable == 0) ? "disabled" : "enabled");
 
 	bcm43xx_write16(bcm, 0x03E6, 0x0000);
 	err = bcm43xx_phy_init(bcm);
@@ -2980,8 +2979,10 @@ static int bcm43xx_chipset_attach(struct bcm43xx_private *bcm)
 	err = bcm43xx_pctl_set_crystal(bcm, 1);
 	if (err)
 		goto out;
-	bcm43xx_pci_read_config16(bcm, PCI_STATUS, &pci_status);
-	bcm43xx_pci_write_config16(bcm, PCI_STATUS, pci_status & ~PCI_STATUS_SIG_TARGET_ABORT);
+	err = bcm43xx_pci_read_config16(bcm, PCI_STATUS, &pci_status);
+	if (err)
+		goto out;
+	err = bcm43xx_pci_write_config16(bcm, PCI_STATUS, pci_status & ~PCI_STATUS_SIG_TARGET_ABORT);
 
 out:
 	return err;
@@ -3175,9 +3176,24 @@ static void bcm43xx_periodic_every30sec(struct bcm43xx_private *bcm)
 
 static void bcm43xx_periodic_every15sec(struct bcm43xx_private *bcm)
 {
+	bcm43xx_phy_xmitpower(bcm); //FIXME: unless scanning?
+	//TODO for APHY (temperature?)
+}
+
+static void bcm43xx_periodic_every1sec(struct bcm43xx_private *bcm)
+{
 	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+	int radio_hw_enable;
 
+	/* check if radio hardware enabled status changed */
+	radio_hw_enable = bcm43xx_is_hw_radio_enabled(bcm);
+	if (unlikely(bcm->radio_hw_enable != radio_hw_enable)) {
+		bcm->radio_hw_enable = radio_hw_enable;
+		dprintk(KERN_INFO PFX "Radio hardware status changed to %s\n",
+		       (radio_hw_enable == 0) ? "disabled" : "enabled");
+		bcm43xx_leds_update(bcm, 0);
+	}
 	if (phy->type == BCM43xx_PHYTYPE_G) {
 		//TODO: update_aci_moving_average
 		if (radio->aci_enable && radio->aci_wlan_automatic) {
@@ -3201,21 +3217,21 @@ static void bcm43xx_periodic_every15sec(struct bcm43xx_private *bcm)
 			//TODO: implement rev1 workaround
 		}
 	}
-	bcm43xx_phy_xmitpower(bcm); //FIXME: unless scanning?
-	//TODO for APHY (temperature?)
 }
 
 static void do_periodic_work(struct bcm43xx_private *bcm)
 {
-	if (bcm->periodic_state % 8 == 0)
+	if (bcm->periodic_state % 120 == 0)
 		bcm43xx_periodic_every120sec(bcm);
-	if (bcm->periodic_state % 4 == 0)
+	if (bcm->periodic_state % 60 == 0)
 		bcm43xx_periodic_every60sec(bcm);
-	if (bcm->periodic_state % 2 == 0)
+	if (bcm->periodic_state % 30 == 0)
 		bcm43xx_periodic_every30sec(bcm);
-	bcm43xx_periodic_every15sec(bcm);
+	if (bcm->periodic_state % 15 == 0)
+		bcm43xx_periodic_every15sec(bcm);
+	bcm43xx_periodic_every1sec(bcm);
 
-	schedule_delayed_work(&bcm->periodic_work, HZ * 15);
+	schedule_delayed_work(&bcm->periodic_work, HZ);
 }
 
 static void bcm43xx_periodic_work_handler(struct work_struct *work)
@@ -3228,7 +3244,7 @@ static void bcm43xx_periodic_work_handler(struct work_struct *work)
 	unsigned long orig_trans_start = 0;
 
 	mutex_lock(&bcm->mutex);
-	if (unlikely(bcm->periodic_state % 4 == 0)) {
+	if (unlikely(bcm->periodic_state % 60 == 0)) {
 		/* Periodic work will take a long time, so we want it to
 		 * be preemtible.
 		 */
@@ -3260,7 +3276,7 @@ static void bcm43xx_periodic_work_handler(struct work_struct *work)
 
 	do_periodic_work(bcm);
 
-	if (unlikely(bcm->periodic_state % 4 == 0)) {
+	if (unlikely(bcm->periodic_state % 60 == 0)) {
 		spin_lock_irqsave(&bcm->irq_lock, flags);
 		tasklet_enable(&bcm->isr_tasklet);
 		bcm43xx_interrupt_enable(bcm, savedirqs);
@@ -3778,12 +3794,18 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	}
 	net_dev->base_addr = (unsigned long)bcm->mmio_addr;
 
-	bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_VENDOR_ID,
+	err = bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_VENDOR_ID,
 	                          &bcm->board_vendor);
-	bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_ID,
+	if (err)
+		goto err_iounmap;
+	err = bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_ID,
 	                          &bcm->board_type);
-	bcm43xx_pci_read_config16(bcm, PCI_REVISION_ID,
+	if (err)
+		goto err_iounmap;
+	err = bcm43xx_pci_read_config16(bcm, PCI_REVISION_ID,
 	                          &bcm->board_revision);
+	if (err)
+		goto err_iounmap;
 
 	err = bcm43xx_chipset_attach(bcm);
 	if (err)
@@ -3874,6 +3896,7 @@ err_pci_release:
 	pci_release_regions(pci_dev);
 err_pci_disable:
 	pci_disable_device(pci_dev);
+	printk(KERN_ERR PFX "Unable to attach board\n");
 	goto out;
 }
 

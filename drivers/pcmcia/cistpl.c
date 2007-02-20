@@ -21,7 +21,6 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <asm/io.h>

@@ -265,7 +265,7 @@ static int fmi_ioctl(struct inode *inode, struct file *file,
 
 static struct fmi_device fmi_unit;
 
-static struct file_operations fmi_fops = {
+static const struct file_operations fmi_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

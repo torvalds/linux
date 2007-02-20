@@ -40,7 +40,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
@@ -817,7 +816,7 @@ static void __exit cleanup_saa_5246a (void)
 module_init(init_saa_5246a);
 module_exit(cleanup_saa_5246a);
 
-static struct file_operations saa_fops = {
+static const struct file_operations saa_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = saa5246a_open,
 	.release = saa5246a_release,

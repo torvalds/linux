@@ -14,7 +14,6 @@
  */
 #include <linux/capability.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/miscdevice.h>
 #include <linux/rtc.h>
@@ -238,7 +237,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file,
 	return -EINVAL;
 }
 
-static struct file_operations rtc_fops = {
+static const struct file_operations rtc_fops = {
 	.ioctl	= rtc_ioctl,
 };
 

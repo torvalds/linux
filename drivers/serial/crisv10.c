@@ -3173,12 +3173,8 @@ do_softint(void *private_)
 	if (!tty)
 		return;
 
-	if (test_and_clear_bit(RS_EVENT_WRITE_WAKEUP, &info->event)) {
-		if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-		    tty->ldisc.write_wakeup)
-			(tty->ldisc.write_wakeup)(tty);
-		wake_up_interruptible(&tty->write_wait);
-	}
+	if (test_and_clear_bit(RS_EVENT_WRITE_WAKEUP, &info->event))
+		tty_wakeup(tty);
 }
 
 static int
@@ -3798,11 +3794,7 @@ rs_flush_buffer(struct tty_struct *tty)
 	info->xmit.head = info->xmit.tail = 0;
 	restore_flags(flags);
 
-	wake_up_interruptible(&tty->write_wait);
-
-	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-	    tty->ldisc.write_wakeup)
-		(tty->ldisc.write_wakeup)(tty);
+	tty_wakeup(tty);
 }
 
 /*

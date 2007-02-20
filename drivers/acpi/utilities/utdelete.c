@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -158,16 +158,19 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 				  "***** Mutex %p, OS Mutex %p\n",
 				  object, object->mutex.os_mutex));
 
-		if (object->mutex.os_mutex != ACPI_GLOBAL_LOCK) {
-			acpi_ex_unlink_mutex(object);
-			acpi_os_delete_mutex(object->mutex.os_mutex);
-		} else {
-			/* Global Lock "mutex" is actually a counting semaphore */
+		if (object->mutex.os_mutex == acpi_gbl_global_lock_mutex) {
+
+			/* Global Lock has extra semaphore */
 
 			(void)
 			    acpi_os_delete_semaphore
 			    (acpi_gbl_global_lock_semaphore);
 			acpi_gbl_global_lock_semaphore = NULL;
+
+			acpi_os_delete_mutex(object->mutex.os_mutex);
+			acpi_gbl_global_lock_mutex = NULL;
+		} else {
+			acpi_os_delete_mutex(object->mutex.os_mutex);
 		}
 		break;
 

@@ -515,7 +515,7 @@ ia32_sys_call_table:
 	.quad sys32_vm86_warning	/* vm86old */ 
 	.quad compat_sys_wait4
 	.quad sys_swapoff		/* 115 */
-	.quad sys32_sysinfo
+	.quad compat_sys_sysinfo
 	.quad sys32_ipc
 	.quad sys_fsync
 	.quad stub32_sigreturn
@@ -718,4 +718,5 @@ ia32_sys_call_table:
 	.quad compat_sys_vmsplice
 	.quad compat_sys_move_pages
 	.quad sys_getcpu
+	.quad sys_epoll_pwait
 ia32_syscall_end:		

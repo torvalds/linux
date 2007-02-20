@@ -7,7 +7,6 @@
  * of the GNU General Public License version 2.
  */
 
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -46,6 +45,7 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 	struct gfs2_inum_host inum;
 	unsigned int type;
 	int error;
+	int had_lock=0;
 
 	if (inode && is_bad_inode(inode))
 		goto invalid;
@@ -53,9 +53,12 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 	if (sdp->sd_args.ar_localcaching)
 		goto valid;
 
-	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
-	if (error)
-		goto fail;
+	had_lock = gfs2_glock_is_locked_by_me(dip->i_gl);
+	if (!had_lock) {
+		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
+		if (error)
+			goto fail;
+	} 
 
 	error = gfs2_dir_search(parent->d_inode, &dentry->d_name, &inum, &type);
 	switch (error) {
@@ -82,13 +85,15 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 	}
 
 valid_gunlock:
-	gfs2_glock_dq_uninit(&d_gh);
+	if (!had_lock)
+		gfs2_glock_dq_uninit(&d_gh);
 valid:
 	dput(parent);
 	return 1;
 
 invalid_gunlock:
-	gfs2_glock_dq_uninit(&d_gh);
+	if (!had_lock)
+		gfs2_glock_dq_uninit(&d_gh);
 invalid:
 	if (inode && S_ISDIR(inode->i_mode)) {
 		if (have_submounts(dentry))

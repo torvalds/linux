@@ -33,7 +33,7 @@
 
 #define ACPI_NUMA	0x80000000
 #define _COMPONENT	ACPI_NUMA
-ACPI_MODULE_NAME("numa")
+ACPI_MODULE_NAME("numa");
 
 static nodemask_t nodes_found_map = NODE_MASK_NONE;
 #define PXM_INVAL	-1
@@ -44,12 +44,6 @@ int __cpuinitdata pxm_to_node_map[MAX_PXM_DOMAINS]
 				= { [0 ... MAX_PXM_DOMAINS - 1] = NID_INVAL };
 int __cpuinitdata node_to_pxm_map[MAX_NUMNODES]
 				= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
-
-extern int __init acpi_table_parse_madt_family(enum acpi_table_id id,
-					       unsigned long madt_size,
-					       int entry_id,
-					       acpi_madt_entry_handler handler,
-					       unsigned int max_entries);
 
 int __cpuinit pxm_to_node(int pxm)
 {
@@ -89,7 +83,7 @@ void __cpuinit acpi_unmap_pxm_to_node(int node)
 	node_clear(node, nodes_found_map);
 }
 
-void __init acpi_table_print_srat_entry(acpi_table_entry_header * header)
+void __init acpi_table_print_srat_entry(struct acpi_subtable_header * header)
 {
 
 	ACPI_FUNCTION_NAME("acpi_table_print_srat_entry");
@@ -99,36 +93,35 @@ void __init acpi_table_print_srat_entry(acpi_table_entry_header * header)
 
 	switch (header->type) {
 
-	case ACPI_SRAT_PROCESSOR_AFFINITY:
+	case ACPI_SRAT_TYPE_CPU_AFFINITY:
 #ifdef ACPI_DEBUG_OUTPUT
 		{
-			struct acpi_table_processor_affinity *p =
-			    (struct acpi_table_processor_affinity *)header;
+			struct acpi_srat_cpu_affinity *p =
+			    (struct acpi_srat_cpu_affinity *)header;
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "SRAT Processor (id[0x%02x] eid[0x%02x]) in proximity domain %d %s\n",
-					  p->apic_id, p->lsapic_eid,
-					  p->proximity_domain,
-					  p->flags.
-					  enabled ? "enabled" : "disabled"));
+					  p->apic_id, p->local_sapic_eid,
+					  p->proximity_domain_lo,
+					  (p->flags & ACPI_SRAT_CPU_ENABLED)?
+					  "enabled" : "disabled"));
 		}
 #endif				/* ACPI_DEBUG_OUTPUT */
 		break;
 
-	case ACPI_SRAT_MEMORY_AFFINITY:
+	case ACPI_SRAT_TYPE_MEMORY_AFFINITY:
 #ifdef ACPI_DEBUG_OUTPUT
 		{
-			struct acpi_table_memory_affinity *p =
-			    (struct acpi_table_memory_affinity *)header;
+			struct acpi_srat_mem_affinity *p =
+			    (struct acpi_srat_mem_affinity *)header;
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "SRAT Memory (0x%08x%08x length 0x%08x%08x type 0x%x) in proximity domain %d %s%s\n",
-					  p->base_addr_hi, p->base_addr_lo,
-					  p->length_hi, p->length_lo,
+					  "SRAT Memory (0x%lx length 0x%lx type 0x%x) in proximity domain %d %s%s\n",
+					  (unsigned long)p->base_address,
+					  (unsigned long)p->length,
 					  p->memory_type, p->proximity_domain,
-					  p->flags.
-					  enabled ? "enabled" : "disabled",
-					  p->flags.
-					  hot_pluggable ? " hot-pluggable" :
-					  ""));
+					  (p->flags & ACPI_SRAT_MEM_ENABLED)?
+					  "enabled" : "disabled",
+					  (p->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE)?
+					  " hot-pluggable" : ""));
 		}
 #endif				/* ACPI_DEBUG_OUTPUT */
 		break;
@@ -141,18 +134,18 @@ void __init acpi_table_print_srat_entry(acpi_table_entry_header * header)
 	}
 }
 
-static int __init acpi_parse_slit(unsigned long phys_addr, unsigned long size)
+static int __init acpi_parse_slit(struct acpi_table_header *table)
 {
 	struct acpi_table_slit *slit;
 	u32 localities;
 
-	if (!phys_addr || !size)
+	if (!table)
 		return -EINVAL;
 
-	slit = (struct acpi_table_slit *)__va(phys_addr);
+	slit = (struct acpi_table_slit *)table;
 
 	/* downcast just for %llu vs %lu for i386/ia64  */
-	localities = (u32) slit->localities;
+	localities = (u32) slit->locality_count;
 
 	acpi_numa_slit_init(slit);
 
@@ -160,12 +153,12 @@ static int __init acpi_parse_slit(unsigned long phys_addr, unsigned long size)
 }
 
 static int __init
-acpi_parse_processor_affinity(acpi_table_entry_header * header,
+acpi_parse_processor_affinity(struct acpi_subtable_header * header,
 			      const unsigned long end)
 {
-	struct acpi_table_processor_affinity *processor_affinity;
+	struct acpi_srat_cpu_affinity *processor_affinity;
 
-	processor_affinity = (struct acpi_table_processor_affinity *)header;
+	processor_affinity = (struct acpi_srat_cpu_affinity *)header;
 	if (!processor_affinity)
 		return -EINVAL;
 
@@ -178,12 +171,12 @@ acpi_parse_processor_affinity(acpi_table_entry_header * header,
 }
 
 static int __init
-acpi_parse_memory_affinity(acpi_table_entry_header * header,
+acpi_parse_memory_affinity(struct acpi_subtable_header * header,
 			   const unsigned long end)
 {
-	struct acpi_table_memory_affinity *memory_affinity;
+	struct acpi_srat_mem_affinity *memory_affinity;
 
-	memory_affinity = (struct acpi_table_memory_affinity *)header;
+	memory_affinity = (struct acpi_srat_mem_affinity *)header;
 	if (!memory_affinity)
 		return -EINVAL;
 
@@ -195,23 +188,23 @@ acpi_parse_memory_affinity(acpi_table_entry_header * header,
 	return 0;
 }
 
-static int __init acpi_parse_srat(unsigned long phys_addr, unsigned long size)
+static int __init acpi_parse_srat(struct acpi_table_header *table)
 {
 	struct acpi_table_srat *srat;
 
-	if (!phys_addr || !size)
+	if (!table)
 		return -EINVAL;
 
-	srat = (struct acpi_table_srat *)__va(phys_addr);
+	srat = (struct acpi_table_srat *)table;
 
 	return 0;
 }
 
 int __init
-acpi_table_parse_srat(enum acpi_srat_entry_id id,
-		      acpi_madt_entry_handler handler, unsigned int max_entries)
+acpi_table_parse_srat(enum acpi_srat_type id,
+		      acpi_table_entry_handler handler, unsigned int max_entries)
 {
-	return acpi_table_parse_madt_family(ACPI_SRAT,
+	return acpi_table_parse_entries(ACPI_SIG_SRAT,
 					    sizeof(struct acpi_table_srat), id,
 					    handler, max_entries);
 }
@@ -221,17 +214,15 @@ int __init acpi_numa_init(void)
 	int result;
 
 	/* SRAT: Static Resource Affinity Table */
-	result = acpi_table_parse(ACPI_SRAT, acpi_parse_srat);
-
-	if (result > 0) {
-		result = acpi_table_parse_srat(ACPI_SRAT_PROCESSOR_AFFINITY,
+	if (!acpi_table_parse(ACPI_SIG_SRAT, acpi_parse_srat)) {
+		result = acpi_table_parse_srat(ACPI_SRAT_TYPE_CPU_AFFINITY,
 					       acpi_parse_processor_affinity,
 					       NR_CPUS);
-		result = acpi_table_parse_srat(ACPI_SRAT_MEMORY_AFFINITY, acpi_parse_memory_affinity, NR_NODE_MEMBLKS);	// IA64 specific
+		result = acpi_table_parse_srat(ACPI_SRAT_TYPE_MEMORY_AFFINITY, acpi_parse_memory_affinity, NR_NODE_MEMBLKS);	// IA64 specific
 	}
 
 	/* SLIT: System Locality Information Table */
-	result = acpi_table_parse(ACPI_SLIT, acpi_parse_slit);
+	acpi_table_parse(ACPI_SIG_SLIT, acpi_parse_slit);
 
 	acpi_numa_arch_fixup();
 	return 0;

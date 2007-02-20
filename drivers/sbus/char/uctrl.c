@@ -5,7 +5,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -224,7 +223,7 @@ static irqreturn_t uctrl_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct file_operations uctrl_fops = {
+static const struct file_operations uctrl_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.ioctl =	uctrl_ioctl,

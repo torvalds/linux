@@ -457,6 +457,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter sis630_adapter = {
 	.owner		= THIS_MODULE,
+	.id		= I2C_HW_SMBUS_SIS630,
 	.class		= I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
 };
@@ -476,7 +477,7 @@ static int __devinit sis630_probe(struct pci_dev *dev, const struct pci_device_i
 		return -ENODEV;
 	}
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	sis630_adapter.dev.parent = &dev->dev;
 
 	sprintf(sis630_adapter.name, "SMBus SIS630 adapter at %04x",

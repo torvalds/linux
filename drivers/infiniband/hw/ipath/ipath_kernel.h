@@ -593,7 +593,7 @@ void ipath_shutdown_device(struct ipath_devdata *);
 void ipath_disarm_senderrbufs(struct ipath_devdata *);
 
 struct file_operations;
-int ipath_cdev_init(int minor, char *name, struct file_operations *fops,
+int ipath_cdev_init(int minor, char *name, const struct file_operations *fops,
 		    struct cdev **cdevp, struct class_device **class_devp);
 void ipath_cdev_cleanup(struct cdev **cdevp,
 			struct class_device **class_devp);

@@ -197,7 +197,7 @@ static struct class_device_attribute *twa_host_attrs[] = {
 };
 
 /* File operations struct for character device */
-static struct file_operations twa_fops = {
+static const struct file_operations twa_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= twa_chrdev_ioctl,
 	.open		= twa_chrdev_open,

@@ -35,7 +35,6 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
-#include <linux/sched.h>
 #include <linux/types.h>
 #include <asm/uaccess.h>
 #include <linux/videodev.h>

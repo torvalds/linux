@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,6 @@ ACPI_MODULE_NAME("exsystem")
 acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
 {
 	acpi_status status;
-	acpi_status status2;
 
 	ACPI_FUNCTION_TRACE(ex_system_wait_semaphore);
 
@@ -79,7 +78,7 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
 
 		/* We must wait, so unlock the interpreter */
 
-		acpi_ex_exit_interpreter();
+		acpi_ex_relinquish_interpreter();
 
 		status = acpi_os_wait_semaphore(semaphore, 1, timeout);
 
@@ -89,13 +88,7 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
 
 		/* Reacquire the interpreter */
 
-		status2 = acpi_ex_enter_interpreter();
-		if (ACPI_FAILURE(status2)) {
-
-			/* Report fatal error, could not acquire interpreter */
-
-			return_ACPI_STATUS(status2);
-		}
+		acpi_ex_reacquire_interpreter();
 	}
 
 	return_ACPI_STATUS(status);
@@ -119,7 +112,6 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
 acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
 {
 	acpi_status status;
-	acpi_status status2;
 
 	ACPI_FUNCTION_TRACE(ex_system_wait_mutex);
 
@@ -132,7 +124,7 @@ acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
 
 		/* We must wait, so unlock the interpreter */
 
-		acpi_ex_exit_interpreter();
+		acpi_ex_relinquish_interpreter();
 
 		status = acpi_os_acquire_mutex(mutex, timeout);
 
@@ -142,13 +134,7 @@ acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
 
 		/* Reacquire the interpreter */
 
-		status2 = acpi_ex_enter_interpreter();
-		if (ACPI_FAILURE(status2)) {
-
-			/* Report fatal error, could not acquire interpreter */
-
-			return_ACPI_STATUS(status2);
-		}
+		acpi_ex_reacquire_interpreter();
 	}
 
 	return_ACPI_STATUS(status);
@@ -209,96 +195,18 @@ acpi_status acpi_ex_system_do_stall(u32 how_long)
 
 acpi_status acpi_ex_system_do_suspend(acpi_integer how_long)
 {
-	acpi_status status;
-
 	ACPI_FUNCTION_ENTRY();
 
 	/* Since this thread will sleep, we must release the interpreter */
 
-	acpi_ex_exit_interpreter();
+	acpi_ex_relinquish_interpreter();
 
 	acpi_os_sleep(how_long);
 
 	/* And now we must get the interpreter again */
 
-	status = acpi_ex_enter_interpreter();
-	return (status);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ex_system_acquire_mutex
- *
- * PARAMETERS:  time_desc       - Maximum time to wait for the mutex
- *              obj_desc        - The object descriptor for this op
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Provides an access point to perform synchronization operations
- *              within the AML.  This function will cause a lock to be generated
- *              for the Mutex pointed to by obj_desc.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_ex_system_acquire_mutex(union acpi_operand_object * time_desc,
-			     union acpi_operand_object * obj_desc)
-{
-	acpi_status status = AE_OK;
-
-	ACPI_FUNCTION_TRACE_PTR(ex_system_acquire_mutex, obj_desc);
-
-	if (!obj_desc) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
-	}
-
-	/* Support for the _GL_ Mutex object -- go get the global lock */
-
-	if (obj_desc->mutex.os_mutex == ACPI_GLOBAL_LOCK) {
-		status =
-		    acpi_ev_acquire_global_lock((u16) time_desc->integer.value);
-		return_ACPI_STATUS(status);
-	}
-
-	status = acpi_ex_system_wait_mutex(obj_desc->mutex.os_mutex,
-					   (u16) time_desc->integer.value);
-	return_ACPI_STATUS(status);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ex_system_release_mutex
- *
- * PARAMETERS:  obj_desc        - The object descriptor for this op
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Provides an access point to perform synchronization operations
- *              within the AML.  This operation is a request to release a
- *              previously acquired Mutex.  If the Mutex variable is set then
- *              it will be decremented.
- *
- ******************************************************************************/
-
-acpi_status acpi_ex_system_release_mutex(union acpi_operand_object *obj_desc)
-{
-	acpi_status status = AE_OK;
-
-	ACPI_FUNCTION_TRACE(ex_system_release_mutex);
-
-	if (!obj_desc) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
-	}
-
-	/* Support for the _GL_ Mutex object -- release the global lock */
-
-	if (obj_desc->mutex.os_mutex == ACPI_GLOBAL_LOCK) {
-		status = acpi_ev_release_global_lock();
-		return_ACPI_STATUS(status);
-	}
-
-	acpi_os_release_mutex(obj_desc->mutex.os_mutex);
-	return_ACPI_STATUS(AE_OK);
+	acpi_ex_reacquire_interpreter();
+	return (AE_OK);
 }
 
 /*******************************************************************************
@@ -314,7 +222,7 @@ acpi_status acpi_ex_system_release_mutex(union acpi_operand_object *obj_desc)
  *
  ******************************************************************************/
 
-acpi_status acpi_ex_system_signal_event(union acpi_operand_object *obj_desc)
+acpi_status acpi_ex_system_signal_event(union acpi_operand_object * obj_desc)
 {
 	acpi_status status = AE_OK;
 

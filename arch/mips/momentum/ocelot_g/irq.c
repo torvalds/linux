@@ -94,8 +94,8 @@ void __init arch_init_irq(void)
 	clear_c0_status(ST0_IM);
 	local_irq_disable();
 
-	mips_cpu_irq_init(0);
-	rm7k_cpu_irq_init(8);
+	mips_cpu_irq_init();
+	rm7k_cpu_irq_init();
 
 	gt64240_irq_init();
 }

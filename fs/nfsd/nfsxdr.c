@@ -153,6 +153,7 @@ encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 	struct dentry	*dentry = fhp->fh_dentry;
 	int type;
 	struct timespec time;
+	u32 f;
 
 	type = (stat->mode & S_IFMT);
 
@@ -173,10 +174,22 @@ encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 	else
 		*p++ = htonl(0xffffffff);
 	*p++ = htonl((u32) stat->blocks);
-	if (is_fsid(fhp, rqstp->rq_reffh))
-		*p++ = htonl((u32) fhp->fh_export->ex_fsid);
-	else
+	switch (fsid_source(fhp)) {
+	default:
+	case FSIDSOURCE_DEV:
 		*p++ = htonl(new_encode_dev(stat->dev));
+		break;
+	case FSIDSOURCE_FSID:
+		*p++ = htonl((u32) fhp->fh_export->ex_fsid);
+		break;
+	case FSIDSOURCE_UUID:
+		f = ((u32*)fhp->fh_export->ex_uuid)[0];
+		f ^= ((u32*)fhp->fh_export->ex_uuid)[1];
+		f ^= ((u32*)fhp->fh_export->ex_uuid)[2];
+		f ^= ((u32*)fhp->fh_export->ex_uuid)[3];
+		*p++ = htonl(f);
+		break;
+	}
 	*p++ = htonl((u32) stat->ino);
 	*p++ = htonl((u32) stat->atime.tv_sec);
 	*p++ = htonl(stat->atime.tv_nsec ? stat->atime.tv_nsec / 1000 : 0);

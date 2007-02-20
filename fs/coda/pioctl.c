@@ -30,7 +30,7 @@ static int coda_pioctl(struct inode * inode, struct file * filp,
                        unsigned int cmd, unsigned long user_data);
 
 /* exported from this file */
-struct inode_operations coda_ioctl_inode_operations =
+const struct inode_operations coda_ioctl_inode_operations =
 {
 	.permission	= coda_ioctl_permission,
 	.setattr	= coda_setattr,

@@ -21,7 +21,6 @@
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>

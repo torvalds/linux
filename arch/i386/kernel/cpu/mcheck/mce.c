@@ -12,6 +12,7 @@
 
 #include <asm/processor.h> 
 #include <asm/system.h>
+#include <asm/mce.h>
 
 #include "mce.h"
 

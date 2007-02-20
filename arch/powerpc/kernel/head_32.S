@@ -344,12 +344,7 @@ i##n:								\
 /* System reset */
 /* core99 pmac starts the seconary here by changing the vector, and
    putting it back to what it was (unknown_exception) when done.  */
-#if defined(CONFIG_GEMINI) && defined(CONFIG_SMP)
-	. = 0x100
-	b	__secondary_start_gemini
-#else
 	EXCEPTION(0x100, Reset, unknown_exception, EXC_XFER_STD)
-#endif
 
 /* Machine check */
 /*

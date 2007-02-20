@@ -510,7 +510,7 @@ static int wb_smsc_wdt_notify_sys(struct notifier_block *this, unsigned long cod
 
 /* -- Module's structures ---------------------------------------*/
 
-static struct file_operations wb_smsc_wdt_fops =
+static const struct file_operations wb_smsc_wdt_fops =
 {
 	.owner          = THIS_MODULE,
 	.llseek		= no_llseek,
@@ -624,4 +624,4 @@ module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "range is 1-255 units, default is 60");
 
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");

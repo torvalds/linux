@@ -915,7 +915,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			fetunesettings.parameters.inversion = INVERSION_AUTO;
 		}
 		if (fe->ops.info.type == FE_OFDM) {
-			/* without hierachical coding code_rate_LP is irrelevant,
+			/* without hierarchical coding code_rate_LP is irrelevant,
 			 * so we tolerate the otherwise invalid FEC_NONE setting */
 			if (fepriv->parameters.u.ofdm.hierarchy_information == HIERARCHY_NONE &&
 			    fepriv->parameters.u.ofdm.code_rate_LP == FEC_NONE)

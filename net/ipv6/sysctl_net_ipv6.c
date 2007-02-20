@@ -92,7 +92,7 @@ static ctl_table ipv6_net_table[] = {
 		.mode		= 0555,
 		.child		= ipv6_table
 	},
-        { .ctl_name = 0 }
+	{ .ctl_name = 0 }
 };
 
 static ctl_table ipv6_root_table[] = {
@@ -102,12 +102,12 @@ static ctl_table ipv6_root_table[] = {
 		.mode		= 0555,
 		.child		= ipv6_net_table
 	},
-        { .ctl_name = 0 }
+	{ .ctl_name = 0 }
 };
 
 void ipv6_sysctl_register(void)
 {
-	ipv6_sysctl_header = register_sysctl_table(ipv6_root_table, 0);
+	ipv6_sysctl_header = register_sysctl_table(ipv6_root_table);
 }
 
 void ipv6_sysctl_unregister(void)

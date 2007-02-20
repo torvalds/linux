@@ -126,7 +126,7 @@ static void wm8775_update(struct pvr2_v4l_wm8775 *ctxt)
 }
 
 
-const static struct pvr2_i2c_handler_functions hfuncs = {
+static const struct pvr2_i2c_handler_functions hfuncs = {
 	.detach = (void (*)(void *))wm8775_detach,
 	.check = (int (*)(void *))wm8775_check,
 	.update = (void (*)(void *))wm8775_update,

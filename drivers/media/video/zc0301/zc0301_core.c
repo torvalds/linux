@@ -1871,7 +1871,7 @@ static int zc0301_ioctl(struct inode* inode, struct file* filp,
 }
 
 
-static struct file_operations zc0301_fops = {
+static const struct file_operations zc0301_fops = {
 	.owner =   THIS_MODULE,
 	.open =    zc0301_open,
 	.release = zc0301_release,

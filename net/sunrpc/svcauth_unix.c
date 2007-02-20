@@ -151,7 +151,7 @@ static void ip_map_request(struct cache_detail *cd,
 	char text_addr[20];
 	struct ip_map *im = container_of(h, struct ip_map, h);
 	__be32 addr = im->m_addr.s_addr;
-	
+
 	snprintf(text_addr, 20, "%u.%u.%u.%u",
 		 ntohl(addr) >> 24 & 0xff,
 		 ntohl(addr) >> 16 & 0xff,
@@ -198,7 +198,7 @@ static int ip_map_parse(struct cache_detail *cd,
 
 	if (sscanf(buf, "%u.%u.%u.%u%c", &b1, &b2, &b3, &b4, &c) != 4)
 		return -EINVAL;
-	
+
 	expiry = get_expiry(&mesg);
 	if (expiry ==0)
 		return -EINVAL;
@@ -248,7 +248,7 @@ static int ip_map_show(struct seq_file *m,
 	/* class addr domain */
 	addr = im->m_addr;
 
-	if (test_bit(CACHE_VALID, &h->flags) && 
+	if (test_bit(CACHE_VALID, &h->flags) &&
 	    !test_bit(CACHE_NEGATIVE, &h->flags))
 		dom = im->m_client->h.name;
 
@@ -262,7 +262,7 @@ static int ip_map_show(struct seq_file *m,
 		   );
 	return 0;
 }
-	
+
 
 struct cache_detail ip_map_cache = {
 	.owner		= THIS_MODULE,
@@ -343,7 +343,7 @@ int auth_unix_add_addr(struct in_addr addr, struct auth_domain *dom)
 int auth_unix_forget_old(struct auth_domain *dom)
 {
 	struct unix_domain *udom;
-	
+
 	if (dom->flavour != &svcauth_unix)
 		return -EINVAL;
 	udom = container_of(dom, struct unix_domain, h);
@@ -418,9 +418,218 @@ svcauth_unix_info_release(void *info)
 	cache_put(&ipm->h, &ip_map_cache);
 }
 
+/****************************************************************************
+ * auth.unix.gid cache
+ * simple cache to map a UID to a list of GIDs
+ * because AUTH_UNIX aka AUTH_SYS has a max of 16
+ */
+#define	GID_HASHBITS	8
+#define	GID_HASHMAX	(1<<GID_HASHBITS)
+#define	GID_HASHMASK	(GID_HASHMAX - 1)
+
+struct unix_gid {
+	struct cache_head	h;
+	uid_t			uid;
+	struct group_info	*gi;
+};
+static struct cache_head	*gid_table[GID_HASHMAX];
+
+static void unix_gid_put(struct kref *kref)
+{
+	struct cache_head *item = container_of(kref, struct cache_head, ref);
+	struct unix_gid *ug = container_of(item, struct unix_gid, h);
+	if (test_bit(CACHE_VALID, &item->flags) &&
+	    !test_bit(CACHE_NEGATIVE, &item->flags))
+		put_group_info(ug->gi);
+	kfree(ug);
+}
+
+static int unix_gid_match(struct cache_head *corig, struct cache_head *cnew)
+{
+	struct unix_gid *orig = container_of(corig, struct unix_gid, h);
+	struct unix_gid *new = container_of(cnew, struct unix_gid, h);
+	return orig->uid == new->uid;
+}
+static void unix_gid_init(struct cache_head *cnew, struct cache_head *citem)
+{
+	struct unix_gid *new = container_of(cnew, struct unix_gid, h);
+	struct unix_gid *item = container_of(citem, struct unix_gid, h);
+	new->uid = item->uid;
+}
+static void unix_gid_update(struct cache_head *cnew, struct cache_head *citem)
+{
+	struct unix_gid *new = container_of(cnew, struct unix_gid, h);
+	struct unix_gid *item = container_of(citem, struct unix_gid, h);
+
+	get_group_info(item->gi);
+	new->gi = item->gi;
+}
+static struct cache_head *unix_gid_alloc(void)
+{
+	struct unix_gid *g = kmalloc(sizeof(*g), GFP_KERNEL);
+	if (g)
+		return &g->h;
+	else
+		return NULL;
+}
+
+static void unix_gid_request(struct cache_detail *cd,
+			     struct cache_head *h,
+			     char **bpp, int *blen)
+{
+	char tuid[20];
+	struct unix_gid *ug = container_of(h, struct unix_gid, h);
+
+	snprintf(tuid, 20, "%u", ug->uid);
+	qword_add(bpp, blen, tuid);
+	(*bpp)[-1] = '\n';
+}
+
+static struct unix_gid *unix_gid_lookup(uid_t uid);
+extern struct cache_detail unix_gid_cache;
+
+static int unix_gid_parse(struct cache_detail *cd,
+			char *mesg, int mlen)
+{
+	/* uid expiry Ngid gid0 gid1 ... gidN-1 */
+	int uid;
+	int gids;
+	int rv;
+	int i;
+	int err;
+	time_t expiry;
+	struct unix_gid ug, *ugp;
+
+	if (mlen <= 0 || mesg[mlen-1] != '\n')
+		return -EINVAL;
+	mesg[mlen-1] = 0;
+
+	rv = get_int(&mesg, &uid);
+	if (rv)
+		return -EINVAL;
+	ug.uid = uid;
+
+	expiry = get_expiry(&mesg);
+	if (expiry == 0)
+		return -EINVAL;
+
+	rv = get_int(&mesg, &gids);
+	if (rv || gids < 0 || gids > 8192)
+		return -EINVAL;
+
+	ug.gi = groups_alloc(gids);
+	if (!ug.gi)
+		return -ENOMEM;
+
+	for (i = 0 ; i < gids ; i++) {
+		int gid;
+		rv = get_int(&mesg, &gid);
+		err = -EINVAL;
+		if (rv)
+			goto out;
+		GROUP_AT(ug.gi, i) = gid;
+	}
+
+	ugp = unix_gid_lookup(uid);
+	if (ugp) {
+		struct cache_head *ch;
+		ug.h.flags = 0;
+		ug.h.expiry_time = expiry;
+		ch = sunrpc_cache_update(&unix_gid_cache,
+					 &ug.h, &ugp->h,
+					 hash_long(uid, GID_HASHBITS));
+		if (!ch)
+			err = -ENOMEM;
+		else {
+			err = 0;
+			cache_put(ch, &unix_gid_cache);
+		}
+	} else
+		err = -ENOMEM;
+ out:
+	if (ug.gi)
+		put_group_info(ug.gi);
+	return err;
+}
+
+static int unix_gid_show(struct seq_file *m,
+			 struct cache_detail *cd,
+			 struct cache_head *h)
+{
+	struct unix_gid *ug;
+	int i;
+	int glen;
+
+	if (h == NULL) {
+		seq_puts(m, "#uid cnt: gids...\n");
+		return 0;
+	}
+	ug = container_of(h, struct unix_gid, h);
+	if (test_bit(CACHE_VALID, &h->flags) &&
+	    !test_bit(CACHE_NEGATIVE, &h->flags))
+		glen = ug->gi->ngroups;
+	else
+		glen = 0;
+
+	seq_printf(m, "%d %d:", ug->uid, glen);
+	for (i = 0; i < glen; i++)
+		seq_printf(m, " %d", GROUP_AT(ug->gi, i));
+	seq_printf(m, "\n");
+	return 0;
+}
+
+struct cache_detail unix_gid_cache = {
+	.owner		= THIS_MODULE,
+	.hash_size	= GID_HASHMAX,
+	.hash_table	= gid_table,
+	.name		= "auth.unix.gid",
+	.cache_put	= unix_gid_put,
+	.cache_request	= unix_gid_request,
+	.cache_parse	= unix_gid_parse,
+	.cache_show	= unix_gid_show,
+	.match		= unix_gid_match,
+	.init		= unix_gid_init,
+	.update		= unix_gid_update,
+	.alloc		= unix_gid_alloc,
+};
+
+static struct unix_gid *unix_gid_lookup(uid_t uid)
+{
+	struct unix_gid ug;
+	struct cache_head *ch;
+
+	ug.uid = uid;
+	ch = sunrpc_cache_lookup(&unix_gid_cache, &ug.h,
+				 hash_long(uid, GID_HASHBITS));
+	if (ch)
+		return container_of(ch, struct unix_gid, h);
+	else
+		return NULL;
+}
+
+static int unix_gid_find(uid_t uid, struct group_info **gip,
+			 struct svc_rqst *rqstp)
+{
+	struct unix_gid *ug = unix_gid_lookup(uid);
+	if (!ug)
+		return -EAGAIN;
+	switch (cache_check(&unix_gid_cache, &ug->h, &rqstp->rq_chandle)) {
+	case -ENOENT:
+		*gip = NULL;
+		return 0;
+	case 0:
+		*gip = ug->gi;
+		get_group_info(*gip);
+		return 0;
+	default:
+		return -EAGAIN;
+	}
+}
+
 static int
 svcauth_unix_set_client(struct svc_rqst *rqstp)
 {
+	struct sockaddr_in *sin = svc_addr_in(rqstp);
 	struct ip_map *ipm;
 
 	rqstp->rq_client = NULL;
@@ -430,7 +639,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 	ipm = ip_map_cached_get(rqstp);
 	if (ipm == NULL)
 		ipm = ip_map_lookup(rqstp->rq_server->sv_program->pg_class,
-				    rqstp->rq_addr.sin_addr);
+				    sin->sin_addr);
 
 	if (ipm == NULL)
 		return SVC_DENIED;
@@ -465,7 +674,7 @@ svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 	if (argv->iov_len < 3*4)
 		return SVC_GARBAGE;
 
-	if (svc_getu32(argv) != 0) { 
+	if (svc_getu32(argv) != 0) {
 		dprintk("svc: bad null cred\n");
 		*authp = rpc_autherr_badcred;
 		return SVC_DENIED;
@@ -542,12 +751,19 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	slen = svc_getnl(argv);			/* gids length */
 	if (slen > 16 || (len -= (slen + 2)*4) < 0)
 		goto badcred;
-	cred->cr_group_info = groups_alloc(slen);
-	if (cred->cr_group_info == NULL)
+	if (unix_gid_find(cred->cr_uid, &cred->cr_group_info, rqstp)
+	    == -EAGAIN)
 		return SVC_DROP;
-	for (i = 0; i < slen; i++)
-		GROUP_AT(cred->cr_group_info, i) = svc_getnl(argv);
-
+	if (cred->cr_group_info == NULL) {
+		cred->cr_group_info = groups_alloc(slen);
+		if (cred->cr_group_info == NULL)
+			return SVC_DROP;
+		for (i = 0; i < slen; i++)
+			GROUP_AT(cred->cr_group_info, i) = svc_getnl(argv);
+	} else {
+		for (i = 0; i < slen ; i++)
+			svc_getnl(argv);
+	}
 	if (svc_getu32(argv) != htonl(RPC_AUTH_NULL) || svc_getu32(argv) != 0) {
 		*authp = rpc_autherr_badverf;
 		return SVC_DENIED;

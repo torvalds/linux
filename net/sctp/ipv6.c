@@ -53,7 +53,6 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/net.h>
-#include <linux/sched.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/netdevice.h>
@@ -236,7 +235,7 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 	ipv6_addr_copy(&fl.fl6_dst, &daddr->v6.sin6_addr);
 	if (ipv6_addr_type(&daddr->v6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
 		fl.oif = daddr->v6.sin6_scope_id;
-	
+
 
 	SCTP_DEBUG_PRINTK("%s: DST=" NIP6_FMT " ",
 			  __FUNCTION__, NIP6(fl.fl6_dst));

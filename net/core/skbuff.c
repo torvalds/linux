@@ -41,7 +41,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/in.h>
@@ -88,7 +87,7 @@ static struct kmem_cache *skbuff_fclone_cache __read_mostly;
 void skb_over_panic(struct sk_buff *skb, int sz, void *here)
 {
 	printk(KERN_EMERG "skb_over_panic: text:%p len:%d put:%d head:%p "
-	                  "data:%p tail:%p end:%p dev:%s\n",
+			  "data:%p tail:%p end:%p dev:%s\n",
 	       here, skb->len, sz, skb->head, skb->data, skb->tail, skb->end,
 	       skb->dev ? skb->dev->name : "<NULL>");
 	BUG();
@@ -106,7 +105,7 @@ void skb_over_panic(struct sk_buff *skb, int sz, void *here)
 void skb_under_panic(struct sk_buff *skb, int sz, void *here)
 {
 	printk(KERN_EMERG "skb_under_panic: text:%p len:%d put:%d head:%p "
-	                  "data:%p tail:%p end:%p dev:%s\n",
+			  "data:%p tail:%p end:%p dev:%s\n",
 	       here, skb->len, sz, skb->head, skb->data, skb->tail, skb->end,
 	       skb->dev ? skb->dev->name : "<NULL>");
 	BUG();
@@ -268,10 +267,10 @@ nodata:
 struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 		unsigned int length, gfp_t gfp_mask)
 {
-	int node = dev->class_dev.dev ? dev_to_node(dev->class_dev.dev) : -1;
+	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
 	struct sk_buff *skb;
 
- 	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, node);
+	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, node);
 	if (likely(skb)) {
 		skb_reserve(skb, NET_SKB_PAD);
 		skb->dev = dev;
@@ -819,12 +818,12 @@ struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
  *
  *	May return error in out of memory cases. The skb is freed on error.
  */
- 
+
 int skb_pad(struct sk_buff *skb, int pad)
 {
 	int err;
 	int ntail;
-	
+
 	/* If the skbuff is non linear tailroom is always zero.. */
 	if (!skb_cloned(skb) && skb_tailroom(skb) >= pad) {
 		memset(skb->data+skb->len, 0, pad);
@@ -851,8 +850,8 @@ int skb_pad(struct sk_buff *skb, int pad)
 free_skb:
 	kfree_skb(skb);
 	return err;
-}	
- 
+}
+
 /* Trims skb to length len. It can change skb pointers.
  */
 

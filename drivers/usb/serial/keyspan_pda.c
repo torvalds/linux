@@ -182,13 +182,8 @@ static void keyspan_pda_wakeup_write(struct work_struct *work)
 	struct keyspan_pda_private *priv =
 		container_of(work, struct keyspan_pda_private, wakeup_work);
 	struct usb_serial_port *port = priv->port;
-	struct tty_struct *tty = port->tty;
 
-	/* wake up port processes */
-	wake_up_interruptible( &port->write_wait );
-
-	/* wake up line discipline */
-	tty_wakeup(tty);
+	tty_wakeup(port->tty);
 }
 
 static void keyspan_pda_request_unthrottle(struct work_struct *work)
@@ -793,6 +788,7 @@ static struct usb_serial_driver keyspan_pda_fake_device = {
 		.name =		"keyspan_pda_pre",
 	},
 	.description =		"Keyspan PDA - (prerenumeration)",
+	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_fake,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -809,6 +805,7 @@ static struct usb_serial_driver xircom_pgs_fake_device = {
 		.name =		"xircom_no_firm",
 	},
 	.description =		"Xircom / Entregra PGS - (prerenumeration)",
+	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_fake_xircom,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -824,6 +821,7 @@ static struct usb_serial_driver keyspan_pda_device = {
 		.name =		"keyspan_pda",
 	},
 	.description =		"Keyspan PDA",
+	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_std,
 	.num_interrupt_in =	1,
 	.num_bulk_in =		0,

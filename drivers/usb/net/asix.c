@@ -25,7 +25,6 @@
 
 #include <linux/module.h>
 #include <linux/kmod.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -352,9 +351,11 @@ static struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 	skb_push(skb, 4);
 	packet_len = (((skb->len - 4) ^ 0x0000ffff) << 16) + (skb->len - 4);
+	cpu_to_le32s(&packet_len);
 	memcpy(skb->data, &packet_len, sizeof(packet_len));
 
 	if ((skb->len % 512) == 0) {
+		cpu_to_le32s(&padbytes);
 		memcpy( skb->tail, &padbytes, sizeof(padbytes));
 		skb_put(skb, sizeof(padbytes));
 	}
@@ -1448,6 +1449,10 @@ static const struct usb_device_id	products [] = {
 }, {
 	// Linksys USB1000
 	USB_DEVICE (0x1737, 0x0039),
+	.driver_info = (unsigned long) &ax88178_info,
+}, {
+	// IO-DATA ETG-US2
+	USB_DEVICE (0x04bb, 0x0930),
 	.driver_info = (unsigned long) &ax88178_info,
 },
 	{ },		// END

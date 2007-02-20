@@ -34,13 +34,13 @@
 #include <linux/backing-dev.h>
 #include <linux/freezer.h>
 
-STATIC kmem_zone_t *xfs_buf_zone;
-STATIC kmem_shaker_t xfs_buf_shake;
+static kmem_zone_t *xfs_buf_zone;
+static kmem_shaker_t xfs_buf_shake;
 STATIC int xfsbufd(void *);
 STATIC int xfsbufd_wakeup(int, gfp_t);
 STATIC void xfs_buf_delwri_queue(xfs_buf_t *, int);
 
-STATIC struct workqueue_struct *xfslogd_workqueue;
+static struct workqueue_struct *xfslogd_workqueue;
 struct workqueue_struct *xfsdatad_workqueue;
 
 #ifdef XFS_BUF_TRACE
@@ -139,7 +139,7 @@ page_region_mask(
 	return mask;
 }
 
-STATIC inline void
+STATIC_INLINE void
 set_page_region(
 	struct page	*page,
 	size_t		offset,
@@ -151,7 +151,7 @@ set_page_region(
 		SetPageUptodate(page);
 }
 
-STATIC inline int
+STATIC_INLINE int
 test_page_region(
 	struct page	*page,
 	size_t		offset,
@@ -171,9 +171,9 @@ typedef struct a_list {
 	struct a_list	*next;
 } a_list_t;
 
-STATIC a_list_t		*as_free_head;
-STATIC int		as_list_len;
-STATIC DEFINE_SPINLOCK(as_lock);
+static a_list_t		*as_free_head;
+static int		as_list_len;
+static DEFINE_SPINLOCK(as_lock);
 
 /*
  *	Try to batch vunmaps because they are costly.
@@ -1085,7 +1085,7 @@ xfs_buf_iostart(
 	return status;
 }
 
-STATIC __inline__ int
+STATIC_INLINE int
 _xfs_buf_iolocked(
 	xfs_buf_t		*bp)
 {
@@ -1095,7 +1095,7 @@ _xfs_buf_iolocked(
 	return 0;
 }
 
-STATIC __inline__ void
+STATIC_INLINE void
 _xfs_buf_ioend(
 	xfs_buf_t		*bp,
 	int			schedule)
@@ -1426,8 +1426,8 @@ xfs_free_bufhash(
 /*
  *	buftarg list for delwrite queue processing
  */
-STATIC LIST_HEAD(xfs_buftarg_list);
-STATIC DEFINE_SPINLOCK(xfs_buftarg_lock);
+LIST_HEAD(xfs_buftarg_list);
+static DEFINE_SPINLOCK(xfs_buftarg_lock);
 
 STATIC void
 xfs_register_buftarg(
@@ -1679,21 +1679,60 @@ xfsbufd_wakeup(
 	return 0;
 }
 
+/*
+ * Move as many buffers as specified to the supplied list
+ * idicating if we skipped any buffers to prevent deadlocks.
+ */
+STATIC int
+xfs_buf_delwri_split(
+	xfs_buftarg_t	*target,
+	struct list_head *list,
+	unsigned long	age)
+{
+	xfs_buf_t	*bp, *n;
+	struct list_head *dwq = &target->bt_delwrite_queue;
+	spinlock_t	*dwlk = &target->bt_delwrite_lock;
+	int		skipped = 0;
+	int		force;
+
+	force = test_and_clear_bit(XBT_FORCE_FLUSH, &target->bt_flags);
+	INIT_LIST_HEAD(list);
+	spin_lock(dwlk);
+	list_for_each_entry_safe(bp, n, dwq, b_list) {
+		XB_TRACE(bp, "walkq1", (long)xfs_buf_ispin(bp));
+		ASSERT(bp->b_flags & XBF_DELWRI);
+
+		if (!xfs_buf_ispin(bp) && !xfs_buf_cond_lock(bp)) {
+			if (!force &&
+			    time_before(jiffies, bp->b_queuetime + age)) {
+				xfs_buf_unlock(bp);
+				break;
+			}
+
+			bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q|
+					 _XBF_RUN_QUEUES);
+			bp->b_flags |= XBF_WRITE;
+			list_move_tail(&bp->b_list, list);
+		} else
+			skipped++;
+	}
+	spin_unlock(dwlk);
+
+	return skipped;
+
+}
+
 STATIC int
 xfsbufd(
-	void			*data)
+	void		*data)
 {
-	struct list_head	tmp;
-	unsigned long		age;
-	xfs_buftarg_t		*target = (xfs_buftarg_t *)data;
-	xfs_buf_t		*bp, *n;
-	struct list_head	*dwq = &target->bt_delwrite_queue;
-	spinlock_t		*dwlk = &target->bt_delwrite_lock;
-	int			count;
+	struct list_head tmp;
+	xfs_buftarg_t	*target = (xfs_buftarg_t *)data;
+	int		count;
+	xfs_buf_t	*bp;
 
 	current->flags |= PF_MEMALLOC;
 
-	INIT_LIST_HEAD(&tmp);
 	do {
 		if (unlikely(freezing(current))) {
 			set_bit(XBT_FORCE_SLEEP, &target->bt_flags);
@@ -1705,37 +1744,17 @@ xfsbufd(
 		schedule_timeout_interruptible(
 			xfs_buf_timer_centisecs * msecs_to_jiffies(10));
 
+		xfs_buf_delwri_split(target, &tmp,
+				xfs_buf_age_centisecs * msecs_to_jiffies(10));
+
 		count = 0;
-		age = xfs_buf_age_centisecs * msecs_to_jiffies(10);
-		spin_lock(dwlk);
-		list_for_each_entry_safe(bp, n, dwq, b_list) {
-			XB_TRACE(bp, "walkq1", (long)xfs_buf_ispin(bp));
-			ASSERT(bp->b_flags & XBF_DELWRI);
-
-			if (!xfs_buf_ispin(bp) && !xfs_buf_cond_lock(bp)) {
-				if (!test_bit(XBT_FORCE_FLUSH,
-						&target->bt_flags) &&
-				    time_before(jiffies,
-						bp->b_queuetime + age)) {
-					xfs_buf_unlock(bp);
-					break;
-				}
-
-				bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q|
-						 _XBF_RUN_QUEUES);
-				bp->b_flags |= XBF_WRITE;
-				list_move_tail(&bp->b_list, &tmp);
-				count++;
-			}
-		}
-		spin_unlock(dwlk);
-
 		while (!list_empty(&tmp)) {
 			bp = list_entry(tmp.next, xfs_buf_t, b_list);
 			ASSERT(target == bp->b_target);
 
 			list_del_init(&bp->b_list);
 			xfs_buf_iostrategy(bp);
+			count++;
 		}
 
 		if (as_list_len > 0)
@@ -1743,7 +1762,6 @@ xfsbufd(
 		if (count)
 			blk_run_address_space(target->bt_mapping);
 
-		clear_bit(XBT_FORCE_FLUSH, &target->bt_flags);
 	} while (!kthread_should_stop());
 
 	return 0;
@@ -1756,40 +1774,24 @@ xfsbufd(
  */
 int
 xfs_flush_buftarg(
-	xfs_buftarg_t		*target,
-	int			wait)
+	xfs_buftarg_t	*target,
+	int		wait)
 {
-	struct list_head	tmp;
-	xfs_buf_t		*bp, *n;
-	int			pincount = 0;
-	struct list_head	*dwq = &target->bt_delwrite_queue;
-	spinlock_t		*dwlk = &target->bt_delwrite_lock;
+	struct list_head tmp;
+	xfs_buf_t	*bp, *n;
+	int		pincount = 0;
 
 	xfs_buf_runall_queues(xfsdatad_workqueue);
 	xfs_buf_runall_queues(xfslogd_workqueue);
 
-	INIT_LIST_HEAD(&tmp);
-	spin_lock(dwlk);
-	list_for_each_entry_safe(bp, n, dwq, b_list) {
-		ASSERT(bp->b_target == target);
-		ASSERT(bp->b_flags & (XBF_DELWRI | _XBF_DELWRI_Q));
-		XB_TRACE(bp, "walkq2", (long)xfs_buf_ispin(bp));
-		if (xfs_buf_ispin(bp)) {
-			pincount++;
-			continue;
-		}
-
-		list_move_tail(&bp->b_list, &tmp);
-	}
-	spin_unlock(dwlk);
+	set_bit(XBT_FORCE_FLUSH, &target->bt_flags);
+	pincount = xfs_buf_delwri_split(target, &tmp, 0);
 
 	/*
 	 * Dropped the delayed write list lock, now walk the temporary list
 	 */
 	list_for_each_entry_safe(bp, n, &tmp, b_list) {
-		xfs_buf_lock(bp);
-		bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q|_XBF_RUN_QUEUES);
-		bp->b_flags |= XBF_WRITE;
+		ASSERT(target == bp->b_target);
 		if (wait)
 			bp->b_flags &= ~XBF_ASYNC;
 		else

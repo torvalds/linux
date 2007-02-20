@@ -59,7 +59,6 @@
 #define B44_DEF_TX_RING_PENDING		(B44_TX_RING_SIZE - 1)
 #define B44_TX_RING_BYTES	(sizeof(struct dma_desc) * \
 				 B44_TX_RING_SIZE)
-#define B44_DMA_MASK 0x3fffffff
 
 #define TX_RING_GAP(BP)	\
 	(B44_TX_RING_SIZE - (BP)->tx_pending)
@@ -665,7 +664,7 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 	/* Hardware bug work-around, the chip is unable to do PCI DMA
 	   to/from anything above 1GB :-( */
 	if (dma_mapping_error(mapping) ||
-		mapping + RX_PKT_BUF_SZ > B44_DMA_MASK) {
+		mapping + RX_PKT_BUF_SZ > DMA_30BIT_MASK) {
 		/* Sigh... */
 		if (!dma_mapping_error(mapping))
 			pci_unmap_single(bp->pdev, mapping, RX_PKT_BUF_SZ,PCI_DMA_FROMDEVICE);
@@ -677,7 +676,7 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 					 RX_PKT_BUF_SZ,
 					 PCI_DMA_FROMDEVICE);
 		if (dma_mapping_error(mapping) ||
-			mapping + RX_PKT_BUF_SZ > B44_DMA_MASK) {
+			mapping + RX_PKT_BUF_SZ > DMA_30BIT_MASK) {
 			if (!dma_mapping_error(mapping))
 				pci_unmap_single(bp->pdev, mapping, RX_PKT_BUF_SZ,PCI_DMA_FROMDEVICE);
 			dev_kfree_skb_any(skb);
@@ -721,7 +720,7 @@ static void b44_recycle_rx(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 	struct ring_info *src_map, *dest_map;
 	struct rx_header *rh;
 	int dest_idx;
-	u32 ctrl;
+	__le32 ctrl;
 
 	dest_idx = dest_idx_unmasked & (B44_RX_RING_SIZE - 1);
 	dest_desc = &bp->rx_ring[dest_idx];
@@ -783,7 +782,7 @@ static int b44_rx(struct b44 *bp, int budget)
 					    RX_PKT_BUF_SZ,
 					    PCI_DMA_FROMDEVICE);
 		rh = (struct rx_header *) skb->data;
-		len = cpu_to_le16(rh->len);
+		len = le16_to_cpu(rh->len);
 		if ((len > (RX_PKT_BUF_SZ - bp->rx_offset)) ||
 		    (rh->flags & cpu_to_le16(RX_FLAG_ERRORS))) {
 		drop_it:
@@ -799,7 +798,7 @@ static int b44_rx(struct b44 *bp, int budget)
 			do {
 				udelay(2);
 				barrier();
-				len = cpu_to_le16(rh->len);
+				len = le16_to_cpu(rh->len);
 			} while (len == 0 && i++ < 5);
 			if (len == 0)
 				goto drop_it;
@@ -988,7 +987,7 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	mapping = pci_map_single(bp->pdev, skb->data, len, PCI_DMA_TODEVICE);
-	if (dma_mapping_error(mapping) || mapping + len > B44_DMA_MASK) {
+	if (dma_mapping_error(mapping) || mapping + len > DMA_30BIT_MASK) {
 		/* Chip can't handle DMA to/from >1GB, use bounce buffer */
 		if (!dma_mapping_error(mapping))
 			pci_unmap_single(bp->pdev, mapping, len, PCI_DMA_TODEVICE);
@@ -1000,7 +999,7 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		mapping = pci_map_single(bp->pdev, bounce_skb->data,
 					 len, PCI_DMA_TODEVICE);
-		if (dma_mapping_error(mapping) || mapping + len > B44_DMA_MASK) {
+		if (dma_mapping_error(mapping) || mapping + len > DMA_30BIT_MASK) {
 			if (!dma_mapping_error(mapping))
 				pci_unmap_single(bp->pdev, mapping,
 					 len, PCI_DMA_TODEVICE);
@@ -1227,7 +1226,7 @@ static int b44_alloc_consistent(struct b44 *bp)
 		                             DMA_BIDIRECTIONAL);
 
 		if (dma_mapping_error(rx_ring_dma) ||
-			rx_ring_dma + size > B44_DMA_MASK) {
+			rx_ring_dma + size > DMA_30BIT_MASK) {
 			kfree(rx_ring);
 			goto out_err;
 		}
@@ -1254,7 +1253,7 @@ static int b44_alloc_consistent(struct b44 *bp)
 		                             DMA_TO_DEVICE);
 
 		if (dma_mapping_error(tx_ring_dma) ||
-			tx_ring_dma + size > B44_DMA_MASK) {
+			tx_ring_dma + size > DMA_30BIT_MASK) {
 			kfree(tx_ring);
 			goto out_err;
 		}
@@ -1289,7 +1288,7 @@ static void b44_chip_reset(struct b44 *bp)
 	if (ssb_is_core_up(bp)) {
 		bw32(bp, B44_RCV_LAZY, 0);
 		bw32(bp, B44_ENET_CTRL, ENET_CTRL_DISABLE);
-		b44_wait_bit(bp, B44_ENET_CTRL, ENET_CTRL_DISABLE, 100, 1);
+		b44_wait_bit(bp, B44_ENET_CTRL, ENET_CTRL_DISABLE, 200, 1);
 		bw32(bp, B44_DMATX_CTRL, 0);
 		bp->tx_prod = bp->tx_cons = 0;
 		if (br32(bp, B44_DMARX_STAT) & DMARX_STAT_EMASK) {
@@ -2061,7 +2060,7 @@ out:
 static int b44_read_eeprom(struct b44 *bp, u8 *data)
 {
 	long i;
-	u16 *ptr = (u16 *) data;
+	__le16 *ptr = (__le16 *) data;
 
 	for (i = 0; i < 128; i += 2)
 		ptr[i / 2] = cpu_to_le16(readw(bp->regs + 4096 + i));
@@ -2151,13 +2150,13 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, (u64) B44_DMA_MASK);
+	err = pci_set_dma_mask(pdev, (u64) DMA_30BIT_MASK);
 	if (err) {
 		dev_err(&pdev->dev, "No usable DMA configuration, aborting.\n");
 		goto err_out_free_res;
 	}
 
-	err = pci_set_consistent_dma_mask(pdev, (u64) B44_DMA_MASK);
+	err = pci_set_consistent_dma_mask(pdev, (u64) DMA_30BIT_MASK);
 	if (err) {
 		dev_err(&pdev->dev, "No usable DMA configuration, aborting.\n");
 		goto err_out_free_res;

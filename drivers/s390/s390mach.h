@@ -102,4 +102,7 @@ static inline int stcrw(struct crw *pcrw )
 	return ccode;
 }
 
+#define ED_ETR_SYNC	12	/* External damage ETR sync check */
+#define ED_ETR_SWITCH	13	/* External damage ETR switch to local */
+
 #endif /* __s390mach */

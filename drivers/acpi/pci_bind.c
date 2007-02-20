@@ -36,7 +36,7 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_PCI_COMPONENT
-ACPI_MODULE_NAME("pci_bind")
+ACPI_MODULE_NAME("pci_bind");
 
 struct acpi_pci_data {
 	struct acpi_pci_id id;

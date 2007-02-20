@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/errno.h>
@@ -43,7 +42,7 @@
 #include <asm/unaligned.h>
 #include <asm/uaccess.h>
 
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb_gadget.h>
 
@@ -1700,6 +1699,7 @@ static int gs_setup_class(struct usb_gadget *gadget,
 			memcpy(&port->port_line_coding, req->buf, ret);
 			spin_unlock(&port->port_lock);
 		}
+		ret = 0;
 		break;
 
 	case USB_CDC_REQ_GET_LINE_CODING:

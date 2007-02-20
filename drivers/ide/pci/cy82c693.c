@@ -197,8 +197,8 @@ static void cy82c693_dma_enable (ide_drive_t *drive, int mode, int single)
 #if CY82C693_DEBUG_LOGS
 	/* for debug let's show the previous values */
 
-	HWIF(drive)->OUTB(index, CY82_INDEX_PORT);
-	data = HWIF(drive)->INB(CY82_DATA_PORT);
+	outb(index, CY82_INDEX_PORT);
+	data = inb(CY82_DATA_PORT);
 
 	printk (KERN_INFO "%s (ch=%d, dev=%d): DMA mode is %d (single=%d)\n",
 		drive->name, HWIF(drive)->channel, drive->select.b.unit,
@@ -207,8 +207,8 @@ static void cy82c693_dma_enable (ide_drive_t *drive, int mode, int single)
 
 	data = (u8)mode|(u8)(single<<2);
 
-	HWIF(drive)->OUTB(index, CY82_INDEX_PORT);
-	HWIF(drive)->OUTB(data, CY82_DATA_PORT);
+	outb(index, CY82_INDEX_PORT);
+	outb(data, CY82_DATA_PORT);
 
 #if CY82C693_DEBUG_INFO
 	printk(KERN_INFO "%s (ch=%d, dev=%d): set DMA mode to %d (single=%d)\n",
@@ -227,8 +227,8 @@ static void cy82c693_dma_enable (ide_drive_t *drive, int mode, int single)
 	 */
 
 	data = BUSMASTER_TIMEOUT;
-	HWIF(drive)->OUTB(CY82_INDEX_TIMEOUT, CY82_INDEX_PORT);
-	HWIF(drive)->OUTB(data, CY82_DATA_PORT);
+	outb(CY82_INDEX_TIMEOUT, CY82_INDEX_PORT);
+	outb(data, CY82_DATA_PORT);
 
 #if CY82C693_DEBUG_INFO	
 	printk (KERN_INFO "%s: Set IDE Bus Master TimeOut Register to 0x%X\n",
@@ -478,21 +478,18 @@ static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
 	}
 }
 
-static ide_pci_device_t cy82c693_chipsets[] __devinitdata = {
-	{	/* 0 */
-		.name		= "CY82C693",
-		.init_chipset	= init_chipset_cy82c693,
-		.init_iops	= init_iops_cy82c693,
-		.init_hwif	= init_hwif_cy82c693,
-		.channels	= 1,
-		.autodma	= AUTODMA,
-		.bootable	= ON_BOARD,
-	}
+static ide_pci_device_t cy82c693_chipset __devinitdata = {
+	.name		= "CY82C693",
+	.init_chipset	= init_chipset_cy82c693,
+	.init_iops	= init_iops_cy82c693,
+	.init_hwif	= init_hwif_cy82c693,
+	.channels	= 1,
+	.autodma	= AUTODMA,
+	.bootable	= ON_BOARD,
 };
 
 static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &cy82c693_chipsets[id->driver_data];
 	struct pci_dev *dev2;
 	int ret = -ENODEV;
 
@@ -501,7 +498,7 @@ static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_dev
         if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
 	    PCI_FUNC(dev->devfn) == 1) {
 		dev2 = pci_get_slot(dev->bus, dev->devfn + 1);
-		ret = ide_setup_pci_devices(dev, dev2, d);
+		ret = ide_setup_pci_devices(dev, dev2, &cy82c693_chipset);
 		/* We leak pci refs here but thats ok - we can't be unloaded */
 	}
 	return ret;

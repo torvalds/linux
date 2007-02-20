@@ -20,7 +20,6 @@
 #include <linux/fs.h>
 #include <linux/ufs_fs.h>
 #include <linux/smp_lock.h>
-#include <linux/sched.h>
 
 #include "swab.h"
 #include "util.h"
@@ -106,12 +105,13 @@ static void ufs_check_page(struct page *page)
 	char *kaddr = page_address(page);
 	unsigned offs, rec_len;
 	unsigned limit = PAGE_CACHE_SIZE;
+	const unsigned chunk_mask = UFS_SB(sb)->s_uspi->s_dirblksize - 1;
 	struct ufs_dir_entry *p;
 	char *error;
 
 	if ((dir->i_size >> PAGE_CACHE_SHIFT) == page->index) {
 		limit = dir->i_size & ~PAGE_CACHE_MASK;
-		if (limit & (UFS_SECTOR_SIZE - 1))
+		if (limit & chunk_mask)
 			goto Ebadsize;
 		if (!limit)
 			goto out;
@@ -126,7 +126,7 @@ static void ufs_check_page(struct page *page)
 			goto Ealign;
 		if (rec_len < UFS_DIR_REC_LEN(ufs_get_de_namlen(sb, p)))
 			goto Enamelen;
-		if (((offs + rec_len - 1) ^ offs) & ~(UFS_SECTOR_SIZE-1))
+		if (((offs + rec_len - 1) ^ offs) & ~chunk_mask)
 			goto Espan;
 		if (fs32_to_cpu(sb, p->d_ino) > (UFS_SB(sb)->s_uspi->s_ipg *
 						  UFS_SB(sb)->s_uspi->s_ncg))
@@ -310,6 +310,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 	int namelen = dentry->d_name.len;
 	struct super_block *sb = dir->i_sb;
 	unsigned reclen = UFS_DIR_REC_LEN(namelen);
+	const unsigned int chunk_size = UFS_SB(sb)->s_uspi->s_dirblksize;
 	unsigned short rec_len, name_len;
 	struct page *page = NULL;
 	struct ufs_dir_entry *de;
@@ -342,8 +343,8 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 			if ((char *)de == dir_end) {
 				/* We hit i_size */
 				name_len = 0;
-				rec_len = UFS_SECTOR_SIZE;
-				de->d_reclen = cpu_to_fs16(sb, UFS_SECTOR_SIZE);
+				rec_len = chunk_size;
+				de->d_reclen = cpu_to_fs16(sb, chunk_size);
 				de->d_ino = 0;
 				goto got_it;
 			}
@@ -431,7 +432,7 @@ ufs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	unsigned int offset = pos & ~PAGE_CACHE_MASK;
 	unsigned long n = pos >> PAGE_CACHE_SHIFT;
 	unsigned long npages = ufs_dir_pages(inode);
-	unsigned chunk_mask = ~(UFS_SECTOR_SIZE - 1);
+	unsigned chunk_mask = ~(UFS_SB(sb)->s_uspi->s_dirblksize - 1);
 	int need_revalidate = filp->f_version != inode->i_version;
 	unsigned flags = UFS_SB(sb)->s_flags;
 
@@ -511,7 +512,7 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 	struct super_block *sb = inode->i_sb;
 	struct address_space *mapping = page->mapping;
 	char *kaddr = page_address(page);
-	unsigned from = ((char*)dir - kaddr) & ~(UFS_SECTOR_SIZE - 1);
+	unsigned from = ((char*)dir - kaddr) & ~(UFS_SB(sb)->s_uspi->s_dirblksize - 1);
 	unsigned to = ((char*)dir - kaddr) + fs16_to_cpu(sb, dir->d_reclen);
 	struct ufs_dir_entry *pde = NULL;
 	struct ufs_dir_entry *de = (struct ufs_dir_entry *) (kaddr + from);
@@ -556,6 +557,7 @@ int ufs_make_empty(struct inode * inode, struct inode *dir)
 	struct super_block * sb = dir->i_sb;
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page = grab_cache_page(mapping, 0);
+	const unsigned int chunk_size = UFS_SB(sb)->s_uspi->s_dirblksize;
 	struct ufs_dir_entry * de;
 	char *base;
 	int err;
@@ -563,7 +565,7 @@ int ufs_make_empty(struct inode * inode, struct inode *dir)
 	if (!page)
 		return -ENOMEM;
 	kmap(page);
-	err = mapping->a_ops->prepare_write(NULL, page, 0, UFS_SECTOR_SIZE);
+	err = mapping->a_ops->prepare_write(NULL, page, 0, chunk_size);
 	if (err) {
 		unlock_page(page);
 		goto fail;
@@ -584,11 +586,11 @@ int ufs_make_empty(struct inode * inode, struct inode *dir)
 		((char *)de + fs16_to_cpu(sb, de->d_reclen));
 	de->d_ino = cpu_to_fs32(sb, dir->i_ino);
 	ufs_set_de_type(sb, de, dir->i_mode);
-	de->d_reclen = cpu_to_fs16(sb, UFS_SECTOR_SIZE - UFS_DIR_REC_LEN(1));
+	de->d_reclen = cpu_to_fs16(sb, chunk_size - UFS_DIR_REC_LEN(1));
 	ufs_set_de_namlen(sb, de, 2);
 	strcpy (de->d_name, "..");
 
-	err = ufs_commit_chunk(page, 0, UFS_SECTOR_SIZE);
+	err = ufs_commit_chunk(page, 0, chunk_size);
 fail:
 	kunmap(page);
 	page_cache_release(page);

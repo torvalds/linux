@@ -1,26 +1,26 @@
 /*
  * Copyright (C)2002 USAGI/WIDE Project
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Authors
  *
- *	Mitsuru KANDA @USAGI       : IPv6 Support 
+ *	Mitsuru KANDA @USAGI       : IPv6 Support
  * 	Kazunori MIYAZAWA @USAGI   :
  * 	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
- * 	
+ *
  * 	This file is derived from net/ipv4/esp.c
  */
 
@@ -166,7 +166,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	}
 
 	/* If integrity check is required, do this. */
-        if (esp->auth.icv_full_len) {
+	if (esp->auth.icv_full_len) {
 		u8 sum[alen];
 
 		ret = esp_mac_digest(esp, skb, 0, skb->len - alen);
@@ -197,7 +197,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (esp->conf.ivlen)
 		crypto_blkcipher_set_iv(tfm, esph->enc_data, esp->conf.ivlen);
 
-        {
+	{
 		u8 nexthdr[2];
 		struct scatterlist *sg = &esp->sgbuf[0];
 		u8 padlen;
@@ -225,7 +225,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 			ret = -EINVAL;
 			goto out;
 		}
-		/* ... check padding bits here. Silly. :-) */ 
+		/* ... check padding bits here. Silly. :-) */
 
 		pskb_trim(skb, skb->len - alen - padlen - 2);
 		ret = nexthdr[1];
@@ -256,20 +256,20 @@ static u32 esp6_get_max_size(struct xfrm_state *x, int mtu)
 }
 
 static void esp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-                     int type, int code, int offset, __be32 info)
+		     int type, int code, int offset, __be32 info)
 {
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
 	struct ipv6_esp_hdr *esph = (struct ipv6_esp_hdr*)(skb->data+offset);
 	struct xfrm_state *x;
 
-	if (type != ICMPV6_DEST_UNREACH && 
+	if (type != ICMPV6_DEST_UNREACH &&
 	    type != ICMPV6_PKT_TOOBIG)
 		return;
 
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, esph->spi, IPPROTO_ESP, AF_INET6);
 	if (!x)
 		return;
-	printk(KERN_DEBUG "pmtu discovery on SA ESP/%08x/" NIP6_FMT "\n", 
+	printk(KERN_DEBUG "pmtu discovery on SA ESP/%08x/" NIP6_FMT "\n",
 			ntohl(esph->spi), NIP6(iph->daddr));
 	xfrm_state_put(x);
 }
@@ -326,10 +326,10 @@ static int esp6_init_state(struct xfrm_state *x)
 		esp->auth.tfm = hash;
 		if (crypto_hash_setkey(hash, esp->auth.key, esp->auth.key_len))
 			goto error;
- 
+
 		aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name, 0);
 		BUG_ON(!aalg_desc);
- 
+
 		if (aalg_desc->uinfo.auth.icv_fullbits/8 !=
 		    crypto_hash_digestsize(hash)) {
 			NETDEBUG(KERN_INFO "ESP: %s digestsize %u != %hu\n",
@@ -338,10 +338,10 @@ static int esp6_init_state(struct xfrm_state *x)
 				 aalg_desc->uinfo.auth.icv_fullbits/8);
 			goto error;
 		}
- 
+
 		esp->auth.icv_full_len = aalg_desc->uinfo.auth.icv_fullbits/8;
 		esp->auth.icv_trunc_len = aalg_desc->uinfo.auth.icv_truncbits/8;
- 
+
 		esp->auth.work_icv = kmalloc(esp->auth.icv_full_len, GFP_KERNEL);
 		if (!esp->auth.work_icv)
 			goto error;

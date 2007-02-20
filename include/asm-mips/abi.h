@@ -13,13 +13,13 @@
 #include <asm/siginfo.h>
 
 struct mips_abi {
-	void (* const do_signal)(struct pt_regs *regs);
 	int (* const setup_frame)(struct k_sigaction * ka,
 	                          struct pt_regs *regs, int signr,
 	                          sigset_t *set);
 	int (* const setup_rt_frame)(struct k_sigaction * ka,
 	                       struct pt_regs *regs, int signr,
 	                       sigset_t *set, siginfo_t *info);
+	const unsigned long	restart;
 };
 
 #endif /* _ASM_ABI_H */

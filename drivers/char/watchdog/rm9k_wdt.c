@@ -95,7 +95,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be disabled once started");
 
 
 /* Kernel interfaces */
-static struct file_operations fops = {
+static const struct file_operations fops = {
 	.owner		= THIS_MODULE,
 	.open		= wdt_gpi_open,
 	.release	= wdt_gpi_release,
@@ -192,7 +192,7 @@ static int wdt_gpi_open(struct inode *inode, struct file *file)
 		locked = 0;
 	}
 
-	res = request_irq(wd_irq, wdt_gpi_irqhdl, SA_SHIRQ | SA_INTERRUPT,
+	res = request_irq(wd_irq, wdt_gpi_irqhdl, IRQF_SHARED | IRQF_DISABLED,
 			  wdt_gpi_name, &miscdev);
 	if (unlikely(res))
 		return res;

@@ -226,7 +226,7 @@ static void decoder_reset(struct pvr2_v4l_cx2584x *ctxt)
 }
 
 
-const static struct pvr2_i2c_handler_functions hfuncs = {
+static const struct pvr2_i2c_handler_functions hfuncs = {
 	.detach = (void (*)(void *))decoder_detach,
 	.check = (int (*)(void *))decoder_check,
 	.update = (void (*)(void *))decoder_update,

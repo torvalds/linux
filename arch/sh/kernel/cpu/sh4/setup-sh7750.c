@@ -46,11 +46,13 @@ static struct platform_device rtc_device = {
 
 static struct plat_sci_port sci_platform_data[] = {
 	{
+#ifndef CONFIG_SH_RTS7751R2D
 		.mapbase	= 0xffe00000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCI,
 		.irqs		= { 23, 24, 25, 0 },
 	}, {
+#endif
 		.mapbase	= 0xffe80000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
@@ -101,7 +103,7 @@ static struct ipr_data sh7750_ipr_map[] = {
 	{ 35, 2,  8, 7 }, /* DMAC DMTE1 */
 	{ 36, 2,  8, 7 }, /* DMAC DMTE2 */
 	{ 37, 2,  8, 7 }, /* DMAC DMTE3 */
-	{ 28, 2,  8, 7 }, /* DMAC DMAE */
+	{ 38, 2,  8, 7 }, /* DMAC DMAE */
 };
 
 static struct ipr_data sh7751_ipr_map[] = {

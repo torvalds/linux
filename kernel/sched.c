@@ -57,6 +57,16 @@
 #include <asm/unistd.h>
 
 /*
+ * Scheduler clock - returns current time in nanosec units.
+ * This is default implementation.
+ * Architectures and sub-architectures can override this.
+ */
+unsigned long long __attribute__((weak)) sched_clock(void)
+{
+	return (unsigned long long)jiffies * (1000000000 / HZ);
+}
+
+/*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
  * and back.
@@ -1843,6 +1853,13 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	struct mm_struct *mm = next->mm;
 	struct mm_struct *oldmm = prev->active_mm;
 
+	/*
+	 * For paravirt, this is coupled with an exit in switch_to to
+	 * combine the page table reload and the switch backend into
+	 * one hypercall.
+	 */
+	arch_enter_lazy_cpu_mode();
+
 	if (!mm) {
 		next->active_mm = oldmm;
 		atomic_inc(&oldmm->mm_count);
@@ -2887,13 +2904,15 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 static void update_load(struct rq *this_rq)
 {
 	unsigned long this_load;
-	int i, scale;
+	unsigned int i, scale;
 
 	this_load = this_rq->raw_weighted_load;
 
 	/* Update our load: */
-	for (i = 0, scale = 1; i < 3; i++, scale <<= 1) {
+	for (i = 0, scale = 1; i < 3; i++, scale += scale) {
 		unsigned long old_load, new_load;
+
+		/* scale is effectively 1 << i now, and >> i divides by scale */
 
 		old_load = this_rq->cpu_load[i];
 		new_load = this_load;
@@ -2904,7 +2923,7 @@ static void update_load(struct rq *this_rq)
 		 */
 		if (new_load > old_load)
 			new_load += scale-1;
-		this_rq->cpu_load[i] = (old_load*(scale-1) + new_load) / scale;
+		this_rq->cpu_load[i] = (old_load*(scale-1) + new_load) >> i;
 	}
 }
 
@@ -4193,13 +4212,12 @@ static void __setscheduler(struct task_struct *p, int policy, int prio)
 }
 
 /**
- * sched_setscheduler - change the scheduling policy and/or RT priority of
- * a thread.
+ * sched_setscheduler - change the scheduling policy and/or RT priority of a thread.
  * @p: the task in question.
  * @policy: new policy.
  * @param: structure containing the new RT priority.
  *
- * NOTE: the task may be already dead
+ * NOTE that the task may be already dead.
  */
 int sched_setscheduler(struct task_struct *p, int policy,
 		       struct sched_param *param)
@@ -4567,7 +4585,7 @@ asmlinkage long sys_sched_getaffinity(pid_t pid, unsigned int len,
 /**
  * sys_sched_yield - yield the current processor to other threads.
  *
- * this function yields the current CPU by moving the calling thread
+ * This function yields the current CPU by moving the calling thread
  * to the expired array. If there are no other threads running on this
  * CPU then this function will return.
  */
@@ -4694,7 +4712,7 @@ EXPORT_SYMBOL(cond_resched_softirq);
 /**
  * yield - yield the current processor to other threads.
  *
- * this is a shortcut for kernel-space yielding - it marks the
+ * This is a shortcut for kernel-space yielding - it marks the
  * thread runnable and calls sys_sched_yield().
  */
 void __sched yield(void)

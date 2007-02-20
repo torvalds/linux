@@ -122,7 +122,7 @@
 /*Digi jsm */
 #define PORT_JSM        69
 
-#define PORT_IP3106	70
+#define PORT_PNX8XXX	70
 
 /* Hilscher netx */
 #define PORT_NETX	71

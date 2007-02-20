@@ -45,10 +45,10 @@ static int marvell_pre_reset(struct ata_port *ap)
 	for(i = 0; i <= 0x0F; i++)
 		printk("%02X:%02X ", i, readb(barp + i));
 	printk("\n");
-	
+
 	devices = readl(barp + 0x0C);
 	pci_iounmap(pdev, barp);
-	
+
 	if ((pdev->device == 0x6145) && (ap->port_no == 0) &&
 	    (!(devices & 0x10)))	/* PATA enable ? */
 		return -ENOENT;
@@ -57,7 +57,7 @@ static int marvell_pre_reset(struct ata_port *ap)
 	switch(ap->port_no)
 	{
 	case 0:
-		if (inb(ap->ioaddr.bmdma_addr + 1) & 1)
+		if (ioread8(ap->ioaddr.bmdma_addr + 1) & 1)
 			ap->cbl = ATA_CBL_PATA40;
 		else
 			ap->cbl = ATA_CBL_PATA80;
@@ -129,16 +129,16 @@ static const struct ata_port_operations marvell_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_pio_data_xfer,
+	.data_xfer		= ata_data_xfer,
 
 	/* Timeout handling */
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
 
 	/* Generic PATA PCI ATA helpers */
 	.port_start		= ata_port_start,
-	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
 };
 
 

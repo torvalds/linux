@@ -1,6 +1,6 @@
 /*
  * net/tipc/eth_media.c: Ethernet bearer support for TIPC
- * 
+ *
  * Copyright (c) 2001-2006, Ericsson AB
  * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
@@ -50,7 +50,7 @@
  * @dev: ptr to associated Ethernet network device
  * @tipc_packet_type: used in binding TIPC to Ethernet driver
  */
- 
+
 struct eth_bearer {
 	struct tipc_bearer *bearer;
 	struct net_device *dev;
@@ -62,10 +62,10 @@ static int eth_started = 0;
 static struct notifier_block notifier;
 
 /**
- * send_msg - send a TIPC message out over an Ethernet interface 
+ * send_msg - send a TIPC message out over an Ethernet interface
  */
 
-static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr, 
+static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 		    struct tipc_media_addr *dest)
 {
 	struct sk_buff *clone;
@@ -76,7 +76,7 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 		clone->nh.raw = clone->data;
 		dev = ((struct eth_bearer *)(tb_ptr->usr_handle))->dev;
 		clone->dev = dev;
-		dev->hard_header(clone, dev, ETH_P_TIPC, 
+		dev->hard_header(clone, dev, ETH_P_TIPC,
 				 &dest->dev_addr.eth_addr,
 				 dev->dev_addr, clone->len);
 		dev_queue_xmit(clone);
@@ -86,12 +86,12 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 
 /**
  * recv_msg - handle incoming TIPC message from an Ethernet interface
- * 
+ *
  * Routine truncates any Ethernet padding/CRC appended to the message,
  * and ensures message size matches actual length
  */
 
-static int recv_msg(struct sk_buff *buf, struct net_device *dev, 
+static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 		    struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct eth_bearer *eb_ptr = (struct eth_bearer *)pt->af_packet_priv;
@@ -99,14 +99,14 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 
 	if (likely(eb_ptr->bearer)) {
 	       if (likely(!dev->promiscuity) ||
-	           !memcmp(buf->mac.raw,dev->dev_addr,ETH_ALEN) ||
-	           !memcmp(buf->mac.raw,dev->broadcast,ETH_ALEN)) {
-		        size = msg_size((struct tipc_msg *)buf->data);
-	                skb_trim(buf, size);
-	        	if (likely(buf->len == size)) {
-		        	buf->next = NULL;
-			        tipc_recv_msg(buf, eb_ptr->bearer);
-			        return TIPC_OK;
+		   !memcmp(buf->mac.raw,dev->dev_addr,ETH_ALEN) ||
+		   !memcmp(buf->mac.raw,dev->broadcast,ETH_ALEN)) {
+			size = msg_size((struct tipc_msg *)buf->data);
+			skb_trim(buf, size);
+			if (likely(buf->len == size)) {
+				buf->next = NULL;
+				tipc_recv_msg(buf, eb_ptr->bearer);
+				return TIPC_OK;
 			}
 		}
 	}
@@ -115,7 +115,7 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 }
 
 /**
- * enable_bearer - attach TIPC bearer to an Ethernet interface 
+ * enable_bearer - attach TIPC bearer to an Ethernet interface
  */
 
 static int enable_bearer(struct tipc_bearer *tb_ptr)
@@ -127,7 +127,7 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 
 	/* Find device with specified name */
 
-	while (dev && dev->name && strncmp(dev->name, driver_name, IFNAMSIZ)) {	
+	while (dev && dev->name && strncmp(dev->name, driver_name, IFNAMSIZ)) {
 		dev = dev->next;
 	}
 	if (!dev)
@@ -154,14 +154,14 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	eb_ptr->bearer = tb_ptr;
 	tb_ptr->usr_handle = (void *)eb_ptr;
 	tb_ptr->mtu = dev->mtu;
-	tb_ptr->blocked = 0; 
+	tb_ptr->blocked = 0;
 	tb_ptr->addr.type = htonl(TIPC_MEDIA_TYPE_ETH);
 	memcpy(&tb_ptr->addr.dev_addr, &dev->dev_addr, ETH_ALEN);
 	return 0;
 }
 
 /**
- * disable_bearer - detach TIPC bearer from an Ethernet interface 
+ * disable_bearer - detach TIPC bearer from an Ethernet interface
  *
  * We really should do dev_remove_pack() here, but this function can not be
  * called at tasklet level. => Use eth_bearer->bearer as a flag to throw away
@@ -176,11 +176,11 @@ static void disable_bearer(struct tipc_bearer *tb_ptr)
 /**
  * recv_notification - handle device updates from OS
  *
- * Change the state of the Ethernet bearer (if any) associated with the 
+ * Change the state of the Ethernet bearer (if any) associated with the
  * specified device.
  */
 
-static int recv_notification(struct notifier_block *nb, unsigned long evt, 
+static int recv_notification(struct notifier_block *nb, unsigned long evt,
 			     void *dv)
 {
 	struct net_device *dev = (struct net_device *)dv;
@@ -194,7 +194,7 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 	if (!eb_ptr->bearer)
 		return NOTIFY_DONE;		/* bearer had been disabled */
 
-        eb_ptr->bearer->mtu = dev->mtu;
+	eb_ptr->bearer->mtu = dev->mtu;
 
 	switch (evt) {
 	case NETDEV_CHANGE:
@@ -210,12 +210,12 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 		tipc_block_bearer(eb_ptr->bearer->name);
 		break;
 	case NETDEV_CHANGEMTU:
-        case NETDEV_CHANGEADDR:
+	case NETDEV_CHANGEADDR:
 		tipc_block_bearer(eb_ptr->bearer->name);
-                tipc_continue(eb_ptr->bearer);
+		tipc_continue(eb_ptr->bearer);
 		break;
 	case NETDEV_UNREGISTER:
-        case NETDEV_CHANGENAME:
+	case NETDEV_CHANGENAME:
 		tipc_disable_bearer(eb_ptr->bearer->name);
 		break;
 	}
@@ -227,7 +227,7 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
  */
 
 static char *eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
-{                       
+{
 	unchar *addr = (unchar *)&a->dev_addr;
 
 	if (str_size < 18)
@@ -246,7 +246,7 @@ static char *eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size
  */
 
 int tipc_eth_media_start(void)
-{                       
+{
 	struct tipc_media_addr bcast_addr;
 	int res;
 
@@ -259,8 +259,8 @@ int tipc_eth_media_start(void)
 	memset(eth_bearers, 0, sizeof(eth_bearers));
 
 	res = tipc_register_media(TIPC_MEDIA_TYPE_ETH, "eth",
-				  enable_bearer, disable_bearer, send_msg, 
-				  eth_addr2str, &bcast_addr, ETH_LINK_PRIORITY, 
+				  enable_bearer, disable_bearer, send_msg,
+				  eth_addr2str, &bcast_addr, ETH_LINK_PRIORITY,
 				  ETH_LINK_TOLERANCE, ETH_LINK_WINDOW);
 	if (res)
 		return res;

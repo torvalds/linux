@@ -1,6 +1,6 @@
 /*
  * net/tipc/node_subscr.c: TIPC "node down" subscription handling
- * 
+ *
  * Copyright (c) 1995-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -44,14 +44,14 @@
  * tipc_nodesub_subscribe - create "node down" subscription for specified node
  */
 
-void tipc_nodesub_subscribe(struct node_subscr *node_sub, u32 addr, 
+void tipc_nodesub_subscribe(struct node_subscr *node_sub, u32 addr,
 		       void *usr_handle, net_ev_handler handle_down)
 {
 	if (addr == tipc_own_addr) {
 		node_sub->node = NULL;
 		return;
 	}
-	
+
 	node_sub->node = tipc_node_find(addr);
 	if (!node_sub->node) {
 		warn("Node subscription rejected, unknown node 0x%x\n", addr);

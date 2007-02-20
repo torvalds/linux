@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/completion.h>
 #include <rxrpc/rxrpc.h>
 #include <rxrpc/transport.h>

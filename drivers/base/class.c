@@ -163,8 +163,7 @@ int class_register(struct class * cls)
 void class_unregister(struct class * cls)
 {
 	pr_debug("device class '%s': unregistering\n", cls->name);
-	if (cls->virtual_dir)
-		kobject_unregister(cls->virtual_dir);
+	kobject_unregister(cls->virtual_dir);
 	remove_class_attrs(cls);
 	subsystem_unregister(&cls->subsys);
 }
@@ -364,7 +363,7 @@ char *make_class_name(const char *name, struct kobject *kobj)
 
 	class_name = kmalloc(size, GFP_KERNEL);
 	if (!class_name)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	strcpy(class_name, name);
 	strcat(class_name, ":");
@@ -411,8 +410,11 @@ static int make_deprecated_class_device_links(struct class_device *class_dev)
 		return 0;
 
 	class_name = make_class_name(class_dev->class->name, &class_dev->kobj);
-	error = sysfs_create_link(&class_dev->dev->kobj, &class_dev->kobj,
-				  class_name);
+	if (class_name)
+		error = sysfs_create_link(&class_dev->dev->kobj,
+					  &class_dev->kobj, class_name);
+	else
+		error = -ENOMEM;
 	kfree(class_name);
 	return error;
 }
@@ -425,7 +427,8 @@ static void remove_deprecated_class_device_links(struct class_device *class_dev)
 		return;
 
 	class_name = make_class_name(class_dev->class->name, &class_dev->kobj);
-	sysfs_remove_link(&class_dev->dev->kobj, class_name);
+	if (class_name)
+		sysfs_remove_link(&class_dev->dev->kobj, class_name);
 	kfree(class_name);
 }
 #else
@@ -863,9 +866,12 @@ int class_device_rename(struct class_device *class_dev, char *new_name)
 	if (class_dev->dev) {
 		new_class_name = make_class_name(class_dev->class->name,
 						 &class_dev->kobj);
-		sysfs_create_link(&class_dev->dev->kobj, &class_dev->kobj,
-				  new_class_name);
-		sysfs_remove_link(&class_dev->dev->kobj, old_class_name);
+		if (new_class_name)
+			sysfs_create_link(&class_dev->dev->kobj,
+					  &class_dev->kobj, new_class_name);
+		if (old_class_name)
+			sysfs_remove_link(&class_dev->dev->kobj,
+						old_class_name);
 	}
 #endif
 	class_device_put(class_dev);

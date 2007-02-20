@@ -59,7 +59,7 @@ asn1_bitstring_len(struct xdr_netobj *in, int *enclen, int *zerobits)
 
 	/* count trailing 0's */
 	for(i = in->len; i > 0; i--) {
-		if (*ptr == 0) { 
+		if (*ptr == 0) {
 			ptr--;
 			elen--;
 		} else
@@ -82,7 +82,7 @@ asn1_bitstring_len(struct xdr_netobj *in, int *enclen, int *zerobits)
 
 /*
  * decode_asn1_bitstring()
- * 
+ *
  * decode a bitstring into a buffer of the expected length.
  * enclen = bit string length
  * explen = expected length (define in rfc)
@@ -97,9 +97,9 @@ decode_asn1_bitstring(struct xdr_netobj *out, char *in, int enclen, int explen)
 	return 1;
 }
 
-/* 
+/*
  * SPKMInnerContextToken choice SPKM_MIC asn1 token layout
- * 
+ *
  * contextid is always 16 bytes plain data. max asn1 bitstring len = 17.
  *
  * tokenlen = pos[0] to end of token (max pos[45] with MD5 cksum)
@@ -107,21 +107,21 @@ decode_asn1_bitstring(struct xdr_netobj *out, char *in, int enclen, int explen)
  * pos  value
  * ----------
  * [0]	a4  SPKM-MIC tag
- * [1]	??  innertoken length  (max 44) 
- * 
- * 
- * tok_hdr piece of checksum data starts here 
+ * [1]	??  innertoken length  (max 44)
  *
- * the maximum mic-header len = 9 + 17 = 26 
+ *
+ * tok_hdr piece of checksum data starts here
+ *
+ * the maximum mic-header len = 9 + 17 = 26
  *	mic-header
  *	----------
- * [2]	30      SEQUENCE tag  
- * [3]	??	mic-header length: (max 23) = TokenID + ContextID 
+ * [2]	30      SEQUENCE tag
+ * [3]	??	mic-header length: (max 23) = TokenID + ContextID
  *
  *		TokenID  - all fields constant and can be hardcoded
  *		-------
  * [4]	  02	Type 2
- * [5]	  02	Length 2 
+ * [5]	  02	Length 2
  * [6][7] 01 01	TokenID (SPKM_MIC_TOK)
  *
  *		ContextID  - encoded length not constant, calculated
@@ -131,17 +131,17 @@ decode_asn1_bitstring(struct xdr_netobj *out, char *in, int enclen, int explen)
  * [10]	??	ctxzbit
  * [11]	 	contextid
  *
- * mic_header piece of checksum data ends here. 
+ * mic_header piece of checksum data ends here.
  *
  *	int-cksum - encoded length not constant, calculated
  *	---------
  * [??]	03	Type 3
- * [??]	??	encoded length 
- * [??]	??	md5zbit		
+ * [??]	??	encoded length
+ * [??]	??	md5zbit
  * [??]	 	int-cksum (NID_md5 = 16)
  *
- * maximum SPKM-MIC innercontext token length = 
- *	 10 + encoded contextid_size(17 max) + 2 + encoded  
+ * maximum SPKM-MIC innercontext token length =
+ *	 10 + encoded contextid_size(17 max) + 2 + encoded
  *       cksum_size (17 maxfor NID_md5) = 46
  */
 
@@ -178,8 +178,8 @@ spkm3_mic_header(unsigned char **hdrbuf, unsigned int *hdrlen, unsigned char *ct
 /*
  * spkm3_mic_innercontext_token()
  *
- * *tokp points to the beginning of the SPKM_MIC token  described 
- * in rfc 2025, section 3.2.1: 
+ * *tokp points to the beginning of the SPKM_MIC token  described
+ * in rfc 2025, section 3.2.1:
  *
  * toklen is the inner token length
  */
@@ -209,7 +209,7 @@ spkm3_verify_mic_token(unsigned char **tokp, int *mic_hdrlen, unsigned char **ck
 
 	/* spkm3 innercontext token preamble */
 	if ((ptr[0] != 0xa4) || (ptr[2] != 0x30)) {
-		dprintk("RPC: BAD SPKM ictoken preamble\n"); 
+		dprintk("RPC:       BAD SPKM ictoken preamble\n");
 		goto out;
 	}
 
@@ -217,25 +217,25 @@ spkm3_verify_mic_token(unsigned char **tokp, int *mic_hdrlen, unsigned char **ck
 
 	/* token type */
 	if ((ptr[4] != 0x02) || (ptr[5] != 0x02)) {
-		dprintk("RPC: BAD asn1 SPKM3 token type\n");
+		dprintk("RPC:       BAD asn1 SPKM3 token type\n");
 		goto out;
 	}
 
 	/* only support SPKM_MIC_TOK */
 	if((ptr[6] != 0x01) || (ptr[7] != 0x01)) {
-		dprintk("RPC: ERROR unsupported SPKM3 token \n");
+		dprintk("RPC:       ERROR unsupported SPKM3 token \n");
 		goto out;
 	}
 
 	/* contextid */
 	if (ptr[8] != 0x03) {
-		dprintk("RPC: BAD SPKM3 asn1 context-id type\n");
+		dprintk("RPC:       BAD SPKM3 asn1 context-id type\n");
 		goto out;
 	}
 
 	ctxelen = ptr[9];
 	if (ctxelen > 17) {  /* length includes asn1 zbit octet */
-		dprintk("RPC: BAD SPKM3 contextid len %d\n", ctxelen);
+		dprintk("RPC:       BAD SPKM3 contextid len %d\n", ctxelen);
 		goto out;
 	}
 
@@ -245,17 +245,19 @@ spkm3_verify_mic_token(unsigned char **tokp, int *mic_hdrlen, unsigned char **ck
 		goto out;
 
 	/*
-	* in the current implementation: the optional int-alg is not present 
-	* so the default int-alg (md5) is used the optional snd-seq field is 
-	* also not present 
+	* in the current implementation: the optional int-alg is not present
+	* so the default int-alg (md5) is used the optional snd-seq field is
+	* also not present
 	*/
 
 	if (*mic_hdrlen != 6 + ctxelen) {
-		dprintk("RPC: BAD SPKM_ MIC_TOK header len %d: we only support default int-alg (should be absent) and do not support snd-seq\n", *mic_hdrlen);
+		dprintk("RPC:       BAD SPKM_ MIC_TOK header len %d: we only "
+				"support default int-alg (should be absent) "
+				"and do not support snd-seq\n", *mic_hdrlen);
 		goto out;
 	}
 	/* checksum */
-        *cksum = (&ptr[10] + ctxelen); /* ctxelen includes ptr[10] */
+	*cksum = (&ptr[10] + ctxelen); /* ctxelen includes ptr[10] */
 
 	ret = GSS_S_COMPLETE;
 out:

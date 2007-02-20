@@ -167,6 +167,13 @@ config BLK_DEV_IDECS
 	  Support for Compact Flash cards, outboard IDE disks, tape drives,
 	  and CD-ROM drives connected through a PCMCIA card.
 
+config BLK_DEV_DELKIN
+	tristate "Cardbus IDE support (Delkin/ASKA/Workbit)"
+	depends on CARDBUS && PCI
+	help
+	  Support for Delkin, ASKA, and Workbit Cardbus CompactFlash
+	  Adapters.  This may also work for similar SD and XD adapters.
+
 config BLK_DEV_IDECD
 	tristate "Include IDE/ATAPI CDROM support"
 	---help---
@@ -263,6 +270,13 @@ config BLK_DEV_IDESCSI
 
 	  If both this SCSI emulation and native ATAPI support are compiled
 	  into the kernel, the native support will be used.
+
+config BLK_DEV_IDEACPI
+	bool "IDE ACPI support"
+	depends on ACPI
+	---help---
+	  Implement ACPI support for generic IDE devices. On modern
+	  machines ACPI support is required to properly handle ACPI S3 states.
 
 config IDE_TASK_IOCTL
 	bool "IDE Taskfile Access"
@@ -369,6 +383,9 @@ config BLK_DEV_OFFBOARD
 config BLK_DEV_GENERIC
 	tristate "Generic PCI IDE Chipset Support"
 	depends on BLK_DEV_IDEPCI
+        help
+          This option provides generic support for various PCI IDE Chipsets
+          which otherwise might not be supported.
 
 config BLK_DEV_OPTI621
 	tristate "OPTi 82C621 chipset enhanced support (EXPERIMENTAL)"
@@ -606,6 +623,11 @@ config BLK_DEV_PIIX
 	  the kernel to change PIO, DMA and UDMA speeds and to configure
 	  the chip to optimum performance.
 
+config BLK_DEV_IT8213
+	tristate "IT8213 IDE support"
+	help
+	 This driver adds support for the ITE 8213 IDE controller.
+
 config BLK_DEV_IT821X
 	tristate "IT821X IDE support"
 	help
@@ -742,6 +764,11 @@ config BLK_DEV_VIA82CXXX
 	  This allows the kernel to change PIO, DMA and UDMA speeds and to
 	  configure the chip to optimum performance.
 
+config BLK_DEV_TC86C001
+	tristate "Toshiba TC86C001 support"
+	help
+	This driver adds support for Toshiba TC86C001 GOKU-S chip.
+
 endif
 
 config BLK_DEV_IDE_PMAC
@@ -772,6 +799,14 @@ config BLK_DEV_IDEDMA_PMAC
 	  Power Macintoshes and PowerBooks to use DMA (direct memory access)
 	  to transfer data to and from memory.  Saying Y is safe and improves
 	  performance.
+
+config BLK_DEV_IDE_CELLEB
+	bool "Toshiba's Cell Reference Set IDE support"
+	depends on PPC_CELLEB
+	help
+	  This driver provides support for the built-in IDE controller on
+	  Toshiba Cell Reference Board.
+	  If unsure, say Y.
 
 config BLK_DEV_IDE_SWARM
 	tristate "IDE for Sibyte evaluation boards"

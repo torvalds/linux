@@ -13,7 +13,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/sockios.h>
@@ -164,7 +163,7 @@ static void *ax25_uid_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	++*pos;
 
 	return hlist_entry(((ax25_uid_assoc *)v)->uid_node.next,
-	                   ax25_uid_assoc, uid_node);
+			   ax25_uid_assoc, uid_node);
 }
 
 static void ax25_uid_seq_stop(struct seq_file *seq, void *v)
@@ -198,7 +197,7 @@ static int ax25_uid_info_open(struct inode *inode, struct file *file)
 	return seq_open(file, &ax25_uid_seqops);
 }
 
-struct file_operations ax25_uid_fops = {
+const struct file_operations ax25_uid_fops = {
 	.owner = THIS_MODULE,
 	.open = ax25_uid_info_open,
 	.read = seq_read,

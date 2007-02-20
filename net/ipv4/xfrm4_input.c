@@ -6,7 +6,7 @@
  *		Split up af-specific portion
  *	Derek Atkins <derek@ihtfp.com>
  *		Add Encapsulation support
- * 	
+ *
  */
 
 #include <linux/module.h>
@@ -27,6 +27,7 @@ static int xfrm4_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 
 {
 	switch (nexthdr) {
 	case IPPROTO_IPIP:
+	case IPPROTO_IPV6:
 		*spi = skb->nh.iph->saddr;
 		*seq = 0;
 		return 0;
@@ -42,7 +43,7 @@ static inline int xfrm4_rcv_encap_finish(struct sk_buff *skb)
 
 	if (skb->dst == NULL) {
 		if (ip_route_input(skb, iph->daddr, iph->saddr, iph->tos,
-		                   skb->dev))
+				   skb->dev))
 			goto drop;
 	}
 	return dst_input(skb);
@@ -70,7 +71,8 @@ int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 		if (xfrm_nr == XFRM_MAX_DEPTH)
 			goto drop;
 
-		x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, spi, iph->protocol, AF_INET);
+		x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, spi,
+				iph->protocol != IPPROTO_IPV6 ? iph->protocol : IPPROTO_IPIP, AF_INET);
 		if (x == NULL)
 			goto drop;
 
@@ -149,7 +151,7 @@ int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 		ip_send_check(skb->nh.iph);
 
 		NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, skb->dev, NULL,
-		        xfrm4_rcv_encap_finish);
+			xfrm4_rcv_encap_finish);
 		return 0;
 #else
 		return -skb->nh.iph->protocol;

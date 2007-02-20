@@ -595,10 +595,8 @@ static int ipr_save_pcix_cmd_reg(struct ipr_ioa_cfg *ioa_cfg)
 {
 	int pcix_cmd_reg = pci_find_capability(ioa_cfg->pdev, PCI_CAP_ID_PCIX);
 
-	if (pcix_cmd_reg == 0) {
-		dev_err(&ioa_cfg->pdev->dev, "Failed to save PCI-X command register\n");
-		return -EIO;
-	}
+	if (pcix_cmd_reg == 0)
+		return 0;
 
 	if (pci_read_config_word(ioa_cfg->pdev, pcix_cmd_reg + PCI_X_CMD,
 				 &ioa_cfg->saved_pcix_cmd_reg) != PCIBIOS_SUCCESSFUL) {
@@ -627,10 +625,6 @@ static int ipr_set_pcix_cmd_reg(struct ipr_ioa_cfg *ioa_cfg)
 			dev_err(&ioa_cfg->pdev->dev, "Failed to setup PCI-X command register\n");
 			return -EIO;
 		}
-	} else {
-		dev_err(&ioa_cfg->pdev->dev,
-			"Failed to setup PCI-X command register\n");
-		return -EIO;
 	}
 
 	return 0;
@@ -6314,7 +6308,6 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 	int rc;
 
 	ENTER;
-	pci_unblock_user_cfg_access(ioa_cfg->pdev);
 	rc = pci_restore_state(ioa_cfg->pdev);
 
 	if (rc != PCIBIOS_SUCCESSFUL) {
@@ -6355,6 +6348,24 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
+ * ipr_reset_bist_done - BIST has completed on the adapter.
+ * @ipr_cmd:	ipr command struct
+ *
+ * Description: Unblock config space and resume the reset process.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_CONTINUE
+ **/
+static int ipr_reset_bist_done(struct ipr_cmnd *ipr_cmd)
+{
+	ENTER;
+	pci_unblock_user_cfg_access(ipr_cmd->ioa_cfg->pdev);
+	ipr_cmd->job_step = ipr_reset_restore_cfg_space;
+	LEAVE;
+	return IPR_RC_JOB_CONTINUE;
+}
+
+/**
  * ipr_reset_start_bist - Run BIST on the adapter.
  * @ipr_cmd:	ipr command struct
  *
@@ -6376,7 +6387,7 @@ static int ipr_reset_start_bist(struct ipr_cmnd *ipr_cmd)
 		ipr_cmd->ioasa.ioasc = cpu_to_be32(IPR_IOASC_PCI_ACCESS_ERROR);
 		rc = IPR_RC_JOB_CONTINUE;
 	} else {
-		ipr_cmd->job_step = ipr_reset_restore_cfg_space;
+		ipr_cmd->job_step = ipr_reset_bist_done;
 		ipr_reset_start_timer(ipr_cmd, IPR_WAIT_FOR_BIST_TIMEOUT);
 		rc = IPR_RC_JOB_RETURN;
 	}
@@ -7166,9 +7177,6 @@ ipr_get_chip_cfg(const struct pci_device_id *dev_id)
 {
 	int i;
 
-	if (dev_id->driver_data)
-		return (const struct ipr_chip_cfg_t *)dev_id->driver_data;
-
 	for (i = 0; i < ARRAY_SIZE(ipr_chip); i++)
 		if (ipr_chip[i].vendor == dev_id->vendor &&
 		    ipr_chip[i].device == dev_id->device)
@@ -7517,65 +7525,43 @@ static void ipr_shutdown(struct pci_dev *pdev)
 
 static struct pci_device_id ipr_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_5702,
-		0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_5702, 0, 0, 0 },
 	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_5703,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_5703, 0, 0, 0 },
 	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_573D,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_573D, 0, 0, 0 },
 	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_573E,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_573E, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571B,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571B, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572E,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572E, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571A,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571A, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575B,
-		0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575B, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572A,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572A, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572A,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572A, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B8,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B7,
-	      0, 0, (kernel_ulong_t)&ipr_chip_cfg[0] },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B7, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_2780,
-		0, 0, (kernel_ulong_t)&ipr_chip_cfg[1] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_2780, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571E,
-		0, 0, (kernel_ulong_t)&ipr_chip_cfg[1] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571E, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571F,
-		0, 0, (kernel_ulong_t)&ipr_chip_cfg[1] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571F, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572F,
-		0, 0, (kernel_ulong_t)&ipr_chip_cfg[1] },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572F, 0, 0, 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, ipr_pci_table);

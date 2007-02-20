@@ -17,7 +17,7 @@
 #include <linux/netdevice.h>
 #include <asm/uaccess.h>
 
-/* 
+/*
  * Some useful ethtool_ops methods that're device independent.
  * If we find that all drivers want to do the same thing here,
  * we can turn these into dev_() function calls.
@@ -87,12 +87,12 @@ int ethtool_op_get_perm_addr(struct net_device *dev, struct ethtool_perm_addr *a
 	unsigned char len = dev->addr_len;
 	if ( addr->size < len )
 		return -ETOOSMALL;
-	
+
 	addr->size = len;
 	memcpy(data, dev->perm_addr, len);
 	return 0;
 }
- 
+
 
 u32 ethtool_op_get_ufo(struct net_device *dev)
 {
@@ -550,7 +550,7 @@ static int ethtool_set_sg(struct net_device *dev, char __user *useraddr)
 	if (copy_from_user(&edata, useraddr, sizeof(edata)))
 		return -EFAULT;
 
-	if (edata.data && 
+	if (edata.data &&
 	    !(dev->features & NETIF_F_ALL_CSUM))
 		return -EINVAL;
 
@@ -951,7 +951,7 @@ int dev_ethtool(struct ifreq *ifr)
 	default:
 		rc =  -EOPNOTSUPP;
 	}
-	
+
 	if(dev->ethtool_ops->complete)
 		dev->ethtool_ops->complete(dev);
 

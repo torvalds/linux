@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/slc90e66.c	Version 0.12	May 12, 2006
+ *  linux/drivers/ide/pci/slc90e66.c	Version 0.13	December 30, 2006
  *
  *  Copyright (C) 2000-2002 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2006 MontaVista Software, Inc. <source@mvista.com>
@@ -26,7 +26,7 @@ static u8 slc90e66_ratemask (ide_drive_t *drive)
 	u8 mode	= 2;
 
 	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
+		mode = min_t(u8, mode, 1);
 	return mode;
 }
 
@@ -65,36 +65,47 @@ static void slc90e66_tune_drive (ide_drive_t *drive, u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-	int is_slave		= (&hwif->drives[1] == drive);
+	int is_slave		= drive->dn & 1;
 	int master_port		= hwif->channel ? 0x42 : 0x40;
 	int slave_port		= 0x44;
 	unsigned long flags;
 	u16 master_data;
 	u8 slave_data;
-				 /* ISP  RTC */
+ 	int control = 0;
+				     /* ISP  RTC */
 	static const u8 timings[][2]= {
-				    { 0, 0 },
-				    { 0, 0 },
-				    { 1, 0 },
-				    { 2, 1 },
-				    { 2, 3 }, };
+					{ 0, 0 },
+					{ 0, 0 },
+					{ 1, 0 },
+					{ 2, 1 },
+					{ 2, 3 }, };
 
-	pio = ide_get_best_pio_mode(drive, pio, 5, NULL);
+	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
 	spin_lock_irqsave(&ide_lock, flags);
 	pci_read_config_word(dev, master_port, &master_data);
+
+	if (pio > 1)
+		control |= 1;	/* Programmable timing on */
+	if (drive->media == ide_disk)
+		control |= 4;	/* Prefetch, post write */
+	if (pio > 2)
+		control |= 2;	/* IORDY */
 	if (is_slave) {
-		master_data = master_data | 0x4000;
-		if (pio > 1)
+		master_data |=  0x4000;
+		master_data &= ~0x0070;
+		if (pio > 1) {
 			/* enable PPE, IE and TIME */
-			master_data = master_data | 0x0070;
+			master_data = master_data | (control << 4);
+		}
 		pci_read_config_byte(dev, slave_port, &slave_data);
 		slave_data = slave_data & (hwif->channel ? 0x0f : 0xf0);
 		slave_data = slave_data | (((timings[pio][0] << 2) | timings[pio][1]) << (hwif->channel ? 4 : 0));
 	} else {
-		master_data = master_data & 0xccf8;
-		if (pio > 1)
+		master_data &= ~0x3307;
+		if (pio > 1) {
 			/* enable PPE, IE and TIME */
-			master_data = master_data | 0x0007;
+			master_data = master_data | control;
+		}
 		master_data = master_data | (timings[pio][0] << 12) | (timings[pio][1] << 8);
 	}
 	pci_write_config_word(dev, master_port, master_data);
@@ -168,26 +179,16 @@ static int slc90e66_config_drive_for_dma (ide_drive_t *drive)
 
 static int slc90e66_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
-
 	drive->init_speed = 0;
 
-	if (id && (id->capability & 1) && drive->autodma) {
+	if (ide_use_dma(drive) && slc90e66_config_drive_for_dma(drive))
+		return 0;
 
-		if (ide_use_dma(drive) && slc90e66_config_drive_for_dma(drive))
-			return hwif->ide_dma_on(drive);
+	if (ide_use_fast_pio(drive))
+		(void)slc90e66_tune_chipset(drive, XFER_PIO_0 +
+				ide_get_best_pio_mode(drive, 255, 4, NULL));
 
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
-		(void) hwif->speedproc(drive, XFER_PIO_0 +
-				       ide_get_best_pio_mode(drive, 255, 4, NULL));
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+	return -1;
 }
 
 static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
@@ -201,7 +202,7 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 		hwif->irq = hwif->channel ? 15 : 14;
 
 	hwif->speedproc = &slc90e66_tune_chipset;
-	hwif->tuneproc = &slc90e66_tune_drive;
+	hwif->tuneproc	= &slc90e66_tune_drive;
 
 	pci_read_config_byte(hwif->pci_dev, 0x47, &reg47);
 
@@ -213,14 +214,16 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 
 	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x1f;
-	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
+	hwif->mwdma_mask = 0x06;
+	hwif->swdma_mask = 0x04;
 
-	if (!(hwif->udma_four))
+	if (!hwif->udma_four) {
 		/* bit[0(1)]: 0:80, 1:40 */
 		hwif->udma_four = (reg47 & mask) ? 0 : 1;
+	}
 
 	hwif->ide_dma_check = &slc90e66_config_drive_xfer_rate;
+
 	if (!noautodma)
 		hwif->autodma = 1;
 	hwif->drives[0].autodma = hwif->autodma;

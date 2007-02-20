@@ -167,6 +167,7 @@ struct pci_dev {
 	unsigned int	broken_parity_status:1;	/* Device generates false positive parity */
 	unsigned int 	msi_enabled:1;
 	unsigned int	msix_enabled:1;
+	unsigned int	is_managed:1;
 	atomic_t	enable_cnt;	/* pci_enable_device has been called */
 
 	u32		saved_config_space[16]; /* config space saved at suspend time */
@@ -174,12 +175,20 @@ struct pci_dev {
 	struct bin_attribute *rom_attr; /* attribute descriptor for sysfs ROM entry */
 	int rom_attr_enabled;		/* has display of the rom attribute been enabled? */
 	struct bin_attribute *res_attr[DEVICE_COUNT_RESOURCE]; /* sysfs file for resources */
+#ifdef CONFIG_PCI_MSI
+	unsigned int first_msi_irq;
+#endif
 };
 
 #define pci_dev_g(n) list_entry(n, struct pci_dev, global_list)
 #define pci_dev_b(n) list_entry(n, struct pci_dev, bus_list)
 #define	to_pci_dev(n) container_of(n, struct pci_dev, dev)
 #define for_each_pci_dev(d) while ((d = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, d)) != NULL)
+
+static inline int pci_channel_offline(struct pci_dev *pdev)
+{
+	return (pdev->error_state != pci_channel_io_normal);
+}
 
 static inline struct pci_cap_saved_state *pci_find_saved_cap(
 	struct pci_dev *pci_dev,char cap)
@@ -463,8 +472,7 @@ extern void pci_sort_breadthfirst(void);
 
 /* Generic PCI functions exported to card drivers */
 
-struct pci_dev *pci_find_device (unsigned int vendor, unsigned int device, const struct pci_dev *from);
-struct pci_dev *pci_find_device_reverse (unsigned int vendor, unsigned int device, const struct pci_dev *from);
+struct pci_dev __deprecated *pci_find_device (unsigned int vendor, unsigned int device, const struct pci_dev *from);
 struct pci_dev *pci_find_slot (unsigned int bus, unsigned int devfn);
 int pci_find_capability (struct pci_dev *dev, int cap);
 int pci_find_next_capability (struct pci_dev *dev, u8 pos, int cap);
@@ -521,6 +529,14 @@ static inline int pci_write_config_dword(struct pci_dev *dev, int where, u32 val
 
 int __must_check pci_enable_device(struct pci_dev *dev);
 int __must_check pci_enable_device_bars(struct pci_dev *dev, int mask);
+int __must_check pcim_enable_device(struct pci_dev *pdev);
+void pcim_pin_device(struct pci_dev *pdev);
+
+static inline int pci_is_managed(struct pci_dev *pdev)
+{
+	return pdev->is_managed;
+}
+
 void pci_disable_device(struct pci_dev *dev);
 void pci_set_master(struct pci_dev *dev);
 #define HAVE_PCI_SET_MWI
@@ -533,6 +549,7 @@ void pci_update_resource(struct pci_dev *dev, struct resource *res, int resno);
 int __must_check pci_assign_resource(struct pci_dev *dev, int i);
 int __must_check pci_assign_resource_fixed(struct pci_dev *dev, int i);
 void pci_restore_bars(struct pci_dev *dev);
+int pci_select_bars(struct pci_dev *dev, unsigned long flags);
 
 /* ROM control related routines */
 void __iomem __must_check *pci_map_rom(struct pci_dev *pdev, size_t *size);
@@ -561,6 +578,8 @@ int __must_check pci_request_regions(struct pci_dev *, const char *);
 void pci_release_regions(struct pci_dev *);
 int __must_check pci_request_region(struct pci_dev *, int, const char *);
 void pci_release_region(struct pci_dev *, int);
+int pci_request_selected_regions(struct pci_dev *, int, const char *);
+void pci_release_selected_regions(struct pci_dev *, int);
 
 /* drivers/pci/bus.c */
 int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
@@ -573,10 +592,11 @@ int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
 void pci_enable_bridges(struct pci_bus *bus);
 
 /* Proper probing supporting hot-pluggable devices */
-int __must_check __pci_register_driver(struct pci_driver *, struct module *);
+int __must_check __pci_register_driver(struct pci_driver *, struct module *,
+				       const char *mod_name);
 static inline int __must_check pci_register_driver(struct pci_driver *driver)
 {
-	return __pci_register_driver(driver, THIS_MODULE);
+	return __pci_register_driver(driver, THIS_MODULE, KBUILD_MODNAME);
 }
 
 void pci_unregister_driver(struct pci_driver *);
@@ -611,10 +631,6 @@ enum pci_dma_burst_strategy {
 				   strategy_parameter byte boundaries */
 };
 
-#if defined(CONFIG_ISA) || defined(CONFIG_EISA)
-extern struct pci_dev *isa_bridge;
-#endif
-
 struct msix_entry {
 	u16 	vector;	/* kernel uses to write allocated vector */
 	u16	entry;	/* driver uses to specify entry, OS writes */
@@ -622,7 +638,6 @@ struct msix_entry {
 
 
 #ifndef CONFIG_PCI_MSI
-static inline void pci_scan_msi_device(struct pci_dev *dev) {}
 static inline int pci_enable_msi(struct pci_dev *dev) {return -1;}
 static inline void pci_disable_msi(struct pci_dev *dev) {}
 static inline int pci_enable_msix(struct pci_dev* dev,
@@ -630,7 +645,6 @@ static inline int pci_enable_msix(struct pci_dev* dev,
 static inline void pci_disable_msix(struct pci_dev *dev) {}
 static inline void msi_remove_pci_irq_vectors(struct pci_dev *dev) {}
 #else
-extern void pci_scan_msi_device(struct pci_dev *dev);
 extern int pci_enable_msi(struct pci_dev *dev);
 extern void pci_disable_msi(struct pci_dev *dev);
 extern int pci_enable_msix(struct pci_dev* dev,
@@ -721,8 +735,6 @@ static inline int pci_restore_state(struct pci_dev *dev) { return 0; }
 static inline int pci_set_power_state(struct pci_dev *dev, pci_power_t state) { return 0; }
 static inline pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state) { return PCI_D0; }
 static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable) { return 0; }
-
-#define	isa_bridge	((struct pci_dev *)NULL)
 
 #define pci_dma_burst_advice(pdev, strat, strategy_parameter) do { } while (0)
 
@@ -828,6 +840,11 @@ enum pci_fixup_pass {
 
 void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev);
 
+void __iomem * pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen);
+void pcim_iounmap(struct pci_dev *pdev, void __iomem *addr);
+void __iomem * const * pcim_iomap_table(struct pci_dev *pdev);
+int pcim_iomap_regions(struct pci_dev *pdev, u16 mask, const char *name);
+
 extern int pci_pci_problems;
 #define PCIPCI_FAIL		1	/* No PCI PCI DMA */
 #define PCIPCI_TRITON		2
@@ -836,6 +853,9 @@ extern int pci_pci_problems;
 #define PCIPCI_VSFX		16
 #define PCIPCI_ALIMAGIK		32	/* Need low latency setting */
 #define PCIAGP_FAIL		64	/* No PCI to AGP DMA */
+
+extern unsigned long pci_cardbus_io_size;
+extern unsigned long pci_cardbus_mem_size;
 
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */

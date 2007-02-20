@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/major.h>
 #include <linux/string.h>
@@ -129,7 +128,7 @@ static struct scsi_driver ch_template =
 	},
 };
 
-static struct file_operations changer_fops =
+static const struct file_operations changer_fops =
 {
 	.owner        = THIS_MODULE,
 	.open         = ch_open,

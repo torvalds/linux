@@ -384,7 +384,7 @@ static int do_microcode_update (void)
 {
 	long cursor = 0;
 	int error = 0;
-	void *new_mc;
+	void *new_mc = NULL;
 	int cpu;
 	cpumask_t old;
 
@@ -451,7 +451,7 @@ static ssize_t microcode_write (struct file *file, const char __user *buf, size_
 	return ret;
 }
 
-static struct file_operations microcode_fops = {
+static const struct file_operations microcode_fops = {
 	.owner		= THIS_MODULE,
 	.write		= microcode_write,
 	.open		= microcode_open,

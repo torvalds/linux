@@ -64,7 +64,6 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
-#include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -470,6 +469,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter ali15x3_adapter = {
 	.owner		= THIS_MODULE,
+	.id		= I2C_HW_SMBUS_ALI15X3,
 	.class          = I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
 };
@@ -489,7 +489,7 @@ static int __devinit ali15x3_probe(struct pci_dev *dev, const struct pci_device_
 		return -ENODEV;
 	}
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	ali15x3_adapter.dev.parent = &dev->dev;
 
 	snprintf(ali15x3_adapter.name, I2C_NAME_SIZE,

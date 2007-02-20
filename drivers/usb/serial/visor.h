@@ -32,7 +32,6 @@
 #define PALM_TUNGSTEN_T_ID		0x0060
 #define PALM_TREO_650			0x0061
 #define PALM_TUNGSTEN_Z_ID		0x0031
-#define PALM_ZIRE31_ID			0x0061
 #define PALM_ZIRE_ID			0x0070
 #define PALM_M100_ID			0x0080
 

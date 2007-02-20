@@ -82,11 +82,11 @@ ia64_acpi_release_global_lock (unsigned int *lock)
 	return old & 0x1;
 }
 
-#define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq)				\
-	((Acq) = ia64_acpi_acquire_global_lock((unsigned int *) GLptr))
+#define ACPI_ACQUIRE_GLOBAL_LOCK(facs, Acq)				\
+	((Acq) = ia64_acpi_acquire_global_lock(&facs->global_lock))
 
-#define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq)				\
-	((Acq) = ia64_acpi_release_global_lock((unsigned int *) GLptr))
+#define ACPI_RELEASE_GLOBAL_LOCK(facs, Acq)				\
+	((Acq) = ia64_acpi_release_global_lock(&facs->global_lock))
 
 #define acpi_disabled 0	/* ACPI always enabled on IA64 */
 #define acpi_noirq 0	/* ACPI always enabled on IA64 */
@@ -118,8 +118,6 @@ extern int additional_cpus;
 extern int __devinitdata pxm_to_nid_map[MAX_PXM_DOMAINS];
 extern int __initdata nid_to_pxm_map[MAX_NUMNODES];
 #endif
-
-extern u16 ia64_acpiid_to_sapicid[];
 
 /*
  * Refer Intel ACPI _PDC support document for bit definitions

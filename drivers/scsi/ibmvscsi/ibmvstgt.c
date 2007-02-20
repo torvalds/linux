@@ -580,7 +580,7 @@ static int crq_queue_create(struct crq_queue *queue, struct srp_target *target)
 	}
 
 	err = request_irq(vport->dma_dev->irq, &ibmvstgt_interrupt,
-			  SA_INTERRUPT, "ibmvstgt", target);
+			  IRQF_DISABLED, "ibmvstgt", target);
 	if (err)
 		goto req_irq_failed;
 

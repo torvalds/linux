@@ -53,7 +53,6 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/fs.h>
 #include <linux/mm.h>

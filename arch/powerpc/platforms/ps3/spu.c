@@ -26,8 +26,9 @@
 
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
-#include <asm/ps3.h>
 #include <asm/lv1call.h>
+
+#include "platform.h"
 
 /* spu_management_ops */
 
@@ -50,7 +51,7 @@ enum spe_type {
  */
 
 struct spe_shadow {
-	u8 padding_0000[0x0140];
+	u8 padding_0140[0x0140];
 	u64 int_status_class0_RW;       /* 0x0140 */
 	u64 int_status_class1_RW;       /* 0x0148 */
 	u64 int_status_class2_RW;       /* 0x0150 */
@@ -67,8 +68,7 @@ struct spe_shadow {
 	u8 padding_0c08[0x0f00-0x0c08];
 	u64 spe_execution_status;       /* 0x0f00 */
 	u8 padding_0f08[0x1000-0x0f08];
-} __attribute__ ((packed));
-
+};
 
 /**
  * enum spe_ex_state - Logical spe execution state.
@@ -170,31 +170,6 @@ static int __init construct_spu(struct spu *spu)
 	return result;
 }
 
-static int __init add_spu_pages(unsigned long start_addr, unsigned long size)
-{
-	int result;
-	unsigned long start_pfn;
-	unsigned long nr_pages;
-	struct pglist_data *pgdata;
-	struct zone *zone;
-
-	BUG_ON(!mem_init_done);
-
-	start_pfn = start_addr >> PAGE_SHIFT;
-	nr_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-
-	pgdata = NODE_DATA(0);
-	zone = pgdata->node_zones;
-
-	result = __add_pages(zone, start_pfn, nr_pages);
-
-	if (result)
-		pr_debug("%s:%d: __add_pages failed: (%d)\n",
-			__func__, __LINE__, result);
-
-	return result;
-}
-
 static void spu_unmap(struct spu *spu)
 {
 	iounmap(spu->priv2);
@@ -206,19 +181,6 @@ static void spu_unmap(struct spu *spu)
 static int __init setup_areas(struct spu *spu)
 {
 	struct table {char* name; unsigned long addr; unsigned long size;};
-	int result;
-
-	/* setup pages */
-
-	result = add_spu_pages(spu->local_store_phys, LS_SIZE);
-	if (result)
-		goto fail_add;
-
-	result = add_spu_pages(spu->problem_phys, sizeof(struct spu_problem));
-	if (result)
-		goto fail_add;
-
-	/* ioremap */
 
 	spu_pdata(spu)->shadow = __ioremap(
 		spu_pdata(spu)->shadow_addr, sizeof(struct spe_shadow),
@@ -260,28 +222,28 @@ static int __init setup_areas(struct spu *spu)
 
 fail_ioremap:
 	spu_unmap(spu);
-fail_add:
-	return result;
+
+	return -ENOMEM;
 }
 
 static int __init setup_interrupts(struct spu *spu)
 {
 	int result;
 
-	result = ps3_alloc_spe_irq(spu_pdata(spu)->spe_id, 0,
-		&spu->irqs[0]);
+	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+		0, &spu->irqs[0]);
 
 	if (result)
 		goto fail_alloc_0;
 
-	result = ps3_alloc_spe_irq(spu_pdata(spu)->spe_id, 1,
-		&spu->irqs[1]);
+	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+		1, &spu->irqs[1]);
 
 	if (result)
 		goto fail_alloc_1;
 
-	result = ps3_alloc_spe_irq(spu_pdata(spu)->spe_id, 2,
-		&spu->irqs[2]);
+	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+		2, &spu->irqs[2]);
 
 	if (result)
 		goto fail_alloc_2;

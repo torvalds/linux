@@ -156,13 +156,13 @@ static inline void do_bug_verbose(struct pt_regs *regs)
 {
 }
 #endif /* CONFIG_DEBUG_BUGVERBOSE */
-#endif /* CONFIG_BUG */
 
 void handle_BUG(struct pt_regs *regs)
 {
 	do_bug_verbose(regs);
 	die("Kernel BUG", regs, TRAPA_BUG_OPCODE & 0xff);
 }
+#endif /* CONFIG_BUG */
 
 /*
  * handle an instruction that does an unaligned memory access by emulating the
@@ -641,7 +641,7 @@ int is_dsp_inst(struct pt_regs *regs)
 	 * Safe guard if DSP mode is already enabled or we're lacking
 	 * the DSP altogether.
 	 */
-	if (!(cpu_data->flags & CPU_HAS_DSP) || (regs->sr & SR_DSP))
+	if (!(current_cpu_data.flags & CPU_HAS_DSP) || (regs->sr & SR_DSP))
 		return 0;
 
 	get_user(inst, ((unsigned short *) regs->pc));

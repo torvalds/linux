@@ -67,7 +67,7 @@ static inline u16 llc_ui_next_link_no(int sap)
 static inline __be16 llc_proto_type(u16 arphrd)
 {
 	return arphrd == ARPHRD_IEEE802_TR ?
-		         htons(ETH_P_TR_802_2) : htons(ETH_P_802_2);
+			 htons(ETH_P_TR_802_2) : htons(ETH_P_802_2);
 }
 
 /**
@@ -114,7 +114,7 @@ static int llc_ui_send_data(struct sock* sk, struct sk_buff *skb, int noblock)
 	struct llc_sock* llc = llc_sk(sk);
 	int rc = 0;
 
-	if (unlikely(llc_data_accept_state(llc->state) || 
+	if (unlikely(llc_data_accept_state(llc->state) ||
 		     llc->remote_busy_flag ||
 		     llc->p_flag)) {
 		long timeout = sock_sndtimeo(sk, noblock);
@@ -602,7 +602,7 @@ static int llc_ui_accept(struct socket *sock, struct socket *newsock, int flags)
 	int rc = -EOPNOTSUPP;
 
 	dprintk("%s: accepting on %02X\n", __FUNCTION__,
-	        llc_sk(sk)->laddr.lsap);
+		llc_sk(sk)->laddr.lsap);
 	lock_sock(sk);
 	if (unlikely(sk->sk_type != SOCK_STREAM))
 		goto out;
@@ -617,7 +617,7 @@ static int llc_ui_accept(struct socket *sock, struct socket *newsock, int flags)
 			goto out;
 	}
 	dprintk("%s: got a new connection on %02X\n", __FUNCTION__,
-	        llc_sk(sk)->laddr.lsap);
+		llc_sk(sk)->laddr.lsap);
 	skb = skb_dequeue(&sk->sk_receive_queue);
 	rc = -EINVAL;
 	if (!skb->sk)
@@ -682,7 +682,7 @@ static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (flags & MSG_PEEK) {
 		peek_seq = llc->copied_seq;
 		seq = &peek_seq;
- 	}
+	}
 
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
 	copied = 0;
@@ -860,7 +860,7 @@ static int llc_ui_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto release;
 	skb->dev      = llc->dev;
 	skb->protocol = llc_proto_type(addr->sllc_arphrd);
-	skb_reserve(skb, hdrlen); 
+	skb_reserve(skb, hdrlen);
 	rc = memcpy_fromiovec(skb_put(skb, copied), msg->msg_iov, copied);
 	if (rc)
 		goto out;
@@ -1116,11 +1116,11 @@ static const struct proto_ops llc_ui_ops = {
 };
 
 static char llc_proc_err_msg[] __initdata =
-        KERN_CRIT "LLC: Unable to register the proc_fs entries\n";
+	KERN_CRIT "LLC: Unable to register the proc_fs entries\n";
 static char llc_sysctl_err_msg[] __initdata =
-        KERN_CRIT "LLC: Unable to register the sysctl entries\n";
+	KERN_CRIT "LLC: Unable to register the sysctl entries\n";
 static char llc_sock_err_msg[] __initdata =
-        KERN_CRIT "LLC: Unable to register the network family\n";
+	KERN_CRIT "LLC: Unable to register the network family\n";
 
 static int __init llc2_init(void)
 {

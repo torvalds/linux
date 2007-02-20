@@ -66,7 +66,6 @@ MODULE_LICENSE("GPL");
 /******************** HERE WE GO ***********************************/
 
 static const char version[] = "QDIO base support version 2";
-extern struct bus_type ccw_bus_type;
 
 static int qdio_performance_stats = 0;
 static int proc_perf_file_registration;
@@ -138,7 +137,7 @@ qdio_release_q(struct qdio_q *q)
 }
 
 /*check ccq  */
-static inline int
+static int
 qdio_check_ccq(struct qdio_q *q, unsigned int ccq)
 {
 	char dbf_text[15];
@@ -153,7 +152,7 @@ qdio_check_ccq(struct qdio_q *q, unsigned int ccq)
 	return -EIO;
 }
 /* EQBS: extract buffer states */
-static inline int
+static int
 qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 	     unsigned int *start, unsigned int *cnt)
 {
@@ -188,7 +187,7 @@ again:
 }
 
 /* SQBS: set buffer states */
-static inline int
+static int
 qdio_do_sqbs(struct qdio_q *q, unsigned char state,
 	     unsigned int *start, unsigned int *cnt)
 {
@@ -315,7 +314,7 @@ __do_siga_output(struct qdio_q *q, unsigned int *busy_bit)
  * returns QDIO_SIGA_ERROR_ACCESS_EXCEPTION as cc, when SIGA returns
  * an access exception 
  */
-static inline int 
+static int
 qdio_siga_output(struct qdio_q *q)
 {
 	int cc;
@@ -349,7 +348,7 @@ qdio_siga_output(struct qdio_q *q)
 	return cc;
 }
 
-static inline int 
+static int
 qdio_siga_input(struct qdio_q *q)
 {
 	int cc;
@@ -421,7 +420,7 @@ tiqdio_sched_tl(void)
 	tasklet_hi_schedule(&tiqdio_tasklet);
 }
 
-static inline void
+static void
 qdio_mark_tiq(struct qdio_q *q)
 {
 	unsigned long flags;
@@ -471,7 +470,7 @@ qdio_mark_q(struct qdio_q *q)
 	tasklet_schedule(&q->tasklet);
 }
 
-static inline int
+static int
 qdio_stop_polling(struct qdio_q *q)
 {
 #ifdef QDIO_USE_PROCESSING_STATE
@@ -525,7 +524,7 @@ qdio_stop_polling(struct qdio_q *q)
  * sophisticated locking outside of unmark_q, so that we don't need to
  * disable the interrupts :-) 
 */
-static inline void
+static void
 qdio_unmark_q(struct qdio_q *q)
 {
 	unsigned long flags;
@@ -691,7 +690,7 @@ qdio_qebsm_get_inbound_buffer_frontier(struct qdio_q *q)
         return q->first_to_check;
 }
 
-static inline int
+static int
 qdio_get_outbound_buffer_frontier(struct qdio_q *q)
 {
 	struct qdio_irq *irq;
@@ -774,7 +773,7 @@ out:
 }
 
 /* all buffers are processed */
-static inline int
+static int
 qdio_is_outbound_q_done(struct qdio_q *q)
 {
 	int no_used;
@@ -796,7 +795,7 @@ qdio_is_outbound_q_done(struct qdio_q *q)
 	return (no_used==0);
 }
 
-static inline int
+static int
 qdio_has_outbound_q_moved(struct qdio_q *q)
 {
 	int i;
@@ -816,7 +815,7 @@ qdio_has_outbound_q_moved(struct qdio_q *q)
 	}
 }
 
-static inline void
+static void
 qdio_kick_outbound_q(struct qdio_q *q)
 {
 	int result;
@@ -905,7 +904,7 @@ qdio_kick_outbound_q(struct qdio_q *q)
 	}
 }
 
-static inline void
+static void
 qdio_kick_outbound_handler(struct qdio_q *q)
 {
 	int start, end, real_end, count;
@@ -942,7 +941,7 @@ qdio_kick_outbound_handler(struct qdio_q *q)
 	q->error_status_flags=0;
 }
 
-static inline void
+static void
 __qdio_outbound_processing(struct qdio_q *q)
 {
 	int siga_attempts;
@@ -1002,7 +1001,7 @@ qdio_outbound_processing(struct qdio_q *q)
 /************************* INBOUND ROUTINES *******************************/
 
 
-static inline int
+static int
 qdio_get_inbound_buffer_frontier(struct qdio_q *q)
 {
 	struct qdio_irq *irq;
@@ -1133,7 +1132,7 @@ out:
 	return q->first_to_check;
 }
 
-static inline int
+static int
 qdio_has_inbound_q_moved(struct qdio_q *q)
 {
 	int i;
@@ -1167,7 +1166,7 @@ qdio_has_inbound_q_moved(struct qdio_q *q)
 }
 
 /* means, no more buffers to be filled */
-static inline int
+static int
 tiqdio_is_inbound_q_done(struct qdio_q *q)
 {
 	int no_used;
@@ -1228,7 +1227,7 @@ tiqdio_is_inbound_q_done(struct qdio_q *q)
 	return 0;
 }
 
-static inline int
+static int
 qdio_is_inbound_q_done(struct qdio_q *q)
 {
 	int no_used;
@@ -1296,7 +1295,7 @@ qdio_is_inbound_q_done(struct qdio_q *q)
 	}
 }
 
-static inline void
+static void
 qdio_kick_inbound_handler(struct qdio_q *q)
 {
 	int count, start, end, real_end, i;
@@ -1343,7 +1342,7 @@ qdio_kick_inbound_handler(struct qdio_q *q)
 	}
 }
 
-static inline void
+static void
 __tiqdio_inbound_processing(struct qdio_q *q, int spare_ind_was_set)
 {
 	struct qdio_irq *irq_ptr;
@@ -1442,7 +1441,7 @@ tiqdio_inbound_processing(struct qdio_q *q)
 	__tiqdio_inbound_processing(q, atomic_read(&spare_indicator_usecount));
 }
 
-static inline void
+static void
 __qdio_inbound_processing(struct qdio_q *q)
 {
 	int q_laps=0;
@@ -1493,7 +1492,7 @@ qdio_inbound_processing(struct qdio_q *q)
 /************************* MAIN ROUTINES *******************************/
 
 #ifdef QDIO_USE_PROCESSING_STATE
-static inline int
+static int
 tiqdio_reset_processing_state(struct qdio_q *q, int q_laps)
 {
 	if (!q) {
@@ -1545,7 +1544,7 @@ tiqdio_reset_processing_state(struct qdio_q *q, int q_laps)
 }
 #endif /* QDIO_USE_PROCESSING_STATE */
 
-static inline void
+static void
 tiqdio_inbound_checks(void)
 {
 	struct qdio_q *q;
@@ -1949,7 +1948,7 @@ qdio_set_state(struct qdio_irq *irq_ptr, enum qdio_irq_states state)
 	mb();
 }
 
-static inline void
+static void
 qdio_irq_check_sense(struct subchannel_id schid, struct irb *irb)
 {
 	char dbf_text[15];
@@ -1966,7 +1965,7 @@ qdio_irq_check_sense(struct subchannel_id schid, struct irb *irb)
 		
 }
 
-static inline void
+static void
 qdio_handle_pci(struct qdio_irq *irq_ptr)
 {
 	int i;
@@ -2002,7 +2001,7 @@ qdio_handle_pci(struct qdio_irq *irq_ptr)
 
 static void qdio_establish_handle_irq(struct ccw_device*, int, int);
 
-static inline void
+static void
 qdio_handle_activate_check(struct ccw_device *cdev, unsigned long intparm,
 			   int cstat, int dstat)
 {
@@ -2229,7 +2228,7 @@ qdio_synchronize(struct ccw_device *cdev, unsigned int flags,
 	return cc;
 }
 
-static inline void
+static void
 qdio_check_subchannel_qebsm(struct qdio_irq *irq_ptr, unsigned char qdioac,
 			    unsigned long token)
 {
@@ -2740,7 +2739,7 @@ qdio_free(struct ccw_device *cdev)
 	return 0;
 }
 
-static inline void
+static void
 qdio_allocate_do_dbf(struct qdio_initialize *init_data)
 {
 	char dbf_text[20]; /* if a printf printed out more than 8 chars */
@@ -2773,7 +2772,7 @@ qdio_allocate_do_dbf(struct qdio_initialize *init_data)
 	QDIO_DBF_HEX0(0,setup,&init_data->output_sbal_addr_array,sizeof(void*));
 }
 
-static inline void
+static void
 qdio_allocate_fill_input_desc(struct qdio_irq *irq_ptr, int i, int iqfmt)
 {
 	irq_ptr->input_qs[i]->is_iqdio_q = iqfmt;
@@ -2792,7 +2791,7 @@ qdio_allocate_fill_input_desc(struct qdio_irq *irq_ptr, int i, int iqfmt)
 	irq_ptr->qdr->qdf0[i].dkey=QDIO_STORAGE_KEY;
 }
 
-static inline void
+static void
 qdio_allocate_fill_output_desc(struct qdio_irq *irq_ptr, int i,
 			       int j, int iqfmt)
 {
@@ -2813,7 +2812,7 @@ qdio_allocate_fill_output_desc(struct qdio_irq *irq_ptr, int i,
 }
 
 
-static inline void
+static void
 qdio_initialize_set_siga_flags_input(struct qdio_irq *irq_ptr)
 {
 	int i;
@@ -2839,7 +2838,7 @@ qdio_initialize_set_siga_flags_input(struct qdio_irq *irq_ptr)
 	}
 }
 
-static inline void
+static void
 qdio_initialize_set_siga_flags_output(struct qdio_irq *irq_ptr)
 {
 	int i;
@@ -2865,7 +2864,7 @@ qdio_initialize_set_siga_flags_output(struct qdio_irq *irq_ptr)
 	}
 }
 
-static inline int
+static int
 qdio_establish_irq_check_for_errors(struct ccw_device *cdev, int cstat,
 				    int dstat)
 {
@@ -3014,7 +3013,7 @@ qdio_allocate(struct qdio_initialize *init_data)
 	return 0;
 }
 
-int qdio_fill_irq(struct qdio_initialize *init_data)
+static int qdio_fill_irq(struct qdio_initialize *init_data)
 {
 	int i;
 	char dbf_text[15];
@@ -3195,7 +3194,7 @@ qdio_establish(struct qdio_initialize *init_data)
 
 	spin_lock_irqsave(get_ccwdev_lock(cdev),saveflags);
 
-	ccw_device_set_options(cdev, 0);
+	ccw_device_set_options_mask(cdev, 0);
 	result=ccw_device_start_timeout(cdev,&irq_ptr->ccw,
 					QDIO_DOING_ESTABLISH,0, 0,
 					QDIO_ESTABLISH_TIMEOUT);
@@ -3367,7 +3366,7 @@ qdio_activate(struct ccw_device *cdev, int flags)
 }
 
 /* buffers filled forwards again to make Rick happy */
-static inline void
+static void
 qdio_do_qdio_fill_input(struct qdio_q *q, unsigned int qidx,
 			unsigned int count, struct qdio_buffer *buffers)
 {
@@ -3386,7 +3385,7 @@ qdio_do_qdio_fill_input(struct qdio_q *q, unsigned int qidx,
 	}
 }
 
-static inline void
+static void
 qdio_do_qdio_fill_output(struct qdio_q *q, unsigned int qidx,
 			 unsigned int count, struct qdio_buffer *buffers)
 {
@@ -3407,7 +3406,7 @@ qdio_do_qdio_fill_output(struct qdio_q *q, unsigned int qidx,
 	}
 }
 
-static inline void
+static void
 do_qdio_handle_inbound(struct qdio_q *q, unsigned int callflags,
 		       unsigned int qidx, unsigned int count,
 		       struct qdio_buffer *buffers)
@@ -3443,7 +3442,7 @@ do_qdio_handle_inbound(struct qdio_q *q, unsigned int callflags,
 	qdio_mark_q(q);
 }
 
-static inline void
+static void
 do_qdio_handle_outbound(struct qdio_q *q, unsigned int callflags,
 			unsigned int qidx, unsigned int count,
 			struct qdio_buffer *buffers)

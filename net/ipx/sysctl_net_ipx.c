@@ -34,7 +34,7 @@ static struct ctl_table ipx_dir_table[] = {
 		.procname	= "ipx",
 		.mode		= 0555,
 		.child		= ipx_table,
-       	},
+	},
 	{ 0 },
 };
 
@@ -52,7 +52,7 @@ static struct ctl_table_header *ipx_table_header;
 
 void ipx_register_sysctl(void)
 {
-	ipx_table_header = register_sysctl_table(ipx_root_table, 1);
+	ipx_table_header = register_sysctl_table(ipx_root_table);
 }
 
 void ipx_unregister_sysctl(void)

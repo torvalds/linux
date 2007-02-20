@@ -92,7 +92,7 @@ static struct mega_hbas mega_hbas[MAX_CONTROLLERS];
 /*
  * The File Operations structure for the serial/ioctl interface of the driver
  */
-static struct file_operations megadev_fops = {
+static const struct file_operations megadev_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= megadev_ioctl,
 	.open		= megadev_open,
@@ -5072,7 +5072,7 @@ static int __init megaraid_init(void)
 				"megaraid: failed to create megaraid root\n");
 	}
 #endif
-	error = pci_module_init(&megaraid_pci_driver);
+	error = pci_register_driver(&megaraid_pci_driver);
 	if (error) {
 #ifdef CONFIG_PROC_FS
 		remove_proc_entry("megaraid", &proc_root);

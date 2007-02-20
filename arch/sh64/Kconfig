@@ -36,9 +36,6 @@ config GENERIC_CALIBRATE_DELAY
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
-config GENERIC_ISA_DMA
-	bool
-
 config ARCH_HAS_ILOG2_U32
 	bool
 	default n

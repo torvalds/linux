@@ -332,7 +332,7 @@ static int vhci_fasync(int fd, struct file *file, int on)
 	return 0;
 }
 
-static struct file_operations vhci_fops = {
+static const struct file_operations vhci_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= vhci_llseek,
 	.read		= vhci_read,

@@ -29,8 +29,10 @@
 #include <linux/compat.h>
 #include <linux/bitops.h>
 
+#include <asm/abi.h>
 #include <asm/asm.h>
 #include <asm/cacheflush.h>
+#include <asm/compat-signal.h>
 #include <asm/sim.h>
 #include <asm/uaccess.h>
 #include <asm/ucontext.h>
@@ -47,9 +49,9 @@
 #define __NR_N32_rt_sigreturn		6211
 #define __NR_N32_restart_syscall	6214
 
-#define DEBUG_SIG 0
+extern int setup_sigcontext(struct pt_regs *, struct sigcontext __user *);
+extern int restore_sigcontext(struct pt_regs *, struct sigcontext __user *);
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 /* IRIX compatible stack_t  */
 typedef struct sigaltstack32 {
@@ -63,28 +65,33 @@ struct ucontextn32 {
 	s32                 uc_link;
 	stack32_t           uc_stack;
 	struct sigcontext   uc_mcontext;
-	sigset_t            uc_sigmask;   /* mask last for extensibility */
+	compat_sigset_t     uc_sigmask;   /* mask last for extensibility */
 };
+
+#if ICACHE_REFILLS_WORKAROUND_WAR == 0
 
 struct rt_sigframe_n32 {
 	u32 rs_ass[4];			/* argument save space for o32 */
-#if ICACHE_REFILLS_WORKAROUND_WAR
-	u32 rs_pad[2];
-#else
 	u32 rs_code[2];			/* signal trampoline */
-#endif
 	struct siginfo rs_info;
 	struct ucontextn32 rs_uc;
-#if ICACHE_REFILLS_WORKAROUND_WAR
-	u32 rs_code[8] ____cacheline_aligned;		/* signal trampoline */
-#endif
 };
+
+#else  /* ICACHE_REFILLS_WORKAROUND_WAR */
+
+struct rt_sigframe_n32 {
+	u32 rs_ass[4];			/* argument save space for o32 */
+	u32 rs_pad[2];
+	struct siginfo rs_info;
+	struct ucontextn32 rs_uc;
+	u32 rs_code[8] ____cacheline_aligned;		/* signal trampoline */
+};
+
+#endif	/* !ICACHE_REFILLS_WORKAROUND_WAR */
 
 extern void sigset_from_compat (sigset_t *set, compat_sigset_t *compat);
 
-save_static_function(sysn32_rt_sigsuspend);
-__attribute_used__ noinline static int
-_sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
+asmlinkage int sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	compat_sigset_t __user *unewset;
 	compat_sigset_t uset;
@@ -105,7 +112,7 @@ _sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	spin_lock_irq(&current->sighand->siglock);
 	current->saved_sigmask = current->blocked;
 	current->blocked = newset;
-        recalc_sigpending();
+	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
 	current->state = TASK_INTERRUPTIBLE;
@@ -114,9 +121,7 @@ _sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	return -ERESTARTNOHAND;
 }
 
-save_static_function(sysn32_rt_sigreturn);
-__attribute_used__ noinline static void
-_sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
+asmlinkage void sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct rt_sigframe_n32 __user *frame;
 	sigset_t set;
@@ -126,7 +131,7 @@ _sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	frame = (struct rt_sigframe_n32 __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
-	if (__copy_from_user(&set, &frame->rs_uc.uc_sigmask, sizeof(set)))
+	if (__copy_conv_sigset_from_user(&set, &frame->rs_uc.uc_sigmask))
 		goto badframe;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -165,7 +170,7 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-int setup_rt_frame_n32(struct k_sigaction * ka,
+static int setup_rt_frame_n32(struct k_sigaction * ka,
 	struct pt_regs *regs, int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe_n32 __user *frame;
@@ -184,7 +189,7 @@ int setup_rt_frame_n32(struct k_sigaction * ka,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
 	err |= __put_user(0, &frame->rs_uc.uc_link);
-        sp = (int) (long) current->sas_ss_sp;
+	sp = (int) (long) current->sas_ss_sp;
 	err |= __put_user(sp,
 	                  &frame->rs_uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->regs[29]),
@@ -192,7 +197,7 @@ int setup_rt_frame_n32(struct k_sigaction * ka,
 	err |= __put_user(current->sas_ss_size,
 	                  &frame->rs_uc.uc_stack.ss_size);
 	err |= setup_sigcontext(regs, &frame->rs_uc.uc_mcontext);
-	err |= __copy_to_user(&frame->rs_uc.uc_sigmask, set, sizeof(*set));
+	err |= __copy_conv_sigset_to_user(&frame->rs_uc.uc_sigmask, set);
 
 	if (err)
 		goto give_sigsegv;
@@ -214,14 +219,18 @@ int setup_rt_frame_n32(struct k_sigaction * ka,
 	regs->regs[31] = (unsigned long) frame->rs_code;
 	regs->cp0_epc = regs->regs[25] = (unsigned long) ka->sa.sa_handler;
 
-#if DEBUG_SIG
-	printk("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%p\n",
+	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
-#endif
+
 	return 0;
 
 give_sigsegv:
 	force_sigsegv(signr, current);
 	return -EFAULT;
 }
+
+struct mips_abi mips_abi_n32 = {
+	.setup_rt_frame	= setup_rt_frame_n32,
+	.restart	= __NR_N32_restart_syscall
+};

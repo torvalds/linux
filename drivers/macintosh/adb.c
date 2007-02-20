@@ -885,7 +885,7 @@ out:
 	return ret;
 }
 
-static struct file_operations adb_fops = {
+static const struct file_operations adb_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= adb_read,

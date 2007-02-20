@@ -179,7 +179,7 @@ static int dev_nvram_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-struct file_operations nvram_fops = {
+const struct file_operations nvram_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	dev_nvram_llseek,
 	.read =		dev_nvram_read,

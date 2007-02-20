@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,14 +105,20 @@ acpi_hw_write_gpe_enable_reg(struct acpi_gpe_event_info *gpe_event_info)
 acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info * gpe_event_info)
 {
 	acpi_status status;
+	u8 register_bit;
 
 	ACPI_FUNCTION_ENTRY();
+
+	register_bit = (u8)
+	    (1 <<
+	     (gpe_event_info->gpe_number -
+	      gpe_event_info->register_info->base_gpe_number));
 
 	/*
 	 * Write a one to the appropriate bit in the status register to
 	 * clear this GPE.
 	 */
-	status = acpi_hw_low_level_write(8, gpe_event_info->register_bit,
+	status = acpi_hw_low_level_write(8, register_bit,
 					 &gpe_event_info->register_info->
 					 status_address);
 
@@ -155,7 +161,10 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
 
 	/* Get the register bitmask for this GPE */
 
-	register_bit = gpe_event_info->register_bit;
+	register_bit = (u8)
+	    (1 <<
+	     (gpe_event_info->gpe_number -
+	      gpe_event_info->register_info->base_gpe_number));
 
 	/* GPE currently enabled? (enabled for runtime?) */
 

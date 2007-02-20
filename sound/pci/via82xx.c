@@ -1699,7 +1699,7 @@ static int snd_via8233_pcmdxs_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_dxs, -9450, 150, 1);
+static const DECLARE_TLV_DB_SCALE(db_scale_dxs, -9450, 150, 1);
 
 static struct snd_kcontrol_new snd_via8233_pcmdxs_volume_control __devinitdata = {
 	.name = "PCM Playback Volume",
@@ -1823,7 +1823,7 @@ static int __devinit snd_via82xx_mixer_new(struct via82xx *chip, const char *qui
 	ac97.private_data = chip;
 	ac97.private_free = snd_via82xx_mixer_free_ac97;
 	ac97.pci = chip->pci;
-	ac97.scaps = AC97_SCAP_SKIP_MODEM;
+	ac97.scaps = AC97_SCAP_SKIP_MODEM | AC97_SCAP_POWER_SAVE;
 	if ((err = snd_ac97_mixer(chip->ac97_bus, &ac97, &chip->ac97)) < 0)
 		return err;
 
@@ -2357,93 +2357,59 @@ static struct via823x_info via823x_cards[] __devinitdata = {
 /*
  * auto detection of DXS channel supports.
  */
-struct dxs_whitelist {
-	unsigned short subvendor;
-	unsigned short subdevice; 
-	unsigned short mask; 
-	short action;	/* new dxs_support value */
+
+static struct snd_pci_quirk dxs_whitelist[] __devinitdata = {
+	SND_PCI_QUIRK(0x1005, 0x4710, "Avance Logic Mobo", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1019, 0x0996, "ESC Mobo", VIA_DXS_48K),
+	SND_PCI_QUIRK(0x1019, 0x0a81, "ECS K7VTA3 v8.0", VIA_DXS_NO_VRA),
+	SND_PCI_QUIRK(0x1019, 0x0a85, "ECS L7VMM2", VIA_DXS_NO_VRA),
+	SND_PCI_QUIRK(0x1019, 0, "ESC K8", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x1019, 0xaa01, "ESC K8T890-A", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x1025, 0x0033, "Acer Inspire 1353LM", VIA_DXS_NO_VRA),
+	SND_PCI_QUIRK(0x1025, 0x0046, "Acer Aspire 1524 WLMi", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x1043, 0, "ASUS A7/A8", VIA_DXS_NO_VRA),
+	SND_PCI_QUIRK(0x1071, 0, "Diverse Notebook", VIA_DXS_NO_VRA),
+	SND_PCI_QUIRK(0x10cf, 0x118e, "FSC Laptop", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1106, 0, "ASRock", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x1297, 0xa232, "Shuttle", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1297, 0xc160, "Shuttle Sk41G", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte GA-7VAXP", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1462, 0x3800, "MSI KT266", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1462, 0x7120, "MSI KT4V", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1462, 0x7142, "MSI K8MM-V", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1462, 0, "MSI Mobo", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x147b, 0x1401, "ABIT KD7(-RAID)", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x147b, 0x1411, "ABIT VA-20", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x147b, 0x1413, "ABIT KV8 Pro", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x147b, 0x1415, "ABIT AV8", VIA_DXS_NO_VRA),
+	SND_PCI_QUIRK(0x14ff, 0x0403, "Twinhead mobo", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x14ff, 0x0408, "Twinhead laptop", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x1558, 0x4701, "Clevo D470", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x1584, 0x8120, "Diverse Laptop", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1584, 0x8123, "Targa/Uniwill", VIA_DXS_NO_VRA),
+	SND_PCI_QUIRK(0x161f, 0x202b, "Amira Notebook", VIA_DXS_NO_VRA),
+	SND_PCI_QUIRK(0x161f, 0x2032, "m680x machines", VIA_DXS_48K),
+	SND_PCI_QUIRK(0x1631, 0xe004, "PB EasyNote 3174", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1695, 0x3005, "EPoX EP-8K9A", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1695, 0, "EPoX mobo", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x16f3, 0, "Jetway K8", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x1734, 0, "FSC Laptop", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x1849, 0x3059, "ASRock K7VM2", VIA_DXS_NO_VRA),
+	SND_PCI_QUIRK(0x1849, 0, "ASRock mobo", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x1919, 0x200a, "Soltek SL-K8",  VIA_DXS_NO_VRA),
+	SND_PCI_QUIRK(0x4005, 0x4710, "MSI K7T266", VIA_DXS_SRC),
+	{ } /* terminator */
 };
 
 static int __devinit check_dxs_list(struct pci_dev *pci, int revision)
 {
-	static struct dxs_whitelist whitelist[] __devinitdata = {
-		{ .subvendor = 0x1005, .subdevice = 0x4710, .action = VIA_DXS_ENABLE }, /* Avance Logic Mobo */
-		{ .subvendor = 0x1019, .subdevice = 0x0996, .action = VIA_DXS_48K },
-		{ .subvendor = 0x1019, .subdevice = 0x0a81, .action = VIA_DXS_NO_VRA }, /* ECS K7VTA3 v8.0 */
-		{ .subvendor = 0x1019, .subdevice = 0x0a85, .action = VIA_DXS_NO_VRA }, /* ECS L7VMM2 */
-		{ .subvendor = 0x1019, .subdevice = 0xa101, .action = VIA_DXS_SRC },
-		{ .subvendor = 0x1019, .subdevice = 0xaa01, .action = VIA_DXS_SRC }, /* ECS K8T890-A */
-		{ .subvendor = 0x1025, .subdevice = 0x0033, .action = VIA_DXS_NO_VRA }, /* Acer Inspire 1353LM */
-		{ .subvendor = 0x1025, .subdevice = 0x0046, .action = VIA_DXS_SRC }, /* Acer Aspire 1524 WLMi */
-		{ .subvendor = 0x1043, .subdevice = 0x8095, .action = VIA_DXS_NO_VRA }, /* ASUS A7V8X (FIXME: possibly VIA_DXS_ENABLE?)*/
-		{ .subvendor = 0x1043, .subdevice = 0x80a1, .action = VIA_DXS_NO_VRA }, /* ASUS A7V8-X */
-		{ .subvendor = 0x1043, .subdevice = 0x80b0, .action = VIA_DXS_NO_VRA }, /* ASUS A7V600 & K8V*/ 
-		{ .subvendor = 0x1043, .subdevice = 0x810d, .action = VIA_DXS_SRC }, /* ASUS */
-		{ .subvendor = 0x1043, .subdevice = 0x812a, .action = VIA_DXS_SRC    }, /* ASUS A8V Deluxe */ 
-		{ .subvendor = 0x1043, .subdevice = 0x8174, .action = VIA_DXS_SRC    }, /* ASUS */
-		{ .subvendor = 0x1043, .subdevice = 0x81b9, .action = VIA_DXS_SRC    }, /* ASUS A8V-MX */
-		{ .subvendor = 0x1071, .subdevice = 0x8375, .action = VIA_DXS_NO_VRA }, /* Vobis/Yakumo/Mitac notebook */
-		{ .subvendor = 0x1071, .subdevice = 0x8399, .action = VIA_DXS_NO_VRA }, /* Umax AB 595T (VIA K8N800A - VT8237) */
-		{ .subvendor = 0x10cf, .subdevice = 0x118e, .action = VIA_DXS_ENABLE }, /* FSC laptop */
-		{ .subvendor = 0x1106, .subdevice = 0x4161, .action = VIA_DXS_NO_VRA }, /* ASRock K7VT2 */
-		{ .subvendor = 0x1106, .subdevice = 0x4552, .action = VIA_DXS_NO_VRA }, /* QDI Kudoz 7X/600-6AL */
-		{ .subvendor = 0x1106, .subdevice = 0xaa01, .action = VIA_DXS_NO_VRA }, /* EPIA MII */
-		{ .subvendor = 0x1106, .subdevice = 0xc001, .action = VIA_DXS_SRC }, /* Insight P4-ITX */
-		{ .subvendor = 0x1297, .subdevice = 0xa232, .action = VIA_DXS_ENABLE }, /* Shuttle ?? */
-		{ .subvendor = 0x1297, .subdevice = 0xc160, .action = VIA_DXS_ENABLE }, /* Shuttle SK41G */
-		{ .subvendor = 0x1458, .subdevice = 0xa002, .action = VIA_DXS_ENABLE }, /* Gigabyte GA-7VAXP */
-		{ .subvendor = 0x1462, .subdevice = 0x0080, .action = VIA_DXS_SRC }, /* MSI K8T Neo-FIS2R */
-		{ .subvendor = 0x1462, .subdevice = 0x0430, .action = VIA_DXS_SRC }, /* MSI 7142 (K8MM-V) */
-		{ .subvendor = 0x1462, .subdevice = 0x0470, .action = VIA_DXS_SRC }, /* MSI KT880 Delta-FSR */
-		{ .subvendor = 0x1462, .subdevice = 0x3800, .action = VIA_DXS_ENABLE }, /* MSI KT266 */
-		{ .subvendor = 0x1462, .subdevice = 0x5901, .action = VIA_DXS_NO_VRA }, /* MSI KT6 Delta-SR */
-		{ .subvendor = 0x1462, .subdevice = 0x7023, .action = VIA_DXS_SRC }, /* MSI K8T Neo2-FI */
-		{ .subvendor = 0x1462, .subdevice = 0x7120, .action = VIA_DXS_ENABLE }, /* MSI KT4V */
-		{ .subvendor = 0x1462, .subdevice = 0x7142, .action = VIA_DXS_ENABLE }, /* MSI K8MM-V */
-		{ .subvendor = 0x1462, .subdevice = 0xb012, .action = VIA_DXS_SRC }, /* P4M800/VIA8237R */
-		{ .subvendor = 0x147b, .subdevice = 0x1401, .action = VIA_DXS_ENABLE }, /* ABIT KD7(-RAID) */
-		{ .subvendor = 0x147b, .subdevice = 0x1411, .action = VIA_DXS_ENABLE }, /* ABIT VA-20 */
-		{ .subvendor = 0x147b, .subdevice = 0x1413, .action = VIA_DXS_ENABLE }, /* ABIT KV8 Pro */
-		{ .subvendor = 0x147b, .subdevice = 0x1415, .action = VIA_DXS_NO_VRA }, /* Abit AV8 */
-		{ .subvendor = 0x14ff, .subdevice = 0x0403, .action = VIA_DXS_ENABLE }, /* Twinhead mobo */
-		{ .subvendor = 0x14ff, .subdevice = 0x0408, .action = VIA_DXS_SRC }, /* Twinhead laptop */
-		{ .subvendor = 0x1558, .subdevice = 0x4701, .action = VIA_DXS_SRC }, /* Clevo D470 */
-		{ .subvendor = 0x1584, .subdevice = 0x8120, .action = VIA_DXS_ENABLE }, /* Gericom/Targa/Vobis/Uniwill laptop */
-		{ .subvendor = 0x1584, .subdevice = 0x8123, .action = VIA_DXS_NO_VRA }, /* Uniwill (Targa Visionary XP-210) */
-		{ .subvendor = 0x161f, .subdevice = 0x202b, .action = VIA_DXS_NO_VRA }, /* Amira Note book */
-		{ .subvendor = 0x161f, .subdevice = 0x2032, .action = VIA_DXS_48K }, /* m680x machines */
-		{ .subvendor = 0x1631, .subdevice = 0xe004, .action = VIA_DXS_ENABLE }, /* Easy Note 3174, Packard Bell */
-		{ .subvendor = 0x1695, .subdevice = 0x3005, .action = VIA_DXS_ENABLE }, /* EPoX EP-8K9A */
-		{ .subvendor = 0x1695, .subdevice = 0x300c, .action = VIA_DXS_SRC }, /* EPoX EP-8KRAI */
-		{ .subvendor = 0x1695, .subdevice = 0x300e, .action = VIA_DXS_SRC }, /* EPoX 9HEAI */
-		{ .subvendor = 0x16f3, .subdevice = 0x6405, .action = VIA_DXS_SRC }, /* Jetway K8M8MS */
-		{ .subvendor = 0x1734, .subdevice = 0x1078, .action = VIA_DXS_SRC }, /* FSC Amilo L7300 */
-		{ .subvendor = 0x1734, .subdevice = 0x1093, .action = VIA_DXS_SRC }, /* FSC */
-		{ .subvendor = 0x1734, .subdevice = 0x10ab, .action = VIA_DXS_SRC }, /* FSC */
-		{ .subvendor = 0x1849, .subdevice = 0x3059, .action = VIA_DXS_NO_VRA }, /* ASRock K7VM2 */
-		{ .subvendor = 0x1849, .subdevice = 0x9739, .action = VIA_DXS_SRC }, /* ASRock mobo(?) */
-		{ .subvendor = 0x1849, .subdevice = 0x9761, .action = VIA_DXS_SRC }, /* ASRock mobo(?) */
-		{ .subvendor = 0x1919, .subdevice = 0x200a, .action = VIA_DXS_NO_VRA }, /* Soltek SL-K8Tpro-939 */
-		{ .subvendor = 0x4005, .subdevice = 0x4710, .action = VIA_DXS_SRC },	/* MSI K7T266 Pro2 (MS-6380 V2.0) BIOS 3.7 */
-		{ } /* terminator */
-	};
-	const struct dxs_whitelist *w;
-	unsigned short subsystem_vendor;
-	unsigned short subsystem_device;
+	const struct snd_pci_quirk *w;
 
-	pci_read_config_word(pci, PCI_SUBSYSTEM_VENDOR_ID, &subsystem_vendor);
-	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &subsystem_device);
-
-	for (w = whitelist; w->subvendor; w++) {
-		if (w->subvendor != subsystem_vendor)
-			continue;
-		if (w->mask) {
-			if ((w->mask & subsystem_device) == w->subdevice)
-				return w->action;
-		} else {
-			if (subsystem_device == w->subdevice)
-				return w->action;
-		}
+	w = snd_pci_quirk_lookup(pci, dxs_whitelist);
+	if (w) {
+		snd_printdd(KERN_INFO "via82xx: DXS white list for %s found\n",
+			    w->name);
+		return w->value;
 	}
 
 	/* for newer revision, default to DXS_SRC */

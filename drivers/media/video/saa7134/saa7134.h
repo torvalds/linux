@@ -683,8 +683,8 @@ int saa_dsp_writel(struct saa7134_dev *dev, int reg, u32 value);
 /* ----------------------------------------------------------- */
 /* saa7134-oss.c                                               */
 
-extern struct file_operations saa7134_dsp_fops;
-extern struct file_operations saa7134_mixer_fops;
+extern const struct file_operations saa7134_dsp_fops;
+extern const struct file_operations saa7134_mixer_fops;
 
 int saa7134_oss_init1(struct saa7134_dev *dev);
 int saa7134_oss_fini(struct saa7134_dev *dev);

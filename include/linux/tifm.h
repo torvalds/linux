@@ -17,7 +17,7 @@
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
-#include <linux/scatterlist.h>
+#include <linux/kthread.h>
 
 /* Host registers (relative to pci base address): */
 enum {
@@ -62,11 +62,10 @@ enum {
 
 
 #define TIFM_IRQ_ENABLE           0x80000000
-#define TIFM_IRQ_SOCKMASK         0x00000001
-#define TIFM_IRQ_CARDMASK         0x00000100
-#define TIFM_IRQ_FIFOMASK         0x00010000
+#define TIFM_IRQ_SOCKMASK(x)      (x)
+#define TIFM_IRQ_CARDMASK(x)      ((x) << 8)
+#define TIFM_IRQ_FIFOMASK(x)      ((x) << 16)
 #define TIFM_IRQ_SETALL           0xffffffff
-#define TIFM_IRQ_SETALLSOCK       0x0000000f
 
 #define TIFM_CTRL_LED             0x00000040
 #define TIFM_CTRL_FAST_CLK        0x00000100
@@ -89,10 +88,9 @@ struct tifm_dev {
 	char __iomem            *addr;
 	spinlock_t              lock;
 	tifm_media_id           media_id;
-	char                    wq_name[KOBJ_NAME_LEN];
-	struct workqueue_struct *wq;
+	unsigned int            socket_id;
 
-	unsigned int            (*signal_irq)(struct tifm_dev *sock,
+	void                    (*signal_irq)(struct tifm_dev *sock,
 					      unsigned int sock_irq_status);
 
 	struct tifm_driver      *drv;
@@ -103,24 +101,23 @@ struct tifm_driver {
 	tifm_media_id        *id_table;
 	int                  (*probe)(struct tifm_dev *dev);
 	void                 (*remove)(struct tifm_dev *dev);
+	int                  (*suspend)(struct tifm_dev *dev,
+                                        pm_message_t state);
+	int                  (*resume)(struct tifm_dev *dev);
 
 	struct device_driver driver;
 };
 
 struct tifm_adapter {
 	char __iomem            *addr;
-	unsigned int            irq_status;
-	unsigned int            insert_mask;
-	unsigned int            remove_mask;
 	spinlock_t              lock;
+	unsigned int            irq_status;
+	unsigned int            socket_change_set;
+	wait_queue_head_t       change_set_notify;
 	unsigned int            id;
-	unsigned int            max_sockets;
-	char                    wq_name[KOBJ_NAME_LEN];
-	unsigned int            inhibit_new_cards;
-	struct workqueue_struct *wq;
-	struct work_struct      media_inserter;
-	struct work_struct      media_remover;
+	unsigned int            num_sockets;
 	struct tifm_dev         **sockets;
+	struct task_struct      *media_switcher;
 	struct class_device     cdev;
 	struct device           *dev;
 
@@ -130,9 +127,9 @@ struct tifm_adapter {
 struct tifm_adapter *tifm_alloc_adapter(void);
 void tifm_free_device(struct device *dev);
 void tifm_free_adapter(struct tifm_adapter *fm);
-int tifm_add_adapter(struct tifm_adapter *fm);
+int tifm_add_adapter(struct tifm_adapter *fm, int (*mediathreadfn)(void *data));
 void tifm_remove_adapter(struct tifm_adapter *fm);
-struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm, unsigned int id);
+struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm);
 int tifm_register_driver(struct tifm_driver *drv);
 void tifm_unregister_driver(struct tifm_driver *drv);
 void tifm_eject(struct tifm_dev *sock);

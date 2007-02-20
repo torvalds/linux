@@ -3424,7 +3424,7 @@ out:
  *  Register section
  */
 
-struct file_operations snd_pcm_f_ops[2] = {
+const struct file_operations snd_pcm_f_ops[2] = {
 	{
 		.owner =		THIS_MODULE,
 		.write =		snd_pcm_write,

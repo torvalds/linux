@@ -61,6 +61,7 @@ int ehca_create_eq(struct ehca_shca *shca,
 	struct ib_device *ib_dev = &shca->ib_device;
 
 	spin_lock_init(&eq->spinlock);
+	spin_lock_init(&eq->irq_spinlock);
 	eq->is_initialized = 0;
 
 	if (type != EHCA_EQ && type != EHCA_NEQ) {
@@ -122,7 +123,7 @@ int ehca_create_eq(struct ehca_shca *shca,
 	/* register interrupt handlers and initialize work queues */
 	if (type == EHCA_EQ) {
 		ret = ibmebus_request_irq(NULL, eq->ist, ehca_interrupt_eq,
-					  SA_INTERRUPT, "ehca_eq",
+					  IRQF_DISABLED, "ehca_eq",
 					  (void *)shca);
 		if (ret < 0)
 			ehca_err(ib_dev, "Can't map interrupt handler.");
@@ -130,7 +131,7 @@ int ehca_create_eq(struct ehca_shca *shca,
 		tasklet_init(&eq->interrupt_task, ehca_tasklet_eq, (long)shca);
 	} else if (type == EHCA_NEQ) {
 		ret = ibmebus_request_irq(NULL, eq->ist, ehca_interrupt_neq,
-					  SA_INTERRUPT, "ehca_neq",
+					  IRQF_DISABLED, "ehca_neq",
 					  (void *)shca);
 		if (ret < 0)
 			ehca_err(ib_dev, "Can't map interrupt handler.");

@@ -33,7 +33,10 @@
 #include <linux/skbuff.h>
 #include <linux/suspend.h>
 #include <linux/kthread.h>
+#include <linux/preempt.h>
+#include <linux/time.h>
 
+#include <asm/system.h>
 #include <asm/byteorder.h>
 
 #include "ieee1394_types.h"
@@ -186,6 +189,45 @@ int hpsb_reset_bus(struct hpsb_host *host, int type)
 	}
 }
 
+/**
+ * hpsb_read_cycle_timer - read cycle timer register and system time
+ * @host: host whose isochronous cycle timer register is read
+ * @cycle_timer: address of bitfield to return the register contents
+ * @local_time: address to return the system time
+ *
+ * The format of * @cycle_timer, is described in OHCI 1.1 clause 5.13. This
+ * format is also read from non-OHCI controllers. * @local_time contains the
+ * system time in microseconds since the Epoch, read at the moment when the
+ * cycle timer was read.
+ *
+ * Return value: 0 for success or error number otherwise.
+ */
+int hpsb_read_cycle_timer(struct hpsb_host *host, u32 *cycle_timer,
+			  u64 *local_time)
+{
+	int ctr;
+	struct timeval tv;
+	unsigned long flags;
+
+	if (!host || !cycle_timer || !local_time)
+		return -EINVAL;
+
+	preempt_disable();
+	local_irq_save(flags);
+
+	ctr = host->driver->devctl(host, GET_CYCLE_COUNTER, 0);
+	if (ctr)
+		do_gettimeofday(&tv);
+
+	local_irq_restore(flags);
+	preempt_enable();
+
+	if (!ctr)
+		return -EIO;
+	*cycle_timer = ctr;
+	*local_time = tv.tv_sec * 1000000ULL + tv.tv_usec;
+	return 0;
+}
 
 int hpsb_bus_reset(struct hpsb_host *host)
 {
@@ -1178,6 +1220,7 @@ module_exit(ieee1394_cleanup);
 /** hosts.c **/
 EXPORT_SYMBOL(hpsb_alloc_host);
 EXPORT_SYMBOL(hpsb_add_host);
+EXPORT_SYMBOL(hpsb_resume_host);
 EXPORT_SYMBOL(hpsb_remove_host);
 EXPORT_SYMBOL(hpsb_update_config_rom_image);
 
@@ -1189,16 +1232,13 @@ EXPORT_SYMBOL(hpsb_alloc_packet);
 EXPORT_SYMBOL(hpsb_free_packet);
 EXPORT_SYMBOL(hpsb_send_packet);
 EXPORT_SYMBOL(hpsb_reset_bus);
+EXPORT_SYMBOL(hpsb_read_cycle_timer);
 EXPORT_SYMBOL(hpsb_bus_reset);
 EXPORT_SYMBOL(hpsb_selfid_received);
 EXPORT_SYMBOL(hpsb_selfid_complete);
 EXPORT_SYMBOL(hpsb_packet_sent);
 EXPORT_SYMBOL(hpsb_packet_received);
 EXPORT_SYMBOL_GPL(hpsb_disable_irm);
-#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
-EXPORT_SYMBOL(hpsb_send_phy_config);
-EXPORT_SYMBOL(hpsb_send_packet_and_wait);
-#endif
 
 /** ieee1394_transactions.c **/
 EXPORT_SYMBOL(hpsb_get_tlabel);
@@ -1229,20 +1269,12 @@ EXPORT_SYMBOL(hpsb_set_hostinfo_key);
 EXPORT_SYMBOL(hpsb_get_hostinfo_bykey);
 EXPORT_SYMBOL(hpsb_set_hostinfo);
 EXPORT_SYMBOL(highlevel_host_reset);
-#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
-EXPORT_SYMBOL(highlevel_add_host);
-EXPORT_SYMBOL(highlevel_remove_host);
-#endif
 
 /** nodemgr.c **/
 EXPORT_SYMBOL(hpsb_node_fill_packet);
 EXPORT_SYMBOL(hpsb_node_write);
 EXPORT_SYMBOL(__hpsb_register_protocol);
 EXPORT_SYMBOL(hpsb_unregister_protocol);
-#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
-EXPORT_SYMBOL(ieee1394_bus_type);
-EXPORT_SYMBOL(nodemgr_for_each_host);
-#endif
 
 /** csr.c **/
 EXPORT_SYMBOL(hpsb_update_config_rom);
@@ -1287,13 +1319,3 @@ EXPORT_SYMBOL(csr1212_read);
 EXPORT_SYMBOL(csr1212_parse_keyval);
 EXPORT_SYMBOL(_csr1212_read_keyval);
 EXPORT_SYMBOL(_csr1212_destroy_keyval);
-#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
-EXPORT_SYMBOL(csr1212_create_csr);
-EXPORT_SYMBOL(csr1212_init_local_csr);
-EXPORT_SYMBOL(csr1212_new_immediate);
-EXPORT_SYMBOL(csr1212_associate_keyval);
-EXPORT_SYMBOL(csr1212_new_string_descriptor_leaf);
-EXPORT_SYMBOL(csr1212_destroy_csr);
-EXPORT_SYMBOL(csr1212_generate_csr_image);
-EXPORT_SYMBOL(csr1212_parse_csr);
-#endif

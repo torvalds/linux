@@ -242,7 +242,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			DCCP_CRIT("DCCP(%p): option %d(len=%d) not "
 				  "implemented, ignoring", sk, opt, len);
 			break;
-	        }
+		}
 
 		if (opt != DCCPO_MANDATORY)
 			mandatory = 0;
@@ -442,7 +442,7 @@ static int dccp_insert_option_timestamp_echo(struct sock *sk,
 }
 
 static int dccp_insert_feat_opt(struct sk_buff *skb, u8 type, u8 feat,
-			        u8 *val, u8 len)
+				u8 *val, u8 len)
 {
 	u8 *to;
 

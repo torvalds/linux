@@ -4,7 +4,6 @@
 
 ctc-objs := ctcmain.o ctcdbug.o
 
-obj-$(CONFIG_IUCV) += iucv.o
 obj-$(CONFIG_NETIUCV) += netiucv.o fsm.o
 obj-$(CONFIG_SMSGIUCV) += smsgiucv.o
 obj-$(CONFIG_CTC) += ctc.o fsm.o cu3088.o

@@ -76,7 +76,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb/input.h>
-#include <linux/sched.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 

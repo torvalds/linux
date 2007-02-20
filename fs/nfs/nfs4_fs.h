@@ -151,7 +151,7 @@ struct nfs4_state_recovery_ops {
 };
 
 extern struct dentry_operations nfs4_dentry_operations;
-extern struct inode_operations nfs4_dir_inode_operations;
+extern const struct inode_operations nfs4_dir_inode_operations;
 
 /* inode.c */
 extern ssize_t nfs4_getxattr(struct dentry *, const char *, void *, size_t);
@@ -169,7 +169,7 @@ extern int nfs4_do_close(struct inode *inode, struct nfs4_state *state);
 extern struct dentry *nfs4_atomic_open(struct inode *, struct dentry *, struct nameidata *);
 extern int nfs4_open_revalidate(struct inode *, struct dentry *, int, struct nameidata *);
 extern int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle);
-extern int nfs4_proc_fs_locations(struct inode *dir, struct dentry *dentry,
+extern int nfs4_proc_fs_locations(struct inode *dir, struct qstr *name,
 		struct nfs4_fs_locations *fs_locations, struct page *page);
 
 extern struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops;

@@ -89,14 +89,6 @@ static unsigned long gettimeoffset(void)
         return (offset + LATCH/2) / LATCH;
 }
 
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies * (1000000000 / HZ);
-}
-
 static unsigned long next_rtc_update;
 
 /*

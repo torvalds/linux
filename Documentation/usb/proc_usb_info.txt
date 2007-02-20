@@ -213,15 +213,16 @@ C:* #Ifs=dd Cfg#=dd Atr=xx MPwr=dddmA
 
 Interface descriptor info (can be multiple per Config):
 
-I:  If#=dd Alt=dd #EPs=dd Cls=xx(sssss) Sub=xx Prot=xx Driver=ssss
-|   |      |      |       |             |      |       |__Driver name
-|   |      |      |       |             |      |          or "(none)"
-|   |      |      |       |             |      |__InterfaceProtocol
-|   |      |      |       |             |__InterfaceSubClass
-|   |      |      |       |__InterfaceClass
-|   |      |      |__NumberOfEndpoints
-|   |      |__AlternateSettingNumber
-|   |__InterfaceNumber
+I:* If#=dd Alt=dd #EPs=dd Cls=xx(sssss) Sub=xx Prot=xx Driver=ssss
+| | |      |      |       |             |      |       |__Driver name
+| | |      |      |       |             |      |          or "(none)"
+| | |      |      |       |             |      |__InterfaceProtocol
+| | |      |      |       |             |__InterfaceSubClass
+| | |      |      |       |__InterfaceClass
+| | |      |      |__NumberOfEndpoints
+| | |      |__AlternateSettingNumber
+| | |__InterfaceNumber
+| |__ "*" indicates the active altsetting (others are " ")
 |__Interface info tag
 
     A given interface may have one or more "alternate" settings.
@@ -277,7 +278,7 @@ of the USB devices on a system's root hub.  (See more below
 on how to do this.)
 
 The Interface lines can be used to determine what driver is
-being used for each device.
+being used for each device, and which altsetting it activated.
 
 The Configuration lines could be used to list maximum power
 (in milliamps) that a system's USB devices are using.

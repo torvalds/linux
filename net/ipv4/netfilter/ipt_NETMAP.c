@@ -15,6 +15,7 @@
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/netfilter/x_tables.h>
 #ifdef CONFIG_NF_NAT_NEEDED
 #include <net/netfilter/nf_nat_rule.h>
 #else
@@ -88,25 +89,26 @@ target(struct sk_buff **pskb,
 	return ip_nat_setup_info(ct, &newrange, hooknum);
 }
 
-static struct ipt_target target_module = { 
+static struct xt_target target_module = {
 	.name 		= MODULENAME,
-	.target 	= target, 
+	.family		= AF_INET,
+	.target 	= target,
 	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
 	.table		= "nat",
 	.hooks		= (1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_POST_ROUTING) |
 			  (1 << NF_IP_LOCAL_OUT),
 	.checkentry 	= check,
-    	.me 		= THIS_MODULE 
+	.me 		= THIS_MODULE
 };
 
 static int __init ipt_netmap_init(void)
 {
-	return ipt_register_target(&target_module);
+	return xt_register_target(&target_module);
 }
 
 static void __exit ipt_netmap_fini(void)
 {
-	ipt_unregister_target(&target_module);
+	xt_unregister_target(&target_module);
 }
 
 module_init(ipt_netmap_init);

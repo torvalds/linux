@@ -131,6 +131,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
+#include <linux/kernel.h>
 
 #include <asm/io.h>
 #include <asm/page.h>
@@ -2870,11 +2871,10 @@ static int __devinit es1371_probe(struct pci_dev *pcidev, const struct pci_devic
 		printk(KERN_WARNING "es1371: architecture does not support 32bit PCI busmaster DMA\n");
 		return i;
 	}
-	if (!(s = kmalloc(sizeof(struct es1371_state), GFP_KERNEL))) {
+	if (!(s = kzalloc(sizeof(struct es1371_state), GFP_KERNEL))) {
 		printk(KERN_WARNING PFX "out of memory\n");
 		return -ENOMEM;
 	}
-	memset(s, 0, sizeof(struct es1371_state));
 	
 	s->codec = ac97_alloc_codec();
 	if(s->codec == NULL)
@@ -2998,7 +2998,7 @@ static int __devinit es1371_probe(struct pci_dev *pcidev, const struct pci_devic
 	set_fs(KERNEL_DS);
 	val = SOUND_MASK_LINE;
 	mixdev_ioctl(s->codec, SOUND_MIXER_WRITE_RECSRC, (unsigned long)&val);
-	for (i = 0; i < sizeof(initvol)/sizeof(initvol[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(initvol); i++) {
 		val = initvol[i].vol;
 		mixdev_ioctl(s->codec, initvol[i].mixch, (unsigned long)&val);
 	}

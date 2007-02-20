@@ -265,6 +265,7 @@ struct agp_bridge_driver sgi_tioca_driver = {
 	.free_by_type = agp_generic_free_by_type,
 	.agp_alloc_page = sgi_tioca_alloc_page,
 	.agp_destroy_page = agp_generic_destroy_page,
+	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 	.cant_use_aperture = 1,
 	.needs_scratch_page = 0,
 	.num_aperture_sizes = 1,

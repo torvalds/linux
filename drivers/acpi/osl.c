@@ -36,6 +36,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
+#include <linux/acpi.h>
 #include <acpi/acpi.h>
 #include <asm/io.h>
 #include <acpi/acpi_bus.h>
@@ -45,7 +46,7 @@
 #include <linux/efi.h>
 
 #define _COMPONENT		ACPI_OS_SERVICES
-ACPI_MODULE_NAME("osl")
+ACPI_MODULE_NAME("osl");
 #define PREFIX		"ACPI: "
 struct acpi_os_dpc {
 	acpi_osd_exec_callback function;
@@ -67,13 +68,58 @@ EXPORT_SYMBOL(acpi_in_debugger);
 extern char line_buf[80];
 #endif				/*ENABLE_DEBUGGER */
 
-int acpi_specific_hotkey_enabled = TRUE;
-EXPORT_SYMBOL(acpi_specific_hotkey_enabled);
-
 static unsigned int acpi_irq_irq;
 static acpi_osd_handler acpi_irq_handler;
 static void *acpi_irq_context;
 static struct workqueue_struct *kacpid_wq;
+
+static void __init acpi_request_region (struct acpi_generic_address *addr,
+	unsigned int length, char *desc)
+{
+	struct resource *res;
+
+	if (!addr->address || !length)
+		return;
+
+	if (addr->space_id == ACPI_ADR_SPACE_SYSTEM_IO)
+		res = request_region(addr->address, length, desc);
+	else if (addr->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		res = request_mem_region(addr->address, length, desc);
+}
+
+static int __init acpi_reserve_resources(void)
+{
+	acpi_request_region(&acpi_gbl_FADT.xpm1a_event_block, acpi_gbl_FADT.pm1_event_length,
+		"ACPI PM1a_EVT_BLK");
+
+	acpi_request_region(&acpi_gbl_FADT.xpm1b_event_block, acpi_gbl_FADT.pm1_event_length,
+		"ACPI PM1b_EVT_BLK");
+
+	acpi_request_region(&acpi_gbl_FADT.xpm1a_control_block, acpi_gbl_FADT.pm1_control_length,
+		"ACPI PM1a_CNT_BLK");
+
+	acpi_request_region(&acpi_gbl_FADT.xpm1b_control_block, acpi_gbl_FADT.pm1_control_length,
+		"ACPI PM1b_CNT_BLK");
+
+	if (acpi_gbl_FADT.pm_timer_length == 4)
+		acpi_request_region(&acpi_gbl_FADT.xpm_timer_block, 4, "ACPI PM_TMR");
+
+	acpi_request_region(&acpi_gbl_FADT.xpm2_control_block, acpi_gbl_FADT.pm2_control_length,
+		"ACPI PM2_CNT_BLK");
+
+	/* Length of GPE blocks must be a non-negative multiple of 2 */
+
+	if (!(acpi_gbl_FADT.gpe0_block_length & 0x1))
+		acpi_request_region(&acpi_gbl_FADT.xgpe0_block,
+			       acpi_gbl_FADT.gpe0_block_length, "ACPI GPE0_BLK");
+
+	if (!(acpi_gbl_FADT.gpe1_block_length & 0x1))
+		acpi_request_region(&acpi_gbl_FADT.xgpe1_block,
+			       acpi_gbl_FADT.gpe1_block_length, "ACPI GPE1_BLK");
+
+	return 0;
+}
+device_initcall(acpi_reserve_resources);
 
 acpi_status acpi_os_initialize(void)
 {
@@ -136,53 +182,43 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 #endif
 }
 
-acpi_status acpi_os_get_root_pointer(u32 flags, struct acpi_pointer *addr)
+acpi_physical_address __init acpi_os_get_root_pointer(void)
 {
 	if (efi_enabled) {
-		addr->pointer_type = ACPI_PHYSICAL_POINTER;
 		if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
-			addr->pointer.physical = efi.acpi20;
+			return efi.acpi20;
 		else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
-			addr->pointer.physical = efi.acpi;
+			return efi.acpi;
 		else {
 			printk(KERN_ERR PREFIX
 			       "System description tables not found\n");
-			return AE_NOT_FOUND;
+			return 0;
 		}
-	} else {
-		if (ACPI_FAILURE(acpi_find_root_pointer(flags, addr))) {
-			printk(KERN_ERR PREFIX
-			       "System description tables not found\n");
-			return AE_NOT_FOUND;
-		}
-	}
-
-	return AE_OK;
+	} else
+		return acpi_find_rsdp();
 }
 
-acpi_status
-acpi_os_map_memory(acpi_physical_address phys, acpi_size size,
-		   void __iomem ** virt)
+void __iomem *acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
 	if (phys > ULONG_MAX) {
 		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
-		return AE_BAD_PARAMETER;
+		return NULL;
 	}
-	/*
-	 * ioremap checks to ensure this is in reserved space
-	 */
-	*virt = ioremap((unsigned long)phys, size);
-
-	if (!*virt)
-		return AE_NO_MEMORY;
-
-	return AE_OK;
+	if (acpi_gbl_permanent_mmap)
+		/*
+		* ioremap checks to ensure this is in reserved space
+		*/
+		return ioremap((unsigned long)phys, size);
+	else
+		return __acpi_map_table((unsigned long)phys, size);
 }
 EXPORT_SYMBOL_GPL(acpi_os_map_memory);
 
 void acpi_os_unmap_memory(void __iomem * virt, acpi_size size)
 {
-	iounmap(virt);
+	if (acpi_gbl_permanent_mmap) {
+		iounmap(virt);
+	}
 }
 EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
 
@@ -254,7 +290,7 @@ acpi_os_install_interrupt_handler(u32 gsi, acpi_osd_handler handler,
 	 * FADT. It may not be the same if an interrupt source override exists
 	 * for the SCI.
 	 */
-	gsi = acpi_fadt.sci_int;
+	gsi = acpi_gbl_FADT.sci_interrupt;
 	if (acpi_gsi_to_irq(gsi, &irq) < 0) {
 		printk(KERN_ERR PREFIX "SCI (ACPI GSI %d) not registered\n",
 		       gsi);
@@ -851,26 +887,6 @@ u32 acpi_os_get_line(char *buffer)
 }
 #endif				/*  ACPI_FUTURE_USAGE  */
 
-/* Assumes no unreadable holes inbetween */
-u8 acpi_os_readable(void *ptr, acpi_size len)
-{
-#if defined(__i386__) || defined(__x86_64__)
-	char tmp;
-	return !__get_user(tmp, (char __user *)ptr)
-	    && !__get_user(tmp, (char __user *)ptr + len - 1);
-#endif
-	return 1;
-}
-
-#ifdef ACPI_FUTURE_USAGE
-u8 acpi_os_writable(void *ptr, acpi_size len)
-{
-	/* could do dummy write (racy) or a kernel page table lookup.
-	   The later may be difficult at early boot when kmap doesn't work yet. */
-	return 1;
-}
-#endif
-
 acpi_status acpi_os_signal(u32 function, void *info)
 {
 	switch (function) {
@@ -972,14 +988,6 @@ static int __init acpi_wake_gpes_always_on_setup(char *str)
 }
 
 __setup("acpi_wake_gpes_always_on", acpi_wake_gpes_always_on_setup);
-
-static int __init acpi_hotkey_setup(char *str)
-{
-	acpi_specific_hotkey_enabled = FALSE;
-	return 1;
-}
-
-__setup("acpi_generic_hotkey", acpi_hotkey_setup);
 
 /*
  * max_cstate is defined in the base kernel so modules can

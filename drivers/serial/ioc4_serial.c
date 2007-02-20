@@ -1076,13 +1076,12 @@ static int inline ioc4_attach_local(struct ioc4_driver_data *idd)
 	/* Create port structures for each port */
 	for (port_number = 0; port_number < IOC4_NUM_SERIAL_PORTS;
 							port_number++) {
-		port = kmalloc(sizeof(struct ioc4_port), GFP_KERNEL);
+		port = kzalloc(sizeof(struct ioc4_port), GFP_KERNEL);
 		if (!port) {
 			printk(KERN_WARNING
 				"IOC4 serial memory not available for port\n");
 			return -ENOMEM;
 		}
-		memset(port, 0, sizeof(struct ioc4_port));
 		spin_lock_init(&port->ip_lock);
 
 		/* we need to remember the previous ones, to point back to
@@ -2685,7 +2684,7 @@ static int ioc4_serial_remove_one(struct ioc4_driver_data *idd)
 		free_irq(control->ic_irq, soft);
 		if (soft->is_ioc4_serial_addr) {
 			iounmap(soft->is_ioc4_serial_addr);
-			release_region((unsigned long)
+			release_mem_region((unsigned long)
 			     soft->is_ioc4_serial_addr,
 				sizeof(struct ioc4_serial));
 		}
@@ -2790,7 +2789,7 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 	/* request serial registers */
 	tmp_addr1 = idd->idd_bar0 + IOC4_SERIAL_OFFSET;
 
-	if (!request_region(tmp_addr1, sizeof(struct ioc4_serial),
+	if (!request_mem_region(tmp_addr1, sizeof(struct ioc4_serial),
 					"sioc4_uart")) {
 		printk(KERN_WARNING
 			"ioc4 (%p): unable to get request region for "
@@ -2811,7 +2810,7 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 				(void *)serial));
 
 	/* Get memory for the new card */
-	control = kmalloc(sizeof(struct ioc4_control), GFP_KERNEL);
+	control = kzalloc(sizeof(struct ioc4_control), GFP_KERNEL);
 
 	if (!control) {
 		printk(KERN_WARNING "ioc4_attach_one"
@@ -2819,11 +2818,10 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 		ret = -ENOMEM;
 		goto out2;
 	}
-	memset(control, 0, sizeof(struct ioc4_control));
 	idd->idd_serial_data = control;
 
 	/* Allocate the soft structure */
-	soft = kmalloc(sizeof(struct ioc4_soft), GFP_KERNEL);
+	soft = kzalloc(sizeof(struct ioc4_soft), GFP_KERNEL);
 	if (!soft) {
 		printk(KERN_WARNING
 		       "ioc4 (%p): unable to get memory for the soft struct\n",
@@ -2831,7 +2829,6 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 		ret = -ENOMEM;
 		goto out3;
 	}
-	memset(soft, 0, sizeof(struct ioc4_soft));
 
 	spin_lock_init(&soft->is_ir_lock);
 	soft->is_ioc4_misc_addr = idd->idd_misc_regs;
@@ -2889,7 +2886,7 @@ out3:
 out2:
 	if (serial)
 		iounmap(serial);
-	release_region(tmp_addr1, sizeof(struct ioc4_serial));
+	release_mem_region(tmp_addr1, sizeof(struct ioc4_serial));
 out1:
 
 	return ret;

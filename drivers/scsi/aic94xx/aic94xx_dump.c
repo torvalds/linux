@@ -556,7 +556,7 @@ static void asd_dump_lseq_state(struct asd_ha_struct *asd_ha, int lseq)
 	PRINT_LMIP_word(asd_ha, lseq, Q_TGTXFR_TAIL);
 	PRINT_LMIP_byte(asd_ha, lseq, LINK_NUMBER);
 	PRINT_LMIP_byte(asd_ha, lseq, SCRATCH_FLAGS);
-	PRINT_LMIP_qword(asd_ha, lseq, CONNECTION_STATE);
+	PRINT_LMIP_dword(asd_ha, lseq, CONNECTION_STATE);
 	PRINT_LMIP_word(asd_ha, lseq, CONCTL);
 	PRINT_LMIP_byte(asd_ha, lseq, CONSTAT);
 	PRINT_LMIP_byte(asd_ha, lseq, CONNECTION_MODES);

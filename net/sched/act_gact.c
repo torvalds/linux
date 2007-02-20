@@ -15,7 +15,6 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -65,7 +64,7 @@ static g_rand gact_rand[MAX_RAND]= { NULL, gact_net_rand, gact_determ };
 #endif /* CONFIG_GACT_PROB */
 
 static int tcf_gact_init(struct rtattr *rta, struct rtattr *est,
-                         struct tc_action *a, int ovr, int bind)
+			 struct tc_action *a, int ovr, int bind)
 {
 	struct rtattr *tb[TCA_GACT_MAX];
 	struct tc_gact *parm;

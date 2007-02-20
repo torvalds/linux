@@ -17,7 +17,6 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  */
-#include <linux/sched.h>
 #include <linux/socket.h>
 #include <linux/net.h>
 #include <linux/ipv6.h>
@@ -50,7 +49,7 @@ static int sockstat6_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "UDP6: inuse %d\n",
 		       fold_prot_inuse(&udpv6_prot));
 	seq_printf(seq, "UDPLITE6: inuse %d\n",
-		        fold_prot_inuse(&udplitev6_prot));
+			fold_prot_inuse(&udplitev6_prot));
 	seq_printf(seq, "RAW6: inuse %d\n",
 		       fold_prot_inuse(&rawv6_prot));
 	seq_printf(seq, "FRAG6: inuse %d memory %d\n",
@@ -89,7 +88,7 @@ static struct snmp_mib snmp6_icmp6_list[] = {
 /* icmpv6 mib according to RFC 2466
 
    Exceptions:  {In|Out}AdminProhibs are removed, because I see
-                no good reasons to account them separately
+		no good reasons to account them separately
 		of another dest.unreachs.
 		OutErrs is zero identically.
 		OutEchos too.
@@ -146,14 +145,14 @@ static struct snmp_mib snmp6_udplite6_list[] = {
 static unsigned long
 fold_field(void *mib[], int offt)
 {
-        unsigned long res = 0;
-        int i;
- 
-        for_each_possible_cpu(i) {
-                res += *(((unsigned long *)per_cpu_ptr(mib[0], i)) + offt);
-                res += *(((unsigned long *)per_cpu_ptr(mib[1], i)) + offt);
-        }
-        return res;
+	unsigned long res = 0;
+	int i;
+
+	for_each_possible_cpu(i) {
+		res += *(((unsigned long *)per_cpu_ptr(mib[0], i)) + offt);
+		res += *(((unsigned long *)per_cpu_ptr(mib[1], i)) + offt);
+	}
+	return res;
 }
 
 static inline void
@@ -161,7 +160,7 @@ snmp6_seq_show_item(struct seq_file *seq, void **mib, struct snmp_mib *itemlist)
 {
 	int i;
 	for (i=0; itemlist[i].name; i++)
-		seq_printf(seq, "%-32s\t%lu\n", itemlist[i].name, 
+		seq_printf(seq, "%-32s\t%lu\n", itemlist[i].name,
 				fold_field(mib, itemlist[i].entry));
 }
 
@@ -187,7 +186,7 @@ static int sockstat6_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, sockstat6_seq_show, NULL);
 }
 
-static struct file_operations sockstat6_seq_fops = {
+static const struct file_operations sockstat6_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = sockstat6_seq_open,
 	.read	 = seq_read,
@@ -200,7 +199,7 @@ static int snmp6_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, snmp6_seq_show, PDE(inode)->data);
 }
 
-static struct file_operations snmp6_seq_fops = {
+static const struct file_operations snmp6_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = snmp6_seq_open,
 	.read	 = seq_read,

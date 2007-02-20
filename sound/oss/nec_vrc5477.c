@@ -1381,11 +1381,11 @@ static int vrc5477_ac97_ioctl(struct inode *inode, struct file *file,
 	int val, ret;
 
 #ifdef VRC5477_AC97_DEBUG
-	for (count=0; count<sizeof(ioctl_str)/sizeof(ioctl_str[0]); count++) {
+	for (count = 0; count < ARRAY_SIZE(ioctl_str); count++) {
 		if (ioctl_str[count].cmd == cmd)
 			break;
 	}
-	if (count < sizeof(ioctl_str)/sizeof(ioctl_str[0]))
+	if (count < ARRAY_SIZE(ioctl_str))
 		printk(KERN_INFO PFX "ioctl %s\n", ioctl_str[count].str);
 	else
 		printk(KERN_INFO PFX "ioctl unknown, 0x%x\n", cmd);
@@ -1860,11 +1860,10 @@ static int __devinit vrc5477_ac97_probe(struct pci_dev *pcidev,
 	if (pcidev->irq == 0) 
 		return -1;
 
-	if (!(s = kmalloc(sizeof(struct vrc5477_ac97_state), GFP_KERNEL))) {
+	if (!(s = kzalloc(sizeof(struct vrc5477_ac97_state), GFP_KERNEL))) {
 		printk(KERN_ERR PFX "alloc of device struct failed\n");
 		return -1;
 	}
-	memset(s, 0, sizeof(struct vrc5477_ac97_state));
 
 	init_waitqueue_head(&s->dma_adc.wait);
 	init_waitqueue_head(&s->dma_dac.wait);

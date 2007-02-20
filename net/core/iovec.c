@@ -18,7 +18,6 @@
 
 #include <linux/errno.h>
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -40,7 +39,7 @@
 int verify_iovec(struct msghdr *m, struct iovec *iov, char *address, int mode)
 {
 	int size, err, ct;
-	
+
 	if (m->msg_namelen) {
 		if (mode == VERIFY_READ) {
 			err = move_addr_to_kernel(m->msg_name, m->msg_namelen,
@@ -79,7 +78,7 @@ int verify_iovec(struct msghdr *m, struct iovec *iov, char *address, int mode)
  *
  *	Note: this modifies the original iovec.
  */
- 
+
 int memcpy_toiovec(struct iovec *iov, unsigned char *kdata, int len)
 {
 	while (len > 0) {
@@ -103,7 +102,7 @@ int memcpy_toiovec(struct iovec *iov, unsigned char *kdata, int len)
  *
  *	Note: this modifies the original iovec.
  */
- 
+
 int memcpy_fromiovec(unsigned char *kdata, struct iovec *iov, int len)
 {
 	while (len > 0) {
@@ -209,7 +208,7 @@ int csum_partial_copy_fromiovecend(unsigned char *kdata, struct iovec *iov,
 			if (partial_cnt) {
 				copy -= partial_cnt;
 				if (copy_from_user(kdata + copy, base + copy,
-				 		partial_cnt))
+						partial_cnt))
 					goto out_fault;
 			}
 		}
@@ -224,7 +223,7 @@ int csum_partial_copy_fromiovecend(unsigned char *kdata, struct iovec *iov,
 		kdata += copy + partial_cnt;
 		iov++;
 	}
-        *csump = csum;
+	*csump = csum;
 out:
 	return err;
 

@@ -172,8 +172,8 @@ static struct cache_head *rsi_alloc(void)
 }
 
 static void rsi_request(struct cache_detail *cd,
-                       struct cache_head *h,
-                       char **bpp, int *blen)
+		       struct cache_head *h,
+		       char **bpp, int *blen)
 {
 	struct rsi *rsii = container_of(h, struct rsi, h);
 
@@ -184,7 +184,7 @@ static void rsi_request(struct cache_detail *cd,
 
 
 static int rsi_parse(struct cache_detail *cd,
-                    char *mesg, int mlen)
+		    char *mesg, int mlen)
 {
 	/* context token expiry major minor context token */
 	char *buf = mesg;
@@ -669,14 +669,14 @@ gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
 	}
 
 	if (gc->gc_seq > MAXSEQ) {
-		dprintk("RPC:      svcauth_gss: discarding request with large sequence number %d\n",
-				gc->gc_seq);
+		dprintk("RPC:       svcauth_gss: discarding request with "
+				"large sequence number %d\n", gc->gc_seq);
 		*authp = rpcsec_gsserr_ctxproblem;
 		return SVC_DENIED;
 	}
 	if (!gss_check_seq_num(rsci, gc->gc_seq)) {
-		dprintk("RPC:      svcauth_gss: discarding request with old sequence number %d\n",
-				gc->gc_seq);
+		dprintk("RPC:       svcauth_gss: discarding request with "
+				"old sequence number %d\n", gc->gc_seq);
 		return SVC_DROP;
 	}
 	return SVC_OK;
@@ -958,7 +958,8 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 	__be32		*reject_stat = resv->iov_base + resv->iov_len;
 	int		ret;
 
-	dprintk("RPC:      svcauth_gss: argv->iov_len = %zd\n",argv->iov_len);
+	dprintk("RPC:       svcauth_gss: argv->iov_len = %zd\n",
+			argv->iov_len);
 
 	*authp = rpc_autherr_badcred;
 	if (!svcdata)

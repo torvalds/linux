@@ -164,4 +164,4 @@ const struct address_space_operations bfs_aops = {
 	.bmap		= bfs_bmap,
 };
 
-struct inode_operations bfs_file_inops;
+const struct inode_operations bfs_file_inops;

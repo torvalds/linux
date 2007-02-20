@@ -1051,7 +1051,7 @@ mpeg_mmap(struct file *file, struct vm_area_struct * vma)
 	return videobuf_mmap_mapper(&fh->mpegq, vma);
 }
 
-static struct file_operations mpeg_fops =
+static const struct file_operations mpeg_fops =
 {
 	.owner	       = THIS_MODULE,
 	.open	       = mpeg_open,

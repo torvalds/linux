@@ -9,6 +9,10 @@ config MMU
 	bool
 	default y
 
+config ZONE_DMA
+	bool
+	default y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
@@ -39,6 +43,9 @@ config GENERIC_CALIBRATE_DELAY
 config IRQ_PER_CPU
 	bool
 	default y
+
+config NO_IOPORT
+	def_bool y
 
 config CRIS
 	bool

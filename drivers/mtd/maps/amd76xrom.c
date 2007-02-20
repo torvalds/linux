@@ -205,8 +205,8 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 			(((unsigned long)(window->virt)) + offset);
 		map->map.size = 0xffffffffUL - map_top + 1UL;
 		/* Set the name of the map to the address I am trying */
-		sprintf(map->map_name, "%s @%08lx",
-			MOD_NAME, map->map.phys);
+		sprintf(map->map_name, "%s @%08Lx",
+			MOD_NAME, (unsigned long long)map->map.phys);
 
 		/* There is no generic VPP support */
 		for(map->map.bankwidth = 32; map->map.bankwidth;

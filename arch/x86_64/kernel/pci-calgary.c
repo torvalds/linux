@@ -138,6 +138,8 @@ static const unsigned long phb_debug_offsets[] = {
 
 #define PHB_DEBUG_STUFF_OFFSET	0x0020
 
+#define EMERGENCY_PAGES 32 /* = 128KB */
+
 unsigned int specified_table_size = TCE_TABLE_SIZE_UNSPECIFIED;
 static int translate_empty_slots __read_mostly = 0;
 static int calgary_detected __read_mostly = 0;
@@ -296,6 +298,16 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 {
 	unsigned long entry;
 	unsigned long badbit;
+	unsigned long badend;
+
+	/* were we called with bad_dma_address? */
+	badend = bad_dma_address + (EMERGENCY_PAGES * PAGE_SIZE);
+	if (unlikely((dma_addr >= bad_dma_address) && (dma_addr < badend))) {
+		printk(KERN_ERR "Calgary: driver tried unmapping bad DMA "
+		       "address 0x%Lx\n", dma_addr);
+		WARN_ON(1);
+		return;
+	}
 
 	entry = dma_addr >> PAGE_SHIFT;
 
@@ -656,8 +668,8 @@ static void __init calgary_reserve_regions(struct pci_dev *dev)
 	u64 start;
 	struct iommu_table *tbl = dev->sysdata;
 
-	/* reserve bad_dma_address in case it's a legal address */
-	iommu_range_reserve(tbl, bad_dma_address, 1);
+	/* reserve EMERGENCY_PAGES from bad_dma_address and up */
+	iommu_range_reserve(tbl, bad_dma_address, EMERGENCY_PAGES);
 
 	/* avoid the BIOS/VGA first 640KB-1MB region */
 	start = (640 * 1024);
@@ -1176,6 +1188,7 @@ int __init calgary_iommu_init(void)
 	}
 
 	force_iommu = 1;
+	bad_dma_address = 0x0;
 	dma_ops = &calgary_dma_ops;
 
 	return 0;

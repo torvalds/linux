@@ -1,5 +1,5 @@
 /*********************************************************************
- *                
+ *
  * Filename:      irsysctl.c
  * Version:       1.0
  * Description:   Sysctl interface for IrDA
@@ -8,19 +8,19 @@
  * Created at:    Sun May 24 22:12:06 1998
  * Modified at:   Fri Jun  4 02:50:15 1999
  * Modified by:   Dag Brattli <dagb@cs.uit.no>
- * 
+ *
  *     Copyright (c) 1997, 1999 Dag Brattli, All Rights Reserved.
  *     Copyright (c) 2000-2001 Jean Tourrilhes <jt@hpl.hp.com>
- *      
- *     This program is free software; you can redistribute it and/or 
- *     modify it under the terms of the GNU General Public License as 
- *     published by the Free Software Foundation; either version 2 of 
+ *
+ *     This program is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of
  *     the License, or (at your option) any later version.
- *  
+ *
  *     Neither Dag Brattli nor University of Tromsø admit liability nor
- *     provide warranty for any of this software. This material is 
+ *     provide warranty for any of this software. This material is
  *     provided "AS-IS" and at no charge.
- *     
+ *
  ********************************************************************/
 
 #include <linux/mm.h>
@@ -111,7 +111,7 @@ static ctl_table irda_table[] = {
 		.strategy	= &sysctl_string
 	},
 #ifdef CONFIG_IRDA_DEBUG
-        {
+	{
 		.ctl_name	= DEBUG,
 		.procname	= "debug",
 		.data		= &irda_debug,
@@ -121,7 +121,7 @@ static ctl_table irda_table[] = {
 	},
 #endif
 #ifdef CONFIG_IRDA_FAST_RR
-        {
+	{
 		.ctl_name	= FAST_POLL,
 		.procname	= "fast_poll_increase",
 		.data		= &sysctl_fast_poll_increase,
@@ -274,7 +274,7 @@ static struct ctl_table_header *irda_table_header;
  */
 int __init irda_sysctl_register(void)
 {
-	irda_table_header = register_sysctl_table(irda_root_table, 0);
+	irda_table_header = register_sysctl_table(irda_root_table);
 	if (!irda_table_header)
 		return -ENOMEM;
 
@@ -287,7 +287,7 @@ int __init irda_sysctl_register(void)
  *    Unregister our sysctl interface
  *
  */
-void __exit irda_sysctl_unregister(void) 
+void __exit irda_sysctl_unregister(void)
 {
 	unregister_sysctl_table(irda_table_header);
 }

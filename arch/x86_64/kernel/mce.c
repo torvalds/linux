@@ -19,6 +19,7 @@
 #include <linux/cpu.h>
 #include <linux/percpu.h>
 #include <linux/ctype.h>
+#include <linux/kmod.h>
 #include <asm/processor.h> 
 #include <asm/msr.h>
 #include <asm/mce.h>
@@ -42,6 +43,10 @@ static unsigned long console_logged;
 static int notify_user;
 static int rip_msr;
 static int mce_bootlog = 1;
+static atomic_t mce_events;
+
+static char trigger[128];
+static char *trigger_argv[2] = { trigger, NULL };
 
 /*
  * Lockless MCE logging infrastructure.
@@ -57,6 +62,7 @@ struct mce_log mcelog = {
 void mce_log(struct mce *mce)
 {
 	unsigned next, entry;
+	atomic_inc(&mce_events);
 	mce->finished = 0;
 	wmb();
 	for (;;) {
@@ -161,6 +167,17 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 	}
 }
 
+static void do_mce_trigger(void)
+{
+	static atomic_t mce_logged;
+	int events = atomic_read(&mce_events);
+	if (events != atomic_read(&mce_logged) && trigger[0]) {
+		/* Small race window, but should be harmless.  */
+		atomic_set(&mce_logged, events);
+		call_usermodehelper(trigger, trigger_argv, NULL, -1);
+	}
+}
+
 /* 
  * The actual machine check handler
  */
@@ -234,8 +251,12 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	}
 
 	/* Never do anything final in the polling timer */
-	if (!regs)
+	if (!regs) {
+		/* Normal interrupt context here. Call trigger for any new
+		   events. */
+		do_mce_trigger();
 		goto out;
+	}
 
 	/* If we didn't find an uncorrectable error, pick
 	   the last one (shouldn't happen, just being safe). */
@@ -516,7 +537,7 @@ static int mce_ioctl(struct inode *i, struct file *f,unsigned int cmd, unsigned 
 	} 
 }
 
-static struct file_operations mce_chrdev_ops = {
+static const struct file_operations mce_chrdev_ops = {
 	.read = mce_read,
 	.ioctl = mce_ioctl,
 };
@@ -606,17 +627,42 @@ DEFINE_PER_CPU(struct sys_device, device_mce);
 	}									   \
 	static SYSDEV_ATTR(name, 0644, show_ ## name, set_ ## name);
 
+/* TBD should generate these dynamically based on number of available banks */
 ACCESSOR(bank0ctl,bank[0],mce_restart())
 ACCESSOR(bank1ctl,bank[1],mce_restart())
 ACCESSOR(bank2ctl,bank[2],mce_restart())
 ACCESSOR(bank3ctl,bank[3],mce_restart())
 ACCESSOR(bank4ctl,bank[4],mce_restart())
 ACCESSOR(bank5ctl,bank[5],mce_restart())
-static struct sysdev_attribute * bank_attributes[NR_BANKS] = {
-	&attr_bank0ctl, &attr_bank1ctl, &attr_bank2ctl,
-	&attr_bank3ctl, &attr_bank4ctl, &attr_bank5ctl};
+
+static ssize_t show_trigger(struct sys_device *s, char *buf)
+{
+	strcpy(buf, trigger);
+	strcat(buf, "\n");
+	return strlen(trigger) + 1;
+}
+
+static ssize_t set_trigger(struct sys_device *s,const char *buf,size_t siz)
+{
+	char *p;
+	int len;
+	strncpy(trigger, buf, sizeof(trigger));
+	trigger[sizeof(trigger)-1] = 0;
+	len = strlen(trigger);
+	p = strchr(trigger, '\n');
+	if (*p) *p = 0;
+	return len;
+}
+
+static SYSDEV_ATTR(trigger, 0644, show_trigger, set_trigger);
 ACCESSOR(tolerant,tolerant,)
 ACCESSOR(check_interval,check_interval,mce_restart())
+static struct sysdev_attribute *mce_attributes[] = {
+	&attr_bank0ctl, &attr_bank1ctl, &attr_bank2ctl,
+	&attr_bank3ctl, &attr_bank4ctl, &attr_bank5ctl,
+	&attr_tolerant, &attr_check_interval, &attr_trigger,
+	NULL
+};
 
 /* Per cpu sysdev init.  All of the cpus still share the same ctl bank */
 static __cpuinit int mce_create_device(unsigned int cpu)
@@ -632,11 +678,9 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 	err = sysdev_register(&per_cpu(device_mce,cpu));
 
 	if (!err) {
-		for (i = 0; i < banks; i++)
+		for (i = 0; mce_attributes[i]; i++)
 			sysdev_create_file(&per_cpu(device_mce,cpu),
-				bank_attributes[i]);
-		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_tolerant);
-		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_check_interval);
+				mce_attributes[i]);
 	}
 	return err;
 }
@@ -645,11 +689,9 @@ static void mce_remove_device(unsigned int cpu)
 {
 	int i;
 
-	for (i = 0; i < banks; i++)
+	for (i = 0; mce_attributes[i]; i++)
 		sysdev_remove_file(&per_cpu(device_mce,cpu),
-			bank_attributes[i]);
-	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_tolerant);
-	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_check_interval);
+			mce_attributes[i]);
 	sysdev_unregister(&per_cpu(device_mce,cpu));
 	memset(&per_cpu(device_mce, cpu).kobj, 0, sizeof(struct kobject));
 }

@@ -9,7 +9,7 @@
  *
  *	Module load syntax:
  * 	insmod ip_conntrack_amanda.o [master_timeout=n]
- *	
+ *
  *	Where master_timeout is the timeout (in seconds) of the master
  *	connection (port 10080).  This defaults to 5 minutes but if
  *	your clients take longer than 5 minutes to do their work
@@ -84,7 +84,7 @@ static struct {
 };
 
 static int help(struct sk_buff **pskb,
-                struct ip_conntrack *ct, enum ip_conntrack_info ctinfo)
+		struct ip_conntrack *ct, enum ip_conntrack_info ctinfo)
 {
 	struct ts_state ts;
 	struct ip_conntrack_expect *exp;

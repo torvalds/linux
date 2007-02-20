@@ -16,7 +16,7 @@ config CPU_FREQ
 if CPU_FREQ
 
 config CPU_FREQ_TABLE
-       def_tristate m
+       tristate
 
 config CPU_FREQ_DEBUG
 	bool "Enable CPUfreq debugging"

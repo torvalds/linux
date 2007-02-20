@@ -160,7 +160,7 @@ static void destroy_inodecache(void)
 }
 
 /* Superblock operations */
-static struct super_operations udf_sb_ops = {
+static const struct super_operations udf_sb_ops = {
 	.alloc_inode		= udf_alloc_inode,
 	.destroy_inode		= udf_destroy_inode,
 	.write_inode		= udf_write_inode,

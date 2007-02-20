@@ -174,7 +174,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 	 * generate the same exception over and over again and we get
 	 * nowhere.  Better to kill it and let the kernel panic.
 	 */
-	if (current->pid == 1) {
+	if (is_init(current)) {
 		__sighandler_t handler;
 
 		spin_lock_irq(&current->sighand->siglock);
@@ -535,34 +535,40 @@ static void emulate_single_step(struct pt_regs *regs)
 	}
 }
 
-static void parse_fpe(struct pt_regs *regs)
+static inline int __parse_fpscr(unsigned long fpscr)
 {
-	int code = 0;
-	unsigned long fpscr;
-
-	flush_fp_to_thread(current);
-
-	fpscr = current->thread.fpscr.val;
+	int ret = 0;
 
 	/* Invalid operation */
 	if ((fpscr & FPSCR_VE) && (fpscr & FPSCR_VX))
-		code = FPE_FLTINV;
+		ret = FPE_FLTINV;
 
 	/* Overflow */
 	else if ((fpscr & FPSCR_OE) && (fpscr & FPSCR_OX))
-		code = FPE_FLTOVF;
+		ret = FPE_FLTOVF;
 
 	/* Underflow */
 	else if ((fpscr & FPSCR_UE) && (fpscr & FPSCR_UX))
-		code = FPE_FLTUND;
+		ret = FPE_FLTUND;
 
 	/* Divide by zero */
 	else if ((fpscr & FPSCR_ZE) && (fpscr & FPSCR_ZX))
-		code = FPE_FLTDIV;
+		ret = FPE_FLTDIV;
 
 	/* Inexact result */
 	else if ((fpscr & FPSCR_XE) && (fpscr & FPSCR_XX))
-		code = FPE_FLTRES;
+		ret = FPE_FLTRES;
+
+	return ret;
+}
+
+static void parse_fpe(struct pt_regs *regs)
+{
+	int code = 0;
+
+	flush_fp_to_thread(current);
+
+	code = __parse_fpscr(current->thread.fpscr.val);
 
 	_exception(SIGFPE, regs, code, regs->nip);
 }
@@ -739,20 +745,7 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	extern int do_mathemu(struct pt_regs *regs);
 
 	/* We can now get here via a FP Unavailable exception if the core
-	 * has no FPU, in that case no reason flags will be set */
-#ifdef CONFIG_MATH_EMULATION
-	/* (reason & REASON_ILLEGAL) would be the obvious thing here,
-	 * but there seems to be a hardware bug on the 405GP (RevD)
-	 * that means ESR is sometimes set incorrectly - either to
-	 * ESR_DST (!?) or 0.  In the process of chasing this with the
-	 * hardware people - not sure if it can happen on any illegal
-	 * instruction or only on FP instructions, whether there is a
-	 * pattern to occurences etc. -dgibson 31/Mar/2003 */
-	if (!(reason & REASON_TRAP) && do_mathemu(regs) == 0) {
-		emulate_single_step(regs);
-		return;
-	}
-#endif /* CONFIG_MATH_EMULATION */
+	 * has no FPU, in that case the reason flags will be 0 */
 
 	if (reason & REASON_FP) {
 		/* IEEE FP exception */
@@ -777,6 +770,31 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	}
 
 	local_irq_enable();
+
+#ifdef CONFIG_MATH_EMULATION
+	/* (reason & REASON_ILLEGAL) would be the obvious thing here,
+	 * but there seems to be a hardware bug on the 405GP (RevD)
+	 * that means ESR is sometimes set incorrectly - either to
+	 * ESR_DST (!?) or 0.  In the process of chasing this with the
+	 * hardware people - not sure if it can happen on any illegal
+	 * instruction or only on FP instructions, whether there is a
+	 * pattern to occurences etc. -dgibson 31/Mar/2003 */
+	switch (do_mathemu(regs)) {
+	case 0:
+		emulate_single_step(regs);
+		return;
+	case 1: {
+			int code = 0;
+			code = __parse_fpscr(current->thread.fpscr.val);
+			_exception(SIGFPE, regs, code, regs->nip);
+			return;
+		}
+	case -EFAULT:
+		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
+		return;
+	}
+	/* fall through on any other errors */
+#endif /* CONFIG_MATH_EMULATION */
 
 	/* Try to emulate it if we should. */
 	if (reason & (REASON_ILLEGAL | REASON_PRIVILEGED)) {
@@ -891,18 +909,39 @@ void SoftwareEmulation(struct pt_regs *regs)
 
 #ifdef CONFIG_MATH_EMULATION
 	errcode = do_mathemu(regs);
+
+	switch (errcode) {
+	case 0:
+		emulate_single_step(regs);
+		return;
+	case 1: {
+			int code = 0;
+			code = __parse_fpscr(current->thread.fpscr.val);
+			_exception(SIGFPE, regs, code, regs->nip);
+			return;
+		}
+	case -EFAULT:
+		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
+		return;
+	default:
+		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
+		return;
+	}
+
 #else
 	errcode = Soft_emulate_8xx(regs);
-#endif
-	if (errcode) {
-		if (errcode > 0)
-			_exception(SIGFPE, regs, 0, 0);
-		else if (errcode == -EFAULT)
-			_exception(SIGSEGV, regs, 0, 0);
-		else
-			_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-	} else
+	switch (errcode) {
+	case 0:
 		emulate_single_step(regs);
+		return;
+	case 1:
+		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
+		return;
+	case -EFAULT:
+		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
+		return;
+	}
+#endif
 }
 #endif /* CONFIG_8xx */
 

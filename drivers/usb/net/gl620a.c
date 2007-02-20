@@ -22,7 +22,6 @@
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -70,12 +69,12 @@
 	(((GL_MAX_PACKET_LEN + 4) * GL_MAX_TRANSMIT_PACKETS) + 4)
 
 struct gl_packet {
-	u32		packet_length;
+	__le32		packet_length;
 	char		packet_data [1];
 };
 
 struct gl_header {
-	u32			packet_count;
+	__le32			packet_count;
 	struct gl_packet	packets;
 };
 
@@ -85,15 +84,14 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	struct gl_packet	*packet;
 	struct sk_buff		*gl_skb;
 	u32			size;
+	u32			count;
 
 	header = (struct gl_header *) skb->data;
 
 	// get the packet count of the received skb
-	le32_to_cpus(&header->packet_count);
-	if ((header->packet_count > GL_MAX_TRANSMIT_PACKETS)
-			|| (header->packet_count < 0)) {
-		dbg("genelink: invalid received packet count %d",
-			header->packet_count);
+	count = le32_to_cpu(header->packet_count);
+	if (count > GL_MAX_TRANSMIT_PACKETS) {
+		dbg("genelink: invalid received packet count %u", count);
 		return 0;
 	}
 
@@ -103,7 +101,7 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	// decrement the length for the packet count size 4 bytes
 	skb_pull(skb, 4);
 
-	while (header->packet_count > 1) {
+	while (count > 1) {
 		// get the packet length
 		size = le32_to_cpu(packet->packet_length);
 
@@ -124,9 +122,8 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		}
 
 		// advance to the next packet
-		packet = (struct gl_packet *)
-			&packet->packet_data [size];
-		header->packet_count--;
+		packet = (struct gl_packet *)&packet->packet_data[size];
+		count--;
 
 		// shift the data pointer to the next gl_packet
 		skb_pull(skb, size + 4);
@@ -149,8 +146,8 @@ genelink_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	int	length = skb->len;
 	int	headroom = skb_headroom(skb);
 	int	tailroom = skb_tailroom(skb);
-	u32	*packet_count;
-	u32	*packet_len;
+	__le32	*packet_count;
+	__le32	*packet_len;
 
 	// FIXME:  magic numbers, bleech
 	padlen = ((skb->len + (4 + 4*1)) % 64) ? 0 : 1;
@@ -172,7 +169,7 @@ genelink_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	}
 
 	// attach the packet count to the header
-	packet_count = (u32 *) skb_push(skb, (4 + 4*1));
+	packet_count = (__le32 *) skb_push(skb, (4 + 4*1));
 	packet_len = packet_count + 1;
 
 	*packet_count = cpu_to_le32(1);

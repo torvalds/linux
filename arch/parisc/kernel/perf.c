@@ -479,7 +479,7 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return error;
 }
 
-static struct file_operations perf_fops = {
+static const struct file_operations perf_fops = {
 	.llseek = no_llseek,
 	.read = perf_read,
 	.write = perf_write,

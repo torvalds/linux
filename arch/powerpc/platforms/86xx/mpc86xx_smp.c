@@ -65,7 +65,6 @@ smp_86xx_kick_cpu(int nr)
 	pr_debug("smp_86xx_kick_cpu: kick CPU #%d\n", nr);
 
 	local_irq_save(flags);
-	local_irq_disable();
 
 	/* Save reset vector */
 	save_vector = *vector;

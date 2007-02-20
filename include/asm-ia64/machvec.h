@@ -21,6 +21,7 @@ struct mm_struct;
 struct pci_bus;
 struct task_struct;
 struct pci_dev;
+struct msi_desc;
 
 typedef void ia64_mv_setup_t (char **);
 typedef void ia64_mv_cpu_init_t (void);
@@ -79,7 +80,7 @@ typedef unsigned short ia64_mv_readw_relaxed_t (const volatile void __iomem *);
 typedef unsigned int ia64_mv_readl_relaxed_t (const volatile void __iomem *);
 typedef unsigned long ia64_mv_readq_relaxed_t (const volatile void __iomem *);
 
-typedef int ia64_mv_setup_msi_irq_t (unsigned int irq, struct pci_dev *pdev);
+typedef int ia64_mv_setup_msi_irq_t (struct pci_dev *pdev, struct msi_desc *);
 typedef void ia64_mv_teardown_msi_irq_t (unsigned int irq);
 
 static inline void

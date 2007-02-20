@@ -1365,13 +1365,13 @@ bail:
 	return ret;
 }
 
-struct inode_operations ocfs2_file_iops = {
+const struct inode_operations ocfs2_file_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
 	.permission	= ocfs2_permission,
 };
 
-struct inode_operations ocfs2_special_file_iops = {
+const struct inode_operations ocfs2_special_file_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
 	.permission	= ocfs2_permission,

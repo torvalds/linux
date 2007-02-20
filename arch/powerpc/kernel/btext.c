@@ -18,6 +18,7 @@
 #include <asm/io.h>
 #include <asm/lmb.h>
 #include <asm/processor.h>
+#include <asm/udbg.h>
 
 #define NO_SCROLL
 
@@ -912,3 +913,11 @@ static unsigned char vga_font[cmapsz] = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00, 0x00,
 };
+
+void __init udbg_init_btext(void)
+{
+	/* If btext is enabled, we might have a BAT setup for early display,
+	 * thus we do enable some very basic udbg output
+	 */
+	udbg_putc = btext_drawchar;
+}

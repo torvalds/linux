@@ -230,6 +230,7 @@ config SCSI_SCAN_ASYNC
 	  The SCSI subsystem can probe for devices while the rest of the
 	  system continues booting, and even probe devices on different
 	  busses in parallel, leading to a significant speed-up.
+
 	  If you have built SCSI as modules, enabling this option can
 	  be a problem as the devices may not have been found by the
 	  time your system expects them to have been.  You can load the
@@ -237,8 +238,8 @@ config SCSI_SCAN_ASYNC
 	  If you build your SCSI drivers into the kernel, then everything
 	  will work fine if you say Y here.
 
-	  You can override this choice by specifying scsi_mod.scan="sync"
-	  or "async" on the kernel's command line.
+	  You can override this choice by specifying "scsi_mod.scan=sync"
+	  or async on the kernel's command line.
 
 menu "SCSI Transports"
 	depends on SCSI
@@ -972,6 +973,15 @@ config SCSI_LASI700
 	  This is a driver for the SCSI controller in the Lasi chip found in
 	  many PA-RISC workstations & servers.  If you do not know whether you
 	  have a Lasi chip, it is safe to say "Y" here.
+
+config SCSI_SNI_53C710
+	tristate "SNI RM SCSI support for 53c710"
+	depends on SNI_RM && SCSI
+	select SCSI_SPI_ATTRS
+	select 53C700_LE_ON_BE
+	help
+	  This is a driver for the onboard SCSI controller found in older
+	  SNI RM workstations & servers.
 
 config 53C700_LE_ON_BE
 	bool

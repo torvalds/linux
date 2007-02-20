@@ -1,0 +1,184 @@
+/*
+ * MPC885 ADS Device Tree Source
+ *
+ * Copyright 2006 MontaVista Software, Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+
+/ {
+	model = "MPC885ADS";
+	compatible = "mpc8xx";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	linux,phandle = <100>;
+
+	cpus {
+		#cpus = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		linux,phandle = <200>;
+
+		PowerPC,885@0 {
+			device_type = "cpu";
+			reg = <0>;
+			d-cache-line-size = <20>;	// 32 bytes
+			i-cache-line-size = <20>;	// 32 bytes
+			d-cache-size = <2000>;		// L1, 8K
+			i-cache-size = <2000>;		// L1, 8K
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+			32-bit;
+			interrupts = <f 2>;	// decrementer interrupt
+			interrupt-parent = <ff000000>;
+			linux,phandle = <201>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		linux,phandle = <300>;
+		reg = <00000000 800000>;
+	};
+
+	soc885@ff000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <2>;
+		device_type = "soc";
+		ranges = <0 ff000000 00100000>;
+		reg = <ff000000 00000200>;
+		bus-frequency = <0>;
+		mdio@e80 {
+			device_type = "mdio";
+			compatible = "fs_enet";
+			reg = <e80 8>;
+			linux,phandle = <e80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ethernet-phy@0 {
+				linux,phandle = <e8000>;
+				reg = <0>;
+				device_type = "ethernet-phy";
+			};
+			ethernet-phy@1 {
+				linux,phandle = <e8001>;
+				reg = <1>;
+				device_type = "ethernet-phy";
+			};
+			ethernet-phy@2 {
+				linux,phandle = <e8002>;
+				reg = <2>;
+				device_type = "ethernet-phy";
+			};
+		};
+
+		fec@e00 {
+			device_type = "network";
+			compatible = "fs_enet";
+			model = "FEC";
+			device-id = <1>;
+			reg = <e00 188>;
+			mac-address = [ 00 00 0C 00 01 FD ];
+			interrupts = <3 1>;
+			interrupt-parent = <ff000000>;
+			phy-handle = <e8000>;
+		};
+
+		fec@1e00 {
+			device_type = "network";
+			compatible = "fs_enet";
+			model = "FEC";
+			device-id = <2>;
+			reg = <1e00 188>;
+			mac-address = [ 00 00 0C 00 02 FD ];
+			interrupts = <7 1>;
+			interrupt-parent = <ff000000>;
+			phy-handle = <e8001>;
+		};
+
+		pic@ff000000 {
+			linux,phandle = <ff000000>;
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			reg = <0 24>;
+			built-in;
+			device_type = "mpc8xx-pic";
+			compatible = "CPM";
+		};
+
+		cpm@ff000000 {
+			linux,phandle = <ff000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			#interrupt-cells = <2>;
+			device_type = "cpm";
+			model = "CPM";
+			ranges = <0 0 4000>;
+			reg = <860 f0>;
+			command-proc = <9c0>;
+			brg-frequency = <0>;
+			interrupts = <0 2>;	// cpm error interrupt
+			interrupt-parent = <930>;
+
+			pic@930 {
+				linux,phandle = <930>;
+				interrupt-controller;
+				#address-cells = <0>;
+				#interrupt-cells = <2>;
+				interrupts = <5 2 0 2>;
+				interrupt-parent = <ff000000>;
+				reg = <930 20>;
+				built-in;
+				device_type = "cpm-pic";
+				compatible = "CPM";
+			};
+
+			smc@a80 {
+				device_type = "serial";
+				compatible = "cpm_uart";
+				model = "SMC";
+				device-id = <1>;
+				reg = <a80 10 3e80 40>;
+				clock-setup = <00ffffff 0>;
+				rx-clock = <1>;
+				tx-clock = <1>;
+				current-speed = <0>;
+				interrupts = <4 3>;
+				interrupt-parent = <930>;
+			};
+
+			smc@a90 {
+				device_type = "serial";
+				compatible = "cpm_uart";
+				model = "SMC";
+				device-id = <2>;
+				reg = <a90 20 3f80 40>;
+				clock-setup = <ff00ffff 90000>;
+				rx-clock = <2>;
+				tx-clock = <2>;
+				current-speed = <0>;
+				interrupts = <3 3>;
+				interrupt-parent = <930>;
+			};
+
+			scc@a40 {
+				device_type = "network";
+				compatible = "fs_enet";
+				model = "SCC";
+				device-id = <3>;
+				reg = <a40 18 3e00 80>;
+				mac-address = [ 00 00 0C 00 03 FD ];
+				interrupts = <1c 3>;
+				interrupt-parent = <930>;
+				phy-handle = <e8002>;
+			};
+		};
+	};
+};

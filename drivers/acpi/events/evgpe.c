@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,7 +121,9 @@ acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info,
 	if (!gpe_register_info) {
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
-	register_bit = gpe_event_info->register_bit;
+	register_bit = (u8)
+	    (1 <<
+	     (gpe_event_info->gpe_number - gpe_register_info->base_gpe_number));
 
 	/* 1) Disable case.  Simply clear all enable bits */
 
@@ -458,8 +460,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 
 				/* Examine one GPE bit */
 
-				if (enabled_status_byte &
-				    acpi_gbl_decode_to8bit[j]) {
+				if (enabled_status_byte & (1 << j)) {
 					/*
 					 * Found an active GPE. Dispatch the event to a handler
 					 * or method.
@@ -570,7 +571,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"While evaluating GPE method [%4.4s]",
+					"while evaluating GPE method [%4.4s]",
 					acpi_ut_get_node_name
 					(local_gpe_event_info.dispatch.
 					 method_node)));
@@ -618,6 +619,8 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 
 	ACPI_FUNCTION_TRACE(ev_gpe_dispatch);
 
+	acpi_gpe_count++;
+
 	/*
 	 * If edge-triggered, clear the GPE status bit now.  Note that
 	 * level-triggered events are cleared after the GPE is serviced.
@@ -633,20 +636,12 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 		}
 	}
 
-	/* Save current system state */
-
-	if (acpi_gbl_system_awake_and_running) {
-		ACPI_SET_BIT(gpe_event_info->flags, ACPI_GPE_SYSTEM_RUNNING);
-	} else {
-		ACPI_CLEAR_BIT(gpe_event_info->flags, ACPI_GPE_SYSTEM_RUNNING);
-	}
-
 	/*
-	 * Dispatch the GPE to either an installed handler, or the control
-	 * method associated with this GPE (_Lxx or _Exx).
-	 * If a handler exists, we invoke it and do not attempt to run the method.
-	 * If there is neither a handler nor a method, we disable the level to
-	 * prevent further events from coming in here.
+	 * Dispatch the GPE to either an installed handler, or the control method
+	 * associated with this GPE (_Lxx or _Exx). If a handler exists, we invoke
+	 * it and do not attempt to run the method. If there is neither a handler
+	 * nor a method, we disable this GPE to prevent further such pointless
+	 * events from firing.
 	 */
 	switch (gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) {
 	case ACPI_GPE_DISPATCH_HANDLER:
@@ -677,8 +672,8 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 	case ACPI_GPE_DISPATCH_METHOD:
 
 		/*
-		 * Disable GPE, so it doesn't keep firing before the method has a
-		 * chance to run.
+		 * Disable the GPE, so it doesn't keep firing before the method has a
+		 * chance to run (it runs asynchronously with interrupts enabled).
 		 */
 		status = acpi_ev_disable_gpe(gpe_event_info);
 		if (ACPI_FAILURE(status)) {
@@ -711,7 +706,7 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 			    gpe_number));
 
 		/*
-		 * Disable the GPE.  The GPE will remain disabled until the ACPI
+		 * Disable the GPE. The GPE will remain disabled until the ACPI
 		 * Core Subsystem is restarted, or a handler is installed.
 		 */
 		status = acpi_ev_disable_gpe(gpe_event_info);
@@ -726,50 +721,3 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 
 	return_UINT32(ACPI_INTERRUPT_HANDLED);
 }
-
-#ifdef ACPI_GPE_NOTIFY_CHECK
-/*******************************************************************************
- * TBD: NOT USED, PROTOTYPE ONLY AND WILL PROBABLY BE REMOVED
- *
- * FUNCTION:    acpi_ev_check_for_wake_only_gpe
- *
- * PARAMETERS:  gpe_event_info  - info for this GPE
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Determine if a a GPE is "wake-only".
- *
- *              Called from Notify() code in interpreter when a "DeviceWake"
- *              Notify comes in.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_ev_check_for_wake_only_gpe(struct acpi_gpe_event_info *gpe_event_info)
-{
-	acpi_status status;
-
-	ACPI_FUNCTION_TRACE(ev_check_for_wake_only_gpe);
-
-	if ((gpe_event_info) &&	/* Only >0 for _Lxx/_Exx */
-	    ((gpe_event_info->flags & ACPI_GPE_SYSTEM_MASK) == ACPI_GPE_SYSTEM_RUNNING)) {	/* System state at GPE time */
-		/* This must be a wake-only GPE, disable it */
-
-		status = acpi_ev_disable_gpe(gpe_event_info);
-
-		/* Set GPE to wake-only.  Do not change wake disabled/enabled status */
-
-		acpi_ev_set_gpe_type(gpe_event_info, ACPI_GPE_TYPE_WAKE);
-
-		ACPI_INFO((AE_INFO,
-			   "GPE %p was updated from wake/run to wake-only",
-			   gpe_event_info));
-
-		/* This was a wake-only GPE */
-
-		return_ACPI_STATUS(AE_WAKE_ONLY_GPE);
-	}
-
-	return_ACPI_STATUS(AE_OK);
-}
-#endif

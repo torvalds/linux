@@ -945,7 +945,7 @@ static int usbvideo_find_struct(struct usbvideo *cams)
 	return rv;
 }
 
-static struct file_operations usbvideo_fops = {
+static const struct file_operations usbvideo_fops = {
 	.owner =  THIS_MODULE,
 	.open =   usbvideo_v4l_open,
 	.release =usbvideo_v4l_close,

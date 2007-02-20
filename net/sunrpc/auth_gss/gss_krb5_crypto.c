@@ -58,7 +58,7 @@ krb5_encrypt(
 	int length)
 {
 	u32 ret = -EINVAL;
-        struct scatterlist sg[1];
+	struct scatterlist sg[1];
 	u8 local_iv[16] = {0};
 	struct blkcipher_desc desc = { .tfm = tfm, .info = local_iv };
 
@@ -66,7 +66,7 @@ krb5_encrypt(
 		goto out;
 
 	if (crypto_blkcipher_ivsize(tfm) > 16) {
-		dprintk("RPC:      gss_k5encrypt: tfm iv size to large %d\n",
+		dprintk("RPC:       gss_k5encrypt: tfm iv size to large %d\n",
 		         crypto_blkcipher_ivsize(tfm));
 		goto out;
 	}
@@ -79,7 +79,7 @@ krb5_encrypt(
 
 	ret = crypto_blkcipher_encrypt_iv(&desc, sg, sg, length);
 out:
-	dprintk("RPC:      krb5_encrypt returns %d\n",ret);
+	dprintk("RPC:       krb5_encrypt returns %d\n", ret);
 	return ret;
 }
 
@@ -102,7 +102,7 @@ krb5_decrypt(
 		goto out;
 
 	if (crypto_blkcipher_ivsize(tfm) > 16) {
-		dprintk("RPC:      gss_k5decrypt: tfm iv size to large %d\n",
+		dprintk("RPC:       gss_k5decrypt: tfm iv size to large %d\n",
 			crypto_blkcipher_ivsize(tfm));
 		goto out;
 	}
@@ -114,7 +114,7 @@ krb5_decrypt(
 
 	ret = crypto_blkcipher_decrypt_iv(&desc, sg, sg, length);
 out:
-	dprintk("RPC:      gss_k5decrypt returns %d\n",ret);
+	dprintk("RPC:       gss_k5decrypt returns %d\n",ret);
 	return ret;
 }
 

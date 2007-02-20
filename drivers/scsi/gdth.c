@@ -387,7 +387,6 @@
 #include <linux/ctype.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/proc_fs.h>
@@ -687,7 +686,7 @@ MODULE_AUTHOR("Achim Leubner");
 MODULE_LICENSE("GPL");
 
 /* ioctl interface */
-static struct file_operations gdth_fops = {
+static const struct file_operations gdth_fops = {
     .ioctl   = gdth_ioctl,
     .open    = gdth_open,
     .release = gdth_close,

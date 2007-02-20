@@ -21,7 +21,6 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
-#include <linux/sched.h>
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>

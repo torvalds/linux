@@ -59,17 +59,13 @@
 #include <linux/capability.h>
 #include <linux/in.h>
 #include <linux/ip.h>
-#ifdef NETIF_F_TSO6
 #include <linux/ipv6.h>
-#endif
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <net/pkt_sched.h>
 #include <linux/list.h>
 #include <linux/reboot.h>
-#ifdef NETIF_F_TSO
 #include <net/checksum.h>
-#endif
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
@@ -257,7 +253,6 @@ struct e1000_adapter {
 	spinlock_t tx_queue_lock;
 #endif
 	atomic_t irq_sem;
-	unsigned int detect_link;
 	unsigned int total_tx_bytes;
 	unsigned int total_tx_packets;
 	unsigned int total_rx_bytes;
@@ -342,15 +337,12 @@ struct e1000_adapter {
 	struct e1000_rx_ring test_rx_ring;
 
 
-	uint32_t *config_space;
 	int msg_enable;
 #ifdef CONFIG_PCI_MSI
 	boolean_t have_msi;
 #endif
 	/* to not mess up cache alignment, always add to the bottom */
-#ifdef NETIF_F_TSO
 	boolean_t tso_force;
-#endif
 	boolean_t smart_power_down;	/* phy smart power down */
 	boolean_t quad_port_a;
 	unsigned long flags;

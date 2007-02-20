@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/errno.h>
@@ -47,7 +46,7 @@
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb_gadget.h>
 
@@ -72,9 +71,18 @@
  *
  * There's some hardware that can't talk CDC.  We make that hardware
  * implement a "minimalist" vendor-agnostic CDC core:  same framing, but
- * link-level setup only requires activating the configuration.
- * Linux supports it, but other host operating systems may not.
- * (This is a subset of CDC Ethernet.)
+ * link-level setup only requires activating the configuration.  Only the
+ * endpoint descriptors, and product/vendor IDs, are relevant; no control
+ * operations are available.  Linux supports it, but other host operating
+ * systems may not.  (This is a subset of CDC Ethernet.)
+ *
+ * It turns out that if you add a few descriptors to that "CDC Subset",
+ * (Windows) host side drivers from MCCI can treat it as one submode of
+ * a proprietary scheme called "SAFE" ... without needing to know about
+ * specific product/vendor IDs.  So we do that, making it easier to use
+ * those MS-Windows drivers.  Those added descriptors make it resemble a
+ * CDC MDLM device, but they don't change device behavior at all.  (See
+ * MCCI Engineering report 950198 "SAFE Networking Functions".)
  *
  * A third option is also in use.  Rather than CDC Ethernet, or something
  * simpler, Microsoft pushes their own approach: RNDIS.  The published
@@ -254,6 +262,10 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #define DEV_CONFIG_CDC
 #endif
 
+#ifdef CONFIG_USB_GADGET_S3C2410
+#define DEV_CONFIG_CDC
+#endif
+
 #ifdef CONFIG_USB_GADGET_AT91
 #define DEV_CONFIG_CDC
 #endif
@@ -263,6 +275,10 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #endif
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
+#define DEV_CONFIG_CDC
+#endif
+
+#ifdef CONFIG_USB_GADGET_HUSB2DEV
 #define DEV_CONFIG_CDC
 #endif
 
@@ -283,9 +299,6 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #define	DEV_CONFIG_SUBSET
 #endif
 
-#ifdef CONFIG_USB_GADGET_S3C2410
-#define DEV_CONFIG_CDC
-#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -487,8 +500,17 @@ rndis_config = {
  * endpoint.  Both have a "data" interface and two bulk endpoints.
  * There are also differences in how control requests are handled.
  *
- * RNDIS shares a lot with CDC-Ethernet, since it's a variant of
- * the CDC-ACM (modem) spec.
+ * RNDIS shares a lot with CDC-Ethernet, since it's a variant of the
+ * CDC-ACM (modem) spec.  Unfortunately MSFT's RNDIS driver is buggy; it
+ * may hang or oops.  Since bugfixes (or accurate specs, letting Linux
+ * work around those bugs) are unlikely to ever come from MSFT, you may
+ * wish to avoid using RNDIS.
+ *
+ * MCCI offers an alternative to RNDIS if you need to connect to Windows
+ * but have hardware that can't support CDC Ethernet.   We add descriptors
+ * to present the CDC Subset as a (nonconformant) CDC MDLM variant called
+ * "SAFE".  That borrows from both CDC Ethernet and CDC MDLM.  You can
+ * get those drivers from MCCI, or bundled with various products.
  */
 
 #ifdef	DEV_CONFIG_CDC
@@ -522,8 +544,6 @@ rndis_control_intf = {
 };
 #endif
 
-#if defined(DEV_CONFIG_CDC) || defined(CONFIG_USB_ETH_RNDIS)
-
 static const struct usb_cdc_header_desc header_desc = {
 	.bLength =		sizeof header_desc,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
@@ -531,6 +551,8 @@ static const struct usb_cdc_header_desc header_desc = {
 
 	.bcdCDC =		__constant_cpu_to_le16 (0x0110),
 };
+
+#if defined(DEV_CONFIG_CDC) || defined(CONFIG_USB_ETH_RNDIS)
 
 static const struct usb_cdc_union_desc union_desc = {
 	.bLength =		sizeof union_desc,
@@ -564,7 +586,40 @@ static const struct usb_cdc_acm_descriptor acm_descriptor = {
 
 #endif
 
-#ifdef	DEV_CONFIG_CDC
+#ifndef DEV_CONFIG_CDC
+
+/* "SAFE" loosely follows CDC WMC MDLM, violating the spec in various
+ * ways:  data endpoints live in the control interface, there's no data
+ * interface, and it's not used to talk to a cell phone radio.
+ */
+
+static const struct usb_cdc_mdlm_desc mdlm_desc = {
+	.bLength =		sizeof mdlm_desc,
+	.bDescriptorType =	USB_DT_CS_INTERFACE,
+	.bDescriptorSubType =	USB_CDC_MDLM_TYPE,
+
+	.bcdVersion =		__constant_cpu_to_le16(0x0100),
+	.bGUID = {
+		0x5d, 0x34, 0xcf, 0x66, 0x11, 0x18, 0x11, 0xd6,
+		0xa2, 0x1a, 0x00, 0x01, 0x02, 0xca, 0x9a, 0x7f,
+	},
+};
+
+/* since "usb_cdc_mdlm_detail_desc" is a variable length structure, we
+ * can't really use its struct.  All we do here is say that we're using
+ * the submode of "SAFE" which directly matches the CDC Subset.
+ */
+static const u8 mdlm_detail_desc[] = {
+	6,
+	USB_DT_CS_INTERFACE,
+	USB_CDC_MDLM_DETAIL_TYPE,
+
+	0,	/* "SAFE" */
+	0,	/* network control capabilities (none) */
+	0,	/* network data capabilities ("raw" encapsulation) */
+};
+
+#endif
 
 static const struct usb_cdc_ether_desc ether_desc = {
 	.bLength =		sizeof ether_desc,
@@ -579,7 +634,6 @@ static const struct usb_cdc_ether_desc ether_desc = {
 	.bNumberPowerFilters =	0,
 };
 
-#endif
 
 #if defined(DEV_CONFIG_CDC) || defined(CONFIG_USB_ETH_RNDIS)
 
@@ -672,6 +726,9 @@ rndis_data_intf = {
 /*
  * "Simple" CDC-subset option is a simple vendor-neutral model that most
  * full speed controllers can handle:  one interface, two bulk endpoints.
+ *
+ * To assist host side drivers, we fancy it up a bit, and add descriptors
+ * so some host side drivers will understand it as a "SAFE" variant.
  */
 
 static const struct usb_interface_descriptor
@@ -682,8 +739,8 @@ subset_data_intf = {
 	.bInterfaceNumber =	0,
 	.bAlternateSetting =	0,
 	.bNumEndpoints =	2,
-	.bInterfaceClass =	USB_CLASS_VENDOR_SPEC,
-	.bInterfaceSubClass =	0,
+	.bInterfaceClass =      USB_CLASS_COMM,
+	.bInterfaceSubClass =	USB_CDC_SUBCLASS_MDLM,
 	.bInterfaceProtocol =	0,
 	.iInterface =		STRING_DATA,
 };
@@ -731,10 +788,15 @@ static const struct usb_descriptor_header *fs_eth_function [11] = {
 static inline void __init fs_subset_descriptors(void)
 {
 #ifdef DEV_CONFIG_SUBSET
+	/* behavior is "CDC Subset"; extra descriptors say "SAFE" */
 	fs_eth_function[1] = (struct usb_descriptor_header *) &subset_data_intf;
-	fs_eth_function[2] = (struct usb_descriptor_header *) &fs_source_desc;
-	fs_eth_function[3] = (struct usb_descriptor_header *) &fs_sink_desc;
-	fs_eth_function[4] = NULL;
+	fs_eth_function[2] = (struct usb_descriptor_header *) &header_desc;
+	fs_eth_function[3] = (struct usb_descriptor_header *) &mdlm_desc;
+	fs_eth_function[4] = (struct usb_descriptor_header *) &mdlm_detail_desc;
+	fs_eth_function[5] = (struct usb_descriptor_header *) &ether_desc;
+	fs_eth_function[6] = (struct usb_descriptor_header *) &fs_source_desc;
+	fs_eth_function[7] = (struct usb_descriptor_header *) &fs_sink_desc;
+	fs_eth_function[8] = NULL;
 #else
 	fs_eth_function[1] = NULL;
 #endif
@@ -828,10 +890,15 @@ static const struct usb_descriptor_header *hs_eth_function [11] = {
 static inline void __init hs_subset_descriptors(void)
 {
 #ifdef DEV_CONFIG_SUBSET
+	/* behavior is "CDC Subset"; extra descriptors say "SAFE" */
 	hs_eth_function[1] = (struct usb_descriptor_header *) &subset_data_intf;
-	hs_eth_function[2] = (struct usb_descriptor_header *) &fs_source_desc;
-	hs_eth_function[3] = (struct usb_descriptor_header *) &fs_sink_desc;
-	hs_eth_function[4] = NULL;
+	hs_eth_function[2] = (struct usb_descriptor_header *) &header_desc;
+	hs_eth_function[3] = (struct usb_descriptor_header *) &mdlm_desc;
+	hs_eth_function[4] = (struct usb_descriptor_header *) &mdlm_detail_desc;
+	hs_eth_function[5] = (struct usb_descriptor_header *) &ether_desc;
+	hs_eth_function[6] = (struct usb_descriptor_header *) &hs_source_desc;
+	hs_eth_function[7] = (struct usb_descriptor_header *) &hs_sink_desc;
+	hs_eth_function[8] = NULL;
 #else
 	hs_eth_function[1] = NULL;
 #endif
@@ -878,10 +945,8 @@ static char				manufacturer [50];
 static char				product_desc [40] = DRIVER_DESC;
 static char				serial_number [20];
 
-#ifdef	DEV_CONFIG_CDC
 /* address that the host will use ... usually assigned at random */
 static char				ethaddr [2 * ETH_ALEN + 1];
-#endif
 
 /* static strings, in UTF-8 */
 static struct usb_string		strings [] = {
@@ -889,9 +954,9 @@ static struct usb_string		strings [] = {
 	{ STRING_PRODUCT,	product_desc, },
 	{ STRING_SERIALNUMBER,	serial_number, },
 	{ STRING_DATA,		"Ethernet Data", },
+	{ STRING_ETHADDR,	ethaddr, },
 #ifdef	DEV_CONFIG_CDC
 	{ STRING_CDC,		"CDC Ethernet", },
-	{ STRING_ETHADDR,	ethaddr, },
 	{ STRING_CONTROL,	"CDC Communications Control", },
 #endif
 #ifdef	DEV_CONFIG_SUBSET
@@ -986,10 +1051,10 @@ set_ether_config (struct eth_dev *dev, gfp_t gfp_flags)
 	}
 #endif
 
-	dev->in = ep_desc (dev->gadget, &hs_source_desc, &fs_source_desc);
+	dev->in = ep_desc(gadget, &hs_source_desc, &fs_source_desc);
 	dev->in_ep->driver_data = dev;
 
-	dev->out = ep_desc (dev->gadget, &hs_sink_desc, &fs_sink_desc);
+	dev->out = ep_desc(gadget, &hs_sink_desc, &fs_sink_desc);
 	dev->out_ep->driver_data = dev;
 
 	/* With CDC,  the host isn't allowed to use these two data
@@ -2278,10 +2343,10 @@ eth_bind (struct usb_gadget *gadget)
 			"RNDIS/%s", driver_desc);
 
 	/* CDC subset ... recognized by Linux since 2.4.10, but Windows
-	 * drivers aren't widely available.
+	 * drivers aren't widely available.  (That may be improved by
+	 * supporting one submode of the "SAFE" variant of MDLM.)
 	 */
 	} else if (!cdc) {
-		device_desc.bDeviceClass = USB_CLASS_VENDOR_SPEC;
 		device_desc.idVendor =
 			__constant_cpu_to_le16(SIMPLE_VENDOR_NUM);
 		device_desc.idProduct =
@@ -2352,6 +2417,10 @@ autoconf_fail:
 	if (!cdc) {
 		eth_config.bNumInterfaces = 1;
 		eth_config.iConfiguration = STRING_SUBSET;
+
+		/* use functions to set these up, in case we're built to work
+		 * with multiple controllers and must override CDC Ethernet.
+		 */
 		fs_subset_descriptors();
 		hs_subset_descriptors();
 	}
@@ -2415,22 +2484,20 @@ autoconf_fail:
 
 	/* Module params for these addresses should come from ID proms.
 	 * The host side address is used with CDC and RNDIS, and commonly
-	 * ends up in a persistent config database.
+	 * ends up in a persistent config database.  It's not clear if
+	 * host side code for the SAFE thing cares -- its original BLAN
+	 * thing didn't, Sharp never assigned those addresses on Zaurii.
 	 */
 	if (get_ether_addr(dev_addr, net->dev_addr))
 		dev_warn(&gadget->dev,
 			"using random %s ethernet address\n", "self");
-	if (cdc || rndis) {
-		if (get_ether_addr(host_addr, dev->host_mac))
-			dev_warn(&gadget->dev,
-				"using random %s ethernet address\n", "host");
-#ifdef	DEV_CONFIG_CDC
-		snprintf (ethaddr, sizeof ethaddr, "%02X%02X%02X%02X%02X%02X",
-			dev->host_mac [0], dev->host_mac [1],
-			dev->host_mac [2], dev->host_mac [3],
-			dev->host_mac [4], dev->host_mac [5]);
-#endif
-	}
+	if (get_ether_addr(host_addr, dev->host_mac))
+		dev_warn(&gadget->dev,
+			"using random %s ethernet address\n", "host");
+	snprintf (ethaddr, sizeof ethaddr, "%02X%02X%02X%02X%02X%02X",
+		dev->host_mac [0], dev->host_mac [1],
+		dev->host_mac [2], dev->host_mac [3],
+		dev->host_mac [4], dev->host_mac [5]);
 
 	if (rndis) {
 		status = rndis_init();

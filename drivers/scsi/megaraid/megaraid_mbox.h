@@ -21,8 +21,8 @@
 #include "megaraid_ioctl.h"
 
 
-#define MEGARAID_VERSION	"2.20.4.9"
-#define MEGARAID_EXT_VERSION	"(Release Date: Sun Jul 16 12:27:22 EST 2006)"
+#define MEGARAID_VERSION	"2.20.5.1"
+#define MEGARAID_EXT_VERSION	"(Release Date: Thu Nov 16 15:32:35 EST 2006)"
 
 
 /*
@@ -146,27 +146,27 @@ typedef struct {
 
 /**
  * mraid_device_t - adapter soft state structure for mailbox controllers
- * @param una_mbox64		: 64-bit mbox - unaligned
- * @param una_mbox64_dma	: mbox dma addr - unaligned
- * @param mbox			: 32-bit mbox - aligned
- * @param mbox64		: 64-bit mbox - aligned
- * @param mbox_dma		: mbox dma addr - aligned
- * @param mailbox_lock		: exclusion lock for the mailbox
- * @param baseport		: base port of hba memory
- * @param baseaddr		: mapped addr of hba memory
- * @param mbox_pool		: pool of mailboxes
- * @param mbox_pool_handle	: handle for the mailbox pool memory
- * @param epthru_pool		: a pool for extended passthru commands
- * @param epthru_pool_handle	: handle to the pool above
- * @param sg_pool		: pool of scatter-gather lists for this driver
- * @param sg_pool_handle	: handle to the pool above
- * @param ccb_list		: list of our command control blocks
- * @param uccb_list		: list of cmd control blocks for mgmt module
- * @param umbox64		: array of mailbox for user commands (cmm)
- * @param pdrv_state		: array for state of each physical drive.
- * @param last_disp		: flag used to show device scanning
- * @param hw_error		: set if FW not responding
- * @param fast_load		: If set, skip physical device scanning
+ * @una_mbox64			: 64-bit mbox - unaligned
+ * @una_mbox64_dma		: mbox dma addr - unaligned
+ * @mbox			: 32-bit mbox - aligned
+ * @mbox64			: 64-bit mbox - aligned
+ * @mbox_dma			: mbox dma addr - aligned
+ * @mailbox_lock		: exclusion lock for the mailbox
+ * @baseport			: base port of hba memory
+ * @baseaddr			: mapped addr of hba memory
+ * @mbox_pool			: pool of mailboxes
+ * @mbox_pool_handle		: handle for the mailbox pool memory
+ * @epthru_pool			: a pool for extended passthru commands
+ * @epthru_pool_handle		: handle to the pool above
+ * @sg_pool			: pool of scatter-gather lists for this driver
+ * @sg_pool_handle		: handle to the pool above
+ * @ccb_list			: list of our command control blocks
+ * @uccb_list			: list of cmd control blocks for mgmt module
+ * @umbox64			: array of mailbox for user commands (cmm)
+ * @pdrv_state			: array for state of each physical drive.
+ * @last_disp			: flag used to show device scanning
+ * @hw_error			: set if FW not responding
+ * @fast_load			: If set, skip physical device scanning
  * @channel_class		: channel class, RAID or SCSI
  * @sysfs_sem			: semaphore to serialize access to sysfs res.
  * @sysfs_uioc			: management packet to issue FW calls from sysfs

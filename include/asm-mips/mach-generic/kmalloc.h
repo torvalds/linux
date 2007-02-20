@@ -5,6 +5,7 @@
 #ifndef CONFIG_DMA_COHERENT
 /*
  * Total overkill for most systems but need as a safe default.
+ * Set this one if any device in the system might do non-coherent DMA.
  */
 #define ARCH_KMALLOC_MINALIGN	128
 #endif

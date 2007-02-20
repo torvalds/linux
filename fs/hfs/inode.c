@@ -18,7 +18,7 @@
 #include "btree.h"
 
 static const struct file_operations hfs_file_operations;
-static struct inode_operations hfs_file_inode_operations;
+static const struct inode_operations hfs_file_inode_operations;
 
 /*================ Variable-like macros ================*/
 
@@ -612,7 +612,7 @@ static const struct file_operations hfs_file_operations = {
 	.release	= hfs_file_release,
 };
 
-static struct inode_operations hfs_file_inode_operations = {
+static const struct inode_operations hfs_file_inode_operations = {
 	.lookup		= hfs_file_lookup,
 	.truncate	= hfs_file_truncate,
 	.setattr	= hfs_inode_setattr,

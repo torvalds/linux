@@ -418,7 +418,6 @@ ahd_linux_info(struct Scsi_Host *host)
 	strcat(bp, "        ");
 	ahd_controller_info(ahd, ahd_info);
 	strcat(bp, ahd_info);
-	strcat(bp, "\n");
 
 	return (bp);
 }
@@ -1124,15 +1123,6 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 
 	scsi_scan_host(host);
 	return 0;
-}
-
-uint64_t
-ahd_linux_get_memsize(void)
-{
-	struct sysinfo si;
-
-	si_meminfo(&si);
-	return ((uint64_t)si.totalram << PAGE_SHIFT);
 }
 
 /*

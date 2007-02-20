@@ -37,14 +37,37 @@
 #define NUM_CONTROL_ALLOC	32
 #define STAC_HP_EVENT		0x37
 
-#define STAC_REF		0
-#define STAC_D945GTP3		1
-#define STAC_D945GTP5		2
-#define STAC_MACMINI		3
-#define STAC_922X_MODELS	4	/* number of 922x models */
-#define STAC_D965_3ST		4
-#define STAC_D965_5ST		5
-#define STAC_927X_MODELS	6	/* number of 922x models */
+enum {
+	STAC_REF,
+	STAC_9200_MODELS
+};
+
+enum {
+	STAC_9205_REF,
+	STAC_9205_MODELS
+};
+
+enum {
+	STAC_925x_REF,
+	STAC_M2_2,
+	STAC_MA6,
+	STAC_925x_MODELS
+};
+
+enum {
+	STAC_D945_REF,
+	STAC_D945GTP3,
+	STAC_D945GTP5,
+	STAC_MACMINI,
+	STAC_922X_MODELS
+};
+
+enum {
+	STAC_D965_REF,
+	STAC_D965_3ST,
+	STAC_D965_5ST,
+	STAC_927X_MODELS
+};
 
 struct sigmatel_spec {
 	struct snd_kcontrol_new *mixers[4];
@@ -67,6 +90,9 @@ struct sigmatel_spec {
 	unsigned int num_adcs;
 	hda_nid_t *mux_nids;
 	unsigned int num_muxes;
+	hda_nid_t *dmic_nids;
+	unsigned int num_dmics;
+	hda_nid_t dmux_nid;
 	hda_nid_t dig_in_nid;
 
 	/* pin widgets */
@@ -80,6 +106,8 @@ struct sigmatel_spec {
 	struct snd_kcontrol_new *mixer;
 
 	/* capture source */
+	struct hda_input_mux *dinput_mux;
+	unsigned int cur_dmux;
 	struct hda_input_mux *input_mux;
 	unsigned int cur_mux[3];
 
@@ -92,6 +120,7 @@ struct sigmatel_spec {
 	struct auto_pin_cfg autocfg;
 	unsigned int num_kctl_alloc, num_kctl_used;
 	struct snd_kcontrol_new *kctl_alloc;
+	struct hda_input_mux private_dimux;
 	struct hda_input_mux private_imux;
 };
 
@@ -104,6 +133,18 @@ static hda_nid_t stac9200_mux_nids[1] = {
 };
 
 static hda_nid_t stac9200_dac_nids[1] = {
+        0x02,
+};
+
+static hda_nid_t stac925x_adc_nids[1] = {
+        0x03,
+};
+
+static hda_nid_t stac925x_mux_nids[1] = {
+        0x0f,
+};
+
+static hda_nid_t stac925x_dac_nids[1] = {
         0x02,
 };
 
@@ -131,9 +172,18 @@ static hda_nid_t stac9205_mux_nids[2] = {
         0x19, 0x1a
 };
 
+static hda_nid_t stac9205_dmic_nids[3] = {
+        0x17, 0x18, 0
+};
+
 static hda_nid_t stac9200_pin_nids[8] = {
 	0x08, 0x09, 0x0d, 0x0e, 
 	0x0f, 0x10, 0x11, 0x12,
+};
+
+static hda_nid_t stac925x_pin_nids[8] = {
+	0x07, 0x08, 0x0a, 0x0b, 
+	0x0c, 0x0d, 0x10, 0x11,
 };
 
 static hda_nid_t stac922x_pin_nids[10] = {
@@ -153,6 +203,34 @@ static hda_nid_t stac9205_pin_nids[12] = {
 	0x21, 0x22,
 	
 };
+
+static int stac92xx_dmux_enum_info(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+	return snd_hda_input_mux_info(spec->dinput_mux, uinfo);
+}
+
+static int stac92xx_dmux_enum_get(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+
+	ucontrol->value.enumerated.item[0] = spec->cur_dmux;
+	return 0;
+}
+
+static int stac92xx_dmux_enum_put(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+
+	return snd_hda_input_mux_put(codec, spec->dinput_mux, ucontrol,
+				     spec->dmux_nid, &spec->cur_dmux);
+}
 
 static int stac92xx_mux_enum_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
@@ -184,6 +262,12 @@ static int stac92xx_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 static struct hda_verb stac9200_core_init[] = {
 	/* set dac0mux for dac converter */
 	{ 0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{}
+};
+
+static struct hda_verb stac925x_core_init[] = {
+	/* set dac0mux for dac converter */
+	{ 0x06, AC_VERB_SET_CONNECT_SEL, 0x00},
 	{}
 };
 
@@ -232,6 +316,23 @@ static struct snd_kcontrol_new stac9200_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new stac925x_mixer[] = {
+	HDA_CODEC_VOLUME("Master Playback Volume", 0xe, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Master Playback Switch", 0xe, 0, HDA_OUTPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Input Source",
+		.count = 1,
+		.info = stac92xx_mux_enum_info,
+		.get = stac92xx_mux_enum_get,
+		.put = stac92xx_mux_enum_put,
+	},
+	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x09, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Capture Mux Volume", 0x0f, 0, HDA_OUTPUT),
+	{ } /* end */
+};
+
 /* This needs to be generated dynamically based on sequence */
 static struct snd_kcontrol_new stac922x_mixer[] = {
 	{
@@ -263,7 +364,7 @@ static struct snd_kcontrol_new stac9227_mixer[] = {
 	{ } /* end */
 };
 
-static snd_kcontrol_new_t stac927x_mixer[] = {
+static struct snd_kcontrol_new stac927x_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Input Source",
@@ -278,7 +379,15 @@ static snd_kcontrol_new_t stac927x_mixer[] = {
 	{ } /* end */
 };
 
-static snd_kcontrol_new_t stac9205_mixer[] = {
+static struct snd_kcontrol_new stac9205_mixer[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Digital Input Source",
+		.count = 1,
+		.info = stac92xx_dmux_enum_info,
+		.get = stac92xx_dmux_enum_get,
+		.put = stac92xx_dmux_enum_put,
+	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Input Source",
@@ -327,22 +436,68 @@ static unsigned int ref9200_pin_configs[8] = {
 	0x02a19020, 0x01a19021, 0x90100140, 0x01813122,
 };
 
-static unsigned int *stac9200_brd_tbl[] = {
-	ref9200_pin_configs,
+static unsigned int *stac9200_brd_tbl[STAC_9200_MODELS] = {
+	[STAC_REF] = ref9200_pin_configs,
 };
 
-static struct hda_board_config stac9200_cfg_tbl[] = {
-	{ .modelname = "ref",
-	  .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2668,	/* DFI LanParty */
-	  .config = STAC_REF },
+static const char *stac9200_models[STAC_9200_MODELS] = {
+	[STAC_REF] = "ref",
+};
+
+static struct snd_pci_quirk stac9200_cfg_tbl[] = {
+	/* SigmaTel reference board */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
+		      "DFI LanParty", STAC_REF),
 	/* Dell laptops have BIOS problem */
-	{ .pci_subvendor = PCI_VENDOR_ID_DELL, .pci_subdevice = 0x01b5,
-	  .config = STAC_REF },	/* Dell Inspiron 630m */
-	{ .pci_subvendor = PCI_VENDOR_ID_DELL, .pci_subdevice = 0x01c2,
-	  .config = STAC_REF },	/* Dell Latitude D620 */
-	{ .pci_subvendor = PCI_VENDOR_ID_DELL, .pci_subdevice = 0x01cb,
-	  .config = STAC_REF },	/* Dell Latitude 120L */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01b5,
+		      "Dell Inspiron 630m", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01c2,
+		      "Dell Latitude D620", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cb,
+		      "Dell Latitude 120L", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cc,
+		      "Dell Latitude D820", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cd,
+		      "Dell Inspiron E1705/9400", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ce,
+		      "Dell XPS M1710", STAC_REF),
+	{} /* terminator */
+};
+
+static unsigned int ref925x_pin_configs[8] = {
+	0x40c003f0, 0x424503f2, 0x01813022, 0x02a19021,
+	0x90a70320, 0x02214210, 0x400003f1, 0x9033032e,
+};
+
+static unsigned int stac925x_MA6_pin_configs[8] = {
+	0x40c003f0, 0x424503f2, 0x01813022, 0x02a19021,
+	0x90a70320, 0x90100211, 0x400003f1, 0x9033032e,
+};
+
+static unsigned int stac925xM2_2_pin_configs[8] = {
+	0x40c003f3, 0x424503f2, 0x041800f4, 0x02a19020,
+	0x50a103F0, 0x90100210, 0x400003f1, 0x9033032e,
+};
+
+static unsigned int *stac925x_brd_tbl[STAC_925x_MODELS] = {
+	[STAC_REF] = ref925x_pin_configs,
+	[STAC_M2_2] = stac925xM2_2_pin_configs,
+	[STAC_MA6] = stac925x_MA6_pin_configs,
+};
+
+static const char *stac925x_models[STAC_925x_MODELS] = {
+	[STAC_REF] = "ref",
+	[STAC_M2_2] = "m2-2",
+	[STAC_MA6] = "m6",
+};
+
+static struct snd_pci_quirk stac925x_cfg_tbl[] = {
+	/* SigmaTel reference board */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668, "DFI LanParty", STAC_REF),
+	SND_PCI_QUIRK(0x107b, 0x0316, "Gateway M255", STAC_REF),
+	SND_PCI_QUIRK(0x107b, 0x0366, "Gateway MP6954", STAC_REF),
+	SND_PCI_QUIRK(0x107b, 0x0461, "Gateway NX560XL", STAC_MA6),
+	SND_PCI_QUIRK(0x1002, 0x437b, "Gateway MX6453", STAC_M2_2),
 	{} /* terminator */
 };
 
@@ -365,100 +520,80 @@ static unsigned int d945gtp5_pin_configs[10] = {
 };
 
 static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
-	[STAC_REF] =	ref922x_pin_configs,
+	[STAC_D945_REF] = ref922x_pin_configs,
 	[STAC_D945GTP3] = d945gtp3_pin_configs,
 	[STAC_D945GTP5] = d945gtp5_pin_configs,
 	[STAC_MACMINI] = d945gtp5_pin_configs,
 };
 
-static struct hda_board_config stac922x_cfg_tbl[] = {
-	{ .modelname = "5stack", .config = STAC_D945GTP5 },
-	{ .modelname = "3stack", .config = STAC_D945GTP3 },
-	{ .modelname = "ref",
-	  .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2668,	/* DFI LanParty */
-	  .config = STAC_REF },		/* SigmaTel reference board */
-         /* Intel 945G based systems */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0101,
-	  .config = STAC_D945GTP3 },	/* Intel D945GTP - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0202,
-	  .config = STAC_D945GTP3 },	/* Intel D945GNT - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0606,
-	  .config = STAC_D945GTP3 },	/* Intel D945GTP - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0601,
-	  .config = STAC_D945GTP3 },	/* Intel D945GTP - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0111,
-	  .config = STAC_D945GTP3 },	/* Intel D945GZP - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x1115,
-	  .config = STAC_D945GTP3 },	/* Intel D945GPM - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x1116,
-	  .config = STAC_D945GTP3 },	/* Intel D945GBO - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x1117,
-	  .config = STAC_D945GTP3 },	/* Intel D945GPM - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x1118,
-	  .config = STAC_D945GTP3 },	/* Intel D945GPM - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x1119,
-	  .config = STAC_D945GTP3 },	/* Intel D945GPM - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x8826,
-	  .config = STAC_D945GTP3 },	/* Intel D945GPM - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x5049,
-	  .config = STAC_D945GTP3 },	/* Intel D945GCZ - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x5055,
-	  .config = STAC_D945GTP3 },	/* Intel D945GCZ - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x5048,
-	  .config = STAC_D945GTP3 },	/* Intel D945GPB - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0110,
-	  .config = STAC_D945GTP3 },	/* Intel D945GLR - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0404,
-	  .config = STAC_D945GTP5 },	/* Intel D945GTP - 5 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0303,
-	  .config = STAC_D945GTP5 },	/* Intel D945GNT - 5 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0013,
-	  .config = STAC_D945GTP5 },	/* Intel D955XBK - 5 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0417,
-	  .config = STAC_D945GTP5 },	/* Intel D975XBK - 5 Stack */
-	  /* Intel 945P based systems */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0b0b,
-	  .config = STAC_D945GTP3 },	/* Intel D945PSN - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0112,
-	  .config = STAC_D945GTP3 },	/* Intel D945PLN - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0d0d,
-	  .config = STAC_D945GTP3 },	/* Intel D945PLM - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0909,
-	  .config = STAC_D945GTP3 },	/* Intel D945PAW - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0505,
-	  .config = STAC_D945GTP3 },	/* Intel D945PLM - 3 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x0707,
-	  .config = STAC_D945GTP5 },	/* Intel D945PSV - 5 Stack */
-	  /* other systems  */
-	{ .pci_subvendor = 0x8384,
-	  .pci_subdevice = 0x7680,
-	  .config = STAC_MACMINI },	/* Apple Mac Mini (early 2006) */
+static const char *stac922x_models[STAC_922X_MODELS] = {
+	[STAC_D945_REF]	= "ref",
+	[STAC_D945GTP5]	= "5stack",
+	[STAC_D945GTP3]	= "3stack",
+	[STAC_MACMINI]	= "macmini",
+};
+
+static struct snd_pci_quirk stac922x_cfg_tbl[] = {
+	/* SigmaTel reference board */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
+		      "DFI LanParty", STAC_D945_REF),
+	/* Intel 945G based systems */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0101,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0202,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0606,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0601,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0111,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x1115,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x1116,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x1117,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x1118,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x1119,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x8826,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x5049,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x5055,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x5048,
+		      "Intel D945G", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0110,
+		      "Intel D945G", STAC_D945GTP3),
+	/* Intel D945G 5-stack systems */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0404,
+		      "Intel D945G", STAC_D945GTP5),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0303,
+		      "Intel D945G", STAC_D945GTP5),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0013,
+		      "Intel D945G", STAC_D945GTP5),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0417,
+		      "Intel D945G", STAC_D945GTP5),
+	/* Intel 945P based systems */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0b0b,
+		      "Intel D945P", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0112,
+		      "Intel D945P", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0d0d,
+		      "Intel D945P", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0909,
+		      "Intel D945P", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0505,
+		      "Intel D945P", STAC_D945GTP3),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0707,
+		      "Intel D945P", STAC_D945GTP5),
+	/* other systems  */
+	/* Apple Mac Mini (early 2006) */
+	SND_PCI_QUIRK(0x8384, 0x7680,
+		      "Mac Mini", STAC_MACMINI),
 	{} /* terminator */
 };
 
@@ -484,120 +619,72 @@ static unsigned int d965_5st_pin_configs[14] = {
 };
 
 static unsigned int *stac927x_brd_tbl[STAC_927X_MODELS] = {
-	[STAC_REF] =	ref927x_pin_configs,
+	[STAC_D965_REF] = ref927x_pin_configs,
 	[STAC_D965_3ST] = d965_3st_pin_configs,
 	[STAC_D965_5ST] = d965_5st_pin_configs,
 };
 
-static struct hda_board_config stac927x_cfg_tbl[] = {
-	{ .modelname = "5stack", .config = STAC_D965_5ST },
-	{ .modelname = "3stack", .config = STAC_D965_3ST },
-	{ .modelname = "ref",
-	  .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2668,	/* DFI LanParty */
-	  .config = STAC_REF },		/* SigmaTel reference board */
+static const char *stac927x_models[STAC_927X_MODELS] = {
+	[STAC_D965_REF]	= "ref",
+	[STAC_D965_3ST]	= "3stack",
+	[STAC_D965_5ST] = "5stack",
+};
+
+static struct snd_pci_quirk stac927x_cfg_tbl[] = {
+	/* SigmaTel reference board */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
+		      "DFI LanParty", STAC_D965_REF),
 	 /* Intel 946 based systems */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x3d01,
-	  .config = STAC_D965_3ST }, /* D946  configuration */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0xa301,
-	  .config = STAC_D965_3ST }, /* Intel D946GZT - 3 stack  */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x3d01, "Intel D946", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0xa301, "Intel D946", STAC_D965_3ST),
 	/* 965 based 3 stack systems */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2116,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2115,
-	  .config = STAC_D965_3ST }, /* Intel DQ965WC - 3 Stack  */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2114,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2113,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2112,
-	  .config = STAC_D965_3ST }, /* Intel DG965MS - 3 Stack  */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2111,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2110,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2009,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2008,
-	  .config = STAC_D965_3ST }, /* Intel DQ965GF - 3 Stack  */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2007,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2006,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2005,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2004,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2003,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2002,
-	  .config = STAC_D965_3ST }, /* Intel D965 3Stack config */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2001,
-	  .config = STAC_D965_3ST }, /* Intel DQ965GF - 3 Stack */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2116, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2115, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2114, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2113, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2112, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2111, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2110, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2009, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2008, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2007, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2006, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2005, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2004, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2003, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2002, "Intel D965", STAC_D965_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2001, "Intel D965", STAC_D965_3ST),
 	/* 965 based 5 stack systems */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2301,
-	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2302,
-	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2303,
-	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2304,
-	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2305,
-	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2501,
-	  .config = STAC_D965_5ST }, /* Intel DG965MQ - 5 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2502,
-	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2503,
-	  .config = STAC_D965_5ST }, /* Intel DG965 - 5 Stack */
-	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2504,
-	  .config = STAC_D965_5ST }, /* Intel DQ965GF - 5 Stack */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2301, "Intel D965", STAC_D965_5ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2302, "Intel D965", STAC_D965_5ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2303, "Intel D965", STAC_D965_5ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2304, "Intel D965", STAC_D965_5ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2305, "Intel D965", STAC_D965_5ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2501, "Intel D965", STAC_D965_5ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2502, "Intel D965", STAC_D965_5ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2503, "Intel D965", STAC_D965_5ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2504, "Intel D965", STAC_D965_5ST),
 	{} /* terminator */
 };
 
 static unsigned int ref9205_pin_configs[12] = {
 	0x40000100, 0x40000100, 0x01016011, 0x01014010,
-	0x01813122, 0x01a19021, 0x40000100, 0x40000100, 
-	0x40000100, 0x40000100, 0x01441030, 0x01c41030
+	0x01813122, 0x01a19021, 0x40000100, 0x40000100,
+	0x90a000f0, 0x90a000f0, 0x01441030, 0x01c41030
 };
 
-static unsigned int *stac9205_brd_tbl[] = {
+static unsigned int *stac9205_brd_tbl[STAC_9205_MODELS] = {
 	ref9205_pin_configs,
 };
 
-static struct hda_board_config stac9205_cfg_tbl[] = {
-	{ .modelname = "ref",
-	  .pci_subvendor = PCI_VENDOR_ID_INTEL,
-	  .pci_subdevice = 0x2668,	/* DFI LanParty */
-	  .config = STAC_REF },		/* SigmaTel reference board */
+static const char *stac9205_models[STAC_9205_MODELS] = {
+	[STAC_9205_REF] = "ref",
+};
+
+static struct snd_pci_quirk stac9205_cfg_tbl[] = {
+	/* SigmaTel reference board */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
+		      "DFI LanParty", STAC_9205_REF),
 	{} /* terminator */
 };
 
@@ -1154,6 +1241,58 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 	return 0;
 }
 
+/* labels for dmic mux inputs */
+static const char *stac92xx_dmic_labels[5] = {
+	"Analog Inputs", "Digital Mic 1", "Digital Mic 2",
+	"Digital Mic 3", "Digital Mic 4"
+};
+
+/* create playback/capture controls for input pins on dmic capable codecs */
+static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
+						const struct auto_pin_cfg *cfg)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	struct hda_input_mux *dimux = &spec->private_dimux;
+	hda_nid_t con_lst[HDA_MAX_NUM_INPUTS];
+	int i, j;
+
+	dimux->items[dimux->num_items].label = stac92xx_dmic_labels[0];
+	dimux->items[dimux->num_items].index = 0;
+	dimux->num_items++;
+
+	for (i = 0; i < spec->num_dmics; i++) {
+		int index;
+		int num_cons;
+		unsigned int def_conf;
+
+		def_conf = snd_hda_codec_read(codec,
+					      spec->dmic_nids[i],
+					      0,
+					      AC_VERB_GET_CONFIG_DEFAULT,
+					      0);
+		if (get_defcfg_connect(def_conf) == AC_JACK_PORT_NONE)
+			continue;
+
+		num_cons = snd_hda_get_connections(codec,
+				spec->dmux_nid,
+				con_lst,
+				HDA_MAX_NUM_INPUTS);
+		for (j = 0; j < num_cons; j++)
+			if (con_lst[j] == spec->dmic_nids[i]) {
+				index = j;
+				goto found;
+			}
+		continue;
+found:
+		dimux->items[dimux->num_items].label =
+			stac92xx_dmic_labels[dimux->num_items];
+		dimux->items[dimux->num_items].index = index;
+		dimux->num_items++;
+	}
+
+	return 0;
+}
+
 /* create playback/capture controls for input pins */
 static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const struct auto_pin_cfg *cfg)
 {
@@ -1238,7 +1377,9 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 	struct sigmatel_spec *spec = codec->spec;
 	int err;
 
-	if ((err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL)) < 0)
+	if ((err = snd_hda_parse_pin_def_config(codec,
+						&spec->autocfg,
+						spec->dmic_nids)) < 0)
 		return err;
 	if (! spec->autocfg.line_outs)
 		return 0; /* can't find valid pin config */
@@ -1254,6 +1395,11 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 	    (err = stac92xx_auto_create_analog_input_ctls(codec, &spec->autocfg)) < 0)
 		return err;
 
+	if (spec->num_dmics > 0)
+		if ((err = stac92xx_auto_create_dmic_input_ctls(codec,
+						&spec->autocfg)) < 0)
+			return err;
+
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 	if (spec->multiout.max_channels > 2)
 		spec->surr_switch = 1;
@@ -1267,6 +1413,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
 
 	spec->input_mux = &spec->private_imux;
+	spec->dinput_mux = &spec->private_dimux;
 
 	return 1;
 }
@@ -1366,6 +1513,7 @@ static int stac9200_parse_auto_config(struct hda_codec *codec)
 		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
 
 	spec->input_mux = &spec->private_imux;
+	spec->dinput_mux = &spec->private_dimux;
 
 	return 1;
 }
@@ -1448,6 +1596,11 @@ static int stac92xx_init(struct hda_codec *codec)
 			stac92xx_auto_set_pinctl(codec, nid, pinctl);
 		}
 	}
+	if (spec->num_dmics > 0)
+		for (i = 0; i < spec->num_dmics; i++)
+			stac92xx_auto_set_pinctl(codec, spec->dmic_nids[i],
+						 AC_PINCTL_IN_EN);
+
 	if (cfg->dig_out_pin)
 		stac92xx_auto_set_pinctl(codec, cfg->dig_out_pin,
 					 AC_PINCTL_OUT_EN);
@@ -1598,7 +1751,9 @@ static int patch_stac9200(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->num_pins = 8;
 	spec->pin_nids = stac9200_pin_nids;
-	spec->board_config = snd_hda_check_board_config(codec, stac9200_cfg_tbl);
+	spec->board_config = snd_hda_check_board_config(codec, STAC_9200_MODELS,
+							stac9200_models,
+							stac9200_cfg_tbl);
 	if (spec->board_config < 0) {
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC9200, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
@@ -1618,11 +1773,72 @@ static int patch_stac9200(struct hda_codec *codec)
 	spec->adc_nids = stac9200_adc_nids;
 	spec->mux_nids = stac9200_mux_nids;
 	spec->num_muxes = 1;
+	spec->num_dmics = 0;
 
 	spec->init = stac9200_core_init;
 	spec->mixer = stac9200_mixer;
 
 	err = stac9200_parse_auto_config(codec);
+	if (err < 0) {
+		stac92xx_free(codec);
+		return err;
+	}
+
+	codec->patch_ops = stac92xx_patch_ops;
+
+	return 0;
+}
+
+static int patch_stac925x(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec;
+	int err;
+
+	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (spec == NULL)
+		return -ENOMEM;
+
+	codec->spec = spec;
+	spec->num_pins = 8;
+	spec->pin_nids = stac925x_pin_nids;
+	spec->board_config = snd_hda_check_board_config(codec, STAC_925x_MODELS,
+							stac925x_models,
+							stac925x_cfg_tbl);
+ again:
+	if (spec->board_config < 0) {
+		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC925x, using BIOS defaults\n");
+		err = stac92xx_save_bios_config_regs(codec);
+		if (err < 0) {
+			stac92xx_free(codec);
+			return err;
+		}
+		spec->pin_configs = spec->bios_pin_configs;
+	} else if (stac925x_brd_tbl[spec->board_config] != NULL){
+		spec->pin_configs = stac925x_brd_tbl[spec->board_config];
+		stac92xx_set_config_regs(codec);
+	}
+
+	spec->multiout.max_channels = 2;
+	spec->multiout.num_dacs = 1;
+	spec->multiout.dac_nids = stac925x_dac_nids;
+	spec->adc_nids = stac925x_adc_nids;
+	spec->mux_nids = stac925x_mux_nids;
+	spec->num_muxes = 1;
+	spec->num_dmics = 0;
+
+	spec->init = stac925x_core_init;
+	spec->mixer = stac925x_mixer;
+
+	err = stac92xx_parse_auto_config(codec, 0x8, 0x7);
+	if (!err) {
+		if (spec->board_config < 0) {
+			printk(KERN_WARNING "hda_codec: No auto-config is "
+			       "available, default to model=ref\n");
+			spec->board_config = STAC_925x_REF;
+			goto again;
+		}
+		err = -EINVAL;
+	}
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -1645,7 +1861,10 @@ static int patch_stac922x(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->num_pins = 10;
 	spec->pin_nids = stac922x_pin_nids;
-	spec->board_config = snd_hda_check_board_config(codec, stac922x_cfg_tbl);
+	spec->board_config = snd_hda_check_board_config(codec, STAC_922X_MODELS,
+							stac922x_models,
+							stac922x_cfg_tbl);
+ again:
 	if (spec->board_config < 0) {
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC922x, "
 			"using BIOS defaults\n");
@@ -1663,6 +1882,7 @@ static int patch_stac922x(struct hda_codec *codec)
 	spec->adc_nids = stac922x_adc_nids;
 	spec->mux_nids = stac922x_mux_nids;
 	spec->num_muxes = 2;
+	spec->num_dmics = 0;
 
 	spec->init = stac922x_core_init;
 	spec->mixer = stac922x_mixer;
@@ -1670,6 +1890,15 @@ static int patch_stac922x(struct hda_codec *codec)
 	spec->multiout.dac_nids = spec->dac_nids;
 	
 	err = stac92xx_parse_auto_config(codec, 0x08, 0x09);
+	if (!err) {
+		if (spec->board_config < 0) {
+			printk(KERN_WARNING "hda_codec: No auto-config is "
+			       "available, default to model=ref\n");
+			spec->board_config = STAC_D945_REF;
+			goto again;
+		}
+		err = -EINVAL;
+	}
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -1695,7 +1924,10 @@ static int patch_stac927x(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->num_pins = 14;
 	spec->pin_nids = stac927x_pin_nids;
-	spec->board_config = snd_hda_check_board_config(codec, stac927x_cfg_tbl);
+	spec->board_config = snd_hda_check_board_config(codec, STAC_927X_MODELS,
+							stac927x_models,
+							stac927x_cfg_tbl);
+ again:
 	if (spec->board_config < 0) {
                 snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC927x, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
@@ -1714,6 +1946,7 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->adc_nids = stac927x_adc_nids;
 		spec->mux_nids = stac927x_mux_nids;
 		spec->num_muxes = 3;
+		spec->num_dmics = 0;
 		spec->init = d965_core_init;
 		spec->mixer = stac9227_mixer;
 		break;
@@ -1721,6 +1954,7 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->adc_nids = stac927x_adc_nids;
 		spec->mux_nids = stac927x_mux_nids;
 		spec->num_muxes = 3;
+		spec->num_dmics = 0;
 		spec->init = d965_core_init;
 		spec->mixer = stac9227_mixer;
 		break;
@@ -1728,6 +1962,7 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->adc_nids = stac927x_adc_nids;
 		spec->mux_nids = stac927x_mux_nids;
 		spec->num_muxes = 3;
+		spec->num_dmics = 0;
 		spec->init = stac927x_core_init;
 		spec->mixer = stac927x_mixer;
 	}
@@ -1735,6 +1970,15 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->multiout.dac_nids = spec->dac_nids;
 
 	err = stac92xx_parse_auto_config(codec, 0x1e, 0x20);
+	if (!err) {
+		if (spec->board_config < 0) {
+			printk(KERN_WARNING "hda_codec: No auto-config is "
+			       "available, default to model=ref\n");
+			spec->board_config = STAC_D965_REF;
+			goto again;
+		}
+		err = -EINVAL;
+	}
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -1757,7 +2001,10 @@ static int patch_stac9205(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->num_pins = 14;
 	spec->pin_nids = stac9205_pin_nids;
-	spec->board_config = snd_hda_check_board_config(codec, stac9205_cfg_tbl);
+	spec->board_config = snd_hda_check_board_config(codec, STAC_9205_MODELS,
+							stac9205_models,
+							stac9205_cfg_tbl);
+ again:
 	if (spec->board_config < 0) {
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC9205, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
@@ -1773,14 +2020,38 @@ static int patch_stac9205(struct hda_codec *codec)
 
 	spec->adc_nids = stac9205_adc_nids;
 	spec->mux_nids = stac9205_mux_nids;
-	spec->num_muxes = 3;
+	spec->num_muxes = 2;
+	spec->dmic_nids = stac9205_dmic_nids;
+	spec->num_dmics = 2;
+	spec->dmux_nid = 0x1d;
 
 	spec->init = stac9205_core_init;
 	spec->mixer = stac9205_mixer;
 
 	spec->multiout.dac_nids = spec->dac_nids;
 
+	/* Configure GPIO0 as EAPD output */
+	snd_hda_codec_write(codec, codec->afg, 0,
+			    AC_VERB_SET_GPIO_DIRECTION, 0x00000001);
+	/* Configure GPIO0 as CMOS */
+	snd_hda_codec_write(codec, codec->afg, 0, 0x7e7, 0x00000000);
+	/* Assert GPIO0 high */
+	snd_hda_codec_write(codec, codec->afg, 0,
+			    AC_VERB_SET_GPIO_DATA, 0x00000001);
+	/* Enable GPIO0 */
+	snd_hda_codec_write(codec, codec->afg, 0,
+			    AC_VERB_SET_GPIO_MASK, 0x00000001);
+
 	err = stac92xx_parse_auto_config(codec, 0x1f, 0x20);
+	if (!err) {
+		if (spec->board_config < 0) {
+			printk(KERN_WARNING "hda_codec: No auto-config is "
+			       "available, default to model=ref\n");
+			spec->board_config = STAC_9205_REF;
+			goto again;
+		}
+		err = -EINVAL;
+	}
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -1963,18 +2234,19 @@ enum { /* FE and SZ series. id=0x83847661 and subsys=0x104D0700 or 104D1000. */
        /* Unknown. id=0x83847661 and subsys=0x104D1200. */
        STAC9872K_VAIO,
        /* AR Series. id=0x83847664 and subsys=104D1300 */
-       CXD9872AKD_VAIO 
-     };
+       CXD9872AKD_VAIO,
+       STAC_9872_MODELS,
+};
 
-static struct hda_board_config stac9872_cfg_tbl[] = {
-	{ .modelname = "vaio", .config = CXD9872RD_VAIO },
-	{ .modelname = "vaio-ar", .config = CXD9872AKD_VAIO },
-	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81e6,
-	  .config = CXD9872RD_VAIO },
-	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81ef,
-	  .config = CXD9872RD_VAIO },
-	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81fd,
-	  .config = CXD9872AKD_VAIO },
+static const char *stac9872_models[STAC_9872_MODELS] = {
+	[CXD9872RD_VAIO]	= "vaio",
+	[CXD9872AKD_VAIO]	= "vaio-ar",
+};
+
+static struct snd_pci_quirk stac9872_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x104d, 0x81e6, "Sony VAIO F/S", CXD9872RD_VAIO),
+	SND_PCI_QUIRK(0x104d, 0x81ef, "Sony VAIO F/S", CXD9872RD_VAIO),
+	SND_PCI_QUIRK(0x104d, 0x81fd, "Sony VAIO AR", CXD9872AKD_VAIO),
 	{}
 };
 
@@ -1983,7 +2255,9 @@ static int patch_stac9872(struct hda_codec *codec)
 	struct sigmatel_spec *spec;
 	int board_config;
 
-	board_config = snd_hda_check_board_config(codec, stac9872_cfg_tbl);
+	board_config = snd_hda_check_board_config(codec, STAC_9872_MODELS,
+						  stac9872_models,
+						  stac9872_cfg_tbl);
 	if (board_config < 0)
 		/* unknown config, let generic-parser do its job... */
 		return snd_hda_parse_generic_codec(codec);
@@ -2055,6 +2329,12 @@ struct hda_codec_preset snd_hda_preset_sigmatel[] = {
  	{ .id = 0x83847627, .name = "STAC9271D", .patch = patch_stac927x },
  	{ .id = 0x83847628, .name = "STAC9274X5NH", .patch = patch_stac927x },
  	{ .id = 0x83847629, .name = "STAC9274D5NH", .patch = patch_stac927x },
+	{ .id = 0x83847632, .name = "STAC9202",  .patch = patch_stac925x },
+	{ .id = 0x83847633, .name = "STAC9202D", .patch = patch_stac925x },
+	{ .id = 0x83847634, .name = "STAC9250", .patch = patch_stac925x },
+	{ .id = 0x83847635, .name = "STAC9250D", .patch = patch_stac925x },
+	{ .id = 0x83847636, .name = "STAC9251", .patch = patch_stac925x },
+	{ .id = 0x83847637, .name = "STAC9250D", .patch = patch_stac925x },
  	/* The following does not take into account .id=0x83847661 when subsys =
  	 * 104D0C00 which is STAC9225s. Because of this, some SZ Notebooks are
  	 * currently not fully supported.

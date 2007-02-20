@@ -2,7 +2,7 @@
 #define __LINUX_SEQLOCK_H
 /*
  * Reader/writer consistent mechanism without starving writers. This type of
- * lock for data where the reader wants a consitent set of information
+ * lock for data where the reader wants a consistent set of information
  * and is willing to retry if the information changes.  Readers never
  * block but they may have to retry if a writer is in
  * progress. Writers do not wait for readers. 

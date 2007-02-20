@@ -25,7 +25,7 @@
  * Check for any kind of channel or interface control check but don't
  * issue the message for the console device
  */
-static inline void
+static void
 ccw_device_msg_control_check(struct ccw_device *cdev, struct irb *irb)
 {
 	if (!(irb->scsw.cstat & (SCHN_STAT_CHN_DATA_CHK |
@@ -72,7 +72,7 @@ ccw_device_path_notoper(struct ccw_device *cdev)
 /*
  * Copy valid bits from the extended control word to device irb.
  */
-static inline void
+static void
 ccw_device_accumulate_ecw(struct ccw_device *cdev, struct irb *irb)
 {
 	/*
@@ -94,7 +94,7 @@ ccw_device_accumulate_ecw(struct ccw_device *cdev, struct irb *irb)
 /*
  * Check if extended status word is valid.
  */
-static inline int
+static int
 ccw_device_accumulate_esw_valid(struct irb *irb)
 {
 	if (!irb->scsw.eswf && irb->scsw.stctl == SCSW_STCTL_STATUS_PEND)
@@ -109,7 +109,7 @@ ccw_device_accumulate_esw_valid(struct irb *irb)
 /*
  * Copy valid bits from the extended status word to device irb.
  */
-static inline void
+static void
 ccw_device_accumulate_esw(struct ccw_device *cdev, struct irb *irb)
 {
 	struct irb *cdev_irb;

@@ -83,6 +83,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(BELKIN_VENDOR_ID, BELKIN_PRODUCT_ID) },
 	{ USB_DEVICE(ALCOR_VENDOR_ID, ALCOR_PRODUCT_ID) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_ID) },
+	{ USB_DEVICE(WS002IN_VENDOR_ID, WS002IN_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
 
@@ -1118,6 +1119,7 @@ static struct usb_serial_driver pl2303_device = {
 		.name =		"pl2303",
 	},
 	.id_table =		id_table,
+	.usb_driver = 		&pl2303_driver,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		1,
 	.num_bulk_out =		1,

@@ -205,6 +205,21 @@ int ide_dma_enable (ide_drive_t *drive)
 
 EXPORT_SYMBOL(ide_dma_enable);
 
+int ide_use_fast_pio(ide_drive_t *drive)
+{
+	struct hd_driveid *id = drive->id;
+
+	if ((id->capability & 1) && drive->autodma)
+		return 1;
+
+	if ((id->capability & 8) || (id->field_valid & 2))
+		return 1;
+
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(ide_use_fast_pio);
+
 /*
  * Standard (generic) timings for PIO modes, from ATA2 specification.
  * These timings are for access to the IDE data port register *only*.
@@ -349,7 +364,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 	int use_iordy = 0;
 	struct hd_driveid* id = drive->id;
 	int overridden  = 0;
-	int blacklisted = 0;
 
 	if (mode_wanted != 255) {
 		pio_mode = mode_wanted;
@@ -357,7 +371,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 		pio_mode = 0;
 	} else if ((pio_mode = ide_scan_pio_blacklist(id->model)) != -1) {
 		overridden = 1;
-		blacklisted = 1;
 		use_iordy = (pio_mode > 2);
 	} else {
 		pio_mode = id->tPIO;
@@ -409,7 +422,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode, ide_p
 		d->cycle_time = cycle_time ? cycle_time : ide_pio_timings[pio_mode].cycle_time;
 		d->use_iordy = use_iordy;
 		d->overridden = overridden;
-		d->blacklisted = blacklisted;
 	}
 	return pio_mode;
 }
@@ -461,8 +473,6 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 	else
 		return -1;
 }
-
-EXPORT_SYMBOL_GPL(ide_set_xfer_rate);
 
 static void ide_dump_opcode(ide_drive_t *drive)
 {

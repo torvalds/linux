@@ -48,6 +48,9 @@ config GENERIC_IOMAP
 config GENERIC_TIME
 	def_bool n
 
+config SYS_SUPPORTS_APM_EMULATION
+	bool
+
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 
@@ -126,16 +129,11 @@ config SH_7751_SYSTEMH
 
 config SH_HP6XX
 	bool "HP6XX"
+	select SYS_SUPPORTS_APM_EMULATION
 	help
 	  Select HP6XX if configuring for a HP jornada HP6xx.
 	  More information (hardware only) at
 	  <http://www.hp.com/jornada/>.
-
-config SH_EC3104
-	bool "EC3104"
-	help
-	  Select EC3104 if configuring for a system with an Eclipse
-	  International EC3104 chip, e.g. the Harris AD2000.
 
 config SH_SATURN
 	bool "Saturn"
@@ -151,9 +149,6 @@ config SH_DREAMCAST
 	  More information at
 	  <http://www.m17n.org/linux-sh/dreamcast/>.  There is a
 	  Dreamcast project is at <http://linuxdc.sourceforge.net/>.
-
-config SH_BIGSUR
-	bool "BigSur"
 
 config SH_MPC1211
 	bool "Interface MPC1211"
@@ -477,6 +472,7 @@ config SH_PCLK_FREQ
 
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"
+	default 0
 	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
 	help
 	  MD2 - MD0 pin setting.
@@ -506,8 +502,9 @@ source "arch/sh/cchips/Kconfig"
 config HEARTBEAT
 	bool "Heartbeat LED"
 	depends on SH_MPC1211 || SH_SH03 || \
-		   SH_BIGSUR || SOLUTION_ENGINE || \
-		   SH_RTS7751R2D || SH_SH4202_MICRODEV || SH_LANDISK
+		   SOLUTION_ENGINE || \
+		   SH_RTS7751R2D || SH_SH4202_MICRODEV || SH_LANDISK || \
+		   SH_R7780RP
 	help
 	  Use the power-on LED on your machine as a load meter.  The exact
 	  behavior is platform-dependent, but normally the flash frequency is
@@ -592,6 +589,8 @@ menu "Boot options"
 config ZERO_PAGE_OFFSET
 	hex "Zero page offset"
 	default "0x00004000" if SH_MPC1211 || SH_SH03
+	default "0x00010000" if PAGE_SIZE_64KB
+	default "0x00002000" if PAGE_SIZE_8KB
 	default "0x00001000"
 	help
 	  This sets the default offset of zero page.
@@ -694,9 +693,6 @@ depends on EXPERIMENTAL
 
 source kernel/power/Kconfig
 
-config APM
-	bool "Advanced Power Management Emulation"
-	depends on PM
 endmenu
 
 source "net/Kconfig"

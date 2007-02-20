@@ -872,7 +872,7 @@ free_op:
 	return ret;
 }
 
-struct file_operations viotap_fops = {
+const struct file_operations viotap_fops = {
 	owner: THIS_MODULE,
 	read: viotap_read,
 	write: viotap_write,

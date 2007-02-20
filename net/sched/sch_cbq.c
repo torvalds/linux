@@ -16,7 +16,6 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -40,12 +39,12 @@
 	=======================================
 
 	Sources: [1] Sally Floyd and Van Jacobson, "Link-sharing and Resource
-	         Management Models for Packet Networks",
+		 Management Models for Packet Networks",
 		 IEEE/ACM Transactions on Networking, Vol.3, No.4, 1995
 
-	         [2] Sally Floyd, "Notes on CBQ and Guaranteed Service", 1995
+		 [2] Sally Floyd, "Notes on CBQ and Guaranteed Service", 1995
 
-	         [3] Sally Floyd, "Notes on Class-Based Queueing: Setting
+		 [3] Sally Floyd, "Notes on Class-Based Queueing: Setting
 		 Parameters", 1996
 
 		 [4] Sally Floyd and Michael Speer, "Experimental Results
@@ -59,12 +58,12 @@
 	the implementation is different. Particularly:
 
 	--- The WRR algorithm is different. Our version looks more
-        reasonable (I hope) and works when quanta are allowed to be
-        less than MTU, which is always the case when real time classes
-        have small rates. Note, that the statement of [3] is
-        incomplete, delay may actually be estimated even if class
-        per-round allotment is less than MTU. Namely, if per-round
-        allotment is W*r_i, and r_1+...+r_k = r < 1
+	reasonable (I hope) and works when quanta are allowed to be
+	less than MTU, which is always the case when real time classes
+	have small rates. Note, that the statement of [3] is
+	incomplete, delay may actually be estimated even if class
+	per-round allotment is less than MTU. Namely, if per-round
+	allotment is W*r_i, and r_1+...+r_k = r < 1
 
 	delay_i <= ([MTU/(W*r_i)]*W*r + W*r + k*MTU)/B
 
@@ -280,7 +279,7 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
 		case TC_ACT_QUEUED:
-		case TC_ACT_STOLEN: 
+		case TC_ACT_STOLEN:
 			*qerr = NET_XMIT_SUCCESS;
 		case TC_ACT_SHOT:
 			return NULL;
@@ -479,7 +478,7 @@ static void cbq_ovl_classic(struct cbq_class *cl)
 	if (!cl->delayed) {
 		delay += cl->offtime;
 
-		/* 
+		/*
 		   Class goes to sleep, so that it will have no
 		   chance to work avgidle. Let's forgive it 8)
 
@@ -717,7 +716,7 @@ static int cbq_reshape_fail(struct sk_buff *skb, struct Qdisc *child)
 }
 #endif
 
-/* 
+/*
    It is mission critical procedure.
 
    We "regenerate" toplevel cutoff, if transmitting class
@@ -739,7 +738,7 @@ cbq_update_toplevel(struct cbq_sched_data *q, struct cbq_class *cl,
 				}
 			} while ((borrowed=borrowed->borrow) != NULL);
 		}
-#if 0	
+#if 0
 	/* It is not necessary now. Uncommenting it
 	   will save CPU cycles, but decrease fairness.
 	 */
@@ -768,7 +767,7 @@ cbq_update(struct cbq_sched_data *q)
 		   (now - last) is total time between packet right edges.
 		   (last_pktlen/rate) is "virtual" busy time, so that
 
-		         idle = (now - last) - last_pktlen/rate
+			 idle = (now - last) - last_pktlen/rate
 		 */
 
 		idle = PSCHED_TDIFF(q->now, cl->last);
@@ -907,7 +906,7 @@ cbq_dequeue_prio(struct Qdisc *sch, int prio)
 			skb = cl->q->dequeue(cl->q);
 
 			/* Class did not give us any skb :-(
-			   It could occur even if cl->q->q.qlen != 0 
+			   It could occur even if cl->q->q.qlen != 0
 			   f.e. if cl->q == "tbf"
 			 */
 			if (skb == NULL)
@@ -2131,7 +2130,7 @@ static int __init cbq_module_init(void)
 {
 	return register_qdisc(&cbq_qdisc_ops);
 }
-static void __exit cbq_module_exit(void) 
+static void __exit cbq_module_exit(void)
 {
 	unregister_qdisc(&cbq_qdisc_ops);
 }

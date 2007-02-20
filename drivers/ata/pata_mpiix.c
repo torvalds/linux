@@ -35,7 +35,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_mpiix"
-#define DRV_VERSION "0.7.3"
+#define DRV_VERSION "0.7.5"
 
 enum {
 	IDETIM = 0x6C,		/* IDE control register */
@@ -49,12 +49,9 @@ enum {
 static int mpiix_pre_reset(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	static const struct pci_bits mpiix_enable_bits[] = {
-		{ 0x6D, 1, 0x80, 0x80 },
-		{ 0x6F, 1, 0x80, 0x80 }
-	};
+	static const struct pci_bits mpiix_enable_bits = { 0x6D, 1, 0x80, 0x80 };
 
-	if (!pci_test_config_bits(pdev, &mpiix_enable_bits[ap->port_no]))
+	if (!pci_test_config_bits(pdev, &mpiix_enable_bits))
 		return -ENOENT;
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
@@ -80,8 +77,8 @@ static void mpiix_error_handler(struct ata_port *ap)
  *	@adev: ATA device
  *
  *	Called to do the PIO mode setup. The MPIIX allows us to program the
- *	IORDY sample point (2-5 clocks), recovery 1-4 clocks and whether
- *	prefetching or iordy are used.
+ *	IORDY sample point (2-5 clocks), recovery (1-4 clocks) and whether
+ *	prefetching or IORDY are used.
  *
  *	This would get very ugly because we can only program timing for one
  *	device at a time, the other gets PIO0. Fortunately libata calls
@@ -103,18 +100,19 @@ static void mpiix_set_piomode(struct ata_port *ap, struct ata_device *adev)
 			    { 2, 3 }, };
 
 	pci_read_config_word(pdev, IDETIM, &idetim);
-	/* Mask the IORDY/TIME/PPE0 bank for this device */
+
+	/* Mask the IORDY/TIME/PPE for this device */
 	if (adev->class == ATA_DEV_ATA)
-		control |= PPE;		/* PPE enable for disk */
+		control |= PPE;		/* Enable prefetch/posting for disk */
 	if (ata_pio_need_iordy(adev))
-		control |= IORDY;	/* IORDY */
-	if (pio > 0)
+		control |= IORDY;
+	if (pio > 1)
 		control |= FTIM;	/* This drive is on the fast timing bank */
 
 	/* Mask out timing and clear both TIME bank selects */
 	idetim &= 0xCCEE;
-	idetim &= ~(0x07  << (2 * adev->devno));
-	idetim |= (control << (2 * adev->devno));
+	idetim &= ~(0x07  << (4 * adev->devno));
+	idetim |= control << (4 * adev->devno);
 
 	idetim |= (timings[pio][0] << 12) | (timings[pio][1] << 8);
 	pci_write_config_word(pdev, IDETIM, idetim);
@@ -188,23 +186,24 @@ static struct ata_port_operations mpiix_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= mpiix_qc_issue_prot,
-	.data_xfer	= ata_pio_data_xfer,
+	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
-	.port_stop	= ata_port_stop,
-	.host_stop	= ata_host_stop
 };
 
 static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	/* Single threaded by the PCI probe logic */
-	static struct ata_probe_ent probe[2];
+	static struct ata_probe_ent probe;
 	static int printed_version;
+	void __iomem *cmd_addr, *ctl_addr;
 	u16 idetim;
-	int enabled;
+	int irq;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &dev->dev, "version " DRV_VERSION "\n");
@@ -217,63 +216,47 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!(idetim & ENABLED))
 		return -ENODEV;
 
+	/* See if it's primary or secondary channel... */
+	if (!(idetim & SECONDARY)) {
+		irq = 14;
+		cmd_addr = devm_ioport_map(&dev->dev, 0x1F0, 8);
+		ctl_addr = devm_ioport_map(&dev->dev, 0x3F6, 1);
+	} else {
+		irq = 15;
+		cmd_addr = devm_ioport_map(&dev->dev, 0x170, 8);
+		ctl_addr = devm_ioport_map(&dev->dev, 0x376, 1);
+	}
+
+	if (!cmd_addr || !ctl_addr)
+		return -ENOMEM;
+
 	/* We do our own plumbing to avoid leaking special cases for whacko
 	   ancient hardware into the core code. There are two issues to
 	   worry about.  #1 The chip is a bridge so if in legacy mode and
 	   without BARs set fools the setup.  #2 If you pci_disable_device
 	   the MPIIX your box goes castors up */
 
-	INIT_LIST_HEAD(&probe[0].node);
-	probe[0].dev = pci_dev_to_dev(dev);
-	probe[0].port_ops = &mpiix_port_ops;
-	probe[0].sht = &mpiix_sht;
-	probe[0].pio_mask = 0x1F;
-	probe[0].irq = 14;
-	probe[0].irq_flags = SA_SHIRQ;
-	probe[0].port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
-	probe[0].n_ports = 1;
-	probe[0].port[0].cmd_addr = 0x1F0;
-	probe[0].port[0].ctl_addr = 0x3F6;
-	probe[0].port[0].altstatus_addr = 0x3F6;
+	INIT_LIST_HEAD(&probe.node);
+	probe.dev = pci_dev_to_dev(dev);
+	probe.port_ops = &mpiix_port_ops;
+	probe.sht = &mpiix_sht;
+	probe.pio_mask = 0x1F;
+	probe.irq_flags = IRQF_SHARED;
+	probe.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
+	probe.n_ports = 1;
 
-	/* The secondary lurks at different addresses but is otherwise
-	   the same beastie */
-
-	INIT_LIST_HEAD(&probe[1].node);
-	probe[1] = probe[0];
-	probe[1].irq = 15;
-	probe[1].port[0].cmd_addr = 0x170;
-	probe[1].port[0].ctl_addr = 0x376;
-	probe[1].port[0].altstatus_addr = 0x376;
+	probe.irq = irq;
+	probe.port[0].cmd_addr = cmd_addr;
+	probe.port[0].ctl_addr = ctl_addr;
+	probe.port[0].altstatus_addr = ctl_addr;
 
 	/* Let libata fill in the port details */
-	ata_std_ports(&probe[0].port[0]);
-	ata_std_ports(&probe[1].port[0]);
+	ata_std_ports(&probe.port[0]);
 
 	/* Now add the port that is active */
-	enabled = (idetim & SECONDARY) ? 1 : 0;
-
-	if (ata_device_add(&probe[enabled]))
+	if (ata_device_add(&probe))
 		return 0;
 	return -ENODEV;
-}
-
-/**
- *	mpiix_remove_one	-	device unload
- *	@pdev: PCI device being removed
- *
- *	Handle an unplug/unload event for a PCI device. Unload the
- *	PCI driver but do not use the default handler as we *MUST NOT*
- *	disable the device as it has other functions.
- */
-
-static void __devexit mpiix_remove_one(struct pci_dev *pdev)
-{
-	struct device *dev = pci_dev_to_dev(pdev);
-	struct ata_host *host = dev_get_drvdata(dev);
-
-	ata_host_remove(host);
-	dev_set_drvdata(dev, NULL);
 }
 
 static const struct pci_device_id mpiix[] = {
@@ -286,7 +269,7 @@ static struct pci_driver mpiix_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= mpiix,
 	.probe 		= mpiix_init_one,
-	.remove		= mpiix_remove_one,
+	.remove		= ata_pci_remove_one,
 	.suspend	= ata_pci_device_suspend,
 	.resume		= ata_pci_device_resume,
 };

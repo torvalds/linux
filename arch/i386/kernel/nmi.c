@@ -23,6 +23,7 @@
 #include <linux/dmi.h>
 #include <linux/kprobes.h>
 #include <linux/cpumask.h>
+#include <linux/kernel_stat.h>
 
 #include <asm/smp.h>
 #include <asm/nmi.h>
@@ -185,7 +186,8 @@ static __cpuinit inline int nmi_known_cpu(void)
 {
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
-		return ((boot_cpu_data.x86 == 15) || (boot_cpu_data.x86 == 6));
+		return ((boot_cpu_data.x86 == 15) || (boot_cpu_data.x86 == 6)
+			|| (boot_cpu_data.x86 == 16));
 	case X86_VENDOR_INTEL:
 		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
 			return 1;
@@ -215,6 +217,28 @@ static __init void nmi_cpu_busy(void *data)
 		mb();
 }
 #endif
+
+static unsigned int adjust_for_32bit_ctr(unsigned int hz)
+{
+	u64 counter_val;
+	unsigned int retval = hz;
+
+	/*
+	 * On Intel CPUs with P6/ARCH_PERFMON only 32 bits in the counter
+	 * are writable, with higher bits sign extending from bit 31.
+	 * So, we can only program the counter with 31 bit values and
+	 * 32nd bit should be 1, for 33.. to be 1.
+	 * Find the appropriate nmi_hz
+	 */
+	counter_val = (u64)cpu_khz * 1000;
+	do_div(counter_val, retval);
+ 	if (counter_val > 0x7fffffffULL) {
+		u64 count = (u64)cpu_khz * 1000;
+		do_div(count, 0x7fffffffUL);
+		retval = count + 1;
+	}
+	return retval;
+}
 
 static int __init check_nmi_watchdog(void)
 {
@@ -281,18 +305,10 @@ static int __init check_nmi_watchdog(void)
 		struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
 
 		nmi_hz = 1;
-		/*
-		 * On Intel CPUs with ARCH_PERFMON only 32 bits in the counter
-		 * are writable, with higher bits sign extending from bit 31.
-		 * So, we can only program the counter with 31 bit values and
-		 * 32nd bit should be 1, for 33.. to be 1.
-		 * Find the appropriate nmi_hz
-		 */
-	 	if (wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0 &&
-			((u64)cpu_khz * 1000) > 0x7fffffffULL) {
-			u64 count = (u64)cpu_khz * 1000;
-			do_div(count, 0x7fffffffUL);
-			nmi_hz = count + 1;
+
+		if (wd->perfctr_msr == MSR_P6_PERFCTR0 ||
+		    wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0) {
+			nmi_hz = adjust_for_32bit_ctr(nmi_hz);
 		}
 	}
 
@@ -369,6 +385,34 @@ void enable_timer_nmi_watchdog(void)
 	}
 }
 
+static void __acpi_nmi_disable(void *__unused)
+{
+	apic_write_around(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
+}
+
+/*
+ * Disable timer based NMIs on all CPUs:
+ */
+void acpi_nmi_disable(void)
+{
+	if (atomic_read(&nmi_active) && nmi_watchdog == NMI_IO_APIC)
+		on_each_cpu(__acpi_nmi_disable, NULL, 0, 1);
+}
+
+static void __acpi_nmi_enable(void *__unused)
+{
+	apic_write_around(APIC_LVT0, APIC_DM_NMI);
+}
+
+/*
+ * Enable timer based NMIs on all CPUs:
+ */
+void acpi_nmi_enable(void)
+{
+	if (atomic_read(&nmi_active) && nmi_watchdog == NMI_IO_APIC)
+		on_each_cpu(__acpi_nmi_enable, NULL, 0, 1);
+}
+
 #ifdef CONFIG_PM
 
 static int nmi_pm_active; /* nmi_active before suspend */
@@ -440,6 +484,17 @@ static void write_watchdog_counter(unsigned int perfctr_msr, const char *descr)
 	if(descr)
 		Dprintk("setting %s to -0x%08Lx\n", descr, count);
 	wrmsrl(perfctr_msr, 0 - count);
+}
+
+static void write_watchdog_counter32(unsigned int perfctr_msr,
+		const char *descr)
+{
+	u64 count = (u64)cpu_khz * 1000;
+
+	do_div(count, nmi_hz);
+	if(descr)
+		Dprintk("setting %s to -0x%08Lx\n", descr, count);
+	wrmsr(perfctr_msr, (u32)(-count), 0);
 }
 
 /* Note that these events don't tick when the CPU idles. This means
@@ -531,7 +586,8 @@ static int setup_p6_watchdog(void)
 
 	/* setup the timer */
 	wrmsr(evntsel_msr, evntsel, 0);
-	write_watchdog_counter(perfctr_msr, "P6_PERFCTR0");
+	nmi_hz = adjust_for_32bit_ctr(nmi_hz);
+	write_watchdog_counter32(perfctr_msr, "P6_PERFCTR0");
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= P6_EVNTSEL0_ENABLE;
 	wrmsr(evntsel_msr, evntsel, 0);
@@ -704,7 +760,8 @@ static int setup_intel_arch_watchdog(void)
 
 	/* setup the timer */
 	wrmsr(evntsel_msr, evntsel, 0);
-	write_watchdog_counter(perfctr_msr, "INTEL_ARCH_PERFCTR0");
+	nmi_hz = adjust_for_32bit_ctr(nmi_hz);
+	write_watchdog_counter32(perfctr_msr, "INTEL_ARCH_PERFCTR0");
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= ARCH_PERFMON_EVENTSEL0_ENABLE;
 	wrmsr(evntsel_msr, evntsel, 0);
@@ -762,7 +819,8 @@ void setup_apic_nmi_watchdog (void *unused)
 	if (nmi_watchdog == NMI_LOCAL_APIC) {
 		switch (boot_cpu_data.x86_vendor) {
 		case X86_VENDOR_AMD:
-			if (boot_cpu_data.x86 != 6 && boot_cpu_data.x86 != 15)
+			if (boot_cpu_data.x86 != 6 && boot_cpu_data.x86 != 15 &&
+				boot_cpu_data.x86 != 16)
 				return;
 			if (!setup_k7_watchdog())
 				return;
@@ -916,9 +974,13 @@ __kprobes int nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 		cpu_clear(cpu, backtrace_mask);
 	}
 
-	sum = per_cpu(irq_stat, cpu).apic_timer_irqs;
+	/*
+	 * Take the local apic timer and PIT/HPET into account. We don't
+	 * know which one is active, when we have highres/dyntick on
+	 */
+	sum = per_cpu(irq_stat, cpu).apic_timer_irqs + kstat_irqs(0);
 
-	/* if the apic timer isn't firing, this cpu isn't doing much */
+	/* if the none of the timers isn't firing, this cpu isn't doing much */
 	if (!touched && last_irq_sums[cpu] == sum) {
 		/*
 		 * Ayiee, looks like this CPU is stuck ...
@@ -956,6 +1018,8 @@ __kprobes int nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 				dummy &= ~P4_CCCR_OVF;
 	 			wrmsrl(wd->cccr_msr, dummy);
 	 			apic_write(APIC_LVTPC, APIC_DM_NMI);
+				/* start the cycle over again */
+				write_watchdog_counter(wd->perfctr_msr, NULL);
 	 		}
 			else if (wd->perfctr_msr == MSR_P6_PERFCTR0 ||
 				 wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0) {
@@ -964,9 +1028,12 @@ __kprobes int nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 				 * other P6 variant.
 				 * ArchPerfom/Core Duo also needs this */
 				apic_write(APIC_LVTPC, APIC_DM_NMI);
+				/* P6/ARCH_PERFMON has 32 bit counter write */
+				write_watchdog_counter32(wd->perfctr_msr, NULL);
+			} else {
+				/* start the cycle over again */
+				write_watchdog_counter(wd->perfctr_msr, NULL);
 			}
-			/* start the cycle over again */
-			write_watchdog_counter(wd->perfctr_msr, NULL);
 			rc = 1;
 		} else if (nmi_watchdog == NMI_IO_APIC) {
 			/* don't know how to accurately check for this.

@@ -27,7 +27,7 @@ int rxrpc_knet;
 static struct ctl_table_header *rxrpc_sysctl = NULL;
 
 static ctl_table rxrpc_sysctl_table[] = {
-        {
+	{
 		.ctl_name	= 1,
 		.procname	= "kdebug",
 		.data		= &rxrpc_kdebug,
@@ -35,7 +35,7 @@ static ctl_table rxrpc_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
-        {
+	{
 		.ctl_name	= 2,
 		.procname	= "ktrace",
 		.data		= &rxrpc_ktrace,
@@ -43,7 +43,7 @@ static ctl_table rxrpc_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
-        {
+	{
 		.ctl_name	= 3,
 		.procname	= "kproto",
 		.data		= &rxrpc_kproto,
@@ -51,7 +51,7 @@ static ctl_table rxrpc_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
-        {
+	{
 		.ctl_name	= 4,
 		.procname	= "knet",
 		.data		= &rxrpc_knet,
@@ -59,7 +59,7 @@ static ctl_table rxrpc_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
-        {
+	{
 		.ctl_name	= 5,
 		.procname	= "peertimo",
 		.data		= &rxrpc_peer_timeout,
@@ -67,7 +67,7 @@ static ctl_table rxrpc_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_doulongvec_minmax
 	},
-        {
+	{
 		.ctl_name	= 6,
 		.procname	= "conntimo",
 		.data		= &rxrpc_conn_timeout,
@@ -97,7 +97,7 @@ static ctl_table rxrpc_dir_sysctl_table[] = {
 int rxrpc_sysctl_init(void)
 {
 #ifdef CONFIG_SYSCTL
-	rxrpc_sysctl = register_sysctl_table(rxrpc_dir_sysctl_table, 0);
+	rxrpc_sysctl = register_sysctl_table(rxrpc_dir_sysctl_table);
 	if (!rxrpc_sysctl)
 		return -ENOMEM;
 #endif /* CONFIG_SYSCTL */

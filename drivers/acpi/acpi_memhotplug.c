@@ -35,14 +35,13 @@
 #define ACPI_MEMORY_DEVICE_COMPONENT		0x08000000UL
 #define ACPI_MEMORY_DEVICE_CLASS		"memory"
 #define ACPI_MEMORY_DEVICE_HID			"PNP0C80"
-#define ACPI_MEMORY_DEVICE_DRIVER_NAME		"Hotplug Mem Driver"
 #define ACPI_MEMORY_DEVICE_NAME			"Hotplug Mem Device"
 
 #define _COMPONENT		ACPI_MEMORY_DEVICE_COMPONENT
 
-ACPI_MODULE_NAME("acpi_memory")
-    MODULE_AUTHOR("Naveen B S <naveen.b.s@intel.com>");
-MODULE_DESCRIPTION(ACPI_MEMORY_DEVICE_DRIVER_NAME);
+ACPI_MODULE_NAME("acpi_memhotplug");
+MODULE_AUTHOR("Naveen B S <naveen.b.s@intel.com>");
+MODULE_DESCRIPTION("Hotplug Mem Driver");
 MODULE_LICENSE("GPL");
 
 /* ACPI _STA method values */
@@ -60,7 +59,7 @@ static int acpi_memory_device_remove(struct acpi_device *device, int type);
 static int acpi_memory_device_start(struct acpi_device *device);
 
 static struct acpi_driver acpi_memory_device_driver = {
-	.name = ACPI_MEMORY_DEVICE_DRIVER_NAME,
+	.name = "acpi_memhotplug",
 	.class = ACPI_MEMORY_DEVICE_CLASS,
 	.ids = ACPI_MEMORY_DEVICE_HID,
 	.ops = {

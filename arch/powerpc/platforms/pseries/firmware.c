@@ -59,6 +59,7 @@ firmware_features_table[FIRMWARE_MAX_FEATURES] = {
 	{FW_FEATURE_XDABR,		"hcall-xdabr"},
 	{FW_FEATURE_MULTITCE,		"hcall-multi-tce"},
 	{FW_FEATURE_SPLPAR,		"hcall-splpar"},
+	{FW_FEATURE_BULK_REMOVE,	"hcall-bulk"},
 };
 
 /* Build up the firmware features bitmask using the contents of

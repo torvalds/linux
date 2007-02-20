@@ -77,7 +77,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	error = dlm_recover_members(ls, rv, &neg);
 	if (error) {
-		log_error(ls, "recover_members failed %d", error);
+		log_debug(ls, "recover_members failed %d", error);
 		goto fail;
 	}
 	start = jiffies;
@@ -89,7 +89,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	error = dlm_recover_directory(ls);
 	if (error) {
-		log_error(ls, "recover_directory failed %d", error);
+		log_debug(ls, "recover_directory failed %d", error);
 		goto fail;
 	}
 
@@ -99,7 +99,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	error = dlm_recover_directory_wait(ls);
 	if (error) {
-		log_error(ls, "recover_directory_wait failed %d", error);
+		log_debug(ls, "recover_directory_wait failed %d", error);
 		goto fail;
 	}
 
@@ -129,7 +129,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 		error = dlm_recover_masters(ls);
 		if (error) {
-			log_error(ls, "recover_masters failed %d", error);
+			log_debug(ls, "recover_masters failed %d", error);
 			goto fail;
 		}
 
@@ -139,13 +139,13 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 		error = dlm_recover_locks(ls);
 		if (error) {
-			log_error(ls, "recover_locks failed %d", error);
+			log_debug(ls, "recover_locks failed %d", error);
 			goto fail;
 		}
 
 		error = dlm_recover_locks_wait(ls);
 		if (error) {
-			log_error(ls, "recover_locks_wait failed %d", error);
+			log_debug(ls, "recover_locks_wait failed %d", error);
 			goto fail;
 		}
 
@@ -166,7 +166,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 		error = dlm_recover_locks_wait(ls);
 		if (error) {
-			log_error(ls, "recover_locks_wait failed %d", error);
+			log_debug(ls, "recover_locks_wait failed %d", error);
 			goto fail;
 		}
 	}
@@ -184,7 +184,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	dlm_set_recover_status(ls, DLM_RS_DONE);
 	error = dlm_recover_done_wait(ls);
 	if (error) {
-		log_error(ls, "recover_done_wait failed %d", error);
+		log_debug(ls, "recover_done_wait failed %d", error);
 		goto fail;
 	}
 
@@ -192,19 +192,19 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	error = enable_locking(ls, rv->seq);
 	if (error) {
-		log_error(ls, "enable_locking failed %d", error);
+		log_debug(ls, "enable_locking failed %d", error);
 		goto fail;
 	}
 
 	error = dlm_process_requestqueue(ls);
 	if (error) {
-		log_error(ls, "process_requestqueue failed %d", error);
+		log_debug(ls, "process_requestqueue failed %d", error);
 		goto fail;
 	}
 
 	error = dlm_recover_waiters_post(ls);
 	if (error) {
-		log_error(ls, "recover_waiters_post failed %d", error);
+		log_debug(ls, "recover_waiters_post failed %d", error);
 		goto fail;
 	}
 

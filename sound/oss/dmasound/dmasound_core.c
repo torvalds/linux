@@ -371,7 +371,7 @@ static int mixer_ioctl(struct inode *inode, struct file *file, u_int cmd,
 	return -EINVAL;
 }
 
-static struct file_operations mixer_fops =
+static const struct file_operations mixer_fops =
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
@@ -1337,7 +1337,7 @@ static int sq_ioctl(struct inode *inode, struct file *file, u_int cmd,
 	return -EINVAL;
 }
 
-static struct file_operations sq_fops =
+static const struct file_operations sq_fops =
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
@@ -1561,7 +1561,7 @@ static ssize_t state_read(struct file *file, char __user *buf, size_t count,
 	return n;
 }
 
-static struct file_operations state_fops = {
+static const struct file_operations state_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= state_read,

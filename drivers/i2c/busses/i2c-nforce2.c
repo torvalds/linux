@@ -44,7 +44,6 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
-#include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
@@ -57,7 +56,6 @@ MODULE_DESCRIPTION("nForce2/3/4/5xx SMBus driver");
 
 
 struct nforce2_smbus {
-	struct pci_dev *dev;
 	struct i2c_adapter adapter;
 	int base;
 	int size;
@@ -230,7 +228,6 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
 		smbus->base = iobase & PCI_BASE_ADDRESS_IO_MASK;
 		smbus->size = 64;
 	}
-	smbus->dev = dev;
 
 	if (!request_region(smbus->base, smbus->size, nforce2_driver.name)) {
 		dev_err(&smbus->adapter.dev, "Error requesting region %02x .. %02X for %s\n",
@@ -238,6 +235,7 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
 		return -1;
 	}
 	smbus->adapter.owner = THIS_MODULE;
+	smbus->adapter.id = I2C_HW_SMBUS_NFORCE2;
 	smbus->adapter.class = I2C_CLASS_HWMON;
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;

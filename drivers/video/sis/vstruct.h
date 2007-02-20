@@ -240,7 +240,7 @@ struct SiS_Private
 	void				*ivideo;
 #endif
 	unsigned char 			*VirtualRomBase;
-	BOOLEAN				UseROM;
+	bool				UseROM;
 #ifdef SIS_LINUX_KERNEL
 	unsigned char SISIOMEMTYPE	*VideoMemoryAddress;
 	unsigned int			VideoMemorySize;
@@ -283,24 +283,24 @@ struct SiS_Private
 #ifdef SIS_XORG_XF86
 	unsigned short			SiS_CP1, SiS_CP2, SiS_CP3, SiS_CP4;
 #endif
-	BOOLEAN				SiS_UseROM;
-	BOOLEAN				SiS_ROMNew;
-	BOOLEAN				SiS_XGIROM;
-	BOOLEAN				SiS_NeedRomModeData;
-	BOOLEAN				PanelSelfDetected;
-	BOOLEAN				DDCPortMixup;
+	bool				SiS_UseROM;
+	bool				SiS_ROMNew;
+	bool				SiS_XGIROM;
+	bool				SiS_NeedRomModeData;
+	bool				PanelSelfDetected;
+	bool				DDCPortMixup;
 	int				SiS_CHOverScan;
-	BOOLEAN				SiS_CHSOverScan;
-	BOOLEAN				SiS_ChSW;
-	BOOLEAN				SiS_UseLCDA;
+	bool				SiS_CHSOverScan;
+	bool				SiS_ChSW;
+	bool				SiS_UseLCDA;
 	int				SiS_UseOEM;
 	unsigned int			SiS_CustomT;
 	int				SiS_UseWide, SiS_UseWideCRT2;
 	int				SiS_TVBlue;
 	unsigned short			SiS_Backup70xx;
-	BOOLEAN				HaveEMI;
-	BOOLEAN				HaveEMILCD;
-	BOOLEAN				OverruleEMI;
+	bool				HaveEMI;
+	bool				HaveEMILCD;
+	bool				OverruleEMI;
 	unsigned char			EMI_30,EMI_31,EMI_32,EMI_33;
 	unsigned short			SiS_EMIOffset;
 	unsigned short			SiS_PWDOffset;
@@ -352,7 +352,7 @@ struct SiS_Private
 	unsigned short			SiS_DDC_ReadAddr;
 	unsigned short			SiS_DDC_SecAddr;
 	unsigned short			SiS_ChrontelInit;
-	BOOLEAN				SiS_SensibleSR11;
+	bool				SiS_SensibleSR11;
 	unsigned short			SiS661LCD2TableSize;
 
 	unsigned short			SiS_PanelMinLVDS;
@@ -494,10 +494,10 @@ struct SiS_Private
 	unsigned short			PanelVRS,  PanelVRE;
 	unsigned short			PanelVCLKIdx300;
 	unsigned short			PanelVCLKIdx315;
-	BOOLEAN				Alternate1600x1200;
+	bool				Alternate1600x1200;
 
-	BOOLEAN				UseCustomMode;
-	BOOLEAN				CRT1UsesCustomMode;
+	bool				UseCustomMode;
+	bool				CRT1UsesCustomMode;
 	unsigned short			CHDisplay;
 	unsigned short			CHSyncStart;
 	unsigned short			CHSyncEnd;
@@ -523,7 +523,7 @@ struct SiS_Private
 
 	int				LVDSHL;
 
-	BOOLEAN				Backup;
+	bool				Backup;
 	unsigned char			Backup_Mode;
 	unsigned char			Backup_14;
 	unsigned char			Backup_15;
@@ -542,12 +542,12 @@ struct SiS_Private
 	int				CenterScreen;
 
 	unsigned short			CP_Vendor, CP_Product;
-	BOOLEAN				CP_HaveCustomData;
+	bool				CP_HaveCustomData;
 	int				CP_PreferredX, CP_PreferredY, CP_PreferredIndex;
 	int				CP_MaxX, CP_MaxY, CP_MaxClock;
 	unsigned char			CP_PrefSR2B, CP_PrefSR2C;
 	unsigned short			CP_PrefClock;
-	BOOLEAN				CP_Supports64048075;
+	bool				CP_Supports64048075;
 	int				CP_HDisplay[7], CP_VDisplay[7];	/* For Custom LCD panel dimensions */
 	int				CP_HTotal[7], CP_VTotal[7];
 	int				CP_HSyncStart[7], CP_VSyncStart[7];
@@ -555,8 +555,8 @@ struct SiS_Private
 	int				CP_HBlankStart[7], CP_VBlankStart[7];
 	int				CP_HBlankEnd[7], CP_VBlankEnd[7];
 	int				CP_Clock[7];
-	BOOLEAN				CP_DataValid[7];
-	BOOLEAN				CP_HSync_P[7], CP_VSync_P[7], CP_SyncValid[7];
+	bool				CP_DataValid[7];
+	bool				CP_HSync_P[7], CP_VSync_P[7], CP_SyncValid[7];
 };
 
 #endif

@@ -56,8 +56,15 @@
 extern int is_hpet_enabled(void);
 extern int hpet_rtc_timer_init(void);
 extern int apic_is_clustered_box(void);
+extern int hpet_arch_init(void);
+extern int hpet_timer_stop_set_go(unsigned long tick);
+extern int hpet_reenable(void);
+extern unsigned int hpet_calibrate_tsc(void);
 
 extern int hpet_use_timer;
+extern unsigned long hpet_address;
+extern unsigned long hpet_period;
+extern unsigned long hpet_tick;
 
 #ifdef CONFIG_HPET_EMULATE_RTC
 extern int hpet_mask_rtc_irq_bit(unsigned long bit_mask);

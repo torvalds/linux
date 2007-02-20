@@ -37,9 +37,14 @@ SECTIONS
 {
   . = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
   phys_startup_32 = startup_32 - LOAD_OFFSET;
+
+  .text.head : AT(ADDR(.text.head) - LOAD_OFFSET) {
+  	_text = .;			/* Text and read-only data */
+	*(.text.head)
+  } :text = 0x9090
+
   /* read-only */
   .text : AT(ADDR(.text) - LOAD_OFFSET) {
-  	_text = .;			/* Text and read-only data */
 	*(.text)
 	SCHED_TEXT
 	LOCK_TEXT
@@ -181,12 +186,14 @@ SECTIONS
      from .altinstructions and .eh_frame */
   .exit.text : AT(ADDR(.exit.text) - LOAD_OFFSET) { *(.exit.text) }
   .exit.data : AT(ADDR(.exit.data) - LOAD_OFFSET) { *(.exit.data) }
+#if defined(CONFIG_BLK_DEV_INITRD)
   . = ALIGN(4096);
   .init.ramfs : AT(ADDR(.init.ramfs) - LOAD_OFFSET) {
 	__initramfs_start = .;
 	*(.init.ramfs)
 	__initramfs_end = .;
   }
+#endif
   . = ALIGN(L1_CACHE_BYTES);
   .data.percpu  : AT(ADDR(.data.percpu) - LOAD_OFFSET) {
 	__per_cpu_start = .;

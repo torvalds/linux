@@ -218,7 +218,7 @@ int fastcall queue_work(struct workqueue_struct *wq, struct work_struct *work)
 }
 EXPORT_SYMBOL_GPL(queue_work);
 
-static void delayed_work_timer_fn(unsigned long __data)
+void delayed_work_timer_fn(unsigned long __data)
 {
 	struct delayed_work *dwork = (struct delayed_work *)__data;
 	struct workqueue_struct *wq = get_wq_data(&dwork->work);
@@ -245,6 +245,7 @@ int fastcall queue_delayed_work(struct workqueue_struct *wq,
 	struct timer_list *timer = &dwork->timer;
 	struct work_struct *work = &dwork->work;
 
+	timer_stats_timer_set_start_info(timer);
 	if (delay == 0)
 		return queue_work(wq, work);
 
@@ -593,8 +594,10 @@ EXPORT_SYMBOL(schedule_work);
  * After waiting for a given time this puts a job in the kernel-global
  * workqueue.
  */
-int fastcall schedule_delayed_work(struct delayed_work *dwork, unsigned long delay)
+int fastcall schedule_delayed_work(struct delayed_work *dwork,
+					unsigned long delay)
 {
+	timer_stats_timer_set_start_info(&dwork->timer);
 	return queue_delayed_work(keventd_wq, dwork, delay);
 }
 EXPORT_SYMBOL(schedule_delayed_work);
@@ -656,8 +659,7 @@ void flush_scheduled_work(void)
 EXPORT_SYMBOL(flush_scheduled_work);
 
 /**
- * cancel_rearming_delayed_workqueue - reliably kill off a delayed
- *			work whose handler rearms the delayed work.
+ * cancel_rearming_delayed_workqueue - reliably kill off a delayed work whose handler rearms the delayed work.
  * @wq:   the controlling workqueue structure
  * @dwork: the delayed work struct
  */
@@ -670,8 +672,7 @@ void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
 EXPORT_SYMBOL(cancel_rearming_delayed_workqueue);
 
 /**
- * cancel_rearming_delayed_work - reliably kill off a delayed keventd
- *			work whose handler rearms the delayed work.
+ * cancel_rearming_delayed_work - reliably kill off a delayed keventd work whose handler rearms the delayed work.
  * @dwork: the delayed work struct
  */
 void cancel_rearming_delayed_work(struct delayed_work *dwork)

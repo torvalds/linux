@@ -727,6 +727,7 @@ static int __devinit iic_probe(struct ocp_device *ocp){
 	
 	/* Register it with i2c layer */
 	adap = &dev->adap;
+	adap->dev.parent = &ocp->dev;
 	strcpy(adap->name, "IBM IIC");
 	i2c_set_adapdata(adap, dev);
 	adap->id = I2C_HW_OCP;

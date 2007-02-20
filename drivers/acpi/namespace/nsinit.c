@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@
 #include <acpi/acnamesp.h>
 #include <acpi/acdispat.h>
 #include <acpi/acinterp.h>
+#include <linux/nmi.h>
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsinit")
@@ -213,7 +214,7 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 			u32 level, void *context, void **return_value)
 {
 	acpi_object_type type;
-	acpi_status status;
+	acpi_status status = AE_OK;
 	struct acpi_init_walk_info *info =
 	    (struct acpi_init_walk_info *)context;
 	struct acpi_namespace_node *node =
@@ -267,10 +268,7 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 	/*
 	 * Must lock the interpreter before executing AML code
 	 */
-	status = acpi_ex_enter_interpreter();
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
+	acpi_ex_enter_interpreter();
 
 	/*
 	 * Each of these types can contain executable AML code within the
@@ -537,7 +535,15 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	info->parameter_type = ACPI_PARAM_ARGS;
 	info->flags = ACPI_IGNORE_RETURN_VALUE;
 
+	/*
+	 * Some hardware relies on this being executed as atomically
+	 * as possible (without an NMI being received in the middle of
+	 * this) - so disable NMIs and initialize the device:
+	 */
+	acpi_nmi_disable();
 	status = acpi_ns_evaluate(info);
+	acpi_nmi_enable();
+
 	if (ACPI_SUCCESS(status)) {
 		walk_info->num_INI++;
 

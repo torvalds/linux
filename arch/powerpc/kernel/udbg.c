@@ -45,6 +45,12 @@ void __init udbg_early_init(void)
 #elif defined(CONFIG_PPC_EARLY_DEBUG_ISERIES)
 	/* For iSeries - hit Ctrl-x Ctrl-x to see the output */
 	udbg_init_iseries();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_BEAT)
+	udbg_init_debug_beat();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_PAS_REALMODE)
+	udbg_init_pas_realmode();
+#elif defined(CONFIG_BOOTX_TEXT)
+	udbg_init_btext();
 #endif
 }
 
@@ -146,7 +152,7 @@ void __init disable_early_printk(void)
 {
 	if (!early_console_initialized)
 		return;
-	if (strstr(saved_command_line, "udbg-immortal")) {
+	if (strstr(boot_command_line, "udbg-immortal")) {
 		printk(KERN_INFO "early console immortal !\n");
 		return;
 	}

@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -62,7 +61,7 @@ struct tc_police_compat
 
 #ifdef CONFIG_NET_CLS_ACT
 static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *cb,
-                              int type, struct tc_action *a)
+			      int type, struct tc_action *a)
 {
 	struct tcf_common *p;
 	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
@@ -112,7 +111,7 @@ void tcf_police_destroy(struct tcf_police *p)
 {
 	unsigned int h = tcf_hash(p->tcf_index, POL_TAB_MASK);
 	struct tcf_common **p1p;
-	
+
 	for (p1p = &tcf_police_ht[h]; *p1p; p1p = &(*p1p)->tcfc_next) {
 		if (*p1p == &p->common) {
 			write_lock_bh(&police_lock);
@@ -135,7 +134,7 @@ void tcf_police_destroy(struct tcf_police *p)
 
 #ifdef CONFIG_NET_CLS_ACT
 static int tcf_act_police_locate(struct rtattr *rta, struct rtattr *est,
-                                 struct tc_action *a, int ovr, int bind)
+				 struct tc_action *a, int ovr, int bind)
 {
 	unsigned h;
 	int ret = 0, err;
@@ -269,7 +268,7 @@ static int tcf_act_police_cleanup(struct tc_action *a, int bind)
 }
 
 static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
-                          struct tcf_result *res)
+			  struct tcf_result *res)
 {
 	struct tcf_police *police = a->priv;
 	psched_time_t now;
@@ -606,12 +605,12 @@ rtattr_failure:
 int tcf_police_dump_stats(struct sk_buff *skb, struct tcf_police *police)
 {
 	struct gnet_dump d;
-	
+
 	if (gnet_stats_start_copy_compat(skb, TCA_STATS2, TCA_STATS,
 					 TCA_XSTATS, police->tcf_stats_lock,
 					 &d) < 0)
 		goto errout;
-	
+
 	if (gnet_stats_copy_basic(&d, &police->tcf_bstats) < 0 ||
 #ifdef CONFIG_NET_ESTIMATOR
 	    gnet_stats_copy_rate_est(&d, &police->tcf_rate_est) < 0 ||

@@ -28,7 +28,6 @@
  */
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
@@ -1748,7 +1747,7 @@ static int meye_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static struct file_operations meye_fops = {
+static const struct file_operations meye_fops = {
 	.owner		= THIS_MODULE,
 	.open		= meye_open,
 	.release	= meye_release,

@@ -32,11 +32,11 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
-#define ACPI_DOCK_DRIVER_NAME "ACPI Dock Station Driver"
+#define ACPI_DOCK_DRIVER_DESCRIPTION "ACPI Dock Station Driver"
 
-ACPI_MODULE_NAME("dock")
+ACPI_MODULE_NAME("dock");
 MODULE_AUTHOR("Kristen Carlson Accardi");
-MODULE_DESCRIPTION(ACPI_DOCK_DRIVER_NAME);
+MODULE_DESCRIPTION(ACPI_DOCK_DRIVER_DESCRIPTION);
 MODULE_LICENSE("GPL");
 
 static struct atomic_notifier_head dock_notifier_list;
@@ -615,20 +615,28 @@ static acpi_status
 find_dock_devices(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	acpi_status status;
-	acpi_handle tmp;
+	acpi_handle tmp, parent;
 	struct dock_station *ds = context;
 	struct dock_dependent_device *dd;
 
 	status = acpi_bus_get_ejd(handle, &tmp);
-	if (ACPI_FAILURE(status))
-		return AE_OK;
+	if (ACPI_FAILURE(status)) {
+		/* try the parent device as well */
+		status = acpi_get_parent(handle, &parent);
+		if (ACPI_FAILURE(status))
+			goto fdd_out;
+		/* see if parent is dependent on dock */
+		status = acpi_bus_get_ejd(parent, &tmp);
+		if (ACPI_FAILURE(status))
+			goto fdd_out;
+	}
 
 	if (tmp == ds->handle) {
 		dd = alloc_dock_dependent_device(handle);
 		if (dd)
 			add_dock_dependent_device(ds, dd);
 	}
-
+fdd_out:
 	return AE_OK;
 }
 
@@ -733,7 +741,7 @@ static int dock_add(acpi_handle handle)
 		goto dock_add_err;
 	}
 
-	printk(KERN_INFO PREFIX "%s \n", ACPI_DOCK_DRIVER_NAME);
+	printk(KERN_INFO PREFIX "%s \n", ACPI_DOCK_DRIVER_DESCRIPTION);
 
 	return 0;
 

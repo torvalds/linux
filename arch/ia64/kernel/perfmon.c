@@ -147,7 +147,7 @@
  * in UP:
  * 	- we need to protect against PMU overflow interrupts (local_irq_disable)
  *
- * spin_lock_irqsave()/spin_lock_irqrestore():
+ * spin_lock_irqsave()/spin_unlock_irqrestore():
  * 	in SMP: local_irq_disable + spin_lock
  * 	in UP : local_irq_disable
  *
@@ -521,19 +521,57 @@ pfm_sysctl_t pfm_sysctl;
 EXPORT_SYMBOL(pfm_sysctl);
 
 static ctl_table pfm_ctl_table[]={
-	{1, "debug", &pfm_sysctl.debug, sizeof(int), 0666, NULL, &proc_dointvec, NULL,},
-	{2, "debug_ovfl", &pfm_sysctl.debug_ovfl, sizeof(int), 0666, NULL, &proc_dointvec, NULL,},
-	{3, "fastctxsw", &pfm_sysctl.fastctxsw, sizeof(int), 0600, NULL, &proc_dointvec, NULL,},
-	{4, "expert_mode", &pfm_sysctl.expert_mode, sizeof(int), 0600, NULL, &proc_dointvec, NULL,},
-	{ 0, },
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "debug",
+		.data		= &pfm_sysctl.debug,
+		.maxlen		= sizeof(int),
+		.mode		= 0666,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "debug_ovfl",
+		.data		= &pfm_sysctl.debug_ovfl,
+		.maxlen		= sizeof(int),
+		.mode		= 0666,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "fastctxsw",
+		.data		= &pfm_sysctl.fastctxsw,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	=  &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "expert_mode",
+		.data		= &pfm_sysctl.expert_mode,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= &proc_dointvec,
+	},
+	{}
 };
 static ctl_table pfm_sysctl_dir[] = {
-	{1, "perfmon", NULL, 0, 0755, pfm_ctl_table, },
- 	{0,},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "perfmon",
+		.mode		= 0755,
+		.child		= pfm_ctl_table,
+	},
+ 	{}
 };
 static ctl_table pfm_sysctl_root[] = {
-	{1, "kernel", NULL, 0, 0755, pfm_sysctl_dir, },
- 	{0,},
+	{
+		.ctl_name	= CTL_KERN,
+		.procname	= "kernel",
+		.mode		= 0755,
+		.child		= pfm_sysctl_dir,
+	},
+ 	{}
 };
 static struct ctl_table_header *pfm_sysctl_header;
 
@@ -621,7 +659,7 @@ EXPORT_PER_CPU_SYMBOL_GPL(pfm_syst_info);
 
 
 /* forward declaration */
-static struct file_operations pfm_file_ops;
+static const struct file_operations pfm_file_ops;
 
 /*
  * forward declarations
@@ -2126,7 +2164,7 @@ pfm_no_open(struct inode *irrelevant, struct file *dontcare)
 
 
 
-static struct file_operations pfm_file_ops = {
+static const struct file_operations pfm_file_ops = {
 	.llseek   = no_llseek,
 	.read     = pfm_read,
 	.write    = pfm_write,
@@ -2301,12 +2339,11 @@ pfm_smpl_buffer_alloc(struct task_struct *task, pfm_context_t *ctx, unsigned lon
 	DPRINT(("smpl_buf @%p\n", smpl_buf));
 
 	/* allocate vma */
-	vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (!vma) {
 		DPRINT(("Cannot allocate vma\n"));
 		goto error_kmem;
 	}
-	memset(vma, 0, sizeof(*vma));
 
 	/*
 	 * partially initialize the vma for the sampling buffer
@@ -6597,7 +6634,7 @@ found:
 	return 0;
 }
 
-static struct file_operations pfm_proc_fops = {
+static const struct file_operations pfm_proc_fops = {
 	.open		= pfm_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -6689,7 +6726,7 @@ pfm_init(void)
 	/*
 	 * create /proc/sys/kernel/perfmon (for debugging purposes)
 	 */
-	pfm_sysctl_header = register_sysctl_table(pfm_sysctl_root, 0);
+	pfm_sysctl_header = register_sysctl_table(pfm_sysctl_root);
 
 	/*
 	 * initialize all our spinlocks

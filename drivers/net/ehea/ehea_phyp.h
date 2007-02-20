@@ -454,4 +454,7 @@ u64 ehea_h_reg_dereg_bcmc(const u64 adapter_handle, const u16 port_num,
 u64 ehea_h_reset_events(const u64 adapter_handle, const u64 neq_handle,
 			const u64 event_mask);
 
+u64 ehea_h_error_data(const u64 adapter_handle, const u64 ressource_handle,
+		      void *rblock);
+
 #endif	/* __EHEA_PHYP_H__ */

@@ -100,7 +100,7 @@ EXPORT_SYMBOL_GPL(edid_info);
 
 extern int root_mountflags;
 
-char command_line[COMMAND_LINE_SIZE];
+char __initdata command_line[COMMAND_LINE_SIZE];
 
 struct resource standard_io_resources[] = {
 	{ .name = "dma1", .start = 0x00, .end = 0x1f,
@@ -137,128 +137,6 @@ struct resource code_resource = {
 	.end = 0,
 	.flags = IORESOURCE_RAM,
 };
-
-#define IORESOURCE_ROM (IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM)
-
-static struct resource system_rom_resource = {
-	.name = "System ROM",
-	.start = 0xf0000,
-	.end = 0xfffff,
-	.flags = IORESOURCE_ROM,
-};
-
-static struct resource extension_rom_resource = {
-	.name = "Extension ROM",
-	.start = 0xe0000,
-	.end = 0xeffff,
-	.flags = IORESOURCE_ROM,
-};
-
-static struct resource adapter_rom_resources[] = {
-	{ .name = "Adapter ROM", .start = 0xc8000, .end = 0,
-		.flags = IORESOURCE_ROM },
-	{ .name = "Adapter ROM", .start = 0, .end = 0,
-		.flags = IORESOURCE_ROM },
-	{ .name = "Adapter ROM", .start = 0, .end = 0,
-		.flags = IORESOURCE_ROM },
-	{ .name = "Adapter ROM", .start = 0, .end = 0,
-		.flags = IORESOURCE_ROM },
-	{ .name = "Adapter ROM", .start = 0, .end = 0,
-		.flags = IORESOURCE_ROM },
-	{ .name = "Adapter ROM", .start = 0, .end = 0,
-		.flags = IORESOURCE_ROM }
-};
-
-static struct resource video_rom_resource = {
-	.name = "Video ROM",
-	.start = 0xc0000,
-	.end = 0xc7fff,
-	.flags = IORESOURCE_ROM,
-};
-
-static struct resource video_ram_resource = {
-	.name = "Video RAM area",
-	.start = 0xa0000,
-	.end = 0xbffff,
-	.flags = IORESOURCE_RAM,
-};
-
-#define romsignature(x) (*(unsigned short *)(x) == 0xaa55)
-
-static int __init romchecksum(unsigned char *rom, unsigned long length)
-{
-	unsigned char *p, sum = 0;
-
-	for (p = rom; p < rom + length; p++)
-		sum += *p;
-	return sum == 0;
-}
-
-static void __init probe_roms(void)
-{
-	unsigned long start, length, upper;
-	unsigned char *rom;
-	int	      i;
-
-	/* video rom */
-	upper = adapter_rom_resources[0].start;
-	for (start = video_rom_resource.start; start < upper; start += 2048) {
-		rom = isa_bus_to_virt(start);
-		if (!romsignature(rom))
-			continue;
-
-		video_rom_resource.start = start;
-
-		/* 0 < length <= 0x7f * 512, historically */
-		length = rom[2] * 512;
-
-		/* if checksum okay, trust length byte */
-		if (length && romchecksum(rom, length))
-			video_rom_resource.end = start + length - 1;
-
-		request_resource(&iomem_resource, &video_rom_resource);
-		break;
-			}
-
-	start = (video_rom_resource.end + 1 + 2047) & ~2047UL;
-	if (start < upper)
-		start = upper;
-
-	/* system rom */
-	request_resource(&iomem_resource, &system_rom_resource);
-	upper = system_rom_resource.start;
-
-	/* check for extension rom (ignore length byte!) */
-	rom = isa_bus_to_virt(extension_rom_resource.start);
-	if (romsignature(rom)) {
-		length = extension_rom_resource.end - extension_rom_resource.start + 1;
-		if (romchecksum(rom, length)) {
-			request_resource(&iomem_resource, &extension_rom_resource);
-			upper = extension_rom_resource.start;
-		}
-	}
-
-	/* check for adapter roms on 2k boundaries */
-	for (i = 0; i < ARRAY_SIZE(adapter_rom_resources) && start < upper;
-	     start += 2048) {
-		rom = isa_bus_to_virt(start);
-		if (!romsignature(rom))
-			continue;
-
-		/* 0 < length <= 0x7f * 512, historically */
-		length = rom[2] * 512;
-
-		/* but accept any length that fits if checksum okay */
-		if (!length || start + length > upper || !romchecksum(rom, length))
-			continue;
-
-		adapter_rom_resources[i].start = start;
-		adapter_rom_resources[i].end = start + length - 1;
-		request_resource(&iomem_resource, &adapter_rom_resources[i]);
-
-		start = adapter_rom_resources[i++].end & ~2047UL;
-	}
-}
 
 #ifdef CONFIG_PROC_VMCORE
 /* elfcorehdr= specifies the location of elf core header
@@ -343,7 +221,7 @@ static void discover_ebda(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-	printk(KERN_INFO "Command line: %s\n", saved_command_line);
+	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 
  	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
  	screen_info = SCREEN_INFO;
@@ -373,7 +251,7 @@ void __init setup_arch(char **cmdline_p)
 
 	early_identify_cpu(&boot_cpu_data);
 
-	strlcpy(command_line, saved_command_line, COMMAND_LINE_SIZE);
+	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
 	parse_early_param();
@@ -444,6 +322,11 @@ void __init setup_arch(char **cmdline_p)
 	/* reserve ebda region */
 	if (ebda_addr)
 		reserve_bootmem_generic(ebda_addr, ebda_size);
+#ifdef CONFIG_NUMA
+	/* reserve nodemap region */
+	if (nodemap_addr)
+		reserve_bootmem_generic(nodemap_addr, nodemap_size);
+#endif
 
 #ifdef CONFIG_SMP
 	/*
@@ -519,14 +402,10 @@ void __init setup_arch(char **cmdline_p)
 	init_apic_mappings();
 
 	/*
-	 * Request address space for all standard RAM and ROM resources
-	 * and also for regions reported as reserved by the e820.
-	 */
-	probe_roms();
+	 * We trust e820 completely. No explicit ROM probing in memory.
+ 	 */
 	e820_reserve_resources(); 
 	e820_mark_nosave_regions();
-
-	request_resource(&iomem_resource, &video_ram_resource);
 
 	{
 	unsigned i;
@@ -1063,7 +942,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, "syscall", NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, "nx", NULL, "mmxext", NULL,
-		NULL, "fxsr_opt", NULL, "rdtscp", NULL, "lm", "3dnowext", "3dnow",
+		NULL, "fxsr_opt", "pdpe1gb", "rdtscp", NULL, "lm",
+		"3dnowext", "3dnow",
 
 		/* Transmeta-defined */
 		"recovery", "longrun", NULL, "lrti", NULL, NULL, NULL, NULL,
@@ -1081,7 +961,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		/* Intel-defined (#2) */
 		"pni", NULL, NULL, "monitor", "ds_cpl", "vmx", "smx", "est",
 		"tm2", "ssse3", "cid", NULL, NULL, "cx16", "xtpr", NULL,
-		NULL, NULL, "dca", NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, "dca", NULL, NULL, NULL, NULL, "popcnt",
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* VIA/Cyrix/Centaur-defined */
@@ -1091,8 +971,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* AMD-defined (#2) */
-		"lahf_lm", "cmp_legacy", "svm", NULL, "cr8_legacy", NULL, NULL, NULL,
-		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		"lahf_lm", "cmp_legacy", "svm", "extapic", "cr8_legacy",
+		"altmovcr8", "abm", "sse4a",
+		"misalignsse", "3dnowprefetch",
+		"osvw", "ibs", NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	};
@@ -1103,6 +985,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		"ttp",  /* thermal trip */
 		"tm",
 		"stc",
+		"100mhzsteps",
+		"hwpstate",
+		NULL,	/* tsc invariant mapped to constant_tsc */
 		NULL,
 		/* nothing */	/* constant_tsc - moved to flags */
 	};
@@ -1219,23 +1104,3 @@ struct seq_operations cpuinfo_op = {
 	.stop =	c_stop,
 	.show =	show_cpuinfo,
 };
-
-#if defined(CONFIG_INPUT_PCSPKR) || defined(CONFIG_INPUT_PCSPKR_MODULE)
-#include <linux/platform_device.h>
-static __init int add_pcspkr(void)
-{
-	struct platform_device *pd;
-	int ret;
-
-	pd = platform_device_alloc("pcspkr", -1);
-	if (!pd)
-		return -ENOMEM;
-
-	ret = platform_device_add(pd);
-	if (ret)
-		platform_device_put(pd);
-
-	return ret;
-}
-device_initcall(add_pcspkr);
-#endif

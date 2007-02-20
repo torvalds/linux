@@ -2,7 +2,7 @@
 #define __LINUX_USB_H
 
 #include <linux/mod_devicetable.h>
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 
 #define USB_MAJOR			180
 #define USB_DEVICE_MAJOR		189
@@ -107,7 +107,8 @@ enum usb_interface_condition {
  * @needs_remote_wakeup: flag set when the driver requires remote-wakeup
  *	capability during autosuspend.
  * @dev: driver model's view of this device
- * @class_dev: driver model's class view of this device.
+ * @usb_dev: if an interface is bound to the USB major, this will point
+ *	to the sysfs representation for that device.
  * @pm_usage_cnt: PM usage counter for this interface; autosuspend is not
  *	allowed unless the counter is 0.
  *
@@ -152,7 +153,7 @@ struct usb_interface {
 	unsigned needs_remote_wakeup:1;	/* driver requires remote wakeup */
 
 	struct device dev;		/* interface specific device info */
-	struct class_device *class_dev;
+	struct device *usb_dev;		/* pointer to the usb class's device, if any */
 	int pm_usage_cnt;		/* usage counter for autosuspend */
 };
 #define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
@@ -372,7 +373,7 @@ struct usb_device {
 	char *serial;			/* iSerialNumber string, if present */
 
 	struct list_head filelist;
-	struct class_device *class_dev;
+	struct device *usbfs_dev;
 	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the device */
 
 	/*
@@ -475,6 +476,8 @@ extern void usb_driver_release_interface(struct usb_driver *driver,
 			struct usb_interface *iface);
 const struct usb_device_id *usb_match_id(struct usb_interface *interface,
 					 const struct usb_device_id *id);
+extern int usb_match_one_id(struct usb_interface *interface,
+			    const struct usb_device_id *id);
 
 extern struct usb_interface *usb_find_interface(struct usb_driver *drv,
 		int minor);
@@ -551,6 +554,18 @@ static inline int usb_endpoint_xfer_bulk(const struct usb_endpoint_descriptor *e
 {
 	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
 		USB_ENDPOINT_XFER_BULK);
+}
+
+/**
+ * usb_endpoint_xfer_control - check if the endpoint has control transfer type
+ * @epd: endpoint to be checked
+ *
+ * Returns true if the endpoint is of type control, otherwise it returns false.
+ */
+static inline int usb_endpoint_xfer_control(const struct usb_endpoint_descriptor *epd)
+{
+	return ((epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+		USB_ENDPOINT_XFER_CONTROL);
 }
 
 /**
@@ -723,10 +738,20 @@ static inline int usb_endpoint_is_isoc_out(const struct usb_endpoint_descriptor 
 
 /* ----------------------------------------------------------------------- */
 
+/* Stuff for dynamic usb ids */
 struct usb_dynids {
 	spinlock_t lock;
 	struct list_head list;
 };
+
+struct usb_dynid {
+	struct list_head node;
+	struct usb_device_id id;
+};
+
+extern ssize_t usb_store_new_id(struct usb_dynids *dynids,
+				struct device_driver *driver,
+				const char *buf, size_t count);
 
 /**
  * struct usbdrv_wrap - wrapper for driver-model structure
@@ -868,10 +893,11 @@ struct usb_class_driver {
  * use these in module_init()/module_exit()
  * and don't forget MODULE_DEVICE_TABLE(usb, ...)
  */
-extern int usb_register_driver(struct usb_driver *, struct module *);
+extern int usb_register_driver(struct usb_driver *, struct module *,
+			       const char *);
 static inline int usb_register(struct usb_driver *driver)
 {
-	return usb_register_driver(driver, THIS_MODULE);
+	return usb_register_driver(driver, THIS_MODULE, KBUILD_MODNAME);
 }
 extern void usb_deregister(struct usb_driver *);
 
@@ -909,7 +935,7 @@ struct usb_iso_packet_descriptor {
 	unsigned int offset;
 	unsigned int length;		/* expected length */
 	unsigned int actual_length;
-	unsigned int status;
+	int status;
 };
 
 struct urb;
@@ -1085,7 +1111,6 @@ struct urb
 	struct kref kref;		/* reference count of the URB */
 	spinlock_t lock;		/* lock for the URB */
 	void *hcpriv;			/* private data for host controller */
-	int bandwidth;			/* bandwidth for INT/ISO request */
 	atomic_t use_count;		/* concurrent submissions counter */
 	u8 reject;			/* submissions will fail */
 

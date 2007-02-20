@@ -97,7 +97,8 @@ gss_import_sec_context_spkm3(const void *p, size_t len,
 	if (IS_ERR(p))
 		goto out_err_free_ctx;
 	if (version != 1) {
-		dprintk("RPC: unknown spkm3 token format: obsolete nfs-utils?\n");
+		dprintk("RPC:       unknown spkm3 token format: "
+				"obsolete nfs-utils?\n");
 		goto out_err_free_ctx;
 	}
 
@@ -138,7 +139,7 @@ gss_import_sec_context_spkm3(const void *p, size_t len,
 
 	ctx_id->internal_ctx_id = ctx;
 
-	dprintk("Successfully imported new spkm context.\n");
+	dprintk("RPC:       Successfully imported new spkm context.\n");
 	return 0;
 
 out_err_free_intg_key:
@@ -183,7 +184,7 @@ gss_verify_mic_spkm3(struct gss_ctx		*ctx,
 
 	maj_stat = spkm3_read_token(sctx, checksum, signbuf, SPKM_MIC_TOK);
 
-	dprintk("RPC: gss_verify_mic_spkm3 returning %d\n", maj_stat);
+	dprintk("RPC:       gss_verify_mic_spkm3 returning %d\n", maj_stat);
 	return maj_stat;
 }
 
@@ -197,7 +198,7 @@ gss_get_mic_spkm3(struct gss_ctx	*ctx,
 
 	err = spkm3_make_token(sctx, message_buffer,
 				message_token, SPKM_MIC_TOK);
-	dprintk("RPC: gss_get_mic_spkm3 returning %d\n", err);
+	dprintk("RPC:       gss_get_mic_spkm3 returning %d\n", err);
 	return err;
 }
 

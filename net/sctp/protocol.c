@@ -102,11 +102,11 @@ static __init int sctp_proc_init(void)
 	}
 
 	if (sctp_snmp_proc_init())
-		goto out_nomem;	
+		goto out_nomem;
 	if (sctp_eps_proc_init())
-		goto out_nomem;	
+		goto out_nomem;
 	if (sctp_assocs_proc_init())
-		goto out_nomem;	
+		goto out_nomem;
 
 	return 0;
 
@@ -114,7 +114,7 @@ out_nomem:
 	return -ENOMEM;
 }
 
-/* Clean up the proc fs entry for the SCTP protocol. 
+/* Clean up the proc fs entry for the SCTP protocol.
  * Note: Do not make this __exit as it is used in the init error
  * path.
  */
@@ -286,7 +286,7 @@ static int sctp_v4_to_addr_param(const union sctp_addr *addr,
 
 	param->v4.param_hdr.type = SCTP_PARAM_IPV4_ADDRESS;
 	param->v4.param_hdr.length = htons(length);
-	param->v4.addr.s_addr = addr->v4.sin_addr.s_addr;	
+	param->v4.addr.s_addr = addr->v4.sin_addr.s_addr;
 
 	return length;
 }
@@ -344,9 +344,9 @@ static int sctp_v4_addr_valid(union sctp_addr *addr,
 	if (IS_IPV4_UNUSABLE_ADDRESS(&addr->v4.sin_addr.s_addr))
 		return 0;
 
- 	/* Is this a broadcast address? */
- 	if (skb && ((struct rtable *)skb->dst)->rt_flags & RTCF_BROADCAST)
- 		return 0;
+	/* Is this a broadcast address? */
+	if (skb && ((struct rtable *)skb->dst)->rt_flags & RTCF_BROADCAST)
+		return 0;
 
 	return 1;
 }
@@ -494,7 +494,7 @@ out_unlock:
 out:
 	if (dst)
 		SCTP_DEBUG_PRINTK("rt_dst:%u.%u.%u.%u, rt_src:%u.%u.%u.%u\n",
-			  	  NIPQUAD(rt->rt_dst), NIPQUAD(rt->rt_src));
+				  NIPQUAD(rt->rt_dst), NIPQUAD(rt->rt_src));
 	else
 		SCTP_DEBUG_PRINTK("NO ROUTE\n");
 
@@ -517,14 +517,14 @@ static void sctp_v4_get_saddr(struct sctp_association *asoc,
 	if (rt) {
 		saddr->v4.sin_family = AF_INET;
 		saddr->v4.sin_port = htons(asoc->base.bind_addr.port);
-		saddr->v4.sin_addr.s_addr = rt->rt_src; 
+		saddr->v4.sin_addr.s_addr = rt->rt_src;
 	}
 }
 
 /* What interface did this skb arrive on? */
 static int sctp_v4_skb_iif(const struct sk_buff *skb)
 {
-     	return ((struct rtable *)skb->dst)->rt_iif;
+	return ((struct rtable *)skb->dst)->rt_iif;
 }
 
 /* Was this packet marked by Explicit Congestion Notification? */
@@ -569,7 +569,7 @@ static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
 	newinet->dport = htons(asoc->peer.port);
 	newinet->daddr = asoc->peer.primary_addr.v4.sin_addr.s_addr;
 	newinet->pmtudisc = inet->pmtudisc;
-      	newinet->id = asoc->next_tsn ^ jiffies;
+	newinet->id = asoc->next_tsn ^ jiffies;
 
 	newinet->uc_ttl = -1;
 	newinet->mc_loop = 1;

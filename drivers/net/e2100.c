@@ -355,8 +355,7 @@ e21_block_input(struct net_device *dev, int count, struct sk_buff *skb, int ring
 
 	mem_on(ioaddr, shared_mem, (ring_offset>>8));
 
-	/* Packet is always in one chunk -- we can copy + cksum. */
-	eth_io_copy_and_sum(skb, ei_status.mem + (ring_offset & 0xff), count, 0);
+	memcpy_fromio(skb->data, ei_status.mem + (ring_offset & 0xff), count);
 
 	mem_off(ioaddr);
 }

@@ -9,7 +9,7 @@
    Steve Hirsch, Andreas Koppenh"ofer, Michael Leodolter, Eyal Lebedinsky,
    Michael Schaefer, J"org Weule, and Eric Youngdale.
 
-   Copyright 1992 - 2006 Kai Makisara
+   Copyright 1992 - 2007 Kai Makisara
    email Kai.Makisara@kolumbus.fi
 
    Some small formal changes - aeb, 950809
@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static const char *verstr = "20061107";
+static const char *verstr = "20070203";
 
 #include <linux/module.h>
 
@@ -195,8 +195,8 @@ static int sgl_unmap_user_pages(struct scatterlist *, const unsigned int, int);
 static int st_probe(struct device *);
 static int st_remove(struct device *);
 
-static int do_create_driverfs_files(void);
-static void do_remove_driverfs_files(void);
+static int do_create_sysfs_files(void);
+static void do_remove_sysfs_files(void);
 static int do_create_class_files(struct scsi_tape *, int, int);
 
 static struct scsi_driver st_template = {
@@ -1168,6 +1168,7 @@ static int st_open(struct inode *inode, struct file *filp)
 		STps = &(STp->ps[i]);
 		STps->rw = ST_IDLE;
 	}
+	STp->try_dio_now = STp->try_dio;
 	STp->recover_count = 0;
 	DEB( STp->nbr_waits = STp->nbr_finished = 0;
 	     STp->nbr_requests = STp->nbr_dio = STp->nbr_pages = STp->nbr_combinable = 0; )
@@ -1400,9 +1401,9 @@ static int setup_buffering(struct scsi_tape *STp, const char __user *buf,
 	struct st_buffer *STbp = STp->buffer;
 
 	if (is_read)
-		i = STp->try_dio && try_rdio;
+		i = STp->try_dio_now && try_rdio;
 	else
-		i = STp->try_dio && try_wdio;
+		i = STp->try_dio_now && try_wdio;
 
 	if (i && ((unsigned long)buf & queue_dma_alignment(
 					STp->device->request_queue)) == 0) {
@@ -1599,7 +1600,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 			STm->do_async_writes && STps->eof < ST_EOM_OK;
 
 		if (STp->block_size != 0 && STm->do_buffer_writes &&
-		    !(STp->try_dio && try_wdio) && STps->eof < ST_EOM_OK &&
+		    !(STp->try_dio_now && try_wdio) && STps->eof < ST_EOM_OK &&
 		    STbp->buffer_bytes < STbp->buffer_size) {
 			STp->dirty = 1;
 			/* Don't write a buffer that is not full enough. */
@@ -1769,7 +1770,7 @@ static long read_tape(struct scsi_tape *STp, long count,
 	if (STp->block_size == 0)
 		blks = bytes = count;
 	else {
-		if (!(STp->try_dio && try_rdio) && STm->do_read_ahead) {
+		if (!(STp->try_dio_now && try_rdio) && STm->do_read_ahead) {
 			blks = (STp->buffer)->buffer_blocks;
 			bytes = blks * STp->block_size;
 		} else {
@@ -1948,10 +1949,12 @@ st_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 		goto out;
 
 	STm = &(STp->modes[STp->current_mode]);
-	if (!(STm->do_read_ahead) && STp->block_size != 0 &&
-	    (count % STp->block_size) != 0) {
-		retval = (-EINVAL);	/* Read must be integral number of blocks */
-		goto out;
+	if (STp->block_size != 0 && (count % STp->block_size) != 0) {
+		if (!STm->do_read_ahead) {
+			retval = (-EINVAL);	/* Read must be integral number of blocks */
+			goto out;
+		}
+		STp->try_dio_now = 0;  /* Direct i/o can't handle split blocks */
 	}
 
 	STps = &(STp->ps[STp->partition]);
@@ -3861,7 +3864,7 @@ __setup("st=", st_setup);
 
 #endif
 
-static struct file_operations st_fops =
+static const struct file_operations st_fops =
 {
 	.owner =	THIS_MODULE,
 	.read =		st_read,
@@ -4190,7 +4193,7 @@ static int __init init_st(void)
 	if (err)
 		goto err_chrdev;
 
-	err = do_create_driverfs_files();
+	err = do_create_sysfs_files();
 	if (err)
 		goto err_scsidrv;
 
@@ -4208,7 +4211,7 @@ err_class:
 
 static void __exit exit_st(void)
 {
-	do_remove_driverfs_files();
+	do_remove_sysfs_files();
 	scsi_unregister_driver(&st_template.gendrv);
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
@@ -4246,43 +4249,43 @@ static ssize_t st_version_show(struct device_driver *ddd, char *buf)
 }
 static DRIVER_ATTR(version, S_IRUGO, st_version_show, NULL);
 
-static int do_create_driverfs_files(void)
+static int do_create_sysfs_files(void)
 {
-	struct device_driver *driverfs = &st_template.gendrv;
+	struct device_driver *sysfs = &st_template.gendrv;
 	int err;
 
-	err = driver_create_file(driverfs, &driver_attr_try_direct_io);
+	err = driver_create_file(sysfs, &driver_attr_try_direct_io);
 	if (err)
 		return err;
-	err = driver_create_file(driverfs, &driver_attr_fixed_buffer_size);
+	err = driver_create_file(sysfs, &driver_attr_fixed_buffer_size);
 	if (err)
 		goto err_try_direct_io;
-	err = driver_create_file(driverfs, &driver_attr_max_sg_segs);
+	err = driver_create_file(sysfs, &driver_attr_max_sg_segs);
 	if (err)
 		goto err_attr_fixed_buf;
-	err = driver_create_file(driverfs, &driver_attr_version);
+	err = driver_create_file(sysfs, &driver_attr_version);
 	if (err)
 		goto err_attr_max_sg;
 
 	return 0;
 
 err_attr_max_sg:
-	driver_remove_file(driverfs, &driver_attr_max_sg_segs);
+	driver_remove_file(sysfs, &driver_attr_max_sg_segs);
 err_attr_fixed_buf:
-	driver_remove_file(driverfs, &driver_attr_fixed_buffer_size);
+	driver_remove_file(sysfs, &driver_attr_fixed_buffer_size);
 err_try_direct_io:
-	driver_remove_file(driverfs, &driver_attr_try_direct_io);
+	driver_remove_file(sysfs, &driver_attr_try_direct_io);
 	return err;
 }
 
-static void do_remove_driverfs_files(void)
+static void do_remove_sysfs_files(void)
 {
-	struct device_driver *driverfs = &st_template.gendrv;
+	struct device_driver *sysfs = &st_template.gendrv;
 
-	driver_remove_file(driverfs, &driver_attr_version);
-	driver_remove_file(driverfs, &driver_attr_max_sg_segs);
-	driver_remove_file(driverfs, &driver_attr_fixed_buffer_size);
-	driver_remove_file(driverfs, &driver_attr_try_direct_io);
+	driver_remove_file(sysfs, &driver_attr_version);
+	driver_remove_file(sysfs, &driver_attr_max_sg_segs);
+	driver_remove_file(sysfs, &driver_attr_fixed_buffer_size);
+	driver_remove_file(sysfs, &driver_attr_try_direct_io);
 }
 
 

@@ -350,7 +350,7 @@ static int s3c_rtc_open(struct device *dev)
 	int ret;
 
 	ret = request_irq(s3c_rtc_alarmno, s3c_rtc_alarmirq,
-			  SA_INTERRUPT,  "s3c2410-rtc alarm", rtc_dev);
+			  IRQF_DISABLED,  "s3c2410-rtc alarm", rtc_dev);
 
 	if (ret) {
 		dev_err(dev, "IRQ%d error %d\n", s3c_rtc_alarmno, ret);
@@ -358,7 +358,7 @@ static int s3c_rtc_open(struct device *dev)
 	}
 
 	ret = request_irq(s3c_rtc_tickno, s3c_rtc_tickirq,
-			  SA_INTERRUPT,  "s3c2410-rtc tick", rtc_dev);
+			  IRQF_DISABLED,  "s3c2410-rtc tick", rtc_dev);
 
 	if (ret) {
 		dev_err(dev, "IRQ%d error %d\n", s3c_rtc_tickno, ret);

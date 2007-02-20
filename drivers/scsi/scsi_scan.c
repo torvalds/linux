@@ -54,7 +54,7 @@
 #define SCSI_TIMEOUT (2*HZ)
 
 /*
- * Prefix values for the SCSI id's (stored in driverfs name field)
+ * Prefix values for the SCSI id's (stored in sysfs name field)
  */
 #define SCSI_UID_SER_NUM 'S'
 #define SCSI_UID_UNKNOWN 'Z'
@@ -385,6 +385,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	INIT_LIST_HEAD(&starget->siblings);
 	INIT_LIST_HEAD(&starget->devices);
 	starget->state = STARGET_RUNNING;
+	starget->scsi_level = SCSI_2;
  retry:
 	spin_lock_irqsave(shost->host_lock, flags);
 
@@ -654,6 +655,19 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	 * short INQUIRY), an abort here prevents any further use of the
 	 * device, including spin up.
 	 *
+	 * On the whole, the best approach seems to be to assume the first
+	 * 36 bytes are valid no matter what the device says.  That's
+	 * better than copying < 36 bytes to the inquiry-result buffer
+	 * and displaying garbage for the Vendor, Product, or Revision
+	 * strings.
+	 */
+	if (sdev->inquiry_len < 36) {
+		printk(KERN_INFO "scsi scan: INQUIRY result too short (%d),"
+				" using 36\n", sdev->inquiry_len);
+		sdev->inquiry_len = 36;
+	}
+
+	/*
 	 * Related to the above issue:
 	 *
 	 * XXX Devices (disk or all?) should be sent a TEST UNIT READY,
@@ -1029,7 +1043,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 
 				sdev_printk(KERN_INFO, sdev,
 					"scsi scan: consider passing scsi_mod."
-					"dev_flags=%s:%s:0x240 or 0x800240\n",
+					"dev_flags=%s:%s:0x240 or 0x1000240\n",
 					scsi_inq_str(vend, result, 8, 16),
 					scsi_inq_str(mod, result, 16, 32));
 			});

@@ -15,7 +15,7 @@
  *			Mark Evans, <evansmp@uhura.aston.ac.uk>
  *			Florian La Roche, <rzsfl@rz.uni-sb.de>
  *			Alan Cox, <gw4pts@gw4pts.ampr.org>
- * 
+ *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
  *		as published by the Free Software Foundation; either version
@@ -25,12 +25,11 @@
  *		Alan Cox		:	New arp/rebuild header
  *		Maciej W. Rozycki	:	IPv6 support
  */
- 
+
 #include <linux/module.h>
 #include <asm/system.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -57,7 +56,7 @@ static int fddi_header(struct sk_buff *skb, struct net_device *dev,
 {
 	int hl = FDDI_K_SNAP_HLEN;
 	struct fddihdr *fddi;
-	
+
 	if(type != ETH_P_IP && type != ETH_P_IPV6 && type != ETH_P_ARP)
 		hl=FDDI_K_8022_HLEN-3;
 	fddi = (struct fddihdr *)skb_push(skb, hl);
@@ -74,7 +73,7 @@ static int fddi_header(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	/* Set the source and destination hardware addresses */
-	 
+
 	if (saddr != NULL)
 		memcpy(fddi->saddr, saddr, dev->addr_len);
 	else
@@ -95,7 +94,7 @@ static int fddi_header(struct sk_buff *skb, struct net_device *dev,
  * (or in future other address resolution) has completed on
  * this sk_buff.  We now let ARP fill in the other fields.
  */
- 
+
 static int fddi_rebuild_header(struct sk_buff	*skb)
 {
 	struct fddihdr *fddi = (struct fddihdr *)skb->data;
@@ -105,7 +104,7 @@ static int fddi_rebuild_header(struct sk_buff	*skb)
 		/* Try to get ARP to resolve the header and fill destination address */
 		return arp_find(fddi->daddr, skb);
 	else
-#endif	
+#endif
 	{
 		printk("%s: Don't know how to resolve type %04X addresses.\n",
 		       skb->dev->name, ntohs(fddi->hdr.llc_snap.ethertype));
@@ -120,19 +119,19 @@ static int fddi_rebuild_header(struct sk_buff	*skb)
  * up.  It's used to fill in specific skb fields and to set
  * the proper pointer to the start of packet data (skb->data).
  */
- 
+
 __be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fddihdr *fddi = (struct fddihdr *)skb->data;
 	__be16 type;
-	
+
 	/*
 	 * Set mac.raw field to point to FC byte, set data field to point
 	 * to start of packet data.  Assume 802.2 SNAP frames for now.
 	 */
 
 	skb->mac.raw = skb->data;	/* point to frame control (FC) */
-	
+
 	if(fddi->hdr.llc_8022_1.dsap==0xe0)
 	{
 		skb_pull(skb, FDDI_K_8022_HLEN-3);
@@ -143,9 +142,9 @@ __be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 		skb_pull(skb, FDDI_K_SNAP_HLEN);		/* adjust for 21 byte header */
 		type=fddi->hdr.llc_snap.ethertype;
 	}
-	
+
 	/* Set packet type based on destination address and flag settings */
-			
+
 	if (*fddi->daddr & 0x01)
 	{
 		if (memcmp(fddi->daddr, dev->broadcast, FDDI_K_ALEN) == 0)
@@ -153,7 +152,7 @@ __be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 		else
 			skb->pkt_type = PACKET_MULTICAST;
 	}
-	
+
 	else if (dev->flags & IFF_PROMISC)
 	{
 		if (memcmp(fddi->daddr, dev->dev_addr, FDDI_K_ALEN))
@@ -187,7 +186,7 @@ static void fddi_setup(struct net_device *dev)
 	dev->addr_len		= FDDI_K_ALEN;
 	dev->tx_queue_len	= 100;			/* Long queues on FDDI */
 	dev->flags		= IFF_BROADCAST | IFF_MULTICAST;
-	
+
 	memset(dev->broadcast, 0xFF, FDDI_K_ALEN);
 }
 

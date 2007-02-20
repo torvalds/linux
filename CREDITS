@@ -2571,6 +2571,16 @@ S: Subiaco, 6008
 S: Perth, Western Australia
 S: Australia
 
+N: Miguel Ojeda Sandonis
+E: maxextreme@gmail.com
+D: Author: Auxiliary LCD Controller driver (ks0108)
+D: Author: Auxiliary LCD driver (cfag12864b)
+D: Author: Auxiliary LCD framebuffer driver (cfag12864bfb)
+D: Maintainer: Auxiliary display drivers tree (drivers/auxdisplay/*)
+S: C/ Mieses 20, 9-B
+S: Valladolid 47009
+S: Spain
+
 N: Greg Page
 E: gpage@sovereign.org
 D: IPX development and support

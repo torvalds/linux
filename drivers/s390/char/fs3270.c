@@ -23,7 +23,7 @@
 #include "raw3270.h"
 #include "ctrlchar.h"
 
-struct raw3270_fn fs3270_fn;
+static struct raw3270_fn fs3270_fn;
 
 struct fs3270 {
 	struct raw3270_view view;
@@ -401,7 +401,7 @@ fs3270_release(struct raw3270_view *view)
 }
 
 /* View to a 3270 device. Can be console, tty or fullscreen. */
-struct raw3270_fn fs3270_fn = {
+static struct raw3270_fn fs3270_fn = {
 	.activate = fs3270_activate,
 	.deactivate = fs3270_deactivate,
 	.intv = (void *) fs3270_irq,
@@ -493,7 +493,7 @@ fs3270_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations fs3270_fops = {
+static const struct file_operations fs3270_fops = {
 	.owner		 = THIS_MODULE,		/* owner */
 	.read		 = fs3270_read,		/* read */
 	.write		 = fs3270_write,	/* write */

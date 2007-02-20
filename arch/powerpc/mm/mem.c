@@ -61,10 +61,6 @@ unsigned long memory_limit;
 extern void hash_preload(struct mm_struct *mm, unsigned long ea,
 			 unsigned long access, unsigned long trap);
 
-/*
- * This is called by /dev/mem to know if a given address has to
- * be mapped non-cacheable or not
- */
 int page_is_ram(unsigned long pfn)
 {
 	unsigned long paddr = (pfn << PAGE_SHIFT);
@@ -388,9 +384,6 @@ void __init mem_init(void)
 		initsize >> 10);
 
 	mem_init_done = 1;
-
-	/* Initialize the vDSO */
-	vdso_init();
 }
 
 /*
@@ -490,19 +483,19 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	    !cpu_has_feature(CPU_FTR_NOEXECUTE) &&
 	    pfn_valid(pfn)) {
 		struct page *page = pfn_to_page(pfn);
+#ifdef CONFIG_8xx
+		/* On 8xx, cache control instructions (particularly
+		 * "dcbst" from flush_dcache_icache) fault as write
+		 * operation if there is an unpopulated TLB entry
+		 * for the address in question. To workaround that,
+		 * we invalidate the TLB here, thus avoiding dcbst
+		 * misbehaviour.
+		 */
+		_tlbie(address);
+#endif
 		if (!PageReserved(page)
 		    && !test_bit(PG_arch_1, &page->flags)) {
 			if (vma->vm_mm == current->active_mm) {
-#ifdef CONFIG_8xx
-			/* On 8xx, cache control instructions (particularly 
-		 	 * "dcbst" from flush_dcache_icache) fault as write 
-			 * operation if there is an unpopulated TLB entry 
-			 * for the address in question. To workaround that, 
-			 * we invalidate the TLB here, thus avoiding dcbst 
-			 * misbehaviour.
-			 */
-				_tlbie(address);
-#endif
 				__flush_dcache_icache((void *) address);
 			} else
 				flush_dcache_icache_page(page);

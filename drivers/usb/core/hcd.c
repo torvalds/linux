@@ -45,8 +45,6 @@
 #include "hub.h"
 
 
-// #define USB_BANDWIDTH_MESSAGES
-
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -891,136 +889,6 @@ long usb_calc_bus_time (int speed, int is_input, int isoc, int bytecount)
 }
 EXPORT_SYMBOL (usb_calc_bus_time);
 
-/*
- * usb_check_bandwidth():
- *
- * old_alloc is from host_controller->bandwidth_allocated in microseconds;
- * bustime is from calc_bus_time(), but converted to microseconds.
- *
- * returns <bustime in us> if successful,
- * or -ENOSPC if bandwidth request fails.
- *
- * FIXME:
- * This initial implementation does not use Endpoint.bInterval
- * in managing bandwidth allocation.
- * It probably needs to be expanded to use Endpoint.bInterval.
- * This can be done as a later enhancement (correction).
- *
- * This will also probably require some kind of
- * frame allocation tracking...meaning, for example,
- * that if multiple drivers request interrupts every 10 USB frames,
- * they don't all have to be allocated at
- * frame numbers N, N+10, N+20, etc.  Some of them could be at
- * N+11, N+21, N+31, etc., and others at
- * N+12, N+22, N+32, etc.
- *
- * Similarly for isochronous transfers...
- *
- * Individual HCDs can schedule more directly ... this logic
- * is not correct for high speed transfers.
- */
-int usb_check_bandwidth (struct usb_device *dev, struct urb *urb)
-{
-	unsigned int	pipe = urb->pipe;
-	long		bustime;
-	int		is_in = usb_pipein (pipe);
-	int		is_iso = usb_pipeisoc (pipe);
-	int		old_alloc = dev->bus->bandwidth_allocated;
-	int		new_alloc;
-
-
-	bustime = NS_TO_US (usb_calc_bus_time (dev->speed, is_in, is_iso,
-			usb_maxpacket (dev, pipe, !is_in)));
-	if (is_iso)
-		bustime /= urb->number_of_packets;
-
-	new_alloc = old_alloc + (int) bustime;
-	if (new_alloc > FRAME_TIME_MAX_USECS_ALLOC) {
-#ifdef	DEBUG
-		char	*mode = 
-#ifdef CONFIG_USB_BANDWIDTH
-			"";
-#else
-			"would have ";
-#endif
-		dev_dbg (&dev->dev, "usb_check_bandwidth %sFAILED: %d + %ld = %d usec\n",
-			mode, old_alloc, bustime, new_alloc);
-#endif
-#ifdef CONFIG_USB_BANDWIDTH
-		bustime = -ENOSPC;	/* report error */
-#endif
-	}
-
-	return bustime;
-}
-EXPORT_SYMBOL (usb_check_bandwidth);
-
-
-/**
- * usb_claim_bandwidth - records bandwidth for a periodic transfer
- * @dev: source/target of request
- * @urb: request (urb->dev == dev)
- * @bustime: bandwidth consumed, in (average) microseconds per frame
- * @isoc: true iff the request is isochronous
- *
- * Bus bandwidth reservations are recorded purely for diagnostic purposes.
- * HCDs are expected not to overcommit periodic bandwidth, and to record such
- * reservations whenever endpoints are added to the periodic schedule.
- *
- * FIXME averaging per-frame is suboptimal.  Better to sum over the HCD's
- * entire periodic schedule ... 32 frames for OHCI, 1024 for UHCI, settable
- * for EHCI (256/512/1024 frames, default 1024) and have the bus expose how
- * large its periodic schedule is.
- */
-void usb_claim_bandwidth (struct usb_device *dev, struct urb *urb, int bustime, int isoc)
-{
-	dev->bus->bandwidth_allocated += bustime;
-	if (isoc)
-		dev->bus->bandwidth_isoc_reqs++;
-	else
-		dev->bus->bandwidth_int_reqs++;
-	urb->bandwidth = bustime;
-
-#ifdef USB_BANDWIDTH_MESSAGES
-	dev_dbg (&dev->dev, "bandwidth alloc increased by %d (%s) to %d for %d requesters\n",
-		bustime,
-		isoc ? "ISOC" : "INTR",
-		dev->bus->bandwidth_allocated,
-		dev->bus->bandwidth_int_reqs + dev->bus->bandwidth_isoc_reqs);
-#endif
-}
-EXPORT_SYMBOL (usb_claim_bandwidth);
-
-
-/**
- * usb_release_bandwidth - reverses effect of usb_claim_bandwidth()
- * @dev: source/target of request
- * @urb: request (urb->dev == dev)
- * @isoc: true iff the request is isochronous
- *
- * This records that previously allocated bandwidth has been released.
- * Bandwidth is released when endpoints are removed from the host controller's
- * periodic schedule.
- */
-void usb_release_bandwidth (struct usb_device *dev, struct urb *urb, int isoc)
-{
-	dev->bus->bandwidth_allocated -= urb->bandwidth;
-	if (isoc)
-		dev->bus->bandwidth_isoc_reqs--;
-	else
-		dev->bus->bandwidth_int_reqs--;
-
-#ifdef USB_BANDWIDTH_MESSAGES
-	dev_dbg (&dev->dev, "bandwidth alloc reduced by %d (%s) to %d for %d requesters\n",
-		urb->bandwidth,
-		isoc ? "ISOC" : "INTR",
-		dev->bus->bandwidth_allocated,
-		dev->bus->bandwidth_int_reqs + dev->bus->bandwidth_isoc_reqs);
-#endif
-	urb->bandwidth = 0;
-}
-EXPORT_SYMBOL (usb_release_bandwidth);
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -1033,11 +901,6 @@ EXPORT_SYMBOL (usb_release_bandwidth);
 static void urb_unlink (struct urb *urb)
 {
 	unsigned long		flags;
-
-	/* Release any periodic transfer bandwidth */
-	if (urb->bandwidth)
-		usb_release_bandwidth (urb->dev, urb,
-			usb_pipeisoc (urb->pipe));
 
 	/* clear all state linking urb to this dev (and hcd) */
 

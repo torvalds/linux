@@ -32,6 +32,7 @@
 #include <linux/seq_file.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
+#include <linux/completion.h>
 #include <asm/uaccess.h>
 
 
@@ -40,28 +41,13 @@ static LIST_HEAD(drivers);
 static DEFINE_MUTEX(core_lists);
 static DEFINE_IDR(i2c_adapter_idr);
 
+
+/* ------------------------------------------------------------------------- */
+
 /* match always succeeds, as we want the probe() to tell if we really accept this match */
 static int i2c_device_match(struct device *dev, struct device_driver *drv)
 {
 	return 1;
-}
-
-static int i2c_bus_suspend(struct device * dev, pm_message_t state)
-{
-	int rc = 0;
-
-	if (dev->driver && dev->driver->suspend)
-		rc = dev->driver->suspend(dev, state);
-	return rc;
-}
-
-static int i2c_bus_resume(struct device * dev)
-{
-	int rc = 0;
-	
-	if (dev->driver && dev->driver->resume)
-		rc = dev->driver->resume(dev);
-	return rc;
 }
 
 static int i2c_device_probe(struct device *dev)
@@ -74,14 +60,52 @@ static int i2c_device_remove(struct device *dev)
 	return 0;
 }
 
+static void i2c_device_shutdown(struct device *dev)
+{
+	struct i2c_driver *driver;
+
+	if (!dev->driver)
+		return;
+	driver = to_i2c_driver(dev->driver);
+	if (driver->shutdown)
+		driver->shutdown(to_i2c_client(dev));
+}
+
+static int i2c_device_suspend(struct device * dev, pm_message_t mesg)
+{
+	struct i2c_driver *driver;
+
+	if (!dev->driver)
+		return 0;
+	driver = to_i2c_driver(dev->driver);
+	if (!driver->suspend)
+		return 0;
+	return driver->suspend(to_i2c_client(dev), mesg);
+}
+
+static int i2c_device_resume(struct device * dev)
+{
+	struct i2c_driver *driver;
+
+	if (!dev->driver)
+		return 0;
+	driver = to_i2c_driver(dev->driver);
+	if (!driver->resume)
+		return 0;
+	return driver->resume(to_i2c_client(dev));
+}
+
 struct bus_type i2c_bus_type = {
-	.name =		"i2c",
-	.match =	i2c_device_match,
-	.probe =	i2c_device_probe,
-	.remove =	i2c_device_remove,
-	.suspend =      i2c_bus_suspend,
-	.resume =       i2c_bus_resume,
+	.name		= "i2c",
+	.match		= i2c_device_match,
+	.probe		= i2c_device_probe,
+	.remove		= i2c_device_remove,
+	.shutdown	= i2c_device_shutdown,
+	.suspend	= i2c_device_suspend,
+	.resume		= i2c_device_resume,
 };
+
+/* ------------------------------------------------------------------------- */
 
 void i2c_adapter_dev_release(struct device *dev)
 {
@@ -193,9 +217,8 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 	 */
 	if (adap->dev.parent == NULL) {
 		adap->dev.parent = &platform_bus;
-		printk(KERN_WARNING "**WARNING** I2C adapter driver [%s] "
-		       "forgot to specify physical device; fix it!\n",
-		       adap->name);
+		pr_debug("I2C adapter driver [%s] forgot to specify "
+			 "physical device\n", adap->name);
 	}
 	sprintf(adap->dev.bus_id, "i2c-%d", adap->nr);
 	adap->dev.driver = &i2c_adapter_driver;

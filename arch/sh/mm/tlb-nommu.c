@@ -13,39 +13,33 @@
 /*
  * Nothing too terribly exciting here ..
  */
-
-void flush_tlb(void)
+void local_flush_tlb_all(void)
 {
 	BUG();
 }
 
-void flush_tlb_all(void)
+void local_flush_tlb_mm(struct mm_struct *mm)
 {
 	BUG();
 }
 
-void flush_tlb_mm(struct mm_struct *mm)
-{
-	BUG();
-}
-
-void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
+void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			    unsigned long end)
 {
 	BUG();
 }
 
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
+void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
 	BUG();
 }
 
-void __flush_tlb_page(unsigned long asid, unsigned long page)
+void local_flush_tlb_one(unsigned long asid, unsigned long page)
 {
 	BUG();
 }
 
-void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	BUG();
 }
@@ -55,4 +49,3 @@ void update_mmu_cache(struct vm_area_struct * vma,
 {
 	BUG();
 }
-

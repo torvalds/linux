@@ -85,10 +85,10 @@ extern int     setjmp(jmp_buf __jmpb);
 #define KGDB_PRINTK(...) printk("KGDB: " __VA_ARGS__)
 
 /* Forced breakpoint */
-#define BREAKPOINT() do {                                     \
-  if (kgdb_enabled) {                                         \
-    asm volatile("trapa   #0xff");                            \
-  }                                                           \
+#define BREAKPOINT()					\
+do {							\
+	if (kgdb_enabled)				\
+		__asm__ __volatile__("trapa   #0x3c");	\
 } while (0)
 
 /* KGDB should be able to flush all kernel text space */

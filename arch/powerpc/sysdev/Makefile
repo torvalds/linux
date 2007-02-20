@@ -7,6 +7,7 @@ obj-$(CONFIG_PPC_INDIRECT_PCI)	+= indirect_pci.o
 obj-$(CONFIG_PPC_MPC106)	+= grackle.o
 obj-$(CONFIG_PPC_DCR)		+= dcr.o
 obj-$(CONFIG_PPC_DCR_NATIVE)	+= dcr-low.o
+obj-$(CONFIG_PPC_PMI)		+= pmi.o
 obj-$(CONFIG_U3_DART)		+= dart_iommu.o
 obj-$(CONFIG_MMIO_NVRAM)	+= mmio_nvram.o
 obj-$(CONFIG_FSL_SOC)		+= fsl_soc.o
@@ -22,4 +23,6 @@ endif
 ifeq ($(ARCH),powerpc)
 obj-$(CONFIG_MTD)		+= rom.o
 obj-$(CONFIG_CPM2)		+= cpm2_common.o cpm2_pic.o
+obj-$(CONFIG_8xx)		+= mpc8xx_pic.o commproc.o
+obj-$(CONFIG_UCODE_PATCH)	+= micropatch.o
 endif

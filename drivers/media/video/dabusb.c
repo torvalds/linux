@@ -696,7 +696,7 @@ static int dabusb_ioctl (struct inode *inode, struct file *file, unsigned int cm
 	return ret;
 }
 
-static struct file_operations dabusb_fops =
+static const struct file_operations dabusb_fops =
 {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,

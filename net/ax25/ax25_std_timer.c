@@ -14,7 +14,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/sockios.h>
@@ -34,7 +33,7 @@
 void ax25_std_heartbeat_expiry(ax25_cb *ax25)
 {
 	struct sock *sk=ax25->sk;
-	
+
 	if (sk)
 		bh_lock_sock(sk);
 

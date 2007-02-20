@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/fs.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vfs.h>
 #include <linux/nls.h>
@@ -260,7 +259,7 @@ static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations hfsplus_sops = {
+static const struct super_operations hfsplus_sops = {
 	.alloc_inode	= hfsplus_alloc_inode,
 	.destroy_inode	= hfsplus_destroy_inode,
 	.read_inode	= hfsplus_read_inode,

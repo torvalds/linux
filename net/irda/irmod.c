@@ -1,5 +1,5 @@
 /*********************************************************************
- *                
+ *
  * Filename:      irmod.c
  * Version:       0.9
  * Description:   IrDA stack main entry points
@@ -8,19 +8,19 @@
  * Created at:    Mon Dec 15 13:55:39 1997
  * Modified at:   Wed Jan  5 15:12:41 2000
  * Modified by:   Dag Brattli <dagb@cs.uit.no>
- * 
+ *
  *     Copyright (c) 1997, 1999-2000 Dag Brattli, All Rights Reserved.
  *     Copyright (c) 2000-2004 Jean Tourrilhes <jt@hpl.hp.com>
- *      
- *     This program is free software; you can redistribute it and/or 
- *     modify it under the terms of the GNU General Public License as 
- *     published by the Free Software Foundation; either version 2 of 
+ *
+ *     This program is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of
  *     the License, or (at your option) any later version.
- *  
+ *
  *     Neither Dag Brattli nor University of Tromsø admit liability nor
- *     provide warranty for any of this software. This material is 
+ *     provide warranty for any of this software. This material is
  *     provided "AS-IS" and at no charge.
- *     
+ *
  ********************************************************************/
 
 /*
@@ -52,7 +52,7 @@ extern void irda_sysctl_unregister(void);
 extern int  irsock_init(void);
 extern void irsock_cleanup(void);
 /* irlap_frame.c */
-extern int  irlap_driver_rcv(struct sk_buff *, struct net_device *, 
+extern int  irlap_driver_rcv(struct sk_buff *, struct net_device *,
 			     struct packet_type *, struct net_device *);
 
 /*
@@ -104,16 +104,16 @@ static int __init irda_init(void)
 	IRDA_DEBUG(0, "%s()\n", __FUNCTION__);
 
 	/* Lower layer of the stack */
- 	irlmp_init();
+	irlmp_init();
 	irlap_init();
-	
+
 	/* Higher layers of the stack */
 	iriap_init();
- 	irttp_init();
+	irttp_init();
 	irsock_init();
-	
+
 	/* Add IrDA packet type (Start receiving packets) */
-        dev_add_pack(&irda_packet_type);
+	dev_add_pack(&irda_packet_type);
 
 	/* External APIs */
 #ifdef CONFIG_PROC_FS
@@ -124,7 +124,7 @@ static int __init irda_init(void)
 #endif
 
 	/* Driver/dongle support */
- 	irda_device_init();
+	irda_device_init();
 
 	return 0;
 }
@@ -140,14 +140,14 @@ static void __exit irda_cleanup(void)
 	/* Remove External APIs */
 #ifdef CONFIG_SYSCTL
 	irda_sysctl_unregister();
-#endif	
+#endif
 #ifdef CONFIG_PROC_FS
 	irda_proc_unregister();
 #endif
 
 	/* Remove IrDA packet type (stop receiving packets) */
-        dev_remove_pack(&irda_packet_type);
-	
+	dev_remove_pack(&irda_packet_type);
+
 	/* Remove higher layers */
 	irsock_cleanup();
 	irttp_cleanup();
@@ -177,8 +177,8 @@ static void __exit irda_cleanup(void)
  */
 subsys_initcall(irda_init);
 module_exit(irda_cleanup);
- 
+
 MODULE_AUTHOR("Dag Brattli <dagb@cs.uit.no> & Jean Tourrilhes <jt@hpl.hp.com>");
-MODULE_DESCRIPTION("The Linux IrDA Protocol Stack"); 
+MODULE_DESCRIPTION("The Linux IrDA Protocol Stack");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_IRDA);

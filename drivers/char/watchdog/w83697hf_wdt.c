@@ -60,7 +60,7 @@ MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. 1<= timeout <=255, defau
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Kernel methods.
@@ -323,7 +323,7 @@ wdt_notify_sys(struct notifier_block *this, unsigned long code,
  *	Kernel Interfaces
  */
 
-static struct file_operations wdt_fops = {
+static const struct file_operations wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= wdt_write,

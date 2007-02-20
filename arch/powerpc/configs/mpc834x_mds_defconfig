@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.20-rc5
-# Mon Jan 22 22:24:10 2007
+# Linux kernel version: 2.6.20
+# Thu Feb  8 01:00:48 2007
 #
 # CONFIG_PPC64 is not set
 CONFIG_PPC32=y
@@ -34,9 +34,9 @@ CONFIG_DEFAULT_UIMAGE=y
 CONFIG_PPC_83xx=y
 # CONFIG_PPC_85xx is not set
 # CONFIG_PPC_86xx is not set
+# CONFIG_PPC_8xx is not set
 # CONFIG_40x is not set
 # CONFIG_44x is not set
-# CONFIG_8xx is not set
 # CONFIG_E200 is not set
 CONFIG_6xx=y
 CONFIG_83xx=y
@@ -128,8 +128,9 @@ CONFIG_PPC_GEN550=y
 #
 # Platform support
 #
+# CONFIG_MPC8313_RDB is not set
 # CONFIG_MPC832x_MDS is not set
-CONFIG_MPC834x_SYS=y
+CONFIG_MPC834x_MDS=y
 # CONFIG_MPC834x_ITX is not set
 # CONFIG_MPC8360E_PB is not set
 CONFIG_MPC834x=y
@@ -149,7 +150,6 @@ CONFIG_PREEMPT_NONE=y
 # CONFIG_PREEMPT is not set
 CONFIG_BINFMT_ELF=y
 # CONFIG_BINFMT_MISC is not set
-CONFIG_MATH_EMULATION=y
 CONFIG_ARCH_ENABLE_MEMORY_HOTPLUG=y
 CONFIG_ARCH_FLATMEM_ENABLE=y
 CONFIG_ARCH_POPULATES_NODE_MAP=y

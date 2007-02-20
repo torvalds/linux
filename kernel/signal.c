@@ -456,26 +456,50 @@ static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
 int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 {
 	int signr = __dequeue_signal(&tsk->pending, mask, info);
-	if (!signr)
+	if (!signr) {
 		signr = __dequeue_signal(&tsk->signal->shared_pending,
 					 mask, info);
+		/*
+		 * itimer signal ?
+		 *
+		 * itimers are process shared and we restart periodic
+		 * itimers in the signal delivery path to prevent DoS
+		 * attacks in the high resolution timer case. This is
+		 * compliant with the old way of self restarting
+		 * itimers, as the SIGALRM is a legacy signal and only
+		 * queued once. Changing the restart behaviour to
+		 * restart the timer in the signal dequeue path is
+		 * reducing the timer noise on heavy loaded !highres
+		 * systems too.
+		 */
+		if (unlikely(signr == SIGALRM)) {
+			struct hrtimer *tmr = &tsk->signal->real_timer;
+
+			if (!hrtimer_is_queued(tmr) &&
+			    tsk->signal->it_real_incr.tv64 != 0) {
+				hrtimer_forward(tmr, tmr->base->get_time(),
+						tsk->signal->it_real_incr);
+				hrtimer_restart(tmr);
+			}
+		}
+	}
 	recalc_sigpending_tsk(tsk);
- 	if (signr && unlikely(sig_kernel_stop(signr))) {
- 		/*
- 		 * Set a marker that we have dequeued a stop signal.  Our
- 		 * caller might release the siglock and then the pending
- 		 * stop signal it is about to process is no longer in the
- 		 * pending bitmasks, but must still be cleared by a SIGCONT
- 		 * (and overruled by a SIGKILL).  So those cases clear this
- 		 * shared flag after we've set it.  Note that this flag may
- 		 * remain set after the signal we return is ignored or
- 		 * handled.  That doesn't matter because its only purpose
- 		 * is to alert stop-signal processing code when another
- 		 * processor has come along and cleared the flag.
- 		 */
- 		if (!(tsk->signal->flags & SIGNAL_GROUP_EXIT))
- 			tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
- 	}
+	if (signr && unlikely(sig_kernel_stop(signr))) {
+		/*
+		 * Set a marker that we have dequeued a stop signal.  Our
+		 * caller might release the siglock and then the pending
+		 * stop signal it is about to process is no longer in the
+		 * pending bitmasks, but must still be cleared by a SIGCONT
+		 * (and overruled by a SIGKILL).  So those cases clear this
+		 * shared flag after we've set it.  Note that this flag may
+		 * remain set after the signal we return is ignored or
+		 * handled.  That doesn't matter because its only purpose
+		 * is to alert stop-signal processing code when another
+		 * processor has come along and cleared the flag.
+		 */
+		if (!(tsk->signal->flags & SIGNAL_GROUP_EXIT))
+			tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
+	}
 	if ( signr &&
 	     ((info->si_code & __SI_MASK) == __SI_TIMER) &&
 	     info->si_sys_private){
@@ -1096,42 +1120,21 @@ int kill_pgrp_info(int sig, struct siginfo *info, struct pid *pgrp)
 	return retval;
 }
 
-int __kill_pg_info(int sig, struct siginfo *info, pid_t pgrp)
-{
-	if (pgrp <= 0)
-		return -EINVAL;
-
-	return __kill_pgrp_info(sig, info, find_pid(pgrp));
-}
-
-int
-kill_pg_info(int sig, struct siginfo *info, pid_t pgrp)
-{
-	int retval;
-
-	read_lock(&tasklist_lock);
-	retval = __kill_pg_info(sig, info, pgrp);
-	read_unlock(&tasklist_lock);
-
-	return retval;
-}
-
 int kill_pid_info(int sig, struct siginfo *info, struct pid *pid)
 {
 	int error;
-	int acquired_tasklist_lock = 0;
 	struct task_struct *p;
 
 	rcu_read_lock();
-	if (unlikely(sig_needs_tasklist(sig))) {
+	if (unlikely(sig_needs_tasklist(sig)))
 		read_lock(&tasklist_lock);
-		acquired_tasklist_lock = 1;
-	}
+
 	p = pid_task(pid, PIDTYPE_PID);
 	error = -ESRCH;
 	if (p)
 		error = group_send_sig_info(sig, info, p);
-	if (unlikely(acquired_tasklist_lock))
+
+	if (unlikely(sig_needs_tasklist(sig)))
 		read_unlock(&tasklist_lock);
 	rcu_read_unlock();
 	return error;
@@ -1192,8 +1195,10 @@ EXPORT_SYMBOL_GPL(kill_pid_info_as_uid);
 
 static int kill_something_info(int sig, struct siginfo *info, int pid)
 {
+	int ret;
+	rcu_read_lock();
 	if (!pid) {
-		return kill_pg_info(sig, info, process_group(current));
+		ret = kill_pgrp_info(sig, info, task_pgrp(current));
 	} else if (pid == -1) {
 		int retval = 0, count = 0;
 		struct task_struct * p;
@@ -1208,12 +1213,14 @@ static int kill_something_info(int sig, struct siginfo *info, int pid)
 			}
 		}
 		read_unlock(&tasklist_lock);
-		return count ? retval : -ESRCH;
+		ret = count ? retval : -ESRCH;
 	} else if (pid < 0) {
-		return kill_pg_info(sig, info, -pid);
+		ret = kill_pgrp_info(sig, info, find_pid(-pid));
 	} else {
-		return kill_proc_info(sig, info, pid);
+		ret = kill_pid_info(sig, info, find_pid(pid));
 	}
+	rcu_read_unlock();
+	return ret;
 }
 
 /*
@@ -1310,12 +1317,6 @@ int kill_pid(struct pid *pid, int sig, int priv)
 	return kill_pid_info(sig, __si_special(priv), pid);
 }
 EXPORT_SYMBOL(kill_pid);
-
-int
-kill_pg(pid_t pgrp, int sig, int priv)
-{
-	return kill_pg_info(sig, __si_special(priv), pgrp);
-}
 
 int
 kill_proc(pid_t pid, int sig, int priv)
@@ -1906,7 +1907,7 @@ relock:
 
 				/* signals can be posted during this window */
 
-				if (is_orphaned_pgrp(process_group(current)))
+				if (is_current_pgrp_orphaned())
 					goto relock;
 
 				spin_lock_irq(&current->sighand->siglock);
@@ -1956,7 +1957,6 @@ EXPORT_SYMBOL(recalc_sigpending);
 EXPORT_SYMBOL_GPL(dequeue_signal);
 EXPORT_SYMBOL(flush_signals);
 EXPORT_SYMBOL(force_sig);
-EXPORT_SYMBOL(kill_pg);
 EXPORT_SYMBOL(kill_proc);
 EXPORT_SYMBOL(ptrace_notify);
 EXPORT_SYMBOL(send_sig);
@@ -2283,7 +2283,7 @@ static int do_tkill(int tgid, int pid, int sig)
  *  @pid: the PID of the thread
  *  @sig: signal to be sent
  *
- *  This syscall also checks the tgid and returns -ESRCH even if the PID
+ *  This syscall also checks the @tgid and returns -ESRCH even if the PID
  *  exists but it's not belonging to the target process anymore. This
  *  method solves the problem of threads exiting and PIDs getting reused.
  */

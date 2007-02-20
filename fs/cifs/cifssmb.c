@@ -158,9 +158,15 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 							nls_codepage);
 			if(!rc && (tcon->tidStatus == CifsNeedReconnect)) {
 				mark_open_files_invalid(tcon);
-				rc = CIFSTCon(0, tcon->ses, tcon->treeName, tcon
-					, nls_codepage);
+				rc = CIFSTCon(0, tcon->ses, tcon->treeName, 
+					      tcon, nls_codepage);
 				up(&tcon->ses->sesSem);
+				/* tell server which Unix caps we support */
+				if (tcon->ses->capabilities & CAP_UNIX)
+					reset_cifs_unix_caps(0 /* no xid */,
+						tcon, 
+						NULL /* we do not know sb */,
+						NULL /* no vol info */);	
 				/* BB FIXME add code to check if wsize needs
 				   update due to negotiated smb buffer size
 				   shrinking */
@@ -298,6 +304,12 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 				rc = CIFSTCon(0, tcon->ses, tcon->treeName,
 					      tcon, nls_codepage);
 				up(&tcon->ses->sesSem);
+				/* tell server which Unix caps we support */
+				if (tcon->ses->capabilities & CAP_UNIX)
+					reset_cifs_unix_caps(0 /* no xid */,
+						tcon, 
+						NULL /* do not know sb */,
+						NULL /* no vol info */);
 				/* BB FIXME add code to check if wsize needs
 				update due to negotiated smb buffer size
 				shrinking */
@@ -2812,10 +2824,10 @@ GetExtAttrOut:
 
 
 /* security id for everyone */
-const static struct cifs_sid sid_everyone = 
+static const struct cifs_sid sid_everyone =
 		{1, 1, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0}};
 /* group users */
-const static struct cifs_sid sid_user = 
+static const struct cifs_sid sid_user =
 		{1, 2 , {0, 0, 0, 0, 0, 5}, {32, 545, 0, 0}};
 
 /* Convert CIFS ACL to POSIX form */

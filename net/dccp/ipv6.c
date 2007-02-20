@@ -734,7 +734,7 @@ static int dccp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	   looks not very well thought. For now we latch
 	   options, received in the last packet, enqueued
 	   by tcp. Feel free to propose better solution.
-	                                       --ANK (980728)
+					       --ANK (980728)
 	 */
 	if (np->rxopt.all)
 	/*
@@ -1041,7 +1041,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	err = xfrm_lookup(&dst, &fl, sk, 0);
+	err = xfrm_lookup(&dst, &fl, sk, 1);
 	if (err < 0)
 		goto failure;
 

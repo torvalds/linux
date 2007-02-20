@@ -360,8 +360,7 @@ static int netevent_callback(struct notifier_block *self, unsigned long event,
 	if (event == NETEVENT_NEIGH_UPDATE) {
 		struct neighbour *neigh = ctx;
 
-		if (neigh->dev->type == ARPHRD_INFINIBAND &&
-		    (neigh->nud_state & NUD_VALID)) {
+		if (neigh->nud_state & NUD_VALID) {
 			set_timeout(jiffies);
 		}
 	}
@@ -374,7 +373,7 @@ static struct notifier_block nb = {
 
 static int addr_init(void)
 {
-	addr_wq = create_singlethread_workqueue("ib_addr_wq");
+	addr_wq = create_singlethread_workqueue("ib_addr");
 	if (!addr_wq)
 		return -ENOMEM;
 

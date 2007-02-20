@@ -421,7 +421,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	ohci_hcd_init(ohci);
 
 	dev_info(&pdev->dev, "at 0x%p, irq %d\n", hcd->regs, hcd->irq);
-	ret = usb_add_hcd(hcd, irq, SA_INTERRUPT);
+	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
 	if (ret == 0)
 		return ret;
 
@@ -465,15 +465,3 @@ static struct platform_driver usb_hcd_pnx4008_driver = {
 	.remove = usb_hcd_pnx4008_remove,
 };
 
-static int __init usb_hcd_pnx4008_init(void)
-{
-	return platform_driver_register(&usb_hcd_pnx4008_driver);
-}
-
-static void __exit usb_hcd_pnx4008_cleanup(void)
-{
-	return platform_driver_unregister(&usb_hcd_pnx4008_driver);
-}
-
-module_init(usb_hcd_pnx4008_init);
-module_exit(usb_hcd_pnx4008_cleanup);

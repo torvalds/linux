@@ -305,7 +305,21 @@ static inline void *get_usb_offset(struct ufs_sb_private_info *uspi,
 	(((__fs32*)((ubh)->bh[(begin) >> (uspi->s_fshift-2)]->b_data)) + \
 	((begin) & ((uspi->s_fsize>>2) - 1)))
 
+#define ubh_get_addr64(ubh,begin) \
+	(((__fs64*)((ubh)->bh[(begin) >> (uspi->s_fshift-3)]->b_data)) + \
+	((begin) & ((uspi->s_fsize>>3) - 1)))
+
 #define ubh_get_addr ubh_get_addr8
+
+static inline void *ubh_get_data_ptr(struct ufs_sb_private_info *uspi,
+				     struct ufs_buffer_head *ubh,
+				     u64 blk)
+{
+	if (uspi->fs_magic == UFS2_MAGIC)
+		return ubh_get_addr64(ubh, blk);
+	else
+		return ubh_get_addr32(ubh, blk);
+}
 
 #define ubh_blkmap(ubh,begin,bit) \
 	((*ubh_get_addr(ubh, (begin) + ((bit) >> 3)) >> ((bit) & 7)) & (0xff >> (UFS_MAXFRAG - uspi->s_fpb)))
@@ -506,4 +520,47 @@ static inline void ufs_fragacct (struct super_block * sb, unsigned blockmap,
 	}
 	if (fragsize > 0 && fragsize < uspi->s_fpb)
 		fs32_add(sb, &fraglist[fragsize], cnt);
+}
+
+static inline void *ufs_get_direct_data_ptr(struct ufs_sb_private_info *uspi,
+					    struct ufs_inode_info *ufsi,
+					    unsigned blk)
+{
+	BUG_ON(blk > UFS_TIND_BLOCK);
+	return uspi->fs_magic == UFS2_MAGIC ?
+		(void *)&ufsi->i_u1.u2_i_data[blk] :
+		(void *)&ufsi->i_u1.i_data[blk];
+}
+
+static inline u64 ufs_data_ptr_to_cpu(struct super_block *sb, void *p)
+{
+	return UFS_SB(sb)->s_uspi->fs_magic == UFS2_MAGIC ?
+		fs64_to_cpu(sb, *(__fs64 *)p) :
+		fs32_to_cpu(sb, *(__fs32 *)p);
+}
+
+static inline void ufs_cpu_to_data_ptr(struct super_block *sb, void *p, u64 val)
+{
+	if (UFS_SB(sb)->s_uspi->fs_magic == UFS2_MAGIC)
+		*(__fs64 *)p = cpu_to_fs64(sb, val);
+	else
+		*(__fs32 *)p = cpu_to_fs32(sb, val);
+}
+
+static inline void ufs_data_ptr_clear(struct ufs_sb_private_info *uspi,
+				      void *p)
+{
+	if (uspi->fs_magic == UFS2_MAGIC)
+		*(__fs64 *)p = 0;
+	else
+		*(__fs32 *)p = 0;
+}
+
+static inline int ufs_is_data_ptr_zero(struct ufs_sb_private_info *uspi,
+				       void *p)
+{
+	if (uspi->fs_magic == UFS2_MAGIC)
+		return *(__fs64 *)p == 0;
+	else
+		return *(__fs32 *)p == 0;
 }

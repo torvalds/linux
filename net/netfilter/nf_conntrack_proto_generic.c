@@ -12,7 +12,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/sched.h>
+#include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>

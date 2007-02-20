@@ -307,7 +307,7 @@ static unsigned int __init calibrate_hpt(void)
 struct clocksource clocksource_mips = {
 	.name		= "MIPS",
 	.mask		= 0xffffffff,
-	.is_continuous	= 1,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static void __init init_mips_clocksource(void)
@@ -455,8 +455,3 @@ EXPORT_SYMBOL(rtc_lock);
 EXPORT_SYMBOL(to_tm);
 EXPORT_SYMBOL(rtc_mips_set_time);
 EXPORT_SYMBOL(rtc_mips_get_time);
-
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies*(1000000000/HZ);
-}

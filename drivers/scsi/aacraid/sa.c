@@ -31,7 +31,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -89,6 +88,17 @@ static irqreturn_t aac_sa_intr(int irq, void *dev_id)
 static void aac_sa_disable_interrupt (struct aac_dev *dev)
 {
 	sa_writew(dev, SaDbCSR.PRISETIRQMASK, 0xffff);
+}
+
+/**
+ *	aac_sa_enable_interrupt	-	enable interrupt
+ *	@dev: Which adapter to enable.
+ */
+
+static void aac_sa_enable_interrupt (struct aac_dev *dev)
+{
+	sa_writew(dev, SaDbCSR.PRICLEARIRQMASK, (PrintfReady | DOORBELL_1 |
+				DOORBELL_2 | DOORBELL_3 | DOORBELL_4));
 }
 
 /**
@@ -347,32 +357,36 @@ int aac_sa_init(struct aac_dev *dev)
 		msleep(1);
 	}
 
-	if (request_irq(dev->scsi_host_ptr->irq, aac_sa_intr, IRQF_SHARED|IRQF_DISABLED, "aacraid", (void *)dev ) < 0) {
-		printk(KERN_WARNING "%s%d: Interrupt unavailable.\n", name, instance);
-		goto error_iounmap;
-	}
-
 	/*
 	 *	Fill in the function dispatch table.
 	 */
 
 	dev->a_ops.adapter_interrupt = aac_sa_interrupt_adapter;
 	dev->a_ops.adapter_disable_int = aac_sa_disable_interrupt;
+	dev->a_ops.adapter_enable_int = aac_sa_enable_interrupt;
 	dev->a_ops.adapter_notify = aac_sa_notify_adapter;
 	dev->a_ops.adapter_sync_cmd = sa_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_sa_check_health;
+	dev->a_ops.adapter_intr = aac_sa_intr;
 	dev->a_ops.adapter_ioremap = aac_sa_ioremap;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that 
 	 *	we can handle.
 	 */
-	sa_writew(dev, SaDbCSR.PRISETIRQMASK, 0xffff);
-	sa_writew(dev, SaDbCSR.PRICLEARIRQMASK, (PrintfReady | DOORBELL_1 | 
-				DOORBELL_2 | DOORBELL_3 | DOORBELL_4));
+	aac_adapter_disable_int(dev);
+	aac_adapter_enable_int(dev);
 
 	if(aac_init_adapter(dev) == NULL)
 		goto error_irq;
+	if (request_irq(dev->scsi_host_ptr->irq, dev->a_ops.adapter_intr,
+			IRQF_SHARED|IRQF_DISABLED,
+			"aacraid", (void *)dev ) < 0) {
+		printk(KERN_WARNING "%s%d: Interrupt unavailable.\n",
+			name, instance);
+		goto error_iounmap;
+	}
+	aac_adapter_enable_int(dev);
 
 	/*
 	 *	Tell the adapter that all is configure, and it can start 
@@ -382,7 +396,7 @@ int aac_sa_init(struct aac_dev *dev)
 	return 0;
 
 error_irq:
-	sa_writew(dev, SaDbCSR.PRISETIRQMASK, 0xffff);
+	aac_sa_disable_interrupt(dev);
 	free_irq(dev->scsi_host_ptr->irq, (void *)dev);
 
 error_iounmap:

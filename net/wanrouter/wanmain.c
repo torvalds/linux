@@ -86,8 +86,8 @@ static int wanrouter_device_del_if(struct wan_device *wandev,
 
 static struct wan_device *wanrouter_find_device(char *name);
 static int wanrouter_delete_interface(struct wan_device *wandev, char *name);
-void lock_adapter_irq(spinlock_t *lock, unsigned long *smp_flags);
-void unlock_adapter_irq(spinlock_t *lock, unsigned long *smp_flags);
+static void lock_adapter_irq(spinlock_t *lock, unsigned long *smp_flags);
+static void unlock_adapter_irq(spinlock_t *lock, unsigned long *smp_flags);
 
 
 
@@ -104,8 +104,8 @@ struct wan_device* wanrouter_router_devlist; /* list of registered devices */
  *	Organize Unique Identifiers for encapsulation/decapsulation
  */
 
-static unsigned char wanrouter_oui_ether[] = { 0x00, 0x00, 0x00 };
 #if 0
+static unsigned char wanrouter_oui_ether[] = { 0x00, 0x00, 0x00 };
 static unsigned char wanrouter_oui_802_2[] = { 0x00, 0x80, 0xC2 };
 #endif
 
@@ -246,6 +246,8 @@ int unregister_wan_device(char *name)
 	return 0;
 }
 
+#if 0
+
 /*
  *	Encapsulate packet.
  *
@@ -312,10 +314,10 @@ __be16 wanrouter_type_trans(struct sk_buff *skb, struct net_device *dev)
 		cnt += 1;
 		break;
 
-        case NLPID_SNAP:	/* SNAP encapsulation */
+	case NLPID_SNAP:	/* SNAP encapsulation */
 		if (memcmp(&skb->data[cnt + 1], wanrouter_oui_ether,
 			   sizeof(wanrouter_oui_ether))){
-          		printk(KERN_INFO
+			printk(KERN_INFO
 				"%s: unsupported SNAP OUI %02X-%02X-%02X "
 				"on interface %s!\n", wanrouter_modname,
 				skb->data[cnt+1], skb->data[cnt+2],
@@ -341,6 +343,7 @@ __be16 wanrouter_type_trans(struct sk_buff *skb, struct net_device *dev)
 	return ethertype;
 }
 
+#endif  /*  0  */
 
 /*
  *	WAN device IOCTL.
@@ -447,7 +450,7 @@ static int wanrouter_device_setup(struct wan_device *wandev,
 		kfree(conf);
 		printk(KERN_INFO "%s: ERROR, Invalid MAGIC Number\n",
 				wandev->name);
-	        return -EINVAL;
+		return -EINVAL;
 	}
 
 	if (conf->data_size && conf->data) {
@@ -456,13 +459,13 @@ static int wanrouter_device_setup(struct wan_device *wandev,
 			    "%s: ERROR, Invalid firmware data size %i !\n",
 					wandev->name, conf->data_size);
 			kfree(conf);
-		        return -EINVAL;
+			return -EINVAL;
 		}
 
 		data = vmalloc(conf->data_size);
 		if (!data) {
 			printk(KERN_INFO
-			 	"%s: ERROR, Faild allocate kernel memory !\n",
+				"%s: ERROR, Faild allocate kernel memory !\n",
 				wandev->name);
 			kfree(conf);
 			return -ENOBUFS;
@@ -683,7 +686,7 @@ out:
 static int wanrouter_device_del_if(struct wan_device *wandev, char __user *u_name)
 {
 	char name[WAN_IFNAME_SZ + 1];
-        int err = 0;
+	int err = 0;
 
 	if (wandev->state == WAN_UNCONFIGURED)
 		return -ENODEV;
@@ -706,8 +709,8 @@ static int wanrouter_device_del_if(struct wan_device *wandev, char __user *u_nam
 	 * interfaces are deleted and the link irrecoverably disconnected.
 	 */
 
-        if (!wandev->ndev && wandev->shutdown)
-                err = wandev->shutdown(wandev);
+	if (!wandev->ndev && wandev->shutdown)
+		err = wandev->shutdown(wandev);
 
 	return err;
 }
@@ -799,23 +802,19 @@ static int wanrouter_delete_interface(struct wan_device *wandev, char *name)
 	return 0;
 }
 
-void lock_adapter_irq(spinlock_t *lock, unsigned long *smp_flags)
+static void lock_adapter_irq(spinlock_t *lock, unsigned long *smp_flags)
 {
-       	spin_lock_irqsave(lock, *smp_flags);
+	spin_lock_irqsave(lock, *smp_flags);
 }
 
 
-void unlock_adapter_irq(spinlock_t *lock, unsigned long *smp_flags)
+static void unlock_adapter_irq(spinlock_t *lock, unsigned long *smp_flags)
 {
 	spin_unlock_irqrestore(lock, *smp_flags);
 }
 
 EXPORT_SYMBOL(register_wan_device);
 EXPORT_SYMBOL(unregister_wan_device);
-EXPORT_SYMBOL(wanrouter_encapsulate);
-EXPORT_SYMBOL(wanrouter_type_trans);
-EXPORT_SYMBOL(lock_adapter_irq);
-EXPORT_SYMBOL(unlock_adapter_irq);
 
 MODULE_LICENSE("GPL");
 

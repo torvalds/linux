@@ -21,20 +21,26 @@ The driver structure
 
 Usually, you will implement a single driver structure, and instantiate
 all clients from it. Remember, a driver structure contains general access 
-routines, a client structure specific information like the actual I2C
-address.
+routines, and should be zero-initialized except for fields with data you
+provide.  A client structure holds device-specific information like the
+driver model device node, and its I2C address.
 
 static struct i2c_driver foo_driver = {
 	.driver = {
 		.name	= "foo",
 	},
-	.attach_adapter	= &foo_attach_adapter,
-	.detach_client	= &foo_detach_client,
-	.command	= &foo_command /* may be NULL */
+	.attach_adapter	= foo_attach_adapter,
+	.detach_client	= foo_detach_client,
+	.shutdown	= foo_shutdown,	/* optional */
+	.suspend	= foo_suspend,	/* optional */
+	.resume		= foo_resume,	/* optional */
+	.command	= foo_command,	/* optional */
 }
  
-The name field must match the driver name, including the case. It must not
-contain spaces, and may be up to 31 characters long.
+The name field is the driver name, and must not contain spaces.  It
+should match the module name (if the driver can be compiled as a module),
+although you can use MODULE_ALIAS (passing "foo" in this example) to add
+another name for the module.
 
 All other fields are for call-back functions which will be explained 
 below.
@@ -43,10 +49,17 @@ below.
 Extra client data
 =================
 
-The client structure has a special `data' field that can point to any
-structure at all. You can use this to keep client-specific data. You
+Each client structure has a special `data' field that can point to any
+structure at all.  You should use this to keep device-specific data,
+especially in drivers that handle multiple I2C or SMBUS devices.  You
 do not always need this, but especially for `sensors' drivers, it can
 be very useful.
+
+	/* store the value */
+	void i2c_set_clientdata(struct i2c_client *client, void *data);
+
+	/* retrieve the value */
+	void *i2c_get_clientdata(struct i2c_client *client);
 
 An example structure is below.
 
@@ -491,6 +504,33 @@ the driver module is usually enough.
 Note that some functions are marked by `__init', and some data structures
 by `__init_data'.  Hose functions and structures can be removed after
 kernel booting (or module loading) is completed.
+
+
+Power Management
+================
+
+If your I2C device needs special handling when entering a system low
+power state -- like putting a transceiver into a low power mode, or
+activating a system wakeup mechanism -- do that in the suspend() method.
+The resume() method should reverse what the suspend() method does.
+
+These are standard driver model calls, and they work just like they
+would for any other driver stack.  The calls can sleep, and can use
+I2C messaging to the device being suspended or resumed (since their
+parent I2C adapter is active when these calls are issued, and IRQs
+are still enabled).
+
+
+System Shutdown
+===============
+
+If your I2C device needs special handling when the system shuts down
+or reboots (including kexec) -- like turning something off -- use a
+shutdown() method.
+
+Again, this is a standard driver model call, working just like it
+would for any other driver stack:  the calls can sleep, and can use
+I2C messaging.
 
 
 Command function

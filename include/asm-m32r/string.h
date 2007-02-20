@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_STRING_H
 #define _ASM_M32R_STRING_H
 
-/* $Id$ */
-
 #define  __HAVE_ARCH_STRLEN
 extern size_t strlen(const char * s);
 

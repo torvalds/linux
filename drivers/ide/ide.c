@@ -187,6 +187,12 @@ int noautodma = 1;
 
 EXPORT_SYMBOL(noautodma);
 
+#ifdef CONFIG_BLK_DEV_IDEACPI
+int ide_noacpi = 0;
+int ide_noacpitfs = 1;
+int ide_noacpionboot = 1;
+#endif
+
 /*
  * This is declared extern in ide.h, for access by other IDE modules:
  */
@@ -383,9 +389,8 @@ int ide_hwif_request_regions(ide_hwif_t *hwif)
 	unsigned long addr;
 	unsigned int i;
 
-	if (hwif->mmio == 2)
+	if (hwif->mmio)
 		return 0;
-	BUG_ON(hwif->mmio == 1);
 	addr = hwif->io_ports[IDE_CONTROL_OFFSET];
 	if (addr && !hwif_request_region(hwif, addr, 1))
 		goto control_region_busy;
@@ -432,7 +437,7 @@ void ide_hwif_release_regions(ide_hwif_t *hwif)
 {
 	u32 i = 0;
 
-	if (hwif->mmio == 2)
+	if (hwif->mmio)
 		return;
 	if (hwif->io_ports[IDE_CONTROL_OFFSET])
 		release_region(hwif->io_ports[IDE_CONTROL_OFFSET], 1);
@@ -501,23 +506,22 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->ide_dma_end		= tmp_hwif->ide_dma_end;
 	hwif->ide_dma_check		= tmp_hwif->ide_dma_check;
 	hwif->ide_dma_on		= tmp_hwif->ide_dma_on;
-	hwif->ide_dma_off_quietly	= tmp_hwif->ide_dma_off_quietly;
+	hwif->dma_off_quietly		= tmp_hwif->dma_off_quietly;
 	hwif->ide_dma_test_irq		= tmp_hwif->ide_dma_test_irq;
-	hwif->ide_dma_host_on		= tmp_hwif->ide_dma_host_on;
-	hwif->ide_dma_host_off		= tmp_hwif->ide_dma_host_off;
+	hwif->ide_dma_clear_irq		= tmp_hwif->ide_dma_clear_irq;
+	hwif->dma_host_on		= tmp_hwif->dma_host_on;
+	hwif->dma_host_off		= tmp_hwif->dma_host_off;
 	hwif->ide_dma_lostirq		= tmp_hwif->ide_dma_lostirq;
 	hwif->ide_dma_timeout		= tmp_hwif->ide_dma_timeout;
 
 	hwif->OUTB			= tmp_hwif->OUTB;
 	hwif->OUTBSYNC			= tmp_hwif->OUTBSYNC;
 	hwif->OUTW			= tmp_hwif->OUTW;
-	hwif->OUTL			= tmp_hwif->OUTL;
 	hwif->OUTSW			= tmp_hwif->OUTSW;
 	hwif->OUTSL			= tmp_hwif->OUTSL;
 
 	hwif->INB			= tmp_hwif->INB;
 	hwif->INW			= tmp_hwif->INW;
-	hwif->INL			= tmp_hwif->INL;
 	hwif->INSW			= tmp_hwif->INSW;
 	hwif->INSL			= tmp_hwif->INSL;
 
@@ -545,7 +549,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->extra_ports		= tmp_hwif->extra_ports;
 	hwif->autodma			= tmp_hwif->autodma;
 	hwif->udma_four			= tmp_hwif->udma_four;
-	hwif->no_dsc			= tmp_hwif->no_dsc;
 
 	hwif->hwif_data			= tmp_hwif->hwif_data;
 }
@@ -1132,12 +1135,11 @@ static int set_using_dma (ide_drive_t *drive, int arg)
 	if (HWIF(drive)->ide_dma_check == NULL)
 		return -EPERM;
 	if (arg) {
-		if (HWIF(drive)->ide_dma_check(drive)) return -EIO;
-		if (HWIF(drive)->ide_dma_on(drive)) return -EIO;
-	} else {
-		if (__ide_dma_off(drive))
+		if (ide_set_dma(drive))
 			return -EIO;
-	}
+		if (HWIF(drive)->ide_dma_on(drive)) return -EIO;
+	} else
+		ide_dma_off(drive);
 	return 0;
 #else
 	return -EPERM;
@@ -1214,9 +1216,14 @@ EXPORT_SYMBOL(system_bus_clock);
 static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
 	ide_drive_t *drive = dev->driver_data;
+	ide_hwif_t *hwif = HWIF(drive);
 	struct request rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
+
+	/* Call ACPI _GTM only once */
+	if (!(drive->dn % 2))
+		ide_acpi_get_timing(hwif);
 
 	memset(&rq, 0, sizeof(rq));
 	memset(&rqpm, 0, sizeof(rqpm));
@@ -1235,9 +1242,16 @@ static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 static int generic_ide_resume(struct device *dev)
 {
 	ide_drive_t *drive = dev->driver_data;
+	ide_hwif_t *hwif = HWIF(drive);
 	struct request rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
+
+	/* Call ACPI _STM only once */
+	if (!(drive->dn % 2))
+		ide_acpi_push_timing(hwif);
+
+	ide_acpi_exec_tfs(drive);
 
 	memset(&rq, 0, sizeof(rq));
 	memset(&rqpm, 0, sizeof(rqpm));
@@ -1542,6 +1556,24 @@ static int __init ide_setup(char *s)
 		return 1;
 	}
 #endif /* CONFIG_BLK_DEV_IDEPCI */
+
+#ifdef CONFIG_BLK_DEV_IDEACPI
+	if (!strcmp(s, "ide=noacpi")) {
+		//printk(" : Disable IDE ACPI support.\n");
+		ide_noacpi = 1;
+		return 1;
+	}
+	if (!strcmp(s, "ide=acpigtf")) {
+		//printk(" : Enable IDE ACPI _GTF support.\n");
+		ide_noacpitfs = 0;
+		return 1;
+	}
+	if (!strcmp(s, "ide=acpionboot")) {
+		//printk(" : Call IDE ACPI methods on boot.\n");
+		ide_noacpionboot = 0;
+		return 1;
+	}
+#endif /* CONFIG_BLK_DEV_IDEACPI */
 
 	/*
 	 * Look for drive options:  "hdx="

@@ -346,7 +346,7 @@ MODULE_DEVICE_TABLE( pci, gemtek_pci_id );
 
 static int mx = 1;
 
-static struct file_operations gemtek_pci_fops = {
+static const struct file_operations gemtek_pci_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,

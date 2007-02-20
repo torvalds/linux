@@ -12,7 +12,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/netfilter.h>
 #include <linux/in.h>
@@ -101,9 +100,9 @@ static int icmp_packet(struct nf_conn *ct,
 		       unsigned int hooknum)
 {
 	/* Try to delete connection immediately after all replies:
-           won't actually vanish as we still have skb, and del_timer
-           means this will only run once even if count hits zero twice
-           (theoretically possible with SMP) */
+	   won't actually vanish as we still have skb, and del_timer
+	   means this will only run once even if count hits zero twice
+	   (theoretically possible with SMP) */
 	if (CTINFO2DIR(ctinfo) == IP_CT_DIR_REPLY) {
 		if (atomic_dec_and_test(&ct->proto.icmp.count)
 		    && del_timer(&ct->timeout))
@@ -144,8 +143,8 @@ extern struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4;
 /* Returns conntrack if it dealt with ICMP, and filled in skb fields */
 static int
 icmp_error_message(struct sk_buff *skb,
-                 enum ip_conntrack_info *ctinfo,
-                 unsigned int hooknum)
+		 enum ip_conntrack_info *ctinfo,
+		 unsigned int hooknum)
 {
 	struct nf_conntrack_tuple innertuple, origtuple;
 	struct {
@@ -170,7 +169,9 @@ icmp_error_message(struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
+	/* rcu_read_lock()ed by nf_hook_slow */
 	innerproto = __nf_ct_l4proto_find(PF_INET, inside->ip.protocol);
+
 	dataoff = skb->nh.iph->ihl*4 + sizeof(inside->icmp);
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuple(skb, dataoff, dataoff + inside->ip.ihl*4, PF_INET,
@@ -181,9 +182,9 @@ icmp_error_message(struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
-        /* Ordinarily, we'd expect the inverted tupleproto, but it's
-           been preserved inside the ICMP. */
-        if (!nf_ct_invert_tuple(&innertuple, &origtuple,
+	/* Ordinarily, we'd expect the inverted tupleproto, but it's
+	   been preserved inside the ICMP. */
+	if (!nf_ct_invert_tuple(&innertuple, &origtuple,
 				&nf_conntrack_l3proto_ipv4, innerproto)) {
 		DEBUGP("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
@@ -212,10 +213,10 @@ icmp_error_message(struct sk_buff *skb,
 			*ctinfo += IP_CT_IS_REPLY;
 	}
 
-        /* Update skb to refer to this connection */
-        skb->nfct = &nf_ct_tuplehash_to_ctrack(h)->ct_general;
-        skb->nfctinfo = *ctinfo;
-        return -NF_ACCEPT;
+	/* Update skb to refer to this connection */
+	skb->nfct = &nf_ct_tuplehash_to_ctrack(h)->ct_general;
+	skb->nfctinfo = *ctinfo;
+	return -NF_ACCEPT;
 }
 
 /* Small and modified version of icmp_rcv */
@@ -306,7 +307,7 @@ static int icmp_nfattr_to_tuple(struct nfattr *tb[],
 	if (nfattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
 		return -EINVAL;
 
-	tuple->dst.u.icmp.type = 
+	tuple->dst.u.icmp.type =
 			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMP_TYPE-1]);
 	tuple->dst.u.icmp.code =
 			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMP_CODE-1]);
@@ -332,7 +333,7 @@ static struct ctl_table icmp_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
-        {
+	{
 		.ctl_name = 0
 	}
 };
@@ -346,7 +347,7 @@ static struct ctl_table icmp_compat_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
-        {
+	{
 		.ctl_name = 0
 	}
 };

@@ -51,4 +51,25 @@ config PS3_VUART
 	  including the System Manager and AV Settings.  In
 	  general, all users will say Y.
 
+config PS3_PS3AV
+	tristate "PS3 AV settings driver"
+	depends on PPC_PS3
+	select PS3_VUART
+	default y
+	help
+	  Include support for the PS3 AV Settings driver.
+
+	  This support is required for graphics and sound. In
+	  general, all users will say Y or M.
+
+config PS3_SYS_MANAGER
+	bool "PS3 System Manager driver"
+	select PS3_VUART
+	default y
+	help
+	  Include support for the PS3 System Manager.
+
+	  This support is required for system control.  In
+	  general, all users will say Y.
+
 endmenu

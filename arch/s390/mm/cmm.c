@@ -245,7 +245,7 @@ cmm_set_timeout(long nr, long seconds)
 	cmm_set_timer();
 }
 
-static inline int
+static int
 cmm_skip_blanks(char *cp, char **endp)
 {
 	char *str;
@@ -256,10 +256,6 @@ cmm_skip_blanks(char *cp, char **endp)
 }
 
 #ifdef CONFIG_CMM_PROC
-/* These will someday get removed. */
-#define VM_CMM_PAGES		1111
-#define VM_CMM_TIMED_PAGES	1112
-#define VM_CMM_TIMEOUT		1113
 
 static struct ctl_table cmm_table[];
 
@@ -414,7 +410,7 @@ cmm_smsg_target(char *from, char *msg)
 }
 #endif
 
-struct ctl_table_header *cmm_sysctl_header;
+static struct ctl_table_header *cmm_sysctl_header;
 
 static int
 cmm_init (void)
@@ -422,7 +418,7 @@ cmm_init (void)
 	int rc = -ENOMEM;
 
 #ifdef CONFIG_CMM_PROC
-	cmm_sysctl_header = register_sysctl_table(cmm_dir_table, 1);
+	cmm_sysctl_header = register_sysctl_table(cmm_dir_table);
 	if (!cmm_sysctl_header)
 		goto out;
 #endif

@@ -9,7 +9,9 @@
  * Atom Create Engineering Co., Ltd. 2002.
  */
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <asm/rts7751r2d.h>
 
@@ -22,78 +24,30 @@ static int mask_pos[] = {6, 11, 9, 8, 12, 10, 5, 4, 7, 14, 13, 0, 0, 0, 0};
 extern int voyagergx_irq_demux(int irq);
 extern void setup_voyagergx_irq(void);
 
-static void enable_rts7751r2d_irq(unsigned int irq);
-static void disable_rts7751r2d_irq(unsigned int irq);
-
-/* shutdown is same as "disable" */
-#define shutdown_rts7751r2d_irq disable_rts7751r2d_irq
-
-static void ack_rts7751r2d_irq(unsigned int irq);
-static void end_rts7751r2d_irq(unsigned int irq);
-
-static unsigned int startup_rts7751r2d_irq(unsigned int irq)
+static void enable_rts7751r2d_irq(unsigned int irq)
 {
-	enable_rts7751r2d_irq(irq);
-	return 0; /* never anything pending */
+	/* Set priority in IPR back to original value */
+	ctrl_outw(ctrl_inw(IRLCNTR1) | (1 << mask_pos[irq]), IRLCNTR1);
 }
 
 static void disable_rts7751r2d_irq(unsigned int irq)
 {
-	unsigned short val;
-	unsigned short mask = 0xffff ^ (0x0001 << mask_pos[irq]);
-
 	/* Set the priority in IPR to 0 */
-	val = ctrl_inw(IRLCNTR1);
-	val &= mask;
-	ctrl_outw(val, IRLCNTR1);
-}
-
-static void enable_rts7751r2d_irq(unsigned int irq)
-{
-	unsigned short val;
-	unsigned short value = (0x0001 << mask_pos[irq]);
-
-	/* Set priority in IPR back to original value */
-	val = ctrl_inw(IRLCNTR1);
-	val |= value;
-	ctrl_outw(val, IRLCNTR1);
+	ctrl_outw(ctrl_inw(IRLCNTR1) & (0xffff ^ (1 << mask_pos[irq])),
+		  IRLCNTR1);
 }
 
 int rts7751r2d_irq_demux(int irq)
 {
-	int demux_irq;
-
-	demux_irq = voyagergx_irq_demux(irq);
-	return demux_irq;
+	return voyagergx_irq_demux(irq);
 }
 
-static void ack_rts7751r2d_irq(unsigned int irq)
-{
-	disable_rts7751r2d_irq(irq);
-}
-
-static void end_rts7751r2d_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_rts7751r2d_irq(irq);
-}
-
-static struct hw_interrupt_type rts7751r2d_irq_type = {
-	.typename = "RTS7751R2D IRQ",
-	.startup = startup_rts7751r2d_irq,
-	.shutdown = shutdown_rts7751r2d_irq,
-	.enable = enable_rts7751r2d_irq,
-	.disable = disable_rts7751r2d_irq,
-	.ack = ack_rts7751r2d_irq,
-	.end = end_rts7751r2d_irq,
+static struct irq_chip rts7751r2d_irq_chip __read_mostly = {
+	.name		= "rts7751r2d",
+	.mask		= disable_rts7751r2d_irq,
+	.unmask		= enable_rts7751r2d_irq,
+	.mask_ack	= disable_rts7751r2d_irq,
 };
-
-static void make_rts7751r2d_irq(unsigned int irq)
-{
-	disable_irq_nosync(irq);
-	irq_desc[irq].chip = &rts7751r2d_irq_type;
-	disable_rts7751r2d_irq(irq);
-}
 
 /*
  * Initialize IRQ setting
@@ -119,8 +73,12 @@ void __init init_rts7751r2d_IRQ(void)
 	 * IRL14=Extention #3
 	 */
 
-	for (i=0; i<15; i++)
-		make_rts7751r2d_irq(i);
+	for (i=0; i<15; i++) {
+		disable_irq_nosync(i);
+		set_irq_chip_and_handler_name(i, &rts7751r2d_irq_chip,
+					      handle_level_irq, "level");
+		enable_rts7751r2d_irq(i);
+	}
 
 	setup_voyagergx_irq();
 }

@@ -827,7 +827,7 @@ static int irlap_state_conn(struct irlap_cb *self, IRLAP_EVENT event,
 		irlap_disconnect_indication(self, LAP_DISC_INDICATION);
 		break;
 	default:
-		IRDA_DEBUG(1, "%s(), Unknown event %d, %s\n", __FUNCTION__, 
+		IRDA_DEBUG(1, "%s(), Unknown event %d, %s\n", __FUNCTION__,
 			   event, irlap_event[event]);
 
 		ret = -1;
@@ -864,7 +864,7 @@ static int irlap_state_setup(struct irlap_cb *self, IRLAP_EVENT event,
  *  between 15 msecs and 45 msecs.
  */
 			irlap_start_backoff_timer(self, msecs_to_jiffies(20 +
-						        (jiffies % 30)));
+							(jiffies % 30)));
 		} else {
 			/* Always switch state before calling upper layers */
 			irlap_next_state(self, LAP_NDM);
@@ -1377,7 +1377,7 @@ static int irlap_state_nrm_p(struct irlap_cb *self, IRLAP_EVENT event,
 				/* Resend rejected frames */
 				irlap_resend_rejected_frames(self, CMD_FRAME);
 
-				/* Give peer some time to retransmit! 
+				/* Give peer some time to retransmit!
 				 * But account for our own Tx. */
 				irlap_start_final_timer(self, 2 * self->final_timeout);
 

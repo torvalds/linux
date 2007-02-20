@@ -1379,7 +1379,6 @@ static void cs_nosound(unsigned long xx)
 }
 
 static DEFINE_TIMER(beep_timer, cs_nosound, 0, 0);
-};
 
 static void cs_mksound(unsigned int hz, unsigned int ticks)
 {
@@ -1712,7 +1711,7 @@ static int mixer_ioctl(struct inode *inode, struct file *file, u_int cmd,
 }
 
 
-static struct file_operations mixer_fops =
+static const struct file_operations mixer_fops =
 {
 	.owner =	THIS_MODULE,
 	.llseek =	sound_lseek,
@@ -2299,7 +2298,7 @@ static int sq_ioctl(struct inode *inode, struct file *file, u_int cmd,
 
 
 
-static struct file_operations sq_fops =
+static const struct file_operations sq_fops =
 {
 	.owner =	THIS_MODULE,
 	.llseek =	sound_lseek,
@@ -2434,7 +2433,7 @@ static ssize_t state_read(struct file *file, char *buf, size_t count,
 }
 
 
-static struct file_operations state_fops =
+static const struct file_operations state_fops =
 {
 	.owner =	THIS_MODULE,
 	.llseek =	sound_lseek,

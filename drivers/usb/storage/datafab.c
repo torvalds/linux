@@ -50,7 +50,6 @@
  * in that routine.
  */
 
-#include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 

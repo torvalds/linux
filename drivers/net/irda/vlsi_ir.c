@@ -385,7 +385,7 @@ static int vlsi_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, vlsi_seq_show, PDE(inode)->data);
 }
 
-static struct file_operations vlsi_proc_fops = {
+static const struct file_operations vlsi_proc_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = vlsi_seq_open,
 	.read    = seq_read,

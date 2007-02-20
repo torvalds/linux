@@ -407,7 +407,7 @@ static int at91_clk_open(struct inode *inode, struct file *file)
 	return single_open(file, at91_clk_show, NULL);
 }
 
-static struct file_operations at91_clk_operations = {
+static const struct file_operations at91_clk_operations = {
 	.open		= at91_clk_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

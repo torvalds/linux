@@ -32,6 +32,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <linux/pci.h>
 #include <asm/io.h>
@@ -94,17 +95,7 @@ static const char netxen_nic_gstrings_test[][ETH_GSTRING_LEN] = {
 
 static int netxen_nic_get_eeprom_len(struct net_device *dev)
 {
-	struct netxen_port *port = netdev_priv(dev);
-	struct netxen_adapter *adapter = port->adapter;
-	int n;
-
-	if ((netxen_rom_fast_read(adapter, 0, &n) == 0)
-	    && (n & NETXEN_ROM_ROUNDUP)) {
-		n &= ~NETXEN_ROM_ROUNDUP;
-		if (n < NETXEN_MAX_EEPROM_LEN)
-			return n;
-	}
-	return 0;
+	return FLASH_TOTAL_SIZE;
 }
 
 static void
@@ -411,7 +402,7 @@ netxen_nic_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	wol->wolopts = 0;
 }
 
-static u32 netxen_nic_get_link(struct net_device *dev)
+static u32 netxen_nic_test_link(struct net_device *dev)
 {
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
@@ -440,16 +431,91 @@ netxen_nic_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	struct netxen_port *port = netdev_priv(dev);
 	struct netxen_adapter *adapter = port->adapter;
 	int offset;
+	int ret;
 
 	if (eeprom->len == 0)
 		return -EINVAL;
 
 	eeprom->magic = (port->pdev)->vendor | ((port->pdev)->device << 16);
-	for (offset = 0; offset < eeprom->len; offset++)
-		if (netxen_rom_fast_read
-		    (adapter, (8 * offset) + 8, (int *)eeprom->data) == -1)
-			return -EIO;
+	offset = eeprom->offset;
+
+	ret = netxen_rom_fast_read_words(adapter, offset, bytes, 
+						eeprom->len);
+	if (ret < 0)
+		return ret;
+
 	return 0;
+}
+
+static int
+netxen_nic_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
+			u8 * bytes)
+{
+	struct netxen_port *port = netdev_priv(dev);
+	struct netxen_adapter *adapter = port->adapter;
+	int offset = eeprom->offset;
+	static int flash_start;
+	static int ready_to_flash;
+	int ret;
+
+	if (flash_start == 0) {
+		netxen_halt_pegs(adapter);
+		ret = netxen_flash_unlock(adapter);
+		if (ret < 0) {
+			printk(KERN_ERR "%s: Flash unlock failed.\n",
+				netxen_nic_driver_name);
+			return ret;
+		}
+		printk(KERN_INFO "%s: flash unlocked. \n", 
+			netxen_nic_driver_name);
+		ret = netxen_flash_erase_secondary(adapter);
+		if (ret != FLASH_SUCCESS) {
+			printk(KERN_ERR "%s: Flash erase failed.\n", 
+				netxen_nic_driver_name);
+			return ret;
+		}
+		printk(KERN_INFO "%s: secondary flash erased successfully.\n", 
+			netxen_nic_driver_name);
+		flash_start = 1;
+		return 0;
+	}
+
+	if (offset == BOOTLD_START) {
+		ret = netxen_flash_erase_primary(adapter);
+		if (ret != FLASH_SUCCESS) {
+			printk(KERN_ERR "%s: Flash erase failed.\n", 
+				netxen_nic_driver_name);
+			return ret;
+		}
+
+		ret = netxen_rom_se(adapter, USER_START);
+		if (ret != FLASH_SUCCESS)
+			return ret;
+		ret = netxen_rom_se(adapter, FIXED_START);
+		if (ret != FLASH_SUCCESS)
+			return ret;
+
+		printk(KERN_INFO "%s: primary flash erased successfully\n", 
+			netxen_nic_driver_name);
+
+		ret = netxen_backup_crbinit(adapter);
+		if (ret != FLASH_SUCCESS) {
+			printk(KERN_ERR "%s: CRBinit backup failed.\n", 
+				netxen_nic_driver_name);
+			return ret;
+		}
+		printk(KERN_INFO "%s: CRBinit backup done.\n", 
+			netxen_nic_driver_name);
+		ready_to_flash = 1;
+	}
+
+	if (!ready_to_flash) {
+		printk(KERN_ERR "%s: Invalid write sequence, returning...\n",
+			netxen_nic_driver_name);
+		return -EINVAL;
+	}
+
+	return netxen_rom_fast_write_words(adapter, offset, bytes, eeprom->len);
 }
 
 static void
@@ -647,7 +713,7 @@ netxen_nic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 {
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {	/* offline tests */
 		/* link test */
-		if (!(data[4] = (u64) netxen_nic_get_link(dev)))
+		if (!(data[4] = (u64) netxen_nic_test_link(dev)))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		if (netif_running(dev))
@@ -662,7 +728,7 @@ netxen_nic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 			dev->open(dev);
 	} else {		/* online tests */
 		/* link test */
-		if (!(data[4] = (u64) netxen_nic_get_link(dev)))
+		if (!(data[4] = (u64) netxen_nic_test_link(dev)))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		/* other tests pass by default */
@@ -718,9 +784,10 @@ struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_regs_len = netxen_nic_get_regs_len,
 	.get_regs = netxen_nic_get_regs,
 	.get_wol = netxen_nic_get_wol,
-	.get_link = netxen_nic_get_link,
+	.get_link = ethtool_op_get_link,
 	.get_eeprom_len = netxen_nic_get_eeprom_len,
 	.get_eeprom = netxen_nic_get_eeprom,
+	.set_eeprom = netxen_nic_set_eeprom,
 	.get_ringparam = netxen_nic_get_ringparam,
 	.get_pauseparam = netxen_nic_get_pauseparam,
 	.set_pauseparam = netxen_nic_set_pauseparam,

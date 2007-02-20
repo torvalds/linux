@@ -141,17 +141,20 @@ void __init plat_mem_setup(void)
 /* This routine should be valid for all Au1x based boards */
 phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 {
-	u32 start, end;
-
 	/* Don't fixup 36 bit addresses */
-	if ((phys_addr >> 32) != 0) return phys_addr;
+	if ((phys_addr >> 32) != 0)
+		return phys_addr;
 
 #ifdef CONFIG_PCI
-	start = (u32)Au1500_PCI_MEM_START;
-	end = (u32)Au1500_PCI_MEM_END;
-	/* check for pci memory window */
-	if ((phys_addr >= start) && ((phys_addr + size) < end)) {
-		return (phys_t)((phys_addr - start) + Au1500_PCI_MEM_START);
+	{
+		u32 start, end;
+
+		start = (u32)Au1500_PCI_MEM_START;
+		end = (u32)Au1500_PCI_MEM_END;
+		/* check for pci memory window */
+		if ((phys_addr >= start) && ((phys_addr + size) < end))
+			return (phys_t)
+			       ((phys_addr - start) + Au1500_PCI_MEM_START);
 	}
 #endif
 

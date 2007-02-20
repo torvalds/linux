@@ -25,7 +25,6 @@
 #include <linux/major.h>
 #include <linux/errno.h>
 #include <linux/tty.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/init.h>

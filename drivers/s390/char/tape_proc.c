@@ -109,7 +109,7 @@ static int tape_proc_open(struct inode *inode, struct file *file)
 	return seq_open(file, &tape_proc_seq);
 }
 
-static struct file_operations tape_proc_ops =
+static const struct file_operations tape_proc_ops =
 {
 	.open		= tape_proc_open,
 	.read		= seq_read,

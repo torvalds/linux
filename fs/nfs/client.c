@@ -394,7 +394,8 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 static int nfs_create_rpc_client(struct nfs_client *clp, int proto,
 						unsigned int timeo,
 						unsigned int retrans,
-						rpc_authflavor_t flavor)
+						rpc_authflavor_t flavor,
+						int flags)
 {
 	struct rpc_timeout	timeparms;
 	struct rpc_clnt		*clnt = NULL;
@@ -407,6 +408,7 @@ static int nfs_create_rpc_client(struct nfs_client *clp, int proto,
 		.program	= &nfs_program,
 		.version	= clp->rpc_ops->version,
 		.authflavor	= flavor,
+		.flags		= flags,
 	};
 
 	if (!IS_ERR(clp->cl_rpcclient))
@@ -548,7 +550,7 @@ static int nfs_init_client(struct nfs_client *clp, const struct nfs_mount_data *
 	 * - RFC 2623, sec 2.3.2
 	 */
 	error = nfs_create_rpc_client(clp, proto, data->timeo, data->retrans,
-			RPC_AUTH_UNIX);
+					RPC_AUTH_UNIX, 0);
 	if (error < 0)
 		goto error;
 	nfs_mark_client_ready(clp, NFS_CS_READY);
@@ -868,7 +870,8 @@ static int nfs4_init_client(struct nfs_client *clp,
 	/* Check NFS protocol revision and initialize RPC op vector */
 	clp->rpc_ops = &nfs_v4_clientops;
 
-	error = nfs_create_rpc_client(clp, proto, timeo, retrans, authflavour);
+	error = nfs_create_rpc_client(clp, proto, timeo, retrans, authflavour,
+					RPC_CLNT_CREATE_DISCRTRY);
 	if (error < 0)
 		goto error;
 	memcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
@@ -1030,7 +1033,7 @@ error:
  * Create an NFS4 referral server record
  */
 struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
-					       struct nfs_fh *fh)
+					       struct nfs_fh *mntfh)
 {
 	struct nfs_client *parent_client;
 	struct nfs_server *server, *parent_server;
@@ -1069,8 +1072,13 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	BUG_ON(!server->nfs_client->rpc_ops);
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
+	/* Probe the root fh to retrieve its FSID and filehandle */
+	error = nfs4_path_walk(server, mntfh, data->mnt_path);
+	if (error < 0)
+		goto error;
+
 	/* probe the filesystem info for this server filesystem */
-	error = nfs_probe_fsinfo(server, fh, &fattr);
+	error = nfs_probe_fsinfo(server, mntfh, &fattr);
 	if (error < 0)
 		goto error;
 
@@ -1173,7 +1181,7 @@ static struct seq_operations nfs_server_list_ops = {
 	.show	= nfs_server_list_show,
 };
 
-static struct file_operations nfs_server_list_fops = {
+static const struct file_operations nfs_server_list_fops = {
 	.open		= nfs_server_list_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1193,7 +1201,7 @@ static struct seq_operations nfs_volume_list_ops = {
 	.show	= nfs_volume_list_show,
 };
 
-static struct file_operations nfs_volume_list_fops = {
+static const struct file_operations nfs_volume_list_fops = {
 	.open		= nfs_volume_list_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

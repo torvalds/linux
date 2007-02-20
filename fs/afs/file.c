@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
@@ -30,7 +29,7 @@ static int afs_file_readpage(struct file *file, struct page *page);
 static void afs_file_invalidatepage(struct page *page, unsigned long offset);
 static int afs_file_releasepage(struct page *page, gfp_t gfp_flags);
 
-struct inode_operations afs_file_inode_operations = {
+const struct inode_operations afs_file_inode_operations = {
 	.getattr	= afs_inode_getattr,
 };
 

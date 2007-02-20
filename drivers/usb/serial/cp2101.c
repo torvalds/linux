@@ -69,6 +69,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x10C4, 0x8218) }, /* Lipowsky Industrie Elektronik GmbH, HARP-1 */
 	{ USB_DEVICE(0x10C4, 0xEA60) }, /* Silicon Labs factory default */
 	{ USB_DEVICE(0x10C4, 0xEA61) }, /* Silicon Labs factory default */
+	{ USB_DEVICE(0x10C5, 0xEA61) }, /* Silicon Labs MobiData GPRS USB Modem */
 	{ USB_DEVICE(0x13AD, 0x9999) }, /* Baltech card reader */
 	{ USB_DEVICE(0x16D6, 0x0001) }, /* Jablotron serial interface */
 	{ } /* Terminating Entry */
@@ -89,6 +90,7 @@ static struct usb_serial_driver cp2101_device = {
 		.owner =	THIS_MODULE,
 		.name = 	"cp2101",
 	},
+	.usb_driver		= &cp2101_driver,
 	.id_table		= id_table,
 	.num_interrupt_in	= 0,
 	.num_bulk_in		= 0,
@@ -169,13 +171,13 @@ static int cp2101_get_config(struct usb_serial_port* port, u8 request,
 		unsigned int *data, int size)
 {
 	struct usb_serial *serial = port->serial;
-	u32 *buf;
+	__le32 *buf;
 	int result, i, length;
 
 	/* Number of integers required to contain the array */
 	length = (((size - 1) | 3) + 1)/4;
 
-	buf = kcalloc(length, sizeof(u32), GFP_KERNEL);
+	buf = kcalloc(length, sizeof(__le32), GFP_KERNEL);
 	if (!buf) {
 		dev_err(&port->dev, "%s - out of memory.\n", __FUNCTION__);
 		return -ENOMEM;
@@ -215,13 +217,13 @@ static int cp2101_set_config(struct usb_serial_port* port, u8 request,
 		unsigned int *data, int size)
 {
 	struct usb_serial *serial = port->serial;
-	u32 *buf;
+	__le32 *buf;
 	int result, i, length;
 
 	/* Number of integers required to contain the array */
 	length = (((size - 1) | 3) + 1)/4;
 
-	buf = kmalloc(length * sizeof(u32), GFP_KERNEL);
+	buf = kmalloc(length * sizeof(__le32), GFP_KERNEL);
 	if (!buf) {
 		dev_err(&port->dev, "%s - out of memory.\n",
 				__FUNCTION__);

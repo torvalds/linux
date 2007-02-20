@@ -36,6 +36,8 @@ unsigned char apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
 cpumask_t node_to_cpumask[MAX_NUMNODES] __read_mostly;
 
 int numa_off __initdata;
+unsigned long __initdata nodemap_addr;
+unsigned long __initdata nodemap_size;
 
 
 /*
@@ -52,34 +54,88 @@ populate_memnodemap(const struct bootnode *nodes, int numnodes, int shift)
 	int res = -1;
 	unsigned long addr, end;
 
-	if (shift >= 64)
-		return -1;
-	memset(memnodemap, 0xff, sizeof(memnodemap));
+	memset(memnodemap, 0xff, memnodemapsize);
 	for (i = 0; i < numnodes; i++) {
 		addr = nodes[i].start;
 		end = nodes[i].end;
 		if (addr >= end)
 			continue;
-		if ((end >> shift) >= NODEMAPSIZE)
+		if ((end >> shift) >= memnodemapsize)
 			return 0;
 		do {
 			if (memnodemap[addr >> shift] != 0xff)
 				return -1;
 			memnodemap[addr >> shift] = i;
-                       addr += (1UL << shift);
+			addr += (1UL << shift);
 		} while (addr < end);
 		res = 1;
 	} 
 	return res;
 }
 
+static int __init allocate_cachealigned_memnodemap(void)
+{
+	unsigned long pad, pad_addr;
+
+	memnodemap = memnode.embedded_map;
+	if (memnodemapsize <= 48)
+		return 0;
+
+	pad = L1_CACHE_BYTES - 1;
+	pad_addr = 0x8000;
+	nodemap_size = pad + memnodemapsize;
+	nodemap_addr = find_e820_area(pad_addr, end_pfn<<PAGE_SHIFT,
+				      nodemap_size);
+	if (nodemap_addr == -1UL) {
+		printk(KERN_ERR
+		       "NUMA: Unable to allocate Memory to Node hash map\n");
+		nodemap_addr = nodemap_size = 0;
+		return -1;
+	}
+	pad_addr = (nodemap_addr + pad) & ~pad;
+	memnodemap = phys_to_virt(pad_addr);
+
+	printk(KERN_DEBUG "NUMA: Allocated memnodemap from %lx - %lx\n",
+	       nodemap_addr, nodemap_addr + nodemap_size);
+	return 0;
+}
+
+/*
+ * The LSB of all start and end addresses in the node map is the value of the
+ * maximum possible shift.
+ */
+static int __init
+extract_lsb_from_nodes (const struct bootnode *nodes, int numnodes)
+{
+	int i, nodes_used = 0;
+	unsigned long start, end;
+	unsigned long bitfield = 0, memtop = 0;
+
+	for (i = 0; i < numnodes; i++) {
+		start = nodes[i].start;
+		end = nodes[i].end;
+		if (start >= end)
+			continue;
+		bitfield |= start;
+		nodes_used++;
+		if (end > memtop)
+			memtop = end;
+	}
+	if (nodes_used <= 1)
+		i = 63;
+	else
+		i = find_first_bit(&bitfield, sizeof(unsigned long)*8);
+	memnodemapsize = (memtop >> i)+1;
+	return i;
+}
+
 int __init compute_hash_shift(struct bootnode *nodes, int numnodes)
 {
-	int shift = 20;
+	int shift;
 
-	while (populate_memnodemap(nodes, numnodes, shift + 1) >= 0)
-		shift++;
-
+	shift = extract_lsb_from_nodes(nodes, numnodes);
+	if (allocate_cachealigned_memnodemap())
+		return -1;
 	printk(KERN_DEBUG "NUMA: Using %d for the hash shift.\n",
 		shift);
 
@@ -216,31 +272,113 @@ void __init numa_init_array(void)
 }
 
 #ifdef CONFIG_NUMA_EMU
+/* Numa emulation */
 int numa_fake __initdata = 0;
 
-/* Numa emulation */
+/*
+ * This function is used to find out if the start and end correspond to
+ * different zones.
+ */
+int zone_cross_over(unsigned long start, unsigned long end)
+{
+	if ((start < (MAX_DMA32_PFN << PAGE_SHIFT)) &&
+			(end >= (MAX_DMA32_PFN << PAGE_SHIFT)))
+		return 1;
+	return 0;
+}
+
 static int __init numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
 {
- 	int i;
+ 	int i, big;
  	struct bootnode nodes[MAX_NUMNODES];
- 	unsigned long sz = ((end_pfn - start_pfn)<<PAGE_SHIFT) / numa_fake;
+ 	unsigned long sz, old_sz;
+	unsigned long hole_size;
+	unsigned long start, end;
+	unsigned long max_addr = (end_pfn << PAGE_SHIFT);
+
+	start = (start_pfn << PAGE_SHIFT);
+	hole_size = e820_hole_size(start, max_addr);
+	sz = (max_addr - start - hole_size) / numa_fake;
 
  	/* Kludge needed for the hash function */
- 	if (hweight64(sz) > 1) {
- 		unsigned long x = 1;
- 		while ((x << 1) < sz)
- 			x <<= 1;
- 		if (x < sz/2)
- 			printk(KERN_ERR "Numa emulation unbalanced. Complain to maintainer\n");
- 		sz = x;
- 	}
 
+	old_sz = sz;
+	/*
+	 * Round down to the nearest FAKE_NODE_MIN_SIZE.
+	 */
+	sz &= FAKE_NODE_MIN_HASH_MASK;
+
+	/*
+	 * We ensure that each node is at least 64MB big.  Smaller than this
+	 * size can cause VM hiccups.
+	 */
+	if (sz == 0) {
+		printk(KERN_INFO "Not enough memory for %d nodes.  Reducing "
+				"the number of nodes\n", numa_fake);
+		numa_fake = (max_addr - start - hole_size) / FAKE_NODE_MIN_SIZE;
+		printk(KERN_INFO "Number of fake nodes will be = %d\n",
+				numa_fake);
+		sz = FAKE_NODE_MIN_SIZE;
+	}
+	/*
+	 * Find out how many nodes can get an extra NODE_MIN_SIZE granule.
+	 * This logic ensures the extra memory gets distributed among as many
+	 * nodes as possible (as compared to one single node getting all that
+	 * extra memory.
+	 */
+	big = ((old_sz - sz) * numa_fake) / FAKE_NODE_MIN_SIZE;
+	printk(KERN_INFO "Fake node Size: %luMB hole_size: %luMB big nodes: "
+			"%d\n",
+			(sz >> 20), (hole_size >> 20), big);
  	memset(&nodes,0,sizeof(nodes));
+	end = start;
  	for (i = 0; i < numa_fake; i++) {
- 		nodes[i].start = (start_pfn<<PAGE_SHIFT) + i*sz;
+		/*
+		 * In case we are not able to allocate enough memory for all
+		 * the nodes, we reduce the number of fake nodes.
+		 */
+		if (end >= max_addr) {
+			numa_fake = i - 1;
+			break;
+		}
+ 		start = nodes[i].start = end;
+		/*
+		 * Final node can have all the remaining memory.
+		 */
  		if (i == numa_fake-1)
- 			sz = (end_pfn<<PAGE_SHIFT) - nodes[i].start;
- 		nodes[i].end = nodes[i].start + sz;
+ 			sz = max_addr - start;
+ 		end = nodes[i].start + sz;
+		/*
+		 * Fir "big" number of nodes get extra granule.
+		 */
+		if (i < big)
+			end += FAKE_NODE_MIN_SIZE;
+		/*
+		 * Iterate over the range to ensure that this node gets at
+		 * least sz amount of RAM (excluding holes)
+		 */
+		while ((end - start - e820_hole_size(start, end)) < sz) {
+			end += FAKE_NODE_MIN_SIZE;
+			if (end >= max_addr)
+				break;
+		}
+		/*
+		 * Look at the next node to make sure there is some real memory
+		 * to map.  Bad things happen when the only memory present
+		 * in a zone on a fake node is IO hole.
+		 */
+		while (e820_hole_size(end, end + FAKE_NODE_MIN_SIZE) > 0) {
+			if (zone_cross_over(start, end + sz)) {
+				end = (MAX_DMA32_PFN << PAGE_SHIFT);
+				break;
+			}
+			if (end >= max_addr)
+				break;
+			end += FAKE_NODE_MIN_SIZE;
+		}
+		if (end > max_addr)
+			end = max_addr;
+		nodes[i].end = end;
  		printk(KERN_INFO "Faking node %d at %016Lx-%016Lx (%LuMB)\n",
  		       i,
  		       nodes[i].start, nodes[i].end,
@@ -290,6 +428,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	       end_pfn << PAGE_SHIFT); 
 		/* setup dummy node covering all memory */ 
 	memnode_shift = 63; 
+	memnodemap = memnode.embedded_map;
 	memnodemap[0] = 0;
 	nodes_clear(node_online_map);
 	node_set_online(0);
@@ -321,20 +460,6 @@ unsigned long __init numa_free_all_bootmem(void)
 	return pages;
 } 
 
-#ifdef CONFIG_SPARSEMEM
-static void __init arch_sparse_init(void)
-{
-	int i;
-
-	for_each_online_node(i)
-		memory_present(i, node_start_pfn(i), node_end_pfn(i));
-
-	sparse_init();
-}
-#else
-#define arch_sparse_init() do {} while (0)
-#endif
-
 void __init paging_init(void)
 { 
 	int i;
@@ -344,7 +469,8 @@ void __init paging_init(void)
 	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
 	max_zone_pfns[ZONE_NORMAL] = end_pfn;
 
-	arch_sparse_init();
+	sparse_memory_present_with_active_regions(MAX_NUMNODES);
+	sparse_init();
 
 	for_each_online_node(i) {
 		setup_node_zones(i); 

@@ -103,7 +103,7 @@ enum CPL_opcode {
 	CPL_MIGRATE_C2T_RPL   = 0xDD,
 	CPL_ERROR             = 0xD7,
 
-    /* internal: driver -> TOM */
+	/* internal: driver -> TOM */
 	CPL_MSS_CHANGE        = 0xE1
 };
 
@@ -159,8 +159,8 @@ enum {                // TX_PKT_LSO ethernet types
 };
 
 union opcode_tid {
-    u32 opcode_tid;
-    u8 opcode;
+	u32 opcode_tid;
+	u8 opcode;
 };
 
 #define S_OPCODE 24
@@ -234,7 +234,7 @@ struct cpl_pass_accept_req {
 	u32 local_ip;
 	u32 peer_ip;
 	u32 tos_tid;
-    struct tcp_options tcp_options;
+	struct tcp_options tcp_options;
 	u8  dst_mac[6];
 	u16 vlan_tag;
 	u8  src_mac[6];
@@ -250,12 +250,12 @@ struct cpl_pass_accept_rpl {
 	u32 peer_ip;
 	u32 opt0h;
 	union {
-	u32 opt0l;
-	struct {
-	    u8 rsvd[3];
-	    u8 status;
+		u32 opt0l;
+		struct {
+		    u8 rsvd[3];
+		    u8 status;
+		};
 	};
-    };
 };
 
 struct cpl_act_open_req {

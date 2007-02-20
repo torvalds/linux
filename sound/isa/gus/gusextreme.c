@@ -92,7 +92,7 @@ static struct platform_device *devices[SNDRV_CARDS];
 
 #define PFX	"gusextreme: "
 
-static int __init snd_gusextreme_detect(int dev,
+static int __devinit snd_gusextreme_detect(int dev,
 					struct snd_card *card,
 					struct snd_gus_card * gus,
 					struct snd_es1688 *es1688)
@@ -142,12 +142,12 @@ static int __init snd_gusextreme_detect(int dev,
 	return 0;
 }
 
-static void __init snd_gusextreme_init(int dev, struct snd_gus_card * gus)
+static void __devinit snd_gusextreme_init(int dev, struct snd_gus_card * gus)
 {
 	gus->joystick_dac = joystick_dac[dev];
 }
 
-static int __init snd_gusextreme_mixer(struct snd_es1688 *chip)
+static int __devinit snd_gusextreme_mixer(struct snd_es1688 *chip)
 {
 	struct snd_card *card = chip->card;
 	struct snd_ctl_elem_id id1, id2;
@@ -169,7 +169,7 @@ static int __init snd_gusextreme_mixer(struct snd_es1688 *chip)
 	return 0;
 }
 
-static int __init snd_gusextreme_probe(struct platform_device *pdev)
+static int __devinit snd_gusextreme_probe(struct platform_device *pdev)
 {
 	int dev = pdev->id;
 	static int possible_ess_irqs[] = {5, 9, 10, 7, -1};
@@ -321,7 +321,7 @@ static int __init snd_gusextreme_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int snd_gusextreme_remove(struct platform_device *devptr)
+static int __devexit snd_gusextreme_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
 	platform_set_drvdata(devptr, NULL);
@@ -332,7 +332,7 @@ static int snd_gusextreme_remove(struct platform_device *devptr)
 
 static struct platform_driver snd_gusextreme_driver = {
 	.probe		= snd_gusextreme_probe,
-	.remove		= snd_gusextreme_remove,
+	.remove		= __devexit_p(snd_gusextreme_remove),
 	/* FIXME: suspend/resume */
 	.driver		= {
 		.name	= GUSEXTREME_DRIVER

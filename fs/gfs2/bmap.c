@@ -7,7 +7,6 @@
  * of the GNU General Public License version 2.
  */
 
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -773,7 +772,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 			gfs2_free_data(ip, bstart, blen);
 	}
 
-	ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
 
 	gfs2_dinode_out(ip, dibh->b_data);
 
@@ -848,7 +847,7 @@ static int do_grow(struct gfs2_inode *ip, u64 size)
 	}
 
 	ip->i_di.di_size = size;
-	ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
@@ -963,7 +962,7 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 
 	if (gfs2_is_stuffed(ip)) {
 		ip->i_di.di_size = size;
-		ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
+		ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode) + size);
@@ -975,7 +974,7 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 
 		if (!error) {
 			ip->i_di.di_size = size;
-			ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
+			ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
 			ip->i_di.di_flags |= GFS2_DIF_TRUNC_IN_PROG;
 			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 			gfs2_dinode_out(ip, dibh->b_data);
@@ -1048,7 +1047,7 @@ static int trunc_end(struct gfs2_inode *ip)
 			ip->i_num.no_addr;
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 	}
-	ip->i_inode.i_mtime.tv_sec = ip->i_inode.i_ctime.tv_sec = get_seconds();
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;
 	ip->i_di.di_flags &= ~GFS2_DIF_TRUNC_IN_PROG;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);

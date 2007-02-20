@@ -26,7 +26,7 @@ struct notifier_block br_device_notifier = {
 
 /*
  * Handle changes in state of network devices enslaved to a bridge.
- * 
+ *
  * Note: don't care about up/down if bridge itself is down, because
  *     port state is checked when bridge is brought up.
  */
@@ -56,15 +56,17 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 
 	case NETDEV_CHANGE:
 		if (br->dev->flags & IFF_UP)
-			schedule_delayed_work(&p->carrier_check, BR_PORT_DEBOUNCE);
+			if (schedule_delayed_work(&p->carrier_check,
+						BR_PORT_DEBOUNCE))
+				dev_hold(dev);
 		break;
 
 	case NETDEV_FEAT_CHANGE:
-		if (br->dev->flags & IFF_UP) 
+		if (br->dev->flags & IFF_UP)
 			br_features_recompute(br);
 
 		/* could do recursive feature change notification
-		 * but who would care?? 
+		 * but who would care??
 		 */
 		break;
 
@@ -74,7 +76,7 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		break;
 
 	case NETDEV_UP:
-		if (netif_carrier_ok(dev) && (br->dev->flags & IFF_UP)) 
+		if (netif_carrier_ok(dev) && (br->dev->flags & IFF_UP))
 			br_stp_enable_port(p);
 		break;
 
@@ -82,7 +84,7 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		spin_unlock_bh(&br->lock);
 		br_del_if(br, dev);
 		goto done;
-	} 
+	}
 	spin_unlock_bh(&br->lock);
 
  done:

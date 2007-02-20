@@ -73,7 +73,7 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 					  struct fuse_conn *fc,
 					  const char *name,
 					  int mode, int nlink,
-					  struct inode_operations *iop,
+					  const struct inode_operations *iop,
 					  const struct file_operations *fop)
 {
 	struct dentry *dentry;

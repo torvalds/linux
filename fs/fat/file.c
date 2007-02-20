@@ -312,7 +312,7 @@ int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 }
 EXPORT_SYMBOL_GPL(fat_getattr);
 
-struct inode_operations fat_file_inode_operations = {
+const struct inode_operations fat_file_inode_operations = {
 	.truncate	= fat_truncate,
 	.setattr	= fat_notify_change,
 	.getattr	= fat_getattr,

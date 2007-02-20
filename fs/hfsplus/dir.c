@@ -10,7 +10,6 @@
 
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/random.h>
 
@@ -471,7 +470,7 @@ static int hfsplus_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return res;
 }
 
-struct inode_operations hfsplus_dir_inode_operations = {
+const struct inode_operations hfsplus_dir_inode_operations = {
 	.lookup		= hfsplus_lookup,
 	.create		= hfsplus_create,
 	.link		= hfsplus_link,

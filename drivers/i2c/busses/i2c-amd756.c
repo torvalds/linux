@@ -42,7 +42,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/stddef.h>
-#include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -301,6 +300,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 struct i2c_adapter amd756_smbus = {
 	.owner		= THIS_MODULE,
+	.id		= I2C_HW_SMBUS_AMD756,
 	.class          = I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
 };
@@ -374,7 +374,7 @@ static int __devinit amd756_probe(struct pci_dev *pdev,
 	dev_dbg(&pdev->dev, "SMBREV = 0x%X\n", temp);
 	dev_dbg(&pdev->dev, "AMD756_smba = 0x%X\n", amd756_ioport);
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	amd756_smbus.dev.parent = &pdev->dev;
 
 	sprintf(amd756_smbus.name, "SMBus %s adapter at %04x",

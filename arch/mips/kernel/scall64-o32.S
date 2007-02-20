@@ -321,7 +321,7 @@ sys_call_table:
 	PTR	sys_ni_syscall			/* sys_vm86 */
 	PTR	compat_sys_wait4
 	PTR	sys_swapoff			/* 4115 */
-	PTR	sys32_sysinfo
+	PTR	compat_sys_sysinfo
 	PTR	sys32_ipc
 	PTR	sys_fsync
 	PTR	sys32_sigreturn
@@ -506,7 +506,7 @@ sys_call_table:
 	PTR	sys_readlinkat
 	PTR	sys_fchmodat
 	PTR	sys_faccessat			/* 4300 */
-	PTR	sys_pselect6
+	PTR	compat_sys_pselect6
 	PTR	sys_ppoll
 	PTR	sys_unshare
 	PTR	sys_splice

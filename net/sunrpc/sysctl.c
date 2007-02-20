@@ -35,14 +35,8 @@ static ctl_table		sunrpc_table[];
 void
 rpc_register_sysctl(void)
 {
-	if (!sunrpc_table_header) {
-		sunrpc_table_header = register_sysctl_table(sunrpc_table, 1);
-#ifdef CONFIG_PROC_FS
-		if (sunrpc_table[0].de)
-			sunrpc_table[0].de->owner = THIS_MODULE;
-#endif
-	}
-			
+	if (!sunrpc_table_header)
+		sunrpc_table_header = register_sysctl_table(sunrpc_table);
 }
 
 void
@@ -126,7 +120,7 @@ static ctl_table debug_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dodebug
-	}, 
+	},
 	{
 		.ctl_name	= CTL_NFSDEBUG,
 		.procname	= "nfs_debug",
@@ -134,7 +128,7 @@ static ctl_table debug_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dodebug
-	}, 
+	},
 	{
 		.ctl_name	= CTL_NFSDDEBUG,
 		.procname	= "nfsd_debug",
@@ -142,7 +136,7 @@ static ctl_table debug_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dodebug
-	}, 
+	},
 	{
 		.ctl_name	= CTL_NLMDEBUG,
 		.procname	= "nlm_debug",
@@ -150,7 +144,7 @@ static ctl_table debug_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dodebug
-	}, 
+	},
 	{ .ctl_name = 0 }
 };
 

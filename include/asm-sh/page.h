@@ -13,6 +13,8 @@
    [ P4 control   ]		0xE0000000
  */
 
+#ifdef __KERNEL__
+
 /* PAGE_SHIFT determines the page size */
 #if defined(CONFIG_PAGE_SIZE_4KB)
 # define PAGE_SHIFT	12
@@ -51,7 +53,6 @@
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT-PAGE_SHIFT)
 #endif
 
-#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
 extern void (*clear_page)(void *to);

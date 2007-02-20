@@ -33,6 +33,14 @@
 
 #include "scsi_tgt_priv.h"
 
+#if TGT_RING_SIZE < PAGE_SIZE
+#  define TGT_RING_SIZE PAGE_SIZE
+#endif
+
+#define TGT_RING_PAGES (TGT_RING_SIZE >> PAGE_SHIFT)
+#define TGT_EVENT_PER_PAGE (PAGE_SIZE / sizeof(struct tgt_event))
+#define TGT_MAX_EVENTS (TGT_EVENT_PER_PAGE * TGT_RING_PAGES)
+
 struct tgt_ring {
 	u32 tr_idx;
 	unsigned long tr_pages[TGT_RING_PAGES];
@@ -280,7 +288,7 @@ static int tgt_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations tgt_fops = {
+static const struct file_operations tgt_fops = {
 	.owner		= THIS_MODULE,
 	.open		= tgt_open,
 	.poll		= tgt_poll,

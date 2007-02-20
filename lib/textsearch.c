@@ -40,7 +40,7 @@
  *       configuration according to the specified parameters.
  *   (3) User starts the search(es) by calling _find() or _next() to
  *       fetch subsequent occurrences. A state variable is provided
- *       to the algorihtm to store persistent variables.
+ *       to the algorithm to store persistent variables.
  *   (4) Core eventually resets the search offset and forwards the find()
  *       request to the algorithm.
  *   (5) Algorithm calls get_next_block() provided by the user continously
@@ -218,7 +218,7 @@ static unsigned int get_linear_data(unsigned int consumed, const u8 **dst,
  * Call textsearch_next() to retrieve subsequent matches.
  *
  * Returns the position of first occurrence of the pattern or
- * UINT_MAX if no occurrence was found.
+ * %UINT_MAX if no occurrence was found.
  */ 
 unsigned int textsearch_find_continuous(struct ts_config *conf,
 					struct ts_state *state,

@@ -1,6 +1,6 @@
 What:           /sys/class/pktcdvd/
 Date:           Oct. 2006
-KernelVersion:  2.6.19
+KernelVersion:  2.6.20
 Contact:        Thomas Maier <balagi@justmail.de>
 Description:
 

@@ -373,7 +373,7 @@ out:
 	return err;
 }
 
-struct inode_operations ext2_dir_inode_operations = {
+const struct inode_operations ext2_dir_inode_operations = {
 	.create		= ext2_create,
 	.lookup		= ext2_lookup,
 	.link		= ext2_link,
@@ -393,7 +393,7 @@ struct inode_operations ext2_dir_inode_operations = {
 	.permission	= ext2_permission,
 };
 
-struct inode_operations ext2_special_inode_operations = {
+const struct inode_operations ext2_special_inode_operations = {
 #ifdef CONFIG_EXT2_FS_XATTR
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,

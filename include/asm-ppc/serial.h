@@ -11,8 +11,6 @@
 #include <platforms/ev64260.h>
 #elif defined(CONFIG_CHESTNUT)
 #include <platforms/chestnut.h>
-#elif defined(CONFIG_GEMINI)
-#include <platforms/gemini_serial.h>
 #elif defined(CONFIG_POWERPMC250)
 #include <platforms/powerpmc250.h>
 #elif defined(CONFIG_LOPEC)

@@ -156,9 +156,9 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		tmp_inode->i_atime = cnvrtDosUnixTm(
 				le16_to_cpu(pfindData->LastAccessDate),
 				le16_to_cpu(pfindData->LastAccessTime));
-                tmp_inode->i_ctime = cnvrtDosUnixTm(
-                                le16_to_cpu(pfindData->LastWriteDate),
-                                le16_to_cpu(pfindData->LastWriteTime));
+		tmp_inode->i_ctime = cnvrtDosUnixTm(
+				le16_to_cpu(pfindData->LastWriteDate),
+				le16_to_cpu(pfindData->LastWriteTime));
 		AdjustForTZ(cifs_sb->tcon, tmp_inode);
 		attr = le16_to_cpu(pfindData->Attributes);
 		allocation_size = le32_to_cpu(pfindData->AllocationSize);
@@ -222,7 +222,7 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		atomic_set(&cifsInfo->inUse, 1);
 	}
 
-	if (is_size_safe_to_change(cifsInfo)) {
+	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
 		/* can not safely change the file size here if the 
 		client is writing to it due to potential races */
 		i_size_write(tmp_inode, end_of_file);
@@ -351,10 +351,10 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 	tmp_inode->i_gid = le64_to_cpu(pfindData->Gid);
 	tmp_inode->i_nlink = le64_to_cpu(pfindData->Nlinks);
 
-	if (is_size_safe_to_change(cifsInfo)) {
+	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
 		/* can not safely change the file size here if the 
 		client is writing to it due to potential races */
-		i_size_write(tmp_inode,end_of_file);
+		i_size_write(tmp_inode, end_of_file);
 
 	/* 512 bytes (2**9) is the fake blocksize that must be used */
 	/* for this calculation, not the real blocksize */

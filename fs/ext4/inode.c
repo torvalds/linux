@@ -946,7 +946,7 @@ out:
 static int ext4_get_block(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
 {
-	handle_t *handle = journal_current_handle();
+	handle_t *handle = ext4_journal_current_handle();
 	int ret = 0;
 	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
 
@@ -1716,7 +1716,7 @@ static ssize_t ext4_direct_IO(int rw, struct kiocb *iocb,
 	/*
 	 * Reacquire the handle: ext4_get_block() can restart the transaction
 	 */
-	handle = journal_current_handle();
+	handle = ext4_journal_current_handle();
 
 out_stop:
 	if (handle) {

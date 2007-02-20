@@ -5,12 +5,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
@@ -32,7 +32,7 @@
 #include <linux/mutex.h>
 
 /*
- * xfrm_tunnel_spi things are for allocating unique id ("spi") 
+ * xfrm_tunnel_spi things are for allocating unique id ("spi")
  * per xfrm_address_t.
  */
 struct xfrm6_tunnel_spi {
@@ -155,8 +155,8 @@ static u32 __xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr)
 
 	for (spi = xfrm6_tunnel_spi; spi <= XFRM6_TUNNEL_SPI_MAX; spi++) {
 		index = xfrm6_tunnel_spi_hash_byspi(spi);
-		hlist_for_each_entry(x6spi, pos, 
-				     &xfrm6_tunnel_spi_byspi[index], 
+		hlist_for_each_entry(x6spi, pos,
+				     &xfrm6_tunnel_spi_byspi[index],
 				     list_byspi) {
 			if (x6spi->spi == spi)
 				goto try_next_1;
@@ -167,8 +167,8 @@ try_next_1:;
 	}
 	for (spi = XFRM6_TUNNEL_SPI_MIN; spi < xfrm6_tunnel_spi; spi++) {
 		index = xfrm6_tunnel_spi_hash_byspi(spi);
-		hlist_for_each_entry(x6spi, pos, 
-				     &xfrm6_tunnel_spi_byspi[index], 
+		hlist_for_each_entry(x6spi, pos,
+				     &xfrm6_tunnel_spi_byspi[index],
 				     list_byspi) {
 			if (x6spi->spi == spi)
 				goto try_next_2;
@@ -222,7 +222,7 @@ void xfrm6_tunnel_free_spi(xfrm_address_t *saddr)
 
 	write_lock_bh(&xfrm6_tunnel_spi_lock);
 
-	hlist_for_each_entry_safe(x6spi, pos, n, 
+	hlist_for_each_entry_safe(x6spi, pos, n,
 				  &xfrm6_tunnel_spi_byaddr[xfrm6_tunnel_spi_hash_byaddr(saddr)],
 				  list_byaddr)
 	{
@@ -269,9 +269,9 @@ static int xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 {
 	/* xfrm6_tunnel native err handling */
 	switch (type) {
-	case ICMPV6_DEST_UNREACH: 
+	case ICMPV6_DEST_UNREACH:
 		switch (code) {
-		case ICMPV6_NOROUTE: 
+		case ICMPV6_NOROUTE:
 		case ICMPV6_ADM_PROHIBITED:
 		case ICMPV6_NOT_NEIGHBOUR:
 		case ICMPV6_ADDR_UNREACH:
@@ -287,7 +287,7 @@ static int xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		case ICMPV6_EXC_HOPLIMIT:
 			break;
 		case ICMPV6_EXC_FRAGTIME:
-		default: 
+		default:
 			break;
 		}
 		break;
@@ -339,17 +339,29 @@ static struct xfrm6_tunnel xfrm6_tunnel_handler = {
 	.priority	= 2,
 };
 
+static struct xfrm6_tunnel xfrm46_tunnel_handler = {
+	.handler	= xfrm6_tunnel_rcv,
+	.err_handler	= xfrm6_tunnel_err,
+	.priority	= 2,
+};
+
 static int __init xfrm6_tunnel_init(void)
 {
 	if (xfrm_register_type(&xfrm6_tunnel_type, AF_INET6) < 0)
 		return -EAGAIN;
 
-	if (xfrm6_tunnel_register(&xfrm6_tunnel_handler)) {
+	if (xfrm6_tunnel_register(&xfrm6_tunnel_handler, AF_INET6)) {
+		xfrm_unregister_type(&xfrm6_tunnel_type, AF_INET6);
+		return -EAGAIN;
+	}
+	if (xfrm6_tunnel_register(&xfrm46_tunnel_handler, AF_INET)) {
+		xfrm6_tunnel_deregister(&xfrm6_tunnel_handler, AF_INET6);
 		xfrm_unregister_type(&xfrm6_tunnel_type, AF_INET6);
 		return -EAGAIN;
 	}
 	if (xfrm6_tunnel_spi_init() < 0) {
-		xfrm6_tunnel_deregister(&xfrm6_tunnel_handler);
+		xfrm6_tunnel_deregister(&xfrm46_tunnel_handler, AF_INET);
+		xfrm6_tunnel_deregister(&xfrm6_tunnel_handler, AF_INET6);
 		xfrm_unregister_type(&xfrm6_tunnel_type, AF_INET6);
 		return -EAGAIN;
 	}
@@ -359,7 +371,8 @@ static int __init xfrm6_tunnel_init(void)
 static void __exit xfrm6_tunnel_fini(void)
 {
 	xfrm6_tunnel_spi_fini();
-	xfrm6_tunnel_deregister(&xfrm6_tunnel_handler);
+	xfrm6_tunnel_deregister(&xfrm46_tunnel_handler, AF_INET);
+	xfrm6_tunnel_deregister(&xfrm6_tunnel_handler, AF_INET6);
 	xfrm_unregister_type(&xfrm6_tunnel_type, AF_INET6);
 }
 

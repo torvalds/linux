@@ -59,7 +59,7 @@ struct kparam_array
 };
 
 /* This is the fundamental function for registering boot/module
-   parameters.  perm sets the visibility in driverfs: 000 means it's
+   parameters.  perm sets the visibility in sysfs: 000 means it's
    not there, read bits mean it's readable, write bits mean it's
    writable. */
 #define __module_param_call(prefix, name, set, get, arg, perm)		\
@@ -169,10 +169,22 @@ extern int param_get_string(char *buffer, struct kernel_param *kp);
 
 struct module;
 
+#if defined(CONFIG_SYSFS) && defined(CONFIG_MODULES)
 extern int module_param_sysfs_setup(struct module *mod,
 				    struct kernel_param *kparam,
 				    unsigned int num_params);
 
 extern void module_param_sysfs_remove(struct module *mod);
+#else
+static inline int module_param_sysfs_setup(struct module *mod,
+			     struct kernel_param *kparam,
+			     unsigned int num_params)
+{
+	return 0;
+}
+
+static inline void module_param_sysfs_remove(struct module *mod)
+{ }
+#endif
 
 #endif /* _LINUX_MODULE_PARAMS_H */

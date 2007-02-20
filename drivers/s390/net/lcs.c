@@ -828,7 +828,7 @@ lcs_notify_lancmd_waiters(struct lcs_card *card, struct lcs_cmd *cmd)
 /**
  * Emit buffer of a lan comand.
  */
-void
+static void
 lcs_lancmd_timeout(unsigned long data)
 {
 	struct lcs_reply *reply, *list_reply, *r;
@@ -1360,7 +1360,7 @@ lcs_get_problem(struct ccw_device *cdev, struct irb *irb)
 	return 0;
 }
 
-void
+static void
 lcs_schedule_recovery(struct lcs_card *card)
 {
 	LCS_DBF_TEXT(2, trace, "startrec");
@@ -1511,8 +1511,7 @@ lcs_txbuffer_cb(struct lcs_channel *channel, struct lcs_buffer *buffer)
 	LCS_DBF_TEXT(5, trace, "txbuffcb");
 	/* Put buffer back to pool. */
 	lcs_release_buffer(channel, buffer);
-	card = (struct lcs_card *)
-		((char *) channel - offsetof(struct lcs_card, write));
+	card = container_of(channel, struct lcs_card, write);
 	if (netif_queue_stopped(card->dev) && netif_carrier_ok(card->dev))
 		netif_wake_queue(card->dev);
 	spin_lock(&card->lock);
@@ -1810,8 +1809,7 @@ lcs_get_frames_cb(struct lcs_channel *channel, struct lcs_buffer *buffer)
 		LCS_DBF_TEXT(4, trace, "-eiogpkt");
 		return;
 	}
-	card = (struct lcs_card *)
-		((char *) channel - offsetof(struct lcs_card, read));
+	card = container_of(channel, struct lcs_card, read);
 	offset = 0;
 	while (lcs_hdr->offset != 0) {
 		if (lcs_hdr->offset <= 0 ||
@@ -1990,7 +1988,7 @@ lcs_timeout_store (struct device *dev, struct device_attribute *attr, const char
 
 }
 
-DEVICE_ATTR(lancmd_timeout, 0644, lcs_timeout_show, lcs_timeout_store);
+static DEVICE_ATTR(lancmd_timeout, 0644, lcs_timeout_show, lcs_timeout_store);
 
 static ssize_t
 lcs_dev_recover_store(struct device *dev, struct device_attribute *attr,

@@ -549,6 +549,7 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	adap->client_unregister = cafe_smbus_detach;
 	adap->algo = &cafe_smbus_algo;
 	strcpy(adap->name, "cafe_ccic");
+	adap->dev.parent = &cam->pdev->dev;
 	i2c_set_adapdata(adap, cam);
 	ret = i2c_add_adapter(adap);
 	if (ret)
@@ -1715,7 +1716,7 @@ static void cafe_v4l_dev_release(struct video_device *vd)
  * clone it for specific real devices.
  */
 
-static struct file_operations cafe_v4l_fops = {
+static const struct file_operations cafe_v4l_fops = {
 	.owner = THIS_MODULE,
 	.open = cafe_v4l_open,
 	.release = cafe_v4l_release,
@@ -1969,7 +1970,7 @@ static ssize_t cafe_dfs_read_regs(struct file *file,
 			s - cafe_debug_buf);
 }
 
-static struct file_operations cafe_dfs_reg_ops = {
+static const struct file_operations cafe_dfs_reg_ops = {
 	.owner = THIS_MODULE,
 	.read = cafe_dfs_read_regs,
 	.open = cafe_dfs_open
@@ -1995,7 +1996,7 @@ static ssize_t cafe_dfs_read_cam(struct file *file,
 			s - cafe_debug_buf);
 }
 
-static struct file_operations cafe_dfs_cam_ops = {
+static const struct file_operations cafe_dfs_cam_ops = {
 	.owner = THIS_MODULE,
 	.read = cafe_dfs_read_cam,
 	.open = cafe_dfs_open

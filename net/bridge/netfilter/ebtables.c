@@ -16,7 +16,6 @@
  */
 
 /* used for print_string */
-#include <linux/sched.h>
 #include <linux/tty.h>
 
 #include <linux/kmod.h>
@@ -33,10 +32,10 @@
 #include "../br_private.h"
 
 #define BUGPRINT(format, args...) printk("kernel msg: ebtables bug: please "\
-                                         "report to author: "format, ## args)
+					 "report to author: "format, ## args)
 /* #define BUGPRINT(format, args...) */
 #define MEMPRINT(format, args...) printk("kernel msg: ebtables "\
-                                         ": out of memory: "format, ## args)
+					 ": out of memory: "format, ## args)
 /* #define MEMPRINT(format, args...) */
 
 
@@ -482,7 +481,7 @@ ebt_check_entry_size_and_hooks(struct ebt_entry *e,
 		   as it said it has */
 		if (*n != *cnt) {
 			BUGPRINT("nentries does not equal the nr of entries "
-		                 "in the chain\n");
+				 "in the chain\n");
 			return -EINVAL;
 		}
 		if (((struct ebt_entries *)e)->policy != EBT_DROP &&
@@ -809,7 +808,7 @@ static int translate_table(char *name, struct ebt_table_info *newinfo)
 	i = 0; /* holds the expected nr. of entries for the chain */
 	j = 0; /* holds the up to now counted entries for the chain */
 	k = 0; /* holds the total nr. of entries, should equal
-	          newinfo->nentries afterwards */
+		  newinfo->nentries afterwards */
 	udc_cnt = 0; /* will hold the nr. of user defined chains (udc) */
 	ret = EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 	   ebt_check_entry_size_and_hooks, newinfo,
@@ -820,7 +819,7 @@ static int translate_table(char *name, struct ebt_table_info *newinfo)
 
 	if (i != j) {
 		BUGPRINT("nentries does not equal the nr of entries in the "
-		         "(last) chain\n");
+			 "(last) chain\n");
 		return -EINVAL;
 	}
 	if (k != newinfo->nentries) {
@@ -835,7 +834,7 @@ static int translate_table(char *name, struct ebt_table_info *newinfo)
 		   if an error occurs */
 		newinfo->chainstack =
 			vmalloc((highest_possible_processor_id()+1)
-				   	* sizeof(*(newinfo->chainstack)));
+					* sizeof(*(newinfo->chainstack)));
 		if (!newinfo->chainstack)
 			return -ENOMEM;
 		for_each_possible_cpu(i) {
@@ -948,7 +947,7 @@ static int do_replace(void __user *user, unsigned int len)
 	if (tmp.num_counters >= INT_MAX / sizeof(struct ebt_counter))
 		return -ENOMEM;
 
-	countersize = COUNTER_OFFSET(tmp.nentries) * 
+	countersize = COUNTER_OFFSET(tmp.nentries) *
 					(highest_possible_processor_id()+1);
 	newinfo = vmalloc(sizeof(*newinfo) + countersize);
 	if (!newinfo)
@@ -1350,7 +1349,7 @@ static inline int ebt_make_names(struct ebt_entry *e, char *base, char __user *u
 
 	hlp = ubase + (((char *)e + e->target_offset) - base);
 	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
-	
+
 	ret = EBT_MATCH_ITERATE(e, ebt_make_matchname, base, ubase);
 	if (ret != 0)
 		return ret;

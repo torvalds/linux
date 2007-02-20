@@ -70,8 +70,7 @@ static struct mb_pci_dev_irq mb_pci_dev_irqs[] = {
 	/* PCI slot 2 */
 	{ 9, 	IRQ_MB_A_PCI2(0),	1 }
 };
-#define NUM_MB_PCI_DEV_IRQS \
-  (sizeof mb_pci_dev_irqs / sizeof mb_pci_dev_irqs[0])
+#define NUM_MB_PCI_DEV_IRQS ARRAY_SIZE(mb_pci_dev_irqs)
 
 
 /* PCI configuration primitives.  */

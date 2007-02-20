@@ -369,7 +369,7 @@ static eg_cache_entry *eg_cache_get_by_vcc(struct atm_vcc *vcc, struct mpoa_clie
 	while (entry != NULL){
 		if (entry->shortcut == vcc) {
 			atomic_inc(&entry->use);
-	       		read_unlock_irqrestore(&mpc->egress_lock, flags);
+			read_unlock_irqrestore(&mpc->egress_lock, flags);
 			return entry;
 		}
 		entry = entry->next;
@@ -388,7 +388,7 @@ static eg_cache_entry *eg_cache_get_by_src_ip(__be32 ipaddr, struct mpoa_client 
 	while(entry != NULL){
 		if(entry->latest_ip_addr == ipaddr) {
 			atomic_inc(&entry->use);
-	       		read_unlock_irq(&mpc->egress_lock);
+			read_unlock_irq(&mpc->egress_lock);
 			return entry;
 		}
 		entry = entry->next;

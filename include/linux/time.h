@@ -46,7 +46,7 @@ static inline int timespec_equal(struct timespec *a, struct timespec *b)
  * lhs == rhs: return 0
  * lhs > rhs:  return >0
  */
-static inline int timespec_compare(struct timespec *lhs, struct timespec *rhs)
+static inline int timespec_compare(const struct timespec *lhs, const struct timespec *rhs)
 {
 	if (lhs->tv_sec < rhs->tv_sec)
 		return -1;
@@ -55,7 +55,7 @@ static inline int timespec_compare(struct timespec *lhs, struct timespec *rhs)
 	return lhs->tv_nsec - rhs->tv_nsec;
 }
 
-static inline int timeval_compare(struct timeval *lhs, struct timeval *rhs)
+static inline int timeval_compare(const struct timeval *lhs, const struct timeval *rhs)
 {
 	if (lhs->tv_sec < rhs->tv_sec)
 		return -1;
@@ -90,8 +90,9 @@ static inline struct timespec timespec_sub(struct timespec lhs,
 
 extern struct timespec xtime;
 extern struct timespec wall_to_monotonic;
-extern seqlock_t xtime_lock;
+extern seqlock_t xtime_lock __attribute__((weak));
 
+extern unsigned long read_persistent_clock(void);
 void timekeeping_init(void);
 
 static inline unsigned long get_seconds(void)

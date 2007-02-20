@@ -14,7 +14,6 @@
  *
  */
 
-#include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>

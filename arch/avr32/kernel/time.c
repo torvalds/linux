@@ -37,7 +37,7 @@ static struct clocksource clocksource_avr32 = {
 	.read		= read_cycle_count,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.shift		= 16,
-	.is_continuous	= 1,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 /*
@@ -107,15 +107,6 @@ static void avr32_hpt_init(unsigned int count)
 	sysreg_write(COUNT, expirelo - cycles_per_jiffy);
 	sysreg_write(COMPARE, expirelo);
 	sysreg_write(COUNT, count);
-}
-
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	/* There must be better ways...? */
-	return (unsigned long long)jiffies * (1000000000 / HZ);
 }
 
 /*

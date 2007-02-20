@@ -169,7 +169,7 @@ static const struct file_operations openprom_operations = {
 
 static struct dentry *openpromfs_lookup(struct inode *, struct dentry *, struct nameidata *);
 
-static struct inode_operations openprom_inode_operations = {
+static const struct inode_operations openprom_inode_operations = {
 	.lookup		= openpromfs_lookup,
 };
 
@@ -364,7 +364,7 @@ static int openprom_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations openprom_sops = { 
+static const struct super_operations openprom_sops = {
 	.alloc_inode	= openprom_alloc_inode,
 	.destroy_inode	= openprom_destroy_inode,
 	.read_inode	= openprom_read_inode,

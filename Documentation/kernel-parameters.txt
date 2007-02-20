@@ -48,6 +48,7 @@ parameter is applicable:
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
 	JOY	Appropriate joystick support is enabled.
+	LIBATA  Libata driver is enabled
 	LP	Printer support is enabled.
 	LOOP	Loopback device support is enabled.
 	M68k	M68k architecture is enabled.
@@ -103,6 +104,9 @@ Parameters denoted with BOOT are actually interpreted by the boot
 loader, and have no meaning to the kernel directly.
 Do not modify the syntax of boot loader parameters without extreme
 need or coordination with <Documentation/i386/boot.txt>.
+
+There are also arch-specific kernel-parameters not documented here.
+See for example <Documentation/x86_64/boot-options.txt>.
 
 Note that ALL kernel parameters listed below are CASE SENSITIVE, and that
 a trailing = on the name of any parameter states that that parameter will
@@ -361,6 +365,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			clocksource is not available, it defaults to PIT.
 			Format: { pit | tsc | cyclone | pmtmr }
 
+	code_bytes	[IA32] How many bytes of object code to print in an
+			oops report.
+			Range: 0 - 8192
+			Default: 64
+
 	disable_8254_timer
 	enable_8254_timer
 			[IA32/X86_64] Disable/Enable interrupt 0 timer routing
@@ -600,6 +609,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			size of <nn>. This works even on boxes that have no
 			highmem otherwise. This also works to reduce highmem
 			size on bigger boxes.
+
+	highres=	[KNL] Enable/disable high resolution timer mode.
+			Valid parameters: "on", "off"
+			Default: "on"
 
 	hisax=		[HW,ISDN]
 			See Documentation/isdn/README.HiSax.
@@ -851,7 +864,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <1-256>
 
 	maxcpus=	[SMP] Maximum number of processors that	an SMP kernel
-			should make use of
+			should make use of.
+			Using "nosmp" or "maxcpus=0" will disable SMP
+			entirely (the MPS table probe still happens, though).
+			A command-line option of "maxcpus=<NUM>", where <NUM>
+			is an integer greater than 0, limits the maximum number
+			of CPUs activated in SMP mode to <NUM>.
+			Using "maxcpus=1" on an SMP kernel is the trivial
+			case of an SMP kernel with only one CPU.
 
 	max_addr=[KMG]	[KNL,BOOT,ia64] All physical memory greater than or
 			equal to this physical address is ignored.
@@ -1026,6 +1046,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			emulation library even if a 387 maths coprocessor
 			is present.
 
+	noacpi		[LIBATA] Disables use of ACPI in libata suspend/resume
+			when set.
+			Format: <int>
+
 	noaliencache	[MM, NUMA] Disables the allcoation of alien caches in
 			the slab allocator.  Saves per-node memory, but will
 			impact performance on real NUMA hardware.
@@ -1069,6 +1093,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			interrupt wake-up latency, which may improve performance
 			in certain environments such as networked servers or
 			real-time systems.
+
+	nohz=		[KNL] Boottime enable/disable dynamic ticks
+			Valid arguments: on, off
+			Default: on
 
 	noirqbalance	[IA-32,SMP,KNL] Disable kernel irq balancing
 
@@ -1259,6 +1287,12 @@ and is between 256 and 4096 characters. It is defined in the file
 				This sorting is done to get a device
 				order compatible with older (<= 2.4) kernels.
 		nobfsort	Don't sort PCI devices into breadth-first order.
+		cbiosize=nn[KMG]	The fixed amount of bus space which is
+				reserved for the CardBus bridge's IO window.
+				The default value is 256 bytes.
+		cbmemsize=nn[KMG]	The fixed amount of bus space which is
+				reserved for the CardBus bridge's memory
+				window. The default value is 64 megabytes.
 
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
@@ -1395,6 +1429,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			given by "resume=" at which the swap header is located,
 			in <PAGE_SIZE> units (needed only for swap files).
 			See  Documentation/power/swsusp-and-swap-files.txt
+
+	retain_initrd	[RAM] Keep initrd memory after extraction
 
 	rhash_entries=	[KNL,NET]
 			Set number of hash buckets for route cache

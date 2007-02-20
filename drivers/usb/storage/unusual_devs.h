@@ -573,7 +573,7 @@ UNUSUAL_DEV(  0x054c, 0x002b, 0x0100, 0x0110,
 #endif
 
 /* Submitted by Olaf Hering, <olh@suse.de> SuSE Bugzilla #49049 */
-UNUSUAL_DEV(  0x054c, 0x002c, 0x0501, 0x0501,
+UNUSUAL_DEV(  0x054c, 0x002c, 0x0501, 0x2000,
 		"Sony",
 		"USB Floppy Drive",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -1101,6 +1101,15 @@ UNUSUAL_DEV(  0x08bd, 0x1100, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN),
 
+/* Submitted by Dylan Taft <d13f00l@gmail.com>
+ * US_FL_IGNORE_RESIDUE Needed
+ */
+UNUSUAL_DEV(  0x08ca, 0x3103, 0x0100, 0x0100,
+                "AIPTEK",
+                "Aiptek USB Keychain MP3 Player",
+                US_SC_DEVICE, US_PR_DEVICE, NULL,
+                US_FL_IGNORE_RESIDUE),
+
 /* Entry needed for flags. Moreover, all devices with this ID use
  * bulk-only transport, but _some_ falsely report Control/Bulk instead.
  * One example is "Trumpion Digital Research MYMP3".
@@ -1311,24 +1320,18 @@ UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_NO_WP_DETECT ),
 
-/* Reported by Jan Mate <mate@fiit.stuba.sk> */
+/* Reported by Jan Mate <mate@fiit.stuba.sk>
+ * and by Soeren Sonnenburg <kernel@nn7.de> */
 UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"P990i",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
+		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
 
 /* Reported by Emmanuel Vasilakis <evas@forthnet.gr> */
 UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"M600i",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
-
-/* Reported by Jan Mate <mate@fiit.stuba.sk> */
-UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
-		"Sony Ericsson",
-		"P990i",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
@@ -1392,6 +1395,16 @@ UNUSUAL_DEV(  0x1652, 0x6600, 0x0201, 0x0201,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Thomas Baechler <thomas@archlinux.org>
+ * Fixes I/O errors with Teac HD-35PU devices
+ */
+
+UNUSUAL_DEV( 0x1652, 0x6600, 0x0201, 0x0201,
+               "Super Top",
+               "USB 2.0  IDE DEVICE",
+               US_SC_DEVICE, US_PR_DEVICE, NULL,
+               US_FL_IGNORE_RESIDUE),
+
 /* patch submitted by Davide Perini <perini.davide@dpsoftware.org>
  * and Renato Perini <rperini@email.it>
  */
@@ -1430,7 +1443,7 @@ UNUSUAL_DEV(  0xed06, 0x4500, 0x0001, 0x0001,
 		"DataStor",
 		"USB4500 FW1.04",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY),
+		US_FL_CAPACITY_HEURISTICS),
 
 /* Control/Bulk transport for all SubClass values */
 USUAL_DEV(US_SC_RBC, US_PR_CB, USB_US_TYPE_STOR),

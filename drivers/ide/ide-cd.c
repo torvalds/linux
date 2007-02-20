@@ -687,15 +687,8 @@ static void ide_dump_status_no_sense(ide_drive_t *drive, const char *msg, u8 sta
 static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 {
 	struct request *rq = HWGROUP(drive)->rq;
-	ide_hwif_t *hwif = HWIF(drive);
 	int stat, err, sense_key;
 	
-	/* We may have bogus DMA interrupts in PIO state here */
-	if (HWIF(drive)->dma_status && hwif->atapi_irq_bogon) {
-		stat = hwif->INB(hwif->dma_status);
-		/* Should we force the bit as well ? */
-		hwif->OUTB(stat, hwif->dma_status);
-	}
 	/* Check for errors. */
 	stat = HWIF(drive)->INB(IDE_STATUS_REG);
 	if (stat_ret)
@@ -930,6 +923,10 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 		HWIF(drive)->OUTB(drive->ctl, IDE_CONTROL_REG);
  
 	if (CDROM_CONFIG_FLAGS (drive)->drq_interrupt) {
+		/* waiting for CDB interrupt, not DMA yet. */
+		if (info->dma)
+			drive->waiting_for_dma = 0;
+
 		/* packet command */
 		ide_execute_command(drive, WIN_PACKETCMD, handler, ATAPI_WAIT_PC, cdrom_timer_expiry);
 		return ide_started;
@@ -972,6 +969,10 @@ static ide_startstop_t cdrom_transfer_packet_command (ide_drive_t *drive,
 		/* Check for errors. */
 		if (cdrom_decode_status(drive, DRQ_STAT, NULL))
 			return ide_stopped;
+
+		/* Ok, next interrupt will be DMA interrupt. */
+		if (info->dma)
+			drive->waiting_for_dma = 1;
 	} else {
 		/* Otherwise, we must wait for DRQ to get set. */
 		if (ide_wait_stat(&startstop, drive, DRQ_STAT,
@@ -1103,7 +1104,7 @@ static ide_startstop_t cdrom_read_intr (ide_drive_t *drive)
 	if (dma) {
 		info->dma = 0;
 		if ((dma_error = HWIF(drive)->ide_dma_end(drive)))
-			__ide_dma_off(drive);
+			ide_dma_off(drive);
 	}
 
 	if (cdrom_decode_status(drive, 0, &stat))
@@ -1699,7 +1700,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	if (dma) {
 		if (dma_error) {
 			printk(KERN_ERR "ide-cd: dma error\n");
-			__ide_dma_off(drive);
+			ide_dma_off(drive);
 			return ide_error(drive, "dma error", stat);
 		}
 
@@ -1825,7 +1826,7 @@ static ide_startstop_t cdrom_write_intr(ide_drive_t *drive)
 		info->dma = 0;
 		if ((dma_error = HWIF(drive)->ide_dma_end(drive))) {
 			printk(KERN_ERR "ide-cd: write dma error\n");
-			__ide_dma_off(drive);
+			ide_dma_off(drive);
 		}
 	}
 
@@ -3254,14 +3255,6 @@ int ide_cdrom_setup (ide_drive_t *drive)
 	if (drive->autotune == IDE_TUNE_DEFAULT ||
 	    drive->autotune == IDE_TUNE_AUTO)
 		drive->dsc_overlap = (drive->next != drive);
-#if 0
-	drive->dsc_overlap = (HWIF(drive)->no_dsc) ? 0 : 1;
-	if (HWIF(drive)->no_dsc) {
-		printk(KERN_INFO "ide-cd: %s: disabling DSC overlap\n",
-			drive->name);
-		drive->dsc_overlap = 0;
-	}
-#endif
 
 	if (ide_cdrom_register(drive, nslots)) {
 		printk (KERN_ERR "%s: ide_cdrom_setup failed to register device with the cdrom driver.\n", drive->name);
@@ -3360,21 +3353,16 @@ static int idecd_open(struct inode * inode, struct file * file)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct cdrom_info *info;
-	ide_drive_t *drive;
 	int rc = -ENOMEM;
 
 	if (!(info = ide_cd_get(disk)))
 		return -ENXIO;
 
-	drive = info->drive;
-
-	drive->usage++;
-
 	if (!info->buffer)
-		info->buffer = kmalloc(SECTOR_BUFFER_SIZE,
-					GFP_KERNEL|__GFP_REPEAT);
-        if (!info->buffer || (rc = cdrom_open(&info->devinfo, inode, file)))
-		drive->usage--;
+		info->buffer = kmalloc(SECTOR_BUFFER_SIZE, GFP_KERNEL|__GFP_REPEAT);
+
+	if (info->buffer)
+		rc = cdrom_open(&info->devinfo, inode, file);
 
 	if (rc < 0)
 		ide_cd_put(info);
@@ -3386,10 +3374,8 @@ static int idecd_release(struct inode * inode, struct file * file)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct cdrom_info *info = ide_cd_g(disk);
-	ide_drive_t *drive = info->drive;
 
 	cdrom_release (&info->devinfo, file);
-	drive->usage--;
 
 	ide_cd_put(info);
 

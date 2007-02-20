@@ -110,7 +110,7 @@ int pcmcia_socket_dev_suspend(struct device *dev, pm_message_t state)
 
 	down_read(&pcmcia_socket_list_rwsem);
 	list_for_each_entry(socket, &pcmcia_socket_list, socket_list) {
-		if (socket->dev.dev != dev)
+		if (socket->dev.parent != dev)
 			continue;
 		mutex_lock(&socket->skt_mutex);
 		socket_suspend(socket);
@@ -128,7 +128,7 @@ int pcmcia_socket_dev_resume(struct device *dev)
 
 	down_read(&pcmcia_socket_list_rwsem);
 	list_for_each_entry(socket, &pcmcia_socket_list, socket_list) {
-		if (socket->dev.dev != dev)
+		if (socket->dev.parent != dev)
 			continue;
 		mutex_lock(&socket->skt_mutex);
 		socket_resume(socket);
@@ -143,12 +143,12 @@ EXPORT_SYMBOL(pcmcia_socket_dev_resume);
 
 struct pcmcia_socket * pcmcia_get_socket(struct pcmcia_socket *skt)
 {
-	struct class_device *cl_dev = class_device_get(&skt->dev);
-	if (!cl_dev)
+	struct device *dev = get_device(&skt->dev);
+	if (!dev)
 		return NULL;
-	skt = class_get_devdata(cl_dev);
+	skt = dev_get_drvdata(dev);
 	if (!try_module_get(skt->owner)) {
-		class_device_put(&skt->dev);
+		put_device(&skt->dev);
 		return NULL;
 	}
 	return (skt);
@@ -159,14 +159,14 @@ EXPORT_SYMBOL(pcmcia_get_socket);
 void pcmcia_put_socket(struct pcmcia_socket *skt)
 {
 	module_put(skt->owner);
-	class_device_put(&skt->dev);
+	put_device(&skt->dev);
 }
 EXPORT_SYMBOL(pcmcia_put_socket);
 
 
-static void pcmcia_release_socket(struct class_device *class_dev)
+static void pcmcia_release_socket(struct device *dev)
 {
-	struct pcmcia_socket *socket = class_get_devdata(class_dev);
+	struct pcmcia_socket *socket = dev_get_drvdata(dev);
 
 	complete(&socket->socket_released);
 }
@@ -181,7 +181,7 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 	struct task_struct *tsk;
 	int ret;
 
-	if (!socket || !socket->ops || !socket->dev.dev || !socket->resource_ops)
+	if (!socket || !socket->ops || !socket->dev.parent || !socket->resource_ops)
 		return -EINVAL;
 
 	cs_dbg(socket, 0, "pcmcia_register_socket(0x%p)\n", socket->ops);
@@ -226,9 +226,9 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 #endif
 
 	/* set proper values in socket->dev */
-	socket->dev.class_data = socket;
+	dev_set_drvdata(&socket->dev, socket);
 	socket->dev.class = &pcmcia_socket_class;
-	snprintf(socket->dev.class_id, BUS_ID_SIZE, "pcmcia_socket%u", socket->sock);
+	snprintf(socket->dev.bus_id, BUS_ID_SIZE, "pcmcia_socket%u", socket->sock);
 
 	/* base address = 0, map = 0 */
 	socket->cis_mem.flags = 0;
@@ -640,7 +640,7 @@ static int pccardd(void *__skt)
 	skt->ops->set_socket(skt, &skt->socket);
 
 	/* register with the device core */
-	ret = class_device_register(&skt->dev);
+	ret = device_register(&skt->dev);
 	if (ret) {
 		printk(KERN_WARNING "PCMCIA: unable to register socket 0x%p\n",
 			skt);
@@ -689,7 +689,7 @@ static int pccardd(void *__skt)
 	remove_wait_queue(&skt->thread_wait, &wait);
 
 	/* remove from the device core */
-	class_device_unregister(&skt->dev);
+	device_unregister(&skt->dev);
 
 	return 0;
 }
@@ -904,7 +904,7 @@ int pcmcia_insert_card(struct pcmcia_socket *skt)
 EXPORT_SYMBOL(pcmcia_insert_card);
 
 
-static int pcmcia_socket_uevent(struct class_device *dev, char **envp,
+static int pcmcia_socket_uevent(struct device *dev, char **envp,
 			        int num_envp, char *buffer, int buffer_size)
 {
 	struct pcmcia_socket *s = container_of(dev, struct pcmcia_socket, dev);
@@ -930,8 +930,8 @@ static void pcmcia_release_socket_class(struct class *data)
 
 struct class pcmcia_socket_class = {
 	.name = "pcmcia_socket",
-	.uevent = pcmcia_socket_uevent,
-	.release = pcmcia_release_socket,
+	.dev_uevent = pcmcia_socket_uevent,
+	.dev_release = pcmcia_release_socket,
 	.class_release = pcmcia_release_socket_class,
 };
 EXPORT_SYMBOL(pcmcia_socket_class);

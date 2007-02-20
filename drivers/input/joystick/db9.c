@@ -59,10 +59,6 @@ MODULE_PARM_DESC(dev2, "Describes second attached device (<parport#>,<type>)");
 module_param_array_named(dev3, db9[2].args, int, &db9[2].nargs, 0);
 MODULE_PARM_DESC(dev3, "Describes third attached device (<parport#>,<type>)");
 
-__obsolete_setup("db9=");
-__obsolete_setup("db9_2=");
-__obsolete_setup("db9_3=");
-
 #define DB9_ARG_PARPORT		0
 #define DB9_ARG_MODE		1
 

@@ -15,6 +15,7 @@
 #define __ASM_IBM4XX_H__
 
 #include <asm/types.h>
+#include <asm/dcr.h>
 
 #ifdef CONFIG_40x
 
@@ -106,6 +107,10 @@ void ppc4xx_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 #if defined(CONFIG_OCOTEA)
 #include <platforms/4xx/ocotea.h>
+#endif
+
+#if defined(CONFIG_TAISHAN)
+#include <platforms/4xx/taishan.h>
 #endif
 
 #ifndef __ASSEMBLY__

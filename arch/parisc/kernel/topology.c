@@ -1,5 +1,5 @@
 /*
- * arch/parisc/kernel/topology.c - Populate driverfs with topology information
+ * arch/parisc/kernel/topology.c - Populate sysfs with topology information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

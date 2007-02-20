@@ -31,18 +31,19 @@ SECTIONS
 
   _etext = .;			/* End of text section */
 
-  . = ALIGN(16);		/* Exception table */
-  __start___ex_table = .;
-  __ex_table : { *(__ex_table) }
-  __stop___ex_table = .;
-
   RODATA
 
 #ifdef CONFIG_SHARED_KERNEL
   . = ALIGN(1048576);		/* VM shared segments are 1MB aligned */
-
-  _eshared = .;			/* End of shareable data */
 #endif
+
+  . = ALIGN(4096);
+  _eshared = .;			/* End of shareable data */
+
+  . = ALIGN(16);		/* Exception table */
+  __start___ex_table = .;
+  __ex_table : { *(__ex_table) }
+  __stop___ex_table = .;
 
   .data : {			/* Data */
 	*(.data)
@@ -90,11 +91,14 @@ SECTIONS
   .con_initcall.init : { *(.con_initcall.init) }
   __con_initcall_end = .;
   SECURITY_INIT
+
+#ifdef CONFIG_BLK_DEV_INITRD
   . = ALIGN(256);
   __initramfs_start = .;
   .init.ramfs : { *(.init.initramfs) }
   . = ALIGN(2);
   __initramfs_end = .;
+#endif
   . = ALIGN(256);
   __per_cpu_start = .;
   .data.percpu  : { *(.data.percpu) }

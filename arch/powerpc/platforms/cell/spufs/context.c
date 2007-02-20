@@ -42,7 +42,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	}
 	spin_lock_init(&ctx->mmio_lock);
 	kref_init(&ctx->kref);
-	init_rwsem(&ctx->state_sema);
+	mutex_init(&ctx->state_mutex);
 	init_MUTEX(&ctx->run_sema);
 	init_waitqueue_head(&ctx->ibox_wq);
 	init_waitqueue_head(&ctx->wbox_wq);
@@ -53,6 +53,10 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	ctx->owner = get_task_mm(current);
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
+	ctx->rt_priority = current->rt_priority;
+	ctx->policy = current->policy;
+	ctx->prio = current->prio;
+	INIT_DELAYED_WORK(&ctx->sched_work, spu_sched_tick);
 	goto out;
 out_free:
 	kfree(ctx);
@@ -65,9 +69,9 @@ void destroy_spu_context(struct kref *kref)
 {
 	struct spu_context *ctx;
 	ctx = container_of(kref, struct spu_context, kref);
-	down_write(&ctx->state_sema);
+	mutex_lock(&ctx->state_mutex);
 	spu_deactivate(ctx);
-	up_write(&ctx->state_sema);
+	mutex_unlock(&ctx->state_mutex);
 	spu_fini_csa(&ctx->csa);
 	if (ctx->gang)
 		spu_gang_remove_ctx(ctx->gang, ctx);
@@ -96,107 +100,102 @@ void spu_forget(struct spu_context *ctx)
 	spu_release(ctx);
 }
 
-void spu_acquire(struct spu_context *ctx)
-{
-	down_read(&ctx->state_sema);
-}
-
-void spu_release(struct spu_context *ctx)
-{
-	up_read(&ctx->state_sema);
-}
-
 void spu_unmap_mappings(struct spu_context *ctx)
 {
 	if (ctx->local_store)
 		unmap_mapping_range(ctx->local_store, 0, LS_SIZE, 1);
 	if (ctx->mfc)
-		unmap_mapping_range(ctx->mfc, 0, 0x4000, 1);
+		unmap_mapping_range(ctx->mfc, 0, 0x1000, 1);
 	if (ctx->cntl)
-		unmap_mapping_range(ctx->cntl, 0, 0x4000, 1);
+		unmap_mapping_range(ctx->cntl, 0, 0x1000, 1);
 	if (ctx->signal1)
-		unmap_mapping_range(ctx->signal1, 0, 0x4000, 1);
+		unmap_mapping_range(ctx->signal1, 0, PAGE_SIZE, 1);
 	if (ctx->signal2)
-		unmap_mapping_range(ctx->signal2, 0, 0x4000, 1);
+		unmap_mapping_range(ctx->signal2, 0, PAGE_SIZE, 1);
+	if (ctx->mss)
+		unmap_mapping_range(ctx->mss, 0, 0x1000, 1);
+	if (ctx->psmap)
+		unmap_mapping_range(ctx->psmap, 0, 0x20000, 1);
 }
 
+/**
+ * spu_acquire_exclusive - lock spu contex and protect against userspace access
+ * @ctx:	spu contex to lock
+ *
+ * Note:
+ *	Returns 0 and with the context locked on success
+ *	Returns negative error and with the context _unlocked_ on failure.
+ */
 int spu_acquire_exclusive(struct spu_context *ctx)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 
-	down_write(&ctx->state_sema);
-	/* ctx is about to be freed, can't acquire any more */
-	if (!ctx->owner) {
-		ret = -EINVAL;
-		goto out;
-	}
+	spu_acquire(ctx);
+	/*
+	 * Context is about to be freed, so we can't acquire it anymore.
+	 */
+	if (!ctx->owner)
+		goto out_unlock;
 
 	if (ctx->state == SPU_STATE_SAVED) {
 		ret = spu_activate(ctx, 0);
 		if (ret)
-			goto out;
-		ctx->state = SPU_STATE_RUNNABLE;
+			goto out_unlock;
 	} else {
-		/* We need to exclude userspace access to the context. */
+		/*
+		 * We need to exclude userspace access to the context.
+		 *
+		 * To protect against memory access we invalidate all ptes
+		 * and make sure the pagefault handlers block on the mutex.
+		 */
 		spu_unmap_mappings(ctx);
 	}
 
-out:
-	if (ret)
-		up_write(&ctx->state_sema);
+	return 0;
+
+ out_unlock:
+	spu_release(ctx);
 	return ret;
 }
 
-int spu_acquire_runnable(struct spu_context *ctx)
+/**
+ * spu_acquire_runnable - lock spu contex and make sure it is in runnable state
+ * @ctx:	spu contex to lock
+ *
+ * Note:
+ *	Returns 0 and with the context locked on success
+ *	Returns negative error and with the context _unlocked_ on failure.
+ */
+int spu_acquire_runnable(struct spu_context *ctx, unsigned long flags)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 
-	down_read(&ctx->state_sema);
-	if (ctx->state == SPU_STATE_RUNNABLE) {
-		ctx->spu->prio = current->prio;
-		return 0;
-	}
-	up_read(&ctx->state_sema);
-
-	down_write(&ctx->state_sema);
-	/* ctx is about to be freed, can't acquire any more */
-	if (!ctx->owner) {
-		ret = -EINVAL;
-		goto out;
-	}
-
+	spu_acquire(ctx);
 	if (ctx->state == SPU_STATE_SAVED) {
-		ret = spu_activate(ctx, 0);
+		/*
+		 * Context is about to be freed, so we can't acquire it anymore.
+		 */
+		if (!ctx->owner)
+			goto out_unlock;
+		ret = spu_activate(ctx, flags);
 		if (ret)
-			goto out;
-		ctx->state = SPU_STATE_RUNNABLE;
+			goto out_unlock;
 	}
 
-	downgrade_write(&ctx->state_sema);
-	/* On success, we return holding the lock */
+	return 0;
 
-	return ret;
-out:
-	/* Release here, to simplify calling code. */
-	up_write(&ctx->state_sema);
-
+ out_unlock:
+	spu_release(ctx);
 	return ret;
 }
 
+/**
+ * spu_acquire_saved - lock spu contex and make sure it is in saved state
+ * @ctx:	spu contex to lock
+ */
 void spu_acquire_saved(struct spu_context *ctx)
 {
-	down_read(&ctx->state_sema);
-
-	if (ctx->state == SPU_STATE_SAVED)
-		return;
-
-	up_read(&ctx->state_sema);
-	down_write(&ctx->state_sema);
-
-	if (ctx->state == SPU_STATE_RUNNABLE) {
+	spu_acquire(ctx);
+	if (ctx->state != SPU_STATE_SAVED)
 		spu_deactivate(ctx);
-		ctx->state = SPU_STATE_SAVED;
-	}
-
-	downgrade_write(&ctx->state_sema);
 }

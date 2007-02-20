@@ -86,129 +86,6 @@ static int acpi_find_bridge_device(struct device *dev, acpi_handle * handle)
 	return ret;
 }
 
-/* Get PCI root bridge's handle from its segment and bus number */
-struct acpi_find_pci_root {
-	unsigned int seg;
-	unsigned int bus;
-	acpi_handle handle;
-};
-
-static acpi_status
-do_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
-{
-	unsigned long *busnr = data;
-	struct acpi_resource_address64 address;
-
-	if (resource->type != ACPI_RESOURCE_TYPE_ADDRESS16 &&
-	    resource->type != ACPI_RESOURCE_TYPE_ADDRESS32 &&
-	    resource->type != ACPI_RESOURCE_TYPE_ADDRESS64)
-		return AE_OK;
-
-	acpi_resource_to_address64(resource, &address);
-	if ((address.address_length > 0) &&
-	    (address.resource_type == ACPI_BUS_NUMBER_RANGE))
-		*busnr = address.minimum;
-
-	return AE_OK;
-}
-
-static int get_root_bridge_busnr(acpi_handle handle)
-{
-	acpi_status status;
-	unsigned long bus, bbn;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-
-	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-
-	status = acpi_evaluate_integer(handle, METHOD_NAME__BBN, NULL,
-				       &bbn);
-	if (status == AE_NOT_FOUND) {
-		/* Assume bus = 0 */
-		printk(KERN_INFO PREFIX
-		       "Assume root bridge [%s] bus is 0\n",
-		       (char *)buffer.pointer);
-		status = AE_OK;
-		bbn = 0;
-	}
-	if (ACPI_FAILURE(status)) {
-		bbn = -ENODEV;
-		goto exit;
-	}
-	if (bbn > 0)
-		goto exit;
-
-	/* _BBN in some systems return 0 for all root bridges */
-	bus = -1;
-	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
-				     do_root_bridge_busnr_callback, &bus);
-	/* If _CRS failed, we just use _BBN */
-	if (ACPI_FAILURE(status) || (bus == -1))
-		goto exit;
-	/* We select _CRS */
-	if (bbn != bus) {
-		printk(KERN_INFO PREFIX
-		       "_BBN and _CRS returns different value for %s. Select _CRS\n",
-		       (char *)buffer.pointer);
-		bbn = bus;
-	}
-      exit:
-	kfree(buffer.pointer);
-	return (int)bbn;
-}
-
-static acpi_status
-find_pci_rootbridge(acpi_handle handle, u32 lvl, void *context, void **rv)
-{
-	struct acpi_find_pci_root *find = (struct acpi_find_pci_root *)context;
-	unsigned long seg, bus;
-	acpi_status status;
-	int tmp;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-
-	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-
-	status = acpi_evaluate_integer(handle, METHOD_NAME__SEG, NULL, &seg);
-	if (status == AE_NOT_FOUND) {
-		/* Assume seg = 0 */
-		status = AE_OK;
-		seg = 0;
-	}
-	if (ACPI_FAILURE(status)) {
-		status = AE_CTRL_DEPTH;
-		goto exit;
-	}
-
-	tmp = get_root_bridge_busnr(handle);
-	if (tmp < 0) {
-		printk(KERN_ERR PREFIX
-		       "Find root bridge failed for %s\n",
-		       (char *)buffer.pointer);
-		status = AE_CTRL_DEPTH;
-		goto exit;
-	}
-	bus = tmp;
-
-	if (seg == find->seg && bus == find->bus)
-	{
-		find->handle = handle;
-		status = AE_CTRL_TERMINATE;
-	}
-	else
-		status = AE_OK;
-      exit:
-	kfree(buffer.pointer);
-	return status;
-}
-
-acpi_handle acpi_get_pci_rootbridge_handle(unsigned int seg, unsigned int bus)
-{
-	struct acpi_find_pci_root find = { seg, bus, NULL };
-
-	acpi_get_devices(PCI_ROOT_HID_STRING, find_pci_rootbridge, &find, NULL);
-	return find.handle;
-}
-EXPORT_SYMBOL_GPL(acpi_get_pci_rootbridge_handle);
-
 /* Get device's handler per its address under its parent */
 struct acpi_find_child {
 	acpi_handle handle;
@@ -364,3 +241,65 @@ static int __init init_acpi_device_notify(void)
 }
 
 arch_initcall(init_acpi_device_notify);
+
+
+#if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE)
+
+/* Every ACPI platform has a mc146818 compatible "cmos rtc".  Here we find
+ * its device node and pass extra config data.  This helps its driver use
+ * capabilities that the now-obsolete mc146818 didn't have, and informs it
+ * that this board's RTC is wakeup-capable (per ACPI spec).
+ */
+#include <linux/mc146818rtc.h>
+
+static struct cmos_rtc_board_info rtc_info;
+
+
+/* PNP devices are registered in a subsys_initcall();
+ * ACPI specifies the PNP IDs to use.
+ */
+#include <linux/pnp.h>
+
+static int __init pnp_match(struct device *dev, void *data)
+{
+	static const char *ids[] = { "PNP0b00", "PNP0b01", "PNP0b02", };
+	struct pnp_dev *pnp = to_pnp_dev(dev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ids); i++) {
+		if (compare_pnp_id(pnp->id, ids[i]) != 0)
+			return 1;
+	}
+	return 0;
+}
+
+static struct device *__init get_rtc_dev(void)
+{
+	return bus_find_device(&pnp_bus_type, NULL, NULL, pnp_match);
+}
+
+static int __init acpi_rtc_init(void)
+{
+	struct device *dev = get_rtc_dev();
+
+	if (dev) {
+		rtc_info.rtc_day_alarm = acpi_gbl_FADT.day_alarm;
+		rtc_info.rtc_mon_alarm = acpi_gbl_FADT.month_alarm;
+		rtc_info.rtc_century = acpi_gbl_FADT.century;
+
+		/* NOTE:  acpi_gbl_FADT->rtcs4 is NOT currently useful */
+
+		dev->platform_data = &rtc_info;
+
+		/* RTC always wakes from S1/S2/S3, and often S4/STD */
+		device_init_wakeup(dev, 1);
+
+		put_device(dev);
+	} else
+		pr_debug("ACPI: RTC unavailable?\n");
+	return 0;
+}
+/* do this between RTC subsys_initcall() and rtc_cmos driver_initcall() */
+fs_initcall(acpi_rtc_init);
+
+#endif

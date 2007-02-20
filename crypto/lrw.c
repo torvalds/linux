@@ -201,21 +201,22 @@ static int decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 
 static int init_tfm(struct crypto_tfm *tfm)
 {
+	struct crypto_cipher *cipher;
 	struct crypto_instance *inst = (void *)tfm->__crt_alg;
 	struct crypto_spawn *spawn = crypto_instance_ctx(inst);
 	struct priv *ctx = crypto_tfm_ctx(tfm);
 	u32 *flags = &tfm->crt_flags;
 
-	tfm = crypto_spawn_tfm(spawn);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
+	cipher = crypto_spawn_cipher(spawn);
+	if (IS_ERR(cipher))
+		return PTR_ERR(cipher);
 
-	if (crypto_tfm_alg_blocksize(tfm) != 16) {
+	if (crypto_cipher_blocksize(cipher) != 16) {
 		*flags |= CRYPTO_TFM_RES_BAD_BLOCK_LEN;
 		return -EINVAL;
 	}
 
-	ctx->child = crypto_cipher_cast(tfm);
+	ctx->child = cipher;
 	return 0;
 }
 

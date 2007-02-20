@@ -142,7 +142,7 @@ int __init fastlane_esp_detect(struct scsi_host_template *tpnt)
 		if (board < 0x1000000) {
 			goto err_release;
 		}
-		esp = esp_allocate(tpnt, (void *)board+FASTLANE_ESP_ADDR);
+		esp = esp_allocate(tpnt, (void *)board + FASTLANE_ESP_ADDR, 0);
 
 		/* Do command transfer with programmed I/O */
 		esp->do_pio_cmds = 1;

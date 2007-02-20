@@ -804,7 +804,7 @@ static int yam_info_open(struct inode *inode, struct file *file)
 	return seq_open(file, &yam_seqops);
 }
 
-static struct file_operations yam_info_fops = {
+static const struct file_operations yam_info_fops = {
 	.owner = THIS_MODULE,
 	.open = yam_info_open,
 	.read = seq_read,

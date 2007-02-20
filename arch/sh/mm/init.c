@@ -39,11 +39,6 @@
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
-/*
- * Cache of MMU context last used.
- */
-unsigned long mmu_context_cache = NO_CONTEXT;
-
 #ifdef CONFIG_MMU
 /* It'd be good if these lines were in the standard header file. */
 #define START_PFN	(NODE_DATA(0)->bdata->node_boot_start >> PAGE_SHIFT)
@@ -111,7 +106,7 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 
 	set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, prot));
 
-	__flush_tlb_page(get_asid(), addr);
+	flush_tlb_one(get_asid(), addr);
 }
 
 /*
@@ -158,7 +153,6 @@ void __init paging_init(void)
 	 * Setup some defaults for the zone sizes.. these should be safe
 	 * regardless of distcontiguous memory or MMU settings.
 	 */
-	zones_size[ZONE_DMA] = 0 >> PAGE_SHIFT;
 	zones_size[ZONE_NORMAL] = __MEMORY_SIZE >> PAGE_SHIFT;
 #ifdef CONFIG_HIGHMEM
 	zones_size[ZONE_HIGHMEM] = 0 >> PAGE_SHIFT;
@@ -170,8 +164,6 @@ void __init paging_init(void)
 	 * the zone sizes accordingly, in addition to turning it on.
 	 */
 	{
-		unsigned long max_dma, low, start_pfn;
-
 		/* We don't need to map the kernel through the TLB, as
 		 * it is permanatly mapped using P1. So clear the
 		 * entire pgd. */
@@ -179,19 +171,7 @@ void __init paging_init(void)
 
 		/* Turn on the MMU */
 		enable_mmu();
-
-		/* Fixup the zone sizes */
-		start_pfn = START_PFN;
-		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-		low = MAX_LOW_PFN;
-
-		if (low < max_dma) {
-			zones_size[ZONE_DMA] = low - start_pfn;
-			zones_size[ZONE_NORMAL] = 0;
-		} else {
-			zones_size[ZONE_DMA] = max_dma - start_pfn;
-			zones_size[ZONE_NORMAL] = low - max_dma;
-		}
+		zones_size[ZONE_NORMAL] = MAX_LOW_PFN - START_PFN;
 	}
 
 	/* Set an initial value for the MMU.TTB so we don't have to

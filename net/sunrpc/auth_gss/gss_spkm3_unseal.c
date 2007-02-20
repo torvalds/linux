@@ -45,7 +45,7 @@
 
 /*
  * spkm3_read_token()
- * 
+ *
  * only SPKM_MIC_TOK with md5 intg-alg is supported
  */
 u32
@@ -72,7 +72,7 @@ spkm3_read_token(struct spkm3_ctx *ctx,
 	/* decode the token */
 
 	if (toktype != SPKM_MIC_TOK) {
-		dprintk("RPC: BAD SPKM3 token type: %d\n", toktype);
+		dprintk("RPC:       BAD SPKM3 token type: %d\n", toktype);
 		goto out;
 	}
 
@@ -80,7 +80,7 @@ spkm3_read_token(struct spkm3_ctx *ctx,
 		goto out;
 
 	if (*cksum++ != 0x03) {
-		dprintk("RPC: spkm3_read_token BAD checksum type\n");
+		dprintk("RPC:       spkm3_read_token BAD checksum type\n");
 		goto out;
 	}
 	md5elen = *cksum++;
@@ -97,7 +97,8 @@ spkm3_read_token(struct spkm3_ctx *ctx,
 	 */
 	ret = GSS_S_DEFECTIVE_TOKEN;
 	if (!g_OID_equal(&ctx->intg_alg, &hmac_md5_oid)) {
-		dprintk("RPC: gss_spkm3_seal: unsupported I-ALG algorithm\n");
+		dprintk("RPC:       gss_spkm3_seal: unsupported I-ALG "
+				"algorithm\n");
 		goto out;
 	}
 
@@ -113,7 +114,7 @@ spkm3_read_token(struct spkm3_ctx *ctx,
 	ret = GSS_S_BAD_SIG;
 	code = memcmp(md5cksum.data, wire_cksum.data, wire_cksum.len);
 	if (code) {
-		dprintk("RPC: bad MIC checksum\n");
+		dprintk("RPC:       bad MIC checksum\n");
 		goto out;
 	}
 

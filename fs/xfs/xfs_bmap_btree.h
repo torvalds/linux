@@ -175,18 +175,10 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
 
 #define XFS_BUF_TO_BMBT_BLOCK(bp)	((xfs_bmbt_block_t *)XFS_BUF_PTR(bp))
 
-#define XFS_BMAP_IBLOCK_SIZE(lev,cur)	(1 << (cur)->bc_blocklog)
 #define XFS_BMAP_RBLOCK_DSIZE(lev,cur)	((cur)->bc_private.b.forksize)
 #define XFS_BMAP_RBLOCK_ISIZE(lev,cur)	\
 	((int)XFS_IFORK_PTR((cur)->bc_private.b.ip, \
 		    (cur)->bc_private.b.whichfork)->if_broot_bytes)
-
-#define XFS_BMAP_BLOCK_DSIZE(lev,cur)	\
-	(((lev) == (cur)->bc_nlevels - 1 ? \
-		XFS_BMAP_RBLOCK_DSIZE(lev,cur) : XFS_BMAP_IBLOCK_SIZE(lev,cur)))
-#define XFS_BMAP_BLOCK_ISIZE(lev,cur)	\
-	(((lev) == (cur)->bc_nlevels - 1 ? \
-		XFS_BMAP_RBLOCK_ISIZE(lev,cur) : XFS_BMAP_IBLOCK_SIZE(lev,cur)))
 
 #define XFS_BMAP_BLOCK_DMAXRECS(lev,cur) \
 	(((lev) == (cur)->bc_nlevels - 1 ? \
@@ -210,37 +202,21 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
 				xfs_bmbt, (lev) == 0) : \
 			((cur)->bc_mp->m_bmap_dmnr[(lev) != 0])))
 
-#define XFS_BMAP_REC_DADDR(bb,i,cur)	\
-	(XFS_BTREE_REC_ADDR(XFS_BMAP_BLOCK_DSIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_DMAXRECS(	\
-				be16_to_cpu((bb)->bb_level), cur)))
-#define XFS_BMAP_REC_IADDR(bb,i,cur)	\
-	(XFS_BTREE_REC_ADDR(XFS_BMAP_BLOCK_ISIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_IMAXRECS(	\
-				be16_to_cpu((bb)->bb_level), cur)))
+#define XFS_BMAP_REC_DADDR(bb,i,cur)	(XFS_BTREE_REC_ADDR(xfs_bmbt, bb, i))
+
+#define XFS_BMAP_REC_IADDR(bb,i,cur)	(XFS_BTREE_REC_ADDR(xfs_bmbt, bb, i))
 
 #define XFS_BMAP_KEY_DADDR(bb,i,cur)	\
-	(XFS_BTREE_KEY_ADDR(XFS_BMAP_BLOCK_DSIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_DMAXRECS(	\
-				be16_to_cpu((bb)->bb_level), cur)))
+	(XFS_BTREE_KEY_ADDR(xfs_bmbt, bb, i))
+
 #define XFS_BMAP_KEY_IADDR(bb,i,cur)	\
-	(XFS_BTREE_KEY_ADDR(XFS_BMAP_BLOCK_ISIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_IMAXRECS(	\
-				be16_to_cpu((bb)->bb_level), cur)))
+	(XFS_BTREE_KEY_ADDR(xfs_bmbt, bb, i))
 
 #define XFS_BMAP_PTR_DADDR(bb,i,cur)	\
-	(XFS_BTREE_PTR_ADDR(XFS_BMAP_BLOCK_DSIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_DMAXRECS(	\
+	(XFS_BTREE_PTR_ADDR(xfs_bmbt, bb, i, XFS_BMAP_BLOCK_DMAXRECS(	\
 				be16_to_cpu((bb)->bb_level), cur)))
 #define XFS_BMAP_PTR_IADDR(bb,i,cur)	\
-	(XFS_BTREE_PTR_ADDR(XFS_BMAP_BLOCK_ISIZE(			\
-			be16_to_cpu((bb)->bb_level), cur),		\
-			xfs_bmbt, bb, i, XFS_BMAP_BLOCK_IMAXRECS(	\
+	(XFS_BTREE_PTR_ADDR(xfs_bmbt, bb, i, XFS_BMAP_BLOCK_IMAXRECS(	\
 				be16_to_cpu((bb)->bb_level), cur)))
 
 /*
@@ -248,11 +224,11 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
  * we don't have a cursor.
  */
 #define XFS_BMAP_BROOT_REC_ADDR(bb,i,sz) \
-	(XFS_BTREE_REC_ADDR(sz,xfs_bmbt,bb,i,XFS_BMAP_BROOT_MAXRECS(sz)))
+	(XFS_BTREE_REC_ADDR(xfs_bmbt,bb,i))
 #define XFS_BMAP_BROOT_KEY_ADDR(bb,i,sz) \
-	(XFS_BTREE_KEY_ADDR(sz,xfs_bmbt,bb,i,XFS_BMAP_BROOT_MAXRECS(sz)))
+	(XFS_BTREE_KEY_ADDR(xfs_bmbt,bb,i))
 #define XFS_BMAP_BROOT_PTR_ADDR(bb,i,sz) \
-	(XFS_BTREE_PTR_ADDR(sz,xfs_bmbt,bb,i,XFS_BMAP_BROOT_MAXRECS(sz)))
+	(XFS_BTREE_PTR_ADDR(xfs_bmbt,bb,i,XFS_BMAP_BROOT_MAXRECS(sz)))
 
 #define XFS_BMAP_BROOT_NUMRECS(bb)	be16_to_cpu((bb)->bb_numrecs)
 #define XFS_BMAP_BROOT_MAXRECS(sz)	XFS_BTREE_BLOCK_MAXRECS(sz,xfs_bmbt,0)
@@ -315,15 +291,11 @@ extern xfs_exntst_t xfs_bmbt_get_state(xfs_bmbt_rec_t *r);
 
 #ifndef XFS_NATIVE_HOST
 extern void xfs_bmbt_disk_get_all(xfs_bmbt_rec_t *r, xfs_bmbt_irec_t *s);
-extern xfs_exntst_t xfs_bmbt_disk_get_state(xfs_bmbt_rec_t *r);
 extern xfs_filblks_t xfs_bmbt_disk_get_blockcount(xfs_bmbt_rec_t *r);
-extern xfs_fsblock_t xfs_bmbt_disk_get_startblock(xfs_bmbt_rec_t *r);
 extern xfs_fileoff_t xfs_bmbt_disk_get_startoff(xfs_bmbt_rec_t *r);
 #else
 #define xfs_bmbt_disk_get_all(r, s)	xfs_bmbt_get_all(r, s)
-#define xfs_bmbt_disk_get_state(r)	xfs_bmbt_get_state(r)
 #define xfs_bmbt_disk_get_blockcount(r)	xfs_bmbt_get_blockcount(r)
-#define xfs_bmbt_disk_get_startblock(r)	xfs_bmbt_get_blockcount(r)
 #define xfs_bmbt_disk_get_startoff(r)	xfs_bmbt_get_startoff(r)
 #endif /* XFS_NATIVE_HOST */
 
@@ -363,15 +335,6 @@ extern void xfs_bmbt_disk_set_allf(xfs_bmbt_rec_t *r, xfs_fileoff_t o,
 extern void xfs_bmbt_to_bmdr(xfs_bmbt_block_t *, int, xfs_bmdr_block_t *, int);
 extern int xfs_bmbt_update(struct xfs_btree_cur *, xfs_fileoff_t,
 				xfs_fsblock_t, xfs_filblks_t, xfs_exntst_t);
-
-#ifdef DEBUG
-/*
- * Get the data from the pointed-to record.
- */
-extern int xfs_bmbt_get_rec(struct xfs_btree_cur *, xfs_fileoff_t *,
-				xfs_fsblock_t *, xfs_filblks_t *,
-				xfs_exntst_t *, int *);
-#endif
 
 #endif	/* __KERNEL__ */
 

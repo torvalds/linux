@@ -234,10 +234,6 @@ void output_mm_defines(void)
 	constant("#define _PMD_SHIFT     ", PMD_SHIFT);
 	constant("#define _PGDIR_SHIFT   ", PGDIR_SHIFT);
 	linefeed;
-	constant("#define _PGD_ORDER     ", PGD_ORDER);
-	constant("#define _PMD_ORDER     ", PMD_ORDER);
-	constant("#define _PTE_ORDER     ", PTE_ORDER);
-	linefeed;
 	constant("#define _PTRS_PER_PGD  ", PTRS_PER_PGD);
 	constant("#define _PTRS_PER_PMD  ", PTRS_PER_PMD);
 	constant("#define _PTRS_PER_PTE  ", PTRS_PER_PTE);
@@ -253,7 +249,6 @@ void output_sc_defines(void)
 	offset("#define SC_MDHI       ", struct sigcontext, sc_mdhi);
 	offset("#define SC_MDLO       ", struct sigcontext, sc_mdlo);
 	offset("#define SC_PC         ", struct sigcontext, sc_pc);
-	offset("#define SC_STATUS     ", struct sigcontext, sc_status);
 	offset("#define SC_FPC_CSR    ", struct sigcontext, sc_fpc_csr);
 	offset("#define SC_FPC_EIR    ", struct sigcontext, sc_fpc_eir);
 	offset("#define SC_HI1        ", struct sigcontext, sc_hi1);

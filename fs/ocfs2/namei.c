@@ -1098,7 +1098,7 @@ static int ocfs2_rename(struct inode *old_dir,
 			BUG();
 	}
 
-	/* Assume a directory heirarchy thusly:
+	/* Assume a directory hierarchy thusly:
 	 * a/b/c
 	 * a/d
 	 * a,b,c, and d are all directories.
@@ -2306,7 +2306,7 @@ leave:
 	return status;
 }
 
-struct inode_operations ocfs2_dir_iops = {
+const struct inode_operations ocfs2_dir_iops = {
 	.create		= ocfs2_create,
 	.lookup		= ocfs2_lookup,
 	.link		= ocfs2_link,

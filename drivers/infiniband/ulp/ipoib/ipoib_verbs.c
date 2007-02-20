@@ -168,27 +168,33 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		.qp_type     = IB_QPT_UD
 	};
 
+	int ret, size;
+
 	priv->pd = ib_alloc_pd(priv->ca);
 	if (IS_ERR(priv->pd)) {
 		printk(KERN_WARNING "%s: failed to allocate PD\n", ca->name);
 		return -ENODEV;
 	}
 
-	priv->cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, dev,
-				ipoib_sendq_size + ipoib_recvq_size + 1);
+	priv->mr = ib_get_dma_mr(priv->pd, IB_ACCESS_LOCAL_WRITE);
+	if (IS_ERR(priv->mr)) {
+		printk(KERN_WARNING "%s: ib_get_dma_mr failed\n", ca->name);
+		goto out_free_pd;
+	}
+
+	size = ipoib_sendq_size + ipoib_recvq_size + 1;
+	ret = ipoib_cm_dev_init(dev);
+	if (!ret)
+		size += ipoib_recvq_size;
+
+	priv->cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, dev, size);
 	if (IS_ERR(priv->cq)) {
 		printk(KERN_WARNING "%s: failed to create CQ\n", ca->name);
-		goto out_free_pd;
+		goto out_free_mr;
 	}
 
 	if (ib_req_notify_cq(priv->cq, IB_CQ_NEXT_COMP))
 		goto out_free_cq;
-
-	priv->mr = ib_get_dma_mr(priv->pd, IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(priv->mr)) {
-		printk(KERN_WARNING "%s: ib_get_dma_mr failed\n", ca->name);
-		goto out_free_cq;
-	}
 
 	init_attr.send_cq = priv->cq;
 	init_attr.recv_cq = priv->cq,
@@ -196,7 +202,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	priv->qp = ib_create_qp(priv->pd, &init_attr);
 	if (IS_ERR(priv->qp)) {
 		printk(KERN_WARNING "%s: failed to create QP\n", ca->name);
-		goto out_free_mr;
+		goto out_free_cq;
 	}
 
 	priv->dev->dev_addr[1] = (priv->qp->qp_num >> 16) & 0xff;
@@ -212,11 +218,11 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 
 	return 0;
 
-out_free_mr:
-	ib_dereg_mr(priv->mr);
-
 out_free_cq:
 	ib_destroy_cq(priv->cq);
+
+out_free_mr:
+	ib_dereg_mr(priv->mr);
 
 out_free_pd:
 	ib_dealloc_pd(priv->pd);
@@ -235,11 +241,13 @@ void ipoib_transport_dev_cleanup(struct net_device *dev)
 		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 	}
 
-	if (ib_dereg_mr(priv->mr))
-		ipoib_warn(priv, "ib_dereg_mr failed\n");
-
 	if (ib_destroy_cq(priv->cq))
 		ipoib_warn(priv, "ib_cq_destroy failed\n");
+
+	ipoib_cm_dev_cleanup(dev);
+
+	if (ib_dereg_mr(priv->mr))
+		ipoib_warn(priv, "ib_dereg_mr failed\n");
 
 	if (ib_dealloc_pd(priv->pd))
 		ipoib_warn(priv, "ib_dealloc_pd failed\n");

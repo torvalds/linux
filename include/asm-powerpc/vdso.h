@@ -18,15 +18,10 @@
 
 #ifndef __ASSEMBLY__
 
-extern unsigned int vdso64_pages;
-extern unsigned int vdso32_pages;
-
 /* Offsets relative to thread->vdso_base */
 extern unsigned long vdso64_rt_sigtramp;
 extern unsigned long vdso32_sigtramp;
 extern unsigned long vdso32_rt_sigtramp;
-
-extern void vdso_init(void);
 
 #else /* __ASSEMBLY__ */
 

@@ -46,7 +46,6 @@
 #include <linux/pci.h>
 #include <linux/signal.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>

@@ -497,7 +497,7 @@ looks like in practice.
       |   |- device_type = "cpu"
       |   |- reg = <0>
       |   |- clock-frequency = <5f5e1000>
-      |   |- linux,boot-cpu
+      |   |- 64-bit
       |   |- linux,phandle = <2>
       |
       o memory@0
@@ -509,7 +509,6 @@ looks like in practice.
       o chosen
         |- name = "chosen"
         |- bootargs = "root=/dev/sda2"
-        |- linux,platform = <00000600>
         |- linux,phandle = <4>
 
 This tree is almost a minimal tree. It pretty much contains the
@@ -519,7 +518,7 @@ physical memory layout.  It also includes misc information passed
 through /chosen, like in this example, the platform type (mandatory)
 and the kernel command line arguments (optional).
 
-The /cpus/PowerPC,970@0/linux,boot-cpu property is an example of a
+The /cpus/PowerPC,970@0/64-bit property is an example of a
 property without a value. All other properties have a value. The
 significance of the #address-cells and #size-cells properties will be
 explained in chapter IV which defines precisely the required nodes and
@@ -733,8 +732,7 @@ address which can extend beyond that limit.
       that typically get driven by the same platform code in the
       kernel, you would use a different "model" property but put a
       value in "compatible". The kernel doesn't directly use that
-      value (see /chosen/linux,platform for how the kernel chooses a
-      platform type) but it is generally useful.
+      value but it is generally useful.
 
   The root node is also generally where you add additional properties
   specific to your board like the serial number if any, that sort of
@@ -778,7 +776,6 @@ address which can extend beyond that limit.
       bytes
     - d-cache-size : one cell, size of L1 data cache in bytes
     - i-cache-size : one cell, size of L1 instruction cache in bytes
-    - linux, boot-cpu : Should be defined if this cpu is the boot cpu.
 
   Recommended properties:
 
@@ -842,11 +839,6 @@ address which can extend beyond that limit.
   some linux-specific properties that would be normally constructed by
   the prom_init() trampoline when booting with an OF client interface,
   but that you have to provide yourself when using the flattened format.
-
-  Required properties:
-
-    - linux,platform : This is your platform number as assigned by the
-      architecture maintainers
 
   Recommended properties:
 
@@ -1334,6 +1326,9 @@ platforms are moved over to use the flattened-device-tree model.
       fsl-usb2-mph compatible controllers.  Either this property or
       "port0" (or both) must be defined for "fsl-usb2-mph" compatible 
       controllers.
+    - dr_mode : indicates the working mode for "fsl-usb2-dr" compatible
+      controllers.  Can be "host", "peripheral", or "otg".  Default to
+      "host" if not defined for backward compatibility.
 
    Recommended properties :
     - interrupts : <a b> where a is the interrupt number and b is a
@@ -1367,6 +1362,7 @@ platforms are moved over to use the flattened-device-tree model.
 		#size-cells = <0>;
 		interrupt-parent = <700>;
 		interrupts = <26 1>;
+		dr_mode = "otg";
 		phy = "ulpi";
 	};
 

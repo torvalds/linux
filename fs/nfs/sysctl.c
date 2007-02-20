@@ -75,7 +75,7 @@ static ctl_table nfs_cb_sysctl_root[] = {
 
 int nfs_register_sysctl(void)
 {
-	nfs_callback_sysctl_table = register_sysctl_table(nfs_cb_sysctl_root, 0);
+	nfs_callback_sysctl_table = register_sysctl_table(nfs_cb_sysctl_root);
 	if (nfs_callback_sysctl_table == NULL)
 		return -ENOMEM;
 	return 0;

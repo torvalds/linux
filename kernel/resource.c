@@ -8,7 +8,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -17,6 +16,7 @@
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/device.h>
 #include <asm/io.h>
 
 
@@ -616,6 +616,67 @@ void __release_region(struct resource *parent, resource_size_t start,
 		(unsigned long long)end);
 }
 EXPORT_SYMBOL(__release_region);
+
+/*
+ * Managed region resource
+ */
+struct region_devres {
+	struct resource *parent;
+	resource_size_t start;
+	resource_size_t n;
+};
+
+static void devm_region_release(struct device *dev, void *res)
+{
+	struct region_devres *this = res;
+
+	__release_region(this->parent, this->start, this->n);
+}
+
+static int devm_region_match(struct device *dev, void *res, void *match_data)
+{
+	struct region_devres *this = res, *match = match_data;
+
+	return this->parent == match->parent &&
+		this->start == match->start && this->n == match->n;
+}
+
+struct resource * __devm_request_region(struct device *dev,
+				struct resource *parent, resource_size_t start,
+				resource_size_t n, const char *name)
+{
+	struct region_devres *dr = NULL;
+	struct resource *res;
+
+	dr = devres_alloc(devm_region_release, sizeof(struct region_devres),
+			  GFP_KERNEL);
+	if (!dr)
+		return NULL;
+
+	dr->parent = parent;
+	dr->start = start;
+	dr->n = n;
+
+	res = __request_region(parent, start, n, name);
+	if (res)
+		devres_add(dev, dr);
+	else
+		devres_free(dr);
+
+	return res;
+}
+EXPORT_SYMBOL(__devm_request_region);
+
+void __devm_release_region(struct device *dev, struct resource *parent,
+			   resource_size_t start, resource_size_t n)
+{
+	struct region_devres match_data = { parent, start, n };
+
+	__release_region(parent, start, n);
+	WARN_ON(devres_destroy(dev, devm_region_release, devm_region_match,
+			       &match_data));
+}
+EXPORT_SYMBOL(__devm_release_region);
 
 /*
  * Called from init/main.c to reserve IO ports.

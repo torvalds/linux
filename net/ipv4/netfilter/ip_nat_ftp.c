@@ -50,7 +50,7 @@ mangle_rfc959_packet(struct sk_buff **pskb,
 	DEBUGP("calling ip_nat_mangle_tcp_packet\n");
 
 	*seq += strlen(buffer) - matchlen;
-	return ip_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff, 
+	return ip_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
 }
 
@@ -72,7 +72,7 @@ mangle_eprt_packet(struct sk_buff **pskb,
 	DEBUGP("calling ip_nat_mangle_tcp_packet\n");
 
 	*seq += strlen(buffer) - matchlen;
-	return ip_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff, 
+	return ip_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
 }
 
@@ -94,7 +94,7 @@ mangle_epsv_packet(struct sk_buff **pskb,
 	DEBUGP("calling ip_nat_mangle_tcp_packet\n");
 
 	*seq += strlen(buffer) - matchlen;
-	return ip_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff, 
+	return ip_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
 }
 

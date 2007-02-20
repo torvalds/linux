@@ -1,5 +1,5 @@
 /*********************************************************************
- *                
+ *
  * Filename:      irproc.c
  * Version:       1.0
  * Description:   Various entries in the /proc file system
@@ -10,17 +10,17 @@
  * Modified by:   Dag Brattli <dagb@cs.uit.no>
  *
  *     Copyright (c) 1998-1999, Dag Brattli <dagb@cs.uit.no>
- *     Copyright (c) 1998, Thomas Davis, <ratbert@radiks.net>, 
+ *     Copyright (c) 1998, Thomas Davis, <ratbert@radiks.net>,
  *     All Rights Reserved.
- *      
- *     This program is free software; you can redistribute it and/or 
- *     modify it under the terms of the GNU General Public License as 
- *     published by the Free Software Foundation; either version 2 of 
+ *
+ *     This program is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of
  *     the License, or (at your option) any later version.
- *  
- *     I, Thomas Davis, provide no warranty for any of this software. 
- *     This material is provided "AS-IS" and at no charge. 
- *     
+ *
+ *     I, Thomas Davis, provide no warranty for any of this software.
+ *     This material is provided "AS-IS" and at no charge.
+ *
  ********************************************************************/
 
 #include <linux/miscdevice.h>
@@ -46,7 +46,7 @@ struct irda_entry {
 
 struct proc_dir_entry *proc_irda;
 EXPORT_SYMBOL(proc_irda);
- 
+
 static struct irda_entry irda_dirs[] = {
 	{"discovery",	&discovery_seq_fops},
 	{"irttp",	&irttp_seq_fops},
@@ -61,7 +61,7 @@ static struct irda_entry irda_dirs[] = {
  *    Register irda entry in /proc file system
  *
  */
-void __init irda_proc_register(void) 
+void __init irda_proc_register(void)
 {
 	int i;
 	struct proc_dir_entry *d;
@@ -73,7 +73,7 @@ void __init irda_proc_register(void)
 
 	for (i=0; i<ARRAY_SIZE(irda_dirs); i++) {
 		d = create_proc_entry(irda_dirs[i].name, 0, proc_irda);
-		if (d) 
+		if (d)
 			d->proc_fops = irda_dirs[i].fops;
 	}
 }
@@ -84,17 +84,17 @@ void __init irda_proc_register(void)
  *    Unregister irda entry in /proc file system
  *
  */
-void __exit irda_proc_unregister(void) 
+void __exit irda_proc_unregister(void)
 {
 	int i;
 
-        if (proc_irda) {
-                for (i=0; i<ARRAY_SIZE(irda_dirs); i++)
-                        remove_proc_entry(irda_dirs[i].name, proc_irda);
+	if (proc_irda) {
+		for (i=0; i<ARRAY_SIZE(irda_dirs); i++)
+			remove_proc_entry(irda_dirs[i].name, proc_irda);
 
-                remove_proc_entry("irda", proc_net);
-                proc_irda = NULL;
-        }
+		remove_proc_entry("irda", proc_net);
+		proc_irda = NULL;
+	}
 }
 
 

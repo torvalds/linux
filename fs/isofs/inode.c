@@ -106,7 +106,7 @@ static int isofs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations isofs_sops = {
+static const struct super_operations isofs_sops = {
 	.alloc_inode	= isofs_alloc_inode,
 	.destroy_inode	= isofs_destroy_inode,
 	.read_inode	= isofs_read_inode,

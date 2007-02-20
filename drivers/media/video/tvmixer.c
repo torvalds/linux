@@ -4,7 +4,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
@@ -228,7 +227,7 @@ static struct i2c_driver driver = {
 	.detach_client   = tvmixer_clients,
 };
 
-static struct file_operations tvmixer_fops = {
+static const struct file_operations tvmixer_fops = {
 	.owner		= THIS_MODULE,
 	.llseek         = no_llseek,
 	.ioctl          = tvmixer_ioctl,

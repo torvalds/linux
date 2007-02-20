@@ -9,7 +9,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/in.h>
 #include <linux/sunrpc/clnt.h>
@@ -192,7 +191,7 @@ struct nlm_host *
 nlmsvc_lookup_host(struct svc_rqst *rqstp,
 			const char *hostname, int hostname_len)
 {
-	return nlm_lookup_host(1, &rqstp->rq_addr,
+	return nlm_lookup_host(1, svc_addr_in(rqstp),
 			       rqstp->rq_prot, rqstp->rq_vers,
 			       hostname, hostname_len);
 }

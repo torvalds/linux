@@ -1,6 +1,6 @@
 /*
  * net/tipc/bearer.c: TIPC bearer code
- * 
+ *
  * Copyright (c) 1996-2006, Ericsson AB
  * Copyright (c) 2004-2006, Wind River Systems
  * All rights reserved.
@@ -52,7 +52,7 @@ struct bearer *tipc_bearers = NULL;
 
 /**
  * media_name_valid - validate media name
- * 
+ *
  * Returns 1 if media name is valid, otherwise 0.
  */
 
@@ -84,17 +84,17 @@ static struct media *media_find(const char *name)
 
 /**
  * tipc_register_media - register a media type
- * 
+ *
  * Bearers for this media type must be activated separately at a later stage.
  */
 
 int  tipc_register_media(u32 media_type,
-			 char *name, 
-			 int (*enable)(struct tipc_bearer *), 
-			 void (*disable)(struct tipc_bearer *), 
-			 int (*send_msg)(struct sk_buff *, 
+			 char *name,
+			 int (*enable)(struct tipc_bearer *),
+			 void (*disable)(struct tipc_bearer *),
+			 int (*send_msg)(struct sk_buff *,
 					 struct tipc_bearer *,
-					 struct tipc_media_addr *), 
+					 struct tipc_media_addr *),
 			 char *(*addr2str)(struct tipc_media_addr *a,
 					   char *str_buf, int str_size),
 			 struct tipc_media_addr *bcast_addr,
@@ -121,11 +121,11 @@ int  tipc_register_media(u32 media_type,
 	}
 	if ((bearer_priority < TIPC_MIN_LINK_PRI) &&
 	    (bearer_priority > TIPC_MAX_LINK_PRI)) {
-		warn("Media <%s> rejected, illegal priority (%u)\n", name, 
+		warn("Media <%s> rejected, illegal priority (%u)\n", name,
 		     bearer_priority);
 		goto exit;
 	}
-	if ((link_tolerance < TIPC_MIN_LINK_TOL) || 
+	if ((link_tolerance < TIPC_MIN_LINK_TOL) ||
 	    (link_tolerance > TIPC_MAX_LINK_TOL)) {
 		warn("Media <%s> rejected, illegal tolerance (%u)\n", name,
 		     link_tolerance);
@@ -219,7 +219,7 @@ struct sk_buff *tipc_media_get_names(void)
 
 	read_lock_bh(&tipc_net_lock);
 	for (i = 0, m_ptr = media_list; i < media_count; i++, m_ptr++) {
-		tipc_cfg_append_tlv(buf, TIPC_TLV_MEDIA_NAME, m_ptr->name, 
+		tipc_cfg_append_tlv(buf, TIPC_TLV_MEDIA_NAME, m_ptr->name,
 				    strlen(m_ptr->name) + 1);
 	}
 	read_unlock_bh(&tipc_net_lock);
@@ -230,11 +230,11 @@ struct sk_buff *tipc_media_get_names(void)
  * bearer_name_validate - validate & (optionally) deconstruct bearer name
  * @name - ptr to bearer name string
  * @name_parts - ptr to area for bearer name components (or NULL if not needed)
- * 
+ *
  * Returns 1 if bearer name is valid, otherwise 0.
  */
 
-static int bearer_name_validate(const char *name, 
+static int bearer_name_validate(const char *name,
 				struct bearer_name *name_parts)
 {
 	char name_copy[TIPC_MAX_BEARER_NAME];
@@ -262,8 +262,8 @@ static int bearer_name_validate(const char *name,
 
 	/* validate component parts of bearer name */
 
-	if ((media_len <= 1) || (media_len > TIPC_MAX_MEDIA_NAME) || 
-	    (if_len <= 1) || (if_len > TIPC_MAX_IF_NAME) || 
+	if ((media_len <= 1) || (media_len > TIPC_MAX_MEDIA_NAME) ||
+	    (if_len <= 1) || (if_len > TIPC_MAX_IF_NAME) ||
 	    (strspn(media_name, tipc_alphabet) != (media_len - 1)) ||
 	    (strspn(if_name, tipc_alphabet) != (if_len - 1)))
 		return 0;
@@ -336,8 +336,8 @@ struct sk_buff *tipc_bearer_get_names(void)
 		for (j = 0; j < MAX_BEARERS; j++) {
 			b_ptr = &tipc_bearers[j];
 			if (b_ptr->active && (b_ptr->media == m_ptr)) {
-				tipc_cfg_append_tlv(buf, TIPC_TLV_BEARER_NAME, 
-						    b_ptr->publ.name, 
+				tipc_cfg_append_tlv(buf, TIPC_TLV_BEARER_NAME,
+						    b_ptr->publ.name,
 						    strlen(b_ptr->publ.name) + 1);
 			}
 		}
@@ -401,8 +401,8 @@ void tipc_bearer_lock_push(struct bearer *b_ptr)
 
 
 /*
- * Interrupt enabling new requests after bearer congestion or blocking:    
- * See bearer_send().   
+ * Interrupt enabling new requests after bearer congestion or blocking:
+ * See bearer_send().
  */
 void tipc_continue(struct tipc_bearer *tb_ptr)
 {
@@ -417,9 +417,9 @@ void tipc_continue(struct tipc_bearer *tb_ptr)
 }
 
 /*
- * Schedule link for sending of messages after the bearer 
- * has been deblocked by 'continue()'. This method is called 
- * when somebody tries to send a message via this link while 
+ * Schedule link for sending of messages after the bearer
+ * has been deblocked by 'continue()'. This method is called
+ * when somebody tries to send a message via this link while
  * the bearer is congested. 'tipc_net_lock' is in read_lock here
  * bearer.lock is busy
  */
@@ -430,9 +430,9 @@ static void tipc_bearer_schedule_unlocked(struct bearer *b_ptr, struct link *l_p
 }
 
 /*
- * Schedule link for sending of messages after the bearer 
- * has been deblocked by 'continue()'. This method is called 
- * when somebody tries to send a message via this link while 
+ * Schedule link for sending of messages after the bearer
+ * has been deblocked by 'continue()'. This method is called
+ * when somebody tries to send a message via this link while
  * the bearer is congested. 'tipc_net_lock' is in read_lock here,
  * bearer.lock is free
  */
@@ -468,7 +468,7 @@ int tipc_bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr)
 
 /**
  * tipc_enable_bearer - enable bearer with the given name
- */              
+ */
 
 int tipc_enable_bearer(const char *name, u32 bcast_scope, u32 priority)
 {
@@ -490,7 +490,7 @@ int tipc_enable_bearer(const char *name, u32 bcast_scope, u32 priority)
 		warn("Bearer <%s> rejected, illegal name\n", name);
 		return -EINVAL;
 	}
-	if (!tipc_addr_domain_valid(bcast_scope) || 
+	if (!tipc_addr_domain_valid(bcast_scope) ||
 	    !in_scope(bcast_scope, tipc_own_addr)) {
 		warn("Bearer <%s> rejected, illegal broadcast scope\n", name);
 		return -EINVAL;
@@ -539,7 +539,7 @@ restart:
 		}
 	}
 	if (bearer_id >= MAX_BEARERS) {
-		warn("Bearer <%s> rejected, bearer limit reached (%u)\n", 
+		warn("Bearer <%s> rejected, bearer limit reached (%u)\n",
 		     name, MAX_BEARERS);
 		goto failed;
 	}
@@ -612,7 +612,7 @@ int tipc_block_bearer(const char *name)
 
 /**
  * bearer_disable -
- * 
+ *
  * Note: This routine assumes caller holds tipc_net_lock.
  */
 

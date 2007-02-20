@@ -157,16 +157,16 @@ static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 	if (reg != hwif->select_data) {
 		hwif->select_data = reg;
 		/* set PIO/DMA */
-		hwif->OUTB(0x51|(hwif->channel<<3), hwif->config_data+1);
-		hwif->OUTW(reg & 0xff, hwif->config_data);
+		outb(0x51 | (hwif->channel << 3), hwif->config_data + 1);
+		outw(reg & 0xff, hwif->config_data);
 	}
 
 	/* enable IRQ if not probing */
 	if (drive->present) {
-		reg = hwif->INW(hwif->config_data + 3);
+		reg = inw(hwif->config_data + 3);
 		reg &= 0x13;
 		reg &= ~(1 << hwif->channel);
-		hwif->OUTW(reg, hwif->config_data+3);
+		outw(reg, hwif->config_data + 3);
 	}
 
 	local_irq_restore(flags);
@@ -177,15 +177,12 @@ static void trm290_selectproc (ide_drive_t *drive)
 	trm290_prepare_drive(drive, drive->using_dma);
 }
 
-#ifdef CONFIG_BLK_DEV_IDEDMA
 static void trm290_ide_dma_exec_cmd(ide_drive_t *drive, u8 command)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-
 	BUG_ON(HWGROUP(drive)->handler != NULL);	/* paranoia check */
 	ide_set_handler(drive, &ide_dma_intr, WAIT_CMD, NULL);
 	/* issue cmd to drive */
-	hwif->OUTB(command, IDE_COMMAND_REG);
+	outb(command, IDE_COMMAND_REG);
 }
 
 static int trm290_ide_dma_setup(ide_drive_t *drive)
@@ -211,10 +208,10 @@ static int trm290_ide_dma_setup(ide_drive_t *drive)
 	}
 	/* select DMA xfer */
 	trm290_prepare_drive(drive, 1);
-	hwif->OUTL(hwif->dmatable_dma|rw, hwif->dma_command);
+	outl(hwif->dmatable_dma | rw, hwif->dma_command);
 	drive->waiting_for_dma = 1;
 	/* start DMA */
-	hwif->OUTW((count * 2) - 1, hwif->dma_status);
+	outw((count * 2) - 1, hwif->dma_status);
 	return 0;
 }
 
@@ -230,7 +227,7 @@ static int trm290_ide_dma_end (ide_drive_t *drive)
 	drive->waiting_for_dma = 0;
 	/* purge DMA mappings */
 	ide_destroy_dmatable(drive);
-	status = hwif->INW(hwif->dma_status);
+	status = inw(hwif->dma_status);
 	return (status != 0x00ff);
 }
 
@@ -239,10 +236,9 @@ static int trm290_ide_dma_test_irq (ide_drive_t *drive)
 	ide_hwif_t *hwif = HWIF(drive);
 	u16 status = 0;
 
-	status = hwif->INW(hwif->dma_status);
+	status = inw(hwif->dma_status);
 	return (status == 0x00ff);
 }
-#endif /* CONFIG_BLK_DEV_IDEDMA */
 
 /*
  * Invoked from ide-dma.c at boot time.
@@ -269,15 +265,15 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 
 	local_irq_save(flags);
 	/* put config reg into first byte of hwif->select_data */
-	hwif->OUTB(0x51|(hwif->channel<<3), hwif->config_data+1);
+	outb(0x51 | (hwif->channel << 3), hwif->config_data + 1);
 	/* select PIO as default */
 	hwif->select_data = 0x21;
-	hwif->OUTB(hwif->select_data, hwif->config_data);
+	outb(hwif->select_data, hwif->config_data);
 	/* get IRQ info */
-	reg = hwif->INB(hwif->config_data+3);
+	reg = inb(hwif->config_data + 3);
 	/* mask IRQs for both ports */
 	reg = (reg & 0x10) | 0x03;
-	hwif->OUTB(reg, hwif->config_data+3);
+	outb(reg, hwif->config_data + 3);
 	local_irq_restore(flags);
 
 	if ((reg & 0x10))
@@ -289,13 +285,11 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 
 	ide_setup_dma(hwif, (hwif->config_data + 4) ^ (hwif->channel ? 0x0080 : 0x0000), 3);
 
-#ifdef CONFIG_BLK_DEV_IDEDMA
 	hwif->dma_setup = &trm290_ide_dma_setup;
 	hwif->dma_exec_cmd = &trm290_ide_dma_exec_cmd;
 	hwif->dma_start = &trm290_ide_dma_start;
 	hwif->ide_dma_end = &trm290_ide_dma_end;
 	hwif->ide_dma_test_irq = &trm290_ide_dma_test_irq;
-#endif /* CONFIG_BLK_DEV_IDEDMA */
 
 	hwif->selectproc = &trm290_selectproc;
 	hwif->autodma = 0;		/* play it safe for now */
@@ -312,16 +306,16 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 		static u16 next_offset = 0;
 		u8 old_mask;
 
-		hwif->OUTB(0x54|(hwif->channel<<3), hwif->config_data+1);
-		old = hwif->INW(hwif->config_data);
+		outb(0x54 | (hwif->channel << 3), hwif->config_data + 1);
+		old = inw(hwif->config_data);
 		old &= ~1;
-		old_mask = hwif->INB(old+2);
+		old_mask = inb(old + 2);
 		if (old != compat && old_mask == 0xff) {
 			/* leave lower 10 bits untouched */
 			compat += (next_offset += 0x400);
 			hwif->io_ports[IDE_CONTROL_OFFSET] = compat + 2;
-			hwif->OUTW(compat|1, hwif->config_data);
-			new = hwif->INW(hwif->config_data);
+			outw(compat | 1, hwif->config_data);
+			new = inw(hwif->config_data);
 			printk(KERN_INFO "%s: control basereg workaround: "
 				"old=0x%04x, new=0x%04x\n",
 				hwif->name, old, new & ~1);

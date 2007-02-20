@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/namei.h>
+#include <asm/semaphore.h>
 
 #include "sysfs.h"
 
@@ -180,7 +181,7 @@ static void sysfs_put_link(struct dentry *dentry, struct nameidata *nd, void *co
 		free_page((unsigned long)page);
 }
 
-struct inode_operations sysfs_symlink_inode_operations = {
+const struct inode_operations sysfs_symlink_inode_operations = {
 	.readlink = generic_readlink,
 	.follow_link = sysfs_follow_link,
 	.put_link = sysfs_put_link,

@@ -28,7 +28,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/timer.h>
@@ -38,7 +37,7 @@
 #include <linux/mm.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
-#include <linux/usb_ch9.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 #include <linux/usb/otg.h>
 #include <linux/dma-mapping.h>

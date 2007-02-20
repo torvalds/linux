@@ -62,7 +62,7 @@ static inline void end_ioasic_irq(unsigned int irq)
 }
 
 static struct irq_chip ioasic_irq_type = {
-	.typename = "IO-ASIC",
+	.name = "IO-ASIC",
 	.ack = ack_ioasic_irq,
 	.mask = mask_ioasic_irq,
 	.mask_ack = ack_ioasic_irq,
@@ -84,7 +84,7 @@ static inline void end_ioasic_dma_irq(unsigned int irq)
 }
 
 static struct irq_chip ioasic_dma_irq_type = {
-	.typename = "IO-ASIC-DMA",
+	.name = "IO-ASIC-DMA",
 	.ack = ack_ioasic_dma_irq,
 	.mask = mask_ioasic_dma_irq,
 	.mask_ack = ack_ioasic_dma_irq,

@@ -121,9 +121,9 @@ static void power4_start(struct op_counter_config *ctr)
 
 	for (i = 0; i < cur_cpu_spec->num_pmcs; ++i) {
 		if (ctr[i].enabled) {
-			ctr_write(i, reset_value[i]);
+			classic_ctr_write(i, reset_value[i]);
 		} else {
-			ctr_write(i, 0);
+			classic_ctr_write(i, 0);
 		}
 	}
 
@@ -254,13 +254,13 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 	mtmsrd(mfmsr() | MSR_PMM);
 
 	for (i = 0; i < cur_cpu_spec->num_pmcs; ++i) {
-		val = ctr_read(i);
+		val = classic_ctr_read(i);
 		if (val < 0) {
 			if (oprofile_running && ctr[i].enabled) {
 				oprofile_add_ext_sample(pc, regs, i, is_kernel);
-				ctr_write(i, reset_value[i]);
+				classic_ctr_write(i, reset_value[i]);
 			} else {
-				ctr_write(i, 0);
+				classic_ctr_write(i, 0);
 			}
 		}
 	}

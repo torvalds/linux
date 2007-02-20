@@ -324,8 +324,7 @@ static int pci_default_resume(struct pci_dev *pci_dev)
 	/* restore the PCI config space */
 	pci_restore_state(pci_dev);
 	/* if the device was enabled before suspend, reenable */
-	if (atomic_read(&pci_dev->enable_cnt))
-		retval = __pci_enable_device(pci_dev);
+	retval = __pci_reenable_device(pci_dev);
 	/* if the device was busmaster before the suspend, make it busmaster again */
 	if (pci_dev->is_busmaster)
 		pci_set_master(pci_dev);
@@ -416,13 +415,15 @@ static struct kobj_type pci_driver_kobj_type = {
  * __pci_register_driver - register a new pci driver
  * @drv: the driver structure to register
  * @owner: owner module of drv
+ * @mod_name: module name string
  * 
  * Adds the driver structure to the list of registered drivers.
  * Returns a negative value on error, otherwise 0. 
  * If no error occurred, the driver remains registered even if 
  * no device was claimed during registration.
  */
-int __pci_register_driver(struct pci_driver *drv, struct module *owner)
+int __pci_register_driver(struct pci_driver *drv, struct module *owner,
+			  const char *mod_name)
 {
 	int error;
 
@@ -430,6 +431,7 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.owner = owner;
+	drv->driver.mod_name = mod_name;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 
 	if (pci_multithread_probe)

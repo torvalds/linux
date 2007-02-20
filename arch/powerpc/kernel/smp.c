@@ -78,29 +78,6 @@ int smt_enabled_at_boot = 1;
 
 static void (*crash_ipi_function_ptr)(struct pt_regs *) = NULL;
 
-#ifdef CONFIG_MPIC
-int __init smp_mpic_probe(void)
-{
-	int nr_cpus;
-
-	DBG("smp_mpic_probe()...\n");
-
-	nr_cpus = cpus_weight(cpu_possible_map);
-
-	DBG("nr_cpus: %d\n", nr_cpus);
-
-	if (nr_cpus > 1)
-		mpic_request_ipis();
-
-	return nr_cpus;
-}
-
-void __devinit smp_mpic_setup_cpu(int cpu)
-{
-	mpic_setup_this_cpu();
-}
-#endif /* CONFIG_MPIC */
-
 #ifdef CONFIG_PPC64
 void __devinit smp_generic_kick_cpu(int nr)
 {

@@ -489,7 +489,7 @@ static void bdev_clear_inode(struct inode *inode)
 	spin_unlock(&bdev_lock);
 }
 
-static struct super_operations bdev_sops = {
+static const struct super_operations bdev_sops = {
 	.statfs = simple_statfs,
 	.alloc_inode = bdev_alloc_inode,
 	.destroy_inode = bdev_destroy_inode,

@@ -6,7 +6,7 @@
 #ifndef _i386_SETUP_H
 #define _i386_SETUP_H
 
-#define COMMAND_LINE_SIZE 256
+#define COMMAND_LINE_SIZE 2048
 
 #ifdef __KERNEL__
 #include <linux/pfn.h>
@@ -76,6 +76,8 @@ int __init copy_e820_map(struct e820entry * biosmap, int nr_map);
 int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map);
 void __init add_memory_region(unsigned long long start,
 			      unsigned long long size, int type);
+
+extern unsigned long init_pg_tables_end;
 
 #endif /* __ASSEMBLY__ */
 

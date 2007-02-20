@@ -166,7 +166,7 @@ e1000_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			ecmd->transceiver = XCVR_EXTERNAL;
 	}
 
-	if (netif_carrier_ok(adapter->netdev)) {
+	if (E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_LU) {
 
 		e1000_get_speed_and_duplex(hw, &adapter->link_speed,
 		                                   &adapter->link_duplex);
@@ -338,7 +338,6 @@ e1000_set_tx_csum(struct net_device *netdev, uint32_t data)
 	return 0;
 }
 
-#ifdef NETIF_F_TSO
 static int
 e1000_set_tso(struct net_device *netdev, uint32_t data)
 {
@@ -352,18 +351,15 @@ e1000_set_tso(struct net_device *netdev, uint32_t data)
 	else
 		netdev->features &= ~NETIF_F_TSO;
 
-#ifdef NETIF_F_TSO6
 	if (data)
 		netdev->features |= NETIF_F_TSO6;
 	else
 		netdev->features &= ~NETIF_F_TSO6;
-#endif
 
 	DPRINTK(PROBE, INFO, "TSO is %s\n", data ? "Enabled" : "Disabled");
 	adapter->tso_force = TRUE;
 	return 0;
 }
-#endif /* NETIF_F_TSO */
 
 static uint32_t
 e1000_get_msglevel(struct net_device *netdev)
@@ -1971,10 +1967,8 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.set_tx_csum            = e1000_set_tx_csum,
 	.get_sg                 = ethtool_op_get_sg,
 	.set_sg                 = ethtool_op_set_sg,
-#ifdef NETIF_F_TSO
 	.get_tso                = ethtool_op_get_tso,
 	.set_tso                = e1000_set_tso,
-#endif
 	.self_test_count        = e1000_diag_test_count,
 	.self_test              = e1000_diag_test,
 	.get_strings            = e1000_get_strings,

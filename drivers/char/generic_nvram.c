@@ -117,7 +117,7 @@ static int nvram_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
-struct file_operations nvram_fops = {
+const struct file_operations nvram_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= nvram_llseek,
 	.read		= read_nvram,

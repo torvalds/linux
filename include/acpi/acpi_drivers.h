@@ -36,13 +36,14 @@
 
 /* _HID definitions */
 
-#define ACPI_POWER_HID			"ACPI_PWR"
-#define ACPI_PROCESSOR_HID		"ACPI_CPU"
-#define ACPI_SYSTEM_HID			"ACPI_SYS"
-#define ACPI_THERMAL_HID		"ACPI_THM"
-#define ACPI_BUTTON_HID_POWERF		"ACPI_FPB"
-#define ACPI_BUTTON_HID_SLEEPF		"ACPI_FSB"
-
+#define ACPI_POWER_HID			"power_resource"
+#define ACPI_PROCESSOR_HID		"ACPI0007"
+#define ACPI_SYSTEM_HID			"acpi_system"
+#define ACPI_THERMAL_HID		"thermal"
+#define ACPI_BUTTON_HID_POWERF		"button_power"
+#define ACPI_BUTTON_HID_SLEEPF		"button_sleep"
+#define ACPI_VIDEO_HID			"video"
+#define ACPI_BAY_HID			"bay"
 /* --------------------------------------------------------------------------
                                        PCI
    -------------------------------------------------------------------------- */
@@ -104,12 +105,6 @@ int acpi_ec_ecdt_probe(void);
 
 int acpi_processor_set_thermal_limit(acpi_handle handle, int type);
 
-/* --------------------------------------------------------------------------
-                                    Hot Keys
-   -------------------------------------------------------------------------- */
-
-extern int acpi_specific_hotkey_enabled;
-
 /*--------------------------------------------------------------------------
                                   Dock Station
   -------------------------------------------------------------------------- */
@@ -121,10 +116,34 @@ extern int register_hotplug_dock_device(acpi_handle handle,
 	acpi_notify_handler handler, void *context);
 extern void unregister_hotplug_dock_device(acpi_handle handle);
 #else
-#define is_dock_device(h)			(0)
-#define register_dock_notifier(nb) 		(-ENODEV)
-#define unregister_dock_notifier(nb)           	do { } while(0)
-#define register_hotplug_dock_device(h1, h2, c)	(-ENODEV)
-#define unregister_hotplug_dock_device(h)       do { } while(0)
+static inline int is_dock_device(acpi_handle handle)
+{
+	return 0;
+}
+static inline int register_dock_notifier(struct notifier_block *nb)
+{
+	return -ENODEV;
+}
+static inline void unregister_dock_notifier(struct notifier_block *nb)
+{
+}
+static inline int register_hotplug_dock_device(acpi_handle handle,
+				acpi_notify_handler handler, void *context)
+{
+	return -ENODEV;
+}
+static inline void unregister_hotplug_dock_device(acpi_handle handle)
+{
+}
 #endif
+
+/*--------------------------------------------------------------------------
+                                  Suspend/Resume
+  -------------------------------------------------------------------------- */
+#ifdef CONFIG_ACPI_SLEEP
+extern int acpi_sleep_init(void);
+#else
+#define acpi_sleep_init() do {} while (0)
+#endif
+
 #endif /*__ACPI_DRIVERS_H__*/

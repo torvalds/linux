@@ -189,9 +189,9 @@ extern void rose_enquiry_response(struct sock *);
 
 /* rose_route.c */
 extern struct rose_neigh rose_loopback_neigh;
-extern struct file_operations rose_neigh_fops;
-extern struct file_operations rose_nodes_fops;
-extern struct file_operations rose_routes_fops;
+extern const struct file_operations rose_neigh_fops;
+extern const struct file_operations rose_nodes_fops;
+extern const struct file_operations rose_routes_fops;
 
 extern void rose_add_loopback_neigh(void);
 extern int __must_check rose_add_loopback_node(rose_address *);

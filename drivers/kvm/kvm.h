@@ -304,6 +304,7 @@ struct kvm {
 	int memory_config_version;
 	int busy;
 	unsigned long rmap_overflow;
+	struct list_head vm_list;
 };
 
 struct kvm_stat {
@@ -340,6 +341,7 @@ struct kvm_arch_ops {
 
 	struct kvm_vcpu *(*vcpu_load)(struct kvm_vcpu *vcpu);
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
+	void (*vcpu_decache)(struct kvm_vcpu *vcpu);
 
 	int (*set_guest_debug)(struct kvm_vcpu *vcpu,
 			       struct kvm_debug_guest *dbg);
@@ -558,7 +560,7 @@ static inline void load_gs(u16 sel)
 #ifndef load_ldt
 static inline void load_ldt(u16 sel)
 {
-	asm ("lldt %0" : : "g"(sel));
+	asm ("lldt %0" : : "rm"(sel));
 }
 #endif
 

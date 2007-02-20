@@ -45,7 +45,6 @@ obj-$(CONFIG_EBONY)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_EV64260)		+= todc_time.o pci_auto.o
 obj-$(CONFIG_EV64360)		+= todc_time.o
 obj-$(CONFIG_CHESTNUT)		+= mv64360_pic.o pci_auto.o
-obj-$(CONFIG_GEMINI)		+= open_pic.o
 obj-$(CONFIG_GT64260)		+= gt64260_pic.o
 obj-$(CONFIG_LOPEC)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_HDPU)		+= pci_auto.o
@@ -70,6 +69,7 @@ obj-$(CONFIG_SANDPOINT)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_SBC82xx)		+= todc_time.o
 obj-$(CONFIG_SPRUCE)		+= cpc700_pic.o pci_auto.o \
 				   todc_time.o
+obj-$(CONFIG_TAISHAN)		+= pci_auto.o
 obj-$(CONFIG_8260)		+= m8260_setup.o pq2_devices.o pq2_sys.o \
 				   ppc_sys.o
 obj-$(CONFIG_PCI_8260)		+= m82xx_pci.o pci_auto.o

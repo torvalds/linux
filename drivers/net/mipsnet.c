@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/sched.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>

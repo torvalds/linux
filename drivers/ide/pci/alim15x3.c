@@ -507,17 +507,15 @@ static int config_chipset_for_dma (ide_drive_t *drive)
  *
  *	Configure a drive for DMA operation. If DMA is not possible we
  *	drop the drive into PIO mode instead.
- *
- *	FIXME: exactly what are we trying to return here
  */
- 
+
 static int ali15x3_config_drive_for_dma(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct hd_driveid *id	= drive->id;
 
 	if ((m5229_revision<=0x20) && (drive->media!=ide_disk))
-		return hwif->ide_dma_off_quietly(drive);
+		goto no_dma_set;
 
 	drive->init_speed = 0;
 
@@ -552,9 +550,10 @@ try_dma_modes:
 ata_pio:
 		hwif->tuneproc(drive, 255);
 no_dma_set:
-		return hwif->ide_dma_off_quietly(drive);
+		return -1;
 	}
-	return hwif->ide_dma_on(drive);
+
+	return 0;
 }
 
 /**
@@ -852,8 +851,8 @@ static void __devinit init_dma_ali15x3 (ide_hwif_t *hwif, unsigned long dmabase)
 {
 	if (m5229_revision < 0x20)
 		return;
-	if (!(hwif->channel))
-		hwif->OUTB(hwif->INB(dmabase+2) & 0x60, dmabase+2);
+	if (!hwif->channel)
+		outb(inb(dmabase + 2) & 0x60, dmabase + 2);
 	ide_setup_dma(hwif, dmabase, 8);
 }
 

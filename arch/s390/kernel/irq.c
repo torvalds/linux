@@ -1,9 +1,9 @@
 /*
  *  arch/s390/kernel/irq.c
  *
- *  S390 version
- *    Copyright (C) 2004 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2004,2007
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
+ *		 Thomas Spatzier (tspat@de.ibm.com)
  *
  * This file contains interrupt related functions.
  */
@@ -14,6 +14,8 @@
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
+#include <linux/proc_fs.h>
+#include <linux/profile.h>
 
 /*
  * show_interrupts is needed by /proc/interrupts.
@@ -93,5 +95,12 @@ asmlinkage void do_softirq(void)
 
 	local_irq_restore(flags);
 }
-
 EXPORT_SYMBOL(do_softirq);
+
+void init_irq_proc(void)
+{
+	struct proc_dir_entry *root_irq_dir;
+
+	root_irq_dir = proc_mkdir("irq", NULL);
+	create_prof_cpu_mask(root_irq_dir);
+}

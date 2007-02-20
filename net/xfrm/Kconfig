@@ -24,6 +24,17 @@ config XFRM_SUB_POLICY
 
 	  If unsure, say N.
 
+config XFRM_MIGRATE
+	bool "Transformation migrate database (EXPERIMENTAL)"
+	depends on XFRM && EXPERIMENTAL
+	---help---
+	  A feature to update locator(s) of a given IPsec security
+	  association dynamically.  This feature is required, for
+	  instance, in a Mobile IPv6 environment with IPsec configuration
+	  where mobile nodes change their attachment point to the Internet.
+
+	  If unsure, say N.
+
 config NET_KEY
 	tristate "PF_KEY sockets"
 	select XFRM
@@ -34,4 +45,19 @@ config NET_KEY
 
 	  Say Y unless you know what you are doing.
 
+config NET_KEY_MIGRATE
+	bool "PF_KEY MIGRATE (EXPERIMENTAL)"
+	depends on NET_KEY && EXPERIMENTAL
+	select XFRM_MIGRATE
+	---help---
+	  Add a PF_KEY MIGRATE message to PF_KEYv2 socket family.
+	  The PF_KEY MIGRATE message is used to dynamically update
+	  locator(s) of a given IPsec security association.
+	  This feature is required, for instance, in a Mobile IPv6
+	  environment with IPsec configuration where mobile nodes
+	  change their attachment point to the Internet.  Detail
+	  information can be found in the internet-draft
+	  <draft-sugimoto-mip6-pfkey-migrate>.
+
+	  If unsure, say N.
 

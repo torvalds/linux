@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2006, R. Byron Moore
+ * Copyright (C) 2000 - 2007, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,15 @@
  * to the interpreter, and to keep track of the various handlers such as
  * address space handlers and notify handlers. The object is a constant
  * size in order to allow it to be cached and reused.
+ *
+ * Note: The object is optimized to be aligned and will not work if it is
+ * byte-packed.
  */
+#if ACPI_MACHINE_WIDTH == 64
+#pragma pack(8)
+#else
+#pragma pack(4)
+#endif
 
 /*******************************************************************************
  *
@@ -101,7 +109,8 @@ struct acpi_object_common {
 ACPI_OBJECT_COMMON_HEADER};
 
 struct acpi_object_integer {
-	ACPI_OBJECT_COMMON_HEADER acpi_integer value;
+	ACPI_OBJECT_COMMON_HEADER u8 fill[3];	/* Prevent warning on some compilers */
+	acpi_integer value;
 };
 
 /*
@@ -146,7 +155,7 @@ struct acpi_object_event {
 struct acpi_object_mutex {
 	ACPI_OBJECT_COMMON_HEADER u8 sync_level;	/* 0-15, specified in Mutex() call */
 	u16 acquisition_depth;	/* Allow multiple Acquires, same thread */
-	struct acpi_thread_state *owner_thread;	/* Current owner of the mutex */
+	acpi_thread_id owner_thread_id;	/* Current owner of the mutex */
 	acpi_mutex os_mutex;	/* Actual OS synchronization object */
 	union acpi_operand_object *prev;	/* Link for list of acquired mutexes */
 	union acpi_operand_object *next;	/* Link for list of acquired mutexes */
@@ -203,7 +212,9 @@ struct acpi_object_power_resource {
 };
 
 struct acpi_object_processor {
-	ACPI_OBJECT_COMMON_HEADER u8 proc_id;
+	ACPI_OBJECT_COMMON_HEADER
+	    /* The next two fields take advantage of the 3-byte space before NOTIFY_INFO */
+	u8 proc_id;
 	u8 length;
 	 ACPI_COMMON_NOTIFY_INFO acpi_io_address address;
 };
@@ -405,5 +416,7 @@ union acpi_descriptor {
 	struct acpi_namespace_node node;
 	union acpi_parse_object op;
 };
+
+#pragma pack()
 
 #endif				/* _ACOBJECT_H */

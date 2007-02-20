@@ -7,7 +7,6 @@
  * of the GNU General Public License version 2.
  */
 
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -28,34 +27,13 @@
 #include "trans.h"
 #include "util.h"
 
-static void pfault_be_greedy(struct gfs2_inode *ip)
-{
-	unsigned int time;
-
-	spin_lock(&ip->i_spin);
-	time = ip->i_greedy;
-	ip->i_last_pfault = jiffies;
-	spin_unlock(&ip->i_spin);
-
-	igrab(&ip->i_inode);
-	if (gfs2_glock_be_greedy(ip->i_gl, time))
-		iput(&ip->i_inode);
-}
-
 static struct page *gfs2_private_nopage(struct vm_area_struct *area,
 					unsigned long address, int *type)
 {
 	struct gfs2_inode *ip = GFS2_I(area->vm_file->f_mapping->host);
-	struct page *result;
 
 	set_bit(GIF_PAGED, &ip->i_flags);
-
-	result = filemap_nopage(area, address, type);
-
-	if (result && result != NOPAGE_OOM)
-		pfault_be_greedy(ip);
-
-	return result;
+	return filemap_nopage(area, address, type);
 }
 
 static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
@@ -167,7 +145,6 @@ static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
 		set_page_dirty(result);
 	}
 
-	pfault_be_greedy(ip);
 out:
 	gfs2_glock_dq_uninit(&i_gh);
 

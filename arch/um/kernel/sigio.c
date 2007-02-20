@@ -23,7 +23,7 @@ static irqreturn_t sigio_interrupt(int irq, void *data)
 
 	os_read_file(sigio_irq_fd, &c, sizeof(c));
 	reactivate_fd(sigio_irq_fd, SIGIO_WRITE_IRQ);
-	return(IRQ_HANDLED);
+	return IRQ_HANDLED;
 }
 
 int write_sigio_irq(int fd)
@@ -36,12 +36,13 @@ int write_sigio_irq(int fd)
 	if(err){
 		printk("write_sigio_irq : um_request_irq failed, err = %d\n",
 		       err);
-		return(-1);
+		return -1;
 	}
 	sigio_irq_fd = fd;
-	return(0);
+	return 0;
 }
 
+/* These are called from os-Linux/sigio.c to protect its pollfds arrays. */
 static DEFINE_SPINLOCK(sigio_spinlock);
 
 void sigio_lock(void)

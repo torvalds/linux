@@ -34,7 +34,6 @@
                        clock-frequency = <0>;
                        32-bit;
                        linux,phandle = <201>;
-                       linux,boot-cpu;
                };
        };
 
@@ -53,13 +52,20 @@
                reg = <00000000 4000000 f4500000 00000020>;
        };
 
+       chosen {
+               name = "chosen";
+               linux,platform = <0>;
+               interrupt-controller = <10c00>;
+               linux,phandle = <400>;
+       };
+
        soc8272@f0000000 {
                #address-cells = <1>;
                #size-cells = <1>;
                #interrupt-cells = <2>;
                device_type = "soc";
-               ranges = < 0 0 2 00000000 f0000000 00053000>;
-               reg = <f0000000 0>;
+               ranges = <00000000 f0000000 00053000>;
+               reg = <f0000000 10000>;
 
                mdio@0 {
                        device_type = "mdio";
@@ -71,7 +77,7 @@
                        ethernet-phy@0 {
                                linux,phandle = <2452000>;
                                interrupt-parent = <10c00>;
-                               interrupts = <19 1>;
+                               interrupts = <17 4>;
                                reg = <0>;
                                bitbang = [ 12 12 13 02 02 01 ];
                                device_type = "ethernet-phy";
@@ -79,7 +85,7 @@
                        ethernet-phy@1 {
                                linux,phandle = <2452001>;
                                interrupt-parent = <10c00>;
-                               interrupts = <19 1>;
+                               interrupts = <17 4>;
                                bitbang = [ 12 12 13 02 02 01 ];
                                reg = <3>;
                                device_type = "ethernet-phy";
@@ -90,7 +96,7 @@
                        #address-cells = <1>;
                        #size-cells = <0>;
                        device_type = "network";
-                       device-id = <2>;
+                       device-id = <1>;
                        compatible = "fs_enet";
                        model = "FCC";
                        reg = <11300 20 8400 100 11380 30>;
@@ -104,7 +110,7 @@
 
                ethernet@25000 {
                        device_type = "network";
-                       device-id = <3>;
+                       device-id = <2>;
                        compatible = "fs_enet";
                        model = "FCC";
                        reg = <11320 20 8500 100 113b0 30>;
@@ -123,8 +129,8 @@
                        #interrupt-cells = <2>;
                        device_type = "cpm";
                        model = "CPM2";
-                       ranges = <00000000 00000000 3ffff>;
-                       reg = <10d80 3280>;
+                       ranges = <00000000 00000000 20000>;
+                       reg = <0 20000>;
                        command-proc = <119c0>;
                        brg-frequency = <17D7840>;
                        cpm_clk = <BEBC200>;
@@ -133,7 +139,7 @@
                                device_type = "serial";
                                compatible = "cpm_uart";
                                model = "SCC";
-                               device-id = <2>;
+                               device-id = <1>;
                                reg = <11a00 20 8000 100>;
                                current-speed = <1c200>;
                                interrupts = <28 2>;
@@ -147,7 +153,7 @@
                                device_type = "serial";
                                compatible = "cpm_uart";
                                model = "SCC";
-                               device-id = <5>;
+                               device-id = <4>;
                                reg = <11a60 20 8300 100>;
                                current-speed = <1c200>;
                                interrupts = <2b 2>;
@@ -181,24 +187,24 @@
                        interrupt-map = <
 
                                        /* IDSEL 0x16 */
-                                        b000 0 0 1 f8200000 40 0
-                                        b000 0 0 2 f8200000 41 0
-                                        b000 0 0 3 f8200000 42 0
-                                        b000 0 0 4 f8200000 43 0
+                                        b000 0 0 1 f8200000 40 8
+                                        b000 0 0 2 f8200000 41 8
+                                        b000 0 0 3 f8200000 42 8
+                                        b000 0 0 4 f8200000 43 8
 
                                        /* IDSEL 0x17 */
-                                        b800 0 0 1 f8200000 43 0
-                                        b800 0 0 2 f8200000 40 0
-                                        b800 0 0 3 f8200000 41 0
-                                        b800 0 0 4 f8200000 42 0
+                                        b800 0 0 1 f8200000 43 8
+                                        b800 0 0 2 f8200000 40 8
+                                        b800 0 0 3 f8200000 41 8
+                                        b800 0 0 4 f8200000 42 8
 
                                        /* IDSEL 0x18 */
-                                        c000 0 0 1 f8200000 42 0
-                                        c000 0 0 2 f8200000 43 0
-                                        c000 0 0 3 f8200000 40 0
-                                        c000 0 0 4 f8200000 41 0>;
+                                        c000 0 0 1 f8200000 42 8
+                                        c000 0 0 2 f8200000 43 8
+                                        c000 0 0 3 f8200000 40 8
+                                        c000 0 0 4 f8200000 41 8>;
                        interrupt-parent = <10c00>;
-                       interrupts = <14 3>;
+                       interrupts = <14 8>;
                        bus-range = <0 0>;
                        ranges = <02000000 0 80000000 80000000 0 40000000
                                  01000000 0 00000000 f6000000 0 02000000>;
@@ -210,7 +216,7 @@
                        model = "SEC2";
                        compatible = "talitos";
                        reg = <30000 10000>;
-                       interrupts = <b 0>;
+                       interrupts = <b 2>;
                        interrupt-parent = <10c00>;
                        num-channels = <4>;
                        channel-fifo-len = <18>;

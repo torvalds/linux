@@ -15,54 +15,32 @@
 #include <asm/e820.h>
 #include "pci.h"
 
-/* aperture is up to 256MB but BIOS may reserve less */
-#define MMCONFIG_APER_MIN	(2 * 1024*1024)
-#define MMCONFIG_APER_MAX	(256 * 1024*1024)
-
 /* Assume systems with more busses have correct MCFG */
-#define MAX_CHECK_BUS 16
-
 #define mmcfg_virt_addr ((void __iomem *) fix_to_virt(FIX_PCIE_MCFG))
 
 /* The base address of the last MMCONFIG device accessed */
 static u32 mmcfg_last_accessed_device;
 static int mmcfg_last_accessed_cpu;
 
-static DECLARE_BITMAP(fallback_slots, MAX_CHECK_BUS*32);
-
 /*
  * Functions for accessing PCI configuration space with MMCONFIG accesses
  */
 static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 {
-	int cfg_num = -1;
-	struct acpi_table_mcfg_config *cfg;
+	struct acpi_mcfg_allocation *cfg;
+	int cfg_num;
 
-	if (seg == 0 && bus < MAX_CHECK_BUS &&
-	    test_bit(PCI_SLOT(devfn) + 32*bus, fallback_slots))
+	if (seg == 0 && bus < PCI_MMCFG_MAX_CHECK_BUS &&
+	    test_bit(PCI_SLOT(devfn) + 32*bus, pci_mmcfg_fallback_slots))
 		return 0;
 
-	while (1) {
-		++cfg_num;
-		if (cfg_num >= pci_mmcfg_config_num) {
-			break;
-		}
+	for (cfg_num = 0; cfg_num < pci_mmcfg_config_num; cfg_num++) {
 		cfg = &pci_mmcfg_config[cfg_num];
-		if (cfg->pci_segment_group_number != seg)
-			continue;
-		if ((cfg->start_bus_number <= bus) &&
+		if (cfg->pci_segment == seg &&
+		    (cfg->start_bus_number <= bus) &&
 		    (cfg->end_bus_number >= bus))
-			return cfg->base_address;
+			return cfg->address;
 	}
-
-	/* Handle more broken MCFG tables on Asus etc.
-	   They only contain a single entry for bus 0-0. Assume
- 	   this applies to all busses. */
-	cfg = &pci_mmcfg_config[0];
-	if (pci_mmcfg_config_num == 1 &&
-		cfg->pci_segment_group_number == 0 &&
-		(cfg->start_bus_number | cfg->end_bus_number) == 0)
-		return cfg->base_address;
 
 	/* Fall back to type 0 */
 	return 0;
@@ -125,7 +103,7 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 	unsigned long flags;
 	u32 base;
 
-	if ((bus > 255) || (devfn > 255) || (reg > 4095)) 
+	if ((bus > 255) || (devfn > 255) || (reg > 4095))
 		return -EINVAL;
 
 	base = get_base_addr(seg, bus, devfn);
@@ -158,67 +136,15 @@ static struct pci_raw_ops pci_mmcfg = {
 	.write =	pci_mmcfg_write,
 };
 
-/* K8 systems have some devices (typically in the builtin northbridge)
-   that are only accessible using type1
-   Normally this can be expressed in the MCFG by not listing them
-   and assigning suitable _SEGs, but this isn't implemented in some BIOS.
-   Instead try to discover all devices on bus 0 that are unreachable using MM
-   and fallback for them. */
-static __init void unreachable_devices(void)
+int __init pci_mmcfg_arch_reachable(unsigned int seg, unsigned int bus,
+				    unsigned int devfn)
 {
-	int i, k;
-	unsigned long flags;
-
-	for (k = 0; k < MAX_CHECK_BUS; k++) {
-		for (i = 0; i < 32; i++) {
-			u32 val1;
-			u32 addr;
-
-			pci_conf1_read(0, k, PCI_DEVFN(i, 0), 0, 4, &val1);
-			if (val1 == 0xffffffff)
-				continue;
-
-			/* Locking probably not needed, but safer */
-			spin_lock_irqsave(&pci_config_lock, flags);
-			addr = get_base_addr(0, k, PCI_DEVFN(i, 0));
-			if (addr != 0)
-				pci_exp_set_dev_base(addr, k, PCI_DEVFN(i, 0));
-			if (addr == 0 ||
-			    readl((u32 __iomem *)mmcfg_virt_addr) != val1) {
-				set_bit(i + 32*k, fallback_slots);
-				printk(KERN_NOTICE
-			"PCI: No mmconfig possible on %x:%x\n", k, i);
-			}
-			spin_unlock_irqrestore(&pci_config_lock, flags);
-		}
-	}
+	return get_base_addr(seg, bus, devfn) != 0;
 }
 
-void __init pci_mmcfg_init(int type)
+int __init pci_mmcfg_arch_init(void)
 {
-	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
-		return;
-
-	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
-	if ((pci_mmcfg_config_num == 0) ||
-	    (pci_mmcfg_config == NULL) ||
-	    (pci_mmcfg_config[0].base_address == 0))
-		return;
-
-	/* Only do this check when type 1 works. If it doesn't work
-	   assume we run on a Mac and always use MCFG */
-	if (type == 1 && !e820_all_mapped(pci_mmcfg_config[0].base_address,
-			pci_mmcfg_config[0].base_address + MMCONFIG_APER_MIN,
-			E820_RESERVED)) {
-		printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %x is not E820-reserved\n",
-				pci_mmcfg_config[0].base_address);
-		printk(KERN_ERR "PCI: Not using MMCONFIG.\n");
-		return;
-	}
-
 	printk(KERN_INFO "PCI: Using MMCONFIG\n");
 	raw_pci_ops = &pci_mmcfg;
-	pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;
-
-	unreachable_devices();
+	return 1;
 }

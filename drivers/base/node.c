@@ -40,13 +40,8 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 	int n;
 	int nid = dev->id;
 	struct sysinfo i;
-	unsigned long inactive;
-	unsigned long active;
-	unsigned long free;
 
 	si_meminfo_node(&i, nid);
-	__get_zone_counts(&active, &inactive, &free, NODE_DATA(nid));
-
 
 	n = sprintf(buf, "\n"
 		       "Node %d MemTotal:     %8lu kB\n"
@@ -74,8 +69,8 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 		       nid, K(i.totalram),
 		       nid, K(i.freeram),
 		       nid, K(i.totalram - i.freeram),
-		       nid, K(active),
-		       nid, K(inactive),
+		       nid, node_page_state(nid, NR_ACTIVE),
+		       nid, node_page_state(nid, NR_INACTIVE),
 #ifdef CONFIG_HIGHMEM
 		       nid, K(i.totalhigh),
 		       nid, K(i.freehigh),
@@ -138,7 +133,7 @@ static SYSDEV_ATTR(distance, S_IRUGO, node_read_distance, NULL);
 
 
 /*
- * register_node - Setup a driverfs device for a node.
+ * register_node - Setup a sysfs device for a node.
  * @num - Node number to use when creating the device.
  *
  * Initialize and register the node device.

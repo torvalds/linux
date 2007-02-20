@@ -38,11 +38,10 @@
 #include <acpi/actypes.h>
 
 #define _COMPONENT		ACPI_EC_COMPONENT
-ACPI_MODULE_NAME("acpi_ec")
+ACPI_MODULE_NAME("ec");
 #define ACPI_EC_COMPONENT		0x00100000
 #define ACPI_EC_CLASS			"embedded_controller"
 #define ACPI_EC_HID			"PNP0C09"
-#define ACPI_EC_DRIVER_NAME		"ACPI Embedded Controller Driver"
 #define ACPI_EC_DEVICE_NAME		"Embedded Controller"
 #define ACPI_EC_FILE_INFO		"info"
 #undef PREFIX
@@ -80,7 +79,7 @@ static int acpi_ec_stop(struct acpi_device *device, int type);
 static int acpi_ec_add(struct acpi_device *device);
 
 static struct acpi_driver acpi_ec_driver = {
-	.name = ACPI_EC_DRIVER_NAME,
+	.name = "ec",
 	.class = ACPI_EC_CLASS,
 	.ids = ACPI_EC_HID,
 	.ops = {
@@ -280,8 +279,10 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 	mutex_lock(&ec->lock);
 	if (ec->global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
-		if (ACPI_FAILURE(status))
+		if (ACPI_FAILURE(status)) {
+			mutex_unlock(&ec->lock);
 			return -ENODEV;
+		}
 	}
 
 	/* Make sure GPE is enabled before doing transaction */
@@ -872,9 +873,8 @@ static int __init acpi_ec_get_real_ecdt(void)
 	acpi_status status;
 	struct acpi_table_ecdt *ecdt_ptr;
 
-	status = acpi_get_firmware_table("ECDT", 1, ACPI_LOGICAL_ADDRESSING,
-					 (struct acpi_table_header **)
-					 &ecdt_ptr);
+	status = acpi_get_table(ACPI_SIG_ECDT, 1,
+				(struct acpi_table_header **)&ecdt_ptr);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -891,14 +891,14 @@ static int __init acpi_ec_get_real_ecdt(void)
 	if (acpi_ec_mode == EC_INTR) {
 		init_waitqueue_head(&ec_ecdt->wait);
 	}
-	ec_ecdt->command_addr = ecdt_ptr->ec_control.address;
-	ec_ecdt->data_addr = ecdt_ptr->ec_data.address;
-	ec_ecdt->gpe = ecdt_ptr->gpe_bit;
+	ec_ecdt->command_addr = ecdt_ptr->control.address;
+	ec_ecdt->data_addr = ecdt_ptr->data.address;
+	ec_ecdt->gpe = ecdt_ptr->gpe;
 	/* use the GL just to be safe */
 	ec_ecdt->global_lock = TRUE;
 	ec_ecdt->uid = ecdt_ptr->uid;
 
-	status = acpi_get_handle(NULL, ecdt_ptr->ec_id, &ec_ecdt->handle);
+	status = acpi_get_handle(NULL, ecdt_ptr->id, &ec_ecdt->handle);
 	if (ACPI_FAILURE(status)) {
 		goto error;
 	}

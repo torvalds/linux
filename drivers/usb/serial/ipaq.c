@@ -563,6 +563,7 @@ static struct usb_serial_driver ipaq_device = {
 		.name =		"ipaq",
 	},
 	.description =		"PocketPC PDA",
+	.usb_driver = 		&ipaq_driver,
 	.id_table =		ipaq_id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		1,

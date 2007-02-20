@@ -9,7 +9,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb.h>
-#include <linux/debugfs.h>
 #include <linux/smp_lock.h>
 #include <linux/notifier.h>
 #include <linux/mutex.h>
@@ -22,11 +21,10 @@ static void mon_complete(struct usb_bus *ubus, struct urb *urb);
 static void mon_stop(struct mon_bus *mbus);
 static void mon_dissolve(struct mon_bus *mbus, struct usb_bus *ubus);
 static void mon_bus_drop(struct kref *r);
-static void mon_bus_init(struct dentry *mondir, struct usb_bus *ubus);
+static void mon_bus_init(struct usb_bus *ubus);
 
 DEFINE_MUTEX(mon_lock);
 
-static struct dentry *mon_dir;		/* /dbg/usbmon */
 static LIST_HEAD(mon_buses);		/* All buses we know: struct mon_bus */
 
 /*
@@ -200,7 +198,7 @@ static void mon_stop(struct mon_bus *mbus)
  */
 static void mon_bus_add(struct usb_bus *ubus)
 {
-	mon_bus_init(mon_dir, ubus);
+	mon_bus_init(ubus);
 }
 
 /*
@@ -212,8 +210,8 @@ static void mon_bus_remove(struct usb_bus *ubus)
 
 	mutex_lock(&mon_lock);
 	list_del(&mbus->bus_link);
-	debugfs_remove(mbus->dent_t);
-	debugfs_remove(mbus->dent_s);
+	if (mbus->text_inited)
+		mon_text_del(mbus);
 
 	mon_dissolve(mbus, ubus);
 	kref_put(&mbus->ref, mon_bus_drop);
@@ -281,13 +279,9 @@ static void mon_bus_drop(struct kref *r)
  *  - refcount USB bus struct
  *  - link
  */
-static void mon_bus_init(struct dentry *mondir, struct usb_bus *ubus)
+static void mon_bus_init(struct usb_bus *ubus)
 {
-	struct dentry *d;
 	struct mon_bus *mbus;
-	enum { NAMESZ = 10 };
-	char name[NAMESZ];
-	int rc;
 
 	if ((mbus = kzalloc(sizeof(struct mon_bus), GFP_KERNEL)) == NULL)
 		goto err_alloc;
@@ -303,57 +297,54 @@ static void mon_bus_init(struct dentry *mondir, struct usb_bus *ubus)
 	ubus->mon_bus = mbus;
 	mbus->uses_dma = ubus->uses_dma;
 
-	rc = snprintf(name, NAMESZ, "%dt", ubus->busnum);
-	if (rc <= 0 || rc >= NAMESZ)
-		goto err_print_t;
-	d = debugfs_create_file(name, 0600, mondir, mbus, &mon_fops_text);
-	if (d == NULL)
-		goto err_create_t;
-	mbus->dent_t = d;
-
-	rc = snprintf(name, NAMESZ, "%ds", ubus->busnum);
-	if (rc <= 0 || rc >= NAMESZ)
-		goto err_print_s;
-	d = debugfs_create_file(name, 0600, mondir, mbus, &mon_fops_stat);
-	if (d == NULL)
-		goto err_create_s;
-	mbus->dent_s = d;
+	mbus->text_inited = mon_text_add(mbus, ubus);
+	// mon_bin_add(...)
 
 	mutex_lock(&mon_lock);
 	list_add_tail(&mbus->bus_link, &mon_buses);
 	mutex_unlock(&mon_lock);
 	return;
 
-err_create_s:
-err_print_s:
-	debugfs_remove(mbus->dent_t);
-err_create_t:
-err_print_t:
-	kfree(mbus);
 err_alloc:
 	return;
+}
+
+/*
+ * Search a USB bus by number. Notice that USB bus numbers start from one,
+ * which we may later use to identify "all" with zero.
+ *
+ * This function must be called with mon_lock held.
+ *
+ * This is obviously inefficient and may be revised in the future.
+ */
+struct mon_bus *mon_bus_lookup(unsigned int num)
+{
+	struct list_head *p;
+	struct mon_bus *mbus;
+
+	list_for_each (p, &mon_buses) {
+		mbus = list_entry(p, struct mon_bus, bus_link);
+		if (mbus->u_bus->busnum == num) {
+			return mbus;
+		}
+	}
+	return NULL;
 }
 
 static int __init mon_init(void)
 {
 	struct usb_bus *ubus;
-	struct dentry *mondir;
+	int rc;
 
-	mondir = debugfs_create_dir("usbmon", NULL);
-	if (IS_ERR(mondir)) {
-		printk(KERN_NOTICE TAG ": debugfs is not available\n");
-		return -ENODEV;
-	}
-	if (mondir == NULL) {
-		printk(KERN_NOTICE TAG ": unable to create usbmon directory\n");
-		return -ENODEV;
-	}
-	mon_dir = mondir;
+	if ((rc = mon_text_init()) != 0)
+		goto err_text;
+	if ((rc = mon_bin_init()) != 0)
+		goto err_bin;
 
 	if (usb_mon_register(&mon_ops_0) != 0) {
 		printk(KERN_NOTICE TAG ": unable to register with the core\n");
-		debugfs_remove(mondir);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto err_reg;
 	}
 	// MOD_INC_USE_COUNT(which_module?);
 
@@ -361,10 +352,17 @@ static int __init mon_init(void)
 
 	mutex_lock(&usb_bus_list_lock);
 	list_for_each_entry (ubus, &usb_bus_list, bus_list) {
-		mon_bus_init(mondir, ubus);
+		mon_bus_init(ubus);
 	}
 	mutex_unlock(&usb_bus_list_lock);
 	return 0;
+
+err_reg:
+	mon_bin_exit();
+err_bin:
+	mon_text_exit();
+err_text:
+	return rc;
 }
 
 static void __exit mon_exit(void)
@@ -381,8 +379,8 @@ static void __exit mon_exit(void)
 		mbus = list_entry(p, struct mon_bus, bus_link);
 		list_del(p);
 
-		debugfs_remove(mbus->dent_t);
-		debugfs_remove(mbus->dent_s);
+		if (mbus->text_inited)
+			mon_text_del(mbus);
 
 		/*
 		 * This never happens, because the open/close paths in
@@ -401,7 +399,8 @@ static void __exit mon_exit(void)
 	}
 	mutex_unlock(&mon_lock);
 
-	debugfs_remove(mon_dir);
+	mon_text_exit();
+	mon_bin_exit();
 }
 
 module_init(mon_init);

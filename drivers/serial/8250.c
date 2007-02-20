@@ -364,6 +364,23 @@ serial_out(struct uart_8250_port *up, int offset, int value)
 	}
 }
 
+static void
+serial_out_sync(struct uart_8250_port *up, int offset, int value)
+{
+	switch (up->port.iotype) {
+	case UPIO_MEM:
+	case UPIO_MEM32:
+#ifdef CONFIG_SERIAL_8250_AU1X00
+	case UPIO_AU:
+#endif
+		serial_out(up, offset, value);
+		serial_in(up, UART_LCR);	/* safe, no side-effects */
+		break;
+	default:
+		serial_out(up, offset, value);
+	}
+}
+
 /*
  * We used to support using pause I/O for certain machines.  We
  * haven't supported this for a while, but just in case it's badly
@@ -920,12 +937,16 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 #ifdef __i386__
 		outb(0xff, 0x080);
 #endif
-		scratch2 = serial_inp(up, UART_IER);
+		/*
+		 * Mask out IER[7:4] bits for test as some UARTs (e.g. TL
+		 * 16C754B) allow only to modify them if an EFR bit is set.
+		 */
+		scratch2 = serial_inp(up, UART_IER) & 0x0f;
 		serial_outp(up, UART_IER, 0x0F);
 #ifdef __i386__
 		outb(0, 0x080);
 #endif
-		scratch3 = serial_inp(up, UART_IER);
+		scratch3 = serial_inp(up, UART_IER) & 0x0f;
 		serial_outp(up, UART_IER, scratch);
 		if (scratch2 != 0 || scratch3 != 0x0F) {
 			/*
@@ -1041,7 +1062,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 #endif
 	serial_outp(up, UART_MCR, save_mcr);
 	serial8250_clear_fifos(up);
-	(void)serial_in(up, UART_RX);
+	serial_in(up, UART_RX);
 	if (up->capabilities & UART_CAP_UUE)
 		serial_outp(up, UART_IER, UART_IER_UUE);
 	else
@@ -1447,6 +1468,12 @@ static void serial_unlink_irq_chain(struct uart_8250_port *up)
 	serial_do_unlink(i, up);
 }
 
+/* Base timer interval for polling */
+static inline int poll_timeout(int timeout)
+{
+	return timeout > 6 ? (timeout / 2 - 2) : 1;
+}
+
 /*
  * This function is used to handle ports that do not have an
  * interrupt.  This doesn't work very well for 16450's, but gives
@@ -1456,16 +1483,51 @@ static void serial_unlink_irq_chain(struct uart_8250_port *up)
 static void serial8250_timeout(unsigned long data)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)data;
-	unsigned int timeout;
 	unsigned int iir;
 
 	iir = serial_in(up, UART_IIR);
 	if (!(iir & UART_IIR_NO_INT))
 		serial8250_handle_port(up);
+	mod_timer(&up->timer, jiffies + poll_timeout(up->port.timeout));
+}
 
-	timeout = up->port.timeout;
-	timeout = timeout > 6 ? (timeout / 2 - 2) : 1;
-	mod_timer(&up->timer, jiffies + timeout);
+static void serial8250_backup_timeout(unsigned long data)
+{
+	struct uart_8250_port *up = (struct uart_8250_port *)data;
+	unsigned int iir, ier = 0;
+
+	/*
+	 * Must disable interrupts or else we risk racing with the interrupt
+	 * based handler.
+	 */
+	if (is_real_interrupt(up->port.irq)) {
+		ier = serial_in(up, UART_IER);
+		serial_out(up, UART_IER, 0);
+	}
+
+	iir = serial_in(up, UART_IIR);
+
+	/*
+	 * This should be a safe test for anyone who doesn't trust the
+	 * IIR bits on their UART, but it's specifically designed for
+	 * the "Diva" UART used on the management processor on many HP
+	 * ia64 and parisc boxes.
+	 */
+	if ((iir & UART_IIR_NO_INT) && (up->ier & UART_IER_THRI) &&
+	    (!uart_circ_empty(&up->port.info->xmit) || up->port.x_char) &&
+	    (serial_in(up, UART_LSR) & UART_LSR_THRE)) {
+		iir &= ~(UART_IIR_ID | UART_IIR_NO_INT);
+		iir |= UART_IIR_THRI;
+	}
+
+	if (!(iir & UART_IIR_NO_INT))
+		serial8250_handle_port(up);
+
+	if (is_real_interrupt(up->port.irq))
+		serial_out(up, UART_IER, ier);
+
+	/* Standard timer interval plus 0.2s to keep the port running */
+	mod_timer(&up->timer, jiffies + poll_timeout(up->port.timeout) + HZ/5);
 }
 
 static unsigned int serial8250_tx_empty(struct uart_port *port)
@@ -1534,6 +1596,37 @@ static void serial8250_break_ctl(struct uart_port *port, int break_state)
 		up->lcr &= ~UART_LCR_SBC;
 	serial_out(up, UART_LCR, up->lcr);
 	spin_unlock_irqrestore(&up->port.lock, flags);
+}
+
+#define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
+
+/*
+ *	Wait for transmitter & holding register to empty
+ */
+static inline void wait_for_xmitr(struct uart_8250_port *up, int bits)
+{
+	unsigned int status, tmout = 10000;
+
+	/* Wait up to 10ms for the character(s) to be sent. */
+	do {
+		status = serial_in(up, UART_LSR);
+
+		if (status & UART_LSR_BI)
+			up->lsr_break_flag = UART_LSR_BI;
+
+		if (--tmout == 0)
+			break;
+		udelay(1);
+	} while ((status & bits) != bits);
+
+	/* Wait up to 1s for flow control if necessary */
+	if (up->port.flags & UPF_CONS_FLOW) {
+		tmout = 1000000;
+		while (!(serial_in(up, UART_MSR) & UART_MSR_CTS) && --tmout) {
+			udelay(1);
+			touch_nmi_watchdog();
+		}
+	}
 }
 
 static int serial8250_startup(struct uart_port *port)
@@ -1609,18 +1702,50 @@ static int serial8250_startup(struct uart_port *port)
 		serial_outp(up, UART_LCR, 0);
 	}
 
+	if (is_real_interrupt(up->port.irq)) {
+		/*
+		 * Test for UARTs that do not reassert THRE when the
+		 * transmitter is idle and the interrupt has already
+		 * been cleared.  Real 16550s should always reassert
+		 * this interrupt whenever the transmitter is idle and
+		 * the interrupt is enabled.  Delays are necessary to
+		 * allow register changes to become visible.
+		 */
+		spin_lock_irqsave(&up->port.lock, flags);
+
+		wait_for_xmitr(up, UART_LSR_THRE);
+		serial_out_sync(up, UART_IER, UART_IER_THRI);
+		udelay(1); /* allow THRE to set */
+		serial_in(up, UART_IIR);
+		serial_out(up, UART_IER, 0);
+		serial_out_sync(up, UART_IER, UART_IER_THRI);
+		udelay(1); /* allow a working UART time to re-assert THRE */
+		iir = serial_in(up, UART_IIR);
+		serial_out(up, UART_IER, 0);
+
+		spin_unlock_irqrestore(&up->port.lock, flags);
+
+		/*
+		 * If the interrupt is not reasserted, setup a timer to
+		 * kick the UART on a regular basis.
+		 */
+		if (iir & UART_IIR_NO_INT) {
+			pr_debug("ttyS%d - using backup timer\n", port->line);
+			up->timer.function = serial8250_backup_timeout;
+			up->timer.data = (unsigned long)up;
+			mod_timer(&up->timer, jiffies +
+			          poll_timeout(up->port.timeout) + HZ/5);
+		}
+	}
+
 	/*
 	 * If the "interrupt" for this port doesn't correspond with any
 	 * hardware interrupt, we use a timer-based system.  The original
 	 * driver used to do this with IRQ0.
 	 */
 	if (!is_real_interrupt(up->port.irq)) {
-		unsigned int timeout = up->port.timeout;
-
-		timeout = timeout > 6 ? (timeout / 2 - 2) : 1;
-
 		up->timer.data = (unsigned long)up;
-		mod_timer(&up->timer, jiffies + timeout);
+		mod_timer(&up->timer, jiffies + poll_timeout(up->port.timeout));
 	} else {
 		retval = serial_link_irq_chain(up);
 		if (retval)
@@ -1736,9 +1861,9 @@ static void serial8250_shutdown(struct uart_port *port)
 	 */
 	(void) serial_in(up, UART_RX);
 
-	if (!is_real_interrupt(up->port.irq))
-		del_timer_sync(&up->timer);
-	else
+	del_timer_sync(&up->timer);
+	up->timer.function = serial8250_timeout;
+	if (is_real_interrupt(up->port.irq))
 		serial_unlink_irq_chain(up);
 }
 
@@ -2207,37 +2332,6 @@ serial8250_register_ports(struct uart_driver *drv, struct device *dev)
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
-
-#define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
-
-/*
- *	Wait for transmitter & holding register to empty
- */
-static inline void wait_for_xmitr(struct uart_8250_port *up, int bits)
-{
-	unsigned int status, tmout = 10000;
-
-	/* Wait up to 10ms for the character(s) to be sent. */
-	do {
-		status = serial_in(up, UART_LSR);
-
-		if (status & UART_LSR_BI)
-			up->lsr_break_flag = UART_LSR_BI;
-
-		if (--tmout == 0)
-			break;
-		udelay(1);
-	} while ((status & bits) != bits);
-
-	/* Wait up to 1s for flow control if necessary */
-	if (up->port.flags & UPF_CONS_FLOW) {
-		tmout = 1000000;
-		while (!(serial_in(up, UART_MSR) & UART_MSR_CTS) && --tmout) {
-			udelay(1);
-			touch_nmi_watchdog();
-		}
-	}
-}
 
 static void serial8250_console_putchar(struct uart_port *port, int ch)
 {

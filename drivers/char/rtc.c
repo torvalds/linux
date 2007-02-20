@@ -135,7 +135,9 @@ static struct fasync_struct *rtc_async_queue;
 static DECLARE_WAIT_QUEUE_HEAD(rtc_wait);
 
 #ifdef RTC_IRQ
-static struct timer_list rtc_irq_timer;
+static void rtc_dropped_irq(unsigned long data);
+
+static DEFINE_TIMER(rtc_irq_timer, rtc_dropped_irq, 0, 0);
 #endif
 
 static ssize_t rtc_read(struct file *file, char __user *buf,
@@ -150,8 +152,6 @@ static unsigned int rtc_poll(struct file *file, poll_table *wait);
 
 static void get_rtc_alm_time (struct rtc_time *alm_tm);
 #ifdef RTC_IRQ
-static void rtc_dropped_irq(unsigned long data);
-
 static void set_rtc_irq_bit_locked(unsigned char bit);
 static void mask_rtc_irq_bit_locked(unsigned char bit);
 
@@ -282,7 +282,7 @@ irqreturn_t rtc_interrupt(int irq, void *dev_id)
  */
 static ctl_table rtc_table[] = {
 	{
-		.ctl_name	= 1,
+		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "max-user-freq",
 		.data		= &rtc_max_user_freq,
 		.maxlen		= sizeof(int),
@@ -294,9 +294,8 @@ static ctl_table rtc_table[] = {
 
 static ctl_table rtc_root[] = {
 	{
-		.ctl_name	= 1,
+		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "rtc",
-		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= rtc_table,
 	},
@@ -307,7 +306,6 @@ static ctl_table dev_root[] = {
 	{
 		.ctl_name	= CTL_DEV,
 		.procname	= "dev",
-		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= rtc_root,
 	},
@@ -318,7 +316,7 @@ static struct ctl_table_header *sysctl_header;
 
 static int __init init_sysctl(void)
 {
-    sysctl_header = register_sysctl_table(dev_root, 0);
+    sysctl_header = register_sysctl_table(dev_root);
     return 0;
 }
 
@@ -454,8 +452,8 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, int kernel)
 
 		spin_lock_irqsave (&rtc_lock, flags);
 		if (!(rtc_status & RTC_TIMER_ON)) {
-			rtc_irq_timer.expires = jiffies + HZ/rtc_freq + 2*HZ/100;
-			add_timer(&rtc_irq_timer);
+			mod_timer(&rtc_irq_timer, jiffies + HZ/rtc_freq +
+					2*HZ/100);
 			rtc_status |= RTC_TIMER_ON;
 		}
 		set_rtc_irq_bit_locked(RTC_PIE);
@@ -1084,8 +1082,6 @@ no_irq:
 	if (rtc_has_irq == 0)
 		goto no_irq2;
 
-	init_timer(&rtc_irq_timer);
-	rtc_irq_timer.function = rtc_dropped_irq;
 	spin_lock_irq(&rtc_lock);
 	rtc_freq = 1024;
 	if (!hpet_set_periodic_freq(rtc_freq)) {

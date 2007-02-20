@@ -48,46 +48,52 @@
  *		It can be 1, 2, 10, 20, 110 or 220 seconds.
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/types.h>
-#include <linux/miscdevice.h>
-#include <linux/watchdog.h>
-#include <linux/fs.h>
-#include <linux/ioport.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
-#include <linux/init.h>
+/*
+ *	Includes, defines, variables, module parameters, ...
+ */
 
-#include <asm/io.h>
-#include <asm/uaccess.h>
-#include <asm/system.h>
+/* Includes */
+#include <linux/module.h>		/* For module specific items */
+#include <linux/moduleparam.h>		/* For new moduleparam's */
+#include <linux/types.h>		/* For standard types (like size_t) */
+#include <linux/errno.h>		/* For the -ENODEV/... values */
+#include <linux/kernel.h>		/* For printk/panic/... */
+#include <linux/miscdevice.h>		/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
+#include <linux/watchdog.h>		/* For the watchdog specific items */
+#include <linux/fs.h>			/* For file operations */
+#include <linux/ioport.h>		/* For io-port access */
+#include <linux/platform_device.h>	/* For platform_driver framework */
+#include <linux/init.h>			/* For __init/__exit/... */
 
+#include <asm/uaccess.h>		/* For copy_to_user/put_user/... */
+#include <asm/io.h>			/* For inb/outb/... */
+
+/* Module information */
+#define DRV_NAME "acquirewdt"
+#define PFX DRV_NAME ": "
 #define WATCHDOG_NAME "Acquire WDT"
-#define PFX WATCHDOG_NAME ": "
 #define WATCHDOG_HEARTBEAT 0	/* There is no way to see what the correct time-out period is */
 
+/* internal variables */
+static struct platform_device *acq_platform_device;	/* the watchdog platform device */
 static unsigned long acq_is_open;
 static char expect_close;
 
-/*
- *	You must set these - there is no sane way to probe for this board.
- */
-
-static int wdt_stop = 0x43;
+/* module parameters */
+static int wdt_stop = 0x43;	/* You must set this - there is no sane way to probe for this board. */
 module_param(wdt_stop, int, 0);
 MODULE_PARM_DESC(wdt_stop, "Acquire WDT 'stop' io port (default 0x43)");
 
-static int wdt_start = 0x443;
+static int wdt_start = 0x443;	/* You must set this - there is no sane way to probe for this board. */
 module_param(wdt_start, int, 0);
 MODULE_PARM_DESC(wdt_start, "Acquire WDT 'start' io port (default 0x443)");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
- *	Kernel methods.
+ *	Watchdog Operations
  */
 
 static void acq_keepalive(void)
@@ -103,7 +109,7 @@ static void acq_stop(void)
 }
 
 /*
- *	/dev/watchdog handling.
+ *	/dev/watchdog handling
  */
 
 static ssize_t acq_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
@@ -143,7 +149,7 @@ static int acq_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	{
 		.options = WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 		.firmware_version = 1,
-		.identity = "Acquire WDT",
+		.identity = WATCHDOG_NAME,
 	};
 
 	switch(cmd)
@@ -214,20 +220,6 @@ static int acq_close(struct inode *inode, struct file *file)
 }
 
 /*
- *	Notifier for system down
- */
-
-static int acq_notify_sys(struct notifier_block *this, unsigned long code,
-	void *unused)
-{
-	if(code==SYS_DOWN || code==SYS_HALT) {
-		/* Turn the WDT off */
-		acq_stop();
-	}
-	return NOTIFY_DONE;
-}
-
-/*
  *	Kernel Interfaces
  */
 
@@ -240,28 +232,19 @@ static const struct file_operations acq_fops = {
 	.release	= acq_close,
 };
 
-static struct miscdevice acq_miscdev=
-{
-	.minor = WATCHDOG_MINOR,
-	.name = "watchdog",
-	.fops = &acq_fops,
+static struct miscdevice acq_miscdev = {
+	.minor	= WATCHDOG_MINOR,
+	.name	= "watchdog",
+	.fops	= &acq_fops,
 };
 
 /*
- *	The WDT card needs to learn about soft shutdowns in order to
- *	turn the timebomb registers off.
+ *	Init & exit routines
  */
 
-static struct notifier_block acq_notifier =
-{
-	.notifier_call = acq_notify_sys,
-};
-
-static int __init acq_init(void)
+static int __devinit acq_probe(struct platform_device *dev)
 {
 	int ret;
-
-	printk(KERN_INFO "WDT driver for Acquire single board computer initialising.\n");
 
 	if (wdt_stop != wdt_start) {
 		if (!request_region(wdt_stop, 1, WATCHDOG_NAME)) {
@@ -279,18 +262,11 @@ static int __init acq_init(void)
 		goto unreg_stop;
 	}
 
-	ret = register_reboot_notifier(&acq_notifier);
-	if (ret != 0) {
-		printk (KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
-			ret);
-		goto unreg_regions;
-	}
-
 	ret = misc_register(&acq_miscdev);
 	if (ret != 0) {
 		printk (KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
 			WATCHDOG_MINOR, ret);
-		goto unreg_reboot;
+		goto unreg_regions;
 	}
 
 	printk (KERN_INFO PFX "initialized. (nowayout=%d)\n",
@@ -298,8 +274,6 @@ static int __init acq_init(void)
 
 	return 0;
 
-unreg_reboot:
-	unregister_reboot_notifier(&acq_notifier);
 unreg_regions:
 	release_region(wdt_start, 1);
 unreg_stop:
@@ -309,13 +283,60 @@ out:
 	return ret;
 }
 
-static void __exit acq_exit(void)
+static int __devexit acq_remove(struct platform_device *dev)
 {
 	misc_deregister(&acq_miscdev);
-	unregister_reboot_notifier(&acq_notifier);
+	release_region(wdt_start,1);
 	if(wdt_stop != wdt_start)
 		release_region(wdt_stop,1);
-	release_region(wdt_start,1);
+
+	return 0;
+}
+
+static void acq_shutdown(struct platform_device *dev)
+{
+	/* Turn the WDT off if we have a soft shutdown */
+	acq_stop();
+}
+
+static struct platform_driver acquirewdt_driver = {
+	.probe		= acq_probe,
+	.remove		= __devexit_p(acq_remove),
+	.shutdown	= acq_shutdown,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= DRV_NAME,
+	},
+};
+
+static int __init acq_init(void)
+{
+	int err;
+
+	printk(KERN_INFO "WDT driver for Acquire single board computer initialising.\n");
+
+	err = platform_driver_register(&acquirewdt_driver);
+	if (err)
+		return err;
+
+	acq_platform_device = platform_device_register_simple(DRV_NAME, -1, NULL, 0);
+	if (IS_ERR(acq_platform_device)) {
+		err = PTR_ERR(acq_platform_device);
+		goto unreg_platform_driver;
+	}
+
+	return 0;
+
+unreg_platform_driver:
+	platform_driver_unregister(&acquirewdt_driver);
+	return err;
+}
+
+static void __exit acq_exit(void)
+{
+	platform_device_unregister(acq_platform_device);
+	platform_driver_unregister(&acquirewdt_driver);
+	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
 }
 
 module_init(acq_init);

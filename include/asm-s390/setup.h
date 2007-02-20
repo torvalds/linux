@@ -42,6 +42,18 @@ struct mem_chunk {
 
 extern struct mem_chunk memory_chunk[];
 
+#ifdef CONFIG_S390_SWITCH_AMODE
+extern unsigned int switch_amode;
+#else
+#define switch_amode	(0)
+#endif
+
+#ifdef CONFIG_S390_EXEC_PROTECT
+extern unsigned int s390_noexec;
+#else
+#define s390_noexec	(0)
+#endif
+
 /*
  * Machine features detected in head.S
  */
@@ -73,6 +85,9 @@ extern unsigned long machine_flags;
 extern unsigned int console_mode;
 extern unsigned int console_devno;
 extern unsigned int console_irq;
+
+extern char vmhalt_cmd[];
+extern char vmpoff_cmd[];
 
 #define CONSOLE_IS_UNDEFINED	(console_mode == 0)
 #define CONSOLE_IS_SCLP		(console_mode == 1)
@@ -141,12 +156,18 @@ struct ipl_parameter_block {
 extern u32 ipl_flags;
 extern u16 ipl_devno;
 
-void do_reipl(void);
+extern void do_reipl(void);
+extern void ipl_save_parameters(void);
 
 enum {
 	IPL_DEVNO_VALID	= 1,
 	IPL_PARMBLOCK_VALID = 2,
+	IPL_NSS_VALID = 4,
 };
+
+#define NSS_NAME_SIZE	8
+
+extern char kernel_nss_name[];
 
 #define IPL_PARMBLOCK_START	((struct ipl_parameter_block *) \
 				 IPL_PARMBLOCK_ORIGIN)

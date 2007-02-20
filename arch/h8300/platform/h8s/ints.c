@@ -20,6 +20,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/bootmem.h>
 #include <linux/random.h>
 #include <linux/hardirq.h>

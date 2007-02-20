@@ -14,7 +14,6 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -178,7 +177,7 @@ teql_destroy(struct Qdisc* sch)
 				teql_neigh_release(xchg(&dat->ncache, NULL));
 				break;
 			}
-				
+
 		} while ((prev = q) != master->slaves);
 	}
 }
@@ -292,7 +291,7 @@ restart:
 
 	do {
 		struct net_device *slave = q->dev;
-		
+
 		if (slave->qdisc_sleeping != q)
 			continue;
 		if (netif_queue_stopped(slave) || ! netif_running(slave)) {
@@ -425,7 +424,7 @@ static __init void teql_master_setup(struct net_device *dev)
 
 	master->dev	= dev;
 	ops->priv_size  = sizeof(struct teql_sched_data);
-	
+
 	ops->enqueue	=	teql_enqueue;
 	ops->dequeue	=	teql_dequeue;
 	ops->requeue	=	teql_requeue;
@@ -489,7 +488,7 @@ static int __init teql_init(void)
 	return i ? 0 : err;
 }
 
-static void __exit teql_exit(void) 
+static void __exit teql_exit(void)
 {
 	struct teql_master *master, *nxt;
 

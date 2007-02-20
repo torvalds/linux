@@ -702,13 +702,12 @@ static int initialize_flash_pde_data(const char *rtas_call_name,
 }
 
 static struct proc_dir_entry *create_flash_pde(const char *filename,
-					       struct file_operations *fops)
+					       const struct file_operations *fops)
 {
 	struct proc_dir_entry *ent = NULL;
 
 	ent = create_proc_entry(filename, S_IRUSR | S_IWUSR, NULL);
 	if (ent != NULL) {
-		ent->nlink = 1;
 		ent->proc_fops = fops;
 		ent->owner = THIS_MODULE;
 	}
@@ -716,21 +715,21 @@ static struct proc_dir_entry *create_flash_pde(const char *filename,
 	return ent;
 }
 
-static struct file_operations rtas_flash_operations = {
+static const struct file_operations rtas_flash_operations = {
 	.read		= rtas_flash_read,
 	.write		= rtas_flash_write,
 	.open		= rtas_excl_open,
 	.release	= rtas_flash_release,
 };
 
-static struct file_operations manage_flash_operations = {
+static const struct file_operations manage_flash_operations = {
 	.read		= manage_flash_read,
 	.write		= manage_flash_write,
 	.open		= rtas_excl_open,
 	.release	= rtas_excl_release,
 };
 
-static struct file_operations validate_flash_operations = {
+static const struct file_operations validate_flash_operations = {
 	.read		= validate_flash_read,
 	.write		= validate_flash_write,
 	.open		= rtas_excl_open,

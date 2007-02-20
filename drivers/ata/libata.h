@@ -29,7 +29,6 @@
 #define __LIBATA_H__
 
 #define DRV_NAME	"libata"
-#define DRV_VERSION	"2.00"	/* must be exactly four chars */
 
 struct ata_scsi_args {
 	struct ata_device	*dev;
@@ -48,6 +47,7 @@ extern struct workqueue_struct *ata_aux_wq;
 extern int atapi_enabled;
 extern int atapi_dmadir;
 extern int libata_fua;
+extern int noacpi;
 extern struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev);
 extern int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
 			   u64 block, u32 n_block, unsigned int tf_flags,
@@ -88,6 +88,20 @@ extern void ata_port_init(struct ata_port *ap, struct ata_host *host,
 extern struct ata_probe_ent *ata_probe_ent_alloc(struct device *dev,
 						 const struct ata_port_info *port);
 
+/* libata-acpi.c */
+#ifdef CONFIG_SATA_ACPI
+extern int ata_acpi_exec_tfs(struct ata_port *ap);
+extern int ata_acpi_push_id(struct ata_port *ap, unsigned int ix);
+#else
+static inline int ata_acpi_exec_tfs(struct ata_port *ap)
+{
+	return 0;
+}
+static inline int ata_acpi_push_id(struct ata_port *ap, unsigned int ix)
+{
+	return 0;
+}
+#endif
 
 /* libata-scsi.c */
 extern struct scsi_transport_template ata_scsi_transport_template;
@@ -135,5 +149,8 @@ extern void ata_qc_schedule_eh(struct ata_queued_cmd *qc);
 
 /* libata-sff.c */
 extern u8 ata_irq_on(struct ata_port *ap);
+
+/* pata_sis.c */
+extern struct ata_port_info sis_info133;
 
 #endif /* __LIBATA_H__ */

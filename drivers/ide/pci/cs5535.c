@@ -195,28 +195,19 @@ static int cs5535_config_drive_for_dma(ide_drive_t *drive)
 
 static int cs5535_dma_check(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
-	struct hd_driveid *id	= drive->id;
 	u8 speed;
 
 	drive->init_speed = 0;
 
-	if ((id->capability & 1) && drive->autodma) {
-		if (ide_use_dma(drive)) {
-			if (cs5535_config_drive_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
+	if (ide_use_dma(drive) && cs5535_config_drive_for_dma(drive))
+		return 0;
 
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
+	if (ide_use_fast_pio(drive)) {
 		speed = ide_get_best_pio_mode(drive, 255, 4, NULL);
 		cs5535_set_drive(drive, speed);
-		return hwif->ide_dma_off_quietly(drive);
 	}
-	/* IORDY not supported */
-	return 0;
+
+	return -1;
 }
 
 static u8 __devinit cs5535_cable_detect(struct pci_dev *dev)

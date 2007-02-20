@@ -28,24 +28,16 @@
 #include "hcd.h"
 #include "usb.h"
 
-static int usb_match_one_id(struct usb_interface *interface,
-			    const struct usb_device_id *id);
-
-struct usb_dynid {
-	struct list_head node;
-	struct usb_device_id id;
-};
-
 #ifdef CONFIG_HOTPLUG
 
 /*
  * Adds a new dynamic USBdevice ID to this driver,
  * and cause the driver to probe for all devices again.
  */
-static ssize_t store_new_id(struct device_driver *driver,
-			    const char *buf, size_t count)
+ssize_t usb_store_new_id(struct usb_dynids *dynids,
+			 struct device_driver *driver,
+			 const char *buf, size_t count)
 {
-	struct usb_driver *usb_drv = to_usb_driver(driver);
 	struct usb_dynid *dynid;
 	u32 idVendor = 0;
 	u32 idProduct = 0;
@@ -65,9 +57,9 @@ static ssize_t store_new_id(struct device_driver *driver,
 	dynid->id.idProduct = idProduct;
 	dynid->id.match_flags = USB_DEVICE_ID_MATCH_DEVICE;
 
-	spin_lock(&usb_drv->dynids.lock);
-	list_add_tail(&usb_drv->dynids.list, &dynid->node);
-	spin_unlock(&usb_drv->dynids.lock);
+	spin_lock(&dynids->lock);
+	list_add_tail(&dynids->list, &dynid->node);
+	spin_unlock(&dynids->lock);
 
 	if (get_driver(driver)) {
 		retval = driver_attach(driver);
@@ -77,6 +69,15 @@ static ssize_t store_new_id(struct device_driver *driver,
 	if (retval)
 		return retval;
 	return count;
+}
+EXPORT_SYMBOL_GPL(usb_store_new_id);
+
+static ssize_t store_new_id(struct device_driver *driver,
+			    const char *buf, size_t count)
+{
+	struct usb_driver *usb_drv = to_usb_driver(driver);
+
+	return usb_store_new_id(&usb_drv->dynids, driver, buf, count);
 }
 static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
 
@@ -365,8 +366,8 @@ void usb_driver_release_interface(struct usb_driver *driver,
 EXPORT_SYMBOL(usb_driver_release_interface);
 
 /* returns 0 if no match, 1 if match */
-static int usb_match_one_id(struct usb_interface *interface,
-			    const struct usb_device_id *id)
+int usb_match_one_id(struct usb_interface *interface,
+		     const struct usb_device_id *id)
 {
 	struct usb_host_interface *intf;
 	struct usb_device *dev;
@@ -432,6 +433,8 @@ static int usb_match_one_id(struct usb_interface *interface,
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(usb_match_one_id);
+
 /**
  * usb_match_id - find first usb_device_id matching device or interface
  * @interface: the interface of interest
@@ -740,6 +743,7 @@ EXPORT_SYMBOL_GPL(usb_deregister_device_driver);
  * usb_register_driver - register a USB interface driver
  * @new_driver: USB operations for the interface driver
  * @owner: module owner of this driver.
+ * @mod_name: module name string
  *
  * Registers a USB interface driver with the USB core.  The list of
  * unattached interfaces will be rescanned whenever a new driver is
@@ -750,7 +754,8 @@ EXPORT_SYMBOL_GPL(usb_deregister_device_driver);
  * usb_register_dev() to enable that functionality.  This function no longer
  * takes care of that.
  */
-int usb_register_driver(struct usb_driver *new_driver, struct module *owner)
+int usb_register_driver(struct usb_driver *new_driver, struct module *owner,
+			const char *mod_name)
 {
 	int retval = 0;
 
@@ -763,6 +768,7 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner)
 	new_driver->drvwrap.driver.probe = usb_probe_interface;
 	new_driver->drvwrap.driver.remove = usb_unbind_interface;
 	new_driver->drvwrap.driver.owner = owner;
+	new_driver->drvwrap.driver.mod_name = mod_name;
 	spin_lock_init(&new_driver->dynids.lock);
 	INIT_LIST_HEAD(&new_driver->dynids.list);
 

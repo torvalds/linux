@@ -20,9 +20,6 @@
 #define SCC3_IRQ	SIU_INT_SCC3
 #define SCC4_IRQ	SIU_INT_SCC4
 
-/* the CPM address */
-#define CPM_ADDR	CPM_MAP_ADDR
-
 static inline void cpm_set_brg(int brg, int baud)
 {
 	cpm_setbrg(brg, baud);

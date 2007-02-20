@@ -36,7 +36,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -760,7 +759,7 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 			RTA_PUT(skb, TCA_U32_INDEV, IFNAMSIZ, n->indev);
 #endif
 #ifdef CONFIG_CLS_U32_PERF
-		RTA_PUT(skb, TCA_U32_PCNT, 
+		RTA_PUT(skb, TCA_U32_PCNT,
 		sizeof(struct tc_u32_pcnt) + n->sel.nkeys*sizeof(u64),
 			n->pf);
 #endif
@@ -810,7 +809,7 @@ static int __init init_u32(void)
 	return register_tcf_proto_ops(&cls_u32_ops);
 }
 
-static void __exit exit_u32(void) 
+static void __exit exit_u32(void)
 {
 	unregister_tcf_proto_ops(&cls_u32_ops);
 }

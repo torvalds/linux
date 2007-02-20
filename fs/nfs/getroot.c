@@ -135,17 +135,15 @@ int nfs4_path_walk(struct nfs_server *server,
 	struct nfs_fh lastfh;
 	struct qstr name;
 	int ret;
-	//int referral_count = 0;
 
 	dprintk("--> nfs4_path_walk(,,%s)\n", path);
 
 	fsinfo.fattr = &fattr;
 	nfs_fattr_init(&fattr);
 
-	if (*path++ != '/') {
-		dprintk("nfs4_get_root: Path does not begin with a slash\n");
-		return -EINVAL;
-	}
+	/* Eat leading slashes */
+	while (*path == '/')
+		path++;
 
 	/* Start by getting the root filehandle from the server */
 	ret = server->nfs_client->rpc_ops->getroot(server, mntfh, &fsinfo);
@@ -160,6 +158,7 @@ int nfs4_path_walk(struct nfs_server *server,
 		return -ENOTDIR;
 	}
 
+	/* FIXME: It is quite valid for the server to return a referral here */
 	if (fattr.valid & NFS_ATTR_FATTR_V4_REFERRAL) {
 		printk(KERN_ERR "nfs4_get_root:"
 		       " getroot obtained referral\n");
@@ -187,6 +186,7 @@ eat_dot_dir:
 		goto eat_dot_dir;
 	}
 
+	/* FIXME: Why shouldn't the user be able to use ".." in the path? */
 	if (path[0] == '.' && path[1] == '.' && (path[2] == '/' || !path[2])
 	    ) {
 		printk(KERN_ERR "nfs4_get_root:"
@@ -212,6 +212,7 @@ eat_dot_dir:
 		return -ENOTDIR;
 	}
 
+	/* FIXME: Referrals are quite valid here too */
 	if (fattr.valid & NFS_ATTR_FATTR_V4_REFERRAL) {
 		printk(KERN_ERR "nfs4_get_root:"
 		       " lookupfh obtained referral\n");

@@ -29,7 +29,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
-#include <linux/sched.h>
+#include <linux/jiffies.h>
 
 #include "fixp-arith.h"
 

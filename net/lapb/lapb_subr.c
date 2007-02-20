@@ -18,7 +18,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/sockios.h>
@@ -59,7 +58,7 @@ void lapb_frames_acked(struct lapb_cb *lapb, unsigned short nr)
 	 */
 	if (lapb->va != nr)
 		while (skb_peek(&lapb->ack_queue) && lapb->va != nr) {
-		        skb = skb_dequeue(&lapb->ack_queue);
+			skb = skb_dequeue(&lapb->ack_queue);
 			kfree_skb(skb);
 			lapb->va = (lapb->va + 1) % modulus;
 		}
@@ -67,7 +66,7 @@ void lapb_frames_acked(struct lapb_cb *lapb, unsigned short nr)
 
 void lapb_requeue_frames(struct lapb_cb *lapb)
 {
-        struct sk_buff *skb, *skb_prev = NULL;
+	struct sk_buff *skb, *skb_prev = NULL;
 
 	/*
 	 * Requeue all the un-ack-ed frames on the output queue to be picked
@@ -91,7 +90,7 @@ int lapb_validate_nr(struct lapb_cb *lapb, unsigned short nr)
 {
 	unsigned short vc = lapb->va;
 	int modulus;
-	
+
 	modulus = (lapb->mode & LAPB_EXTENDED) ? LAPB_EMODULUS : LAPB_SMODULUS;
 
 	while (vc != lapb->vs) {
@@ -99,7 +98,7 @@ int lapb_validate_nr(struct lapb_cb *lapb, unsigned short nr)
 			return 1;
 		vc = (vc + 1) % modulus;
 	}
-	
+
 	return nr == lapb->vs;
 }
 
@@ -149,7 +148,7 @@ int lapb_decode(struct lapb_cb *lapb, struct sk_buff *skb,
 				frame->cr = LAPB_RESPONSE;
 		}
 	}
-		
+
 	skb_pull(skb, 1);
 
 	if (lapb->mode & LAPB_EXTENDED) {
@@ -220,9 +219,9 @@ int lapb_decode(struct lapb_cb *lapb, struct sk_buff *skb,
 	return 0;
 }
 
-/* 
+/*
  *	This routine is called when the HDLC layer internally  generates a
- *	command or  response  for  the remote machine ( eg. RR, UA etc. ). 
+ *	command or  response  for  the remote machine ( eg. RR, UA etc. ).
  *	Only supervisory or unnumbered frames are processed, FRMRs are handled
  *	by lapb_transmit_frmr below.
  */
@@ -259,7 +258,7 @@ void lapb_send_control(struct lapb_cb *lapb, int frametype,
 	lapb_transmit_buffer(lapb, skb, type);
 }
 
-/* 
+/*
  *	This routine generates FRMRs based on information previously stored in
  *	the LAPB control block.
  */

@@ -59,7 +59,6 @@ extern void acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
 #define ACPI_AC_CLASS			"ac_adapter"
 #define ACPI_BATTERY_CLASS		"battery"
 #define ACPI_SBS_HID			"ACPI0002"
-#define ACPI_SBS_DRIVER_NAME		"ACPI Smart Battery System Driver"
 #define ACPI_SBS_DEVICE_NAME		"Smart Battery System"
 #define ACPI_SBS_FILE_INFO		"info"
 #define ACPI_SBS_FILE_STATE		"state"
@@ -78,7 +77,7 @@ extern void acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
 #define	MAX_SBS_BAT			4
 #define	MAX_SMBUS_ERR			1
 
-ACPI_MODULE_NAME("acpi_sbs");
+ACPI_MODULE_NAME("sbs");
 
 MODULE_AUTHOR("Rich Townsend");
 MODULE_DESCRIPTION("Smart Battery System ACPI interface driver");
@@ -110,7 +109,7 @@ static void acpi_battery_smbus_err_handler(struct acpi_ec_smbus *smbus);
 static void acpi_sbs_update_queue(void *data);
 
 static struct acpi_driver acpi_sbs_driver = {
-	.name = ACPI_SBS_DRIVER_NAME,
+	.name = "sbs",
 	.class = ACPI_SBS_CLASS,
 	.ids = ACPI_SBS_HID,
 	.ops = {
@@ -1034,21 +1033,19 @@ static int acpi_battery_read_state(struct seq_file *seq, void *offset)
 	} else {
 		seq_printf(seq, "capacity state:          ok\n");
 	}
+
+	foo = (s16) battery->state.amperage * battery->info.ipscale;
+	if (battery->info.capacity_mode) {
+		foo = foo * battery->info.design_voltage / 1000;
+	}
 	if (battery->state.amperage < 0) {
 		seq_printf(seq, "charging state:          discharging\n");
-		foo = battery->state.remaining_capacity * cscale * 60 /
-		    (battery->state.average_time_to_empty == 0 ? 1 :
-		     battery->state.average_time_to_empty);
-		seq_printf(seq, "present rate:            %i%s\n",
-			   foo, battery->info.capacity_mode ? "0 mW" : " mA");
+		seq_printf(seq, "present rate:            %d %s\n",
+			   -foo, battery->info.capacity_mode ? "mW" : "mA");
 	} else if (battery->state.amperage > 0) {
 		seq_printf(seq, "charging state:          charging\n");
-		foo = (battery->info.full_charge_capacity -
-		       battery->state.remaining_capacity) * cscale * 60 /
-		    (battery->state.average_time_to_full == 0 ? 1 :
-		     battery->state.average_time_to_full);
-		seq_printf(seq, "present rate:            %i%s\n",
-			   foo, battery->info.capacity_mode ? "0 mW" : " mA");
+		seq_printf(seq, "present rate:            %d %s\n",
+			   foo, battery->info.capacity_mode ? "mW" : "mA");
 	} else {
 		seq_printf(seq, "charging state:          charged\n");
 		seq_printf(seq, "present rate:            0 %s\n",

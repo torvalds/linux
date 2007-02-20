@@ -69,7 +69,6 @@ static int  option_send_setup(struct usb_serial_port *port);
 /* Vendor and product IDs */
 #define OPTION_VENDOR_ID                0x0AF0
 #define HUAWEI_VENDOR_ID                0x12D1
-#define AUDIOVOX_VENDOR_ID              0x0F3D
 #define NOVATELWIRELESS_VENDOR_ID       0x1410
 #define ANYDATA_VENDOR_ID               0x16d5
 
@@ -81,7 +80,6 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define OPTION_PRODUCT_GTMAX36          0x6701
 #define HUAWEI_PRODUCT_E600             0x1001
 #define HUAWEI_PRODUCT_E220             0x1003
-#define AUDIOVOX_PRODUCT_AIRCARD        0x0112
 #define NOVATELWIRELESS_PRODUCT_U740    0x1400
 #define ANYDATA_PRODUCT_ID              0x6501
 
@@ -94,7 +92,6 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_GTMAX36) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E220) },
-	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
 	{ } /* Terminating entry */
@@ -109,7 +106,6 @@ static struct usb_device_id option_ids1[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_GTMAX36) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E220) },
-	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
 	{ } /* Terminating entry */
@@ -135,6 +131,7 @@ static struct usb_serial_driver option_1port_device = {
 		.name =		"option1",
 	},
 	.description       = "GSM modem (1-port)",
+	.usb_driver        = &option_driver,
 	.id_table          = option_ids1,
 	.num_interrupt_in  = NUM_DONT_CARE,
 	.num_bulk_in       = NUM_DONT_CARE,

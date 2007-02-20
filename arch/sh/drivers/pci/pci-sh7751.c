@@ -157,15 +157,6 @@ int __init sh7751_pcic_init(struct sh4_pci_address_map *map)
 		 PCIBIOS_MIN_IO, (64 << 10),
 		 SH7751_PCI_IO_BASE + PCIBIOS_MIN_IO);
 
-	/*
-	 * XXX: For now, leave this board-specific. In the event we have other
-	 * boards that need to do similar work, this can be wrapped.
-	 */
-#ifdef CONFIG_SH_BIGSUR
-	bigsur_port_map(PCIBIOS_MIN_IO, (64 << 10),
-			SH7751_PCI_IO_BASE + PCIBIOS_MIN_IO, 0);
-#endif
-
 	/* Make sure the MSB's of IO window are set to access PCI space
 	 * correctly */
 	word = PCIBIOS_MIN_IO & SH4_PCIIOBR_MASK;

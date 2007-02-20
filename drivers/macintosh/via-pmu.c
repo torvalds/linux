@@ -141,13 +141,13 @@ static volatile int adb_int_pending;
 static volatile int disable_poll;
 static struct device_node *vias;
 static int pmu_kind = PMU_UNKNOWN;
-static int pmu_fully_inited = 0;
+static int pmu_fully_inited;
 static int pmu_has_adb;
 static struct device_node *gpio_node;
-static unsigned char __iomem *gpio_reg = NULL;
+static unsigned char __iomem *gpio_reg;
 static int gpio_irq = NO_IRQ;
 static int gpio_irq_enabled = -1;
-static volatile int pmu_suspended = 0;
+static volatile int pmu_suspended;
 static spinlock_t pmu_lock;
 static u8 pmu_intr_mask;
 static int pmu_version;
@@ -169,7 +169,7 @@ static int option_server_mode;
 
 int pmu_battery_count;
 int pmu_cur_battery;
-unsigned int pmu_power_flags;
+unsigned int pmu_power_flags = PMU_PWR_AC_PRESENT;
 struct pmu_battery_info pmu_batteries[PMU_MAX_BATTERIES];
 static int query_batt_timer = BATTERY_POLLING_COUNT;
 static struct adb_request batt_req;
@@ -180,7 +180,7 @@ int asleep;
 BLOCKING_NOTIFIER_HEAD(sleep_notifier_list);
 
 #ifdef CONFIG_ADB
-static int adb_dev_map = 0;
+static int adb_dev_map;
 static int pmu_adb_flags;
 
 static int pmu_probe(void);
@@ -516,7 +516,6 @@ static int __init via_pmu_dev_init(void)
 					proc_get_irqstats, NULL);
 		proc_pmu_options = create_proc_entry("options", 0600, proc_pmu_root);
 		if (proc_pmu_options) {
-			proc_pmu_options->nlink = 1;
 			proc_pmu_options->read_proc = proc_read_options;
 			proc_pmu_options->write_proc = proc_write_options;
 		}
@@ -2673,7 +2672,7 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 	return error;
 }
 
-static struct file_operations pmu_device_fops = {
+static const struct file_operations pmu_device_fops = {
 	.read		= pmu_read,
 	.write		= pmu_write,
 	.poll		= pmu_fpoll,
@@ -2777,7 +2776,7 @@ pmu_polled_request(struct adb_request *req)
 
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 
-static int pmu_sys_suspended = 0;
+static int pmu_sys_suspended;
 
 static int pmu_sys_suspend(struct sys_device *sysdev, pm_message_t state)
 {
@@ -2817,7 +2816,6 @@ static struct sysdev_class pmu_sysclass = {
 };
 
 static struct sys_device device_pmu = {
-	.id		= 0,
 	.cls		= &pmu_sysclass,
 };
 

@@ -262,7 +262,7 @@ reserve_memory (void)
 	 * appropriate after a kernel panic.
 	 */
 	{
-		char *from = strstr(saved_command_line, "crashkernel=");
+		char *from = strstr(boot_command_line, "crashkernel=");
 		unsigned long base, size;
 		if (from) {
 			size = memparse(from + 12, &from);
@@ -463,7 +463,7 @@ setup_arch (char **cmdline_p)
 	ia64_patch_vtop((u64) __start___vtop_patchlist, (u64) __end___vtop_patchlist);
 
 	*cmdline_p = __va(ia64_boot_param->command_line);
-	strlcpy(saved_command_line, *cmdline_p, COMMAND_LINE_SIZE);
+	strlcpy(boot_command_line, *cmdline_p, COMMAND_LINE_SIZE);
 
 	efi_init();
 	io_port_init();
@@ -569,34 +569,31 @@ show_cpuinfo (struct seq_file *m, void *v)
 		{ 1UL << 1, "spontaneous deferral"},
 		{ 1UL << 2, "16-byte atomic ops" }
 	};
-	char features[128], *cp, sep;
+	char features[128], *cp, *sep;
 	struct cpuinfo_ia64 *c = v;
 	unsigned long mask;
 	unsigned long proc_freq;
-	int i;
+	int i, size;
 
 	mask = c->features;
 
 	/* build the feature string: */
-	memcpy(features, " standard", 10);
+	memcpy(features, "standard", 9);
 	cp = features;
-	sep = 0;
-	for (i = 0; i < (int) ARRAY_SIZE(feature_bits); ++i) {
+	size = sizeof(features);
+	sep = "";
+	for (i = 0; i < ARRAY_SIZE(feature_bits) && size > 1; ++i) {
 		if (mask & feature_bits[i].mask) {
-			if (sep)
-				*cp++ = sep;
-			sep = ',';
-			*cp++ = ' ';
-			strcpy(cp, feature_bits[i].feature_name);
-			cp += strlen(feature_bits[i].feature_name);
+			cp += snprintf(cp, size, "%s%s", sep,
+				       feature_bits[i].feature_name),
+			sep = ", ";
 			mask &= ~feature_bits[i].mask;
+			size = sizeof(features) - (cp - features);
 		}
 	}
-	if (mask) {
-		/* print unknown features as a hex value: */
-		if (sep)
-			*cp++ = sep;
-		sprintf(cp, " 0x%lx", mask);
+	if (mask && size > 1) {
+		/* print unknown features as a hex value */
+		snprintf(cp, size, "%s0x%lx", sep, mask);
 	}
 
 	proc_freq = cpufreq_quick_get(cpunum);
@@ -612,7 +609,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   "model name : %s\n"
 		   "revision   : %u\n"
 		   "archrev    : %u\n"
-		   "features   :%s\n"	/* don't change this---it _is_ right! */
+		   "features   : %s\n"
 		   "cpu number : %lu\n"
 		   "cpu regs   : %u\n"
 		   "cpu MHz    : %lu.%06lu\n"

@@ -90,9 +90,12 @@ struct fsm_timer_entry {
 	unsigned long timeout;          /* in seconds */
 };
 
+extern char * isdn_state_table[];
 
-extern void pcbit_fsm_event(struct pcbit_dev *, struct pcbit_chan *,
-			    unsigned short event, struct callb_data *);
+void pcbit_fsm_event(struct pcbit_dev *, struct pcbit_chan *,
+		     unsigned short event, struct callb_data *);
+char * strisdnevent(ushort ev);
+
 #endif
 
 

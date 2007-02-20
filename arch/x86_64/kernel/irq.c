@@ -18,6 +18,7 @@
 #include <asm/uaccess.h>
 #include <asm/io_apic.h>
 #include <asm/idle.h>
+#include <asm/smp.h>
 
 atomic_t irq_err_count;
 
@@ -120,9 +121,14 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 
 	if (likely(irq < NR_IRQS))
 		generic_handle_irq(irq);
-	else if (printk_ratelimit())
-		printk(KERN_EMERG "%s: %d.%d No irq handler for vector\n",
-			__func__, smp_processor_id(), vector);
+	else {
+		if (!disable_apic)
+			ack_APIC_irq();
+
+		if (printk_ratelimit())
+			printk(KERN_EMERG "%s: %d.%d No irq handler for vector\n",
+				__func__, smp_processor_id(), vector);
+	}
 
 	irq_exit();
 

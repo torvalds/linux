@@ -44,6 +44,7 @@
 #include <linux/vfs.h>
 #include <linux/inet.h>
 #include <linux/nfs_xdr.h>
+#include <linux/magic.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -81,7 +82,7 @@ struct file_system_type nfs_xdev_fs_type = {
 	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
 
-static struct super_operations nfs_sops = {
+static const struct super_operations nfs_sops = {
 	.alloc_inode	= nfs_alloc_inode,
 	.destroy_inode	= nfs_destroy_inode,
 	.write_inode	= nfs_write_inode,
@@ -125,7 +126,7 @@ struct file_system_type nfs4_referral_fs_type = {
 	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
 
-static struct super_operations nfs4_sops = {
+static const struct super_operations nfs4_sops = {
 	.alloc_inode	= nfs_alloc_inode,
 	.destroy_inode	= nfs_destroy_inode,
 	.write_inode	= nfs_write_inode,
@@ -1044,7 +1045,7 @@ static int nfs4_referral_get_sb(struct file_system_type *fs_type, int flags,
 		nfs4_fill_super(s);
 	}
 
-	mntroot = nfs4_get_root(s, data->fh);
+	mntroot = nfs4_get_root(s, &mntfh);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;

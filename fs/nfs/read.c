@@ -5,14 +5,6 @@
  *
  * Partial copy of Linus' read cache modifications to fs/nfs/file.c
  * modified for async RPC by okir@monad.swb.de
- *
- * We do an ugly hack here in order to return proper error codes to the
- * user program when a read request failed: since generic_file_read
- * only checks the return value of inode->i_op->readpage() which is always 0
- * for async RPC, we set the error bit of the page to 1 when an error occurs,
- * and make nfs_readpage transmit requests synchronously when encountering this.
- * This is only a small problem, though, since we now retry all operations
- * within the RPC code when root squashing is suspected.
  */
 
 #include <linux/time.h>
@@ -122,93 +114,6 @@ static void nfs_readpage_truncate_uninitialised_page(struct nfs_read_data *data)
 	}
 }
 
-/*
- * Read a page synchronously.
- */
-static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
-		struct page *page)
-{
-	unsigned int	rsize = NFS_SERVER(inode)->rsize;
-	unsigned int	count = PAGE_CACHE_SIZE;
-	int result = -ENOMEM;
-	struct nfs_read_data *rdata;
-
-	rdata = nfs_readdata_alloc(count);
-	if (!rdata)
-		goto out_unlock;
-
-	memset(rdata, 0, sizeof(*rdata));
-	rdata->flags = (IS_SWAPFILE(inode)? NFS_RPC_SWAPFLAGS : 0);
-	rdata->cred = ctx->cred;
-	rdata->inode = inode;
-	INIT_LIST_HEAD(&rdata->pages);
-	rdata->args.fh = NFS_FH(inode);
-	rdata->args.context = ctx;
-	rdata->args.pages = &page;
-	rdata->args.pgbase = 0UL;
-	rdata->args.count = rsize;
-	rdata->res.fattr = &rdata->fattr;
-
-	dprintk("NFS: nfs_readpage_sync(%p)\n", page);
-
-	/*
-	 * This works now because the socket layer never tries to DMA
-	 * into this buffer directly.
-	 */
-	do {
-		if (count < rsize)
-			rdata->args.count = count;
-		rdata->res.count = rdata->args.count;
-		rdata->args.offset = page_offset(page) + rdata->args.pgbase;
-
-		dprintk("NFS: nfs_proc_read(%s, (%s/%Ld), %Lu, %u)\n",
-			NFS_SERVER(inode)->nfs_client->cl_hostname,
-			inode->i_sb->s_id,
-			(long long)NFS_FILEID(inode),
-			(unsigned long long)rdata->args.pgbase,
-			rdata->args.count);
-
-		lock_kernel();
-		result = NFS_PROTO(inode)->read(rdata);
-		unlock_kernel();
-
-		/*
-		 * Even if we had a partial success we can't mark the page
-		 * cache valid.
-		 */
-		if (result < 0) {
-			if (result == -EISDIR)
-				result = -EINVAL;
-			goto io_error;
-		}
-		count -= result;
-		rdata->args.pgbase += result;
-		nfs_add_stats(inode, NFSIOS_SERVERREADBYTES, result);
-
-		/* Note: result == 0 should only happen if we're caching
-		 * a write that extends the file and punches a hole.
-		 */
-		if (rdata->res.eof != 0 || result == 0)
-			break;
-	} while (count);
-	spin_lock(&inode->i_lock);
-	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
-	spin_unlock(&inode->i_lock);
-
-	if (rdata->res.eof || rdata->res.count == rdata->args.count) {
-		SetPageUptodate(page);
-		if (rdata->res.eof && count != 0)
-			memclear_highpage_flush(page, rdata->args.pgbase, count);
-	}
-	result = 0;
-
-io_error:
-	nfs_readdata_free(rdata);
-out_unlock:
-	unlock_page(page);
-	return result;
-}
-
 static int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 		struct page *page)
 {
@@ -278,7 +183,7 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 
 	data->task.tk_cookie = (unsigned long)inode;
 
-	dprintk("NFS: %4d initiated read call (req %s/%Ld, %u bytes @ offset %Lu)\n",
+	dprintk("NFS: %5u initiated read call (req %s/%Ld, %u bytes @ offset %Lu)\n",
 			data->task.tk_pid,
 			inode->i_sb->s_id,
 			(long long)NFS_FILEID(inode),
@@ -452,7 +357,7 @@ int nfs_readpage_result(struct rpc_task *task, struct nfs_read_data *data)
 {
 	int status;
 
-	dprintk("%s: %4d, (status %d)\n", __FUNCTION__, task->tk_pid,
+	dprintk("NFS: %s: %5u, (status %d)\n", __FUNCTION__, task->tk_pid,
 			task->tk_status);
 
 	status = NFS_PROTO(data->inode)->read_done(task, data);
@@ -621,15 +526,9 @@ int nfs_readpage(struct file *file, struct page *page)
 	} else
 		ctx = get_nfs_open_context((struct nfs_open_context *)
 				file->private_data);
-	if (!IS_SYNC(inode)) {
-		error = nfs_readpage_async(ctx, inode, page);
-		goto out;
-	}
 
-	error = nfs_readpage_sync(ctx, inode, page);
-	if (error < 0 && IS_SWAPFILE(inode))
-		printk("Aiee.. nfs swap-in of page failed!\n");
-out:
+	error = nfs_readpage_async(ctx, inode, page);
+
 	put_nfs_open_context(ctx);
 	return error;
 

@@ -14,7 +14,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/sockios.h>
@@ -56,7 +55,7 @@ void ax25_frames_acked(ax25_cb *ax25, unsigned short nr)
 	 */
 	if (ax25->va != nr) {
 		while (skb_peek(&ax25->ack_queue) != NULL && ax25->va != nr) {
-		        skb = skb_dequeue(&ax25->ack_queue);
+			skb = skb_dequeue(&ax25->ack_queue);
 			kfree_skb(skb);
 			ax25->va = (ax25->va + 1) % ax25->modulus;
 		}
@@ -65,7 +64,7 @@ void ax25_frames_acked(ax25_cb *ax25, unsigned short nr)
 
 void ax25_requeue_frames(ax25_cb *ax25)
 {
-        struct sk_buff *skb, *skb_prev = NULL;
+	struct sk_buff *skb, *skb_prev = NULL;
 
 	/*
 	 * Requeue all the un-ack-ed frames on the output queue to be picked

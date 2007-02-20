@@ -124,6 +124,10 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	if (get_property(np, "clock-frequency", NULL) == NULL)
 		return -1;
 
+	/* if rtas uses this device, don't try to use it as well */
+	if (get_property(np, "used-by-rtas", NULL) != NULL)
+		return -1;
+
 	/* Get the address */
 	addrp = of_get_address(soc_dev, 0, NULL, NULL);
 	if (addrp == NULL)
@@ -334,6 +338,17 @@ void __init find_legacy_serial_ports(void)
 		of_node_put(tsi);
 	}
 
+	/* First fill our array with opb bus ports */
+	for (np = NULL; (np = of_find_compatible_node(np, "serial", "ns16750")) != NULL;) {
+		struct device_node *opb = of_get_parent(np);
+		if (opb && !strcmp(opb->type, "opb")) {
+			index = add_legacy_soc_port(np, np);
+			if (index >= 0 && np == stdout)
+				legacy_serial_console = index;
+		}
+		of_node_put(opb);
+	}
+
 #ifdef CONFIG_PCI
 	/* Next, try to locate PCI ports */
 	for (np = NULL; (np = of_find_all_nodes(np));) {
@@ -498,7 +513,7 @@ static int __init check_legacy_serial_console(void)
 	DBG(" -> check_legacy_serial_console()\n");
 
 	/* The user has requested a console so this is already set up. */
-	if (strstr(saved_command_line, "console=")) {
+	if (strstr(boot_command_line, "console=")) {
 		DBG(" console was specified !\n");
 		return -EBUSY;
 	}

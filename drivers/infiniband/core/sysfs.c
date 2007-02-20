@@ -714,8 +714,6 @@ int ib_device_register_sysfs(struct ib_device *device)
 		if (ret)
 			goto err_put;
 	} else {
-		int i;
-
 		for (i = 1; i <= device->phys_port_cnt; ++i) {
 			ret = add_port(device, i);
 			if (ret)

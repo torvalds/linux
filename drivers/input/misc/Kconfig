@@ -50,6 +50,16 @@ config INPUT_WISTRON_BTNS
 	  To compile this driver as a module, choose M here: the module will
 	  be called wistron_btns.
 
+config INPUT_ATLAS_BTNS
+	tristate "x86 Atlas button interface"
+	depends on X86 && ACPI
+	help
+	  Say Y here for support of Atlas wallmount touchscreen buttons.
+	  The events will show up as scancodes F1 through F9 via evdev.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called atlas_btns.
+
 config INPUT_IXP4XX_BEEPER
 	tristate "IXP4XX Beeper support"
 	depends on ARCH_IXP4XX

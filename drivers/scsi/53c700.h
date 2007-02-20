@@ -203,7 +203,7 @@ struct NCR_700_Host_Parameters {
 	__u32	force_le_on_be:1;
 #endif
 	__u32	chip710:1;	/* set if really a 710 not 700 */
-	__u32	burst_disable:1;	/* set to 1 to disable 710 bursting */
+	__u32	burst_length:4;	/* set to 0 to disable 710 bursting */
 
 	/* NOTHING BELOW HERE NEEDS ALTERING */
 	__u32	fast:1;		/* if we can alter the SCSI bus clock

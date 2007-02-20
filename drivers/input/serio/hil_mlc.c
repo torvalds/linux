@@ -59,7 +59,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
-#include <linux/sched.h>
 #include <linux/list.h>
 
 MODULE_AUTHOR("Brian S. Julin <bri@calyx.com>");

@@ -1,4 +1,4 @@
-/* 
+/*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
 
@@ -12,13 +12,13 @@
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
    IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
+   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
+   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS,
+   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS
    SOFTWARE IS DISCLAIMED.
 */
 
@@ -30,7 +30,6 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/fcntl.h>
@@ -170,7 +169,7 @@ static int hci_sock_release(struct socket *sock)
 	return 0;
 }
 
-/* Ioctls that require bound socket */ 
+/* Ioctls that require bound socket */
 static inline int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd, unsigned long arg)
 {
 	struct hci_dev *hdev = hci_pi(sk)->hdev;
@@ -348,8 +347,8 @@ static inline void hci_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_
 		put_cmsg(msg, SOL_HCI, HCI_CMSG_TSTAMP, sizeof(tv), &tv);
 	}
 }
- 
-static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock, 
+
+static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 				struct msghdr *msg, size_t len, int flags)
 {
 	int noblock = flags & MSG_DONTWAIT;
@@ -386,7 +385,7 @@ static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	return err ? : copied;
 }
 
-static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock, 
+static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 			    struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
@@ -520,7 +519,7 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname, char
 			*((u32 *) f->event_mask + 0) = uf.event_mask[0];
 			*((u32 *) f->event_mask + 1) = uf.event_mask[1];
 		}
-		break; 
+		break;
 
 	default:
 		err = -ENOPROTOOPT;
@@ -535,7 +534,7 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname, char
 {
 	struct hci_ufilter uf;
 	struct sock *sk = sock->sk;
-	int len, opt; 
+	int len, opt;
 
 	if (get_user(len, optlen))
 		return -EFAULT;
@@ -544,7 +543,7 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname, char
 	case HCI_DATA_DIR:
 		if (hci_pi(sk)->cmsg_mask & HCI_CMSG_DIR)
 			opt = 1;
-		else 
+		else
 			opt = 0;
 
 		if (put_user(opt, optval))
@@ -554,7 +553,7 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname, char
 	case HCI_TIME_STAMP:
 		if (hci_pi(sk)->cmsg_mask & HCI_CMSG_TSTAMP)
 			opt = 1;
-		else 
+		else
 			opt = 0;
 
 		if (put_user(opt, optval))

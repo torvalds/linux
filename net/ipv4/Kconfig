@@ -9,7 +9,7 @@ config IP_MULTICAST
 	  intend to participate in the MBONE, a high bandwidth network on top
 	  of the Internet which carries audio and video broadcasts. More
 	  information about the MBONE is on the WWW at
-	  <http://www-itg.lbl.gov/mbone/>. Information about the multicast
+	  <http://www.savetz.com/mbone/>. Information about the multicast
 	  capabilities of the various network cards is contained in
 	  <file:Documentation/networking/multicast.txt>. For most people, it's
 	  safe to say N.

@@ -162,10 +162,8 @@ static inline u8 DIV_TO_REG(int val)
 }
 #define DIV_FROM_REG(val) (1 << (val))
 
-/* For the SIS5595, we need to keep some data in memory. That
-   data is pointed to by sis5595_list[NR]->data. The structure itself is
-   dynamically allocated, at the time when the new sis5595 client is
-   allocated. */
+/* For each registered chip, we need to keep some data in memory.
+   The structure is dynamically allocated. */
 struct sis5595_data {
 	struct i2c_client client;
 	struct class_device *class_dev;

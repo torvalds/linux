@@ -186,35 +186,6 @@ static int nfs_proc_readlink(struct inode *inode, struct page *page,
 	return status;
 }
 
-static int nfs_proc_read(struct nfs_read_data *rdata)
-{
-	int			flags = rdata->flags;
-	struct inode *		inode = rdata->inode;
-	struct nfs_fattr *	fattr = rdata->res.fattr;
-	struct rpc_message	msg = {
-		.rpc_proc	= &nfs_procedures[NFSPROC_READ],
-		.rpc_argp	= &rdata->args,
-		.rpc_resp	= &rdata->res,
-		.rpc_cred	= rdata->cred,
-	};
-	int			status;
-
-	dprintk("NFS call  read %d @ %Ld\n", rdata->args.count,
-			(long long) rdata->args.offset);
-	nfs_fattr_init(fattr);
-	status = rpc_call_sync(NFS_CLIENT(inode), &msg, flags);
-	if (status >= 0) {
-		nfs_refresh_inode(inode, fattr);
-		/* Emulate the eof flag, which isn't normally needed in NFSv2
-		 * as it is guaranteed to always return the file attributes
-		 */
-		if (rdata->args.offset + rdata->args.count >= fattr->size)
-			rdata->res.eof = 1;
-	}
-	dprintk("NFS reply read: %d\n", status);
-	return status;
-}
-
 static int
 nfs_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		int flags, struct nameidata *nd)
@@ -666,7 +637,6 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.lookup		= nfs_proc_lookup,
 	.access		= NULL,		       /* access */
 	.readlink	= nfs_proc_readlink,
-	.read		= nfs_proc_read,
 	.create		= nfs_proc_create,
 	.remove		= nfs_proc_remove,
 	.unlink_setup	= nfs_proc_unlink_setup,

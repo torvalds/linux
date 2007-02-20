@@ -120,7 +120,6 @@ get_rtc_time(struct rtc_time *rtc_tm)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	local_irq_disable();
 
 	rtc_tm->tm_sec = CMOS_READ(RTC_SECONDS);
 	rtc_tm->tm_min = CMOS_READ(RTC_MINUTES);
@@ -219,7 +218,6 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			BIN_TO_BCD(yrs);
 
 			local_irq_save(flags);
-			local_irq_disable();
 			CMOS_WRITE(yrs, RTC_YEAR);
 			CMOS_WRITE(mon, RTC_MONTH);
 			CMOS_WRITE(day, RTC_DAY_OF_MONTH);

@@ -28,21 +28,21 @@ static void disable_voyagergx_irq(unsigned int irq)
 	unsigned long val;
 	unsigned long mask = 1 << (irq - VOYAGER_IRQ_BASE);
 
-    	pr_debug("disable_voyagergx_irq(%d): mask=%lx\n", irq, mask);
-        val = inl(VOYAGER_INT_MASK);
-        val &= ~mask;
-        outl(val, VOYAGER_INT_MASK);
+	pr_debug("disable_voyagergx_irq(%d): mask=%x\n", irq, mask);
+	val = readl((void __iomem *)VOYAGER_INT_MASK);
+	val &= ~mask;
+	writel(val, (void __iomem *)VOYAGER_INT_MASK);
 }
 
 static void enable_voyagergx_irq(unsigned int irq)
 {
-        unsigned long val;
-        unsigned long mask = 1 << (irq - VOYAGER_IRQ_BASE);
+	unsigned long val;
+	unsigned long mask = 1 << (irq - VOYAGER_IRQ_BASE);
 
-        pr_debug("disable_voyagergx_irq(%d): mask=%lx\n", irq, mask);
-        val = inl(VOYAGER_INT_MASK);
-        val |= mask;
-        outl(val, VOYAGER_INT_MASK);
+	pr_debug("disable_voyagergx_irq(%d): mask=%x\n", irq, mask);
+	val = readl((void __iomem *)VOYAGER_INT_MASK);
+	val |= mask;
+	writel(val, (void __iomem *)VOYAGER_INT_MASK);
 }
 
 static void mask_and_ack_voyagergx(unsigned int irq)
@@ -68,20 +68,20 @@ static void shutdown_voyagergx_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type voyagergx_irq_type = {
-	.typename = "VOYAGERGX-IRQ",
-	.startup = startup_voyagergx_irq,
-	.shutdown = shutdown_voyagergx_irq,
-	.enable = enable_voyagergx_irq,
-	.disable = disable_voyagergx_irq,
-	.ack = mask_and_ack_voyagergx,
-	.end = end_voyagergx_irq,
+	.typename	= "VOYAGERGX-IRQ",
+	.startup	= startup_voyagergx_irq,
+	.shutdown	= shutdown_voyagergx_irq,
+	.enable		= enable_voyagergx_irq,
+	.disable	= disable_voyagergx_irq,
+	.ack		= mask_and_ack_voyagergx,
+	.end		= end_voyagergx_irq,
 };
 
 static irqreturn_t voyagergx_interrupt(int irq, void *dev_id)
 {
 	printk(KERN_INFO
 	       "VoyagerGX: spurious interrupt, status: 0x%x\n",
-	       		inl(INT_STATUS));
+			(unsigned int)readl((void __iomem *)INT_STATUS));
 	return IRQ_HANDLED;
 }
 
@@ -93,13 +93,13 @@ static struct {
 void voyagergx_register_irq_demux(int irq,
 		int (*demux)(int irq, void *dev), void *dev)
 {
-    	voyagergx_demux[irq - VOYAGER_IRQ_BASE].func = demux;
-    	voyagergx_demux[irq - VOYAGER_IRQ_BASE].dev = dev;
+	voyagergx_demux[irq - VOYAGER_IRQ_BASE].func = demux;
+	voyagergx_demux[irq - VOYAGER_IRQ_BASE].dev = dev;
 }
 
 void voyagergx_unregister_irq_demux(int irq)
 {
-    	voyagergx_demux[irq - VOYAGER_IRQ_BASE].func = 0;
+	voyagergx_demux[irq - VOYAGER_IRQ_BASE].func = 0;
 }
 
 int voyagergx_irq_demux(int irq)
@@ -107,31 +107,25 @@ int voyagergx_irq_demux(int irq)
 
 	if (irq == IRQ_VOYAGER ) {
 		unsigned long i = 0, bit __attribute__ ((unused));
-		unsigned long val  = inl(INT_STATUS);
-#if 1
-		if ( val & ( 1 << 1 )){
+		unsigned long val  = readl((void __iomem *)INT_STATUS);
+
+		if (val & (1 << 1))
 			i = 1;
-		} else if ( val & ( 1 << 2 )){
+		else if (val & (1 << 2))
 			i = 2;
-		} else if ( val & ( 1 << 6 )){
+		else if (val & (1 << 6))
 			i = 6;
-		} else if( val & ( 1 << 10 )){
+		else if (val & (1 << 10))
 			i = 10;
-		} else if( val & ( 1 << 11 )){
+		else if (val & (1 << 11))
 			i = 11;
-		} else if( val & ( 1 << 12 )){
+		else if (val & (1 << 12))
 			i = 12;
-		} else if( val & ( 1 << 17 )){
+		else if (val & (1 << 17))
 			i = 17;
-		} else {
+		else
 			printk("Unexpected IRQ irq = %d status = 0x%08lx\n", irq, val);
-		}
-		pr_debug("voyagergx_irq_demux %ld\n", i);
-#else
-		for (bit = 1, i = 0 ; i < VOYAGER_IRQ_NUM ; bit <<= 1, i++)
-			if (val & bit)
-				break;
-#endif
+		pr_debug("voyagergx_irq_demux %d \n", i);
     	    	if (i < VOYAGER_IRQ_NUM) {
 			irq = VOYAGER_IRQ_BASE + i;
     	    		if (voyagergx_demux[i].func != 0)

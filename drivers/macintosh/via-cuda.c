@@ -13,7 +13,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/spinlock.h>
@@ -86,7 +85,7 @@ static int data_index;
 #ifdef CONFIG_PPC
 static struct device_node *vias;
 #endif
-static int cuda_fully_inited = 0;
+static int cuda_fully_inited;
 
 #ifdef CONFIG_ADB
 static int cuda_probe(void);

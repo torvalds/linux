@@ -1,12 +1,12 @@
 /*
- *	Linux NET3:	Multicast List maintenance. 
+ *	Linux NET3:	Multicast List maintenance.
  *
  *	Authors:
- *		Tim Kordas <tjk@nostromo.eeap.cwru.edu> 
+ *		Tim Kordas <tjk@nostromo.eeap.cwru.edu>
  *		Richard Underwood <richard@wuzz.demon.co.uk>
  *
  *	Stir fried together from the IP multicast and CAP patches above
- *		Alan Cox <Alan.Cox@linux.org>	
+ *		Alan Cox <Alan.Cox@linux.org>
  *
  *	Fixes:
  *		Alan Cox	:	Update the device on a real delete
@@ -27,7 +27,6 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -50,11 +49,11 @@
 
 
 /*
- *	Device multicast list maintenance. 
+ *	Device multicast list maintenance.
  *
- *	This is used both by IP and by the user level maintenance functions. 
- *	Unlike BSD we maintain a usage count on a given multicast address so 
- *	that a casual user application can add/delete multicasts used by 
+ *	This is used both by IP and by the user level maintenance functions.
+ *	Unlike BSD we maintain a usage count on a given multicast address so
+ *	that a casual user application can add/delete multicasts used by
  *	protocols without doing damage to the protocols when it deletes the
  *	entries. It also helps IP as it tracks overlapping maps.
  *
@@ -67,7 +66,7 @@
 /*
  *	Update the multicast list into the physical NIC controller.
  */
- 
+
 static void __dev_mc_upload(struct net_device *dev)
 {
 	/* Don't do anything till we up the interface
@@ -100,7 +99,7 @@ void dev_mc_upload(struct net_device *dev)
 /*
  *	Delete a device level multicast
  */
- 
+
 int dev_mc_delete(struct net_device *dev, void *addr, int alen, int glbl)
 {
 	int err = 0;
@@ -137,7 +136,7 @@ int dev_mc_delete(struct net_device *dev, void *addr, int alen, int glbl)
 			 *	loaded filter is now wrong. Fix it
 			 */
 			__dev_mc_upload(dev);
-			
+
 			netif_tx_unlock_bh(dev);
 			return 0;
 		}
@@ -151,7 +150,7 @@ done:
 /*
  *	Add a device level multicast
  */
- 
+
 int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
 {
 	int err = 0;
@@ -187,7 +186,7 @@ int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
 	dev->mc_count++;
 
 	__dev_mc_upload(dev);
-	
+
 	netif_tx_unlock_bh(dev);
 	return 0;
 
@@ -204,7 +203,7 @@ done:
 void dev_mc_discard(struct net_device *dev)
 {
 	netif_tx_lock_bh(dev);
-	
+
 	while (dev->mc_list != NULL) {
 		struct dev_mc_list *tmp = dev->mc_list;
 		dev->mc_list = tmp->next;
@@ -225,7 +224,7 @@ static void *dev_mc_seq_start(struct seq_file *seq, loff_t *pos)
 
 	read_lock(&dev_base_lock);
 	for (dev = dev_base; dev; dev = dev->next) {
-		if (off++ == *pos) 
+		if (off++ == *pos)
 			return dev;
 	}
 	return NULL;
@@ -277,7 +276,7 @@ static int dev_mc_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &dev_mc_seq_ops);
 }
 
-static struct file_operations dev_mc_seq_fops = {
+static const struct file_operations dev_mc_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = dev_mc_seq_open,
 	.read    = seq_read,

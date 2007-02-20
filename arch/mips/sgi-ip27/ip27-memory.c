@@ -21,6 +21,7 @@
 #include <linux/pfn.h>
 #include <linux/highmem.h>
 #include <asm/page.h>
+#include <asm/pgalloc.h>
 #include <asm/sections.h>
 
 #include <asm/sn/arch.h>
@@ -498,13 +499,11 @@ void __init prom_meminit(void)
 	}
 }
 
-unsigned long __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
 	/* We got nothing to free here ...  */
-	return 0;
 }
 
-extern void pagetable_init(void);
 extern unsigned long setup_zero_pages(void);
 
 void __init paging_init(void)

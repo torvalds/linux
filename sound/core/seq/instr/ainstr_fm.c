@@ -20,7 +20,6 @@
  
 #include <sound/driver.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <sound/core.h>
 #include <sound/ainstr_fm.h>
 #include <sound/initval.h>

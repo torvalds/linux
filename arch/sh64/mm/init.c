@@ -118,10 +118,7 @@ void __init paging_init(void)
 
 	mmu_context_cache = MMU_CONTEXT_FIRST_VERSION;
 
-        /*
-	 * All memory is good as ZONE_NORMAL (fall-through) and ZONE_DMA.
-         */
-	zones_size[ZONE_DMA] = MAX_LOW_PFN - START_PFN;
+	zones_size[ZONE_NORMAL] = MAX_LOW_PFN - START_PFN;
 	NODE_DATA(0)->node_mem_map = NULL;
 	free_area_init_node(0, NODE_DATA(0), zones_size, __MEMORY_START >> PAGE_SHIFT, 0);
 }

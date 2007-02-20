@@ -1,3 +1,6 @@
+#ifndef _MAPPI3_PLD_H
+#define _MAPPI3_PLD_H
+
 /*
  * include/asm-m32r/mappi3/mappi3_pld.h
  *
@@ -7,11 +10,7 @@
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file "COPYING" in the main directory of
  * this archive for more details.
- *
  */
-
-#ifndef _MAPPI3_PLD_H
-#define _MAPPI3_PLD_H
 
 #ifndef __ASSEMBLY__
 /* FIXME:
@@ -26,7 +25,7 @@
 #define __reg8
 #define __reg16
 #define __reg32
-#endif	/* __ASSEMBLY__ */
+#endif /* __ASSEMBLY__ */
 
 /* CFC */
 #define	PLD_CFRSTCR		__reg16(PLD_BASE + 0x0000)
@@ -140,4 +139,4 @@
 /* Reset Control */
 #define PLD_REBOOT		__reg16(PLD_BASE + 0x38000)
 
-#endif	/* _MAPPI3_PLD.H */
+#endif /* _MAPPI3_PLD.H */

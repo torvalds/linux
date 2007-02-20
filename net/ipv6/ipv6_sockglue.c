@@ -1,9 +1,9 @@
 /*
  *	IPv6 BSD socket options interface
- *	Linux INET6 implementation 
+ *	Linux INET6 implementation
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	Based on linux/net/ipv4/ip_sockglue.c
  *
@@ -31,7 +31,6 @@
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
-#include <linux/sched.h>
 #include <linux/net.h>
 #include <linux/in6.h>
 #include <linux/netdevice.h>
@@ -164,7 +163,7 @@ out:
 }
 
 static struct packet_type ipv6_packet_type = {
-	.type = __constant_htons(ETH_P_IPV6), 
+	.type = __constant_htons(ETH_P_IPV6),
 	.func = ipv6_rcv,
 	.gso_send_check = ipv6_gso_send_check,
 	.gso_segment = ipv6_gso_segment,
@@ -320,7 +319,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		np->rxopt.bits.rxinfo = valbool;
 		retv = 0;
 		break;
-		
+
 	case IPV6_2292PKTINFO:
 		np->rxopt.bits.rxoinfo = valbool;
 		retv = 0;
@@ -376,7 +375,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		np->tclass = val;
 		retv = 0;
 		break;
-		
+
 	case IPV6_RECVTCLASS:
 		np->rxopt.bits.rxtclass = valbool;
 		retv = 0;
@@ -893,7 +892,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	case IPV6_MTU:
 	{
 		struct dst_entry *dst;
-		val = 0;	
+		val = 0;
 		lock_sock(sk);
 		dst = sk_dst_get(sk);
 		if (dst) {

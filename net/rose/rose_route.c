@@ -12,7 +12,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/sockios.h>
@@ -66,7 +65,7 @@ static int __must_check rose_add_node(struct rose_route_struct *rose_route,
 	while (rose_node != NULL) {
 		if ((rose_node->mask == rose_route->mask) &&
 		    (rosecmpm(&rose_route->address, &rose_node->address,
-		              rose_route->mask) == 0))
+			      rose_route->mask) == 0))
 			break;
 		rose_node = rose_node->next;
 	}
@@ -300,7 +299,7 @@ static int rose_del_node(struct rose_route_struct *rose_route,
 	while (rose_node != NULL) {
 		if ((rose_node->mask == rose_route->mask) &&
 		    (rosecmpm(&rose_route->address, &rose_node->address,
-		              rose_route->mask) == 0))
+			      rose_route->mask) == 0))
 			break;
 		rose_node = rose_node->next;
 	}
@@ -1070,7 +1069,7 @@ static void *rose_node_start(struct seq_file *seq, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for (rose_node = rose_node_list; rose_node && i < *pos; 
+	for (rose_node = rose_node_list; rose_node && i < *pos;
 	     rose_node = rose_node->next, ++i);
 
 	return (i == *pos) ? rose_node : NULL;
@@ -1079,8 +1078,8 @@ static void *rose_node_start(struct seq_file *seq, loff_t *pos)
 static void *rose_node_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
-	
-	return (v == SEQ_START_TOKEN) ? rose_node_list 
+
+	return (v == SEQ_START_TOKEN) ? rose_node_list
 		: ((struct rose_node *)v)->next;
 }
 
@@ -1129,7 +1128,7 @@ static int rose_nodes_open(struct inode *inode, struct file *file)
 	return seq_open(file, &rose_node_seqops);
 }
 
-struct file_operations rose_nodes_fops = {
+const struct file_operations rose_nodes_fops = {
 	.owner = THIS_MODULE,
 	.open = rose_nodes_open,
 	.read = seq_read,
@@ -1146,7 +1145,7 @@ static void *rose_neigh_start(struct seq_file *seq, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for (rose_neigh = rose_neigh_list; rose_neigh && i < *pos; 
+	for (rose_neigh = rose_neigh_list; rose_neigh && i < *pos;
 	     rose_neigh = rose_neigh->next, ++i);
 
 	return (i == *pos) ? rose_neigh : NULL;
@@ -1155,8 +1154,8 @@ static void *rose_neigh_start(struct seq_file *seq, loff_t *pos)
 static void *rose_neigh_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
-	
-	return (v == SEQ_START_TOKEN) ? rose_neigh_list 
+
+	return (v == SEQ_START_TOKEN) ? rose_neigh_list
 		: ((struct rose_neigh *)v)->next;
 }
 
@@ -1171,7 +1170,7 @@ static int rose_neigh_show(struct seq_file *seq, void *v)
 	int i;
 
 	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, 
+		seq_puts(seq,
 			 "addr  callsign  dev  count use mode restart  t0  tf digipeaters\n");
 	else {
 		struct rose_neigh *rose_neigh = v;
@@ -1211,7 +1210,7 @@ static int rose_neigh_open(struct inode *inode, struct file *file)
 	return seq_open(file, &rose_neigh_seqops);
 }
 
-struct file_operations rose_neigh_fops = {
+const struct file_operations rose_neigh_fops = {
 	.owner = THIS_MODULE,
 	.open = rose_neigh_open,
 	.read = seq_read,
@@ -1229,7 +1228,7 @@ static void *rose_route_start(struct seq_file *seq, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for (rose_route = rose_route_list; rose_route && i < *pos; 
+	for (rose_route = rose_route_list; rose_route && i < *pos;
 	     rose_route = rose_route->next, ++i);
 
 	return (i == *pos) ? rose_route : NULL;
@@ -1238,8 +1237,8 @@ static void *rose_route_start(struct seq_file *seq, loff_t *pos)
 static void *rose_route_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
-	
-	return (v == SEQ_START_TOKEN) ? rose_route_list 
+
+	return (v == SEQ_START_TOKEN) ? rose_route_list
 		: ((struct rose_route *)v)->next;
 }
 
@@ -1253,30 +1252,30 @@ static int rose_route_show(struct seq_file *seq, void *v)
 	char buf[11];
 
 	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, 
+		seq_puts(seq,
 			 "lci  address     callsign   neigh  <-> lci  address     callsign   neigh\n");
 	else {
 		struct rose_route *rose_route = v;
 
-		if (rose_route->neigh1) 
+		if (rose_route->neigh1)
 			seq_printf(seq,
 				   "%3.3X  %-10s  %-9s  %05d      ",
 				   rose_route->lci1,
 				   rose2asc(&rose_route->src_addr),
 				   ax2asc(buf, &rose_route->src_call),
 				   rose_route->neigh1->number);
-		else 
-			seq_puts(seq, 
+		else
+			seq_puts(seq,
 				 "000  *           *          00000      ");
 
-		if (rose_route->neigh2) 
+		if (rose_route->neigh2)
 			seq_printf(seq,
 				   "%3.3X  %-10s  %-9s  %05d\n",
 				rose_route->lci2,
 				rose2asc(&rose_route->dest_addr),
 				ax2asc(buf, &rose_route->dest_call),
 				rose_route->neigh2->number);
-		 else 
+		 else
 			 seq_puts(seq,
 				  "000  *           *          00000\n");
 		}
@@ -1295,7 +1294,7 @@ static int rose_route_open(struct inode *inode, struct file *file)
 	return seq_open(file, &rose_route_seqops);
 }
 
-struct file_operations rose_routes_fops = {
+const struct file_operations rose_routes_fops = {
 	.owner = THIS_MODULE,
 	.open = rose_route_open,
 	.read = seq_read,

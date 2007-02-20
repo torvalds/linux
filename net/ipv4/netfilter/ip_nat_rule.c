@@ -86,7 +86,7 @@ static struct
     }
 };
 
-static struct ipt_table nat_table = {
+static struct xt_table nat_table = {
 	.name		= "nat",
 	.valid_hooks	= NAT_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
@@ -99,7 +99,7 @@ static unsigned int ipt_snat_target(struct sk_buff **pskb,
 				    const struct net_device *in,
 				    const struct net_device *out,
 				    unsigned int hooknum,
-				    const struct ipt_target *target,
+				    const struct xt_target *target,
 				    const void *targinfo)
 {
 	struct ip_conntrack *ct;
@@ -112,7 +112,7 @@ static unsigned int ipt_snat_target(struct sk_buff **pskb,
 
 	/* Connection must be valid and new. */
 	IP_NF_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED
-	                    || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
+			    || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
 	IP_NF_ASSERT(out);
 
 	return ip_nat_setup_info(ct, &mr->range[0], hooknum);
@@ -141,7 +141,7 @@ static unsigned int ipt_dnat_target(struct sk_buff **pskb,
 				    const struct net_device *in,
 				    const struct net_device *out,
 				    unsigned int hooknum,
-				    const struct ipt_target *target,
+				    const struct xt_target *target,
 				    const void *targinfo)
 {
 	struct ip_conntrack *ct;
@@ -166,7 +166,7 @@ static unsigned int ipt_dnat_target(struct sk_buff **pskb,
 
 static int ipt_snat_checkentry(const char *tablename,
 			       const void *entry,
-			       const struct ipt_target *target,
+			       const struct xt_target *target,
 			       void *targinfo,
 			       unsigned int hook_mask)
 {
@@ -182,7 +182,7 @@ static int ipt_snat_checkentry(const char *tablename,
 
 static int ipt_dnat_checkentry(const char *tablename,
 			       const void *entry,
-			       const struct ipt_target *target,
+			       const struct xt_target *target,
 			       void *targinfo,
 			       unsigned int hook_mask)
 {
@@ -191,6 +191,10 @@ static int ipt_dnat_checkentry(const char *tablename,
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
 		printk("DNAT: multiple ranges no longer supported\n");
+		return 0;
+	}
+	if (mr->range[0].flags & IP_NAT_RANGE_PROTO_RANDOM) {
+		printk("DNAT: port randomization not supported\n");
 		return 0;
 	}
 	return 1;
@@ -219,8 +223,8 @@ alloc_null_binding(struct ip_conntrack *conntrack,
 
 unsigned int
 alloc_null_binding_confirmed(struct ip_conntrack *conntrack,
-                             struct ip_nat_info *info,
-                             unsigned int hooknum)
+			     struct ip_nat_info *info,
+			     unsigned int hooknum)
 {
 	__be32 ip
 		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC
@@ -257,8 +261,9 @@ int ip_nat_rule_find(struct sk_buff **pskb,
 	return ret;
 }
 
-static struct ipt_target ipt_snat_reg = {
+static struct xt_target ipt_snat_reg = {
 	.name		= "SNAT",
+	.family		= AF_INET,
 	.target		= ipt_snat_target,
 	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
 	.table		= "nat",
@@ -266,8 +271,9 @@ static struct ipt_target ipt_snat_reg = {
 	.checkentry	= ipt_snat_checkentry,
 };
 
-static struct ipt_target ipt_dnat_reg = {
+static struct xt_target ipt_dnat_reg = {
 	.name		= "DNAT",
+	.family		= AF_INET,
 	.target		= ipt_dnat_target,
 	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
 	.table		= "nat",
@@ -282,27 +288,27 @@ int __init ip_nat_rule_init(void)
 	ret = ipt_register_table(&nat_table, &nat_initial_table.repl);
 	if (ret != 0)
 		return ret;
-	ret = ipt_register_target(&ipt_snat_reg);
+	ret = xt_register_target(&ipt_snat_reg);
 	if (ret != 0)
 		goto unregister_table;
 
-	ret = ipt_register_target(&ipt_dnat_reg);
+	ret = xt_register_target(&ipt_dnat_reg);
 	if (ret != 0)
 		goto unregister_snat;
 
 	return ret;
 
  unregister_snat:
-	ipt_unregister_target(&ipt_snat_reg);
+	xt_unregister_target(&ipt_snat_reg);
  unregister_table:
-	ipt_unregister_table(&nat_table);
+	xt_unregister_table(&nat_table);
 
 	return ret;
 }
 
 void ip_nat_rule_cleanup(void)
 {
-	ipt_unregister_target(&ipt_dnat_reg);
-	ipt_unregister_target(&ipt_snat_reg);
+	xt_unregister_target(&ipt_dnat_reg);
+	xt_unregister_target(&ipt_snat_reg);
 	ipt_unregister_table(&nat_table);
 }

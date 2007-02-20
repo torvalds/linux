@@ -56,7 +56,7 @@ static const unsigned char days_in_month[] =
 
 int pcf8563_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
 
-static struct file_operations pcf8563_fops = {
+static const struct file_operations pcf8563_fops = {
 	.owner = THIS_MODULE,
 	.ioctl = pcf8563_ioctl,
 };
@@ -311,7 +311,7 @@ pcf8563_register(void)
 {
 	pcf8563_init();
 	if (register_chrdev(PCF8563_MAJOR, DEVICE_NAME, &pcf8563_fops) < 0) {
-		printk(KERN_INFO "%s: Unable to get major numer %d for RTC device.\n",
+		printk(KERN_INFO "%s: Unable to get major number %d for RTC device.\n",
 		       PCF8563_NAME, PCF8563_MAJOR);
 		return -1;
 	}

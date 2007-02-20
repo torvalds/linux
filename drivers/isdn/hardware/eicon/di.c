@@ -173,16 +173,16 @@ void pr_out(ADAPTER * a)
         xdi_xlog_request (XDI_A_NR(a), this->Id, this->ReqCh, this->MInd,
                           a->IdTypeTable[this->No]);
         a->ram_out(a, &ReqOut->Req, this->MInd);
-        more = TRUE;
+        more = true;
       }
       else {
         xdi_xlog_request (XDI_A_NR(a), this->Id, this->ReqCh, this->Req,
                           a->IdTypeTable[this->No]);
         this->More |=XMOREF;
         a->ram_out(a, &ReqOut->Req, this->Req);
-        more = FALSE;
+        more = false;
         if (a->FlowControlIdTable[this->ReqCh] == this->Id)
-          a->FlowControlSkipTable[this->ReqCh] = TRUE;
+          a->FlowControlSkipTable[this->ReqCh] = true;
         /*
            Note that remove request was sent to the card
            */
@@ -311,7 +311,7 @@ byte pr_dpc(ADAPTER * a)
         /* are marked RNR                                           */
       if(RNRId && RNRId==a->ram_in(a, &IndIn->IndId)) {
         a->ram_out(a, &IndIn->Ind, 0);
-        a->ram_out(a, &IndIn->RNR, TRUE);
+        a->ram_out(a, &IndIn->RNR, true);
       }
       else {
         Ind = a->ram_in(a, &IndIn->Ind);
@@ -331,7 +331,7 @@ byte pr_dpc(ADAPTER * a)
             dtrc(dprintf("RNR"));
             a->ram_out(a, &IndIn->Ind, 0);
             RNRId = a->ram_in(a, &IndIn->IndId);
-            a->ram_out(a, &IndIn->RNR, TRUE);
+            a->ram_out(a, &IndIn->RNR, true);
           }
         }
       }
@@ -340,7 +340,7 @@ byte pr_dpc(ADAPTER * a)
     }
     a->ram_out(a, &PR_RAM->IndOutput, 0);
   }
-  return FALSE;
+  return false;
 }
 byte scom_test_int(ADAPTER * a)
 {
@@ -399,7 +399,7 @@ byte isdn_rc(ADAPTER * a,
           return (0);
         }
         if (extended_info_type == DIVA_RC_TYPE_REMOVE_COMPLETE)
-          a->RcExtensionSupported = TRUE;
+          a->RcExtensionSupported = true;
       }
       a->misc_flags_table[e_no] &= ~DIVA_MISC_FLAGS_REMOVE_PENDING;
       a->misc_flags_table[e_no] &= ~DIVA_MISC_FLAGS_NO_RC_CANCELLING;
@@ -428,7 +428,7 @@ byte isdn_rc(ADAPTER * a,
     }
     if (Rc==OK_FC) {
       a->FlowControlIdTable[Ch] = Id;
-      a->FlowControlSkipTable[Ch] = FALSE;
+      a->FlowControlSkipTable[Ch] = false;
       this->Rc = Rc;
       this->More &= ~(XBUSY | XMOREC);
       this->complete=0xff;

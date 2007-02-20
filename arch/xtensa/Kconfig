@@ -7,6 +7,10 @@ config FRAME_POINTER
 	bool
 	default n
 
+config ZONE_DMA
+	bool
+	default y
+
 config XTENSA
 	bool
 	default y
@@ -41,6 +45,9 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	bool
 	default n
+
+config NO_IOPORT
+	def_bool y
 
 source "init/Kconfig"
 

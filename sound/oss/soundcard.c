@@ -32,6 +32,7 @@
 #include <linux/ctype.h>
 #include <linux/stddef.h>
 #include <linux/kmod.h>
+#include <linux/kernel.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 #include <linux/wait.h>
@@ -482,7 +483,7 @@ static int sound_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-struct file_operations oss_sound_fops = {
+const struct file_operations oss_sound_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= sound_read,
@@ -557,7 +558,7 @@ static int __init oss_init(void)
 	/* Protecting the innocent */
 	sound_dmap_flag = (dmabuf > 0 ? 1 : 0);
 
-	for (i = 0; i < sizeof (dev_list) / sizeof *dev_list; i++) {
+	for (i = 0; i < ARRAY_SIZE(dev_list); i++) {
 		device_create(sound_class, NULL,
 			      MKDEV(SOUND_MAJOR, dev_list[i].minor),
 			      "%s", dev_list[i].name);
@@ -581,7 +582,7 @@ static void __exit oss_cleanup(void)
 {
 	int i, j;
 
-	for (i = 0; i < sizeof (dev_list) / sizeof *dev_list; i++) {
+	for (i = 0; i < ARRAY_SIZE(dev_list); i++) {
 		device_destroy(sound_class, MKDEV(SOUND_MAJOR, dev_list[i].minor));
 		if (!dev_list[i].num)
 			continue;

@@ -37,6 +37,7 @@ config NETDEBUG
 source "net/packet/Kconfig"
 source "net/unix/Kconfig"
 source "net/xfrm/Kconfig"
+source "net/iucv/Kconfig"
 
 config INET
 	bool "TCP/IP networking"

@@ -948,6 +948,29 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 },
 	/* TODO: add Edirol M-100FX support */
 {
+	/* has ID 0x004e when not in "Advanced Driver" mode */
+	USB_DEVICE(0x0582, 0x004c),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "EDIROL",
+		.product_name = "PCR-A",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+{
 	/* has ID 0x004f when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x004d),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -1098,7 +1121,37 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
-	/* TODO: add Edirol UA-101 support */
+/* Roland UA-101 in High-Speed Mode only */
+{
+	USB_DEVICE(0x0582, 0x007d),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Roland",
+		.product_name = "UA-101",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_EDIROL_UA101
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_EDIROL_UA101
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = & (const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0001,
+					.in_cables  = 0x0001
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
 {
 	/* has ID 0x0081 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0080),

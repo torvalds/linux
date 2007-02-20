@@ -68,7 +68,7 @@ static const struct file_operations befs_dir_operations = {
 	.readdir	= befs_readdir,
 };
 
-static struct inode_operations befs_dir_inode_operations = {
+static const struct inode_operations befs_dir_inode_operations = {
 	.lookup		= befs_lookup,
 };
 
@@ -78,7 +78,7 @@ static const struct address_space_operations befs_aops = {
 	.bmap		= befs_bmap,
 };
 
-static struct inode_operations befs_symlink_inode_operations = {
+static const struct inode_operations befs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= befs_follow_link,
 	.put_link	= befs_put_link,

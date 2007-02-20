@@ -6,7 +6,6 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/blkdev.h>
-#include <linux/sched.h>
 #include <linux/zorro.h>
 
 #include <asm/setup.h>

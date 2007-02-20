@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/security.h>
 
 #define SECURITY_FRAMEWORK_VERSION	"1.0.0"

@@ -28,6 +28,8 @@
 #include <linux/sysdev.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/sched.h> /* for spin_unlock_irq() using preempt_count() m68k */
+#include <linux/tick.h>
 
 /* XXX - Would like a better way for initializing curr_clocksource */
 extern struct clocksource clocksource_jiffies;
@@ -47,6 +49,7 @@ extern struct clocksource clocksource_jiffies;
  */
 static struct clocksource *curr_clocksource = &clocksource_jiffies;
 static struct clocksource *next_clocksource;
+static struct clocksource *clocksource_override;
 static LIST_HEAD(clocksource_list);
 static DEFINE_SPINLOCK(clocksource_lock);
 static char override_name[32];
@@ -61,8 +64,122 @@ static int __init clocksource_done_booting(void)
 	finished_booting = 1;
 	return 0;
 }
-
 late_initcall(clocksource_done_booting);
+
+#ifdef CONFIG_CLOCKSOURCE_WATCHDOG
+static LIST_HEAD(watchdog_list);
+static struct clocksource *watchdog;
+static struct timer_list watchdog_timer;
+static DEFINE_SPINLOCK(watchdog_lock);
+static cycle_t watchdog_last;
+/*
+ * Interval: 0.5sec Treshold: 0.0625s
+ */
+#define WATCHDOG_INTERVAL (HZ >> 1)
+#define WATCHDOG_TRESHOLD (NSEC_PER_SEC >> 4)
+
+static void clocksource_ratewd(struct clocksource *cs, int64_t delta)
+{
+	if (delta > -WATCHDOG_TRESHOLD && delta < WATCHDOG_TRESHOLD)
+		return;
+
+	printk(KERN_WARNING "Clocksource %s unstable (delta = %Ld ns)\n",
+	       cs->name, delta);
+	cs->flags &= ~(CLOCK_SOURCE_VALID_FOR_HRES | CLOCK_SOURCE_WATCHDOG);
+	clocksource_change_rating(cs, 0);
+	cs->flags &= ~CLOCK_SOURCE_WATCHDOG;
+	list_del(&cs->wd_list);
+}
+
+static void clocksource_watchdog(unsigned long data)
+{
+	struct clocksource *cs, *tmp;
+	cycle_t csnow, wdnow;
+	int64_t wd_nsec, cs_nsec;
+
+	spin_lock(&watchdog_lock);
+
+	wdnow = watchdog->read();
+	wd_nsec = cyc2ns(watchdog, (wdnow - watchdog_last) & watchdog->mask);
+	watchdog_last = wdnow;
+
+	list_for_each_entry_safe(cs, tmp, &watchdog_list, wd_list) {
+		csnow = cs->read();
+		/* Initialized ? */
+		if (!(cs->flags & CLOCK_SOURCE_WATCHDOG)) {
+			if ((cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) &&
+			    (watchdog->flags & CLOCK_SOURCE_IS_CONTINUOUS)) {
+				cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
+				/*
+				 * We just marked the clocksource as
+				 * highres-capable, notify the rest of the
+				 * system as well so that we transition
+				 * into high-res mode:
+				 */
+				tick_clock_notify();
+			}
+			cs->flags |= CLOCK_SOURCE_WATCHDOG;
+			cs->wd_last = csnow;
+		} else {
+			cs_nsec = cyc2ns(cs, (csnow - cs->wd_last) & cs->mask);
+			cs->wd_last = csnow;
+			/* Check the delta. Might remove from the list ! */
+			clocksource_ratewd(cs, cs_nsec - wd_nsec);
+		}
+	}
+
+	if (!list_empty(&watchdog_list)) {
+		__mod_timer(&watchdog_timer,
+			    watchdog_timer.expires + WATCHDOG_INTERVAL);
+	}
+	spin_unlock(&watchdog_lock);
+}
+static void clocksource_check_watchdog(struct clocksource *cs)
+{
+	struct clocksource *cse;
+	unsigned long flags;
+
+	spin_lock_irqsave(&watchdog_lock, flags);
+	if (cs->flags & CLOCK_SOURCE_MUST_VERIFY) {
+		int started = !list_empty(&watchdog_list);
+
+		list_add(&cs->wd_list, &watchdog_list);
+		if (!started && watchdog) {
+			watchdog_last = watchdog->read();
+			watchdog_timer.expires = jiffies + WATCHDOG_INTERVAL;
+			add_timer(&watchdog_timer);
+		}
+	} else if (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) {
+			cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
+
+		if (!watchdog || cs->rating > watchdog->rating) {
+			if (watchdog)
+				del_timer(&watchdog_timer);
+			watchdog = cs;
+			init_timer(&watchdog_timer);
+			watchdog_timer.function = clocksource_watchdog;
+
+			/* Reset watchdog cycles */
+			list_for_each_entry(cse, &watchdog_list, wd_list)
+				cse->flags &= ~CLOCK_SOURCE_WATCHDOG;
+			/* Start if list is not empty */
+			if (!list_empty(&watchdog_list)) {
+				watchdog_last = watchdog->read();
+				watchdog_timer.expires =
+					jiffies + WATCHDOG_INTERVAL;
+				add_timer(&watchdog_timer);
+			}
+		}
+	}
+	spin_unlock_irqrestore(&watchdog_lock, flags);
+}
+#else
+static void clocksource_check_watchdog(struct clocksource *cs)
+{
+	if (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS)
+		cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
+}
+#endif
 
 /**
  * clocksource_get_next - Returns the selected clocksource
@@ -83,60 +200,54 @@ struct clocksource *clocksource_get_next(void)
 }
 
 /**
- * select_clocksource - Finds the best registered clocksource.
+ * select_clocksource - Selects the best registered clocksource.
  *
  * Private function. Must hold clocksource_lock when called.
  *
- * Looks through the list of registered clocksources, returning
- * the one with the highest rating value. If there is a clocksource
- * name that matches the override string, it returns that clocksource.
+ * Select the clocksource with the best rating, or the clocksource,
+ * which is selected by userspace override.
  */
 static struct clocksource *select_clocksource(void)
 {
-	struct clocksource *best = NULL;
-	struct list_head *tmp;
+	struct clocksource *next;
 
-	list_for_each(tmp, &clocksource_list) {
-		struct clocksource *src;
+	if (list_empty(&clocksource_list))
+		return NULL;
 
-		src = list_entry(tmp, struct clocksource, list);
-		if (!best)
-			best = src;
+	if (clocksource_override)
+		next = clocksource_override;
+	else
+		next = list_entry(clocksource_list.next, struct clocksource,
+				  list);
 
-		/* check for override: */
-		if (strlen(src->name) == strlen(override_name) &&
-		    !strcmp(src->name, override_name)) {
-			best = src;
-			break;
-		}
-		/* pick the highest rating: */
-		if (src->rating > best->rating)
-		 	best = src;
-	}
+	if (next == curr_clocksource)
+		return NULL;
 
-	return best;
+	return next;
 }
 
-/**
- * is_registered_source - Checks if clocksource is registered
- * @c:		pointer to a clocksource
- *
- * Private helper function. Must hold clocksource_lock when called.
- *
- * Returns one if the clocksource is already registered, zero otherwise.
+/*
+ * Enqueue the clocksource sorted by rating
  */
-static int is_registered_source(struct clocksource *c)
+static int clocksource_enqueue(struct clocksource *c)
 {
-	int len = strlen(c->name);
-	struct list_head *tmp;
+	struct list_head *tmp, *entry = &clocksource_list;
 
 	list_for_each(tmp, &clocksource_list) {
-		struct clocksource *src;
+		struct clocksource *cs;
 
-		src = list_entry(tmp, struct clocksource, list);
-		if (strlen(src->name) == len &&	!strcmp(src->name, c->name))
-			return 1;
+		cs = list_entry(tmp, struct clocksource, list);
+		if (cs == c)
+			return -EBUSY;
+		/* Keep track of the place, where to insert */
+		if (cs->rating >= c->rating)
+			entry = tmp;
 	}
+	list_add(&c->list, entry);
+
+	if (strlen(c->name) == strlen(override_name) &&
+	    !strcmp(c->name, override_name))
+		clocksource_override = c;
 
 	return 0;
 }
@@ -149,42 +260,35 @@ static int is_registered_source(struct clocksource *c)
  */
 int clocksource_register(struct clocksource *c)
 {
-	int ret = 0;
 	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&clocksource_lock, flags);
-	/* check if clocksource is already registered */
-	if (is_registered_source(c)) {
-		printk("register_clocksource: Cannot register %s. "
-		       "Already registered!", c->name);
-		ret = -EBUSY;
-	} else {
-		/* register it */
- 		list_add(&c->list, &clocksource_list);
-		/* scan the registered clocksources, and pick the best one */
+	ret = clocksource_enqueue(c);
+	if (!ret)
 		next_clocksource = select_clocksource();
-	}
 	spin_unlock_irqrestore(&clocksource_lock, flags);
+	if (!ret)
+		clocksource_check_watchdog(c);
 	return ret;
 }
 EXPORT_SYMBOL(clocksource_register);
 
 /**
- * clocksource_reselect - Rescan list for next clocksource
+ * clocksource_change_rating - Change the rating of a registered clocksource
  *
- * A quick helper function to be used if a clocksource changes its
- * rating. Forces the clocksource list to be re-scanned for the best
- * clocksource.
  */
-void clocksource_reselect(void)
+void clocksource_change_rating(struct clocksource *cs, int rating)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&clocksource_lock, flags);
+	list_del(&cs->list);
+	cs->rating = rating;
+	clocksource_enqueue(cs);
 	next_clocksource = select_clocksource();
 	spin_unlock_irqrestore(&clocksource_lock, flags);
 }
-EXPORT_SYMBOL(clocksource_reselect);
 
 #ifdef CONFIG_SYSFS
 /**
@@ -220,7 +324,11 @@ sysfs_show_current_clocksources(struct sys_device *dev, char *buf)
 static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 					  const char *buf, size_t count)
 {
+	struct clocksource *ovr = NULL;
+	struct list_head *tmp;
 	size_t ret = count;
+	int len;
+
 	/* strings from sysfs write are not 0 terminated! */
 	if (count >= sizeof(override_name))
 		return -EINVAL;
@@ -228,17 +336,32 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 	/* strip of \n: */
 	if (buf[count-1] == '\n')
 		count--;
-	if (count < 1)
-		return -EINVAL;
 
 	spin_lock_irq(&clocksource_lock);
 
-	/* copy the name given: */
-	memcpy(override_name, buf, count);
+	if (count > 0)
+		memcpy(override_name, buf, count);
 	override_name[count] = 0;
 
-	/* try to select it: */
-	next_clocksource = select_clocksource();
+	len = strlen(override_name);
+	if (len) {
+		ovr = clocksource_override;
+		/* try to select it: */
+		list_for_each(tmp, &clocksource_list) {
+			struct clocksource *cs;
+
+			cs = list_entry(tmp, struct clocksource, list);
+			if (strlen(cs->name) == len &&
+			    !strcmp(cs->name, override_name))
+				ovr = cs;
+		}
+	}
+
+	/* Reselect, when the override name has changed */
+	if (ovr != clocksource_override) {
+		clocksource_override = ovr;
+		next_clocksource = select_clocksource();
+	}
 
 	spin_unlock_irq(&clocksource_lock);
 

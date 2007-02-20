@@ -49,8 +49,6 @@
 
 #include <net/dst.h>
 
-#define IPOIB_QPN(ha) (be32_to_cpup((__be32 *) ha) & 0xffffff)
-
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -145,6 +143,8 @@ static int ipoib_stop(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
+	clear_bit(IPOIB_FLAG_NETIF_STOPPED, &priv->flags);
+
 	/*
 	 * Now flush workqueue to make sure a scheduled task doesn't
 	 * bring our internal state back up.
@@ -178,8 +178,18 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	if (new_mtu > IPOIB_PACKET_SIZE - IPOIB_ENCAP_LEN)
+	/* dev->mtu > 2K ==> connected mode */
+	if (ipoib_cm_admin_enabled(dev) && new_mtu <= IPOIB_CM_MTU) {
+		if (new_mtu > priv->mcast_mtu)
+			ipoib_warn(priv, "mtu > %d will cause multicast packet drops.\n",
+				   priv->mcast_mtu);
+		dev->mtu = new_mtu;
+		return 0;
+	}
+
+	if (new_mtu > IPOIB_PACKET_SIZE - IPOIB_ENCAP_LEN) {
 		return -EINVAL;
+	}
 
 	priv->admin_mtu = new_mtu;
 
@@ -414,6 +424,20 @@ static void path_rec_completion(int status,
 			memcpy(&neigh->dgid.raw, &path->pathrec.dgid.raw,
 			       sizeof(union ib_gid));
 
+			if (ipoib_cm_enabled(dev, neigh->neighbour)) {
+				if (!ipoib_cm_get(neigh))
+					ipoib_cm_set(neigh, ipoib_cm_create_tx(dev,
+									       path,
+									       neigh));
+				if (!ipoib_cm_get(neigh)) {
+					list_del(&neigh->list);
+					if (neigh->ah)
+						ipoib_put_ah(neigh->ah);
+					ipoib_neigh_free(dev, neigh);
+					continue;
+				}
+			}
+
 			while ((skb = __skb_dequeue(&neigh->queue)))
 				__skb_queue_tail(&skqueue, skb);
 		}
@@ -520,7 +544,25 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 		memcpy(&neigh->dgid.raw, &path->pathrec.dgid.raw,
 		       sizeof(union ib_gid));
 
-		ipoib_send(dev, skb, path->ah, IPOIB_QPN(skb->dst->neighbour->ha));
+		if (ipoib_cm_enabled(dev, neigh->neighbour)) {
+			if (!ipoib_cm_get(neigh))
+				ipoib_cm_set(neigh, ipoib_cm_create_tx(dev, path, neigh));
+			if (!ipoib_cm_get(neigh)) {
+				list_del(&neigh->list);
+				if (neigh->ah)
+					ipoib_put_ah(neigh->ah);
+				ipoib_neigh_free(dev, neigh);
+				goto err_drop;
+			}
+			if (skb_queue_len(&neigh->queue) < IPOIB_MAX_PATH_REC_QUEUE)
+				__skb_queue_tail(&neigh->queue, skb);
+			else {
+				ipoib_warn(priv, "queue length limit %d. Packet drop.\n",
+					   skb_queue_len(&neigh->queue));
+				goto err_drop;
+			}
+		} else
+			ipoib_send(dev, skb, path->ah, IPOIB_QPN(skb->dst->neighbour->ha));
 	} else {
 		neigh->ah  = NULL;
 
@@ -538,6 +580,7 @@ err_list:
 
 err_path:
 	ipoib_neigh_free(dev, neigh);
+err_drop:
 	++priv->stats.tx_dropped;
 	dev_kfree_skb_any(skb);
 
@@ -640,7 +683,12 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		neigh = *to_ipoib_neigh(skb->dst->neighbour);
 
-		if (likely(neigh->ah)) {
+		if (ipoib_cm_get(neigh)) {
+			if (ipoib_cm_up(neigh)) {
+				ipoib_cm_send(dev, skb, ipoib_cm_get(neigh));
+				goto out;
+			}
+		} else if (neigh->ah) {
 			if (unlikely(memcmp(&neigh->dgid.raw,
 					    skb->dst->neighbour->ha + 4,
 					    sizeof(union ib_gid)))) {
@@ -805,6 +853,7 @@ struct ipoib_neigh *ipoib_neigh_alloc(struct neighbour *neighbour)
 	neigh->neighbour = neighbour;
 	*to_ipoib_neigh(neighbour) = neigh;
 	skb_queue_head_init(&neigh->queue);
+	ipoib_cm_set(neigh, NULL);
 
 	return neigh;
 }
@@ -818,6 +867,8 @@ void ipoib_neigh_free(struct net_device *dev, struct ipoib_neigh *neigh)
 		++priv->stats.tx_dropped;
 		dev_kfree_skb_any(skb);
 	}
+	if (ipoib_cm_get(neigh))
+		ipoib_cm_destroy_tx(ipoib_cm_get(neigh));
 	kfree(neigh);
 }
 
@@ -958,16 +1009,17 @@ struct ipoib_dev_priv *ipoib_intf_alloc(const char *name)
 	return netdev_priv(dev);
 }
 
-static ssize_t show_pkey(struct class_device *cdev, char *buf)
+static ssize_t show_pkey(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
-	struct ipoib_dev_priv *priv =
-		netdev_priv(container_of(cdev, struct net_device, class_dev));
+	struct ipoib_dev_priv *priv = netdev_priv(to_net_dev(dev));
 
 	return sprintf(buf, "0x%04x\n", priv->pkey);
 }
-static CLASS_DEVICE_ATTR(pkey, S_IRUGO, show_pkey, NULL);
+static DEVICE_ATTR(pkey, S_IRUGO, show_pkey, NULL);
 
-static ssize_t create_child(struct class_device *cdev,
+static ssize_t create_child(struct device *dev,
+			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	int pkey;
@@ -985,14 +1037,14 @@ static ssize_t create_child(struct class_device *cdev,
 	 */
 	pkey |= 0x8000;
 
-	ret = ipoib_vlan_add(container_of(cdev, struct net_device, class_dev),
-			     pkey);
+	ret = ipoib_vlan_add(to_net_dev(dev), pkey);
 
 	return ret ? ret : count;
 }
-static CLASS_DEVICE_ATTR(create_child, S_IWUGO, NULL, create_child);
+static DEVICE_ATTR(create_child, S_IWUGO, NULL, create_child);
 
-static ssize_t delete_child(struct class_device *cdev,
+static ssize_t delete_child(struct device *dev,
+			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	int pkey;
@@ -1004,18 +1056,16 @@ static ssize_t delete_child(struct class_device *cdev,
 	if (pkey < 0 || pkey > 0xffff)
 		return -EINVAL;
 
-	ret = ipoib_vlan_delete(container_of(cdev, struct net_device, class_dev),
-				pkey);
+	ret = ipoib_vlan_delete(to_net_dev(dev), pkey);
 
 	return ret ? ret : count;
 
 }
-static CLASS_DEVICE_ATTR(delete_child, S_IWUGO, NULL, delete_child);
+static DEVICE_ATTR(delete_child, S_IWUGO, NULL, delete_child);
 
 int ipoib_add_pkey_attr(struct net_device *dev)
 {
-	return class_device_create_file(&dev->class_dev,
-					&class_device_attr_pkey);
+	return device_create_file(&dev->dev, &dev_attr_pkey);
 }
 
 static struct net_device *ipoib_add_port(const char *format,
@@ -1081,13 +1131,13 @@ static struct net_device *ipoib_add_port(const char *format,
 
 	ipoib_create_debug_files(priv->dev);
 
+	if (ipoib_cm_add_mode_attr(priv->dev))
+		goto sysfs_failed;
 	if (ipoib_add_pkey_attr(priv->dev))
 		goto sysfs_failed;
-	if (class_device_create_file(&priv->dev->class_dev,
-				     &class_device_attr_create_child))
+	if (device_create_file(&priv->dev->dev, &dev_attr_create_child))
 		goto sysfs_failed;
-	if (class_device_create_file(&priv->dev->class_dev,
-				     &class_device_attr_delete_child))
+	if (device_create_file(&priv->dev->dev, &dev_attr_delete_child))
 		goto sysfs_failed;
 
 	return priv->dev;

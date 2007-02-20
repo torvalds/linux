@@ -45,7 +45,7 @@ EXPORT_SYMBOL(serio_interrupt);
 EXPORT_SYMBOL(__serio_register_port);
 EXPORT_SYMBOL(serio_unregister_port);
 EXPORT_SYMBOL(serio_unregister_child_port);
-EXPORT_SYMBOL(serio_register_driver);
+EXPORT_SYMBOL(__serio_register_driver);
 EXPORT_SYMBOL(serio_unregister_driver);
 EXPORT_SYMBOL(serio_open);
 EXPORT_SYMBOL(serio_close);
@@ -778,6 +778,19 @@ static int serio_driver_remove(struct device *dev)
 	return 0;
 }
 
+static void serio_cleanup(struct serio *serio)
+{
+	if (serio->drv && serio->drv->cleanup)
+		serio->drv->cleanup(serio);
+}
+
+static void serio_shutdown(struct device *dev)
+{
+	struct serio *serio = to_serio_port(dev);
+
+	serio_cleanup(serio);
+}
+
 static void serio_attach_driver(struct serio_driver *drv)
 {
 	int error;
@@ -789,12 +802,14 @@ static void serio_attach_driver(struct serio_driver *drv)
 			drv->driver.name, error);
 }
 
-int serio_register_driver(struct serio_driver *drv)
+int __serio_register_driver(struct serio_driver *drv, struct module *owner, const char *mod_name)
 {
 	int manual_bind = drv->manual_bind;
 	int error;
 
 	drv->driver.bus = &serio_bus;
+	drv->driver.owner = owner;
+	drv->driver.mod_name = mod_name;
 
 	/*
 	 * Temporarily disable automatic binding because probing
@@ -908,11 +923,25 @@ static int serio_uevent(struct device *dev, char **envp, int num_envp, char *buf
 
 #endif /* CONFIG_HOTPLUG */
 
+#ifdef CONFIG_PM
+static int serio_suspend(struct device *dev, pm_message_t state)
+{
+	if (dev->power.power_state.event != state.event) {
+		if (state.event == PM_EVENT_SUSPEND)
+			serio_cleanup(to_serio_port(dev));
+
+		dev->power.power_state = state;
+	}
+
+	return 0;
+}
+
 static int serio_resume(struct device *dev)
 {
 	struct serio *serio = to_serio_port(dev);
 
-	if (serio_reconnect_driver(serio)) {
+	if (dev->power.power_state.event != PM_EVENT_ON &&
+	    serio_reconnect_driver(serio)) {
 		/*
 		 * Driver re-probing can take a while, so better let kseriod
 		 * deal with it.
@@ -920,8 +949,11 @@ static int serio_resume(struct device *dev)
 		serio_rescan(serio);
 	}
 
+	dev->power.power_state = PMSG_ON;
+
 	return 0;
 }
+#endif /* CONFIG_PM */
 
 /* called from serio_driver->connect/disconnect methods under serio_mutex */
 int serio_open(struct serio *serio, struct serio_driver *drv)
@@ -972,7 +1004,11 @@ static struct bus_type serio_bus = {
 	.uevent		= serio_uevent,
 	.probe		= serio_driver_probe,
 	.remove		= serio_driver_remove,
+	.shutdown	= serio_shutdown,
+#ifdef CONFIG_PM
+	.suspend	= serio_suspend,
 	.resume		= serio_resume,
+#endif
 };
 
 static int __init serio_init(void)

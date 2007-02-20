@@ -1990,7 +1990,8 @@ int
 intelfbhw_enable_irq(struct intelfb_info *dinfo, int reenable) {
 
 	if (!test_and_set_bit(0, &dinfo->irq_flags)) {
-		if (request_irq(dinfo->pdev->irq, intelfbhw_irq, SA_SHIRQ, "intelfb", dinfo)) {
+		if (request_irq(dinfo->pdev->irq, intelfbhw_irq, IRQF_SHARED,
+		     "intelfb", dinfo)) {
 			clear_bit(0, &dinfo->irq_flags);
 			return -EINVAL;
 		}

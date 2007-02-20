@@ -423,7 +423,8 @@ static struct snd_pcm_ops snd_card_dummy_capture_ops = {
 	.pointer =		snd_card_dummy_pcm_pointer,
 };
 
-static int __init snd_card_dummy_pcm(struct snd_dummy *dummy, int device, int substreams)
+static int __devinit snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
+					int substreams)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -501,7 +502,7 @@ static int snd_dummy_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static DECLARE_TLV_DB_SCALE(db_scale_dummy, -4500, 30, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_dummy, -4500, 30, 0);
 
 #define DUMMY_CAPSRC(xname, xindex, addr) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
@@ -562,7 +563,7 @@ DUMMY_VOLUME("CD Volume", 0, MIXER_ADDR_CD),
 DUMMY_CAPSRC("CD Capture Switch", 0, MIXER_ADDR_CD)
 };
 
-static int __init snd_card_dummy_new_mixer(struct snd_dummy *dummy)
+static int __devinit snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 {
 	struct snd_card *card = dummy->card;
 	unsigned int idx;
@@ -579,7 +580,7 @@ static int __init snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 	return 0;
 }
 
-static int __init snd_dummy_probe(struct platform_device *devptr)
+static int __devinit snd_dummy_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
 	struct snd_dummy *dummy;
@@ -617,7 +618,7 @@ static int __init snd_dummy_probe(struct platform_device *devptr)
 	return err;
 }
 
-static int snd_dummy_remove(struct platform_device *devptr)
+static int __devexit snd_dummy_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
 	platform_set_drvdata(devptr, NULL);
@@ -648,7 +649,7 @@ static int snd_dummy_resume(struct platform_device *pdev)
 
 static struct platform_driver snd_dummy_driver = {
 	.probe		= snd_dummy_probe,
-	.remove		= snd_dummy_remove,
+	.remove		= __devexit_p(snd_dummy_remove),
 #ifdef CONFIG_PM
 	.suspend	= snd_dummy_suspend,
 	.resume		= snd_dummy_resume,

@@ -16,6 +16,7 @@
 #include <asm/ebcdic.h>
 #include <asm/cpcmd.h>
 #include <asm/system.h>
+#include <asm/io.h>
 
 static DEFINE_SPINLOCK(cpcmd_lock);
 static char cpcmd_buf[241];
@@ -88,13 +89,8 @@ int cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 	int len;
 	unsigned long flags;
 
-	if ((rlen == 0) || (response == NULL)
-	    || !((unsigned long)response >> 31)) {
-		spin_lock_irqsave(&cpcmd_lock, flags);
-		len = __cpcmd(cmd, response, rlen, response_code);
-		spin_unlock_irqrestore(&cpcmd_lock, flags);
-	}
-	else {
+	if ((virt_to_phys(response) != (unsigned long) response) ||
+			(((unsigned long)response + rlen) >> 31)) {
 		lowbuf = kmalloc(rlen, GFP_KERNEL | GFP_DMA);
 		if (!lowbuf) {
 			printk(KERN_WARNING
@@ -106,6 +102,10 @@ int cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 		spin_unlock_irqrestore(&cpcmd_lock, flags);
 		memcpy(response, lowbuf, rlen);
 		kfree(lowbuf);
+	} else {
+		spin_lock_irqsave(&cpcmd_lock, flags);
+		len = __cpcmd(cmd, response, rlen, response_code);
+		spin_unlock_irqrestore(&cpcmd_lock, flags);
 	}
 	return len;
 }

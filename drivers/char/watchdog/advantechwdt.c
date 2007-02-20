@@ -35,18 +35,19 @@
 #include <linux/watchdog.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
+#include <linux/platform_device.h>
 #include <linux/init.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
+#define DRV_NAME "advantechwdt"
+#define PFX DRV_NAME ": "
 #define WATCHDOG_NAME "Advantech WDT"
-#define PFX WATCHDOG_NAME ": "
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
 
+static struct platform_device *advwdt_platform_device;	/* the watchdog platform device */
 static unsigned long advwdt_is_open;
 static char adv_expect_close;
 
@@ -75,10 +76,10 @@ MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. 1<= timeout <=63, defaul
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
- *	Kernel methods.
+ *	Watchdog Operations
  */
 
 static void
@@ -93,6 +94,20 @@ advwdt_disable(void)
 {
 	inb_p(wdt_stop);
 }
+
+static int
+advwdt_set_heartbeat(int t)
+{
+	if ((t < 1) || (t > 63))
+		return -EINVAL;
+
+	timeout = t;
+	return 0;
+}
+
+/*
+ *	/dev/watchdog handling
+ */
 
 static ssize_t
 advwdt_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
@@ -126,7 +141,7 @@ advwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	static struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
 		.firmware_version = 1,
-		.identity = "Advantech WDT",
+		.identity = WATCHDOG_NAME,
 	};
 
 	switch (cmd) {
@@ -146,9 +161,8 @@ advwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	case WDIOC_SETTIMEOUT:
 	  if (get_user(new_timeout, p))
 		  return -EFAULT;
-	  if ((new_timeout < 1) || (new_timeout > 63))
+	  if (advwdt_set_heartbeat(new_timeout))
 		  return -EINVAL;
-	  timeout = new_timeout;
 	  advwdt_ping();
 	  /* Fall */
 
@@ -209,21 +223,6 @@ advwdt_close(struct inode *inode, struct file *file)
 }
 
 /*
- *	Notifier for system down
- */
-
-static int
-advwdt_notify_sys(struct notifier_block *this, unsigned long code,
-	void *unused)
-{
-	if (code == SYS_DOWN || code == SYS_HALT) {
-		/* Turn the WDT off */
-		advwdt_disable();
-	}
-	return NOTIFY_DONE;
-}
-
-/*
  *	Kernel Interfaces
  */
 
@@ -237,32 +236,19 @@ static const struct file_operations advwdt_fops = {
 };
 
 static struct miscdevice advwdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
-	.name = "watchdog",
-	.fops = &advwdt_fops,
+	.minor	= WATCHDOG_MINOR,
+	.name	= "watchdog",
+	.fops	= &advwdt_fops,
 };
 
 /*
- *	The WDT needs to learn about soft shutdowns in order to
- *	turn the timebomb registers off.
+ *	Init & exit routines
  */
 
-static struct notifier_block advwdt_notifier = {
-	.notifier_call = advwdt_notify_sys,
-};
-
-static int __init
-advwdt_init(void)
+static int __devinit
+advwdt_probe(struct platform_device *dev)
 {
 	int ret;
-
-	printk(KERN_INFO "WDT driver for Advantech single board computer initialising.\n");
-
-	if (timeout < 1 || timeout > 63) {
-		timeout = WATCHDOG_TIMEOUT;
-		printk (KERN_INFO PFX "timeout value must be 1<=x<=63, using %d\n",
-			timeout);
-	}
 
 	if (wdt_stop != wdt_start) {
 		if (!request_region(wdt_stop, 1, WATCHDOG_NAME)) {
@@ -280,18 +266,18 @@ advwdt_init(void)
 		goto unreg_stop;
 	}
 
-	ret = register_reboot_notifier(&advwdt_notifier);
-	if (ret != 0) {
-		printk (KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
-			ret);
-		goto unreg_regions;
+	/* Check that the heartbeat value is within it's range ; if not reset to the default */
+	if (advwdt_set_heartbeat(timeout)) {
+		advwdt_set_heartbeat(WATCHDOG_TIMEOUT);
+		printk (KERN_INFO PFX "timeout value must be 1<=x<=63, using %d\n",
+			timeout);
 	}
 
 	ret = misc_register(&advwdt_miscdev);
 	if (ret != 0) {
 		printk (KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
 			WATCHDOG_MINOR, ret);
-		goto unreg_reboot;
+		goto unreg_regions;
 	}
 
 	printk (KERN_INFO PFX "initialized. timeout=%d sec (nowayout=%d)\n",
@@ -299,8 +285,6 @@ advwdt_init(void)
 
 out:
 	return ret;
-unreg_reboot:
-	unregister_reboot_notifier(&advwdt_notifier);
 unreg_regions:
 	release_region(wdt_start, 1);
 unreg_stop:
@@ -309,14 +293,64 @@ unreg_stop:
 	goto out;
 }
 
+static int __devexit
+advwdt_remove(struct platform_device *dev)
+{
+	misc_deregister(&advwdt_miscdev);
+	release_region(wdt_start,1);
+	if(wdt_stop != wdt_start)
+		release_region(wdt_stop,1);
+
+	return 0;
+}
+
+static void
+advwdt_shutdown(struct platform_device *dev)
+{
+	/* Turn the WDT off if we have a soft shutdown */
+	advwdt_disable();
+}
+
+static struct platform_driver advwdt_driver = {
+	.probe		= advwdt_probe,
+	.remove		= __devexit_p(advwdt_remove),
+	.shutdown	= advwdt_shutdown,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= DRV_NAME,
+	},
+};
+
+static int __init
+advwdt_init(void)
+{
+	int err;
+
+	printk(KERN_INFO "WDT driver for Advantech single board computer initialising.\n");
+
+	err = platform_driver_register(&advwdt_driver);
+	if (err)
+		return err;
+
+	advwdt_platform_device = platform_device_register_simple(DRV_NAME, -1, NULL, 0);
+	if (IS_ERR(advwdt_platform_device)) {
+		err = PTR_ERR(advwdt_platform_device);
+		goto unreg_platform_driver;
+	}
+
+	return 0;
+
+unreg_platform_driver:
+	platform_driver_unregister(&advwdt_driver);
+	return err;
+}
+
 static void __exit
 advwdt_exit(void)
 {
-	misc_deregister(&advwdt_miscdev);
-	unregister_reboot_notifier(&advwdt_notifier);
-	if(wdt_stop != wdt_start)
-		release_region(wdt_stop,1);
-	release_region(wdt_start,1);
+	platform_device_unregister(advwdt_platform_device);
+	platform_driver_unregister(&advwdt_driver);
+	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
 }
 
 module_init(advwdt_init);

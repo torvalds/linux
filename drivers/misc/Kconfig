@@ -42,7 +42,7 @@ config SGI_IOC4
 
 config TIFM_CORE
 	tristate "TI Flash Media interface support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && PCI
 	help
 	  If you want support for Texas Instruments(R) Flash Media adapters
 	  you should select this option and then also choose an appropriate
@@ -69,6 +69,25 @@ config TIFM_7XX1
           To compile this driver as a module, choose M here: the module will
 	  be called tifm_7xx1.
 
+config ASUS_LAPTOP
+        tristate "Asus Laptop Extras (EXPERIMENTAL)"
+        depends on X86
+        depends on ACPI
+	depends on EXPERIMENTAL && !ACPI_ASUS
+	depends on LEDS_CLASS
+	depends on BACKLIGHT_CLASS_DEVICE
+        ---help---
+	  This is the new Linux driver for Asus laptops. It may also support some
+	  MEDION, JVC or VICTOR laptops. It makes all the extra buttons generate
+	  standard ACPI events that go through /proc/acpi/events. It also adds
+	  support for video output switching, LCD backlight control, Bluetooth and
+	  Wlan control, and most importantly, allows you to blink those fancy LEDs.
+
+	  For more information and a userspace daemon for handling the extra
+	  buttons see <http://acpi4asus.sf.net/>.
+
+	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
+
 config MSI_LAPTOP
         tristate "MSI Laptop Extras"
         depends on X86
@@ -87,5 +106,20 @@ config MSI_LAPTOP
 	  <http://0pointer.de/lennart/tchibo.html>.
 
 	  If you have an MSI S270 laptop, say Y or M here.
+
+config SONY_LAPTOP
+	tristate "Sony Laptop Extras"
+	depends on X86 && ACPI
+	select BACKLIGHT_CLASS_DEVICE
+	  ---help---
+	  This mini-driver drives the SNC device present in the ACPI BIOS of
+	  the Sony Vaio laptops.
+
+	  It gives access to some extra laptop functionalities. In its current
+	  form, this driver let the user set or query the screen brightness
+	  through the backlight subsystem and remove/apply power to some
+	  devices.
+
+	  Read <file:Documentation/sony-laptop.txt> for more information.
 
 endmenu

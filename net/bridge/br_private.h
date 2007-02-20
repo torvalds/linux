@@ -149,7 +149,7 @@ extern struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
 extern struct net_bridge_fdb_entry *br_fdb_get(struct net_bridge *br,
 					       unsigned char *addr);
 extern void br_fdb_put(struct net_bridge_fdb_entry *ent);
-extern int br_fdb_fillbuf(struct net_bridge *br, void *buf, 
+extern int br_fdb_fillbuf(struct net_bridge *br, void *buf,
 			  unsigned long count, unsigned long off);
 extern int br_fdb_insert(struct net_bridge *br,
 			 struct net_bridge_port *source,
@@ -203,7 +203,7 @@ extern void br_netfilter_fini(void);
 /* br_stp.c */
 extern void br_log_state(const struct net_bridge_port *p);
 extern struct net_bridge_port *br_get_port(struct net_bridge *br,
-				    	   u16 port_no);
+					   u16 port_no);
 extern void br_init_port(struct net_bridge_port *p);
 extern void br_become_designated_port(struct net_bridge_port *p);
 

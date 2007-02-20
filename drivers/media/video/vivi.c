@@ -1292,7 +1292,7 @@ vivi_mmap(struct file *file, struct vm_area_struct * vma)
 	return ret;
 }
 
-static struct file_operations vivi_fops = {
+static const struct file_operations vivi_fops = {
 	.owner		= THIS_MODULE,
 	.open           = vivi_open,
 	.release        = vivi_release,

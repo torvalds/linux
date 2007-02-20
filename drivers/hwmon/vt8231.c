@@ -727,7 +727,6 @@ int vt8231_detect(struct i2c_adapter *adapter)
 	client->addr = isa_address;
 	client->adapter = adapter;
 	client->driver = &vt8231_driver;
-	client->dev.parent = &adapter->dev;
 
 	/* Fill in the remaining client fields and put into the global list */
 	strlcpy(client->name, "vt8231", I2C_NAME_SIZE);

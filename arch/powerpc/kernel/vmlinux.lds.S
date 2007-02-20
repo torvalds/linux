@@ -131,14 +131,14 @@ SECTIONS
 		__stop___fw_ftr_fixup = .;
 	}
 #endif
-
+#ifdef CONFIG_BLK_DEV_INITRD
 	. = ALIGN(PAGE_SIZE);
 	.init.ramfs : {
 		__initramfs_start = .;
 		*(.init.ramfs)
 		__initramfs_end = .;
 	}
-
+#endif
 #ifdef CONFIG_PPC32
 	. = ALIGN(32);
 #else

@@ -125,7 +125,6 @@ unsigned long sleep_phys_sp(void *sp)
  * Use a temporary sysctl number. Horrid, but will be cleaned up in 2.6
  * when all the PM interfaces exist nicely.
  */
-#define CTL_PM 9899
 #define CTL_PM_SUSPEND 1
 #define CTL_PM_CMODE 2
 #define CTL_PM_P0 4
@@ -402,17 +401,53 @@ static int cm_sysctl(ctl_table *table, int __user *name, int nlen,
 
 static struct ctl_table pm_table[] =
 {
-	{CTL_PM_SUSPEND, "suspend", NULL, 0, 0200, NULL, &sysctl_pm_do_suspend},
-	{CTL_PM_CMODE, "cmode", &clock_cmode_current, sizeof(int), 0644, NULL, &cmode_procctl, &cmode_sysctl, NULL},
-	{CTL_PM_P0, "p0", &clock_p0_current, sizeof(int), 0644, NULL, &p0_procctl, &p0_sysctl, NULL},
-	{CTL_PM_CM, "cm", &clock_cm_current, sizeof(int), 0644, NULL, &cm_procctl, &cm_sysctl, NULL},
-	{0}
+	{
+		.ctl_name	= CTL_PM_SUSPEND,
+		.procname	= "suspend",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0200,
+		.proc_handler	= &sysctl_pm_do_suspend,
+	},
+	{
+		.ctl_name	= CTL_PM_CMODE,
+		.procname	= "cmode",
+		.data		= &clock_cmode_current,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &cmode_procctl,
+		.strategy	= &cmode_sysctl,
+	},
+	{
+		.ctl_name	= CTL_PM_P0,
+		.procname	= "p0",
+		.data		= &clock_p0_current,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &p0_procctl,
+		.strategy	= &p0_sysctl,
+	},
+	{
+		.ctl_name	= CTL_PM_CM,
+		.procname	= "cm",
+		.data		= &clock_cm_current,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &cm_procctl,
+		.strategy	= &cm_sysctl,
+	},
+	{ .ctl_name = 0}
 };
 
 static struct ctl_table pm_dir_table[] =
 {
-	{CTL_PM, "pm", NULL, 0, 0555, pm_table},
-	{0}
+	{
+		.ctl_name	= CTL_PM,
+		.procname	= "pm",
+		.mode		= 0555,
+		.child		= pm_table,
+	},
+	{ .ctl_name = 0}
 };
 
 /*
@@ -420,7 +455,7 @@ static struct ctl_table pm_dir_table[] =
  */
 static int __init pm_init(void)
 {
-	register_sysctl_table(pm_dir_table, 1);
+	register_sysctl_table(pm_dir_table);
 	return 0;
 }
 

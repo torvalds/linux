@@ -39,13 +39,10 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_BUS_COMPONENT
-ACPI_MODULE_NAME("acpi_bus")
+ACPI_MODULE_NAME("bus");
 #ifdef	CONFIG_X86
 extern void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger);
 #endif
-
-struct fadt_descriptor acpi_fadt;
-EXPORT_SYMBOL(acpi_fadt);
 
 struct acpi_device *acpi_root;
 struct proc_dir_entry *acpi_root_dir;
@@ -150,7 +147,7 @@ int acpi_bus_get_power(acpi_handle handle, int *state)
 			*state = ACPI_STATE_D0;
 	} else {
 		/*
-		 * Get the device's power state either directly (via _PSC) or 
+		 * Get the device's power state either directly (via _PSC) or
 		 * indirectly (via power resources).
 		 */
 		if (device->power.flags.explicit_get) {
@@ -195,22 +192,21 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 
 	if (!device->flags.power_manageable) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device `[%s]' is not power manageable\n",
-				device->kobj.name));
+				device->dev.kobj.name));
 		return -ENODEV;
 	}
 	/*
 	 * Get device's current power state if it's unknown
 	 * This means device power state isn't initialized or previous setting failed
 	 */
-	if (!device->flags.force_power_state) {
-		if (device->power.state == ACPI_STATE_UNKNOWN)
-			acpi_bus_get_power(device->handle, &device->power.state);
-		if (state == device->power.state) {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at D%d\n",
-					  state));
-			return 0;
-		}
+	if ((device->power.state == ACPI_STATE_UNKNOWN) || device->flags.force_power_state)
+		acpi_bus_get_power(device->handle, &device->power.state);
+	if ((state == device->power.state) && !device->flags.force_power_state) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at D%d\n",
+				  state));
+		return 0;
 	}
+
 	if (!device->power.states[state].flags.valid) {
 		printk(KERN_WARNING PREFIX "Device does not support D%d\n", state);
 		return -ENODEV;
@@ -465,7 +461,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 				  "Received BUS CHECK notification for device [%s]\n",
 				  device->pnp.bus_id));
 		result = acpi_bus_check_scope(device);
-		/* 
+		/*
 		 * TBD: We'll need to outsource certain events to non-ACPI
 		 *      drivers via the device manager (device.c).
 		 */
@@ -476,7 +472,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 				  "Received DEVICE CHECK notification for device [%s]\n",
 				  device->pnp.bus_id));
 		result = acpi_bus_check_device(device, NULL);
-		/* 
+		/*
 		 * TBD: We'll need to outsource certain events to non-ACPI
 		 *      drivers via the device manager (device.c).
 		 */
@@ -546,7 +542,7 @@ static int __init acpi_bus_init_irq(void)
 	char *message = NULL;
 
 
-	/* 
+	/*
 	 * Let the system know what interrupt model we are using by
 	 * evaluating the \_PIC object, if exists.
 	 */
@@ -582,11 +578,12 @@ static int __init acpi_bus_init_irq(void)
 	return 0;
 }
 
+acpi_native_uint acpi_gbl_permanent_mmap;
+
+
 void __init acpi_early_init(void)
 {
 	acpi_status status = AE_OK;
-	struct acpi_buffer buffer = { sizeof(acpi_fadt), &acpi_fadt };
-
 
 	if (acpi_disabled)
 		return;
@@ -596,6 +593,15 @@ void __init acpi_early_init(void)
 	/* enable workarounds, unless strict ACPI spec. compliance */
 	if (!acpi_strict)
 		acpi_gbl_enable_interpreter_slack = TRUE;
+
+	acpi_gbl_permanent_mmap = 1;
+
+	status = acpi_reallocate_root_table();
+	if (ACPI_FAILURE(status)) {
+		printk(KERN_ERR PREFIX
+		       "Unable to reallocate ACPI tables\n");
+		goto error0;
+	}
 
 	status = acpi_initialize_subsystem();
 	if (ACPI_FAILURE(status)) {
@@ -611,32 +617,25 @@ void __init acpi_early_init(void)
 		goto error0;
 	}
 
-	/*
-	 * Get a separate copy of the FADT for use by other drivers.
-	 */
-	status = acpi_get_table(ACPI_TABLE_ID_FADT, 1, &buffer);
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR PREFIX "Unable to get the FADT\n");
-		goto error0;
-	}
 #ifdef CONFIG_X86
 	if (!acpi_ioapic) {
-		extern acpi_interrupt_flags acpi_sci_flags;
+		extern u8 acpi_sci_flags;
 
 		/* compatible (0) means level (3) */
-		if (acpi_sci_flags.trigger == 0)
-			acpi_sci_flags.trigger = 3;
-
+		if (!(acpi_sci_flags & ACPI_MADT_TRIGGER_MASK)) {
+			acpi_sci_flags &= ~ACPI_MADT_TRIGGER_MASK;
+			acpi_sci_flags |= ACPI_MADT_TRIGGER_LEVEL;
+		}
 		/* Set PIC-mode SCI trigger type */
-		acpi_pic_sci_set_trigger(acpi_fadt.sci_int,
-					 acpi_sci_flags.trigger);
+		acpi_pic_sci_set_trigger(acpi_gbl_FADT.sci_interrupt,
+					 (acpi_sci_flags & ACPI_MADT_TRIGGER_MASK) >> 2);
 	} else {
 		extern int acpi_sci_override_gsi;
 		/*
-		 * now that acpi_fadt is initialized,
+		 * now that acpi_gbl_FADT is initialized,
 		 * update it with result from INT_SRC_OVR parsing
 		 */
-		acpi_fadt.sci_int = acpi_sci_override_gsi;
+		acpi_gbl_FADT.sci_interrupt = acpi_sci_override_gsi;
 	}
 #endif
 
@@ -684,7 +683,7 @@ static int __init acpi_bus_init(void)
 	 * the EC device is found in the namespace (i.e. before acpi_initialize_objects()
 	 * is called).
 	 *
-	 * This is accomplished by looking for the ECDT table, and getting 
+	 * This is accomplished by looking for the ECDT table, and getting
 	 * the EC parameters out of that.
 	 */
 	status = acpi_ec_ecdt_probe();
@@ -698,6 +697,9 @@ static int __init acpi_bus_init(void)
 	}
 
 	printk(KERN_INFO PREFIX "Interpreter enabled\n");
+
+	/* Initialize sleep structures */
+	acpi_sleep_init();
 
 	/*
 	 * Get the system interrupt model and evaluate \_PIC.

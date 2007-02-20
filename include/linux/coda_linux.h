@@ -23,9 +23,9 @@
 #include <linux/coda_fs_i.h>
 
 /* operations */
-extern struct inode_operations coda_dir_inode_operations;
-extern struct inode_operations coda_file_inode_operations;
-extern struct inode_operations coda_ioctl_inode_operations;
+extern const struct inode_operations coda_dir_inode_operations;
+extern const struct inode_operations coda_file_inode_operations;
+extern const struct inode_operations coda_ioctl_inode_operations;
 
 extern const struct address_space_operations coda_file_aops;
 extern const struct address_space_operations coda_symlink_aops;

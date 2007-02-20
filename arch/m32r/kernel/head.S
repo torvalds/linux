@@ -7,8 +7,6 @@
  *                            Hitoshi Yamamoto
  */
 
-/* $Id$ */
-
 #include <linux/init.h>
 __INIT
 __INITDATA

@@ -85,6 +85,7 @@ struct _snd_wavefront {
 	char hw_version[2];                /* major = [0], minor = [1] */
 	char israw;                        /* needs Motorola microcode */
 	char has_fx;                       /* has FX processor (Tropez+) */
+	char fx_initialized;               /* FX's register pages initialized */
 	char prog_status[WF_MAX_PROGRAM];  /* WF_SLOT_* */
 	char patch_status[WF_MAX_PATCH];   /* WF_SLOT_* */
 	char sample_status[WF_MAX_SAMPLE]; /* WF_ST_* | WF_SLOT_* */
@@ -94,6 +95,7 @@ struct _snd_wavefront {
 	spinlock_t irq_lock;
 	wait_queue_head_t interrupt_sleeper; 
 	snd_wavefront_midi_t midi;         /* ICS2115 MIDI interface */
+	struct snd_card *card;
 };
 
 struct _snd_wavefront_card {

@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include <linux/sched.h>
 #include <linux/kernel.h> /* printk() */
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -171,7 +170,7 @@ static int mdio_probe(struct meth_private *priv)
 
 static void meth_check_link(struct net_device *dev)
 {
-	struct meth_private *priv = (struct meth_private *) dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 	unsigned long mii_advertising = mdio_read(priv, 4);
 	unsigned long mii_partner = mdio_read(priv, 5);
 	unsigned long negotiated = mii_advertising & mii_partner;
@@ -269,7 +268,7 @@ static void meth_free_rx_ring(struct meth_private *priv)
 
 int meth_reset(struct net_device *dev)
 {
-	struct meth_private *priv = (struct meth_private *) dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 
 	/* Reset card */
 	mace->eth.mac_ctrl = SGI_MAC_RESET;
@@ -311,7 +310,7 @@ int meth_reset(struct net_device *dev)
  */
 static int meth_open(struct net_device *dev)
 {
-	struct meth_private *priv = dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 	int ret;
 
 	priv->phy_addr = -1;    /* No PHY is known yet... */
@@ -355,7 +354,7 @@ out_free_tx_ring:
 
 static int meth_release(struct net_device *dev)
 {
-	struct meth_private *priv = dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 
 	DPRINTK("Stopping queue\n");
 	netif_stop_queue(dev); /* can't transmit any more */
@@ -377,7 +376,7 @@ static void meth_rx(struct net_device* dev, unsigned long int_status)
 {
 	struct sk_buff *skb;
 	unsigned long status;
-	struct meth_private *priv = (struct meth_private *) dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 	unsigned long fifo_rptr = (int_status & METH_INT_RX_RPTR_MASK) >> 8;
 
 	spin_lock(&priv->meth_lock);
@@ -467,14 +466,14 @@ static void meth_rx(struct net_device* dev, unsigned long int_status)
 
 static int meth_tx_full(struct net_device *dev)
 {
-	struct meth_private *priv = (struct meth_private *) dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 
 	return (priv->tx_count >= TX_RING_ENTRIES - 1);
 }
 
 static void meth_tx_cleanup(struct net_device* dev, unsigned long int_status)
 {
-	struct meth_private *priv = dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 	unsigned long status;
 	struct sk_buff *skb;
 	unsigned long rptr = (int_status&TX_INFO_RPTR) >> 16;
@@ -537,7 +536,7 @@ static void meth_tx_cleanup(struct net_device* dev, unsigned long int_status)
 
 static void meth_error(struct net_device* dev, unsigned status)
 {
-	struct meth_private *priv = (struct meth_private *) dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 
 	printk(KERN_WARNING "meth: error status: 0x%08x\n",status);
 	/* check for errors too... */
@@ -571,7 +570,7 @@ static void meth_error(struct net_device* dev, unsigned status)
 static irqreturn_t meth_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	struct meth_private *priv = (struct meth_private *) dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 	unsigned long status;
 
 	status = mace->eth.int_stat;
@@ -696,7 +695,7 @@ static void meth_add_to_tx_ring(struct meth_private *priv, struct sk_buff *skb)
  */
 static int meth_tx(struct sk_buff *skb, struct net_device *dev)
 {
-	struct meth_private *priv = (struct meth_private *) dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->meth_lock, flags);
@@ -727,7 +726,7 @@ static int meth_tx(struct sk_buff *skb, struct net_device *dev)
  */
 static void meth_tx_timeout(struct net_device *dev)
 {
-	struct meth_private *priv = (struct meth_private *) dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 	unsigned long flags;
 
 	printk(KERN_WARNING "%s: transmit timed out\n", dev->name);
@@ -779,7 +778,7 @@ static int meth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  */
 static struct net_device_stats *meth_stats(struct net_device *dev)
 {
-	struct meth_private *priv = (struct meth_private *) dev->priv;
+	struct meth_private *priv = netdev_priv(dev);
 	return &priv->stats;
 }
 
@@ -808,7 +807,7 @@ static struct net_device *meth_init(void)
 	dev->irq	     = MACE_ETHERNET_IRQ;
 	dev->base_addr	     = (unsigned long)&mace->eth;
 
-	priv = (struct meth_private *) dev->priv;
+	priv = netdev_priv(dev);
 	spin_lock_init(&priv->meth_lock);
 
 	ret = register_netdev(dev);

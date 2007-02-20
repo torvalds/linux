@@ -14,7 +14,6 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
-#include <linux/sched.h>	/* current, TASK_*, schedule_timeout() */
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 #include "miropcm20-rds-core.h"
@@ -105,7 +104,7 @@ static ssize_t rds_f_read(struct file *file, char __user *buffer, size_t length,
 	}
 }
 
-static struct file_operations rds_fops = {
+static const struct file_operations rds_fops = {
 	.owner		= THIS_MODULE,
 	.read		= rds_f_read,
 	.open		= rds_f_open,

@@ -12,38 +12,21 @@
 #include <asm/hpet.h>
 #include <asm/system.h>
 #include <asm/processor.h>
+#include <asm/tsc.h>
 #include <linux/compiler.h>
 
 #define CLOCK_TICK_RATE	PIT_TICK_RATE	/* Underlying HZ */
 
-typedef unsigned long long cycles_t;
-
-static inline cycles_t get_cycles (void)
-{
-	unsigned long long ret;
-
-	rdtscll(ret);
-	return ret;
-}
-
-/* Like get_cycles, but make sure the CPU is synchronized. */
-static __always_inline cycles_t get_cycles_sync(void)
-{
-	unsigned long long ret;
-	unsigned eax;
-	/* Don't do an additional sync on CPUs where we know
-	   RDTSC is already synchronous. */
-	alternative_io("cpuid", ASM_NOP2, X86_FEATURE_SYNC_RDTSC,
-			  "=a" (eax), "0" (1) : "ebx","ecx","edx","memory");
-	rdtscll(ret);
-	return ret;
-}
-
-extern unsigned int cpu_khz;
-
 extern int read_current_timer(unsigned long *timer_value);
 #define ARCH_HAS_READ_CURRENT_TIMER	1
 
-extern struct vxtime_data vxtime;
+#define USEC_PER_TICK (USEC_PER_SEC / HZ)
+#define NSEC_PER_TICK (NSEC_PER_SEC / HZ)
+#define FSEC_PER_TICK (FSEC_PER_SEC / HZ)
 
+#define NS_SCALE        10 /* 2^10, carefully chosen */
+#define US_SCALE        32 /* 2^32, arbitralrily chosen */
+
+extern void mark_tsc_unstable(void);
+extern void set_cyc2ns_scale(unsigned long khz);
 #endif

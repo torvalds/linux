@@ -173,7 +173,7 @@ static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 }
 
-static struct file_operations vmcp_fops = {
+static const struct file_operations vmcp_fops = {
 	.owner		= THIS_MODULE,
 	.open		= &vmcp_open,
 	.release	= &vmcp_release,

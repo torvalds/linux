@@ -767,8 +767,8 @@ struct nfs_access_entry;
 struct nfs_rpc_ops {
 	int	version;		/* Protocol version */
 	struct dentry_operations *dentry_ops;
-	struct inode_operations *dir_inode_ops;
-	struct inode_operations *file_inode_ops;
+	const struct inode_operations *dir_inode_ops;
+	const struct inode_operations *file_inode_ops;
 
 	int	(*getroot) (struct nfs_server *, struct nfs_fh *,
 			    struct nfs_fsinfo *);
@@ -784,7 +784,6 @@ struct nfs_rpc_ops {
 	int	(*access)  (struct inode *, struct nfs_access_entry *);
 	int	(*readlink)(struct inode *, struct page *, unsigned int,
 			    unsigned int);
-	int	(*read)    (struct nfs_read_data *);
 	int	(*create)  (struct inode *, struct dentry *,
 			    struct iattr *, int, struct nameidata *);
 	int	(*remove)  (struct inode *, struct qstr *);

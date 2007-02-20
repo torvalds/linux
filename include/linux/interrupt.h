@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/irqflags.h>
 #include <linux/bottom_half.h>
+#include <linux/device.h>
 #include <asm/atomic.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
@@ -41,6 +42,8 @@
  * IRQF_SHARED - allow sharing the irq among several devices
  * IRQF_PROBE_SHARED - set by callers when they expect sharing mismatches to occur
  * IRQF_TIMER - Flag to mark this interrupt as timer interrupt
+ * IRQF_PERCPU - Interrupt is per cpu
+ * IRQF_NOBALANCING - Flag to exclude this interrupt from irq balancing
  */
 #define IRQF_DISABLED		0x00000020
 #define IRQF_SAMPLE_RANDOM	0x00000040
@@ -48,6 +51,7 @@
 #define IRQF_PROBE_SHARED	0x00000100
 #define IRQF_TIMER		0x00000200
 #define IRQF_PERCPU		0x00000400
+#define IRQF_NOBALANCING	0x00000800
 
 /*
  * Migration helpers. Scheduled for removal in 1/2007
@@ -82,6 +86,11 @@ extern irqreturn_t no_action(int cpl, void *dev_id);
 extern int request_irq(unsigned int, irq_handler_t handler,
 		       unsigned long, const char *, void *);
 extern void free_irq(unsigned int, void *);
+
+extern int devm_request_irq(struct device *dev, unsigned int irq,
+			    irq_handler_t handler, unsigned long irqflags,
+			    const char *devname, void *dev_id);
+extern void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id);
 
 /*
  * On lockdep we dont want to enable hardirqs in hardirq
@@ -233,6 +242,9 @@ enum
 	BLOCK_SOFTIRQ,
 	TASKLET_SOFTIRQ,
 	SCHED_SOFTIRQ,
+#ifdef CONFIG_HIGH_RES_TIMERS
+	HRTIMER_SOFTIRQ,
+#endif
 };
 
 /* softirq mask and active fields moved to irq_cpustat_t in
@@ -409,6 +421,15 @@ static inline unsigned int probe_irq_mask(unsigned long val)
 extern unsigned long probe_irq_on(void);	/* returns 0 on failure */
 extern int probe_irq_off(unsigned long);	/* returns 0 or negative on failure */
 extern unsigned int probe_irq_mask(unsigned long);	/* returns mask of ISA interrupts */
+#endif
+
+#ifdef CONFIG_PROC_FS
+/* Initialize /proc/irq/ */
+extern void init_irq_proc(void);
+#else
+static inline void init_irq_proc(void)
+{
+}
 #endif
 
 #endif

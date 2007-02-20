@@ -480,8 +480,8 @@ void dccp_feat_clean(struct dccp_minisock *dmsk)
 
 	list_for_each_entry_safe(opt, next, &dmsk->dccpms_pending,
 				 dccpop_node) {
-                BUG_ON(opt->dccpop_val == NULL);
-                kfree(opt->dccpop_val);
+		BUG_ON(opt->dccpop_val == NULL);
+		kfree(opt->dccpop_val);
 
 		if (opt->dccpop_sc != NULL) {
 			BUG_ON(opt->dccpop_sc->dccpoc_val == NULL);
@@ -489,8 +489,8 @@ void dccp_feat_clean(struct dccp_minisock *dmsk)
 			kfree(opt->dccpop_sc);
 		}
 
-                kfree(opt);
-        }
+		kfree(opt);
+	}
 	INIT_LIST_HEAD(&dmsk->dccpms_pending);
 
 	list_for_each_entry_safe(opt, next, &dmsk->dccpms_conf, dccpop_node) {

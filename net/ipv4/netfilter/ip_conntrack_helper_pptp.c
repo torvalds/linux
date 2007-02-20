@@ -560,7 +560,7 @@ conntrack_pptp_help(struct sk_buff **pskb,
 	tcph = skb_header_pointer(*pskb, nexthdr_off, sizeof(_tcph), &_tcph);
 	BUG_ON(!tcph);
 	nexthdr_off += tcph->doff * 4;
- 	datalen = tcplen - tcph->doff * 4;
+	datalen = tcplen - tcph->doff * 4;
 
 	pptph = skb_header_pointer(*pskb, nexthdr_off, sizeof(_pptph), &_pptph);
 	if (!pptph) {
@@ -624,7 +624,7 @@ static struct ip_conntrack_helper pptp = {
 	.max_expected = 2,
 	.timeout = 5 * 60,
 	.tuple = { .src = { .ip = 0,
-		 	    .u = { .tcp = { .port =
+			    .u = { .tcp = { .port =
 				    __constant_htons(PPTP_CONTROL_PORT) } }
 			  },
 		   .dst = { .ip = 0,
@@ -638,7 +638,7 @@ static struct ip_conntrack_helper pptp = {
 		  .dst = { .ip = 0,
 			   .u = { .all = 0 },
 			   .protonum = 0xff
-		 	 }
+			 }
 		},
 	.help = conntrack_pptp_help,
 	.destroy = pptp_destroy_siblings,

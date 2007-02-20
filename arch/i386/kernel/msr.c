@@ -68,7 +68,6 @@ static inline int rdmsr_eio(u32 reg, u32 *eax, u32 *edx)
 #ifdef CONFIG_SMP
 
 struct msr_command {
-	int cpu;
 	int err;
 	u32 reg;
 	u32 data[2];
@@ -78,16 +77,14 @@ static void msr_smp_wrmsr(void *cmd_block)
 {
 	struct msr_command *cmd = (struct msr_command *)cmd_block;
 
-	if (cmd->cpu == smp_processor_id())
-		cmd->err = wrmsr_eio(cmd->reg, cmd->data[0], cmd->data[1]);
+	cmd->err = wrmsr_eio(cmd->reg, cmd->data[0], cmd->data[1]);
 }
 
 static void msr_smp_rdmsr(void *cmd_block)
 {
 	struct msr_command *cmd = (struct msr_command *)cmd_block;
 
-	if (cmd->cpu == smp_processor_id())
-		cmd->err = rdmsr_eio(cmd->reg, &cmd->data[0], &cmd->data[1]);
+	cmd->err = rdmsr_eio(cmd->reg, &cmd->data[0], &cmd->data[1]);
 }
 
 static inline int do_wrmsr(int cpu, u32 reg, u32 eax, u32 edx)
@@ -99,12 +96,11 @@ static inline int do_wrmsr(int cpu, u32 reg, u32 eax, u32 edx)
 	if (cpu == smp_processor_id()) {
 		ret = wrmsr_eio(reg, eax, edx);
 	} else {
-		cmd.cpu = cpu;
 		cmd.reg = reg;
 		cmd.data[0] = eax;
 		cmd.data[1] = edx;
 
-		smp_call_function(msr_smp_wrmsr, &cmd, 1, 1);
+		smp_call_function_single(cpu, msr_smp_wrmsr, &cmd, 1, 1);
 		ret = cmd.err;
 	}
 	preempt_enable();
@@ -120,10 +116,9 @@ static inline int do_rdmsr(int cpu, u32 reg, u32 * eax, u32 * edx)
 	if (cpu == smp_processor_id()) {
 		ret = rdmsr_eio(reg, eax, edx);
 	} else {
-		cmd.cpu = cpu;
 		cmd.reg = reg;
 
-		smp_call_function(msr_smp_rdmsr, &cmd, 1, 1);
+		smp_call_function_single(cpu, msr_smp_rdmsr, &cmd, 1, 1);
 
 		*eax = cmd.data[0];
 		*edx = cmd.data[1];
@@ -230,7 +225,7 @@ static int msr_open(struct inode *inode, struct file *file)
 /*
  * File operations we support
  */
-static struct file_operations msr_fops = {
+static const struct file_operations msr_fops = {
 	.owner = THIS_MODULE,
 	.llseek = msr_seek,
 	.read = msr_read,

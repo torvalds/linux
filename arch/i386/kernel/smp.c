@@ -23,6 +23,7 @@
 
 #include <asm/mtrr.h>
 #include <asm/tlbflush.h>
+#include <asm/idle.h>
 #include <mach_apic.h>
 
 /*
@@ -374,8 +375,7 @@ static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 	/*
 	 * i'm not happy about this global shared spinlock in the
 	 * MM hot path, but we'll see how contended it is.
-	 * Temporarily this turns IRQs off, so that lockups are
-	 * detected by the NMI watchdog.
+	 * AK: x86-64 has a faster method that could be ported.
 	 */
 	spin_lock(&tlbstate_lock);
 	
@@ -400,7 +400,7 @@ static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 
 	while (!cpus_empty(flush_cpumask))
 		/* nothing. lockup detection does not belong here */
-		mb();
+		cpu_relax();
 
 	flush_mm = NULL;
 	flush_va = 0;
@@ -624,6 +624,7 @@ fastcall void smp_call_function_interrupt(struct pt_regs *regs)
 	/*
 	 * At this point the info structure may be out of scope unless wait==1
 	 */
+	exit_idle();
 	irq_enter();
 	(*func)(info);
 	irq_exit();

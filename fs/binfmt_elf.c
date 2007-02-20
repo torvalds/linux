@@ -76,7 +76,8 @@ static struct linux_binfmt elf_format = {
 		.load_binary	= load_elf_binary,
 		.load_shlib	= load_elf_library,
 		.core_dump	= elf_core_dump,
-		.min_coredump	= ELF_EXEC_PAGESIZE
+		.min_coredump	= ELF_EXEC_PAGESIZE,
+		.hasvdso	= 1
 };
 
 #define BAD_ADDR(x) ((unsigned long)(x) >= TASK_SIZE)

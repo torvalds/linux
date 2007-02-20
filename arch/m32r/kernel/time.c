@@ -286,11 +286,3 @@ void __init time_init(void)
 #error no chip configuration
 #endif
 }
-
-/*
- *  Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies * (1000000000 / HZ);
-}

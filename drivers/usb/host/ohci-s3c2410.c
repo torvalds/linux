@@ -501,15 +501,3 @@ static struct platform_driver ohci_hcd_s3c2410_driver = {
 	},
 };
 
-static int __init ohci_hcd_s3c2410_init (void)
-{
-	return platform_driver_register(&ohci_hcd_s3c2410_driver);
-}
-
-static void __exit ohci_hcd_s3c2410_cleanup (void)
-{
-	platform_driver_unregister(&ohci_hcd_s3c2410_driver);
-}
-
-module_init (ohci_hcd_s3c2410_init);
-module_exit (ohci_hcd_s3c2410_cleanup);

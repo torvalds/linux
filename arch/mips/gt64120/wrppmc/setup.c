@@ -93,9 +93,8 @@ void __init wrppmc_early_printk(const char *fmt, ...)
 }
 #endif /* WRPPMC_EARLY_DEBUG */
 
-unsigned long __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
-	return 0;
 }
 
 #ifdef CONFIG_SERIAL_8250

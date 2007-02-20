@@ -97,7 +97,7 @@ SMBus Write Word Data
 =====================
 
 This is the opposite operation of the Read Word Data command. 16 bits
-of data is read from a device, from a designated register that is 
+of data is written to a device, to the designated register that is
 specified through the Comm byte. 
 
 S Addr Wr [A] Comm [A] DataLow [A] DataHigh [A] P

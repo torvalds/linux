@@ -110,23 +110,6 @@ static int slave_configure(struct scsi_device *sdev)
 	 * the end, scatter-gather buffers follow page boundaries. */
 	blk_queue_dma_alignment(sdev->request_queue, (512 - 1));
 
-	/* Set the SCSI level to at least 2.  We'll leave it at 3 if that's
-	 * what is originally reported.  We need this to avoid confusing
-	 * the SCSI layer with devices that report 0 or 1, but need 10-byte
-	 * commands (ala ATAPI devices behind certain bridges, or devices
-	 * which simply have broken INQUIRY data).
-	 *
-	 * NOTE: This means /dev/sg programs (ala cdrecord) will get the
-	 * actual information.  This seems to be the preference for
-	 * programs like that.
-	 *
-	 * NOTE: This also means that /proc/scsi/scsi and sysfs may report
-	 * the actual value or the modified one, depending on where the
-	 * data comes from.
-	 */
-	if (sdev->scsi_level < SCSI_2)
-		sdev->scsi_level = sdev->sdev_target->scsi_level = SCSI_2;
-
 	/* Many devices have trouble transfering more than 32KB at a time,
 	 * while others have trouble with more than 64K. At this time we
 	 * are limiting both to 32K (64 sectores).
@@ -170,13 +153,21 @@ static int slave_configure(struct scsi_device *sdev)
 		if (us->flags & US_FL_FIX_CAPACITY)
 			sdev->fix_capacity = 1;
 
+		/* A few disks have two indistinguishable version, one of
+		 * which reports the correct capacity and the other does not.
+		 * The sd driver has to guess which is the case. */
+		if (us->flags & US_FL_CAPACITY_HEURISTICS)
+			sdev->guess_capacity = 1;
+
 		/* Some devices report a SCSI revision level above 2 but are
 		 * unable to handle the REPORT LUNS command (for which
 		 * support is mandatory at level 3).  Since we already have
 		 * a Get-Max-LUN request, we won't lose much by setting the
 		 * revision level down to 2.  The only devices that would be
 		 * affected are those with sparse LUNs. */
-		sdev->scsi_level = sdev->sdev_target->scsi_level = SCSI_2;
+		if (sdev->scsi_level > SCSI_2)
+			sdev->sdev_target->scsi_level =
+					sdev->scsi_level = SCSI_2;
 
 		/* USB-IDE bridges tend to report SK = 0x04 (Non-recoverable
 		 * Hardware Error) when any low-level error occurs,
@@ -193,6 +184,16 @@ static int slave_configure(struct scsi_device *sdev)
 		 * But they do need to use MODE SENSE(10). */
 		sdev->use_10_for_ms = 1;
 	}
+
+	/* The CB and CBI transports have no way to pass LUN values
+	 * other than the bits in the second byte of a CDB.  But those
+	 * bits don't get set to the LUN value if the device reports
+	 * scsi_level == 0 (UNKNOWN).  Hence such devices must necessarily
+	 * be single-LUN.
+	 */
+	if ((us->protocol == US_PR_CB || us->protocol == US_PR_CBI) &&
+			sdev->scsi_level == SCSI_UNKNOWN)
+		us->max_lun = 0;
 
 	/* Some devices choke when they receive a PREVENT-ALLOW MEDIUM
 	 * REMOVAL command, so suppress those commands. */

@@ -178,4 +178,14 @@ struct raw1394_iso_status {
 	__s16 xmit_cycle;
 };
 
+/* argument to RAW1394_IOC_GET_CYCLE_TIMER ioctl */
+struct raw1394_cycle_timer {
+	/* contents of Isochronous Cycle Timer register,
+	   as in OHCI 1.1 clause 5.13 (also with non-OHCI hosts) */
+	__u32 cycle_timer;
+
+	/* local time in microseconds since Epoch,
+	   simultaneously read with cycle timer */
+	__u64 local_time;
+};
 #endif /* IEEE1394_RAW1394_H */

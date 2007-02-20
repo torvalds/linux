@@ -8,6 +8,7 @@
 #include <linux/clk.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/spi/spi.h>
 
 #include <asm/io.h>
 
@@ -310,8 +311,6 @@ static void genclk_mode(struct clk *clk, int enabled)
 {
 	u32 control;
 
-	BUG_ON(clk->index > 7);
-
 	control = sm_readl(&system_manager, PM_GCCTRL + 4 * clk->index);
 	if (enabled)
 		control |= SM_BIT(CEN);
@@ -325,11 +324,6 @@ static unsigned long genclk_get_rate(struct clk *clk)
 	u32 control;
 	unsigned long div = 1;
 
-	BUG_ON(clk->index > 7);
-
-	if (!clk->parent)
-		return 0;
-
 	control = sm_readl(&system_manager, PM_GCCTRL + 4 * clk->index);
 	if (control & SM_BIT(DIVEN))
 		div = 2 * (SM_BFEXT(DIV, control) + 1);
@@ -341,11 +335,6 @@ static long genclk_set_rate(struct clk *clk, unsigned long rate, int apply)
 {
 	u32 control;
 	unsigned long parent_rate, actual_rate, div;
-
-	BUG_ON(clk->index > 7);
-
-	if (!clk->parent)
-		return 0;
 
 	parent_rate = clk->parent->get_rate(clk->parent);
 	control = sm_readl(&system_manager, PM_GCCTRL + 4 * clk->index);
@@ -373,11 +362,8 @@ int genclk_set_parent(struct clk *clk, struct clk *parent)
 {
 	u32 control;
 
-	BUG_ON(clk->index > 7);
-
 	printk("clk %s: new parent %s (was %s)\n",
-	       clk->name, parent->name,
-	       clk->parent ? clk->parent->name : "(null)");
+	       clk->name, parent->name, clk->parent->name);
 
 	control = sm_readl(&system_manager, PM_GCCTRL + 4 * clk->index);
 
@@ -397,6 +383,22 @@ int genclk_set_parent(struct clk *clk, struct clk *parent)
 	clk->parent = parent;
 
 	return 0;
+}
+
+static void __init genclk_init_parent(struct clk *clk)
+{
+	u32 control;
+	struct clk *parent;
+
+	BUG_ON(clk->index > 7);
+
+	control = sm_readl(&system_manager, PM_GCCTRL + 4 * clk->index);
+	if (control & SM_BIT(OSCSEL))
+		parent = (control & SM_BIT(PLLSEL)) ? &pll1 : &osc1;
+	else
+		parent = (control & SM_BIT(PLLSEL)) ? &pll0 : &osc0;
+
+	clk->parent = parent;
 }
 
 /* --------------------------------------------------------------------
@@ -496,9 +498,16 @@ static struct resource pio3_resource[] = {
 DEFINE_DEV(pio, 3);
 DEV_CLK(mck, pio3, pba, 13);
 
+static struct resource pio4_resource[] = {
+	PBMEM(0xffe03800),
+	IRQ(17),
+};
+DEFINE_DEV(pio, 4);
+DEV_CLK(mck, pio4, pba, 14);
+
 void __init at32_add_system_devices(void)
 {
-	system_manager.eim_first_irq = NR_INTERNAL_IRQS;
+	system_manager.eim_first_irq = EIM_IRQ_BASE;
 
 	platform_device_register(&at32_sm_device);
 	platform_device_register(&at32_intc0_device);
@@ -509,6 +518,7 @@ void __init at32_add_system_devices(void)
 	platform_device_register(&pio1_device);
 	platform_device_register(&pio2_device);
 	platform_device_register(&pio3_device);
+	platform_device_register(&pio4_device);
 }
 
 /* --------------------------------------------------------------------
@@ -521,7 +531,7 @@ static struct atmel_uart_data atmel_usart0_data = {
 };
 static struct resource atmel_usart0_resource[] = {
 	PBMEM(0xffe00c00),
-	IRQ(7),
+	IRQ(6),
 };
 DEFINE_DEV_DATA(atmel_usart, 0);
 DEV_CLK(usart, atmel_usart0, pba, 4);
@@ -583,7 +593,7 @@ static inline void configure_usart3_pins(void)
 	select_peripheral(PB(17), PERIPH_B, 0);	/* TXD	*/
 }
 
-static struct platform_device *at32_usarts[4];
+static struct platform_device *__initdata at32_usarts[4];
 
 void __init at32_map_usart(unsigned int hw_id, unsigned int line)
 {
@@ -728,32 +738,79 @@ at32_add_device_eth(unsigned int id, struct eth_platform_data *data)
 /* --------------------------------------------------------------------
  *  SPI
  * -------------------------------------------------------------------- */
-static struct resource spi0_resource[] = {
+static struct resource atmel_spi0_resource[] = {
 	PBMEM(0xffe00000),
 	IRQ(3),
 };
-DEFINE_DEV(spi, 0);
-DEV_CLK(mck, spi0, pba, 0);
+DEFINE_DEV(atmel_spi, 0);
+DEV_CLK(spi_clk, atmel_spi0, pba, 0);
 
-struct platform_device *__init at32_add_device_spi(unsigned int id)
+static struct resource atmel_spi1_resource[] = {
+	PBMEM(0xffe00400),
+	IRQ(4),
+};
+DEFINE_DEV(atmel_spi, 1);
+DEV_CLK(spi_clk, atmel_spi1, pba, 1);
+
+static void
+at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b,
+		      unsigned int n, const u8 *pins)
 {
+	unsigned int pin, mode;
+
+	for (; n; n--, b++) {
+		b->bus_num = bus_num;
+		if (b->chip_select >= 4)
+			continue;
+		pin = (unsigned)b->controller_data;
+		if (!pin) {
+			pin = pins[b->chip_select];
+			b->controller_data = (void *)pin;
+		}
+		mode = AT32_GPIOF_OUTPUT;
+		if (!(b->mode & SPI_CS_HIGH))
+			mode |= AT32_GPIOF_HIGH;
+		at32_select_gpio(pin, mode);
+	}
+}
+
+struct platform_device *__init
+at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n)
+{
+	/*
+	 * Manage the chipselects as GPIOs, normally using the same pins
+	 * the SPI controller expects; but boards can use other pins.
+	 */
+	static u8 __initdata spi0_pins[] =
+		{ GPIO_PIN_PA(3), GPIO_PIN_PA(4),
+		  GPIO_PIN_PA(5), GPIO_PIN_PA(20), };
+	static u8 __initdata spi1_pins[] =
+		{ GPIO_PIN_PB(2), GPIO_PIN_PB(3),
+		  GPIO_PIN_PB(4), GPIO_PIN_PA(27), };
 	struct platform_device *pdev;
 
 	switch (id) {
 	case 0:
-		pdev = &spi0_device;
+		pdev = &atmel_spi0_device;
 		select_peripheral(PA(0),  PERIPH_A, 0);	/* MISO	 */
 		select_peripheral(PA(1),  PERIPH_A, 0);	/* MOSI	 */
 		select_peripheral(PA(2),  PERIPH_A, 0);	/* SCK	 */
-		select_peripheral(PA(3),  PERIPH_A, 0);	/* NPCS0 */
-		select_peripheral(PA(4),  PERIPH_A, 0);	/* NPCS1 */
-		select_peripheral(PA(5),  PERIPH_A, 0);	/* NPCS2 */
+		at32_spi_setup_slaves(0, b, n, spi0_pins);
+		break;
+
+	case 1:
+		pdev = &atmel_spi1_device;
+		select_peripheral(PB(0),  PERIPH_B, 0);	/* MISO  */
+		select_peripheral(PB(1),  PERIPH_B, 0);	/* MOSI  */
+		select_peripheral(PB(5),  PERIPH_B, 0);	/* SCK   */
+		at32_spi_setup_slaves(1, b, n, spi1_pins);
 		break;
 
 	default:
 		return NULL;
 	}
 
+	spi_register_board_info(b, n);
 	platform_device_register(pdev);
 	return pdev;
 }
@@ -837,6 +894,50 @@ at32_add_device_lcdc(unsigned int id, struct lcdc_platform_data *data)
 	return pdev;
 }
 
+/* --------------------------------------------------------------------
+ *  GCLK
+ * -------------------------------------------------------------------- */
+static struct clk gclk0 = {
+	.name		= "gclk0",
+	.mode		= genclk_mode,
+	.get_rate	= genclk_get_rate,
+	.set_rate	= genclk_set_rate,
+	.set_parent	= genclk_set_parent,
+	.index		= 0,
+};
+static struct clk gclk1 = {
+	.name		= "gclk1",
+	.mode		= genclk_mode,
+	.get_rate	= genclk_get_rate,
+	.set_rate	= genclk_set_rate,
+	.set_parent	= genclk_set_parent,
+	.index		= 1,
+};
+static struct clk gclk2 = {
+	.name		= "gclk2",
+	.mode		= genclk_mode,
+	.get_rate	= genclk_get_rate,
+	.set_rate	= genclk_set_rate,
+	.set_parent	= genclk_set_parent,
+	.index		= 2,
+};
+static struct clk gclk3 = {
+	.name		= "gclk3",
+	.mode		= genclk_mode,
+	.get_rate	= genclk_get_rate,
+	.set_rate	= genclk_set_rate,
+	.set_parent	= genclk_set_parent,
+	.index		= 3,
+};
+static struct clk gclk4 = {
+	.name		= "gclk4",
+	.mode		= genclk_mode,
+	.get_rate	= genclk_get_rate,
+	.set_rate	= genclk_set_rate,
+	.set_parent	= genclk_set_parent,
+	.index		= 4,
+};
+
 struct clk *at32_clock_list[] = {
 	&osc32k,
 	&osc0,
@@ -860,6 +961,7 @@ struct clk *at32_clock_list[] = {
 	&pio1_mck,
 	&pio2_mck,
 	&pio3_mck,
+	&pio4_mck,
 	&atmel_usart0_usart,
 	&atmel_usart1_usart,
 	&atmel_usart2_usart,
@@ -868,9 +970,15 @@ struct clk *at32_clock_list[] = {
 	&macb0_pclk,
 	&macb1_hclk,
 	&macb1_pclk,
-	&spi0_mck,
+	&atmel_spi0_spi_clk,
+	&atmel_spi1_spi_clk,
 	&lcdc0_hclk,
 	&lcdc0_pixclk,
+	&gclk0,
+	&gclk1,
+	&gclk2,
+	&gclk3,
+	&gclk4,
 };
 unsigned int at32_nr_clocks = ARRAY_SIZE(at32_clock_list);
 
@@ -880,6 +988,7 @@ void __init at32_portmux_init(void)
 	at32_init_pio(&pio1_device);
 	at32_init_pio(&pio2_device);
 	at32_init_pio(&pio3_device);
+	at32_init_pio(&pio4_device);
 }
 
 void __init at32_clock_init(void)
@@ -897,6 +1006,13 @@ void __init at32_clock_init(void)
 		pll0.parent = &osc1;
 	if (sm_readl(sm, PM_PLL1) & SM_BIT(PLLOSC))
 		pll1.parent = &osc1;
+
+	genclk_init_parent(&gclk0);
+	genclk_init_parent(&gclk1);
+	genclk_init_parent(&gclk2);
+	genclk_init_parent(&gclk3);
+	genclk_init_parent(&gclk4);
+	genclk_init_parent(&lcdc0_pixclk);
 
 	/*
 	 * Turn on all clocks that have at least one user already, and

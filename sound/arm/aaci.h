@@ -228,8 +228,8 @@ struct aaci {
 
 	/* AC'97 */
 	struct mutex		ac97_sem;
-	ac97_bus_t		*ac97_bus;
-	ac97_t                  *ac97;
+	struct snd_ac97_bus	*ac97_bus;
+	struct snd_ac97		*ac97;
 
 	u32			maincr;
 	spinlock_t		lock;

@@ -234,7 +234,7 @@ int ipxrtr_route_packet(struct sock *sk, struct sockaddr_ipx *usipx,
 	if (rc) {
 		kfree_skb(skb);
 		goto out_put;
-	}	
+	}
 
 	/* Apply checksum. Not allowed on 802.3 links. */
 	if (sk->sk_no_check || intrfc->if_dlink_type == htons(IPX_FRAME_8023))
@@ -242,7 +242,7 @@ int ipxrtr_route_packet(struct sock *sk, struct sockaddr_ipx *usipx,
 	else
 		ipx->ipx_checksum = ipx_cksum(ipx, len + sizeof(struct ipxhdr));
 
-	rc = ipxitf_send(intrfc, skb, (rt && rt->ir_routed) ? 
+	rc = ipxitf_send(intrfc, skb, (rt && rt->ir_routed) ?
 			 rt->ir_router_node : ipx->ipx_dest.node);
 out_put:
 	ipxitf_put(intrfc);

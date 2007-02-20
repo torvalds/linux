@@ -39,6 +39,7 @@
 #include <net/sock.h>
 #include <net/scm.h>
 
+#include <asm/compat-signal.h>
 #include <asm/ipc.h>
 #include <asm/sim.h>
 #include <asm/uaccess.h>
@@ -190,50 +191,6 @@ sysn32_waitid(int which, compat_pid_t pid,
 
 	if (uru)
 		ret = put_compat_rusage(&ru, uru);
-	return ret;
-}
-
-struct sysinfo32 {
-        s32 uptime;
-        u32 loads[3];
-        u32 totalram;
-        u32 freeram;
-        u32 sharedram;
-        u32 bufferram;
-        u32 totalswap;
-        u32 freeswap;
-        u16 procs;
-	u32 totalhigh;
-	u32 freehigh;
-	u32 mem_unit;
-	char _f[8];
-};
-
-asmlinkage int sys32_sysinfo(struct sysinfo32 __user *info)
-{
-	struct sysinfo s;
-	int ret, err;
-	mm_segment_t old_fs = get_fs ();
-
-	set_fs (KERNEL_DS);
-	ret = sys_sysinfo((struct sysinfo __user *)&s);
-	set_fs (old_fs);
-	err = put_user (s.uptime, &info->uptime);
-	err |= __put_user (s.loads[0], &info->loads[0]);
-	err |= __put_user (s.loads[1], &info->loads[1]);
-	err |= __put_user (s.loads[2], &info->loads[2]);
-	err |= __put_user (s.totalram, &info->totalram);
-	err |= __put_user (s.freeram, &info->freeram);
-	err |= __put_user (s.sharedram, &info->sharedram);
-	err |= __put_user (s.bufferram, &info->bufferram);
-	err |= __put_user (s.totalswap, &info->totalswap);
-	err |= __put_user (s.freeswap, &info->freeswap);
-	err |= __put_user (s.procs, &info->procs);
-	err |= __put_user (s.totalhigh, &info->totalhigh);
-	err |= __put_user (s.freehigh, &info->freehigh);
-	err |= __put_user (s.mem_unit, &info->mem_unit);
-	if (err)
-		return -EFAULT;
 	return ret;
 }
 
@@ -558,7 +515,7 @@ extern asmlinkage long sys_ustat(dev_t dev, struct ustat __user * ubuf);
 asmlinkage int sys32_ustat(dev_t dev, struct ustat32 __user * ubuf32)
 {
 	int err;
-        struct ustat tmp;
+	struct ustat tmp;
 	struct ustat32 tmp32;
 	mm_segment_t old_fs = get_fs();
 
@@ -569,11 +526,11 @@ asmlinkage int sys32_ustat(dev_t dev, struct ustat32 __user * ubuf32)
 	if (err)
 		goto out;
 
-        memset(&tmp32,0,sizeof(struct ustat32));
-        tmp32.f_tfree = tmp.f_tfree;
-        tmp32.f_tinode = tmp.f_tinode;
+	memset(&tmp32,0,sizeof(struct ustat32));
+	tmp32.f_tfree = tmp.f_tfree;
+	tmp32.f_tinode = tmp.f_tinode;
 
-        err = copy_to_user(ubuf32,&tmp32,sizeof(struct ustat32)) ? -EFAULT : 0;
+	err = copy_to_user(ubuf32,&tmp32,sizeof(struct ustat32)) ? -EFAULT : 0;
 
 out:
 	return err;
@@ -779,4 +736,50 @@ _sys32_clone(nabi_no_regargs struct pt_regs regs)
 	child_tidptr = (int __user *) __dummy4;
 	return do_fork(clone_flags, newsp, &regs, 0,
 	               parent_tidptr, child_tidptr);
+}
+
+/*
+ * Implement the event wait interface for the eventpoll file. It is the kernel
+ * part of the user space epoll_pwait(2).
+ */
+asmlinkage long compat_sys_epoll_pwait(int epfd,
+	struct epoll_event __user *events, int maxevents, int timeout,
+	const compat_sigset_t __user *sigmask, size_t sigsetsize)
+{
+	int error;
+	sigset_t ksigmask, sigsaved;
+
+	/*
+	 * If the caller wants a certain signal mask to be set during the wait,
+	 * we apply it here.
+	 */
+	if (sigmask) {
+		if (sigsetsize != sizeof(sigset_t))
+			return -EINVAL;
+		if (!access_ok(VERIFY_READ, sigmask, sizeof(ksigmask)))
+			return -EFAULT;
+		if (__copy_conv_sigset_from_user(&ksigmask, sigmask))
+			return -EFAULT;
+		sigdelsetmask(&ksigmask, sigmask(SIGKILL) | sigmask(SIGSTOP));
+		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
+	}
+
+	error = sys_epoll_wait(epfd, events, maxevents, timeout);
+
+	/*
+	 * If we changed the signal mask, we need to restore the original one.
+	 * In case we've got a signal while waiting, we do not restore the
+	 * signal mask yet, and we allow do_signal() to deliver the signal on
+	 * the way back to userspace, before the signal mask is restored.
+	 */
+	if (sigmask) {
+		if (error == -EINTR) {
+			memcpy(&current->saved_sigmask, &sigsaved,
+				sizeof(sigsaved));
+			set_thread_flag(TIF_RESTORE_SIGMASK);
+		} else
+			sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+	}
+
+	return error;
 }

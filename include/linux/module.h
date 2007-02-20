@@ -58,6 +58,7 @@ struct module_kobject
 {
 	struct kobject kobj;
 	struct module *mod;
+	struct kobject *drivers_dir;
 };
 
 /* These are either module local, or the kernel's dummy ones. */
@@ -74,8 +75,6 @@ search_extable(const struct exception_table_entry *first,
 void sort_extable(struct exception_table_entry *start,
 		  struct exception_table_entry *finish);
 void sort_main_extable(void);
-
-extern struct subsystem module_subsys;
 
 #ifdef MODULE
 #define MODULE_GENERIC_TABLE(gtype,name)			\
@@ -263,7 +262,7 @@ struct module
 	struct module_attribute *modinfo_attrs;
 	const char *version;
 	const char *srcversion;
-	struct kobject *drivers_dir;
+	struct kobject *holders_dir;
 
 	/* Exported symbols */
 	const struct kernel_symbol *syms;
@@ -466,10 +465,6 @@ int unregister_module_notifier(struct notifier_block * nb);
 
 extern void print_modules(void);
 
-struct device_driver;
-void module_add_driver(struct module *, struct device_driver *);
-void module_remove_driver(struct device_driver *);
-
 #else /* !CONFIG_MODULES... */
 #define EXPORT_SYMBOL(sym)
 #define EXPORT_SYMBOL_GPL(sym)
@@ -567,18 +562,59 @@ static inline void print_modules(void)
 {
 }
 
+#endif /* CONFIG_MODULES */
+
 struct device_driver;
+#ifdef CONFIG_SYSFS
 struct module;
 
-static inline void module_add_driver(struct module *module, struct device_driver *driver)
+extern struct subsystem module_subsys;
+
+int mod_sysfs_init(struct module *mod);
+int mod_sysfs_setup(struct module *mod,
+			   struct kernel_param *kparam,
+			   unsigned int num_params);
+int module_add_modinfo_attrs(struct module *mod);
+void module_remove_modinfo_attrs(struct module *mod);
+
+#else /* !CONFIG_SYSFS */
+
+static inline int mod_sysfs_init(struct module *mod)
 {
+	return 0;
 }
 
-static inline void module_remove_driver(struct device_driver *driver)
+static inline int mod_sysfs_setup(struct module *mod,
+			   struct kernel_param *kparam,
+			   unsigned int num_params)
 {
+	return 0;
 }
 
-#endif /* CONFIG_MODULES */
+static inline int module_add_modinfo_attrs(struct module *mod)
+{
+	return 0;
+}
+
+static inline void module_remove_modinfo_attrs(struct module *mod)
+{ }
+
+#endif /* CONFIG_SYSFS */
+
+#if defined(CONFIG_SYSFS) && defined(CONFIG_MODULES)
+
+void module_add_driver(struct module *mod, struct device_driver *drv);
+void module_remove_driver(struct device_driver *drv);
+
+#else /* not both CONFIG_SYSFS && CONFIG_MODULES */
+
+static inline void module_add_driver(struct module *mod, struct device_driver *drv)
+{ }
+
+static inline void module_remove_driver(struct device_driver *drv)
+{ }
+
+#endif
 
 #define symbol_request(x) try_then_request_module(symbol_get(x), "symbol:" #x)
 

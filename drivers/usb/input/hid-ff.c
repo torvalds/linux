@@ -54,9 +54,14 @@ struct hid_ff_initializer {
 static struct hid_ff_initializer inits[] = {
 #ifdef CONFIG_LOGITECH_FF
 	{ 0x46d, 0xc211, hid_lgff_init }, /* Logitech Cordless rumble pad */
-	{ 0x46d, 0xc283, hid_lgff_init }, /* Logitech Wingman Force 3d */
-	{ 0x46d, 0xc295, hid_lgff_init }, /* Logitech MOMO force wheel */
 	{ 0x46d, 0xc219, hid_lgff_init }, /* Logitech Cordless rumble pad 2 */
+	{ 0x46d, 0xc283, hid_lgff_init }, /* Logitech Wingman Force 3d */
+	{ 0x46d, 0xc294, hid_lgff_init }, /* Logitech Formula Force EX */
+	{ 0x46d, 0xc295, hid_lgff_init }, /* Logitech MOMO force wheel */
+	{ 0x46d, 0xca03, hid_lgff_init }, /* Logitech MOMO force wheel */
+#endif
+#ifdef CONFIG_PANTHERLORD_FF
+	{ 0x810, 0x0001, hid_plff_init },
 #endif
 #ifdef CONFIG_THRUSTMASTER_FF
 	{ 0x44f, 0xb304, hid_tmff_init },

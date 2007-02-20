@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
@@ -36,7 +35,7 @@ const struct file_operations afs_mntpt_file_operations = {
 	.open		= afs_mntpt_open,
 };
 
-struct inode_operations afs_mntpt_inode_operations = {
+const struct inode_operations afs_mntpt_inode_operations = {
 	.lookup		= afs_mntpt_lookup,
 	.follow_link	= afs_mntpt_follow_link,
 	.readlink	= page_readlink,

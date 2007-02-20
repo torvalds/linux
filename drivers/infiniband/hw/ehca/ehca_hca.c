@@ -162,6 +162,9 @@ int ehca_query_port(struct ib_device *ibdev,
 	props->active_width    = IB_WIDTH_12X;
 	props->active_speed    = 0x1;
 
+	/* at the moment (logical) link state is always LINK_UP */
+	props->phys_state      = 0x5;
+
 query_port1:
 	ehca_free_fw_ctrlblock(rblock);
 

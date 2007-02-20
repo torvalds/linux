@@ -32,19 +32,19 @@ struct net_device *alloc_ieee80211softmac(int sizeof_priv)
 {
 	struct ieee80211softmac_device *softmac;
 	struct net_device *dev;
-	
+
 	dev = alloc_ieee80211(sizeof(struct ieee80211softmac_device) + sizeof_priv);
 	softmac = ieee80211_priv(dev);
 	softmac->dev = dev;
 	softmac->ieee = netdev_priv(dev);
 	spin_lock_init(&softmac->lock);
-	
+
 	softmac->ieee->handle_auth = ieee80211softmac_auth_resp;
 	softmac->ieee->handle_deauth = ieee80211softmac_deauth_resp;
 	softmac->ieee->handle_assoc_response = ieee80211softmac_handle_assoc_response;
 	softmac->ieee->handle_reassoc_request = ieee80211softmac_handle_reassoc_req;
 	softmac->ieee->handle_disassoc = ieee80211softmac_handle_disassoc;
- 	softmac->ieee->handle_beacon = ieee80211softmac_handle_beacon;
+	softmac->ieee->handle_beacon = ieee80211softmac_handle_beacon;
 	softmac->scaninfo = NULL;
 
 	softmac->associnfo.scan_retry = IEEE80211SOFTMAC_ASSOC_SCAN_RETRY_LIMIT;
@@ -66,37 +66,37 @@ struct net_device *alloc_ieee80211softmac(int sizeof_priv)
 
 	/* to start with, we can't send anything ... */
 	netif_carrier_off(dev);
-	
+
 	return dev;
 }
 EXPORT_SYMBOL_GPL(alloc_ieee80211softmac);
 
 /* Clears the pending work queue items, stops all scans, etc. */
-void 
+void
 ieee80211softmac_clear_pending_work(struct ieee80211softmac_device *sm)
 {
 	unsigned long flags;
 	struct ieee80211softmac_event *eventptr, *eventtmp;
 	struct ieee80211softmac_auth_queue_item *authptr, *authtmp;
 	struct ieee80211softmac_network *netptr, *nettmp;
-	
+
 	ieee80211softmac_stop_scan(sm);
 	ieee80211softmac_wait_for_scan(sm);
-	
+
 	spin_lock_irqsave(&sm->lock, flags);
 	sm->running = 0;
 
 	/* Free all pending assoc work items */
 	cancel_delayed_work(&sm->associnfo.work);
-	
+
 	/* Free all pending scan work items */
 	if(sm->scaninfo != NULL)
-		cancel_delayed_work(&sm->scaninfo->softmac_scan);	
-	
+		cancel_delayed_work(&sm->scaninfo->softmac_scan);
+
 	/* Free all pending auth work items */
 	list_for_each_entry(authptr, &sm->auth_queue, list)
 		cancel_delayed_work(&authptr->work);
-	
+
 	/* delete all pending event calls and work items */
 	list_for_each_entry_safe(eventptr, eventtmp, &sm->events, list)
 		cancel_delayed_work(&eventptr->work);
@@ -111,13 +111,13 @@ ieee80211softmac_clear_pending_work(struct ieee80211softmac_device *sm)
 		list_del(&authptr->list);
 		kfree(authptr);
 	}
-	
+
 	/* delete all pending event calls and work items */
 	list_for_each_entry_safe(eventptr, eventtmp, &sm->events, list) {
 		list_del(&eventptr->list);
 		kfree(eventptr);
 	}
-		
+
 	/* Free all networks */
 	list_for_each_entry_safe(netptr, nettmp, &sm->network_list, list) {
 		ieee80211softmac_del_network_locked(sm, netptr);
@@ -133,7 +133,7 @@ EXPORT_SYMBOL_GPL(ieee80211softmac_clear_pending_work);
 void free_ieee80211softmac(struct net_device *dev)
 {
 	struct ieee80211softmac_device *sm = ieee80211_priv(dev);
-	ieee80211softmac_clear_pending_work(sm);	
+	ieee80211softmac_clear_pending_work(sm);
 	kfree(sm->scaninfo);
 	kfree(sm->wpa.IE);
 	free_ieee80211(dev);
@@ -208,9 +208,9 @@ EXPORT_SYMBOL_GPL(ieee80211softmac_highest_supported_rate);
 void ieee80211softmac_process_erp(struct ieee80211softmac_device *mac,
 	u8 erp_value)
 {
- 	int use_protection;
+	int use_protection;
 	int short_preamble;
- 	u32 changes = 0;
+	u32 changes = 0;
 
 	/* Barker preamble mode */
 	short_preamble = ((erp_value & WLAN_ERP_BARKER_PREAMBLE) == 0
@@ -269,7 +269,7 @@ void ieee80211softmac_init_bss(struct ieee80211softmac_device *mac)
 	   rates, so 801.11g devices start off at 11M for now. People
 	   can manually change it if they really need to, but 11M is
 	   more reliable. Note similar logic in
-	   ieee80211softmac_wx_set_rate() */	 
+	   ieee80211softmac_wx_set_rate() */
 	if (ieee->modulation & IEEE80211_CCK_MODULATION) {
 		txrates->user_rate = IEEE80211_CCK_RATE_11MB;
 	} else if (ieee->modulation & IEEE80211_OFDM_MODULATION) {
@@ -332,7 +332,7 @@ void ieee80211softmac_set_rates(struct net_device *dev, u8 count, u8 *rates)
 {
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&mac->lock, flags);
 	memcpy(mac->ratesinfo.rates, rates, count);
 	mac->ratesinfo.count = count;
@@ -344,7 +344,7 @@ static u8 raise_rate(struct ieee80211softmac_device *mac, u8 rate)
 {
 	int i;
 	struct ieee80211softmac_ratesinfo *ri = &mac->ratesinfo;
-	
+
 	for (i=0; i<ri->count-1; i++) {
 		if (ri->rates[i] == rate)
 			return ri->rates[i+1];
@@ -357,7 +357,7 @@ u8 ieee80211softmac_lower_rate_delta(struct ieee80211softmac_device *mac, u8 rat
 {
 	int i;
 	struct ieee80211softmac_ratesinfo *ri = &mac->ratesinfo;
-	
+
 	for (i=delta; i<ri->count; i++) {
 		if (ri->rates[i] == rate)
 			return ri->rates[i-delta];
@@ -438,7 +438,7 @@ ieee80211softmac_create_network(struct ieee80211softmac_device *mac,
 	softnet->channel = net->channel;
 	softnet->essid.len = net->ssid_len;
 	memcpy(softnet->essid.data, net->ssid, softnet->essid.len);
-	
+
 	/* copy rates over */
 	softnet->supported_rates.count = net->rates_len;
 	memcpy(&softnet->supported_rates.rates[0], net->rates, net->rates_len);
@@ -529,7 +529,7 @@ ieee80211softmac_get_network_by_bssid(struct ieee80211softmac_device *mac,
 {
 	unsigned long flags;
 	struct ieee80211softmac_network *softmac_net;
-	
+
 	spin_lock_irqsave(&mac->lock, flags);
 	softmac_net = ieee80211softmac_get_network_by_bssid_locked(mac, bssid);
 	spin_unlock_irqrestore(&mac->lock, flags);
@@ -556,13 +556,13 @@ ieee80211softmac_get_network_by_essid_locked(struct ieee80211softmac_device *mac
 /* Get a network from the list by ESSID with locking */
 struct ieee80211softmac_network *
 ieee80211softmac_get_network_by_essid(struct ieee80211softmac_device *mac,
-	struct ieee80211softmac_essid *essid)	
+	struct ieee80211softmac_essid *essid)
 {
 	unsigned long flags;
 	struct ieee80211softmac_network *softmac_net = NULL;
 
 	spin_lock_irqsave(&mac->lock, flags);
-	softmac_net = ieee80211softmac_get_network_by_essid_locked(mac, essid);	
+	softmac_net = ieee80211softmac_get_network_by_essid_locked(mac, essid);
 	spin_unlock_irqrestore(&mac->lock, flags);
 	return softmac_net;
 }

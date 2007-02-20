@@ -352,6 +352,10 @@
 #define BCM43xx_UCODEFLAG_UNKPACTRL	0x0040
 #define BCM43xx_UCODEFLAG_JAPAN		0x0080
 
+/* Hardware Radio Enable masks */
+#define BCM43xx_MMIO_RADIO_HWENABLED_HI_MASK (1 << 16)
+#define BCM43xx_MMIO_RADIO_HWENABLED_LO_MASK (1 << 4)
+
 /* Generic-Interrupt reasons. */
 #define BCM43xx_IRQ_READY		(1 << 0)
 #define BCM43xx_IRQ_BEACON		(1 << 1)
@@ -758,7 +762,8 @@ struct bcm43xx_private {
 	    bad_frames_preempt:1,	/* Use "Bad Frames Preemption" (default off) */
 	    reg124_set_0x4:1,		/* Some variable to keep track of IRQ stuff. */
 	    short_preamble:1,		/* TRUE, if short preamble is enabled. */
-	    firmware_norelease:1;	/* Do not release the firmware. Used on suspend. */
+	    firmware_norelease:1,	/* Do not release the firmware. Used on suspend. */
+	    radio_hw_enable:1;		/* TRUE if radio is hardware enabled */
 
 	struct bcm43xx_stats stats;
 
@@ -766,6 +771,7 @@ struct bcm43xx_private {
 	 * This is currently always BCM43xx_BUSTYPE_PCI
 	 */
 	u8 bustype;
+	u64 dma_mask;
 
 	u16 board_vendor;
 	u16 board_type;

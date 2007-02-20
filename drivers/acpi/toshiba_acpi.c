@@ -125,7 +125,7 @@ static int write_acpi_int(const char *methodName, int val)
 	union acpi_object in_objs[1];
 	acpi_status status;
 
-	params.count = sizeof(in_objs) / sizeof(in_objs[0]);
+	params.count = ARRAY_SIZE(in_objs);
 	params.pointer = in_objs;
 	in_objs[0].type = ACPI_TYPE_INTEGER;
 	in_objs[0].integer.value = val;
@@ -561,10 +561,6 @@ static int __init toshiba_acpi_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	if (!acpi_specific_hotkey_enabled) {
-		printk(MY_INFO "Using generic hotkey driver\n");
-		return -ENODEV;
-	}
 	/* simple device detection: look for HCI method */
 	if (is_valid_acpi_path(METHOD_HCI_1))
 		method_hci = METHOD_HCI_1;

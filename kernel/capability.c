@@ -92,15 +92,17 @@ out:
  * cap_set_pg - set capabilities for all processes in a given process
  * group.  We call this holding task_capability_lock and tasklist_lock.
  */
-static inline int cap_set_pg(int pgrp, kernel_cap_t *effective,
+static inline int cap_set_pg(int pgrp_nr, kernel_cap_t *effective,
 			      kernel_cap_t *inheritable,
 			      kernel_cap_t *permitted)
 {
 	struct task_struct *g, *target;
 	int ret = -EPERM;
 	int found = 0;
+	struct pid *pgrp;
 
-	do_each_task_pid(pgrp, PIDTYPE_PGID, g) {
+	pgrp = find_pid(pgrp_nr);
+	do_each_pid_task(pgrp, PIDTYPE_PGID, g) {
 		target = g;
 		while_each_thread(g, target) {
 			if (!security_capset_check(target, effective,
@@ -113,7 +115,7 @@ static inline int cap_set_pg(int pgrp, kernel_cap_t *effective,
 			}
 			found = 1;
 		}
-	} while_each_task_pid(pgrp, PIDTYPE_PGID, g);
+	} while_each_pid_task(pgrp, PIDTYPE_PGID, g);
 
 	if (!found)
 	     ret = 0;

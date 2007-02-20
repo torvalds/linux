@@ -327,7 +327,7 @@ EXPORT_SYMBOL(sync_page_range);
  * @pos:	beginning offset in pages to write
  * @count:	number of bytes to write
  *
- * Note: Holding i_mutex across sync_page_range_nolock is not a good idea
+ * Note: Holding i_mutex across sync_page_range_nolock() is not a good idea
  * as it forces O_SYNC writers to different parts of the same file
  * to be serialised right until io completion.
  */
@@ -606,26 +606,6 @@ struct page * find_get_page(struct address_space *mapping, unsigned long offset)
 EXPORT_SYMBOL(find_get_page);
 
 /**
- * find_trylock_page - find and lock a page
- * @mapping: the address_space to search
- * @offset: the page index
- *
- * Same as find_get_page(), but trylock it instead of incrementing the count.
- */
-struct page *find_trylock_page(struct address_space *mapping, unsigned long offset)
-{
-	struct page *page;
-
-	read_lock_irq(&mapping->tree_lock);
-	page = radix_tree_lookup(&mapping->page_tree, offset);
-	if (page && TestSetPageLocked(page))
-		page = NULL;
-	read_unlock_irq(&mapping->tree_lock);
-	return page;
-}
-EXPORT_SYMBOL(find_trylock_page);
-
-/**
  * find_lock_page - locate, pin and lock a pagecache page
  * @mapping: the address_space to search
  * @offset: the page index
@@ -804,7 +784,7 @@ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
  * @mapping: target address_space
  * @index: the page index
  *
- * Same as grab_cache_page, but do not wait if the page is unavailable.
+ * Same as grab_cache_page(), but do not wait if the page is unavailable.
  * This is intended for speculative data generators, where the data can
  * be regenerated if the page couldn't be grabbed.  This routine should
  * be safe to call while holding the lock for another page.
@@ -2099,21 +2079,27 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		/* Limit the size of the copy to the caller's write size */
 		bytes = min(bytes, count);
 
-		/*
-		 * Limit the size of the copy to that of the current segment,
-		 * because fault_in_pages_readable() doesn't know how to walk
-		 * segments.
+		/* We only need to worry about prefaulting when writes are from
+		 * user-space.  NFSd uses vfs_writev with several non-aligned
+		 * segments in the vector, and limiting to one segment a time is
+		 * a noticeable performance for re-write
 		 */
-		bytes = min(bytes, cur_iov->iov_len - iov_base);
+		if (!segment_eq(get_fs(), KERNEL_DS)) {
+			/*
+			 * Limit the size of the copy to that of the current
+			 * segment, because fault_in_pages_readable() doesn't
+			 * know how to walk segments.
+			 */
+			bytes = min(bytes, cur_iov->iov_len - iov_base);
 
-		/*
-		 * Bring in the user page that we will copy from _first_.
-		 * Otherwise there's a nasty deadlock on copying from the
-		 * same page as we're writing to, without it being marked
-		 * up-to-date.
-		 */
-		fault_in_pages_readable(buf, bytes);
-
+			/*
+			 * Bring in the user page that we will copy from
+			 * _first_.  Otherwise there's a nasty deadlock on
+			 * copying from the same page as we're writing to,
+			 * without it being marked up-to-date.
+			 */
+			fault_in_pages_readable(buf, bytes);
+		}
 		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
 		if (!page) {
 			status = -ENOMEM;

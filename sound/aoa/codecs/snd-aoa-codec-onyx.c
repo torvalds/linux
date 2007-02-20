@@ -825,7 +825,16 @@ static int onyx_resume(struct codec_info_item *cii)
 	int err = -ENXIO;
 
 	mutex_lock(&onyx->mutex);
-	/* take codec out of suspend */
+
+	/* reset codec */
+	onyx->codec.gpio->methods->set_hw_reset(onyx->codec.gpio, 0);
+	msleep(1);
+	onyx->codec.gpio->methods->set_hw_reset(onyx->codec.gpio, 1);
+	msleep(1);
+	onyx->codec.gpio->methods->set_hw_reset(onyx->codec.gpio, 0);
+	msleep(1);
+
+	/* take codec out of suspend (if it still is after reset) */
 	if (onyx_read_register(onyx, ONYX_REG_CONTROL, &v))
 		goto out_unlock;
 	onyx_write_register(onyx, ONYX_REG_CONTROL, v & ~(ONYX_ADPSV | ONYX_DAPSV));

@@ -39,12 +39,9 @@
 #include <linux/if_vlan.h>
 #define BCM_VLAN 1
 #endif
-#ifdef NETIF_F_TSO
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/checksum.h>
-#define BCM_TSO 1
-#endif
 #include <linux/workqueue.h>
 #include <linux/crc32.h>
 #include <linux/prefetch.h>
@@ -1728,7 +1725,7 @@ bnx2_tx_int(struct bnx2 *bp)
 
 		tx_buf = &bp->tx_buf_ring[sw_ring_cons];
 		skb = tx_buf->skb;
-#ifdef BCM_TSO
+
 		/* partial BD completions possible with TSO packets */
 		if (skb_is_gso(skb)) {
 			u16 last_idx, last_ring_idx;
@@ -1744,7 +1741,7 @@ bnx2_tx_int(struct bnx2 *bp)
 				break;
 			}
 		}
-#endif
+
 		pci_unmap_single(bp->pdev, pci_unmap_addr(tx_buf, mapping),
 			skb_headlen(skb), PCI_DMA_TODEVICE);
 
@@ -4514,7 +4511,6 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		vlan_tag_flags |=
 			(TX_BD_FLAGS_VLAN_TAG | (vlan_tx_tag_get(skb) << 16));
 	}
-#ifdef BCM_TSO
 	if ((mss = skb_shinfo(skb)->gso_size) &&
 		(skb->len > (bp->dev->mtu + ETH_HLEN))) {
 		u32 tcp_opt_len, ip_tcp_len;
@@ -4547,7 +4543,6 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 	else
-#endif
 	{
 		mss = 0;
 	}
@@ -5544,10 +5539,8 @@ static const struct ethtool_ops bnx2_ethtool_ops = {
 	.set_tx_csum		= ethtool_op_set_tx_csum,
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
-#ifdef BCM_TSO
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= bnx2_set_tso,
-#endif
 	.self_test_count	= bnx2_self_test_count,
 	.self_test		= bnx2_self_test,
 	.get_strings		= bnx2_get_strings,
@@ -5954,8 +5947,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	 * responding after a while.
 	 *
 	 * AMD believes this incompatibility is unique to the 5706, and
-	 * prefers to locally disable MSI rather than globally disabling it
-	 * using pci_msi_quirk.
+	 * prefers to locally disable MSI rather than globally disabling it.
 	 */
 	if (CHIP_NUM(bp) == CHIP_NUM_5706 && disable_msi == 0) {
 		struct pci_dev *amd_8132 = NULL;
@@ -6104,9 +6096,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef BCM_VLAN
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 #endif
-#ifdef BCM_TSO
 	dev->features |= NETIF_F_TSO | NETIF_F_TSO_ECN;
-#endif
 
 	netif_carrier_off(bp->dev);
 

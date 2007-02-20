@@ -23,7 +23,6 @@
  *
  */
 
-#include <linux/sched.h>
 #include <linux/poll.h>
 #include <linux/spinlock.h>
 #include "tpm.h"
@@ -1107,9 +1106,8 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 
 	INIT_WORK(&chip->work, timeout_work);
 
-	init_timer(&chip->user_read_timer);
-	chip->user_read_timer.function = user_reader_timeout;
-	chip->user_read_timer.data = (unsigned long) chip;
+	setup_timer(&chip->user_read_timer, user_reader_timeout,
+			(unsigned long)chip);
 
 	memcpy(&chip->vendor, entry, sizeof(struct tpm_vendor_specific));
 

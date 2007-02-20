@@ -173,6 +173,11 @@ config PPC_86xx
 	help
 	  The Freescale E600 SoCs have 74xx cores.
 
+config PPC_8xx
+	bool "Freescale 8xx"
+	select FSL_SOC
+	select 8xx
+
 config 40x
 	bool "AMCC 40x"
 	select PPC_DCR_NATIVE
@@ -181,8 +186,6 @@ config 44x
 	bool "AMCC 44x"
 	select PPC_DCR_NATIVE
 
-config 8xx
-	bool "Freescale 8xx"
 
 config E200
 	bool "Freescale e200"
@@ -208,6 +211,10 @@ config POWER4
 	def_bool y
 
 config 6xx
+	bool
+
+# this is temp to handle compat with arch=ppc
+config 8xx
 	bool
 
 # this is temp to handle compat with arch=ppc
@@ -429,6 +436,21 @@ config PPC_MPC52xx
 	bool
 	default n
 
+config PPC_MPC5200
+	bool
+	select PPC_MPC52xx
+	default n
+
+config PPC_MPC5200_BUGFIX
+	bool "MPC5200 (L25R) bugfix support"
+	depends on PPC_MPC5200
+	default n
+	help
+	  Enable workarounds for original MPC5200 errata.  This is not required
+	  for MPC5200B based boards.
+
+	  It is safe to say 'Y' here
+
 config PPC_EFIKA
 	bool "bPlan Efika 5k2. MPC5200B based computer"
 	depends on PPC_MULTIPLATFORM && PPC32
@@ -441,7 +463,7 @@ config PPC_EFIKA
 config PPC_LITE5200
 	bool "Freescale Lite5200 Eval Board"
 	depends on PPC_MULTIPLATFORM && PPC32
-	select PPC_MPC52xx
+	select PPC_MPC5200
 	default n
 
 config PPC_PMAC
@@ -484,6 +506,7 @@ config PPC_MAPLE
 	select PPC_970_NAP
 	select PPC_NATIVE
 	select PPC_RTAS
+	select MMIO_NVRAM
 	select ATA_NONSTANDARD if ATA
 	default n
 	help
@@ -529,12 +552,27 @@ config PPC_PS3
 	bool "Sony PS3 (incomplete)"
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_CELL
+	select USB_ARCH_HAS_OHCI
+	select USB_OHCI_LITTLE_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_MMIO
+	select USB_ARCH_HAS_EHCI
+	select USB_EHCI_BIG_ENDIAN_MMIO
 	help
 	  This option enables support for the Sony PS3 game console
 	  and other platforms using the PS3 hypervisor.
 	  Support for this platform is not yet complete, so
 	  enabling this will not result in a bootable kernel on a
 	  PS3 system.
+
+config PPC_CELLEB
+	bool "Toshiba's Cell Reference Set 'Celleb' Architecture"
+	depends on PPC_MULTIPLATFORM && PPC64
+	select PPC_CELL
+	select PPC_OF_PLATFORM_PCI
+	select HAS_TXX9_SERIAL
+	select PPC_UDBG_BEAT
+	select USB_OHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_MMIO
 
 config PPC_NATIVE
 	bool
@@ -547,6 +585,11 @@ config PPC_NATIVE
 config UDBG_RTAS_CONSOLE
 	bool "RTAS based debug console"
 	depends on PPC_RTAS
+	default n
+
+config PPC_UDBG_BEAT
+	bool "BEAT based debug console"
+	depends on PPC_CELLEB
 	default n
 
 config XICS
@@ -576,6 +619,15 @@ config RTAS_PROC
 config RTAS_FLASH
 	tristate "Firmware flash interface"
 	depends on PPC64 && RTAS_PROC
+
+config PPC_PMI
+	tristate "Support for PMI"
+	depends PPC_IBM_CELL_BLADE
+	help
+	  PMI (Platform Management Interrupt) is a way to
+	  communicate with the BMC (Baseboard Mangement Controller).
+	  It is used in some IBM Cell blades.
+	default m
 
 config MMIO_NVRAM
 	bool
@@ -702,6 +754,7 @@ source arch/powerpc/platforms/86xx/Kconfig
 source arch/powerpc/platforms/8xx/Kconfig
 source arch/powerpc/platforms/cell/Kconfig
 source arch/powerpc/platforms/ps3/Kconfig
+source arch/powerpc/platforms/pasemi/Kconfig
 
 menu "Kernel options"
 
@@ -724,7 +777,7 @@ config FORCE_MAX_ZONEORDER
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || E200 || PPC_83xx || E500
+	depends on 4xx || 8xx || E200 || PPC_MPC832x || E500
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -832,7 +885,7 @@ config ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
-	depends on (SMP && PPC_PSERIES) || PPC_CELL
+	depends on (SMP && PPC_PSERIES) || PPC_PS3
 
 config ARCH_POPULATES_NODE_MAP
 	def_bool y
@@ -932,6 +985,10 @@ config ISA
 	  inside your box.  If you have an Apple machine, say N here; if you
 	  have an IBM RS/6000 or pSeries machine or a PReP machine, say Y.  If
 	  you have an embedded board, consult your board documentation.
+
+config ZONE_DMA
+	bool
+	default y
 
 config GENERIC_ISA_DMA
 	bool
@@ -1182,7 +1239,7 @@ source "arch/powerpc/oprofile/Kconfig"
 
 config KPROBES
 	bool "Kprobes (EXPERIMENTAL)"
-	depends on PPC64 && KALLSYMS && EXPERIMENTAL && MODULES
+	depends on !BOOKE && !4xx && KALLSYMS && EXPERIMENTAL && MODULES
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes

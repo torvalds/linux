@@ -112,17 +112,17 @@ static struct llc_station llc_main_station;
 
 static int llc_stat_ev_enable_with_dup_addr_check(struct sk_buff *skb)
 {
-	struct llc_station_state_ev *ev = llc_station_ev(skb);	
-	
+	struct llc_station_state_ev *ev = llc_station_ev(skb);
+
 	return ev->type == LLC_STATION_EV_TYPE_SIMPLE &&
 	       ev->prim_type ==
-	       		      LLC_STATION_EV_ENABLE_WITH_DUP_ADDR_CHECK ? 0 : 1;
+			      LLC_STATION_EV_ENABLE_WITH_DUP_ADDR_CHECK ? 0 : 1;
 }
 
 static int llc_stat_ev_enable_without_dup_addr_check(struct sk_buff *skb)
 {
-	struct llc_station_state_ev *ev = llc_station_ev(skb);	
-	
+	struct llc_station_state_ev *ev = llc_station_ev(skb);
+
 	return ev->type == LLC_STATION_EV_TYPE_SIMPLE &&
 	       ev->prim_type ==
 			LLC_STATION_EV_ENABLE_WITHOUT_DUP_ADDR_CHECK ? 0 : 1;
@@ -130,8 +130,8 @@ static int llc_stat_ev_enable_without_dup_addr_check(struct sk_buff *skb)
 
 static int llc_stat_ev_ack_tmr_exp_lt_retry_cnt_max_retry(struct sk_buff *skb)
 {
-	struct llc_station_state_ev *ev = llc_station_ev(skb);	
-	
+	struct llc_station_state_ev *ev = llc_station_ev(skb);
+
 	return ev->type == LLC_STATION_EV_TYPE_ACK_TMR &&
 		llc_main_station.retry_count <
 		llc_main_station.maximum_retry ? 0 : 1;
@@ -139,8 +139,8 @@ static int llc_stat_ev_ack_tmr_exp_lt_retry_cnt_max_retry(struct sk_buff *skb)
 
 static int llc_stat_ev_ack_tmr_exp_eq_retry_cnt_max_retry(struct sk_buff *skb)
 {
-	struct llc_station_state_ev *ev = llc_station_ev(skb);	
-	
+	struct llc_station_state_ev *ev = llc_station_ev(skb);
+
 	return ev->type == LLC_STATION_EV_TYPE_ACK_TMR &&
 		llc_main_station.retry_count ==
 		llc_main_station.maximum_retry ? 0 : 1;
@@ -148,7 +148,7 @@ static int llc_stat_ev_ack_tmr_exp_eq_retry_cnt_max_retry(struct sk_buff *skb)
 
 static int llc_stat_ev_rx_null_dsap_xid_c(struct sk_buff *skb)
 {
-	struct llc_station_state_ev *ev = llc_station_ev(skb);	
+	struct llc_station_state_ev *ev = llc_station_ev(skb);
 	struct llc_pdu_un *pdu = llc_pdu_un_hdr(skb);
 
 	return ev->type == LLC_STATION_EV_TYPE_PDU &&
@@ -306,7 +306,7 @@ static int llc_station_ac_send_test_r(struct sk_buff *skb)
 	llc_pdu_decode_sa(skb, mac_da);
 	llc_pdu_decode_ssap(skb, &dsap);
 	llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, 0, dsap, LLC_PDU_RSP);
-       	llc_pdu_init_as_test_rsp(nskb, skb);
+	llc_pdu_init_as_test_rsp(nskb, skb);
 	rc = llc_mac_hdr_init(nskb, llc_station_mac_sa, mac_da);
 	if (unlikely(rc))
 		goto free;

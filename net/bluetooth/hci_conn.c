@@ -1,4 +1,4 @@
-/* 
+/*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
 
@@ -12,13 +12,13 @@
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
    IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
+   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
+   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS,
+   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS
    SOFTWARE IS DISCLAIMED.
 */
 
@@ -29,7 +29,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/fcntl.h>
@@ -146,7 +145,7 @@ static void hci_conn_timeout(unsigned long arg)
 	case BT_CONNECT:
 		hci_acl_connect_cancel(conn);
 		break;
- 	case BT_CONNECTED:
+	case BT_CONNECTED:
 		hci_acl_disconn(conn, 0x13);
 		break;
 	default:
@@ -272,7 +271,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 		if (!test_bit(HCI_UP, &d->flags) || test_bit(HCI_RAW, &d->flags))
 			continue;
 
-		/* Simple routing: 
+		/* Simple routing:
 		 *   No source address - find interface with bdaddr != dst
 		 *   Source address    - find interface with bdaddr == src
 		 */
@@ -328,7 +327,7 @@ struct hci_conn * hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst)
 
 		hci_conn_hold(sco);
 
-		if (acl->state == BT_CONNECTED && 
+		if (acl->state == BT_CONNECTED &&
 				(sco->state == BT_OPEN || sco->state == BT_CLOSED))
 			hci_add_sco(sco, acl->handle);
 
@@ -370,7 +369,7 @@ int hci_conn_encrypt(struct hci_conn *conn)
 	if (hci_conn_auth(conn)) {
 		struct hci_cp_set_conn_encrypt cp;
 		cp.handle  = __cpu_to_le16(conn->handle);
-		cp.encrypt = 1; 
+		cp.encrypt = 1;
 		hci_send_cmd(conn->hdev, OGF_LINK_CTL, OCF_SET_CONN_ENCRYPT, sizeof(cp), &cp);
 	}
 	return 0;

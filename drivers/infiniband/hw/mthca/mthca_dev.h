@@ -464,6 +464,8 @@ void mthca_uar_free(struct mthca_dev *dev, struct mthca_uar *uar);
 int mthca_pd_alloc(struct mthca_dev *dev, int privileged, struct mthca_pd *pd);
 void mthca_pd_free(struct mthca_dev *dev, struct mthca_pd *pd);
 
+int mthca_write_mtt_size(struct mthca_dev *dev);
+
 struct mthca_mtt *mthca_alloc_mtt(struct mthca_dev *dev, int size);
 void mthca_free_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt);
 int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,

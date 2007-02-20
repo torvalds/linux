@@ -1,4 +1,4 @@
-/* 
+/*
  * 32bit Socket syscall emulation. Based on arch/sparc64/kernel/sys_sparc32.c.
  *
  * Copyright (C) 2000		VA Linux Co
@@ -8,12 +8,11 @@
  * Copyright (C) 1997 		David S. Miller (davem@caip.rutgers.edu)
  * Copyright (C) 2000		Hewlett-Packard Co.
  * Copyright (C) 2000		David Mosberger-Tang <davidm@hpl.hp.com>
- * Copyright (C) 2000,2001	Andi Kleen, SuSE Labs 
+ * Copyright (C) 2000,2001	Andi Kleen, SuSE Labs
  */
 
 #include <linux/kernel.h>
 #include <linux/fs.h>
-#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/file.h>
 #include <linux/icmpv6.h>
@@ -225,14 +224,14 @@ int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *dat
 		return 0; /* XXX: return error? check spec. */
 	}
 
-	if (level == SOL_SOCKET && type == SO_TIMESTAMP) { 
+	if (level == SOL_SOCKET && type == SO_TIMESTAMP) {
 		struct timeval *tv = (struct timeval *)data;
 		ctv.tv_sec = tv->tv_sec;
 		ctv.tv_usec = tv->tv_usec;
 		data = &ctv;
 		len = sizeof(struct compat_timeval);
-	} 
-	
+	}
+
 	cmlen = CMSG_COMPAT_LEN(len);
 	if(kmsg->msg_controllen < cmlen) {
 		kmsg->msg_flags |= MSG_CTRUNC;
@@ -419,7 +418,7 @@ static int do_set_attach_filter(struct socket *sock, int level, int optname,
 				char __user *optval, int optlen)
 {
 	struct compat_sock_fprog __user *fprog32 = (struct compat_sock_fprog __user *)optval;
-	struct sock_fprog __user *kfprog = compat_alloc_user_space(sizeof(struct sock_fprog)); 
+	struct sock_fprog __user *kfprog = compat_alloc_user_space(sizeof(struct sock_fprog));
 	compat_uptr_t ptr;
 	u16 len;
 
@@ -610,14 +609,14 @@ asmlinkage long compat_sys_socketcall(int call, u32 __user *args)
 	int ret;
 	u32 a[6];
 	u32 a0, a1;
-				 
+
 	if (call < SYS_SOCKET || call > SYS_RECVMSG)
 		return -EINVAL;
 	if (copy_from_user(a, args, nas[call]))
 		return -EFAULT;
 	a0 = a[0];
 	a1 = a[1];
-	
+
 	switch(call) {
 	case SYS_SOCKET:
 		ret = sys_socket(a0, a1, a[2]);

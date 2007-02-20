@@ -754,7 +754,7 @@ int ieee80211_wx_set_auth(struct net_device *dev,
 	int err = 0;
 
 	spin_lock_irqsave(&ieee->lock, flags);
-	
+
 	switch (wrqu->param.flags & IW_AUTH_INDEX) {
 	case IW_AUTH_WPA_VERSION:
 	case IW_AUTH_CIPHER_PAIRWISE:
@@ -799,7 +799,7 @@ int ieee80211_wx_get_auth(struct net_device *dev,
 	int err = 0;
 
 	spin_lock_irqsave(&ieee->lock, flags);
-	
+
 	switch (wrqu->param.flags & IW_AUTH_INDEX) {
 	case IW_AUTH_WPA_VERSION:
 	case IW_AUTH_CIPHER_PAIRWISE:

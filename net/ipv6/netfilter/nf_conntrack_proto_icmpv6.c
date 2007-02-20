@@ -17,7 +17,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/module.h>
 #include <linux/netfilter.h>
@@ -104,9 +103,9 @@ static int icmpv6_packet(struct nf_conn *ct,
 		       unsigned int hooknum)
 {
 	/* Try to delete connection immediately after all replies:
-           won't actually vanish as we still have skb, and del_timer
-           means this will only run once even if count hits zero twice
-           (theoretically possible with SMP) */
+	   won't actually vanish as we still have skb, and del_timer
+	   means this will only run once even if count hits zero twice
+	   (theoretically possible with SMP) */
 	if (CTINFO2DIR(ctinfo) == IP_CT_DIR_REPLY) {
 		if (atomic_dec_and_test(&ct->proto.icmp.count)
 		    && del_timer(&ct->timeout))
@@ -182,6 +181,7 @@ icmpv6_error_message(struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
+	/* rcu_read_lock()ed by nf_hook_slow */
 	inproto = __nf_ct_l4proto_find(PF_INET6, inprotonum);
 
 	/* Are they talking about one of our connections? */

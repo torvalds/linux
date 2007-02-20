@@ -26,6 +26,7 @@
 */
 
 #include "bcm43xx_leds.h"
+#include "bcm43xx_radio.h"
 #include "bcm43xx.h"
 
 #include <asm/bitops.h>
@@ -108,6 +109,7 @@ static void bcm43xx_led_init_hardcoded(struct bcm43xx_private *bcm,
 	switch (led_index) {
 	case 0:
 		led->behaviour = BCM43xx_LED_ACTIVITY;
+		led->activelow = 1;
 		if (bcm->board_vendor == PCI_VENDOR_ID_COMPAQ)
 			led->behaviour = BCM43xx_LED_RADIO_ALL;
 		break;
@@ -199,20 +201,21 @@ void bcm43xx_leds_update(struct bcm43xx_private *bcm, int activity)
 			turn_on = activity;
 			break;
 		case BCM43xx_LED_RADIO_ALL:
-			turn_on = radio->enabled;
+			turn_on = radio->enabled && bcm43xx_is_hw_radio_enabled(bcm);
 			break;
 		case BCM43xx_LED_RADIO_A:
 		case BCM43xx_LED_BCM4303_2:
-			turn_on = (radio->enabled && phy->type == BCM43xx_PHYTYPE_A);
+			turn_on = (radio->enabled && bcm43xx_is_hw_radio_enabled(bcm) &&
+				   phy->type == BCM43xx_PHYTYPE_A);
 			break;
 		case BCM43xx_LED_RADIO_B:
 		case BCM43xx_LED_BCM4303_1:
-			turn_on = (radio->enabled &&
+			turn_on = (radio->enabled && bcm43xx_is_hw_radio_enabled(bcm) &&
 				   (phy->type == BCM43xx_PHYTYPE_B ||
 				    phy->type == BCM43xx_PHYTYPE_G));
 			break;
 		case BCM43xx_LED_MODE_BG:
-			if (phy->type == BCM43xx_PHYTYPE_G &&
+			if (phy->type == BCM43xx_PHYTYPE_G && bcm43xx_is_hw_radio_enabled(bcm) &&
 			    1/*FIXME: using G rates.*/)
 				turn_on = 1;
 			break;

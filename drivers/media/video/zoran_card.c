@@ -843,6 +843,7 @@ zoran_register_i2c (struct zoran *zr)
 		sizeof(I2C_NAME(&zr->i2c_adapter)) - 1);
 	i2c_set_adapdata(&zr->i2c_adapter, zr);
 	zr->i2c_adapter.algo_data = &zr->i2c_algo;
+	zr->i2c_adapter.dev.parent = &zr->pci_dev->dev;
 	return i2c_bit_add_bus(&zr->i2c_adapter);
 }
 

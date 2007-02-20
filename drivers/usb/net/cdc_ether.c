@@ -1,6 +1,7 @@
 /*
  * CDC Ethernet based networking peripherals
  * Copyright (C) 2003-2005 by David Brownell
+ * Copyright (C) 2006 by Ole Andre Vadla Ravnas (ActiveSync)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +22,6 @@
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -34,6 +34,29 @@
 
 #include "usbnet.h"
 
+
+#if defined(CONFIG_USB_NET_RNDIS_HOST) || defined(CONFIG_USB_NET_RNDIS_HOST_MODULE)
+
+static int is_rndis(struct usb_interface_descriptor *desc)
+{
+	return desc->bInterfaceClass == USB_CLASS_COMM
+		&& desc->bInterfaceSubClass == 2
+		&& desc->bInterfaceProtocol == 0xff;
+}
+
+static int is_activesync(struct usb_interface_descriptor *desc)
+{
+	return desc->bInterfaceClass == USB_CLASS_MISC
+		&& desc->bInterfaceSubClass == 1
+		&& desc->bInterfaceProtocol == 1;
+}
+
+#else
+
+#define is_rndis(desc)		0
+#define is_activesync(desc)	0
+
+#endif
 
 /*
  * probes control interface, claims data interface, collects the bulk
@@ -71,7 +94,8 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* this assumes that if there's a non-RNDIS vendor variant
 	 * of cdc-acm, it'll fail RNDIS requests cleanly.
 	 */
-	rndis = (intf->cur_altsetting->desc.bInterfaceProtocol == 0xff);
+	rndis = is_rndis(&intf->cur_altsetting->desc)
+		|| is_activesync(&intf->cur_altsetting->desc);
 
 	memset(info, 0, sizeof *info);
 	info->control = intf;
@@ -97,6 +121,23 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 				dev_dbg(&intf->dev, "CDC header len %u\n",
 					info->header->bLength);
 				goto bad_desc;
+			}
+			break;
+		case USB_CDC_ACM_TYPE:
+			/* paranoia:  disambiguate a "real" vendor-specific
+			 * modem interface from an RNDIS non-modem.
+			 */
+			if (rndis) {
+				struct usb_cdc_acm_descriptor *d;
+
+				d = (void *) buf;
+				if (d->bmCapabilities) {
+					dev_dbg(&intf->dev,
+						"ACM capabilities %02x, "
+						"not really RNDIS?\n",
+						d->bmCapabilities);
+					goto bad_desc;
+				}
 			}
 			break;
 		case USB_CDC_UNION_TYPE:
@@ -171,7 +212,21 @@ next_desc:
 		buf += buf [0];
 	}
 
-	if (!info->header || !info->u || (!rndis && !info->ether)) {
+	/* Microsoft ActiveSync based RNDIS devices lack the CDC descriptors,
+	 * so we'll hard-wire the interfaces and not check for descriptors.
+	 */
+	if (is_activesync(&intf->cur_altsetting->desc) && !info->u) {
+		info->control = usb_ifnum_to_if(dev->udev, 0);
+		info->data = usb_ifnum_to_if(dev->udev, 1);
+		if (!info->control || !info->data) {
+			dev_dbg(&intf->dev,
+				"activesync: master #0/%p slave #1/%p\n",
+				info->control,
+				info->data);
+			goto bad_desc;
+		}
+
+	} else if (!info->header || !info->u || (!rndis && !info->ether)) {
 		dev_dbg(&intf->dev, "missing cdc %s%s%sdescriptor\n",
 			info->header ? "" : "header ",
 			info->u ? "" : "union ",

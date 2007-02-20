@@ -91,7 +91,7 @@ static int snd_vxpocket_dev_free(struct snd_device *device)
  * Only output levels can be modified
  */
 
-static DECLARE_TLV_DB_SCALE(db_scale_old_vol, -11350, 50, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_old_vol, -11350, 50, 0);
 
 static struct snd_vx_hardware vxpocket_hw = {
 	.name = "VXPocket",

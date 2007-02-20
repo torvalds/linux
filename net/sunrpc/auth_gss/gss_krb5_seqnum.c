@@ -11,7 +11,7 @@
 
 /*
  * Copyright 1993 by OpenVision Technologies, Inc.
- * 
+ *
  * Permission to use, copy, modify, distribute, and sell this software
  * and its documentation for any purpose is hereby granted without fee,
  * provided that the above copyright notice appears in all copies and
@@ -21,7 +21,7 @@
  * without specific, written prior permission. OpenVision makes no
  * representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied warranty.
- * 
+ *
  * OPENVISION DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
  * EVENT SHALL OPENVISION BE LIABLE FOR ANY SPECIAL, INDIRECT OR
@@ -70,7 +70,7 @@ krb5_get_seq_num(struct crypto_blkcipher *key,
 	s32 code;
 	unsigned char plain[8];
 
-	dprintk("RPC:      krb5_get_seq_num:\n");
+	dprintk("RPC:       krb5_get_seq_num:\n");
 
 	if ((code = krb5_decrypt(key, cksum, buf, plain, 8)))
 		return code;

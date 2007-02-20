@@ -117,7 +117,7 @@ static loff_t leds_dev_lseek (struct file *file, loff_t offs, int whence)
 	return 0;
 }
 
-static struct file_operations leds_fops = {
+static const struct file_operations leds_fops = {
 	.read		= leds_dev_read,
 	.write		= leds_dev_write,
 	.llseek		= leds_dev_lseek

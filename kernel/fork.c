@@ -858,7 +858,7 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 	init_sigpending(&sig->shared_pending);
 	INIT_LIST_HEAD(&sig->posix_timers);
 
-	hrtimer_init(&sig->real_timer, CLOCK_MONOTONIC, HRTIMER_REL);
+	hrtimer_init(&sig->real_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	sig->it_real_incr.tv64 = 0;
 	sig->real_timer.function = it_real_fn;
 	sig->tsk = tsk;
@@ -869,7 +869,7 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 	sig->it_prof_incr = cputime_zero;
 
 	sig->leader = 0;	/* session leadership doesn't inherit */
-	sig->tty_old_pgrp = 0;
+	sig->tty_old_pgrp = NULL;
 
 	sig->utime = sig->stime = sig->cutime = sig->cstime = cputime_zero;
 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
@@ -1038,10 +1038,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->utime = cputime_zero;
 	p->stime = cputime_zero;
  	p->sched_time = 0;
+#ifdef CONFIG_TASK_XACCT
 	p->rchar = 0;		/* I/O counter: bytes read */
 	p->wchar = 0;		/* I/O counter: bytes written */
 	p->syscr = 0;		/* I/O counter: read syscalls */
 	p->syscw = 0;		/* I/O counter: write syscalls */
+#endif
 	task_io_accounting_init(p);
 	acct_clear_integrals(p);
 

@@ -51,7 +51,7 @@
 #include <sysdev/fsl_soc.h>
 #include <../sysdev/cpm2_pic.h>
 
-#include "pq2ads_pd.h"
+#include "pq2ads.h"
 
 #ifdef CONFIG_PCI
 static uint pci_clk_frq;

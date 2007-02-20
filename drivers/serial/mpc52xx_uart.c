@@ -127,8 +127,7 @@ static irqreturn_t mpc52xx_uart_int(int irq,void *dev_id);
 
 #if defined(CONFIG_PPC_MERGE)
 static struct of_device_id mpc52xx_uart_of_match[] = {
-	{ .type = "serial", .compatible = "mpc52xx-psc-uart", },
-	{ .type = "serial", .compatible = "mpc5200-psc", }, /* Efika only! */
+	{ .type = "serial", .compatible = "mpc5200-psc-uart", },
 	{},
 };
 #endif
@@ -996,8 +995,10 @@ mpc52xx_uart_of_remove(struct of_device *op)
 	struct uart_port *port = dev_get_drvdata(&op->dev);
 	dev_set_drvdata(&op->dev, NULL);
 
-	if (port)
+	if (port) {
 		uart_remove_one_port(&mpc52xx_uart_driver, port);
+		irq_dispose_mapping(port->irq);
+	}
 
 	return 0;
 }
@@ -1068,7 +1069,7 @@ mpc52xx_uart_of_enumerate(void)
 			continue;
 
 		/* Is a particular device number requested? */
-		devno = get_property(np, "device_no", NULL);
+		devno = get_property(np, "port-number", NULL);
 		mpc52xx_uart_of_assign(of_node_get(np), devno ? *devno : -1);
 	}
 

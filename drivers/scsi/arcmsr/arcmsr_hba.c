@@ -322,7 +322,7 @@ static int arcmsr_probe(struct pci_dev *pdev,
 		goto out_iounmap;
 
 	error = request_irq(pdev->irq, arcmsr_do_interrupt,
-			SA_INTERRUPT | SA_SHIRQ, "arcmsr", acb);
+			IRQF_DISABLED | IRQF_SHARED, "arcmsr", acb);
 	if (error)
 		goto out_free_ccb_pool;
 
