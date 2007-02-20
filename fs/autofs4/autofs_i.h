@@ -52,6 +52,8 @@ struct autofs_info {
 
 	int		flags;
 
+	struct list_head rehash;
+
 	struct autofs_sb_info *sbi;
 	unsigned long last_used;
 	atomic_t count;
@@ -110,6 +112,8 @@ struct autofs_sb_info {
 	struct mutex wq_mutex;
 	spinlock_t fs_lock;
 	struct autofs_wait_queue *queues; /* Wait queue pointer */
+	spinlock_t rehash_lock;
+	struct list_head rehash_list;
 };
 
 static inline struct autofs_sb_info *autofs4_sbi(struct super_block *sb)
