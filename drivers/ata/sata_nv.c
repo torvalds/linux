@@ -1462,10 +1462,14 @@ static void nv_adma_error_handler(struct ata_port *ap)
 			u32 notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);
 			u32 gen_ctl = readl(pp->gen_block + NV_ADMA_GEN_CTL);
 			u32 status = readw(mmio + NV_ADMA_STAT);
+			u8 cpb_count = readb(mmio + NV_ADMA_CPB_COUNT);
+			u8 next_cpb_idx = readb(mmio + NV_ADMA_NEXT_CPB_IDX);
 
 			ata_port_printk(ap, KERN_ERR, "EH in ADMA mode, notifier 0x%X "
-				"notifier_error 0x%X gen_ctl 0x%X status 0x%X\n",
-				notifier, notifier_error, gen_ctl, status);
+				"notifier_error 0x%X gen_ctl 0x%X status 0x%X "
+				"next cpb count 0x%X next cpb idx 0x%x\n",
+				notifier, notifier_error, gen_ctl, status,
+				cpb_count, next_cpb_idx);
 
 			for( i=0;i<NV_ADMA_MAX_CPBS;i++) {
 				struct nv_adma_cpb *cpb = &pp->cpb[i];
