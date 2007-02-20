@@ -5,6 +5,8 @@
 #include "ctree.h"
 #include "disk-io.h"
 
+static int refill_alloc_extent(struct ctree_root *root);
+
 static inline void init_path(struct ctree_path *p)
 {
 	memset(p, 0, sizeof(*p));
@@ -29,7 +31,7 @@ static inline unsigned int leaf_data_end(struct leaf *leaf)
 {
 	unsigned int nr = leaf->header.nritems;
 	if (nr == 0)
-		return ARRAY_SIZE(leaf->data);
+		return sizeof(leaf->data);
 	return leaf->items[nr-1].offset;
 }
 
@@ -421,7 +423,7 @@ int insert_ptr(struct ctree_root *root,
 	 * due to splitting.  Once we've done all the splitting required
 	 * do the inserts based on the data in the bal array.
 	 */
-	memset(bal, 0, ARRAY_SIZE(bal));
+	memset(bal, 0, sizeof(bal));
 	while(t && t->node.header.nritems == NODEPTRS_PER_BLOCK) {
 		c = &t->node;
 		if (push_node_left(root, path,
@@ -756,6 +758,7 @@ int insert_item(struct ctree_root *root, struct key *key,
 	if (leaf_free_space(leaf) < 0)
 		BUG();
 	release_path(root, &path);
+	refill_alloc_extent(root);
 	return 0;
 }
 
@@ -884,6 +887,135 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 	return 0;
 }
 
+int next_leaf(struct ctree_root *root, struct ctree_path *path)
+{
+	int slot;
+	int level = 1;
+	u64 blocknr;
+	struct tree_buffer *c;
+	struct tree_buffer *next;
+
+	while(level < MAX_LEVEL) {
+		if (!path->nodes[level])
+			return -1;
+		slot = path->slots[level] + 1;
+		c = path->nodes[level];
+		if (slot >= c->node.header.nritems) {
+			level++;
+			continue;
+		}
+		blocknr = c->node.blockptrs[slot];
+		next = read_tree_block(root, blocknr);
+		break;
+	}
+	path->slots[level] = slot;
+	while(1) {
+		level--;
+		c = path->nodes[level];
+		tree_block_release(root, c);
+		path->nodes[level] = next;
+		path->slots[level] = 0;
+		if (!level)
+			break;
+		next = read_tree_block(root, next->node.blockptrs[0]);
+	}
+	return 0;
+}
+
+int alloc_extent(struct ctree_root *root, u64 num_blocks, u64 search_start,
+		 u64 search_end, u64 owner, struct key *ins)
+{
+	struct ctree_path path;
+	struct key *key;
+	int ret;
+	u64 hole_size = 0;
+	int slot = 0;
+	u64 last_block;
+	int start_found = 0;
+	struct leaf *l;
+	struct extent_item extent_item;
+
+	init_path(&path);
+	ins->objectid = search_start;
+	ins->offset = 0;
+	ins->flags = 0;
+
+	ret = search_slot(root, ins, &path);
+	while (1) {
+		l = &path.nodes[0]->leaf;
+		slot = path.slots[0];
+		if (!l) {
+			// FIXME allocate root
+		}
+		if (slot >= l->header.nritems) {
+			ret = next_leaf(root, &path);
+			if (ret == 0)
+				continue;
+			if (!start_found) {
+				ins->objectid = search_start;
+				ins->offset = num_blocks;
+				hole_size = search_end - search_start;
+				goto insert;
+			}
+			ins->objectid = last_block;
+			ins->offset = num_blocks;
+			hole_size = search_end - last_block;
+			goto insert;
+		}
+		key = &l->items[slot].key;
+		if (start_found) {
+			hole_size = key->objectid - last_block;
+			if (hole_size > num_blocks) {
+				ins->objectid = last_block;
+				ins->offset = num_blocks;
+				goto insert;
+			}
+		} else
+			start_found = 1;
+		last_block = key->objectid + key->offset;
+		path.slots[0]++;
+		printf("last block is not %lu\n", last_block);
+	}
+	// FIXME -ENOSPC
+insert:
+	extent_item.refs = 1;
+	extent_item.owner = owner;
+	ret = insert_item(root, ins, &extent_item, sizeof(extent_item));
+	return ret;
+}
+
+static int refill_alloc_extent(struct ctree_root *root)
+{
+	struct alloc_extent *ae = root->alloc_extent;
+	struct key key;
+	int ret;
+	int min_blocks = MAX_LEVEL * 2;
+
+	printf("refill alloc root %p, numused %lu total %lu\n", root, ae->num_used, ae->num_blocks);
+	if (ae->num_blocks > ae->num_used && ae->num_blocks - ae->num_used >
+	    min_blocks)
+		return 0;
+	ae = root->reserve_extent;
+	if (ae->num_blocks > ae->num_used) {
+		if (root->alloc_extent->num_blocks == 0) {
+			/* we should swap reserve/alloc_extent when alloc
+			 * fills up
+			 */
+			BUG();
+		}
+		if (ae->num_blocks - ae->num_used < min_blocks)
+			BUG();
+		return 0;
+	}
+	// FIXME, this recurses
+	ret = alloc_extent(root->extent_root,
+			   min_blocks * 2, 0, (unsigned long)-1, 0, &key);
+	ae->blocknr = key.objectid;
+	ae->num_blocks = key.offset;
+	ae->num_used = 0;
+	return ret;
+}
+
 void print_leaf(struct leaf *l)
 {
 	int i;
@@ -948,8 +1080,8 @@ void print_tree(struct ctree_root *root, struct tree_buffer *t)
 
 /* for testing only */
 int next_key(int i, int max_key) {
-	return rand() % max_key;
-	// return i;
+	// return rand() % max_key;
+	return i;
 }
 
 int main() {
@@ -960,7 +1092,7 @@ int main() {
 	int i;
 	int num;
 	int ret;
-	int run_size = 25000;
+	int run_size = 256;
 	int max_key = 100000000;
 	int tree_size = 0;
 	struct ctree_path path;
@@ -980,10 +1112,20 @@ int main() {
 		ins.objectid = num;
 		ins.offset = 0;
 		ins.flags = 0;
+		printf("insert %d\n", i);
 		ret = insert_item(root, &ins, buf, strlen(buf));
 		if (!ret)
 			tree_size++;
+		printf("done insert %d\n", i);
 	}
+	printf("root used: %lu\n", root->alloc_extent->num_used);
+	printf("root tree\n");
+	print_tree(root, root->node);
+	printf("map tree\n");
+	printf("map used: %lu\n", root->extent_root->alloc_extent->num_used);
+	print_tree(root->extent_root, root->extent_root->node);
+	exit(1);
+
 	close_ctree(root);
 	root = open_ctree("dbfile");
 	printf("starting search\n");

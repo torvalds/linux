@@ -12,25 +12,27 @@
 
 static int allocated_blocks = 0;
 
-struct ctree_header {
-	u64 root_block;
-} __attribute__ ((__packed__));
-
 static int get_free_block(struct ctree_root *root, u64 *block)
 {
 	struct stat st;
 	int ret;
 
+	if (root->alloc_extent->num_used >= root->alloc_extent->num_blocks)
+		return -1;
+
+	*block = root->alloc_extent->blocknr + root->alloc_extent->num_used;
+	root->alloc_extent->num_used += 1;
+	if (root->alloc_extent->num_used >= root->alloc_extent->num_blocks) {
+		struct alloc_extent *ae = root->alloc_extent;
+		root->alloc_extent = root->reserve_extent;
+		root->reserve_extent = ae;
+		ae->num_blocks = 0;
+	}
 	st.st_size = 0;
 	ret = fstat(root->fp, &st);
-	if (st.st_size > sizeof(struct ctree_header)) {
-		*block = (st.st_size -
-			sizeof(struct ctree_header)) / CTREE_BLOCKSIZE;
-	} else {
-		*block = 0;
-	}
-	ret = ftruncate(root->fp, sizeof(struct ctree_header) + (*block + 1) *
-			CTREE_BLOCKSIZE);
+	if (st.st_size < (*block + 1) * CTREE_BLOCKSIZE)
+		ret = ftruncate(root->fp,
+				(*block + 1) * CTREE_BLOCKSIZE);
 	return ret;
 }
 
@@ -72,7 +74,7 @@ struct tree_buffer *alloc_free_block(struct ctree_root *root)
 
 struct tree_buffer *read_tree_block(struct ctree_root *root, u64 blocknr)
 {
-	loff_t offset = blocknr * CTREE_BLOCKSIZE + sizeof(struct ctree_header);
+	loff_t offset = blocknr * CTREE_BLOCKSIZE;
 	struct tree_buffer *buf;
 	int ret;
 
@@ -101,7 +103,7 @@ struct tree_buffer *read_tree_block(struct ctree_root *root, u64 blocknr)
 int write_tree_block(struct ctree_root *root, struct tree_buffer *buf)
 {
 	u64 blocknr = buf->blocknr;
-	loff_t offset = blocknr * CTREE_BLOCKSIZE + sizeof(struct ctree_header);
+	loff_t offset = blocknr * CTREE_BLOCKSIZE;
 	int ret;
 
 	if (buf->blocknr != buf->node.header.blocknr)
@@ -114,11 +116,32 @@ int write_tree_block(struct ctree_root *root, struct tree_buffer *buf)
 	return 0;
 }
 
+struct ctree_super_block {
+	struct ctree_root_info root_info;
+	struct ctree_root_info extent_info;
+} __attribute__ ((__packed__));
+
+static int __setup_root(struct ctree_root *root, struct ctree_root *extent_root,
+			struct ctree_root_info *info, int fp)
+{
+	root->fp = fp;
+	root->node = read_tree_block(root, info->tree_root);
+	root->extent_root = extent_root;
+	memcpy(&root->ai1, &info->alloc_extent, sizeof(info->alloc_extent));
+	memcpy(&root->ai2, &info->reserve_extent, sizeof(info->reserve_extent));
+	root->alloc_extent = &root->ai1;
+	root->reserve_extent = &root->ai2;
+	INIT_RADIX_TREE(&root->cache_radix, GFP_KERNEL);
+	printf("setup done reading root %p, used %lu\n", root, root->alloc_extent->num_used);
+	return 0;
+}
+
 struct ctree_root *open_ctree(char *filename)
 {
 	struct ctree_root *root = malloc(sizeof(struct ctree_root));
+	struct ctree_root *extent_root = malloc(sizeof(struct ctree_root));
+	struct ctree_super_block super;
 	int fp;
-	u64 root_block;
 	int ret;
 
 	fp = open(filename, O_CREAT | O_RDWR);
@@ -126,14 +149,20 @@ struct ctree_root *open_ctree(char *filename)
 		free(root);
 		return NULL;
 	}
-	root->fp = fp;
-	INIT_RADIX_TREE(&root->cache_radix, GFP_KERNEL);
-	ret = pread(fp, &root_block, sizeof(u64), 0);
-	if (ret == sizeof(u64)) {
-		printf("reading root node at block %lu\n", root_block);
-		root->node = read_tree_block(root, root_block);
-	} else
-		root->node = NULL;
+	ret = pread(fp, &super, sizeof(struct ctree_super_block),
+		     CTREE_SUPER_INFO_OFFSET(CTREE_BLOCKSIZE));
+	if (ret == 0) {
+		ret = mkfs(fp);
+		if (ret)
+			return NULL;
+		ret = pread(fp, &super, sizeof(struct ctree_super_block),
+			     CTREE_SUPER_INFO_OFFSET(CTREE_BLOCKSIZE));
+		if (ret != sizeof(struct ctree_super_block))
+			return NULL;
+	}
+	BUG_ON(ret < 0);
+	__setup_root(root, extent_root, &super.root_info, fp);
+	__setup_root(extent_root, extent_root, &super.extent_info, fp);
 	return root;
 }
 
@@ -160,6 +189,7 @@ int update_root_block(struct ctree_root *root)
 
 void tree_block_release(struct ctree_root *root, struct tree_buffer *buf)
 {
+	return;
 	buf->count--;
 	if (buf->count == 0) {
 		if (!radix_tree_lookup(&root->cache_radix, buf->blocknr))
