@@ -29,7 +29,6 @@
 #include <linux/ptrace.h>
 #include <linux/delay.h>
 
-#include <asm/i8259.h>
 #include <asm/irq_cpu.h>
 #include <asm/system.h>
 #include <asm/mipsregs.h>

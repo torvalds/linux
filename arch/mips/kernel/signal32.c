@@ -108,13 +108,6 @@ typedef struct compat_siginfo {
 
 /* 32-bit compatibility types */
 
-#define _NSIG_BPW32	32
-#define _NSIG_WORDS32	(_NSIG / _NSIG_BPW32)
-
-typedef struct {
-	unsigned int sig[_NSIG_WORDS32];
-} sigset_t32;
-
 typedef unsigned int __sighandler32_t;
 typedef void (*vfptr_t)(void);
 
@@ -136,7 +129,7 @@ struct ucontext32 {
 	s32                 uc_link;
 	stack32_t           uc_stack;
 	struct sigcontext32 uc_mcontext;
-	sigset_t32          uc_sigmask;   /* mask last for extensibility */
+	compat_sigset_t     uc_sigmask;   /* mask last for extensibility */
 };
 
 /*

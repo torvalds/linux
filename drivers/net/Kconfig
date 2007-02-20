@@ -2307,27 +2307,6 @@ config MV643XX_ETH
 	  chipset which is used in the Momenco Ocelot C and Jaguar ATX and
 	  Pegasos II, amongst other PPC and MIPS boards.
 
-config MV643XX_ETH_0
-	bool "MV-643XX Port 0"
-	depends on MV643XX_ETH
-	help
-	  This enables support for Port 0 of the Marvell MV643XX Gigabit
-	  Ethernet.
-
-config MV643XX_ETH_1
-	bool "MV-643XX Port 1"
-	depends on MV643XX_ETH
-	help
-	  This enables support for Port 1 of the Marvell MV643XX Gigabit
-	  Ethernet.
-
-config MV643XX_ETH_2
-	bool "MV-643XX Port 2"
-	depends on MV643XX_ETH
-	help
-	  This enables support for Port 2 of the Marvell MV643XX Gigabit
-	  Ethernet.
-
 config QLA3XXX
 	tristate "QLogic QLA3XXX Network Driver Support"
 	depends on PCI

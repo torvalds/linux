@@ -704,6 +704,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 		die_if_kernel("Break instruction in kernel code", regs);
 		force_sig(SIGTRAP, current);
 	}
+	return;
 
 out_sigsegv:
 	force_sig(SIGSEGV, current);
@@ -747,6 +748,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 		die_if_kernel("Trap instruction in kernel code", regs);
 		force_sig(SIGTRAP, current);
 	}
+	return;
 
 out_sigsegv:
 	force_sig(SIGSEGV, current);
