@@ -880,7 +880,7 @@ static void hid_output_field(struct hid_field *field, __u8 *data)
 
 	/* make sure the unused bits in the last byte are zeros */
 	if (count > 0 && size > 0)
-		data[(count*size-1)/8] = 0;
+		data[(offset+count*size-1)/8] = 0;
 
 	for (n = 0; n < count; n++) {
 		if (field->logical_minimum < 0)	/* signed values */
