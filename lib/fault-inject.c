@@ -55,7 +55,7 @@ static bool fail_task(struct fault_attr *attr, struct task_struct *task)
 
 #define MAX_STACK_TRACE_DEPTH 32
 
-#if defined(CONFIG_STACKTRACE)
+#ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
 
 static bool fail_stacktrace(struct fault_attr *attr)
 {
@@ -90,17 +90,10 @@ static bool fail_stacktrace(struct fault_attr *attr)
 
 static inline bool fail_stacktrace(struct fault_attr *attr)
 {
-	static bool firsttime = true;
-
-	if (firsttime) {
-		printk(KERN_WARNING
-		"This architecture does not implement save_stack_trace()\n");
-		firsttime = false;
-	}
-	return false;
+	return true;
 }
 
-#endif
+#endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
 
 /*
  * This code is stolen from failmalloc-1.0
@@ -217,6 +210,8 @@ void cleanup_fault_attr_dentries(struct fault_attr *attr)
 	debugfs_remove(attr->dentries.task_filter_file);
 	attr->dentries.task_filter_file = NULL;
 
+#ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
+
 	debugfs_remove(attr->dentries.stacktrace_depth_file);
 	attr->dentries.stacktrace_depth_file = NULL;
 
@@ -231,6 +226,8 @@ void cleanup_fault_attr_dentries(struct fault_attr *attr)
 
 	debugfs_remove(attr->dentries.reject_end_file);
 	attr->dentries.reject_end_file = NULL;
+
+#endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
 
 	if (attr->dentries.dir)
 		WARN_ON(!simple_empty(attr->dentries.dir));
@@ -269,6 +266,13 @@ int init_fault_attr_dentries(struct fault_attr *attr, const char *name)
 	attr->dentries.task_filter_file = debugfs_create_bool("task-filter",
 						mode, dir, &attr->task_filter);
 
+	if (!attr->dentries.probability_file || !attr->dentries.interval_file ||
+	    !attr->dentries.times_file || !attr->dentries.space_file ||
+	    !attr->dentries.verbose_file || !attr->dentries.task_filter_file)
+		goto fail;
+
+#ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
+
 	attr->dentries.stacktrace_depth_file =
 		debugfs_create_ul_MAX_STACK_TRACE_DEPTH(
 			"stacktrace-depth", mode, dir, &attr->stacktrace_depth);
@@ -285,17 +289,14 @@ int init_fault_attr_dentries(struct fault_attr *attr, const char *name)
 	attr->dentries.reject_end_file =
 		debugfs_create_ul("reject-end", mode, dir, &attr->reject_end);
 
-
-	if (!attr->dentries.probability_file || !attr->dentries.interval_file
-	    || !attr->dentries.times_file || !attr->dentries.space_file
-	    || !attr->dentries.verbose_file || !attr->dentries.task_filter_file
-	    || !attr->dentries.stacktrace_depth_file
-	    || !attr->dentries.require_start_file
-	    || !attr->dentries.require_end_file
-	    || !attr->dentries.reject_start_file
-	    || !attr->dentries.reject_end_file
-	    )
+	if (!attr->dentries.stacktrace_depth_file ||
+	    !attr->dentries.require_start_file ||
+	    !attr->dentries.require_end_file ||
+	    !attr->dentries.reject_start_file ||
+	    !attr->dentries.reject_end_file)
 		goto fail;
+
+#endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
 
 	return 0;
 fail:
