@@ -11,6 +11,12 @@
 		.macro  disable_fiq
 		.endm
 
+		.macro  get_irqnr_preamble, base, tmp
+		.endm
+
+		.macro  arch_ret_to_user, tmp1, tmp2
+		.endm
+
 		.macro  get_irqnr_and_base, irqnr, irqstat, base, tmp
 #if defined (CONFIG_CPU_H7201) || defined (CONFIG_CPU_H7202)
 		@ we could use the id register on H7202, but this is not

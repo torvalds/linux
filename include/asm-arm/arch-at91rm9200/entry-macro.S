@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-at91/entry-macro.S
+ * include/asm-arm/arch-at91rm9200/entry-macro.S
  *
  *  Copyright (C) 2003-2005 SAN People
  *
@@ -23,10 +23,10 @@
 	.endm
 
 	.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-	ldr	\base, =(AT91_VA_BASE_SYS + AT91_AIC)		@ base virtual address of AIC peripheral
-	ldr	\irqnr, [\base, #(AT91_AIC_IVR - AT91_AIC)]	@ read IRQ vector register: de-asserts nIRQ to processor (and clears interrupt)
-	ldr	\irqstat, [\base, #(AT91_AIC_ISR - AT91_AIC)]	@ read interrupt source number
-	teq	\irqstat, #0					@ ISR is 0 when no current interrupt, or spurious interrupt
-	streq	\tmp, [\base, #(AT91_AIC_EOICR - AT91_AIC)]	@ not going to be handled further, then ACK it now.
+	ldr	\base, =(AT91_VA_BASE_SYS)		@ base virtual address of SYS peripherals
+	ldr	\irqnr, [\base, #AT91_AIC_IVR]		@ read IRQ vector register: de-asserts nIRQ to processor (and clears interrupt)
+	ldr	\irqstat, [\base, #AT91_AIC_ISR]	@ read interrupt source number
+	teq	\irqstat, #0				@ ISR is 0 when no current interrupt, or spurious interrupt
+	streq	\tmp, [\base, #AT91_AIC_EOICR]		@ not going to be handled further, then ACK it now.
 	.endm
 
