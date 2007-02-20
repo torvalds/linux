@@ -3,7 +3,6 @@
 #include <linux/smp.h>
 #include <asm/msr.h>
 
-#ifdef CONFIG_SMP
 struct msr_info {
 	u32 msr_no;
 	u32 l, h;
@@ -54,17 +53,6 @@ void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 	}
 	preempt_enable();
 }
-#else
-void rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
-{
-	rdmsr(msr_no, *l, *h);
-}
-
-void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
-{
-	wrmsr(msr_no, l, h);
-}
-#endif
 
 EXPORT_SYMBOL(rdmsr_on_cpu);
 EXPORT_SYMBOL(wrmsr_on_cpu);
