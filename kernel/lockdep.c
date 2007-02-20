@@ -2228,6 +2228,10 @@ out_calc_hash:
 
 	curr->lockdep_depth++;
 	check_chain_key(curr);
+#ifdef CONFIG_DEBUG_LOCKDEP
+	if (unlikely(!debug_locks))
+		return 0;
+#endif
 	if (unlikely(curr->lockdep_depth >= MAX_LOCK_DEPTH)) {
 		debug_locks_off();
 		printk("BUG: MAX_LOCK_DEPTH too low!\n");
