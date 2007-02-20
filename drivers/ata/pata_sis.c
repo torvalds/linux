@@ -150,7 +150,7 @@ static int sis_66_pre_reset(struct ata_port *ap)
 
 	if (!pci_test_config_bits(pdev, &sis_enable_bits[ap->port_no])) {
 		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
+		ata_port_printk(ap, KERN_INFO, "port disabled. ignoring.\n");
 		return 0;
 	}
 	/* Older chips keep cable detect in bits 4/5 of reg 0x48 */
@@ -196,7 +196,7 @@ static int sis_old_pre_reset(struct ata_port *ap)
 
 	if (!pci_test_config_bits(pdev, &sis_enable_bits[ap->port_no])) {
 		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
+		ata_port_printk(ap, KERN_INFO, "port disabled. ignoring.\n");
 		return 0;
 	}
 	ap->cbl = ATA_CBL_PATA40;

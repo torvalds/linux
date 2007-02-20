@@ -1276,7 +1276,7 @@ static void mv_err_intr(struct ata_port *ap, int reset_allowed)
 		pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
 	}
 	DPRINTK(KERN_ERR "ata%u: port error; EDMA err cause: 0x%08x "
-		"SERR: 0x%08x\n", ap->id, edma_err_cause, serr);
+		"SERR: 0x%08x\n", ap->print_id, edma_err_cause, serr);
 
 	/* Clear EDMA now that SERR cleanup done */
 	writelfl(0, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);

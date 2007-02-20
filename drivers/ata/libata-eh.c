@@ -588,7 +588,7 @@ static void __ata_port_freeze(struct ata_port *ap)
 
 	ap->pflags |= ATA_PFLAG_FROZEN;
 
-	DPRINTK("ata%u port frozen\n", ap->id);
+	DPRINTK("ata%u port frozen\n", ap->print_id);
 }
 
 /**
@@ -661,7 +661,7 @@ void ata_eh_thaw_port(struct ata_port *ap)
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	DPRINTK("ata%u port thawed\n", ap->id);
+	DPRINTK("ata%u port thawed\n", ap->print_id);
 }
 
 static void ata_eh_scsidone(struct scsi_cmnd *scmd)

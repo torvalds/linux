@@ -175,7 +175,7 @@ void ata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
  */
 void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf)
 {
-	DPRINTK("ata%u: cmd 0x%X\n", ap->id, tf->command);
+	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
 
 	iowrite8(tf->command, ap->ioaddr.command_addr);
 	ata_pause(ap);

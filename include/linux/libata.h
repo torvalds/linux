@@ -536,8 +536,8 @@ struct ata_port {
 	spinlock_t		*lock;
 	unsigned long		flags;	/* ATA_FLAG_xxx */
 	unsigned int		pflags; /* ATA_PFLAG_xxx */
-	unsigned int		id;	/* unique id req'd by scsi midlyr */
-	unsigned int		port_no; /* unique port #; from zero */
+	unsigned int		print_id; /* user visible unique port ID */
+	unsigned int		port_no; /* 0 based port no. inside the host */
 
 	struct ata_prd		*prd;	 /* our SG list */
 	dma_addr_t		prd_dma; /* and its DMA mapping */
@@ -892,10 +892,10 @@ extern void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
  * printk helpers
  */
 #define ata_port_printk(ap, lv, fmt, args...) \
-	printk(lv"ata%u: "fmt, (ap)->id , ##args)
+	printk(lv"ata%u: "fmt, (ap)->print_id , ##args)
 
 #define ata_dev_printk(dev, lv, fmt, args...) \
-	printk(lv"ata%u.%02u: "fmt, (dev)->ap->id, (dev)->devno , ##args)
+	printk(lv"ata%u.%02u: "fmt, (dev)->ap->print_id, (dev)->devno , ##args)
 
 /*
  * ata_eh_info helpers
