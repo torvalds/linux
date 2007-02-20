@@ -78,8 +78,7 @@ struct minix_super_block {
  * V3 minix super-block data on disk
  */
 struct minix3_super_block {
-	__u16 s_ninodes;
-	__u16 s_nzones;
+	__u32 s_ninodes;
 	__u16 s_pad0;
 	__u16 s_imap_blocks;
 	__u16 s_zmap_blocks;
