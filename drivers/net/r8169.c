@@ -1165,6 +1165,10 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp, void __iomem *io
 	 * if needed:
 	 *
 	 * (RTL_R32(TxConfig) & 0x700000) == 0x500000 ? 8168Bf : 8168Be
+	 *
+	 * Same thing for the 8101Eb and the 8101Ec:
+	 *
+	 * (RTL_R32(TxConfig) & 0x700000) == 0x200000 ? 8101Eb : 8101Ec
 	 */
 	const struct {
 		u32 mask;
