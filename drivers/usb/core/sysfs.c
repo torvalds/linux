@@ -250,10 +250,7 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 		goto error;
 	return 0;
 error:
-	usb_remove_ep_files(&udev->ep0);
-	device_remove_file(dev, &dev_attr_manufacturer);
-	device_remove_file(dev, &dev_attr_product);
-	device_remove_file(dev, &dev_attr_serial);
+	usb_remove_sysfs_dev_files(udev);
 	return retval;
 }
 
@@ -262,14 +259,10 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 	struct device *dev = &udev->dev;
 
 	usb_remove_ep_files(&udev->ep0);
+	device_remove_file(dev, &dev_attr_manufacturer);
+	device_remove_file(dev, &dev_attr_product);
+	device_remove_file(dev, &dev_attr_serial);
 	sysfs_remove_group(&dev->kobj, &dev_attr_grp);
-
-	if (udev->manufacturer)
-		device_remove_file(dev, &dev_attr_manufacturer);
-	if (udev->product)
-		device_remove_file(dev, &dev_attr_product);
-	if (udev->serial)
-		device_remove_file(dev, &dev_attr_serial);
 }
 
 /* Interface fields */
@@ -373,33 +366,28 @@ static inline void usb_remove_intf_ep_files(struct usb_interface *intf)
 
 int usb_create_sysfs_intf_files(struct usb_interface *intf)
 {
+	struct device *dev = &intf->dev;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usb_host_interface *alt = intf->cur_altsetting;
 	int retval;
 
-	retval = sysfs_create_group(&intf->dev.kobj, &intf_attr_grp);
+	retval = sysfs_create_group(&dev->kobj, &intf_attr_grp);
 	if (retval)
-		goto error;
+		return retval;
 
 	if (alt->string == NULL)
 		alt->string = usb_cache_string(udev, alt->desc.iInterface);
 	if (alt->string)
-		retval = device_create_file(&intf->dev, &dev_attr_interface);
+		retval = device_create_file(dev, &dev_attr_interface);
 	usb_create_intf_ep_files(intf, udev);
 	return 0;
-error:
-	if (alt->string)
-		device_remove_file(&intf->dev, &dev_attr_interface);
-	sysfs_remove_group(&intf->dev.kobj, &intf_attr_grp);
-	usb_remove_intf_ep_files(intf);
-	return retval;
 }
 
 void usb_remove_sysfs_intf_files(struct usb_interface *intf)
 {
-	usb_remove_intf_ep_files(intf);
-	sysfs_remove_group(&intf->dev.kobj, &intf_attr_grp);
+	struct device *dev = &intf->dev;
 
-	if (intf->cur_altsetting->string)
-		device_remove_file(&intf->dev, &dev_attr_interface);
+	usb_remove_intf_ep_files(intf);
+	device_remove_file(dev, &dev_attr_interface);
+	sysfs_remove_group(&dev->kobj, &intf_attr_grp);
 }
