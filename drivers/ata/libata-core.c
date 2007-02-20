@@ -824,6 +824,48 @@ static u64 ata_id_n_sectors(const u16 *id)
 }
 
 /**
+ *	ata_id_to_dma_mode	-	Identify DMA mode from id block
+ *	@dev: device to identify
+ *	@mode: mode to assume if we cannot tell
+ *
+ *	Set up the timing values for the device based upon the identify
+ *	reported values for the DMA mode. This function is used by drivers
+ *	which rely upon firmware configured modes, but wish to report the
+ *	mode correctly when possible.
+ *
+ *	In addition we emit similarly formatted messages to the default
+ *	ata_dev_set_mode handler, in order to provide consistency of
+ *	presentation.
+ */
+
+void ata_id_to_dma_mode(struct ata_device *dev, u8 unknown)
+{
+	unsigned int mask;
+	u8 mode;
+
+	/* Pack the DMA modes */
+	mask = ((dev->id[63] >> 8) << ATA_SHIFT_MWDMA) & ATA_MASK_MWDMA;
+	if (dev->id[53] & 0x04)
+		mask |= ((dev->id[88] >> 8) << ATA_SHIFT_UDMA) & ATA_MASK_UDMA;
+
+	/* Select the mode in use */
+	mode = ata_xfer_mask2mode(mask);
+
+	if (mode != 0) {
+		ata_dev_printk(dev, KERN_INFO, "configured for %s\n",
+		       ata_mode_string(mask));
+	} else {
+		/* SWDMA perhaps ? */
+		mode = unknown;
+		ata_dev_printk(dev, KERN_INFO, "configured for DMA\n");
+	}
+
+	/* Configure the device reporting */
+	dev->xfer_mode = mode;
+	dev->xfer_shift = ata_xfer_mode2shift(mode);
+}
+
+/**
  *	ata_noop_dev_select - Select device 0/1 on ATA bus
  *	@ap: ATA channel to manipulate
  *	@device: ATA device (numbered from zero) to select
@@ -6276,6 +6318,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma_drive_eh);
 EXPORT_SYMBOL_GPL(ata_bmdma_error_handler);
 EXPORT_SYMBOL_GPL(ata_bmdma_post_internal_cmd);
 EXPORT_SYMBOL_GPL(ata_port_probe);
+EXPORT_SYMBOL_GPL(ata_dev_disable);
 EXPORT_SYMBOL_GPL(sata_set_spd);
 EXPORT_SYMBOL_GPL(sata_phy_debounce);
 EXPORT_SYMBOL_GPL(sata_phy_resume);
@@ -6310,6 +6353,7 @@ EXPORT_SYMBOL_GPL(ata_host_suspend);
 EXPORT_SYMBOL_GPL(ata_host_resume);
 EXPORT_SYMBOL_GPL(ata_id_string);
 EXPORT_SYMBOL_GPL(ata_id_c_string);
+EXPORT_SYMBOL_GPL(ata_id_to_dma_mode);
 EXPORT_SYMBOL_GPL(ata_device_blacklisted);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
