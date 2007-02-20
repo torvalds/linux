@@ -1573,6 +1573,24 @@ config FB_S3C2410_DEBUG
 	  Turn on debugging messages. Note that you can set/unset at run time
 	  through sysfs
 
+config FB_SM501
+	tristate "Silicon Motion SM501 framebuffer support"
+	depends on FB && MFD_SM501
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Frame buffer driver for the CRT and LCD controllers in the Silicon
+	  Motion SM501.
+
+	  This driver is also available as a module ( = code which can be
+	  inserted and removed from the running kernel whenever you want). The
+	  module will be called sm501fb. If you want to compile it as a module,
+	  say M here and read <file:Documentation/modules.txt>.
+
+	  If unsure, say N.
+
+
 config FB_PNX4008_DUM
 	tristate "Display Update Module support on Philips PNX4008 board"
 	depends on FB && ARCH_PNX4008
