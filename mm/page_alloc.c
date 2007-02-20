@@ -2964,6 +2964,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 						early_node_map[i].end_pfn);
 
 	/* Initialise every node */
+	setup_nr_node_ids();
 	for_each_online_node(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);
 		free_area_init_node(nid, pgdat, NULL,
@@ -3189,7 +3190,6 @@ static int __init init_per_zone_pages_min(void)
 		min_free_kbytes = 65536;
 	setup_per_zone_pages_min();
 	setup_per_zone_lowmem_reserve();
-	setup_nr_node_ids();
 	return 0;
 }
 module_init(init_per_zone_pages_min)
