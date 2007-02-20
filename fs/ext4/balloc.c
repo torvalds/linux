@@ -50,7 +50,7 @@ void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
  * The file system contains group descriptors which are located after the
  * super block.  Each descriptor contains the number of the bitmap block and
  * the free blocks count in the block.  The descriptors are loaded in memory
- * when a file system is mounted (see ext4_read_super).
+ * when a file system is mounted (see ext4_fill_super).
  */
 
 
