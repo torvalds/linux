@@ -662,29 +662,30 @@ static unsigned int nv_adma_tf_to_cpb(struct ata_taskfile *tf, __le16 *cpb)
 {
 	unsigned int idx = 0;
 
-	cpb[idx++] = cpu_to_le16((ATA_REG_DEVICE << 8) | tf->device | WNB);
-
-	if ((tf->flags & ATA_TFLAG_LBA48) == 0) {
-		cpb[idx++] = cpu_to_le16(IGN);
-		cpb[idx++] = cpu_to_le16(IGN);
-		cpb[idx++] = cpu_to_le16(IGN);
-		cpb[idx++] = cpu_to_le16(IGN);
-		cpb[idx++] = cpu_to_le16(IGN);
+	if(tf->flags & ATA_TFLAG_ISADDR) {
+		if (tf->flags & ATA_TFLAG_LBA48) {
+			cpb[idx++] = cpu_to_le16((ATA_REG_ERR   << 8) | tf->hob_feature | WNB);
+			cpb[idx++] = cpu_to_le16((ATA_REG_NSECT << 8) | tf->hob_nsect);
+			cpb[idx++] = cpu_to_le16((ATA_REG_LBAL  << 8) | tf->hob_lbal);
+			cpb[idx++] = cpu_to_le16((ATA_REG_LBAM  << 8) | tf->hob_lbam);
+			cpb[idx++] = cpu_to_le16((ATA_REG_LBAH  << 8) | tf->hob_lbah);
+			cpb[idx++] = cpu_to_le16((ATA_REG_ERR    << 8) | tf->feature);
+		} else
+			cpb[idx++] = cpu_to_le16((ATA_REG_ERR    << 8) | tf->feature | WNB);
+			
+		cpb[idx++] = cpu_to_le16((ATA_REG_NSECT  << 8) | tf->nsect);
+		cpb[idx++] = cpu_to_le16((ATA_REG_LBAL   << 8) | tf->lbal);
+		cpb[idx++] = cpu_to_le16((ATA_REG_LBAM   << 8) | tf->lbam);
+		cpb[idx++] = cpu_to_le16((ATA_REG_LBAH   << 8) | tf->lbah);
 	}
-	else {
-		cpb[idx++] = cpu_to_le16((ATA_REG_ERR   << 8) | tf->hob_feature);
-		cpb[idx++] = cpu_to_le16((ATA_REG_NSECT << 8) | tf->hob_nsect);
-		cpb[idx++] = cpu_to_le16((ATA_REG_LBAL  << 8) | tf->hob_lbal);
-		cpb[idx++] = cpu_to_le16((ATA_REG_LBAM  << 8) | tf->hob_lbam);
-		cpb[idx++] = cpu_to_le16((ATA_REG_LBAH  << 8) | tf->hob_lbah);
-	}
-	cpb[idx++] = cpu_to_le16((ATA_REG_ERR    << 8) | tf->feature);
-	cpb[idx++] = cpu_to_le16((ATA_REG_NSECT  << 8) | tf->nsect);
-	cpb[idx++] = cpu_to_le16((ATA_REG_LBAL   << 8) | tf->lbal);
-	cpb[idx++] = cpu_to_le16((ATA_REG_LBAM   << 8) | tf->lbam);
-	cpb[idx++] = cpu_to_le16((ATA_REG_LBAH   << 8) | tf->lbah);
+	
+	if(tf->flags & ATA_TFLAG_DEVICE)
+		cpb[idx++] = cpu_to_le16((ATA_REG_DEVICE << 8) | tf->device);
 
 	cpb[idx++] = cpu_to_le16((ATA_REG_CMD    << 8) | tf->command | CMDEND);
+	
+	while(idx < 12)
+		cpb[idx++] = cpu_to_le16(IGN);
 
 	return idx;
 }
