@@ -297,17 +297,17 @@ static int initialising = 1;
 #define DRS (&drive_state[current_drive])
 #define DRWE (&write_errors[current_drive])
 #define FDCS (&fdc_state[fdc])
-#define CLEARF(x) (clear_bit(x##_BIT, &DRS->flags))
-#define SETF(x) (set_bit(x##_BIT, &DRS->flags))
-#define TESTF(x) (test_bit(x##_BIT, &DRS->flags))
+#define CLEARF(x) clear_bit(x##_BIT, &DRS->flags)
+#define SETF(x) set_bit(x##_BIT, &DRS->flags)
+#define TESTF(x) test_bit(x##_BIT, &DRS->flags)
 
 #define UDP (&drive_params[drive])
 #define UDRS (&drive_state[drive])
 #define UDRWE (&write_errors[drive])
 #define UFDCS (&fdc_state[FDC(drive)])
-#define UCLEARF(x) (clear_bit(x##_BIT, &UDRS->flags))
-#define USETF(x) (set_bit(x##_BIT, &UDRS->flags))
-#define UTESTF(x) (test_bit(x##_BIT, &UDRS->flags))
+#define UCLEARF(x) clear_bit(x##_BIT, &UDRS->flags)
+#define USETF(x) set_bit(x##_BIT, &UDRS->flags)
+#define UTESTF(x) test_bit(x##_BIT, &UDRS->flags)
 
 #define DPRINT(format, args...) printk(DEVICE_NAME "%d: " format, current_drive , ## args)
 
