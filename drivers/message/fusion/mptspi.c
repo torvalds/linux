@@ -96,14 +96,13 @@ static int	mptspiTaskCtx = -1;
 static int	mptspiInternalCtx = -1; /* Used only for internal commands */
 
 /**
- * 	mptspi_setTargetNegoParms  - Update the target negotiation
- *	parameters based on the the Inquiry data, adapter capabilities,
- *	and NVRAM settings
- *
+ * 	mptspi_setTargetNegoParms  - Update the target negotiation parameters
  *	@hd: Pointer to a SCSI Host Structure
- *	@vtarget: per target private data
+ *	@target: per target private data
  *	@sdev: SCSI device
  *
+ * 	Update the target negotiation parameters based on the the Inquiry
+ *	data, adapter capabilities, and NVRAM settings.
  **/
 static void
 mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
@@ -234,7 +233,7 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 /**
  * 	mptspi_writeIOCPage4  - write IOC Page 4
  *	@hd: Pointer to a SCSI Host Structure
- *	@channel:
+ *	@channel: channel number
  *	@id: write IOC Page4 for this ID & Bus
  *
  *	Return: -EAGAIN if unable to obtain a Message Frame

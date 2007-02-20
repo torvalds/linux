@@ -1537,21 +1537,23 @@ mptscsih_freeChainBuffers(MPT_ADAPTER *ioc, int req_idx)
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
  *	mptscsih_TMHandler - Generic handler for SCSI Task Management.
- *	Fall through to mpt_HardResetHandler if: not operational, too many
- *	failed TM requests or handshake failure.
- *
- *	@ioc: Pointer to MPT_ADAPTER structure
+ *	@hd: Pointer to MPT SCSI HOST structure
  *	@type: Task Management type
+ *	@channel: channel number for task management
  *	@id: Logical Target ID for reset (if appropriate)
  *	@lun: Logical Unit for reset (if appropriate)
  *	@ctx2abort: Context for the task to be aborted (if appropriate)
+ *	@timeout: timeout for task management control
+ *
+ *	Fall through to mpt_HardResetHandler if: not operational, too many
+ *	failed TM requests or handshake failure.
  *
  *	Remark: Currently invoked from a non-interrupt thread (_bh).
  *
  *	Remark: With old EH code, at most 1 SCSI TaskMgmt function per IOC
  *	will be active.
  *
- *	Returns 0 for SUCCESS, or FAILED.
+ *	Returns 0 for SUCCESS, or %FAILED.
  **/
 int
 mptscsih_TMHandler(MPT_SCSI_HOST *hd, u8 type, u8 channel, u8 id, int lun, int ctx2abort, ulong timeout)
@@ -1650,9 +1652,11 @@ mptscsih_TMHandler(MPT_SCSI_HOST *hd, u8 type, u8 channel, u8 id, int lun, int c
  *	mptscsih_IssueTaskMgmt - Generic send Task Management function.
  *	@hd: Pointer to MPT_SCSI_HOST structure
  *	@type: Task Management type
+ *	@channel: channel number for task management
  *	@id: Logical Target ID for reset (if appropriate)
  *	@lun: Logical Unit for reset (if appropriate)
  *	@ctx2abort: Context for the task to be aborted (if appropriate)
+ *	@timeout: timeout for task management control
  *
  *	Remark: _HardResetHandler can be invoked from an interrupt thread (timer)
  *	or a non-interrupt thread.  In the former, must not call schedule().
@@ -2022,6 +2026,7 @@ mptscsih_tm_pending_wait(MPT_SCSI_HOST * hd)
 /**
  *	mptscsih_tm_wait_for_completion - wait for completion of TM task
  *	@hd: Pointer to MPT host structure.
+ *	@timeout: timeout value
  *
  *	Returns {SUCCESS,FAILED}.
  */
