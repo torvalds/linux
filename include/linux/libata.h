@@ -1033,6 +1033,21 @@ static inline u8 ata_chk_status(struct ata_port *ap)
 	return ap->ops->check_status(ap);
 }
 
+/**
+ *	ata_ncq_enabled - Test whether NCQ is enabled
+ *	@dev: ATA device to test for
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ *
+ *	RETURNS:
+ *	1 if NCQ is enabled for @dev, 0 otherwise.
+ */
+static inline int ata_ncq_enabled(struct ata_device *dev)
+{
+	return (dev->flags & (ATA_DFLAG_PIO | ATA_DFLAG_NCQ_OFF |
+			      ATA_DFLAG_NCQ)) == ATA_DFLAG_NCQ;
+}
 
 /**
  *	ata_pause - Flush writes and pause 400 nanoseconds.
