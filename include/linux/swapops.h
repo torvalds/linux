@@ -108,7 +108,10 @@ extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 #else
 
 #define make_migration_entry(page, write) swp_entry(0, 0)
-#define is_migration_entry(swp) 0
+static inline int is_migration_entry(swp_entry_t swp)
+{
+	return 0;
+}
 #define migration_entry_to_page(swp) NULL
 static inline void make_migration_entry_read(swp_entry_t *entryp) { }
 static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
