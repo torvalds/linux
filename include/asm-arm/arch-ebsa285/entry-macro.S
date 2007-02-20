@@ -14,6 +14,12 @@
 		.macro	disable_fiq
 		.endm
 
+		.macro  get_irqnr_preamble, base, tmp
+		.endm
+
+		.macro  arch_ret_to_user, tmp1, tmp2
+		.endm
+
 		.equ	dc21285_high, ARMCSR_BASE & 0xff000000
 		.equ	dc21285_low, ARMCSR_BASE & 0x00ffffff
 

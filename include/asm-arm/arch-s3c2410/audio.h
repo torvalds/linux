@@ -31,9 +31,9 @@ struct s3c24xx_iis_ops {
 	int	(*suspend)(struct s3c24xx_iis_ops *me);
 	int	(*resume)(struct s3c24xx_iis_ops *me);
 
-	int	(*open)(struct s3c24xx_iis_ops *me, snd_pcm_substream_t *strm);
-	int	(*close)(struct s3c24xx_iis_ops *me, snd_pcm_substream_t *strm);
-	int	(*prepare)(struct s3c24xx_iis_ops *me, snd_pcm_substream_t *strm, snd_pcm_runtime_t *rt);
+	int	(*open)(struct s3c24xx_iis_ops *me, struct snd_pcm_substream *strm);
+	int	(*close)(struct s3c24xx_iis_ops *me, struct snd_pcm_substream *strm);
+	int	(*prepare)(struct s3c24xx_iis_ops *me, struct snd_pcm_substream *strm, struct snd_pcm_runtime *rt);
 };
 
 struct s3c24xx_platdata_iis {

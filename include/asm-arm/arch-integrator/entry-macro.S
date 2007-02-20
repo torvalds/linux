@@ -13,6 +13,12 @@
  		.macro	disable_fiq
 		.endm
 
+		.macro  get_irqnr_preamble, base, tmp
+		.endm
+
+		.macro  arch_ret_to_user, tmp1, tmp2
+		.endm
+
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
 /* FIXME: should not be using soo many LDRs here */
 		ldr	\base, =IO_ADDRESS(INTEGRATOR_IC_BASE)

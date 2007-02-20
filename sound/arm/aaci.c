@@ -726,8 +726,8 @@ static struct snd_pcm_ops aaci_playback_ops = {
 	.mmap		= aaci_pcm_mmap,
 };
 
-static int aaci_pcm_capture_hw_params(snd_pcm_substream_t *substream,
-				      snd_pcm_hw_params_t *params)
+static int aaci_pcm_capture_hw_params(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *params)
 {
 	struct aaci *aaci = substream->private_data;
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
@@ -783,8 +783,8 @@ static void aaci_pcm_capture_start(struct aaci_runtime *aacirun)
 	writel(ie, aacirun->base + AACI_IE);
 }
 
-static int aaci_pcm_capture_trigger(snd_pcm_substream_t *substream, int cmd){
-
+static int aaci_pcm_capture_trigger(struct snd_pcm_substream *substream, int cmd)
+{
 	struct aaci *aaci = substream->private_data;
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
 	unsigned long flags;
@@ -824,7 +824,7 @@ static int aaci_pcm_capture_trigger(snd_pcm_substream_t *substream, int cmd){
 	return ret;
 }
 
-static int aaci_pcm_capture_prepare(snd_pcm_substream_t *substream)
+static int aaci_pcm_capture_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aaci *aaci = substream->private_data;
@@ -842,7 +842,7 @@ static int aaci_pcm_capture_prepare(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static snd_pcm_ops_t aaci_capture_ops = {
+static struct snd_pcm_ops aaci_capture_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,

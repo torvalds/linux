@@ -22,6 +22,12 @@
 #include <asm/hardware.h>
 #include <asm/irq.h>
 
+	.macro  get_irqnr_preamble, base, tmp
+	.endm
+
+	.macro  arch_ret_to_user, tmp1, tmp2
+	.endm
+
 	.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
 
 		mov	\base, #S3C24XX_VA_IRQ

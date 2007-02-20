@@ -48,12 +48,10 @@ static inline void arch_reset(char mode)
 	/*
 	 * Reset the internal bus (warning both cores are reset)
 	 */
-	u32 cp_flags = iop13xx_cp6_save();
 	write_wdtcr(IOP13XX_WDTCR_EN_ARM);
 	write_wdtcr(IOP13XX_WDTCR_EN);
 	write_wdtsr(IOP13XX_WDTSR_WRITE_EN | IOP13XX_WDTCR_IB_RESET);
 	write_wdtcr(0x1000);
-	iop13xx_cp6_restore(cp_flags);
 
 	for(;;);
 }
