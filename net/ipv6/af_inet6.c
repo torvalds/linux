@@ -929,25 +929,28 @@ static void __exit inet6_exit(void)
 {
 	/* First of all disallow new sockets creation. */
 	sock_unregister(PF_INET6);
-#ifdef CONFIG_PROC_FS
-	if6_proc_exit();
-	ac6_proc_exit();
-	ipv6_misc_proc_exit();
-	udp6_proc_exit();
-	udplite6_proc_exit();
-	tcp6_proc_exit();
-	raw6_proc_exit();
-#endif
+
+	/* Cleanup code parts. */
+	ipv6_packet_cleanup();
 #ifdef CONFIG_IPV6_MIP6
 	mip6_fini();
 #endif
-	/* Cleanup code parts. */
-	ip6_flowlabel_cleanup();
 	addrconf_cleanup();
+	ip6_flowlabel_cleanup();
 	ip6_route_cleanup();
-	ipv6_packet_cleanup();
-	igmp6_cleanup();
+#ifdef CONFIG_PROC_FS
+
+	/* Cleanup code parts. */
+	if6_proc_exit();
+	ac6_proc_exit();
+	ipv6_misc_proc_exit();
+	udplite6_proc_exit();
+	udp6_proc_exit();
+	tcp6_proc_exit();
+	raw6_proc_exit();
+#endif
 	ipv6_netfilter_fini();
+	igmp6_cleanup();
 	ndisc_cleanup();
 	icmpv6_cleanup();
 #ifdef CONFIG_SYSCTL
@@ -955,6 +958,7 @@ static void __exit inet6_exit(void)
 #endif
 	cleanup_ipv6_mibs();
 	proto_unregister(&rawv6_prot);
+	proto_unregister(&udplitev6_prot);
 	proto_unregister(&udpv6_prot);
 	proto_unregister(&tcpv6_prot);
 }
