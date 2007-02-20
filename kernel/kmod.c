@@ -48,7 +48,7 @@ static struct workqueue_struct *khelper_wq;
 	modprobe_path is set via /proc/sys.
 */
 char modprobe_path[KMOD_PATH_LEN] = "/sbin/modprobe";
-struct module_kobject kmod_mk;
+static struct module_kobject kmod_mk;
 
 /**
  * request_module - try to load a kernel module
