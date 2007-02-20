@@ -1490,7 +1490,7 @@ static const struct rtl_cfg_info {
 	[RTL_CFG_0] = {
 		.hw_start	= rtl_hw_start_8169,
 		.region		= 1,
-		.align		= NET_IP_ALIGN,
+		.align		= 2,
 		.intr_event	= SYSErr | LinkChg | RxOverflow |
 				  RxFIFOOver | TxErr | TxOK | RxOK | RxErr,
 		.napi_event	= RxFIFOOver | TxErr | TxOK | RxOK | RxOverflow
@@ -2649,8 +2649,7 @@ static inline void rtl8169_rx_csum(struct sk_buff *skb, struct RxDesc *desc)
 }
 
 static inline bool rtl8169_try_rx_copy(struct sk_buff **sk_buff, int pkt_size,
-				       struct pci_dev *pdev, dma_addr_t addr,
-				       unsigned int align)
+				       struct pci_dev *pdev, dma_addr_t addr)
 {
 	struct sk_buff *skb;
 	bool done = false;
@@ -2658,12 +2657,12 @@ static inline bool rtl8169_try_rx_copy(struct sk_buff **sk_buff, int pkt_size,
 	if (pkt_size >= rx_copybreak)
 		goto out;
 
-	skb = dev_alloc_skb(pkt_size + align);
+	skb = dev_alloc_skb(pkt_size + NET_IP_ALIGN);
 	if (!skb)
 		goto out;
 
 	pci_dma_sync_single_for_cpu(pdev, addr, pkt_size, PCI_DMA_FROMDEVICE);
-	skb_reserve(skb, (align - 1) & (unsigned long)skb->data);
+	skb_reserve(skb, NET_IP_ALIGN);
 	skb_copy_from_linear_data(*sk_buff, skb->data, pkt_size);
 	*sk_buff = skb;
 	done = true;
@@ -2732,8 +2731,7 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 
 			rtl8169_rx_csum(skb, desc);
 
-			if (rtl8169_try_rx_copy(&skb, pkt_size, pdev, addr,
-						tp->align)) {
+			if (rtl8169_try_rx_copy(&skb, pkt_size, pdev, addr)) {
 				pci_dma_sync_single_for_device(pdev, addr,
 					pkt_size, PCI_DMA_FROMDEVICE);
 				rtl8169_mark_to_asic(desc, tp->rx_buf_sz);
