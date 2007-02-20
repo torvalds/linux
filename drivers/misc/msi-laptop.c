@@ -157,14 +157,12 @@ static int bl_get_brightness(struct backlight_device *b)
 
 static int bl_update_status(struct backlight_device *b)
 {
-	return set_lcd_level(b->props->brightness);
+	return set_lcd_level(b->props.brightness);
 }
 
-static struct backlight_properties msibl_props = {
-	.owner		= THIS_MODULE,
+static struct backlight_ops msibl_ops = {
 	.get_brightness = bl_get_brightness,
 	.update_status  = bl_update_status,
-	.max_brightness = MSI_LCD_LEVEL_MAX-1,
 };
 
 static struct backlight_device *msibl_device;
@@ -318,9 +316,11 @@ static int __init msi_init(void)
 	/* Register backlight stuff */
 
 	msibl_device = backlight_device_register("msi-laptop-bl", NULL, NULL,
-						&msibl_props);
+						&msibl_ops);
 	if (IS_ERR(msibl_device))
 		return PTR_ERR(msibl_device);
+
+	msibl_device->props.max_brightness = MSI_LCD_LEVEL_MAX-1,
 
 	ret = platform_driver_register(&msipf_driver);
 	if (ret)

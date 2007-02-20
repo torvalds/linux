@@ -2393,7 +2393,6 @@ static void __devexit radeonfb_pci_unregister (struct pci_dev *pdev)
         if (!rinfo)
                 return;
 
-	radeonfb_bl_exit(rinfo);
 	radeonfb_pm_exit(rinfo);
 
 	if (rinfo->mon1_EDID)
@@ -2419,6 +2418,8 @@ static void __devexit radeonfb_pci_unregister (struct pci_dev *pdev)
 #endif
 
         unregister_framebuffer(info);
+
+        radeonfb_bl_exit(rinfo);
 
         iounmap(rinfo->mmio_base);
         iounmap(rinfo->fb_base);

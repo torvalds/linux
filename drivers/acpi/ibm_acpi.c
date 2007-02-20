@@ -1701,14 +1701,12 @@ static int brightness_write(char *buf)
 
 static int brightness_update_status(struct backlight_device *bd)
 {
-	return brightness_set(bd->props->brightness);
+	return brightness_set(bd->props.brightness);
 }
 
-static struct backlight_properties ibm_backlight_data = {
-        .owner          = THIS_MODULE,
+static struct backlight_ops ibm_backlight_data = {
         .get_brightness = brightness_get,
         .update_status  = brightness_update_status,
-        .max_brightness = 7,
 };
 
 static int brightness_init(void)
@@ -1719,6 +1717,8 @@ static int brightness_init(void)
 		printk(IBM_ERR "Could not register backlight device\n");
 		return PTR_ERR(ibm_backlight_device);
 	}
+
+        ibm_backlight_device->props.max_brightness = 7;
 
 	return 0;
 }

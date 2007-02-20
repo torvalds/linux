@@ -59,7 +59,7 @@ struct fb_info *framebuffer_alloc(size_t size, struct device *dev)
 	info->device = dev;
 
 #ifdef CONFIG_FB_BACKLIGHT
-	mutex_init(&info->bl_mutex);
+	mutex_init(&info->bl_curve_mutex);
 #endif
 
 	return info;
@@ -445,10 +445,10 @@ static ssize_t store_bl_curve(struct device *device,
 	/* If there has been an error in the input data, we won't
 	 * reach this loop.
 	 */
-	mutex_lock(&fb_info->bl_mutex);
+	mutex_lock(&fb_info->bl_curve_mutex);
 	for (i = 0; i < FB_BACKLIGHT_LEVELS; ++i)
 		fb_info->bl_curve[i] = tmp_curve[i];
-	mutex_unlock(&fb_info->bl_mutex);
+	mutex_unlock(&fb_info->bl_curve_mutex);
 
 	return count;
 }
@@ -466,7 +466,7 @@ static ssize_t show_bl_curve(struct device *device,
 	if (!fb_info || !fb_info->bl_dev)
 		return -ENODEV;
 
-	mutex_lock(&fb_info->bl_mutex);
+	mutex_lock(&fb_info->bl_curve_mutex);
 	for (i = 0; i < FB_BACKLIGHT_LEVELS; i += 8)
 		len += snprintf(&buf[len], PAGE_SIZE,
 				"%02x %02x %02x %02x %02x %02x %02x %02x\n",
@@ -478,7 +478,7 @@ static ssize_t show_bl_curve(struct device *device,
 				fb_info->bl_curve[i + 5],
 				fb_info->bl_curve[i + 6],
 				fb_info->bl_curve[i + 7]);
-	mutex_unlock(&fb_info->bl_mutex);
+	mutex_unlock(&fb_info->bl_curve_mutex);
 
 	return len;
 }
@@ -552,6 +552,8 @@ void fb_bl_default_curve(struct fb_info *fb_info, u8 off, u8 min, u8 max)
 {
 	unsigned int i, flat, count, range = (max - min);
 
+	mutex_lock(&fb_info->bl_curve_mutex);
+
 	fb_info->bl_curve[0] = off;
 
 	for (flat = 1; flat < (FB_BACKLIGHT_LEVELS / 16); ++flat)
@@ -560,6 +562,8 @@ void fb_bl_default_curve(struct fb_info *fb_info, u8 off, u8 min, u8 max)
 	count = FB_BACKLIGHT_LEVELS * 15 / 16;
 	for (i = 0; i < count; ++i)
 		fb_info->bl_curve[flat + i] = min + (range * (i + 1) / count);
+
+	mutex_unlock(&fb_info->bl_curve_mutex);
 }
 EXPORT_SYMBOL_GPL(fb_bl_default_curve);
 #endif

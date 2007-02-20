@@ -31,11 +31,11 @@ static int fb_notifier_callback(struct notifier_block *self,
 		return 0;
 
 	ld = container_of(self, struct lcd_device, fb_notif);
-	down(&ld->sem);
-	if (ld->props)
-		if (!ld->props->check_fb || ld->props->check_fb(evdata->info))
-			ld->props->set_power(ld, *(int *)evdata->data);
-	up(&ld->sem);
+	mutex_lock(&ld->ops_lock);
+	if (ld->ops)
+		if (!ld->ops->check_fb || ld->ops->check_fb(evdata->info))
+			ld->ops->set_power(ld, *(int *)evdata->data);
+	mutex_unlock(&ld->ops_lock);
 	return 0;
 }
 
@@ -66,12 +66,12 @@ static ssize_t lcd_show_power(struct class_device *cdev, char *buf)
 	int rc;
 	struct lcd_device *ld = to_lcd_device(cdev);
 
-	down(&ld->sem);
-	if (likely(ld->props && ld->props->get_power))
-		rc = sprintf(buf, "%d\n", ld->props->get_power(ld));
+	mutex_lock(&ld->ops_lock);
+	if (ld->ops && ld->ops->get_power)
+		rc = sprintf(buf, "%d\n", ld->ops->get_power(ld));
 	else
 		rc = -ENXIO;
-	up(&ld->sem);
+	mutex_unlock(&ld->ops_lock);
 
 	return rc;
 }
@@ -89,13 +89,13 @@ static ssize_t lcd_store_power(struct class_device *cdev, const char *buf, size_
 	if (size != count)
 		return -EINVAL;
 
-	down(&ld->sem);
-	if (likely(ld->props && ld->props->set_power)) {
+	mutex_lock(&ld->ops_lock);
+	if (ld->ops && ld->ops->set_power) {
 		pr_debug("lcd: set power to %d\n", power);
-		ld->props->set_power(ld, power);
+		ld->ops->set_power(ld, power);
 		rc = count;
 	}
-	up(&ld->sem);
+	mutex_unlock(&ld->ops_lock);
 
 	return rc;
 }
@@ -105,10 +105,10 @@ static ssize_t lcd_show_contrast(struct class_device *cdev, char *buf)
 	int rc = -ENXIO;
 	struct lcd_device *ld = to_lcd_device(cdev);
 
-	down(&ld->sem);
-	if (likely(ld->props && ld->props->get_contrast))
-		rc = sprintf(buf, "%d\n", ld->props->get_contrast(ld));
-	up(&ld->sem);
+	mutex_lock(&ld->ops_lock);
+	if (ld->ops && ld->ops->get_contrast)
+		rc = sprintf(buf, "%d\n", ld->ops->get_contrast(ld));
+	mutex_unlock(&ld->ops_lock);
 
 	return rc;
 }
@@ -126,28 +126,22 @@ static ssize_t lcd_store_contrast(struct class_device *cdev, const char *buf, si
 	if (size != count)
 		return -EINVAL;
 
-	down(&ld->sem);
-	if (likely(ld->props && ld->props->set_contrast)) {
+	mutex_lock(&ld->ops_lock);
+	if (ld->ops && ld->ops->set_contrast) {
 		pr_debug("lcd: set contrast to %d\n", contrast);
-		ld->props->set_contrast(ld, contrast);
+		ld->ops->set_contrast(ld, contrast);
 		rc = count;
 	}
-	up(&ld->sem);
+	mutex_unlock(&ld->ops_lock);
 
 	return rc;
 }
 
 static ssize_t lcd_show_max_contrast(struct class_device *cdev, char *buf)
 {
-	int rc = -ENXIO;
 	struct lcd_device *ld = to_lcd_device(cdev);
 
-	down(&ld->sem);
-	if (likely(ld->props))
-		rc = sprintf(buf, "%d\n", ld->props->max_contrast);
-	up(&ld->sem);
-
-	return rc;
+	return sprintf(buf, "%d\n", ld->props.max_contrast);
 }
 
 static void lcd_class_release(struct class_device *dev)
@@ -180,45 +174,46 @@ static const struct class_device_attribute lcd_class_device_attributes[] = {
  *   respective framebuffer device).
  * @devdata: an optional pointer to be stored in the class_device. The
  *   methods may retrieve it by using class_get_devdata(ld->class_dev).
- * @lp: the lcd properties structure.
+ * @ops: the lcd operations structure.
  *
  * Creates and registers a new lcd class_device. Returns either an ERR_PTR()
  * or a pointer to the newly allocated device.
  */
 struct lcd_device *lcd_device_register(const char *name, void *devdata,
-				       struct lcd_properties *lp)
+				       struct lcd_ops *ops)
 {
 	int i, rc;
 	struct lcd_device *new_ld;
 
 	pr_debug("lcd_device_register: name=%s\n", name);
 
-	new_ld = kmalloc(sizeof(struct lcd_device), GFP_KERNEL);
-	if (unlikely(!new_ld))
+	new_ld = kzalloc(sizeof(struct lcd_device), GFP_KERNEL);
+	if (!new_ld)
 		return ERR_PTR(-ENOMEM);
 
-	init_MUTEX(&new_ld->sem);
-	new_ld->props = lp;
-	memset(&new_ld->class_dev, 0, sizeof(new_ld->class_dev));
+	mutex_init(&new_ld->ops_lock);
+	mutex_init(&new_ld->update_lock);
+	new_ld->ops = ops;
 	new_ld->class_dev.class = &lcd_class;
 	strlcpy(new_ld->class_dev.class_id, name, KOBJ_NAME_LEN);
 	class_set_devdata(&new_ld->class_dev, devdata);
 
 	rc = class_device_register(&new_ld->class_dev);
-	if (unlikely(rc)) {
-error:		kfree(new_ld);
+	if (rc) {
+		kfree(new_ld);
 		return ERR_PTR(rc);
 	}
 
 	rc = lcd_register_fb(new_ld);
-
-	if (unlikely(rc))
-		goto error;
+	if (rc) {
+		class_device_unregister(&new_ld->class_dev);
+		return ERR_PTR(rc);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(lcd_class_device_attributes); i++) {
 		rc = class_device_create_file(&new_ld->class_dev,
 					      &lcd_class_device_attributes[i]);
-		if (unlikely(rc)) {
+		if (rc) {
 			while (--i >= 0)
 				class_device_remove_file(&new_ld->class_dev,
 							 &lcd_class_device_attributes[i]);
@@ -251,9 +246,9 @@ void lcd_device_unregister(struct lcd_device *ld)
 		class_device_remove_file(&ld->class_dev,
 					 &lcd_class_device_attributes[i]);
 
-	down(&ld->sem);
-	ld->props = NULL;
-	up(&ld->sem);
+	mutex_lock(&ld->ops_lock);
+	ld->ops = NULL;
+	mutex_unlock(&ld->ops_lock);
 	lcd_unregister_fb(ld);
 	class_device_unregister(&ld->class_dev);
 }

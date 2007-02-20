@@ -107,12 +107,10 @@ int die(const char *str, struct pt_regs *regs, long err)
 	if (machine_is(powermac) && pmac_backlight) {
 		struct backlight_properties *props;
 
-		down(&pmac_backlight->sem);
-		props = pmac_backlight->props;
+		props = &pmac_backlight->props;
 		props->brightness = props->max_brightness;
 		props->power = FB_BLANK_UNBLANK;
-		props->update_status(pmac_backlight);
-		up(&pmac_backlight->sem);
+		backlight_update_status(pmac_backlight);
 	}
 	mutex_unlock(&pmac_backlight_mutex);
 #endif

@@ -938,8 +938,6 @@ static int nvidiafb_blank(int blank, struct fb_info *info)
 	NVWriteSeq(par, 0x01, tmp);
 	NVWriteCrtc(par, 0x1a, vesa);
 
-	nvidia_bl_set_power(info, blank);
-
 	NVTRACE_LEAVE();
 
 	return 0;
@@ -1352,9 +1350,10 @@ static void __devexit nvidiafb_remove(struct pci_dev *pd)
 
 	NVTRACE_ENTER();
 
+	unregister_framebuffer(info);
+
 	nvidia_bl_exit(par);
 
-	unregister_framebuffer(info);
 #ifdef CONFIG_MTRR
 	if (par->mtrr.vram_valid)
 		mtrr_del(par->mtrr.vram, info->fix.smem_start,

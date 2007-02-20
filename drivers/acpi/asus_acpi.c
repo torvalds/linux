@@ -848,7 +848,7 @@ out:
 
 static int set_brightness_status(struct backlight_device *bd)
 {
-	return set_brightness(bd->props->brightness);
+	return set_brightness(bd->props.brightness);
 }
 
 static int
@@ -1352,11 +1352,9 @@ static int asus_hotk_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static struct backlight_properties asus_backlight_data = {
-        .owner          = THIS_MODULE,
+static struct backlight_ops asus_backlight_data = {
         .get_brightness = read_brightness,
         .update_status  = set_brightness_status,
-        .max_brightness = 15,
 };
 
 static void __exit asus_acpi_exit(void)
@@ -1410,6 +1408,7 @@ static int __init asus_acpi_init(void)
 		asus_backlight_device = NULL;
 		asus_acpi_exit();
 	}
+        asus_backlight_device->props.max_brightness = 15;
 
 	return 0;
 }
