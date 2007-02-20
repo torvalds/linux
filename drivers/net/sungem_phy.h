@@ -12,7 +12,7 @@ struct mii_phy_ops
 	int		(*setup_forced)(struct mii_phy *phy, int speed, int fd);
 	int		(*poll_link)(struct mii_phy *phy);
 	int		(*read_link)(struct mii_phy *phy);
-	int		(*enable_fiber)(struct mii_phy *phy);
+	int		(*enable_fiber)(struct mii_phy *phy, int autoneg);
 };
 
 /* Structure used to statically define an mii/gii based PHY */
@@ -24,6 +24,14 @@ struct mii_phy_def
 	int				magic_aneg;	/* Autoneg does all speed test for us */
 	const char*			name;
 	const struct mii_phy_ops*	ops;
+};
+
+enum {
+	BCM54XX_COPPER,
+	BCM54XX_FIBER,
+	BCM54XX_GBIC,
+	BCM54XX_SGMII,
+	BCM54XX_UNKNOWN,
 };
 
 /* An instance of a PHY, partially borrowed from mii_if_info */
