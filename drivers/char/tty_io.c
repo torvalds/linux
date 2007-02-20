@@ -1533,7 +1533,7 @@ void disassociate_ctty(int on_exit)
 
 	spin_lock_irq(&current->sighand->siglock);
 	tty_pgrp = current->signal->tty_old_pgrp;
-	current->signal->tty_old_pgrp = 0;
+	current->signal->tty_old_pgrp = NULL;
 	spin_unlock_irq(&current->sighand->siglock);
 	put_pid(tty_pgrp);
 
