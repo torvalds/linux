@@ -581,7 +581,7 @@ out_no_task:
 
 #ifndef mem_write
 /* This is a security hazard */
-static ssize_t mem_write(struct file * file, const char * buf,
+static ssize_t mem_write(struct file * file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	int copied;
