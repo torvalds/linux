@@ -158,6 +158,65 @@ show_quirks(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR(quirks, S_IRUGO, show_quirks, NULL);
 
+#ifdef	CONFIG_USB_SUSPEND
+
+static ssize_t
+show_autosuspend(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev = to_usb_device(dev);
+
+	return sprintf(buf, "%u\n", udev->autosuspend_delay / HZ);
+}
+
+static ssize_t
+set_autosuspend(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	unsigned value, old;
+
+	if (sscanf(buf, "%u", &value) != 1 || value >= INT_MAX/HZ)
+		return -EINVAL;
+	value *= HZ;
+
+	old = udev->autosuspend_delay;
+	udev->autosuspend_delay = value;
+	if (value > 0 && old == 0)
+		usb_try_autosuspend_device(udev);
+
+	return count;
+}
+
+static DEVICE_ATTR(autosuspend, S_IRUGO | S_IWUSR,
+		show_autosuspend, set_autosuspend);
+
+static char power_group[] = "power";
+
+static int add_power_attributes(struct device *dev)
+{
+	int rc = 0;
+
+	if (is_usb_device(dev))
+		rc = sysfs_add_file_to_group(&dev->kobj,
+				&dev_attr_autosuspend.attr,
+				power_group);
+	return rc;
+}
+
+static void remove_power_attributes(struct device *dev)
+{
+	sysfs_remove_file_from_group(&dev->kobj,
+			&dev_attr_autosuspend.attr,
+			power_group);
+}
+
+#else
+
+#define add_power_attributes(dev)	0
+#define remove_power_attributes(dev)	do {} while (0)
+
+#endif	/* CONFIG_USB_SUSPEND */
+
 /* Descriptor fields */
 #define usb_descriptor_attr_le16(field, format_string)			\
 static ssize_t								\
@@ -230,6 +289,10 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 	if (retval)
 		return retval;
 
+	retval = add_power_attributes(dev);
+	if (retval)
+		goto error;
+
 	if (udev->manufacturer) {
 		retval = device_create_file(dev, &dev_attr_manufacturer);
 		if (retval)
@@ -262,6 +325,7 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 	device_remove_file(dev, &dev_attr_manufacturer);
 	device_remove_file(dev, &dev_attr_product);
 	device_remove_file(dev, &dev_attr_serial);
+	remove_power_attributes(dev);
 	sysfs_remove_group(&dev->kobj, &dev_attr_grp);
 }
 

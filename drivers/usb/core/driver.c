@@ -1225,6 +1225,26 @@ void usb_autosuspend_device(struct usb_device *udev)
 }
 
 /**
+ * usb_try_autosuspend_device - attempt an autosuspend of a USB device and its interfaces
+ * @udev: the usb_device to autosuspend
+ *
+ * This routine should be called when a core subsystem thinks @udev may
+ * be ready to autosuspend.
+ *
+ * @udev's usage counter left unchanged.  If it or any of the usage counters
+ * for an active interface is greater than 0, or autosuspend is not allowed
+ * for any other reason, no autosuspend request will be queued.
+ *
+ * This routine can run only in process context.
+ */
+void usb_try_autosuspend_device(struct usb_device *udev)
+{
+	usb_autopm_do_device(udev, 0);
+	// dev_dbg(&udev->dev, "%s: cnt %d\n",
+	// 		__FUNCTION__, udev->pm_usage_cnt);
+}
+
+/**
  * usb_autoresume_device - immediately autoresume a USB device and its interfaces
  * @udev: the usb_device to autoresume
  *
