@@ -335,17 +335,18 @@ int simple_prepare_write(struct file *file, struct page *page,
 			flush_dcache_page(page);
 			kunmap_atomic(kaddr, KM_USER0);
 		}
-		SetPageUptodate(page);
 	}
 	return 0;
 }
 
 int simple_commit_write(struct file *file, struct page *page,
-			unsigned offset, unsigned to)
+			unsigned from, unsigned to)
 {
 	struct inode *inode = page->mapping->host;
 	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
 
+	if (!PageUptodate(page))
+		SetPageUptodate(page);
 	/*
 	 * No need to use i_size_read() here, the i_size
 	 * cannot change under us because we hold the i_mutex.
