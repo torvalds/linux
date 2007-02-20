@@ -111,8 +111,8 @@ static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
-		max = (u_long*)page_address(page) + PAGE_SIZE;
-		for (p=(u_long*)page_address(page); p<max; p++)
+		max = page_address(page) + PAGE_SIZE;
+		for (p=page_address(page); p<max; p++)
 			if (*p != -1UL) {
 				lock_page(page);
 				memset(page_address(page), 0xff, PAGE_SIZE);
