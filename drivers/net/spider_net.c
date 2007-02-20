@@ -1906,8 +1906,7 @@ spider_net_stop(struct net_device *netdev)
 	spider_net_write_reg(card, SPIDER_NET_GHIINT1MSK, 0);
 	spider_net_write_reg(card, SPIDER_NET_GHIINT2MSK, 0);
 
-	/* free_irq(netdev->irq, netdev);*/
-	free_irq(to_pci_dev(netdev->dev.parent)->irq, netdev);
+	free_irq(netdev->irq, netdev);
 
 	spider_net_write_reg(card, SPIDER_NET_GDTDMACCNTR,
 			     SPIDER_NET_DMA_TX_FEND_VALUE);
@@ -1917,8 +1916,6 @@ spider_net_stop(struct net_device *netdev)
 
 	/* release chains */
 	spider_net_release_tx_chain(card, 1);
-	spider_net_free_rx_chain_contents(card);
-
 	spider_net_free_rx_chain_contents(card);
 
 	spider_net_free_chain(card, &card->tx_chain);
