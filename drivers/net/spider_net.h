@@ -25,7 +25,7 @@
 #ifndef _SPIDER_NET_H
 #define _SPIDER_NET_H
 
-#define VERSION "1.6 C"
+#define VERSION "2.0 A"
 
 #include "sungem_phy.h"
 
