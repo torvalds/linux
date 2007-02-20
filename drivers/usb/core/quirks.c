@@ -39,8 +39,10 @@ static const struct usb_device_id usb_quirk_list[] = {
 
 static void usb_autosuspend_quirk(struct usb_device *udev)
 {
-	/* unbalanced resume to prevent autosuspends */
-	usb_autoresume_device(udev);
+#ifdef	CONFIG_USB_SUSPEND
+	/* disable autosuspend, but allow the user to re-enable it via sysfs */
+	udev->autosuspend_delay = 0;
+#endif
 }
 
 static const struct usb_device_id *find_id(struct usb_device *udev)

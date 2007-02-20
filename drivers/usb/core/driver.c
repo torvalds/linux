@@ -963,12 +963,16 @@ static int autosuspend_check(struct usb_device *udev)
 	int			i;
 	struct usb_interface	*intf;
 
-	/* For autosuspend, fail fast if anything is in use.
-	 * Also fail if any interfaces require remote wakeup but it
-	 * isn't available. */
+	/* For autosuspend, fail fast if anything is in use or autosuspend
+	 * is disabled.  Also fail if any interfaces require remote wakeup
+	 * but it isn't available.
+	 */
 	udev->do_remote_wakeup = device_may_wakeup(&udev->dev);
 	if (udev->pm_usage_cnt > 0)
 		return -EBUSY;
+	if (!udev->autosuspend_delay)
+		return -EPERM;
+
 	if (udev->actconfig) {
 		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
 			intf = udev->actconfig->interface[i];
@@ -991,7 +995,7 @@ static int autosuspend_check(struct usb_device *udev)
 
 #define autosuspend_check(udev)		0
 
-#endif
+#endif	/* CONFIG_USB_SUSPEND */
 
 /**
  * usb_suspend_both - suspend a USB device and its interfaces
@@ -1186,7 +1190,7 @@ static int usb_autopm_do_device(struct usb_device *udev, int inc_usage_cnt)
 			udev->pm_usage_cnt -= inc_usage_cnt;
 	} else if (inc_usage_cnt <= 0 && autosuspend_check(udev) == 0)
 		queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
-				USB_AUTOSUSPEND_DELAY);
+				udev->autosuspend_delay);
 	usb_pm_unlock(udev);
 	return status;
 }
@@ -1270,7 +1274,7 @@ static int usb_autopm_do_interface(struct usb_interface *intf,
 				intf->pm_usage_cnt -= inc_usage_cnt;
 		} else if (inc_usage_cnt <= 0 && autosuspend_check(udev) == 0)
 			queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
-					USB_AUTOSUSPEND_DELAY);
+					udev->autosuspend_delay);
 	}
 	usb_pm_unlock(udev);
 	return status;

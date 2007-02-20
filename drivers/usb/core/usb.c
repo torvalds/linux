@@ -22,6 +22,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
@@ -49,6 +50,16 @@ const char *usbcore_name = "usbcore";
 static int nousb;	/* Disable USB when built into kernel image */
 
 struct workqueue_struct *ksuspend_usb_wq;	/* For autosuspend */
+
+#ifdef	CONFIG_USB_SUSPEND
+static int usb_autosuspend_delay = 2;		/* Default delay value,
+						 * in seconds */
+module_param_named(autosuspend, usb_autosuspend_delay, uint, 0644);
+MODULE_PARM_DESC(autosuspend, "default autosuspend delay");
+
+#else
+#define usb_autosuspend_delay		0
+#endif
 
 
 /**
@@ -306,6 +317,7 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 #ifdef	CONFIG_PM
 	mutex_init(&dev->pm_mutex);
 	INIT_DELAYED_WORK(&dev->autosuspend, usb_autosuspend_work);
+	dev->autosuspend_delay = usb_autosuspend_delay * HZ;
 #endif
 	return dev;
 }

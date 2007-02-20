@@ -65,8 +65,6 @@ static inline void usb_pm_unlock(struct usb_device *udev) {}
 
 #ifdef CONFIG_USB_SUSPEND
 
-#define USB_AUTOSUSPEND_DELAY	(HZ*2)
-
 extern void usb_autosuspend_device(struct usb_device *udev);
 extern int usb_autoresume_device(struct usb_device *udev);
 
