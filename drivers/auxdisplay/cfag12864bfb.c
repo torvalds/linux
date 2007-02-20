@@ -137,7 +137,14 @@ static struct platform_device *cfag12864bfb_device;
 
 static int __init cfag12864bfb_init(void)
 {
-	int ret;
+	int ret = -EINVAL;
+
+	/* cfag12864b_init() must be called first */
+	if (!cfag12864b_isinited()) {
+		printk(KERN_ERR CFAG12864BFB_NAME ": ERROR: "
+			"cfag12864b is not initialized\n");
+		goto none;
+	}
 
 	if (cfag12864b_enable()) {
 		printk(KERN_ERR CFAG12864BFB_NAME ": ERROR: "
@@ -162,6 +169,7 @@ static int __init cfag12864bfb_init(void)
 		}
 	}
 
+none:
 	return ret;
 }
 

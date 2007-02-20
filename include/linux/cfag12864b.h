@@ -73,5 +73,10 @@ extern void cfag12864b_disable(void);
  */
 extern unsigned char cfag12864b_isenabled(void);
 
+/*
+ * Is the module inited?
+ */
+extern unsigned char cfag12864b_isinited(void);
+
 #endif /* _CFAG12864B_H_ */
 
