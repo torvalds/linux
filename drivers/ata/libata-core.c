@@ -6054,11 +6054,10 @@ int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits)
 void ata_pci_device_do_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	pci_save_state(pdev);
+	pci_disable_device(pdev);
 
-	if (mesg.event == PM_EVENT_SUSPEND) {
-		pci_disable_device(pdev);
+	if (mesg.event == PM_EVENT_SUSPEND)
 		pci_set_power_state(pdev, PCI_D3hot);
-	}
 }
 
 int ata_pci_device_do_resume(struct pci_dev *pdev)
