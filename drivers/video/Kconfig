@@ -4,9 +4,7 @@
 
 menu "Graphics support"
 
-if SYSFS
-	source "drivers/video/backlight/Kconfig"
-endif
+source "drivers/video/backlight/Kconfig"
 
 config FB
 	tristate "Support for frame buffer devices"
