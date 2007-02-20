@@ -52,11 +52,23 @@
 #define ACPI_BATTERY_UNITS_AMPS		"mA"
 
 #define _COMPONENT		ACPI_BATTERY_COMPONENT
+
+#define ACPI_BATTERY_UPDATE_TIME	0
+
+#define ACPI_BATTERY_NONE_UPDATE	0
+#define ACPI_BATTERY_EASY_UPDATE	1
+#define ACPI_BATTERY_INIT_UPDATE	2
+
 ACPI_MODULE_NAME("battery");
 
 MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI Battery Driver");
 MODULE_LICENSE("GPL");
+
+static unsigned int update_time = ACPI_BATTERY_UPDATE_TIME;
+
+/* 0 - every time, > 0 - by update_time */
+module_param(update_time, uint, 0644);
 
 extern struct proc_dir_entry *acpi_lock_battery_dir(void);
 extern void *acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
@@ -100,32 +112,117 @@ struct acpi_battery_info {
 };
 
 struct acpi_battery_flags {
-	u8 present:1;		/* Bay occupied? */
-	u8 power_unit:1;	/* 0=watts, 1=apms */
-	u8 alarm:1;		/* _BTP present? */
-	u8 reserved:5;
-};
-
-struct acpi_battery_trips {
-	unsigned long warning;
-	unsigned long low;
+	u8 battery_present_prev;
+	u8 alarm_present;
+	u8 init_update;
+	u8 info_update;
+	u8 state_update;
+	u8 alarm_update;
+	u8 power_unit;
 };
 
 struct acpi_battery {
+	struct mutex mutex;
 	struct acpi_device * device;
 	struct acpi_battery_flags flags;
-	struct acpi_battery_trips trips;
+	struct acpi_buffer bif_data;
+	struct acpi_buffer bst_data;
 	unsigned long alarm;
-	struct acpi_battery_info *info;
+	unsigned long info_update_time;
+	unsigned long state_update_time;
+	unsigned long alarm_update_time;
 };
+
+#define acpi_battery_present(battery) battery->device->status.battery_present
+#define acpi_battery_present_prev(battery) battery->flags.battery_present_prev
+#define acpi_battery_alarm_present(battery) battery->flags.alarm_present
+#define acpi_battery_init_update_flag(battery) battery->flags.init_update
+#define acpi_battery_info_update_flag(battery) battery->flags.info_update
+#define acpi_battery_state_update_flag(battery) battery->flags.state_update
+#define acpi_battery_alarm_update_flag(battery) battery->flags.alarm_update
+#define acpi_battery_power_units(battery) battery->flags.power_unit ? \
+		ACPI_BATTERY_UNITS_AMPS : ACPI_BATTERY_UNITS_WATTS
+#define acpi_battery_handle(battery) battery->device->handle
+#define acpi_battery_inserted(battery) (!acpi_battery_present_prev(battery) & acpi_battery_present(battery))
+#define acpi_battery_removed(battery) (acpi_battery_present_prev(battery) & !acpi_battery_present(battery))
+#define acpi_battery_bid(battery) acpi_device_bid(battery->device)
+#define acpi_battery_status_str(battery) acpi_battery_present(battery) ? "present" : "absent"
 
 /* --------------------------------------------------------------------------
                                Battery Management
    -------------------------------------------------------------------------- */
 
-static int
-acpi_battery_get_info(struct acpi_battery *battery,
-		      struct acpi_battery_info **bif)
+static void acpi_battery_mutex_lock(struct acpi_battery *battery)
+{
+	mutex_lock(&battery->mutex);
+}
+
+static void acpi_battery_mutex_unlock(struct acpi_battery *battery)
+{
+	mutex_unlock(&battery->mutex);
+}
+
+static void acpi_battery_check_result(struct acpi_battery *battery, int result)
+{
+	if (!battery)
+		return;
+
+	if (result) {
+		acpi_battery_init_update_flag(battery) = 1;
+	}
+}
+
+static int acpi_battery_extract_package(struct acpi_battery *battery,
+					union acpi_object *package,
+					struct acpi_buffer *format,
+					struct acpi_buffer *data,
+					char *package_name)
+{
+	acpi_status status = AE_OK;
+	struct acpi_buffer data_null = { 0, NULL };
+
+	status = acpi_extract_package(package, format, &data_null);
+	if (status != AE_BUFFER_OVERFLOW) {
+		ACPI_EXCEPTION((AE_INFO, status, "Extracting size %s",
+				package_name));
+		return -ENODEV;
+	}
+
+	if (data_null.length != data->length) {
+		if (data->pointer) {
+			kfree(data->pointer);
+		}
+		data->pointer = kzalloc(data_null.length, GFP_KERNEL);
+		if (!data->pointer) {
+			ACPI_EXCEPTION((AE_INFO, AE_NO_MEMORY, "kzalloc()"));
+			return -ENOMEM;
+		}
+		data->length = data_null.length;
+	}
+
+	status = acpi_extract_package(package, format, data);
+	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status, "Extracting %s",
+				package_name));
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static int acpi_battery_get_status(struct acpi_battery *battery)
+{
+	int result = 0;
+
+	result = acpi_bus_get_status(battery->device);
+	if (result) {
+		ACPI_EXCEPTION((AE_INFO, AE_ERROR, "Evaluating _STA"));
+		return -ENODEV;
+	}
+	return result;
+}
+
+static int acpi_battery_get_info(struct acpi_battery *battery)
 {
 	int result = 0;
 	acpi_status status = 0;
@@ -133,16 +230,18 @@ acpi_battery_get_info(struct acpi_battery *battery,
 	struct acpi_buffer format = { sizeof(ACPI_BATTERY_FORMAT_BIF),
 		ACPI_BATTERY_FORMAT_BIF
 	};
-	struct acpi_buffer data = { 0, NULL };
 	union acpi_object *package = NULL;
+	struct acpi_buffer *data = NULL;
+	struct acpi_battery_info *bif = NULL;
 
+	battery->info_update_time = get_seconds();
 
-	if (!battery || !bif)
-		return -EINVAL;
+	if (!acpi_battery_present(battery))
+		return 0;
 
 	/* Evalute _BIF */
 
-	status = acpi_evaluate_object(battery->device->handle, "_BIF", NULL, &buffer);
+	status = acpi_evaluate_object(acpi_battery_handle(battery), "_BIF", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BIF"));
 		return -ENODEV;
@@ -150,41 +249,29 @@ acpi_battery_get_info(struct acpi_battery *battery,
 
 	package = buffer.pointer;
 
+	data = &battery->bif_data;
+
 	/* Extract Package Data */
 
-	status = acpi_extract_package(package, &format, &data);
-	if (status != AE_BUFFER_OVERFLOW) {
-		ACPI_EXCEPTION((AE_INFO, status, "Extracting _BIF"));
-		result = -ENODEV;
+	result = acpi_battery_extract_package(battery, package, &format, data, "_BIF");
+	if (result)
 		goto end;
-	}
-
-	data.pointer = kzalloc(data.length, GFP_KERNEL);
-	if (!data.pointer) {
-		result = -ENOMEM;
-		goto end;
-	}
-
-	status = acpi_extract_package(package, &format, &data);
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Extracting _BIF"));
-		kfree(data.pointer);
-		result = -ENODEV;
-		goto end;
-	}
 
       end:
-	kfree(buffer.pointer);
 
-	if (!result)
-		(*bif) = data.pointer;
+	if (buffer.pointer) {
+		kfree(buffer.pointer);
+	}
+
+	if (!result) {
+		bif = data->pointer;
+		battery->flags.power_unit = bif->power_unit;
+	}
 
 	return result;
 }
 
-static int
-acpi_battery_get_state(struct acpi_battery *battery,
-			struct acpi_battery_state **bst)
+static int acpi_battery_get_state(struct acpi_battery *battery)
 {
 	int result = 0;
 	acpi_status status = 0;
@@ -192,16 +279,17 @@ acpi_battery_get_state(struct acpi_battery *battery,
 	struct acpi_buffer format = { sizeof(ACPI_BATTERY_FORMAT_BST),
 		ACPI_BATTERY_FORMAT_BST
 	};
-	struct acpi_buffer data = { 0, NULL };
 	union acpi_object *package = NULL;
+	struct acpi_buffer *data = NULL;
 
+	battery->state_update_time = get_seconds();
 
-	if (!battery || !bst)
-		return -EINVAL;
+	if (!acpi_battery_present(battery))
+		return 0;
 
 	/* Evalute _BST */
 
-	status = acpi_evaluate_object(battery->device->handle, "_BST", NULL, &buffer);
+	status = acpi_evaluate_object(acpi_battery_handle(battery), "_BST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BST"));
 		return -ENODEV;
@@ -209,55 +297,46 @@ acpi_battery_get_state(struct acpi_battery *battery,
 
 	package = buffer.pointer;
 
+	data = &battery->bst_data;
+
 	/* Extract Package Data */
 
-	status = acpi_extract_package(package, &format, &data);
-	if (status != AE_BUFFER_OVERFLOW) {
-		ACPI_EXCEPTION((AE_INFO, status, "Extracting _BST"));
-		result = -ENODEV;
+	result = acpi_battery_extract_package(battery, package, &format, data, "_BST");
+	if (result)
 		goto end;
-	}
-
-	data.pointer = kzalloc(data.length, GFP_KERNEL);
-	if (!data.pointer) {
-		result = -ENOMEM;
-		goto end;
-	}
-
-	status = acpi_extract_package(package, &format, &data);
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Extracting _BST"));
-		kfree(data.pointer);
-		result = -ENODEV;
-		goto end;
-	}
 
       end:
-	kfree(buffer.pointer);
-
-	if (!result)
-		(*bst) = data.pointer;
+	if (buffer.pointer) {
+		kfree(buffer.pointer);
+	}
 
 	return result;
 }
 
-static int
-acpi_battery_set_alarm(struct acpi_battery *battery, unsigned long alarm)
+static int acpi_battery_get_alarm(struct acpi_battery *battery)
+{
+	battery->alarm_update_time = get_seconds();
+
+	return 0;
+}
+
+static int acpi_battery_set_alarm(struct acpi_battery *battery, unsigned long alarm)
 {
 	acpi_status status = 0;
 	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
 	struct acpi_object_list arg_list = { 1, &arg0 };
 
+	battery->alarm_update_time = get_seconds();
 
-	if (!battery)
-		return -EINVAL;
+	if (!acpi_battery_present(battery))
+		return -ENODEV;
 
-	if (!battery->flags.alarm)
+	if (!acpi_battery_alarm_present(battery))
 		return -ENODEV;
 
 	arg0.integer.value = alarm;
 
-	status = acpi_evaluate_object(battery->device->handle, "_BTP", &arg_list, NULL);
+	status = acpi_evaluate_object(acpi_battery_handle(battery), "_BTP", &arg_list, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -268,65 +347,110 @@ acpi_battery_set_alarm(struct acpi_battery *battery, unsigned long alarm)
 	return 0;
 }
 
-static int acpi_battery_check(struct acpi_battery *battery)
+static int acpi_battery_init_alarm(struct acpi_battery *battery)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
 	acpi_handle handle = NULL;
-	struct acpi_device *device = NULL;
-	struct acpi_battery_info *bif = NULL;
+	struct acpi_battery_info *bif = battery->bif_data.pointer;
+	unsigned long alarm = battery->alarm;
 
+	/* See if alarms are supported, and if so, set default */
 
-	if (!battery)
-		return -EINVAL;
-
-	device = battery->device;
-
-	result = acpi_bus_get_status(device);
-	if (result)
-		return result;
-
-	/* Insertion? */
-
-	if (!battery->flags.present && device->status.battery_present) {
-
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Battery inserted\n"));
-
-		/* Evalute _BIF to get certain static information */
-
-		result = acpi_battery_get_info(battery, &bif);
-		if (result)
-			return result;
-
-		battery->flags.power_unit = bif->power_unit;
-		battery->trips.warning = bif->design_capacity_warning;
-		battery->trips.low = bif->design_capacity_low;
-		kfree(bif);
-
-		/* See if alarms are supported, and if so, set default */
-
-		status = acpi_get_handle(battery->device->handle, "_BTP", &handle);
-		if (ACPI_SUCCESS(status)) {
-			battery->flags.alarm = 1;
-			acpi_battery_set_alarm(battery, battery->trips.warning);
+	status = acpi_get_handle(acpi_battery_handle(battery), "_BTP", &handle);
+	if (ACPI_SUCCESS(status)) {
+		acpi_battery_alarm_present(battery) = 1;
+		if (!alarm && bif) {
+			alarm = bif->design_capacity_warning;
 		}
+		result = acpi_battery_set_alarm(battery, alarm);
+		if (result)
+			goto end;
+	} else {
+		acpi_battery_alarm_present(battery) = 0;
 	}
 
-	/* Removal? */
-
-	else if (battery->flags.present && !device->status.battery_present) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Battery removed\n"));
-	}
-
-	battery->flags.present = device->status.battery_present;
+      end:
 
 	return result;
 }
 
-static void acpi_battery_check_present(struct acpi_battery *battery)
+static int acpi_battery_init_update(struct acpi_battery *battery)
 {
-	if (!battery->flags.present) {
-		acpi_battery_check(battery);
+	int result = 0;
+
+	result = acpi_battery_get_status(battery);
+	if (result)
+		return result;
+
+	acpi_battery_present_prev(battery) = acpi_battery_present(battery);
+
+	if (acpi_battery_present(battery)) {
+		result = acpi_battery_get_info(battery);
+		if (result)
+			return result;
+		result = acpi_battery_get_state(battery);
+		if (result)
+			return result;
+
+		acpi_battery_init_alarm(battery);
+	}
+
+	return result;
+}
+
+static int acpi_battery_update(struct acpi_battery *battery,
+			   int update, int *update_result_ptr)
+{
+	int result = 0;
+	int update_result = ACPI_BATTERY_NONE_UPDATE;
+
+	if (!acpi_battery_present(battery)) {
+		update = 1;
+	}
+
+	if (acpi_battery_init_update_flag(battery)) {
+		result = acpi_battery_init_update(battery);
+		if (result)
+			goto end;;
+		update_result = ACPI_BATTERY_INIT_UPDATE;
+	} else if (update) {
+		result = acpi_battery_get_status(battery);
+		if (result)
+			goto end;;
+		if (acpi_battery_inserted(battery) || acpi_battery_removed(battery)) {
+			result = acpi_battery_init_update(battery);
+			if (result)
+				goto end;;
+			update_result = ACPI_BATTERY_INIT_UPDATE;
+		} else {
+			update_result = ACPI_BATTERY_EASY_UPDATE;
+		}
+	}
+
+      end:
+
+	acpi_battery_init_update_flag(battery) = (result != 0);
+
+	*update_result_ptr = update_result;
+
+	return result;
+}
+
+static void acpi_battery_notify_update(struct acpi_battery *battery)
+{
+	acpi_battery_get_status(battery);
+
+	if (acpi_battery_init_update_flag(battery)) {
+		return;
+	}
+
+	if (acpi_battery_inserted(battery) || acpi_battery_removed(battery)) {
+		acpi_battery_init_update_flag(battery) = 1;
+	} else {
+		acpi_battery_info_update_flag(battery) = 1;
+		acpi_battery_state_update_flag(battery) = 1;
+		acpi_battery_alarm_update_flag(battery) = 1;
 	}
 }
 
@@ -335,37 +459,33 @@ static void acpi_battery_check_present(struct acpi_battery *battery)
    -------------------------------------------------------------------------- */
 
 static struct proc_dir_entry *acpi_battery_dir;
-static int acpi_battery_read_info(struct seq_file *seq, void *offset)
+
+static int acpi_battery_read_info_print(struct seq_file *seq, int result)
 {
-	int result = 0;
 	struct acpi_battery *battery = seq->private;
 	struct acpi_battery_info *bif = NULL;
 	char *units = "?";
 
-
-	if (!battery)
+	if (result)
 		goto end;
 
-	acpi_battery_check_present(battery);
-
-	if (battery->flags.present)
+	if (acpi_battery_present(battery))
 		seq_printf(seq, "present:                 yes\n");
 	else {
 		seq_printf(seq, "present:                 no\n");
 		goto end;
 	}
 
-	/* Battery Info (_BIF) */
-
-	result = acpi_battery_get_info(battery, &bif);
-	if (result || !bif) {
-		seq_printf(seq, "ERROR: Unable to read battery information\n");
+	bif = battery->bif_data.pointer;
+	if (!bif) {
+		ACPI_EXCEPTION((AE_INFO, AE_ERROR, "BIF buffer is NULL"));
+		result = -ENODEV;
 		goto end;
 	}
 
-	units =
-	    bif->
-	    power_unit ? ACPI_BATTERY_UNITS_AMPS : ACPI_BATTERY_UNITS_WATTS;
+	/* Battery Units */
+
+	units = acpi_battery_power_units(battery);
 
 	if (bif->design_capacity == ACPI_BATTERY_VALUE_UNKNOWN)
 		seq_printf(seq, "design capacity:         unknown\n");
@@ -396,7 +516,6 @@ static int acpi_battery_read_info(struct seq_file *seq, void *offset)
 	else
 		seq_printf(seq, "design voltage:          %d mV\n",
 			   (u32) bif->design_voltage);
-
 	seq_printf(seq, "design capacity warning: %d %sh\n",
 		   (u32) bif->design_capacity_warning, units);
 	seq_printf(seq, "design capacity low:     %d %sh\n",
@@ -411,9 +530,48 @@ static int acpi_battery_read_info(struct seq_file *seq, void *offset)
 	seq_printf(seq, "OEM info:                %s\n", bif->oem_info);
 
       end:
-	kfree(bif);
 
-	return 0;
+	if (result)
+		seq_printf(seq, "ERROR: Unable to read battery info\n");
+
+	return result;
+}
+
+static int acpi_battery_read_info(struct seq_file *seq, void *offset)
+{
+	struct acpi_battery *battery = seq->private;
+	int result = 0;
+	int update_result = ACPI_BATTERY_NONE_UPDATE;
+	int update = 0;
+
+	acpi_battery_mutex_lock(battery);
+
+	update = (get_seconds() - battery->info_update_time >= update_time);
+	update = (update | acpi_battery_info_update_flag(battery));
+
+	result = acpi_battery_update(battery, update, &update_result);
+	if (result)
+		goto end;
+
+	/* Battery Info (_BIF) */
+
+	if (update_result == ACPI_BATTERY_EASY_UPDATE) {
+		result = acpi_battery_get_info(battery);
+		if (result)
+			goto end;
+	}
+
+      end:
+
+	result = acpi_battery_read_info_print(seq, result);
+
+	acpi_battery_check_result(battery, result);
+
+	acpi_battery_info_update_flag(battery) = result;
+
+	acpi_battery_mutex_unlock(battery);
+
+	return result;
 }
 
 static int acpi_battery_info_open_fs(struct inode *inode, struct file *file)
@@ -421,39 +579,32 @@ static int acpi_battery_info_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_battery_read_info, PDE(inode)->data);
 }
 
-static int acpi_battery_read_state(struct seq_file *seq, void *offset)
+static int acpi_battery_read_state_print(struct seq_file *seq, int result)
 {
-	int result = 0;
 	struct acpi_battery *battery = seq->private;
 	struct acpi_battery_state *bst = NULL;
 	char *units = "?";
 
-
-	if (!battery)
+	if (result)
 		goto end;
 
-	acpi_battery_check_present(battery);
-
-	if (battery->flags.present)
+	if (acpi_battery_present(battery))
 		seq_printf(seq, "present:                 yes\n");
 	else {
 		seq_printf(seq, "present:                 no\n");
 		goto end;
 	}
 
-	/* Battery Units */
-
-	units =
-	    battery->flags.
-	    power_unit ? ACPI_BATTERY_UNITS_AMPS : ACPI_BATTERY_UNITS_WATTS;
-
-	/* Battery Status (_BST) */
-
-	result = acpi_battery_get_state(battery, &bst);
-	if (result || !bst) {
-		seq_printf(seq, "ERROR: Unable to read battery state\n");
+	bst = battery->bst_data.pointer;
+	if (!bst) {
+		ACPI_EXCEPTION((AE_INFO, AE_ERROR, "BST buffer is NULL"));
+		result = -ENODEV;
 		goto end;
 	}
+
+	/* Battery Units */
+
+	units = acpi_battery_power_units(battery);
 
 	if (!(bst->state & 0x04))
 		seq_printf(seq, "capacity state:          ok\n");
@@ -490,9 +641,49 @@ static int acpi_battery_read_state(struct seq_file *seq, void *offset)
 			   (u32) bst->present_voltage);
 
       end:
-	kfree(bst);
 
-	return 0;
+	if (result) {
+		seq_printf(seq, "ERROR: Unable to read battery state\n");
+	}
+
+	return result;
+}
+
+static int acpi_battery_read_state(struct seq_file *seq, void *offset)
+{
+	struct acpi_battery *battery = seq->private;
+	int result = 0;
+	int update_result = ACPI_BATTERY_NONE_UPDATE;
+	int update = 0;
+
+	acpi_battery_mutex_lock(battery);
+
+	update = (get_seconds() - battery->state_update_time >= update_time);
+	update = (update | acpi_battery_state_update_flag(battery));
+
+	result = acpi_battery_update(battery, update, &update_result);
+	if (result)
+		goto end;
+
+	/* Battery State (_BST) */
+
+	if (update_result == ACPI_BATTERY_EASY_UPDATE) {
+		result = acpi_battery_get_state(battery);
+		if (result)
+			goto end;
+	}
+
+      end:
+
+	result = acpi_battery_read_state_print(seq, result);
+
+	acpi_battery_check_result(battery, result);
+
+	acpi_battery_state_update_flag(battery) = result;
+
+	acpi_battery_mutex_unlock(battery);
+
+	return result;
 }
 
 static int acpi_battery_state_open_fs(struct inode *inode, struct file *file)
@@ -500,38 +691,72 @@ static int acpi_battery_state_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_battery_read_state, PDE(inode)->data);
 }
 
-static int acpi_battery_read_alarm(struct seq_file *seq, void *offset)
+static int acpi_battery_read_alarm_print(struct seq_file *seq, int result)
 {
 	struct acpi_battery *battery = seq->private;
 	char *units = "?";
 
-
-	if (!battery)
+	if (result)
 		goto end;
 
-	acpi_battery_check_present(battery);
-
-	if (!battery->flags.present) {
+	if (!acpi_battery_present(battery)) {
 		seq_printf(seq, "present:                 no\n");
 		goto end;
 	}
 
 	/* Battery Units */
 
-	units =
-	    battery->flags.
-	    power_unit ? ACPI_BATTERY_UNITS_AMPS : ACPI_BATTERY_UNITS_WATTS;
-
-	/* Battery Alarm */
+	units = acpi_battery_power_units(battery);
 
 	seq_printf(seq, "alarm:                   ");
 	if (!battery->alarm)
 		seq_printf(seq, "unsupported\n");
 	else
-		seq_printf(seq, "%d %sh\n", (u32) battery->alarm, units);
+		seq_printf(seq, "%lu %sh\n", battery->alarm, units);
 
       end:
-	return 0;
+
+	if (result)
+		seq_printf(seq, "ERROR: Unable to read battery alarm\n");
+
+	return result;
+}
+
+static int acpi_battery_read_alarm(struct seq_file *seq, void *offset)
+{
+	struct acpi_battery *battery = seq->private;
+	int result = 0;
+	int update_result = ACPI_BATTERY_NONE_UPDATE;
+	int update = 0;
+
+	acpi_battery_mutex_lock(battery);
+
+	update = (get_seconds() - battery->alarm_update_time >= update_time);
+	update = (update | acpi_battery_alarm_update_flag(battery));
+
+	result = acpi_battery_update(battery, update, &update_result);
+	if (result)
+		goto end;
+
+	/* Battery Alarm */
+
+	if (update_result == ACPI_BATTERY_EASY_UPDATE) {
+		result = acpi_battery_get_alarm(battery);
+		if (result)
+			goto end;
+	}
+
+      end:
+
+	result = acpi_battery_read_alarm_print(seq, result);
+
+	acpi_battery_check_result(battery, result);
+
+	acpi_battery_alarm_update_flag(battery) = result;
+
+	acpi_battery_mutex_unlock(battery);
+
+	return result;
 }
 
 static ssize_t
@@ -543,27 +768,47 @@ acpi_battery_write_alarm(struct file *file,
 	char alarm_string[12] = { '\0' };
 	struct seq_file *m = file->private_data;
 	struct acpi_battery *battery = m->private;
+	int update_result = ACPI_BATTERY_NONE_UPDATE;
 
 
 	if (!battery || (count > sizeof(alarm_string) - 1))
 		return -EINVAL;
 
-	acpi_battery_check_present(battery);
+	acpi_battery_mutex_lock(battery);
 
-	if (!battery->flags.present)
-		return -ENODEV;
+	result = acpi_battery_update(battery, 1, &update_result);
+	if (result) {
+		result = -ENODEV;
+		goto end;
+	}
 
-	if (copy_from_user(alarm_string, buffer, count))
-		return -EFAULT;
+	if (!acpi_battery_present(battery)) {
+		result = -ENODEV;
+		goto end;
+	}
+
+	if (copy_from_user(alarm_string, buffer, count)) {
+		result = -EFAULT;
+		goto end;
+	}
 
 	alarm_string[count] = '\0';
 
 	result = acpi_battery_set_alarm(battery,
 					simple_strtoul(alarm_string, NULL, 0));
 	if (result)
-		return result;
+		goto end;
 
-	return count;
+      end:
+
+	acpi_battery_check_result(battery, result);
+
+	if (!result)
+		result = count;
+
+	acpi_battery_mutex_unlock(battery);
+
+	return result;
 }
 
 static int acpi_battery_alarm_open_fs(struct inode *inode, struct file *file)
@@ -648,7 +893,6 @@ static int acpi_battery_add_fs(struct acpi_device *device)
 
 static int acpi_battery_remove_fs(struct acpi_device *device)
 {
-
 	if (acpi_device_dir(device)) {
 		remove_proc_entry(ACPI_BATTERY_FILE_ALARM,
 				  acpi_device_dir(device));
@@ -684,8 +928,11 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 	case ACPI_BATTERY_NOTIFY_INFO:
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		acpi_battery_check(battery);
-		acpi_bus_generate_event(device, event, battery->flags.present);
+		acpi_battery_mutex_lock(battery);
+		device = battery->device;
+		acpi_battery_notify_update(battery);
+		acpi_battery_mutex_unlock(battery);
+		acpi_bus_generate_event(device, event, acpi_battery_present(battery));
 		break;
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -702,7 +949,6 @@ static int acpi_battery_add(struct acpi_device *device)
 	acpi_status status = 0;
 	struct acpi_battery *battery = NULL;
 
-
 	if (!device)
 		return -EINVAL;
 
@@ -710,14 +956,20 @@ static int acpi_battery_add(struct acpi_device *device)
 	if (!battery)
 		return -ENOMEM;
 
+	mutex_init(&battery->mutex);
+
+	acpi_battery_mutex_lock(battery);
+
 	battery->device = device;
 	strcpy(acpi_device_name(device), ACPI_BATTERY_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
 	acpi_driver_data(device) = battery;
 
-	result = acpi_battery_check(battery);
+	result = acpi_battery_get_status(battery);
 	if (result)
 		goto end;
+
+	acpi_battery_init_update_flag(battery) = 1;
 
 	result = acpi_battery_add_fs(device);
 	if (result)
@@ -727,6 +979,7 @@ static int acpi_battery_add(struct acpi_device *device)
 					     ACPI_ALL_NOTIFY,
 					     acpi_battery_notify, battery);
 	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status, "Installing notify handler"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -736,10 +989,13 @@ static int acpi_battery_add(struct acpi_device *device)
 	       device->status.battery_present ? "present" : "absent");
 
       end:
+
 	if (result) {
 		acpi_battery_remove_fs(device);
 		kfree(battery);
 	}
+
+	acpi_battery_mutex_unlock(battery);
 
 	return result;
 }
@@ -749,17 +1005,28 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 	acpi_status status = 0;
 	struct acpi_battery *battery = NULL;
 
-
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
 	battery = acpi_driver_data(device);
+
+	acpi_battery_mutex_lock(battery);
 
 	status = acpi_remove_notify_handler(device->handle,
 					    ACPI_ALL_NOTIFY,
 					    acpi_battery_notify);
 
 	acpi_battery_remove_fs(device);
+
+	if (battery->bif_data.pointer)
+		kfree(battery->bif_data.pointer);
+
+	if (battery->bst_data.pointer)
+		kfree(battery->bst_data.pointer);
+
+	acpi_battery_mutex_unlock(battery);
+
+	mutex_destroy(&battery->mutex);
 
 	kfree(battery);
 
@@ -775,7 +1042,10 @@ static int acpi_battery_resume(struct acpi_device *device)
 		return -EINVAL;
 
 	battery = device->driver_data;
-	return acpi_battery_check(battery);
+
+	acpi_battery_init_update_flag(battery) = 1;
+
+	return 0;
 }
 
 static int __init acpi_battery_init(void)
@@ -800,7 +1070,6 @@ static int __init acpi_battery_init(void)
 
 static void __exit acpi_battery_exit(void)
 {
-
 	acpi_bus_unregister_driver(&acpi_battery_driver);
 
 	acpi_unlock_battery_dir(acpi_battery_dir);
