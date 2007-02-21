@@ -1155,8 +1155,8 @@ static void __exit netxen_exit_module(void)
 	/*
 	 * Wait for some time to allow the dma to drain, if any.
 	 */
-	destroy_workqueue(netxen_workq);
 	pci_unregister_driver(&netxen_driver);
+	destroy_workqueue(netxen_workq);
 }
 
 module_exit(netxen_exit_module);
