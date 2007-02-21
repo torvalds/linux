@@ -110,7 +110,7 @@ static inline void create_kernel_nss(void) { }
  */
 static noinline __init void clear_bss_section(void)
 {
-	memset(__bss_start, 0, _end - __bss_start);
+	memset(__bss_start, 0, __bss_stop - __bss_start);
 }
 
 /*
