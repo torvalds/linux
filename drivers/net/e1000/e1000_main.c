@@ -1417,6 +1417,10 @@ e1000_open(struct net_device *netdev)
 	if ((err = e1000_setup_all_rx_resources(adapter)))
 		goto err_setup_rx;
 
+	err = e1000_request_irq(adapter);
+	if (err)
+		goto err_req_irq;
+
 	e1000_power_up_phy(adapter);
 
 	if ((err = e1000_up(adapter)))
@@ -1427,10 +1431,6 @@ e1000_open(struct net_device *netdev)
 		e1000_update_mng_vlan(adapter);
 	}
 
-	err = e1000_request_irq(adapter);
-	if (err)
-		goto err_req_irq;
-
 	/* If AMT is enabled, let the firmware know that the network
 	 * interface is now open */
 	if (adapter->hw.mac_type == e1000_82573 &&
@@ -1439,10 +1439,10 @@ e1000_open(struct net_device *netdev)
 
 	return E1000_SUCCESS;
 
-err_req_irq:
-	e1000_down(adapter);
 err_up:
 	e1000_power_down_phy(adapter);
+	e1000_free_irq(adapter);
+err_req_irq:
 	e1000_free_all_rx_resources(adapter);
 err_setup_rx:
 	e1000_free_all_tx_resources(adapter);
