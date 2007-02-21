@@ -2266,12 +2266,12 @@ void tcp_free_md5sig_pool(void)
 {
 	struct tcp_md5sig_pool **pool = NULL;
 
-	spin_lock(&tcp_md5sig_pool_lock);
+	spin_lock_bh(&tcp_md5sig_pool_lock);
 	if (--tcp_md5sig_users == 0) {
 		pool = tcp_md5sig_pool;
 		tcp_md5sig_pool = NULL;
 	}
-	spin_unlock(&tcp_md5sig_pool_lock);
+	spin_unlock_bh(&tcp_md5sig_pool_lock);
 	if (pool)
 		__tcp_free_md5sig_pool(pool);
 }
@@ -2314,36 +2314,36 @@ struct tcp_md5sig_pool **tcp_alloc_md5sig_pool(void)
 	int alloc = 0;
 
 retry:
-	spin_lock(&tcp_md5sig_pool_lock);
+	spin_lock_bh(&tcp_md5sig_pool_lock);
 	pool = tcp_md5sig_pool;
 	if (tcp_md5sig_users++ == 0) {
 		alloc = 1;
-		spin_unlock(&tcp_md5sig_pool_lock);
+		spin_unlock_bh(&tcp_md5sig_pool_lock);
 	} else if (!pool) {
 		tcp_md5sig_users--;
-		spin_unlock(&tcp_md5sig_pool_lock);
+		spin_unlock_bh(&tcp_md5sig_pool_lock);
 		cpu_relax();
 		goto retry;
 	} else
-		spin_unlock(&tcp_md5sig_pool_lock);
+		spin_unlock_bh(&tcp_md5sig_pool_lock);
 
 	if (alloc) {
 		/* we cannot hold spinlock here because this may sleep. */
 		struct tcp_md5sig_pool **p = __tcp_alloc_md5sig_pool();
-		spin_lock(&tcp_md5sig_pool_lock);
+		spin_lock_bh(&tcp_md5sig_pool_lock);
 		if (!p) {
 			tcp_md5sig_users--;
-			spin_unlock(&tcp_md5sig_pool_lock);
+			spin_unlock_bh(&tcp_md5sig_pool_lock);
 			return NULL;
 		}
 		pool = tcp_md5sig_pool;
 		if (pool) {
 			/* oops, it has already been assigned. */
-			spin_unlock(&tcp_md5sig_pool_lock);
+			spin_unlock_bh(&tcp_md5sig_pool_lock);
 			__tcp_free_md5sig_pool(p);
 		} else {
 			tcp_md5sig_pool = pool = p;
-			spin_unlock(&tcp_md5sig_pool_lock);
+			spin_unlock_bh(&tcp_md5sig_pool_lock);
 		}
 	}
 	return pool;
@@ -2354,11 +2354,11 @@ EXPORT_SYMBOL(tcp_alloc_md5sig_pool);
 struct tcp_md5sig_pool *__tcp_get_md5sig_pool(int cpu)
 {
 	struct tcp_md5sig_pool **p;
-	spin_lock(&tcp_md5sig_pool_lock);
+	spin_lock_bh(&tcp_md5sig_pool_lock);
 	p = tcp_md5sig_pool;
 	if (p)
 		tcp_md5sig_users++;
-	spin_unlock(&tcp_md5sig_pool_lock);
+	spin_unlock_bh(&tcp_md5sig_pool_lock);
 	return (p ? *per_cpu_ptr(p, cpu) : NULL);
 }
 
