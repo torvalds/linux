@@ -129,7 +129,7 @@ static noinline __init void detect_machine_type(void)
 {
 	struct cpuinfo_S390 *cpuinfo = &S390_lowcore.cpu_data;
 
-	asm volatile("stidp %0" : "=m" (S390_lowcore.cpu_data.cpu_id));
+	get_cpu_id(&S390_lowcore.cpu_data.cpu_id);
 
 	/* Running under z/VM ? */
 	if (cpuinfo->cpu_id.version == 0xff)

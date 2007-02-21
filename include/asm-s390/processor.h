@@ -36,6 +36,11 @@ typedef struct
         unsigned int unused  : 16;
 } __attribute__ ((packed)) cpuid_t;
 
+static inline void get_cpu_id(cpuid_t *ptr)
+{
+	asm volatile("stidp 0(%1)" : "=m" (*ptr) : "a" (ptr));
+}
+
 struct cpuinfo_S390
 {
         cpuid_t  cpu_id;
