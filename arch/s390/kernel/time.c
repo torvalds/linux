@@ -747,6 +747,7 @@ static void etr_adjust_time(unsigned long long clock, unsigned long long delay)
 	}
 }
 
+#ifdef CONFIG_SMP
 static void etr_sync_cpu_start(void *dummy)
 {
 	int *in_sync = dummy;
@@ -758,8 +759,14 @@ static void etr_sync_cpu_start(void *dummy)
 	 * __udelay will stop the cpu on an enabled wait psw until the
 	 * TOD is running again.
 	 */
-	while (*in_sync == 0)
+	while (*in_sync == 0) {
 		__udelay(1);
+		/*
+		 * A different cpu changes *in_sync. Therefore use
+		 * barrier() to force memory access.
+		 */
+		barrier();
+	}
 	if (*in_sync != 1)
 		/* Didn't work. Clear per-cpu in sync bit again. */
 		etr_disable_sync_clock(NULL);
@@ -773,6 +780,7 @@ static void etr_sync_cpu_start(void *dummy)
 static void etr_sync_cpu_end(void *dummy)
 {
 }
+#endif /* CONFIG_SMP */
 
 /*
  * Sync the TOD clock using the port refered to by aibp. This port
