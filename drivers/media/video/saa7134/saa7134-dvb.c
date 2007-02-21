@@ -1426,6 +1426,18 @@ static int dvb_init(struct saa7134_dev *dev)
 
 		}
 		break;
+	case SAA7134_BOARD_CINERGY_HT_PCI:
+		dev->dvb.frontend = dvb_attach(tda10046_attach,
+					       &cinergy_ht_config,
+					       &dev->i2c_adap);
+		if (dev->dvb.frontend) {
+			dev->dvb.frontend->ops.i2c_gate_ctrl = tda8290_i2c_gate_ctrl;
+			dev->dvb.frontend->ops.tuner_ops.init = cinergy_ht_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = cinergy_ht_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = md8800_dvbt_pll_set;
+
+		}
+		break;
 	default:
 		printk("%s: Huh? unknown DVB card?\n",dev->name);
 		break;

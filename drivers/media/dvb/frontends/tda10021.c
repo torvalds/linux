@@ -201,7 +201,7 @@ static int tda10021_set_symbolrate (struct tda10021_state* state, u32 symbolrate
 	return 0;
 }
 
-int tda10021_write(struct dvb_frontend* fe, u8 *buf, int len)
+static int tda10021_write(struct dvb_frontend* fe, u8 *buf, int len)
 {
 	struct tda10021_state* state = fe->demodulator_priv;
 

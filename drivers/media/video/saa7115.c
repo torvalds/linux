@@ -71,6 +71,7 @@ I2C_CLIENT_INSMOD;
 struct saa711x_state {
 	v4l2_std_id std;
 	int input;
+	int output;
 	int enable;
 	int radio;
 	int bright;
@@ -1301,7 +1302,7 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 		struct v4l2_routing *route = arg;
 
 		route->input = state->input;
-		route->output = 0;
+		route->output = state->output;
 		break;
 	}
 
@@ -1309,7 +1310,7 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 	{
 		struct v4l2_routing *route = arg;
 
-		v4l_dbg(1, debug, client, "decoder set input %d\n", route->input);
+		v4l_dbg(1, debug, client, "decoder set input %d output %d\n", route->input, route->output);
 		/* saa7113 does not have these inputs */
 		if (state->ident == V4L2_IDENT_SAA7113 &&
 		    (route->input == SAA7115_COMPOSITE4 ||
@@ -1318,10 +1319,12 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 		}
 		if (route->input > SAA7115_SVIDEO3)
 			return -EINVAL;
-		if (state->input == route->input)
+		if (route->output > SAA7115_IPORT_ON)
+			return -EINVAL;
+		if (state->input == route->input && state->output == route->output)
 			break;
-		v4l_dbg(1, debug, client, "now setting %s input\n",
-			(route->input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite");
+		v4l_dbg(1, debug, client, "now setting %s input %s output\n",
+			(route->input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite", (route->output == SAA7115_IPORT_ON) ? "iport on" : "iport off");
 		state->input = route->input;
 
 		/* select mode */
@@ -1333,6 +1336,14 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 		saa711x_write(client, R_09_LUMA_CNTL,
 			      (saa711x_read(client, R_09_LUMA_CNTL) & 0x7f) |
 			       (state->input >= SAA7115_SVIDEO0 ? 0x80 : 0x0));
+
+		state->output = route->output;
+		if (state->ident == V4L2_IDENT_SAA7114 ||
+			state->ident == V4L2_IDENT_SAA7115) {
+			saa711x_write(client, R_83_X_PORT_I_O_ENA_AND_OUT_CLK,
+			      (saa711x_read(client, R_83_X_PORT_I_O_ENA_AND_OUT_CLK) & 0xfe) |
+			       (state->output & 0x01));
+		}
 		break;
 	}
 
@@ -1377,6 +1388,9 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 	{
 		struct v4l2_sliced_vbi_data *data = arg;
 
+		/* Note: the internal field ID is inverted for NTSC,
+		   so data->field 0 maps to the saa7115 even field,
+		   whereas for PAL it maps to the saa7115 odd field. */
 		switch (data->id) {
 		case V4L2_SLICED_WSS_625:
 			if (saa711x_read(client, 0x6b) & 0xc0)
@@ -1387,17 +1401,17 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 		case V4L2_SLICED_CAPTION_525:
 			if (data->field == 0) {
 				/* CC */
-				if (saa711x_read(client, 0x66) & 0xc0)
+				if (saa711x_read(client, 0x66) & 0x30)
 					return -EIO;
-				data->data[0] = saa711x_read(client, 0x67);
-				data->data[1] = saa711x_read(client, 0x68);
+				data->data[0] = saa711x_read(client, 0x69);
+				data->data[1] = saa711x_read(client, 0x6a);
 				return 0;
 			}
 			/* XDS */
-			if (saa711x_read(client, 0x66) & 0x30)
+			if (saa711x_read(client, 0x66) & 0xc0)
 				return -EIO;
-			data->data[0] = saa711x_read(client, 0x69);
-			data->data[1] = saa711x_read(client, 0x6a);
+			data->data[0] = saa711x_read(client, 0x67);
+			data->data[1] = saa711x_read(client, 0x68);
 			return 0;
 		default:
 			return -EINVAL;
@@ -1406,17 +1420,8 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 	}
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	case VIDIOC_INT_G_REGISTER:
-	{
-		struct v4l2_register *reg = arg;
-
-		if (reg->i2c_id != I2C_DRIVERID_SAA711X)
-			return -EINVAL;
-		reg->val = saa711x_read(client, reg->reg & 0xff);
-		break;
-	}
-
-	case VIDIOC_INT_S_REGISTER:
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_register *reg = arg;
 
@@ -1424,7 +1429,10 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 			return -EINVAL;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		saa711x_write(client, reg->reg & 0xff, reg->val & 0xff);
+		if (cmd == VIDIOC_DBG_G_REGISTER)
+			reg->val = saa711x_read(client, reg->reg & 0xff);
+		else
+			saa711x_write(client, reg->reg & 0xff, reg->val & 0xff);
 		break;
 	}
 #endif
@@ -1492,6 +1500,7 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 		return -ENOMEM;
 	}
 	state->input = -1;
+	state->output = SAA7115_IPORT_ON;
 	state->enable = 1;
 	state->radio = 0;
 	state->bright = 128;
@@ -1550,7 +1559,7 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 
 static int saa711x_probe(struct i2c_adapter *adapter)
 {
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
+	if (adapter->class & I2C_CLASS_TV_ANALOG || adapter->class & I2C_CLASS_TV_DIGITAL)
 		return i2c_probe(adapter, &addr_data, &saa711x_attach);
 	return 0;
 }

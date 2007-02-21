@@ -152,7 +152,7 @@ static unsigned long debugifc_find_mask(const char *buf,unsigned int count)
 {
 	struct debugifc_mask_item *mip;
 	unsigned int idx;
-	for (idx = 0; idx < sizeof(mask_items)/sizeof(mask_items[0]); idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(mask_items); idx++) {
 		mip = mask_items + idx;
 		if (debugifc_match_keyword(buf,count,mip->name)) {
 			return mip->msk;
@@ -169,7 +169,7 @@ static int debugifc_print_mask(char *buf,unsigned int sz,
 	unsigned int idx;
 	int bcnt = 0;
 	int ccnt;
-	for (idx = 0; idx < sizeof(mask_items)/sizeof(mask_items[0]); idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(mask_items); idx++) {
 		mip = mask_items + idx;
 		if (!(mip->msk & msk)) continue;
 		ccnt = scnprintf(buf,sz,"%s%c%s",

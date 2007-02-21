@@ -199,12 +199,14 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 			const struct dvb_device *template, void *priv, int type)
 {
 	struct dvb_device *dvbdev;
+	struct file_operations *dvbdevfops;
+
 	int id;
 
 	if (mutex_lock_interruptible(&dvbdev_register_lock))
 		return -ERESTARTSYS;
 
-	if ((id = dvbdev_get_free_id (adap, type)) < 0) {
+	if ((id = dvbdev_get_free_id (adap, type)) < 0){
 		mutex_unlock(&dvbdev_register_lock);
 		*pdvbdev = NULL;
 		printk ("%s: could get find free device id...\n", __FUNCTION__);
@@ -213,7 +215,15 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 
 	*pdvbdev = dvbdev = kmalloc(sizeof(struct dvb_device), GFP_KERNEL);
 
-	if (!dvbdev) {
+	if (!dvbdev){
+		mutex_unlock(&dvbdev_register_lock);
+		return -ENOMEM;
+	}
+
+	dvbdevfops = kzalloc(sizeof(struct file_operations), GFP_KERNEL);
+
+	if (!dvbdevfops){
+		kfree (dvbdev);
 		mutex_unlock(&dvbdev_register_lock);
 		return -ENOMEM;
 	}
@@ -223,7 +233,9 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	dvbdev->id = id;
 	dvbdev->adapter = adap;
 	dvbdev->priv = priv;
+	dvbdev->fops = dvbdevfops;
 
+	memcpy(dvbdev->fops, template->fops, sizeof(struct file_operations));
 	dvbdev->fops->owner = adap->module;
 
 	list_add_tail (&dvbdev->list_head, &adap->device_list);
@@ -251,6 +263,7 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 					dvbdev->type, dvbdev->id)));
 
 	list_del (&dvbdev->list_head);
+	kfree (dvbdev->fops);
 	kfree (dvbdev);
 }
 EXPORT_SYMBOL(dvb_unregister_device);

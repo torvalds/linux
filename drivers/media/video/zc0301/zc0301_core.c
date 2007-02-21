@@ -1,7 +1,7 @@
 /***************************************************************************
  * Video4Linux2 driver for ZC0301[P] Image Processor and Control Chip      *
  *                                                                         *
- * Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>       *
+ * Copyright (C) 2006-2007 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * Informations about the chip internals needed to enable the I2C protocol *
  * have been taken from the documentation of the ZC030x Video4Linux1       *
@@ -52,8 +52,8 @@
 #define ZC0301_MODULE_AUTHOR  "(C) 2006 Luca Risolia"
 #define ZC0301_AUTHOR_EMAIL   "<luca.risolia@studio.unibo.it>"
 #define ZC0301_MODULE_LICENSE "GPL"
-#define ZC0301_MODULE_VERSION "1:1.05"
-#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 5)
+#define ZC0301_MODULE_VERSION "1:1.07"
+#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 1, 7)
 
 /*****************************************************************************/
 
@@ -89,7 +89,7 @@ MODULE_PARM_DESC(force_munmap,
 		 "\ndetected camera."
 		 "\n 0 = do not force memory unmapping"
 		 "\n 1 = force memory unmapping (save memory)"
-		 "\nDefault value is "__MODULE_STRING(SN9C102_FORCE_MUNMAP)"."
+		 "\nDefault value is "__MODULE_STRING(ZC0301_FORCE_MUNMAP)"."
 		 "\n");
 
 static unsigned int frame_timeout[] = {[0 ... ZC0301_MAX_DEVICES-1] =
@@ -136,7 +136,8 @@ zc0301_request_buffers(struct zc0301_device* cam, u32 count,
 
 	cam->nbuffers = count;
 	while (cam->nbuffers > 0) {
-		if ((buff = vmalloc_32(cam->nbuffers * PAGE_ALIGN(imagesize))))
+		if ((buff = vmalloc_32_user(cam->nbuffers *
+					    PAGE_ALIGN(imagesize))))
 			break;
 		cam->nbuffers--;
 	}
@@ -430,7 +431,8 @@ static int zc0301_start_transfer(struct zc0301_device* cam)
 	struct usb_host_interface* altsetting = usb_altnum_to_altsetting(
 						     usb_ifnum_to_if(udev, 0),
 						     ZC0301_ALTERNATE_SETTING);
-	const unsigned int psz = altsetting->endpoint[0].desc.wMaxPacketSize;
+	const unsigned int psz = le16_to_cpu(altsetting->
+					     endpoint[0].desc.wMaxPacketSize);
 	struct urb* urb;
 	s8 i, j;
 	int err = 0;
@@ -489,7 +491,7 @@ static int zc0301_start_transfer(struct zc0301_device* cam)
 	return 0;
 
 free_urbs:
-	for (i = 0; i < ZC0301_URBS; i++)
+	for (i = 0; (i < ZC0301_URBS) && cam->urb[i]; i++)
 		usb_free_urb(cam->urb[i]);
 
 free_buffers:
@@ -1288,12 +1290,44 @@ zc0301_vidioc_s_crop(struct zc0301_device* cam, void __user * arg)
 
 
 static int
+zc0301_vidioc_enum_framesizes(struct zc0301_device* cam, void __user * arg)
+{
+	struct v4l2_frmsizeenum frmsize;
+
+	if (copy_from_user(&frmsize, arg, sizeof(frmsize)))
+		return -EFAULT;
+
+	if (frmsize.index != 0 && frmsize.index != 1)
+		return -EINVAL;
+
+	if (frmsize.pixel_format != V4L2_PIX_FMT_JPEG)
+		return -EINVAL;
+
+	frmsize.type = V4L2_FRMSIZE_TYPE_DISCRETE;
+
+	if (frmsize.index == 1) {
+		frmsize.discrete.width = cam->sensor.cropcap.defrect.width;
+		frmsize.discrete.height = cam->sensor.cropcap.defrect.height;
+	}
+	memset(&frmsize.reserved, 0, sizeof(frmsize.reserved));
+
+	if (copy_to_user(arg, &frmsize, sizeof(frmsize)))
+		return -EFAULT;
+
+	return 0;
+}
+
+
+static int
 zc0301_vidioc_enum_fmt(struct zc0301_device* cam, void __user * arg)
 {
 	struct v4l2_fmtdesc fmtd;
 
 	if (copy_from_user(&fmtd, arg, sizeof(fmtd)))
 		return -EFAULT;
+
+	if (fmtd.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
 
 	if (fmtd.index == 0) {
 		strcpy(fmtd.description, "JPEG");
@@ -1795,6 +1829,9 @@ static int zc0301_ioctl_v4l2(struct inode* inode, struct file* filp,
 	case VIDIOC_S_FMT:
 		return zc0301_vidioc_try_s_fmt(cam, cmd, arg);
 
+	case VIDIOC_ENUM_FRAMESIZES:
+		return zc0301_vidioc_enum_framesizes(cam, arg);
+
 	case VIDIOC_G_JPEGCOMP:
 		return zc0301_vidioc_g_jpegcomp(cam, arg);
 
@@ -1830,6 +1867,7 @@ static int zc0301_ioctl_v4l2(struct inode* inode, struct file* filp,
 	case VIDIOC_QUERYSTD:
 	case VIDIOC_ENUMSTD:
 	case VIDIOC_QUERYMENU:
+	case VIDIOC_ENUM_FRAMEINTERVALS:
 		return -EINVAL;
 
 	default:
@@ -1876,6 +1914,7 @@ static const struct file_operations zc0301_fops = {
 	.open =    zc0301_open,
 	.release = zc0301_release,
 	.ioctl =   zc0301_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
 	.read =    zc0301_read,
 	.poll =    zc0301_poll,
 	.mmap =    zc0301_mmap,
@@ -1913,7 +1952,7 @@ zc0301_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	mutex_init(&cam->dev_mutex);
 
 	DBG(2, "ZC0301[P] Image Processor and Control Chip detected "
-	       "(vid/pid 0x%04X/0x%04X)",id->idVendor, id->idProduct);
+	       "(vid/pid 0x%04X:0x%04X)",id->idVendor, id->idProduct);
 
 	for  (i = 0; zc0301_sensor_table[i]; i++) {
 		err = zc0301_sensor_table[i](cam);

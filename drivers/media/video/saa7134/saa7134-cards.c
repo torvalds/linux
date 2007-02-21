@@ -2469,6 +2469,11 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE2,
 			.gpio = 0x0200000,
 		},{
+			.name = name_comp2,
+			.vmux = 0,
+			.amux = LINE2,
+			.gpio = 0x0200000,
+		},{
 			.name = name_svideo,
 			.vmux = 8,
 			.amux = LINE2,
@@ -3183,6 +3188,107 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE1,
 		}},
 	},
+	[SAA7134_BOARD_ENCORE_ENLTV] = {
+	/* Steven Walter <stevenrwalter@gmail.com>
+	   Juan Pablo Sormani <sorman@gmail.com> */
+		.name           = "Encore ENLTV",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_TNF_5335MF,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = 3,
+			.tv   = 1,
+		},{
+			.name = name_tv_mono,
+			.vmux = 7,
+			.amux = 4,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = 2,
+		},{
+			.name = name_svideo,
+			.vmux = 0,
+			.amux = 2,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+/*			.gpio = 0x00300001,*/
+			.gpio = 0x20000,
+
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = 0,
+		},
+	},
+	[SAA7134_BOARD_ENCORE_ENLTV_FM] = {
+  /*	Juan Pablo Sormani <sorman@gmail.com> */
+		.name           = "Encore ENLTV-FM",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_PHILIPS_ATSC,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = 3,
+			.tv   = 1,
+		},{
+			.name = name_tv_mono,
+			.vmux = 7,
+			.amux = 4,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = 2,
+		},{
+			.name = name_svideo,
+			.vmux = 0,
+			.amux = 2,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+			.gpio = 0x20000,
+
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = 0,
+		},
+	},
+	[SAA7134_BOARD_CINERGY_HT_PCI] = {
+		.name           = "Terratec Cinergy HT PCI",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = TV,
+			.tv     = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 0,
+			.amux   = LINE1,
+		},{
+			.name   = name_svideo,
+			.vmux   = 6,
+			.amux   = LINE1,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3822,6 +3928,36 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x1172,
 		.driver_data  = SAA7134_BOARD_CINERGY_HT_PCMCIA,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = PCI_VENDOR_ID_PHILIPS,
+		.subdevice    = 0x2342,
+		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x1131,
+		.subdevice    = 0x2341,
+		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x3016,
+		.subdevice    = 0x2344,
+		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x1131,
+		.subdevice    = 0x230f,
+		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x153b,
+		.subdevice    = 0x1175,
+		.driver_data  = SAA7134_BOARD_CINERGY_HT_PCI,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3926,9 +4062,12 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_KWORLD_TERMINATOR:
 	case SAA7134_BOARD_SEDNA_PC_TV_CARDBUS:
 	case SAA7134_BOARD_FLYDVBT_LR301:
+	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 	case SAA7134_BOARD_FLYDVBTDUO:
 	case SAA7134_BOARD_PROTEUS_2309:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
+	case SAA7134_BOARD_ENCORE_ENLTV:
+	case SAA7134_BOARD_ENCORE_ENLTV_FM:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
@@ -4150,6 +4289,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_CINERGY_HT_PCMCIA:
+	case SAA7134_BOARD_CINERGY_HT_PCI:
 		/* make the tda10046 find its eeprom */
 		{
 		u8 data[] = { 0x3c, 0x33, 0x60};

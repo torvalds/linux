@@ -1,8 +1,8 @@
 /***************************************************************************
- * Plug-in for PAS106B image sensor connected to the SN9C10x PC Camera     *
+ * Plug-in for PAS106B image sensor connected to the SN9C1xx PC Camera     *
  * Controllers                                                             *
  *                                                                         *
- * Copyright (C) 2004-2006 by Luca Risolia <luca.risolia@studio.unibo.it>  *
+ * Copyright (C) 2004-2007 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -143,7 +143,7 @@ static int pas106b_set_ctrl(struct sn9c102_device* cam,
 static int pas106b_set_crop(struct sn9c102_device* cam,
 			    const struct v4l2_rect* rect)
 {
-	struct sn9c102_sensor* s = &pas106b;
+	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
 	int err = 0;
 	u8 h_start = (u8)(rect->left - s->cropcap.bounds.left) + 4,
 	   v_start = (u8)(rect->top - s->cropcap.bounds.top) + 3;
@@ -172,6 +172,7 @@ static int pas106b_set_pix_format(struct sn9c102_device* cam,
 static struct sn9c102_sensor pas106b = {
 	.name = "PAS106B",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
+	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102 | BRIDGE_SN9C103,
 	.sysfs_ops = SN9C102_I2C_READ | SN9C102_I2C_WRITE,
 	.frequency = SN9C102_I2C_400KHZ | SN9C102_I2C_100KHZ,
 	.interface = SN9C102_I2C_2WIRES,

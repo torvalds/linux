@@ -30,6 +30,15 @@ obj-$(CONFIG_DVB_USB_NOVA_T_USB2) += dvb-usb-dibusb-common.o dvb-usb-nova-t-usb2
 dvb-usb-umt-010-objs = umt-010.o
 obj-$(CONFIG_DVB_USB_UMT_010) += dvb-usb-dibusb-common.o dvb-usb-umt-010.o
 
+dvb-usb-m920x-objs = m920x.o
+obj-$(CONFIG_DVB_USB_M920X) += dvb-usb-m920x.o
+
+dvb-usb-gl861-objs = gl861.o
+obj-$(CONFIG_DVB_USB_GL861) += dvb-usb-gl861.o
+
+dvb-usb-au6610-objs = au6610.o
+obj-$(CONFIG_DVB_USB_AU6610) += dvb-usb-au6610.o
+
 dvb-usb-digitv-objs = digitv.o
 obj-$(CONFIG_DVB_USB_DIGITV) += dvb-usb-digitv.o
 

@@ -1089,6 +1089,8 @@ static int budget_av_detach(struct saa7146_dev *dev)
 		msleep(200);
 
 		saa7146_unregister_device(&budget_av->vd, dev);
+
+		saa7146_vv_release(dev);
 	}
 
 	if (budget_av->budget.ci_present)
@@ -1145,6 +1147,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 		if ((err = saa7146_register_device(&budget_av->vd, dev, "knc1", VFL_TYPE_GRABBER))) {
 			/* fixme: proper cleanup here */
 			ERR(("cannot register capture v4l2 device.\n"));
+			saa7146_vv_release(dev);
 			return err;
 		}
 

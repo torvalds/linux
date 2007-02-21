@@ -212,8 +212,7 @@ static int tvmixer_release(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
-	if (client->adapter->owner)
-		module_put(client->adapter->owner);
+	module_put(client->adapter->owner);
 	return 0;
 }
 

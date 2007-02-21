@@ -21,9 +21,11 @@ MODULE_PARM_DESC(vbi_debug,"enable debug messages [vbi]");
 
 /* ------------------------------------------------------------------ */
 
-void cx8800_vbi_fmt(struct cx8800_dev *dev, struct v4l2_format *f)
+int cx8800_vbi_fmt (struct file *file, void *priv,
+					struct v4l2_format *f)
 {
-	memset(&f->fmt.vbi,0,sizeof(f->fmt.vbi));
+	struct cx8800_fh  *fh   = priv;
+	struct cx8800_dev *dev  = fh->dev;
 
 	f->fmt.vbi.samples_per_line = VBI_LINE_LENGTH;
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
@@ -31,18 +33,19 @@ void cx8800_vbi_fmt(struct cx8800_dev *dev, struct v4l2_format *f)
 	f->fmt.vbi.count[0] = VBI_LINE_COUNT;
 	f->fmt.vbi.count[1] = VBI_LINE_COUNT;
 
-	if (dev->core->tvnorm->id & V4L2_STD_525_60) {
+	if (dev->core->tvnorm & V4L2_STD_525_60) {
 		/* ntsc */
 		f->fmt.vbi.sampling_rate = 28636363;
 		f->fmt.vbi.start[0] = 10;
 		f->fmt.vbi.start[1] = 273;
 
-	} else if (dev->core->tvnorm->id & V4L2_STD_625_50) {
+	} else if (dev->core->tvnorm & V4L2_STD_625_50) {
 		/* pal */
 		f->fmt.vbi.sampling_rate = 35468950;
 		f->fmt.vbi.start[0] = 7 -1;
 		f->fmt.vbi.start[1] = 319 -1;
 	}
+	return 0;
 }
 
 static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,

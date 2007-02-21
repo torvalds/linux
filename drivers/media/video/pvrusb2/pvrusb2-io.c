@@ -474,9 +474,8 @@ static void buffer_complete(struct urb *urb)
 struct pvr2_stream *pvr2_stream_create(void)
 {
 	struct pvr2_stream *sp;
-	sp = kmalloc(sizeof(*sp),GFP_KERNEL);
+	sp = kzalloc(sizeof(*sp),GFP_KERNEL);
 	if (!sp) return sp;
-	memset(sp,0,sizeof(*sp));
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_stream_create: sp=%p",sp);
 	pvr2_stream_init(sp);
 	return sp;

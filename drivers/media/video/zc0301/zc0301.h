@@ -1,7 +1,7 @@
 /***************************************************************************
- * V4L2 driver for ZC0301 Image Processor and Control Chip                 *
+ * V4L2 driver for ZC0301[P] Image Processor and Control Chip              *
  *                                                                         *
- * Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>       *
+ * Copyright (C) 2006-2007 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *

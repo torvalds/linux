@@ -1350,13 +1350,13 @@ out:
 
 static void create_proc_cpia_cam(struct cam_data *cam)
 {
-	char name[7];
+	char name[5 + 1 + 10 + 1];
 	struct proc_dir_entry *ent;
 
 	if (!cpia_proc_root || !cam)
 		return;
 
-	sprintf(name, "video%d", cam->vdev.minor);
+	snprintf(name, sizeof(name), "video%d", cam->vdev.minor);
 
 	ent = create_proc_entry(name, S_IFREG|S_IRUGO|S_IWUSR, cpia_proc_root);
 	if (!ent)
@@ -1376,12 +1376,12 @@ static void create_proc_cpia_cam(struct cam_data *cam)
 
 static void destroy_proc_cpia_cam(struct cam_data *cam)
 {
-	char name[7];
+	char name[5 + 1 + 10 + 1];
 
 	if (!cam || !cam->proc_entry)
 		return;
 
-	sprintf(name, "video%d", cam->vdev.minor);
+	snprintf(name, sizeof(name), "video%d", cam->vdev.minor);
 	remove_proc_entry(name, cpia_proc_root);
 	cam->proc_entry = NULL;
 }
@@ -3153,8 +3153,7 @@ static int reset_camera(struct cam_data *cam)
 
 static void put_cam(struct cpia_camera_ops* ops)
 {
-	if (ops->owner)
-		module_put(ops->owner);
+	module_put(ops->owner);
 }
 
 /* ------------------------- V4L interface --------------------- */

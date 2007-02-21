@@ -41,14 +41,10 @@
 #include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 #include <media/video-buf-dvb.h>
+#endif
 
-#ifndef TRUE
-# define TRUE (1==1)
-#endif
-#ifndef FALSE
-# define FALSE (1==0)
-#endif
 #define UNSET (-1U)
 
 /* ----------------------------------------------------------- */
@@ -232,6 +228,9 @@ struct saa7134_format {
 #define SAA7134_BOARD_VIDEOMATE_DVBT_200A  103
 #define SAA7134_BOARD_HAUPPAUGE_HVR1110    104
 #define SAA7134_BOARD_CINERGY_HT_PCMCIA    105
+#define SAA7134_BOARD_ENCORE_ENLTV         106
+#define SAA7134_BOARD_ENCORE_ENLTV_FM      107
+#define SAA7134_BOARD_CINERGY_HT_PCI       108
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -411,20 +410,6 @@ struct saa7134_dmasound {
 	struct snd_pcm_substream   *substream;
 };
 
-/* IR input */
-struct saa7134_ir {
-	struct input_dev           *dev;
-	struct ir_input_state      ir;
-	char                       name[32];
-	char                       phys[32];
-	u32                        mask_keycode;
-	u32                        mask_keydown;
-	u32                        mask_keyup;
-	int                        polling;
-	u32                        last_gpio;
-	struct timer_list          timer;
-};
-
 /* ts/mpeg status */
 struct saa7134_ts {
 	/* TS capture */
@@ -463,7 +448,7 @@ struct saa7134_dev {
 
 	/* infrared remote */
 	int                        has_remote;
-	struct saa7134_ir          *remote;
+	struct card_ir		   *remote;
 
 	/* pci i/o */
 	char                       name[32];
@@ -543,9 +528,11 @@ struct saa7134_dev {
 	struct work_struct         empress_workqueue;
 	int                        empress_started;
 
+#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 	/* SAA7134_MPEG_DVB only */
 	struct videobuf_dvb        dvb;
 	int (*original_demod_sleep)(struct dvb_frontend* fe);
+#endif
 };
 
 /* ----------------------------------------------------------- */
@@ -697,6 +684,7 @@ int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir);
+
 
 /*
  * Local variables:

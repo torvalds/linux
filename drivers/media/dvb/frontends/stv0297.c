@@ -35,6 +35,7 @@ struct stv0297_state {
 	const struct stv0297_config *config;
 	struct dvb_frontend frontend;
 
+	unsigned long last_ber;
 	unsigned long base_freq;
 };
 
@@ -310,6 +311,8 @@ static int stv0297_init(struct dvb_frontend *fe)
 		stv0297_writereg(state, state->config->inittab[i], state->config->inittab[i+1]);
 	msleep(200);
 
+	state->last_ber = 0;
+
 	return 0;
 }
 
@@ -340,11 +343,13 @@ static int stv0297_read_ber(struct dvb_frontend *fe, u32 * ber)
 	struct stv0297_state *state = fe->demodulator_priv;
 	u8 BER[3];
 
-	stv0297_writereg(state, 0xA0, 0x80);	// Start Counting bit errors for 4096 Bytes
-	mdelay(25);		// Hopefully got 4096 Bytes
 	stv0297_readregs(state, 0xA0, BER, 3);
-	mdelay(25);
-	*ber = (BER[2] << 8 | BER[1]) / (8 * 4096);
+	if (!(BER[0] & 0x80)) {
+		state->last_ber = BER[2] << 8 | BER[1];
+		stv0297_writereg_mask(state, 0xA0, 0x80, 0x80);
+	}
+
+	*ber = state->last_ber;
 
 	return 0;
 }
@@ -376,8 +381,13 @@ static int stv0297_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 {
 	struct stv0297_state *state = fe->demodulator_priv;
 
+	stv0297_writereg_mask(state, 0xDF, 0x03, 0x03); /* freeze the counters */
+
 	*ucblocks = (stv0297_readreg(state, 0xD5) << 8)
 		| stv0297_readreg(state, 0xD4);
+
+	stv0297_writereg_mask(state, 0xDF, 0x03, 0x02); /* clear the counters */
+	stv0297_writereg_mask(state, 0xDF, 0x03, 0x01); /* re-enable the counters */
 
 	return 0;
 }
@@ -648,6 +658,7 @@ struct dvb_frontend *stv0297_attach(const struct stv0297_config *config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
+	state->last_ber = 0;
 	state->base_freq = 0;
 
 	/* check if the demod is there */

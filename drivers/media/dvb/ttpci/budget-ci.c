@@ -29,8 +29,6 @@
  * the project's page is at http://www.linuxtv.org/dvb/
  */
 
-#include "budget.h"
-
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -38,6 +36,8 @@
 #include <linux/input.h>
 #include <linux/spinlock.h>
 #include <media/ir-common.h>
+
+#include "budget.h"
 
 #include "dvb_ca_en50221.h"
 #include "stv0299.h"
@@ -130,6 +130,7 @@ static void msp430_ir_interrupt(unsigned long data)
 	int toggle;
 	static int prev_toggle = -1;
 	static u32 ir_key;
+	static int state = 0;
 	u32 command = ttpci_budget_debiread(&budget_ci->budget, DEBINOSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
 
 	/*
@@ -138,21 +139,34 @@ static void msp430_ir_interrupt(unsigned long data)
 	 * type1: X1CCCCCC, C = command bits (0 - 63)
 	 * type2: X0TDDDDD, D = device bits (0 - 31), T = RC5 toggle bit
 	 *
-	 * More than one command byte may be generated before the device byte
-	 * Only when we have both, a correct keypress is generated
+	 * Each signal from the remote control can generate one or more command
+	 * bytes and one or more device bytes. For the repeated bytes, the
+	 * highest bit (X) is set. The first command byte is always generated
+	 * before the first device byte. Other than that, no specific order
+	 * seems to apply.
+	 *
+	 * Only when we have a command and device byte, a keypress is
+	 * generated.
 	 */
+
+	if (ir_debug)
+		printk("budget_ci: received byte 0x%02x\n", command);
+
+	/* Is this a repeated byte? */
+	if (command & 0x80)
+		return;
 
 	/* Is this a RC5 command byte? */
 	if (command & 0x40) {
-		if (ir_debug)
-			printk("budget_ci: received command byte 0x%02x\n", command);
+		state = 1;
 		ir_key = command & 0x3f;
 		return;
 	}
 
 	/* It's a RC5 device byte */
-	if (ir_debug)
-		printk("budget_ci: received device byte 0x%02x\n", command);
+	if (!state)
+		return;
+	state = 0;
 	device = command & 0x1f;
 	toggle = command & 0x20;
 
@@ -223,7 +237,6 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	switch (budget_ci->budget.dev->pci->subsystem_device) {
 	case 0x100c:
 	case 0x100f:
-	case 0x1010:
 	case 0x1011:
 	case 0x1012:
 	case 0x1017:
@@ -233,6 +246,16 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = 0x1f;
+		else
+			budget_ci->ir.rc5_device = rc5_device;
+		break;
+	case 0x1010:
+		/* for the Technotrend 1500 bundled remote */
+		ir_input_init(input_dev, &budget_ci->ir.state,
+			      IR_TYPE_RC5, ir_codes_tt_1500);
+
+		if (rc5_device < 0)
+			budget_ci->ir.rc5_device = IR_DEVICE_ANY;
 		else
 			budget_ci->ir.rc5_device = rc5_device;
 		break;
@@ -869,6 +892,17 @@ static struct tda1004x_config philips_tdm1316l_config = {
 	.request_firmware = philips_tdm1316l_request_firmware,
 };
 
+static struct tda1004x_config philips_tdm1316l_config_invert = {
+
+	.demod_address = 0x8,
+	.invert = 1,
+	.invert_oclk = 0,
+	.xtal_freq = TDA10046_XTAL_4M,
+	.agc_config = TDA10046_AGC_DEFAULT,
+	.if_freq = TDA10046_FREQ_3617,
+	.request_firmware = philips_tdm1316l_request_firmware,
+};
+
 static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
@@ -1092,9 +1126,8 @@ static void frontend_init(struct budget_ci *budget_ci)
 
 	case 0x1012:		// TT DVB-T CI budget (tda10046/Philips tdm1316l(tda6651tt))
 		budget_ci->tuner_pll_address = 0x60;
-		philips_tdm1316l_config.invert = 1;
 		budget_ci->budget.dvb_frontend =
-			dvb_attach(tda10046_attach, &philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
+			dvb_attach(tda10046_attach, &philips_tdm1316l_config_invert, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.init = philips_tdm1316l_tuner_init;
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.set_params = philips_tdm1316l_tuner_set_params;

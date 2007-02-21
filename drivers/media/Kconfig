@@ -70,6 +70,7 @@ config VIDEO_TUNER
 	depends on I2C
 
 config VIDEO_BUF
+	depends on PCI
 	tristate
 
 config VIDEO_BUF_DVB

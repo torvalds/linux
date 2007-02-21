@@ -296,6 +296,15 @@ struct video_device
 	int (*vidioc_log_status)       (struct file *file, void *fh);
 
 
+	/* Debugging ioctls */
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	int (*vidioc_g_register)       (struct file *file, void *fh,
+					struct v4l2_register *reg);
+	int (*vidioc_s_register)       (struct file *file, void *fh,
+					struct v4l2_register *reg);
+#endif
+
+
 #ifdef OBSOLETE_OWNER /* to be removed soon */
 /* obsolete -- fops->owner is used instead */
 struct module *owner;

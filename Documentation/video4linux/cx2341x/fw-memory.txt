@@ -1,6 +1,8 @@
 This document describes the cx2341x memory map and documents some of the register
 space.
 
+Note: the memory long words are little-endian ('intel format').
+
 Warning! This information was figured out from searching through the memory and
 registers, this information may not be correct and is certainly not complete, and
 was not derived from anything more than searching through the memory space with
@@ -67,7 +69,7 @@ DMA Registers 0x000-0xff:
  0x84 - first write linked list reg, for pci memory addr
  0x88 - first write linked list reg, for length of buffer in memory addr
 	(|0x80000000 or this for last link)
- 0x8c-0xcc - rest of write linked list reg, 8 sets of 3 total, DMA goes here
+ 0x8c-0xdc - rest of write linked list reg, 8 sets of 3 total, DMA goes here
 	from linked list addr in reg 0x0c, firmware must push through or
 	something.
  0xe0 - first (and only) read linked list reg, for pci memory addr
@@ -123,12 +125,8 @@ Bit
 29 Encoder VBI capture
 28 Encoder Video Input Module reset event
 27 Encoder DMA complete
-26
-25 Decoder copy protect detection event
-24 Decoder audio mode change detection event
-23
+24 Decoder audio mode change detection event (through event notification)
 22 Decoder data request
-21 Decoder I-Frame? done
 20 Decoder DMA complete
 19 Decoder VBI re-insertion
 18 Decoder DMA err (linked-list bad)

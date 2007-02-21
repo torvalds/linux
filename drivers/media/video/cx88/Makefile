@@ -12,8 +12,3 @@ obj-$(CONFIG_VIDEO_CX88_VP3054) += cx88-vp3054-i2c.o
 EXTRA_CFLAGS += -Idrivers/media/video
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends
-
-extra-cflags-$(CONFIG_VIDEO_BUF_DVB) += -DHAVE_VIDEO_BUF_DVB=1
-extra-cflags-$(CONFIG_VIDEO_CX88_VP3054)+= -DHAVE_VP3054_I2C=1
-
-EXTRA_CFLAGS += $(extra-cflags-y) $(extra-cflags-m)

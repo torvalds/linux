@@ -4,6 +4,7 @@
 #include <linux/moduleparam.h>
 #include <linux/input.h>
 #include <linux/proc_fs.h>
+#include <linux/kernel.h>
 #include <asm/bitops.h>
 
 #include "av7110.h"
@@ -16,6 +17,7 @@
 static int av_cnt;
 static struct av7110 *av_list[4];
 static struct input_dev *input_dev;
+static char input_phys[32];
 
 static u8 delay_timer_finished;
 
@@ -217,7 +219,7 @@ int __devinit av7110_ir_init(struct av7110 *av7110)
 	static struct proc_dir_entry *e;
 	int err;
 
-	if (av_cnt >= sizeof av_list/sizeof av_list[0])
+	if (av_cnt >= ARRAY_SIZE(av_list))
 		return -ENOSPC;
 
 	av7110_setup_irc_config(av7110, 0x0001);
@@ -231,8 +233,22 @@ int __devinit av7110_ir_init(struct av7110 *av7110)
 		if (!input_dev)
 			return -ENOMEM;
 
+		snprintf(input_phys, sizeof(input_phys),
+			"pci-%s/ir0", pci_name(av7110->dev->pci));
+
 		input_dev->name = "DVB on-card IR receiver";
 
+		input_dev->phys = input_phys;
+		input_dev->id.bustype = BUS_PCI;
+		input_dev->id.version = 1;
+		if (av7110->dev->pci->subsystem_vendor) {
+			input_dev->id.vendor = av7110->dev->pci->subsystem_vendor;
+			input_dev->id.product = av7110->dev->pci->subsystem_device;
+		} else {
+			input_dev->id.vendor = av7110->dev->pci->vendor;
+			input_dev->id.product = av7110->dev->pci->device;
+		}
+		input_dev->cdev.dev = &av7110->dev->pci->dev;
 		set_bit(EV_KEY, input_dev->evbit);
 		set_bit(EV_REP, input_dev->evbit);
 		input_register_keys();
