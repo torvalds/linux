@@ -224,7 +224,16 @@ struct kvm_dirty_log {
 
 #define KVMIO 0xAE
 
+/*
+ * ioctls for /dev/kvm fds:
+ */
 #define KVM_GET_API_VERSION       _IO(KVMIO, 1)
+#define KVM_CREATE_VM             _IO(KVMIO, 2) /* returns a VM fd */
+#define KVM_GET_MSR_INDEX_LIST    _IOWR(KVMIO, 15, struct kvm_msr_list)
+
+/*
+ * ioctls for VM fds
+ */
 #define KVM_RUN                   _IOWR(KVMIO, 2, struct kvm_run)
 #define KVM_GET_REGS              _IOWR(KVMIO, 3, struct kvm_regs)
 #define KVM_SET_REGS              _IOW(KVMIO, 4, struct kvm_regs)
@@ -238,6 +247,5 @@ struct kvm_dirty_log {
 #define KVM_GET_DIRTY_LOG         _IOW(KVMIO, 12, struct kvm_dirty_log)
 #define KVM_GET_MSRS              _IOWR(KVMIO, 13, struct kvm_msrs)
 #define KVM_SET_MSRS              _IOWR(KVMIO, 14, struct kvm_msrs)
-#define KVM_GET_MSR_INDEX_LIST    _IOWR(KVMIO, 15, struct kvm_msr_list)
 
 #endif
