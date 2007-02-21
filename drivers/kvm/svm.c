@@ -600,10 +600,9 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 	kfree(vcpu->svm);
 }
 
-static struct kvm_vcpu *svm_vcpu_load(struct kvm_vcpu *vcpu)
+static void svm_vcpu_load(struct kvm_vcpu *vcpu)
 {
 	get_cpu();
-	return vcpu;
 }
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)

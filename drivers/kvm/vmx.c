@@ -204,7 +204,7 @@ static void vmcs_write64(unsigned long field, u64 value)
  * Switches to specified vcpu, until a matching vcpu_put(), but assumes
  * vcpu mutex is already taken.
  */
-static struct kvm_vcpu *vmx_vcpu_load(struct kvm_vcpu *vcpu)
+static void vmx_vcpu_load(struct kvm_vcpu *vcpu)
 {
 	u64 phys_addr = __pa(vcpu->vmcs);
 	int cpu;
@@ -242,7 +242,6 @@ static struct kvm_vcpu *vmx_vcpu_load(struct kvm_vcpu *vcpu)
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
 	}
-	return vcpu;
 }
 
 static void vmx_vcpu_put(struct kvm_vcpu *vcpu)

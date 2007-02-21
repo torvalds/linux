@@ -309,6 +309,7 @@ struct kvm {
 	int busy;
 	unsigned long rmap_overflow;
 	struct list_head vm_list;
+	struct file *filp;
 };
 
 struct kvm_stat {
@@ -343,7 +344,7 @@ struct kvm_arch_ops {
 	int (*vcpu_create)(struct kvm_vcpu *vcpu);
 	void (*vcpu_free)(struct kvm_vcpu *vcpu);
 
-	struct kvm_vcpu *(*vcpu_load)(struct kvm_vcpu *vcpu);
+	void (*vcpu_load)(struct kvm_vcpu *vcpu);
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
 	void (*vcpu_decache)(struct kvm_vcpu *vcpu);
 
