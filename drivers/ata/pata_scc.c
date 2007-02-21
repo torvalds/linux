@@ -366,7 +366,7 @@ static void scc_tf_read (struct ata_port *ap, struct ata_taskfile *tf)
 static void scc_exec_command (struct ata_port *ap,
 			      const struct ata_taskfile *tf)
 {
-	DPRINTK("ata%u: cmd 0x%X\n", ap->id, tf->command);
+	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
 
 	out_be32(ap->ioaddr.command_addr, tf->command);
 	ata_pause(ap);
@@ -542,7 +542,7 @@ static unsigned int scc_bus_softreset (struct ata_port *ap,
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
-	DPRINTK("ata%u: bus reset via SRST\n", ap->id);
+	DPRINTK("ata%u: bus reset via SRST\n", ap->print_id);
 
 	/* software reset.  causes dev0 to be selected */
 	out_be32(ioaddr->ctl_addr, ap->ctl);

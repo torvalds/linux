@@ -294,9 +294,8 @@ static int do_drive_get_GTF(struct ata_port *ap, int ix,
 		return 0;
 
 	if (ata_msg_probe(ap))
-		ata_dev_printk(atadev, KERN_DEBUG,
-			"%s: ENTER: ap->id: %d, port#: %d\n",
-			__FUNCTION__, ap->id, ap->port_no);
+		ata_dev_printk(atadev, KERN_DEBUG, "%s: ENTER: port#: %d\n",
+			       __FUNCTION__, ap->port_no);
 
 	if (!ata_dev_enabled(atadev) || (ap->flags & ATA_FLAG_DISABLED)) {
 		if (ata_msg_probe(ap))
@@ -521,9 +520,8 @@ static int do_drive_set_taskfiles(struct ata_port *ap,
 	struct taskfile_array	*gtf;
 
 	if (ata_msg_probe(ap))
-		ata_dev_printk(atadev, KERN_DEBUG,
-			"%s: ENTER: ap->id: %d, port#: %d\n",
-			__FUNCTION__, ap->id, ap->port_no);
+		ata_dev_printk(atadev, KERN_DEBUG, "%s: ENTER: port#: %d\n",
+			       __FUNCTION__, ap->port_no);
 
 	if (noacpi || !(ap->cbl == ATA_CBL_SATA))
 		return 0;
@@ -627,9 +625,8 @@ int ata_acpi_push_id(struct ata_port *ap, unsigned int ix)
 		return 0;
 
 	if (ata_msg_probe(ap))
-		ata_dev_printk(atadev, KERN_DEBUG,
-			"%s: ap->id: %d, ix = %d, port#: %d\n",
-			__FUNCTION__, ap->id, ix, ap->port_no);
+		ata_dev_printk(atadev, KERN_DEBUG, "%s: ix = %d, port#: %d\n",
+			       __FUNCTION__, ix, ap->port_no);
 
 	/* Don't continue if not a SATA device. */
 	if (!(ap->cbl == ATA_CBL_SATA)) {
@@ -685,9 +682,8 @@ int ata_acpi_push_id(struct ata_port *ap, unsigned int ix)
 	if (err < 0) {
 		if (ata_msg_probe(ap))
 			ata_dev_printk(atadev, KERN_DEBUG,
-				"ata%u(%u): %s _SDD error: status = 0x%x\n",
-				ap->id, ap->device->devno,
-				__FUNCTION__, status);
+				       "%s _SDD error: status = 0x%x\n",
+				       __FUNCTION__, status);
 	}
 
 	/* always return success */
