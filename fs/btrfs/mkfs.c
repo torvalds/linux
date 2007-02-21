@@ -18,12 +18,13 @@ int mkfs(int fd)
 	struct extent_item extent_item;
 	int ret;
 
+	/* setup the super block area */
 	memset(info, 0, sizeof(info));
 	info[0].blocknr = 16;
 	info[0].objectid = 1;
 	info[0].tree_root = 17;
 	info[0].alloc_extent.blocknr = 0;
-	info[0].alloc_extent.num_blocks = 20;
+	info[0].alloc_extent.num_blocks = 64;
 	/* 0-17 are used (inclusive) */
 	info[0].alloc_extent.num_used = 18;
 
@@ -31,12 +32,14 @@ int mkfs(int fd)
 	info[1].objectid = 2;
 	info[1].tree_root = 64;
 	info[1].alloc_extent.blocknr = 64;
-	info[1].alloc_extent.num_blocks = 8;
+	info[1].alloc_extent.num_blocks = 64;
 	info[1].alloc_extent.num_used = 1;
 	ret = pwrite(fd, info, sizeof(info),
 		     CTREE_SUPER_INFO_OFFSET(CTREE_BLOCKSIZE));
 	if (ret != sizeof(info))
 		return -1;
+
+	/* create leaves for the tree root and extent root */
 	memset(&empty_leaf, 0, sizeof(empty_leaf));
 	empty_leaf.header.parentid = 1;
 	empty_leaf.header.blocknr = 17;

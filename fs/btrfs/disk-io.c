@@ -15,7 +15,7 @@ static int allocated_blocks = 0;
 static int get_free_block(struct ctree_root *root, u64 *block)
 {
 	struct stat st;
-	int ret;
+	int ret = 0;
 
 	if (root->alloc_extent->num_used >= root->alloc_extent->num_blocks)
 		return -1;
@@ -30,9 +30,14 @@ static int get_free_block(struct ctree_root *root, u64 *block)
 	}
 	st.st_size = 0;
 	ret = fstat(root->fp, &st);
-	if (st.st_size < (*block + 1) * CTREE_BLOCKSIZE)
+	if (st.st_size < (*block + 1) * CTREE_BLOCKSIZE) {
 		ret = ftruncate(root->fp,
 				(*block + 1) * CTREE_BLOCKSIZE);
+		if (ret) {
+			perror("ftruncate");
+			exit(1);
+		}
+	}
 	return ret;
 }
 
@@ -81,11 +86,7 @@ struct tree_buffer *read_tree_block(struct ctree_root *root, u64 blocknr)
 	buf = radix_tree_lookup(&root->cache_radix, blocknr);
 	if (buf) {
 		buf->count++;
-		if (buf->blocknr != blocknr)
-			BUG();
-		if (buf->blocknr != buf->node.header.blocknr)
-			BUG();
-		return buf;
+		goto test;
 	}
 	buf = alloc_tree_block(root, blocknr);
 	if (!buf)
@@ -95,7 +96,10 @@ struct tree_buffer *read_tree_block(struct ctree_root *root, u64 blocknr)
 		free(buf);
 		return NULL;
 	}
+test:
 	if (buf->blocknr != buf->node.header.blocknr)
+		BUG();
+	if (root->node && buf->node.header.parentid != root->node->node.header.parentid)
 		BUG();
 	return buf;
 }
@@ -111,36 +115,30 @@ int write_tree_block(struct ctree_root *root, struct tree_buffer *buf)
 	ret = pwrite(root->fp, &buf->node, CTREE_BLOCKSIZE, offset);
 	if (ret != CTREE_BLOCKSIZE)
 		return ret;
-	if (buf == root->node)
-		return update_root_block(root);
 	return 0;
 }
-
-struct ctree_super_block {
-	struct ctree_root_info root_info;
-	struct ctree_root_info extent_info;
-} __attribute__ ((__packed__));
 
 static int __setup_root(struct ctree_root *root, struct ctree_root *extent_root,
 			struct ctree_root_info *info, int fp)
 {
+	INIT_RADIX_TREE(&root->cache_radix, GFP_KERNEL);
 	root->fp = fp;
+	root->node = NULL;
 	root->node = read_tree_block(root, info->tree_root);
 	root->extent_root = extent_root;
 	memcpy(&root->ai1, &info->alloc_extent, sizeof(info->alloc_extent));
 	memcpy(&root->ai2, &info->reserve_extent, sizeof(info->reserve_extent));
 	root->alloc_extent = &root->ai1;
 	root->reserve_extent = &root->ai2;
-	INIT_RADIX_TREE(&root->cache_radix, GFP_KERNEL);
-	printf("setup done reading root %p, used %lu\n", root, root->alloc_extent->num_used);
+	printf("setup done reading root %p, used %lu available %lu\n", root, root->alloc_extent->num_used, root->alloc_extent->num_blocks);
+	printf("setup done reading root %p, reserve used %lu available %lu\n", root, root->reserve_extent->num_used, root->reserve_extent->num_blocks);
 	return 0;
 }
 
-struct ctree_root *open_ctree(char *filename)
+struct ctree_root *open_ctree(char *filename, struct ctree_super_block *super)
 {
 	struct ctree_root *root = malloc(sizeof(struct ctree_root));
 	struct ctree_root *extent_root = malloc(sizeof(struct ctree_root));
-	struct ctree_super_block super;
 	int fp;
 	int ret;
 
@@ -149,21 +147,42 @@ struct ctree_root *open_ctree(char *filename)
 		free(root);
 		return NULL;
 	}
-	ret = pread(fp, &super, sizeof(struct ctree_super_block),
+	ret = pread(fp, super, sizeof(struct ctree_super_block),
 		     CTREE_SUPER_INFO_OFFSET(CTREE_BLOCKSIZE));
 	if (ret == 0) {
 		ret = mkfs(fp);
 		if (ret)
 			return NULL;
-		ret = pread(fp, &super, sizeof(struct ctree_super_block),
+		ret = pread(fp, super, sizeof(struct ctree_super_block),
 			     CTREE_SUPER_INFO_OFFSET(CTREE_BLOCKSIZE));
 		if (ret != sizeof(struct ctree_super_block))
 			return NULL;
 	}
 	BUG_ON(ret < 0);
-	__setup_root(root, extent_root, &super.root_info, fp);
-	__setup_root(extent_root, extent_root, &super.extent_info, fp);
+	__setup_root(root, extent_root, &super->root_info, fp);
+	__setup_root(extent_root, extent_root, &super->extent_info, fp);
 	return root;
+}
+
+static int __update_root(struct ctree_root *root, struct ctree_root_info *info)
+{
+	info->tree_root = root->node->blocknr;
+	memcpy(&info->alloc_extent, root->alloc_extent, sizeof(struct alloc_extent));
+	memcpy(&info->reserve_extent, root->reserve_extent, sizeof(struct alloc_extent));
+	return 0;
+}
+
+int write_ctree_super(struct ctree_root *root, struct ctree_super_block *s)
+{
+	int ret;
+	__update_root(root, &s->root_info);
+	__update_root(root->extent_root, &s->extent_info);
+	ret = pwrite(root->fp, s, sizeof(*s), CTREE_SUPER_INFO_OFFSET(CTREE_BLOCKSIZE));
+	if (ret != sizeof(*s)) {
+		fprintf(stderr, "failed to write new super block err %d\n", ret);
+		return ret;
+	}
+	return 0;
 }
 
 int close_ctree(struct ctree_root *root)
@@ -171,26 +190,18 @@ int close_ctree(struct ctree_root *root)
 	close(root->fp);
 	if (root->node)
 		tree_block_release(root, root->node);
+	if (root->extent_root->node)
+		tree_block_release(root->extent_root, root->extent_root->node);
 	free(root);
 	printf("on close %d blocks are allocated\n", allocated_blocks);
 	return 0;
 }
 
-int update_root_block(struct ctree_root *root)
-{
-	int ret;
-	u64 root_block = root->node->blocknr;
-
-	ret = pwrite(root->fp, &root_block, sizeof(u64), 0);
-	if (ret != sizeof(u64))
-		return ret;
-	return 0;
-}
-
 void tree_block_release(struct ctree_root *root, struct tree_buffer *buf)
 {
-	return;
 	buf->count--;
+	if (buf->count < 0)
+		BUG();
 	if (buf->count == 0) {
 		if (!radix_tree_lookup(&root->cache_radix, buf->blocknr))
 			BUG();

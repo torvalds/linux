@@ -57,6 +57,11 @@ struct ctree_root_info {
 	u64 snapuuid[2]; /* root specific uuid */
 } __attribute__ ((__packed__));
 
+struct ctree_super_block {
+	struct ctree_root_info root_info;
+	struct ctree_root_info extent_info;
+} __attribute__ ((__packed__));
+
 struct item {
 	struct key key;
 	u16 offset;
