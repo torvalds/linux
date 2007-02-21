@@ -91,7 +91,7 @@ static char *shutdown_action_str(enum shutdown_action action)
 	case SHUTDOWN_STOP:
 		return SHUTDOWN_STOP_STR;
 	default:
-		BUG();
+		return NULL;
 	}
 }
 
