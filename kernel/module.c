@@ -2425,6 +2425,12 @@ void module_remove_driver(struct device_driver *drv)
 			kfree(driver_name);
 		}
 	}
+	/*
+	 * Undo the additional reference we added in module_add_driver()
+	 * via kset_find_obj()
+	 */
+	if (drv->mod_name)
+		kobject_put(&drv->kobj);
 }
 EXPORT_SYMBOL(module_remove_driver);
 #endif
