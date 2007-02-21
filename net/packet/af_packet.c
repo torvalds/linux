@@ -227,17 +227,14 @@ struct packet_skb_cb {
 
 #ifdef CONFIG_PACKET_MMAP
 
-static inline char *packet_lookup_frame(struct packet_sock *po, unsigned int position)
+static inline struct tpacket_hdr *packet_lookup_frame(struct packet_sock *po, unsigned int position)
 {
 	unsigned int pg_vec_pos, frame_offset;
-	char *frame;
 
 	pg_vec_pos = position / po->frames_per_block;
 	frame_offset = position % po->frames_per_block;
 
-	frame = po->pg_vec[pg_vec_pos] + (frame_offset * po->frame_size);
-
-	return frame;
+	return (struct tpacket_hdr *)(po->pg_vec[pg_vec_pos] + (frame_offset * po->frame_size));
 }
 #endif
 
@@ -639,7 +636,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	}
 
 	spin_lock(&sk->sk_receive_queue.lock);
-	h = (struct tpacket_hdr *)packet_lookup_frame(po, po->head);
+	h = packet_lookup_frame(po, po->head);
 
 	if (h->tp_status)
 		goto ring_is_full;
@@ -1473,7 +1470,7 @@ static int packet_notifier(struct notifier_block *this, unsigned long msg, void 
 {
 	struct sock *sk;
 	struct hlist_node *node;
-	struct net_device *dev = (struct net_device*)data;
+	struct net_device *dev = data;
 
 	read_lock(&packet_sklist_lock);
 	sk_for_each(sk, node, &packet_sklist) {
@@ -1588,7 +1585,7 @@ static unsigned int packet_poll(struct file * file, struct socket *sock,
 		unsigned last = po->head ? po->head-1 : po->frame_max;
 		struct tpacket_hdr *h;
 
-		h = (struct tpacket_hdr *)packet_lookup_frame(po, last);
+		h = packet_lookup_frame(po, last);
 
 		if (h->tp_status)
 			mask |= POLLIN | POLLRDNORM;
