@@ -16,6 +16,7 @@
 #include <asm/atomic.h>
 #include <asm/ptrace.h>
 #include <asm/sigp.h>
+#include <asm/smp.h>
 
 #include "sclp.h"
 
