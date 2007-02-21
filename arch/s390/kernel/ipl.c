@@ -43,6 +43,13 @@ enum ipl_type {
 #define IPL_FCP_STR	 "fcp"
 #define IPL_NSS_STR	 "nss"
 
+/*
+ * Must be in data section since the bss section
+ * is not cleared when these are accessed.
+ */
+u16 ipl_devno __attribute__((__section__(".data"))) = 0;
+u32 ipl_flags __attribute__((__section__(".data"))) = 0;
+
 static char *ipl_type_str(enum ipl_type type)
 {
 	switch (type) {

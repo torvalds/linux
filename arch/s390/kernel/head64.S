@@ -154,21 +154,9 @@ startup_continue:
 .Lparmaddr:
 	.quad	PARMAREA
 
-	.globl	ipl_schib
-ipl_schib:
-	.rept 13
-	.long 0
-	.endr
-
-	.globl	ipl_flags
-ipl_flags:
-	.long	0
-	.globl	ipl_devno
-ipl_devno:
-	.word 0
-
 	.org	0x12000
-
+	.globl	_ehead
+_ehead:
 #ifdef CONFIG_SHARED_KERNEL
 	.org	0x100000
 #endif

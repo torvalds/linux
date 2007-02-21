@@ -1048,7 +1048,7 @@ void reipl_ccw_dev(struct ccw_dev_id *devid)
 	do_reipl_asm(*((__u32*)&schid));
 }
 
-extern struct schib ipl_schib;
+static struct schib __initdata ipl_schib;
 
 /*
  * ipl_save_parameters gets called very early. It is not allowed to access
