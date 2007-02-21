@@ -11,7 +11,7 @@
 #include <asm/types.h>
 #include <linux/ioctl.h>
 
-#define KVM_API_VERSION 3
+#define KVM_API_VERSION 4
 
 /*
  * Architectural interrupt line count, and the size of the bitmap needed
