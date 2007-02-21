@@ -1014,8 +1014,9 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	/* since the write may have blocked check these pointers again */
 	if (file->f_path.dentry) {
 		if (file->f_path.dentry->d_inode) {
-			file->f_path.dentry->d_inode->i_ctime =
-			file->f_path.dentry->d_inode->i_mtime = CURRENT_TIME;
+/*BB We could make this contingent on superblock ATIME flag too */
+/*			file->f_path.dentry->d_inode->i_ctime =
+			file->f_path.dentry->d_inode->i_mtime = CURRENT_TIME;*/
 			if (total_written > 0) {
 				if (*poffset > file->f_path.dentry->d_inode->i_size)
 					i_size_write(file->f_path.dentry->d_inode,

@@ -35,9 +35,11 @@
 #define BAD_PROT 0xFFFF
 
 /* SMB command codes */
-/* Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
- (ie which include no useful data other than the SMB error code itself).
- Knowing this helps avoid response buffer allocations and copy in some cases */
+/*
+ * Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
+ * (ie which include no useful data other than the SMB error code itself).
+ * Knowing this helps avoid response buffer allocations and copy in some cases
+ */
 #define SMB_COM_CREATE_DIRECTORY      0x00 /* trivial response */
 #define SMB_COM_DELETE_DIRECTORY      0x01 /* trivial response */
 #define SMB_COM_CLOSE                 0x04 /* triv req/rsp, timestamp ignored */

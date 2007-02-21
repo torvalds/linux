@@ -91,8 +91,9 @@ cifs_read_super(struct super_block *sb, void *data,
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb;
 	int rc = 0;
-
-	sb->s_flags |= MS_NODIRATIME; /* and probably even noatime */
+	
+	/* BB should we make this contingent on mount parm? */
+	sb->s_flags |= MS_NODIRATIME | MS_NOATIME;
 	sb->s_fs_info = kzalloc(sizeof(struct cifs_sb_info),GFP_KERNEL);
 	cifs_sb = CIFS_SB(sb);
 	if(cifs_sb == NULL)
@@ -258,7 +259,10 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->clientCanCacheRead = FALSE;
 	cifs_inode->clientCanCacheAll = FALSE;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
-	cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME;
+	
+	/* Can not set i_flags here - they get immediately overwritten
+	   to zero by the VFS */
+/*	cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME;*/
 	INIT_LIST_HEAD(&cifs_inode->openFileList);
 	return &cifs_inode->vfs_inode;
 }
@@ -283,6 +287,7 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 
 	if (cifs_sb) {
 		if (cifs_sb->tcon) {
+/* BB add prepath to mount options displayed */
 			seq_printf(s, ",unc=%s", cifs_sb->tcon->treeName);
 			if (cifs_sb->tcon->ses) {
 				if (cifs_sb->tcon->ses->userName)

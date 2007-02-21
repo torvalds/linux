@@ -90,6 +90,9 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 				(*pinode)->i_ino =
 					(unsigned long)findData.UniqueId;
 			} /* note ino incremented to unique num in new_inode */
+			if(sb->s_flags & MS_NOATIME)
+				(*pinode)->i_flags |= S_NOATIME | S_NOCMTIME;
+				
 			insert_inode_hash(*pinode);
 		}
 
@@ -421,6 +424,8 @@ int cifs_get_inode_info(struct inode **pinode,
 				} else /* do we need cast or hash to ino? */
 					(*pinode)->i_ino = inode_num;
 			} /* else ino incremented to unique num in new_inode*/
+			if(sb->s_flags & MS_NOATIME)
+				(*pinode)->i_flags |= S_NOATIME | S_NOCMTIME;
 			insert_inode_hash(*pinode);
 		}
 		inode = *pinode;
@@ -1359,7 +1364,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		and this check ensures that we are not being called from
 		sys_utimes in which case we ought to fail the call back to
 		the user when the server rejects the call */
-		if((rc) && (attrs->ia_valid &&
+		if((rc) && (attrs->ia_valid &
 			 (ATTR_MODE | ATTR_GID | ATTR_UID | ATTR_SIZE)))
 			rc = 0;
 	}
