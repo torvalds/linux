@@ -324,10 +324,11 @@
 #define __NR_get_robust_list	299
 #define __NR_set_robust_list	300
 #define __NR_move_pages		301
+#define __NR_getcpu		302
 
 #ifdef __KERNEL__
 
-#define __NR_syscalls		302
+#define __NR_syscalls		303
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls
