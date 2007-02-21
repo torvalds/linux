@@ -96,21 +96,6 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
 	{ } /* Terminating entry */
 };
-
-static struct usb_device_id option_ids1[] = {
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_OLD) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION2) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA2) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_GTMAX36) },
-	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
-	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E220) },
-	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
-	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ID) },
-	{ } /* Terminating entry */
-};
-
 MODULE_DEVICE_TABLE(usb, option_ids);
 
 static struct usb_driver option_driver = {
@@ -132,7 +117,7 @@ static struct usb_serial_driver option_1port_device = {
 	},
 	.description       = "GSM modem (1-port)",
 	.usb_driver        = &option_driver,
-	.id_table          = option_ids1,
+	.id_table          = option_ids,
 	.num_interrupt_in  = NUM_DONT_CARE,
 	.num_bulk_in       = NUM_DONT_CARE,
 	.num_bulk_out      = NUM_DONT_CARE,
