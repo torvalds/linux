@@ -1611,6 +1611,24 @@ asmlinkage long sys_flock(unsigned int fd, unsigned int cmd)
 	return error;
 }
 
+/**
+ * vfs_test_lock - test file byte range lock
+ * @filp: The file to test lock for
+ * @fl: The lock to test
+ * @conf: Place to return a copy of the conflicting lock, if found
+ *
+ * Returns -ERRNO on failure.  Indicates presence of conflicting lock by
+ * setting conf->fl_type to something other than F_UNLCK.
+ */
+int vfs_test_lock(struct file *filp, struct file_lock *fl)
+{
+	if (filp->f_op && filp->f_op->lock)
+		return filp->f_op->lock(filp, F_GETLK, fl);
+	posix_test_lock(filp, fl);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vfs_test_lock);
+
 static int posix_lock_to_flock(struct flock *flock, struct file_lock *fl)
 {
 	flock->l_pid = fl->fl_pid;
@@ -1663,12 +1681,9 @@ int fcntl_getlk(struct file *filp, struct flock __user *l)
 	if (error)
 		goto out;
 
-	if (filp->f_op && filp->f_op->lock) {
-		error = filp->f_op->lock(filp, F_GETLK, &file_lock);
-		if (error < 0)
-			goto out;
-	} else
-		posix_test_lock(filp, &file_lock);
+	error = vfs_test_lock(filp, &file_lock);
+	if (error)
+		goto out;
  
 	flock.l_type = file_lock.fl_type;
 	if (file_lock.fl_type != F_UNLCK) {
@@ -1797,13 +1812,10 @@ int fcntl_getlk64(struct file *filp, struct flock64 __user *l)
 	if (error)
 		goto out;
 
-	if (filp->f_op && filp->f_op->lock) {
-		error = filp->f_op->lock(filp, F_GETLK, &file_lock);
-		if (error < 0)
-			goto out;
-	} else
-		posix_test_lock(filp, &file_lock);
- 
+	error = vfs_test_lock(filp, &file_lock);
+	if (error)
+		goto out;
+
 	flock.l_type = file_lock.fl_type;
 	if (file_lock.fl_type != F_UNLCK)
 		posix_lock_to_flock64(&flock, &file_lock);
