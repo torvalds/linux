@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/pfn.h>
 #include <linux/uaccess.h>
+#include <asm/ipl.h>
 #include <asm/lowcore.h>
 #include <asm/processor.h>
 #include <asm/sections.h>

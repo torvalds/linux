@@ -31,6 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/cpu.h>
 #include <linux/timex.h>
+#include <asm/ipl.h>
 #include <asm/setup.h>
 #include <asm/sigp.h>
 #include <asm/pgalloc.h>

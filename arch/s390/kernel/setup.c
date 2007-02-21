@@ -41,6 +41,7 @@
 #include <linux/ctype.h>
 #include <linux/reboot.h>
 
+#include <asm/ipl.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/smp.h>
