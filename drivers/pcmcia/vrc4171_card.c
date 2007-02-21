@@ -596,7 +596,7 @@ static int __devinit vrc4171_add_sockets(void)
 		}
 
 		sprintf(socket->name, "NEC VRC4171 Card Slot %1c", 'A' + slot);
-		socket->pcmcia_socket.dev.dev = &vrc4171_card_device.dev;
+		socket->pcmcia_socket.dev.parent = &vrc4171_card_device.dev;
 		socket->pcmcia_socket.ops = &vrc4171_pccard_operations;
 		socket->pcmcia_socket.owner = THIS_MODULE;
 
