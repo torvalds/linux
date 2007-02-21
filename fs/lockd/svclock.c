@@ -426,15 +426,18 @@ nlmsvc_testlock(struct nlm_file *file, struct nlm_lock *lock,
 				(long long)lock->fl.fl_start,
 				(long long)lock->fl.fl_end);
 
-	if (posix_test_lock(file->f_file, &lock->fl, &conflock->fl)) {
+	if (posix_test_lock(file->f_file, &lock->fl)) {
 		dprintk("lockd: conflicting lock(ty=%d, %Ld-%Ld)\n",
-				conflock->fl.fl_type,
-				(long long)conflock->fl.fl_start,
-				(long long)conflock->fl.fl_end);
+				lock->fl.fl_type,
+				(long long)lock->fl.fl_start,
+				(long long)lock->fl.fl_end);
 		conflock->caller = "somehost";	/* FIXME */
 		conflock->len = strlen(conflock->caller);
 		conflock->oh.len = 0;		/* don't return OH info */
-		conflock->svid = conflock->fl.fl_pid;
+		conflock->svid = lock->fl.fl_pid;
+		conflock->fl.fl_type = lock->fl.fl_type;
+		conflock->fl.fl_start = lock->fl.fl_start;
+		conflock->fl.fl_end = lock->fl.fl_end;
 		return nlm_lck_denied;
 	}
 

@@ -666,11 +666,11 @@ static int locks_block_on_timeout(struct file_lock *blocker, struct file_lock *w
 }
 
 int
-posix_test_lock(struct file *filp, struct file_lock *fl,
-		struct file_lock *conflock)
+posix_test_lock(struct file *filp, struct file_lock *fl)
 {
 	struct file_lock *cfl;
 
+	fl->fl_type = F_UNLCK;
 	lock_kernel();
 	for (cfl = filp->f_path.dentry->d_inode->i_flock; cfl; cfl = cfl->fl_next) {
 		if (!IS_POSIX(cfl))
@@ -679,7 +679,7 @@ posix_test_lock(struct file *filp, struct file_lock *fl,
 			break;
 	}
 	if (cfl) {
-		__locks_copy_lock(conflock, cfl);
+		__locks_copy_lock(fl, cfl);
 		unlock_kernel();
 		return 1;
 	}
@@ -1648,7 +1648,7 @@ static void posix_lock_to_flock64(struct flock64 *flock, struct file_lock *fl)
  */
 int fcntl_getlk(struct file *filp, struct flock __user *l)
 {
-	struct file_lock *fl, cfl, file_lock;
+	struct file_lock file_lock;
 	struct flock flock;
 	int error;
 
@@ -1667,15 +1667,12 @@ int fcntl_getlk(struct file *filp, struct flock __user *l)
 		error = filp->f_op->lock(filp, F_GETLK, &file_lock);
 		if (error < 0)
 			goto out;
-		else
-		  fl = (file_lock.fl_type == F_UNLCK ? NULL : &file_lock);
-	} else {
-		fl = (posix_test_lock(filp, &file_lock, &cfl) ? &cfl : NULL);
-	}
+	} else
+		posix_test_lock(filp, &file_lock);
  
-	flock.l_type = F_UNLCK;
-	if (fl != NULL) {
-		error = posix_lock_to_flock(&flock, fl);
+	flock.l_type = file_lock.fl_type;
+	if (file_lock.fl_type != F_UNLCK) {
+		error = posix_lock_to_flock(&flock, &file_lock);
 		if (error)
 			goto out;
 	}
@@ -1785,7 +1782,7 @@ out:
  */
 int fcntl_getlk64(struct file *filp, struct flock64 __user *l)
 {
-	struct file_lock *fl, cfl, file_lock;
+	struct file_lock file_lock;
 	struct flock64 flock;
 	int error;
 
@@ -1804,15 +1801,13 @@ int fcntl_getlk64(struct file *filp, struct flock64 __user *l)
 		error = filp->f_op->lock(filp, F_GETLK, &file_lock);
 		if (error < 0)
 			goto out;
-		else
-		  fl = (file_lock.fl_type == F_UNLCK ? NULL : &file_lock);
-	} else {
-		fl = (posix_test_lock(filp, &file_lock, &cfl) ? &cfl : NULL);
-	}
+	} else
+		posix_test_lock(filp, &file_lock);
  
-	flock.l_type = F_UNLCK;
-	if (fl != NULL)
-		posix_lock_to_flock64(&flock, fl);
+	flock.l_type = file_lock.fl_type;
+	if (file_lock.fl_type != F_UNLCK)
+		posix_lock_to_flock64(&flock, &file_lock);
+
 	error = -EFAULT;
 	if (!copy_to_user(l, &flock, sizeof(flock)))
 		error = 0;
