@@ -45,7 +45,7 @@
 static LIST_HEAD(rdev_list);
 static cxio_hal_ev_callback_func_t cxio_ev_cb = NULL;
 
-static inline struct cxio_rdev *cxio_hal_find_rdev_by_name(char *dev_name)
+static struct cxio_rdev *cxio_hal_find_rdev_by_name(char *dev_name)
 {
 	struct cxio_rdev *rdev;
 
@@ -55,8 +55,7 @@ static inline struct cxio_rdev *cxio_hal_find_rdev_by_name(char *dev_name)
 	return NULL;
 }
 
-static inline struct cxio_rdev *cxio_hal_find_rdev_by_t3cdev(struct t3cdev
-							     *tdev)
+static struct cxio_rdev *cxio_hal_find_rdev_by_t3cdev(struct t3cdev *tdev)
 {
 	struct cxio_rdev *rdev;
 
@@ -118,7 +117,7 @@ int cxio_hal_cq_op(struct cxio_rdev *rdev_p, struct t3_cq *cq,
 	return 0;
 }
 
-static inline int cxio_hal_clear_cq_ctx(struct cxio_rdev *rdev_p, u32 cqid)
+static int cxio_hal_clear_cq_ctx(struct cxio_rdev *rdev_p, u32 cqid)
 {
 	struct rdma_cq_setup setup;
 	setup.id = cqid;
@@ -130,7 +129,7 @@ static inline int cxio_hal_clear_cq_ctx(struct cxio_rdev *rdev_p, u32 cqid)
 	return (rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, RDMA_CQ_SETUP, &setup));
 }
 
-int cxio_hal_clear_qp_ctx(struct cxio_rdev *rdev_p, u32 qpid)
+static int cxio_hal_clear_qp_ctx(struct cxio_rdev *rdev_p, u32 qpid)
 {
 	u64 sge_cmd;
 	struct t3_modify_qp_wr *wqe;
@@ -425,7 +424,7 @@ void cxio_flush_hw_cq(struct t3_cq *cq)
 	}
 }
 
-static inline int cqe_completes_wr(struct t3_cqe *cqe, struct t3_wq *wq)
+static int cqe_completes_wr(struct t3_cqe *cqe, struct t3_wq *wq)
 {
 	if (CQE_OPCODE(*cqe) == T3_TERMINATE)
 		return 0;
@@ -760,17 +759,6 @@ ret:
 	return err;
 }
 
-/* IN : stag key, pdid, pbl_size
- * Out: stag index, actaul pbl_size, and pbl_addr allocated.
- */
-int cxio_allocate_stag(struct cxio_rdev *rdev_p, u32 * stag, u32 pdid,
-		       enum tpt_mem_perm perm, u32 * pbl_size, u32 * pbl_addr)
-{
-	*stag = T3_STAG_UNSET;
-	return (__cxio_tpt_op(rdev_p, 0, stag, 0, pdid, TPT_NON_SHARED_MR,
-			      perm, 0, 0ULL, 0, 0, NULL, pbl_size, pbl_addr));
-}
-
 int cxio_register_phys_mem(struct cxio_rdev *rdev_p, u32 *stag, u32 pdid,
 			   enum tpt_mem_perm perm, u32 zbva, u64 to, u32 len,
 			   u8 page_size, __be64 *pbl, u32 *pbl_size,
@@ -1029,7 +1017,7 @@ void __exit cxio_hal_exit(void)
 	cxio_hal_destroy_rhdl_resource();
 }
 
-static inline void flush_completed_wrs(struct t3_wq *wq, struct t3_cq *cq)
+static void flush_completed_wrs(struct t3_wq *wq, struct t3_cq *cq)
 {
 	struct t3_swsq *sqp;
 	__u32 ptr = wq->sq_rptr;
@@ -1058,9 +1046,8 @@ static inline void flush_completed_wrs(struct t3_wq *wq, struct t3_cq *cq)
 			break;
 }
 
-static inline void create_read_req_cqe(struct t3_wq *wq,
-				       struct t3_cqe *hw_cqe,
-				       struct t3_cqe *read_cqe)
+static void create_read_req_cqe(struct t3_wq *wq, struct t3_cqe *hw_cqe,
+				struct t3_cqe *read_cqe)
 {
 	read_cqe->u.scqe.wrid_hi = wq->oldest_read->sq_wptr;
 	read_cqe->len = wq->oldest_read->read_len;
@@ -1073,7 +1060,7 @@ static inline void create_read_req_cqe(struct t3_wq *wq,
 /*
  * Return a ptr to the next read wr in the SWSQ or NULL.
  */
-static inline void advance_oldest_read(struct t3_wq *wq)
+static void advance_oldest_read(struct t3_wq *wq)
 {
 
 	u32 rptr = wq->oldest_read - wq->sq + 1;

@@ -178,7 +178,6 @@ static inline struct iwch_qp *to_iwch_qp(struct ib_qp *ibqp)
 
 void iwch_qp_add_ref(struct ib_qp *qp);
 void iwch_qp_rem_ref(struct ib_qp *qp);
-struct ib_qp *iwch_get_qp(struct ib_device *dev, int qpn);
 
 struct iwch_ucontext {
 	struct ib_ucontext ibucontext;

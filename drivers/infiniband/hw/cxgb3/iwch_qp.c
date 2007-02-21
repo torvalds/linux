@@ -36,8 +36,8 @@
 
 #define NO_SUPPORT -1
 
-static inline int iwch_build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
-				       u8 * flit_cnt)
+static int iwch_build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
+				u8 * flit_cnt)
 {
 	int i;
 	u32 plen;
@@ -96,8 +96,8 @@ static inline int iwch_build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static inline int iwch_build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
-					u8 *flit_cnt)
+static int iwch_build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
+				 u8 *flit_cnt)
 {
 	int i;
 	u32 plen;
@@ -137,8 +137,8 @@ static inline int iwch_build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static inline int iwch_build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
-				       u8 *flit_cnt)
+static int iwch_build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
+				u8 *flit_cnt)
 {
 	if (wr->num_sge > 1)
 		return -EINVAL;
@@ -158,9 +158,8 @@ static inline int iwch_build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
 /*
  * TBD: this is going to be moved to firmware. Missing pdid/qpid check for now.
  */
-static inline int iwch_sgl2pbl_map(struct iwch_dev *rhp,
-				   struct ib_sge *sg_list, u32 num_sgle,
-				   u32 * pbl_addr, u8 * page_size)
+static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
+			    u32 num_sgle, u32 * pbl_addr, u8 * page_size)
 {
 	int i;
 	struct iwch_mr *mhp;
@@ -206,9 +205,8 @@ static inline int iwch_sgl2pbl_map(struct iwch_dev *rhp,
 	return 0;
 }
 
-static inline int iwch_build_rdma_recv(struct iwch_dev *rhp,
-						    union t3_wr *wqe,
-						    struct ib_recv_wr *wr)
+static int iwch_build_rdma_recv(struct iwch_dev *rhp, union t3_wr *wqe,
+				struct ib_recv_wr *wr)
 {
 	int i, err = 0;
 	u32 pbl_addr[4];
@@ -473,8 +471,7 @@ int iwch_bind_mw(struct ib_qp *qp,
 	return err;
 }
 
-static inline void build_term_codes(int t3err, u8 *layer_type, u8 *ecode,
-				    int tagged)
+static void build_term_codes(int t3err, u8 *layer_type, u8 *ecode, int tagged)
 {
 	switch (t3err) {
 	case TPT_ERR_STAG:
@@ -672,7 +669,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	spin_lock_irqsave(&qhp->lock, *flag);
 }
 
-static inline void flush_qp(struct iwch_qp *qhp, unsigned long *flag)
+static void flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 {
 	if (t3b_device(qhp->rhp))
 		cxio_set_wq_in_error(&qhp->wq);
@@ -684,7 +681,7 @@ static inline void flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 /*
  * Return non zero if at least one RECV was pre-posted.
  */
-static inline int rqes_posted(struct iwch_qp *qhp)
+static int rqes_posted(struct iwch_qp *qhp)
 {
 	return fw_riwrh_opcode((struct fw_riwrh *)qhp->wq.queue) == T3_WR_RCV;
 }
