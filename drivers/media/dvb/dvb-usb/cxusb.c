@@ -469,9 +469,9 @@ static int bluebird_patch_dvico_firmware_download(struct usb_device *udev,
 	    fw->data[BLUEBIRD_01_ID_OFFSET + 1] == USB_VID_DVICO >> 8) {
 
 		fw->data[BLUEBIRD_01_ID_OFFSET + 2] =
-			udev->descriptor.idProduct + 1;
+			le16_to_cpu(udev->descriptor.idProduct) + 1;
 		fw->data[BLUEBIRD_01_ID_OFFSET + 3] =
-			udev->descriptor.idProduct >> 8;
+			le16_to_cpu(udev->descriptor.idProduct) >> 8;
 
 		return usb_cypress_load_firmware(udev, fw, CYPRESS_FX2);
 	}
