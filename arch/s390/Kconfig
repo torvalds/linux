@@ -8,8 +8,8 @@ config MMU
 	default y
 
 config ZONE_DMA
-	bool
-	default y
+	def_bool y
+	depends on 64BIT
 
 config LOCKDEP_SUPPORT
 	bool
