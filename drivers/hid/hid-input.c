@@ -2,7 +2,7 @@
  * $Id: hid-input.c,v 1.2 2002/04/23 00:59:25 rdamazio Exp $
  *
  *  Copyright (c) 2000-2001 Vojtech Pavlik
- *  Copyright (c) 2006 Jiri Kosina
+ *  Copyright (c) 2006-2007 Jiri Kosina
  *
  *  HID to Linux Input mapping
  */
@@ -531,6 +531,26 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x301: map_key_clear(KEY_PROG1);		break;
 				case 0x302: map_key_clear(KEY_PROG2);		break;
 				case 0x303: map_key_clear(KEY_PROG3);		break;
+
+				/* Reported on Logitech S510 wireless keyboard */
+				case 0x101f: map_key_clear(KEY_ZOOMIN);		break;
+				case 0x1020: map_key_clear(KEY_ZOOMOUT);	break;
+				case 0x1021: map_key_clear(KEY_ZOOMRESET);	break;
+				/* this one is marked as 'Rotate' */
+				case 0x1028: map_key_clear(KEY_ANGLE);		break;
+				case 0x1029: map_key_clear(KEY_SHUFFLE);	break;
+				case 0x1041: map_key_clear(KEY_BATTERY);	break;
+				case 0x1042: map_key_clear(KEY_WORDPROCESSOR);	break;
+				case 0x1043: map_key_clear(KEY_SPREADSHEET);	break;
+				case 0x1044: map_key_clear(KEY_PRESENTATION);	break;
+				case 0x1045: map_key_clear(KEY_UNDO);		break;
+				case 0x1046: map_key_clear(KEY_REDO);		break;
+				case 0x1047: map_key_clear(KEY_PRINT);		break;
+				case 0x1048: map_key_clear(KEY_SAVE);		break;
+				case 0x1049: map_key_clear(KEY_PROG1);		break;
+				case 0x104a: map_key_clear(KEY_PROG2);		break;
+				case 0x104b: map_key_clear(KEY_PROG3);		break;
+				case 0x104c: map_key_clear(KEY_PROG4);		break;
 
 				default:    goto ignore;
 			}

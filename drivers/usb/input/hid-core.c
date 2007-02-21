@@ -4,7 +4,7 @@
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
- *  Copyright (c) 2006 Jiri Kosina
+ *  Copyright (c) 2006-2007 Jiri Kosina
  */
 
 /*
@@ -755,6 +755,7 @@ void usbhid_init_reports(struct hid_device *hid)
 
 #define USB_VENDOR_ID_LOGITECH		0x046d
 #define USB_DEVICE_ID_LOGITECH_USB_RECEIVER	0xc101
+#define USB_DEVICE_ID_LOGITECH_USB_RECEIVER_2	0xc517
 
 #define USB_VENDOR_ID_IMATION		0x0718
 #define USB_DEVICE_ID_DISC_STAKKA	0xd000
@@ -941,6 +942,7 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_TURBOX_KEYBOARD, HID_QUIRK_NOGET },
 
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_USB_RECEIVER, HID_QUIRK_BAD_RELATIVE_KEYS },
+	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_USB_RECEIVER_2, HID_QUIRK_LOGITECH_S510_DESCRIPTOR },
 
 	{ USB_VENDOR_ID_PANTHERLORD, USB_DEVICE_ID_PANTHERLORD_TWIN_USB_JOYSTICK, HID_QUIRK_MULTI_INPUT | HID_QUIRK_SKIP_OUTPUT_REPORTS },
 
@@ -1038,6 +1040,22 @@ static void hid_fixup_sony_ps3_controller(struct usb_device *dev, int ifnum)
 	kfree(buf);
 }
 
+/*
+ * Logitech S510 keyboard sends in report #3 keys which are far
+ * above the logical maximum described in descriptor. This extends
+ * the original value of 0x28c of logical maximum to 0x104d
+ */
+static void hid_fixup_s510_descriptor(unsigned char *rdesc, int rsize)
+{
+	if (rsize >= 90 && rdesc[83] == 0x26
+			&& rdesc[84] == 0x8c
+			&& rdesc[85] == 0x02) {
+		info("Fixing up Logitech S510 report descriptor");
+		rdesc[84] = rdesc[89] = 0x4d;
+		rdesc[85] = rdesc[90] = 0x10;
+	}
+}
+
 static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 {
 	struct usb_host_interface *interface = intf->cur_altsetting;
@@ -1105,6 +1123,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 
 	if ((quirks & HID_QUIRK_CYMOTION))
 		hid_fixup_cymotion_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_LOGITECH_S510_DESCRIPTOR)
+		hid_fixup_s510_descriptor(rdesc, rsize);
 
 #ifdef CONFIG_HID_DEBUG
 	printk(KERN_DEBUG __FILE__ ": report descriptor (size %u, read %d) = ", rsize, n);
