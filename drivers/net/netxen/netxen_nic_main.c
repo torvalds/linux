@@ -525,6 +525,8 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 	if (adapter == NULL)
 		return;
 
+	if (adapter->irq)
+		free_irq(adapter->irq, adapter);
 	netxen_nic_stop_all_ports(adapter);
 	/* leave the hw in the same state as reboot */
 	netxen_pinit_from_rom(adapter, 0);
@@ -672,8 +674,6 @@ static int netxen_nic_close(struct net_device *netdev)
 
 	if (!adapter->active_ports) {
 		netxen_nic_disable_int(adapter);
-		if (adapter->irq)
-			free_irq(adapter->irq, adapter);
 		cmd_buff = adapter->cmd_buf_arr;
 		for (i = 0; i < adapter->max_tx_desc_count; i++) {
 			buffrag = cmd_buff->frag_array;
