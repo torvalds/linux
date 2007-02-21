@@ -790,8 +790,10 @@
 #define __NR_move_pages		(__NR_Linux + 295)
 #define __NR_getcpu		(__NR_Linux + 296)
 #define __NR_epoll_pwait	(__NR_Linux + 297)
+#define __NR_statfs64		(__NR_Linux + 298)
+#define __NR_fstatfs64		(__NR_Linux + 299)
 
-#define __NR_Linux_syscalls     298
+#define __NR_Linux_syscalls     300
 
 #define HPUX_GATEWAY_ADDR       0xC0000004
 #define LINUX_GATEWAY_ADDR      0x100
