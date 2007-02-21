@@ -228,12 +228,15 @@ int kvm_write_guest(struct kvm_vcpu *vcpu, gva_t addr, unsigned long size,
 		unsigned now;
 		unsigned offset;
 		hva_t guest_buf;
+		gfn_t gfn;
 
 		paddr = gva_to_hpa(vcpu, addr);
 
 		if (is_error_hpa(paddr))
 			break;
 
+		gfn = vcpu->mmu.gva_to_gpa(vcpu, addr) >> PAGE_SHIFT;
+		mark_page_dirty(vcpu->kvm, gfn);
 		guest_buf = (hva_t)kmap_atomic(
 				pfn_to_page(paddr >> PAGE_SHIFT), KM_USER0);
 		offset = addr & ~PAGE_MASK;
@@ -953,6 +956,7 @@ static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 		return 0;
 	page = gfn_to_page(m, gpa >> PAGE_SHIFT);
 	kvm_mmu_pre_write(vcpu, gpa, bytes);
+	mark_page_dirty(vcpu->kvm, gpa >> PAGE_SHIFT);
 	virt = kmap_atomic(page, KM_USER0);
 	memcpy(virt + offset_in_page(gpa), &val, bytes);
 	kunmap_atomic(virt, KM_USER0);
@@ -1294,6 +1298,7 @@ static int vcpu_register_para(struct kvm_vcpu *vcpu, gpa_t para_state_gpa)
 	if (is_error_hpa(para_state_hpa))
 		goto err_gp;
 
+	mark_page_dirty(vcpu->kvm, para_state_gpa >> PAGE_SHIFT);
 	para_state_page = pfn_to_page(para_state_hpa >> PAGE_SHIFT);
 	para_state = kmap_atomic(para_state_page, KM_USER0);
 
@@ -1323,6 +1328,7 @@ static int vcpu_register_para(struct kvm_vcpu *vcpu, gpa_t para_state_gpa)
 	vcpu->para_state_gpa = para_state_gpa;
 	vcpu->hypercall_gpa = hypercall_gpa;
 
+	mark_page_dirty(vcpu->kvm, hypercall_gpa >> PAGE_SHIFT);
 	hypercall = kmap_atomic(pfn_to_page(hypercall_hpa >> PAGE_SHIFT),
 				KM_USER1) + (hypercall_hpa & ~PAGE_MASK);
 	kvm_arch_ops->patch_hypercall(vcpu, hypercall);
