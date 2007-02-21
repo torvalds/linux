@@ -308,7 +308,6 @@ static void pcmcia_remove_one(struct pcmcia_device *pdev)
 		if (info->ndev) {
 			struct ata_host *host = dev_get_drvdata(dev);
 			ata_host_detach(host);
-			dev_set_drvdata(dev, NULL);
 		}
 		info->ndev = 0;
 		pdev->priv = NULL;
