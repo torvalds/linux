@@ -1289,7 +1289,31 @@ void tcp_enter_frto(struct sock *sk)
 	    ((icsk->icsk_ca_state == TCP_CA_Loss || tp->frto_counter) &&
 	     !icsk->icsk_retransmits)) {
 		tp->prior_ssthresh = tcp_current_ssthresh(sk);
-		tp->snd_ssthresh = icsk->icsk_ca_ops->ssthresh(sk);
+		/* Our state is too optimistic in ssthresh() call because cwnd
+		 * is not reduced until tcp_enter_frto_loss() when previous FRTO
+		 * recovery has not yet completed. Pattern would be this: RTO,
+		 * Cumulative ACK, RTO (2xRTO for the same segment does not end
+		 * up here twice).
+		 * RFC4138 should be more specific on what to do, even though
+		 * RTO is quite unlikely to occur after the first Cumulative ACK
+		 * due to back-off and complexity of triggering events ...
+		 */
+		if (tp->frto_counter) {
+			u32 stored_cwnd;
+			stored_cwnd = tp->snd_cwnd;
+			tp->snd_cwnd = 2;
+			tp->snd_ssthresh = icsk->icsk_ca_ops->ssthresh(sk);
+			tp->snd_cwnd = stored_cwnd;
+		} else {
+			tp->snd_ssthresh = icsk->icsk_ca_ops->ssthresh(sk);
+		}
+		/* ... in theory, cong.control module could do "any tricks" in
+		 * ssthresh(), which means that ca_state, lost bits and lost_out
+		 * counter would have to be faked before the call occurs. We
+		 * consider that too expensive, unlikely and hacky, so modules
+		 * using these in ssthresh() must deal these incompatibility
+		 * issues if they receives CA_EVENT_FRTO and frto_counter != 0
+		 */
 		tcp_ca_event(sk, CA_EVENT_FRTO);
 	}
 
