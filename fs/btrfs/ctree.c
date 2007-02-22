@@ -5,7 +5,12 @@
 #include "ctree.h"
 #include "disk-io.h"
 
+#define SEARCH_READ 0
+#define SEARCH_WRITE 1
+
 static int refill_alloc_extent(struct ctree_root *root);
+int split_node(struct ctree_root *root, struct ctree_path *path, int level);
+int split_leaf(struct ctree_root *root, struct ctree_path *path, int data_size);
 
 static inline void init_path(struct ctree_path *p)
 {
@@ -125,14 +130,14 @@ int bin_search(struct node *c, struct key *key, int *slot)
  * If the key isn't found, the path points to the slot where it should
  * be inserted.
  */
-int search_slot(struct ctree_root *root, struct key *key, struct ctree_path *p)
+int search_slot(struct ctree_root *root, struct key *key, struct ctree_path *p, int ins_len)
 {
 	struct tree_buffer *b = root->node;
 	struct node *c;
-
 	int slot;
 	int ret;
 	int level;
+
 	b->count++;
 	while (b) {
 		c = &b->node;
@@ -143,10 +148,26 @@ int search_slot(struct ctree_root *root, struct key *key, struct ctree_path *p)
 			if (ret && slot > 0)
 				slot -= 1;
 			p->slots[level] = slot;
+			if (ins_len && c->header.nritems == NODEPTRS_PER_BLOCK) {
+				int sret = split_node(root, p, level);
+				BUG_ON(sret > 0);
+				if (sret)
+					return sret;
+				b = p->nodes[level];
+				c = &b->node;
+				slot = p->slots[level];
+			}
 			b = read_tree_block(root, c->blockptrs[slot]);
 			continue;
 		} else {
+			struct leaf *l = (struct leaf *)c;
 			p->slots[level] = slot;
+			if (ins_len && leaf_free_space(l) <  sizeof(struct item) + ins_len) {
+				int sret = split_leaf(root, p, ins_len);
+				BUG_ON(sret > 0);
+				if (sret)
+					return sret;
+			}
 			return ret;
 		}
 	}
@@ -331,50 +352,54 @@ int push_node_right(struct ctree_root *root, struct ctree_path *path, int level)
 	return 0;
 }
 
+static int insert_new_root(struct ctree_root *root, struct ctree_path *path, int level)
+{
+	struct tree_buffer *t;
+	struct node *lower;
+	struct node *c;
+	struct key *lower_key;
+
+	BUG_ON(path->nodes[level]);
+	BUG_ON(path->nodes[level-1] != root->node);
+
+	t = alloc_free_block(root);
+	c = &t->node;
+	memset(c, 0, sizeof(c));
+	c->header.nritems = 1;
+	c->header.flags = node_level(level);
+	c->header.blocknr = t->blocknr;
+	c->header.parentid = root->node->node.header.parentid;
+	lower = &path->nodes[level-1]->node;
+	if (is_leaf(lower->header.flags))
+		lower_key = &((struct leaf *)lower)->items[0].key;
+	else
+		lower_key = lower->keys;
+	memcpy(c->keys, lower_key, sizeof(struct key));
+	c->blockptrs[0] = path->nodes[level-1]->blocknr;
+	/* the super has an extra ref to root->node */
+	tree_block_release(root, root->node);
+	root->node = t;
+	t->count++;
+	write_tree_block(root, t);
+	path->nodes[level] = t;
+	path->slots[level] = 0;
+	return 0;
+}
+
 /*
  * worker function to insert a single pointer in a node.
  * the node should have enough room for the pointer already
  * slot and level indicate where you want the key to go, and
  * blocknr is the block the key points to.
  */
-int __insert_ptr(struct ctree_root *root,
+int insert_ptr(struct ctree_root *root,
 		struct ctree_path *path, struct key *key,
 		u64 blocknr, int slot, int level)
 {
-	struct node *c;
 	struct node *lower;
-	struct key *lower_key;
 	int nritems;
-	/* need a new root */
-	if (!path->nodes[level]) {
-		struct tree_buffer *t;
-		t = alloc_free_block(root);
-		c = &t->node;
-		memset(c, 0, sizeof(c));
-		c->header.nritems = 2;
-		c->header.flags = node_level(level);
-		c->header.blocknr = t->blocknr;
-		c->header.parentid = root->node->node.header.parentid;
-		lower = &path->nodes[level-1]->node;
-		if (is_leaf(lower->header.flags))
-			lower_key = &((struct leaf *)lower)->items[0].key;
-		else
-			lower_key = lower->keys;
-		memcpy(c->keys, lower_key, sizeof(struct key));
-		memcpy(c->keys + 1, key, sizeof(struct key));
-		c->blockptrs[0] = path->nodes[level-1]->blocknr;
-		c->blockptrs[1] = blocknr;
-		/* the super has an extra ref to root->node */
-		tree_block_release(root, root->node);
-		root->node = t;
-		t->count++;
-		write_tree_block(root, t);
-		path->nodes[level] = t;
-		path->slots[level] = 0;
-		if (c->keys[1].objectid == 0)
-			BUG();
-		return 0;
-	}
+
+	BUG_ON(!path->nodes[level]);
 	lower = &path->nodes[level]->node;
 	nritems = lower->header.nritems;
 	if (slot > nritems)
@@ -396,93 +421,54 @@ int __insert_ptr(struct ctree_root *root,
 	return 0;
 }
 
-
-/*
- * insert a key,blocknr pair into the tree at a given level
- * If the node at that level in the path doesn't have room,
- * it is split or shifted as appropriate.
- */
-int insert_ptr(struct ctree_root *root,
-		struct ctree_path *path, struct key *key,
-		u64 blocknr, int level)
+int split_node(struct ctree_root *root, struct ctree_path *path, int level)
 {
-	struct tree_buffer *t = path->nodes[level];
-	struct node *c = &path->nodes[level]->node;
-	struct node *b;
-	struct tree_buffer *b_buffer;
-	struct tree_buffer *bal[MAX_LEVEL];
-	int bal_level = level;
+	struct tree_buffer *t;
+	struct node *c;
+	struct tree_buffer *split_buffer;
+	struct node *split;
 	int mid;
-	int bal_start = -1;
+	int ret;
 
-	/*
-	 * check to see if we need to make room in the node for this
-	 * pointer.  If we do, keep walking the tree, making sure there
-	 * is enough room in each level for the required insertions.
-	 *
-	 * The bal array is filled in with any nodes to be inserted
-	 * due to splitting.  Once we've done all the splitting required
-	 * do the inserts based on the data in the bal array.
-	 */
-	memset(bal, 0, sizeof(bal));
-	while(t && t->node.header.nritems == NODEPTRS_PER_BLOCK) {
-		c = &t->node;
-		if (push_node_left(root, path,
-		   node_level(c->header.flags)) == 0)
-			break;
-		if (push_node_right(root, path,
-		   node_level(c->header.flags)) == 0)
-			break;
-		bal_start = bal_level;
-		if (bal_level == MAX_LEVEL - 1)
-			BUG();
-		b_buffer = alloc_free_block(root);
-		b = &b_buffer->node;
-		b->header.flags = c->header.flags;
-		b->header.blocknr = b_buffer->blocknr;
-		b->header.parentid = root->node->node.header.parentid;
-		mid = (c->header.nritems + 1) / 2;
-		memcpy(b->keys, c->keys + mid,
-			(c->header.nritems - mid) * sizeof(struct key));
-		memcpy(b->blockptrs, c->blockptrs + mid,
-			(c->header.nritems - mid) * sizeof(u64));
-		b->header.nritems = c->header.nritems - mid;
-		c->header.nritems = mid;
-
-		write_tree_block(root, t);
-		write_tree_block(root, b_buffer);
-
-		bal[bal_level] = b_buffer;
-		if (bal_level == MAX_LEVEL - 1)
-			break;
-		bal_level += 1;
-		t = path->nodes[bal_level];
+	ret = push_node_left(root, path, level);
+	if (!ret)
+		return 0;
+	ret = push_node_right(root, path, level);
+	if (!ret)
+		return 0;
+	t = path->nodes[level];
+	c = &t->node;
+	if (t == root->node) {
+		/* trying to split the root, lets make a new one */
+		ret = insert_new_root(root, path, level + 1);
+		if (ret)
+			return ret;
 	}
-	/*
-	 * bal_start tells us the first level in the tree that needed to
-	 * be split.  Go through the bal array inserting the new nodes
-	 * as needed.  The path is fixed as we go.
-	 */
-	while(bal_start > 0) {
-		b_buffer = bal[bal_start];
-		c = &path->nodes[bal_start]->node;
-		__insert_ptr(root, path, b_buffer->node.keys, b_buffer->blocknr,
-				path->slots[bal_start + 1] + 1, bal_start + 1);
-		if (path->slots[bal_start] >= c->header.nritems) {
-			path->slots[bal_start] -= c->header.nritems;
-			tree_block_release(root, path->nodes[bal_start]);
-			path->nodes[bal_start] = b_buffer;
-			path->slots[bal_start + 1] += 1;
-		} else {
-			tree_block_release(root, b_buffer);
-		}
-		bal_start--;
-		if (!bal[bal_start])
-			break;
+	split_buffer = alloc_free_block(root);
+	split = &split_buffer->node;
+	split->header.flags = c->header.flags;
+	split->header.blocknr = split_buffer->blocknr;
+	split->header.parentid = root->node->node.header.parentid;
+	mid = (c->header.nritems + 1) / 2;
+	memcpy(split->keys, c->keys + mid,
+		(c->header.nritems - mid) * sizeof(struct key));
+	memcpy(split->blockptrs, c->blockptrs + mid,
+		(c->header.nritems - mid) * sizeof(u64));
+	split->header.nritems = c->header.nritems - mid;
+	c->header.nritems = mid;
+	write_tree_block(root, t);
+	write_tree_block(root, split_buffer);
+	insert_ptr(root, path, split->keys, split_buffer->blocknr,
+		     path->slots[level + 1] + 1, level + 1);
+	if (path->slots[level] > mid) {
+		path->slots[level] -= mid;
+		tree_block_release(root, t);
+		path->nodes[level] = split_buffer;
+		path->slots[level + 1] += 1;
+	} else {
+		tree_block_release(root, split_buffer);
 	}
-	/* Now that the tree has room, insert the requested pointer */
-	return __insert_ptr(root, path, key, blocknr, path->slots[level] + 1,
-			    level);
+	return 0;
 }
 
 /*
@@ -623,6 +609,11 @@ int split_leaf(struct ctree_root *root, struct ctree_path *path, int data_size)
 		if (leaf_free_space(l) >= sizeof(struct item) + data_size)
 			return 0;
 	}
+	if (!path->nodes[1]) {
+		ret = insert_new_root(root, path, 1);
+		if (ret)
+			return ret;
+	}
 	slot = path->slots[0];
 	nritems = l->header.nritems;
 	mid = (nritems + 1)/ 2;
@@ -659,8 +650,7 @@ int split_leaf(struct ctree_root *root, struct ctree_path *path, int data_size)
 
 	l->header.nritems = mid;
 	ret = insert_ptr(root, path, &right->items[0].key,
-			  right_buffer->blocknr, 1);
-
+			  right_buffer->blocknr, path->slots[1] + 1, 1);
 	write_tree_block(root, right_buffer);
 	write_tree_block(root, l_buf);
 
@@ -695,21 +685,10 @@ int insert_item(struct ctree_root *root, struct key *key,
 	refill_alloc_extent(root);
 
 	/* create a root if there isn't one */
-	if (!root->node) {
+	if (!root->node)
 		BUG();
-#if 0
-		struct tree_buffer *t;
-		t = alloc_free_block(root);
-		BUG_ON(!t);
-		t->node.header.nritems = 0;
-		t->node.header.flags = node_level(0);
-		t->node.header.blocknr = t->blocknr;
-		root->node = t;
-		write_tree_block(root, t);
-#endif
-	}
 	init_path(&path);
-	ret = search_slot(root, key, &path);
+	ret = search_slot(root, key, &path, data_size);
 	if (ret == 0) {
 		release_path(root, &path);
 		return -EEXIST;
@@ -719,12 +698,6 @@ int insert_item(struct ctree_root *root, struct key *key,
 	leaf_buf = path.nodes[0];
 	leaf = &leaf_buf->leaf;
 
-	/* make room if needed */
-	if (leaf_free_space(leaf) <  sizeof(struct item) + data_size) {
-		split_leaf(root, &path, data_size);
-		leaf_buf = path.nodes[0];
-		leaf = &path.nodes[0]->leaf;
-	}
 	nritems = leaf->header.nritems;
 	data_end = leaf_data_end(leaf);
 
@@ -950,7 +923,7 @@ int alloc_extent(struct ctree_root *orig_root, u64 num_blocks, u64 search_start,
 	ins->offset = 0;
 	ins->flags = 0;
 
-	ret = search_slot(root, ins, &path);
+	ret = search_slot(root, ins, &path, sizeof(struct extent_item));
 	while (1) {
 		l = &path.nodes[0]->leaf;
 		slot = path.slots[0];
@@ -1097,8 +1070,8 @@ void print_tree(struct ctree_root *root, struct tree_buffer *t)
 
 /* for testing only */
 int next_key(int i, int max_key) {
-	return rand() % max_key;
-	// return i;
+	// return rand() % max_key;
+	return i;
 }
 
 int main() {
@@ -1154,7 +1127,7 @@ int main() {
 		num = next_key(i, max_key);
 		ins.objectid = num;
 		init_path(&path);
-		ret = search_slot(root, &ins, &path);
+		ret = search_slot(root, &ins, &path, 0);
 		if (ret) {
 			print_tree(root, root->node);
 			printf("unable to find %d\n", num);
@@ -1176,7 +1149,7 @@ int main() {
 		num = next_key(i, max_key);
 		ins.objectid = num;
 		init_path(&path);
-		ret = search_slot(root, &ins, &path);
+		ret = search_slot(root, &ins, &path, 0);
 		if (ret)
 			continue;
 		ret = del_item(root, &path);
@@ -1204,7 +1177,7 @@ int main() {
 		num = next_key(i, max_key);
 		ins.objectid = num;
 		init_path(&path);
-		ret = search_slot(root, &ins, &path);
+		ret = search_slot(root, &ins, &path, 0);
 		if (ret) {
 			print_tree(root, root->node);
 			printf("unable to find %d\n", num);
@@ -1218,7 +1191,7 @@ int main() {
 		int slot;
 		ins.objectid = (u64)-1;
 		init_path(&path);
-		ret = search_slot(root, &ins, &path);
+		ret = search_slot(root, &ins, &path, 0);
 		if (ret == 0)
 			BUG();
 

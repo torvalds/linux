@@ -149,7 +149,8 @@ struct ctree_root *open_ctree(char *filename, struct ctree_super_block *super)
 	}
 	ret = pread(fp, super, sizeof(struct ctree_super_block),
 		     CTREE_SUPER_INFO_OFFSET(CTREE_BLOCKSIZE));
-	if (ret == 0) {
+	if (ret == 0 || super->root_info.tree_root == 0) {
+		printf("making new FS!\n");
 		ret = mkfs(fp);
 		if (ret)
 			return NULL;
