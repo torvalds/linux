@@ -31,7 +31,7 @@
 
 /*
  * Remap the peripherals from address 0xFFF78000 .. 0xFFFFFFFF
- * to 0xFEF78000 .. 0xFF000000.  (5444Kb)
+ * to 0xFEF78000 .. 0xFF000000.  (544Kb)
  */
 #define AT91_IO_PHYS_BASE	0xFFF78000
 #define AT91_IO_SIZE		(0xFFFFFFFF - AT91_IO_PHYS_BASE + 1)
