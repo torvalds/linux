@@ -140,6 +140,8 @@ int xfrm6_rcv(struct sk_buff **pskb)
 	return xfrm6_rcv_spi(*pskb, 0);
 }
 
+EXPORT_SYMBOL(xfrm6_rcv);
+
 int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		     xfrm_address_t *saddr, u8 proto)
 {
@@ -247,3 +249,5 @@ drop:
 		xfrm_state_put(xfrm_vec_one);
 	return -1;
 }
+
+EXPORT_SYMBOL(xfrm6_input_addr);

@@ -761,6 +761,7 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 	return err;
 }
 
+EXPORT_SYMBOL(ipv6_setsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_ipv6_setsockopt(struct sock *sk, int level, int optname,
@@ -1065,6 +1066,8 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 #endif
 	return err;
 }
+
+EXPORT_SYMBOL(ipv6_getsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_ipv6_getsockopt(struct sock *sk, int level, int optname,

@@ -239,6 +239,8 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	return -EMSGSIZE;
 }
 
+EXPORT_SYMBOL(ip6_xmit);
+
 /*
  *	To avoid extra problems ND packets are send through this
  *	routine. It's code duplication but I really want to avoid

@@ -575,6 +575,8 @@ struct rt6_info *rt6_lookup(struct in6_addr *daddr, struct in6_addr *saddr,
 	return NULL;
 }
 
+EXPORT_SYMBOL(rt6_lookup);
+
 /* ip6_ins_rt is called with FREE table->tb6_lock.
    It takes new route entry, the addition fails by any reason the
    route is freed. In any case, if caller does not hold it, it may
@@ -829,6 +831,7 @@ struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
 	return fib6_rule_lookup(fl, flags, ip6_pol_route_output);
 }
 
+EXPORT_SYMBOL(ip6_route_output);
 
 /*
  *	Destination cache support functions

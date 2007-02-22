@@ -271,6 +271,8 @@ void in6_dev_finish_destroy(struct inet6_dev *idev)
 	call_rcu(&idev->rcu, in6_dev_finish_destroy_rcu);
 }
 
+EXPORT_SYMBOL(in6_dev_finish_destroy);
+
 static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 {
 	struct inet6_dev *ndev;
@@ -1107,6 +1109,7 @@ int ipv6_get_saddr(struct dst_entry *dst,
 	return ipv6_dev_get_saddr(dst ? ip6_dst_idev(dst)->dev : NULL, daddr, saddr);
 }
 
+EXPORT_SYMBOL(ipv6_get_saddr);
 
 int ipv6_get_lladdr(struct net_device *dev, struct in6_addr *addr)
 {
@@ -1160,6 +1163,8 @@ int ipv6_chk_addr(struct in6_addr *addr, struct net_device *dev, int strict)
 	read_unlock_bh(&addrconf_hash_lock);
 	return ifp != NULL;
 }
+
+EXPORT_SYMBOL(ipv6_chk_addr);
 
 static
 int ipv6_chk_same_addr(const struct in6_addr *addr, struct net_device *dev)
@@ -4021,10 +4026,14 @@ int register_inet6addr_notifier(struct notifier_block *nb)
 	return atomic_notifier_chain_register(&inet6addr_chain, nb);
 }
 
+EXPORT_SYMBOL(register_inet6addr_notifier);
+
 int unregister_inet6addr_notifier(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_unregister(&inet6addr_chain,nb);
 }
+
+EXPORT_SYMBOL(unregister_inet6addr_notifier);
 
 /*
  *	Init / cleanup code

@@ -349,6 +349,8 @@ out:
 	return err;
 }
 
+EXPORT_SYMBOL(inet6_bind);
+
 int inet6_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
@@ -364,6 +366,8 @@ int inet6_release(struct socket *sock)
 
 	return inet_release(sock);
 }
+
+EXPORT_SYMBOL(inet6_release);
 
 int inet6_destroy_sock(struct sock *sk)
 {
@@ -428,6 +432,8 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 	return(0);
 }
 
+EXPORT_SYMBOL(inet6_getname);
+
 int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
@@ -456,6 +462,8 @@ int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	/*NOTREACHED*/
 	return(0);
 }
+
+EXPORT_SYMBOL(inet6_ioctl);
 
 const struct proto_ops inet6_stream_ops = {
 	.family		   = PF_INET6,
@@ -603,6 +611,8 @@ out_illegal:
 	goto out;
 }
 
+EXPORT_SYMBOL(inet6_register_protosw);
+
 void
 inet6_unregister_protosw(struct inet_protosw *p)
 {
@@ -618,6 +628,8 @@ inet6_unregister_protosw(struct inet_protosw *p)
 		synchronize_net();
 	}
 }
+
+EXPORT_SYMBOL(inet6_unregister_protosw);
 
 int inet6_sk_rebuild_header(struct sock *sk)
 {

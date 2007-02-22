@@ -319,6 +319,8 @@ int ndisc_mc_map(struct in6_addr *addr, char *buf, struct net_device *dev, int d
 	return -EINVAL;
 }
 
+EXPORT_SYMBOL(ndisc_mc_map);
+
 static u32 ndisc_hash(const void *pkey, const struct net_device *dev)
 {
 	const u32 *p32 = pkey;

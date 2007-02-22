@@ -68,6 +68,7 @@
 #include <asm/system.h>
 
 DEFINE_SNMP_STAT(struct icmpv6_mib, icmpv6_statistics) __read_mostly;
+EXPORT_SYMBOL(icmpv6_statistics);
 
 /*
  *	The ICMP socket(s). This is the most convenient way to flow control
@@ -465,6 +466,8 @@ out_dst_release:
 out:
 	icmpv6_xmit_unlock();
 }
+
+EXPORT_SYMBOL(icmpv6_send);
 
 static void icmpv6_echo_reply(struct sk_buff *skb)
 {
@@ -864,6 +867,8 @@ int icmpv6_err_convert(int type, int code, int *err)
 
 	return fatal;
 }
+
+EXPORT_SYMBOL(icmpv6_err_convert);
 
 #ifdef CONFIG_SYSCTL
 ctl_table ipv6_icmp_table[] = {
