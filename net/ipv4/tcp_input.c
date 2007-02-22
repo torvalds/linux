@@ -1266,7 +1266,7 @@ void tcp_enter_frto(struct sock *sk)
 	tp->undo_retrans = 0;
 
 	sk_stream_for_retrans_queue(skb, sk) {
-		TCP_SKB_CB(skb)->sacked &= ~TCPCB_RETRANS;
+		TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 	}
 	tcp_sync_left_out(tp);
 
