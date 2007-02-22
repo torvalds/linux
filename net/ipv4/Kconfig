@@ -574,6 +574,20 @@ config TCP_CONG_VENO
 	loss packets.
 	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
 
+config TCP_CONG_YEAH
+	tristate "YeAH TCP"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	YeAH-TCP is a sender-side high-speed enabled TCP congestion control
+	algorithm, which uses a mixed loss/delay approach to compute the
+	congestion window. It's design goals target high efficiency,
+	internal, RTT and Reno fairness, resilience to link loss while
+	keeping network elements load as low as possible.
+
+	For further details look here:
+	  http://wil.cs.caltech.edu/pfldnet2007/paper/YeAH_TCP.pdf
+
 choice
 	prompt "Default TCP congestion control"
 	default DEFAULT_CUBIC
