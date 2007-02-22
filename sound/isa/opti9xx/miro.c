@@ -25,7 +25,7 @@
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/platform_device.h>
+#include <linux/isa.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
@@ -138,8 +138,6 @@ struct snd_miro {
 static void snd_miro_proc_init(struct snd_miro * miro);
 
 #define DRIVER_NAME "snd-miro"
-
-static struct platform_device *device;
 
 static char * snd_opti9xx_names[] = {
 	"unkown",
@@ -558,7 +556,7 @@ static int snd_miro_put_double(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_miro_controls[] = {
+static struct snd_kcontrol_new snd_miro_controls[] __devinitdata = {
 MIRO_DOUBLE("Master Playback Volume", 0, ACI_GET_MASTER, ACI_SET_MASTER),
 MIRO_DOUBLE("Mic Playback Volume", 1, ACI_GET_MIC, ACI_SET_MIC),
 MIRO_DOUBLE("Line Playback Volume", 1, ACI_GET_LINE, ACI_SET_LINE),
@@ -570,7 +568,7 @@ MIRO_DOUBLE("Aux Playback Volume", 2, ACI_GET_LINE2, ACI_SET_LINE2),
 
 /* Equalizer with seven bands (only PCM20) 
    from -12dB up to +12dB on each band */
-static struct snd_kcontrol_new snd_miro_eq_controls[] = {
+static struct snd_kcontrol_new snd_miro_eq_controls[] __devinitdata = {
 MIRO_DOUBLE("Tone Control - 28 Hz", 0, ACI_GET_EQ1, ACI_SET_EQ1),
 MIRO_DOUBLE("Tone Control - 160 Hz", 0, ACI_GET_EQ2, ACI_SET_EQ2),
 MIRO_DOUBLE("Tone Control - 400 Hz", 0, ACI_GET_EQ3, ACI_SET_EQ3),
@@ -580,15 +578,15 @@ MIRO_DOUBLE("Tone Control - 6.3 kHz", 0, ACI_GET_EQ6, ACI_SET_EQ6),
 MIRO_DOUBLE("Tone Control - 16 kHz", 0, ACI_GET_EQ7, ACI_SET_EQ7),
 };
 
-static struct snd_kcontrol_new snd_miro_radio_control[] = {
+static struct snd_kcontrol_new snd_miro_radio_control[] __devinitdata = {
 MIRO_DOUBLE("Radio Playback Volume", 0, ACI_GET_LINE1, ACI_SET_LINE1),
 };
 
-static struct snd_kcontrol_new snd_miro_line_control[] = {
+static struct snd_kcontrol_new snd_miro_line_control[] __devinitdata = {
 MIRO_DOUBLE("Line Playback Volume", 2, ACI_GET_LINE1, ACI_SET_LINE1),
 };
 
-static struct snd_kcontrol_new snd_miro_preamp_control[] = {
+static struct snd_kcontrol_new snd_miro_preamp_control[] __devinitdata = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Mic Boost",
@@ -598,7 +596,7 @@ static struct snd_kcontrol_new snd_miro_preamp_control[] = {
 	.put = snd_miro_put_preamp,
 }};
 
-static struct snd_kcontrol_new snd_miro_amp_control[] = {
+static struct snd_kcontrol_new snd_miro_amp_control[] __devinitdata = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Line Boost",
@@ -608,7 +606,7 @@ static struct snd_kcontrol_new snd_miro_amp_control[] = {
 	.put = snd_miro_put_amp,
 }};
 
-static struct snd_kcontrol_new snd_miro_capture_control[] = {
+static struct snd_kcontrol_new snd_miro_capture_control[] __devinitdata = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Capture Switch",
@@ -618,7 +616,7 @@ static struct snd_kcontrol_new snd_miro_capture_control[] = {
 	.put = snd_miro_put_capture,
 }};
 
-static unsigned char aci_init_values[][2] __initdata = {
+static unsigned char aci_init_values[][2] __devinitdata = {
 	{ ACI_SET_MUTE, 0x00 },
 	{ ACI_SET_POWERAMP, 0x00 },
 	{ ACI_SET_PREAMP, 0x00 },
@@ -641,7 +639,7 @@ static unsigned char aci_init_values[][2] __initdata = {
 	{ ACI_SET_MASTER + 1, 0x20 },
 };
 
-static int __init snd_set_aci_init_values(struct snd_miro *miro)
+static int __devinit snd_set_aci_init_values(struct snd_miro *miro)
 {
 	int idx, error;
 
@@ -751,7 +749,8 @@ static long snd_legacy_find_free_ioport(long *port_table, long size)
 	return -1;
 }
 
-static int __init snd_miro_init(struct snd_miro *chip, unsigned short hardware)
+static int __devinit snd_miro_init(struct snd_miro *chip,
+				   unsigned short hardware)
 {
 	static int opti9xx_mc_size[] = {7, 7, 10, 10, 2, 2, 2};
 
@@ -962,7 +961,7 @@ static void snd_miro_proc_read(struct snd_info_entry * entry,
 	snd_iprintf(buffer, "  preamp  : 0x%x\n", miro->aci_preamp);
 }
 
-static void __init snd_miro_proc_init(struct snd_miro * miro)
+static void __devinit snd_miro_proc_init(struct snd_miro * miro)
 {
 	struct snd_info_entry *entry;
 
@@ -974,7 +973,7 @@ static void __init snd_miro_proc_init(struct snd_miro * miro)
  *  Init
  */
 
-static int __init snd_miro_configure(struct snd_miro *chip)
+static int __devinit snd_miro_configure(struct snd_miro *chip)
 {
 	unsigned char wss_base_bits;
 	unsigned char irq_bits;
@@ -1131,7 +1130,8 @@ __skip_mpu:
 	return 0;
 }
 
-static int __init snd_card_miro_detect(struct snd_card *card, struct snd_miro *chip)
+static int __devinit snd_card_miro_detect(struct snd_card *card,
+					  struct snd_miro *chip)
 {
 	int i, err;
 	unsigned char value;
@@ -1157,7 +1157,8 @@ static int __init snd_card_miro_detect(struct snd_card *card, struct snd_miro *c
 	return -ENODEV;
 }
 
-static int __init snd_card_miro_aci_detect(struct snd_card *card, struct snd_miro * miro)
+static int __devinit snd_card_miro_aci_detect(struct snd_card *card,
+					      struct snd_miro * miro)
 {
 	unsigned char regval;
 	int i;
@@ -1213,7 +1214,12 @@ static void snd_card_miro_free(struct snd_card *card)
 	release_and_free_resource(miro->res_mc_base);
 }
 
-static int __init snd_miro_probe(struct platform_device *devptr)
+static int __devinit snd_miro_match(struct device *devptr, unsigned int n)
+{
+	return 1;
+}
+
+static int __devinit snd_miro_probe(struct device *devptr, unsigned int n)
 {
 	static long possible_ports[] = {0x530, 0xe80, 0xf40, 0x604, -1};
 	static long possible_mpu_ports[] = {0x330, 0x300, 0x310, 0x320, -1};
@@ -1399,25 +1405,26 @@ static int __init snd_miro_probe(struct platform_device *devptr)
                 return error;
 	}
 
-	snd_card_set_dev(card, &devptr->dev);
+	snd_card_set_dev(card, devptr);
 
 	if ((error = snd_card_register(card))) {
 		snd_card_free(card);
 		return error;
 	}
 
-	platform_set_drvdata(devptr, card);
+	dev_set_drvdata(devptr, card);
 	return 0;
 }
 
-static int __devexit snd_miro_remove(struct platform_device *devptr)
+static int __devexit snd_miro_remove(struct device *devptr, unsigned int dev)
 {
-	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
+	snd_card_free(dev_get_drvdata(devptr));
+	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 
-static struct platform_driver snd_miro_driver = {
+static struct isa_driver snd_miro_driver = {
+	.match		= snd_miro_match,
 	.probe		= snd_miro_probe,
 	.remove		= __devexit_p(snd_miro_remove),
 	/* FIXME: suspend/resume */
@@ -1428,27 +1435,12 @@ static struct platform_driver snd_miro_driver = {
 
 static int __init alsa_card_miro_init(void)
 {
-	int error;
-
-	if ((error = platform_driver_register(&snd_miro_driver)) < 0)
-		return error;
-	device = platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
-	if (! IS_ERR(device)) {
-		if (platform_get_drvdata(device))
-			return 0;
-		platform_device_unregister(device);
-	}
-#ifdef MODULE
-	printk(KERN_ERR "no miro soundcard found\n");
-#endif
-	platform_driver_unregister(&snd_miro_driver);
-	return PTR_ERR(device);
+	return isa_register_driver(&snd_miro_driver, 1);
 }
 
 static void __exit alsa_card_miro_exit(void)
 {
-	platform_device_unregister(device);
-	platform_driver_unregister(&snd_miro_driver);
+	isa_unregister_driver(&snd_miro_driver);
 }
 
 module_init(alsa_card_miro_init)

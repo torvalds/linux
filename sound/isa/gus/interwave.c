@@ -25,7 +25,7 @@
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/platform_device.h>
+#include <linux/isa.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pnp.h>
@@ -115,9 +115,6 @@ MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for InterWave driver.");
 module_param_array(effect, int, NULL, 0444);
 MODULE_PARM_DESC(effect, "Effects enable for InterWave driver.");
 
-static struct platform_device *platform_devices[SNDRV_CARDS];
-static int pnp_registered;
-
 struct snd_interwave {
 	int irq;
 	struct snd_card *card;
@@ -138,6 +135,7 @@ struct snd_interwave {
 
 
 #ifdef CONFIG_PNP
+static int pnp_registered;
 
 static struct pnp_card_device_id snd_interwave_pnpids[] = {
 #ifndef SNDRV_STB
@@ -793,7 +791,7 @@ static int __devinit snd_interwave_probe(struct snd_card *card, int dev)
 	return 0;
 }
 
-static int __devinit snd_interwave_nonpnp_probe1(int dev, struct platform_device *devptr)
+static int __devinit snd_interwave_isa_probe1(int dev, struct device *devptr)
 {
 	struct snd_card *card;
 	int err;
@@ -802,18 +800,30 @@ static int __devinit snd_interwave_nonpnp_probe1(int dev, struct platform_device
 	if (! card)
 		return -ENOMEM;
 
-	snd_card_set_dev(card, &devptr->dev);
+	snd_card_set_dev(card, devptr);
 	if ((err = snd_interwave_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	platform_set_drvdata(devptr, card);
+	dev_set_drvdata(devptr, card);
 	return 0;
 }
 
-static int __devinit snd_interwave_nonpnp_probe(struct platform_device *pdev)
+static int __devinit snd_interwave_isa_match(struct device *pdev,
+					     unsigned int dev)
 {
-	int dev = pdev->id;
+	if (!enable[dev])
+		return 0;
+#ifdef CONFIG_PNP
+	if (isapnp[dev])
+		return 0;
+#endif
+	return 1;
+}
+
+static int __devinit snd_interwave_isa_probe(struct device *pdev,
+					     unsigned int dev)
+{
 	int err;
 	static int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, -1};
 	static int possible_dmas[] = {0, 1, 3, 5, 6, 7, -1};
@@ -838,13 +848,13 @@ static int __devinit snd_interwave_nonpnp_probe(struct platform_device *pdev)
 	}
 
 	if (port[dev] != SNDRV_AUTO_PORT)
-		return snd_interwave_nonpnp_probe1(dev, pdev);
+		return snd_interwave_isa_probe1(dev, pdev);
 	else {
 		static long possible_ports[] = {0x210, 0x220, 0x230, 0x240, 0x250, 0x260};
 		int i;
 		for (i = 0; i < ARRAY_SIZE(possible_ports); i++) {
 			port[dev] = possible_ports[i];
-			err = snd_interwave_nonpnp_probe1(dev, pdev);
+			err = snd_interwave_isa_probe1(dev, pdev);
 			if (! err)
 				return 0;
 		}
@@ -852,16 +862,17 @@ static int __devinit snd_interwave_nonpnp_probe(struct platform_device *pdev)
 	}
 }
 
-static int __devexit snd_interwave_nonpnp_remove(struct platform_device *devptr)
+static int __devexit snd_interwave_isa_remove(struct device *devptr, unsigned int dev)
 {
-	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
+	snd_card_free(dev_get_drvdata(devptr));
+	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 
-static struct platform_driver snd_interwave_driver = {
-	.probe		= snd_interwave_nonpnp_probe,
-	.remove		= __devexit_p(snd_interwave_nonpnp_remove),
+static struct isa_driver snd_interwave_driver = {
+	.match		= snd_interwave_isa_match,
+	.probe		= snd_interwave_isa_probe,
+	.remove		= __devexit_p(snd_interwave_isa_remove),
 	/* FIXME: suspend,resume */
 	.driver		= {
 		.name	= INTERWAVE_DRIVER
@@ -869,8 +880,6 @@ static struct platform_driver snd_interwave_driver = {
 };
 
 #ifdef CONFIG_PNP
-static unsigned int __devinitdata interwave_pnp_devices;
-
 static int __devinit snd_interwave_pnp_detect(struct pnp_card_link *pcard,
 					      const struct pnp_card_device_id *pid)
 {
@@ -900,7 +909,6 @@ static int __devinit snd_interwave_pnp_detect(struct pnp_card_link *pcard,
 	}
 	pnp_set_card_drvdata(pcard, card);
 	dev++;
-	interwave_pnp_devices++;
 	return 0;
 }
 
@@ -921,64 +929,29 @@ static struct pnp_card_driver interwave_pnpc_driver = {
 
 #endif /* CONFIG_PNP */
 
-static void __init_or_module snd_interwave_unregister_all(void)
-{
-	int i;
-
-	if (pnp_registered)
-		pnp_unregister_card_driver(&interwave_pnpc_driver);
-	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
-		platform_device_unregister(platform_devices[i]);
-	platform_driver_unregister(&snd_interwave_driver);
-}
-
 static int __init alsa_card_interwave_init(void)
 {
-	int i, err, cards = 0;
+	int err;
 
-	if ((err = platform_driver_register(&snd_interwave_driver)) < 0)
+	err = isa_register_driver(&snd_interwave_driver, SNDRV_CARDS);
+	if (err < 0)
 		return err;
-
-	for (i = 0; i < SNDRV_CARDS; i++) {
-		struct platform_device *device;
-		if (! enable[i])
-			continue;
 #ifdef CONFIG_PNP
-		if (isapnp[i])
-			continue;
-#endif
-		device = platform_device_register_simple(INTERWAVE_DRIVER,
-							 i, NULL, 0);
-		if (IS_ERR(device))
-			continue;
-		if (!platform_get_drvdata(device)) {
-			platform_device_unregister(device);
-			continue;
-		}
-		platform_devices[i] = device;
-		cards++;
-	}
-
 	/* ISA PnP cards */
 	err = pnp_register_card_driver(&interwave_pnpc_driver);
-	if (!err) {
+	if (!err)
 		pnp_registered = 1;
-		cards += interwave_pnp_devices;;
-	}
-
-	if (!cards) {
-#ifdef MODULE
-		printk(KERN_ERR "InterWave soundcard not found or device busy\n");
 #endif
-		snd_interwave_unregister_all();
-		return -ENODEV;
-	}
 	return 0;
 }
 
 static void __exit alsa_card_interwave_exit(void)
 {
-	snd_interwave_unregister_all();
+#ifdef CONFIG_PNP
+	if (pnp_registered)
+		pnp_unregister_card_driver(&interwave_pnpc_driver);
+#endif
+	isa_unregister_driver(&snd_interwave_driver);
 }
 
 module_init(alsa_card_interwave_init)
