@@ -1547,6 +1547,10 @@ static int tcp_time_to_recover(struct sock *sk, struct tcp_sock *tp)
 {
 	__u32 packets_out;
 
+	/* Do not perform any recovery during FRTO algorithm */
+	if (tp->frto_counter)
+		return 0;
+
 	/* Trick#1: The loss is proven. */
 	if (tp->lost_out)
 		return 1;
