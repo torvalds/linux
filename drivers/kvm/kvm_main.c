@@ -792,9 +792,9 @@ static int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	if (!memslot->dirty_bitmap)
 		goto out;
 
-	n = ALIGN(memslot->npages, 8) / 8;
+	n = ALIGN(memslot->npages, BITS_PER_LONG) / 8;
 
-	for (i = 0; !any && i < n; ++i)
+	for (i = 0; !any && i < n/sizeof(long); ++i)
 		any = memslot->dirty_bitmap[i];
 
 	r = -EFAULT;
