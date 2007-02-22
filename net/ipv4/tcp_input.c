@@ -1236,6 +1236,19 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	return flag;
 }
 
+int tcp_use_frto(const struct sock *sk)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+
+	/* F-RTO must be activated in sysctl and there must be some
+	 * unsent new data, and the advertised window should allow
+	 * sending it.
+	 */
+	return (sysctl_tcp_frto && sk->sk_send_head &&
+		!after(TCP_SKB_CB(sk->sk_send_head)->end_seq,
+		       tp->snd_una + tp->snd_wnd));
+}
+
 /* RTO occurred, but do not yet enter loss state. Instead, transmit two new
  * segments to see from the next ACKs whether any data was really missing.
  * If the RTO was spurious, new ACKs should arrive.

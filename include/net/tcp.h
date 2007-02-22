@@ -341,6 +341,7 @@ extern struct sock *		tcp_check_req(struct sock *sk,struct sk_buff *skb,
 extern int			tcp_child_process(struct sock *parent,
 						  struct sock *child,
 						  struct sk_buff *skb);
+extern int			tcp_use_frto(const struct sock *sk);
 extern void			tcp_enter_frto(struct sock *sk);
 extern void			tcp_enter_loss(struct sock *sk, int how);
 extern void			tcp_clear_retrans(struct tcp_sock *tp);
@@ -1032,19 +1033,6 @@ static inline int tcp_paws_check(const struct tcp_options_received *rx_opt, int 
 }
 
 #define TCP_CHECK_TIMER(sk) do { } while (0)
-
-static inline int tcp_use_frto(const struct sock *sk)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	
-	/* F-RTO must be activated in sysctl and there must be some
-	 * unsent new data, and the advertised window should allow
-	 * sending it.
-	 */
-	return (sysctl_tcp_frto && sk->sk_send_head &&
-		!after(TCP_SKB_CB(sk->sk_send_head)->end_seq,
-		       tp->snd_una + tp->snd_wnd));
-}
 
 static inline void tcp_mib_init(void)
 {
