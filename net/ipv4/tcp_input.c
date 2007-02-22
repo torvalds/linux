@@ -2467,6 +2467,15 @@ static int tcp_ack_update_window(struct sock *sk, struct tcp_sock *tp,
 	return flag;
 }
 
+/* A very conservative spurious RTO response algorithm: reduce cwnd and
+ * continue in congestion avoidance.
+ */
+static void tcp_conservative_spur_to_response(struct tcp_sock *tp)
+{
+	tp->snd_cwnd = min(tp->snd_cwnd, tp->snd_ssthresh);
+	tcp_moderate_cwnd(tp);
+}
+
 static void tcp_process_frto(struct sock *sk, u32 prior_snd_una)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -2488,12 +2497,7 @@ static void tcp_process_frto(struct sock *sk, u32 prior_snd_una)
 		 */
 		tp->snd_cwnd = tcp_packets_in_flight(tp) + 2;
 	} else {
-		/* Also the second ACK after RTO advances the window.
-		 * The RTO was likely spurious. Reduce cwnd and continue
-		 * in congestion avoidance
-		 */
-		tp->snd_cwnd = min(tp->snd_cwnd, tp->snd_ssthresh);
-		tcp_moderate_cwnd(tp);
+		tcp_conservative_spur_to_response(tp);
 	}
 
 	/* F-RTO affects on two new ACKs following RTO.
