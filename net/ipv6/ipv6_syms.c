@@ -6,7 +6,6 @@
 #include <net/ip6_route.h>
 #include <net/xfrm.h>
 
-EXPORT_SYMBOL(__ipv6_addr_type);
 EXPORT_SYMBOL(icmpv6_send);
 EXPORT_SYMBOL(icmpv6_statistics);
 EXPORT_SYMBOL(icmpv6_err_convert);
