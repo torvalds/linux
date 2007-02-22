@@ -1037,6 +1037,7 @@ static int io_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	kvm_run->io.size = ((io_info & SVM_IOIO_SIZE_MASK) >> SVM_IOIO_SIZE_SHIFT);
 	kvm_run->io.string = (io_info & SVM_IOIO_STR_MASK) != 0;
 	kvm_run->io.rep = (io_info & SVM_IOIO_REP_MASK) != 0;
+	kvm_run->io.count = 1;
 
 	if (kvm_run->io.string) {
 		unsigned addr_mask;
@@ -1056,6 +1057,7 @@ static int io_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		}
 	} else
 		kvm_run->io.value = vcpu->svm->vmcb->save.rax;
+	vcpu->pio_pending = 1;
 	return 0;
 }
 

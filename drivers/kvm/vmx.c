@@ -1459,12 +1459,14 @@ static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		= (vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_DF) != 0;
 	kvm_run->io.rep = (exit_qualification & 32) != 0;
 	kvm_run->io.port = exit_qualification >> 16;
+	kvm_run->io.count = 1;
 	if (kvm_run->io.string) {
 		if (!get_io_count(vcpu, &kvm_run->io.count))
 			return 1;
 		kvm_run->io.address = vmcs_readl(GUEST_LINEAR_ADDRESS);
 	} else
 		kvm_run->io.value = vcpu->regs[VCPU_REGS_RAX]; /* rax */
+	vcpu->pio_pending = 1;
 	return 0;
 }
 

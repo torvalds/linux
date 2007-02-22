@@ -274,6 +274,7 @@ struct kvm_vcpu {
 	int mmio_size;
 	unsigned char mmio_data[8];
 	gpa_t mmio_phys_addr;
+	int pio_pending;
 
 	struct {
 		int active;
