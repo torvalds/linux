@@ -31,6 +31,7 @@
 #include <linux/profile.h>
 #include <linux/miscdevice.h>
 #include <linux/rtc.h>
+#include <linux/kernel_stat.h>
 
 #include <asm/oplib.h>
 #include <asm/mostek.h>
@@ -423,12 +424,6 @@ static struct sparc64_tick_ops hbtick_operations __read_mostly = {
 	.softint_mask	=	1UL << 0,
 };
 
-/* timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "do_timer()" routine every clocktick
- *
- * NOTE: On SUN5 systems the ticker interrupt comes in using 2
- *       interrupts, one at level14 and one with softint bit 0.
- */
 unsigned long timer_tick_offset __read_mostly;
 
 static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
@@ -487,18 +482,27 @@ void notify_arch_cmos_timer(void)
 	mod_timer(&sync_cmos_timer, jiffies + 1);
 }
 
-irqreturn_t timer_interrupt(int irq, void *dev_id)
+void timer_interrupt(int irq, struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned long ticks, compare, pstate;
+	unsigned long tick_mask = tick_ops->softint_mask;
 
-	write_seqlock(&xtime_lock);
+	clear_softint(tick_mask);
+
+	irq_enter();
+
+	kstat_this_cpu.irqs[0]++;
 
 	do {
-#ifndef CONFIG_SMP
 		profile_tick(CPU_PROFILING);
 		update_process_times(user_mode(get_irq_regs()));
-#endif
-		do_timer(1);
+
+		if (smp_processor_id() == boot_cpu_id) {
+			write_seqlock(&xtime_lock);
+			do_timer(1);
+			write_sequnlock(&xtime_lock);
+		}
 
 		/* Guarantee that the following sequences execute
 		 * uninterrupted.
@@ -515,23 +519,12 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 		__asm__ __volatile__("wrpr	%0, 0x0, %%pstate"
 				     : /* no outputs */
 				     : "r" (pstate));
-	} while (time_after_eq(ticks, compare));
+	} while (unlikely(time_after_eq(ticks, compare)));
 
-	write_sequnlock(&xtime_lock);
+	irq_exit();
 
-	return IRQ_HANDLED;
+	set_irq_regs(old_regs);
 }
-
-#ifdef CONFIG_SMP
-void timer_tick_interrupt(struct pt_regs *regs)
-{
-	write_seqlock(&xtime_lock);
-
-	do_timer(1);
-
-	write_sequnlock(&xtime_lock);
-}
-#endif
 
 /* Kick start a stopped clock (procedure from the Sun NVRAM/hostid FAQ). */
 static void __init kick_start_clock(void)

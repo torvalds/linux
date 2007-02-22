@@ -60,11 +60,7 @@ tl0_irq4:	BTRAP(0x44)
 tl0_irq5:	TRAP_IRQ(handler_irq, 5)
 tl0_irq6:	BTRAP(0x46) BTRAP(0x47) BTRAP(0x48) BTRAP(0x49)
 tl0_irq10:	BTRAP(0x4a) BTRAP(0x4b) BTRAP(0x4c) BTRAP(0x4d)
-#ifndef CONFIG_SMP
-tl0_irq14:	TRAP_IRQ(timer_irq, 14)
-#else
-tl0_irq14:	TICK_SMP_IRQ
-#endif
+tl0_irq14:	TRAP_IRQ(timer_interrupt, 14)
 tl0_irq15:	TRAP_IRQ(handler_irq, 15)
 tl0_resv050:	BTRAP(0x50) BTRAP(0x51) BTRAP(0x52) BTRAP(0x53) BTRAP(0x54) BTRAP(0x55)
 tl0_resv056:	BTRAP(0x56) BTRAP(0x57) BTRAP(0x58) BTRAP(0x59) BTRAP(0x5a) BTRAP(0x5b)
