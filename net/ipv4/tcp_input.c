@@ -2551,11 +2551,11 @@ static void tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 
 	if (tp->frto_counter == 1) {
 		tp->snd_cwnd = tcp_packets_in_flight(tp) + 2;
+		tp->frto_counter = 2;
 	} else /* frto_counter == 2 */ {
 		tcp_conservative_spur_to_response(tp);
+		tp->frto_counter = 0;
 	}
-
-	tp->frto_counter = (tp->frto_counter + 1) % 3;
 }
 
 /* This routine deals with incoming acks, but not outgoing ones. */
