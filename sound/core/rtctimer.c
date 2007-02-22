@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
+#include <linux/log2.h>
 #include <sound/core.h>
 #include <sound/timer.h>
 
@@ -129,7 +130,7 @@ static int __init rtctimer_init(void)
 	struct snd_timer *timer;
 
 	if (rtctimer_freq < 2 || rtctimer_freq > 8192 ||
-	    (rtctimer_freq & (rtctimer_freq - 1)) != 0) {
+	    !is_power_of_2(rtctimer_freq)) {
 		snd_printk(KERN_ERR "rtctimer: invalid frequency %d\n",
 			   rtctimer_freq);
 		return -EINVAL;
