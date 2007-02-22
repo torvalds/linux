@@ -22,59 +22,8 @@
  *
  */
 
-#define AC97_SINGLE_VALUE(reg,shift,mask,invert) ((reg) | ((shift) << 8) | ((shift) << 12) | ((mask) << 16) | ((invert) << 24))
-#define AC97_PAGE_SINGLE_VALUE(reg,shift,mask,invert,page) (AC97_SINGLE_VALUE(reg,shift,mask,invert) | (1<<25) | ((page) << 26))
-#define AC97_SINGLE(xname, reg, shift, mask, invert) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .info = snd_ac97_info_volsw, \
-  .get = snd_ac97_get_volsw, .put = snd_ac97_put_volsw, \
-  .private_value =  AC97_SINGLE_VALUE(reg, shift, mask, invert) }
-#define AC97_PAGE_SINGLE(xname, reg, shift, mask, invert, page)		\
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .info = snd_ac97_info_volsw, \
-  .get = snd_ac97_get_volsw, .put = snd_ac97_put_volsw, \
-  .private_value =  AC97_PAGE_SINGLE_VALUE(reg, shift, mask, invert, page) }
-#define AC97_DOUBLE(xname, reg, shift_left, shift_right, mask, invert) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), .info = snd_ac97_info_volsw, \
-  .get = snd_ac97_get_volsw, .put = snd_ac97_put_volsw, \
-  .private_value = (reg) | ((shift_left) << 8) | ((shift_right) << 12) | ((mask) << 16) | ((invert) << 24) }
-
-/* enum control */
-struct ac97_enum {
-	unsigned char reg;
-	unsigned char shift_l;
-	unsigned char shift_r;
-	unsigned short mask;
-	const char **texts;
-};
-
-#define AC97_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmask, xtexts) \
-{ .reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
-  .mask = xmask, .texts = xtexts }
-#define AC97_ENUM_SINGLE(xreg, xshift, xmask, xtexts) \
-	AC97_ENUM_DOUBLE(xreg, xshift, xshift, xmask, xtexts)
-#define AC97_ENUM(xname, xenum) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .info = snd_ac97_info_enum_double, \
-  .get = snd_ac97_get_enum_double, .put = snd_ac97_put_enum_double, \
-  .private_value = (unsigned long)&xenum }
-
-/* ac97_codec.c */
-extern const struct snd_kcontrol_new snd_ac97_controls_3d[];
-extern const struct snd_kcontrol_new snd_ac97_controls_spdif[];
-struct snd_kcontrol *snd_ac97_cnew(const struct snd_kcontrol_new *_template, struct snd_ac97 * ac97);
-void snd_ac97_get_name(struct snd_ac97 *ac97, unsigned int id, char *name, int modem);
-int snd_ac97_info_volsw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
-int snd_ac97_get_volsw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
-int snd_ac97_put_volsw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
-int snd_ac97_try_bit(struct snd_ac97 * ac97, int reg, int bit);
-int snd_ac97_remove_ctl(struct snd_ac97 *ac97, const char *name, const char *suffix);
-int snd_ac97_rename_ctl(struct snd_ac97 *ac97, const char *src, const char *dst, const char *suffix);
-int snd_ac97_swap_ctl(struct snd_ac97 *ac97, const char *s1, const char *s2, const char *suffix);
-void snd_ac97_rename_vol_ctl(struct snd_ac97 *ac97, const char *src, const char *dst);
-void snd_ac97_restore_status(struct snd_ac97 *ac97);
-void snd_ac97_restore_iec958(struct snd_ac97 *ac97);
-int snd_ac97_info_enum_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
-int snd_ac97_get_enum_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
-int snd_ac97_put_enum_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
-
+void snd_ac97_get_name(struct snd_ac97 *ac97, unsigned int id, char *name,
+		       int modem);
 int snd_ac97_update_bits_nolock(struct snd_ac97 *ac97, unsigned short reg,
 				unsigned short mask, unsigned short value);
 

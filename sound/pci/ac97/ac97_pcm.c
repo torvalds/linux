@@ -34,7 +34,6 @@
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
 #include <sound/asoundef.h>
-#include "ac97_patch.h"
 #include "ac97_id.h"
 #include "ac97_local.h"
 
