@@ -210,7 +210,7 @@ int gpio_direction_input(unsigned pin)
 
 	if (!pio || !(__raw_readl(pio + PIO_PSR) & mask))
 		return -EINVAL;
-	__raw_writel(mask, pio + PIO_OER);
+	__raw_writel(mask, pio + PIO_ODR);
 	return 0;
 }
 EXPORT_SYMBOL(gpio_direction_input);
