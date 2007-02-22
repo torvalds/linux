@@ -100,6 +100,7 @@ int sysctl_tcp_abc __read_mostly;
 #define FLAG_ECE		0x40 /* ECE in this ACK				*/
 #define FLAG_DATA_LOST		0x80 /* SACK detected data lossage.		*/
 #define FLAG_SLOWPATH		0x100 /* Do not skip RFC checks for window update.*/
+#define FLAG_ONLY_ORIG_SACKED	0x200 /* SACKs only non-rexmit sent before RTO */
 
 #define FLAG_ACKED		(FLAG_DATA_ACKED|FLAG_SYN_ACKED)
 #define FLAG_NOT_DUP		(FLAG_DATA|FLAG_WIN_UPDATE|FLAG_ACKED)
@@ -109,6 +110,8 @@ int sysctl_tcp_abc __read_mostly;
 #define IsReno(tp) ((tp)->rx_opt.sack_ok == 0)
 #define IsFack(tp) ((tp)->rx_opt.sack_ok & 2)
 #define IsDSack(tp) ((tp)->rx_opt.sack_ok & 4)
+
+#define IsSackFrto() (sysctl_tcp_frto == 0x2)
 
 #define TCP_REMNANT (TCP_FLAG_FIN|TCP_FLAG_URG|TCP_FLAG_SYN|TCP_FLAG_PSH)
 
@@ -1159,6 +1162,18 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 						/* clear lost hint */
 						tp->retransmit_skb_hint = NULL;
 					}
+					/* SACK enhanced F-RTO detection.
+					 * Set flag if and only if non-rexmitted
+					 * segments below frto_highmark are
+					 * SACKed (RFC4138; Appendix B).
+					 * Clearing correct due to in-order walk
+					 */
+					if (after(end_seq, tp->frto_highmark)) {
+						flag &= ~FLAG_ONLY_ORIG_SACKED;
+					} else {
+						if (!(sacked & TCPCB_RETRANS))
+							flag |= FLAG_ONLY_ORIG_SACKED;
+					}
 				}
 
 				TCP_SKB_CB(skb)->sacked |= TCPCB_SACKED_ACKED;
@@ -1240,7 +1255,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 /* F-RTO can only be used if these conditions are satisfied:
  *  - there must be some unsent new data
  *  - the advertised window should allow sending it
- *  - TCP has never retransmitted anything other than head
+ *  - TCP has never retransmitted anything other than head (SACK enhanced
+ *    variant from Appendix B of RFC4138 is more robust here)
  */
 int tcp_use_frto(struct sock *sk)
 {
@@ -1251,6 +1267,9 @@ int tcp_use_frto(struct sock *sk)
 		after(TCP_SKB_CB(sk->sk_send_head)->end_seq,
 		      tp->snd_una + tp->snd_wnd))
 		return 0;
+
+	if (IsSackFrto())
+		return 1;
 
 	/* Avoid expensive walking of rexmit queue if possible */
 	if (tp->retrans_out > 1)
@@ -1328,9 +1347,18 @@ void tcp_enter_frto(struct sock *sk)
 	}
 	tcp_sync_left_out(tp);
 
+	/* Earlier loss recovery underway (see RFC4138; Appendix B).
+	 * The last condition is necessary at least in tp->frto_counter case.
+	 */
+	if (IsSackFrto() && (tp->frto_counter ||
+	    ((1 << icsk->icsk_ca_state) & (TCPF_CA_Recovery|TCPF_CA_Loss))) &&
+	    after(tp->high_seq, tp->snd_una)) {
+		tp->frto_highmark = tp->high_seq;
+	} else {
+		tp->frto_highmark = tp->snd_nxt;
+	}
 	tcp_set_ca_state(sk, TCP_CA_Disorder);
 	tp->high_seq = tp->snd_nxt;
-	tp->frto_highmark = tp->snd_nxt;
 	tp->frto_counter = 1;
 }
 
@@ -2566,6 +2594,10 @@ static void tcp_conservative_spur_to_response(struct tcp_sock *tp)
  * Rationale: if the RTO was spurious, new ACKs should arrive from the
  * original window even after we transmit two new data segments.
  *
+ * SACK version:
+ *   on first step, wait until first cumulative ACK arrives, then move to
+ *   the second step. In second step, the next ACK decides.
+ *
  * F-RTO is implemented (mainly) in four functions:
  *   - tcp_use_frto() is used to determine if TCP is can use F-RTO
  *   - tcp_enter_frto() prepares TCP state on RTO if F-RTO is used, it is
@@ -2590,16 +2622,38 @@ static int tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 		return 1;
 	}
 
-	/* RFC4138 shortcoming in step 2; should also have case c): ACK isn't
-	 * duplicate nor advances window, e.g., opposite dir data, winupdate
-	 */
-	if ((tp->snd_una == prior_snd_una) && (flag&FLAG_NOT_DUP) &&
-	    !(flag&FLAG_FORWARD_PROGRESS))
-		return 1;
+	if (!IsSackFrto() || IsReno(tp)) {
+		/* RFC4138 shortcoming in step 2; should also have case c):
+		 * ACK isn't duplicate nor advances window, e.g., opposite dir
+		 * data, winupdate
+		 */
+		if ((tp->snd_una == prior_snd_una) && (flag&FLAG_NOT_DUP) &&
+		    !(flag&FLAG_FORWARD_PROGRESS))
+			return 1;
 
-	if (!(flag&FLAG_DATA_ACKED)) {
-		tcp_enter_frto_loss(sk, (tp->frto_counter == 1 ? 0 : 3), flag);
-		return 1;
+		if (!(flag&FLAG_DATA_ACKED)) {
+			tcp_enter_frto_loss(sk, (tp->frto_counter == 1 ? 0 : 3),
+					    flag);
+			return 1;
+		}
+	} else {
+		if (!(flag&FLAG_DATA_ACKED) && (tp->frto_counter == 1)) {
+			/* Prevent sending of new data. */
+			tp->snd_cwnd = min(tp->snd_cwnd,
+					   tcp_packets_in_flight(tp));
+			return 1;
+		}
+
+		if ((tp->frto_counter == 2) &&
+		    (!(flag&FLAG_FORWARD_PROGRESS) ||
+		     ((flag&FLAG_DATA_SACKED) && !(flag&FLAG_ONLY_ORIG_SACKED)))) {
+			/* RFC4138 shortcoming (see comment above) */
+			if (!(flag&FLAG_FORWARD_PROGRESS) && (flag&FLAG_NOT_DUP))
+				return 1;
+
+			tcp_enter_frto_loss(sk, 3, flag);
+			return 1;
+		}
 	}
 
 	if (tp->frto_counter == 1) {
