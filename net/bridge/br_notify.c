@@ -42,51 +42,48 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 
 	br = p->br;
 
-	spin_lock_bh(&br->lock);
 	switch (event) {
 	case NETDEV_CHANGEMTU:
 		dev_set_mtu(br->dev, br_min_mtu(br));
 		break;
 
 	case NETDEV_CHANGEADDR:
+		spin_lock_bh(&br->lock);
 		br_fdb_changeaddr(p, dev->dev_addr);
 		br_ifinfo_notify(RTM_NEWLINK, p);
 		br_stp_recalculate_bridge_id(br);
+		spin_unlock_bh(&br->lock);
 		break;
 
 	case NETDEV_CHANGE:
-		if (br->dev->flags & IFF_UP)
-			if (schedule_delayed_work(&p->carrier_check,
-						BR_PORT_DEBOUNCE))
-				dev_hold(dev);
+		br_port_carrier_check(p);
 		break;
 
 	case NETDEV_FEAT_CHANGE:
-		if (br->dev->flags & IFF_UP)
+		spin_lock_bh(&br->lock);
+		if (netif_running(br->dev))
 			br_features_recompute(br);
-
-		/* could do recursive feature change notification
-		 * but who would care??
-		 */
+		spin_unlock_bh(&br->lock);
 		break;
 
 	case NETDEV_DOWN:
+		spin_lock_bh(&br->lock);
 		if (br->dev->flags & IFF_UP)
 			br_stp_disable_port(p);
+		spin_unlock_bh(&br->lock);
 		break;
 
 	case NETDEV_UP:
+		spin_lock_bh(&br->lock);
 		if (netif_carrier_ok(dev) && (br->dev->flags & IFF_UP))
 			br_stp_enable_port(p);
+		spin_unlock_bh(&br->lock);
 		break;
 
 	case NETDEV_UNREGISTER:
-		spin_unlock_bh(&br->lock);
 		br_del_if(br, dev);
-		goto done;
+		break;
 	}
-	spin_unlock_bh(&br->lock);
 
- done:
 	return NOTIFY_DONE;
 }
