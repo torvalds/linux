@@ -1268,7 +1268,11 @@ int tcp_use_frto(struct sock *sk)
 
 /* RTO occurred, but do not yet enter Loss state. Instead, defer RTO
  * recovery a bit and use heuristics in tcp_process_frto() to detect if
- * the RTO was spurious.
+ * the RTO was spurious. Only clear SACKED_RETRANS of the head here to
+ * keep retrans_out counting accurate (with SACK F-RTO, other than head
+ * may still have that bit set); TCPCB_LOST and remaining SACKED_RETRANS
+ * bits are handled if the Loss state is really to be entered (in
+ * tcp_enter_frto_loss).
  *
  * Do like tcp_enter_loss() would; when RTO expires the second time it
  * does:
@@ -1289,17 +1293,13 @@ void tcp_enter_frto(struct sock *sk)
 		tcp_ca_event(sk, CA_EVENT_FRTO);
 	}
 
-	/* Have to clear retransmission markers here to keep the bookkeeping
-	 * in shape, even though we are not yet in Loss state.
-	 * If something was really lost, it is eventually caught up
-	 * in tcp_enter_frto_loss.
-	 */
-	tp->retrans_out = 0;
 	tp->undo_marker = tp->snd_una;
 	tp->undo_retrans = 0;
 
-	sk_stream_for_retrans_queue(skb, sk) {
+	skb = skb_peek(&sk->sk_write_queue);
+	if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS) {
 		TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
+		tp->retrans_out -= tcp_skb_pcount(skb);
 	}
 	tcp_sync_left_out(tp);
 
@@ -1313,7 +1313,7 @@ void tcp_enter_frto(struct sock *sk)
  * which indicates that we should follow the traditional RTO recovery,
  * i.e. mark everything lost and do go-back-N retransmission.
  */
-static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments)
+static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
@@ -1322,10 +1322,21 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments)
 	tp->sacked_out = 0;
 	tp->lost_out = 0;
 	tp->fackets_out = 0;
+	tp->retrans_out = 0;
 
 	sk_stream_for_retrans_queue(skb, sk) {
 		cnt += tcp_skb_pcount(skb);
-		TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
+		/*
+		 * Count the retransmission made on RTO correctly (only when
+		 * waiting for the first ACK and did not get it)...
+		 */
+		if ((tp->frto_counter == 1) && !(flag&FLAG_DATA_ACKED)) {
+			tp->retrans_out += tcp_skb_pcount(skb);
+			/* ...enter this if branch just for the first segment */
+			flag |= FLAG_DATA_ACKED;
+		} else {
+			TCP_SKB_CB(skb)->sacked &= ~(TCPCB_LOST|TCPCB_SACKED_RETRANS);
+		}
 		if (!(TCP_SKB_CB(skb)->sacked&TCPCB_SACKED_ACKED)) {
 
 			/* Do not mark those segments lost that were
@@ -2550,7 +2561,7 @@ static int tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 		inet_csk(sk)->icsk_retransmits = 0;
 
 	if (!before(tp->snd_una, tp->frto_highmark)) {
-		tcp_enter_frto_loss(sk, tp->frto_counter + 1);
+		tcp_enter_frto_loss(sk, tp->frto_counter + 1, flag);
 		return 1;
 	}
 
@@ -2562,7 +2573,7 @@ static int tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 		return 1;
 
 	if (!(flag&FLAG_DATA_ACKED)) {
-		tcp_enter_frto_loss(sk, (tp->frto_counter == 1 ? 0 : 3));
+		tcp_enter_frto_loss(sk, (tp->frto_counter == 1 ? 0 : 3), flag);
 		return 1;
 	}
 
