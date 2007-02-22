@@ -2490,6 +2490,7 @@ static int tcp_ack_update_window(struct sock *sk, struct tcp_sock *tp,
 static void tcp_conservative_spur_to_response(struct tcp_sock *tp)
 {
 	tp->snd_cwnd = min(tp->snd_cwnd, tp->snd_ssthresh);
+	tp->snd_cwnd_cnt = 0;
 	tcp_moderate_cwnd(tp);
 }
 
