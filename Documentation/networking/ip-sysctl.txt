@@ -183,7 +183,10 @@ tcp_frto - BOOLEAN
 	Enables F-RTO, an enhanced recovery algorithm for TCP retransmission
 	timeouts.  It is particularly beneficial in wireless environments
 	where packet loss is typically due to random radio interference
-	rather than intermediate router congestion.
+	rather than intermediate router congestion. If set to 1, basic
+	version is enabled. 2 enables SACK enhanced FRTO, which is
+	EXPERIMENTAL. The basic version can be used also when SACK is
+	enabled for a flow through tcp_sack sysctl.
 
 tcp_keepalive_time - INTEGER
 	How often TCP sends out keepalive messages when keepalive is enabled.
