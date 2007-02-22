@@ -387,8 +387,8 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		/* Now setup tcp_sock */
 		newtp = tcp_sk(newsk);
 		newtp->pred_flags = 0;
-		newtp->rcv_nxt = treq->rcv_isn + 1;
-		newtp->snd_nxt = newtp->snd_una = newtp->snd_sml = treq->snt_isn + 1;
+		newtp->rcv_wup = newtp->copied_seq = newtp->rcv_nxt = treq->rcv_isn + 1;
+		newtp->snd_sml = newtp->snd_una = newtp->snd_nxt = treq->snt_isn + 1;
 
 		tcp_prequeue_init(newtp);
 
@@ -422,10 +422,8 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		tcp_set_ca_state(newsk, TCP_CA_Open);
 		tcp_init_xmit_timers(newsk);
 		skb_queue_head_init(&newtp->out_of_order_queue);
-		newtp->rcv_wup = treq->rcv_isn + 1;
 		newtp->write_seq = treq->snt_isn + 1;
 		newtp->pushed_seq = newtp->write_seq;
-		newtp->copied_seq = treq->rcv_isn + 1;
 
 		newtp->rx_opt.saw_tstamp = 0;
 

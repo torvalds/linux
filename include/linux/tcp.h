@@ -242,6 +242,8 @@ struct tcp_sock {
  *	See RFC793 and RFC1122. The RFC writes these in capitals.
  */
  	u32	rcv_nxt;	/* What we want to receive next 	*/
+	u32	copied_seq;	/* Head of yet unread data		*/
+	u32	rcv_wup;	/* rcv_nxt on last window update sent	*/
  	u32	snd_nxt;	/* Next sequence we send		*/
 
  	u32	snd_una;	/* First byte we want an ack for	*/
@@ -307,10 +309,8 @@ struct tcp_sock {
 	struct sk_buff_head	out_of_order_queue; /* Out of order segments go here */
 
  	u32	rcv_wnd;	/* Current receiver window		*/
-	u32	rcv_wup;	/* rcv_nxt on last window update sent	*/
 	u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */
 	u32	pushed_seq;	/* Last pushed seq, required to talk to windows */
-	u32	copied_seq;	/* Head of yet unread data		*/
 
 /*	SACKs data	*/
 	struct tcp_sack_block duplicate_sack[1]; /* D-SACK block */
