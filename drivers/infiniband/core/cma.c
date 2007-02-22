@@ -77,7 +77,6 @@ static int next_port;
 struct cma_device {
 	struct list_head	list;
 	struct ib_device	*device;
-	__be64			node_guid;
 	struct completion	comp;
 	atomic_t		refcount;
 	struct list_head	id_list;
@@ -2674,7 +2673,6 @@ static void cma_add_one(struct ib_device *device)
 		return;
 
 	cma_dev->device = device;
-	cma_dev->node_guid = device->node_guid;
 
 	init_completion(&cma_dev->comp);
 	atomic_set(&cma_dev->refcount, 1);
