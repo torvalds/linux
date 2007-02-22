@@ -1492,11 +1492,13 @@ static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
 	ib_addr_get_dgid(addr, &path_rec.dgid);
 	path_rec.pkey = cpu_to_be16(ib_addr_get_pkey(addr));
 	path_rec.numb_path = 1;
+	path_rec.reversible = 1;
 
 	id_priv->query_id = ib_sa_path_rec_get(&sa_client, id_priv->id.device,
 				id_priv->id.port_num, &path_rec,
 				IB_SA_PATH_REC_DGID | IB_SA_PATH_REC_SGID |
-				IB_SA_PATH_REC_PKEY | IB_SA_PATH_REC_NUMB_PATH,
+				IB_SA_PATH_REC_PKEY | IB_SA_PATH_REC_NUMB_PATH |
+				IB_SA_PATH_REC_REVERSIBLE,
 				timeout_ms, GFP_KERNEL,
 				cma_query_handler, work, &id_priv->query);
 
