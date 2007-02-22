@@ -1239,14 +1239,31 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 /* F-RTO can only be used if these conditions are satisfied:
  *  - there must be some unsent new data
  *  - the advertised window should allow sending it
+ *  - TCP has never retransmitted anything other than head
  */
-int tcp_use_frto(const struct sock *sk)
+int tcp_use_frto(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
+	struct sk_buff *skb;
 
-	return (sysctl_tcp_frto && sk->sk_send_head &&
-		!after(TCP_SKB_CB(sk->sk_send_head)->end_seq,
-		       tp->snd_una + tp->snd_wnd));
+	if (!sysctl_tcp_frto || !sk->sk_send_head ||
+		after(TCP_SKB_CB(sk->sk_send_head)->end_seq,
+		      tp->snd_una + tp->snd_wnd))
+		return 0;
+
+	/* Avoid expensive walking of rexmit queue if possible */
+	if (tp->retrans_out > 1)
+		return 0;
+
+	skb = skb_peek(&sk->sk_write_queue)->next;	/* Skips head */
+	sk_stream_for_retrans_queue_from(skb, sk) {
+		if (TCP_SKB_CB(skb)->sacked&TCPCB_RETRANS)
+			return 0;
+		/* Short-circuit when first non-SACKed skb has been checked */
+		if (!(TCP_SKB_CB(skb)->sacked&TCPCB_SACKED_ACKED))
+			break;
+	}
+	return 1;
 }
 
 /* RTO occurred, but do not yet enter Loss state. Instead, defer RTO
