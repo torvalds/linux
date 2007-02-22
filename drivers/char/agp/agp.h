@@ -93,12 +93,12 @@ struct aper_size_info_fixed {
 
 struct agp_bridge_driver {
 	struct module *owner;
-	void *aperture_sizes;
+	const void *aperture_sizes;
 	int num_aperture_sizes;
 	enum aper_size_type size_type;
 	int cant_use_aperture;
 	int needs_scratch_page;
-	struct gatt_mask *masks;
+	const struct gatt_mask *masks;
 	int (*fetch_size)(void);
 	int (*configure)(void);
 	void (*agp_enable)(struct agp_bridge_data *, u32);
@@ -119,7 +119,7 @@ struct agp_bridge_driver {
 
 struct agp_bridge_data {
 	const struct agp_version *version;
-	struct agp_bridge_driver *driver;
+	const struct agp_bridge_driver *driver;
 	struct vm_operations_struct *vm_ops;
 	void *previous_size;
 	void *current_size;
@@ -290,7 +290,7 @@ void agp3_generic_cleanup(void);
 
 /* aperture sizes have been standardised since v3 */
 #define AGP_GENERIC_SIZES_ENTRIES 11
-extern struct aper_size_info_16 agp3_generic_sizes[];
+extern const struct aper_size_info_16 agp3_generic_sizes[];
 
 #define virt_to_gart(x) (phys_to_gart(virt_to_phys(x)))
 #define gart_to_virt(x) (phys_to_virt(gart_to_phys(x)))

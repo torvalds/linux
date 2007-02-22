@@ -1340,7 +1340,7 @@ void agp3_generic_cleanup(void)
 }
 EXPORT_SYMBOL(agp3_generic_cleanup);
 
-struct aper_size_info_16 agp3_generic_sizes[AGP_GENERIC_SIZES_ENTRIES] =
+const struct aper_size_info_16 agp3_generic_sizes[AGP_GENERIC_SIZES_ENTRIES] =
 {
 	{4096, 1048576, 10,0x000},
 	{2048,  524288, 9, 0x800},

@@ -344,7 +344,7 @@ static int amd_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 	return 0;
 }
 
-static struct aper_size_info_lvl2 amd_irongate_sizes[7] =
+static const struct aper_size_info_lvl2 amd_irongate_sizes[7] =
 {
 	{2048, 524288, 0x0000000c},
 	{1024, 262144, 0x0000000a},
@@ -355,12 +355,12 @@ static struct aper_size_info_lvl2 amd_irongate_sizes[7] =
 	{32, 8192, 0x00000000}
 };
 
-static struct gatt_mask amd_irongate_masks[] =
+static const struct gatt_mask amd_irongate_masks[] =
 {
 	{.mask = 1, .type = 0}
 };
 
-static struct agp_bridge_driver amd_irongate_driver = {
+static const struct agp_bridge_driver amd_irongate_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= amd_irongate_sizes,
 	.size_type		= LVL2_APER_SIZE,
