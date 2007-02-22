@@ -603,11 +603,8 @@ do { \
 	read_unlock_irqrestore(&snd_pcm_link_rwlock, (flags)); \
 } while (0)
 
-#define snd_pcm_group_for_each(pos, substream) \
-	list_for_each(pos, &substream->group->substreams)
-
-#define snd_pcm_group_substream_entry(pos) \
-	list_entry(pos, struct snd_pcm_substream, link_list)
+#define snd_pcm_group_for_each_entry(s, substream) \
+	list_for_each_entry(s, &substream->group->substreams, link_list)
 
 static inline int snd_pcm_running(struct snd_pcm_substream *substream)
 {

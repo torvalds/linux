@@ -1078,12 +1078,10 @@ static int
 snd_rme32_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct rme32 *rme32 = snd_pcm_substream_chip(substream);
-	struct list_head *pos;
 	struct snd_pcm_substream *s;
 
 	spin_lock(&rme32->lock);
-	snd_pcm_group_for_each(pos, substream) {
-		s = snd_pcm_group_substream_entry(pos);
+	snd_pcm_group_for_each_entry(s, substream) {
 		if (s != rme32->playback_substream &&
 		    s != rme32->capture_substream)
 			continue;
@@ -1110,8 +1108,7 @@ snd_rme32_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	
 	/* prefill playback buffer */
 	if (cmd == SNDRV_PCM_TRIGGER_START && rme32->fullduplex_mode) {
-		snd_pcm_group_for_each(pos, substream) {
-			s = snd_pcm_group_substream_entry(pos);
+		snd_pcm_group_for_each_entry(s, substream) {
 			if (s == rme32->playback_substream) {
 				s->ops->ack(s);
 				break;

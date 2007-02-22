@@ -638,7 +638,6 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 static int pcxhr_trigger(struct snd_pcm_substream *subs, int cmd)
 {
 	struct pcxhr_stream *stream;
-	struct list_head *pos;
 	struct snd_pcm_substream *s;
 	int i;
 
@@ -646,8 +645,7 @@ static int pcxhr_trigger(struct snd_pcm_substream *subs, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 		snd_printdd("SNDRV_PCM_TRIGGER_START\n");
 		i = 0;
-		snd_pcm_group_for_each(pos, subs) {
-			s = snd_pcm_group_substream_entry(pos);
+		snd_pcm_group_for_each_entry(s, subs) {
 			stream = s->runtime->private_data;
 			stream->status = PCXHR_STREAM_STATUS_SCHEDULE_RUN;
 			snd_pcm_trigger_done(s, subs);
@@ -672,8 +670,7 @@ static int pcxhr_trigger(struct snd_pcm_substream *subs, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_printdd("SNDRV_PCM_TRIGGER_STOP\n");
-		snd_pcm_group_for_each(pos, subs) {
-			s = snd_pcm_group_substream_entry(pos);
+		snd_pcm_group_for_each_entry(s, subs) {
 			stream = s->runtime->private_data;
 			stream->status = PCXHR_STREAM_STATUS_SCHEDULE_STOP;
 			if (pcxhr_set_stream_state(stream))

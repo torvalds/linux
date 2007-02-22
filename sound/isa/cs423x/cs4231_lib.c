@@ -405,7 +405,6 @@ static int snd_cs4231_trigger(struct snd_pcm_substream *substream,
 	struct snd_cs4231 *chip = snd_pcm_substream_chip(substream);
 	int result = 0;
 	unsigned int what;
-	struct list_head *pos;
 	struct snd_pcm_substream *s;
 	int do_start;
 
@@ -425,8 +424,7 @@ static int snd_cs4231_trigger(struct snd_pcm_substream *substream,
 	}
 
 	what = 0;
-	snd_pcm_group_for_each(pos, substream) {
-		s = snd_pcm_group_substream_entry(pos);
+	snd_pcm_group_for_each_entry(s, substream) {
 		if (s == chip->playback_substream) {
 			what |= CS4231_PLAYBACK_ENABLE;
 			snd_pcm_trigger_done(s, substream);

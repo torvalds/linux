@@ -1224,7 +1224,6 @@ static int snd_ali_trigger(struct snd_pcm_substream *substream,
 				    
 {
 	struct snd_ali *codec = snd_pcm_substream_chip(substream);
-	struct list_head *pos;
 	struct snd_pcm_substream *s;
 	unsigned int what, whati, capture_flag;
 	struct snd_ali_voice *pvoice = NULL, *evoice = NULL;
@@ -1243,8 +1242,7 @@ static int snd_ali_trigger(struct snd_pcm_substream *substream,
 	}
 
 	what = whati = capture_flag = 0;
-	snd_pcm_group_for_each(pos, substream) {
-		s = snd_pcm_group_substream_entry(pos);
+	snd_pcm_group_for_each_entry(s, substream) {
 		if ((struct snd_ali *) snd_pcm_substream_chip(s) == codec) {
 			pvoice = s->runtime->private_data;
 			evoice = pvoice->extra;

@@ -1540,7 +1540,6 @@ static int snd_trident_trigger(struct snd_pcm_substream *substream,
 				    
 {
 	struct snd_trident *trident = snd_pcm_substream_chip(substream);
-	struct list_head *pos;
 	struct snd_pcm_substream *s;
 	unsigned int what, whati, capture_flag, spdif_flag;
 	struct snd_trident_voice *voice, *evoice;
@@ -1563,8 +1562,7 @@ static int snd_trident_trigger(struct snd_pcm_substream *substream,
 	what = whati = capture_flag = spdif_flag = 0;
 	spin_lock(&trident->reg_lock);
 	val = inl(TRID_REG(trident, T4D_STIMER)) & 0x00ffffff;
-	snd_pcm_group_for_each(pos, substream) {
-		s = snd_pcm_group_substream_entry(pos);
+	snd_pcm_group_for_each_entry(s, substream) {
 		if ((struct snd_trident *) snd_pcm_substream_chip(s) == trident) {
 			voice = s->runtime->private_data;
 			evoice = voice->extra;

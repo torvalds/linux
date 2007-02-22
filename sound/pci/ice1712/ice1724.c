@@ -337,13 +337,11 @@ static int snd_vt1724_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
 	unsigned char what;
 	unsigned char old;
-	struct list_head *pos;
 	struct snd_pcm_substream *s;
 
 	what = 0;
-	snd_pcm_group_for_each(pos, substream) {
+	snd_pcm_group_for_each_entry(s, substream) {
 		const struct vt1724_pcm_reg *reg;
-		s = snd_pcm_group_substream_entry(pos);
 		reg = s->runtime->private_data;
 		what |= reg->start;
 		snd_pcm_trigger_done(s, substream);
