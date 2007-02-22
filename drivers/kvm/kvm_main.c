@@ -748,6 +748,8 @@ raced:
 		vcpu = vcpu_load_slot(kvm, i);
 		if (!vcpu)
 			continue;
+		if (new.flags & KVM_MEM_LOG_DIRTY_PAGES)
+			do_remove_write_access(vcpu, mem->slot);
 		kvm_mmu_reset_context(vcpu);
 		vcpu_put(vcpu);
 	}
