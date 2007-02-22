@@ -10,5 +10,3 @@
 #
 
 obj-y += irq.o reset.o setup.o time.o pci.o
-
-EXTRA_AFLAGS := $(CFLAGS)

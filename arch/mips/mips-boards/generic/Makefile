@@ -22,5 +22,3 @@ obj-y				:= reset.o display.o init.o memory.o printf.o \
 				   cmdline.o time.o
 obj-$(CONFIG_PCI)		+= pci.o
 obj-$(CONFIG_KGDB)		+= gdb_hook.o
-
-EXTRA_AFLAGS := $(CFLAGS)

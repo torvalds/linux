@@ -6,5 +6,3 @@ obj-y	 := irq.o reset.o setup.o
 
 obj-$(CONFIG_EARLY_PRINTK)	+= console.o
 obj-$(CONFIG_MTD_PHYSMAP)	+= mtd.o
-
-EXTRA_AFLAGS := $(CFLAGS)
