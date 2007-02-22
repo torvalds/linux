@@ -1286,7 +1286,8 @@ void tcp_enter_frto(struct sock *sk)
 	}
 	tcp_sync_left_out(tp);
 
-	tcp_set_ca_state(sk, TCP_CA_Open);
+	tcp_set_ca_state(sk, TCP_CA_Disorder);
+	tp->high_seq = tp->snd_nxt;
 	tp->frto_highmark = tp->snd_nxt;
 	tp->frto_counter = 1;
 }
@@ -2014,8 +2015,7 @@ tcp_fastretrans_alert(struct sock *sk, u32 prior_snd_una,
 	/* E. Check state exit conditions. State can be terminated
 	 *    when high_seq is ACKed. */
 	if (icsk->icsk_ca_state == TCP_CA_Open) {
-		if (!sysctl_tcp_frto)
-			BUG_TRAP(tp->retrans_out == 0);
+		BUG_TRAP(tp->retrans_out == 0);
 		tp->retrans_stamp = 0;
 	} else if (!before(tp->snd_una, tp->high_seq)) {
 		switch (icsk->icsk_ca_state) {
