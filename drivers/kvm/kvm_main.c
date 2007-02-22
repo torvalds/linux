@@ -355,6 +355,8 @@ static void kvm_free_vcpu(struct kvm_vcpu *vcpu)
 	kvm_mmu_destroy(vcpu);
 	vcpu_put(vcpu);
 	kvm_arch_ops->vcpu_free(vcpu);
+	free_page((unsigned long)vcpu->run);
+	vcpu->run = NULL;
 }
 
 static void kvm_free_vcpus(struct kvm *kvm)
@@ -1887,6 +1889,33 @@ static int kvm_vcpu_ioctl_debug_guest(struct kvm_vcpu *vcpu,
 	return r;
 }
 
+static struct page *kvm_vcpu_nopage(struct vm_area_struct *vma,
+				    unsigned long address,
+				    int *type)
+{
+	struct kvm_vcpu *vcpu = vma->vm_file->private_data;
+	unsigned long pgoff;
+	struct page *page;
+
+	*type = VM_FAULT_MINOR;
+	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+	if (pgoff != 0)
+		return NOPAGE_SIGBUS;
+	page = virt_to_page(vcpu->run);
+	get_page(page);
+	return page;
+}
+
+static struct vm_operations_struct kvm_vcpu_vm_ops = {
+	.nopage = kvm_vcpu_nopage,
+};
+
+static int kvm_vcpu_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	vma->vm_ops = &kvm_vcpu_vm_ops;
+	return 0;
+}
+
 static int kvm_vcpu_release(struct inode *inode, struct file *filp)
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
@@ -1899,6 +1928,7 @@ static struct file_operations kvm_vcpu_fops = {
 	.release        = kvm_vcpu_release,
 	.unlocked_ioctl = kvm_vcpu_ioctl,
 	.compat_ioctl   = kvm_vcpu_ioctl,
+	.mmap           = kvm_vcpu_mmap,
 };
 
 /*
@@ -1947,6 +1977,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 {
 	int r;
 	struct kvm_vcpu *vcpu;
+	struct page *page;
 
 	r = -EINVAL;
 	if (!valid_vcpu(n))
@@ -1960,6 +1991,12 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 		mutex_unlock(&vcpu->mutex);
 		return -EEXIST;
 	}
+
+	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	r = -ENOMEM;
+	if (!page)
+		goto out_unlock;
+	vcpu->run = page_address(page);
 
 	vcpu->host_fx_image = (char*)ALIGN((hva_t)vcpu->fx_buf,
 					   FX_IMAGE_ALIGN);
@@ -1990,6 +2027,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 
 out_free_vcpus:
 	kvm_free_vcpu(vcpu);
+out_unlock:
 	mutex_unlock(&vcpu->mutex);
 out:
 	return r;
@@ -2003,21 +2041,9 @@ static long kvm_vcpu_ioctl(struct file *filp,
 	int r = -EINVAL;
 
 	switch (ioctl) {
-	case KVM_RUN: {
-		struct kvm_run kvm_run;
-
-		r = -EFAULT;
-		if (copy_from_user(&kvm_run, argp, sizeof kvm_run))
-			goto out;
-		r = kvm_vcpu_ioctl_run(vcpu, &kvm_run);
-		if (r < 0 &&  r != -EINTR)
-			goto out;
-		if (copy_to_user(argp, &kvm_run, sizeof kvm_run)) {
-			r = -EFAULT;
-			goto out;
-		}
+	case KVM_RUN:
+		r = kvm_vcpu_ioctl_run(vcpu, vcpu->run);
 		break;
-	}
 	case KVM_GET_REGS: {
 		struct kvm_regs kvm_regs;
 

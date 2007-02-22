@@ -11,7 +11,7 @@
 #include <asm/types.h>
 #include <linux/ioctl.h>
 
-#define KVM_API_VERSION 4
+#define KVM_API_VERSION 5
 
 /*
  * Architectural interrupt line count, and the size of the bitmap needed
@@ -49,7 +49,7 @@ enum kvm_exit_reason {
 	KVM_EXIT_SHUTDOWN         = 8,
 };
 
-/* for KVM_RUN */
+/* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
 	/* in */
 	__u32 emulated;  /* skip current instruction */
@@ -233,7 +233,7 @@ struct kvm_dirty_log {
 /*
  * ioctls for vcpu fds
  */
-#define KVM_RUN                   _IOWR(KVMIO, 2, struct kvm_run)
+#define KVM_RUN                   _IO(KVMIO, 16)
 #define KVM_GET_REGS              _IOR(KVMIO, 3, struct kvm_regs)
 #define KVM_SET_REGS              _IOW(KVMIO, 4, struct kvm_regs)
 #define KVM_GET_SREGS             _IOR(KVMIO, 5, struct kvm_sregs)
