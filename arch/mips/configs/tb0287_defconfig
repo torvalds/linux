@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.20
-# Tue Feb 20 21:47:41 2007
+# Linux kernel version: 2.6.21-rc1
+# Thu Feb 22 10:38:09 2007
 #
 CONFIG_MIPS=y
 
@@ -826,6 +826,11 @@ CONFIG_GPIO_VR41XX=y
 # CONFIG_HWMON_VID is not set
 
 #
+# Multifunction device drivers
+#
+CONFIG_MFD_SM501=y
+
+#
 # Multimedia devices
 #
 # CONFIG_VIDEO_DEV is not set
@@ -839,8 +844,10 @@ CONFIG_GPIO_VR41XX=y
 #
 # Graphics support
 #
-# CONFIG_FIRMWARE_EDID is not set
+# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 CONFIG_FB=y
+# CONFIG_FIRMWARE_EDID is not set
+# CONFIG_FB_DDC is not set
 CONFIG_FB_CFB_FILLRECT=y
 CONFIG_FB_CFB_COPYAREA=y
 CONFIG_FB_CFB_IMAGEBLIT=y
@@ -849,6 +856,10 @@ CONFIG_FB_CFB_IMAGEBLIT=y
 # CONFIG_FB_BACKLIGHT is not set
 # CONFIG_FB_MODE_HELPERS is not set
 # CONFIG_FB_TILEBLITTING is not set
+
+#
+# Frambuffer hardware drivers
+#
 # CONFIG_FB_CIRRUS is not set
 # CONFIG_FB_PM2 is not set
 # CONFIG_FB_CYBER2000 is not set
@@ -868,8 +879,9 @@ CONFIG_FB_CFB_IMAGEBLIT=y
 # CONFIG_FB_KYRO is not set
 # CONFIG_FB_3DFX is not set
 # CONFIG_FB_VOODOO1 is not set
-CONFIG_FB_SMIVGX=y
+# CONFIG_FB_SMIVGX is not set
 # CONFIG_FB_TRIDENT is not set
+CONFIG_FB_SM501=y
 # CONFIG_FB_VIRTUAL is not set
 
 #
@@ -883,7 +895,6 @@ CONFIG_DUMMY_CONSOLE=y
 # Logo configuration
 #
 # CONFIG_LOGO is not set
-# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 
 #
 # Sound
