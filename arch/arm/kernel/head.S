@@ -48,9 +48,11 @@
 	.endm
 
 #ifdef CONFIG_XIP_KERNEL
-#define TEXTADDR  XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR)
+#define KERNEL_START	XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR)
+#define KERNEL_END	_edata_loc
 #else
-#define TEXTADDR  KERNEL_RAM_VADDR
+#define KERNEL_START	KERNEL_RAM_VADDR
+#define KERNEL_END	_end
 #endif
 
 /*
@@ -240,16 +242,15 @@ __create_page_tables:
 	 * Now setup the pagetables for our kernel direct
 	 * mapped region.
 	 */
-	add	r0, r4,  #(TEXTADDR & 0xff000000) >> 18	@ start of kernel
-	str	r3, [r0, #(TEXTADDR & 0x00f00000) >> 18]!
-
-	ldr	r6, =(_end - PAGE_OFFSET - 1)	@ r6 = number of sections
-	mov	r6, r6, lsr #20			@ needed for kernel minus 1
-
-1:	add	r3, r3, #1 << 20
-	str	r3, [r0, #4]!
-	subs	r6, r6, #1
-	bgt	1b
+	add	r0, r4,  #(KERNEL_START & 0xff000000) >> 18
+	str	r3, [r0, #(KERNEL_START & 0x00f00000) >> 18]!
+	ldr	r6, =(KERNEL_END - 1)
+	add	r0, r0, #4
+	add	r6, r4, r6, lsr #18
+1:	cmp	r0, r6
+	add	r3, r3, #1 << 20
+	strls	r3, [r0], #4
+	bls	1b
 
 	/*
 	 * Then map first 1MB of ram in case it contains our boot params.
