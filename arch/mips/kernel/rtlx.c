@@ -146,9 +146,9 @@ static void stopping(int vpe)
 
 int rtlx_open(int index, int can_sleep)
 {
-	int ret;
-	struct rtlx_channel *chan;
 	volatile struct rtlx_info **p;
+	struct rtlx_channel *chan;
+	int ret = 0;
 
 	if (index >= RTLX_CHANNELS) {
 		printk(KERN_DEBUG "rtlx_open index out of range\n");
@@ -165,65 +165,37 @@ int rtlx_open(int index, int can_sleep)
 	if (rtlx == NULL) {
 		if( (p = vpe_get_shared(RTLX_TARG_VPE)) == NULL) {
 			if (can_sleep) {
-				DECLARE_WAITQUEUE(wait, current);
+				int ret = 0;
 
-				/* go to sleep */
-				add_wait_queue(&channel_wqs[index].lx_queue, &wait);
-
-				set_current_state(TASK_INTERRUPTIBLE);
-				while ((p = vpe_get_shared(RTLX_TARG_VPE)) == NULL) {
-					schedule();
-					set_current_state(TASK_INTERRUPTIBLE);
-				}
-
-				set_current_state(TASK_RUNNING);
-				remove_wait_queue(&channel_wqs[index].lx_queue, &wait);
-
-				/* back running */
+				__wait_event_interruptible(channel_wqs[index].lx_queue,
+				                           (p = vpe_get_shared(RTLX_TARG_VPE)),
+				                           ret);
+				if (ret)
+					goto out_fail;
 			} else {
 				printk( KERN_DEBUG "No SP program loaded, and device "
 					"opened with O_NONBLOCK\n");
 				channel_wqs[index].in_open = 0;
-				return -ENOSYS;
+				ret = -ENOSYS;
+				goto out_fail;
 			}
 		}
 
 		if (*p == NULL) {
 			if (can_sleep) {
-				DECLARE_WAITQUEUE(wait, current);
+				int ret = 0;
 
-				/* go to sleep */
-				add_wait_queue(&channel_wqs[index].lx_queue, &wait);
-
-				set_current_state(TASK_INTERRUPTIBLE);
-				while (*p == NULL) {
-					schedule();
-
-					/* reset task state to interruptable otherwise
-					   we'll whizz round here like a very fast loopy
-					   thing. schedule() appears to return with state
-					   set to TASK_RUNNING.
-
-					   If the loaded SP program, for whatever reason,
-					   doesn't set up the shared structure *p will never
-					   become true. So whoever connected to either /dev/rt?
-					   or if it was kspd, will then take up rather a lot of
-					   processor cycles.
-					*/
-
-					set_current_state(TASK_INTERRUPTIBLE);
-				}
-
-				set_current_state(TASK_RUNNING);
-				remove_wait_queue(&channel_wqs[index].lx_queue, &wait);
-
-				/* back running */
-			}
-			else {
+				__wait_event_interruptible(channel_wqs[index].lx_queue,
+				                           *p != NULL,
+				                           ret);
+				if (ret)
+					goto out_fail;
+			} else {
 				printk(" *vpe_get_shared is NULL. "
 				       "Has an SP program been loaded?\n");
 				channel_wqs[index].in_open = 0;
-				return -ENOSYS;
+				ret = -ENOSYS;
+				goto out_fail;
 			}
 		}
 
@@ -231,10 +203,11 @@ int rtlx_open(int index, int can_sleep)
 			printk(KERN_WARNING "vpe_get_shared returned an invalid pointer "
 			       "maybe an error code %d\n", (int)*p);
  			channel_wqs[index].in_open = 0;
-			return -ENOSYS;
+			ret = -ENOSYS;
+			goto out_fail;
 		}
 
- 		if ((ret = rtlx_init(*p)) < 0) {
+		if ((ret = rtlx_init(*p)) < 0) {
  			channel_wqs[index].in_open = 0;
   			return ret;
  		}
@@ -250,6 +223,11 @@ int rtlx_open(int index, int can_sleep)
   	chan->lx_state = RTLX_STATE_OPENED;
  	channel_wqs[index].in_open = 0;
 	return 0;
+
+out_fail:
+	channel_wqs[index].in_open--;
+
+	return ret;
 }
 
 int rtlx_release(int index)
@@ -270,30 +248,17 @@ unsigned int rtlx_read_poll(int index, int can_sleep)
 	/* data available to read? */
 	if (chan->lx_read == chan->lx_write) {
 		if (can_sleep) {
-			DECLARE_WAITQUEUE(wait, current);
+			int ret = 0;
 
-			/* go to sleep */
-			add_wait_queue(&channel_wqs[index].lx_queue, &wait);
+			__wait_event_interruptible(channel_wqs[index].lx_queue,
+			                           chan->lx_read != chan->lx_write || sp_stopping,
+			                           ret);
+			if (ret)
+				return ret;
 
-			set_current_state(TASK_INTERRUPTIBLE);
-			while (chan->lx_read == chan->lx_write) {
-				schedule();
-
-				set_current_state(TASK_INTERRUPTIBLE);
-
-				if (sp_stopping) {
-					set_current_state(TASK_RUNNING);
-					remove_wait_queue(&channel_wqs[index].lx_queue, &wait);
-					return 0;
-				}
-			}
-
-			set_current_state(TASK_RUNNING);
-			remove_wait_queue(&channel_wqs[index].lx_queue, &wait);
-
-			/* back running */
-		}
-		else
+			if (sp_stopping)
+				return 0;
+		} else
 			return 0;
 	}
 
@@ -454,25 +419,22 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 {
 	int minor;
 	struct rtlx_channel *rt;
-	DECLARE_WAITQUEUE(wait, current);
 
 	minor = iminor(file->f_path.dentry->d_inode);
 	rt = &rtlx->channel[minor];
 
 	/* any space left... */
 	if (!rtlx_write_poll(minor)) {
+		int ret = 0;
 
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 
-		add_wait_queue(&channel_wqs[minor].rt_queue, &wait);
-		set_current_state(TASK_INTERRUPTIBLE);
-
-		while (!rtlx_write_poll(minor))
-			schedule();
-
-		set_current_state(TASK_RUNNING);
-		remove_wait_queue(&channel_wqs[minor].rt_queue, &wait);
+		__wait_event_interruptible(channel_wqs[minor].rt_queue,
+		                           rtlx_write_poll(minor),
+		                           ret);
+		if (ret)
+			return ret;
 	}
 
 	return rtlx_write(minor, (void *)buffer, count, 1);
