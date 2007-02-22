@@ -611,6 +611,13 @@ void fx_init(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(fx_init);
 
+static void do_remove_write_access(struct kvm_vcpu *vcpu, int slot)
+{
+	spin_lock(&vcpu->kvm->lock);
+	kvm_mmu_slot_remove_write_access(vcpu, slot);
+	spin_unlock(&vcpu->kvm->lock);
+}
+
 /*
  * Allocate some memory and give it an address in the guest physical address
  * space.
@@ -754,13 +761,6 @@ out_free:
 	kvm_free_physmem_slot(&new, &old);
 out:
 	return r;
-}
-
-static void do_remove_write_access(struct kvm_vcpu *vcpu, int slot)
-{
-	spin_lock(&vcpu->kvm->lock);
-	kvm_mmu_slot_remove_write_access(vcpu, slot);
-	spin_unlock(&vcpu->kvm->lock);
 }
 
 /*
