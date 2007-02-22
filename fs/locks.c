@@ -1665,8 +1665,6 @@ int fcntl_getlk(struct file *filp, struct flock __user *l)
 
 	if (filp->f_op && filp->f_op->lock) {
 		error = filp->f_op->lock(filp, F_GETLK, &file_lock);
-		if (file_lock.fl_ops && file_lock.fl_ops->fl_release_private)
-			file_lock.fl_ops->fl_release_private(&file_lock);
 		if (error < 0)
 			goto out;
 		else
@@ -1804,8 +1802,6 @@ int fcntl_getlk64(struct file *filp, struct flock64 __user *l)
 
 	if (filp->f_op && filp->f_op->lock) {
 		error = filp->f_op->lock(filp, F_GETLK, &file_lock);
-		if (file_lock.fl_ops && file_lock.fl_ops->fl_release_private)
-			file_lock.fl_ops->fl_release_private(&file_lock);
 		if (error < 0)
 			goto out;
 		else
