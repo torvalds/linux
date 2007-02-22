@@ -1494,6 +1494,12 @@ M:	jkosina@suse.cz
 L:	linux-input@atrey.karlin.mff.cuni.cz
 S:	Maintained
 
+HIGH-RESOLUTION TIMERS, CLOCKEVENTS, DYNTICKS
+P:	Thomas Gleixner
+M:	tglx@linutronix.de
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 HIGH-SPEED SCC DRIVER FOR AX.25
 P:	Klaus Kudielka
 M:	klaus.kudielka@ieee.org
