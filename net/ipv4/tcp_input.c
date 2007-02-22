@@ -2522,7 +2522,7 @@ static void tcp_conservative_spur_to_response(struct tcp_sock *tp)
  *     to prove that the RTO is indeed spurious. It transfers the control
  *     from F-RTO to the conventional RTO recovery
  */
-static void tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
+static int tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -2534,7 +2534,7 @@ static void tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 
 	if (!before(tp->snd_una, tp->frto_highmark)) {
 		tcp_enter_frto_loss(sk, tp->frto_counter + 1);
-		return;
+		return 1;
 	}
 
 	/* RFC4138 shortcoming in step 2; should also have case c): ACK isn't
@@ -2542,20 +2542,22 @@ static void tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 	 */
 	if ((tp->snd_una == prior_snd_una) && (flag&FLAG_NOT_DUP) &&
 	    !(flag&FLAG_FORWARD_PROGRESS))
-		return;
+		return 1;
 
 	if (!(flag&FLAG_DATA_ACKED)) {
 		tcp_enter_frto_loss(sk, (tp->frto_counter == 1 ? 0 : 3));
-		return;
+		return 1;
 	}
 
 	if (tp->frto_counter == 1) {
 		tp->snd_cwnd = tcp_packets_in_flight(tp) + 2;
 		tp->frto_counter = 2;
+		return 1;
 	} else /* frto_counter == 2 */ {
 		tcp_conservative_spur_to_response(tp);
 		tp->frto_counter = 0;
 	}
+	return 0;
 }
 
 /* This routine deals with incoming acks, but not outgoing ones. */
@@ -2569,6 +2571,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	u32 prior_in_flight;
 	s32 seq_rtt;
 	int prior_packets;
+	int frto_cwnd = 0;
 
 	/* If the ack is newer than sent or older than previous acks
 	 * then we can probably ignore it.
@@ -2631,15 +2634,16 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	flag |= tcp_clean_rtx_queue(sk, &seq_rtt);
 
 	if (tp->frto_counter)
-		tcp_process_frto(sk, prior_snd_una, flag);
+		frto_cwnd = tcp_process_frto(sk, prior_snd_una, flag);
 
 	if (tcp_ack_is_dubious(sk, flag)) {
 		/* Advance CWND, if state allows this. */
-		if ((flag & FLAG_DATA_ACKED) && tcp_may_raise_cwnd(sk, flag))
+		if ((flag & FLAG_DATA_ACKED) && !frto_cwnd &&
+		    tcp_may_raise_cwnd(sk, flag))
 			tcp_cong_avoid(sk, ack,  seq_rtt, prior_in_flight, 0);
 		tcp_fastretrans_alert(sk, prior_snd_una, prior_packets, flag);
 	} else {
-		if ((flag & FLAG_DATA_ACKED))
+		if ((flag & FLAG_DATA_ACKED) && !frto_cwnd)
 			tcp_cong_avoid(sk, ack, seq_rtt, prior_in_flight, 1);
 	}
 
