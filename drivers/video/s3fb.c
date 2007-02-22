@@ -1134,11 +1134,11 @@ static int  __init s3fb_setup(char *options)
 		if (!*opt)
 			continue;
 #ifdef CONFIG_MTRR
-		else if (!strcmp(opt, "mtrr:"))
+		else if (!strncmp(opt, "mtrr:", 5))
 			mtrr = simple_strtoul(opt + 5, NULL, 0);
 #endif
-		else if (!strcmp(opt, "fasttext:"))
-			mtrr = simple_strtoul(opt + 9, NULL, 0);
+		else if (!strncmp(opt, "fasttext:", 9))
+			fasttext = simple_strtoul(opt + 9, NULL, 0);
 		else
 			mode = opt;
 	}
