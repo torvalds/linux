@@ -1296,7 +1296,7 @@ void tcp_enter_frto(struct sock *sk)
  * which indicates that we should follow the traditional RTO recovery,
  * i.e. mark everything lost and do go-back-N retransmission.
  */
-static void tcp_enter_frto_loss(struct sock *sk)
+static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
@@ -1326,7 +1326,7 @@ static void tcp_enter_frto_loss(struct sock *sk)
 	}
 	tcp_sync_left_out(tp);
 
-	tp->snd_cwnd = tp->frto_counter + tcp_packets_in_flight(tp)+1;
+	tp->snd_cwnd = tcp_packets_in_flight(tp) + allowed_segments;
 	tp->snd_cwnd_cnt = 0;
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 	tp->undo_marker = 0;
@@ -2527,6 +2527,11 @@ static void tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 	if (flag&FLAG_DATA_ACKED)
 		inet_csk(sk)->icsk_retransmits = 0;
 
+	if (!before(tp->snd_una, tp->frto_highmark)) {
+		tcp_enter_frto_loss(sk, tp->frto_counter + 1);
+		return;
+	}
+
 	/* RFC4138 shortcoming in step 2; should also have case c): ACK isn't
 	 * duplicate nor advances window, e.g., opposite dir data, winupdate
 	 */
@@ -2534,9 +2539,8 @@ static void tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 	    !(flag&FLAG_FORWARD_PROGRESS))
 		return;
 
-	if (tp->snd_una == prior_snd_una ||
-	    !before(tp->snd_una, tp->frto_highmark)) {
-		tcp_enter_frto_loss(sk);
+	if (!(flag&FLAG_DATA_ACKED)) {
+		tcp_enter_frto_loss(sk, (tp->frto_counter == 1 ? 0 : 3));
 		return;
 	}
 
