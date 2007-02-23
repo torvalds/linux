@@ -74,7 +74,7 @@ int nr_ioapic_registers[MAX_IO_APICS];
  * Rough estimation of how many shared IRQs there are, can
  * be changed anytime.
  */
-#define MAX_PLUS_SHARED_IRQS NR_IRQ_VECTORS
+#define MAX_PLUS_SHARED_IRQS NR_IRQS
 #define PIN_MAP_SIZE (MAX_PLUS_SHARED_IRQS + NR_IRQS)
 
 /*
@@ -615,7 +615,7 @@ static int pin_2_irq(int idx, int apic, int pin)
 
 
 /* irq_vectors is indexed by the sum of all RTEs in all I/O APICs. */
-static u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = {
+static u8 irq_vector[NR_IRQS] __read_mostly = {
 	[0] = FIRST_EXTERNAL_VECTOR + 0,
 	[1] = FIRST_EXTERNAL_VECTOR + 1,
 	[2] = FIRST_EXTERNAL_VECTOR + 2,
@@ -634,7 +634,7 @@ static u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = {
 	[15] = FIRST_EXTERNAL_VECTOR + 15,
 };
 
-static cpumask_t irq_domain[NR_IRQ_VECTORS] __read_mostly = {
+static cpumask_t irq_domain[NR_IRQS] __read_mostly = {
 	[0] = CPU_MASK_ALL,
 	[1] = CPU_MASK_ALL,
 	[2] = CPU_MASK_ALL,
@@ -671,7 +671,7 @@ static int __assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 	int old_vector = -1;
 	int cpu;
 
-	BUG_ON((unsigned)irq >= NR_IRQ_VECTORS);
+	BUG_ON((unsigned)irq >= NR_IRQS);
 
 	/* Only try and allocate irqs on cpus that are present */
 	cpus_and(mask, mask, cpu_online_map);
@@ -758,7 +758,7 @@ void __setup_vector_irq(int cpu)
 	int irq, vector;
 
 	/* Mark the inuse vectors */
-	for (irq = 0; irq < NR_IRQ_VECTORS; ++irq) {
+	for (irq = 0; irq < NR_IRQS; ++irq) {
 		if (!cpu_isset(cpu, irq_domain[irq]))
 			continue;
 		vector = irq_vector[irq];
