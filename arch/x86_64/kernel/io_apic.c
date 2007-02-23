@@ -793,8 +793,6 @@ void __setup_vector_irq(int cpu)
 }
 
 
-extern void (*interrupt[NR_IRQS])(void);
-
 static struct irq_chip ioapic_chip;
 
 #define IOAPIC_AUTO	-1
