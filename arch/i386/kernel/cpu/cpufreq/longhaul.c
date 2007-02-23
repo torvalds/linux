@@ -61,8 +61,8 @@ static int cpu_model;
 static unsigned int numscales=16;
 static unsigned int fsb;
 
-static struct mV_pos *vrm_mV_table;
-static unsigned char *mV_vrm_table;
+static const struct mV_pos *vrm_mV_table;
+static const unsigned char *mV_vrm_table;
 struct f_msr {
 	u8 vrm;
 	u8 pos;

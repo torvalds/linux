@@ -68,7 +68,7 @@ union powernow_acpi_control_t {
 
 #ifdef CONFIG_CPU_FREQ_DEBUG
 /* divide by 1000 to get VCore voltage in V. */
-static int mobile_vid_table[32] = {
+static const int mobile_vid_table[32] = {
     2000, 1950, 1900, 1850, 1800, 1750, 1700, 1650,
     1600, 1550, 1500, 1450, 1400, 1350, 1300, 0,
     1275, 1250, 1225, 1200, 1175, 1150, 1125, 1100,
@@ -77,7 +77,7 @@ static int mobile_vid_table[32] = {
 #endif
 
 /* divide by 10 to get FID. */
-static int fid_codes[32] = {
+static const int fid_codes[32] = {
     110, 115, 120, 125, 50, 55, 60, 65,
     70, 75, 80, 85, 90, 95, 100, 105,
     30, 190, 40, 200, 130, 135, 140, 210,
