@@ -250,6 +250,11 @@ enum rtl_register_content {
 	CmdTxEnb	= 0x04,
 	RxBufEmpty	= 0x01,
 
+	/* TXPoll register p.5 */
+	HPQ		= 0x80,		/* Poll cmd on the high prio queue */
+	NPQ		= 0x40,		/* Poll cmd on the low prio queue */
+	FSWInt		= 0x01,		/* Forced software interrupt */
+
 	/* Cfg9346Bits */
 	Cfg9346_Lock	= 0x00,
 	Cfg9346_Unlock	= 0xc0,
@@ -2405,7 +2410,7 @@ static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	smp_wmb();
 
-	RTL_W8(TxPoll, 0x40);	/* set polling bit */
+	RTL_W8(TxPoll, NPQ);	/* set polling bit */
 
 	if (TX_BUFFS_AVAIL(tp) < MAX_SKB_FRAGS) {
 		netif_stop_queue(dev);
