@@ -200,17 +200,6 @@ extern int setup_irq(unsigned int irq, struct irqaction *new);
 #endif
 
 #ifdef CONFIG_SMP
-static inline void set_native_irq_info(int irq, cpumask_t mask)
-{
-	irq_desc[irq].affinity = mask;
-}
-#else
-static inline void set_native_irq_info(int irq, cpumask_t mask)
-{
-}
-#endif
-
-#ifdef CONFIG_SMP
 
 #if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
 

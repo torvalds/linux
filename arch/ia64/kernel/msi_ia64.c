@@ -60,7 +60,7 @@ static void ia64_set_msi_irq_affinity(unsigned int irq, cpumask_t cpu_mask)
 	msg.address_lo = addr;
 
 	write_msi_msg(irq, &msg);
-	set_native_irq_info(irq, cpu_mask);
+	irq_desc[irq].affinity = cpu_mask;
 }
 #endif /* CONFIG_SMP */
 
