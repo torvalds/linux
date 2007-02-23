@@ -53,7 +53,7 @@ static char module_name[] = "rtlx";
 static struct chan_waitqueues {
 	wait_queue_head_t rt_queue;
 	wait_queue_head_t lx_queue;
-	int in_open;
+	atomic_t in_open;
 } channel_wqs[RTLX_CHANNELS];
 
 static struct irqaction irq;
@@ -148,6 +148,7 @@ int rtlx_open(int index, int can_sleep)
 {
 	volatile struct rtlx_info **p;
 	struct rtlx_channel *chan;
+	enum rtlx_state state;
 	int ret = 0;
 
 	if (index >= RTLX_CHANNELS) {
@@ -155,12 +156,12 @@ int rtlx_open(int index, int can_sleep)
 		return -ENOSYS;
 	}
 
-	if (channel_wqs[index].in_open) {
-		printk(KERN_DEBUG "rtlx_open channel %d already opened\n", index);
-		return -EBUSY;
+	if (atomic_inc_return(&channel_wqs[index].in_open) > 1) {
+		printk(KERN_DEBUG "rtlx_open channel %d already opened\n",
+		       index);
+		ret = -EBUSY;
+		goto out_fail;
 	}
-
-	channel_wqs[index].in_open++;
 
 	if (rtlx == NULL) {
 		if( (p = vpe_get_shared(RTLX_TARG_VPE)) == NULL) {
@@ -173,9 +174,8 @@ int rtlx_open(int index, int can_sleep)
 				if (ret)
 					goto out_fail;
 			} else {
-				printk( KERN_DEBUG "No SP program loaded, and device "
+				printk(KERN_DEBUG "No SP program loaded, and device "
 					"opened with O_NONBLOCK\n");
-				channel_wqs[index].in_open = 0;
 				ret = -ENOSYS;
 				goto out_fail;
 			}
@@ -193,7 +193,6 @@ int rtlx_open(int index, int can_sleep)
 			} else {
 				printk(" *vpe_get_shared is NULL. "
 				       "Has an SP program been loaded?\n");
-				channel_wqs[index].in_open = 0;
 				ret = -ENOSYS;
 				goto out_fail;
 			}
@@ -202,31 +201,28 @@ int rtlx_open(int index, int can_sleep)
 		if ((unsigned int)*p < KSEG0) {
 			printk(KERN_WARNING "vpe_get_shared returned an invalid pointer "
 			       "maybe an error code %d\n", (int)*p);
- 			channel_wqs[index].in_open = 0;
 			ret = -ENOSYS;
 			goto out_fail;
 		}
 
-		if ((ret = rtlx_init(*p)) < 0) {
- 			channel_wqs[index].in_open = 0;
-  			return ret;
- 		}
+		if ((ret = rtlx_init(*p)) < 0)
+			goto out_ret;
 	}
 
 	chan = &rtlx->channel[index];
 
- 	if (chan->lx_state == RTLX_STATE_OPENED) {
- 		channel_wqs[index].in_open = 0;
-  		return -EBUSY;
- 	}
-
-  	chan->lx_state = RTLX_STATE_OPENED;
- 	channel_wqs[index].in_open = 0;
-	return 0;
+	state = xchg(&chan->lx_state, RTLX_STATE_OPENED);
+	if (state == RTLX_STATE_OPENED) {
+		ret = -EBUSY;
+		goto out_fail;
+	}
 
 out_fail:
-	channel_wqs[index].in_open--;
+	smp_mb();
+	atomic_dec(&channel_wqs[index].in_open);
+	smp_mb();
 
+out_ret:
 	return ret;
 }
 
@@ -475,7 +471,7 @@ static int rtlx_module_init(void)
 	for (i = 0; i < RTLX_CHANNELS; i++) {
 		init_waitqueue_head(&channel_wqs[i].rt_queue);
 		init_waitqueue_head(&channel_wqs[i].lx_queue);
-		channel_wqs[i].in_open = 0;
+		atomic_set(&channel_wqs[i].in_open, 0);
 
 		dev = device_create(mt_class, NULL, MKDEV(major, i),
 		                    "%s%d", module_name, i);
