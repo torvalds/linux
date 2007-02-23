@@ -799,7 +799,7 @@ static struct irq_chip ioapic_chip;
 #define IOAPIC_EDGE	0
 #define IOAPIC_LEVEL	1
 
-static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
+static void ioapic_register_intr(int irq, unsigned long trigger)
 {
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 			trigger == IOAPIC_LEVEL)
@@ -847,7 +847,7 @@ static void __init setup_IO_APIC_irq(int apic, int pin, int idx, int irq)
 		entry.dest = cpu_mask_to_apicid(mask);
 		entry.vector = vector;
 
-		ioapic_register_intr(irq, vector, IOAPIC_AUTO);
+		ioapic_register_intr(irq, IOAPIC_AUTO);
 		if (!apic && (irq < 16))
 			disable_8259A_irq(irq);
 	}
@@ -2133,7 +2133,7 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int triggering, int p
 	       mp_ioapics[ioapic].mpc_apicid, pin, entry.vector, irq,
 	       triggering, polarity);
 
-	ioapic_register_intr(irq, entry.vector, triggering);
+	ioapic_register_intr(irq, triggering);
 
 	if (!ioapic && (irq < 16))
 		disable_8259A_irq(irq);
