@@ -54,22 +54,22 @@ struct irq_cfg {
 
 /* irq_cfg is indexed by the sum of all RTEs in all I/O APICs. */
 struct irq_cfg irq_cfg[NR_IRQS] __read_mostly = {
-	[0] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 0 },
-	[1] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 1 },
-	[2] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 2 },
-	[3] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 3 },
-	[4] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 4 },
-	[5] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 5 },
-	[6] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 6 },
-	[7] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 7 },
-	[8] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 8 },
-	[9] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 9 },
-	[10] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 10 },
-	[11] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 11 },
-	[12] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 12 },
-	[13] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 13 },
-	[14] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 14 },
-	[15] = { .domain = CPU_MASK_ALL, .vector = FIRST_EXTERNAL_VECTOR + 15 },
+	[0]  = { .domain = CPU_MASK_ALL, .vector = IRQ0_VECTOR,  },
+	[1]  = { .domain = CPU_MASK_ALL, .vector = IRQ1_VECTOR,  },
+	[2]  = { .domain = CPU_MASK_ALL, .vector = IRQ2_VECTOR,  },
+	[3]  = { .domain = CPU_MASK_ALL, .vector = IRQ3_VECTOR,  },
+	[4]  = { .domain = CPU_MASK_ALL, .vector = IRQ4_VECTOR,  },
+	[5]  = { .domain = CPU_MASK_ALL, .vector = IRQ5_VECTOR,  },
+	[6]  = { .domain = CPU_MASK_ALL, .vector = IRQ6_VECTOR,  },
+	[7]  = { .domain = CPU_MASK_ALL, .vector = IRQ7_VECTOR,  },
+	[8]  = { .domain = CPU_MASK_ALL, .vector = IRQ8_VECTOR,  },
+	[9]  = { .domain = CPU_MASK_ALL, .vector = IRQ9_VECTOR,  },
+	[10] = { .domain = CPU_MASK_ALL, .vector = IRQ10_VECTOR, },
+	[11] = { .domain = CPU_MASK_ALL, .vector = IRQ11_VECTOR, },
+	[12] = { .domain = CPU_MASK_ALL, .vector = IRQ12_VECTOR, },
+	[13] = { .domain = CPU_MASK_ALL, .vector = IRQ13_VECTOR, },
+	[14] = { .domain = CPU_MASK_ALL, .vector = IRQ14_VECTOR, },
+	[15] = { .domain = CPU_MASK_ALL, .vector = IRQ15_VECTOR, },
 };
 
 static int assign_irq_vector(int irq, cpumask_t mask);
