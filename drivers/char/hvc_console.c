@@ -316,7 +316,7 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 {
 	struct hvc_struct *hp;
 	unsigned long flags;
-	int irq = NO_IRQ;
+	int irq = 0;
 	int rc = 0;
 	struct kobject *kobjp;
 
@@ -338,14 +338,14 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	hp->tty = tty;
 	/* Save for request_irq outside of spin_lock. */
 	irq = hp->irq;
-	if (irq != NO_IRQ)
+	if (irq)
 		hp->irq_requested = 1;
 
 	kobjp = &hp->kobj;
 
 	spin_unlock_irqrestore(&hp->lock, flags);
 	/* check error, fallback to non-irq */
-	if (irq != NO_IRQ)
+	if (irq)
 		rc = request_irq(irq, hvc_handle_interrupt, IRQF_DISABLED, "hvc_console", hp);
 
 	/*
@@ -373,7 +373,7 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 {
 	struct hvc_struct *hp;
 	struct kobject *kobjp;
-	int irq = NO_IRQ;
+	int irq = 0;
 	unsigned long flags;
 
 	if (tty_hung_up_p(filp))
@@ -407,7 +407,7 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 		 */
 		tty_wait_until_sent(tty, HVC_CLOSE_WAIT);
 
-		if (irq != NO_IRQ)
+		if (irq)
 			free_irq(irq, hp);
 
 	} else {
@@ -424,7 +424,7 @@ static void hvc_hangup(struct tty_struct *tty)
 {
 	struct hvc_struct *hp = tty->driver_data;
 	unsigned long flags;
-	int irq = NO_IRQ;
+	int irq = 0;
 	int temp_open_count;
 	struct kobject *kobjp;
 
@@ -453,7 +453,7 @@ static void hvc_hangup(struct tty_struct *tty)
 		irq = hp->irq;
 	hp->irq_requested = 0;
 	spin_unlock_irqrestore(&hp->lock, flags);
-	if (irq != NO_IRQ)
+	if (irq)
 		free_irq(irq, hp);
 	while(temp_open_count) {
 		--temp_open_count;
@@ -583,7 +583,7 @@ static int hvc_poll(struct hvc_struct *hp)
 	/* If we aren't interrupt driven and aren't throttled, we always
 	 * request a reschedule
 	 */
-	if (hp->irq == NO_IRQ)
+	if (hp->irq == 0)
 		poll_mask |= HVC_POLL_READ;
 
 	/* Read data if any */
