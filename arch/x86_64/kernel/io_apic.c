@@ -685,6 +685,7 @@ static int __assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
 	static int current_vector = FIRST_DEVICE_VECTOR, current_offset = 0;
+	cpumask_t old_mask = CPU_MASK_NONE;
 	int old_vector = -1;
 	int cpu;
 
@@ -699,11 +700,12 @@ static int __assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 		cpus_and(*result, irq_domain[irq], mask);
 		if (!cpus_empty(*result))
 			return old_vector;
+		cpus_and(old_mask, irq_domain[irq], cpu_online_map);
 	}
 
 	for_each_cpu_mask(cpu, mask) {
 		cpumask_t domain, new_mask;
-		int new_cpu;
+		int new_cpu, old_cpu;
 		int vector, offset;
 
 		domain = vector_allocation_domain(cpu);
@@ -728,13 +730,8 @@ next:
 		/* Found one! */
 		current_vector = vector;
 		current_offset = offset;
-		if (old_vector >= 0) {
-			cpumask_t old_mask;
-			int old_cpu;
-			cpus_and(old_mask, irq_domain[irq], cpu_online_map);
-			for_each_cpu_mask(old_cpu, old_mask)
-				per_cpu(vector_irq, old_cpu)[old_vector] = -1;
-		}
+		for_each_cpu_mask(old_cpu, old_mask)
+			per_cpu(vector_irq, old_cpu)[old_vector] = -1;
 		for_each_cpu_mask(new_cpu, new_mask)
 			per_cpu(vector_irq, new_cpu)[vector] = irq;
 		irq_vector[irq] = vector;
