@@ -12,6 +12,7 @@
 #define STYLUS_DEVICE_ID	0x02
 #define CURSOR_DEVICE_ID	0x06
 #define ERASER_DEVICE_ID	0x0A
+#define PAD_DEVICE_ID		0x0F
 
 enum {
 	PENPARTNER = 0,
