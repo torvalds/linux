@@ -740,11 +740,11 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_DBG_S_REGISTER:
 	case VIDIOC_DBG_G_REGISTER:
 	{
-		u32 val;
+		u64 val;
 		struct v4l2_register *req = (struct v4l2_register *)arg;
 		if (cmd == VIDIOC_DBG_S_REGISTER) val = req->val;
 		ret = pvr2_hdw_register_access(
-			hdw,req->i2c_id,req->reg,
+			hdw,req->match_type,req->match_chip,req->reg,
 			cmd == VIDIOC_DBG_S_REGISTER,&val);
 		if (cmd == VIDIOC_DBG_G_REGISTER) req->val = val;
 		break;

@@ -521,7 +521,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			struct v4l2_register *reg = arg;
 			int errCode;
 
-			if (reg->i2c_id != 0)
+			if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
 				return -EINVAL;
 			if (!capable(CAP_SYS_ADMIN))
 				return -EPERM;
@@ -540,7 +540,7 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 			PDEBUG(DBG_IOCTL, "VIDIOC_DBG_%c_REGISTER reg=0x%02X, value=0x%02X",
 			       cmd == VIDIOC_DBG_G_REGISTER ? 'G' : 'S',
-			       (unsigned int)reg->reg, reg->val);
+			       (unsigned int)reg->reg, (unsigned int)reg->val);
 			return 0;
 		}
 #endif

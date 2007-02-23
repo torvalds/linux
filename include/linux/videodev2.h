@@ -1306,10 +1306,17 @@ struct v4l2_streamparm
  */
 
 /* VIDIOC_DBG_G_REGISTER and VIDIOC_DBG_S_REGISTER */
+
+#define V4L2_CHIP_MATCH_ALWAYS     0  /* Match always (match_chip is not used) */
+#define V4L2_CHIP_MATCH_HOST       1  /* Match against chip ID on host (0 for the host) */
+#define V4L2_CHIP_MATCH_I2C_DRIVER 2  /* Match against I2C driver ID */
+#define V4L2_CHIP_MATCH_I2C_ADDR   3  /* Match against I2C 7-bit address */
+
 struct v4l2_register {
+	__u32 match_type; /* Match type */
+	__u32 match_chip; /* Match this chip, meaning determined by match_type */
 	__u64 reg;
-	__u32 i2c_id; /* I2C driver ID of the I2C chip, or 0 for the host */
-	__u32 val;
+	__u64 val;
 };
 
 /*

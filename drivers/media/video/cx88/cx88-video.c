@@ -1389,7 +1389,7 @@ static int vidioc_g_register (struct file *file, void *fh,
 {
 	struct cx88_core *core = ((struct cx8800_fh*)fh)->dev->core;
 
-	if (reg->i2c_id != 0)
+	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
 		return -EINVAL;
 	/* cx2388x has a 24-bit register space */
 	reg->val = cx_read(reg->reg&0xffffff);
@@ -1401,7 +1401,7 @@ static int vidioc_s_register (struct file *file, void *fh,
 {
 	struct cx88_core *core = ((struct cx8800_fh*)fh)->dev->core;
 
-	if (reg->i2c_id != 0)
+	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
 		return -EINVAL;
 	cx_write(reg->reg&0xffffff, reg->val);
 	return 0;

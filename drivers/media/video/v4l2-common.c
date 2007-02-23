@@ -51,6 +51,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/i2c.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -947,6 +948,32 @@ u32 v4l2_ctrl_next(const u32 * const * ctrl_classes, u32 id)
 	return **ctrl_classes;
 }
 
+int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 match_type, u32 match_chip)
+{
+	switch (match_type) {
+	case V4L2_CHIP_MATCH_ALWAYS:
+		return 1;
+	case V4L2_CHIP_MATCH_I2C_DRIVER:
+		return (c != NULL && c->driver != NULL && c->driver->id == match_chip);
+	case V4L2_CHIP_MATCH_I2C_ADDR:
+		return (c != NULL && c->addr == match_chip);
+	default:
+		return 0;
+	}
+}
+
+int v4l2_chip_match_host(u32 match_type, u32 match_chip)
+{
+	switch (match_type) {
+	case V4L2_CHIP_MATCH_ALWAYS:
+		return 1;
+	case V4L2_CHIP_MATCH_HOST:
+		return match_chip == 0;
+	default:
+		return 0;
+	}
+}
+
 /* ----------------------------------------------------------------- */
 
 EXPORT_SYMBOL(v4l2_norm_to_name);
@@ -969,6 +996,9 @@ EXPORT_SYMBOL(v4l2_ctrl_get_menu);
 EXPORT_SYMBOL(v4l2_ctrl_query_menu);
 EXPORT_SYMBOL(v4l2_ctrl_query_fill);
 EXPORT_SYMBOL(v4l2_ctrl_query_fill_std);
+
+EXPORT_SYMBOL(v4l2_chip_match_i2c_client);
+EXPORT_SYMBOL(v4l2_chip_match_host);
 
 /*
  * Local variables:
