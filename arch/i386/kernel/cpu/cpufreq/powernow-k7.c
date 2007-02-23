@@ -647,7 +647,7 @@ static struct freq_attr* powernow_table_attr[] = {
 	NULL,
 };
 
-static struct cpufreq_driver powernow_driver = {
+static const struct cpufreq_driver powernow_driver = {
 	.verify	= powernow_verify,
 	.target	= powernow_target,
 	.get	= powernow_get,

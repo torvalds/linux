@@ -267,7 +267,7 @@ static struct freq_attr* elanfreq_attr[] = {
 };
 
 
-static struct cpufreq_driver elanfreq_driver = {
+static const struct cpufreq_driver elanfreq_driver = {
 	.get		= elanfreq_get_cpu_frequency,
 	.verify		= elanfreq_verify,
 	.target		= elanfreq_target,
