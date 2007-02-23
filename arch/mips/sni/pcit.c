@@ -276,11 +276,11 @@ static void sni_pcit_hwint(void)
 	if (pending & C_IRQ1)
 		pcit_hwint1();
 	else if (pending & C_IRQ2)
-		do_IRQ (SNI_MIPS_IRQ_CPU_BASE + 4);
+		do_IRQ (MIPS_CPU_IRQ_BASE + 4);
 	else if (pending & C_IRQ3)
-		do_IRQ (SNI_MIPS_IRQ_CPU_BASE + 5);
+		do_IRQ (MIPS_CPU_IRQ_BASE + 5);
 	else if (pending & C_IRQ5)
-		do_IRQ (SNI_MIPS_IRQ_CPU_BASE + 7);
+		do_IRQ (MIPS_CPU_IRQ_BASE + 7);
 }
 
 static void sni_pcit_hwint_cplus(void)
@@ -290,11 +290,11 @@ static void sni_pcit_hwint_cplus(void)
 	if (pending & C_IRQ0)
 		pcit_hwint0();
 	else if (pending & C_IRQ2)
-		do_IRQ (SNI_MIPS_IRQ_CPU_BASE + 4);
+		do_IRQ (MIPS_CPU_IRQ_BASE + 4);
 	else if (pending & C_IRQ3)
-		do_IRQ (SNI_MIPS_IRQ_CPU_BASE + 5);
+		do_IRQ (MIPS_CPU_IRQ_BASE + 5);
 	else if (pending & C_IRQ5)
-		do_IRQ (SNI_MIPS_IRQ_CPU_BASE + 7);
+		do_IRQ (MIPS_CPU_IRQ_BASE + 7);
 }
 
 void __init sni_pcit_irq_init(void)

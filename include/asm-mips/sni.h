@@ -141,10 +141,9 @@ extern unsigned int sni_brd_type;
 #define A20R_PT_TIM0_ACK        0xbc050000
 #define A20R_PT_TIM1_ACK        0xbc060000
 
-#define SNI_MIPS_IRQ_CPU_BASE   16
-#define SNI_MIPS_IRQ_CPU_TIMER  (SNI_MIPS_IRQ_CPU_BASE+7)
+#define SNI_MIPS_IRQ_CPU_TIMER  (MIPS_CPU_IRQ_BASE+7)
 
-#define SNI_A20R_IRQ_BASE       SNI_MIPS_IRQ_CPU_BASE
+#define SNI_A20R_IRQ_BASE       MIPS_CPU_IRQ_BASE
 #define SNI_A20R_IRQ_TIMER      (SNI_A20R_IRQ_BASE+5)
 
 #define SNI_DS1216_A20R_BASE    0xbc081ffc
@@ -155,7 +154,7 @@ extern unsigned int sni_brd_type;
 #define SNI_PCIT_INT_START      24
 #define SNI_PCIT_INT_END        30
 
-#define PCIT_IRQ_ETHERNET       (SNI_MIPS_IRQ_CPU_BASE + 5)
+#define PCIT_IRQ_ETHERNET       (MIPS_CPU_IRQ_BASE + 5)
 #define PCIT_IRQ_INTA           (SNI_PCIT_INT_START + 0)
 #define PCIT_IRQ_INTB           (SNI_PCIT_INT_START + 1)
 #define PCIT_IRQ_INTC           (SNI_PCIT_INT_START + 2)
@@ -180,7 +179,7 @@ extern unsigned int sni_brd_type;
 #define PCIMT_IRQ_EISA		29
 #define PCIMT_IRQ_SCSI		30
 
-#define PCIMT_IRQ_ETHERNET	(SNI_MIPS_IRQ_CPU_BASE+6)
+#define PCIMT_IRQ_ETHERNET	(MIPS_CPU_IRQ_BASE+6)
 
 #if 0
 #define PCIMT_IRQ_TEMPERATURE	24

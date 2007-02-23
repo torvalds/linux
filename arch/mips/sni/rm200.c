@@ -148,7 +148,7 @@ static void sni_rm200_hwint(void)
 	int irq;
 
 	if (pending & C_IRQ5)
-		do_IRQ (SNI_MIPS_IRQ_CPU_BASE + 7);
+		do_IRQ (MIPS_CPU_IRQ_BASE + 7);
 	else if (pending & C_IRQ0) {
 		clear_c0_status (IE_IRQ0);
 		mask = *(volatile u8 *)SNI_RM200_INT_ENA_REG ^ 0x1f;

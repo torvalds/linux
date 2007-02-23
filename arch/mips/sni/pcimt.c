@@ -336,9 +336,9 @@ static void sni_pcimt_hwint(void)
 	u32 pending = (read_c0_cause() & read_c0_status());
 
 	if (pending & C_IRQ5)
-		do_IRQ (SNI_MIPS_IRQ_CPU_BASE + 7);
+		do_IRQ (MIPS_CPU_IRQ_BASE + 7);
 	else if (pending & C_IRQ4)
-		do_IRQ (SNI_MIPS_IRQ_CPU_BASE + 6);
+		do_IRQ (MIPS_CPU_IRQ_BASE + 6);
 	else if (pending & C_IRQ3)
 		pcimt_hwint3();
 	else if (pending & C_IRQ1)
