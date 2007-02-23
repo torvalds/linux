@@ -520,12 +520,6 @@ void __init init_IRQ(void)
 
 #ifdef CONFIG_SMP
 	/*
-	 * IRQ0 must be given a fixed assignment and initialized,
-	 * because it's used before the IO-APIC is set up.
-	 */
-	__get_cpu_var(vector_irq)[FIRST_DEVICE_VECTOR] = 0;
-
-	/*
 	 * The reschedule interrupt is a CPU-to-CPU reschedule-helper
 	 * IPI, driven by wakeup.
 	 */
