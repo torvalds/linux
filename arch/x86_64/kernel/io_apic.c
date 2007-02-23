@@ -244,9 +244,7 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
 
 	cpus_and(tmp, mask, cpu_online_map);
 	if (cpus_empty(tmp))
-		tmp = TARGET_CPUS;
-
-	cpus_and(mask, tmp, CPU_MASK_ALL);
+		return;
 
 	vector = assign_irq_vector(irq, mask, &tmp);
 	if (vector < 0)
@@ -1890,9 +1888,7 @@ static void set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
 
 	cpus_and(tmp, mask, cpu_online_map);
 	if (cpus_empty(tmp))
-		tmp = TARGET_CPUS;
-
-	cpus_and(mask, tmp, CPU_MASK_ALL);
+		return;
 
 	vector = assign_irq_vector(irq, mask, &tmp);
 	if (vector < 0)
@@ -1985,9 +1981,7 @@ static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
 
 	cpus_and(tmp, mask, cpu_online_map);
 	if (cpus_empty(tmp))
-		tmp = TARGET_CPUS;
-
-	cpus_and(mask, tmp, CPU_MASK_ALL);
+		return;
 
 	vector = assign_irq_vector(irq, mask, &tmp);
 	if (vector < 0)
