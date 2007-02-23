@@ -112,7 +112,7 @@ static int __init excite_init_console(void)
 	up.irq		= TITAN_IRQ;
 	up.uartclk	= TITAN_UART_CLK;
 	up.regshift	= 0;
-	up.iotype	= UPIO_MEM32;
+	up.iotype	= UPIO_RM9000;
 	up.type		= PORT_RM9000;
 	up.flags	= UPF_SHARE_IRQ;
 	up.line		= 0;
