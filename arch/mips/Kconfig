@@ -133,7 +133,7 @@ config MIPS_MIRAGE
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config BASLER_EXCITE
-	bool "Basler eXcite smart camera support"
+	bool "Basler eXcite smart camera"
 	select DMA_COHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -147,7 +147,7 @@ config BASLER_EXCITE
 	select SYS_SUPPORTS_KGDB
 	help
 	  The eXcite is a smart camera platform manufactured by
-	  Basler Vision Technologies AG
+	  Basler Vision Technologies AG.
 
 config BASLER_EXCITE_PROTOTYPE
 	bool "Support for pre-release units"
