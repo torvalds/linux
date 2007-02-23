@@ -166,8 +166,6 @@ int rtlx_open(int index, int can_sleep)
 	if (rtlx == NULL) {
 		if( (p = vpe_get_shared(RTLX_TARG_VPE)) == NULL) {
 			if (can_sleep) {
-				int ret = 0;
-
 				__wait_event_interruptible(channel_wqs[index].lx_queue,
 				                           (p = vpe_get_shared(RTLX_TARG_VPE)),
 				                           ret);
@@ -183,8 +181,6 @@ int rtlx_open(int index, int can_sleep)
 
 		if (*p == NULL) {
 			if (can_sleep) {
-				int ret = 0;
-
 				__wait_event_interruptible(channel_wqs[index].lx_queue,
 				                           *p != NULL,
 				                           ret);
