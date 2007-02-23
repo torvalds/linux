@@ -23,17 +23,10 @@ int mkfs(int fd)
 	info[0].blocknr = 16;
 	info[0].objectid = 1;
 	info[0].tree_root = 17;
-	info[0].alloc_extent.blocknr = 0;
-	info[0].alloc_extent.num_blocks = 64;
-	/* 0-17 are used (inclusive) */
-	info[0].alloc_extent.num_used = 18;
 
 	info[1].blocknr = 16;
 	info[1].objectid = 2;
-	info[1].tree_root = 64;
-	info[1].alloc_extent.blocknr = 64;
-	info[1].alloc_extent.num_blocks = 64;
-	info[1].alloc_extent.num_used = 1;
+	info[1].tree_root = 18;
 	ret = pwrite(fd, info, sizeof(info),
 		     CTREE_SUPER_INFO_OFFSET(CTREE_BLOCKSIZE));
 	if (ret != sizeof(info))
@@ -48,24 +41,36 @@ int mkfs(int fd)
 		return -1;
 
 	empty_leaf.header.parentid = 2;
-	empty_leaf.header.blocknr = 64;
-	empty_leaf.header.nritems = 2;
+	empty_leaf.header.blocknr = 18;
+	empty_leaf.header.nritems = 3;
+
+	/* item1, reserve blocks 0-16 */
 	item.key.objectid = 0;
-	item.key.offset = 64;
+	item.key.offset = 17;
 	item.key.flags = 0;
 	item.offset = LEAF_DATA_SIZE - sizeof(struct extent_item);
 	item.size = sizeof(struct extent_item);
 	extent_item.refs = 1;
-	extent_item.owner = 1;
+	extent_item.owner = 0;
 	memcpy(empty_leaf.items, &item, sizeof(item));
 	memcpy(empty_leaf.data + item.offset, &extent_item, item.size);
-	item.key.objectid = 64;
-	item.key.offset = 64;
+
+	/* item2, give block 17 to the root */
+	item.key.objectid = 17;
+	item.key.offset = 1;
 	item.offset = LEAF_DATA_SIZE - sizeof(struct extent_item) * 2;
-	extent_item.owner = 2;
+	extent_item.owner = 1;
 	memcpy(empty_leaf.items + 1, &item, sizeof(item));
 	memcpy(empty_leaf.data + item.offset, &extent_item, item.size);
-	ret = pwrite(fd, &empty_leaf, sizeof(empty_leaf), 64 * CTREE_BLOCKSIZE);
+
+	/* item3, give block 18 for the extent root */
+	item.key.objectid = 18;
+	item.key.offset = 1;
+	item.offset = LEAF_DATA_SIZE - sizeof(struct extent_item) * 3;
+	extent_item.owner = 2;
+	memcpy(empty_leaf.items + 2, &item, sizeof(item));
+	memcpy(empty_leaf.data + item.offset, &extent_item, item.size);
+	ret = pwrite(fd, &empty_leaf, sizeof(empty_leaf), 18 * CTREE_BLOCKSIZE);
 	if (ret != sizeof(empty_leaf))
 		return -1;
 	return 0;

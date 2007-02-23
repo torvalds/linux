@@ -28,21 +28,12 @@ struct header {
 
 struct tree_buffer;
 
-struct alloc_extent {
-	u64 blocknr;
-	u64 num_blocks;
-	u64 num_used;
-} __attribute__ ((__packed__));
-
 struct ctree_root {
 	struct tree_buffer *node;
 	struct ctree_root *extent_root;
-	struct alloc_extent *alloc_extent;
-	struct alloc_extent *reserve_extent;
+	struct key current_insert;
 	int fp;
 	struct radix_tree_root cache_radix;
-	struct alloc_extent ai1;
-	struct alloc_extent ai2;
 };
 
 struct ctree_root_info {
@@ -52,8 +43,6 @@ struct ctree_root_info {
 	u64 tree_root; /* the tree root */
 	u32 csum;
 	u32 ham;
-	struct alloc_extent alloc_extent;
-	struct alloc_extent reserve_extent;
 	u64 snapuuid[2]; /* root specific uuid */
 } __attribute__ ((__packed__));
 

@@ -8,9 +8,12 @@
 #define SEARCH_READ 0
 #define SEARCH_WRITE 1
 
-static int refill_alloc_extent(struct ctree_root *root);
+#define CTREE_EXTENT_PENDING 0
+
 int split_node(struct ctree_root *root, struct ctree_path *path, int level);
 int split_leaf(struct ctree_root *root, struct ctree_path *path, int data_size);
+struct tree_buffer *alloc_free_block(struct ctree_root *root);
+int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks);
 
 static inline void init_path(struct ctree_path *p)
 {
@@ -682,8 +685,6 @@ int insert_item(struct ctree_root *root, struct key *key,
 	unsigned int data_end;
 	struct ctree_path path;
 
-	refill_alloc_extent(root);
-
 	/* create a root if there isn't one */
 	if (!root->node)
 		BUG();
@@ -756,6 +757,7 @@ int del_ptr(struct ctree_root *root, struct ctree_path *path, int level)
 	struct tree_buffer *t;
 	struct node *node;
 	int nritems;
+	u64 blocknr;
 
 	while(1) {
 		t = path->nodes[level];
@@ -774,6 +776,7 @@ int del_ptr(struct ctree_root *root, struct ctree_path *path, int level)
 		}
 		node->header.nritems--;
 		write_tree_block(root, t);
+		blocknr = t->blocknr;
 		if (node->header.nritems != 0) {
 			int tslot;
 			if (slot == 0)
@@ -799,6 +802,7 @@ int del_ptr(struct ctree_root *root, struct ctree_path *path, int level)
 			break;
 		}
 		level++;
+		free_extent(root, blocknr, 1);
 		if (!path->nodes[level])
 			BUG();
 	}
@@ -841,8 +845,10 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 		if (leaf_buf == root->node) {
 			leaf->header.flags = node_level(0);
 			write_tree_block(root, leaf_buf);
-		} else
+		} else {
 			del_ptr(root, path, 1);
+			free_extent(root, leaf_buf->blocknr, 1);
+		}
 	} else {
 		if (slot == 0)
 			fixup_low_keys(root, path, &leaf->items[0].key, 1);
@@ -865,6 +871,72 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 		}
 	}
 	return 0;
+}
+
+static int del_pending_extents(struct ctree_root *extent_root)
+{
+	int ret;
+	struct key key;
+	struct tree_buffer *gang[4];
+	int i;
+	struct ctree_path path;
+
+	while(1) {
+		ret = radix_tree_gang_lookup_tag(&extent_root->cache_radix,
+						 (void **)gang, 0, ARRAY_SIZE(gang),
+						 CTREE_EXTENT_PENDING);
+		if (!ret)
+			break;
+		for (i = 0; i < ret; i++) {
+			key.objectid = gang[i]->blocknr;
+			key.flags = 0;
+			key.offset = 1;
+			init_path(&path);
+			ret = search_slot(extent_root, &key, &path, 0);
+			if (ret) {
+				BUG();
+				// FIXME undo it and return sane
+				return ret;
+			}
+			ret = del_item(extent_root, &path);
+			if (ret) {
+				BUG();
+				return ret;
+			}
+			release_path(extent_root, &path);
+			radix_tree_tag_clear(&extent_root->cache_radix, gang[i]->blocknr,
+						CTREE_EXTENT_PENDING);
+			tree_block_release(extent_root, gang[i]);
+		}
+	}
+	return 0;
+}
+
+int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
+{
+	struct ctree_path path;
+	struct key key;
+	struct ctree_root *extent_root = root->extent_root;
+	struct tree_buffer *t;
+	int pending_ret;
+	int ret;
+
+	key.objectid = blocknr;
+	key.flags = 0;
+	key.offset = num_blocks;
+	if (root == extent_root) {
+		t = read_tree_block(root, key.objectid);
+		radix_tree_tag_set(&root->cache_radix, key.objectid, CTREE_EXTENT_PENDING);
+		return 0;
+	}
+	init_path(&path);
+	ret = search_slot(extent_root, &key, &path, 0);
+	if (ret)
+		BUG();
+	ret = del_item(extent_root, &path);
+	release_path(extent_root, &path);
+	pending_ret = del_pending_extents(root->extent_root);
+	return ret ? ret : pending_ret;
 }
 
 int next_leaf(struct ctree_root *root, struct ctree_path *path)
@@ -904,8 +976,8 @@ int next_leaf(struct ctree_root *root, struct ctree_path *path)
 	return 0;
 }
 
-int alloc_extent(struct ctree_root *orig_root, u64 num_blocks, u64 search_start,
-		 u64 search_end, u64 owner, struct key *ins)
+int find_free_extent(struct ctree_root *orig_root, u64 num_blocks, u64 search_start,
+			 u64 search_end, struct key *ins)
 {
 	struct ctree_path path;
 	struct key *key;
@@ -915,15 +987,13 @@ int alloc_extent(struct ctree_root *orig_root, u64 num_blocks, u64 search_start,
 	u64 last_block;
 	int start_found = 0;
 	struct leaf *l;
-	struct extent_item extent_item;
 	struct ctree_root * root = orig_root->extent_root;
 
 	init_path(&path);
 	ins->objectid = search_start;
 	ins->offset = 0;
 	ins->flags = 0;
-
-	ret = search_slot(root, ins, &path, sizeof(struct extent_item));
+	ret = search_slot(root, ins, &path, 0);
 	while (1) {
 		l = &path.nodes[0]->leaf;
 		slot = path.slots[0];
@@ -938,6 +1008,7 @@ int alloc_extent(struct ctree_root *orig_root, u64 num_blocks, u64 search_start,
 				ins->objectid = search_start;
 				ins->offset = num_blocks;
 				hole_size = search_end - search_start;
+				start_found = 1;
 				goto insert;
 			}
 			ins->objectid = last_block;
@@ -956,51 +1027,119 @@ int alloc_extent(struct ctree_root *orig_root, u64 num_blocks, u64 search_start,
 		} else
 			start_found = 1;
 		last_block = key->objectid + key->offset;
+insert_failed:
 		path.slots[0]++;
 	}
 	// FIXME -ENOSPC
 insert:
-	release_path(root, &path);
-	extent_item.refs = 1;
-	extent_item.owner = owner;
-	if (root == orig_root && root->reserve_extent->num_blocks == 0) {
-		root->reserve_extent->blocknr = ins->objectid;
-		root->reserve_extent->num_blocks = ins->offset;
-		root->reserve_extent->num_used = 0;
+	if (orig_root->extent_root == orig_root) {
+		BUG_ON(num_blocks != 1);
+		if ((root->current_insert.objectid <= ins->objectid &&
+		    root->current_insert.objectid + root->current_insert.offset >
+		    ins->objectid) ||
+		   (root->current_insert.objectid > ins->objectid &&
+		    root->current_insert.objectid <= ins->objectid + ins->offset) ||
+		   radix_tree_tag_get(&root->cache_radix, ins->objectid,
+				      CTREE_EXTENT_PENDING)) {
+			last_block = ins->objectid + 1;
+			search_start = last_block;
+			goto insert_failed;
+		}
 	}
-	ret = insert_item(root->extent_root, ins, &extent_item, sizeof(extent_item));
-	return ret;
+	release_path(root, &path);
+	if (ins->offset != 1)
+		BUG();
+	return 0;
 }
 
-static int refill_alloc_extent(struct ctree_root *root)
+static int insert_pending_extents(struct ctree_root *extent_root)
 {
-	struct alloc_extent *ae = root->alloc_extent;
-	struct key key;
 	int ret;
-	int min_blocks = MAX_LEVEL * 2;
+	struct key key;
+	struct extent_item item;
+	struct tree_buffer *gang[4];
+	int i;
 
-	if (ae->num_blocks > ae->num_used && ae->num_blocks - ae->num_used >
-	    min_blocks)
-		return 0;
-	ae = root->reserve_extent;
-	if (ae->num_blocks > ae->num_used) {
-		if (root->alloc_extent->num_blocks == 0) {
-			/* we should swap reserve/alloc_extent when alloc
-			 * fills up
-			 */
-			BUG();
+	// FIXME -ENOSPC
+	item.refs = 1;
+	item.owner = extent_root->node->node.header.parentid;
+	while(1) {
+		ret = radix_tree_gang_lookup_tag(&extent_root->cache_radix,
+						 (void **)gang, 0, ARRAY_SIZE(gang),
+						 CTREE_EXTENT_PENDING);
+		if (!ret)
+			break;
+		for (i = 0; i < ret; i++) {
+			key.objectid = gang[i]->blocknr;
+			key.flags = 0;
+			key.offset = 1;
+			ret = insert_item(extent_root, &key, &item, sizeof(item));
+			if (ret) {
+				BUG();
+				// FIXME undo it and return sane
+				return ret;
+			}
+			radix_tree_tag_clear(&extent_root->cache_radix, gang[i]->blocknr,
+						CTREE_EXTENT_PENDING);
+			tree_block_release(extent_root, gang[i]);
 		}
-		if (ae->num_blocks - ae->num_used < min_blocks)
-			BUG();
+	}
+	return 0;
+}
+
+int alloc_extent(struct ctree_root *root, u64 num_blocks, u64 search_start,
+			 u64 search_end, u64 owner, struct key *ins, struct tree_buffer **buf)
+{
+	int ret;
+	int pending_ret;
+	struct extent_item extent_item;
+
+	extent_item.refs = 1;
+	extent_item.owner = owner;
+
+	ret = find_free_extent(root, num_blocks, search_start, search_end, ins);
+	if (ret)
+		return ret;
+
+	if (root != root->extent_root) {
+		memcpy(&root->extent_root->current_insert, ins, sizeof(*ins));
+		ret = insert_item(root->extent_root, ins, &extent_item, sizeof(extent_item));
+		memset(&root->extent_root->current_insert, 0, sizeof(struct key));
+		pending_ret = insert_pending_extents(root->extent_root);
+		if (ret)
+			return ret;
+		if (pending_ret)
+			return pending_ret;
+		*buf = find_tree_block(root, ins->objectid);
 		return 0;
 	}
-	ret = alloc_extent(root,
-			   min_blocks * 2, 0, (unsigned long)-1,
-			   root->node->node.header.parentid, &key);
-	ae->blocknr = key.objectid;
-	ae->num_blocks = key.offset;
-	ae->num_used = 0;
-	return ret;
+	/* we're allocating an extent for the extent tree, don't recurse */
+	BUG_ON(ins->offset != 1);
+	*buf = find_tree_block(root, ins->objectid);
+	BUG_ON(!*buf);
+	radix_tree_tag_set(&root->cache_radix, ins->objectid, CTREE_EXTENT_PENDING);
+	(*buf)->count++;
+	return 0;
+
+}
+
+struct tree_buffer *alloc_free_block(struct ctree_root *root)
+{
+	struct key ins;
+	int ret;
+	struct tree_buffer *buf = NULL;
+
+	ret = alloc_extent(root, 1, 0, (unsigned long)-1, root->node->node.header.parentid,
+			   &ins, &buf);
+
+	if (ret) {
+		BUG();
+		return NULL;
+	}
+	if (root != root->extent_root)
+		BUG_ON(radix_tree_tag_get(&root->extent_root->cache_radix, buf->blocknr,
+					  CTREE_EXTENT_PENDING));
+	return buf;
 }
 
 void print_leaf(struct leaf *l)
@@ -1096,6 +1235,7 @@ int main() {
 	print_tree(root, root->node);
 	printf("map tree\n");
 	print_tree(root->extent_root, root->extent_root->node);
+	fflush(stdout);
 
 	srand(55);
 	for (i = 0; i < run_size; i++) {
@@ -1111,12 +1251,6 @@ int main() {
 		if (!ret)
 			tree_size++;
 	}
-	printf("root used: %lu\n", root->alloc_extent->num_used);
-	printf("root tree\n");
-	// print_tree(root, root->node);
-	printf("map tree\n");
-	printf("map used: %lu\n", root->extent_root->alloc_extent->num_used);
-	// print_tree(root->extent_root, root->extent_root->node);
 	write_ctree_super(root, &super);
 	close_ctree(root);
 
@@ -1167,12 +1301,27 @@ int main() {
 		ret = insert_item(root, &ins, buf, strlen(buf));
 		if (!ret)
 			tree_size++;
+		if (i >= 5) {
+			struct key ugh;
+			ugh.objectid = 5;
+			ugh.flags = 0;
+			ugh.offset = 0;
+			init_path(&path);
+			ret = search_slot(root, &ugh, &path, 0);
+			if (ret) {
+				print_tree(root, root->node);
+				printf("unable to find 5 %d\n", num);
+				exit(1);
+			}
+			release_path(root, &path);
+
+		}
 	}
 	write_ctree_super(root, &super);
 	close_ctree(root);
 	root = open_ctree("dbfile", &super);
-	printf("starting search2\n");
 	srand(128);
+	printf("starting search2\n");
 	for (i = 0; i < run_size; i++) {
 		num = next_key(i, max_key);
 		ins.objectid = num;
@@ -1219,5 +1368,7 @@ int main() {
 	write_ctree_super(root, &super);
 	close_ctree(root);
 	printf("tree size is now %d\n", tree_size);
+	printf("map tree\n");
+	print_tree(root->extent_root, root->extent_root->node);
 	return 0;
 }
