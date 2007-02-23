@@ -32,10 +32,15 @@
 #define IA32_SYSCALL_VECTOR	0x80
 
 
+/* Reserve the lowest usable priority level 0x20 - 0x2f for triggering
+ * cleanup after irq migration.
+ */
+#define IRQ_MOVE_CLEANUP_VECTOR	FIRST_EXTERNAL_VECTOR
+ 
 /*
  * Vectors 0x20-0x2f are used for ISA interrupts.
  */
-#define IRQ0_VECTOR		FIRST_EXTERNAL_VECTOR
+#define IRQ0_VECTOR		FIRST_EXTERNAL_VECTOR + 0x10
 #define IRQ1_VECTOR		IRQ0_VECTOR + 1
 #define IRQ2_VECTOR		IRQ0_VECTOR + 2
 #define IRQ3_VECTOR		IRQ0_VECTOR + 3
@@ -82,7 +87,7 @@
 
 /*
  * First APIC vector available to drivers: (vectors 0x30-0xee)
- * we start at 0x31 to spread out vectors evenly between priority
+ * we start at 0x41 to spread out vectors evenly between priority
  * levels. (0x80 is the syscall vector)
  */
 #define FIRST_DEVICE_VECTOR	(IRQ15_VECTOR + 2)

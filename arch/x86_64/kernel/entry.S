@@ -675,6 +675,9 @@ END(invalidate_interrupt\num)
 ENTRY(call_function_interrupt)
 	apicinterrupt CALL_FUNCTION_VECTOR,smp_call_function_interrupt
 END(call_function_interrupt)
+ENTRY(irq_move_cleanup_interrupt)
+	apicinterrupt IRQ_MOVE_CLEANUP_VECTOR,smp_irq_move_cleanup_interrupt
+END(irq_move_cleanup_interrupt)
 #endif
 
 ENTRY(apic_timer_interrupt)

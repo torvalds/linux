@@ -36,6 +36,7 @@
 #include <acpi/acpi_bus.h>
 #endif
 
+#include <asm/idle.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/desc.h>
@@ -49,7 +50,10 @@
 
 struct irq_cfg {
 	cpumask_t domain;
+	cpumask_t old_domain;
+	unsigned move_cleanup_count;
 	u8 vector;
+	u8 move_in_progress : 1;
 };
 
 /* irq_cfg is indexed by the sum of all RTEs in all I/O APICs. */
@@ -652,7 +656,6 @@ static int __assign_irq_vector(int irq, cpumask_t mask)
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
 	static int current_vector = FIRST_DEVICE_VECTOR, current_offset = 0;
-	cpumask_t old_mask = CPU_MASK_NONE;
 	unsigned int old_vector;
 	int cpu;
 	struct irq_cfg *cfg;
@@ -663,18 +666,20 @@ static int __assign_irq_vector(int irq, cpumask_t mask)
 	/* Only try and allocate irqs on cpus that are present */
 	cpus_and(mask, mask, cpu_online_map);
 
+	if ((cfg->move_in_progress) || cfg->move_cleanup_count)
+		return -EBUSY;
+
 	old_vector = cfg->vector;
 	if (old_vector) {
 		cpumask_t tmp;
 		cpus_and(tmp, cfg->domain, mask);
 		if (!cpus_empty(tmp))
 			return 0;
-		cpus_and(old_mask, cfg->domain, cpu_online_map);
 	}
 
 	for_each_cpu_mask(cpu, mask) {
 		cpumask_t domain, new_mask;
-		int new_cpu, old_cpu;
+		int new_cpu;
 		int vector, offset;
 
 		domain = vector_allocation_domain(cpu);
@@ -699,8 +704,10 @@ next:
 		/* Found one! */
 		current_vector = vector;
 		current_offset = offset;
-		for_each_cpu_mask(old_cpu, old_mask)
-			per_cpu(vector_irq, old_cpu)[old_vector] = -1;
+		if (old_vector) {
+			cfg->move_in_progress = 1;
+			cfg->old_domain = cfg->domain;
+		}
 		for_each_cpu_mask(new_cpu, new_mask)
 			per_cpu(vector_irq, new_cpu)[vector] = irq;
 		cfg->vector = vector;
@@ -1360,8 +1367,68 @@ static int ioapic_retrigger_irq(unsigned int irq)
  * races.
  */
 
+#ifdef CONFIG_SMP
+asmlinkage void smp_irq_move_cleanup_interrupt(void)
+{
+	unsigned vector, me;
+	ack_APIC_irq();
+	exit_idle();
+	irq_enter();
+
+	me = smp_processor_id();
+	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
+		unsigned int irq;
+		struct irq_desc *desc;
+		struct irq_cfg *cfg;
+		irq = __get_cpu_var(vector_irq)[vector];
+		if (irq >= NR_IRQS)
+			continue;
+
+		desc = irq_desc + irq;
+		cfg = irq_cfg + irq;
+		spin_lock(&desc->lock);
+		if (!cfg->move_cleanup_count)
+			goto unlock;
+
+		if ((vector == cfg->vector) && cpu_isset(me, cfg->domain))
+			goto unlock;
+
+		__get_cpu_var(vector_irq)[vector] = -1;
+		cfg->move_cleanup_count--;
+unlock:
+		spin_unlock(&desc->lock);
+	}
+
+	irq_exit();
+}
+
+static void irq_complete_move(unsigned int irq)
+{
+	struct irq_cfg *cfg = irq_cfg + irq;
+	unsigned vector, me;
+
+	if (likely(!cfg->move_in_progress))
+		return;
+
+	vector = ~get_irq_regs()->orig_rax;
+	me = smp_processor_id();
+	if ((vector == cfg->vector) &&
+	    cpu_isset(smp_processor_id(), cfg->domain)) {
+		cpumask_t cleanup_mask;
+
+		cpus_and(cleanup_mask, cfg->old_domain, cpu_online_map);
+		cfg->move_cleanup_count = cpus_weight(cleanup_mask);
+		send_IPI_mask(cleanup_mask, IRQ_MOVE_CLEANUP_VECTOR);
+		cfg->move_in_progress = 0;
+	}
+}
+#else
+static inline void irq_complete_move(unsigned int irq) {}
+#endif
+
 static void ack_apic_edge(unsigned int irq)
 {
+	irq_complete_move(irq);
 	move_native_irq(irq);
 	ack_APIC_irq();
 }
@@ -1370,6 +1437,7 @@ static void ack_apic_level(unsigned int irq)
 {
 	int do_unmask_irq = 0;
 
+	irq_complete_move(irq);
 #if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
 	/* If we are moving the irq we need to mask it */
 	if (unlikely(irq_desc[irq].status & IRQ_MOVE_PENDING)) {
