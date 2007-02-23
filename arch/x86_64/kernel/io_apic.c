@@ -149,11 +149,11 @@ static inline void io_apic_sync(unsigned int apic)
 		reg = io_apic_read(entry->apic, 0x10 + R + pin*2);	\
 		reg ACTION;						\
 		io_apic_modify(entry->apic, reg);			\
+		FINAL;							\
 		if (!entry->next)					\
 			break;						\
 		entry = irq_2_pin + entry->next;			\
 	}								\
-	FINAL;								\
 }
 
 union entry_union {
