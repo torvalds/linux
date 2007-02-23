@@ -38,14 +38,11 @@ static struct dentry *gfs2_decode_fh(struct super_block *sb,
 	struct gfs2_fh_obj fh_obj;
 	struct gfs2_inum_host *this, parent;
 
-	if (fh_type != fh_len)
-		return NULL;
-
 	this 		= &fh_obj.this;
 	fh_obj.imode 	= DT_UNKNOWN;
 	memset(&parent, 0, sizeof(struct gfs2_inum));
 
-	switch (fh_type) {
+	switch (fh_len) {
 	case GFS2_LARGE_FH_SIZE:
 		parent.no_formal_ino = ((u64)be32_to_cpu(fh[4])) << 32;
 		parent.no_formal_ino |= be32_to_cpu(fh[5]);
