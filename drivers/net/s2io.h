@@ -297,6 +297,9 @@ struct stat_block {
 	struct xpakStat xpak_stat;
 };
 
+/* Default value for 'vlan_strip_tag' configuration parameter */
+#define NO_STRIP_IN_PROMISC 2
+
 /*
  * Structures representing different init time configuration
  * parameters of the NIC.

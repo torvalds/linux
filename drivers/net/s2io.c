@@ -42,6 +42,14 @@
  *     Possible values '1' for enable '0' for disable. Default is '0'
  * lro_max_pkts: This parameter defines maximum number of packets can be
  *     aggregated as a single large packet
+ * napi: This parameter used to enable/disable NAPI (polling Rx)
+ *     Possible values '1' for enable and '0' for disable. Default is '1'
+ * ufo: This parameter used to enable/disable UDP Fragmentation Offload(UFO)
+ *      Possible values '1' for enable and '0' for disable. Default is '0'
+ * vlan_tag_strip: This can be used to enable or disable vlan stripping.
+ *                 Possible values '1' for enable , '0' for disable.
+ *                 Default is '2' - which means disable in promisc mode
+ *                 and enable in non-promiscuous mode.
  ************************************************************************/
 
 #include <linux/module.h>
@@ -293,6 +301,9 @@ static void s2io_vlan_rx_register(struct net_device *dev,
 	spin_unlock_irqrestore(&nic->tx_lock, flags);
 }
 
+/* A flag indicating whether 'RX_PA_CFG_STRIP_VLAN_TAG' bit is set or not */
+int vlan_strip_flag;
+
 /* Unregister the vlan */
 static void s2io_vlan_rx_kill_vid(struct net_device *dev, unsigned long vid)
 {
@@ -404,6 +415,7 @@ S2IO_PARM_INT(indicate_max_pkts, 0);
 
 S2IO_PARM_INT(napi, 1);
 S2IO_PARM_INT(ufo, 0);
+S2IO_PARM_INT(vlan_tag_strip, NO_STRIP_IN_PROMISC);
 
 static unsigned int tx_fifo_len[MAX_TX_FIFOS] =
     {DEFAULT_FIFO_0_LEN, [1 ...(MAX_TX_FIFOS - 1)] = DEFAULT_FIFO_1_7_LEN};
@@ -1371,7 +1383,7 @@ static int init_nic(struct s2io_nic *nic)
 				&bar0->rts_frm_len_n[i]);
 		}
 	}
-
+	
 	/* Disable differentiated services steering logic */
 	for (i = 0; i < 64; i++) {
 		if (rts_ds_steer(nic, i, 0) == FAILURE) {
@@ -1951,6 +1963,13 @@ static int start_nic(struct s2io_nic *nic)
 		val64 = readq(&bar0->rx_pa_cfg);
 		val64 |= RX_PA_CFG_IGNORE_L2_ERR;
 		writeq(val64, &bar0->rx_pa_cfg);
+	}
+
+	if (vlan_tag_strip == 0) {
+		val64 = readq(&bar0->rx_pa_cfg);
+		val64 &= ~RX_PA_CFG_STRIP_VLAN_TAG;
+		writeq(val64, &bar0->rx_pa_cfg);
+		vlan_strip_flag = 0;
 	}
 
 	/*
@@ -4352,6 +4371,13 @@ static void s2io_set_multicast(struct net_device *dev)
 		writeq(RMAC_CFG_KEY(0x4C0D), &bar0->rmac_cfg_key);
 		writel((u32) (val64 >> 32), (add + 4));
 
+		if (vlan_tag_strip != 1) {
+			val64 = readq(&bar0->rx_pa_cfg);
+			val64 &= ~RX_PA_CFG_STRIP_VLAN_TAG;
+			writeq(val64, &bar0->rx_pa_cfg);
+			vlan_strip_flag = 0;
+		}
+
 		val64 = readq(&bar0->mac_cfg);
 		sp->promisc_flg = 1;
 		DBG_PRINT(INFO_DBG, "%s: entered promiscuous mode\n",
@@ -4366,6 +4392,13 @@ static void s2io_set_multicast(struct net_device *dev)
 		writel((u32) val64, add);
 		writeq(RMAC_CFG_KEY(0x4C0D), &bar0->rmac_cfg_key);
 		writel((u32) (val64 >> 32), (add + 4));
+
+		if (vlan_tag_strip != 0) {
+			val64 = readq(&bar0->rx_pa_cfg);
+			val64 |= RX_PA_CFG_STRIP_VLAN_TAG;
+			writeq(val64, &bar0->rx_pa_cfg);
+			vlan_strip_flag = 1;
+		}
 
 		val64 = readq(&bar0->mac_cfg);
 		sp->promisc_flg = 0;
@@ -6614,7 +6647,8 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 
 	if (!sp->lro) {
 		skb->protocol = eth_type_trans(skb, dev);
-		if (sp->vlgrp && RXD_GET_VLAN_TAG(rxdp->Control_2)) {
+		if ((sp->vlgrp && RXD_GET_VLAN_TAG(rxdp->Control_2) &&
+			vlan_strip_flag)) {
 			/* Queueing the vlan frame to the upper layer */
 			if (napi)
 				vlan_hwaccel_receive_skb(skb, sp->vlgrp,
