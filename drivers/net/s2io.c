@@ -84,7 +84,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.16.1"
+#define DRV_VERSION "2.0.17.1"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -3394,6 +3394,9 @@ new_way:
 		writeq(val64, &bar0->pcc_err_reg);
 	}
 
+	/* restore the previously assigned mac address */
+	s2io_set_mac_addr(sp->dev, (u8 *)&sp->def_mac_addr[0].mac_addr);
+
 	sp->device_enabled_once = FALSE;
 }
 
@@ -4512,6 +4515,7 @@ static int s2io_set_mac_addr(struct net_device *dev, u8 * addr)
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
 	register u64 val64, mac_addr = 0;
 	int i;
+	u64 old_mac_addr = 0;
 
 	/*
 	 * Set the new MAC address as the new unicast filter and reflect this
@@ -4521,6 +4525,22 @@ static int s2io_set_mac_addr(struct net_device *dev, u8 * addr)
 	for (i = 0; i < ETH_ALEN; i++) {
 		mac_addr <<= 8;
 		mac_addr |= addr[i];
+		old_mac_addr <<= 8;
+		old_mac_addr |= sp->def_mac_addr[0].mac_addr[i];
+	}
+
+	if(0 == mac_addr)
+		return SUCCESS;
+
+	/* Update the internal structure with this new mac address */
+	if(mac_addr != old_mac_addr) {
+		memset(sp->def_mac_addr[0].mac_addr, 0, sizeof(ETH_ALEN));
+		sp->def_mac_addr[0].mac_addr[5] = (u8) (mac_addr);
+		sp->def_mac_addr[0].mac_addr[4] = (u8) (mac_addr >> 8);
+		sp->def_mac_addr[0].mac_addr[3] = (u8) (mac_addr >> 16);
+		sp->def_mac_addr[0].mac_addr[2] = (u8) (mac_addr >> 24);
+		sp->def_mac_addr[0].mac_addr[1] = (u8) (mac_addr >> 32);
+		sp->def_mac_addr[0].mac_addr[0] = (u8) (mac_addr >> 40);
 	}
 
 	writeq(RMAC_ADDR_DATA0_MEM_ADDR(mac_addr),
@@ -6022,7 +6042,7 @@ static void s2io_set_link(struct work_struct *work)
 	clear_bit(0, &(nic->link_state));
 
 out_unlock:
-	rtnl_lock();
+	rtnl_unlock();
 }
 
 static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
@@ -7181,8 +7201,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	tmp64 = readq(&bar0->rmac_addr_data0_mem);
 	mac_down = (u32) tmp64;
 	mac_up = (u32) (tmp64 >> 32);
-
-	memset(sp->def_mac_addr[0].mac_addr, 0, sizeof(ETH_ALEN));
 
 	sp->def_mac_addr[0].mac_addr[3] = (u8) (mac_up);
 	sp->def_mac_addr[0].mac_addr[2] = (u8) (mac_up >> 8);
