@@ -518,6 +518,97 @@ int leaf_space_used(struct leaf *l, int start, int nr)
 }
 
 /*
+ * push some data in the path leaf to the right, trying to free up at
+ * least data_size bytes.  returns zero if the push worked, nonzero otherwise
+ */
+int push_leaf_right(struct ctree_root *root, struct ctree_path *path,
+		   int data_size)
+{
+	struct tree_buffer *left_buf = path->nodes[0];
+	struct leaf *left = &left_buf->leaf;
+	struct leaf *right;
+	struct tree_buffer *right_buf;
+	struct tree_buffer *upper;
+	int slot;
+	int i;
+	int free_space;
+	int push_space = 0;
+	int push_items = 0;
+	struct item *item;
+
+	slot = path->slots[1];
+	if (!path->nodes[1]) {
+		return 1;
+	}
+	upper = path->nodes[1];
+	if (slot >= upper->node.header.nritems - 1) {
+		return 1;
+	}
+	right_buf = read_tree_block(root, upper->node.blockptrs[slot + 1]);
+	right = &right_buf->leaf;
+	free_space = leaf_free_space(right);
+	if (free_space < data_size + sizeof(struct item)) {
+		tree_block_release(root, right_buf);
+		return 1;
+	}
+	for (i = left->header.nritems - 1; i >= 0; i--) {
+		item = left->items + i;
+		if (path->slots[0] == i)
+			push_space += data_size + sizeof(*item);
+		if (item->size + sizeof(*item) + push_space > free_space)
+			break;
+		push_items++;
+		push_space += item->size + sizeof(*item);
+	}
+	if (push_items == 0) {
+		tree_block_release(root, right_buf);
+		return 1;
+	}
+	/* push left to right */
+	push_space = left->items[left->header.nritems - push_items].offset +
+		     left->items[left->header.nritems - push_items].size;
+	push_space -= leaf_data_end(left);
+	/* make room in the right data area */
+	memmove(right->data + leaf_data_end(right) - push_space,
+		right->data + leaf_data_end(right),
+		LEAF_DATA_SIZE - leaf_data_end(right));
+	/* copy from the left data area */
+	memcpy(right->data + LEAF_DATA_SIZE - push_space,
+		left->data + leaf_data_end(left),
+		push_space);
+	memmove(right->items + push_items, right->items,
+		right->header.nritems * sizeof(struct item));
+	/* copy the items from left to right */
+	memcpy(right->items, left->items + left->header.nritems - push_items,
+		push_items * sizeof(struct item));
+
+	/* update the item pointers */
+	right->header.nritems += push_items;
+	push_space = LEAF_DATA_SIZE;
+	for (i = 0; i < right->header.nritems; i++) {
+		right->items[i].offset = push_space - right->items[i].size;
+		push_space = right->items[i].offset;
+	}
+	left->header.nritems -= push_items;
+
+	write_tree_block(root, left_buf);
+	write_tree_block(root, right_buf);
+	memcpy(upper->node.keys + slot + 1,
+		&right->items[0].key, sizeof(struct key));
+	write_tree_block(root, upper);
+	/* then fixup the leaf pointer in the path */
+	// FIXME use nritems in here somehow
+	if (path->slots[0] >= left->header.nritems) {
+		path->slots[0] -= left->header.nritems;
+		tree_block_release(root, path->nodes[0]);
+		path->nodes[0] = right_buf;
+		path->slots[1] += 1;
+	} else {
+		tree_block_release(root, right_buf);
+	}
+	return 0;
+}
+/*
  * push some data in the path leaf to the left, trying to free up at
  * least data_size bytes.  returns zero if the push worked, nonzero otherwise
  */
@@ -631,7 +722,8 @@ int split_leaf(struct ctree_root *root, struct ctree_path *path, int data_size)
 	int i;
 	int ret;
 
-	if (push_leaf_left(root, path, data_size) == 0) {
+	if (push_leaf_left(root, path, data_size) == 0 ||
+	    push_leaf_right(root, path, data_size) == 0) {
 		l_buf = path->nodes[0];
 		l = &l_buf->leaf;
 		if (leaf_free_space(l) >= sizeof(struct item) + data_size)
@@ -875,6 +967,8 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 			slot = path->slots[1];
 			leaf_buf->count++;
 			push_leaf_left(root, path, 1);
+			if (leaf->header.nritems)
+				push_leaf_right(root, path, 1);
 			if (leaf->header.nritems == 0) {
 				u64 blocknr = leaf_buf->blocknr;
 				path->slots[1] = slot;
@@ -929,7 +1023,7 @@ int next_leaf(struct ctree_root *root, struct ctree_path *path)
 /* for testing only */
 int next_key(int i, int max_key) {
 	return rand() % max_key;
-	// return i;
+	//return i;
 }
 
 int main() {
@@ -958,7 +1052,7 @@ int main() {
 		// num = i;
 		sprintf(buf, "string-%d", num);
 		if (i % 10000 == 0)
-			printf("insert %d:%d\n", num, i);
+			fprintf(stderr, "insert %d:%d\n", num, i);
 		ins.objectid = num;
 		ins.offset = 0;
 		ins.flags = 0;
@@ -978,7 +1072,7 @@ int main() {
 		ins.objectid = num;
 		init_path(&path);
 		if (i % 10000 == 0)
-			printf("search %d:%d\n", num, i);
+			fprintf(stderr, "search %d:%d\n", num, i);
 		ret = search_slot(root, &ins, &path, 0);
 		if (ret) {
 			print_tree(root, root->node);
@@ -1004,7 +1098,7 @@ int main() {
 		ret = search_slot(root, &ins, &path, -1);
 		if (!ret) {
 			if (i % 10000 == 0)
-				printf("del %d:%d\n", num, i);
+				fprintf(stderr, "del %d:%d\n", num, i);
 			ret = del_item(root, &path);
 			if (ret != 0)
 				BUG();
@@ -1022,7 +1116,7 @@ int main() {
 		sprintf(buf, "string-%d", num);
 		ins.objectid = num;
 		if (i % 10000 == 0)
-			printf("insert %d:%d\n", num, i);
+			fprintf(stderr, "insert %d:%d\n", num, i);
 		ret = insert_item(root, &ins, buf, strlen(buf));
 		if (!ret)
 			tree_size++;
@@ -1038,7 +1132,7 @@ int main() {
 		ins.objectid = num;
 		init_path(&path);
 		if (i % 10000 == 0)
-			printf("search %d:%d\n", num, i);
+			fprintf(stderr, "search %d:%d\n", num, i);
 		ret = search_slot(root, &ins, &path, 0);
 		if (ret) {
 			print_tree(root, root->node);
@@ -1082,6 +1176,7 @@ int main() {
 	}
 	printf("tree size is now %d\n", tree_size);
 	printf("map tree\n");
+	print_tree(root->extent_root, root->extent_root->node);
 	write_ctree_super(root, &super);
 	close_ctree(root);
 	return 0;
