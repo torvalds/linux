@@ -6112,7 +6112,7 @@ static int s2io_add_isr(struct s2io_nic * sp)
 		}
 	}
 	if (sp->intr_type == MSI_X) {
-		int i;
+		int i, msix_tx_cnt=0,msix_rx_cnt=0;
 
 		for (i=1; (sp->s2io_entries[i].in_use == MSIX_FLG); i++) {
 			if (sp->s2io_entries[i].type == MSIX_FIFO_TYPE) {
@@ -6121,16 +6121,36 @@ static int s2io_add_isr(struct s2io_nic * sp)
 				err = request_irq(sp->entries[i].vector,
 					  s2io_msix_fifo_handle, 0, sp->desc[i],
 						  sp->s2io_entries[i].arg);
-				DBG_PRINT(ERR_DBG, "%s @ 0x%llx\n", sp->desc[i],
-				(unsigned long long)sp->msix_info[i].addr);
+				/* If either data or addr is zero print it */
+				if(!(sp->msix_info[i].addr &&
+					sp->msix_info[i].data)) {
+					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx"
+						"Data:0x%lx\n",sp->desc[i],
+						(unsigned long long)
+						sp->msix_info[i].addr,
+						(unsigned long)
+						ntohl(sp->msix_info[i].data));
+				} else {
+					msix_tx_cnt++;
+				}
 			} else {
 				sprintf(sp->desc[i], "%s:MSI-X-%d-RX",
 					dev->name, i);
 				err = request_irq(sp->entries[i].vector,
 					  s2io_msix_ring_handle, 0, sp->desc[i],
 						  sp->s2io_entries[i].arg);
-				DBG_PRINT(ERR_DBG, "%s @ 0x%llx\n", sp->desc[i],
-				(unsigned long long)sp->msix_info[i].addr);
+				/* If either data or addr is zero print it */
+				if(!(sp->msix_info[i].addr &&
+					sp->msix_info[i].data)) {
+					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx"
+						"Data:0x%lx\n",sp->desc[i],
+						(unsigned long long)
+						sp->msix_info[i].addr,
+						(unsigned long)
+						ntohl(sp->msix_info[i].data));
+				} else {
+					msix_rx_cnt++;
+				}
 			}
 			if (err) {
 				DBG_PRINT(ERR_DBG,"%s:MSI-X-%d registration "
@@ -6140,6 +6160,8 @@ static int s2io_add_isr(struct s2io_nic * sp)
 			}
 			sp->s2io_entries[i].in_use = MSIX_REGISTERED_SUCCESS;
 		}
+		printk("MSI-X-TX %d entries enabled\n",msix_tx_cnt);
+		printk("MSI-X-RX %d entries enabled\n",msix_rx_cnt);
 	}
 	if (sp->intr_type == INTA) {
 		err = request_irq((int) sp->pdev->irq, s2io_isr, IRQF_SHARED,
@@ -6704,8 +6726,7 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type)
 					"Defaulting to INTA\n");
 		*dev_intr_type = INTA;
 	}
-	if ( (rx_ring_num > 1) && (*dev_intr_type != INTA) )
-		napi = 0;
+
 	if (rx_ring_mode > 3) {
 		DBG_PRINT(ERR_DBG, "s2io: Requested ring mode not supported\n");
 		DBG_PRINT(ERR_DBG, "s2io: Defaulting to 3-buffer mode\n");
