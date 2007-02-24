@@ -933,9 +933,9 @@ static void stb0899_dvbs2_set_btr_loopbw(struct stb0899_state *state)
 	sym_peak *= 576000;
 	K = (1 << config->btr_nco_bits) / (internal->master_clk / 1000);
 	K *= (internal->srate / 1000000) * decim; /*k=k 10^-8*/
-	K = sym_peak / K;
 
 	if (K != 0) {
+		K = sym_peak / K;
 		wn = (4 * zeta * zeta) + 1000000;
 		wn = (2 * (loopbw_percent * 1000) * 40 * zeta) /wn;  /*wn =wn 10^-8*/
 
