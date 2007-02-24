@@ -32,7 +32,8 @@
 #define FAILURE -1
 #define S2IO_MINUS_ONE 0xFFFFFFFFFFFFFFFFULL
 #define S2IO_MAX_PCI_CONFIG_SPACE_REINIT 100
-
+#define S2IO_BIT_RESET 1
+#define S2IO_BIT_SET 2
 #define CHECKBIT(value, nbit) (value & (1 << nbit))
 
 /* Maximum time to flicker LED when asked to identify NIC using ethtool */
@@ -1005,7 +1006,8 @@ static int s2io_set_swapper(struct s2io_nic * sp);
 static void s2io_card_down(struct s2io_nic *nic);
 static int s2io_card_up(struct s2io_nic *nic);
 static int get_xena_rev_id(struct pci_dev *pdev);
-static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit);
+static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit,
+					int bit_state);
 static int s2io_add_isr(struct s2io_nic * sp);
 static void s2io_rem_isr(struct s2io_nic * sp);
 
@@ -1019,6 +1021,7 @@ static void queue_rx_frame(struct sk_buff *skb);
 static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro);
 static void lro_append_pkt(struct s2io_nic *sp, struct lro *lro,
 			   struct sk_buff *skb, u32 tcp_len);
+static int rts_ds_steer(struct s2io_nic *nic, u8 ds_codepoint, u8 ring);
 
 #define s2io_tcp_mss(skb) skb_shinfo(skb)->gso_size
 #define s2io_udp_mss(skb) skb_shinfo(skb)->gso_size

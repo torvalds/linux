@@ -1372,6 +1372,16 @@ static int init_nic(struct s2io_nic *nic)
 		}
 	}
 
+	/* Disable differentiated services steering logic */
+	for (i = 0; i < 64; i++) {
+		if (rts_ds_steer(nic, i, 0) == FAILURE) {
+			DBG_PRINT(ERR_DBG, "%s: failed rts ds steering",
+				dev->name);
+			DBG_PRINT(ERR_DBG, "set on codepoint %d\n", i);
+			return FAILURE;
+		}
+	}
+
 	/* Program statistics memory */
 	writeq(mac_control->stats_mem_phy, &bar0->stat_addr);
 
@@ -3195,26 +3205,37 @@ static void alarm_intr_handler(struct s2io_nic *nic)
  *   SUCCESS on success and FAILURE on failure.
  */
 
-static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit)
+static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit,
+				int bit_state)
 {
-	int ret = FAILURE, cnt = 0;
+	int ret = FAILURE, cnt = 0, delay = 1;
 	u64 val64;
 
-	while (TRUE) {
+	if ((bit_state != S2IO_BIT_RESET) && (bit_state != S2IO_BIT_SET))
+		return FAILURE;
+
+	do {
 		val64 = readq(addr);
-		if (!(val64 & busy_bit)) {
-			ret = SUCCESS;
-			break;
+		if (bit_state == S2IO_BIT_RESET) {
+			if (!(val64 & busy_bit)) {
+				ret = SUCCESS;
+				break;
+			}
+		} else {
+			if (!(val64 & busy_bit)) {
+				ret = SUCCESS;
+				break;
+			}
 		}
 
 		if(in_interrupt())
-			mdelay(50);
+			mdelay(delay);
 		else
-			msleep(50);
+			msleep(delay);
 
-		if (cnt++ > 10)
-			break;
-	}
+		if (++cnt >= 10)
+			delay = 50;
+	} while (cnt < 20);
 	return ret;
 }
 /*
@@ -4296,7 +4317,8 @@ static void s2io_set_multicast(struct net_device *dev)
 		writeq(val64, &bar0->rmac_addr_cmd_mem);
 		/* Wait till command completes */
 		wait_for_cmd_complete(&bar0->rmac_addr_cmd_mem,
-				      RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING);
+					RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING,
+					S2IO_BIT_RESET);
 
 		sp->m_cast_flg = 1;
 		sp->all_multi_pos = MAC_MC_ALL_MC_ADDR_OFFSET;
@@ -4312,7 +4334,8 @@ static void s2io_set_multicast(struct net_device *dev)
 		writeq(val64, &bar0->rmac_addr_cmd_mem);
 		/* Wait till command completes */
 		wait_for_cmd_complete(&bar0->rmac_addr_cmd_mem,
-				      RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING);
+					RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING,
+					S2IO_BIT_RESET);
 
 		sp->m_cast_flg = 0;
 		sp->all_multi_pos = 0;
@@ -4378,7 +4401,8 @@ static void s2io_set_multicast(struct net_device *dev)
 
 			/* Wait for command completes */
 			if (wait_for_cmd_complete(&bar0->rmac_addr_cmd_mem,
-				      RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING)) {
+					RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING,
+					S2IO_BIT_RESET)) {
 				DBG_PRINT(ERR_DBG, "%s: Adding ",
 					  dev->name);
 				DBG_PRINT(ERR_DBG, "Multicasts failed\n");
@@ -4409,7 +4433,8 @@ static void s2io_set_multicast(struct net_device *dev)
 
 			/* Wait for command completes */
 			if (wait_for_cmd_complete(&bar0->rmac_addr_cmd_mem,
-				      RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING)) {
+					RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING,
+					S2IO_BIT_RESET)) {
 				DBG_PRINT(ERR_DBG, "%s: Adding ",
 					  dev->name);
 				DBG_PRINT(ERR_DBG, "Multicasts failed\n");
@@ -4455,7 +4480,7 @@ static int s2io_set_mac_addr(struct net_device *dev, u8 * addr)
 	writeq(val64, &bar0->rmac_addr_cmd_mem);
 	/* Wait till command completes */
 	if (wait_for_cmd_complete(&bar0->rmac_addr_cmd_mem,
-		      RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING)) {
+		      RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING, S2IO_BIT_RESET)) {
 		DBG_PRINT(ERR_DBG, "%s: set_mac_addr failed\n", dev->name);
 		return FAILURE;
 	}
@@ -6736,6 +6761,37 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type)
 }
 
 /**
+ * rts_ds_steer - Receive traffic steering based on IPv4 or IPv6 TOS
+ * or Traffic class respectively.
+ * @nic: device peivate variable
+ * Description: The function configures the receive steering to
+ * desired receive ring.
+ * Return Value:  SUCCESS on success and
+ * '-1' on failure (endian settings incorrect).
+ */
+static int rts_ds_steer(struct s2io_nic *nic, u8 ds_codepoint, u8 ring)
+{
+	struct XENA_dev_config __iomem *bar0 = nic->bar0;
+	register u64 val64 = 0;
+
+	if (ds_codepoint > 63)
+		return FAILURE;
+
+	val64 = RTS_DS_MEM_DATA(ring);
+	writeq(val64, &bar0->rts_ds_mem_data);
+
+	val64 = RTS_DS_MEM_CTRL_WE |
+		RTS_DS_MEM_CTRL_STROBE_NEW_CMD |
+		RTS_DS_MEM_CTRL_OFFSET(ds_codepoint);
+
+	writeq(val64, &bar0->rts_ds_mem_ctrl);
+
+	return wait_for_cmd_complete(&bar0->rts_ds_mem_ctrl,
+				RTS_DS_MEM_CTRL_STROBE_CMD_BEING_EXECUTED,
+				S2IO_BIT_RESET);
+}
+
+/**
  *  s2io_init_nic - Initialization of the adapter .
  *  @pdev : structure containing the PCI related information of the device.
  *  @pre: List of PCI devices supported by the driver listed in s2io_tbl.
@@ -7029,7 +7085,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	    RMAC_ADDR_CMD_MEM_OFFSET(0 + MAC_MAC_ADDR_START_OFFSET);
 	writeq(val64, &bar0->rmac_addr_cmd_mem);
 	wait_for_cmd_complete(&bar0->rmac_addr_cmd_mem,
-		      RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING);
+		      RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING, S2IO_BIT_RESET);
 	tmp64 = readq(&bar0->rmac_addr_data0_mem);
 	mac_down = (u32) tmp64;
 	mac_up = (u32) (tmp64 >> 32);
