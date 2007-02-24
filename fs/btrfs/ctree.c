@@ -110,6 +110,10 @@ int generic_bin_search(char *p, int item_size, struct key *key,
 	return 1;
 }
 
+/*
+ * simple bin_search frontend that does the right thing for
+ * leaves vs nodes
+ */
 int bin_search(struct node *c, struct key *key, int *slot)
 {
 	if (is_leaf(c->header.flags)) {
@@ -130,6 +134,10 @@ int bin_search(struct node *c, struct key *key, int *slot)
  *
  * If the key isn't found, the path points to the slot where it should
  * be inserted.
+ *
+ * if ins_len > 0, nodes and leaves will be split as we walk down the
+ * tree.  if ins_len < 0, nodes will be merged as we walk down the tree (if
+ * possible)
  */
 int search_slot(struct ctree_root *root, struct key *key,
 		struct ctree_path *p, int ins_len)
@@ -379,6 +387,11 @@ int push_node_right(struct ctree_root *root, struct ctree_path *path, int level)
 	return 0;
 }
 
+/*
+ * helper function to insert a new root level in the tree.
+ * A new node is allocated, and a single item is inserted to
+ * point to the existing root
+ */
 static int insert_new_root(struct ctree_root *root,
 			   struct ctree_path *path, int level)
 {
@@ -417,6 +430,7 @@ static int insert_new_root(struct ctree_root *root,
 /*
  * worker function to insert a single pointer in a node.
  * the node should have enough room for the pointer already
+ *
  * slot and level indicate where you want the key to go, and
  * blocknr is the block the key points to.
  */
@@ -449,6 +463,13 @@ int insert_ptr(struct ctree_root *root,
 	return 0;
 }
 
+/*
+ * split the node at the specified level in path in two.
+ * The path is corrected to point to the appropriate node after the split
+ *
+ * Before splitting this tries to make some room in the node by pushing
+ * left and right, if either one works, it returns right away.
+ */
 int split_node(struct ctree_root *root, struct ctree_path *path, int level)
 {
 	struct tree_buffer *t;
@@ -744,10 +765,12 @@ int split_leaf(struct ctree_root *root, struct ctree_path *path, int data_size)
 	right = &right_buffer->leaf;
 	memset(right, 0, sizeof(*right));
 	if (mid <= slot) {
+		/* FIXME, just alloc a new leaf here */
 		if (leaf_space_used(l, mid, nritems - mid) + space_needed >
 			LEAF_DATA_SIZE)
 			BUG();
 	} else {
+		/* FIXME, just alloc a new leaf here */
 		if (leaf_space_used(l, 0, mid + 1) + space_needed >
 			LEAF_DATA_SIZE)
 			BUG();
@@ -983,6 +1006,10 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 	return 0;
 }
 
+/*
+ * walk up the tree as far as required to find the next leaf.
+ * returns 0 if it found something or -1 if there are no greater leaves.
+ */
 int next_leaf(struct ctree_root *root, struct ctree_path *path)
 {
 	int slot;
@@ -1044,7 +1071,6 @@ int main() {
 
 
 	root = open_ctree("dbfile", &super);
-
 	srand(55);
 	for (i = 0; i < run_size; i++) {
 		buf = malloc(64);
