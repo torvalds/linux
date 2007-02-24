@@ -1,12 +1,16 @@
 
-CFLAGS= -g -Wall
+CFLAGS = -g -Wall
+headers = radix-tree.h ctree.h disk-io.h kerncompat.h print-tree.h
+objects = ctree.o disk-io.o radix-tree.o mkfs.o extent-tree.o print-tree.o
 
-.c.o:
-	$(CC) $(CFLAGS) -c $<
+#.c.o:
+#	$(CC) $(CFLAGS) -c $<
 
-ctree: ctree.o disk-io.h ctree.h disk-io.o radix-tree.o radix-tree.h mkfs.o
-	gcc $(CFLAGS) -o ctree ctree.o disk-io.o radix-tree.o mkfs.o
+ctree : $(objects)
+	gcc $(CFLAGS) -o ctree $(objects)
 
-clean:
+$(objects) : $(headers)
+
+clean :
 	rm ctree *.o
 

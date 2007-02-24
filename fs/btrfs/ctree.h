@@ -1,7 +1,7 @@
 #ifndef __CTREE__
 #define __CTREE__
 
-#define CTREE_BLOCKSIZE 256
+#define CTREE_BLOCKSIZE 4096
 
 struct key {
 	u64 objectid;
@@ -81,4 +81,14 @@ struct ctree_path {
 	struct tree_buffer *nodes[MAX_LEVEL];
 	int slots[MAX_LEVEL];
 };
+
+struct tree_buffer *alloc_free_block(struct ctree_root *root);
+int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks);
+int search_slot(struct ctree_root *root, struct key *key, struct ctree_path *p, int ins_len);
+void release_path(struct ctree_root *root, struct ctree_path *p);
+void init_path(struct ctree_path *p);
+int del_item(struct ctree_root *root, struct ctree_path *path);
+int insert_item(struct ctree_root *root, struct key *key, void *data, int data_size);
+int next_leaf(struct ctree_root *root, struct ctree_path *path);
+int leaf_free_space(struct leaf *leaf);
 #endif

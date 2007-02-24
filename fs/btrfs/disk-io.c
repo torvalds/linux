@@ -172,7 +172,6 @@ int close_ctree(struct ctree_root *root)
 void tree_block_release(struct ctree_root *root, struct tree_buffer *buf)
 {
 	buf->count--;
-	write_tree_block(root, buf);
 	if (buf->count < 0)
 		BUG();
 	if (buf->count == 0) {
