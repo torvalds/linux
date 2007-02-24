@@ -1352,14 +1352,15 @@ struct v4l2_streamparm
 
 /*
  *	A D V A N C E D   D E B U G G I N G
+ *
+ *	NOTE: EXPERIMENTAL API
  */
 
 /* VIDIOC_DBG_G_REGISTER and VIDIOC_DBG_S_REGISTER */
 
-#define V4L2_CHIP_MATCH_ALWAYS     0  /* Match always (match_chip is not used) */
-#define V4L2_CHIP_MATCH_HOST       1  /* Match against chip ID on host (0 for the host) */
-#define V4L2_CHIP_MATCH_I2C_DRIVER 2  /* Match against I2C driver ID */
-#define V4L2_CHIP_MATCH_I2C_ADDR   3  /* Match against I2C 7-bit address */
+#define V4L2_CHIP_MATCH_HOST       0  /* Match against chip ID on host (0 for the host) */
+#define V4L2_CHIP_MATCH_I2C_DRIVER 1  /* Match against I2C driver ID */
+#define V4L2_CHIP_MATCH_I2C_ADDR   2  /* Match against I2C 7-bit address */
 
 struct v4l2_register {
 	__u32 match_type; /* Match type */
@@ -1437,10 +1438,11 @@ struct v4l2_register {
 #define VIDIOC_G_ENC_INDEX      _IOR  ('V', 76, struct v4l2_enc_idx)
 #define VIDIOC_ENCODER_CMD      _IOWR ('V', 77, struct v4l2_encoder_cmd)
 #define VIDIOC_TRY_ENCODER_CMD  _IOWR ('V', 78, struct v4l2_encoder_cmd)
+
+/* Experimental, only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
+#define	VIDIOC_DBG_S_REGISTER 	_IOW  ('V', 79, struct v4l2_register)
+#define	VIDIOC_DBG_G_REGISTER 	_IOWR ('V', 80, struct v4l2_register)
 #endif
-/* only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
-#define	VIDIOC_DBG_S_REGISTER 	_IOW ('d', 100, struct v4l2_register)
-#define	VIDIOC_DBG_G_REGISTER 	_IOWR('d', 101, struct v4l2_register)
 
 #ifdef __OLD_VIDIOC_
 /* for compatibility, will go away some day */

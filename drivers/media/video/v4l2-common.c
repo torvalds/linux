@@ -376,7 +376,10 @@ static const char *v4l2_ioctls[] = {
 	[_IOC_NR(VIDIOC_ENUM_FRAMEINTERVALS)] = "VIDIOC_ENUM_FRAMEINTERVALS",
 	[_IOC_NR(VIDIOC_G_ENC_INDEX)] 	   = "VIDIOC_G_ENC_INDEX",
 	[_IOC_NR(VIDIOC_ENCODER_CMD)] 	   = "VIDIOC_ENCODER_CMD",
-	[_IOC_NR(VIDIOC_TRY_ENCODER_CMD)]  = "VIDIOC_TRY_ENCODER_CMD"
+	[_IOC_NR(VIDIOC_TRY_ENCODER_CMD)]  = "VIDIOC_TRY_ENCODER_CMD",
+
+	[_IOC_NR(VIDIOC_DBG_S_REGISTER)]   = "VIDIOC_DBG_S_REGISTER",
+	[_IOC_NR(VIDIOC_DBG_G_REGISTER)]   = "VIDIOC_DBG_G_REGISTER",
 #endif
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
@@ -400,9 +403,6 @@ static const char *v4l2_int_ioctls[] = {
 	[_IOC_NR(TUNER_SET_TYPE_ADDR)]         = "TUNER_SET_TYPE_ADDR",
 	[_IOC_NR(TUNER_SET_STANDBY)]           = "TUNER_SET_STANDBY",
 	[_IOC_NR(TDA9887_SET_CONFIG)]          = "TDA9887_SET_CONFIG",
-
-	[_IOC_NR(VIDIOC_DBG_S_REGISTER)]       = "VIDIOC_DBG_S_REGISTER",
-	[_IOC_NR(VIDIOC_DBG_G_REGISTER)]       = "VIDIOC_DBG_G_REGISTER",
 
 	[_IOC_NR(VIDIOC_INT_S_TUNER_MODE)]     = "VIDIOC_INT_S_TUNER_MODE",
 	[_IOC_NR(VIDIOC_INT_RESET)]            = "VIDIOC_INT_RESET",
@@ -956,8 +956,6 @@ u32 v4l2_ctrl_next(const u32 * const * ctrl_classes, u32 id)
 int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 match_type, u32 match_chip)
 {
 	switch (match_type) {
-	case V4L2_CHIP_MATCH_ALWAYS:
-		return 1;
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
 		return (c != NULL && c->driver != NULL && c->driver->id == match_chip);
 	case V4L2_CHIP_MATCH_I2C_ADDR:
@@ -970,8 +968,6 @@ int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 match_type, u32 match_c
 int v4l2_chip_match_host(u32 match_type, u32 match_chip)
 {
 	switch (match_type) {
-	case V4L2_CHIP_MATCH_ALWAYS:
-		return 1;
 	case V4L2_CHIP_MATCH_HOST:
 		return match_chip == 0;
 	default:
