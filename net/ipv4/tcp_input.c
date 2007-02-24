@@ -1240,7 +1240,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	tp->left_out = tp->sacked_out + tp->lost_out;
 
 	if ((reord < tp->fackets_out) && icsk->icsk_ca_state != TCP_CA_Loss &&
-	    (tp->frto_highmark && after(tp->snd_una, tp->frto_highmark)))
+	    (!tp->frto_highmark || after(tp->snd_una, tp->frto_highmark)))
 		tcp_update_reordering(sk, ((tp->fackets_out + 1) - reord), 0);
 
 #if FASTRETRANS_DEBUG > 0
