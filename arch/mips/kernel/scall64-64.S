@@ -470,4 +470,4 @@ sys_call_table:
 	PTR	sys_get_robust_list
 	PTR	sys_kexec_load			/* 5270 */
 	PTR	sys_getcpu
-	PTR	compat_sys_epoll_pwait
+	PTR	sys_epoll_pwait

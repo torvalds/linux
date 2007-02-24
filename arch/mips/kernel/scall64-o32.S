@@ -518,5 +518,5 @@ sys_call_table:
 	PTR	compat_sys_get_robust_list	/* 4310 */
 	PTR	compat_sys_kexec_load
 	PTR	sys_getcpu
-	PTR	sys_epoll_pwait
+	PTR	compat_sys_epoll_pwait
 	.size	sys_call_table,.-sys_call_table
