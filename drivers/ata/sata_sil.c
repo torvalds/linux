@@ -386,8 +386,14 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 		goto freeze;
 	}
 
-	if (unlikely(!qc || qc->tf.ctl & ATA_NIEN))
+	if (unlikely(!qc))
 		goto freeze;
+
+	if (unlikely(qc->tf.flags & ATA_TFLAG_POLLING)) {
+		/* this sometimes happens, just clear IRQ */
+		ata_chk_status(ap);
+		return;
+	}
 
 	/* Check whether we are expecting interrupt in this state */
 	switch (ap->hsm_task_state) {
