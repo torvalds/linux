@@ -4127,6 +4127,11 @@ static void s2io_txpic_intr_handle(struct s2io_nic *sp)
 			val64 &= ~GPIO_INT_MASK_LINK_UP;
 			val64 |= GPIO_INT_MASK_LINK_DOWN;
 			writeq(val64, &bar0->gpio_int_mask);
+
+			/* turn off LED */
+			val64 = readq(&bar0->adapter_control);
+			val64 = val64 &(~ADAPTER_LED_ON);
+			writeq(val64, &bar0->adapter_control);
 		}
 	}
 	val64 = readq(&bar0->gpio_int_mask);
@@ -6124,10 +6129,13 @@ static  int rxd_owner_bit_reset(struct s2io_nic *sp)
 					rx_blocks[j].rxds[k].virt_addr;
 				if(sp->rxd_mode >= RXD_MODE_3A)
 					ba = &mac_control->rings[i].ba[j][k];
-				set_rxd_buffer_pointer(sp, rxdp, ba,
+				if (set_rxd_buffer_pointer(sp, rxdp, ba,
 						       &skb,(u64 *)&temp0_64,
 						       (u64 *)&temp1_64,
-						       (u64 *)&temp2_64, size);
+						       (u64 *)&temp2_64,
+							size) == ENOMEM) {
+					return 0;
+				}
 
 				set_rxd_buffer_size(sp, rxdp, size);
 				wmb();
