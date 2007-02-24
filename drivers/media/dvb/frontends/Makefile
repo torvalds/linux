@@ -11,6 +11,7 @@ stb0899-objs = stb0899_drv.o stb0899_algo.o
 obj-$(CONFIG_DVB_PLL) += dvb-pll.o
 obj-$(CONFIG_DVB_STV0299) += stv0299.o
 obj-$(CONFIG_DVB_STB0899) += stb0899.o
+obj-$(CONFIG_DVB_STB6100) += stb6100.o
 obj-$(CONFIG_DVB_SP8870) += sp8870.o
 obj-$(CONFIG_DVB_CX22700) += cx22700.o
 obj-$(CONFIG_DVB_CX24110) += cx24110.o
