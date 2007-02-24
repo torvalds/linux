@@ -2347,7 +2347,7 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 
 	/* Enable interrupts */
-	if (msi && !pci_enable_msi(pdev))
+	if (msi && pci_enable_msi(pdev))
 		pci_intx(pdev, 1);
 
 	mv_dump_pci_cfg(pdev, 0x68);
