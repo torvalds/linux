@@ -798,20 +798,18 @@ static u32 mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in)
 {
 	unsigned int ofs = mv_scr_offset(sc_reg_in);
 
-	if (0xffffffffU != ofs) {
+	if (0xffffffffU != ofs)
 		return readl(mv_ap_base(ap) + ofs);
-	} else {
+	else
 		return (u32) ofs;
-	}
 }
 
 static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 {
 	unsigned int ofs = mv_scr_offset(sc_reg_in);
 
-	if (0xffffffffU != ofs) {
+	if (0xffffffffU != ofs)
 		writelfl(val, mv_ap_base(ap) + ofs);
-	}
 }
 
 static void mv_edma_cfg(struct mv_host_priv *hpriv, void __iomem *port_mmio)
@@ -1320,17 +1318,15 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 	int shift, port, port0, hard_port, handled;
 	unsigned int err_mask;
 
-	if (hc == 0) {
+	if (hc == 0)
 		port0 = 0;
-	} else {
+	else
 		port0 = MV_PORTS_PER_HC;
-	}
 
 	/* we'll need the HC success int register in most cases */
 	hc_irq_cause = readl(hc_mmio + HC_IRQ_CAUSE_OFS);
-	if (hc_irq_cause) {
+	if (hc_irq_cause)
 		writelfl(~hc_irq_cause, hc_mmio + HC_IRQ_CAUSE_OFS);
-	}
 
 	VPRINTK("ENTER, hc%u relevant=0x%08x HC IRQ cause=0x%08x\n",
 		hc,relevant,hc_irq_cause);
@@ -1425,9 +1421,8 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 	/* check the cases where we either have nothing pending or have read
 	 * a bogus register value which can indicate HW removal or PCI fault
 	 */
-	if (!irq_stat || (0xffffffffU == irq_stat)) {
+	if (!irq_stat || (0xffffffffU == irq_stat))
 		return IRQ_NONE;
-	}
 
 	n_hcs = mv_get_hc_count(host->ports[0]->flags);
 	spin_lock(&host->lock);
