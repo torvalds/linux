@@ -22,6 +22,7 @@ struct mon_bus {
 	int text_inited;
 	struct dentry *dent_s;		/* Debugging file */
 	struct dentry *dent_t;		/* Text interface file */
+	struct dentry *dent_u;		/* Second text interface file */
 	int uses_dma;
 
 	/* Ref */
