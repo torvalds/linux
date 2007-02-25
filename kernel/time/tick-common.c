@@ -77,6 +77,7 @@ static void tick_periodic(int cpu)
 void tick_handle_periodic(struct clock_event_device *dev)
 {
 	int cpu = smp_processor_id();
+	ktime_t next;
 
 	tick_periodic(cpu);
 
@@ -86,12 +87,12 @@ void tick_handle_periodic(struct clock_event_device *dev)
 	 * Setup the next period for devices, which do not have
 	 * periodic mode:
 	 */
+	next = ktime_add(dev->next_event, tick_period);
 	for (;;) {
-		ktime_t next = ktime_add(dev->next_event, tick_period);
-
 		if (!clockevents_program_event(dev, next, ktime_get()))
 			return;
 		tick_periodic(cpu);
+		next = ktime_add(next, tick_period);
 	}
 }
 
