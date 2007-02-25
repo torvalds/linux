@@ -1958,7 +1958,7 @@ void ata_port_probe(struct ata_port *ap)
  *	LOCKING:
  *	None.
  */
-static void sata_print_link_status(struct ata_port *ap)
+void sata_print_link_status(struct ata_port *ap)
 {
 	u32 sstatus, scontrol, tmp;
 
@@ -6360,6 +6360,7 @@ EXPORT_SYMBOL_GPL(ata_tf_load);
 EXPORT_SYMBOL_GPL(ata_tf_read);
 EXPORT_SYMBOL_GPL(ata_noop_dev_select);
 EXPORT_SYMBOL_GPL(ata_std_dev_select);
+EXPORT_SYMBOL_GPL(sata_print_link_status);
 EXPORT_SYMBOL_GPL(ata_tf_to_fis);
 EXPORT_SYMBOL_GPL(ata_tf_from_fis);
 EXPORT_SYMBOL_GPL(ata_check_status);
