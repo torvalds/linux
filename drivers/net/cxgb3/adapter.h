@@ -121,6 +121,8 @@ struct sge_rspq {		/* state for an SGE response queue */
 	unsigned long empty;	/* # of times queue ran out of credits */
 	unsigned long nomem;	/* # of responses deferred due to no mem */
 	unsigned long unhandled_irqs;	/* # of spurious intrs */
+	unsigned long starved;
+	unsigned long restarted;
 };
 
 struct tx_desc;

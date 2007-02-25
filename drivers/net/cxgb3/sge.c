@@ -2376,13 +2376,26 @@ static void sge_timer_cb(unsigned long data)
 		spin_unlock(&qs->txq[TXQ_OFLD].lock);
 	}
 	lock = (adap->flags & USING_MSIX) ? &qs->rspq.lock :
-	    &adap->sge.qs[0].rspq.lock;
+					    &adap->sge.qs[0].rspq.lock;
 	if (spin_trylock_irq(lock)) {
 		if (!napi_is_scheduled(qs->netdev)) {
+			u32 status = t3_read_reg(adap, A_SG_RSPQ_FL_STATUS);
+
 			if (qs->fl[0].credits < qs->fl[0].size)
 				__refill_fl(adap, &qs->fl[0]);
 			if (qs->fl[1].credits < qs->fl[1].size)
 				__refill_fl(adap, &qs->fl[1]);
+
+			if (status & (1 << qs->rspq.cntxt_id)) {
+				qs->rspq.starved++;
+				if (qs->rspq.credits) {
+					refill_rspq(adap, &qs->rspq, 1);
+					qs->rspq.credits--;
+					qs->rspq.restarted++;
+					t3_write_reg(adap, A_SG_RSPQ_FL_STATUS, 
+						     1 << qs->rspq.cntxt_id);
+				}
+			}
 		}
 		spin_unlock_irq(lock);
 	}
