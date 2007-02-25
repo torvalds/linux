@@ -1395,16 +1395,6 @@ UNUSUAL_DEV(  0x1652, 0x6600, 0x0201, 0x0201,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
-/* Reported by Thomas Baechler <thomas@archlinux.org>
- * Fixes I/O errors with Teac HD-35PU devices
- */
-
-UNUSUAL_DEV( 0x1652, 0x6600, 0x0201, 0x0201,
-               "Super Top",
-               "USB 2.0  IDE DEVICE",
-               US_SC_DEVICE, US_PR_DEVICE, NULL,
-               US_FL_IGNORE_RESIDUE),
-
 /* patch submitted by Davide Perini <perini.davide@dpsoftware.org>
  * and Renato Perini <rperini@email.it>
  */
