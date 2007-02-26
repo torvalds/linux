@@ -592,6 +592,14 @@ static int strrcmp(const char *s, const char *sub)
  *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one, *_console
  *
  * Pattern 3:
+ *   Whitelist all references from .pci_fixup* section to .init.text
+ *   This is part of the PCI init when built-in
+ *
+ * Pattern 4:
+ *   Whitelist all refereces from .text.head to .init.data
+ *   Whitelist all refereces from .text.head to .init.text
+ *
+ * Pattern 5:
  *   Some symbols belong to init section but still it is ok to reference
  *   these from non-init sections as these symbols don't have any memory
  *   allocated for them and symbol address and value are same. So even
@@ -599,7 +607,8 @@ static int strrcmp(const char *s, const char *sub)
  *   For ex. symbols marking the init section boundaries.
  *   This pattern is identified by
  *   refsymname = __init_begin, _sinittext, _einittext
- * Pattern 4:
+ *
+ * Pattern 6:
  *   During the early init phase we have references from .init.text to
  *   .text we have an intended section mismatch - do not warn about it.
  *   See kernel_init() in init/main.c
@@ -657,26 +666,23 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	if (f1 && f2)
 		return 1;
 
-	/* Whitelist all references from .pci_fixup section if vmlinux
-	 * Whitelist all refereces from .text.head to .init.data if vmlinux
-	 * Whitelist all refereces from .text.head to .init.text if vmlinux
-	 */
-	if (is_vmlinux(modname)) {
-		if ((strcmp(fromsec, ".pci_fixup") == 0) &&
-		    (strcmp(tosec, ".init.text") == 0))
-		return 1;
+	/* Check for pattern 3 */
+	if ((strncmp(fromsec, ".pci_fixup", strlen(".pci_fixup")) == 0) &&
+	    (strcmp(tosec, ".init.text") == 0))
+	return 1;
 
-		if ((strcmp(fromsec, ".text.head") == 0) &&
-			((strcmp(tosec, ".init.data") == 0) ||
-			(strcmp(tosec, ".init.text") == 0)))
-		return 1;
-
-		/* Check for pattern 3 */
-		for (s = pat3refsym; *s; s++)
-			if (strcmp(refsymname, *s) == 0)
-				return 1;
-	}
 	/* Check for pattern 4 */
+	if ((strcmp(fromsec, ".text.head") == 0) &&
+		((strcmp(tosec, ".init.data") == 0) ||
+		(strcmp(tosec, ".init.text") == 0)))
+	return 1;
+
+	/* Check for pattern 5 */
+	for (s = pat3refsym; *s; s++)
+		if (strcmp(refsymname, *s) == 0)
+			return 1;
+
+	/* Check for pattern 6 */
 	if ((strcmp(tosec, ".init.text") == 0) &&
 	    (strcmp(fromsec, ".text") == 0) &&
 	    (strcmp(refsymname, "kernel_init") == 0))
