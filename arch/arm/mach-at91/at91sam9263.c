@@ -124,7 +124,7 @@ static struct clk isi_clk = {
 };
 static struct clk lcdc_clk = {
 	.name		= "lcdc_clk",
-	.pmc_mask	= 1 << AT91SAM9263_ID_ISI,
+	.pmc_mask	= 1 << AT91SAM9263_ID_LCDC,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
 static struct clk ohci_clk = {

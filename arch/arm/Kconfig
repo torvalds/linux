@@ -171,6 +171,7 @@ config ARCH_CLPS7500
 	bool "Cirrus CL-PS7500FE"
 	select TIMER_ACORN
 	select ISA
+	select NO_IOPORT
 	help
 	  Support for the Cirrus Logic PS7500FE system-on-a-chip.
 

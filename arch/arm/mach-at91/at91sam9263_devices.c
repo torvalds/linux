@@ -553,7 +553,7 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices)
 	if (enable_spi0) {
 		at91_set_B_periph(AT91_PIN_PA0, 0);	/* SPI0_MISO */
 		at91_set_B_periph(AT91_PIN_PA1, 0);	/* SPI0_MOSI */
-		at91_set_B_periph(AT91_PIN_PA2, 0);	/* SPI1_SPCK */
+		at91_set_B_periph(AT91_PIN_PA2, 0);	/* SPI0_SPCK */
 
 		at91_clock_associate("spi0_clk", &at91sam9263_spi0_device.dev, "spi_clk");
 		platform_device_register(&at91sam9263_spi0_device);

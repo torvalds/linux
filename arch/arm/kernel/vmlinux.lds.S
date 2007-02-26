@@ -156,6 +156,7 @@ SECTIONS
 
 		_edata = .;
 	}
+	_edata_loc = __data_loc + SIZEOF(.data);
 
 	.bss : {
 		__bss_start = .;	/* BSS				*/

@@ -473,7 +473,7 @@ static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 	ecc_code[1] = ecc >> 8;
 	ecc_code[2] = ecc >> 16;
 
-	pr_debug("%s: returning ecc %06x\n", __func__, ecc);
+	pr_debug("%s: returning ecc %06lx\n", __func__, ecc);
 
 	return 0;
 }
