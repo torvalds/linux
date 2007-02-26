@@ -253,10 +253,7 @@ enum {
 #define IS_GEN_IIE(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_IIE)
 
 enum {
-	/* Our DMA boundary is determined by an ePRD being unable to handle
-	 * anything larger than 64KB
-	 */
-	MV_DMA_BOUNDARY		= 0xffffU,
+	MV_DMA_BOUNDARY		= 0xffffffffU,
 
 	EDMA_REQ_Q_BASE_LO_MASK	= 0xfffffc00U,
 
@@ -384,10 +381,10 @@ static struct scsi_host_template mv_sht = {
 	.queuecommand		= ata_scsi_queuecmd,
 	.can_queue		= MV_USE_Q_DEPTH,
 	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= MV_MAX_SG_CT / 2,
+	.sg_tablesize		= MV_MAX_SG_CT,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
+	.use_clustering		= 1,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= MV_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
@@ -584,6 +581,39 @@ static const struct mv_hw_ops mv6xxx_ops = {
  */
 static int msi;	      /* Use PCI msi; either zero (off, default) or non-zero */
 
+
+/* move to PCI layer or libata core? */
+static int pci_go_64(struct pci_dev *pdev)
+{
+	int rc;
+
+	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
+		rc = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		if (rc) {
+			rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			if (rc) {
+				dev_printk(KERN_ERR, &pdev->dev,
+					   "64-bit DMA enable failed\n");
+				return rc;
+			}
+		}
+	} else {
+		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		if (rc) {
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "32-bit DMA enable failed\n");
+			return rc;
+		}
+		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+		if (rc) {
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "32-bit consistent DMA enable failed\n");
+			return rc;
+		}
+	}
+
+	return rc;
+}
 
 /*
  * Functions
@@ -957,38 +987,30 @@ static void mv_port_stop(struct ata_port *ap)
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_fill_sg(struct ata_queued_cmd *qc)
+static unsigned int mv_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct mv_port_priv *pp = qc->ap->private_data;
-	unsigned int i = 0;
+	unsigned int n_sg = 0;
 	struct scatterlist *sg;
+	struct mv_sg *mv_sg;
 
+	mv_sg = pp->sg_tbl;
 	ata_for_each_sg(sg, qc) {
-		dma_addr_t addr;
-		u32 sg_len, len, offset;
+		dma_addr_t addr = sg_dma_address(sg);
+		u32 sg_len = sg_dma_len(sg);
 
-		addr = sg_dma_address(sg);
-		sg_len = sg_dma_len(sg);
+		mv_sg->addr = cpu_to_le32(addr & 0xffffffff);
+		mv_sg->addr_hi = cpu_to_le32((addr >> 16) >> 16);
+		mv_sg->flags_size = cpu_to_le32(sg_len & 0xffff);
 
-		while (sg_len) {
-			offset = addr & MV_DMA_BOUNDARY;
-			len = sg_len;
-			if ((offset + sg_len) > 0x10000)
-				len = 0x10000 - offset;
+		if (ata_sg_is_last(sg, qc))
+			mv_sg->flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
 
-			pp->sg_tbl[i].addr = cpu_to_le32(addr & 0xffffffff);
-			pp->sg_tbl[i].addr_hi = cpu_to_le32((addr >> 16) >> 16);
-			pp->sg_tbl[i].flags_size = cpu_to_le32(len & 0xffff);
-
-			sg_len -= len;
-			addr += len;
-
-			if (!sg_len && ata_sg_is_last(sg, qc))
-				pp->sg_tbl[i].flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
-
-			i++;
-		}
+		mv_sg++;
+		n_sg++;
 	}
+
+	return n_sg;
 }
 
 static inline unsigned mv_inc_q_index(unsigned index)
@@ -2324,6 +2346,10 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = pcim_iomap_regions(pdev, 1 << MV_PRIMARY_BAR, DRV_NAME);
 	if (rc == -EBUSY)
 		pcim_pin_device(pdev);
+	if (rc)
+		return rc;
+
+	rc = pci_go_64(pdev);
 	if (rc)
 		return rc;
 
