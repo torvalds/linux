@@ -1220,7 +1220,7 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237, asus_hides_a
  */
 static void quirk_jmicron_ata(struct pci_dev *pdev)
 {
-	u32 conf1, conf5;
+	u32 conf1, conf5, class;
 	u8 hdr;
 
 	/* Only poke fn 0 */
@@ -1264,6 +1264,9 @@ static void quirk_jmicron_ata(struct pci_dev *pdev)
 	pci_read_config_byte(pdev, PCI_HEADER_TYPE, &hdr);
 	pdev->hdr_type = hdr & 0x7f;
 	pdev->multifunction = !!(hdr & 0x80);
+
+	pci_read_config_dword(pdev, PCI_CLASS_REVISION, &class);
+	pdev->class = class >> 8;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB360, quirk_jmicron_ata);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB361, quirk_jmicron_ata);
