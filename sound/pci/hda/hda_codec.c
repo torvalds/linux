@@ -573,7 +573,8 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 							 0);
 	}
 
-	codec->preset = find_codec_preset(codec);
+	if (strcmp(codec->bus->modelname, "generic"))
+		codec->preset = find_codec_preset(codec);
 	if (! *bus->card->mixername)
 		snd_hda_get_codec_name(codec, bus->card->mixername,
 				       sizeof(bus->card->mixername));
