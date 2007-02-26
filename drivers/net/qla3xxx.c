@@ -3609,8 +3609,12 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	}
 
 	ndev = alloc_etherdev(sizeof(struct ql3_adapter));
-	if (!ndev)
+	if (!ndev) {
+		printk(KERN_ERR PFX "%s could not alloc etherdev\n",
+		       pci_name(pdev));
+		err = -ENOMEM;
 		goto err_out_free_regions;
+	}
 
 	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
@@ -3639,6 +3643,7 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	if (!qdev->mem_map_registers) {
 		printk(KERN_ERR PFX "%s: cannot map device registers\n",
 		       pci_name(pdev));
+		err = -EIO;
 		goto err_out_free_ndev;
 	}
 
@@ -3667,6 +3672,7 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 		printk(KERN_ALERT PFX
 		       "ql3xxx_probe: Adapter #%d, Invalid NVRAM parameters.\n",
 		       qdev->index);
+		err = -EIO;
 		goto err_out_iounmap;
 	}
 
