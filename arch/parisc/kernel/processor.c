@@ -93,7 +93,7 @@ static int __init processor_probe(struct parisc_device *dev)
 	cpuid = boot_cpu_data.cpu_count;
 	txn_addr = dev->hpa.start;	/* for legacy PDC */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	if (is_pdc_pat()) {
 		ulong status;
 		unsigned long bytecnt;
@@ -153,8 +153,6 @@ static int __init processor_probe(struct parisc_device *dev)
 	p->cpuid = cpuid;	/* save CPU id */
 	p->txn_addr = txn_addr;	/* save CPU IRQ address */
 #ifdef CONFIG_SMP
-	spin_lock_init(&p->lock);
-
 	/*
 	** FIXME: review if any other initialization is clobbered
 	**	for boot_cpu by the above memset().
@@ -311,11 +309,11 @@ int __init init_per_cpu(int cpunum)
 	} else {
 		printk(KERN_WARNING  "WARNING: No FP CoProcessor?!"
 			" (coproc_cfg.ccr_functional == 0x%lx, expected 0xc0)\n"
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 			"Halting Machine - FP required\n"
 #endif
 			, coproc_cfg.ccr_functional);
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 		mdelay(100);	/* previous chars get pushed to console */
 		panic("FP CoProc not reported");
 #endif
@@ -339,9 +337,6 @@ show_cpuinfo (struct seq_file *m, void *v)
 #ifdef CONFIG_SMP
 		if (0 == cpu_data[n].hpa)
 			continue;
-#ifdef ENTRY_SYS_CPUS
-#error iCOD support wants to show CPU state here
-#endif
 #endif
 		seq_printf(m, "processor\t: %d\n"
 				"cpu family\t: PA-RISC %s\n",

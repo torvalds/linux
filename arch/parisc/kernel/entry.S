@@ -37,6 +37,8 @@
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 
+#include <linux/linkage.h>
+
 #ifdef CONFIG_64BIT
 #define CMPIB           cmpib,*
 #define CMPB            cmpb,*
@@ -648,13 +650,11 @@
 	 * the static part of the kernel address space.
 	 */
 
-	.export fault_vector_20
-
 	.text
 
 	.align 4096
 
-fault_vector_20:
+ENTRY(fault_vector_20)
 	/* First vector is invalid (0) */
 	.ascii	"cows can fly"
 	.byte 0
@@ -695,14 +695,13 @@ fault_vector_20:
 	def		29
 	def		30
 	def		31
+END(fault_vector_20)
 
 #ifndef CONFIG_64BIT
 
-	.export fault_vector_11
-	
 	.align 2048
 
-fault_vector_11:
+ENTRY(fault_vector_11)
 	/* First vector is invalid (0) */
 	.ascii	"cows can fly"
 	.byte 0
@@ -743,6 +742,7 @@ fault_vector_11:
 	def		29
 	def		30
 	def		31
+END(fault_vector_11)
 
 #endif
 
@@ -762,9 +762,8 @@ fault_vector_11:
 #define CLONE_VM 0x100	/* Must agree with <linux/sched.h> */
 #define CLONE_UNTRACED 0x00800000
 
-	.export __kernel_thread, code
 	.import do_fork
-__kernel_thread:
+ENTRY(__kernel_thread)
 	STREG	%r2, -RP_OFFSET(%r30)
 
 	copy	%r30, %r1
@@ -797,6 +796,7 @@ __kernel_thread:
 	ldo	-PT_SZ_ALGN(%r30), %r30
 	bv	%r0(%r2)
 	nop
+ENDPROC(__kernel_thread)
 
 	/*
 	 * Child Returns here
@@ -805,8 +805,7 @@ __kernel_thread:
 	 * into task save area.
 	 */
 
-	.export	ret_from_kernel_thread
-ret_from_kernel_thread:
+ENTRY(ret_from_kernel_thread)
 
 	/* Call schedule_tail first though */
 	BL	schedule_tail, %r2
@@ -833,10 +832,10 @@ ret_from_kernel_thread:
 	bv	%r0(%r1)
 #endif
 	ldi	0, %r26
+ENDPROC(ret_from_kernel_thread)
 
 	.import	sys_execve, code
-	.export	__execve, code
-__execve:
+ENTRY(__execve)
 	copy	%r2, %r15
 	copy	%r30, %r16
 	ldo	PT_SZ_ALGN(%r30), %r30
@@ -856,16 +855,15 @@ __execve:
 	copy	%r16, %r30
 	bv	%r0(%r2)
 	nop
+ENDPROC(__execve)
 
-	.align 4
 
 	/*
 	 * struct task_struct *_switch_to(struct task_struct *prev,
 	 *	struct task_struct *next)
 	 *
 	 * switch kernel stacks and return prev */
-	.export	_switch_to, code
-_switch_to:
+ENTRY(_switch_to)
 	STREG	 %r2, -RP_OFFSET(%r30)
 
 	callee_save_float
@@ -890,6 +888,7 @@ _switch_to_ret:
 	LDREG	-RP_OFFSET(%r30), %r2
 	bv	%r0(%r2)
 	copy	%r26, %r28
+ENDPROC(_switch_to)
 
 	/*
 	 * Common rfi return path for interruptions, kernel execve, and
@@ -907,8 +906,7 @@ _switch_to_ret:
 
 	.align 4096
 
-	.export	syscall_exit_rfi
-syscall_exit_rfi:
+ENTRY(syscall_exit_rfi)
 	mfctl   %cr30,%r16
 	LDREG	TI_TASK(%r16), %r16	/* thread_info -> task_struct */
 	ldo	TASK_REGS(%r16),%r16
@@ -978,11 +976,36 @@ intr_check_resched:
 	LDREG   TI_FLAGS(%r1),%r19	/* sched.h: TIF_NEED_RESCHED */
 	bb,<,n	%r19,31-TIF_NEED_RESCHED,intr_do_resched /* forward */
 
+	.import do_notify_resume,code
 intr_check_sig:
 	/* As above */
 	mfctl   %cr30,%r1
-	LDREG	TI_FLAGS(%r1),%r19	/* sched.h: TIF_SIGPENDING */
-	bb,<,n %r19, 31-TIF_SIGPENDING, intr_do_signal /* forward */
+	LDREG	TI_FLAGS(%r1),%r19
+	ldi	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %r20
+	and,COND(<>)	%r19, %r20, %r0
+	b,n	intr_restore	/* skip past if we've nothing to do */
+
+	/* This check is critical to having LWS
+	 * working. The IASQ is zero on the gateway
+	 * page and we cannot deliver any signals until
+	 * we get off the gateway page.
+	 *
+	 * Only do signals if we are returning to user space
+	 */
+	LDREG	PT_IASQ0(%r16), %r20
+	CMPIB=,n 0,%r20,intr_restore /* backward */
+	LDREG	PT_IASQ1(%r16), %r20
+	CMPIB=,n 0,%r20,intr_restore /* backward */
+
+	copy	%r0, %r25			/* long in_syscall = 0 */
+#ifdef CONFIG_64BIT
+	ldo	-16(%r30),%r29			/* Reference param save area */
+#endif
+
+	BL	do_notify_resume,%r2
+	copy	%r16, %r26			/* struct pt_regs *regs */
+
+	b,n	intr_check_sig
 
 intr_restore:
 	copy            %r16,%r29
@@ -1072,35 +1095,6 @@ intr_do_preempt:
 	b,n	intr_restore		/* ssm PSW_SM_I done by intr_restore */
 #endif /* CONFIG_PREEMPT */
 
-	.import do_signal,code
-intr_do_signal:
-	/* 
-		This check is critical to having LWS
-		working. The IASQ is zero on the gateway
-		page and we cannot deliver any signals until
-		we get off the gateway page.
-
-		Only do signals if we are returning to user space 
-	*/
-	LDREG	PT_IASQ0(%r16), %r20
-	CMPIB= 0,%r20,intr_restore /* backward */
-	nop
-	LDREG	PT_IASQ1(%r16), %r20
-	CMPIB= 0,%r20,intr_restore /* backward */
-	nop
-
-	copy	%r0, %r24			/* unsigned long in_syscall */
-	copy	%r16, %r25			/* struct pt_regs *regs */
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29			/* Reference param save area */
-#endif
-
-	BL	do_signal,%r2
-	copy	%r0, %r26			/* sigset_t *oldset = NULL */
-
-	b	intr_check_sig
-	nop
-
 	/*
 	 * External interrupts.
 	 */
@@ -1115,11 +1109,7 @@ intr_extint:
 	mfctl	%cr31,%r1
 	copy	%r30,%r17
 	/* FIXME! depi below has hardcoded idea of interrupt stack size (32k)*/
-#ifdef CONFIG_64BIT
-	depdi	0,63,15,%r17
-#else
-	depi	0,31,15,%r17
-#endif
+	DEPI	0,31,15,%r17
 	CMPB=,n	%r1,%r17,2f
 	get_stack_use_cr31
 	b,n 3f
@@ -1148,13 +1138,12 @@ intr_extint:
 
 	b	do_cpu_irq_mask
 	ldo	R%intr_return(%r2), %r2	/* return to intr_return, not here */
+ENDPROC(syscall_exit_rfi)
 
 
 	/* Generic interruptions (illegal insn, unaligned, page fault, etc) */
 
-	.export         intr_save, code /* for os_hpmc */
-
-intr_save:
+ENTRY(intr_save)		/* for os_hpmc */
 	mfsp    %sr7,%r16
 	CMPIB=,n 0,%r16,1f
 	get_stack_use_cr30
@@ -1229,6 +1218,7 @@ skip_save_ior:
 
 	b		handle_interruption
 	ldo		R%intr_check_sig(%r2), %r2
+ENDPROC(intr_save)
 
 
 	/*
@@ -1814,9 +1804,7 @@ dtlb_fault:
 	LDREG   PT_GR18(\regs),%r18
 	.endm
 
-	.export sys_fork_wrapper
-	.export child_return
-sys_fork_wrapper:
+ENTRY(sys_fork_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
 	ldo	TASK_REGS(%r1),%r1
 	reg_save %r1
@@ -1853,9 +1841,10 @@ wrapper_exit:
 	ldi	__NR_fork,%r20
 	bv %r0(%r2)
 	STREG	%r20,PT_GR20(%r1)
+ENDPROC(sys_fork_wrapper)
 
 	/* Set the return value for the child */
-child_return:
+ENTRY(child_return)
 	BL	schedule_tail, %r2
 	nop
 
@@ -1863,10 +1852,10 @@ child_return:
 	LDREG	TASK_PT_GR19(%r1),%r2
 	b	wrapper_exit
 	copy	%r0,%r28
+ENDPROC(child_return)
 
-	
-	.export sys_clone_wrapper
-sys_clone_wrapper:
+
+ENTRY(sys_clone_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
 	ldo	TASK_REGS(%r1),%r1	/* get pt regs */
 	reg_save %r1
@@ -1887,9 +1876,10 @@ sys_clone_wrapper:
 
 	b	wrapper_exit
 	LDREG	-RP_OFFSET-FRAME_SIZE(%r30),%r2
+ENDPROC(sys_clone_wrapper)
 
-	.export sys_vfork_wrapper
-sys_vfork_wrapper:
+
+ENTRY(sys_vfork_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
 	ldo	TASK_REGS(%r1),%r1	/* get pt regs */
 	reg_save %r1
@@ -1910,6 +1900,7 @@ sys_vfork_wrapper:
 
 	b	wrapper_exit
 	LDREG	-RP_OFFSET-FRAME_SIZE(%r30),%r2
+ENDPROC(sys_vfork_wrapper)
 
 	
 	.macro  execve_wrapper execve
@@ -1946,22 +1937,19 @@ error_\execve:
 	nop
 	.endm
 
-	.export sys_execve_wrapper
 	.import sys_execve
-
-sys_execve_wrapper:
+ENTRY(sys_execve_wrapper)
 	execve_wrapper sys_execve
+ENDPROC(sys_execve_wrapper)
 
 #ifdef CONFIG_64BIT
-	.export sys32_execve_wrapper
 	.import sys32_execve
-
-sys32_execve_wrapper:
+ENTRY(sys32_execve_wrapper)
 	execve_wrapper sys32_execve
+ENDPROC(sys32_execve_wrapper)
 #endif
 
-	.export sys_rt_sigreturn_wrapper
-sys_rt_sigreturn_wrapper:
+ENTRY(sys_rt_sigreturn_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26
 	ldo	TASK_REGS(%r26),%r26	/* get pt regs */
 	/* Don't save regs, we are going to restore them from sigcontext. */
@@ -1989,9 +1977,9 @@ sys_rt_sigreturn_wrapper:
 	 */
 	bv	%r0(%r2)
 	LDREG	PT_GR28(%r1),%r28  /* reload original r28 for syscall_exit */
+ENDPROC(sys_rt_sigreturn_wrapper)
 
-	.export sys_sigaltstack_wrapper
-sys_sigaltstack_wrapper:
+ENTRY(sys_sigaltstack_wrapper)
 	/* Get the user stack pointer */
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
 	ldo	TASK_REGS(%r1),%r24	/* get pt regs */
@@ -1999,10 +1987,10 @@ sys_sigaltstack_wrapper:
 	STREG	%r2, -RP_OFFSET(%r30)
 #ifdef CONFIG_64BIT
 	ldo	FRAME_SIZE(%r30), %r30
-	b,l	do_sigaltstack,%r2
+	BL	do_sigaltstack,%r2
 	ldo	-16(%r30),%r29		/* Reference param save area */
 #else
-	bl	do_sigaltstack,%r2
+	BL	do_sigaltstack,%r2
 	ldo	FRAME_SIZE(%r30), %r30
 #endif
 
@@ -2010,53 +1998,26 @@ sys_sigaltstack_wrapper:
 	LDREG	-RP_OFFSET(%r30), %r2
 	bv	%r0(%r2)
 	nop
+ENDPROC(sys_sigaltstack_wrapper)
 
 #ifdef CONFIG_64BIT
-	.export sys32_sigaltstack_wrapper
-sys32_sigaltstack_wrapper:
+ENTRY(sys32_sigaltstack_wrapper)
 	/* Get the user stack pointer */
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r24
 	LDREG	TASK_PT_GR30(%r24),%r24
 	STREG	%r2, -RP_OFFSET(%r30)
 	ldo	FRAME_SIZE(%r30), %r30
-	b,l	do_sigaltstack32,%r2
+	BL	do_sigaltstack32,%r2
 	ldo	-16(%r30),%r29		/* Reference param save area */
 
 	ldo	-FRAME_SIZE(%r30), %r30
 	LDREG	-RP_OFFSET(%r30), %r2
 	bv	%r0(%r2)
 	nop
+ENDPROC(sys32_sigaltstack_wrapper)
 #endif
 
-	.export sys_rt_sigsuspend_wrapper
-sys_rt_sigsuspend_wrapper:
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
-	ldo	TASK_REGS(%r1),%r24
-	reg_save %r24
-
-	STREG	%r2, -RP_OFFSET(%r30)
-#ifdef CONFIG_64BIT
-	ldo	FRAME_SIZE(%r30), %r30
-	b,l	sys_rt_sigsuspend,%r2
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#else
-	bl	sys_rt_sigsuspend,%r2
-	ldo	FRAME_SIZE(%r30), %r30
-#endif
-
-	ldo	-FRAME_SIZE(%r30), %r30
-	LDREG	-RP_OFFSET(%r30), %r2
-
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
-	ldo	TASK_REGS(%r1),%r1
-	reg_restore %r1
-
-	bv	%r0(%r2)
-	nop
-
-	.export syscall_exit
-syscall_exit:
-
+ENTRY(syscall_exit)
 	/* NOTE: HP-UX syscalls also come through here
 	 * after hpux_syscall_exit fixes up return
 	 * values. */
@@ -2119,9 +2080,35 @@ syscall_check_resched:
 	LDREG	TI_FLAGS-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r19	/* long */
 	bb,<,n	%r19, 31-TIF_NEED_RESCHED, syscall_do_resched /* forward */
 
+	.import do_signal,code
 syscall_check_sig:
-	LDREG	TI_FLAGS-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r19    /* get ti flags */
-	bb,<,n	%r19, 31-TIF_SIGPENDING, syscall_do_signal /* forward */
+	LDREG	TI_FLAGS-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r19
+	ldi	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %r26
+	and,COND(<>)	%r19, %r26, %r0
+	b,n	syscall_restore	/* skip past if we've nothing to do */
+
+syscall_do_signal:
+	/* Save callee-save registers (for sigcontext).
+	 * FIXME: After this point the process structure should be
+	 * consistent with all the relevant state of the process
+	 * before the syscall.  We need to verify this.
+	 */
+	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
+	ldo	TASK_REGS(%r1), %r26		/* struct pt_regs *regs */
+	reg_save %r26
+
+#ifdef CONFIG_64BIT
+	ldo	-16(%r30),%r29			/* Reference param save area */
+#endif
+
+	BL	do_notify_resume,%r2
+	ldi	1, %r25				/* long in_syscall = 1 */
+
+	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
+	ldo	TASK_REGS(%r1), %r20		/* reload pt_regs */
+	reg_restore %r20
+
+	b,n     syscall_check_sig
 
 syscall_restore:
 	/* Are we being ptraced? */
@@ -2259,31 +2246,10 @@ syscall_do_resched:
 #endif
 	b       syscall_check_bh  /* if resched, we start over again */
 	nop
+ENDPROC(syscall_exit)
 
-	.import do_signal,code
-syscall_do_signal:
-	/* Save callee-save registers (for sigcontext).
-	   FIXME: After this point the process structure should be
-	   consistent with all the relevant state of the process
-	   before the syscall.  We need to verify this. */
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1 
-	ldo	TASK_REGS(%r1), %r25		/* struct pt_regs *regs */
-	reg_save %r25
 
-	ldi	1, %r24				/* unsigned long in_syscall */
-
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29			/* Reference param save area */
-#endif
-	BL	do_signal,%r2
-	copy	%r0, %r26			/* sigset_t *oldset = NULL */
-
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
-	ldo	TASK_REGS(%r1), %r20		/* reload pt_regs */
-	reg_restore %r20
-
-	b,n     syscall_check_sig
-
+get_register:
 	/*
 	 * get_register is used by the non access tlb miss handlers to
 	 * copy the value of the general register specified in r8 into
@@ -2294,8 +2260,6 @@ syscall_do_signal:
 	 * a -1 in it, but that is OK, it just means that we will have
 	 * to use the slow path instead).
 	 */
-
-get_register:
 	blr     %r8,%r0
 	nop
 	bv      %r0(%r25)    /* r0 */
@@ -2363,13 +2327,13 @@ get_register:
 	bv      %r0(%r25)    /* r31 */
 	copy    %r31,%r1
 
+
+set_register:
 	/*
 	 * set_register is used by the non access tlb miss handlers to
 	 * copy the value of r1 into the general register specified in
 	 * r8.
 	 */
-
-set_register:
 	blr     %r8,%r0
 	nop
 	bv      %r0(%r25)    /* r0 (silly, but it is a place holder) */
@@ -2436,3 +2400,4 @@ set_register:
 	copy    %r1,%r30
 	bv      %r0(%r25)    /* r31 */
 	copy    %r1,%r31
+

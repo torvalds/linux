@@ -47,7 +47,7 @@ void __init setup_pdc(void)
 	struct pdc_system_map_mod_info module_result;
 	struct pdc_module_path module_path;
 	struct pdc_model model;
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	struct pdc_pat_cell_num cell_info;
 #endif
 
@@ -73,7 +73,7 @@ void __init setup_pdc(void)
 	 * clearer message.
 	 */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	status = pdc_pat_cell_get_number(&cell_info);
 	if (status == PDC_OK) {
 		pdc_type = PDC_TYPE_PAT;
@@ -152,7 +152,7 @@ static void __init pagezero_memconfig(void)
 	npmem_ranges = 1;
 }
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 
 /* All of the PDC PAT specific code is 64-bit only */
 
@@ -408,13 +408,13 @@ static void __init sprockets_memconfig(void)
 	}
 }
 
-#else   /* !__LP64__ */
+#else   /* !CONFIG_64BIT */
 
 #define pat_inventory() do { } while (0)
 #define pat_memconfig() do { } while (0)
 #define sprockets_memconfig() pagezero_memconfig()
 
-#endif	/* !__LP64__ */
+#endif	/* !CONFIG_64BIT */
 
 
 #ifndef CONFIG_PA20

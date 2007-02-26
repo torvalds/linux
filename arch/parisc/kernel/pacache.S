@@ -27,31 +27,21 @@
  */
 
 #ifdef CONFIG_64BIT
-#define ADDIB	addib,*
-#define CMPB	cmpb,*
-#define ANDCM	andcm,*
-
 	.level	2.0w
 #else
-#define ADDIB	addib,
-#define CMPB	cmpb,
-#define ANDCM	andcm
-
 	.level	2.0
 #endif
-
 
 #include <asm/psw.h>
 #include <asm/assembly.h>
 #include <asm/pgtable.h>
 #include <asm/cache.h>
+#include <linux/linkage.h>
 
 	.text
 	.align	128
 
-	.export flush_tlb_all_local,code
-
-flush_tlb_all_local:
+ENTRY(flush_tlb_all_local)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -200,11 +190,11 @@ fdtdone:
 
 	.exit
 	.procend
+ENDPROC(flush_tlb_all_local)
 
-	.export flush_instruction_cache_local,code
 	.import cache_info,data
 
-flush_instruction_cache_local:
+ENTRY(flush_instruction_cache_local)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -241,11 +231,11 @@ fisync:
 	.exit
 
 	.procend
+ENDPROC(flush_instruction_cache_local)
 
-	.export flush_data_cache_local, code
+
 	.import cache_info, data
-
-flush_data_cache_local:
+ENTRY(flush_data_cache_local)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -283,11 +273,11 @@ fdsync:
 	.exit
 
 	.procend
+ENDPROC(flush_data_cache_local)
 
-	.export copy_user_page_asm,code
 	.align	16
 
-copy_user_page_asm:
+ENTRY(copy_user_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -409,6 +399,7 @@ copy_user_page_asm:
 	.exit
 
 	.procend
+ENDPROC(copy_user_page_asm)
 
 /*
  * NOTE: Code in clear_user_page has a hard coded dependency on the
@@ -446,9 +437,7 @@ copy_user_page_asm:
 	 * lobby for such a change.
 	 */
 
-	.export copy_user_page_asm,code
-
-copy_user_page_asm:
+ENTRY(copy_user_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -534,11 +523,10 @@ copy_user_page_asm:
 	.exit
 
 	.procend
+ENDPROC(copy_user_page_asm)
 #endif
 
-	.export __clear_user_page_asm,code
-
-__clear_user_page_asm:
+ENTRY(__clear_user_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -618,10 +606,9 @@ __clear_user_page_asm:
 	.exit
 
 	.procend
+ENDPROC(__clear_user_page_asm)
 
-	.export flush_kernel_dcache_page_asm
-
-flush_kernel_dcache_page_asm:
+ENTRY(flush_kernel_dcache_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -662,10 +649,9 @@ flush_kernel_dcache_page_asm:
 	.exit
 
 	.procend
+ENDPROC(flush_kernel_dcache_page_asm)
 	
-	.export flush_user_dcache_page
-
-flush_user_dcache_page:
+ENTRY(flush_user_dcache_page)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -706,10 +692,9 @@ flush_user_dcache_page:
 	.exit
 
 	.procend
+ENDPROC(flush_user_dcache_page)
 
-	.export flush_user_icache_page
-
-flush_user_icache_page:
+ENTRY(flush_user_icache_page)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -750,11 +735,10 @@ flush_user_icache_page:
 	.exit
 
 	.procend
+ENDPROC(flush_user_icache_page)
 
 
-	.export purge_kernel_dcache_page
-
-purge_kernel_dcache_page:
+ENTRY(purge_kernel_dcache_page)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -794,15 +778,14 @@ purge_kernel_dcache_page:
 	.exit
 
 	.procend
+ENDPROC(purge_kernel_dcache_page)
 
 #if 0
 	/* Currently not used, but it still is a possible alternate
 	 * solution.
 	 */
 
-	.export flush_alias_page
-
-flush_alias_page:
+ENTRY(flush_alias_page)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -882,10 +865,9 @@ flush_user_dcache_range_asm:
 	.exit
 
 	.procend
+ENDPROC(flush_alias_page)
 
-	.export flush_kernel_dcache_range_asm
-
-flush_kernel_dcache_range_asm:
+ENTRY(flush_kernel_dcache_range_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -905,10 +887,9 @@ flush_kernel_dcache_range_asm:
 	.exit
 
 	.procend
+ENDPROC(flush_kernel_dcache_range_asm)
 
-	.export flush_user_icache_range_asm
-
-flush_user_icache_range_asm:
+ENTRY(flush_user_icache_range_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -927,10 +908,9 @@ flush_user_icache_range_asm:
 	.exit
 
 	.procend
+ENDPROC(flush_user_icache_range_asm)
 
-	.export flush_kernel_icache_page
-
-flush_kernel_icache_page:
+ENTRY(flush_kernel_icache_page)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -971,10 +951,9 @@ flush_kernel_icache_page:
 	.exit
 
 	.procend
+ENDPROC(flush_kernel_icache_page)
 
-	.export flush_kernel_icache_range_asm
-
-flush_kernel_icache_range_asm:
+ENTRY(flush_kernel_icache_range_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -992,14 +971,13 @@ flush_kernel_icache_range_asm:
 	nop
 	.exit
 	.procend
+ENDPROC(flush_kernel_icache_range_asm)
 
 	/* align should cover use of rfi in disable_sr_hashing_asm and
 	 * srdis_done.
 	 */
 	.align	256
-	.export disable_sr_hashing_asm,code
-
-disable_sr_hashing_asm:
+ENTRY(disable_sr_hashing_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -1088,5 +1066,6 @@ srdis_done:
 	.exit
 
 	.procend
+ENDPROC(disable_sr_hashing_asm)
 
 	.end

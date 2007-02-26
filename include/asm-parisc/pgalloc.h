@@ -14,7 +14,7 @@
  * Here (for 64 bit kernels) we implement a Hybrid L2/L3 scheme: we
  * allocate the first pmd adjacent to the pgd.  This means that we can
  * subtract a constant offset to get to it.  The pmd and pgd sizes are
- * arranged so that a single pmd covers 4GB (giving a full LP64
+ * arranged so that a single pmd covers 4GB (giving a full 64-bit
  * process access to 8TB) so our lookups are effectively L2 for the
  * first 4GB of the kernel (i.e. for all ILP32 processes and all the
  * kernel for machines with under 4GB of memory) */
@@ -26,7 +26,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	if (likely(pgd != NULL)) {
 		memset(pgd, 0, PAGE_SIZE<<PGD_ALLOC_ORDER);
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 		actual_pgd += PTRS_PER_PGD;
 		/* Populate first pmd with allocated memory.  We mark it
 		 * with PxD_FLAG_ATTACHED as a signal to the system that this
@@ -45,7 +45,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 static inline void pgd_free(pgd_t *pgd)
 {
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	pgd -= PTRS_PER_PGD;
 #endif
 	free_pages((unsigned long)pgd, PGD_ALLOC_ORDER);
@@ -72,7 +72,7 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 
 static inline void pmd_free(pmd_t *pmd)
 {
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	if(pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
 		/* This is the permanent pmd attached to the pgd;
 		 * cannot free it */
@@ -99,7 +99,7 @@ static inline void pmd_free(pmd_t *pmd)
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 {
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* preserve the gateway marker if this is the beginning of
 	 * the permanent pmd */
 	if(pmd_flag(*pmd) & PxD_FLAG_ATTACHED)

@@ -452,6 +452,24 @@ static int do_eisa_entry(const char *filename, struct eisa_device_id *eisa,
 	return 1;
 }
 
+/* Looks like: parisc:tNhvNrevNsvN */
+static int do_parisc_entry(const char *filename, struct parisc_device_id *id,
+		char *alias)
+{
+	id->hw_type = TO_NATIVE(id->hw_type);
+	id->hversion = TO_NATIVE(id->hversion);
+	id->hversion_rev = TO_NATIVE(id->hversion_rev);
+	id->sversion = TO_NATIVE(id->sversion);
+
+	strcpy(alias, "parisc:");
+	ADD(alias, "t", id->hw_type != PA_HWTYPE_ANY_ID, id->hw_type);
+	ADD(alias, "hv", id->hversion != PA_HVERSION_ANY_ID, id->hversion);
+	ADD(alias, "rev", id->hversion_rev != PA_HVERSION_REV_ANY_ID, id->hversion_rev);
+	ADD(alias, "sv", id->sversion != PA_SVERSION_ANY_ID, id->sversion);
+
+	return 1;
+}
+
 /* Ignore any prefix, eg. v850 prepends _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -559,6 +577,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct eisa_device_id), "eisa",
 			 do_eisa_entry, mod);
+	else if (sym_is(symname, "__mod_parisc_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct parisc_device_id), "parisc",
+			 do_parisc_entry, mod);
 }
 
 /* Now add out buffered information to the generated C source */

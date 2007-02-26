@@ -341,7 +341,7 @@ struct pdc_model {		/* for PDC_MODEL */
 
 struct pdc_cache_cf {		/* for PDC_CACHE  (I/D-caches) */
     unsigned long
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 		cc_padW:32,
 #endif
 		cc_alias: 4,	/* alias boundaries for virtual addresses   */
@@ -357,7 +357,7 @@ struct pdc_cache_cf {		/* for PDC_CACHE  (I/D-caches) */
 
 struct pdc_tlb_cf {		/* for PDC_CACHE (I/D-TLB's) */
     unsigned long tc_pad0:12,	/* reserved */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 		tc_padW:32,
 #endif
 		tc_sh	: 2,	/* 0 = separate I/D-TLB, else shared I/D-TLB */
@@ -445,7 +445,7 @@ struct pdc_btlb_info {	/* PDC_BLOCK_TLB, return of PDC_BTLB_INFO */
 
 #endif /* !CONFIG_PA20 */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 struct pdc_memory_table_raddr { /* PDC_MEM/PDC_MEM_TABLE (return info) */
 	unsigned long entries_returned;
 	unsigned long entries_total;
@@ -456,7 +456,7 @@ struct pdc_memory_table {       /* PDC_MEM/PDC_MEM_TABLE (arguments) */
 	unsigned int  pages;
 	unsigned int  reserved;
 };
-#endif /* __LP64__ */
+#endif /* CONFIG_64BIT */
 
 struct pdc_system_map_mod_info { /* PDC_SYSTEM_MAP/FIND_MODULE */
 	unsigned long mod_addr;
@@ -752,7 +752,7 @@ int pdc_get_initiator(struct hardware_path *, struct pdc_initiator *);
 int pdc_tod_read(struct pdc_tod *tod);
 int pdc_tod_set(unsigned long sec, unsigned long usec);
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 int pdc_mem_mem_table(struct pdc_memory_table_raddr *r_addr,
 		struct pdc_memory_table *tbl, unsigned long entries);
 #endif

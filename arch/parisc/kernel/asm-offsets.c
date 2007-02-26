@@ -44,7 +44,7 @@
 
 #define BLANK() asm volatile("\n->" : : )
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define FRAME_SIZE	128
 #else
 #define FRAME_SIZE	64

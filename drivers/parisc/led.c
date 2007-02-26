@@ -66,8 +66,8 @@ static char lcd_text_default[32]  __read_mostly;
 
 
 static struct workqueue_struct *led_wq;
-static void led_work_func(void *);
-static DECLARE_WORK(led_task, led_work_func, NULL);
+static void led_work_func(struct work_struct *);
+static DECLARE_DELAYED_WORK(led_task, led_work_func);
 
 #if 0
 #define DPRINTK(x)	printk x
@@ -136,7 +136,7 @@ static int start_task(void)
 
 	/* Create the work queue and queue the LED task */
 	led_wq = create_singlethread_workqueue("led_wq");	
-	queue_work(led_wq, &led_task);
+	queue_delayed_work(led_wq, &led_task, 0);
 
 	return 0;
 }
@@ -441,7 +441,7 @@ static __inline__ int led_get_diskio_activity(void)
 
 #define LED_UPDATE_INTERVAL (1 + (HZ*19/1000))
 
-static void led_work_func (void *unused)
+static void led_work_func (struct work_struct *unused)
 {
 	static unsigned long last_jiffies;
 	static unsigned long count_HZ; /* counter in range 0..HZ */
@@ -588,7 +588,7 @@ int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long d
 
 	/* Ensure the work is queued */
 	if (led_wq) {
-		queue_work(led_wq, &led_task);
+		queue_delayed_work(led_wq, &led_task, 0);
 	}
 
 	return 0;
@@ -629,7 +629,7 @@ void __init register_led_regions(void)
    ** avoid a race condition while writing the CMD/DATA register pair.
    **
  */
-int lcd_print( char *str )
+int lcd_print( const char *str )
 {
 	int i;
 
@@ -658,7 +658,7 @@ int lcd_print( char *str )
 	
 	/* re-queue the work */
 	if (led_wq) {
-		queue_work(led_wq, &led_task);
+		queue_delayed_work(led_wq, &led_task, 0);
 	}
 
 	return lcd_info.lcd_width;

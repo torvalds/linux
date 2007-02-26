@@ -96,30 +96,18 @@ DECLARE_PER_CPU(struct exception_data, exception_data);
 #define DPRINTF(fmt, args...)
 #endif
 
-#ifndef __LP64__
-#define EXC_WORD ".word"
-#else
-#define EXC_WORD ".dword"
-#endif
-
 #define def_load_ai_insn(_insn,_sz,_tt,_s,_a,_t,_e)	\
 	__asm__ __volatile__ (				\
-	"1:\t" #_insn ",ma " #_sz "(" _s ",%1), %0\n" 	\
-	"\t.section __ex_table,\"aw\"\n"		\
-	"\t" EXC_WORD "\t1b\n"				\
-	"\t" EXC_WORD "\t" #_e "\n"			\
-	"\t.previous\n"					\
+	"1:\t" #_insn ",ma " #_sz "(" _s ",%1), %0\n\t"	\
+	ASM_EXCEPTIONTABLE_ENTRY(1b,_e)			\
 	: _tt(_t), "+r"(_a)				\
 	: 						\
 	: "r8")
 
 #define def_store_ai_insn(_insn,_sz,_tt,_s,_a,_t,_e) 	\
 	__asm__ __volatile__ (				\
-	"1:\t" #_insn ",ma %1, " #_sz "(" _s ",%0)\n" 	\
-	"\t.section __ex_table,\"aw\"\n"		\
-	"\t" EXC_WORD "\t1b\n"				\
-	"\t" EXC_WORD "\t" #_e "\n"			\
-	"\t.previous\n"					\
+	"1:\t" #_insn ",ma %1, " #_sz "(" _s ",%0)\n\t"	\
+	ASM_EXCEPTIONTABLE_ENTRY(1b,_e)			\
 	: "+r"(_a) 					\
 	: _tt(_t)					\
 	: "r8")
@@ -133,22 +121,16 @@ DECLARE_PER_CPU(struct exception_data, exception_data);
 
 #define def_load_insn(_insn,_tt,_s,_o,_a,_t,_e) 	\
 	__asm__ __volatile__ (				\
-	"1:\t" #_insn " " #_o "(" _s ",%1), %0\n"	\
-	"\t.section __ex_table,\"aw\"\n"		\
-	"\t" EXC_WORD "\t1b\n"				\
-	"\t" EXC_WORD "\t" #_e "\n"			\
-	"\t.previous\n"					\
+	"1:\t" #_insn " " #_o "(" _s ",%1), %0\n\t"	\
+	ASM_EXCEPTIONTABLE_ENTRY(1b,_e)			\
 	: _tt(_t) 					\
 	: "r"(_a)					\
 	: "r8")
 
 #define def_store_insn(_insn,_tt,_s,_t,_o,_a,_e) 	\
 	__asm__ __volatile__ (				\
-	"1:\t" #_insn " %0, " #_o "(" _s ",%1)\n" 	\
-	"\t.section __ex_table,\"aw\"\n"		\
-	"\t" EXC_WORD "\t1b\n"				\
-	"\t" EXC_WORD "\t" #_e "\n"			\
-	"\t.previous\n"					\
+	"1:\t" #_insn " %0, " #_o "(" _s ",%1)\n\t" 	\
+	ASM_EXCEPTIONTABLE_ENTRY(1b,_e)			\
 	: 						\
 	: _tt(_t), "r"(_a)				\
 	: "r8")
@@ -167,8 +149,8 @@ extern inline void prefetch_dst(const void *addr)
 	__asm__("ldd 0(" d_space ",%0), %%r0" : : "r" (addr));
 }
 #else
-#define prefetch_src(addr)
-#define prefetch_dst(addr)
+#define prefetch_src(addr) do { } while(0)
+#define prefetch_dst(addr) do { } while(0)
 #endif
 
 /* Copy from a not-aligned src to an aligned dst, using shifts. Handles 4 words

@@ -46,6 +46,8 @@
 #include <asm/assembly.h>
 #include <asm/pdc.h>
 
+#include <linux/linkage.h>
+
 	/*
 	 * stack for os_hpmc, the HPMC handler.
 	 * buffer for IODC procedures (for the HPMC handler).
@@ -69,17 +71,15 @@ hpmc_raddr:
 
 #define HPMC_PIM_DATA_SIZE 896 /* Enough to hold all architected 2.0 state */
 
-	.export hpmc_pim_data, data
 	.align 8
-hpmc_pim_data:
+ENTRY(hpmc_pim_data)
 	.block HPMC_PIM_DATA_SIZE
+END(hpmc_pim_data)
 
 	.text
 
-	.export os_hpmc, code
 	.import intr_save, code
-
-os_hpmc:
+ENTRY(os_hpmc)
 
 	/*
 	 * registers modified:
@@ -294,11 +294,9 @@ os_hpmc_6:
 
 	b .
 	nop
+ENDPROC(os_hpmc)
 
 	/* this label used to compute os_hpmc checksum */
-
-	.export os_hpmc_end, code
-
-os_hpmc_end:
+ENTRY(os_hpmc_end)
 
 	nop

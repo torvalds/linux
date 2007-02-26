@@ -13,15 +13,15 @@
 
 struct msqid64_ds {
 	struct ipc64_perm msg_perm;
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	unsigned int   __pad1;
 #endif
 	__kernel_time_t msg_stime;	/* last msgsnd time */
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	unsigned int   __pad2;
 #endif
 	__kernel_time_t msg_rtime;	/* last msgrcv time */
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	unsigned int   __pad3;
 #endif
 	__kernel_time_t msg_ctime;	/* last change time */

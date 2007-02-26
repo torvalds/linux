@@ -60,31 +60,37 @@ static __inline__ void change_bit(int nr, volatile unsigned long * addr)
 static __inline__ int test_and_set_bit(int nr, volatile unsigned long * addr)
 {
 	unsigned long mask = 1UL << CHOP_SHIFTCOUNT(nr);
-	unsigned long oldbit;
+	unsigned long old;
 	unsigned long flags;
+	int set;
 
 	addr += (nr >> SHIFT_PER_LONG);
 	_atomic_spin_lock_irqsave(addr, flags);
-	oldbit = *addr;
-	*addr = oldbit | mask;
+	old = *addr;
+	set = (old & mask) ? 1 : 0;
+	if (!set)
+		*addr = old | mask;
 	_atomic_spin_unlock_irqrestore(addr, flags);
 
-	return (oldbit & mask) ? 1 : 0;
+	return set;
 }
 
 static __inline__ int test_and_clear_bit(int nr, volatile unsigned long * addr)
 {
 	unsigned long mask = 1UL << CHOP_SHIFTCOUNT(nr);
-	unsigned long oldbit;
+	unsigned long old;
 	unsigned long flags;
+	int set;
 
 	addr += (nr >> SHIFT_PER_LONG);
 	_atomic_spin_lock_irqsave(addr, flags);
-	oldbit = *addr;
-	*addr = oldbit & ~mask;
+	old = *addr;
+	set = (old & mask) ? 1 : 0;
+	if (set)
+		*addr = old & ~mask;
 	_atomic_spin_unlock_irqrestore(addr, flags);
 
-	return (oldbit & mask) ? 1 : 0;
+	return set;
 }
 
 static __inline__ int test_and_change_bit(int nr, volatile unsigned long * addr)
@@ -130,7 +136,7 @@ static __inline__ unsigned long __ffs(unsigned long x)
 	unsigned long ret;
 
 	__asm__(
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 		" ldi       63,%1\n"
 		" extrd,u,*<>  %0,63,32,%%r0\n"
 		" extrd,u,*TR  %0,31,32,%0\n"	/* move top 32-bits down */
