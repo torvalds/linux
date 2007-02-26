@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 
 #define DRV_NAME "pata_winbond"
-#define DRV_VERSION "0.0.1"
+#define DRV_VERSION "0.0.2"
 
 #define NR_HOST 4	/* Two winbond controllers, two channels each */
 

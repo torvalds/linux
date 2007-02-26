@@ -47,7 +47,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_vsc"
-#define DRV_VERSION	"2.0"
+#define DRV_VERSION	"2.1"
 
 enum {
 	VSC_MMIO_BAR			= 0,

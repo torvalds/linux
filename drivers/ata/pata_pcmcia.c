@@ -42,7 +42,7 @@
 
 
 #define DRV_NAME "pata_pcmcia"
-#define DRV_VERSION "0.2.11"
+#define DRV_VERSION "0.3.0"
 
 /*
  *	Private data structure to glue stuff together

@@ -35,7 +35,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_pdc2027x"
-#define DRV_VERSION	"0.74-ac5"
+#define DRV_VERSION	"0.8"
 #undef PDC_DEBUG
 
 #ifdef PDC_DEBUG

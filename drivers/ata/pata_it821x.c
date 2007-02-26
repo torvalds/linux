@@ -80,7 +80,7 @@
 
 
 #define DRV_NAME "pata_it821x"
-#define DRV_VERSION "0.3.3"
+#define DRV_VERSION "0.3.4"
 
 struct it821x_dev
 {

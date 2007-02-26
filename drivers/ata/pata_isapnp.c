@@ -17,7 +17,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_isapnp"
-#define DRV_VERSION "0.1.5"
+#define DRV_VERSION "0.2.0"
 
 static struct scsi_host_template isapnp_sht = {
 	.module			= THIS_MODULE,

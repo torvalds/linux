@@ -59,7 +59,7 @@
 
 #include "libata.h"
 
-#define DRV_VERSION	"2.10"	/* must be exactly four chars */
+#define DRV_VERSION	"2.20"	/* must be exactly four chars */
 
 
 /* debounce timing parameters in msecs { interval, duration, timeout } */

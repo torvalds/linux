@@ -34,7 +34,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_opti"
-#define DRV_VERSION "0.2.7"
+#define DRV_VERSION "0.2.8"
 
 enum {
 	READ_REG	= 0,	/* index of Read cycle timing register */

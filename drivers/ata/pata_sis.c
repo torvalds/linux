@@ -35,7 +35,7 @@
 #include "sis.h"
 
 #define DRV_NAME	"pata_sis"
-#define DRV_VERSION	"0.4.5"
+#define DRV_VERSION	"0.5.0"
 
 struct sis_chipset {
 	u16 device;			/* PCI host ID */

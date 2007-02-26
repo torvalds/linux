@@ -45,7 +45,7 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_promise"
-#define DRV_VERSION	"1.05"
+#define DRV_VERSION	"2.00"
 
 
 enum {

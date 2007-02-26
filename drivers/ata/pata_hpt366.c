@@ -27,7 +27,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt366"
-#define DRV_VERSION	"0.5.3"
+#define DRV_VERSION	"0.6.0"
 
 struct hpt_clock {
 	u8	xfer_speed;
