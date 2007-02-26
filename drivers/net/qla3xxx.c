@@ -3354,27 +3354,6 @@ static struct net_device_stats *ql3xxx_get_stats(struct net_device *dev)
 	return &qdev->stats;
 }
 
-static int ql3xxx_change_mtu(struct net_device *ndev, int new_mtu)
-{
-	struct ql3_adapter *qdev = netdev_priv(ndev);
-	printk(KERN_ERR PFX "%s:  new mtu size = %d.\n", ndev->name, new_mtu);
-	if (new_mtu != NORMAL_MTU_SIZE && new_mtu != JUMBO_MTU_SIZE) {
-		printk(KERN_ERR PFX
-		       "%s: mtu size of %d is not valid.  Use exactly %d or "
-		       "%d.\n", ndev->name, new_mtu, NORMAL_MTU_SIZE,
-		       JUMBO_MTU_SIZE);
-		return -EINVAL;
-	}
-
-	if (!netif_running(ndev)) {
-		ndev->mtu = new_mtu;
-		return 0;
-	}
-
-	ndev->mtu = new_mtu;
-	return ql_cycle_adapter(qdev,QL_DO_RESET);
-}
-
 static void ql3xxx_set_multicast_list(struct net_device *ndev)
 {
 	/*
@@ -3666,7 +3645,6 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	ndev->hard_start_xmit = ql3xxx_send;
 	ndev->stop = ql3xxx_close;
 	ndev->get_stats = ql3xxx_get_stats;
-	ndev->change_mtu = ql3xxx_change_mtu;
 	ndev->set_multicast_list = ql3xxx_set_multicast_list;
 	SET_ETHTOOL_OPS(ndev, &ql3xxx_ethtool_ops);
 	ndev->set_mac_address = ql3xxx_set_mac_address;
@@ -3691,9 +3669,11 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 
 	/* Validate and set parameters */
 	if (qdev->mac_index) {
+		ndev->mtu = qdev->nvram_data.macCfg_port1.etherMtu_mac ;
 		memcpy(ndev->dev_addr, &qdev->nvram_data.funcCfg_fn2.macAddress,
 		       ETH_ALEN);
 	} else {
+		ndev->mtu = qdev->nvram_data.macCfg_port0.etherMtu_mac ;
 		memcpy(ndev->dev_addr, &qdev->nvram_data.funcCfg_fn0.macAddress,
 		       ETH_ALEN);
 	}
