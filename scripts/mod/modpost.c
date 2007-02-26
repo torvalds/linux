@@ -589,7 +589,7 @@ static int strrcmp(const char *s, const char *sub)
  *   the pattern is identified by:
  *   tosec   = .init.text | .exit.text | .init.data
  *   fromsec = .data
- *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one
+ *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one, *_console
  *
  * Pattern 3:
  *   Some symbols belong to init section but still it is ok to reference
@@ -599,6 +599,14 @@ static int strrcmp(const char *s, const char *sub)
  *   For ex. symbols marking the init section boundaries.
  *   This pattern is identified by
  *   refsymname = __init_begin, _sinittext, _einittext
+ * Pattern 4:
+ *   During the early init phase we have references from .init.text to
+ *   .text we have an intended section mismatch - do not warn about it.
+ *   See kernel_init() in init/main.c
+ *   tosec   = .init.text
+ *   fromsec = .text
+ *   atsym = kernel_init
+ *   Some symbols belong to init section but still it is ok to reference
  **/
 static int secref_whitelist(const char *modname, const char *tosec,
 			    const char *fromsec, const char *atsym,
@@ -668,6 +676,11 @@ static int secref_whitelist(const char *modname, const char *tosec,
 			if (strcmp(refsymname, *s) == 0)
 				return 1;
 	}
+	/* Check for pattern 4 */
+	if ((strcmp(tosec, ".init.text") == 0) &&
+	    (strcmp(fromsec, ".text") == 0) &&
+	    (strcmp(refsymname, "kernel_init") == 0))
+		return 1;
 	return 0;
 }
 
