@@ -553,6 +553,7 @@ static ssize_t ep_aio_read_retry(struct kiocb *iocb)
 {
 	struct kiocb_priv	*priv = iocb->private;
 	ssize_t			len, total;
+	void			*to_copy;
 	int			i;
 
 	/* we "retry" to get the right mm context for this: */
@@ -560,10 +561,11 @@ static ssize_t ep_aio_read_retry(struct kiocb *iocb)
 	/* copy stuff into user buffers */
 	total = priv->actual;
 	len = 0;
+	to_copy = priv->buf;
 	for (i=0; i < priv->nr_segs; i++) {
 		ssize_t this = min((ssize_t)(priv->iv[i].iov_len), total);
 
-		if (copy_to_user(priv->iv[i].iov_base, priv->buf, this)) {
+		if (copy_to_user(priv->iv[i].iov_base, to_copy, this)) {
 			if (len == 0)
 				len = -EFAULT;
 			break;
@@ -571,6 +573,7 @@ static ssize_t ep_aio_read_retry(struct kiocb *iocb)
 
 		total -= this;
 		len += this;
+		to_copy += this;
 		if (total == 0)
 			break;
 	}

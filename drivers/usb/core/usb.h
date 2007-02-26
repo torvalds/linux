@@ -13,6 +13,7 @@ extern void usb_disable_interface (struct usb_device *dev,
 		struct usb_interface *intf);
 extern void usb_release_interface_cache(struct kref *ref);
 extern void usb_disable_device (struct usb_device *dev, int skip_ep0);
+extern void usb_detect_quirks(struct usb_device *udev);
 
 extern int usb_get_device_descriptor(struct usb_device *dev,
 		unsigned int size);
@@ -21,6 +22,8 @@ extern int usb_set_configuration(struct usb_device *dev, int configuration);
 
 extern void usb_kick_khubd(struct usb_device *dev);
 extern void usb_resume_root_hub(struct usb_device *dev);
+extern int usb_match_device(struct usb_device *dev,
+			    const struct usb_device_id *id);
 
 extern int  usb_hub_init(void);
 extern void usb_hub_cleanup(void);
@@ -62,14 +65,14 @@ static inline void usb_pm_unlock(struct usb_device *udev) {}
 
 #ifdef CONFIG_USB_SUSPEND
 
-#define USB_AUTOSUSPEND_DELAY	(HZ*2)
-
 extern void usb_autosuspend_device(struct usb_device *udev);
+extern void usb_try_autosuspend_device(struct usb_device *udev);
 extern int usb_autoresume_device(struct usb_device *udev);
 
 #else
 
-#define usb_autosuspend_device(udev)	do {} while (0)
+#define usb_autosuspend_device(udev)		do {} while (0)
+#define usb_try_autosuspend_device(udev)	do {} while (0)
 static inline int usb_autoresume_device(struct usb_device *udev)
 {
 	return 0;

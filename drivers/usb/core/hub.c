@@ -1287,6 +1287,9 @@ int usb_new_device(struct usb_device *udev)
 	if (!try_module_get(THIS_MODULE))
 		return -EINVAL;
 
+	/* Determine quirks */
+	usb_detect_quirks(udev);
+
 	err = usb_get_configuration(udev);
 	if (err < 0) {
 		dev_err(&udev->dev, "can't read configurations, error %d\n",

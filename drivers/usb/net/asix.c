@@ -1395,9 +1395,9 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x07b8, 0x420a),
 	.driver_info =  (unsigned long) &hawking_uf200_info,
 }, {
-        // Billionton Systems, USB2AR
-        USB_DEVICE (0x08dd, 0x90ff),
-        .driver_info =  (unsigned long) &ax8817x_info,
+	// Billionton Systems, USB2AR
+	USB_DEVICE (0x08dd, 0x90ff),
+	.driver_info =  (unsigned long) &ax8817x_info,
 }, {
 	// ATEN UC210T
 	USB_DEVICE (0x0557, 0x2009),
@@ -1423,9 +1423,13 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x1631, 0x6200),
 	.driver_info = (unsigned long) &ax8817x_info,
 }, {
+	// JVC MP-PRX1 Port Replicator
+	USB_DEVICE (0x04f1, 0x3008),
+	.driver_info = (unsigned long) &ax8817x_info,
+}, {
 	// ASIX AX88772 10/100
-        USB_DEVICE (0x0b95, 0x7720),
-        .driver_info = (unsigned long) &ax88772_info,
+	USB_DEVICE (0x0b95, 0x7720),
+	.driver_info = (unsigned long) &ax88772_info,
 }, {
 	// ASIX AX88178 10/100/1000
 	USB_DEVICE (0x0b95, 0x1780),

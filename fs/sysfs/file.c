@@ -502,6 +502,30 @@ int sysfs_create_file(struct kobject * kobj, const struct attribute * attr)
 
 
 /**
+ * sysfs_add_file_to_group - add an attribute file to a pre-existing group.
+ * @kobj: object we're acting for.
+ * @attr: attribute descriptor.
+ * @group: group name.
+ */
+int sysfs_add_file_to_group(struct kobject *kobj,
+		const struct attribute *attr, const char *group)
+{
+	struct dentry *dir;
+	int error;
+
+	dir = lookup_one_len(group, kobj->dentry, strlen(group));
+	if (IS_ERR(dir))
+		error = PTR_ERR(dir);
+	else {
+		error = sysfs_add_file(dir, attr, SYSFS_KOBJ_ATTR);
+		dput(dir);
+	}
+	return error;
+}
+EXPORT_SYMBOL_GPL(sysfs_add_file_to_group);
+
+
+/**
  * sysfs_update_file - update the modified timestamp on an object attribute.
  * @kobj: object we're acting for.
  * @attr: attribute descriptor.
@@ -584,6 +608,26 @@ void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr)
 {
 	sysfs_hash_and_remove(kobj->dentry, attr->name);
 }
+
+
+/**
+ * sysfs_remove_file_from_group - remove an attribute file from a group.
+ * @kobj: object we're acting for.
+ * @attr: attribute descriptor.
+ * @group: group name.
+ */
+void sysfs_remove_file_from_group(struct kobject *kobj,
+		const struct attribute *attr, const char *group)
+{
+	struct dentry *dir;
+
+	dir = lookup_one_len(group, kobj->dentry, strlen(group));
+	if (!IS_ERR(dir)) {
+		sysfs_hash_and_remove(dir, attr->name);
+		dput(dir);
+	}
+}
+EXPORT_SYMBOL_GPL(sysfs_remove_file_from_group);
 
 
 EXPORT_SYMBOL_GPL(sysfs_create_file);

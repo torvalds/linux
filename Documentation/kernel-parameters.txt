@@ -1758,6 +1758,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			Note that genuine overcurrent events won't be
 			reported either.
 
+	usbcore.autosuspend=
+			[USB] The autosuspend time delay (in seconds) used
+			for newly-detected USB devices (default 2).  This
+			is the time required before an idle device will be
+			autosuspended.  Devices for which the delay is set
+			to 0 won't be autosuspended at all.
+
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 

@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb/input.h>
+#include <linux/hid.h>
 
 /*
  * Version Information
@@ -213,7 +214,8 @@ static void usb_mouse_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_device_id usb_mouse_id_table [] = {
-	{ USB_INTERFACE_INFO(3, 1, 2) },
+	{ USB_INTERFACE_INFO(USB_INTERFACE_CLASS_HID, USB_INTERFACE_SUBCLASS_BOOT,
+		USB_INTERFACE_PROTOCOL_MOUSE) },
 	{ }	/* Terminating entry */
 };
 

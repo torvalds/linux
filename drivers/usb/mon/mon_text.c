@@ -520,7 +520,7 @@ int __init mon_text_init(void)
 	return 0;
 }
 
-void __exit mon_text_exit(void)
+void mon_text_exit(void)
 {
 	debugfs_remove(mon_dir);
 }

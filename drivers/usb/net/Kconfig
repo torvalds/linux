@@ -186,6 +186,15 @@ config USB_NET_CDCETHER
 	  IEEE 802 "local assignment" bit is set in the address, a "usbX"
 	  name is used instead.
 
+config USB_NET_DM9601
+	tristate "Davicom DM9601 based USB 1.1 10/100 ethernet devices"
+	depends on USB_USBNET
+	select CRC32
+	select USB_USBNET_MII
+	help
+	  This option adds support for Davicom DM9601 based USB 1.1
+	  10/100 Ethernet adapters.
+
 config USB_NET_GL620A
 	tristate "GeneSys GL620USB-A based cables"
 	depends on USB_USBNET
