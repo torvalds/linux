@@ -4605,11 +4605,11 @@ sctp_disposition_t sctp_sf_do_6_3_3_rtx(const struct sctp_endpoint *ep,
 	 * sent as soon as cwnd allows (normally when a SACK arrives).
 	 */
 
-	/* NB: Rules E4 and F1 are implicit in R1.  */
-	sctp_add_cmd_sf(commands, SCTP_CMD_RETRAN, SCTP_TRANSPORT(transport));
-
 	/* Do some failure management (Section 8.2). */
 	sctp_add_cmd_sf(commands, SCTP_CMD_STRIKE, SCTP_TRANSPORT(transport));
+
+	/* NB: Rules E4 and F1 are implicit in R1.  */
+	sctp_add_cmd_sf(commands, SCTP_CMD_RETRAN, SCTP_TRANSPORT(transport));
 
 	return SCTP_DISPOSITION_CONSUME;
 }

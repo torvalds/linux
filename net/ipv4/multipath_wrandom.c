@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/mroute.h>
 #include <linux/init.h>
+#include <linux/random.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <linux/skbuff.h>
@@ -83,18 +84,6 @@ struct multipath_route {
 
 /* state: primarily weight per route information */
 static struct multipath_bucket state[MULTIPATH_STATE_SIZE];
-
-/* interface to random number generation */
-static unsigned int RANDOM_SEED = 93186752;
-
-static inline unsigned int random(unsigned int ubound)
-{
-	static unsigned int a = 1588635695,
-		q = 2,
-		r = 1117695901;
-	RANDOM_SEED = a*(RANDOM_SEED % q) - r*(RANDOM_SEED / q);
-	return RANDOM_SEED % ubound;
-}
 
 static unsigned char __multipath_lookup_weight(const struct flowi *fl,
 					       const struct rtable *rt)
@@ -193,7 +182,7 @@ static void wrandom_select_route(const struct flowi *flp,
 
 	/* choose a weighted random candidate */
 	decision = first;
-	selector = random(power);
+	selector = random32() % power;
 	last_power = 0;
 
 	/* select candidate, adjust GC data and cleanup local state */

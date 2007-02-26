@@ -38,6 +38,7 @@
 #include <net/sock.h>
 
 #include <linux/input.h>
+#include <linux/hid.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -50,7 +51,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "1.1"
+#define VERSION "1.2"
 
 static DECLARE_RWSEM(hidp_session_sem);
 static LIST_HEAD(hidp_session_list);
@@ -124,15 +125,22 @@ static void __hidp_copy_session(struct hidp_session *session, struct hidp_connin
 		else
 			strncpy(ci->name, "HID Boot Device", 128);
 	}
+
+	if (session->hid) {
+		ci->vendor  = session->hid->vendor;
+		ci->product = session->hid->product;
+		ci->version = session->hid->version;
+		strncpy(ci->name, session->hid->name, 128);
+	}
 }
 
-static int hidp_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
+static inline int hidp_queue_event(struct hidp_session *session, struct input_dev *dev,
+					unsigned int type, unsigned int code, int value)
 {
-	struct hidp_session *session = dev->private;
-	struct sk_buff *skb;
 	unsigned char newleds;
+	struct sk_buff *skb;
 
-	BT_DBG("input %p type %d code %d value %d", dev, type, code, value);
+	BT_DBG("session %p type %d code %d value %d", session, type, code, value);
 
 	if (type != EV_LED)
 		return -1;
@@ -162,6 +170,21 @@ static int hidp_input_event(struct input_dev *dev, unsigned int type, unsigned i
 	hidp_schedule(session);
 
 	return 0;
+}
+
+static int hidp_hidinput_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
+{
+	struct hid_device *hid = dev->private;
+	struct hidp_session *session = hid->driver_data;
+
+	return hidp_queue_event(session, dev, type, code, value);
+}
+
+static int hidp_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
+{
+	struct hidp_session *session = dev->private;
+
+	return hidp_queue_event(session, dev, type, code, value);
 }
 
 static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
@@ -217,6 +240,42 @@ static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
 	}
 
 	input_sync(dev);
+}
+
+static inline int hidp_queue_report(struct hidp_session *session, unsigned char *data, int size)
+{
+	struct sk_buff *skb;
+
+	BT_DBG("session %p hid %p data %p size %d", session, device, data, size);
+
+	if (!(skb = alloc_skb(size + 1, GFP_ATOMIC))) {
+		BT_ERR("Can't allocate memory for new frame");
+		return -ENOMEM;
+	}
+
+	*skb_put(skb, 1) = 0xa2;
+	if (size > 0)
+		memcpy(skb_put(skb, size), data, size);
+
+	skb_queue_tail(&session->intr_transmit, skb);
+
+	hidp_schedule(session);
+
+	return 0;
+}
+
+static int hidp_send_report(struct hidp_session *session, struct hid_report *report)
+{
+	unsigned char buf[32];
+	int rsize;
+
+	rsize = ((report->size - 1) >> 3) + 1 + (report->id > 0);
+	if (rsize > sizeof(buf))
+		return -EIO;
+
+	hid_output_report(report, buf);
+
+	return hidp_queue_report(session, buf, rsize);
 }
 
 static void hidp_idle_timeout(unsigned long arg)
@@ -346,6 +405,10 @@ static inline void hidp_process_data(struct hidp_session *session, struct sk_buf
 
 		if (session->input)
 			hidp_input_report(session, skb);
+
+		if (session->hid)
+			hid_input_report(session->hid, HID_INPUT_REPORT, skb->data, skb->len, 0);
+
 		break;
 
 	case HIDP_DATA_RTYPE_OTHER:
@@ -404,8 +467,14 @@ static inline void hidp_recv_intr_frame(struct hidp_session *session, struct sk_
 
 	if (hdr == (HIDP_TRANS_DATA | HIDP_DATA_RTYPE_INPUT)) {
 		hidp_set_timer(session);
+
 		if (session->input)
 			hidp_input_report(session, skb);
+
+		if (session->hid) {
+			hid_input_report(session->hid, HID_INPUT_REPORT, skb->data, skb->len, 1);
+			BT_DBG("report len %d", skb->len);
+		}
 	} else {
 		BT_DBG("Unsupported protocol header 0x%02x", hdr);
 	}
@@ -471,6 +540,11 @@ static int hidp_session(void *arg)
 		product = session->input->id.product;
 	}
 
+	if (session->hid) {
+		vendor  = session->hid->vendor;
+		product = session->hid->product;
+	}
+
 	daemonize("khidpd_%04x%04x", vendor, product);
 	set_user_nice(current, -15);
 	current->flags |= PF_NOFREEZE;
@@ -519,6 +593,12 @@ static int hidp_session(void *arg)
 	if (session->input) {
 		input_unregister_device(session->input);
 		session->input = NULL;
+	}
+
+	if (session->hid) {
+		if (session->hid->claimed & HID_CLAIMED_INPUT)
+			hidinput_disconnect(session->hid);
+		hid_free_device(session->hid);
 	}
 
 	up_write(&hidp_session_sem);
@@ -590,6 +670,56 @@ static inline void hidp_setup_input(struct hidp_session *session, struct hidp_co
 	input_register_device(input);
 }
 
+static int hidp_open(struct hid_device *hid)
+{
+	return 0;
+}
+
+static void hidp_close(struct hid_device *hid)
+{
+}
+
+static inline void hidp_setup_hid(struct hidp_session *session, struct hidp_connadd_req *req)
+{
+	struct hid_device *hid = session->hid;
+	struct hid_report *report;
+	bdaddr_t src, dst;
+
+	baswap(&src, &bt_sk(session->ctrl_sock->sk)->src);
+	baswap(&dst, &bt_sk(session->ctrl_sock->sk)->dst);
+
+	hid->driver_data = session;
+
+	hid->country = req->country;
+
+	hid->bus     = BUS_BLUETOOTH;
+	hid->vendor  = req->vendor;
+	hid->product = req->product;
+	hid->version = req->version;
+
+	strncpy(hid->name, req->name, 128);
+	strncpy(hid->phys, batostr(&src), 64);
+	strncpy(hid->uniq, batostr(&dst), 64);
+
+	hid->dev = hidp_get_device(session);
+
+	hid->hid_open  = hidp_open;
+	hid->hid_close = hidp_close;
+
+	hid->hidinput_input_event = hidp_hidinput_event;
+
+	list_for_each_entry(report, &hid->report_enum[HID_INPUT_REPORT].report_list, list)
+		hidp_send_report(session, report);
+
+	list_for_each_entry(report, &hid->report_enum[HID_FEATURE_REPORT].report_list, list)
+		hidp_send_report(session, report);
+
+	if (hidinput_connect(hid) == 0) {
+		hid->claimed |= HID_CLAIMED_INPUT;
+		hid_ff_init(hid);
+	}
+}
+
 int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, struct socket *intr_sock)
 {
 	struct hidp_session *session, *s;
@@ -605,10 +735,38 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 	if (!session)
 		return -ENOMEM;
 
-	session->input = input_allocate_device();
-	if (!session->input) {
-		kfree(session);
-		return -ENOMEM;
+	BT_DBG("rd_data %p rd_size %d", req->rd_data, req->rd_size);
+
+	if (req->rd_size > 0) {
+		unsigned char *buf = kmalloc(req->rd_size, GFP_KERNEL);
+
+		if (!buf) {
+			kfree(session);
+			return -ENOMEM;
+		}
+
+		if (copy_from_user(buf, req->rd_data, req->rd_size)) {
+			kfree(buf);
+			kfree(session);
+			return -EFAULT;
+		}
+
+		session->hid = hid_parse_report(buf, req->rd_size);
+
+		kfree(buf);
+
+		if (!session->hid) {
+			kfree(session);
+			return -EINVAL;
+		}
+	}
+
+	if (!session->hid) {
+		session->input = input_allocate_device();
+		if (!session->input) {
+			kfree(session);
+			return -ENOMEM;
+		}
 	}
 
 	down_write(&hidp_session_sem);
@@ -644,6 +802,9 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 	if (session->input)
 		hidp_setup_input(session, req);
 
+	if (session->hid)
+		hidp_setup_hid(session, req);
+
 	__hidp_link_session(session);
 
 	hidp_set_timer(session);
@@ -676,6 +837,9 @@ unlink:
 
 failed:
 	up_write(&hidp_session_sem);
+
+	if (session->hid)
+		hid_free_device(session->hid);
 
 	kfree(session->input);
 	kfree(session);

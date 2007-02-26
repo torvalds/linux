@@ -396,6 +396,19 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 		if (sctp_chunk_abandoned(chunk)) {
 			list_del_init(lchunk);
 			sctp_insert_list(&q->abandoned, lchunk);
+
+			/* If this chunk has not been previousely acked,
+			 * stop considering it 'outstanding'.  Our peer
+			 * will most likely never see it since it will
+			 * not be retransmitted
+			 */
+			if (!chunk->tsn_gap_acked) {
+				chunk->transport->flight_size -=
+						sctp_data_size(chunk);
+				q->outstanding_bytes -= sctp_data_size(chunk);
+				q->asoc->peer.rwnd += (sctp_data_size(chunk) +
+							sizeof(struct sk_buff));
+			}
 			continue;
 		}
 
@@ -1244,6 +1257,15 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 		if (sctp_chunk_abandoned(tchunk)) {
 			/* Move the chunk to abandoned list. */
 			sctp_insert_list(&q->abandoned, lchunk);
+
+			/* If this chunk has not been acked, stop
+			 * considering it as 'outstanding'.
+			 */
+			if (!tchunk->tsn_gap_acked) {
+				tchunk->transport->flight_size -=
+						sctp_data_size(tchunk);
+				q->outstanding_bytes -= sctp_data_size(tchunk);
+			}
 			continue;
 		}
 
@@ -1695,11 +1717,6 @@ static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 ctsn)
 		 */
 		if (TSN_lte(tsn, ctsn)) {
 			list_del_init(lchunk);
-			if (!chunk->tsn_gap_acked) {
-				chunk->transport->flight_size -=
-					sctp_data_size(chunk);
-				q->outstanding_bytes -= sctp_data_size(chunk);
-			}
 			sctp_chunk_free(chunk);
 		} else {
 			if (TSN_lte(tsn, asoc->adv_peer_ack_point+1)) {

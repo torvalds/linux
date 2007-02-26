@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.73"
-#define DRV_MODULE_RELDATE	"February 12, 2007"
+#define DRV_MODULE_VERSION	"3.74"
+#define DRV_MODULE_RELDATE	"February 20, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3993,7 +3993,10 @@ static int tg3_tso_bug(struct tg3 *tp, struct sk_buff *skb)
 	/* Estimate the number of fragments in the worst case */
 	if (unlikely(tg3_tx_avail(tp) <= (skb_shinfo(skb)->gso_segs * 3))) {
 		netif_stop_queue(tp->dev);
-		return NETDEV_TX_BUSY;
+		if (tg3_tx_avail(tp) <= (skb_shinfo(skb)->gso_segs * 3))
+			return NETDEV_TX_BUSY;
+
+		netif_wake_queue(tp->dev);
 	}
 
 	segs = skb_gso_segment(skb, tp->dev->features & ~NETIF_F_TSO);
@@ -4061,7 +4064,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 
 		hdr_len = ip_tcp_len + tcp_opt_len;
 		if (unlikely((ETH_HLEN + hdr_len) > 80) &&
-			     (tp->tg3_flags2 & TG3_FLG2_HW_TSO_1_BUG))
+			     (tp->tg3_flags2 & TG3_FLG2_TSO_BUG))
 			return (tg3_tso_bug(tp, skb));
 
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
@@ -8137,7 +8140,7 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 	    (ering->rx_jumbo_pending > TG3_RX_JUMBO_RING_SIZE - 1) ||
 	    (ering->tx_pending > TG3_TX_RING_SIZE - 1) ||
 	    (ering->tx_pending <= MAX_SKB_FRAGS) ||
-	    ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_1_BUG) &&
+	    ((tp->tg3_flags2 & TG3_FLG2_TSO_BUG) &&
 	     (ering->tx_pending <= (MAX_SKB_FRAGS * 3))))
 		return -EINVAL;
 
@@ -10557,12 +10560,11 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_2;
 			tp->tg3_flags2 |= TG3_FLG2_1SHOT_MSI;
 		} else {
-			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_1 |
-					  TG3_FLG2_HW_TSO_1_BUG;
+			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_1 | TG3_FLG2_TSO_BUG;
 			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
 				ASIC_REV_5750 &&
 	     		    tp->pci_chip_rev_id >= CHIPREV_ID_5750_C2)
-				tp->tg3_flags2 &= ~TG3_FLG2_HW_TSO_1_BUG;
+				tp->tg3_flags2 &= ~TG3_FLG2_TSO_BUG;
 		}
 	}
 
@@ -11867,7 +11869,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	    (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0) {
 		tp->tg3_flags2 &= ~TG3_FLG2_TSO_CAPABLE;
 	} else {
-		tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE;
+		tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE | TG3_FLG2_TSO_BUG;
 	}
 
 	/* TSO is on by default on chips that support hardware TSO.

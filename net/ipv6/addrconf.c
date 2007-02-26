@@ -211,74 +211,6 @@ const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
 #endif
 const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
 
-#define IPV6_ADDR_SCOPE_TYPE(scope)	((scope) << 16)
-
-static inline unsigned ipv6_addr_scope2type(unsigned scope)
-{
-	switch(scope) {
-	case IPV6_ADDR_SCOPE_NODELOCAL:
-		return (IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_NODELOCAL) |
-			IPV6_ADDR_LOOPBACK);
-	case IPV6_ADDR_SCOPE_LINKLOCAL:
-		return (IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_LINKLOCAL) |
-			IPV6_ADDR_LINKLOCAL);
-	case IPV6_ADDR_SCOPE_SITELOCAL:
-		return (IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_SITELOCAL) |
-			IPV6_ADDR_SITELOCAL);
-	}
-	return IPV6_ADDR_SCOPE_TYPE(scope);
-}
-
-int __ipv6_addr_type(const struct in6_addr *addr)
-{
-	__be32 st;
-
-	st = addr->s6_addr32[0];
-
-	/* Consider all addresses with the first three bits different of
-	   000 and 111 as unicasts.
-	 */
-	if ((st & htonl(0xE0000000)) != htonl(0x00000000) &&
-	    (st & htonl(0xE0000000)) != htonl(0xE0000000))
-		return (IPV6_ADDR_UNICAST |
-			IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_GLOBAL));
-
-	if ((st & htonl(0xFF000000)) == htonl(0xFF000000)) {
-		/* multicast */
-		/* addr-select 3.1 */
-		return (IPV6_ADDR_MULTICAST |
-			ipv6_addr_scope2type(IPV6_ADDR_MC_SCOPE(addr)));
-	}
-
-	if ((st & htonl(0xFFC00000)) == htonl(0xFE800000))
-		return (IPV6_ADDR_LINKLOCAL | IPV6_ADDR_UNICAST |
-			IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_LINKLOCAL));		/* addr-select 3.1 */
-	if ((st & htonl(0xFFC00000)) == htonl(0xFEC00000))
-		return (IPV6_ADDR_SITELOCAL | IPV6_ADDR_UNICAST |
-			IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_SITELOCAL));		/* addr-select 3.1 */
-
-	if ((addr->s6_addr32[0] | addr->s6_addr32[1]) == 0) {
-		if (addr->s6_addr32[2] == 0) {
-			if (addr->s6_addr32[3] == 0)
-				return IPV6_ADDR_ANY;
-
-			if (addr->s6_addr32[3] == htonl(0x00000001))
-				return (IPV6_ADDR_LOOPBACK | IPV6_ADDR_UNICAST |
-					IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_LINKLOCAL));	/* addr-select 3.4 */
-
-			return (IPV6_ADDR_COMPATv4 | IPV6_ADDR_UNICAST |
-				IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_GLOBAL));	/* addr-select 3.3 */
-		}
-
-		if (addr->s6_addr32[2] == htonl(0x0000ffff))
-			return (IPV6_ADDR_MAPPED |
-				IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_GLOBAL));	/* addr-select 3.3 */
-	}
-
-	return (IPV6_ADDR_RESERVED |
-		IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_GLOBAL));	/* addr-select 3.4 */
-}
-
 static void addrconf_del_timer(struct inet6_ifaddr *ifp)
 {
 	if (del_timer(&ifp->timer))
@@ -1910,6 +1842,7 @@ static int inet6_addr_add(int ifindex, struct in6_addr *pfx, int plen,
 	struct inet6_dev *idev;
 	struct net_device *dev;
 	int scope;
+	u32 flags = RTF_EXPIRES;
 
 	ASSERT_RTNL();
 
@@ -1925,9 +1858,10 @@ static int inet6_addr_add(int ifindex, struct in6_addr *pfx, int plen,
 
 	scope = ipv6_addr_scope(pfx);
 
-	if (valid_lft == INFINITY_LIFE_TIME)
+	if (valid_lft == INFINITY_LIFE_TIME) {
 		ifa_flags |= IFA_F_PERMANENT;
-	else if (valid_lft >= 0x7FFFFFFF/HZ)
+		flags = 0;
+	} else if (valid_lft >= 0x7FFFFFFF/HZ)
 		valid_lft = 0x7FFFFFFF/HZ;
 
 	if (prefered_lft == 0)
@@ -1945,6 +1879,8 @@ static int inet6_addr_add(int ifindex, struct in6_addr *pfx, int plen,
 		ifp->tstamp = jiffies;
 		spin_unlock_bh(&ifp->lock);
 
+		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, dev,
+				      jiffies_to_clock_t(valid_lft * HZ), flags);
 		addrconf_dad_start(ifp, 0);
 		in6_ifa_put(ifp);
 		addrconf_verify(0);
@@ -2124,6 +2060,7 @@ static void addrconf_add_linklocal(struct inet6_dev *idev, struct in6_addr *addr
 
 	ifp = ipv6_add_addr(idev, addr, 64, IFA_LINK, IFA_F_PERMANENT);
 	if (!IS_ERR(ifp)) {
+		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, idev->dev, 0, 0);
 		addrconf_dad_start(ifp, 0);
 		in6_ifa_put(ifp);
 	}
@@ -2240,6 +2177,14 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 	int run_pending = 0;
 
 	switch(event) {
+	case NETDEV_REGISTER:
+		if (!idev) {
+			idev = ipv6_add_dev(dev);
+			if (!idev)
+				printk(KERN_WARNING "IPv6: add_dev failed for %s\n",
+					dev->name);
+		}
+		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
 		if (event == NETDEV_UP) {
@@ -2537,10 +2482,6 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 	struct net_device *dev = idev->dev;
 
 	addrconf_join_solict(dev, &ifp->addr);
-
-	if (ifp->prefix_len != 128 && (ifp->flags&IFA_F_PERMANENT))
-		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, dev, 0,
-					flags);
 
 	net_srandom(ifp->addr.s6_addr32[3]);
 
@@ -2972,12 +2913,15 @@ inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 static int inet6_addr_modify(struct inet6_ifaddr *ifp, u8 ifa_flags,
 			     u32 prefered_lft, u32 valid_lft)
 {
+	u32 flags = RTF_EXPIRES;
+
 	if (!valid_lft || (prefered_lft > valid_lft))
 		return -EINVAL;
 
-	if (valid_lft == INFINITY_LIFE_TIME)
+	if (valid_lft == INFINITY_LIFE_TIME) {
 		ifa_flags |= IFA_F_PERMANENT;
-	else if (valid_lft >= 0x7FFFFFFF/HZ)
+		flags = 0;
+	} else if (valid_lft >= 0x7FFFFFFF/HZ)
 		valid_lft = 0x7FFFFFFF/HZ;
 
 	if (prefered_lft == 0)
@@ -2996,6 +2940,8 @@ static int inet6_addr_modify(struct inet6_ifaddr *ifp, u8 ifa_flags,
 	if (!(ifp->flags&IFA_F_TENTATIVE))
 		ipv6_ifa_notify(0, ifp);
 
+	addrconf_prefix_route(&ifp->addr, ifp->prefix_len, ifp->idev->dev,
+			      jiffies_to_clock_t(valid_lft * HZ), flags);
 	addrconf_verify(0);
 
 	return 0;
