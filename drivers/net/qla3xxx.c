@@ -1388,6 +1388,8 @@ static void ql_link_state_machine(struct ql3_adapter *qdev)
 			printk(KERN_INFO PFX
 			       "%s: Reset in progress, skip processing link "
 			       "state.\n", qdev->ndev->name);
+
+		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);		
 		return;
 	}
 
@@ -1519,8 +1521,10 @@ static int ql_get_auto_cfg_status(struct ql3_adapter *qdev)
 	spin_lock_irqsave(&qdev->hw_lock, hw_flags);
 	if(ql_sem_spinlock(qdev, QL_PHY_GIO_SEM_MASK,
 		(QL_RESOURCE_BITS_BASE_CODE | (qdev->mac_index) *
-			 2) << 7))
+			 2) << 7)) {
+		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 		return 0;
+	}
 	status = ql_is_auto_cfg(qdev);
 	ql_sem_unlock(qdev, QL_PHY_GIO_SEM_MASK);
 	spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
@@ -1534,8 +1538,10 @@ static u32 ql_get_speed(struct ql3_adapter *qdev)
 	spin_lock_irqsave(&qdev->hw_lock, hw_flags);
 	if(ql_sem_spinlock(qdev, QL_PHY_GIO_SEM_MASK,
 		(QL_RESOURCE_BITS_BASE_CODE | (qdev->mac_index) *
-			 2) << 7))
+			 2) << 7)) {
+		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 		return 0;
+	}
 	status = ql_get_link_speed(qdev);
 	ql_sem_unlock(qdev, QL_PHY_GIO_SEM_MASK);
 	spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
@@ -1549,8 +1555,10 @@ static int ql_get_full_dup(struct ql3_adapter *qdev)
 	spin_lock_irqsave(&qdev->hw_lock, hw_flags);
 	if(ql_sem_spinlock(qdev, QL_PHY_GIO_SEM_MASK,
 		(QL_RESOURCE_BITS_BASE_CODE | (qdev->mac_index) *
-			 2) << 7))
+			 2) << 7)) {
+		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 		return 0;
+	}
 	status = ql_is_link_full_dup(qdev);
 	ql_sem_unlock(qdev, QL_PHY_GIO_SEM_MASK);
 	spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
@@ -3294,6 +3302,7 @@ static int ql_adapter_up(struct ql3_adapter *qdev)
 err_init:
 	ql_sem_unlock(qdev, QL_DRVR_SEM_MASK);
 err_lock:
+	spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 	free_irq(qdev->pdev->irq, ndev);
 err_irq:
 	if (qdev->msi && test_bit(QL_MSI_ENABLED,&qdev->flags)) {
