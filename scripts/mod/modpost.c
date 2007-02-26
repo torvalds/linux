@@ -333,10 +333,10 @@ void release_file(void *file, unsigned long size)
 	munmap(file, size);
 }
 
-static void parse_elf(struct elf_info *info, const char *filename)
+static int parse_elf(struct elf_info *info, const char *filename)
 {
 	unsigned int i;
-	Elf_Ehdr *hdr = info->hdr;
+	Elf_Ehdr *hdr;
 	Elf_Shdr *sechdrs;
 	Elf_Sym  *sym;
 
@@ -346,9 +346,18 @@ static void parse_elf(struct elf_info *info, const char *filename)
 		exit(1);
 	}
 	info->hdr = hdr;
-	if (info->size < sizeof(*hdr))
-		goto truncated;
-
+	if (info->size < sizeof(*hdr)) {
+		/* file too small, assume this is an empty .o file */
+		return 0;
+	}
+	/* Is this a valid ELF file? */
+	if ((hdr->e_ident[EI_MAG0] != ELFMAG0) ||
+	    (hdr->e_ident[EI_MAG1] != ELFMAG1) ||
+	    (hdr->e_ident[EI_MAG2] != ELFMAG2) ||
+	    (hdr->e_ident[EI_MAG3] != ELFMAG3)) {
+		/* Not an ELF file - silently ignore it */
+		return 0;
+	}
 	/* Fix endianness in ELF header */
 	hdr->e_shoff    = TO_NATIVE(hdr->e_shoff);
 	hdr->e_shstrndx = TO_NATIVE(hdr->e_shstrndx);
@@ -371,8 +380,10 @@ static void parse_elf(struct elf_info *info, const char *filename)
 			= (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 		const char *secname;
 
-		if (sechdrs[i].sh_offset > info->size)
-			goto truncated;
+		if (sechdrs[i].sh_offset > info->size) {
+			fatal("%s is truncated. sechdrs[i].sh_offset=%u > sizeof(*hrd)=%ul\n", filename, (unsigned int)sechdrs[i].sh_offset, sizeof(*hdr));
+			return 0;
+		}
 		secname = secstrings + sechdrs[i].sh_name;
 		if (strcmp(secname, ".modinfo") == 0) {
 			info->modinfo = (void *)hdr + sechdrs[i].sh_offset;
@@ -407,10 +418,7 @@ static void parse_elf(struct elf_info *info, const char *filename)
 		sym->st_value = TO_NATIVE(sym->st_value);
 		sym->st_size  = TO_NATIVE(sym->st_size);
 	}
-	return;
-
- truncated:
-	fatal("%s is truncated.\n", filename);
+	return 1;
 }
 
 static void parse_elf_finish(struct elf_info *info)
@@ -1089,7 +1097,8 @@ static void read_symbols(char *modname)
 	struct elf_info info = { };
 	Elf_Sym *sym;
 
-	parse_elf(&info, modname);
+	if (!parse_elf(&info, modname))
+		return;
 
 	mod = new_module(modname);
 
