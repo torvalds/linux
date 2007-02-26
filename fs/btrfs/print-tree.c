@@ -45,7 +45,7 @@ void print_tree(struct ctree_root *root, struct tree_buffer *t)
 	}
 	printf("node %Lu level %d total ptrs %d free spc %u\n", t->blocknr,
 	        node_level(c->header.flags), c->header.nritems,
-		NODEPTRS_PER_BLOCK - c->header.nritems);
+		(u32)NODEPTRS_PER_BLOCK - c->header.nritems);
 	fflush(stdout);
 	for (i = 0; i < nr; i++) {
 		printf("\tkey %d (%Lu %u %Lu) block %Lu\n",
