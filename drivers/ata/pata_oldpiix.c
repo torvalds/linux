@@ -25,7 +25,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_oldpiix"
-#define DRV_VERSION	"0.5.3"
+#define DRV_VERSION	"0.5.4"
 
 /**
  *	oldpiix_pre_reset		-	probe begin
@@ -209,10 +209,9 @@ static unsigned int oldpiix_qc_issue_prot(struct ata_queued_cmd *qc)
 	struct ata_device *adev = qc->dev;
 
 	if (adev != ap->private_data) {
+		oldpiix_set_piomode(ap, adev);
 		if (adev->dma_mode)
 			oldpiix_set_dmamode(ap, adev);
-		else if (adev->pio_mode)
-			oldpiix_set_piomode(ap, adev);
 	}
 	return ata_qc_issue_prot(qc);
 }

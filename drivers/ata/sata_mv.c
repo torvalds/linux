@@ -35,7 +35,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"0.7"
+#define DRV_VERSION	"0.8"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
@@ -137,14 +137,19 @@ enum {
 	PCI_ERR			= (1 << 18),
 	TRAN_LO_DONE		= (1 << 19),	/* 6xxx: IRQ coalescing */
 	TRAN_HI_DONE		= (1 << 20),	/* 6xxx: IRQ coalescing */
+	PORTS_0_3_COAL_DONE	= (1 << 8),
+	PORTS_4_7_COAL_DONE	= (1 << 17),
 	PORTS_0_7_COAL_DONE	= (1 << 21),	/* 6xxx: IRQ coalescing */
 	GPIO_INT		= (1 << 22),
 	SELF_INT		= (1 << 23),
 	TWSI_INT		= (1 << 24),
 	HC_MAIN_RSVD		= (0x7f << 25),	/* bits 31-25 */
+	HC_MAIN_RSVD_5		= (0x1fff << 19), /* bits 31-19 */
 	HC_MAIN_MASKED_IRQS	= (TRAN_LO_DONE | TRAN_HI_DONE |
 				   PORTS_0_7_COAL_DONE | GPIO_INT | TWSI_INT |
 				   HC_MAIN_RSVD),
+	HC_MAIN_MASKED_IRQS_5	= (PORTS_0_3_COAL_DONE | PORTS_4_7_COAL_DONE |
+				   HC_MAIN_RSVD_5),
 
 	/* SATAHC registers */
 	HC_CFG_OFS		= 0,
@@ -814,23 +819,27 @@ static void mv_edma_cfg(struct mv_host_priv *hpriv, void __iomem *port_mmio)
 	u32 cfg = readl(port_mmio + EDMA_CFG_OFS);
 
 	/* set up non-NCQ EDMA configuration */
-	cfg &= ~0x1f;		/* clear queue depth */
-	cfg &= ~EDMA_CFG_NCQ;	/* clear NCQ mode */
 	cfg &= ~(1 << 9);	/* disable equeue */
 
-	if (IS_GEN_I(hpriv))
+	if (IS_GEN_I(hpriv)) {
+		cfg &= ~0x1f;		/* clear queue depth */
 		cfg |= (1 << 8);	/* enab config burst size mask */
+	}
 
-	else if (IS_GEN_II(hpriv))
+	else if (IS_GEN_II(hpriv)) {
+		cfg &= ~0x1f;		/* clear queue depth */
 		cfg |= EDMA_CFG_RD_BRST_EXT | EDMA_CFG_WR_BUFF_LEN;
+		cfg &= ~(EDMA_CFG_NCQ | EDMA_CFG_NCQ_GO_ON_ERR); /* clear NCQ */
+	}
 
 	else if (IS_GEN_IIE(hpriv)) {
-		cfg |= (1 << 23);	/* dis RX PM port mask */
-		cfg &= ~(1 << 16);	/* dis FIS-based switching (for now) */
+		cfg |= (1 << 23);	/* do not mask PM field in rx'd FIS */
+		cfg |= (1 << 22);	/* enab 4-entry host queue cache */
 		cfg &= ~(1 << 19);	/* dis 128-entry queue (for now?) */
 		cfg |= (1 << 18);	/* enab early completion */
-		cfg |= (1 << 17);	/* enab host q cache */
-		cfg |= (1 << 22);	/* enab cutthrough */
+		cfg |= (1 << 17);	/* enab cut-through (dis stor&forwrd) */
+		cfg &= ~(1 << 16);	/* dis FIS-based switching (for now) */
+		cfg &= ~(EDMA_CFG_NCQ | EDMA_CFG_NCQ_GO_ON_ERR); /* clear NCQ */
 	}
 
 	writelfl(cfg, port_mmio + EDMA_CFG_OFS);
@@ -1276,7 +1285,7 @@ static void mv_err_intr(struct ata_port *ap, int reset_allowed)
 		pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
 	}
 	DPRINTK(KERN_ERR "ata%u: port error; EDMA err cause: 0x%08x "
-		"SERR: 0x%08x\n", ap->id, edma_err_cause, serr);
+		"SERR: 0x%08x\n", ap->print_id, edma_err_cause, serr);
 
 	/* Clear EDMA now that SERR cleanup done */
 	writelfl(0, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
@@ -2052,7 +2061,7 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 	port->altstatus_addr = port->ctl_addr = shd_base + SHD_CTL_AST_OFS;
 
 	/* unused: */
-	port->cmd_addr = port->bmdma_addr = port->scr_addr = 0;
+	port->cmd_addr = port->bmdma_addr = port->scr_addr = NULL;
 
 	/* Clear any currently outstanding port interrupt conditions */
 	serr_ofs = mv_scr_offset(SCR_ERROR);
@@ -2240,7 +2249,11 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 
 	/* and unmask interrupt generation for host regs */
 	writelfl(PCI_UNMASK_ALL_IRQS, mmio + PCI_IRQ_MASK_OFS);
-	writelfl(~HC_MAIN_MASKED_IRQS, mmio + HC_MAIN_IRQ_MASK_OFS);
+
+	if (IS_50XX(hpriv))
+		writelfl(~HC_MAIN_MASKED_IRQS_5, mmio + HC_MAIN_IRQ_MASK_OFS);
+	else
+		writelfl(~HC_MAIN_MASKED_IRQS, mmio + HC_MAIN_IRQ_MASK_OFS);
 
 	VPRINTK("HC MAIN IRQ cause/mask=0x%08x/0x%08x "
 		"PCI int cause/mask=0x%08x/0x%08x\n",
@@ -2347,7 +2360,7 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 
 	/* Enable interrupts */
-	if (msi && !pci_enable_msi(pdev))
+	if (msi && pci_enable_msi(pdev))
 		pci_intx(pdev, 1);
 
 	mv_dump_pci_cfg(pdev, 0x68);

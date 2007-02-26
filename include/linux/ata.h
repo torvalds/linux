@@ -282,7 +282,6 @@ struct ata_taskfile {
 };
 
 #define ata_id_is_ata(id)	(((id)[0] & (1 << 15)) == 0)
-#define ata_id_is_sata(id)	((id)[93] == 0)
 #define ata_id_rahead_enabled(id) ((id)[85] & (1 << 6))
 #define ata_id_wcache_enabled(id) ((id)[85] & (1 << 5))
 #define ata_id_hpa_enabled(id)	((id)[85] & (1 << 10))
@@ -324,6 +323,11 @@ static inline unsigned int ata_id_major_version(const u16 *id)
 	return mver;
 }
 
+static inline int ata_id_is_sata(const u16 *id)
+{
+	return ata_id_major_version(id) >= 5 && id[93] == 0;
+}
+
 static inline int ata_id_current_chs_valid(const u16 *id)
 {
 	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command
@@ -350,7 +354,7 @@ static inline int ata_id_is_cfa(const u16 *id)
 
 static inline int ata_drive_40wire(const u16 *dev_id)
 {
-	if (ata_id_major_version(dev_id) >= 5 && ata_id_is_sata(dev_id))
+	if (ata_id_is_sata(dev_id))
 		return 0;	/* SATA */
 	if ((dev_id[93] & 0xE000) == 0x6000)
 		return 0;	/* 80 wire */

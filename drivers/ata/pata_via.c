@@ -170,7 +170,7 @@ static int via_pre_reset(struct ata_port *ap)
 		ap->cbl = ATA_CBL_PATA40;
 	else
 		ap->cbl = ATA_CBL_PATA_UNK;
-		
+
 
 	return ata_std_prereset(ap);
 }

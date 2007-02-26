@@ -175,7 +175,7 @@ void ata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
  */
 void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf)
 {
-	DPRINTK("ata%u: cmd 0x%X\n", ap->id, tf->command);
+	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
 
 	iowrite8(tf->command, ap->ioaddr.command_addr);
 	ata_pause(ap);
@@ -521,7 +521,7 @@ void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc)
 static int ata_resources_present(struct pci_dev *pdev, int port)
 {
 	int i;
-	
+
 	/* Check the PCI resources for this channel are enabled */
 	port = port * 2;
 	for (i = 0; i < 2; i ++) {
@@ -531,7 +531,7 @@ static int ata_resources_present(struct pci_dev *pdev, int port)
 	}
 	return 1;
 }
-		
+
 /**
  *	ata_pci_init_native_mode - Initialize native-mode driver
  *	@pdev:  pci device to be initialized
@@ -576,7 +576,7 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 
 	probe_ent->irq = pdev->irq;
 	probe_ent->irq_flags = IRQF_SHARED;
-	
+
 	/* Discard disabled ports. Some controllers show their
 	   unused channels this way */
 	if (ata_resources_present(pdev, 0) == 0)

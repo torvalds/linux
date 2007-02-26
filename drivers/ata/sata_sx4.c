@@ -44,7 +44,7 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_sx4"
-#define DRV_VERSION	"0.9"
+#define DRV_VERSION	"0.10"
 
 
 enum {
@@ -421,7 +421,7 @@ static void pdc20621_dma_prep(struct ata_queued_cmd *qc)
 
 	WARN_ON(!(qc->flags & ATA_QCFLAG_DMAMAP));
 
-	VPRINTK("ata%u: ENTER\n", ap->id);
+	VPRINTK("ata%u: ENTER\n", ap->print_id);
 
 	/* hard-code chip #0 */
 	mmio += PDC_CHIP0_OFS;
@@ -478,7 +478,7 @@ static void pdc20621_nodata_prep(struct ata_queued_cmd *qc)
 	unsigned int portno = ap->port_no;
 	unsigned int i;
 
-	VPRINTK("ata%u: ENTER\n", ap->id);
+	VPRINTK("ata%u: ENTER\n", ap->print_id);
 
 	/* hard-code chip #0 */
 	mmio += PDC_CHIP0_OFS;
@@ -605,7 +605,7 @@ static void pdc20621_packet_start(struct ata_queued_cmd *qc)
 	/* hard-code chip #0 */
 	mmio += PDC_CHIP0_OFS;
 
-	VPRINTK("ata%u: ENTER\n", ap->id);
+	VPRINTK("ata%u: ENTER\n", ap->print_id);
 
 	wmb();			/* flush PRD, pkt writes */
 
@@ -672,7 +672,7 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 
 		/* step two - DMA from DIMM to host */
 		if (doing_hdma) {
-			VPRINTK("ata%u: read hdma, 0x%x 0x%x\n", ap->id,
+			VPRINTK("ata%u: read hdma, 0x%x 0x%x\n", ap->print_id,
 				readl(mmio + 0x104), readl(mmio + PDC_HDMA_CTLSTAT));
 			/* get drive status; clear intr; complete txn */
 			qc->err_mask |= ac_err_mask(ata_wait_idle(ap));
@@ -683,7 +683,7 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 		/* step one - exec ATA command */
 		else {
 			u8 seq = (u8) (port_no + 1 + 4);
-			VPRINTK("ata%u: read ata, 0x%x 0x%x\n", ap->id,
+			VPRINTK("ata%u: read ata, 0x%x 0x%x\n", ap->print_id,
 				readl(mmio + 0x104), readl(mmio + PDC_HDMA_CTLSTAT));
 
 			/* submit hdma pkt */
@@ -698,7 +698,7 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 		/* step one - DMA from host to DIMM */
 		if (doing_hdma) {
 			u8 seq = (u8) (port_no + 1);
-			VPRINTK("ata%u: write hdma, 0x%x 0x%x\n", ap->id,
+			VPRINTK("ata%u: write hdma, 0x%x 0x%x\n", ap->print_id,
 				readl(mmio + 0x104), readl(mmio + PDC_HDMA_CTLSTAT));
 
 			/* submit ata pkt */
@@ -711,7 +711,7 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 
 		/* step two - execute ATA command */
 		else {
-			VPRINTK("ata%u: write ata, 0x%x 0x%x\n", ap->id,
+			VPRINTK("ata%u: write ata, 0x%x 0x%x\n", ap->print_id,
 				readl(mmio + 0x104), readl(mmio + PDC_HDMA_CTLSTAT));
 			/* get drive status; clear intr; complete txn */
 			qc->err_mask |= ac_err_mask(ata_wait_idle(ap));

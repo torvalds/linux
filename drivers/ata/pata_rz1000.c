@@ -71,6 +71,7 @@ static int rz1000_set_mode(struct ata_port *ap, struct ata_device **unused)
 			dev->xfer_mode = XFER_PIO_0;
 			dev->xfer_shift = ATA_SHIFT_PIO;
 			dev->flags |= ATA_DFLAG_PIO;
+			ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
 		}
 	}
 	return 0;

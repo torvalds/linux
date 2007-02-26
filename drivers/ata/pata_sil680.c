@@ -33,7 +33,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_sil680"
-#define DRV_VERSION "0.4.1"
+#define DRV_VERSION "0.4.5"
 
 /**
  *	sil680_selreg		-	return register base
@@ -139,10 +139,13 @@ static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	unsigned long tfaddr = sil680_selreg(ap, 0x02);
 	unsigned long addr = sil680_seldev(ap, adev, 0x04);
+	unsigned long addr_mask = 0x80 + 4 * ap->port_no;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int pio = adev->pio_mode - XFER_PIO_0;
 	int lowest_pio = pio;
+	int port_shift = 4 * adev->devno;
 	u16 reg;
+	u8 mode;
 
 	struct ata_device *pair = ata_dev_pair(adev);
 
@@ -153,10 +156,17 @@ static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	pci_write_config_word(pdev, tfaddr, speed_t[lowest_pio]);
 
 	pci_read_config_word(pdev, tfaddr-2, &reg);
+	pci_read_config_byte(pdev, addr_mask, &mode);
+
 	reg &= ~0x0200;			/* Clear IORDY */
-	if (ata_pio_need_iordy(adev))
+	mode &= ~(3 << port_shift);	/* Clear IORDY and DMA bits */
+
+	if (ata_pio_need_iordy(adev)) {
 		reg |= 0x0200;		/* Enable IORDY */
+		mode |= 1 << port_shift;
+	}
 	pci_write_config_word(pdev, tfaddr-2, reg);
+	pci_write_config_byte(pdev, addr_mask, mode);
 }
 
 /**

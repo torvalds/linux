@@ -47,7 +47,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_vsc"
-#define DRV_VERSION	"2.0"
+#define DRV_VERSION	"2.1"
 
 enum {
 	VSC_MMIO_BAR			= 0,
@@ -98,10 +98,6 @@ enum {
 			      VSC_SATA_INT_PHY_CHANGE),
 };
 
-#define is_vsc_sata_int_err(port_idx, int_status) \
-	 (int_status & (VSC_SATA_INT_ERROR << (8 * port_idx)))
-
-
 static u32 vsc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
 	if (sc_reg > SCR_CONTROL)
@@ -116,6 +112,28 @@ static void vsc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
 	if (sc_reg > SCR_CONTROL)
 		return;
 	writel(val, ap->ioaddr.scr_addr + (sc_reg * 4));
+}
+
+
+static void vsc_freeze(struct ata_port *ap)
+{
+	void __iomem *mask_addr;
+
+	mask_addr = ap->host->iomap[VSC_MMIO_BAR] +
+		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
+
+	writeb(0, mask_addr);
+}
+
+
+static void vsc_thaw(struct ata_port *ap)
+{
+	void __iomem *mask_addr;
+
+	mask_addr = ap->host->iomap[VSC_MMIO_BAR] +
+		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
+
+	writeb(0xff, mask_addr);
 }
 
 
@@ -203,6 +221,36 @@ static void vsc_sata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
         }
 }
 
+static inline void vsc_error_intr(u8 port_status, struct ata_port *ap)
+{
+	if (port_status & (VSC_SATA_INT_PHY_CHANGE | VSC_SATA_INT_ERROR_M))
+		ata_port_freeze(ap);
+	else
+		ata_port_abort(ap);
+}
+
+static void vsc_port_intr(u8 port_status, struct ata_port *ap)
+{
+	struct ata_queued_cmd *qc;
+	int handled = 0;
+
+	if (unlikely(port_status & VSC_SATA_INT_ERROR)) {
+		vsc_error_intr(port_status, ap);
+		return;
+	}
+
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	if (qc && likely(!(qc->tf.flags & ATA_TFLAG_POLLING)))
+		handled = ata_host_intr(ap, qc);
+
+	/* We received an interrupt during a polled command,
+	 * or some other spurious condition.  Interrupt reporting
+	 * with this hardware is fairly reliable so it is safe to
+	 * simply clear the interrupt
+	 */
+	if (unlikely(!handled))
+		ata_chk_status(ap);
+}
 
 /*
  * vsc_sata_interrupt
@@ -214,59 +262,36 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance)
 	struct ata_host *host = dev_instance;
 	unsigned int i;
 	unsigned int handled = 0;
-	u32 int_status;
+	u32 status;
+
+	status = readl(host->iomap[VSC_MMIO_BAR] + VSC_SATA_INT_STAT_OFFSET);
+
+	if (unlikely(status == 0xffffffff || status == 0)) {
+		if (status)
+			dev_printk(KERN_ERR, host->dev,
+				": IRQ status == 0xffffffff, "
+				"PCI fault or device removal?\n");
+		goto out;
+	}
 
 	spin_lock(&host->lock);
 
-	int_status = readl(host->iomap[VSC_MMIO_BAR] +
-			   VSC_SATA_INT_STAT_OFFSET);
-
 	for (i = 0; i < host->n_ports; i++) {
-		if (int_status & ((u32) 0xFF << (8 * i))) {
-			struct ata_port *ap;
-
-			ap = host->ports[i];
-
-			if (is_vsc_sata_int_err(i, int_status)) {
-				u32 err_status;
-				printk(KERN_DEBUG "%s: ignoring interrupt(s)\n", __FUNCTION__);
-				err_status = ap ? vsc_sata_scr_read(ap, SCR_ERROR) : 0;
-				vsc_sata_scr_write(ap, SCR_ERROR, err_status);
-				handled++;
-			}
+		u8 port_status = (status >> (8 * i)) & 0xff;
+		if (port_status) {
+			struct ata_port *ap = host->ports[i];
 
 			if (ap && !(ap->flags & ATA_FLAG_DISABLED)) {
-				struct ata_queued_cmd *qc;
-
-				qc = ata_qc_from_tag(ap, ap->active_tag);
-				if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
-					handled += ata_host_intr(ap, qc);
-				else if (is_vsc_sata_int_err(i, int_status)) {
-					/*
-					 * On some chips (i.e. Intel 31244), an error
-					 * interrupt will sneak in at initialization
-					 * time (phy state changes).  Clearing the SCR
-					 * error register is not required, but it prevents
-					 * the phy state change interrupts from recurring
-					 * later.
-					 */
-					u32 err_status;
-					err_status = vsc_sata_scr_read(ap, SCR_ERROR);
-					printk(KERN_DEBUG "%s: clearing interrupt, "
-					       "status %x; sata err status %x\n",
-					       __FUNCTION__,
-					       int_status, err_status);
-					vsc_sata_scr_write(ap, SCR_ERROR, err_status);
-					/* Clear interrupt status */
-					ata_chk_status(ap);
-					handled++;
-				}
-			}
+				vsc_port_intr(port_status, ap);
+				handled++;
+			} else
+				dev_printk(KERN_ERR, host->dev,
+					": interrupt from disabled port %d\n", i);
 		}
 	}
 
 	spin_unlock(&host->lock);
-
+out:
 	return IRQ_RETVAL(handled);
 }
 
@@ -304,8 +329,8 @@ static const struct ata_port_operations vsc_sata_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_data_xfer,
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
+	.freeze			= vsc_freeze,
+	.thaw			= vsc_thaw,
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 	.irq_handler		= vsc_sata_interrupt,

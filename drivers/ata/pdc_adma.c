@@ -44,7 +44,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pdc_adma"
-#define DRV_VERSION	"0.04"
+#define DRV_VERSION	"0.05"
 
 /* macro to calculate base address for ATA regs */
 #define ADMA_ATA_REGS(base,port_no)	((base) + ((port_no) * 0x40))
@@ -498,7 +498,7 @@ static inline unsigned int adma_intr_mmio(struct ata_host *host)
 				if ((status & ATA_BUSY))
 					continue;
 				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
-					ap->id, qc->tf.protocol, status);
+					ap->print_id, qc->tf.protocol, status);
 
 				/* complete taskfile transaction */
 				pp->state = adma_state_idle;

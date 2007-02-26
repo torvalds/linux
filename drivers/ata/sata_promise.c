@@ -45,7 +45,7 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_promise"
-#define DRV_VERSION	"1.05"
+#define DRV_VERSION	"2.00"
 
 
 enum {
@@ -218,6 +218,7 @@ static const struct ata_port_operations pdc_pata_ops = {
 	.freeze			= pdc_freeze,
 	.thaw			= pdc_thaw,
 	.error_handler		= pdc_error_handler,
+	.post_internal_cmd	= pdc_post_internal_cmd,
 	.data_xfer		= ata_data_xfer,
 	.irq_handler		= pdc_interrupt,
 	.irq_clear		= pdc_irq_clear,
@@ -776,7 +777,8 @@ static int pdc_old_check_atapi_dma(struct ata_queued_cmd *qc)
 	return pdc_check_atapi_dma(qc);
 }
 
-static void pdc_ata_setup_port(struct ata_ioports *port, void __iomem *base)
+static void pdc_ata_setup_port(struct ata_ioports *port, void __iomem *base,
+			       void __iomem *scr_addr)
 {
 	port->cmd_addr		= base;
 	port->data_addr		= base;
@@ -791,6 +793,7 @@ static void pdc_ata_setup_port(struct ata_ioports *port, void __iomem *base)
 	port->status_addr	= base + 0x1c;
 	port->altstatus_addr	=
 	port->ctl_addr		= base + 0x38;
+	port->scr_addr		= scr_addr;
 }
 
 
@@ -903,11 +906,8 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 	base = probe_ent->iomap[PDC_MMIO_BAR];
 
-	pdc_ata_setup_port(&probe_ent->port[0], base + 0x200);
-	pdc_ata_setup_port(&probe_ent->port[1], base + 0x280);
-
-	probe_ent->port[0].scr_addr = base + 0x400;
-	probe_ent->port[1].scr_addr = base + 0x500;
+	pdc_ata_setup_port(&probe_ent->port[0], base + 0x200, base + 0x400);
+	pdc_ata_setup_port(&probe_ent->port[1], base + 0x280, base + 0x500);
 
 	/* notice 4-port boards */
 	switch (board_idx) {
@@ -916,12 +916,8 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		/* Fall through */
 	case board_20319:
        		probe_ent->n_ports = 4;
-
-		pdc_ata_setup_port(&probe_ent->port[2], base + 0x300);
-		pdc_ata_setup_port(&probe_ent->port[3], base + 0x380);
-
-		probe_ent->port[2].scr_addr = base + 0x600;
-		probe_ent->port[3].scr_addr = base + 0x700;
+		pdc_ata_setup_port(&probe_ent->port[2], base + 0x300, base + 0x600);
+		pdc_ata_setup_port(&probe_ent->port[3], base + 0x380, base + 0x700);
 		break;
 	case board_2057x:
 		hp->flags |= PDC_FLAG_GEN_II;
@@ -931,7 +927,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		tmp = readb(base + PDC_FLASH_CTL+1);
 		if (!(tmp & 0x80)) {
 			probe_ent->n_ports = 3;
-			pdc_ata_setup_port(&probe_ent->port[2], base + 0x300);
+			pdc_ata_setup_port(&probe_ent->port[2], base + 0x300, NULL);
 			hp->port_flags[2] = ATA_FLAG_SLAVE_POSS;
 			printk(KERN_INFO DRV_NAME " PATA port found\n");
 		} else
@@ -941,12 +937,8 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		break;
 	case board_20619:
 		probe_ent->n_ports = 4;
-
-		pdc_ata_setup_port(&probe_ent->port[2], base + 0x300);
-		pdc_ata_setup_port(&probe_ent->port[3], base + 0x380);
-
-		probe_ent->port[2].scr_addr = base + 0x600;
-		probe_ent->port[3].scr_addr = base + 0x700;
+		pdc_ata_setup_port(&probe_ent->port[2], base + 0x300, NULL);
+		pdc_ata_setup_port(&probe_ent->port[3], base + 0x380, NULL);
 		break;
 	default:
 		BUG();

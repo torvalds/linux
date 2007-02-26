@@ -294,9 +294,8 @@ static int do_drive_get_GTF(struct ata_port *ap, int ix,
 		return 0;
 
 	if (ata_msg_probe(ap))
-		ata_dev_printk(atadev, KERN_DEBUG,
-			"%s: ENTER: ap->id: %d, port#: %d\n",
-			__FUNCTION__, ap->id, ap->port_no);
+		ata_dev_printk(atadev, KERN_DEBUG, "%s: ENTER: port#: %d\n",
+			       __FUNCTION__, ap->port_no);
 
 	if (!ata_dev_enabled(atadev) || (ap->flags & ATA_FLAG_DISABLED)) {
 		if (ata_msg_probe(ap))
@@ -456,6 +455,9 @@ static void taskfile_load_raw(struct ata_port *ap,
 				struct ata_device *atadev,
 				const struct taskfile_array *gtf)
 {
+	struct ata_taskfile tf;
+	unsigned int err;
+
 	if (ata_msg_probe(ap))
 		ata_dev_printk(atadev, KERN_DEBUG, "%s: (0x1f1-1f7): hex: "
 			"%02x %02x %02x %02x %02x %02x %02x\n",
@@ -468,35 +470,25 @@ static void taskfile_load_raw(struct ata_port *ap,
 	    && (gtf->tfa[6] == 0))
 		return;
 
-	if (ap->ops->qc_issue) {
-		struct ata_taskfile tf;
-		unsigned int err;
+	ata_tf_init(atadev, &tf);
 
-		ata_tf_init(atadev, &tf);
+	/* convert gtf to tf */
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE; /* TBD */
+	tf.protocol = atadev->class == ATA_DEV_ATAPI ?
+		ATA_PROT_ATAPI_NODATA : ATA_PROT_NODATA;
+	tf.feature = gtf->tfa[0];	/* 0x1f1 */
+	tf.nsect   = gtf->tfa[1];	/* 0x1f2 */
+	tf.lbal    = gtf->tfa[2];	/* 0x1f3 */
+	tf.lbam    = gtf->tfa[3];	/* 0x1f4 */
+	tf.lbah    = gtf->tfa[4];	/* 0x1f5 */
+	tf.device  = gtf->tfa[5];	/* 0x1f6 */
+	tf.command = gtf->tfa[6];	/* 0x1f7 */
 
-		/* convert gtf to tf */
-		tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE; /* TBD */
-		tf.protocol = atadev->class == ATA_DEV_ATAPI ?
-			ATA_PROT_ATAPI_NODATA : ATA_PROT_NODATA;
-		tf.feature = gtf->tfa[0];	/* 0x1f1 */
-		tf.nsect   = gtf->tfa[1];	/* 0x1f2 */
-		tf.lbal    = gtf->tfa[2];	/* 0x1f3 */
-		tf.lbam    = gtf->tfa[3];	/* 0x1f4 */
-		tf.lbah    = gtf->tfa[4];	/* 0x1f5 */
-		tf.device  = gtf->tfa[5];	/* 0x1f6 */
-		tf.command = gtf->tfa[6];	/* 0x1f7 */
-
-		err = ata_exec_internal(atadev, &tf, NULL, DMA_NONE, NULL, 0);
-		if (err && ata_msg_probe(ap))
-			ata_dev_printk(atadev, KERN_ERR,
-				"%s: ata_exec_internal failed: %u\n",
-				__FUNCTION__, err);
-	} else
-		if (ata_msg_warn(ap))
-			ata_dev_printk(atadev, KERN_WARNING,
-				"%s: SATA driver is missing qc_issue function"
-				" entry points\n",
-				__FUNCTION__);
+	err = ata_exec_internal(atadev, &tf, NULL, DMA_NONE, NULL, 0);
+	if (err && ata_msg_probe(ap))
+		ata_dev_printk(atadev, KERN_ERR,
+			"%s: ata_exec_internal failed: %u\n",
+			__FUNCTION__, err);
 }
 
 /**
@@ -521,9 +513,8 @@ static int do_drive_set_taskfiles(struct ata_port *ap,
 	struct taskfile_array	*gtf;
 
 	if (ata_msg_probe(ap))
-		ata_dev_printk(atadev, KERN_DEBUG,
-			"%s: ENTER: ap->id: %d, port#: %d\n",
-			__FUNCTION__, ap->id, ap->port_no);
+		ata_dev_printk(atadev, KERN_DEBUG, "%s: ENTER: port#: %d\n",
+			       __FUNCTION__, ap->port_no);
 
 	if (noacpi || !(ap->cbl == ATA_CBL_SATA))
 		return 0;
@@ -627,9 +618,8 @@ int ata_acpi_push_id(struct ata_port *ap, unsigned int ix)
 		return 0;
 
 	if (ata_msg_probe(ap))
-		ata_dev_printk(atadev, KERN_DEBUG,
-			"%s: ap->id: %d, ix = %d, port#: %d\n",
-			__FUNCTION__, ap->id, ix, ap->port_no);
+		ata_dev_printk(atadev, KERN_DEBUG, "%s: ix = %d, port#: %d\n",
+			       __FUNCTION__, ix, ap->port_no);
 
 	/* Don't continue if not a SATA device. */
 	if (!(ap->cbl == ATA_CBL_SATA)) {
@@ -685,9 +675,8 @@ int ata_acpi_push_id(struct ata_port *ap, unsigned int ix)
 	if (err < 0) {
 		if (ata_msg_probe(ap))
 			ata_dev_printk(atadev, KERN_DEBUG,
-				"ata%u(%u): %s _SDD error: status = 0x%x\n",
-				ap->id, ap->device->devno,
-				__FUNCTION__, status);
+				       "%s _SDD error: status = 0x%x\n",
+				       __FUNCTION__, status);
 	}
 
 	/* always return success */

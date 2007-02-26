@@ -40,9 +40,8 @@
 #include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
-#include "libata.h"
+#include "sis.h"
 
-#undef DRV_NAME		/* already defined in libata.h, for libata-core */
 #define DRV_NAME	"sata_sis"
 #define DRV_VERSION	"0.7"
 
@@ -310,7 +309,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		case 0x10:
 			ppi[1] = &sis_info133;
 			break;
-			
+
 		case 0x30:
 			ppi[0] = &sis_info133;
 			break;

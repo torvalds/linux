@@ -39,7 +39,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_qstor"
-#define DRV_VERSION	"0.06"
+#define DRV_VERSION	"0.07"
 
 enum {
 	QS_MMIO_BAR		= 4,
@@ -446,7 +446,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 				if ((status & ATA_BUSY))
 					continue;
 				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
-					ap->id, qc->tf.protocol, status);
+					ap->print_id, qc->tf.protocol, status);
 
 				/* complete taskfile transaction */
 				pp->state = qs_state_idle;

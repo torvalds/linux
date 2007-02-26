@@ -562,6 +562,15 @@ config PATA_IXP4XX_CF
 
 	  If unsure, say N.
 
+config PATA_SCC
+	tristate "Toshiba's Cell Reference Set IDE support"
+	depends on PCI && PPC_IBM_CELL_BLADE
+	help
+	  This option enables support for the built-in IDE controller on
+	  Toshiba Cell Reference Board.
+
+	  If unsure, say N.
+
 endif
 endmenu
 

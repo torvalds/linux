@@ -21,7 +21,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_pdc202xx_old"
-#define DRV_VERSION "0.2.3"
+#define DRV_VERSION "0.3.0"
 
 /**
  *	pdc2024x_pre_reset		-	probe begin
