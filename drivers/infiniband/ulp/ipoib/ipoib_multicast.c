@@ -527,11 +527,9 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	{
 		struct ib_port_attr attr;
 
-		if (!ib_query_port(priv->ca, priv->port, &attr)) {
-			priv->local_lid  = attr.lid;
-			priv->local_rate = attr.active_speed *
-				ib_width_enum_to_int(attr.active_width);
-		} else
+		if (!ib_query_port(priv->ca, priv->port, &attr))
+			priv->local_lid = attr.lid;
+		else
 			ipoib_warn(priv, "ib_query_port failed\n");
 	}
 

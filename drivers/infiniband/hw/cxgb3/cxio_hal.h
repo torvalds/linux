@@ -143,7 +143,6 @@ int cxio_rdev_open(struct cxio_rdev *rdev);
 void cxio_rdev_close(struct cxio_rdev *rdev);
 int cxio_hal_cq_op(struct cxio_rdev *rdev, struct t3_cq *cq,
 		   enum t3_cq_opcode op, u32 credit);
-int cxio_hal_clear_qp_ctx(struct cxio_rdev *rdev, u32 qpid);
 int cxio_create_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
 int cxio_destroy_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
 int cxio_resize_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
@@ -154,8 +153,6 @@ int cxio_create_qp(struct cxio_rdev *rdev, u32 kernel_domain, struct t3_wq *wq,
 int cxio_destroy_qp(struct cxio_rdev *rdev, struct t3_wq *wq,
 		    struct cxio_ucontext *uctx);
 int cxio_peek_cq(struct t3_wq *wr, struct t3_cq *cq, int opcode);
-int cxio_allocate_stag(struct cxio_rdev *rdev, u32 * stag, u32 pdid,
-		       enum tpt_mem_perm perm, u32 * pbl_size, u32 * pbl_addr);
 int cxio_register_phys_mem(struct cxio_rdev *rdev, u32 * stag, u32 pdid,
 			   enum tpt_mem_perm perm, u32 zbva, u64 to, u32 len,
 			   u8 page_size, __be64 *pbl, u32 *pbl_size,
@@ -171,8 +168,6 @@ int cxio_deallocate_window(struct cxio_rdev *rdev, u32 stag);
 int cxio_rdma_init(struct cxio_rdev *rdev, struct t3_rdma_init_attr *attr);
 void cxio_register_ev_cb(cxio_hal_ev_callback_func_t ev_cb);
 void cxio_unregister_ev_cb(cxio_hal_ev_callback_func_t ev_cb);
-u32 cxio_hal_get_rhdl(void);
-void cxio_hal_put_rhdl(u32 rhdl);
 u32 cxio_hal_get_pdid(struct cxio_hal_resource *rscp);
 void cxio_hal_put_pdid(struct cxio_hal_resource *rscp, u32 pdid);
 int __init cxio_hal_init(void);

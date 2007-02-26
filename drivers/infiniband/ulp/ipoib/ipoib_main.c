@@ -385,7 +385,7 @@ static void path_rec_completion(int status,
 	struct sk_buff *skb;
 	unsigned long flags;
 
-	if (pathrec)
+	if (!status)
 		ipoib_dbg(priv, "PathRec LID 0x%04x for GID " IPOIB_GID_FMT "\n",
 			  be16_to_cpu(pathrec->dlid), IPOIB_GID_ARG(pathrec->dgid));
 	else

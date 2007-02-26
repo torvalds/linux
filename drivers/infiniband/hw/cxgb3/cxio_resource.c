@@ -179,7 +179,7 @@ tpt_err:
 /*
  * returns 0 if no resource available
  */
-static inline u32 cxio_hal_get_resource(struct kfifo *fifo)
+static u32 cxio_hal_get_resource(struct kfifo *fifo)
 {
 	u32 entry;
 	if (kfifo_get(fifo, (unsigned char *) &entry, sizeof(u32)))
@@ -188,19 +188,9 @@ static inline u32 cxio_hal_get_resource(struct kfifo *fifo)
 		return 0;	/* fifo emptry */
 }
 
-static inline void cxio_hal_put_resource(struct kfifo *fifo, u32 entry)
+static void cxio_hal_put_resource(struct kfifo *fifo, u32 entry)
 {
 	BUG_ON(kfifo_put(fifo, (unsigned char *) &entry, sizeof(u32)) == 0);
-}
-
-u32 cxio_hal_get_rhdl(void)
-{
-	return cxio_hal_get_resource(rhdl_fifo);
-}
-
-void cxio_hal_put_rhdl(u32 rhdl)
-{
-	cxio_hal_put_resource(rhdl_fifo, rhdl);
 }
 
 u32 cxio_hal_get_stag(struct cxio_hal_resource *rscp)

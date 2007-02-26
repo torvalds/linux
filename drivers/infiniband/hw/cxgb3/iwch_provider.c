@@ -948,7 +948,7 @@ void iwch_qp_rem_ref(struct ib_qp *qp)
 	        wake_up(&(to_iwch_qp(qp)->wait));
 }
 
-struct ib_qp *iwch_get_qp(struct ib_device *dev, int qpn)
+static struct ib_qp *iwch_get_qp(struct ib_device *dev, int qpn)
 {
 	PDBG("%s ib_dev %p qpn 0x%x\n", __FUNCTION__, dev, qpn);
 	return (struct ib_qp *)get_qhp(to_iwch_dev(dev), qpn);
