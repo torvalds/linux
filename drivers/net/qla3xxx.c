@@ -1746,6 +1746,23 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 	atomic_inc(&qdev->tx_count);
 }
 
+void ql_get_sbuf(struct ql3_adapter *qdev)
+{
+	if (++qdev->small_buf_index == NUM_SMALL_BUFFERS)
+		qdev->small_buf_index = 0;
+	qdev->small_buf_release_cnt++;
+}
+
+struct ql_rcv_buf_cb *ql_get_lbuf(struct ql3_adapter *qdev)
+{
+	struct ql_rcv_buf_cb *lrg_buf_cb = NULL;
+	lrg_buf_cb = &qdev->lrg_buf[qdev->lrg_buf_index];
+	qdev->lrg_buf_release_cnt++;
+	if (++qdev->lrg_buf_index == qdev->num_large_buffers)
+		qdev->lrg_buf_index = 0;
+	return(lrg_buf_cb);
+}
+
 /*
  * The difference between 3022 and 3032 for inbound completions:
  * 3022 uses two buffers per completion.  The first buffer contains 
@@ -1761,47 +1778,21 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 				   struct ib_mac_iocb_rsp *ib_mac_rsp_ptr)
 {
-	long int offset;
-	u32 lrg_buf_phy_addr_low = 0;
 	struct ql_rcv_buf_cb *lrg_buf_cb1 = NULL;
 	struct ql_rcv_buf_cb *lrg_buf_cb2 = NULL;
-	u32 *curr_ial_ptr;
 	struct sk_buff *skb;
 	u16 length = le16_to_cpu(ib_mac_rsp_ptr->length);
 
 	/*
 	 * Get the inbound address list (small buffer).
 	 */
-	offset = qdev->small_buf_index * QL_SMALL_BUFFER_SIZE;
-	if (++qdev->small_buf_index == NUM_SMALL_BUFFERS)
-		qdev->small_buf_index = 0;
+	ql_get_sbuf(qdev);
 
-	curr_ial_ptr = (u32 *) (qdev->small_buf_virt_addr + offset);
-	qdev->last_rsp_offset = qdev->small_buf_phy_addr_low + offset;
-	qdev->small_buf_release_cnt++;
-
-	if (qdev->device_id == QL3022_DEVICE_ID) {
-		/* start of first buffer (3022 only) */
-		lrg_buf_phy_addr_low = le32_to_cpu(*curr_ial_ptr);
-		lrg_buf_cb1 = &qdev->lrg_buf[qdev->lrg_buf_index];
-		qdev->lrg_buf_release_cnt++;
-		if (++qdev->lrg_buf_index == qdev->num_large_buffers) {
-			qdev->lrg_buf_index = 0;
-		}
-		curr_ial_ptr++;	/* 64-bit pointers require two incs. */
-		curr_ial_ptr++;
-	}
+	if (qdev->device_id == QL3022_DEVICE_ID)
+		lrg_buf_cb1 = ql_get_lbuf(qdev);
 
 	/* start of second buffer */
-	lrg_buf_phy_addr_low = le32_to_cpu(*curr_ial_ptr);
-	lrg_buf_cb2 = &qdev->lrg_buf[qdev->lrg_buf_index];
-
-	/*
-	 * Second buffer gets sent up the stack.
-	 */
-	qdev->lrg_buf_release_cnt++;
-	if (++qdev->lrg_buf_index == qdev->num_large_buffers)
-		qdev->lrg_buf_index = 0;
+	lrg_buf_cb2 = ql_get_lbuf(qdev);
 	skb = lrg_buf_cb2->skb;
 
 	qdev->stats.rx_packets++;
@@ -1829,11 +1820,8 @@ static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 				     struct ib_ip_iocb_rsp *ib_ip_rsp_ptr)
 {
-	long int offset;
-	u32 lrg_buf_phy_addr_low = 0;
 	struct ql_rcv_buf_cb *lrg_buf_cb1 = NULL;
 	struct ql_rcv_buf_cb *lrg_buf_cb2 = NULL;
-	u32 *curr_ial_ptr;
 	struct sk_buff *skb1 = NULL, *skb2;
 	struct net_device *ndev = qdev->ndev;
 	u16 length = le16_to_cpu(ib_ip_rsp_ptr->length);
@@ -1843,35 +1831,20 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 	 * Get the inbound address list (small buffer).
 	 */
 
-	offset = qdev->small_buf_index * QL_SMALL_BUFFER_SIZE;
-	if (++qdev->small_buf_index == NUM_SMALL_BUFFERS)
-		qdev->small_buf_index = 0;
-	curr_ial_ptr = (u32 *) (qdev->small_buf_virt_addr + offset);
-	qdev->last_rsp_offset = qdev->small_buf_phy_addr_low + offset;
-	qdev->small_buf_release_cnt++;
+	ql_get_sbuf(qdev);
 
 	if (qdev->device_id == QL3022_DEVICE_ID) {
 		/* start of first buffer on 3022 */
-		lrg_buf_phy_addr_low = le32_to_cpu(*curr_ial_ptr);
-		lrg_buf_cb1 = &qdev->lrg_buf[qdev->lrg_buf_index];
-		qdev->lrg_buf_release_cnt++;
-		if (++qdev->lrg_buf_index == qdev->num_large_buffers)
-			qdev->lrg_buf_index = 0;
+		lrg_buf_cb1 = ql_get_lbuf(qdev);
 		skb1 = lrg_buf_cb1->skb;
-		curr_ial_ptr++;	/* 64-bit pointers require two incs. */
-		curr_ial_ptr++;
 		size = ETH_HLEN;
 		if (*((u16 *) skb1->data) != 0xFFFF)
 			size += VLAN_ETH_HLEN - ETH_HLEN;
 	}
 
 	/* start of second buffer */
-	lrg_buf_phy_addr_low = le32_to_cpu(*curr_ial_ptr);
-	lrg_buf_cb2 = &qdev->lrg_buf[qdev->lrg_buf_index];
+	lrg_buf_cb2 = ql_get_lbuf(qdev);
 	skb2 = lrg_buf_cb2->skb;
-	qdev->lrg_buf_release_cnt++;
-	if (++qdev->lrg_buf_index == qdev->num_large_buffers)
-		qdev->lrg_buf_index = 0;
 
 	skb_put(skb2, length);	/* Just the second buffer length here. */
 	pci_unmap_single(qdev->pdev,
@@ -2410,7 +2383,6 @@ static void ql_free_buffer_queues(struct ql3_adapter *qdev)
 		return;
 	}
 	if(qdev->lrg_buf) kfree(qdev->lrg_buf);
-
 	pci_free_consistent(qdev->pdev,
 			    qdev->lrg_buf_q_alloc_size,
 			    qdev->lrg_buf_q_alloc_virt_addr,
@@ -2454,8 +2426,6 @@ static int ql_alloc_small_buffers(struct ql3_adapter *qdev)
 	qdev->small_buf_phy_addr_high = MS_64BITS(qdev->small_buf_phy_addr);
 
 	small_buf_q_entry = qdev->small_buf_q_virt_addr;
-
-	qdev->last_rsp_offset = qdev->small_buf_phy_addr_low;
 
 	/* Initialize the small buffer queue. */
 	for (i = 0; i < (QL_ADDR_ELE_PER_BUFQ_ENTRY * NUM_SBUFQ_ENTRIES); i++) {
