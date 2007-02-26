@@ -865,6 +865,10 @@ static int nfs_dentry_delete(struct dentry *dentry)
 static void nfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 {
 	nfs_inode_return_delegation(inode);
+	if (S_ISDIR(inode->i_mode))
+		/* drop any readdir cache as it could easily be old */
+		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_DATA;
+
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
 		lock_kernel();
 		drop_nlink(inode);
