@@ -1555,7 +1555,6 @@ _GLOBAL(generic_secondary_smp_init)
 	
 	/* turn on 64-bit mode */
 	bl	.enable_64b_mode
-	isync
 
 	/* Set up a paca value for this processor. Since we have the
 	 * physical cpu id in r24, we need to search the pacas to find
@@ -1851,7 +1850,6 @@ __secondary_start_pmac_0:
 _GLOBAL(pmac_secondary_start)
 	/* turn on 64-bit mode */
 	bl	.enable_64b_mode
-	isync
 
 	/* Copy some CPU settings from CPU 0 */
 	bl	.__restore_cpu_ppc970
