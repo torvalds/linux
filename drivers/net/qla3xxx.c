@@ -287,9 +287,10 @@ static void ql_release_to_lrg_buf_free_list(struct ql3_adapter *qdev,
 	}
 
 	if (!lrg_buf_cb->skb) {
-		lrg_buf_cb->skb = dev_alloc_skb(qdev->lrg_buffer_len);
+		lrg_buf_cb->skb = netdev_alloc_skb(qdev->ndev,
+						   qdev->lrg_buffer_len);
 		if (unlikely(!lrg_buf_cb->skb)) {
-			printk(KERN_ERR PFX "%s: failed dev_alloc_skb().\n",
+			printk(KERN_ERR PFX "%s: failed netdev_alloc_skb().\n",
 			       qdev->ndev->name);
 			qdev->lrg_buf_skb_check++;
 		} else {
@@ -1619,10 +1620,11 @@ static int ql_populate_free_queue(struct ql3_adapter *qdev)
 
 	while (lrg_buf_cb) {
 		if (!lrg_buf_cb->skb) {
-			lrg_buf_cb->skb = dev_alloc_skb(qdev->lrg_buffer_len);
+			lrg_buf_cb->skb = netdev_alloc_skb(qdev->ndev,
+							   qdev->lrg_buffer_len);
 			if (unlikely(!lrg_buf_cb->skb)) {
 				printk(KERN_DEBUG PFX
-				       "%s: Failed dev_alloc_skb().\n",
+				       "%s: Failed netdev_alloc_skb().\n",
 				       qdev->ndev->name);
 				break;
 			} else {
@@ -2514,7 +2516,8 @@ static int ql_alloc_large_buffers(struct ql3_adapter *qdev)
 	u64 map;
 
 	for (i = 0; i < NUM_LARGE_BUFFERS; i++) {
-		skb = dev_alloc_skb(qdev->lrg_buffer_len);
+		skb = netdev_alloc_skb(qdev->ndev,
+				       qdev->lrg_buffer_len);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			printk(KERN_ERR PFX
