@@ -19,6 +19,8 @@
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
+extern void cpu_idle_sleep(void);
+
 /*
  * This file handles the architecture-dependent parts of process handling..
  */
@@ -27,9 +29,8 @@ void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
-		/* TODO: Enter sleep mode */
 		while (!need_resched())
-			cpu_relax();
+			cpu_idle_sleep();
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();

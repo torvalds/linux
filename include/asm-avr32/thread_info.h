@@ -83,6 +83,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_SINGLE_STEP		6	/* single step after next break */
 #define TIF_MEMDIE		7
 #define TIF_RESTORE_SIGMASK	8	/* restore signal mask in do_signal */
+#define TIF_CPU_GOING_TO_SLEEP	9	/* CPU is entering sleep 0 mode */
 #define TIF_USERSPACE		31      /* true if FS sets userspace */
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
@@ -94,6 +95,7 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_SINGLE_STEP	(1 << TIF_SINGLE_STEP)
 #define _TIF_MEMDIE		(1 << TIF_MEMDIE)
 #define _TIF_RESTORE_SIGMASK	(1 << TIF_RESTORE_SIGMASK)
+#define _TIF_CPU_GOING_TO_SLEEP (1 << TIF_CPU_GOING_TO_SLEEP)
 
 /* XXX: These two masks must never span more than 16 bits! */
 /* work to do on interrupt/exception return */

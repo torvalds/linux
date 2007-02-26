@@ -630,9 +630,12 @@ irq_level\level:
 	rcall	do_IRQ
 
 	lddsp	r4, sp[REG_SR]
-	andh	r4, (MODE_MASK >> 16), COH
+	bfextu	r4, r4, SYSREG_M0_OFFSET, 3
+	cp.w	r4, MODE_SUPERVISOR >> SYSREG_M0_OFFSET
+	breq	2f
+	cp.w	r4, MODE_USER >> SYSREG_M0_OFFSET
 #ifdef CONFIG_PREEMPT
-	brne	2f
+	brne	3f
 #else
 	brne	1f
 #endif
@@ -649,9 +652,18 @@ irq_level\level:
 	sub	sp, -4		/* ignore r12_orig */
 	rete
 
+2:	get_thread_info	r0
+	ld.w	r1, r0[TI_flags]
+	bld	r1, TIF_CPU_GOING_TO_SLEEP
 #ifdef CONFIG_PREEMPT
-2:
-	get_thread_info	r0
+	brcc	3f
+#else
+	brcc	1b
+#endif
+	sub	r1, pc, . - cpu_idle_skip_sleep
+	stdsp	sp[REG_PC], r1
+#ifdef CONFIG_PREEMPT
+3:	get_thread_info r0
 	ld.w	r2, r0[TI_preempt_count]
 	cp.w	r2, 0
 	brne	1b
@@ -662,11 +674,31 @@ irq_level\level:
 	bld	r4, SYSREG_GM_OFFSET
 	brcs	1b
 	rcall	preempt_schedule_irq
-	rjmp	1b
 #endif
+	rjmp	1b
 	.endm
 
 	.section .irq.text,"ax",@progbits
+
+.global cpu_idle_sleep
+cpu_idle_sleep:
+	mask_interrupts
+	get_thread_info r8
+	ld.w	r9, r8[TI_flags]
+	bld	r9, TIF_NEED_RESCHED
+	brcs	cpu_idle_enable_int_and_exit
+	sbr	r9, TIF_CPU_GOING_TO_SLEEP
+	st.w	r8[TI_flags], r9
+	unmask_interrupts
+	sleep 0
+cpu_idle_skip_sleep:
+	mask_interrupts
+	ld.w	r9, r8[TI_flags]
+	cbr	r9, TIF_CPU_GOING_TO_SLEEP
+	st.w	r8[TI_flags], r9
+cpu_idle_enable_int_and_exit:
+	unmask_interrupts
+	retal	r12
 
 	.global	irq_level0
 	.global	irq_level1
