@@ -63,7 +63,7 @@ extern int agp_memory_reserved;
 #define INTEL_I7505_AGPCTRL	0x70
 #define INTEL_I7505_MCHCFG	0x50
 
-static struct aper_size_info_fixed intel_i810_sizes[] =
+static const struct aper_size_info_fixed intel_i810_sizes[] =
 {
 	{64, 16384, 4},
 	/* The 32M mode still requires a 64k gatt */
@@ -1365,18 +1365,18 @@ static int intel_7505_configure(void)
 }
 
 /* Setup function */
-static struct gatt_mask intel_generic_masks[] =
+static const struct gatt_mask intel_generic_masks[] =
 {
 	{.mask = 0x00000017, .type = 0}
 };
 
-static struct aper_size_info_8 intel_815_sizes[2] =
+static const struct aper_size_info_8 intel_815_sizes[2] =
 {
 	{64, 16384, 4, 0},
 	{32, 8192, 3, 8},
 };
 
-static struct aper_size_info_8 intel_8xx_sizes[7] =
+static const struct aper_size_info_8 intel_8xx_sizes[7] =
 {
 	{256, 65536, 6, 0},
 	{128, 32768, 5, 32},
@@ -1387,7 +1387,7 @@ static struct aper_size_info_8 intel_8xx_sizes[7] =
 	{4, 1024, 0, 63}
 };
 
-static struct aper_size_info_16 intel_generic_sizes[7] =
+static const struct aper_size_info_16 intel_generic_sizes[7] =
 {
 	{256, 65536, 6, 0},
 	{128, 32768, 5, 32},
@@ -1398,7 +1398,7 @@ static struct aper_size_info_16 intel_generic_sizes[7] =
 	{4, 1024, 0, 63}
 };
 
-static struct aper_size_info_8 intel_830mp_sizes[4] =
+static const struct aper_size_info_8 intel_830mp_sizes[4] =
 {
 	{256, 65536, 6, 0},
 	{128, 32768, 5, 32},
@@ -1406,7 +1406,7 @@ static struct aper_size_info_8 intel_830mp_sizes[4] =
 	{32, 8192, 3, 56}
 };
 
-static struct agp_bridge_driver intel_generic_driver = {
+static const struct agp_bridge_driver intel_generic_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_generic_sizes,
 	.size_type		= U16_APER_SIZE,
@@ -1430,7 +1430,7 @@ static struct agp_bridge_driver intel_generic_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_810_driver = {
+static const struct agp_bridge_driver intel_810_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_i810_sizes,
 	.size_type		= FIXED_APER_SIZE,
@@ -1455,7 +1455,7 @@ static struct agp_bridge_driver intel_810_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_815_driver = {
+static const struct agp_bridge_driver intel_815_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_815_sizes,
 	.size_type		= U8_APER_SIZE,
@@ -1479,7 +1479,7 @@ static struct agp_bridge_driver intel_815_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_830_driver = {
+static const struct agp_bridge_driver intel_830_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_i830_sizes,
 	.size_type		= FIXED_APER_SIZE,
@@ -1504,7 +1504,7 @@ static struct agp_bridge_driver intel_830_driver = {
 	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_820_driver = {
+static const struct agp_bridge_driver intel_820_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_8xx_sizes,
 	.size_type		= U8_APER_SIZE,
@@ -1528,7 +1528,7 @@ static struct agp_bridge_driver intel_820_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_830mp_driver = {
+static const struct agp_bridge_driver intel_830mp_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_830mp_sizes,
 	.size_type		= U8_APER_SIZE,
@@ -1552,7 +1552,7 @@ static struct agp_bridge_driver intel_830mp_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_840_driver = {
+static const struct agp_bridge_driver intel_840_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_8xx_sizes,
 	.size_type		= U8_APER_SIZE,
@@ -1576,7 +1576,7 @@ static struct agp_bridge_driver intel_840_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_845_driver = {
+static const struct agp_bridge_driver intel_845_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_8xx_sizes,
 	.size_type		= U8_APER_SIZE,
@@ -1600,7 +1600,7 @@ static struct agp_bridge_driver intel_845_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_850_driver = {
+static const struct agp_bridge_driver intel_850_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_8xx_sizes,
 	.size_type		= U8_APER_SIZE,
@@ -1624,7 +1624,7 @@ static struct agp_bridge_driver intel_850_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_860_driver = {
+static const struct agp_bridge_driver intel_860_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_8xx_sizes,
 	.size_type		= U8_APER_SIZE,
@@ -1648,7 +1648,7 @@ static struct agp_bridge_driver intel_860_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_915_driver = {
+static const struct agp_bridge_driver intel_915_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_i830_sizes,
 	.size_type		= FIXED_APER_SIZE,
@@ -1673,7 +1673,7 @@ static struct agp_bridge_driver intel_915_driver = {
 	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_i965_driver = {
+static const struct agp_bridge_driver intel_i965_driver = {
        .owner                  = THIS_MODULE,
        .aperture_sizes         = intel_i830_sizes,
        .size_type              = FIXED_APER_SIZE,
@@ -1698,7 +1698,7 @@ static struct agp_bridge_driver intel_i965_driver = {
        .agp_type_to_mask_type  = intel_i830_type_to_mask_type,
 };
 
-static struct agp_bridge_driver intel_7505_driver = {
+static const struct agp_bridge_driver intel_7505_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_8xx_sizes,
 	.size_type		= U8_APER_SIZE,

@@ -272,7 +272,7 @@ static void nvidia_tlbflush(struct agp_memory *mem)
 }
 
 
-static struct aper_size_info_8 nvidia_generic_sizes[5] =
+static const struct aper_size_info_8 nvidia_generic_sizes[5] =
 {
 	{512, 131072, 7, 0},
 	{256, 65536, 6, 8},
@@ -283,13 +283,13 @@ static struct aper_size_info_8 nvidia_generic_sizes[5] =
 };
 
 
-static struct gatt_mask nvidia_generic_masks[] =
+static const struct gatt_mask nvidia_generic_masks[] =
 {
 	{ .mask = 1, .type = 0}
 };
 
 
-static struct agp_bridge_driver nvidia_driver = {
+static const struct agp_bridge_driver nvidia_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= nvidia_generic_sizes,
 	.size_type		= U8_APER_SIZE,

@@ -59,7 +59,7 @@ static struct _efficeon_private {
 	unsigned long l1_table[EFFICEON_L1_SIZE];
 } efficeon_private;
 
-static struct gatt_mask efficeon_generic_masks[] =
+static const struct gatt_mask efficeon_generic_masks[] =
 {
 	{.mask = 0x00000001, .type = 0}
 };
@@ -70,7 +70,7 @@ static inline unsigned long efficeon_mask_memory(unsigned long addr)
 	return addr | 0x00000001;
 }
 
-static struct aper_size_info_lvl2 efficeon_generic_sizes[4] =
+static const struct aper_size_info_lvl2 efficeon_generic_sizes[4] =
 {
 	{256, 65536, 0},
 	{128, 32768, 32},
@@ -309,7 +309,7 @@ static int efficeon_remove_memory(struct agp_memory * mem, off_t pg_start, int t
 }
 
 
-static struct agp_bridge_driver efficeon_driver = {
+static const struct agp_bridge_driver efficeon_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= efficeon_generic_sizes,
 	.size_type		= LVL2_APER_SIZE,
