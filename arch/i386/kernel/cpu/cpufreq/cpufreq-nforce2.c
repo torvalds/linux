@@ -373,7 +373,7 @@ static int nforce2_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static const struct cpufreq_driver nforce2_driver = {
+static struct cpufreq_driver nforce2_driver = {
 	.name = "nforce2",
 	.verify = nforce2_verify,
 	.target = nforce2_target,

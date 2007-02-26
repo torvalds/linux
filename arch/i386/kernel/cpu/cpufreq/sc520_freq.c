@@ -138,7 +138,7 @@ static struct freq_attr* sc520_freq_attr[] = {
 };
 
 
-static const struct cpufreq_driver sc520_freq_driver = {
+static struct cpufreq_driver sc520_freq_driver = {
 	.get	= sc520_freq_get_cpu_frequency,
 	.verify	= sc520_freq_verify,
 	.target	= sc520_freq_target,

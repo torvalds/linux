@@ -225,8 +225,8 @@ struct cpufreq_driver {
 #define CPUFREQ_PM_NO_WARN	0x04	/* don't warn on suspend/resume speed
 					 * mismatches */
 
-int cpufreq_register_driver(const struct cpufreq_driver *driver_data);
-int cpufreq_unregister_driver(const struct cpufreq_driver *driver_data);
+int cpufreq_register_driver(struct cpufreq_driver *driver_data);
+int cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
 
 
 void cpufreq_notify_transition(struct cpufreq_freqs *freqs, unsigned int state);

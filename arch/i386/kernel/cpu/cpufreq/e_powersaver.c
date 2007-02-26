@@ -293,7 +293,7 @@ static struct freq_attr* eps_attr[] = {
 	NULL,
 };
 
-static const struct cpufreq_driver eps_driver = {
+static struct cpufreq_driver eps_driver = {
 	.verify		= eps_verify,
 	.target		= eps_target,
 	.init		= eps_cpu_init,

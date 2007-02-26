@@ -433,7 +433,7 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
  * cpufreq_gx_init:
  *   MediaGX/Geode GX initialize cpufreq driver
  */
-static const struct cpufreq_driver gx_suspmod_driver = {
+static struct cpufreq_driver gx_suspmod_driver = {
 	.get		= gx_get_cpuspeed,
 	.verify		= cpufreq_gx_verify,
 	.target		= cpufreq_gx_target,

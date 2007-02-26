@@ -821,7 +821,7 @@ static struct freq_attr* longhaul_attr[] = {
 	NULL,
 };
 
-static const struct cpufreq_driver longhaul_driver = {
+static struct cpufreq_driver longhaul_driver = {
 	.verify	= longhaul_verify,
 	.target	= longhaul_target,
 	.get	= longhaul_get,

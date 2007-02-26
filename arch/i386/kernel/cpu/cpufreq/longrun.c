@@ -18,7 +18,7 @@
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "longrun", msg)
 
-static const struct cpufreq_driver longrun_driver;
+static struct cpufreq_driver	longrun_driver;
 
 /**
  * longrun_{low,high}_freq is needed for the conversion of cpufreq kHz
@@ -280,7 +280,7 @@ static int __init longrun_cpu_init(struct cpufreq_policy *policy)
 }
 
 
-static const struct cpufreq_driver longrun_driver = {
+static struct cpufreq_driver longrun_driver = {
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.verify		= longrun_verify_policy,
 	.setpolicy	= longrun_set_policy,

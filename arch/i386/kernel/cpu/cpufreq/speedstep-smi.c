@@ -332,7 +332,7 @@ static struct freq_attr* speedstep_attr[] = {
 	NULL,
 };
 
-static const struct cpufreq_driver speedstep_driver = {
+static struct cpufreq_driver speedstep_driver = {
 	.name		= "speedstep-smi",
 	.verify		= speedstep_verify,
 	.target		= speedstep_target,

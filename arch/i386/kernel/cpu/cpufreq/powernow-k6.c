@@ -195,7 +195,7 @@ static struct freq_attr* powernow_k6_attr[] = {
 	NULL,
 };
 
-static const struct cpufreq_driver powernow_k6_driver = {
+static struct cpufreq_driver powernow_k6_driver = {
 	.verify		= powernow_k6_verify,
 	.target		= powernow_k6_target,
 	.init		= powernow_k6_cpu_init,

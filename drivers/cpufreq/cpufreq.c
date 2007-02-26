@@ -1752,7 +1752,7 @@ static struct notifier_block __cpuinitdata cpufreq_cpu_notifier =
  * (and isn't unregistered in the meantime).
  *
  */
-int cpufreq_register_driver(const struct cpufreq_driver *driver_data)
+int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 {
 	unsigned long flags;
 	int ret;
@@ -1817,7 +1817,7 @@ EXPORT_SYMBOL_GPL(cpufreq_register_driver);
  * Returns zero if successful, and -EINVAL if the cpufreq_driver is
  * currently not initialised.
  */
-int cpufreq_unregister_driver(const struct cpufreq_driver *driver)
+int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 {
 	unsigned long flags;
 
