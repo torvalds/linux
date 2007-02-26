@@ -1700,11 +1700,11 @@ static void ql_update_lrg_bufq_prod_index(struct ql3_adapter *qdev)
 
 			qdev->lrg_buf_q_producer_index++;
 
-			if (qdev->lrg_buf_q_producer_index == NUM_LBUFQ_ENTRIES)
+			if (qdev->lrg_buf_q_producer_index == qdev->num_lbufq_entries)
 				qdev->lrg_buf_q_producer_index = 0;
 
 			if (qdev->lrg_buf_q_producer_index ==
-			    (NUM_LBUFQ_ENTRIES - 1)) {
+			    (qdev->num_lbufq_entries - 1)) {
 				lrg_buf_q_ele = qdev->lrg_buf_q_virt_addr;
 			}
 		}
@@ -1785,7 +1785,7 @@ static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 		lrg_buf_phy_addr_low = le32_to_cpu(*curr_ial_ptr);
 		lrg_buf_cb1 = &qdev->lrg_buf[qdev->lrg_buf_index];
 		qdev->lrg_buf_release_cnt++;
-		if (++qdev->lrg_buf_index == NUM_LARGE_BUFFERS) {
+		if (++qdev->lrg_buf_index == qdev->num_large_buffers) {
 			qdev->lrg_buf_index = 0;
 		}
 		curr_ial_ptr++;	/* 64-bit pointers require two incs. */
@@ -1800,7 +1800,7 @@ static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 	 * Second buffer gets sent up the stack.
 	 */
 	qdev->lrg_buf_release_cnt++;
-	if (++qdev->lrg_buf_index == NUM_LARGE_BUFFERS)
+	if (++qdev->lrg_buf_index == qdev->num_large_buffers)
 		qdev->lrg_buf_index = 0;
 	skb = lrg_buf_cb2->skb;
 
@@ -1855,7 +1855,7 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 		lrg_buf_phy_addr_low = le32_to_cpu(*curr_ial_ptr);
 		lrg_buf_cb1 = &qdev->lrg_buf[qdev->lrg_buf_index];
 		qdev->lrg_buf_release_cnt++;
-		if (++qdev->lrg_buf_index == NUM_LARGE_BUFFERS)
+		if (++qdev->lrg_buf_index == qdev->num_large_buffers)
 			qdev->lrg_buf_index = 0;
 		skb1 = lrg_buf_cb1->skb;
 		curr_ial_ptr++;	/* 64-bit pointers require two incs. */
@@ -1870,7 +1870,7 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 	lrg_buf_cb2 = &qdev->lrg_buf[qdev->lrg_buf_index];
 	skb2 = lrg_buf_cb2->skb;
 	qdev->lrg_buf_release_cnt++;
-	if (++qdev->lrg_buf_index == NUM_LARGE_BUFFERS)
+	if (++qdev->lrg_buf_index == qdev->num_large_buffers)
 		qdev->lrg_buf_index = 0;
 
 	skb_put(skb2, length);	/* Just the second buffer length here. */
@@ -2347,12 +2347,19 @@ static int ql_alloc_buffer_queues(struct ql3_adapter *qdev)
 {
 	/* Create Large Buffer Queue */
 	qdev->lrg_buf_q_size =
-	    NUM_LBUFQ_ENTRIES * sizeof(struct lrg_buf_q_entry);
+	    qdev->num_lbufq_entries * sizeof(struct lrg_buf_q_entry);
 	if (qdev->lrg_buf_q_size < PAGE_SIZE)
 		qdev->lrg_buf_q_alloc_size = PAGE_SIZE;
 	else
 		qdev->lrg_buf_q_alloc_size = qdev->lrg_buf_q_size * 2;
 
+	qdev->lrg_buf = kmalloc(qdev->num_large_buffers * sizeof(struct ql_rcv_buf_cb),GFP_KERNEL);
+	if (qdev->lrg_buf == NULL) {
+		printk(KERN_ERR PFX
+		       "%s: qdev->lrg_buf alloc failed.\n", qdev->ndev->name);
+		return -ENOMEM;
+	}
+	
 	qdev->lrg_buf_q_alloc_virt_addr =
 	    pci_alloc_consistent(qdev->pdev,
 				 qdev->lrg_buf_q_alloc_size,
@@ -2402,6 +2409,7 @@ static void ql_free_buffer_queues(struct ql3_adapter *qdev)
 		       "%s: Already done.\n", qdev->ndev->name);
 		return;
 	}
+	if(qdev->lrg_buf) kfree(qdev->lrg_buf);
 
 	pci_free_consistent(qdev->pdev,
 			    qdev->lrg_buf_q_alloc_size,
@@ -2485,7 +2493,7 @@ static void ql_free_large_buffers(struct ql3_adapter *qdev)
 	int i = 0;
 	struct ql_rcv_buf_cb *lrg_buf_cb;
 
-	for (i = 0; i < NUM_LARGE_BUFFERS; i++) {
+	for (i = 0; i < qdev->num_large_buffers; i++) {
 		lrg_buf_cb = &qdev->lrg_buf[i];
 		if (lrg_buf_cb->skb) {
 			dev_kfree_skb(lrg_buf_cb->skb);
@@ -2506,7 +2514,7 @@ static void ql_init_large_buffers(struct ql3_adapter *qdev)
 	struct ql_rcv_buf_cb *lrg_buf_cb;
 	struct bufq_addr_element *buf_addr_ele = qdev->lrg_buf_q_virt_addr;
 
-	for (i = 0; i < NUM_LARGE_BUFFERS; i++) {
+	for (i = 0; i < qdev->num_large_buffers; i++) {
 		lrg_buf_cb = &qdev->lrg_buf[i];
 		buf_addr_ele->addr_high = lrg_buf_cb->buf_phy_addr_high;
 		buf_addr_ele->addr_low = lrg_buf_cb->buf_phy_addr_low;
@@ -2523,7 +2531,7 @@ static int ql_alloc_large_buffers(struct ql3_adapter *qdev)
 	struct sk_buff *skb;
 	u64 map;
 
-	for (i = 0; i < NUM_LARGE_BUFFERS; i++) {
+	for (i = 0; i < qdev->num_large_buffers; i++) {
 		skb = netdev_alloc_skb(qdev->ndev,
 				       qdev->lrg_buffer_len);
 		if (unlikely(!skb)) {
@@ -2602,9 +2610,15 @@ static int ql_create_send_free_list(struct ql3_adapter *qdev)
 
 static int ql_alloc_mem_resources(struct ql3_adapter *qdev)
 {
-	if (qdev->ndev->mtu == NORMAL_MTU_SIZE)
+	if (qdev->ndev->mtu == NORMAL_MTU_SIZE) {
+		qdev->num_lbufq_entries = NUM_LBUFQ_ENTRIES;
 		qdev->lrg_buffer_len = NORMAL_MTU_SIZE;
+	}
 	else if (qdev->ndev->mtu == JUMBO_MTU_SIZE) {
+		/*
+		 * Bigger buffers, so less of them.
+		 */
+		qdev->num_lbufq_entries = JUMBO_NUM_LBUFQ_ENTRIES;
 		qdev->lrg_buffer_len = JUMBO_MTU_SIZE;
 	} else {
 		printk(KERN_ERR PFX
@@ -2612,6 +2626,7 @@ static int ql_alloc_mem_resources(struct ql3_adapter *qdev)
 		       qdev->ndev->name);
 		return -ENOMEM;
 	}
+	qdev->num_large_buffers = qdev->num_lbufq_entries * QL_ADDR_ELE_PER_BUFQ_ENTRY;
 	qdev->lrg_buffer_len += VLAN_ETH_HLEN + VLAN_ID_LEN + QL_HEADER_SPACE;
 	qdev->max_frame_size =
 	    (qdev->lrg_buffer_len - QL_HEADER_SPACE) + ETHERNET_CRC_SIZE;
@@ -2844,7 +2859,7 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 			   &hmem_regs->rxLargeQBaseAddrLow,
 			   LS_64BITS(qdev->lrg_buf_q_phy_addr));
 
-	ql_write_page1_reg(qdev, &hmem_regs->rxLargeQLength, NUM_LBUFQ_ENTRIES);
+	ql_write_page1_reg(qdev, &hmem_regs->rxLargeQLength, qdev->num_lbufq_entries);
 
 	ql_write_page1_reg(qdev,
 			   &hmem_regs->rxLargeBufferLength,
@@ -2866,7 +2881,7 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 
 	qdev->small_buf_q_producer_index = NUM_SBUFQ_ENTRIES - 1;
 	qdev->small_buf_release_cnt = 8;
-	qdev->lrg_buf_q_producer_index = NUM_LBUFQ_ENTRIES - 1;
+	qdev->lrg_buf_q_producer_index = qdev->num_lbufq_entries - 1;
 	qdev->lrg_buf_release_cnt = 8;
 	qdev->lrg_buf_next_free =
 	    (struct bufq_addr_element *)qdev->lrg_buf_q_virt_addr;
