@@ -1047,14 +1047,14 @@ int next_leaf(struct ctree_root *root, struct ctree_path *path)
 	return 0;
 }
 
+/* some sample code to insert,search & delete items */
+#if 0
 /* for testing only */
 int next_key(int i, int max_key) {
 	return rand() % max_key;
 	//return i;
 }
-
 int main() {
-	struct ctree_root *root;
 	struct key ins;
 	struct key last = { (u64)-1, 0, 0};
 	char *buf;
@@ -1066,6 +1066,7 @@ int main() {
 	int tree_size = 0;
 	struct ctree_path path;
 	struct ctree_super_block super;
+	struct ctree_root *root;
 
 	radix_tree_init();
 
@@ -1207,3 +1208,4 @@ int main() {
 	close_ctree(root);
 	return 0;
 }
+#endif

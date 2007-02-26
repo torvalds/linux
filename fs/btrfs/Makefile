@@ -6,11 +6,17 @@ objects = ctree.o disk-io.o radix-tree.o mkfs.o extent-tree.o print-tree.o
 #.c.o:
 #	$(CC) $(CFLAGS) -c $<
 
-ctree : $(objects)
-	gcc $(CFLAGS) -o ctree $(objects)
+all: tester debug-tree
+
+debug-tree: $(objects) debug-tree.o
+	gcc $(CFLAGS) -o debug-tree $(objects) debug-tree.o
+
+tester: $(objects) random-test.o
+	gcc $(CFLAGS) -o tester $(objects) random-test.o
 
 $(objects) : $(headers)
 
 clean :
 	rm ctree *.o
+
 
