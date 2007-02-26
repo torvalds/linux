@@ -297,27 +297,6 @@ goku_free_request(struct usb_ep *_ep, struct usb_request *_req)
 
 /*-------------------------------------------------------------------------*/
 
-#undef USE_KMALLOC
-
-/* many common platforms have dma-coherent caches, which means that it's
- * safe to use kmalloc() memory for all i/o buffers without using any
- * cache flushing calls.  (unless you're trying to share cache lines
- * between dma and non-dma activities, which is a slow idea in any case.)
- *
- * other platforms need more care, with 2.6 having a moderately general
- * solution except for the common "buffer is smaller than a page" case.
- */
-#if	defined(CONFIG_X86)
-#define USE_KMALLOC
-
-#elif	defined(CONFIG_MIPS) && !defined(CONFIG_DMA_NONCOHERENT)
-#define USE_KMALLOC
-
-#elif	defined(CONFIG_PPC) && !defined(CONFIG_NOT_COHERENT_CACHE)
-#define USE_KMALLOC
-
-#endif
-
 /* allocating buffers this way eliminates dma mapping overhead, which
  * on some platforms will mean eliminating a per-io buffer copy.  with
  * some kinds of system caches, further tweaks may still be needed.
@@ -334,11 +313,6 @@ goku_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
 		return NULL;
 	*dma = DMA_ADDR_INVALID;
 
-#if	defined(USE_KMALLOC)
-	retval = kmalloc(bytes, gfp_flags);
-	if (retval)
-		*dma = virt_to_phys(retval);
-#else
 	if (ep->dma) {
 		/* the main problem with this call is that it wastes memory
 		 * on typical 1/N page allocations: it allocates 1-N pages.
@@ -348,7 +322,6 @@ goku_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
 				bytes, dma, gfp_flags);
 	} else
 		retval = kmalloc(bytes, gfp_flags);
-#endif
 	return retval;
 }
 
@@ -356,7 +329,6 @@ static void
 goku_free_buffer(struct usb_ep *_ep, void *buf, dma_addr_t dma, unsigned bytes)
 {
 	/* free memory into the right allocator */
-#ifndef	USE_KMALLOC
 	if (dma != DMA_ADDR_INVALID) {
 		struct goku_ep	*ep;
 
@@ -365,7 +337,6 @@ goku_free_buffer(struct usb_ep *_ep, void *buf, dma_addr_t dma, unsigned bytes)
 			return;
 		dma_free_coherent(&ep->dev->pdev->dev, bytes, buf, dma);
 	} else
-#endif
 		kfree (buf);
 }
 
