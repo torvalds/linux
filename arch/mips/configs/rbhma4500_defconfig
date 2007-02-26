@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:28:07 2007
+# Tue Feb 20 21:47:39 2007
 #
 CONFIG_MIPS=y
 
@@ -560,7 +560,6 @@ CONFIG_MTD_CFI_UTIL=y
 # NAND Flash Device Drivers
 #
 # CONFIG_MTD_NAND is not set
-# CONFIG_MTD_NAND_CAFE is not set
 
 #
 # OneNAND Flash Device Drivers
@@ -576,6 +575,7 @@ CONFIG_MTD_CFI_UTIL=y
 # Plug and Play support
 #
 # CONFIG_PNP is not set
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -1191,6 +1191,7 @@ CONFIG_USB_MON=y
 # CONFIG_USB_RIO500 is not set
 # CONFIG_USB_LEGOTOWER is not set
 # CONFIG_USB_LCD is not set
+# CONFIG_USB_BERRY_CHARGE is not set
 # CONFIG_USB_LED is not set
 # CONFIG_USB_CYPRESS_CY7C63 is not set
 # CONFIG_USB_CYTHERM is not set
@@ -1462,6 +1463,7 @@ CONFIG_ENABLE_MUST_CHECK=y
 CONFIG_LOG_BUF_SHIFT=14
 CONFIG_CROSSCOMPILE=y
 CONFIG_CMDLINE=""
+CONFIG_SYS_SUPPORTS_KGDB=y
 
 #
 # Security options

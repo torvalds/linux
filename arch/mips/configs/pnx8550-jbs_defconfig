@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:28:04 2007
+# Tue Feb 20 21:47:38 2007
 #
 CONFIG_MIPS=y
 
@@ -389,6 +389,7 @@ CONFIG_FW_LOADER=y
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -962,6 +963,7 @@ CONFIG_USB_MON=y
 # CONFIG_USB_RIO500 is not set
 # CONFIG_USB_LEGOTOWER is not set
 # CONFIG_USB_LCD is not set
+# CONFIG_USB_BERRY_CHARGE is not set
 # CONFIG_USB_LED is not set
 # CONFIG_USB_CYPRESS_CY7C63 is not set
 # CONFIG_USB_CYTHERM is not set
@@ -1229,6 +1231,7 @@ CONFIG_CROSSCOMPILE=y
 CONFIG_CMDLINE="console=ttyS1,38400n8 kgdb=ttyS0 root=/dev/nfs ip=bootp"
 # CONFIG_DEBUG_STACK_USAGE is not set
 # CONFIG_KGDB is not set
+CONFIG_SYS_SUPPORTS_KGDB=y
 # CONFIG_RUNTIME_DEBUG is not set
 # CONFIG_MIPS_UNCACHED is not set
 

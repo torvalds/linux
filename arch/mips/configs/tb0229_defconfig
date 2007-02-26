@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:28:12 2007
+# Tue Feb 20 21:47:41 2007
 #
 CONFIG_MIPS=y
 
@@ -397,6 +397,7 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -530,6 +531,7 @@ CONFIG_R8169=y
 # CONFIG_TIGON3 is not set
 # CONFIG_BNX2 is not set
 CONFIG_QLA3XXX=m
+# CONFIG_ATL1 is not set
 
 #
 # Ethernet (10000 Mbit)
@@ -819,6 +821,7 @@ CONFIG_USB_MON=y
 # CONFIG_USB_RIO500 is not set
 # CONFIG_USB_LEGOTOWER is not set
 # CONFIG_USB_LCD is not set
+# CONFIG_USB_BERRY_CHARGE is not set
 # CONFIG_USB_LED is not set
 # CONFIG_USB_CYPRESS_CY7C63 is not set
 # CONFIG_USB_CYTHERM is not set

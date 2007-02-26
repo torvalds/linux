@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:27:35 2007
+# Tue Feb 20 21:47:22 2007
 #
 CONFIG_MIPS=y
 
@@ -417,6 +417,7 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -589,6 +590,7 @@ CONFIG_NET_SB1250_MAC=y
 # CONFIG_TIGON3 is not set
 # CONFIG_BNX2 is not set
 # CONFIG_QLA3XXX is not set
+# CONFIG_ATL1 is not set
 
 #
 # Ethernet (10000 Mbit)
@@ -1025,7 +1027,6 @@ CONFIG_FORCED_INLINING=y
 CONFIG_CROSSCOMPILE=y
 CONFIG_CMDLINE=""
 # CONFIG_DEBUG_STACK_USAGE is not set
-# CONFIG_KGDB is not set
 # CONFIG_SB1XXX_CORELIS is not set
 # CONFIG_RUNTIME_DEBUG is not set
 

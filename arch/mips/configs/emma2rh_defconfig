@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:27:46 2007
+# Tue Feb 20 21:47:29 2007
 #
 CONFIG_MIPS=y
 
@@ -611,7 +611,6 @@ CONFIG_MTD_PHYSMAP_BANKWIDTH=2
 # NAND Flash Device Drivers
 #
 # CONFIG_MTD_NAND is not set
-# CONFIG_MTD_NAND_CAFE is not set
 
 #
 # OneNAND Flash Device Drivers
@@ -626,6 +625,7 @@ CONFIG_MTD_PHYSMAP_BANKWIDTH=2
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -1039,6 +1039,7 @@ CONFIG_HWMON=y
 # CONFIG_SENSORS_ADM1021 is not set
 # CONFIG_SENSORS_ADM1025 is not set
 # CONFIG_SENSORS_ADM1026 is not set
+# CONFIG_SENSORS_ADM1029 is not set
 # CONFIG_SENSORS_ADM1031 is not set
 # CONFIG_SENSORS_ADM9240 is not set
 # CONFIG_SENSORS_ASB100 is not set

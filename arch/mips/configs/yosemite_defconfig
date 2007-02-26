@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:28:15 2007
+# Tue Feb 20 21:47:42 2007
 #
 CONFIG_MIPS=y
 
@@ -381,6 +381,7 @@ CONFIG_CONNECTOR=m
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -841,6 +842,7 @@ CONFIG_CROSSCOMPILE=y
 CONFIG_CMDLINE=""
 # CONFIG_DEBUG_STACK_USAGE is not set
 # CONFIG_KGDB is not set
+CONFIG_SYS_SUPPORTS_KGDB=y
 # CONFIG_RUNTIME_DEBUG is not set
 
 #

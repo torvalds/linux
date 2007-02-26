@@ -274,6 +274,7 @@ config MIPS_ATLAS
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MULTITHREADING if EXPERIMENTAL
+	select SYS_SUPPORTS_SMARTMIPS
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This enables support for the MIPS Technologies Atlas evaluation
@@ -305,6 +306,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_SMARTMIPS
 	help
 	  This enables support for the MIPS Technologies Malta evaluation
 	  board.
@@ -322,6 +324,7 @@ config MIPS_SEAD
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_SMARTMIPS
 	help
 	  This enables support for the MIPS Technologies SEAD evaluation
 	  board.
@@ -1641,6 +1644,18 @@ config 64BIT_PHYS_ADDR
 config CPU_HAS_LLSC
 	bool
 
+config CPU_HAS_SMARTMIPS
+	depends on SYS_SUPPORTS_SMARTMIPS
+	bool "Support for the SmartMIPS ASE"
+	help
+	  SmartMIPS is a extension of the MIPS32 architecture aimed at
+	  increased security at both hardware and software level for
+	  smartcards.  Enabling this option will allow proper use of the
+	  SmartMIPS instructions by Linux applications.  However a kernel with
+	  this option will not work on a MIPS core without SmartMIPS core.  If
+	  you don't know you probably don't have SmartMIPS and should say N
+	  here.
+
 config CPU_HAS_WB
 	bool
 
@@ -1702,6 +1717,9 @@ config CPU_SUPPORTS_HIGHMEM
 	bool
 
 config SYS_SUPPORTS_HIGHMEM
+	bool
+
+config SYS_SUPPORTS_SMARTMIPS
 	bool
 
 config ARCH_FLATMEM_ENABLE

@@ -174,7 +174,7 @@ static int __init mv643xx_eth_add_pds(void)
 	int ret;
 
 	get_mac(mac);
-	eth_mac_add(eth1_mac_addr, mac, 0);
+	eth_mac_add(eth0_mac_addr, mac, 0);
 	eth_mac_add(eth1_mac_addr, mac, 1);
 	ret = platform_add_devices(mv643xx_eth_pd_devs,
 			ARRAY_SIZE(mv643xx_eth_pd_devs));

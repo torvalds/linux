@@ -23,7 +23,7 @@ struct sigcontext {
 	unsigned long long	sc_pc;
 	unsigned long long	sc_regs[32];
 	unsigned long long	sc_fpregs[32];
-	unsigned int		sc_ownedfp;	/* Unused */
+	unsigned int		sc_acx;		/* Was sc_ownedfp */
 	unsigned int		sc_fpc_csr;
 	unsigned int		sc_fpc_eir;	/* Unused */
 	unsigned int		sc_used_math;
@@ -79,7 +79,7 @@ struct sigcontext32 {
 	__u64		sc_pc;
 	__u64		sc_regs[32];
 	__u64		sc_fpregs[32];
-	__u32		sc_ownedfp;	/* Unused */
+	__u32		sc_acx;		/* Only MIPS32; was sc_ownedfp */
 	__u32		sc_fpc_csr;
 	__u32		sc_fpc_eir;	/* Unused */
 	__u32		sc_used_math;

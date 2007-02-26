@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.20
-# Sun Feb 18 21:27:52 2007
+# Tue Feb 20 21:47:33 2007
 #
 CONFIG_MIPS=y
 
@@ -646,6 +646,7 @@ CONFIG_PARPORT_1284=y
 # Plug and Play support
 #
 # CONFIG_PNP is not set
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
