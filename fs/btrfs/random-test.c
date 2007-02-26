@@ -40,15 +40,16 @@ static int ins_one(struct ctree_root *root, struct radix_tree_root *radix)
 	struct key key;
 	int ret;
 	char buf[128];
+	unsigned long oid;
 	init_path(&path);
 	ret = setup_key(radix, &key, 0);
 	sprintf(buf, "str-%Lu\n", key.objectid);
 	ret = insert_item(root, &key, buf, strlen(buf));
 	if (ret)
 		goto error;
+	oid = (unsigned long)key.objectid;
 	radix_tree_preload(GFP_KERNEL);
-	ret = radix_tree_insert(radix, key.objectid,
-					(void *)key.objectid);
+	ret = radix_tree_insert(radix, oid, (void *)oid);
 	radix_tree_preload_end();
 	if (ret)
 		goto error;
