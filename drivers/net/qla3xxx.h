@@ -1094,7 +1094,6 @@ struct oal_entry {
 	u32 len;
 #define OAL_LAST_ENTRY   0x80000000	/* Last valid buffer in list. */
 #define OAL_CONT_ENTRY   0x40000000	/* points to an OAL. (continuation) */
-	u32 reserved;
 };
 
 struct oal {

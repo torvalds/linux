@@ -2122,11 +2122,13 @@ static void ql_hw_csum_setup(struct sk_buff *skb,
 
 	if (ip) {
 		if (ip->protocol == IPPROTO_TCP) {
-			mac_iocb_ptr->flags1 |= OB_3032MAC_IOCB_REQ_TC;
+			mac_iocb_ptr->flags1 |= OB_3032MAC_IOCB_REQ_TC | 
+			OB_3032MAC_IOCB_REQ_IC;
 			mac_iocb_ptr->ip_hdr_off = offset;
 			mac_iocb_ptr->ip_hdr_len = ip->ihl;
 		} else if (ip->protocol == IPPROTO_UDP) {
-			mac_iocb_ptr->flags1 |= OB_3032MAC_IOCB_REQ_UC;
+			mac_iocb_ptr->flags1 |= OB_3032MAC_IOCB_REQ_UC | 
+			OB_3032MAC_IOCB_REQ_IC;
 			mac_iocb_ptr->ip_hdr_off = offset;
 			mac_iocb_ptr->ip_hdr_len = ip->ihl;
 		}
@@ -2134,51 +2136,29 @@ static void ql_hw_csum_setup(struct sk_buff *skb,
 }
 
 /*
- * The difference between 3022 and 3032 sends:
- * 3022 only supports a simple single segment transmission.
- * 3032 supports checksumming and scatter/gather lists (fragments).
- * The 3032 supports sglists by using the 3 addr/len pairs (ALP) 
- * in the IOCB plus a chain of outbound address lists (OAL) that 
- * each contain 5 ALPs.  The last ALP of the IOCB (3rd) or OAL (5th) 
- * will used to point to an OAL when more ALP entries are required.  
- * The IOCB is always the top of the chain followed by one or more 
- * OALs (when necessary).
+ * Map the buffers for this transmit.  This will return
+ * NETDEV_TX_BUSY or NETDEV_TX_OK based on success.
  */
-static int ql3xxx_send(struct sk_buff *skb, struct net_device *ndev)
+static int ql_send_map(struct ql3_adapter *qdev,
+				struct ob_mac_iocb_req *mac_iocb_ptr,
+				struct ql_tx_buf_cb *tx_cb,
+				struct sk_buff *skb)
 {
-	struct ql3_adapter *qdev = (struct ql3_adapter *)netdev_priv(ndev);
-	struct ql3xxx_port_registers __iomem *port_regs = qdev->mem_map_registers;
-	struct ql_tx_buf_cb *tx_cb;
-	u32 tot_len = skb->len;
 	struct oal *oal;
 	struct oal_entry *oal_entry;
-	int len;
-	struct ob_mac_iocb_req *mac_iocb_ptr;
+	int len = skb_headlen(skb);
 	u64 map;
 	int seg_cnt, seg = 0;
 	int frag_cnt = (int)skb_shinfo(skb)->nr_frags;
 
-	if (unlikely(atomic_read(&qdev->tx_count) < 2)) {
-		if (!netif_queue_stopped(ndev))
-			netif_stop_queue(ndev);
-		return NETDEV_TX_BUSY;
-	}
-	tx_cb = &qdev->tx_buf[qdev->req_producer_index] ;
 	seg_cnt = tx_cb->seg_count = ql_get_seg_count((skb_shinfo(skb)->nr_frags));
 	if(seg_cnt == -1) {
 		printk(KERN_ERR PFX"%s: invalid segment count!\n",__func__);
-		return NETDEV_TX_OK;
-
+		return NETDEV_TX_BUSY;
 	}
-	mac_iocb_ptr = tx_cb->queue_entry;
-	mac_iocb_ptr->opcode = qdev->mac_ob_opcode;
-	mac_iocb_ptr->flags |= qdev->mb_bit_mask;
-	mac_iocb_ptr->transaction_id = qdev->req_producer_index;
-	mac_iocb_ptr->data_len = cpu_to_le16((u16) tot_len);
-	tx_cb->skb = skb;
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		ql_hw_csum_setup(skb, mac_iocb_ptr);
-	len = skb_headlen(skb);
+	/*
+	 * Map the skb buffer first.
+	 */
 	map = pci_map_single(qdev->pdev, skb->data, len, PCI_DMA_TODEVICE);
 	oal_entry = (struct oal_entry *)&mac_iocb_ptr->buf_addr0_low;
 	oal_entry->dma_lo = cpu_to_le32(LS_64BITS(map));
@@ -2235,6 +2215,55 @@ static int ql3xxx_send(struct sk_buff *skb, struct net_device *ndev)
 		oal_entry->len =
 		    cpu_to_le32(le32_to_cpu(oal_entry->len) | OAL_LAST_ENTRY);
 	}
+	return NETDEV_TX_OK;
+}
+
+/*
+ * The difference between 3022 and 3032 sends:
+ * 3022 only supports a simple single segment transmission.
+ * 3032 supports checksumming and scatter/gather lists (fragments).
+ * The 3032 supports sglists by using the 3 addr/len pairs (ALP) 
+ * in the IOCB plus a chain of outbound address lists (OAL) that 
+ * each contain 5 ALPs.  The last ALP of the IOCB (3rd) or OAL (5th) 
+ * will used to point to an OAL when more ALP entries are required.  
+ * The IOCB is always the top of the chain followed by one or more 
+ * OALs (when necessary).
+ */
+static int ql3xxx_send(struct sk_buff *skb, struct net_device *ndev)
+{
+	struct ql3_adapter *qdev = (struct ql3_adapter *)netdev_priv(ndev);
+	struct ql3xxx_port_registers __iomem *port_regs = qdev->mem_map_registers;
+	struct ql_tx_buf_cb *tx_cb;
+	u32 tot_len = skb->len;
+	struct ob_mac_iocb_req *mac_iocb_ptr;
+
+	if (unlikely(atomic_read(&qdev->tx_count) < 2)) {
+		if (!netif_queue_stopped(ndev))
+			netif_stop_queue(ndev);
+		return NETDEV_TX_BUSY;
+	}
+	
+	tx_cb = &qdev->tx_buf[qdev->req_producer_index] ;
+	if((tx_cb->seg_count = ql_get_seg_count((skb_shinfo(skb)->nr_frags))) == -1) {
+		printk(KERN_ERR PFX"%s: invalid segment count!\n",__func__);
+		return NETDEV_TX_OK;
+	}
+	
+	mac_iocb_ptr = tx_cb->queue_entry;
+	mac_iocb_ptr->opcode = qdev->mac_ob_opcode;
+	mac_iocb_ptr->flags = OB_MAC_IOCB_REQ_X;
+	mac_iocb_ptr->flags |= qdev->mb_bit_mask;
+	mac_iocb_ptr->transaction_id = qdev->req_producer_index;
+	mac_iocb_ptr->data_len = cpu_to_le16((u16) tot_len);
+	tx_cb->skb = skb;
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		ql_hw_csum_setup(skb, mac_iocb_ptr);
+	
+	if(ql_send_map(qdev,mac_iocb_ptr,tx_cb,skb) != NETDEV_TX_OK) {
+		printk(KERN_ERR PFX"%s: Could not map the segments!\n",__func__);
+		return NETDEV_TX_BUSY;
+	}
+	
 	wmb();
 	qdev->req_producer_index++;
 	if (qdev->req_producer_index == NUM_REQ_Q_ENTRIES)
