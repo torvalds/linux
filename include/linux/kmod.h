@@ -28,10 +28,8 @@
 #ifdef CONFIG_KMOD
 /* modprobe exit status on success, -ve on error.  Return value
  * usually useless though. */
-extern void kmod_sysfs_init(void);
 extern int request_module(const char * name, ...) __attribute__ ((format (printf, 1, 2)));
 #else
-static inline void kmod_sysfs_init(void) {};
 static inline int request_module(const char * name, ...) { return -ENOSYS; }
 #endif
 

@@ -36,8 +36,6 @@
 #include <linux/resource.h>
 #include <asm/uaccess.h>
 
-extern int delete_module(const char *name, unsigned int flags);
-
 extern int max_threads;
 
 static struct workqueue_struct *khelper_wq;
@@ -48,7 +46,6 @@ static struct workqueue_struct *khelper_wq;
 	modprobe_path is set via /proc/sys.
 */
 char modprobe_path[KMOD_PATH_LEN] = "/sbin/modprobe";
-struct module_kobject kmod_mk;
 
 /**
  * request_module - try to load a kernel module
@@ -78,23 +75,12 @@ int request_module(const char *fmt, ...)
 	static atomic_t kmod_concurrent = ATOMIC_INIT(0);
 #define MAX_KMOD_CONCURRENT 50	/* Completely arbitrary value - KAO */
 	static int kmod_loop_msg;
-	char modalias[16 + MODULE_NAME_LEN] = "MODALIAS=";
-	char *uevent_envp[2] = {
-		modalias,
-		NULL
-	};
 
 	va_start(args, fmt);
 	ret = vsnprintf(module_name, MODULE_NAME_LEN, fmt, args);
 	va_end(args);
 	if (ret >= MODULE_NAME_LEN)
 		return -ENAMETOOLONG;
-
-	strcpy(&modalias[strlen("MODALIAS=")], module_name);
-	kobject_uevent_env(&kmod_mk.kobj, KOBJ_CHANGE, uevent_envp);
-
-	if (modprobe_path[0] == '\0')
-		goto out;
 
 	/* If modprobe needs a service that is in a module, we get a recursive
 	 * loop.  Limit the number of running kmod threads to max_threads/2 or
@@ -122,115 +108,9 @@ int request_module(const char *fmt, ...)
 
 	ret = call_usermodehelper(modprobe_path, argv, envp, 1);
 	atomic_dec(&kmod_concurrent);
-out:
 	return ret;
 }
 EXPORT_SYMBOL(request_module);
-
-static ssize_t store_mod_request(struct module_attribute *mattr,
-				 struct module *mod,
-			      const char *buffer, size_t count)
-{
-	char name[MODULE_NAME_LEN];
-	int ret;
-
-	if (count < 1 || count+1 > MODULE_NAME_LEN)
-		return -EINVAL;
-	memcpy(name, buffer, count);
-	name[count] = '\0';
-	if (name[count-1] == '\n')
-		name[count-1] = '\0';
-
-	ret = request_module(name);
-	if (ret < 0)
-		return ret;
-	return count;
-}
-
-static struct module_attribute mod_request = {
-	.attr = { .name = "mod_request", .mode = S_IWUSR, .owner = THIS_MODULE },
-	.store = store_mod_request,
-};
-
-#ifdef CONFIG_MODULE_UNLOAD
-static ssize_t store_mod_unload(struct module_attribute *mattr,
-			    struct module *mod,
-			    const char *buffer, size_t count)
-{
-	char name[MODULE_NAME_LEN];
-	int ret;
-
-	if (count < 1 || count+1 > MODULE_NAME_LEN)
-		return -EINVAL;
-	memcpy(name, buffer, count);
-	name[count] = '\0';
-	if (name[count-1] == '\n')
-		name[count-1] = '\0';
-
-	ret = delete_module(name, O_NONBLOCK);
-	if (ret < 0)
-		return ret;
-	return count;
-}
-
-static struct module_attribute mod_unload = {
-	.attr = { .name = "mod_unload", .mode = S_IWUSR, .owner = THIS_MODULE },
-	.store = store_mod_unload,
-};
-#endif
-
-static ssize_t show_mod_request_helper(struct module_attribute *mattr,
-				       struct module *mod,
-				       char *buffer)
-{
-	return sprintf(buffer, "%s\n", modprobe_path);
-}
-
-static ssize_t store_mod_request_helper(struct module_attribute *mattr,
-					struct module *mod,
-					const char *buffer, size_t count)
-{
-	if (count < 1 || count+1 > KMOD_PATH_LEN)
-		return -EINVAL;
-	memcpy(modprobe_path, buffer, count);
-	modprobe_path[count] = '\0';
-	if (modprobe_path[count-1] == '\n')
-		modprobe_path[count-1] = '\0';
-	return count;
-}
-
-static struct module_attribute mod_request_helper = {
-	.attr = {
-		.name = "mod_request_helper",
-		.mode = S_IWUSR | S_IRUGO,
-		.owner = THIS_MODULE
-	},
-	.show = show_mod_request_helper,
-	.store = store_mod_request_helper,
-};
-
-void __init kmod_sysfs_init(void)
-{
-	int ret;
-
-	kmod_mk.mod = THIS_MODULE;
-	kobj_set_kset_s(&kmod_mk, module_subsys);
-	kobject_set_name(&kmod_mk.kobj, "kmod");
-	kobject_init(&kmod_mk.kobj);
-	ret = kobject_add(&kmod_mk.kobj);
-	if (ret < 0)
-		goto out;
-
-	ret = sysfs_create_file(&kmod_mk.kobj, &mod_request_helper.attr);
-	ret = sysfs_create_file(&kmod_mk.kobj, &mod_request.attr);
-#ifdef CONFIG_MODULE_UNLOAD
-	ret = sysfs_create_file(&kmod_mk.kobj, &mod_unload.attr);
-#endif
-
-	kobject_uevent(&kmod_mk.kobj, KOBJ_ADD);
-out:
-	return;
-}
 #endif /* CONFIG_KMOD */
 
 struct subprocess_info {
