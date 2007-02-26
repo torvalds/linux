@@ -2188,7 +2188,6 @@ static int ql3xxx_send(struct sk_buff *skb, struct net_device *ndev)
 
 	}
 	mac_iocb_ptr = tx_cb->queue_entry;
-	memset((void *)mac_iocb_ptr, 0, sizeof(struct ob_mac_iocb_req));
 	mac_iocb_ptr->opcode = qdev->mac_ob_opcode;
 	mac_iocb_ptr->flags |= qdev->mb_bit_mask;
 	mac_iocb_ptr->transaction_id = qdev->req_producer_index;
