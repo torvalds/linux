@@ -364,6 +364,7 @@ static int __init ts102_uctrl_init(void)
 	struct linux_prom_irqs tmp_irq[2];
         unsigned int vaddr[2] = { 0, 0 };
 	int tmpnode, uctrlnode = prom_getchild(prom_root_node);
+	int err;
 
 	tmpnode = prom_searchsiblings(uctrlnode, "obio");
 
@@ -389,7 +390,12 @@ static int __init ts102_uctrl_init(void)
 	if(!driver->irq) 
 		driver->irq = tmp_irq[0].pri;
 
-	request_irq(driver->irq, uctrl_interrupt, 0, "uctrl", driver);
+	err = request_irq(driver->irq, uctrl_interrupt, 0, "uctrl", driver);
+	if (err) {
+		printk("%s: unable to register irq %d\n",
+		       __FUNCTION__, driver->irq);
+		return err;
+	}
 
 	if (misc_register(&uctrl_dev)) {
 		printk("%s: unable to get misc minor %d\n",

@@ -187,19 +187,20 @@ static int wait_for_pin(struct bbc_i2c_bus *bp, u8 *status)
 	bp->waiting = 1;
 	add_wait_queue(&bp->wq, &wait);
 	while (limit-- > 0) {
-		u8 val;
+		unsigned long val;
 
-		set_current_state(TASK_INTERRUPTIBLE);
-		*status = val = readb(bp->i2c_control_regs + 0);
-		if ((val & I2C_PCF_PIN) == 0) {
+		val = wait_event_interruptible_timeout(
+				bp->wq,
+				(((*status = readb(bp->i2c_control_regs + 0))
+				  & I2C_PCF_PIN) == 0),
+				msecs_to_jiffies(250));
+		if (val > 0) {
 			ret = 0;
 			break;
 		}
-		msleep_interruptible(250);
 	}
 	remove_wait_queue(&bp->wq, &wait);
 	bp->waiting = 0;
-	current->state = TASK_RUNNING;
 
 	return ret;
 }
@@ -340,7 +341,7 @@ static irqreturn_t bbc_i2c_interrupt(int irq, void *dev_id)
 	 */
 	if (bp->waiting &&
 	    !(readb(bp->i2c_control_regs + 0x0) & I2C_PCF_PIN))
-		wake_up(&bp->wq);
+		wake_up_interruptible(&bp->wq);
 
 	return IRQ_HANDLED;
 }

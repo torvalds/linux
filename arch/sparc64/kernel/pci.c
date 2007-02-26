@@ -668,7 +668,7 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 
 void arch_teardown_msi_irq(unsigned int virt_irq)
 {
-	struct msi_desc *entry = get_irq_data(virt_irq);
+	struct msi_desc *entry = get_irq_msi(virt_irq);
 	struct pci_dev *pdev = entry->dev;
 	struct pcidev_cookie *pcp = pdev->sysdata;
 	struct pci_pbm_info *pbm = pcp->pbm;
