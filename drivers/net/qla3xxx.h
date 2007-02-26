@@ -1194,7 +1194,7 @@ struct ql3_adapter {
 	struct net_rsp_iocb *rsp_current;
 	u16 rsp_consumer_index;
 	u16 reserved_06;
-	u32 *prsp_producer_index;
+	volatile u32 *prsp_producer_index;
 	u32 rsp_producer_index_phy_addr_high;
 	u32 rsp_producer_index_phy_addr_low;
 
