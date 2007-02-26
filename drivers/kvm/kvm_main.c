@@ -2540,7 +2540,7 @@ static __init int kvm_init(void)
 	bad_page_address = page_to_pfn(bad_page) << PAGE_SHIFT;
 	memset(__va(bad_page_address), 0, PAGE_SIZE);
 
-	return r;
+	return 0;
 
 out:
 	kvm_exit_debug();
