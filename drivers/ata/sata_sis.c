@@ -309,7 +309,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		case 0x10:
 			ppi[1] = &sis_info133;
 			break;
-			
+
 		case 0x30:
 			ppi[0] = &sis_info133;
 			break;

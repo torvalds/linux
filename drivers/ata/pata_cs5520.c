@@ -348,7 +348,7 @@ static int cs5520_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 	pci_save_state(pdev);
 	return 0;
 }
- 
+
 /* For now keep DMA off. We can set it for all but A rev CS5510 once the
    core ATA code can handle it */
 

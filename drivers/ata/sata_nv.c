@@ -669,18 +669,18 @@ static unsigned int nv_adma_tf_to_cpb(struct ata_taskfile *tf, __le16 *cpb)
 			cpb[idx++] = cpu_to_le16((ATA_REG_ERR    << 8) | tf->feature);
 		} else
 			cpb[idx++] = cpu_to_le16((ATA_REG_ERR    << 8) | tf->feature | WNB);
-			
+
 		cpb[idx++] = cpu_to_le16((ATA_REG_NSECT  << 8) | tf->nsect);
 		cpb[idx++] = cpu_to_le16((ATA_REG_LBAL   << 8) | tf->lbal);
 		cpb[idx++] = cpu_to_le16((ATA_REG_LBAM   << 8) | tf->lbam);
 		cpb[idx++] = cpu_to_le16((ATA_REG_LBAH   << 8) | tf->lbah);
 	}
-	
+
 	if(tf->flags & ATA_TFLAG_DEVICE)
 		cpb[idx++] = cpu_to_le16((ATA_REG_DEVICE << 8) | tf->device);
 
 	cpb[idx++] = cpu_to_le16((ATA_REG_CMD    << 8) | tf->command | CMDEND);
-	
+
 	while(idx < 12)
 		cpb[idx++] = cpu_to_le16(IGN);
 
@@ -1402,7 +1402,7 @@ static void nv_adma_error_handler(struct ata_port *ap)
 		void __iomem *mmio = pp->ctl_block;
 		int i;
 		u16 tmp;
-		
+
 		if(ata_tag_valid(ap->active_tag) || ap->sactive) {
 			u32 notifier = readl(mmio + NV_ADMA_NOTIFIER);
 			u32 notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);

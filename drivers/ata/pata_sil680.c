@@ -157,10 +157,10 @@ static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	pci_read_config_word(pdev, tfaddr-2, &reg);
 	pci_read_config_byte(pdev, addr_mask, &mode);
-	
+
 	reg &= ~0x0200;			/* Clear IORDY */
 	mode &= ~(3 << port_shift);	/* Clear IORDY and DMA bits */
-	
+
 	if (ata_pio_need_iordy(adev)) {
 		reg |= 0x0200;		/* Enable IORDY */
 		mode |= 1 << port_shift;

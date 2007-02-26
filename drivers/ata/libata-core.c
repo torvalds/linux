@@ -1719,7 +1719,7 @@ int ata_dev_configure(struct ata_device *dev)
 					"%s: %s, %s, max %s\n",
 					revbuf,	modelbuf, fwrevbuf,
 					ata_mode_string(xfer_mask));
-				ata_dev_printk(dev, KERN_INFO, 
+				ata_dev_printk(dev, KERN_INFO,
 					"%Lu sectors, multi %u, CHS %u/%u/%u\n",
 					(unsigned long long)dev->n_sectors,
 					dev->multi_count, dev->cylinders,

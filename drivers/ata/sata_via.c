@@ -60,7 +60,7 @@ enum {
 	SATA_PATA_SHARING	= 0x49, /* PATA/SATA sharing func ctrl */
 	PATA_UDMA_TIMING	= 0xB3, /* PATA timing for DMA/ cable detect */
 	PATA_PIO_TIMING		= 0xAB, /* PATA timing register */
-	
+
 	PORT0			= (1 << 1),
 	PORT1			= (1 << 0),
 	ALL_PORTS		= PORT0 | PORT1,
@@ -151,7 +151,7 @@ static const struct ata_port_operations vt6420_sata_ops = {
 
 static const struct ata_port_operations vt6421_pata_ops = {
 	.port_disable		= ata_port_disable,
-	
+
 	.set_piomode		= vt6421_set_pio_mode,
 	.set_dmamode		= vt6421_set_dma_mode,
 
@@ -185,7 +185,7 @@ static const struct ata_port_operations vt6421_pata_ops = {
 
 static const struct ata_port_operations vt6421_sata_ops = {
 	.port_disable		= ata_port_disable,
-	
+
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,

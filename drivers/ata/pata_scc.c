@@ -233,7 +233,7 @@ static void scc_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	void __iomem *tdvhsel_port = ctrl_base + SCC_CTL_TDVHSEL;
 	int offset, idx;
 
-	if (in_be32(cckctrl_port) & CCKCTRL_ATACLKOEN) 
+	if (in_be32(cckctrl_port) & CCKCTRL_ATACLKOEN)
 		offset = 1;	/* 133MHz */
 	else
 		offset = 0;	/* 100MHz */
@@ -720,7 +720,7 @@ static u8 scc_bmdma_status (struct ata_port *ap)
 
 	host_stat = in_be32(mmio + SCC_DMA_STATUS);
 
-	/* Workaround for PTERADD: emulate DMA_INTR when 
+	/* Workaround for PTERADD: emulate DMA_INTR when
 	 * - IDE_STATUS[ERR] = 1
 	 * - INT_STATUS[INTRQ] = 1
 	 * - DMA_STATUS[IORACTA] = 1
