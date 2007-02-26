@@ -264,9 +264,7 @@ enum MonitorModeSelector {
 #define COMMAND_ACK_DELAY   13         // number of RTC ticks to wait for an acknowledgement
                                        //    from the card after sending a command.
 
-#define FIRMWARE_IN_THE_KERNEL
-
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_KORG1212_FIRMWARE_IN_KERNEL
 #include "korg1212-firmware.h"
 static const struct firmware static_dsp_code = {
 	.data = (u8 *)dspCode,
@@ -2345,7 +2343,7 @@ static int __devinit snd_korg1212_create(struct snd_card *card, struct pci_dev *
 	err = request_firmware(&dsp_code, "korg/k1212.dsp", &pci->dev);
 	if (err < 0) {
 		release_firmware(dsp_code);
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_KORG1212_FIRMWARE_IN_KERNEL
 		dsp_code = &static_dsp_code;
 #else
 		snd_printk(KERN_ERR "firmware not available\n");
@@ -2358,7 +2356,7 @@ static int __devinit snd_korg1212_create(struct snd_card *card, struct pci_dev *
 				dsp_code->size, &korg1212->dma_dsp) < 0) {
 		snd_printk(KERN_ERR "korg1212: cannot allocate dsp code memory (%zd bytes)\n", dsp_code->size);
                 snd_korg1212_free(korg1212);
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_KORG1212_FIRMWARE_IN_KERNEL
 		if (dsp_code != &static_dsp_code)
 #endif
 			release_firmware(dsp_code);
@@ -2371,7 +2369,7 @@ static int __devinit snd_korg1212_create(struct snd_card *card, struct pci_dev *
 
 	memcpy(korg1212->dma_dsp.area, dsp_code->data, dsp_code->size);
 
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_KORG1212_FIRMWARE_IN_KERNEL
 	if (dsp_code != &static_dsp_code)
 #endif
 		release_firmware(dsp_code);

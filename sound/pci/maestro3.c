@@ -2101,9 +2101,7 @@ static int __devinit snd_m3_mixer(struct snd_m3 *chip)
 }
 
 
-#define FIRMWARE_IN_THE_KERNEL
-
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_MAESTRO3_FIRMWARE_IN_KERNEL
 
 /*
  * DSP Code images
@@ -2242,7 +2240,7 @@ static const struct firmware assp_minisrc = {
 	.size = sizeof assp_minisrc_image
 };
 
-#endif /* FIRMWARE_IN_THE_KERNEL */
+#endif /* CONFIG_SND_MAESTRO3_FIRMWARE_IN_KERNEL */
 
 #ifdef __LITTLE_ENDIAN
 static inline void snd_m3_convert_from_le(const struct firmware *fw) { }
@@ -2550,11 +2548,11 @@ static int snd_m3_free(struct snd_m3 *chip)
 	if (chip->iobase)
 		pci_release_regions(chip->pci);
 
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_MAESTRO3_FIRMWARE_IN_KERNEL
 	if (chip->assp_kernel_image != &assp_kernel)
 #endif
 		release_firmware(chip->assp_kernel_image);
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_MAESTRO3_FIRMWARE_IN_KERNEL
 	if (chip->assp_minisrc_image != &assp_minisrc)
 #endif
 		release_firmware(chip->assp_minisrc_image);
@@ -2750,7 +2748,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	err = request_firmware(&chip->assp_kernel_image,
 			       "ess/maestro3_assp_kernel.fw", &pci->dev);
 	if (err < 0) {
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_MAESTRO3_FIRMWARE_IN_KERNEL
 		chip->assp_kernel_image = &assp_kernel;
 #else
 		snd_m3_free(chip);
@@ -2762,7 +2760,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	err = request_firmware(&chip->assp_minisrc_image,
 			       "ess/maestro3_assp_minisrc.fw", &pci->dev);
 	if (err < 0) {
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_MAESTRO3_FIRMWARE_IN_KERNEL
 		chip->assp_minisrc_image = &assp_minisrc;
 #else
 		snd_m3_free(chip);

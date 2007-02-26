@@ -690,9 +690,7 @@ static int snd_sb_csp_load_user(struct snd_sb_csp * p, const unsigned char __use
 	return err;
 }
 
-#define FIRMWARE_IN_THE_KERNEL
-
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_SB16_CSP_FIRMWARE_IN_KERNEL
 #include "sb16_csp_codecs.h"
 
 static const struct firmware snd_sb_csp_static_programs[] = {
@@ -724,7 +722,7 @@ static int snd_sb_csp_firmware_load(struct snd_sb_csp *p, int index, int flags)
 		if (err >= 0)
 			p->csp_programs[index] = program;
 		else {
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_SB16_CSP_FIRMWARE_IN_KERNEL
 			program = &snd_sb_csp_static_programs[index];
 #else
 			return err;

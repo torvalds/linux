@@ -35,9 +35,7 @@
 
 #define WAIT_IDLE	0xff
 
-#define FIRMWARE_IN_THE_KERNEL
-
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
 #include "yss225.c"
 static const struct firmware yss225_registers_firmware = {
 	.data = (u8 *)yss225_registers,
@@ -266,7 +264,7 @@ snd_wavefront_fx_start (snd_wavefront_t *dev)
 	err = request_firmware(&firmware, "yamaha/yss225_registers.bin",
 			       dev->card->dev);
 	if (err < 0) {
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
 		firmware = &yss225_registers_firmware;
 #else
 		err = -1;
@@ -295,7 +293,7 @@ snd_wavefront_fx_start (snd_wavefront_t *dev)
 	err = 0;
 
 out:
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
 	if (firmware != &yss225_registers_firmware)
 #endif
 		release_firmware(firmware);
