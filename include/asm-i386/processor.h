@@ -257,14 +257,6 @@ static inline void __mwait(unsigned long eax, unsigned long ecx)
 		: :"a" (eax), "c" (ecx));
 }
 
-static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
-{
-	/* "mwait %eax,%ecx;" */
-	asm volatile(
-		"sti; .byte 0x0f,0x01,0xc9;"
-		: :"a" (eax), "c" (ecx));
-}
-
 extern void mwait_idle_with_hints(unsigned long eax, unsigned long ecx);
 
 /* from system description table in BIOS.  Mostly for MCA use, but

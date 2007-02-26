@@ -38,7 +38,6 @@
 #include <asm/hpet.h>
 #include <asm/i8253.h>
 #include <asm/nmi.h>
-#include <asm/idle.h>
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>
@@ -561,7 +560,6 @@ void fastcall smp_apic_timer_interrupt(struct pt_regs *regs)
 	 * Besides, if we don't timer interrupts ignore the global
 	 * interrupt lock, which is the WrongThing (tm) to do.
 	 */
-	exit_idle();
 	irq_enter();
 	local_apic_timer_interrupt();
 	irq_exit();
@@ -1221,7 +1219,6 @@ void smp_spurious_interrupt(struct pt_regs *regs)
 {
 	unsigned long v;
 
-	exit_idle();
 	irq_enter();
 	/*
 	 * Check if this really is a spurious interrupt and ACK it
@@ -1245,7 +1242,6 @@ void smp_error_interrupt(struct pt_regs *regs)
 {
 	unsigned long v, v1;
 
-	exit_idle();
 	irq_enter();
 	/* First tickle the hardware, only then report what went on. -- REW */
 	v = apic_read(APIC_ESR);

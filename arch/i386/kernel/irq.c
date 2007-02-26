@@ -18,8 +18,6 @@
 #include <linux/cpu.h>
 #include <linux/delay.h>
 
-#include <asm/idle.h>
-
 #include <asm/apic.h>
 #include <asm/uaccess.h>
 
@@ -77,7 +75,6 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 	union irq_ctx *curctx, *irqctx;
 	u32 *isp;
 #endif
-	exit_idle();
 
 	if (unlikely((unsigned)irq >= NR_IRQS)) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
