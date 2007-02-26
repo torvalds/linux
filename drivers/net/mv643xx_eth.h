@@ -42,17 +42,6 @@
 #define MAX_DESCS_PER_SKB	1
 #endif
 
-/*
- * The MV643XX HW requires 8-byte alignment.  However, when I/O
- * is non-cache-coherent, we need to ensure that the I/O buffers
- * we use don't share cache lines with other data.
- */
-#if defined(CONFIG_DMA_NONCOHERENT) || defined(CONFIG_NOT_COHERENT_CACHE)
-#define ETH_DMA_ALIGN		L1_CACHE_BYTES
-#else
-#define ETH_DMA_ALIGN		8
-#endif
-
 #define ETH_VLAN_HLEN		4
 #define ETH_FCS_LEN		4
 #define ETH_HW_IP_ALIGN		2		/* hw aligns IP header */

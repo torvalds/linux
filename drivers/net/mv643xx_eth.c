@@ -147,13 +147,13 @@ static void mv643xx_eth_rx_refill_descs(struct net_device *dev)
 	int unaligned;
 
 	while (mp->rx_desc_count < mp->rx_ring_size) {
-		skb = dev_alloc_skb(ETH_RX_SKB_SIZE + ETH_DMA_ALIGN);
+		skb = dev_alloc_skb(ETH_RX_SKB_SIZE + dma_get_cache_alignment());
 		if (!skb)
 			break;
 		mp->rx_desc_count++;
-		unaligned = (u32)skb->data & (ETH_DMA_ALIGN - 1);
+		unaligned = (u32)skb->data & (dma_get_cache_alignment() - 1);
 		if (unaligned)
-			skb_reserve(skb, ETH_DMA_ALIGN - unaligned);
+			skb_reserve(skb, dma_get_cache_alignment() - unaligned);
 		pkt_info.cmd_sts = ETH_RX_ENABLE_INTERRUPT;
 		pkt_info.byte_cnt = ETH_RX_SKB_SIZE;
 		pkt_info.buf_ptr = dma_map_single(NULL, skb->data,
