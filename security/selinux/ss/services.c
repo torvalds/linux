@@ -609,6 +609,9 @@ int security_sid_to_context(u32 sid, char **scontext, u32 *scontext_len)
 	struct context *context;
 	int rc = 0;
 
+	*scontext = NULL;
+	*scontext_len  = 0;
+
 	if (!ss_initialized) {
 		if (sid <= SECINITSID_NUM) {
 			char *scontextp;
