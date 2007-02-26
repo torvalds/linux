@@ -113,7 +113,7 @@ struct ctree_root *open_ctree(char *filename, struct ctree_super_block *super)
 	int fp;
 	int ret;
 
-	fp = open(filename, O_CREAT | O_RDWR);
+	fp = open(filename, O_CREAT | O_RDWR, 0600);
 	if (fp < 0) {
 		free(root);
 		return NULL;
