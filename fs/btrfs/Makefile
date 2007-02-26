@@ -17,6 +17,6 @@ tester: $(objects) random-test.o
 $(objects) : $(headers)
 
 clean :
-	rm ctree *.o
+	rm debug-tree tester *.o
 
 

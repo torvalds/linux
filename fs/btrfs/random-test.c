@@ -42,7 +42,7 @@ static int ins_one(struct ctree_root *root, struct radix_tree_root *radix)
 	char buf[128];
 	init_path(&path);
 	ret = setup_key(radix, &key, 0);
-	sprintf(buf, "str-%lu\n", key.objectid);
+	sprintf(buf, "str-%Lu\n", key.objectid);
 	ret = insert_item(root, &key, buf, strlen(buf));
 	if (ret)
 		goto error;
@@ -54,7 +54,7 @@ static int ins_one(struct ctree_root *root, struct radix_tree_root *radix)
 		goto error;
 	return ret;
 error:
-	printf("failed to insert %lu\n", key.objectid);
+	printf("failed to insert %Lu\n", key.objectid);
 	return -1;
 }
 
@@ -68,10 +68,10 @@ static int insert_dup(struct ctree_root *root, struct radix_tree_root *radix)
 	ret = setup_key(radix, &key, 1);
 	if (ret < 0)
 		return 0;
-	sprintf(buf, "str-%lu\n", key.objectid);
+	sprintf(buf, "str-%Lu\n", key.objectid);
 	ret = insert_item(root, &key, buf, strlen(buf));
 	if (ret != -EEXIST) {
-		printf("insert on %lu gave us %d\n", key.objectid, ret);
+		printf("insert on %Lu gave us %d\n", key.objectid, ret);
 		return 1;
 	}
 	return 0;
@@ -99,7 +99,7 @@ static int del_one(struct ctree_root *root, struct radix_tree_root *radix)
 		goto error;
 	return 0;
 error:
-	printf("failed to delete %lu\n", key.objectid);
+	printf("failed to delete %Lu\n", key.objectid);
 	return -1;
 }
 
@@ -118,7 +118,7 @@ static int lookup_item(struct ctree_root *root, struct radix_tree_root *radix)
 		goto error;
 	return 0;
 error:
-	printf("unable to find key %lu\n", key.objectid);
+	printf("unable to find key %Lu\n", key.objectid);
 	return -1;
 }
 
@@ -137,7 +137,7 @@ static int lookup_enoent(struct ctree_root *root, struct radix_tree_root *radix)
 		goto error;
 	return 0;
 error:
-	printf("able to find key that should not exist %lu\n", key.objectid);
+	printf("able to find key that should not exist %Lu\n", key.objectid);
 	return -1;
 }
 
@@ -148,7 +148,7 @@ static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
 {
 	struct ctree_path path;
 	struct key key;
-	u64 found;
+	unsigned long found;
 	int ret;
 	int slot;
 	int i;

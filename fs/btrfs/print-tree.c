@@ -11,19 +11,19 @@ void print_leaf(struct leaf *l)
 	int nr = l->header.nritems;
 	struct item *item;
 	struct extent_item *ei;
-	printf("leaf %lu total ptrs %d free space %d\n", l->header.blocknr, nr,
+	printf("leaf %Lu total ptrs %d free space %d\n", l->header.blocknr, nr,
 	       leaf_free_space(l));
 	fflush(stdout);
 	for (i = 0 ; i < nr ; i++) {
 		item = l->items + i;
-		printf("\titem %d key (%lu %u %lu) itemoff %d itemsize %d\n",
+		printf("\titem %d key (%Lu %u %Lu) itemoff %d itemsize %d\n",
 			i,
 			item->key.objectid, item->key.flags, item->key.offset,
 			item->offset, item->size);
 		fflush(stdout);
 		printf("\t\titem data %.*s\n", item->size, l->data+item->offset);
 		ei = (struct extent_item *)(l->data + item->offset);
-		printf("\t\textent data %u %lu\n", ei->refs, ei->owner);
+		printf("\t\textent data %u %Lu\n", ei->refs, ei->owner);
 		fflush(stdout);
 	}
 }
@@ -43,12 +43,12 @@ void print_tree(struct ctree_root *root, struct tree_buffer *t)
 		print_leaf((struct leaf *)c);
 		return;
 	}
-	printf("node %lu level %d total ptrs %d free spc %lu\n", t->blocknr,
+	printf("node %Lu level %d total ptrs %d free spc %lu\n", t->blocknr,
 	        node_level(c->header.flags), c->header.nritems,
 		NODEPTRS_PER_BLOCK - c->header.nritems);
 	fflush(stdout);
 	for (i = 0; i < nr; i++) {
-		printf("\tkey %d (%lu %u %lu) block %lu\n",
+		printf("\tkey %d (%Lu %u %Lu) block %Lu\n",
 		       i,
 		       c->keys[i].objectid, c->keys[i].flags, c->keys[i].offset,
 		       c->blockptrs[i]);
