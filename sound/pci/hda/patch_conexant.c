@@ -629,10 +629,12 @@ static int cxt5045_hp_master_vol_put(struct snd_kcontrol *kcontrol,
 static void cxt5045_hp_automute(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	unsigned int bits = (spec->hp_present || !spec->cur_eapd) ? 0x80 : 0;
+	unsigned int bits;
 
 	spec->hp_present = snd_hda_codec_read(codec, 0x11, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+
+	bits = (spec->hp_present || !spec->cur_eapd) ? 0x80 : 0;
 	snd_hda_codec_amp_update(codec, 0x10, 0, HDA_OUTPUT, 0, 0x80, bits);
 	snd_hda_codec_amp_update(codec, 0x10, 1, HDA_OUTPUT, 0, 0x80, bits);
 }
@@ -979,10 +981,12 @@ static int cxt5047_hp_master_vol_put(struct snd_kcontrol *kcontrol,
 static void cxt5047_hp_automute(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	unsigned int bits = spec->hp_present || !spec->cur_eapd ? 0x80 : 0;
+	unsigned int bits;
 
 	spec->hp_present = snd_hda_codec_read(codec, 0x13, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+
+	bits = (spec->hp_present || !spec->cur_eapd) ? 0x80 : 0;
 	snd_hda_codec_amp_update(codec, 0x1d, 0, HDA_OUTPUT, 0, 0x80, bits);
 	snd_hda_codec_amp_update(codec, 0x1d, 1, HDA_OUTPUT, 0, 0x80, bits);
 	/* Mute/Unmute PCM 2 for good measure - some systems need this */
