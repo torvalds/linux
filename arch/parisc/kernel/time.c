@@ -200,6 +200,11 @@ int update_cr16_clocksource(void)
 
 	return change;
 }
+#else
+int update_cr16_clocksource(void)
+{
+	return 0; /* no change */
+}
 #endif /*CONFIG_SMP*/
 
 void __init start_cpu_itimer(void)
