@@ -525,15 +525,17 @@ require use of the stronger protocol */
  */
 GLOBAL_EXTERN struct smbUidInfo *GlobalUidList[UID_HASH];
 
-GLOBAL_EXTERN struct list_head GlobalServerList; /* BB not implemented yet */
+/* GLOBAL_EXTERN struct list_head GlobalServerList; BB not implemented yet */
 GLOBAL_EXTERN struct list_head GlobalSMBSessionList;
 GLOBAL_EXTERN struct list_head GlobalTreeConnectionList;
 GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;  /* protects list inserts on 3 above */
 
 GLOBAL_EXTERN struct list_head GlobalOplock_Q;
 
-GLOBAL_EXTERN struct list_head GlobalDnotifyReqList; /* Outstanding dir notify requests */
-GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q;/* DirNotify response queue */
+/* Outstanding dir notify requests */
+GLOBAL_EXTERN struct list_head GlobalDnotifyReqList;
+/* DirNotify response queue */
+GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q;
 
 /*
  * Global transaction id (XID) information

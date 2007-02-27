@@ -1134,7 +1134,7 @@ static int cifs_truncate_page(struct address_space *mapping, loff_t from)
 	return rc;
 }
 
-int cifs_vmtruncate(struct inode * inode, loff_t offset)
+static int cifs_vmtruncate(struct inode * inode, loff_t offset)
 {
 	struct address_space *mapping = inode->i_mapping;
 	unsigned long limit;
@@ -1431,9 +1431,11 @@ cifs_setattr_exit:
 	return rc;
 }
 
+#if 0
 void cifs_delete_inode(struct inode *inode)
 {
 	cFYI(1, ("In cifs_delete_inode, inode = 0x%p", inode));
 	/* may have to add back in if and when safe distributed caching of
 	   directories added e.g. via FindNotify */
 }
+#endif

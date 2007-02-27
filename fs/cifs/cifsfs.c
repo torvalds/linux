@@ -66,8 +66,8 @@ unsigned int extended_security = CIFSSEC_DEF;
 unsigned int sign_CIFS_PDUs = 1;
 extern struct task_struct * oplockThread; /* remove sparse warning */
 struct task_struct * oplockThread = NULL;
-extern struct task_struct * dnotifyThread; /* remove sparse warning */
-struct task_struct * dnotifyThread = NULL;
+/* extern struct task_struct * dnotifyThread; remove sparse warning */
+static struct task_struct * dnotifyThread = NULL;
 static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
