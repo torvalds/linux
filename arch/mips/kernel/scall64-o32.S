@@ -307,7 +307,7 @@ sys_call_table:
 	PTR	compat_sys_statfs
 	PTR	compat_sys_fstatfs		/* 4100 */
 	PTR	sys_ni_syscall			/* sys_ioperm */
-	PTR	sys32_socketcall
+	PTR	compat_sys_socketcall
 	PTR	sys_syslog
 	PTR	compat_sys_setitimer
 	PTR	compat_sys_getitimer		/* 4105 */
