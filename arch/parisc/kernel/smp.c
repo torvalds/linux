@@ -567,6 +567,10 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 void smp_cpus_done(unsigned int cpu_max)
 {
+	extern int update_cr16_clocksource(void);
+
+	update_cr16_clocksource();
+
 	return;
 }
 

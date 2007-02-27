@@ -176,8 +176,6 @@ static cycle_t read_cr16(void)
 	return get_cycles();
 }
 
-static int cr16_update_callback(void);
-
 static struct clocksource clocksource_cr16 = {
 	.name			= "cr16",
 	.rating			= 300,
@@ -185,11 +183,11 @@ static struct clocksource clocksource_cr16 = {
 	.mask			= CLOCKSOURCE_MASK(BITS_PER_LONG),
 	.mult			= 0, /* to be set */
 	.shift			= 22,
-	.update_callback	= cr16_update_callback,
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static int cr16_update_callback(void)
+#ifdef CONFIG_SMP
+int update_cr16_clocksource(void)
 {
 	int change = 0;
 
@@ -202,7 +200,7 @@ static int cr16_update_callback(void)
 
 	return change;
 }
-
+#endif /*CONFIG_SMP*/
 
 void __init start_cpu_itimer(void)
 {
