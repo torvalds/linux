@@ -147,6 +147,11 @@ tcp_available_congestion_control - STRING
 	More congestion control algorithms may be available as modules,
 	but not loaded.
 
+tcp_base_mss - INTEGER
+	The initial value of search_low to be used by Packetization Layer
+	Path MTU Discovery (MTU probing).  If MTU probing is enabled,
+	this is the inital MSS used by the connection.
+
 tcp_congestion_control - STRING
 	Set the congestion control algorithm to be used for new
 	connections. The algorithm "reno" is always available, but
@@ -242,6 +247,27 @@ tcp_mem - vector of 3 INTEGERs: min, pressure, max
 
 	Defaults are calculated at boot time from amount of available
 	memory.
+
+tcp_moderate_rcvbuf - BOOLEAN
+	If set, TCP performs receive buffer autotuning, attempting to
+	automatically size the buffer (no greater than tcp_rmem[2]) to
+	match the size required by the path for full throughput.  Enabled by
+	default.
+
+tcp_mtu_probing - INTEGER
+	Controls TCP Packetization-Layer Path MTU Discovery.  Takes three
+	values:
+	  0 - Disabled
+	  1 - Disabled by default, enabled when an ICMP black hole detected
+	  2 - Always enabled, use initial MSS of tcp_base_mss.
+
+tcp_no_metrics_save - BOOLEAN
+	By default, TCP saves various connection metrics in the route cache
+	when the connection closes, so that connections established in the
+	near future can use these to set initial conditions.  Usually, this
+	increases overall performance, but may sometimes cause performance
+	degredation.  If set, TCP will not cache metrics on closing
+	connections.
 
 tcp_orphan_retries - INTEGER
 	How may times to retry before killing TCP connection, closed
