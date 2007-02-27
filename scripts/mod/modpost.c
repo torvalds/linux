@@ -616,6 +616,15 @@ static int strrcmp(const char *s, const char *sub)
  *   fromsec = .text
  *   atsym = kernel_init
  *   Some symbols belong to init section but still it is ok to reference
+ *
+ * Pattern 7:
+ *  Logos used in drivers/video/logo reside in __initdata but the
+ *  funtion that references them are EXPORT_SYMBOL() so cannot be
+ *  marker __init. So we whitelist them here.
+ *  The pattern is:
+ *  tosec      = .init.data
+ *  fromsec    = .text*
+ *  refsymname = logo_
  **/
 static int secref_whitelist(const char *modname, const char *tosec,
 			    const char *fromsec, const char *atsym,
@@ -686,6 +695,12 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	if ((strcmp(tosec, ".init.text") == 0) &&
 	    (strcmp(fromsec, ".text") == 0) &&
 	    (strcmp(refsymname, "kernel_init") == 0))
+		return 1;
+
+	/* Check for pattern 7 */
+	if ((strcmp(tosec, ".init.data") == 0) &&
+	    (strncmp(fromsec, ".text", strlen(".text")) == 0) &&
+	    (strncmp(refsymname, "logo_", strlen("logo_")) == 0))
 		return 1;
 	return 0;
 }
