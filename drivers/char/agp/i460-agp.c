@@ -550,7 +550,7 @@ static unsigned long i460_mask_memory (struct agp_bridge_data *bridge,
 		| (((addr & ~((1 << I460_IO_PAGE_SHIFT) - 1)) & 0xfffff000) >> 12);
 }
 
-struct const agp_bridge_driver intel_i460_driver = {
+const struct agp_bridge_driver intel_i460_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= i460_sizes,
 	.size_type		= U8_APER_SIZE,

@@ -489,7 +489,7 @@ static const struct aper_size_info_32 u3_sizes[8] =
 	{4, 1024, 0, 1}
 };
 
-struct const agp_bridge_driver uninorth_agp_driver = {
+const struct agp_bridge_driver uninorth_agp_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= (void *)uninorth_sizes,
 	.size_type		= U32_APER_SIZE,
@@ -514,7 +514,7 @@ struct const agp_bridge_driver uninorth_agp_driver = {
 	.cant_use_aperture	= 1,
 };
 
-struct const agp_bridge_driver u3_agp_driver = {
+const struct agp_bridge_driver u3_agp_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= (void *)u3_sizes,
 	.size_type		= U32_APER_SIZE,
