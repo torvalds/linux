@@ -461,6 +461,7 @@ static inline struct ifacaddr6 *ac6_get_first(struct seq_file *seq)
 			break;
 		}
 		read_unlock_bh(&idev->lock);
+		in6_dev_put(idev);
 	}
 	return im;
 }
