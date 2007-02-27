@@ -110,4 +110,18 @@ extern void ledtrig_ide_activity(void);
 #define ledtrig_ide_activity() do {} while(0)
 #endif
 
+/* For the leds-gpio driver */
+struct gpio_led {
+	const char *name;
+	char *default_trigger;
+	unsigned 	gpio;
+	u8 		active_low;
+};
+
+struct gpio_led_platform_data {
+	int 		num_leds;
+	struct gpio_led *leds;
+};
+
+
 #endif		/* __LINUX_LEDS_H_INCLUDED */

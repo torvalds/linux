@@ -95,6 +95,14 @@ config LEDS_COBALT
 	help
 	  This option enables support for the front LED on Cobalt Server
 
+config LEDS_GPIO
+	tristate "LED Support for GPIO connected LEDs"
+	depends on LEDS_CLASS && GENERIC_GPIO
+	help
+	  This option enables support for the LEDs connected to GPIO
+	  outputs. To be useful the particular board must have LEDs
+	  and they must be connected to the GPIO lines.
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS
