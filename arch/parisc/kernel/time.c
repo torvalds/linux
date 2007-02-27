@@ -186,7 +186,7 @@ static struct clocksource clocksource_cr16 = {
 	.mult			= 0, /* to be set */
 	.shift			= 22,
 	.update_callback	= cr16_update_callback,
-	.is_continuous		= 1,
+	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static int cr16_update_callback(void)
