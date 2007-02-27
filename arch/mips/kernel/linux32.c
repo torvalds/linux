@@ -166,34 +166,6 @@ out:
 	return error;
 }
 
-asmlinkage long
-sysn32_waitid(int which, compat_pid_t pid,
-	      siginfo_t __user *uinfo, int options,
-	      struct compat_rusage __user *uru)
-{
-	struct rusage ru;
-	long ret;
-	mm_segment_t old_fs = get_fs();
-	int si_signo;
-
-	if (!access_ok(VERIFY_WRITE, uinfo, sizeof(*uinfo)))
-		return -EFAULT;
-
-	set_fs (KERNEL_DS);
-	ret = sys_waitid(which, pid, uinfo, options,
-			 uru ? (struct rusage __user *) &ru : NULL);
-	set_fs (old_fs);
-
-	if (__get_user(si_signo, &uinfo->si_signo))
-		return -EFAULT;
-	if (ret < 0 || si_signo == 0)
-		return ret;
-
-	if (uru)
-		ret = put_compat_rusage(&ru, uru);
-	return ret;
-}
-
 #define RLIM_INFINITY32	0x7fffffff
 #define RESOURCE32(x) ((x > RLIM_INFINITY32) ? RLIM_INFINITY32 : x)
 
