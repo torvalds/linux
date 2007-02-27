@@ -18,7 +18,6 @@
 	linux,phandle = <100>;
 
 	cpus {
-		#cpus = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		linux,phandle = <200>;

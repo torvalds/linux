@@ -29,7 +29,6 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHG.dtb -V 16 kuroboxHG.dts"
 
 	cpus {
 		linux,phandle = <2000>;
-		#cpus = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
