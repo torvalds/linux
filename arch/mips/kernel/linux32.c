@@ -544,37 +544,6 @@ asmlinkage long sys32_sync_file_range(int fd, int __pad,
 			flags);
 }
 
-struct sigevent32 {
-	u32 sigev_value;
-	u32 sigev_signo;
-	u32 sigev_notify;
-	u32 payload[(64 / 4) - 3];
-};
-
-extern asmlinkage long
-sys_timer_create(clockid_t which_clock,
-		 struct sigevent __user *timer_event_spec,
-		 timer_t __user * created_timer_id);
-
-long
-sys32_timer_create(u32 clock, struct sigevent32 __user *se32, timer_t __user *timer_id)
-{
-	struct sigevent __user *p = NULL;
-	if (se32) {
-		struct sigevent se;
-		p = compat_alloc_user_space(sizeof(struct sigevent));
-		memset(&se, 0, sizeof(struct sigevent));
-		if (get_user(se.sigev_value.sival_int,  &se32->sigev_value) ||
-		    __get_user(se.sigev_signo, &se32->sigev_signo) ||
-		    __get_user(se.sigev_notify, &se32->sigev_notify) ||
-		    __copy_from_user(&se._sigev_un._pad, &se32->payload,
-				     sizeof(se32->payload)) ||
-		    copy_to_user(p, &se, sizeof(se)))
-			return -EFAULT;
-	}
-	return sys_timer_create(clock, p, timer_id);
-}
-
 save_static_function(sys32_clone);
 __attribute_used__ noinline static int
 _sys32_clone(nabi_no_regargs struct pt_regs regs)

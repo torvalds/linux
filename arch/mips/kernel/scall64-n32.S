@@ -340,7 +340,7 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_statfs64
 	PTR	compat_sys_fstatfs64
 	PTR	sys_sendfile64
-	PTR	sys32_timer_create		/* 6220 */
+	PTR	compat_sys_timer_create		/* 6220 */
 	PTR	compat_sys_timer_settime
 	PTR	compat_sys_timer_gettime
 	PTR	sys_timer_getoverrun
