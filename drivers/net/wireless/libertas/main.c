@@ -186,12 +186,12 @@ static u8 *default_fw_name = "usb8388.bin";
 /**
  * Attributes exported through sysfs
  */
-#define to_net_dev(class) container_of(class, struct net_device, class_dev)
 
 /**
  * @brief Get function for sysfs attribute libertas_mpp
  */
-static ssize_t libertas_mpp_get(struct class_device * dev, char * buf) {
+static ssize_t libertas_mpp_get(struct device * dev,
+		struct device_attribute *attr, char * buf) {
 	struct cmd_ds_mesh_access mesh_access;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
@@ -206,8 +206,8 @@ static ssize_t libertas_mpp_get(struct class_device * dev, char * buf) {
 /**
  * @brief Set function for sysfs attribute libertas_mpp
  */
-static ssize_t libertas_mpp_set(struct class_device * dev, const char * buf,
-		size_t count) {
+static ssize_t libertas_mpp_set(struct device * dev,
+		struct device_attribute *attr, const char * buf, size_t count) {
 	struct cmd_ds_mesh_access mesh_access;
 
 
@@ -224,7 +224,7 @@ static ssize_t libertas_mpp_set(struct class_device * dev, const char * buf,
  * libertas_mpp attribute to be exported per mshX interface
  * through sysfs (/sys/class/net/mshX/libertas-mpp)
  */
-static CLASS_DEVICE_ATTR(libertas_mpp, 0644, libertas_mpp_get,
+static DEVICE_ATTR(libertas_mpp, 0644, libertas_mpp_get,
 		libertas_mpp_set );
 
 /**
@@ -998,14 +998,14 @@ wlan_private *wlan_add_card(void *card)
 	if (!(wlan_pm_dev = pm_register(PM_UNKNOWN_DEV, 0, wlan_pm_callback)))
 		lbs_pr_alert( "failed to register PM callback\n");
 #endif
-	if (class_device_create_file(&(mesh_dev->class_dev), &class_device_attr_libertas_mpp))
+	if (device_create_file(&(mesh_dev->dev), &dev_attr_libertas_mpp))
 		goto err_create_file;
 
 	LEAVE();
 	return priv;
 
 err_create_file:
-	class_device_remove_file(&(mesh_dev->class_dev), &class_device_attr_libertas_mpp);
+	device_remove_file(&(mesh_dev->dev), &dev_attr_libertas_mpp);
 err_init_fw:
 	libertas_sbi_unregister_dev(priv);
 err_registerdev:
@@ -1069,7 +1069,7 @@ int wlan_remove_card(void *card)
 
 	wake_pending_cmdnodes(priv);
 
-	class_device_remove_file(&(mesh_dev->class_dev), &class_device_attr_libertas_mpp);
+	device_remove_file(&(mesh_dev->dev), &dev_attr_libertas_mpp);
 	unregister_netdev(mesh_dev);
 	unregister_netdev(dev);
 
