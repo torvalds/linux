@@ -1401,7 +1401,7 @@ static int xfrm_get_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	x = xfrm_state_lookup(&id->daddr, id->spi, id->proto, id->family);
 	if (x == NULL) {
-		kfree(r_skb);
+		kfree_skb(r_skb);
 		return -ESRCH;
 	}
 
