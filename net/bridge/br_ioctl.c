@@ -291,12 +291,11 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
-		spin_lock_bh(&br->lock);
 		if ((p = br_get_port(br, args[1])) == NULL)
 			ret = -EINVAL;
 		else
 			br_stp_set_path_cost(p, args[2]);
-		spin_unlock_bh(&br->lock);
+
 		return ret;
 	}
 
