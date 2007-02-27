@@ -210,7 +210,7 @@ parisc_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 	agp_device_command(command, (mode & AGP8X_MODE) != 0);
 }
 
-struct const agp_bridge_driver parisc_agp_driver = {
+static const struct agp_bridge_driver parisc_agp_driver = {
 	.owner			= THIS_MODULE,
 	.size_type		= FIXED_APER_SIZE,
 	.configure		= parisc_agp_configure,
