@@ -86,6 +86,7 @@ int sysctl_tcp_stdurg __read_mostly;
 int sysctl_tcp_rfc1337 __read_mostly;
 int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 int sysctl_tcp_frto __read_mostly;
+int sysctl_tcp_frto_response __read_mostly;
 int sysctl_tcp_nometrics_save __read_mostly;
 
 int sysctl_tcp_moderate_rcvbuf __read_mostly = 1;
@@ -762,15 +763,17 @@ __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst)
 }
 
 /* Set slow start threshold and cwnd not falling to slow start */
-void tcp_enter_cwr(struct sock *sk)
+void tcp_enter_cwr(struct sock *sk, const int set_ssthresh)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 
 	tp->prior_ssthresh = 0;
 	tp->bytes_acked = 0;
 	if (inet_csk(sk)->icsk_ca_state < TCP_CA_CWR) {
 		tp->undo_marker = 0;
-		tp->snd_ssthresh = inet_csk(sk)->icsk_ca_ops->ssthresh(sk);
+		if (set_ssthresh)
+			tp->snd_ssthresh = icsk->icsk_ca_ops->ssthresh(sk);
 		tp->snd_cwnd = min(tp->snd_cwnd,
 				   tcp_packets_in_flight(tp) + 1U);
 		tp->snd_cwnd_cnt = 0;
@@ -2003,7 +2006,7 @@ static void tcp_try_to_open(struct sock *sk, struct tcp_sock *tp, int flag)
 		tp->retrans_stamp = 0;
 
 	if (flag&FLAG_ECE)
-		tcp_enter_cwr(sk);
+		tcp_enter_cwr(sk, 1);
 
 	if (inet_csk(sk)->icsk_ca_state != TCP_CA_CWR) {
 		int state = TCP_CA_Open;
@@ -2579,6 +2582,21 @@ static void tcp_conservative_spur_to_response(struct tcp_sock *tp)
 	tcp_moderate_cwnd(tp);
 }
 
+/* A conservative spurious RTO response algorithm: reduce cwnd using
+ * rate halving and continue in congestion avoidance.
+ */
+static void tcp_ratehalving_spur_to_response(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	tcp_enter_cwr(sk, 0);
+	tp->high_seq = tp->frto_highmark; 	/* Smoother w/o this? - ij */
+}
+
+static void tcp_undo_spur_to_response(struct sock *sk)
+{
+	tcp_undo_cwr(sk, 1);
+}
+
 /* F-RTO spurious RTO detection algorithm (RFC4138)
  *
  * F-RTO affects during two new ACKs following RTO (well, almost, see inline
@@ -2661,7 +2679,17 @@ static int tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 		tp->frto_counter = 2;
 		return 1;
 	} else /* frto_counter == 2 */ {
-		tcp_conservative_spur_to_response(tp);
+		switch (sysctl_tcp_frto_response) {
+		case 2:
+			tcp_undo_spur_to_response(sk);
+			break;
+		case 1:
+			tcp_conservative_spur_to_response(tp);
+			break;
+		default:
+			tcp_ratehalving_spur_to_response(sk);
+			break;
+		};
 		tp->frto_counter = 0;
 	}
 	return 0;
