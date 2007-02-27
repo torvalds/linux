@@ -196,8 +196,7 @@ static int cr16_update_callback(void)
 	/* since the cr16 cycle counters are not syncronized across CPUs,
 	   we'll check if we should switch to a safe clocksource: */
 	if (clocksource_cr16.rating != 0 && num_online_cpus() > 1) {
-		clocksource_cr16.rating = 0;
-		clocksource_reselect();
+		clocksource_change_rating(&clocksource_cr16, 0);
 		change = 1;
 	}
 
