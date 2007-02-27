@@ -339,6 +339,12 @@
 #define FTDI_SUUNTO_SPORTS_PID	0xF680	/* Suunto Sports instrument */
 
 /*
+ * TTi (Thurlby Thandar Instruments)
+ */
+#define TTI_VID			0x103E	/* Vendor Id */
+#define TTI_QL355P_PID		0x03E8	/* TTi QL355P power supply */
+
+/*
  * Definitions for B&B Electronics products.
  */
 #define BANDB_VID		0x0856	/* B&B Electronics Vendor ID */
