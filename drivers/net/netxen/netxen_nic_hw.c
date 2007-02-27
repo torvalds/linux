@@ -242,10 +242,11 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	adapter->cmd_consumer = (uint32_t *) (((char *)addr) +
 					      sizeof(struct netxen_ring_ctx));
 
-	addr = pci_alloc_consistent(adapter->ahw.pdev,
-				    sizeof(struct cmd_desc_type0) *
-				    adapter->max_tx_desc_count,
-				    (dma_addr_t *) & hw->cmd_desc_phys_addr);
+	addr = netxen_alloc(adapter->ahw.pdev,
+			    sizeof(struct cmd_desc_type0) *
+			    adapter->max_tx_desc_count,
+			    (dma_addr_t *) & hw->cmd_desc_phys_addr,
+			    &adapter->ahw.cmd_desc_pdev);
 	printk("cmd_desc_phys_addr: 0x%llx\n", (u64) hw->cmd_desc_phys_addr);
 
 	if (addr == NULL) {

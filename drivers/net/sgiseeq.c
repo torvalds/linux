@@ -12,26 +12,15 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
-#include <linux/ioport.h>
-#include <linux/socket.h>
-#include <linux/in.h>
-#include <linux/route.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/bitops.h>
 
-#include <asm/byteorder.h>
-#include <asm/io.h>
-#include <asm/system.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ip22.h>
-#include <asm/sgialib.h>
 
 #include "sgiseeq.h"
 

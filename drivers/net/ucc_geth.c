@@ -4199,9 +4199,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	ugeth->ug_info = ug_info;
 	ugeth->dev = dev;
 
-	mac_addr = get_property(np, "mac-address", NULL);
-	if (mac_addr == NULL)
-		mac_addr = get_property(np, "local-mac-address", NULL);
+	mac_addr = of_get_mac_address(np);
 	if (mac_addr)
 		memcpy(dev->dev_addr, mac_addr, 6);
 

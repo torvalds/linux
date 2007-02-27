@@ -1696,6 +1696,7 @@ irqreturn_t t1_interrupt(int irq, void *cookie)
 {
 	int work_done;
 	struct adapter *adapter = cookie;
+	struct respQ *Q = &adapter->sge->respQ;
 
 	spin_lock(&adapter->async_lock);
 

@@ -3177,8 +3177,8 @@ L:	linux-kernel@vger.kernel.org ?
 S:	Supported
 
 SPIDERNET NETWORK DRIVER for CELL
-P:	Jim Lewis
-M:	jim@jklewis.com
+P:	Linas Vepstas
+M:	linas@austin.ibm.com
 L:	netdev@vger.kernel.org
 S:	Supported
 

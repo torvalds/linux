@@ -657,7 +657,7 @@ tc35815_init_queues(struct net_device *dev)
 		dma_cache_wback_inv((unsigned long)lp->fd_buf, PAGE_SIZE * FD_PAGE_NUM);
 #endif
 	} else {
-		clear_page(lp->fd_buf);
+		memset(lp->fd_buf, 0, PAGE_SIZE * FD_PAGE_NUM);
 #ifdef __mips__
 		dma_cache_wback_inv((unsigned long)lp->fd_buf, PAGE_SIZE * FD_PAGE_NUM);
 #endif
@@ -1732,6 +1732,11 @@ static void __exit tc35815_cleanup_module(void)
 {
 	struct net_device *next_dev;
 
+	/*
+	 * TODO: implement a tc35815_driver.remove hook, and
+	 * move this code into that function.  Then, delete
+	 * all root_tc35815_dev list handling code.
+	 */
 	while (root_tc35815_dev) {
 		struct net_device *dev = root_tc35815_dev;
 		next_dev = ((struct tc35815_local *)dev->priv)->next_module;
@@ -1740,6 +1745,9 @@ static void __exit tc35815_cleanup_module(void)
 		free_netdev(dev);
 		root_tc35815_dev = next_dev;
 	}
+
+	pci_unregister_driver(&tc35815_driver);
 }
+
 module_init(tc35815_init_module);
 module_exit(tc35815_cleanup_module);

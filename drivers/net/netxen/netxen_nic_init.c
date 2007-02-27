@@ -499,7 +499,10 @@ static inline int do_rom_fast_write_words(struct netxen_adapter *adapter,
 		while(1) {
 			int data1;
 
-			do_rom_fast_read(adapter, addridx, &data1);
+			ret = do_rom_fast_read(adapter, addridx, &data1);
+			if (ret < 0)
+				return ret;
+
 			if (data1 == data)
 				break;
 

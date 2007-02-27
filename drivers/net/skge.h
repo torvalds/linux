@@ -1849,8 +1849,7 @@ enum {
 			  GMR_FS_JABBER,
 /* Rx GMAC FIFO Flush Mask (default) */
 	RX_FF_FL_DEF_MSK = GMR_FS_CRC_ERR | GMR_FS_RX_FF_OV |GMR_FS_MII_ERR |
-			   GMR_FS_BAD_FC | GMR_FS_GOOD_FC | GMR_FS_UN_SIZE |
-			   GMR_FS_JABBER,
+			   GMR_FS_BAD_FC |  GMR_FS_UN_SIZE | GMR_FS_JABBER,
 };
 
 /*	RX_GMF_CTRL_T	32 bit	Rx GMAC FIFO Control/Test */

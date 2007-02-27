@@ -1014,13 +1014,15 @@ struct eeprom_data {
 
 /* Transmit and Receive Buffers */
 #define NUM_LBUFQ_ENTRIES   	128
+#define JUMBO_NUM_LBUFQ_ENTRIES   	\
+(NUM_LBUFQ_ENTRIES/(JUMBO_MTU_SIZE/NORMAL_MTU_SIZE))
 #define NUM_SBUFQ_ENTRIES   	64
 #define QL_SMALL_BUFFER_SIZE    32
 #define QL_ADDR_ELE_PER_BUFQ_ENTRY \
 (sizeof(struct lrg_buf_q_entry) / sizeof(struct bufq_addr_element))
     /* Each send has at least control block.  This is how many we keep. */
 #define NUM_SMALL_BUFFERS     	NUM_SBUFQ_ENTRIES * QL_ADDR_ELE_PER_BUFQ_ENTRY
-#define NUM_LARGE_BUFFERS     	NUM_LBUFQ_ENTRIES * QL_ADDR_ELE_PER_BUFQ_ENTRY
+
 #define QL_HEADER_SPACE 32	/* make header space at top of skb. */
 /*
  * Large & Small Buffers for Receives
@@ -1092,7 +1094,6 @@ struct oal_entry {
 	u32 len;
 #define OAL_LAST_ENTRY   0x80000000	/* Last valid buffer in list. */
 #define OAL_CONT_ENTRY   0x40000000	/* points to an OAL. (continuation) */
-	u32 reserved;
 };
 
 struct oal {
@@ -1193,7 +1194,7 @@ struct ql3_adapter {
 	struct net_rsp_iocb *rsp_current;
 	u16 rsp_consumer_index;
 	u16 reserved_06;
-	u32 *prsp_producer_index;
+	volatile u32 *prsp_producer_index;
 	u32 rsp_producer_index_phy_addr_high;
 	u32 rsp_producer_index_phy_addr_low;
 
@@ -1207,9 +1208,11 @@ struct ql3_adapter {
 	u32 lrg_buf_q_producer_index;
 	u32 lrg_buf_release_cnt;
 	struct bufq_addr_element *lrg_buf_next_free;
+	u32 num_large_buffers;
+	u32 num_lbufq_entries;
 
 	/* Large (Receive) Buffers */
-	struct ql_rcv_buf_cb lrg_buf[NUM_LARGE_BUFFERS];
+	struct ql_rcv_buf_cb *lrg_buf;
 	struct ql_rcv_buf_cb *lrg_buf_free_head;
 	struct ql_rcv_buf_cb *lrg_buf_free_tail;
 	u32 lrg_buf_free_count;
