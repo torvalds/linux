@@ -38,6 +38,10 @@ int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	unsigned char irq = pin;
 
+	/* SMSC SLC90E66 IDE uses irq 14, 15 (default) */
+	if (dev->vendor == PCI_VENDOR_ID_EFAR &&
+	    dev->device == PCI_DEVICE_ID_EFAR_SLC90E66_1)
+		return irq;
 	/* IRQ rotation (PICMG) */
 	irq--;			/* 0-3 */
 	if (dev->bus->parent == NULL &&
@@ -92,14 +96,4 @@ int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 int pcibios_plat_dev_init(struct pci_dev *dev)
 {
 	return 0;
-}
-
-int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
-{
-	/* SMSC SLC90E66 IDE uses irq 14, 15 (default) */
-	if (!(dev->vendor == PCI_VENDOR_ID_EFAR &&
-	      dev->device == PCI_DEVICE_ID_EFAR_SLC90E66_1))
-		return pci_get_irq(dev, pin);
-
-	dev->irq = irq;
 }
