@@ -200,6 +200,7 @@ struct ahci_port_priv {
 	/* for NCQ spurious interrupt analysis */
 	unsigned int		ncq_saw_d2h:1;
 	unsigned int		ncq_saw_dmas:1;
+	unsigned int		ncq_saw_sdb:1;
 };
 
 static u32 ahci_scr_read (struct ata_port *ap, unsigned int sc_reg);
@@ -1157,23 +1158,31 @@ static void ahci_host_intr(struct ata_port *ap)
 	}
 
 	if (status & PORT_IRQ_SDB_FIS) {
-		/* SDB FIS containing spurious completions might be
-		 * dangerous, whine and fail commands with HSM
-		 * violation.  EH will turn off NCQ after several such
-		 * failures.
-  		 */
 		const __le32 *f = pp->rx_fis + RX_FIS_SDB;
 
-		ata_ehi_push_desc(ehi, "spurious completion during NCQ "
-				  "issue=0x%x SAct=0x%x FIS=%08x:%08x",
-				  readl(port_mmio + PORT_CMD_ISSUE),
-				  readl(port_mmio + PORT_SCR_ACT),
-				  le32_to_cpu(f[0]), le32_to_cpu(f[1]));
-
-		ehi->err_mask |= AC_ERR_HSM;
-		ehi->action |= ATA_EH_SOFTRESET;
-		ata_port_freeze(ap);
-
+		if (le32_to_cpu(f[1])) {
+			/* SDB FIS containing spurious completions
+			 * might be dangerous, whine and fail commands
+			 * with HSM violation.  EH will turn off NCQ
+			 * after several such failures.
+			 */
+			ata_ehi_push_desc(ehi,
+				"spurious completions during NCQ "
+				"issue=0x%x SAct=0x%x FIS=%08x:%08x",
+				readl(port_mmio + PORT_CMD_ISSUE),
+				readl(port_mmio + PORT_SCR_ACT),
+				le32_to_cpu(f[0]), le32_to_cpu(f[1]));
+			ehi->err_mask |= AC_ERR_HSM;
+			ehi->action |= ATA_EH_SOFTRESET;
+			ata_port_freeze(ap);
+		} else {
+			if (!pp->ncq_saw_sdb)
+				ata_port_printk(ap, KERN_INFO,
+					"spurious SDB FIS %08x:%08x during NCQ, "
+					"this message won't be printed again\n",
+					le32_to_cpu(f[0]), le32_to_cpu(f[1]));
+			pp->ncq_saw_sdb = 1;
+		}
 		known_irq = 1;
 	}
 
