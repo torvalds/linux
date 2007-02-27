@@ -91,6 +91,9 @@ struct acm {
 	struct urb *ctrlurb, *writeurb;			/* urbs */
 	u8 *ctrl_buffer;				/* buffers of urbs */
 	dma_addr_t ctrl_dma;				/* dma handles of buffers */
+	u8 *country_codes;				/* country codes from device */
+	unsigned int country_code_size;			/* size of this buffer */
+	unsigned int country_rel_date;			/* release date of version */
 	struct acm_wb wb[ACM_NW];
 	struct acm_ru ru[ACM_NR];
 	struct acm_rb rb[ACM_NR];
