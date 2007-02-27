@@ -137,10 +137,6 @@ int jmr3927_ccfg_toeon = 0;
 
 static inline void do_reset(void)
 {
-#ifdef CONFIG_TC35815
-	extern void tc35815_killall(void);
-	tc35815_killall();
-#endif
 #if 1	/* Resetting PCI bus */
 	jmr3927_ioc_reg_out(0, JMR3927_IOC_RESET_ADDR);
 	jmr3927_ioc_reg_out(JMR3927_IOC_RESET_PCI, JMR3927_IOC_RESET_ADDR);

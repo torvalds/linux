@@ -1703,19 +1703,6 @@ static void tc35815_chip_init(struct net_device *dev)
 	spin_unlock_irqrestore(&lp->lock, flags);
 }
 
-/* XXX */
-void
-tc35815_killall(void)
-{
-	struct net_device *dev;
-
-	for (dev = root_tc35815_dev; dev; dev = ((struct tc35815_local *)dev->priv)->next_module) {
-		if (dev->flags&IFF_UP){
-			dev->stop(dev);
-		}
-	}
-}
-
 static struct pci_driver tc35815_driver = {
 	.name = TC35815_MODULE_NAME,
 	.probe = tc35815_probe,
