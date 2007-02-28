@@ -320,6 +320,11 @@ static inline struct ehea_cqe *ehea_poll_rq1(struct ehea_qp *qp, int *wqe_index)
 	return hw_qeit_get_valid(queue);
 }
 
+static inline void ehea_inc_cq(struct ehea_cq *cq)
+{
+	hw_qeit_inc(&cq->hw_queue);
+}
+
 static inline void ehea_inc_rq1(struct ehea_qp *qp)
 {
 	hw_qeit_inc(&qp->hw_rqueue1);
@@ -327,7 +332,7 @@ static inline void ehea_inc_rq1(struct ehea_qp *qp)
 
 static inline struct ehea_cqe *ehea_poll_cq(struct ehea_cq *my_cq)
 {
-	return hw_qeit_get_inc_valid(&my_cq->hw_queue);
+	return hw_qeit_get_valid(&my_cq->hw_queue);
 }
 
 #define EHEA_CQ_REGISTER_ORIG 0

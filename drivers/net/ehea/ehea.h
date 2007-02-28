@@ -39,7 +39,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0048"
+#define DRV_VERSION	"EHEA_0052"
 
 #define EHEA_MSG_DEFAULT (NETIF_MSG_LINK | NETIF_MSG_TIMER \
 	| NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
@@ -77,8 +77,6 @@
 #define EHEA_MAX_PACKET_SIZE    9022	/* for jumbo frames */
 #define EHEA_RQ2_PKT_SIZE       1522
 #define EHEA_L_PKT_SIZE         256	/* low latency */
-
-#define EHEA_POLL_MAX_RWQE      1000
 
 /* Send completion signaling */
 #define EHEA_SIG_IV_LONG           1
@@ -357,8 +355,8 @@ struct ehea_port_res {
 	struct ehea_qp *qp;
 	struct ehea_cq *send_cq;
 	struct ehea_cq *recv_cq;
-	struct ehea_eq *send_eq;
-	struct ehea_eq *recv_eq;
+	struct ehea_eq *eq;
+	struct net_device *d_netdev;
 	spinlock_t send_lock;
 	struct ehea_q_skb_arr rq1_skba;
 	struct ehea_q_skb_arr rq2_skba;
@@ -372,7 +370,6 @@ struct ehea_port_res {
 	int swqe_count;
 	u32 swqe_id_counter;
 	u64 tx_packets;
-	struct tasklet_struct send_comp_task;
 	spinlock_t recv_lock;
 	struct port_state p_state;
 	u64 rx_packets;
@@ -416,7 +413,9 @@ struct ehea_port {
 	char int_aff_name[EHEA_IRQ_NAME_SIZE];
 	int allmulti;			 /* Indicates IFF_ALLMULTI state */
 	int promisc;		 	 /* Indicates IFF_PROMISC state */
+	int num_tx_qps;
 	int num_add_tx_qps;
+	int num_mcs;
 	int resets;
 	u64 mac_addr;
 	u32 logical_port_id;
