@@ -1142,7 +1142,9 @@ static int cipso_v4_map_cat_rng_hton(const struct cipso_v4_doi *doi_def,
 	u32 cat_size = 0;
 
 	/* make sure we don't overflow the 'array[]' variable */
-	BUG_ON(net_cat_len > 30);
+	if (net_cat_len >
+	    (CIPSO_V4_OPT_LEN_MAX - CIPSO_V4_HDR_LEN - CIPSO_V4_TAG_RNG_BLEN))
+		return -ENOSPC;
 
 	for (;;) {
 		iter = netlbl_secattr_catmap_walk(secattr->mls_cat, iter + 1);
