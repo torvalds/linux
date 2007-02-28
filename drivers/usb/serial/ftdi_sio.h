@@ -503,6 +503,19 @@
 #define TELLDUS_VID			0x1781	/* Vendor ID */
 #define TELLDUS_TELLSTICK_PID		0x0C30	/* RF control dongle 433 MHz using FT232RL */
 
+/*
+ * IBS elektronik product ids
+ * Submitted by Thomas Schleusener
+ */
+#define FTDI_IBS_US485_PID	0xff38  /* IBS US485 (USB<-->RS422/485 interface) */
+#define FTDI_IBS_PICPRO_PID	0xff39  /* IBS PIC-Programmer */
+#define FTDI_IBS_PCMCIA_PID	0xff3a  /* IBS Card reader for PCMCIA SRAM-cards */
+#define FTDI_IBS_PK1_PID	0xff3b  /* IBS PK1 - Particel counter */
+#define FTDI_IBS_RS232MON_PID	0xff3c  /* IBS RS232 - Monitor */
+#define FTDI_IBS_APP70_PID	0xff3d  /* APP 70 (dust monitoring system) */
+#define FTDI_IBS_PEDO_PID	0xff3e  /* IBS PEDO-Modem (RF modem 868.35 MHz) */
+#define FTDI_IBS_PROD_PID	0xff3f  /* future device */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */

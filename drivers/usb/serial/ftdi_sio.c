@@ -420,6 +420,14 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_ALC8500_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_PYRAMID_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_FHZ1000PC_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_US485_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PICPRO_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PCMCIA_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PK1_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_RS232MON_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_APP70_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PEDO_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PROD_PID) },
 	/*
 	 * These will probably use user-space drivers.  Uncomment them if
 	 * you need them or use the user-specified vendor/product module
