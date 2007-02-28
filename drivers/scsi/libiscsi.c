@@ -1520,7 +1520,7 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	}
 	spin_unlock_bh(&session->lock);
 
-	data = kmalloc(DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH, GFP_KERNEL);
+	data = kmalloc(ISCSI_DEF_MAX_RECV_SEG_LEN, GFP_KERNEL);
 	if (!data)
 		goto login_mtask_data_alloc_fail;
 	conn->login_mtask->data = conn->data = data;

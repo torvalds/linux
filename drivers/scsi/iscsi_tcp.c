@@ -527,12 +527,12 @@ iscsi_tcp_hdr_recv(struct iscsi_conn *conn)
 		 * than 8K, but there are no targets that currently do this.
 		 * For now we fail until we find a vendor that needs it
 		 */
-		if (DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH <
+		if (ISCSI_DEF_MAX_RECV_SEG_LEN <
 		    tcp_conn->in.datalen) {
 			printk(KERN_ERR "iscsi_tcp: received buffer of len %u "
 			      "but conn buffer is only %u (opcode %0x)\n",
 			      tcp_conn->in.datalen,
-			      DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH, opcode);
+			      ISCSI_DEF_MAX_RECV_SEG_LEN, opcode);
 			rc = ISCSI_ERR_PROTO;
 			break;
 		}
@@ -1762,7 +1762,7 @@ iscsi_tcp_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	 * due to strange issues with iser these are not set
 	 * in iscsi_conn_setup
 	 */
-	conn->max_recv_dlength = DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH;
+	conn->max_recv_dlength = ISCSI_DEF_MAX_RECV_SEG_LEN;
 
 	tcp_conn = kzalloc(sizeof(*tcp_conn), GFP_KERNEL);
 	if (!tcp_conn)
