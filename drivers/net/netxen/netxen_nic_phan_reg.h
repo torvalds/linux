@@ -102,6 +102,9 @@
 #define CRB_CMD_CONSUMER_OFFSET_1   NETXEN_NIC_REG(0x1b0)
 #define CRB_TEMP_STATE              NETXEN_NIC_REG(0x1b4)
 
+/* used for ethtool tests */
+#define CRB_SCRATCHPAD_TEST	    NETXEN_NIC_REG(0x280)
+
 /*
  * CrbPortPhanCntrHi/Lo is used to pass the address of HostPhantomIndex address
  * which can be read by the Phantom host to get producer/consumer indexes from

@@ -42,8 +42,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 
-#define PHAN_VENDOR_ID 0x4040
-
 MODULE_DESCRIPTION("NetXen Multi port (1/10) Gigabit Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(NETXEN_NIC_LINUX_VERSIONID);
@@ -378,6 +376,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->change_mtu = netxen_nic_change_mtu;
 		netdev->tx_timeout = netxen_tx_timeout;
 		netdev->watchdog_timeo = HZ;
+
+		netxen_nic_change_mtu(netdev, netdev->mtu);
 
 		SET_ETHTOOL_OPS(netdev, &netxen_nic_ethtool_ops);
 		netdev->poll = netxen_nic_poll;
