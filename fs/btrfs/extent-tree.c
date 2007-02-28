@@ -125,6 +125,11 @@ check_failed:
 	ins->flags = 0;
 	start_found = 0;
 	ret = search_slot(root, ins, &path, 0);
+	if (ret < 0) {
+		release_path(root, &path);
+		return ret;
+	}
+
 	while (1) {
 		l = &path.nodes[0]->leaf;
 		slot = path.slots[0];

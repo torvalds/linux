@@ -134,7 +134,7 @@ static int lookup_enoent(struct ctree_root *root, struct radix_tree_root *radix)
 		return ret;
 	ret = search_slot(root, &key, &path, 0);
 	release_path(root, &path);
-	if (ret == 0)
+	if (ret <= 0)
 		goto error;
 	return 0;
 error:
@@ -153,12 +153,17 @@ static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
 	int ret;
 	int slot;
 	int i;
+
 	key.offset = 0;
 	key.flags = 0;
 	key.objectid = (unsigned long)-1;
 	while(1) {
 		init_path(&path);
 		ret = search_slot(root, &key, &path, 0);
+		if (ret < 0) {
+			release_path(root, &path);
+			return ret;
+		}
 		slot = path.slots[0];
 		if (ret != 0) {
 			if (slot == 0) {
