@@ -381,7 +381,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 	if (newsk != NULL) {
 		const struct inet_request_sock *ireq = inet_rsk(req);
 		struct tcp_request_sock *treq = tcp_rsk(req);
-		struct inet_connection_sock *newicsk = inet_csk(sk);
+		struct inet_connection_sock *newicsk = inet_csk(newsk);
 		struct tcp_sock *newtp;
 
 		/* Now setup tcp_sock */
