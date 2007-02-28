@@ -223,10 +223,12 @@ static inline int n_counters(void)
 	switch (current_cpu_data.cputype) {
 	case CPU_R10000:
 		counters = 2;
+		break;
 
 	case CPU_R12000:
 	case CPU_R14000:
 		counters = 4;
+		break;
 
 	default:
 		counters = __n_counters();
