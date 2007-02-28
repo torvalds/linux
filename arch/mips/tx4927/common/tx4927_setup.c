@@ -81,17 +81,7 @@ void __init tx4927_time_init(void)
 
 void __init plat_timer_setup(struct irqaction *irq)
 {
-	u32 count;
-	u32 c1;
-	u32 c2;
-
 	setup_irq(TX4927_IRQ_CPU_TIMER, irq);
-
-	/* to generate the first timer interrupt */
-	c1 = read_c0_count();
-	count = c1 + (mips_hpt_frequency / HZ);
-	write_c0_compare(count);
-	c2 = read_c0_count();
 
 #ifdef CONFIG_TOSHIBA_RBTX4927
 	{

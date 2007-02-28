@@ -116,7 +116,6 @@ static void lasat_time_init(void)
 
 void __init plat_timer_setup(struct irqaction *irq)
 {
-	write_c0_compare( read_c0_count() + mips_hpt_frequency / HZ);
 	change_c0_status(ST0_IM, IE_IRQ0 | IE_IRQ5);
 }
 

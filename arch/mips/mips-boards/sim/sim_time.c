@@ -199,7 +199,4 @@ void __init plat_timer_setup(struct irqaction *irq)
 	irq_desc[mips_cpu_timer_irq].flags |= IRQ_PER_CPU;
 	set_irq_handler(mips_cpu_timer_irq, handle_percpu_irq);
 #endif
-
-	/* to generate the first timer interrupt */
-	write_c0_compare(read_c0_count() + (mips_hpt_frequency/HZ));
 }
