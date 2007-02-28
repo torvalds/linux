@@ -1777,14 +1777,24 @@ iscsi_tcp_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	tcp_conn->tx_hash.tfm = crypto_alloc_hash("crc32c", 0,
 						  CRYPTO_ALG_ASYNC);
 	tcp_conn->tx_hash.flags = 0;
-	if (IS_ERR(tcp_conn->tx_hash.tfm))
+	if (IS_ERR(tcp_conn->tx_hash.tfm)) {
+		printk(KERN_ERR "Could not create connection due to crc32c "
+		       "loading error %ld. Make sure the crc32c module is "
+		       "built as a module or into the kernel\n",
+			PTR_ERR(tcp_conn->tx_hash.tfm));
 		goto free_tcp_conn;
+	}
 
 	tcp_conn->rx_hash.tfm = crypto_alloc_hash("crc32c", 0,
 						  CRYPTO_ALG_ASYNC);
 	tcp_conn->rx_hash.flags = 0;
-	if (IS_ERR(tcp_conn->rx_hash.tfm))
+	if (IS_ERR(tcp_conn->rx_hash.tfm)) {
+		printk(KERN_ERR "Could not create connection due to crc32c "
+		       "loading error %ld. Make sure the crc32c module is "
+		       "built as a module or into the kernel\n",
+			PTR_ERR(tcp_conn->rx_hash.tfm));
 		goto free_tx_tfm;
+	}
 
 	return cls_conn;
 
