@@ -38,13 +38,13 @@
 #include "netxen_nic_phan_reg.h"
 
 struct crb_addr_pair {
-	long addr;
-	long data;
+	u32 addr;
+	u32 data;
 };
 
 #define NETXEN_MAX_CRB_XFORM 60
 static unsigned int crb_addr_xform[NETXEN_MAX_CRB_XFORM];
-#define NETXEN_ADDR_ERROR ((unsigned long ) 0xffffffff )
+#define NETXEN_ADDR_ERROR (0xffffffff)
 
 #define crb_addr_transform(name) \
 	crb_addr_xform[NETXEN_HW_PX_MAP_CRB_##name] = \
@@ -252,10 +252,10 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
  * netxen_decode_crb_addr(0 - utility to translate from internal Phantom CRB
  * address to external PCI CRB address.
  */
-unsigned long netxen_decode_crb_addr(unsigned long addr)
+u32 netxen_decode_crb_addr(u32 addr)
 {
 	int i;
-	unsigned long base_addr, offset, pci_base;
+	u32 base_addr, offset, pci_base;
 
 	crb_addr_transform_setup();
 
@@ -756,7 +756,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 	int n, i;
 	int init_delay = 0;
 	struct crb_addr_pair *buf;
-	unsigned long off;
+	u32 off;
 
 	/* resetall */
 	status = netxen_nic_get_board_info(adapter);
@@ -813,14 +813,13 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 			if (verbose)
 				printk("%s: PCI:     0x%08x == 0x%08x\n",
 				       netxen_nic_driver_name, (unsigned int)
-				       netxen_decode_crb_addr((unsigned long)
-							      addr), val);
+				       netxen_decode_crb_addr(addr), val);
 		}
 		for (i = 0; i < n; i++) {
 
-			off = netxen_decode_crb_addr((unsigned long)buf[i].addr);
+			off = netxen_decode_crb_addr(buf[i].addr);
 			if (off == NETXEN_ADDR_ERROR) {
-				printk(KERN_ERR"CRB init value out of range %lx\n",
+				printk(KERN_ERR"CRB init value out of range %x\n",
 					buf[i].addr);
 				continue;
 			}
@@ -927,6 +926,10 @@ int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
 void netxen_free_adapter_offload(struct netxen_adapter *adapter)
 {
 	if (adapter->dummy_dma.addr) {
+		writel(0, NETXEN_CRB_NORMALIZE(adapter,
+			CRB_HOST_DUMMY_BUF_ADDR_HI));
+		writel(0, NETXEN_CRB_NORMALIZE(adapter,
+			CRB_HOST_DUMMY_BUF_ADDR_LO));
 		pci_free_consistent(adapter->ahw.pdev,
 				    NETXEN_HOST_DUMMY_DMA_SIZE,
 				    adapter->dummy_dma.addr,

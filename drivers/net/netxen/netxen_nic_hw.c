@@ -508,8 +508,8 @@ void netxen_nic_pci_change_crbwindow(struct netxen_adapter *adapter, u32 wndw)
 void netxen_load_firmware(struct netxen_adapter *adapter)
 {
 	int i;
-	long data, size = 0;
-	long flashaddr = NETXEN_FLASH_BASE, memaddr = NETXEN_PHANTOM_MEM_BASE;
+	u32 data, size = 0;
+	u32 flashaddr = NETXEN_FLASH_BASE, memaddr = NETXEN_PHANTOM_MEM_BASE;
 	u64 off;
 	void __iomem *addr;
 
@@ -951,6 +951,7 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 				       netxen_nic_driver_name);
 				return;
 			}
+			*ptr32 = le32_to_cpu(*ptr32);
 			ptr32++;
 			addr += sizeof(u32);
 		}
