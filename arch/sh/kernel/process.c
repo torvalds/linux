@@ -250,12 +250,11 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		childregs->regs[15] = usp;
 		ti->addr_limit = USER_DS;
 	} else {
-		childregs->regs[15] = (unsigned long)task_stack_page(p) +
-							THREAD_SIZE;
+		childregs->regs[15] = (unsigned long)childregs;
 		ti->addr_limit = KERNEL_DS;
 	}
 
-        if (clone_flags & CLONE_SETTLS)
+	if (clone_flags & CLONE_SETTLS)
 		childregs->gbr = childregs->regs[0];
 
 	childregs->regs[0] = 0; /* Set return value for child */
