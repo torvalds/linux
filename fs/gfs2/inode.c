@@ -61,13 +61,13 @@ static int iget_set(struct inode *inode, void *opaque)
 
 struct inode *gfs2_ilookup(struct super_block *sb, struct gfs2_inum_host *inum)
 {
-	return ilookup5(sb, (unsigned long)inum->no_formal_ino,
+	return ilookup5(sb, (unsigned long)inum->no_addr,
 			iget_test, inum);
 }
 
 static struct inode *gfs2_iget(struct super_block *sb, struct gfs2_inum_host *inum)
 {
-	return iget5_locked(sb, (unsigned long)inum->no_formal_ino,
+	return iget5_locked(sb, (unsigned long)inum->no_addr,
 		     iget_test, iget_set, inum);
 }
 
