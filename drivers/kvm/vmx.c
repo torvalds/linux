@@ -1585,8 +1585,8 @@ static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 static int handle_cpuid(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	kvm_run->exit_reason = KVM_EXIT_CPUID;
-	return 0;
+	kvm_emulate_cpuid(vcpu);
+	return 1;
 }
 
 static int handle_rdmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)

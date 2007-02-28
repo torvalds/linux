@@ -1101,8 +1101,8 @@ static int task_switch_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_r
 static int cpuid_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	vcpu->svm->next_rip = vcpu->svm->vmcb->save.rip + 2;
-	kvm_run->exit_reason = KVM_EXIT_CPUID;
-	return 0;
+	kvm_emulate_cpuid(vcpu);
+	return 1;
 }
 
 static int emulate_on_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)

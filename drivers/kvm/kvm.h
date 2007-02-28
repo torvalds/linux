@@ -55,6 +55,7 @@
 #define KVM_NUM_MMU_PAGES 256
 #define KVM_MIN_FREE_MMU_PAGES 5
 #define KVM_REFILL_PAGES 25
+#define KVM_MAX_CPUID_ENTRIES 40
 
 #define FX_IMAGE_SIZE 512
 #define FX_IMAGE_ALIGN 16
@@ -286,6 +287,9 @@ struct kvm_vcpu {
 			u32 ar;
 		} tr, es, ds, fs, gs;
 	} rmode;
+
+	int cpuid_nent;
+	struct kvm_cpuid_entry cpuid_entries[KVM_MAX_CPUID_ENTRIES];
 };
 
 struct kvm_memory_slot {
@@ -446,6 +450,7 @@ void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long value,
 
 struct x86_emulate_ctxt;
 
+void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
 int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address);
 int emulate_clts(struct kvm_vcpu *vcpu);
 int emulator_get_dr(struct x86_emulate_ctxt* ctxt, int dr,

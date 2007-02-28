@@ -1504,6 +1504,43 @@ void save_msrs(struct vmx_msr_entry *e, int n)
 }
 EXPORT_SYMBOL_GPL(save_msrs);
 
+void kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
+{
+	int i;
+	u32 function;
+	struct kvm_cpuid_entry *e, *best;
+
+	kvm_arch_ops->cache_regs(vcpu);
+	function = vcpu->regs[VCPU_REGS_RAX];
+	vcpu->regs[VCPU_REGS_RAX] = 0;
+	vcpu->regs[VCPU_REGS_RBX] = 0;
+	vcpu->regs[VCPU_REGS_RCX] = 0;
+	vcpu->regs[VCPU_REGS_RDX] = 0;
+	best = NULL;
+	for (i = 0; i < vcpu->cpuid_nent; ++i) {
+		e = &vcpu->cpuid_entries[i];
+		if (e->function == function) {
+			best = e;
+			break;
+		}
+		/*
+		 * Both basic or both extended?
+		 */
+		if (((e->function ^ function) & 0x80000000) == 0)
+			if (!best || e->function > best->function)
+				best = e;
+	}
+	if (best) {
+		vcpu->regs[VCPU_REGS_RAX] = best->eax;
+		vcpu->regs[VCPU_REGS_RBX] = best->ebx;
+		vcpu->regs[VCPU_REGS_RCX] = best->ecx;
+		vcpu->regs[VCPU_REGS_RDX] = best->edx;
+	}
+	kvm_arch_ops->decache_regs(vcpu);
+	kvm_arch_ops->skip_emulated_instruction(vcpu);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
+
 static void complete_pio(struct kvm_vcpu *vcpu)
 {
 	struct kvm_io *io = &vcpu->run->io;
@@ -2075,6 +2112,26 @@ out:
 	return r;
 }
 
+static int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
+				    struct kvm_cpuid *cpuid,
+				    struct kvm_cpuid_entry __user *entries)
+{
+	int r;
+
+	r = -E2BIG;
+	if (cpuid->nent > KVM_MAX_CPUID_ENTRIES)
+		goto out;
+	r = -EFAULT;
+	if (copy_from_user(&vcpu->cpuid_entries, entries,
+			   cpuid->nent * sizeof(struct kvm_cpuid_entry)))
+		goto out;
+	vcpu->cpuid_nent = cpuid->nent;
+	return 0;
+
+out:
+	return r;
+}
+
 static long kvm_vcpu_ioctl(struct file *filp,
 			   unsigned int ioctl, unsigned long arg)
 {
@@ -2181,6 +2238,18 @@ static long kvm_vcpu_ioctl(struct file *filp,
 	case KVM_SET_MSRS:
 		r = msr_io(vcpu, argp, do_set_msr, 0);
 		break;
+	case KVM_SET_CPUID: {
+		struct kvm_cpuid __user *cpuid_arg = argp;
+		struct kvm_cpuid cpuid;
+
+		r = -EFAULT;
+		if (copy_from_user(&cpuid, cpuid_arg, sizeof cpuid))
+			goto out;
+		r = kvm_vcpu_ioctl_set_cpuid(vcpu, &cpuid, cpuid_arg->entries);
+		if (r)
+			goto out;
+		break;
+	}
 	default:
 		;
 	}

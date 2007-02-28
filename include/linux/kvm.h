@@ -41,7 +41,6 @@ enum kvm_exit_reason {
 	KVM_EXIT_UNKNOWN          = 0,
 	KVM_EXIT_EXCEPTION        = 1,
 	KVM_EXIT_IO               = 2,
-	KVM_EXIT_CPUID            = 3,
 	KVM_EXIT_DEBUG            = 4,
 	KVM_EXIT_HLT              = 5,
 	KVM_EXIT_MMIO             = 6,
@@ -210,6 +209,22 @@ struct kvm_dirty_log {
 	};
 };
 
+struct kvm_cpuid_entry {
+	__u32 function;
+	__u32 eax;
+	__u32 ebx;
+	__u32 ecx;
+	__u32 edx;
+	__u32 padding;
+};
+
+/* for KVM_SET_CPUID */
+struct kvm_cpuid {
+	__u32 nent;
+	__u32 padding;
+	struct kvm_cpuid_entry entries[0];
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -243,5 +258,6 @@ struct kvm_dirty_log {
 #define KVM_DEBUG_GUEST           _IOW(KVMIO, 9, struct kvm_debug_guest)
 #define KVM_GET_MSRS              _IOWR(KVMIO, 13, struct kvm_msrs)
 #define KVM_SET_MSRS              _IOW(KVMIO, 14, struct kvm_msrs)
+#define KVM_SET_CPUID             _IOW(KVMIO, 17, struct kvm_cpuid)
 
 #endif
