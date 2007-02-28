@@ -954,9 +954,6 @@ static void __init early_reserve_mem(void)
 		size = *(reserve_map++);
 		if (size == 0)
 			break;
-		/* skip if the reservation is for the blob */
-		if (base == self_base && size == self_size)
-			continue;
 		DBG("reserving: %llx -> %llx\n", base, size);
 		lmb_reserve(base, size);
 	}
