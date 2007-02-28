@@ -53,7 +53,7 @@
 #include "conditional.h"
 #include "mls.h"
 #include "objsec.h"
-#include "selinux_netlabel.h"
+#include "netlabel.h"
 #include "xfrm.h"
 #include "ebitmap.h"
 
