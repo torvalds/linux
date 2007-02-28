@@ -304,26 +304,8 @@ struct seq_operations cpuinfo_op = {
 void __init check_for_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
-	const unsigned int *prop;
-	int len;
-
-	DBG(" -> check_for_initrd()\n");
-
-	if (of_chosen) {
-		prop = get_property(of_chosen, "linux,initrd-start", &len);
-		if (prop != NULL) {
-			initrd_start = (unsigned long)
-				__va(of_read_ulong(prop, len / 4));
-			prop = get_property(of_chosen,
-					"linux,initrd-end", &len);
-			if (prop != NULL) {
-				initrd_end = (unsigned long)
-					__va(of_read_ulong(prop, len / 4));
-				initrd_below_start_ok = 1;
-			} else
-				initrd_start = 0;
-		}
-	}
+	DBG(" -> check_for_initrd()  initrd_start=0x%lx  initrd_end=0x%lx\n",
+	    initrd_start, initrd_end);
 
 	/* If we were passed an initrd, set the ROOT_DEV properly if the values
 	 * look sensible. If not, clear initrd reference.
