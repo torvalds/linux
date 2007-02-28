@@ -580,7 +580,7 @@ static struct ehea_port *ehea_get_port(struct ehea_adapter *adapter,
 {
 	int i;
 
-	for (i = 0; i < adapter->num_ports; i++)
+	for (i = 0; i < EHEA_MAX_PORTS; i++)
 		if (adapter->port[i])
 	                if (adapter->port[i]->logical_port_id == logical_port)
 				return adapter->port[i];
@@ -2276,8 +2276,6 @@ static void ehea_tx_watchdog(struct net_device *dev)
 int ehea_sense_adapter_attr(struct ehea_adapter *adapter)
 {
 	struct hcp_query_ehea *cb;
-	struct device_node *lhea_dn = NULL;
-	struct device_node *eth_dn = NULL;
 	u64 hret;
 	int ret;
 
@@ -2294,18 +2292,6 @@ int ehea_sense_adapter_attr(struct ehea_adapter *adapter)
 		goto out_herr;
 	}
 
-	/* Determine the number of available logical ports
-	 * by counting the child nodes of the lhea OFDT entry
-	 */
-	adapter->num_ports = 0;
-	lhea_dn = of_find_node_by_name(lhea_dn, "lhea");
-	do {
-		eth_dn = of_get_next_child(lhea_dn, eth_dn);
-		if (eth_dn)
-			adapter->num_ports++;
-	} while ( eth_dn );
-	of_node_put(lhea_dn);
-
 	adapter->max_mc_mac = cb->max_mc_mac - 1;
 	ret = 0;
 
@@ -2315,79 +2301,150 @@ out:
 	return ret;
 }
 
-static int ehea_setup_single_port(struct ehea_port *port,
-				  struct device_node *dn)
+int ehea_get_jumboframe_status(struct ehea_port *port, int *jumbo)
+{
+	struct hcp_ehea_port_cb4 *cb4;
+	u64 hret;
+	int ret = 0;
+
+	*jumbo = 0;
+
+	/* (Try to) enable *jumbo frames */
+	cb4 = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!cb4) {
+		ehea_error("no mem for cb4");
+		ret = -ENOMEM;
+		goto out;
+	} else {
+		hret = ehea_h_query_ehea_port(port->adapter->handle,
+					      port->logical_port_id,
+					      H_PORT_CB4,
+					      H_PORT_CB4_JUMBO, cb4);
+		if (hret == H_SUCCESS) {
+			if (cb4->jumbo_frame)
+				*jumbo = 1;
+			else {
+				cb4->jumbo_frame = 1;
+				hret = ehea_h_modify_ehea_port(port->adapter->
+							       handle,
+							       port->
+							       logical_port_id,
+							       H_PORT_CB4,
+							       H_PORT_CB4_JUMBO,
+							       cb4);
+				if (hret == H_SUCCESS)
+					*jumbo = 1;
+			}
+		} else
+			ret = -EINVAL;
+
+		kfree(cb4);
+	}
+out:
+	return ret;
+}
+
+static ssize_t ehea_show_port_id(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct ehea_port *port = container_of(dev, struct ehea_port, ofdev.dev);
+	return sprintf(buf, "0x%X", port->logical_port_id);
+}
+
+static DEVICE_ATTR(log_port_id, S_IRUSR | S_IRGRP | S_IROTH, ehea_show_port_id,
+		   NULL);
+
+static void __devinit logical_port_release(struct device *dev)
+{
+	struct ehea_port *port = container_of(dev, struct ehea_port, ofdev.dev);
+	of_node_put(port->ofdev.node);
+}
+
+static struct device *ehea_register_port(struct ehea_port *port,
+					 struct device_node *dn)
 {
 	int ret;
-	u64 hret;
-	struct net_device *dev = port->netdev;
-	struct ehea_adapter *adapter = port->adapter;
-	struct hcp_ehea_port_cb4 *cb4;
-	u32 *dn_log_port_id;
-	int jumbo = 0;
+
+	port->ofdev.node = of_node_get(dn);
+	port->ofdev.dev.parent = &port->adapter->ebus_dev->ofdev.dev;
+
+	sprintf(port->ofdev.dev.bus_id, "port%d", port->logical_port_id);
+	port->ofdev.dev.release = logical_port_release;
+
+	ret = of_device_register(&port->ofdev);
+	if (ret) {
+		ehea_error("failed to register device. ret=%d", ret);
+		goto out;
+	}
+
+	ret = device_create_file(&port->ofdev.dev, &dev_attr_log_port_id);
+        if (ret) {
+		ehea_error("failed to register attributes, ret=%d", ret);
+		goto out_unreg_of_dev;
+	}
+	
+	return &port->ofdev.dev;
+
+out_unreg_of_dev:
+	of_device_unregister(&port->ofdev);
+out:
+	return NULL;
+}
+
+static void ehea_unregister_port(struct ehea_port *port)
+{
+	device_remove_file(&port->ofdev.dev, &dev_attr_log_port_id);
+	of_device_unregister(&port->ofdev);
+}
+
+struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
+					 u32 logical_port_id,
+					 struct device_node *dn)
+{
+	int ret;
+	struct net_device *dev;
+	struct ehea_port *port;
+	struct device *port_dev;
+	int jumbo;
+
+	/* allocate memory for the port structures */
+	dev = alloc_etherdev(sizeof(struct ehea_port));
+
+	if (!dev) {
+		ehea_error("no mem for net_device");
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	port = netdev_priv(dev);
 
 	sema_init(&port->port_lock, 1);
 	port->state = EHEA_PORT_DOWN;
 	port->sig_comp_iv = sq_entries / 10;
 
-	if (!dn) {
-		ehea_error("bad device node: dn=%p", dn);
-		ret = -EINVAL;
-		goto out;
-	}
+	port->adapter = adapter;
+	port->netdev = dev;
+	port->logical_port_id = logical_port_id;
 
-	port->of_dev_node = dn;
-
-	/* Determine logical port id */
-	dn_log_port_id = (u32*)get_property(dn, "ibm,hea-port-no", NULL);
-
-	if (!dn_log_port_id) {
-		ehea_error("bad device node: dn_log_port_id=%p",
-			   dn_log_port_id);
-		ret = -EINVAL;
-		goto out;
-	}
-	port->logical_port_id = *dn_log_port_id;
+	port->msg_enable = netif_msg_init(msg_level, EHEA_MSG_DEFAULT);
 
 	port->mc_list = kzalloc(sizeof(struct ehea_mc_list), GFP_KERNEL);
 	if (!port->mc_list) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_free_ethdev;
 	}
 
 	INIT_LIST_HEAD(&port->mc_list->list);
 
 	ret = ehea_sense_port_attr(port);
 	if (ret)
-		goto out;
+		goto out_free_mc_list;
 
-	/* Enable Jumbo frames */
-	cb4 = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!cb4) {
-		ehea_error("no mem for cb4");
-	} else {
-		hret = ehea_h_query_ehea_port(adapter->handle,
-					      port->logical_port_id,
-					      H_PORT_CB4,
-					      H_PORT_CB4_JUMBO, cb4);
+	port_dev = ehea_register_port(port, dn);
+	if (!port_dev)
+		goto out_free_mc_list;
 
-		if (hret == H_SUCCESS) {
-			if (cb4->jumbo_frame)
-				jumbo = 1;
-			else {
-				cb4->jumbo_frame = 1;
-				hret = ehea_h_modify_ehea_port(adapter->handle,
-							       port->
-							        logical_port_id,
-							       H_PORT_CB4,
-							       H_PORT_CB4_JUMBO,
-							       cb4);
-				if (hret == H_SUCCESS)
-					jumbo = 1;
-			}
-		}
-		kfree(cb4);
-	}
+	SET_NETDEV_DEV(dev, port_dev);
 
 	/* initialize net_device structure */
 	SET_MODULE_OWNER(dev);
@@ -2420,79 +2477,216 @@ static int ehea_setup_single_port(struct ehea_port *port,
 	ret = register_netdev(dev);
 	if (ret) {
 		ehea_error("register_netdev failed. ret=%d", ret);
-		goto out_free;
+		goto out_unreg_port;
 	}
+
+	ret = ehea_get_jumboframe_status(port, &jumbo);
+	if (ret) 
+		ehea_error("failed determining jumbo frame status for %s",
+			   port->netdev->name);
 
 	ehea_info("%s: Jumbo frames are %sabled", dev->name,
 		  jumbo == 1 ? "en" : "dis");
 
-	port->netdev = dev;
-	ret = 0;
-	goto out;
+	return port;
 
-out_free:
+out_unreg_port:
+	ehea_unregister_port(port);
+
+out_free_mc_list:
 	kfree(port->mc_list);
-out:
-	return ret;
+
+out_free_ethdev:
+	free_netdev(dev);
+
+out_err:
+	ehea_error("setting up logical port with id=%d failed, ret=%d",
+		   logical_port_id, ret);
+	return NULL;
+}
+
+static void ehea_shutdown_single_port(struct ehea_port *port)
+{
+	unregister_netdev(port->netdev);
+	ehea_unregister_port(port);
+	kfree(port->mc_list);
+	free_netdev(port->netdev);
 }
 
 static int ehea_setup_ports(struct ehea_adapter *adapter)
 {
-	int ret;
+	struct device_node *lhea_dn;
+	struct device_node *eth_dn = NULL;
+
+	u32 *dn_log_port_id;
 	int port_setup_ok = 0;
-	struct ehea_port *port;
-	struct device_node *dn = NULL;
-	struct net_device *dev;
-	int i;
+	int i = 0;
 
-	/* get port properties for all ports */
-	for (i = 0; i < adapter->num_ports; i++) {
-
-		if (adapter->port[i])
-			continue;	/* port already up and running */
-
-		/* allocate memory for the port structures */
-		dev = alloc_etherdev(sizeof(struct ehea_port));
-
-		if (!dev) {
-			ehea_error("no mem for net_device");
+	lhea_dn = adapter->ebus_dev->ofdev.node;
+	do {
+		eth_dn = of_get_next_child(lhea_dn, eth_dn);
+		if (!eth_dn)
 			break;
+
+		dn_log_port_id = (u32*)get_property(eth_dn, "ibm,hea-port-no",
+						    NULL);
+		if (!dn_log_port_id) {
+			ehea_error("bad device node: eth_dn name=%s",
+				   eth_dn->full_name);
+			continue;
 		}
 
-		port = netdev_priv(dev);
-		port->adapter = adapter;
-		port->netdev = dev;
-		adapter->port[i] = port;
-		port->msg_enable = netif_msg_init(msg_level, EHEA_MSG_DEFAULT);
+		adapter->port[i] = ehea_setup_single_port(adapter,
+							  *dn_log_port_id,
+							  eth_dn);
+		if (adapter->port[i])
+			ehea_info("%s -> logical port id #%d",
+				  adapter->port[i]->netdev->name, 
+				  *dn_log_port_id);
+		i++;
+	} while (eth_dn);
 
-		dn = of_find_node_by_name(dn, "ethernet");
-		ret = ehea_setup_single_port(port, dn);
-		if (ret) {
-			/* Free mem for this port struct. The others will be
-			   processed on rollback */
-			free_netdev(dev);
-			adapter->port[i] = NULL;
-			ehea_error("eHEA port %d setup failed, ret=%d", i, ret);
-		}
-	}
-
-	of_node_put(dn);
+	of_node_put(lhea_dn);
 
 	/* Check for succesfully set up ports */
-	for (i = 0; i < adapter->num_ports; i++)
+	for (i = 0; i < EHEA_MAX_PORTS; i++)
 		if (adapter->port[i])
 			port_setup_ok++;
 
 	if (port_setup_ok)
-		ret = 0;	/* At least some ports are setup correctly */
-	else
-		ret = -EINVAL;
+		return 0;	/* At least some ports are setup correctly */
 
+	return -EINVAL;
+}
+
+static struct device_node *ehea_get_eth_dn(struct ehea_adapter *adapter, 
+					   u32 logical_port_id) 
+{
+	struct device_node *lhea_dn;
+	struct device_node *eth_dn = NULL;
+	u32 *dn_log_port_id;
+
+	lhea_dn = adapter->ebus_dev->ofdev.node;
+	do {
+		eth_dn = of_get_next_child(lhea_dn, eth_dn);
+		if (!eth_dn)
+			break;
+
+		dn_log_port_id = (u32*)get_property(eth_dn, "ibm,hea-port-no",
+						    NULL);
+
+		if (dn_log_port_id)
+			if (*dn_log_port_id == logical_port_id)
+				return eth_dn;
+
+	} while (eth_dn);
+
+	of_node_put(lhea_dn);
+
+	return NULL;
+}
+
+static ssize_t ehea_probe_port(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct ehea_adapter *adapter = dev->driver_data;
+	struct ehea_port *port;
+	struct device_node *eth_dn = NULL;
+	int i;
+
+	u32 logical_port_id;
+
+	sscanf(buf, "%X", &logical_port_id);
+
+	port = ehea_get_port(adapter, logical_port_id);
+
+	if (port) {
+		ehea_info("adding port with logical port id=%d failed. port "
+			  "already configured as %s.", logical_port_id,
+			  port->netdev->name);
+		return -EINVAL;
+	}
+	
+	eth_dn = ehea_get_eth_dn(adapter, logical_port_id);
+
+	if (!eth_dn) {
+		ehea_info("no logical port with id %d found", logical_port_id);
+		return -EINVAL;
+	}
+		
+	port = ehea_setup_single_port(adapter, logical_port_id, eth_dn);
+
+	if (port) {
+		for (i=0; i < EHEA_MAX_PORTS; i++)
+			if (!adapter->port[i]) {
+				adapter->port[i] = port;
+				break;
+			}
+
+		ehea_info("added %s (logical port id=%d)", port->netdev->name,
+			  logical_port_id);
+	} else 
+		return -EIO;	       
+
+	return (ssize_t) count;
+}
+
+static ssize_t ehea_remove_port(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct ehea_adapter *adapter = dev->driver_data;
+	struct ehea_port *port;
+	int i;
+	u32 logical_port_id;
+
+	sscanf(buf, "%X", &logical_port_id);
+
+	port = ehea_get_port(adapter, logical_port_id);
+
+	if (port) {
+		ehea_info("removed %s (logical port id=%d)", port->netdev->name,
+			  logical_port_id);
+
+		ehea_shutdown_single_port(port);
+
+		for (i=0; i < EHEA_MAX_PORTS; i++)
+			if (adapter->port[i] == port) {
+				adapter->port[i] = NULL;
+				break;
+			}
+	} else {
+		ehea_error("removing port with logical port id=%d failed. port "
+			   "not configured.", logical_port_id);
+		return -EINVAL;
+	}
+
+	return (ssize_t) count;
+}
+
+static DEVICE_ATTR(probe_port, S_IWUSR, NULL, ehea_probe_port);
+static DEVICE_ATTR(remove_port, S_IWUSR, NULL, ehea_remove_port);
+
+int ehea_create_device_sysfs(struct ibmebus_dev *dev)
+{
+	int ret = device_create_file(&dev->ofdev.dev, &dev_attr_probe_port);
+	if (ret)
+		goto out;
+
+	ret = device_create_file(&dev->ofdev.dev, &dev_attr_remove_port);
+out:
 	return ret;
 }
 
-static int __devinit ehea_probe(struct ibmebus_dev *dev,
-				const struct of_device_id *id)
+void ehea_remove_device_sysfs(struct ibmebus_dev *dev)
+{
+	device_remove_file(&dev->ofdev.dev, &dev_attr_probe_port);
+	device_remove_file(&dev->ofdev.dev, &dev_attr_remove_port);
+}
+
+static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
+					const struct of_device_id *id)
 {
 	struct ehea_adapter *adapter;
 	u64 *adapter_handle;
@@ -2504,6 +2698,8 @@ static int __devinit ehea_probe(struct ibmebus_dev *dev,
 		dev_err(&dev->ofdev.dev, "no mem for ehea_adapter\n");
 		goto out;
 	}
+
+	adapter->ebus_dev = dev;
 
 	adapter_handle = (u64*)get_property(dev->ofdev.node, "ibm,hea-handle",
 					    NULL);
@@ -2534,7 +2730,6 @@ static int __devinit ehea_probe(struct ibmebus_dev *dev,
 		dev_err(&dev->ofdev.dev, "sense_adapter_attr failed: %d", ret);
 		goto out_free_res;
 	}
-	dev_info(&dev->ofdev.dev, "%d eHEA ports found\n", adapter->num_ports);
 
 	adapter->neq = ehea_create_eq(adapter,
 				      EHEA_NEQ, EHEA_MAX_ENTRIES_EQ, 1);
@@ -2558,14 +2753,20 @@ static int __devinit ehea_probe(struct ibmebus_dev *dev,
 	if (!adapter->ehea_wq)
 		goto out_free_irq;
 
+	if (ehea_create_device_sysfs(dev))
+		goto out_kill_wq;
+
 	ret = ehea_setup_ports(adapter);
 	if (ret) {
 		dev_err(&dev->ofdev.dev, "setup_ports failed");
-		goto out_kill_wq;
+		goto out_rem_dev_sysfs;
 	}
 
 	ret = 0;
 	goto out;
+
+out_rem_dev_sysfs:
+	ehea_remove_device_sysfs(dev);
 
 out_kill_wq:
 	destroy_workqueue(adapter->ehea_wq);
@@ -2585,24 +2786,20 @@ out:
 	return ret;
 }
 
-static void ehea_shutdown_single_port(struct ehea_port *port)
-{
-	unregister_netdev(port->netdev);
-	kfree(port->mc_list);
-	free_netdev(port->netdev);
-}
-
 static int __devexit ehea_remove(struct ibmebus_dev *dev)
 {
 	struct ehea_adapter *adapter = dev->ofdev.dev.driver_data;
 	u64 hret;
 	int i;
 
-	for (i = 0; i < adapter->num_ports; i++)
+	for (i = 0; i < EHEA_MAX_PORTS; i++)
 		if (adapter->port[i]) {
 			ehea_shutdown_single_port(adapter->port[i]);
 			adapter->port[i] = NULL;
 		}
+
+	ehea_remove_device_sysfs(dev);
+
 	destroy_workqueue(adapter->ehea_wq);
 
 	ibmebus_free_irq(NULL, adapter->neq->attr.ist1, adapter);
@@ -2658,7 +2855,7 @@ static struct of_device_id ehea_device_table[] = {
 static struct ibmebus_driver ehea_driver = {
 	.name = "ehea",
 	.id_table = ehea_device_table,
-	.probe = ehea_probe,
+	.probe = ehea_probe_adapter,
 	.remove = ehea_remove,
 };
 

@@ -39,7 +39,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0046"
+#define DRV_VERSION	"EHEA_0048"
 
 #define EHEA_MSG_DEFAULT (NETIF_MSG_LINK | NETIF_MSG_TIMER \
 	| NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
@@ -380,10 +380,11 @@ struct ehea_port_res {
 };
 
 
+#define EHEA_MAX_PORTS 16
 struct ehea_adapter {
 	u64 handle;
-	u8 num_ports;
-	struct ehea_port *port[16];
+	struct ibmebus_dev *ebus_dev;
+	struct ehea_port *port[EHEA_MAX_PORTS];
 	struct ehea_eq *neq;       /* notification event queue */
 	struct workqueue_struct *ehea_wq;
 	struct tasklet_struct neq_tasklet;
@@ -406,7 +407,7 @@ struct ehea_port {
 	struct net_device *netdev;
 	struct net_device_stats stats;
 	struct ehea_port_res port_res[EHEA_MAX_PORT_RES];
-	struct device_node *of_dev_node; /* Open Firmware Device Node */
+	struct of_device  ofdev; /* Open Firmware Device */
 	struct ehea_mc_list *mc_list;	 /* Multicast MAC addresses */
 	struct vlan_group *vgrp;
 	struct ehea_eq *qp_eq;
