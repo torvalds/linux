@@ -9,6 +9,8 @@
 
 #include <linux/mv643xx.h>
 
+#include <asm/dma-mapping.h>
+
 /* Checksum offload for Tx works for most packets, but
  * fails if previous packet sent did not use hw csum
  */
@@ -47,7 +49,7 @@
 #define ETH_HW_IP_ALIGN		2		/* hw aligns IP header */
 #define ETH_WRAPPER_LEN		(ETH_HW_IP_ALIGN + ETH_HLEN + \
 					ETH_VLAN_HLEN + ETH_FCS_LEN)
-#define ETH_RX_SKB_SIZE		(dev->mtu + ETH_WRAPPER_LEN + ETH_DMA_ALIGN)
+#define ETH_RX_SKB_SIZE		(dev->mtu + ETH_WRAPPER_LEN + dma_get_cache_alignment())
 
 #define ETH_RX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for receive */
 #define ETH_TX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for transmit */
