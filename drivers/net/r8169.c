@@ -1415,7 +1415,7 @@ static const struct rtl_cfg_info {
 	[RTL_CFG_0] = {
 		.hw_start	= rtl_hw_start_8169,
 		.region		= 1,
-		.align		= 2,
+		.align		= 0,
 		.intr_event	= SYSErr | LinkChg | RxOverflow |
 				  RxFIFOOver | TxErr | TxOK | RxOK | RxErr,
 		.napi_event	= RxFIFOOver | TxErr | TxOK | RxOK | RxOverflow
@@ -2076,12 +2076,15 @@ static struct sk_buff *rtl8169_alloc_rx_skb(struct pci_dev *pdev,
 {
 	struct sk_buff *skb;
 	dma_addr_t mapping;
+	unsigned int pad;
 
-	skb = netdev_alloc_skb(dev, rx_buf_sz + align);
+	pad = align ? align : NET_IP_ALIGN;
+
+	skb = netdev_alloc_skb(dev, rx_buf_sz + pad);
 	if (!skb)
 		goto err_out;
 
-	skb_reserve(skb, (align - 1) & (unsigned long)skb->data);
+	skb_reserve(skb, align ? ((pad - 1) & (unsigned long)skb->data) : pad);
 
 	mapping = pci_map_single(pdev, skb->data, rx_buf_sz,
 				 PCI_DMA_FROMDEVICE);
