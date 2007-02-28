@@ -64,7 +64,7 @@
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 #include <asm/idprom.h>
 #include <asm/openprom.h>
 #include <asm/oplib.h>
@@ -2849,7 +2849,7 @@ static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return rc;
 }
 
-#if (!defined(__sparc__) && !defined(CONFIG_PPC_PMAC))
+#if (!defined(CONFIG_SPARC) && !defined(CONFIG_PPC_PMAC))
 /* Fetch MAC address from vital product data of PCI ROM. */
 static int find_eth_addr_in_vpd(void __iomem *rom_base, int len, unsigned char *dev_addr)
 {
@@ -2904,11 +2904,11 @@ static void get_gem_mac_nonobp(struct pci_dev *pdev, unsigned char *dev_addr)
 
 static int __devinit gem_get_device_address(struct gem *gp)
 {
-#if defined(__sparc__) || defined(CONFIG_PPC_PMAC)
+#if defined(CONFIG_SPARC) || defined(CONFIG_PPC_PMAC)
 	struct net_device *dev = gp->dev;
 #endif
 
-#if defined(__sparc__)
+#if defined(CONFIG_SPARC)
 	struct pci_dev *pdev = gp->pdev;
 	struct pcidev_cookie *pcp = pdev->sysdata;
 	int use_idprom = 1;
