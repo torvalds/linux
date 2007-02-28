@@ -23,7 +23,29 @@ static struct sparc_ebus_info {
 	struct ebus_dma_info info;
 	unsigned int addr;
 	unsigned int count;
+	int lock;
 } sparc_ebus_dmas[PARPORT_PC_MAX_PORTS];
+
+static __inline__ int request_dma(unsigned int dmanr, const char *device_id)
+{
+	if (dmanr >= PARPORT_PC_MAX_PORTS)
+		return -EINVAL;
+	if (xchg(&sparc_ebus_dmas[dmanr].lock, 1) != 0)
+		return -EBUSY;
+	return 0;
+}
+
+static __inline__ void free_dma(unsigned int dmanr)
+{
+	if (dmanr >= PARPORT_PC_MAX_PORTS) {
+		printk(KERN_WARNING "Trying to free DMA%d\n", dmanr);
+		return;
+	}
+	if (xchg(&sparc_ebus_dmas[dmanr].lock, 0) == 0) {
+		printk(KERN_WARNING "Trying to free free DMA%d\n", dmanr);
+		return;
+	}	
+}
 
 static __inline__ void enable_dma(unsigned int dmanr)
 {
