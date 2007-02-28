@@ -627,7 +627,6 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 	struct sk_buff *skb;
 	struct icmp6hdr *hdr;
 	__u8 * opt;
-	struct inet6_ifaddr *ifp;
 	int send_sllao = dev->addr_len;
 	int len;
 	int err;
@@ -643,12 +642,12 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 	 * supress the inclusion of the sllao.
 	 */
 	if (send_sllao) {
-		ifp = ipv6_get_ifaddr(saddr, dev, 1);
+		struct inet6_ifaddr *ifp = ipv6_get_ifaddr(saddr, dev, 1);
 		if (ifp) {
 			if (ifp->flags & IFA_F_OPTIMISTIC)  {
-				send_sllao=0;
-				in6_ifa_put(ifp);
+				send_sllao = 0;
 			}
+			in6_ifa_put(ifp);
 		} else {
 			send_sllao = 0;
 		}
