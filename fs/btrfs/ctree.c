@@ -167,29 +167,6 @@ int search_slot(struct ctree_root *root, struct key *key,
 				b = p->nodes[level];
 				c = &b->node;
 				slot = p->slots[level];
-			} else if (ins_len < 0 &&
-				   c->header.nritems <= NODEPTRS_PER_BLOCK/4) {
-				u64 blocknr = b->blocknr;
-				slot = p->slots[level +1];
-				b->count++;
-				if (push_node_left(root, p, level))
-					push_node_right(root, p, level);
-				if (c->header.nritems == 0 &&
-				    level < MAX_LEVEL - 1 &&
-				    p->nodes[level + 1]) {
-					int tslot = p->slots[level + 1];
-
-					p->slots[level + 1] = slot;
-					del_ptr(root, p, level + 1);
-					p->slots[level + 1] = tslot;
-					tree_block_release(root, b);
-					free_extent(root, blocknr, 1);
-				} else {
-					tree_block_release(root, b);
-				}
-				b = p->nodes[level];
-				c = &b->node;
-				slot = p->slots[level];
 			}
 			b = read_tree_block(root, c->blockptrs[slot]);
 			continue;
@@ -618,7 +595,6 @@ int push_leaf_right(struct ctree_root *root, struct ctree_path *path,
 		&right->items[0].key, sizeof(struct key));
 	write_tree_block(root, upper);
 	/* then fixup the leaf pointer in the path */
-	// FIXME use nritems in here somehow
 	if (path->slots[0] >= left->header.nritems) {
 		path->slots[0] -= left->header.nritems;
 		tree_block_release(root, path->nodes[0]);
@@ -847,8 +823,6 @@ int insert_item(struct ctree_root *root, struct key *key,
 
 	slot = path.slots[0];
 	BUG_ON(slot < 0);
-	if (slot == 0)
-		fixup_low_keys(root, &path, key, 1);
 	if (slot != nritems) {
 		int i;
 		unsigned int old_data = leaf->items[slot].offset +
@@ -877,6 +851,8 @@ int insert_item(struct ctree_root *root, struct key *key,
 	memcpy(leaf->data + data_end - data_size, data, data_size);
 	leaf->header.nritems += 1;
 	write_tree_block(root, leaf_buf);
+	if (slot == 0)
+		fixup_low_keys(root, &path, key, 1);
 	if (leaf_free_space(leaf) < 0)
 		BUG();
 	release_path(root, &path);
@@ -914,13 +890,23 @@ int del_ptr(struct ctree_root *root, struct ctree_path *path, int level)
 				sizeof(u64) * (nritems - slot - 1));
 		}
 		node->header.nritems--;
-		write_tree_block(root, t);
 		blocknr = t->blocknr;
+		write_tree_block(root, t);
 		if (node->header.nritems != 0) {
+			int tslot;
 			if (slot == 0)
 				fixup_low_keys(root, path, node->keys,
 					       level + 1);
-			break;
+			tslot = path->slots[level + 1];
+			t->count++;
+			if (push_node_left(root, path, level))
+				push_node_right(root, path, level);
+			path->slots[level + 1] = tslot;
+			if (node->header.nritems != 0) {
+				tree_block_release(root, t);
+				break;
+			}
+			tree_block_release(root, t);
 		}
 		if (t == root->node) {
 			/* just turn the root into a leaf and break */
