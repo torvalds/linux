@@ -3,8 +3,13 @@ CFLAGS = -g -Wall
 headers = radix-tree.h ctree.h disk-io.h kerncompat.h print-tree.h
 objects = ctree.o disk-io.o radix-tree.o mkfs.o extent-tree.o print-tree.o
 
-#.c.o:
-#	$(CC) $(CFLAGS) -c $<
+# if you don't have sparse installed, use ls instead
+check=sparse
+#check=ls
+
+.c.o:
+	$(check) $<
+	$(CC) $(CFLAGS) -c $<
 
 all: tester debug-tree
 

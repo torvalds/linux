@@ -6,7 +6,7 @@
 #include "disk-io.h"
 #include "print-tree.h"
 
-int main() {
+int main(int ac, char **av) {
 	struct ctree_super_block super;
 	struct ctree_root *root;
 	radix_tree_init();
