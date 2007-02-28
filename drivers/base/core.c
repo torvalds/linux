@@ -1065,7 +1065,7 @@ int device_rename(struct device *dev, char *new_name)
 
 	return error;
 }
-
+EXPORT_SYMBOL_GPL(device_rename);
 
 static int device_move_class_links(struct device *dev,
 				   struct device *old_parent,
