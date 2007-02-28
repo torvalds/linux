@@ -1087,7 +1087,9 @@ static int del_ptr(struct ctree_root *root, struct ctree_path *path, int level)
 			break;
 		}
 		level++;
-		free_extent(root, blocknr, 1);
+		wret = free_extent(root, blocknr, 1);
+		if (wret)
+			ret = wret;
 		if (!path->nodes[level])
 			BUG();
 	}
@@ -1136,7 +1138,9 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 			wret = del_ptr(root, path, 1);
 			if (wret)
 				ret = wret;
-			free_extent(root, leaf_buf->blocknr, 1);
+			wret = free_extent(root, leaf_buf->blocknr, 1);
+			if (wret)
+				ret = wret;
 		}
 	} else {
 		int used = leaf_space_used(leaf, 0, leaf->header.nritems);
@@ -1173,7 +1177,9 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 				if (wret)
 					ret = wret;
 				tree_block_release(root, leaf_buf);
-				free_extent(root, blocknr, 1);
+				wret = free_extent(root, blocknr, 1);
+				if (wret)
+					ret = wret;
 			} else {
 				tree_block_release(root, leaf_buf);
 			}
@@ -1184,7 +1190,8 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 
 /*
  * walk up the tree as far as required to find the next leaf.
- * returns 0 if it found something or -1 if there are no greater leaves.
+ * returns 0 if it found something or 1 if there are no greater leaves.
+ * returns < 0 on io errors.
  */
 int next_leaf(struct ctree_root *root, struct ctree_path *path)
 {
@@ -1196,7 +1203,7 @@ int next_leaf(struct ctree_root *root, struct ctree_path *path)
 
 	while(level < MAX_LEVEL) {
 		if (!path->nodes[level])
-			return -1;
+			return 1;
 		slot = path->slots[level] + 1;
 		c = path->nodes[level];
 		if (slot >= c->node.header.nritems) {

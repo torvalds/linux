@@ -105,8 +105,8 @@ int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
  * ins->offset == number of blocks
  * Any available blocks before search_start are skipped.
  */
-int find_free_extent(struct ctree_root *orig_root, u64 num_blocks,
-		     u64 search_start, u64 search_end, struct key *ins)
+static int find_free_extent(struct ctree_root *orig_root, u64 num_blocks,
+			    u64 search_start, u64 search_end, struct key *ins)
 {
 	struct ctree_path path;
 	struct key *key;
@@ -125,10 +125,8 @@ check_failed:
 	ins->flags = 0;
 	start_found = 0;
 	ret = search_slot(root, ins, &path, 0);
-	if (ret < 0) {
-		release_path(root, &path);
-		return ret;
-	}
+	if (ret < 0)
+		goto error;
 
 	while (1) {
 		l = &path.nodes[0]->leaf;
@@ -137,6 +135,8 @@ check_failed:
 			ret = next_leaf(root, &path);
 			if (ret == 0)
 				continue;
+			if (ret < 0)
+				goto error;
 			if (!start_found) {
 				ins->objectid = search_start;
 				ins->offset = num_blocks;
@@ -187,6 +187,9 @@ check_pending:
 	if (ins->offset != 1)
 		BUG();
 	return 0;
+error:
+	release_path(root, &path);
+	return ret;
 }
 
 /*
