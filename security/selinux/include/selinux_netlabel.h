@@ -38,24 +38,46 @@
 
 #ifdef CONFIG_NETLABEL
 void selinux_netlbl_cache_invalidate(void);
-int selinux_netlbl_skbuff_getsid(struct sk_buff *skb, u32 base_sid, u32 *sid);
-int selinux_netlbl_socket_post_create(struct socket *sock);
-void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock);
-int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
-				struct sk_buff *skb,
-				struct avc_audit_data *ad);
+
 void selinux_netlbl_sk_security_reset(struct sk_security_struct *ssec,
 				      int family);
 void selinux_netlbl_sk_security_init(struct sk_security_struct *ssec,
 				     int family);
 void selinux_netlbl_sk_security_clone(struct sk_security_struct *ssec,
 				      struct sk_security_struct *newssec);
+
+int selinux_netlbl_skbuff_getsid(struct sk_buff *skb, u32 base_sid, u32 *sid);
+
+void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock);
+int selinux_netlbl_socket_post_create(struct socket *sock);
 int selinux_netlbl_inode_permission(struct inode *inode, int mask);
+int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
+				struct sk_buff *skb,
+				struct avc_audit_data *ad);
 int selinux_netlbl_socket_setsockopt(struct socket *sock,
 				     int level,
 				     int optname);
 #else
 static inline void selinux_netlbl_cache_invalidate(void)
+{
+	return;
+}
+
+static inline void selinux_netlbl_sk_security_reset(
+	                                       struct sk_security_struct *ssec,
+					       int family)
+{
+	return;
+}
+static inline void selinux_netlbl_sk_security_init(
+	                                       struct sk_security_struct *ssec,
+					       int family)
+{
+	return;
+}
+static inline void selinux_netlbl_sk_security_clone(
+	                                    struct sk_security_struct *ssec,
+					    struct sk_security_struct *newssec)
 {
 	return;
 }
@@ -68,51 +90,26 @@ static inline int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 	return 0;
 }
 
-static inline int selinux_netlbl_socket_post_create(struct socket *sock)
-{
-	return 0;
-}
-
 static inline void selinux_netlbl_sock_graft(struct sock *sk,
 					     struct socket *sock)
 {
 	return;
 }
-
+static inline int selinux_netlbl_socket_post_create(struct socket *sock)
+{
+	return 0;
+}
+static inline int selinux_netlbl_inode_permission(struct inode *inode,
+						  int mask)
+{
+	return 0;
+}
 static inline int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 					      struct sk_buff *skb,
 					      struct avc_audit_data *ad)
 {
 	return 0;
 }
-
-static inline void selinux_netlbl_sk_security_reset(
-					       struct sk_security_struct *ssec,
-					       int family)
-{
-	return;
-}
-
-static inline void selinux_netlbl_sk_security_init(
-	                                       struct sk_security_struct *ssec,
-					       int family)
-{
-	return;
-}
-
-static inline void selinux_netlbl_sk_security_clone(
-	                                   struct sk_security_struct *ssec,
-					   struct sk_security_struct *newssec)
-{
-	return;
-}
-
-static inline int selinux_netlbl_inode_permission(struct inode *inode,
-						  int mask)
-{
-	return 0;
-}
-
 static inline int selinux_netlbl_socket_setsockopt(struct socket *sock,
 						   int level,
 						   int optname)
