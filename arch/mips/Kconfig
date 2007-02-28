@@ -1895,10 +1895,6 @@ config HZ
 
 source "kernel/Kconfig.preempt"
 
-config RTC_DS1742
-	bool "DS1742 BRAM/RTC support"
-	depends on TOSHIBA_JMR3927 || TOSHIBA_RBTX4927
-
 config MIPS_INSANE_LARGE
 	bool "Support for large 64-bit configurations"
 	depends on CPU_R10000 && 64BIT
