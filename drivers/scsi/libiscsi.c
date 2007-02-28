@@ -1597,6 +1597,9 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 		wake_up(&conn->ehwait);
 	}
 
+	/* flush queued up work because we free the connection below */
+	scsi_flush_work(session->host);
+
 	spin_lock_bh(&session->lock);
 	kfree(conn->data);
 	kfree(conn->persistent_address);
