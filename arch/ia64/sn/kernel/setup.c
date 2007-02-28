@@ -397,6 +397,8 @@ void __init sn_setup(char **cmdline_p)
 	ia64_sn_set_os_feature(OSF_PCISEGMENT_ENABLE);
 	ia64_sn_set_os_feature(OSF_ACPI_ENABLE);
 
+	/* Load the new DSDT and SSDT tables into the global table list. */
+	acpi_table_init();
 
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
 	/*
