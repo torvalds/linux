@@ -10,7 +10,7 @@
 #ifndef LINUX_MMC_HOST_H
 #define LINUX_MMC_HOST_H
 
-#include <linux/mmc/mmc.h>
+#include <linux/mmc/core.h>
 
 struct mmc_ios {
 	unsigned int	clock;			/* clock rate */

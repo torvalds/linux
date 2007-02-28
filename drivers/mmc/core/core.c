@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/mmc.c
+ *  linux/drivers/mmc/core/core.c
  *
  *  Copyright (C) 2003-2004 Russell King, All Rights Reserved.
  *  SD support Copyright (C) 2004 Ian Molton, All Rights Reserved.
@@ -25,7 +25,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/protocol.h>
 
-#include "mmc.h"
+#include "core.h"
 
 #define CMD_RETRIES	3
 

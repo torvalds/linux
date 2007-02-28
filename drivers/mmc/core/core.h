@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/mmc.h
+ *  linux/drivers/mmc/core/core.h
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
  *
@@ -7,8 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef _MMC_H
-#define _MMC_H
+#ifndef _MMC_CORE_H
+#define _MMC_CORE_H
 /* core-internal functions */
 void mmc_init_card(struct mmc_card *card, struct mmc_host *host);
 int mmc_register_card(struct mmc_card *card);

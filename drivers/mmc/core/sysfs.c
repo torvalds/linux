@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/mmc_sysfs.c
+ *  linux/drivers/mmc/core/sysfs.c
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
  *
@@ -18,7 +18,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 
-#include "mmc.h"
+#include "core.h"
 
 #define dev_to_mmc_card(d)	container_of(d, struct mmc_card, dev)
 #define to_mmc_driver(d)	container_of(d, struct mmc_driver, drv)

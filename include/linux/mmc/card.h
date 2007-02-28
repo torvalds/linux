@@ -10,7 +10,7 @@
 #ifndef LINUX_MMC_CARD_H
 #define LINUX_MMC_CARD_H
 
-#include <linux/mmc/mmc.h>
+#include <linux/mmc/core.h>
 
 struct mmc_cid {
 	unsigned int		manfid;

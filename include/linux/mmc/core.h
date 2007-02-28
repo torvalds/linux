@@ -1,12 +1,12 @@
 /*
- *  linux/include/linux/mmc/mmc.h
+ *  linux/include/linux/mmc/core.h
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef MMC_H
-#define MMC_H
+#ifndef LINUX_MMC_CORE_H
+#define LINUX_MMC_CORE_H
 
 #include <linux/interrupt.h>
 #include <linux/device.h>
