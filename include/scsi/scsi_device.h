@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/blkdev.h>
 #include <asm/atomic.h>
 
 struct request_queue;
@@ -154,8 +155,11 @@ struct scsi_device {
 #define sdev_printk(prefix, sdev, fmt, a...)	\
 	dev_printk(prefix, &(sdev)->sdev_gendev, fmt, ##a)
 
-#define scmd_printk(prefix, scmd, fmt, a...)	\
-	dev_printk(prefix, &(scmd)->device->sdev_gendev, fmt, ##a)
+#define scmd_printk(prefix, scmd, fmt, a...)				\
+        (scmd)->request->rq_disk ?					\
+	sdev_printk(prefix, (scmd)->device, "[%s] " fmt,		\
+		    (scmd)->request->rq_disk->disk_name, ##a) :		\
+	sdev_printk(prefix, (scmd)->device, fmt, ##a)
 
 enum scsi_target_state {
 	STARGET_RUNNING = 1,

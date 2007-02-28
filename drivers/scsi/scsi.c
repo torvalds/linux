@@ -344,7 +344,6 @@ void scsi_destroy_command_freelist(struct Scsi_Host *shost)
 void scsi_log_send(struct scsi_cmnd *cmd)
 {
 	unsigned int level;
-	struct scsi_device *sdev;
 
 	/*
 	 * If ML QUEUE log level is greater than or equal to:
@@ -361,22 +360,17 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 		level = SCSI_LOG_LEVEL(SCSI_LOG_MLQUEUE_SHIFT,
 				       SCSI_LOG_MLQUEUE_BITS);
 		if (level > 1) {
-			sdev = cmd->device;
-			sdev_printk(KERN_INFO, sdev, "send ");
+			scmd_printk(KERN_INFO, cmd, "Send: ");
 			if (level > 2)
 				printk("0x%p ", cmd);
-			/*
-			 * spaces to match disposition and cmd->result
-			 * output in scsi_log_completion.
-			 */
-			printk("                 ");
+			printk("\n");
 			scsi_print_command(cmd);
 			if (level > 3) {
 				printk(KERN_INFO "buffer = 0x%p, bufflen = %d,"
 				       " done = 0x%p, queuecommand 0x%p\n",
 					cmd->request_buffer, cmd->request_bufflen,
 					cmd->done,
-					sdev->host->hostt->queuecommand);
+					cmd->device->host->hostt->queuecommand);
 
 			}
 		}
@@ -386,7 +380,6 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 {
 	unsigned int level;
-	struct scsi_device *sdev;
 
 	/*
 	 * If ML COMPLETE log level is greater than or equal to:
@@ -405,8 +398,7 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 				       SCSI_LOG_MLCOMPLETE_BITS);
 		if (((level > 0) && (cmd->result || disposition != SUCCESS)) ||
 		    (level > 1)) {
-			sdev = cmd->device;
-			sdev_printk(KERN_INFO, sdev, "done ");
+			scmd_printk(KERN_INFO, cmd, "Done: ");
 			if (level > 2)
 				printk("0x%p ", cmd);
 			/*
@@ -415,40 +407,35 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 			 */
 			switch (disposition) {
 			case SUCCESS:
-				printk("SUCCESS");
+				printk("SUCCESS\n");
 				break;
 			case NEEDS_RETRY:
-				printk("RETRY  ");
+				printk("RETRY\n");
 				break;
 			case ADD_TO_MLQUEUE:
-				printk("MLQUEUE");
+				printk("MLQUEUE\n");
 				break;
 			case FAILED:
-				printk("FAILED ");
+				printk("FAILED\n");
 				break;
 			case TIMEOUT_ERROR:
 				/* 
 				 * If called via scsi_times_out.
 				 */
-				printk("TIMEOUT");
+				printk("TIMEOUT\n");
 				break;
 			default:
-				printk("UNKNOWN");
+				printk("UNKNOWN\n");
 			}
-			printk(" %8x ", cmd->result);
+			scsi_print_result(cmd);
 			scsi_print_command(cmd);
-			if (status_byte(cmd->result) & CHECK_CONDITION) {
-				/*
-				 * XXX The scsi_print_sense formatting/prefix
-				 * doesn't match this function.
-				 */
+			if (status_byte(cmd->result) & CHECK_CONDITION)
 				scsi_print_sense("", cmd);
-			}
-			if (level > 3) {
-				printk(KERN_INFO "scsi host busy %d failed %d\n",
-				       sdev->host->host_busy,
-				       sdev->host->host_failed);
-			}
+			if (level > 3)
+				scmd_printk(KERN_INFO, cmd,
+					    "scsi host busy %d failed %d\n",
+					    cmd->device->host->host_busy,
+					    cmd->device->host->host_failed);
 		}
 	}
 }
