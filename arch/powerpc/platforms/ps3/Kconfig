@@ -1,9 +1,24 @@
 menu "PS3 Platform Options"
 	depends on PPC_PS3
 
+config PS3_ADVANCED
+	depends on PPC_PS3
+	bool "PS3 Advanced configuration options"
+	help
+	  This gives you access to some advanced options for the PS3. The
+	  defaults should be fine for most users, but these options may make
+	  it possible to better control the kernel configuration if you know
+	  what you are doing.
+
+	  Note that the answer to this question won't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about these options.
+
+	  Most users should say N to this question.
+
 config PS3_HTAB_SIZE
 	depends on PPC_PS3
-	int "PS3 Platform pagetable size"
+	int "PS3 Platform pagetable size" if PS3_ADVANCED
 	range 18 20
 	default 20
 	help
@@ -42,7 +57,7 @@ config PS3_USE_LPAR_ADDR
 
 config PS3_VUART
 	depends on PPC_PS3
-	bool "PS3 Virtual UART support"
+	bool "PS3 Virtual UART support" if PS3_ADVANCED
 	default y
 	help
 	  Include support for the PS3 Virtual UART.
@@ -52,9 +67,8 @@ config PS3_VUART
 	  general, all users will say Y.
 
 config PS3_PS3AV
-	tristate "PS3 AV settings driver"
-	depends on PPC_PS3
-	select PS3_VUART
+	tristate "PS3 AV settings driver" if PS3_ADVANCED
+	depends on PS3_VUART
 	default y
 	help
 	  Include support for the PS3 AV Settings driver.
@@ -63,8 +77,8 @@ config PS3_PS3AV
 	  general, all users will say Y or M.
 
 config PS3_SYS_MANAGER
-	bool "PS3 System Manager driver"
-	select PS3_VUART
+	bool "PS3 System Manager driver" if PS3_ADVANCED
+	depends on PS3_VUART
 	default y
 	help
 	  Include support for the PS3 System Manager.
