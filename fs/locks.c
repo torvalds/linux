@@ -458,22 +458,20 @@ static int lease_init(struct file *filp, int type, struct file_lock *fl)
 }
 
 /* Allocate a file_lock initialised to this type of lease */
-static int lease_alloc(struct file *filp, int type, struct file_lock **flp)
+static struct file_lock *lease_alloc(struct file *filp, int type)
 {
 	struct file_lock *fl = locks_alloc_lock();
 	int error = -ENOMEM;
 
 	if (fl == NULL)
-		goto out;
+		return ERR_PTR(error);
 
 	error = lease_init(filp, type, fl);
 	if (error) {
 		locks_free_lock(fl);
-		fl = NULL;
+		return ERR_PTR(error);
 	}
-out:
-	*flp = fl;
-	return error;
+	return fl;
 }
 
 /* Check if two locks overlap each other.
@@ -1179,12 +1177,10 @@ int __break_lease(struct inode *inode, unsigned int mode)
 	int error = 0, future;
 	struct file_lock *new_fl, *flock;
 	struct file_lock *fl;
-	int alloc_err;
 	unsigned long break_time;
 	int i_have_this_lease = 0;
 
-	alloc_err = lease_alloc(NULL, mode & FMODE_WRITE ? F_WRLCK : F_RDLCK,
-			&new_fl);
+	new_fl = lease_alloc(NULL, mode & FMODE_WRITE ? F_WRLCK : F_RDLCK);
 
 	lock_kernel();
 
@@ -1212,8 +1208,9 @@ int __break_lease(struct inode *inode, unsigned int mode)
 		goto out;
 	}
 
-	if (alloc_err && !i_have_this_lease && ((mode & O_NONBLOCK) == 0)) {
-		error = alloc_err;
+	if (IS_ERR(new_fl) && !i_have_this_lease
+			&& ((mode & O_NONBLOCK) == 0)) {
+		error = PTR_ERR(new_fl);
 		goto out;
 	}
 
@@ -1260,7 +1257,7 @@ restart:
 
 out:
 	unlock_kernel();
-	if (!alloc_err)
+	if (!IS_ERR(new_fl))
 		locks_free_lock(new_fl);
 	return error;
 }
