@@ -150,10 +150,6 @@ void __init plat_mem_setup(void)
 #endif
 
 	if (cobalt_board_id > COBALT_BRD_ID_RAQ1) {
-#ifdef CONFIG_EARLY_PRINTK
-		cobalt_early_console();
-#endif
-
 #ifdef CONFIG_SERIAL_8250
 		uart.line	= 0;
 		uart.type	= PORT_UNKNOWN;

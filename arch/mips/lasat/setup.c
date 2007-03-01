@@ -178,5 +178,5 @@ void __init plat_mem_setup(void)
 	/* Switch from prom exception handler to normal mode */
 	change_c0_status(ST0_BEV,0);
 
-	prom_printf("Lasat specific initialization complete\n");
+	pr_info("Lasat specific initialization complete\n");
 }

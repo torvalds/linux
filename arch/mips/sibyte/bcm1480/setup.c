@@ -69,7 +69,7 @@ static inline int sys_rev_decode(void)
 		break;
 
 	    default:
-		prom_printf("Unknown part type %x\n", part_type);
+		printk("Unknown part type %x\n", part_type);
 		ret = 1;
 		break;
 	}
@@ -102,7 +102,7 @@ static inline int setup_bcm1x80_bcm1x55(void)
 		pass_str = "B0 (pass2)";
 		break;
 	    default:
-		prom_printf("Unknown %s rev %x\n", soc_str, soc_pass);
+		printk("Unknown %s rev %x\n", soc_str, soc_pass);
 		periph_rev = 1;
 		pass_str = "Unknown Revision";
 		break;
@@ -122,14 +122,14 @@ void bcm1480_setup(void)
 	soc_pass = G_SYS_REVISION(sys_rev);
 
 	if (sys_rev_decode()) {
-		prom_printf("Restart after failure to identify SiByte chip\n");
+		printk("Restart after failure to identify SiByte chip\n");
 		machine_restart(NULL);
 	}
 
 	plldiv = G_BCM1480_SYS_PLL_DIV(__raw_readq(IOADDR(A_SCD_SYSTEM_CFG)));
 	zbbus_mhz = ((plldiv >> 1) * 50) + ((plldiv & 1) * 25);
 
-	prom_printf("Broadcom SiByte %s %s @ %d MHz (SB-1A rev %d)\n",
+	printk("Broadcom SiByte %s %s @ %d MHz (SB-1A rev %d)\n",
 		    soc_str, pass_str, zbbus_mhz * 2, sb1_pass);
-	prom_printf("Board type: %s\n", get_system_type());
+	printk("Board type: %s\n", get_system_type());
 }

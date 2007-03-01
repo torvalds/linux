@@ -237,8 +237,6 @@ static inline void lasat_ndelay(unsigned int ns)
             __delay(ns / lasat_ndelay_divider);
 }
 
-extern void (* prom_printf)(const char *fmt, ...);
-
 #endif /* !defined (_LANGUAGE_ASSEMBLY) */
 
 #define LASAT_SERVICEMODE_MAGIC_1     0xdeadbeef

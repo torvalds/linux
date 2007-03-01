@@ -41,8 +41,6 @@
 #include <uart.h>
 #include <nand.h>
 
-extern void prom_printf(char *fmt, ...);
-
 extern void __init board_setup(void);
 extern void pnx8550_machine_restart(char *);
 extern void pnx8550_machine_halt(void);
@@ -51,7 +49,6 @@ extern struct resource ioport_resource;
 extern struct resource iomem_resource;
 extern void pnx8550_time_init(void);
 extern void rs_kgdb_hook(int tty_no);
-extern void prom_printf(char *fmt, ...);
 extern char *prom_getcmdline(void);
 
 struct resource standard_io_resources[] = {
@@ -141,7 +138,7 @@ void __init plat_mem_setup(void)
 		argptr += strlen("console=ttyS");
 		pnx8550_console_port = *argptr == '0' ? 0 : 1;
 
-		/* We must initialize the UART (console) before prom_printf */
+		/* We must initialize the UART (console) before early printk */
 		/* Set LCR to 8-bit and BAUD to 38400 (no 5)                */
 		ip3106_lcr(UART_BASE, pnx8550_console_port) =
 			PNX8XXX_UART_LCR_8BIT;
@@ -155,8 +152,8 @@ void __init plat_mem_setup(void)
 		argptr += strlen("kgdb=ttyS");
 		line = *argptr == '0' ? 0 : 1;
 		rs_kgdb_hook(line);
-		prom_printf("KGDB: Using ttyS%i for session, "
-				"please connect your debugger\n", line ? 1 : 0);
+		pr_info("KGDB: Using ttyS%i for session, "
+		        "please connect your debugger\n", line ? 1 : 0);
 	}
 #endif
 	return;

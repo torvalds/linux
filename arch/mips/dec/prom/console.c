@@ -16,40 +16,12 @@
 
 #include <asm/dec/prom.h>
 
-static void __init prom_console_write(struct console *con, const char *s,
-				      unsigned int c)
+void prom_putchar(char c)
 {
-	static char sfmt[] __initdata = "%%%us";
-	char fmt[13];
+	char s[2];
 
-	snprintf(fmt, sizeof(fmt), sfmt, c);
-	prom_printf(fmt, s);
+	s[0] = c;
+	s[1] = '\0';
+
+	prom_printf( s);
 }
-
-static struct console promcons __initdata = {
-	.name	= "prom",
-	.write	= prom_console_write,
-	.flags	= CON_PRINTBUFFER,
-	.index	= -1,
-};
-
-static int promcons_output __initdata = 0;
-
-void __init register_prom_console(void)
-{
-	if (!promcons_output) {
-		promcons_output = 1;
-		register_console(&promcons);
-	}
-}
-
-void __init unregister_prom_console(void)
-{
-	if (promcons_output) {
-		unregister_console(&promcons);
-		promcons_output = 0;
-	}
-}
-
-void disable_early_printk(void)
-	__attribute__((alias("unregister_prom_console")));

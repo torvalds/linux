@@ -33,9 +33,6 @@ extern int prom_flags;
 extern void prom_putchar(char c);
 extern char prom_getchar(void);
 
-/* Generic printf() using ARCS console I/O. */
-extern void prom_printf(char *fmt, ...);
-
 /* Memory descriptor management. */
 #define PROM_MAX_PMEMBLOCKS    32
 struct prom_pmemblock {

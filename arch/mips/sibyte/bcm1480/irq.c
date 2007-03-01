@@ -420,7 +420,7 @@ void __init arch_init_irq(void)
 #ifdef CONFIG_GDB_CONSOLE
 		register_gdb_console();
 #endif
-		prom_printf("Waiting for GDB on UART port %d\n", kgdb_port);
+		printk("Waiting for GDB on UART port %d\n", kgdb_port);
 		set_debug_traps();
 		breakpoint();
 	}

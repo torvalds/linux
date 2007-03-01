@@ -110,12 +110,13 @@ int lasat_init_board_info(void)
 		    sizeof(struct lasat_eeprom_struct) - 4);
 
 	if (crc != lasat_board_info.li_eeprom_info.crc32) {
-		prom_printf("WARNING...\nWARNING...\nEEPROM CRC does not match calculated, attempting to soldier on...\n");
+		printk(KERN_WARNING "WARNING...\nWARNING...\nEEPROM CRC does "
+		       "not match calculated, attempting to soldier on...\n");
 	}
 
-	if (lasat_board_info.li_eeprom_info.version != LASAT_EEPROM_VERSION)
-	{
-		prom_printf("WARNING...\nWARNING...\nEEPROM version %d, wanted version %d, attempting to soldier on...\n",
+	if (lasat_board_info.li_eeprom_info.version != LASAT_EEPROM_VERSION) {
+		printk(KERN_WARNING "WARNING...\nWARNING...\nEEPROM version "
+		       "%d, wanted version %d, attempting to soldier on...\n",
 		       (unsigned int)lasat_board_info.li_eeprom_info.version,
 		       LASAT_EEPROM_VERSION);
 	}
@@ -124,7 +125,9 @@ int lasat_init_board_info(void)
 	cfg1 = lasat_board_info.li_eeprom_info.cfg[1];
 
 	if ( LASAT_W0_DSCTYPE(cfg0) != 1) {
-		prom_printf("WARNING...\nWARNING...\nInvalid configuration read from EEPROM, attempting to soldier on...");
+		printk(KERN_WARNING "WARNING...\nWARNING...\n"
+		       "Invalid configuration read from EEPROM, attempting to "
+		       "soldier on...");
 	}
 	/* We have a valid configuration */
 
