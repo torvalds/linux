@@ -113,10 +113,16 @@ EXPORT_SYMBOL_GPL(rtc_device_register);
  */
 void rtc_device_unregister(struct rtc_device *rtc)
 {
-	mutex_lock(&rtc->ops_lock);
-	rtc->ops = NULL;
-	mutex_unlock(&rtc->ops_lock);
-	class_device_unregister(&rtc->class_dev);
+	if (class_device_get(&rtc->class_dev) != NULL) {
+		mutex_lock(&rtc->ops_lock);
+		/* remove innards of this RTC, then disable it, before
+		 * letting any rtc_class_open() users access it again
+		 */
+		class_device_unregister(&rtc->class_dev);
+		rtc->ops = NULL;
+		mutex_unlock(&rtc->ops_lock);
+		class_device_put(&rtc->class_dev);
+	}
 }
 EXPORT_SYMBOL_GPL(rtc_device_unregister);
 
