@@ -422,9 +422,11 @@ out:
 	return rc;
 }
 
-static void ecryptfs_release_lower_page(struct page *lower_page)
+static
+void ecryptfs_release_lower_page(struct page *lower_page, int page_locked)
 {
-	unlock_page(lower_page);
+	if (page_locked)
+		unlock_page(lower_page);
 	page_cache_release(lower_page);
 }
 
@@ -454,6 +456,13 @@ static int ecryptfs_write_inode_size_to_header(struct file *lower_file,
 	}
 	lower_a_ops = lower_inode->i_mapping->a_ops;
 	rc = lower_a_ops->prepare_write(lower_file, header_page, 0, 8);
+	if (rc) {
+		if (rc == AOP_TRUNCATED_PAGE)
+			ecryptfs_release_lower_page(header_page, 0);
+		else
+			ecryptfs_release_lower_page(header_page, 1);
+		goto out;
+	}
 	file_size = (u64)i_size_read(inode);
 	ecryptfs_printk(KERN_DEBUG, "Writing size: [0x%.16x]\n", file_size);
 	file_size = cpu_to_be64(file_size);
@@ -465,7 +474,10 @@ static int ecryptfs_write_inode_size_to_header(struct file *lower_file,
 	if (rc < 0)
 		ecryptfs_printk(KERN_ERR, "Error commiting header page "
 				"write\n");
-	ecryptfs_release_lower_page(header_page);
+	if (rc == AOP_TRUNCATED_PAGE)
+		ecryptfs_release_lower_page(header_page, 0);
+	else
+		ecryptfs_release_lower_page(header_page, 1);
 	lower_inode->i_mtime = lower_inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty_sync(inode);
 out:
@@ -572,7 +584,10 @@ int ecryptfs_get_lower_page(struct page **lower_page, struct inode *lower_inode,
 	}
 out:
 	if (rc && (*lower_page)) {
-		ecryptfs_release_lower_page(*lower_page);
+		if (rc == AOP_TRUNCATED_PAGE)
+			ecryptfs_release_lower_page(*lower_page, 0);
+		else
+			ecryptfs_release_lower_page(*lower_page, 1);
 		(*lower_page) = NULL;
 	}
 	return rc;
@@ -588,16 +603,19 @@ ecryptfs_commit_lower_page(struct page *lower_page, struct inode *lower_inode,
 			   struct file *lower_file, int byte_offset,
 			   int region_size)
 {
+	int page_locked = 1;
 	int rc = 0;
 
 	rc = lower_inode->i_mapping->a_ops->commit_write(
 		lower_file, lower_page, byte_offset, region_size);
+	if (rc == AOP_TRUNCATED_PAGE)
+		page_locked = 0;
 	if (rc < 0) {
 		ecryptfs_printk(KERN_ERR,
 				"Error committing write; rc = [%d]\n", rc);
 	} else
 		rc = 0;
-	ecryptfs_release_lower_page(lower_page);
+	ecryptfs_release_lower_page(lower_page, page_locked);
 	return rc;
 }
 
