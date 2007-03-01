@@ -7,6 +7,7 @@
 #include "linux/slab.h"
 #include "linux/types.h"
 #include "linux/errno.h"
+#include "linux/spinlock.h"
 #include "asm/uaccess.h"
 #include "asm/smp.h"
 #include "asm/ldt.h"
@@ -386,23 +387,33 @@ static long do_modify_ldt_skas(int func, void __user *ptr,
 	return ret;
 }
 
-short dummy_list[9] = {0, -1};
-short * host_ldt_entries = NULL;
+static DEFINE_SPINLOCK(host_ldt_lock);
+static short dummy_list[9] = {0, -1};
+static short * host_ldt_entries = NULL;
 
-void ldt_get_host_info(void)
+static void ldt_get_host_info(void)
 {
 	long ret;
-	struct ldt_entry * ldt;
+	struct ldt_entry * ldt, *tmp;
 	int i, size, k, order;
 
+	spin_lock(&host_ldt_lock);
+
+	if(host_ldt_entries != NULL){
+		spin_unlock(&host_ldt_lock);
+		return;
+	}
 	host_ldt_entries = dummy_list+1;
+
+	spin_unlock(&host_ldt_lock);
 
 	for(i = LDT_PAGES_MAX-1, order=0; i; i>>=1, order++);
 
 	ldt = (struct ldt_entry *)
 	      __get_free_pages(GFP_KERNEL|__GFP_ZERO, order);
 	if(ldt == NULL) {
-		printk("ldt_get_host_info: couldn't allocate buffer for host ldt\n");
+		printk("ldt_get_host_info: couldn't allocate buffer for host "
+		       "ldt\n");
 		return;
 	}
 
@@ -426,11 +437,13 @@ void ldt_get_host_info(void)
 		host_ldt_entries = dummy_list;
 	else {
 		size = (size + 1) * sizeof(dummy_list[0]);
-		host_ldt_entries = kmalloc(size, GFP_KERNEL);
-		if(host_ldt_entries == NULL) {
-			printk("ldt_get_host_info: couldn't allocate host ldt list\n");
+		tmp = kmalloc(size, GFP_KERNEL);
+		if(tmp == NULL) {
+			printk("ldt_get_host_info: couldn't allocate host ldt "
+			       "list\n");
 			goto out_free;
 		}
+		host_ldt_entries = tmp;
 	}
 
 	for(i=0, k=0; i<ret/LDT_ENTRY_SIZE; i++){
@@ -480,8 +493,7 @@ long init_new_ldt(struct mmu_context_skas * new_mm,
 			 * inherited from the host. All ldt-entries found
 			 * will be reset in the following loop
 			 */
-			if(host_ldt_entries == NULL)
-				ldt_get_host_info();
+			ldt_get_host_info();
 			for(num_p=host_ldt_entries; *num_p != -1; num_p++){
 				desc.entry_number = *num_p;
 				err = write_ldt_entry(&new_mm->id, 1, &desc,
@@ -560,6 +572,6 @@ void free_ldt(struct mmu_context_skas * mm)
 
 int sys_modify_ldt(int func, void __user *ptr, unsigned long bytecount)
 {
-	return(CHOOSE_MODE_PROC(do_modify_ldt_tt, do_modify_ldt_skas, func,
-	                        ptr, bytecount));
+	return CHOOSE_MODE_PROC(do_modify_ldt_tt, do_modify_ldt_skas, func,
+	                        ptr, bytecount);
 }
