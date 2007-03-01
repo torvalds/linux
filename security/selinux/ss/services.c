@@ -39,7 +39,6 @@
 #include <linux/sched.h>
 #include <linux/audit.h>
 #include <linux/mutex.h>
-#include <net/sock.h>
 #include <net/netlabel.h>
 
 #include "flask.h"
@@ -2196,32 +2195,6 @@ __initcall(aurule_init);
 void selinux_audit_set_callback(int (*callback)(void))
 {
 	aurule_callback = callback;
-}
-
-/**
- * security_skb_extlbl_sid - Determine the external label of a packet
- * @skb: the packet
- * @base_sid: the SELinux SID to use as a context for MLS only external labels
- * @sid: the packet's SID
- *
- * Description:
- * Check the various different forms of external packet labeling and determine
- * the external SID for the packet.
- *
- */
-void security_skb_extlbl_sid(struct sk_buff *skb, u32 base_sid, u32 *sid)
-{
-	u32 xfrm_sid;
-	u32 nlbl_sid;
-
-	selinux_skb_xfrm_sid(skb, &xfrm_sid);
-	if (selinux_netlbl_skbuff_getsid(skb,
-					 (xfrm_sid == SECSID_NULL ?
-					  base_sid : xfrm_sid),
-					 &nlbl_sid) != 0)
-		nlbl_sid = SECSID_NULL;
-
-	*sid = (nlbl_sid == SECSID_NULL ? xfrm_sid : nlbl_sid);
 }
 
 #ifdef CONFIG_NETLABEL
