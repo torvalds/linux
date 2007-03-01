@@ -475,8 +475,15 @@ ext3_xattr_release_block(handle_t *handle, struct inode *inode,
 			 struct buffer_head *bh)
 {
 	struct mb_cache_entry *ce = NULL;
+	int error = 0;
 
 	ce = mb_cache_entry_get(ext3_xattr_cache, bh->b_bdev, bh->b_blocknr);
+	error = ext3_journal_get_write_access(handle, bh);
+	if (error)
+		 goto out;
+
+	lock_buffer(bh);
+
 	if (BHDR(bh)->h_refcount == cpu_to_le32(1)) {
 		ea_bdebug(bh, "refcount now=0; freeing");
 		if (ce)
@@ -485,21 +492,20 @@ ext3_xattr_release_block(handle_t *handle, struct inode *inode,
 		get_bh(bh);
 		ext3_forget(handle, 1, inode, bh, bh->b_blocknr);
 	} else {
-		if (ext3_journal_get_write_access(handle, bh) == 0) {
-			lock_buffer(bh);
-			BHDR(bh)->h_refcount = cpu_to_le32(
+		BHDR(bh)->h_refcount = cpu_to_le32(
 				le32_to_cpu(BHDR(bh)->h_refcount) - 1);
-			ext3_journal_dirty_metadata(handle, bh);
-			if (IS_SYNC(inode))
-				handle->h_sync = 1;
-			DQUOT_FREE_BLOCK(inode, 1);
-			unlock_buffer(bh);
-			ea_bdebug(bh, "refcount now=%d; releasing",
-				  le32_to_cpu(BHDR(bh)->h_refcount));
-		}
+		error = ext3_journal_dirty_metadata(handle, bh);
+		handle->h_sync = 1;
+		DQUOT_FREE_BLOCK(inode, 1);
+		ea_bdebug(bh, "refcount now=%d; releasing",
+			  le32_to_cpu(BHDR(bh)->h_refcount));
 		if (ce)
 			mb_cache_entry_release(ce);
 	}
+	unlock_buffer(bh);
+out:
+	ext3_std_error(inode->i_sb, error);
+	return;
 }
 
 struct ext3_xattr_info {
@@ -675,7 +681,7 @@ ext3_xattr_block_set(handle_t *handle, struct inode *inode,
 	struct buffer_head *new_bh = NULL;
 	struct ext3_xattr_search *s = &bs->s;
 	struct mb_cache_entry *ce = NULL;
-	int error;
+	int error = 0;
 
 #define header(x) ((struct ext3_xattr_header *)(x))
 
@@ -684,16 +690,17 @@ ext3_xattr_block_set(handle_t *handle, struct inode *inode,
 	if (s->base) {
 		ce = mb_cache_entry_get(ext3_xattr_cache, bs->bh->b_bdev,
 					bs->bh->b_blocknr);
+		error = ext3_journal_get_write_access(handle, bs->bh);
+		if (error)
+			goto cleanup;
+		lock_buffer(bs->bh);
+
 		if (header(s->base)->h_refcount == cpu_to_le32(1)) {
 			if (ce) {
 				mb_cache_entry_free(ce);
 				ce = NULL;
 			}
 			ea_bdebug(bs->bh, "modifying in-place");
-			error = ext3_journal_get_write_access(handle, bs->bh);
-			if (error)
-				goto cleanup;
-			lock_buffer(bs->bh);
 			error = ext3_xattr_set_entry(i, s);
 			if (!error) {
 				if (!IS_LAST_ENTRY(s->first))
@@ -712,6 +719,9 @@ ext3_xattr_block_set(handle_t *handle, struct inode *inode,
 			goto inserted;
 		} else {
 			int offset = (char *)s->here - bs->bh->b_data;
+
+			unlock_buffer(bs->bh);
+			journal_release_buffer(handle, bs->bh);
 
 			if (ce) {
 				mb_cache_entry_release(ce);
