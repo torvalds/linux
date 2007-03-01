@@ -10,11 +10,10 @@ static int split_node(struct ctree_root *root, struct ctree_path *path,
 		      int level);
 static int split_leaf(struct ctree_root *root, struct ctree_path *path,
 		      int data_size);
-static int push_node_left(struct ctree_root *root, struct ctree_path *path,
-			  int level);
-static int push_node_right(struct ctree_root *root,
-		    struct ctree_path *path, int level);
-static int del_ptr(struct ctree_root *root, struct ctree_path *path, int level);
+static int push_node_left(struct ctree_root *root, struct tree_buffer *dst,
+			  struct tree_buffer *src);
+static int del_ptr(struct ctree_root *root, struct ctree_path *path, int level,
+		   int slot);
 
 inline void init_path(struct ctree_path *p)
 {
@@ -192,6 +191,138 @@ int bin_search(struct node *c, struct key *key, int *slot)
 	return -1;
 }
 
+struct tree_buffer *read_node_slot(struct ctree_root *root,
+				   struct tree_buffer *parent_buf,
+				   int slot)
+{
+	struct node *node = &parent_buf->node;
+	if (slot < 0)
+		return NULL;
+	if (slot >= node->header.nritems)
+		return NULL;
+	return read_tree_block(root, node->blockptrs[slot]);
+}
+
+static int balance_level(struct ctree_root *root, struct ctree_path *path,
+			int level)
+{
+	struct tree_buffer *right_buf;
+	struct tree_buffer *mid_buf;
+	struct tree_buffer *left_buf;
+	struct tree_buffer *parent_buf = NULL;
+	struct node *right = NULL;
+	struct node *mid;
+	struct node *left = NULL;
+	struct node *parent = NULL;
+	int ret = 0;
+	int wret;
+	int pslot;
+	int used = 0;
+	int count;
+	int orig_slot = path->slots[level];
+
+	if (level == 0)
+		return 0;
+
+	mid_buf = path->nodes[level];
+	mid = &mid_buf->node;
+	if (level < MAX_LEVEL - 1)
+		parent_buf = path->nodes[level + 1];
+	pslot = path->slots[level + 1];
+
+	if (!parent_buf) {
+		struct tree_buffer *child;
+		u64 blocknr = mid_buf->blocknr;
+
+		if (mid->header.nritems != 1)
+			return 0;
+
+		/* promote the child to a root */
+		child = read_node_slot(root, mid_buf, 0);
+		BUG_ON(!child);
+		root->node = child;
+		path->nodes[level] = NULL;
+		/* once for the path */
+		tree_block_release(root, mid_buf);
+		/* once for the root ptr */
+		tree_block_release(root, mid_buf);
+		return free_extent(root, blocknr, 1);
+	}
+	parent = &parent_buf->node;
+
+	if (mid->header.nritems > NODEPTRS_PER_BLOCK / 4)
+		return 0;
+
+	// print_tree(root, root->node);
+	left_buf = read_node_slot(root, parent_buf, pslot - 1);
+	right_buf = read_node_slot(root, parent_buf, pslot + 1);
+	if (right_buf) {
+		right = &right_buf->node;
+		used = right->header.nritems;
+		count = 1;
+	}
+	if (left_buf) {
+		left = &left_buf->node;
+		used += left->header.nritems;
+		orig_slot += left->header.nritems;
+		count++;
+	}
+	if (left_buf)
+		push_node_left(root, left_buf, mid_buf);
+	if (right_buf) {
+		push_node_left(root, mid_buf, right_buf);
+		if (right->header.nritems == 0) {
+			u64 blocknr = right_buf->blocknr;
+			tree_block_release(root, right_buf);
+			right_buf = NULL;
+			right = NULL;
+			wret = del_ptr(root, path, level + 1, pslot + 1);
+			if (wret)
+				ret = wret;
+			wret = free_extent(root, blocknr, 1);
+			if (wret)
+				ret = wret;
+		} else {
+			memcpy(parent->keys + pslot + 1, right->keys,
+				sizeof(struct key));
+		}
+	}
+	if (mid->header.nritems == 0) {
+		u64 blocknr = mid_buf->blocknr;
+		tree_block_release(root, mid_buf);
+		mid_buf = NULL;
+		mid = NULL;
+		wret = del_ptr(root, path, level + 1, pslot);
+		if (wret)
+			ret = wret;
+		wret = free_extent(root, blocknr, 1);
+		if (wret)
+			ret = wret;
+	} else
+		memcpy(parent->keys + pslot, mid->keys, sizeof(struct key));
+
+	if (left_buf) {
+		if (left->header.nritems >= orig_slot) {
+			left_buf->count++; // released below
+			path->nodes[level] = left_buf;
+			path->slots[level + 1] -= 1;
+			path->slots[level] = orig_slot;
+			if (mid_buf)
+				tree_block_release(root, mid_buf);
+		} else {
+			orig_slot -= left->header.nritems;
+			path->slots[level] = orig_slot;
+		}
+	}
+
+	if (right_buf)
+		tree_block_release(root, right_buf);
+	if (left_buf)
+		tree_block_release(root, left_buf);
+
+	return ret;
+}
+
 /*
  * look for key in the tree.  path is filled in with nodes along the way
  * if key is found, we return zero and you can find the item in the leaf
@@ -208,12 +339,14 @@ int bin_search(struct node *c, struct key *key, int *slot)
 int search_slot(struct ctree_root *root, struct key *key,
 		struct ctree_path *p, int ins_len)
 {
-	struct tree_buffer *b = root->node;
+	struct tree_buffer *b;
 	struct node *c;
 	int slot;
 	int ret;
 	int level;
 
+again:
+	b = root->node;
 	b->count++;
 	while (b) {
 		c = &b->node;
@@ -236,9 +369,17 @@ int search_slot(struct ctree_root *root, struct key *key,
 				b = p->nodes[level];
 				c = &b->node;
 				slot = p->slots[level];
+			} else if (ins_len < 0) {
+				int sret = balance_level(root, p, level);
+				if (sret)
+					return sret;
+				b = p->nodes[level];
+				if (!b)
+					goto again;
+				c = &b->node;
+				slot = p->slots[level];
 			}
 			b = read_tree_block(root, c->blockptrs[slot]);
-			continue;
 		} else {
 			struct leaf *l = (struct leaf *)c;
 			p->slots[level] = slot;
@@ -249,9 +390,11 @@ int search_slot(struct ctree_root *root, struct key *key,
 				if (sret)
 					return sret;
 			}
+			BUG_ON(root->node->count == 1);
 			return ret;
 		}
 	}
+	BUG_ON(root->node->count == 1);
 	return 1;
 }
 
@@ -301,161 +444,47 @@ static int fixup_low_keys(struct ctree_root *root,
  * returns 0 if some ptrs were pushed left, < 0 if there was some horrible
  * error, and > 0 if there was no room in the left hand block.
  */
-static int push_node_left(struct ctree_root *root, struct ctree_path *path,
-			  int level)
+static int push_node_left(struct ctree_root *root, struct tree_buffer *dst_buf,
+			  struct tree_buffer *src_buf)
 {
-	int slot;
-	struct node *left;
-	struct node *right;
+	struct node *src = &src_buf->node;
+	struct node *dst = &dst_buf->node;
 	int push_items = 0;
-	int left_nritems;
-	int right_nritems;
-	struct tree_buffer *t;
-	struct tree_buffer *right_buf;
+	int src_nritems;
+	int dst_nritems;
 	int ret = 0;
 	int wret;
 
-	if (level == MAX_LEVEL - 1 || path->nodes[level + 1] == 0)
-		return 1;
-	slot = path->slots[level + 1];
-	if (slot == 0)
-		return 1;
-
-	t = read_tree_block(root,
-		            path->nodes[level + 1]->node.blockptrs[slot - 1]);
-	left = &t->node;
-	right_buf = path->nodes[level];
-	right = &right_buf->node;
-	left_nritems = left->header.nritems;
-	right_nritems = right->header.nritems;
-	push_items = NODEPTRS_PER_BLOCK - (left_nritems + 1);
-	if (push_items <= 0) {
-		tree_block_release(root, t);
-		return 1;
-	}
-
-	if (right_nritems < push_items)
-		push_items = right_nritems;
-	memcpy(left->keys + left_nritems, right->keys,
-		push_items * sizeof(struct key));
-	memcpy(left->blockptrs + left_nritems, right->blockptrs,
-		push_items * sizeof(u64));
-	memmove(right->keys, right->keys + push_items,
-		(right_nritems - push_items) * sizeof(struct key));
-	memmove(right->blockptrs, right->blockptrs + push_items,
-		(right_nritems - push_items) * sizeof(u64));
-	right->header.nritems -= push_items;
-	left->header.nritems += push_items;
-
-	/* adjust the pointers going up the tree */
-	wret = fixup_low_keys(root, path, right->keys, level + 1);
-	if (wret < 0)
-		ret = wret;
-
-	wret = write_tree_block(root, t);
-	if (wret < 0)
-		ret = wret;
-
-	wret = write_tree_block(root, right_buf);
-	if (wret < 0)
-		ret = wret;
-
-	/* then fixup the leaf pointer in the path */
-	if (path->slots[level] < push_items) {
-		path->slots[level] += left_nritems;
-		tree_block_release(root, path->nodes[level]);
-		path->nodes[level] = t;
-		path->slots[level + 1] -= 1;
-	} else {
-		path->slots[level] -= push_items;
-		tree_block_release(root, t);
-	}
-	return ret;
-}
-
-/*
- * try to push data from one node into the next node right in the
- * tree.  The src node is found at specified level in the path.
- * If some bytes were pushed, return 0, otherwise return 1.
- *
- * Lower nodes/leaves in the path are not touched, higher nodes may
- * be modified to reflect the push.
- *
- * The path is altered to reflect the push.
- *
- * returns 0 if some ptrs were pushed, < 0 if there was some horrible
- * error, and > 0 if there was no room in the right hand block.
- */
-static int push_node_right(struct ctree_root *root, struct ctree_path *path,
-			   int level)
-{
-	int slot;
-	struct tree_buffer *t;
-	struct tree_buffer *src_buffer;
-	struct node *dst;
-	struct node *src;
-	int push_items = 0;
-	int dst_nritems;
-	int src_nritems;
-
-	/* can't push from the root */
-	if (level == MAX_LEVEL - 1 || path->nodes[level + 1] == 0)
-		return 1;
-
-	/* only try to push inside the node higher up */
-	slot = path->slots[level + 1];
-	if (slot == NODEPTRS_PER_BLOCK - 1)
-		return 1;
-
-	if (slot >= path->nodes[level + 1]->node.header.nritems -1)
-		return 1;
-
-	t = read_tree_block(root,
-			    path->nodes[level + 1]->node.blockptrs[slot + 1]);
-	dst = &t->node;
-	src_buffer = path->nodes[level];
-	src = &src_buffer->node;
-	dst_nritems = dst->header.nritems;
 	src_nritems = src->header.nritems;
-	push_items = NODEPTRS_PER_BLOCK - (dst_nritems + 1);
+	dst_nritems = dst->header.nritems;
+	push_items = NODEPTRS_PER_BLOCK - dst_nritems;
 	if (push_items <= 0) {
-		tree_block_release(root, t);
 		return 1;
 	}
 
 	if (src_nritems < push_items)
-		push_items = src_nritems;
-	memmove(dst->keys + push_items, dst->keys,
-		dst_nritems * sizeof(struct key));
-	memcpy(dst->keys, src->keys + src_nritems - push_items,
+		push_items =src_nritems;
+	memcpy(dst->keys + dst_nritems, src->keys,
 		push_items * sizeof(struct key));
-
-	memmove(dst->blockptrs + push_items, dst->blockptrs,
-		dst_nritems * sizeof(u64));
-	memcpy(dst->blockptrs, src->blockptrs + src_nritems - push_items,
+	memcpy(dst->blockptrs + dst_nritems, src->blockptrs,
 		push_items * sizeof(u64));
-
+	if (push_items < src_nritems) {
+		memmove(src->keys, src->keys + push_items,
+			(src_nritems - push_items) * sizeof(struct key));
+		memmove(src->blockptrs, src->blockptrs + push_items,
+			(src_nritems - push_items) * sizeof(u64));
+	}
 	src->header.nritems -= push_items;
 	dst->header.nritems += push_items;
 
-	/* adjust the pointers going up the tree */
-	memcpy(path->nodes[level + 1]->node.keys + path->slots[level + 1] + 1,
-		dst->keys, sizeof(struct key));
+	wret = write_tree_block(root, src_buf);
+	if (wret < 0)
+		ret = wret;
 
-	write_tree_block(root, path->nodes[level + 1]);
-	write_tree_block(root, t);
-	write_tree_block(root, src_buffer);
-
-	/* then fixup the pointers in the path */
-	if (path->slots[level] >= src->header.nritems) {
-		path->slots[level] -= src->header.nritems;
-		tree_block_release(root, path->nodes[level]);
-		path->nodes[level] = t;
-		path->slots[level + 1] += 1;
-	} else {
-		tree_block_release(root, t);
-	}
-	return 0;
+	wret = write_tree_block(root, dst_buf);
+	if (wret < 0)
+		ret = wret;
+	return ret;
 }
 
 /*
@@ -558,16 +587,6 @@ static int split_node(struct ctree_root *root, struct ctree_path *path,
 	int ret;
 	int wret;
 
-	ret = push_node_left(root, path, level);
-	if (!ret)
-		return 0;
-	if (ret < 0)
-		return ret;
-	ret = push_node_right(root, path, level);
-	if (!ret)
-		return 0;
-	if (ret < 0)
-		return ret;
 	t = path->nodes[level];
 	c = &t->node;
 	if (t == root->node) {
@@ -1011,6 +1030,7 @@ int insert_item(struct ctree_root *root, struct key *key,
 
 	if (leaf_free_space(leaf) < 0)
 		BUG();
+	check_leaf(&path, 0);
 	release_path(root, &path);
 	return ret;
 }
@@ -1022,77 +1042,38 @@ int insert_item(struct ctree_root *root, struct key *key,
  * continuing all the way the root if required.  The root is converted into
  * a leaf if all the nodes are emptied.
  */
-static int del_ptr(struct ctree_root *root, struct ctree_path *path, int level)
+static int del_ptr(struct ctree_root *root, struct ctree_path *path, int level,
+		   int slot)
 {
-	int slot;
-	struct tree_buffer *t;
 	struct node *node;
+	struct tree_buffer *parent = path->nodes[level];
 	int nritems;
-	u64 blocknr;
-	int wret;
 	int ret = 0;
+	int wret;
 
-	while(1) {
-		t = path->nodes[level];
-		if (!t)
-			break;
-		node = &t->node;
-		slot = path->slots[level];
-		nritems = node->header.nritems;
+	node = &parent->node;
+	nritems = node->header.nritems;
 
-		if (slot != nritems -1) {
-			memmove(node->keys + slot, node->keys + slot + 1,
-				sizeof(struct key) * (nritems - slot - 1));
-			memmove(node->blockptrs + slot,
-				node->blockptrs + slot + 1,
-				sizeof(u64) * (nritems - slot - 1));
-		}
-		node->header.nritems--;
-		blocknr = t->blocknr;
-		write_tree_block(root, t);
-		if (node->header.nritems != 0) {
-			int tslot;
-			if (slot == 0) {
-				wret = fixup_low_keys(root, path,
-							   node->keys,
-							   level + 1);
-				if (wret)
-					ret = wret;
-			}
-			tslot = path->slots[level + 1];
-			t->count++;
-			wret = push_node_left(root, path, level);
-			if (wret < 0) {
-				ret = wret;
-				break;
-			}
-			if (node->header.nritems != 0) {
-				wret = push_node_right(root, path, level);
-				if (wret < 0) {
-					ret = wret;
-					break;
-				}
-			}
-			path->slots[level + 1] = tslot;
-			if (node->header.nritems != 0) {
-				tree_block_release(root, t);
-				break;
-			}
-			tree_block_release(root, t);
-		}
-		if (t == root->node) {
-			/* just turn the root into a leaf and break */
-			root->node->node.header.flags = node_level(0);
-			write_tree_block(root, t);
-			break;
-		}
-		level++;
-		wret = free_extent(root, blocknr, 1);
+	if (slot != nritems -1) {
+		memmove(node->keys + slot, node->keys + slot + 1,
+			sizeof(struct key) * (nritems - slot - 1));
+		memmove(node->blockptrs + slot,
+			node->blockptrs + slot + 1,
+			sizeof(u64) * (nritems - slot - 1));
+	}
+	node->header.nritems--;
+	if (node->header.nritems == 0 && parent == root->node) {
+		BUG_ON(node_level(root->node->node.header.flags) != 1);
+		/* just turn the root into a leaf and break */
+		root->node->node.header.flags = node_level(0);
+	} else if (slot == 0) {
+		wret = fixup_low_keys(root, path, node->keys, level + 1);
 		if (wret)
 			ret = wret;
-		if (!path->nodes[level])
-			BUG();
 	}
+	wret = write_tree_block(root, parent);
+	if (wret)
+		ret = wret;
 	return ret;
 }
 
@@ -1135,7 +1116,7 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 			leaf->header.flags = node_level(0);
 			write_tree_block(root, leaf_buf);
 		} else {
-			wret = del_ptr(root, path, 1);
+			wret = del_ptr(root, path, 1, path->slots[1]);
 			if (wret)
 				ret = wret;
 			wret = free_extent(root, leaf_buf->blocknr, 1);
@@ -1172,8 +1153,7 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 			}
 			if (leaf->header.nritems == 0) {
 				u64 blocknr = leaf_buf->blocknr;
-				path->slots[1] = slot;
-				wret = del_ptr(root, path, 1);
+				wret = del_ptr(root, path, 1, slot);
 				if (wret)
 					ret = wret;
 				tree_block_release(root, leaf_buf);
