@@ -1588,11 +1588,6 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	/* re-sync apic's tpr */
 	vcpu->cr8 = kvm_run->cr8;
 
-	if (kvm_run->emulated) {
-		kvm_arch_ops->skip_emulated_instruction(vcpu);
-		kvm_run->emulated = 0;
-	}
-
 	if (kvm_run->io_completed) {
 		if (vcpu->pio_pending)
 			complete_pio(vcpu);

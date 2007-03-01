@@ -51,10 +51,9 @@ enum kvm_exit_reason {
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
 	/* in */
-	__u32 emulated;  /* skip current instruction */
 	__u32 io_completed; /* mmio/pio request completed */
 	__u8 request_interrupt_window;
-	__u8 padding1[7];
+	__u8 padding1[3];
 
 	/* out */
 	__u32 exit_type;
