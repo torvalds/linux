@@ -403,8 +403,7 @@ struct ata_host {
 	void			*private_data;
 	const struct ata_port_operations *ops;
 	unsigned long		flags;
-	int			simplex_claimed;	/* Keep seperate in case we
-							   ever need to do this locked */
+	struct ata_port		*simplex_claimed;	/* channel owning the DMA */
 	struct ata_port		*ports[0];
 };
 

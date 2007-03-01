@@ -2556,12 +2556,11 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 	 * host channels are not permitted to do so.
 	 */
 	if (used_dma && (ap->host->flags & ATA_HOST_SIMPLEX))
-		ap->host->simplex_claimed = 1;
+		ap->host->simplex_claimed = ap;
 
 	/* step5: chip specific finalisation */
 	if (ap->ops->post_set_mode)
 		ap->ops->post_set_mode(ap);
-
  out:
 	if (rc)
 		*r_failed_dev = dev;
@@ -3444,7 +3443,7 @@ static void ata_dev_xfermask(struct ata_device *dev)
 			       "device is on DMA blacklist, disabling DMA\n");
 	}
 
-	if ((host->flags & ATA_HOST_SIMPLEX) && host->simplex_claimed) {
+	if ((host->flags & ATA_HOST_SIMPLEX) && host->simplex_claimed != ap) {
 		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 		ata_dev_printk(dev, KERN_WARNING, "simplex DMA is claimed by "
 			       "other device, disabling DMA\n");
