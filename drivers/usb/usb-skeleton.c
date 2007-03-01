@@ -34,6 +34,9 @@ static struct usb_device_id skel_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, skel_table);
 
+/* to prevent a race between open and disconnect */
+static DEFINE_MUTEX(skel_open_lock);
+
 
 /* Get a minor range for your devices from the usb maintainer */
 #define USB_SKEL_MINOR_BASE	192
@@ -80,8 +83,10 @@ static int skel_open(struct inode *inode, struct file *file)
 
 	subminor = iminor(inode);
 
+	mutex_lock(&skel_open_lock);
 	interface = usb_find_interface(&skel_driver, subminor);
 	if (!interface) {
+		mutex_unlock(&skel_open_lock);
 		err ("%s - error, can't find device for minor %d",
 		     __FUNCTION__, subminor);
 		retval = -ENODEV;
@@ -90,12 +95,15 @@ static int skel_open(struct inode *inode, struct file *file)
 
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
+		mutex_unlock(&skel_open_lock);
 		retval = -ENODEV;
 		goto exit;
 	}
 
 	/* increment our usage count for the device */
 	kref_get(&dev->kref);
+	/* now we can drop the lock */
+	mutex_unlock(&skel_open_lock);
 
 	/* prevent the device from being autosuspended */
 	retval = usb_autopm_get_interface(interface);
@@ -361,14 +369,14 @@ static void skel_disconnect(struct usb_interface *interface)
 	int minor = interface->minor;
 
 	/* prevent skel_open() from racing skel_disconnect() */
-	lock_kernel();
+	mutex_lock(&skel_open_lock);
 
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 
 	/* give back our minor */
 	usb_deregister_dev(interface, &skel_class);
-	unlock_kernel();
+	mutex_unlock(&skel_open_lock);
 
 	/* prevent more I/O from starting */
 	mutex_lock(&dev->io_mutex);
