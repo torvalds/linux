@@ -1288,7 +1288,6 @@ struct mv64xxx_i2c_pdata {
 #define MV643XX_ETH_NAME	"mv643xx_eth"
 
 struct mv643xx_eth_platform_data {
-	char		*mac_addr;	/* pointer to mac address */
 	u16		force_phy_addr;	/* force override if phy_addr == 0 */
 	u16		phy_addr;
 
@@ -1303,6 +1302,7 @@ struct mv643xx_eth_platform_data {
 	u32		tx_sram_size;
 	u32		rx_sram_addr;
 	u32		rx_sram_size;
+	u8		mac_addr[6];	/* mac address if non-zero*/
 };
 
 #endif /* __ASM_MV643XX_H */

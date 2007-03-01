@@ -1380,7 +1380,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	pd = pdev->dev.platform_data;
 	if (pd) {
-		if (pd->mac_addr)
+		if (is_valid_ether_addr(pd->mac_addr))
 			memcpy(dev->dev_addr, pd->mac_addr, 6);
 
 		if (pd->phy_addr || pd->force_phy_addr)
