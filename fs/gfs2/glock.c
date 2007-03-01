@@ -953,9 +953,6 @@ static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 		spin_unlock(&gl->gl_spin);
 	}
 
-	if (glops->go_drop_bh)
-		glops->go_drop_bh(gl);
-
 	spin_lock(&gl->gl_spin);
 	gl->gl_req_gh = NULL;
 	gl->gl_req_bh = NULL;
