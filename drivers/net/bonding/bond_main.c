@@ -3423,6 +3423,9 @@ void bond_register_arp(struct bonding *bond)
 {
 	struct packet_type *pt = &bond->arp_mon_pt;
 
+	if (pt->type)
+		return;
+
 	pt->type = htons(ETH_P_ARP);
 	pt->dev = NULL; /*bond->dev;XXX*/
 	pt->func = bond_arp_rcv;
@@ -3431,7 +3434,10 @@ void bond_register_arp(struct bonding *bond)
 
 void bond_unregister_arp(struct bonding *bond)
 {
-	dev_remove_pack(&bond->arp_mon_pt);
+	struct packet_type *pt = &bond->arp_mon_pt;
+
+	dev_remove_pack(pt);
+	pt->type = 0;
 }
 
 /*---------------------------- Hashing Policies -----------------------------*/
