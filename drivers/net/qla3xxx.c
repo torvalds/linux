@@ -2210,7 +2210,7 @@ static int ql_send_map(struct ql3_adapter *qdev,
 {
 	struct oal *oal;
 	struct oal_entry *oal_entry;
-	int len = skb->len;
+	int len = skb_headlen(skb);
 	dma_addr_t map;
 	int err;
 	int completed_segs, i;
