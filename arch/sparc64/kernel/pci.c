@@ -27,6 +27,8 @@
 #include <asm/isa.h>
 #include <asm/prom.h>
 
+#include "pci_impl.h"
+
 unsigned long pci_memspace_mask = 0xffffffffUL;
 
 #ifndef CONFIG_PCI
