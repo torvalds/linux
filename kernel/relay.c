@@ -474,13 +474,12 @@ static void setup_callbacks(struct rchan *chan,
 }
 
 /**
- *
  * 	relay_hotcpu_callback - CPU hotplug callback
  * 	@nb: notifier block
  * 	@action: hotplug action to take
  * 	@hcpu: CPU number
  *
- * 	Returns the success/failure of the operation. (NOTIFY_OK, NOTIFY_BAD)
+ * 	Returns the success/failure of the operation. (%NOTIFY_OK, %NOTIFY_BAD)
  */
 static int __cpuinit relay_hotcpu_callback(struct notifier_block *nb,
 				unsigned long action,

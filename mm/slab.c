@@ -4026,7 +4026,7 @@ void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
 
 /**
  * cache_reap - Reclaim memory from caches.
- * @unused: unused parameter
+ * @w: work descriptor
  *
  * Called from workqueue/eventd every few seconds.
  * Purpose:
