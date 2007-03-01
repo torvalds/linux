@@ -3814,6 +3814,8 @@ static int raid5_check_reshape(mddev_t *mddev)
 	if (err)
 		return err;
 
+	if (mddev->degraded > conf->max_degraded)
+		return -EINVAL;
 	/* looks like we might be able to manage this */
 	return 0;
 }

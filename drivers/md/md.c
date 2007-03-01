@@ -5357,6 +5357,44 @@ void md_do_sync(mddev_t *mddev)
 EXPORT_SYMBOL_GPL(md_do_sync);
 
 
+static int remove_and_add_spares(mddev_t *mddev)
+{
+	mdk_rdev_t *rdev;
+	struct list_head *rtmp;
+	int spares = 0;
+
+	ITERATE_RDEV(mddev,rdev,rtmp)
+		if (rdev->raid_disk >= 0 &&
+		    (test_bit(Faulty, &rdev->flags) ||
+		     ! test_bit(In_sync, &rdev->flags)) &&
+		    atomic_read(&rdev->nr_pending)==0) {
+			if (mddev->pers->hot_remove_disk(
+				    mddev, rdev->raid_disk)==0) {
+				char nm[20];
+				sprintf(nm,"rd%d", rdev->raid_disk);
+				sysfs_remove_link(&mddev->kobj, nm);
+				rdev->raid_disk = -1;
+			}
+		}
+
+	if (mddev->degraded) {
+		ITERATE_RDEV(mddev,rdev,rtmp)
+			if (rdev->raid_disk < 0
+			    && !test_bit(Faulty, &rdev->flags)) {
+				rdev->recovery_offset = 0;
+				if (mddev->pers->hot_add_disk(mddev,rdev)) {
+					char nm[20];
+					sprintf(nm, "rd%d", rdev->raid_disk);
+					sysfs_create_link(&mddev->kobj,
+							  &rdev->kobj, nm);
+					spares++;
+					md_new_event(mddev);
+				} else
+					break;
+			}
+	}
+	return spares;
+}
 /*
  * This routine is regularly called by all per-raid-array threads to
  * deal with generic issues like resync and super-block update.
@@ -5411,7 +5449,7 @@ void md_check_recovery(mddev_t *mddev)
 		return;
 
 	if (mddev_trylock(mddev)) {
-		int spares =0;
+		int spares = 0;
 
 		spin_lock_irq(&mddev->write_lock);
 		if (mddev->safemode && !atomic_read(&mddev->writes_pending) &&
@@ -5474,35 +5512,13 @@ void md_check_recovery(mddev_t *mddev)
 		 * Spare are also removed and re-added, to allow
 		 * the personality to fail the re-add.
 		 */
-		ITERATE_RDEV(mddev,rdev,rtmp)
-			if (rdev->raid_disk >= 0 &&
-			    (test_bit(Faulty, &rdev->flags) || ! test_bit(In_sync, &rdev->flags)) &&
-			    atomic_read(&rdev->nr_pending)==0) {
-				if (mddev->pers->hot_remove_disk(mddev, rdev->raid_disk)==0) {
-					char nm[20];
-					sprintf(nm,"rd%d", rdev->raid_disk);
-					sysfs_remove_link(&mddev->kobj, nm);
-					rdev->raid_disk = -1;
-				}
-			}
 
-		if (mddev->degraded) {
-			ITERATE_RDEV(mddev,rdev,rtmp)
-				if (rdev->raid_disk < 0
-				    && !test_bit(Faulty, &rdev->flags)) {
-					rdev->recovery_offset = 0;
-					if (mddev->pers->hot_add_disk(mddev,rdev)) {
-						char nm[20];
-						sprintf(nm, "rd%d", rdev->raid_disk);
-						sysfs_create_link(&mddev->kobj, &rdev->kobj, nm);
-						spares++;
-						md_new_event(mddev);
-					} else
-						break;
-				}
-		}
-
-		if (spares) {
+		if (mddev->reshape_position != MaxSector) {
+			if (mddev->pers->check_reshape(mddev) != 0)
+				/* Cannot proceed */
+				goto unlock;
+			set_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
+		} else if ((spares = remove_and_add_spares(mddev))) {
 			clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 			clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
 		} else if (mddev->recovery_cp < MaxSector) {
