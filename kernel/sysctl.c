@@ -846,7 +846,8 @@ static ctl_table vm_table[] = {
 		.extra2		= &one_hundred,
 	},
 #endif
-#ifdef CONFIG_X86_32
+#if defined(CONFIG_X86_32) || \
+   (defined(CONFIG_SUPERH) && defined(CONFIG_VSYSCALL))
 	{
 		.ctl_name	= VM_VDSO_ENABLED,
 		.procname	= "vdso_enabled",
