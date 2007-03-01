@@ -408,7 +408,7 @@ static int hilse_operate(hil_mlc *mlc, int repoll) {
 #define OUT_LAST(pack) \
 { HILSE_OUT_LAST,	{ .packet = pack }, 0, 0, 0, 0 },
 
-struct hilse_node hil_mlc_se[HILSEN_END] = {
+const struct hilse_node hil_mlc_se[HILSEN_END] = {
 
 	/* 0  HILSEN_START */
 	FUNC(hilse_init_lcv, 0,	HILSEN_NEXT,	HILSEN_SLEEP,	0)
@@ -530,7 +530,7 @@ struct hilse_node hil_mlc_se[HILSEN_END] = {
 	/* 60 HILSEN_END */
 };
 
-static inline void hilse_setup_input(hil_mlc *mlc, struct hilse_node *node) {
+static inline void hilse_setup_input(hil_mlc *mlc, const struct hilse_node *node) {
 
 	switch (node->act) {
 	case HILSE_EXPECT_DISC:
@@ -563,21 +563,19 @@ static inline void hilse_setup_input(hil_mlc *mlc, struct hilse_node *node) {
 #ifdef HIL_MLC_DEBUG
 static int doze = 0;
 static int seidx; /* For debug */
-static int kick = 1;
 #endif
 
 static int hilse_donode (hil_mlc *mlc) {
-	struct hilse_node *node;
+	const struct hilse_node *node;
 	int nextidx = 0;
 	int sched_long = 0;
 	unsigned long flags;
 
 #ifdef HIL_MLC_DEBUG
 	if (mlc->seidx && (mlc->seidx != seidx)  && mlc->seidx != 41 && mlc->seidx != 42 && mlc->seidx != 43) {
-	  printk(KERN_DEBUG PREFIX "z%i \n%s {%i}", doze, kick ? "K" : "", mlc->seidx);
+	  printk(KERN_DEBUG PREFIX "z%i \n {%i}", doze, mlc->seidx);
 		doze = 0;
 	}
-	kick = 0;
 
 	seidx = mlc->seidx;
 #endif
@@ -588,7 +586,7 @@ static int hilse_donode (hil_mlc *mlc) {
 		hil_packet pack;
 
 	case HILSE_FUNC:
-		if (node->object.func == NULL) break;
+		BUG_ON(node->object.func == NULL);
 		rc = node->object.func(mlc, node->arg);
 		nextidx = (rc > 0) ? node->ugly : 
 			((rc < 0) ? node->bad : node->good);
@@ -674,10 +672,10 @@ static int hilse_donode (hil_mlc *mlc) {
 		if (!sched_long) goto sched;
 
 		do_gettimeofday(&tv);
-		tv.tv_usec += 1000000 * (tv.tv_sec - mlc->instart.tv_sec);
+		tv.tv_usec += USEC_PER_SEC * (tv.tv_sec - mlc->instart.tv_sec);
 		tv.tv_usec -= mlc->instart.tv_usec;
 		if (tv.tv_usec >= mlc->intimeout) goto sched;
-		tv.tv_usec = (mlc->intimeout - tv.tv_usec) * HZ / 1000000;
+		tv.tv_usec = (mlc->intimeout - tv.tv_usec) * HZ / USEC_PER_SEC;
 		if (!tv.tv_usec) goto sched;
 		mod_timer(&hil_mlcs_kicker, jiffies + tv.tv_usec);
 		break;
@@ -837,7 +835,7 @@ static void hil_mlc_serio_close(struct serio *serio) {
 	/* TODO wake up interruptable */
 }
 
-static struct serio_device_id hil_mlc_serio_id = {
+static const struct serio_device_id hil_mlc_serio_id = {
 	.type = SERIO_HIL_MLC,
 	.proto = SERIO_HIL,
 	.extra = SERIO_ANY,
@@ -873,6 +871,8 @@ int hil_mlc_register(hil_mlc *mlc) {
 		hil_mlc_copy_di_scratch(mlc, i);
 		mlc_serio = kzalloc(sizeof(*mlc_serio), GFP_KERNEL);
 		mlc->serio[i] = mlc_serio;
+		snprintf(mlc_serio->name, sizeof(mlc_serio->name)-1, "HIL_SERIO%d", i);
+		snprintf(mlc_serio->phys, sizeof(mlc_serio->phys)-1, "HIL%d", i);
 		mlc_serio->id			= hil_mlc_serio_id;
 		mlc_serio->write		= hil_mlc_serio_write;
 		mlc_serio->open			= hil_mlc_serio_open;

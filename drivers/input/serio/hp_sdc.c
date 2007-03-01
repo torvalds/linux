@@ -748,7 +748,7 @@ void hp_sdc_kicker (unsigned long data) {
 
 #if defined(__hppa__)
 
-static struct parisc_device_id hp_sdc_tbl[] = {
+static const struct parisc_device_id hp_sdc_tbl[] = {
 	{
 		.hw_type =	HPHW_FIO, 
 		.hversion_rev =	HVERSION_REV_ANY_ID,
@@ -817,12 +817,12 @@ static int __init hp_sdc_init(void)
 #endif	
 
 	errstr = "IRQ not available for";
-        if(request_irq(hp_sdc.irq, &hp_sdc_isr, 0, "HP SDC",
-		       (void *) hp_sdc.base_io)) goto err1;
+	if (request_irq(hp_sdc.irq, &hp_sdc_isr, IRQF_SHARED|IRQF_SAMPLE_RANDOM,
+		"HP SDC", &hp_sdc)) goto err1;
 
 	errstr = "NMI not available for";
-	if (request_irq(hp_sdc.nmi, &hp_sdc_nmisr, 0, "HP SDC NMI", 
-			(void *) hp_sdc.base_io)) goto err2;
+	if (request_irq(hp_sdc.nmi, &hp_sdc_nmisr, IRQF_SHARED,
+		"HP SDC NMI", &hp_sdc)) goto err2;
 
 	printk(KERN_INFO PREFIX "HP SDC at 0x%p, IRQ %d (NMI IRQ %d)\n", 
 	       (void *)hp_sdc.base_io, hp_sdc.irq, hp_sdc.nmi);
@@ -854,7 +854,7 @@ static int __init hp_sdc_init(void)
 	hp_sdc.dev_err = 0;
 	return 0;
  err2:
-	free_irq(hp_sdc.irq, NULL);
+	free_irq(hp_sdc.irq, &hp_sdc);
  err1:
 	release_region(hp_sdc.data_io, 2);
  err0:
@@ -898,8 +898,8 @@ static void hp_sdc_exit(void)
 	/* Wait until we know this has been processed by the i8042 */
 	hp_sdc_spin_ibf();
 
-	free_irq(hp_sdc.nmi, NULL);
-	free_irq(hp_sdc.irq, NULL);
+	free_irq(hp_sdc.nmi, &hp_sdc);
+	free_irq(hp_sdc.irq, &hp_sdc);
 	write_unlock_irq(&hp_sdc.lock);
 
 	del_timer(&hp_sdc.kicker);

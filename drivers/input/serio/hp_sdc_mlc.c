@@ -323,11 +323,12 @@ static int __init hp_sdc_mlc_init(void)
 	mlc->in			= &hp_sdc_mlc_in;
 	mlc->out		= &hp_sdc_mlc_out;
 
+	mlc->priv		= &hp_sdc_mlc_priv;
+
 	if (hil_mlc_register(mlc)) {
 		printk(KERN_WARNING PREFIX "Failed to register MLC structure with hil_mlc\n");
 		goto err0;
 	}
-	mlc->priv		= &hp_sdc_mlc_priv;
 
 	if (hp_sdc_request_hil_irq(&hp_sdc_mlc_isr)) {
 		printk(KERN_WARNING PREFIX "Request for raw HIL ISR hook denied\n");

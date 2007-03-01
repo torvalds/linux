@@ -51,7 +51,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define HIL_KBD_SET1_UPBIT 0x01
 #define HIL_KBD_SET1_SHIFT 1
-static unsigned int hil_kbd_set1[HIL_KEYCODES_SET1_TBLSIZE] = 
+static unsigned int hil_kbd_set1[HIL_KEYCODES_SET1_TBLSIZE] __read_mostly =
 	{ HIL_KEYCODES_SET1 };
 
 #define HIL_KBD_SET2_UPBIT 0x01
@@ -60,10 +60,10 @@ static unsigned int hil_kbd_set1[HIL_KEYCODES_SET1_TBLSIZE] =
 
 #define HIL_KBD_SET3_UPBIT 0x80
 #define HIL_KBD_SET3_SHIFT 0
-static unsigned int hil_kbd_set3[HIL_KEYCODES_SET3_TBLSIZE] =
+static unsigned int hil_kbd_set3[HIL_KEYCODES_SET3_TBLSIZE] __read_mostly =
 	{ HIL_KEYCODES_SET3 };
 
-static char hil_language[][16] = { HIL_LOCALE_MAP };
+static const char hil_language[][16] = { HIL_LOCALE_MAP };
 
 struct hil_kbd {
 	struct input_dev *dev;
@@ -368,7 +368,7 @@ static struct serio_device_id hil_kbd_ids[] = {
 	{ 0 }
 };
 
-struct serio_driver hil_kbd_serio_drv = {
+static struct serio_driver hil_kbd_serio_drv = {
 	.driver		= {
 		.name	= "hil_kbd",
 	},
