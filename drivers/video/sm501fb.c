@@ -136,8 +136,8 @@ static inline void sm501fb_sync_regs(struct sm501fb_info *info)
 #define SM501_MEMF_CRT			(4)
 #define SM501_MEMF_ACCEL		(8)
 
-int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
-		    unsigned int why, size_t size)
+static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
+			   unsigned int why, size_t size)
 {
 	unsigned int ptr = 0;
 
@@ -926,7 +926,7 @@ static int sm501fb_blank_crt(int blank_mode, struct fb_info *info)
  * set or change the hardware cursor parameters
 */
 
-int sm501fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
+static int sm501fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct sm501fb_par  *par = info->par;
 	struct sm501fb_info *fbi = par->info;
@@ -1225,7 +1225,7 @@ static struct sm501fb_info *sm501fb_info_alloc(struct fb_info *fbinfo_crt,
  * initialise hw cursor parameters
 */
 
-int sm501_init_cursor(struct fb_info *fbi, unsigned int reg_base)
+static int sm501_init_cursor(struct fb_info *fbi, unsigned int reg_base)
 {
 	struct sm501fb_par *par = fbi->par;
 	struct sm501fb_info *info = par->info;
@@ -1768,7 +1768,7 @@ static struct platform_driver sm501fb_driver = {
 	},
 };
 
-int __devinit sm501fb_init(void)
+static int __devinit sm501fb_init(void)
 {
 	return platform_driver_register(&sm501fb_driver);
 }
