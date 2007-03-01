@@ -26,9 +26,6 @@
 
 #include "dectypes.h"
 
-extern unsigned long mips_machgroup;
-extern unsigned long mips_machtype;
-
 static const char *dec_system_strings[] = {
 	[MACH_DSUNKNOWN]	"unknown DECstation",
 	[MACH_DS23100]		"DECstation 2100/3100",
