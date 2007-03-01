@@ -232,6 +232,11 @@ struct kvm_cpuid {
 #define KVM_GET_API_VERSION       _IO(KVMIO,   0x00)
 #define KVM_CREATE_VM             _IO(KVMIO,   0x01) /* returns a VM fd */
 #define KVM_GET_MSR_INDEX_LIST    _IOWR(KVMIO, 0x02, struct kvm_msr_list)
+/*
+ * Check if a kvm extension is available.  Argument is extension number,
+ * return is 1 (yes) or 0 (no, sorry).
+ */
+#define KVM_CHECK_EXTENSION       _IO(KVMIO,   0x03)
 
 /*
  * ioctls for VM fds

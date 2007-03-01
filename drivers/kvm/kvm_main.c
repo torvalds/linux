@@ -2416,6 +2416,12 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = 0;
 		break;
 	}
+	case KVM_CHECK_EXTENSION:
+		/*
+		 * No extensions defined at present.
+		 */
+		r = 0;
+		break;
 	default:
 		;
 	}
