@@ -495,7 +495,7 @@ static void __init build_device_resources(struct of_device *op,
 		u32 *reg = (preg + (index * ((na + ns) * 4)));
 		struct device_node *dp = op->node;
 		struct device_node *pp = p_op->node;
-		struct of_bus *pbus;
+		struct of_bus *pbus, *dbus;
 		u64 size, result = OF_BAD_ADDR;
 		unsigned long flags;
 		int dna, dns;
@@ -516,6 +516,7 @@ static void __init build_device_resources(struct of_device *op,
 
 		dna = na;
 		dns = ns;
+		dbus = bus;
 
 		while (1) {
 			dp = pp;
@@ -528,13 +529,13 @@ static void __init build_device_resources(struct of_device *op,
 			pbus = of_match_bus(pp);
 			pbus->count_cells(dp, &pna, &pns);
 
-			if (build_one_resource(dp, bus, pbus, addr,
+			if (build_one_resource(dp, dbus, pbus, addr,
 					       dna, dns, pna))
 				break;
 
 			dna = pna;
 			dns = pns;
-			bus = pbus;
+			dbus = pbus;
 		}
 
 	build_res:
