@@ -1296,27 +1296,17 @@ static struct super_type super_types[] = {
 		.sync_super	= super_1_sync,
 	},
 };
-	
-static mdk_rdev_t * match_dev_unit(mddev_t *mddev, mdk_rdev_t *dev)
-{
-	struct list_head *tmp;
-	mdk_rdev_t *rdev;
-
-	ITERATE_RDEV(mddev,rdev,tmp)
-		if (rdev->bdev->bd_contains == dev->bdev->bd_contains)
-			return rdev;
-
-	return NULL;
-}
 
 static int match_mddev_units(mddev_t *mddev1, mddev_t *mddev2)
 {
-	struct list_head *tmp;
-	mdk_rdev_t *rdev;
+	struct list_head *tmp, *tmp2;
+	mdk_rdev_t *rdev, *rdev2;
 
 	ITERATE_RDEV(mddev1,rdev,tmp)
-		if (match_dev_unit(mddev2, rdev))
-			return 1;
+		ITERATE_RDEV(mddev2, rdev2, tmp2)
+			if (rdev->bdev->bd_contains ==
+			    rdev2->bdev->bd_contains)
+				return 1;
 
 	return 0;
 }
@@ -1325,8 +1315,7 @@ static LIST_HEAD(pending_raid_disks);
 
 static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 {
-	mdk_rdev_t *same_pdev;
-	char b[BDEVNAME_SIZE], b2[BDEVNAME_SIZE];
+	char b[BDEVNAME_SIZE];
 	struct kobject *ko;
 	char *s;
 
@@ -1342,14 +1331,6 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 		else
 			mddev->size = rdev->size;
 	}
-	same_pdev = match_dev_unit(mddev, rdev);
-	if (same_pdev)
-		printk(KERN_WARNING
-			"%s: WARNING: %s appears to be on the same physical"
-	 		" disk as %s. True\n     protection against single-disk"
-			" failure might be compromised.\n",
-			mdname(mddev), bdevname(rdev->bdev,b),
-			bdevname(same_pdev->bdev,b2));
 
 	/* Verify rdev->desc_nr is unique.
 	 * If it is -1, assign a free number, else
@@ -3107,6 +3088,36 @@ static int do_md_run(mddev_t * mddev)
 		mddev->pers = NULL;
 		module_put(pers->owner);
 		return -EINVAL;
+	}
+
+	if (pers->sync_request) {
+		/* Warn if this is a potentially silly
+		 * configuration.
+		 */
+		char b[BDEVNAME_SIZE], b2[BDEVNAME_SIZE];
+		mdk_rdev_t *rdev2;
+		struct list_head *tmp2;
+		int warned = 0;
+		ITERATE_RDEV(mddev, rdev, tmp) {
+			ITERATE_RDEV(mddev, rdev2, tmp2) {
+				if (rdev < rdev2 &&
+				    rdev->bdev->bd_contains ==
+				    rdev2->bdev->bd_contains) {
+					printk(KERN_WARNING
+					       "%s: WARNING: %s appears to be"
+					       " on the same physical disk as"
+					       " %s.\n",
+					       mdname(mddev),
+					       bdevname(rdev->bdev,b),
+					       bdevname(rdev2->bdev,b2));
+					warned = 1;
+				}
+			}
+		}
+		if (warned)
+			printk(KERN_WARNING
+			       "True protection against single-disk"
+			       " failure might be compromised.\n");
 	}
 
 	mddev->recovery = 0;
