@@ -1345,7 +1345,7 @@ S:	Supported
 
 FRAMEBUFFER LAYER
 P:	Antonino Daplas
-M:	adaplas@pol.net
+M:	adaplas@gmail.com
 L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 W:	http://linux-fbdev.sourceforge.net/
 S:	Maintained
@@ -1756,7 +1756,7 @@ S:	Maintained
 
 INTEL 810/815 FRAMEBUFFER DRIVER
 P:	Antonino Daplas
-M:	adaplas@pol.net
+M:	adaplas@gmail.com
 L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
@@ -2471,7 +2471,7 @@ S:	Maintained
 
 NVIDIA (rivafb and nvidiafb) FRAMEBUFFER DRIVER
 P:	Antonino Daplas
-M:	adaplas@pol.net
+M:	adaplas@gmail.com
 L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
@@ -2855,7 +2855,7 @@ S:	Orphan
 
 S3 SAVAGE FRAMEBUFFER DRIVER
 P:	Antonino Daplas
-M:	adaplas@pol.net
+M:	adaplas@gmail.com
 L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
