@@ -20,6 +20,7 @@
 #include <linux/kvm.h>
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/magic.h>
 #include <asm/processor.h>
 #include <linux/percpu.h>
 #include <linux/gfp.h>
@@ -75,7 +76,6 @@ static struct kvm_stats_debugfs_item {
 
 static struct dentry *debugfs_dir;
 
-#define KVMFS_MAGIC 0x19700426
 struct vfsmount *kvmfs_mnt;
 
 #define MAX_IO_MSRS 256
@@ -2433,7 +2433,7 @@ hpa_t bad_page_address;
 static int kvmfs_get_sb(struct file_system_type *fs_type, int flags,
 			const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_pseudo(fs_type, "kvm:", NULL, KVMFS_MAGIC, mnt);
+	return get_sb_pseudo(fs_type, "kvm:", NULL, KVMFS_SUPER_MAGIC, mnt);
 }
 
 static struct file_system_type kvm_fs_type = {
