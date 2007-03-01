@@ -110,7 +110,7 @@ int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
 	return DMA_MEMORY_IO;
 
  free1_out:
-	kfree(dev->dma_mem->bitmap);
+	kfree(dev->dma_mem);
  out:
 	if (mem_base)
 		iounmap(mem_base);
