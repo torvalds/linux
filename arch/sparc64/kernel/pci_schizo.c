@@ -1229,21 +1229,8 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 	pci_config_write8(addr, 64);
 }
 
-static void pbm_scan_bus(struct pci_controller_info *p,
-			 struct pci_pbm_info *pbm)
+static void schizo_scan_bus(struct pci_controller_info *p)
 {
-	pbm->pci_bus = pci_scan_one_pbm(pbm);
-}
-
-static void __schizo_scan_bus(struct pci_controller_info *p,
-			      int chip_type)
-{
-	if (!p->pbm_B.prom_node || !p->pbm_A.prom_node) {
-		printk("PCI: Only one PCI bus module of controller found.\n");
-		printk("PCI: Ignoring entire controller.\n");
-		return;
-	}
-
 	pbm_config_busmastering(&p->pbm_B);
 	p->pbm_B.is_66mhz_capable =
 		(of_find_property(p->pbm_B.prom_node, "66mhz-capable", NULL)
@@ -1252,26 +1239,17 @@ static void __schizo_scan_bus(struct pci_controller_info *p,
 	p->pbm_A.is_66mhz_capable =
 		(of_find_property(p->pbm_A.prom_node, "66mhz-capable", NULL)
 		 != NULL);
-	pbm_scan_bus(p, &p->pbm_B);
-	pbm_scan_bus(p, &p->pbm_A);
+
+	p->pbm_B.pci_bus = pci_scan_one_pbm(&p->pbm_B);
+	p->pbm_A.pci_bus = pci_scan_one_pbm(&p->pbm_A);
 
 	/* After the PCI bus scan is complete, we can register
 	 * the error interrupt handlers.
 	 */
-	if (chip_type == PBM_CHIP_TYPE_TOMATILLO)
+	if (p->pbm_B.chip_type == PBM_CHIP_TYPE_TOMATILLO)
 		tomatillo_register_error_handlers(p);
 	else
 		schizo_register_error_handlers(p);
-}
-
-static void schizo_scan_bus(struct pci_controller_info *p)
-{
-	__schizo_scan_bus(p, PBM_CHIP_TYPE_SCHIZO);
-}
-
-static void tomatillo_scan_bus(struct pci_controller_info *p)
-{
-	__schizo_scan_bus(p, PBM_CHIP_TYPE_TOMATILLO);
 }
 
 static void schizo_base_address_update(struct pci_dev *pdev, int resource)
@@ -1633,7 +1611,6 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 			    int chip_type)
 {
 	struct linux_prom64_registers *regs;
-	struct property *prop;
 	unsigned int *busrange;
 	struct pci_pbm_info *pbm;
 	const char *chipset_name;
@@ -1667,11 +1644,9 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 	 * 3) PBM PCI config space
 	 * 4) Ichip regs
 	 */
-	prop = of_find_property(dp, "reg", NULL);
-	regs = prop->value;
+	regs = of_get_property(dp, "reg", NULL);
 
 	is_pbm_a = ((regs[0].phys_addr & 0x00700000) == 0x00600000);
-
 	if (is_pbm_a)
 		pbm = &p->pbm_A;
 	else
@@ -1683,14 +1658,8 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 	pbm->pci_first_slot = 1;
 
 	pbm->chip_type = chip_type;
-	pbm->chip_version = 0;
-	prop = of_find_property(dp, "version#", NULL);
-	if (prop)
-		pbm->chip_version = *(int *) prop->value;
-	pbm->chip_revision = 0;
-	prop = of_find_property(dp, "module-revision#", NULL);
-	if (prop)
-		pbm->chip_revision = *(int *) prop->value;
+	pbm->chip_version = of_getintprop_default(dp, "version#", 0);
+	pbm->chip_revision = of_getintprop_default(dp, "module-version#", 0);
 
 	pbm->pbm_regs = regs[0].phys_addr;
 	pbm->controller_regs = regs[1].phys_addr - 0x10000UL;
@@ -1701,40 +1670,31 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 	pbm->name = dp->full_name;
 
 	printk("%s: %s PCI Bus Module ver[%x:%x]\n",
-	       pbm->name,
-	       (chip_type == PBM_CHIP_TYPE_TOMATILLO ?
-		"TOMATILLO" : "SCHIZO"),
+	       pbm->name, chipset_name,
 	       pbm->chip_version, pbm->chip_revision);
 
 	schizo_pbm_hw_init(pbm);
 
-	prop = of_find_property(dp, "ranges", &len);
-	pbm->pbm_ranges = prop->value;
+	pbm->pbm_ranges = of_get_property(dp, "ranges", &len);
 	pbm->num_pbm_ranges =
 		(len / sizeof(struct linux_prom_pci_ranges));
 
 	schizo_determine_mem_io_space(pbm);
 	pbm_register_toplevel_resources(p, pbm);
 
-	prop = of_find_property(dp, "interrupt-map", &len);
-	if (prop) {
-		pbm->pbm_intmap = prop->value;
+	pbm->pbm_intmap = of_get_property(dp, "interrupt-map", &len);
+	if (pbm->pbm_intmap) {
 		pbm->num_pbm_intmap =
 			(len / sizeof(struct linux_prom_pci_intmap));
-
-		prop = of_find_property(dp, "interrupt-map-mask", NULL);
-		pbm->pbm_intmask = prop->value;
-	} else {
-		pbm->num_pbm_intmap = 0;
+		pbm->pbm_intmask =
+			of_get_property(dp, "interrupt-map-mask", NULL);
 	}
 
-	prop = of_find_property(dp, "ino-bitmap", NULL);
-	ino_bitmap = prop->value;
+	ino_bitmap = of_get_property(dp, "ino-bitmap", NULL);
 	pbm->ino_bitmap = (((u64)ino_bitmap[1] << 32UL) |
 			   ((u64)ino_bitmap[0] <<  0UL));
 
-	prop = of_find_property(dp, "bus-range", NULL);
-	busrange = prop->value;
+	busrange = of_get_property(dp, "bus-range", NULL);
 	pbm->pci_first_busno = busrange[0];
 	pbm->pci_last_busno = busrange[1];
 
@@ -1756,14 +1716,9 @@ static void __schizo_init(struct device_node *dp, char *model_name, int chip_typ
 {
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
-	struct property *prop;
-	int is_pbm_a;
 	u32 portid;
 
-	portid = 0xff;
-	prop = of_find_property(dp, "portid", NULL);
-	if (prop)
-		portid = *(u32 *) prop->value;
+	portid = of_getintprop_default(dp, "portid", 0xff);
 
 	for (p = pci_controller_root; p; p = p->next) {
 		struct pci_pbm_info *pbm;
@@ -1776,40 +1731,32 @@ static void __schizo_init(struct device_node *dp, char *model_name, int chip_typ
 		       &p->pbm_B);
 
 		if (portid_compare(pbm->portid, portid, chip_type)) {
-			is_pbm_a = (p->pbm_A.prom_node == NULL);
 			schizo_pbm_init(p, dp, portid, chip_type);
 			return;
 		}
 	}
 
 	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
-	if (!p) {
-		prom_printf("SCHIZO: Fatal memory allocation error.\n");
-		prom_halt();
-	}
+	if (!p)
+		goto memfail;
 
 	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
-	if (!iommu) {
-		prom_printf("SCHIZO: Fatal memory allocation error.\n");
-		prom_halt();
-	}
+	if (!iommu)
+		goto memfail;
+
 	p->pbm_A.iommu = iommu;
 
 	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
-	if (!iommu) {
-		prom_printf("SCHIZO: Fatal memory allocation error.\n");
-		prom_halt();
-	}
+	if (!iommu)
+		goto memfail;
+
 	p->pbm_B.iommu = iommu;
 
 	p->next = pci_controller_root;
 	pci_controller_root = p;
 
 	p->index = pci_num_controllers++;
-	p->pbms_same_domain = 0;
-	p->scan_bus = (chip_type == PBM_CHIP_TYPE_TOMATILLO ?
-		       tomatillo_scan_bus :
-		       schizo_scan_bus);
+	p->scan_bus = schizo_scan_bus;
 	p->base_address_update = schizo_base_address_update;
 	p->resource_adjust = schizo_resource_adjust;
 	p->pci_ops = &schizo_ops;
@@ -1818,6 +1765,11 @@ static void __schizo_init(struct device_node *dp, char *model_name, int chip_typ
 	pci_memspace_mask = 0x7fffffffUL;
 
 	schizo_pbm_init(p, dp, portid, chip_type);
+	return;
+
+memfail:
+	prom_printf("SCHIZO: Fatal memory allocation error.\n");
+	prom_halt();
 }
 
 void schizo_init(struct device_node *dp, char *model_name)
