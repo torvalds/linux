@@ -13,11 +13,6 @@
  * =====================================================================
  */
 
-/* not set by Kbuild when building both ser_gigaset and usb_gigaset */
-#ifndef KBUILD_MODNAME
-#define KBUILD_MODNAME "asy_gigaset"
-#endif
-
 #include "gigaset.h"
 #include <linux/crc-ccitt.h>
 #include <linux/bitrev.h>

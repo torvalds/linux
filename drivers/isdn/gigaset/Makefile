@@ -1,8 +1,9 @@
 gigaset-y := common.o interface.o proc.o ev-layer.o i4l.o asyncdata.o
 usb_gigaset-y := usb-gigaset.o
-bas_gigaset-y := bas-gigaset.o isocdata.o
 ser_gigaset-y := ser-gigaset.o
+bas_gigaset-y := bas-gigaset.o isocdata.o
 
-obj-$(CONFIG_GIGASET_M105) += usb_gigaset.o gigaset.o
-obj-$(CONFIG_GIGASET_BASE) += bas_gigaset.o gigaset.o
-obj-$(CONFIG_GIGASET_M101) += ser_gigaset.o gigaset.o
+obj-$(CONFIG_ISDN_DRV_GIGASET) += gigaset.o
+obj-$(CONFIG_GIGASET_M105) += usb_gigaset.o
+obj-$(CONFIG_GIGASET_BASE) += bas_gigaset.o
+obj-$(CONFIG_GIGASET_M101) += ser_gigaset.o
