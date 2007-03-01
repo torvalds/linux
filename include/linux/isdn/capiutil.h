@@ -174,9 +174,26 @@ char *capi_info2str(__u16 reason);
 /*
  * Debugging / Tracing functions
  */
+
 char *capi_cmd2str(__u8 cmd, __u8 subcmd);
-char *capi_cmsg2str(_cmsg * cmsg);
-char *capi_message2str(__u8 * msg);
+
+typedef struct {
+	u_char	*buf;
+	u_char	*p;
+	size_t	size;
+	size_t	pos;
+} _cdebbuf;
+
+#define	CDEBUG_SIZE	1024
+#define	CDEBUG_GSIZE	4096
+
+_cdebbuf *cdebbuf_alloc(void);
+void cdebbuf_free(_cdebbuf *cdb);
+int cdebug_init(void);
+void cdebug_exit(void);
+
+_cdebbuf *capi_cmsg2str(_cmsg *cmsg);
+_cdebbuf *capi_message2str(__u8 *msg);
 
 /*-----------------------------------------------------------------------*/
 

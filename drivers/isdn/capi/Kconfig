@@ -2,12 +2,24 @@
 # Config.in for the CAPI subsystem
 #
 config ISDN_DRV_AVMB1_VERBOSE_REASON
-	bool "Verbose reason code reporting (kernel size +=7K)"
+	bool "Verbose reason code reporting"
 	depends on ISDN_CAPI
+	default y
 	help
-	  If you say Y here, the AVM B1 driver will give verbose reasons for
+	  If you say Y here, the CAPI drivers will give verbose reasons for
 	  disconnecting. This will increase the size of the kernel by 7 KB. If
 	  unsure, say Y.
+
+config CAPI_TRACE
+	bool "CAPI trace support"
+	depends on ISDN_CAPI
+	default y
+	help
+	  If you say Y here, the kernelcapi driver can make verbose traces
+	  of CAPI messages. This feature can be enabled/disabled via IOCTL for
+	  every controler (default disabled).
+	  This will increase the size of the kernelcapi module by 20 KB.
+	  If unsure, say Y.
 
 config ISDN_CAPI_MIDDLEWARE
 	bool "CAPI2.0 Middleware support (EXPERIMENTAL)"
