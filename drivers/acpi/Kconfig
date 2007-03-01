@@ -149,6 +149,7 @@ config ACPI_DOCK
 config ACPI_BAY
 	tristate "Removable Drive Bay (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
+	depends on ACPI_DOCK
 	help
 	  This driver adds support for ACPI controlled removable drive
 	  bays such as the IBM ultrabay or the Dell Module Bay.
