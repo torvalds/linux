@@ -241,7 +241,7 @@ struct kvm_cpuid {
  * KVM_CREATE_VCPU receives as a parameter the vcpu slot, and returns
  * a vcpu fd.
  */
-#define KVM_CREATE_VCPU           _IOW(KVMIO, 11, int)
+#define KVM_CREATE_VCPU           _IO(KVMIO, 11)
 #define KVM_GET_DIRTY_LOG         _IOW(KVMIO, 12, struct kvm_dirty_log)
 
 /*
