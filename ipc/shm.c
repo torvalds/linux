@@ -226,8 +226,8 @@ static void shm_close(struct vm_area_struct *vma)
 	mutex_unlock(&shm_ids(ns).mutex);
 }
 
-struct page *shm_nopage(struct vm_area_struct *vma, unsigned long address,
-			int *type)
+static struct page *shm_nopage(struct vm_area_struct *vma,
+			       unsigned long address, int *type)
 {
 	struct file *file = vma->vm_file;
 	struct shm_file_data *sfd = shm_file_data(file);
