@@ -43,7 +43,8 @@ static int iget_test(struct inode *inode, void *opaque)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_inum_host *inum = opaque;
 
-	if (ip->i_num.no_addr == inum->no_addr)
+	if (ip->i_num.no_addr == inum->no_addr &&
+	    inode->i_private != NULL)
 		return 1;
 
 	return 0;
