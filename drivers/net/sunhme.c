@@ -55,9 +55,6 @@
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
-#ifdef CONFIG_SPARC
-#include <asm/pbm.h>
-#endif
 #endif
 
 #include "sunhme.h"
@@ -2986,7 +2983,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 {
 	struct quattro *qp = NULL;
 #ifdef CONFIG_SPARC
-	struct pcidev_cookie *pcp;
+	struct device_node *dp;
 #endif
 	struct happy_meal *hp;
 	struct net_device *dev;
@@ -2998,13 +2995,8 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 
 	/* Now make sure pci_dev cookie is there. */
 #ifdef CONFIG_SPARC
-	pcp = pdev->sysdata;
-	if (pcp == NULL) {
-		printk(KERN_ERR "happymeal(PCI): Some PCI device info missing\n");
-		return -ENODEV;
-	}
-
-	strcpy(prom_name, pcp->prom_node->name);
+	dp = pci_device_to_OF_node(pdev);
+	strcpy(prom_name, dp->name);
 #else
 	if (is_quattro_p(pdev))
 		strcpy(prom_name, "SUNW,qfe");
@@ -3085,7 +3077,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		int len;
 
 		if (qfe_slot != -1 &&
-		    (addr = of_get_property(pcp->prom_node,
+		    (addr = of_get_property(dp,
 					    "local-mac-address", &len)) != NULL
 		    && len == 6) {
 			memcpy(dev->dev_addr, addr, 6);
@@ -3105,7 +3097,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	hp->tcvregs    = (hpreg_base + 0x7000UL);
 
 #ifdef CONFIG_SPARC
-	hp->hm_revision = of_getintprop_default(pcp->prom_node, "hm-rev", 0xff);
+	hp->hm_revision = of_getintprop_default(dp, "hm-rev", 0xff);
 	if (hp->hm_revision == 0xff) {
 		unsigned char prev;
 
