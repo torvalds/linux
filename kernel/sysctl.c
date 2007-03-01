@@ -1359,8 +1359,7 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 }
 
 #else /* !CONFIG_SYSCTL */
-struct ctl_table_header * register_sysctl_table(ctl_table * table,
-						int insert_at_head)
+struct ctl_table_header *register_sysctl_table(ctl_table * table)
 {
 	return NULL;
 }
