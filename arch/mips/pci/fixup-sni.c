@@ -14,6 +14,8 @@
 #include <asm/mipsregs.h>
 #include <asm/sni.h>
 
+#include <irq.h>
+
 /*
  * PCIMT Shortcuts ...
  */
