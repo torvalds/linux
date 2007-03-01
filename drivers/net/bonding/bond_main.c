@@ -3427,7 +3427,7 @@ void bond_register_arp(struct bonding *bond)
 		return;
 
 	pt->type = htons(ETH_P_ARP);
-	pt->dev = NULL; /*bond->dev;XXX*/
+	pt->dev = bond->dev;
 	pt->func = bond_arp_rcv;
 	dev_add_pack(pt);
 }
