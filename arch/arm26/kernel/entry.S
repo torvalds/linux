@@ -245,11 +245,6 @@ ENTRY(vector_swi)
 	zero_fp
 	get_scno
 
-#ifdef CONFIG_ALIGNMENT_TRAP
-	ldr	ip, __cr_alignment
-	ldr	ip, [ip]
-	mcr	p15, 0, ip, c1, c0		@ update control register
-#endif
 	enable_irqs ip
 
 	str	r4, [sp, #-S_OFF]!		@ push fifth arg
@@ -299,11 +294,6 @@ __sys_trace_return:
 	b	ret_slow_syscall
 
 	.align	5
-#ifdef CONFIG_ALIGNMENT_TRAP
-	.type	__cr_alignment, #object
-__cr_alignment:
-	.word	cr_alignment
-#endif
 
 	.type	sys_call_table, #object
 ENTRY(sys_call_table)
