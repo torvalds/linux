@@ -205,6 +205,7 @@ int ecryptfs_open_lower_file(struct file **lower_file,
 {
 	int rc = 0;
 
+	flags |= O_LARGEFILE;
 	dget(lower_dentry);
 	mntget(lower_mnt);
 	*lower_file = dentry_open(lower_dentry, lower_mnt, flags);

@@ -200,9 +200,6 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 	inode = ecryptfs_dentry->d_inode;
 	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
 	lower_flags = ((O_CREAT | O_TRUNC) & O_ACCMODE) | O_RDWR;
-#if BITS_PER_LONG != 32
-	lower_flags |= O_LARGEFILE;
-#endif
 	lower_mnt = ecryptfs_dentry_to_lower_mnt(ecryptfs_dentry);
 	/* Corresponding fput() at end of this function */
 	if ((rc = ecryptfs_open_lower_file(&lower_file, lower_dentry, lower_mnt,
