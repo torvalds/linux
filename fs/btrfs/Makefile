@@ -14,13 +14,16 @@ check=sparse $(CHECKFLAGS)
 	$(check) $<
 	$(CC) $(CFLAGS) -c $<
 
-all: tester debug-tree
+all: tester debug-tree quick-test
 
 debug-tree: $(objects) debug-tree.o
 	gcc $(CFLAGS) -o debug-tree $(objects) debug-tree.o
 
 tester: $(objects) random-test.o
 	gcc $(CFLAGS) -o tester $(objects) random-test.o
+
+quick-test: $(objects) quick-test.o
+	gcc $(CFLAGS) -o quick-test $(objects) quick-test.o
 
 $(objects) : $(headers)
 

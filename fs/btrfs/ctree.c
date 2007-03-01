@@ -12,6 +12,9 @@ static int split_leaf(struct ctree_root *root, struct ctree_path *path,
 		      int data_size);
 static int push_node_left(struct ctree_root *root, struct tree_buffer *dst,
 			  struct tree_buffer *src);
+static int balance_node_right(struct ctree_root *root,
+			      struct tree_buffer *dst_buf,
+			      struct tree_buffer *src_buf);
 static int del_ptr(struct ctree_root *root, struct ctree_path *path, int level,
 		   int slot);
 
@@ -217,15 +220,16 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 	int ret = 0;
 	int wret;
 	int pslot;
-	int used = 0;
-	int count;
 	int orig_slot = path->slots[level];
+	u64 orig_ptr;
 
 	if (level == 0)
 		return 0;
 
 	mid_buf = path->nodes[level];
 	mid = &mid_buf->node;
+	orig_ptr = mid->blockptrs[orig_slot];
+
 	if (level < MAX_LEVEL - 1)
 		parent_buf = path->nodes[level + 1];
 	pslot = path->slots[level + 1];
@@ -253,24 +257,26 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 	if (mid->header.nritems > NODEPTRS_PER_BLOCK / 4)
 		return 0;
 
-	// print_tree(root, root->node);
 	left_buf = read_node_slot(root, parent_buf, pslot - 1);
 	right_buf = read_node_slot(root, parent_buf, pslot + 1);
-	if (right_buf) {
-		right = &right_buf->node;
-		used = right->header.nritems;
-		count = 1;
-	}
+
+	/* first, try to make some room in the middle buffer */
 	if (left_buf) {
 		left = &left_buf->node;
-		used += left->header.nritems;
 		orig_slot += left->header.nritems;
-		count++;
+		wret = push_node_left(root, left_buf, mid_buf);
+		if (wret < 0)
+			ret = wret;
 	}
-	if (left_buf)
-		push_node_left(root, left_buf, mid_buf);
+
+	/*
+	 * then try to empty the right most buffer into the middle
+	 */
 	if (right_buf) {
-		push_node_left(root, mid_buf, right_buf);
+		right = &right_buf->node;
+		wret = push_node_left(root, mid_buf, right_buf);
+		if (wret < 0)
+			ret = wret;
 		if (right->header.nritems == 0) {
 			u64 blocknr = right_buf->blocknr;
 			tree_block_release(root, right_buf);
@@ -285,9 +291,29 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 		} else {
 			memcpy(parent->keys + pslot + 1, right->keys,
 				sizeof(struct key));
+			wret = write_tree_block(root, parent_buf);
+			if (wret)
+				ret = wret;
 		}
 	}
+	if (mid->header.nritems == 1) {
+		/*
+		 * we're not allowed to leave a node with one item in the
+		 * tree during a delete.  A deletion from lower in the tree
+		 * could try to delete the only pointer in this node.
+		 * So, pull some keys from the left.
+		 * There has to be a left pointer at this point because
+		 * otherwise we would have pulled some pointers from the
+		 * right
+		 */
+		BUG_ON(!left_buf);
+		wret = balance_node_right(root, mid_buf, left_buf);
+		if (wret < 0)
+			ret = wret;
+		BUG_ON(wret == 1);
+	}
 	if (mid->header.nritems == 0) {
+		/* we've managed to empty the middle node, drop it */
 		u64 blocknr = mid_buf->blocknr;
 		tree_block_release(root, mid_buf);
 		mid_buf = NULL;
@@ -298,11 +324,17 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 		wret = free_extent(root, blocknr, 1);
 		if (wret)
 			ret = wret;
-	} else
+	} else {
+		/* update the parent key to reflect our changes */
 		memcpy(parent->keys + pslot, mid->keys, sizeof(struct key));
+		wret = write_tree_block(root, parent_buf);
+		if (wret)
+			ret = wret;
+	}
 
+	/* update the path */
 	if (left_buf) {
-		if (left->header.nritems >= orig_slot) {
+		if (left->header.nritems > orig_slot) {
 			left_buf->count++; // released below
 			path->nodes[level] = left_buf;
 			path->slots[level + 1] -= 1;
@@ -314,12 +346,15 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 			path->slots[level] = orig_slot;
 		}
 	}
+	/* double check we haven't messed things up */
+	check_block(path, level);
+	if (orig_ptr != path->nodes[level]->node.blockptrs[path->slots[level]])
+		BUG();
 
 	if (right_buf)
 		tree_block_release(root, right_buf);
 	if (left_buf)
 		tree_block_release(root, left_buf);
-
 	return ret;
 }
 
@@ -378,6 +413,7 @@ again:
 					goto again;
 				c = &b->node;
 				slot = p->slots[level];
+				BUG_ON(c->header.nritems == 1);
 			}
 			b = read_tree_block(root, c->blockptrs[slot]);
 		} else {
@@ -433,13 +469,7 @@ static int fixup_low_keys(struct ctree_root *root,
 
 /*
  * try to push data from one node into the next node left in the
- * tree.  The src node is found at specified level in the path.
- * If some bytes were pushed, return 0, otherwise return 1.
- *
- * Lower nodes/leaves in the path are not touched, higher nodes may
- * be modified to reflect the push.
- *
- * The path is altered to reflect the push.
+ * tree.
  *
  * returns 0 if some ptrs were pushed left, < 0 if there was some horrible
  * error, and > 0 if there was no room in the left hand block.
@@ -463,7 +493,8 @@ static int push_node_left(struct ctree_root *root, struct tree_buffer *dst_buf,
 	}
 
 	if (src_nritems < push_items)
-		push_items =src_nritems;
+		push_items = src_nritems;
+
 	memcpy(dst->keys + dst_nritems, src->keys,
 		push_items * sizeof(struct key));
 	memcpy(dst->blockptrs + dst_nritems, src->blockptrs,
@@ -474,6 +505,64 @@ static int push_node_left(struct ctree_root *root, struct tree_buffer *dst_buf,
 		memmove(src->blockptrs, src->blockptrs + push_items,
 			(src_nritems - push_items) * sizeof(u64));
 	}
+	src->header.nritems -= push_items;
+	dst->header.nritems += push_items;
+
+	wret = write_tree_block(root, src_buf);
+	if (wret < 0)
+		ret = wret;
+
+	wret = write_tree_block(root, dst_buf);
+	if (wret < 0)
+		ret = wret;
+	return ret;
+}
+
+/*
+ * try to push data from one node into the next node right in the
+ * tree.
+ *
+ * returns 0 if some ptrs were pushed, < 0 if there was some horrible
+ * error, and > 0 if there was no room in the right hand block.
+ *
+ * this will  only push up to 1/2 the contents of the left node over
+ */
+static int balance_node_right(struct ctree_root *root,
+			      struct tree_buffer *dst_buf,
+			      struct tree_buffer *src_buf)
+{
+	struct node *src = &src_buf->node;
+	struct node *dst = &dst_buf->node;
+	int push_items = 0;
+	int max_push;
+	int src_nritems;
+	int dst_nritems;
+	int ret = 0;
+	int wret;
+
+	src_nritems = src->header.nritems;
+	dst_nritems = dst->header.nritems;
+	push_items = NODEPTRS_PER_BLOCK - dst_nritems;
+	if (push_items <= 0) {
+		return 1;
+	}
+
+	max_push = src_nritems / 2 + 1;
+	/* don't try to empty the node */
+	if (max_push > src_nritems)
+		return 1;
+	if (max_push < push_items)
+		push_items = max_push;
+
+	memmove(dst->keys + push_items, dst->keys,
+		dst_nritems * sizeof(struct key));
+	memmove(dst->blockptrs + push_items, dst->blockptrs,
+		dst_nritems * sizeof(u64));
+	memcpy(dst->keys, src->keys + src_nritems - push_items,
+		push_items * sizeof(struct key));
+	memcpy(dst->blockptrs, src->blockptrs + src_nritems - push_items,
+		push_items * sizeof(u64));
+
 	src->header.nritems -= push_items;
 	dst->header.nritems += push_items;
 

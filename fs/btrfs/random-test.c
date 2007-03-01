@@ -142,8 +142,98 @@ error:
 	return -1;
 }
 
+static int empty_tree(struct ctree_root *root, struct radix_tree_root *radix,
+		      int nr)
+{
+	struct ctree_path path;
+	struct key key;
+	unsigned long found = 0;
+	int ret;
+	int slot;
+	int *ptr;
+	int count = 0;
+
+	key.offset = 0;
+	key.flags = 0;
+	key.objectid = (unsigned long)-1;
+	while(nr-- >= 0) {
+		init_path(&path);
+		ret = search_slot(root, &key, &path, -1);
+		if (ret < 0) {
+			release_path(root, &path);
+			return ret;
+		}
+		if (ret != 0) {
+			if (path.slots[0] == 0) {
+				release_path(root, &path);
+				break;
+			}
+			path.slots[0] -= 1;
+		}
+		slot = path.slots[0];
+		found = path.nodes[0]->leaf.items[slot].key.objectid;
+		ret = del_item(root, &path);
+		count++;
+		if (ret) {
+			fprintf(stderr,
+				"failed to remove %lu from tree\n",
+				found);
+			return -1;
+		}
+		release_path(root, &path);
+		ptr = radix_tree_delete(radix, found);
+		if (!ptr)
+			goto error;
+		if (!keep_running)
+			break;
+	}
+	return 0;
+error:
+	fprintf(stderr, "failed to delete from the radix %lu\n", found);
+	return -1;
+}
+
+static int fill_tree(struct ctree_root *root, struct radix_tree_root *radix,
+		     int count)
+{
+	int i;
+	int err;
+	int ret = 0;
+	for (i = 0; i < count; i++) {
+		ret = ins_one(root, radix);
+		if (ret) {
+			printf("fill failed\n");
+			err = ret;
+			goto out;
+		}
+		if (!keep_running)
+			break;
+	}
+out:
+	return ret;
+}
+
+static int bulk_op(struct ctree_root *root, struct radix_tree_root *radix)
+{
+	int ret;
+	int nr = rand() % 20000;
+	static int run_nr = 0;
+
+	/* do the bulk op much less frequently */
+	if (run_nr++ % 100)
+		return 0;
+	ret = empty_tree(root, radix, nr);
+	if (ret)
+		return ret;
+	ret = fill_tree(root, radix, nr);
+	if (ret)
+		return ret;
+	return 0;
+}
+
+
 int (*ops[])(struct ctree_root *root, struct radix_tree_root *radix) =
-{ ins_one, insert_dup, del_one, lookup_item, lookup_enoent };
+{ ins_one, insert_dup, del_one, lookup_item, lookup_enoent, bulk_op };
 
 static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
 {
@@ -192,7 +282,6 @@ static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
 	}
 	return 0;
 }
-
 void sigstopper(int ignored)
 {
 	keep_running = 0;
@@ -241,22 +330,12 @@ int main(int ac, char **av)
 			print_usage();
 		}
 	}
-	for (i = 0; i < init_fill_count; i++) {
-		ret = ins_one(root, &radix);
-		if (ret) {
-			printf("initial fill failed\n");
-			err = ret;
-			goto out;
-		}
-		if (i % 10000 == 0) {
-			printf("initial fill %d level %d count %d\n", i,
-				node_level(root->node->node.header.flags),
-				root->node->node.header.nritems);
-		}
-		if (keep_running == 0) {
-			err = 0;
-			goto out;
-		}
+	printf("initial fill\n");
+	ret = fill_tree(root, &radix, init_fill_count);
+	printf("starting run\n");
+	if (ret) {
+		err = ret;
+		goto out;
 	}
 	if (initial_only == 1) {
 		goto out;
@@ -287,6 +366,8 @@ int main(int ac, char **av)
 				err = ret;
 				goto out;
 			}
+			if (ops[op] == bulk_op)
+				break;
 			if (keep_running == 0) {
 				err = 0;
 				goto out;
