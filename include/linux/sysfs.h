@@ -211,9 +211,8 @@ static inline int sysfs_add_file_to_group(struct kobject *kobj,
 }
 
 static inline void sysfs_remove_file_from_group(struct kobject *kobj,
-		const struct attribute *attr, const char *group);
+		const struct attribute *attr, const char *group)
 {
-	;
 }
 
 static inline void sysfs_notify(struct kobject * k, char *dir, char *attr)
