@@ -1281,12 +1281,6 @@ int usb_new_device(struct usb_device *udev)
 {
 	int err;
 
-	/* Lock ourself into memory in order to keep a probe sequence
-	 * sleeping in a new thread from allowing us to be unloaded.
-	 */
-	if (!try_module_get(THIS_MODULE))
-		return -EINVAL;
-
 	/* Determine quirks */
 	usb_detect_quirks(udev);
 
@@ -1390,7 +1384,6 @@ int usb_new_device(struct usb_device *udev)
 		usb_autoresume_device(udev->parent);
 
 exit:
-	module_put(THIS_MODULE);
 	return err;
 
 fail:
