@@ -585,6 +585,7 @@ static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH, show_pciobppath_attr, N
 static void __devinit pci_bus_register_of_sysfs(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
+	struct pci_bus *child_bus;
 	int err;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -597,6 +598,8 @@ static void __devinit pci_bus_register_of_sysfs(struct pci_bus *bus)
 		 */
 		err = sysfs_create_file(&dev->dev.kobj, &dev_attr_obppath.attr);
 	}
+	list_for_each_entry(child_bus, &bus->children, node)
+		pci_bus_register_of_sysfs(child_bus);
 }
 
 struct pci_bus * __init pci_scan_one_pbm(struct pci_pbm_info *pbm)
