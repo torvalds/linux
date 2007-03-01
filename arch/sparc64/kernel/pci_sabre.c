@@ -710,8 +710,8 @@ static irqreturn_t sabre_pcierr_intr_other(struct pci_controller_info *p)
 			       p->index);
 		ret = IRQ_HANDLED;
 	}
-	pci_read_config_word(sabre_root_bus->self,
-			     PCI_STATUS, &stat);
+	pci_bus_read_config_word(sabre_root_bus, 0,
+				 PCI_STATUS, &stat);
 	if (stat & (PCI_STATUS_PARITY |
 		    PCI_STATUS_SIG_TARGET_ABORT |
 		    PCI_STATUS_REC_TARGET_ABORT |
@@ -719,8 +719,8 @@ static irqreturn_t sabre_pcierr_intr_other(struct pci_controller_info *p)
 		    PCI_STATUS_SIG_SYSTEM_ERROR)) {
 		printk("SABRE%d: PCI bus error, PCI_STATUS[%04x]\n",
 		       p->index, stat);
-		pci_write_config_word(sabre_root_bus->self,
-				      PCI_STATUS, 0xffff);
+		pci_bus_write_config_word(sabre_root_bus, 0,
+					  PCI_STATUS, 0xffff);
 		ret = IRQ_HANDLED;
 	}
 	return ret;
@@ -887,8 +887,7 @@ static void sabre_resource_adjust(struct pci_dev *pdev,
 
 static void sabre_base_address_update(struct pci_dev *pdev, int resource)
 {
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm = pcp->pbm;
+	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 	struct resource *res;
 	unsigned long base;
 	u32 reg;
@@ -978,27 +977,11 @@ static void apb_init(struct pci_controller_info *p, struct pci_bus *sabre_bus)
 	}
 }
 
-static struct pcidev_cookie *alloc_bridge_cookie(struct pci_pbm_info *pbm)
-{
-	struct pcidev_cookie *cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
-
-	if (!cookie) {
-		prom_printf("SABRE: Critical allocation failure.\n");
-		prom_halt();
-	}
-
-	/* All we care about is the PBM. */
-	cookie->pbm = pbm;
-
-	return cookie;
-}
-
 static void sabre_scan_bus(struct pci_controller_info *p)
 {
 	static int once;
 	struct pci_bus *sabre_bus, *pbus;
 	struct pci_pbm_info *pbm;
-	struct pcidev_cookie *cookie;
 	int sabres_scanned;
 
 	/* The APB bridge speaks to the Sabre host PCI bridge
@@ -1020,13 +1003,9 @@ static void sabre_scan_bus(struct pci_controller_info *p)
 	}
 	once++;
 
-	cookie = alloc_bridge_cookie(&p->pbm_A);
-
-	sabre_bus = pci_scan_bus(p->pci_first_busno,
-				 p->pci_ops,
-				 &p->pbm_A);
-	pci_fixup_host_bridge_self(sabre_bus);
-	sabre_bus->self->sysdata = cookie;
+	sabre_bus = pci_scan_one_pbm(&p->pbm_A);
+	if (!sabre_bus)
+		return;
 
 	sabre_root_bus = sabre_bus;
 
@@ -1043,19 +1022,9 @@ static void sabre_scan_bus(struct pci_controller_info *p)
 		} else
 			continue;
 
-		cookie = alloc_bridge_cookie(pbm);
-		pbus->self->sysdata = cookie;
-
 		sabres_scanned++;
-
 		pbus->sysdata = pbm;
 		pbm->pci_bus = pbus;
-		pci_fill_in_pbm_cookies(pbus, pbm, pbm->prom_node);
-		pci_record_assignments(pbm, pbus);
-		pci_assign_unassigned(pbm, pbus);
-		pci_fixup_irq(pbm, pbus);
-		pci_determine_66mhz_disposition(pbm, pbus);
-		pci_setup_busmastering(pbm, pbus);
 	}
 
 	if (!sabres_scanned) {
@@ -1063,12 +1032,6 @@ static void sabre_scan_bus(struct pci_controller_info *p)
 		pbm = &p->pbm_A;
 		sabre_bus->sysdata = pbm;
 		pbm->pci_bus = sabre_bus;
-		pci_fill_in_pbm_cookies(sabre_bus, pbm, pbm->prom_node);
-		pci_record_assignments(pbm, sabre_bus);
-		pci_assign_unassigned(pbm, sabre_bus);
-		pci_fixup_irq(pbm, sabre_bus);
-		pci_determine_66mhz_disposition(pbm, sabre_bus);
-		pci_setup_busmastering(pbm, sabre_bus);
 	}
 
 	sabre_register_error_handlers(p);

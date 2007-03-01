@@ -53,8 +53,8 @@ static inline void pci_iommu_batch_start(struct pci_dev *pdev, unsigned long pro
 /* Interrupts must be disabled.  */
 static long pci_iommu_batch_flush(struct pci_iommu_batch *p)
 {
-	struct pcidev_cookie *pcp = p->pdev->sysdata;
-	unsigned long devhandle = pcp->pbm->devhandle;
+	struct pci_pbm_info *pbm = p->pdev->dev.archdata.host_controller;
+	unsigned long devhandle = pbm->devhandle;
 	unsigned long prot = p->prot;
 	unsigned long entry = p->entry;
 	u64 *pglist = p->pglist;
@@ -159,7 +159,6 @@ static void pci_arena_free(struct pci_iommu_arena *arena, unsigned long base, un
 
 static void *pci_4v_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp, gfp_t gfp)
 {
-	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	unsigned long flags, order, first_page, npages, n;
 	void *ret;
@@ -178,8 +177,7 @@ static void *pci_4v_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr
 
 	memset((char *)first_page, 0, PAGE_SIZE << order);
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
+	iommu = pdev->dev.archdata.iommu;
 
 	spin_lock_irqsave(&iommu->lock, flags);
 	entry = pci_arena_alloc(&iommu->arena, npages);
@@ -226,15 +224,15 @@ arena_alloc_fail:
 
 static void pci_4v_free_consistent(struct pci_dev *pdev, size_t size, void *cpu, dma_addr_t dvma)
 {
-	struct pcidev_cookie *pcp;
+	struct pci_pbm_info *pbm;
 	struct pci_iommu *iommu;
 	unsigned long flags, order, npages, entry;
 	u32 devhandle;
 
 	npages = IO_PAGE_ALIGN(size) >> IO_PAGE_SHIFT;
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
-	devhandle = pcp->pbm->devhandle;
+	iommu = pdev->dev.archdata.iommu;
+	pbm = pdev->dev.archdata.host_controller;
+	devhandle = pbm->devhandle;
 	entry = ((dvma - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
 
 	spin_lock_irqsave(&iommu->lock, flags);
@@ -259,7 +257,6 @@ static void pci_4v_free_consistent(struct pci_dev *pdev, size_t size, void *cpu,
 
 static dma_addr_t pci_4v_map_single(struct pci_dev *pdev, void *ptr, size_t sz, int direction)
 {
-	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	unsigned long flags, npages, oaddr;
 	unsigned long i, base_paddr;
@@ -267,8 +264,7 @@ static dma_addr_t pci_4v_map_single(struct pci_dev *pdev, void *ptr, size_t sz, 
 	unsigned long prot;
 	long entry;
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
+	iommu = pdev->dev.archdata.iommu;
 
 	if (unlikely(direction == PCI_DMA_NONE))
 		goto bad;
@@ -324,7 +320,7 @@ iommu_map_fail:
 
 static void pci_4v_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
-	struct pcidev_cookie *pcp;
+	struct pci_pbm_info *pbm;
 	struct pci_iommu *iommu;
 	unsigned long flags, npages;
 	long entry;
@@ -336,9 +332,9 @@ static void pci_4v_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_
 		return;
 	}
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
-	devhandle = pcp->pbm->devhandle;
+	iommu = pdev->dev.archdata.iommu;
+	pbm = pdev->dev.archdata.host_controller;
+	devhandle = pbm->devhandle;
 
 	npages = IO_PAGE_ALIGN(bus_addr + sz) - (bus_addr & IO_PAGE_MASK);
 	npages >>= IO_PAGE_SHIFT;
@@ -460,7 +456,6 @@ iommu_map_failed:
 
 static int pci_4v_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	unsigned long flags, npages, prot;
 	u32 dma_base;
@@ -480,8 +475,7 @@ static int pci_4v_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int n
 		return 1;
 	}
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
+	iommu = pdev->dev.archdata.iommu;
 	
 	if (unlikely(direction == PCI_DMA_NONE))
 		goto bad;
@@ -537,7 +531,7 @@ iommu_map_failed:
 
 static void pci_4v_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct pcidev_cookie *pcp;
+	struct pci_pbm_info *pbm;
 	struct pci_iommu *iommu;
 	unsigned long flags, i, npages;
 	long entry;
@@ -548,9 +542,9 @@ static void pci_4v_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, in
 			WARN_ON(1);
 	}
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
-	devhandle = pcp->pbm->devhandle;
+	iommu = pdev->dev.archdata.iommu;
+	pbm = pdev->dev.archdata.host_controller;
+	devhandle = pbm->devhandle;
 	
 	bus_addr = sglist->dma_address & IO_PAGE_MASK;
 
@@ -600,132 +594,12 @@ struct pci_iommu_ops pci_sun4v_iommu_ops = {
 	.dma_sync_sg_for_cpu		= pci_4v_dma_sync_sg_for_cpu,
 };
 
-/* SUN4V PCI configuration space accessors. */
-
-struct pdev_entry {
-	struct pdev_entry	*next;
-	u32			devhandle;
-	unsigned int		bus;
-	unsigned int		device;
-	unsigned int		func;
-};
-
-#define PDEV_HTAB_SIZE	16
-#define PDEV_HTAB_MASK	(PDEV_HTAB_SIZE - 1)
-static struct pdev_entry *pdev_htab[PDEV_HTAB_SIZE];
-
-static inline unsigned int pdev_hashfn(u32 devhandle, unsigned int bus, unsigned int device, unsigned int func)
-{
-	unsigned int val;
-
-	val = (devhandle ^ (devhandle >> 4));
-	val ^= bus;
-	val ^= device;
-	val ^= func;
-
-	return val & PDEV_HTAB_MASK;
-}
-
-static int pdev_htab_add(u32 devhandle, unsigned int bus, unsigned int device, unsigned int func)
-{
-	struct pdev_entry *p = kmalloc(sizeof(*p), GFP_KERNEL);
-	struct pdev_entry **slot;
-
-	if (!p)
-		return -ENOMEM;
-
-	slot = &pdev_htab[pdev_hashfn(devhandle, bus, device, func)];
-	p->next = *slot;
-	*slot = p;
-
-	p->devhandle = devhandle;
-	p->bus = bus;
-	p->device = device;
-	p->func = func;
-
-	return 0;
-}
-
-/* Recursively descend into the OBP device tree, rooted at toplevel_node,
- * looking for a PCI device matching bus and devfn.
- */
-static int obp_find(struct device_node *toplevel_node, unsigned int bus, unsigned int devfn)
-{
-	toplevel_node = toplevel_node->child;
-
-	while (toplevel_node != NULL) {
-		struct linux_prom_pci_registers *regs;
-		struct property *prop;
-		int ret;
-
-		ret = obp_find(toplevel_node, bus, devfn);
-		if (ret != 0)
-			return ret;
-
-		prop = of_find_property(toplevel_node, "reg", NULL);
-		if (!prop)
-			goto next_sibling;
-
-		regs = prop->value;
-		if (((regs->phys_hi >> 16) & 0xff) == bus &&
-		    ((regs->phys_hi >> 8) & 0xff) == devfn)
-			break;
-
-	next_sibling:
-		toplevel_node = toplevel_node->sibling;
-	}
-
-	return toplevel_node != NULL;
-}
-
-static int pdev_htab_populate(struct pci_pbm_info *pbm)
-{
-	u32 devhandle = pbm->devhandle;
-	unsigned int bus;
-
-	for (bus = pbm->pci_first_busno; bus <= pbm->pci_last_busno; bus++) {
-		unsigned int devfn;
-
-		for (devfn = 0; devfn < 256; devfn++) {
-			unsigned int device = PCI_SLOT(devfn);
-			unsigned int func = PCI_FUNC(devfn);
-
-			if (obp_find(pbm->prom_node, bus, devfn)) {
-				int err = pdev_htab_add(devhandle, bus,
-							device, func);
-				if (err)
-					return err;
-			}
-		}
-	}
-
-	return 0;
-}
-
-static struct pdev_entry *pdev_find(u32 devhandle, unsigned int bus, unsigned int device, unsigned int func)
-{
-	struct pdev_entry *p;
-
-	p = pdev_htab[pdev_hashfn(devhandle, bus, device, func)];
-	while (p) {
-		if (p->devhandle == devhandle &&
-		    p->bus == bus &&
-		    p->device == device &&
-		    p->func == func)
-			break;
-
-		p = p->next;
-	}
-
-	return p;
-}
-
 static inline int pci_sun4v_out_of_range(struct pci_pbm_info *pbm, unsigned int bus, unsigned int device, unsigned int func)
 {
 	if (bus < pbm->pci_first_busno ||
 	    bus > pbm->pci_last_busno)
 		return 1;
-	return pdev_find(pbm->devhandle, bus, device, func) == NULL;
+	return 0;
 }
 
 static int pci_sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
@@ -800,27 +674,7 @@ static struct pci_ops pci_sun4v_ops = {
 static void pbm_scan_bus(struct pci_controller_info *p,
 			 struct pci_pbm_info *pbm)
 {
-	struct pcidev_cookie *cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
-
-	if (!cookie) {
-		prom_printf("%s: Critical allocation failure.\n", pbm->name);
-		prom_halt();
-	}
-
-	/* All we care about is the PBM. */
-	cookie->pbm = pbm;
-
-	pbm->pci_bus = pci_scan_bus(pbm->pci_first_busno, p->pci_ops, pbm);
-#if 0
-	pci_fixup_host_bridge_self(pbm->pci_bus);
-	pbm->pci_bus->self->sysdata = cookie;
-#endif
-	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm, pbm->prom_node);
-	pci_record_assignments(pbm, pbm->pci_bus);
-	pci_assign_unassigned(pbm, pbm->pci_bus);
-	pci_fixup_irq(pbm, pbm->pci_bus);
-	pci_determine_66mhz_disposition(pbm, pbm->pci_bus);
-	pci_setup_busmastering(pbm, pbm->pci_bus);
+	pbm->pci_bus = pci_scan_one_pbm(pbm);
 }
 
 static void pci_sun4v_scan_bus(struct pci_controller_info *p)
@@ -846,8 +700,7 @@ static void pci_sun4v_scan_bus(struct pci_controller_info *p)
 
 static void pci_sun4v_base_address_update(struct pci_dev *pdev, int resource)
 {
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm = pcp->pbm;
+	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 	struct resource *res, *root;
 	u32 reg;
 	int where, size, is_64bit;
@@ -1410,8 +1263,7 @@ static int pci_sun4v_setup_msi_irq(unsigned int *virt_irq_p,
 				   struct pci_dev *pdev,
 				   struct msi_desc *entry)
 {
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm = pcp->pbm;
+	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 	unsigned long devino, msiqid;
 	struct msi_msg msg;
 	int msi_num, err;
@@ -1455,7 +1307,7 @@ static int pci_sun4v_setup_msi_irq(unsigned int *virt_irq_p,
 	if (pci_sun4v_msi_setvalid(pbm->devhandle, msi_num, HV_MSIVALID_VALID))
 		goto out_err;
 
-	pcp->msi_num = msi_num;
+	pdev->dev.archdata.msi_num = msi_num;
 
 	if (entry->msi_attrib.is_64) {
 		msg.address_hi = pbm->msi64_start >> 32;
@@ -1484,12 +1336,11 @@ out_err:
 static void pci_sun4v_teardown_msi_irq(unsigned int virt_irq,
 				       struct pci_dev *pdev)
 {
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm = pcp->pbm;
+	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 	unsigned long msiqid, err;
 	unsigned int msi_num;
 
-	msi_num = pcp->msi_num;
+	msi_num = pdev->dev.archdata.msi_num;
 	err = pci_sun4v_msi_getmsiq(pbm->devhandle, msi_num, &msiqid);
 	if (err) {
 		printk(KERN_ERR "%s: getmsiq gives error %lu\n",
@@ -1559,8 +1410,6 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 	pci_sun4v_get_bus_range(pbm);
 	pci_sun4v_iommu_init(pbm);
 	pci_sun4v_msi_init(pbm);
-
-	pdev_htab_populate(pbm);
 }
 
 void sun4v_pci_init(struct device_node *dp, char *model_name)

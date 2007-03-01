@@ -1,9 +1,11 @@
-/* $Id: pci.c,v 1.39 2002/01/05 01:13:43 davem Exp $
- * pci.c: UltraSparc PCI controller support.
+/* pci.c: UltraSparc PCI controller support.
  *
  * Copyright (C) 1997, 1998, 1999 David S. Miller (davem@redhat.com)
  * Copyright (C) 1998, 1999 Eddie C. Dost   (ecd@skynet.be)
  * Copyright (C) 1999 Jakub Jelinek   (jj@ultra.linux.cz)
+ *
+ * OF tree based PCI bus probing taken from the PowerPC port
+ * with minor modifications, see there for credits.
  */
 
 #include <linux/module.h>
@@ -300,6 +302,329 @@ static void __init pci_controller_probe(void)
 	pci_controller_scan(pci_controller_init);
 }
 
+static unsigned long pci_parse_of_flags(u32 addr0)
+{
+	unsigned long flags = 0;
+
+	if (addr0 & 0x02000000) {
+		flags = IORESOURCE_MEM | PCI_BASE_ADDRESS_SPACE_MEMORY;
+		flags |= (addr0 >> 22) & PCI_BASE_ADDRESS_MEM_TYPE_64;
+		flags |= (addr0 >> 28) & PCI_BASE_ADDRESS_MEM_TYPE_1M;
+		if (addr0 & 0x40000000)
+			flags |= IORESOURCE_PREFETCH
+				 | PCI_BASE_ADDRESS_MEM_PREFETCH;
+	} else if (addr0 & 0x01000000)
+		flags = IORESOURCE_IO | PCI_BASE_ADDRESS_SPACE_IO;
+	return flags;
+}
+
+/* The of_device layer has translated all of the assigned-address properties
+ * into physical address resources, we only have to figure out the register
+ * mapping.
+ */
+static void pci_parse_of_addrs(struct of_device *op,
+			       struct device_node *node,
+			       struct pci_dev *dev)
+{
+	struct resource *op_res;
+	const u32 *addrs;
+	int proplen;
+
+	addrs = of_get_property(node, "assigned-addresses", &proplen);
+	if (!addrs)
+		return;
+	printk("    parse addresses (%d bytes) @ %p\n", proplen, addrs);
+	op_res = &op->resource[0];
+	for (; proplen >= 20; proplen -= 20, addrs += 5, op_res++) {
+		struct resource *res;
+		unsigned long flags;
+		int i;
+
+		flags = pci_parse_of_flags(addrs[0]);
+		if (!flags)
+			continue;
+		i = addrs[0] & 0xff;
+		printk("  start: %lx, end: %lx, i: %x\n",
+		       op_res->start, op_res->end, i);
+
+		if (PCI_BASE_ADDRESS_0 <= i && i <= PCI_BASE_ADDRESS_5) {
+			res = &dev->resource[(i - PCI_BASE_ADDRESS_0) >> 2];
+		} else if (i == dev->rom_base_reg) {
+			res = &dev->resource[PCI_ROM_RESOURCE];
+			flags |= IORESOURCE_READONLY | IORESOURCE_CACHEABLE;
+		} else {
+			printk(KERN_ERR "PCI: bad cfg reg num 0x%x\n", i);
+			continue;
+		}
+		res->start = op_res->start;
+		res->end = op_res->end;
+		res->flags = flags;
+		res->name = pci_name(dev);
+	}
+}
+
+struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
+				  struct device_node *node,
+				  struct pci_bus *bus, int devfn)
+{
+	struct dev_archdata *sd;
+	struct pci_dev *dev;
+	const char *type;
+
+	dev = kzalloc(sizeof(struct pci_dev), GFP_KERNEL);
+	if (!dev)
+		return NULL;
+
+	sd = &dev->dev.archdata;
+	sd->iommu = pbm->iommu;
+	sd->stc = &pbm->stc;
+	sd->host_controller = pbm;
+	sd->prom_node = node;
+	sd->op = of_find_device_by_node(node);
+	sd->msi_num = 0xffffffff;
+
+	type = of_get_property(node, "device_type", NULL);
+	if (type == NULL)
+		type = "";
+
+	printk("    create device, devfn: %x, type: %s\n", devfn, type);
+
+	dev->bus = bus;
+	dev->sysdata = node;
+	dev->dev.parent = bus->bridge;
+	dev->dev.bus = &pci_bus_type;
+	dev->devfn = devfn;
+	dev->multifunction = 0;		/* maybe a lie? */
+
+	dev->vendor = of_getintprop_default(node, "vendor-id", 0xffff);
+	dev->device = of_getintprop_default(node, "device-id", 0xffff);
+	dev->subsystem_vendor =
+		of_getintprop_default(node, "subsystem-vendor-id", 0);
+	dev->subsystem_device =
+		of_getintprop_default(node, "subsystem-id", 0);
+
+	dev->cfg_size = pci_cfg_space_size(dev);
+
+	sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
+		dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
+	dev->class = of_getintprop_default(node, "class-code", 0);
+
+	printk("    class: 0x%x\n", dev->class);
+
+	dev->current_state = 4;		/* unknown power state */
+	dev->error_state = pci_channel_io_normal;
+
+	if (!strcmp(type, "pci") || !strcmp(type, "pciex")) {
+		/* a PCI-PCI bridge */
+		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
+		dev->rom_base_reg = PCI_ROM_ADDRESS1;
+	} else if (!strcmp(type, "cardbus")) {
+		dev->hdr_type = PCI_HEADER_TYPE_CARDBUS;
+	} else {
+		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;
+		dev->rom_base_reg = PCI_ROM_ADDRESS;
+
+		dev->irq = sd->op->irqs[0];
+		if (dev->irq == 0xffffffff)
+			dev->irq = PCI_IRQ_NONE;
+	}
+
+	pci_parse_of_addrs(sd->op, node, dev);
+
+	printk("    adding to system ...\n");
+
+	pci_device_add(dev, bus);
+
+	return dev;
+}
+
+static void __init pci_of_scan_bus(struct pci_pbm_info *pbm,
+				   struct device_node *node,
+				   struct pci_bus *bus);
+
+#define GET_64BIT(prop, i)	((((u64) (prop)[(i)]) << 32) | (prop)[(i)+1])
+
+void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
+				  struct device_node *node,
+				  struct pci_dev *dev)
+{
+	struct pci_bus *bus;
+	const u32 *busrange, *ranges;
+	int len, i;
+	struct resource *res;
+	unsigned int flags;
+	u64 size;
+
+	printk("of_scan_pci_bridge(%s)\n", node->full_name);
+
+	/* parse bus-range property */
+	busrange = of_get_property(node, "bus-range", &len);
+	if (busrange == NULL || len != 8) {
+		printk(KERN_DEBUG "Can't get bus-range for PCI-PCI bridge %s\n",
+		       node->full_name);
+		return;
+	}
+	ranges = of_get_property(node, "ranges", &len);
+	if (ranges == NULL) {
+		printk(KERN_DEBUG "Can't get ranges for PCI-PCI bridge %s\n",
+		       node->full_name);
+		return;
+	}
+
+	bus = pci_add_new_bus(dev->bus, dev, busrange[0]);
+	if (!bus) {
+		printk(KERN_ERR "Failed to create pci bus for %s\n",
+		       node->full_name);
+		return;
+	}
+
+	bus->primary = dev->bus->number;
+	bus->subordinate = busrange[1];
+	bus->bridge_ctl = 0;
+
+	/* parse ranges property */
+	/* PCI #address-cells == 3 and #size-cells == 2 always */
+	res = &dev->resource[PCI_BRIDGE_RESOURCES];
+	for (i = 0; i < PCI_NUM_RESOURCES - PCI_BRIDGE_RESOURCES; ++i) {
+		res->flags = 0;
+		bus->resource[i] = res;
+		++res;
+	}
+	i = 1;
+	for (; len >= 32; len -= 32, ranges += 8) {
+		struct resource *root;
+
+		flags = pci_parse_of_flags(ranges[0]);
+		size = GET_64BIT(ranges, 6);
+		if (flags == 0 || size == 0)
+			continue;
+		if (flags & IORESOURCE_IO) {
+			res = bus->resource[0];
+			if (res->flags) {
+				printk(KERN_ERR "PCI: ignoring extra I/O range"
+				       " for bridge %s\n", node->full_name);
+				continue;
+			}
+			root = &pbm->io_space;
+		} else {
+			if (i >= PCI_NUM_RESOURCES - PCI_BRIDGE_RESOURCES) {
+				printk(KERN_ERR "PCI: too many memory ranges"
+				       " for bridge %s\n", node->full_name);
+				continue;
+			}
+			res = bus->resource[i];
+			++i;
+			root = &pbm->mem_space;
+		}
+
+		res->start = GET_64BIT(ranges, 1);
+		res->end = res->start + size - 1;
+		res->flags = flags;
+
+		/* Another way to implement this would be to add an of_device
+		 * layer routine that can calculate a resource for a given
+		 * range property value in a PCI device.
+		 */
+		pbm->parent->resource_adjust(dev, res, root);
+	}
+	sprintf(bus->name, "PCI Bus %04x:%02x", pci_domain_nr(bus),
+		bus->number);
+	printk("    bus name: %s\n", bus->name);
+
+	pci_of_scan_bus(pbm, node, bus);
+}
+
+static void __init pci_of_scan_bus(struct pci_pbm_info *pbm,
+				   struct device_node *node,
+				   struct pci_bus *bus)
+{
+	struct device_node *child;
+	const u32 *reg;
+	int reglen, devfn;
+	struct pci_dev *dev;
+
+	printk("PCI: scan_bus[%s] bus no %d\n",
+	       node->full_name, bus->number);
+
+	child = NULL;
+	while ((child = of_get_next_child(node, child)) != NULL) {
+		printk("  * %s\n", child->full_name);
+		reg = of_get_property(child, "reg", &reglen);
+		if (reg == NULL || reglen < 20)
+			continue;
+		devfn = (reg[0] >> 8) & 0xff;
+
+		/* create a new pci_dev for this device */
+		dev = of_create_pci_dev(pbm, child, bus, devfn);
+		if (!dev)
+			continue;
+		printk("PCI: dev header type: %x\n", dev->hdr_type);
+
+		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
+		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
+			of_scan_pci_bridge(pbm, child, dev);
+	}
+}
+
+static ssize_t
+show_pciobppath_attr(struct device * dev, struct device_attribute * attr, char * buf)
+{
+	struct pci_dev *pdev;
+	struct device_node *dp;
+
+	pdev = to_pci_dev(dev);
+	dp = pdev->dev.archdata.prom_node;
+
+	return snprintf (buf, PAGE_SIZE, "%s\n", dp->full_name);
+}
+
+static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH, show_pciobppath_attr, NULL);
+
+static void __devinit pci_bus_register_of_sysfs(struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+	int err;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		/* we don't really care if we can create this file or
+		 * not, but we need to assign the result of the call
+		 * or the world will fall under alien invasion and
+		 * everybody will be frozen on a spaceship ready to be
+		 * eaten on alpha centauri by some green and jelly
+		 * humanoid.
+		 */
+		err = sysfs_create_file(&dev->dev.kobj, &dev_attr_obppath.attr);
+	}
+}
+
+struct pci_bus * __init pci_scan_one_pbm(struct pci_pbm_info *pbm)
+{
+	struct pci_controller_info *p = pbm->parent;
+	struct device_node *node = pbm->prom_node;
+	struct pci_bus *bus;
+
+	printk("PCI: Scanning PBM %s\n", node->full_name);
+
+	/* XXX parent device? XXX */
+	bus = pci_create_bus(NULL, pbm->pci_first_busno, p->pci_ops, pbm);
+	if (!bus) {
+		printk(KERN_ERR "Failed to create bus for %s\n",
+		       node->full_name);
+		return NULL;
+	}
+	bus->secondary = pbm->pci_first_busno;
+	bus->subordinate = pbm->pci_last_busno;
+
+	bus->resource[0] = &pbm->io_space;
+	bus->resource[1] = &pbm->mem_space;
+
+	pci_of_scan_bus(pbm, node, bus);
+	pci_bus_add_devices(bus);
+	pci_bus_register_of_sysfs(bus);
+
+	return bus;
+}
+
 static void __init pci_scan_each_controller_bus(void)
 {
 	struct pci_controller_info *p;
@@ -360,8 +685,33 @@ void pcibios_align_resource(void *data, struct resource *res,
 {
 }
 
-int pcibios_enable_device(struct pci_dev *pdev, int mask)
+int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
+	u16 cmd, oldcmd;
+	int i;
+
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	oldcmd = cmd;
+
+	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
+		struct resource *res = &dev->resource[i];
+
+		/* Only set up the requested stuff */
+		if (!(mask & (1<<i)))
+			continue;
+
+		if (res->flags & IORESOURCE_IO)
+			cmd |= PCI_COMMAND_IO;
+		if (res->flags & IORESOURCE_MEM)
+			cmd |= PCI_COMMAND_MEMORY;
+	}
+
+	if (cmd != oldcmd) {
+		printk(KERN_DEBUG "PCI: Enabling device: (%s), cmd %x\n",
+		       pci_name(dev), cmd);
+                /* Enable the appropriate bits in the PCI command register.  */
+		pci_write_config_word(dev, PCI_COMMAND, cmd);
+	}
 	return 0;
 }
 
@@ -422,16 +772,9 @@ char * __devinit pcibios_setup(char *str)
 static int __pci_mmap_make_offset_bus(struct pci_dev *pdev, struct vm_area_struct *vma,
 				      enum pci_mmap_state mmap_state)
 {
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm;
+	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 	struct pci_controller_info *p;
 	unsigned long space_size, user_offset, user_size;
-
-	if (!pcp)
-		return -ENXIO;
-	pbm = pcp->pbm;
-	if (!pbm)
-		return -ENXIO;
 
 	p = pbm->parent;
 	if (p->pbms_same_domain) {
@@ -651,8 +994,7 @@ EXPORT_SYMBOL(pci_domain_nr);
 #ifdef CONFIG_PCI_MSI
 int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm = pcp->pbm;
+	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 	struct pci_controller_info *p = pbm->parent;
 	int virt_irq, err;
 
@@ -670,8 +1012,7 @@ void arch_teardown_msi_irq(unsigned int virt_irq)
 {
 	struct msi_desc *entry = get_irq_msi(virt_irq);
 	struct pci_dev *pdev = entry->dev;
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm = pcp->pbm;
+	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 	struct pci_controller_info *p = pbm->parent;
 
 	if (!pbm->msi_num || !p->setup_msi_irq)
@@ -683,9 +1024,7 @@ void arch_teardown_msi_irq(unsigned int virt_irq)
 
 struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
 {
-	struct pcidev_cookie *pc = pdev->sysdata;
-
-	return pc->op->node;
+	return pdev->dev.archdata.prom_node;
 }
 EXPORT_SYMBOL(pci_device_to_OF_node);
 

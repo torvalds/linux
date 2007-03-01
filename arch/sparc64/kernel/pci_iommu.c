@@ -220,7 +220,6 @@ static inline void iommu_free_ctx(struct pci_iommu *iommu, int ctx)
  */
 static void *pci_4u_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp, gfp_t gfp)
 {
-	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	iopte_t *iopte;
 	unsigned long flags, order, first_page;
@@ -237,8 +236,7 @@ static void *pci_4u_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr
 		return NULL;
 	memset((char *)first_page, 0, PAGE_SIZE << order);
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
+	iommu = pdev->dev.archdata.iommu;
 
 	spin_lock_irqsave(&iommu->lock, flags);
 	iopte = alloc_npages(iommu, size >> IO_PAGE_SHIFT);
@@ -268,14 +266,12 @@ static void *pci_4u_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr
 /* Free and unmap a consistent DMA translation. */
 static void pci_4u_free_consistent(struct pci_dev *pdev, size_t size, void *cpu, dma_addr_t dvma)
 {
-	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	iopte_t *iopte;
 	unsigned long flags, order, npages;
 
 	npages = IO_PAGE_ALIGN(size) >> IO_PAGE_SHIFT;
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
+	iommu = pdev->dev.archdata.iommu;
 	iopte = iommu->page_table +
 		((dvma - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
 
@@ -295,7 +291,6 @@ static void pci_4u_free_consistent(struct pci_dev *pdev, size_t size, void *cpu,
  */
 static dma_addr_t pci_4u_map_single(struct pci_dev *pdev, void *ptr, size_t sz, int direction)
 {
-	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	struct pci_strbuf *strbuf;
 	iopte_t *base;
@@ -304,9 +299,8 @@ static dma_addr_t pci_4u_map_single(struct pci_dev *pdev, void *ptr, size_t sz, 
 	u32 bus_addr, ret;
 	unsigned long iopte_protection;
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
-	strbuf = &pcp->pbm->stc;
+	iommu = pdev->dev.archdata.iommu;
+	strbuf = pdev->dev.archdata.stc;
 
 	if (unlikely(direction == PCI_DMA_NONE))
 		goto bad_no_ctx;
@@ -416,7 +410,6 @@ do_flush_sync:
 /* Unmap a single streaming mode DMA translation. */
 static void pci_4u_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
-	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	struct pci_strbuf *strbuf;
 	iopte_t *base;
@@ -428,9 +421,8 @@ static void pci_4u_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_
 		return;
 	}
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
-	strbuf = &pcp->pbm->stc;
+	iommu = pdev->dev.archdata.iommu;
+	strbuf = pdev->dev.archdata.stc;
 
 	npages = IO_PAGE_ALIGN(bus_addr + sz) - (bus_addr & IO_PAGE_MASK);
 	npages >>= IO_PAGE_SHIFT;
@@ -549,7 +541,6 @@ static inline void fill_sg(iopte_t *iopte, struct scatterlist *sg,
  */
 static int pci_4u_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	struct pci_strbuf *strbuf;
 	unsigned long flags, ctx, npages, iopte_protection;
@@ -570,9 +561,8 @@ static int pci_4u_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int n
 		return 1;
 	}
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
-	strbuf = &pcp->pbm->stc;
+	iommu = pdev->dev.archdata.iommu;
+	strbuf = pdev->dev.archdata.stc;
 	
 	if (unlikely(direction == PCI_DMA_NONE))
 		goto bad_no_ctx;
@@ -636,7 +626,6 @@ bad_no_ctx:
 /* Unmap a set of streaming mode DMA translations. */
 static void pci_4u_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	struct pci_strbuf *strbuf;
 	iopte_t *base;
@@ -648,9 +637,8 @@ static void pci_4u_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, in
 			WARN_ON(1);
 	}
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
-	strbuf = &pcp->pbm->stc;
+	iommu = pdev->dev.archdata.iommu;
+	strbuf = pdev->dev.archdata.stc;
 	
 	bus_addr = sglist->dma_address & IO_PAGE_MASK;
 
@@ -696,14 +684,12 @@ static void pci_4u_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, in
  */
 static void pci_4u_dma_sync_single_for_cpu(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
-	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	struct pci_strbuf *strbuf;
 	unsigned long flags, ctx, npages;
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
-	strbuf = &pcp->pbm->stc;
+	iommu = pdev->dev.archdata.iommu;
+	strbuf = pdev->dev.archdata.stc;
 
 	if (!strbuf->strbuf_enabled)
 		return;
@@ -736,15 +722,13 @@ static void pci_4u_dma_sync_single_for_cpu(struct pci_dev *pdev, dma_addr_t bus_
  */
 static void pci_4u_dma_sync_sg_for_cpu(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	struct pci_strbuf *strbuf;
 	unsigned long flags, ctx, npages, i;
 	u32 bus_addr;
 
-	pcp = pdev->sysdata;
-	iommu = pcp->pbm->iommu;
-	strbuf = &pcp->pbm->stc;
+	iommu = pdev->dev.archdata.iommu;
+	strbuf = pdev->dev.archdata.stc;
 
 	if (!strbuf->strbuf_enabled)
 		return;
@@ -809,13 +793,12 @@ static void ali_sound_dma_hack(struct pci_dev *pdev, int set_bit)
 
 int pci_dma_supported(struct pci_dev *pdev, u64 device_mask)
 {
-	struct pcidev_cookie *pcp = pdev->sysdata;
 	u64 dma_addr_mask;
 
 	if (pdev == NULL) {
 		dma_addr_mask = 0xffffffff;
 	} else {
-		struct pci_iommu *iommu = pcp->pbm->iommu;
+		struct pci_iommu *iommu = pdev->dev.archdata.iommu;
 
 		dma_addr_mask = iommu->dma_addr_mask;
 

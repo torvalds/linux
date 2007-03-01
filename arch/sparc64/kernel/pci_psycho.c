@@ -905,8 +905,7 @@ static void psycho_resource_adjust(struct pci_dev *pdev,
 
 static void psycho_base_address_update(struct pci_dev *pdev, int resource)
 {
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm = pcp->pbm;
+	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 	struct resource *res, *root;
 	u32 reg;
 	int where, size, is_64bit;
@@ -968,28 +967,7 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 static void pbm_scan_bus(struct pci_controller_info *p,
 			 struct pci_pbm_info *pbm)
 {
-	struct pcidev_cookie *cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
-
-	if (!cookie) {
-		prom_printf("PSYCHO: Critical allocation failure.\n");
-		prom_halt();
-	}
-
-	/* All we care about is the PBM. */
-	cookie->pbm = pbm;
-
-	pbm->pci_bus = pci_scan_bus(pbm->pci_first_busno,
-				    p->pci_ops,
-				    pbm);
-	pci_fixup_host_bridge_self(pbm->pci_bus);
-	pbm->pci_bus->self->sysdata = cookie;
-
-	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm, pbm->prom_node);
-	pci_record_assignments(pbm, pbm->pci_bus);
-	pci_assign_unassigned(pbm, pbm->pci_bus);
-	pci_fixup_irq(pbm, pbm->pci_bus);
-	pci_determine_66mhz_disposition(pbm, pbm->pci_bus);
-	pci_setup_busmastering(pbm, pbm->pci_bus);
+	pbm->pci_bus = pci_scan_one_pbm(pbm);
 }
 
 static void psycho_scan_bus(struct pci_controller_info *p)

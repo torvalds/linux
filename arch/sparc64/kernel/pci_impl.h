@@ -17,20 +17,7 @@ extern struct pci_controller_info *pci_controller_root;
 extern int pci_num_controllers;
 
 /* PCI bus scanning and fixup support. */
-extern void pci_fixup_host_bridge_self(struct pci_bus *pbus);
-extern void pci_fill_in_pbm_cookies(struct pci_bus *pbus,
-				    struct pci_pbm_info *pbm,
-				    struct device_node *prom_node);
-extern void pci_record_assignments(struct pci_pbm_info *pbm,
-				   struct pci_bus *pbus);
-extern void pci_assign_unassigned(struct pci_pbm_info *pbm,
-				  struct pci_bus *pbus);
-extern void pci_fixup_irq(struct pci_pbm_info *pbm,
-			  struct pci_bus *pbus);
-extern void pci_determine_66mhz_disposition(struct pci_pbm_info *pbm,
-					    struct pci_bus *pbus);
-extern void pci_setup_busmastering(struct pci_pbm_info *pbm,
-				   struct pci_bus *pbus);
+extern struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm);
 extern void pci_register_legacy_regions(struct resource *io_res,
 					struct resource *mem_res);
 

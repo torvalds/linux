@@ -244,27 +244,4 @@ struct pci_controller_info {
 	unsigned int			pci_last_busno;
 };
 
-/* PCI devices which are not bridges have this placed in their pci_dev
- * sysdata member.  This makes OBP aware PCI device drivers easier to
- * code.
- */
-struct pcidev_cookie {
-	struct pci_pbm_info		*pbm;
-	struct device_node		*prom_node;
-	struct of_device		*op;
-	struct linux_prom_pci_registers	prom_regs[PROMREG_MAX];
-	int num_prom_regs;
-	struct linux_prom_pci_registers prom_assignments[PROMREG_MAX];
-	int num_prom_assignments;
-#ifdef CONFIG_PCI_MSI
-	unsigned int			msi_num;
-#endif
-};
-
-/* Currently these are the same across all PCI controllers
- * we support.  Someday they may not be...
- */
-#define PCI_IRQ_IGN	0x000007c0	/* Interrupt Group Number */
-#define PCI_IRQ_INO	0x0000003f	/* Interrupt Number */
-
 #endif /* !(__SPARC64_PBM_H) */
