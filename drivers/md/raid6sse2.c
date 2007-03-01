@@ -30,17 +30,11 @@ static const struct raid6_sse_constants {
 
 static int raid6_have_sse2(void)
 {
-#ifdef __KERNEL__
 	/* Not really boot_cpu but "all_cpus" */
 	return boot_cpu_has(X86_FEATURE_MMX) &&
 		boot_cpu_has(X86_FEATURE_FXSR) &&
 		boot_cpu_has(X86_FEATURE_XMM) &&
 		boot_cpu_has(X86_FEATURE_XMM2);
-#else
-	/* User space test code */
-	u32 features = cpuid_features();
-	return ( (features & (15<<23)) == (15<<23) );
-#endif
 }
 
 /*
@@ -51,13 +45,12 @@ static void raid6_sse21_gen_syndrome(int disks, size_t bytes, void **ptrs)
 	u8 **dptr = (u8 **)ptrs;
 	u8 *p, *q;
 	int d, z, z0;
-	raid6_sse_save_t sa;
 
 	z0 = disks - 3;		/* Highest data disk */
 	p = dptr[z0+1];		/* XOR parity */
 	q = dptr[z0+2];		/* RS syndrome */
 
-	raid6_before_sse2(&sa);
+	kernel_fpu_begin();
 
 	asm volatile("movdqa %0,%%xmm0" : : "m" (raid6_sse_constants.x1d[0]));
 	asm volatile("pxor %xmm5,%xmm5");	/* Zero temp */
@@ -93,8 +86,8 @@ static void raid6_sse21_gen_syndrome(int disks, size_t bytes, void **ptrs)
 		asm volatile("pxor %xmm4,%xmm4");
 	}
 
-	raid6_after_sse2(&sa);
 	asm volatile("sfence" : : : "memory");
+	kernel_fpu_end();
 }
 
 const struct raid6_calls raid6_sse2x1 = {
@@ -112,13 +105,12 @@ static void raid6_sse22_gen_syndrome(int disks, size_t bytes, void **ptrs)
 	u8 **dptr = (u8 **)ptrs;
 	u8 *p, *q;
 	int d, z, z0;
-	raid6_sse_save_t sa;
 
 	z0 = disks - 3;		/* Highest data disk */
 	p = dptr[z0+1];		/* XOR parity */
 	q = dptr[z0+2];		/* RS syndrome */
 
-	raid6_before_sse2(&sa);
+	kernel_fpu_begin();
 
 	asm volatile("movdqa %0,%%xmm0" : : "m" (raid6_sse_constants.x1d[0]));
 	asm volatile("pxor %xmm5,%xmm5"); /* Zero temp */
@@ -156,8 +148,8 @@ static void raid6_sse22_gen_syndrome(int disks, size_t bytes, void **ptrs)
 		asm volatile("movntdq %%xmm6,%0" : "=m" (q[d+16]));
 	}
 
-	raid6_after_sse2(&sa);
 	asm volatile("sfence" : : : "memory");
+	kernel_fpu_end();
 }
 
 const struct raid6_calls raid6_sse2x2 = {
@@ -179,13 +171,12 @@ static void raid6_sse24_gen_syndrome(int disks, size_t bytes, void **ptrs)
 	u8 **dptr = (u8 **)ptrs;
 	u8 *p, *q;
 	int d, z, z0;
-	raid6_sse16_save_t sa;
 
 	z0 = disks - 3;		/* Highest data disk */
 	p = dptr[z0+1];		/* XOR parity */
 	q = dptr[z0+2];		/* RS syndrome */
 
-	raid6_before_sse16(&sa);
+	kernel_fpu_begin();
 
 	asm volatile("movdqa %0,%%xmm0" :: "m" (raid6_sse_constants.x1d[0]));
 	asm volatile("pxor %xmm2,%xmm2");	/* P[0] */
@@ -256,8 +247,9 @@ static void raid6_sse24_gen_syndrome(int disks, size_t bytes, void **ptrs)
 		asm volatile("movntdq %%xmm14,%0" : "=m" (q[d+48]));
 		asm volatile("pxor %xmm14,%xmm14");
 	}
+
 	asm volatile("sfence" : : : "memory");
-	raid6_after_sse16(&sa);
+	kernel_fpu_end();
 }
 
 const struct raid6_calls raid6_sse2x4 = {
