@@ -313,7 +313,7 @@ asmlinkage void do_debug_priv(struct pt_regs *regs)
 		__mtdr(DBGREG_DC, dc);
 
 		ti = current_thread_info();
-		ti->flags |= _TIF_BREAKPOINT;
+		set_ti_thread_flag(ti, TIF_BREAKPOINT);
 
 		/* The TLB miss handlers don't check thread flags */
 		if ((regs->pc >= (unsigned long)&itlb_miss)
@@ -328,7 +328,7 @@ asmlinkage void do_debug_priv(struct pt_regs *regs)
 		 * single step.
 		 */
 		if ((regs->sr & MODE_MASK) != MODE_SUPERVISOR)
-			ti->flags |= TIF_SINGLE_STEP;
+			set_ti_thread_flag(ti, TIF_SINGLE_STEP);
 	} else {
 		panic("Unable to handle debug trap at pc = %08lx\n",
 		      regs->pc);
