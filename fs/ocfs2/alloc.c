@@ -3517,6 +3517,7 @@ int ocfs2_zero_tail_for_truncate(struct inode *inode, handle_t *handle,
 				 u64 new_i_size)
 {
 	int ret, numpages;
+	loff_t endbyte;
 	struct page **pages = NULL;
 	u64 phys;
 
@@ -3555,7 +3556,9 @@ int ocfs2_zero_tail_for_truncate(struct inode *inode, handle_t *handle,
 	 * wait on them - the truncate_inode_pages() call later will
 	 * do that for us.
 	 */
-	ret = filemap_fdatawrite(inode->i_mapping);
+	endbyte = ocfs2_align_bytes_to_clusters(inode->i_sb, new_i_size);
+	ret = do_sync_mapping_range(inode->i_mapping, new_i_size,
+				    endbyte - 1, SYNC_FILE_RANGE_WRITE);
 	if (ret)
 		mlog_errno(ret);
 
