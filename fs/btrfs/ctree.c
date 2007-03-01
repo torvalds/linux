@@ -250,6 +250,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 		tree_block_release(root, mid_buf);
 		/* once for the root ptr */
 		tree_block_release(root, mid_buf);
+		clean_tree_block(root, mid_buf);
 		return free_extent(root, blocknr, 1);
 	}
 	parent = &parent_buf->node;
@@ -280,6 +281,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 		if (right->header.nritems == 0) {
 			u64 blocknr = right_buf->blocknr;
 			tree_block_release(root, right_buf);
+			clean_tree_block(root, right_buf);
 			right_buf = NULL;
 			right = NULL;
 			wret = del_ptr(root, path, level + 1, pslot + 1);
@@ -291,7 +293,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 		} else {
 			memcpy(parent->keys + pslot + 1, right->keys,
 				sizeof(struct key));
-			wret = write_tree_block(root, parent_buf);
+			wret = dirty_tree_block(root, parent_buf);
 			if (wret)
 				ret = wret;
 		}
@@ -316,6 +318,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 		/* we've managed to empty the middle node, drop it */
 		u64 blocknr = mid_buf->blocknr;
 		tree_block_release(root, mid_buf);
+		clean_tree_block(root, mid_buf);
 		mid_buf = NULL;
 		mid = NULL;
 		wret = del_ptr(root, path, level + 1, pslot);
@@ -327,7 +330,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 	} else {
 		/* update the parent key to reflect our changes */
 		memcpy(parent->keys + pslot, mid->keys, sizeof(struct key));
-		wret = write_tree_block(root, parent_buf);
+		wret = dirty_tree_block(root, parent_buf);
 		if (wret)
 			ret = wret;
 	}
@@ -458,7 +461,7 @@ static int fixup_low_keys(struct ctree_root *root,
 			break;
 		t = &path->nodes[i]->node;
 		memcpy(t->keys + tslot, key, sizeof(*key));
-		wret = write_tree_block(root, path->nodes[i]);
+		wret = dirty_tree_block(root, path->nodes[i]);
 		if (wret)
 			ret = wret;
 		if (tslot != 0)
@@ -508,11 +511,11 @@ static int push_node_left(struct ctree_root *root, struct tree_buffer *dst_buf,
 	src->header.nritems -= push_items;
 	dst->header.nritems += push_items;
 
-	wret = write_tree_block(root, src_buf);
+	wret = dirty_tree_block(root, src_buf);
 	if (wret < 0)
 		ret = wret;
 
-	wret = write_tree_block(root, dst_buf);
+	wret = dirty_tree_block(root, dst_buf);
 	if (wret < 0)
 		ret = wret;
 	return ret;
@@ -566,11 +569,11 @@ static int balance_node_right(struct ctree_root *root,
 	src->header.nritems -= push_items;
 	dst->header.nritems += push_items;
 
-	wret = write_tree_block(root, src_buf);
+	wret = dirty_tree_block(root, src_buf);
 	if (wret < 0)
 		ret = wret;
 
-	wret = write_tree_block(root, dst_buf);
+	wret = dirty_tree_block(root, dst_buf);
 	if (wret < 0)
 		ret = wret;
 	return ret;
@@ -612,7 +615,7 @@ static int insert_new_root(struct ctree_root *root,
 	tree_block_release(root, root->node);
 	root->node = t;
 	t->count++;
-	write_tree_block(root, t);
+	dirty_tree_block(root, t);
 	path->nodes[level] = t;
 	path->slots[level] = 0;
 	return 0;
@@ -652,7 +655,7 @@ static int insert_ptr(struct ctree_root *root,
 	lower->header.nritems++;
 	if (lower->keys[1].objectid == 0)
 			BUG();
-	write_tree_block(root, path->nodes[level]);
+	dirty_tree_block(root, path->nodes[level]);
 	return 0;
 }
 
@@ -698,10 +701,10 @@ static int split_node(struct ctree_root *root, struct ctree_path *path,
 	c->header.nritems = mid;
 	ret = 0;
 
-	wret = write_tree_block(root, t);
+	wret = dirty_tree_block(root, t);
 	if (wret)
 		ret = wret;
-	wret = write_tree_block(root, split_buffer);
+	wret = dirty_tree_block(root, split_buffer);
 	if (wret)
 		ret = wret;
 	wret = insert_ptr(root, path, split->keys, split_buffer->blocknr,
@@ -815,11 +818,11 @@ static int push_leaf_right(struct ctree_root *root, struct ctree_path *path,
 	}
 	left->header.nritems -= push_items;
 
-	write_tree_block(root, left_buf);
-	write_tree_block(root, right_buf);
+	dirty_tree_block(root, left_buf);
+	dirty_tree_block(root, right_buf);
 	memcpy(upper->node.keys + slot + 1,
 		&right->items[0].key, sizeof(struct key));
-	write_tree_block(root, upper);
+	dirty_tree_block(root, upper);
 	/* then fixup the leaf pointer in the path */
 	if (path->slots[0] >= left->header.nritems) {
 		path->slots[0] -= left->header.nritems;
@@ -909,10 +912,10 @@ static int push_leaf_left(struct ctree_root *root, struct ctree_path *path,
 		push_space = right->items[i].offset;
 	}
 
-	wret = write_tree_block(root, t);
+	wret = dirty_tree_block(root, t);
 	if (wret)
 		ret = wret;
-	wret = write_tree_block(root, right_buf);
+	wret = dirty_tree_block(root, right_buf);
 	if (wret)
 		ret = wret;
 
@@ -1019,10 +1022,10 @@ static int split_leaf(struct ctree_root *root, struct ctree_path *path,
 			  right_buffer->blocknr, path->slots[1] + 1, 1);
 	if (wret)
 		ret = wret;
-	wret = write_tree_block(root, right_buffer);
+	wret = dirty_tree_block(root, right_buffer);
 	if (wret)
 		ret = wret;
-	wret = write_tree_block(root, l_buf);
+	wret = dirty_tree_block(root, l_buf);
 	if (wret)
 		ret = wret;
 
@@ -1062,12 +1065,14 @@ int insert_item(struct ctree_root *root, struct key *key,
 	ret = search_slot(root, key, &path, data_size);
 	if (ret == 0) {
 		release_path(root, &path);
-		return -EEXIST;
-	}
-	if (ret < 0) {
-		release_path(root, &path);
+		ret = -EEXIST;
+		wret = commit_transaction(root);
+		if (wret)
+			ret = wret;
 		return ret;
 	}
+	if (ret < 0)
+		goto out;
 
 	slot_orig = path.slots[0];
 	leaf_buf = path.nodes[0];
@@ -1113,14 +1118,18 @@ int insert_item(struct ctree_root *root, struct key *key,
 	if (slot == 0)
 		ret = fixup_low_keys(root, &path, key, 1);
 
-	wret = write_tree_block(root, leaf_buf);
+	wret = dirty_tree_block(root, leaf_buf);
 	if (wret)
 		ret = wret;
 
 	if (leaf_free_space(leaf) < 0)
 		BUG();
 	check_leaf(&path, 0);
+out:
 	release_path(root, &path);
+	wret = commit_transaction(root);
+	if (wret)
+		ret = wret;
 	return ret;
 }
 
@@ -1160,7 +1169,7 @@ static int del_ptr(struct ctree_root *root, struct ctree_path *path, int level,
 		if (wret)
 			ret = wret;
 	}
-	wret = write_tree_block(root, parent);
+	wret = dirty_tree_block(root, parent);
 	if (wret)
 		ret = wret;
 	return ret;
@@ -1203,8 +1212,9 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 	if (leaf->header.nritems == 0) {
 		if (leaf_buf == root->node) {
 			leaf->header.flags = node_level(0);
-			write_tree_block(root, leaf_buf);
+			dirty_tree_block(root, leaf_buf);
 		} else {
+			clean_tree_block(root, leaf_buf);
 			wret = del_ptr(root, path, 1, path->slots[1]);
 			if (wret)
 				ret = wret;
@@ -1220,7 +1230,7 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 			if (wret)
 				ret = wret;
 		}
-		wret = write_tree_block(root, leaf_buf);
+		wret = dirty_tree_block(root, leaf_buf);
 		if (wret)
 			ret = wret;
 
@@ -1242,6 +1252,7 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 			}
 			if (leaf->header.nritems == 0) {
 				u64 blocknr = leaf_buf->blocknr;
+				clean_tree_block(root, leaf_buf);
 				wret = del_ptr(root, path, 1, slot);
 				if (wret)
 					ret = wret;
@@ -1254,6 +1265,9 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 			}
 		}
 	}
+	wret = commit_transaction(root);
+	if (wret)
+		ret = wret;
 	return ret;
 }
 

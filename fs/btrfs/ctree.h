@@ -1,6 +1,8 @@
 #ifndef __CTREE__
 #define __CTREE__
 
+#include "list.h"
+
 #define CTREE_BLOCKSIZE 1024
 
 /*
@@ -53,6 +55,9 @@ struct ctree_root {
 	struct key current_insert;
 	int fp;
 	struct radix_tree_root cache_radix;
+	struct list_head trans;
+	struct list_head cache;
+	int cache_size;
 };
 
 /*
