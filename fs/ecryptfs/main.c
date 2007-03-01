@@ -487,7 +487,7 @@ static int ecryptfs_read_super(struct super_block *sb, const char *dev_name)
 	rc = path_lookup(dev_name, LOOKUP_FOLLOW, &nd);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "path_lookup() failed\n");
-		goto out_free;
+		goto out;
 	}
 	lower_root = nd.dentry;
 	if (!lower_root->d_inode) {
