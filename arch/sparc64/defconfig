@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.21-rc1
-# Mon Feb 26 10:45:21 2007
+# Linux kernel version: 2.6.21-rc2
+# Wed Feb 28 09:50:51 2007
 #
 CONFIG_SPARC=y
 CONFIG_SPARC64=y
@@ -1219,6 +1219,7 @@ CONFIG_USB_HIDDEV=y
 # CONFIG_USB_SISUSBVGA is not set
 # CONFIG_USB_LD is not set
 # CONFIG_USB_TRANCEVIBRATOR is not set
+# CONFIG_USB_IOWARRIOR is not set
 # CONFIG_USB_TEST is not set
 
 #

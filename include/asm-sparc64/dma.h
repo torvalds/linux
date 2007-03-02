@@ -205,10 +205,6 @@ do {	u32 tmp = sbus_readl((__regs) + DMA_CSR); \
 #define for_each_dvma(dma) \
         for((dma) = dma_chain; (dma); (dma) = (dma)->next)
 
-extern int get_dma_list(char *);
-extern int request_dma(unsigned int, __const__ char *);
-extern void free_dma(unsigned int);
-
 /* From PCI */
 
 #ifdef CONFIG_PCI
