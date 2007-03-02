@@ -681,4 +681,12 @@ void arch_teardown_msi_irq(unsigned int virt_irq)
 }
 #endif /* !(CONFIG_PCI_MSI) */
 
+struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
+{
+	struct pcidev_cookie *pc = pdev->sysdata;
+
+	return pc->op->node;
+}
+EXPORT_SYMBOL(pci_device_to_OF_node);
+
 #endif /* !(CONFIG_PCI) */

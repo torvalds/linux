@@ -165,6 +165,9 @@ static inline int pci_dma_mapping_error(dma_addr_t dma_addr)
         return (dma_addr == PCI_DMA_ERROR_CODE);
 }
 
+struct device_node;
+extern struct device_node *pci_device_to_OF_node(struct pci_dev *pdev);
+
 #endif /* __KERNEL__ */
 
 /* generic pci stuff */
