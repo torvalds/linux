@@ -550,9 +550,6 @@ static void __init build_device_resources(struct of_device *op,
 			r->start = result & 0xffffffff;
 			r->end = result + size - 1;
 			r->flags = flags | ((result >> 32ULL) & 0xffUL);
-		} else {
-			r->start = ~0UL;
-			r->end = ~0UL;
 		}
 		r->name = op->node->name;
 	}
