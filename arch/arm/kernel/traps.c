@@ -45,7 +45,18 @@ static int __init user_debug_setup(char *str)
 __setup("user_debug=", user_debug_setup);
 #endif
 
-void dump_backtrace_entry(unsigned long where, unsigned long from)
+static void dump_mem(const char *str, unsigned long bottom, unsigned long top);
+
+static inline int in_exception_text(unsigned long ptr)
+{
+	extern char __exception_text_start[];
+	extern char __exception_text_end[];
+
+	return ptr >= (unsigned long)&__exception_text_start &&
+	       ptr < (unsigned long)&__exception_text_end;
+}
+
+void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long frame)
 {
 #ifdef CONFIG_KALLSYMS
 	printk("[<%08lx>] ", where);
@@ -55,6 +66,9 @@ void dump_backtrace_entry(unsigned long where, unsigned long from)
 #else
 	printk("Function entered at [<%08lx>] from [<%08lx>]\n", where, from);
 #endif
+
+	if (in_exception_text(where))
+		dump_mem("Exception stack", frame + 4, frame + 4 + sizeof(struct pt_regs));
 }
 
 /*
@@ -266,7 +280,7 @@ void unregister_undef_hook(struct undef_hook *hook)
 	spin_unlock_irqrestore(&undef_lock, flags);
 }
 
-asmlinkage void do_undefinstr(struct pt_regs *regs)
+asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 {
 	unsigned int correction = thumb_mode(regs) ? 2 : 4;
 	unsigned int instr;

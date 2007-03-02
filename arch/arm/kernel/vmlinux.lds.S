@@ -83,6 +83,9 @@ SECTIONS
 
 	.text : {			/* Real text segment		*/
 		_text = .;		/* Text and read-only data	*/
+			__exception_text_start = .;
+			*(.exception.text)
+			__exception_text_end = .;
 			*(.text)
 			SCHED_TEXT
 			LOCK_TEXT
