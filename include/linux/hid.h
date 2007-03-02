@@ -6,7 +6,7 @@
  *
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2001 Vojtech Pavlik
- *  Copyright (c) 2006 Jiri Kosina
+ *  Copyright (c) 2006-2007 Jiri Kosina
  */
 
 /*
@@ -267,6 +267,8 @@ struct hid_item {
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00020000
 #define HID_QUIRK_IGNORE_MOUSE			0x00040000
 #define HID_QUIRK_SONY_PS3_CONTROLLER		0x00080000
+#define HID_QUIRK_LOGITECH_S510_DESCRIPTOR	0x00100000
+#define HID_QUIRK_DUPLICATE_USAGES		0x00200000
 
 /*
  * This is the global environment of the parser. This information is
@@ -292,7 +294,7 @@ struct hid_global {
  */
 
 #define HID_MAX_DESCRIPTOR_SIZE		4096
-#define HID_MAX_USAGES			1024
+#define HID_MAX_USAGES			8192
 #define HID_DEFAULT_NUM_COLLECTIONS	16
 
 struct hid_local {

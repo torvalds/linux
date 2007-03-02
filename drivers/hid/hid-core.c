@@ -667,7 +667,6 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 
 		if (item.format != HID_ITEM_FORMAT_SHORT) {
 			dbg("unexpected long global item");
-			kfree(device->collection);
 			hid_free_device(device);
 			kfree(parser);
 			return NULL;
@@ -676,7 +675,6 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 		if (dispatch_type[item.type](parser, &item)) {
 			dbg("item %u %u %u %u parsing failed\n",
 				item.format, (unsigned)item.size, (unsigned)item.type, (unsigned)item.tag);
-			kfree(device->collection);
 			hid_free_device(device);
 			kfree(parser);
 			return NULL;
@@ -685,14 +683,12 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 		if (start == end) {
 			if (parser->collection_stack_ptr) {
 				dbg("unbalanced collection at end of report description");
-				kfree(device->collection);
 				hid_free_device(device);
 				kfree(parser);
 				return NULL;
 			}
 			if (parser->local.delimiter_depth) {
 				dbg("unbalanced delimiter at end of report description");
-				kfree(device->collection);
 				hid_free_device(device);
 				kfree(parser);
 				return NULL;
@@ -703,7 +699,6 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 	}
 
 	dbg("item fetching failed at offset %d\n", (int)(end - start));
-	kfree(device->collection);
 	hid_free_device(device);
 	kfree(parser);
 	return NULL;
@@ -880,7 +875,7 @@ static void hid_output_field(struct hid_field *field, __u8 *data)
 
 	/* make sure the unused bits in the last byte are zeros */
 	if (count > 0 && size > 0)
-		data[(count*size-1)/8] = 0;
+		data[(offset+count*size-1)/8] = 0;
 
 	for (n = 0; n < count; n++) {
 		if (field->logical_minimum < 0)	/* signed values */
