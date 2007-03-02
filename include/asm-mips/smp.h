@@ -20,6 +20,9 @@
 #include <linux/cpumask.h>
 #include <asm/atomic.h>
 
+extern int smp_num_siblings;
+extern cpumask_t cpu_sibling_map[];
+
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
 /* Map from cpu id to sequential logical cpu number.  This will only

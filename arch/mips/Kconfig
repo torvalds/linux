@@ -1442,6 +1442,7 @@ config MIPS_MT_SMP
 	select MIPS_MT
 	select NR_CPUS_DEFAULT_2
 	select SMP
+	select SYS_SUPPORTS_SCHED_SMT if SMP
 	select SYS_SUPPORTS_SMP
 	help
 	  This is a kernel model which is also known a VSMP or lately
@@ -1467,6 +1468,19 @@ endchoice
 
 config MIPS_MT
 	bool
+
+config SCHED_SMT
+	bool "SMT (multithreading) scheduler support"
+	depends on SYS_SUPPORTS_SCHED_SMT
+	default n
+	help
+	  SMT scheduler support improves the CPU scheduler's decision making
+	  when dealing with MIPS MT enabled cores at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
+config SYS_SUPPORTS_SCHED_SMT
+	bool
+
 
 config SYS_SUPPORTS_MULTITHREADING
 	bool

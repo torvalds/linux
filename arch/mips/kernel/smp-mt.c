@@ -22,6 +22,7 @@
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
+#include <linux/smp.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
@@ -30,7 +31,6 @@
 #include <asm/system.h>
 #include <asm/hardirq.h>
 #include <asm/mmu_context.h>
-#include <asm/smp.h>
 #include <asm/time.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
@@ -223,6 +223,7 @@ static void __init smp_tc_init(unsigned int tc, unsigned int mvpconf0)
 void __init plat_smp_setup(void)
 {
 	unsigned int mvpconf0, ntc, tc, ncpu = 0;
+	unsigned int nvpe;
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* If we have an FPU, enroll ourselves in the FPU-full mask */
@@ -241,6 +242,9 @@ void __init plat_smp_setup(void)
 
 	mvpconf0 = read_c0_mvpconf0();
 	ntc = (mvpconf0 & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT;
+
+	nvpe = ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
+	smp_num_siblings = nvpe;
 
 	/* we'll always have more TC's than VPE's, so loop setting everything
 	   to a sensible state */
