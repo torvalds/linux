@@ -76,6 +76,7 @@ static unsigned long iommu_range_alloc(struct iommu_table *tbl,
                                        unsigned int align_order)
 { 
 	unsigned long n, end, i, start;
+	unsigned long start_addr, end_addr;
 	unsigned long limit;
 	int largealloc = npages > 15;
 	int pass = 0;
@@ -144,6 +145,15 @@ static unsigned long iommu_range_alloc(struct iommu_table *tbl,
 			/* Third failure, give up */
 			return DMA_ERROR_CODE;
 		}
+	}
+
+	/* DMA cannot cross 4 GB boundary */
+	start_addr = (n + tbl->it_offset) << PAGE_SHIFT;
+	end_addr = (end + tbl->it_offset) << PAGE_SHIFT;
+	if ((start_addr >> 32) != (end_addr >> 32)) {
+		end_addr &= 0xffffffff00000000l;
+		start = (end_addr >> PAGE_SHIFT) - tbl->it_offset;
+		goto again;
 	}
 
 	for (i = n; i < end; i++)
