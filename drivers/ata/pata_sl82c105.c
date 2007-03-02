@@ -234,7 +234,10 @@ static struct ata_port_operations sl82c105_port_ops = {
 	.exec_command	= ata_exec_command,
 	.dev_select 	= ata_std_dev_select,
 
+	.freeze		= ata_bmdma_freeze,
+	.thaw		= ata_bmdma_thaw,
 	.error_handler	= sl82c105_error_handler,
+	.post_internal_cmd = ata_bmdma_post_internal_cmd,
 
 	.bmdma_setup 	= ata_bmdma_setup,
 	.bmdma_start 	= sl82c105_bmdma_start,
