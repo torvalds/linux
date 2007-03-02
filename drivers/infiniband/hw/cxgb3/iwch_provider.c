@@ -331,6 +331,7 @@ static int iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	int ret = 0;
 	struct iwch_mm_entry *mm;
 	struct iwch_ucontext *ucontext;
+	u64 addr;
 
 	PDBG("%s pgoff 0x%lx key 0x%x len %d\n", __FUNCTION__, vma->vm_pgoff,
 	     key, len);
@@ -345,10 +346,11 @@ static int iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	mm = remove_mmap(ucontext, key, len);
 	if (!mm)
 		return -EINVAL;
+	addr = mm->addr;
 	kfree(mm);
 
-	if ((mm->addr >= rdev_p->rnic_info.udbell_physbase) &&
-	    (mm->addr < (rdev_p->rnic_info.udbell_physbase +
+	if ((addr >= rdev_p->rnic_info.udbell_physbase) &&
+	    (addr < (rdev_p->rnic_info.udbell_physbase +
 		       rdev_p->rnic_info.udbell_len))) {
 
 		/*
@@ -362,7 +364,7 @@ static int iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
 		vma->vm_flags &= ~VM_MAYREAD;
 		ret = io_remap_pfn_range(vma, vma->vm_start,
-					 mm->addr >> PAGE_SHIFT,
+					 addr >> PAGE_SHIFT,
 				         len, vma->vm_page_prot);
 	} else {
 
@@ -370,7 +372,7 @@ static int iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		 * Map WQ or CQ contig dma memory...
 		 */
 		ret = remap_pfn_range(vma, vma->vm_start,
-				      mm->addr >> PAGE_SHIFT,
+				      addr >> PAGE_SHIFT,
 				      len, vma->vm_page_prot);
 	}
 
