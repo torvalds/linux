@@ -647,7 +647,6 @@ static inline void sil24_fill_sg(struct ata_queued_cmd *qc,
 				 struct sil24_sge *sge)
 {
 	struct scatterlist *sg;
-	unsigned int idx = 0;
 
 	ata_for_each_sg(sg, qc) {
 		sge->addr = cpu_to_le64(sg_dma_address(sg));
@@ -656,9 +655,7 @@ static inline void sil24_fill_sg(struct ata_queued_cmd *qc,
 			sge->flags = cpu_to_le32(SGE_TRM);
 		else
 			sge->flags = 0;
-
 		sge++;
-		idx++;
 	}
 }
 

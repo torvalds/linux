@@ -3346,6 +3346,8 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	/* Devices where NCQ should be avoided */
 	/* NCQ is slow */
         { "WDC WD740ADFD-00",   NULL,		ATA_HORKAGE_NONCQ },
+	/* http://thread.gmane.org/gmane.linux.ide/14907 */
+	{ "FUJITSU MHT2060BH",	NULL,		ATA_HORKAGE_NONCQ },
 
 	/* Devices with NCQ limits */
 
@@ -5680,6 +5682,8 @@ static void ata_host_release(struct device *gendev, void *res)
 
 	if (host->ops->host_stop)
 		host->ops->host_stop(host);
+
+	dev_set_drvdata(gendev, NULL);
 }
 
 /**
@@ -5902,7 +5906,6 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
  err_out:
 	devres_release_group(dev, ata_device_add);
-	dev_set_drvdata(dev, NULL);
 	VPRINTK("EXIT, returning %d\n", rc);
 	return 0;
 }

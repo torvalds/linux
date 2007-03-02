@@ -1218,45 +1218,68 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237, asus_hides_a
  *	do this early on to make the additional device appear during
  *	the PCI scanning.
  */
-
-static void quirk_jmicron_dualfn(struct pci_dev *pdev)
+static void quirk_jmicron_ata(struct pci_dev *pdev)
 {
-	u32 conf;
+	u32 conf1, conf5, class;
 	u8 hdr;
 
 	/* Only poke fn 0 */
 	if (PCI_FUNC(pdev->devfn))
 		return;
 
-	switch(pdev->device) {
-		case PCI_DEVICE_ID_JMICRON_JMB365:
-		case PCI_DEVICE_ID_JMICRON_JMB366:
-			/* Redirect IDE second PATA port to the right spot */
-			pci_read_config_dword(pdev, 0x80, &conf);
-			conf |= (1 << 24);
-			/* Fall through */
-			pci_write_config_dword(pdev, 0x80, conf);
-		case PCI_DEVICE_ID_JMICRON_JMB361:
-		case PCI_DEVICE_ID_JMICRON_JMB363:
-			pci_read_config_dword(pdev, 0x40, &conf);
-			/* Enable dual function mode, AHCI on fn 0, IDE fn1 */
-			/* Set the class codes correctly and then direct IDE 0 */
-			conf &= ~0x000FF200; /* Clear bit 9 and 12-19 */
-			conf |=  0x00C2A102; /* Set 1, 8, 13, 15, 17, 22, 23 */
-			pci_write_config_dword(pdev, 0x40, conf);
+	pci_read_config_dword(pdev, 0x40, &conf1);
+	pci_read_config_dword(pdev, 0x80, &conf5);
 
-			/* Reconfigure so that the PCI scanner discovers the
-			   device is now multifunction */
+	conf1 &= ~0x00CFF302; /* Clear bit 1, 8, 9, 12-19, 22, 23 */
+	conf5 &= ~(1 << 24);  /* Clear bit 24 */
 
-			pci_read_config_byte(pdev, PCI_HEADER_TYPE, &hdr);
-			pdev->hdr_type = hdr & 0x7f;
-			pdev->multifunction = !!(hdr & 0x80);
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_JMICRON_JMB360:
+		/* The controller should be in single function ahci mode */
+		conf1 |= 0x0002A100; /* Set 8, 13, 15, 17 */
+		break;
 
-			break;
+	case PCI_DEVICE_ID_JMICRON_JMB365:
+	case PCI_DEVICE_ID_JMICRON_JMB366:
+		/* Redirect IDE second PATA port to the right spot */
+		conf5 |= (1 << 24);
+		/* Fall through */
+	case PCI_DEVICE_ID_JMICRON_JMB361:
+	case PCI_DEVICE_ID_JMICRON_JMB363:
+		/* Enable dual function mode, AHCI on fn 0, IDE fn1 */
+		/* Set the class codes correctly and then direct IDE 0 */
+		conf1 |= 0x00C2A102; /* Set 1, 8, 13, 15, 17, 22, 23 */
+		break;
+
+	case PCI_DEVICE_ID_JMICRON_JMB368:
+		/* The controller should be in single function IDE mode */
+		conf1 |= 0x00C00000; /* Set 22, 23 */
+		break;
 	}
+
+	pci_write_config_dword(pdev, 0x40, conf1);
+	pci_write_config_dword(pdev, 0x80, conf5);
+
+	/* Update pdev accordingly */
+	pci_read_config_byte(pdev, PCI_HEADER_TYPE, &hdr);
+	pdev->hdr_type = hdr & 0x7f;
+	pdev->multifunction = !!(hdr & 0x80);
+
+	pci_read_config_dword(pdev, PCI_CLASS_REVISION, &class);
+	pdev->class = class >> 8;
 }
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_JMICRON, PCI_ANY_ID, quirk_jmicron_dualfn);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_JMICRON, PCI_ANY_ID, quirk_jmicron_dualfn);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB360, quirk_jmicron_ata);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB361, quirk_jmicron_ata);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB363, quirk_jmicron_ata);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB365, quirk_jmicron_ata);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB366, quirk_jmicron_ata);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB368, quirk_jmicron_ata);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB360, quirk_jmicron_ata);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB361, quirk_jmicron_ata);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB363, quirk_jmicron_ata);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB365, quirk_jmicron_ata);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB366, quirk_jmicron_ata);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB368, quirk_jmicron_ata);
 
 #endif
 
