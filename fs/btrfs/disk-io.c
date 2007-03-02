@@ -239,6 +239,7 @@ static int drop_cache(struct ctree_root *root)
 }
 int close_ctree(struct ctree_root *root)
 {
+	commit_transaction(root);
 	drop_cache(root->extent_root);
 	drop_cache(root);
 	BUG_ON(!list_empty(&root->trans));

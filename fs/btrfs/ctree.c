@@ -1065,11 +1065,7 @@ int insert_item(struct ctree_root *root, struct key *key,
 	ret = search_slot(root, key, &path, data_size);
 	if (ret == 0) {
 		release_path(root, &path);
-		ret = -EEXIST;
-		wret = commit_transaction(root);
-		if (wret)
-			ret = wret;
-		return ret;
+		return -EEXIST;
 	}
 	if (ret < 0)
 		goto out;
@@ -1127,9 +1123,6 @@ int insert_item(struct ctree_root *root, struct key *key,
 	check_leaf(&path, 0);
 out:
 	release_path(root, &path);
-	wret = commit_transaction(root);
-	if (wret)
-		ret = wret;
 	return ret;
 }
 
@@ -1245,7 +1238,8 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 			wret = push_leaf_left(root, path, 1);
 			if (wret < 0)
 				ret = wret;
-			if (leaf->header.nritems) {
+			if (path->nodes[0] == leaf_buf &&
+			    leaf->header.nritems) {
 				wret = push_leaf_right(root, path, 1);
 				if (wret < 0)
 					ret = wret;
@@ -1265,9 +1259,6 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 			}
 		}
 	}
-	wret = commit_transaction(root);
-	if (wret)
-		ret = wret;
 	return ret;
 }
 

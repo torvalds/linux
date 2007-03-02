@@ -59,6 +59,11 @@ error:
 	return -1;
 }
 
+static int run_commit(struct ctree_root *root, struct radix_tree_root *radix)
+{
+	return commit_transaction(root);
+}
+
 static int insert_dup(struct ctree_root *root, struct radix_tree_root *radix)
 {
 	struct ctree_path path;
@@ -233,7 +238,8 @@ static int bulk_op(struct ctree_root *root, struct radix_tree_root *radix)
 
 
 int (*ops[])(struct ctree_root *root, struct radix_tree_root *radix) =
-{ ins_one, insert_dup, del_one, lookup_item, lookup_enoent, bulk_op };
+	{ ins_one, insert_dup, del_one, lookup_item,
+	  lookup_enoent, bulk_op, run_commit };
 
 static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
 {
@@ -366,7 +372,7 @@ int main(int ac, char **av)
 				err = ret;
 				goto out;
 			}
-			if (ops[op] == bulk_op)
+			if (ops[op] == bulk_op || ops[op] == run_commit)
 				break;
 			if (keep_running == 0) {
 				err = 0;

@@ -39,7 +39,7 @@ static int del_pending_extents(struct ctree_root *extent_root)
 			key.flags = 0;
 			key.offset = 1;
 			init_path(&path);
-			ret = search_slot(extent_root, &key, &path, 0);
+			ret = search_slot(extent_root, &key, &path, -1);
 			if (ret) {
 				print_tree(extent_root, extent_root->node);
 				printf("unable to find %Lu\n", key.objectid);
@@ -83,7 +83,7 @@ int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 		return 0;
 	}
 	init_path(&path);
-	ret = search_slot(extent_root, &key, &path, 0);
+	ret = search_slot(extent_root, &key, &path, -1);
 	if (ret) {
 		print_tree(extent_root, extent_root->node);
 		printf("failed to find %Lu\n", key.objectid);
