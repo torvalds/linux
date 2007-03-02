@@ -492,7 +492,7 @@ static void inic_post_internal_cmd(struct ata_queued_cmd *qc)
 		inic_reset_port(inic_port_base(qc->ap));
 }
 
-static void inic_dev_config(struct ata_port *ap, struct ata_device *dev)
+static void inic_dev_config(struct ata_device *dev)
 {
 	/* inic can only handle upto LBA28 max sectors */
 	if (dev->max_sectors > ATA_MAX_SECTORS)

@@ -114,7 +114,7 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 #ifdef CONFIG_PM
 static int sil_pci_device_resume(struct pci_dev *pdev);
 #endif
-static void sil_dev_config(struct ata_port *ap, struct ata_device *dev);
+static void sil_dev_config(struct ata_device *dev);
 static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static void sil_post_set_mode (struct ata_port *ap);
@@ -521,7 +521,6 @@ static void sil_thaw(struct ata_port *ap)
 
 /**
  *	sil_dev_config - Apply device/host-specific errata fixups
- *	@ap: Port containing device to be examined
  *	@dev: Device to be examined
  *
  *	After the IDENTIFY [PACKET] DEVICE step is complete, and a
@@ -548,8 +547,9 @@ static void sil_thaw(struct ata_port *ap)
  *	appreciated.
  *	- But then again UDMA5 is hardly anything to complain about
  */
-static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
+static void sil_dev_config(struct ata_device *dev)
 {
+	struct ata_port *ap = dev->ap;
 	int print_info = ap->eh_context.i.flags & ATA_EHI_PRINTINFO;
 	unsigned int n, quirks = 0;
 	unsigned char model_num[ATA_ID_PROD_LEN + 1];

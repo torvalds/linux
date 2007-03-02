@@ -1792,7 +1792,7 @@ int ata_dev_configure(struct ata_device *dev)
 		dev->horkage |= ATA_HORKAGE_DMA_RW_ONLY;
 
 	if (ap->ops->dev_config)
-		ap->ops->dev_config(ap, dev);
+		ap->ops->dev_config(dev);
 
 	if (ata_msg_probe(ap))
 		ata_dev_printk(dev, KERN_DEBUG, "%s: EXIT, drv_stat = 0x%x\n",

@@ -244,7 +244,6 @@ static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
 
 /**
  *	pdc2026x_dev_config	-	device setup hook
- *	@ap: ATA port
  *	@adev: newly found device
  *
  *	Perform chip specific early setup. We need to lock the transfer
@@ -252,7 +251,7 @@ static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
  *	barf.
  */
 
-static void pdc2026x_dev_config(struct ata_port *ap, struct ata_device *adev)
+static void pdc2026x_dev_config(struct ata_device *adev)
 {
 	adev->max_sectors = 256;
 }

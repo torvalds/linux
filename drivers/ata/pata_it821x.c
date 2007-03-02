@@ -520,7 +520,6 @@ static int it821x_smart_set_mode(struct ata_port *ap, struct ata_device **unused
 
 /**
  *	it821x_dev_config	-	Called each device identify
- *	@ap: ATA port
  *	@adev: Device that has just been identified
  *
  *	Perform the initial setup needed for each device that is chip
@@ -531,7 +530,7 @@ static int it821x_smart_set_mode(struct ata_port *ap, struct ata_device **unused
  *	basically we need to filter commands for this chip.
  */
 
-static void it821x_dev_config(struct ata_port *ap, struct ata_device *adev)
+static void it821x_dev_config(struct ata_device *adev)
 {
 	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 

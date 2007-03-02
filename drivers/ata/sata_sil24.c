@@ -323,7 +323,7 @@ struct sil24_port_priv {
 	struct ata_taskfile tf;			/* Cached taskfile registers */
 };
 
-static void sil24_dev_config(struct ata_port *ap, struct ata_device *dev);
+static void sil24_dev_config(struct ata_device *dev);
 static u8 sil24_check_status(struct ata_port *ap);
 static u32 sil24_scr_read(struct ata_port *ap, unsigned sc_reg);
 static void sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val);
@@ -462,9 +462,9 @@ static int sil24_tag(int tag)
 	return tag;
 }
 
-static void sil24_dev_config(struct ata_port *ap, struct ata_device *dev)
+static void sil24_dev_config(struct ata_device *dev)
 {
-	void __iomem *port = ap->ioaddr.cmd_addr;
+	void __iomem *port = dev->ap->ioaddr.cmd_addr;
 
 	if (dev->cdb_len == 16)
 		writel(PORT_CS_CDB16, port + PORT_CTRL_STAT);

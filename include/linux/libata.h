@@ -597,7 +597,7 @@ struct ata_port {
 struct ata_port_operations {
 	void (*port_disable) (struct ata_port *);
 
-	void (*dev_config) (struct ata_port *, struct ata_device *);
+	void (*dev_config) (struct ata_device *);
 
 	void (*set_piomode) (struct ata_port *, struct ata_device *);
 	void (*set_dmamode) (struct ata_port *, struct ata_device *);

@@ -324,7 +324,7 @@ static void ali_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	slower PIO methods
  */
 
-static void ali_lock_sectors(struct ata_port *ap, struct ata_device *adev)
+static void ali_lock_sectors(struct ata_device *adev)
 {
 	adev->max_sectors = 255;
 }
