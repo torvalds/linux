@@ -1,5 +1,5 @@
 /*
- * pata_cmd64x.c 	- ATI PATA for new ATA layer
+ * pata_cmd64x.c 	- CMD64x PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
  *			  Alan Cox <alan@redhat.com>
  *
