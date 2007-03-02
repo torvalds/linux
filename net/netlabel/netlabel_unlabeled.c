@@ -173,7 +173,7 @@ static int netlbl_unlabel_list(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 
 list_failure:
-	kfree(ans_skb);
+	kfree_skb(ans_skb);
 	return ret_val;
 }
 

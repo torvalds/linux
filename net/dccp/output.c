@@ -269,7 +269,7 @@ void dccp_write_xmit(struct sock *sk, int block)
 					 err);
 		} else {
 			dccp_pr_debug("packet discarded\n");
-			kfree(skb);
+			kfree_skb(skb);
 		}
 	}
 }

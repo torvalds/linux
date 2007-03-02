@@ -2037,7 +2037,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 err:
 	while ((skb = segs)) {
 		segs = skb->next;
-		kfree(skb);
+		kfree_skb(skb);
 	}
 	return ERR_PTR(err);
 }
