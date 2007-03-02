@@ -8,6 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/netdevice.h>
 #include <linux/moduleparam.h>
+#include <asm/unaligned.h>
 #include "aoe.h"
 
 #define NECODES 5
@@ -123,7 +124,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 	skb_push(skb, ETH_HLEN);	/* (1) */
 
 	h = (struct aoe_hdr *) skb->mac.raw;
-	n = be32_to_cpu(h->tag);
+	n = be32_to_cpu(get_unaligned(&h->tag));
 	if ((h->verfl & AOEFL_RSP) == 0 || (n & 1<<31))
 		goto exit;
 
@@ -133,7 +134,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 			n = 0;
 		if (net_ratelimit())
 			printk(KERN_ERR "aoe: error packet from %d.%d; ecode=%d '%s'\n",
-			       be16_to_cpu(h->major), h->minor, 
+			       be16_to_cpu(get_unaligned(&h->major)), h->minor,
 			       h->err, aoe_errlist[n]);
 		goto exit;
 	}

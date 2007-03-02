@@ -530,7 +530,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	u16 aoemajor;
 
 	hin = (struct aoe_hdr *) skb->mac.raw;
-	aoemajor = be16_to_cpu(hin->major);
+	aoemajor = be16_to_cpu(get_unaligned(&hin->major));
 	d = aoedev_by_aoeaddr(aoemajor, hin->minor);
 	if (d == NULL) {
 		snprintf(ebuf, sizeof ebuf, "aoecmd_ata_rsp: ata response "
@@ -542,7 +542,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 
 	spin_lock_irqsave(&d->lock, flags);
 
-	n = be32_to_cpu(hin->tag);
+	n = be32_to_cpu(get_unaligned(&hin->tag));
 	f = getframe(d, n);
 	if (f == NULL) {
 		calc_rttavg(d, -tsince(n));
@@ -550,9 +550,9 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 		snprintf(ebuf, sizeof ebuf,
 			"%15s e%d.%d    tag=%08x@%08lx\n",
 			"unexpected rsp",
-			be16_to_cpu(hin->major),
+			be16_to_cpu(get_unaligned(&hin->major)),
 			hin->minor,
-			be32_to_cpu(hin->tag),
+			be32_to_cpu(get_unaligned(&hin->tag)),
 			jiffies);
 		aoechr_error(ebuf);
 		return;
@@ -631,7 +631,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 			printk(KERN_INFO
 				"aoe: unrecognized ata command %2.2Xh for %d.%d\n",
 				ahout->cmdstat,
-				be16_to_cpu(hin->major),
+				be16_to_cpu(get_unaligned(&hin->major)),
 				hin->minor);
 		}
 	}
@@ -733,7 +733,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	 * Enough people have their dip switches set backwards to
 	 * warrant a loud message for this special case.
 	 */
-	aoemajor = be16_to_cpu(h->major);
+	aoemajor = be16_to_cpu(get_unaligned(&h->major));
 	if (aoemajor == 0xfff) {
 		printk(KERN_ERR "aoe: Warning: shelf address is all ones.  "
 			"Check shelf dip switches.\n");
