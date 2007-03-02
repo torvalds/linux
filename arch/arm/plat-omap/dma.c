@@ -557,7 +557,7 @@ int omap_request_dma(int dev_id, const char *dev_name,
 		omap_enable_channel_irq(free_ch);
 		/* Clear the CSR register and IRQ status register */
 		OMAP_DMA_CSR_REG(free_ch) = OMAP2_DMA_CSR_CLEAR_MASK;
-		omap_writel(~0x0, OMAP_DMA4_IRQSTATUS_L0);
+		omap_writel(1 << free_ch, OMAP_DMA4_IRQSTATUS_L0);
 	}
 
 	*dma_ch_out = free_ch;
@@ -597,10 +597,7 @@ void omap_free_dma(int lch)
 
 		/* Clear the CSR register and IRQ status register */
 		OMAP_DMA_CSR_REG(lch) = OMAP2_DMA_CSR_CLEAR_MASK;
-
-		val = omap_readl(OMAP_DMA4_IRQSTATUS_L0);
-		val |= 1 << lch;
-		omap_writel(val, OMAP_DMA4_IRQSTATUS_L0);
+		omap_writel(1 << lch, OMAP_DMA4_IRQSTATUS_L0);
 
 		/* Disable all DMA interrupts for the channel. */
 		OMAP_DMA_CICR_REG(lch) = 0;
@@ -927,7 +924,6 @@ static irqreturn_t omap1_dma_irq_handler(int irq, void *dev_id)
 static int omap2_dma_handle_ch(int ch)
 {
 	u32 status = OMAP_DMA_CSR_REG(ch);
-	u32 val;
 
 	if (!status)
 		return 0;
@@ -948,11 +944,7 @@ static int omap2_dma_handle_ch(int ch)
 		       dma_chan[ch].dev_id);
 
 	OMAP_DMA_CSR_REG(ch) = OMAP2_DMA_CSR_CLEAR_MASK;
-
-	val = omap_readl(OMAP_DMA4_IRQSTATUS_L0);
-	/* ch in this function is from 0-31 while in register it is 1-32 */
-	val = 1 << (ch);
-	omap_writel(val, OMAP_DMA4_IRQSTATUS_L0);
+	omap_writel(1 << ch, OMAP_DMA4_IRQSTATUS_L0);
 
 	if (likely(dma_chan[ch].callback != NULL))
 		dma_chan[ch].callback(ch, status, dma_chan[ch].data);

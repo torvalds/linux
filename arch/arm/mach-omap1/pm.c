@@ -256,7 +256,8 @@ void omap_pm_suspend(void)
 		tps65010_set_led(LED1, OFF);
 	}
 
-	omap_writew(0xffff, ULPD_SOFT_DISABLE_REQ_REG);
+	if (!cpu_is_omap15xx())
+		omap_writew(0xffff, ULPD_SOFT_DISABLE_REQ_REG);
 
 	/*
 	 * Step 1: turn off interrupts (FIXME: NOTE: already disabled)
@@ -434,7 +435,8 @@ void omap_pm_suspend(void)
 		MPUI1610_RESTORE(OMAP_IH2_3_MIR);
 	}
 
-	omap_writew(0, ULPD_SOFT_DISABLE_REQ_REG);
+	if (!cpu_is_omap15xx())
+		omap_writew(0, ULPD_SOFT_DISABLE_REQ_REG);
 
 	/*
 	 * Reenable interrupts
@@ -704,6 +706,8 @@ static struct pm_ops omap_pm_ops ={
 
 static int __init omap_pm_init(void)
 {
+	int error;
+
 	printk("Power Management for TI OMAP.\n");
 
 	/*
@@ -760,7 +764,9 @@ static int __init omap_pm_init(void)
 	omap_pm_init_proc();
 #endif
 
-	subsys_create_file(&power_subsys, &sleep_while_idle_attr);
+	error = subsys_create_file(&power_subsys, &sleep_while_idle_attr);
+	if (error)
+		printk(KERN_ERR "subsys_create_file failed: %d\n", error);
 
 	if (cpu_is_omap16xx()) {
 		/* configure LOW_PWR pin */

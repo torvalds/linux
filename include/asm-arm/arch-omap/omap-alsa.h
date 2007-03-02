@@ -65,7 +65,7 @@ struct audio_stream {
 	int period;		/* current transfer period */
 	int periods;		/* current count of periods registerd in the DMA engine */
 	spinlock_t dma_lock;	/* for locking in DMA operations */
-	snd_pcm_substream_t *stream;	/* the pcm stream */
+	struct snd_pcm_substream *stream;	/* the pcm stream */
 	unsigned linked:1;	/* dma channels linked */
 	int offset;		/* store start position of the last period in the alsa buffer */
 	int (*hw_start)(void);  /* interface to start HW interface, e.g. McBSP */
@@ -76,8 +76,8 @@ struct audio_stream {
  * Alsa card structure for aic23
  */
 struct snd_card_omap_codec {
-	snd_card_t *card;
-	snd_pcm_t *pcm;
+	struct snd_card *card;
+	struct snd_pcm *pcm;
 	long samplerate;
 	struct audio_stream s[2];	/* playback & capture */
 };
@@ -89,9 +89,9 @@ struct snd_card_omap_codec {
 struct omap_alsa_codec_config {
 	char 	*name;
 	struct	omap_mcbsp_reg_cfg *mcbsp_regs_alsa;
-	snd_pcm_hw_constraint_list_t *hw_constraints_rates;
-	snd_pcm_hardware_t *snd_omap_alsa_playback;
-	snd_pcm_hardware_t *snd_omap_alsa_capture;
+	struct	snd_pcm_hw_constraint_list *hw_constraints_rates;
+	struct	snd_pcm_hardware *snd_omap_alsa_playback;
+	struct	snd_pcm_hardware *snd_omap_alsa_capture;
 	void	(*codec_configure_dev)(void);
 	void	(*codec_set_samplerate)(long);
 	void	(*codec_clock_setup)(void);
