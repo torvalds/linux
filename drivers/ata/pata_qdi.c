@@ -363,7 +363,8 @@ static __init int qdi_init(void)
 					release_region(port, 2);
 					continue;
 				}
-				ct += qdi_init_one(port, 6500, ide_port[r & 0x01], ide_irq[r & 0x01], r & 0x04);
+				if (qdi_init_one(port, 6500, ide_port[r & 0x01], ide_irq[r & 0x01], r & 0x04) == 0)
+					ct++;
 			}
 			if (((r & 0xF0) == 0xA0) || (r & 0xF0) == 0x50) {
 				/* QD6580: dual channel */
@@ -375,11 +376,14 @@ static __init int qdi_init(void)
 				res = inb(port + 3);
 				if (res & 1) {
 					/* Single channel mode */
-					ct += qdi_init_one(port, 6580, ide_port[r & 0x01], ide_irq[r & 0x01], r & 0x04);
+					if (qdi_init_one(port, 6580, ide_port[r & 0x01], ide_irq[r & 0x01], r & 0x04))
+						ct++;
 				} else {
 					/* Dual channel mode */
-					ct += qdi_init_one(port, 6580, 0x1F0, 14, r & 0x04);
-					ct += qdi_init_one(port + 2, 6580, 0x170, 15, r & 0x04);
+					if (qdi_init_one(port, 6580, 0x1F0, 14, r & 0x04) == 0)
+						ct++;
+					if (qdi_init_one(port + 2, 6580, 0x170, 15, r & 0x04) == 0)
+						ct++;
 				}
 			}
 		}
