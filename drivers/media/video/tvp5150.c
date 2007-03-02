@@ -955,7 +955,7 @@ static int tvp5150_command(struct i2c_client *c,
 	{
 		struct v4l2_register *reg = arg;
 
-		if (reg->i2c_id != I2C_DRIVERID_TVP5150)
+		if (!v4l2_chip_match_i2c_client(c, reg->match_type, reg->match_chip))
 			return -EINVAL;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;

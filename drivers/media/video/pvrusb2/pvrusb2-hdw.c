@@ -3256,8 +3256,8 @@ static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
 
 
 int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
-			     u32 chip_id, u64 reg_id,
-			     int setFl,u32 *val_ptr)
+			     u32 match_type, u32 match_chip, u64 reg_id,
+			     int setFl,u64 *val_ptr)
 {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	struct list_head *item;
@@ -3268,13 +3268,16 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 
 	if (!capable(CAP_SYS_ADMIN)) return -EPERM;
 
-	req.i2c_id = chip_id;
+	req.match_type = match_type;
+	req.match_chip = match_chip;
 	req.reg = reg_id;
 	if (setFl) req.val = *val_ptr;
 	mutex_lock(&hdw->i2c_list_lock); do {
 		list_for_each(item,&hdw->i2c_clients) {
 			cp = list_entry(item,struct pvr2_i2c_client,list);
-			if (cp->client->driver->id != chip_id) continue;
+			if (!v4l2_chip_match_i2c_client(cp->client, req.match_type, req.match_chip)) {
+				continue;
+			}
 			stat = pvr2_i2c_client_cmd(
 				cp,(setFl ? VIDIOC_DBG_S_REGISTER :
 				    VIDIOC_DBG_G_REGISTER),&req);

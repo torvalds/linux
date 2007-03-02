@@ -94,6 +94,14 @@ u32 v4l2_ctrl_next(const u32 * const *ctrl_classes, u32 id);
 
 /* ------------------------------------------------------------------------- */
 
+/* Register/chip ident helper function */
+
+struct i2c_client; /* forward reference */
+int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 id_type, u32 chip_id);
+int v4l2_chip_match_host(u32 id_type, u32 chip_id);
+
+/* ------------------------------------------------------------------------- */
+
 /* Internal ioctls */
 
 /* VIDIOC_INT_DECODE_VBI_LINE */

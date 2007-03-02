@@ -51,6 +51,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/i2c.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -365,13 +366,21 @@ static const char *v4l2_ioctls[] = {
 	[_IOC_NR(VIDIOC_ENUMAUDOUT)]       = "VIDIOC_ENUMAUDOUT",
 	[_IOC_NR(VIDIOC_G_PRIORITY)]       = "VIDIOC_G_PRIORITY",
 	[_IOC_NR(VIDIOC_S_PRIORITY)]       = "VIDIOC_S_PRIORITY",
-#if 1
 	[_IOC_NR(VIDIOC_G_SLICED_VBI_CAP)] = "VIDIOC_G_SLICED_VBI_CAP",
-#endif
 	[_IOC_NR(VIDIOC_LOG_STATUS)]       = "VIDIOC_LOG_STATUS",
 	[_IOC_NR(VIDIOC_G_EXT_CTRLS)]      = "VIDIOC_G_EXT_CTRLS",
 	[_IOC_NR(VIDIOC_S_EXT_CTRLS)]      = "VIDIOC_S_EXT_CTRLS",
-	[_IOC_NR(VIDIOC_TRY_EXT_CTRLS)]    = "VIDIOC_TRY_EXT_CTRLS"
+	[_IOC_NR(VIDIOC_TRY_EXT_CTRLS)]    = "VIDIOC_TRY_EXT_CTRLS",
+#if 1
+	[_IOC_NR(VIDIOC_ENUM_FRAMESIZES)]  = "VIDIOC_ENUM_FRAMESIZES",
+	[_IOC_NR(VIDIOC_ENUM_FRAMEINTERVALS)] = "VIDIOC_ENUM_FRAMEINTERVALS",
+	[_IOC_NR(VIDIOC_G_ENC_INDEX)] 	   = "VIDIOC_G_ENC_INDEX",
+	[_IOC_NR(VIDIOC_ENCODER_CMD)] 	   = "VIDIOC_ENCODER_CMD",
+	[_IOC_NR(VIDIOC_TRY_ENCODER_CMD)]  = "VIDIOC_TRY_ENCODER_CMD",
+
+	[_IOC_NR(VIDIOC_DBG_S_REGISTER)]   = "VIDIOC_DBG_S_REGISTER",
+	[_IOC_NR(VIDIOC_DBG_G_REGISTER)]   = "VIDIOC_DBG_G_REGISTER",
+#endif
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
@@ -394,9 +403,6 @@ static const char *v4l2_int_ioctls[] = {
 	[_IOC_NR(TUNER_SET_TYPE_ADDR)]         = "TUNER_SET_TYPE_ADDR",
 	[_IOC_NR(TUNER_SET_STANDBY)]           = "TUNER_SET_STANDBY",
 	[_IOC_NR(TDA9887_SET_CONFIG)]          = "TDA9887_SET_CONFIG",
-
-	[_IOC_NR(VIDIOC_DBG_S_REGISTER)]       = "VIDIOC_DBG_S_REGISTER",
-	[_IOC_NR(VIDIOC_DBG_G_REGISTER)]       = "VIDIOC_DBG_G_REGISTER",
 
 	[_IOC_NR(VIDIOC_INT_S_TUNER_MODE)]     = "VIDIOC_INT_S_TUNER_MODE",
 	[_IOC_NR(VIDIOC_INT_RESET)]            = "VIDIOC_INT_RESET",
@@ -947,6 +953,28 @@ u32 v4l2_ctrl_next(const u32 * const * ctrl_classes, u32 id)
 	return **ctrl_classes;
 }
 
+int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 match_type, u32 match_chip)
+{
+	switch (match_type) {
+	case V4L2_CHIP_MATCH_I2C_DRIVER:
+		return (c != NULL && c->driver != NULL && c->driver->id == match_chip);
+	case V4L2_CHIP_MATCH_I2C_ADDR:
+		return (c != NULL && c->addr == match_chip);
+	default:
+		return 0;
+	}
+}
+
+int v4l2_chip_match_host(u32 match_type, u32 match_chip)
+{
+	switch (match_type) {
+	case V4L2_CHIP_MATCH_HOST:
+		return match_chip == 0;
+	default:
+		return 0;
+	}
+}
+
 /* ----------------------------------------------------------------- */
 
 EXPORT_SYMBOL(v4l2_norm_to_name);
@@ -969,6 +997,9 @@ EXPORT_SYMBOL(v4l2_ctrl_get_menu);
 EXPORT_SYMBOL(v4l2_ctrl_query_menu);
 EXPORT_SYMBOL(v4l2_ctrl_query_fill);
 EXPORT_SYMBOL(v4l2_ctrl_query_fill_std);
+
+EXPORT_SYMBOL(v4l2_chip_match_i2c_client);
+EXPORT_SYMBOL(v4l2_chip_match_host);
 
 /*
  * Local variables:
