@@ -1289,10 +1289,7 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 		memcpy(&state(hdlc)->settings, &new_settings, size);
 
 		dev->hard_start_xmit = hdlc->xmit;
-		dev->hard_header = NULL;
 		dev->type = ARPHRD_FRAD;
-		dev->flags = IFF_POINTOPOINT | IFF_NOARP;
-		dev->addr_len = 0;
 		return 0;
 
 	case IF_PROTO_FR_ADD_PVC:
