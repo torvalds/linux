@@ -11,7 +11,6 @@
 #include "disk-io.h"
 
 static int allocated_blocks = 0;
-int cache_size = 0;
 int cache_max = 10000;
 
 static int check_tree_block(struct ctree_root *root, struct tree_buffer *buf)
@@ -36,7 +35,7 @@ static int free_some_buffers(struct ctree_root *root)
 			list_del_init(&b->cache);
 			tree_block_release(root, b);
 			if (root->cache_size < cache_max)
-				return 0;
+				break;
 		}
 	}
 	return 0;

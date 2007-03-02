@@ -202,14 +202,22 @@ static int fill_tree(struct ctree_root *root, struct radix_tree_root *radix,
 		     int count)
 {
 	int i;
-	int err;
 	int ret = 0;
 	for (i = 0; i < count; i++) {
 		ret = ins_one(root, radix);
 		if (ret) {
-			printf("fill failed\n");
-			err = ret;
+			fprintf(stderr, "fill failed\n");
 			goto out;
+		}
+		if (i % 1000 == 0) {
+			ret = commit_transaction(root);
+			if (ret) {
+				fprintf(stderr, "fill commit failed\n");
+				return ret;
+			}
+		}
+		if (i % 10000 == 0) {
+			printf("bigfill %d\n", i);
 		}
 		if (!keep_running)
 			break;
