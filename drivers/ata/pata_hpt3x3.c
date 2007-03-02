@@ -119,8 +119,10 @@ static struct scsi_host_template hpt3x3_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
 	.resume			= ata_scsi_device_resume,
 	.suspend		= ata_scsi_device_suspend,
+#endif
 };
 
 static struct ata_port_operations hpt3x3_port_ops = {
@@ -206,11 +208,13 @@ static int hpt3x3_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	return ata_pci_init_one(dev, port_info, 2);
 }
 
+#ifdef CONFIG_PM
 static int hpt3x3_reinit_one(struct pci_dev *dev)
 {
 	hpt3x3_init_chipset(dev);
 	return ata_pci_device_resume(dev);
 }
+#endif
 
 static const struct pci_device_id hpt3x3[] = {
 	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT343), },
@@ -223,8 +227,10 @@ static struct pci_driver hpt3x3_pci_driver = {
 	.id_table	= hpt3x3,
 	.probe 		= hpt3x3_init_one,
 	.remove		= ata_pci_remove_one,
+#ifdef CONFIG_PM
 	.suspend	= ata_pci_device_suspend,
 	.resume		= hpt3x3_reinit_one,
+#endif
 };
 
 static int __init hpt3x3_init(void)

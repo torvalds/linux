@@ -230,7 +230,9 @@ struct nv_host_priv {
 
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static void nv_remove_one (struct pci_dev *pdev);
+#ifdef CONFIG_PM
 static int nv_pci_device_resume(struct pci_dev *pdev);
+#endif
 static void nv_ck804_host_stop(struct ata_host *host);
 static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance);
 static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance);
@@ -251,8 +253,10 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance);
 static void nv_adma_irq_clear(struct ata_port *ap);
 static int nv_adma_port_start(struct ata_port *ap);
 static void nv_adma_port_stop(struct ata_port *ap);
+#ifdef CONFIG_PM
 static int nv_adma_port_suspend(struct ata_port *ap, pm_message_t mesg);
 static int nv_adma_port_resume(struct ata_port *ap);
+#endif
 static void nv_adma_error_handler(struct ata_port *ap);
 static void nv_adma_host_stop(struct ata_host *host);
 static void nv_adma_post_internal_cmd(struct ata_queued_cmd *qc);
@@ -295,8 +299,10 @@ static struct pci_driver nv_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= nv_pci_tbl,
 	.probe			= nv_init_one,
+#ifdef CONFIG_PM
 	.suspend		= ata_pci_device_suspend,
 	.resume			= nv_pci_device_resume,
+#endif
 	.remove			= nv_remove_one,
 };
 
@@ -316,8 +322,10 @@ static struct scsi_host_template nv_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
 	.suspend		= ata_scsi_device_suspend,
 	.resume			= ata_scsi_device_resume,
+#endif
 };
 
 static struct scsi_host_template nv_adma_sht = {
@@ -336,8 +344,10 @@ static struct scsi_host_template nv_adma_sht = {
 	.slave_configure	= nv_adma_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
 	.suspend		= ata_scsi_device_suspend,
 	.resume			= ata_scsi_device_resume,
+#endif
 };
 
 static const struct ata_port_operations nv_generic_ops = {
@@ -449,8 +459,10 @@ static const struct ata_port_operations nv_adma_ops = {
 	.scr_write		= nv_scr_write,
 	.port_start		= nv_adma_port_start,
 	.port_stop		= nv_adma_port_stop,
+#ifdef CONFIG_PM
 	.port_suspend		= nv_adma_port_suspend,
 	.port_resume		= nv_adma_port_resume,
+#endif
 	.host_stop		= nv_adma_host_stop,
 };
 
@@ -1003,6 +1015,7 @@ static void nv_adma_port_stop(struct ata_port *ap)
 	writew(0, mmio + NV_ADMA_CTL);
 }
 
+#ifdef CONFIG_PM
 static int nv_adma_port_suspend(struct ata_port *ap, pm_message_t mesg)
 {
 	struct nv_adma_port_priv *pp = ap->private_data;
@@ -1053,6 +1066,7 @@ static int nv_adma_port_resume(struct ata_port *ap)
 
 	return 0;
 }
+#endif
 
 static void nv_adma_setup_port(struct ata_probe_ent *probe_ent, unsigned int port)
 {
@@ -1555,6 +1569,7 @@ static void nv_remove_one (struct pci_dev *pdev)
 	kfree(hpriv);
 }
 
+#ifdef CONFIG_PM
 static int nv_pci_device_resume(struct pci_dev *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
@@ -1602,6 +1617,7 @@ static int nv_pci_device_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
 static void nv_ck804_host_stop(struct ata_host *host)
 {
