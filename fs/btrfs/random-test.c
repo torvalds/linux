@@ -93,7 +93,7 @@ static int del_one(struct ctree_root *root, struct radix_tree_root *radix)
 	ret = setup_key(radix, &key, 1);
 	if (ret < 0)
 		return 0;
-	ret = search_slot(root, &key, &path, -1);
+	ret = search_slot(root, &key, &path, -1, 1);
 	if (ret)
 		goto error;
 	ret = del_item(root, &path);
@@ -118,7 +118,7 @@ static int lookup_item(struct ctree_root *root, struct radix_tree_root *radix)
 	ret = setup_key(radix, &key, 1);
 	if (ret < 0)
 		return 0;
-	ret = search_slot(root, &key, &path, 0);
+	ret = search_slot(root, &key, &path, 0, 1);
 	release_path(root, &path);
 	if (ret)
 		goto error;
@@ -137,7 +137,7 @@ static int lookup_enoent(struct ctree_root *root, struct radix_tree_root *radix)
 	ret = setup_key(radix, &key, 0);
 	if (ret < 0)
 		return ret;
-	ret = search_slot(root, &key, &path, 0);
+	ret = search_slot(root, &key, &path, 0, 0);
 	release_path(root, &path);
 	if (ret <= 0)
 		goto error;
@@ -163,7 +163,7 @@ static int empty_tree(struct ctree_root *root, struct radix_tree_root *radix,
 	key.objectid = (unsigned long)-1;
 	while(nr-- >= 0) {
 		init_path(&path);
-		ret = search_slot(root, &key, &path, -1);
+		ret = search_slot(root, &key, &path, -1, 1);
 		if (ret < 0) {
 			release_path(root, &path);
 			return ret;
@@ -216,7 +216,7 @@ static int fill_tree(struct ctree_root *root, struct radix_tree_root *radix,
 				return ret;
 			}
 		}
-		if (i % 10000 == 0) {
+		if (i && i % 10000 == 0) {
 			printf("bigfill %d\n", i);
 		}
 		if (!keep_running)
@@ -263,7 +263,7 @@ static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
 	key.objectid = (unsigned long)-1;
 	while(1) {
 		init_path(&path);
-		ret = search_slot(root, &key, &path, 0);
+		ret = search_slot(root, &key, &path, 0, 0);
 		if (ret < 0) {
 			release_path(root, &path);
 			return ret;

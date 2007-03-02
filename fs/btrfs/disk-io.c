@@ -260,6 +260,8 @@ void tree_block_release(struct ctree_root *root, struct tree_buffer *buf)
 	if (buf->count < 0)
 		BUG();
 	if (buf->count == 0) {
+		BUG_ON(!list_empty(&buf->cache));
+		BUG_ON(!list_empty(&buf->dirty));
 		if (!radix_tree_lookup(&root->cache_radix, buf->blocknr))
 			BUG();
 		radix_tree_delete(&root->cache_radix, buf->blocknr);

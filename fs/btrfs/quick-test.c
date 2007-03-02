@@ -19,7 +19,7 @@ int main(int ac, char **av) {
 	int i;
 	int num;
 	int ret;
-	int run_size = 100000;
+	int run_size = 1024;
 	int max_key =  100000000;
 	int tree_size = 0;
 	struct ctree_path path;
@@ -57,7 +57,7 @@ int main(int ac, char **av) {
 		init_path(&path);
 		if (i % 10000 == 0)
 			fprintf(stderr, "search %d:%d\n", num, i);
-		ret = search_slot(root, &ins, &path, 0);
+		ret = search_slot(root, &ins, &path, 0, 0);
 		if (ret) {
 			print_tree(root, root->node);
 			printf("unable to find %d\n", num);
@@ -79,7 +79,7 @@ int main(int ac, char **av) {
 		num = next_key(i, max_key);
 		ins.objectid = num;
 		init_path(&path);
-		ret = search_slot(root, &ins, &path, -1);
+		ret = search_slot(root, &ins, &path, -1, 1);
 		if (!ret) {
 			if (i % 10000 == 0)
 				fprintf(stderr, "del %d:%d\n", num, i);
@@ -117,7 +117,7 @@ int main(int ac, char **av) {
 		init_path(&path);
 		if (i % 10000 == 0)
 			fprintf(stderr, "search %d:%d\n", num, i);
-		ret = search_slot(root, &ins, &path, 0);
+		ret = search_slot(root, &ins, &path, 0, 0);
 		if (ret) {
 			print_tree(root, root->node);
 			printf("unable to find %d\n", num);
@@ -131,7 +131,7 @@ int main(int ac, char **av) {
 		int slot;
 		ins.objectid = (u64)-1;
 		init_path(&path);
-		ret = search_slot(root, &ins, &path, -1);
+		ret = search_slot(root, &ins, &path, -1, 1);
 		if (ret == 0)
 			BUG();
 

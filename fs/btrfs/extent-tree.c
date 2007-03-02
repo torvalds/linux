@@ -15,6 +15,39 @@
  */
 #define CTREE_EXTENT_PENDING 0
 
+static int inc_block_ref(struct ctree_root *root, u64 blocknr)
+{
+	struct ctree_path path;
+	int ret;
+	struct key key;
+	struct leaf *l;
+	struct extent_item *item;
+	init_path(&path);
+	key.objectid = blocknr;
+	key.flags = 0;
+	key.offset = 1;
+	ret = search_slot(root->extent_root, &key, &path, 0, 1);
+	BUG_ON(ret != 0);
+	l = &path.nodes[0]->leaf;
+	item = (struct extent_item *)(l->data +
+				      l->items[path.slots[0]].offset);
+	item->refs++;
+	BUG_ON(list_empty(&path.nodes[0]->dirty));
+	release_path(root->extent_root, &path);
+	return 0;
+}
+
+int btrfs_inc_ref(struct ctree_root *root, struct tree_buffer *buf)
+{
+	u64 blocknr;
+	int i;
+	for (i = 0; i < buf->node.header.nritems; i++) {
+		blocknr = buf->node.blockptrs[i];
+		inc_block_ref(root, blocknr);
+	}
+	return 0;
+}
+
 /*
  * find all the blocks marked as pending in the radix tree and remove
  * them from the extent map
@@ -39,7 +72,7 @@ static int del_pending_extents(struct ctree_root *extent_root)
 			key.flags = 0;
 			key.offset = 1;
 			init_path(&path);
-			ret = search_slot(extent_root, &key, &path, -1);
+			ret = search_slot(extent_root, &key, &path, -1, 1);
 			if (ret) {
 				print_tree(extent_root, extent_root->node);
 				printf("unable to find %Lu\n", key.objectid);
@@ -83,7 +116,7 @@ int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 		return 0;
 	}
 	init_path(&path);
-	ret = search_slot(extent_root, &key, &path, -1);
+	ret = search_slot(extent_root, &key, &path, -1, 1);
 	if (ret) {
 		print_tree(extent_root, extent_root->node);
 		printf("failed to find %Lu\n", key.objectid);
@@ -124,7 +157,7 @@ check_failed:
 	ins->offset = 0;
 	ins->flags = 0;
 	start_found = 0;
-	ret = search_slot(root, ins, &path, 0);
+	ret = search_slot(root, ins, &path, 0, 0);
 	if (ret < 0)
 		goto error;
 
@@ -221,6 +254,8 @@ static int insert_pending_extents(struct ctree_root *extent_root)
 			ret = insert_item(extent_root, &key, &item,
 					  sizeof(item));
 			if (ret) {
+				printf("%Lu already in tree\n", key.objectid);
+				print_tree(extent_root, extent_root->node);
 				BUG();
 				// FIXME undo it and return sane
 				return ret;
@@ -228,6 +263,7 @@ static int insert_pending_extents(struct ctree_root *extent_root)
 			radix_tree_tag_clear(&extent_root->cache_radix,
 					     gang[i]->blocknr,
 					     CTREE_EXTENT_PENDING);
+			printf("%Lu is not pending\n", gang[i]->blocknr);
 			tree_block_release(extent_root, gang[i]);
 		}
 	}
@@ -266,15 +302,18 @@ int alloc_extent(struct ctree_root *root, u64 num_blocks, u64 search_start,
 		if (pending_ret)
 			return pending_ret;
 		*buf = find_tree_block(root, ins->objectid);
+		dirty_tree_block(root, *buf);
 		return 0;
 	}
 	/* we're allocating an extent for the extent tree, don't recurse */
 	BUG_ON(ins->offset != 1);
 	*buf = find_tree_block(root, ins->objectid);
 	BUG_ON(!*buf);
+	printf("%Lu is pending\n", ins->objectid);
 	radix_tree_tag_set(&root->cache_radix, ins->objectid,
 			   CTREE_EXTENT_PENDING);
 	(*buf)->count++;
+	dirty_tree_block(root, *buf);
 	return 0;
 
 }

@@ -142,8 +142,9 @@ struct ctree_path {
 };
 
 struct tree_buffer *alloc_free_block(struct ctree_root *root);
+int btrfs_inc_ref(struct ctree_root *root, struct tree_buffer *buf);
 int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks);
-int search_slot(struct ctree_root *root, struct key *key, struct ctree_path *p, int ins_len);
+int search_slot(struct ctree_root *root, struct key *key, struct ctree_path *p, int ins_len, int cow);
 void release_path(struct ctree_root *root, struct ctree_path *p);
 void init_path(struct ctree_path *p);
 int del_item(struct ctree_root *root, struct ctree_path *path);
