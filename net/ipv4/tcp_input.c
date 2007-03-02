@@ -2587,14 +2587,15 @@ static void tcp_conservative_spur_to_response(struct tcp_sock *tp)
  */
 static void tcp_ratehalving_spur_to_response(struct sock *sk)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
 	tcp_enter_cwr(sk, 0);
-	tp->high_seq = tp->frto_highmark; 	/* Smoother w/o this? - ij */
 }
 
-static void tcp_undo_spur_to_response(struct sock *sk)
+static void tcp_undo_spur_to_response(struct sock *sk, int flag)
 {
-	tcp_undo_cwr(sk, 1);
+	if (flag&FLAG_ECE)
+		tcp_ratehalving_spur_to_response(sk);
+	else
+		tcp_undo_cwr(sk, 1);
 }
 
 /* F-RTO spurious RTO detection algorithm (RFC4138)
@@ -2681,7 +2682,7 @@ static int tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 	} else /* frto_counter == 2 */ {
 		switch (sysctl_tcp_frto_response) {
 		case 2:
-			tcp_undo_spur_to_response(sk);
+			tcp_undo_spur_to_response(sk, flag);
 			break;
 		case 1:
 			tcp_conservative_spur_to_response(tp);
