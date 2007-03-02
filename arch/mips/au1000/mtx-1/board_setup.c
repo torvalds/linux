@@ -66,9 +66,7 @@ void __init board_setup(void)
 #endif
 
 	// initialize sys_pinfunc:
-	// disable second ethernet port (SYS_PF_NI2)
-	// set U3/GPIO23 to GPIO23 (SYS_PF_U3)
-	au_writel( SYS_PF_NI2 | SYS_PF_U3, SYS_PINFUNC );
+	au_writel( SYS_PF_NI2, SYS_PINFUNC );
 
 	// initialize GPIO
 	au_writel( 0xFFFFFFFF, SYS_TRIOUTCLR );
