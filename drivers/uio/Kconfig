@@ -13,4 +13,17 @@ config UIO
 
 	  If you don't know what to do here, say N.
 
+config UIO_CIF
+	tristate "generic Hilscher CIF Card driver"
+	depends on UIO && PCI
+	default n
+	help
+	  Driver for Hilscher CIF DeviceNet and Profibus cards.  This
+	  driver requires a userspace component that handles all of the
+	  heavy lifting and can be found at:
+	  	http://www.osadl.org/projects/downloads/UIO/user/cif-*
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called uio_cif.
+
 endmenu
