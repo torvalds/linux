@@ -770,7 +770,7 @@ void tcp_enter_cwr(struct sock *sk, const int set_ssthresh)
 
 	tp->prior_ssthresh = 0;
 	tp->bytes_acked = 0;
-	if (inet_csk(sk)->icsk_ca_state < TCP_CA_CWR) {
+	if (icsk->icsk_ca_state < TCP_CA_CWR) {
 		tp->undo_marker = 0;
 		if (set_ssthresh)
 			tp->snd_ssthresh = icsk->icsk_ca_ops->ssthresh(sk);
