@@ -16,8 +16,8 @@
  * Please set local bus speed using kernel parameter idebus
  * 	for example, "idebus=33" stands for 33Mhz VLbus
  * To activate controller support, use "ide0=qd65xx"
- * To enable tuning, use "ide0=autotune"
- * To enable second channel tuning (qd6580 only), use "ide1=autotune"
+ * To enable tuning, use "hda=autotune hdb=autotune"
+ * To enable 2nd channel tuning (qd6580 only), use "hdc=autotune hdd=autotune"
  */
 
 /*

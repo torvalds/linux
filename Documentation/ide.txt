@@ -232,7 +232,9 @@ Summary of ide driver parameters for kernel command line
 
  "hdx=remap63"		: remap the drive: add 63 to all sector numbers
 			  (for DM OnTrack)
- 
+
+ "idex=noautotune"	: driver will NOT attempt to tune interface speed
+
  "hdx=autotune"		: driver will attempt to tune interface speed
 			  to the fastest PIO mode supported,
 			  if possible for this drive only.
@@ -267,17 +269,6 @@ Summary of ide driver parameters for kernel command line
  "idex=base,ctl"	: specify both base and ctl
 
  "idex=base,ctl,irq"	: specify base, ctl, and irq number
- 
- "idex=autotune"	: driver will attempt to tune interface speed
-			  to the fastest PIO mode supported,
-			  for all drives on this interface.
-			  Not fully supported by all chipset types,
-			  and quite likely to cause trouble with
-			  older/odd IDE drives.
-
- "idex=noautotune"	: driver will NOT attempt to tune interface speed 
-			  This is the default for most chipsets,
-			  except the cmd640.
 
  "idex=serialize"	: do not overlap operations on idex. Please note
 			  that you will have to specify this option for
