@@ -571,6 +571,10 @@ static const struct driver_info dm9601_info = {
 
 static const struct usb_device_id products[] = {
 	{
+	 USB_DEVICE(0x07aa, 0x9601),	/* Corega FEther USB-TXC */
+	 .driver_info = (unsigned long)&dm9601_info,
+	 },
+	{
 	 USB_DEVICE(0x0a46, 0x9601),	/* Davicom USB-100 */
 	 .driver_info = (unsigned long)&dm9601_info,
 	 },
