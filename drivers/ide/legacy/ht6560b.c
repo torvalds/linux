@@ -301,11 +301,19 @@ static void tune_ht6560b (ide_drive_t *drive, u8 pio)
 #endif
 }
 
+int probe_ht6560b = 0;
+
+module_param_named(probe, probe_ht6560b, bool, 0);
+MODULE_PARM_DESC(probe, "probe for HT6560B chipset");
+
 /* Can be called directly from ide.c. */
 int __init ht6560b_init(void)
 {
 	ide_hwif_t *hwif, *mate;
 	int t;
+
+	if (probe_ht6560b == 0)
+		return -ENODEV;
 
 	hwif = &ide_hwifs[0];
 	mate = &ide_hwifs[1];

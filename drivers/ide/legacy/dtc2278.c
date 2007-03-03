@@ -92,7 +92,7 @@ static void tune_dtc2278 (ide_drive_t *drive, u8 pio)
 	HWIF(drive)->drives[!drive->select.b.unit].io_32bit = 1;
 }
 
-static int __init probe_dtc2278(void)
+static int __init dtc2278_probe(void)
 {
 	unsigned long flags;
 	ide_hwif_t *hwif, *mate;
@@ -143,10 +143,18 @@ static int __init probe_dtc2278(void)
 	return 0;
 }
 
+int probe_dtc2278 = 0;
+
+module_param_named(probe, probe_dtc2278, bool, 0);
+MODULE_PARM_DESC(probe, "probe for DTC2278xx chipsets");
+
 /* Can be called directly from ide.c. */
 int __init dtc2278_init(void)
 {
-	if (probe_dtc2278()) {
+	if (probe_dtc2278 == 0)
+		return -ENODEV;
+
+	if (dtc2278_probe()) {
 		printk(KERN_ERR "dtc2278: ide interfaces already in use!\n");
 		return -EBUSY;
 	}

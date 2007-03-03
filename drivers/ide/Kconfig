@@ -1023,7 +1023,7 @@ config BLK_DEV_4DRIVES
 config BLK_DEV_ALI14XX
 	tristate "ALI M14xx support"
 	help
-	  This driver is enabled at runtime using the "ide0=ali14xx" kernel
+	  This driver is enabled at runtime using the "ali14xx.probe" kernel
 	  boot parameter.  It enables support for the secondary IDE interface
 	  of the ALI M1439/1443/1445/1487/1489 chipsets, and permits faster
 	  I/O speeds to be set as well.  See the files
@@ -1033,7 +1033,7 @@ config BLK_DEV_ALI14XX
 config BLK_DEV_DTC2278
 	tristate "DTC-2278 support"
 	help
-	  This driver is enabled at runtime using the "ide0=dtc2278" kernel
+	  This driver is enabled at runtime using the "dtc2278.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface
 	  of the DTC-2278 card, and permits faster I/O speeds to be set as
 	  well. See the <file:Documentation/ide.txt> and
@@ -1042,7 +1042,7 @@ config BLK_DEV_DTC2278
 config BLK_DEV_HT6560B
 	tristate "Holtek HT6560B support"
 	help
-	  This driver is enabled at runtime using the "ide0=ht6560b" kernel
+	  This driver is enabled at runtime using the "ht6560b.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface
 	  of the Holtek card, and permits faster I/O speeds to be set as well.
 	  See the <file:Documentation/ide.txt> and
@@ -1051,7 +1051,7 @@ config BLK_DEV_HT6560B
 config BLK_DEV_QD65XX
 	tristate "QDI QD65xx support"
 	help
-	  This driver is enabled at runtime using the "ide0=qd65xx" kernel
+	  This driver is enabled at runtime using the "qd65xx.probe" kernel
 	  boot parameter.  It permits faster I/O speeds to be set.  See the
 	  <file:Documentation/ide.txt> and <file:drivers/ide/legacy/qd65xx.c> for
 	  more info.
@@ -1059,7 +1059,7 @@ config BLK_DEV_QD65XX
 config BLK_DEV_UMC8672
 	tristate "UMC-8672 support"
 	help
-	  This driver is enabled at runtime using the "ide0=umc8672" kernel
+	  This driver is enabled at runtime using the "umc8672.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface
 	  of the UMC-8672, and permits faster I/O speeds to be set as well.
 	  See the files <file:Documentation/ide.txt> and
