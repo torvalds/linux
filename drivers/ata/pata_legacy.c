@@ -69,7 +69,7 @@
 #define NR_HOST 6
 
 static int legacy_port[NR_HOST] = { 0x1f0, 0x170, 0x1e8, 0x168, 0x1e0, 0x160 };
-static int legacy_irq[NR_HOST] = { 15, 14, 11, 10, 8, 12 };
+static int legacy_irq[NR_HOST] = { 14, 15, 11, 10, 8, 12 };
 
 struct legacy_data {
 	unsigned long timing;
