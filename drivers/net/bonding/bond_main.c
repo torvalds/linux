@@ -488,9 +488,9 @@ static void bond_vlan_rx_kill_vid(struct net_device *bond_dev, uint16_t vid)
 			/* Save and then restore vlan_dev in the grp array,
 			 * since the slave's driver might clear it.
 			 */
-			vlan_dev = bond->vlgrp->vlan_devices[vid];
+			vlan_dev = vlan_group_get_device(bond->vlgrp, vid);
 			slave_dev->vlan_rx_kill_vid(slave_dev, vid);
-			bond->vlgrp->vlan_devices[vid] = vlan_dev;
+			vlan_group_set_device(bond->vlgrp, vid, vlan_dev);
 		}
 	}
 
@@ -550,9 +550,9 @@ static void bond_del_vlans_from_slave(struct bonding *bond, struct net_device *s
 		/* Save and then restore vlan_dev in the grp array,
 		 * since the slave's driver might clear it.
 		 */
-		vlan_dev = bond->vlgrp->vlan_devices[vlan->vlan_id];
+		vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 		slave_dev->vlan_rx_kill_vid(slave_dev, vlan->vlan_id);
-		bond->vlgrp->vlan_devices[vlan->vlan_id] = vlan_dev;
+		vlan_group_set_device(bond->vlgrp, vlan->vlan_id, vlan_dev);
 	}
 
 unreg:
@@ -2397,7 +2397,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		vlan_id = 0;
 		list_for_each_entry_safe(vlan, vlan_next, &bond->vlan_list,
 					 vlan_list) {
-			vlan_dev = bond->vlgrp->vlan_devices[vlan->vlan_id];
+			vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 			if (vlan_dev == rt->u.dst.dev) {
 				vlan_id = vlan->vlan_id;
 				dprintk("basa: vlan match on %s %d\n",
@@ -2444,7 +2444,7 @@ static void bond_send_gratuitous_arp(struct bonding *bond)
 	}
 
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		vlan_dev = bond->vlgrp->vlan_devices[vlan->vlan_id];
+		vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 		if (vlan->vlan_ip) {
 			bond_arp_send(slave->dev, ARPOP_REPLY, vlan->vlan_ip,
 				      vlan->vlan_ip, vlan->vlan_id);
@@ -3371,7 +3371,7 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 
 		list_for_each_entry_safe(vlan, vlan_next, &bond->vlan_list,
 					 vlan_list) {
-			vlan_dev = bond->vlgrp->vlan_devices[vlan->vlan_id];
+			vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 			if (vlan_dev == event_dev) {
 				switch (event) {
 				case NETDEV_UP:

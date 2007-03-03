@@ -1252,8 +1252,7 @@ static void atl1_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 
 	spin_lock_irqsave(&adapter->lock, flags);
 	/* atl1_irq_disable(adapter); */
-	if (adapter->vlgrp)
-		adapter->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(adapter->vlgrp, vid, NULL);
 	/* atl1_irq_enable(adapter); */
 	spin_unlock_irqrestore(&adapter->lock, flags);
 	/* We don't do Vlan filtering */
@@ -1266,7 +1265,7 @@ static void atl1_restore_vlan(struct atl1_adapter *adapter)
 	if (adapter->vlgrp) {
 		u16 vid;
 		for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
-			if (!adapter->vlgrp->vlan_devices[vid])
+			if (!vlan_group_get_device(adapter->vlgrp, vid))
 				continue;
 			atl1_vlan_rx_add_vid(adapter->netdev, vid);
 		}

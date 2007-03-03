@@ -2213,8 +2213,7 @@ ixgb_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid)
 
 	ixgb_irq_disable(adapter);
 
-	if(adapter->vlgrp)
-		adapter->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(adapter->vlgrp, vid, NULL);
 
 	ixgb_irq_enable(adapter);
 
@@ -2234,7 +2233,7 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 	if(adapter->vlgrp) {
 		uint16_t vid;
 		for(vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
-			if(!adapter->vlgrp->vlan_devices[vid])
+			if(!vlan_group_get_device(adapter->vlgrp, vid))
 				continue;
 			ixgb_vlan_rx_add_vid(adapter->netdev, vid);
 		}

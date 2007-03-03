@@ -184,14 +184,23 @@ struct net_device *__find_vlan_dev(struct net_device *real_dev,
 	struct vlan_group *grp = __vlan_find_group(real_dev->ifindex);
 
 	if (grp)
-		return grp->vlan_devices[VID];
+		return vlan_group_get_device(grp, VID);
 
 	return NULL;
 }
 
+static void vlan_group_free(struct vlan_group *grp)
+{
+	int i;
+
+	for (i=0; i < VLAN_GROUP_ARRAY_SPLIT_PARTS; i++)
+		kfree(grp->vlan_devices_arrays[i]);
+	kfree(grp);
+}
+
 static void vlan_rcu_free(struct rcu_head *rcu)
 {
-	kfree(container_of(rcu, struct vlan_group, rcu));
+	vlan_group_free(container_of(rcu, struct vlan_group, rcu));
 }
 
 
@@ -223,7 +232,7 @@ static int unregister_vlan_dev(struct net_device *real_dev,
 	ret = 0;
 
 	if (grp) {
-		dev = grp->vlan_devices[vlan_id];
+		dev = vlan_group_get_device(grp, vlan_id);
 		if (dev) {
 			/* Remove proc entry */
 			vlan_proc_rem_dev(dev);
@@ -237,7 +246,7 @@ static int unregister_vlan_dev(struct net_device *real_dev,
 				real_dev->vlan_rx_kill_vid(real_dev, vlan_id);
 			}
 
-			grp->vlan_devices[vlan_id] = NULL;
+			vlan_group_set_device(grp, vlan_id, NULL);
 			synchronize_net();
 
 
@@ -251,7 +260,7 @@ static int unregister_vlan_dev(struct net_device *real_dev,
 			 * group.
 			 */
 			for (i = 0; i < VLAN_VID_MASK; i++)
-				if (grp->vlan_devices[i])
+				if (vlan_group_get_device(grp, i))
 					break;
 
 			if (i == VLAN_VID_MASK) {
@@ -379,6 +388,7 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 	struct net_device *new_dev;
 	struct net_device *real_dev; /* the ethernet device */
 	char name[IFNAMSIZ];
+	int i;
 
 #ifdef VLAN_DEBUG
 	printk(VLAN_DBG "%s: if_name -:%s:-	vid: %i\n",
@@ -544,6 +554,15 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 		if (!grp)
 			goto out_free_unregister;
 
+		for (i=0; i < VLAN_GROUP_ARRAY_SPLIT_PARTS; i++) {
+			grp->vlan_devices_arrays[i] = kzalloc(
+				sizeof(struct net_device *)*VLAN_GROUP_ARRAY_PART_LEN,
+				GFP_KERNEL);
+
+			if (!grp->vlan_devices_arrays[i])
+				goto out_free_arrays;
+		}
+
 		/* printk(KERN_ALERT "VLAN REGISTER:  Allocated new group.\n"); */
 		grp->real_dev_ifindex = real_dev->ifindex;
 
@@ -554,7 +573,7 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 			real_dev->vlan_rx_register(real_dev, grp);
 	}
 
-	grp->vlan_devices[VLAN_ID] = new_dev;
+	vlan_group_set_device(grp, VLAN_ID, new_dev);
 
 	if (vlan_proc_add_dev(new_dev)<0)/* create it's proc entry */
 		printk(KERN_WARNING "VLAN: failed to add proc entry for %s\n",
@@ -570,6 +589,9 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 	printk(VLAN_DBG "Allocated new device successfully, returning.\n");
 #endif
 	return new_dev;
+
+out_free_arrays:
+	vlan_group_free(grp);
 
 out_free_unregister:
 	unregister_netdev(new_dev);
@@ -606,7 +628,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	case NETDEV_CHANGE:
 		/* Propagate real device state to vlan devices */
 		for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
-			vlandev = grp->vlan_devices[i];
+			vlandev = vlan_group_get_device(grp, i);
 			if (!vlandev)
 				continue;
 
@@ -617,7 +639,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	case NETDEV_DOWN:
 		/* Put all VLANs for this dev in the down state too.  */
 		for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
-			vlandev = grp->vlan_devices[i];
+			vlandev = vlan_group_get_device(grp, i);
 			if (!vlandev)
 				continue;
 
@@ -632,7 +654,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	case NETDEV_UP:
 		/* Put all VLANs for this dev in the up state too.  */
 		for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
-			vlandev = grp->vlan_devices[i];
+			vlandev = vlan_group_get_device(grp, i);
 			if (!vlandev)
 				continue;
 
@@ -649,7 +671,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
 			int ret;
 
-			vlandev = grp->vlan_devices[i];
+			vlandev = vlan_group_get_device(grp, i);
 			if (!vlandev)
 				continue;
 

@@ -9114,8 +9114,7 @@ static void tg3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 		tg3_netif_stop(tp);
 
 	tg3_full_lock(tp, 0);
-	if (tp->vlgrp)
-		tp->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(tp->vlgrp, vid, NULL);
 	tg3_full_unlock(tp);
 
 	if (netif_running(dev))

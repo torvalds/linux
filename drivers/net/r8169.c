@@ -890,8 +890,7 @@ static void rtl8169_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->lock, flags);
-	if (tp->vlgrp)
-		tp->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(tp->vlgrp, vid, NULL);
 	spin_unlock_irqrestore(&tp->lock, flags);
 }
 

@@ -746,8 +746,7 @@ typhoon_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct typhoon *tp = netdev_priv(dev);
 	spin_lock_bh(&tp->state_lock);
-	if(tp->vlgrp)
-		tp->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(tp->vlgrp, vid, NULL);
 	spin_unlock_bh(&tp->state_lock);
 }
 

@@ -160,14 +160,16 @@ static struct net_device *get_iff_from_mac(struct adapter *adapter,
 	int i;
 
 	for_each_port(adapter, i) {
-		const struct vlan_group *grp;
+		struct vlan_group *grp;
 		struct net_device *dev = adapter->port[i];
 		const struct port_info *p = netdev_priv(dev);
 
 		if (!memcmp(dev->dev_addr, mac, ETH_ALEN)) {
 			if (vlan && vlan != VLAN_VID_MASK) {
 				grp = p->vlan_grp;
-				dev = grp ? grp->vlan_devices[vlan] : NULL;
+				dev = NULL;
+				if (grp)
+					dev = vlan_group_get_device(grp, vlan);
 			} else
 				while (dev->master)
 					dev = dev->master;

@@ -1737,8 +1737,7 @@ static void amd8111e_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	spin_lock_irq(&lp->lock);
-	if (lp->vlgrp)
-		lp->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(lp->vlgrp, vid, NULL);
 	spin_unlock_irq(&lp->lock);
 }
 #endif
