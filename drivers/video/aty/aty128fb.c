@@ -357,6 +357,12 @@ static int default_lcd_on __devinitdata = 1;
 static int mtrr = 1;
 #endif
 
+#ifdef CONFIG_PMAC_BACKLIGHT
+static int backlight __devinitdata = 1;
+#else
+static int backlight __devinitdata = 0;
+#endif
+
 /* PLL constants */
 struct aty128_constants {
 	u32 ref_clk;
@@ -1652,6 +1658,9 @@ static int __devinit aty128fb_setup(char *options)
 		} else if (!strncmp(this_opt, "crt:", 4)) {
 			default_crt_on = simple_strtoul(this_opt+4, NULL, 0);
 			continue;
+		} else if (!strncmp(this_opt, "backlight:", 10)) {
+			backlight = simple_strtoul(this_opt+10, NULL, 0);
+			continue;
 		}
 #ifdef CONFIG_MTRR
 		if(!strncmp(this_opt, "nomtrr", 6)) {
@@ -1985,7 +1994,8 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 	par->lock_blank = 0;
 
 #ifdef CONFIG_FB_ATY128_BACKLIGHT
-	aty128_bl_init(par);
+	if (backlight)
+		aty128_bl_init(par);
 #endif
 
 	if (register_framebuffer(info) < 0)
