@@ -28,7 +28,6 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tgt.h>
-#include <../drivers/md/dm-bio-list.h>
 
 #include "scsi_tgt_priv.h"
 
@@ -42,9 +41,8 @@ static struct kmem_cache *scsi_tgt_cmd_cache;
 struct scsi_tgt_cmd {
 	/* TODO replace work with James b's code */
 	struct work_struct work;
-	/* TODO replace the lists with a large bio */
-	struct bio_list xfer_done_list;
-	struct bio_list xfer_list;
+	/* TODO fix limits of some drivers */
+	struct bio *bio;
 
 	struct list_head hash_list;
 	struct request *rq;
@@ -93,7 +91,12 @@ struct scsi_cmnd *scsi_host_get_command(struct Scsi_Host *shost,
 	if (!tcmd)
 		goto put_dev;
 
-	rq = blk_get_request(shost->uspace_req_q, write, gfp_mask);
+	/*
+	 * The blk helpers are used to the READ/WRITE requests
+	 * transfering data from a initiator point of view. Since
+	 * we are in target mode we want the opposite.
+	 */
+	rq = blk_get_request(shost->uspace_req_q, !write, gfp_mask);
 	if (!rq)
 		goto free_tcmd;
 
@@ -111,8 +114,6 @@ struct scsi_cmnd *scsi_host_get_command(struct Scsi_Host *shost,
 	rq->cmd_flags |= REQ_TYPE_BLOCK_PC;
 	rq->end_io_data = tcmd;
 
-	bio_list_init(&tcmd->xfer_list);
-	bio_list_init(&tcmd->xfer_done_list);
 	tcmd->rq = rq;
 
 	return cmd;
@@ -157,22 +158,6 @@ void scsi_host_put_command(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 }
 EXPORT_SYMBOL_GPL(scsi_host_put_command);
 
-static void scsi_unmap_user_pages(struct scsi_tgt_cmd *tcmd)
-{
-	struct bio *bio;
-
-	/* must call bio_endio in case bio was bounced */
-	while ((bio = bio_list_pop(&tcmd->xfer_done_list))) {
-		bio_endio(bio, bio->bi_size, 0);
-		bio_unmap_user(bio);
-	}
-
-	while ((bio = bio_list_pop(&tcmd->xfer_list))) {
-		bio_endio(bio, bio->bi_size, 0);
-		bio_unmap_user(bio);
-	}
-}
-
 static void cmd_hashlist_del(struct scsi_cmnd *cmd)
 {
 	struct request_queue *q = cmd->request->q;
@@ -185,6 +170,11 @@ static void cmd_hashlist_del(struct scsi_cmnd *cmd)
 	spin_unlock_irqrestore(&qdata->cmd_hash_lock, flags);
 }
 
+static void scsi_unmap_user_pages(struct scsi_tgt_cmd *tcmd)
+{
+	blk_rq_unmap_user(tcmd->bio);
+}
+
 static void scsi_tgt_cmd_destroy(struct work_struct *work)
 {
 	struct scsi_tgt_cmd *tcmd =
@@ -193,16 +183,6 @@ static void scsi_tgt_cmd_destroy(struct work_struct *work)
 
 	dprintk("cmd %p %d %lu\n", cmd, cmd->sc_data_direction,
 		rq_data_dir(cmd->request));
-	/*
-	 * We fix rq->cmd_flags here since when we told bio_map_user
-	 * to write vm for WRITE commands, blk_rq_bio_prep set
-	 * rq_data_dir the flags to READ.
-	 */
-	if (cmd->sc_data_direction == DMA_TO_DEVICE)
-		cmd->request->cmd_flags |= REQ_RW;
-	else
-		cmd->request->cmd_flags &= ~REQ_RW;
-
 	scsi_unmap_user_pages(tcmd);
 	scsi_host_put_command(scsi_tgt_cmd_to_host(cmd), cmd);
 }
@@ -215,6 +195,7 @@ static void init_scsi_tgt_cmd(struct request *rq, struct scsi_tgt_cmd *tcmd,
 	struct list_head *head;
 
 	tcmd->tag = tag;
+	tcmd->bio = NULL;
 	INIT_WORK(&tcmd->work, scsi_tgt_cmd_destroy);
 	spin_lock_irqsave(&qdata->cmd_hash_lock, flags);
 	head = &qdata->cmd_hash[cmd_hashfn(tag)];
@@ -419,52 +400,33 @@ static int scsi_map_user_pages(struct scsi_tgt_cmd *tcmd, struct scsi_cmnd *cmd,
 	struct request *rq = cmd->request;
 	void *uaddr = tcmd->buffer;
 	unsigned int len = tcmd->bufflen;
-	struct bio *bio;
 	int err;
 
-	while (len > 0) {
-		dprintk("%lx %u\n", (unsigned long) uaddr, len);
-		bio = bio_map_user(q, NULL, (unsigned long) uaddr, len, rw);
-		if (IS_ERR(bio)) {
-			err = PTR_ERR(bio);
-			dprintk("fail to map %lx %u %d %x\n",
-				(unsigned long) uaddr, len, err, cmd->cmnd[0]);
-			goto unmap_bios;
-		}
-
-		uaddr += bio->bi_size;
-		len -= bio->bi_size;
-
+	dprintk("%lx %u\n", (unsigned long) uaddr, len);
+	err = blk_rq_map_user(q, rq, uaddr, len);
+	if (err) {
 		/*
-		 * The first bio is added and merged. We could probably
-		 * try to add others using scsi_merge_bio() but for now
-		 * we keep it simple. The first bio should be pretty large
-		 * (either hitting the 1 MB bio pages limit or a queue limit)
-		 * already but for really large IO we may want to try and
-		 * merge these.
+		 * TODO: need to fixup sg_tablesize, max_segment_size,
+		 * max_sectors, etc for modern HW and software drivers
+		 * where this value is bogus.
+		 *
+		 * TODO2: we can alloc a reserve buffer of max size
+		 * we can handle and do the slow copy path for really large
+		 * IO.
 		 */
-		if (!rq->bio) {
-			blk_rq_bio_prep(q, rq, bio);
-			rq->data_len = bio->bi_size;
-		} else
-			/* put list of bios to transfer in next go around */
-			bio_list_add(&tcmd->xfer_list, bio);
+		eprintk("Could not handle request of size %u.\n", len);
+		return err;
 	}
 
-	cmd->offset = 0;
+	tcmd->bio = rq->bio;
 	err = scsi_tgt_init_cmd(cmd, GFP_KERNEL);
 	if (err)
-		goto unmap_bios;
+		goto unmap_rq;
 
 	return 0;
 
-unmap_bios:
-	if (rq->bio) {
-		bio_unmap_user(rq->bio);
-		while ((bio = bio_list_pop(&tcmd->xfer_list)))
-			bio_unmap_user(bio);
-	}
-
+unmap_rq:
+	scsi_unmap_user_pages(tcmd);
 	return err;
 }
 
@@ -473,12 +435,10 @@ static int scsi_tgt_transfer_data(struct scsi_cmnd *);
 static void scsi_tgt_data_transfer_done(struct scsi_cmnd *cmd)
 {
 	struct scsi_tgt_cmd *tcmd = cmd->request->end_io_data;
-	struct bio *bio;
 	int err;
 
 	/* should we free resources here on error ? */
 	if (cmd->result) {
-send_uspace_err:
 		err = scsi_tgt_uspace_send_status(cmd, tcmd->tag);
 		if (err <= 0)
 			/* the tgt uspace eh will have to pick this up */
@@ -490,34 +450,8 @@ send_uspace_err:
 		cmd, cmd->request_bufflen, tcmd->bufflen);
 
 	scsi_free_sgtable(cmd->request_buffer, cmd->sglist_len);
-	bio_list_add(&tcmd->xfer_done_list, cmd->request->bio);
-
 	tcmd->buffer += cmd->request_bufflen;
-	cmd->offset += cmd->request_bufflen;
-
-	if (!tcmd->xfer_list.head) {
-		scsi_tgt_transfer_response(cmd);
-		return;
-	}
-
-	dprintk("cmd2 %p request_bufflen %u bufflen %u\n",
-		cmd, cmd->request_bufflen, tcmd->bufflen);
-
-	bio = bio_list_pop(&tcmd->xfer_list);
-	BUG_ON(!bio);
-
-	blk_rq_bio_prep(cmd->request->q, cmd->request, bio);
-	cmd->request->data_len = bio->bi_size;
-	err = scsi_tgt_init_cmd(cmd, GFP_ATOMIC);
-	if (err) {
-		cmd->result = DID_ERROR << 16;
-		goto send_uspace_err;
-	}
-
-	if (scsi_tgt_transfer_data(cmd)) {
-		cmd->result = DID_NO_CONNECT << 16;
-		goto send_uspace_err;
-	}
+	scsi_tgt_transfer_response(cmd);
 }
 
 static int scsi_tgt_transfer_data(struct scsi_cmnd *cmd)
@@ -617,8 +551,9 @@ int scsi_tgt_kspace_exec(int host_no, u64 tag, int result, u32 len,
 	}
 	cmd = rq->special;
 
-	dprintk("cmd %p result %d len %d bufflen %u %lu %x\n", cmd,
-		result, len, cmd->request_bufflen, rq_data_dir(rq), cmd->cmnd[0]);
+	dprintk("cmd %p scb %x result %d len %d bufflen %u %lu %x\n",
+		cmd, cmd->cmnd[0], result, len, cmd->request_bufflen,
+		rq_data_dir(rq), cmd->cmnd[0]);
 
 	if (result == TASK_ABORTED) {
 		scsi_tgt_abort_cmd(shost, cmd);
