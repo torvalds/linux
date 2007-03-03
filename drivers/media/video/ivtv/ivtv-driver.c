@@ -1162,7 +1162,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 
 	/* Register IRQ */
 	retval = request_irq(itv->dev->irq, ivtv_irq_handler,
-			     SA_SHIRQ | SA_INTERRUPT, itv->name, (void *)itv);
+			     IRQF_SHARED | IRQF_DISABLED, itv->name, (void *)itv);
 	if (retval) {
 		IVTV_ERR("Failed to register irq %d\n", retval);
 		goto free_streams;
