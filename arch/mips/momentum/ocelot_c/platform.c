@@ -47,6 +47,8 @@ static struct resource mv64x60_eth0_resources[] = {
 };
 
 static struct mv643xx_eth_platform_data eth0_pd = {
+	.port_number	= 0,
+
 	.tx_sram_addr	= MV_SRAM_BASE_ETH0,
 	.tx_sram_size	= MV_SRAM_TXRING_SIZE,
 	.tx_queue_size	= MV_SRAM_TXRING_SIZE / 16,
@@ -76,6 +78,8 @@ static struct resource mv64x60_eth1_resources[] = {
 };
 
 static struct mv643xx_eth_platform_data eth1_pd = {
+	.port_number	= 1,
+
 	.tx_sram_addr	= MV_SRAM_BASE_ETH1,
 	.tx_sram_size	= MV_SRAM_TXRING_SIZE,
 	.tx_queue_size	= MV_SRAM_TXRING_SIZE / 16,

@@ -339,7 +339,9 @@ static struct resource mv64x60_eth0_resources[] = {
 	},
 };
 
-static struct mv643xx_eth_platform_data eth0_pd;
+static struct mv643xx_eth_platform_data eth0_pd = {
+	.port_number	= 0,
+};
 
 static struct platform_device eth0_device = {
 	.name		= MV643XX_ETH_NAME,
@@ -362,7 +364,9 @@ static struct resource mv64x60_eth1_resources[] = {
 	},
 };
 
-static struct mv643xx_eth_platform_data eth1_pd;
+static struct mv643xx_eth_platform_data eth1_pd = {
+	.port_number	= 1,
+};
 
 static struct platform_device eth1_device = {
 	.name		= MV643XX_ETH_NAME,
@@ -385,7 +389,9 @@ static struct resource mv64x60_eth2_resources[] = {
 	},
 };
 
-static struct mv643xx_eth_platform_data eth2_pd;
+static struct mv643xx_eth_platform_data eth2_pd = {
+	.port_number	= 2,
+};
 
 static struct platform_device eth2_device = {
 	.name		= MV643XX_ETH_NAME,
