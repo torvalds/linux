@@ -1914,8 +1914,10 @@ static int av7110_fe_lock_fix(struct av7110* av7110, fe_status_t status)
 	if (av7110->fe_synced == synced)
 		return 0;
 
-	if (av7110->playing)
+	if (av7110->playing) {
+		av7110->fe_synced = synced;
 		return 0;
+	}
 
 	if (mutex_lock_interruptible(&av7110->pid_mutex))
 		return -ERESTARTSYS;
