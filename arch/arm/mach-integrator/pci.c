@@ -23,7 +23,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/ptrace.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 

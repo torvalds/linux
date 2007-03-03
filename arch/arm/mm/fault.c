@@ -10,7 +10,6 @@
  */
 #include <linux/module.h>
 #include <linux/signal.h>
-#include <linux/ptrace.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 

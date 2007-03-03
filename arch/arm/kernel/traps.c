@@ -16,7 +16,6 @@
 #include <linux/signal.h>
 #include <linux/spinlock.h>
 #include <linux/personality.h>
-#include <linux/ptrace.h>
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
 #include <linux/init.h>
