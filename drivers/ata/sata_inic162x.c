@@ -135,8 +135,10 @@ static struct scsi_host_template inic_sht = {
 	.slave_configure	= inic_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
 	.suspend		= ata_scsi_device_suspend,
 	.resume			= ata_scsi_device_resume,
+#endif
 };
 
 static const int scr_map[] = {
@@ -632,6 +634,7 @@ static int init_controller(void __iomem *mmio_base, u16 hctl)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int inic_pci_device_resume(struct pci_dev *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
@@ -642,7 +645,6 @@ static int inic_pci_device_resume(struct pci_dev *pdev)
 	ata_pci_device_do_resume(pdev);
 
 	if (pdev->dev.power.power_state.event == PM_EVENT_SUSPEND) {
-		printk("XXX\n");
 		rc = init_controller(mmio_base, hpriv->cached_hctl);
 		if (rc)
 			return rc;
@@ -652,6 +654,7 @@ static int inic_pci_device_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
 static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -755,8 +758,10 @@ static const struct pci_device_id inic_pci_tbl[] = {
 static struct pci_driver inic_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= inic_pci_tbl,
+#ifdef CONFIG_PM
 	.suspend	= ata_pci_device_suspend,
 	.resume		= inic_pci_device_resume,
+#endif
 	.probe 		= inic_init_one,
 	.remove		= ata_pci_remove_one,
 };

@@ -1,5 +1,5 @@
 /*
- * pata_cmd64x.c 	- ATI PATA for new ATA layer
+ * pata_cmd64x.c 	- CMD64x PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
  *			  Alan Cox <alan@redhat.com>
  *
@@ -285,8 +285,10 @@ static struct scsi_host_template cmd64x_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
 	.resume			= ata_scsi_device_resume,
 	.suspend		= ata_scsi_device_suspend,
+#endif
 };
 
 static struct ata_port_operations cmd64x_port_ops = {
@@ -479,6 +481,7 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 
+#ifdef CONFIG_PM
 static int cmd64x_reinit_one(struct pci_dev *pdev)
 {
 	u8 mrdmode;
@@ -492,6 +495,7 @@ static int cmd64x_reinit_one(struct pci_dev *pdev)
 #endif
 	return ata_pci_device_resume(pdev);
 }
+#endif
 
 static const struct pci_device_id cmd64x[] = {
 	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_643), 0 },
@@ -507,8 +511,10 @@ static struct pci_driver cmd64x_pci_driver = {
 	.id_table	= cmd64x,
 	.probe 		= cmd64x_init_one,
 	.remove		= ata_pci_remove_one,
+#ifdef CONFIG_PM
 	.suspend	= ata_pci_device_suspend,
 	.resume		= cmd64x_reinit_one,
+#endif
 };
 
 static int __init cmd64x_init(void)

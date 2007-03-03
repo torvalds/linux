@@ -510,6 +510,7 @@ static void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 	}
 }
 
+#ifdef CONFIG_PM
 /**
  *	ata_scsi_device_suspend - suspend ATA device associated with sdev
  *	@sdev: the SCSI device to suspend
@@ -634,6 +635,7 @@ int ata_scsi_device_resume(struct scsi_device *sdev)
 	sdev->sdev_gendev.power.power_state = PMSG_ON;
 	return 0;
 }
+#endif /* CONFIG_PM */
 
 /**
  *	ata_to_sense_error - convert ATA error to SCSI error

@@ -52,8 +52,33 @@ enum {
 
 static void __ata_port_freeze(struct ata_port *ap);
 static void ata_eh_finish(struct ata_port *ap);
+#ifdef CONFIG_PM
 static void ata_eh_handle_port_suspend(struct ata_port *ap);
 static void ata_eh_handle_port_resume(struct ata_port *ap);
+static int ata_eh_suspend(struct ata_port *ap,
+			  struct ata_device **r_failed_dev);
+static void ata_eh_prep_resume(struct ata_port *ap);
+static int ata_eh_resume(struct ata_port *ap, struct ata_device **r_failed_dev);
+#else /* CONFIG_PM */
+static void ata_eh_handle_port_suspend(struct ata_port *ap)
+{ }
+
+static void ata_eh_handle_port_resume(struct ata_port *ap)
+{ }
+
+static int ata_eh_suspend(struct ata_port *ap, struct ata_device **r_failed_dev)
+{
+	return 0;
+}
+
+static void ata_eh_prep_resume(struct ata_port *ap)
+{ }
+
+static int ata_eh_resume(struct ata_port *ap, struct ata_device **r_failed_dev)
+{
+	return 0;
+}
+#endif /* CONFIG_PM */
 
 static void ata_ering_record(struct ata_ering *ering, int is_io,
 			     unsigned int err_mask)
@@ -1790,6 +1815,7 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 	return rc;
 }
 
+#ifdef CONFIG_PM
 /**
  *	ata_eh_suspend - handle suspend EH action
  *	@ap: target host port
@@ -1947,6 +1973,7 @@ static int ata_eh_resume(struct ata_port *ap, struct ata_device **r_failed_dev)
 	DPRINTK("EXIT\n");
 	return 0;
 }
+#endif /* CONFIG_PM */
 
 static int ata_port_nr_enabled(struct ata_port *ap)
 {
@@ -2249,6 +2276,7 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	ata_eh_finish(ap);
 }
 
+#ifdef CONFIG_PM
 /**
  *	ata_eh_handle_port_suspend - perform port suspend operation
  *	@ap: port to suspend
@@ -2364,3 +2392,4 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 	}
 	spin_unlock_irqrestore(ap->lock, flags);
 }
+#endif /* CONFIG_PM */
