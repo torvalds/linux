@@ -190,6 +190,7 @@ config ARCH_CO285
 config ARCH_EBSA110
 	bool "EBSA-110"
 	select ISA
+	select NO_IOPORT
 	help
 	  This is an evaluation board for the StrongARM processor available
 	  from Digital. It has limited hardware on-board, including an
