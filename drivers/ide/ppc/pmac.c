@@ -48,7 +48,7 @@
 #include <asm/mediabay.h>
 #endif
 
-#include "ide-timing.h"
+#include "../ide-timing.h"
 
 #undef IDE_PMAC_DEBUG
 
@@ -1551,19 +1551,34 @@ static struct pci_driver pmac_ide_pci_driver = {
 };
 MODULE_DEVICE_TABLE(pci, pmac_ide_pci_match);
 
-void __init
-pmac_ide_probe(void)
+int __init pmac_ide_probe(void)
 {
+	int error;
+
 	if (!machine_is(powermac))
-		return;
+		return -ENODEV;
 
 #ifdef CONFIG_BLK_DEV_IDE_PMAC_ATA100FIRST
-	pci_register_driver(&pmac_ide_pci_driver);
-	macio_register_driver(&pmac_ide_macio_driver);
+	error = pci_register_driver(&pmac_ide_pci_driver);
+	if (error)
+		goto out;
+	error = macio_register_driver(&pmac_ide_macio_driver);
+	if (error) {
+		pci_unregister_driver(&pmac_ide_pci_driver);
+		goto out;
+	}
 #else
-	macio_register_driver(&pmac_ide_macio_driver);
-	pci_register_driver(&pmac_ide_pci_driver);
+	error = macio_register_driver(&pmac_ide_macio_driver);
+	if (error)
+		goto out;
+	error = pci_register_driver(&pmac_ide_pci_driver);
+	if (error) {
+		macio_unregister_driver(&pmac_ide_macio_driver);
+		goto out;
+	}
 #endif
+out:
+	return error;
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
@@ -1983,7 +1998,7 @@ static void pmac_ide_dma_host_off(ide_drive_t *drive)
 {
 }
 
-static int pmac_ide_dma_host_on(ide_drive_t *drive)
+static void pmac_ide_dma_host_on(ide_drive_t *drive)
 {
 }
 

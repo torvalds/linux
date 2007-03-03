@@ -1840,8 +1840,8 @@ static void __init probe_for_hwifs (void)
 #endif /* CONFIG_BLK_DEV_CMD640 */
 #ifdef CONFIG_BLK_DEV_IDE_PMAC
 	{
-		extern void pmac_ide_probe(void);
-		pmac_ide_probe();
+		extern int pmac_ide_probe(void);
+		(void)pmac_ide_probe();
 	}
 #endif /* CONFIG_BLK_DEV_IDE_PMAC */
 #ifdef CONFIG_BLK_DEV_GAYLE
