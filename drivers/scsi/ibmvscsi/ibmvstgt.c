@@ -273,21 +273,7 @@ static int ibmvstgt_rdma(struct scsi_cmnd *sc, struct scatterlist *sg, int nsg,
 		rest -= mlen;
 	}
 out:
-
 	return 0;
-}
-
-static int ibmvstgt_transfer_data(struct scsi_cmnd *sc,
-				  void (*done)(struct scsi_cmnd *))
-{
-	struct iu_entry	*iue = (struct iu_entry *) sc->SCp.ptr;
-	int err;
-
-	err = srp_transfer_data(sc, &vio_iu(iue)->srp.cmd, ibmvstgt_rdma, 1, 1);
-
-	done(sc);
-
-	return err;
 }
 
 static int ibmvstgt_cmd_done(struct scsi_cmnd *sc,
@@ -297,7 +283,11 @@ static int ibmvstgt_cmd_done(struct scsi_cmnd *sc,
 	struct iu_entry *iue = (struct iu_entry *) sc->SCp.ptr;
 	struct srp_target *target = iue->target;
 
-	dprintk("%p %p %x\n", iue, target, vio_iu(iue)->srp.cmd.cdb[0]);
+	dprintk("%p %p %x %u\n", iue, target, vio_iu(iue)->srp.cmd.cdb[0],
+		cmd->usg_sg);
+
+	if (sc->use_sg)
+		srp_transfer_data(sc, &vio_iu(iue)->srp.cmd, ibmvstgt_rdma, 1, 1);
 
 	spin_lock_irqsave(&target->lock, flags);
 	list_del(&iue->ilist);
@@ -794,7 +784,6 @@ static struct scsi_host_template ibmvstgt_sht = {
 	.use_clustering		= DISABLE_CLUSTERING,
 	.max_sectors		= DEFAULT_MAX_SECTORS,
 	.transfer_response	= ibmvstgt_cmd_done,
-	.transfer_data		= ibmvstgt_transfer_data,
 	.eh_abort_handler	= ibmvstgt_eh_abort_handler,
 	.tsk_mgmt_response	= ibmvstgt_tsk_mgmt_response,
 	.shost_attrs		= ibmvstgt_attrs,
