@@ -66,7 +66,7 @@ static struct file_operations ivtv_v4l2_dec_fops = {
       .poll = ivtv_v4l2_dec_poll,
 };
 
-struct {
+static struct {
 	const char *name;
 	int vfl_type;
 	int minor_offset;

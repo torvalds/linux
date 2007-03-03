@@ -574,7 +574,7 @@ int ivtv_call_i2c_client(struct ivtv *itv, int addr, unsigned int cmd, void *arg
 
 /* Find the i2c device based on the driver ID and return
    its i2c address or -ENODEV if no matching device was found. */
-int ivtv_i2c_id_addr(struct ivtv *itv, u32 id)
+static int ivtv_i2c_id_addr(struct ivtv *itv, u32 id)
 {
 	struct i2c_client *client;
 	int retval = -ENODEV;
@@ -679,11 +679,6 @@ int ivtv_saa7127(struct ivtv *itv, unsigned int cmd, void *arg)
 int ivtv_saa717x(struct ivtv *itv, unsigned int cmd, void *arg)
 {
 	return ivtv_call_i2c_client(itv, IVTV_SAA717x_I2C_ADDR, cmd, arg);
-}
-
-int ivtv_msp34xx(struct ivtv *itv, unsigned int cmd, void *arg)
-{
-	return ivtv_call_i2c_client(itv, IVTV_MSP3400_I2C_ADDR, cmd, arg);
 }
 
 int ivtv_upd64031a(struct ivtv *itv, unsigned int cmd, void *arg)

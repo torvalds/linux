@@ -85,14 +85,6 @@ void ivtv_set_wss(struct ivtv *itv, int enabled, int mode)
 	ivtv_saa7127(itv, VIDIOC_INT_S_VBI_DATA, &data);
 }
 
-void ivtv_encoder_enable(struct ivtv *itv, int enabled)
-{
-	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
-		ivtv_saa7127(itv, enabled ? VIDIOC_STREAMON : VIDIOC_STREAMOFF,
-				&enabled);
-	}
-}
-
 void ivtv_video_set_io(struct ivtv *itv)
 {
 	struct v4l2_routing route;

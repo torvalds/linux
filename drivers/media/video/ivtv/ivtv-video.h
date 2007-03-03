@@ -21,5 +21,4 @@ void ivtv_set_wss(struct ivtv *itv, int enabled, int mode);
 void ivtv_set_cc(struct ivtv *itv, int mode, u8 cc1, u8 cc2, u8 cc3, u8 cc4);
 void ivtv_set_vps(struct ivtv *itv, int enabled, u8 vps1, u8 vps2, u8 vps3,
 		  u8 vps4, u8 vps5);
-void ivtv_encoder_enable(struct ivtv *itv, int enabled);
 void ivtv_video_set_io(struct ivtv *itv);

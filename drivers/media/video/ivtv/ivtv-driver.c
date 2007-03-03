@@ -121,7 +121,7 @@ static int ivtv_pci_latency = 1;
 
 int ivtv_debug = 0;
 
-int newi2c = -1;
+static int newi2c = -1;
 
 module_param_array(tuner, int, &tuner_c, 0644);
 module_param_array(radio, bool, &radio_c, 0644);

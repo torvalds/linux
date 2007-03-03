@@ -22,11 +22,9 @@ int ivtv_cx25840(struct ivtv *itv, unsigned int cmd, void *arg);
 int ivtv_saa7115(struct ivtv *itv, unsigned int cmd, void *arg);
 int ivtv_saa7127(struct ivtv *itv, unsigned int cmd, void *arg);
 int ivtv_saa717x(struct ivtv *itv, unsigned int cmd, void *arg);
-int ivtv_msp34xx(struct ivtv *itv, unsigned int cmd, void *arg);
 int ivtv_upd64031a(struct ivtv *itv, unsigned int cmd, void *arg);
 int ivtv_upd64083(struct ivtv *itv, unsigned int cmd, void *arg);
 
-int ivtv_i2c_id_addr(struct ivtv *itv, u32 id);
 int ivtv_i2c_hw_addr(struct ivtv *itv, u32 hw);
 int ivtv_i2c_hw(struct ivtv *itv, u32 hw, unsigned int cmd, void *arg);
 int ivtv_i2c_id(struct ivtv *itv, u32 id, unsigned int cmd, void *arg);

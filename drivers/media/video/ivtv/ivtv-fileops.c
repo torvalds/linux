@@ -730,7 +730,7 @@ void ivtv_stop_capture(struct ivtv_open_id *id, int gop_end)
 	ivtv_release_stream(s);
 }
 
-void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
+static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 {
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
