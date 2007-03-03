@@ -311,8 +311,9 @@ extern const u32 yuv_offset[4];
 #define IVTV_ERR(fmt, args...)      printk(KERN_ERR  "ivtv%d: " fmt, itv->num , ## args)
 #define IVTV_WARN(fmt, args...)     printk(KERN_WARNING "ivtv%d: " fmt, itv->num , ## args)
 #define IVTV_INFO(fmt, args...)     printk(KERN_INFO "ivtv%d: " fmt, itv->num , ## args)
-#define IVTV_FB_ERR(fmt, args...)  printk(KERN_ERR  "ivtv%d-fb: " fmt, itv->num , ## args)
-#define IVTV_FB_INFO(fmt, args...) printk(KERN_INFO "ivtv%d-fb: " fmt, itv->num , ## args)
+#define IVTV_FB_ERR(fmt, args...)   printk(KERN_ERR  "ivtv%d-fb: " fmt, itv->num , ## args)
+#define IVTV_FB_WARN(fmt, args...)  printk(KERN_WARNING  "ivtv%d-fb: " fmt, itv->num , ## args)
+#define IVTV_FB_INFO(fmt, args...)  printk(KERN_INFO "ivtv%d-fb: " fmt, itv->num , ## args)
 
 /* Values for IVTV_API_DEC_PLAYBACK_SPEED mpeg_frame_type_mask parameter: */
 #define MPEG_FRAME_TYPE_IFRAME 1
