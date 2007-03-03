@@ -1,10 +1,10 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.46	December 3, 2006
+ *  linux/drivers/ide/pci/piix.c	Version 0.47	February 8, 2007
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
- *  Copyright (C) 2006 MontaVista Software, Inc. <source@mvista.com>
+ *  Copyright (C) 2006-2007 MontaVista Software, Inc. <source@mvista.com>
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *
@@ -205,14 +205,13 @@ static u8 piix_dma_2_pio (u8 xfer_rate) {
 }
 
 /**
- *	piix_tune_drive		-	tune a drive attached to a PIIX
+ *	piix_tune_pio		-	tune PIIX for PIO mode
  *	@drive: drive to tune
  *	@pio: desired PIO mode
  *
- *	Set the interface PIO mode based upon  the settings done by AMI BIOS
- *	(might be useful if drive is not registered in CMOS for any reason).
+ *	Set the interface PIO mode based upon the settings done by AMI BIOS.
  */
-static void piix_tune_drive (ide_drive_t *drive, u8 pio)
+static void piix_tune_pio (ide_drive_t *drive, u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -233,8 +232,6 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 					{ 2, 1 },
 					{ 2, 3 }, };
 
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
-
 	/*
 	 * Master vs slave is synchronized above us but the slave register is
 	 * shared by the two hwifs so the corner case of two slave timeouts in
@@ -253,24 +250,40 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 		master_data |=  0x4000;
 		master_data &= ~0x0070;
 		if (pio > 1) {
-			/* enable PPE, IE and TIME */
-			master_data = master_data | (control << 4);
+			/* Set PPE, IE and TIME */
+			master_data |= control << 4;
 		}
 		pci_read_config_byte(dev, slave_port, &slave_data);
-		slave_data = slave_data & (hwif->channel ? 0x0f : 0xf0);
-		slave_data = slave_data | (((timings[pio][0] << 2) | timings[pio][1]) << (hwif->channel ? 4 : 0));
+		slave_data &= hwif->channel ? 0x0f : 0xf0;
+		slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) <<
+			       (hwif->channel ? 4 : 0);
 	} else {
 		master_data &= ~0x3307;
 		if (pio > 1) {
 			/* enable PPE, IE and TIME */
-			master_data = master_data | control;
+			master_data |= control;
 		}
-		master_data = master_data | (timings[pio][0] << 12) | (timings[pio][1] << 8);
+		master_data |= (timings[pio][0] << 12) | (timings[pio][1] << 8);
 	}
 	pci_write_config_word(dev, master_port, master_data);
 	if (is_slave)
 		pci_write_config_byte(dev, slave_port, slave_data);
 	spin_unlock_irqrestore(&tune_lock, flags);
+}
+
+/**
+ *	piix_tune_drive		-	tune a drive attached to PIIX
+ *	@drive: drive to tune
+ *	@pio: desired PIO mode
+ *
+ *	Set the drive's PIO mode (might be useful if drive is not registered
+ *	in CMOS for any reason).
+ */
+static void piix_tune_drive (ide_drive_t *drive, u8 pio)
+{
+	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	piix_tune_pio(drive, pio);
+	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
 /**
@@ -348,8 +361,8 @@ static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
 	}
 
-	piix_tune_drive(drive, piix_dma_2_pio(speed));
-	return (ide_config_drive_speed(drive, speed));
+	piix_tune_pio(drive, piix_dma_2_pio(speed));
+	return ide_config_drive_speed(drive, speed);
 }
 
 /**
@@ -392,9 +405,7 @@ static int piix_config_drive_xfer_rate (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		/* Find best PIO mode. */
-		piix_tune_chipset(drive, XFER_PIO_0 +
-				  ide_get_best_pio_mode(drive, 255, 4, NULL));
+		piix_tune_drive(drive, 255);
 
 	return -1;
 }
