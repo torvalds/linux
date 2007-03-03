@@ -459,6 +459,16 @@ static struct request *tgt_cmd_hash_lookup(struct request_queue *q, u64 tag)
 	return rq;
 }
 
+static void scsi_tgt_build_sense(unsigned char *sense_buffer, unsigned char key,
+				 unsigned char asc, unsigned char asq)
+{
+	sense_buffer[0] = 0x70;
+	sense_buffer[2] = key;
+	sense_buffer[7] = 0xa;
+	sense_buffer[12] = asc;
+	sense_buffer[13] = asq;
+}
+
 int scsi_tgt_kspace_exec(int host_no, int result, u64 tag,
 			 unsigned long uaddr, u32 len, unsigned long sense_uaddr,
 			 u32 sense_len, u8 rw)
@@ -514,9 +524,16 @@ int scsi_tgt_kspace_exec(int host_no, int result, u64 tag,
 	if (len) {
 		err = scsi_map_user_pages(rq->end_io_data, cmd, uaddr, len, rw);
 		if (err) {
-			eprintk("%p %d\n", cmd, err);
-			err = -EAGAIN;
-			goto done;
+			/*
+			 * user-space daemon bugs or OOM
+			 * TODO: we can do better for OOM.
+			 */
+			eprintk("cmd %p ret %d uaddr %lx len %d rw %d\n",
+				cmd, err, uaddr, len, rw);
+			cmd->result = SAM_STAT_CHECK_CONDITION;
+			memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
+			scsi_tgt_build_sense(cmd->sense_buffer,
+					     HARDWARE_ERROR, 0, 0);
 		}
 	}
 	err = scsi_tgt_transfer_response(cmd);
