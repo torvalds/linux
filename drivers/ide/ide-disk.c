@@ -43,8 +43,6 @@
 
 #define IDEDISK_VERSION	"1.18"
 
-#undef REALLY_SLOW_IO		/* most systems can safely undef this */
-
 //#define DEBUG
 
 #include <linux/module.h>

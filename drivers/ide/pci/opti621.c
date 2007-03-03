@@ -87,7 +87,6 @@
  * 0.5 doesn't work.
  */
 
-#undef REALLY_SLOW_IO	/* most systems can safely undef this */
 #define OPTI621_DEBUG		/* define for debug messages */
 
 #include <linux/types.h>

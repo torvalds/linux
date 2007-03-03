@@ -126,8 +126,6 @@
 #define	REVISION	"Revision: 7.00alpha2"
 #define	VERSION		"Id: ide.c 7.00a2 20020906"
 
-#undef REALLY_SLOW_IO		/* most systems can safely undef this */
-
 #define _IDE_C			/* Tell ide.h it's really us */
 
 #include <linux/module.h>

@@ -37,8 +37,6 @@
  * mode 4 for a while now with no trouble.)  -Derek
  */
 
-#undef REALLY_SLOW_IO           /* most systems can safely undef this */
-
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
