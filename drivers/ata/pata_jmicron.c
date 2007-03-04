@@ -244,7 +244,6 @@ static void __exit jmicron_exit(void)
 {
 	pci_unregister_driver(&jmicron_pci_driver);
 }
-#endif
 
 module_init(jmicron_init);
 module_exit(jmicron_exit);
