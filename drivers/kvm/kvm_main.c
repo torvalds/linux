@@ -1203,7 +1203,16 @@ int kvm_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	}
 	switch (nr) {
 	default:
-		;
+		run->hypercall.args[0] = a0;
+		run->hypercall.args[1] = a1;
+		run->hypercall.args[2] = a2;
+		run->hypercall.args[3] = a3;
+		run->hypercall.args[4] = a4;
+		run->hypercall.args[5] = a5;
+		run->hypercall.ret = ret;
+		run->hypercall.longmode = is_long_mode(vcpu);
+		kvm_arch_ops->decache_regs(vcpu);
+		return 0;
 	}
 	vcpu->regs[VCPU_REGS_RAX] = ret;
 	kvm_arch_ops->decache_regs(vcpu);
@@ -1598,6 +1607,13 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	vcpu->mmio_needed = 0;
+
+	if (kvm_run->exit_type == KVM_EXIT_TYPE_VM_EXIT
+	    && kvm_run->exit_reason == KVM_EXIT_HYPERCALL) {
+		kvm_arch_ops->cache_regs(vcpu);
+		vcpu->regs[VCPU_REGS_RAX] = kvm_run->hypercall.ret;
+		kvm_arch_ops->decache_regs(vcpu);
+	}
 
 	r = kvm_arch_ops->run(vcpu, kvm_run);
 

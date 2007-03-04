@@ -11,7 +11,7 @@
 #include <asm/types.h>
 #include <linux/ioctl.h>
 
-#define KVM_API_VERSION 6
+#define KVM_API_VERSION 7
 
 /*
  * Architectural interrupt line count, and the size of the bitmap needed
@@ -41,6 +41,7 @@ enum kvm_exit_reason {
 	KVM_EXIT_UNKNOWN          = 0,
 	KVM_EXIT_EXCEPTION        = 1,
 	KVM_EXIT_IO               = 2,
+	KVM_EXIT_HYPERCALL        = 3,
 	KVM_EXIT_DEBUG            = 4,
 	KVM_EXIT_HLT              = 5,
 	KVM_EXIT_MMIO             = 6,
@@ -103,6 +104,13 @@ struct kvm_run {
 			__u32 len;
 			__u8  is_write;
 		} mmio;
+		/* KVM_EXIT_HYPERCALL */
+		struct {
+			__u64 args[6];
+			__u64 ret;
+			__u32 longmode;
+			__u32 pad;
+		} hypercall;
 	};
 };
 
