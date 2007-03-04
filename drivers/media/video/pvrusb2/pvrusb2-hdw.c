@@ -1268,7 +1268,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	if (fw_len % sizeof(u32)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "size of %s firmware"
-			   " must be a multiple of %u bytes",
+			   " must be a multiple of %zu bytes",
 			   fw_files[fwidx],sizeof(u32));
 		release_firmware(fw_entry);
 		return -1;
