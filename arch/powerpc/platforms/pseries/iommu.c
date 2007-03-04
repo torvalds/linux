@@ -562,7 +562,7 @@ void iommu_init_early_pSeries(void)
 		/* Direct I/O, IOMMU off */
 		ppc_md.pci_dma_dev_setup = NULL;
 		ppc_md.pci_dma_bus_setup = NULL;
-		pci_dma_ops = &dma_direct_ops;
+		set_pci_dma_ops(&dma_direct_ops);
 		return;
 	}
 
@@ -588,6 +588,6 @@ void iommu_init_early_pSeries(void)
 
 	pSeries_reconfig_notifier_register(&iommu_reconfig_nb);
 
-	pci_dma_ops = &dma_iommu_ops;
+	set_pci_dma_ops(&dma_iommu_ops);
 }
 

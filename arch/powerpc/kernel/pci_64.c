@@ -70,6 +70,11 @@ int global_phb_number;		/* Global phb counter */
 struct pci_dev *ppc64_isabridge_dev = NULL;
 EXPORT_SYMBOL_GPL(ppc64_isabridge_dev);
 
+void set_pci_dma_ops(struct dma_mapping_ops *dma_ops)
+{
+	pci_dma_ops = dma_ops;
+}
+
 static void fixup_broken_pcnet32(struct pci_dev* dev)
 {
 	if ((dev->class>>8 == PCI_CLASS_NETWORK_ETHERNET)) {

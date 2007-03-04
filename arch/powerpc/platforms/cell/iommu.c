@@ -646,7 +646,7 @@ static int __init cell_iommu_init_disabled(void)
 	unsigned long base = 0, size;
 
 	/* When no iommu is present, we use direct DMA ops */
-	pci_dma_ops = &dma_direct_ops;
+	set_pci_dma_ops(&dma_direct_ops);
 
 	/* First make sure all IOC translation is turned off */
 	cell_disable_iommus();
@@ -734,7 +734,7 @@ static int __init cell_iommu_init(void)
 	}
 
 	/* Setup default PCI iommu ops */
-	pci_dma_ops = &dma_iommu_ops;
+	set_pci_dma_ops(&dma_iommu_ops);
 
  bail:
 	/* Register callbacks on OF platform device addition/removal

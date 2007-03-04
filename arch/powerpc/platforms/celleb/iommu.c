@@ -95,7 +95,7 @@ static int __init celleb_init_iommu(void)
 		return -ENODEV;
 
 	celleb_init_direct_mapping();
-	pci_dma_ops = &dma_direct_ops;
+	set_pci_dma_ops(&dma_direct_ops);
 	bus_register_notifier(&of_platform_bus_type, &celleb_of_bus_notifier);
 
 	return 0;

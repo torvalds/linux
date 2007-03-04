@@ -333,7 +333,7 @@ void iommu_init_early_dart(void)
 		ppc_md.pci_dma_bus_setup = pci_dma_bus_setup_dart;
 
 		/* Setup pci_dma ops */
-		pci_dma_ops = &dma_iommu_ops;
+		set_pci_dma_ops(&dma_iommu_ops);
 		return;
 	}
 
@@ -343,7 +343,7 @@ void iommu_init_early_dart(void)
 	ppc_md.pci_dma_bus_setup = NULL;
 
 	/* Setup pci_dma ops */
-	pci_dma_ops = &dma_direct_ops;
+	set_pci_dma_ops(&dma_direct_ops);
 }
 
 
