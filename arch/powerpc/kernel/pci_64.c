@@ -61,8 +61,7 @@ void iSeries_pcibios_init(void);
 
 LIST_HEAD(hose_list);
 
-struct dma_mapping_ops *pci_dma_ops;
-EXPORT_SYMBOL(pci_dma_ops);
+static struct dma_mapping_ops *pci_dma_ops;
 
 int global_phb_number;		/* Global phb counter */
 
@@ -74,6 +73,12 @@ void set_pci_dma_ops(struct dma_mapping_ops *dma_ops)
 {
 	pci_dma_ops = dma_ops;
 }
+
+struct dma_mapping_ops *get_pci_dma_ops(void)
+{
+	return pci_dma_ops;
+}
+EXPORT_SYMBOL(get_pci_dma_ops);
 
 static void fixup_broken_pcnet32(struct pci_dev* dev)
 {

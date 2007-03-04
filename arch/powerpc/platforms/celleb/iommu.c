@@ -80,7 +80,7 @@ static int celleb_of_bus_notify(struct notifier_block *nb,
 	if (action != BUS_NOTIFY_ADD_DEVICE)
 		return 0;
 
-	dev->archdata.dma_ops = pci_dma_ops;
+	dev->archdata.dma_ops = get_pci_dma_ops();
 
 	return 0;
 }

@@ -71,17 +71,18 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 #define PCI_DISABLE_MWI
 
 #ifdef CONFIG_PCI
-extern struct dma_mapping_ops *pci_dma_ops;
-
 extern void set_pci_dma_ops(struct dma_mapping_ops *dma_ops);
+extern struct dma_mapping_ops *get_pci_dma_ops(void);
 
 /* For DAC DMA, we currently don't support it by default, but
  * we let 64-bit platforms override this.
  */
 static inline int pci_dac_dma_supported(struct pci_dev *hwdev,u64 mask)
 {
-	if (pci_dma_ops && pci_dma_ops->dac_dma_supported)
-		return pci_dma_ops->dac_dma_supported(&hwdev->dev, mask);
+	struct dma_mapping_ops *d = get_pci_dma_ops();
+
+	if (d && d->dac_dma_supported)
+		return d->dac_dma_supported(&hwdev->dev, mask);
 	return 0;
 }
 
@@ -103,6 +104,7 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 }
 #else	/* CONFIG_PCI */
 #define set_pci_dma_ops(d)
+#define get_pci_dma_ops()	NULL
 #endif
 
 extern int pci_domain_nr(struct pci_bus *bus);

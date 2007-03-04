@@ -496,7 +496,7 @@ static void cell_dma_dev_setup(struct device *dev)
 	struct dev_archdata *archdata = &dev->archdata;
 
 	/* If we run without iommu, no need to do anything */
-	if (pci_dma_ops == &dma_direct_ops)
+	if (get_pci_dma_ops() == &dma_direct_ops)
 		return;
 
 	/* Current implementation uses the first window available in that
@@ -530,7 +530,7 @@ static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
 		return 0;
 
 	/* We use the PCI DMA ops */
-	dev->archdata.dma_ops = pci_dma_ops;
+	dev->archdata.dma_ops = get_pci_dma_ops();
 
 	cell_dma_dev_setup(dev);
 
