@@ -560,6 +560,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 	}
 
 	nlh->nlmsg_len = inst->skb->tail - old_tail;
+	inst->lastnlh = nlh;
 	return 0;
 
 nlmsg_failure:
