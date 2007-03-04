@@ -337,6 +337,8 @@ unsigned int iSeries_get_irq(void)
 	return irq;
 }
 
+#ifdef CONFIG_PCI
+
 static int iseries_irq_host_map(struct irq_host *h, unsigned int virq,
 				irq_hw_number_t hw)
 {
@@ -384,3 +386,4 @@ void __init iSeries_init_IRQ(void)
 				"failed with rc 0x%x\n", ret);
 }
 
+#endif	/* CONFIG_PCI */
