@@ -85,7 +85,7 @@ static int pcf8583_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 		dt->tm_min = BCD2BIN(buf[2]);
 		dt->tm_hour = BCD2BIN(buf[3]);
 		dt->tm_mday = BCD2BIN(buf[4]);
-		dt->tm_mon = BCD2BIN(buf[5]);
+		dt->tm_mon = BCD2BIN(buf[5]) - 1;
 	}
 
 	return ret == 2 ? 0 : -EIO;
@@ -106,7 +106,7 @@ static int pcf8583_set_datetime(struct i2c_client *client, struct rtc_time *dt, 
 	if (datetoo) {
 		len = 8;
 		buf[6] = BIN2BCD(dt->tm_mday) | (dt->tm_year << 6);
-		buf[7] = BIN2BCD(dt->tm_mon)  | (dt->tm_wday << 5);
+		buf[7] = BIN2BCD(dt->tm_mon + 1)  | (dt->tm_wday << 5);
 	}
 
 	ret = i2c_master_send(client, (char *)buf, len);
@@ -226,7 +226,7 @@ static int pcf8583_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		 */
 		year_offset += 4;
 
-	tm->tm_year = real_year + year_offset + year[1] * 100;
+	tm->tm_year = (real_year + year_offset + year[1] * 100) - 1900;
 
 	return 0;
 }
@@ -237,6 +237,7 @@ static int pcf8583_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	unsigned char year[2], chk;
 	struct rtc_mem cmos_year  = { CMOS_YEAR, sizeof(year), year };
 	struct rtc_mem cmos_check = { CMOS_CHECKSUM, 1, &chk };
+	unsigned int proper_year = tm->tm_year + 1900;
 	int ret;
 
 	/*
@@ -258,8 +259,8 @@ static int pcf8583_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	chk -= year[1] + year[0];
 
-	year[1] = tm->tm_year / 100;
-	year[0] = tm->tm_year % 100;
+	year[1] = proper_year / 100;
+	year[0] = proper_year % 100;
 
 	chk += year[1] + year[0];
 
