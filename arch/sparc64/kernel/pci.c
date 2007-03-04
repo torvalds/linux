@@ -26,6 +26,7 @@
 #include <asm/ebus.h>
 #include <asm/isa.h>
 #include <asm/prom.h>
+#include <asm/apb.h>
 
 #include "pci_impl.h"
 
@@ -372,6 +373,7 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	struct dev_archdata *sd;
 	struct pci_dev *dev;
 	const char *type;
+	u32 class;
 
 	dev = kzalloc(sizeof(struct pci_dev), GFP_KERNEL);
 	if (!dev)
@@ -409,7 +411,15 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 
 	sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
 		dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
-	dev->class = of_getintprop_default(node, "class-code", 0);
+
+	/* dev->class = of_getintprop_default(node, "class-code", 0); */
+	/* We can't actually use the firmware value, we have to read what
+	 * is in the register right now.  One reason is that in the case
+	 * of IDE interfaces the firmware can sample the value before the
+	 * the IDE interface is programmed into native mode.
+	 */
+	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
+	dev->class = class >> 8;
 
 	printk("    class: 0x%x\n", dev->class);
 
@@ -440,6 +450,53 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	return dev;
 }
 
+static void __init apb_calc_first_last(u8 map, u32 *first_p, u32 *last_p)
+{
+	u32 idx, first, last;
+
+	first = 8;
+	last = 0;
+	for (idx = 0; idx < 8; idx++) {
+		if ((map & (1 << idx)) != 0) {
+			if (first > idx)
+				first = idx;
+			if (last < idx)
+				last = idx;
+		}
+	}
+
+	*first_p = first;
+	*last_p = last;
+}
+
+/* Cook up fake bus resources for SUNW,simba PCI bridges which lack
+ * a proper 'ranges' property.
+ */
+static void __init apb_fake_ranges(struct pci_dev *dev,
+				   struct pci_bus *bus,
+				   struct pci_pbm_info *pbm)
+{
+	struct resource *res;
+	u32 first, last;
+	u8 map;
+
+	pci_read_config_byte(dev, APB_IO_ADDRESS_MAP, &map);
+	apb_calc_first_last(map, &first, &last);
+	res = bus->resource[0];
+	res->start = (first << 21);
+	res->end = (last << 21) + ((1 << 21) - 1);
+	res->flags = IORESOURCE_IO;
+	pbm->parent->resource_adjust(dev, res, &pbm->io_space);
+
+	pci_read_config_byte(dev, APB_MEM_ADDRESS_MAP, &map);
+	apb_calc_first_last(map, &first, &last);
+	res = bus->resource[1];
+	res->start = (first << 21);
+	res->end = (last << 21) + ((1 << 21) - 1);
+	res->flags = IORESOURCE_MEM;
+	pbm->parent->resource_adjust(dev, res, &pbm->mem_space);
+}
+
 static void __init pci_of_scan_bus(struct pci_pbm_info *pbm,
 				   struct device_node *node,
 				   struct pci_bus *bus);
@@ -452,7 +509,7 @@ void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
 {
 	struct pci_bus *bus;
 	const u32 *busrange, *ranges;
-	int len, i;
+	int len, i, simba;
 	struct resource *res;
 	unsigned int flags;
 	u64 size;
@@ -467,10 +524,16 @@ void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		return;
 	}
 	ranges = of_get_property(node, "ranges", &len);
+	simba = 0;
 	if (ranges == NULL) {
-		printk(KERN_DEBUG "Can't get ranges for PCI-PCI bridge %s\n",
-		       node->full_name);
-		return;
+		char *model = of_get_property(node, "model", NULL);
+		if (model && !strcmp(model, "SUNW,simba")) {
+			simba = 1;
+		} else {
+			printk(KERN_DEBUG "Can't get ranges for PCI-PCI bridge %s\n",
+			       node->full_name);
+			return;
+		}
 	}
 
 	bus = pci_add_new_bus(dev->bus, dev, busrange[0]);
@@ -484,13 +547,17 @@ void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
 	bus->subordinate = busrange[1];
 	bus->bridge_ctl = 0;
 
-	/* parse ranges property */
+	/* parse ranges property, or cook one up by hand for Simba */
 	/* PCI #address-cells == 3 and #size-cells == 2 always */
 	res = &dev->resource[PCI_BRIDGE_RESOURCES];
 	for (i = 0; i < PCI_NUM_RESOURCES - PCI_BRIDGE_RESOURCES; ++i) {
 		res->flags = 0;
 		bus->resource[i] = res;
 		++res;
+	}
+	if (simba) {
+		apb_fake_ranges(dev, bus, pbm);
+		goto simba_cont;
 	}
 	i = 1;
 	for (; len >= 32; len -= 32, ranges += 8) {
@@ -529,6 +596,7 @@ void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		 */
 		pbm->parent->resource_adjust(dev, res, root);
 	}
+simba_cont:
 	sprintf(bus->name, "PCI Bus %04x:%02x", pci_domain_nr(bus),
 		bus->number);
 	printk("    bus name: %s\n", bus->name);

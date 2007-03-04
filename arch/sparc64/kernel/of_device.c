@@ -317,6 +317,11 @@ static unsigned int of_bus_default_get_flags(const u32 *addr)
 static int of_bus_pci_match(struct device_node *np)
 {
 	if (!strcmp(np->type, "pci") || !strcmp(np->type, "pciex")) {
+		char *model = of_get_property(np, "model", NULL);
+
+		if (model && !strcmp(model, "SUNW,simba"))
+			return 0;
+
 		/* Do not do PCI specific frobbing if the
 		 * PCI bridge lacks a ranges property.  We
 		 * want to pass it through up to the next
@@ -329,6 +334,21 @@ static int of_bus_pci_match(struct device_node *np)
 		return 1;
 	}
 
+	return 0;
+}
+
+static int of_bus_simba_match(struct device_node *np)
+{
+	char *model = of_get_property(np, "model", NULL);
+
+	if (model && !strcmp(model, "SUNW,simba"))
+		return 1;
+	return 0;
+}
+
+static int of_bus_simba_map(u32 *addr, const u32 *range,
+			    int na, int ns, int pna)
+{
 	return 0;
 }
 
@@ -434,6 +454,15 @@ static struct of_bus of_busses[] = {
 		.match = of_bus_pci_match,
 		.count_cells = of_bus_pci_count_cells,
 		.map = of_bus_pci_map,
+		.get_flags = of_bus_pci_get_flags,
+	},
+	/* SIMBA */
+	{
+		.name = "simba",
+		.addr_prop_name = "assigned-addresses",
+		.match = of_bus_simba_match,
+		.count_cells = of_bus_pci_count_cells,
+		.map = of_bus_simba_map,
 		.get_flags = of_bus_pci_get_flags,
 	},
 	/* SBUS */
