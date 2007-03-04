@@ -974,10 +974,11 @@ static struct irq_chip gpio_irq_chip = {
 };
 
 static struct irq_chip mpuio_irq_chip = {
-	.name	= "MPUIO",
-	.ack	= mpuio_ack_irq,
-	.mask	= mpuio_mask_irq,
-	.unmask	= mpuio_unmask_irq
+	.name	  = "MPUIO",
+	.ack	  = mpuio_ack_irq,
+	.mask	  = mpuio_mask_irq,
+	.unmask	  = mpuio_unmask_irq,
+	.set_type = gpio_irq_type,
 };
 
 static int initialized;

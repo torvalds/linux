@@ -495,6 +495,16 @@ config I2C_VERSATILE
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-versatile.
 
+config I2C_ACORN
+	bool "Acorn IOC/IOMD I2C bus support"
+	depends on I2C && ARCH_ACORN
+	default y
+	select I2C_ALGOBIT
+	help
+	  Say yes if you want to support the I2C bus on Acorn platforms.
+
+	  If you don't know, say Y.
+
 config I2C_VIA
 	tristate "VIA 82C586B"
 	depends on I2C && PCI && EXPERIMENTAL

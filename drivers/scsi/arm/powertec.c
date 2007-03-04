@@ -148,10 +148,10 @@ powertecscsi_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 			map_dir = DMA_FROM_DEVICE,
 			dma_dir = DMA_MODE_READ;
 
-		dma_map_sg(dev, info->sg, bufs + 1, map_dir);
+		dma_map_sg(dev, info->sg, bufs, map_dir);
 
 		disable_dma(dmach);
-		set_dma_sg(dmach, info->sg, bufs + 1);
+		set_dma_sg(dmach, info->sg, bufs);
 		set_dma_mode(dmach, dma_dir);
 		enable_dma(dmach);
 		return fasdma_real_all;
@@ -342,6 +342,7 @@ powertecscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	info->base = base;
 	powertecscsi_terminator_ctl(host, term[ec->slot_no]);
 
+	info->ec = ec;
 	info->info.scsi.io_base		= base + POWERTEC_FAS216_OFFSET;
 	info->info.scsi.io_shift	= POWERTEC_FAS216_SHIFT;
 	info->info.scsi.irq		= ec->irq;

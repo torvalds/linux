@@ -131,6 +131,8 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	struct op_arm_model_spec *spec = NULL;
 	int ret = -ENODEV;
 
+	ops->backtrace = arm_backtrace;
+
 #ifdef CONFIG_CPU_XSCALE
 	spec = &op_xscale_spec;
 #endif
@@ -161,7 +163,6 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		ops->start = op_arm_start;
 		ops->stop = op_arm_stop;
 		ops->cpu_type = op_arm_model->name;
-		ops->backtrace = arm_backtrace;
 		printk(KERN_INFO "oprofile: using %s\n", spec->name);
 	}
 

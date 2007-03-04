@@ -39,7 +39,6 @@
 #include "prcm-regs.h"
 
 #include <asm/io.h>
-#include <asm/delay.h>
 
 static unsigned int row_gpios[6] = { 88, 89, 124, 11, 6, 96 };
 static unsigned int col_gpios[7] = { 90, 91, 100, 36, 12, 97, 98 };
@@ -179,9 +178,11 @@ static int h4_select_irda(struct device *dev, int state)
 	return err;
 }
 
-static void set_trans_mode(void *data)
+static void set_trans_mode(struct work_struct *work)
 {
-	int *mode = data;
+	struct omap_irda_config *irda_config =
+		container_of(work, struct omap_irda_config, gpio_expa.work);
+	int mode = irda_config->mode;
 	unsigned char expa;
 	int err = 0;
 
@@ -191,7 +192,7 @@ static void set_trans_mode(void *data)
 
 	expa &= ~0x01;
 
-	if (!(*mode & IR_SIRMODE)) { /* MIR/FIR */
+	if (!(mode & IR_SIRMODE)) { /* MIR/FIR */
 		expa |= 0x01;
 	}
 
@@ -204,9 +205,9 @@ static int h4_transceiver_mode(struct device *dev, int mode)
 {
 	struct omap_irda_config *irda_config = dev->platform_data;
 
+	irda_config->mode = mode;
 	cancel_delayed_work(&irda_config->gpio_expa);
-	PREPARE_WORK(&irda_config->gpio_expa, set_trans_mode, &mode);
-#error this is not permitted - mode is an argument variable
+	PREPARE_DELAYED_WORK(&irda_config->gpio_expa, set_trans_mode);
 	schedule_delayed_work(&irda_config->gpio_expa, 0);
 
 	return 0;

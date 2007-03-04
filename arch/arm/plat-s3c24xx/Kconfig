@@ -58,6 +58,11 @@ config S3C2410_PM_CHECK
 	  going to sleep. The blocks are then checked on resume for any
 	  errors.
 
+	  Note, this can take several seconds depending on memory size
+	  and CPU speed.
+
+	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+
 config S3C2410_PM_CHECK_CHUNKSIZE
 	int "S3C2410 PM Suspend CRC Chunksize (KiB)"
 	depends on ARCH_S3C2410 && PM && S3C2410_PM_CHECK
@@ -67,6 +72,8 @@ config S3C2410_PM_CHECK_CHUNKSIZE
 	  corruption over suspend and resume. A smaller value will mean that
 	  the CRC data block will take more memory, but wil identify any
 	  faults with better precision.
+
+	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
 
 config S3C2410_LOWLEVEL_UART_PORT
 	int "S3C2410 UART to use for low-level messages"

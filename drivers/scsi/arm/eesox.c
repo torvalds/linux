@@ -175,10 +175,10 @@ eesoxscsi_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 			map_dir = DMA_FROM_DEVICE,
 			dma_dir = DMA_MODE_READ;
 
-		dma_map_sg(dev, info->sg, bufs + 1, map_dir);
+		dma_map_sg(dev, info->sg, bufs, map_dir);
 
 		disable_dma(dmach);
-		set_dma_sg(dmach, info->sg, bufs + 1);
+		set_dma_sg(dmach, info->sg, bufs);
 		set_dma_mode(dmach, dma_dir);
 		enable_dma(dmach);
 		return fasdma_real_all;
