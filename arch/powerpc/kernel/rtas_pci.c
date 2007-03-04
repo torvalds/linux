@@ -274,7 +274,7 @@ int __devinit rtas_setup_phb(struct pci_controller *phb)
 	return 0;
 }
 
-unsigned long __init find_and_init_phbs(void)
+void __init find_and_init_phbs(void)
 {
 	struct device_node *node;
 	struct pci_controller *phb;
@@ -319,8 +319,6 @@ unsigned long __init find_and_init_phbs(void)
 		if (prop)
 			pci_assign_all_buses = *prop;
 	}
-
-	return 0;
 }
 
 /* RPA-specific bits for removing PHBs */

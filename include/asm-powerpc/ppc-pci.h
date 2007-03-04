@@ -24,7 +24,7 @@ extern void pci_setup_phb_io_dynamic(struct pci_controller *hose, int primary);
 extern struct list_head hose_list;
 extern int global_phb_number;
 
-extern unsigned long find_and_init_phbs(void);
+extern void find_and_init_phbs(void);
 
 extern struct pci_dev *ppc64_isabridge_dev;	/* may be NULL if no ISA bus */
 
