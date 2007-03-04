@@ -11,7 +11,7 @@
 #include <asm/types.h>
 #include <linux/ioctl.h>
 
-#define KVM_API_VERSION 8
+#define KVM_API_VERSION 9
 
 /*
  * Architectural interrupt line count, and the size of the bitmap needed
@@ -45,6 +45,7 @@ enum kvm_exit_reason {
 	KVM_EXIT_IRQ_WINDOW_OPEN  = 7,
 	KVM_EXIT_SHUTDOWN         = 8,
 	KVM_EXIT_FAIL_ENTRY       = 9,
+	KVM_EXIT_INTR             = 10,
 };
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */

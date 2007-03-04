@@ -1619,12 +1619,14 @@ again:
 		if (signal_pending(current)) {
 			++kvm_stat.signal_exits;
 			post_kvm_run_save(vcpu, kvm_run);
+			kvm_run->exit_reason = KVM_EXIT_INTR;
 			return -EINTR;
 		}
 
 		if (dm_request_for_irq_injection(vcpu, kvm_run)) {
 			++kvm_stat.request_irq_exits;
 			post_kvm_run_save(vcpu, kvm_run);
+			kvm_run->exit_reason = KVM_EXIT_INTR;
 			return -EINTR;
 		}
 		kvm_resched(vcpu);
