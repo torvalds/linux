@@ -2299,7 +2299,7 @@ static struct file_operations kvm_chardev_ops = {
 };
 
 static struct miscdevice kvm_dev = {
-	MISC_DYNAMIC_MINOR,
+	KVM_MINOR,
 	"kvm",
 	&kvm_chardev_ops,
 };
