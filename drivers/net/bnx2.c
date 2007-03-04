@@ -4467,9 +4467,7 @@ bnx2_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	bnx2_netif_stop(bp);
-
-	if (bp->vlgrp)
-		bp->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(bp->vlgrp, vid, NULL);
 	bnx2_set_rx_mode(dev);
 
 	bnx2_netif_start(bp);

@@ -2293,10 +2293,7 @@ static void ace_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 
 	local_irq_save(flags);
 	ace_mask_irq(dev);
-
-	if (ap->vlgrp)
-		ap->vlgrp->vlan_devices[vid] = NULL;
-
+	vlan_group_set_device(ap->vlgrp, vid, NULL);
 	ace_unmask_irq(dev);
 	local_irq_restore(flags);
 }

@@ -325,8 +325,7 @@ static void s2io_vlan_rx_kill_vid(struct net_device *dev, unsigned long vid)
 	unsigned long flags;
 
 	spin_lock_irqsave(&nic->tx_lock, flags);
-	if (nic->vlgrp)
-		nic->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(nic->vlgrp, vid, NULL);
 	spin_unlock_irqrestore(&nic->tx_lock, flags);
 }
 

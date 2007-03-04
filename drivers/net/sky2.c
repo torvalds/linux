@@ -1053,8 +1053,7 @@ static void sky2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 
 	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), RX_VLAN_STRIP_OFF);
 	sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_VLAN_TAG_OFF);
-	if (sky2->vlgrp)
-		sky2->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(sky2->vlgrp, vid, NULL);
 
 	netif_tx_unlock_bh(dev);
 }

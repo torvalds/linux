@@ -376,7 +376,7 @@ e1000_update_mng_vlan(struct e1000_adapter *adapter)
 	uint16_t vid = adapter->hw.mng_cookie.vlan_id;
 	uint16_t old_vid = adapter->mng_vlan_id;
 	if (adapter->vlgrp) {
-		if (!adapter->vlgrp->vlan_devices[vid]) {
+		if (!vlan_group_get_device(adapter->vlgrp, vid)) {
 			if (adapter->hw.mng_cookie.status &
 				E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT) {
 				e1000_vlan_rx_add_vid(netdev, vid);
@@ -386,7 +386,7 @@ e1000_update_mng_vlan(struct e1000_adapter *adapter)
 
 			if ((old_vid != (uint16_t)E1000_MNG_VLAN_NONE) &&
 					(vid != old_vid) &&
-					!adapter->vlgrp->vlan_devices[old_vid])
+			    !vlan_group_get_device(adapter->vlgrp, old_vid))
 				e1000_vlan_rx_kill_vid(netdev, old_vid);
 		} else
 			adapter->mng_vlan_id = vid;
@@ -1482,7 +1482,7 @@ e1000_close(struct net_device *netdev)
 	if ((adapter->hw.mng_cookie.status &
 			  E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT) &&
 	     !(adapter->vlgrp &&
-			  adapter->vlgrp->vlan_devices[adapter->mng_vlan_id])) {
+	       vlan_group_get_device(adapter->vlgrp, adapter->mng_vlan_id))) {
 		e1000_vlan_rx_kill_vid(netdev, adapter->mng_vlan_id);
 	}
 
@@ -4998,10 +4998,7 @@ e1000_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid)
 	uint32_t vfta, index;
 
 	e1000_irq_disable(adapter);
-
-	if (adapter->vlgrp)
-		adapter->vlgrp->vlan_devices[vid] = NULL;
-
+	vlan_group_set_device(adapter->vlgrp, vid, NULL);
 	e1000_irq_enable(adapter);
 
 	if ((adapter->hw.mng_cookie.status &
@@ -5027,7 +5024,7 @@ e1000_restore_vlan(struct e1000_adapter *adapter)
 	if (adapter->vlgrp) {
 		uint16_t vid;
 		for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
-			if (!adapter->vlgrp->vlan_devices[vid])
+			if (!vlan_group_get_device(adapter->vlgrp, vid))
 				continue;
 			e1000_vlan_rx_add_vid(adapter->netdev, vid);
 		}

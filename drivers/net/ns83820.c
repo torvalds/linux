@@ -514,8 +514,7 @@ static void ns83820_vlan_rx_kill_vid(struct net_device *ndev, unsigned short vid
 
 	spin_lock_irq(&dev->misc_lock);
 	spin_lock(&dev->tx_lock);
-	if (dev->vlgrp)
-		dev->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(dev->vlgrp, vid, NULL);
 	spin_unlock(&dev->tx_lock);
 	spin_unlock_irq(&dev->misc_lock);
 }

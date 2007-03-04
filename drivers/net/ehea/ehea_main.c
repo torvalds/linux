@@ -1939,8 +1939,7 @@ static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	int index;
 	u64 hret;
 
-	if (port->vgrp)
-		port->vgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(port->vgrp, vid, NULL);
 
 	cb1 = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cb1) {

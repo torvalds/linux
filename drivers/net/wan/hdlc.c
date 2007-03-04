@@ -38,7 +38,7 @@
 #include <linux/hdlc.h>
 
 
-static const char* version = "HDLC support module revision 1.20";
+static const char* version = "HDLC support module revision 1.21";
 
 #undef DEBUG_LINK
 
@@ -222,19 +222,31 @@ int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EINVAL;
 }
 
+static void hdlc_setup_dev(struct net_device *dev)
+{
+	/* Re-init all variables changed by HDLC protocol drivers,
+	 * including ether_setup() called from hdlc_raw_eth.c.
+	 */
+	dev->get_stats		 = hdlc_get_stats;
+	dev->flags		 = IFF_POINTOPOINT | IFF_NOARP;
+	dev->mtu		 = HDLC_MAX_MTU;
+	dev->type		 = ARPHRD_RAWHDLC;
+	dev->hard_header_len	 = 16;
+	dev->addr_len		 = 0;
+	dev->hard_header	 = NULL;
+	dev->rebuild_header	 = NULL;
+	dev->set_mac_address	 = NULL;
+	dev->hard_header_cache	 = NULL;
+	dev->header_cache_update = NULL;
+	dev->change_mtu		 = hdlc_change_mtu;
+	dev->hard_header_parse	 = NULL;
+}
+
 static void hdlc_setup(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 
-	dev->get_stats = hdlc_get_stats;
-	dev->change_mtu = hdlc_change_mtu;
-	dev->mtu = HDLC_MAX_MTU;
-
-	dev->type = ARPHRD_RAWHDLC;
-	dev->hard_header_len = 16;
-
-	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
-
+	hdlc_setup_dev(dev);
 	hdlc->carrier = 1;
 	hdlc->open = 0;
 	spin_lock_init(&hdlc->state_lock);
@@ -294,6 +306,7 @@ void detach_hdlc_protocol(struct net_device *dev)
 	}
 	kfree(hdlc->state);
 	hdlc->state = NULL;
+	hdlc_setup_dev(dev);
 }
 
 

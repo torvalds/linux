@@ -1132,8 +1132,7 @@ static void gfar_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 
 	spin_lock_irqsave(&priv->rxlock, flags);
 
-	if (priv->vlgrp)
-		priv->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(priv->vgrp, vid, NULL);
 
 	spin_unlock_irqrestore(&priv->rxlock, flags);
 }

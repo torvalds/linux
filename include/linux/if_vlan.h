@@ -70,14 +70,33 @@ extern void vlan_ioctl_set(int (*hook)(void __user *));
  * depends on completely exhausting the VLAN identifier space.  Thus
  * it gives constant time look-up, but in many cases it wastes memory.
  */
-#define VLAN_GROUP_ARRAY_LEN 4096
+#define VLAN_GROUP_ARRAY_LEN          4096
+#define VLAN_GROUP_ARRAY_SPLIT_PARTS  8
+#define VLAN_GROUP_ARRAY_PART_LEN     (VLAN_GROUP_ARRAY_LEN/VLAN_GROUP_ARRAY_SPLIT_PARTS)
 
 struct vlan_group {
 	int real_dev_ifindex; /* The ifindex of the ethernet(like) device the vlan is attached to. */
 	struct hlist_node	hlist;	/* linked list */
-	struct net_device *vlan_devices[VLAN_GROUP_ARRAY_LEN];
+	struct net_device **vlan_devices_arrays[VLAN_GROUP_ARRAY_SPLIT_PARTS];
 	struct rcu_head		rcu;
 };
+
+static inline struct net_device *vlan_group_get_device(struct vlan_group *vg, int vlan_id)
+{
+	struct net_device **array;
+	array = vg->vlan_devices_arrays[vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
+	return array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN];
+}
+
+static inline void vlan_group_set_device(struct vlan_group *vg, int vlan_id,
+					 struct net_device *dev)
+{
+	struct net_device **array;
+	if (!vg)
+		return;
+	array = vg->vlan_devices_arrays[vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
+	array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] = dev;
+}
 
 struct vlan_priority_tci_mapping {
 	unsigned long priority;
@@ -160,7 +179,7 @@ static inline int __vlan_hwaccel_rx(struct sk_buff *skb,
 		return NET_RX_DROP;
 	}
 
-	skb->dev = grp->vlan_devices[vlan_tag & VLAN_VID_MASK];
+	skb->dev = vlan_group_get_device(grp, vlan_tag & VLAN_VID_MASK);
 	if (skb->dev == NULL) {
 		dev_kfree_skb_any(skb);
 
