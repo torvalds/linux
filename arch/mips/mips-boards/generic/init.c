@@ -251,8 +251,6 @@ void __init mips_ejtag_setup (void)
 
 void __init prom_init(void)
 {
-	u32 start, map, mask, data;
-
 	prom_argc = fw_arg0;
 	_prom_argv = (int *) fw_arg1;
 	_prom_envp = (int *) fw_arg2;
@@ -278,6 +276,8 @@ void __init prom_init(void)
 			mips_revision_corid = MIPS_REVISION_CORID_CORE_EMUL_MSC;
 	}
 	switch(mips_revision_corid) {
+		u32 start, map, mask, data;
+
 	case MIPS_REVISION_CORID_QED_RM5261:
 	case MIPS_REVISION_CORID_CORE_LV:
 	case MIPS_REVISION_CORID_CORE_FPGA:
