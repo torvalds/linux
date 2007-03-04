@@ -96,9 +96,9 @@ typedef int (*descriptor_callback_t)(struct context *ctx,
 				     struct descriptor *d,
 				     struct descriptor *last);
 struct context {
- 	struct fw_ohci *ohci;
+	struct fw_ohci *ohci;
 	u32 regs;
- 
+
 	struct descriptor *buffer;
 	dma_addr_t buffer_bus;
 	size_t buffer_size;
@@ -109,10 +109,8 @@ struct context {
 
 	descriptor_callback_t callback;
 
- 	struct tasklet_struct tasklet;
+	struct tasklet_struct tasklet;
 };
- 
-
 
 struct at_context {
 	struct fw_ohci *ohci;
@@ -434,7 +432,7 @@ ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci, u32 regs)
 
 	return 0;
 }
- 
+
 static void context_tasklet(unsigned long data)
 {
 	struct context *ctx = (struct context *) data;
@@ -1269,7 +1267,7 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 	spin_unlock_irqrestore(&ohci->lock, flags);
 	return retval;
 }
- 
+
 static int handle_ir_bufferfill_packet(struct context *context,
 				       struct descriptor *d,
 				       struct descriptor *last)
@@ -1324,7 +1322,7 @@ static int handle_it_packet(struct context *context,
 {
 	struct iso_context *ctx =
 		container_of(context, struct iso_context, context);
- 
+
 	if (last->transfer_status == 0)
 		/* This descriptor isn't done yet, stop iteration. */
 		return 0;
@@ -1352,8 +1350,8 @@ ohci_allocate_iso_context(struct fw_card *card, int type,
 		list = ohci->it_context_list;
 		callback = handle_it_packet;
 	} else {
- 		mask = &ohci->ir_context_mask;
- 		list = ohci->ir_context_list;
+		mask = &ohci->ir_context_mask;
+		list = ohci->ir_context_list;
 		if (header_size > 0)
 			callback = handle_ir_dualbuffer_packet;
 		else
@@ -1373,11 +1371,11 @@ ohci_allocate_iso_context(struct fw_card *card, int type,
 	if (index < 0)
 		return ERR_PTR(-EBUSY);
 
- 	if (type == FW_ISO_CONTEXT_TRANSMIT)
- 		regs = OHCI1394_IsoXmitContextBase(index);
- 	else
- 		regs = OHCI1394_IsoRcvContextBase(index);
- 
+	if (type == FW_ISO_CONTEXT_TRANSMIT)
+		regs = OHCI1394_IsoXmitContextBase(index);
+	else
+		regs = OHCI1394_IsoRcvContextBase(index);
+
 	ctx = &list[index];
 	memset(ctx, 0, sizeof *ctx);
 	ctx->header_length = 0;
@@ -1404,7 +1402,7 @@ ohci_allocate_iso_context(struct fw_card *card, int type,
 
 static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
 {
- 	struct iso_context *ctx = container_of(base, struct iso_context, base);
+	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct fw_ohci *ohci = ctx->context.ohci;
 	u32 cycle_match = 0, mode;
 	int index;
@@ -1439,7 +1437,7 @@ static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
 static int ohci_stop_iso(struct fw_iso_context *base)
 {
 	struct fw_ohci *ohci = fw_ohci(base->card);
- 	struct iso_context *ctx = container_of(base, struct iso_context, base);
+	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	int index;
 
 	if (ctx->base.type == FW_ISO_CONTEXT_TRANSMIT) {
@@ -1458,7 +1456,7 @@ static int ohci_stop_iso(struct fw_iso_context *base)
 static void ohci_free_iso_context(struct fw_iso_context *base)
 {
 	struct fw_ohci *ohci = fw_ohci(base->card);
- 	struct iso_context *ctx = container_of(base, struct iso_context, base);
+	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	unsigned long flags;
 	int index;
 
@@ -1485,7 +1483,7 @@ ohci_queue_iso_transmit(struct fw_iso_context *base,
 			struct fw_iso_buffer *buffer,
 			unsigned long payload)
 {
- 	struct iso_context *ctx = container_of(base, struct iso_context, base);
+	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct descriptor *d, *last, *pd;
 	struct fw_iso_packet *p;
 	__le32 *header;
@@ -1575,7 +1573,7 @@ ohci_queue_iso_transmit(struct fw_iso_context *base,
 
 	return 0;
 }
- 
+
 static int
 setup_wait_descriptor(struct context *ctx)
 {
@@ -1609,7 +1607,7 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	dma_addr_t d_bus, page_bus;
 	u32 z, header_z, length, rest;
 	int page, offset;
- 
+
 	/* FIXME: Cycle lost behavior should be configurable: lose
 	 * packet, retransmit or terminate.. */
 
@@ -1641,7 +1639,7 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 		db->first_req_count = cpu_to_le16(p->header_length);
 		db->first_res_count = db->first_req_count;
 		db->first_buffer = cpu_to_le32(d_bus + sizeof *db);
-		
+
 		if (offset + rest < PAGE_SIZE)
 			length = rest;
 		else
@@ -1675,7 +1673,7 @@ ohci_queue_iso_receive_bufferfill(struct fw_iso_context *base,
 	dma_addr_t d_bus, page_bus;
 	u32 length, rest;
 	int page, offset;
- 
+
 	page   = payload >> PAGE_SHIFT;
 	offset = payload & ~PAGE_MASK;
 	rest   = packet->payload_length;
@@ -1691,7 +1689,7 @@ ohci_queue_iso_receive_bufferfill(struct fw_iso_context *base,
 		d->control = cpu_to_le16(descriptor_input_more |
 					 descriptor_status |
 					 descriptor_branch_always);
-		
+
 		if (offset + rest < PAGE_SIZE)
 			length = rest;
 		else

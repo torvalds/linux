@@ -47,7 +47,7 @@ fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
 		buffer->pages[i] = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
 		if (buffer->pages[i] == NULL)
 			goto out_pages;
-		
+
 		address = dma_map_page(card->device, buffer->pages[i],
 				       0, PAGE_SIZE, direction);
 		if (dma_mapping_error(address)) {

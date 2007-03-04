@@ -145,7 +145,7 @@ fw_unit_uevent(struct device *dev, char **envp, int num_envp,
 			   "MODALIAS=%s", modalias))
 		return -ENOMEM;
 
-      out:
+ out:
 	envp[i] = NULL;
 
 	return 0;
@@ -511,9 +511,9 @@ static void fw_device_init(struct work_struct *work)
 
 	return;
 
-      error_with_device:
+ error_with_device:
 	device_del(&device->device);
-      error:
+ error:
 	cdev_del(&device->cdev);
 	unregister_chrdev_region(device->device.devt, 1);
 	put_device(&device->device);
