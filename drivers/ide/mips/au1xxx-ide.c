@@ -29,8 +29,6 @@
  * Note: for more information, please refer "AMD Alchemy Au1200/Au1550 IDE
  *       Interface and Linux Device Driver" Application Note.
  */
-#undef REALLY_SLOW_IO           /* most systems can safely undef this */
-
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

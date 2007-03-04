@@ -1359,7 +1359,8 @@ u8 ide_dump_status(ide_drive_t *, const char *, u8);
 typedef struct ide_pio_timings_s {
 	int	setup_time;	/* Address setup (ns) minimum */
 	int	active_time;	/* Active pulse (ns) minimum */
-	int	cycle_time;	/* Cycle time (ns) minimum = (setup + active + recovery) */
+	int	cycle_time;	/* Cycle time (ns) minimum = */
+				/* active + recovery (+ setup for some chips) */
 } ide_pio_timings_t;
 
 typedef struct ide_pio_data_s {

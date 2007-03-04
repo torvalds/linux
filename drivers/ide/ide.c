@@ -126,8 +126,6 @@
 #define	REVISION	"Revision: 7.00alpha2"
 #define	VERSION		"Id: ide.c 7.00a2 20020906"
 
-#undef REALLY_SLOW_IO		/* most systems can safely undef this */
-
 #define _IDE_C			/* Tell ide.h it's really us */
 
 #include <linux/module.h>
@@ -1486,23 +1484,23 @@ static int __init match_parm (char *s, const char *keywords[], int vals[], int m
 }
 
 #ifdef CONFIG_BLK_DEV_ALI14XX
-static int __initdata probe_ali14xx;
+extern int probe_ali14xx;
 extern int ali14xx_init(void);
 #endif
 #ifdef CONFIG_BLK_DEV_UMC8672
-static int __initdata probe_umc8672;
+extern int probe_umc8672;
 extern int umc8672_init(void);
 #endif
 #ifdef CONFIG_BLK_DEV_DTC2278
-static int __initdata probe_dtc2278;
+extern int probe_dtc2278;
 extern int dtc2278_init(void);
 #endif
 #ifdef CONFIG_BLK_DEV_HT6560B
-static int __initdata probe_ht6560b;
+extern int probe_ht6560b;
 extern int ht6560b_init(void);
 #endif
 #ifdef CONFIG_BLK_DEV_QD65XX
-static int __initdata probe_qd65xx;
+extern int probe_qd65xx;
 extern int qd65xx_init(void);
 #endif
 
@@ -1580,7 +1578,7 @@ static int __init ide_setup(char *s)
 	 */
 	if (s[0] == 'h' && s[1] == 'd' && s[2] >= 'a' && s[2] <= max_drive) {
 		const char *hd_words[] = {
-			"none", "noprobe", "nowerr", "cdrom", "serialize",
+			"none", "noprobe", "nowerr", "cdrom", "minus5",
 			"autotune", "noautotune", "minus8", "swapdata", "bswap",
 			"noflush", "remap", "remap63", "scsi", NULL };
 		unit = s[2] - 'a';
@@ -1608,9 +1606,6 @@ static int __init ide_setup(char *s)
 				drive->ready_stat = 0;
 				hwif->noprobe = 0;
 				goto done;
-			case -5: /* "serialize" */
-				printk(" -- USE \"ide%d=serialize\" INSTEAD", hw);
-				goto do_serialize;
 			case -6: /* "autotune" */
 				drive->autotune = IDE_TUNE_AUTO;
 				goto obsolete_option;
@@ -1671,7 +1666,7 @@ static int __init ide_setup(char *s)
 		 * (-8, -9, -10) are reserved to ease the hardcoding.
 		 */
 		static const char *ide_words[] = {
-			"noprobe", "serialize", "autotune", "noautotune", 
+			"noprobe", "serialize", "minus3", "minus4",
 			"reset", "dma", "ata66", "minus8", "minus9",
 			"minus10", "four", "qd65xx", "ht6560b", "cmd640_vlb",
 			"dtc2278", "umc8672", "ali14xx", NULL };
@@ -1742,12 +1737,17 @@ static int __init ide_setup(char *s)
 				hwif->chipset = mate->chipset = ide_4drives;
 				mate->irq = hwif->irq;
 				memcpy(mate->io_ports, hwif->io_ports, sizeof(hwif->io_ports));
-				goto do_serialize;
+				hwif->mate = mate;
+				mate->mate = hwif;
+				hwif->serialized = mate->serialized = 1;
+				goto obsolete_option;
 			}
 #endif /* CONFIG_BLK_DEV_4DRIVES */
 			case -10: /* minus10 */
 			case -9: /* minus9 */
 			case -8: /* minus8 */
+			case -4:
+			case -3:
 				goto bad_option;
 			case -7: /* ata66 */
 #ifdef CONFIG_BLK_DEV_IDEPCI
@@ -1762,16 +1762,7 @@ static int __init ide_setup(char *s)
 			case -5: /* "reset" */
 				hwif->reset = 1;
 				goto obsolete_option;
-			case -4: /* "noautotune" */
-				hwif->drives[0].autotune = IDE_TUNE_NOAUTO;
-				hwif->drives[1].autotune = IDE_TUNE_NOAUTO;
-				goto obsolete_option;
-			case -3: /* "autotune" */
-				hwif->drives[0].autotune = IDE_TUNE_AUTO;
-				hwif->drives[1].autotune = IDE_TUNE_AUTO;
-				goto obsolete_option;
 			case -2: /* "serialize" */
-			do_serialize:
 				hwif->mate = &ide_hwifs[hw^1];
 				hwif->mate->mate = hwif;
 				hwif->serialized = hwif->mate->serialized = 1;
@@ -1840,8 +1831,8 @@ static void __init probe_for_hwifs (void)
 #endif /* CONFIG_BLK_DEV_CMD640 */
 #ifdef CONFIG_BLK_DEV_IDE_PMAC
 	{
-		extern void pmac_ide_probe(void);
-		pmac_ide_probe();
+		extern int pmac_ide_probe(void);
+		(void)pmac_ide_probe();
 	}
 #endif /* CONFIG_BLK_DEV_IDE_PMAC */
 #ifdef CONFIG_BLK_DEV_GAYLE

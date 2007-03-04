@@ -57,7 +57,7 @@
  * There is a 25/33MHz switch in configuration
  * register, but driver is written for use at any frequency which get
  * (use idebus=xx to select PCI bus speed).
- * Use ide0=autotune for automatical tune of the PIO modes.
+ * Use hda=autotune and hdb=autotune for automatical tune of the PIO modes.
  * If you get strange results, do not use this and set PIO manually
  * by hdparm.
  *
@@ -87,7 +87,6 @@
  * 0.5 doesn't work.
  */
 
-#undef REALLY_SLOW_IO	/* most systems can safely undef this */
 #define OPTI621_DEBUG		/* define for debug messages */
 
 #include <linux/types.h>

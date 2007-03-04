@@ -509,6 +509,32 @@ static int scc_ide_dma_end(ide_drive_t * drive)
 	return __ide_dma_end(drive);
 }
 
+/* returns 1 if dma irq issued, 0 otherwise */
+static int scc_dma_test_irq(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif	= HWIF(drive);
+	u8 dma_stat		= hwif->INB(hwif->dma_status);
+
+	/* return 1 if INTR asserted */
+	if ((dma_stat & 4) == 4)
+		return 1;
+
+	/* Workaround for PTERADD: emulate DMA_INTR when
+	 * - IDE_STATUS[ERR] = 1
+	 * - INT_STATUS[INTRQ] = 1
+	 * - DMA_STATUS[IORACTA] = 1
+	 */
+	if (in_be32((void __iomem *)IDE_ALTSTATUS_REG) & ERR_STAT &&
+	    in_be32((void __iomem *)(hwif->dma_base + 0x014)) & INTSTS_INTRQ &&
+		dma_stat & 1)
+		return 1;
+
+	if (!drive->waiting_for_dma)
+		printk(KERN_WARNING "%s: (%s) called while not waiting\n",
+			drive->name, __FUNCTION__);
+	return 0;
+}
+
 /**
  *	setup_mmio_scc	-	map CTRL/BMID region
  *	@dev: PCI device we are configuring
@@ -712,6 +738,7 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	hwif->speedproc = scc_tune_chipset;
 	hwif->tuneproc = scc_tuneproc;
 	hwif->ide_dma_check = scc_config_drive_for_dma;
+	hwif->ide_dma_test_irq = scc_dma_test_irq;
 
 	hwif->drives[0].autotune = IDE_TUNE_AUTO;
 	hwif->drives[1].autotune = IDE_TUNE_AUTO;

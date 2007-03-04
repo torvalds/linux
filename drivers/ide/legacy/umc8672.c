@@ -165,12 +165,21 @@ static int __init umc8672_probe(void)
 	return 0;
 }
 
+int probe_umc8672 = 0;
+
+module_param_named(probe, probe_umc8672, bool, 0);
+MODULE_PARM_DESC(probe, "probe for UMC8672 chipset");
+
 /* Can be called directly from ide.c. */
 int __init umc8672_init(void)
 {
-	if (umc8672_probe())
-		return -ENODEV;
-	return 0;
+	if (probe_umc8672 == 0)
+		goto out;
+
+	if (umc8672_probe() == 0)
+		return 0;;
+out:
+	return -ENODEV;;
 }
 
 #ifdef MODULE

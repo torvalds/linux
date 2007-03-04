@@ -21,8 +21,6 @@
  * are deemed to be part of the source code.
  */
 
-#undef REALLY_SLOW_IO		/* most systems can safely undef this */
-
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
