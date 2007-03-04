@@ -65,6 +65,7 @@
 #include <asm/udbg.h>
 #include <asm/smp.h>
 #include <asm/firmware.h>
+#include <asm/eeh.h>
 
 #include "plpar_wrappers.h"
 #include "pseries.h"
@@ -513,6 +514,10 @@ void pSeries_power_off(void)
 	}
 	for (;;);
 }
+
+#ifndef CONFIG_PCI
+void pSeries_final_fixup(void) { }
+#endif
 
 define_machine(pseries) {
 	.name			= "pSeries",

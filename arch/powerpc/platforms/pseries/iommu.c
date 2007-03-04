@@ -242,6 +242,7 @@ static unsigned long tce_get_pSeriesLP(struct iommu_table *tbl, long tcenum)
 	return tce_ret;
 }
 
+#ifdef CONFIG_PCI
 static void iommu_table_setparms(struct pci_controller *phb,
 				 struct device_node *dn,
 				 struct iommu_table *tbl)
@@ -478,29 +479,6 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 		       pci_name(dev));
 }
 
-static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *node)
-{
-	int err = NOTIFY_OK;
-	struct device_node *np = node;
-	struct pci_dn *pci = PCI_DN(np);
-
-	switch (action) {
-	case PSERIES_RECONFIG_REMOVE:
-		if (pci && pci->iommu_table &&
-		    get_property(np, "ibm,dma-window", NULL))
-			iommu_free_table(np);
-		break;
-	default:
-		err = NOTIFY_DONE;
-		break;
-	}
-	return err;
-}
-
-static struct notifier_block iommu_reconfig_nb = {
-	.notifier_call = iommu_reconfig_notifier,
-};
-
 static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 {
 	struct device_node *pdn, *dn;
@@ -554,6 +532,35 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 
 	dev->dev.archdata.dma_data = pci->iommu_table;
 }
+#else  /* CONFIG_PCI */
+#define pci_dma_bus_setup_pSeries	NULL
+#define pci_dma_dev_setup_pSeries	NULL
+#define pci_dma_bus_setup_pSeriesLP	NULL
+#define pci_dma_dev_setup_pSeriesLP	NULL
+#endif /* !CONFIG_PCI */
+
+static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *node)
+{
+	int err = NOTIFY_OK;
+	struct device_node *np = node;
+	struct pci_dn *pci = PCI_DN(np);
+
+	switch (action) {
+	case PSERIES_RECONFIG_REMOVE:
+		if (pci && pci->iommu_table &&
+		    get_property(np, "ibm,dma-window", NULL))
+			iommu_free_table(np);
+		break;
+	default:
+		err = NOTIFY_DONE;
+		break;
+	}
+	return err;
+}
+
+static struct notifier_block iommu_reconfig_nb = {
+	.notifier_call = iommu_reconfig_notifier,
+};
 
 /* These are called very early. */
 void iommu_init_early_pSeries(void)

@@ -10,6 +10,8 @@
 #define _ASM_POWERPC_PPC_PCI_H
 #ifdef __KERNEL__
 
+#ifdef CONFIG_PCI
+
 #include <linux/pci.h>
 #include <asm/pci-bridge.h>
 
@@ -125,6 +127,11 @@ void eeh_clear_slot (struct device_node *dn, int mode_flag);
 struct device_node * find_device_pe(struct device_node *dn);
 
 #endif
+
+#else /* CONFIG_PCI */
+static inline void find_and_init_phbs(void) { }
+static inline void init_pci_config_tokens(void) { }
+#endif /* !CONFIG_PCI */
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PPC_PCI_H */
