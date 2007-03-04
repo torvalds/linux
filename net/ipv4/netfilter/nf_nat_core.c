@@ -546,8 +546,7 @@ void nf_nat_protocol_unregister(struct nf_nat_protocol *proto)
 }
 EXPORT_SYMBOL(nf_nat_protocol_unregister);
 
-#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
-    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 int
 nf_nat_port_range_to_nfattr(struct sk_buff *skb,
 			    const struct nf_nat_range *range)

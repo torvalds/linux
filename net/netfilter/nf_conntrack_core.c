@@ -976,8 +976,7 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 
-#if defined(CONFIG_NF_CT_NETLINK) || \
-    defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>

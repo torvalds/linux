@@ -1099,8 +1099,7 @@ static int tcp_new(struct nf_conn *conntrack,
 	return 1;
 }
 
-#if defined(CONFIG_NF_CT_NETLINK) || \
-    defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
@@ -1378,8 +1377,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 =
 	.packet 		= tcp_packet,
 	.new 			= tcp_new,
 	.error			= tcp_error,
-#if defined(CONFIG_NF_CT_NETLINK) || \
-    defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.to_nfattr		= tcp_to_nfattr,
 	.from_nfattr		= nfattr_to_tcp,
 	.tuple_to_nfattr	= nf_ct_port_tuple_to_nfattr,
@@ -1408,8 +1406,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 =
 	.packet 		= tcp_packet,
 	.new 			= tcp_new,
 	.error			= tcp_error,
-#if defined(CONFIG_NF_CT_NETLINK) || \
-    defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.to_nfattr		= tcp_to_nfattr,
 	.from_nfattr		= nfattr_to_tcp,
 	.tuple_to_nfattr	= nf_ct_port_tuple_to_nfattr,

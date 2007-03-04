@@ -134,8 +134,7 @@ struct nf_nat_protocol nf_nat_protocol_udp = {
 	.manip_pkt		= udp_manip_pkt,
 	.in_range		= udp_in_range,
 	.unique_tuple		= udp_unique_tuple,
-#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
-    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.range_to_nfattr	= nf_nat_port_range_to_nfattr,
 	.nfattr_to_range	= nf_nat_port_nfattr_to_range,
 #endif

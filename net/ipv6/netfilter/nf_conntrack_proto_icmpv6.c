@@ -244,8 +244,7 @@ icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
 	return icmpv6_error_message(skb, dataoff, ctinfo, hooknum);
 }
 
-#if defined(CONFIG_NF_CT_NETLINK) || \
-    defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
@@ -327,8 +326,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 	.packet			= icmpv6_packet,
 	.new			= icmpv6_new,
 	.error			= icmpv6_error,
-#if defined(CONFIG_NF_CT_NETLINK) || \
-    defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nfattr	= icmpv6_tuple_to_nfattr,
 	.nfattr_to_tuple	= icmpv6_nfattr_to_tuple,
 #endif
