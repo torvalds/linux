@@ -133,6 +133,7 @@ instance_put(struct nfulnl_instance *inst)
 	if (inst && atomic_dec_and_test(&inst->use)) {
 		UDEBUG("kfree(inst=%p)\n", inst);
 		kfree(inst);
+		module_put(THIS_MODULE);
 	}
 }
 
@@ -228,8 +229,6 @@ _instance_destroy2(struct nfulnl_instance *inst, int lock)
 
 	/* and finally put the refcount */
 	instance_put(inst);
-
-	module_put(THIS_MODULE);
 }
 
 static inline void
