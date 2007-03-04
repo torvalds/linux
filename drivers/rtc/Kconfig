@@ -207,10 +207,12 @@ config RTC_DRV_PCF8563
 
 config RTC_DRV_PCF8583
 	tristate "Philips PCF8583"
-	depends on RTC_CLASS && I2C
+	depends on RTC_CLASS && I2C && ARCH_RPC
 	help
-	  If you say yes here you get support for the
-	  Philips PCF8583 RTC chip.
+	  If you say yes here you get support for the Philips PCF8583
+	  RTC chip found on Acorn RiscPCs.  This driver supports the
+	  platform specific method of retrieving the current year from
+	  the RTC's SRAM.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf8583.
