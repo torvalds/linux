@@ -1608,8 +1608,7 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	vcpu->mmio_needed = 0;
 
-	if (kvm_run->exit_type == KVM_EXIT_TYPE_VM_EXIT
-	    && kvm_run->exit_reason == KVM_EXIT_HYPERCALL) {
+	if (kvm_run->exit_reason == KVM_EXIT_HYPERCALL) {
 		kvm_arch_ops->cache_regs(vcpu);
 		vcpu->regs[VCPU_REGS_RAX] = kvm_run->hypercall.ret;
 		kvm_arch_ops->decache_regs(vcpu);

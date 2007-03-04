@@ -11,7 +11,7 @@
 #include <asm/types.h>
 #include <linux/ioctl.h>
 
-#define KVM_API_VERSION 7
+#define KVM_API_VERSION 8
 
 /*
  * Architectural interrupt line count, and the size of the bitmap needed
@@ -34,9 +34,6 @@ struct kvm_memory_region {
 #define KVM_MEM_LOG_DIRTY_PAGES  1UL
 
 
-#define KVM_EXIT_TYPE_FAIL_ENTRY 1
-#define KVM_EXIT_TYPE_VM_EXIT    2
-
 enum kvm_exit_reason {
 	KVM_EXIT_UNKNOWN          = 0,
 	KVM_EXIT_EXCEPTION        = 1,
@@ -47,6 +44,7 @@ enum kvm_exit_reason {
 	KVM_EXIT_MMIO             = 6,
 	KVM_EXIT_IRQ_WINDOW_OPEN  = 7,
 	KVM_EXIT_SHUTDOWN         = 8,
+	KVM_EXIT_FAIL_ENTRY       = 9,
 };
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
@@ -57,12 +55,11 @@ struct kvm_run {
 	__u8 padding1[3];
 
 	/* out */
-	__u32 exit_type;
 	__u32 exit_reason;
 	__u32 instruction_length;
 	__u8 ready_for_interrupt_injection;
 	__u8 if_flag;
-	__u16 padding2;
+	__u8 padding2[6];
 
 	/* in (pre_kvm_run), out (post_kvm_run) */
 	__u64 cr8;
@@ -71,8 +68,12 @@ struct kvm_run {
 	union {
 		/* KVM_EXIT_UNKNOWN */
 		struct {
-			__u32 hardware_exit_reason;
+			__u64 hardware_exit_reason;
 		} hw;
+		/* KVM_EXIT_FAIL_ENTRY */
+		struct {
+			__u64 hardware_entry_failure_reason;
+		} fail_entry;
 		/* KVM_EXIT_EXCEPTION */
 		struct {
 			__u32 exception;

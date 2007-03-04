@@ -1298,8 +1298,6 @@ static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	u32 exit_code = vcpu->svm->vmcb->control.exit_code;
 
-	kvm_run->exit_type = KVM_EXIT_TYPE_VM_EXIT;
-
 	if (is_external_interrupt(vcpu->svm->vmcb->control.exit_int_info) &&
 	    exit_code != SVM_EXIT_EXCP_BASE + PF_VECTOR)
 		printk(KERN_ERR "%s: unexpected exit_ini_info 0x%x "
@@ -1609,8 +1607,9 @@ again:
 	vcpu->svm->next_rip = 0;
 
 	if (vcpu->svm->vmcb->control.exit_code == SVM_EXIT_ERR) {
-		kvm_run->exit_type = KVM_EXIT_TYPE_FAIL_ENTRY;
-		kvm_run->exit_reason = vcpu->svm->vmcb->control.exit_code;
+		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		kvm_run->fail_entry.hardware_entry_failure_reason
+			= vcpu->svm->vmcb->control.exit_code;
 		post_kvm_run_save(vcpu, kvm_run);
 		return 0;
 	}

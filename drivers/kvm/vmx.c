@@ -1922,10 +1922,10 @@ again:
 
 	asm ("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 
-	kvm_run->exit_type = 0;
 	if (fail) {
-		kvm_run->exit_type = KVM_EXIT_TYPE_FAIL_ENTRY;
-		kvm_run->exit_reason = vmcs_read32(VM_INSTRUCTION_ERROR);
+		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		kvm_run->fail_entry.hardware_entry_failure_reason
+			= vmcs_read32(VM_INSTRUCTION_ERROR);
 		r = 0;
 	} else {
 		/*
@@ -1935,7 +1935,6 @@ again:
 			profile_hit(KVM_PROFILING, (void *)vmcs_readl(GUEST_RIP));
 
 		vcpu->launched = 1;
-		kvm_run->exit_type = KVM_EXIT_TYPE_VM_EXIT;
 		r = kvm_handle_exit(kvm_run, vcpu);
 		if (r > 0) {
 			/* Give scheduler a change to reschedule. */
