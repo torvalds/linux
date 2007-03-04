@@ -457,13 +457,10 @@ void ptrace_cancel_bpt(struct task_struct *child)
 
 /*
  * Called by kernel/ptrace.c when detaching..
- *
- * Make sure the single step bit is not set.
  */
 void ptrace_disable(struct task_struct *child)
 {
-	child->ptrace &= ~PT_SINGLESTEP;
-	ptrace_cancel_bpt(child);
+	single_step_disable(child);
 }
 
 /*
@@ -712,9 +709,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			else
 				clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 			child->exit_code = data;
-			/* make sure single-step breakpoint is gone. */
-			child->ptrace &= ~PT_SINGLESTEP;
-			ptrace_cancel_bpt(child);
+			single_step_disable(child);
 			wake_up_process(child);
 			ret = 0;
 			break;
@@ -725,9 +720,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		 * exit.
 		 */
 		case PTRACE_KILL:
-			/* make sure single-step breakpoint is gone. */
-			child->ptrace &= ~PT_SINGLESTEP;
-			ptrace_cancel_bpt(child);
+			single_step_disable(child);
 			if (child->exit_state != EXIT_ZOMBIE) {
 				child->exit_code = SIGKILL;
 				wake_up_process(child);
@@ -742,7 +735,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = -EIO;
 			if (!valid_signal(data))
 				break;
-			child->ptrace |= PT_SINGLESTEP;
+			single_step_enable(child);
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 			child->exit_code = data;
 			/* give it a chance to run. */
