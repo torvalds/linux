@@ -9,6 +9,8 @@
  * Copyright (C) 2005-2006 Thomas Bogendoerfer (tsbogend@alpha.franken.de)
  */
 
+#define DEBUG
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/string.h>
@@ -32,40 +34,19 @@
 #define PROM_ENTRY(x)		(PROM_VEC + (x))
 
 
-#define DEBUG
-#ifdef DEBUG
-#define DBG_PRINTF(x...)     prom_printf(x)
-#else
-#define DBG_PRINTF(x...)
-#endif
-
 static int *(*__prom_putchar)(int)        = (int *(*)(int))PROM_ENTRY(PROM_PUTCHAR);
+
+void prom_putchar(char c)
+{
+	__prom_putchar(c);
+}
+
 static char *(*__prom_getenv)(char *)     = (char *(*)(char *))PROM_ENTRY(PROM_GETENV);
 static void (*__prom_get_memconf)(void *) = (void (*)(void *))PROM_ENTRY(PROM_GET_MEMCONF);
 
 char *prom_getenv (char *s)
 {
 	return __prom_getenv(s);
-}
-
-void prom_printf(char *fmt, ...)
-{
-	va_list args;
-	char ppbuf[1024];
-	char *bptr;
-
-	va_start(args, fmt);
-	vsprintf(ppbuf, fmt, args);
-
-	bptr = ppbuf;
-
-	while (*bptr != 0) {
-		if (*bptr == '\n')
-			__prom_putchar('\r');
-
-		__prom_putchar(*bptr++);
-	}
-	va_end(args);
 }
 
 void __init prom_free_prom_memory(void)
@@ -94,15 +75,15 @@ static void sni_idprom_dump(void)
 {
 	int	i;
 
-	prom_printf("SNI IDProm dump:\n");
+	pr_debug("SNI IDProm dump:\n");
 	for (i = 0; i < 256; i++) {
 		if (i%16 == 0)
-			prom_printf("%04x ", i);
+			pr_debug("%04x ", i);
 
-		prom_printf("%02x ", *(unsigned char *) (SNI_IDPROM_BASE + i));
+		printk("%02x ", *(unsigned char *) (SNI_IDPROM_BASE + i));
 
 		if (i % 16 == 15)
-			prom_printf("\n");
+			printk("\n");
 	}
 }
 #endif
@@ -121,12 +102,12 @@ static void sni_mem_init(void )
 	/* MemSIZE from prom in 16MByte chunks */
 	memsize = *((unsigned char *) SNI_IDPROM_MEMSIZE) * 16;
 
-	DBG_PRINTF("IDProm memsize: %lu MByte\n", memsize);
+	pr_debug("IDProm memsize: %lu MByte\n", memsize);
 
 	/* get memory bank layout from prom */
 	__prom_get_memconf(&memconf);
 
-	DBG_PRINTF("prom_get_mem_conf memory configuration:\n");
+	pr_debug("prom_get_mem_conf memory configuration:\n");
 	for (i = 0;i < 8 && memconf[i].size; i++) {
 		if (sni_brd_type == SNI_BRD_PCI_TOWER ||
 		    sni_brd_type == SNI_BRD_PCI_TOWER_CPLUS) {
@@ -135,7 +116,7 @@ static void sni_mem_init(void )
 				memconf[i].base -= 0x20000000;
 			}
 	}
-		DBG_PRINTF("Bank%d: %08x @ %08x\n", i,
+		pr_debug("Bank%d: %08x @ %08x\n", i,
 			memconf[i].size, memconf[i].base);
 		add_memory_region(memconf[i].base, memconf[i].size, BOOT_MEM_RAM);
 	}
@@ -248,7 +229,7 @@ void __init prom_init(void)
 	        systype = "RM300-Exx";
 	        break;
 	}
-	DBG_PRINTF("Found SNI brdtype %02x name %s\n", sni_brd_type,systype);
+	pr_debug("Found SNI brdtype %02x name %s\n", sni_brd_type,systype);
 
 #ifdef DEBUG
 	sni_idprom_dump();

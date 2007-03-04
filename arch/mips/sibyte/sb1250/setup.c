@@ -67,7 +67,7 @@ static int __init sys_rev_decode(void)
 		ret = setup_bcm112x();
 		break;
 	default:
-		prom_printf("Unknown SOC type %x\n", soc_type);
+		printk("Unknown SOC type %x\n", soc_type);
 		ret = 1;
 		break;
 	}
@@ -112,7 +112,7 @@ static int __init setup_bcm1250(void)
 			pass_str = "A0-A6";
 			war_pass = K_SYS_REVISION_BCM1250_PASS2;
 		} else {
-			prom_printf("Unknown BCM1250 rev %x\n", soc_pass);
+			printk("Unknown BCM1250 rev %x\n", soc_pass);
 			ret = 1;
 		}
 		break;
@@ -140,7 +140,7 @@ static int __init setup_bcm112x(void)
 		pass_str = "A2";
 		break;
 	default:
-		prom_printf("Unknown %s rev %x\n", soc_str, soc_pass);
+		printk("Unknown %s rev %x\n", soc_str, soc_pass);
 		ret = 1;
 	}
 	return ret;
@@ -158,21 +158,21 @@ void __init sb1250_setup(void)
 	soc_pass = G_SYS_REVISION(sys_rev);
 
 	if (sys_rev_decode()) {
-		prom_printf("Restart after failure to identify SiByte chip\n");
+		printk("Restart after failure to identify SiByte chip\n");
 		machine_restart(NULL);
 	}
 
 	plldiv = G_SYS_PLL_DIV(__raw_readq(IOADDR(A_SCD_SYSTEM_CFG)));
 	zbbus_mhz = ((plldiv >> 1) * 50) + ((plldiv & 1) * 25);
 
-	prom_printf("Broadcom SiByte %s %s @ %d MHz (SB1 rev %d)\n",
+	printk("Broadcom SiByte %s %s @ %d MHz (SB1 rev %d)\n",
 		    soc_str, pass_str, zbbus_mhz * 2, sb1_pass);
-	prom_printf("Board type: %s\n", get_system_type());
+	printk("Board type: %s\n", get_system_type());
 
 	switch (war_pass) {
 	case K_SYS_REVISION_BCM1250_PASS1:
 #ifndef CONFIG_SB1_PASS_1_WORKAROUNDS
-		prom_printf("@@@@ This is a BCM1250 A0-A2 (Pass 1) board, "
+		printk("@@@@ This is a BCM1250 A0-A2 (Pass 1) board, "
 		            "and the kernel doesn't have the proper "
 		            "workarounds compiled in. @@@@\n");
 		bad_config = 1;
@@ -182,27 +182,27 @@ void __init sb1250_setup(void)
 		/* Pass 2 - easiest as default for now - so many numbers */
 #if !defined(CONFIG_SB1_PASS_2_WORKAROUNDS) || \
     !defined(CONFIG_SB1_PASS_2_1_WORKAROUNDS)
-		prom_printf("@@@@ This is a BCM1250 A3-A10 board, and the "
+		printk("@@@@ This is a BCM1250 A3-A10 board, and the "
 		            "kernel doesn't have the proper workarounds "
 		            "compiled in. @@@@\n");
 		bad_config = 1;
 #endif
 #ifdef CONFIG_CPU_HAS_PREFETCH
-		prom_printf("@@@@ Prefetches may be enabled in this kernel, "
+		printk("@@@@ Prefetches may be enabled in this kernel, "
 		            "but are buggy on this board.  @@@@\n");
 		bad_config = 1;
 #endif
 		break;
 	case K_SYS_REVISION_BCM1250_PASS2_2:
 #ifndef CONFIG_SB1_PASS_2_WORKAROUNDS
-		prom_printf("@@@@ This is a BCM1250 B1/B2. board, and the "
+		printk("@@@@ This is a BCM1250 B1/B2. board, and the "
 		            "kernel doesn't have the proper workarounds "
 		            "compiled in. @@@@\n");
 		bad_config = 1;
 #endif
 #if defined(CONFIG_SB1_PASS_2_1_WORKAROUNDS) || \
     !defined(CONFIG_CPU_HAS_PREFETCH)
-		prom_printf("@@@@ This is a BCM1250 B1/B2, but the kernel is "
+		printk("@@@@ This is a BCM1250 B1/B2, but the kernel is "
 		            "conservatively configured for an 'A' stepping. "
 		            "@@@@\n");
 #endif
@@ -211,7 +211,7 @@ void __init sb1250_setup(void)
 		break;
 	}
 	if (bad_config) {
-		prom_printf("Invalid configuration for this chip.\n");
+		printk("Invalid configuration for this chip.\n");
 		machine_restart(NULL);
 	}
 }

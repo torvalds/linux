@@ -295,7 +295,7 @@ void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
 
 	/* Make sure that gcc doesn't leave the empty loop body.  */
 	for (i = 0; i < nelems; i++, sg++) {
-		if (!plat_device_is_coherent(dev))
+		if (cpu_is_noncoherent_r10000(dev))
 			__dma_sync((unsigned long)page_address(sg->page),
 			           sg->length, direction);
 		plat_unmap_dma_mem(sg->dma_address);

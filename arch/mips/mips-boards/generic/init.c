@@ -167,7 +167,7 @@ static void __init console_config(void)
 			flow = 'r';
 		sprintf (console_string, " console=ttyS0,%d%c%c%c", baud, parity, bits, flow);
 		strcat (prom_getcmdline(), console_string);
-		prom_printf("Config serial console:%s\n", console_string);
+		pr_info("Config serial console:%s\n", console_string);
 	}
 }
 #endif
@@ -210,8 +210,9 @@ void __init kgdb_config (void)
 			generic_getDebugChar = rs_getDebugChar;
 		}
 
-		prom_printf("KGDB: Using serial line /dev/ttyS%d at %d for session, "
-			    "please connect your debugger\n", line ? 1 : 0, speed);
+		pr_info("KGDB: Using serial line /dev/ttyS%d at %d for "
+		        "session, please connect your debugger\n",
+		        line ? 1 : 0, speed);
 
 		{
 			char *s;
@@ -382,7 +383,7 @@ void __init prom_init(void)
 	board_nmi_handler_setup = mips_nmi_setup;
 	board_ejtag_handler_setup = mips_ejtag_setup;
 
-	prom_printf("\nLINUX started...\n");
+	pr_info("\nLINUX started...\n");
 	prom_init_cmdline();
 	prom_meminit();
 #ifdef CONFIG_SERIAL_8250_CONSOLE

@@ -24,11 +24,6 @@ static void prom_console_write(struct console *co, const char *s,
 	}
 }
 
-int prom_getchar(void)
-{
-	return 0;
-}
-
 static struct console sercons = {
     .name	= "ttyS",
     .write	= prom_console_write,

@@ -55,7 +55,7 @@ void __init plat_mem_setup(void)
 	serial_init();
 
 	board_time_init = sim_time_init;
-	prom_printf("Linux started...\n");
+	pr_info("Linux started...\n");
 
 #ifdef CONFIG_MIPS_MT_SMP
 	sanitize_tlb_entries();
@@ -66,7 +66,7 @@ void prom_init(void)
 {
 	set_io_port_base(0xbfd00000);
 
-	prom_printf("\nLINUX started...\n");
+	pr_info("\nLINUX started...\n");
 	prom_init_cmdline();
 	prom_meminit();
 }
@@ -91,7 +91,7 @@ static void __init serial_init(void)
 	s.timeout = 4;
 
 	if (early_serial_setup(&s) != 0) {
-		prom_printf(KERN_ERR "Serial setup failed!\n");
+		printk(KERN_ERR "Serial setup failed!\n");
 	}
 
 #endif

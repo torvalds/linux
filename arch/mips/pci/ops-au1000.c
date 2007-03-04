@@ -172,7 +172,11 @@ static int config_access(unsigned char access_type, struct pci_bus *bus,
 		error = -1;
 		DBG("Au1x Master Abort\n");
 	} else if ((status >> 28) & 0xf) {
-		DBG("PCI ERR detected: status %x\n", status);
+		DBG("PCI ERR detected: device %d, status %x\n", device, ((status >> 28) & 0xf));
+
+		/* clear errors */
+		au_writel(status & 0xf000ffff, Au1500_PCI_STATCMD);
+
 		*data = 0xffffffff;
 		error = -1;
 	}

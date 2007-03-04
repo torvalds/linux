@@ -23,10 +23,6 @@
 #define PROM_PUTC_ADDR		PROM_JUMP_TABLE_ENTRY(1)
 #define PROM_MONITOR_ADDR	PROM_JUMP_TABLE_ENTRY(2)
 
-static void null_prom_printf(const char * fmt, ...)
-{
-}
-
 static void null_prom_display(const char *string, int pos, int clear)
 {
 }
@@ -40,38 +36,18 @@ static void null_prom_putc(char c)
 }
 
 /* these are functions provided by the bootloader */
-static void (* prom_putc)(char c) = null_prom_putc;
-void (* prom_printf)(const char * fmt, ...) = null_prom_printf;
+static void (* __prom_putc)(char c) = null_prom_putc;
+
+void prom_putchar(char c)
+{
+	__prom_putc(c);
+}
+
 void (* prom_display)(const char *string, int pos, int clear) =
 		null_prom_display;
 void (* prom_monitor)(void) = null_prom_monitor;
 
 unsigned int lasat_ndelay_divider;
-
-#define PROM_PRINTFBUF_SIZE 256
-static char prom_printfbuf[PROM_PRINTFBUF_SIZE];
-
-static void real_prom_printf(const char * fmt, ...)
-{
-	va_list ap;
-	int len;
-	char *c = prom_printfbuf;
-	int i;
-
-	va_start(ap, fmt);
-	len = vsnprintf(prom_printfbuf, PROM_PRINTFBUF_SIZE, fmt, ap);
-	va_end(ap);
-
-	/* output overflowed the buffer */
-	if (len < 0 || len > PROM_PRINTFBUF_SIZE)
-		len = PROM_PRINTFBUF_SIZE;
-
-	for (i=0; i < len; i++) {
-		if (*c == '\n')
-			prom_putc('\r');
-		prom_putc(*c++);
-	}
-}
 
 static void setup_prom_vectors(void)
 {
@@ -79,11 +55,10 @@ static void setup_prom_vectors(void)
 
 	if (version >= 307) {
 		prom_display = (void *)PROM_DISPLAY_ADDR;
-		prom_putc = (void *)PROM_PUTC_ADDR;
-		prom_printf = real_prom_printf;
+		__prom_putc = (void *)PROM_PUTC_ADDR;
 		prom_monitor = (void *)PROM_MONITOR_ADDR;
 	}
-	prom_printf("prom vectors set up\n");
+	printk("prom vectors set up\n");
 }
 
 static struct at93c_defs at93c_defs[N_MACHTYPES] = {
@@ -101,11 +76,11 @@ void __init prom_init(void)
 	setup_prom_vectors();
 
 	if (current_cpu_data.cputype == CPU_R5000) {
-	        prom_printf("LASAT 200 board\n");
+	        printk("LASAT 200 board\n");
 		mips_machtype = MACH_LASAT_200;
                 lasat_ndelay_divider = LASAT_200_DIVIDER;
         } else {
-	        prom_printf("LASAT 100 board\n");
+	        printk("LASAT 100 board\n");
 		mips_machtype = MACH_LASAT_100;
                 lasat_ndelay_divider = LASAT_100_DIVIDER;
         }

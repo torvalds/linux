@@ -46,7 +46,7 @@ struct prom_pmemblock * __init prom_getmdesc(void)
 	unsigned int memsize;
 
 	memsize = 0x02000000;
-	prom_printf("Setting default memory size 0x%08x\n", memsize);
+	pr_info("Setting default memory size 0x%08x\n", memsize);
 
 	memset(mdesc, 0, sizeof(mdesc));
 

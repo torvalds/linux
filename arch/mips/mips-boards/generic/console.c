@@ -17,10 +17,9 @@
  *
  * Putting things on the screen/serial line using YAMONs facilities.
  */
+#include <linux/console.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/serial_reg.h>
-#include <linux/spinlock.h>
 #include <asm/io.h>
 
 #ifdef CONFIG_MIPS_ATLAS
@@ -67,12 +66,3 @@ int prom_putchar(char c)
 
 	return 1;
 }
-
-char prom_getchar(void)
-{
-	while (!(serial_in(UART_LSR) & UART_LSR_DR))
-		;
-
-	return serial_in(UART_RX);
-}
-

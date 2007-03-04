@@ -53,6 +53,7 @@
 #include <linux/pci.h>
 #include <linux/timex.h>
 #include <linux/pm.h>
+#include <linux/platform_device.h>
 
 #include <asm/bootinfo.h>
 #include <asm/page.h>
@@ -64,9 +65,6 @@
 #include <asm/time.h>
 #include <linux/bootmem.h>
 #include <linux/blkdev.h>
-#ifdef CONFIG_RTC_DS1742
-#include <linux/ds1742rtc.h>
-#endif
 #ifdef CONFIG_TOSHIBA_FPCIB0
 #include <asm/tx4927/smsc_fdc37m81x.h>
 #endif
@@ -1020,69 +1018,12 @@ void __init toshiba_rbtx4927_setup(void)
 			       "+\n");
 }
 
-#ifdef CONFIG_RTC_DS1742
-extern unsigned long rtc_ds1742_get_time(void);
-extern int rtc_ds1742_set_time(unsigned long);
-extern void rtc_ds1742_wait(void);
-#endif
-
 void __init
 toshiba_rbtx4927_time_init(void)
 {
-	u32 c1;
-	u32 c2;
-
 	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT, "-\n");
 
-#ifdef CONFIG_RTC_DS1742
-
-	rtc_mips_get_time = rtc_ds1742_get_time;
-	rtc_mips_set_time = rtc_ds1742_set_time;
-
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT,
-				       ":rtc_ds1742_init()-\n");
-	rtc_ds1742_init(0xbc010000);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT,
-				       ":rtc_ds1742_init()+\n");
-
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT,
-				       ":Calibrate mips_hpt_frequency-\n");
-	rtc_ds1742_wait();
-
-	/* get the count */
-	c1 = read_c0_count();
-
-	/* wait for the seconds to change again */
-	rtc_ds1742_wait();
-
-	/* get the count again */
-	c2 = read_c0_count();
-
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT,
-				       ":Calibrate mips_hpt_frequency+\n");
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT,
-				       ":c1=%12u\n", c1);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT,
-				       ":c2=%12u\n", c2);
-
-	/* this diff is as close as we are going to get to counter ticks per sec */
-	mips_hpt_frequency = abs(c2 - c1);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT,
-				       ":f1=%12u\n", mips_hpt_frequency);
-
-	/* round to 1/10th of a MHz */
-	mips_hpt_frequency /= (100 * 1000);
-	mips_hpt_frequency *= (100 * 1000);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT,
-				       ":f2=%12u\n", mips_hpt_frequency);
-
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_INFO,
-				       ":mips_hpt_frequency=%uHz (%uMHz)\n",
-				       mips_hpt_frequency,
-				       mips_hpt_frequency / 1000000);
-#else
-	mips_hpt_frequency = 100000000;
-#endif
+	mips_hpt_frequency = tx4927_cpu_clock / 2;
 
 	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT, "+\n");
 
@@ -1095,3 +1036,16 @@ void __init toshiba_rbtx4927_timer_setup(struct irqaction *irq)
 	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIMER_SETUP,
 				       "+\n");
 }
+
+static int __init toshiba_rbtx4927_rtc_init(void)
+{
+	struct resource res = {
+		.start	= 0x1c010000,
+		.end	= 0x1c010000 + 0x800 - 1,
+		.flags	= IORESOURCE_MEM,
+	};
+	struct platform_device *dev =
+		platform_device_register_simple("ds1742", -1, &res, 1);
+	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+}
+device_initcall(toshiba_rbtx4927_rtc_init);

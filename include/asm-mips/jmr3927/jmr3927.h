@@ -179,12 +179,6 @@ static inline int jmr3927_have_isac(void)
 #define jmr3927_have_nvram() \
 	((jmr3927_ioc_reg_in(JMR3927_IOC_REV_ADDR) & JMR3927_IDT_MASK) == JMR3927_IOC_IDT)
 
-/* NVRAM macro */
-#define jmr3927_nvram_in(ofs) \
-	jmr3927_ioc_reg_in(JMR3927_IOC_NVRAMB_ADDR + ((ofs) << 1))
-#define jmr3927_nvram_out(d, ofs) \
-	jmr3927_ioc_reg_out(d, JMR3927_IOC_NVRAMB_ADDR + ((ofs) << 1))
-
 /* LED macro */
 #define jmr3927_led_set(n/*0-16*/)	jmr3927_ioc_reg_out(~(n), JMR3927_IOC_LED_ADDR)
 #define jmr3927_io_led_set(n/*0-3*/)	jmr3927_isac_reg_out((n), JMR3927_ISAC_LED_ADDR)

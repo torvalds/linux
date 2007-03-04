@@ -93,11 +93,11 @@ static char *iflags[] = {
 static void __init
 dump_component(pcomponent *p)
 {
-	prom_printf("[%p]:class<%s>type<%s>flags<%s>ver<%d>rev<%d>",
-		    p, classes[p->class], types[p->type],
-		    iflags[p->iflags], p->vers, p->rev);
-	prom_printf("key<%08lx>\n\tamask<%08lx>cdsize<%d>ilen<%d>iname<%s>\n",
-		    p->key, p->amask, (int)p->cdsize, (int)p->ilen, p->iname);
+	printk("[%p]:class<%s>type<%s>flags<%s>ver<%d>rev<%d>",
+	       p, classes[p->class], types[p->type],
+	       iflags[p->iflags], p->vers, p->rev);
+	printk("key<%08lx>\n\tamask<%08lx>cdsize<%d>ilen<%d>iname<%s>\n",
+	       p->key, p->amask, (int)p->cdsize, (int)p->ilen, p->iname);
 }
 
 static void __init

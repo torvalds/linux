@@ -116,7 +116,6 @@ static void lasat_time_init(void)
 
 void __init plat_timer_setup(struct irqaction *irq)
 {
-	write_c0_compare( read_c0_count() + mips_hpt_frequency / HZ);
 	change_c0_status(ST0_IM, IE_IRQ0 | IE_IRQ5);
 }
 
@@ -179,5 +178,5 @@ void __init plat_mem_setup(void)
 	/* Switch from prom exception handler to normal mode */
 	change_c0_status(ST0_BEV,0);
 
-	prom_printf("Lasat specific initialization complete\n");
+	pr_info("Lasat specific initialization complete\n");
 }

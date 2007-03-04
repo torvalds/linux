@@ -176,7 +176,7 @@ config MACH_DECSTATION
 	bool "DECstations"
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
-	select EARLY_PRINTK
+	select SYS_HAS_EARLY_PRINTK
 	select IRQ_CPU
 	select SYS_HAS_CPU_R3000
 	select SYS_HAS_CPU_R4X00
@@ -242,6 +242,7 @@ config MACH_JAZZ
 config LASAT
 	bool "LASAT Networks platforms"
 	select DMA_NONCOHERENT
+	select SYS_HAS_EARLY_PRINTK
 	select HW_HAS_PCI
 	select MIPS_GT64120
 	select MIPS_NILE4
@@ -256,6 +257,7 @@ config MIPS_ATLAS
 	bool "MIPS Atlas board"
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
+	select SYS_HAS_EARLY_PRINTK
 	select IRQ_CPU
 	select HW_HAS_PCI
 	select MIPS_BOARDS_GEN
@@ -301,6 +303,7 @@ config MIPS_MALTA
 	select SYS_HAS_CPU_MIPS64_R1
 	select SYS_HAS_CPU_NEVADA
 	select SYS_HAS_CPU_RM7000
+	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -316,6 +319,7 @@ config MIPS_SEAD
 	depends on EXPERIMENTAL
 	select IRQ_CPU
 	select DMA_NONCOHERENT
+	select SYS_HAS_EARLY_PRINTK
 	select MIPS_BOARDS_GEN
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
@@ -353,9 +357,11 @@ config WR_PPMC
 config MIPS_SIM
 	bool 'MIPS simulator (MIPSsim)'
 	select DMA_NONCOHERENT
+	select SYS_HAS_EARLY_PRINTK
 	select IRQ_CPU
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
@@ -376,6 +382,7 @@ config MOMENCO_JAGUAR_ATX
 	select RM7000_CPU_SCACHE
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_RM9000
+	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -513,6 +520,7 @@ config PMC_YOSEMITE
 	select IRQ_CPU_RM9K
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_RM9000
+	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -573,6 +581,7 @@ config SGI_IP22
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_R4X00
 	select SYS_HAS_CPU_R5000
+	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -587,7 +596,7 @@ config SGI_IP27
 	select ARC64
 	select BOOT_ELF64
 	select DMA_IP27
-	select EARLY_PRINTK
+	select SYS_HAS_EARLY_PRINTK
 	select HW_HAS_PCI
 	select NR_CPUS_DEFAULT_64
 	select PCI_DOMAINS
@@ -749,6 +758,7 @@ config SNI_RM
 	select SYS_HAS_CPU_R5000
 	select SYS_HAS_CPU_R10000
 	select R5000_CPU_SCACHE
+	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -897,6 +907,20 @@ config DMA_NEED_PCI_MAP_STATE
 	bool
 
 config EARLY_PRINTK
+	bool "Early printk" if EMBEDDED && DEBUG_KERNEL
+	depends on SYS_HAS_EARLY_PRINTK
+	default y
+	help
+	  This option enables special console drivers which allow the kernel
+	  to print messages very early in the bootup process.
+
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized. For normal operation
+	  it is not recommended because it looks on some machines ugly and
+	  oesn't cooperate with an X server. You should normally N here,
+	  unless you want to debug such a crash.
+
+config SYS_HAS_EARLY_PRINTK
 	bool
 
 config GENERIC_ISA_DMA
@@ -1033,6 +1057,7 @@ config SOC_PNX8550
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select SYS_SUPPORTS_KGDB
@@ -1093,7 +1118,7 @@ config HAVE_STD_PC_SERIAL_PORT
 
 config ARC_CONSOLE
 	bool "ARC console support"
-	depends on SGI_IP22 || SNI_RM
+	depends on SGI_IP22 || (SNI_RM && CPU_LITTLE_ENDIAN)
 
 config ARC_MEMORY
 	bool
@@ -1894,10 +1919,6 @@ config HZ
 	default 1024 if HZ_1024
 
 source "kernel/Kconfig.preempt"
-
-config RTC_DS1742
-	bool "DS1742 BRAM/RTC support"
-	depends on TOSHIBA_JMR3927 || TOSHIBA_RBTX4927
 
 config MIPS_INSANE_LARGE
 	bool "Support for large 64-bit configurations"

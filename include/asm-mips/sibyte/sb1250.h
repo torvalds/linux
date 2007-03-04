@@ -57,8 +57,6 @@ extern void bcm1480_mask_irq(int cpu, int irq);
 extern void bcm1480_unmask_irq(int cpu, int irq);
 extern void bcm1480_smp_finish(void);
 
-extern void prom_printf(char *fmt, ...);
-
 #define AT_spin \
 	__asm__ __volatile__ (		\
 		".set noat\n"		\

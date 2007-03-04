@@ -132,9 +132,6 @@ JP7 is not bus master -- do NOT use -- only 4 pci bus master's allowed -- SouthB
 #include <asm/wbflush.h>
 #include <linux/bootmem.h>
 #include <linux/blkdev.h>
-#ifdef CONFIG_RTC_DS1742
-#include <linux/ds1742rtc.h>
-#endif
 #ifdef CONFIG_TOSHIBA_FPCIB0
 #include <asm/tx4927/smsc_fdc37m81x.h>
 #endif

@@ -79,36 +79,37 @@ static struct resource cobalt_io_resource = {
 	.flags	= IORESOURCE_IO
 };
 
-static struct resource cobalt_io_resources[] = {
-	{
+/*
+ * Cobalt doesn't have PS/2 keyboard/mouse interfaces,
+ * keyboard conntroller is never used.
+ * Also PCI-ISA bridge DMA contoroller is never used.
+ */
+static struct resource cobalt_reserved_resources[] = {
+	{	/* dma1 */
 		.start	= 0x00,
 		.end	= 0x1f,
-		.name	= "dma1",
-		.flags	= IORESOURCE_BUSY
-	}, {
-		.start	= 0x40,
-		.end	= 0x5f,
-		.name	= "timer",
-		.flags	= IORESOURCE_BUSY
-	}, {
+		.name	= "reserved",
+		.flags	= IORESOURCE_BUSY | IORESOURCE_IO,
+	},
+	{	/* keyboard */
 		.start	= 0x60,
 		.end	= 0x6f,
-		.name	= "keyboard",
-		.flags	= IORESOURCE_BUSY
-	}, {
+		.name	= "reserved",
+		.flags	= IORESOURCE_BUSY | IORESOURCE_IO,
+	},
+	{	/* dma page reg */
 		.start	= 0x80,
 		.end	= 0x8f,
-		.name	= "dma page reg",
-		.flags	= IORESOURCE_BUSY
-	}, {
+		.name	= "reserved",
+		.flags	= IORESOURCE_BUSY | IORESOURCE_IO,
+	},
+	{	/* dma2 */
 		.start	= 0xc0,
 		.end	= 0xdf,
-		.name	= "dma2",
-		.flags	= IORESOURCE_BUSY
+		.name	= "reserved",
+		.flags	= IORESOURCE_BUSY | IORESOURCE_IO,
 	},
 };
-
-#define COBALT_IO_RESOURCES (sizeof(cobalt_io_resources)/sizeof(struct resource))
 
 static struct pci_controller cobalt_pci_controller = {
 	.pci_ops	= &gt64111_pci_ops,
@@ -133,9 +134,9 @@ void __init plat_mem_setup(void)
 	/* I/O port resource must include LCD/buttons */
 	ioport_resource.end = 0x0fffffff;
 
-	/* request I/O space for devices used on all i[345]86 PCs */
-	for (i = 0; i < COBALT_IO_RESOURCES; i++)
-		request_resource(&ioport_resource, cobalt_io_resources + i);
+	/* These resources have been reserved by VIA SuperI/O chip. */
+	for (i = 0; i < ARRAY_SIZE(cobalt_reserved_resources); i++)
+		request_resource(&ioport_resource, cobalt_reserved_resources + i);
 
         /* Read the cobalt id register out of the PCI config space */
         PCI_CFG_SET(devfn, (VIA_COBALT_BRD_ID_REG & ~0x3));
@@ -150,10 +151,6 @@ void __init plat_mem_setup(void)
 #endif
 
 	if (cobalt_board_id > COBALT_BRD_ID_RAQ1) {
-#ifdef CONFIG_EARLY_PRINTK
-		cobalt_early_console();
-#endif
-
 #ifdef CONFIG_SERIAL_8250
 		uart.line	= 0;
 		uart.type	= PORT_UNKNOWN;

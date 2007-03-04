@@ -45,6 +45,7 @@
 #include <linux/param.h>	/* for HZ */
 #include <linux/delay.h>
 #include <linux/pm.h>
+#include <linux/platform_device.h>
 #ifdef CONFIG_SERIAL_TXX9
 #include <linux/tty.h>
 #include <linux/serial.h>
@@ -172,19 +173,10 @@ static cycle_t jmr3927_hpt_read(void)
 	return jiffies * (JMR3927_TIMER_CLK / HZ) + jmr3927_tmrptr->trr;
 }
 
-#define USE_RTC_DS1742
-#ifdef USE_RTC_DS1742
-extern void rtc_ds1742_init(unsigned long base);
-#endif
 static void __init jmr3927_time_init(void)
 {
 	clocksource_mips.read = jmr3927_hpt_read;
 	mips_hpt_frequency = JMR3927_TIMER_CLK;
-#ifdef USE_RTC_DS1742
-	if (jmr3927_have_nvram()) {
-	        rtc_ds1742_init(JMR3927_IOC_NVRAMB_ADDR);
-	}
-#endif
 }
 
 void __init plat_timer_setup(struct irqaction *irq)
@@ -540,3 +532,32 @@ void __init tx3927_setup(void)
                        printk("TX3927 D-Cache WriteBack (CWF) .\n");
 	}
 }
+
+/* This trick makes rtc-ds1742 driver usable as is. */
+unsigned long __swizzle_addr_b(unsigned long port)
+{
+	if ((port & 0xffff0000) != JMR3927_IOC_NVRAMB_ADDR)
+		return port;
+	port = (port & 0xffff0000) | (port & 0x7fff << 1);
+#ifdef __BIG_ENDIAN
+	return port;
+#else
+	return port | 1;
+#endif
+}
+EXPORT_SYMBOL(__swizzle_addr_b);
+
+static int __init jmr3927_rtc_init(void)
+{
+	struct resource res = {
+		.start	= JMR3927_IOC_NVRAMB_ADDR - IO_BASE,
+		.end	= JMR3927_IOC_NVRAMB_ADDR - IO_BASE + 0x800 - 1,
+		.flags	= IORESOURCE_MEM,
+	};
+	struct platform_device *dev;
+	if (!jmr3927_have_nvram())
+		return -ENODEV;
+	dev = platform_device_register_simple("ds1742", -1, &res, 1);
+	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+}
+device_initcall(jmr3927_rtc_init);
