@@ -27,6 +27,7 @@
 #define FTDI_8U232AM_PID 0x6001 /* Similar device to SIO above */
 #define FTDI_8U232AM_ALT_PID 0x6006 /* FTDI's alternate PID for above */
 #define FTDI_8U2232C_PID 0x6010 /* Dual channel device */
+#define FTDI_232RL_PID  0xFBFA  /* Product ID for FT232RL */
 #define FTDI_RELAIS_PID	0xFA10  /* Relais device from Rudolf Gugler */
 #define FTDI_NF_RIC_VID	0x0DCD	/* Vendor Id */
 #define FTDI_NF_RIC_PID	0x0001	/* Product Id */
@@ -639,6 +640,7 @@ typedef enum {
 	FT8U232AM = 2,
 	FT232BM = 3,
 	FT2232C = 4,
+	FT232RL = 5,
 } ftdi_chip_type_t;
 
 typedef enum {
