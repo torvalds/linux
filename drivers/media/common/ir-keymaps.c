@@ -667,7 +667,7 @@ IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE] = {
 	[ 0x1f ] = KEY_L,
 	[ 0x2b ] = KEY_I,
 
-	[ 0x2d ] = KEY_ZOOM,
+	[ 0x2d ] = KEY_SCREEN,
 	[ 0x1e ] = KEY_ZOOM,
 	[ 0x1b ] = KEY_VOLUMEUP,
 	[ 0x0f ] = KEY_VOLUMEDOWN,
@@ -682,12 +682,12 @@ IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE] = {
 
 	[ 0x3f ] = KEY_UP,
 	[ 0x3e ] = KEY_DOWN,
-	[ 0x1a ] = KEY_PAUSE,
+	[ 0x1a ] = KEY_ENTER,
 
 	[ 0x1d ] = KEY_MENU,
-	[ 0x19 ] = KEY_PLAY,
-	[ 0x16 ] = KEY_REWIND,
-	[ 0x13 ] = KEY_FORWARD,
+	[ 0x19 ] = KEY_AGAIN,
+	[ 0x16 ] = KEY_PREVIOUSSONG,
+	[ 0x13 ] = KEY_NEXTSONG,
 	[ 0x15 ] = KEY_PAUSE,
 	[ 0x0e ] = KEY_REWIND,
 	[ 0x0d ] = KEY_PLAY,
