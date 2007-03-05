@@ -279,5 +279,6 @@ void __init hpet_time_init(void)
  */
 void __init time_init(void)
 {
+	tsc_init();
 	late_time_init = choose_time_init();
 }

@@ -55,6 +55,7 @@ static __always_inline cycles_t get_cycles_sync(void)
 extern void tsc_init(void);
 extern void mark_tsc_unstable(void);
 extern int unsynchronized_tsc(void);
+extern void init_tsc_clocksource(void);
 
 /*
  * Boot-time check whether the TSCs are synchronized across

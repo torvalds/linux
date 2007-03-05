@@ -214,4 +214,7 @@ pm_good:
 	return clocksource_register(&clocksource_acpi_pm);
 }
 
-module_init(init_acpi_pm_clocksource);
+/* We use fs_initcall because we want the PCI fixups to have run
+ * but we still need to load before device_initcall
+ */
+fs_initcall(init_acpi_pm_clocksource);

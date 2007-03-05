@@ -116,4 +116,4 @@ static int __init init_cyclone_clocksource(void)
 	return clocksource_register(&clocksource_cyclone);
 }
 
-module_init(init_cyclone_clocksource);
+arch_initcall(init_cyclone_clocksource);

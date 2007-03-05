@@ -201,12 +201,30 @@ static int hpet_next_event(unsigned long delta,
 }
 
 /*
+ * Clock source related code
+ */
+static cycle_t read_hpet(void)
+{
+	return (cycle_t)hpet_readl(HPET_COUNTER);
+}
+
+static struct clocksource clocksource_hpet = {
+	.name		= "hpet",
+	.rating		= 250,
+	.read		= read_hpet,
+	.mask		= HPET_MASK,
+	.shift		= HPET_SHIFT,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+/*
  * Try to setup the HPET timer
  */
 int __init hpet_enable(void)
 {
 	unsigned long id;
 	uint64_t hpet_freq;
+	u64 tmp;
 
 	if (!is_hpet_capable())
 		return 0;
@@ -253,6 +271,25 @@ int __init hpet_enable(void)
 	/* Start the counter */
 	hpet_start_counter();
 
+	/* Initialize and register HPET clocksource
+	 *
+	 * hpet period is in femto seconds per cycle
+	 * so we need to convert this to ns/cyc units
+	 * aproximated by mult/2^shift
+	 *
+	 *  fsec/cyc * 1nsec/1000000fsec = nsec/cyc = mult/2^shift
+	 *  fsec/cyc * 1ns/1000000fsec * 2^shift = mult
+	 *  fsec/cyc * 2^shift * 1nsec/1000000fsec = mult
+	 *  (fsec/cyc << shift)/1000000 = mult
+	 *  (hpet_period << shift)/FSEC_PER_NSEC = mult
+	 */
+	tmp = (u64)hpet_period << HPET_SHIFT;
+	do_div(tmp, FSEC_PER_NSEC);
+	clocksource_hpet.mult = (u32)tmp;
+
+	clocksource_register(&clocksource_hpet);
+
+
 	if (id & HPET_ID_LEGSUP) {
 		hpet_enable_int();
 		hpet_reserve_platform_timers(id);
@@ -273,49 +310,6 @@ out_nohpet:
 	return 0;
 }
 
-/*
- * Clock source related code
- */
-static cycle_t read_hpet(void)
-{
-	return (cycle_t)hpet_readl(HPET_COUNTER);
-}
-
-static struct clocksource clocksource_hpet = {
-	.name		= "hpet",
-	.rating		= 250,
-	.read		= read_hpet,
-	.mask		= HPET_MASK,
-	.shift		= HPET_SHIFT,
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
-static int __init init_hpet_clocksource(void)
-{
-	u64 tmp;
-
-	if (!hpet_virt_address)
-		return -ENODEV;
-
-	/*
-	 * hpet period is in femto seconds per cycle
-	 * so we need to convert this to ns/cyc units
-	 * aproximated by mult/2^shift
-	 *
-	 *  fsec/cyc * 1nsec/1000000fsec = nsec/cyc = mult/2^shift
-	 *  fsec/cyc * 1ns/1000000fsec * 2^shift = mult
-	 *  fsec/cyc * 2^shift * 1nsec/1000000fsec = mult
-	 *  (fsec/cyc << shift)/1000000 = mult
-	 *  (hpet_period << shift)/FSEC_PER_NSEC = mult
-	 */
-	tmp = (u64)hpet_period << HPET_SHIFT;
-	do_div(tmp, FSEC_PER_NSEC);
-	clocksource_hpet.mult = (u32)tmp;
-
-	return clocksource_register(&clocksource_hpet);
-}
-
-module_init(init_hpet_clocksource);
 
 #ifdef CONFIG_HPET_EMULATE_RTC
 

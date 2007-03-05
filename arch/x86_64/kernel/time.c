@@ -358,6 +358,8 @@ void __init time_init(void)
 	set_cyc2ns_scale(cpu_khz);
 	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
 		cpu_khz / 1000, cpu_khz % 1000);
+	init_tsc_clocksource();
+
 	setup_irq(0, &irq0);
 }
 

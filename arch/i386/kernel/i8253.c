@@ -195,4 +195,4 @@ static int __init init_pit_clocksource(void)
 	clocksource_pit.mult = clocksource_hz2mult(CLOCK_TICK_RATE, 20);
 	return clocksource_register(&clocksource_pit);
 }
-module_init(init_pit_clocksource);
+arch_initcall(init_pit_clocksource);
