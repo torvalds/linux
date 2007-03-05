@@ -140,7 +140,7 @@ static struct pppox_sock *__get_item(unsigned long sid, unsigned char *addr, int
 
 	ret = item_hash_table[hash];
 
-	while (ret && !(cmp_addr(&ret->pppoe_pa, sid, addr) && ret->pppoe_dev->ifindex == ifindex))
+	while (ret && !(cmp_addr(&ret->pppoe_pa, sid, addr) && ret->pppoe_ifindex == ifindex))
 		ret = ret->next;
 
 	return ret;
@@ -153,7 +153,7 @@ static int __set_item(struct pppox_sock *po)
 
 	ret = item_hash_table[hash];
 	while (ret) {
-		if (cmp_2_addr(&ret->pppoe_pa, &po->pppoe_pa) && ret->pppoe_dev->ifindex == po->pppoe_dev->ifindex)
+		if (cmp_2_addr(&ret->pppoe_pa, &po->pppoe_pa) && ret->pppoe_ifindex == po->pppoe_ifindex)
 			return -EALREADY;
 
 		ret = ret->next;
@@ -174,7 +174,7 @@ static struct pppox_sock *__delete_item(unsigned long sid, char *addr, int ifind
 	src = &item_hash_table[hash];
 
 	while (ret) {
-		if (cmp_addr(&ret->pppoe_pa, sid, addr) && ret->pppoe_dev->ifindex == ifindex) {
+		if (cmp_addr(&ret->pppoe_pa, sid, addr) && ret->pppoe_ifindex == ifindex) {
 			*src = ret->next;
 			break;
 		}
@@ -529,7 +529,7 @@ static int pppoe_release(struct socket *sock)
 
 	po = pppox_sk(sk);
 	if (po->pppoe_pa.sid) {
-		delete_item(po->pppoe_pa.sid, po->pppoe_pa.remote, po->pppoe_dev->ifindex);
+		delete_item(po->pppoe_pa.sid, po->pppoe_pa.remote, po->pppoe_ifindex);
 	}
 
 	if (po->pppoe_dev)
@@ -577,7 +577,7 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 		pppox_unbind_sock(sk);
 
 		/* Delete the old binding */
-		delete_item(po->pppoe_pa.sid,po->pppoe_pa.remote,po->pppoe_dev->ifindex);
+		delete_item(po->pppoe_pa.sid,po->pppoe_pa.remote,po->pppoe_ifindex);
 
 		if(po->pppoe_dev)
 			dev_put(po->pppoe_dev);
@@ -597,6 +597,7 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 			goto end;
 
 		po->pppoe_dev = dev;
+		po->pppoe_ifindex = dev->ifindex;
 
 		if (!(dev->flags & IFF_UP))
 			goto err_put;
