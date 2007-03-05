@@ -48,7 +48,6 @@ typedef u64 __attribute__((regparm(2))) (VROMLONGFUNC)(int);
 
 static struct vrom_header *vmi_rom;
 static int license_gplok;
-static int disable_nodelay;
 static int disable_pge;
 static int disable_pse;
 static int disable_sep;
@@ -801,9 +800,6 @@ static inline int __init activate_vmi(void)
 
 	para_fill(set_iopl_mask, SetIOPLMask);
 	paravirt_ops.io_delay = (void *)vmi_nop;
-	if (!disable_nodelay) {
-		paravirt_ops.const_udelay = (void *)vmi_nop;
-	}
 
 	para_fill(set_lazy_mode, SetLazyMode);
 
@@ -947,9 +943,7 @@ static int __init parse_vmi(char *arg)
 	if (!arg)
 		return -EINVAL;
 
-	if (!strcmp(arg, "disable_nodelay"))
-		disable_nodelay = 1;
-	else if (!strcmp(arg, "disable_pge")) {
+	if (!strcmp(arg, "disable_pge")) {
 		clear_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
 		disable_pge = 1;
 	} else if (!strcmp(arg, "disable_pse")) {

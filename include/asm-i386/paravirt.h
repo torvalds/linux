@@ -117,7 +117,6 @@ struct paravirt_ops
 	void (*set_iopl_mask)(unsigned mask);
 
 	void (*io_delay)(void);
-	void (*const_udelay)(unsigned long loops);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	void (*apic_write)(unsigned long reg, unsigned long v);
