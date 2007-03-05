@@ -316,7 +316,7 @@ static void s2io_vlan_rx_register(struct net_device *dev,
 }
 
 /* A flag indicating whether 'RX_PA_CFG_STRIP_VLAN_TAG' bit is set or not */
-int vlan_strip_flag;
+static int vlan_strip_flag;
 
 /* Unregister the vlan */
 static void s2io_vlan_rx_kill_vid(struct net_device *dev, unsigned long vid)
