@@ -96,13 +96,13 @@ static void queue_packet_complete(struct hpsb_packet *packet);
 
 
 /**
- * hpsb_set_packet_complete_task - set the task that runs when a packet
- * completes. You cannot call this more than once on a single packet
- * before it is sent.
- *
+ * hpsb_set_packet_complete_task - set task that runs when a packet completes
  * @packet: the packet whose completion we want the task added to
  * @routine: function to call
  * @data: data (if any) to pass to the above function
+ *
+ * Set the task that runs when a packet completes. You cannot call this more
+ * than once on a single packet before it is sent.
  */
 void hpsb_set_packet_complete_task(struct hpsb_packet *packet,
 				   void (*routine)(void *), void *data)
@@ -179,6 +179,13 @@ void hpsb_free_packet(struct hpsb_packet *packet)
 }
 
 
+/**
+ * hpsb_reset_bus - initiate bus reset on the given host
+ * @host: host controller whose bus to reset
+ * @type: one of enum reset_types
+ *
+ * Returns 1 if bus reset already in progress, 0 otherwise.
+ */
 int hpsb_reset_bus(struct hpsb_host *host, int type)
 {
 	if (!host->in_bus_reset) {
@@ -229,6 +236,14 @@ int hpsb_read_cycle_timer(struct hpsb_host *host, u32 *cycle_timer,
 	return 0;
 }
 
+/**
+ * hpsb_bus_reset - notify a bus reset to the core
+ *
+ * For host driver module usage.  Safe to use in interrupt context, although
+ * quite complex; so you may want to run it in the bottom rather than top half.
+ *
+ * Returns 1 if bus reset already in progress, 0 otherwise.
+ */
 int hpsb_bus_reset(struct hpsb_host *host)
 {
 	if (host->in_bus_reset) {
@@ -405,6 +420,14 @@ static void build_speed_map(struct hpsb_host *host, int nodecount)
 }
 
 
+/**
+ * hpsb_selfid_received - hand over received selfid packet to the core
+ *
+ * For host driver module usage.  Safe to use in interrupt context.
+ *
+ * The host driver should have done a successful complement check (second
+ * quadlet is complement of first) beforehand.
+ */
 void hpsb_selfid_received(struct hpsb_host *host, quadlet_t sid)
 {
 	if (host->in_bus_reset) {
@@ -416,6 +439,15 @@ void hpsb_selfid_received(struct hpsb_host *host, quadlet_t sid)
 	}
 }
 
+/**
+ * hpsb_selfid_complete - notify completion of SelfID stage to the core
+ *
+ * For host driver module usage.  Safe to use in interrupt context, although
+ * quite complex; so you may want to run it in the bottom rather than top half.
+ *
+ * Notify completion of SelfID stage to the core and report new physical ID
+ * and whether host is root now.
+ */
 void hpsb_selfid_complete(struct hpsb_host *host, int phyid, int isroot)
 {
 	if (!host->in_bus_reset)
@@ -462,7 +494,16 @@ void hpsb_selfid_complete(struct hpsb_host *host, int phyid, int isroot)
 	highlevel_host_reset(host);
 }
 
-
+/**
+ * hpsb_packet_sent - notify core of sending a packet
+ *
+ * For host driver module usage.  Safe to call from within a transmit packet
+ * routine.
+ *
+ * Notify core of sending a packet.  Ackcode is the ack code returned for async
+ * transmits or ACKX_SEND_ERROR if the transmission failed completely; ACKX_NONE
+ * for other cases (internal errors that don't justify a panic).
+ */
 void hpsb_packet_sent(struct hpsb_host *host, struct hpsb_packet *packet,
 		      int ackcode)
 {
@@ -504,9 +545,10 @@ void hpsb_packet_sent(struct hpsb_host *host, struct hpsb_packet *packet,
  * @rootid: root whose force_root bit should get set (-1 = don't set force_root)
  * @gapcnt: gap count value to set (-1 = don't set gap count)
  *
- * This function sends a PHY config packet on the bus through the specified host.
+ * This function sends a PHY config packet on the bus through the specified
+ * host.
  *
- * Return value: 0 for success or error number otherwise.
+ * Return value: 0 for success or negative error number otherwise.
  */
 int hpsb_send_phy_config(struct hpsb_host *host, int rootid, int gapcnt)
 {
@@ -621,6 +663,12 @@ static void complete_packet(void *data)
 	complete((struct completion *) data);
 }
 
+/**
+ * hpsb_send_packet_and_wait - enqueue packet, block until transaction completes
+ * @packet: packet to send
+ *
+ * Return value: 0 on success, negative errno on failure.
+ */
 int hpsb_send_packet_and_wait(struct hpsb_packet *packet)
 {
 	struct completion done;
@@ -935,7 +983,20 @@ static void handle_incoming_packet(struct hpsb_host *host, int tcode,
 }
 #undef PREP_REPLY_PACKET
 
-
+/**
+ * hpsb_packet_received - hand over received packet to the core
+ *
+ * For host driver module usage.
+ *
+ * The contents of data are expected to be the full packet but with the CRCs
+ * left out (data block follows header immediately), with the header (i.e. the
+ * first four quadlets) in machine byte order and the data block in big endian.
+ * *@data can be safely overwritten after this call.
+ *
+ * If the packet is a write request, @write_acked is to be set to true if it was
+ * ack_complete'd already, false otherwise.  This argument is ignored for any
+ * other packet type.
+ */
 void hpsb_packet_received(struct hpsb_host *host, quadlet_t *data, size_t size,
 			  int write_acked)
 {

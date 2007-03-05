@@ -218,6 +218,14 @@ void hpsb_remove_host(struct hpsb_host *host)
 	device_unregister(&host->device);
 }
 
+/**
+ * hpsb_update_config_rom_image - updates configuration ROM image of a host
+ *
+ * Updates the configuration ROM image of a host.  rom_version must be the
+ * current version, otherwise it will fail with return value -1. If this
+ * host does not support config-rom-update, it will return -%EINVAL.
+ * Return value 0 indicates success.
+ */
 int hpsb_update_config_rom_image(struct hpsb_host *host)
 {
 	unsigned long reset_delay;

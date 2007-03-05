@@ -1738,7 +1738,19 @@ exit:
 	return 0;
 }
 
-int nodemgr_for_each_host(void *__data, int (*cb)(struct hpsb_host *, void *))
+/**
+ * nodemgr_for_each_host - call a function for each IEEE 1394 host
+ * @data: an address to supply to the callback
+ * @cb: function to call for each host
+ *
+ * Iterate the hosts, calling a given function with supplied data for each host.
+ * If the callback fails on a host, i.e. if it returns a non-zero value, the
+ * iteration is stopped.
+ *
+ * Return value: 0 on success, non-zero on failure (same as returned by last run
+ * of the callback).
+ */
+int nodemgr_for_each_host(void *data, int (*cb)(struct hpsb_host *, void *))
 {
 	struct class_device *cdev;
 	struct hpsb_host *host;
@@ -1748,7 +1760,7 @@ int nodemgr_for_each_host(void *__data, int (*cb)(struct hpsb_host *, void *))
 	list_for_each_entry(cdev, &hpsb_host_class.children, node) {
 		host = container_of(cdev, struct hpsb_host, class_dev);
 
-		if ((error = cb(host, __data)))
+		if ((error = cb(host, data)))
 			break;
 	}
 	up(&hpsb_host_class.sem);
@@ -1771,12 +1783,20 @@ int nodemgr_for_each_host(void *__data, int (*cb)(struct hpsb_host *, void *))
  * ID's.
  */
 
-void hpsb_node_fill_packet(struct node_entry *ne, struct hpsb_packet *pkt)
+/**
+ * hpsb_node_fill_packet - fill some destination information into a packet
+ * @ne: destination node
+ * @packet: packet to fill in
+ *
+ * This will fill in the given, pre-initialised hpsb_packet with the current
+ * information from the node entry (host, node ID, bus generation number).
+ */
+void hpsb_node_fill_packet(struct node_entry *ne, struct hpsb_packet *packet)
 {
-	pkt->host = ne->host;
-	pkt->generation = ne->generation;
+	packet->host = ne->host;
+	packet->generation = ne->generation;
 	barrier();
-	pkt->node_id = ne->nodeid;
+	packet->node_id = ne->nodeid;
 }
 
 int hpsb_node_write(struct node_entry *ne, u64 addr,

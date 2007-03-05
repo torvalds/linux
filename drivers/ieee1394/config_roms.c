@@ -39,7 +39,7 @@ struct hpsb_config_rom_entry {
 	unsigned int flag;
 };
 
-
+/* The default host entry. This must succeed. */
 int hpsb_default_host_entry(struct hpsb_host *host)
 {
 	struct csr1212_keyval *root;
@@ -170,7 +170,7 @@ static struct hpsb_config_rom_entry *const config_rom_entries[] = {
 	NULL,
 };
 
-
+/* Initialize all config roms */
 int hpsb_init_config_roms(void)
 {
 	int i, error = 0;
@@ -191,6 +191,7 @@ int hpsb_init_config_roms(void)
 	return error;
 }
 
+/* Cleanup all config roms */
 void hpsb_cleanup_config_roms(void)
 {
 	int i;
@@ -201,6 +202,7 @@ void hpsb_cleanup_config_roms(void)
 	}
 }
 
+/* Add extra config roms to specified host */
 int hpsb_add_extra_config_roms(struct hpsb_host *host)
 {
 	int i, error = 0;
@@ -219,6 +221,7 @@ int hpsb_add_extra_config_roms(struct hpsb_host *host)
 	return error;
 }
 
+/* Remove extra config roms from specified host */
 void hpsb_remove_extra_config_roms(struct hpsb_host *host)
 {
 	int i;

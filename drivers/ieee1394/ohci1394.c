@@ -3658,6 +3658,7 @@ static struct pci_driver ohci1394_pci_driver = {
 /* essentially the only purpose of this code is to allow another
    module to hook into ohci's interrupt handler */
 
+/* returns zero if successful, one if DMA context is locked up */
 int ohci1394_stop_context(struct ti_ohci *ohci, int reg, char *msg)
 {
 	int i=0;

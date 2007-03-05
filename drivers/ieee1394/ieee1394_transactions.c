@@ -212,6 +212,15 @@ void hpsb_free_tlabel(struct hpsb_packet *packet)
 	wake_up_interruptible(&tlabel_wq);
 }
 
+/**
+ * hpsb_packet_success - Make sense of the ack and reply codes
+ *
+ * Make sense of the ack and reply codes and return more convenient error codes:
+ * 0 = success.  -%EBUSY = node is busy, try again.  -%EAGAIN = error which can
+ * probably resolved by retry.  -%EREMOTEIO = node suffers from an internal
+ * error.  -%EACCES = this transaction is not allowed on requested address.
+ * -%EINVAL = invalid address at node.
+ */
 int hpsb_packet_success(struct hpsb_packet *packet)
 {
 	switch (packet->ack_code) {
@@ -493,6 +502,16 @@ struct hpsb_packet *hpsb_make_isopacket(struct hpsb_host *host,
  * avoid in kernel buffers for user space callers
  */
 
+/**
+ * hpsb_read - generic read function
+ *
+ * Recognizes the local node ID and act accordingly.  Automatically uses a
+ * quadlet read request if @length == 4 and and a block read request otherwise.
+ * It does not yet support lengths that are not a multiple of 4.
+ *
+ * You must explicitly specifiy the @generation for which the node ID is valid,
+ * to avoid sending packets to the wrong nodes when we race with a bus reset.
+ */
 int hpsb_read(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 	      u64 addr, quadlet_t * buffer, size_t length)
 {
@@ -532,6 +551,16 @@ int hpsb_read(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 	return retval;
 }
 
+/**
+ * hpsb_write - generic write function
+ *
+ * Recognizes the local node ID and act accordingly.  Automatically uses a
+ * quadlet write request if @length == 4 and and a block write request
+ * otherwise.  It does not yet support lengths that are not a multiple of 4.
+ *
+ * You must explicitly specifiy the @generation for which the node ID is valid,
+ * to avoid sending packets to the wrong nodes when we race with a bus reset.
+ */
 int hpsb_write(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 	       u64 addr, quadlet_t * buffer, size_t length)
 {
