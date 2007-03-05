@@ -3501,6 +3501,7 @@ get_serial_info(struct cyclades_port *info,
 	tmp.irq = cinfo->irq;
 	tmp.flags = info->flags;
 	tmp.close_delay = info->close_delay;
+	tmp.closing_wait = info->closing_wait;
 	tmp.baud_base = info->baud;
 	tmp.custom_divisor = info->custom_divisor;
 	tmp.hub6 = 0;		/*!!! */
