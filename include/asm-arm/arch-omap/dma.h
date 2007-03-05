@@ -417,7 +417,6 @@ extern void omap_free_lcd_dma(void);
 extern void omap_setup_lcd_dma(void);
 extern void omap_enable_lcd_dma(void);
 extern void omap_stop_lcd_dma(void);
-extern int  omap_lcd_dma_ext_running(void);
 extern void omap_set_lcd_dma_ext_controller(int external);
 extern void omap_set_lcd_dma_single_transfer(int single);
 extern void omap_set_lcd_dma_b1(unsigned long addr, u16 fb_xres, u16 fb_yres,
