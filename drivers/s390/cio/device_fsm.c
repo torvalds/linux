@@ -996,18 +996,12 @@ ccw_device_killing_irq(struct ccw_device *cdev, enum dev_event dev_event)
 
 	sch = to_subchannel(cdev->dev.parent);
 	ccw_device_set_timeout(cdev, 0);
+	/* Start delayed path verification. */
+	ccw_device_online_verify(cdev, 0);
 	/* OK, i/o is dead now. Call interrupt handler. */
-	cdev->private->state = DEV_STATE_ONLINE;
 	if (cdev->handler)
 		cdev->handler(cdev, cdev->private->intparm,
 			      ERR_PTR(-EIO));
-	if (!sch->lpm) {
-		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_nopath_notify);
-		queue_work(ccw_device_notify_work, &cdev->private->kick_work);
-	} else if (cdev->private->flags.doverify)
-		/* Start delayed path verification. */
-		ccw_device_online_verify(cdev, 0);
 }
 
 static void
@@ -1020,21 +1014,8 @@ ccw_device_killing_timeout(struct ccw_device *cdev, enum dev_event dev_event)
 		ccw_device_set_timeout(cdev, 3*HZ);
 		return;
 	}
-	if (ret == -ENODEV) {
-		struct subchannel *sch;
-
-		sch = to_subchannel(cdev->dev.parent);
-		if (!sch->lpm) {
-			PREPARE_WORK(&cdev->private->kick_work,
-				     ccw_device_nopath_notify);
-			queue_work(ccw_device_notify_work,
-				   &cdev->private->kick_work);
-		} else
-			dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
-		return;
-	}
-	//FIXME: Can we get here?
-	cdev->private->state = DEV_STATE_ONLINE;
+	/* Start delayed path verification. */
+	ccw_device_online_verify(cdev, 0);
 	if (cdev->handler)
 		cdev->handler(cdev, cdev->private->intparm,
 			      ERR_PTR(-EIO));
@@ -1052,26 +1033,11 @@ void device_kill_io(struct subchannel *sch)
 		cdev->private->state = DEV_STATE_TIMEOUT_KILL;
 		return;
 	}
-	if (ret == -ENODEV) {
-		if (!sch->lpm) {
-			PREPARE_WORK(&cdev->private->kick_work,
-				     ccw_device_nopath_notify);
-			queue_work(ccw_device_notify_work,
-				   &cdev->private->kick_work);
-		} else
-			dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
-		return;
-	}
+	/* Start delayed path verification. */
+	ccw_device_online_verify(cdev, 0);
 	if (cdev->handler)
 		cdev->handler(cdev, cdev->private->intparm,
 			      ERR_PTR(-EIO));
-	if (!sch->lpm) {
-		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_nopath_notify);
-		queue_work(ccw_device_notify_work, &cdev->private->kick_work);
-	} else
-		/* Start delayed path verification. */
-		ccw_device_online_verify(cdev, 0);
 }
 
 static void
