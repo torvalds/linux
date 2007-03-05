@@ -934,6 +934,7 @@ void __init vmi_init(void)
 #ifdef CONFIG_X86_IO_APIC
 	no_timer_check = 1;
 #endif
+	no_sync_cmos_clock = 1;
 
 	local_irq_restore(flags & X86_EFLAGS_IF);
 }
