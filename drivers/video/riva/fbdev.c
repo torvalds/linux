@@ -215,6 +215,11 @@ static int noaccel   __devinitdata = 0;
 #ifdef CONFIG_MTRR
 static int nomtrr __devinitdata = 0;
 #endif
+#ifdef CONFIG_PMAC_BACKLIGHT
+static int backlight __devinitdata = 1;
+#else
+static int backlight __devinitdata = 0;
+#endif
 
 static char *mode_option __devinitdata = NULL;
 static int  strictmode       = 0;
@@ -2059,7 +2064,10 @@ static int __devinit rivafb_probe(struct pci_dev *pd,
 	info->monspecs.modedb = NULL;
 
 	pci_set_drvdata(pd, info);
-	riva_bl_init(info->par);
+
+	if (backlight)
+		riva_bl_init(info->par);
+
 	ret = register_framebuffer(info);
 	if (ret < 0) {
 		printk(KERN_ERR PFX
@@ -2157,6 +2165,8 @@ static int __init rivafb_setup(char *options)
 				forceCRTC = -1;
 		} else if (!strncmp(this_opt, "flatpanel", 9)) {
 			flatpanel = 1;
+		} else if (!strncmp(this_opt, "backlight:", 10)) {
+			backlight = simple_strtoul(this_opt+10, NULL, 0);
 #ifdef CONFIG_MTRR
 		} else if (!strncmp(this_opt, "nomtrr", 6)) {
 			nomtrr = 1;

@@ -83,6 +83,11 @@ static int bpp __devinitdata = 8;
 #ifdef CONFIG_MTRR
 static int nomtrr __devinitdata = 0;
 #endif
+#ifdef CONFIG_PMAC_BACKLIGHT
+static int backlight __devinitdata = 1;
+#else
+static int backlight __devinitdata = 0;
+#endif
 
 static char *mode_option __devinitdata = NULL;
 
@@ -1311,7 +1316,10 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 	nvidia_save_vga(par, &par->SavedReg);
 
 	pci_set_drvdata(pd, info);
-	nvidia_bl_init(par);
+
+	if (backlight)
+		nvidia_bl_init(par);
+
 	if (register_framebuffer(info) < 0) {
 		printk(KERN_ERR PFX "error registering nVidia framebuffer\n");
 		goto err_out_iounmap_fb;
@@ -1408,6 +1416,8 @@ static int __devinit nvidiafb_setup(char *options)
 			paneltweak = simple_strtoul(this_opt+11, NULL, 0);
 		} else if (!strncmp(this_opt, "vram:", 5)) {
 			vram = simple_strtoul(this_opt+5, NULL, 0);
+		} else if (!strncmp(this_opt, "backlight:", 10)) {
+			backlight = simple_strtoul(this_opt+10, NULL, 0);
 #ifdef CONFIG_MTRR
 		} else if (!strncmp(this_opt, "nomtrr", 6)) {
 			nomtrr = 1;

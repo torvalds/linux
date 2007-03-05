@@ -309,6 +309,12 @@ static int xclk;
 static int comp_sync __devinitdata = -1;
 static char *mode;
 
+#ifdef CONFIG_PMAC_BACKLIGHT
+static int backlight __devinitdata = 1;
+#else
+static int backlight __devinitdata = 0;
+#endif
+
 #ifdef CONFIG_PPC
 static int default_vmode __devinitdata = VMODE_CHOOSE;
 static int default_cmode __devinitdata = CMODE_CHOOSE;
@@ -2576,7 +2582,7 @@ static int __devinit aty_init(struct fb_info *info)
 			   | (USE_F32KHZ | TRISTATE_MEM_EN), par);
 	} else
 #endif
-	if (M64_HAS(MOBIL_BUS)) {
+	if (M64_HAS(MOBIL_BUS) && backlight) {
 #ifdef CONFIG_FB_ATY_BACKLIGHT
 		aty_bl_init (par);
 #endif
@@ -3758,6 +3764,8 @@ static int __init atyfb_setup(char *options)
 			xclk = simple_strtoul(this_opt+5, NULL, 0);
 		else if (!strncmp(this_opt, "comp_sync:", 10))
 			comp_sync = simple_strtoul(this_opt+10, NULL, 0);
+		else if (!strncmp(this_opt, "backlight:", 10))
+			backlight = simple_strtoul(this_opt+10, NULL, 0);
 #ifdef CONFIG_PPC
 		else if (!strncmp(this_opt, "vmode:", 6)) {
 			unsigned int vmode =
