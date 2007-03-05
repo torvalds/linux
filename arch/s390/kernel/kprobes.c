@@ -337,21 +337,14 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	}
 
 	p = get_kprobe(addr);
-	if (!p) {
-		if (*addr != BREAKPOINT_INSTRUCTION) {
-			/*
-			 * The breakpoint instruction was removed right
-			 * after we hit it.  Another cpu has removed
-			 * either a probepoint or a debugger breakpoint
-			 * at this address.  In either case, no further
-			 * handling of this interrupt is appropriate.
-			 *
-			 */
-			ret = 1;
-		}
-		/* Not one of ours: let kernel handle it */
+	if (!p)
+		/*
+		 * No kprobe at this address. The fault has not been
+		 * caused by a kprobe breakpoint. The race of breakpoint
+		 * vs. kprobe remove does not exist because on s390 we
+		 * use stop_machine_run to arm/disarm the breakpoints.
+		 */
 		goto no_kprobe;
-	}
 
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 	set_current_kprobe(p, regs, kcb);
