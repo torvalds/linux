@@ -73,6 +73,7 @@ struct tpt_attributes {
 
 struct iwch_mr {
 	struct ib_mr ibmr;
+	struct ib_umem *umem;
 	struct iwch_dev *rhp;
 	u64 kva;
 	struct tpt_attributes attr;

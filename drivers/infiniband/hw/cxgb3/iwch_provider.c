@@ -47,6 +47,7 @@
 #include <rdma/iw_cm.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_smi.h>
+#include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
 
 #include "cxio_hal.h"
@@ -443,6 +444,8 @@ static int iwch_dereg_mr(struct ib_mr *ib_mr)
 	remove_handle(rhp, &rhp->mmidr, mmid);
 	if (mhp->kva)
 		kfree((void *) (unsigned long) mhp->kva);
+	if (mhp->umem)
+		ib_umem_release(mhp->umem);
 	PDBG("%s mmid 0x%x ptr %p\n", __FUNCTION__, mmid, mhp);
 	kfree(mhp);
 	return 0;
@@ -577,8 +580,8 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 }
 
 
-static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
-				      int acc, struct ib_udata *udata)
+static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
+				      u64 virt, int acc, struct ib_udata *udata)
 {
 	__be64 *pages;
 	int shift, n, len;
@@ -591,7 +594,6 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	struct iwch_reg_user_mr_resp uresp;
 
 	PDBG("%s ib_pd %p\n", __FUNCTION__, pd);
-	shift = ffs(region->page_size) - 1;
 
 	php = to_iwch_pd(pd);
 	rhp = php->rhp;
@@ -599,8 +601,17 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	if (!mhp)
 		return ERR_PTR(-ENOMEM);
 
+	mhp->umem = ib_umem_get(pd->uobject->context, start, length, acc);
+	if (IS_ERR(mhp->umem)) {
+		err = PTR_ERR(mhp->umem);
+		kfree(mhp);
+		return ERR_PTR(err);
+	}
+
+	shift = ffs(mhp->umem->page_size) - 1;
+
 	n = 0;
-	list_for_each_entry(chunk, &region->chunk_list, list)
+	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
 		n += chunk->nents;
 
 	pages = kmalloc(n * sizeof(u64), GFP_KERNEL);
@@ -611,13 +622,13 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 
 	i = n = 0;
 
-	list_for_each_entry(chunk, &region->chunk_list, list)
+	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
 		for (j = 0; j < chunk->nmap; ++j) {
 			len = sg_dma_len(&chunk->page_list[j]) >> shift;
 			for (k = 0; k < len; ++k) {
 				pages[i++] = cpu_to_be64(sg_dma_address(
 					&chunk->page_list[j]) +
-					region->page_size * k);
+					mhp->umem->page_size * k);
 			}
 		}
 
@@ -625,9 +636,9 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.zbva = 0;
 	mhp->attr.perms = iwch_ib_to_tpt_access(acc);
-	mhp->attr.va_fbo = region->virt_base;
+	mhp->attr.va_fbo = virt;
 	mhp->attr.page_size = shift - 12;
-	mhp->attr.len = (u32) region->length;
+	mhp->attr.len = (u32) length;
 	mhp->attr.pbl_size = i;
 	err = iwch_register_mem(rhp, php, mhp, shift, pages);
 	kfree(pages);
@@ -650,6 +661,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	return &mhp->ibmr;
 
 err:
+	ib_umem_release(mhp->umem);
 	kfree(mhp);
 	return ERR_PTR(err);
 }

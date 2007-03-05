@@ -37,6 +37,7 @@
  */
 
 #include <rdma/ib_smi.h>
+#include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
 #include <linux/mm.h>
 
@@ -908,6 +909,8 @@ static struct ib_mr *mthca_get_dma_mr(struct ib_pd *pd, int acc)
 		return ERR_PTR(err);
 	}
 
+	mr->umem = NULL;
+
 	return &mr->ibmr;
 }
 
@@ -1003,11 +1006,13 @@ static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
 	}
 
 	kfree(page_list);
+	mr->umem = NULL;
+
 	return &mr->ibmr;
 }
 
-static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
-				       int acc, struct ib_udata *udata)
+static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
+				       u64 virt, int acc, struct ib_udata *udata)
 {
 	struct mthca_dev *dev = to_mdev(pd->device);
 	struct ib_umem_chunk *chunk;
@@ -1018,20 +1023,26 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	int err = 0;
 	int write_mtt_size;
 
-	shift = ffs(region->page_size) - 1;
-
 	mr = kmalloc(sizeof *mr, GFP_KERNEL);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
+	mr->umem = ib_umem_get(pd->uobject->context, start, length, acc);
+	if (IS_ERR(mr->umem)) {
+		err = PTR_ERR(mr->umem);
+		goto err;
+	}
+
+	shift = ffs(mr->umem->page_size) - 1;
+
 	n = 0;
-	list_for_each_entry(chunk, &region->chunk_list, list)
+	list_for_each_entry(chunk, &mr->umem->chunk_list, list)
 		n += chunk->nents;
 
 	mr->mtt = mthca_alloc_mtt(dev, n);
 	if (IS_ERR(mr->mtt)) {
 		err = PTR_ERR(mr->mtt);
-		goto err;
+		goto err_umem;
 	}
 
 	pages = (u64 *) __get_free_page(GFP_KERNEL);
@@ -1044,12 +1055,12 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 
 	write_mtt_size = min(mthca_write_mtt_size(dev), (int) (PAGE_SIZE / sizeof *pages));
 
-	list_for_each_entry(chunk, &region->chunk_list, list)
+	list_for_each_entry(chunk, &mr->umem->chunk_list, list)
 		for (j = 0; j < chunk->nmap; ++j) {
 			len = sg_dma_len(&chunk->page_list[j]) >> shift;
 			for (k = 0; k < len; ++k) {
 				pages[i++] = sg_dma_address(&chunk->page_list[j]) +
-					region->page_size * k;
+					mr->umem->page_size * k;
 				/*
 				 * Be friendly to write_mtt and pass it chunks
 				 * of appropriate size.
@@ -1071,8 +1082,8 @@ mtt_done:
 	if (err)
 		goto err_mtt;
 
-	err = mthca_mr_alloc(dev, to_mpd(pd)->pd_num, shift, region->virt_base,
-			     region->length, convert_access(acc), mr);
+	err = mthca_mr_alloc(dev, to_mpd(pd)->pd_num, shift, virt, length,
+			     convert_access(acc), mr);
 
 	if (err)
 		goto err_mtt;
@@ -1082,6 +1093,9 @@ mtt_done:
 err_mtt:
 	mthca_free_mtt(dev, mr->mtt);
 
+err_umem:
+	ib_umem_release(mr->umem);
+
 err:
 	kfree(mr);
 	return ERR_PTR(err);
@@ -1090,8 +1104,12 @@ err:
 static int mthca_dereg_mr(struct ib_mr *mr)
 {
 	struct mthca_mr *mmr = to_mmr(mr);
+
 	mthca_free_mr(to_mdev(mr->device), mmr);
+	if (mmr->umem)
+		ib_umem_release(mmr->umem);
 	kfree(mmr);
+
 	return 0;
 }
 

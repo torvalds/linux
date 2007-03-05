@@ -613,6 +613,8 @@ static void __exit ib_core_cleanup(void)
 {
 	ib_cache_cleanup();
 	ib_sysfs_cleanup();
+	/* Make sure that any pending umem accounting work is done. */
+	flush_scheduled_work();
 }
 
 module_init(ib_core_init);

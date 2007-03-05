@@ -176,6 +176,7 @@ struct ehca_mr {
 		struct ib_mr ib_mr;	/* must always be first in ehca_mr */
 		struct ib_fmr ib_fmr;	/* must always be first in ehca_mr */
 	} ib;
+	struct ib_umem *umem;
 	spinlock_t mrlock;
 
 	enum ehca_mr_flag flags;
