@@ -215,14 +215,16 @@ config KEYBOARD_AAED2000
 	  module will be called aaed2000_kbd.
 
 config KEYBOARD_GPIO
-	tristate "Buttons on CPU GPIOs (PXA)"
-	depends on (ARCH_SA1100 || ARCH_PXA || ARCH_S3C2410)
+	tristate "GPIO Buttons"
+	depends on GENERIC_GPIO
 	help
 	  This driver implements support for buttons connected
-	  directly to GPIO pins of SA1100, PXA or S3C24xx CPUs.
+	  to GPIO pins of various CPUs (and some other chips).
 
 	  Say Y here if your device has buttons connected
-	  directly to GPIO pins of the CPU.
+	  directly to such GPIO pins.  Your board-specific
+	  setup logic must also provide a platform device,
+	  with configuration data saying which GPIOs are used.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio-keys.

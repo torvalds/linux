@@ -22,6 +22,10 @@ config AVR32
 config UID16
 	bool
 
+config GENERIC_GPIO
+	bool
+	default y
+
 config GENERIC_HARDIRQS
 	bool
 	default y

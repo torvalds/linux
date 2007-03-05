@@ -21,6 +21,10 @@ config ARM
 config SYS_SUPPORTS_APM_EMULATION
 	bool
 
+config GENERIC_GPIO
+	bool
+	default n
+
 config GENERIC_TIME
 	bool
 	default n
@@ -163,6 +167,7 @@ config ARCH_VERSATILE
 
 config ARCH_AT91
 	bool "Atmel AT91"
+	select GENERIC_GPIO
 	help
 	  This enables support for systems based on the Atmel AT91RM9200
 	  and AT91SAM9xxx processors.
@@ -304,6 +309,7 @@ config ARCH_PXA
 	bool "PXA2xx-based"
 	depends on MMU
 	select ARCH_MTD_XIP
+	select GENERIC_GPIO
 	select GENERIC_TIME
 	help
 	  Support for Intel's PXA2XX processor line.
@@ -325,11 +331,13 @@ config ARCH_SA1100
 	select ISA
 	select ARCH_DISCONTIGMEM_ENABLE
 	select ARCH_MTD_XIP
+	select GENERIC_GPIO
 	help
 	  Support for StrongARM 11x0 based boards.
 
 config ARCH_S3C2410
 	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2440, S3C2442, S3C2443"
+	select GENERIC_GPIO
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
@@ -354,6 +362,7 @@ config ARCH_LH7A40X
 
 config ARCH_OMAP
 	bool "TI OMAP"
+	select GENERIC_GPIO
 	help
 	  Support for TI's OMAP platform (OMAP1 and OMAP2).
 
