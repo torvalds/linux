@@ -502,7 +502,8 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *lower_inode,
 		goto out;
 	}
 	lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
-	if (!lower_dentry->d_inode->i_op->getxattr) {
+	if (!lower_dentry->d_inode->i_op->getxattr ||
+			!lower_dentry->d_inode->i_op->setxattr) {
 		printk(KERN_WARNING
 		       "No support for setting xattr in lower filesystem\n");
 		rc = -ENOSYS;
