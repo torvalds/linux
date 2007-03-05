@@ -1074,9 +1074,9 @@ static ssize_t sm501fb_crtsrc_store(struct device *dev,
 	if (len < 1)
 		return -EINVAL;
 
-	if (strnicmp(buf, "crt", sizeof("crt")) == 0)
+	if (strnicmp(buf, "crt", 3) == 0)
 		head = HEAD_CRT;
-	else if (strnicmp(buf, "panel", sizeof("panel")) == 0)
+	else if (strnicmp(buf, "panel", 5) == 0)
 		head = HEAD_PANEL;
 	else
 		return -EINVAL;
@@ -1098,7 +1098,7 @@ static ssize_t sm501fb_crtsrc_store(struct device *dev,
 	writel(ctrl, info->regs + SM501_DC_CRT_CONTROL);
 	sm501fb_sync_regs(info);
 
-	return (head == HEAD_CRT) ? 3 : 5;
+	return len;
 }
 
 /* Prepare the device_attr for registration with sysfs later */
