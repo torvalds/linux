@@ -175,7 +175,7 @@ static inline void shmem_unacct_blocks(unsigned long flags, long pages)
 		vm_unacct_memory(pages * VM_ACCT(PAGE_CACHE_SIZE));
 }
 
-static struct super_operations shmem_ops;
+static const struct super_operations shmem_ops;
 static const struct address_space_operations shmem_aops;
 static const struct file_operations shmem_file_operations;
 static const struct inode_operations shmem_inode_operations;
@@ -2383,7 +2383,7 @@ static const struct inode_operations shmem_special_inode_operations = {
 #endif
 };
 
-static struct super_operations shmem_ops = {
+static const struct super_operations shmem_ops = {
 	.alloc_inode	= shmem_alloc_inode,
 	.destroy_inode	= shmem_destroy_inode,
 #ifdef CONFIG_TMPFS
