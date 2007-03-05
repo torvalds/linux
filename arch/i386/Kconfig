@@ -1287,12 +1287,3 @@ config X86_TRAMPOLINE
 config KTIME_SCALAR
 	bool
 	default y
-
-config NO_IDLE_HZ
-	bool
-	depends on PARAVIRT
-	default y
-	help
-	  Switches the regular HZ timer off when the system is going idle.
-	  This helps a hypervisor detect that the Linux system is idle,
-	  reducing the overhead of idle systems.
