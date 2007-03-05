@@ -209,7 +209,6 @@ static void digi_send_break(struct channel *ch, int msec);
 static void setup_empty_event(struct tty_struct *tty, struct channel *ch);
 void epca_setup(char *, int *);
 
-static int get_termio(struct tty_struct *, struct termio __user *);
 static int pc_write(struct tty_struct *, const unsigned char *, int);
 static int pc_init(void);
 static int init_PCI(void);
@@ -2362,15 +2361,6 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 
 	switch (cmd) 
 	{ /* Begin switch cmd */
-
-#if 0	/* Handled by calling layer properly */
-		case TCGETS:
-			if (copy_to_user(argp, tty->termios, sizeof(struct ktermios)))
-				return -EFAULT;
-			return 0;
-		case TCGETA:
-			return get_termio(tty, argp);
-#endif
 		case TCSBRK:	/* SVID version: non-zero arg --> no break */
 			retval = tty_check_change(tty);
 			if (retval)
@@ -2734,13 +2724,6 @@ static void setup_empty_event(struct tty_struct *tty, struct channel *ch)
 	writeb(1, &bc->iempty);
 	memoff(ch);
 } /* End setup_empty_event */
-
-/* --------------------- Begin get_termio ----------------------- */
-
-static int get_termio(struct tty_struct * tty, struct termio __user * termio)
-{ /* Begin get_termio */
-	return kernel_termios_to_user_termio(termio, tty->termios);
-} /* End get_termio */
 
 /* ---------------------- Begin epca_setup  -------------------------- */
 void epca_setup(char *str, int *ints)
