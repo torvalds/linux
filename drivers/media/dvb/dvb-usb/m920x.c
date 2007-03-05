@@ -137,52 +137,45 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			  int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
-	struct m9206_state *m = d->priv;
-	int i;
+	int i, j;
 	int ret = 0;
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
-	if (num > 2)
-		return -EINVAL;
-
 	for (i = 0; i < num; i++) {
-		if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].addr, 0x80)) != 0)
-			goto unlock;
+		if (msg[i].flags & I2C_M_RD) {
 
-		if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[0], 0x0)) != 0)
-			goto unlock;
-
-		if (i + 1 < num && msg[i + 1].flags & I2C_M_RD) {
-			int i2c_i;
-
-			for (i2c_i = 0; i2c_i < M9206_I2C_MAX; i2c_i++)
-				if (msg[i].addr == m->i2c_r[i2c_i].addr)
-					break;
-
-			if (i2c_i >= M9206_I2C_MAX) {
-				deb_rc("No magic for i2c addr!\n");
-				ret = -EINVAL;
+			if ((ret = m9206_write(d->udev, M9206_I2C, (msg[i].addr << 1) | 0x01, 0x80)) != 0)
 				goto unlock;
+
+			for(j = 0; j < msg[i].len; j++) {
+				if (j + 1 == msg[i].len && i + 1== num) {
+					if ((ret = m9206_read(d->udev, M9206_I2C, 0x0, 0x60, &msg[i].buf[j], msg[i].len)) != 0)
+						goto unlock;
+				} else {
+					if ((ret = m9206_read(d->udev, M9206_I2C, 0x0, 0x21, &msg[i].buf[j], msg[i].len)) != 0)
+						goto unlock;
+				}
 			}
 
-			if ((ret = m9206_write(d->udev, M9206_I2C, m->i2c_r[i2c_i].magic, 0x80)) != 0)
-				goto unlock;
-
-			if ((ret = m9206_read(d->udev, M9206_I2C, 0x0, 0x60, msg[i + 1].buf, msg[i + 1].len)) != 0)
-				goto unlock;
-
-			i++;
 		} else {
-			if (msg[i].len != 2)
-				return -EINVAL;
-
-			if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[1], 0x40)) != 0)
+			if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].addr << 1, 0x80)) != 0)
 				goto unlock;
+
+			for(j = 0; j < msg[i].len; j++) {
+				if (j + 1 == msg[i].len && i + 1== num) {
+					if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[j], 0x40)) != 0)
+						goto unlock;
+
+				} else {
+					if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[j], 0x0)) != 0)
+						goto unlock;
+				}
+			}
 		}
 	}
-	ret = i;
+	ret = num;
 	unlock:
 	mutex_unlock(&d->i2c_mutex);
 
@@ -381,19 +374,14 @@ static int megasky_mt352_demod_init(struct dvb_frontend *fe)
 }
 
 static struct mt352_config megasky_mt352_config = {
-	.demod_address = 0x1e,
+	.demod_address = 0x0f,
 	.no_tuner = 1,
 	.demod_init = megasky_mt352_demod_init,
 };
 
 static int megasky_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	struct m9206_state *m = adap->dev->priv;
-
 	deb_rc("megasky_frontend_attach!\n");
-
-	m->i2c_r[M9206_I2C_DEMOD].addr = megasky_mt352_config.demod_address;
-	m->i2c_r[M9206_I2C_DEMOD].magic = 0x1f;
 
 	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config, &adap->dev->i2c_adap)) == NULL)
 		return -EIO;
@@ -402,16 +390,11 @@ static int megasky_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 }
 
 static struct qt1010_config megasky_qt1010_config = {
-	.i2c_address = 0xc4
+	.i2c_address = 0x62
 };
 
 static int megasky_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	struct m9206_state *m = adap->dev->priv;
-
-	m->i2c_r[M9206_I2C_TUNER].addr = megasky_qt1010_config.i2c_address;
-	m->i2c_r[M9206_I2C_TUNER].magic = 0xc5;
-
 	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
 		       &megasky_qt1010_config) == NULL)
 		return -ENODEV;

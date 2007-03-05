@@ -19,17 +19,35 @@
 
 #define M9206_MAX_FILTERS 8
 
-#define M9206_I2C_TUNER	0
-#define M9206_I2C_DEMOD	1
-#define M9206_I2C_MAX	2
+/*
+sequences found in logs:
+[index value]
+0x80 write addr
+(0x00 out byte)*
+0x40 out byte
+
+0x80 write addr
+(0x00 out byte)*
+0x80 read addr
+(0x21 in byte)*
+0x60 in byte
+
+this sequence works:
+0x80 read addr
+(0x21 in byte)*
+0x60 in byte
+
+_my guess_:
+0x80: begin i2c transfer using address. value=address<<1|(reading?1:0)
+0x00: write byte
+0x21: read byte, more to follow
+0x40: write last byte of message sequence
+0x60: read last byte of message sequence
+ */
 
 struct m9206_state {
 	u16 filters[M9206_MAX_FILTERS];
 	int filtering_enabled;
 	int rep_count;
-	struct {
-		unsigned char addr;
-		unsigned char magic;
-	}i2c_r[M9206_I2C_MAX];
 };
 #endif
