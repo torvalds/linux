@@ -582,6 +582,9 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	init_vmcb(vcpu->svm->vmcb);
 
 	fx_init(vcpu);
+	vcpu->apic_base = 0xfee00000 |
+			/*for vcpu 0*/ MSR_IA32_APICBASE_BSP |
+			MSR_IA32_APICBASE_ENABLE;
 
 	return 0;
 
