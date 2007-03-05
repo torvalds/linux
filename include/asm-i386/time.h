@@ -28,13 +28,16 @@ static inline int native_set_wallclock(unsigned long nowtime)
 	return retval;
 }
 
+extern void (*late_time_init)(void);
+extern void hpet_time_init(void);
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else /* !CONFIG_PARAVIRT */
 
 #define get_wallclock() native_get_wallclock()
 #define set_wallclock(x) native_set_wallclock(x)
-#define do_time_init() time_init_hook()
+#define choose_time_init() hpet_time_init
 
 #endif /* CONFIG_PARAVIRT */
 

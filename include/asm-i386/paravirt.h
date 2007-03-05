@@ -186,9 +186,9 @@ static inline int set_wallclock(unsigned long nowtime)
 	return paravirt_ops.set_wallclock(nowtime);
 }
 
-static inline void do_time_init(void)
+static inline void (*choose_time_init(void))(void)
 {
-	return paravirt_ops.time_init();
+	return paravirt_ops.time_init;
 }
 
 /* The paravirtualized CPUID instruction. */

@@ -494,7 +494,7 @@ struct paravirt_ops paravirt_ops = {
 	.memory_setup = machine_specific_memory_setup,
 	.get_wallclock = native_get_wallclock,
 	.set_wallclock = native_set_wallclock,
-	.time_init = time_init_hook,
+	.time_init = hpet_time_init,
 	.init_IRQ = native_init_IRQ,
 
 	.cpuid = native_cpuid,
