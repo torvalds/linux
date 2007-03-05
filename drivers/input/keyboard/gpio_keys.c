@@ -23,11 +23,9 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/irq.h>
+#include <linux/gpio_keys.h>
 
 #include <asm/gpio.h>
-#include <asm/arch/hardware.h>
-
-#include <asm/hardware/gpio_keys.h>
 
 static irqreturn_t gpio_keys_isr(int irq, void *dev_id)
 {
