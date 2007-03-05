@@ -123,7 +123,7 @@ void __init smp_store_cpu_info(int id)
 	       cpu_data(id).ecache_size, cpu_data(id).ecache_line_size);
 }
 
-static void smp_setup_percpu_timer(void);
+extern void setup_sparc64_timer(void);
 
 static volatile unsigned long callin_flag = 0;
 
@@ -138,7 +138,7 @@ void __init smp_callin(void)
 
 	__flush_tlb_all();
 
-	smp_setup_percpu_timer();
+	setup_sparc64_timer();
 
 	if (cheetah_pcache_forced_on)
 		cheetah_enable_pcache();
@@ -174,8 +174,6 @@ void cpu_panic(void)
 	printk("CPU[%d]: Returns from cpu_idle!\n", smp_processor_id());
 	panic("SMP bolixed\n");
 }
-
-static unsigned long current_tick_offset __read_mostly;
 
 /* This tick register synchronization scheme is taken entirely from
  * the ia64 port, see arch/ia64/kernel/smpboot.c for details and credit.
@@ -259,7 +257,7 @@ void smp_synchronize_tick_client(void)
 				} else
 					adj = -delta;
 
-				tick_ops->add_tick(adj, current_tick_offset);
+				tick_ops->add_tick(adj);
 			}
 #if DEBUG_TICK_SYNC
 			t[i].rt = rt;
@@ -1178,30 +1176,9 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 	preempt_enable();
 }
 
-static void __init smp_setup_percpu_timer(void)
-{
-	unsigned long pstate;
-
-	/* Guarantee that the following sequences execute
-	 * uninterrupted.
-	 */
-	__asm__ __volatile__("rdpr	%%pstate, %0\n\t"
-			     "wrpr	%0, %1, %%pstate"
-			     : "=r" (pstate)
-			     : "i" (PSTATE_IE));
-
-	tick_ops->init_tick(current_tick_offset);
-
-	/* Restore PSTATE_IE. */
-	__asm__ __volatile__("wrpr	%0, 0x0, %%pstate"
-			     : /* no outputs */
-			     : "r" (pstate));
-}
-
 void __init smp_tick_init(void)
 {
 	boot_cpu_id = hard_smp_processor_id();
-	current_tick_offset = timer_tick_offset;
 }
 
 /* /proc/profile writes can call this, don't __init it please. */
