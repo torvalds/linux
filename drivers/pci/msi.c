@@ -85,6 +85,8 @@ static void msi_set_mask_bit(unsigned int irq, int flag)
 			mask_bits &= ~(1);
 			mask_bits |= flag;
 			pci_write_config_dword(entry->dev, pos, mask_bits);
+		} else {
+			msi_set_enable(entry->dev, !flag);
 		}
 		break;
 	case PCI_CAP_ID_MSIX:
