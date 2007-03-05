@@ -446,6 +446,7 @@ static int ecryptfs_write_inode_size_to_header(struct file *lower_file,
 	const struct address_space_operations *lower_a_ops;
 	u64 file_size;
 
+retry:
 	header_page = grab_cache_page(lower_inode->i_mapping, 0);
 	if (!header_page) {
 		ecryptfs_printk(KERN_ERR, "grab_cache_page for "
@@ -456,9 +457,10 @@ static int ecryptfs_write_inode_size_to_header(struct file *lower_file,
 	lower_a_ops = lower_inode->i_mapping->a_ops;
 	rc = lower_a_ops->prepare_write(lower_file, header_page, 0, 8);
 	if (rc) {
-		if (rc == AOP_TRUNCATED_PAGE)
+		if (rc == AOP_TRUNCATED_PAGE) {
 			ecryptfs_release_lower_page(header_page, 0);
-		else
+			goto retry;
+		} else
 			ecryptfs_release_lower_page(header_page, 1);
 		goto out;
 	}
@@ -473,9 +475,10 @@ static int ecryptfs_write_inode_size_to_header(struct file *lower_file,
 	if (rc < 0)
 		ecryptfs_printk(KERN_ERR, "Error commiting header page "
 				"write\n");
-	if (rc == AOP_TRUNCATED_PAGE)
+	if (rc == AOP_TRUNCATED_PAGE) {
 		ecryptfs_release_lower_page(header_page, 0);
-	else
+		goto retry;
+	} else
 		ecryptfs_release_lower_page(header_page, 1);
 	lower_inode->i_mtime = lower_inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty_sync(inode);
@@ -565,6 +568,7 @@ int ecryptfs_get_lower_page(struct page **lower_page, struct inode *lower_inode,
 {
 	int rc = 0;
 
+retry:
 	*lower_page = grab_cache_page(lower_inode->i_mapping, lower_page_index);
 	if (!(*lower_page)) {
 		rc = -EINVAL;
@@ -578,18 +582,18 @@ int ecryptfs_get_lower_page(struct page **lower_page, struct inode *lower_inode,
 							  byte_offset,
 							  region_bytes);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "prepare_write for "
+		if (rc == AOP_TRUNCATED_PAGE) {
+			ecryptfs_release_lower_page(*lower_page, 0);
+			goto retry;
+		} else {
+			ecryptfs_printk(KERN_ERR, "prepare_write for "
 				"lower_page_index = [0x%.16x] failed; rc = "
 				"[%d]\n", lower_page_index, rc);
+			ecryptfs_release_lower_page(*lower_page, 1);
+			(*lower_page) = NULL;
+		}
 	}
 out:
-	if (rc && (*lower_page)) {
-		if (rc == AOP_TRUNCATED_PAGE)
-			ecryptfs_release_lower_page(*lower_page, 0);
-		else
-			ecryptfs_release_lower_page(*lower_page, 1);
-		(*lower_page) = NULL;
-	}
 	return rc;
 }
 
