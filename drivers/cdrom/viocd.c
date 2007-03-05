@@ -376,6 +376,25 @@ static int send_request(struct request *req)
 	return 0;
 }
 
+static void viocd_end_request(struct request *req, int uptodate)
+{
+	int nsectors = req->hard_nr_sectors;
+
+	/*
+	 * Make sure it's fully ended, and ensure that we process
+	 * at least one sector.
+	 */
+	if (blk_pc_request(req))
+		nsectors = (req->data_len + 511) >> 9;
+	if (!nsectors)
+		nsectors = 1;
+
+	if (end_that_request_first(req, uptodate, nsectors))
+		BUG();
+	add_disk_randomness(req->rq_disk);
+	blkdev_dequeue_request(req);
+	end_that_request_last(req, uptodate);
+}
 
 static int rwreq;
 
@@ -385,11 +404,11 @@ static void do_viocd_request(request_queue_t *q)
 
 	while ((rwreq == 0) && ((req = elv_next_request(q)) != NULL)) {
 		if (!blk_fs_request(req))
-			end_request(req, 0);
+			viocd_end_request(req, 0);
 		else if (send_request(req) < 0) {
 			printk(VIOCD_KERN_WARNING
 					"unable to send message to OS/400!");
-			end_request(req, 0);
+			viocd_end_request(req, 0);
 		} else
 			rwreq++;
 	}
@@ -601,9 +620,9 @@ return_complete:
 					"with rc %d:0x%04X: %s\n",
 					req, event->xRc,
 					bevent->sub_result, err->msg);
-			end_request(req, 0);
+			viocd_end_request(req, 0);
 		} else
-			end_request(req, 1);
+			viocd_end_request(req, 1);
 
 		/* restart handling of incoming requests */
 		spin_unlock_irqrestore(&viocd_reqlock, flags);
