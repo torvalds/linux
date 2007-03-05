@@ -7,6 +7,7 @@
 
 void setup_pit_timer(void);
 unsigned long long native_sched_clock(void);
+unsigned long native_calculate_cpu_khz(void);
 
 /* Modifiers for buggy PIT handling */
 extern int pit_latch_buggy;
@@ -17,6 +18,7 @@ extern int recalibrate_cpu_khz(void);
 
 #ifndef CONFIG_PARAVIRT
 #define get_scheduled_cycles(val) rdtscll(val)
+#define calculate_cpu_khz() native_calculate_cpu_khz()
 #endif
 
 #endif

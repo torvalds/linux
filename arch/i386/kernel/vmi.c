@@ -874,6 +874,7 @@ static inline int __init activate_vmi(void)
 		paravirt_ops.setup_secondary_clock = vmi_timer_setup_secondary_alarm;
 #endif
 		paravirt_ops.get_scheduled_cycles = vmi_get_sched_cycles;
+ 		paravirt_ops.get_cpu_khz = vmi_cpu_khz;
 	}
 	if (!disable_noidle)
 		para_fill(safe_halt, Halt);
