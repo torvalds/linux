@@ -144,8 +144,8 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 	ret = stsch(sch->schid, &sch->schib);
 	if (ret || !sch->schib.pmcw.dnv)
 		return -ENODEV; 
-	if (!sch->schib.pmcw.ena || sch->schib.scsw.actl == 0)
-		/* Not operational or no activity -> done. */
+	if (!sch->schib.pmcw.ena)
+		/* Not operational -> done. */
 		return 0;
 	/* Stage 1: cancel io. */
 	if (!(sch->schib.scsw.actl & SCSW_ACTL_HALT_PEND) &&
