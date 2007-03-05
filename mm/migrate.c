@@ -781,7 +781,7 @@ static int do_move_pages(struct mm_struct *mm, struct page_to_node *pm,
 
 		err = -EFAULT;
 		vma = find_vma(mm, pp->addr);
-		if (!vma)
+		if (!vma || !vma_migratable(vma))
 			goto set_status;
 
 		page = follow_page(vma, pp->addr, FOLL_GET);
