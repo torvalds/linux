@@ -187,31 +187,7 @@ static void __init r7780rp_setup(char **cmdline_p)
 struct sh_machine_vector mv_r7780rp __initmv = {
 	.mv_name		= "Highlander R7780RP-1",
 	.mv_setup		= r7780rp_setup,
-
 	.mv_nr_irqs		= 109,
-
-	.mv_inb			= r7780rp_inb,
-	.mv_inw			= r7780rp_inw,
-	.mv_inl			= r7780rp_inl,
-	.mv_outb		= r7780rp_outb,
-	.mv_outw		= r7780rp_outw,
-	.mv_outl		= r7780rp_outl,
-
-	.mv_inb_p		= r7780rp_inb_p,
-	.mv_inw_p		= r7780rp_inw,
-	.mv_inl_p		= r7780rp_inl,
-	.mv_outb_p		= r7780rp_outb_p,
-	.mv_outw_p		= r7780rp_outw,
-	.mv_outl_p		= r7780rp_outl,
-
-	.mv_insb		= r7780rp_insb,
-	.mv_insw		= r7780rp_insw,
-	.mv_insl		= r7780rp_insl,
-	.mv_outsb		= r7780rp_outsb,
-	.mv_outsw		= r7780rp_outsw,
-	.mv_outsl		= r7780rp_outsl,
-
-	.mv_ioport_map		= r7780rp_ioport_map,
 	.mv_init_irq		= init_r7780rp_IRQ,
 };
 ALIAS_MV(r7780rp)
