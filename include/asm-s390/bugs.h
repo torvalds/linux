@@ -16,7 +16,7 @@
  *      void check_bugs(void);
  */
 
-static void __init check_bugs(void)
+static inline void check_bugs(void)
 {
   /* s390 has no bugs ... */
 }
