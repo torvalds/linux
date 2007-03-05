@@ -59,7 +59,13 @@ struct serial_console_data {
 	void		(*close)(void);
 };
 
-int platform_init(void *promptr, char *dt_blob_start, char *dt_blob_end);
+struct loader_info {
+	void *promptr;
+	unsigned long initrd_addr, initrd_size;
+};
+extern struct loader_info loader_info;
+
+void start(void *sp);
 int ft_init(void *dt_blob, unsigned int max_size, unsigned int max_find_device);
 int serial_console_init(void);
 int ns16550_console_init(void *devp, struct serial_console_data *scdp);
@@ -99,5 +105,9 @@ static inline void exit(void)
 		platform_ops.exit();
 	for(;;);
 }
+
+#define BSS_STACK(size) \
+	static char _bss_stack[size]; \
+	void *_platform_stack_top = _bss_stack + sizeof(_bss_stack);
 
 #endif /* _PPC_BOOT_OPS_H_ */

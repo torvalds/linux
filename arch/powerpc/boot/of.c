@@ -267,7 +267,7 @@ static void of_console_write(char *buf, int len)
 	call_prom("write", 3, 1, of_stdout_handle, buf, len);
 }
 
-int platform_init(void *promptr, char *dt_blob_start, char *dt_blob_end)
+void platform_init(unsigned long a1, unsigned long a2, void *promptr)
 {
 	platform_ops.image_hdr = of_image_hdr;
 	platform_ops.malloc = of_try_claim;
@@ -282,5 +282,7 @@ int platform_init(void *promptr, char *dt_blob_start, char *dt_blob_end)
 	console_ops.write = of_console_write;
 
 	prom = (int (*)(void *))promptr;
-	return 0;
+	loader_info.promptr = promptr;
+	loader_info.initrd_addr = a1;
+	loader_info.initrd_size = a2;
 }

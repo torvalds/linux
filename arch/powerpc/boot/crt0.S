@@ -16,6 +16,7 @@
 _zimage_start_opd:
 	.long	_zimage_start, 0, 0, 0
 
+	.weak	_zimage_start
 	.globl	_zimage_start
 _zimage_start:
 	/* Work out the offset between the address we were linked at
@@ -44,7 +45,7 @@ _zimage_start:
 	addi	r9,r9,4
 	bdnz	2b
 
-	/* Do a cache flush for our text, in case OF didn't */
+	/* Do a cache flush for our text, in case the loader didn't */
 3:	lis	r9,_start@ha
 	addi	r9,r9,_start@l
 	add	r9,r0,r9
@@ -59,6 +60,31 @@ _zimage_start:
 	sync
 	isync
 
-	mr	r6,r1
-	b	start
+	/* Clear the BSS */
+	lis	r9,__bss_start@ha
+	addi	r9,r9,__bss_start@l
+	lis	r8,_end@ha
+	addi	r8,r8,_end@l
+	li	r0,0
+5:	stw	r0,0(r9)
+	addi	r9,r9,4
+	cmplw	cr0,r9,r8
+	blt	5b
 
+	/* Possibly set up a custom stack */
+.weak	_platform_stack_top
+	lis	r8,_platform_stack_top@ha
+	addi	r8,r8,_platform_stack_top@l
+	cmpwi	r8,0
+	beq	6f
+	lwz	r1,0(r8)
+	li	r0,0
+	stwu	r0,-16(r1)	/* establish a stack frame */
+6:
+
+	/* Call platform_init() */
+	bl	platform_init
+
+	/* Call start */
+	mr	r3,r1
+	b	start

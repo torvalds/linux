@@ -191,7 +191,7 @@ fi
 
 if [ "$platform" != "miboot" ]; then
     ${CROSS}ld -m elf32ppc -T $lds -o "$ofile" \
-	$object/crt0.o $platformo $tmp $object/wrapper.a
+	$platformo $tmp $object/wrapper.a
     rm $tmp
 fi
 
@@ -201,7 +201,9 @@ pseries|chrp)
     $object/addnote "$ofile"
     ;;
 pmaccoff)
-    ${CROSS}objcopy -O aixcoff-rs6000 --set-start 0x500000 "$ofile"
+    entry=`objdump -f "$ofile" | grep '^start address ' | \
+	cut -d' ' -f3`
+    ${CROSS}objcopy -O aixcoff-rs6000 --set-start "$entry" "$ofile"
     $object/hack-coff "$ofile"
     ;;
 esac

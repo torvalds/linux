@@ -254,21 +254,15 @@ static void set_cmdline(char *buf)
 struct platform_ops platform_ops;
 struct dt_ops dt_ops;
 struct console_ops console_ops;
+struct loader_info loader_info;
 
-void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
+void start(void *sp)
 {
 	struct addr_range vmlinux, initrd;
 	kernel_entry_t kentry;
 	char cmdline[COMMAND_LINE_SIZE];
 	unsigned long ft_addr = 0;
 
-	memset(__bss_start, 0, _end - __bss_start);
-	memset(&platform_ops, 0, sizeof(platform_ops));
-	memset(&dt_ops, 0, sizeof(dt_ops));
-	memset(&console_ops, 0, sizeof(console_ops));
-
-	if (platform_init(promptr, _dtb_start, _dtb_end))
-		exit();
 	if (console_ops.open && (console_ops.open() < 0))
 		exit();
 	if (platform_ops.fixups)
@@ -278,7 +272,8 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 	       _start, sp);
 
 	vmlinux = prep_kernel();
-	initrd = prep_initrd(vmlinux, a1, a2);
+	initrd = prep_initrd(vmlinux, loader_info.initrd_addr,
+			     loader_info.initrd_size);
 
 	/* If cmdline came from zimage wrapper or if we can edit the one
 	 * in the dt, print it out and edit it, if possible.
@@ -298,7 +293,7 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 	if (ft_addr)
 		printf(" flat tree at 0x%lx\n\r", ft_addr);
 	else
-		printf(" using OF tree (promptr=%p)\n\r", promptr);
+		printf(" using OF tree (promptr=%p)\n\r", loader_info.promptr);
 
 	if (console_ops.close)
 		console_ops.close();
@@ -307,7 +302,8 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 	if (ft_addr)
 		kentry(ft_addr, 0, NULL);
 	else
-		kentry((unsigned long)initrd.addr, initrd.size, promptr);
+		kentry((unsigned long)initrd.addr, initrd.size,
+		       loader_info.promptr);
 
 	/* console closed so printf below may not work */
 	printf("Error: Linux kernel returned to zImage boot wrapper!\n\r");
