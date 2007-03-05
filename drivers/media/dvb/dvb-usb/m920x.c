@@ -89,7 +89,6 @@ static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	int i, ret = 0;
 	u8 rc_state[2];
 
-
 	if ((ret = m9206_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE, rc_state, 1)) != 0)
 		goto unlock;
 
