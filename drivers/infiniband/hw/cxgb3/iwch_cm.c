@@ -1687,12 +1687,11 @@ int iwch_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 		return -ECONNRESET;
 	}
 	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
-	state_set(&ep->com, CLOSING);
 	if (mpa_rev == 0)
 		abort_connection(ep, NULL, GFP_KERNEL);
 	else {
 		err = send_mpa_reject(ep, pdata, pdata_len);
-		err = send_halfclose(ep, GFP_KERNEL);
+		err = iwch_ep_disconnect(ep, 0, GFP_KERNEL);
 	}
 	return 0;
 }
