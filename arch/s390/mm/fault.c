@@ -108,53 +108,40 @@ void bust_spinlocks(int yes)
 }
 
 /*
- * Check which address space is addressed by the access
- * register in S390_lowcore.exc_access_id.
- * Returns 1 for user space and 0 for kernel space.
+ * Returns the address space associated with the fault.
+ * Returns 0 for kernel space, 1 for user space and
+ * 2 for code execution in user space with noexec=on.
  */
-static int __check_access_register(struct pt_regs *regs, int error_code)
-{
-	int areg = S390_lowcore.exc_access_id;
-
-	if (areg == 0)
-		/* Access via access register 0 -> kernel address */
-		return 0;
-	save_access_regs(current->thread.acrs);
-	if (regs && areg < NUM_ACRS && current->thread.acrs[areg] <= 1)
-		/*
-		 * access register contains 0 -> kernel address,
-		 * access register contains 1 -> user space address
-		 */
-		return current->thread.acrs[areg];
-
-	/* Something unhealthy was done with the access registers... */
-	die("page fault via unknown access register", regs, error_code);
-	do_exit(SIGKILL);
-	return 0;
-}
-
-/*
- * Check which address space the address belongs to.
- * May return 1 or 2 for user space and 0 for kernel space.
- * Returns 2 for user space in primary addressing mode with
- * CONFIG_S390_EXEC_PROTECT on and kernel parameter noexec=on.
- */
-static inline int check_user_space(struct pt_regs *regs, int error_code)
+static inline int check_space(struct task_struct *tsk)
 {
 	/*
-	 * The lowest two bits of S390_lowcore.trans_exc_code indicate
-	 * which paging table was used:
-	 *   0: Primary Segment Table Descriptor
-	 *   1: STD determined via access register
-	 *   2: Secondary Segment Table Descriptor
-	 *   3: Home Segment Table Descriptor
+	 * The lowest two bits of S390_lowcore.trans_exc_code
+	 * indicate which paging table was used.
 	 */
-	int descriptor = S390_lowcore.trans_exc_code & 3;
-	if (unlikely(descriptor == 1))
-		return __check_access_register(regs, error_code);
-	if (descriptor == 2)
-		return current->thread.mm_segment.ar4;
-	return ((descriptor != 0) ^ (switch_amode)) << s390_noexec;
+	int desc = S390_lowcore.trans_exc_code & 3;
+
+	if (desc == 3)	/* Home Segment Table Descriptor */
+		return switch_amode == 0;
+	if (desc == 2)	/* Secondary Segment Table Descriptor */
+		return tsk->thread.mm_segment.ar4;
+#ifdef CONFIG_S390_SWITCH_AMODE
+	if (unlikely(desc == 1)) { /* STD determined via access register */
+		/* %a0 always indicates primary space. */
+		if (S390_lowcore.exc_access_id != 0) {
+			save_access_regs(tsk->thread.acrs);
+			/*
+			 * An alet of 0 indicates primary space.
+			 * An alet of 1 indicates secondary space.
+			 * Any other alet values generate an
+			 * alen-translation exception.
+			 */
+			if (tsk->thread.acrs[S390_lowcore.exc_access_id])
+				return tsk->thread.mm_segment.ar4;
+		}
+	}
+#endif
+	/* Primary Segment Table Descriptor */
+	return switch_amode << s390_noexec;
 }
 
 /*
@@ -265,16 +252,16 @@ out_fault:
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)
  */
-static inline void __kprobes
+static inline void
 do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
 {
         struct task_struct *tsk;
         struct mm_struct *mm;
         struct vm_area_struct * vma;
         unsigned long address;
-	int user_address;
 	const struct exception_table_entry *fixup;
-	int si_code = SEGV_MAPERR;
+	int si_code;
+	int space;
 
         tsk = current;
         mm = tsk->mm;
@@ -294,7 +281,7 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
 		   NULL pointer write access in kernel mode.  */
  		if (!(regs->psw.mask & PSW_MASK_PSTATE)) {
 			address = 0;
-			user_address = 0;
+			space = 0;
 			goto no_context;
 		}
 
@@ -309,15 +296,15 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
          * the address 
          */
         address = S390_lowcore.trans_exc_code & __FAIL_ADDR_MASK;
-	user_address = check_user_space(regs, error_code);
+	space = check_space(tsk);
 
 	/*
 	 * Verify that the fault happened in user space, that
 	 * we are not in an interrupt and that there is a 
 	 * user context.
 	 */
-        if (user_address == 0 || in_atomic() || !mm)
-                goto no_context;
+	if (unlikely(space == 0 || in_atomic() || !mm))
+		goto no_context;
 
 	/*
 	 * When we get here, the fault happened in the current
@@ -328,12 +315,13 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
 
         down_read(&mm->mmap_sem);
 
-        vma = find_vma(mm, address);
-        if (!vma)
-                goto bad_area;
+	si_code = SEGV_MAPERR;
+	vma = find_vma(mm, address);
+	if (!vma)
+		goto bad_area;
 
 #ifdef CONFIG_S390_EXEC_PROTECT
-	if (unlikely((user_address == 2) && !(vma->vm_flags & VM_EXEC)))
+	if (unlikely((space == 2) && !(vma->vm_flags & VM_EXEC)))
 		if (!signal_return(mm, regs, address, error_code))
 			/*
 			 * signal_return() has done an up_read(&mm->mmap_sem)
@@ -389,7 +377,7 @@ survive:
 	 * The instruction that caused the program check will
 	 * be repeated. Don't signal single step via SIGTRAP.
 	 */
-	clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
+	clear_tsk_thread_flag(tsk, TIF_SINGLE_STEP);
         return;
 
 /*
@@ -419,7 +407,7 @@ no_context:
  * Oops. The kernel tried to access some bad page. We'll have to
  * terminate things with extreme prejudice.
  */
-        if (user_address == 0)
+	if (space == 0)
                 printk(KERN_ALERT "Unable to handle kernel pointer dereference"
         	       " at virtual kernel address %p\n", (void *)address);
         else
@@ -462,13 +450,14 @@ do_sigbus:
 		goto no_context;
 }
 
-void do_protection_exception(struct pt_regs *regs, unsigned long error_code)
+void __kprobes do_protection_exception(struct pt_regs *regs,
+				       unsigned long error_code)
 {
 	regs->psw.addr -= (error_code >> 16);
 	do_exception(regs, 4, 1);
 }
 
-void do_dat_exception(struct pt_regs *regs, unsigned long error_code)
+void __kprobes do_dat_exception(struct pt_regs *regs, unsigned long error_code)
 {
 	do_exception(regs, error_code & 0xff, 0);
 }

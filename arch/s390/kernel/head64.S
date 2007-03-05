@@ -134,7 +134,7 @@ startup_continue:
 	.quad	.Lduct			# cr2: dispatchable unit control table
 	.quad	0			# cr3: instruction authorization
 	.quad	0			# cr4: instruction authorization
-	.quad	0xffffffffffffffff	# cr5: primary-aste origin
+	.quad	.Lduct			# cr5: primary-aste origin
 	.quad	0			# cr6:	I/O interrupts
 	.quad	0			# cr7:	secondary space segment table
 	.quad	0			# cr8:	access registers translation
@@ -145,14 +145,19 @@ startup_continue:
 	.quad	0			# cr13: home space segment table
 	.quad	0xc0000000		# cr14: machine check handling off
 	.quad	0			# cr15: linkage stack operations
-.Lduct: .long	0,0,0,0,0,0,0,0
-	.long	0,0,0,0,0,0,0,0
 .Lpcmsk:.quad	0x0000000180000000
 .L4malign:.quad 0xffffffffffc00000
 .Lscan2g:.quad	0x80000000 + 0x20000 - 8	# 2GB + 128K - 8
 .Lnop:	.long	0x07000700
 .Lparmaddr:
 	.quad	PARMAREA
+	.align	64
+.Lduct: .long	0,0,0,0,.Lduald,0,0,0
+	.long	0,0,0,0,0,0,0,0
+	.align	128
+.Lduald:.rept	8
+	.long	0x80000000,0,0,0	# invalid access-list entries
+	.endr
 
 	.org	0x12000
 	.globl	_ehead
