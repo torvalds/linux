@@ -170,8 +170,7 @@ static void dz_enable_ms(struct uart_port *port)
  * This routine deals with inputs from any lines.
  * ------------------------------------------------------------
  */
-static inline void dz_receive_chars(struct dz_port *dport_in,
-				    struct pt_regs *regs)
+static inline void dz_receive_chars(struct dz_port *dport_in)
 {
 	struct dz_port *dport;
 	struct tty_struct *tty = NULL;
@@ -226,7 +225,7 @@ static inline void dz_receive_chars(struct dz_port *dport_in,
 			break;
 		}
 
-		if (uart_handle_sysrq_char(&dport->port, ch, regs))
+		if (uart_handle_sysrq_char(&dport->port, ch))
 			continue;
 
 		if ((status & dport->port.ignore_status_mask) == 0) {
@@ -332,7 +331,7 @@ static irqreturn_t dz_interrupt(int irq, void *dev)
 	status = dz_in(dport, DZ_CSR);
 
 	if ((status & (DZ_RDONE | DZ_RIE)) == (DZ_RDONE | DZ_RIE))
-		dz_receive_chars(dport, regs);
+		dz_receive_chars(dport);
 
 	if ((status & (DZ_TRDY | DZ_TIE)) == (DZ_TRDY | DZ_TIE))
 		dz_transmit_chars(dport);
