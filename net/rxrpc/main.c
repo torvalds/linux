@@ -37,7 +37,7 @@ static int __init rxrpc_initialise(void)
 	int ret;
 
 	/* my epoch value */
-	rxrpc_epoch = htonl(xtime.tv_sec);
+	rxrpc_epoch = htonl(get_seconds());
 
 	/* register the /proc interface */
 #ifdef CONFIG_PROC_FS

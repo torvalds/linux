@@ -233,7 +233,7 @@ static inline unsigned long make_jiffies(long secs)
 static void xfrm_timer_handler(unsigned long data)
 {
 	struct xfrm_state *x = (struct xfrm_state*)data;
-	unsigned long now = (unsigned long)xtime.tv_sec;
+	unsigned long now = get_seconds();
 	long next = LONG_MAX;
 	int warn = 0;
 	int err = 0;
@@ -326,7 +326,7 @@ struct xfrm_state *xfrm_state_alloc(void)
 		init_timer(&x->rtimer);
 		x->rtimer.function = xfrm_replay_timer_handler;
 		x->rtimer.data     = (unsigned long)x;
-		x->curlft.add_time = (unsigned long)xtime.tv_sec;
+		x->curlft.add_time = get_seconds();
 		x->lft.soft_byte_limit = XFRM_INF;
 		x->lft.soft_packet_limit = XFRM_INF;
 		x->lft.hard_byte_limit = XFRM_INF;
@@ -1051,7 +1051,7 @@ EXPORT_SYMBOL(xfrm_state_update);
 int xfrm_state_check_expire(struct xfrm_state *x)
 {
 	if (!x->curlft.use_time)
-		x->curlft.use_time = (unsigned long)xtime.tv_sec;
+		x->curlft.use_time = get_seconds();
 
 	if (x->km.state != XFRM_STATE_VALID)
 		return -EINVAL;

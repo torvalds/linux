@@ -2933,7 +2933,7 @@ static int tcp_fast_parse_options(struct sk_buff *skb, struct tcphdr *th,
 static inline void tcp_store_ts_recent(struct tcp_sock *tp)
 {
 	tp->rx_opt.ts_recent = tp->rx_opt.rcv_tsval;
-	tp->rx_opt.ts_recent_stamp = xtime.tv_sec;
+	tp->rx_opt.ts_recent_stamp = get_seconds();
 }
 
 static inline void tcp_replace_ts_recent(struct tcp_sock *tp, u32 seq)
@@ -2947,7 +2947,7 @@ static inline void tcp_replace_ts_recent(struct tcp_sock *tp, u32 seq)
 		 */
 
 		if((s32)(tp->rx_opt.rcv_tsval - tp->rx_opt.ts_recent) >= 0 ||
-		   xtime.tv_sec >= tp->rx_opt.ts_recent_stamp + TCP_PAWS_24DAYS)
+		   get_seconds() >= tp->rx_opt.ts_recent_stamp + TCP_PAWS_24DAYS)
 			tcp_store_ts_recent(tp);
 	}
 }
@@ -2999,7 +2999,7 @@ static inline int tcp_paws_discard(const struct sock *sk, const struct sk_buff *
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	return ((s32)(tp->rx_opt.ts_recent - tp->rx_opt.rcv_tsval) > TCP_PAWS_WINDOW &&
-		xtime.tv_sec < tp->rx_opt.ts_recent_stamp + TCP_PAWS_24DAYS &&
+		get_seconds() < tp->rx_opt.ts_recent_stamp + TCP_PAWS_24DAYS &&
 		!tcp_disordered_ack(sk, skb));
 }
 

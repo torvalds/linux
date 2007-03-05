@@ -76,7 +76,7 @@ static int xfrm6_output_one(struct sk_buff *skb)
 		x->curlft.bytes += skb->len;
 		x->curlft.packets++;
 		if (x->props.mode == XFRM_MODE_ROUTEOPTIMIZATION)
-			x->lastused = (u64)xtime.tv_sec;
+			x->lastused = get_seconds();
 
 		spin_unlock_bh(&x->lock);
 

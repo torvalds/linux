@@ -2683,7 +2683,7 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 		id = rt->peer->ip_id_count;
 		if (rt->peer->tcp_ts_stamp) {
 			ts = rt->peer->tcp_ts;
-			tsage = xtime.tv_sec - rt->peer->tcp_ts_stamp;
+			tsage = get_seconds() - rt->peer->tcp_ts_stamp;
 		}
 	}
 

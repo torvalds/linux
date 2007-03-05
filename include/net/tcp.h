@@ -1014,7 +1014,7 @@ static inline int tcp_paws_check(const struct tcp_options_received *rx_opt, int 
 {
 	if ((s32)(rx_opt->rcv_tsval - rx_opt->ts_recent) >= 0)
 		return 0;
-	if (xtime.tv_sec >= rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS)
+	if (get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS)
 		return 0;
 
 	/* RST segments are not recommended to carry timestamp,
@@ -1029,7 +1029,7 @@ static inline int tcp_paws_check(const struct tcp_options_received *rx_opt, int 
 
 	   However, we can relax time bounds for RST segments to MSL.
 	 */
-	if (rst && xtime.tv_sec >= rx_opt->ts_recent_stamp + TCP_PAWS_MSL)
+	if (rst && get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_MSL)
 		return 0;
 	return 1;
 }
