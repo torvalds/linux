@@ -36,6 +36,7 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 
 #include "cxio_resource.h"
 #include "cxio_hal.h"
