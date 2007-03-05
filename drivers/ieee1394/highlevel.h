@@ -176,11 +176,6 @@ void hpsb_destroy_hostinfo(struct hpsb_highlevel *hl, struct hpsb_host *host);
 void hpsb_set_hostinfo_key(struct hpsb_highlevel *hl, struct hpsb_host *host,
 			   unsigned long key);
 
-/* Retrieve the alternate lookup key for the hostinfo bound to this
- * driver/host */
-unsigned long hpsb_get_hostinfo_key(struct hpsb_highlevel *hl,
-				    struct hpsb_host *host);
-
 /* Retrieve a hostinfo pointer bound to this driver using its alternate key */
 void *hpsb_get_hostinfo_bykey(struct hpsb_highlevel *hl, unsigned long key);
 
@@ -188,9 +183,5 @@ void *hpsb_get_hostinfo_bykey(struct hpsb_highlevel *hl, unsigned long key);
  * hpsb_create_hostinfo, where the size is 0. */
 int hpsb_set_hostinfo(struct hpsb_highlevel *hl, struct hpsb_host *host,
 		      void *data);
-
-/* Retrieve hpsb_host using a highlevel handle and a key */
-struct hpsb_host *hpsb_get_host_bykey(struct hpsb_highlevel *hl,
-				      unsigned long key);
 
 #endif /* IEEE1394_HIGHLEVEL_H */

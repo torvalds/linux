@@ -1756,7 +1756,7 @@ int nodemgr_for_each_host(void *__data, int (*cb)(struct hpsb_host *, void *))
 	return error;
 }
 
-/* The following four convenience functions use a struct node_entry
+/* The following two convenience functions use a struct node_entry
  * for addressing a node on the bus.  They are intended for use by any
  * process context, not just the nodemgr thread, so we need to be a
  * little careful when reading out the node ID and generation.  The

@@ -167,12 +167,8 @@ static inline int hpsb_node_entry_valid(struct node_entry *ne)
  */
 void hpsb_node_fill_packet(struct node_entry *ne, struct hpsb_packet *pkt);
 
-int hpsb_node_read(struct node_entry *ne, u64 addr,
-		   quadlet_t *buffer, size_t length);
 int hpsb_node_write(struct node_entry *ne, u64 addr,
 		    quadlet_t *buffer, size_t length);
-int hpsb_node_lock(struct node_entry *ne, u64 addr,
-		   int extcode, quadlet_t *data, quadlet_t arg);
 
 /* Iterate the hosts, calling a given function with supplied data for each
  * host. */
