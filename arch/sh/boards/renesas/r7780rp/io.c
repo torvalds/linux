@@ -156,8 +156,6 @@ void r7780rp_insw(unsigned long port, void *dst, unsigned long count)
 
 	while (count--)
 		*buf++ = *p;
-
-	flush_dcache_all();
 }
 
 void r7780rp_insl(unsigned long port, void *dst, unsigned long count)
@@ -204,8 +202,6 @@ void r7780rp_outsw(unsigned long port, const void *src, unsigned long count)
 
 	while (count--)
 		*p = *buf++;
-
-	flush_dcache_all();
 }
 
 void r7780rp_outsl(unsigned long port, const void *src, unsigned long count)
