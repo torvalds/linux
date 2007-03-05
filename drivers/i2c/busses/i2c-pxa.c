@@ -839,9 +839,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 {
 	struct pxa_i2c *i2c = &i2c_pxa;
 	struct resource *res;
-#ifdef CONFIG_I2C_PXA_SLAVE
 	struct i2c_pxa_platform_data *plat = dev->dev.platform_data;
-#endif
 	int ret;
 	int irq;
 
@@ -910,6 +908,10 @@ static int i2c_pxa_probe(struct platform_device *dev)
 
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &dev->dev;
+
+	if (plat) {
+		i2c->adap.class = plat->class;
+	}
 
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
