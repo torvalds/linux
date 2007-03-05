@@ -854,4 +854,15 @@ static unsigned long __init sun_floppy_init(void)
 
 #define EXTRA_FLOPPY_PARAMS
 
+static DEFINE_SPINLOCK(dma_spin_lock);
+
+#define claim_dma_lock() \
+({	unsigned long flags; \
+	spin_lock_irqsave(&dma_spin_lock, flags); \
+	flags; \
+})
+
+#define release_dma_lock(__flags) \
+	spin_unlock_irqrestore(&dma_spin_lock, __flags);
+
 #endif /* !(__ASM_SPARC64_FLOPPY_H) */

@@ -15,17 +15,6 @@
 #include <asm/delay.h>
 #include <asm/oplib.h>
 
-extern spinlock_t  dma_spin_lock;
-
-#define claim_dma_lock() \
-({	unsigned long flags; \
-	spin_lock_irqsave(&dma_spin_lock, flags); \
-	flags; \
-})
-
-#define release_dma_lock(__flags) \
-	spin_unlock_irqrestore(&dma_spin_lock, __flags);
-
 /* These are irrelevant for Sparc DMA, but we leave it in so that
  * things can compile.
  */
