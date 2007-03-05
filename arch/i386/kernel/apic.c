@@ -493,8 +493,15 @@ void __init setup_boot_APIC_clock(void)
 		/* No broadcast on UP ! */
 		if (num_possible_cpus() == 1)
 			return;
-	} else
-		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
+	} else {
+		/*
+		 * If nmi_watchdog is set to IO_APIC, we need the
+		 * PIT/HPET going.  Otherwise register lapic as a dummy
+		 * device.
+		 */
+		if (nmi_watchdog != NMI_IO_APIC)
+			lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
+	}
 
 	/* Setup the lapic or request the broadcast */
 	setup_APIC_timer();
