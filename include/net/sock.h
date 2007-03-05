@@ -202,6 +202,15 @@ struct sock {
 	unsigned short		sk_type;
 	int			sk_rcvbuf;
 	socket_lock_t		sk_lock;
+	/*
+	 * The backlog queue is special, it is always used with
+	 * the per-socket spinlock held and requires low latency
+	 * access. Therefore we special case it's implementation.
+	 */
+	struct {
+		struct sk_buff *head;
+		struct sk_buff *tail;
+	} sk_backlog;
 	wait_queue_head_t	*sk_sleep;
 	struct dst_entry	*sk_dst_cache;
 	struct xfrm_policy	*sk_policy[2];
@@ -221,15 +230,6 @@ struct sock {
 	int			sk_rcvlowat;
 	unsigned long 		sk_flags;
 	unsigned long	        sk_lingertime;
-	/*
-	 * The backlog queue is special, it is always used with
-	 * the per-socket spinlock held and requires low latency
-	 * access. Therefore we special case it's implementation.
-	 */
-	struct {
-		struct sk_buff *head;
-		struct sk_buff *tail;
-	} sk_backlog;
 	struct sk_buff_head	sk_error_queue;
 	struct proto		*sk_prot_creator;
 	rwlock_t		sk_callback_lock;
