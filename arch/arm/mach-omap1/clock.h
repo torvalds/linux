@@ -17,6 +17,8 @@ static int omap1_clk_enable_generic(struct clk * clk);
 static void omap1_clk_disable_generic(struct clk * clk);
 static void omap1_ckctl_recalc(struct clk * clk);
 static void omap1_watchdog_recalc(struct clk * clk);
+static int omap1_set_sossi_rate(struct clk *clk, unsigned long rate);
+static void omap1_sossi_recalc(struct clk *clk);
 static void omap1_ckctl_recalc_dsp_domain(struct clk * clk);
 static int omap1_clk_enable_dsp_domain(struct clk * clk);
 static int omap1_clk_set_rate_dsp_domain(struct clk * clk, unsigned long rate);
@@ -168,9 +170,10 @@ static struct clk ck_dpll1 = {
 
 static struct arm_idlect1_clk ck_dpll1out = {
 	.clk = {
-	       	.name		= "ck_dpll1out",
+		.name		= "ck_dpll1out",
 		.parent		= &ck_dpll1,
-		.flags		= CLOCK_IN_OMAP16XX | CLOCK_IDLE_CONTROL,
+		.flags		= CLOCK_IN_OMAP16XX | CLOCK_IDLE_CONTROL |
+				  ENABLE_REG_32BIT | RATE_PROPAGATES,
 		.enable_reg	= (void __iomem *)ARM_IDLECT2,
 		.enable_bit	= EN_CKOUT_ARM,
 		.recalc		= &followparent_recalc,
@@ -178,6 +181,19 @@ static struct arm_idlect1_clk ck_dpll1out = {
 		.disable	= &omap1_clk_disable_generic,
 	},
 	.idlect_shift	= 12,
+};
+
+static struct clk sossi_ck = {
+	.name		= "ck_sossi",
+	.parent		= &ck_dpll1out.clk,
+	.flags		= CLOCK_IN_OMAP16XX | CLOCK_NO_IDLE_PARENT |
+			  ENABLE_REG_32BIT,
+	.enable_reg	= (void __iomem *)MOD_CONF_CTRL_1,
+	.enable_bit	= 16,
+	.recalc		= &omap1_sossi_recalc,
+	.set_rate	= &omap1_set_sossi_rate,
+	.enable		= &omap1_clk_enable_generic,
+	.disable	= &omap1_clk_disable_generic,
 };
 
 static struct clk arm_ck = {
@@ -760,6 +776,7 @@ static struct clk * onchip_clks[] = {
 	&ck_dpll1,
 	/* CK_GEN1 clocks */
 	&ck_dpll1out.clk,
+	&sossi_ck,
 	&arm_ck,
 	&armper_ck.clk,
 	&arm_gpio_ck,
