@@ -99,9 +99,12 @@ static struct usb_serial *get_free_serial (struct usb_serial *serial, int num_po
 			continue;
 
 		*minor = i;
+		j = 0;
 		dbg("%s - minor base = %d", __FUNCTION__, *minor);
-		for (i = *minor; (i < (*minor + num_ports)) && (i < SERIAL_TTY_MINORS); ++i)
+		for (i = *minor; (i < (*minor + num_ports)) && (i < SERIAL_TTY_MINORS); ++i) {
 			serial_table[i] = serial;
+			serial->port[j++]->number = i;
+		}
 		spin_unlock(&table_lock);
 		return serial;
 	}
@@ -847,7 +850,6 @@ int usb_serial_probe(struct usb_interface *interface,
 		port = kzalloc(sizeof(struct usb_serial_port), GFP_KERNEL);
 		if (!port)
 			goto probe_error;
-		port->number = i + serial->minor;
 		port->serial = serial;
 		spin_lock_init(&port->lock);
 		mutex_init(&port->mutex);
@@ -1034,9 +1036,6 @@ probe_error:
 		usb_free_urb(port->interrupt_out_urb);
 		kfree(port->interrupt_out_buffer);
 	}
-
-	/* return the minor range that this device had */
-	return_serial (serial);
 
 	/* free up any memory that we allocated */
 	for (i = 0; i < serial->num_port_pointers; ++i)
