@@ -1815,14 +1815,14 @@ invalid_seg_count:
 	atomic_inc(&qdev->tx_count);
 }
 
-void ql_get_sbuf(struct ql3_adapter *qdev)
+static void ql_get_sbuf(struct ql3_adapter *qdev)
 {
 	if (++qdev->small_buf_index == NUM_SMALL_BUFFERS)
 		qdev->small_buf_index = 0;
 	qdev->small_buf_release_cnt++;
 }
 
-struct ql_rcv_buf_cb *ql_get_lbuf(struct ql3_adapter *qdev)
+static struct ql_rcv_buf_cb *ql_get_lbuf(struct ql3_adapter *qdev)
 {
 	struct ql_rcv_buf_cb *lrg_buf_cb = NULL;
 	lrg_buf_cb = &qdev->lrg_buf[qdev->lrg_buf_index];
