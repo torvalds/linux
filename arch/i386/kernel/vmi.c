@@ -35,6 +35,7 @@
 #include <asm/processor.h>
 #include <asm/timer.h>
 #include <asm/vmi_time.h>
+#include <asm/kmap_types.h>
 
 /* Convenient for calling VMI functions indirectly in the ROM */
 typedef u32 __attribute__((regparm(1))) (VROMFUNC)(void);
