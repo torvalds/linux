@@ -1,8 +1,7 @@
 #ifndef _IEEE1394_CONFIG_ROMS_H
 #define _IEEE1394_CONFIG_ROMS_H
 
-#include "ieee1394_types.h"
-#include "hosts.h"
+struct hpsb_host;
 
 int hpsb_default_host_entry(struct hpsb_host *host);
 int hpsb_init_config_roms(void);

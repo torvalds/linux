@@ -27,6 +27,7 @@
 #include <linux/netdevice.h>
 
 #include "ieee1394.h"
+#include "ieee1394_types.h"
 
 /* Register for incoming packets. This is 4096 bytes, which supports up to
  * S3200 (per Table 16-3 of IEEE 1394b-2002). */
