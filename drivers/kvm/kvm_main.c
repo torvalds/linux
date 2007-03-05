@@ -1591,8 +1591,12 @@ static void complete_pio(struct kvm_vcpu *vcpu)
 static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int r;
+	sigset_t sigsaved;
 
 	vcpu_load(vcpu);
+
+	if (vcpu->sigset_active)
+		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
 	/* re-sync apic's tpr */
 	vcpu->cr8 = kvm_run->cr8;
@@ -1615,6 +1619,9 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	r = kvm_arch_ops->run(vcpu, kvm_run);
+
+	if (vcpu->sigset_active)
+		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
 
 	vcpu_put(vcpu);
 	return r;
@@ -2142,6 +2149,17 @@ out:
 	return r;
 }
 
+static int kvm_vcpu_ioctl_set_sigmask(struct kvm_vcpu *vcpu, sigset_t *sigset)
+{
+	if (sigset) {
+		sigdelsetmask(sigset, sigmask(SIGKILL)|sigmask(SIGSTOP));
+		vcpu->sigset_active = 1;
+		vcpu->sigset = *sigset;
+	} else
+		vcpu->sigset_active = 0;
+	return 0;
+}
+
 static long kvm_vcpu_ioctl(struct file *filp,
 			   unsigned int ioctl, unsigned long arg)
 {
@@ -2258,6 +2276,29 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		r = kvm_vcpu_ioctl_set_cpuid(vcpu, &cpuid, cpuid_arg->entries);
 		if (r)
 			goto out;
+		break;
+	}
+	case KVM_SET_SIGNAL_MASK: {
+		struct kvm_signal_mask __user *sigmask_arg = argp;
+		struct kvm_signal_mask kvm_sigmask;
+		sigset_t sigset, *p;
+
+		p = NULL;
+		if (argp) {
+			r = -EFAULT;
+			if (copy_from_user(&kvm_sigmask, argp,
+					   sizeof kvm_sigmask))
+				goto out;
+			r = -EINVAL;
+			if (kvm_sigmask.len != sizeof sigset)
+				goto out;
+			r = -EFAULT;
+			if (copy_from_user(&sigset, sigmask_arg->sigset,
+					   sizeof sigset))
+				goto out;
+			p = &sigset;
+		}
+		r = kvm_vcpu_ioctl_set_sigmask(vcpu, &sigset);
 		break;
 	}
 	default:

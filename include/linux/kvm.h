@@ -234,6 +234,12 @@ struct kvm_cpuid {
 	struct kvm_cpuid_entry entries[0];
 };
 
+/* for KVM_SET_SIGNAL_MASK */
+struct kvm_signal_mask {
+	__u32 len;
+	__u8  sigset[0];
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -273,5 +279,6 @@ struct kvm_cpuid {
 #define KVM_GET_MSRS              _IOWR(KVMIO, 0x88, struct kvm_msrs)
 #define KVM_SET_MSRS              _IOW(KVMIO,  0x89, struct kvm_msrs)
 #define KVM_SET_CPUID             _IOW(KVMIO,  0x8a, struct kvm_cpuid)
+#define KVM_SET_SIGNAL_MASK       _IOW(KVMIO,  0x8b, struct kvm_signal_mask)
 
 #endif

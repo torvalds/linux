@@ -277,6 +277,9 @@ struct kvm_vcpu {
 	gpa_t mmio_phys_addr;
 	int pio_pending;
 
+	int sigset_active;
+	sigset_t sigset;
+
 	struct {
 		int active;
 		u8 save_iopl;
