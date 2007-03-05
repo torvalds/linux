@@ -30,7 +30,6 @@ static inline int native_set_wallclock(unsigned long nowtime)
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
-extern unsigned long long native_sched_clock(void);
 #else /* !CONFIG_PARAVIRT */
 
 #define get_wallclock() native_get_wallclock()

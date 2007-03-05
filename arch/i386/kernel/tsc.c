@@ -14,6 +14,7 @@
 #include <asm/delay.h>
 #include <asm/tsc.h>
 #include <asm/io.h>
+#include <asm/timer.h>
 
 #include "mach_timer.h"
 
@@ -102,9 +103,6 @@ unsigned long long sched_clock(void)
 {
 	unsigned long long this_offset;
 
-	if (unlikely(custom_sched_clock))
-		return (*custom_sched_clock)();
-
 	/*
 	 * Fall back to jiffies if there's no TSC available:
 	 */
@@ -113,7 +111,7 @@ unsigned long long sched_clock(void)
 		return (jiffies_64 - INITIAL_JIFFIES) * (1000000000 / HZ);
 
 	/* read the Time Stamp Counter: */
-	rdtscll(this_offset);
+	get_scheduled_cycles(this_offset);
 
 	/* return the value in ns */
 	return cycles_2_ns(this_offset);

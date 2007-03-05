@@ -94,6 +94,7 @@ struct paravirt_ops
 
 	u64 (*read_tsc)(void);
 	u64 (*read_pmc)(void);
+ 	u64 (*get_scheduled_cycles)(void);
 
 	void (*load_tr_desc)(void);
 	void (*load_gdt)(const struct Xgt_desc_struct *);
@@ -272,6 +273,8 @@ static inline void halt(void)
 } while(0)
 
 #define rdtscll(val) (val = paravirt_ops.read_tsc())
+
+#define get_scheduled_cycles(val) (val = paravirt_ops.get_scheduled_cycles())
 
 #define write_tsc(val1,val2) wrmsr(0x10, val1, val2)
 

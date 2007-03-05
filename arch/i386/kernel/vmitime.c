@@ -172,7 +172,7 @@ int vmi_set_wallclock(unsigned long now)
 	return -1;
 }
 
-unsigned long long vmi_sched_clock(void)
+unsigned long long vmi_get_sched_cycles(void)
 {
 	return read_available_cycles();
 }
