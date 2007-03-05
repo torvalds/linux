@@ -131,6 +131,8 @@ struct paravirt_ops
 	void (*flush_tlb_kernel)(void);
 	void (*flush_tlb_single)(u32 addr);
 
+	void (fastcall *map_pt_hook)(int type, pte_t *va, u32 pfn);
+
 	void (*alloc_pt)(u32 pfn);
 	void (*alloc_pd)(u32 pfn);
 	void (*alloc_pd_clone)(u32 pfn, u32 clonepfn, u32 start, u32 count);
@@ -353,6 +355,8 @@ static inline void startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 #define __flush_tlb() paravirt_ops.flush_tlb_user()
 #define __flush_tlb_global() paravirt_ops.flush_tlb_kernel()
 #define __flush_tlb_single(addr) paravirt_ops.flush_tlb_single(addr)
+
+#define paravirt_map_pt_hook(type, va, pfn) paravirt_ops.map_pt_hook(type, va, pfn)
 
 #define paravirt_alloc_pt(pfn) paravirt_ops.alloc_pt(pfn)
 #define paravirt_release_pt(pfn) paravirt_ops.release_pt(pfn)

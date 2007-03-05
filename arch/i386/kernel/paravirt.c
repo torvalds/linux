@@ -553,6 +553,8 @@ struct paravirt_ops paravirt_ops = {
 	.flush_tlb_kernel = native_flush_tlb_global,
 	.flush_tlb_single = native_flush_tlb_single,
 
+	.map_pt_hook = (void *)native_nop,
+
 	.alloc_pt = (void *)native_nop,
 	.alloc_pd = (void *)native_nop,
 	.alloc_pd_clone = (void *)native_nop,

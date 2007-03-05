@@ -370,6 +370,24 @@ static void vmi_check_page_type(u32 pfn, int type)
 #define vmi_check_page_type(p,t) do { } while (0)
 #endif
 
+static void vmi_map_pt_hook(int type, pte_t *va, u32 pfn)
+{
+	/*
+	 * Internally, the VMI ROM must map virtual addresses to physical
+	 * addresses for processing MMU updates.  By the time MMU updates
+	 * are issued, this information is typically already lost.
+	 * Fortunately, the VMI provides a cache of mapping slots for active
+	 * page tables.
+	 *
+	 * We use slot zero for the linear mapping of physical memory, and
+	 * in HIGHPTE kernels, slot 1 and 2 for KM_PTE0 and KM_PTE1.
+	 *
+	 *  args:                 SLOT                 VA    COUNT PFN
+	 */
+	BUG_ON(type != KM_PTE0 && type != KM_PTE1);
+	vmi_ops.set_linear_mapping((type - KM_PTE0)+1, (u32)va, 1, pfn);
+}
+
 static void vmi_allocate_pt(u32 pfn)
 {
 	vmi_set_page_type(pfn, VMI_PAGE_L1);
@@ -813,6 +831,7 @@ static inline int __init activate_vmi(void)
 	vmi_ops.allocate_page = vmi_get_function(VMI_CALL_AllocatePage);
 	vmi_ops.release_page = vmi_get_function(VMI_CALL_ReleasePage);
 
+	paravirt_ops.map_pt_hook = vmi_map_pt_hook;
 	paravirt_ops.alloc_pt = vmi_allocate_pt;
 	paravirt_ops.alloc_pd = vmi_allocate_pd;
 	paravirt_ops.alloc_pd_clone = vmi_allocate_pd_clone;
