@@ -168,7 +168,7 @@
 #define LAT_BUCKETS_MAX 32
 #define IP_NAME_SZ 32
 #define MAX_MPLS_LABELS 16 /* This is the max label stack depth */
-#define MPLS_STACK_BOTTOM __constant_htonl(0x00000100)
+#define MPLS_STACK_BOTTOM htonl(0x00000100)
 
 /* Device flag bits */
 #define F_IPSRC_RND   (1<<0)	/* IP-Src Random  */
@@ -2298,7 +2298,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	int datalen, iplen;
 	struct iphdr *iph;
 	struct pktgen_hdr *pgh = NULL;
-	__be16 protocol = __constant_htons(ETH_P_IP);
+	__be16 protocol = htons(ETH_P_IP);
 	__be32 *mpls;
 	__be16 *vlan_tci = NULL;                 /* Encapsulates priority and VLAN ID */
 	__be16 *vlan_encapsulated_proto = NULL;  /* packet type ID field (or len) for VLAN tag */
@@ -2307,10 +2307,10 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 
 
 	if (pkt_dev->nr_labels)
-		protocol = __constant_htons(ETH_P_MPLS_UC);
+		protocol = htons(ETH_P_MPLS_UC);
 
 	if (pkt_dev->vlan_id != 0xffff)
-		protocol = __constant_htons(ETH_P_8021Q);
+		protocol = htons(ETH_P_8021Q);
 
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
@@ -2342,14 +2342,14 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 					       pkt_dev->svlan_cfi,
 					       pkt_dev->svlan_p);
 			svlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
-			*svlan_encapsulated_proto = __constant_htons(ETH_P_8021Q);
+			*svlan_encapsulated_proto = htons(ETH_P_8021Q);
 		}
 		vlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
 		*vlan_tci = build_tci(pkt_dev->vlan_id,
 				      pkt_dev->vlan_cfi,
 				      pkt_dev->vlan_p);
 		vlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
-		*vlan_encapsulated_proto = __constant_htons(ETH_P_IP);
+		*vlan_encapsulated_proto = htons(ETH_P_IP);
 	}
 
 	iph = (struct iphdr *)skb_put(skb, sizeof(struct iphdr));
@@ -2636,7 +2636,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	int datalen;
 	struct ipv6hdr *iph;
 	struct pktgen_hdr *pgh = NULL;
-	__be16 protocol = __constant_htons(ETH_P_IPV6);
+	__be16 protocol = htons(ETH_P_IPV6);
 	__be32 *mpls;
 	__be16 *vlan_tci = NULL;                 /* Encapsulates priority and VLAN ID */
 	__be16 *vlan_encapsulated_proto = NULL;  /* packet type ID field (or len) for VLAN tag */
@@ -2644,10 +2644,10 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	__be16 *svlan_encapsulated_proto = NULL; /* packet type ID field (or len) for SVLAN tag */
 
 	if (pkt_dev->nr_labels)
-		protocol = __constant_htons(ETH_P_MPLS_UC);
+		protocol = htons(ETH_P_MPLS_UC);
 
 	if (pkt_dev->vlan_id != 0xffff)
-		protocol = __constant_htons(ETH_P_8021Q);
+		protocol = htons(ETH_P_8021Q);
 
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
@@ -2678,14 +2678,14 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 					       pkt_dev->svlan_cfi,
 					       pkt_dev->svlan_p);
 			svlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
-			*svlan_encapsulated_proto = __constant_htons(ETH_P_8021Q);
+			*svlan_encapsulated_proto = htons(ETH_P_8021Q);
 		}
 		vlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
 		*vlan_tci = build_tci(pkt_dev->vlan_id,
 				      pkt_dev->vlan_cfi,
 				      pkt_dev->vlan_p);
 		vlan_encapsulated_proto = (__be16 *)skb_put(skb, sizeof(__be16));
-		*vlan_encapsulated_proto = __constant_htons(ETH_P_IPV6);
+		*vlan_encapsulated_proto = htons(ETH_P_IPV6);
 	}
 
 	iph = (struct ipv6hdr *)skb_put(skb, sizeof(struct ipv6hdr));
@@ -2711,7 +2711,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	udph->len = htons(datalen + sizeof(struct udphdr));
 	udph->check = 0;	/* No checksum */
 
-	*(__be32 *) iph = __constant_htonl(0x60000000);	/* Version + flow */
+	*(__be32 *) iph = htonl(0x60000000);	/* Version + flow */
 
 	if (pkt_dev->traffic_class) {
 		/* Version + traffic class + flow (0) */
