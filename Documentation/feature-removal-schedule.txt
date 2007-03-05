@@ -304,3 +304,15 @@ Why:	The code says it was obsolete when it was written in 2001.
 Who:	Richard Purdie <rpurdie@rpsys.net>
 
 ---------------------------
+
+What:	Wireless extensions over netlink (CONFIG_NET_WIRELESS_RTNETLINK)
+When:	with the merge of wireless-dev, 2.6.22 or later
+Why:	The option/code is
+	 * not enabled on most kernels
+	 * not required by any userspace tools (except an experimental one,
+	   and even there only for some parts, others use ioctl)
+	 * pointless since wext is no longer evolving and the ioctl
+	   interface needs to be kept
+Who:	Johannes Berg <johannes@sipsolutions.net>
+
+---------------------------
