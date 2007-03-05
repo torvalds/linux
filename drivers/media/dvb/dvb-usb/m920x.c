@@ -67,16 +67,18 @@ static inline int m9206_write(struct usb_device *udev, u8 request,
 	return ret;
 }
 
-static int m9206_rc_init(struct usb_device *udev)
+static int m9206_init(struct dvb_usb_device *d)
 {
 	int ret = 0;
 
 	/* Remote controller init. */
-	if ((ret = m9206_write(udev, M9206_CORE, 0xa8, M9206_RC_INIT2)) != 0)
-		return ret;
+	if (d->props.rc_query) {
+		if ((ret = m9206_write(d->udev, M9206_CORE, 0xa8, M9206_RC_INIT2)) != 0)
+			return ret;
 
-	if ((ret = m9206_write(udev, M9206_CORE, 0x51, M9206_RC_INIT1)) != 0)
-		return ret;
+		if ((ret = m9206_write(d->udev, M9206_CORE, 0x51, M9206_RC_INIT1)) != 0)
+			return ret;
+	}
 
 	return ret;
 }
@@ -94,9 +96,9 @@ static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	if ((ret = m9206_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY, rc_state + 1, 1)) != 0)
 		goto unlock;
 
-	for (i = 0; i < ARRAY_SIZE(megasky_rc_keys); i++)
-		if (megasky_rc_keys[i].data == rc_state[1]) {
-			*event = megasky_rc_keys[i].event;
+	for (i = 0; i < d->props.rc_key_map_size; i++)
+		if (d->props.rc_key_map[i].data == rc_state[1]) {
+			*event = d->props.rc_key_map[i].event;
 
 			switch(rc_state[0]) {
 			case 0x80:
@@ -412,25 +414,28 @@ static int m920x_probe(struct usb_interface *intf,
 	struct usb_host_interface *alt;
 	int ret;
 
-	if ((ret = dvb_usb_device_init(intf, &megasky_properties, THIS_MODULE, &d)) == 0) {
-		deb_rc("probed!\n");
+	deb_rc("Probed!\n");
 
-		alt = usb_altnum_to_altsetting(intf, 1);
-		if (alt == NULL) {
-			deb_rc("not alt found!\n");
-			return -ENODEV;
-		}
+	if ((ret = dvb_usb_device_init(intf, &megasky_properties, THIS_MODULE, &d)) == 0)
+		goto found;
 
-		ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber,
-					alt->desc.bAlternateSetting);
-		if (ret < 0)
-			return ret;
+	return ret;
 
-		deb_rc("Changed to alternate setting!\n");
-
-		if ((ret = m9206_rc_init(d->udev)) != 0)
-			return ret;
+found:
+	alt = usb_altnum_to_altsetting(intf, 1);
+	if (alt == NULL) {
+		deb_rc("No alt found!\n");
+		return -ENODEV;
 	}
+
+	ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber,
+				alt->desc.bAlternateSetting);
+	if (ret < 0)
+		return ret;
+
+	if ((ret = m9206_init(d)) != 0)
+		return ret;
+
 	return ret;
 }
 
