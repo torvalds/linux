@@ -2553,16 +2553,8 @@ L:	i2c@lm-sensors.org
 S:	Maintained
 
 PARALLEL PORT SUPPORT
-P:	Phil Blundell
-M:	philb@gnu.org
-P:	Tim Waugh
-M:	tim@cyberelk.net
-P:	David Campbell
-P:	Andrea Arcangeli
-M:	andrea@suse.de
 L:	linux-parport@lists.infradead.org
-W:	http://people.redhat.com/twaugh/parport/
-S:	Maintained
+S:	Orphan
 
 PARIDE DRIVERS FOR PARALLEL PORT IDE DEVICES
 P:	Tim Waugh
