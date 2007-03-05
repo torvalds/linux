@@ -54,6 +54,7 @@ static int disable_pse;
 static int disable_sep;
 static int disable_tsc;
 static int disable_mtrr;
+static int disable_noidle;
 
 /* Cached VMI operations */
 struct {
@@ -255,7 +256,6 @@ static void vmi_nop(void)
 }
 
 /* For NO_IDLE_HZ, we stop the clock when halting the kernel */
-#ifdef CONFIG_NO_IDLE_HZ
 static fastcall void vmi_safe_halt(void)
 {
 	int idle = vmi_stop_hz_timer();
@@ -266,7 +266,6 @@ static fastcall void vmi_safe_halt(void)
 		local_irq_enable();
 	}
 }
-#endif
 
 #ifdef CONFIG_DEBUG_PAGE_TYPE
 
@@ -742,12 +741,7 @@ static inline int __init activate_vmi(void)
 		     (char *)paravirt_ops.save_fl);
 	patch_offset(&irq_save_disable_callout[IRQ_PATCH_DISABLE],
 		     (char *)paravirt_ops.irq_disable);
-#ifndef CONFIG_NO_IDLE_HZ
-	para_fill(safe_halt, Halt);
-#else
-	vmi_ops.halt = vmi_get_function(VMI_CALL_Halt);
-	paravirt_ops.safe_halt = vmi_safe_halt;
-#endif
+
 	para_fill(wbinvd, WBINVD);
 	/* paravirt_ops.read_msr = vmi_rdmsr */
 	/* paravirt_ops.write_msr = vmi_wrmsr */
@@ -881,6 +875,12 @@ static inline int __init activate_vmi(void)
 #endif
 		custom_sched_clock = vmi_sched_clock;
 	}
+	if (!disable_noidle)
+		para_fill(safe_halt, Halt);
+	else {
+		vmi_ops.halt = vmi_get_function(VMI_CALL_Halt);
+		paravirt_ops.safe_halt = vmi_safe_halt;
+	}
 
 	/*
 	 * Alternative instruction rewriting doesn't happen soon enough
@@ -914,9 +914,11 @@ void __init vmi_init(void)
 
 	local_irq_save(flags);
 	activate_vmi();
-#ifdef CONFIG_SMP
+
+#ifdef CONFIG_X86_IO_APIC
 	no_timer_check = 1;
 #endif
+
 	local_irq_restore(flags & X86_EFLAGS_IF);
 }
 
@@ -942,7 +944,8 @@ static int __init parse_vmi(char *arg)
 	} else if (!strcmp(arg, "disable_mtrr")) {
 		clear_bit(X86_FEATURE_MTRR, boot_cpu_data.x86_capability);
 		disable_mtrr = 1;
-	}
+	} else if (!strcmp(arg, "disable_noidle"))
+		disable_noidle = 1;
 	return 0;
 }
 
