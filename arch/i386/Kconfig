@@ -221,7 +221,6 @@ config PARAVIRT
 config VMI
 	bool "VMI Paravirt-ops support"
 	depends on PARAVIRT
-	default y
 	help
 	  VMI provides a paravirtualized interface to the VMware ESX server
 	  (it could be used by other hypervisors in theory too, but is not
