@@ -1821,7 +1821,7 @@ static int cma_alloc_port(struct idr *ps, struct rdma_id_private *id_priv,
 	struct rdma_bind_list *bind_list;
 	int port, ret;
 
-	bind_list = kmalloc(sizeof *bind_list, GFP_KERNEL);
+	bind_list = kzalloc(sizeof *bind_list, GFP_KERNEL);
 	if (!bind_list)
 		return -ENOMEM;
 
