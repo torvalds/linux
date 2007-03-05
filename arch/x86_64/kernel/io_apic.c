@@ -789,7 +789,6 @@ static void setup_IO_APIC_irq(int apic, int pin, unsigned int irq,
 	struct irq_cfg *cfg = irq_cfg + irq;
 	struct IO_APIC_route_entry entry;
 	cpumask_t mask;
-	unsigned long flags;
 
 	if (!IO_APIC_IRQ(irq))
 		return;
