@@ -74,6 +74,7 @@ struct ipl_parameter_block {
 extern u32 ipl_flags;
 extern u16 ipl_devno;
 
+extern u32 dump_prefix_page;
 extern void do_reipl(void);
 extern void ipl_save_parameters(void);
 

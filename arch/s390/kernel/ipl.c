@@ -1066,7 +1066,7 @@ static void do_reset_calls(void)
 		reset->fn();
 }
 
-extern __u32 dump_prefix_page;
+u32 dump_prefix_page;
 
 void s390_reset_system(void)
 {
@@ -1078,7 +1078,7 @@ void s390_reset_system(void)
 	lc->panic_stack = S390_lowcore.panic_stack;
 
 	/* Save prefix page address for dump case */
-	dump_prefix_page = (unsigned long) lc;
+	dump_prefix_page = (u32)(unsigned long) lc;
 
 	/* Disable prefixing */
 	set_prefix(0);
