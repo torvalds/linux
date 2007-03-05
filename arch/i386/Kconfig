@@ -223,8 +223,9 @@ config VMI
 	depends on PARAVIRT
 	default y
 	help
-	  VMI provides a paravirtualized interface to multiple hypervisors
-	  include VMware ESX server and Xen by connecting to a ROM module
+	  VMI provides a paravirtualized interface to the VMware ESX server
+	  (it could be used by other hypervisors in theory too, but is not
+	  at the moment), by linking the kernel to a GPL-ed ROM module
 	  provided by the hypervisor.
 
 config ACPI_SRAT
