@@ -1438,8 +1438,8 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7525_MCH,	quir
  */
 static void __devinit quirk_pcie_pxh(struct pci_dev *dev)
 {
-	disable_msi_mode(dev, pci_find_capability(dev, PCI_CAP_ID_MSI),
-					PCI_CAP_ID_MSI);
+	pci_msi_off(dev);
+
 	dev->no_msi = 1;
 
 	printk(KERN_WARNING "PCI: PXH quirk detected, "

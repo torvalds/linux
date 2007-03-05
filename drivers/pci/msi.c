@@ -211,7 +211,7 @@ static void enable_msi_mode(struct pci_dev *dev, int pos, int type)
 	pci_intx(dev, 0);  /* disable intx */
 }
 
-void disable_msi_mode(struct pci_dev *dev, int pos, int type)
+static void disable_msi_mode(struct pci_dev *dev, int pos, int type)
 {
 	u16 control;
 
