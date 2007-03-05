@@ -376,6 +376,8 @@ config SHARED_KERNEL
 	  Select this option, if you want to share the text segment of the
 	  Linux kernel between different VM guests. This reduces memory
 	  usage with lots of guests but greatly increases kernel size.
+	  Also if a kernel was IPL'ed from a shared segment the kexec system
+	  call will not work.
 	  You should only select this option if you know what you are
 	  doing and want to exploit this feature.
 
