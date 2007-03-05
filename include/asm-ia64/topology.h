@@ -65,7 +65,6 @@ void build_cpu_to_node_map(void);
 	.max_interval		= 4,			\
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 125,			\
-	.per_cpu_gain		= 100,			\
 	.cache_nice_tries	= 2,			\
 	.busy_idx		= 2,			\
 	.idle_idx		= 1,			\
@@ -97,7 +96,6 @@ void build_cpu_to_node_map(void);
 	.newidle_idx		= 0, /* unused */	\
 	.wake_idx		= 1,			\
 	.forkexec_idx		= 1,			\
-	.per_cpu_gain		= 100,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_EXEC	\
 				| SD_BALANCE_FORK	\
