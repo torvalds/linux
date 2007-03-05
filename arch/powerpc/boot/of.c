@@ -208,6 +208,17 @@ static void of_image_hdr(const void *hdr)
 	}
 }
 
+static void *of_vmlinux_alloc(unsigned long size)
+{
+	void *p = malloc(size);
+
+	if (!p) {
+		printf("Can't allocate memory for kernel image!\n\r");
+		exit();
+	}
+	return p;
+}
+
 static void of_exit(void)
 {
 	call_prom("exit", 0, 0);
@@ -261,6 +272,7 @@ int platform_init(void *promptr, char *dt_blob_start, char *dt_blob_end)
 	platform_ops.image_hdr = of_image_hdr;
 	platform_ops.malloc = of_try_claim;
 	platform_ops.exit = of_exit;
+	platform_ops.vmlinux_alloc = of_vmlinux_alloc;
 
 	dt_ops.finddevice = of_finddevice;
 	dt_ops.getprop = of_getprop;
