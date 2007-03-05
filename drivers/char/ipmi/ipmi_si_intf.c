@@ -2478,6 +2478,11 @@ static __devinit void default_find_bmc(void)
 		if (!info)
 			return;
 
+#ifdef CONFIG_PPC_MERGE
+		if (check_legacy_ioport(ipmi_defaults[i].port))
+			continue;
+#endif
+
 		info->addr_source = NULL;
 
 		info->si_type = ipmi_defaults[i].type;
