@@ -97,6 +97,7 @@
 #define VMI_CALL_SetInitialAPState	62
 #define VMI_CALL_APICWrite		63
 #define VMI_CALL_APICRead		64
+#define VMI_CALL_IODelay		65
 #define VMI_CALL_SetLazyMode		73
 
 /*
