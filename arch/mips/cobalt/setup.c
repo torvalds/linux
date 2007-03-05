@@ -61,22 +61,6 @@ void __init plat_timer_setup(struct irqaction *irq)
 	GT_WRITE(GT_INTRMASK_OFS, GT_INTR_T0EXP_MSK | GT_READ(GT_INTRMASK_OFS));
 }
 
-extern struct pci_ops gt64111_pci_ops;
-
-static struct resource cobalt_mem_resource = {
-	.start	= GT_DEF_PCI0_MEM0_BASE,
-	.end	= GT_DEF_PCI0_MEM0_BASE + GT_DEF_PCI0_MEM0_SIZE - 1,
-	.name	= "PCI memory",
-	.flags	= IORESOURCE_MEM
-};
-
-static struct resource cobalt_io_resource = {
-	.start	= 0x1000,
-	.end	= 0xffff,
-	.name	= "PCI I/O",
-	.flags	= IORESOURCE_IO
-};
-
 /*
  * Cobalt doesn't have PS/2 keyboard/mouse interfaces,
  * keyboard conntroller is never used.
@@ -109,14 +93,6 @@ static struct resource cobalt_reserved_resources[] = {
 	},
 };
 
-static struct pci_controller cobalt_pci_controller = {
-	.pci_ops	= &gt64111_pci_ops,
-	.mem_resource	= &cobalt_mem_resource,
-	.mem_offset	= 0,
-	.io_resource	= &cobalt_io_resource,
-	.io_offset	= 0 - GT_DEF_PCI0_IO_BASE,
-};
-
 void __init plat_mem_setup(void)
 {
 	static struct uart_port uart;
@@ -143,10 +119,6 @@ void __init plat_mem_setup(void)
         cobalt_board_id = VIA_COBALT_BRD_REG_to_ID(cobalt_board_id);
 
 	printk("Cobalt board ID: %d\n", cobalt_board_id);
-
-#ifdef CONFIG_PCI
-	register_pci_controller(&cobalt_pci_controller);
-#endif
 
 	if (cobalt_board_id > COBALT_BRD_ID_RAQ1) {
 #ifdef CONFIG_SERIAL_8250
