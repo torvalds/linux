@@ -480,12 +480,6 @@ void __init find_memory(void)
 	max_pfn = max_low_pfn;
 
 	find_initrd();
-
-#ifdef CONFIG_CRASH_DUMP
-	/* If we are doing a crash dump, we still need to know the real mem
-	 * size before original memory map is reset. */
-        saved_max_pfn = max_pfn;
-#endif
 }
 
 #ifdef CONFIG_SMP
