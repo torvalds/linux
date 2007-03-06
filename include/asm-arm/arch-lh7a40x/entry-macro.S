@@ -86,6 +86,12 @@ branch_irq_lh7a400: b 1000f
 		.macro	disable_fiq
 		.endm
 
+		.macro  get_irqnr_preamble, base, tmp
+		.endm
+
+		.macro  arch_ret_to_user, tmp1, tmp2
+		.endm
+
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
 		mov	\irqnr, #0
 		mov	\base, #io_p2v(0x80000000)	@ APB registers
@@ -103,6 +109,12 @@ branch_irq_lh7a400: b 1000f
 #elif defined(CONFIG_ARCH_LH7A404)
 
 		.macro	disable_fiq
+		.endm
+
+		.macro  get_irqnr_preamble, base, tmp
+		.endm
+
+		.macro  arch_ret_to_user, tmp1, tmp2
 		.endm
 
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
