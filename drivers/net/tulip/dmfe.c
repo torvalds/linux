@@ -501,14 +501,17 @@ static void __devexit dmfe_remove_one (struct pci_dev *pdev)
 	DMFE_DBUG(0, "dmfe_remove_one()", 0);
 
  	if (dev) {
+
+		unregister_netdev(dev);
+
 		pci_free_consistent(db->pdev, sizeof(struct tx_desc) *
 					DESC_ALL_CNT + 0x20, db->desc_pool_ptr,
  					db->desc_pool_dma_ptr);
 		pci_free_consistent(db->pdev, TX_BUF_ALLOC * TX_DESC_CNT + 4,
 					db->buf_pool_ptr, db->buf_pool_dma_ptr);
-		unregister_netdev(dev);
 		pci_release_regions(pdev);
 		free_netdev(dev);	/* free board information */
+
 		pci_set_drvdata(pdev, NULL);
 	}
 
@@ -927,7 +930,7 @@ static inline u32 cal_CRC(unsigned char * Data, unsigned int Len, u8 flag)
 static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
 {
 	struct rx_desc *rxptr;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *newskb;
 	int rxlen;
 	u32 rdes0;
 
@@ -980,9 +983,11 @@ static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
 				} else {
 					/* Good packet, send to upper layer */
 					/* Shorst packet used new SKB */
-					if ( (rxlen < RX_COPY_SIZE) &&
-						( (skb = dev_alloc_skb(rxlen + 2) )
-						!= NULL) ) {
+					if ((rxlen < RX_COPY_SIZE) &&
+						((newskb = dev_alloc_skb(rxlen + 2))
+						!= NULL)) {
+
+						skb = newskb;
 						/* size less than COPY_SIZE, allocate a rxlen SKB */
 						skb->dev = dev;
 						skb_reserve(skb, 2); /* 16byte align */
