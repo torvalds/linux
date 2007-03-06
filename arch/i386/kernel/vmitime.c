@@ -123,12 +123,10 @@ static struct clocksource clocksource_vmi = {
 static irqreturn_t vmi_timer_interrupt(int irq, void *dev_id);
 
 static struct irqaction vmi_timer_irq  = {
-	vmi_timer_interrupt,
-	SA_INTERRUPT,
-	CPU_MASK_NONE,
-	"VMI-alarm",
-	NULL,
-	NULL
+	.handler = vmi_timer_interrupt,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "VMI-alarm",
 };
 
 /* Alarm rate */
