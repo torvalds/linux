@@ -334,16 +334,18 @@
 #define __NR_kexec_load			(__NR_Linux + 311)
 #define __NR_getcpu			(__NR_Linux + 312)
 #define __NR_epoll_pwait		(__NR_Linux + 313)
+#define __NR_ioprio_set			(__NR_Linux + 314)
+#define __NR_ioprio_get			(__NR_Linux + 315)
 
 /*
  * Offset of the last Linux o32 flavoured syscall
  */
-#define __NR_Linux_syscalls		313
+#define __NR_Linux_syscalls		315
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #define __NR_O32_Linux			4000
-#define __NR_O32_Linux_syscalls		313
+#define __NR_O32_Linux_syscalls		315
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
@@ -624,16 +626,18 @@
 #define __NR_kexec_load			(__NR_Linux + 270)
 #define __NR_getcpu			(__NR_Linux + 271)
 #define __NR_epoll_pwait		(__NR_Linux + 272)
+#define __NR_ioprio_set			(__NR_Linux + 273)
+#define __NR_ioprio_get			(__NR_Linux + 274)
 
 /*
  * Offset of the last Linux 64-bit flavoured syscall
  */
-#define __NR_Linux_syscalls		272
+#define __NR_Linux_syscalls		274
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #define __NR_64_Linux			5000
-#define __NR_64_Linux_syscalls		272
+#define __NR_64_Linux_syscalls		274
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 
@@ -918,16 +922,18 @@
 #define __NR_kexec_load			(__NR_Linux + 274)
 #define __NR_getcpu			(__NR_Linux + 275)
 #define __NR_epoll_pwait		(__NR_Linux + 276)
+#define __NR_ioprio_set			(__NR_Linux + 277)
+#define __NR_ioprio_get			(__NR_Linux + 278)
 
 /*
  * Offset of the last N32 flavoured syscall
  */
-#define __NR_Linux_syscalls		276
+#define __NR_Linux_syscalls		278
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 
 #define __NR_N32_Linux			6000
-#define __NR_N32_Linux_syscalls		276
+#define __NR_N32_Linux_syscalls		278
 
 #ifdef __KERNEL__
 
