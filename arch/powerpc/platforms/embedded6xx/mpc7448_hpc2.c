@@ -91,16 +91,6 @@ static void __init mpc7448_hpc2_setup_arch(void)
 	}
 	tsi108_csr_vir_base = get_vir_csrbase();
 
-#ifdef	CONFIG_ROOT_NFS
-	ROOT_DEV = Root_NFS;
-#else
-	ROOT_DEV = Root_HDA1;
-#endif
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	ROOT_DEV = Root_RAM0;
-#endif
-
 	/* setup PCI host bridge */
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
