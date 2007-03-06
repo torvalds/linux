@@ -1415,6 +1415,7 @@ static int peer_close(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		wake_up(&ep->com.waitq);
 		break;
 	case FPDU_MODE:
+		start_ep_timer(ep);
 		__state_set(&ep->com, CLOSING);
 		attrs.next_state = IWCH_QP_STATE_CLOSING;
 		iwch_modify_qp(ep->com.qp->rhp, ep->com.qp,
@@ -1425,7 +1426,6 @@ static int peer_close(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		disconnect = 0;
 		break;
 	case CLOSING:
-		start_ep_timer(ep);
 		__state_set(&ep->com, MORIBUND);
 		disconnect = 0;
 		break;
@@ -1507,9 +1507,10 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		get_ep(&ep->com);
 		break;
 	case MORIBUND:
-		stop_ep_timer(ep);
-	case FPDU_MODE:
 	case CLOSING:
+		stop_ep_timer(ep);
+		/*FALLTHROUGH*/
+	case FPDU_MODE:
 		if (ep->com.cm_id && ep->com.qp) {
 			attrs.next_state = IWCH_QP_STATE_ERROR;
 			ret = iwch_modify_qp(ep->com.qp->rhp,
@@ -1570,7 +1571,6 @@ static int close_con_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	spin_lock_irqsave(&ep->com.lock, flags);
 	switch (ep->com.state) {
 	case CLOSING:
-		start_ep_timer(ep);
 		__state_set(&ep->com, MORIBUND);
 		break;
 	case MORIBUND:
@@ -1585,6 +1585,8 @@ static int close_con_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		close_complete_upcall(ep);
 		__state_set(&ep->com, DEAD);
 		release = 1;
+		break;
+	case ABORTING:
 		break;
 	case DEAD:
 	default:
@@ -1659,6 +1661,7 @@ static void ep_timeout(unsigned long arg)
 		break;
 	case MPA_REQ_WAIT:
 		break;
+	case CLOSING:
 	case MORIBUND:
 		if (ep->com.cm_id && ep->com.qp) {
 			attrs.next_state = IWCH_QP_STATE_ERROR;
@@ -1956,11 +1959,11 @@ int iwch_ep_disconnect(struct iwch_ep *ep, int abrupt, gfp_t gfp)
 	case MPA_REQ_RCVD:
 	case MPA_REP_SENT:
 	case FPDU_MODE:
+		start_ep_timer(ep);
 		ep->com.state = CLOSING;
 		close = 1;
 		break;
 	case CLOSING:
-		start_ep_timer(ep);
 		ep->com.state = MORIBUND;
 		close = 1;
 		break;
