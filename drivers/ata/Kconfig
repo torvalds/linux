@@ -209,6 +209,16 @@ config PATA_ATIIXP
 
 	  If unsure, say N.
 
+config PATA_CMD640_PCI
+	tristate "CMD640 PCI PATA support (Very Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  This option enables support for the CMD640 PCI IDE
+	  interface chip. Only the primary channel is currently
+	  supported.
+
+	  If unsure, say N.
+
 config PATA_CMD64X
 	tristate "CMD64x PATA support (Very Experimental)"
 	depends on PCI&& EXPERIMENTAL
