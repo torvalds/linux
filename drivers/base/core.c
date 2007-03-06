@@ -584,17 +584,17 @@ int device_add(struct device *dev)
 		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
 			sysfs_create_link(&dev->class->subsys.kset.kobj,
 					  &dev->kobj, dev->bus_id);
-#ifdef CONFIG_SYSFS_DEPRECATED
 		if (parent) {
 			sysfs_create_link(&dev->kobj, &dev->parent->kobj,
 							"device");
+#ifdef CONFIG_SYSFS_DEPRECATED
 			class_name = make_class_name(dev->class->name,
 							&dev->kobj);
 			if (class_name)
 				sysfs_create_link(&dev->parent->kobj,
 						  &dev->kobj, class_name);
-		}
 #endif
+		}
 	}
 
 	if ((error = device_add_attrs(dev)))
@@ -651,17 +651,17 @@ int device_add(struct device *dev)
 		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
 			sysfs_remove_link(&dev->class->subsys.kset.kobj,
 					  dev->bus_id);
-#ifdef CONFIG_SYSFS_DEPRECATED
 		if (parent) {
+#ifdef CONFIG_SYSFS_DEPRECATED
 			char *class_name = make_class_name(dev->class->name,
 							   &dev->kobj);
 			if (class_name)
 				sysfs_remove_link(&dev->parent->kobj,
 						  class_name);
 			kfree(class_name);
+#endif
 			sysfs_remove_link(&dev->kobj, "device");
 		}
-#endif
 
 		down(&dev->class->sem);
 		/* notify any interfaces that the device is now gone */
@@ -761,17 +761,17 @@ void device_del(struct device * dev)
 		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
 			sysfs_remove_link(&dev->class->subsys.kset.kobj,
 					  dev->bus_id);
-#ifdef CONFIG_SYSFS_DEPRECATED
 		if (parent) {
+#ifdef CONFIG_SYSFS_DEPRECATED
 			char *class_name = make_class_name(dev->class->name,
 							   &dev->kobj);
 			if (class_name)
 				sysfs_remove_link(&dev->parent->kobj,
 						  class_name);
 			kfree(class_name);
+#endif
 			sysfs_remove_link(&dev->kobj, "device");
 		}
-#endif
 
 		down(&dev->class->sem);
 		/* notify any interfaces that the device is now gone */
@@ -1071,8 +1071,8 @@ static int device_move_class_links(struct device *dev,
 				   struct device *old_parent,
 				   struct device *new_parent)
 {
+	int error = 0;
 #ifdef CONFIG_SYSFS_DEPRECATED
-	int error;
 	char *class_name;
 
 	class_name = make_class_name(dev->class->name, &dev->kobj);
@@ -1100,7 +1100,12 @@ out:
 	kfree(class_name);
 	return error;
 #else
-	return 0;
+	if (old_parent)
+		sysfs_remove_link(&dev->kobj, "device");
+	if (new_parent)
+		error = sysfs_create_link(&dev->kobj, &new_parent->kobj,
+					  "device");
+	return error;
 #endif
 }
 
