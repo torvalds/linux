@@ -238,7 +238,10 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
 
 	spin_lock(&c->erase_completion_lock);
-	jffs2_block_refile(c, jeb, REFILE_NOTEMPTY);
+	if (c->wbuf_ofs % c->mtd->erasesize)
+		jffs2_block_refile(c, jeb, REFILE_NOTEMPTY);
+	else
+		jffs2_block_refile(c, jeb, REFILE_ANYWAY);
 	spin_unlock(&c->erase_completion_lock);
 
 	BUG_ON(!ref_obsolete(jeb->last_node));
