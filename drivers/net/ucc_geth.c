@@ -3607,6 +3607,7 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (bd == ugeth->confBd[txQ]) {
 		if (!netif_queue_stopped(dev))
 			netif_stop_queue(dev);
+		return NETDEV_TX_BUSY;
 	}
 
 	ugeth->txBd[txQ] = bd;
@@ -3622,7 +3623,7 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irq(&ugeth->lock);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit)
