@@ -12,6 +12,11 @@
 #include <linux/backlight.h>
 #include <linux/fb.h>
 #include <linux/pci.h>
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+#include <asm/backlight.h>
+#endif
+
 #include "nv_local.h"
 #include "nv_type.h"
 #include "nv_proto.h"
