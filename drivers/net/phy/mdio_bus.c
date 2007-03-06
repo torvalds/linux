@@ -35,10 +35,14 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
-/* mdiobus_register 
+/**
+ * mdiobus_register - bring up all the PHYs on a given bus and attach them to bus
+ * @bus: target mii_bus
  *
- * description: Called by a bus driver to bring up all the PHYs
- *   on a given bus, and attach them to the bus
+ * Description: Called by a bus driver to bring up all the PHYs
+ *   on a given bus, and attach them to the bus.
+ *
+ * Returns 0 on success or < 0 on error.
  */
 int mdiobus_register(struct mii_bus *bus)
 {
@@ -114,10 +118,13 @@ void mdiobus_unregister(struct mii_bus *bus)
 }
 EXPORT_SYMBOL(mdiobus_unregister);
 
-/* mdio_bus_match
+/**
+ * mdio_bus_match - determine if given PHY driver supports the given PHY device
+ * @dev: target PHY device
+ * @drv: given PHY driver
  *
- * description: Given a PHY device, and a PHY driver, return 1 if
- *   the driver supports the device.  Otherwise, return 0
+ * Description: Given a PHY device, and a PHY driver, return 1 if
+ *   the driver supports the device.  Otherwise, return 0.
  */
 static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 {
