@@ -1992,34 +1992,52 @@ static int cifs_prepare_write(struct file *file, struct page *page,
 	unsigned from, unsigned to)
 {
 	int rc = 0;
-        loff_t offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
-	cFYI(1, ("prepare write for page %p from %d to %d",page,from,to));
-	if (!PageUptodate(page)) {
-	/*	if (to - from != PAGE_CACHE_SIZE) {
-			void *kaddr = kmap_atomic(page, KM_USER0);
-			memset(kaddr, 0, from);
-			memset(kaddr + to, 0, PAGE_CACHE_SIZE - to);
-			flush_dcache_page(page);
-			kunmap_atomic(kaddr, KM_USER0);
-		} */
-		/* If we are writing a full page it will be up to date,
-		   no need to read from the server */
-		if ((to == PAGE_CACHE_SIZE) && (from == 0))
-			SetPageUptodate(page);
+	loff_t i_size;
+	loff_t offset;
 
-		/* might as well read a page, it is fast enough */
-		if ((file->f_flags & O_ACCMODE) != O_WRONLY) {
-			rc = cifs_readpage_worker(file, page, &offset);
-		} else {
-		/* should we try using another file handle if there is one -
-		   how would we lock it to prevent close of that handle
-		   racing with this read?
-		   In any case this will be written out by commit_write */
-		}
+	cFYI(1, ("prepare write for page %p from %d to %d",page,from,to));
+	if (PageUptodate(page))
+		return 0;
+
+	/* If we are writing a full page it will be up to date,
+	   no need to read from the server */
+	if ((to == PAGE_CACHE_SIZE) && (from == 0)) {
+		SetPageUptodate(page);
+		return 0;
 	}
 
-	/* BB should we pass any errors back? 
-	   e.g. if we do not have read access to the file */
+	offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
+	i_size = i_size_read(page->mapping->host);
+
+	if ((offset >= i_size) ||
+	    ((from == 0) && (offset + to) >= i_size)) {
+		/*
+		 * We don't need to read data beyond the end of the file.
+		 * zero it, and set the page uptodate
+		 */
+		void *kaddr = kmap_atomic(page, KM_USER0);
+
+		if (from)
+			memset(kaddr, 0, from);
+		if (to < PAGE_CACHE_SIZE)
+			memset(kaddr + to, 0, PAGE_CACHE_SIZE - to);
+		flush_dcache_page(page);
+		kunmap_atomic(kaddr, KM_USER0);
+		SetPageUptodate(page);
+	} else if ((file->f_flags & O_ACCMODE) != O_WRONLY) {
+		/* might as well read a page, it is fast enough */
+		rc = cifs_readpage_worker(file, page, &offset);
+	} else {
+		/* we could try using another file handle if there is one -
+		   but how would we lock it to prevent close of that handle
+		   racing with this read? In any case
+		   this will be written out by commit_write so is fine */
+	}
+
+	/* we do not need to pass errors back 
+	   e.g. if we do not have read access to the file 
+	   because cifs_commit_write will do the right thing.  -- shaggy */
+
 	return 0;
 }
 
