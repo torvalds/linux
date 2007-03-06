@@ -32,7 +32,7 @@ static void __init mach_cc9p9360dev_init_machine(void)
 	board_a9m9750dev_init_machine();
 }
 
-MACHINE_START(CC9P9360DEV, "Connect Core 9P 9360 on an A9M9750 Devboard")
+MACHINE_START(CC9P9360DEV, "Digi ConnectCore 9P 9360 on an A9M9750 Devboard")
 	.map_io = mach_cc9p9360dev_map_io,
 	.init_irq = mach_cc9p9360dev_init_irq,
 	.init_machine = mach_cc9p9360dev_init_machine,
