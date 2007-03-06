@@ -51,10 +51,14 @@ static unsigned long omap_sram_base;
 static unsigned long omap_sram_size;
 static unsigned long omap_sram_ceil;
 
-int	omap_fb_sram_plane = -1;
-int	omap_fb_sram_valid;
+extern unsigned long omapfb_reserve_sram(unsigned long sram_pstart,
+					 unsigned long sram_vstart,
+					 unsigned long sram_size,
+					 unsigned long pstart_avail,
+					 unsigned long size_avail);
 
-/* Depending on the target RAMFS firewall setup, the public usable amount of
+/*
+ * Depending on the target RAMFS firewall setup, the public usable amount of
  * SRAM varies.  The default accessable size for all device types is 2k. A GP
  * device allows ARM11 but not other initators for full size. This
  * functionality seems ok until some nice security API happens.
@@ -78,45 +82,6 @@ static int is_sram_locked(void)
 		return 1; /* assume locked with no PPA or security driver */
 }
 
-static int get_fb_sram_conf(unsigned long start_avail, unsigned size_avail,
-			      unsigned long *start, int *plane_idx)
-{
-	const struct omap_fbmem_config *fbmem_conf;
-	unsigned long size = 0;
-	int i;
-
-	i = 0;
-	*start = 0;
-	*plane_idx = -1;
-	while ((fbmem_conf = omap_get_nr_config(OMAP_TAG_FBMEM,
-				struct omap_fbmem_config, i)) != NULL) {
-		u32 paddr, end;
-
-		paddr = fbmem_conf->start;
-		end = fbmem_conf->start + fbmem_conf->size;
-		if (paddr > omap_sram_start &&
-		    paddr < omap_sram_start + omap_sram_size) {
-			if (*plane_idx != -1 || paddr < start_avail ||
-			    paddr == end ||
-			    end > start_avail + size_avail) {
-				printk(KERN_ERR "invalid FB SRAM configuration");
-				*start = 0;
-				return -1;
-			}
-			*plane_idx = i;
-			*start = fbmem_conf->start;
-			size = fbmem_conf->size;
-		}
-		i++;
-	}
-
-	if (*plane_idx >= 0)
-		pr_info("Reserving %lu bytes SRAM frame buffer "
-			"for plane %d\n", size, *plane_idx);
-
-	return 0;
-}
-
 /*
  * The amount of SRAM depends on the core type.
  * Note that we cannot try to test for SRAM here because writes
@@ -125,7 +90,7 @@ static int get_fb_sram_conf(unsigned long start_avail, unsigned size_avail,
  */
 void __init omap_detect_sram(void)
 {
-	unsigned long fb_sram_start;
+	unsigned long reserved;
 
 	if (cpu_is_omap24xx()) {
 		if (is_sram_locked()) {
@@ -158,13 +123,11 @@ void __init omap_detect_sram(void)
 			omap_sram_size = 0x4000;
 		}
 	}
-	if (get_fb_sram_conf(omap_sram_start + SRAM_BOOTLOADER_SZ,
-			    omap_sram_size - SRAM_BOOTLOADER_SZ,
-			    &fb_sram_start, &omap_fb_sram_plane) == 0)
-		omap_fb_sram_valid = 1;
-	if (omap_fb_sram_valid && omap_fb_sram_plane >= 0)
-		omap_sram_size -= omap_sram_start + omap_sram_size -
-				  fb_sram_start;
+	reserved = omapfb_reserve_sram(omap_sram_start, omap_sram_base,
+				       omap_sram_size,
+				       omap_sram_start + SRAM_BOOTLOADER_SZ,
+				       omap_sram_size - SRAM_BOOTLOADER_SZ);
+	omap_sram_size -= reserved;
 	omap_sram_ceil = omap_sram_base + omap_sram_size;
 }
 
