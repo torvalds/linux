@@ -382,6 +382,12 @@ int phy_mii_ioctl(struct phy_device *phydev,
 					phydev->duplex = DUPLEX_FULL;
 				else
 					phydev->duplex = DUPLEX_HALF;
+				if ((!phydev->autoneg) &&
+						(val & BMCR_SPEED1000))
+					phydev->speed = SPEED_1000;
+				else if ((!phydev->autoneg) &&
+						(val & BMCR_SPEED100))
+					phydev->speed = SPEED_100;
 				break;
 			case MII_ADVERTISE:
 				phydev->advertising = val;
