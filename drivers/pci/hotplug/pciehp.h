@@ -161,9 +161,6 @@ extern int pciehp_unconfigure_device(struct slot *p_slot);
 extern void queue_pushbutton_work(struct work_struct *work);
 int pcie_init(struct controller *ctrl, struct pcie_device *dev);
 
-/* Global variables */
-extern struct controller *pciehp_ctrl_list;
-
 static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 {
 	struct slot *slot;

@@ -42,7 +42,6 @@ int pciehp_poll_mode;
 int pciehp_poll_time;
 int pciehp_force;
 struct workqueue_struct *pciehp_wq;
-struct controller *pciehp_ctrl_list;
 
 #define DRIVER_VERSION	"0.4"
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
@@ -471,14 +470,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 
 	t_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
 
-	if (!pciehp_ctrl_list) {
-		pciehp_ctrl_list = ctrl;
-		ctrl->next = NULL;
-	} else {
-		ctrl->next = pciehp_ctrl_list;
-		pciehp_ctrl_list = ctrl;
-	}
-
 	t_slot->hpc_ops->get_adapter_status(t_slot, &value); /* Check if slot is occupied */
 	if ((POWER_CTRL(ctrl->ctrlcap)) && !value) {
 		rc = t_slot->hpc_ops->power_off_slot(t_slot); /* Power off slot if not occupied*/
@@ -498,28 +489,14 @@ err_out_none:
 	return -ENODEV;
 }
 
-static void __exit unload_pciehpd(void)
+static void pciehp_remove (struct pcie_device *dev)
 {
-	struct controller *ctrl;
-	struct controller *tctrl;
+	struct pci_dev *pdev = dev->port;
+	struct controller *ctrl = pci_get_drvdata(pdev);
 
-	ctrl = pciehp_ctrl_list;
-
-	while (ctrl) {
-		cleanup_slots(ctrl);
-
-		ctrl->hpc_ops->release_ctlr(ctrl);
-
-		tctrl = ctrl;
-		ctrl = ctrl->next;
-
-		kfree(tctrl);
-	}
-}
-
-static void pciehp_remove (struct pcie_device *device)
-{
-	/* XXX - Needs to be adapted to device driver model */
+	cleanup_slots(ctrl);
+	ctrl->hpc_ops->release_ctlr(ctrl);
+	kfree(ctrl);
 }
 
 #ifdef CONFIG_PM
@@ -578,10 +555,7 @@ static int __init pcied_init(void)
 static void __exit pcied_cleanup(void)
 {
 	dbg("unload_pciehpd()\n");
-	unload_pciehpd();
-
 	pcie_port_service_unregister(&hpdriver_portdrv);
-
 	info(DRIVER_DESC " version: " DRIVER_VERSION " unloaded\n");
 }
 
