@@ -194,9 +194,7 @@ static inline void svc_putu32(struct kvec *iov, __be32 val)
 
 union svc_addr_u {
     struct in_addr	addr;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
     struct in6_addr	addr6;
-#endif
 };
 
 /*
