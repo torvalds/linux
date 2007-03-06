@@ -1487,8 +1487,10 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	case CONNECTING:
 		break;
 	case MPA_REQ_WAIT:
+		stop_ep_timer(ep);
 		break;
 	case MPA_REQ_SENT:
+		stop_ep_timer(ep);
 		connect_reply_upcall(ep, -ECONNRESET);
 		break;
 	case MPA_REP_SENT:
