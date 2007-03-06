@@ -34,14 +34,14 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/device.h>	/* FIXME: linux/firmware.h should include it itself */
+#include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/mutex.h>
 
 #include "usbatm.h"
 
-#define DRIVER_AUTHOR	"Roman Kagan, David Woodhouse, Duncan Sands"
-#define DRIVER_VERSION	"0.2"
+#define DRIVER_AUTHOR	"Roman Kagan, David Woodhouse, Duncan Sands, Simon Arlott"
+#define DRIVER_VERSION	"0.3"
 #define DRIVER_DESC	"Conexant AccessRunner ADSL USB modem driver"
 
 static const char cxacru_driver_name[] = "cxacru";
@@ -64,7 +64,7 @@ static const char cxacru_driver_name[] = "cxacru";
 #define SDRAM_ENA	0x1
 
 #define CMD_TIMEOUT	2000	/* msecs */
-#define POLL_INTERVAL	5000	/* msecs */
+#define POLL_INTERVAL	1	/* secs */
 
 /* commands for interaction with the modem through the control channel before
  * firmware is loaded  */
@@ -159,6 +159,7 @@ struct cxacru_data {
 
 	int line_status;
 	struct delayed_work poll_work;
+	u32 card_info[CXINF_MAX];
 
 	/* contol handles */
 	struct mutex cm_serialize;
@@ -169,6 +170,151 @@ struct cxacru_data {
 	struct completion rcv_done;
 	struct completion snd_done;
 };
+
+/* Card info exported through sysfs */
+#define CXACRU__ATTR_INIT(_name) \
+static DEVICE_ATTR(_name, S_IRUGO, cxacru_sysfs_show_##_name, NULL)
+
+#define CXACRU_ATTR_INIT(_value, _type, _name) \
+static ssize_t cxacru_sysfs_show_##_name(struct device *dev, \
+	struct device_attribute *attr, char *buf) \
+{ \
+	struct usb_interface *intf = to_usb_interface(dev); \
+	struct usbatm_data *usbatm_instance = usb_get_intfdata(intf); \
+	struct cxacru_data *instance = usbatm_instance->driver_data; \
+	return cxacru_sysfs_showattr_##_type(instance->card_info[_value], buf); \
+} \
+CXACRU__ATTR_INIT(_name)
+
+#define CXACRU_ATTR_CREATE(_v, _t, _name) CXACRU_DEVICE_CREATE_FILE(_name)
+#define CXACRU__ATTR_CREATE(_name)        CXACRU_DEVICE_CREATE_FILE(_name)
+
+#define CXACRU_ATTR_REMOVE(_v, _t, _name) CXACRU_DEVICE_REMOVE_FILE(_name)
+#define CXACRU__ATTR_REMOVE(_name)        CXACRU_DEVICE_REMOVE_FILE(_name)
+
+static ssize_t cxacru_sysfs_showattr_u32(u32 value, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%u\n", value);
+}
+
+static ssize_t cxacru_sysfs_showattr_s8(s8 value, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+}
+
+static ssize_t cxacru_sysfs_showattr_dB(s16 value, char *buf)
+{
+	if (unlikely(value < 0)) {
+		return snprintf(buf, PAGE_SIZE, "%d.%02u\n",
+						value / 100, -value % 100);
+	} else {
+		return snprintf(buf, PAGE_SIZE, "%d.%02u\n",
+						value / 100, value % 100);
+	}
+}
+
+static ssize_t cxacru_sysfs_showattr_bool(u32 value, char *buf)
+{
+	switch (value) {
+	case 0: return snprintf(buf, PAGE_SIZE, "no\n");
+	case 1: return snprintf(buf, PAGE_SIZE, "yes\n");
+	default: return 0;
+	}
+}
+
+static ssize_t cxacru_sysfs_showattr_LINK(u32 value, char *buf)
+{
+	switch (value) {
+	case 1: return snprintf(buf, PAGE_SIZE, "not connected\n");
+	case 2: return snprintf(buf, PAGE_SIZE, "connected\n");
+	case 3: return snprintf(buf, PAGE_SIZE, "lost\n");
+	default: return snprintf(buf, PAGE_SIZE, "unknown (%u)\n", value);
+	}
+}
+
+static ssize_t cxacru_sysfs_showattr_LINE(u32 value, char *buf)
+{
+	switch (value) {
+	case 0: return snprintf(buf, PAGE_SIZE, "down\n");
+	case 1: return snprintf(buf, PAGE_SIZE, "attempting to activate\n");
+	case 2: return snprintf(buf, PAGE_SIZE, "training\n");
+	case 3: return snprintf(buf, PAGE_SIZE, "channel analysis\n");
+	case 4: return snprintf(buf, PAGE_SIZE, "exchange\n");
+	case 5: return snprintf(buf, PAGE_SIZE, "up\n");
+	case 6: return snprintf(buf, PAGE_SIZE, "waiting\n");
+	case 7: return snprintf(buf, PAGE_SIZE, "initialising\n");
+	default: return snprintf(buf, PAGE_SIZE, "unknown (%u)\n", value);
+	}
+}
+
+static ssize_t cxacru_sysfs_showattr_MODU(u32 value, char *buf)
+{
+	switch (value) {
+	case 0: return 0;
+	case 1: return snprintf(buf, PAGE_SIZE, "ANSI T1.413\n");
+	case 2: return snprintf(buf, PAGE_SIZE, "ITU-T G.992.1 (G.DMT)\n");
+	case 3: return snprintf(buf, PAGE_SIZE, "ITU-T G.992.2 (G.LITE)\n");
+	default: return snprintf(buf, PAGE_SIZE, "unknown (%u)\n", value);
+	}
+}
+
+/*
+ * This could use MAC_ADDRESS_HIGH and MAC_ADDRESS_LOW, but since
+ * this data is already in atm_dev there's no point.
+ *
+ * MAC_ADDRESS_HIGH = 0x????5544
+ * MAC_ADDRESS_LOW  = 0x33221100
+ * Where 00-55 are bytes 0-5 of the MAC.
+ */
+static ssize_t cxacru_sysfs_show_mac_address(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usbatm_data *usbatm_instance = usb_get_intfdata(intf);
+	struct atm_dev *atm_dev = usbatm_instance->atm_dev;
+
+	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
+			atm_dev->esi[0], atm_dev->esi[1], atm_dev->esi[2],
+			atm_dev->esi[3], atm_dev->esi[4], atm_dev->esi[5]);
+}
+
+/*
+ * All device attributes are included in CXACRU_ALL_FILES
+ * so that the same list can be used multiple times:
+ *     INIT   (define the device attributes)
+ *     CREATE (create all the device files)
+ *     REMOVE (remove all the device files)
+ *
+ * With the last two being defined as needed in the functions
+ * they are used in before calling CXACRU_ALL_FILES()
+ */
+#define CXACRU_ALL_FILES(_action) \
+CXACRU_ATTR_##_action(CXINF_DOWNSTREAM_RATE,           u32,  downstream_rate); \
+CXACRU_ATTR_##_action(CXINF_UPSTREAM_RATE,             u32,  upstream_rate); \
+CXACRU_ATTR_##_action(CXINF_LINK_STATUS,               LINK, link_status); \
+CXACRU_ATTR_##_action(CXINF_LINE_STATUS,               LINE, line_status); \
+CXACRU__ATTR_##_action(                                      mac_address); \
+CXACRU_ATTR_##_action(CXINF_UPSTREAM_SNR_MARGIN,       dB,   upstream_snr_margin); \
+CXACRU_ATTR_##_action(CXINF_DOWNSTREAM_SNR_MARGIN,     dB,   downstream_snr_margin); \
+CXACRU_ATTR_##_action(CXINF_UPSTREAM_ATTENUATION,      dB,   upstream_attenuation); \
+CXACRU_ATTR_##_action(CXINF_DOWNSTREAM_ATTENUATION,    dB,   downstream_attenuation); \
+CXACRU_ATTR_##_action(CXINF_TRANSMITTER_POWER,         s8,   transmitter_power); \
+CXACRU_ATTR_##_action(CXINF_UPSTREAM_BITS_PER_FRAME,   u32,  upstream_bits_per_frame); \
+CXACRU_ATTR_##_action(CXINF_DOWNSTREAM_BITS_PER_FRAME, u32,  downstream_bits_per_frame); \
+CXACRU_ATTR_##_action(CXINF_STARTUP_ATTEMPTS,          u32,  startup_attempts); \
+CXACRU_ATTR_##_action(CXINF_UPSTREAM_CRC_ERRORS,       u32,  upstream_crc_errors); \
+CXACRU_ATTR_##_action(CXINF_DOWNSTREAM_CRC_ERRORS,     u32,  downstream_crc_errors); \
+CXACRU_ATTR_##_action(CXINF_UPSTREAM_FEC_ERRORS,       u32,  upstream_fec_errors); \
+CXACRU_ATTR_##_action(CXINF_DOWNSTREAM_FEC_ERRORS,     u32,  downstream_fec_errors); \
+CXACRU_ATTR_##_action(CXINF_UPSTREAM_HEC_ERRORS,       u32,  upstream_hec_errors); \
+CXACRU_ATTR_##_action(CXINF_DOWNSTREAM_HEC_ERRORS,     u32,  downstream_hec_errors); \
+CXACRU_ATTR_##_action(CXINF_LINE_STARTABLE,            bool, line_startable); \
+CXACRU_ATTR_##_action(CXINF_MODULATION,                MODU, modulation); \
+CXACRU_ATTR_##_action(CXINF_ADSL_HEADEND,              u32,  adsl_headend); \
+CXACRU_ATTR_##_action(CXINF_ADSL_HEADEND_ENVIRONMENT,  u32,  adsl_headend_environment); \
+CXACRU_ATTR_##_action(CXINF_CONTROLLER_VERSION,        u32,  adsl_controller_version);
+
+CXACRU_ALL_FILES(INIT);
 
 /* the following three functions are stolen from drivers/usb/core/message.c */
 static void cxacru_blocking_completion(struct urb *urb)
@@ -395,6 +541,8 @@ static void cxacru_poll_status(struct work_struct *work)
 		goto reschedule;
 	}
 
+	memcpy(instance->card_info, buf, sizeof(instance->card_info));
+
 	if (instance->line_status == buf[CXINF_LINE_STATUS])
 		goto reschedule;
 
@@ -449,7 +597,8 @@ static void cxacru_poll_status(struct work_struct *work)
 		break;
 	}
 reschedule:
-	schedule_delayed_work(&instance->poll_work, msecs_to_jiffies(POLL_INTERVAL));
+	schedule_delayed_work(&instance->poll_work,
+			round_jiffies_relative(msecs_to_jiffies(POLL_INTERVAL*1000)));
 }
 
 static int cxacru_fw(struct usb_device *usb_dev, enum cxacru_fw_request fw,
@@ -684,6 +833,7 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 
 	instance->usbatm = usbatm_instance;
 	instance->modem_type = (struct cxacru_modem_type *) id->driver_info;
+	memset(instance->card_info, 0, sizeof(instance->card_info));
 
 	instance->rcv_buf = (u8 *) __get_free_page(GFP_KERNEL);
 	if (!instance->rcv_buf) {
@@ -710,6 +860,13 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 		goto fail;
 	}
 
+	#define CXACRU_DEVICE_CREATE_FILE(_name) \
+		ret = device_create_file(&intf->dev, &dev_attr_##_name); \
+		if (unlikely(ret)) \
+			goto fail_sysfs;
+	CXACRU_ALL_FILES(CREATE);
+	#undef CXACRU_DEVICE_CREATE_FILE
+
 	usb_fill_int_urb(instance->rcv_urb,
 			usb_dev, usb_rcvintpipe(usb_dev, CXACRU_EP_CMD),
 			instance->rcv_buf, PAGE_SIZE,
@@ -729,6 +886,14 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 	usbatm_instance->flags = (cxacru_card_status(instance) ? 0 : UDSL_SKIP_HEAVY_INIT);
 
 	return 0;
+
+ fail_sysfs:
+	dbg("cxacru_bind: device_create_file failed (%d)\n", ret);
+
+	#define CXACRU_DEVICE_REMOVE_FILE(_name) \
+		device_remove_file(&intf->dev, &dev_attr_##_name);
+	CXACRU_ALL_FILES(REMOVE);
+	#undef CXACRU_DEVICE_REVOVE_FILE
 
  fail:
 	free_page((unsigned long) instance->snd_buf);
@@ -762,6 +927,12 @@ static void cxacru_unbind(struct usbatm_data *usbatm_instance,
 
 	free_page((unsigned long) instance->snd_buf);
 	free_page((unsigned long) instance->rcv_buf);
+
+	#define CXACRU_DEVICE_REMOVE_FILE(_name) \
+		device_remove_file(&intf->dev, &dev_attr_##_name);
+	CXACRU_ALL_FILES(REMOVE);
+	#undef CXACRU_DEVICE_REVOVE_FILE
+
 	kfree(instance);
 
 	usbatm_instance->driver_data = NULL;
