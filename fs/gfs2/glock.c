@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/lm_interface.h>
 #include <linux/wait.h>
+#include <linux/module.h>
 #include <linux/rwsem.h>
 #include <asm/uaccess.h>
 
