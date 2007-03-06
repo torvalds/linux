@@ -742,7 +742,7 @@ err_setup:
 	uint32_t pat, value;                                                   \
 	uint32_t test[] =                                                      \
 		{0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};              \
-	for (pat = 0; pat < sizeof(test)/sizeof(test[0]); pat++) {              \
+	for (pat = 0; pat < ARRAY_SIZE(test); pat++) {              \
 		E1000_WRITE_REG(&adapter->hw, R, (test[pat] & W));             \
 		value = E1000_READ_REG(&adapter->hw, R);                       \
 		if (value != (test[pat] & W & M)) {                             \
