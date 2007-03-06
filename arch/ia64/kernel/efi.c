@@ -1142,7 +1142,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 /* find a block of memory aligned to 64M exclude reserved regions
    rsvd_regions are sorted
  */
-unsigned long
+unsigned long __init
 kdump_find_rsvd_region (unsigned long size,
 		struct rsvd_region *r, int n)
 {
