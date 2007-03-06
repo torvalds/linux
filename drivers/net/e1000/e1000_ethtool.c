@@ -654,13 +654,10 @@ e1000_set_ringparam(struct net_device *netdev,
 	e1000_mac_type mac_type = adapter->hw.mac_type;
 	struct e1000_tx_ring *txdr, *tx_old;
 	struct e1000_rx_ring *rxdr, *rx_old;
-	int i, err, tx_ring_size, rx_ring_size;
+	int i, err;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
-
-	tx_ring_size = sizeof(struct e1000_tx_ring) * adapter->num_tx_queues;
-	rx_ring_size = sizeof(struct e1000_rx_ring) * adapter->num_rx_queues;
 
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->flags))
 		msleep(1);
@@ -672,11 +669,11 @@ e1000_set_ringparam(struct net_device *netdev,
 	rx_old = adapter->rx_ring;
 
 	err = -ENOMEM;
-	txdr = kzalloc(tx_ring_size, GFP_KERNEL);
+	txdr = kcalloc(adapter->num_tx_queues, sizeof(struct e1000_tx_ring), GFP_KERNEL);
 	if (!txdr)
 		goto err_alloc_tx;
 
-	rxdr = kzalloc(rx_ring_size, GFP_KERNEL);
+	rxdr = kcalloc(adapter->num_rx_queues, sizeof(struct e1000_rx_ring), GFP_KERNEL);
 	if (!rxdr)
 		goto err_alloc_rx;
 
@@ -1053,23 +1050,24 @@ e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	struct e1000_rx_ring *rxdr = &adapter->test_rx_ring;
 	struct pci_dev *pdev = adapter->pdev;
 	uint32_t rctl;
-	int size, i, ret_val;
+	int i, ret_val;
 
 	/* Setup Tx descriptor ring and Tx buffers */
 
 	if (!txdr->count)
 		txdr->count = E1000_DEFAULT_TXD;
 
-	size = txdr->count * sizeof(struct e1000_buffer);
-	if (!(txdr->buffer_info = kmalloc(size, GFP_KERNEL))) {
+	if (!(txdr->buffer_info = kcalloc(txdr->count,
+	                                  sizeof(struct e1000_buffer),
+		                          GFP_KERNEL))) {
 		ret_val = 1;
 		goto err_nomem;
 	}
-	memset(txdr->buffer_info, 0, size);
 
 	txdr->size = txdr->count * sizeof(struct e1000_tx_desc);
 	E1000_ROUNDUP(txdr->size, 4096);
-	if (!(txdr->desc = pci_alloc_consistent(pdev, txdr->size, &txdr->dma))) {
+	if (!(txdr->desc = pci_alloc_consistent(pdev, txdr->size,
+	                                        &txdr->dma))) {
 		ret_val = 2;
 		goto err_nomem;
 	}
@@ -1116,12 +1114,12 @@ e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	if (!rxdr->count)
 		rxdr->count = E1000_DEFAULT_RXD;
 
-	size = rxdr->count * sizeof(struct e1000_buffer);
-	if (!(rxdr->buffer_info = kmalloc(size, GFP_KERNEL))) {
+	if (!(rxdr->buffer_info = kcalloc(rxdr->count,
+	                                  sizeof(struct e1000_buffer),
+	                                  GFP_KERNEL))) {
 		ret_val = 4;
 		goto err_nomem;
 	}
-	memset(rxdr->buffer_info, 0, size);
 
 	rxdr->size = rxdr->count * sizeof(struct e1000_rx_desc);
 	if (!(rxdr->desc = pci_alloc_consistent(pdev, rxdr->size, &rxdr->dma))) {
