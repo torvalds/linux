@@ -61,6 +61,14 @@ extern void apic_vmi_timer_interrupt(void);
 #ifdef CONFIG_NO_IDLE_HZ
 extern int vmi_stop_hz_timer(void);
 extern void vmi_account_time_restart_hz_timer(void);
+#else
+static inline int vmi_stop_hz_timer(void)
+{
+	return 0;
+}
+static inline void vmi_account_time_restart_hz_timer(void)
+{
+}
 #endif
 
 /*
