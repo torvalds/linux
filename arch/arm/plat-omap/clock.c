@@ -284,6 +284,8 @@ void followparent_recalc(struct clk *clk)
 		return;
 
 	clk->rate = clk->parent->rate;
+	if (unlikely(clk->flags & RATE_PROPAGATES))
+		propagate_rate(clk);
 }
 
 /* Propagate rate to children */
