@@ -993,7 +993,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 
 	intmask = readl(host->ioaddr + SDHCI_INT_STATUS);
 
-	if (!intmask) {
+	if (!intmask || intmask == 0xffffffff) {
 		result = IRQ_NONE;
 		goto out;
 	}
