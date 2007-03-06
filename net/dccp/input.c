@@ -256,10 +256,10 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	 *        (only one is active at a time); when moving to bidirectional
 	 *        service, this needs to be revised.
 	 */
-	if (dccp_sk(sk)->dccps_role == DCCP_ROLE_SERVER)
-		ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
-	else
+	if (dccp_sk(sk)->dccps_role == DCCP_ROLE_CLIENT)
 		ccid_hc_tx_packet_recv(dp->dccps_hc_tx_ccid, sk, skb);
+	else	/* listening or connected server */
+		ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
 
 	return __dccp_rcv_established(sk, skb, dh, len);
 discard:
@@ -495,10 +495,10 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			goto discard;
 
 		/* XXX see the comments in dccp_rcv_established about this */
-		if (dccp_sk(sk)->dccps_role == DCCP_ROLE_SERVER)
-			ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
-		else
+		if (dccp_sk(sk)->dccps_role == DCCP_ROLE_CLIENT)
 			ccid_hc_tx_packet_recv(dp->dccps_hc_tx_ccid, sk, skb);
+		else
+			ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
 	}
 
 	/*
