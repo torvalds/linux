@@ -350,6 +350,10 @@ sys32_getdents (unsigned int fd, void __user * dirent, unsigned int count)
 	struct getdents32_callback buf;
 	int error;
 
+	error = -EFAULT;
+	if (!access_ok(VERIFY_WRITE, dirent, count))
+		goto out;
+
 	error = -EBADF;
 	file = fget(fd);
 	if (!file)
@@ -366,8 +370,10 @@ sys32_getdents (unsigned int fd, void __user * dirent, unsigned int count)
 	error = buf.error;
 	lastdirent = buf.previous;
 	if (lastdirent) {
-		put_user(file->f_pos, &lastdirent->d_off);
-		error = count - buf.count;
+		if (put_user(file->f_pos, &lastdirent->d_off))
+			error = -EFAULT;
+		else
+			error = count - buf.count;
 	}
 
 out_putf:
