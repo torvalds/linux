@@ -1079,6 +1079,13 @@ static int sdhci_suspend (struct pci_dev *pdev, pm_message_t state)
 
 	pci_save_state(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
+
+	for (i = 0;i < chip->num_slots;i++) {
+		if (!chip->hosts[i])
+			continue;
+		free_irq(chip->hosts[i]->irq, chip->hosts[i]);
+	}
+
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
@@ -1107,6 +1114,11 @@ static int sdhci_resume (struct pci_dev *pdev)
 			continue;
 		if (chip->hosts[i]->flags & SDHCI_USE_DMA)
 			pci_set_master(pdev);
+		ret = request_irq(chip->hosts[i]->irq, sdhci_irq,
+			IRQF_SHARED, chip->hosts[i]->slot_descr,
+			chip->hosts[i]);
+		if (ret)
+			return ret;
 		sdhci_init(chip->hosts[i]);
 		mmiowb();
 		ret = mmc_resume_host(chip->hosts[i]->mmc);
