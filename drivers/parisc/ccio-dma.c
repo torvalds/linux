@@ -32,6 +32,7 @@
 */
 
 #include <linux/types.h>
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/spinlock.h>
@@ -292,7 +293,6 @@ static int ioc_count;
 #define PDIR_INDEX(iovp)    ((iovp)>>IOVP_SHIFT)
 #define MKIOVP(pdir_idx)    ((long)(pdir_idx) << IOVP_SHIFT)
 #define MKIOVA(iovp,offset) (dma_addr_t)((long)iovp | (long)offset)
-#define ROUNDUP(x,y) ((x + ((y)-1)) & ~((y)-1))
 
 /*
 ** Don't worry about the 150% average search length on a miss.
@@ -668,7 +668,7 @@ ccio_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
 	size_t saved_byte_cnt;
 
 	/* round up to nearest page size */
-	saved_byte_cnt = byte_cnt = ROUNDUP(byte_cnt, IOVP_SIZE);
+	saved_byte_cnt = byte_cnt = ALIGN(byte_cnt, IOVP_SIZE);
 
 	while(byte_cnt > 0) {
 		/* invalidate one page at a time */
@@ -751,7 +751,7 @@ ccio_map_single(struct device *dev, void *addr, size_t size,
 	offset = ((unsigned long) addr) & ~IOVP_MASK;
 
 	/* round up to nearest IOVP_SIZE */
-	size = ROUNDUP(size + offset, IOVP_SIZE);
+	size = ALIGN(size + offset, IOVP_SIZE);
 	spin_lock_irqsave(&ioc->res_lock, flags);
 
 #ifdef CCIO_MAP_STATS
@@ -814,7 +814,7 @@ ccio_unmap_single(struct device *dev, dma_addr_t iova, size_t size,
 
 	iova ^= offset;        /* clear offset bits */
 	size += offset;
-	size = ROUNDUP(size, IOVP_SIZE);
+	size = ALIGN(size, IOVP_SIZE);
 
 	spin_lock_irqsave(&ioc->res_lock, flags);
 

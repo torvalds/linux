@@ -138,7 +138,7 @@ iommu_coalesce_chunks(struct ioc *ioc, struct scatterlist *startsg, int nents,
 			** exceed DMA_CHUNK_SIZE if we coalesce the
 			** next entry.
 			*/   
-			if(unlikely(ROUNDUP(dma_len + dma_offset + startsg->length,
+			if(unlikely(ALIGN(dma_len + dma_offset + startsg->length,
 					    IOVP_SIZE) > DMA_CHUNK_SIZE))
 				break;
 
@@ -158,7 +158,7 @@ iommu_coalesce_chunks(struct ioc *ioc, struct scatterlist *startsg, int nents,
 		** Allocate space for DMA stream.
 		*/
 		sg_dma_len(contig_sg) = dma_len;
-		dma_len = ROUNDUP(dma_len + dma_offset, IOVP_SIZE);
+		dma_len = ALIGN(dma_len + dma_offset, IOVP_SIZE);
 		sg_dma_address(contig_sg) =
 			PIDE_FLAG 
 			| (iommu_alloc_range(ioc, dma_len) << IOVP_SHIFT)
