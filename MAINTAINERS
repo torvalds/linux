@@ -1820,6 +1820,7 @@ P:	Jeff Kirsher
 M:	jeffrey.t.kirsher@intel.com
 P:	Auke Kok
 M:	auke-jan.h.kok@intel.com
+L:	e1000-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1834,6 +1835,7 @@ P:	Jeff Kirsher
 M:	jeffrey.t.kirsher@intel.com
 P:	Auke Kok
 M:	auke-jan.h.kok@intel.com
+L:	e1000-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1848,6 +1850,7 @@ P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
 P:	Auke Kok
 M:	auke-jan.h.kok@intel.com
+L:	e1000-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
