@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/init.h>
-#include <linux/pci.h>
 #include <linux/platform_device.h>
 
 #include <asm/io.h>

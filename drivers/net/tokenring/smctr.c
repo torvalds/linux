@@ -41,7 +41,6 @@
 #include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/pci.h>
 #include <linux/mca-legacy.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>

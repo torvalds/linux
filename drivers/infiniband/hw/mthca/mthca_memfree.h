@@ -38,7 +38,6 @@
 #define MTHCA_MEMFREE_H
 
 #include <linux/list.h>
-#include <linux/pci.h>
 #include <linux/mutex.h>
 
 #define MTHCA_ICM_CHUNK_LEN \

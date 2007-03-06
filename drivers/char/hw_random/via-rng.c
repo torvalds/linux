@@ -26,7 +26,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/pci.h>
 #include <linux/hw_random.h>
 #include <asm/io.h>
 #include <asm/msr.h>

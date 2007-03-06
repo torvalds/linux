@@ -23,7 +23,6 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/usb.h>

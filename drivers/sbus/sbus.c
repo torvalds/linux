@@ -6,7 +6,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/pci.h>
 #include <linux/device.h>
 
 #include <asm/system.h>
