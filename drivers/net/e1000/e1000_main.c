@@ -522,13 +522,14 @@ e1000_release_manageability(struct e1000_adapter *adapter)
 	}
 }
 
-int
-e1000_up(struct e1000_adapter *adapter)
+/**
+ * e1000_configure - configure the hardware for RX and TX
+ * @adapter = private board structure
+ **/
+static void e1000_configure(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	int i;
-
-	/* hardware has been reset, we need to reload some things */
 
 	e1000_set_multi(netdev);
 
@@ -548,13 +549,19 @@ e1000_up(struct e1000_adapter *adapter)
 	}
 
 	adapter->tx_queue_len = netdev->tx_queue_len;
+}
 
-#ifdef CONFIG_E1000_NAPI
-	netif_poll_enable(netdev);
-#endif
-	e1000_irq_enable(adapter);
+int e1000_up(struct e1000_adapter *adapter)
+{
+	/* hardware has been reset, we need to reload some things */
+	e1000_configure(adapter);
 
 	clear_bit(__E1000_DOWN, &adapter->flags);
+
+#ifdef CONFIG_E1000_NAPI
+	netif_poll_enable(adapter->netdev);
+#endif
+	e1000_irq_enable(adapter);
 
 	/* fire a link change interrupt to start the watchdog */
 	E1000_WRITE_REG(&adapter->hw, ICS, E1000_ICS_LSC);
@@ -640,15 +647,15 @@ e1000_down(struct e1000_adapter *adapter)
 	 * reschedule our watchdog timer */
 	set_bit(__E1000_DOWN, &adapter->flags);
 
+#ifdef CONFIG_E1000_NAPI
+	netif_poll_disable(netdev);
+#endif
 	e1000_irq_disable(adapter);
 
 	del_timer_sync(&adapter->tx_fifo_stall_timer);
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
 
-#ifdef CONFIG_E1000_NAPI
-	netif_poll_disable(netdev);
-#endif
 	netdev->tx_queue_len = adapter->tx_queue_len;
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
@@ -1410,21 +1417,17 @@ e1000_open(struct net_device *netdev)
 		return -EBUSY;
 
 	/* allocate transmit descriptors */
-	if ((err = e1000_setup_all_tx_resources(adapter)))
+	err = e1000_setup_all_tx_resources(adapter);
+	if (err)
 		goto err_setup_tx;
 
 	/* allocate receive descriptors */
-	if ((err = e1000_setup_all_rx_resources(adapter)))
-		goto err_setup_rx;
-
-	err = e1000_request_irq(adapter);
+	err = e1000_setup_all_rx_resources(adapter);
 	if (err)
-		goto err_req_irq;
+		goto err_setup_rx;
 
 	e1000_power_up_phy(adapter);
 
-	if ((err = e1000_up(adapter)))
-		goto err_up;
 	adapter->mng_vlan_id = E1000_MNG_VLAN_NONE;
 	if ((adapter->hw.mng_cookie.status &
 			  E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT)) {
@@ -1437,12 +1440,33 @@ e1000_open(struct net_device *netdev)
 	    e1000_check_mng_mode(&adapter->hw))
 		e1000_get_hw_control(adapter);
 
+	/* before we allocate an interrupt, we must be ready to handle it.
+	 * Setting DEBUG_SHIRQ in the kernel makes it fire an interrupt
+	 * as soon as we call pci_request_irq, so we have to setup our
+	 * clean_rx handler before we do so.  */
+	e1000_configure(adapter);
+
+	err = e1000_request_irq(adapter);
+	if (err)
+		goto err_req_irq;
+
+	/* From here on the code is the same as e1000_up() */
+	clear_bit(__E1000_DOWN, &adapter->flags);
+
+#ifdef CONFIG_E1000_NAPI
+	netif_poll_enable(netdev);
+#endif
+
+	e1000_irq_enable(adapter);
+
+	/* fire a link status change interrupt to start the watchdog */
+	E1000_WRITE_REG(&adapter->hw, ICS, E1000_ICS_LSC);
+
 	return E1000_SUCCESS;
 
-err_up:
-	e1000_power_down_phy(adapter);
-	e1000_free_irq(adapter);
 err_req_irq:
+	e1000_release_hw_control(adapter);
+	e1000_power_down_phy(adapter);
 	e1000_free_all_rx_resources(adapter);
 err_setup_rx:
 	e1000_free_all_tx_resources(adapter);
