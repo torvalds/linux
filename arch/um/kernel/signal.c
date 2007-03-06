@@ -158,12 +158,12 @@ static int kern_do_signal(struct pt_regs *regs)
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
-	return(handled_sig);
+	return handled_sig;
 }
 
 int do_signal(void)
 {
-	return(kern_do_signal(&current->thread.regs));
+	return kern_do_signal(&current->thread.regs);
 }
 
 /*
@@ -186,5 +186,5 @@ long sys_sigsuspend(int history0, int history1, old_sigset_t mask)
 
 long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 {
-	return(do_sigaltstack(uss, uoss, PT_REGS_SP(&current->thread.regs)));
+	return do_sigaltstack(uss, uoss, PT_REGS_SP(&current->thread.regs));
 }
