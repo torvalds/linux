@@ -33,8 +33,12 @@
 #include <asm/arch/dsp_common.h>
 #include <asm/arch/aic23.h>
 #include <asm/arch/gpio.h>
+#include <asm/arch/omapfb.h>
+#include <asm/arch/lcd_mipid.h>
 
 #include "../plat-omap/dsp/dsp_common.h"
+
+#define ADS7846_PENDOWN_GPIO	15
 
 static void __init omap_nokia770_init_irq(void)
 {
@@ -96,6 +100,41 @@ static struct platform_device *nokia770_devices[] __initdata = {
 	&nokia770_kp_device,
 };
 
+static void mipid_shutdown(struct mipid_platform_data *pdata)
+{
+	if (pdata->nreset_gpio != -1) {
+		printk(KERN_INFO "shutdown LCD\n");
+		omap_set_gpio_dataout(pdata->nreset_gpio, 0);
+		msleep(120);
+	}
+}
+
+static struct mipid_platform_data nokia770_mipid_platform_data = {
+	.shutdown = mipid_shutdown,
+};
+
+static void mipid_dev_init(void)
+{
+	const struct omap_lcd_config *conf;
+
+	conf = omap_get_config(OMAP_TAG_LCD, struct omap_lcd_config);
+	if (conf != NULL) {
+		nokia770_mipid_platform_data.nreset_gpio = conf->nreset_gpio;
+		nokia770_mipid_platform_data.data_lines = conf->data_lines;
+	}
+}
+
+static void ads7846_dev_init(void)
+{
+	if (omap_request_gpio(ADS7846_PENDOWN_GPIO) < 0)
+		printk(KERN_ERR "can't get ads7846 pen down GPIO\n");
+}
+
+static int ads7846_get_pendown_state(void)
+{
+	return !omap_get_gpio_datain(ADS7846_PENDOWN_GPIO);
+}
+
 static struct ads7846_platform_data nokia770_ads7846_platform_data __initdata = {
 	.x_max		= 0x0fff,
 	.y_max		= 0x0fff,
@@ -103,6 +142,8 @@ static struct ads7846_platform_data nokia770_ads7846_platform_data __initdata = 
 	.pressure_max	= 255,
 	.debounce_max	= 10,
 	.debounce_tol	= 3,
+	.debounce_rep	= 1,
+	.get_pendown_state	= ads7846_get_pendown_state,
 };
 
 static struct spi_board_info nokia770_spi_board_info[] __initdata = {
@@ -111,6 +152,7 @@ static struct spi_board_info nokia770_spi_board_info[] __initdata = {
 		.bus_num        = 2,
 		.chip_select    = 3,
 		.max_speed_hz   = 12000000,
+		.platform_data	= &nokia770_mipid_platform_data,
 	},
 	[1] = {
 		.modalias       = "ads7846",
@@ -287,8 +329,11 @@ static void __init omap_nokia770_init(void)
 				ARRAY_SIZE(nokia770_spi_board_info));
 	omap_board_config = nokia770_config;
 	omap_board_config_size = ARRAY_SIZE(nokia770_config);
+	omap_gpio_init();
 	omap_serial_init();
 	omap_dsp_init();
+	ads7846_dev_init();
+	mipid_dev_init();
 }
 
 static void __init omap_nokia770_map_io(void)
