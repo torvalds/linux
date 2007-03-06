@@ -1026,16 +1026,17 @@ config MMTIMER
 source "drivers/char/tpm/Kconfig"
 
 config TELCLOCK
-	tristate "Telecom clock driver for MPBL0010 ATCA SBC"
+	tristate "Telecom clock driver for ATCA SBC"
 	depends on EXPERIMENTAL && X86
 	default n
 	help
-	  The telecom clock device is specific to the MPBL0010 ATCA computer and
-	  allows direct userspace access to the configuration of the telecom clock
-	  configuration settings.  This device is used for hardware synchronization
-	  across the ATCA backplane fabric.  Upon loading, the driver exports a
-	  sysfs directory, /sys/devices/platform/telco_clock, with a number of
-	  files for controlling the behavior of this hardware.
+	  The telecom clock device is specific to the MPCBL0010 and MPCBL0050
+	  ATCA computers and allows direct userspace access to the
+	  configuration of the telecom clock configuration settings.  This
+	  device is used for hardware synchronization across the ATCA backplane
+	  fabric.  Upon loading, the driver exports a sysfs directory,
+	  /sys/devices/platform/telco_clock, with a number of files for
+	  controlling the behavior of this hardware.
 
 endmenu
 
