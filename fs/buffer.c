@@ -2365,6 +2365,10 @@ failed:
 }
 EXPORT_SYMBOL(nobh_prepare_write);
 
+/*
+ * Make sure any changes to nobh_commit_write() are reflected in
+ * nobh_truncate_page(), since it doesn't call commit_write().
+ */
 int nobh_commit_write(struct file *file, struct page *page,
 		unsigned from, unsigned to)
 {
@@ -2466,6 +2470,11 @@ int nobh_truncate_page(struct address_space *mapping, loff_t from)
 		memset(kaddr + offset, 0, PAGE_CACHE_SIZE - offset);
 		flush_dcache_page(page);
 		kunmap_atomic(kaddr, KM_USER0);
+		/*
+		 * It would be more correct to call aops->commit_write()
+		 * here, but this is more efficient.
+		 */
+		SetPageUptodate(page);
 		set_page_dirty(page);
 	}
 	unlock_page(page);
