@@ -24,7 +24,6 @@
  * an extra value to store the TSC freq
  */
 unsigned int tsc_khz;
-unsigned long long (*custom_sched_clock)(void);
 
 int tsc_disable;
 
