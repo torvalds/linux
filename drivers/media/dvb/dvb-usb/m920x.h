@@ -37,13 +37,27 @@ this sequence works:
 (0x21 in byte)*
 0x60 in byte
 
-_my guess_:
-0x80: begin i2c transfer using address. value=address<<1|(reading?1:0)
-0x00: write byte
-0x21: read byte, more to follow
-0x40: write last byte of message sequence
-0x60: read last byte of message sequence
- */
+Guess at API of the I2C function:
+I2C operation is done one byte at a time with USB control messages.  The
+index the messages is sent to is made up of a set of flags that control
+the I2C bus state:
+0x80:  Send START condition.  After a START condition, one would normally
+       always send the 7-bit slave I2C address as the 7 MSB, followed by
+       the read/write bit as the LSB.
+0x40:  Send STOP condition.  This should be set on the last byte of an
+       I2C transaction.
+0x20:  Read a byte from the slave.  As opposed to writing a byte to the
+       slave.  The slave will normally not produce any data unless you
+       set the R/W bit to 1 when sending the slave's address after the
+       START condition.
+0x01:  Respond with ACK, as opposed to a NACK.  For a multi-byte read,
+       the master should send an ACK, that is pull SDA low during the 9th
+       clock cycle, after every byte but the last.  This flags only makes
+       sense when bit 0x20 is set, indicating a read.
+
+What any other bits might mean, or how to get the slave's ACK/NACK
+response to a write, is unknown.
+*/
 
 struct m9206_state {
 	u16 filters[M9206_MAX_FILTERS];

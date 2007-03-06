@@ -141,43 +141,43 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	int i, j;
 	int ret = 0;
 
+	if (!num)
+		return -EINVAL;
+
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
 	for (i = 0; i < num; i++) {
+		if (msg[i].flags & (I2C_M_NO_RD_ACK|I2C_M_IGNORE_NAK|I2C_M_TEN)) {
+			ret = -ENOTSUPP;
+			goto unlock;
+		}
+		/* Send START & address/RW bit */
+		if (!(msg[i].flags & I2C_M_NOSTART)) {
+			if ((ret = m9206_write(d->udev, M9206_I2C, (msg[i].addr<<1)|(msg[i].flags&I2C_M_RD?0x01:00), 0x80)) != 0)
+				goto unlock;
+			/* Should check for ack here, if we knew how. */
+		}
 		if (msg[i].flags & I2C_M_RD) {
-
-			if ((ret = m9206_write(d->udev, M9206_I2C, (msg[i].addr << 1) | 0x01, 0x80)) != 0)
-				goto unlock;
-
-			for(j = 0; j < msg[i].len; j++) {
-				if (j + 1 == msg[i].len && i + 1== num) {
-					if ((ret = m9206_read(d->udev, M9206_I2C, 0x0, 0x60, &msg[i].buf[j], msg[i].len)) != 0)
-						goto unlock;
-				} else {
-					if ((ret = m9206_read(d->udev, M9206_I2C, 0x0, 0x21, &msg[i].buf[j], msg[i].len)) != 0)
-						goto unlock;
-				}
+			for (j = 0; j < msg[i].len; j++) {
+				/* Last byte of transaction? Send STOP, otherwise send ACK. */
+				int stop = (i+1 == num && j+1 == msg[i].len)?0x40:0x01;
+				if ((ret = m9206_read(d->udev, M9206_I2C, 0x0, 0x20|stop, &msg[i].buf[j], 1)) != 0)
+					goto unlock;
 			}
-
 		} else {
-			if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].addr << 1, 0x80)) != 0)
-				goto unlock;
-
-			for(j = 0; j < msg[i].len; j++) {
-				if (j + 1 == msg[i].len && i + 1== num) {
-					if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[j], 0x40)) != 0)
-						goto unlock;
-
-				} else {
-					if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[j], 0x0)) != 0)
-						goto unlock;
-				}
+			for (j = 0; j < msg[i].len; j++) {
+				/* Last byte of transaction? Then send STOP. */
+				int stop = (i+1 == num && j+1 == msg[i].len)?0x40:0x00;
+				if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[j], stop)) != 0)
+					goto unlock;
+				/* Should check for ack here too. */
 			}
 		}
 	}
 	ret = num;
-	unlock:
+
+unlock:
 	mutex_unlock(&d->i2c_mutex);
 
 	return ret;
