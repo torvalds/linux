@@ -419,9 +419,12 @@ void map_stub_pages(int fd, unsigned long code,
 					  .offset  = code_offset
 	} } });
 	n = os_write_file(fd, &mmop, sizeof(mmop));
-	if(n != sizeof(mmop))
+	if(n != sizeof(mmop)){
+		printk("mmap args - addr = 0x%lx, fd = %d, offset = %llx\n",
+		       code, code_fd, (unsigned long long) code_offset);
 		panic("map_stub_pages : /proc/mm map for code failed, "
 		      "err = %d\n", -n);
+	}
 
 	if ( stack ) {
 		__u64 map_offset;
