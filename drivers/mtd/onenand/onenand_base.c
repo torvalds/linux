@@ -2367,6 +2367,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	for (i = 0; this->ecclayout->oobfree[i].length; i++)
 		this->ecclayout->oobavail +=
 			this->ecclayout->oobfree[i].length;
+	mtd->oobavail = this->ecclayout->oobavail;
 
 	mtd->ecclayout = this->ecclayout;
 
