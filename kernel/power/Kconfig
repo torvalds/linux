@@ -81,29 +81,34 @@ config SOFTWARE_SUSPEND
 	bool "Software Suspend"
 	depends on PM && SWAP && ((X86 && (!SMP || SUSPEND_SMP)) || ((FRV || PPC32) && !SMP))
 	---help---
-	  Enable the possibility of suspending the machine.
-	  It doesn't need ACPI or APM.
-	  You may suspend your machine by 'swsusp' or 'shutdown -z <time>' 
-	  (patch for sysvinit needed). 
+	  Enable the suspend to disk (STD) functionality.
 
-	  It creates an image which is saved in your active swap. Upon next
+	  You can suspend your machine with 'echo disk > /sys/power/state'.
+	  Alternatively, you can use the additional userland tools available
+	  from <http://suspend.sf.net>.
+
+	  In principle it does not require ACPI or APM, although for example
+	  ACPI will be used if available.
+
+	  It creates an image which is saved in your active swap. Upon the next
 	  boot, pass the 'resume=/dev/swappartition' argument to the kernel to
 	  have it detect the saved image, restore memory state from it, and
 	  continue to run as before. If you do not want the previous state to
-	  be reloaded, then use the 'noresume' kernel argument. However, note
-	  that your partitions will be fsck'd and you must re-mkswap your swap
-	  partitions. It does not work with swap files.
+	  be reloaded, then use the 'noresume' kernel command line argument.
+	  Note, however, that fsck will be run on your filesystems and you will
+	  need to run mkswap against the swap partition used for the suspend.
 
-	  Right now you may boot without resuming and then later resume but
-	  in meantime you cannot use those swap partitions/files which were
-	  involved in suspending. Also in this case there is a risk that buffers
-	  on disk won't match with saved ones.
+	  It also works with swap files to a limited extent (for details see
+	  <file:Documentation/power/swsusp-and-swap-files.txt>).
+
+	  Right now you may boot without resuming and resume later but in the
+	  meantime you cannot use the swap partition(s)/file(s) involved in
+	  suspending.  Also in this case you must not use the filesystems
+	  that were mounted before the suspend.  In particular, you MUST NOT
+	  MOUNT any journaled filesystems mounted before the suspend or they
+	  will get corrupted in a nasty way.
 
 	  For more information take a look at <file:Documentation/power/swsusp.txt>.
-
-	  (For now, swsusp is incompatible with PAE aka HIGHMEM_64G on i386.
-	  we need identity mapping for resume to work, and that is trivial
-	  to get with 4MB pages, but less than trivial on PAE).
 
 config PM_STD_PARTITION
 	string "Default resume partition"
