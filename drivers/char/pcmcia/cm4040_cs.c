@@ -273,6 +273,7 @@ static ssize_t cm4040_read(struct file *filp, char __user *buf,
 	DEBUGP(6, dev, "BytesToRead=%lu\n", bytes_to_read);
 
 	min_bytes_to_read = min(count, bytes_to_read + 5);
+	min_bytes_to_read = min_t(size_t, min_bytes_to_read, READ_WRITE_BUFFER_SIZE);
 
 	DEBUGP(6, dev, "Min=%lu\n", min_bytes_to_read);
 
@@ -340,7 +341,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 		return 0;
 	}
 
-	if (count < 5) {
+	if ((count < 5) || (count > READ_WRITE_BUFFER_SIZE)) {
 		DEBUGP(2, dev, "<- cm4040_write buffersize=%Zd < 5\n", count);
 		return -EIO;
 	}
