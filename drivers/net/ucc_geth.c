@@ -3598,9 +3598,9 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Move to next BD in the ring */
 	if (!(bd_status & T_W))
-		ugeth->txBd[txQ] = bd + sizeof(struct qe_bd);
+		bd += sizeof(struct qe_bd);
 	else
-		ugeth->txBd[txQ] = ugeth->p_tx_bd_ring[txQ];
+		bd = ugeth->p_tx_bd_ring[txQ];
 
 	/* If the next BD still needs to be cleaned up, then the bds
 	   are full.  We need to tell the kernel to stop sending us stuff. */
@@ -3608,6 +3608,8 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (!netif_queue_stopped(dev))
 			netif_stop_queue(dev);
 	}
+
+	ugeth->txBd[txQ] = bd;
 
 	if (ugeth->p_scheduler) {
 		ugeth->cpucount[txQ]++;
@@ -3722,7 +3724,7 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 		/* Handle the transmitted buffer and release */
 		/* the BD to be used with the current frame  */
 
-		if ((bd = ugeth->txBd[txQ]) && (netif_queue_stopped(dev) == 0))
+		if ((bd == ugeth->txBd[txQ]) && (netif_queue_stopped(dev) == 0))
 			break;
 
 		ugeth->stats.tx_packets++;
@@ -3741,10 +3743,12 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 
 		/* Advance the confirmation BD pointer */
 		if (!(bd_status & T_W))
-			ugeth->confBd[txQ] += sizeof(struct qe_bd);
+			bd += sizeof(struct qe_bd);
 		else
-			ugeth->confBd[txQ] = ugeth->p_tx_bd_ring[txQ];
+			bd = ugeth->p_tx_bd_ring[txQ];
+		bd_status = in_be32((u32 *)bd);
 	}
+	ugeth->confBd[txQ] = bd;
 	return 0;
 }
 
