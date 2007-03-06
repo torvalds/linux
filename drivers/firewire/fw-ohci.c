@@ -1101,7 +1101,7 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 	reg_write(ohci, OHCI1394_AsReqFilterHiSet, 0x80000000);
 
 	if (request_irq(dev->irq, irq_handler,
-			SA_SHIRQ, ohci_driver_name, ohci)) {
+			IRQF_SHARED, ohci_driver_name, ohci)) {
 		fw_error("Failed to allocate shared interrupt %d.\n",
 			 dev->irq);
 		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
