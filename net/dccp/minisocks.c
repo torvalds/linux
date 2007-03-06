@@ -103,7 +103,7 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 
 	if (newsk != NULL) {
 		const struct dccp_request_sock *dreq = dccp_rsk(req);
-		struct inet_connection_sock *newicsk = inet_csk(sk);
+		struct inet_connection_sock *newicsk = inet_csk(newsk);
 		struct dccp_sock *newdp = dccp_sk(newsk);
 		struct dccp_minisock *newdmsk = dccp_msk(newsk);
 
