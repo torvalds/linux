@@ -284,6 +284,42 @@ void tick_shutdown_broadcast(unsigned int *cpup)
 	spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
 
+void tick_suspend_broadcast(void)
+{
+	struct clock_event_device *bc;
+	unsigned long flags;
+
+	spin_lock_irqsave(&tick_broadcast_lock, flags);
+
+	bc = tick_broadcast_device.evtdev;
+	if (bc && tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
+		clockevents_set_mode(bc, CLOCK_EVT_MODE_SHUTDOWN);
+
+	spin_unlock_irqrestore(&tick_broadcast_lock, flags);
+}
+
+int tick_resume_broadcast(void)
+{
+	struct clock_event_device *bc;
+	unsigned long flags;
+	int broadcast = 0;
+
+	spin_lock_irqsave(&tick_broadcast_lock, flags);
+
+	bc = tick_broadcast_device.evtdev;
+	if (bc) {
+		if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC &&
+		    !cpus_empty(tick_broadcast_mask))
+			tick_broadcast_start_periodic(bc);
+
+		broadcast = cpu_isset(smp_processor_id(), tick_broadcast_mask);
+	}
+	spin_unlock_irqrestore(&tick_broadcast_lock, flags);
+
+	return broadcast;
+}
+
+
 #ifdef CONFIG_TICK_ONESHOT
 
 static cpumask_t tick_broadcast_oneshot_mask;

@@ -298,6 +298,28 @@ static void tick_shutdown(unsigned int *cpup)
 	spin_unlock_irqrestore(&tick_device_lock, flags);
 }
 
+static void tick_suspend_periodic(void)
+{
+	struct tick_device *td = &__get_cpu_var(tick_cpu_device);
+	unsigned long flags;
+
+	spin_lock_irqsave(&tick_device_lock, flags);
+	if (td->mode == TICKDEV_MODE_PERIODIC)
+		clockevents_set_mode(td->evtdev, CLOCK_EVT_MODE_SHUTDOWN);
+	spin_unlock_irqrestore(&tick_device_lock, flags);
+}
+
+static void tick_resume_periodic(void)
+{
+	struct tick_device *td = &__get_cpu_var(tick_cpu_device);
+	unsigned long flags;
+
+	spin_lock_irqsave(&tick_device_lock, flags);
+	if (td->mode == TICKDEV_MODE_PERIODIC)
+		tick_setup_periodic(td->evtdev, 0);
+	spin_unlock_irqrestore(&tick_device_lock, flags);
+}
+
 /*
  * Notification about clock event devices
  */
@@ -323,6 +345,16 @@ static int tick_notify(struct notifier_block *nb, unsigned long reason,
 		tick_shutdown_broadcast_oneshot(dev);
 		tick_shutdown_broadcast(dev);
 		tick_shutdown(dev);
+		break;
+
+	case CLOCK_EVT_NOTIFY_SUSPEND:
+		tick_suspend_periodic();
+		tick_suspend_broadcast();
+		break;
+
+	case CLOCK_EVT_NOTIFY_RESUME:
+		if (!tick_resume_broadcast())
+			tick_resume_periodic();
 		break;
 
 	default:

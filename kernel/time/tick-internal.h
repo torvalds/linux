@@ -67,6 +67,8 @@ extern int tick_check_broadcast_device(struct clock_event_device *dev);
 extern int tick_is_broadcast_device(struct clock_event_device *dev);
 extern void tick_broadcast_on_off(unsigned long reason, int *oncpu);
 extern void tick_shutdown_broadcast(unsigned int *cpup);
+extern void tick_suspend_broadcast(void);
+extern int tick_resume_broadcast(void);
 
 extern void
 tick_set_periodic_handler(struct clock_event_device *dev, int broadcast);
@@ -90,6 +92,8 @@ static inline int tick_device_uses_broadcast(struct clock_event_device *dev,
 static inline void tick_do_periodic_broadcast(struct clock_event_device *d) { }
 static inline void tick_broadcast_on_off(unsigned long reason, int *oncpu) { }
 static inline void tick_shutdown_broadcast(unsigned int *cpup) { }
+static inline void tick_suspend_broadcast(void) { }
+static inline int tick_resume_broadcast(void) { return 0; }
 
 /*
  * Set the periodic handler in non broadcast mode
