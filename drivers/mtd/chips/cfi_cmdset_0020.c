@@ -158,6 +158,8 @@ struct mtd_info *cfi_cmdset_0020(struct map_info *map, int primary)
 		cfi->chips[i].word_write_time = 128;
 		cfi->chips[i].buffer_write_time = 128;
 		cfi->chips[i].erase_time = 1024;
+		cfi->chips[i].ref_point_counter = 0;
+		init_waitqueue_head(&(cfi->chips[i].wq));
 	}
 
 	return cfi_staa_setup(map);
