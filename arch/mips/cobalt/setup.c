@@ -19,12 +19,10 @@
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/processor.h>
 #include <asm/reboot.h>
 #include <asm/gt64120.h>
 
-#include <asm/mach-cobalt/cobalt.h>
+#include <cobalt.h>
 
 extern void cobalt_machine_restart(char *command);
 extern void cobalt_machine_halt(void);
