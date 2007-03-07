@@ -1234,14 +1234,14 @@ static void pcnet32_rx_entry(struct net_device *dev,
 		skb_put(skb, pkt_len);	/* Make room */
 		pci_dma_sync_single_for_cpu(lp->pci_dev,
 					    lp->rx_dma_addr[entry],
-					    PKT_BUF_SZ - 2,
+					    pkt_len,
 					    PCI_DMA_FROMDEVICE);
 		eth_copy_and_sum(skb,
 				 (unsigned char *)(lp->rx_skbuff[entry]->data),
 				 pkt_len, 0);
 		pci_dma_sync_single_for_device(lp->pci_dev,
 					       lp->rx_dma_addr[entry],
-					       PKT_BUF_SZ - 2,
+					       pkt_len,
 					       PCI_DMA_FROMDEVICE);
 	}
 	lp->stats.rx_bytes += skb->len;

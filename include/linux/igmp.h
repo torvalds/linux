@@ -218,5 +218,7 @@ extern void ip_mc_up(struct in_device *);
 extern void ip_mc_down(struct in_device *);
 extern void ip_mc_dec_group(struct in_device *in_dev, __be32 addr);
 extern void ip_mc_inc_group(struct in_device *in_dev, __be32 addr);
+extern void ip_mc_rejoin_group(struct ip_mc_list *im);
+
 #endif
 #endif

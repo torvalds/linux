@@ -2024,6 +2024,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem * ioaddr = ns_ioaddr(dev);
 	unsigned entry;
+	unsigned long flags;
 
 	/* Note: Ordering is important here, set the field with the
 	   "ownership" bit last, and only then increment cur_tx. */
@@ -2037,7 +2038,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 
 	np->tx_ring[entry].addr = cpu_to_le32(np->tx_dma[entry]);
 
-	spin_lock_irq(&np->lock);
+	spin_lock_irqsave(&np->lock, flags);
 
 	if (!np->hands_off) {
 		np->tx_ring[entry].cmd_status = cpu_to_le32(DescOwn | skb->len);
@@ -2056,7 +2057,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb_irq(skb);
 		np->stats.tx_dropped++;
 	}
-	spin_unlock_irq(&np->lock);
+	spin_unlock_irqrestore(&np->lock, flags);
 
 	dev->trans_start = jiffies;
 
@@ -2222,6 +2223,8 @@ static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do)
 		pkt_len = (desc_status & DescSizeMask) - 4;
 		if ((desc_status&(DescMore|DescPktOK|DescRxLong)) != DescPktOK){
 			if (desc_status & DescMore) {
+				unsigned long flags;
+
 				if (netif_msg_rx_err(np))
 					printk(KERN_WARNING
 						"%s: Oversized(?) Ethernet "
@@ -2236,12 +2239,12 @@ static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do)
 				 * reset procedure documented in
 				 * AN-1287. */
 
-				spin_lock_irq(&np->lock);
+				spin_lock_irqsave(&np->lock, flags);
 				reset_rx(dev);
 				reinit_rx(dev);
 				writel(np->ring_dma, ioaddr + RxRingPtr);
 				check_link(dev);
-				spin_unlock_irq(&np->lock);
+				spin_unlock_irqrestore(&np->lock, flags);
 
 				/* We'll enable RX on exit from this
 				 * function. */
@@ -2396,8 +2399,19 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void natsemi_poll_controller(struct net_device *dev)
 {
+	struct netdev_private *np = netdev_priv(dev);
+
 	disable_irq(dev->irq);
-	intr_handler(dev->irq, dev);
+
+	/*
+	 * A real interrupt might have already reached us at this point
+	 * but NAPI might still haven't called us back.  As the interrupt
+	 * status register is cleared by reading, we should prevent an
+	 * interrupt loss in this case...
+	 */
+	if (!np->intr_status)
+		intr_handler(dev->irq, dev);
+
 	enable_irq(dev->irq);
 }
 #endif

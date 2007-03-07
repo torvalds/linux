@@ -1309,7 +1309,7 @@ static void mv643xx_init_ethtool_cmd(struct net_device *dev, int phy_address,
 static int mv643xx_eth_probe(struct platform_device *pdev)
 {
 	struct mv643xx_eth_platform_data *pd;
-	int port_num = pdev->id;
+	int port_num;
 	struct mv643xx_private *mp;
 	struct net_device *dev;
 	u8 *p;
@@ -1318,6 +1318,12 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	struct ethtool_cmd cmd;
 	int duplex = DUPLEX_HALF;
 	int speed = 0;			/* default to auto-negotiation */
+
+	pd = pdev->dev.platform_data;
+	if (pd == NULL) {
+		printk(KERN_ERR "No mv643xx_eth_platform_data\n");
+		return -ENODEV;
+	}
 
 	dev = alloc_etherdev(sizeof(struct mv643xx_private));
 	if (!dev)
@@ -1330,8 +1336,6 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	BUG_ON(!res);
 	dev->irq = res->start;
-
-	mp->port_num = port_num;
 
 	dev->open = mv643xx_eth_open;
 	dev->stop = mv643xx_eth_stop;
@@ -1373,38 +1377,39 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	spin_lock_init(&mp->lock);
 
+	port_num = pd->port_number;
+
 	/* set default config values */
 	eth_port_uc_addr_get(dev, dev->dev_addr);
 	mp->rx_ring_size = MV643XX_ETH_PORT_DEFAULT_RECEIVE_QUEUE_SIZE;
 	mp->tx_ring_size = MV643XX_ETH_PORT_DEFAULT_TRANSMIT_QUEUE_SIZE;
 
-	pd = pdev->dev.platform_data;
-	if (pd) {
-		if (is_valid_ether_addr(pd->mac_addr))
-			memcpy(dev->dev_addr, pd->mac_addr, 6);
+	if (is_valid_ether_addr(pd->mac_addr))
+		memcpy(dev->dev_addr, pd->mac_addr, 6);
 
-		if (pd->phy_addr || pd->force_phy_addr)
-			ethernet_phy_set(port_num, pd->phy_addr);
+	if (pd->phy_addr || pd->force_phy_addr)
+		ethernet_phy_set(port_num, pd->phy_addr);
 
-		if (pd->rx_queue_size)
-			mp->rx_ring_size = pd->rx_queue_size;
+	if (pd->rx_queue_size)
+		mp->rx_ring_size = pd->rx_queue_size;
 
-		if (pd->tx_queue_size)
-			mp->tx_ring_size = pd->tx_queue_size;
+	if (pd->tx_queue_size)
+		mp->tx_ring_size = pd->tx_queue_size;
 
-		if (pd->tx_sram_size) {
-			mp->tx_sram_size = pd->tx_sram_size;
-			mp->tx_sram_addr = pd->tx_sram_addr;
-		}
-
-		if (pd->rx_sram_size) {
-			mp->rx_sram_size = pd->rx_sram_size;
-			mp->rx_sram_addr = pd->rx_sram_addr;
-		}
-
-		duplex = pd->duplex;
-		speed = pd->speed;
+	if (pd->tx_sram_size) {
+		mp->tx_sram_size = pd->tx_sram_size;
+		mp->tx_sram_addr = pd->tx_sram_addr;
 	}
+
+	if (pd->rx_sram_size) {
+		mp->rx_sram_size = pd->rx_sram_size;
+		mp->rx_sram_addr = pd->rx_sram_addr;
+	}
+
+	duplex = pd->duplex;
+	speed = pd->speed;
+
+	mp->port_num = port_num;
 
 	/* Hook up MII support for ethtool */
 	mp->mii.dev = dev;

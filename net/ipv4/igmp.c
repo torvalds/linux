@@ -1251,6 +1251,28 @@ out:
 }
 
 /*
+ *	Resend IGMP JOIN report; used for bonding.
+ */
+void ip_mc_rejoin_group(struct ip_mc_list *im)
+{
+	struct in_device *in_dev = im->interface;
+
+#ifdef CONFIG_IP_MULTICAST
+	if (im->multiaddr == IGMP_ALL_HOSTS)
+		return;
+
+	if (IGMP_V1_SEEN(in_dev) || IGMP_V2_SEEN(in_dev)) {
+		igmp_mod_timer(im, IGMP_Initial_Report_Delay);
+		return;
+	}
+	/* else, v3 */
+	im->crcount = in_dev->mr_qrv ? in_dev->mr_qrv :
+		IGMP_Unsolicited_Report_Count;
+	igmp_ifc_event(in_dev);
+#endif
+}
+
+/*
  *	A socket has left a multicast group on device dev
  */
 
@@ -2596,3 +2618,4 @@ int __init igmp_mc_proc_init(void)
 EXPORT_SYMBOL(ip_mc_dec_group);
 EXPORT_SYMBOL(ip_mc_inc_group);
 EXPORT_SYMBOL(ip_mc_join_group);
+EXPORT_SYMBOL(ip_mc_rejoin_group);
