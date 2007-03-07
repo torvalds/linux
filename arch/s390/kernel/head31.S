@@ -121,7 +121,7 @@ startup_continue:
 	.long	.Lduct			# cr2: dispatchable unit control table
 	.long	0			# cr3: instruction authorization
 	.long	0			# cr4: instruction authorization
-	.long	0xffffffff		# cr5: primary-aste origin
+	.long	.Lduct			# cr5: primary-aste origin
 	.long	0			# cr6:	I/O interrupts
 	.long	0			# cr7:	secondary space segment table
 	.long	0			# cr8:	access registers translation
@@ -132,8 +132,6 @@ startup_continue:
 	.long	0			# cr13: home space segment table
 	.long	0xc0000000		# cr14: machine check handling off
 	.long	0			# cr15: linkage stack operations
-.Lduct:	.long	0,0,0,0,0,0,0,0
-	.long	0,0,0,0,0,0,0,0
 .Lpcfpu:.long	0x00080000,0x80000000 + .Lchkfpu
 .Lpccsp:.long	0x00080000,0x80000000 + .Lchkcsp
 .Lpcmvpg:.long	0x00080000,0x80000000 + .Lchkmvpg
@@ -147,6 +145,13 @@ startup_continue:
 .Linittu:   .long init_thread_union
 .Lstartup_init:
 	    .long startup_init
+	.align	64
+.Lduct:	.long	0,0,0,0,.Lduald,0,0,0
+	.long	0,0,0,0,0,0,0,0
+	.align	128
+.Lduald:.rept	8
+	.long	0x80000000,0,0,0	# invalid access-list entries
+	.endr
 
 	.org	0x12000
 	.globl	_ehead

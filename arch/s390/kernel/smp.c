@@ -94,10 +94,9 @@ static void __smp_call_function_map(void (*func) (void *info), void *info,
 	int cpu, local = 0;
 
 	/*
-	 * Can deadlock when interrupts are disabled or if in wrong context,
-	 * caller must disable preemption
+	 * Can deadlock when interrupts are disabled or if in wrong context.
 	 */
-	WARN_ON(irqs_disabled() || in_irq() || preemptible());
+	WARN_ON(irqs_disabled() || in_irq());
 
 	/*
 	 * Check for local function call. We have to have the same call order
@@ -152,17 +151,18 @@ out:
  * Run a function on all other CPUs.
  *
  * You must not call this function with disabled interrupts or from a
- * hardware interrupt handler. Must be called with preemption disabled.
- * You may call it from a bottom half.
+ * hardware interrupt handler. You may call it from a bottom half.
  */
 int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
 		      int wait)
 {
 	cpumask_t map;
 
+	preempt_disable();
 	map = cpu_online_map;
 	cpu_clear(smp_processor_id(), map);
 	__smp_call_function_map(func, info, nonatomic, wait, map);
+	preempt_enable();
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function);
@@ -178,16 +178,17 @@ EXPORT_SYMBOL(smp_call_function);
  * Run a function on one processor.
  *
  * You must not call this function with disabled interrupts or from a
- * hardware interrupt handler. Must be called with preemption disabled.
- * You may call it from a bottom half.
+ * hardware interrupt handler. You may call it from a bottom half.
  */
 int smp_call_function_on(void (*func) (void *info), void *info, int nonatomic,
 			  int wait, int cpu)
 {
 	cpumask_t map = CPU_MASK_NONE;
 
+	preempt_disable();
 	cpu_set(cpu, map);
 	__smp_call_function_map(func, info, nonatomic, wait, map);
+	preempt_enable();
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function_on);

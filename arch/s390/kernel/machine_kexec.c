@@ -19,6 +19,7 @@
 #include <asm/system.h>
 #include <asm/smp.h>
 #include <asm/reset.h>
+#include <asm/ipl.h>
 
 typedef void (*relocate_kernel_t)(kimage_entry_t *, unsigned long);
 
@@ -28,6 +29,10 @@ extern const unsigned long long relocate_kernel_len;
 int machine_kexec_prepare(struct kimage *image)
 {
 	void *reboot_code_buffer;
+
+	/* Can't replace kernel image since it is read-only. */
+	if (ipl_flags & IPL_NSS_VALID)
+		return -ENOSYS;
 
 	/* We don't support anything but the default image type for now. */
 	if (image->type != KEXEC_TYPE_DEFAULT)
