@@ -1,5 +1,5 @@
 /*						-*- c-basic-offset: 8 -*-
- * fw-sbp2.c -- SBP2 driver (SCSI over IEEE1394)
+ * fw-spb2.c -- SBP2 driver (SCSI over IEEE1394)
  *
  * Copyright (C) 2005-2007  Kristian Hoegsberg <krh@bitplanet.net>
  *
@@ -577,7 +577,7 @@ static void sbp2_login(struct work_struct *work)
 	sbp2_set_busy_timeout(scsi_id);
 #endif
 
-	INIT_DELAYED_WORK(&sd->work, sbp2_reconnect);
+	PREPARE_DELAYED_WORK(&sd->work, sbp2_reconnect);
 	sbp2_agent_reset(unit);
 
 	retval = add_scsi_devices(unit);
@@ -587,7 +587,7 @@ static void sbp2_login(struct work_struct *work)
 					 NULL);
 		/* Set this back to sbp2_login so we fall back and
 		 * retry login on bus reset. */
-		INIT_DELAYED_WORK(&sd->work, sbp2_login);
+		PREPARE_DELAYED_WORK(&sd->work, sbp2_login);
 	}
 }
 
@@ -714,7 +714,7 @@ static void sbp2_reconnect(struct work_struct *work)
 				 unit->device.bus_id);
 			/* Fall back and try to log in again. */
 			sd->retries = 0;
-			INIT_DELAYED_WORK(&sd->work, sbp2_login);
+			PREPARE_DELAYED_WORK(&sd->work, sbp2_login);
 		}
 		schedule_delayed_work(&sd->work, DIV_ROUND_UP(HZ, 5));
 		return;
