@@ -253,6 +253,10 @@ struct kvm_signal_mask {
  * return is 1 (yes) or 0 (no, sorry).
  */
 #define KVM_CHECK_EXTENSION       _IO(KVMIO,   0x03)
+/*
+ * Get size for mmap(vcpu_fd)
+ */
+#define KVM_GET_VCPU_MMAP_SIZE    _IO(KVMIO,   0x04) /* in bytes */
 
 /*
  * ioctls for VM fds

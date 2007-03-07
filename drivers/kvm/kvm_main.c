@@ -2436,7 +2436,7 @@ static long kvm_dev_ioctl(struct file *filp,
 			  unsigned int ioctl, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	int r = -EINVAL;
+	long r = -EINVAL;
 
 	switch (ioctl) {
 	case KVM_GET_API_VERSION:
@@ -2477,6 +2477,12 @@ static long kvm_dev_ioctl(struct file *filp,
 		 * No extensions defined at present.
 		 */
 		r = 0;
+		break;
+	case KVM_GET_VCPU_MMAP_SIZE:
+		r = -EINVAL;
+		if (arg)
+			goto out;
+		r = PAGE_SIZE;
 		break;
 	default:
 		;
