@@ -279,8 +279,10 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 		}
 	}
 
-	if (udp_lib_checksum_complete(skb))
-		goto drop;
+	if (sk->sk_filter) {
+		if (udp_lib_checksum_complete(skb))
+			goto drop;
+	}
 
 	if ((rc = sock_queue_rcv_skb(sk,skb)) < 0) {
 		/* Note that an ENOMEM error is charged twice */
