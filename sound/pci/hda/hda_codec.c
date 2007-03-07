@@ -403,6 +403,9 @@ static const struct hda_codec_preset *find_codec_preset(struct hda_codec *codec)
 {
 	const struct hda_codec_preset **tbl, *preset;
 
+	if (codec->bus->modelname && !strcmp(codec->bus->modelname, "generic"))
+		return NULL; /* use the generic parser */
+
 	for (tbl = hda_preset_tables; *tbl; tbl++) {
 		for (preset = *tbl; preset->id; preset++) {
 			u32 mask = preset->mask;
@@ -573,8 +576,7 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 							 0);
 	}
 
-	if (strcmp(codec->bus->modelname, "generic"))
-		codec->preset = find_codec_preset(codec);
+	codec->preset = find_codec_preset(codec);
 	if (! *bus->card->mixername)
 		snd_hda_get_codec_name(codec, bus->card->mixername,
 				       sizeof(bus->card->mixername));
