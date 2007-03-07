@@ -60,6 +60,7 @@ struct response {
 	struct event event;
 	struct fw_transaction transaction;
 	struct client *client;
+	struct list_head link;
 	struct fw_cdev_event_response response;
 };
 
@@ -74,6 +75,7 @@ struct client {
 	spinlock_t lock;
 	struct list_head handler_list;
 	struct list_head request_list;
+	struct list_head transaction_list;
 	u32 request_serial;
 	struct list_head event_list;
 	wait_queue_head_t wait;
@@ -115,6 +117,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&client->event_list);
 	INIT_LIST_HEAD(&client->handler_list);
 	INIT_LIST_HEAD(&client->request_list);
+	INIT_LIST_HEAD(&client->transaction_list);
 	spin_lock_init(&client->lock);
 	init_waitqueue_head(&client->wait);
 
@@ -299,12 +302,17 @@ complete_transaction(struct fw_card *card, int rcode,
 {
 	struct response *response = data;
 	struct client *client = response->client;
+	unsigned long flags;
 
 	if (length < response->response.length)
 		response->response.length = length;
 	if (rcode == RCODE_COMPLETE)
 		memcpy(response->response.data, payload,
 		       response->response.length);
+
+	spin_lock_irqsave(&client->lock, flags);
+	list_del(&response->link);
+	spin_unlock_irqrestore(&client->lock, flags);
 
 	response->response.type   = FW_CDEV_EVENT_RESPONSE;
 	response->response.rcode  = rcode;
@@ -318,6 +326,7 @@ static ssize_t ioctl_send_request(struct client *client, void __user *arg)
 	struct fw_device *device = client->device;
 	struct fw_cdev_send_request request;
 	struct response *response;
+	unsigned long flags;
 
 	if (copy_from_user(&request, arg, sizeof request))
 		return -EFAULT;
@@ -340,6 +349,10 @@ static ssize_t ioctl_send_request(struct client *client, void __user *arg)
 		kfree(response);
 		return -EFAULT;
 	}
+
+	spin_lock_irqsave(&client->lock, flags);
+	list_add_tail(&response->link, &client->transaction_list);
+	spin_unlock_irqrestore(&client->lock, flags);
 
 	fw_send_request(device->card, &response->transaction,
 			request.tcode & 0x1f,
@@ -752,6 +765,7 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	struct address_handler *h, *next_h;
 	struct request *r, *next_r;
 	struct event *e, *next_e;
+	struct response *t, *next_t;
 	unsigned long flags;
 
 	if (client->buffer.pages)
@@ -771,9 +785,12 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 		kfree(r);
 	}
 
-	/* TODO: wait for all transactions to finish so
-	 * complete_transaction doesn't try to queue up responses
-	 * after we free client. */
+	list_for_each_entry_safe(t, next_t, &client->transaction_list, link)
+		fw_cancel_transaction(client->device->card, &t->transaction);
+
+	/* FIXME: We should wait for the async tasklets to stop
+	 * running before freeing the memory. */
+
 	list_for_each_entry_safe(e, next_e, &client->event_list, link)
 		kfree(e);
 
