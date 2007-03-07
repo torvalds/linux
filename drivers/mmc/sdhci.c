@@ -606,7 +606,6 @@ static void sdhci_finish_command(struct sdhci_host *host)
 static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	int div;
-	u8 ctrl;
 	u16 clk;
 	unsigned long timeout;
 
@@ -614,13 +613,6 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 		return;
 
 	writew(0, host->ioaddr + SDHCI_CLOCK_CONTROL);
-
-	ctrl = readb(host->ioaddr + SDHCI_HOST_CONTROL);
-	if (clock > 25000000)
-		ctrl |= SDHCI_CTRL_HISPD;
-	else
-		ctrl &= ~SDHCI_CTRL_HISPD;
-	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 
 	if (clock == 0)
 		goto out;
@@ -761,10 +753,17 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		sdhci_set_power(host, ios->vdd);
 
 	ctrl = readb(host->ioaddr + SDHCI_HOST_CONTROL);
+
 	if (ios->bus_width == MMC_BUS_WIDTH_4)
 		ctrl |= SDHCI_CTRL_4BITBUS;
 	else
 		ctrl &= ~SDHCI_CTRL_4BITBUS;
+
+	if (ios->timing == MMC_TIMING_SD_HS)
+		ctrl |= SDHCI_CTRL_HISPD;
+	else
+		ctrl &= ~SDHCI_CTRL_HISPD;
+
 	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 
 	mmiowb();
@@ -994,7 +993,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 
 	intmask = readl(host->ioaddr + SDHCI_INT_STATUS);
 
-	if (!intmask) {
+	if (!intmask || intmask == 0xffffffff) {
 		result = IRQ_NONE;
 		goto out;
 	}
@@ -1080,6 +1079,13 @@ static int sdhci_suspend (struct pci_dev *pdev, pm_message_t state)
 
 	pci_save_state(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
+
+	for (i = 0;i < chip->num_slots;i++) {
+		if (!chip->hosts[i])
+			continue;
+		free_irq(chip->hosts[i]->irq, chip->hosts[i]);
+	}
+
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
@@ -1108,6 +1114,11 @@ static int sdhci_resume (struct pci_dev *pdev)
 			continue;
 		if (chip->hosts[i]->flags & SDHCI_USE_DMA)
 			pci_set_master(pdev);
+		ret = request_irq(chip->hosts[i]->irq, sdhci_irq,
+			IRQF_SHARED, chip->hosts[i]->slot_descr,
+			chip->hosts[i]);
+		if (ret)
+			return ret;
 		sdhci_init(chip->hosts[i]);
 		mmiowb();
 		ret = mmc_resume_host(chip->hosts[i]->mmc);
@@ -1274,6 +1285,9 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	mmc->f_max = host->max_clk;
 	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MULTIWRITE | MMC_CAP_BYTEBLOCK;
 
+	if (caps & SDHCI_CAN_DO_HISPD)
+		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
+
 	mmc->ocr_avail = 0;
 	if (caps & SDHCI_CAN_VDD_330)
 		mmc->ocr_avail |= MMC_VDD_32_33|MMC_VDD_33_34;
@@ -1281,13 +1295,6 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		mmc->ocr_avail |= MMC_VDD_29_30|MMC_VDD_30_31;
 	if (caps & SDHCI_CAN_VDD_180)
 		mmc->ocr_avail |= MMC_VDD_17_18|MMC_VDD_18_19;
-
-	if ((host->max_clk > 25000000) && !(caps & SDHCI_CAN_DO_HISPD)) {
-		printk(KERN_ERR "%s: Controller reports > 25 MHz base clock,"
-			" but no high speed support.\n",
-			host->slot_descr);
-		mmc->f_max = 25000000;
-	}
 
 	if (mmc->ocr_avail == 0) {
 		printk(KERN_ERR "%s: Hardware doesn't report any "

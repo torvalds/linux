@@ -376,10 +376,11 @@ static inline void mmc_set_ios(struct mmc_host *host)
 {
 	struct mmc_ios *ios = &host->ios;
 
-	pr_debug("%s: clock %uHz busmode %u powermode %u cs %u Vdd %u width %u\n",
+	pr_debug("%s: clock %uHz busmode %u powermode %u cs %u Vdd %u "
+		"width %u timing %u\n",
 		 mmc_hostname(host), ios->clock, ios->bus_mode,
 		 ios->power_mode, ios->chip_select, ios->vdd,
-		 ios->bus_width);
+		 ios->bus_width, ios->timing);
 
 	host->ops->set_ios(host, ios);
 }
@@ -809,6 +810,7 @@ static void mmc_power_up(struct mmc_host *host)
 	host->ios.chip_select = MMC_CS_DONTCARE;
 	host->ios.power_mode = MMC_POWER_UP;
 	host->ios.bus_width = MMC_BUS_WIDTH_1;
+	host->ios.timing = MMC_TIMING_LEGACY;
 	mmc_set_ios(host);
 
 	mmc_delay(1);
@@ -828,6 +830,7 @@ static void mmc_power_off(struct mmc_host *host)
 	host->ios.chip_select = MMC_CS_DONTCARE;
 	host->ios.power_mode = MMC_POWER_OFF;
 	host->ios.bus_width = MMC_BUS_WIDTH_1;
+	host->ios.timing = MMC_TIMING_LEGACY;
 	mmc_set_ios(host);
 }
 
@@ -1112,46 +1115,50 @@ static void mmc_process_ext_csds(struct mmc_host *host)
 			continue;
 		}
 
-		/* Activate highspeed support. */
-		cmd.opcode = MMC_SWITCH;
-		cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
-			  (EXT_CSD_HS_TIMING << 16) |
-			  (1 << 8) |
-			  EXT_CSD_CMD_SET_NORMAL;
-		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+		if (host->caps & MMC_CAP_MMC_HIGHSPEED) {
+			/* Activate highspeed support. */
+			cmd.opcode = MMC_SWITCH;
+			cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
+				  (EXT_CSD_HS_TIMING << 16) |
+				  (1 << 8) |
+				  EXT_CSD_CMD_SET_NORMAL;
+			cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
 
-		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
-		if (err != MMC_ERR_NONE) {
-			printk("%s: failed to switch card to mmc v4 "
-			       "high-speed mode.\n",
-			       mmc_hostname(card->host));
-			continue;
+			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+			if (err != MMC_ERR_NONE) {
+				printk("%s: failed to switch card to mmc v4 "
+				       "high-speed mode.\n",
+				       mmc_hostname(card->host));
+				continue;
+			}
+
+			mmc_card_set_highspeed(card);
+
+			host->ios.timing = MMC_TIMING_SD_HS;
+			mmc_set_ios(host);
 		}
-
-		mmc_card_set_highspeed(card);
 
 		/* Check for host support for wide-bus modes. */
-		if (!(host->caps & MMC_CAP_4_BIT_DATA)) {
-			continue;
+		if (host->caps & MMC_CAP_4_BIT_DATA) {
+			/* Activate 4-bit support. */
+			cmd.opcode = MMC_SWITCH;
+			cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
+				  (EXT_CSD_BUS_WIDTH << 16) |
+				  (EXT_CSD_BUS_WIDTH_4 << 8) |
+				  EXT_CSD_CMD_SET_NORMAL;
+			cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+
+			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+			if (err != MMC_ERR_NONE) {
+				printk("%s: failed to switch card to "
+				       "mmc v4 4-bit bus mode.\n",
+				       mmc_hostname(card->host));
+				continue;
+			}
+
+			host->ios.bus_width = MMC_BUS_WIDTH_4;
+			mmc_set_ios(host);
 		}
-
-		/* Activate 4-bit support. */
-		cmd.opcode = MMC_SWITCH;
-		cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
-			  (EXT_CSD_BUS_WIDTH << 16) |
-			  (EXT_CSD_BUS_WIDTH_4 << 8) |
-			  EXT_CSD_CMD_SET_NORMAL;
-		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-
-		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
-		if (err != MMC_ERR_NONE) {
-			printk("%s: failed to switch card to "
-			       "mmc v4 4-bit bus mode.\n",
-			       mmc_hostname(card->host));
-			continue;
-		}
-
-		host->ios.bus_width = MMC_BUS_WIDTH_4;
 	}
 
 	kfree(ext_csd);
@@ -1240,6 +1247,9 @@ static void mmc_read_switch_caps(struct mmc_host *host)
 	struct mmc_data data;
 	unsigned char *status;
 	struct scatterlist sg;
+
+	if (!(host->caps & MMC_CAP_SD_HIGHSPEED))
+		return;
 
 	status = kmalloc(64, GFP_KERNEL);
 	if (!status) {
@@ -1332,6 +1342,9 @@ static void mmc_read_switch_caps(struct mmc_host *host)
 		}
 
 		mmc_card_set_highspeed(card);
+
+		host->ios.timing = MMC_TIMING_SD_HS;
+		mmc_set_ios(host);
 	}
 
 	kfree(status);
