@@ -28,6 +28,7 @@
 #include <linux/poll.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/idr.h>
 #include <linux/compat.h>
 #include <asm/uaccess.h>
 #include "fw-transaction.h"
@@ -103,7 +104,9 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	struct client *client;
 	unsigned long flags;
 
-	device = container_of(inode->i_cdev, struct fw_device, cdev);
+	device = fw_device_from_devt(inode->i_rdev);
+	if (device == NULL)
+		return -ENODEV;
 
 	client = kzalloc(sizeof *client, GFP_KERNEL);
 	if (client == NULL)

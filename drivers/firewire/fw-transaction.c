@@ -761,6 +761,12 @@ static int __init fw_core_init(void)
 	if (retval < 0)
 		return retval;
 
+	fw_cdev_major = register_chrdev(0, "firewire", &fw_device_ops);
+	if (fw_cdev_major < 0) {
+		bus_unregister(&fw_bus_type);
+		return fw_cdev_major;
+	}
+
 	/* Add the vendor textual descriptor. */
 	retval = fw_core_add_descriptor(&vendor_id_descriptor);
 	BUG_ON(retval < 0);
@@ -772,6 +778,7 @@ static int __init fw_core_init(void)
 
 static void __exit fw_core_cleanup(void)
 {
+	unregister_chrdev(fw_cdev_major, "firewire");
 	bus_unregister(&fw_bus_type);
 }
 

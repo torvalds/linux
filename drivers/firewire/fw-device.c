@@ -25,6 +25,7 @@
 #include <linux/kthread.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/idr.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
 #include "fw-device.h"
@@ -407,14 +408,31 @@ static int shutdown_unit(struct device *device, void *data)
 	return 0;
 }
 
+static DEFINE_IDR(fw_device_idr);
+int fw_cdev_major;
+
+struct fw_device *fw_device_from_devt(dev_t devt)
+{
+	struct fw_device *device;
+
+	down_read(&fw_bus_type.subsys.rwsem);
+	device = idr_find(&fw_device_idr, MINOR(devt));
+	up_read(&fw_bus_type.subsys.rwsem);
+
+	return device;
+}
+
 static void fw_device_shutdown(struct work_struct *work)
 {
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
+	int minor = MINOR(device->device.devt);
+
+	down_write(&fw_bus_type.subsys.rwsem);
+	idr_remove(&fw_device_idr, minor);
+	up_write(&fw_bus_type.subsys.rwsem);
 
 	device_remove_file(&device->device, &config_rom_attribute);
-	cdev_del(&device->cdev);
-	unregister_chrdev_region(device->device.devt, 1);
 	device_for_each_child(&device->device, NULL, shutdown_unit);
 	device_unregister(&device->device);
 }
@@ -434,9 +452,9 @@ static void fw_device_shutdown(struct work_struct *work)
 
 static void fw_device_init(struct work_struct *work)
 {
-	static atomic_t serial = ATOMIC_INIT(-1);
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
+	int minor, err;
 
 	/* All failure paths here set node->data to NULL, so that we
 	 * don't try to do device_for_each_child() on a kfree()'d
@@ -456,28 +474,24 @@ static void fw_device_init(struct work_struct *work)
 		return;
 	}
 
+	err = -ENOMEM;
+	down_write(&fw_bus_type.subsys.rwsem);
+	if (idr_pre_get(&fw_device_idr, GFP_KERNEL))
+		err = idr_get_new(&fw_device_idr, device, &minor);
+	up_write(&fw_bus_type.subsys.rwsem);
+	if (err < 0)
+		goto error;
+
 	device->device.bus = &fw_bus_type;
 	device->device.release = fw_device_release;
 	device->device.parent = device->card->device;
+	device->device.devt = MKDEV(fw_cdev_major, minor);
 	snprintf(device->device.bus_id, sizeof device->device.bus_id,
-		 "fw%d", atomic_inc_return(&serial));
-
-	if (alloc_chrdev_region(&device->device.devt, 0, 1, "fw")) {
-		fw_error("Failed to register char device region.\n");
-		goto error;
-	}
-
-	cdev_init(&device->cdev, &fw_device_ops);
-	device->cdev.owner = THIS_MODULE;
-	kobject_set_name(&device->cdev.kobj, device->device.bus_id);
-	if (cdev_add(&device->cdev, device->device.devt, 1)) {
-		fw_error("Failed to register char device.\n");
-		goto error;
-	}
+		 "fw%d", minor);
 
 	if (device_add(&device->device)) {
 		fw_error("Failed to add device.\n");
-		goto error;
+		goto error_with_cdev;
 	}
 
 	if (device_create_file(&device->device, &config_rom_attribute) < 0) {
@@ -513,9 +527,11 @@ static void fw_device_init(struct work_struct *work)
 
  error_with_device:
 	device_del(&device->device);
+ error_with_cdev:
+	down_write(&fw_bus_type.subsys.rwsem);
+	idr_remove(&fw_device_idr, minor);
+	up_write(&fw_bus_type.subsys.rwsem);
  error:
-	cdev_del(&device->cdev);
-	unregister_chrdev_region(device->device.devt, 1);
 	put_device(&device->device);
 }
 
