@@ -717,6 +717,8 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	int status;
 	size_t bytes;
 	u32 len;
+	struct page *dmatest_page;
+	dma_addr_t dmatest_bus;
 
 	/* try to send a reset command to the card to see if it
 	 * is alive */
@@ -726,6 +728,11 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 		dev_err(&mgp->pdev->dev, "failed reset\n");
 		return -ENXIO;
 	}
+	dmatest_page = alloc_page(GFP_KERNEL);
+	if (!dmatest_page)
+		return -ENOMEM;
+	dmatest_bus = pci_map_page(mgp->pdev, dmatest_page, 0, PAGE_SIZE,
+				   DMA_BIDIRECTIONAL);
 
 	/* Now exchange information about interrupts  */
 
@@ -764,8 +771,8 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 
 	len = mgp->tx.boundary;
 
-	cmd.data0 = MYRI10GE_LOWPART_TO_U32(mgp->rx_done.bus);
-	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(mgp->rx_done.bus);
+	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
 	cmd.data2 = len * 0x10000;
 	status = myri10ge_send_cmd(mgp, MXGEFW_DMA_TEST, &cmd, 0);
 	if (status == 0)
@@ -774,8 +781,8 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	else
 		dev_warn(&mgp->pdev->dev, "DMA read benchmark failed: %d\n",
 			 status);
-	cmd.data0 = MYRI10GE_LOWPART_TO_U32(mgp->rx_done.bus);
-	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(mgp->rx_done.bus);
+	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
 	cmd.data2 = len * 0x1;
 	status = myri10ge_send_cmd(mgp, MXGEFW_DMA_TEST, &cmd, 0);
 	if (status == 0)
@@ -785,8 +792,8 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 		dev_warn(&mgp->pdev->dev, "DMA write benchmark failed: %d\n",
 			 status);
 
-	cmd.data0 = MYRI10GE_LOWPART_TO_U32(mgp->rx_done.bus);
-	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(mgp->rx_done.bus);
+	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
 	cmd.data2 = len * 0x10001;
 	status = myri10ge_send_cmd(mgp, MXGEFW_DMA_TEST, &cmd, 0);
 	if (status == 0)
@@ -795,6 +802,9 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	else
 		dev_warn(&mgp->pdev->dev,
 			 "DMA read/write benchmark failed: %d\n", status);
+
+	pci_unmap_page(mgp->pdev, dmatest_bus, PAGE_SIZE, DMA_BIDIRECTIONAL);
+	put_page(dmatest_page);
 
 	memset(mgp->rx_done.entry, 0, bytes);
 
