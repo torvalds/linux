@@ -15,6 +15,7 @@
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/errno.h>
+#include <linux/interrupt.h>
 
 #include <asm/system.h>
 #include <asm/irq.h>
@@ -64,7 +65,7 @@ asmlinkage void trap44(void);
 asmlinkage void trap45(void);
 asmlinkage void trap46(void);
 asmlinkage void trap47(void);
-asmlinkage irqreturn_t bad_interrupt(int, void *, struct pt_regs *);
+asmlinkage irqreturn_t bad_interrupt(int, void *);
 asmlinkage irqreturn_t inthandler(void);
 asmlinkage irqreturn_t inthandler1(void);
 asmlinkage irqreturn_t inthandler2(void);
@@ -121,7 +122,7 @@ void init_IRQ(void)
 
 int request_irq(
 	unsigned int irq,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long flags,
 	const char *devname,
 	void *dev_id)
