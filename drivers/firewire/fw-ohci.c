@@ -1943,7 +1943,8 @@ static void pci_remove(struct pci_dev *dev)
 	struct fw_ohci *ohci;
 
 	ohci = pci_get_drvdata(dev);
-	reg_write(ohci, OHCI1394_IntMaskClear, OHCI1394_masterIntEnable);
+	reg_write(ohci, OHCI1394_IntMaskClear, ~0);
+	flush_writes(ohci);
 	fw_core_remove_card(&ohci->card);
 
 	/* FIXME: Fail all pending packets here, now that the upper
