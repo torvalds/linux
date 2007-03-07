@@ -664,7 +664,6 @@ static int snd_cs4231_trigger(struct snd_pcm_substream *substream, int cmd)
 		unsigned long flags;
 
 		snd_pcm_group_for_each_entry(s, substream) {
-			s = snd_pcm_group_substream_entry(pos);
 			if (s == chip->playback_substream) {
 				what |= CS4231_PLAYBACK_ENABLE;
 				snd_pcm_trigger_done(s, substream);
