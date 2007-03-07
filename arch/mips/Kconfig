@@ -167,6 +167,7 @@ config MIPS_COBALT
 	select IRQ_CPU
 	select MIPS_GT64111
 	select SYS_HAS_CPU_NEVADA
+	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
@@ -837,7 +838,6 @@ source "arch/mips/tx4927/Kconfig"
 source "arch/mips/tx4938/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
 source "arch/mips/philips/pnx8550/common/Kconfig"
-source "arch/mips/cobalt/Kconfig"
 
 endmenu
 

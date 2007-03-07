@@ -4,6 +4,8 @@
 #ifndef __ASM_SMTC_IPI_H
 #define __ASM_SMTC_IPI_H
 
+#include <linux/spinlock.h>
+
 //#define SMTC_IPI_DEBUG
 
 #ifdef SMTC_IPI_DEBUG

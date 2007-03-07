@@ -1,25 +1,14 @@
 /*
  * Malta Platform-specific hooks for SMP operation
  */
+#include <linux/init.h>
 
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/cpumask.h>
-#include <linux/interrupt.h>
-
-#include <asm/atomic.h>
-#include <asm/cpu.h>
-#include <asm/processor.h>
-#include <asm/system.h>
-#include <asm/hardirq.h>
-#include <asm/mmu_context.h>
-#include <asm/smp.h>
-#ifdef CONFIG_MIPS_MT_SMTC
+#include <asm/mipsregs.h>
+#include <asm/mipsmtregs.h>
+#include <asm/smtc.h>
 #include <asm/smtc_ipi.h>
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 /* VPE/SMP Prototype implements platform interfaces directly */
-#if !defined(CONFIG_MIPS_MT_SMP)
 
 /*
  * Cause the specified action to be performed on a targeted "CPU"
@@ -27,10 +16,8 @@
 
 void core_send_ipi(int cpu, unsigned int action)
 {
-/* "CPU" may be TC of same VPE, VPE of same CPU, or different CPU */
-#ifdef CONFIG_MIPS_MT_SMTC
+	/* "CPU" may be TC of same VPE, VPE of same CPU, or different CPU */
 	smtc_send_ipi(cpu, LINUX_SMP_IPI, action);
-#endif /* CONFIG_MIPS_MT_SMTC */
 }
 
 /*
@@ -39,9 +26,7 @@ void core_send_ipi(int cpu, unsigned int action)
 
 void prom_boot_secondary(int cpu, struct task_struct *idle)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
 	smtc_boot_secondary(cpu, idle);
-#endif /* CONFIG_MIPS_MT_SMTC */
 }
 
 /*
@@ -50,7 +35,6 @@ void prom_boot_secondary(int cpu, struct task_struct *idle)
 
 void prom_init_secondary(void)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
         void smtc_init_secondary(void);
 	int myvpe;
 
@@ -65,7 +49,6 @@ void prom_init_secondary(void)
 	}
 
         smtc_init_secondary();
-#endif /* CONFIG_MIPS_MT_SMTC */
 }
 
 /*
@@ -93,9 +76,7 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
 
 void prom_smp_finish(void)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
 	smtc_smp_finish();
-#endif /* CONFIG_MIPS_MT_SMTC */
 }
 
 /*
@@ -105,5 +86,3 @@ void prom_smp_finish(void)
 void prom_cpus_done(void)
 {
 }
-
-#endif /* CONFIG_MIPS32R2_MT_SMP */

@@ -6,6 +6,8 @@
 #ifndef __ASM_MIPS_MT_H
 #define __ASM_MIPS_MT_H
 
+#include <linux/cpumask.h>
+
 extern cpumask_t mt_fpu_cpumask;
 extern unsigned long mt_fpemul_threshold;
 

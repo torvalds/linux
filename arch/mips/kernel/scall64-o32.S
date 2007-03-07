@@ -519,4 +519,6 @@ sys_call_table:
 	PTR	compat_sys_kexec_load
 	PTR	sys_getcpu
 	PTR	compat_sys_epoll_pwait
+	PTR	sys_ioprio_set
+	PTR	sys_ioprio_get			/* 4315 */
 	.size	sys_call_table,.-sys_call_table

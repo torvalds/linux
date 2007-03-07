@@ -128,7 +128,6 @@ static inline void tx39_flush_cache_all(void)
 		return;
 
 	tx39_blast_dcache();
-	tx39_blast_icache();
 }
 
 static inline void tx39___flush_cache_all(void)
@@ -142,24 +141,19 @@ static void tx39_flush_cache_mm(struct mm_struct *mm)
 	if (!cpu_has_dc_aliases)
 		return;
 
-	if (cpu_context(smp_processor_id(), mm) != 0) {
-		tx39_flush_cache_all();
-	}
+	if (cpu_context(smp_processor_id(), mm) != 0)
+		tx39_blast_dcache();
 }
 
 static void tx39_flush_cache_range(struct vm_area_struct *vma,
 	unsigned long start, unsigned long end)
 {
-	int exec;
-
+	if (!cpu_has_dc_aliases)
+		return;
 	if (!(cpu_context(smp_processor_id(), vma->vm_mm)))
 		return;
 
-	exec = vma->vm_flags & VM_EXEC;
-	if (cpu_has_dc_aliases || exec)
-		tx39_blast_dcache();
-	if (exec)
-		tx39_blast_icache();
+	tx39_blast_dcache();
 }
 
 static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page, unsigned long pfn)
@@ -218,7 +212,7 @@ static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page
 
 static void local_tx39_flush_data_cache_page(void * addr)
 {
-	tx39_blast_dcache_page(addr);
+	tx39_blast_dcache_page((unsigned long)addr);
 }
 
 static void tx39_flush_data_cache_page(unsigned long addr)

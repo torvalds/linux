@@ -435,6 +435,8 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__cu_len;							\
 })
 
+extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
+
 #define __copy_to_user_inatomic(to,from,n)				\
 ({									\
 	void __user *__cu_to;						\
