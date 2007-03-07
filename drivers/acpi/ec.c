@@ -827,7 +827,6 @@ acpi_fake_ecdt_callback(acpi_handle handle,
 	status = acpi_evaluate_integer(handle, "_GPE", NULL, &ec_ecdt->gpe);
 	if (ACPI_FAILURE(status))
 		return status;
-	ec_ecdt->global_lock = TRUE;
 	ec_ecdt->handle = handle;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "GPE=0x%02lx, ports=0x%2lx, 0x%2lx",
@@ -901,8 +900,6 @@ static int __init acpi_ec_get_real_ecdt(void)
 	ec_ecdt->command_addr = ecdt_ptr->control.address;
 	ec_ecdt->data_addr = ecdt_ptr->data.address;
 	ec_ecdt->gpe = ecdt_ptr->gpe;
-	/* use the GL just to be safe */
-	ec_ecdt->global_lock = TRUE;
 	ec_ecdt->uid = ecdt_ptr->uid;
 
 	status = acpi_get_handle(NULL, ecdt_ptr->id, &ec_ecdt->handle);
