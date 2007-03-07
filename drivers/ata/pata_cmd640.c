@@ -23,7 +23,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_cmd640"
-#define DRV_VERSION "0.0.3"
+#define DRV_VERSION "0.0.5"
 
 struct cmd640_reg {
 	int last;
@@ -43,6 +43,7 @@ enum {
 
 /**
  *	cmd640_set_piomode	-	set initial PIO mode data
+ *	@ap: ATA port
  *	@adev: ATA device
  *
  *	Called to do the PIO mode setup.
@@ -106,7 +107,7 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		pci_write_config_byte(pdev, arttim + 1, (t.active << 4) | t.recover);
 	} else {
 		/* Save the shared timings for channel, they will be loaded
-		   by qc_issue_prot. Reloading the setup time is expensive
+		   by qc_issue_prot. Reloading the setup time is expensive 
 		   so we keep a merged one loaded */
 		pci_read_config_byte(pdev, ARTIM23, &reg);
 		reg &= 0x3F;
@@ -219,29 +220,20 @@ static struct ata_port_operations cmd640_port_ops = {
 	.port_start	= cmd640_port_start,
 };
 
-static int cmd640_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
+static void cmd640_hardware_init(struct pci_dev *pdev)
 {
 	u8 r;
 	u8 ctrl;
 
-	static struct ata_port_info info = {
-		.sht = &cmd640_sht,
-		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
-		.pio_mask = 0x1f,
-		.port_ops = &cmd640_port_ops
-	};
-
-	static struct ata_port_info *port_info[2] = { &info, &info };
-
 	/* CMD640 detected, commiserations */
-	pci_write_config_byte(pdev, 0x5C, 0x00);
+	pci_write_config_byte(pdev, 0x5B, 0x00);
 	/* Get version info */
 	pci_read_config_byte(pdev, CFR, &r);
 	/* PIO0 command cycles */
 	pci_write_config_byte(pdev, CMDTIM, 0);
 	/* 512 byte bursts (sector) */
 	pci_write_config_byte(pdev, BRST, 0x40);
-	/*
+	/* 
 	 * A reporter a long time ago
 	 * Had problems with the data fifo
 	 * So don't run the risk
@@ -255,12 +247,26 @@ static int cmd640_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_read_config_byte(pdev, ARTIM23, &ctrl);
 	ctrl |= 0x0C;
 	pci_write_config_byte(pdev, ARTIM23, ctrl);
+}
 
+static int cmd640_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	static struct ata_port_info info = {
+		.sht = &cmd640_sht,
+		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.pio_mask = 0x1f,
+		.port_ops = &cmd640_port_ops
+	};
+
+	static struct ata_port_info *port_info[2] = { &info, &info };
+
+	cmd640_hardware_init(pdev);
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 
 static int cmd640_reinit_one(struct pci_dev *pdev)
 {
+	cmd640_hardware_init(pdev);
 	return ata_pci_device_resume(pdev);
 }
 
