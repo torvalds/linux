@@ -452,8 +452,6 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 
 	wait_for_completion(&orb->done);
 
-	/* FIXME: Handle bus reset race here. */
-
 	retval = -EIO;
 	if (orb->base.rcode != RCODE_COMPLETE) {
 		fw_error("management write failed, rcode 0x%02x\n",
@@ -496,7 +494,6 @@ complete_agent_reset_write(struct fw_card *card, int rcode,
 {
 	struct fw_transaction *t = data;
 
-	fw_notify("agent reset write rcode=%d\n", rcode);
 	kfree(t);
 }
 
@@ -542,9 +539,6 @@ static void sbp2_login(struct work_struct *work)
 	if (sbp2_send_management_orb(unit, node_id, generation,
 				     SBP2_LOGIN_REQUEST, lun, &response) < 0) {
 		if (sd->retries++ < 5) {
-			fw_error("login attempt %d for %s failed, "
-				 "rescheduling\n",
-				 sd->retries, unit->device.bus_id);
 			schedule_delayed_work(&sd->work, DIV_ROUND_UP(HZ, 5));
 		} else {
 			fw_error("failed to login to %s\n",
@@ -560,16 +554,17 @@ static void sbp2_login(struct work_struct *work)
 
 	/* Get command block agent offset and login id. */
 	sd->command_block_agent_address =
-		((u64) response.command_block_agent.high << 32) |
+		((u64) (response.command_block_agent.high & 0xffff) << 32) |
 		response.command_block_agent.low;
 	sd->login_id = login_response_get_login_id(response);
 
-	fw_notify("logged in to sbp2 unit %s\n", unit->device.bus_id);
-	fw_notify(" - management_agent_address: 0x%012llx\n",
+	fw_notify("logged in to sbp2 unit %s (%d retries)\n",
+		  unit->device.bus_id, sd->retries);
+	fw_notify(" - management_agent_address:    0x%012llx\n",
 		  (unsigned long long) sd->management_agent_address);
 	fw_notify(" - command_block_agent_address: 0x%012llx\n",
 		  (unsigned long long) sd->command_block_agent_address);
-	fw_notify(" - status write address: 0x%012llx\n",
+	fw_notify(" - status write address:        0x%012llx\n",
 		  (unsigned long long) sd->address_handler.offset);
 
 #if 0
@@ -705,11 +700,7 @@ static void sbp2_reconnect(struct work_struct *work)
 	if (sbp2_send_management_orb(unit, node_id, generation,
 				     SBP2_RECONNECT_REQUEST,
 				     sd->login_id, NULL) < 0) {
-		if (sd->retries++ < 5) {
-			fw_error("reconnect attempt %d for %s failed, "
-				 "rescheduling\n",
-				 sd->retries, unit->device.bus_id);
-		} else {
+		if (sd->retries++ >= 5) {
 			fw_error("failed to reconnect to %s\n",
 				 unit->device.bus_id);
 			/* Fall back and try to log in again. */
@@ -724,7 +715,8 @@ static void sbp2_reconnect(struct work_struct *work)
 	sd->node_id      = node_id;
 	sd->address_high = local_node_id << 16;
 
-	fw_notify("reconnected to unit %s\n", unit->device.bus_id);
+	fw_notify("reconnected to unit %s (%d retries)\n",
+		  unit->device.bus_id, sd->retries);
 	sbp2_agent_reset(unit);
 	sbp2_cancel_orbs(unit);
 }
@@ -837,8 +829,6 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 		/* If the orb completes with status == NULL, something
 		 * went wrong, typically a bus reset happened mid-orb
 		 * or when sending the write (less likely). */
-		fw_notify("no command orb status, rcode=%d\n",
-			  orb->base.rcode);
 		result = DID_BUS_BUSY;
 	}
 
