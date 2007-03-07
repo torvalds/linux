@@ -2217,7 +2217,7 @@ int gfs2_create_debugfs_file(struct gfs2_sbd *sdp)
 
 void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp)
 {
-	if (sdp->debugfs_dentry)
+	if (sdp && sdp->debugfs_dentry)
 		debugfs_remove(sdp->debugfs_dentry);
 }
 
