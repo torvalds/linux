@@ -245,7 +245,6 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 
 	if (ip && S_ISREG(ip->i_inode.i_mode)) {
 		truncate_inode_pages(ip->i_inode.i_mapping, 0);
-		gfs2_assert_withdraw(GFS2_SB(&ip->i_inode), !ip->i_inode.i_mapping->nrpages);
 		clear_bit(GIF_PAGED, &ip->i_flags);
 	}
 }
@@ -459,6 +458,8 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 };
 
 const struct gfs2_glock_operations gfs2_rgrp_glops = {
+	.go_xmote_th = meta_go_sync,
+	.go_drop_th = meta_go_sync,
 	.go_inval = meta_go_inval,
 	.go_demote_ok = rgrp_go_demote_ok,
 	.go_lock = rgrp_go_lock,

@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/lm_interface.h>
 #include <linux/wait.h>
+#include <linux/module.h>
 #include <linux/rwsem.h>
 #include <asm/uaccess.h>
 
@@ -952,9 +953,6 @@ static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 		gh->gh_error = 0;
 		spin_unlock(&gl->gl_spin);
 	}
-
-	if (glops->go_drop_bh)
-		glops->go_drop_bh(gl);
 
 	spin_lock(&gl->gl_spin);
 	gl->gl_req_gh = NULL;

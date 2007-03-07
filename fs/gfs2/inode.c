@@ -43,7 +43,8 @@ static int iget_test(struct inode *inode, void *opaque)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_inum_host *inum = opaque;
 
-	if (ip->i_num.no_addr == inum->no_addr)
+	if (ip->i_num.no_addr == inum->no_addr &&
+	    inode->i_private != NULL)
 		return 1;
 
 	return 0;
@@ -61,13 +62,13 @@ static int iget_set(struct inode *inode, void *opaque)
 
 struct inode *gfs2_ilookup(struct super_block *sb, struct gfs2_inum_host *inum)
 {
-	return ilookup5(sb, (unsigned long)inum->no_formal_ino,
+	return ilookup5(sb, (unsigned long)inum->no_addr,
 			iget_test, inum);
 }
 
 static struct inode *gfs2_iget(struct super_block *sb, struct gfs2_inum_host *inum)
 {
-	return iget5_locked(sb, (unsigned long)inum->no_formal_ino,
+	return iget5_locked(sb, (unsigned long)inum->no_addr,
 		     iget_test, iget_set, inum);
 }
 
