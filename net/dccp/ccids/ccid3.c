@@ -545,12 +545,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/* set idle flag */
 		hctx->ccid3hctx_idle = 1;
 		break;
-	case TFRC_SSTATE_NO_SENT:
-		/*
-		 * XXX when implementing bidirectional rx/tx check this again
-		 */
-		DCCP_WARN("Illegal ACK received - no packet sent\n");
-		/* fall through */
+	case TFRC_SSTATE_NO_SENT:	/* fall through */
 	case TFRC_SSTATE_TERM:		/* ignore feedback when closing */
 		break;
 	}
