@@ -50,6 +50,7 @@
 #define CR_920T_ASYNC_MODE	0xC0000000
 
 static u32 mpctl0_at_boot;
+static u32 bclk_div_at_boot;
 
 static void imx_set_async_mode(void)
 {
@@ -182,7 +183,7 @@ static int imx_set_target(struct cpufreq_policy *policy,
 	unsigned long flags;
 	long freq;
 	long sysclk;
-	unsigned int bclk_div = 1;
+	unsigned int bclk_div = bclk_div_at_boot;
 
 	/*
 	 * Some governors do not respects CPU and policy lower limits
@@ -202,7 +203,7 @@ static int imx_set_target(struct cpufreq_policy *policy,
 
 	sysclk = imx_get_system_clk();
 
-	if (freq > sysclk + 1000000) {
+	if (freq > sysclk / bclk_div_at_boot + 1000000) {
 		freq = imx_compute_mpctl(&mpctl0, mpctl0_at_boot, freq, relation);
 		if (freq < 0) {
 			printk(KERN_WARNING "imx: target frequency %ld Hz cannot be set\n", freq);
@@ -217,6 +218,8 @@ static int imx_set_target(struct cpufreq_policy *policy,
 
 			if(bclk_div > 16)
 				bclk_div = 16;
+			if(bclk_div < bclk_div_at_boot)
+				bclk_div = bclk_div_at_boot;
 		}
 		freq = (sysclk + bclk_div / 2) / bclk_div;
 	}
@@ -285,7 +288,7 @@ static struct cpufreq_driver imx_driver = {
 
 static int __init imx_cpufreq_init(void)
 {
-
+	bclk_div_at_boot = __mfld2val(CSCR_BCLK_DIV, CSCR) + 1;
 	mpctl0_at_boot = 0;
 
 	if((CSCR & CSCR_MPEN) &&
