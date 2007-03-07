@@ -424,6 +424,17 @@ static int netdev_uevent(struct device *d, char **envp,
 	if ((size <= 0) || (i >= num_envp))
 		return -ENOMEM;
 
+	/* pass ifindex to uevent.
+	 * ifindex is useful as it won't change (interface name may change)
+	 * and is what RtNetlink uses natively. */
+	envp[i++] = buf;
+	n = snprintf(buf, size, "IFINDEX=%d", dev->ifindex) + 1;
+	buf += n;
+	size -= n;
+
+	if ((size <= 0) || (i >= num_envp))
+		return -ENOMEM;
+
 	envp[i] = NULL;
 	return 0;
 }

@@ -311,13 +311,43 @@ EXPORT_SYMBOL(kobject_set_name);
 int kobject_rename(struct kobject * kobj, const char *new_name)
 {
 	int error = 0;
+	const char *devpath = NULL;
+	char *devpath_string = NULL;
+	char *envp[2];
 
 	kobj = kobject_get(kobj);
 	if (!kobj)
 		return -EINVAL;
 	if (!kobj->parent)
 		return -EINVAL;
+
+	devpath = kobject_get_path(kobj, GFP_KERNEL);
+	if (!devpath) {
+		error = -ENOMEM;
+		goto out;
+	}
+	devpath_string = kmalloc(strlen(devpath) + 15, GFP_KERNEL);
+	if (!devpath_string) {
+		error = -ENOMEM;
+		goto out;
+	}
+	sprintf(devpath_string, "DEVPATH_OLD=%s", devpath);
+	envp[0] = devpath_string;
+	envp[1] = NULL;
+	/* Note : if we want to send the new name alone, not the full path,
+	 * we could probably use kobject_name(kobj); */
+
 	error = sysfs_rename_dir(kobj, kobj->parent->dentry, new_name);
+
+	/* This function is mostly/only used for network interface.
+	 * Some hotplug package track interfaces by their name and
+	 * therefore want to know when the name is changed by the user. */
+	if (!error)
+		kobject_uevent_env(kobj, KOBJ_MOVE, envp);
+
+out:
+	kfree(devpath_string);
+	kfree(devpath);
 	kobject_put(kobj);
 
 	return error;
