@@ -810,6 +810,7 @@ core99_ata100_enable(struct device_node *node, long value)
 	unsigned long flags;
 	struct pci_dev *pdev = NULL;
 	u8 pbus, pid;
+	int rc;
 
 	if (uninorth_rev < 0x24)
 		return -ENODEV;
@@ -828,7 +829,9 @@ core99_ata100_enable(struct device_node *node, long value)
 			pdev = pci_find_slot(pbus, pid);
 		if (pdev == NULL)
 			return 0;
-		pci_enable_device(pdev);
+		rc = pci_enable_device(pdev);
+		if (rc)
+			return rc;
 		pci_set_master(pdev);
 	}
 	return 0;
