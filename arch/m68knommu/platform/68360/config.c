@@ -16,6 +16,7 @@
 #include <linux/mm.h>
 #include <linux/tty.h>
 #include <linux/console.h>
+#include <linux/interrupt.h>
 
 #include <asm/setup.h>
 #include <asm/system.h>
@@ -50,7 +51,7 @@ extern unsigned long int system_clock; //In kernel setup.c
 
 extern void config_M68360_irq(void);
 
-void BSP_sched_init(void (*timer_routine)(int, void *, struct pt_regs *))
+void BSP_sched_init(irq_handler_t timer_routine)
 {
   unsigned char prescaler;
   unsigned short tgcr_save;
