@@ -240,30 +240,19 @@ BUILDSTRING(l, u32)
 static inline void memcpy_fromio(void * to, const volatile void __iomem *from,
 				 unsigned long count)
 {
-	char *p = to;
-	volatile const char __iomem *addr = from;
-
-	while (count--)
-		*p++ = readb(addr++);
+	memcpy(to, (const void __force *)from, count);
 }
 
 static inline void  memcpy_toio(volatile void __iomem *to, const void * from,
 				unsigned long count)
 {
-	const char *p = from;
-	volatile char __iomem *addr = to;
-
-	while (count--)
-		writeb(*p++, addr++);
+	memcpy((void __force *)to, from, count);
 }
 
 static inline void memset_io(volatile void __iomem *addr, unsigned char val,
 			     unsigned long count)
 {
-	volatile char __iomem *p = addr;
-
-	while (count--)
-		writeb(val, p++);
+	memset((void __force *)addr, val, count);
 }
 
 #define IO_SPACE_LIMIT	0xffffffff
