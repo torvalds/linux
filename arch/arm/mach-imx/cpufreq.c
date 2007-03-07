@@ -83,13 +83,13 @@ static void imx_set_mpctl0(u32 mpctl0)
  * imx_compute_mpctl - compute new PLL parameters
  * @new_mpctl:	pointer to location assigned by new PLL control register value
  * @cur_mpctl:	current PLL control register parameters
+ * @f_ref:	reference source frequency Hz
  * @freq:	required frequency in Hz
  * @relation:	is one of %CPUFREQ_RELATION_L (supremum)
  *		and %CPUFREQ_RELATION_H (infimum)
  */
-long imx_compute_mpctl(u32 *new_mpctl, u32 cur_mpctl, unsigned long freq, int relation)
+long imx_compute_mpctl(u32 *new_mpctl, u32 cur_mpctl, u32 f_ref, unsigned long freq, int relation)
 {
-        u32 f_ref = (CSCR & CSCR_SYSTEM_SEL) ? 16000000 : (CLK32 * 512);
         u32 mfi;
         u32 mfn;
         u32 mfd;
@@ -204,7 +204,7 @@ static int imx_set_target(struct cpufreq_policy *policy,
 	sysclk = imx_get_system_clk();
 
 	if (freq > sysclk / bclk_div_at_boot + 1000000) {
-		freq = imx_compute_mpctl(&mpctl0, mpctl0_at_boot, freq, relation);
+		freq = imx_compute_mpctl(&mpctl0, mpctl0_at_boot, CLK32 * 512, freq, relation);
 		if (freq < 0) {
 			printk(KERN_WARNING "imx: target frequency %ld Hz cannot be set\n", freq);
 			return -EINVAL;
