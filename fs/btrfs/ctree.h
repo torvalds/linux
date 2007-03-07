@@ -54,6 +54,7 @@ struct ctree_root {
 	struct tree_buffer *commit_root;
 	struct ctree_root *extent_root;
 	struct key current_insert;
+	struct key last_insert;
 	int fp;
 	struct radix_tree_root cache_radix;
 	struct radix_tree_root pinned_radix;

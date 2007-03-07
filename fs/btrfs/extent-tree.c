@@ -102,9 +102,12 @@ int btrfs_finish_extent_commit(struct ctree_root *root)
 						 ARRAY_SIZE(gang));
 		if (!ret)
 			break;
-		for (i = 0; i < ret; i++)
+		for (i = 0; i < ret; i++) {
 			radix_tree_delete(&extent_root->pinned_radix, gang[i]);
+		}
 	}
+	extent_root->last_insert.objectid = 0;
+	extent_root->last_insert.offset = 0;
 	return 0;
 }
 
@@ -170,6 +173,9 @@ int __free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 			radix_tree_preload_end();
 		}
 		ret = del_item(extent_root, &path);
+		if (root != extent_root &&
+		    extent_root->last_insert.objectid < blocknr)
+			extent_root->last_insert.objectid = blocknr;
 		if (ret)
 			BUG();
 	}
@@ -261,8 +267,11 @@ static int find_free_extent(struct ctree_root *orig_root, u64 num_blocks,
 	int start_found;
 	struct leaf *l;
 	struct ctree_root * root = orig_root->extent_root;
-	int total_needed = num_blocks + MAX_LEVEL * 3;
+	int total_needed = num_blocks;
 
+	total_needed += (node_level(root->node->node.header.flags) + 1) * 3;
+	if (root->last_insert.objectid > search_start)
+		search_start = root->last_insert.objectid;
 check_failed:
 	init_path(&path);
 	ins->objectid = search_start;
@@ -272,6 +281,9 @@ check_failed:
 	ret = search_slot(root, ins, &path, 0, 0);
 	if (ret < 0)
 		goto error;
+
+	if (path.slots[0] > 0)
+		path.slots[0]--;
 
 	while (1) {
 		l = &path.nodes[0]->leaf;
@@ -293,31 +305,21 @@ check_failed:
 			ins->offset = (u64)-1;
 			goto check_pending;
 		}
-		if (slot == 0) {
-			int last_slot = l->header.nritems - 1;
-			u64 span = l->items[last_slot].key.objectid;
-			span -= l->items[slot].key.objectid;
-			if (span + total_needed > last_slot - slot) {
-				path.slots[0] = last_slot + 1;
-				key = &l->items[last_slot].key;
-				last_block = key->objectid + key->offset;
-				start_found = 1;
-				continue;
-			}
-		}
 		key = &l->items[slot].key;
 		if (key->objectid >= search_start) {
 			if (start_found) {
+				if (last_block < search_start)
+					last_block = search_start;
 				hole_size = key->objectid - last_block;
 				if (hole_size > total_needed) {
 					ins->objectid = last_block;
 					ins->offset = hole_size;
 					goto check_pending;
 				}
-			} else
-				start_found = 1;
-			last_block = key->objectid + key->offset;
+			}
 		}
+		start_found = 1;
+		last_block = key->objectid + key->offset;
 		path.slots[0]++;
 	}
 	// FIXME -ENOSPC
@@ -335,9 +337,10 @@ check_pending:
 		}
 	}
 	BUG_ON(root->current_insert.offset);
-	root->current_insert.offset = total_needed;
+	root->current_insert.offset = total_needed - num_blocks;
 	root->current_insert.objectid = ins->objectid + num_blocks;
 	root->current_insert.flags = 0;
+	root->last_insert.objectid = ins->objectid;
 	ins->offset = num_blocks;
 	return 0;
 error:

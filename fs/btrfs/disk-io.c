@@ -186,6 +186,7 @@ static int __setup_root(struct ctree_root *root, struct ctree_root *extent_root,
 	root->commit_root = NULL;
 	root->node = read_tree_block(root, info->tree_root);
 	memset(&root->current_insert, 0, sizeof(root->current_insert));
+	memset(&root->last_insert, 0, sizeof(root->last_insert));
 	return 0;
 }
 
