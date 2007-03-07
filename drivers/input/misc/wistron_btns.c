@@ -324,6 +324,21 @@ static struct key_entry keymap_acer_travelmate_240[] = {
 	{ KE_END, 0 }
 };
 
+/* Wifi subsystem only activates the led. Therefore we need to pass
+ * wifi event as a normal key, then userspace can really change the wifi state.
+ * TODO we need to export led state to userspace (wifi and mail) */
+static struct key_entry keymap_acer_travelmate_610[] = {
+	{ KE_KEY, 0x01, KEY_HELP },
+	{ KE_KEY, 0x02, KEY_CONFIG },
+	{ KE_KEY, 0x11, KEY_PROG1 },
+	{ KE_KEY, 0x12, KEY_PROG2 },
+	{ KE_KEY, 0x13, KEY_PROG3 },
+	{ KE_KEY, 0x14, KEY_MAIL },
+	{ KE_KEY, 0x15, KEY_WWW },
+	{ KE_KEY, 0x40, KEY_WLAN }, /* Wifi */
+	{ KE_END, 0 }
+};
+
 static struct key_entry keymap_aopen_1559as[] = {
 	{ KE_KEY,  0x01, KEY_HELP },
 	{ KE_KEY,  0x06, KEY_PROG3 },
@@ -405,6 +420,15 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 2420"),
 		},
 		.driver_data = keymap_acer_travelmate_240
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Acer TravelMate 610",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ACER"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 610"),
+		},
+		.driver_data = keymap_acer_travelmate_610
 	},
 	{
 		.callback = dmi_matched,
