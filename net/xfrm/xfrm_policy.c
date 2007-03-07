@@ -735,12 +735,14 @@ EXPORT_SYMBOL(xfrm_policy_insert);
 
 struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 					  struct xfrm_selector *sel,
-					  struct xfrm_sec_ctx *ctx, int delete)
+					  struct xfrm_sec_ctx *ctx, int delete,
+					  int *err)
 {
 	struct xfrm_policy *pol, *ret;
 	struct hlist_head *chain;
 	struct hlist_node *entry;
 
+	*err = 0;
 	write_lock_bh(&xfrm_policy_lock);
 	chain = policy_hash_bysel(sel, sel->family, dir);
 	ret = NULL;
@@ -750,6 +752,11 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 		    xfrm_sec_ctx_match(ctx, pol->security)) {
 			xfrm_pol_hold(pol);
 			if (delete) {
+				*err = security_xfrm_policy_delete(pol);
+				if (*err) {
+					write_unlock_bh(&xfrm_policy_lock);
+					return pol;
+				}
 				hlist_del(&pol->bydst);
 				hlist_del(&pol->byidx);
 				xfrm_policy_count[dir]--;
@@ -768,12 +775,14 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 }
 EXPORT_SYMBOL(xfrm_policy_bysel_ctx);
 
-struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete)
+struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete,
+				     int *err)
 {
 	struct xfrm_policy *pol, *ret;
 	struct hlist_head *chain;
 	struct hlist_node *entry;
 
+	*err = 0;
 	write_lock_bh(&xfrm_policy_lock);
 	chain = xfrm_policy_byidx + idx_hash(id);
 	ret = NULL;
@@ -781,6 +790,11 @@ struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete)
 		if (pol->type == type && pol->index == id) {
 			xfrm_pol_hold(pol);
 			if (delete) {
+				*err = security_xfrm_policy_delete(pol);
+				if (*err) {
+					write_unlock_bh(&xfrm_policy_lock);
+					return pol;
+				}
 				hlist_del(&pol->bydst);
 				hlist_del(&pol->byidx);
 				xfrm_policy_count[dir]--;

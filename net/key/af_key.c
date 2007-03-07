@@ -2294,13 +2294,11 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	}
 
 	xp = xfrm_policy_bysel_ctx(XFRM_POLICY_TYPE_MAIN, pol->sadb_x_policy_dir-1,
-				   &sel, tmp.security, 1);
+				   &sel, tmp.security, 1, &err);
 	security_xfrm_policy_free(&tmp);
 
 	if (xp == NULL)
 		return -ENOENT;
-
-	err = security_xfrm_policy_delete(xp);
 
 	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
 		       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
@@ -2552,7 +2550,7 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 		return -EINVAL;
 
 	xp = xfrm_policy_byid(XFRM_POLICY_TYPE_MAIN, dir, pol->sadb_x_policy_id,
-			      hdr->sadb_msg_type == SADB_X_SPDDELETE2);
+			      hdr->sadb_msg_type == SADB_X_SPDDELETE2, &err);
 	if (xp == NULL)
 		return -ENOENT;
 
