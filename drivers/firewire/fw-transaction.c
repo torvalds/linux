@@ -140,7 +140,7 @@ transmit_complete_callback(struct fw_packet *packet,
 
 static void
 fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
-		int node_id, int generation, int speed,
+		int node_id, int source_id, int generation, int speed,
 		unsigned long long offset, void *payload, size_t length)
 {
 	int ext_tcode;
@@ -157,7 +157,7 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 		header_tcode(tcode) |
 		header_destination(node_id);
 	packet->header[1] =
-		header_offset_high(offset >> 32) | header_source(0);
+		header_offset_high(offset >> 32) | header_source(source_id);
 	packet->header[2] =
 		offset;
 
@@ -241,7 +241,7 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 		fw_transaction_callback_t callback, void *callback_data)
 {
 	unsigned long flags;
-	int tlabel;
+	int tlabel, source;
 
 	/* Bump the flush timer up 100ms first of all so we
 	 * don't race with a flush timer callback. */
@@ -253,6 +253,7 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 
 	spin_lock_irqsave(&card->lock, flags);
 
+	source = card->node_id;
 	tlabel = card->current_tlabel;
 	if (card->tlabel_mask & (1 << tlabel)) {
 		spin_unlock_irqrestore(&card->lock, flags);
@@ -274,7 +275,8 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 	t->callback_data = callback_data;
 
 	fw_fill_request(&t->packet, tcode, t->tlabel,
-			node_id, generation, speed, offset, payload, length);
+			node_id, source, generation,
+			speed, offset, payload, length);
 	t->packet.callback = transmit_complete_callback;
 
 	card->driver->send_request(card, &t->packet);
@@ -716,6 +718,44 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 }
 EXPORT_SYMBOL(fw_core_handle_response);
 
+const struct fw_address_region topology_map_region =
+	{ .start = 0xfffff0001000ull, .end = 0xfffff0001400ull, };
+
+static void
+handle_topology_map(struct fw_card *card, struct fw_request *request,
+		    int tcode, int destination, int source,
+		    int generation, int speed,
+		    unsigned long long offset,
+		    void *payload, size_t length, void *callback_data)
+{
+	int i, start, end;
+	u32 *map;
+
+	if (!TCODE_IS_READ_REQUEST(tcode)) {
+		fw_send_response(card, request, RCODE_TYPE_ERROR);
+		return;
+	}
+
+	if ((offset & 3) > 0 || (length & 3) > 0) {
+		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
+		return;
+	}
+
+	start = (offset - topology_map_region.start) / 4;
+	end = start + length / 4;
+	map = payload;
+
+	for (i = 0; i < length / 4; i++)
+		map[i] = cpu_to_be32(card->topology_map[start + i]);
+
+	fw_send_response(card, request, RCODE_COMPLETE);
+}
+
+static struct fw_address_handler topology_map = {
+	.length			= 0x400,
+	.address_callback	= handle_topology_map,
+};
+
 MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
 MODULE_DESCRIPTION("Core IEEE1394 transaction logic");
 MODULE_LICENSE("GPL");
@@ -766,6 +806,10 @@ static int __init fw_core_init(void)
 		bus_unregister(&fw_bus_type);
 		return fw_cdev_major;
 	}
+
+	retval = fw_core_add_address_handler(&topology_map,
+					     &topology_map_region);
+	BUG_ON(retval < 0);
 
 	/* Add the vendor textual descriptor. */
 	retval = fw_core_add_descriptor(&vendor_id_descriptor);

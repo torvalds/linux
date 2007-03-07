@@ -88,4 +88,7 @@ fw_node_put(struct fw_node *node)
 void
 fw_destroy_nodes(struct fw_card *card);
 
+u16
+crc16_itu_t(const u32 *buffer, size_t length);
+
 #endif /* __fw_topology_h */

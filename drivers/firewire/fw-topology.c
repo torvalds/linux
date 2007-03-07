@@ -163,11 +163,12 @@ static void update_hop_count(struct fw_node *node)
  * internally consistent.  On succcess this funtions returns the
  * fw_node corresponding to the local card otherwise NULL.
  */
-static struct fw_node *build_tree(struct fw_card *card)
+static struct fw_node *build_tree(struct fw_card *card,
+				  u32 *sid, int self_id_count)
 {
 	struct fw_node *node, *child, *local_node;
 	struct list_head stack, *h;
-	u32 *sid, *next_sid, *end, q;
+	u32 *next_sid, *end, q;
 	int i, port_count, child_port_count, phy_id, parent_count, stack_depth;
 	int gap_count, topology_type;
 
@@ -175,8 +176,7 @@ static struct fw_node *build_tree(struct fw_card *card)
 	node = NULL;
 	INIT_LIST_HEAD(&stack);
 	stack_depth = 0;
-	sid = card->self_ids;
-	end = sid + card->self_id_count;
+	end = sid + self_id_count;
 	phy_id = 0;
 	card->irm_node = NULL;
 	gap_count = self_id_gap_count(*sid);
@@ -460,6 +460,20 @@ update_tree(struct fw_card *card, struct fw_node *root)
 	}
 }
 
+static void
+update_topology_map(struct fw_card *card, u32 *self_ids, int self_id_count)
+{
+	int node_count;
+	u32 crc;
+
+	card->topology_map[1]++;
+	node_count = (card->root_node->node_id & 0x3f) + 1;
+	card->topology_map[2] = (node_count << 16) | self_id_count;
+	crc = crc16_itu_t(card->topology_map + 1, self_id_count + 2);
+	card->topology_map[0] = ((self_id_count + 2) << 16) | crc;
+	memcpy(&card->topology_map[3], self_ids, self_id_count * 4);
+}
+
 void
 fw_core_handle_bus_reset(struct fw_card *card,
 			 int node_id, int generation,
@@ -479,13 +493,13 @@ fw_core_handle_bus_reset(struct fw_card *card,
 		card->bm_retries = 0;
 
 	card->node_id = node_id;
-	card->self_id_count = self_id_count;
 	card->generation = generation;
-	memcpy(card->self_ids, self_ids, self_id_count * 4);
 	card->reset_jiffies = jiffies;
 	schedule_delayed_work(&card->work, 0);
 
-	local_node = build_tree(card);
+	local_node = build_tree(card, self_ids, self_id_count);
+
+	update_topology_map(card, self_ids, self_id_count);
 
 	card->color++;
 

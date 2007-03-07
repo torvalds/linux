@@ -30,7 +30,7 @@
  * polynomial, but we need the ITU-T (or CCITT) polynomial (0x1021).
  * The implementation below works on an array of host-endian u32
  * words, assuming they'll be transmited msb first. */
-static u16
+u16
 crc16_itu_t(const u32 *buffer, size_t length)
 {
 	int shift, i;

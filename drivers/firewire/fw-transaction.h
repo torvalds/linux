@@ -285,9 +285,10 @@ struct fw_card {
 	int link_speed;
 	int config_rom_generation;
 
-	/* We need to store up to 4 self ID for a maximum of 63 devices. */
+	/* We need to store up to 4 self ID for a maximum of 63
+	 * devices plus 3 words for the topology map header. */
 	int self_id_count;
-	u32 self_ids[252];
+	u32 topology_map[252 + 3];
 
 	spinlock_t lock; /* Take this lock when handling the lists in
 			  * this struct. */

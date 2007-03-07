@@ -813,8 +813,10 @@ handle_local_request(struct context *ctx, struct fw_packet *packet)
 	u64 offset;
 	u32 csr;
 
-	packet->ack = ACK_PENDING;
-	packet->callback(packet, &ctx->ohci->card, packet->ack);
+	if (ctx == &ctx->ohci->at_request_ctx) {
+		packet->ack = ACK_PENDING;
+		packet->callback(packet, &ctx->ohci->card, packet->ack);
+	}
 
 	offset =
 		((unsigned long long)
@@ -838,6 +840,11 @@ handle_local_request(struct context *ctx, struct fw_packet *packet)
 		else
 			fw_core_handle_response(&ctx->ohci->card, packet);
 		break;
+	}
+
+	if (ctx == &ctx->ohci->at_response_ctx) {
+		packet->ack = ACK_COMPLETE;
+		packet->callback(packet, &ctx->ohci->card, packet->ack);
 	}
 }
 
