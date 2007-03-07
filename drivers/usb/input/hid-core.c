@@ -686,10 +686,8 @@ void usbhid_init_reports(struct hid_device *hid)
 #define USB_DEVICE_ID_SMARTJOY_DUAL_PLUS 0x8802
 
 #define USB_VENDOR_ID_CODEMERCS		0x07c0
-#define USB_DEVICE_ID_CODEMERCS_IOW40	0x1500
-#define USB_DEVICE_ID_CODEMERCS_IOW24	0x1501
-#define USB_DEVICE_ID_CODEMERCS_IOW48	0x1502
-#define USB_DEVICE_ID_CODEMERCS_IOW28	0x1503
+#define USB_DEVICE_ID_CODEMERCS_IOW_FIRST	0x1500
+#define USB_DEVICE_ID_CODEMERCS_IOW_LAST	0x15ff
 
 #define USB_VENDOR_ID_DELORME		0x1163
 #define USB_DEVICE_ID_DELORME_EARTHMATE 0x0100
@@ -789,10 +787,6 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_AIRCABLE, USB_DEVICE_ID_AIRCABLE1, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_ALCOR, USB_DEVICE_ID_ALCOR_USBRS232, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_BERKSHIRE, USB_DEVICE_ID_BERKSHIRE_PCWD, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW40, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW24, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW48, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW28, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_HIDCOM, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_ULTRAMOUSE, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_DELORME, USB_DEVICE_ID_DELORME_EARTHMATE, HID_QUIRK_IGNORE },
@@ -1070,9 +1064,14 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	int n, len, insize = 0;
 	struct usbhid_device *usbhid;
 
-        /* Ignore all Wacom devices */
-        if (le16_to_cpu(dev->descriptor.idVendor) == USB_VENDOR_ID_WACOM)
-                return NULL;
+	/* Ignore all Wacom devices */
+	if (le16_to_cpu(dev->descriptor.idVendor) == USB_VENDOR_ID_WACOM)
+		return NULL;
+	/* ignore all Code Mercenaries IOWarrior devices */
+	if (le16_to_cpu(dev->descriptor.idVendor) == USB_VENDOR_ID_CODEMERCS)
+		if (le16_to_cpu(dev->descriptor.idProduct) >= USB_DEVICE_ID_CODEMERCS_IOW_FIRST &&
+		    le16_to_cpu(dev->descriptor.idProduct) <= USB_DEVICE_ID_CODEMERCS_IOW_LAST)
+			return NULL;
 
 	for (n = 0; hid_blacklist[n].idVendor; n++)
 		if ((hid_blacklist[n].idVendor == le16_to_cpu(dev->descriptor.idVendor)) &&
