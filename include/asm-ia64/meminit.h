@@ -17,10 +17,11 @@
  * 	- kernel code & data
  * 	- crash dumping code reserved region
  * 	- Kernel memory map built from EFI memory map
+ * 	- ELF core header
  *
  * More could be added if necessary
  */
-#define IA64_MAX_RSVD_REGIONS 7
+#define IA64_MAX_RSVD_REGIONS 8
 
 struct rsvd_region {
 	unsigned long start;	/* virtual address of beginning of element */
@@ -35,6 +36,9 @@ extern void reserve_memory (void);
 extern void find_initrd (void);
 extern int filter_rsvd_memory (unsigned long start, unsigned long end, void *arg);
 extern void efi_memmap_init(unsigned long *, unsigned long *);
+
+extern unsigned long vmcore_find_descriptor_size(unsigned long address);
+extern int reserve_elfcorehdr(unsigned long *start, unsigned long *end);
 
 /*
  * For rounding an address to the next IA64_GRANULE_SIZE or order
