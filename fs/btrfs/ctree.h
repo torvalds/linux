@@ -51,10 +51,12 @@ struct tree_buffer;
  */
 struct ctree_root {
 	struct tree_buffer *node;
+	struct tree_buffer *commit_root;
 	struct ctree_root *extent_root;
 	struct key current_insert;
 	int fp;
 	struct radix_tree_root cache_radix;
+	struct radix_tree_root pinned_radix;
 	struct list_head trans;
 	struct list_head cache;
 	int cache_size;
@@ -151,4 +153,6 @@ int del_item(struct ctree_root *root, struct ctree_path *path);
 int insert_item(struct ctree_root *root, struct key *key, void *data, int data_size);
 int next_leaf(struct ctree_root *root, struct ctree_path *path);
 int leaf_free_space(struct leaf *leaf);
+int btrfs_drop_snapshot(struct ctree_root *root, struct tree_buffer *snap);
+int btrfs_finish_extent_commit(struct ctree_root *root);
 #endif

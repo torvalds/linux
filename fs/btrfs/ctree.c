@@ -50,16 +50,17 @@ int btrfs_cow_block(struct ctree_root *root,
 	memcpy(&cow->node, &buf->node, sizeof(buf->node));
 	cow->node.header.blocknr = cow->blocknr;
 	*cow_ret = cow;
+	btrfs_inc_ref(root, buf);
 	if (buf == root->node) {
 		root->node = cow;
 		cow->count++;
+		if (buf != root->commit_root)
+			free_extent(root, buf->blocknr, 1);
 		tree_block_release(root, buf);
 	} else {
 		parent->node.blockptrs[parent_slot] = cow->blocknr;
 		BUG_ON(list_empty(&parent->dirty));
-	}
-	if (0 && root != root->extent_root && !is_leaf(cow->node.header.flags)) {
-		btrfs_inc_ref(root, cow);
+		free_extent(root, buf->blocknr, 1);
 	}
 	tree_block_release(root, buf);
 	return 0;
@@ -1018,7 +1019,6 @@ static int split_leaf(struct ctree_root *root, struct ctree_path *path,
 	slot = path->slots[0];
 	nritems = l->header.nritems;
 	mid = (nritems + 1)/ 2;
-
 	right_buffer = alloc_free_block(root);
 	BUG_ON(!right_buffer);
 	BUG_ON(mid == nritems);
@@ -1170,7 +1170,6 @@ static int del_ptr(struct ctree_root *root, struct ctree_path *path, int level,
 
 	node = &parent->node;
 	nritems = node->header.nritems;
-
 	if (slot != nritems -1) {
 		memmove(node->keys + slot, node->keys + slot + 1,
 			sizeof(struct key) * (nritems - slot - 1));

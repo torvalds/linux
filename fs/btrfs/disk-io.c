@@ -153,13 +153,24 @@ static int __commit_transaction(struct ctree_root *root)
 	return ret;
 }
 
-int commit_transaction(struct ctree_root *root)
+int commit_transaction(struct ctree_root *root, struct ctree_super_block *s)
 {
-	int ret;
+	int ret = 0;
+
 	ret = __commit_transaction(root);
 	if (!ret && root != root->extent_root)
 		ret = __commit_transaction(root->extent_root);
 	BUG_ON(ret);
+	if (root->commit_root != root->node) {
+		struct tree_buffer *snap = root->commit_root;
+		root->commit_root = root->node;
+		root->node->count++;
+		ret = btrfs_drop_snapshot(root, snap);
+		BUG_ON(ret);
+		tree_block_release(root, snap);
+	}
+        write_ctree_super(root, s);
+	btrfs_finish_extent_commit(root);
 	return ret;
 }
 
@@ -168,10 +179,13 @@ static int __setup_root(struct ctree_root *root, struct ctree_root *extent_root,
 {
 	INIT_LIST_HEAD(&root->trans);
 	INIT_LIST_HEAD(&root->cache);
+	root->cache_size = 0;
 	root->fp = fp;
 	root->node = NULL;
-	root->node = read_tree_block(root, info->tree_root);
 	root->extent_root = extent_root;
+	root->commit_root = NULL;
+	root->node = read_tree_block(root, info->tree_root);
+	memset(&root->current_insert, 0, sizeof(root->current_insert));
 	return 0;
 }
 
@@ -188,6 +202,8 @@ struct ctree_root *open_ctree(char *filename, struct ctree_super_block *super)
 		return NULL;
 	}
 	INIT_RADIX_TREE(&root->cache_radix, GFP_KERNEL);
+	INIT_RADIX_TREE(&root->pinned_radix, GFP_KERNEL);
+	INIT_RADIX_TREE(&extent_root->pinned_radix, GFP_KERNEL);
 	INIT_RADIX_TREE(&extent_root->cache_radix, GFP_KERNEL);
 	ret = pread(fp, super, sizeof(struct ctree_super_block),
 		     CTREE_SUPER_INFO_OFFSET(CTREE_BLOCKSIZE));
@@ -204,6 +220,8 @@ struct ctree_root *open_ctree(char *filename, struct ctree_super_block *super)
 	BUG_ON(ret < 0);
 	__setup_root(root, extent_root, &super->root_info, fp);
 	__setup_root(extent_root, extent_root, &super->extent_info, fp);
+	root->commit_root = root->node;
+	root->node->count++;
 	return root;
 }
 
@@ -236,9 +254,11 @@ static int drop_cache(struct ctree_root *root)
 	}
 	return 0;
 }
-int close_ctree(struct ctree_root *root)
+int close_ctree(struct ctree_root *root, struct ctree_super_block *s)
 {
-	commit_transaction(root);
+	commit_transaction(root, s);
+	__commit_transaction(root->extent_root);
+	write_ctree_super(root, s);
 	drop_cache(root->extent_root);
 	drop_cache(root);
 	BUG_ON(!list_empty(&root->trans));
@@ -249,6 +269,7 @@ int close_ctree(struct ctree_root *root)
 		tree_block_release(root, root->node);
 	if (root->extent_root->node)
 		tree_block_release(root->extent_root, root->extent_root->node);
+	tree_block_release(root, root->commit_root);
 	free(root);
 	printf("on close %d blocks are allocated\n", allocated_blocks);
 	return 0;

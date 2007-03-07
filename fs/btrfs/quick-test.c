@@ -19,7 +19,7 @@ int main(int ac, char **av) {
 	int i;
 	int num;
 	int ret;
-	int run_size = 1024;
+	int run_size = 100000;
 	int max_key =  100000000;
 	int tree_size = 0;
 	struct ctree_path path;
@@ -44,9 +44,9 @@ int main(int ac, char **av) {
 		if (!ret)
 			tree_size++;
 		free(buf);
+
 	}
-	write_ctree_super(root, &super);
-	close_ctree(root);
+	close_ctree(root, &super);
 
 	root = open_ctree("dbfile", &super);
 	printf("starting search\n");
@@ -65,8 +65,7 @@ int main(int ac, char **av) {
 		}
 		release_path(root, &path);
 	}
-	write_ctree_super(root, &super);
-	close_ctree(root);
+	close_ctree(root, &super);
 	root = open_ctree("dbfile", &super);
 	printf("node %p level %d total ptrs %d free spc %lu\n", root->node,
 	        node_level(root->node->node.header.flags),
@@ -90,8 +89,7 @@ int main(int ac, char **av) {
 		}
 		release_path(root, &path);
 	}
-	write_ctree_super(root, &super);
-	close_ctree(root);
+	close_ctree(root, &super);
 	root = open_ctree("dbfile", &super);
 	srand(128);
 	for (i = 0; i < run_size; i++) {
@@ -106,8 +104,7 @@ int main(int ac, char **av) {
 			tree_size++;
 		free(buf);
 	}
-	write_ctree_super(root, &super);
-	close_ctree(root);
+	close_ctree(root, &super);
 	root = open_ctree("dbfile", &super);
 	srand(128);
 	printf("starting search2\n");
@@ -156,10 +153,17 @@ int main(int ac, char **av) {
 		}
 		release_path(root, &path);
 	}
+	/*
+	printf("previous tree:\n");
+	print_tree(root, root->commit_root);
+	printf("map before commit\n");
+	print_tree(root->extent_root, root->extent_root->node);
+	*/
+	commit_transaction(root, &super);
 	printf("tree size is now %d\n", tree_size);
+	printf("root %p commit root %p\n", root->node, root->commit_root);
 	printf("map tree\n");
 	print_tree(root->extent_root, root->extent_root->node);
-	write_ctree_super(root, &super);
-	close_ctree(root);
+	close_ctree(root, &super);
 	return 0;
 }

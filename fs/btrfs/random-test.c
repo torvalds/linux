@@ -8,6 +8,7 @@
 #include "print-tree.h"
 
 int keep_running = 1;
+struct ctree_super_block super;
 
 static int setup_key(struct radix_tree_root *root, struct key *key, int exists)
 {
@@ -57,11 +58,6 @@ static int ins_one(struct ctree_root *root, struct radix_tree_root *radix)
 error:
 	printf("failed to insert %Lu\n", key.objectid);
 	return -1;
-}
-
-static int run_commit(struct ctree_root *root, struct radix_tree_root *radix)
-{
-	return commit_transaction(root);
 }
 
 static int insert_dup(struct ctree_root *root, struct radix_tree_root *radix)
@@ -210,7 +206,7 @@ static int fill_tree(struct ctree_root *root, struct radix_tree_root *radix,
 			goto out;
 		}
 		if (i % 1000 == 0) {
-			ret = commit_transaction(root);
+			ret = commit_transaction(root, &super);
 			if (ret) {
 				fprintf(stderr, "fill commit failed\n");
 				return ret;
@@ -229,7 +225,7 @@ out:
 static int bulk_op(struct ctree_root *root, struct radix_tree_root *radix)
 {
 	int ret;
-	int nr = rand() % 20000;
+	int nr = rand() % 5000;
 	static int run_nr = 0;
 
 	/* do the bulk op much less frequently */
@@ -247,7 +243,7 @@ static int bulk_op(struct ctree_root *root, struct radix_tree_root *radix)
 
 int (*ops[])(struct ctree_root *root, struct radix_tree_root *radix) =
 	{ ins_one, insert_dup, del_one, lookup_item,
-	  lookup_enoent, bulk_op, run_commit };
+	  lookup_enoent, bulk_op };
 
 static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
 {
@@ -314,7 +310,6 @@ int print_usage(void)
 int main(int ac, char **av)
 {
 	RADIX_TREE(radix, GFP_KERNEL);
-	struct ctree_super_block super;
 	struct ctree_root *root;
 	int i;
 	int ret;
@@ -365,8 +360,7 @@ int main(int ac, char **av)
 			printf("open & close, root level %d nritems %d\n",
 				node_level(root->node->node.header.flags),
 				root->node->node.header.nritems);
-			write_ctree_super(root, &super);
-			close_ctree(root);
+			close_ctree(root, &super);
 			root = open_ctree("dbfile", &super);
 		}
 		while(count--) {
@@ -380,7 +374,7 @@ int main(int ac, char **av)
 				err = ret;
 				goto out;
 			}
-			if (ops[op] == bulk_op || ops[op] == run_commit)
+			if (ops[op] == bulk_op)
 				break;
 			if (keep_running == 0) {
 				err = 0;
@@ -389,8 +383,7 @@ int main(int ac, char **av)
 		}
 	}
 out:
-	write_ctree_super(root, &super);
-	close_ctree(root);
+	close_ctree(root, &super);
 	return err;
 }
 

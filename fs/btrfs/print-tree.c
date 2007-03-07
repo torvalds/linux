@@ -21,9 +21,11 @@ void print_leaf(struct leaf *l)
 			item->key.objectid, item->key.flags, item->key.offset,
 			item->offset, item->size);
 		fflush(stdout);
-		printf("\t\titem data %.*s\n", item->size, l->data+item->offset);
+		printf("\t\titem data %.*s\n", item->size,
+			l->data+item->offset);
 		ei = (struct extent_item *)(l->data + item->offset);
-		printf("\t\textent data %u %Lu\n", ei->refs, ei->owner);
+		printf("\t\textent data refs %u owner %Lu\n", ei->refs,
+			ei->owner);
 		fflush(stdout);
 	}
 }

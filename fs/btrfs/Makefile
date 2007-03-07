@@ -1,7 +1,7 @@
 
 CC=gcc
 CFLAGS = -g -Wall
-headers = radix-tree.h ctree.h disk-io.h kerncompat.h print-tree.h
+headers = radix-tree.h ctree.h disk-io.h kerncompat.h print-tree.h list.h
 objects = ctree.o disk-io.o radix-tree.o mkfs.o extent-tree.o print-tree.o
 
 # if you don't have sparse installed, use ls instead
