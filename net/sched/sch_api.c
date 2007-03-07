@@ -1146,7 +1146,7 @@ reclassify:
 
 	for ( ; tp; tp = tp->next) {
 		if ((tp->protocol == protocol ||
-			tp->protocol == __constant_htons(ETH_P_ALL)) &&
+			tp->protocol == htons(ETH_P_ALL)) &&
 			(err = tp->classify(skb, tp, res)) >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
 			if ( TC_ACT_RECLASSIFY == err) {
