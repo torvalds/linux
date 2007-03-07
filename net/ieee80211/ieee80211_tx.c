@@ -225,7 +225,7 @@ static int ieee80211_classify(struct sk_buff *skb)
 	struct iphdr *ip;
 
 	eth = (struct ethhdr *)skb->data;
-	if (eth->h_proto != __constant_htons(ETH_P_IP))
+	if (eth->h_proto != htons(ETH_P_IP))
 		return 0;
 
 	ip = skb->nh.iph;
