@@ -290,6 +290,8 @@ static int ioctl_get_info(struct client *client, void __user *arg)
 			return -EFAULT;
 	}
 
+	get_info.card = client->device->card->index;
+
 	if (copy_to_user(arg, &get_info, sizeof get_info))
 		return -EFAULT;
 

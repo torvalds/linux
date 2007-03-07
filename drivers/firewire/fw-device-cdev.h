@@ -140,6 +140,9 @@ struct fw_cdev_get_info {
 	/* If non-zero, a fw_cdev_event_bus_reset struct will be
 	 * copied here with the current state of the bus. */
 	__u64 bus_reset;
+
+	/* The index of the card this devices belongs to. */
+	__u32 card;
 };
 
 struct fw_cdev_send_request {
