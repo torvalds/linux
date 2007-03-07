@@ -277,7 +277,7 @@ static unsigned char header3;
 static int read_frame(struct zr364xx_camera *cam, int framenum)
 {
 	int i, n, temp, head, size, actual_length;
-	unsigned char *ptr = NULL, *jpeg, swap;
+	unsigned char *ptr = NULL, *jpeg;
 
       redo:
 	/* hardware brightness */
@@ -308,12 +308,11 @@ static int read_frame(struct zr364xx_camera *cam, int framenum)
 		}
 
 		/* swap bytes if camera needs it */
-		if (cam->method == METHOD0)
-			for (i = 0; i < BUFFER_SIZE; i += 2) {
-				swap = cam->buffer[i];
-				cam->buffer[i] = cam->buffer[i + 1];
-				cam->buffer[i + 1] = swap;
-			}
+		if (cam->method == METHOD0) {
+			u16 *buf = (u16*)cam->buffer;
+			for (i = 0; i < BUFFER_SIZE/2; i++)
+				swab16s(buf + i);
+		}
 
 		/* write the JPEG header */
 		if (!head) {
