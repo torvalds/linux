@@ -76,7 +76,6 @@ struct client {
 	struct list_head request_list;
 	u32 request_serial;
 	struct list_head event_list;
-	struct semaphore event_list_sem;
 	wait_queue_head_t wait;
 
 	struct fw_iso_context *iso_context;
@@ -114,7 +113,6 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 
 	client->device = fw_device_get(device);
 	INIT_LIST_HEAD(&client->event_list);
-	sema_init(&client->event_list_sem, 0);
 	INIT_LIST_HEAD(&client->handler_list);
 	INIT_LIST_HEAD(&client->request_list);
 	spin_lock_init(&client->lock);
@@ -142,38 +140,41 @@ static void queue_event(struct client *client, struct event *event,
 	spin_lock_irqsave(&client->lock, flags);
 
 	list_add_tail(&event->link, &client->event_list);
-
-	up(&client->event_list_sem);
 	wake_up_interruptible(&client->wait);
 
 	spin_unlock_irqrestore(&client->lock, flags);
 }
 
-static int dequeue_event(struct client *client, char __user *buffer, size_t count)
+static int
+dequeue_event(struct client *client, char __user *buffer, size_t count)
 {
 	unsigned long flags;
 	struct event *event;
 	size_t size, total;
-	int i, retval = -EFAULT;
+	int i, retval;
 
-	if (down_interruptible(&client->event_list_sem) < 0)
-		return -EINTR;
+	retval = wait_event_interruptible(client->wait,
+					  !list_empty(&client->event_list) ||
+					  fw_device_is_shutdown(client->device));
+	if (retval < 0)
+		return retval;
+
+	if (list_empty(&client->event_list) &&
+		       fw_device_is_shutdown(client->device))
+		return -ENODEV;
 
 	spin_lock_irqsave(&client->lock, flags);
-
 	event = container_of(client->event_list.next, struct event, link);
 	list_del(&event->link);
-
 	spin_unlock_irqrestore(&client->lock, flags);
-
-	if (buffer == NULL)
-		goto out;
 
 	total = 0;
 	for (i = 0; i < ARRAY_SIZE(event->v) && total < count; i++) {
 		size = min(event->v[i].size, count - total);
-		if (copy_to_user(buffer + total, event->v[i].data, size))
+		if (copy_to_user(buffer + total, event->v[i].data, size)) {
+			retval = -EFAULT;
 			goto out;
+		}
 		total += size;
 	}
 	retval = total;
@@ -209,6 +210,22 @@ fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 }
 
 static void
+for_each_client(struct fw_device *device,
+		void (*callback)(struct client *client))
+{
+	struct fw_card *card = device->card;
+	struct client *c;
+	unsigned long flags;
+
+	spin_lock_irqsave(&card->lock, flags);
+
+	list_for_each_entry(c, &device->client_list, link)
+		callback(c);
+
+	spin_unlock_irqrestore(&card->lock, flags);
+}
+
+static void
 queue_bus_reset_event(struct client *client)
 {
 	struct bus_reset *bus_reset;
@@ -228,16 +245,17 @@ queue_bus_reset_event(struct client *client)
 
 void fw_device_cdev_update(struct fw_device *device)
 {
-	struct fw_card *card = device->card;
-	struct client *c;
-	unsigned long flags;
+	for_each_client(device, queue_bus_reset_event);
+}
 
-	spin_lock_irqsave(&card->lock, flags);
+static void wake_up_client(struct client *client)
+{
+	wake_up_interruptible(&client->wait);
+}
 
-	list_for_each_entry(c, &device->client_list, link)
-		queue_bus_reset_event(c);
-
-	spin_unlock_irqrestore(&card->lock, flags);
+void fw_device_cdev_remove(struct fw_device *device)
+{
+	for_each_client(device, wake_up_client);
 }
 
 static int ioctl_get_info(struct client *client, void __user *arg)
@@ -731,8 +749,9 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 static int fw_device_op_release(struct inode *inode, struct file *file)
 {
 	struct client *client = file->private_data;
-	struct address_handler *h, *next;
+	struct address_handler *h, *next_h;
 	struct request *r, *next_r;
+	struct event *e, *next_e;
 	unsigned long flags;
 
 	if (client->buffer.pages)
@@ -741,7 +760,7 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	if (client->iso_context)
 		fw_iso_context_destroy(client->iso_context);
 
-	list_for_each_entry_safe(h, next, &client->handler_list, link) {
+	list_for_each_entry_safe(h, next_h, &client->handler_list, link) {
 		fw_core_remove_address_handler(&h->handler);
 		kfree(h);
 	}
@@ -755,8 +774,8 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	/* TODO: wait for all transactions to finish so
 	 * complete_transaction doesn't try to queue up responses
 	 * after we free client. */
-	while (!list_empty(&client->event_list))
-		dequeue_event(client, NULL, 0);
+	list_for_each_entry_safe(e, next_e, &client->event_list, link)
+		kfree(e);
 
 	spin_lock_irqsave(&client->device->card->lock, flags);
 	list_del(&client->link);
@@ -771,13 +790,16 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 static unsigned int fw_device_op_poll(struct file *file, poll_table * pt)
 {
 	struct client *client = file->private_data;
+	unsigned int mask = 0;
 
 	poll_wait(file, &client->wait, pt);
 
+	if (fw_device_is_shutdown(client->device))
+		mask |= POLLHUP | POLLERR;
 	if (!list_empty(&client->event_list))
-		return POLLIN | POLLRDNORM;
-	else
-		return 0;
+		mask |= POLLIN | POLLRDNORM;
+
+	return mask;
 }
 
 const struct file_operations fw_device_ops = {

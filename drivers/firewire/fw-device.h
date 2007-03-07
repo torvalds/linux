@@ -53,11 +53,18 @@ fw_device(struct device *dev)
 	return container_of(dev, struct fw_device, device);
 }
 
+static inline int
+fw_device_is_shutdown(struct fw_device *device)
+{
+	return atomic_read(&device->state) == FW_DEVICE_SHUTDOWN;
+}
+
 struct fw_device *fw_device_get(struct fw_device *device);
 void fw_device_put(struct fw_device *device);
 int fw_device_enable_phys_dma(struct fw_device *device);
 
 void fw_device_cdev_update(struct fw_device *device);
+void fw_device_cdev_remove(struct fw_device *device);
 
 struct fw_device *fw_device_from_devt(dev_t devt);
 extern int fw_cdev_major;

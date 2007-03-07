@@ -453,6 +453,7 @@ static void fw_device_shutdown(struct work_struct *work)
 	idr_remove(&fw_device_idr, minor);
 	up_write(&fw_bus_type.subsys.rwsem);
 
+	fw_device_cdev_remove(device);
 	device_remove_file(&device->device, &config_rom_attribute);
 	device_for_each_child(&device->device, NULL, shutdown_unit);
 	device_unregister(&device->device);
