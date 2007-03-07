@@ -836,12 +836,6 @@ static void psmouse_set_rate(struct psmouse *psmouse, unsigned int rate)
 static void psmouse_initialize(struct psmouse *psmouse)
 {
 /*
- * We set the mouse into streaming mode.
- */
-
-	ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_SETSTREAM);
-
-/*
  * We set the mouse report rate, resolution and scaling.
  */
 
