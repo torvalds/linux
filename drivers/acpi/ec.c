@@ -599,7 +599,7 @@ static struct acpi_ec *make_acpi_ec(void)
 	if (!ec)
 		return NULL;
 
-	atomic_set(&ec->query_pending, 0);
+	atomic_set(&ec->query_pending, 1);
 	atomic_set(&ec->event_count, 1);
 	mutex_init(&ec->lock);
 	init_waitqueue_head(&ec->wait);
@@ -714,6 +714,9 @@ static int ec_install_handlers(struct acpi_ec *ec)
 		acpi_remove_gpe_handler(NULL, ec->gpe, &acpi_ec_gpe_handler);
 		return -ENODEV;
 	}
+
+	/* EC is fully operational, allow queries */
+	atomic_set(&ec->query_pending, 0);
 
 	return 0;
 }
