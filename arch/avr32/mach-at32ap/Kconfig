@@ -1,0 +1,7 @@
+if PLATFORM_AT32AP
+
+menu "Atmel AVR32 AP options"
+
+endmenu
+
+endif

@@ -116,6 +116,8 @@ config	LOADER_U_BOOT
 	bool "U-Boot (or similar) bootloader"
 endchoice
 
+source "arch/avr32/mach-at32ap/Kconfig"
+
 config LOAD_ADDRESS
 	hex
 	default 0x10000000 if LOADER_U_BOOT=y && CPU_AT32AP7000=y
