@@ -389,6 +389,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0x2929), board_ahci_pi }, /* ICH9M */
 	{ PCI_VDEVICE(INTEL, 0x292a), board_ahci_pi }, /* ICH9M */
 	{ PCI_VDEVICE(INTEL, 0x292b), board_ahci_pi }, /* ICH9M */
+	{ PCI_VDEVICE(INTEL, 0x292c), board_ahci_pi }, /* ICH9M */
 	{ PCI_VDEVICE(INTEL, 0x292f), board_ahci_pi }, /* ICH9M */
 	{ PCI_VDEVICE(INTEL, 0x294d), board_ahci_pi }, /* ICH9 */
 	{ PCI_VDEVICE(INTEL, 0x294e), board_ahci_pi }, /* ICH9M */
