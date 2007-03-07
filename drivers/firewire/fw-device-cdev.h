@@ -104,7 +104,7 @@ struct fw_cdev_event_iso_interrupt {
 	__u32 header[0];
 };
 
-#define FW_CDEV_IOC_GET_CONFIG_ROM	_IOR('#', 0x00, struct fw_cdev_get_config_rom)
+#define FW_CDEV_IOC_GET_INFO		_IO('#', 0x00)
 #define FW_CDEV_IOC_SEND_REQUEST	_IO('#', 0x01)
 #define FW_CDEV_IOC_ALLOCATE		_IO('#', 0x02)
 #define FW_CDEV_IOC_SEND_RESPONSE	_IO('#', 0x03)
@@ -114,9 +114,32 @@ struct fw_cdev_event_iso_interrupt {
 #define FW_CDEV_IOC_START_ISO		_IO('#', 0x07)
 #define FW_CDEV_IOC_STOP_ISO		_IO('#', 0x08)
 
-struct fw_cdev_get_config_rom {
-	__u32 length;
-	__u32 data[256];
+/* FW_CDEV_VERSION History
+ *
+ * 1	Feb 18, 2007:  Initial version.
+ */
+#define FW_CDEV_VERSION		1
+
+struct fw_cdev_get_info {
+	/* The version field is just a running serial number.  We
+	 * never break backwards compatibility.  Userspace passes in
+	 * the version it expects and the kernel passes back the
+	 * highest version it can provide.  Even if the structs in
+	 * this interface are extended in a later version, the kernel
+	 * will not copy back more data than what was present in the
+	 * interface version userspace expects. */
+	__u32 version;
+
+	/* If non-zero, at most rom_length bytes of config rom will be
+	 * copied into that user space address.  In either case,
+	 * rom_length is updated with the actual length of the config
+	 * rom. */
+	__u32 rom_length;
+	__u64 rom;
+
+	/* If non-zero, a fw_cdev_event_bus_reset struct will be
+	 * copied here with the current state of the bus. */
+	__u64 bus_reset;
 };
 
 struct fw_cdev_send_request {
