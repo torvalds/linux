@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsfs.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2004
+ *   Copyright (C) International Business Machines  Corp., 2002,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   Common Internet FileSystem (CIFS) client
@@ -47,7 +47,11 @@
 
 #ifdef CONFIG_CIFS_QUOTA
 static struct quotactl_ops cifs_quotactl_ops;
-#endif
+#endif /* QUOTA */
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+extern struct export_operations cifs_export_ops;
+#endif /* EXPERIMENTAL */
 
 int cifsFYI = 0;
 int cifsERROR = 1;
@@ -62,8 +66,8 @@ unsigned int extended_security = CIFSSEC_DEF;
 unsigned int sign_CIFS_PDUs = 1;
 extern struct task_struct * oplockThread; /* remove sparse warning */
 struct task_struct * oplockThread = NULL;
-extern struct task_struct * dnotifyThread; /* remove sparse warning */
-struct task_struct * dnotifyThread = NULL;
+/* extern struct task_struct * dnotifyThread; remove sparse warning */
+static struct task_struct * dnotifyThread = NULL;
 static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
@@ -110,6 +114,10 @@ cifs_read_super(struct super_block *sb, void *data,
 
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	if(experimEnabled != 0)
+		sb->s_export_op = &cifs_export_ops;
+#endif /* EXPERIMENTAL */	
 /*	if(cifs_sb->tcon->ses->server->maxBuf > MAX_CIFS_HDR_SIZE + 512)
 	    sb->s_blocksize = cifs_sb->tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE; */
 #ifdef CONFIG_CIFS_QUOTA

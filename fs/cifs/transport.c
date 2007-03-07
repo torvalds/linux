@@ -499,7 +499,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	   due to last connection to this server being unmounted */
 	if (signal_pending(current)) {
 		/* if signal pending do not hold up user for full smb timeout
-		but we still give response a change to complete */
+		but we still give response a chance to complete */
 		timeout = 2 * HZ;
 	}   
 
@@ -587,7 +587,6 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	}
 
 out:
-
 	DeleteMidQEntry(midQ);
 	atomic_dec(&ses->server->inFlight); 
 	wake_up(&ses->server->request_q);
@@ -681,7 +680,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	   due to last connection to this server being unmounted */
 	if (signal_pending(current)) {
 		/* if signal pending do not hold up user for full smb timeout
-		but we still give response a change to complete */
+		but we still give response a chance to complete */
 		timeout = 2 * HZ;
 	}   
 
@@ -765,7 +764,6 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	}
 
 out:
-
 	DeleteMidQEntry(midQ);
 	atomic_dec(&ses->server->inFlight); 
 	wake_up(&ses->server->request_q);

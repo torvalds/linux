@@ -879,18 +879,19 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 	cifs_stats_bytes_written(pTcon, total_written);
 
 	/* since the write may have blocked check these pointers again */
-	if (file->f_path.dentry) {
-		if (file->f_path.dentry->d_inode) {
-			struct inode *inode = file->f_path.dentry->d_inode;
-			inode->i_ctime = inode->i_mtime =
-				current_fs_time(inode->i_sb);
-			if (total_written > 0) {
-				if (*poffset > file->f_path.dentry->d_inode->i_size)
-					i_size_write(file->f_path.dentry->d_inode,
+	if ((file->f_path.dentry) && (file->f_path.dentry->d_inode)) {
+		struct inode *inode = file->f_path.dentry->d_inode;
+/* Do not update local mtime - server will set its actual value on write		
+ *		inode->i_ctime = inode->i_mtime = 
+ * 			current_fs_time(inode->i_sb);*/
+		if (total_written > 0) {
+			spin_lock(&inode->i_lock);
+			if (*poffset > file->f_path.dentry->d_inode->i_size)
+				i_size_write(file->f_path.dentry->d_inode,
 					*poffset);
-			}
-			mark_inode_dirty_sync(file->f_path.dentry->d_inode);
+			spin_unlock(&inode->i_lock);
 		}
+		mark_inode_dirty_sync(file->f_path.dentry->d_inode);	
 	}
 	FreeXid(xid);
 	return total_written;
@@ -1012,18 +1013,18 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	cifs_stats_bytes_written(pTcon, total_written);
 
 	/* since the write may have blocked check these pointers again */
-	if (file->f_path.dentry) {
-		if (file->f_path.dentry->d_inode) {
+	if ((file->f_path.dentry) && (file->f_path.dentry->d_inode)) {
 /*BB We could make this contingent on superblock ATIME flag too */
-/*			file->f_path.dentry->d_inode->i_ctime =
-			file->f_path.dentry->d_inode->i_mtime = CURRENT_TIME;*/
-			if (total_written > 0) {
-				if (*poffset > file->f_path.dentry->d_inode->i_size)
-					i_size_write(file->f_path.dentry->d_inode,
-						     *poffset);
-			}
-			mark_inode_dirty_sync(file->f_path.dentry->d_inode);
+/*		file->f_path.dentry->d_inode->i_ctime =
+		file->f_path.dentry->d_inode->i_mtime = CURRENT_TIME;*/
+		if (total_written > 0) {
+			spin_lock(&file->f_path.dentry->d_inode->i_lock);
+			if (*poffset > file->f_path.dentry->d_inode->i_size)
+				i_size_write(file->f_path.dentry->d_inode,
+					     *poffset);
+			spin_unlock(&file->f_path.dentry->d_inode->i_lock);
 		}
+		mark_inode_dirty_sync(file->f_path.dentry->d_inode);
 	}
 	FreeXid(xid);
 	return total_written;
@@ -1400,6 +1401,7 @@ static int cifs_commit_write(struct file *file, struct page *page,
 	xid = GetXid();
 	cFYI(1, ("commit write for page %p up to position %lld for %d", 
 		 page, position, to));
+	spin_lock(&inode->i_lock);
 	if (position > inode->i_size) {
 		i_size_write(inode, position);
 		/* if (file->private_data == NULL) {
@@ -1429,6 +1431,7 @@ static int cifs_commit_write(struct file *file, struct page *page,
 			cFYI(1, (" SetEOF (commit write) rc = %d", rc));
 		} */
 	}
+	spin_unlock(&inode->i_lock);
 	if (!PageUptodate(page)) {
 		position =  ((loff_t)page->index << PAGE_CACHE_SHIFT) + offset;
 		/* can not rely on (or let) writepage write this data */
@@ -1989,34 +1992,52 @@ static int cifs_prepare_write(struct file *file, struct page *page,
 	unsigned from, unsigned to)
 {
 	int rc = 0;
-        loff_t offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
-	cFYI(1, ("prepare write for page %p from %d to %d",page,from,to));
-	if (!PageUptodate(page)) {
-	/*	if (to - from != PAGE_CACHE_SIZE) {
-			void *kaddr = kmap_atomic(page, KM_USER0);
-			memset(kaddr, 0, from);
-			memset(kaddr + to, 0, PAGE_CACHE_SIZE - to);
-			flush_dcache_page(page);
-			kunmap_atomic(kaddr, KM_USER0);
-		} */
-		/* If we are writing a full page it will be up to date,
-		   no need to read from the server */
-		if ((to == PAGE_CACHE_SIZE) && (from == 0))
-			SetPageUptodate(page);
+	loff_t i_size;
+	loff_t offset;
 
-		/* might as well read a page, it is fast enough */
-		if ((file->f_flags & O_ACCMODE) != O_WRONLY) {
-			rc = cifs_readpage_worker(file, page, &offset);
-		} else {
-		/* should we try using another file handle if there is one -
-		   how would we lock it to prevent close of that handle
-		   racing with this read?
-		   In any case this will be written out by commit_write */
-		}
+	cFYI(1, ("prepare write for page %p from %d to %d",page,from,to));
+	if (PageUptodate(page))
+		return 0;
+
+	/* If we are writing a full page it will be up to date,
+	   no need to read from the server */
+	if ((to == PAGE_CACHE_SIZE) && (from == 0)) {
+		SetPageUptodate(page);
+		return 0;
 	}
 
-	/* BB should we pass any errors back? 
-	   e.g. if we do not have read access to the file */
+	offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
+	i_size = i_size_read(page->mapping->host);
+
+	if ((offset >= i_size) ||
+	    ((from == 0) && (offset + to) >= i_size)) {
+		/*
+		 * We don't need to read data beyond the end of the file.
+		 * zero it, and set the page uptodate
+		 */
+		void *kaddr = kmap_atomic(page, KM_USER0);
+
+		if (from)
+			memset(kaddr, 0, from);
+		if (to < PAGE_CACHE_SIZE)
+			memset(kaddr + to, 0, PAGE_CACHE_SIZE - to);
+		flush_dcache_page(page);
+		kunmap_atomic(kaddr, KM_USER0);
+		SetPageUptodate(page);
+	} else if ((file->f_flags & O_ACCMODE) != O_WRONLY) {
+		/* might as well read a page, it is fast enough */
+		rc = cifs_readpage_worker(file, page, &offset);
+	} else {
+		/* we could try using another file handle if there is one -
+		   but how would we lock it to prevent close of that handle
+		   racing with this read? In any case
+		   this will be written out by commit_write so is fine */
+	}
+
+	/* we do not need to pass errors back 
+	   e.g. if we do not have read access to the file 
+	   because cifs_commit_write will do the right thing.  -- shaggy */
+
 	return 0;
 }
 

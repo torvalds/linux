@@ -143,10 +143,10 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		inode->i_gid = le64_to_cpu(findData.Gid);
 		inode->i_nlink = le64_to_cpu(findData.Nlinks);
 
+		spin_lock(&inode->i_lock);
 		if (is_size_safe_to_change(cifsInfo, end_of_file)) {
 		/* can not safely change the file size here if the
 		   client is writing to it due to potential races */
-
 			i_size_write(inode, end_of_file);
 
 		/* blksize needs to be multiple of two. So safer to default to
@@ -162,6 +162,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		/* for this calculation */
 			inode->i_blocks = (512 - 1 + num_of_bytes) >> 9;
 		}
+		spin_unlock(&inode->i_lock);
 
 		if (num_of_bytes < end_of_file)
 			cFYI(1, ("allocation size less than end of file"));
@@ -496,6 +497,8 @@ int cifs_get_inode_info(struct inode **pinode,
 		/* BB add code here -
 		   validate if device or weird share or device type? */
 		}
+		
+		spin_lock(&inode->i_lock);
 		if (is_size_safe_to_change(cifsInfo, le64_to_cpu(pfindData->EndOfFile))) {
 			/* can not safely shrink the file size here if the
 			   client is writing to it due to potential races */
@@ -506,6 +509,7 @@ int cifs_get_inode_info(struct inode **pinode,
 			inode->i_blocks = (512 - 1 + le64_to_cpu(
 					   pfindData->AllocationSize)) >> 9;
 		}
+		spin_unlock(&inode->i_lock);
 
 		inode->i_nlink = le32_to_cpu(pfindData->NumberOfLinks);
 
@@ -834,8 +838,10 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 
 	if (!rc) {
 		drop_nlink(inode);
+		spin_lock(&direntry->d_inode->i_lock);
 		i_size_write(direntry->d_inode,0);
 		clear_nlink(direntry->d_inode);
+		spin_unlock(&direntry->d_inode->i_lock);
 	}
 
 	cifsInode = CIFS_I(direntry->d_inode);
@@ -1128,6 +1134,52 @@ static int cifs_truncate_page(struct address_space *mapping, loff_t from)
 	return rc;
 }
 
+static int cifs_vmtruncate(struct inode * inode, loff_t offset)
+{
+	struct address_space *mapping = inode->i_mapping;
+	unsigned long limit;
+
+	spin_lock(&inode->i_lock);
+	if (inode->i_size < offset)
+		goto do_expand;
+	/*
+	 * truncation of in-use swapfiles is disallowed - it would cause
+	 * subsequent swapout to scribble on the now-freed blocks.
+	 */
+	if (IS_SWAPFILE(inode)) {
+		spin_unlock(&inode->i_lock);
+		goto out_busy;
+	}
+	i_size_write(inode, offset);
+	spin_unlock(&inode->i_lock);
+	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
+	truncate_inode_pages(mapping, offset);
+	goto out_truncate;
+
+do_expand:
+	limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
+	if (limit != RLIM_INFINITY && offset > limit) {
+		spin_unlock(&inode->i_lock);
+		goto out_sig;
+	}
+	if (offset > inode->i_sb->s_maxbytes) {
+		spin_unlock(&inode->i_lock);
+		goto out_big;
+	}
+	i_size_write(inode, offset);
+	spin_unlock(&inode->i_lock);
+out_truncate:
+	if (inode->i_op && inode->i_op->truncate)
+		inode->i_op->truncate(inode);
+	return 0;
+out_sig:
+	send_sig(SIGXFSZ, current, 0);
+out_big:
+	return -EFBIG;
+out_busy:
+	return -ETXTBSY;
+}
+
 int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 {
 	int xid;
@@ -1244,7 +1296,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		   */
 
 		if (rc == 0) {
-			rc = vmtruncate(direntry->d_inode, attrs->ia_size);
+			rc = cifs_vmtruncate(direntry->d_inode, attrs->ia_size);
 			cifs_truncate_page(direntry->d_inode->i_mapping,
 					   direntry->d_inode->i_size);
 		} else 
@@ -1379,9 +1431,11 @@ cifs_setattr_exit:
 	return rc;
 }
 
+#if 0
 void cifs_delete_inode(struct inode *inode)
 {
 	cFYI(1, ("In cifs_delete_inode, inode = 0x%p", inode));
 	/* may have to add back in if and when safe distributed caching of
 	   directories added e.g. via FindNotify */
 }
+#endif

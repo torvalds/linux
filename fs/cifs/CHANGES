@@ -1,3 +1,10 @@
+Verison 1.48
+------------
+Fix mtime bouncing around from local idea of last write times to remote time.
+Fix hang (in i_size_read) when simultaneous size update of same remote file
+on smp system corrupts sequence number. Do not reread unnecessarily partial page
+(which we are about to overwrite anyway) when writing out file opened rw.
+
 Version 1.47
 ------------
 Fix oops in list_del during mount caused by unaligned string.

@@ -18,7 +18,9 @@ better)
 
 d) Kerberos/SPNEGO session setup support - (started)
 
-e) NTLMv2 authentication (mostly implemented)
+e) NTLMv2 authentication (mostly implemented - double check
+that NTLMv2 signing works, also need to cleanup now unneeded SessSetup code in
+fs/cifs/connect.c)
 
 f) MD5-HMAC signing SMB PDUs when SPNEGO style SessionSetup 
 used (Kerberos or NTLMSSP). Signing alreadyimplemented for NTLM
@@ -88,11 +90,12 @@ w) Finish up the dos time conversion routines needed to return old server
 time to the client (default time, of now or time 0 is used now for these 
 very old servers)
 
-x) Add support for OS/2 (LANMAN 1.2 and LANMAN2.1 based SMB servers)
+x) In support for OS/2 (LANMAN 1.2 and LANMAN2.1 based SMB servers) 
+need to add ability to set time to server (utimes command)
 
 y) Finish testing of Windows 9x/Windows ME server support (started).
 
-KNOWN BUGS (updated April 29, 2005)
+KNOWN BUGS (updated February 26, 2007)
 ====================================
 See http://bugzilla.samba.org - search on product "CifsVFS" for
 current bug list.
@@ -107,11 +110,6 @@ but recognizes them
 succeed but still return access denied (appears to be Windows 
 server not cifs client problem) and has not been reproduced recently.
 NTFS partitions do not have this problem.
-4) debug connectathon lock test case 10 which fails against
-Samba (may be unmappable due to POSIX to Windows lock model
-differences but worth investigating).  Also debug Samba to 
-see why lock test case 7 takes longer to complete to Samba
-than to Windows.
 
 Misc testing to do
 ==================
@@ -119,7 +117,7 @@ Misc testing to do
 types. Try nested symlinks (8 deep). Return max path name in stat -f information
 
 2) Modify file portion of ltp so it can run against a mounted network
-share and run it against cifs vfs.
+share and run it against cifs vfs in automated fashion.
 
 3) Additional performance testing and optimization using iozone and similar - 
 there are some easy changes that can be done to parallelize sequential writes,
