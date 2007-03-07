@@ -74,7 +74,7 @@ static void tcp_yeah_pkts_acked(struct sock *sk, u32 pkts_acked)
 }
 
 static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack,
-				 u32 seq_rtt, u32 in_flight, int flag)
+				u32 seq_rtt, u32 in_flight, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct yeah *yeah = inet_csk_ca(sk);
@@ -142,8 +142,8 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack,
 		 */
 
 		if (yeah->cntRTT > 2) {
-			u32 rtt;
-			u32 queue, maxqueue;
+			u32 rtt, queue;
+			u64 bw;
 
 			/* We have enough RTT samples, so, using the Vegas
 			 * algorithm, we determine if we should increase or
@@ -158,32 +158,36 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack,
 			 */
 			rtt = yeah->minRTT;
 
-			queue = (u32)div64_64((u64)tp->snd_cwnd * (rtt - yeah->baseRTT), rtt);
+			/* Compute excess number of packets above bandwidth
+			 * Avoid doing full 64 bit divide.
+			 */
+			bw = tp->snd_cwnd;
+			bw *= rtt - yeah->baseRTT;
+			do_div(bw, rtt);
+			queue = bw;
 
-			maxqueue = TCP_YEAH_ALPHA;
-
-			if (queue > maxqueue ||
-				    rtt - yeah->baseRTT > (yeah->baseRTT / TCP_YEAH_PHY)) {
-
-				if (queue > maxqueue && tp->snd_cwnd > yeah->reno_count) {
-					u32 reduction = min( queue / TCP_YEAH_GAMMA ,
-					                 tp->snd_cwnd >> TCP_YEAH_EPSILON );
+			if (queue > TCP_YEAH_ALPHA ||
+			    rtt - yeah->baseRTT > (yeah->baseRTT / TCP_YEAH_PHY)) {
+				if (queue > TCP_YEAH_ALPHA
+				    && tp->snd_cwnd > yeah->reno_count) {
+					u32 reduction = min(queue / TCP_YEAH_GAMMA ,
+							    tp->snd_cwnd >> TCP_YEAH_EPSILON);
 
 					tp->snd_cwnd -= reduction;
 
-					tp->snd_cwnd = max( tp->snd_cwnd, yeah->reno_count);
+					tp->snd_cwnd = max(tp->snd_cwnd,
+							   yeah->reno_count);
 
 					tp->snd_ssthresh = tp->snd_cwnd;
-			}
+				}
 
 				if (yeah->reno_count <= 2)
-					yeah->reno_count = max( tp->snd_cwnd>>1, 2U);
+					yeah->reno_count = max(tp->snd_cwnd>>1, 2U);
 				else
 					yeah->reno_count++;
 
-				yeah->doing_reno_now =
-					           min_t( u32, yeah->doing_reno_now + 1 , 0xffffff);
-
+				yeah->doing_reno_now = min(yeah->doing_reno_now + 1,
+							   0xffffffU);
 			} else {
 				yeah->fast_count++;
 
