@@ -230,6 +230,22 @@ static struct device_attribute config_rom_attribute = {
 	.show = show_config_rom_attribute,
 };
 
+static ssize_t
+show_rom_index_attribute(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	struct fw_device *device = fw_device(dev->parent);
+	struct fw_unit *unit = fw_unit(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			unit->directory - device->config_rom);
+}
+
+static struct device_attribute rom_index_attribute = {
+	.attr = { .name = "rom_index", .mode = S_IRUGO, },
+	.show = show_rom_index_attribute,
+};
+
 struct read_quadlet_callback_data {
 	struct completion done;
 	int rcode;
@@ -390,6 +406,11 @@ static void create_units(struct fw_device *device)
 		}
 
 		if (device_create_file(&unit->device, &modalias_attribute) < 0) {
+			device_unregister(&unit->device);
+			kfree(unit);
+		}
+
+		if (device_create_file(&unit->device, &rom_index_attribute) < 0) {
 			device_unregister(&unit->device);
 			kfree(unit);
 		}
