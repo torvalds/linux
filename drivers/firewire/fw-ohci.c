@@ -139,6 +139,7 @@ struct fw_ohci {
 	int node_id;
 	int generation;
 	int request_generation;
+	u32 bus_seconds;
 
 	/* Spinlock for accessing fw_ohci data.  Never call out of
 	 * this driver with this lock held. */
@@ -959,7 +960,7 @@ static void bus_reset_tasklet(unsigned long data)
 static irqreturn_t irq_handler(int irq, void *data)
 {
 	struct fw_ohci *ohci = data;
-	u32 event, iso_event;
+	u32 event, iso_event, cycle_time;
 	int i;
 
 	event = reg_read(ohci, OHCI1394_IntEventClear);
@@ -1000,6 +1001,12 @@ static irqreturn_t irq_handler(int irq, void *data)
 		i = ffs(iso_event) - 1;
 		tasklet_schedule(&ohci->it_context_list[i].context.tasklet);
 		iso_event &= ~(1 << i);
+	}
+
+	if (event & OHCI1394_cycle64Seconds) {
+		cycle_time = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
+		if ((cycle_time & 0x80000000) == 0)
+			ohci->bus_seconds++;
 	}
 
 	return IRQ_HANDLED;
@@ -1211,6 +1218,19 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
  out:
 	spin_unlock_irqrestore(&ohci->lock, flags);
 	return retval;
+}
+
+static u64
+ohci_get_bus_time(struct fw_card *card)
+{
+	struct fw_ohci *ohci = fw_ohci(card);
+	u32 cycle_time;
+	u64 bus_time;
+
+	cycle_time = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
+	bus_time = ((u64) ohci->bus_seconds << 32) | cycle_time;
+
+	return bus_time;
 }
 
 static int handle_ir_bufferfill_packet(struct context *context,
@@ -1686,6 +1706,7 @@ static const struct fw_card_driver ohci_driver = {
 	.send_response		= ohci_send_response,
 	.cancel_packet		= ohci_cancel_packet,
 	.enable_phys_dma	= ohci_enable_phys_dma,
+	.get_bus_time		= ohci_get_bus_time,
 
 	.allocate_iso_context	= ohci_allocate_iso_context,
 	.free_iso_context	= ohci_free_iso_context,
@@ -1862,7 +1883,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		  OHCI1394_RQPkt | OHCI1394_RSPkt |
 		  OHCI1394_reqTxComplete | OHCI1394_respTxComplete |
 		  OHCI1394_isochRx | OHCI1394_isochTx |
-		  OHCI1394_masterIntEnable);
+		  OHCI1394_masterIntEnable |
+		  OHCI1394_cycle64Seconds);
 
 	bus_options = reg_read(ohci, OHCI1394_BusOptions);
 	max_receive = (bus_options >> 12) & 0xf;

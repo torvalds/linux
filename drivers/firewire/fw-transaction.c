@@ -752,8 +752,63 @@ handle_topology_map(struct fw_card *card, struct fw_request *request,
 }
 
 static struct fw_address_handler topology_map = {
-	.length			= 0x400,
+	.length			= 0x200,
 	.address_callback	= handle_topology_map,
+};
+
+const struct fw_address_region registers_region =
+	{ .start = 0xfffff0000000ull, .end = 0xfffff0000400ull, };
+
+static void
+handle_registers(struct fw_card *card, struct fw_request *request,
+		 int tcode, int destination, int source,
+		 int generation, int speed,
+		 unsigned long long offset,
+		 void *payload, size_t length, void *callback_data)
+{
+	int reg = offset - CSR_REGISTER_BASE;
+	unsigned long long bus_time;
+	__be32 *data = payload;
+
+	switch (reg) {
+	case CSR_CYCLE_TIME:
+	case CSR_BUS_TIME:
+		if (!TCODE_IS_READ_REQUEST(tcode) || length != 4) {
+			fw_send_response(card, request, RCODE_TYPE_ERROR);
+			break;
+		}
+
+		bus_time = card->driver->get_bus_time(card);
+		if (reg == CSR_CYCLE_TIME)
+			*data = cpu_to_be32(bus_time);
+		else
+			*data = cpu_to_be32(bus_time >> 25);
+		fw_send_response(card, request, RCODE_COMPLETE);
+		break;
+
+	case CSR_BUS_MANAGER_ID:
+	case CSR_BANDWIDTH_AVAILABLE:
+	case CSR_CHANNELS_AVAILABLE_HI:
+	case CSR_CHANNELS_AVAILABLE_LO:
+		/* FIXME: these are handled by the OHCI hardware and
+		 * the stack never sees these request. If we add
+		 * support for a new type of controller that doesn't
+		 * handle this in hardware we need to deal with these
+		 * transactions. */
+		BUG();
+		break;
+
+	case CSR_BUSY_TIMEOUT:
+		/* FIXME: Implement this. */
+	default:
+		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
+		break;
+	}
+}
+
+static struct fw_address_handler registers = {
+	.length			= 0x400,
+	.address_callback	= handle_registers,
 };
 
 MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
@@ -809,6 +864,10 @@ static int __init fw_core_init(void)
 
 	retval = fw_core_add_address_handler(&topology_map,
 					     &topology_map_region);
+	BUG_ON(retval < 0);
+
+	retval = fw_core_add_address_handler(&registers,
+					     &registers_region);
 	BUG_ON(retval < 0);
 
 	/* Add the vendor textual descriptor. */
