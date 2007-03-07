@@ -544,7 +544,7 @@ static struct i2c_algo_bit_data ivtv_i2c_algo_template = {
 };
 
 static struct i2c_client ivtv_i2c_client_template = {
-	.name = "ivtv internal use only",
+	.name = "ivtv internal",
 };
 
 int ivtv_call_i2c_client(struct ivtv *itv, int addr, unsigned int cmd, void *arg)
