@@ -6,6 +6,11 @@
 #include "disk-io.h"
 #include "print-tree.h"
 
+static int find_free_extent(struct ctree_root *orig_root, u64 num_blocks,
+			    u64 search_start, u64 search_end, struct key *ins);
+static int finish_current_insert(struct ctree_root *extent_root);
+static int run_pending(struct ctree_root *extent_root);
+
 /*
  * pending extents are blocks that we're trying to allocate in the extent
  * map while trying to grow the map because of other allocations.  To avoid
@@ -13,8 +18,7 @@
  * other allocations are done.  The pending tag is also used in the same
  * manner for deletes.
  */
-#define CTREE_EXTENT_PENDING_ADD 0
-#define CTREE_EXTENT_PENDING_DEL 1
+#define CTREE_EXTENT_PENDING_DEL 0
 
 static int inc_block_ref(struct ctree_root *root, u64 blocknr)
 {
@@ -23,6 +27,9 @@ static int inc_block_ref(struct ctree_root *root, u64 blocknr)
 	struct key key;
 	struct leaf *l;
 	struct extent_item *item;
+	struct key ins;
+
+	find_free_extent(root->extent_root, 0, 0, (u64)-1, &ins);
 	init_path(&path);
 	key.objectid = blocknr;
 	key.flags = 0;
@@ -38,6 +45,8 @@ static int inc_block_ref(struct ctree_root *root, u64 blocknr)
 
 	BUG_ON(list_empty(&path.nodes[0]->dirty));
 	release_path(root->extent_root, &path);
+	finish_current_insert(root->extent_root);
+	run_pending(root->extent_root);
 	return 0;
 }
 
@@ -99,6 +108,28 @@ int btrfs_finish_extent_commit(struct ctree_root *root)
 	return 0;
 }
 
+static int finish_current_insert(struct ctree_root *extent_root)
+{
+	struct key ins;
+	struct extent_item extent_item;
+	int i;
+	int ret;
+
+	extent_item.refs = 1;
+	extent_item.owner = extent_root->node->node.header.parentid;
+	ins.offset = 1;
+	ins.flags = 0;
+
+	for (i = 0; i < extent_root->current_insert.flags; i++) {
+		ins.objectid = extent_root->current_insert.objectid + i;
+		ret = insert_item(extent_root, &ins, &extent_item,
+				  sizeof(extent_item));
+		BUG_ON(ret);
+	}
+	extent_root->current_insert.offset = 0;
+	return 0;
+}
+
 /*
  * remove an extent from the root, returns 0 on success
  */
@@ -110,10 +141,13 @@ int __free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 	int ret;
 	struct item *item;
 	struct extent_item *ei;
+	struct key ins;
+
 	key.objectid = blocknr;
 	key.flags = 0;
 	key.offset = num_blocks;
 
+	find_free_extent(root, 0, 0, (u64)-1, &ins);
 	init_path(&path);
 	ret = search_slot(extent_root, &key, &path, -1, 1);
 	if (ret) {
@@ -140,51 +174,8 @@ int __free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 			BUG();
 	}
 	release_path(extent_root, &path);
+	finish_current_insert(extent_root);
 	return ret;
-}
-
-/*
- * insert all of the pending extents reserved during the original
- * allocation.  (CTREE_EXTENT_PENDING).  Returns zero if it all worked out
- */
-static int insert_pending_extents(struct ctree_root *extent_root)
-{
-	int ret;
-	struct key key;
-	struct extent_item item;
-	struct tree_buffer *gang[4];
-	int i;
-
-	// FIXME -ENOSPC
-	item.owner = extent_root->node->node.header.parentid;
-	item.refs = 1;
-	while(1) {
-		ret = radix_tree_gang_lookup_tag(&extent_root->cache_radix,
-						 (void **)gang, 0,
-						 ARRAY_SIZE(gang),
-						 CTREE_EXTENT_PENDING_ADD);
-		if (!ret)
-			break;
-		for (i = 0; i < ret; i++) {
-			key.objectid = gang[i]->blocknr;
-			key.flags = 0;
-			key.offset = 1;
-			ret = insert_item(extent_root, &key, &item,
-					  sizeof(item));
-			if (ret) {
-				printf("%Lu already in tree\n", key.objectid);
-				print_tree(extent_root, extent_root->node);
-				BUG();
-				// FIXME undo it and return sane
-				return ret;
-			}
-			radix_tree_tag_clear(&extent_root->cache_radix,
-					     gang[i]->blocknr,
-					     CTREE_EXTENT_PENDING_ADD);
-			tree_block_release(extent_root, gang[i]);
-		}
-	}
-	return 0;
 }
 
 /*
@@ -218,12 +209,8 @@ static int del_pending_extents(struct ctree_root *extent_root)
 static int run_pending(struct ctree_root *extent_root)
 {
 	while(radix_tree_tagged(&extent_root->cache_radix,
-			        CTREE_EXTENT_PENDING_DEL) ||
-	      radix_tree_tagged(&extent_root->cache_radix,
-				CTREE_EXTENT_PENDING_ADD)) {
-		insert_pending_extents(extent_root);
+			        CTREE_EXTENT_PENDING_DEL))
 		del_pending_extents(extent_root);
-	}
 	return 0;
 }
 
@@ -241,19 +228,8 @@ int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 
 	if (root == extent_root) {
 		t = find_tree_block(root, blocknr);
-		if (radix_tree_tag_get(&root->cache_radix, blocknr,
-				      CTREE_EXTENT_PENDING_ADD)) {
-			radix_tree_tag_clear(&root->cache_radix,
-					     blocknr,
-					     CTREE_EXTENT_PENDING_ADD);
-			/* once for us */
-			tree_block_release(root, t);
-			/* once for the pending add */
-			tree_block_release(root, t);
-		} else {
-			radix_tree_tag_set(&root->cache_radix, blocknr,
+		radix_tree_tag_set(&root->cache_radix, blocknr,
 				   CTREE_EXTENT_PENDING_DEL);
-		}
 		return 0;
 	}
 	key.objectid = blocknr;
@@ -281,9 +257,11 @@ static int find_free_extent(struct ctree_root *orig_root, u64 num_blocks,
 	u64 hole_size = 0;
 	int slot = 0;
 	u64 last_block;
+	u64 test_block;
 	int start_found;
 	struct leaf *l;
 	struct ctree_root * root = orig_root->extent_root;
+	int total_needed = num_blocks + MAX_LEVEL * 3;
 
 check_failed:
 	init_path(&path);
@@ -306,22 +284,34 @@ check_failed:
 				goto error;
 			if (!start_found) {
 				ins->objectid = search_start;
-				ins->offset = num_blocks;
+				ins->offset = (u64)-1;
 				start_found = 1;
 				goto check_pending;
 			}
 			ins->objectid = last_block > search_start ?
 					last_block : search_start;
-			ins->offset = num_blocks;
+			ins->offset = (u64)-1;
 			goto check_pending;
+		}
+		if (slot == 0) {
+			int last_slot = l->header.nritems - 1;
+			u64 span = l->items[last_slot].key.objectid;
+			span -= l->items[slot].key.objectid;
+			if (span + total_needed > last_slot - slot) {
+				path.slots[0] = last_slot + 1;
+				key = &l->items[last_slot].key;
+				last_block = key->objectid + key->offset;
+				start_found = 1;
+				continue;
+			}
 		}
 		key = &l->items[slot].key;
 		if (key->objectid >= search_start) {
 			if (start_found) {
 				hole_size = key->objectid - last_block;
-				if (hole_size > num_blocks) {
+				if (hole_size > total_needed) {
 					ins->objectid = last_block;
-					ins->offset = num_blocks;
+					ins->offset = hole_size;
 					goto check_pending;
 				}
 			} else
@@ -337,23 +327,18 @@ check_pending:
 	 */
 	release_path(root, &path);
 	BUG_ON(ins->objectid < search_start);
-	if (1 || orig_root->extent_root == orig_root) {
-		BUG_ON(num_blocks != 1);
-		if ((root->current_insert.objectid <= ins->objectid &&
-		    root->current_insert.objectid +
-		    root->current_insert.offset > ins->objectid) ||
-		   (root->current_insert.objectid > ins->objectid &&
-		    root->current_insert.objectid <= ins->objectid +
-		    ins->offset) ||
-		   radix_tree_lookup(&root->pinned_radix, ins->objectid) ||
-		   radix_tree_tag_get(&root->cache_radix, ins->objectid,
-				      CTREE_EXTENT_PENDING_ADD)) {
-			search_start = ins->objectid + 1;
+	for (test_block = ins->objectid;
+	     test_block < ins->objectid + total_needed; test_block++) {
+		if (radix_tree_lookup(&root->pinned_radix, test_block)) {
+			search_start = test_block + 1;
 			goto check_failed;
 		}
 	}
-	if (ins->offset != 1)
-		BUG();
+	BUG_ON(root->current_insert.offset);
+	root->current_insert.offset = total_needed;
+	root->current_insert.objectid = ins->objectid + num_blocks;
+	root->current_insert.flags = 0;
+	ins->offset = num_blocks;
 	return 0;
 error:
 	release_path(root, &path);
@@ -368,43 +353,41 @@ error:
  * returns 0 if everything worked, non-zero otherwise.
  */
 int alloc_extent(struct ctree_root *root, u64 num_blocks, u64 search_start,
-			 u64 search_end, u64 owner, struct key *ins,
-			 struct tree_buffer **buf)
+			 u64 search_end, u64 owner, struct key *ins)
 {
 	int ret;
 	int pending_ret;
+	struct ctree_root *extent_root = root->extent_root;
 	struct extent_item extent_item;
+
 	extent_item.refs = 1;
 	extent_item.owner = owner;
 
-	ret = find_free_extent(root, num_blocks, search_start, search_end, ins);
-	if (ret)
-		return ret;
-	if (root != root->extent_root) {
-		memcpy(&root->extent_root->current_insert, ins, sizeof(*ins));
-		ret = insert_item(root->extent_root, ins, &extent_item,
-				  sizeof(extent_item));
-		memset(&root->extent_root->current_insert, 0,
-		       sizeof(struct key));
-		pending_ret = run_pending(root->extent_root);
-		if (ret)
-			return ret;
-		if (pending_ret)
-			return pending_ret;
-		*buf = find_tree_block(root, ins->objectid);
-		dirty_tree_block(root, *buf);
+	if (root == extent_root) {
+		BUG_ON(extent_root->current_insert.offset == 0);
+		BUG_ON(num_blocks != 1);
+		BUG_ON(extent_root->current_insert.flags ==
+		       extent_root->current_insert.offset);
+		ins->offset = 1;
+		ins->objectid = extent_root->current_insert.objectid +
+				extent_root->current_insert.flags++;
 		return 0;
 	}
-	/* we're allocating an extent for the extent tree, don't recurse */
-	BUG_ON(ins->offset != 1);
-	*buf = find_tree_block(root, ins->objectid);
-	BUG_ON(!*buf);
-	radix_tree_tag_set(&root->cache_radix, ins->objectid,
-			   CTREE_EXTENT_PENDING_ADD);
-	(*buf)->count++;
-	dirty_tree_block(root, *buf);
-	return 0;
+	ret = find_free_extent(root, num_blocks, search_start,
+			       search_end, ins);
+	if (ret)
+		return ret;
 
+	ret = insert_item(extent_root, ins, &extent_item,
+			  sizeof(extent_item));
+
+	finish_current_insert(extent_root);
+	pending_ret = run_pending(extent_root);
+	if (ret)
+		return ret;
+	if (pending_ret)
+		return pending_ret;
+	return 0;
 }
 
 /*
@@ -415,19 +398,17 @@ struct tree_buffer *alloc_free_block(struct ctree_root *root)
 {
 	struct key ins;
 	int ret;
-	struct tree_buffer *buf = NULL;
+	struct tree_buffer *buf;
 
 	ret = alloc_extent(root, 1, 0, (unsigned long)-1,
 			   root->node->node.header.parentid,
-			   &ins, &buf);
+			   &ins);
 	if (ret) {
 		BUG();
 		return NULL;
 	}
-	if (root != root->extent_root)
-		BUG_ON(radix_tree_tag_get(&root->extent_root->cache_radix,
-					  buf->blocknr,
-					  CTREE_EXTENT_PENDING_ADD));
+	buf = find_tree_block(root, ins.objectid);
+	dirty_tree_block(root, buf);
 	return buf;
 }
 

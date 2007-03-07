@@ -1,6 +1,6 @@
 
 CC=gcc
-CFLAGS = -g -Wall
+CFLAGS = -Wall
 headers = radix-tree.h ctree.h disk-io.h kerncompat.h print-tree.h list.h
 objects = ctree.o disk-io.o radix-tree.o mkfs.o extent-tree.o print-tree.o
 
