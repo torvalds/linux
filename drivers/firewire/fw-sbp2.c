@@ -68,9 +68,6 @@ struct sbp2_device {
 	int address_high;
 	int generation;
 
-	/* Timer for flushing ORBs. */
-	struct timer_list orb_timer;
-
 	int retries;
 	struct delayed_work work;
 	struct Scsi_Host *scsi_host;
@@ -342,9 +339,6 @@ sbp2_send_orb(struct sbp2_orb *orb, struct fw_unit *unit,
 	list_add_tail(&orb->link, &sd->orb_list);
 	spin_unlock_irqrestore(&device->card->lock, flags);
 
-	mod_timer(&sd->orb_timer,
-		  jiffies + DIV_ROUND_UP(SBP2_ORB_TIMEOUT * HZ, 1000));
-
 	fw_send_request(device->card, &orb->t, TCODE_WRITE_BLOCK_REQUEST,
 			node_id, generation,
 			device->node->max_speed, offset,
@@ -352,13 +346,14 @@ sbp2_send_orb(struct sbp2_orb *orb, struct fw_unit *unit,
 			complete_transaction, orb);
 }
 
-static void sbp2_cancel_orbs(struct fw_unit *unit)
+static int sbp2_cancel_orbs(struct fw_unit *unit)
 {
 	struct fw_device *device = fw_device(unit->device.parent);
 	struct sbp2_device *sd = unit->device.driver_data;
 	struct sbp2_orb *orb, *next;
 	struct list_head list;
 	unsigned long flags;
+	int retval = -ENOENT;
 
 	INIT_LIST_HEAD(&list);
 	spin_lock_irqsave(&device->card->lock, flags);
@@ -366,19 +361,15 @@ static void sbp2_cancel_orbs(struct fw_unit *unit)
 	spin_unlock_irqrestore(&device->card->lock, flags);
 
 	list_for_each_entry_safe(orb, next, &list, link) {
+		retval = 0;
 		if (fw_cancel_transaction(device->card, &orb->t) == 0)
 			continue;
 
 		orb->rcode = RCODE_CANCELLED;
 		orb->callback(orb, NULL);
 	}
-}
 
-static void orb_timer_callback(unsigned long data)
-{
-	struct sbp2_device *sd = (struct sbp2_device *)data;
-
-	sbp2_cancel_orbs(sd->unit);
+	return retval;
 }
 
 static void
@@ -447,20 +438,22 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 
 	init_completion(&orb->done);
 	orb->base.callback = complete_management_orb;
+
 	sbp2_send_orb(&orb->base, unit,
 		      node_id, generation, sd->management_agent_address);
 
-	wait_for_completion(&orb->done);
+	wait_for_completion_timeout(&orb->done,
+				    msecs_to_jiffies(SBP2_ORB_TIMEOUT));
 
 	retval = -EIO;
-	if (orb->base.rcode != RCODE_COMPLETE) {
-		fw_error("management write failed, rcode 0x%02x\n",
+	if (sbp2_cancel_orbs(unit) == 0) {
+		fw_error("orb reply timed out, rcode=0x%02x\n",
 			 orb->base.rcode);
 		goto out;
 	}
 
-	if (orb->base.rcode == RCODE_CANCELLED) {
-		fw_error("orb reply timed out, rcode=0x%02x\n",
+	if (orb->base.rcode != RCODE_COMPLETE) {
+		fw_error("management write failed, rcode 0x%02x\n",
 			 orb->base.rcode);
 		goto out;
 	}
@@ -602,7 +595,6 @@ static int sbp2_probe(struct device *dev)
 	unit->device.driver_data = sd;
 	sd->unit = unit;
 	INIT_LIST_HEAD(&sd->orb_list);
-	setup_timer(&sd->orb_timer, orb_timer_callback, (unsigned long)sd);
 
 	sd->address_handler.length = 0x100;
 	sd->address_handler.address_callback = sbp2_status_write;
@@ -675,7 +667,6 @@ static int sbp2_remove(struct device *dev)
 				 SBP2_LOGOUT_REQUEST, sd->login_id, NULL);
 
 	remove_scsi_devices(unit);
-	del_timer_sync(&sd->orb_timer);
 
 	fw_core_remove_address_handler(&sd->address_handler);
 	kfree(sd);
