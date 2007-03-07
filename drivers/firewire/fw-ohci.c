@@ -112,25 +112,6 @@ struct context {
 	struct tasklet_struct tasklet;
 };
 
-struct at_context {
-	struct fw_ohci *ohci;
-	dma_addr_t descriptor_bus;
-	dma_addr_t buffer_bus;
-	struct fw_packet *current_packet;
-
-	struct list_head list;
-
-	struct {
-		struct descriptor more;
-		__le32 header[4];
-		struct descriptor last;
-	} d;
-
-	u32 regs;
-
-	struct tasklet_struct tasklet;
-};
-
 #define it_header_sy(v)          ((v) <<  0)
 #define it_header_tcode(v)       ((v) <<  4)
 #define it_header_channel(v)     ((v) <<  8)
@@ -173,8 +154,8 @@ struct fw_ohci {
 
 	struct ar_context ar_request_ctx;
 	struct ar_context ar_response_ctx;
-	struct at_context at_request_ctx;
-	struct at_context at_response_ctx;
+	struct context at_request_ctx;
+	struct context at_response_ctx;
 
 	u32 it_context_mask;
 	struct iso_context *it_context_list;
@@ -210,6 +191,8 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define SELF_ID_BUF_SIZE		0x800
 #define OHCI_TCODE_PHY_PACKET		0x0e
 #define OHCI_VERSION_1_1		0x010010
+#define ISO_BUFFER_SIZE			(64 * 1024)
+#define AT_BUFFER_SIZE			4096
 
 static char ohci_driver_name[] = KBUILD_MODNAME;
 
@@ -587,210 +570,166 @@ static void context_stop(struct context *ctx)
 	}
 }
 
-static void
-do_packet_callbacks(struct fw_ohci *ohci, struct list_head *list)
-{
-	struct fw_packet *p, *next;
-
-	list_for_each_entry_safe(p, next, list, link)
-		p->callback(p, &ohci->card, p->ack);
-}
-
-static void
-complete_transmission(struct fw_packet *packet,
-		      int ack, struct list_head *list)
-{
-	list_move_tail(&packet->link, list);
-	packet->ack = ack;
-}
-
-/* This function prepares the first packet in the context queue for
- * transmission.  Must always be called with the ochi->lock held to
- * ensure proper generation handling and locking around packet queue
- * manipulation. */
-static void
-at_context_setup_packet(struct at_context *ctx, struct list_head *list)
-{
+struct driver_data {
 	struct fw_packet *packet;
+};
+
+/* This function apppends a packet to the DMA queue for transmission.
+ * Must always be called with the ochi->lock held to ensure proper
+ * generation handling and locking around packet queue manipulation. */
+static int
+at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
+{
 	struct fw_ohci *ohci = ctx->ohci;
+	dma_addr_t d_bus, payload_bus;
+	struct driver_data *driver_data;
+	struct descriptor *d, *last;
+	__le32 *header;
 	int z, tcode;
+	u32 reg;
 
-	packet = fw_packet(ctx->list.next);
-
-	memset(&ctx->d, 0, sizeof ctx->d);
-	if (packet->payload_length > 0) {
-		packet->payload_bus = dma_map_single(ohci->card.device,
-						     packet->payload,
-						     packet->payload_length,
-						     DMA_TO_DEVICE);
-		if (dma_mapping_error(packet->payload_bus)) {
-			complete_transmission(packet, RCODE_SEND_ERROR, list);
-			return;
-		}
-
-		ctx->d.more.control      =
-			cpu_to_le16(descriptor_output_more |
-				    descriptor_key_immediate);
-		ctx->d.more.req_count    = cpu_to_le16(packet->header_length);
-		ctx->d.more.res_count    = cpu_to_le16(packet->timestamp);
-		ctx->d.last.control      =
-			cpu_to_le16(descriptor_output_last |
-				    descriptor_irq_always |
-				    descriptor_branch_always);
-		ctx->d.last.req_count    = cpu_to_le16(packet->payload_length);
-		ctx->d.last.data_address = cpu_to_le32(packet->payload_bus);
-		z = 3;
-	} else {
-		ctx->d.more.control   =
-			cpu_to_le16(descriptor_output_last |
-				    descriptor_key_immediate |
-				    descriptor_irq_always |
-				    descriptor_branch_always);
-		ctx->d.more.req_count = cpu_to_le16(packet->header_length);
-		ctx->d.more.res_count = cpu_to_le16(packet->timestamp);
-		z = 2;
+	d = context_get_descriptors(ctx, 4, &d_bus);
+	if (d == NULL) {
+		packet->ack = RCODE_SEND_ERROR;
+		return -1;
 	}
+
+	d[0].control   = cpu_to_le16(descriptor_key_immediate);
+	d[0].res_count = cpu_to_le16(packet->timestamp);
 
 	/* The DMA format for asyncronous link packets is different
 	 * from the IEEE1394 layout, so shift the fields around
 	 * accordingly.  If header_length is 8, it's a PHY packet, to
 	 * which we need to prepend an extra quadlet. */
+
+	header = (__le32 *) &d[1];
 	if (packet->header_length > 8) {
-		ctx->d.header[0] = cpu_to_le32((packet->header[0] & 0xffff) |
-					       (packet->speed << 16));
-		ctx->d.header[1] = cpu_to_le32((packet->header[1] & 0xffff) |
-					       (packet->header[0] & 0xffff0000));
-		ctx->d.header[2] = cpu_to_le32(packet->header[2]);
+		header[0] = cpu_to_le32((packet->header[0] & 0xffff) |
+					(packet->speed << 16));
+		header[1] = cpu_to_le32((packet->header[1] & 0xffff) |
+					(packet->header[0] & 0xffff0000));
+		header[2] = cpu_to_le32(packet->header[2]);
 
 		tcode = (packet->header[0] >> 4) & 0x0f;
 		if (TCODE_IS_BLOCK_PACKET(tcode))
-			ctx->d.header[3] = cpu_to_le32(packet->header[3]);
+			header[3] = cpu_to_le32(packet->header[3]);
 		else
-			ctx->d.header[3] = packet->header[3];
+			header[3] = (__force __le32) packet->header[3];
+
+		d[0].req_count = cpu_to_le16(packet->header_length);
 	} else {
-		ctx->d.header[0] =
-			cpu_to_le32((OHCI1394_phy_tcode << 4) |
-				    (packet->speed << 16));
-		ctx->d.header[1] = cpu_to_le32(packet->header[0]);
-		ctx->d.header[2] = cpu_to_le32(packet->header[1]);
-		ctx->d.more.req_count = cpu_to_le16(12);
+		header[0] = cpu_to_le32((OHCI1394_phy_tcode << 4) |
+					(packet->speed << 16));
+		header[1] = cpu_to_le32(packet->header[0]);
+		header[2] = cpu_to_le32(packet->header[1]);
+		d[0].req_count = cpu_to_le16(12);
 	}
+
+	driver_data = (struct driver_data *) &d[3];
+	driver_data->packet = packet;
+	
+	if (packet->payload_length > 0) {
+		payload_bus =
+			dma_map_single(ohci->card.device, packet->payload,
+				       packet->payload_length, DMA_TO_DEVICE);
+		if (dma_mapping_error(payload_bus)) {
+			packet->ack = RCODE_SEND_ERROR;
+			return -1;
+		}
+
+		d[2].req_count    = cpu_to_le16(packet->payload_length);
+		d[2].data_address = cpu_to_le32(payload_bus);
+		last = &d[2];
+		z = 3;
+	} else {
+		last = &d[0];
+		z = 2;
+	}
+
+	last->control |= cpu_to_le16(descriptor_output_last |
+				     descriptor_irq_always |
+				     descriptor_branch_always);
 
 	/* FIXME: Document how the locking works. */
-	if (ohci->generation == packet->generation) {
-		reg_write(ctx->ohci, command_ptr(ctx->regs),
-			  ctx->descriptor_bus | z);
-		reg_write(ctx->ohci, control_set(ctx->regs),
-			  CONTEXT_RUN | CONTEXT_WAKE);
-		ctx->current_packet = packet;
-	} else {
-		/* We dont return error codes from this function; all
-		 * transmission errors are reported through the
-		 * callback. */
-		complete_transmission(packet, RCODE_GENERATION, list);
+	if (ohci->generation != packet->generation) {
+		packet->ack = RCODE_GENERATION;
+		return -1;
 	}
-}
 
-static void at_context_stop(struct at_context *ctx)
-{
-	u32 reg;
+	context_append(ctx, d, z, 4 - z);
 
-	reg_write(ctx->ohci, control_clear(ctx->regs), CONTEXT_RUN);
-
+	/* If the context isn't already running, start it up. */
 	reg = reg_read(ctx->ohci, control_set(ctx->regs));
-	if (reg & CONTEXT_ACTIVE)
-		fw_notify("Tried to stop context, but it is still active "
-			  "(0x%08x).\n", reg);
-}
-
-static void at_context_tasklet(unsigned long data)
-{
-	struct at_context *ctx = (struct at_context *)data;
-	struct fw_ohci *ohci = ctx->ohci;
-	struct fw_packet *packet;
-	LIST_HEAD(list);
-	unsigned long flags;
-	int evt;
-
-	spin_lock_irqsave(&ohci->lock, flags);
-
-	packet = fw_packet(ctx->list.next);
-
-	at_context_stop(ctx);
-
-	/* If the head of the list isn't the packet that just got
-	 * transmitted, the packet got cancelled before we finished
-	 * transmitting it. */
-	if (ctx->current_packet != packet)
-		goto skip_to_next;
-
-	if (packet->payload_length > 0) {
-		dma_unmap_single(ohci->card.device, packet->payload_bus,
-				 packet->payload_length, DMA_TO_DEVICE);
-		evt = le16_to_cpu(ctx->d.last.transfer_status) & 0x1f;
-		packet->timestamp = le16_to_cpu(ctx->d.last.res_count);
-	}
-	else {
-		evt = le16_to_cpu(ctx->d.more.transfer_status) & 0x1f;
-		packet->timestamp = le16_to_cpu(ctx->d.more.res_count);
-	}
-
-	if (evt < 16) {
-		switch (evt) {
-		case OHCI1394_evt_timeout:
-			/* Async response transmit timed out. */
-			complete_transmission(packet, RCODE_CANCELLED, &list);
-			break;
-
-		case OHCI1394_evt_flushed:
-			/* The packet was flushed should give same
-			 * error as when we try to use a stale
-			 * generation count. */
-			complete_transmission(packet,
-					      RCODE_GENERATION, &list);
-			break;
-
-		case OHCI1394_evt_missing_ack:
-			/* Using a valid (current) generation count,
-			 * but the node is not on the bus or not
-			 * sending acks. */
-			complete_transmission(packet, RCODE_NO_ACK, &list);
-			break;
-
-		default:
-			complete_transmission(packet, RCODE_SEND_ERROR, &list);
-			break;
-		}
-	} else
-		complete_transmission(packet, evt - 16, &list);
-
- skip_to_next:
-	/* If more packets are queued, set up the next one. */
-	if (!list_empty(&ctx->list))
-		at_context_setup_packet(ctx, &list);
-
-	spin_unlock_irqrestore(&ohci->lock, flags);
-
-	do_packet_callbacks(ohci, &list);
-}
-
-static int
-at_context_init(struct at_context *ctx, struct fw_ohci *ohci, u32 regs)
-{
-	INIT_LIST_HEAD(&ctx->list);
-
-	ctx->descriptor_bus =
-		dma_map_single(ohci->card.device, &ctx->d,
-			       sizeof ctx->d, DMA_TO_DEVICE);
-	if (dma_mapping_error(ctx->descriptor_bus))
-		return -ENOMEM;
-
-	ctx->regs = regs;
-	ctx->ohci = ohci;
-
-	tasklet_init(&ctx->tasklet, at_context_tasklet, (unsigned long)ctx);
+	if ((reg & CONTEXT_ACTIVE) == 0)
+		context_run(ctx, 0);
 
 	return 0;
+}
+
+static int handle_at_packet(struct context *context,
+			    struct descriptor *d,
+			    struct descriptor *last)
+{
+	struct driver_data *driver_data;
+	struct fw_packet *packet;
+	struct fw_ohci *ohci = context->ohci;
+	dma_addr_t payload_bus;
+	int evt;
+
+	if (last->transfer_status == 0)
+		/* This descriptor isn't done yet, stop iteration. */
+		return 0;
+
+	driver_data = (struct driver_data *) &d[3];
+	packet = driver_data->packet;
+	if (packet == NULL)
+		/* This packet was cancelled, just continue. */
+		return 1;
+
+	payload_bus = le32_to_cpu(last->data_address);
+	if (payload_bus != 0)
+		dma_unmap_single(ohci->card.device, payload_bus,
+				 packet->payload_length, DMA_TO_DEVICE);
+
+	evt = le16_to_cpu(last->transfer_status) & 0x1f;
+	packet->timestamp = le16_to_cpu(last->res_count);
+
+	switch (evt) {
+	case OHCI1394_evt_timeout:
+		/* Async response transmit timed out. */
+		packet->ack = RCODE_CANCELLED;
+		break;
+
+	case OHCI1394_evt_flushed:
+		/* The packet was flushed should give same error as
+		 * when we try to use a stale generation count. */
+		packet->ack = RCODE_GENERATION;
+		break;
+
+	case OHCI1394_evt_missing_ack:
+		/* Using a valid (current) generation count, but the
+		 * node is not on the bus or not sending acks. */
+		packet->ack = RCODE_NO_ACK;
+		break;
+
+	case ACK_COMPLETE + 0x10:
+	case ACK_PENDING + 0x10:
+	case ACK_BUSY_X + 0x10:
+	case ACK_BUSY_A + 0x10:
+	case ACK_BUSY_B + 0x10:
+	case ACK_DATA_ERROR + 0x10:
+	case ACK_TYPE_ERROR + 0x10:
+		packet->ack = evt - 0x10;
+		break;
+
+	default:
+		packet->ack = RCODE_SEND_ERROR;
+		break;
+	}
+
+	packet->callback(packet, &ohci->card, packet->ack);
+
+	return 1;
 }
 
 #define header_get_destination(q)	(((q) >> 16) & 0xffff)
@@ -869,7 +808,7 @@ handle_local_lock(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
 }
 
 static void
-handle_local_request(struct at_context *ctx, struct fw_packet *packet)
+handle_local_request(struct context *ctx, struct fw_packet *packet)
 {
 	u64 offset;
 	u32 csr;
@@ -903,10 +842,10 @@ handle_local_request(struct at_context *ctx, struct fw_packet *packet)
 }
 
 static void
-at_context_transmit(struct at_context *ctx, struct fw_packet *packet)
+at_context_transmit(struct context *ctx, struct fw_packet *packet)
 {
-	LIST_HEAD(list);
 	unsigned long flags;
+	int retval;
 
 	spin_lock_irqsave(&ctx->ohci->lock, flags);
 
@@ -917,13 +856,12 @@ at_context_transmit(struct at_context *ctx, struct fw_packet *packet)
 		return;
 	}
 
-	list_add_tail(&packet->link, &ctx->list);
-	if (ctx->list.next == &packet->link)
-		at_context_setup_packet(ctx, &list);
-
+	retval = at_context_queue_packet(ctx, packet);
 	spin_unlock_irqrestore(&ctx->ohci->lock, flags);
 
-	do_packet_callbacks(ctx->ohci, &list);
+	if (retval < 0)
+		packet->callback(packet, &ctx->ohci->card, packet->ack);
+	
 }
 
 static void bus_reset_tasklet(unsigned long data)
@@ -977,8 +915,8 @@ static void bus_reset_tasklet(unsigned long data)
 	spin_lock_irqsave(&ohci->lock, flags);
 
 	ohci->generation = generation;
-	at_context_stop(&ohci->at_request_ctx);
-	at_context_stop(&ohci->at_response_ctx);
+	context_stop(&ohci->at_request_ctx);
+	context_stop(&ohci->at_response_ctx);
 	reg_write(ohci, OHCI1394_IntEventClear, OHCI1394_busReset);
 
 	/* This next bit is unrelated to the AT context stuff but we
@@ -1216,24 +1154,24 @@ static void ohci_send_response(struct fw_card *card, struct fw_packet *packet)
 static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
-	LIST_HEAD(list);
-	unsigned long flags;
+	struct context *ctx = &ohci->at_request_ctx;
+	struct driver_data *driver_data = packet->driver_data;
+	int retval = -ENOENT;
 
-	spin_lock_irqsave(&ohci->lock, flags);
+	tasklet_disable(&ctx->tasklet);
 
-	if (packet->ack == 0) {
-		fw_notify("cancelling packet %p (header[0]=%08x)\n",
-			  packet, packet->header[0]);
+	if (packet->ack != 0)
+		goto out;
 
-		complete_transmission(packet, RCODE_CANCELLED, &list);
-	}
+	driver_data->packet = NULL;
+	packet->ack = RCODE_CANCELLED;
+	packet->callback(packet, &ohci->card, packet->ack);
+	retval = 0;
 
-	spin_unlock_irqrestore(&ohci->lock, flags);
+ out:
+	tasklet_enable(&ctx->tasklet);
 
-	do_packet_callbacks(ohci, &list);
-
-	/* Return success if we actually cancelled something. */
-	return list_empty(&list) ? -ENOENT : 0;
+	return retval;
 }
 
 static int
@@ -1313,8 +1251,6 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 
 	return 1;
 }
-
-#define ISO_BUFFER_SIZE (64 * 1024)
 
 static int handle_it_packet(struct context *context,
 			    struct descriptor *d,
@@ -1872,11 +1808,11 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	ar_context_init(&ohci->ar_response_ctx, ohci,
 			OHCI1394_AsRspRcvContextControlSet);
 
-	at_context_init(&ohci->at_request_ctx, ohci,
-			OHCI1394_AsReqTrContextControlSet);
+	context_init(&ohci->at_request_ctx, ohci, AT_BUFFER_SIZE,
+		     OHCI1394_AsReqTrContextControlSet, handle_at_packet);
 
-	at_context_init(&ohci->at_response_ctx, ohci,
-			OHCI1394_AsRspTrContextControlSet);
+	context_init(&ohci->at_response_ctx, ohci, AT_BUFFER_SIZE,
+		     OHCI1394_AsRspTrContextControlSet, handle_at_packet);
 
 	reg_write(ohci, OHCI1394_ATRetries,
 		  OHCI1394_MAX_AT_REQ_RETRIES |

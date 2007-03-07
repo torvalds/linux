@@ -203,8 +203,6 @@ struct fw_packet {
 	size_t payload_length;
 	u32 timestamp;
 
-	dma_addr_t payload_bus;
-
 	/* This callback is called when the packet transmission has
 	 * completed; for successful transmission, the status code is
 	 * the ack received from the destination, otherwise it's a
@@ -215,6 +213,7 @@ struct fw_packet {
 	fw_packet_callback_t callback;
 	int ack;
 	struct list_head link;
+	void *driver_data;
 };
 
 struct fw_transaction {
