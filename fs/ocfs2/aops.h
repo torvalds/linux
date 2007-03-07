@@ -80,6 +80,20 @@ int ocfs2_map_and_write_user_data(struct inode *inode,
 				  unsigned int *ret_from,
 				  unsigned int *ret_to);
 
+struct ocfs2_splice_write_priv {
+	struct splice_desc		*s_sd;
+	struct pipe_buffer		*s_buf;
+	struct pipe_inode_info		*s_pipe;
+	/* Neither offset value is ever larger than one page */
+	unsigned int			s_offset;
+	unsigned int			s_buf_offset;
+};
+int ocfs2_map_and_write_splice_data(struct inode *inode,
+				    struct ocfs2_write_ctxt *wc,
+				    u64 *p_blkno,
+				    unsigned int *ret_from,
+				    unsigned int *ret_to);
+
 /* all ocfs2_dio_end_io()'s fault */
 #define ocfs2_iocb_is_rw_locked(iocb) \
 	test_bit(0, (unsigned long *)&iocb->private)

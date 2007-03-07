@@ -25,6 +25,7 @@
 #include <linux/pagemap.h>
 #include <asm/byteorder.h>
 #include <linux/swap.h>
+#include <linux/pipe_fs_i.h>
 
 #define MLOG_MASK_PREFIX ML_FILE_IO
 #include <cluster/masklog.h>
@@ -746,6 +747,74 @@ next_bh:
 	} while (bh != head);
 
 	return ret;
+}
+
+/*
+ * This will copy user data from the buffer page in the splice
+ * context.
+ *
+ * For now, we ignore SPLICE_F_MOVE as that would require some extra
+ * communication out all the way to ocfs2_write().
+ */
+int ocfs2_map_and_write_splice_data(struct inode *inode,
+				  struct ocfs2_write_ctxt *wc, u64 *p_blkno,
+				  unsigned int *ret_from, unsigned int *ret_to)
+{
+	int ret;
+	unsigned int to, from, cluster_start, cluster_end;
+	char *src, *dst;
+	struct ocfs2_splice_write_priv *sp = wc->w_private;
+	struct pipe_buffer *buf = sp->s_buf;
+	unsigned long bytes, src_from;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	ocfs2_figure_cluster_boundaries(osb, wc->w_cpos, &cluster_start,
+					&cluster_end);
+
+	from = sp->s_offset;
+	src_from = sp->s_buf_offset;
+	bytes = wc->w_count;
+
+	if (wc->w_large_pages) {
+		/*
+		 * For cluster size < page size, we have to
+		 * calculate pos within the cluster and obey
+		 * the rightmost boundary.
+		 */
+		bytes = min(bytes, (unsigned long)(osb->s_clustersize
+				   - (wc->w_pos & (osb->s_clustersize - 1))));
+	}
+	to = from + bytes;
+
+	if (wc->w_this_page_new)
+		ret = ocfs2_map_page_blocks(wc->w_this_page, p_blkno, inode,
+					    cluster_start, cluster_end, 1);
+	else
+		ret = ocfs2_map_page_blocks(wc->w_this_page, p_blkno, inode,
+					    from, to, 0);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	BUG_ON(from > PAGE_CACHE_SIZE);
+	BUG_ON(to > PAGE_CACHE_SIZE);
+	BUG_ON(from > osb->s_clustersize);
+	BUG_ON(to > osb->s_clustersize);
+
+	src = buf->ops->map(sp->s_pipe, buf, 1);
+	dst = kmap_atomic(wc->w_this_page, KM_USER1);
+	memcpy(dst + from, src + src_from, bytes);
+	kunmap_atomic(wc->w_this_page, KM_USER1);
+	buf->ops->unmap(sp->s_pipe, buf, src);
+
+	wc->w_finished_copy = 1;
+
+	*ret_from = from;
+	*ret_to = to;
+out:
+
+	return bytes ? (unsigned int)bytes : ret;
 }
 
 /*

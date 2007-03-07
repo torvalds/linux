@@ -1603,6 +1603,84 @@ out_sems:
 	return written ? written : ret;
 }
 
+static int ocfs2_splice_write_actor(struct pipe_inode_info *pipe,
+				    struct pipe_buffer *buf,
+				    struct splice_desc *sd)
+{
+	int ret, count, total = 0;
+	ssize_t copied = 0;
+	struct ocfs2_splice_write_priv sp;
+
+	ret = buf->ops->pin(pipe, buf);
+	if (ret)
+		goto out;
+
+	sp.s_sd = sd;
+	sp.s_buf = buf;
+	sp.s_pipe = pipe;
+	sp.s_offset = sd->pos & ~PAGE_CACHE_MASK;
+	sp.s_buf_offset = buf->offset;
+
+	count = sd->len;
+	if (count + sp.s_offset > PAGE_CACHE_SIZE)
+		count = PAGE_CACHE_SIZE - sp.s_offset;
+
+	do {
+		/*
+		 * splice wants us to copy up to one page at a
+		 * time. For pagesize > cluster size, this means we
+		 * might enter ocfs2_buffered_write_cluster() more
+		 * than once, so keep track of our progress here.
+		 */
+		copied = ocfs2_buffered_write_cluster(sd->file,
+						      (loff_t)sd->pos + total,
+						      count,
+						      ocfs2_map_and_write_splice_data,
+						      &sp);
+		if (copied < 0) {
+			mlog_errno(copied);
+			ret = copied;
+			goto out;
+		}
+
+		count -= copied;
+		sp.s_offset += copied;
+		sp.s_buf_offset += copied;
+		total += copied;
+	} while (count);
+
+	ret = 0;
+out:
+
+	return total ? total : ret;
+}
+
+static ssize_t __ocfs2_file_splice_write(struct pipe_inode_info *pipe,
+					 struct file *out,
+					 loff_t *ppos,
+					 size_t len,
+					 unsigned int flags)
+{
+	int ret, err;
+	struct address_space *mapping = out->f_mapping;
+	struct inode *inode = mapping->host;
+
+	ret = __splice_from_pipe(pipe, out, ppos, len, flags,
+				 ocfs2_splice_write_actor);
+	if (ret > 0) {
+		*ppos += ret;
+
+		if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(inode))) {
+			err = generic_osync_inode(inode, mapping,
+						  OSYNC_METADATA|OSYNC_DATA);
+			if (err)
+				ret = err;
+		}
+	}
+
+	return ret;
+}
+
 static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 				       struct file *out,
 				       loff_t *ppos,
@@ -1633,7 +1711,7 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 	}
 
 	/* ok, we're done with i_size and alloc work */
-	ret = generic_file_splice_write_nolock(pipe, out, ppos, len, flags);
+	ret = __ocfs2_file_splice_write(pipe, out, ppos, len, flags);
 
 out_unlock:
 	ocfs2_rw_unlock(inode, 1);
