@@ -558,9 +558,9 @@ static int ioctl_create_iso_context(struct client *client, void __user *arg)
 						    request.type,
 						    request.channel,
 						    request.speed,
-						    request.header_size,
 						    request.sync,
 						    request.tags,
+						    request.header_size,
 						    iso_callback, client);
 	if (IS_ERR(client->iso_context))
 		return PTR_ERR(client->iso_context);
