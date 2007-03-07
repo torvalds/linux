@@ -2169,6 +2169,9 @@ static long kvm_vcpu_ioctl(struct file *filp,
 
 	switch (ioctl) {
 	case KVM_RUN:
+		r = -EINVAL;
+		if (arg)
+			goto out;
 		r = kvm_vcpu_ioctl_run(vcpu, vcpu->run);
 		break;
 	case KVM_GET_REGS: {
@@ -2440,9 +2443,15 @@ static long kvm_dev_ioctl(struct file *filp,
 
 	switch (ioctl) {
 	case KVM_GET_API_VERSION:
+		r = -EINVAL;
+		if (arg)
+			goto out;
 		r = KVM_API_VERSION;
 		break;
 	case KVM_CREATE_VM:
+		r = -EINVAL;
+		if (arg)
+			goto out;
 		r = kvm_dev_ioctl_create_vm();
 		break;
 	case KVM_GET_MSR_INDEX_LIST: {
