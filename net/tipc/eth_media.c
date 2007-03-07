@@ -140,7 +140,7 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 		return -EDQUOT;
 	if (!eb_ptr->dev) {
 		eb_ptr->dev = dev;
-		eb_ptr->tipc_packet_type.type = __constant_htons(ETH_P_TIPC);
+		eb_ptr->tipc_packet_type.type = htons(ETH_P_TIPC);
 		eb_ptr->tipc_packet_type.dev = dev;
 		eb_ptr->tipc_packet_type.func = recv_msg;
 		eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
