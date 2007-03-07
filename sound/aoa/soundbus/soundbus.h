@@ -199,4 +199,6 @@ struct soundbus_driver {
 extern int soundbus_register_driver(struct soundbus_driver *drv);
 extern void soundbus_unregister_driver(struct soundbus_driver *drv);
 
+extern struct device_attribute soundbus_dev_attrs[];
+
 #endif /* __SOUNDBUS_H */
