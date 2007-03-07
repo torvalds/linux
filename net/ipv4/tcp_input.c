@@ -1044,7 +1044,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	cached_skb = tp->fastpath_skb_hint;
 	cached_fack_count = tp->fastpath_cnt_hint;
 	if (!cached_skb) {
-		cached_skb = sk->sk_write_queue.next;
+		cached_skb = tcp_write_queue_head(sk);
 		cached_fack_count = 0;
 	}
 
@@ -1061,9 +1061,12 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		if (after(end_seq, tp->high_seq))
 			flag |= FLAG_DATA_LOST;
 
-		sk_stream_for_retrans_queue_from(skb, sk) {
+		tcp_for_write_queue_from(skb, sk) {
 			int in_sack, pcount;
 			u8 sacked;
+
+			if (skb == tcp_send_head(sk))
+				break;
 
 			cached_skb = skb;
 			cached_fack_count = fack_count;
@@ -1213,7 +1216,9 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	if (lost_retrans && icsk->icsk_ca_state == TCP_CA_Recovery) {
 		struct sk_buff *skb;
 
-		sk_stream_for_retrans_queue(skb, sk) {
+		tcp_for_write_queue(skb, sk) {
+			if (skb == tcp_send_head(sk))
+				break;
 			if (after(TCP_SKB_CB(skb)->seq, lost_retrans))
 				break;
 			if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una))
@@ -1266,8 +1271,8 @@ int tcp_use_frto(struct sock *sk)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 
-	if (!sysctl_tcp_frto || !sk->sk_send_head ||
-		after(TCP_SKB_CB(sk->sk_send_head)->end_seq,
+	if (!sysctl_tcp_frto || !tcp_send_head(sk) ||
+		after(TCP_SKB_CB(tcp_send_head(sk))->end_seq,
 		      tp->snd_una + tp->snd_wnd))
 		return 0;
 
@@ -1278,8 +1283,11 @@ int tcp_use_frto(struct sock *sk)
 	if (tp->retrans_out > 1)
 		return 0;
 
-	skb = skb_peek(&sk->sk_write_queue)->next;	/* Skips head */
-	sk_stream_for_retrans_queue_from(skb, sk) {
+	skb = tcp_write_queue_head(sk);
+	skb = tcp_write_queue_next(sk, skb);	/* Skips head */
+	tcp_for_write_queue_from(skb, sk) {
+		if (skb == tcp_send_head(sk))
+			break;
 		if (TCP_SKB_CB(skb)->sacked&TCPCB_RETRANS)
 			return 0;
 		/* Short-circuit when first non-SACKed skb has been checked */
@@ -1343,7 +1351,7 @@ void tcp_enter_frto(struct sock *sk)
 	tp->undo_marker = tp->snd_una;
 	tp->undo_retrans = 0;
 
-	skb = skb_peek(&sk->sk_write_queue);
+	skb = tcp_write_queue_head(sk);
 	if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS) {
 		TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 		tp->retrans_out -= tcp_skb_pcount(skb);
@@ -1380,7 +1388,9 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 	tp->fackets_out = 0;
 	tp->retrans_out = 0;
 
-	sk_stream_for_retrans_queue(skb, sk) {
+	tcp_for_write_queue(skb, sk) {
+		if (skb == tcp_send_head(sk))
+			break;
 		cnt += tcp_skb_pcount(skb);
 		/*
 		 * Count the retransmission made on RTO correctly (only when
@@ -1468,7 +1478,9 @@ void tcp_enter_loss(struct sock *sk, int how)
 	if (!how)
 		tp->undo_marker = tp->snd_una;
 
-	sk_stream_for_retrans_queue(skb, sk) {
+	tcp_for_write_queue(skb, sk) {
+		if (skb == tcp_send_head(sk))
+			break;
 		cnt += tcp_skb_pcount(skb);
 		if (TCP_SKB_CB(skb)->sacked&TCPCB_RETRANS)
 			tp->undo_marker = 0;
@@ -1503,14 +1515,14 @@ static int tcp_check_sack_reneging(struct sock *sk)
 	 * receiver _host_ is heavily congested (or buggy).
 	 * Do processing similar to RTO timeout.
 	 */
-	if ((skb = skb_peek(&sk->sk_write_queue)) != NULL &&
+	if ((skb = tcp_write_queue_head(sk)) != NULL &&
 	    (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)) {
 		struct inet_connection_sock *icsk = inet_csk(sk);
 		NET_INC_STATS_BH(LINUX_MIB_TCPSACKRENEGING);
 
 		tcp_enter_loss(sk, 1);
 		icsk->icsk_retransmits++;
-		tcp_retransmit_skb(sk, skb_peek(&sk->sk_write_queue));
+		tcp_retransmit_skb(sk, tcp_write_queue_head(sk));
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
 					  icsk->icsk_rto, TCP_RTO_MAX);
 		return 1;
@@ -1531,7 +1543,7 @@ static inline int tcp_skb_timedout(struct sock *sk, struct sk_buff *skb)
 static inline int tcp_head_timedout(struct sock *sk, struct tcp_sock *tp)
 {
 	return tp->packets_out &&
-	       tcp_skb_timedout(sk, skb_peek(&sk->sk_write_queue));
+	       tcp_skb_timedout(sk, tcp_write_queue_head(sk));
 }
 
 /* Linux NewReno/SACK/FACK/ECN state machine.
@@ -1726,11 +1738,13 @@ static void tcp_mark_head_lost(struct sock *sk, struct tcp_sock *tp,
 		skb = tp->lost_skb_hint;
 		cnt = tp->lost_cnt_hint;
 	} else {
-		skb = sk->sk_write_queue.next;
+		skb = tcp_write_queue_head(sk);
 		cnt = 0;
 	}
 
-	sk_stream_for_retrans_queue_from(skb, sk) {
+	tcp_for_write_queue_from(skb, sk) {
+		if (skb == tcp_send_head(sk))
+			break;
 		/* TODO: do this better */
 		/* this is not the most efficient way to do this... */
 		tp->lost_skb_hint = skb;
@@ -1777,9 +1791,11 @@ static void tcp_update_scoreboard(struct sock *sk, struct tcp_sock *tp)
 		struct sk_buff *skb;
 
 		skb = tp->scoreboard_skb_hint ? tp->scoreboard_skb_hint
-			: sk->sk_write_queue.next;
+			: tcp_write_queue_head(sk);
 
-		sk_stream_for_retrans_queue_from(skb, sk) {
+		tcp_for_write_queue_from(skb, sk) {
+			if (skb == tcp_send_head(sk))
+				break;
 			if (!tcp_skb_timedout(sk, skb))
 				break;
 
@@ -1970,7 +1986,9 @@ static int tcp_try_undo_loss(struct sock *sk, struct tcp_sock *tp)
 {
 	if (tcp_may_undo(tp)) {
 		struct sk_buff *skb;
-		sk_stream_for_retrans_queue(skb, sk) {
+		tcp_for_write_queue(skb, sk) {
+			if (skb == tcp_send_head(sk))
+				break;
 			TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
 		}
 
@@ -2382,8 +2400,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 		= icsk->icsk_ca_ops->rtt_sample;
 	struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
 
-	while ((skb = skb_peek(&sk->sk_write_queue)) &&
-	       skb != sk->sk_send_head) {
+	while ((skb = tcp_write_queue_head(sk)) &&
+	       skb != tcp_send_head(sk)) {
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
 		__u8 sacked = scb->sacked;
 
@@ -2446,7 +2464,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 		}
 		tcp_dec_pcount_approx(&tp->fackets_out, skb);
 		tcp_packets_out_dec(tp, skb);
-		__skb_unlink(skb, &sk->sk_write_queue);
+		tcp_unlink_write_queue(skb, sk);
 		sk_stream_free_skb(sk, skb);
 		clear_all_retrans_hints(tp);
 	}
@@ -2495,7 +2513,7 @@ static void tcp_ack_probe(struct sock *sk)
 
 	/* Was it a usable window open? */
 
-	if (!after(TCP_SKB_CB(sk->sk_send_head)->end_seq,
+	if (!after(TCP_SKB_CB(tcp_send_head(sk))->end_seq,
 		   tp->snd_una + tp->snd_wnd)) {
 		icsk->icsk_backoff = 0;
 		inet_csk_clear_xmit_timer(sk, ICSK_TIME_PROBE0);
@@ -2795,7 +2813,7 @@ no_queue:
 	 * being used to time the probes, and is probably far higher than
 	 * it needs to be for normal retransmission.
 	 */
-	if (sk->sk_send_head)
+	if (tcp_send_head(sk))
 		tcp_ack_probe(sk);
 	return 1;
 

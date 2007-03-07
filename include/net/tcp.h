@@ -1162,6 +1162,120 @@ static inline void		tcp_put_md5sig_pool(void)
 	put_cpu();
 }
 
+/* write queue abstraction */
+static inline void tcp_write_queue_purge(struct sock *sk)
+{
+	struct sk_buff *skb;
+
+	while ((skb = __skb_dequeue(&sk->sk_write_queue)) != NULL)
+		sk_stream_free_skb(sk, skb);
+	sk_stream_mem_reclaim(sk);
+}
+
+static inline struct sk_buff *tcp_write_queue_head(struct sock *sk)
+{
+	struct sk_buff *skb = sk->sk_write_queue.next;
+	if (skb == (struct sk_buff *) &sk->sk_write_queue)
+		return NULL;
+	return skb;
+}
+
+static inline struct sk_buff *tcp_write_queue_tail(struct sock *sk)
+{
+	struct sk_buff *skb = sk->sk_write_queue.prev;
+	if (skb == (struct sk_buff *) &sk->sk_write_queue)
+		return NULL;
+	return skb;
+}
+
+static inline struct sk_buff *tcp_write_queue_next(struct sock *sk, struct sk_buff *skb)
+{
+	return skb->next;
+}
+
+#define tcp_for_write_queue(skb, sk)					\
+		for (skb = (sk)->sk_write_queue.next;			\
+		     (skb != (struct sk_buff *)&(sk)->sk_write_queue);	\
+		     skb = skb->next)
+
+#define tcp_for_write_queue_from(skb, sk)				\
+		for (; (skb != (struct sk_buff *)&(sk)->sk_write_queue);\
+		     skb = skb->next)
+
+static inline struct sk_buff *tcp_send_head(struct sock *sk)
+{
+	return sk->sk_send_head;
+}
+
+static inline void tcp_advance_send_head(struct sock *sk, struct sk_buff *skb)
+{
+	sk->sk_send_head = skb->next;
+	if (sk->sk_send_head == (struct sk_buff *)&sk->sk_write_queue)
+		sk->sk_send_head = NULL;
+}
+
+static inline void tcp_check_send_head(struct sock *sk, struct sk_buff *skb_unlinked)
+{
+	if (sk->sk_send_head == skb_unlinked)
+		sk->sk_send_head = NULL;
+}
+
+static inline void tcp_init_send_head(struct sock *sk)
+{
+	sk->sk_send_head = NULL;
+}
+
+static inline void __tcp_add_write_queue_tail(struct sock *sk, struct sk_buff *skb)
+{
+	__skb_queue_tail(&sk->sk_write_queue, skb);
+}
+
+static inline void tcp_add_write_queue_tail(struct sock *sk, struct sk_buff *skb)
+{
+	__tcp_add_write_queue_tail(sk, skb);
+
+	/* Queue it, remembering where we must start sending. */
+	if (sk->sk_send_head == NULL)
+		sk->sk_send_head = skb;
+}
+
+static inline void __tcp_add_write_queue_head(struct sock *sk, struct sk_buff *skb)
+{
+	__skb_queue_head(&sk->sk_write_queue, skb);
+}
+
+/* Insert buff after skb on the write queue of sk.  */
+static inline void tcp_insert_write_queue_after(struct sk_buff *skb,
+						struct sk_buff *buff,
+						struct sock *sk)
+{
+	__skb_append(skb, buff, &sk->sk_write_queue);
+}
+
+/* Insert skb between prev and next on the write queue of sk.  */
+static inline void tcp_insert_write_queue_before(struct sk_buff *new,
+						  struct sk_buff *skb,
+						  struct sock *sk)
+{
+	__skb_insert(new, skb->prev, skb, &sk->sk_write_queue);
+}
+
+static inline void tcp_unlink_write_queue(struct sk_buff *skb, struct sock *sk)
+{
+	__skb_unlink(skb, &sk->sk_write_queue);
+}
+
+static inline int tcp_skb_is_last(const struct sock *sk,
+				  const struct sk_buff *skb)
+{
+	return skb->next == (struct sk_buff *)&sk->sk_write_queue;
+}
+
+static inline int tcp_write_queue_empty(struct sock *sk)
+{
+	return skb_queue_empty(&sk->sk_write_queue);
+}
+
 /* /proc */
 enum tcp_seq_states {
 	TCP_SEQ_STATE_LISTENING,

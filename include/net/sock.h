@@ -710,15 +710,6 @@ static inline void sk_stream_mem_reclaim(struct sock *sk)
 		__sk_stream_mem_reclaim(sk);
 }
 
-static inline void sk_stream_writequeue_purge(struct sock *sk)
-{
-	struct sk_buff *skb;
-
-	while ((skb = __skb_dequeue(&sk->sk_write_queue)) != NULL)
-		sk_stream_free_skb(sk, skb);
-	sk_stream_mem_reclaim(sk);
-}
-
 static inline int sk_stream_rmem_schedule(struct sock *sk, struct sk_buff *skb)
 {
 	return (int)skb->truesize <= sk->sk_forward_alloc ||
@@ -1255,18 +1246,6 @@ static inline struct page *sk_stream_alloc_page(struct sock *sk)
 	}
 	return page;
 }
-
-#define sk_stream_for_retrans_queue(skb, sk)				\
-		for (skb = (sk)->sk_write_queue.next;			\
-		     (skb != (sk)->sk_send_head) &&			\
-		     (skb != (struct sk_buff *)&(sk)->sk_write_queue);	\
-		     skb = skb->next)
-
-/*from STCP for fast SACK Process*/
-#define sk_stream_for_retrans_queue_from(skb, sk)			\
-		for (; (skb != (sk)->sk_send_head) &&                   \
-		     (skb != (struct sk_buff *)&(sk)->sk_write_queue);	\
-		     skb = skb->next)
 
 /*
  *	Default write policy as shown to user space via poll/select/SIGIO
