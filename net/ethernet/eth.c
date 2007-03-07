@@ -228,7 +228,7 @@ int eth_header_cache(struct neighbour *neigh, struct hh_cache *hh)
 	eth = (struct ethhdr *)
 	    (((u8 *) hh->hh_data) + (HH_DATA_OFF(sizeof(*eth))));
 
-	if (type == __constant_htons(ETH_P_802_3))
+	if (type == htons(ETH_P_802_3))
 		return -1;
 
 	eth->h_proto = type;
