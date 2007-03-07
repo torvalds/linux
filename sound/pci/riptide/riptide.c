@@ -1919,6 +1919,8 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 		return err;
 	}
 
+	snd_card_set_dev(card, &pci->dev);
+
 	*rchip = chip;
 	return 0;
 }

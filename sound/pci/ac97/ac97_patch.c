@@ -1790,6 +1790,8 @@ static const struct snd_kcontrol_new snd_ac97_ad1981x_jack_sense[] = {
  * (SS vendor << 16 | device)
  */
 static unsigned int ad1981_jacks_blacklist[] = {
+	0x10140523, /* Thinkpad R40 */
+	0x10140534, /* Thinkpad X31 */
 	0x10140537, /* Thinkpad T41p */
 	0x10140554, /* Thinkpad T42p/R50p */
 	0 /* end */

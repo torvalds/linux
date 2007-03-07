@@ -370,7 +370,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_port	- 0x300,0x310,0x320,0x330 = legacy port,
 		  1 = integrated PCI port,
 		  0 = disable (default)
-    fm_port     - 0x388 (default), 0 = disable (default)
+    fm_port     - 0x388 = legacy port,
+		  1 = integrated PCI port (default),
+		  0 = disable
     soft_ac3    - Software-conversion of raw SPDIF packets (model 033 only)
                   (default = 1)
     joystick_port - Joystick port address (0 = disable, 1 = auto-detect)
@@ -895,10 +897,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			can be adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
 
-	STAC9200/9205/9220/9221/9254
+	STAC9200/9205/9254
+	  ref		Reference board
+
+	STAC9220/9221
 	  ref		Reference board
 	  3stack	D945 3stack
 	  5stack	D945 5stack + SPDIF
+	  macmini	Intel Mac Mini
+	  macbook	Intel Mac Book
+	  macbook-pro	Intel Mac Book Pro
 
 	STAC9202/9250/9251
 	  ref		Reference board, base config
