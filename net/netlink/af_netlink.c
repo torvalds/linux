@@ -1242,6 +1242,9 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 
 	scm_recv(sock, msg, siocb->scm, flags);
 
+	if (flags & MSG_TRUNC)
+		copied = skb->len;
+
 out:
 	netlink_rcv_wake(sk);
 	return err ? : copied;
