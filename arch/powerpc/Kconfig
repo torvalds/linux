@@ -173,6 +173,7 @@ config PPC_86xx
 	bool "Freescale 86xx"
 	select 6xx
 	select FSL_SOC
+	select FSL_PCIE
 	select PPC_FPU
 	select ALTIVEC
 	help
@@ -644,6 +645,10 @@ config SBUS
 
 config FSL_SOC
 	bool
+
+config FSL_PCIE
+	bool
+	depends on PPC_86xx
 
 # Yes MCA RS/6000s exist but Linux-PPC does not currently support any
 config MCA

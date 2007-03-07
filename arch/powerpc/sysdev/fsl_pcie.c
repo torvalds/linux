@@ -24,8 +24,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 
-#include "mpc86xx.h"
-
 #define PCI_CFG_OUT out_be32
 
 /* ERRATA PCI-Ex 14 PCIE Controller timeout */
