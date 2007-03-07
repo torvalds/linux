@@ -23,6 +23,7 @@ extern struct mutex p3map_mutex[];
  */
 void clear_user_page(void *to, unsigned long address, struct page *page)
 {
+	__set_bit(PG_mapped, &page->flags);
 	if (((address ^ (unsigned long)to) & CACHE_ALIAS) == 0)
 		clear_page(to);
 	else {
@@ -58,6 +59,7 @@ void clear_user_page(void *to, unsigned long address, struct page *page)
 void copy_user_page(void *to, void *from, unsigned long address,
 		    struct page *page)
 {
+	__set_bit(PG_mapped, &page->flags);
 	if (((address ^ (unsigned long)to) & CACHE_ALIAS) == 0)
 		copy_page(to, from);
 	else {
@@ -81,4 +83,24 @@ void copy_user_page(void *to, void *from, unsigned long address,
 		pte_clear(&init_mm, p3_addr, pte);
 		mutex_unlock(&p3map_mutex[(address & CACHE_ALIAS)>>12]);
 	}
+}
+
+/*
+ * For SH-4, we have our own implementation for ptep_get_and_clear
+ */
+inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	pte_t pte = *ptep;
+
+	pte_clear(mm, addr, ptep);
+	if (!pte_not_present(pte)) {
+		unsigned long pfn = pte_pfn(pte);
+		if (pfn_valid(pfn)) {
+			struct page *page = pfn_to_page(pfn);
+			struct address_space *mapping = page_mapping(page);
+			if (!mapping || !mapping_writably_mapped(mapping))
+				__clear_bit(PG_mapped, &page->flags);
+		}
+	}
+	return pte;
 }

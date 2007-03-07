@@ -583,6 +583,11 @@ struct mm_struct;
 extern unsigned int kobjsize(const void *objp);
 #endif /* !CONFIG_MMU */
 
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB)
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+extern pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+#endif
+
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern void paging_init(void);
 

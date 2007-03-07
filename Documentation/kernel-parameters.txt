@@ -79,6 +79,7 @@ parameter is applicable:
 			Documentation/scsi/.
 	SELINUX SELinux support is enabled.
 	SERIAL	Serial support is enabled.
+	SH	SuperH architecture is enabled.
 	SMP	The kernel is an SMP kernel.
 	SPARC	Sparc architecture is enabled.
 	SWSUSP	Software suspend is enabled.
@@ -485,7 +486,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	dtc3181e=	[HW,SCSI]
 
-	earlyprintk=	[IA-32,X86-64]
+	earlyprintk=	[IA-32,X86-64,SH]
 			earlyprintk=vga
 			earlyprintk=serial[,ttySn[,baudrate]]
 
@@ -1784,7 +1785,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 
-	vdso=		[IA-32]
+	vdso=		[IA-32,SH]
 			vdso=1: enable VDSO (default)
 			vdso=0: disable VDSO mapping
 

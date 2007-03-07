@@ -30,8 +30,5 @@ extern void __flush_invalidate_region(void *start, int size);
 
 #define HAVE_ARCH_UNMAPPED_AREA
 
-/* Page flag for lazy dcache write-back for the aliasing UP caches */
-#define PG_dcache_dirty	PG_arch_1
-
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHEFLUSH_H */
