@@ -114,6 +114,7 @@ struct pppoe_hdr {
 #ifdef __KERNEL__
 struct pppoe_opt {
 	struct net_device      *dev;	  /* device associated with socket*/
+	int			ifindex;  /* ifindex of device associated with socket */
 	struct pppoe_addr	pa;	  /* what this socket is bound to*/
 	struct sockaddr_pppox	relay;	  /* what socket data will be
 					     relayed to (PPPoE relaying) */
@@ -132,6 +133,7 @@ struct pppox_sock {
 	unsigned short		num;
 };
 #define pppoe_dev	proto.pppoe.dev
+#define pppoe_ifindex	proto.pppoe.ifindex
 #define pppoe_pa	proto.pppoe.pa
 #define pppoe_relay	proto.pppoe.relay
 
