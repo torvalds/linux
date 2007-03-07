@@ -433,6 +433,19 @@ static int ioctl_send_response(struct client *client, void __user *arg)
 	return 0;
 }
 
+static int ioctl_initiate_bus_reset(struct client *client, void __user *arg)
+{
+	struct fw_cdev_initiate_bus_reset request;
+	int short_reset;
+
+	if (copy_from_user(&request, arg, sizeof request))
+		return -EFAULT;
+
+	short_reset = (request.type == FW_CDEV_SHORT_RESET);
+
+	return fw_core_initiate_bus_reset(client->device->card, short_reset);
+}
+
 static void
 iso_callback(struct fw_iso_context *context, u32 cycle,
 	     size_t header_length, void *header, void *data)
@@ -606,6 +619,8 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 		return ioctl_allocate(client, arg);
 	case FW_CDEV_IOC_SEND_RESPONSE:
 		return ioctl_send_response(client, arg);
+	case FW_CDEV_IOC_INITIATE_BUS_RESET:
+		return ioctl_initiate_bus_reset(client, arg);
 	case FW_CDEV_IOC_CREATE_ISO_CONTEXT:
 		return ioctl_create_iso_context(client, arg);
 	case FW_CDEV_IOC_QUEUE_ISO:
