@@ -1541,14 +1541,21 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 		 * External Pin Mask Setting & Enable External Pin for Interface
 		 * mrcbis@aliceposta.it
         	 */
-		unsigned short *serpin_enable_mask;
-		serpin_enable_mask = (MCF_IPSBAR + MCF_GPIO_PAR_UART);
+		u16 *serpin_enable_mask;
+		serpin_enable_mask = (u16 *) (MCF_IPSBAR + MCF_GPIO_PAR_UART);
 		if (info->line == 0)
 			*serpin_enable_mask |= UART0_ENABLE_MASK;
 		else if (info->line == 1)
 			*serpin_enable_mask |= UART1_ENABLE_MASK;
 		else if (info->line == 2)
 			*serpin_enable_mask |= UART2_ENABLE_MASK;
+	}
+#endif
+#if defined(CONFIG_M528x)
+	/* make sure PUAPAR is set for UART0 and UART1 */
+	if (info->line < 2) {
+		volatile unsigned char *portp = (volatile unsigned char *) (MCF_MBAR + MCF5282_GPIO_PUAPAR);
+		*portp |= (0x03 << (info->line * 2));
 	}
 #endif
 #elif defined(CONFIG_M520x)
