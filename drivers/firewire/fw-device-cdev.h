@@ -58,14 +58,25 @@
 #define SCODE_1600			0x4
 #define SCODE_3200			0x5
 
-#define FW_CDEV_EVENT_RESPONSE		0x00
-#define FW_CDEV_EVENT_REQUEST		0x01
-#define FW_CDEV_EVENT_ISO_INTERRUPT	0x02
+#define FW_CDEV_EVENT_BUS_RESET		0x00
+#define FW_CDEV_EVENT_RESPONSE		0x01
+#define FW_CDEV_EVENT_REQUEST		0x02
+#define FW_CDEV_EVENT_ISO_INTERRUPT	0x03
 
 /* The 'closure' fields are for user space to use.  Data passed in the
  * 'closure' field for a request will be returned in the corresponding
  * event.  It's a 64-bit type so that it's a fixed size type big
  * enough to hold a pointer on all platforms. */
+
+struct fw_cdev_event_bus_reset {
+	__u32 type;
+	__u32 node_id;
+	__u32 local_node_id;
+	__u32 bm_node_id;
+	__u32 irm_node_id;
+	__u32 root_node_id;
+	__u32 generation;
+};
 
 struct fw_cdev_event_response {
 	__u32 type;

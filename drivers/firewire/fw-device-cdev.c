@@ -50,6 +50,11 @@ struct event {
 	struct list_head link;
 };
 
+struct bus_reset {
+	struct event event;
+	struct fw_cdev_event_bus_reset reset;
+};
+
 struct response {
 	struct event event;
 	struct fw_transaction transaction;
@@ -75,6 +80,8 @@ struct client {
 	struct fw_iso_context *iso_context;
 	struct fw_iso_buffer buffer;
 	unsigned long vm_start;
+
+	struct list_head link;
 };
 
 static inline void __user *
@@ -93,6 +100,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 {
 	struct fw_device *device;
 	struct client *client;
+	unsigned long flags;
 
 	device = container_of(inode->i_cdev, struct fw_device, cdev);
 
@@ -109,6 +117,10 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&client->wait);
 
 	file->private_data = client;
+
+	spin_lock_irqsave(&device->card->lock, flags);
+	list_add_tail(&client->link, &device->client_list);
+	spin_unlock_irqrestore(&device->card->lock, flags);
 
 	return 0;
 }
@@ -175,6 +187,45 @@ fw_device_op_read(struct file *file,
 	struct client *client = file->private_data;
 
 	return dequeue_event(client, buffer, count);
+}
+
+static void
+queue_bus_reset_event(struct client *client)
+{
+	struct bus_reset *bus_reset;
+	struct fw_device *device = client->device;
+	struct fw_card *card = device->card;
+
+	bus_reset = kzalloc(sizeof *bus_reset, GFP_ATOMIC);
+	if (bus_reset == NULL) {
+		fw_notify("Out of memory when allocating bus reset event\n");
+		return;
+	}
+
+	bus_reset->reset.type          = FW_CDEV_EVENT_BUS_RESET;
+	bus_reset->reset.node_id       = device->node_id;
+	bus_reset->reset.local_node_id = card->local_node->node_id;
+	bus_reset->reset.bm_node_id    = 0; /* FIXME: We don't track the BM. */
+	bus_reset->reset.irm_node_id   = card->irm_node->node_id;
+	bus_reset->reset.root_node_id  = card->root_node->node_id;
+	bus_reset->reset.generation    = card->generation;
+
+	queue_event(client, &bus_reset->event,
+		    &bus_reset->reset, sizeof bus_reset->reset, NULL, 0);
+}
+
+void fw_device_cdev_update(struct fw_device *device)
+{
+	struct fw_card *card = device->card;
+	struct client *c;
+	unsigned long flags;
+
+	spin_lock_irqsave(&card->lock, flags);
+
+	list_for_each_entry(c, &device->client_list, link)
+		queue_bus_reset_event(c);
+
+	spin_unlock_irqrestore(&card->lock, flags);
 }
 
 static int ioctl_config_rom(struct client *client, void __user *arg)
@@ -633,6 +684,7 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	struct client *client = file->private_data;
 	struct address_handler *h, *next;
 	struct request *r, *next_r;
+	unsigned long flags;
 
 	if (client->buffer.pages)
 		fw_iso_buffer_destroy(&client->buffer, client->device->card);
@@ -656,6 +708,10 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	 * after we free client. */
 	while (!list_empty(&client->event_list))
 		dequeue_event(client, NULL, 0);
+
+	spin_lock_irqsave(&client->device->card->lock, flags);
+	list_del(&client->link);
+	spin_unlock_irqrestore(&client->device->card->lock, flags);
 
 	fw_device_put(client->device);
 	kfree(client);

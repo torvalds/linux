@@ -40,6 +40,7 @@ struct fw_device {
 	struct fw_card *card;
 	struct device device;
 	struct cdev cdev;
+	struct list_head client_list;
 	__be32 *config_rom;
 	size_t config_rom_length;
 	int config_rom_retries;
@@ -55,6 +56,8 @@ fw_device(struct device *dev)
 struct fw_device *fw_device_get(struct fw_device *device);
 void fw_device_put(struct fw_device *device);
 int fw_device_enable_phys_dma(struct fw_device *device);
+
+void fw_device_cdev_update(struct fw_device *device);
 
 struct fw_unit {
 	struct device device;

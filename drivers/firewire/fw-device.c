@@ -535,6 +535,7 @@ static void fw_device_update(struct work_struct *work)
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
 
+	fw_device_cdev_update(device);
 	device_for_each_child(&device->device, NULL, update_unit);
 }
 
@@ -564,6 +565,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		device->node = fw_node_get(node);
 		device->node_id = node->node_id;
 		device->generation = card->generation;
+		INIT_LIST_HEAD(&device->client_list);
 
 		/* Set the node data to point back to this device so
 		 * FW_NODE_UPDATED callbacks can update the node_id
