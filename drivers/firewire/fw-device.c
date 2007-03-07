@@ -530,6 +530,14 @@ static int update_unit(struct device *dev, void *data)
 	return 0;
 }
 
+static void fw_device_update(struct work_struct *work)
+{
+	struct fw_device *device =
+		container_of(work, struct fw_device, work.work);
+
+	device_for_each_child(&device->device, NULL, update_unit);
+}
+
 void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 {
 	struct fw_device *device;
@@ -577,7 +585,10 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		device = node->data;
 		device->node_id = node->node_id;
 		device->generation = card->generation;
-		device_for_each_child(&device->device, NULL, update_unit);
+		if (atomic_read(&device->state) == FW_DEVICE_RUNNING) {
+			PREPARE_DELAYED_WORK(&device->work, fw_device_update);
+			schedule_delayed_work(&device->work, 0);
+		}
 		break;
 
 	case FW_NODE_DESTROYED:
@@ -597,8 +608,8 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 * to create the device. */
 		device = node->data;
 		if (atomic_xchg(&device->state,
-			 FW_DEVICE_SHUTDOWN) == FW_DEVICE_RUNNING) {
-			INIT_DELAYED_WORK(&device->work, fw_device_shutdown);
+				FW_DEVICE_SHUTDOWN) == FW_DEVICE_RUNNING) {
+			PREPARE_DELAYED_WORK(&device->work, fw_device_shutdown);
 			schedule_delayed_work(&device->work, 0);
 		}
 		break;
