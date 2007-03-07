@@ -715,6 +715,28 @@ acpi_ec_io_ports(struct acpi_resource *resource, void *context)
 	return AE_OK;
 }
 
+static int ec_install_handlers(struct acpi_ec *ec)
+{
+	acpi_status status = acpi_install_gpe_handler(NULL, ec->gpe,
+						      ACPI_GPE_EDGE_TRIGGERED,
+						      &acpi_ec_gpe_handler, ec);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+	acpi_set_gpe_type(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
+	acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
+
+	status = acpi_install_address_space_handler(ec->handle,
+						    ACPI_ADR_SPACE_EC,
+						    &acpi_ec_space_handler,
+						    &acpi_ec_space_setup, ec);
+	if (ACPI_FAILURE(status)) {
+		acpi_remove_gpe_handler(NULL, ec->gpe, &acpi_ec_gpe_handler);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int acpi_ec_start(struct acpi_device *device)
 {
 	acpi_status status = AE_OK;
@@ -742,28 +764,7 @@ static int acpi_ec_start(struct acpi_device *device)
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "gpe=0x%02lx, ports=0x%2lx,0x%2lx",
 			  ec->gpe, ec->command_addr, ec->data_addr));
 
-	/*
-	 * Install GPE handler
-	 */
-	status = acpi_install_gpe_handler(NULL, ec->gpe,
-					  ACPI_GPE_EDGE_TRIGGERED,
-					  &acpi_ec_gpe_handler, ec);
-	if (ACPI_FAILURE(status)) {
-		return -ENODEV;
-	}
-	acpi_set_gpe_type(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
-	acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
-
-	status = acpi_install_address_space_handler(ec->handle,
-						    ACPI_ADR_SPACE_EC,
-						    &acpi_ec_space_handler,
-						    &acpi_ec_space_setup, ec);
-	if (ACPI_FAILURE(status)) {
-		acpi_remove_gpe_handler(NULL, ec->gpe, &acpi_ec_gpe_handler);
-		return -ENODEV;
-	}
-
-	return AE_OK;
+	return ec_install_handlers(ec);
 }
 
 static int acpi_ec_stop(struct acpi_device *device, int type)
@@ -818,56 +819,22 @@ static int __init acpi_ec_get_real_ecdt(void)
 	ec_ecdt->gpe = ecdt_ptr->gpe;
 	ec_ecdt->uid = ecdt_ptr->uid;
 
-	status = acpi_get_handle(NULL, ecdt_ptr->id, &ec_ecdt->handle);
-	if (ACPI_FAILURE(status)) {
-		goto error;
-	}
-
+	ec_ecdt->handle = ACPI_ROOT_OBJECT;
 	return 0;
-      error:
-	ACPI_EXCEPTION((AE_INFO, status, "Could not use ECDT"));
-	kfree(ec_ecdt);
-	ec_ecdt = NULL;
-
-	return -ENODEV;
 }
 
 int __init acpi_ec_ecdt_probe(void)
 {
-	acpi_status status;
 	int ret;
 
 	ret = acpi_ec_get_real_ecdt();
 	if (ret)
 		return 0;
 
-	/*
-	 * Install GPE handler
-	 */
-	status = acpi_install_gpe_handler(NULL, ec_ecdt->gpe,
-					  ACPI_GPE_EDGE_TRIGGERED,
-					  &acpi_ec_gpe_handler, ec_ecdt);
-	if (ACPI_FAILURE(status)) {
-		goto error;
-	}
-	acpi_set_gpe_type(NULL, ec_ecdt->gpe, ACPI_GPE_TYPE_RUNTIME);
-	acpi_enable_gpe(NULL, ec_ecdt->gpe, ACPI_NOT_ISR);
+	ret = ec_install_handlers(ec_ecdt);
+	if (!ret)
+		return 0;
 
-	status = acpi_install_address_space_handler(ACPI_ROOT_OBJECT,
-						    ACPI_ADR_SPACE_EC,
-						    &acpi_ec_space_handler,
-						    &acpi_ec_space_setup,
-						    ec_ecdt);
-	if (ACPI_FAILURE(status)) {
-		acpi_remove_gpe_handler(NULL, ec_ecdt->gpe,
-					&acpi_ec_gpe_handler);
-		goto error;
-	}
-
-	return 0;
-
-      error:
-	ACPI_EXCEPTION((AE_INFO, status, "Could not use ECDT"));
 	kfree(ec_ecdt);
 	ec_ecdt = NULL;
 
