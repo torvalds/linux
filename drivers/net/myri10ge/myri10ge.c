@@ -2524,6 +2524,12 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 				 bridge->vendor, bridge->device);
 			mgp->tx.boundary = 4096;
 			mgp->fw_name = myri10ge_fw_aligned;
+		} else if (bridge &&
+			   bridge->vendor == PCI_VENDOR_ID_SGI &&
+			   bridge->device == 0x4002 /* TIOCE pcie-port */ ) {
+			/* this pcie bridge does not support 4K rdma request */
+			mgp->tx.boundary = 2048;
+			mgp->fw_name = myri10ge_fw_aligned;
 		}
 	} else {
 		if (myri10ge_force_firmware == 1) {
