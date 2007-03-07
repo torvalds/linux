@@ -720,23 +720,37 @@ MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
 MODULE_DESCRIPTION("Core IEEE1394 transaction logic");
 MODULE_LICENSE("GPL");
 
-static const u32 vendor_textual_descriptor_data[] = {
+static const u32 vendor_textual_descriptor[] = {
 	/* textual descriptor leaf () */
-	0x00080000,
+	0x00060000,
 	0x00000000,
 	0x00000000,
 	0x4c696e75,		/* L i n u */
 	0x78204669,		/* x   F i */
 	0x72657769,		/* r e w i */
-	0x72652028,		/* r e   ( */
-	0x4a554a55,		/* J U J U */
-	0x29000000,		/* )       */
+	0x72650000,		/* r e     */
 };
 
-static struct fw_descriptor vendor_textual_descriptor = {
-	.length = ARRAY_SIZE(vendor_textual_descriptor_data),
+static const u32 model_textual_descriptor[] = {
+	/* model descriptor leaf () */
+	0x00030000,
+	0x00000000,
+	0x00000000,
+	0x4a756a75,		/* J u j u */
+};
+
+static struct fw_descriptor vendor_id_descriptor = {
+	.length = ARRAY_SIZE(vendor_textual_descriptor),
+	.immediate = 0x03d00d1e,
 	.key = 0x81000000,
-	.data = vendor_textual_descriptor_data,
+	.data = vendor_textual_descriptor,
+};
+
+static struct fw_descriptor model_id_descriptor = {
+	.length = ARRAY_SIZE(model_textual_descriptor),
+	.immediate = 0x17000001,
+	.key = 0x81000000,
+	.data = model_textual_descriptor,
 };
 
 static int __init fw_core_init(void)
@@ -748,7 +762,9 @@ static int __init fw_core_init(void)
 		return retval;
 
 	/* Add the vendor textual descriptor. */
-	retval = fw_core_add_descriptor(&vendor_textual_descriptor);
+	retval = fw_core_add_descriptor(&vendor_id_descriptor);
+	BUG_ON(retval < 0);
+	retval = fw_core_add_descriptor(&model_id_descriptor);
 	BUG_ON(retval < 0);
 
 	return 0;

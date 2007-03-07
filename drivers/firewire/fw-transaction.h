@@ -164,6 +164,7 @@ struct fw_request;
 struct fw_descriptor {
 	struct list_head link;
 	size_t length;
+	u32 immediate;
 	u32 key;
 	const u32 *data;
 };

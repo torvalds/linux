@@ -100,11 +100,12 @@ generate_config_rom (struct fw_card *card, size_t *config_rom_length)
 	i = 5;
 	config_rom[i++] = 0;
 	config_rom[i++] = 0x0c0083c0; /* node capabilities */
-	config_rom[i++] = 0x03d00d1e; /* vendor id */
 	j = i + descriptor_count;
 
 	/* Generate root directory entries for descriptors. */
 	list_for_each_entry (desc, &descriptor_list, link) {
+		if (desc->immediate > 0)
+			config_rom[i++] = desc->immediate;
 		config_rom[i] = desc->key | (j - i);
 		i++;
 		j += desc->length;
@@ -165,6 +166,8 @@ fw_core_add_descriptor (struct fw_descriptor *desc)
 
 	list_add_tail (&desc->link, &descriptor_list);
 	descriptor_count++;
+	if (desc->immediate > 0)
+		descriptor_count++;
 	update_config_roms();
 
 	up_write(&fw_bus_type.subsys.rwsem);
@@ -180,6 +183,8 @@ fw_core_remove_descriptor (struct fw_descriptor *desc)
 
 	list_del(&desc->link);
 	descriptor_count--;
+	if (desc->immediate > 0)
+		descriptor_count--;
 	update_config_roms();
 
 	up_write(&fw_bus_type.subsys.rwsem);
