@@ -352,15 +352,6 @@ fw_card_bm_work(struct work_struct *work)
 }
 
 static void
-release_card(struct device *device)
-{
-	struct fw_card *card =
-		container_of(device, struct fw_card, card_device);
-
-	kfree(card);
-}
-
-static void
 flush_timer_callback(unsigned long data)
 {
 	struct fw_card *card = (struct fw_card *)data;
@@ -374,6 +365,7 @@ fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 {
 	static atomic_t index = ATOMIC_INIT(-1);
 
+	kref_init(&card->kref);
 	card->index = atomic_inc_return(&index);
 	card->driver = driver;
 	card->device = device;
@@ -389,14 +381,6 @@ fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 	card->local_node = NULL;
 
 	INIT_DELAYED_WORK(&card->work, fw_card_bm_work);
-
-	card->card_device.bus     = &fw_bus_type;
-	card->card_device.release = release_card;
-	card->card_device.parent  = card->device;
-	snprintf(card->card_device.bus_id, sizeof card->card_device.bus_id,
-		 "fwcard%d", card->index);
-
-	device_initialize(&card->card_device);
 }
 EXPORT_SYMBOL(fw_card_initialize);
 
@@ -404,7 +388,6 @@ int
 fw_card_add(struct fw_card *card,
 	    u32 max_receive, u32 link_speed, u64 guid)
 {
-	int retval;
 	u32 *config_rom;
 	size_t length;
 
@@ -416,12 +399,6 @@ fw_card_add(struct fw_card *card,
 	/* Activate link_on bit and contender bit in our self ID packets.*/
 	if (card->driver->update_phy_reg(card, 4, 0, 0x80 | 0x40) < 0)
 		return -EIO;
-
-	retval = device_add(&card->card_device);
-	if (retval < 0) {
-		fw_error("Failed to register card device.");
-		return retval;
-	}
 
 	/* The subsystem grabs a reference when the card is added and
 	 * drops it when the driver calls fw_core_remove_card. */
@@ -520,19 +497,26 @@ fw_core_remove_card(struct fw_card *card)
 
 	fw_destroy_nodes(card);
 
-	/* This also drops the subsystem reference. */
-	device_unregister(&card->card_device);
+	fw_card_put(card);
 }
 EXPORT_SYMBOL(fw_core_remove_card);
 
 struct fw_card *
 fw_card_get(struct fw_card *card)
 {
-	get_device(&card->card_device);
+	kref_get(&card->kref);
 
 	return card;
 }
 EXPORT_SYMBOL(fw_card_get);
+
+static void
+release_card(struct kref *kref)
+{
+	struct fw_card *card = container_of(kref, struct fw_card, kref);
+
+	kfree(card);
+}
 
 /* An assumption for fw_card_put() is that the card driver allocates
  * the fw_card struct with kalloc and that it has been shut down
@@ -540,7 +524,7 @@ EXPORT_SYMBOL(fw_card_get);
 void
 fw_card_put(struct fw_card *card)
 {
-	put_device(&card->card_device);
+	kref_put(&card->kref, release_card);
 }
 EXPORT_SYMBOL(fw_card_put);
 

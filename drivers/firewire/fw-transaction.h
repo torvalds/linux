@@ -270,6 +270,7 @@ extern struct bus_type fw_bus_type;
 struct fw_card {
 	const struct fw_card_driver *driver;
 	struct device *device;
+	struct kref kref;
 
 	int node_id;
 	int generation;
@@ -299,8 +300,6 @@ struct fw_card {
 	int topology_type;
 
 	int index;
-
-	struct device card_device;
 
 	struct list_head link;
 
