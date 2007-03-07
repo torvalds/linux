@@ -163,7 +163,7 @@ hauppauge_tuner[] =
 	/* 60-69 */
 	{ TUNER_PHILIPS_FM1216ME_MK3, "LG S001D MK3"},
 	{ TUNER_ABSENT,        "LG M001D MK3"},
-	{ TUNER_ABSENT,        "LG S701D MK3"},
+	{ TUNER_PHILIPS_FM1216ME_MK3, "LG S701D MK3"},
 	{ TUNER_ABSENT,        "LG M701D MK3"},
 	{ TUNER_ABSENT,        "Temic 4146FM5"},
 	{ TUNER_ABSENT,        "Temic 4136FY5"},
