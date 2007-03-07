@@ -406,7 +406,7 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 * data)
 
 static void acpi_ec_gpe_query(void *ec_cxt)
 {
-	struct acpi_ec *ec = (struct acpi_ec *)ec_cxt;
+	struct acpi_ec *ec = ec_cxt;
 	u8 value = 0;
 	char object_name[8];
 
@@ -424,8 +424,9 @@ static u32 acpi_ec_gpe_handler(void *data)
 {
 	acpi_status status = AE_OK;
 	u8 value;
-	struct acpi_ec *ec = (struct acpi_ec *)data;
+	struct acpi_ec *ec = data;
 	atomic_inc(&ec->event_count);
+
 	if (acpi_ec_mode == EC_INTR) {
 		wake_up(&ec->wait);
 	}
@@ -468,7 +469,7 @@ acpi_ec_space_handler(u32 function,
 		      void *handler_context, void *region_context)
 {
 	int result = 0;
-	struct acpi_ec *ec = NULL;
+	struct acpi_ec *ec = handler_context;
 	u64 temp = *value;
 	acpi_integer f_v = 0;
 	int i = 0;
@@ -479,8 +480,6 @@ acpi_ec_space_handler(u32 function,
 	if (bit_width != 8 && acpi_strict) {
 		return AE_BAD_PARAMETER;
 	}
-
-	ec = (struct acpi_ec *)handler_context;
 
       next_byte:
 	switch (function) {
@@ -537,7 +536,7 @@ static struct proc_dir_entry *acpi_ec_dir;
 
 static int acpi_ec_read_info(struct seq_file *seq, void *offset)
 {
-	struct acpi_ec *ec = (struct acpi_ec *)seq->private;
+	struct acpi_ec *ec = seq->private;
 
 	if (!ec)
 		goto end;
@@ -694,7 +693,7 @@ static int acpi_ec_remove(struct acpi_device *device, int type)
 static acpi_status
 acpi_ec_io_ports(struct acpi_resource *resource, void *context)
 {
-	struct acpi_ec *ec = (struct acpi_ec *)context;
+	struct acpi_ec *ec = context;
 
 	if (resource->type != ACPI_RESOURCE_TYPE_IO) {
 		return AE_OK;
