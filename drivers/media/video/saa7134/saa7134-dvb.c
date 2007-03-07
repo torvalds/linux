@@ -60,8 +60,12 @@ static int debug = 0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off module debugging (default:off).");
 
-#define dprintk(fmt, arg...)	if (debug) \
-	printk(KERN_DEBUG "%s/dvb: " fmt, dev->name , ## arg)
+#define dprintk(fmt, arg...)	do { if (debug) \
+	printk(KERN_DEBUG "%s/dvb: " fmt, dev->name , ## arg); } while(0)
+
+/* Print a warning */
+#define wprintk(fmt, arg...) \
+	printk(KERN_WARNING "%s/dvb: " fmt, dev->name, ## arg)
 
 /* ------------------------------------------------------------------
  * mt352 based DVB-T cards
@@ -87,8 +91,7 @@ static int pinnacle_antenna_pwr(struct saa7134_dev *dev, int on)
 	saa_setl(SAA7134_GPIO_GPSTATUS0 >> 2,   (1 << 28));
 	udelay(10);
 	ok = saa_readl(SAA7134_GPIO_GPSTATUS0) & (1 << 27);
-	printk("%s: %s %s\n", dev->name, __FUNCTION__,
-	       ok ? "on" : "off");
+	dprintk("%s %s\n", __FUNCTION__, ok ? "on" : "off");
 
 	if (!ok)
 		saa_clearl(SAA7134_GPIO_GPSTATUS0 >> 2,   (1 << 26));
@@ -108,7 +111,7 @@ static int mt352_pinnacle_init(struct dvb_frontend* fe)
 	static u8 irq_cfg []       = { INTERRUPT_EN_0, 0x00, 0x00, 0x00, 0x00 };
 	struct saa7134_dev *dev= fe->dvb->priv;
 
-	printk("%s: %s called\n",dev->name,__FUNCTION__);
+	dprintk("%s called\n", __FUNCTION__);
 
 	mt352_write(fe, clock_config,   sizeof(clock_config));
 	udelay(200);
@@ -292,7 +295,8 @@ static int philips_tda6651_pll_set(struct dvb_frontend *fe, struct dvb_frontend_
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1) {
-		printk("%s/dvb: could not write to tuner at addr: 0x%02x\n",dev->name, addr << 1);
+		wprintk("could not write to tuner at addr: 0x%02x\n",
+			addr << 1);
 		return -EIO;
 	}
 	msleep(1);
@@ -562,7 +566,8 @@ static int philips_fmd1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1) {
-		printk("%s/dvb: could not write to tuner at addr: 0x%02x\n",dev->name, addr << 1);
+		wprintk("could not write to tuner at addr: 0x%02x\n",
+			addr << 1);
 		return -EIO;
 	}
 	return 0;
@@ -609,7 +614,8 @@ static void philips_tda827x_lna_gain(struct dvb_frontend *fe, int high)
 		saa7134_set_gpio(dev, 22, 0);
 		GP00_LEV[1] = high ? 0 : 1;
 		if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
-			printk("%s/dvb: could not access tda8290 at addr: 0x%02x\n",dev->name, addr << 1);
+			wprintk("could not access tda8290 at addr: 0x%02x\n",
+				addr << 1);
 			return;
 		}
 		msg.buf = GP00_LEV;
@@ -637,7 +643,8 @@ static int tda8290_i2c_gate_ctrl( struct dvb_frontend* fe, int enable)
 		tda8290_msg.buf = tda8290_open;
 	}
 	if (i2c_transfer(state->i2c, &tda8290_msg, 1) != 1) {
-		printk("saa7134/dvb: could not access tda8290 I2C gate\n");
+		struct saa7134_dev *dev = fe->dvb->priv;
+		wprintk("could not access tda8290 I2C gate\n");
 		return -EIO;
 	}
 	msleep(20);
@@ -694,7 +701,7 @@ static void configure_tda827x_fe(struct saa7134_dev *dev, struct tda1004x_config
 			dev->dvb.frontend->ops.i2c_gate_ctrl = tda8290_i2c_gate_ctrl;
 		if (dvb_attach(tda827x_attach, dev->dvb.frontend, tda_conf->tuner_address,
 						&dev->i2c_adap,&tda827x_cfg) == NULL) {
-			printk ("saa7134/dvb: no tda827x tuner found at addr: %02x\n",
+			wprintk("no tda827x tuner found at addr: %02x\n",
 				tda_conf->tuner_address);
 		}
 	}
@@ -942,7 +949,7 @@ static int dvb_init(struct saa7134_dev *dev)
 
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_300I_DVBT_PAL:
-		printk("%s: pinnacle 300i dvb setup\n",dev->name);
+		dprintk("pinnacle 300i dvb setup\n");
 		dev->dvb.frontend = dvb_attach(mt352_attach, &pinnacle_300i,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
@@ -951,7 +958,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_AVERMEDIA_777:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
-		printk("%s: avertv 777 dvb setup\n",dev->name);
+		dprintk("avertv 777 dvb setup\n");
 		dev->dvb.frontend = dvb_attach(mt352_attach, &avermedia_777,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
@@ -1026,11 +1033,11 @@ static int dvb_init(struct saa7134_dev *dev)
 			if (dev->dvb.frontend) {
 				if (dvb_attach(tda826x_attach, dev->dvb.frontend, 0x63,
 									&dev->i2c_adap, 0) == NULL) {
-					printk("%s: Lifeview Trio, No tda826x found!\n", __FUNCTION__);
+					wprintk("%s: Lifeview Trio, No tda826x found!\n", __FUNCTION__);
 				}
 				if (dvb_attach(isl6421_attach, dev->dvb.frontend, &dev->i2c_adap,
 										0x08, 0, 0) == NULL) {
-					printk("%s: Lifeview Trio, No ISL6421 found!\n", __FUNCTION__);
+					wprintk("%s: Lifeview Trio, No ISL6421 found!\n", __FUNCTION__);
 				}
 			}
 		}
@@ -1044,7 +1051,7 @@ static int dvb_init(struct saa7134_dev *dev)
 			if (dvb_attach(tda827x_attach,dev->dvb.frontend,
 				   ads_tech_duo_config.tuner_address,
 				   &dev->i2c_adap,&ads_duo_cfg) == NULL) {
-				printk ("saa7134/dvb: no tda827x tuner found at addr: %02x\n",
+				wprintk("no tda827x tuner found at addr: %02x\n",
 					ads_tech_duo_config.tuner_address);
 			}
 		}
@@ -1077,11 +1084,11 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (dev->dvb.frontend) {
 			if (dvb_attach(tda826x_attach, dev->dvb.frontend, 0x60,
 				       &dev->i2c_adap, 0) == NULL) {
-				printk("%s: No tda826x found!\n", __FUNCTION__);
+				wprintk("%s: No tda826x found!\n", __FUNCTION__);
 			}
 			if (dvb_attach(isl6421_attach, dev->dvb.frontend,
 				       &dev->i2c_adap, 0x08, 0, 0) == NULL) {
-				printk("%s: No ISL6421 found!\n", __FUNCTION__);
+				wprintk("%s: No ISL6421 found!\n", __FUNCTION__);
 			}
 		}
 		break;
@@ -1115,12 +1122,12 @@ static int dvb_init(struct saa7134_dev *dev)
 		configure_tda827x_fe(dev, &philips_tiger_s_config);
 		break;
 	default:
-		printk("%s: Huh? unknown DVB card?\n",dev->name);
+		wprintk("Huh? unknown DVB card?\n");
 		break;
 	}
 
 	if (NULL == dev->dvb.frontend) {
-		printk("%s: frontend initialization failed\n",dev->name);
+		printk(KERN_ERR "%s/dvb: frontend initialization failed\n", dev->name);
 		return -1;
 	}
 
