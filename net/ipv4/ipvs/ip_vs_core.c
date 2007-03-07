@@ -617,7 +617,7 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 	*related = 1;
 
 	/* reassemble IP fragments */
-	if (skb->nh.iph->frag_off & __constant_htons(IP_MF|IP_OFFSET)) {
+	if (skb->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
 		skb = ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT);
 		if (!skb)
 			return NF_STOLEN;
@@ -659,7 +659,7 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 		return NF_ACCEPT;
 
 	/* Is the embedded protocol header present? */
-	if (unlikely(cih->frag_off & __constant_htons(IP_OFFSET) &&
+	if (unlikely(cih->frag_off & htons(IP_OFFSET) &&
 		     pp->dont_defrag))
 		return NF_ACCEPT;
 
@@ -755,7 +755,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 		return NF_ACCEPT;
 
 	/* reassemble IP fragments */
-	if (unlikely(iph->frag_off & __constant_htons(IP_MF|IP_OFFSET) &&
+	if (unlikely(iph->frag_off & htons(IP_MF|IP_OFFSET) &&
 		     !pp->dont_defrag)) {
 		skb = ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT);
 		if (!skb)
@@ -861,7 +861,7 @@ ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
 	*related = 1;
 
 	/* reassemble IP fragments */
-	if (skb->nh.iph->frag_off & __constant_htons(IP_MF|IP_OFFSET)) {
+	if (skb->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
 		skb = ip_vs_gather_frags(skb,
 					 hooknum == NF_IP_LOCAL_IN ?
 					 IP_DEFRAG_VS_IN : IP_DEFRAG_VS_FWD);
@@ -905,7 +905,7 @@ ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
 		return NF_ACCEPT;
 
 	/* Is the embedded protocol header present? */
-	if (unlikely(cih->frag_off & __constant_htons(IP_OFFSET) &&
+	if (unlikely(cih->frag_off & htons(IP_OFFSET) &&
 		     pp->dont_defrag))
 		return NF_ACCEPT;
 
