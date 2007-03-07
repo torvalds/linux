@@ -151,6 +151,7 @@ struct fw_cdev_send_request {
 	__u64 offset;
 	__u64 closure;
 	__u64 data;
+	__u32 generation;
 };
 
 struct fw_cdev_send_response {
