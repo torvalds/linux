@@ -754,6 +754,13 @@ static struct attribute_group input_dev_caps_attr_group = {
 	.attrs	= input_dev_caps_attrs,
 };
 
+static struct attribute_group *input_dev_attr_groups[] = {
+	&input_dev_attr_group,
+	&input_dev_id_attr_group,
+	&input_dev_caps_attr_group,
+	NULL
+};
+
 static void input_dev_release(struct class_device *class_dev)
 {
 	struct input_dev *dev = to_input_dev(class_dev);
@@ -907,6 +914,7 @@ struct input_dev *input_allocate_device(void)
 	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
 	if (dev) {
 		dev->cdev.class = &input_class;
+		dev->cdev.groups = input_dev_attr_groups;
 		class_device_initialize(&dev->cdev);
 		mutex_init(&dev->mutex);
 		INIT_LIST_HEAD(&dev->h_list);
@@ -979,18 +987,6 @@ int input_register_device(struct input_dev *dev)
 	if (error)
 		return error;
 
-	error = sysfs_create_group(&dev->cdev.kobj, &input_dev_attr_group);
-	if (error)
-		goto fail1;
-
-	error = sysfs_create_group(&dev->cdev.kobj, &input_dev_id_attr_group);
-	if (error)
-		goto fail2;
-
-	error = sysfs_create_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
-	if (error)
-		goto fail3;
-
 	path = kobject_get_path(&dev->cdev.kobj, GFP_KERNEL);
 	printk(KERN_INFO "input: %s as %s\n",
 		dev->name ? dev->name : "Unspecified device", path ? path : "N/A");
@@ -1008,11 +1004,6 @@ int input_register_device(struct input_dev *dev)
 	input_wakeup_procfs_readers();
 
 	return 0;
-
- fail3:	sysfs_remove_group(&dev->cdev.kobj, &input_dev_id_attr_group);
- fail2:	sysfs_remove_group(&dev->cdev.kobj, &input_dev_attr_group);
- fail1:	class_device_del(&dev->cdev);
-	return error;
 }
 EXPORT_SYMBOL(input_register_device);
 
@@ -1036,10 +1027,6 @@ void input_unregister_device(struct input_dev *dev)
 	}
 
 	list_del_init(&dev->node);
-
-	sysfs_remove_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
-	sysfs_remove_group(&dev->cdev.kobj, &input_dev_id_attr_group);
-	sysfs_remove_group(&dev->cdev.kobj, &input_dev_attr_group);
 
 	class_device_unregister(&dev->cdev);
 
