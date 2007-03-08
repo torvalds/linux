@@ -22,6 +22,10 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
+config GENERIC_BUG
+	def_bool y
+	depends on BUG
+
 config GENERIC_FIND_NEXT_BIT
 	bool
 	default y

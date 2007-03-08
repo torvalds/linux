@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/io.h>
+#include <linux/bug.h>
 #include <linux/debug_locks.h>
 #include <linux/limits.h>
 #include <asm/system.h>
@@ -129,40 +130,6 @@ static int die_if_no_fixup(const char * str, struct pt_regs * regs, long err)
 	}
 	return -EFAULT;
 }
-
-#ifdef CONFIG_BUG
-#ifdef CONFIG_DEBUG_BUGVERBOSE
-static inline void do_bug_verbose(struct pt_regs *regs)
-{
-	struct bug_frame f;
-	long len;
-
-	if (__copy_from_user(&f, (const void __user *)regs->pc,
-			     sizeof(struct bug_frame)))
-		return;
-
-	len = __strnlen_user(f.file, PATH_MAX) - 1;
-	if (unlikely(len < 0 || len >= PATH_MAX))
-		f.file = "<bad filename>";
-	len = __strnlen_user(f.func, PATH_MAX) - 1;
-	if (unlikely(len < 0 || len >= PATH_MAX))
-		f.func = "<bad function>";
-
-	printk(KERN_ALERT "kernel BUG in %s() at %s:%d!\n",
-	       f.func, f.file, f.line);
-}
-#else
-static inline void do_bug_verbose(struct pt_regs *regs)
-{
-}
-#endif /* CONFIG_DEBUG_BUGVERBOSE */
-
-void handle_BUG(struct pt_regs *regs)
-{
-	do_bug_verbose(regs);
-	die("Kernel BUG", regs, TRAPA_BUG_OPCODE & 0xff);
-}
-#endif /* CONFIG_BUG */
 
 /*
  * handle an instruction that does an unaligned memory access by emulating the
@@ -887,6 +854,25 @@ void __init trap_init(void)
 	/* Setup VBR for boot cpu */
 	per_cpu_trap_init();
 }
+
+#ifdef CONFIG_BUG
+void handle_BUG(struct pt_regs *regs)
+{
+	enum bug_trap_type tt;
+	tt = report_bug(regs->pc);
+	if (tt == BUG_TRAP_TYPE_WARN) {
+		regs->pc += 2;
+		return;
+	}
+
+	die("Kernel BUG", regs, TRAPA_BUG_OPCODE & 0xff);
+}
+
+int is_valid_bugaddr(unsigned long addr)
+{
+	return addr >= PAGE_OFFSET;
+}
+#endif
 
 void show_trace(struct task_struct *tsk, unsigned long *sp,
 		struct pt_regs *regs)
