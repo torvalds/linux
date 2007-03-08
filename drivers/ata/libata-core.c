@@ -1791,10 +1791,10 @@ err_out_nosup:
 }
 
 /**
- *	ata_cable_40wire	-	return 40pin cable type
+ *	ata_cable_40wire	-	return 40 wire cable type
  *	@ap: port
  *
- *	Helper method for drivers which want to hardwire 40 pin cable
+ *	Helper method for drivers which want to hardwire 40 wire cable
  *	detection.
  */
 
@@ -1804,10 +1804,10 @@ int ata_cable_40wire(struct ata_port *ap)
 }
 
 /**
- *	ata_cable_80wire	-	return 40pin cable type
+ *	ata_cable_80wire	-	return 80 wire cable type
  *	@ap: port
  *
- *	Helper method for drivers which want to hardwire 80 pin cable
+ *	Helper method for drivers which want to hardwire 80 wire cable
  *	detection.
  */
 
