@@ -180,7 +180,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	}
 	if (res > 0)
 		return state;
-	if (!err)
+	if (err)
 	/* The partition is unrecognized. So report I/O errors if there were any */
 		res = err;
 	if (!res)
