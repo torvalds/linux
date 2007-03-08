@@ -100,6 +100,7 @@ static void msi_set_mask_bit(unsigned int irq, int flag)
 		BUG();
 		break;
 	}
+	entry->msi_attrib.masked = !!flag;
 }
 
 void read_msi_msg(unsigned int irq, struct msi_msg *msg)
@@ -179,6 +180,7 @@ void write_msi_msg(unsigned int irq, struct msi_msg *msg)
 	default:
 		BUG();
 	}
+	entry->msg = *msg;
 }
 
 void mask_msi_irq(unsigned int irq)
@@ -225,164 +227,60 @@ static struct msi_desc* alloc_msi_entry(void)
 }
 
 #ifdef CONFIG_PM
-static int __pci_save_msi_state(struct pci_dev *dev)
-{
-	int pos, i = 0;
-	u16 control;
-	struct pci_cap_saved_state *save_state;
-	u32 *cap;
-
-	if (!dev->msi_enabled)
-		return 0;
-
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
-	if (pos <= 0)
-		return 0;
-
-	save_state = kzalloc(sizeof(struct pci_cap_saved_state) + sizeof(u32) * 5,
-		GFP_KERNEL);
-	if (!save_state) {
-		printk(KERN_ERR "Out of memory in pci_save_msi_state\n");
-		return -ENOMEM;
-	}
-	cap = &save_state->data[0];
-
-	pci_read_config_dword(dev, pos, &cap[i++]);
-	control = cap[0] >> 16;
-	pci_read_config_dword(dev, pos + PCI_MSI_ADDRESS_LO, &cap[i++]);
-	if (control & PCI_MSI_FLAGS_64BIT) {
-		pci_read_config_dword(dev, pos + PCI_MSI_ADDRESS_HI, &cap[i++]);
-		pci_read_config_dword(dev, pos + PCI_MSI_DATA_64, &cap[i++]);
-	} else
-		pci_read_config_dword(dev, pos + PCI_MSI_DATA_32, &cap[i++]);
-	if (control & PCI_MSI_FLAGS_MASKBIT)
-		pci_read_config_dword(dev, pos + PCI_MSI_MASK_BIT, &cap[i++]);
-	save_state->cap_nr = PCI_CAP_ID_MSI;
-	pci_add_saved_cap(dev, save_state);
-	return 0;
-}
-
 static void __pci_restore_msi_state(struct pci_dev *dev)
 {
-	int i = 0, pos;
+	int pos;
 	u16 control;
-	struct pci_cap_saved_state *save_state;
-	u32 *cap;
+	struct msi_desc *entry;
 
 	if (!dev->msi_enabled)
 		return;
 
-	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_MSI);
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
-	if (!save_state || pos <= 0)
-		return;
-	cap = &save_state->data[0];
+	entry = get_irq_msi(dev->irq);
+	pos = entry->msi_attrib.pos;
 
 	pci_intx(dev, 0);		/* disable intx */
-	control = cap[i++] >> 16;
 	msi_set_enable(dev, 0);
-	pci_write_config_dword(dev, pos + PCI_MSI_ADDRESS_LO, cap[i++]);
-	if (control & PCI_MSI_FLAGS_64BIT) {
-		pci_write_config_dword(dev, pos + PCI_MSI_ADDRESS_HI, cap[i++]);
-		pci_write_config_dword(dev, pos + PCI_MSI_DATA_64, cap[i++]);
-	} else
-		pci_write_config_dword(dev, pos + PCI_MSI_DATA_32, cap[i++]);
-	if (control & PCI_MSI_FLAGS_MASKBIT)
-		pci_write_config_dword(dev, pos + PCI_MSI_MASK_BIT, cap[i++]);
+	write_msi_msg(dev->irq, &entry->msg);
+	if (entry->msi_attrib.maskbit)
+		msi_set_mask_bit(dev->irq, entry->msi_attrib.masked);
+
+	pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
+	control &= ~(PCI_MSI_FLAGS_QSIZE | PCI_MSI_FLAGS_ENABLE);
+	if (entry->msi_attrib.maskbit || !entry->msi_attrib.masked)
+		control |= PCI_MSI_FLAGS_ENABLE;
 	pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
-	pci_remove_saved_cap(save_state);
-	kfree(save_state);
-}
-
-static int __pci_save_msix_state(struct pci_dev *dev)
-{
-	int pos;
-	int irq, head, tail = 0;
-	u16 control;
-	struct pci_cap_saved_state *save_state;
-
-	if (!dev->msix_enabled)
-		return 0;
-
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
-	if (pos <= 0)
-		return 0;
-
-	/* save the capability */
-	pci_read_config_word(dev, msi_control_reg(pos), &control);
-	save_state = kzalloc(sizeof(struct pci_cap_saved_state) + sizeof(u16),
-		GFP_KERNEL);
-	if (!save_state) {
-		printk(KERN_ERR "Out of memory in pci_save_msix_state\n");
-		return -ENOMEM;
-	}
-	*((u16 *)&save_state->data[0]) = control;
-
-	/* save the table */
-	irq = head = dev->first_msi_irq;
-	while (head != tail) {
-		struct msi_desc *entry;
-
-		entry = get_irq_msi(irq);
-		read_msi_msg(irq, &entry->msg_save);
-
-		tail = entry->link.tail;
-		irq = tail;
-	}
-
-	save_state->cap_nr = PCI_CAP_ID_MSIX;
-	pci_add_saved_cap(dev, save_state);
-	return 0;
-}
-
-int pci_save_msi_state(struct pci_dev *dev)
-{
-	int rc;
-
-	rc = __pci_save_msi_state(dev);
-	if (rc)
-		return rc;
-
-	rc = __pci_save_msix_state(dev);
-
-	return rc;
 }
 
 static void __pci_restore_msix_state(struct pci_dev *dev)
 {
-	u16 save;
 	int pos;
 	int irq, head, tail = 0;
 	struct msi_desc *entry;
-	struct pci_cap_saved_state *save_state;
+	u16 control;
 
 	if (!dev->msix_enabled)
-		return;
-
-	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_MSIX);
-	if (!save_state)
-		return;
-	save = *((u16 *)&save_state->data[0]);
-	pci_remove_saved_cap(save_state);
-	kfree(save_state);
-
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
-	if (pos <= 0)
 		return;
 
 	/* route the table */
 	pci_intx(dev, 0);		/* disable intx */
 	msix_set_enable(dev, 0);
 	irq = head = dev->first_msi_irq;
+	entry = get_irq_msi(irq);
+	pos = entry->msi_attrib.pos;
 	while (head != tail) {
 		entry = get_irq_msi(irq);
-		write_msi_msg(irq, &entry->msg_save);
+		write_msi_msg(irq, &entry->msg);
+		msi_set_mask_bit(irq, entry->msi_attrib.masked);
 
 		tail = entry->link.tail;
 		irq = tail;
 	}
 
-	pci_write_config_word(dev, msi_control_reg(pos), save);
+	pci_read_config_word(dev, pos + PCI_MSIX_FLAGS, &control);
+	control &= ~PCI_MSIX_FLAGS_MASKALL;
+	control |= PCI_MSIX_FLAGS_ENABLE;
+	pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
 }
 
 void pci_restore_msi_state(struct pci_dev *dev)
@@ -420,6 +318,7 @@ static int msi_capability_init(struct pci_dev *dev)
 	entry->msi_attrib.is_64 = is_64bit_address(control);
 	entry->msi_attrib.entry_nr = 0;
 	entry->msi_attrib.maskbit = is_mask_bit_support(control);
+	entry->msi_attrib.masked = 1;
 	entry->msi_attrib.default_irq = dev->irq;	/* Save IOAPIC IRQ */
 	entry->msi_attrib.pos = pos;
 	if (is_mask_bit_support(control)) {
@@ -507,6 +406,7 @@ static int msix_capability_init(struct pci_dev *dev,
 		entry->msi_attrib.is_64 = 1;
 		entry->msi_attrib.entry_nr = j;
 		entry->msi_attrib.maskbit = 1;
+		entry->msi_attrib.masked = 1;
 		entry->msi_attrib.default_irq = dev->irq;
 		entry->msi_attrib.pos = pos;
 		entry->dev = dev;
