@@ -34,6 +34,13 @@ struct taskfile_array {
 	u8	tfa[REGS_PER_GTF];	/* regs. 0x1f1 - 0x1f7 */
 };
 
+/*
+ *	Helper - belongs in the PCI layer somewhere eventually
+ */
+static int is_pci_dev(struct device *dev)
+{
+	return (dev->bus == &pci_bus_type);
+}
 
 /**
  * sata_get_dev_handle - finds acpi_handle and PCI device.function
@@ -52,6 +59,9 @@ static int sata_get_dev_handle(struct device *dev, acpi_handle *handle,
 {
 	struct pci_dev	*pci_dev;
 	acpi_integer	addr;
+
+	if (!is_pci_dev(dev))
+		return -ENODEV;
 
 	pci_dev = to_pci_dev(dev);	/* NOTE: PCI-specific */
 	/* Please refer to the ACPI spec for the syntax of _ADR. */
@@ -84,7 +94,12 @@ static int pata_get_dev_handle(struct device *dev, acpi_handle *handle,
 	acpi_status status;
 	struct acpi_device_info	*dinfo = NULL;
 	int ret = -ENODEV;
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_dev *pdev;
+
+	if (!is_pci_dev(dev))
+		return -ENODEV;
+
+	pdev = to_pci_dev(dev);
 
 	bus = pdev->bus->number;
 	devnum = PCI_SLOT(pdev->devfn);
