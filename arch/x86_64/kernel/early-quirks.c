@@ -30,11 +30,8 @@ static void via_bugs(void)
 
 #ifdef CONFIG_ACPI
 
-static int nvidia_hpet_detected __initdata;
-
 static int __init nvidia_hpet_check(struct acpi_table_header *header)
 {
-	nvidia_hpet_detected = 1;
 	return 0;
 }
 #endif
@@ -52,11 +49,7 @@ static void nvidia_bugs(void)
 	if (acpi_use_timer_override)
 		return;
 
-	nvidia_hpet_detected = 0;
-	if (acpi_table_parse(ACPI_SIG_HPET, nvidia_hpet_check))
-		return;
-
-	if (nvidia_hpet_detected == 0) {
+	if (acpi_table_parse(ACPI_SIG_HPET, nvidia_hpet_check)) {
 		acpi_skip_timer_override = 1;
 		printk(KERN_INFO "Nvidia board "
 		       "detected. Ignoring ACPI "
