@@ -99,7 +99,13 @@ static int jffs2_garbage_collect_thread(void *_c)
 		if (try_to_freeze())
 			continue;
 
-		cond_resched();
+		/* This thread is purely an optimisation. But if it runs when
+		   other things could be running, it actually makes things a
+		   lot worse. Use yield() and put it at the back of the runqueue
+		   every time. Especially during boot, pulling an inode in
+		   with read_inode() is much preferable to having the GC thread
+		   get there first. */
+		yield();
 
 		/* Put_super will send a SIGKILL and then wait on the sem.
 		 */
