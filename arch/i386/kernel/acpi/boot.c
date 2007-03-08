@@ -1072,7 +1072,28 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 			       "ASUS A7V ACPI BIOS Revision 1007"),
 		     },
 	 },
-
+	{
+		/*
+		 * Latest BIOS for IBM 600E (1.16) has bad pcinum
+		 * for LPC bridge, which is needed for the PCI
+		 * interrupt links to work. DSDT fix is in bug 5966.
+		 * 2645, 2646 model numbers are shared with 600/600E/600X
+		 */
+	 .callback = disable_acpi_irq,
+	 .ident = "IBM Thinkpad 600 Series 2645",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+		     DMI_MATCH(DMI_BOARD_NAME, "2645"),
+		     },
+	 },
+	{
+	 .callback = disable_acpi_irq,
+	 .ident = "IBM Thinkpad 600 Series 2646",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+		     DMI_MATCH(DMI_BOARD_NAME, "2646"),
+		     },
+	 },
 	/*
 	 * Boxes that need ACPI PCI IRQ routing and PCI scan disabled
 	 */
