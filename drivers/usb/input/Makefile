@@ -4,40 +4,12 @@
 
 # Multipart objects.
 wacom-objs	:= wacom_wac.o wacom_sys.o
-usbhid-objs	:= hid-core.o
-
-# Optional parts of multipart objects.
-
-ifeq ($(CONFIG_USB_HIDDEV),y)
-	usbhid-objs	+= hiddev.o
-endif
-ifeq ($(CONFIG_HID_PID),y)
-	usbhid-objs	+= hid-pidff.o
-endif
-ifeq ($(CONFIG_LOGITECH_FF),y)
-	usbhid-objs	+= hid-lgff.o
-endif
-ifeq ($(CONFIG_PANTHERLORD_FF),y)
-	usbhid-objs	+= hid-plff.o
-endif
-ifeq ($(CONFIG_THRUSTMASTER_FF),y)
-	usbhid-objs	+= hid-tmff.o
-endif
-ifeq ($(CONFIG_ZEROPLUS_FF),y)
-	usbhid-objs	+= hid-zpff.o
-endif
-ifeq ($(CONFIG_HID_FF),y)
-	usbhid-objs	+= hid-ff.o
-endif
 
 obj-$(CONFIG_USB_AIPTEK)	+= aiptek.o
 obj-$(CONFIG_USB_ATI_REMOTE)	+= ati_remote.o
 obj-$(CONFIG_USB_ATI_REMOTE2)	+= ati_remote2.o
-obj-$(CONFIG_USB_HID)		+= usbhid.o
-obj-$(CONFIG_USB_KBD)		+= usbkbd.o
 obj-$(CONFIG_USB_KBTAB)		+= kbtab.o
 obj-$(CONFIG_USB_KEYSPAN_REMOTE)	+= keyspan_remote.o
-obj-$(CONFIG_USB_MOUSE)		+= usbmouse.o
 obj-$(CONFIG_USB_MTOUCH)	+= mtouchusb.o
 obj-$(CONFIG_USB_ITMTOUCH)	+= itmtouch.o
 obj-$(CONFIG_USB_EGALAX)	+= touchkitusb.o

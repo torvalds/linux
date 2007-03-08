@@ -36,5 +36,7 @@ config HID_DEBUG
 
 	If unsure, say N
 
+source "drivers/hid/usbhid/Kconfig"
+
 endmenu
 
