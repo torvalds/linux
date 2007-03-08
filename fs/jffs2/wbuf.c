@@ -1090,7 +1090,7 @@ int jffs2_write_nand_badblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *
 	if (!c->mtd->block_markbad)
 		return 1; // What else can we do?
 
-	D1(printk(KERN_WARNING "jffs2_write_nand_badblock(): Marking bad block at %08x\n", bad_offset));
+	printk(KERN_WARNING "JFFS2: marking eraseblock at %08x\n as bad", bad_offset);
 	ret = c->mtd->block_markbad(c->mtd, bad_offset);
 
 	if (ret) {
