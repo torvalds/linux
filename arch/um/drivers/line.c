@@ -370,10 +370,10 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 	struct tty_struct *tty = line->tty;
 	int err;
 
-	/* Interrupts are enabled here because we registered the interrupt with
+	/* Interrupts are disabled here because we registered the interrupt with
 	 * IRQF_DISABLED (see line_setup_irq).*/
 
-	spin_lock_irq(&line->lock);
+	spin_lock(&line->lock);
 	err = flush_buffer(line);
 	if (err == 0) {
 		return IRQ_NONE;
@@ -381,7 +381,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 		line->head = line->buffer;
 		line->tail = line->buffer;
 	}
-	spin_unlock_irq(&line->lock);
+	spin_unlock(&line->lock);
 
 	if(tty == NULL)
 		return IRQ_NONE;
