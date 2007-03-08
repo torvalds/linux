@@ -167,6 +167,7 @@ config ARCH_VERSATILE
 	select ARM_VIC
 	select ICST307
 	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 	  This enables support for ARM Ltd Versatile board.
 
