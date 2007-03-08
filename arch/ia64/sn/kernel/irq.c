@@ -205,7 +205,17 @@ static void sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 		(void)sn_retarget_vector(sn_irq_info, nasid, slice);
 }
 
-struct hw_interrupt_type irq_type_sn = {
+static void
+sn_mask_irq(unsigned int irq)
+{
+}
+
+static void
+sn_unmask_irq(unsigned int irq)
+{
+}
+
+struct irq_chip irq_type_sn = {
 	.name		= "SN hub",
 	.startup	= sn_startup_irq,
 	.shutdown	= sn_shutdown_irq,
@@ -213,6 +223,8 @@ struct hw_interrupt_type irq_type_sn = {
 	.disable	= sn_disable_irq,
 	.ack		= sn_ack_irq,
 	.end		= sn_end_irq,
+	.mask		= sn_mask_irq,
+	.unmask		= sn_unmask_irq,
 	.set_affinity	= sn_set_affinity_irq
 };
 
