@@ -104,10 +104,6 @@ config KGDB_NMI
 	bool "Enter KGDB on NMI"
 	default n
 
-config KGDB_THREAD
-	bool "Include KGDB thread support"
-	default y
-
 config SH_KGDB_CONSOLE
 	bool "Console messages through GDB"
 	depends on !SERIAL_SH_SCI_CONSOLE

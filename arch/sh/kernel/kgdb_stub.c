@@ -243,14 +243,6 @@ static char out_buffer[OUTBUFMAX];
 
 static void kgdb_to_gdb(const char *s);
 
-#ifdef CONFIG_KGDB_THREAD
-static struct task_struct *trapped_thread;
-static struct task_struct *current_thread;
-typedef unsigned char threadref[8];
-#define BUF_THREAD_ID_SIZE 16
-#endif
-
-
 /* Convert ch to hex */
 static int hex(const char ch)
 {
@@ -345,66 +337,6 @@ static char *pack_hex_byte(char *pkt, int byte)
 	*pkt++ = hexchars[(byte & 0xf)];
 	return pkt;
 }
-
-#ifdef CONFIG_KGDB_THREAD
-
-/* Pack a thread ID */
-static char *pack_threadid(char *pkt, threadref * id)
-{
-	char *limit;
-	unsigned char *altid;
-
-	altid = (unsigned char *) id;
-
-	limit = pkt + BUF_THREAD_ID_SIZE;
-	while (pkt < limit)
-		pkt = pack_hex_byte(pkt, *altid++);
-	return pkt;
-}
-
-/* Convert an integer into our threadref */
-static void int_to_threadref(threadref * id, const int value)
-{
-	unsigned char *scan = (unsigned char *) id;
-	int i = 4;
-
-	while (i--)
-		*scan++ = 0;
-
-	*scan++ = (value >> 24) & 0xff;
-	*scan++ = (value >> 16) & 0xff;
-	*scan++ = (value >> 8) & 0xff;
-	*scan++ = (value & 0xff);
-}
-
-/* Return a task structure ptr for a particular pid */
-static struct task_struct *get_thread(int pid)
-{
-	struct task_struct *thread;
-
-	/* Use PID_MAX w/gdb for pid 0 */
-	if (pid == PID_MAX) pid = 0;
-
-	/* First check via PID */
-	thread = find_task_by_pid(pid);
-
-	if (thread)
-		return thread;
-
-	/* Start at the start */
-	thread = init_tasks[0];
-
-	/* Walk along the linked list of tasks */
-	do {
-		if (thread->pid == pid)
-			return thread;
-		thread = thread->next_task;
-	} while (thread != init_tasks[0]);
-
-	return NULL;
-}
-
-#endif /* CONFIG_KGDB_THREAD */
 
 /* Scan for the start char '$', read the packet and check the checksum */
 static void get_packet(char *buffer, int buflen)
@@ -608,74 +540,6 @@ static void gdb_regs_to_kgdb_regs(const int *gdb_regs,
 	regs->vbr = gdb_regs[VBR];
 }
 
-#ifdef CONFIG_KGDB_THREAD
-/* Make a local copy of registers from the specified thread */
-asmlinkage void ret_from_fork(void);
-static void thread_regs_to_gdb_regs(const struct task_struct *thread,
-				    int *gdb_regs)
-{
-	int regno;
-	int *tregs;
-
-	/* Initialize to zero */
-	for (regno = 0; regno < MAXREG; regno++)
-		gdb_regs[regno] = 0;
-
-	/* Just making sure... */
-	if (thread == NULL)
-		return;
-
-	/* A new fork has pt_regs on the stack from a fork() call */
-	if (thread->thread.pc == (unsigned long)ret_from_fork) {
-
-		int vbr_val;
-		struct pt_regs *kregs;
-		kregs = (struct pt_regs*)thread->thread.sp;
-
-		gdb_regs[R0] = kregs->regs[R0];
-		gdb_regs[R1] = kregs->regs[R1];
-		gdb_regs[R2] = kregs->regs[R2];
-		gdb_regs[R3] = kregs->regs[R3];
-		gdb_regs[R4] = kregs->regs[R4];
-		gdb_regs[R5] = kregs->regs[R5];
-		gdb_regs[R6] = kregs->regs[R6];
-		gdb_regs[R7] = kregs->regs[R7];
-		gdb_regs[R8] = kregs->regs[R8];
-		gdb_regs[R9] = kregs->regs[R9];
-		gdb_regs[R10] = kregs->regs[R10];
-		gdb_regs[R11] = kregs->regs[R11];
-		gdb_regs[R12] = kregs->regs[R12];
-		gdb_regs[R13] = kregs->regs[R13];
-		gdb_regs[R14] = kregs->regs[R14];
-		gdb_regs[R15] = kregs->regs[R15];
-		gdb_regs[PC] = kregs->pc;
-		gdb_regs[PR] = kregs->pr;
-		gdb_regs[GBR] = kregs->gbr;
-		gdb_regs[MACH] = kregs->mach;
-		gdb_regs[MACL] = kregs->macl;
-		gdb_regs[SR] = kregs->sr;
-
-		asm("stc vbr, %0":"=r"(vbr_val));
-		gdb_regs[VBR] = vbr_val;
-		return;
-	}
-
-	/* Otherwise, we have only some registers from switch_to() */
-	tregs = (int *)thread->thread.sp;
-	gdb_regs[R15] = (int)tregs;
-	gdb_regs[R14] = *tregs++;
-	gdb_regs[R13] = *tregs++;
-	gdb_regs[R12] = *tregs++;
-	gdb_regs[R11] = *tregs++;
-	gdb_regs[R10] = *tregs++;
-	gdb_regs[R9] = *tregs++;
-	gdb_regs[R8] = *tregs++;
-	gdb_regs[PR] = *tregs++;
-	gdb_regs[GBR] = *tregs++;
-	gdb_regs[PC] = thread->thread.pc;
-}
-#endif /* CONFIG_KGDB_THREAD */
-
 /* Calculate the new address for after a step */
 static short *get_step_address(void)
 {
@@ -794,37 +658,11 @@ static void undo_single_step(void)
 /* Send a signal message */
 static void send_signal_msg(const int signum)
 {
-#ifndef CONFIG_KGDB_THREAD
 	out_buffer[0] = 'S';
 	out_buffer[1] = highhex(signum);
 	out_buffer[2] = lowhex(signum);
 	out_buffer[3] = 0;
 	put_packet(out_buffer);
-#else /* CONFIG_KGDB_THREAD */
-	int threadid;
-	threadref thref;
-	char *out = out_buffer;
-	const char *tstring = "thread";
-
-	*out++ = 'T';
-	*out++ = highhex(signum);
-	*out++ = lowhex(signum);
-
-	while (*tstring) {
-		*out++ = *tstring++;
-	}
-	*out++ = ':';
-
-	threadid = trapped_thread->pid;
-	if (threadid == 0) threadid = PID_MAX;
-	int_to_threadref(&thref, threadid);
-	pack_threadid(out, &thref);
-	out += BUF_THREAD_ID_SIZE;
-	*out++ = ';';
-
-	*out = 0;
-	put_packet(out_buffer);
-#endif /* CONFIG_KGDB_THREAD */
 }
 
 /* Reply that all was well */
@@ -959,15 +797,7 @@ static void step_with_sig_msg(void)
 /* Send register contents */
 static void send_regs_msg(void)
 {
-#ifdef CONFIG_KGDB_THREAD
-	if (!current_thread)
-		kgdb_regs_to_gdb_regs(&trap_registers, registers);
-	else
-		thread_regs_to_gdb_regs(current_thread, registers);
-#else
 	kgdb_regs_to_gdb_regs(&trap_registers, registers);
-#endif
-
 	mem_to_hex((char *) registers, out_buffer, NUMREGBYTES);
 	put_packet(out_buffer);
 }
@@ -975,198 +805,11 @@ static void send_regs_msg(void)
 /* Set register contents - currently can't set other thread's registers */
 static void set_regs_msg(void)
 {
-#ifdef CONFIG_KGDB_THREAD
-	if (!current_thread) {
-#endif
-		kgdb_regs_to_gdb_regs(&trap_registers, registers);
-		hex_to_mem(&in_buffer[1], (char *) registers, NUMREGBYTES);
-		gdb_regs_to_kgdb_regs(registers, &trap_registers);
-		send_ok_msg();
-#ifdef CONFIG_KGDB_THREAD
-	} else
-		send_err_msg();
-#endif
+	kgdb_regs_to_gdb_regs(&trap_registers, registers);
+	hex_to_mem(&in_buffer[1], (char *) registers, NUMREGBYTES);
+	gdb_regs_to_kgdb_regs(registers, &trap_registers);
+	send_ok_msg();
 }
-
-
-#ifdef CONFIG_KGDB_THREAD
-
-/* Set the status for a thread */
-void set_thread_msg(void)
-{
-	int threadid;
-	struct task_struct *thread = NULL;
-	char *ptr;
-
-	switch (in_buffer[1]) {
-	/* To select which thread for gG etc messages, i.e. supported */
-	case 'g':
-		ptr = &in_buffer[2];
-		hex_to_int(&ptr, &threadid);
-		thread = get_thread(threadid);
-
-		/* If we haven't found it */
-		if (!thread) {
-			send_err_msg();
-			break;
-		}
-
-		/* Set current_thread (or not) */
-		if (thread == trapped_thread)
-			current_thread = NULL;
-		else
-			current_thread = thread;
-		send_ok_msg();
-		break;
-
-	/* To select which thread for cCsS messages, i.e. unsupported */
-	case 'c':
-		send_ok_msg();
-		break;
-
-	default:
-		send_empty_msg();
-		break;
-	}
-}
-
-/* Is a thread alive? */
-static void thread_status_msg(void)
-{
-	char *ptr;
-	int threadid;
-	struct task_struct *thread = NULL;
-
-	ptr = &in_buffer[1];
-	hex_to_int(&ptr, &threadid);
-	thread = get_thread(threadid);
-	if (thread)
-		send_ok_msg();
-	else
-		send_err_msg();
-}
-/* Send the current thread ID */
-static void thread_id_msg(void)
-{
-	int threadid;
-	threadref thref;
-
-	out_buffer[0] = 'Q';
-	out_buffer[1] = 'C';
-
-	if (current_thread)
-		threadid = current_thread->pid;
-	else if (trapped_thread)
-		threadid = trapped_thread->pid;
-	else /* Impossible, but just in case! */
-	{
-		send_err_msg();
-		return;
-	}
-
-	/* Translate pid 0 to PID_MAX for gdb */
-	if (threadid == 0) threadid = PID_MAX;
-
-	int_to_threadref(&thref, threadid);
-	pack_threadid(out_buffer + 2, &thref);
-	out_buffer[2 + BUF_THREAD_ID_SIZE] = '\0';
-	put_packet(out_buffer);
-}
-
-/* Send thread info */
-static void thread_info_msg(void)
-{
-	struct task_struct *thread = NULL;
-	int threadid;
-	char *pos;
-	threadref thref;
-
-	/* Start with 'm' */
-	out_buffer[0] = 'm';
-	pos = &out_buffer[1];
-
-	/* For all possible thread IDs - this will overrun if > 44 threads! */
-	/* Start at 1 and include PID_MAX (since GDB won't use pid 0...) */
-	for (threadid = 1; threadid <= PID_MAX; threadid++) {
-
-		read_lock(&tasklist_lock);
-		thread = get_thread(threadid);
-		read_unlock(&tasklist_lock);
-
-		/* If it's a valid thread */
-		if (thread) {
-			int_to_threadref(&thref, threadid);
-			pack_threadid(pos, &thref);
-			pos += BUF_THREAD_ID_SIZE;
-			*pos++ = ',';
-		}
-	}
-	*--pos = 0;		/* Lose final comma */
-	put_packet(out_buffer);
-
-}
-
-/* Return printable info for gdb's 'info threads' command */
-static void thread_extra_info_msg(void)
-{
-	int threadid;
-	struct task_struct *thread = NULL;
-	char buffer[20], *ptr;
-	int i;
-
-	/* Extract thread ID */
-	ptr = &in_buffer[17];
-	hex_to_int(&ptr, &threadid);
-	thread = get_thread(threadid);
-
-	/* If we don't recognise it, say so */
-	if (thread == NULL)
-		strcpy(buffer, "(unknown)");
-	else
-		strcpy(buffer, thread->comm);
-
-	/* Construct packet */
-	for (i = 0, ptr = out_buffer; buffer[i]; i++)
-		ptr = pack_hex_byte(ptr, buffer[i]);
-
-	if (thread->thread.pc == (unsigned long)ret_from_fork) {
-		strcpy(buffer, "<new fork>");
-		for (i = 0; buffer[i]; i++)
-			ptr = pack_hex_byte(ptr, buffer[i]);
-	}
-
-	*ptr = '\0';
-	put_packet(out_buffer);
-}
-
-/* Handle all qFooBarBaz messages - have to use an if statement as
-   opposed to a switch because q messages can have > 1 char id. */
-static void query_msg(void)
-{
-	const char *q_start = &in_buffer[1];
-
-	/* qC = return current thread ID */
-	if (strncmp(q_start, "C", 1) == 0)
-		thread_id_msg();
-
-	/* qfThreadInfo = query all threads (first) */
-	else if (strncmp(q_start, "fThreadInfo", 11) == 0)
-		thread_info_msg();
-
-	/* qsThreadInfo = query all threads (subsequent). We know we have sent
-	   them all after the qfThreadInfo message, so there are no to send */
-	else if (strncmp(q_start, "sThreadInfo", 11) == 0)
-		put_packet("l");	/* el = last */
-
-	/* qThreadExtraInfo = supply printable information per thread */
-	else if (strncmp(q_start, "ThreadExtraInfo", 15) == 0)
-		thread_extra_info_msg();
-
-	/* Unsupported - empty message as per spec */
-	else
-		send_empty_msg();
-}
-#endif /* CONFIG_KGDB_THREAD */
 
 #ifdef CONFIG_SH_KGDB_CONSOLE
 /*
@@ -1205,12 +848,6 @@ static void kgdb_command_loop(const int excep_code, const int trapa_value)
 	/* Ignore if we're disabled */
 	if (!kgdb_enabled)
 		return;
-
-#ifdef CONFIG_KGDB_THREAD
-	/* Until GDB specifies a thread */
-	current_thread = NULL;
-	trapped_thread = current;
-#endif
 
 	/* Enter GDB mode (e.g. after detach) */
 	if (!kgdb_in_gdb_mode) {
@@ -1283,21 +920,6 @@ static void kgdb_command_loop(const int excep_code, const int trapa_value)
 		case 's':	/* Step one instruction from AA..AA */
 			step_msg();
 			return;
-
-#ifdef CONFIG_KGDB_THREAD
-
-		case 'H':	/* Task related */
-			set_thread_msg();
-			break;
-
-		case 'T':	/* Query thread status */
-			thread_status_msg();
-			break;
-
-		case 'q':	/* Handle query - currently thread-related */
-			query_msg();
-			break;
-#endif
 
 		case 'k':	/* 'Kill the program' with a kernel ? */
 			break;
