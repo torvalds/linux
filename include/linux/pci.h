@@ -209,11 +209,6 @@ static inline void pci_add_saved_cap(struct pci_dev *pci_dev,
 	hlist_add_head(&new_cap->next, &pci_dev->saved_cap_space);
 }
 
-static inline void pci_remove_saved_cap(struct pci_cap_saved_state *cap)
-{
-	hlist_del(&cap->next);
-}
-
 /*
  *  For PCI devices, the region numbers are assigned this way:
  *
