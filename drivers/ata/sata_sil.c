@@ -46,7 +46,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_sil"
-#define DRV_VERSION	"2.1"
+#define DRV_VERSION	"2.2"
 
 enum {
 	SIL_MMIO_BAR		= 5,
@@ -117,7 +117,7 @@ static int sil_pci_device_resume(struct pci_dev *pdev);
 static void sil_dev_config(struct ata_device *dev);
 static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
-static void sil_post_set_mode (struct ata_port *ap);
+static int sil_set_mode (struct ata_port *ap, struct ata_device **r_failed);
 static irqreturn_t sil_interrupt(int irq, void *dev_instance);
 static void sil_freeze(struct ata_port *ap);
 static void sil_thaw(struct ata_port *ap);
@@ -197,7 +197,7 @@ static const struct ata_port_operations sil_ops = {
 	.check_status		= ata_check_status,
 	.exec_command		= ata_exec_command,
 	.dev_select		= ata_std_dev_select,
-	.post_set_mode		= sil_post_set_mode,
+	.set_mode		= sil_set_mode,
 	.bmdma_setup            = ata_bmdma_setup,
 	.bmdma_start            = ata_bmdma_start,
 	.bmdma_stop		= ata_bmdma_stop,
@@ -297,7 +297,16 @@ static unsigned char sil_get_device_cache_line(struct pci_dev *pdev)
 	return cache_line;
 }
 
-static void sil_post_set_mode (struct ata_port *ap)
+/**
+ *	sil_set_mode		-	wrap set_mode functions
+ *	@ap: port to set up
+ *	@r_failed: returned device when we fail
+ *
+ *	Wrap the libata method for device setup as after the setup we need
+ *	to inspect the results and do some configuration work
+ */
+
+static int sil_set_mode (struct ata_port *ap, struct ata_device **r_failed)
 {
 	struct ata_host *host = ap->host;
 	struct ata_device *dev;
@@ -305,6 +314,11 @@ static void sil_post_set_mode (struct ata_port *ap)
 	void __iomem *addr = mmio_base + sil_port[ap->port_no].xfer_mode;
 	u32 tmp, dev_mode[2];
 	unsigned int i;
+	int rc;
+	
+	rc = ata_do_set_mode(ap, r_failed);
+	if (rc)
+		return rc;
 
 	for (i = 0; i < 2; i++) {
 		dev = &ap->device[i];
@@ -323,6 +337,7 @@ static void sil_post_set_mode (struct ata_port *ap)
 	tmp |= (dev_mode[1] << 4);
 	writel(tmp, addr);
 	readl(addr);	/* flush */
+	return 0;
 }
 
 static inline void __iomem *sil_scr_addr(struct ata_port *ap, unsigned int sc_reg)
