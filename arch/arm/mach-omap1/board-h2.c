@@ -27,6 +27,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/input.h>
+#include <linux/workqueue.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
