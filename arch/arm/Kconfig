@@ -166,6 +166,7 @@ config ARCH_VERSATILE
 	select ARM_AMBA
 	select ARM_VIC
 	select ICST307
+	select GENERIC_TIME
 	help
 	  This enables support for ARM Ltd Versatile board.
 
