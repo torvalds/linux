@@ -966,6 +966,9 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 		goto out_put;
 
 	HOSTFS_I(root_inode)->host_filename = name;
+	/* Avoid that in the error path, iput(root_inode) frees again name through
+	 * hostfs_destroy_inode! */
+	name = NULL;
 
 	err = -ENOMEM;
 	sb->s_root = d_alloc_root(root_inode);
@@ -977,7 +980,7 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
                 /* No iput in this case because the dput does that for us */
                 dput(sb->s_root);
                 sb->s_root = NULL;
-		goto out_free;
+		goto out;
         }
 
 	return(0);
