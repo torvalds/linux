@@ -46,6 +46,7 @@
 #endif
 
 #if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+#include <linux/ctype.h>
 #include <asm/clock.h>
 #include <asm/sh_bios.h>
 #include <asm/kgdb.h>
@@ -163,7 +164,7 @@ static void put_string(struct sci_port *sci_port, const char *buffer, int count)
 	usegdb |= sh_bios_in_gdb_mode();
 #endif
 #ifdef CONFIG_SH_KGDB
-	usegdb |= (kgdb_in_gdb_mode && (port == kgdb_sci_port));
+	usegdb |= (kgdb_in_gdb_mode && (sci_port == kgdb_sci_port));
 #endif
 
 	if (usegdb) {
@@ -204,7 +205,7 @@ static int kgdb_sci_getchar(void)
         int c;
 
         /* Keep trying to read a character, this could be neater */
-        while ((c = get_char(kgdb_sci_port)) < 0)
+        while ((c = get_char(&kgdb_sci_port->port)) < 0)
 		cpu_relax();
 
         return c;
@@ -212,7 +213,7 @@ static int kgdb_sci_getchar(void)
 
 static inline void kgdb_sci_putchar(int c)
 {
-        put_char(kgdb_sci_port, c);
+        put_char(&kgdb_sci_port->port, c);
 }
 #endif /* CONFIG_SH_KGDB */
 
@@ -738,7 +739,7 @@ static irqreturn_t sci_br_interrupt(int irq, void *ptr)
 
 #ifdef CONFIG_SH_KGDB
 	/* Break into the debugger if a break is detected */
-	BREAKPOINT();
+	breakpoint();
 #endif
 
 	sci_out(port, SCxSR, SCxSR_BREAK_CLEAR(port));
@@ -971,7 +972,6 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct sci_port *s = &sci_ports[port->line];
 	unsigned int status, baud, smr_val;
-	unsigned long flags;
 	int t;
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
@@ -989,11 +989,9 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 #else
 			t = SCBRR_VALUE(baud);
 #endif
-		}
 			break;
+		}
 	}
-
-	spin_lock_irqsave(&port->lock, flags);
 
 	do {
 		status = sci_in(port, SCxSR);
@@ -1038,8 +1036,6 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	if ((termios->c_cflag & CREAD) != 0)
               sci_start_rx(port,0);
-
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static const char *sci_type(struct uart_port *port)
@@ -1220,8 +1216,6 @@ static int __init serial_console_setup(struct console *co, char *options)
 	if (!port->membase || !port->mapbase)
 		return -ENODEV;
 
-	spin_lock_init(&port->lock);
-
 	port->type = serial_console_port->type;
 
 	if (port->flags & UPF_IOREMAP)
@@ -1247,7 +1241,7 @@ static struct console serial_console = {
 	.device		= uart_console_device,
 	.write		= serial_console_write,
 	.setup		= serial_console_setup,
-	.flags		= CON_PRINTBUFFER, 
+	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
 	.data		= &sci_uart_driver,
 };
@@ -1292,10 +1286,22 @@ int __init kgdb_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	spin_lock_init(&port->lock);
-
 	if (co->index != kgdb_portnum)
 		co->index = kgdb_portnum;
+
+	kgdb_sci_port = &sci_ports[co->index];
+	port = &kgdb_sci_port->port;
+
+	/*
+	 * Also need to check port->type, we don't actually have any
+	 * UPIO_PORT ports, but uart_report_port() handily misreports
+	 * it anyways if we don't have a port available by the time this is
+	 * called.
+	 */
+	if (!port->type)
+		return -ENODEV;
+	if (!port->membase || !port->mapbase)
+		return -ENODEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -1311,11 +1317,12 @@ int __init kgdb_console_setup(struct console *co, char *options)
 
 #ifdef CONFIG_SH_KGDB_CONSOLE
 static struct console kgdb_console = {
-        .name		= "ttySC",
-        .write		= kgdb_console_write,
-        .setup		= kgdb_console_setup,
-        .flags		= CON_PRINTBUFFER | CON_ENABLED,
-        .index		= -1,
+	.name		= "ttySC",
+	.device		= uart_console_device,
+	.write		= kgdb_console_write,
+	.setup		= kgdb_console_setup,
+	.flags		= CON_PRINTBUFFER,
+	.index		= -1,
 	.data		= &sci_uart_driver,
 };
 
@@ -1385,6 +1392,12 @@ static int __devinit sci_probe(struct platform_device *dev)
 
 		uart_add_one_port(&sci_uart_driver, &sciport->port);
 	}
+
+#if defined(CONFIG_SH_KGDB) && !defined(CONFIG_SH_KGDB_CONSOLE)
+	kgdb_sci_port	= &sci_ports[kgdb_portnum];
+	kgdb_getchar	= kgdb_sci_getchar;
+	kgdb_putchar	= kgdb_sci_putchar;
+#endif
 
 #ifdef CONFIG_CPU_FREQ
 	cpufreq_register_notifier(&sci_nb, CPUFREQ_TRANSITION_NOTIFIER);

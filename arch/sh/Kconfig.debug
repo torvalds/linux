@@ -77,16 +77,17 @@ config 4KSTACKS
 	  on the VM subsystem for higher order allocations. This option
 	  will also use IRQ stacks to compensate for the reduced stackspace.
 
-config KGDB
+config SH_KGDB
 	bool "Include KGDB kernel debugger"
 	select FRAME_POINTER
+	select DEBUG_INFO
 	help
 	  Include in-kernel hooks for kgdb, the Linux kernel source level
 	  debugger.  See <http://kgdb.sourceforge.net/> for more information.
 	  Unless you are intending to debug the kernel, say N here.
 
 menu "KGDB configuration options"
-	depends on KGDB
+	depends on SH_KGDB
 
 config MORE_COMPILE_OPTIONS
 	bool "Add any additional compile options"
@@ -109,15 +110,13 @@ config KGDB_THREAD
 
 config SH_KGDB_CONSOLE
 	bool "Console messages through GDB"
+	depends on !SERIAL_SH_SCI_CONSOLE
+	select SERIAL_CORE_CONSOLE
 	default n
 
 config KGDB_SYSRQ
 	bool "Allow SysRq 'G' to enter KGDB"
 	default y
-
-config KGDB_KERNEL_ASSERTS
-	bool "Include KGDB kernel assertions"
-	default n
 
 comment "Serial port setup"
 
@@ -131,7 +130,7 @@ config KGDB_DEFBAUD
 
 choice
 	prompt "Parity"
-	depends on KGDB
+	depends on SH_KGDB
 	default KGDB_DEFPARITY_N
 
 config KGDB_DEFPARITY_N
@@ -147,7 +146,7 @@ endchoice
 
 choice
 	prompt "Data bits"
-	depends on KGDB
+	depends on SH_KGDB
 	default KGDB_DEFBITS_8
 
 config KGDB_DEFBITS_8

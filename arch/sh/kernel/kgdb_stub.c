@@ -6,11 +6,11 @@
  * David Grothe <dave@gcom.com>, Tigran Aivazian <tigran@sco.com>,
  * Amit S. Kale <akale@veritas.com>,  William Gatliff <bgat@open-widgets.com>,
  * Ben Lee, Steve Chamberlain and Benoit Miller <fulg@iname.com>.
- * 
+ *
  * This version by Henry Bell <henry.bell@st.com>
  * Minor modifications by Jeremy Siegel <jsiegel@mvista.com>
- * 
- * Contains low-level support for remote debug using GDB. 
+ *
+ * Contains low-level support for remote debug using GDB.
  *
  * To enable debugger support, two things need to happen. A call to
  * set_debug_traps() is necessary in order to allow any breakpoints
@@ -48,7 +48,7 @@
  *    k             kill (Detach GDB)
  *
  *    d             Toggle debug flag
- *    D             Detach GDB 
+ *    D             Detach GDB
  *
  *    Hct           Set thread t for operations,           OK or ENN
  *                  c = 'c' (step, cont), c = 'g' (other
@@ -58,7 +58,7 @@
  *    qfThreadInfo  Get list of current threads (first)    m<id>
  *    qsThreadInfo   "    "  "     "      "   (subsequent)
  *    qOffsets      Get section offsets                  Text=x;Data=y;Bss=z
- * 
+ *
  *    TXX           Find if thread XX is alive             OK or ENN
  *    ?             What was the last sigval ?             SNN   (signal NN)
  *    O             Output to GDB console
@@ -74,7 +74,7 @@
  *       '$' or '#'.  If <data> starts with two characters followed by
  *       ':', then the existing stubs interpret this as a sequence number.
  *
- *       CSUM1 and CSUM2 are ascii hex representation of an 8-bit 
+ *       CSUM1 and CSUM2 are ascii hex representation of an 8-bit
  *       checksum of <data>, the most significant nibble is sent first.
  *       the hex digits 0-9,a-f are used.
  *
@@ -86,8 +86,8 @@
  * Responses can be run-length encoded to save space.  A '*' means that
  * the next character is an ASCII encoding giving a repeat count which
  * stands for that many repititions of the character preceding the '*'.
- * The encoding is n+29, yielding a printable character where n >=3 
- * (which is where RLE starts to win).  Don't use an n > 126. 
+ * The encoding is n+29, yielding a printable character where n >=3
+ * (which is where RLE starts to win).  Don't use an n > 126.
  *
  * So "0* " means the same as "0000".
  */
@@ -100,12 +100,10 @@
 #include <linux/delay.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
-
-#ifdef CONFIG_SH_KGDB_CONSOLE
 #include <linux/console.h>
-#endif
-
+#include <linux/sysrq.h>
 #include <asm/system.h>
+#include <asm/cacheflush.h>
 #include <asm/current.h>
 #include <asm/signal.h>
 #include <asm/pgtable.h>
@@ -153,7 +151,6 @@ char kgdb_in_gdb_mode;
 char in_nmi;			/* Set during NMI to prevent reentry */
 int kgdb_nofault;		/* Boolean to ignore bus errs (i.e. in GDB) */
 int kgdb_enabled = 1;		/* Default to enabled, cmdline can disable */
-int kgdb_halt;
 
 /* Exposed for user access */
 struct task_struct *kgdb_current;
@@ -328,7 +325,7 @@ static int hex_to_int(char **ptr, int *int_value)
 }
 
 /*  Copy the binary array pointed to by buf into mem.  Fix $, #,
-    and 0x7d escaped with 0x7d.  Return a pointer to the character 
+    and 0x7d escaped with 0x7d.  Return a pointer to the character
     after the last byte written. */
 static char *ebin_to_mem(const char *buf, char *mem, int count)
 {
@@ -452,7 +449,7 @@ static void get_packet(char *buffer, int buflen)
 				/* Ack successful transfer */
 				put_debug_char('+');
 
-				/* If a sequence char is present, reply 
+				/* If a sequence char is present, reply
 				   the sequence ID */
 				if (buffer[2] == ':') {
 					put_debug_char(buffer[0]);
@@ -759,7 +756,7 @@ static short *get_step_address(void)
 	return (short *) addr;
 }
 
-/* Set up a single-step.  Replace the instruction immediately after the 
+/* Set up a single-step.  Replace the instruction immediately after the
    current instruction (i.e. next in the expected flow of control) with a
    trap instruction, so that returning will cause only a single instruction
    to be executed. Note that this model is slightly broken for instructions
@@ -1002,10 +999,8 @@ void set_thread_msg(void)
 	char *ptr;
 
 	switch (in_buffer[1]) {
-
-       	/* To select which thread for gG etc messages, i.e. supported */
+	/* To select which thread for gG etc messages, i.e. supported */
 	case 'g':
-
 		ptr = &in_buffer[2];
 		hex_to_int(&ptr, &threadid);
 		thread = get_thread(threadid);
@@ -1173,6 +1168,7 @@ static void query_msg(void)
 }
 #endif /* CONFIG_KGDB_THREAD */
 
+#ifdef CONFIG_SH_KGDB_CONSOLE
 /*
  * Bring up the ports..
  */
@@ -1185,6 +1181,9 @@ static int kgdb_serial_setup(void)
 
 	return 0;
 }
+#else
+#define kgdb_serial_setup()	0
+#endif
 
 /* The command loop, read and act on requests */
 static void kgdb_command_loop(const int excep_code, const int trapa_value)
@@ -1193,7 +1192,7 @@ static void kgdb_command_loop(const int excep_code, const int trapa_value)
 
 	if (excep_code == NMI_VEC) {
 #ifndef CONFIG_KGDB_NMI
-		KGDB_PRINTK("Ignoring unexpected NMI?\n");
+		printk(KERN_NOTICE "KGDB: Ignoring unexpected NMI?\n");
 		return;
 #else /* CONFIG_KGDB_NMI */
 		if (!kgdb_enabled) {
@@ -1216,10 +1215,7 @@ static void kgdb_command_loop(const int excep_code, const int trapa_value)
 	/* Enter GDB mode (e.g. after detach) */
 	if (!kgdb_in_gdb_mode) {
 		/* Do serial setup, notify user, issue preemptive ack */
-		kgdb_serial_setup();
-		KGDB_PRINTK("Waiting for GDB (on %s%d at %d baud)\n",
-			    (kgdb_porttype ? kgdb_porttype->name : ""),
-			    kgdb_portnum, kgdb_baud);
+		printk(KERN_NOTICE "KGDB: Waiting for GDB\n");
 		kgdb_in_gdb_mode = 1;
 		put_debug_char('+');
 	}
@@ -1233,21 +1229,18 @@ static void kgdb_command_loop(const int excep_code, const int trapa_value)
 	   will later be replaced by its original one.  Do NOT do this for
 	   trap 0xff, since that indicates a compiled-in breakpoint which
 	   will not be replaced (and we would retake the trap forever) */
-	if ((excep_code == TRAP_VEC) && (trapa_value != (0xff << 2))) {
+	if ((excep_code == TRAP_VEC) && (trapa_value != (0x3c << 2)))
 		trap_registers.pc -= 2;
-	}
 
 	/* Undo any stepping we may have done */
 	undo_single_step();
 
 	while (1) {
-
 		out_buffer[0] = 0;
 		get_packet(in_buffer, BUFMAX);
 
 		/* Examine first char of buffer to see what we need to do */
 		switch (in_buffer[0]) {
-
 		case '?':	/* Send which signal we've received */
 			send_signal_msg(sigval);
 			break;
@@ -1323,11 +1316,8 @@ static void kgdb_command_loop(const int excep_code, const int trapa_value)
 }
 
 /* There has been an exception, most likely a breakpoint. */
-asmlinkage void kgdb_handle_exception(unsigned long r4, unsigned long r5,
-				      unsigned long r6, unsigned long r7,
-				      struct pt_regs __regs)
+static void handle_exception(struct pt_regs *regs)
 {
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	int excep_code, vbr_val;
 	int count;
 	int trapa_value = ctrl_inl(TRA);
@@ -1355,7 +1345,7 @@ asmlinkage void kgdb_handle_exception(unsigned long r4, unsigned long r5,
 	kgdb_trapa_val = trapa_value;
 
 	/* Act on the exception */
-	kgdb_command_loop(excep_code >> 5, trapa_value);
+	kgdb_command_loop(excep_code, trapa_value);
 
 	kgdb_current = NULL;
 
@@ -1373,14 +1363,12 @@ asmlinkage void kgdb_handle_exception(unsigned long r4, unsigned long r5,
 	asm("ldc %0, vbr": :"r"(vbr_val));
 }
 
-/* Trigger a breakpoint by function */
-void breakpoint(void)
+asmlinkage void kgdb_handle_exception(unsigned long r4, unsigned long r5,
+				      unsigned long r6, unsigned long r7,
+				      struct pt_regs __regs)
 {
-	if (!kgdb_enabled) {
-		kgdb_enabled = 1;
-		kgdb_init();
-	}
-	BREAKPOINT();
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
+	handle_exception(regs);
 }
 
 /* Initialise the KGDB data structures and serial configuration */
@@ -1395,24 +1383,16 @@ int kgdb_init(void)
 	kgdb_in_gdb_mode = 0;
 
 	if (kgdb_serial_setup() != 0) {
-		KGDB_PRINTK("serial setup error\n");
+		printk(KERN_NOTICE "KGDB: serial setup error\n");
 		return -1;
 	}
 
 	/* Init ptr to exception handler */
-	kgdb_debug_hook = kgdb_handle_exception;
+	kgdb_debug_hook = handle_exception;
 	kgdb_bus_err_hook = kgdb_handle_bus_error;
 
 	/* Enter kgdb now if requested, or just report init done */
-	if (kgdb_halt) {
-		kgdb_in_gdb_mode = 1;
-		put_debug_char('+');
-		breakpoint();
-	}
-	else
-	{
-		KGDB_PRINTK("stub is initialized.\n");
-	}
+	printk(KERN_NOTICE "KGDB: stub is initialized.\n");
 
 	return 0;
 }
@@ -1437,7 +1417,7 @@ static void kgdb_msg_write(const char *s, unsigned count)
 
 		/* Calculate how many this time */
 		wcount = (count > MAXOUT) ? MAXOUT : count;
-		
+
 		/* Pack in hex chars */
 		for (i = 0; i < wcount; i++)
 			bufptr = pack_hex_byte(bufptr, s[i]);
@@ -1466,4 +1446,26 @@ void kgdb_console_write(struct console *co, const char *s, unsigned count)
 
 	kgdb_msg_write(s, count);
 }
+#endif
+
+#ifdef CONFIG_KGDB_SYSRQ
+static void sysrq_handle_gdb(int key, struct tty_struct *tty)
+{
+	printk("Entering GDB stub\n");
+	breakpoint();
+}
+
+static struct sysrq_key_op sysrq_gdb_op = {
+        .handler        = sysrq_handle_gdb,
+        .help_msg       = "Gdb",
+        .action_msg     = "GDB",
+};
+
+static int gdb_register_sysrq(void)
+{
+	printk("Registering GDB sysrq handler\n");
+	register_sysrq_key('g', &sysrq_gdb_op);
+	return 0;
+}
+module_init(gdb_register_sysrq);
 #endif

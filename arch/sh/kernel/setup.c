@@ -25,11 +25,8 @@
 #include <asm/setup.h>
 #include <asm/clock.h>
 
-#ifdef CONFIG_SH_KGDB
-#include <asm/kgdb.h>
-static int kgdb_parse_options(char *options);
-#endif
 extern void * __rd_start, * __rd_end;
+
 /*
  * Machine setup..
  */
@@ -499,92 +496,3 @@ struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo,
 };
 #endif /* CONFIG_PROC_FS */
-
-#ifdef CONFIG_SH_KGDB
-/*
- * Parse command-line kgdb options.  By default KGDB is enabled,
- * entered on error (or other action) using default serial info.
- * The command-line option can include a serial port specification
- * and an action to override default or configured behavior.
- */
-struct kgdb_sermap kgdb_sci_sermap =
-{ "ttySC", 5, kgdb_sci_setup, NULL };
-
-struct kgdb_sermap *kgdb_serlist = &kgdb_sci_sermap;
-struct kgdb_sermap *kgdb_porttype = &kgdb_sci_sermap;
-
-void kgdb_register_sermap(struct kgdb_sermap *map)
-{
-	struct kgdb_sermap *last;
-
-	for (last = kgdb_serlist; last->next; last = last->next)
-		;
-	last->next = map;
-	if (!map->namelen) {
-		map->namelen = strlen(map->name);
-	}
-}
-
-static int __init kgdb_parse_options(char *options)
-{
-	char c;
-	int baud;
-
-	/* Check for port spec (or use default) */
-
-	/* Determine port type and instance */
-	if (!memcmp(options, "tty", 3)) {
-		struct kgdb_sermap *map = kgdb_serlist;
-
-		while (map && memcmp(options, map->name, map->namelen))
-			map = map->next;
-
-		if (!map) {
-			KGDB_PRINTK("unknown port spec in %s\n", options);
-			return -1;
-		}
-
-		kgdb_porttype = map;
-		kgdb_serial_setup = map->setup_fn;
-		kgdb_portnum = options[map->namelen] - '0';
-		options += map->namelen + 1;
-
-		options = (*options == ',') ? options+1 : options;
-
-		/* Read optional parameters (baud/parity/bits) */
-		baud = simple_strtoul(options, &options, 10);
-		if (baud != 0) {
-			kgdb_baud = baud;
-
-			c = toupper(*options);
-			if (c == 'E' || c == 'O' || c == 'N') {
-				kgdb_parity = c;
-				options++;
-			}
-
-			c = *options;
-			if (c == '7' || c == '8') {
-				kgdb_bits = c;
-				options++;
-			}
-			options = (*options == ',') ? options+1 : options;
-		}
-	}
-
-	/* Check for action specification */
-	if (!memcmp(options, "halt", 4)) {
-		kgdb_halt = 1;
-		options += 4;
-	} else if (!memcmp(options, "disabled", 8)) {
-		kgdb_enabled = 0;
-		options += 8;
-	}
-
-	if (*options) {
-                KGDB_PRINTK("ignored unknown options: %s\n", options);
-		return 0;
-	}
-	return 1;
-}
-__setup("kgdb=", kgdb_parse_options);
-#endif /* CONFIG_SH_KGDB */
