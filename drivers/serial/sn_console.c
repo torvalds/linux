@@ -636,25 +636,6 @@ static irqreturn_t sn_sal_interrupt(int irq, void *dev_id)
 }
 
 /**
- * sn_sal_connect_interrupt - Request interrupt, handled by sn_sal_interrupt
- * @port: Our sn_cons_port (which contains the uart port)
- *
- * returns the console irq if interrupt is successfully registered, else 0
- *
- */
-static int sn_sal_connect_interrupt(struct sn_cons_port *port)
-{
-	if (request_irq(SGI_UART_VECTOR, sn_sal_interrupt,
-			IRQF_DISABLED | IRQF_SHARED,
-			"SAL console driver", port) >= 0) {
-		return SGI_UART_VECTOR;
-	}
-
-	printk(KERN_INFO "sn_console: console proceeding in polled mode\n");
-	return 0;
-}
-
-/**
  * sn_sal_timer_poll - this function handles polled console mode
  * @data: A pointer to our sn_cons_port (which contains the uart port)
  *
@@ -746,30 +727,31 @@ static void __init sn_sal_switch_to_asynch(struct sn_cons_port *port)
  * mode.  We were previously in asynch/polling mode (using init_timer).
  *
  * We attempt to switch to interrupt mode here by calling
- * sn_sal_connect_interrupt.  If that works out, we enable receive interrupts.
+ * request_irq.  If that works out, we enable receive interrupts.
  */
 static void __init sn_sal_switch_to_interrupts(struct sn_cons_port *port)
 {
-	int irq;
 	unsigned long flags;
 
-	if (!port)
-		return;
+	if (port) {
+		DPRINTF("sn_console: switching to interrupt driven console\n");
 
-	DPRINTF("sn_console: switching to interrupt driven console\n");
+		if (request_irq(SGI_UART_VECTOR, sn_sal_interrupt,
+				IRQF_DISABLED | IRQF_SHARED,
+				"SAL console driver", port) >= 0) {
+			spin_lock_irqsave(&port->sc_port.lock, flags);
+			port->sc_port.irq = SGI_UART_VECTOR;
+			port->sc_ops = &intr_ops;
 
-	spin_lock_irqsave(&port->sc_port.lock, flags);
-
-	irq = sn_sal_connect_interrupt(port);
-
-	if (irq) {
-		port->sc_port.irq = irq;
-		port->sc_ops = &intr_ops;
-
-		/* turn on receive interrupts */
-		ia64_sn_console_intr_enable(SAL_CONSOLE_INTR_RECV);
+			/* turn on receive interrupts */
+			ia64_sn_console_intr_enable(SAL_CONSOLE_INTR_RECV);
+			spin_unlock_irqrestore(&port->sc_port.lock, flags);
+		}
+		else {
+			printk(KERN_INFO
+			    "sn_console: console proceeding in polled mode\n");
+		}
 	}
-	spin_unlock_irqrestore(&port->sc_port.lock, flags);
 }
 
 /*
