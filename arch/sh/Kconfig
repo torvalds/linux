@@ -366,6 +366,16 @@ config SH_STORE_QUEUES
 	  Selecting this option will enable an in-kernel API for manipulating
 	  the store queues integrated in the SH-4 processors.
 
+config SPECULATIVE_EXECUTION
+	bool "Speculative subroutine return"
+	depends on CPU_SUBTYPE_SH7780 && EXPERIMENTAL
+	help
+	  This enables support for a speculative instruction fetch for
+	  subroutine return. There are various pitfalls associated with
+	  this, as outlined in the SH7780 hardware manual.
+
+	  If unsure, say N.
+
 config CPU_HAS_INTEVT
 	bool
 
