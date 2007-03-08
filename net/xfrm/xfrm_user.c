@@ -530,9 +530,6 @@ static int xfrm_del_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	err = xfrm_state_delete(x);
 
-	xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
-		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
-
 	if (err < 0)
 		goto out;
 
@@ -542,6 +539,8 @@ static int xfrm_del_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	km_state_notify(x, &c);
 
 out:
+	xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
+		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
 	xfrm_state_put(x);
 	return err;
 }
@@ -1254,7 +1253,7 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return err;
 
 	if (p->index)
-		xp = xfrm_policy_byid(type, p->dir, p->index, delete);
+		xp = xfrm_policy_byid(type, p->dir, p->index, delete, &err);
 	else {
 		struct rtattr *rt = xfrma[XFRMA_SEC_CTX-1];
 		struct xfrm_policy tmp;
@@ -1270,7 +1269,8 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 			if ((err = security_xfrm_policy_alloc(&tmp, uctx)))
 				return err;
 		}
-		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, tmp.security, delete);
+		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, tmp.security,
+					   delete, &err);
 		security_xfrm_policy_free(&tmp);
 	}
 	if (xp == NULL)
@@ -1288,8 +1288,6 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 					      MSG_DONTWAIT);
 		}
 	} else {
-		err = security_xfrm_policy_delete(xp);
-
 		xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
 			       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
 
@@ -1303,9 +1301,8 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 		km_policy_notify(xp, p->dir, &c);
 	}
 
-	xfrm_pol_put(xp);
-
 out:
+	xfrm_pol_put(xp);
 	return err;
 }
 
@@ -1502,7 +1499,7 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return err;
 
 	if (p->index)
-		xp = xfrm_policy_byid(type, p->dir, p->index, 0);
+		xp = xfrm_policy_byid(type, p->dir, p->index, 0, &err);
 	else {
 		struct rtattr *rt = xfrma[XFRMA_SEC_CTX-1];
 		struct xfrm_policy tmp;
@@ -1518,13 +1515,14 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 			if ((err = security_xfrm_policy_alloc(&tmp, uctx)))
 				return err;
 		}
-		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, tmp.security, 0);
+		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, tmp.security,
+					   0, &err);
 		security_xfrm_policy_free(&tmp);
 	}
 
 	if (xp == NULL)
-		return err;
-											read_lock(&xp->lock);
+		return -ENOENT;
+	read_lock(&xp->lock);
 	if (xp->dead) {
 		read_unlock(&xp->lock);
 		goto out;

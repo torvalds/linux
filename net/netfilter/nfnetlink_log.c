@@ -486,7 +486,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 			 * for physical device (when called from ipv4) */
 			NFA_PUT(inst->skb, NFULA_IFINDEX_OUTDEV,
 				sizeof(tmp_uint), &tmp_uint);
-			if (skb->nf_bridge) {
+			if (skb->nf_bridge && skb->nf_bridge->physoutdev) {
 				tmp_uint =
 				    htonl(skb->nf_bridge->physoutdev->ifindex);
 				NFA_PUT(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
@@ -615,7 +615,7 @@ nfulnl_log_packet(unsigned int pf,
 
 	plen = 0;
 	if (prefix)
-		plen = strlen(prefix);
+		plen = strlen(prefix) + 1;
 
 	/* all macros expand to constant values at compile time */
 	/* FIXME: do we want to make the size calculation conditional based on

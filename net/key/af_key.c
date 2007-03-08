@@ -1467,9 +1467,6 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 
 	err = xfrm_state_delete(x);
 
-	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
-		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
-
 	if (err < 0)
 		goto out;
 
@@ -1478,6 +1475,8 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	c.event = XFRM_MSG_DELSA;
 	km_state_notify(x, &c);
 out:
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
 	xfrm_state_put(x);
 
 	return err;
@@ -2294,13 +2293,11 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	}
 
 	xp = xfrm_policy_bysel_ctx(XFRM_POLICY_TYPE_MAIN, pol->sadb_x_policy_dir-1,
-				   &sel, tmp.security, 1);
+				   &sel, tmp.security, 1, &err);
 	security_xfrm_policy_free(&tmp);
 
 	if (xp == NULL)
 		return -ENOENT;
-
-	err = security_xfrm_policy_delete(xp);
 
 	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
 		       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
@@ -2539,7 +2536,7 @@ static int pfkey_migrate(struct sock *sk, struct sk_buff *skb,
 static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
 	unsigned int dir;
-	int err;
+	int err = 0, delete;
 	struct sadb_x_policy *pol;
 	struct xfrm_policy *xp;
 	struct km_event c;
@@ -2551,16 +2548,20 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	if (dir >= XFRM_POLICY_MAX)
 		return -EINVAL;
 
+	delete = (hdr->sadb_msg_type == SADB_X_SPDDELETE2);
 	xp = xfrm_policy_byid(XFRM_POLICY_TYPE_MAIN, dir, pol->sadb_x_policy_id,
-			      hdr->sadb_msg_type == SADB_X_SPDDELETE2);
+			      delete, &err);
 	if (xp == NULL)
 		return -ENOENT;
 
-	err = 0;
+	if (delete) {
+		xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+			       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
 
-	c.seq = hdr->sadb_msg_seq;
-	c.pid = hdr->sadb_msg_pid;
-	if (hdr->sadb_msg_type == SADB_X_SPDDELETE2) {
+		if (err)
+			goto out;
+		c.seq = hdr->sadb_msg_seq;
+		c.pid = hdr->sadb_msg_pid;
 		c.data.byid = 1;
 		c.event = XFRM_MSG_DELPOLICY;
 		km_policy_notify(xp, dir, &c);
@@ -2568,6 +2569,7 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 		err = key_pol_get_resp(sk, xp, hdr, dir);
 	}
 
+out:
 	xfrm_pol_put(xp);
 	return err;
 }
