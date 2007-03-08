@@ -1360,7 +1360,7 @@ static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
 
 static void audit_mappings(struct kvm_vcpu *vcpu)
 {
-	int i;
+	unsigned i;
 
 	if (vcpu->mmu.root_level == 4)
 		audit_mappings_page(vcpu, vcpu->mmu.root_hpa, 0, 4);
