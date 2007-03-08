@@ -1556,8 +1556,6 @@ __u32 secure_tcp_sequence_number(__be32 saddr, __be32 daddr,
 	return seq;
 }
 
-EXPORT_SYMBOL(secure_tcp_sequence_number);
-
 /* Generate secure starting point for ephemeral IPV4 transport port search */
 u32 secure_ipv4_port_ephemeral(__be32 saddr, __be32 daddr, __be16 dport)
 {
