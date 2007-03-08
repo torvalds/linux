@@ -47,7 +47,7 @@ struct dentry_operations hostfs_dentry_ops = {
 };
 
 /* Changed in hostfs_args before the kernel starts running */
-static char *root_ino = "/";
+static char *root_ino = "";
 static int append = 0;
 
 #define HOSTFS_SUPER_MAGIC 0x00c0ffee
@@ -947,15 +947,17 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 	sb->s_magic = HOSTFS_SUPER_MAGIC;
 	sb->s_op = &hostfs_sbops;
 
-	if((data == NULL) || (*data == '\0'))
-		data = root_ino;
+	/* NULL is printed as <NULL> by sprintf: avoid that. */
+	if (data == NULL)
+		data = "";
 
 	err = -ENOMEM;
-	name = kmalloc(strlen(data) + 1, GFP_KERNEL);
+	name = kmalloc(strlen(root_ino) + 1
+			+ strlen(data) + 1, GFP_KERNEL);
 	if(name == NULL)
 		goto out;
 
-	strcpy(name, data);
+	sprintf(name, "%s/%s", root_ino, data);
 
 	root_inode = iget(sb, 0);
 	if(root_inode == NULL)
