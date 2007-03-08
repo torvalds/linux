@@ -85,4 +85,23 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 int ocfs2_find_leaf(struct inode *inode, struct ocfs2_extent_list *root_el,
 		    u32 cpos, struct buffer_head **leaf_bh);
 
+/*
+ * Helper function to look at the # of clusters in an extent record.
+ */
+static inline unsigned int ocfs2_rec_clusters(struct ocfs2_extent_list *el,
+					      struct ocfs2_extent_rec *rec)
+{
+	/*
+	 * Cluster count in extent records is slightly different
+	 * between interior nodes and leaf nodes. This is to support
+	 * unwritten extents which need a flags field in leaf node
+	 * records, thus shrinking the available space for a clusters
+	 * field.
+	 */
+	if (el->l_tree_depth)
+		return le32_to_cpu(rec->e_int_clusters);
+	else
+		return le16_to_cpu(rec->e_leaf_clusters);
+}
+
 #endif /* OCFS2_ALLOC_H */

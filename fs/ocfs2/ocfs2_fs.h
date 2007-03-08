@@ -156,6 +156,12 @@
 #define OCFS2_FL_MODIFIABLE	(0x000100FF)	/* User modifiable flags */
 
 /*
+ * Extent record flags (e_node.leaf.flags)
+ */
+#define OCFS2_EXT_UNWRITTEN	(0x01)	/* Extent is allocated but
+					 * unwritten */
+
+/*
  * ioctl commands
  */
 #define OCFS2_IOC_GETFLAGS	_IOR('f', 1, long)
@@ -283,10 +289,21 @@ static unsigned char ocfs2_type_by_mode[S_IFMT >> S_SHIFT] = {
 /*
  * On disk extent record for OCFS2
  * It describes a range of clusters on disk.
+ *
+ * Length fields are divided into interior and leaf node versions.
+ * This leaves room for a flags field (OCFS2_EXT_*) in the leaf nodes.
  */
 struct ocfs2_extent_rec {
 /*00*/	__le32 e_cpos;		/* Offset into the file, in clusters */
-	__le32 e_clusters;	/* Clusters covered by this extent */
+	union {
+		__le32 e_int_clusters; /* Clusters covered by all children */
+		struct {
+			__le16 e_leaf_clusters; /* Clusters covered by this
+						   extent */
+			__u8 e_reserved1;
+			__u8 e_flags; /* Extent flags */
+		};
+	};
 	__le64 e_blkno;		/* Physical disk offset, in blocks */
 /*10*/
 };

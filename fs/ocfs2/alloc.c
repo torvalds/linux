@@ -218,20 +218,32 @@ enum ocfs2_contig_type {
 	CONTIG_RIGHT
 };
 
+
+/*
+ * NOTE: ocfs2_block_extent_contig(), ocfs2_extents_adjacent() and
+ * ocfs2_extent_contig only work properly against leaf nodes!
+ */
 static int ocfs2_block_extent_contig(struct super_block *sb,
 				     struct ocfs2_extent_rec *ext,
 				     u64 blkno)
 {
-	return blkno == (le64_to_cpu(ext->e_blkno) +
-			 ocfs2_clusters_to_blocks(sb,
-						  le32_to_cpu(ext->e_clusters)));
+	u64 blk_end = le64_to_cpu(ext->e_blkno);
+
+	blk_end += ocfs2_clusters_to_blocks(sb,
+				    le16_to_cpu(ext->e_leaf_clusters));
+
+	return blkno == blk_end;
 }
 
 static int ocfs2_extents_adjacent(struct ocfs2_extent_rec *left,
 				  struct ocfs2_extent_rec *right)
 {
-	return (le32_to_cpu(left->e_cpos) + le32_to_cpu(left->e_clusters) ==
-		le32_to_cpu(right->e_cpos));
+	u32 left_range;
+
+	left_range = le32_to_cpu(left->e_cpos) +
+		le16_to_cpu(left->e_leaf_clusters);
+
+	return (left_range == le32_to_cpu(right->e_cpos));
 }
 
 static enum ocfs2_contig_type
@@ -430,7 +442,7 @@ static inline u32 ocfs2_sum_rightmost_rec(struct ocfs2_extent_list  *el)
 	i = le16_to_cpu(el->l_next_free_rec) - 1;
 
 	return le32_to_cpu(el->l_recs[i].e_cpos) +
-		le32_to_cpu(el->l_recs[i].e_clusters);
+		ocfs2_rec_clusters(el, &el->l_recs[i]);
 }
 
 /*
@@ -442,7 +454,7 @@ static inline u32 ocfs2_sum_rightmost_rec(struct ocfs2_extent_list  *el)
  * for the new last extent block.
  *
  * the new branch will be 'empty' in the sense that every block will
- * contain a single record with e_clusters == 0.
+ * contain a single record with cluster count == 0.
  */
 static int ocfs2_add_branch(struct ocfs2_super *osb,
 			    handle_t *handle,
@@ -532,7 +544,12 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 		 */
 		eb_el->l_recs[0].e_cpos = cpu_to_le32(new_cpos);
 		eb_el->l_recs[0].e_blkno = cpu_to_le64(next_blkno);
-		eb_el->l_recs[0].e_clusters = cpu_to_le32(0);
+		/*
+		 * eb_el isn't always an interior node, but even leaf
+		 * nodes want a zero'd flags and reserved field so
+		 * this gets the whole 32 bits regardless of use.
+		 */
+		eb_el->l_recs[0].e_int_clusters = cpu_to_le32(0);
 		if (!eb_el->l_tree_depth)
 			new_last_eb_blk = le64_to_cpu(eb->h_blkno);
 
@@ -577,7 +594,7 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 	i = le16_to_cpu(el->l_next_free_rec);
 	el->l_recs[i].e_blkno = cpu_to_le64(next_blkno);
 	el->l_recs[i].e_cpos = cpu_to_le32(new_cpos);
-	el->l_recs[i].e_clusters = 0;
+	el->l_recs[i].e_int_clusters = 0;
 	le16_add_cpu(&el->l_next_free_rec, 1);
 
 	/* fe needs a new last extent block pointer, as does the
@@ -662,11 +679,8 @@ static int ocfs2_shift_tree_depth(struct ocfs2_super *osb,
 	/* copy the fe data into the new extent block */
 	eb_el->l_tree_depth = fe_el->l_tree_depth;
 	eb_el->l_next_free_rec = fe_el->l_next_free_rec;
-	for(i = 0; i < le16_to_cpu(fe_el->l_next_free_rec); i++) {
-		eb_el->l_recs[i].e_cpos = fe_el->l_recs[i].e_cpos;
-		eb_el->l_recs[i].e_clusters = fe_el->l_recs[i].e_clusters;
-		eb_el->l_recs[i].e_blkno = fe_el->l_recs[i].e_blkno;
-	}
+	for(i = 0; i < le16_to_cpu(fe_el->l_next_free_rec); i++)
+		eb_el->l_recs[i] = fe_el->l_recs[i];
 
 	status = ocfs2_journal_dirty(handle, new_eb_bh);
 	if (status < 0) {
@@ -687,12 +701,9 @@ static int ocfs2_shift_tree_depth(struct ocfs2_super *osb,
 	le16_add_cpu(&fe_el->l_tree_depth, 1);
 	fe_el->l_recs[0].e_cpos = 0;
 	fe_el->l_recs[0].e_blkno = eb->h_blkno;
-	fe_el->l_recs[0].e_clusters = cpu_to_le32(new_clusters);
-	for(i = 1; i < le16_to_cpu(fe_el->l_next_free_rec); i++) {
-		fe_el->l_recs[i].e_cpos = 0;
-		fe_el->l_recs[i].e_clusters = 0;
-		fe_el->l_recs[i].e_blkno = 0;
-	}
+	fe_el->l_recs[0].e_int_clusters = cpu_to_le32(new_clusters);
+	for(i = 1; i < le16_to_cpu(fe_el->l_next_free_rec); i++)
+		memset(&fe_el->l_recs[i], 0, sizeof(struct ocfs2_extent_rec));
 	fe_el->l_next_free_rec = cpu_to_le16(1);
 
 	/* If this is our 1st tree depth shift, then last_eb_blk
@@ -817,9 +828,13 @@ bail:
 	return status;
 }
 
+/*
+ * This is only valid for leaf nodes, which are the only ones that can
+ * have empty extents anyway.
+ */
 static inline int ocfs2_is_empty_extent(struct ocfs2_extent_rec *rec)
 {
-	return !rec->e_clusters;
+	return !rec->e_leaf_clusters;
 }
 
 /*
@@ -930,6 +945,8 @@ static void ocfs2_create_empty_extent(struct ocfs2_extent_list *el)
 {
 	int next_free = le16_to_cpu(el->l_next_free_rec);
 
+	BUG_ON(le16_to_cpu(el->l_tree_depth) != 0);
+
 	if (next_free == 0)
 		goto set_and_inc;
 
@@ -1034,7 +1051,7 @@ static int __ocfs2_find_path(struct inode *inode,
 			 * rightmost record.
 			 */
 			range = le32_to_cpu(rec->e_cpos) +
-				le32_to_cpu(rec->e_clusters);
+				ocfs2_rec_clusters(el, rec);
 			if (cpos >= le32_to_cpu(rec->e_cpos) && cpos < range)
 			    break;
 		}
@@ -1195,21 +1212,21 @@ static void ocfs2_adjust_adjacent_records(struct ocfs2_extent_rec *left_rec,
 	 */
 	left_clusters = le32_to_cpu(right_child_el->l_recs[0].e_cpos);
 	left_clusters -= le32_to_cpu(left_rec->e_cpos);
-	left_rec->e_clusters = cpu_to_le32(left_clusters);
+	left_rec->e_int_clusters = cpu_to_le32(left_clusters);
 
 	/*
 	 * Calculate the rightmost cluster count boundary before
-	 * moving cpos - we will need to adjust e_clusters after
+	 * moving cpos - we will need to adjust clusters after
 	 * updating e_cpos to keep the same highest cluster count.
 	 */
 	right_end = le32_to_cpu(right_rec->e_cpos);
-	right_end += le32_to_cpu(right_rec->e_clusters);
+	right_end += le32_to_cpu(right_rec->e_int_clusters);
 
 	right_rec->e_cpos = left_rec->e_cpos;
 	le32_add_cpu(&right_rec->e_cpos, left_clusters);
 
 	right_end -= le32_to_cpu(right_rec->e_cpos);
-	right_rec->e_clusters = cpu_to_le32(right_end);
+	right_rec->e_int_clusters = cpu_to_le32(right_end);
 }
 
 /*
@@ -1452,6 +1469,8 @@ static int ocfs2_find_cpos_for_left_leaf(struct super_block *sb,
 	u64 blkno;
 	struct ocfs2_extent_list *el;
 
+	BUG_ON(path->p_tree_depth == 0);
+
 	*cpos = 0;
 
 	blkno = path_leaf_bh(path)->b_blocknr;
@@ -1486,7 +1505,9 @@ static int ocfs2_find_cpos_for_left_leaf(struct super_block *sb,
 				}
 
 				*cpos = le32_to_cpu(el->l_recs[j - 1].e_cpos);
-				*cpos = *cpos + le32_to_cpu(el->l_recs[j - 1].e_clusters) - 1;
+				*cpos = *cpos + ocfs2_rec_clusters(el,
+							   &el->l_recs[j - 1]);
+				*cpos = *cpos - 1;
 				goto out;
 			}
 		}
@@ -1715,7 +1736,7 @@ static void ocfs2_insert_at_leaf(struct ocfs2_extent_rec *insert_rec,
 	unsigned int range;
 	struct ocfs2_extent_rec *rec;
 
-	BUG_ON(el->l_tree_depth);
+	BUG_ON(le16_to_cpu(el->l_tree_depth) != 0);
 
 	/*
 	 * Contiguous insert - either left or right.
@@ -1726,8 +1747,8 @@ static void ocfs2_insert_at_leaf(struct ocfs2_extent_rec *insert_rec,
 			rec->e_blkno = insert_rec->e_blkno;
 			rec->e_cpos = insert_rec->e_cpos;
 		}
-		le32_add_cpu(&rec->e_clusters,
-			     le32_to_cpu(insert_rec->e_clusters));
+		le16_add_cpu(&rec->e_leaf_clusters,
+			     le16_to_cpu(insert_rec->e_leaf_clusters));
 		return;
 	}
 
@@ -1748,7 +1769,8 @@ static void ocfs2_insert_at_leaf(struct ocfs2_extent_rec *insert_rec,
 	if (insert->ins_appending == APPEND_TAIL) {
 		i = le16_to_cpu(el->l_next_free_rec) - 1;
 		rec = &el->l_recs[i];
-		range = le32_to_cpu(rec->e_cpos) + le32_to_cpu(rec->e_clusters);
+		range = le32_to_cpu(rec->e_cpos)
+			+ le16_to_cpu(rec->e_leaf_clusters);
 		BUG_ON(le32_to_cpu(insert_rec->e_cpos) < range);
 
 		mlog_bug_on_msg(le16_to_cpu(el->l_next_free_rec) >=
@@ -1761,9 +1783,9 @@ static void ocfs2_insert_at_leaf(struct ocfs2_extent_rec *insert_rec,
 				le16_to_cpu(el->l_count),
 				le16_to_cpu(el->l_next_free_rec),
 				le32_to_cpu(el->l_recs[i].e_cpos),
-				le32_to_cpu(el->l_recs[i].e_clusters),
+				le16_to_cpu(el->l_recs[i].e_leaf_clusters),
 				le32_to_cpu(insert_rec->e_cpos),
-				le32_to_cpu(insert_rec->e_clusters));
+				le16_to_cpu(insert_rec->e_leaf_clusters));
 		i++;
 		el->l_recs[i] = *insert_rec;
 		le16_add_cpu(&el->l_next_free_rec, 1);
@@ -1804,6 +1826,12 @@ static int ocfs2_append_rec_to_path(struct inode *inode, handle_t *handle,
 	struct ocfs2_path *left_path = NULL;
 
 	*ret_left_path = NULL;
+
+	/*
+	 * This shouldn't happen for non-trees. The extent rec cluster
+	 * count manipulation below only works for interior nodes.
+	 */
+	BUG_ON(right_path->p_tree_depth == 0);
 
 	/*
 	 * If our appending insert is at the leftmost edge of a leaf,
@@ -1863,6 +1891,8 @@ static int ocfs2_append_rec_to_path(struct inode *inode, handle_t *handle,
 	bh = path_root_bh(right_path);
 	i = 0;
 	while (1) {
+		struct ocfs2_extent_rec *rec;
+
 		next_free = le16_to_cpu(el->l_next_free_rec);
 		if (next_free == 0) {
 			ocfs2_error(inode->i_sb,
@@ -1872,16 +1902,19 @@ static int ocfs2_append_rec_to_path(struct inode *inode, handle_t *handle,
 			goto out;
 		}
 
-		el->l_recs[next_free - 1].e_clusters = insert_rec->e_cpos;
-		le32_add_cpu(&el->l_recs[next_free - 1].e_clusters,
-			     le32_to_cpu(insert_rec->e_clusters));
-		le32_add_cpu(&el->l_recs[next_free - 1].e_clusters,
-			    -le32_to_cpu(el->l_recs[next_free - 1].e_cpos));
+		rec = &el->l_recs[next_free - 1];
+
+		rec->e_int_clusters = insert_rec->e_cpos;
+		le32_add_cpu(&rec->e_int_clusters,
+			     le16_to_cpu(insert_rec->e_leaf_clusters));
+		le32_add_cpu(&rec->e_int_clusters,
+			     -le32_to_cpu(rec->e_cpos));
 
 		ret = ocfs2_journal_dirty(handle, bh);
 		if (ret)
 			mlog_errno(ret);
 
+		/* Don't touch the leaf node */
 		if (++i >= right_path->p_tree_depth)
 			break;
 
@@ -2068,7 +2101,7 @@ static int ocfs2_do_insert_extent(struct inode *inode,
 
 out_update_clusters:
 	ocfs2_update_dinode_clusters(inode, di,
-				     le32_to_cpu(insert_rec->e_clusters));
+				     le16_to_cpu(insert_rec->e_leaf_clusters));
 
 	ret = ocfs2_journal_dirty(handle, di_bh);
 	if (ret)
@@ -2088,6 +2121,8 @@ static void ocfs2_figure_contig_type(struct inode *inode,
 {
 	int i;
 	enum ocfs2_contig_type contig_type = CONTIG_NONE;
+
+	BUG_ON(le16_to_cpu(el->l_tree_depth) != 0);
 
 	for(i = 0; i < le16_to_cpu(el->l_next_free_rec); i++) {
 		contig_type = ocfs2_extent_contig(inode, &el->l_recs[i],
@@ -2120,7 +2155,7 @@ static void ocfs2_figure_appending_type(struct ocfs2_insert_type *insert,
 
 	insert->ins_appending = APPEND_NONE;
 
-	BUG_ON(el->l_tree_depth);
+	BUG_ON(le16_to_cpu(el->l_tree_depth) != 0);
 
 	if (!el->l_next_free_rec)
 		goto set_tail_append;
@@ -2134,7 +2169,8 @@ static void ocfs2_figure_appending_type(struct ocfs2_insert_type *insert,
 	i = le16_to_cpu(el->l_next_free_rec) - 1;
 	rec = &el->l_recs[i];
 
-	if (cpos >= (le32_to_cpu(rec->e_cpos) + le32_to_cpu(rec->e_clusters)))
+	if (cpos >=
+	    (le32_to_cpu(rec->e_cpos) + le16_to_cpu(rec->e_leaf_clusters)))
 		goto set_tail_append;
 
 	return;
@@ -2242,7 +2278,7 @@ static int ocfs2_figure_insert_type(struct inode *inode,
 	 * The insert code isn't quite ready to deal with all cases of
 	 * left contiguousness. Specifically, if it's an insert into
 	 * the 1st record in a leaf, it will require the adjustment of
-	 * e_clusters on the last record of the path directly to it's
+	 * cluster count on the last record of the path directly to it's
 	 * left. For now, just catch that case and fool the layers
 	 * above us. This works just fine for tree_depth == 0, which
 	 * is why we allow that above.
@@ -2310,9 +2346,10 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 			(unsigned long long)OCFS2_I(inode)->ip_blkno, cpos,
 			OCFS2_I(inode)->ip_clusters);
 
+	memset(&rec, 0, sizeof(rec));
 	rec.e_cpos = cpu_to_le32(cpos);
 	rec.e_blkno = cpu_to_le64(start_blk);
-	rec.e_clusters = cpu_to_le32(new_clusters);
+	rec.e_leaf_clusters = cpu_to_le16(new_clusters);
 
 	status = ocfs2_figure_insert_type(inode, fe_bh, &last_eb_bh, &rec,
 					  &insert);
@@ -2981,7 +3018,7 @@ static int ocfs2_find_new_last_ext_blk(struct inode *inode,
 		 * Check it we'll only be trimming off the end of this
 		 * cluster.
 		 */
-		if (le16_to_cpu(rec->e_clusters) > clusters_to_del)
+		if (le16_to_cpu(rec->e_leaf_clusters) > clusters_to_del)
 			goto out;
 	}
 
@@ -3061,11 +3098,11 @@ find_tail_record:
 
 		mlog(0, "Extent list before: record %d: (%u, %u, %llu), "
 		     "next = %u\n", i, le32_to_cpu(rec->e_cpos),
-		     le32_to_cpu(rec->e_clusters),
+		     ocfs2_rec_clusters(el, rec),
 		     (unsigned long long)le64_to_cpu(rec->e_blkno),
 		     le16_to_cpu(el->l_next_free_rec));
 
-		BUG_ON(le32_to_cpu(rec->e_clusters) < clusters_to_del);
+		BUG_ON(ocfs2_rec_clusters(el, rec) < clusters_to_del);
 
 		if (le16_to_cpu(el->l_tree_depth) == 0) {
 			/*
@@ -3107,13 +3144,13 @@ find_tail_record:
 				goto find_tail_record;
 			}
 
-			le32_add_cpu(&rec->e_clusters, -clusters_to_del);
+			le16_add_cpu(&rec->e_leaf_clusters, -clusters_to_del);
 
 			/*
 			 * We'll use "new_edge" on our way back up the
 			 * tree to know what our rightmost cpos is.
 			 */
-			new_edge = le32_to_cpu(rec->e_clusters);
+			new_edge = le16_to_cpu(rec->e_leaf_clusters);
 			new_edge += le32_to_cpu(rec->e_cpos);
 
 			/*
@@ -3121,12 +3158,12 @@ find_tail_record:
 			 */
 			*delete_start = le64_to_cpu(rec->e_blkno)
 				+ ocfs2_clusters_to_blocks(inode->i_sb,
-					le32_to_cpu(rec->e_clusters));
+					le16_to_cpu(rec->e_leaf_clusters));
 
 			/*
 			 * If it's now empty, remove this record.
 			 */
-			if (le32_to_cpu(rec->e_clusters) == 0) {
+			if (le16_to_cpu(rec->e_leaf_clusters) == 0) {
 				memset(rec, 0,
 				       sizeof(struct ocfs2_extent_rec));
 				le16_add_cpu(&el->l_next_free_rec, -1);
@@ -3152,15 +3189,15 @@ find_tail_record:
 			if (new_edge == 0)
 				goto delete;
 
-			rec->e_clusters = cpu_to_le32(new_edge);
-			le32_add_cpu(&rec->e_clusters,
+			rec->e_int_clusters = cpu_to_le32(new_edge);
+			le32_add_cpu(&rec->e_int_clusters,
 				     -le32_to_cpu(rec->e_cpos));
 
 			 /*
 			  * A deleted child record should have been
 			  * caught above.
 			  */
-			 BUG_ON(le32_to_cpu(rec->e_clusters) == 0);
+			 BUG_ON(le32_to_cpu(rec->e_int_clusters) == 0);
 		}
 
 delete:
@@ -3173,7 +3210,7 @@ delete:
 		mlog(0, "extent list container %llu, after: record %d: "
 		     "(%u, %u, %llu), next = %u.\n",
 		     (unsigned long long)bh->b_blocknr, i,
-		     le32_to_cpu(rec->e_cpos), le32_to_cpu(rec->e_clusters),
+		     le32_to_cpu(rec->e_cpos), ocfs2_rec_clusters(el, rec),
 		     (unsigned long long)le64_to_cpu(rec->e_blkno),
 		     le16_to_cpu(el->l_next_free_rec));
 
@@ -3195,7 +3232,7 @@ delete:
 
 			ocfs2_remove_from_cache(inode, bh);
 
-			BUG_ON(le32_to_cpu(el->l_recs[0].e_clusters));
+			BUG_ON(ocfs2_rec_clusters(el, &el->l_recs[0]));
 			BUG_ON(le32_to_cpu(el->l_recs[0].e_cpos));
 			BUG_ON(le64_to_cpu(el->l_recs[0].e_blkno));
 
@@ -3283,7 +3320,7 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 	 * Lower levels depend on this never happening, but it's best
 	 * to check it up here before changing the tree.
 	 */
-	if (el->l_tree_depth && ocfs2_is_empty_extent(&el->l_recs[0])) {
+	if (el->l_tree_depth && el->l_recs[0].e_int_clusters == 0) {
 		ocfs2_error(inode->i_sb,
 			    "Inode %lu has an empty extent record, depth %u\n",
 			    inode->i_ino, le16_to_cpu(el->l_tree_depth));
@@ -3644,13 +3681,13 @@ start:
 
 	i = le16_to_cpu(el->l_next_free_rec) - 1;
 	range = le32_to_cpu(el->l_recs[i].e_cpos) +
-		le32_to_cpu(el->l_recs[i].e_clusters);
+		ocfs2_rec_clusters(el, &el->l_recs[i]);
 	if (i == 0 && ocfs2_is_empty_extent(&el->l_recs[i])) {
 		clusters_to_del = 0;
 	} else if (le32_to_cpu(el->l_recs[i].e_cpos) >= new_highest_cpos) {
-		clusters_to_del = le32_to_cpu(el->l_recs[i].e_clusters);
+		clusters_to_del = ocfs2_rec_clusters(el, &el->l_recs[i]);
 	} else if (range > new_highest_cpos) {
-		clusters_to_del = (le32_to_cpu(el->l_recs[i].e_clusters) +
+		clusters_to_del = (ocfs2_rec_clusters(el, &el->l_recs[i]) +
 				   le32_to_cpu(el->l_recs[i].e_cpos)) -
 				  new_highest_cpos;
 	} else {

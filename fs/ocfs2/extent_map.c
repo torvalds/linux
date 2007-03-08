@@ -50,13 +50,15 @@ static int ocfs2_search_extent_list(struct ocfs2_extent_list *el,
 	int ret = -1;
 	int i;
 	struct ocfs2_extent_rec *rec;
-	u32 rec_end, rec_start;
+	u32 rec_end, rec_start, clusters;
 
 	for(i = 0; i < le16_to_cpu(el->l_next_free_rec); i++) {
 		rec = &el->l_recs[i];
 
 		rec_start = le32_to_cpu(rec->e_cpos);
-		rec_end = rec_start + le32_to_cpu(rec->e_clusters);
+		clusters = ocfs2_rec_clusters(el, rec);
+
+		rec_end = rec_start + clusters;
 
 		if (v_cluster >= rec_start && v_cluster < rec_end) {
 			ret = i;
@@ -98,6 +100,15 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 
 		eb = (struct ocfs2_extent_block *) eb_bh->b_data;
 		el = &eb->h_list;
+
+		if (el->l_tree_depth) {
+			ocfs2_error(inode->i_sb,
+				    "Inode %lu has non zero tree depth in "
+				    "leaf block %llu\n", inode->i_ino,
+				    (unsigned long long)eb_bh->b_blocknr);
+			ret = -EROFS;
+			goto out;
+		}
 	}
 
 	i = ocfs2_search_extent_list(el, v_cluster);
@@ -118,7 +129,7 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 			ocfs2_error(inode->i_sb, "Inode %lu has bad extent "
 				    "record (%u, %u, 0)", inode->i_ino,
 				    le32_to_cpu(rec->e_cpos),
-				    le32_to_cpu(rec->e_clusters));
+				    ocfs2_rec_clusters(el, rec));
 			ret = -EROFS;
 			goto out;
 		}
@@ -130,7 +141,7 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 		*p_cluster = *p_cluster + coff;
 
 		if (num_clusters)
-			*num_clusters = le32_to_cpu(rec->e_clusters) - coff;
+			*num_clusters = ocfs2_rec_clusters(el, rec) - coff;
 	}
 
 out:
