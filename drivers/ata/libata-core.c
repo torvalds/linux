@@ -1379,30 +1379,44 @@ unsigned int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
  *	Check if the current speed of the device requires IORDY. Used
  *	by various controllers for chip configuration.
  */
-
+ 
 unsigned int ata_pio_need_iordy(const struct ata_device *adev)
 {
-	int pio;
-	int speed = adev->pio_mode - XFER_PIO_0;
-
-	if (speed < 2)
+	/* Controller doesn't support  IORDY. Probably a pointless check
+	   as the caller should know this */
+	if (adev->ap->flags & ATA_FLAG_NO_IORDY)
 		return 0;
-	if (speed > 2)
+	/* PIO3 and higher it is mandatory */
+	if (adev->pio_mode > XFER_PIO_2)
 		return 1;
+	/* We turn it on when possible */
+	if (ata_id_has_iordy(adev->id))
+		return 1;
+	return 0;
+}
 
+/**
+ *	ata_pio_mask_no_iordy	-	Return the non IORDY mask
+ *	@adev: ATA device
+ *
+ *	Compute the highest mode possible if we are not using iordy. Return
+ *	-1 if no iordy mode is available.
+ */
+ 
+static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
+{
 	/* If we have no drive specific rule, then PIO 2 is non IORDY */
-
 	if (adev->id[ATA_ID_FIELD_VALID] & 2) {	/* EIDE */
-		pio = adev->id[ATA_ID_EIDE_PIO];
+		u16 pio = adev->id[ATA_ID_EIDE_PIO];
 		/* Is the speed faster than the drive allows non IORDY ? */
 		if (pio) {
 			/* This is cycle times not frequency - watch the logic! */
 			if (pio > 240)	/* PIO2 is 240nS per cycle */
-				return 1;
-			return 0;
+				return 3 << ATA_SHIFT_PIO;
+			return 7 << ATA_SHIFT_PIO;
 		}
 	}
-	return 0;
+	return 3 << ATA_SHIFT_PIO;
 }
 
 /**
