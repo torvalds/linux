@@ -1136,7 +1136,6 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	unsigned int *busrange;
 	struct property *prop;
 	struct pci_pbm_info *pbm;
-	int len;
 
 	if (is_pbm_a) {
 		pbm = &p->pbm_A;
@@ -1165,15 +1164,6 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	printk("%s: PSYCHO PCI Bus Module ver[%x:%x]\n",
 	       pbm->name,
 	       pbm->chip_version, pbm->chip_revision);
-
-	prop = of_find_property(dp, "ranges", &len);
-	if (prop) {
-		pbm->pbm_ranges = prop->value;
-		pbm->num_pbm_ranges =
-			(len / sizeof(struct linux_prom_pci_ranges));
-	} else {
-		pbm->num_pbm_ranges = 0;
-	}
 
 	prop = of_find_property(dp, "bus-range", NULL);
 	busrange = prop->value;

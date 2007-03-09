@@ -1542,7 +1542,6 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 	const char *chipset_name;
 	u32 *ino_bitmap;
 	int is_pbm_a;
-	int len;
 
 	switch (chip_type) {
 	case PBM_CHIP_TYPE_TOMATILLO:
@@ -1600,10 +1599,6 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 	       pbm->chip_version, pbm->chip_revision);
 
 	schizo_pbm_hw_init(pbm);
-
-	pbm->pbm_ranges = of_get_property(dp, "ranges", &len);
-	pbm->num_pbm_ranges =
-		(len / sizeof(struct linux_prom_pci_ranges));
 
 	pci_determine_mem_io_space(pbm);
 

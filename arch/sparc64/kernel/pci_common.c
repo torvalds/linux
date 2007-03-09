@@ -73,17 +73,28 @@ static void pci_register_iommu_region(struct pci_pbm_info *pbm)
 
 void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 {
+	struct linux_prom_pci_ranges *pbm_ranges;
 	int i, saw_mem, saw_io;
+	int num_pbm_ranges;
 
 	saw_mem = saw_io = 0;
-	for (i = 0; i < pbm->num_pbm_ranges; i++) {
-		struct linux_prom_pci_ranges *pr = &pbm->pbm_ranges[i];
+	pbm_ranges = of_get_property(pbm->prom_node, "ranges", &i);
+	num_pbm_ranges = i / sizeof(*pbm_ranges);
+
+	for (i = 0; i < num_pbm_ranges; i++) {
+		struct linux_prom_pci_ranges *pr = &pbm_ranges[i];
 		unsigned long a;
+		u32 parent_phys_hi, parent_phys_lo;
 		int type;
 
+		parent_phys_hi = pr->parent_phys_hi;
+		parent_phys_lo = pr->parent_phys_lo;
+		if (tlb_type == hypervisor)
+			parent_phys_hi &= 0x0fffffff;
+
 		type = (pr->child_phys_hi >> 24) & 0x3;
-		a = (((unsigned long)pr->parent_phys_hi << 32UL) |
-		     ((unsigned long)pr->parent_phys_lo  <<  0UL));
+		a = (((unsigned long)parent_phys_hi << 32UL) |
+		     ((unsigned long)parent_phys_lo  <<  0UL));
 
 		switch (type) {
 		case 0:

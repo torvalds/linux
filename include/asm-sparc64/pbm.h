@@ -160,8 +160,6 @@ struct pci_pbm_info {
 
 	/* OBP specific information. */
 	struct device_node		*prom_node;
-	struct linux_prom_pci_ranges	*pbm_ranges;
-	int				num_pbm_ranges;
 	u64				ino_bitmap;
 
 	/* PBM I/O and Memory space resources. */

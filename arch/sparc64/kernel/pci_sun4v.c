@@ -1301,8 +1301,6 @@ static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
 static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node *dp, u32 devhandle)
 {
 	struct pci_pbm_info *pbm;
-	struct property *prop;
-	int len, i;
 
 	if (devhandle & 0x40)
 		pbm = &p->pbm_B;
@@ -1318,17 +1316,6 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 	pbm->name = dp->full_name;
 
 	printk("%s: SUN4V PCI Bus Module\n", pbm->name);
-
-	prop = of_find_property(dp, "ranges", &len);
-	pbm->pbm_ranges = prop->value;
-	pbm->num_pbm_ranges =
-		(len / sizeof(struct linux_prom_pci_ranges));
-
-	/* Mask out the top 8 bits of the ranges, leaving the real
-	 * physical address.
-	 */
-	for (i = 0; i < pbm->num_pbm_ranges; i++)
-		pbm->pbm_ranges[i].parent_phys_hi &= 0x0fffffff;
 
 	pci_determine_mem_io_space(pbm);
 
