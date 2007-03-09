@@ -836,7 +836,7 @@ static int onenand_transfer_auto_oob(struct mtd_info *mtd, uint8_t *buf, int col
 	int readcol = column;
 	int readend = column + thislen;
 	int lastgap = 0;
-	uint8_t *oob_buf = this->page_buf + mtd->writesize;
+	uint8_t *oob_buf = this->oob_buf;
 
 	for (free = this->ecclayout->oobfree; free->length; ++free) {
 		if (readcol >= lastgap)
@@ -1356,7 +1356,7 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Grab the lock and see if the device is available */
 	onenand_get_device(mtd, FL_WRITING);
 
-	oobbuf = this->page_buf + mtd->writesize;
+	oobbuf = this->oob_buf;
 
 	/* Loop until all data write */
 	while (written < len) {
@@ -2332,14 +2332,24 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 
 	/* Allocate buffers, if necessary */
 	if (!this->page_buf) {
-		size_t len;
-		len = mtd->writesize + mtd->oobsize;
-		this->page_buf = kmalloc(len, GFP_KERNEL);
+		this->page_buf = kzalloc(mtd->writesize, GFP_KERNEL);
 		if (!this->page_buf) {
 			printk(KERN_ERR "onenand_scan(): Can't allocate page_buf\n");
 			return -ENOMEM;
 		}
 		this->options |= ONENAND_PAGEBUF_ALLOC;
+	}
+	if (!this->oob_buf) {
+		this->oob_buf = kzalloc(mtd->oobsize, GFP_KERNEL);
+		if (!this->oob_buf) {
+			printk(KERN_ERR "onenand_scan(): Can't allocate oob_buf\n");
+			if (this->options & ONENAND_PAGEBUF_ALLOC) {
+				this->options &= ~ONENAND_PAGEBUF_ALLOC;
+				kfree(this->page_buf);
+			}
+			return -ENOMEM;
+		}
+		this->options |= ONENAND_OOBBUF_ALLOC;
 	}
 
 	this->state = FL_READY;
@@ -2437,9 +2447,11 @@ void onenand_release(struct mtd_info *mtd)
 		kfree(bbm->bbt);
 		kfree(this->bbm);
 	}
-	/* Buffer allocated by onenand_scan */
+	/* Buffers allocated by onenand_scan */
 	if (this->options & ONENAND_PAGEBUF_ALLOC)
 		kfree(this->page_buf);
+	if (this->options & ONENAND_OOBBUF_ALLOC)
+		kfree(this->oob_buf);
 }
 
 EXPORT_SYMBOL_GPL(onenand_scan);
