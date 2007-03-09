@@ -787,6 +787,13 @@ void device_del(struct device * dev)
 	device_remove_attrs(dev);
 	bus_remove_device(dev);
 
+	/*
+	 * Some platform devices are driven without driver attached
+	 * and managed resources may have been acquired.  Make sure
+	 * all resources are released.
+	 */
+	devres_release_all(dev);
+
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...
 	 */
