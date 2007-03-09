@@ -502,8 +502,10 @@ static struct in_ifaddr *rtm_to_ifaddr(struct nlmsghdr *nlh)
 		goto errout;
 
 	ifm = nlmsg_data(nlh);
-	if (ifm->ifa_prefixlen > 32 || tb[IFA_LOCAL] == NULL)
+	if (ifm->ifa_prefixlen > 32 || tb[IFA_LOCAL] == NULL) {
+		err = -EINVAL;
 		goto errout;
+	}
 
 	dev = __dev_get_by_index(ifm->ifa_index);
 	if (dev == NULL) {
