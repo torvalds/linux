@@ -93,10 +93,10 @@ static struct sock *__udp6_lib_lookup(struct in6_addr *saddr, __be16 sport,
 					continue;
 				score++;
 			}
-			if(score == 4) {
+			if (score == 4) {
 				result = sk;
 				break;
-			} else if(score > badness) {
+			} else if (score > badness) {
 				result = sk;
 				badness = score;
 			}
@@ -329,7 +329,7 @@ static struct sock *udp_v6_mcast_next(struct sock *sk,
 				if (!ipv6_addr_equal(&np->rcv_saddr, loc_addr))
 					continue;
 			}
-			if(!inet6_mc_check(s, loc_addr, rmt_addr))
+			if (!inet6_mc_check(s, loc_addr, rmt_addr))
 				continue;
 			return s;
 		}
@@ -473,14 +473,14 @@ int __udp6_lib_rcv(struct sk_buff **pskb, struct hlist_head udptable[],
 		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0, dev);
 
 		kfree_skb(skb);
-		return(0);
+		return 0;
 	}
 
 	/* deliver */
 
 	udpv6_queue_rcv_skb(sk, skb);
 	sock_put(sk);
-	return(0);
+	return 0;
 
 short_packet:
 	LIMIT_NETDEBUG(KERN_DEBUG "UDP%sv6: short packet: %d/%u\n",
@@ -490,7 +490,7 @@ short_packet:
 discard:
 	UDP6_INC_STATS_BH(UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
 	kfree_skb(skb);
-	return(0);
+	return 0;
 }
 
 static __inline__ int udpv6_rcv(struct sk_buff **pskb)
