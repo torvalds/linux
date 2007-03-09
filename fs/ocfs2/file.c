@@ -1853,6 +1853,9 @@ const struct file_operations ocfs2_fops = {
 	.aio_read	= ocfs2_file_aio_read,
 	.aio_write	= ocfs2_file_aio_write,
 	.ioctl		= ocfs2_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = ocfs2_compat_ioctl,
+#endif
 	.splice_read	= ocfs2_file_splice_read,
 	.splice_write	= ocfs2_file_splice_write,
 };
@@ -1862,4 +1865,7 @@ const struct file_operations ocfs2_dops = {
 	.readdir	= ocfs2_readdir,
 	.fsync		= ocfs2_sync_file,
 	.ioctl		= ocfs2_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = ocfs2_compat_ioctl,
+#endif
 };
