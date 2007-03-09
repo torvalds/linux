@@ -825,9 +825,9 @@ static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_txoptions *opt,
 		return 0;
 
 	len = min_t(unsigned int, len, ipv6_optlen(hdr));
-	if (copy_to_user(optval, hdr, ipv6_optlen(hdr)))
+	if (copy_to_user(optval, hdr, len));
 		return -EFAULT;
-	return len;
+	return ipv6_optlen(hdr);
 }
 
 static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
