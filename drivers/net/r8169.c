@@ -572,8 +572,8 @@ static void rtl8169_xmii_reset_enable(void __iomem *ioaddr)
 {
 	unsigned int val;
 
-	mdio_write(ioaddr, MII_BMCR, BMCR_RESET);
-	val = mdio_read(ioaddr, MII_BMCR);
+	val = mdio_read(ioaddr, MII_BMCR) | BMCR_RESET;
+	mdio_write(ioaddr, MII_BMCR, val & 0xffff);
 }
 
 static void rtl8169_check_link_status(struct net_device *dev,
@@ -1368,11 +1368,7 @@ static inline void rtl8169_request_timer(struct net_device *dev)
 	    (tp->phy_version >= RTL_GIGA_PHY_VER_H))
 		return;
 
-	init_timer(timer);
-	timer->expires = jiffies + RTL8169_PHY_TIMEOUT;
-	timer->data = (unsigned long)(dev);
-	timer->function = rtl8169_phy_timer;
-	add_timer(timer);
+	mod_timer(timer, jiffies + RTL8169_PHY_TIMEOUT);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1684,6 +1680,10 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->pci_dev = pdev;
 	tp->mmio_addr = ioaddr;
 	tp->align = rtl_cfg_info[ent->driver_data].align;
+
+	init_timer(&tp->timer);
+	tp->timer.data = (unsigned long) dev;
+	tp->timer.function = rtl8169_phy_timer;
 
 	spin_lock_init(&tp->lock);
 

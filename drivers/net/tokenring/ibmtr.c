@@ -186,7 +186,6 @@ static char __devinit *adapter_def(char type)
 #define TRC_INITV 0x02		/*  verbose init trace points     */
 static unsigned char ibmtr_debug_trace = 0;
 
-static int 	ibmtr_probe(struct net_device *dev);
 static int	ibmtr_probe1(struct net_device *dev, int ioaddr);
 static unsigned char get_sram_size(struct tok_info *adapt_info);
 static int 	trdev_init(struct net_device *dev);
@@ -335,17 +334,6 @@ static void ibmtr_cleanup_card(struct net_device *dev)
 #endif		
 }
 
-int ibmtr_probe_card(struct net_device *dev)
-{
-	int err = ibmtr_probe(dev);
-	if (!err) {
-		err = register_netdev(dev);
-		if (err)
-			ibmtr_cleanup_card(dev);
-	}
-	return err;
-}
-
 /****************************************************************************
  *	ibmtr_probe():  Routine specified in the network device structure
  *	to probe for an IBM Token Ring Adapter.  Routine outline:
@@ -358,7 +346,7 @@ int ibmtr_probe_card(struct net_device *dev)
  *	which references it.
  ****************************************************************************/
 
-static int ibmtr_probe(struct net_device *dev)
+static int __init ibmtr_probe(struct net_device *dev)
 {
 	int i;
 	int base_addr = dev->base_addr;
@@ -376,6 +364,17 @@ static int ibmtr_probe(struct net_device *dev)
 		if (!ibmtr_probe1(dev, ioaddr)) return 0;
 	}
 	return -ENODEV;
+}
+
+int __init ibmtr_probe_card(struct net_device *dev)
+{
+	int err = ibmtr_probe(dev);
+	if (!err) {
+		err = register_netdev(dev);
+		if (err)
+			ibmtr_cleanup_card(dev);
+	}
+	return err;
 }
 
 /*****************************************************************************/

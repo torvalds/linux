@@ -859,6 +859,11 @@ static void bcm43xx_phy_initb6(struct bcm43xx_private *bcm)
 		bcm43xx_radio_write16(bcm, 0x005D, 0x0088);
 		bcm43xx_radio_write16(bcm, 0x005E, 0x0088);
 		bcm43xx_radio_write16(bcm, 0x007D, 0x0088);
+		bcm43xx_shm_write32(bcm, BCM43xx_SHM_SHARED,
+				    BCM43xx_UCODEFLAGS_OFFSET,
+				    (bcm43xx_shm_read32(bcm, BCM43xx_SHM_SHARED,
+				    BCM43xx_UCODEFLAGS_OFFSET)
+				    | 0x00000200));
 	}
 	if (radio->revision == 8) {
 		bcm43xx_radio_write16(bcm, 0x0051, 0x0000);
@@ -941,7 +946,8 @@ static void bcm43xx_phy_initb6(struct bcm43xx_private *bcm)
 	bcm43xx_phy_write(bcm, 0x0038, 0x0668);
 	bcm43xx_radio_set_txpower_bg(bcm, 0xFFFF, 0xFFFF, 0xFFFF);
 	if (radio->revision <= 5)
-		bcm43xx_phy_write(bcm, 0x005D, bcm43xx_phy_read(bcm, 0x005D) | 0x0003);
+		bcm43xx_phy_write(bcm, 0x005D, (bcm43xx_phy_read(bcm, 0x005D)
+			          & 0xFF80) | 0x0003);
 	if (radio->revision <= 2)
 		bcm43xx_radio_write16(bcm, 0x005D, 0x000D);
 	
@@ -958,7 +964,7 @@ static void bcm43xx_phy_initb6(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x0016, 0x0410);
 		bcm43xx_phy_write(bcm, 0x0017, 0x0820);
 		bcm43xx_phy_write(bcm, 0x0062, 0x0007);
-		(void) bcm43xx_radio_calibrationvalue(bcm);
+		bcm43xx_radio_init2050(bcm);
 		bcm43xx_phy_lo_g_measure(bcm);
 		if (bcm->sprom.boardflags & BCM43xx_BFL_RSSI) {
 			bcm43xx_calc_nrssi_slope(bcm);

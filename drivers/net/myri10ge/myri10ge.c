@@ -181,6 +181,7 @@ struct myri10ge_priv {
 	int intr_coal_delay;
 	__be32 __iomem *intr_coal_delay_ptr;
 	int mtrr;
+	int wc_enabled;
 	int wake_queue;
 	int stop_queue;
 	int down_cnt;
@@ -717,6 +718,8 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	int status;
 	size_t bytes;
 	u32 len;
+	struct page *dmatest_page;
+	dma_addr_t dmatest_bus;
 
 	/* try to send a reset command to the card to see if it
 	 * is alive */
@@ -726,6 +729,11 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 		dev_err(&mgp->pdev->dev, "failed reset\n");
 		return -ENXIO;
 	}
+	dmatest_page = alloc_page(GFP_KERNEL);
+	if (!dmatest_page)
+		return -ENOMEM;
+	dmatest_bus = pci_map_page(mgp->pdev, dmatest_page, 0, PAGE_SIZE,
+				   DMA_BIDIRECTIONAL);
 
 	/* Now exchange information about interrupts  */
 
@@ -764,8 +772,8 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 
 	len = mgp->tx.boundary;
 
-	cmd.data0 = MYRI10GE_LOWPART_TO_U32(mgp->rx_done.bus);
-	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(mgp->rx_done.bus);
+	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
 	cmd.data2 = len * 0x10000;
 	status = myri10ge_send_cmd(mgp, MXGEFW_DMA_TEST, &cmd, 0);
 	if (status == 0)
@@ -774,8 +782,8 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	else
 		dev_warn(&mgp->pdev->dev, "DMA read benchmark failed: %d\n",
 			 status);
-	cmd.data0 = MYRI10GE_LOWPART_TO_U32(mgp->rx_done.bus);
-	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(mgp->rx_done.bus);
+	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
 	cmd.data2 = len * 0x1;
 	status = myri10ge_send_cmd(mgp, MXGEFW_DMA_TEST, &cmd, 0);
 	if (status == 0)
@@ -785,8 +793,8 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 		dev_warn(&mgp->pdev->dev, "DMA write benchmark failed: %d\n",
 			 status);
 
-	cmd.data0 = MYRI10GE_LOWPART_TO_U32(mgp->rx_done.bus);
-	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(mgp->rx_done.bus);
+	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
 	cmd.data2 = len * 0x10001;
 	status = myri10ge_send_cmd(mgp, MXGEFW_DMA_TEST, &cmd, 0);
 	if (status == 0)
@@ -795,6 +803,9 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	else
 		dev_warn(&mgp->pdev->dev,
 			 "DMA read/write benchmark failed: %d\n", status);
+
+	pci_unmap_page(mgp->pdev, dmatest_bus, PAGE_SIZE, DMA_BIDIRECTIONAL);
+	put_page(dmatest_page);
 
 	memset(mgp->rx_done.entry, 0, bytes);
 
@@ -1375,7 +1386,7 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 		data[i] = ((unsigned long *)&mgp->stats)[i];
 
 	data[i++] = (unsigned int)mgp->tx.boundary;
-	data[i++] = (unsigned int)(mgp->mtrr >= 0);
+	data[i++] = (unsigned int)mgp->wc_enabled;
 	data[i++] = (unsigned int)mgp->pdev->irq;
 	data[i++] = (unsigned int)mgp->msi_enabled;
 	data[i++] = (unsigned int)mgp->read_dma;
@@ -1456,12 +1467,16 @@ static int myri10ge_allocate_rings(struct net_device *dev)
 	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_GET_SEND_RING_SIZE, &cmd, 0);
 	tx_ring_size = cmd.data0;
 	status |= myri10ge_send_cmd(mgp, MXGEFW_CMD_GET_RX_RING_SIZE, &cmd, 0);
+	if (status != 0)
+		return status;
 	rx_ring_size = cmd.data0;
 
 	tx_ring_entries = tx_ring_size / sizeof(struct mcp_kreq_ether_send);
 	rx_ring_entries = rx_ring_size / sizeof(struct mcp_dma_addr);
 	mgp->tx.mask = tx_ring_entries - 1;
 	mgp->rx_small.mask = mgp->rx_big.mask = rx_ring_entries - 1;
+
+	status = -ENOMEM;
 
 	/* allocate the host shadow rings */
 
@@ -1735,7 +1750,7 @@ static int myri10ge_open(struct net_device *dev)
 		goto abort_with_irq;
 	}
 
-	if (myri10ge_wcfifo && mgp->mtrr >= 0) {
+	if (myri10ge_wcfifo && mgp->wc_enabled) {
 		mgp->tx.wc_fifo = (u8 __iomem *) mgp->sram + MXGEFW_ETH_SEND_4;
 		mgp->rx_small.wc_fifo =
 		    (u8 __iomem *) mgp->sram + MXGEFW_ETH_RECV_SMALL;
@@ -2510,6 +2525,12 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 				 bridge->vendor, bridge->device);
 			mgp->tx.boundary = 4096;
 			mgp->fw_name = myri10ge_fw_aligned;
+		} else if (bridge &&
+			   bridge->vendor == PCI_VENDOR_ID_SGI &&
+			   bridge->device == 0x4002 /* TIOCE pcie-port */ ) {
+			/* this pcie bridge does not support 4K rdma request */
+			mgp->tx.boundary = 2048;
+			mgp->fw_name = myri10ge_fw_aligned;
 		}
 	} else {
 		if (myri10ge_force_firmware == 1) {
@@ -2830,9 +2851,12 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mgp->board_span = pci_resource_len(pdev, 0);
 	mgp->iomem_base = pci_resource_start(pdev, 0);
 	mgp->mtrr = -1;
+	mgp->wc_enabled = 0;
 #ifdef CONFIG_MTRR
 	mgp->mtrr = mtrr_add(mgp->iomem_base, mgp->board_span,
 			     MTRR_TYPE_WRCOMB, 1);
+	if (mgp->mtrr >= 0)
+		mgp->wc_enabled = 1;
 #endif
 	/* Hack.  need to get rid of these magic numbers */
 	mgp->sram_size =
@@ -2927,7 +2951,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev_info(dev, "%s IRQ %d, tx bndry %d, fw %s, WC %s\n",
 		 (mgp->msi_enabled ? "MSI" : "xPIC"),
 		 netdev->irq, mgp->tx.boundary, mgp->fw_name,
-		 (mgp->mtrr >= 0 ? "Enabled" : "Disabled"));
+		 (mgp->wc_enabled ? "Enabled" : "Disabled"));
 
 	return 0;
 

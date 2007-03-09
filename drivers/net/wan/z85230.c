@@ -407,7 +407,7 @@ static void z8530_tx(struct z8530_channel *c)
 	while(c->txcount) {
 		/* FIFO full ? */
 		if(!(read_zsreg(c, R0)&4))
-			break;
+			return;
 		c->txcount--;
 		/*
 		 *	Shovel out the byte
