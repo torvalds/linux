@@ -894,50 +894,6 @@ static void psycho_register_error_handlers(struct pci_controller_info *p)
 }
 
 /* PSYCHO boot time probing and initialization. */
-static void psycho_base_address_update(struct pci_dev *pdev, int resource)
-{
-	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	struct resource *res, *root;
-	u32 reg;
-	int where, size, is_64bit;
-
-	res = &pdev->resource[resource];
-	if (resource < 6) {
-		where = PCI_BASE_ADDRESS_0 + (resource * 4);
-	} else if (resource == PCI_ROM_RESOURCE) {
-		where = pdev->rom_base_reg;
-	} else {
-		/* Somebody might have asked allocation of a non-standard resource */
-		return;
-	}
-
-	is_64bit = 0;
-	if (res->flags & IORESOURCE_IO)
-		root = &pbm->io_space;
-	else {
-		root = &pbm->mem_space;
-		if ((res->flags & PCI_BASE_ADDRESS_MEM_TYPE_MASK)
-		    == PCI_BASE_ADDRESS_MEM_TYPE_64)
-			is_64bit = 1;
-	}
-
-	size = res->end - res->start;
-	pci_read_config_dword(pdev, where, &reg);
-	reg = ((reg & size) |
-	       (((u32)(res->start - root->start)) & ~size));
-	if (resource == PCI_ROM_RESOURCE) {
-		reg |= PCI_ROM_ADDRESS_ENABLE;
-		res->flags |= IORESOURCE_ROM_ENABLE;
-	}
-	pci_write_config_dword(pdev, where, reg);
-
-	/* This knows that the upper 32-bits of the address
-	 * must be zero.  Our PCI common layer enforces this.
-	 */
-	if (is_64bit)
-		pci_write_config_dword(pdev, where + 4, 0);
-}
-
 static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 {
 	u8 *addr;
@@ -1209,7 +1165,6 @@ void psycho_init(struct device_node *dp, char *model_name)
 	p->index = pci_num_controllers++;
 	p->pbms_same_domain = 0;
 	p->scan_bus = psycho_scan_bus;
-	p->base_address_update = psycho_base_address_update;
 	p->pci_ops = &psycho_ops;
 
 	prop = of_find_property(dp, "reg", NULL);

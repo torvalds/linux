@@ -862,51 +862,6 @@ static void sabre_register_error_handlers(struct pci_controller_info *p)
 	sabre_write(base + SABRE_PCICTRL, tmp);
 }
 
-static void sabre_base_address_update(struct pci_dev *pdev, int resource)
-{
-	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	struct resource *res;
-	unsigned long base;
-	u32 reg;
-	int where, size, is_64bit;
-
-	res = &pdev->resource[resource];
-	if (resource < 6) {
-		where = PCI_BASE_ADDRESS_0 + (resource * 4);
-	} else if (resource == PCI_ROM_RESOURCE) {
-		where = pdev->rom_base_reg;
-	} else {
-		/* Somebody might have asked allocation of a non-standard resource */
-		return;
-	}
-
-	is_64bit = 0;
-	if (res->flags & IORESOURCE_IO)
-		base = pbm->controller_regs + SABRE_IOSPACE;
-	else {
-		base = pbm->controller_regs + SABRE_MEMSPACE;
-		if ((res->flags & PCI_BASE_ADDRESS_MEM_TYPE_MASK)
-		    == PCI_BASE_ADDRESS_MEM_TYPE_64)
-			is_64bit = 1;
-	}
-
-	size = res->end - res->start;
-	pci_read_config_dword(pdev, where, &reg);
-	reg = ((reg & size) |
-	       (((u32)(res->start - base)) & ~size));
-	if (resource == PCI_ROM_RESOURCE) {
-		reg |= PCI_ROM_ADDRESS_ENABLE;
-		res->flags |= IORESOURCE_ROM_ENABLE;
-	}
-	pci_write_config_dword(pdev, where, reg);
-
-	/* This knows that the upper 32-bits of the address
-	 * must be zero.  Our PCI common layer enforces this.
-	 */
-	if (is_64bit)
-		pci_write_config_dword(pdev, where + 4, 0);
-}
-
 static void apb_init(struct pci_controller_info *p, struct pci_bus *sabre_bus)
 {
 	struct pci_dev *pdev;
@@ -1099,7 +1054,6 @@ void sabre_init(struct device_node *dp, char *model_name)
 	p->index = pci_num_controllers++;
 	p->pbms_same_domain = 1;
 	p->scan_bus = sabre_scan_bus;
-	p->base_address_update = sabre_base_address_update;
 	p->pci_ops = &sabre_ops;
 
 	/*

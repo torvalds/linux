@@ -698,51 +698,6 @@ static void pci_sun4v_scan_bus(struct pci_controller_info *p)
 	/* XXX register error interrupt handlers XXX */
 }
 
-static void pci_sun4v_base_address_update(struct pci_dev *pdev, int resource)
-{
-	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	struct resource *res, *root;
-	u32 reg;
-	int where, size, is_64bit;
-
-	res = &pdev->resource[resource];
-	if (resource < 6) {
-		where = PCI_BASE_ADDRESS_0 + (resource * 4);
-	} else if (resource == PCI_ROM_RESOURCE) {
-		where = pdev->rom_base_reg;
-	} else {
-		/* Somebody might have asked allocation of a non-standard resource */
-		return;
-	}
-
-	/* XXX 64-bit MEM handling is not %100 correct... XXX */
-	is_64bit = 0;
-	if (res->flags & IORESOURCE_IO)
-		root = &pbm->io_space;
-	else {
-		root = &pbm->mem_space;
-		if ((res->flags & PCI_BASE_ADDRESS_MEM_TYPE_MASK)
-		    == PCI_BASE_ADDRESS_MEM_TYPE_64)
-			is_64bit = 1;
-	}
-
-	size = res->end - res->start;
-	pci_read_config_dword(pdev, where, &reg);
-	reg = ((reg & size) |
-	       (((u32)(res->start - root->start)) & ~size));
-	if (resource == PCI_ROM_RESOURCE) {
-		reg |= PCI_ROM_ADDRESS_ENABLE;
-		res->flags |= IORESOURCE_ROM_ENABLE;
-	}
-	pci_write_config_dword(pdev, where, reg);
-
-	/* This knows that the upper 32-bits of the address
-	 * must be zero.  Our PCI common layer enforces this.
-	 */
-	if (is_64bit)
-		pci_write_config_dword(pdev, where + 4, 0);
-}
-
 static unsigned long probe_existing_entries(struct pci_pbm_info *pbm,
 					    struct pci_iommu *iommu)
 {
@@ -1378,7 +1333,6 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 	p->pbms_same_domain = 0;
 
 	p->scan_bus = pci_sun4v_scan_bus;
-	p->base_address_update = pci_sun4v_base_address_update;
 #ifdef CONFIG_PCI_MSI
 	p->setup_msi_irq = pci_sun4v_setup_msi_irq;
 	p->teardown_msi_irq = pci_sun4v_teardown_msi_irq;
