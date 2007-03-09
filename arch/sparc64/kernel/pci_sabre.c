@@ -1045,10 +1045,9 @@ static void sabre_iommu_init(struct pci_controller_info *p,
 	sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL, control);
 }
 
-static void sabre_pbm_init(struct pci_controller_info *p, struct device_node *dp, u32 dma_start, u32 dma_end)
+static void sabre_pbm_init(struct pci_controller_info *p, struct device_node *dp)
 {
 	struct pci_pbm_info *pbm;
-	struct resource *rp;
 
 	pbm = &p->pbm_A;
 	pbm->name = dp->full_name;
@@ -1061,38 +1060,7 @@ static void sabre_pbm_init(struct pci_controller_info *p, struct device_node *dp
 	pbm->pci_first_busno = p->pci_first_busno;
 	pbm->pci_last_busno = p->pci_last_busno;
 
-	pbm->io_space.name = pbm->mem_space.name = pbm->name;
-
-	pbm->io_space.start = p->pbm_A.controller_regs + SABRE_IOSPACE;
-	pbm->io_space.end   = pbm->io_space.start + (1UL << 24) - 1UL;
-	pbm->io_space.flags = IORESOURCE_IO;
-
-	pbm->mem_space.start = (p->pbm_A.controller_regs + SABRE_MEMSPACE);
-	pbm->mem_space.end = (pbm->mem_space.start + ((1UL << 32UL) - 1UL));
-	pbm->mem_space.flags = IORESOURCE_MEM;
-
-	if (request_resource(&ioport_resource, &pbm->io_space) < 0) {
-		prom_printf("Cannot register Sabre's IO space.\n");
-		prom_halt();
-	}
-	if (request_resource(&iomem_resource, &pbm->mem_space) < 0) {
-		prom_printf("Cannot register Sabre's MEM space.\n");
-		prom_halt();
-	}
-
-	rp = kmalloc(sizeof(*rp), GFP_KERNEL);
-	if (!rp) {
-		prom_printf("Cannot allocate IOMMU resource.\n");
-		prom_halt();
-	}
-	rp->name = "IOMMU";
-	rp->start = pbm->mem_space.start + (unsigned long) dma_start;
-	rp->end = pbm->mem_space.start + (unsigned long) dma_end - 1UL;
-	rp->flags = IORESOURCE_BUSY;
-	request_resource(&pbm->mem_space, rp);
-
-	pci_register_legacy_regions(&pbm->io_space,
-				    &pbm->mem_space);
+	pci_determine_mem_io_space(pbm);
 }
 
 void sabre_init(struct device_node *dp, char *model_name)
@@ -1212,5 +1180,5 @@ void sabre_init(struct device_node *dp, char *model_name)
 	/*
 	 * Look for APB underneath.
 	 */
-	sabre_pbm_init(p, dp, vdma[0], vdma[0] + vdma[1]);
+	sabre_pbm_init(p, dp);
 }

@@ -1,7 +1,6 @@
-/* $Id: pci_impl.h,v 1.9 2001/06/13 06:34:30 davem Exp $
- * pci_impl.h: Helper definitions for PCI controller support.
+/* pci_impl.h: Helper definitions for PCI controller support.
  *
- * Copyright (C) 1999 David S. Miller (davem@redhat.com)
+ * Copyright (C) 1999, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #ifndef PCI_IMPL_H
@@ -19,8 +18,7 @@ extern int pci_num_controllers;
 
 /* PCI bus scanning and fixup support. */
 extern struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm);
-extern void pci_register_legacy_regions(struct resource *io_res,
-					struct resource *mem_res);
+extern void pci_determine_mem_io_space(struct pci_pbm_info *pbm);
 
 /* Error reporting support. */
 extern void pci_scan_for_target_abort(struct pci_controller_info *, struct pci_pbm_info *, struct pci_bus *);

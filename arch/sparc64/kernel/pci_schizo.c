@@ -1,7 +1,6 @@
-/* $Id: pci_schizo.c,v 1.24 2002/01/23 11:27:32 davem Exp $
- * pci_schizo.c: SCHIZO/TOMATILLO specific PCI controller support.
+/* pci_schizo.c: SCHIZO/TOMATILLO specific PCI controller support.
  *
- * Copyright (C) 2001, 2002, 2003 David S. Miller (davem@redhat.com)
+ * Copyright (C) 2001, 2002, 2003, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/kernel.h>
@@ -1304,79 +1303,6 @@ static void schizo_resource_adjust(struct pci_dev *pdev,
 	res->end += root->start;
 }
 
-/* Use ranges property to determine where PCI MEM, I/O, and Config
- * space are for this PCI bus module.
- */
-static void schizo_determine_mem_io_space(struct pci_pbm_info *pbm)
-{
-	int i, saw_cfg, saw_mem, saw_io;
-
-	saw_cfg = saw_mem = saw_io = 0;
-	for (i = 0; i < pbm->num_pbm_ranges; i++) {
-		struct linux_prom_pci_ranges *pr = &pbm->pbm_ranges[i];
-		unsigned long a;
-		int type;
-
-		type = (pr->child_phys_hi >> 24) & 0x3;
-		a = (((unsigned long)pr->parent_phys_hi << 32UL) |
-		     ((unsigned long)pr->parent_phys_lo  <<  0UL));
-
-		switch (type) {
-		case 0:
-			/* PCI config space, 16MB */
-			pbm->config_space = a;
-			saw_cfg = 1;
-			break;
-
-		case 1:
-			/* 16-bit IO space, 16MB */
-			pbm->io_space.start = a;
-			pbm->io_space.end = a + ((16UL*1024UL*1024UL) - 1UL);
-			pbm->io_space.flags = IORESOURCE_IO;
-			saw_io = 1;
-			break;
-
-		case 2:
-			/* 32-bit MEM space, 2GB */
-			pbm->mem_space.start = a;
-			pbm->mem_space.end = a + (0x80000000UL - 1UL);
-			pbm->mem_space.flags = IORESOURCE_MEM;
-			saw_mem = 1;
-			break;
-
-		default:
-			break;
-		};
-	}
-
-	if (!saw_cfg || !saw_io || !saw_mem) {
-		prom_printf("%s: Fatal error, missing %s PBM range.\n",
-			    pbm->name,
-			    ((!saw_cfg ?
-			      "CFG" :
-			      (!saw_io ?
-			       "IO" : "MEM"))));
-		prom_halt();
-	}
-
-	printk("%s: PCI CFG[%lx] IO[%lx] MEM[%lx]\n",
-	       pbm->name,
-	       pbm->config_space,
-	       pbm->io_space.start,
-	       pbm->mem_space.start);
-}
-
-static void pbm_register_toplevel_resources(struct pci_controller_info *p,
-					    struct pci_pbm_info *pbm)
-{
-	pbm->io_space.name = pbm->mem_space.name = pbm->name;
-
-	request_resource(&ioport_resource, &pbm->io_space);
-	request_resource(&iomem_resource, &pbm->mem_space);
-	pci_register_legacy_regions(&pbm->io_space,
-				    &pbm->mem_space);
-}
-
 #define SCHIZO_STRBUF_CONTROL		(0x02800UL)
 #define SCHIZO_STRBUF_FLUSH		(0x02808UL)
 #define SCHIZO_STRBUF_FSYNC		(0x02810UL)
@@ -1679,8 +1605,7 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 	pbm->num_pbm_ranges =
 		(len / sizeof(struct linux_prom_pci_ranges));
 
-	schizo_determine_mem_io_space(pbm);
-	pbm_register_toplevel_resources(p, pbm);
+	pci_determine_mem_io_space(pbm);
 
 	pbm->pbm_intmap = of_get_property(dp, "interrupt-map", &len);
 	if (pbm->pbm_intmap) {

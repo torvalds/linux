@@ -1,7 +1,6 @@
-/* $Id: pci_psycho.c,v 1.33 2002/02/01 00:58:33 davem Exp $
- * pci_psycho.c: PSYCHO/U2P specific PCI controller support.
+/* pci_psycho.c: PSYCHO/U2P specific PCI controller support.
  *
- * Copyright (C) 1997, 1998, 1999 David S. Miller (davem@caipfs.rutgers.edu)
+ * Copyright (C) 1997, 1998, 1999, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1998, 1999 Eddie C. Dost   (ecd@skynet.be)
  * Copyright (C) 1999 Jakub Jelinek   (jakub@redhat.com)
  */
@@ -1072,19 +1071,6 @@ static void psycho_controller_hwinit(struct pci_controller_info *p)
 	psycho_write(p->pbm_A.controller_regs + PSYCHO_PCIB_DIAG, tmp);
 }
 
-static void pbm_register_toplevel_resources(struct pci_controller_info *p,
-					    struct pci_pbm_info *pbm)
-{
-	char *name = pbm->name;
-
-	pbm->io_space.name = pbm->mem_space.name = name;
-
-	request_resource(&ioport_resource, &pbm->io_space);
-	request_resource(&iomem_resource, &pbm->mem_space);
-	pci_register_legacy_regions(&pbm->io_space,
-				    &pbm->mem_space);
-}
-
 static void psycho_pbm_strbuf_init(struct pci_controller_info *p,
 				   struct pci_pbm_info *pbm,
 				   int is_pbm_a)
@@ -1155,13 +1141,9 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	if (is_pbm_a) {
 		pbm = &p->pbm_A;
 		pbm->pci_first_slot = 1;
-		pbm->io_space.start = pbm->controller_regs + PSYCHO_IOSPACE_A;
-		pbm->mem_space.start = pbm->controller_regs + PSYCHO_MEMSPACE_A;
 	} else {
 		pbm = &p->pbm_B;
 		pbm->pci_first_slot = 2;
-		pbm->io_space.start = pbm->controller_regs + PSYCHO_IOSPACE_B;
-		pbm->mem_space.start = pbm->controller_regs + PSYCHO_MEMSPACE_B;
 	}
 
 	pbm->chip_type = PBM_CHIP_TYPE_PSYCHO;
@@ -1174,16 +1156,11 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	if (prop)
 		pbm->chip_revision = *(int *) prop->value;
 
-	pbm->io_space.end = pbm->io_space.start + PSYCHO_IOSPACE_SIZE;
-	pbm->io_space.flags = IORESOURCE_IO;
-	pbm->mem_space.end = pbm->mem_space.start + PSYCHO_MEMSPACE_SIZE;
-	pbm->mem_space.flags = IORESOURCE_MEM;
+	pci_determine_mem_io_space(pbm);
 
 	pbm->parent = p;
 	pbm->prom_node = dp;
 	pbm->name = dp->full_name;
-
-	pbm_register_toplevel_resources(p, pbm);
 
 	printk("%s: PSYCHO PCI Bus Module ver[%x:%x]\n",
 	       pbm->name,
