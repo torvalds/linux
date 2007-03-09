@@ -1332,14 +1332,6 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 
 	pci_determine_mem_io_space(pbm);
 
-	prop = of_find_property(dp, "interrupt-map", &len);
-	pbm->pbm_intmap = prop->value;
-	pbm->num_pbm_intmap =
-		(len / sizeof(struct linux_prom_pci_intmap));
-
-	prop = of_find_property(dp, "interrupt-map-mask", NULL);
-	pbm->pbm_intmask = prop->value;
-
 	pci_sun4v_get_bus_range(pbm);
 	pci_sun4v_iommu_init(pbm);
 	pci_sun4v_msi_init(pbm);

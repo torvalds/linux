@@ -1607,14 +1607,6 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 
 	pci_determine_mem_io_space(pbm);
 
-	pbm->pbm_intmap = of_get_property(dp, "interrupt-map", &len);
-	if (pbm->pbm_intmap) {
-		pbm->num_pbm_intmap =
-			(len / sizeof(struct linux_prom_pci_intmap));
-		pbm->pbm_intmask =
-			of_get_property(dp, "interrupt-map-mask", NULL);
-	}
-
 	ino_bitmap = of_get_property(dp, "ino-bitmap", NULL);
 	pbm->ino_bitmap = (((u64)ino_bitmap[1] << 32UL) |
 			   ((u64)ino_bitmap[0] <<  0UL));

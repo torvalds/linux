@@ -1175,18 +1175,6 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 		pbm->num_pbm_ranges = 0;
 	}
 
-	prop = of_find_property(dp, "interrupt-map", &len);
-	if (prop) {
-		pbm->pbm_intmap = prop->value;
-		pbm->num_pbm_intmap =
-			(len / sizeof(struct linux_prom_pci_intmap));
-
-		prop = of_find_property(dp, "interrupt-map-mask", NULL);
-		pbm->pbm_intmask = prop->value;
-	} else {
-		pbm->num_pbm_intmap = 0;
-	}
-
 	prop = of_find_property(dp, "bus-range", NULL);
 	busrange = prop->value;
 	pbm->pci_first_busno = busrange[0];
