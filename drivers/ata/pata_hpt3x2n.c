@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt3x2n"
-#define DRV_VERSION	"0.3.2"
+#define DRV_VERSION	"0.3.3"
 
 enum {
 	HPT_PCI_FAST	=	(1 << 31),
@@ -115,14 +115,13 @@ static u32 hpt3x2n_find_mode(struct ata_port *ap, int speed)
 }
 
 /**
- *	hpt3x2n_pre_reset	-	reset the hpt3x2n bus
- *	@ap: ATA port to reset
+ *	hpt3x2n_cable_detect	-	Detect the cable type
+ *	@ap: ATA port to detect on
  *
- *	Perform the initial reset handling for the 3x2n series controllers.
- *	Reset the hardware and state machine, obtain the cable type.
+ *	Return the cable type attached to this port
  */
 
-static int hpt3xn_pre_reset(struct ata_port *ap)
+static int hpt3x2n_cable_detect(struct ata_port *ap)
 {
 	u8 scr2, ata66;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -135,15 +134,26 @@ static int hpt3xn_pre_reset(struct ata_port *ap)
 	pci_write_config_byte(pdev, 0x5B, scr2);
 
 	if (ata66 & (1 << ap->port_no))
-		ap->cbl = ATA_CBL_PATA40;
+		return ATA_CBL_PATA40;
 	else
-		ap->cbl = ATA_CBL_PATA80;
+		return ATA_CBL_PATA80;
+}
 
+/**
+ *	hpt3x2n_pre_reset	-	reset the hpt3x2n bus
+ *	@ap: ATA port to reset
+ *
+ *	Perform the initial reset handling for the 3x2n series controllers.
+ *	Reset the hardware and state machine,
+ */
+
+static int hpt3xn_pre_reset(struct ata_port *ap)
+{
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	/* Reset the state machine */
 	pci_write_config_byte(pdev, 0x50, 0x37);
 	pci_write_config_byte(pdev, 0x54, 0x37);
 	udelay(100);
-
 	return ata_std_prereset(ap);
 }
 
@@ -364,6 +374,7 @@ static struct ata_port_operations hpt3x2n_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= hpt3x2n_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= hpt3x2n_cable_detect,
 
 	.bmdma_setup 	= ata_bmdma_setup,
 	.bmdma_start 	= ata_bmdma_start,
