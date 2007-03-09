@@ -22,9 +22,9 @@
 #include <asm/atomic.h>
 #include <asm/io.h>
 #include <asm/prom.h>
-#include <asm/immap_86xx.h>
 #include <asm/pci-bridge.h>
 #include <sysdev/fsl_soc.h>
+#include <sysdev/fsl_pcie.h>
 
 #include "mpc86xx.h"
 
