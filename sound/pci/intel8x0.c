@@ -2470,7 +2470,10 @@ static int intel8x0_suspend(struct pci_dev *pci, pm_message_t state)
 	}
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	/* The call below may disable built-in speaker on some laptops
+	 * after S2RAM.  So, don't touch it.
+	 */
+	/* pci_set_power_state(pci, pci_choose_state(pci, state)); */
 	return 0;
 }
 
