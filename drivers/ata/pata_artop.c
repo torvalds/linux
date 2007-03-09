@@ -89,7 +89,8 @@ static int artop6260_pre_reset(struct ata_port *ap, unsigned long deadline)
 	/* Odd numbered device ids are the units with enable bits (the -R cards) */
 	if (pdev->device % 1 && !pci_test_config_bits(pdev, &artop_enable_bits[ap->port_no]))
 		return -ENOENT;
-	return ata_std_prereset(ap);
+
+	return ata_std_prereset(ap, deadline);
 }
 
 /**

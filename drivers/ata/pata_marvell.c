@@ -53,7 +53,8 @@ static int marvell_pre_reset(struct ata_port *ap, unsigned long deadline)
 	if ((pdev->device == 0x6145) && (ap->port_no == 0) &&
 	    (!(devices & 0x10)))	/* PATA enable ? */
 		return -ENOENT;
-	return ata_std_prereset(ap);
+
+	return ata_std_prereset(ap, deadline);
 }
 
 static int marvell_cable_detect(struct ata_port *ap)
