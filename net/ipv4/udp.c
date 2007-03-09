@@ -213,13 +213,13 @@ fail:
 	return error;
 }
 
-__inline__ int udp_get_port(struct sock *sk, unsigned short snum,
+int udp_get_port(struct sock *sk, unsigned short snum,
 			int (*scmp)(const struct sock *, const struct sock *))
 {
 	return  __udp_lib_get_port(sk, snum, udp_hash, &udp_port_rover, scmp);
 }
 
-inline int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
+int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
 {
 	struct inet_sock *inet1 = inet_sk(sk1), *inet2 = inet_sk(sk2);
 
@@ -391,7 +391,7 @@ out:
 	sock_put(sk);
 }
 
-__inline__ void udp_err(struct sk_buff *skb, u32 info)
+void udp_err(struct sk_buff *skb, u32 info)
 {
 	return __udp4_lib_err(skb, info, udp_hash);
 }
@@ -1296,7 +1296,7 @@ drop:
 	return 0;
 }
 
-__inline__ int udp_rcv(struct sk_buff *skb)
+int udp_rcv(struct sk_buff *skb)
 {
 	return __udp4_lib_rcv(skb, udp_hash, IPPROTO_UDP);
 }
