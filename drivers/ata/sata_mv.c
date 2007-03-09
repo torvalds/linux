@@ -402,6 +402,7 @@ static const struct ata_port_operations mv5_ops = {
 	.dev_select		= ata_std_dev_select,
 
 	.phy_reset		= mv_phy_reset,
+	.cable_detect		= ata_cable_sata,
 
 	.qc_prep		= mv_qc_prep,
 	.qc_issue		= mv_qc_issue,
@@ -431,6 +432,7 @@ static const struct ata_port_operations mv6_ops = {
 	.dev_select		= ata_std_dev_select,
 
 	.phy_reset		= mv_phy_reset,
+	.cable_detect		= ata_cable_sata,
 
 	.qc_prep		= mv_qc_prep,
 	.qc_issue		= mv_qc_issue,
@@ -460,6 +462,7 @@ static const struct ata_port_operations mv_iie_ops = {
 	.dev_select		= ata_std_dev_select,
 
 	.phy_reset		= mv_phy_reset,
+	.cable_detect		= ata_cable_sata,
 
 	.qc_prep		= mv_qc_prep_iie,
 	.qc_issue		= mv_qc_issue,
@@ -1972,7 +1975,6 @@ comreset_retry:
 		ata_port_disable(ap);
 		return;
 	}
-	ap->cbl = ATA_CBL_SATA;
 
 	/* even after SStatus reflects that device is ready,
 	 * it seems to take a while for link to be fully
