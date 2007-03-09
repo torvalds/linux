@@ -1,7 +1,7 @@
 config SIBYTE_SB1250
 	bool
 	select HW_HAS_PCI
-	select SIBYTE_HAS_LDT
+	select SIBYTE_ENABLE_LDT_IF_PCI
 	select SIBYTE_SB1xxx_SOC
 	select SYS_SUPPORTS_SMP
 
@@ -20,7 +20,7 @@ config SIBYTE_BCM1125H
 	bool
 	select HW_HAS_PCI
 	select SIBYTE_BCM112X
-	select SIBYTE_HAS_LDT
+	select SIBYTE_ENABLE_LDT_IF_PCI
 	select SIBYTE_SB1xxx_SOC
 
 config SIBYTE_BCM112X
@@ -95,8 +95,10 @@ config CPU_SB1_PASS_2
 
 config SIBYTE_HAS_LDT
 	bool
-	depends on PCI && (SIBYTE_SB1250 || SIBYTE_BCM1125H)
-	default y
+
+config SIBYTE_ENABLE_LDT_IF_PCI
+	bool
+	select SIBYTE_HAS_LDT if PCI
 
 config SIMULATION
 	bool "Running under simulation"
