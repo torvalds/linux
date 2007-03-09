@@ -331,6 +331,7 @@ static int iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	int ret = 0;
 	struct iwch_mm_entry *mm;
 	struct iwch_ucontext *ucontext;
+	u64 addr;
 
 	PDBG("%s pgoff 0x%lx key 0x%x len %d\n", __FUNCTION__, vma->vm_pgoff,
 	     key, len);
@@ -345,10 +346,11 @@ static int iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	mm = remove_mmap(ucontext, key, len);
 	if (!mm)
 		return -EINVAL;
+	addr = mm->addr;
 	kfree(mm);
 
-	if ((mm->addr >= rdev_p->rnic_info.udbell_physbase) &&
-	    (mm->addr < (rdev_p->rnic_info.udbell_physbase +
+	if ((addr >= rdev_p->rnic_info.udbell_physbase) &&
+	    (addr < (rdev_p->rnic_info.udbell_physbase +
 		       rdev_p->rnic_info.udbell_len))) {
 
 		/*
@@ -362,7 +364,7 @@ static int iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
 		vma->vm_flags &= ~VM_MAYREAD;
 		ret = io_remap_pfn_range(vma, vma->vm_start,
-					 mm->addr >> PAGE_SHIFT,
+					 addr >> PAGE_SHIFT,
 				         len, vma->vm_page_prot);
 	} else {
 
@@ -370,7 +372,7 @@ static int iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		 * Map WQ or CQ contig dma memory...
 		 */
 		ret = remap_pfn_range(vma, vma->vm_start,
-				      mm->addr >> PAGE_SHIFT,
+				      addr >> PAGE_SHIFT,
 				      len, vma->vm_page_prot);
 	}
 
@@ -463,9 +465,6 @@ static struct ib_mr *iwch_register_phys_mem(struct ib_pd *pd,
 	php = to_iwch_pd(pd);
 	rhp = php->rhp;
 
-	acc = iwch_convert_access(acc);
-
-
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
 	if (!mhp)
 		return ERR_PTR(-ENOMEM);
@@ -491,12 +490,7 @@ static struct ib_mr *iwch_register_phys_mem(struct ib_pd *pd,
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.zbva = 0;
 
-	/* NOTE: TPT perms are backwards from BIND WR perms! */
-	mhp->attr.perms = (acc & 0x1) << 3;
-	mhp->attr.perms |= (acc & 0x2) << 1;
-	mhp->attr.perms |= (acc & 0x4) >> 1;
-	mhp->attr.perms |= (acc & 0x8) >> 3;
-
+	mhp->attr.perms = iwch_ib_to_tpt_access(acc);
 	mhp->attr.va_fbo = *iova_start;
 	mhp->attr.page_size = shift - 12;
 
@@ -525,7 +519,6 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 	struct iwch_mr mh, *mhp;
 	struct iwch_pd *php;
 	struct iwch_dev *rhp;
-	int new_acc;
 	__be64 *page_list = NULL;
 	int shift = 0;
 	u64 total_size;
@@ -546,14 +539,12 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 	if (rhp != php->rhp)
 		return -EINVAL;
 
-	new_acc = mhp->attr.perms;
-
 	memcpy(&mh, mhp, sizeof *mhp);
 
 	if (mr_rereg_mask & IB_MR_REREG_PD)
 		php = to_iwch_pd(pd);
 	if (mr_rereg_mask & IB_MR_REREG_ACCESS)
-		mh.attr.perms = iwch_convert_access(acc);
+		mh.attr.perms = iwch_ib_to_tpt_access(acc);
 	if (mr_rereg_mask & IB_MR_REREG_TRANS)
 		ret = build_phys_page_list(buffer_list, num_phys_buf,
 					   iova_start,
@@ -568,7 +559,7 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 	if (mr_rereg_mask & IB_MR_REREG_PD)
 		mhp->attr.pdid = php->pdid;
 	if (mr_rereg_mask & IB_MR_REREG_ACCESS)
-		mhp->attr.perms = acc;
+		mhp->attr.perms = iwch_ib_to_tpt_access(acc);
 	if (mr_rereg_mask & IB_MR_REREG_TRANS) {
 		mhp->attr.zbva = 0;
 		mhp->attr.va_fbo = *iova_start;
@@ -613,8 +604,6 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 		goto err;
 	}
 
-	acc = iwch_convert_access(acc);
-
 	i = n = 0;
 
 	list_for_each_entry(chunk, &region->chunk_list, list)
@@ -630,10 +619,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	mhp->rhp = rhp;
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.zbva = 0;
-	mhp->attr.perms = (acc & 0x1) << 3;
-	mhp->attr.perms |= (acc & 0x2) << 1;
-	mhp->attr.perms |= (acc & 0x4) >> 1;
-	mhp->attr.perms |= (acc & 0x8) >> 3;
+	mhp->attr.perms = iwch_ib_to_tpt_access(acc);
 	mhp->attr.va_fbo = region->virt_base;
 	mhp->attr.page_size = shift - 12;
 	mhp->attr.len = (u32) region->length;
@@ -736,10 +722,8 @@ static int iwch_destroy_qp(struct ib_qp *ib_qp)
 	qhp = to_iwch_qp(ib_qp);
 	rhp = qhp->rhp;
 
-	if (qhp->attr.state == IWCH_QP_STATE_RTS) {
-		attrs.next_state = IWCH_QP_STATE_ERROR;
-		iwch_modify_qp(rhp, qhp, IWCH_QP_ATTR_NEXT_STATE, &attrs, 0);
-	}
+	attrs.next_state = IWCH_QP_STATE_ERROR;
+	iwch_modify_qp(rhp, qhp, IWCH_QP_ATTR_NEXT_STATE, &attrs, 0);
 	wait_event(qhp->wait, !qhp->ep);
 
 	remove_handle(rhp, &rhp->qpidr, qhp->wq.qpid);

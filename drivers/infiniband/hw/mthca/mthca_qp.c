@@ -1088,21 +1088,21 @@ static void mthca_unmap_memfree(struct mthca_dev *dev,
 static int mthca_alloc_memfree(struct mthca_dev *dev,
 			       struct mthca_qp *qp)
 {
-	int ret = 0;
-
 	if (mthca_is_memfree(dev)) {
 		qp->rq.db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_RQ,
 						 qp->qpn, &qp->rq.db);
 		if (qp->rq.db_index < 0)
-			return ret;
+			return -ENOMEM;
 
 		qp->sq.db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_SQ,
 						 qp->qpn, &qp->sq.db);
-		if (qp->sq.db_index < 0)
+		if (qp->sq.db_index < 0) {
 			mthca_free_db(dev, MTHCA_DB_TYPE_RQ, qp->rq.db_index);
+			return -ENOMEM;
+		}
 	}
 
-	return ret;
+	return 0;
 }
 
 static void mthca_free_memfree(struct mthca_dev *dev,

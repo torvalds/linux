@@ -407,6 +407,10 @@ static int ipoib_mcast_join_complete(int status,
 			queue_delayed_work(ipoib_workqueue,
 					   &priv->mcast_task, 0);
 		mutex_unlock(&mcast_mutex);
+
+		if (mcast == priv->broadcast)
+			netif_carrier_on(dev);
+
 		return 0;
 	}
 
@@ -594,7 +598,6 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	ipoib_dbg_mcast(priv, "successfully joined all multicast groups\n");
 
 	clear_bit(IPOIB_MCAST_RUN, &priv->flags);
-	netif_carrier_on(dev);
 }
 
 int ipoib_mcast_start_thread(struct net_device *dev)

@@ -439,7 +439,7 @@ int iwch_bind_mw(struct ib_qp *qp,
 	wqe->bind.type = T3_VA_BASED_TO;
 
 	/* TBD: check perms */
-	wqe->bind.perms = iwch_convert_access(mw_bind->mw_access_flags);
+	wqe->bind.perms = iwch_ib_to_mwbind_access(mw_bind->mw_access_flags);
 	wqe->bind.mr_stag = cpu_to_be32(mw_bind->mr->lkey);
 	wqe->bind.mw_stag = cpu_to_be32(mw->rkey);
 	wqe->bind.mw_len = cpu_to_be32(mw_bind->length);

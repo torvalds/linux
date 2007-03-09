@@ -259,12 +259,13 @@ void ipoib_event(struct ib_event_handler *handler,
 	struct ipoib_dev_priv *priv =
 		container_of(handler, struct ipoib_dev_priv, event_handler);
 
-	if (record->event == IB_EVENT_PORT_ERR    ||
-	    record->event == IB_EVENT_PKEY_CHANGE ||
-	    record->event == IB_EVENT_PORT_ACTIVE ||
-	    record->event == IB_EVENT_LID_CHANGE  ||
-	    record->event == IB_EVENT_SM_CHANGE   ||
-	    record->event == IB_EVENT_CLIENT_REREGISTER) {
+	if ((record->event == IB_EVENT_PORT_ERR    ||
+	     record->event == IB_EVENT_PKEY_CHANGE ||
+	     record->event == IB_EVENT_PORT_ACTIVE ||
+	     record->event == IB_EVENT_LID_CHANGE  ||
+	     record->event == IB_EVENT_SM_CHANGE   ||
+	     record->event == IB_EVENT_CLIENT_REREGISTER) &&
+	    record->element.port_num == priv->port) {
 		ipoib_dbg(priv, "Port state change event\n");
 		queue_work(ipoib_workqueue, &priv->flush_task);
 	}

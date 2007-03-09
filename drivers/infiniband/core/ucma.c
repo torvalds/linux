@@ -266,7 +266,7 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 	mutex_lock(&ctx->file->mut);
 	if (event->event == RDMA_CM_EVENT_CONNECT_REQUEST) {
 		if (!ctx->backlog) {
-			ret = -EDQUOT;
+			ret = -ENOMEM;
 			kfree(uevent);
 			goto out;
 		}

@@ -404,10 +404,11 @@ static inline void process_eqe(struct ehca_shca *shca, struct ehca_eqe *eqe)
 	u32 token;
 	unsigned long flags;
 	struct ehca_cq *cq;
+
 	eqe_value = eqe->entry;
 	ehca_dbg(&shca->ib_device, "eqe_value=%lx", eqe_value);
 	if (EHCA_BMASK_GET(EQE_COMPLETION_EVENT, eqe_value)) {
-		ehca_dbg(&shca->ib_device, "... completion event");
+		ehca_dbg(&shca->ib_device, "Got completion event");
 		token = EHCA_BMASK_GET(EQE_CQ_TOKEN, eqe_value);
 		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
 		cq = idr_find(&ehca_cq_idr, token);
@@ -419,16 +420,20 @@ static inline void process_eqe(struct ehca_shca *shca, struct ehca_eqe *eqe)
 			return;
 		}
 		reset_eq_pending(cq);
-		if (ehca_scaling_code) {
+		cq->nr_events++;
+		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+		if (ehca_scaling_code)
 			queue_comp_task(cq);
-			spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
-		} else {
-			spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+		else {
 			comp_event_callback(cq);
+			spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+			cq->nr_events--;
+			if (!cq->nr_events)
+				wake_up(&cq->wait_completion);
+			spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 		}
 	} else {
-		ehca_dbg(&shca->ib_device,
-			 "Got non completion event");
+		ehca_dbg(&shca->ib_device, "Got non completion event");
 		parse_identifier(shca, eqe_value);
 	}
 }
@@ -478,6 +483,7 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 					 "token=%x", token);
 				continue;
 			}
+			eqe_cache[eqe_cnt].cq->nr_events++;
 			spin_unlock(&ehca_cq_idr_lock);
 		} else
 			eqe_cache[eqe_cnt].cq = NULL;
@@ -504,12 +510,18 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 	/* call completion handler for cached eqes */
 	for (i = 0; i < eqe_cnt; i++)
 		if (eq->eqe_cache[i].cq) {
-			if (ehca_scaling_code) {
-				spin_lock(&ehca_cq_idr_lock);
+			if (ehca_scaling_code)
 				queue_comp_task(eq->eqe_cache[i].cq);
-				spin_unlock(&ehca_cq_idr_lock);
-			} else
-				comp_event_callback(eq->eqe_cache[i].cq);
+			else {
+				struct ehca_cq *cq = eq->eqe_cache[i].cq;
+				comp_event_callback(cq);
+				spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+				cq->nr_events--;
+				if (!cq->nr_events)
+					wake_up(&cq->wait_completion);
+				spin_unlock_irqrestore(&ehca_cq_idr_lock,
+						       flags);
+			}
 		} else {
 			ehca_dbg(&shca->ib_device, "Got non completion event");
 			parse_identifier(shca, eq->eqe_cache[i].eqe->entry);
@@ -523,7 +535,6 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 		if (!eqe)
 			break;
 		process_eqe(shca, eqe);
-		eqe_cnt++;
 	} while (1);
 
 unlock_irq_spinlock:
@@ -567,8 +578,7 @@ static void __queue_comp_task(struct ehca_cq *__cq,
 		list_add_tail(&__cq->entry, &cct->cq_list);
 		cct->cq_jobs++;
 		wake_up(&cct->wait_queue);
-	}
-	else
+	} else
 		__cq->nr_callbacks++;
 
 	spin_unlock(&__cq->task_lock);
@@ -577,18 +587,21 @@ static void __queue_comp_task(struct ehca_cq *__cq,
 
 static void queue_comp_task(struct ehca_cq *__cq)
 {
-	int cpu;
 	int cpu_id;
 	struct ehca_cpu_comp_task *cct;
+	int cq_jobs;
+	unsigned long flags;
 
-	cpu = get_cpu();
 	cpu_id = find_next_online_cpu(pool);
 	BUG_ON(!cpu_online(cpu_id));
 
 	cct = per_cpu_ptr(pool->cpu_comp_tasks, cpu_id);
 	BUG_ON(!cct);
 
-	if (cct->cq_jobs > 0) {
+	spin_lock_irqsave(&cct->task_lock, flags);
+	cq_jobs = cct->cq_jobs;
+	spin_unlock_irqrestore(&cct->task_lock, flags);
+	if (cq_jobs > 0) {
 		cpu_id = find_next_online_cpu(pool);
 		cct = per_cpu_ptr(pool->cpu_comp_tasks, cpu_id);
 		BUG_ON(!cct);
@@ -608,11 +621,17 @@ static void run_comp_task(struct ehca_cpu_comp_task* cct)
 		cq = list_entry(cct->cq_list.next, struct ehca_cq, entry);
 		spin_unlock_irqrestore(&cct->task_lock, flags);
 		comp_event_callback(cq);
-		spin_lock_irqsave(&cct->task_lock, flags);
 
+		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+		cq->nr_events--;
+		if (!cq->nr_events)
+			wake_up(&cq->wait_completion);
+		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+
+		spin_lock_irqsave(&cct->task_lock, flags);
 		spin_lock(&cq->task_lock);
 		cq->nr_callbacks--;
-		if (cq->nr_callbacks == 0) {
+		if (!cq->nr_callbacks) {
 			list_del_init(cct->cq_list.next);
 			cct->cq_jobs--;
 		}
