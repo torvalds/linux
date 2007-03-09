@@ -175,7 +175,7 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr, cons
  *	Block UDMA on devices that cause trouble with this controller.
  */
 
-static unsigned long hpt366_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
+static unsigned long hpt366_filter(struct ata_device *adev, unsigned long mask)
 {
 	if (adev->class == ATA_DEV_ATA) {
 		if (hpt_dma_blacklisted(adev, "UDMA",  bad_ata33))
@@ -185,7 +185,7 @@ static unsigned long hpt366_filter(const struct ata_port *ap, struct ata_device 
 		if (hpt_dma_blacklisted(adev, "UDMA4", bad_ata66_4))
 			mask &= ~(0x0F << ATA_SHIFT_UDMA);
 	}
-	return ata_pci_default_filter(ap, adev, mask);
+	return ata_pci_default_filter(adev, mask);
 }
 
 /**

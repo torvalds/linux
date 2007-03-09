@@ -3545,7 +3545,7 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	}
 
 	if (ap->ops->mode_filter)
-		xfer_mask = ap->ops->mode_filter(ap, dev, xfer_mask);
+		xfer_mask = ap->ops->mode_filter(dev, xfer_mask);
 
 	/* Apply cable rule here.  Don't apply it early because when
 	 * we handle hot plug the cable type can itself change.

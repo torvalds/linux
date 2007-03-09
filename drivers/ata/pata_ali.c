@@ -151,7 +151,7 @@ static void ali_early_error_handler(struct ata_port *ap)
  *	fix that later on. Also ensure we do not do UDMA on WDC drives
  */
 
-static unsigned long ali_20_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
+static unsigned long ali_20_filter(struct ata_device *adev, unsigned long mask)
 {
 	char model_num[ATA_ID_PROD_LEN + 1];
 	/* No DMA on anything but a disk for now */
@@ -160,7 +160,7 @@ static unsigned long ali_20_filter(const struct ata_port *ap, struct ata_device 
 	ata_id_c_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 	if (strstr(model_num, "WDC"))
 		return mask &= ~ATA_MASK_UDMA;
-	return ata_pci_default_filter(ap, adev, mask);
+	return ata_pci_default_filter(adev, mask);
 }
 
 /**

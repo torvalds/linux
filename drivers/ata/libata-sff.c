@@ -893,12 +893,12 @@ int ata_pci_clear_simplex(struct pci_dev *pdev)
 	return 0;
 }
 
-unsigned long ata_pci_default_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long xfer_mask)
+unsigned long ata_pci_default_filter(struct ata_device *adev, unsigned long xfer_mask)
 {
 	/* Filter out DMA modes if the device has been configured by
 	   the BIOS as PIO only */
 
-	if (ap->ioaddr.bmdma_addr == 0)
+	if (adev->ap->ioaddr.bmdma_addr == 0)
 		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 	return xfer_mask;
 }

@@ -185,31 +185,31 @@ static u8 serverworks_is_csb(struct pci_dev *pdev)
 
 /**
  *	serverworks_osb4_filter	-	mode selection filter
- *	@ap: ATA interface
  *	@adev: ATA device
+ *	@mask: Mask of proposed modes
  *
  *	Filter the offered modes for the device to apply controller
  *	specific rules. OSB4 requires no UDMA for disks due to a FIFO
  *	bug we hit.
  */
 
-static unsigned long serverworks_osb4_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
+static unsigned long serverworks_osb4_filter(struct ata_device *adev, unsigned long mask)
 {
 	if (adev->class == ATA_DEV_ATA)
 		mask &= ~ATA_MASK_UDMA;
-	return ata_pci_default_filter(ap, adev, mask);
+	return ata_pci_default_filter(adev, mask);
 }
 
 
 /**
  *	serverworks_csb_filter	-	mode selection filter
- *	@ap: ATA interface
  *	@adev: ATA device
+ *	@mask: Mask of proposed modes
  *
  *	Check the blacklist and disable UDMA5 if matched
  */
 
-static unsigned long serverworks_csb_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
+static unsigned long serverworks_csb_filter(struct ata_device *adev, unsigned long mask)
 {
 	const char *p;
 	char model_num[ATA_ID_PROD_LEN + 1];
@@ -217,7 +217,7 @@ static unsigned long serverworks_csb_filter(const struct ata_port *ap, struct at
 
 	/* Disk, UDMA */
 	if (adev->class != ATA_DEV_ATA)
-		return ata_pci_default_filter(ap, adev, mask);
+		return ata_pci_default_filter(adev, mask);
 
 	/* Actually do need to check */
 	ata_id_c_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
@@ -226,7 +226,7 @@ static unsigned long serverworks_csb_filter(const struct ata_port *ap, struct at
 		if (!strcmp(p, model_num))
 			mask &= ~(0x1F << ATA_SHIFT_UDMA);
 	}
-	return ata_pci_default_filter(ap, adev, mask);
+	return ata_pci_default_filter(adev, mask);
 }
 
 
