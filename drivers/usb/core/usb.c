@@ -211,27 +211,6 @@ static void ksuspend_usb_cleanup(void)
 	destroy_workqueue(ksuspend_usb_wq);
 }
 
-#ifdef	CONFIG_USB_SUSPEND
-
-/* usb_autosuspend_work - callback routine to autosuspend a USB device */
-static void usb_autosuspend_work(struct work_struct *work)
-{
-	struct usb_device *udev =
-		container_of(work, struct usb_device, autosuspend.work);
-
-	usb_pm_lock(udev);
-	udev->auto_pm = 1;
-	usb_suspend_both(udev, PMSG_SUSPEND);
-	usb_pm_unlock(udev);
-}
-
-#else
-
-static void usb_autosuspend_work(struct work_struct *work)
-{}
-
-#endif	/* CONFIG_USB_SUSPEND */
-
 #else
 
 #define ksuspend_usb_init()	0

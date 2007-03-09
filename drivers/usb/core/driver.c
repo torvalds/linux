@@ -1033,7 +1033,7 @@ static int autosuspend_check(struct usb_device *udev)
  *
  * This routine can run only in process context.
  */
-int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
+static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 {
 	int			status = 0;
 	int			i = 0;
@@ -1109,7 +1109,7 @@ int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
  *
  * This routine can run only in process context.
  */
-int usb_resume_both(struct usb_device *udev)
+static int usb_resume_both(struct usb_device *udev)
 {
 	int			status = 0;
 	int			i;
@@ -1172,6 +1172,18 @@ int usb_resume_both(struct usb_device *udev)
 }
 
 #ifdef CONFIG_USB_SUSPEND
+
+/* usb_autosuspend_work - callback routine to autosuspend a USB device */
+void usb_autosuspend_work(struct work_struct *work)
+{
+	struct usb_device *udev =
+		container_of(work, struct usb_device, autosuspend.work);
+
+	usb_pm_lock(udev);
+	udev->auto_pm = 1;
+	usb_suspend_both(udev, PMSG_SUSPEND);
+	usb_pm_unlock(udev);
+}
 
 /* Internal routine to adjust a device's usage counter and change
  * its autosuspend state.
@@ -1404,6 +1416,11 @@ int usb_autopm_set_interface(struct usb_interface *intf)
 	return status;
 }
 EXPORT_SYMBOL_GPL(usb_autopm_set_interface);
+
+#else
+
+void usb_autosuspend_work(struct work_struct *work)
+{}
 
 #endif /* CONFIG_USB_SUSPEND */
 
