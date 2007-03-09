@@ -8,12 +8,14 @@ config SIBYTE_SB1250
 config SIBYTE_BCM1120
 	bool
 	select SIBYTE_BCM112X
+	select SIBYTE_HAS_ZBUS_PROFILING
 	select SIBYTE_SB1xxx_SOC
 
 config SIBYTE_BCM1125
 	bool
 	select HW_HAS_PCI
 	select SIBYTE_BCM112X
+	select SIBYTE_HAS_ZBUS_PROFILING
 	select SIBYTE_SB1xxx_SOC
 
 config SIBYTE_BCM1125H
@@ -21,11 +23,13 @@ config SIBYTE_BCM1125H
 	select HW_HAS_PCI
 	select SIBYTE_BCM112X
 	select SIBYTE_ENABLE_LDT_IF_PCI
+	select SIBYTE_HAS_ZBUS_PROFILING
 	select SIBYTE_SB1xxx_SOC
 
 config SIBYTE_BCM112X
 	bool
 	select SIBYTE_SB1xxx_SOC
+	select SIBYTE_HAS_ZBUS_PROFILING
 
 config SIBYTE_BCM1x80
 	bool
@@ -37,6 +41,7 @@ config SIBYTE_BCM1x55
 	bool
 	select HW_HAS_PCI
 	select SIBYTE_SB1xxx_SOC
+	select SIBYTE_HAS_ZBUS_PROFILING
 	select SYS_SUPPORTS_SMP
 
 config SIBYTE_SB1xxx_SOC
@@ -164,5 +169,8 @@ config SIBYTE_SB1250_PROF
 	depends on SIBYTE_SB1xxx_SOC
 
 config SIBYTE_TBPROF
-	bool "Support for ZBbus profiling"
-	depends on SIBYTE_SB1xxx_SOC
+	tristate "Support for ZBbus profiling"
+	depends on SIBYTE_HAS_ZBUS_PROFILING
+
+config SIBYTE_HAS_ZBUS_PROFILING
+	bool
