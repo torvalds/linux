@@ -181,6 +181,7 @@ static int setup_sigcontext32(struct pt_regs *regs,
 {
 	int err = 0;
 	int i;
+	u32 used_math;
 
 	err |= __put_user(regs->cp0_epc, &sc->sc_pc);
 
@@ -200,22 +201,18 @@ static int setup_sigcontext32(struct pt_regs *regs,
 		err |= __put_user(mflo3(), &sc->sc_lo3);
 	}
 
-	err |= __put_user(!!used_math(), &sc->sc_used_math);
+	used_math = !!used_math();
+	err |= __put_user(used_math, &sc->sc_used_math);
 
-	if (used_math()) {
+	if (used_math) {
 		/*
 		 * Save FPU state to signal context.  Signal handler
 		 * will "inherit" current FPU state.
 		 */
-		preempt_disable();
-
-		if (!is_fpu_owner()) {
-			own_fpu();
-			restore_fp(current);
-		}
+		own_fpu(1);
+		enable_fp_in_kernel();
 		err |= save_fp_context32(sc);
-
-		preempt_enable();
+		disable_fp_in_kernel();
 	}
 	return err;
 }
@@ -262,19 +259,17 @@ static int restore_sigcontext32(struct pt_regs *regs,
 	err |= __get_user(used_math, &sc->sc_used_math);
 	conditional_used_math(used_math);
 
-	preempt_disable();
-
-	if (used_math()) {
+	if (used_math) {
 		/* restore fpu context if we have used it before */
-		own_fpu();
+		own_fpu(0);
+		enable_fp_in_kernel();
 		if (!err)
 			err = check_and_restore_fp_context32(sc);
+		disable_fp_in_kernel();
 	} else {
 		/* signal handler may have used FPU.  Give it up. */
-		lose_fpu();
+		lose_fpu(0);
 	}
-
-	preempt_enable();
 
 	return err;
 }

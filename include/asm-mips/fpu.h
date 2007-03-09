@@ -27,11 +27,11 @@
 struct sigcontext;
 struct sigcontext32;
 
-extern asmlinkage int (*save_fp_context)(struct sigcontext *sc);
-extern asmlinkage int (*restore_fp_context)(struct sigcontext *sc);
+extern asmlinkage int (*save_fp_context)(struct sigcontext __user *sc);
+extern asmlinkage int (*restore_fp_context)(struct sigcontext __user *sc);
 
-extern asmlinkage int (*save_fp_context32)(struct sigcontext32 *sc);
-extern asmlinkage int (*restore_fp_context32)(struct sigcontext32 *sc);
+extern asmlinkage int (*save_fp_context32)(struct sigcontext32 __user *sc);
+extern asmlinkage int (*restore_fp_context32)(struct sigcontext32 __user *sc);
 
 extern void fpu_emulator_init_fpu(void);
 extern void _init_fpu(void);
@@ -68,6 +68,8 @@ do {									\
 	/* We don't care about the c0 hazard here  */			\
 } while (0)
 
+#define __fpu_enabled()	(read_c0_status() & ST0_CU1)
+
 #define enable_fpu()							\
 do {									\
 	if (cpu_has_fpu)						\
@@ -93,31 +95,47 @@ static inline int is_fpu_owner(void)
 	return cpu_has_fpu && __is_fpu_owner();
 }
 
-static inline void own_fpu(void)
+static inline void __own_fpu(void)
 {
-	if (cpu_has_fpu) {
-		__enable_fpu();
-		KSTK_STATUS(current) |= ST0_CU1;
-		set_thread_flag(TIF_USEDFPU);
-	}
+	__enable_fpu();
+	KSTK_STATUS(current) |= ST0_CU1;
+	set_thread_flag(TIF_USEDFPU);
 }
 
-static inline void lose_fpu(void)
+static inline void own_fpu(int restore)
 {
-	if (cpu_has_fpu) {
+	preempt_disable();
+	if (cpu_has_fpu && !__is_fpu_owner()) {
+		__own_fpu();
+		if (restore)
+			_restore_fp(current);
+	}
+	preempt_enable();
+}
+
+static inline void lose_fpu(int save)
+{
+	preempt_disable();
+	if (is_fpu_owner()) {
+		if (save)
+			_save_fp(current);
 		KSTK_STATUS(current) &= ~ST0_CU1;
 		clear_thread_flag(TIF_USEDFPU);
 		__disable_fpu();
 	}
+	preempt_enable();
 }
 
 static inline void init_fpu(void)
 {
+	preempt_disable();
 	if (cpu_has_fpu) {
+		__own_fpu();
 		_init_fpu();
 	} else {
 		fpu_emulator_init_fpu();
 	}
+	preempt_enable();
 }
 
 static inline void save_fp(struct task_struct *tsk)
@@ -142,6 +160,20 @@ static inline fpureg_t *get_fpu_regs(struct task_struct *tsk)
 	}
 
 	return tsk->thread.fpu.fpr;
+}
+
+static inline void enable_fp_in_kernel(void)
+{
+	set_thread_flag(TIF_ALLOW_FP_IN_KERNEL);
+	/* make sure CU1 and FPU ownership are consistent */
+	if (!__is_fpu_owner() && __fpu_enabled())
+		__disable_fpu();
+}
+
+static inline void disable_fp_in_kernel(void)
+{
+	BUG_ON(!__is_fpu_owner() && __fpu_enabled());
+	clear_thread_flag(TIF_ALLOW_FP_IN_KERNEL);
 }
 
 #endif /* _ASM_FPU_H */
