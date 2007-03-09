@@ -38,7 +38,60 @@
 const struct spu_management_ops *spu_management_ops;
 const struct spu_priv1_ops *spu_priv1_ops;
 
+static struct list_head spu_list[MAX_NUMNODES];
+static LIST_HEAD(spu_full_list);
+static DEFINE_MUTEX(spu_mutex);
+static spinlock_t spu_list_lock = SPIN_LOCK_UNLOCKED;
+
 EXPORT_SYMBOL_GPL(spu_priv1_ops);
+
+void spu_invalidate_slbs(struct spu *spu)
+{
+	struct spu_priv2 __iomem *priv2 = spu->priv2;
+
+	if (spu_mfc_sr1_get(spu) & MFC_STATE1_RELOCATE_MASK)
+		out_be64(&priv2->slb_invalidate_all_W, 0UL);
+}
+EXPORT_SYMBOL_GPL(spu_invalidate_slbs);
+
+/* This is called by the MM core when a segment size is changed, to
+ * request a flush of all the SPEs using a given mm
+ */
+void spu_flush_all_slbs(struct mm_struct *mm)
+{
+	struct spu *spu;
+	unsigned long flags;
+
+	spin_lock_irqsave(&spu_list_lock, flags);
+	list_for_each_entry(spu, &spu_full_list, full_list) {
+		if (spu->mm == mm)
+			spu_invalidate_slbs(spu);
+	}
+	spin_unlock_irqrestore(&spu_list_lock, flags);
+}
+
+/* The hack below stinks... try to do something better one of
+ * these days... Does it even work properly with NR_CPUS == 1 ?
+ */
+static inline void mm_needs_global_tlbie(struct mm_struct *mm)
+{
+	int nr = (NR_CPUS > 1) ? NR_CPUS : NR_CPUS + 1;
+
+	/* Global TLBIE broadcast required with SPEs. */
+	__cpus_setall(&mm->cpu_vm_mask, nr);
+}
+
+void spu_associate_mm(struct spu *spu, struct mm_struct *mm)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&spu_list_lock, flags);
+	spu->mm = mm;
+	spin_unlock_irqrestore(&spu_list_lock, flags);
+	if (mm)
+		mm_needs_global_tlbie(mm);
+}
+EXPORT_SYMBOL_GPL(spu_associate_mm);
 
 static int __spu_trap_invalid_dma(struct spu *spu)
 {
@@ -74,6 +127,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 	struct mm_struct *mm = spu->mm;
 	u64 esid, vsid, llp;
+	int psize;
 
 	pr_debug("%s\n", __FUNCTION__);
 
@@ -90,22 +144,25 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 	case USER_REGION_ID:
 #ifdef CONFIG_HUGETLB_PAGE
 		if (in_hugepage_area(mm->context, ea))
-			llp = mmu_psize_defs[mmu_huge_psize].sllp;
+			psize = mmu_huge_psize;
 		else
 #endif
-			llp = mmu_psize_defs[mmu_virtual_psize].sllp;
+			psize = mm->context.user_psize;
 		vsid = (get_vsid(mm->context.id, ea) << SLB_VSID_SHIFT) |
-				SLB_VSID_USER | llp;
+				SLB_VSID_USER;
 		break;
 	case VMALLOC_REGION_ID:
-		llp = mmu_psize_defs[mmu_virtual_psize].sllp;
+		if (ea < VMALLOC_END)
+			psize = mmu_vmalloc_psize;
+		else
+			psize = mmu_io_psize;
 		vsid = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) |
-			SLB_VSID_KERNEL | llp;
+			SLB_VSID_KERNEL;
 		break;
 	case KERNEL_REGION_ID:
-		llp = mmu_psize_defs[mmu_linear_psize].sllp;
+		psize = mmu_linear_psize;
 		vsid = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) |
-			SLB_VSID_KERNEL | llp;
+			SLB_VSID_KERNEL;
 		break;
 	default:
 		/* Future: support kernel segments so that drivers
@@ -114,9 +171,10 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 		pr_debug("invalid region access at %016lx\n", ea);
 		return 1;
 	}
+	llp = mmu_psize_defs[psize].sllp;
 
 	out_be64(&priv2->slb_index_W, spu->slb_replace);
-	out_be64(&priv2->slb_vsid_RW, vsid);
+	out_be64(&priv2->slb_vsid_RW, vsid | llp);
 	out_be64(&priv2->slb_esid_RW, esid);
 
 	spu->slb_replace++;
@@ -329,10 +387,6 @@ static void spu_free_irqs(struct spu *spu)
 	if (spu->irqs[2] != NO_IRQ)
 		free_irq(spu->irqs[2], spu);
 }
-
-static struct list_head spu_list[MAX_NUMNODES];
-static LIST_HEAD(spu_full_list);
-static DEFINE_MUTEX(spu_mutex);
 
 static void spu_init_channels(struct spu *spu)
 {
@@ -593,6 +647,7 @@ static int __init create_spu(void *data)
 	struct spu *spu;
 	int ret;
 	static int number;
+	unsigned long flags;
 
 	ret = -ENOMEM;
 	spu = kzalloc(sizeof (*spu), GFP_KERNEL);
@@ -620,8 +675,10 @@ static int __init create_spu(void *data)
 		goto out_free_irqs;
 
 	mutex_lock(&spu_mutex);
+	spin_lock_irqsave(&spu_list_lock, flags);
 	list_add(&spu->list, &spu_list[spu->node]);
 	list_add(&spu->full_list, &spu_full_list);
+	spin_unlock_irqrestore(&spu_list_lock, flags);
 	mutex_unlock(&spu_mutex);
 
 	goto out;

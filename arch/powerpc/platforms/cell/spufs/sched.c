@@ -127,14 +127,6 @@ static void spu_remove_from_active_list(struct spu *spu)
 	mutex_unlock(&spu_prio->active_mutex[node]);
 }
 
-static inline void mm_needs_global_tlbie(struct mm_struct *mm)
-{
-	int nr = (NR_CPUS > 1) ? NR_CPUS : NR_CPUS + 1;
-
-	/* Global TLBIE broadcast required with SPEs. */
-	__cpus_setall(&mm->cpu_vm_mask, nr);
-}
-
 static BLOCKING_NOTIFIER_HEAD(spu_switch_notifier);
 
 static void spu_switch_notify(struct spu *spu, struct spu_context *ctx)
@@ -167,8 +159,7 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	ctx->spu = spu;
 	ctx->ops = &spu_hw_ops;
 	spu->pid = current->pid;
-	spu->mm = ctx->owner;
-	mm_needs_global_tlbie(spu->mm);
+	spu_associate_mm(spu, ctx->owner);
 	spu->ibox_callback = spufs_ibox_callback;
 	spu->wbox_callback = spufs_wbox_callback;
 	spu->stop_callback = spufs_stop_callback;
@@ -205,7 +196,7 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu->stop_callback = NULL;
 	spu->mfc_callback = NULL;
 	spu->dma_callback = NULL;
-	spu->mm = NULL;
+	spu_associate_mm(spu, NULL);
 	spu->pid = 0;
 	ctx->ops = &spu_backing_ops;
 	ctx->spu = NULL;
