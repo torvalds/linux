@@ -103,9 +103,6 @@ void __init prom_init(void)
 	if (prom_is_rex(magic))
 		rex_clear_cache();
 
-	/* Register the early console.  */
-	register_prom_console();
-
 	/* Were we compiled with the right CPU option? */
 #if defined(CONFIG_CPU_R3000)
 	if ((current_cpu_data.cputype == CPU_R4000SC) ||
