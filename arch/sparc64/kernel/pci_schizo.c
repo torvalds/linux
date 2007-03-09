@@ -1295,14 +1295,6 @@ static void schizo_base_address_update(struct pci_dev *pdev, int resource)
 		pci_write_config_dword(pdev, where + 4, 0);
 }
 
-static void schizo_resource_adjust(struct pci_dev *pdev,
-				   struct resource *res,
-				   struct resource *root)
-{
-	res->start += root->start;
-	res->end += root->start;
-}
-
 #define SCHIZO_STRBUF_CONTROL		(0x02800UL)
 #define SCHIZO_STRBUF_FLUSH		(0x02808UL)
 #define SCHIZO_STRBUF_FSYNC		(0x02810UL)
@@ -1670,7 +1662,6 @@ static void __schizo_init(struct device_node *dp, char *model_name, int chip_typ
 	p->index = pci_num_controllers++;
 	p->scan_bus = schizo_scan_bus;
 	p->base_address_update = schizo_base_address_update;
-	p->resource_adjust = schizo_resource_adjust;
 	p->pci_ops = &schizo_ops;
 
 	/* Like PSYCHO we have a 2GB aligned area for memory space. */

@@ -225,7 +225,6 @@ struct pci_controller_info {
 	/* Operations which are controller specific. */
 	void (*scan_bus)(struct pci_controller_info *);
 	void (*base_address_update)(struct pci_dev *, int);
-	void (*resource_adjust)(struct pci_dev *, struct resource *, struct resource *);
 
 #ifdef CONFIG_PCI_MSI
 	int (*setup_msi_irq)(unsigned int *virt_irq_p, struct pci_dev *pdev,

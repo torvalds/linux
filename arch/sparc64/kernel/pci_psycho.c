@@ -894,14 +894,6 @@ static void psycho_register_error_handlers(struct pci_controller_info *p)
 }
 
 /* PSYCHO boot time probing and initialization. */
-static void psycho_resource_adjust(struct pci_dev *pdev,
-				   struct resource *res,
-				   struct resource *root)
-{
-	res->start += root->start;
-	res->end += root->start;
-}
-
 static void psycho_base_address_update(struct pci_dev *pdev, int resource)
 {
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
@@ -1218,7 +1210,6 @@ void psycho_init(struct device_node *dp, char *model_name)
 	p->pbms_same_domain = 0;
 	p->scan_bus = psycho_scan_bus;
 	p->base_address_update = psycho_base_address_update;
-	p->resource_adjust = psycho_resource_adjust;
 	p->pci_ops = &psycho_ops;
 
 	prop = of_find_property(dp, "reg", NULL);

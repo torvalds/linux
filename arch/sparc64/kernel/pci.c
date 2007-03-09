@@ -469,6 +469,13 @@ static void __init apb_calc_first_last(u8 map, u32 *first_p, u32 *last_p)
 	*last_p = last;
 }
 
+static void __init pci_resource_adjust(struct resource *res,
+				       struct resource *root)
+{
+	res->start += root->start;
+	res->end += root->start;
+}
+
 /* Cook up fake bus resources for SUNW,simba PCI bridges which lack
  * a proper 'ranges' property.
  */
@@ -486,7 +493,7 @@ static void __init apb_fake_ranges(struct pci_dev *dev,
 	res->start = (first << 21);
 	res->end = (last << 21) + ((1 << 21) - 1);
 	res->flags = IORESOURCE_IO;
-	pbm->parent->resource_adjust(dev, res, &pbm->io_space);
+	pci_resource_adjust(res, &pbm->io_space);
 
 	pci_read_config_byte(dev, APB_MEM_ADDRESS_MAP, &map);
 	apb_calc_first_last(map, &first, &last);
@@ -494,7 +501,7 @@ static void __init apb_fake_ranges(struct pci_dev *dev,
 	res->start = (first << 21);
 	res->end = (last << 21) + ((1 << 21) - 1);
 	res->flags = IORESOURCE_MEM;
-	pbm->parent->resource_adjust(dev, res, &pbm->mem_space);
+	pci_resource_adjust(res, &pbm->mem_space);
 }
 
 static void __init pci_of_scan_bus(struct pci_pbm_info *pbm,
@@ -594,7 +601,7 @@ void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		 * layer routine that can calculate a resource for a given
 		 * range property value in a PCI device.
 		 */
-		pbm->parent->resource_adjust(dev, res, root);
+		pci_resource_adjust(res, root);
 	}
 simba_cont:
 	sprintf(bus->name, "PCI Bus %04x:%02x", pci_domain_nr(bus),
@@ -803,7 +810,7 @@ void pcibios_resource_to_bus(struct pci_dev *pdev, struct pci_bus_region *region
 	else
 		root = &pbm->mem_space;
 
-	pbm->parent->resource_adjust(pdev, &zero_res, root);
+	pci_resource_adjust(&zero_res, root);
 
 	region->start = res->start - zero_res.start;
 	region->end = res->end - zero_res.start;
@@ -824,7 +831,7 @@ void pcibios_bus_to_resource(struct pci_dev *pdev, struct resource *res,
 	else
 		root = &pbm->mem_space;
 
-	pbm->parent->resource_adjust(pdev, res, root);
+	pci_resource_adjust(res, root);
 }
 EXPORT_SYMBOL(pcibios_bus_to_resource);
 

@@ -862,22 +862,6 @@ static void sabre_register_error_handlers(struct pci_controller_info *p)
 	sabre_write(base + SABRE_PCICTRL, tmp);
 }
 
-static void sabre_resource_adjust(struct pci_dev *pdev,
-				  struct resource *res,
-				  struct resource *root)
-{
-	struct pci_pbm_info *pbm = pdev->bus->sysdata;
-	unsigned long base;
-
-	if (res->flags & IORESOURCE_IO)
-		base = pbm->controller_regs + SABRE_IOSPACE;
-	else
-		base = pbm->controller_regs + SABRE_MEMSPACE;
-
-	res->start += base;
-	res->end += base;
-}
-
 static void sabre_base_address_update(struct pci_dev *pdev, int resource)
 {
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
@@ -1116,7 +1100,6 @@ void sabre_init(struct device_node *dp, char *model_name)
 	p->pbms_same_domain = 1;
 	p->scan_bus = sabre_scan_bus;
 	p->base_address_update = sabre_base_address_update;
-	p->resource_adjust = sabre_resource_adjust;
 	p->pci_ops = &sabre_ops;
 
 	/*

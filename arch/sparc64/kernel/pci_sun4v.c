@@ -743,14 +743,6 @@ static void pci_sun4v_base_address_update(struct pci_dev *pdev, int resource)
 		pci_write_config_dword(pdev, where + 4, 0);
 }
 
-static void pci_sun4v_resource_adjust(struct pci_dev *pdev,
-				      struct resource *res,
-				      struct resource *root)
-{
-	res->start += root->start;
-	res->end += root->start;
-}
-
 static unsigned long probe_existing_entries(struct pci_pbm_info *pbm,
 					    struct pci_iommu *iommu)
 {
@@ -1387,7 +1379,6 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 
 	p->scan_bus = pci_sun4v_scan_bus;
 	p->base_address_update = pci_sun4v_base_address_update;
-	p->resource_adjust = pci_sun4v_resource_adjust;
 #ifdef CONFIG_PCI_MSI
 	p->setup_msi_irq = pci_sun4v_setup_msi_irq;
 	p->teardown_msi_irq = pci_sun4v_teardown_msi_irq;
