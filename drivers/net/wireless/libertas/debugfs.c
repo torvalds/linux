@@ -1772,8 +1772,8 @@ void libertas_debugfs_remove_one(wlan_private *priv)
 
 /* debug entry */
 
-#define item_size(n) (sizeof ((wlan_adapter *)0)->n)
-#define item_addr(n) ((u32) &((wlan_adapter *)0)->n)
+#define item_size(n)	(FIELD_SIZEOF(wlan_adapter, n))
+#define item_addr(n)	(offsetof(wlan_adapter, n))
 
 struct debug_data {
 	char name[32];
@@ -1789,40 +1789,7 @@ static struct debug_data items[] = {
 	{"psstate", item_size(psstate), item_addr(psstate)},
 };
 
-static int num_of_items = sizeof(items) / sizeof(items[0]);
-
-/**
- *  @brief convert string to number
- *
- *  @param s   	   pointer to numbered string
- *  @return 	   converted number from string s
- */
-static int string_to_number(char *s)
-{
-	int r = 0;
-	int base = 0;
-
-	if ((strncmp(s, "0x", 2) == 0) || (strncmp(s, "0X", 2) == 0))
-		base = 16;
-	else
-		base = 10;
-
-	if (base == 16)
-		s += 2;
-
-	for (s = s; *s != 0; s++) {
-		if ((*s >= 48) && (*s <= 57))
-			r = (r * base) + (*s - 48);
-		else if ((*s >= 65) && (*s <= 70))
-			r = (r * base) + (*s - 55);
-		else if ((*s >= 97) && (*s <= 102))
-			r = (r * base) + (*s - 87);
-		else
-			break;
-	}
-
-	return r;
-}
+static int num_of_items = ARRAY_SIZE(items);
 
 /**
  *  @brief proc read function
@@ -1912,7 +1879,7 @@ static int wlan_debugfs_write(struct file *f, const char __user *buf,
 			if (!p2)
 				break;
 			p2++;
-			r = string_to_number(p2);
+			r = simple_strtoul(p2, NULL, 0);
 			if (d[i].size == 1)
 				*((u8 *) d[i].addr) = (u8) r;
 			else if (d[i].size == 2)
