@@ -238,7 +238,10 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
 
 	spin_lock(&c->erase_completion_lock);
-	jffs2_block_refile(c, jeb, REFILE_NOTEMPTY);
+	if (c->wbuf_ofs % c->mtd->erasesize)
+		jffs2_block_refile(c, jeb, REFILE_NOTEMPTY);
+	else
+		jffs2_block_refile(c, jeb, REFILE_ANYWAY);
 	spin_unlock(&c->erase_completion_lock);
 
 	BUG_ON(!ref_obsolete(jeb->last_node));
@@ -1087,7 +1090,7 @@ int jffs2_write_nand_badblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *
 	if (!c->mtd->block_markbad)
 		return 1; // What else can we do?
 
-	D1(printk(KERN_WARNING "jffs2_write_nand_badblock(): Marking bad block at %08x\n", bad_offset));
+	printk(KERN_WARNING "JFFS2: marking eraseblock at %08x\n as bad", bad_offset);
 	ret = c->mtd->block_markbad(c->mtd, bad_offset);
 
 	if (ret) {

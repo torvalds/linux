@@ -727,6 +727,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	concat->mtd.erasesize = subdev[0]->erasesize;
 	concat->mtd.writesize = subdev[0]->writesize;
 	concat->mtd.oobsize = subdev[0]->oobsize;
+	concat->mtd.oobavail = subdev[0]->oobavail;
 	if (subdev[0]->writev)
 		concat->mtd.writev = concat_writev;
 	if (subdev[0]->read_oob)

@@ -373,7 +373,14 @@ free_out:
 static inline int read_unknown(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref, struct jffs2_unknown_node *un)
 {
 	/* We don't mark unknown nodes as REF_UNCHECKED */
-	BUG_ON(ref_flags(ref) == REF_UNCHECKED);
+	if (ref_flags(ref) == REF_UNCHECKED) {
+		JFFS2_ERROR("REF_UNCHECKED but unknown node at %#08x\n",
+			    ref_offset(ref));
+		JFFS2_ERROR("Node is {%04x,%04x,%08x,%08x}. Please report this error.\n",
+                            je16_to_cpu(un->magic), je16_to_cpu(un->nodetype),
+                            je32_to_cpu(un->totlen), je32_to_cpu(un->hdr_crc));
+		return 1;
+	}
 
 	un->nodetype = cpu_to_je16(JFFS2_NODE_ACCURATE | je16_to_cpu(un->nodetype));
 
@@ -573,6 +580,13 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 				     je32_to_cpu(node->u.totlen),
 				     je32_to_cpu(node->u.hdr_crc));
 			jffs2_dbg_dump_node(c, ref_offset(ref));
+			jffs2_mark_node_obsolete(c, ref);
+			goto cont;
+		}
+		/* Due to poor choice of crc32 seed, an all-zero node will have a correct CRC */
+		if (!je32_to_cpu(node->u.hdr_crc) && !je16_to_cpu(node->u.nodetype) &&
+		    !je16_to_cpu(node->u.magic) && !je32_to_cpu(node->u.totlen)) {
+			JFFS2_NOTICE("All zero node header at %#08x.\n", ref_offset(ref));
 			jffs2_mark_node_obsolete(c, ref);
 			goto cont;
 		}
