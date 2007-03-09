@@ -156,11 +156,6 @@ config SATA_INIC162X
 	help
 	  This option enables support for Initio 162x Serial ATA.
 
-config SATA_INTEL_COMBINED
-	bool
-	depends on IDE=y && !BLK_DEV_IDE_SATA && (SATA_AHCI || ATA_PIIX)
-	default y
-
 config SATA_ACPI
 	bool
 	depends on ACPI && PCI

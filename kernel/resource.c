@@ -213,27 +213,6 @@ int request_resource(struct resource *root, struct resource *new)
 EXPORT_SYMBOL(request_resource);
 
 /**
- * ____request_resource - reserve a resource, with resource conflict returned
- * @root: root resource descriptor
- * @new: resource descriptor desired by caller
- *
- * Returns:
- * On success, NULL is returned.
- * On error, a pointer to the conflicting resource is returned.
- */
-struct resource *____request_resource(struct resource *root, struct resource *new)
-{
-	struct resource *conflict;
-
-	write_lock(&resource_lock);
-	conflict = __request_resource(root, new);
-	write_unlock(&resource_lock);
-	return conflict;
-}
-
-EXPORT_SYMBOL(____request_resource);
-
-/**
  * release_resource - release a previously reserved resource
  * @old: resource pointer
  */

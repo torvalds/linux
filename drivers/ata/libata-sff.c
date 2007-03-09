@@ -779,40 +779,16 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		/* Deal with combined mode hack. This side of the logic all
 		   goes away once the combined mode hack is killed in 2.6.21 */
 		if (!devm_request_region(dev, ATA_PRIMARY_CMD, 8, "libata")) {
-			struct resource *conflict, res;
-			res.start = ATA_PRIMARY_CMD;
-			res.end = ATA_PRIMARY_CMD + 8 - 1;
-			conflict = ____request_resource(&ioport_resource, &res);
-			while (conflict->child)
-				conflict = ____request_resource(conflict, &res);
-			if (!strcmp(conflict->name, "libata"))
-				legacy_mode |= ATA_PORT_PRIMARY;
-			else {
-				pcim_pin_device(pdev);
-				printk(KERN_WARNING "ata: 0x%0X IDE port busy\n" \
-						    "ata: conflict with %s\n",
-						    ATA_PRIMARY_CMD,
-						    conflict->name);
-			}
+			pcim_pin_device(pdev);
+			printk(KERN_WARNING "ata: 0x%0X IDE port busy\n",
+					    ATA_PRIMARY_CMD);
 		} else
 			legacy_mode |= ATA_PORT_PRIMARY;
 
 		if (!devm_request_region(dev, ATA_SECONDARY_CMD, 8, "libata")) {
-			struct resource *conflict, res;
-			res.start = ATA_SECONDARY_CMD;
-			res.end = ATA_SECONDARY_CMD + 8 - 1;
-			conflict = ____request_resource(&ioport_resource, &res);
-			while (conflict->child)
-				conflict = ____request_resource(conflict, &res);
-			if (!strcmp(conflict->name, "libata"))
-				legacy_mode |= ATA_PORT_SECONDARY;
-			else {
-				pcim_pin_device(pdev);
-				printk(KERN_WARNING "ata: 0x%X IDE port busy\n" \
-						    "ata: conflict with %s\n",
-						    ATA_SECONDARY_CMD,
-						    conflict->name);
-			}
+			pcim_pin_device(pdev);
+			printk(KERN_WARNING "ata: 0x%X IDE port busy\n",
+					    ATA_SECONDARY_CMD);
 		} else
 			legacy_mode |= ATA_PORT_SECONDARY;
 
