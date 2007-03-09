@@ -3544,6 +3544,9 @@ static void ata_dev_xfermask(struct ata_device *dev)
 			       "other device, disabling DMA\n");
 	}
 
+	if (ap->flags & ATA_FLAG_NO_IORDY)
+		xfer_mask &= ata_pio_mask_no_iordy(dev);
+
 	if (ap->ops->mode_filter)
 		xfer_mask = ap->ops->mode_filter(dev, xfer_mask);
 
