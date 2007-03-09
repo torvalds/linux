@@ -246,7 +246,7 @@ kill:
 	if (paws_reject)
 		NET_INC_STATS_BH(LINUX_MIB_PAWSESTABREJECTED);
 
-	if(!th->rst) {
+	if (!th->rst) {
 		/* In this case we must reset the TIMEWAIT timer.
 		 *
 		 * If it is ACKless SYN it may be both old duplicate
@@ -324,7 +324,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 				if (tcp_alloc_md5sig_pool() == NULL)
 					BUG();
 			}
-		} while(0);
+		} while (0);
 #endif
 
 		/* Linkage updates. */
@@ -438,7 +438,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 						       keepalive_time_when(newtp));
 
 		newtp->rx_opt.tstamp_ok = ireq->tstamp_ok;
-		if((newtp->rx_opt.sack_ok = ireq->sack_ok) != 0) {
+		if ((newtp->rx_opt.sack_ok = ireq->sack_ok) != 0) {
 			if (sysctl_tcp_fack)
 				newtp->rx_opt.sack_ok |= 2;
 		}

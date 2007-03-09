@@ -578,7 +578,7 @@ static void tcp_rtt_estimator(struct sock *sk, const __u32 mrtt)
 	 * does not matter how to _calculate_ it. Seems, it was trap
 	 * that VJ failed to avoid. 8)
 	 */
-	if(m == 0)
+	if (m == 0)
 		m = 1;
 	if (tp->srtt != 0) {
 		m -= (tp->srtt >> 3);	/* m is now error in rtt est */
@@ -1758,12 +1758,11 @@ static void tcp_mark_head_lost(struct sock *sk, struct tcp_sock *tp,
 
 			/* clear xmit_retransmit_queue hints
 			 *  if this is beyond hint */
-			if(tp->retransmit_skb_hint != NULL &&
-			   before(TCP_SKB_CB(skb)->seq,
-				  TCP_SKB_CB(tp->retransmit_skb_hint)->seq)) {
-
+			if (tp->retransmit_skb_hint != NULL &&
+			    before(TCP_SKB_CB(skb)->seq,
+				   TCP_SKB_CB(tp->retransmit_skb_hint)->seq))
 				tp->retransmit_skb_hint = NULL;
-			}
+
 		}
 	}
 	tcp_sync_left_out(tp);
@@ -2441,7 +2440,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 
 		if (sacked) {
 			if (sacked & TCPCB_RETRANS) {
-				if(sacked & TCPCB_SACKED_RETRANS)
+				if (sacked & TCPCB_SACKED_RETRANS)
 					tp->retrans_out -= tcp_skb_pcount(skb);
 				acked |= FLAG_RETRANS_DATA_ACKED;
 				seq_rtt = -1;
@@ -2840,7 +2839,7 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 	ptr = (unsigned char *)(th + 1);
 	opt_rx->saw_tstamp = 0;
 
-	while(length>0) {
+	while (length > 0) {
 		int opcode=*ptr++;
 		int opsize;
 
@@ -2856,9 +2855,9 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 					return;
 				if (opsize > length)
 					return;	/* don't parse partial options */
-				switch(opcode) {
+				switch (opcode) {
 				case TCPOPT_MSS:
-					if(opsize==TCPOLEN_MSS && th->syn && !estab) {
+					if (opsize==TCPOLEN_MSS && th->syn && !estab) {
 						u16 in_mss = ntohs(get_unaligned((__be16 *)ptr));
 						if (in_mss) {
 							if (opt_rx->user_mss && opt_rx->user_mss < in_mss)
@@ -2868,12 +2867,12 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 					}
 					break;
 				case TCPOPT_WINDOW:
-					if(opsize==TCPOLEN_WINDOW && th->syn && !estab)
+					if (opsize==TCPOLEN_WINDOW && th->syn && !estab)
 						if (sysctl_tcp_window_scaling) {
 							__u8 snd_wscale = *(__u8 *) ptr;
 							opt_rx->wscale_ok = 1;
 							if (snd_wscale > 14) {
-								if(net_ratelimit())
+								if (net_ratelimit())
 									printk(KERN_INFO "tcp_parse_options: Illegal window "
 									       "scaling value %d >14 received.\n",
 									       snd_wscale);
@@ -2883,7 +2882,7 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 						}
 					break;
 				case TCPOPT_TIMESTAMP:
-					if(opsize==TCPOLEN_TIMESTAMP) {
+					if (opsize==TCPOLEN_TIMESTAMP) {
 						if ((estab && opt_rx->tstamp_ok) ||
 						    (!estab && sysctl_tcp_timestamps)) {
 							opt_rx->saw_tstamp = 1;
@@ -2893,7 +2892,7 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 					}
 					break;
 				case TCPOPT_SACK_PERM:
-					if(opsize==TCPOLEN_SACK_PERM && th->syn && !estab) {
+					if (opsize==TCPOLEN_SACK_PERM && th->syn && !estab) {
 						if (sysctl_tcp_sack) {
 							opt_rx->sack_ok = 1;
 							tcp_sack_reset(opt_rx);
@@ -2902,7 +2901,7 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 					break;
 
 				case TCPOPT_SACK:
-					if((opsize >= (TCPOLEN_SACK_BASE + TCPOLEN_SACK_PERBLOCK)) &&
+					if ((opsize >= (TCPOLEN_SACK_BASE + TCPOLEN_SACK_PERBLOCK)) &&
 					   !((opsize - TCPOLEN_SACK_BASE) % TCPOLEN_SACK_PERBLOCK) &&
 					   opt_rx->sack_ok) {
 						TCP_SKB_CB(skb)->sacked = (ptr - 2) - (unsigned char *)th;
@@ -2964,7 +2963,7 @@ static inline void tcp_replace_ts_recent(struct tcp_sock *tp, u32 seq)
 		 * Not only, also it occurs for expired timestamps.
 		 */
 
-		if((s32)(tp->rx_opt.rcv_tsval - tp->rx_opt.ts_recent) >= 0 ||
+		if ((s32)(tp->rx_opt.rcv_tsval - tp->rx_opt.ts_recent) >= 0 ||
 		   get_seconds() >= tp->rx_opt.ts_recent_stamp + TCP_PAWS_24DAYS)
 			tcp_store_ts_recent(tp);
 	}
@@ -3223,7 +3222,7 @@ static void tcp_sack_maybe_coalesce(struct tcp_sock *tp)
 			 */
 			tp->rx_opt.num_sacks--;
 			tp->rx_opt.eff_sacks = min(tp->rx_opt.num_sacks + tp->rx_opt.dsack, 4 - tp->rx_opt.tstamp_ok);
-			for(i=this_sack; i < tp->rx_opt.num_sacks; i++)
+			for (i=this_sack; i < tp->rx_opt.num_sacks; i++)
 				sp[i] = sp[i+1];
 			continue;
 		}
@@ -3276,7 +3275,7 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 		tp->rx_opt.num_sacks--;
 		sp--;
 	}
-	for(; this_sack > 0; this_sack--, sp--)
+	for (; this_sack > 0; this_sack--, sp--)
 		*sp = *(sp-1);
 
 new_sack:
@@ -3302,7 +3301,7 @@ static void tcp_sack_remove(struct tcp_sock *tp)
 		return;
 	}
 
-	for(this_sack = 0; this_sack < num_sacks; ) {
+	for (this_sack = 0; this_sack < num_sacks; ) {
 		/* Check if the start of the sack is covered by RCV.NXT. */
 		if (!before(tp->rcv_nxt, sp->start_seq)) {
 			int i;
@@ -3358,7 +3357,7 @@ static void tcp_ofo_queue(struct sock *sk)
 		__skb_unlink(skb, &tp->out_of_order_queue);
 		__skb_queue_tail(&sk->sk_receive_queue, skb);
 		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-		if(skb->h.th->fin)
+		if (skb->h.th->fin)
 			tcp_fin(skb, sk, skb->h.th);
 	}
 }
@@ -3424,9 +3423,9 @@ queue_and_out:
 			__skb_queue_tail(&sk->sk_receive_queue, skb);
 		}
 		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-		if(skb->len)
+		if (skb->len)
 			tcp_event_data_recv(sk, tp, skb);
-		if(th->fin)
+		if (th->fin)
 			tcp_fin(skb, sk, th);
 
 		if (!skb_queue_empty(&tp->out_of_order_queue)) {
@@ -4323,7 +4322,7 @@ slow_path:
 		goto discard;
 	}
 
-	if(th->rst) {
+	if (th->rst) {
 		tcp_reset(sk);
 		goto discard;
 	}
@@ -4338,7 +4337,7 @@ slow_path:
 	}
 
 step5:
-	if(th->ack)
+	if (th->ack)
 		tcp_ack(sk, skb, FLAG_SLOWPATH);
 
 	tcp_rcv_rtt_measure_ts(sk, skb);
@@ -4626,13 +4625,13 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		goto discard;
 
 	case TCP_LISTEN:
-		if(th->ack)
+		if (th->ack)
 			return 1;
 
-		if(th->rst)
+		if (th->rst)
 			goto discard;
 
-		if(th->syn) {
+		if (th->syn) {
 			if (icsk->icsk_af_ops->conn_request(sk, skb) < 0)
 				return 1;
 
@@ -4688,7 +4687,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	}
 
 	/* step 2: check RST bit */
-	if(th->rst) {
+	if (th->rst) {
 		tcp_reset(sk);
 		goto discard;
 	}
@@ -4711,7 +4710,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	if (th->ack) {
 		int acceptable = tcp_ack(sk, skb, FLAG_SLOWPATH);
 
-		switch(sk->sk_state) {
+		switch (sk->sk_state) {
 		case TCP_SYN_RECV:
 			if (acceptable) {
 				tp->copied_seq = tp->rcv_nxt;

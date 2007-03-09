@@ -236,7 +236,7 @@ static u16 tcp_select_window(struct sock *sk)
 	u32 new_win = __tcp_select_window(sk);
 
 	/* Never shrink the offered window */
-	if(new_win < cur_win) {
+	if (new_win < cur_win) {
 		/* Danger Will Robinson!
 		 * Don't update rcv_wup/rcv_wnd here or else
 		 * we will not be able to advertise a zero
@@ -287,10 +287,12 @@ static void tcp_build_and_update_options(__be32 *ptr, struct tcp_sock *tp,
 			       (TCPOPT_SACK <<  8) |
 			       (TCPOLEN_SACK_BASE + (tp->rx_opt.eff_sacks *
 						     TCPOLEN_SACK_PERBLOCK)));
-		for(this_sack = 0; this_sack < tp->rx_opt.eff_sacks; this_sack++) {
+
+		for (this_sack = 0; this_sack < tp->rx_opt.eff_sacks; this_sack++) {
 			*ptr++ = htonl(sp[this_sack].start_seq);
 			*ptr++ = htonl(sp[this_sack].end_seq);
 		}
+
 		if (tp->rx_opt.dsack) {
 			tp->rx_opt.dsack = 0;
 			tp->rx_opt.eff_sacks--;
@@ -335,7 +337,7 @@ static void tcp_syn_build_options(__be32 *ptr, int mss, int ts, int sack,
 	 */
 	*ptr++ = htonl((TCPOPT_MSS << 24) | (TCPOLEN_MSS << 16) | mss);
 	if (ts) {
-		if(sack)
+		if (sack)
 			*ptr++ = htonl((TCPOPT_SACK_PERM << 24) |
 				       (TCPOLEN_SACK_PERM << 16) |
 				       (TCPOPT_TIMESTAMP << 8) |
@@ -347,7 +349,7 @@ static void tcp_syn_build_options(__be32 *ptr, int mss, int ts, int sack,
 				       TCPOLEN_TIMESTAMP);
 		*ptr++ = htonl(tstamp);		/* TSVAL */
 		*ptr++ = htonl(ts_recent);	/* TSECR */
-	} else if(sack)
+	} else if (sack)
 		*ptr++ = htonl((TCPOPT_NOP << 24) |
 			       (TCPOPT_NOP << 16) |
 			       (TCPOPT_SACK_PERM << 8) |
@@ -428,7 +430,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	sysctl_flags = 0;
 	if (unlikely(tcb->flags & TCPCB_FLAG_SYN)) {
 		tcp_header_size = sizeof(struct tcphdr) + TCPOLEN_MSS;
-		if(sysctl_tcp_timestamps) {
+		if (sysctl_tcp_timestamps) {
 			tcp_header_size += TCPOLEN_TSTAMP_ALIGNED;
 			sysctl_flags |= SYSCTL_FLAG_TSTAMPS;
 		}
@@ -1618,7 +1620,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		u16 flags = TCP_SKB_CB(skb)->flags;
 
 		/* Also punt if next skb has been SACK'd. */
-		if(TCP_SKB_CB(next_skb)->sacked & TCPCB_SACKED_ACKED)
+		if (TCP_SKB_CB(next_skb)->sacked & TCPCB_SACKED_ACKED)
 			return;
 
 		/* Next skb is out of window. */
@@ -1778,13 +1780,13 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	}
 
 	/* Collapse two adjacent packets if worthwhile and we can. */
-	if(!(TCP_SKB_CB(skb)->flags & TCPCB_FLAG_SYN) &&
-	   (skb->len < (cur_mss >> 1)) &&
-	   (tcp_write_queue_next(sk, skb) != tcp_send_head(sk)) &&
-	   (!tcp_skb_is_last(sk, skb)) &&
-	   (skb_shinfo(skb)->nr_frags == 0 && skb_shinfo(tcp_write_queue_next(sk, skb))->nr_frags == 0) &&
-	   (tcp_skb_pcount(skb) == 1 && tcp_skb_pcount(tcp_write_queue_next(sk, skb)) == 1) &&
-	   (sysctl_tcp_retrans_collapse != 0))
+	if (!(TCP_SKB_CB(skb)->flags & TCPCB_FLAG_SYN) &&
+	    (skb->len < (cur_mss >> 1)) &&
+	    (tcp_write_queue_next(sk, skb) != tcp_send_head(sk)) &&
+	    (!tcp_skb_is_last(sk, skb)) &&
+	    (skb_shinfo(skb)->nr_frags == 0 && skb_shinfo(tcp_write_queue_next(sk, skb))->nr_frags == 0) &&
+	    (tcp_skb_pcount(skb) == 1 && tcp_skb_pcount(tcp_write_queue_next(sk, skb)) == 1) &&
+	    (sysctl_tcp_retrans_collapse != 0))
 		tcp_retrans_try_collapse(sk, skb, cur_mss);
 
 	if (inet_csk(sk)->icsk_af_ops->rebuild_header(sk))
@@ -1794,9 +1796,9 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	 * retransmit when old data is attached.  So strip it off
 	 * since it is cheap to do so and saves bytes on the network.
 	 */
-	if(skb->len > 0 &&
-	   (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN) &&
-	   tp->snd_una == (TCP_SKB_CB(skb)->end_seq - 1)) {
+	if (skb->len > 0 &&
+	    (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN) &&
+	    tp->snd_una == (TCP_SKB_CB(skb)->end_seq - 1)) {
 		if (!pskb_trim(skb, 0)) {
 			TCP_SKB_CB(skb)->seq = TCP_SKB_CB(skb)->end_seq - 1;
 			skb_shinfo(skb)->gso_segs = 1;
