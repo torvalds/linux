@@ -141,7 +141,6 @@ static void cpia_pp_run_callback(struct work_struct *work)
 	cam = container_of(work, struct pp_cam_entry, cb_task);
 	cb_func = cam->cb_func;
 	cb_data = cam->cb_data;
-	work_release(work);
 
 	cb_func(cb_data);
 }
@@ -682,7 +681,7 @@ static int cpia_pp_registerCallback(void *privdata, void (*cb)(void *cbdata), vo
 	if(cam->port->irq != PARPORT_IRQ_NONE) {
 		cam->cb_func = cb;
 		cam->cb_data = cbdata;
-		INIT_WORK_NAR(&cam->cb_task, cpia_pp_run_callback);
+		INIT_WORK(&cam->cb_task, cpia_pp_run_callback);
 	} else {
 		retval = -1;
 	}
