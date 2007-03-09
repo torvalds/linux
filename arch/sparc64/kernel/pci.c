@@ -857,43 +857,12 @@ static int __pci_mmap_make_offset_bus(struct pci_dev *pdev, struct vm_area_struc
 	unsigned long space_size, user_offset, user_size;
 
 	p = pbm->parent;
-	if (p->pbms_same_domain) {
-		unsigned long lowest, highest;
-
-		lowest = ~0UL; highest = 0UL;
-		if (mmap_state == pci_mmap_io) {
-			if (p->pbm_A.io_space.flags) {
-				lowest = p->pbm_A.io_space.start;
-				highest = p->pbm_A.io_space.end + 1;
-			}
-			if (p->pbm_B.io_space.flags) {
-				if (lowest > p->pbm_B.io_space.start)
-					lowest = p->pbm_B.io_space.start;
-				if (highest < p->pbm_B.io_space.end + 1)
-					highest = p->pbm_B.io_space.end + 1;
-			}
-			space_size = highest - lowest;
-		} else {
-			if (p->pbm_A.mem_space.flags) {
-				lowest = p->pbm_A.mem_space.start;
-				highest = p->pbm_A.mem_space.end + 1;
-			}
-			if (p->pbm_B.mem_space.flags) {
-				if (lowest > p->pbm_B.mem_space.start)
-					lowest = p->pbm_B.mem_space.start;
-				if (highest < p->pbm_B.mem_space.end + 1)
-					highest = p->pbm_B.mem_space.end + 1;
-			}
-			space_size = highest - lowest;
-		}
+	if (mmap_state == pci_mmap_io) {
+		space_size = (pbm->io_space.end -
+			      pbm->io_space.start) + 1;
 	} else {
-		if (mmap_state == pci_mmap_io) {
-			space_size = (pbm->io_space.end -
-				      pbm->io_space.start) + 1;
-		} else {
-			space_size = (pbm->mem_space.end -
-				      pbm->mem_space.start) + 1;
-		}
+		space_size = (pbm->mem_space.end -
+			      pbm->mem_space.start) + 1;
 	}
 
 	/* Make sure the request is in range. */
@@ -904,31 +873,12 @@ static int __pci_mmap_make_offset_bus(struct pci_dev *pdev, struct vm_area_struc
 	    (user_offset + user_size) > space_size)
 		return -EINVAL;
 
-	if (p->pbms_same_domain) {
-		unsigned long lowest = ~0UL;
-
-		if (mmap_state == pci_mmap_io) {
-			if (p->pbm_A.io_space.flags)
-				lowest = p->pbm_A.io_space.start;
-			if (p->pbm_B.io_space.flags &&
-			    lowest > p->pbm_B.io_space.start)
-				lowest = p->pbm_B.io_space.start;
-		} else {
-			if (p->pbm_A.mem_space.flags)
-				lowest = p->pbm_A.mem_space.start;
-			if (p->pbm_B.mem_space.flags &&
-			    lowest > p->pbm_B.mem_space.start)
-				lowest = p->pbm_B.mem_space.start;
-		}
-		vma->vm_pgoff = (lowest + user_offset) >> PAGE_SHIFT;
+	if (mmap_state == pci_mmap_io) {
+		vma->vm_pgoff = (pbm->io_space.start +
+				 user_offset) >> PAGE_SHIFT;
 	} else {
-		if (mmap_state == pci_mmap_io) {
-			vma->vm_pgoff = (pbm->io_space.start +
-					 user_offset) >> PAGE_SHIFT;
-		} else {
-			vma->vm_pgoff = (pbm->mem_space.start +
-					 user_offset) >> PAGE_SHIFT;
-		}
+		vma->vm_pgoff = (pbm->mem_space.start +
+				 user_offset) >> PAGE_SHIFT;
 	}
 
 	return 0;
@@ -1062,9 +1012,8 @@ int pci_domain_nr(struct pci_bus *pbus)
 		struct pci_controller_info *p = pbm->parent;
 
 		ret = p->index;
-		if (p->pbms_same_domain == 0)
-			ret = ((ret << 1) +
-			       ((pbm == &pbm->parent->pbm_B) ? 1 : 0));
+		ret = ((ret << 1) +
+		       ((pbm == &pbm->parent->pbm_B) ? 1 : 0));
 	}
 
 	return ret;

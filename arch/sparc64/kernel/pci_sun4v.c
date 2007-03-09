@@ -1330,7 +1330,6 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 	pci_controller_root = p;
 
 	p->index = pci_num_controllers++;
-	p->pbms_same_domain = 0;
 
 	p->scan_bus = pci_sun4v_scan_bus;
 #ifdef CONFIG_PCI_MSI

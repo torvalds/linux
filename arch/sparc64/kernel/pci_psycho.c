@@ -1163,7 +1163,6 @@ void psycho_init(struct device_node *dp, char *model_name)
 	p->pbm_A.portid = upa_portid;
 	p->pbm_B.portid = upa_portid;
 	p->index = pci_num_controllers++;
-	p->pbms_same_domain = 0;
 	p->scan_bus = psycho_scan_bus;
 	p->pci_ops = &psycho_ops;
 

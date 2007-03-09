@@ -1052,7 +1052,6 @@ void sabre_init(struct device_node *dp, char *model_name)
 
 	p->pbm_A.portid = upa_portid;
 	p->index = pci_num_controllers++;
-	p->pbms_same_domain = 1;
 	p->scan_bus = sabre_scan_bus;
 	p->pci_ops = &sabre_ops;
 

@@ -215,9 +215,6 @@ struct pci_controller_info {
 	 */
 	int				index;
 
-	/* Do the PBMs both exist in the same PCI domain? */
-	int				pbms_same_domain;
-
 	/* The PCI bus modules controlled by us. */
 	struct pci_pbm_info		pbm_A;
 	struct pci_pbm_info		pbm_B;
