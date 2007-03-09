@@ -26,7 +26,7 @@ static int __init check_bridge(int vendor, int device)
 	/* According to Nvidia all timer overrides are bogus unless HPET
 	   is enabled. */
 	if (!acpi_use_timer_override && vendor == PCI_VENDOR_ID_NVIDIA) {
-		if (acpi_table_parse(ACPI_SIG_HPET, nvidia_hpet_check) {
+		if (acpi_table_parse(ACPI_SIG_HPET, nvidia_hpet_check)) {
 			acpi_skip_timer_override = 1;
 			  printk(KERN_INFO "Nvidia board "
                        "detected. Ignoring ACPI "
