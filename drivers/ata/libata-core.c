@@ -5685,17 +5685,21 @@ static void ata_host_release(struct device *gendev, void *res)
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 
-		if (!ap)
-			continue;
-
-		if (ap->ops->port_stop)
+		if (ap && ap->ops->port_stop)
 			ap->ops->port_stop(ap);
-
-		scsi_host_put(ap->scsi_host);
 	}
 
 	if (host->ops->host_stop)
 		host->ops->host_stop(host);
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+
+		if (ap)
+			scsi_host_put(ap->scsi_host);
+
+		host->ports[i] = NULL;
+	}
 
 	dev_set_drvdata(gendev, NULL);
 }
