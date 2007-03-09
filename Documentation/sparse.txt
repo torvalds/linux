@@ -45,11 +45,15 @@ special.
 Getting sparse
 ~~~~~~~~~~~~~~
 
-With git, you can just get it from
+You can get latest released versions from the Sparse homepage at
+http://www.kernel.org/pub/linux/kernel/people/josh/sparse/
 
-        rsync://rsync.kernel.org/pub/scm/devel/sparse/sparse.git
+Alternatively, you can get snapshots of the latest development version
+of sparse using git to clone..
 
-and DaveJ has tar-balls at
+        git://git.kernel.org/pub/scm/linux/kernel/git/josh/sparse.git
+
+DaveJ has hourly generated tarballs of the git tree available at..
 
         http://www.codemonkey.org.uk/projects/git-snapshots/sparse/
 
