@@ -1334,14 +1334,12 @@ extern int sock_get_timestampns(struct sock *, struct timespec __user *);
 /* 
  *	Enable debug/info messages 
  */
+extern int net_msg_warn;
+#define NETDEBUG(fmt, args...) \
+	do { if (net_msg_warn) printk(fmt,##args); } while (0)
 
-#ifdef CONFIG_NETDEBUG
-#define NETDEBUG(fmt, args...)	printk(fmt,##args)
-#define LIMIT_NETDEBUG(fmt, args...) do { if (net_ratelimit()) printk(fmt,##args); } while(0)
-#else
-#define NETDEBUG(fmt, args...)	do { } while (0)
-#define LIMIT_NETDEBUG(fmt, args...) do { } while(0)
-#endif
+#define LIMIT_NETDEBUG(fmt, args...) \
+	do { if (net_msg_warn && net_ratelimit()) printk(fmt,##args); } while(0)
 
 /*
  * Macros for sleeping on a socket. Use them like this:

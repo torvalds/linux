@@ -290,6 +290,7 @@ enum
 	NET_CORE_BUDGET=19,
 	NET_CORE_AEVENT_ETIME=20,
 	NET_CORE_AEVENT_RSEQTH=21,
+	NET_CORE_WARNINGS=22,
 };
 
 /* /proc/sys/net/ethernet */
