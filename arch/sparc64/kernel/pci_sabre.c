@@ -995,7 +995,6 @@ static void sabre_pbm_init(struct pci_controller_info *p, struct device_node *dp
 	pbm->chip_type = PBM_CHIP_TYPE_SABRE;
 	pbm->parent = p;
 	pbm->prom_node = dp;
-	pbm->pci_first_slot = 1;
 	pbm->pci_first_busno = p->pci_first_busno;
 	pbm->pci_last_busno = p->pci_last_busno;
 

@@ -1528,7 +1528,6 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 	pbm->portid = portid;
 	pbm->parent = p;
 	pbm->prom_node = dp;
-	pbm->pci_first_slot = 1;
 
 	pbm->chip_type = chip_type;
 	pbm->chip_version = of_getintprop_default(dp, "version#", 0);

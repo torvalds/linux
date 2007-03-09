@@ -1085,13 +1085,10 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	struct property *prop;
 	struct pci_pbm_info *pbm;
 
-	if (is_pbm_a) {
+	if (is_pbm_a)
 		pbm = &p->pbm_A;
-		pbm->pci_first_slot = 1;
-	} else {
+	else
 		pbm = &p->pbm_B;
-		pbm->pci_first_slot = 2;
-	}
 
 	pbm->chip_type = PBM_CHIP_TYPE_PSYCHO;
 	pbm->chip_version = 0;

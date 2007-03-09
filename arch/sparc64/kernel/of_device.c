@@ -759,12 +759,6 @@ static unsigned int __init pci_irq_swizzle(struct device_node *dp,
 		 * D: 2-bit slot number, derived from PCI device number as
 		 *    (dev - 1) for bus A, or (dev - 2) for bus B
 		 * L: 2-bit line number
-		 *
-		 * Actually, more "portable" way to calculate the funky
-		 * slot number is to subtract pbm->pci_first_slot from the
-		 * device number, and that's exactly what the pre-OF
-		 * sparc64 code did, but we're building this stuff generically
-		 * using the OBP tree, not in the PCI controller layer.
 		 */
 		if (bus & 0x80) {
 			/* PBM-A */

@@ -197,9 +197,6 @@ struct pci_pbm_info {
 	/* IOMMU state, potentially shared by both PBM segments. */
 	struct pci_iommu		*iommu;
 
-	/* PCI slot mapping. */
-	unsigned int			pci_first_slot;
-
 	/* Now things for the actual PCI bus probes. */
 	unsigned int			pci_first_busno;
 	unsigned int			pci_last_busno;

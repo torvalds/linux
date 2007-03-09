@@ -1256,7 +1256,6 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 
 	pbm->parent = p;
 	pbm->prom_node = dp;
-	pbm->pci_first_slot = 1;
 
 	pbm->devhandle = devhandle;
 
