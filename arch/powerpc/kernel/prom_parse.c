@@ -916,7 +916,7 @@ EXPORT_SYMBOL_GPL(of_irq_map_raw);
 static int of_irq_map_oldworld(struct device_node *device, int index,
 			       struct of_irq *out_irq)
 {
-	const u32 *ints;
+	const u32 *ints = NULL;
 	int intlen;
 
 	/*

@@ -1191,8 +1191,11 @@ void __init pmac_pcibios_after_init(void)
 	 * -- BenH
 	 */
 	for_each_pci_dev(dev) {
-		if ((dev->class >> 16) == PCI_BASE_CLASS_STORAGE)
-			pci_enable_device(dev);
+		if ((dev->class >> 16) != PCI_BASE_CLASS_STORAGE)
+			continue;
+		if (pci_enable_device(dev))
+			printk(KERN_WARNING
+			       "pci: Failed to enable %s\n", pci_name(dev));
 	}
 #endif /* CONFIG_BLK_DEV_IDE */
 

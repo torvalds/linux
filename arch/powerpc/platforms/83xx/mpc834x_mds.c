@@ -55,9 +55,9 @@ static int mpc834x_usb_cfg(void)
 	struct device_node *np = NULL;
 	int port0_is_dr = 0;
 
-	if ((np = of_find_compatible_node(np, "usb", "fsl-usb2-dr")) != NULL)
+	if ((np = of_find_compatible_node(NULL, "usb", "fsl-usb2-dr")) != NULL)
 		port0_is_dr = 1;
-	if ((np = of_find_compatible_node(np, "usb", "fsl-usb2-mph")) != NULL){
+	if ((np = of_find_compatible_node(NULL, "usb", "fsl-usb2-mph")) != NULL){
 		if (port0_is_dr) {
 			printk(KERN_WARNING
 				"There is only one USB port on PB board! \n");
@@ -103,8 +103,8 @@ static int mpc834x_usb_cfg(void)
 		return -1;
 
 	/*
-	 * if MDS board is plug into PIB board,
-	 * force to use the PHY on MDS board
+	 * if Processor Board is plugged into PIB board,
+	 * force to use the PHY on Processor Board
 	 */
 	bcsr5 = in_8(bcsr_regs + 5);
 	if (!(bcsr5 & BCSR5_INT_USB))
