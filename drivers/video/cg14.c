@@ -354,7 +354,8 @@ static int cg14_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
  *  Initialisation
  */
 
-static void cg14_init_fix(struct fb_info *info, int linebytes, struct device_node *dp)
+static void __devinit cg14_init_fix(struct fb_info *info, int linebytes,
+				    struct device_node *dp)
 {
 	const char *name = dp->name;
 
@@ -368,7 +369,7 @@ static void cg14_init_fix(struct fb_info *info, int linebytes, struct device_nod
 	info->fix.accel = FB_ACCEL_SUN_CG14;
 }
 
-static struct sbus_mmap_map __cg14_mmap_map[CG14_MMAP_ENTRIES] __initdata = {
+static struct sbus_mmap_map __cg14_mmap_map[CG14_MMAP_ENTRIES] __devinitdata = {
 	{
 		.voff	= CG14_REGS,
 		.poff	= 0x80000000,
