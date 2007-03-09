@@ -349,8 +349,7 @@ static const struct iw_ioctl_description standard_ioctl[] = {
 		.max_tokens	= sizeof(struct iw_pmksa),
 	},
 };
-static const unsigned standard_ioctl_num = (sizeof(standard_ioctl) /
-					    sizeof(struct iw_ioctl_description));
+static const unsigned standard_ioctl_num = ARRAY_SIZE(standard_ioctl);
 
 /*
  * Meta-data about all the additional standard Wireless Extension events
@@ -400,8 +399,7 @@ static const struct iw_ioctl_description standard_event[] = {
 		.max_tokens	= sizeof(struct iw_pmkid_cand),
 	},
 };
-static const unsigned standard_event_num = (sizeof(standard_event) /
-					    sizeof(struct iw_ioctl_description));
+static const unsigned standard_event_num = ARRAY_SIZE(standard_event);
 
 /* Size (in bytes) of the various private data types */
 static const char iw_priv_type_size[] = {
