@@ -203,7 +203,7 @@ static void request_submodules(struct saa7134_dev *dev)
 }
 
 #else
-#define request_submodules()
+#define request_submodules(dev)
 #endif /* CONFIG_MODULES */
 
 /* ------------------------------------------------------------------ */
