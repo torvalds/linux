@@ -1178,7 +1178,7 @@ int arp_ioctl(unsigned int cmd, void __user *arg)
 		goto out;
 	}
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCDARP:
 		err = arp_req_delete(&r, dev);
 		break;

@@ -633,7 +633,7 @@ int devinet_ioctl(unsigned int cmd, void __user *arg)
 	dev_load(ifr.ifr_name);
 #endif
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCGIFADDR:	/* Get interface address */
 	case SIOCGIFBRDADDR:	/* Get the broadcast address */
 	case SIOCGIFDSTADDR:	/* Get the destination address */
@@ -708,7 +708,7 @@ int devinet_ioctl(unsigned int cmd, void __user *arg)
 	if (!ifa && cmd != SIOCSIFADDR && cmd != SIOCSIFFLAGS)
 		goto done;
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCGIFADDR:	/* Get interface address */
 		sin->sin_addr.s_addr = ifa->ifa_local;
 		goto rarok;

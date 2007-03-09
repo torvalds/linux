@@ -350,11 +350,10 @@ static void __tnode_free_rcu(struct rcu_head *head)
 
 static inline void tnode_free(struct tnode *tn)
 {
-	if(IS_LEAF(tn)) {
+	if (IS_LEAF(tn)) {
 		struct leaf *l = (struct leaf *) tn;
 		call_rcu_bh(&l->rcu, __leaf_free_rcu);
-	}
-	else
+	} else
 		call_rcu(&tn->rcu, __tnode_free_rcu);
 }
 
@@ -553,7 +552,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 
 	/* Keep root node larger  */
 
-	if(!tn->parent)
+	if (!tn->parent)
 		inflate_threshold_use = inflate_threshold_root;
 	else
 		inflate_threshold_use = inflate_threshold;
@@ -584,7 +583,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 
 	/* Keep root node larger  */
 
-	if(!tn->parent)
+	if (!tn->parent)
 		halve_threshold_use = halve_threshold_root;
 	else
 		halve_threshold_use = halve_threshold;
@@ -2039,12 +2038,12 @@ static struct node *fib_trie_get_first(struct fib_trie_iter *iter,
 {
 	struct node *n ;
 
-	if(!t)
+	if (!t)
 		return NULL;
 
 	n = rcu_dereference(t->trie);
 
-	if(!iter)
+	if (!iter)
 		return NULL;
 
 	if (n) {
@@ -2084,7 +2083,7 @@ static void trie_collect_stats(struct trie *t, struct trie_stat *s)
 			int i;
 
 			s->tnodes++;
-			if(tn->bits < MAX_STAT_DEPTH)
+			if (tn->bits < MAX_STAT_DEPTH)
 				s->nodesizes[tn->bits]++;
 
 			for (i = 0; i < (1<<tn->bits); i++)
@@ -2250,7 +2249,7 @@ static inline const char *rtn_scope(enum rt_scope_t s)
 {
 	static char buf[32];
 
-	switch(s) {
+	switch (s) {
 	case RT_SCOPE_UNIVERSE: return "universe";
 	case RT_SCOPE_SITE:	return "site";
 	case RT_SCOPE_LINK:	return "link";

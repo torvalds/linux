@@ -119,7 +119,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 
 		if (xfrm[i]->props.mode == XFRM_MODE_TUNNEL) {
 			unsigned short encap_family = xfrm[i]->props.family;
-			switch(encap_family) {
+			switch (encap_family) {
 			case AF_INET:
 				fl_tunnel.fl4_dst = xfrm[i]->id.daddr.a4;
 				fl_tunnel.fl4_src = xfrm[i]->props.saddr.a4;

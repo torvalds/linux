@@ -566,7 +566,7 @@ slow_path:
 	 *	Keep copying data until we run out.
 	 */
 
-	while(left > 0)	{
+	while (left > 0) {
 		len = left;
 		/* IF: it doesn't fit, use 'mtu' - the data space left */
 		if (len > mtu)

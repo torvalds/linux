@@ -184,7 +184,7 @@ static __inline__ struct ipq *frag_alloc_queue(void)
 {
 	struct ipq *qp = kmalloc(sizeof(struct ipq), GFP_ATOMIC);
 
-	if(!qp)
+	if (!qp)
 		return NULL;
 	atomic_add(sizeof(struct ipq), &ip_frag_mem);
 	return qp;
@@ -321,11 +321,11 @@ static struct ipq *ip_frag_intern(struct ipq *qp_in)
 	 * promoted read lock to write lock.
 	 */
 	hlist_for_each_entry(qp, n, &ipq_hash[hash], list) {
-		if(qp->id == qp_in->id		&&
-		   qp->saddr == qp_in->saddr	&&
-		   qp->daddr == qp_in->daddr	&&
-		   qp->protocol == qp_in->protocol &&
-		   qp->user == qp_in->user) {
+		if (qp->id == qp_in->id		&&
+		    qp->saddr == qp_in->saddr	&&
+		    qp->daddr == qp_in->daddr	&&
+		    qp->protocol == qp_in->protocol &&
+		    qp->user == qp_in->user) {
 			atomic_inc(&qp->refcnt);
 			write_unlock(&ipfrag_lock);
 			qp_in->last_in |= COMPLETE;
@@ -398,11 +398,11 @@ static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
 	read_lock(&ipfrag_lock);
 	hash = ipqhashfn(id, saddr, daddr, protocol);
 	hlist_for_each_entry(qp, n, &ipq_hash[hash], list) {
-		if(qp->id == id		&&
-		   qp->saddr == saddr	&&
-		   qp->daddr == daddr	&&
-		   qp->protocol == protocol &&
-		   qp->user == user) {
+		if (qp->id == id		&&
+		    qp->saddr == saddr	&&
+		    qp->daddr == daddr	&&
+		    qp->protocol == protocol &&
+		    qp->user == user) {
 			atomic_inc(&qp->refcnt);
 			read_unlock(&ipfrag_lock);
 			return qp;
@@ -524,7 +524,7 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	 * this fragment, right?
 	 */
 	prev = NULL;
-	for(next = qp->fragments; next != NULL; next = next->next) {
+	for (next = qp->fragments; next != NULL; next = next->next) {
 		if (FRAG_CB(next)->offset >= offset)
 			break;	/* bingo! */
 		prev = next;
@@ -627,7 +627,7 @@ static struct sk_buff *ip_frag_reasm(struct ipq *qp, struct net_device *dev)
 	ihlen = head->nh.iph->ihl*4;
 	len = ihlen + qp->len;
 
-	if(len > 65535)
+	if (len > 65535)
 		goto out_oversize;
 
 	/* Head of list must not be cloned. */

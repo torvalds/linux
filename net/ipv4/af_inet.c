@@ -1339,7 +1339,7 @@ static int __init inet_init(void)
 	 *	Initialise per-cpu ipv4 mibs
 	 */
 
-	if(init_ipv4_mibs())
+	if (init_ipv4_mibs())
 		printk(KERN_CRIT "inet_init: Cannot init ipv4 mibs\n"); ;
 
 	ipv4_proc_init();

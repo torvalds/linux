@@ -782,7 +782,7 @@ static void __init ic_do_bootp_ext(u8 *ext)
 	u8 *c;
 
 	printk("DHCP/BOOTP: Got extension %d:",*ext);
-	for(c=ext+2; c<ext+2+ext[1]; c++)
+	for (c=ext+2; c<ext+2+ext[1]; c++)
 		printk(" %02x", *c);
 	printk("\n");
 #endif
@@ -1094,7 +1094,7 @@ static int __init ic_dynamic(void)
 	retries = CONF_SEND_RETRIES;
 	get_random_bytes(&timeout, sizeof(timeout));
 	timeout = CONF_BASE_TIMEOUT + (timeout % (unsigned) CONF_TIMEOUT_RANDOM);
-	for(;;) {
+	for (;;) {
 #ifdef IPCONFIG_BOOTP
 		if (do_bootp && (d->able & IC_BOOTP))
 			ic_bootp_send_if(d, jiffies - start_jiffies);

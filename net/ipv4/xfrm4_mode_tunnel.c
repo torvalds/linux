@@ -93,7 +93,7 @@ static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct iphdr *iph = skb->nh.iph;
 	int err = -EINVAL;
 
-	switch(iph->protocol){
+	switch (iph->protocol){
 		case IPPROTO_IPIP:
 			break;
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
