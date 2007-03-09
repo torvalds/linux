@@ -117,6 +117,7 @@ EXPORT_SYMBOL_GPL(usb_usual_check_type);
 static int usu_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
+	int rc;
 	unsigned long type;
 	struct task_struct* task;
 	unsigned long flags;
@@ -135,7 +136,7 @@ static int usu_probe(struct usb_interface *intf,
 
 	task = kthread_run(usu_probe_thread, (void*)type, "libusual_%d", type);
 	if (IS_ERR(task)) {
-		int rc = PTR_ERR(task);
+		rc = PTR_ERR(task);
 		printk(KERN_WARNING "libusual: "
 		    "Unable to start the thread for %s: %d\n",
 		    bias_names[type], rc);
