@@ -143,7 +143,7 @@ static inline int spu_run_init(struct spu_context *ctx, u32 * npc)
 	int ret;
 	unsigned long runcntl = SPU_RUNCNTL_RUNNABLE;
 
-	ret = spu_acquire_runnable(ctx, SPU_ACTIVATE_NOWAKE);
+	ret = spu_acquire_runnable(ctx, 0);
 	if (ret)
 		return ret;
 
@@ -155,7 +155,7 @@ static inline int spu_run_init(struct spu_context *ctx, u32 * npc)
 			spu_release(ctx);
 			ret = spu_setup_isolated(ctx);
 			if (!ret)
-				ret = spu_acquire_runnable(ctx, SPU_ACTIVATE_NOWAKE);
+				ret = spu_acquire_runnable(ctx, 0);
 		}
 
 		/* if userspace has set the runcntrl register (eg, to issue an
