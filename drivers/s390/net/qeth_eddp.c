@@ -486,7 +486,7 @@ qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 		return -ENOMEM;
 	}
 	if (qhdr->hdr.l2.id == QETH_HEADER_TYPE_LAYER2) {
-		skb->mac.raw = skb->data + sizeof(struct qeth_hdr);
+		skb_set_mac_header(skb, sizeof(struct qeth_hdr));
 		memcpy(&eddp->mac, eth_hdr(skb), ETH_HLEN);
 #ifdef CONFIG_QETH_VLAN
 		if (eddp->mac.h_proto == __constant_htons(ETH_P_8021Q)) {

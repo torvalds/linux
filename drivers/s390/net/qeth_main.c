@@ -2306,7 +2306,7 @@ qeth_rebuild_skb_fake_ll_tr(struct qeth_card *card, struct sk_buff *skb,
 	struct iphdr *ip_hdr;
 
 	QETH_DBF_TEXT(trace,5,"skbfktr");
-	skb->mac.raw = skb->data - QETH_FAKE_LL_LEN_TR;
+	skb_set_mac_header(skb, -QETH_FAKE_LL_LEN_TR);
 	/* this is a fake ethernet header */
 	fake_hdr = tr_hdr(skb);
 
@@ -2359,7 +2359,7 @@ qeth_rebuild_skb_fake_ll_eth(struct qeth_card *card, struct sk_buff *skb,
 	struct iphdr *ip_hdr;
 
 	QETH_DBF_TEXT(trace,5,"skbfketh");
-	skb->mac.raw = skb->data - QETH_FAKE_LL_LEN_ETH;
+	skb_set_mac_header(skb, -QETH_FAKE_LL_LEN_ETH);
 	/* this is a fake ethernet header */
 	fake_hdr = eth_hdr(skb);
 

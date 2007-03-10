@@ -965,6 +965,11 @@ static inline void skb_reset_mac_header(struct sk_buff *skb)
 	skb->mac.raw = skb->data;
 }
 
+static inline void skb_set_mac_header(struct sk_buff *skb, const int offset)
+{
+	skb->mac.raw = skb->data + offset;
+}
+
 /*
  * CPUs often take a performance hit when accessing unaligned memory
  * locations. The actual performance hit varies, it can be small if the

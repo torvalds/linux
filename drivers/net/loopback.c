@@ -90,7 +90,7 @@ static void emulate_large_send_offload(struct sk_buff *skb)
 		if (!nskb)
 			break;
 		skb_reserve(nskb, 32);
-		nskb->mac.raw = nskb->data - 14;
+		skb_set_mac_header(nskb, -ETH_HLEN);
 		nskb->nh.raw = nskb->data;
 		iph = nskb->nh.iph;
 		memcpy(nskb->data, skb->nh.raw, doffset);
