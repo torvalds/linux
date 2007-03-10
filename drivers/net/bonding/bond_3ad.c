@@ -885,7 +885,7 @@ static int ad_lacpdu_send(struct port *port)
 
 	skb->dev = slave->dev;
 	skb_reset_mac_header(skb);
-	skb->nh.raw = skb->data + ETH_HLEN;
+	skb->nh.raw = skb->mac.raw + ETH_HLEN;
 	skb->protocol = PKT_TYPE_LACPDU;
 	skb->priority = TC_PRIO_CONTROL;
 
@@ -929,7 +929,7 @@ static int ad_marker_send(struct port *port, struct marker *marker)
 
 	skb->dev = slave->dev;
 	skb_reset_mac_header(skb);
-	skb->nh.raw = skb->data + ETH_HLEN;
+	skb->nh.raw = skb->mac.raw + ETH_HLEN;
 	skb->protocol = PKT_TYPE_LACPDU;
 
 	marker_header = (struct marker_header *)skb_put(skb, length);
