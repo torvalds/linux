@@ -502,6 +502,7 @@ struct ivtv_stream {
 struct ivtv_open_id {
 	u32 open_id;
 	int type;
+	enum v4l2_priority prio;
 	struct ivtv *itv;
 };
 
@@ -732,6 +733,7 @@ struct ivtv {
 	u32 base_addr;
 	u32 irqmask;
 
+	struct v4l2_prio_state prio;
 	struct workqueue_struct *irq_work_queues;
 	struct work_struct irq_work_queue;
 	struct timer_list dma_timer; /* Timer used to catch unfinished DMAs */

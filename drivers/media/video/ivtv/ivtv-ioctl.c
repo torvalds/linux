@@ -703,6 +703,21 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	if (filp) id = (struct ivtv_open_id *)filp->private_data;
 
 	switch (cmd) {
+	case VIDIOC_G_PRIORITY:
+	{
+		enum v4l2_priority *p = arg;
+
+		*p = v4l2_prio_max(&itv->prio);
+		break;
+	}
+
+	case VIDIOC_S_PRIORITY:
+	{
+		enum v4l2_priority *prio = arg;
+
+		return v4l2_prio_change(&itv->prio, &id->prio, *prio);
+	}
+
 	case VIDIOC_QUERYCAP:{
 		struct v4l2_capability *vcap = arg;
 
@@ -1441,8 +1456,28 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 {
 	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
 	struct ivtv *itv = id->itv;
+	int ret;
 
 	IVTV_DEBUG_IOCTL("v4l2 ioctl 0x%08x\n", cmd);
+
+	/* check priority */
+	switch (cmd) {
+	case VIDIOC_S_CTRL:
+	case VIDIOC_S_STD:
+	case VIDIOC_S_INPUT:
+	case VIDIOC_S_OUTPUT:
+	case VIDIOC_S_TUNER:
+	case VIDIOC_S_FREQUENCY:
+	case VIDIOC_S_FMT:
+	case VIDIOC_S_CROP:
+	case VIDIOC_S_AUDIO:
+	case VIDIOC_S_AUDOUT:
+	case VIDIOC_S_EXT_CTRLS:
+	case VIDIOC_S_FBUF:
+		ret = v4l2_prio_check(&itv->prio, &id->prio);
+		if (ret)
+			return ret;
+	}
 
 	switch (cmd) {
 	case VIDIOC_DBG_G_REGISTER:
@@ -1452,6 +1487,8 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_INT_RESET:
 		return ivtv_internal_ioctls(filp, cmd, arg);
 
+	case VIDIOC_G_PRIORITY:
+	case VIDIOC_S_PRIORITY:
 	case VIDIOC_QUERYCAP:
 	case VIDIOC_ENUMINPUT:
 	case VIDIOC_G_INPUT:

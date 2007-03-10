@@ -766,6 +766,8 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 
 	IVTV_DEBUG_IOCTL("close() of %s\n", s->name);
 
+	v4l2_prio_close(&itv->prio, &id->prio);
+
 	/* Easy case first: this stream was never claimed by us */
 	if (s->id != id->open_id) {
 		kfree(id);
@@ -849,6 +851,7 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	}
 	item->itv = itv;
 	item->type = y;
+	v4l2_prio_open(&itv->prio, &item->prio);
 
 	item->open_id = itv->open_id++;
 	filp->private_data = item;
