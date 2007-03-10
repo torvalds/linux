@@ -1029,7 +1029,6 @@ static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 					goto defer;
 				}
 			}
-			skb->dev = dev;
 			skb->protocol = hippi_type_trans(skb, dev);
 
 			netif_rx(skb);		/* send it up */

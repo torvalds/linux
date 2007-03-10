@@ -126,14 +126,14 @@ __be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hippi_hdr *hip;
 
-	hip = (struct hippi_hdr *) skb->data;
-
 	/*
 	 * This is actually wrong ... question is if we really should
 	 * set the raw address here.
 	 */
-	 skb->mac.raw = skb->data;
-	 skb_pull(skb, HIPPI_HLEN);
+	skb->dev = dev;
+	skb->mac.raw = skb->data;
+	hip = (struct hippi_hdr *)skb->mac.raw;
+	skb_pull(skb, HIPPI_HLEN);
 
 	/*
 	 * No fancy promisc stuff here now.

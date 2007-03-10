@@ -3096,8 +3096,6 @@ static void dfx_rcv_queue_process(
 
 					skb_reserve(skb,3);		/* adjust data field so that it points to FC byte */
 					skb_put(skb, pkt_len);		/* pass up packet length, NOT including CRC */
-					skb->dev = bp->dev;		/* pass up device pointer */
-
 					skb->protocol = fddi_type_trans(skb, bp->dev);
 					bp->rcv_total_bytes += skb->len;
 					netif_rx(skb);
