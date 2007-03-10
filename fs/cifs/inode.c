@@ -494,6 +494,12 @@ int cifs_get_inode_info(struct inode **pinode,
 			   mode e.g. 555 */
 			if (cifsInfo->cifsAttrs & ATTR_READONLY)
 				inode->i_mode &= ~(S_IWUGO);
+			else if ((inode->i_mode & S_IWUGO) == 0)
+				/* the ATTR_READONLY flag may have been	*/
+				/* changed on server -- set any w bits	*/
+				/* allowed by mnt_file_mode		*/
+				inode->i_mode |= (S_IWUGO &
+						  cifs_sb->mnt_file_mode);
 		/* BB add code here -
 		   validate if device or weird share or device type? */
 		}
