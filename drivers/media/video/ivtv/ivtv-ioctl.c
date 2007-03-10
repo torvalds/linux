@@ -632,7 +632,7 @@ static int ivtv_try_or_set_fmt(struct ivtv *itv, int streamtype,
 	return 0;
 }
 
-static int ivtv_internal_ioctls(struct file *filp, unsigned int cmd, void *arg)
+static int ivtv_debug_ioctls(struct file *filp, unsigned int cmd, void *arg)
 {
 	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
 	struct ivtv *itv = id->itv;
@@ -641,7 +641,6 @@ static int ivtv_internal_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	switch (cmd) {
 	/* ioctls to allow direct access to the encoder registers for testing */
 	case VIDIOC_DBG_G_REGISTER:
-		IVTV_DEBUG_IOCTL("VIDIOC_DBG_G_REGISTER\n");
 		if (v4l2_chip_match_host(reg->match_type, reg->match_chip))
 			return ivtv_itvc(itv, cmd, arg);
 		if (reg->match_type == V4L2_CHIP_MATCH_I2C_DRIVER)
@@ -649,7 +648,6 @@ static int ivtv_internal_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		return ivtv_call_i2c_client(itv, reg->match_chip, cmd, arg);
 
 	case VIDIOC_DBG_S_REGISTER:
-		IVTV_DEBUG_IOCTL("VIDIOC_DBG_S_REGISTER\n");
 		if (v4l2_chip_match_host(reg->match_type, reg->match_chip))
 			return ivtv_itvc(itv, cmd, arg);
 		if (reg->match_type == V4L2_CHIP_MATCH_I2C_DRIVER)
@@ -659,7 +657,6 @@ static int ivtv_internal_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	case VIDIOC_G_CHIP_IDENT: {
 		struct v4l2_chip_ident *chip = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_G_CHIP_IDENT\n");
 		chip->ident = V4L2_IDENT_NONE;
 		chip->revision = 0;
 		if (reg->match_type == V4L2_CHIP_MATCH_HOST) {
@@ -680,13 +677,11 @@ static int ivtv_internal_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	case VIDIOC_INT_S_AUDIO_ROUTING: {
 		struct v4l2_routing *route = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_INT_S_AUDIO_ROUTING\n");
 		ivtv_audio_set_route(itv, route);
 		break;
 	}
 
 	case VIDIOC_INT_RESET:
-		IVTV_DEBUG_IOCTL("VIDIOC_INT_RESET\n");
 		ivtv_reset_ir_gpio(itv);
 		break;
 
@@ -721,8 +716,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_QUERYCAP:{
 		struct v4l2_capability *vcap = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_QUERYCAP\n");
-
 		memset(vcap, 0, sizeof(*vcap));
 		strcpy(vcap->driver, IVTV_DRIVER_NAME);     /* driver name */
 		strcpy(vcap->card, itv->card_name); 	    /* card type */
@@ -739,23 +732,18 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_ENUMAUDIO:{
 		struct v4l2_audio *vin = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_ENUMAUDIO\n");
-
 		return ivtv_get_audio_input(itv, vin->index, vin);
 	}
 
 	case VIDIOC_G_AUDIO:{
 		struct v4l2_audio *vin = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_G_AUDIO\n");
 		vin->index = itv->audio_input;
 		return ivtv_get_audio_input(itv, vin->index, vin);
 	}
 
 	case VIDIOC_S_AUDIO:{
 		struct v4l2_audio *vout = arg;
-
-		IVTV_DEBUG_IOCTL("VIDIOC_S_AUDIO\n");
 
 		if (vout->index >= itv->nof_audio_inputs)
 			return -EINVAL;
@@ -767,8 +755,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_ENUMAUDOUT:{
 		struct v4l2_audioout *vin = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_ENUMAUDOUT\n");
-
 		/* set it to defaults from our table */
 		return ivtv_get_audio_output(itv, vin->index, vin);
 	}
@@ -776,7 +762,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_G_AUDOUT:{
 		struct v4l2_audioout *vin = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_G_AUDOUT\n");
 		vin->index = 0;
 		return ivtv_get_audio_output(itv, vin->index, vin);
 	}
@@ -784,15 +769,11 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_S_AUDOUT:{
 		struct v4l2_audioout *vout = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_S_AUDOUT\n");
-
 		return ivtv_get_audio_output(itv, vout->index, vout);
 	}
 
 	case VIDIOC_ENUMINPUT:{
 		struct v4l2_input *vin = arg;
-
-		IVTV_DEBUG_IOCTL("VIDIOC_ENUMINPUT\n");
 
 		/* set it to defaults from our table */
 		return ivtv_get_input(itv, vin->index, vin);
@@ -801,8 +782,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_ENUMOUTPUT:{
 		struct v4l2_output *vout = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_ENUMOUTPUT\n");
-
 		return ivtv_get_output(itv, vout->index, vout);
 	}
 
@@ -810,11 +789,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_S_FMT: {
 		struct v4l2_format *fmt = arg;
 
-		if (cmd == VIDIOC_S_FMT) {
-			IVTV_DEBUG_IOCTL("VIDIOC_S_FMT\n");
-		} else {
-			IVTV_DEBUG_IOCTL("VIDIOC_TRY_FMT\n");
-		}
 		return ivtv_try_or_set_fmt(itv, id->type, fmt, cmd == VIDIOC_S_FMT);
 	}
 
@@ -822,7 +796,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		struct v4l2_format *fmt = arg;
 		int type = fmt->type;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_G_FMT\n");
 		memset(fmt, 0, sizeof(*fmt));
 		fmt->type = type;
 		return ivtv_get_fmt(itv, id->type, fmt);
@@ -831,7 +804,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_S_CROP: {
 		struct v4l2_crop *crop = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_S_CROP\n");
 		if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 			return -EINVAL;
 		return itv->video_dec_func(itv, VIDIOC_S_CROP, arg);
@@ -840,7 +812,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_G_CROP: {
 		struct v4l2_crop *crop = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_G_CROP\n");
 		if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 			return -EINVAL;
 		return itv->video_dec_func(itv, VIDIOC_G_CROP, arg);
@@ -878,16 +849,12 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	}
 
 	case VIDIOC_G_INPUT:{
-		IVTV_DEBUG_IOCTL("VIDIOC_G_INPUT\n");
-
 		*(int *)arg = itv->active_input;
 		break;
 	}
 
 	case VIDIOC_S_INPUT:{
 		int inp = *(int *)arg;
-
-		IVTV_DEBUG_IOCTL("VIDIOC_S_INPUT\n");
 
 		if (inp < 0 || inp >= itv->nof_inputs)
 			return -EINVAL;
@@ -914,8 +881,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	}
 
 	case VIDIOC_G_OUTPUT:{
-		IVTV_DEBUG_IOCTL("VIDIOC_G_OUTPUT\n");
-
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
 		*(int *)arg = itv->active_output;
@@ -925,8 +890,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_S_OUTPUT:{
 		int outp = *(int *)arg;
 		struct v4l2_routing route;
-
-		IVTV_DEBUG_IOCTL("VIDIOC_S_OUTPUT\n");
 
 		if (outp >= itv->card->nof_outputs)
 			return -EINVAL;
@@ -948,8 +911,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_G_FREQUENCY:{
 		struct v4l2_frequency *vf = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_G_FREQUENCY\n");
-
 		if (vf->tuner != 0)
 			return -EINVAL;
 		ivtv_call_i2c_clients(itv, cmd, arg);
@@ -958,8 +919,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 
 	case VIDIOC_S_FREQUENCY:{
 		struct v4l2_frequency vf = *(struct v4l2_frequency *)arg;
-
-		IVTV_DEBUG_IOCTL("VIDIOC_S_FREQUENCY\n");
 
 		if (vf.tuner != 0)
 			return -EINVAL;
@@ -975,8 +934,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		struct v4l2_standard *vs = arg;
 		int idx = vs->index;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_ENUMSTD\n");
-
 		if (idx < 0 || idx >= ARRAY_SIZE(enum_stds))
 			return -EINVAL;
 
@@ -989,15 +946,12 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	}
 
 	case VIDIOC_G_STD:{
-		IVTV_DEBUG_IOCTL("VIDIOC_G_STD\n");
 		*(v4l2_std_id *) arg = itv->std;
 		break;
 	}
 
 	case VIDIOC_S_STD: {
 		v4l2_std_id std = *(v4l2_std_id *) arg;
-
-		IVTV_DEBUG_IOCTL("VIDIOC_S_STD\n");
 
 		if ((std & V4L2_STD_ALL) == 0)
 			return -EINVAL;
@@ -1049,8 +1003,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_S_TUNER: {	/* Setting tuner can only set audio mode */
 		struct v4l2_tuner *vt = arg;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_S_TUNER\n");
-
 		if (vt->index != 0)
 			return -EINVAL;
 
@@ -1060,8 +1012,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 
 	case VIDIOC_G_TUNER: {
 		struct v4l2_tuner *vt = arg;
-
-		IVTV_DEBUG_IOCTL("VIDIOC_G_TUNER\n");
 
 		if (vt->index != 0)
 			return -EINVAL;
@@ -1085,7 +1035,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		int f, l;
 		enum v4l2_buf_type type = cap->type;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_G_SLICED_VBI_CAP\n");
 		memset(cap, 0, sizeof(*cap));
 		cap->type = type;
 		if (type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
@@ -1111,6 +1060,89 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			return 0;
 		}
 		return -EINVAL;
+	}
+
+	case VIDIOC_G_ENC_INDEX: {
+		struct v4l2_enc_idx *idx = arg;
+		int i;
+
+		idx->entries = (itv->pgm_info_write_idx + IVTV_MAX_PGM_INDEX - itv->pgm_info_read_idx) %
+					IVTV_MAX_PGM_INDEX;
+		if (idx->entries > V4L2_ENC_IDX_ENTRIES)
+			idx->entries = V4L2_ENC_IDX_ENTRIES;
+		for (i = 0; i < idx->entries; i++) {
+			idx->entry[i] = itv->pgm_info[(itv->pgm_info_read_idx + i) % IVTV_MAX_PGM_INDEX];
+		}
+		itv->pgm_info_read_idx = (itv->pgm_info_read_idx + idx->entries) % IVTV_MAX_PGM_INDEX;
+		break;
+	}
+
+	case VIDIOC_ENCODER_CMD:
+	case VIDIOC_TRY_ENCODER_CMD: {
+		struct v4l2_encoder_cmd *enc = arg;
+		int try = cmd == VIDIOC_TRY_ENCODER_CMD;
+
+		switch (enc->cmd) {
+		case V4L2_ENC_CMD_START:
+			return ivtv_start_capture(id);
+
+		case V4L2_ENC_CMD_STOP:
+			ivtv_stop_capture(id, enc->flags & V4L2_ENC_CMD_STOP_AT_GOP_END);
+			return 0;
+
+		case V4L2_ENC_CMD_PAUSE:
+			if (!atomic_read(&itv->capturing))
+				return -EPERM;
+			if (test_and_set_bit(IVTV_F_I_ENC_PAUSED, &itv->i_flags))
+				return 0;
+			ivtv_mute(itv);
+			ivtv_vapi(itv, CX2341X_ENC_PAUSE_ENCODER, 1, 0);
+			break;
+
+		case V4L2_ENC_CMD_RESUME:
+			if (!atomic_read(&itv->capturing))
+				return -EPERM;
+			if (!test_and_clear_bit(IVTV_F_I_ENC_PAUSED, &itv->i_flags))
+				return 0;
+			ivtv_vapi(itv, CX2341X_ENC_PAUSE_ENCODER, 1, 1);
+			ivtv_unmute(itv);
+			break;
+		}
+		break;
+	}
+
+	case VIDIOC_G_FBUF: {
+		struct v4l2_framebuffer *fb = arg;
+
+		memset(fb, 0, sizeof(*fb));
+		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
+			break;
+		fb->capability = V4L2_FBUF_CAP_EXTERNOVERLAY | V4L2_FBUF_CAP_CHROMAKEY |
+			V4L2_FBUF_CAP_LOCAL_ALPHA | V4L2_FBUF_CAP_GLOBAL_ALPHA;
+		fb->fmt.pixelformat = itv->osd_pixelformat;
+		fb->fmt.width = itv->osd_rect.width;
+		fb->fmt.height = itv->osd_rect.height;
+		fb->fmt.left = itv->osd_rect.left;
+		fb->fmt.top = itv->osd_rect.top;
+		fb->base = (void *)itv->osd_video_pbase;
+		if (itv->osd_global_alpha_state)
+			fb->flags |= V4L2_FBUF_FLAG_GLOBAL_ALPHA;
+		if (itv->osd_local_alpha_state)
+			fb->flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
+		if (itv->osd_color_key_state)
+			fb->flags |= V4L2_FBUF_FLAG_CHROMAKEY;
+		break;
+	}
+
+	case VIDIOC_S_FBUF: {
+		struct v4l2_framebuffer *fb = arg;
+
+		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
+			break;
+		itv->osd_global_alpha_state = (fb->flags & V4L2_FBUF_FLAG_GLOBAL_ALPHA) != 0;
+		itv->osd_local_alpha_state = (fb->flags & V4L2_FBUF_FLAG_LOCAL_ALPHA) != 0;
+		itv->osd_color_key_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
+		break;
 	}
 
 	case VIDIOC_LOG_STATUS:
@@ -1175,7 +1207,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	return 0;
 }
 
-static int ivtv_ivtv_ioctls(struct file *filp, unsigned int cmd, void *arg)
+static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 {
 	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
 	struct ivtv *itv = id->itv;
@@ -1355,96 +1387,6 @@ static int ivtv_ivtv_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		break;
 	}
 
-	case VIDIOC_G_ENC_INDEX: {
-		struct v4l2_enc_idx *idx = arg;
-		int i;
-
-		IVTV_DEBUG_IOCTL("VIDIOC_G_ENC_INDEX\n");
-		idx->entries = (itv->pgm_info_write_idx + IVTV_MAX_PGM_INDEX - itv->pgm_info_read_idx) %
-					IVTV_MAX_PGM_INDEX;
-		if (idx->entries > V4L2_ENC_IDX_ENTRIES)
-			idx->entries = V4L2_ENC_IDX_ENTRIES;
-		for (i = 0; i < idx->entries; i++) {
-			idx->entry[i] = itv->pgm_info[(itv->pgm_info_read_idx + i) % IVTV_MAX_PGM_INDEX];
-		}
-		itv->pgm_info_read_idx = (itv->pgm_info_read_idx + idx->entries) % IVTV_MAX_PGM_INDEX;
-		break;
-	}
-
-	case VIDIOC_ENCODER_CMD:
-	case VIDIOC_TRY_ENCODER_CMD: {
-		struct v4l2_encoder_cmd *enc = arg;
-		int try = cmd == VIDIOC_TRY_ENCODER_CMD;
-
-		if (try)
-			IVTV_DEBUG_IOCTL("VIDIOC_TRY_ENCODER_CMD\n");
-		else
-			IVTV_DEBUG_IOCTL("VIDIOC_ENCODER_CMD\n");
-		switch (enc->cmd) {
-		case V4L2_ENC_CMD_START:
-			return ivtv_start_capture(id);
-
-		case V4L2_ENC_CMD_STOP:
-			ivtv_stop_capture(id, enc->flags & V4L2_ENC_CMD_STOP_AT_GOP_END);
-			return 0;
-
-		case V4L2_ENC_CMD_PAUSE:
-			if (!atomic_read(&itv->capturing))
-				return -EPERM;
-			if (test_and_set_bit(IVTV_F_I_ENC_PAUSED, &itv->i_flags))
-				return 0;
-			ivtv_mute(itv);
-			ivtv_vapi(itv, CX2341X_ENC_PAUSE_ENCODER, 1, 0);
-			break;
-
-		case V4L2_ENC_CMD_RESUME:
-			if (!atomic_read(&itv->capturing))
-				return -EPERM;
-			if (!test_and_clear_bit(IVTV_F_I_ENC_PAUSED, &itv->i_flags))
-				return 0;
-			ivtv_vapi(itv, CX2341X_ENC_PAUSE_ENCODER, 1, 1);
-			ivtv_unmute(itv);
-			break;
-		}
-		break;
-	}
-
-	case VIDIOC_G_FBUF: {
-		struct v4l2_framebuffer *fb = arg;
-
-		IVTV_DEBUG_IOCTL("VIDIOC_G_FBUF\n");
-		memset(fb, 0, sizeof(*fb));
-		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
-			break;
-		fb->capability = V4L2_FBUF_CAP_EXTERNOVERLAY | V4L2_FBUF_CAP_CHROMAKEY |
-			V4L2_FBUF_CAP_LOCAL_ALPHA | V4L2_FBUF_CAP_GLOBAL_ALPHA;
-		fb->fmt.pixelformat = itv->osd_pixelformat;
-		fb->fmt.width = itv->osd_rect.width;
-		fb->fmt.height = itv->osd_rect.height;
-		fb->fmt.left = itv->osd_rect.left;
-		fb->fmt.top = itv->osd_rect.top;
-		fb->base = (void *)itv->osd_video_pbase;
-		if (itv->osd_global_alpha_state)
-			fb->flags |= V4L2_FBUF_FLAG_GLOBAL_ALPHA;
-		if (itv->osd_local_alpha_state)
-			fb->flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
-		if (itv->osd_color_key_state)
-			fb->flags |= V4L2_FBUF_FLAG_CHROMAKEY;
-		break;
-	}
-
-	case VIDIOC_S_FBUF: {
-		struct v4l2_framebuffer *fb = arg;
-
-		IVTV_DEBUG_IOCTL("VIDIOC_S_FBUF\n");
-		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
-			break;
-		itv->osd_global_alpha_state = (fb->flags & V4L2_FBUF_FLAG_GLOBAL_ALPHA) != 0;
-		itv->osd_local_alpha_state = (fb->flags & V4L2_FBUF_FLAG_LOCAL_ALPHA) != 0;
-		itv->osd_color_key_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
-		break;
-	}
-
 	default:
 		return -EINVAL;
 	}
@@ -1457,8 +1399,6 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
 	struct ivtv *itv = id->itv;
 	int ret;
-
-	IVTV_DEBUG_IOCTL("v4l2 ioctl 0x%08x\n", cmd);
 
 	/* check priority */
 	switch (cmd) {
@@ -1485,7 +1425,11 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_G_CHIP_IDENT:
 	case VIDIOC_INT_S_AUDIO_ROUTING:
 	case VIDIOC_INT_RESET:
-		return ivtv_internal_ioctls(filp, cmd, arg);
+		if (ivtv_debug & IVTV_DBGFLG_IOCTL) {
+			printk(KERN_INFO "ivtv%d ioctl: ", itv->num);
+			v4l_printk_ioctl(cmd);
+		}
+		return ivtv_debug_ioctls(filp, cmd, arg);
 
 	case VIDIOC_G_PRIORITY:
 	case VIDIOC_S_PRIORITY:
@@ -1517,6 +1461,15 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_G_AUDOUT:
 	case VIDIOC_G_SLICED_VBI_CAP:
 	case VIDIOC_LOG_STATUS:
+	case VIDIOC_G_ENC_INDEX:
+	case VIDIOC_ENCODER_CMD:
+	case VIDIOC_TRY_ENCODER_CMD:
+	case VIDIOC_G_FBUF:
+	case VIDIOC_S_FBUF:
+		if (ivtv_debug & IVTV_DBGFLG_IOCTL) {
+			printk(KERN_INFO "ivtv%d ioctl: ", itv->num);
+			v4l_printk_ioctl(cmd);
+		}
 		return ivtv_v4l2_ioctls(itv, filp, cmd, arg);
 
 	case VIDIOC_QUERYMENU:
@@ -1526,6 +1479,10 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_S_EXT_CTRLS:
 	case VIDIOC_G_EXT_CTRLS:
 	case VIDIOC_TRY_EXT_CTRLS:
+		if (ivtv_debug & IVTV_DBGFLG_IOCTL) {
+			printk(KERN_INFO "ivtv%d ioctl: ", itv->num);
+			v4l_printk_ioctl(cmd);
+		}
 		return ivtv_control_ioctls(itv, cmd, arg);
 
 	case IVTV_IOC_DMA_FRAME:
@@ -1538,12 +1495,7 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDEO_CONTINUE:
 	case VIDEO_COMMAND:
 	case VIDEO_TRY_COMMAND:
-	case VIDIOC_G_ENC_INDEX:
-	case VIDIOC_ENCODER_CMD:
-	case VIDIOC_TRY_ENCODER_CMD:
-	case VIDIOC_G_FBUF:
-	case VIDIOC_S_FBUF:
-		return ivtv_ivtv_ioctls(filp, cmd, arg);
+		return ivtv_decoder_ioctls(filp, cmd, arg);
 
 	case 0x00005401:	/* Handle isatty() calls */
 		return -EINVAL;
