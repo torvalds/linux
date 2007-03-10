@@ -413,7 +413,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		}
 
 		/* routing header option needs extra check */
-		if (optname == IPV6_RTHDR && opt->srcrt) {
+		if (optname == IPV6_RTHDR && opt && opt->srcrt) {
 			struct ipv6_rt_hdr *rthdr = opt->srcrt;
 			switch (rthdr->type) {
 			case IPV6_SRCRT_TYPE_0:
@@ -804,7 +804,7 @@ static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_txoptions *opt,
 		return 0;
 	hdr = opt->hopopt;
 
-	len = min_t(int, len, ipv6_optlen(hdr));
+	len = min_t(unsigned int, len, ipv6_optlen(hdr));
 	if (copy_to_user(optval, hdr, ipv6_optlen(hdr)))
 		return -EFAULT;
 	return len;

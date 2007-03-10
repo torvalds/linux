@@ -261,8 +261,33 @@ out:
 	sock_put(sk);
 }
 
+/* Transmit-delay timer: used by the CCIDs to delay actual send time */
+void dccp_write_xmit_timer(unsigned long data)
+{
+	struct sock *sk = (struct sock *)data;
+	struct dccp_sock *dp = dccp_sk(sk);
+
+	bh_lock_sock(sk);
+	if (sock_owned_by_user(sk))
+		sk_reset_timer(sk, &dp->dccps_xmit_timer, jiffies+1);
+	else
+		dccp_write_xmit(sk, 0);
+	bh_unlock_sock(sk);
+	sock_put(sk);
+}
+
+static void dccp_init_write_xmit_timer(struct sock *sk)
+{
+	struct dccp_sock *dp = dccp_sk(sk);
+
+	init_timer(&dp->dccps_xmit_timer);
+	dp->dccps_xmit_timer.data = (unsigned long)sk;
+	dp->dccps_xmit_timer.function = dccp_write_xmit_timer;
+}
+
 void dccp_init_xmit_timers(struct sock *sk)
 {
+	dccp_init_write_xmit_timer(sk);
 	inet_csk_init_xmit_timers(sk, &dccp_write_timer, &dccp_delack_timer,
 				  &dccp_keepalive_timer);
 }

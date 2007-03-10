@@ -191,6 +191,7 @@ extern void dccp_send_sync(struct sock *sk, const u64 seq,
 			   const enum dccp_pkt_type pkt_type);
 
 extern void dccp_write_xmit(struct sock *sk, int block);
+extern void dccp_write_xmit_timer(unsigned long data);
 extern void dccp_write_space(struct sock *sk);
 
 extern void dccp_init_xmit_timers(struct sock *sk);
