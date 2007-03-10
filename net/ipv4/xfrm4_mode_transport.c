@@ -50,8 +50,10 @@ static int xfrm4_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int ihl = skb->data - skb->h.raw;
 
-	if (skb->h.raw != skb->nh.raw)
-		skb->nh.raw = memmove(skb->h.raw, skb->nh.raw, ihl);
+	if (skb->h.raw != skb->nh.raw) {
+		memmove(skb->h.raw, skb->nh.raw, ihl);
+		skb->nh.raw = skb->h.raw;
+	}
 	skb->nh.iph->tot_len = htons(skb->len + ihl);
 	skb->h.raw = skb->data;
 	return 0;
