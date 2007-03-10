@@ -3632,11 +3632,13 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 		nskb = alloc_skb(copy+header, GFP_ATOMIC);
 		if (!nskb)
 			return;
+
+		nskb->mac.raw = nskb->data + (skb->mac.raw - skb->head);
+		nskb->nh.raw = nskb->data + (skb->nh.raw - skb->head);
+		nskb->h.raw = nskb->data + (skb->h.raw - skb->head);
+
 		skb_reserve(nskb, header);
 		memcpy(nskb->head, skb->head, header);
-		nskb->nh.raw = nskb->head + (skb->nh.raw-skb->head);
-		nskb->h.raw = nskb->head + (skb->h.raw-skb->head);
-		nskb->mac.raw = nskb->head + (skb->mac.raw-skb->head);
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
 		TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(nskb)->end_seq = start;
 		__skb_insert(nskb, skb->prev, skb, list);
