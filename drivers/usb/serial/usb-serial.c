@@ -99,9 +99,12 @@ static struct usb_serial *get_free_serial (struct usb_serial *serial, int num_po
 			continue;
 
 		*minor = i;
+		j = 0;
 		dbg("%s - minor base = %d", __FUNCTION__, *minor);
-		for (i = *minor; (i < (*minor + num_ports)) && (i < SERIAL_TTY_MINORS); ++i)
+		for (i = *minor; (i < (*minor + num_ports)) && (i < SERIAL_TTY_MINORS); ++i) {
 			serial_table[i] = serial;
+			serial->port[j++]->number = i;
+		}
 		spin_unlock(&table_lock);
 		return serial;
 	}
@@ -135,11 +138,6 @@ static void destroy_serial(struct kref *kref)
 
 	dbg("%s - %s", __FUNCTION__, serial->type->description);
 
-	serial->type->shutdown(serial);
-
-	/* return the minor range that this device had */
-	return_serial(serial);
-
 	for (i = 0; i < serial->num_ports; ++i)
 		serial->port[i]->open_count = 0;
 
@@ -149,6 +147,12 @@ static void destroy_serial(struct kref *kref)
 			device_unregister(&serial->port[i]->dev);
 			serial->port[i] = NULL;
 		}
+
+	if (serial->type->shutdown)
+		serial->type->shutdown(serial);
+
+	/* return the minor range that this device had */
+	return_serial(serial);
 
 	/* If this is a "fake" port, we have to clean it up here, as it will
 	 * not get cleaned up in port_release() as it was never registered with
@@ -826,7 +830,6 @@ int usb_serial_probe(struct usb_interface *interface,
 			num_ports = type->num_ports;
 	}
 
-	serial->minor = minor;
 	serial->num_ports = num_ports;
 	serial->num_bulk_in = num_bulk_in;
 	serial->num_bulk_out = num_bulk_out;
@@ -847,7 +850,6 @@ int usb_serial_probe(struct usb_interface *interface,
 		port = kzalloc(sizeof(struct usb_serial_port), GFP_KERNEL);
 		if (!port)
 			goto probe_error;
-		port->number = i + serial->minor;
 		port->serial = serial;
 		spin_lock_init(&port->lock);
 		mutex_init(&port->mutex);
@@ -980,6 +982,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		dev_err(&interface->dev, "No more free serial devices\n");
 		goto probe_error;
 	}
+	serial->minor = minor;
 
 	/* register all of the individual ports with the driver core */
 	for (i = 0; i < num_ports; ++i) {
@@ -1033,9 +1036,6 @@ probe_error:
 		usb_free_urb(port->interrupt_out_urb);
 		kfree(port->interrupt_out_buffer);
 	}
-
-	/* return the minor range that this device had */
-	return_serial (serial);
 
 	/* free up any memory that we allocated */
 	for (i = 0; i < serial->num_port_pointers; ++i)

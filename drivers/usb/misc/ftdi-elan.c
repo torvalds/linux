@@ -2905,17 +2905,31 @@ static int __init ftdi_elan_init(void)
 {
         int result;
         printk(KERN_INFO "driver %s built at %s on %s\n", ftdi_elan_driver.name,
-                 __TIME__, __DATE__);
+	       __TIME__, __DATE__);
         init_MUTEX(&ftdi_module_lock);
         INIT_LIST_HEAD(&ftdi_static_list);
         status_queue = create_singlethread_workqueue("ftdi-status-control");
+	if (!status_queue)
+		goto err1;
         command_queue = create_singlethread_workqueue("ftdi-command-engine");
+	if (!command_queue)
+		goto err2;
         respond_queue = create_singlethread_workqueue("ftdi-respond-engine");
+	if (!respond_queue)
+		goto err3;
         result = usb_register(&ftdi_elan_driver);
         if (result)
                 printk(KERN_ERR "usb_register failed. Error number %d\n",
-                        result);
+		       result);
         return result;
+
+ err3:
+	destroy_workqueue(command_queue);
+ err2:
+	destroy_workqueue(status_queue);
+ err1:
+	printk(KERN_ERR "%s couldn't create workqueue\n", ftdi_elan_driver.name);
+	return -ENOMEM;
 }
 
 static void __exit ftdi_elan_exit(void)

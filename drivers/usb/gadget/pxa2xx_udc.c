@@ -2616,7 +2616,7 @@ lubbock_fail0:
 		if (retval != 0) {
 			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
 				driver_name, vbus_irq, retval);
-			free_irq(IRQ_USB, dev);
+			free_irq(irq, dev);
 			return -EBUSY;
 		}
 	}

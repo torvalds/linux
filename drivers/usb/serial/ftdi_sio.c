@@ -315,6 +315,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_SIO_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_8U232AM_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_8U232AM_ALT_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_232RL_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_8U2232C_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MICRO_CHAMELEON_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_RELAIS_PID) },
@@ -420,6 +421,14 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_ALC8500_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_PYRAMID_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_FHZ1000PC_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_US485_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PICPRO_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PCMCIA_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PK1_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_RS232MON_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_APP70_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PEDO_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PROD_PID) },
 	/*
 	 * These will probably use user-space drivers.  Uncomment them if
 	 * you need them or use the user-specified vendor/product module
@@ -459,6 +468,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FALCOM_VID, FALCOM_TWIST_PID) },
 	{ USB_DEVICE(FALCOM_VID, FALCOM_SAMBA_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_SUUNTO_SPORTS_PID) },
+	{ USB_DEVICE(TTI_VID, TTI_QL355P_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_RM_CANVIEW_PID) },
 	{ USB_DEVICE(BANDB_VID, BANDB_USOTL4_PID) },
 	{ USB_DEVICE(BANDB_VID, BANDB_USTL4_PID) },
@@ -533,6 +543,7 @@ static const char *ftdi_chip_name[] = {
 	[FT8U232AM] = "FT8U232AM",
 	[FT232BM] = "FT232BM",
 	[FT2232C] = "FT2232C",
+	[FT232RL] = "FT232RL",
 };
 
 
@@ -588,6 +599,8 @@ struct ftdi_private {
 static int  ftdi_sio_probe	(struct usb_serial *serial, const struct usb_device_id *id);
 static int  ftdi_sio_attach		(struct usb_serial *serial);
 static void ftdi_shutdown		(struct usb_serial *serial);
+static int  ftdi_sio_port_probe	(struct usb_serial_port *port);
+static int  ftdi_sio_port_remove	(struct usb_serial_port *port);
 static int  ftdi_open			(struct usb_serial_port *port, struct file *filp);
 static void ftdi_close			(struct usb_serial_port *port, struct file *filp);
 static int  ftdi_write			(struct usb_serial_port *port, const unsigned char *buf, int count);
@@ -622,6 +635,8 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.num_bulk_out =		1,
 	.num_ports =		1,
 	.probe =		ftdi_sio_probe,
+	.port_probe =		ftdi_sio_port_probe,
+	.port_remove =		ftdi_sio_port_remove,
 	.open =			ftdi_open,
 	.close =		ftdi_close,
 	.throttle =		ftdi_throttle,
@@ -1024,11 +1039,10 @@ static ssize_t show_latency_timer(struct device *dev, struct device_attribute *a
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct usb_device *udev;
+	struct usb_device *udev = port->serial->dev;
 	unsigned short latency = 0;
 	int rv = 0;
 
-	udev = to_usb_device(dev);
 
 	dbg("%s",__FUNCTION__);
 
@@ -1052,12 +1066,10 @@ static ssize_t store_latency_timer(struct device *dev, struct device_attribute *
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct usb_device *udev;
+	struct usb_device *udev = port->serial->dev;
 	char buf[1];
 	int v = simple_strtoul(valbuf, NULL, 10);
 	int rv = 0;
-
-	udev = to_usb_device(dev);
 
 	dbg("%s: setting latency timer = %i", __FUNCTION__, v);
 
@@ -1083,12 +1095,10 @@ static ssize_t store_event_char(struct device *dev, struct device_attribute *att
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct usb_device *udev;
+	struct usb_device *udev = port->serial->dev;
 	char buf[1];
 	int v = simple_strtoul(valbuf, NULL, 10);
 	int rv = 0;
-
-	udev = to_usb_device(dev);
 
 	dbg("%s: setting event char = %i", __FUNCTION__, v);
 
@@ -1110,46 +1120,38 @@ static ssize_t store_event_char(struct device *dev, struct device_attribute *att
 static DEVICE_ATTR(latency_timer, S_IWUSR | S_IRUGO, show_latency_timer, store_latency_timer);
 static DEVICE_ATTR(event_char, S_IWUSR, NULL, store_event_char);
 
-static int create_sysfs_attrs(struct usb_serial *serial)
+static int create_sysfs_attrs(struct usb_serial_port *port)
 {
-	struct ftdi_private *priv;
-	struct usb_device *udev;
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	int retval = 0;
 
 	dbg("%s",__FUNCTION__);
-
-	priv = usb_get_serial_port_data(serial->port[0]);
-	udev = serial->dev;
 
 	/* XXX I've no idea if the original SIO supports the event_char
 	 * sysfs parameter, so I'm playing it safe.  */
 	if (priv->chip_type != SIO) {
 		dbg("sysfs attributes for %s", ftdi_chip_name[priv->chip_type]);
-		retval = device_create_file(&udev->dev, &dev_attr_event_char);
+		retval = device_create_file(&port->dev, &dev_attr_event_char);
 		if ((!retval) &&
 		    (priv->chip_type == FT232BM || priv->chip_type == FT2232C)) {
-			retval = device_create_file(&udev->dev,
+			retval = device_create_file(&port->dev,
 						    &dev_attr_latency_timer);
 		}
 	}
 	return retval;
 }
 
-static void remove_sysfs_attrs(struct usb_serial *serial)
+static void remove_sysfs_attrs(struct usb_serial_port *port)
 {
-	struct ftdi_private *priv;
-	struct usb_device *udev;
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
 
 	dbg("%s",__FUNCTION__);
 
-	priv = usb_get_serial_port_data(serial->port[0]);
-	udev = serial->dev;
-
 	/* XXX see create_sysfs_attrs */
 	if (priv->chip_type != SIO) {
-		device_remove_file(&udev->dev, &dev_attr_event_char);
+		device_remove_file(&port->dev, &dev_attr_event_char);
 		if (priv->chip_type == FT232BM || priv->chip_type == FT2232C) {
-			device_remove_file(&udev->dev, &dev_attr_latency_timer);
+			device_remove_file(&port->dev, &dev_attr_latency_timer);
 		}
 	}
 
@@ -1169,13 +1171,9 @@ static int ftdi_sio_probe (struct usb_serial *serial, const struct usb_device_id
 	return (0);
 }
 
-/* attach subroutine */
-static int ftdi_sio_attach (struct usb_serial *serial)
+static int ftdi_sio_port_probe(struct usb_serial_port *port)
 {
-	struct usb_serial_port *port = serial->port[0];
 	struct ftdi_private *priv;
-	struct ftdi_sio_quirk *quirk;
-	int retval;
 
 	dbg("%s",__FUNCTION__);
 
@@ -1215,19 +1213,21 @@ static int ftdi_sio_attach (struct usb_serial *serial)
 	kfree(port->bulk_out_buffer);
 	port->bulk_out_buffer = NULL;
 
-	usb_set_serial_port_data(serial->port[0], priv);
+	usb_set_serial_port_data(port, priv);
 
-	ftdi_determine_type (serial->port[0]);
-	retval = create_sysfs_attrs(serial);
-	if (retval)
-		dev_err(&serial->dev->dev, "Error creating sysfs files, "
-			"continuing\n");
+	ftdi_determine_type (port);
+	create_sysfs_attrs(port);
+	return 0;
+}
 
+/* attach subroutine */
+static int ftdi_sio_attach (struct usb_serial *serial)
+{
 	/* Check for device requiring special set up. */
-	quirk = (struct ftdi_sio_quirk *)usb_get_serial_data(serial);
-	if (quirk && quirk->setup) {
+	struct ftdi_sio_quirk *quirk = usb_get_serial_data(serial);
+
+	if (quirk && quirk->setup)
 		quirk->setup(serial);
-	}
 
 	return 0;
 } /* ftdi_sio_attach */
@@ -1271,17 +1271,18 @@ static void ftdi_HE_TIRA1_setup (struct usb_serial *serial)
  *      calls __serial_close for each open of the port
  *      shutdown is called then (ie ftdi_shutdown)
  */
-
-
 static void ftdi_shutdown (struct usb_serial *serial)
-{ /* ftdi_shutdown */
+{
+	dbg("%s", __FUNCTION__);
+}
 
-	struct usb_serial_port *port = serial->port[0];
+static int ftdi_sio_port_remove(struct usb_serial_port *port)
+{
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 
 	dbg("%s", __FUNCTION__);
 
-	remove_sysfs_attrs(serial);
+	remove_sysfs_attrs(port);
 
 	/* all open ports are closed at this point
          *    (by usbserial.c:__serial_close, which calls ftdi_close)
@@ -1291,8 +1292,9 @@ static void ftdi_shutdown (struct usb_serial *serial)
 		usb_set_serial_port_data(port, NULL);
 		kfree(priv);
 	}
-} /* ftdi_shutdown */
 
+	return 0;
+}
 
 static int  ftdi_open (struct usb_serial_port *port, struct file *filp)
 { /* ftdi_open */

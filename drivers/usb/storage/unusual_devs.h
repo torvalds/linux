@@ -146,6 +146,13 @@ UNUSUAL_DEV(  0x0420, 0x0001, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Andrew Nayenko <relan@bk.ru> */
+UNUSUAL_DEV(  0x0421, 0x0019, 0x0592, 0x0592,
+		"Nokia",
+		"Nokia 6288",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64 ),
+
 /* Reported by Mario Rettig <mariorettig@web.de> */
 UNUSUAL_DEV(  0x0421, 0x042e, 0x0100, 0x0100,
 		"Nokia",
@@ -1394,16 +1401,6 @@ UNUSUAL_DEV(  0x1652, 0x6600, 0x0201, 0x0201,
 		"HD-35PUK-B",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
-
-/* Reported by Thomas Baechler <thomas@archlinux.org>
- * Fixes I/O errors with Teac HD-35PU devices
- */
-
-UNUSUAL_DEV( 0x1652, 0x6600, 0x0201, 0x0201,
-               "Super Top",
-               "USB 2.0  IDE DEVICE",
-               US_SC_DEVICE, US_PR_DEVICE, NULL,
-               US_FL_IGNORE_RESIDUE),
 
 /* patch submitted by Davide Perini <perini.davide@dpsoftware.org>
  * and Renato Perini <rperini@email.it>

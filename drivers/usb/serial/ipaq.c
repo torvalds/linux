@@ -247,6 +247,8 @@ static struct usb_device_id ipaq_id_table [] = {
 	{ USB_DEVICE(0x04AD, 0x0301) }, /* USB Sync 0301 */
 	{ USB_DEVICE(0x04AD, 0x0302) }, /* USB Sync 0302 */
 	{ USB_DEVICE(0x04AD, 0x0303) }, /* USB Sync 0303 */
+	{ USB_DEVICE(0x04AD, 0x0306) }, /* GPS Pocket PC USB Sync */
+	{ USB_DEVICE(0x04B7, 0x0531) }, /* MyGuide 7000 XL USB Sync */
 	{ USB_DEVICE(0x04C5, 0x1058) }, /* FUJITSU USB Sync */
 	{ USB_DEVICE(0x04C5, 0x1079) }, /* FUJITSU USB Sync */
 	{ USB_DEVICE(0x04DA, 0x2500) }, /* Panasonic USB Sync */

@@ -1835,7 +1835,7 @@ static int at91udc_resume(struct platform_device *pdev)
 #define	at91udc_resume	NULL
 #endif
 
-static struct platform_driver at91_udc = {
+static struct platform_driver at91_udc_driver = {
 	.remove		= __exit_p(at91udc_remove),
 	.shutdown	= at91udc_shutdown,
 	.suspend	= at91udc_suspend,
@@ -1848,13 +1848,13 @@ static struct platform_driver at91_udc = {
 
 static int __init udc_init_module(void)
 {
-	return platform_driver_probe(&at91_udc, at91udc_probe);
+	return platform_driver_probe(&at91_udc_driver, at91udc_probe);
 }
 module_init(udc_init_module);
 
 static void __exit udc_exit_module(void)
 {
-	platform_driver_unregister(&at91_udc);
+	platform_driver_unregister(&at91_udc_driver);
 }
 module_exit(udc_exit_module);
 
