@@ -22,6 +22,7 @@
 #include "ivtv-queue.h"
 #include "ivtv-udma.h"
 #include "ivtv-irq.h"
+#include "ivtv-yuv.h"
 
 static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 				 struct ivtv_dma_frame *args)

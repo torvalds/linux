@@ -62,6 +62,7 @@
 #include "ivtv-driver.h"
 #include "ivtv-cards.h"
 #include "ivtv-gpio.h"
+#include "ivtv-i2c.h"
 
 #include <media/ir-kbd-i2c.h>
 
