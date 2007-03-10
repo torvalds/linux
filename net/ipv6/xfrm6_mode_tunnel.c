@@ -86,6 +86,7 @@ static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err = -EINVAL;
+	const unsigned char *old_mac;
 
 	if (skb->nh.raw[IP6CB(skb)->nhoff] != IPPROTO_IPV6
 	    && skb->nh.raw[IP6CB(skb)->nhoff] != IPPROTO_IPIP)
@@ -107,8 +108,9 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 			ip6ip_ecn_decapsulate(skb);
 		skb->protocol = htons(ETH_P_IP);
 	}
-	skb->mac.raw = memmove(skb->data - skb->mac_len,
-			       skb->mac.raw, skb->mac_len);
+	old_mac = skb->mac.raw;
+	skb_set_mac_header(skb, -skb->mac_len);
+	memmove(skb->mac.raw, old_mac, skb->mac_len);
 	skb->nh.raw = skb->data;
 	err = 0;
 
