@@ -1333,7 +1333,7 @@ static int module_start(void)
 		printk(KERN_INFO "ivtv:  debug value must be >= 0 and <= 511!\n");
 	}
 
-	if (pci_module_init(&ivtv_pci_driver)) {
+	if (pci_register_driver(&ivtv_pci_driver)) {
 		printk(KERN_ERR "ivtv:  Error detecting PCI card\n");
 		return -ENODEV;
 	}
