@@ -314,7 +314,9 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 
-	skb->nh.iph = pip =(struct iphdr *)skb_put(skb, sizeof(struct iphdr)+4);
+	skb_reset_network_header(skb);
+	pip = skb->nh.iph;
+	skb_put(skb, sizeof(struct iphdr) + 4);
 
 	pip->version  = 4;
 	pip->ihl      = (sizeof(struct iphdr)+4)>>2;
@@ -664,7 +666,9 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 
-	skb->nh.iph = iph = (struct iphdr *)skb_put(skb, sizeof(struct iphdr)+4);
+	skb_reset_network_header(skb);
+	iph = skb->nh.iph;
+	skb_put(skb, sizeof(struct iphdr) + 4);
 
 	iph->version  = 4;
 	iph->ihl      = (sizeof(struct iphdr)+4)>>2;

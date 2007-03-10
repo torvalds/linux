@@ -291,7 +291,9 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 	skb->priority = sk->sk_priority;
 	skb->dst = dst_clone(&rt->u.dst);
 
-	skb->nh.iph = iph = (struct iphdr *)skb_put(skb, length);
+	skb_reset_network_header(skb);
+	iph = skb->nh.iph;
+	skb_put(skb, length);
 
 	skb->ip_summed = CHECKSUM_NONE;
 

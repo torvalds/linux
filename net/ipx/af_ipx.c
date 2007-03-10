@@ -576,7 +576,9 @@ static struct sk_buff *ipxitf_adjust_skbuff(struct ipx_interface *intrfc,
 	skb2 = alloc_skb(len, GFP_ATOMIC);
 	if (skb2) {
 		skb_reserve(skb2, out_offset);
-		skb2->nh.raw = skb2->h.raw = skb_put(skb2, skb->len);
+		skb_reset_network_header(skb2);
+		skb2->h.raw = skb2->data;
+		skb_put(skb2, skb->len);
 		memcpy(ipx_hdr(skb2), ipx_hdr(skb), skb->len);
 		memcpy(skb2->cb, skb->cb, sizeof(skb->cb));
 	}
