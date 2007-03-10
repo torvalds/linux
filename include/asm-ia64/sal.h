@@ -847,12 +847,13 @@ extern int ia64_sal_oemcall_reentrant(struct ia64_sal_retval *, u64, u64, u64,
  */
 struct sal_to_os_boot {
 	u64 rr[8];		/* Region Registers */
-	u64	br[6];		/* br0: return addr into SAL boot rendez routine */
+	u64 br[6];		/* br0:
+				 * return addr into SAL boot rendez routine */
 	u64 gr1;		/* SAL:GP */
 	u64 gr12;		/* SAL:SP */
 	u64 gr13;		/* SAL: Task Pointer */
 	u64 fpsr;
-	u64	pfs;
+	u64 pfs;
 	u64 rnat;
 	u64 unat;
 	u64 bspstore;

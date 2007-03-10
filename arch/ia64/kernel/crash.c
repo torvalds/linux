@@ -21,9 +21,9 @@
 #include <asm/mca.h>
 
 int kdump_status[NR_CPUS];
-atomic_t kdump_cpu_freezed;
+static atomic_t kdump_cpu_frozen;
 atomic_t kdump_in_progress;
-int kdump_on_init = 1;
+static int kdump_on_init = 1;
 
 static inline Elf64_Word
 *append_elf_note(Elf64_Word *buf, char *name, unsigned type, void *data,
@@ -86,7 +86,7 @@ kdump_wait_cpu_freeze(void)
 	int cpu_num = num_online_cpus() - 1;
 	int timeout = 1000;
 	while(timeout-- > 0) {
-		if (atomic_read(&kdump_cpu_freezed) == cpu_num)
+		if (atomic_read(&kdump_cpu_frozen) == cpu_num)
 			return 0;
 		udelay(1000);
 	}
@@ -108,8 +108,8 @@ machine_crash_shutdown(struct pt_regs *pt)
 	kexec_disable_iosapic();
 #ifdef CONFIG_SMP
 	kdump_smp_send_stop();
+	/* not all cpu response to IPI, send INIT to freeze them */
 	if (kdump_wait_cpu_freeze() && kdump_on_init) 	{
-		//not all cpu response to IPI, send INIT to freeze them
 		kdump_smp_send_init();
 	}
 #endif
@@ -136,7 +136,7 @@ kdump_cpu_freeze(struct unw_frame_info *info, void *arg)
 	cpuid = smp_processor_id();
 	crash_save_this_cpu();
 	current->thread.ksp = (__u64)info->sw - 16;
-	atomic_inc(&kdump_cpu_freezed);
+	atomic_inc(&kdump_cpu_frozen);
 	kdump_status[cpuid] = 1;
 	mb();
 #ifdef CONFIG_HOTPLUG_CPU
