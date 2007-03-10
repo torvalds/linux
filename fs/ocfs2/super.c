@@ -115,8 +115,6 @@ static void ocfs2_write_super(struct super_block *sb);
 static struct inode *ocfs2_alloc_inode(struct super_block *sb);
 static void ocfs2_destroy_inode(struct inode *inode);
 
-static unsigned long long ocfs2_max_file_offset(unsigned int blockshift);
-
 static const struct super_operations ocfs2_sops = {
 	.statfs		= ocfs2_statfs,
 	.alloc_inode	= ocfs2_alloc_inode,
@@ -321,7 +319,7 @@ static void ocfs2_destroy_inode(struct inode *inode)
 /* From xfs_super.c:xfs_max_file_offset
  * Copyright (c) 2000-2004 Silicon Graphics, Inc.
  */
-static unsigned long long ocfs2_max_file_offset(unsigned int blockshift)
+unsigned long long ocfs2_max_file_offset(unsigned int blockshift)
 {
 	unsigned int pagefactor = 1;
 	unsigned int bitshift = BITS_PER_LONG - 1;

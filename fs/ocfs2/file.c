@@ -1111,17 +1111,16 @@ out:
 	return ret;
 }
 
-static int ocfs2_write_remove_suid(struct inode *inode)
+static int __ocfs2_write_remove_suid(struct inode *inode,
+				     struct buffer_head *bh)
 {
 	int ret;
-	struct buffer_head *bh = NULL;
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	handle_t *handle;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_dinode *di;
 
 	mlog_entry("(Inode %llu, mode 0%o)\n",
-		   (unsigned long long)oi->ip_blkno, inode->i_mode);
+		   (unsigned long long)OCFS2_I(inode)->ip_blkno, inode->i_mode);
 
 	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (handle == NULL) {
@@ -1130,17 +1129,11 @@ static int ocfs2_write_remove_suid(struct inode *inode)
 		goto out;
 	}
 
-	ret = ocfs2_read_block(osb, oi->ip_blkno, &bh, OCFS2_BH_CACHED, inode);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out_trans;
-	}
-
 	ret = ocfs2_journal_access(handle, inode, bh,
 				   OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
-		goto out_bh;
+		goto out_trans;
 	}
 
 	inode->i_mode &= ~S_ISUID;
@@ -1153,8 +1146,7 @@ static int ocfs2_write_remove_suid(struct inode *inode)
 	ret = ocfs2_journal_dirty(handle, bh);
 	if (ret < 0)
 		mlog_errno(ret);
-out_bh:
-	brelse(bh);
+
 out_trans:
 	ocfs2_commit_trans(osb, handle);
 out:
@@ -1197,6 +1189,25 @@ static int ocfs2_check_range_for_holes(struct inode *inode, loff_t pos,
 		cpos += extent_len;
 	}
 out:
+	return ret;
+}
+
+static int ocfs2_write_remove_suid(struct inode *inode)
+{
+	int ret;
+	struct buffer_head *bh = NULL;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+
+	ret = ocfs2_read_block(OCFS2_SB(inode->i_sb),
+			       oi->ip_blkno, &bh, OCFS2_BH_CACHED, inode);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret =  __ocfs2_write_remove_suid(inode, bh);
+out:
+	brelse(bh);
 	return ret;
 }
 
@@ -1487,6 +1498,151 @@ out:
 	ocfs2_schedule_truncate_log_flush(osb, 1);
 	ocfs2_run_deallocs(osb, &dealloc);
 
+	return ret;
+}
+
+/*
+ * Parts of this function taken from xfs_change_file_space()
+ */
+int ocfs2_change_file_space(struct file *file, unsigned int cmd,
+			    struct ocfs2_space_resv *sr)
+{
+	int ret;
+	s64 llen;
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct buffer_head *di_bh = NULL;
+	handle_t *handle;
+	unsigned long long max_off = ocfs2_max_file_offset(inode->i_sb->s_blocksize_bits);
+
+	if ((cmd == OCFS2_IOC_RESVSP || cmd == OCFS2_IOC_RESVSP64) &&
+	    !ocfs2_writes_unwritten_extents(osb))
+		return -ENOTTY;
+	else if ((cmd == OCFS2_IOC_UNRESVSP || cmd == OCFS2_IOC_UNRESVSP64) &&
+		 !ocfs2_sparse_alloc(osb))
+		return -ENOTTY;
+
+	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
+
+	if (!(file->f_mode & FMODE_WRITE))
+		return -EBADF;
+
+	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
+		return -EROFS;
+
+	mutex_lock(&inode->i_mutex);
+
+	/*
+	 * This prevents concurrent writes on other nodes
+	 */
+	ret = ocfs2_rw_lock(inode, 1);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_meta_lock(inode, &di_bh, 1);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_rw_unlock;
+	}
+
+	if (inode->i_flags & (S_IMMUTABLE|S_APPEND)) {
+		ret = -EPERM;
+		goto out_meta_unlock;
+	}
+
+	switch (sr->l_whence) {
+	case 0: /*SEEK_SET*/
+		break;
+	case 1: /*SEEK_CUR*/
+		sr->l_start += file->f_pos;
+		break;
+	case 2: /*SEEK_END*/
+		sr->l_start += i_size_read(inode);
+		break;
+	default:
+		ret = -EINVAL;
+		goto out_meta_unlock;
+	}
+	sr->l_whence = 0;
+
+	llen = sr->l_len > 0 ? sr->l_len - 1 : sr->l_len;
+
+	if (sr->l_start < 0
+	    || sr->l_start > max_off
+	    || (sr->l_start + llen) < 0
+	    || (sr->l_start + llen) > max_off) {
+		ret = -EINVAL;
+		goto out_meta_unlock;
+	}
+
+	if (cmd == OCFS2_IOC_RESVSP || cmd == OCFS2_IOC_RESVSP64) {
+		if (sr->l_len <= 0) {
+			ret = -EINVAL;
+			goto out_meta_unlock;
+		}
+	}
+
+	if (should_remove_suid(file->f_path.dentry)) {
+		ret = __ocfs2_write_remove_suid(inode, di_bh);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_meta_unlock;
+		}
+	}
+
+	down_write(&OCFS2_I(inode)->ip_alloc_sem);
+	switch (cmd) {
+	case OCFS2_IOC_RESVSP:
+	case OCFS2_IOC_RESVSP64:
+		/*
+		 * This takes unsigned offsets, but the signed ones we
+		 * pass have been checked against overflow above.
+		 */
+		ret = ocfs2_allocate_unwritten_extents(inode, sr->l_start,
+						       sr->l_len);
+		break;
+	case OCFS2_IOC_UNRESVSP:
+	case OCFS2_IOC_UNRESVSP64:
+		ret = ocfs2_remove_inode_range(inode, di_bh, sr->l_start,
+					       sr->l_len);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+	up_write(&OCFS2_I(inode)->ip_alloc_sem);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_meta_unlock;
+	}
+
+	/*
+	 * We update c/mtime for these changes
+	 */
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out_meta_unlock;
+	}
+
+	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+	ret = ocfs2_mark_inode_dirty(handle, inode, di_bh);
+	if (ret < 0)
+		mlog_errno(ret);
+
+	ocfs2_commit_trans(osb, handle);
+
+out_meta_unlock:
+	brelse(di_bh);
+	ocfs2_meta_unlock(inode, 1);
+out_rw_unlock:
+	ocfs2_rw_unlock(inode, 1);
+
+	mutex_unlock(&inode->i_mutex);
+out:
 	return ret;
 }
 

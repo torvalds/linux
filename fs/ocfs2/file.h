@@ -62,4 +62,7 @@ int ocfs2_should_update_atime(struct inode *inode,
 int ocfs2_update_inode_atime(struct inode *inode,
 			     struct buffer_head *bh);
 
+int ocfs2_change_file_space(struct file *file, unsigned int cmd,
+			    struct ocfs2_space_resv *sr);
+
 #endif /* OCFS2_FILE_H */
