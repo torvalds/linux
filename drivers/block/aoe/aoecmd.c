@@ -118,7 +118,7 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 
 	/* initialize the headers & frame */
 	skb = f->skb;
-	h = (struct aoe_hdr *) skb->mac.raw;
+	h = aoe_hdr(skb);
 	ah = (struct aoe_atahdr *) (h+1);
 	skb_put(skb, sizeof *h + sizeof *ah);
 	memset(h, 0, skb->len);
@@ -207,7 +207,7 @@ aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff **tail)
 		skb->dev = ifp;
 		if (sl_tail == NULL)
 			sl_tail = skb;
-		h = (struct aoe_hdr *) skb->mac.raw;
+		h = aoe_hdr(skb);
 		memset(h, 0, sizeof *h + sizeof *ch);
 
 		memset(h->dst, 0xff, sizeof h->dst);
@@ -300,7 +300,7 @@ rexmit(struct aoedev *d, struct frame *f)
 	aoechr_error(buf);
 
 	skb = f->skb;
-	h = (struct aoe_hdr *) skb->mac.raw;
+	h = aoe_hdr(skb);
 	ah = (struct aoe_atahdr *) (h+1);
 	f->tag = n;
 	h->tag = cpu_to_be32(n);
@@ -529,7 +529,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	char ebuf[128];
 	u16 aoemajor;
 
-	hin = (struct aoe_hdr *) skb->mac.raw;
+	hin = aoe_hdr(skb);
 	aoemajor = be16_to_cpu(get_unaligned(&hin->major));
 	d = aoedev_by_aoeaddr(aoemajor, hin->minor);
 	if (d == NULL) {
@@ -561,7 +561,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	calc_rttavg(d, tsince(f->tag));
 
 	ahin = (struct aoe_atahdr *) (hin+1);
-	hout = (struct aoe_hdr *) f->skb->mac.raw;
+	hout = aoe_hdr(f->skb);
 	ahout = (struct aoe_atahdr *) (hout+1);
 	buf = f->buf;
 
@@ -695,7 +695,7 @@ aoecmd_ata_id(struct aoedev *d)
 
 	/* initialize the headers & frame */
 	skb = f->skb;
-	h = (struct aoe_hdr *) skb->mac.raw;
+	h = aoe_hdr(skb);
 	ah = (struct aoe_atahdr *) (h+1);
 	skb_put(skb, sizeof *h + sizeof *ah);
 	memset(h, 0, skb->len);
@@ -726,7 +726,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	enum { MAXFRAMES = 16 };
 	u16 n;
 
-	h = (struct aoe_hdr *) skb->mac.raw;
+	h = aoe_hdr(skb);
 	ch = (struct aoe_cfghdr *) (h+1);
 
 	/*
