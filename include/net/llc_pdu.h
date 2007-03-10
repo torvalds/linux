@@ -218,11 +218,6 @@ static inline struct llc_pdu_un *llc_pdu_un_hdr(struct sk_buff *skb)
 	return (struct llc_pdu_un *)skb->nh.raw;
 }
 
-static inline void *llc_set_pdu_hdr(struct sk_buff *skb, void *ptr)
-{
-	return skb->nh.raw = ptr;
-}
-
 /**
  *	llc_pdu_header_init - initializes pdu header
  *	@skb: input skb that header must be set into it.
@@ -237,7 +232,11 @@ static inline void llc_pdu_header_init(struct sk_buff *skb, u8 type,
 				       u8 ssap, u8 dsap, u8 cr)
 {
 	const int hlen = type == LLC_PDU_TYPE_U ? 3 : 4;
-	struct llc_pdu_un *pdu = llc_set_pdu_hdr(skb, skb_push(skb, hlen));
+	struct llc_pdu_un *pdu;
+
+	skb_push(skb, hlen);
+	skb->nh.raw = skb->data;
+	pdu = llc_pdu_un_hdr(skb);
 	pdu->dsap = dsap;
 	pdu->ssap = ssap;
 	pdu->ssap |= cr;
