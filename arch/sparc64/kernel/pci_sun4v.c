@@ -583,7 +583,7 @@ static void pci_4v_dma_sync_sg_for_cpu(struct pci_dev *pdev, struct scatterlist 
 	/* Nothing to do... */
 }
 
-struct pci_iommu_ops pci_sun4v_iommu_ops = {
+const struct pci_iommu_ops pci_sun4v_iommu_ops = {
 	.alloc_consistent		= pci_4v_alloc_consistent,
 	.free_consistent		= pci_4v_free_consistent,
 	.map_single			= pci_4v_map_single,

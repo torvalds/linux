@@ -759,7 +759,7 @@ static void pci_4u_dma_sync_sg_for_cpu(struct pci_dev *pdev, struct scatterlist 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-struct pci_iommu_ops pci_sun4u_iommu_ops = {
+const struct pci_iommu_ops pci_sun4u_iommu_ops = {
 	.alloc_consistent		= pci_4u_alloc_consistent,
 	.free_consistent		= pci_4u_free_consistent,
 	.map_single			= pci_4u_map_single,

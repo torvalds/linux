@@ -282,10 +282,10 @@ int __init pcic_present(void)
 	return pci_controller_scan(pci_is_controller);
 }
 
-struct pci_iommu_ops *pci_iommu_ops;
+const struct pci_iommu_ops *pci_iommu_ops;
 EXPORT_SYMBOL(pci_iommu_ops);
 
-extern struct pci_iommu_ops pci_sun4u_iommu_ops,
+extern const struct pci_iommu_ops pci_sun4u_iommu_ops,
 	pci_sun4v_iommu_ops;
 
 /* Find each controller in the system, attach and initialize
