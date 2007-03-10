@@ -332,7 +332,7 @@ extern struct class_device *class_device_create(struct class *cls,
 extern void class_device_destroy(struct class *cls, dev_t devt);
 
 struct device_type {
-	struct device_attribute *attrs;
+	struct attribute_group **groups;
 	int (*uevent)(struct device *dev, char **envp, int num_envp,
 		      char *buffer, int buffer_size);
 	void (*release)(struct device *dev);
