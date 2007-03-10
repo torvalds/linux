@@ -576,6 +576,13 @@ int ata_acpi_exec_tfs(struct ata_port *ap)
 
 	if (noacpi)
 		return 0;
+	/*
+	 * TBD - implement PATA support.  For now,
+	 * we should not run GTF on PATA devices since some
+	 * PATA require execution of GTM/STM before GTF.
+	 */
+	if (!(ap->cbl == ATA_CBL_SATA))
+		return 0;
 
 	for (ix = 0; ix < ATA_MAX_DEVICES; ix++) {
 		if (!ata_dev_enabled(&ap->device[ix]))
