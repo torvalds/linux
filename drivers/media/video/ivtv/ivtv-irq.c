@@ -27,6 +27,7 @@
 #include "ivtv-ioctl.h"
 #include "ivtv-mailbox.h"
 #include "ivtv-vbi.h"
+#include "ivtv-yuv.h"
 
 #define DMA_MAGIC_COOKIE 0x000001fe
 
@@ -47,6 +48,19 @@ static inline int ivtv_use_pio(struct ivtv_stream *s)
 
 	return s->dma == PCI_DMA_NONE ||
 	    (SLICED_VBI_PIO && s->type == IVTV_ENC_STREAM_TYPE_VBI && itv->vbi.sliced_in->service_set);
+}
+
+void ivtv_irq_work_handler(struct work_struct *work)
+{
+	struct ivtv *itv = container_of(work, struct ivtv, irq_work_queue);
+
+	DEFINE_WAIT(wait);
+
+	if (test_and_clear_bit(IVTV_F_I_WORK_HANDLER_VBI, &itv->i_flags))
+		vbi_work_handler(itv);
+
+	if (test_and_clear_bit(IVTV_F_I_WORK_HANDLER_YUV, &itv->i_flags))
+		ivtv_yuv_work_handler(itv);
 }
 
 /* Determine the required DMA size, setup enough buffers in the predma queue and
@@ -643,6 +657,7 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 	}
 	if (frame != (itv->lastVsyncFrame & 1)) {
 		struct ivtv_stream *s = ivtv_get_output_stream(itv);
+		int work = 0;
 
 		itv->lastVsyncFrame += 1;
 		if (frame == 0) {
@@ -661,8 +676,10 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 			wake_up(&s->waitq);
 
 		/* Send VBI to saa7127 */
-		if (frame)
-			vbi_schedule_work(itv);
+		if (frame) {
+			set_bit(IVTV_F_I_WORK_HANDLER_VBI, &itv->i_flags);
+			work = 1;
+		}
 
 		/* Check if we need to update the yuv registers */
 		if ((itv->yuv_info.yuv_forced_update || itv->yuv_info.new_frame_info[last_dma_frame].update) && last_dma_frame != -1) {
@@ -673,9 +690,12 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 				itv->yuv_info.update_frame = last_dma_frame;
 				itv->yuv_info.new_frame_info[last_dma_frame].update = 0;
 				itv->yuv_info.yuv_forced_update = 0;
-				queue_work(itv->yuv_info.work_queues, &itv->yuv_info.work_queue);
+				set_bit(IVTV_F_I_WORK_HANDLER_YUV, &itv->i_flags);
+				work = 1;
 			}
 		}
+		if (work)
+			queue_work(itv->irq_work_queues, &itv->irq_work_queue);
 	}
 }
 

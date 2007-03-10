@@ -21,4 +21,4 @@
 int ivtv_yuv_filter_check(struct ivtv *itv);
 int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args);
 void ivtv_yuv_close(struct ivtv *itv);
-void ivtv_yuv_work_handler (struct work_struct *work);
+void ivtv_yuv_work_handler (struct ivtv *itv);

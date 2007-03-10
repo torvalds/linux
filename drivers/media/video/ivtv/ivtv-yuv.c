@@ -804,12 +804,8 @@ static u32 ivtv_yuv_window_setup (struct ivtv *itv, struct yuv_frame_info *windo
 }
 
 /* Update the scaling register to the requested value */
-void ivtv_yuv_work_handler (struct work_struct *work)
+void ivtv_yuv_work_handler (struct ivtv *itv)
 {
-	struct yuv_playback_info *info = container_of(work, struct yuv_playback_info, work_queue);
-	struct ivtv *itv = container_of(info, struct ivtv, yuv_info);
-	DEFINE_WAIT(wait);
-
 	struct yuv_frame_info window;
 	u32 yuv_update;
 

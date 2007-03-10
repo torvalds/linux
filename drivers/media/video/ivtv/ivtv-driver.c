@@ -628,21 +628,13 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->lock = SPIN_LOCK_UNLOCKED;
 	itv->dma_reg_lock = SPIN_LOCK_UNLOCKED;
 
-	itv->vbi.work_queues = create_workqueue("ivtv_vbi");
-	if (itv->vbi.work_queues == NULL) {
-		IVTV_ERR("Could not create VBI workqueue\n");
+	itv->irq_work_queues = create_workqueue(itv->name);
+	if (itv->irq_work_queues == NULL) {
+		IVTV_ERR("Could not create ivtv workqueue\n");
 		return -1;
 	}
 
-	itv->yuv_info.work_queues = create_workqueue("ivtv_yuv");
-	if (itv->yuv_info.work_queues == NULL) {
-		IVTV_ERR("Could not create YUV workqueue\n");
-		destroy_workqueue(itv->vbi.work_queues);
-		return -1;
-	}
-
-	INIT_WORK(&itv->vbi.work_queue, vbi_work_handler);
-	INIT_WORK(&itv->yuv_info.work_queue, ivtv_yuv_work_handler);
+	INIT_WORK(&itv->irq_work_queue, ivtv_irq_work_handler);
 
 	/* start counting open_id at 1 */
 	itv->open_id = 1;
@@ -1241,8 +1233,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	if (itv->has_cx23415)
 		release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
       free_workqueue:
-	destroy_workqueue(itv->vbi.work_queues);
-	destroy_workqueue(itv->yuv_info.work_queues);
+	destroy_workqueue(itv->irq_work_queues);
       err:
 	if (retval == 0)
 		retval = -ENODEV;
@@ -1284,10 +1275,8 @@ static void ivtv_remove(struct pci_dev *pci_dev)
 
 	/* Stop all Work Queues */
 	IVTV_DEBUG_INFO(" Stop Work Queues.\n");
-	flush_workqueue(itv->vbi.work_queues);
-	flush_workqueue(itv->yuv_info.work_queues);
-	destroy_workqueue(itv->vbi.work_queues);
-	destroy_workqueue(itv->yuv_info.work_queues);
+	flush_workqueue(itv->irq_work_queues);
+	destroy_workqueue(itv->irq_work_queues);
 
 	IVTV_DEBUG_INFO(" Stopping Firmware.\n");
 	ivtv_halt_firmware(itv);

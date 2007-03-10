@@ -383,28 +383,29 @@ struct ivtv_mailbox_data {
 #define IVTV_F_S_APPL_IO        8	/* this stream is used read/written by an application */
 
 /* per-ivtv, i_flags */
-#define IVTV_F_I_DMA		0 	/* DMA in progress */
-#define IVTV_F_I_UDMA		1 	/* UDMA in progress */
-#define IVTV_F_I_UDMA_PENDING	2 	/* UDMA pending */
-
-#define IVTV_F_I_SPEED_CHANGE	3 	/* A speed change is in progress */
-#define IVTV_F_I_EOS		4 	/* End of encoder stream reached */
-#define IVTV_F_I_RADIO_USER	5 	/* The radio tuner is selected */
-#define IVTV_F_I_DIG_RST	6 	/* Reset digitizer */
-#define IVTV_F_I_DEC_YUV	7 	/* YUV instead of MPG is being decoded */
-#define IVTV_F_I_ENC_VBI	8 	/* VBI DMA */
-#define IVTV_F_I_UPDATE_CC	9  	/* CC should be updated */
-#define IVTV_F_I_UPDATE_WSS	10 	/* WSS should be updated */
-#define IVTV_F_I_UPDATE_VPS	11 	/* VPS should be updated */
-#define IVTV_F_I_DECODING_YUV	12 	/* this stream is YUV frame decoding */
-#define IVTV_F_I_ENC_PAUSED	13 	/* the encoder is paused */
+#define IVTV_F_I_DMA		   0 	/* DMA in progress */
+#define IVTV_F_I_UDMA		   1 	/* UDMA in progress */
+#define IVTV_F_I_UDMA_PENDING	   2 	/* UDMA pending */
+#define IVTV_F_I_SPEED_CHANGE	   3 	/* A speed change is in progress */
+#define IVTV_F_I_EOS		   4 	/* End of encoder stream reached */
+#define IVTV_F_I_RADIO_USER	   5 	/* The radio tuner is selected */
+#define IVTV_F_I_DIG_RST	   6 	/* Reset digitizer */
+#define IVTV_F_I_DEC_YUV	   7 	/* YUV instead of MPG is being decoded */
+#define IVTV_F_I_ENC_VBI	   8 	/* VBI DMA */
+#define IVTV_F_I_UPDATE_CC	   9  	/* CC should be updated */
+#define IVTV_F_I_UPDATE_WSS	   10 	/* WSS should be updated */
+#define IVTV_F_I_UPDATE_VPS	   11 	/* VPS should be updated */
+#define IVTV_F_I_DECODING_YUV	   12 	/* this stream is YUV frame decoding */
+#define IVTV_F_I_ENC_PAUSED	   13 	/* the encoder is paused */
 #define IVTV_F_I_VALID_DEC_TIMINGS 14 	/* last_dec_timing is valid */
+#define IVTV_F_I_WORK_HANDLER_VBI  15	/* there is work to be done for VBI */
+#define IVTV_F_I_WORK_HANDLER_YUV  16	/* there is work to be done for YUV */
 
 /* Event notifications */
-#define IVTV_F_I_EV_DEC_STOPPED	28	/* decoder stopped event */
-#define IVTV_F_I_EV_VSYNC	29 	/* VSYNC event */
-#define IVTV_F_I_EV_VSYNC_FIELD 30 	/* VSYNC event field (0 = first, 1 = second field) */
-#define IVTV_F_I_EV_VSYNC_ENABLED 31 	/* VSYNC event enabled */
+#define IVTV_F_I_EV_DEC_STOPPED	   28	/* decoder stopped event */
+#define IVTV_F_I_EV_VSYNC	   29 	/* VSYNC event */
+#define IVTV_F_I_EV_VSYNC_FIELD    30 	/* VSYNC event field (0 = first, 1 = second field) */
+#define IVTV_F_I_EV_VSYNC_ENABLED  31 	/* VSYNC event enabled */
 
 /* Scatter-Gather array element, used in DMA transfers */
 struct ivtv_SG_element {
@@ -612,8 +613,6 @@ struct yuv_playback_info
 
 	u32 yuv_forced_update;
 	int update_frame;
-	struct workqueue_struct *work_queues;
-	struct work_struct work_queue;
 	struct yuv_frame_info new_frame_info[4];
 	struct yuv_frame_info old_frame_info;
 	struct yuv_frame_info old_frame_info_args;
@@ -676,8 +675,6 @@ struct vbi_info {
 	struct ivtv_buffer sliced_mpeg_buf;
 	u32 inserted_frame;
 
-	struct workqueue_struct *work_queues;
-	struct work_struct work_queue;
 	u32 start[2], count;
 	u32 raw_size;
 	u32 sliced_size;
@@ -734,6 +731,9 @@ struct ivtv {
 
 	u32 base_addr;
 	u32 irqmask;
+
+	struct workqueue_struct *irq_work_queues;
+	struct work_struct irq_work_queue;
 	struct timer_list dma_timer; /* Timer used to catch unfinished DMAs */
 
 	struct vbi_info vbi;

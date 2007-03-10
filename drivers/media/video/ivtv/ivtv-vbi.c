@@ -32,11 +32,6 @@ static int odd_parity(u8 c)
 	return c & 1;
 }
 
-void vbi_schedule_work(struct ivtv *itv)
-{
-	queue_work(itv->vbi.work_queues, &itv->vbi.work_queue);
-}
-
 static void passthrough_vbi_data(struct ivtv *itv, int cnt)
 {
 	int wss = 0;
@@ -454,12 +449,10 @@ void ivtv_disable_vbi(struct ivtv *itv)
 	itv->vbi.cc_pos = 0;
 }
 
-void vbi_work_handler(struct work_struct *work)
+
+void vbi_work_handler(struct ivtv *itv)
 {
-	struct vbi_info *info = container_of(work, struct vbi_info, work_queue);
-	struct ivtv *itv = container_of(info, struct ivtv, vbi);
 	struct v4l2_sliced_vbi_data data;
-	DEFINE_WAIT(wait);
 
 	/* Lock */
 	if (itv->output_mode == OUT_PASSTHROUGH) {
