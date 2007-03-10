@@ -112,6 +112,13 @@ struct pppoe_hdr {
 } __attribute__ ((packed));
 
 #ifdef __KERNEL__
+#include <linux/skbuff.h>
+
+static inline struct pppoe_hdr *pppoe_hdr(const struct sk_buff *skb)
+{
+	return (struct pppoe_hdr *)skb->nh.raw;
+}
+
 struct pppoe_opt {
 	struct net_device      *dev;	  /* device associated with socket*/
 	int			ifindex;  /* ifindex of device associated with socket */

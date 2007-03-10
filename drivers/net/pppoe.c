@@ -347,7 +347,7 @@ static int pppoe_rcv_core(struct sock *sk, struct sk_buff *skb)
 	struct pppox_sock *relay_po = NULL;
 
 	if (sk->sk_state & PPPOX_BOUND) {
-		struct pppoe_hdr *ph = (struct pppoe_hdr *) skb->nh.raw;
+		struct pppoe_hdr *ph = pppoe_hdr(skb);
 		int len = ntohs(ph->length);
 		skb_pull_rcsum(skb, sizeof(struct pppoe_hdr));
 		if (pskb_trim_rcsum(skb, len))
@@ -401,7 +401,7 @@ static int pppoe_rcv(struct sk_buff *skb,
 	if (!(skb = skb_share_check(skb, GFP_ATOMIC)))
 		goto out;
 
-	ph = (struct pppoe_hdr *) skb->nh.raw;
+	ph = pppoe_hdr(skb);
 
 	po = get_item((unsigned long) ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
 	if (po != NULL)
@@ -433,7 +433,7 @@ static int pppoe_disc_rcv(struct sk_buff *skb,
 	if (!(skb = skb_share_check(skb, GFP_ATOMIC)))
 		goto out;
 
-	ph = (struct pppoe_hdr *) skb->nh.raw;
+	ph = pppoe_hdr(skb);
 	if (ph->code != PADT_CODE)
 		goto abort;
 
@@ -931,8 +931,6 @@ static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb = NULL;
 	int error = 0;
-	int len;
-	struct pppoe_hdr *ph = NULL;
 
 	if (sk->sk_state & PPPOX_BOUND) {
 		error = -EIO;
@@ -949,19 +947,15 @@ static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
 	m->msg_namelen = 0;
 
 	if (skb) {
-		error = 0;
-		ph = (struct pppoe_hdr *) skb->nh.raw;
-		len = ntohs(ph->length);
+		struct pppoe_hdr *ph = pppoe_hdr(skb);
+		const int len = ntohs(ph->length);
 
 		error = memcpy_toiovec(m->msg_iov, (unsigned char *) &ph->tag[0], len);
-		if (error < 0)
-			goto do_skb_free;
-		error = len;
+		if (error == 0)
+			error = len;
 	}
 
-do_skb_free:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 end:
 	return error;
 }
