@@ -1486,6 +1486,7 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 	if (memcmp(name, "1f711", 5)) {
 		v4l_dbg(1, debug, client, "chip found @ 0x%x (ID %s) does not match a known saa711x chip.\n",
 			address << 1, name);
+		kfree(client);
 		return 0;
 	}
 
