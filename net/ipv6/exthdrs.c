@@ -200,7 +200,7 @@ static int ipv6_dest_hao(struct sk_buff **skbp, int optoff)
 	struct sk_buff *skb = *skbp;
 	struct ipv6_destopt_hao *hao;
 	struct inet6_skb_parm *opt = IP6CB(skb);
-	struct ipv6hdr *ipv6h = (struct ipv6hdr *)skb->nh.raw;
+	struct ipv6hdr *ipv6h = skb->nh.ipv6h;
 	struct in6_addr tmp_addr;
 	int ret;
 
