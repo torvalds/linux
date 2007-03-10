@@ -1093,7 +1093,12 @@ static struct notifier_block ip_mr_notifier={
 
 static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 {
-	struct iphdr *iph = (struct iphdr *)skb_push(skb,sizeof(struct iphdr));
+	struct iphdr *iph;
+
+	skb_push(skb, sizeof(struct iphdr));
+	skb->h.ipiph = skb->nh.iph;
+	skb_reset_network_header(skb);
+	iph = skb->nh.iph;
 
 	iph->version	= 	4;
 	iph->tos	=	skb->nh.iph->tos;
@@ -1107,8 +1112,6 @@ static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 	ip_select_ident(iph, skb->dst, NULL);
 	ip_send_check(iph);
 
-	skb->h.ipiph = skb->nh.iph;
-	skb->nh.iph = iph;
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 	nf_reset(skb);
 }

@@ -125,11 +125,9 @@ int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
 	struct iphdr *iph;
 
 	/* Build the IP header. */
-	if (opt)
-		iph=(struct iphdr *)skb_push(skb,sizeof(struct iphdr) + opt->optlen);
-	else
-		iph=(struct iphdr *)skb_push(skb,sizeof(struct iphdr));
-
+	skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));
+	skb_reset_network_header(skb);
+	iph = skb->nh.iph;
 	iph->version  = 4;
 	iph->ihl      = 5;
 	iph->tos      = inet->tos;
@@ -143,7 +141,6 @@ int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
 	iph->protocol = sk->sk_protocol;
 	iph->tot_len  = htons(skb->len);
 	ip_select_ident(iph, &rt->u.dst, sk);
-	skb->nh.iph   = iph;
 
 	if (opt && opt->optlen) {
 		iph->ihl += opt->optlen>>2;
@@ -333,7 +330,9 @@ packet_routed:
 		goto no_route;
 
 	/* OK, we know where to send it, allocate and build IP header. */
-	iph = (struct iphdr *) skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));
+	skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));
+	skb_reset_network_header(skb);
+	iph = skb->nh.iph;
 	*((__be16 *)iph) = htons((4 << 12) | (5 << 8) | (inet->tos & 0xff));
 	iph->tot_len = htons(skb->len);
 	if (ip_dont_fragment(sk, &rt->u.dst) && !ipfragok)
@@ -344,7 +343,6 @@ packet_routed:
 	iph->protocol = sk->sk_protocol;
 	iph->saddr    = rt->rt_src;
 	iph->daddr    = rt->rt_dst;
-	skb->nh.iph   = iph;
 	/* Transport layer set skb->h.foo itself. */
 
 	if (opt && opt->optlen) {
