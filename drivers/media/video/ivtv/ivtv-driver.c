@@ -625,8 +625,8 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	mutex_init(&itv->i2c_bus_lock);
 	mutex_init(&itv->udma.lock);
 
-	itv->lock = SPIN_LOCK_UNLOCKED;
-	itv->dma_reg_lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&itv->lock);
+	spin_lock_init(&itv->dma_reg_lock);
 
 	itv->irq_work_queues = create_workqueue(itv->name);
 	if (itv->irq_work_queues == NULL) {
