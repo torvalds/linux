@@ -614,6 +614,8 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 	}
 }
 
+EXPORT_SYMBOL_GPL(__sock_recv_timestamp);
+
 static inline int __sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 				 struct msghdr *msg, size_t size, int flags)
 {
