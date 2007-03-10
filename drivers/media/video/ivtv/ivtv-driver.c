@@ -1356,6 +1356,8 @@ static void module_cleanup(void)
 	pci_unregister_driver(&ivtv_pci_driver);
 }
 
+/* Note: These symbols are exported because they are used by the ivtv-fb
+   framebuffer module and an infrared module for the IR-blaster. */
 EXPORT_SYMBOL(ivtv_set_irq_mask);
 EXPORT_SYMBOL(ivtv_cards_active);
 EXPORT_SYMBOL(ivtv_cards);
