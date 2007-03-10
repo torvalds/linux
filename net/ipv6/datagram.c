@@ -251,8 +251,9 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi *fl, u32 info)
 	if (!skb)
 		return;
 
-	iph = (struct ipv6hdr*)skb_put(skb, sizeof(struct ipv6hdr));
-	skb->nh.ipv6h = iph;
+	skb_put(skb, sizeof(struct ipv6hdr));
+	skb_reset_network_header(skb);
+	iph = skb->nh.ipv6h;
 	ipv6_addr_copy(&iph->daddr, &fl->fl6_dst);
 
 	serr = SKB_EXT_ERR(skb);

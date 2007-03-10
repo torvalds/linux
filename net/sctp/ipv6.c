@@ -122,7 +122,6 @@ SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			     int type, int code, int offset, __be32 info)
 {
 	struct inet6_dev *idev;
-	struct ipv6hdr *iph = (struct ipv6hdr *)skb->data;
 	struct sctphdr *sh = (struct sctphdr *)(skb->data + offset);
 	struct sock *sk;
 	struct sctp_association *asoc;
@@ -136,7 +135,7 @@ SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	/* Fix up skb to look at the embedded net header. */
 	saveip = skb->nh.raw;
 	savesctp  = skb->h.raw;
-	skb->nh.ipv6h = iph;
+	skb_reset_network_header(skb);
 	skb->h.raw = (char *)sh;
 	sk = sctp_err_lookup(AF_INET6, skb, sh, &asoc, &transport);
 	/* Put back, the original pointers. */

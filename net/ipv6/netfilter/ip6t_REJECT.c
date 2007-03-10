@@ -120,8 +120,9 @@ static void send_reset(struct sk_buff *oldskb)
 
 	skb_reserve(nskb, hh_len + dst->header_len);
 
-	ip6h = nskb->nh.ipv6h = (struct ipv6hdr *)
-					skb_put(nskb, sizeof(struct ipv6hdr));
+	skb_put(nskb, sizeof(struct ipv6hdr));
+	skb_reset_network_header(nskb);
+	ip6h = nskb->nh.ipv6h;
 	ip6h->version = 6;
 	ip6h->hop_limit = dst_metric(dst, RTAX_HOPLIMIT);
 	ip6h->nexthdr = IPPROTO_TCP;

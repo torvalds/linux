@@ -575,7 +575,9 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 	skb->priority = sk->sk_priority;
 	skb->dst = dst_clone(&rt->u.dst);
 
-	skb->nh.ipv6h = iph = (struct ipv6hdr *)skb_put(skb, length);
+	skb_put(skb, length);
+	skb_reset_network_header(skb);
+	iph = skb->nh.ipv6h;
 
 	skb->ip_summed = CHECKSUM_NONE;
 
