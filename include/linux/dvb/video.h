@@ -120,6 +120,13 @@ struct video_command {
 	};
 };
 
+/* FIELD_UNKNOWN can be used if the hardware does not know whether
+   the Vsync is for an odd, even or progressive (i.e. non-interlaced)
+   field. */
+#define VIDEO_VSYNC_FIELD_UNKNOWN  	(0)
+#define VIDEO_VSYNC_FIELD_ODD 		(1)
+#define VIDEO_VSYNC_FIELD_EVEN		(2)
+#define VIDEO_VSYNC_FIELD_PROGRESSIVE	(3)
 
 struct video_event {
 	int32_t type;
@@ -131,6 +138,7 @@ struct video_event {
 	union {
 		video_size_t size;
 		unsigned int frame_rate;	/* in frames per 1000sec */
+		unsigned char vsync_field;	/* unknown/odd/even/progressive */
 	} u;
 };
 
