@@ -1483,8 +1483,7 @@ static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
 	struct buffer_head **bhs = NULL;
 	const char *c;
 	struct super_block *sb = osb->sb;
-	u64 p_blkno;
-	int p_blocks;
+	u64 p_blkno, p_blocks;
 	int virtual, blocks, status, i, bytes_left;
 
 	bytes_left = i_size_read(inode) + 1;

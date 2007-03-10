@@ -39,6 +39,97 @@
 #include "buffer_head_io.h"
 
 /*
+ * Return the 1st index within el which contains an extent start
+ * larger than v_cluster.
+ */
+static int ocfs2_search_for_hole_index(struct ocfs2_extent_list *el,
+				       u32 v_cluster)
+{
+	int i;
+	struct ocfs2_extent_rec *rec;
+
+	for(i = 0; i < le16_to_cpu(el->l_next_free_rec); i++) {
+		rec = &el->l_recs[i];
+
+		if (v_cluster < le32_to_cpu(rec->e_cpos))
+			break;
+	}
+
+	return i;
+}
+
+/*
+ * Figure out the size of a hole which starts at v_cluster within the given
+ * extent list.
+ *
+ * If there is no more allocation past v_cluster, we return the maximum
+ * cluster size minus v_cluster.
+ *
+ * If we have in-inode extents, then el points to the dinode list and
+ * eb_bh is NULL. Otherwise, eb_bh should point to the extent block
+ * containing el.
+ */
+static int ocfs2_figure_hole_clusters(struct inode *inode,
+				      struct ocfs2_extent_list *el,
+				      struct buffer_head *eb_bh,
+				      u32 v_cluster,
+				      u32 *num_clusters)
+{
+	int ret, i;
+	struct buffer_head *next_eb_bh = NULL;
+	struct ocfs2_extent_block *eb, *next_eb;
+
+	i = ocfs2_search_for_hole_index(el, v_cluster);
+
+	if (i == le16_to_cpu(el->l_next_free_rec) && eb_bh) {
+		eb = (struct ocfs2_extent_block *)eb_bh->b_data;
+
+		/*
+		 * Check the next leaf for any extents.
+		 */
+
+		if (le64_to_cpu(eb->h_next_leaf_blk) == 0ULL)
+			goto no_more_extents;
+
+		ret = ocfs2_read_block(OCFS2_SB(inode->i_sb),
+				       le64_to_cpu(eb->h_next_leaf_blk),
+				       &next_eb_bh, OCFS2_BH_CACHED, inode);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+		next_eb = (struct ocfs2_extent_block *)next_eb_bh->b_data;
+
+		if (!OCFS2_IS_VALID_EXTENT_BLOCK(next_eb)) {
+			ret = -EROFS;
+			OCFS2_RO_ON_INVALID_EXTENT_BLOCK(inode->i_sb, next_eb);
+			goto out;
+		}
+
+		el = &next_eb->h_list;
+
+		i = ocfs2_search_for_hole_index(el, v_cluster);
+	}
+
+no_more_extents:
+	if (i == le16_to_cpu(el->l_next_free_rec)) {
+		/*
+		 * We're at the end of our existing allocation. Just
+		 * return the maximum number of clusters we could
+		 * possibly allocate.
+		 */
+		*num_clusters = UINT_MAX - v_cluster;
+	} else {
+		*num_clusters = le32_to_cpu(el->l_recs[i].e_cpos) - v_cluster;
+	}
+
+	ret = 0;
+out:
+	brelse(next_eb_bh);
+	return ret;
+}
+
+/*
  * Return the index of the extent record which contains cluster #v_cluster.
  * -1 is returned if it was not found.
  *
@@ -117,11 +208,19 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 	if (i == -1) {
 		/*
 		 * A hole was found. Return some canned values that
-		 * callers can key on.
+		 * callers can key on. If asked for, num_clusters will
+		 * be populated with the size of the hole.
 		 */
 		*p_cluster = 0;
-		if (num_clusters)
-			*num_clusters = 1;
+		if (num_clusters) {
+			ret = ocfs2_figure_hole_clusters(inode, el, eb_bh,
+							 v_cluster,
+							 num_clusters);
+			if (ret) {
+				mlog_errno(ret);
+				goto out;
+			}
+		}
 	} else {
 		rec = &el->l_recs[i];
 
@@ -162,7 +261,7 @@ out:
  * all while the map is in the process of being updated.
  */
 int ocfs2_extent_map_get_blocks(struct inode *inode, u64 v_blkno, u64 *p_blkno,
-				int *ret_count, unsigned int *extent_flags)
+				u64 *ret_count, unsigned int *extent_flags)
 {
 	int ret;
 	int bpc = ocfs2_clusters_to_blocks(inode->i_sb, 1);

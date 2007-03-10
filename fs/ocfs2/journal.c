@@ -649,9 +649,9 @@ bail:
 static int ocfs2_force_read_journal(struct inode *inode)
 {
 	int status = 0;
-	int i, p_blocks;
-	u64 v_blkno, p_blkno;
-#define CONCURRENT_JOURNAL_FILL 32
+	int i;
+	u64 v_blkno, p_blkno, p_blocks;
+#define CONCURRENT_JOURNAL_FILL 32ULL
 	struct buffer_head *bhs[CONCURRENT_JOURNAL_FILL];
 
 	mlog_entry_void();
