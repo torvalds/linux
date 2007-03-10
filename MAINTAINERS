@@ -1103,9 +1103,6 @@ W:	http://lanana.org/docs/device-list/index.html
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-DEVICE FILESYSTEM
-S:	Obsolete
-
 DIGI INTL. EPCA DRIVER
 P:	Digi International, Inc
 M:	Eng.Linux@digi.com
