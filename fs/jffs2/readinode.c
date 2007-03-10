@@ -1054,10 +1054,10 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 			jffs2_mark_node_obsolete(c, ref);
 			goto cont;
 		}
-		/* Due to poor choice of crc32 seed, an all-zero node will have a correct CRC */
-		if (!je32_to_cpu(node->u.hdr_crc) && !je16_to_cpu(node->u.nodetype) &&
-		    !je16_to_cpu(node->u.magic) && !je32_to_cpu(node->u.totlen)) {
-			JFFS2_NOTICE("All zero node header at %#08x.\n", ref_offset(ref));
+		if (je16_to_cpu(node->u.magic) != JFFS2_MAGIC_BITMASK) {
+			/* Not a JFFS2 node, whinge and move on */
+			JFFS2_NOTICE("Wrong magic bitmask 0x%04x in node header at %#08x.\n",
+				     je16_to_cpu(node->u.magic), ref_offset(ref));
 			jffs2_mark_node_obsolete(c, ref);
 			goto cont;
 		}
