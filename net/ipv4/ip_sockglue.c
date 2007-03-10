@@ -296,8 +296,9 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 inf
 	if (!skb)
 		return;
 
-	iph = (struct iphdr*)skb_put(skb, sizeof(struct iphdr));
-	skb->nh.iph = iph;
+	skb_put(skb, sizeof(struct iphdr));
+	skb_reset_network_header(skb);
+	iph = skb->nh.iph;
 	iph->daddr = daddr;
 
 	serr = SKB_EXT_ERR(skb);

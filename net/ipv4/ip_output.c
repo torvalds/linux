@@ -1126,7 +1126,8 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 			 *	Find where to start putting bytes.
 			 */
 			data = skb_put(skb, fragheaderlen + fraggap);
-			skb->nh.iph = iph = (struct iphdr *)data;
+			skb_reset_network_header(skb);
+			iph = skb->nh.iph;
 			data += fragheaderlen;
 			skb->h.raw = data;
 
