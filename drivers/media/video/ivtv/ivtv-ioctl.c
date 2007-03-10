@@ -277,6 +277,7 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 
 	switch (vc->cmd) {
 	case VIDEO_CMD_PLAY: {
+		vc->flags = 0;
 		vc->play.speed = ivtv_validate_speed(itv->speed, vc->play.speed);
 		if (vc->play.speed < 0)
 			vc->play.format = VIDEO_PLAY_FMT_GOP;
@@ -288,6 +289,7 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 	}
 
 	case VIDEO_CMD_STOP:
+		vc->flags &= ~(VIDEO_CMD_STOP_IMMEDIATELY|VIDEO_CMD_STOP_TO_BLACK);
 		if (vc->flags & VIDEO_CMD_STOP_IMMEDIATELY)
 			vc->stop.pts = 0;
 		if (try) break;
@@ -300,6 +302,7 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 		return ivtv_stop_v4l2_decode_stream(s, vc->flags, vc->stop.pts);
 
 	case VIDEO_CMD_FREEZE:
+		vc->flags &= ~VIDEO_CMD_FREEZE_TO_BLACK;
 		if (try) break;
 		if (itv->output_mode != OUT_MPG)
 			return -EBUSY;
@@ -310,6 +313,7 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 		break;
 
 	case VIDEO_CMD_CONTINUE:
+		vc->flags = 0;
 		if (try) break;
 		if (itv->output_mode != OUT_MPG)
 			return -EBUSY;
@@ -1082,15 +1086,25 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		struct v4l2_encoder_cmd *enc = arg;
 		int try = cmd == VIDIOC_TRY_ENCODER_CMD;
 
+		memset(&enc->raw, 0, sizeof(enc->raw));
 		switch (enc->cmd) {
 		case V4L2_ENC_CMD_START:
+			enc->flags = 0;
+			if (try)
+				return 0;
 			return ivtv_start_capture(id);
 
 		case V4L2_ENC_CMD_STOP:
+			enc->flags &= ~V4L2_ENC_CMD_STOP_AT_GOP_END;
+			if (try)
+				return 0;
 			ivtv_stop_capture(id, enc->flags & V4L2_ENC_CMD_STOP_AT_GOP_END);
 			return 0;
 
 		case V4L2_ENC_CMD_PAUSE:
+			enc->flags = 0;
+			if (try)
+				return 0;
 			if (!atomic_read(&itv->capturing))
 				return -EPERM;
 			if (test_and_set_bit(IVTV_F_I_ENC_PAUSED, &itv->i_flags))
@@ -1100,6 +1114,9 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			break;
 
 		case V4L2_ENC_CMD_RESUME:
+			enc->flags = 0;
+			if (try)
+				return 0;
 			if (!atomic_read(&itv->capturing))
 				return -EPERM;
 			if (!test_and_clear_bit(IVTV_F_I_ENC_PAUSED, &itv->i_flags))
@@ -1107,6 +1124,8 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			ivtv_vapi(itv, CX2341X_ENC_PAUSE_ENCODER, 1, 1);
 			ivtv_unmute(itv);
 			break;
+		default:
+			return -EINVAL;
 		}
 		break;
 	}
