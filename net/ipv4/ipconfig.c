@@ -702,7 +702,8 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	memset(b, 0, sizeof(struct bootp_pkt));
 
 	/* Construct IP header */
-	skb->nh.iph = h = &b->iph;
+	skb_reset_network_header(skb);
+	h = skb->nh.iph;
 	h->version = 4;
 	h->ihl = 5;
 	h->tot_len = htons(sizeof(struct bootp_pkt));
