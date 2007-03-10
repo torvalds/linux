@@ -804,7 +804,7 @@ static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_txoptions *opt,
 		return 0;
 	hdr = opt->hopopt;
 
-	len = min_t(int, len, ipv6_optlen(hdr));
+	len = min_t(unsigned int, len, ipv6_optlen(hdr));
 	if (copy_to_user(optval, hdr, ipv6_optlen(hdr)))
 		return -EFAULT;
 	return len;
