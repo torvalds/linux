@@ -1314,9 +1314,13 @@ static int ivtv_ivtv_ioctls(struct file *filp, unsigned int cmd, void *arg)
 				ev->type = VIDEO_EVENT_DECODER_STOPPED;
 			else if (test_and_clear_bit(IVTV_F_I_EV_VSYNC, &itv->i_flags)) {
 				ev->type = VIDEO_EVENT_VSYNC;
-				ev->timestamp = test_bit(IVTV_F_I_EV_VSYNC_FIELD, &itv->i_flags) ?
-					1 : 0;
-				clear_bit(IVTV_F_I_EV_VSYNC_ENABLED, &itv->i_flags);
+				ev->u.vsync_field = test_bit(IVTV_F_I_EV_VSYNC_FIELD, &itv->i_flags) ?
+					VIDEO_VSYNC_FIELD_ODD : VIDEO_VSYNC_FIELD_EVEN;
+				if (itv->output_mode == OUT_UDMA_YUV &&
+					(itv->yuv_info.lace_mode & IVTV_YUV_MODE_MASK) ==
+								IVTV_YUV_MODE_PROGRESSIVE) {
+					ev->u.vsync_field = VIDEO_VSYNC_FIELD_PROGRESSIVE;
+				}
 			}
 			if (ev->type)
 				return 0;
