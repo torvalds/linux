@@ -273,13 +273,13 @@ config MTD_NETtel
 
 config MTD_ALCHEMY
 	tristate "AMD Alchemy Pb1xxx/Db1xxx/RDK MTD support"
-	depends on SOC_AU1X00
+	depends on SOC_AU1X00 && MTD_PARTITIONS && MTD_CFI
 	help
 	  Flash memory access on AMD Alchemy Pb/Db/RDK Reference Boards
 
 config MTD_MTX1
 	tristate "4G Systems MTX-1 Flash device"
-	depends on MIPS && MIPS_MTX1
+	depends on MIPS_MTX1 && MTD_CFI
 	help
 	  Flash memory access on 4G Systems MTX-1 Board. If you have one of
 	  these boards and would like to use the flash chips on it, say 'Y'.
@@ -417,7 +417,7 @@ config MTD_TQM834x
 
 config MTD_OCELOT
 	tristate "Momenco Ocelot boot flash device"
-	depends on MIPS && MOMENCO_OCELOT
+	depends on MOMENCO_OCELOT
 	help
 	  This enables access routines for the boot flash device and for the
 	  NVRAM on the Momenco Ocelot board. If you have one of these boards
