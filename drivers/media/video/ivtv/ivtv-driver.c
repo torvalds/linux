@@ -1345,6 +1345,8 @@ static void module_cleanup(void)
 {
 	int i, j;
 
+	pci_unregister_driver(&ivtv_pci_driver);
+
 	for (i = 0; i < ivtv_cards_active; i++) {
 		if (ivtv_cards[i] == NULL)
 			continue;
@@ -1353,7 +1355,6 @@ static void module_cleanup(void)
 		}
 		kfree(ivtv_cards[i]);
 	}
-	pci_unregister_driver(&ivtv_pci_driver);
 }
 
 /* Note: These symbols are exported because they are used by the ivtv-fb
