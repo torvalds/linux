@@ -825,7 +825,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	if (msp_reset(client) == -1) {
 		v4l_dbg(1, msp_debug, client, "msp3400 not found\n");
 		kfree(client);
-		return -1;
+		return 0;
 	}
 
 	state = kmalloc(sizeof(*state), GFP_KERNEL);
@@ -859,7 +859,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 		v4l_dbg(1, msp_debug, client, "not an msp3400 (cannot read chip version)\n");
 		kfree(state);
 		kfree(client);
-		return -1;
+		return 0;
 	}
 
 	msp_set_audio(client);
