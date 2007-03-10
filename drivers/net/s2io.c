@@ -1,6 +1,6 @@
 /************************************************************************
  * s2io.c: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
- * Copyright(c) 2002-2005 Neterion Inc.
+ * Copyright(c) 2002-2007 Neterion Inc.
 
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
@@ -516,7 +516,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 		mac_control->fifos[i].list_info = kmalloc(list_holder_size,
 							  GFP_KERNEL);
 		if (!mac_control->fifos[i].list_info) {
-			DBG_PRINT(ERR_DBG,
+			DBG_PRINT(INFO_DBG,
 				  "Malloc failed for list_info\n");
 			return -ENOMEM;
 		}
@@ -542,9 +542,9 @@ static int init_shared_mem(struct s2io_nic *nic)
 			tmp_v = pci_alloc_consistent(nic->pdev,
 						     PAGE_SIZE, &tmp_p);
 			if (!tmp_v) {
-				DBG_PRINT(ERR_DBG,
+				DBG_PRINT(INFO_DBG,
 					  "pci_alloc_consistent ");
-				DBG_PRINT(ERR_DBG, "failed for TxDL\n");
+				DBG_PRINT(INFO_DBG, "failed for TxDL\n");
 				return -ENOMEM;
 			}
 			/* If we got a zero DMA address(can happen on
@@ -561,9 +561,9 @@ static int init_shared_mem(struct s2io_nic *nic)
 				tmp_v = pci_alloc_consistent(nic->pdev,
 						     PAGE_SIZE, &tmp_p);
 				if (!tmp_v) {
-					DBG_PRINT(ERR_DBG,
+					DBG_PRINT(INFO_DBG,
 					  "pci_alloc_consistent ");
-					DBG_PRINT(ERR_DBG, "failed for TxDL\n");
+					DBG_PRINT(INFO_DBG, "failed for TxDL\n");
 					return -ENOMEM;
 				}
 			}
@@ -2187,7 +2187,7 @@ static int fill_rxd_3buf(struct s2io_nic *nic, struct RxD_t *rxdp, struct \
 	/* skb_shinfo(skb)->frag_list will have L4 data payload */
 	skb_shinfo(skb)->frag_list = dev_alloc_skb(dev->mtu + ALIGN_SIZE);
 	if (skb_shinfo(skb)->frag_list == NULL) {
-		DBG_PRINT(ERR_DBG, "%s: dev_alloc_skb failed\n ", dev->name);
+		DBG_PRINT(INFO_DBG, "%s: dev_alloc_skb failed\n ", dev->name);
 		return -ENOMEM ;
 	}
 	frag_list = skb_shinfo(skb)->frag_list;
@@ -2314,8 +2314,8 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 		/* allocate skb */
 		skb = dev_alloc_skb(size);
 		if(!skb) {
-			DBG_PRINT(ERR_DBG, "%s: Out of ", dev->name);
-			DBG_PRINT(ERR_DBG, "memory to allocate SKBs\n");
+			DBG_PRINT(INFO_DBG, "%s: Out of ", dev->name);
+			DBG_PRINT(INFO_DBG, "memory to allocate SKBs\n");
 			if (first_rxdp) {
 				wmb();
 				first_rxdp->Control_1 |= RXD_OWN_XENA;
@@ -2581,8 +2581,8 @@ static int s2io_poll(struct net_device *dev, int *budget)
 
 	for (i = 0; i < config->rx_ring_num; i++) {
 		if (fill_rx_buffers(nic, i) == -ENOMEM) {
-			DBG_PRINT(ERR_DBG, "%s:Out of memory", dev->name);
-			DBG_PRINT(ERR_DBG, " in Rx Poll!!\n");
+			DBG_PRINT(INFO_DBG, "%s:Out of memory", dev->name);
+			DBG_PRINT(INFO_DBG, " in Rx Poll!!\n");
 			break;
 		}
 	}
@@ -2598,8 +2598,8 @@ no_rx:
 
 	for (i = 0; i < config->rx_ring_num; i++) {
 		if (fill_rx_buffers(nic, i) == -ENOMEM) {
-			DBG_PRINT(ERR_DBG, "%s:Out of memory", dev->name);
-			DBG_PRINT(ERR_DBG, " in Rx Poll!!\n");
+			DBG_PRINT(INFO_DBG, "%s:Out of memory", dev->name);
+			DBG_PRINT(INFO_DBG, " in Rx Poll!!\n");
 			break;
 		}
 	}
@@ -2648,8 +2648,8 @@ static void s2io_netpoll(struct net_device *dev)
 
 	for (i = 0; i < config->rx_ring_num; i++) {
 		if (fill_rx_buffers(nic, i) == -ENOMEM) {
-			DBG_PRINT(ERR_DBG, "%s:Out of memory", dev->name);
-			DBG_PRINT(ERR_DBG, " in Rx Netpoll!!\n");
+			DBG_PRINT(INFO_DBG, "%s:Out of memory", dev->name);
+			DBG_PRINT(INFO_DBG, " in Rx Netpoll!!\n");
 			break;
 		}
 	}
@@ -3673,7 +3673,7 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	nic->entries = kmalloc(MAX_REQUESTED_MSI_X * sizeof(struct msix_entry),
 			       GFP_KERNEL);
 	if (nic->entries == NULL) {
-		DBG_PRINT(ERR_DBG, "%s: Memory allocation failed\n", __FUNCTION__);
+		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 	memset(nic->entries, 0, MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
@@ -3682,7 +3682,7 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 		kmalloc(MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry),
 				   GFP_KERNEL);
 	if (nic->s2io_entries == NULL) {
-		DBG_PRINT(ERR_DBG, "%s: Memory allocation failed\n", __FUNCTION__);
+		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", __FUNCTION__);
 		kfree(nic->entries);
 		return -ENOMEM;
 	}
@@ -4033,7 +4033,7 @@ static int s2io_chk_rx_buffers(struct s2io_nic *sp, int rng_n)
 			DBG_PRINT(INTR_DBG, "%s: Rx BD hit ", __FUNCTION__);
 			DBG_PRINT(INTR_DBG, "PANIC levels\n");
 			if ((ret = fill_rx_buffers(sp, rng_n)) == -ENOMEM) {
-				DBG_PRINT(ERR_DBG, "Out of memory in %s",
+				DBG_PRINT(INFO_DBG, "Out of memory in %s",
 					  __FUNCTION__);
 				clear_bit(0, (&sp->tasklet_status));
 				return -1;
@@ -4043,8 +4043,8 @@ static int s2io_chk_rx_buffers(struct s2io_nic *sp, int rng_n)
 			tasklet_schedule(&sp->task);
 
 	} else if (fill_rx_buffers(sp, rng_n) == -ENOMEM) {
-			DBG_PRINT(ERR_DBG, "%s:Out of memory", sp->dev->name);
-			DBG_PRINT(ERR_DBG, " in Rx Intr!!\n");
+			DBG_PRINT(INFO_DBG, "%s:Out of memory", sp->dev->name);
+			DBG_PRINT(INFO_DBG, " in Rx Intr!!\n");
 	}
 	return 0;
 }
@@ -5961,12 +5961,12 @@ static void s2io_tasklet(unsigned long dev_addr)
 		for (i = 0; i < config->rx_ring_num; i++) {
 			ret = fill_rx_buffers(sp, i);
 			if (ret == -ENOMEM) {
-				DBG_PRINT(ERR_DBG, "%s: Out of ",
+				DBG_PRINT(INFO_DBG, "%s: Out of ",
 					  dev->name);
 				DBG_PRINT(ERR_DBG, "memory in tasklet\n");
 				break;
 			} else if (ret == -EFILL) {
-				DBG_PRINT(ERR_DBG,
+				DBG_PRINT(INFO_DBG,
 					  "%s: Rx Ring %d is full\n",
 					  dev->name, i);
 				break;
@@ -6077,8 +6077,8 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 		} else {
 			*skb = dev_alloc_skb(size);
 			if (!(*skb)) {
-				DBG_PRINT(ERR_DBG, "%s: Out of ", dev->name);
-				DBG_PRINT(ERR_DBG, "memory to allocate SKBs\n");
+				DBG_PRINT(INFO_DBG, "%s: Out of ", dev->name);
+				DBG_PRINT(INFO_DBG, "memory to allocate SKBs\n");
 				return -ENOMEM ;
 			}
 			/* storing the mapped addr in a temp variable
@@ -6100,7 +6100,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 		} else {
 			*skb = dev_alloc_skb(size);
 			if (!(*skb)) {
-				DBG_PRINT(ERR_DBG, "%s: dev_alloc_skb failed\n",
+				DBG_PRINT(INFO_DBG, "%s: dev_alloc_skb failed\n",
 					dev->name);
 				return -ENOMEM;
 			}
@@ -6127,7 +6127,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 		} else {
 			*skb = dev_alloc_skb(size);
 			if (!(*skb)) {
-				DBG_PRINT(ERR_DBG, "%s: dev_alloc_skb failed\n",
+				DBG_PRINT(INFO_DBG, "%s: dev_alloc_skb failed\n",
 					  dev->name);
 				return -ENOMEM;
 			}
@@ -6628,7 +6628,6 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 
 	/* Updating statistics */
 	rxdp->Host_Control = 0;
-	sp->rx_pkt_count++;
 	sp->stats.rx_packets++;
 	if (sp->rxd_mode == RXD_MODE_1) {
 		int len = RXD_GET_BUFFER0_SIZE_1(rxdp->Control_2);
@@ -7264,7 +7263,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto register_failed;
 	}
 	s2io_vpd_read(sp);
-	DBG_PRINT(ERR_DBG, "Copyright(c) 2002-2005 Neterion Inc.\n");
+	DBG_PRINT(ERR_DBG, "Copyright(c) 2002-2007 Neterion Inc.\n");
 	DBG_PRINT(ERR_DBG, "%s: Neterion %s (rev %d)\n",dev->name,
 		  sp->product_name, get_xena_rev_id(sp->pdev));
 	DBG_PRINT(ERR_DBG, "%s: Driver version %s\n", dev->name,
