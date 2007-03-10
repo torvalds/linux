@@ -6,6 +6,18 @@ be removed from this file.
 
 ---------------------------
 
+What:	V4L2 VIDIOC_G_MPEGCOMP and VIDIOC_S_MPEGCOMP
+When:	October 2007
+Why:	Broken attempt to set MPEG compression parameters. These ioctls are
+	not able to implement the wide variety of parameters that can be set
+	by hardware MPEG encoders. A new MPEG control mechanism was created
+	in kernel 2.6.18 that replaces these ioctls. See the V4L2 specification
+	(section 1.9: Extended controls) for more information on this topic.
+Who:	Hans Verkuil <hverkuil@xs4all.nl> and
+	Mauro Carvalho Chehab <mchehab@infradead.org>
+
+---------------------------
+
 What:	/sys/devices/.../power/state
 	dev->power.power_state
 	dpm_runtime_{suspend,resume)()
