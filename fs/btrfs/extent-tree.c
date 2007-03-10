@@ -50,7 +50,7 @@ static int inc_block_ref(struct ctree_root *root, u64 blocknr)
 	return 0;
 }
 
-static int lookup_block_ref(struct ctree_root *root, u64 blocknr, int *refs)
+static int lookup_block_ref(struct ctree_root *root, u64 blocknr, u32 *refs)
 {
 	struct ctree_path path;
 	int ret;
@@ -415,6 +415,100 @@ struct tree_buffer *alloc_free_block(struct ctree_root *root)
 	return buf;
 }
 
+int walk_down_tree(struct ctree_root *root, struct ctree_path *path, int *level)
+{
+	struct tree_buffer *next;
+	struct tree_buffer *cur;
+	u64 blocknr;
+	int ret;
+	u32 refs;
+
+	ret = lookup_block_ref(root, path->nodes[*level]->blocknr, &refs);
+	BUG_ON(ret);
+	if (refs > 1)
+		goto out;
+	while(*level > 0) {
+		cur = path->nodes[*level];
+		if (path->slots[*level] >= cur->node.header.nritems)
+			break;
+		blocknr = cur->node.blockptrs[path->slots[*level]];
+		ret = lookup_block_ref(root, blocknr, &refs);
+		if (refs != 1 || *level == 1) {
+			path->slots[*level]++;
+			ret = free_extent(root, blocknr, 1);
+			BUG_ON(ret);
+			continue;
+		}
+		BUG_ON(ret);
+		next = read_tree_block(root, blocknr);
+		if (path->nodes[*level-1]) {
+			tree_block_release(root, path->nodes[*level-1]);
+		}
+		path->nodes[*level-1] = next;
+		*level = node_level(next->node.header.flags);
+		path->slots[*level] = 0;
+	}
+out:
+	ret = free_extent(root, path->nodes[*level]->blocknr, 1);
+	path->nodes[*level] = NULL;
+	*level += 1;
+	BUG_ON(ret);
+	return 0;
+}
+
+int walk_up_tree(struct ctree_root *root, struct ctree_path *path, int *level)
+{
+	int i;
+	int slot;
+	int ret;
+	for(i = *level; i < MAX_LEVEL - 1 && path->nodes[i]; i++) {
+		slot = path->slots[i];
+		if (slot < path->nodes[i]->node.header.nritems - 1) {
+			path->slots[i]++;
+			*level = i;
+			return 0;
+		} else {
+			ret = free_extent(root,
+					  path->nodes[*level]->blocknr, 1);
+			*level = i + 1;
+			BUG_ON(ret);
+		}
+	}
+	return 1;
+}
+
+int btrfs_drop_snapshot(struct ctree_root *root, struct tree_buffer *snap)
+{
+	int ret;
+	int level;
+	struct ctree_path path;
+	int i;
+	int orig_level;
+
+	init_path(&path);
+
+	level = node_level(snap->node.header.flags);
+	orig_level = level;
+	path.nodes[level] = snap;
+	path.slots[level] = 0;
+	while(1) {
+		ret = walk_down_tree(root, &path, &level);
+		if (ret > 0)
+			break;
+		ret = walk_up_tree(root, &path, &level);
+		if (ret > 0)
+			break;
+	}
+	for (i = 0; i < orig_level; i++) {
+		if (path.nodes[i])
+			tree_block_release(root, path.nodes[i]);
+	}
+
+	return 0;
+}
+
+
+#if 0
 int btrfs_drop_snapshot(struct ctree_root *root, struct tree_buffer *snap)
 {
 	int ret;
@@ -441,4 +535,4 @@ int btrfs_drop_snapshot(struct ctree_root *root, struct tree_buffer *snap)
 	BUG_ON(ret);
 	return 0;
 }
-
+#endif

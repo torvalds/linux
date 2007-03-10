@@ -9,7 +9,7 @@
 /* for testing only */
 int next_key(int i, int max_key) {
 	return rand() % max_key;
-	//return i;
+	// return i;
 }
 
 int main(int ac, char **av) {
@@ -44,6 +44,9 @@ int main(int ac, char **av) {
 		if (!ret)
 			tree_size++;
 		free(buf);
+		if (i == run_size - 5) {
+			commit_transaction(root, &super);
+		}
 
 	}
 	close_ctree(root, &super);
