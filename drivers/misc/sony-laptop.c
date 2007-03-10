@@ -453,7 +453,7 @@ static int sony_acpi_resume(struct acpi_device *device)
 static int sony_acpi_add(struct acpi_device *device)
 {
 	acpi_status status;
-	int result;
+	int result = 0;
 	acpi_handle handle;
 
 	sony_acpi_acpi_device = device;
