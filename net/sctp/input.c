@@ -528,7 +528,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	/* Fix up skb to look at the embedded net header. */
 	saveip = skb->nh.raw;
 	savesctp  = skb->h.raw;
-	skb->nh.iph = iph;
+	skb_reset_network_header(skb);
 	skb->h.raw = (char *)sh;
 	sk = sctp_err_lookup(AF_INET, skb, sh, &asoc, &transport);
 	/* Put back, the original pointers. */
