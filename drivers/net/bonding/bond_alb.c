@@ -104,6 +104,11 @@ struct arp_pkt {
 };
 #pragma pack()
 
+static inline struct arp_pkt *arp_pkt(const struct sk_buff *skb)
+{
+	return (struct arp_pkt *)skb->nh.raw;
+}
+
 /* Forward declaration */
 static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[]);
 
@@ -613,7 +618,7 @@ static void rlb_req_update_subnet_clients(struct bonding *bond, u32 src_ip)
 static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
-	struct arp_pkt *arp = (struct arp_pkt *)skb->nh.raw;
+	struct arp_pkt *arp = arp_pkt(skb);
 	struct slave *assigned_slave;
 	struct rlb_client_info *client_info;
 	u32 hash_index = 0;
@@ -701,7 +706,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
  */
 static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 {
-	struct arp_pkt *arp = (struct arp_pkt *)skb->nh.raw;
+	struct arp_pkt *arp = arp_pkt(skb);
 	struct slave *tx_slave = NULL;
 
 	if (arp->op_code == __constant_htons(ARPOP_REPLY)) {
