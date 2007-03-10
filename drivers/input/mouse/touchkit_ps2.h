@@ -12,6 +12,13 @@
 #ifndef _TOUCHKIT_PS2_H
 #define _TOUCHKIT_PS2_H
 
+#ifdef CONFIG_MOUSE_PS2_TOUCHKIT
 int touchkit_ps2_detect(struct psmouse *psmouse, int set_properties);
+#else
+inline int touchkit_ps2_detect(struct psmouse *psmouse, int set_properties)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_MOUSE_PS2_TOUCHKIT */
 
 #endif
