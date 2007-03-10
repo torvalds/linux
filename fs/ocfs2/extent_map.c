@@ -70,9 +70,11 @@ static int ocfs2_search_extent_list(struct ocfs2_extent_list *el,
 }
 
 int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
-		       u32 *p_cluster, u32 *num_clusters)
+		       u32 *p_cluster, u32 *num_clusters,
+		       unsigned int *extent_flags)
 {
 	int ret, i;
+	unsigned int flags = 0;
 	struct buffer_head *di_bh = NULL;
 	struct buffer_head *eb_bh = NULL;
 	struct ocfs2_dinode *di;
@@ -142,7 +144,12 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 
 		if (num_clusters)
 			*num_clusters = ocfs2_rec_clusters(el, rec) - coff;
+
+		flags = rec->e_flags;
 	}
+
+	if (extent_flags)
+		*extent_flags = flags;
 
 out:
 	brelse(di_bh);
@@ -155,7 +162,7 @@ out:
  * all while the map is in the process of being updated.
  */
 int ocfs2_extent_map_get_blocks(struct inode *inode, u64 v_blkno, u64 *p_blkno,
-				int *ret_count)
+				int *ret_count, unsigned int *extent_flags)
 {
 	int ret;
 	int bpc = ocfs2_clusters_to_blocks(inode->i_sb, 1);
@@ -164,7 +171,8 @@ int ocfs2_extent_map_get_blocks(struct inode *inode, u64 v_blkno, u64 *p_blkno,
 
 	cpos = ocfs2_blocks_to_clusters(inode->i_sb, v_blkno);
 
-	ret = ocfs2_get_clusters(inode, cpos, &p_cluster, &num_clusters);
+	ret = ocfs2_get_clusters(inode, cpos, &p_cluster, &num_clusters,
+				 extent_flags);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;

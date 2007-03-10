@@ -3487,6 +3487,7 @@ static int ocfs2_grab_eof_pages(struct inode *inode, loff_t isize, struct page *
 {
 	int i, numpages = 0, ret = 0;
 	unsigned int csize = OCFS2_SB(inode->i_sb)->s_clustersize;
+	unsigned int ext_flags;
 	struct super_block *sb = inode->i_sb;
 	struct address_space *mapping = inode->i_mapping;
 	unsigned long index;
@@ -3499,7 +3500,7 @@ static int ocfs2_grab_eof_pages(struct inode *inode, loff_t isize, struct page *
 		goto out;
 
 	ret = ocfs2_extent_map_get_blocks(inode, isize >> sb->s_blocksize_bits,
-					  phys, NULL);
+					  phys, NULL, &ext_flags);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -3507,6 +3508,11 @@ static int ocfs2_grab_eof_pages(struct inode *inode, loff_t isize, struct page *
 
 	/* Tail is a hole. */
 	if (*phys == 0)
+		goto out;
+
+	/* Tail is marked as unwritten, we can count on write to zero
+	 * in that case. */
+	if (ext_flags & OCFS2_EXT_UNWRITTEN)
 		goto out;
 
 	next_cluster_bytes = ocfs2_align_bytes_to_clusters(inode->i_sb, isize);
@@ -3579,9 +3585,6 @@ int ocfs2_zero_tail_for_truncate(struct inode *inode, handle_t *handle,
 		goto out;
 	}
 
-	/*
-	 * Truncate on an i_size boundary - nothing more to do.
-	 */
 	if (numpages == 0)
 		goto out;
 

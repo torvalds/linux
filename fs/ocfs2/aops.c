@@ -137,6 +137,7 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 			   struct buffer_head *bh_result, int create)
 {
 	int err = 0;
+	unsigned int ext_flags;
 	u64 p_blkno, past_eof;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
@@ -153,7 +154,8 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
-	err = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno, NULL);
+	err = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno, NULL,
+					  &ext_flags);
 	if (err) {
 		mlog(ML_ERROR, "Error %d from get_blocks(0x%p, %llu, 1, "
 		     "%llu, NULL)\n", err, inode, (unsigned long long)iblock,
@@ -171,7 +173,8 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 			"ino %lu, iblock %llu\n", inode->i_ino,
 			(unsigned long long)iblock);
 
-	if (p_blkno)
+	/* Treat the unwritten extent as a hole for zeroing purposes. */
+	if (p_blkno && !(ext_flags & OCFS2_EXT_UNWRITTEN))
 		map_bh(bh_result, inode->i_sb, p_blkno);
 
 	if (!ocfs2_sparse_alloc(osb)) {
@@ -396,7 +399,7 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 		down_read(&OCFS2_I(inode)->ip_alloc_sem);
 	}
 
-	err = ocfs2_extent_map_get_blocks(inode, block, &p_blkno, NULL);
+	err = ocfs2_extent_map_get_blocks(inode, block, &p_blkno, NULL, NULL);
 
 	if (!INODE_JOURNAL(inode)) {
 		up_read(&OCFS2_I(inode)->ip_alloc_sem);
@@ -438,6 +441,7 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	int ret;
 	u64 p_blkno, inode_blocks;
 	int contig_blocks;
+	unsigned int ext_flags;
 	unsigned char blocksize_bits = inode->i_sb->s_blocksize_bits;
 	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
 
@@ -458,7 +462,7 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	/* This figures out the size of the next contiguous block, and
 	 * our logical offset */
 	ret = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno,
-					  &contig_blocks);
+					  &contig_blocks, &ext_flags);
 	if (ret) {
 		mlog(ML_ERROR, "get_blocks() failed iblock=%llu\n",
 		     (unsigned long long)iblock);
@@ -478,8 +482,10 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	/*
 	 * get_more_blocks() expects us to describe a hole by clearing
 	 * the mapped bit on bh_result().
+	 *
+	 * Consider an unwritten extent as a hole.
 	 */
-	if (p_blkno)
+	if (p_blkno && !(ext_flags & OCFS2_EXT_UNWRITTEN))
 		map_bh(bh_result, inode->i_sb, p_blkno);
 	else {
 		/*
@@ -1111,7 +1117,8 @@ static ssize_t ocfs2_write(struct file *file, u32 phys, handle_t *handle,
 		}
 	}
 
-	ret = ocfs2_extent_map_get_blocks(inode, v_blkno, &p_blkno, NULL);
+	ret = ocfs2_extent_map_get_blocks(inode, v_blkno, &p_blkno, NULL,
+					  NULL);
 	if (ret < 0) {
 
 		/*
@@ -1215,7 +1222,7 @@ ssize_t ocfs2_buffered_write_cluster(struct file *file, loff_t pos,
 	 */
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
-	ret = ocfs2_get_clusters(inode, wc.w_cpos, &phys, NULL);
+	ret = ocfs2_get_clusters(inode, wc.w_cpos, &phys, NULL, NULL);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_meta;
