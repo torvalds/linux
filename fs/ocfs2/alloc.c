@@ -3726,6 +3726,7 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 			u32 cpos,
 			u64 start_blk,
 			u32 new_clusters,
+			u8 flags,
 			struct ocfs2_alloc_context *meta_ac)
 {
 	int status;
@@ -3749,6 +3750,7 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 	rec.e_cpos = cpu_to_le32(cpos);
 	rec.e_blkno = cpu_to_le64(start_blk);
 	rec.e_leaf_clusters = cpu_to_le16(new_clusters);
+	rec.e_flags = flags;
 
 	status = ocfs2_figure_insert_type(inode, fe_bh, &last_eb_bh, &rec,
 					  &insert);

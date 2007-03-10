@@ -34,6 +34,7 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 			u32 cpos,
 			u64 start_blk,
 			u32 new_clusters,
+			u8 flags,
 			struct ocfs2_alloc_context *meta_ac);
 struct ocfs2_cached_dealloc_ctxt;
 int ocfs2_mark_extent_written(struct inode *inode, struct buffer_head *di_bh,

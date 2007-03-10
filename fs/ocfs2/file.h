@@ -39,13 +39,14 @@ enum ocfs2_alloc_restarted {
 };
 int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 			       struct inode *inode,
-			       u32 *cluster_start,
+			       u32 *logical_offset,
 			       u32 clusters_to_add,
+			       int mark_unwritten,
 			       struct buffer_head *fe_bh,
 			       handle_t *handle,
 			       struct ocfs2_alloc_context *data_ac,
 			       struct ocfs2_alloc_context *meta_ac,
-			       enum ocfs2_alloc_restarted *reason);
+			       enum ocfs2_alloc_restarted *reason_ret);
 int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
 			  u32 clusters_to_add, u32 extents_to_split,
 			  struct ocfs2_alloc_context **data_ac,

@@ -425,6 +425,7 @@ int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 			       struct inode *inode,
 			       u32 *logical_offset,
 			       u32 clusters_to_add,
+			       int mark_unwritten,
 			       struct buffer_head *fe_bh,
 			       handle_t *handle,
 			       struct ocfs2_alloc_context *data_ac,
@@ -437,8 +438,12 @@ int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 	enum ocfs2_alloc_restarted reason = RESTART_NONE;
 	u32 bit_off, num_bits;
 	u64 block;
+	u8 flags = 0;
 
 	BUG_ON(!clusters_to_add);
+
+	if (mark_unwritten)
+		flags = OCFS2_EXT_UNWRITTEN;
 
 	free_extents = ocfs2_num_free_extents(osb, inode, fe);
 	if (free_extents < 0) {
@@ -489,7 +494,7 @@ int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 	     num_bits, bit_off, (unsigned long long)OCFS2_I(inode)->ip_blkno);
 	status = ocfs2_insert_extent(osb, handle, inode, fe_bh,
 				     *logical_offset, block, num_bits,
-				     meta_ac);
+				     flags, meta_ac);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;
@@ -522,9 +527,11 @@ leave:
  * For a given allocation, determine which allocators will need to be
  * accessed, and lock them, reserving the appropriate number of bits.
  *
- * Called from ocfs2_extend_allocation() for file systems which don't
- * support holes, and from ocfs2_write() for file systems which
- * understand sparse inodes.
+ * Sparse file systems call this from ocfs2_write_begin_nolock()
+ * and ocfs2_allocate_unwritten_extents().
+ *
+ * File systems which don't support holes call this from
+ * ocfs2_extend_allocation().
  */
 int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
 			  u32 clusters_to_add, u32 extents_to_split,
@@ -595,14 +602,13 @@ out:
 	return ret;
 }
 
-static int ocfs2_extend_allocation(struct inode *inode,
-				   u32 clusters_to_add)
+static int __ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
+				     u32 clusters_to_add, int mark_unwritten)
 {
 	int status = 0;
 	int restart_func = 0;
-	int drop_alloc_sem = 0;
 	int credits;
-	u32 prev_clusters, logical_start;
+	u32 prev_clusters;
 	struct buffer_head *bh = NULL;
 	struct ocfs2_dinode *fe = NULL;
 	handle_t *handle = NULL;
@@ -617,7 +623,7 @@ static int ocfs2_extend_allocation(struct inode *inode,
 	 * This function only exists for file systems which don't
 	 * support holes.
 	 */
-	BUG_ON(ocfs2_sparse_alloc(osb));
+	BUG_ON(mark_unwritten && !ocfs2_sparse_alloc(osb));
 
 	status = ocfs2_read_block(osb, OCFS2_I(inode)->ip_blkno, &bh,
 				  OCFS2_BH_CACHED, inode);
@@ -633,17 +639,8 @@ static int ocfs2_extend_allocation(struct inode *inode,
 		goto leave;
 	}
 
-	logical_start = OCFS2_I(inode)->ip_clusters;
-
 restart_all:
 	BUG_ON(le32_to_cpu(fe->i_clusters) != OCFS2_I(inode)->ip_clusters);
-
-	/* blocks peope in read/write from reading our allocation
-	 * until we're done changing it. We depend on i_mutex to block
-	 * other extend/truncate calls while we're here. Ordering wrt
-	 * start_trans is important here -- always do it before! */
-	down_write(&OCFS2_I(inode)->ip_alloc_sem);
-	drop_alloc_sem = 1;
 
 	status = ocfs2_lock_allocators(inode, fe, clusters_to_add, 0, &data_ac,
 				       &meta_ac);
@@ -678,6 +675,7 @@ restarted_transaction:
 					    inode,
 					    &logical_start,
 					    clusters_to_add,
+					    mark_unwritten,
 					    bh,
 					    handle,
 					    data_ac,
@@ -730,10 +728,6 @@ restarted_transaction:
 	     OCFS2_I(inode)->ip_clusters, i_size_read(inode));
 
 leave:
-	if (drop_alloc_sem) {
-		up_write(&OCFS2_I(inode)->ip_alloc_sem);
-		drop_alloc_sem = 0;
-	}
 	if (handle) {
 		ocfs2_commit_trans(osb, handle);
 		handle = NULL;
@@ -757,6 +751,25 @@ leave:
 
 	mlog_exit(status);
 	return status;
+}
+
+static int ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
+				   u32 clusters_to_add, int mark_unwritten)
+{
+	int ret;
+
+	/*
+	 * The alloc sem blocks peope in read/write from reading our
+	 * allocation until we're done changing it. We depend on
+	 * i_mutex to block other extend/truncate calls while we're
+	 * here.
+	 */
+	down_write(&OCFS2_I(inode)->ip_alloc_sem);
+	ret = __ocfs2_extend_allocation(inode, logical_start, clusters_to_add,
+					mark_unwritten);
+	up_write(&OCFS2_I(inode)->ip_alloc_sem);
+
+	return ret;
 }
 
 /* Some parts of this taken from generic_cont_expand, which turned out
@@ -900,7 +913,9 @@ static int ocfs2_extend_file(struct inode *inode,
 	}
 
 	if (clusters_to_add) {
-		ret = ocfs2_extend_allocation(inode, clusters_to_add);
+		ret = ocfs2_extend_allocation(inode,
+					      OCFS2_I(inode)->ip_clusters,
+					      clusters_to_add, 0);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out_unlock;
@@ -1172,6 +1187,64 @@ static int ocfs2_check_range_for_holes(struct inode *inode, loff_t pos,
 		clusters -= extent_len;
 		cpos += extent_len;
 	}
+out:
+	return ret;
+}
+
+/*
+ * Allocate enough extents to cover the region starting at byte offset
+ * start for len bytes. Existing extents are skipped, any extents
+ * added are marked as "unwritten".
+ */
+static int ocfs2_allocate_unwritten_extents(struct inode *inode,
+					    u64 start, u64 len)
+{
+	int ret;
+	u32 cpos, phys_cpos, clusters, alloc_size;
+
+	/*
+	 * We consider both start and len to be inclusive.
+	 */
+	cpos = start >> OCFS2_SB(inode->i_sb)->s_clustersize_bits;
+	clusters = ocfs2_clusters_for_bytes(inode->i_sb, start + len);
+	clusters -= cpos;
+
+	while (clusters) {
+		ret = ocfs2_get_clusters(inode, cpos, &phys_cpos,
+					 &alloc_size, NULL);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		/*
+		 * Hole or existing extent len can be arbitrary, so
+		 * cap it to our own allocation request.
+		 */
+		if (alloc_size > clusters)
+			alloc_size = clusters;
+
+		if (phys_cpos) {
+			/*
+			 * We already have an allocation at this
+			 * region so we can safely skip it.
+			 */
+			goto next;
+		}
+
+		ret = __ocfs2_extend_allocation(inode, cpos, alloc_size, 1);
+		if (ret) {
+			if (ret != -ENOSPC)
+				mlog_errno(ret);
+			goto out;
+		}
+
+next:
+		cpos += alloc_size;
+		clusters -= alloc_size;
+	}
+
+	ret = 0;
 out:
 	return ret;
 }
