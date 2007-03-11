@@ -81,7 +81,8 @@
 #define TLED_ON     0x08	//touchpad LED
 #define RLED_ON     0x10	//Record LED
 #define PLED_ON     0x20	//Phone LED
-#define LCD_ON      0x40	//LCD backlight
+#define GLED_ON     0x40	//Gaming LED
+#define LCD_ON      0x80	//LCD backlight
 
 #define ASUS_LOG    ASUS_HOTK_FILE ": "
 #define ASUS_ERR    KERN_ERR    ASUS_LOG
@@ -103,6 +104,7 @@ ASUS_HANDLE(mled_set, ASUS_HOTK_PREFIX "MLED");
 ASUS_HANDLE(tled_set, ASUS_HOTK_PREFIX "TLED");
 ASUS_HANDLE(rled_set, ASUS_HOTK_PREFIX "RLED");	/* W1JC */
 ASUS_HANDLE(pled_set, ASUS_HOTK_PREFIX "PLED");	/* A7J */
+ASUS_HANDLE(gled_set, ASUS_HOTK_PREFIX "GLED");	/* G1, G2 (probably) */
 
 /* LEDD */
 ASUS_HANDLE(ledd_set, ASUS_HOTK_PREFIX "SLCM");
@@ -221,6 +223,7 @@ ASUS_LED(mled, "mail");
 ASUS_LED(tled, "touchpad");
 ASUS_LED(rled, "record");
 ASUS_LED(pled, "phone");
+ASUS_LED(gled, "gaming");
 
 /*
  * This function evaluates an ACPI method, given an int as parameter, the
@@ -280,6 +283,9 @@ static void write_status(acpi_handle handle, int out, int mask)
 	case MLED_ON:
 		out = !out & 0x1;
 		break;
+	case GLED_ON:
+		out = (out & 0x1) + 1;
+		break;
 	default:
 		out &= 0x1;
 		break;
@@ -307,6 +313,7 @@ ASUS_LED_HANDLER(mled, MLED_ON);
 ASUS_LED_HANDLER(pled, PLED_ON);
 ASUS_LED_HANDLER(rled, RLED_ON);
 ASUS_LED_HANDLER(tled, TLED_ON);
+ASUS_LED_HANDLER(gled, GLED_ON);
 
 static int get_lcd_state(void)
 {
@@ -835,6 +842,7 @@ static int asus_hotk_get_info(void)
 	ASUS_HANDLE_INIT(tled_set);
 	ASUS_HANDLE_INIT(rled_set);
 	ASUS_HANDLE_INIT(pled_set);
+	ASUS_HANDLE_INIT(gled_set);
 
 	ASUS_HANDLE_INIT(ledd_set);
 
@@ -1001,6 +1009,7 @@ static void asus_led_exit(void)
 	ASUS_LED_UNREGISTER(tled);
 	ASUS_LED_UNREGISTER(pled);
 	ASUS_LED_UNREGISTER(rled);
+	ASUS_LED_UNREGISTER(gled);
 
 	destroy_workqueue(led_workqueue);
 }
@@ -1069,6 +1078,10 @@ static int asus_led_init(struct device *dev)
 		return rv;
 
 	rv = ASUS_LED_REGISTER(pled, dev);
+	if (rv)
+		return rv;
+
+	rv = ASUS_LED_REGISTER(gled, dev);
 	if (rv)
 		return rv;
 
