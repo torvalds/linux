@@ -711,7 +711,7 @@ struct zd_chip {
 	u16 link_led;
 	unsigned int pa_type:4,
 		patch_cck_gain:1, patch_cr157:1, patch_6m_band_edge:1,
-		new_phy_layout:1,
+		new_phy_layout:1, al2230s_bit:1,
 		is_zd1211b:1, supports_tx_led:1;
 };
 
