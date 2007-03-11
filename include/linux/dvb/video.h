@@ -110,7 +110,7 @@ struct video_command {
 		} stop;
 
 		struct {
-			__u32 speed;
+			__s32 speed;
 			__u32 format;
 		} play;
 
