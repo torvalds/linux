@@ -319,6 +319,12 @@ static int __sabre_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 static int sabre_read_pci_cfg(struct pci_bus *bus, unsigned int devfn,
 			      int where, int size, u32 *value)
 {
+	struct pci_pbm_info *pbm = bus->sysdata;
+
+	if (bus == pbm->pci_bus && devfn == 0x00)
+		return pci_host_bridge_read_pci_cfg(bus, devfn, where,
+						    size, value);
+
 	if (!bus->number && sabre_out_of_range(devfn)) {
 		switch (size) {
 		case 1:
@@ -435,6 +441,12 @@ static int __sabre_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 static int sabre_write_pci_cfg(struct pci_bus *bus, unsigned int devfn,
 			       int where, int size, u32 value)
 {
+	struct pci_pbm_info *pbm = bus->sysdata;
+
+	if (bus == pbm->pci_bus && devfn == 0x00)
+		return pci_host_bridge_write_pci_cfg(bus, devfn, where,
+						     size, value);
+
 	if (bus->number)
 		return __sabre_write_pci_cfg(bus, devfn, where, size, value);
 

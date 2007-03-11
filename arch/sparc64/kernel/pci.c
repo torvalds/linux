@@ -368,7 +368,8 @@ static void pci_parse_of_addrs(struct of_device *op,
 
 struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 				  struct device_node *node,
-				  struct pci_bus *bus, int devfn)
+				  struct pci_bus *bus, int devfn,
+				  int host_controller)
 {
 	struct dev_archdata *sd;
 	struct pci_dev *dev;
@@ -400,47 +401,62 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->devfn = devfn;
 	dev->multifunction = 0;		/* maybe a lie? */
 
-	dev->vendor = of_getintprop_default(node, "vendor-id", 0xffff);
-	dev->device = of_getintprop_default(node, "device-id", 0xffff);
-	dev->subsystem_vendor =
-		of_getintprop_default(node, "subsystem-vendor-id", 0);
-	dev->subsystem_device =
-		of_getintprop_default(node, "subsystem-id", 0);
+	if (host_controller) {
+		dev->vendor = 0x108e;
+		dev->device = 0x8000;
+		dev->subsystem_vendor = 0x0000;
+		dev->subsystem_device = 0x0000;
+		dev->cfg_size = 256;
+	} else {
+		dev->vendor = of_getintprop_default(node, "vendor-id", 0xffff);
+		dev->device = of_getintprop_default(node, "device-id", 0xffff);
+		dev->subsystem_vendor =
+			of_getintprop_default(node, "subsystem-vendor-id", 0);
+		dev->subsystem_device =
+			of_getintprop_default(node, "subsystem-id", 0);
 
-	dev->cfg_size = pci_cfg_space_size(dev);
-
+		dev->cfg_size = pci_cfg_space_size(dev);
+	}
 	sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
 		dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
-	/* dev->class = of_getintprop_default(node, "class-code", 0); */
-	/* We can't actually use the firmware value, we have to read what
-	 * is in the register right now.  One reason is that in the case
-	 * of IDE interfaces the firmware can sample the value before the
-	 * the IDE interface is programmed into native mode.
-	 */
-	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
-	dev->class = class >> 8;
-
+	if (host_controller) {
+		dev->class = PCI_CLASS_BRIDGE_HOST << 8;
+	} else {
+		/* We can't actually use the firmware value, we have
+		 * to read what is in the register right now.  One
+		 * reason is that in the case of IDE interfaces the
+		 * firmware can sample the value before the the IDE
+		 * interface is programmed into native mode.
+		 */
+		pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
+		dev->class = class >> 8;
+	}
 	printk("    class: 0x%x\n", dev->class);
 
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
 
-	if (!strcmp(type, "pci") || !strcmp(type, "pciex")) {
-		/* a PCI-PCI bridge */
+	if (host_controller) {
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
 		dev->rom_base_reg = PCI_ROM_ADDRESS1;
-	} else if (!strcmp(type, "cardbus")) {
-		dev->hdr_type = PCI_HEADER_TYPE_CARDBUS;
+		dev->irq = PCI_IRQ_NONE;
 	} else {
-		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;
-		dev->rom_base_reg = PCI_ROM_ADDRESS;
+		if (!strcmp(type, "pci") || !strcmp(type, "pciex")) {
+			/* a PCI-PCI bridge */
+			dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
+			dev->rom_base_reg = PCI_ROM_ADDRESS1;
+		} else if (!strcmp(type, "cardbus")) {
+			dev->hdr_type = PCI_HEADER_TYPE_CARDBUS;
+		} else {
+			dev->hdr_type = PCI_HEADER_TYPE_NORMAL;
+			dev->rom_base_reg = PCI_ROM_ADDRESS;
 
-		dev->irq = sd->op->irqs[0];
-		if (dev->irq == 0xffffffff)
-			dev->irq = PCI_IRQ_NONE;
+			dev->irq = sd->op->irqs[0];
+			if (dev->irq == 0xffffffff)
+				dev->irq = PCI_IRQ_NONE;
+		}
 	}
-
 	pci_parse_of_addrs(sd->op, node, dev);
 
 	printk("    adding to system ...\n");
@@ -632,7 +648,7 @@ static void __init pci_of_scan_bus(struct pci_pbm_info *pbm,
 		devfn = (reg[0] >> 8) & 0xff;
 
 		/* create a new pci_dev for this device */
-		dev = of_create_pci_dev(pbm, child, bus, devfn);
+		dev = of_create_pci_dev(pbm, child, bus, devfn, 0);
 		if (!dev)
 			continue;
 		printk("PCI: dev header type: %x\n", dev->hdr_type);
@@ -677,10 +693,49 @@ static void __devinit pci_bus_register_of_sysfs(struct pci_bus *bus)
 		pci_bus_register_of_sysfs(child_bus);
 }
 
+int pci_host_bridge_read_pci_cfg(struct pci_bus *bus_dev,
+				 unsigned int devfn,
+				 int where, int size,
+				 u32 *value)
+{
+	static u8 fake_pci_config[] = {
+		0x8e, 0x10, /* Vendor: 0x108e (Sun) */
+		0x00, 0x80, /* Device: 0x8000 (PBM) */
+		0x46, 0x01, /* Command: 0x0146 (SERR, PARITY, MASTER, MEM) */
+		0xa0, 0x22, /* Status: 0x02a0 (DEVSEL_MED, FB2B, 66MHZ) */
+		0x00, 0x00, 0x00, 0x06, /* Class: 0x06000000 host bridge */
+		0x00, /* Cacheline: 0x00 */
+		0x40, /* Latency: 0x40 */
+		0x00, /* Header-Type: 0x00 normal */
+	};
+
+	*value = 0;
+	if (where >= 0 && where < sizeof(fake_pci_config) &&
+	    (where + size) >= 0 &&
+	    (where + size) < sizeof(fake_pci_config) &&
+	    size <= sizeof(u32)) {
+		while (size--) {
+			*value <<= 8;
+			*value |= fake_pci_config[where + size];
+		}
+	}
+
+	return PCIBIOS_SUCCESSFUL;
+}
+
+int pci_host_bridge_write_pci_cfg(struct pci_bus *bus_dev,
+				  unsigned int devfn,
+				  int where, int size,
+				  u32 value)
+{
+	return PCIBIOS_SUCCESSFUL;
+}
+
 struct pci_bus * __init pci_scan_one_pbm(struct pci_pbm_info *pbm)
 {
 	struct pci_controller_info *p = pbm->parent;
 	struct device_node *node = pbm->prom_node;
+	struct pci_dev *host_pdev;
 	struct pci_bus *bus;
 
 	printk("PCI: Scanning PBM %s\n", node->full_name);
@@ -697,6 +752,10 @@ struct pci_bus * __init pci_scan_one_pbm(struct pci_pbm_info *pbm)
 
 	bus->resource[0] = &pbm->io_space;
 	bus->resource[1] = &pbm->mem_space;
+
+	/* Create the dummy host bridge and link it in.  */
+	host_pdev = of_create_pci_dev(pbm, node, bus, 0x00, 1);
+	bus->self = host_pdev;
 
 	pci_of_scan_bus(pbm, node, bus);
 	pci_bus_add_devices(bus);

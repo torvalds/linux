@@ -125,6 +125,9 @@ static int schizo_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	u16 tmp16;
 	u8 tmp8;
 
+	if (bus_dev == pbm->pci_bus && devfn == 0x00)
+		return pci_host_bridge_read_pci_cfg(bus_dev, devfn, where,
+						    size, value);
 	switch (size) {
 	case 1:
 		*value = 0xff;
@@ -178,6 +181,9 @@ static int schizo_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	unsigned char bus = bus_dev->number;
 	u32 *addr;
 
+	if (bus_dev == pbm->pci_bus && devfn == 0x00)
+		return pci_host_bridge_write_pci_cfg(bus_dev, devfn, where,
+						     size, value);
 	addr = schizo_pci_config_mkaddr(pbm, bus, devfn, where);
 	if (!addr)
 		return PCIBIOS_SUCCESSFUL;
