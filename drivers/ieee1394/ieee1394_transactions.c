@@ -10,6 +10,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/hardirq.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 

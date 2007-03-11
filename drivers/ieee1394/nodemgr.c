@@ -115,7 +115,7 @@ static int nodemgr_bus_read(struct csr1212_csr *csr, u64 addr, u16 length,
 
 static int nodemgr_get_max_rom(quadlet_t *bus_info_data, void *__ci)
 {
-	return (CSR1212_BE32_TO_CPU(bus_info_data[2]) >> 8) & 0x3;
+	return (be32_to_cpu(bus_info_data[2]) >> 8) & 0x3;
 }
 
 static struct csr1212_bus_ops nodemgr_csr_ops = {

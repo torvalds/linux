@@ -33,9 +33,9 @@
  *   parameter expect size to be in bytes.
  */
 
-#ifndef __KERNEL__
-#include <string.h>
-#endif
+#include <linux/errno.h>
+#include <linux/string.h>
+#include <asm/byteorder.h>
 
 #include "csr1212.h"
 
@@ -100,7 +100,7 @@ static u_int16_t csr1212_crc16(const u_int32_t *buffer, size_t length)
 	u_int16_t sum, crc = 0;
 
 	for (; length; length--) {
-		data = CSR1212_BE32_TO_CPU(*buffer);
+		data = be32_to_cpu(*buffer);
 		buffer++;
 		for (shift = 28; shift >= 0; shift -= 4 ) {
 			sum = ((crc >> 12) ^ (data >> shift)) & 0xf;
@@ -109,7 +109,7 @@ static u_int16_t csr1212_crc16(const u_int32_t *buffer, size_t length)
 		crc &= 0xffff;
 	}
 
-	return CSR1212_CPU_TO_BE16(crc);
+	return cpu_to_be16(crc);
 }
 
 #if 0
@@ -123,7 +123,7 @@ static u_int16_t csr1212_msft_crc16(const u_int32_t *buffer, size_t length)
 	u_int16_t sum, crc = 0;
 
 	for (; length; length--) {
-		data = CSR1212_LE32_TO_CPU(*buffer);
+		data = le32_to_cpu(*buffer);
 		buffer++;
 		for (shift = 28; shift >= 0; shift -= 4 ) {
 			sum = ((crc >> 12) ^ (data >> shift)) & 0xf;
@@ -132,7 +132,7 @@ static u_int16_t csr1212_msft_crc16(const u_int32_t *buffer, size_t length)
 		crc &= 0xffff;
 	}
 
-	return CSR1212_CPU_TO_BE16(crc);
+	return cpu_to_be16(crc);
 }
 #endif
 
@@ -206,15 +206,8 @@ void csr1212_init_local_csr(struct csr1212_csr *csr,
 {
 	static const int mr_map[] = { 4, 64, 1024, 0 };
 
-#ifdef __KERNEL__
 	BUG_ON(max_rom & ~0x3);
 	csr->max_rom = mr_map[max_rom];
-#else
-	if (max_rom & ~0x3) /* caller supplied invalid argument */
-		csr->max_rom = 0;
-	else
-		csr->max_rom = mr_map[max_rom];
-#endif
 	memcpy(csr->bus_info_data, bus_info_data, csr->bus_info_len);
 }
 
@@ -316,7 +309,7 @@ int csr1212_associate_keyval(struct csr1212_keyval *kv,
 			     struct csr1212_keyval *associate)
 {
 	if (!kv || !associate)
-		return CSR1212_EINVAL;
+		return -EINVAL;
 
 	if (kv->key.id == CSR1212_KV_ID_DESCRIPTOR ||
 	   (associate->key.id != CSR1212_KV_ID_DESCRIPTOR &&
@@ -324,23 +317,23 @@ int csr1212_associate_keyval(struct csr1212_keyval *kv,
 	    associate->key.id != CSR1212_KV_ID_EXTENDED_KEY &&
 	    associate->key.id != CSR1212_KV_ID_EXTENDED_DATA &&
 	    associate->key.id < 0x30))
-		return CSR1212_EINVAL;
+		return -EINVAL;
 
 	if (kv->key.id == CSR1212_KV_ID_EXTENDED_KEY_SPECIFIER_ID &&
 	   associate->key.id != CSR1212_KV_ID_EXTENDED_KEY)
-		return CSR1212_EINVAL;
+		return -EINVAL;
 
 	if (kv->key.id == CSR1212_KV_ID_EXTENDED_KEY &&
 	   associate->key.id != CSR1212_KV_ID_EXTENDED_DATA)
-		return CSR1212_EINVAL;
+		return -EINVAL;
 
 	if (associate->key.id == CSR1212_KV_ID_EXTENDED_KEY &&
 	   kv->key.id != CSR1212_KV_ID_EXTENDED_KEY_SPECIFIER_ID)
-		return CSR1212_EINVAL;
+		return -EINVAL;
 
 	if (associate->key.id == CSR1212_KV_ID_EXTENDED_DATA &&
 	   kv->key.id != CSR1212_KV_ID_EXTENDED_KEY)
-		return CSR1212_EINVAL;
+		return -EINVAL;
 
 	if (kv->associate)
 		csr1212_release_keyval(kv->associate);
@@ -357,11 +350,11 @@ int csr1212_attach_keyval_to_directory(struct csr1212_keyval *dir,
 	struct csr1212_dentry *dentry;
 
 	if (!kv || !dir || dir->key.type != CSR1212_KV_TYPE_DIRECTORY)
-		return CSR1212_EINVAL;
+		return -EINVAL;
 
 	dentry = CSR1212_MALLOC(sizeof(*dentry));
 	if (!dentry)
-		return CSR1212_ENOMEM;
+		return -ENOMEM;
 
 	dentry->kv = kv;
 
@@ -385,13 +378,13 @@ int csr1212_attach_keyval_to_directory(struct csr1212_keyval *dir,
 
 #define CSR1212_DESCRIPTOR_LEAF_SET_TYPE(kv, type) \
 	((kv)->value.leaf.data[0] = \
-	 CSR1212_CPU_TO_BE32(CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID(kv) | \
-			     ((type) << CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT)))
+	 cpu_to_be32(CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID(kv) | \
+		     ((type) << CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT)))
 #define CSR1212_DESCRIPTOR_LEAF_SET_SPECIFIER_ID(kv, spec_id) \
 	((kv)->value.leaf.data[0] = \
-	 CSR1212_CPU_TO_BE32((CSR1212_DESCRIPTOR_LEAF_TYPE(kv) << \
-			      CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT) | \
-			     ((spec_id) & CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID_MASK)))
+	 cpu_to_be32((CSR1212_DESCRIPTOR_LEAF_TYPE(kv) << \
+		      CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT) | \
+		     ((spec_id) & CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID_MASK)))
 
 static struct csr1212_keyval *
 csr1212_new_descriptor_leaf(u_int8_t dtype, u_int32_t specifier_id,
@@ -417,27 +410,26 @@ csr1212_new_descriptor_leaf(u_int8_t dtype, u_int32_t specifier_id,
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_WIDTH(kv, width) \
 	((kv)->value.leaf.data[1] = \
 	 ((kv)->value.leaf.data[1] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_MASK << \
-				CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT))) | \
-	 CSR1212_CPU_TO_BE32(((width) & \
-			      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_MASK) << \
-			     CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT))
+	  cpu_to_be32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_MASK << \
+			CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT))) | \
+	 cpu_to_be32(((width) & CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_MASK) << \
+		     CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT))
 
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_CHAR_SET(kv, char_set) \
 	((kv)->value.leaf.data[1] = \
 	 ((kv)->value.leaf.data[1] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK << \
-				CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT))) | \
-	 CSR1212_CPU_TO_BE32(((char_set) & \
-			      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK) << \
-			     CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT))
+	  cpu_to_be32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK << \
+			CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT))) | \
+	 cpu_to_be32(((char_set) & \
+		      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK) << \
+		     CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT))
 
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_LANGUAGE(kv, language) \
 	((kv)->value.leaf.data[1] = \
 	 ((kv)->value.leaf.data[1] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK))) | \
-	 CSR1212_CPU_TO_BE32(((language) & \
-			      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK)))
+	  cpu_to_be32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK))) | \
+	 cpu_to_be32(((language) & \
+		      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK)))
 
 static struct csr1212_keyval *
 csr1212_new_textual_descriptor_leaf(u_int8_t cwidth, u_int16_t cset,
@@ -622,39 +614,39 @@ static int csr1212_append_new_cache(struct csr1212_csr *csr, size_t romsize)
 
 	if (!csr || !csr->ops || !csr->ops->allocate_addr_range ||
 	    !csr->ops->release_addr || csr->max_rom < 1)
-		return CSR1212_EINVAL;
+		return -EINVAL;
 
 	/* ROM size must be a multiple of csr->max_rom */
 	romsize = (romsize + (csr->max_rom - 1)) & ~(csr->max_rom - 1);
 
 	csr_addr = csr->ops->allocate_addr_range(romsize, csr->max_rom, csr->private);
 	if (csr_addr == CSR1212_INVALID_ADDR_SPACE) {
-		return CSR1212_ENOMEM;
+		return -ENOMEM;
 	}
 	if (csr_addr < CSR1212_REGISTER_SPACE_BASE) {
 		/* Invalid address returned from allocate_addr_range(). */
 		csr->ops->release_addr(csr_addr, csr->private);
-		return CSR1212_ENOMEM;
+		return -ENOMEM;
 	}
 
 	cache = csr1212_rom_cache_malloc(csr_addr - CSR1212_REGISTER_SPACE_BASE, romsize);
 	if (!cache) {
 		csr->ops->release_addr(csr_addr, csr->private);
-		return CSR1212_ENOMEM;
+		return -ENOMEM;
 	}
 
 	cache->ext_rom = csr1212_new_keyval(CSR1212_KV_TYPE_LEAF, CSR1212_KV_ID_EXTENDED_ROM);
 	if (!cache->ext_rom) {
 		csr->ops->release_addr(csr_addr, csr->private);
 		CSR1212_FREE(cache);
-		return CSR1212_ENOMEM;
+		return -ENOMEM;
 	}
 
 	if (csr1212_attach_keyval_to_directory(csr->root_kv, cache->ext_rom) != CSR1212_SUCCESS) {
 		csr1212_release_keyval(cache->ext_rom);
 		csr->ops->release_addr(csr_addr, csr->private);
 		CSR1212_FREE(cache);
-		return CSR1212_ENOMEM;
+		return -ENOMEM;
 	}
 	cache->ext_rom->offset = csr_addr - CSR1212_REGISTER_SPACE_BASE;
 	cache->ext_rom->value.leaf.len = -1;
@@ -890,7 +882,7 @@ csr1212_generate_tree_subdir(struct csr1212_keyval *dir, u_int32_t *data_buffer)
 			value |= (a->key.id & CSR1212_KV_KEY_ID_MASK) << CSR1212_KV_KEY_SHIFT;
 			value |= (a->key.type & CSR1212_KV_KEY_TYPE_MASK) <<
 				(CSR1212_KV_KEY_SHIFT + CSR1212_KV_KEY_TYPE_SHIFT);
-			data_buffer[index] = CSR1212_CPU_TO_BE32(value);
+			data_buffer[index] = cpu_to_be32(value);
 			index++;
 		}
 	}
@@ -926,14 +918,14 @@ static void csr1212_fill_cache(struct csr1212_csr_rom_cache *cache)
 				memcpy(kvi->data, kv->value.leaf.data,
 				       quads_to_bytes(kv->value.leaf.len));
 
-			kvi->length = CSR1212_CPU_TO_BE16(kv->value.leaf.len);
+			kvi->length = cpu_to_be16(kv->value.leaf.len);
 			kvi->crc = csr1212_crc16(kvi->data, kv->value.leaf.len);
 			break;
 
 		case CSR1212_KV_TYPE_DIRECTORY:
 			csr1212_generate_tree_subdir(kv, kvi->data);
 
-			kvi->length = CSR1212_CPU_TO_BE16(kv->value.directory.len);
+			kvi->length = cpu_to_be16(kv->value.directory.len);
 			kvi->crc = csr1212_crc16(kvi->data, kv->value.directory.len);
 			break;
 		}
@@ -960,7 +952,7 @@ int csr1212_generate_csr_image(struct csr1212_csr *csr)
 	int init_offset;
 
 	if (!csr)
-		return CSR1212_EINVAL;
+		return -EINVAL;
 
 	cache = csr->cache_head;
 
@@ -1021,7 +1013,7 @@ int csr1212_generate_csr_image(struct csr1212_csr *csr)
 			/* Make sure the Extended ROM leaf is a multiple of
 			 * max_rom in size. */
 			if (csr->max_rom < 1)
-				return CSR1212_EINVAL;
+				return -EINVAL;
 			leaf_size = (cache->len + (csr->max_rom - 1)) &
 				~(csr->max_rom - 1);
 
@@ -1048,11 +1040,10 @@ int csr1212_generate_csr_image(struct csr1212_csr *csr)
 			/* Set the length and CRC of the extended ROM. */
 			struct csr1212_keyval_img *kvi =
 				(struct csr1212_keyval_img*)cache->data;
+			u_int16_t len = bytes_to_quads(cache->len) - 1;
 
-			kvi->length = CSR1212_CPU_TO_BE16(bytes_to_quads(cache->len) - 1);
-			kvi->crc = csr1212_crc16(kvi->data,
-						 bytes_to_quads(cache->len) - 1);
-
+			kvi->length = cpu_to_be16(len);
+			kvi->crc = csr1212_crc16(kvi->data, len);
 		}
 	}
 
@@ -1072,7 +1063,7 @@ int csr1212_read(struct csr1212_csr *csr, u_int32_t offset, void *buffer, u_int3
 			return CSR1212_SUCCESS;
 		}
 	}
-	return CSR1212_ENOENT;
+	return -ENOENT;
 }
 
 
@@ -1100,9 +1091,9 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 
 		/* check ROM header's info_length */
 		if (i == 0 &&
-		    CSR1212_BE32_TO_CPU(csr->cache_head->data[0]) >> 24 !=
+		    be32_to_cpu(csr->cache_head->data[0]) >> 24 !=
 		    bytes_to_quads(csr->bus_info_len) - 1)
-			return CSR1212_EINVAL;
+			return -EINVAL;
 	}
 
 	bi = (struct csr1212_bus_info_block_img*)csr->cache_head->data;
@@ -1124,12 +1115,12 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 	 * CRC algorithm that verifying them is moot. */
 	if ((csr1212_crc16(bi->data, bi->crc_length) != bi->crc) &&
 	    (csr1212_msft_crc16(bi->data, bi->crc_length) != bi->crc))
-		return CSR1212_EINVAL;
+		return -EINVAL;
 #endif
 
 	cr = CSR1212_MALLOC(sizeof(*cr));
 	if (!cr)
-		return CSR1212_ENOMEM;
+		return -ENOMEM;
 
 	cr->next = NULL;
 	cr->prev = NULL;
@@ -1142,11 +1133,11 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 	return CSR1212_SUCCESS;
 }
 
-#define CSR1212_KV_KEY(q)	(CSR1212_BE32_TO_CPU(q) >> CSR1212_KV_KEY_SHIFT)
+#define CSR1212_KV_KEY(q)	(be32_to_cpu(q) >> CSR1212_KV_KEY_SHIFT)
 #define CSR1212_KV_KEY_TYPE(q)	(CSR1212_KV_KEY(q) >> CSR1212_KV_KEY_TYPE_SHIFT)
 #define CSR1212_KV_KEY_ID(q)	(CSR1212_KV_KEY(q) & CSR1212_KV_KEY_ID_MASK)
 #define CSR1212_KV_VAL_MASK	0xffffff
-#define CSR1212_KV_VAL(q)	(CSR1212_BE32_TO_CPU(q) & CSR1212_KV_VAL_MASK)
+#define CSR1212_KV_VAL(q)	(be32_to_cpu(q) & CSR1212_KV_VAL_MASK)
 
 static int csr1212_parse_dir_entry(struct csr1212_keyval *dir,
 				   csr1212_quad_t ki,
@@ -1161,7 +1152,7 @@ static int csr1212_parse_dir_entry(struct csr1212_keyval *dir,
 		k = csr1212_new_immediate(CSR1212_KV_KEY_ID(ki),
 					  CSR1212_KV_VAL(ki));
 		if (!k) {
-			ret = CSR1212_ENOMEM;
+			ret = -ENOMEM;
 			goto fail;
 		}
 
@@ -1172,7 +1163,7 @@ static int csr1212_parse_dir_entry(struct csr1212_keyval *dir,
 		k = csr1212_new_csr_offset(CSR1212_KV_KEY_ID(ki),
 					   CSR1212_KV_VAL(ki));
 		if (!k) {
-			ret = CSR1212_ENOMEM;
+			ret = -ENOMEM;
 			goto fail;
 		}
 		k->refcnt = 0;	/* Don't keep local reference when parsing. */
@@ -1185,7 +1176,7 @@ static int csr1212_parse_dir_entry(struct csr1212_keyval *dir,
 			/* Uh-oh.  Can't have a relative offset of 0 for Leaves
 			 * or Directories.  The Config ROM image is most likely
 			 * messed up, so we'll just abort here. */
-			ret = CSR1212_EIO;
+			ret = -EIO;
 			goto fail;
 		}
 
@@ -1200,7 +1191,7 @@ static int csr1212_parse_dir_entry(struct csr1212_keyval *dir,
 			k = csr1212_new_leaf(CSR1212_KV_KEY_ID(ki), NULL, 0);
 		}
 		if (!k) {
-			ret = CSR1212_ENOMEM;
+			ret = -ENOMEM;
 			goto fail;
 		}
 		k->refcnt = 0;	/* Don't keep local reference when parsing. */
@@ -1230,14 +1221,14 @@ int csr1212_parse_keyval(struct csr1212_keyval *kv,
 
 	kvi = (struct csr1212_keyval_img*)&cache->data[bytes_to_quads(kv->offset -
 								      cache->offset)];
-	kvi_len = CSR1212_BE16_TO_CPU(kvi->length);
+	kvi_len = be16_to_cpu(kvi->length);
 
 #if 0
 	/* Apparently there are too many differnt wrong implementations of the
 	 * CRC algorithm that verifying them is moot. */
 	if ((csr1212_crc16(kvi->data, kvi_len) != kvi->crc) &&
 	    (csr1212_msft_crc16(kvi->data, kvi_len) != kvi->crc)) {
-		ret = CSR1212_EINVAL;
+		ret = -EINVAL;
 		goto fail;
 	}
 #endif
@@ -1263,7 +1254,7 @@ int csr1212_parse_keyval(struct csr1212_keyval *kv,
 		if (kv->key.id != CSR1212_KV_ID_EXTENDED_ROM) {
 			kv->value.leaf.data = CSR1212_MALLOC(quads_to_bytes(kvi_len));
 			if (!kv->value.leaf.data) {
-				ret = CSR1212_ENOMEM;
+				ret = -ENOMEM;
 				goto fail;
 			}
 
@@ -1290,7 +1281,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 	u_int16_t kv_len = 0;
 
 	if (!csr || !kv || csr->max_rom < 1)
-		return CSR1212_EINVAL;
+		return -EINVAL;
 
 	/* First find which cache the data should be in (or go in if not read
 	 * yet). */
@@ -1306,22 +1297,22 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 
 		/* Only create a new cache for Extended ROM leaves. */
 		if (kv->key.id != CSR1212_KV_ID_EXTENDED_ROM)
-			return CSR1212_EINVAL;
+			return -EINVAL;
 
 		if (csr->ops->bus_read(csr,
 				       CSR1212_REGISTER_SPACE_BASE + kv->offset,
 				       sizeof(csr1212_quad_t), &q, csr->private)) {
-			return CSR1212_EIO;
+			return -EIO;
 		}
 
-		kv->value.leaf.len = CSR1212_BE32_TO_CPU(q) >> 16;
+		kv->value.leaf.len = be32_to_cpu(q) >> 16;
 
 		cache_size = (quads_to_bytes(kv->value.leaf.len + 1) +
 			      (csr->max_rom - 1)) & ~(csr->max_rom - 1);
 
 		cache = csr1212_rom_cache_malloc(kv->offset, cache_size);
 		if (!cache)
-			return CSR1212_ENOMEM;
+			return -ENOMEM;
 
 		kv->value.leaf.data = &cache->data[1];
 		csr->cache_tail->next = cache;
@@ -1331,7 +1322,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 		cache->filled_head =
 			CSR1212_MALLOC(sizeof(*cache->filled_head));
 		if (!cache->filled_head) {
-			return CSR1212_ENOMEM;
+			return -ENOMEM;
 		}
 
 		cache->filled_head->offset_start = 0;
@@ -1353,7 +1344,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 		if (cache_index < cr->offset_start) {
 			newcr = CSR1212_MALLOC(sizeof(*newcr));
 			if (!newcr)
-				return CSR1212_ENOMEM;
+				return -ENOMEM;
 
 			newcr->offset_start = cache_index & ~(csr->max_rom - 1);
 			newcr->offset_end = newcr->offset_start;
@@ -1366,8 +1357,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 			   (cache_index < cr->offset_end)) {
 			kvi = (struct csr1212_keyval_img*)
 				(&cache->data[bytes_to_quads(cache_index)]);
-			kv_len = quads_to_bytes(CSR1212_BE16_TO_CPU(kvi->length) +
-						1);
+			kv_len = quads_to_bytes(be16_to_cpu(kvi->length) + 1);
 			break;
 		} else if (cache_index == cr->offset_end)
 			break;
@@ -1377,7 +1367,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 		cr = cache->filled_tail;
 		newcr = CSR1212_MALLOC(sizeof(*newcr));
 		if (!newcr)
-			return CSR1212_ENOMEM;
+			return -ENOMEM;
 
 		newcr->offset_start = cache_index & ~(csr->max_rom - 1);
 		newcr->offset_end = newcr->offset_start;
@@ -1399,7 +1389,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 				       csr->private)) {
 			if (csr->max_rom == 4)
 				/* We've got problems! */
-				return CSR1212_EIO;
+				return -EIO;
 
 			/* Apperently the max_rom value was a lie, set it to
 			 * do quadlet reads and try again. */
@@ -1413,8 +1403,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 		if (!kvi && (cr->offset_end > cache_index)) {
 			kvi = (struct csr1212_keyval_img*)
 				(&cache->data[bytes_to_quads(cache_index)]);
-			kv_len = quads_to_bytes(CSR1212_BE16_TO_CPU(kvi->length) +
-						1);
+			kv_len = quads_to_bytes(be16_to_cpu(kvi->length) + 1);
 		}
 
 		if ((kv_len + (kv->offset - cache->offset)) > cache->size) {
@@ -1422,7 +1411,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 			 * beyond the ConfigROM image region and thus beyond the
 			 * end of our cache region.  Therefore, we abort now
 			 * rather than seg faulting later. */
-			return CSR1212_EIO;
+			return -EIO;
 		}
 
 		ncr = cr->next;
@@ -1451,7 +1440,7 @@ int csr1212_parse_csr(struct csr1212_csr *csr)
 	int ret;
 
 	if (!csr || !csr->ops || !csr->ops->bus_read)
-		return CSR1212_EINVAL;
+		return -EINVAL;
 
 	ret = csr1212_parse_bus_info_block(csr);
 	if (ret != CSR1212_SUCCESS)
@@ -1463,7 +1452,7 @@ int csr1212_parse_csr(struct csr1212_csr *csr)
 		int i = csr->ops->get_max_rom(csr->bus_info_data,
 					      csr->private);
 		if (i & ~0x3)
-			return CSR1212_EINVAL;
+			return -EINVAL;
 		csr->max_rom = mr_map[i];
 	}
 

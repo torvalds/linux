@@ -30,87 +30,13 @@
 #ifndef __CSR1212_H__
 #define __CSR1212_H__
 
-
-/* Compatibility layer */
-#ifdef __KERNEL__
-
 #include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
 #include <linux/vmalloc.h>
-#include <asm/pgalloc.h>
 
 #define CSR1212_MALLOC(size)		vmalloc((size))
 #define CSR1212_FREE(ptr)		vfree(ptr)
-#define CSR1212_BE16_TO_CPU(quad)	be16_to_cpu(quad)
-#define CSR1212_CPU_TO_BE16(quad)	cpu_to_be16(quad)
-#define CSR1212_BE32_TO_CPU(quad)	be32_to_cpu(quad)
-#define CSR1212_CPU_TO_BE32(quad)	cpu_to_be32(quad)
-#define CSR1212_BE64_TO_CPU(quad)	be64_to_cpu(quad)
-#define CSR1212_CPU_TO_BE64(quad)	cpu_to_be64(quad)
 
-#define CSR1212_LE16_TO_CPU(quad)	le16_to_cpu(quad)
-#define CSR1212_CPU_TO_LE16(quad)	cpu_to_le16(quad)
-#define CSR1212_LE32_TO_CPU(quad)	le32_to_cpu(quad)
-#define CSR1212_CPU_TO_LE32(quad)	cpu_to_le32(quad)
-#define CSR1212_LE64_TO_CPU(quad)	le64_to_cpu(quad)
-#define CSR1212_CPU_TO_LE64(quad)	cpu_to_le64(quad)
-
-#include <linux/errno.h>
 #define CSR1212_SUCCESS (0)
-#define CSR1212_EINVAL	(-EINVAL)
-#define CSR1212_ENOMEM	(-ENOMEM)
-#define CSR1212_ENOENT	(-ENOENT)
-#define CSR1212_EIO	(-EIO)
-#define CSR1212_EBUSY	(-EBUSY)
-
-#else	/* Userspace */
-
-#include <sys/types.h>
-#include <malloc.h>
-#define CSR1212_MALLOC(size)		malloc(size)
-#define CSR1212_FREE(ptr)		free(ptr)
-#include <endian.h>
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#include <byteswap.h>
-#define CSR1212_BE16_TO_CPU(quad)	bswap_16(quad)
-#define CSR1212_CPU_TO_BE16(quad)	bswap_16(quad)
-#define CSR1212_BE32_TO_CPU(quad)	bswap_32(quad)
-#define CSR1212_CPU_TO_BE32(quad)	bswap_32(quad)
-#define CSR1212_BE64_TO_CPU(quad)	bswap_64(quad)
-#define CSR1212_CPU_TO_BE64(quad)	bswap_64(quad)
-
-#define CSR1212_LE16_TO_CPU(quad)	(quad)
-#define CSR1212_CPU_TO_LE16(quad)	(quad)
-#define CSR1212_LE32_TO_CPU(quad)	(quad)
-#define CSR1212_CPU_TO_LE32(quad)	(quad)
-#define CSR1212_LE64_TO_CPU(quad)	(quad)
-#define CSR1212_CPU_TO_LE64(quad)	(quad)
-#else
-#define CSR1212_BE16_TO_CPU(quad)	(quad)
-#define CSR1212_CPU_TO_BE16(quad)	(quad)
-#define CSR1212_BE32_TO_CPU(quad)	(quad)
-#define CSR1212_CPU_TO_BE32(quad)	(quad)
-#define CSR1212_BE64_TO_CPU(quad)	(quad)
-#define CSR1212_CPU_TO_BE64(quad)	(quad)
-
-#define CSR1212_LE16_TO_CPU(quad)	bswap_16(quad)
-#define CSR1212_CPU_TO_LE16(quad)	bswap_16(quad)
-#define CSR1212_LE32_TO_CPU(quad)	bswap_32(quad)
-#define CSR1212_CPU_TO_LE32(quad)	bswap_32(quad)
-#define CSR1212_LE64_TO_CPU(quad)	bswap_64(quad)
-#define CSR1212_CPU_TO_LE64(quad)	bswap_64(quad)
-#endif
-
-#include <errno.h>
-#define CSR1212_SUCCESS (0)
-#define CSR1212_EINVAL	(EINVAL)
-#define CSR1212_ENOMEM	(ENOMEM)
-#define CSR1212_ENOENT	(ENOENT)
-#define CSR1212_EIO	(EIO)
-#define CSR1212_EBUSY	(EBUSY)
-
-#endif
 
 
 /* CSR 1212 key types */
@@ -302,9 +228,9 @@ struct csr1212_bus_ops {
 #define CSR1212_DESCRIPTOR_LEAF_OVERHEAD (1 * sizeof(u_int32_t))
 
 #define CSR1212_DESCRIPTOR_LEAF_TYPE(kv) \
-	(CSR1212_BE32_TO_CPU((kv)->value.leaf.data[0]) >> CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT)
+	(be32_to_cpu((kv)->value.leaf.data[0]) >> CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT)
 #define CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID(kv) \
-	(CSR1212_BE32_TO_CPU((kv)->value.leaf.data[0]) & \
+	(be32_to_cpu((kv)->value.leaf.data[0]) & \
 	 CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID_MASK)
 
 
@@ -317,14 +243,14 @@ struct csr1212_bus_ops {
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_OVERHEAD (1 * sizeof(u_int32_t))
 
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH(kv) \
-	(CSR1212_BE32_TO_CPU((kv)->value.leaf.data[1]) >> \
+	(be32_to_cpu((kv)->value.leaf.data[1]) >> \
 	 CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT)
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET(kv) \
-	((CSR1212_BE32_TO_CPU((kv)->value.leaf.data[1]) >> \
-			     CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT) & \
-			    CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK)
+	((be32_to_cpu((kv)->value.leaf.data[1]) >> \
+	  CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT) & \
+	 CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK)
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE(kv) \
-	(CSR1212_BE32_TO_CPU((kv)->value.leaf.data[1]) & \
+	(be32_to_cpu((kv)->value.leaf.data[1]) & \
 	 CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK)
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(kv) \
 	(&((kv)->value.leaf.data[2]))
