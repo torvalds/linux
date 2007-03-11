@@ -45,7 +45,7 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_promise"
-#define DRV_VERSION	"2.01"
+#define DRV_VERSION	"2.02"
 
 
 enum {
@@ -194,6 +194,7 @@ static const struct ata_port_operations pdc_old_sata_ops = {
 	.thaw			= pdc_thaw,
 	.error_handler		= pdc_error_handler,
 	.post_internal_cmd	= pdc_post_internal_cmd,
+	.cable_detect		= pdc_cable_detect,
 	.data_xfer		= ata_data_xfer,
 	.irq_handler		= pdc_interrupt,
 	.irq_clear		= pdc_irq_clear,
@@ -220,6 +221,7 @@ static const struct ata_port_operations pdc_pata_ops = {
 	.thaw			= pdc_thaw,
 	.error_handler		= pdc_error_handler,
 	.post_internal_cmd	= pdc_post_internal_cmd,
+	.cable_detect		= pdc_cable_detect,
 	.data_xfer		= ata_data_xfer,
 	.irq_handler		= pdc_interrupt,
 	.irq_clear		= pdc_irq_clear,
