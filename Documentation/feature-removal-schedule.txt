@@ -316,3 +316,11 @@ Why:	The option/code is
 Who:	Johannes Berg <johannes@sipsolutions.net>
 
 ---------------------------
+
+What:	i8xx_tco watchdog driver
+When:	in 2.6.22
+Why:	the i8xx_tco watchdog driver has been replaced by the iTCO_wdt
+	watchdog driver.
+Who:	Wim Van Sebroeck <wim@iguana.be>
+
+---------------------------
