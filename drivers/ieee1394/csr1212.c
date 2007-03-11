@@ -932,7 +932,9 @@ static void csr1212_fill_cache(struct csr1212_csr_rom_cache *cache)
 	}
 }
 
-#define CSR1212_EXTENDED_ROM_SIZE (0x10000 * sizeof(u32))
+/* This size is arbitrarily chosen.
+ * The struct overhead is subtracted for more economic allocations. */
+#define CSR1212_EXTENDED_ROM_SIZE (2048 - sizeof(struct csr1212_csr_rom_cache))
 
 int csr1212_generate_csr_image(struct csr1212_csr *csr)
 {

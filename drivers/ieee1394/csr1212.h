@@ -31,10 +31,10 @@
 #define __CSR1212_H__
 
 #include <linux/types.h>
-#include <linux/vmalloc.h>
+#include <linux/slab.h>
 
-#define CSR1212_MALLOC(size)		vmalloc((size))
-#define CSR1212_FREE(ptr)		vfree(ptr)
+#define CSR1212_MALLOC(size)	kmalloc((size), GFP_KERNEL)
+#define CSR1212_FREE(ptr)	kfree(ptr)
 
 #define CSR1212_SUCCESS (0)
 
