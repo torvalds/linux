@@ -1631,6 +1631,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x1402,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR3000,
+	},{
+		.subvendor = 0x1421,
+		.subdevice = 0x0341, /* ADS Tech InstantTV DVB-S */
+		.card      = CX88_BOARD_KWORLD_DVBS_100,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
