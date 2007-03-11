@@ -3,7 +3,7 @@
  *
  *
  *  Copyright (C) 2002-2005 Julien Lerouge, 2003-2006 Karol Kozimor
- *  Copyright (C) 2006 Corentin Chary
+ *  Copyright (C) 2006-2007 Corentin Chary
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@
 #include <acpi/acpi_bus.h>
 #include <asm/uaccess.h>
 
-#define ASUS_LAPTOP_VERSION "0.40"
+#define ASUS_LAPTOP_VERSION "0.41"
 
 #define ASUS_HOTK_NAME          "Asus Laptop Support"
 #define ASUS_HOTK_CLASS         "hotkey"
