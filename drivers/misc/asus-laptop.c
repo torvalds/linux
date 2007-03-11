@@ -95,6 +95,19 @@ MODULE_AUTHOR("Julien Lerouge, Karol Kozimor, Corentin Chary");
 MODULE_DESCRIPTION(ASUS_HOTK_NAME);
 MODULE_LICENSE("GPL");
 
+/* WAPF defines the behavior of the Fn+Fx wlan key
+ * The significance of values is yet to be found, but
+ * most of the time:
+ * 0x0 will do nothing
+ * 0x1 will allow to control the device with Fn+Fx key.
+ * 0x4 will send an ACPI event (0x88) while pressing the Fn+Fx key
+ * 0x5 like 0x1 or 0x4
+ * So, if something doesn't work as you want, just try other values =)
+ */
+static uint wapf = 1;
+module_param(wapf, uint, 0644);
+MODULE_PARM_DESC(wapf, "WAPF value");
+
 #define ASUS_HANDLE(object, paths...)					\
 	static acpi_handle  object##_handle = NULL;			\
 	static char *object##_paths[] = { paths }
@@ -810,6 +823,9 @@ static int asus_hotk_get_info(void)
 	else if (bsts_result)
 		printk(ASUS_NOTICE "BSTS called, 0x%02x returned\n",
 		       (uint) bsts_result);
+
+	/* This too ... */
+	write_acpi_int(hotk->handle, "CWAP", wapf, NULL);
 
 	/*
 	 * Try to match the object returned by INIT to the specific model.
