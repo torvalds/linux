@@ -1361,7 +1361,7 @@ static void cx23885_timeout(unsigned long data)
 #define VID_C_MSK_RISCI2  (1 <<  4)
 #define VID_C_MSK_RISCI1   1
 
-static irqreturn_t cx23885_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cx23885_irq(int irq, void *dev_id)
 {
 	struct cx23885_dev *dev = dev_id;
 	struct cx23885_tsport *port = &dev->ts2;

@@ -28,7 +28,9 @@
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/video-buf.h>
+#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 #include <media/video-buf-dvb.h>
+#endif
 
 #include "btcx-risc.h"
 #include "cx23885-reg.h"
