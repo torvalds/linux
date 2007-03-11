@@ -965,6 +965,11 @@ static inline void skb_reset_network_header(struct sk_buff *skb)
 	skb->nh.raw = skb->data;
 }
 
+static inline int skb_network_offset(const struct sk_buff *skb)
+{
+	return skb->nh.raw - skb->data;
+}
+
 static inline unsigned char *skb_mac_header(const struct sk_buff *skb)
 {
 	return skb->mac.raw;

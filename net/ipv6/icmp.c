@@ -206,7 +206,7 @@ static __inline__ int opt_unrec(struct sk_buff *skb, __u32 offset)
 {
 	u8 _optval, *op;
 
-	offset += skb->nh.raw - skb->data;
+	offset += skb_network_offset(skb);
 	op = skb_header_pointer(skb, offset, sizeof(_optval), &_optval);
 	if (op == NULL)
 		return 1;
@@ -431,7 +431,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		tclass = 0;
 
 	msg.skb = skb;
-	msg.offset = skb->nh.raw - skb->data;
+	msg.offset = skb_network_offset(skb);
 	msg.type = type;
 
 	len = skb->len - msg.offset;

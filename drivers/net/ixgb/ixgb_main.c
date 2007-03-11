@@ -1195,7 +1195,7 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 		skb->h.th->check = ~csum_tcpudp_magic(skb->nh.iph->saddr,
 						      skb->nh.iph->daddr,
 						      0, IPPROTO_TCP, 0);
-		ipcss = skb->nh.raw - skb->data;
+		ipcss = skb_network_offset(skb);
 		ipcso = (void *)&(skb->nh.iph->check) - (void *)skb->data;
 		ipcse = skb->h.raw - skb->data - 1;
 		tucss = skb->h.raw - skb->data;

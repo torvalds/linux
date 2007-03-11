@@ -386,7 +386,7 @@ void netxen_tso_check(struct netxen_adapter *adapter,
 	}
 	adapter->stats.xmitcsummed++;
 	desc->tcp_hdr_offset = skb->h.raw - skb->data;
-	desc->ip_hdr_offset = skb->nh.raw - skb->data;
+	desc->ip_hdr_offset = skb_network_offset(skb);
 }
 
 int netxen_is_flash_supported(struct netxen_adapter *adapter)

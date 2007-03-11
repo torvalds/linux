@@ -89,7 +89,7 @@ static inline int ip6_output_finish(struct sk_buff *skb)
 static int ip6_dev_loopback_xmit(struct sk_buff *newskb)
 {
 	skb_reset_mac_header(newskb);
-	__skb_pull(newskb, newskb->nh.raw - newskb->data);
+	__skb_pull(newskb, skb_network_offset(newskb));
 	newskb->pkt_type = PACKET_LOOPBACK;
 	newskb->ip_summed = CHECKSUM_UNNECESSARY;
 	BUG_TRAP(newskb->dst);
@@ -1330,7 +1330,7 @@ int ip6_push_pending_frames(struct sock *sk)
 
 	/* move skb->data to ip header from ext header */
 	if (skb->data < skb->nh.raw)
-		__skb_pull(skb, skb->nh.raw - skb->data);
+		__skb_pull(skb, skb_network_offset(skb));
 	while ((tmp_skb = __skb_dequeue(&sk->sk_write_queue)) != NULL) {
 		__skb_pull(tmp_skb, skb->h.raw - skb->nh.raw);
 		*tail_skb = tmp_skb;

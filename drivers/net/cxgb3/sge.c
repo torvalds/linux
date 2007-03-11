@@ -897,7 +897,7 @@ static void write_tx_pkt_wr(struct adapter *adap, struct sk_buff *skb,
 		d->flit[2] = 0;
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT_LSO);
 		hdr->cntrl = htonl(cntrl);
-		eth_type = skb->nh.raw - skb->data == ETH_HLEN ?
+		eth_type = skb_network_offset(skb) == ETH_HLEN ?
 		    CPL_ETH_II : CPL_ETH_II_VLAN;
 		tso_info |= V_LSO_ETH_TYPE(eth_type) |
 		    V_LSO_IPHDR_WORDS(skb->nh.iph->ihl) |

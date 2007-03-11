@@ -491,7 +491,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 			skb_push(skb, skb->data - skb_mac_header(skb));
 		else if (skb->pkt_type == PACKET_OUTGOING) {
 			/* Special case: outgoing packets have ll header at head */
-			skb_pull(skb, skb->nh.raw - skb->data);
+			skb_pull(skb, skb_network_offset(skb));
 		}
 	}
 
@@ -595,7 +595,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 			skb_push(skb, skb->data - skb_mac_header(skb));
 		else if (skb->pkt_type == PACKET_OUTGOING) {
 			/* Special case: outgoing packets have ll header at head */
-			skb_pull(skb, skb->nh.raw - skb->data);
+			skb_pull(skb, skb_network_offset(skb));
 		}
 	}
 
@@ -613,7 +613,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	if (sk->sk_type == SOCK_DGRAM) {
 		macoff = netoff = TPACKET_ALIGN(TPACKET_HDRLEN) + 16;
 	} else {
-		unsigned maclen = skb->nh.raw - skb->data;
+		unsigned maclen = skb_network_offset(skb);
 		netoff = TPACKET_ALIGN(TPACKET_HDRLEN + (maclen < 16 ? 16 : maclen));
 		macoff = netoff - maclen;
 	}
@@ -1145,7 +1145,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 		aux.tp_len = PACKET_SKB_CB(skb)->origlen;
 		aux.tp_snaplen = skb->len;
 		aux.tp_mac = 0;
-		aux.tp_net = skb->nh.raw - skb->data;
+		aux.tp_net = skb_network_offset(skb);
 
 		put_cmsg(msg, SOL_PACKET, PACKET_AUXDATA, sizeof(aux), &aux);
 	}

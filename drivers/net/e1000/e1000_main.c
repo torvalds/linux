@@ -2910,7 +2910,7 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 						 0);
 			ipcse = 0;
 		}
-		ipcss = skb->nh.raw - skb->data;
+		ipcss = skb_network_offset(skb);
 		ipcso = (void *)&(skb->nh.iph->check) - (void *)skb->data;
 		tucss = skb->h.raw - skb->data;
 		tucso = (void *)&(skb->h.th->check) - (void *)skb->data;

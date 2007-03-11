@@ -1865,7 +1865,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		++st->tx_tso;
 
-		eth_type = skb->nh.raw - skb->data == ETH_HLEN ?
+		eth_type = skb_network_offset(skb) == ETH_HLEN ?
 			CPL_ETH_II : CPL_ETH_II_VLAN;
 
 		hdr = (struct cpl_tx_pkt_lso *)skb_push(skb, sizeof(*hdr));

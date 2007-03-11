@@ -1125,7 +1125,7 @@ int neigh_compat_output(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 
-	__skb_pull(skb, skb->nh.raw - skb->data);
+	__skb_pull(skb, skb_network_offset(skb));
 
 	if (dev->hard_header &&
 	    dev->hard_header(skb, dev, ntohs(skb->protocol), NULL, NULL,
@@ -1147,7 +1147,7 @@ int neigh_resolve_output(struct sk_buff *skb)
 	if (!dst || !(neigh = dst->neighbour))
 		goto discard;
 
-	__skb_pull(skb, skb->nh.raw - skb->data);
+	__skb_pull(skb, skb_network_offset(skb));
 
 	if (!neigh_event_send(neigh, skb)) {
 		int err;
@@ -1190,7 +1190,7 @@ int neigh_connected_output(struct sk_buff *skb)
 	struct neighbour *neigh = dst->neighbour;
 	struct net_device *dev = neigh->dev;
 
-	__skb_pull(skb, skb->nh.raw - skb->data);
+	__skb_pull(skb, skb_network_offset(skb));
 
 	read_lock_bh(&neigh->lock);
 	err = dev->hard_header(skb, dev, ntohs(skb->protocol),

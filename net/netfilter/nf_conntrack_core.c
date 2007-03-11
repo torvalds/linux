@@ -768,7 +768,7 @@ resolve_normal_ct(struct sk_buff *skb,
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
 
-	if (!nf_ct_get_tuple(skb, (unsigned int)(skb->nh.raw - skb->data),
+	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
 			     dataoff, l3num, protonum, &tuple, l3proto,
 			     l4proto)) {
 		DEBUGP("resolve_normal_ct: Can't get tuple\n");
@@ -960,7 +960,7 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 	if (do_acct) {
 		ct->counters[CTINFO2DIR(ctinfo)].packets++;
 		ct->counters[CTINFO2DIR(ctinfo)].bytes +=
-			skb->len - (unsigned int)(skb->nh.raw - skb->data);
+			skb->len - skb_network_offset(skb);
 
 		if ((ct->counters[CTINFO2DIR(ctinfo)].packets & 0x80000000)
 		    || (ct->counters[CTINFO2DIR(ctinfo)].bytes & 0x80000000))
