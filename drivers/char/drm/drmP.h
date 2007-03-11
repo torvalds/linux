@@ -764,7 +764,7 @@ static __inline__ int drm_core_check_feature(struct drm_device *dev,
 }
 
 #ifdef __alpha__
-#define drm_get_pci_domain(dev) dev->hose->bus->number
+#define drm_get_pci_domain(dev) dev->hose->index
 #else
 #define drm_get_pci_domain(dev) 0
 #endif
