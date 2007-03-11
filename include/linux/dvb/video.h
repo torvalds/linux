@@ -110,6 +110,11 @@ struct video_command {
 		} stop;
 
 		struct {
+			/* 0 or 1000 specifies normal speed,
+			   1 specifies forward single stepping,
+			   -1 specifies backward single stepping,
+			   >1: playback at speed/1000 of the normal speed,
+			   <-1: reverse playback at (-speed/1000) of the normal speed. */
 			__s32 speed;
 			__u32 format;
 		} play;
