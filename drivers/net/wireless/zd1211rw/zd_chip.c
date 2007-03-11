@@ -67,11 +67,12 @@ static int scnprint_id(struct zd_chip *chip, char *buffer, size_t size)
 	i += scnprint_mac_oui(chip->e2p_mac, buffer+i, size-i);
 	i += scnprintf(buffer+i, size-i, " ");
 	i += zd_rf_scnprint_id(&chip->rf, buffer+i, size-i);
-	i += scnprintf(buffer+i, size-i, " pa%1x %c%c%c%c", chip->pa_type,
+	i += scnprintf(buffer+i, size-i, " pa%1x %c%c%c%c%c", chip->pa_type,
 		chip->patch_cck_gain ? 'g' : '-',
 		chip->patch_cr157 ? '7' : '-',
 		chip->patch_6m_band_edge ? '6' : '-',
-		chip->new_phy_layout ? 'N' : '-');
+		chip->new_phy_layout ? 'N' : '-',
+		chip->al2230s_bit ? 'S' : '-');
 	return i;
 }
 
