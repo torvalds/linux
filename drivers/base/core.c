@@ -677,15 +677,6 @@ int device_add(struct device *dev)
 #endif
 			sysfs_remove_link(&dev->kobj, "device");
 		}
-
-		down(&dev->class->sem);
-		/* notify any interfaces that the device is now gone */
-		list_for_each_entry(class_intf, &dev->class->interfaces, node)
-			if (class_intf->remove_dev)
-				class_intf->remove_dev(dev, class_intf);
-		/* remove the device from the class list */
-		list_del_init(&dev->node);
-		up(&dev->class->sem);
 	}
  ueventattrError:
 	device_remove_file(dev, &dev->uevent_attr);
