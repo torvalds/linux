@@ -1134,46 +1134,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	if (itv->options.radio > 0)
 		itv->v4l2_cap |= V4L2_CAP_RADIO;
 
-	retval = ivtv_streams_setup(itv);
-	if (retval) {
-		IVTV_ERR("Error %d setting up streams\n", retval);
-		goto free_i2c;
-	}
-
-	/* Start Threads */
-	IVTV_DEBUG_INFO("Starting Threads\n");
-
-	/* Decoder Thread */
-	if (itv->card->v4l2_capabilities & V4L2_CAP_VIDEO_OUTPUT) {
-		ivtv_init_mpeg_decoder(itv);
-	}
-
-	IVTV_DEBUG_IRQ("Masking interrupts\n");
-	/* clear interrupt mask, effectively disabling interrupts */
-	ivtv_set_irq_mask(itv, 0xffffffff);
-
-	/* Register IRQ */
-	retval = request_irq(itv->dev->irq, ivtv_irq_handler,
-			     IRQF_SHARED | IRQF_DISABLED, itv->name, (void *)itv);
-	if (retval) {
-		IVTV_ERR("Failed to register irq %d\n", retval);
-		goto free_streams;
-	}
-
-	/* On a cx23416 this seems to be able to enable DMA to the chip? */
-	if (!itv->has_cx23415)
-		write_reg_sync(0x03, IVTV_REG_DMACONTROL);
-
-	/* Default interrupts enabled. For the PVR350 this includes the
-	   decoder VSYNC interrupt, which is always on. It is not only used
-	   during decoding but also by the OSD.
-	   Some old PVR250 cards had a cx23415, so testing for that is too
-	   general. Instead test if the card has video output capability. */
-	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
-		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT | IVTV_IRQ_DEC_VSYNC);
-	else
-		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT);
-
 	if (itv->options.tuner > -1) {
 		struct tuner_setup setup;
 
@@ -1212,6 +1172,43 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	itv->std_out = itv->std;
 	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_STD, &itv->tuner_std);
 	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_FREQUENCY, &vf);
+
+	retval = ivtv_streams_setup(itv);
+	if (retval) {
+		IVTV_ERR("Error %d setting up streams\n", retval);
+		goto free_i2c;
+	}
+
+	if (itv->card->v4l2_capabilities & V4L2_CAP_VIDEO_OUTPUT) {
+		ivtv_init_mpeg_decoder(itv);
+	}
+
+	IVTV_DEBUG_IRQ("Masking interrupts\n");
+	/* clear interrupt mask, effectively disabling interrupts */
+	ivtv_set_irq_mask(itv, 0xffffffff);
+
+	/* Register IRQ */
+	retval = request_irq(itv->dev->irq, ivtv_irq_handler,
+			     IRQF_SHARED | IRQF_DISABLED, itv->name, (void *)itv);
+	if (retval) {
+		IVTV_ERR("Failed to register irq %d\n", retval);
+		goto free_streams;
+	}
+
+	/* On a cx23416 this seems to be able to enable DMA to the chip? */
+	if (!itv->has_cx23415)
+		write_reg_sync(0x03, IVTV_REG_DMACONTROL);
+
+	/* Default interrupts enabled. For the PVR350 this includes the
+	   decoder VSYNC interrupt, which is always on. It is not only used
+	   during decoding but also by the OSD.
+	   Some old PVR250 cards had a cx23415, so testing for that is too
+	   general. Instead test if the card has video output capability. */
+	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
+		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT | IVTV_IRQ_DEC_VSYNC);
+	else
+		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT);
+
 	if (itv->has_cx23415)
 		ivtv_set_osd_alpha(itv);
 
