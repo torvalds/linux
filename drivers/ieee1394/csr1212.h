@@ -283,8 +283,8 @@ extern struct csr1212_keyval *csr1212_new_string_descriptor_leaf(const char *s);
  * Take care with subsequent ROM modifications:  There is no function to remove
  * previously specified associations.
  */
-extern int csr1212_associate_keyval(struct csr1212_keyval *kv,
-				    struct csr1212_keyval *associate);
+extern void csr1212_associate_keyval(struct csr1212_keyval *kv,
+				     struct csr1212_keyval *associate);
 
 
 /* The following functions manage the association of a keyval and directories.

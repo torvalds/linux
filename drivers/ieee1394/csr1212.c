@@ -35,6 +35,7 @@
 
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <asm/bug.h>
 #include <asm/byteorder.h>
 
 #include "csr1212.h"
@@ -305,43 +306,29 @@ struct csr1212_keyval *csr1212_new_directory(u8 key)
 	return kv;
 }
 
-int csr1212_associate_keyval(struct csr1212_keyval *kv,
-			     struct csr1212_keyval *associate)
+void csr1212_associate_keyval(struct csr1212_keyval *kv,
+			      struct csr1212_keyval *associate)
 {
-	if (!kv || !associate)
-		return -EINVAL;
-
-	if (kv->key.id == CSR1212_KV_ID_DESCRIPTOR ||
-	   (associate->key.id != CSR1212_KV_ID_DESCRIPTOR &&
-	    associate->key.id != CSR1212_KV_ID_DEPENDENT_INFO &&
-	    associate->key.id != CSR1212_KV_ID_EXTENDED_KEY &&
-	    associate->key.id != CSR1212_KV_ID_EXTENDED_DATA &&
-	    associate->key.id < 0x30))
-		return -EINVAL;
-
-	if (kv->key.id == CSR1212_KV_ID_EXTENDED_KEY_SPECIFIER_ID &&
-	   associate->key.id != CSR1212_KV_ID_EXTENDED_KEY)
-		return -EINVAL;
-
-	if (kv->key.id == CSR1212_KV_ID_EXTENDED_KEY &&
-	   associate->key.id != CSR1212_KV_ID_EXTENDED_DATA)
-		return -EINVAL;
-
-	if (associate->key.id == CSR1212_KV_ID_EXTENDED_KEY &&
-	   kv->key.id != CSR1212_KV_ID_EXTENDED_KEY_SPECIFIER_ID)
-		return -EINVAL;
-
-	if (associate->key.id == CSR1212_KV_ID_EXTENDED_DATA &&
-	   kv->key.id != CSR1212_KV_ID_EXTENDED_KEY)
-		return -EINVAL;
+	BUG_ON(!kv || !associate || kv->key.id == CSR1212_KV_ID_DESCRIPTOR ||
+	       (associate->key.id != CSR1212_KV_ID_DESCRIPTOR &&
+		associate->key.id != CSR1212_KV_ID_DEPENDENT_INFO &&
+		associate->key.id != CSR1212_KV_ID_EXTENDED_KEY &&
+		associate->key.id != CSR1212_KV_ID_EXTENDED_DATA &&
+		associate->key.id < 0x30) ||
+	       (kv->key.id == CSR1212_KV_ID_EXTENDED_KEY_SPECIFIER_ID &&
+	        associate->key.id != CSR1212_KV_ID_EXTENDED_KEY) ||
+	       (kv->key.id == CSR1212_KV_ID_EXTENDED_KEY &&
+		associate->key.id != CSR1212_KV_ID_EXTENDED_DATA) ||
+	       (associate->key.id == CSR1212_KV_ID_EXTENDED_KEY &&
+		kv->key.id != CSR1212_KV_ID_EXTENDED_KEY_SPECIFIER_ID) ||
+	       (associate->key.id == CSR1212_KV_ID_EXTENDED_DATA &&
+		kv->key.id != CSR1212_KV_ID_EXTENDED_KEY));
 
 	if (kv->associate)
 		csr1212_release_keyval(kv->associate);
 
 	associate->refcnt++;
 	kv->associate = associate;
-
-	return CSR1212_SUCCESS;
 }
 
 int csr1212_attach_keyval_to_directory(struct csr1212_keyval *dir,
@@ -349,8 +336,7 @@ int csr1212_attach_keyval_to_directory(struct csr1212_keyval *dir,
 {
 	struct csr1212_dentry *dentry;
 
-	if (!kv || !dir || dir->key.type != CSR1212_KV_TYPE_DIRECTORY)
-		return -EINVAL;
+	BUG_ON(!kv || !dir || dir->key.type != CSR1212_KV_TYPE_DIRECTORY);
 
 	dentry = CSR1212_MALLOC(sizeof(*dentry));
 	if (!dentry)
@@ -611,9 +597,8 @@ static int csr1212_append_new_cache(struct csr1212_csr *csr, size_t romsize)
 	struct csr1212_csr_rom_cache *cache;
 	u64 csr_addr;
 
-	if (!csr || !csr->ops || !csr->ops->allocate_addr_range ||
-	    !csr->ops->release_addr || csr->max_rom < 1)
-		return -EINVAL;
+	BUG_ON(!csr || !csr->ops || !csr->ops->allocate_addr_range ||
+	       !csr->ops->release_addr || csr->max_rom < 1);
 
 	/* ROM size must be a multiple of csr->max_rom */
 	romsize = (romsize + (csr->max_rom - 1)) & ~(csr->max_rom - 1);
@@ -950,8 +935,7 @@ int csr1212_generate_csr_image(struct csr1212_csr *csr)
 	int ret;
 	int init_offset;
 
-	if (!csr)
-		return -EINVAL;
+	BUG_ON(!csr);
 
 	cache = csr->cache_head;
 
@@ -1011,8 +995,7 @@ int csr1212_generate_csr_image(struct csr1212_csr *csr)
 
 			/* Make sure the Extended ROM leaf is a multiple of
 			 * max_rom in size. */
-			if (csr->max_rom < 1)
-				return -EINVAL;
+			BUG_ON(csr->max_rom < 1);
 			leaf_size = (cache->len + (csr->max_rom - 1)) &
 				~(csr->max_rom - 1);
 
@@ -1278,8 +1261,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 	u32 *cache_ptr;
 	u16 kv_len = 0;
 
-	if (!csr || !kv || csr->max_rom < 1)
-		return -EINVAL;
+	BUG_ON(!csr || !kv || csr->max_rom < 1);
 
 	/* First find which cache the data should be in (or go in if not read
 	 * yet). */
@@ -1436,8 +1418,7 @@ int csr1212_parse_csr(struct csr1212_csr *csr)
 	struct csr1212_dentry *dentry;
 	int ret;
 
-	if (!csr || !csr->ops || !csr->ops->bus_read)
-		return -EINVAL;
+	BUG_ON(!csr || !csr->ops || !csr->ops->bus_read);
 
 	ret = csr1212_parse_bus_info_block(csr);
 	if (ret != CSR1212_SUCCESS)

@@ -63,9 +63,9 @@ int hpsb_default_host_entry(struct hpsb_host *host)
 		return -ENOMEM;
 	}
 
-	ret = csr1212_associate_keyval(vend_id, text);
+	csr1212_associate_keyval(vend_id, text);
 	csr1212_release_keyval(text);
-	ret |= csr1212_attach_keyval_to_directory(root, vend_id);
+	ret = csr1212_attach_keyval_to_directory(root, vend_id);
 	csr1212_release_keyval(vend_id);
 	if (ret != CSR1212_SUCCESS) {
 		csr1212_destroy_csr(host->csr.rom);
@@ -103,10 +103,12 @@ static int config_rom_ip1394_init(void)
 	if (!ip1394_ud || !spec_id || !spec_desc || !ver || !ver_desc)
 		goto ip1394_fail;
 
-	if (csr1212_associate_keyval(spec_id, spec_desc) == CSR1212_SUCCESS &&
-	    csr1212_associate_keyval(ver, ver_desc) == CSR1212_SUCCESS &&
-	    csr1212_attach_keyval_to_directory(ip1394_ud, spec_id) == CSR1212_SUCCESS &&
-	    csr1212_attach_keyval_to_directory(ip1394_ud, ver) == CSR1212_SUCCESS)
+	csr1212_associate_keyval(spec_id, spec_desc);
+	csr1212_associate_keyval(ver, ver_desc);
+	if (csr1212_attach_keyval_to_directory(ip1394_ud, spec_id)
+			== CSR1212_SUCCESS &&
+	    csr1212_attach_keyval_to_directory(ip1394_ud, ver)
+			== CSR1212_SUCCESS)
 		ret = 0;
 
 ip1394_fail:
