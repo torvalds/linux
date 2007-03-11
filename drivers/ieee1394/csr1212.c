@@ -31,7 +31,6 @@
 /* TODO List:
  * - Verify interface consistency: i.e., public functions that take a size
  *   parameter expect size to be in bytes.
- * - Convenience functions for reading a block of data from a given offset.
  */
 
 #ifndef __KERNEL__
@@ -85,7 +84,7 @@ static const u_int8_t csr1212_key_id_type_map[0x30] = {
 #define quads_to_bytes(_q) ((_q) * sizeof(u_int32_t))
 #define bytes_to_quads(_b) (((_b) + sizeof(u_int32_t) - 1) / sizeof(u_int32_t))
 
-static inline void free_keyval(struct csr1212_keyval *kv)
+static void free_keyval(struct csr1212_keyval *kv)
 {
 	if ((kv->key.type == CSR1212_KV_TYPE_LEAF) &&
 	    (kv->key.id != CSR1212_KV_ID_EXTENDED_ROM))
@@ -137,8 +136,8 @@ static u_int16_t csr1212_msft_crc16(const u_int32_t *buffer, size_t length)
 }
 #endif
 
-static inline struct csr1212_dentry *csr1212_find_keyval(struct csr1212_keyval *dir,
-							 struct csr1212_keyval *kv)
+static struct csr1212_dentry *
+csr1212_find_keyval(struct csr1212_keyval *dir, struct csr1212_keyval *kv)
 {
 	struct csr1212_dentry *pos;
 
@@ -150,9 +149,8 @@ static inline struct csr1212_dentry *csr1212_find_keyval(struct csr1212_keyval *
 	return NULL;
 }
 
-
-static inline struct csr1212_keyval *csr1212_find_keyval_offset(struct csr1212_keyval *kv_list,
-								u_int32_t offset)
+static struct csr1212_keyval *
+csr1212_find_keyval_offset(struct csr1212_keyval *kv_list, u_int32_t offset)
 {
 	struct csr1212_keyval *kv;
 
@@ -165,6 +163,7 @@ static inline struct csr1212_keyval *csr1212_find_keyval_offset(struct csr1212_k
 
 
 /* Creation Routines */
+
 struct csr1212_csr *csr1212_create_csr(struct csr1212_bus_ops *ops,
 				       size_t bus_info_size, void *private)
 {
@@ -202,8 +201,6 @@ struct csr1212_csr *csr1212_create_csr(struct csr1212_bus_ops *ops,
 	return csr;
 }
 
-
-
 void csr1212_init_local_csr(struct csr1212_csr *csr,
 			    const u_int32_t *bus_info_data, int max_rom)
 {
@@ -220,7 +217,6 @@ void csr1212_init_local_csr(struct csr1212_csr *csr,
 #endif
 	memcpy(csr->bus_info_data, bus_info_data, csr->bus_info_len);
 }
-
 
 static struct csr1212_keyval *csr1212_new_keyval(u_int8_t type, u_int8_t key)
 {
@@ -258,7 +254,8 @@ struct csr1212_keyval *csr1212_new_immediate(u_int8_t key, u_int32_t value)
 	return kv;
 }
 
-struct csr1212_keyval *csr1212_new_leaf(u_int8_t key, const void *data, size_t data_len)
+static struct csr1212_keyval *
+csr1212_new_leaf(u_int8_t key, const void *data, size_t data_len)
 {
 	struct csr1212_keyval *kv = csr1212_new_keyval(CSR1212_KV_TYPE_LEAF, key);
 
@@ -285,7 +282,8 @@ struct csr1212_keyval *csr1212_new_leaf(u_int8_t key, const void *data, size_t d
 	return kv;
 }
 
-struct csr1212_keyval *csr1212_new_csr_offset(u_int8_t key, u_int32_t csr_offset)
+static struct csr1212_keyval *
+csr1212_new_csr_offset(u_int8_t key, u_int32_t csr_offset)
 {
 	struct csr1212_keyval *kv = csr1212_new_keyval(CSR1212_KV_TYPE_CSR_OFFSET, key);
 
@@ -382,66 +380,22 @@ int csr1212_attach_keyval_to_directory(struct csr1212_keyval *dir,
 	return CSR1212_SUCCESS;
 }
 
-struct csr1212_keyval *csr1212_new_extended_immediate(u_int32_t spec, u_int32_t key,
-						      u_int32_t value)
-{
-	struct csr1212_keyval *kvs, *kvk, *kvv;
+#define CSR1212_DESCRIPTOR_LEAF_DATA(kv) \
+	(&((kv)->value.leaf.data[1]))
 
-	kvs = csr1212_new_immediate(CSR1212_KV_ID_EXTENDED_KEY_SPECIFIER_ID, spec);
-	kvk = csr1212_new_immediate(CSR1212_KV_ID_EXTENDED_KEY, key);
-	kvv = csr1212_new_immediate(CSR1212_KV_ID_EXTENDED_DATA, value);
+#define CSR1212_DESCRIPTOR_LEAF_SET_TYPE(kv, type) \
+	((kv)->value.leaf.data[0] = \
+	 CSR1212_CPU_TO_BE32(CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID(kv) | \
+			     ((type) << CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT)))
+#define CSR1212_DESCRIPTOR_LEAF_SET_SPECIFIER_ID(kv, spec_id) \
+	((kv)->value.leaf.data[0] = \
+	 CSR1212_CPU_TO_BE32((CSR1212_DESCRIPTOR_LEAF_TYPE(kv) << \
+			      CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT) | \
+			     ((spec_id) & CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID_MASK)))
 
-	if (!kvs || !kvk || !kvv) {
-		if (kvs)
-			free_keyval(kvs);
-		if (kvk)
-			free_keyval(kvk);
-		if (kvv)
-			free_keyval(kvv);
-		return NULL;
-	}
-
-	/* Don't keep a local reference to the extended key or value. */
-	kvk->refcnt = 0;
-	kvv->refcnt = 0;
-
-	csr1212_associate_keyval(kvk, kvv);
-	csr1212_associate_keyval(kvs, kvk);
-
-	return kvs;
-}
-
-struct csr1212_keyval *csr1212_new_extended_leaf(u_int32_t spec, u_int32_t key,
-						 const void *data, size_t data_len)
-{
-	struct csr1212_keyval *kvs, *kvk, *kvv;
-
-	kvs = csr1212_new_immediate(CSR1212_KV_ID_EXTENDED_KEY_SPECIFIER_ID, spec);
-	kvk = csr1212_new_immediate(CSR1212_KV_ID_EXTENDED_KEY, key);
-	kvv = csr1212_new_leaf(CSR1212_KV_ID_EXTENDED_DATA, data, data_len);
-
-	if (!kvs || !kvk || !kvv) {
-		if (kvs)
-			free_keyval(kvs);
-		if (kvk)
-			free_keyval(kvk);
-		if (kvv)
-			free_keyval(kvv);
-		return NULL;
-	}
-
-	/* Don't keep a local reference to the extended key or value. */
-	kvk->refcnt = 0;
-	kvv->refcnt = 0;
-
-	csr1212_associate_keyval(kvk, kvv);
-	csr1212_associate_keyval(kvs, kvk);
-
-	return kvs;
-}
-
-struct csr1212_keyval *csr1212_new_descriptor_leaf(u_int8_t dtype, u_int32_t specifier_id,
-						   const void *data, size_t data_len)
+static struct csr1212_keyval *
+csr1212_new_descriptor_leaf(u_int8_t dtype, u_int32_t specifier_id,
+			    const void *data, size_t data_len)
 {
 	struct csr1212_keyval *kv;
 
@@ -460,12 +414,35 @@ struct csr1212_keyval *csr1212_new_descriptor_leaf(u_int8_t dtype, u_int32_t spe
 	return kv;
 }
 
+#define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_WIDTH(kv, width) \
+	((kv)->value.leaf.data[1] = \
+	 ((kv)->value.leaf.data[1] & \
+	  CSR1212_CPU_TO_BE32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_MASK << \
+				CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT))) | \
+	 CSR1212_CPU_TO_BE32(((width) & \
+			      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_MASK) << \
+			     CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT))
 
-struct csr1212_keyval *csr1212_new_textual_descriptor_leaf(u_int8_t cwidth,
-							   u_int16_t cset,
-							   u_int16_t language,
-							   const void *data,
-							   size_t data_len)
+#define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_CHAR_SET(kv, char_set) \
+	((kv)->value.leaf.data[1] = \
+	 ((kv)->value.leaf.data[1] & \
+	  CSR1212_CPU_TO_BE32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK << \
+				CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT))) | \
+	 CSR1212_CPU_TO_BE32(((char_set) & \
+			      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK) << \
+			     CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT))
+
+#define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_LANGUAGE(kv, language) \
+	((kv)->value.leaf.data[1] = \
+	 ((kv)->value.leaf.data[1] & \
+	  CSR1212_CPU_TO_BE32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK))) | \
+	 CSR1212_CPU_TO_BE32(((language) & \
+			      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK)))
+
+static struct csr1212_keyval *
+csr1212_new_textual_descriptor_leaf(u_int8_t cwidth, u_int16_t cset,
+				    u_int16_t language, const void *data,
+				    size_t data_len)
 {
 	struct csr1212_keyval *kv;
 	char *lstr;
@@ -529,121 +506,6 @@ struct csr1212_keyval *csr1212_new_string_descriptor_leaf(const char *s)
 	return csr1212_new_textual_descriptor_leaf(0, 0, 0, s, strlen(s));
 }
 
-struct csr1212_keyval *csr1212_new_icon_descriptor_leaf(u_int32_t version,
-							u_int8_t palette_depth,
-							u_int8_t color_space,
-							u_int16_t language,
-							u_int16_t hscan,
-							u_int16_t vscan,
-							u_int32_t *palette,
-							u_int32_t *pixels)
-{
-	static const int pd[4] = { 0, 4, 16, 256 };
-	static const int cs[16] = { 4, 2 };
-	struct csr1212_keyval *kv;
-	int palette_size;
-	int pixel_size = (hscan * vscan + 3) & ~0x3;
-
-	if (!pixels || (!palette && palette_depth) ||
-	    (palette_depth & ~0x3) || (color_space & ~0xf))
-		return NULL;
-
-	palette_size = pd[palette_depth] * cs[color_space];
-
-	kv = csr1212_new_descriptor_leaf(1, 0, NULL,
-					 palette_size + pixel_size +
-					 CSR1212_ICON_DESCRIPTOR_LEAF_OVERHEAD);
-	if (!kv)
-		return NULL;
-
-	CSR1212_ICON_DESCRIPTOR_LEAF_SET_VERSION(kv, version);
-	CSR1212_ICON_DESCRIPTOR_LEAF_SET_PALETTE_DEPTH(kv, palette_depth);
-	CSR1212_ICON_DESCRIPTOR_LEAF_SET_COLOR_SPACE(kv, color_space);
-	CSR1212_ICON_DESCRIPTOR_LEAF_SET_LANGUAGE(kv, language);
-	CSR1212_ICON_DESCRIPTOR_LEAF_SET_HSCAN(kv, hscan);
-	CSR1212_ICON_DESCRIPTOR_LEAF_SET_VSCAN(kv, vscan);
-
-	if (palette_size)
-		memcpy(CSR1212_ICON_DESCRIPTOR_LEAF_PALETTE(kv), palette,
-		       palette_size);
-
-	memcpy(CSR1212_ICON_DESCRIPTOR_LEAF_PIXELS(kv), pixels, pixel_size);
-
-	return kv;
-}
-
-struct csr1212_keyval *csr1212_new_modifiable_descriptor_leaf(u_int16_t max_size,
-							      u_int64_t address)
-{
-	struct csr1212_keyval *kv;
-
-	/* IEEE 1212, par. 7.5.4.3  Modifiable descriptors */
-	kv = csr1212_new_leaf(CSR1212_KV_ID_MODIFIABLE_DESCRIPTOR, NULL, sizeof(u_int64_t));
-	if(!kv)
-		return NULL;
-
-	CSR1212_MODIFIABLE_DESCRIPTOR_SET_MAX_SIZE(kv, max_size);
-	CSR1212_MODIFIABLE_DESCRIPTOR_SET_ADDRESS_HI(kv, address);
-	CSR1212_MODIFIABLE_DESCRIPTOR_SET_ADDRESS_LO(kv, address);
-
-	return kv;
-}
-
-static int csr1212_check_keyword(const char *s)
-{
-	for (; *s; s++) {
-
-		if (('A' <= *s) && (*s <= 'Z'))
-			continue;
-		if (('0' <= *s) && (*s <= '9'))
-			continue;
-		if (*s == '-')
-			continue;
-
-		return -1; /* failed */
-	}
-	/* String conforms to keyword, as specified by IEEE 1212,
-	 * par. 7.6.5 */
-	return CSR1212_SUCCESS;
-}
-
-struct csr1212_keyval *csr1212_new_keyword_leaf(int strc, const char *strv[])
-{
-	struct csr1212_keyval *kv;
-	char *buffer;
-	int i, data_len = 0;
-
-	/* Check all keywords to see if they conform to restrictions:
-	 * Only the following characters is allowed ['A'..'Z','0'..'9','-']
-	 * Each word is zero-terminated.
-	 * Also calculate the total length of the keywords.
-	 */
-	for (i = 0; i < strc; i++) {
-		if (!strv[i] || csr1212_check_keyword(strv[i])) {
-			return NULL;
-		}
-		data_len += strlen(strv[i]) + 1; /* Add zero-termination char. */
-	}
-
-	/* IEEE 1212, par. 7.6.5 Keyword leaves */
-	kv = csr1212_new_leaf(CSR1212_KV_ID_KEYWORD, NULL, data_len);
-	if (!kv)
-		return NULL;
-
-	buffer = (char *)kv->value.leaf.data;
-
-	/* make sure last quadlet is zeroed out */
-	*((u_int32_t*)&(buffer[(data_len - 1) & ~0x3])) = 0;
-
-	/* Copy keyword(s) into leaf data buffer */
-	for (i = 0; i < strc; i++) {
-		int len = strlen(strv[i]) + 1;
-		memcpy(buffer, strv[i], len);
-		buffer += len;
-	}
-	return kv;
-}
-
 
 /* Destruction Routines */
 
@@ -673,17 +535,6 @@ void csr1212_detach_keyval_from_directory(struct csr1212_keyval *dir,
 
 	csr1212_release_keyval(kv);
 }
-
-
-void csr1212_disassociate_keyval(struct csr1212_keyval *kv)
-{
-	if (kv->associate) {
-		csr1212_release_keyval(kv->associate);
-	}
-
-	kv->associate = NULL;
-}
-
 
 /* This function is used to free the memory taken by a keyval.  If the given
  * keyval is a directory type, then any keyvals contained in that directory
@@ -738,7 +589,6 @@ void _csr1212_destroy_keyval(struct csr1212_keyval *kv)
 	}
 }
 
-
 void csr1212_destroy_csr(struct csr1212_csr *csr)
 {
 	struct csr1212_csr_rom_cache *c, *oc;
@@ -761,7 +611,6 @@ void csr1212_destroy_csr(struct csr1212_csr *csr)
 
 	CSR1212_FREE(csr);
 }
-
 
 
 /* CSR Image Creation */
@@ -818,8 +667,8 @@ static int csr1212_append_new_cache(struct csr1212_csr *csr, size_t romsize)
 	return CSR1212_SUCCESS;
 }
 
-static inline void csr1212_remove_cache(struct csr1212_csr *csr,
-					struct csr1212_csr_rom_cache *cache)
+static void csr1212_remove_cache(struct csr1212_csr *csr,
+				 struct csr1212_csr_rom_cache *cache)
 {
 	if (csr->cache_head == cache)
 		csr->cache_head = cache->next;
@@ -908,7 +757,7 @@ static int csr1212_generate_layout_subdir(struct csr1212_keyval *dir,
 	return num_entries;
 }
 
-size_t csr1212_generate_layout_order(struct csr1212_keyval *kv)
+static size_t csr1212_generate_layout_order(struct csr1212_keyval *kv)
 {
 	struct csr1212_keyval *ltail = kv;
 	size_t agg_size = 0;
@@ -931,9 +780,9 @@ size_t csr1212_generate_layout_order(struct csr1212_keyval *kv)
 	return quads_to_bytes(agg_size);
 }
 
-struct csr1212_keyval *csr1212_generate_positions(struct csr1212_csr_rom_cache *cache,
-						  struct csr1212_keyval *start_kv,
-						  int start_pos)
+static struct csr1212_keyval *
+csr1212_generate_positions(struct csr1212_csr_rom_cache *cache,
+			   struct csr1212_keyval *start_kv, int start_pos)
 {
 	struct csr1212_keyval *kv = start_kv;
 	struct csr1212_keyval *okv = start_kv;
@@ -977,8 +826,13 @@ struct csr1212_keyval *csr1212_generate_positions(struct csr1212_csr_rom_cache *
 	return kv;
 }
 
-static void csr1212_generate_tree_subdir(struct csr1212_keyval *dir,
-					 u_int32_t *data_buffer)
+#define CSR1212_KV_KEY_SHIFT		24
+#define CSR1212_KV_KEY_TYPE_SHIFT	6
+#define CSR1212_KV_KEY_ID_MASK		0x3f
+#define CSR1212_KV_KEY_TYPE_MASK	0x3	/* after shift */
+
+static void
+csr1212_generate_tree_subdir(struct csr1212_keyval *dir, u_int32_t *data_buffer)
 {
 	struct csr1212_dentry *dentry;
 	struct csr1212_keyval *last_extkey_spec = NULL;
@@ -1042,7 +896,15 @@ static void csr1212_generate_tree_subdir(struct csr1212_keyval *dir,
 	}
 }
 
-void csr1212_fill_cache(struct csr1212_csr_rom_cache *cache)
+struct csr1212_keyval_img {
+	u_int16_t length;
+	u_int16_t crc;
+
+	/* Must be last */
+	csr1212_quad_t data[0];	/* older gcc can't handle [] which is standard */
+};
+
+static void csr1212_fill_cache(struct csr1212_csr_rom_cache *cache)
 {
 	struct csr1212_keyval *kv, *nkv;
 	struct csr1212_keyval_img *kvi;
@@ -1085,6 +947,8 @@ void csr1212_fill_cache(struct csr1212_csr_rom_cache *cache)
 		kv->next = NULL;
 	}
 }
+
+#define CSR1212_EXTENDED_ROM_SIZE (0x10000 * sizeof(u_int32_t))
 
 int csr1212_generate_csr_image(struct csr1212_csr *csr)
 {
@@ -1212,7 +1076,6 @@ int csr1212_read(struct csr1212_csr *csr, u_int32_t offset, void *buffer, u_int3
 }
 
 
-
 /* Parse a chunk of data as a Config ROM */
 
 static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
@@ -1278,6 +1141,12 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 
 	return CSR1212_SUCCESS;
 }
+
+#define CSR1212_KV_KEY(q)	(CSR1212_BE32_TO_CPU(q) >> CSR1212_KV_KEY_SHIFT)
+#define CSR1212_KV_KEY_TYPE(q)	(CSR1212_KV_KEY(q) >> CSR1212_KV_KEY_TYPE_SHIFT)
+#define CSR1212_KV_KEY_ID(q)	(CSR1212_KV_KEY(q) & CSR1212_KV_KEY_ID_MASK)
+#define CSR1212_KV_VAL_MASK	0xffffff
+#define CSR1212_KV_VAL(q)	(CSR1212_BE32_TO_CPU(q) & CSR1212_KV_VAL_MASK)
 
 static int csr1212_parse_dir_entry(struct csr1212_keyval *dir,
 				   csr1212_quad_t ki,
@@ -1346,13 +1215,10 @@ static int csr1212_parse_dir_entry(struct csr1212_keyval *dir,
 	ret = csr1212_attach_keyval_to_directory(dir, k);
 
 fail:
-	if (ret != CSR1212_SUCCESS) {
-		if (k)
-			free_keyval(k);
-	}
+	if (ret != CSR1212_SUCCESS && k != NULL)
+		free_keyval(k);
 	return ret;
 }
-
 
 int csr1212_parse_keyval(struct csr1212_keyval *kv,
 			 struct csr1212_csr_rom_cache *cache)
@@ -1412,7 +1278,6 @@ int csr1212_parse_keyval(struct csr1212_keyval *kv,
 fail:
 	return ret;
 }
-
 
 int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 {
@@ -1578,8 +1443,6 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 
 	return csr1212_parse_keyval(kv, cache);
 }
-
-
 
 int csr1212_parse_csr(struct csr1212_csr *csr)
 {

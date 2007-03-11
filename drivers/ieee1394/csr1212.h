@@ -113,13 +113,6 @@
 #endif
 
 
-#define CSR1212_KV_VAL_MASK			0xffffff
-#define CSR1212_KV_KEY_SHIFT			24
-#define CSR1212_KV_KEY_TYPE_SHIFT		6
-#define CSR1212_KV_KEY_ID_MASK			0x3f
-#define CSR1212_KV_KEY_TYPE_MASK		0x3		/* After shift */
-
-
 /* CSR 1212 key types */
 #define CSR1212_KV_TYPE_IMMEDIATE		0
 #define CSR1212_KV_TYPE_CSR_OFFSET		1
@@ -190,9 +183,8 @@
 #define  CSR1212_UNITS_SPACE_END		(CSR1212_UNITS_SPACE_BASE + CSR1212_UNITS_SPACE_SIZE)
 #define  CSR1212_UNITS_SPACE_OFFSET		(CSR1212_UNITS_SPACE_BASE - CSR1212_REGISTER_SPACE_BASE)
 
-#define  CSR1212_EXTENDED_ROM_SIZE		(0x10000 * sizeof(u_int32_t))
-
 #define  CSR1212_INVALID_ADDR_SPACE		-1
+
 
 /* Config ROM image structures */
 struct csr1212_bus_info_block_img {
@@ -204,30 +196,7 @@ struct csr1212_bus_info_block_img {
 	u_int32_t data[0];	/* older gcc can't handle [] which is standard */
 };
 
-#define CSR1212_KV_KEY(quad)		(CSR1212_BE32_TO_CPU(quad) >> CSR1212_KV_KEY_SHIFT)
-#define CSR1212_KV_KEY_TYPE(quad)	(CSR1212_KV_KEY(quad) >> CSR1212_KV_KEY_TYPE_SHIFT)
-#define CSR1212_KV_KEY_ID(quad)		(CSR1212_KV_KEY(quad) & CSR1212_KV_KEY_ID_MASK)
-#define CSR1212_KV_VAL(quad)		(CSR1212_BE32_TO_CPU(quad) & CSR1212_KV_VAL_MASK)
-
-#define CSR1212_SET_KV_KEY(quad, key)	((quad) = \
-	CSR1212_CPU_TO_BE32(CSR1212_KV_VAL(quad) | ((key) << CSR1212_KV_KEY_SHIFT)))
-#define CSR1212_SET_KV_VAL(quad, val)	((quad) = \
-	CSR1212_CPU_TO_BE32((CSR1212_KV_KEY(quad) << CSR1212_KV_KEY_SHIFT) | (val)))
-#define CSR1212_SET_KV_TYPEID(quad, type, id)	((quad) = \
-	CSR1212_CPU_TO_BE32(CSR1212_KV_VAL(quad) | \
-	(((((type) & CSR1212_KV_KEY_TYPE_MASK) << CSR1212_KV_KEY_TYPE_SHIFT) | \
-	  ((id) & CSR1212_KV_KEY_ID_MASK)) << CSR1212_KV_KEY_SHIFT)))
-
 typedef u_int32_t csr1212_quad_t;
-
-
-struct csr1212_keyval_img {
-	u_int16_t length;
-	u_int16_t crc;
-
-	/* Must be last */
-	csr1212_quad_t data[0];	/* older gcc can't handle [] which is standard */
-};
 
 struct csr1212_leaf {
 	int len;
@@ -327,8 +296,6 @@ struct csr1212_bus_ops {
 };
 
 
-
-
 /* Descriptor Leaf manipulation macros */
 #define CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT 24
 #define CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID_MASK 0xffffff
@@ -339,18 +306,7 @@ struct csr1212_bus_ops {
 #define CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID(kv) \
 	(CSR1212_BE32_TO_CPU((kv)->value.leaf.data[0]) & \
 	 CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID_MASK)
-#define CSR1212_DESCRIPTOR_LEAF_DATA(kv) \
-	(&((kv)->value.leaf.data[1]))
 
-#define CSR1212_DESCRIPTOR_LEAF_SET_TYPE(kv, type) \
-	((kv)->value.leaf.data[0] = \
-	 CSR1212_CPU_TO_BE32(CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID(kv) | \
-			     ((type) << CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT)))
-#define CSR1212_DESCRIPTOR_LEAF_SET_SPECIFIER_ID(kv, spec_id) \
-	((kv)->value.leaf.data[0] = \
-	 CSR1212_CPU_TO_BE32((CSR1212_DESCRIPTOR_LEAF_TYPE(kv) << \
-			      CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT) | \
-			     ((spec_id) & CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID_MASK)))
 
 /* Text Descriptor Leaf manipulation macros */
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT 28
@@ -373,167 +329,6 @@ struct csr1212_bus_ops {
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(kv) \
 	(&((kv)->value.leaf.data[2]))
 
-#define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_WIDTH(kv, width) \
-	((kv)->value.leaf.data[1] = \
-	 ((kv)->value.leaf.data[1] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_MASK << \
-				CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT))) | \
-	 CSR1212_CPU_TO_BE32(((width) & \
-			      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_MASK) << \
-			     CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT))
-#define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_CHAR_SET(kv, char_set) \
-	((kv)->value.leaf.data[1] = \
-	 ((kv)->value.leaf.data[1] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK << \
-				CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT))) | \
-	 CSR1212_CPU_TO_BE32(((char_set) & \
-			      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK) << \
-			     CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT))
-#define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_LANGUAGE(kv, language) \
-	((kv)->value.leaf.data[1] = \
-	 ((kv)->value.leaf.data[1] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK))) | \
-	 CSR1212_CPU_TO_BE32(((language) & \
-			      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK)))
-
-
-/* Icon Descriptor Leaf manipulation macros */
-#define CSR1212_ICON_DESCRIPTOR_LEAF_VERSION_MASK 0xffffff
-#define CSR1212_ICON_DESCRIPTOR_LEAF_PALETTE_DEPTH_SHIFT 30
-#define CSR1212_ICON_DESCRIPTOR_LEAF_PALETTE_DEPTH_MASK 0x3 /* after shift */
-#define CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_SPACE_SHIFT 16
-#define CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_SPACE_MASK 0xf /* after shift */
-#define CSR1212_ICON_DESCRIPTOR_LEAF_LANGUAGE_MASK 0xffff
-#define CSR1212_ICON_DESCRIPTOR_LEAF_HSCAN_SHIFT 16
-#define CSR1212_ICON_DESCRIPTOR_LEAF_HSCAN_MASK 0xffff /* after shift */
-#define CSR1212_ICON_DESCRIPTOR_LEAF_VSCAN_MASK 0xffff
-#define CSR1212_ICON_DESCRIPTOR_LEAF_OVERHEAD (3 * sizeof(u_int32_t))
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_VERSION(kv) \
-	(CSR1212_BE32_TO_CPU((kv)->value.leaf.data[2]) & \
-	 CSR1212_ICON_DESCRIPTOR_LEAF_VERSION_MASK)
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_PALETTE_DEPTH(kv) \
-	(CSR1212_BE32_TO_CPU((kv)->value.leaf.data[3]) >> \
-	 CSR1212_ICON_DESCRIPTOR_LEAF_PALETTE_DEPTH_SHIFT)
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_SPACE(kv) \
-	((CSR1212_BE32_TO_CPU((kv)->value.leaf.data[3]) >> \
-	  CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_SPACE_SHIFT) & \
-	 CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_SPACE_MASK)
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_LANGUAGE(kv) \
-	(CSR1212_BE32_TO_CPU((kv)->value.leaf.data[3]) & \
-	 CSR1212_ICON_DESCRIPTOR_LEAF_LANGUAGE_MASK)
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_HSCAN(kv) \
-	((CSR1212_BE32_TO_CPU((kv)->value.leaf.data[4]) >> \
-	  CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_HSCAN_SHIFT) & \
-	 CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_HSCAN_MASK)
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_VSCAN(kv) \
-	(CSR1212_BE32_TO_CPU((kv)->value.leaf.data[4]) & \
-	 CSR1212_ICON_DESCRIPTOR_LEAF_VSCAN_MASK)
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_PALETTE(kv) \
-	(&((kv)->value.leaf.data[5]))
-
-static inline u_int32_t *CSR1212_ICON_DESCRIPTOR_LEAF_PIXELS(struct csr1212_keyval *kv)
-{
-	static const int pd[4] = { 0, 4, 16, 256 };
-	static const int cs[16] = { 4, 2 };
-	int ps = pd[CSR1212_ICON_DESCRIPTOR_LEAF_PALETTE_DEPTH(kv)];
-
-	return &kv->value.leaf.data[5 +
-				    (ps * cs[CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_SPACE(kv)]) /
-			   sizeof(u_int32_t)];
-}
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_SET_VERSION(kv, version) \
-	((kv)->value.leaf.data[2] = \
-	 ((kv)->value.leaf.data[2] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_ICON_DESCRIPTOR_LEAF_VERSION_MASK))) | \
-	 CSR1212_CPU_TO_BE32(((version) & \
-			      CSR1212_ICON_DESCRIPTOR_LEAF_VERSION_MASK)))
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_SET_PALETTE_DEPTH(kv, palette_depth) \
-	((kv)->value.leaf.data[3] = \
-	 ((kv)->value.leaf.data[3] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_ICON_DESCRIPTOR_LEAF_PALETTE_DEPTH_MASK << \
-				CSR1212_ICON_DESCRIPTOR_LEAF_PALETTE_DEPTH_SHIFT))) | \
-	 CSR1212_CPU_TO_BE32(((palette_depth) & \
-			      CSR1212_ICON_DESCRIPTOR_LEAF_PALETTE_DEPTH_MASK) << \
-			     CSR1212_ICON_DESCRIPTOR_LEAF_PALETTE_DEPTH_SHIFT))
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_SET_COLOR_SPACE(kv, color_space) \
-	((kv)->value.leaf.data[3] = \
-	 ((kv)->value.leaf.data[3] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_SPACE_MASK << \
-				CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_SPACE_SHIFT))) | \
-	 CSR1212_CPU_TO_BE32(((color_space) & \
-			      CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_SPACE_MASK) << \
-			     CSR1212_ICON_DESCRIPTOR_LEAF_COLOR_SPACE_SHIFT))
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_SET_LANGUAGE(kv, language) \
-	((kv)->value.leaf.data[3] = \
-	 ((kv)->value.leaf.data[3] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_ICON_DESCRIPTOR_LEAF_LANGUAGE_MASK))) | \
-	 CSR1212_CPU_TO_BE32(((language) & \
-			      CSR1212_ICON_DESCRIPTOR_LEAF_LANGUAGE_MASK)))
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_SET_HSCAN(kv, hscan) \
-	((kv)->value.leaf.data[4] = \
-	 ((kv)->value.leaf.data[4] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_ICON_DESCRIPTOR_LEAF_HSCAN_MASK << \
-				CSR1212_ICON_DESCRIPTOR_LEAF_HSCAN_SHIFT))) | \
-	 CSR1212_CPU_TO_BE32(((hscan) & \
-			      CSR1212_ICON_DESCRIPTOR_LEAF_HSCAN_MASK) << \
-			     CSR1212_ICON_DESCRIPTOR_LEAF_HSCAN_SHIFT))
-
-#define CSR1212_ICON_DESCRIPTOR_LEAF_SET_VSCAN(kv, vscan) \
-	((kv)->value.leaf.data[4] = \
-	 (((kv)->value.leaf.data[4] & \
-	  CSR1212_CPU_TO_BE32(~CSR1212_ICON_DESCRIPTOR_LEAF_VSCAN_MASK))) | \
-	 CSR1212_CPU_TO_BE32(((vscan) & \
-			      CSR1212_ICON_DESCRIPTOR_LEAF_VSCAN_MASK)))
-
-
-/* Modifiable Descriptor Leaf manipulation macros */
-#define CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_MAX_SIZE_SHIFT 16
-#define CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_MAX_SIZE_MASK 0xffff
-#define CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_ADDR_HI_SHIFT 32
-#define CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_ADDR_HI_MASK 0xffff
-#define CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_ADDR_LO_MASK 0xffffffffULL
-
-#define CSR1212_MODIFIABLE_DESCRIPTOR_MAX_SIZE(kv) \
-	CSR1212_BE16_TO_CPU((kv)->value.leaf.data[0] >> CSR1212_MODIFIABLE_DESCRIPTOR_MAX_SIZE_SHIFT)
-
-#define CSR1212_MODIFIABLE_DESCRIPTOR_ADDRESS(kv) \
-	(CSR1212_BE16_TO_CPU(((u_int64_t)((kv)->value.leaf.data[0])) << \
-			     CSR1212_MODIFIABLE_DESCRIPTOR_ADDR_HI_SHIFT) | \
-	 CSR1212_BE32_TO_CPU((kv)->value.leaf.data[1]))
-
-#define CSR1212_MODIFIABLE_DESCRIPTOR_SET_MAX_SIZE(kv, size) \
-	((kv)->value.leaf.data[0] = \
-	 ((kv)->value.leaf.data[0] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_MAX_SIZE_MASK << \
-				CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_MAX_SIZE_SHIFT))) | \
-	 CSR1212_CPU_TO_BE32(((size) & \
-			      CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_MAX_SIZE_MASK) << \
-			     CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_MAX_SIZE_SHIFT))
-
-#define CSR1212_MODIFIABLE_DESCRIPTOR_SET_ADDRESS_HI(kv, addr) \
-	((kv)->value.leaf.data[0] = \
-	 ((kv)->value.leaf.data[0] & \
-	  CSR1212_CPU_TO_BE32(~(CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_ADDR_HI_MASK))) | \
-	  CSR1212_CPU_TO_BE32(((addr) & \
-			       CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_ADDR_HI_MASK)))
-
-#define CSR1212_MODIFIABLE_DESCRIPTOR_SET_ADDRESS_LO(kv, addr) \
-	((kv)->value.leaf.data[1] = \
-	 CSR1212_CPU_TO_BE32(addr & CSR1212_MODIFIABLE_DESCRIPTOR_LEAF_ADDR_LO_MASK))
-
-
 
 /* The following 2 function are for creating new Configuration ROM trees.  The
  * first function is used for both creating local trees and parsing remote
@@ -546,8 +341,7 @@ extern void csr1212_init_local_csr(struct csr1212_csr *csr,
 				   const u_int32_t *bus_info_data, int max_rom);
 
 
-/* The following function destroys a Configuration ROM tree and release all
- * memory taken by the tree. */
+/* Destroy a Configuration ROM tree and release all memory taken by the tree. */
 extern void csr1212_destroy_csr(struct csr1212_csr *csr);
 
 
@@ -556,49 +350,19 @@ extern void csr1212_destroy_csr(struct csr1212_csr *csr);
  * must release those keyvals with csr1212_release_keyval() when they are no
  * longer needed. */
 extern struct csr1212_keyval *csr1212_new_immediate(u_int8_t key, u_int32_t value);
-extern struct csr1212_keyval *csr1212_new_leaf(u_int8_t key, const void *data,
-					       size_t data_len);
-extern struct csr1212_keyval *csr1212_new_csr_offset(u_int8_t key,
-						     u_int32_t csr_offset);
 extern struct csr1212_keyval *csr1212_new_directory(u_int8_t key);
-extern struct csr1212_keyval *csr1212_new_extended_immediate(u_int32_t spec,
-							     u_int32_t key,
-							     u_int32_t value);
-extern struct csr1212_keyval *csr1212_new_extended_leaf(u_int32_t spec,
-							u_int32_t key,
-							const void *data,
-							size_t data_len);
-extern struct csr1212_keyval *csr1212_new_descriptor_leaf(u_int8_t dtype,
-							  u_int32_t specifier_id,
-							  const void *data,
-							  size_t data_len);
-extern struct csr1212_keyval *csr1212_new_textual_descriptor_leaf(u_int8_t cwidth,
-								  u_int16_t cset,
-								  u_int16_t language,
-								  const void *data,
-								  size_t data_len);
 extern struct csr1212_keyval *csr1212_new_string_descriptor_leaf(const char *s);
-extern struct csr1212_keyval *csr1212_new_icon_descriptor_leaf(u_int32_t version,
-							       u_int8_t palette_depth,
-							       u_int8_t color_space,
-							       u_int16_t language,
-							       u_int16_t hscan,
-							       u_int16_t vscan,
-							       u_int32_t *palette,
-							       u_int32_t *pixels);
-extern struct csr1212_keyval *csr1212_new_modifiable_descriptor_leaf(u_int16_t max_size,
-								     u_int64_t address);
-extern struct csr1212_keyval *csr1212_new_keyword_leaf(int strc,
-						       const char *strv[]);
 
 
-/* The following functions manage association between keyvals.  Typically,
+/* The following function manages association between keyvals.  Typically,
  * Descriptor Leaves and Directories will be associated with another keyval and
  * it is desirable for the Descriptor keyval to be place immediately after the
- * keyval that it is associated with.*/
+ * keyval that it is associated with.
+ * Take care with subsequent ROM modifications:  There is no function to remove
+ * previously specified associations.
+ */
 extern int csr1212_associate_keyval(struct csr1212_keyval *kv,
 				    struct csr1212_keyval *associate);
-extern void csr1212_disassociate_keyval(struct csr1212_keyval *kv);
 
 
 /* The following functions manage the association of a keyval and directories.
@@ -609,16 +373,8 @@ extern void csr1212_detach_keyval_from_directory(struct csr1212_keyval *dir,
 						 struct csr1212_keyval *kv);
 
 
-/* The following functions create a Configuration ROM image from the tree of
- * keyvals provided.  csr1212_generate_csr_image() creates a complete image in
- * the list of caches available via csr->cache_head.  The other functions are
- * provided should there be a need to create a flat image without restrictions
- * placed by IEEE 1212. */
-extern struct csr1212_keyval *csr1212_generate_positions(struct csr1212_csr_rom_cache *cache,
-							 struct csr1212_keyval *start_kv,
-							 int start_pos);
-extern size_t csr1212_generate_layout_order(struct csr1212_keyval *kv);
-extern void csr1212_fill_cache(struct csr1212_csr_rom_cache *cache);
+/* Creates a complete Configuration ROM image in the list of caches available
+ * via csr->cache_head. */
 extern int csr1212_generate_csr_image(struct csr1212_csr *csr);
 
 
