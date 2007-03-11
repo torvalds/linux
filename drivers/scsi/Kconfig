@@ -241,6 +241,12 @@ config SCSI_SCAN_ASYNC
 	  You can override this choice by specifying "scsi_mod.scan=sync"
 	  or async on the kernel's command line.
 
+config SCSI_WAIT_SCAN
+	tristate
+	default m
+	depends on SCSI
+	depends on MODULES
+
 menu "SCSI Transports"
 	depends on SCSI
 
