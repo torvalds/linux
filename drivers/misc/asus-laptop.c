@@ -272,19 +272,25 @@ static int read_status(int mask)
 	return (hotk->status & mask) ? 1 : 0;
 }
 
-static void write_status(acpi_handle handle, int out, int mask, int invert)
+static void write_status(acpi_handle handle, int out, int mask)
 {
 	hotk->status = (out) ? (hotk->status | mask) : (hotk->status & ~mask);
 
-	if (invert)		/* invert target value */
+	switch (mask) {
+	case MLED_ON:
 		out = !out & 0x1;
+		break;
+	default:
+		out &= 0x1;
+		break;
+	}
 
 	if (handle && !write_acpi_int(handle, NULL, out, NULL))
-		printk(ASUS_WARNING " write failed\n");
+		printk(ASUS_WARNING " write failed %x\n", mask);
 }
 
 /* /sys/class/led handlers */
-#define ASUS_LED_HANDLER(object, mask, invert)				\
+#define ASUS_LED_HANDLER(object, mask)					\
 	static void object##_led_set(struct led_classdev *led_cdev,	\
 				     enum led_brightness value)		\
 	{								\
@@ -294,13 +300,13 @@ static void write_status(acpi_handle handle, int out, int mask, int invert)
 	static void object##_led_update(struct work_struct *ignored)	\
 	{								\
 		int value = object##_led_wk;				\
-		write_status(object##_set_handle, value, (mask), (invert)); \
+		write_status(object##_set_handle, value, (mask));	\
 	}
 
-ASUS_LED_HANDLER(mled, MLED_ON, 1);
-ASUS_LED_HANDLER(pled, PLED_ON, 0);
-ASUS_LED_HANDLER(rled, RLED_ON, 0);
-ASUS_LED_HANDLER(tled, TLED_ON, 0);
+ASUS_LED_HANDLER(mled, MLED_ON);
+ASUS_LED_HANDLER(pled, PLED_ON);
+ASUS_LED_HANDLER(rled, RLED_ON);
+ASUS_LED_HANDLER(tled, TLED_ON);
 
 static int get_lcd_state(void)
 {
@@ -325,7 +331,7 @@ static int set_lcd_state(int value)
 			printk(ASUS_WARNING "Error switching LCD\n");
 	}
 
-	write_status(NULL, lcd, LCD_ON, 0);
+	write_status(NULL, lcd, LCD_ON);
 	return 0;
 }
 
@@ -458,7 +464,7 @@ static int parse_arg(const char *buf, unsigned long count, int *val)
 }
 
 static ssize_t store_status(const char *buf, size_t count,
-			    acpi_handle handle, int mask, int invert)
+			    acpi_handle handle, int mask)
 {
 	int rv, value;
 	int out = 0;
@@ -467,7 +473,7 @@ static ssize_t store_status(const char *buf, size_t count,
 	if (rv > 0)
 		out = value ? 1 : 0;
 
-	write_status(handle, out, mask, invert);
+	write_status(handle, out, mask);
 
 	return rv;
 }
@@ -508,7 +514,7 @@ static ssize_t show_wlan(struct device *dev,
 static ssize_t store_wlan(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
-	return store_status(buf, count, wl_switch_handle, WL_ON, 0);
+	return store_status(buf, count, wl_switch_handle, WL_ON);
 }
 
 /*
@@ -524,7 +530,7 @@ static ssize_t store_bluetooth(struct device *dev,
 			       struct device_attribute *attr, const char *buf,
 			       size_t count)
 {
-	return store_status(buf, count, bt_switch_handle, BT_ON, 0);
+	return store_status(buf, count, bt_switch_handle, BT_ON);
 }
 
 /*
@@ -652,10 +658,10 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 	 * switched
 	 */
 	if (event == ATKD_LCD_ON) {
-		write_status(NULL, 1, LCD_ON, 0);
+		write_status(NULL, 1, LCD_ON);
 		lcd_blank(FB_BLANK_UNBLANK);
 	} else if (event == ATKD_LCD_OFF) {
-		write_status(NULL, 0, LCD_ON, 0);
+		write_status(NULL, 0, LCD_ON);
 		lcd_blank(FB_BLANK_POWERDOWN);
 	}
 
@@ -928,11 +934,15 @@ static int asus_hotk_add(struct acpi_device *device)
 	asus_hotk_found = 1;
 
 	/* WLED and BLED are on by default */
-	write_status(bt_switch_handle, 1, BT_ON, 0);
-	write_status(wl_switch_handle, 1, WL_ON, 0);
+	write_status(bt_switch_handle, 1, BT_ON);
+	write_status(wl_switch_handle, 1, WL_ON);
+
+	/* If the h/w switch is off, we need to check the real status */
+	write_status(NULL, read_status(BT_ON), BT_ON);
+	write_status(NULL, read_status(WL_ON), WL_ON);
 
 	/* LCD Backlight is on by default */
-	write_status(NULL, 1, LCD_ON, 0);
+	write_status(NULL, 1, LCD_ON);
 
 	/* LED display is off by default */
 	hotk->ledd_status = 0xFFF;
