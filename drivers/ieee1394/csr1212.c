@@ -45,7 +45,7 @@
 #define __C (1 << CSR1212_KV_TYPE_CSR_OFFSET)
 #define __D (1 << CSR1212_KV_TYPE_DIRECTORY)
 #define __L (1 << CSR1212_KV_TYPE_LEAF)
-static const u_int8_t csr1212_key_id_type_map[0x30] = {
+static const u8 csr1212_key_id_type_map[0x30] = {
 	__C,			/* used by Apple iSight */
 	__D | __L,		/* Descriptor */
 	__I | __D | __L,	/* Bus_Dependent_Info */
@@ -81,8 +81,8 @@ static const u_int8_t csr1212_key_id_type_map[0x30] = {
 #undef __L
 
 
-#define quads_to_bytes(_q) ((_q) * sizeof(u_int32_t))
-#define bytes_to_quads(_b) (((_b) + sizeof(u_int32_t) - 1) / sizeof(u_int32_t))
+#define quads_to_bytes(_q) ((_q) * sizeof(u32))
+#define bytes_to_quads(_b) (((_b) + sizeof(u32) - 1) / sizeof(u32))
 
 static void free_keyval(struct csr1212_keyval *kv)
 {
@@ -93,11 +93,11 @@ static void free_keyval(struct csr1212_keyval *kv)
 	CSR1212_FREE(kv);
 }
 
-static u_int16_t csr1212_crc16(const u_int32_t *buffer, size_t length)
+static u16 csr1212_crc16(const u32 *buffer, size_t length)
 {
 	int shift;
-	u_int32_t data;
-	u_int16_t sum, crc = 0;
+	u32 data;
+	u16 sum, crc = 0;
 
 	for (; length; length--) {
 		data = be32_to_cpu(*buffer);
@@ -116,11 +116,11 @@ static u_int16_t csr1212_crc16(const u_int32_t *buffer, size_t length)
 /* Microsoft computes the CRC with the bytes in reverse order.  Therefore we
  * have a special version of the CRC algorithm to account for their buggy
  * software. */
-static u_int16_t csr1212_msft_crc16(const u_int32_t *buffer, size_t length)
+static u16 csr1212_msft_crc16(const u32 *buffer, size_t length)
 {
 	int shift;
-	u_int32_t data;
-	u_int16_t sum, crc = 0;
+	u32 data;
+	u16 sum, crc = 0;
 
 	for (; length; length--) {
 		data = le32_to_cpu(*buffer);
@@ -150,7 +150,7 @@ csr1212_find_keyval(struct csr1212_keyval *dir, struct csr1212_keyval *kv)
 }
 
 static struct csr1212_keyval *
-csr1212_find_keyval_offset(struct csr1212_keyval *kv_list, u_int32_t offset)
+csr1212_find_keyval_offset(struct csr1212_keyval *kv_list, u32 offset)
 {
 	struct csr1212_keyval *kv;
 
@@ -202,7 +202,7 @@ struct csr1212_csr *csr1212_create_csr(struct csr1212_bus_ops *ops,
 }
 
 void csr1212_init_local_csr(struct csr1212_csr *csr,
-			    const u_int32_t *bus_info_data, int max_rom)
+			    const u32 *bus_info_data, int max_rom)
 {
 	static const int mr_map[] = { 4, 64, 1024, 0 };
 
@@ -211,7 +211,7 @@ void csr1212_init_local_csr(struct csr1212_csr *csr,
 	memcpy(csr->bus_info_data, bus_info_data, csr->bus_info_len);
 }
 
-static struct csr1212_keyval *csr1212_new_keyval(u_int8_t type, u_int8_t key)
+static struct csr1212_keyval *csr1212_new_keyval(u8 type, u8 key)
 {
 	struct csr1212_keyval *kv;
 
@@ -235,7 +235,7 @@ static struct csr1212_keyval *csr1212_new_keyval(u_int8_t type, u_int8_t key)
 	return kv;
 }
 
-struct csr1212_keyval *csr1212_new_immediate(u_int8_t key, u_int32_t value)
+struct csr1212_keyval *csr1212_new_immediate(u8 key, u32 value)
 {
 	struct csr1212_keyval *kv = csr1212_new_keyval(CSR1212_KV_TYPE_IMMEDIATE, key);
 
@@ -248,7 +248,7 @@ struct csr1212_keyval *csr1212_new_immediate(u_int8_t key, u_int32_t value)
 }
 
 static struct csr1212_keyval *
-csr1212_new_leaf(u_int8_t key, const void *data, size_t data_len)
+csr1212_new_leaf(u8 key, const void *data, size_t data_len)
 {
 	struct csr1212_keyval *kv = csr1212_new_keyval(CSR1212_KV_TYPE_LEAF, key);
 
@@ -276,7 +276,7 @@ csr1212_new_leaf(u_int8_t key, const void *data, size_t data_len)
 }
 
 static struct csr1212_keyval *
-csr1212_new_csr_offset(u_int8_t key, u_int32_t csr_offset)
+csr1212_new_csr_offset(u8 key, u32 csr_offset)
 {
 	struct csr1212_keyval *kv = csr1212_new_keyval(CSR1212_KV_TYPE_CSR_OFFSET, key);
 
@@ -290,7 +290,7 @@ csr1212_new_csr_offset(u_int8_t key, u_int32_t csr_offset)
 	return kv;
 }
 
-struct csr1212_keyval *csr1212_new_directory(u_int8_t key)
+struct csr1212_keyval *csr1212_new_directory(u8 key)
 {
 	struct csr1212_keyval *kv = csr1212_new_keyval(CSR1212_KV_TYPE_DIRECTORY, key);
 
@@ -387,7 +387,7 @@ int csr1212_attach_keyval_to_directory(struct csr1212_keyval *dir,
 		     ((spec_id) & CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID_MASK)))
 
 static struct csr1212_keyval *
-csr1212_new_descriptor_leaf(u_int8_t dtype, u_int32_t specifier_id,
+csr1212_new_descriptor_leaf(u8 dtype, u32 specifier_id,
 			    const void *data, size_t data_len)
 {
 	struct csr1212_keyval *kv;
@@ -432,9 +432,8 @@ csr1212_new_descriptor_leaf(u_int8_t dtype, u_int32_t specifier_id,
 		      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK)))
 
 static struct csr1212_keyval *
-csr1212_new_textual_descriptor_leaf(u_int8_t cwidth, u_int16_t cset,
-				    u_int16_t language, const void *data,
-				    size_t data_len)
+csr1212_new_textual_descriptor_leaf(u8 cwidth, u16 cset, u16 language,
+				    const void *data, size_t data_len)
 {
 	struct csr1212_keyval *kv;
 	char *lstr;
@@ -451,7 +450,7 @@ csr1212_new_textual_descriptor_leaf(u_int8_t cwidth, u_int16_t cset,
 	lstr = (char*)CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(kv);
 
 	/* make sure last quadlet is zeroed out */
-	*((u_int32_t*)&(lstr[(data_len - 1) & ~0x3])) = 0;
+	*((u32*)&(lstr[(data_len - 1) & ~0x3])) = 0;
 
 	/* don't copy the NUL terminator */
 	memcpy(lstr, data, data_len);
@@ -610,7 +609,7 @@ void csr1212_destroy_csr(struct csr1212_csr *csr)
 static int csr1212_append_new_cache(struct csr1212_csr *csr, size_t romsize)
 {
 	struct csr1212_csr_rom_cache *cache;
-	u_int64_t csr_addr;
+	u64 csr_addr;
 
 	if (!csr || !csr->ops || !csr->ops->allocate_addr_range ||
 	    !csr->ops->release_addr || csr->max_rom < 1)
@@ -824,7 +823,7 @@ csr1212_generate_positions(struct csr1212_csr_rom_cache *cache,
 #define CSR1212_KV_KEY_TYPE_MASK	0x3	/* after shift */
 
 static void
-csr1212_generate_tree_subdir(struct csr1212_keyval *dir, u_int32_t *data_buffer)
+csr1212_generate_tree_subdir(struct csr1212_keyval *dir, u32 *data_buffer)
 {
 	struct csr1212_dentry *dentry;
 	struct csr1212_keyval *last_extkey_spec = NULL;
@@ -835,7 +834,7 @@ csr1212_generate_tree_subdir(struct csr1212_keyval *dir, u_int32_t *data_buffer)
 		struct csr1212_keyval *a;
 
 		for (a = dentry->kv; a; a = a->associate) {
-			u_int32_t value = 0;
+			u32 value = 0;
 
 			/* Special Case: Extended Key Specifier_ID */
 			if (a->key.id == CSR1212_KV_ID_EXTENDED_KEY_SPECIFIER_ID) {
@@ -889,11 +888,11 @@ csr1212_generate_tree_subdir(struct csr1212_keyval *dir, u_int32_t *data_buffer)
 }
 
 struct csr1212_keyval_img {
-	u_int16_t length;
-	u_int16_t crc;
+	u16 length;
+	u16 crc;
 
 	/* Must be last */
-	csr1212_quad_t data[0];	/* older gcc can't handle [] which is standard */
+	u32 data[0];	/* older gcc can't handle [] which is standard */
 };
 
 static void csr1212_fill_cache(struct csr1212_csr_rom_cache *cache)
@@ -940,7 +939,7 @@ static void csr1212_fill_cache(struct csr1212_csr_rom_cache *cache)
 	}
 }
 
-#define CSR1212_EXTENDED_ROM_SIZE (0x10000 * sizeof(u_int32_t))
+#define CSR1212_EXTENDED_ROM_SIZE (0x10000 * sizeof(u32))
 
 int csr1212_generate_csr_image(struct csr1212_csr *csr)
 {
@@ -975,7 +974,7 @@ int csr1212_generate_csr_image(struct csr1212_csr *csr)
 			 * regions needed (it assumes that the cache holding
 			 * the first 1K Config ROM space always exists). */
 			int est_c = agg_size / (CSR1212_EXTENDED_ROM_SIZE -
-						(2 * sizeof(u_int32_t))) + 1;
+						(2 * sizeof(u32))) + 1;
 
 			/* Add additional cache regions, extras will be
 			 * removed later */
@@ -992,7 +991,7 @@ int csr1212_generate_csr_image(struct csr1212_csr *csr)
 		}
 		kv = csr1212_generate_positions(cache, kv, init_offset);
 		agg_size -= cache->len;
-		init_offset = sizeof(u_int32_t);
+		init_offset = sizeof(u32);
 	}
 
 	/* Remove unused, excess cache regions */
@@ -1022,7 +1021,7 @@ int csr1212_generate_csr_image(struct csr1212_csr *csr)
 			       leaf_size - cache->len);
 
 			/* Subtract leaf header */
-			leaf_size -= sizeof(u_int32_t);
+			leaf_size -= sizeof(u32);
 
 			/* Update the Extended ROM leaf length */
 			cache->ext_rom->value.leaf.len =
@@ -1040,7 +1039,7 @@ int csr1212_generate_csr_image(struct csr1212_csr *csr)
 			/* Set the length and CRC of the extended ROM. */
 			struct csr1212_keyval_img *kvi =
 				(struct csr1212_keyval_img*)cache->data;
-			u_int16_t len = bytes_to_quads(cache->len) - 1;
+			u16 len = bytes_to_quads(cache->len) - 1;
 
 			kvi->length = cpu_to_be16(len);
 			kvi->crc = csr1212_crc16(kvi->data, len);
@@ -1050,7 +1049,7 @@ int csr1212_generate_csr_image(struct csr1212_csr *csr)
 	return CSR1212_SUCCESS;
 }
 
-int csr1212_read(struct csr1212_csr *csr, u_int32_t offset, void *buffer, u_int32_t len)
+int csr1212_read(struct csr1212_csr *csr, u32 offset, void *buffer, u32 len)
 {
 	struct csr1212_csr_rom_cache *cache;
 
@@ -1081,9 +1080,9 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 	 * Unfortunately, many IEEE 1394 devices do not abide by that, so the
 	 * bus info block will be read 1 quadlet at a time.  The rest of the
 	 * ConfigROM will be read according to the max_rom field. */
-	for (i = 0; i < csr->bus_info_len; i += sizeof(csr1212_quad_t)) {
+	for (i = 0; i < csr->bus_info_len; i += sizeof(u32)) {
 		ret = csr->ops->bus_read(csr, CSR1212_CONFIG_ROM_SPACE_BASE + i,
-					 sizeof(csr1212_quad_t),
+					 sizeof(u32),
 					 &csr->cache_head->data[bytes_to_quads(i)],
 					 csr->private);
 		if (ret != CSR1212_SUCCESS)
@@ -1101,9 +1100,9 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 
 	/* IEEE 1212 recommends that crc_len be equal to bus_info_len, but that is not
 	 * always the case, so read the rest of the crc area 1 quadlet at a time. */
-	for (i = csr->bus_info_len; i <= csr->crc_len; i += sizeof(csr1212_quad_t)) {
+	for (i = csr->bus_info_len; i <= csr->crc_len; i += sizeof(u32)) {
 		ret = csr->ops->bus_read(csr, CSR1212_CONFIG_ROM_SPACE_BASE + i,
-					 sizeof(csr1212_quad_t),
+					 sizeof(u32),
 					 &csr->cache_head->data[bytes_to_quads(i)],
 					 csr->private);
 		if (ret != CSR1212_SUCCESS)
@@ -1140,12 +1139,11 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 #define CSR1212_KV_VAL(q)	(be32_to_cpu(q) & CSR1212_KV_VAL_MASK)
 
 static int csr1212_parse_dir_entry(struct csr1212_keyval *dir,
-				   csr1212_quad_t ki,
-				   u_int32_t kv_pos)
+				   u32 ki, u32 kv_pos)
 {
 	int ret = CSR1212_SUCCESS;
 	struct csr1212_keyval *k = NULL;
-	u_int32_t offset;
+	u32 offset;
 
 	switch(CSR1212_KV_KEY_TYPE(ki)) {
 	case CSR1212_KV_TYPE_IMMEDIATE:
@@ -1236,7 +1234,7 @@ int csr1212_parse_keyval(struct csr1212_keyval *kv,
 	switch(kv->key.type) {
 	case CSR1212_KV_TYPE_DIRECTORY:
 		for (i = 0; i < kvi_len; i++) {
-			csr1212_quad_t ki = kvi->data[i];
+			u32 ki = kvi->data[i];
 
 			/* Some devices put null entries in their unit
 			 * directories.  If we come across such an entry,
@@ -1276,9 +1274,9 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 	struct csr1212_keyval_img *kvi = NULL;
 	struct csr1212_csr_rom_cache *cache;
 	int cache_index;
-	u_int64_t addr;
-	u_int32_t *cache_ptr;
-	u_int16_t kv_len = 0;
+	u64 addr;
+	u32 *cache_ptr;
+	u16 kv_len = 0;
 
 	if (!csr || !kv || csr->max_rom < 1)
 		return -EINVAL;
@@ -1292,8 +1290,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 	}
 
 	if (!cache) {
-		csr1212_quad_t q;
-		u_int32_t cache_size;
+		u32 q, cache_size;
 
 		/* Only create a new cache for Extended ROM leaves. */
 		if (kv->key.id != CSR1212_KV_ID_EXTENDED_ROM)
@@ -1301,7 +1298,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 
 		if (csr->ops->bus_read(csr,
 				       CSR1212_REGISTER_SPACE_BASE + kv->offset,
-				       sizeof(csr1212_quad_t), &q, csr->private)) {
+				       sizeof(u32), &q, csr->private)) {
 			return -EIO;
 		}
 
@@ -1326,7 +1323,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 		}
 
 		cache->filled_head->offset_start = 0;
-		cache->filled_head->offset_end = sizeof(csr1212_quad_t);
+		cache->filled_head->offset_end = sizeof(u32);
 		cache->filled_tail = cache->filled_head;
 		cache->filled_head->next = NULL;
 		cache->filled_head->prev = NULL;

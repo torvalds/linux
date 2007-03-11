@@ -114,19 +114,17 @@
 
 /* Config ROM image structures */
 struct csr1212_bus_info_block_img {
-	u_int8_t length;
-	u_int8_t crc_length;
-	u_int16_t crc;
+	u8 length;
+	u8 crc_length;
+	u16 crc;
 
 	/* Must be last */
-	u_int32_t data[0];	/* older gcc can't handle [] which is standard */
+	u32 data[0];	/* older gcc can't handle [] which is standard */
 };
-
-typedef u_int32_t csr1212_quad_t;
 
 struct csr1212_leaf {
 	int len;
-	u_int32_t *data;
+	u32 *data;
 };
 
 struct csr1212_dentry {
@@ -141,12 +139,12 @@ struct csr1212_directory {
 
 struct csr1212_keyval {
 	struct {
-		u_int8_t type;
-		u_int8_t id;
+		u8 type;
+		u8 id;
 	} key;
 	union {
-		u_int32_t immediate;
-		u_int32_t csr_offset;
+		u32 immediate;
+		u32 csr_offset;
 		struct csr1212_leaf leaf;
 		struct csr1212_directory directory;
 	} value;
@@ -155,15 +153,15 @@ struct csr1212_keyval {
 
 	/* used in generating and/or parsing CSR image */
 	struct csr1212_keyval *next, *prev;	/* flat list of CSR elements */
-	u_int32_t offset;	/* position in CSR from 0xffff f000 0000 */
-	u_int8_t valid;		/* flag indicating keyval has valid data*/
+	u32 offset;	/* position in CSR from 0xffff f000 0000 */
+	u8 valid;	/* flag indicating keyval has valid data*/
 };
 
 
 struct csr1212_cache_region {
 	struct csr1212_cache_region *next, *prev;
-	u_int32_t offset_start;		/* inclusive */
-	u_int32_t offset_end;		/* exclusive */
+	u32 offset_start;	/* inclusive */
+	u32 offset_end;		/* exclusive */
 };
 
 struct csr1212_csr_rom_cache {
@@ -171,18 +169,18 @@ struct csr1212_csr_rom_cache {
 	struct csr1212_cache_region *filled_head, *filled_tail;
 	struct csr1212_keyval *layout_head, *layout_tail;
 	size_t size;
-	u_int32_t offset;
+	u32 offset;
 	struct csr1212_keyval *ext_rom;
 	size_t len;
 
 	/* Must be last */
-	u_int32_t data[0];	/* older gcc can't handle [] which is standard */
+	u32 data[0];	/* older gcc can't handle [] which is standard */
 };
 
 struct csr1212_csr {
 	size_t bus_info_len;	/* bus info block length in bytes */
 	size_t crc_len;		/* crc length in bytes */
-	u_int32_t *bus_info_data;	/* bus info data incl bus name and EUI */
+	u32 *bus_info_data;	/* bus info data incl bus name and EUI */
 
 	void *private;		/* private, bus specific data */
 	struct csr1212_bus_ops *ops;
@@ -200,32 +198,30 @@ struct csr1212_bus_ops {
 	 * from remote nodes when parsing a Config ROM (i.e., read Config ROM
 	 * entries located in the Units Space.  Must return 0 on success
 	 * anything else indicates an error. */
-	int (*bus_read) (struct csr1212_csr *csr, u_int64_t addr,
-			 u_int16_t length, void *buffer, void *private);
+	int (*bus_read) (struct csr1212_csr *csr, u64 addr,
+			 u16 length, void *buffer, void *private);
 
 	/* This function is used by csr1212 to allocate a region in units space
 	 * in the event that Config ROM entries don't all fit in the predefined
 	 * 1K region.  The void *private parameter is private member of struct
 	 * csr1212_csr. */
-	u_int64_t (*allocate_addr_range) (u_int64_t size, u_int32_t alignment,
-					  void *private);
-
+	u64 (*allocate_addr_range) (u64 size, u32 alignment, void *private);
 
 	/* This function is used by csr1212 to release a region in units space
 	 * that is no longer needed. */
-	void (*release_addr) (u_int64_t addr, void *private);
+	void (*release_addr) (u64 addr, void *private);
 
 	/* This function is used by csr1212 to determine the max read request
 	 * supported by a remote node when reading the ConfigROM space.  Must
 	 * return 0, 1, or 2 per IEEE 1212.  */
-	int (*get_max_rom) (u_int32_t *bus_info, void *private);
+	int (*get_max_rom) (u32 *bus_info, void *private);
 };
 
 
 /* Descriptor Leaf manipulation macros */
 #define CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT 24
 #define CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID_MASK 0xffffff
-#define CSR1212_DESCRIPTOR_LEAF_OVERHEAD (1 * sizeof(u_int32_t))
+#define CSR1212_DESCRIPTOR_LEAF_OVERHEAD (1 * sizeof(u32))
 
 #define CSR1212_DESCRIPTOR_LEAF_TYPE(kv) \
 	(be32_to_cpu((kv)->value.leaf.data[0]) >> CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT)
@@ -240,7 +236,7 @@ struct csr1212_bus_ops {
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT 16
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK 0xfff  /* after shift */
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK 0xffff
-#define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_OVERHEAD (1 * sizeof(u_int32_t))
+#define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_OVERHEAD (1 * sizeof(u32))
 
 #define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH(kv) \
 	(be32_to_cpu((kv)->value.leaf.data[1]) >> \
@@ -264,7 +260,7 @@ extern struct csr1212_csr *csr1212_create_csr(struct csr1212_bus_ops *ops,
 					      size_t bus_info_size,
 					      void *private);
 extern void csr1212_init_local_csr(struct csr1212_csr *csr,
-				   const u_int32_t *bus_info_data, int max_rom);
+				   const u32 *bus_info_data, int max_rom);
 
 
 /* Destroy a Configuration ROM tree and release all memory taken by the tree. */
@@ -275,8 +271,8 @@ extern void csr1212_destroy_csr(struct csr1212_csr *csr);
  * a Configuration ROM tree.  Code that creates new keyvals with these functions
  * must release those keyvals with csr1212_release_keyval() when they are no
  * longer needed. */
-extern struct csr1212_keyval *csr1212_new_immediate(u_int8_t key, u_int32_t value);
-extern struct csr1212_keyval *csr1212_new_directory(u_int8_t key);
+extern struct csr1212_keyval *csr1212_new_immediate(u8 key, u32 value);
+extern struct csr1212_keyval *csr1212_new_directory(u8 key);
 extern struct csr1212_keyval *csr1212_new_string_descriptor_leaf(const char *s);
 
 
@@ -306,8 +302,8 @@ extern int csr1212_generate_csr_image(struct csr1212_csr *csr);
 
 /* This is a convience function for reading a block of data out of one of the
  * caches in the csr->cache_head list. */
-extern int csr1212_read(struct csr1212_csr *csr, u_int32_t offset, void *buffer,
-			u_int32_t len);
+extern int csr1212_read(struct csr1212_csr *csr, u32 offset, void *buffer,
+			u32 len);
 
 
 /* The following functions are in place for parsing Configuration ROM images.
@@ -324,7 +320,7 @@ extern void _csr1212_destroy_keyval(struct csr1212_keyval *kv);
 
 /* This function allocates a new cache which may be used for either parsing or
  * generating sub-sets of Configuration ROM images. */
-static inline struct csr1212_csr_rom_cache *csr1212_rom_cache_malloc(u_int32_t offset,
+static inline struct csr1212_csr_rom_cache *csr1212_rom_cache_malloc(u32 offset,
 								     size_t size)
 {
 	struct csr1212_csr_rom_cache *cache;
