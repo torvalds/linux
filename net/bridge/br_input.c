@@ -112,7 +112,11 @@ static int br_handle_local_finish(struct sk_buff *skb)
  */
 static inline int is_link_local(const unsigned char *dest)
 {
-	return memcmp(dest, br_group_address, 5) == 0 && (dest[5] & 0xf0) == 0;
+	const u16 *a = (const u16 *) dest;
+	static const u16 *const b = (const u16 *const ) br_group_address;
+	static const u16 m = __constant_cpu_to_be16(0xfff0);
+
+	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | ((a[2] ^ b[2]) & m)) == 0;
 }
 
 /*
