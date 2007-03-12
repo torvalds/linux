@@ -62,7 +62,7 @@ MODULE_PARM_DESC(ql2xallocfwdump,
 		"vary by ISP type.  Default is 1 - allocate memory.");
 
 int ql2xextended_error_logging;
-module_param(ql2xextended_error_logging, int, S_IRUGO|S_IRUSR);
+module_param(ql2xextended_error_logging, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xextended_error_logging,
 		"Option to enable extended error logging, "
 		"Default is 0 - no logging. 1 - log errors.");
