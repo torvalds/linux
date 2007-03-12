@@ -728,20 +728,15 @@ void *ft_find_descendent(struct ft_cxt *cxt, void *top, const char *srch_path)
 	return NULL;
 }
 
-void *ft_get_parent(struct ft_cxt *cxt, const void *phandle)
+void *__ft_get_parent(struct ft_cxt *cxt, void *node)
 {
-	void *node;
 	int d;
 	struct ft_atom atom;
 	char *p;
 
-	node = ft_node_ph2node(cxt, phandle);
-	if (node == NULL)
-		return NULL;
-
 	for (d = 0; cxt->genealogy[d] != NULL; ++d)
 		if (cxt->genealogy[d] == node)
-			return cxt->genealogy[d > 0 ? d - 1 : 0];
+			return d > 0 ? cxt->genealogy[d - 1] : NULL;
 
 	/* have to do it the hard way... */
 	p = ft_root_node(cxt);
@@ -753,7 +748,7 @@ void *ft_get_parent(struct ft_cxt *cxt, const void *phandle)
 			if (node == atom.data) {
 				/* found it */
 				cxt->genealogy[d + 1] = NULL;
-				return d > 0 ? cxt->genealogy[d - 1] : node;
+				return d > 0 ? cxt->genealogy[d - 1] : NULL;
 			}
 			++d;
 			break;
@@ -763,6 +758,16 @@ void *ft_get_parent(struct ft_cxt *cxt, const void *phandle)
 		}
 	}
 	return NULL;
+}
+
+void *ft_get_parent(struct ft_cxt *cxt, const void *phandle)
+{
+	void *node = ft_node_ph2node(cxt, phandle);
+	if (node == NULL)
+		return NULL;
+
+	node = __ft_get_parent(cxt, node);
+	return ft_get_phandle(cxt, node);
 }
 
 static const void *__ft_get_prop(struct ft_cxt *cxt, void *node,

@@ -104,5 +104,6 @@ int ft_get_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
 		void *buf, const unsigned int buflen);
 int ft_set_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
 		const void *buf, const unsigned int buflen);
+void *ft_get_parent(struct ft_cxt *cxt, const void *phandle);
 
 #endif /* FLATDEVTREE_H */
