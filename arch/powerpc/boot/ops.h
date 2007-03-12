@@ -11,6 +11,7 @@
 #ifndef _PPC_BOOT_OPS_H_
 #define _PPC_BOOT_OPS_H_
 
+#include <stddef.h>
 #include "types.h"
 
 #define	COMMAND_LINE_SIZE	512
