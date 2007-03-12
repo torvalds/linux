@@ -466,6 +466,7 @@ qla24xx_read_flash_dword(scsi_qla_host_t *ha, uint32_t addr)
 			udelay(10);
 		else
 			rval = QLA_FUNCTION_TIMEOUT;
+		cond_resched();
 	}
 
 	/* TODO: What happens if we time out? */
@@ -508,6 +509,7 @@ qla24xx_write_flash_dword(scsi_qla_host_t *ha, uint32_t addr, uint32_t data)
 			udelay(10);
 		else
 			rval = QLA_FUNCTION_TIMEOUT;
+		cond_resched();
 	}
 	return rval;
 }
@@ -1255,6 +1257,7 @@ qla2x00_poll_flash(scsi_qla_host_t *ha, uint32_t addr, uint8_t poll_data,
 		}
 		udelay(10);
 		barrier();
+		cond_resched();
 	}
 	return status;
 }
@@ -1403,6 +1406,7 @@ qla2x00_read_flash_data(scsi_qla_host_t *ha, uint8_t *tmp_buf, uint32_t saddr,
 		if (saddr % 100)
 			udelay(10);
 		*tmp_buf = data;
+		cond_resched();
 	}
 }
 
@@ -1689,6 +1693,7 @@ update_flash:
 				rval = QLA_FUNCTION_FAILED;
 				break;
 			}
+			cond_resched();
 		}
 	} while (0);
 	qla2x00_flash_disable(ha);
