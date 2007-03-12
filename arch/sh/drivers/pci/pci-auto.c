@@ -214,6 +214,12 @@ retry:
 			continue;
 		}
 
+		if (bar_value < *lower_limit || (bar_value + bar_size) >= *upper_limit) {
+			DBG(" unavailable -- skipping, value %x size %x\n",
+					bar_value, bar_size);
+			continue;
+		}
+
 #ifdef CONFIG_PCI_AUTO_UPDATE_RESOURCES
 		/* Write it out and update our limit */
 		early_write_config_dword(hose, top_bus, current_bus, pci_devfn,
