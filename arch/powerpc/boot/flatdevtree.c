@@ -36,7 +36,7 @@ static char *ft_root_node(struct ft_cxt *cxt)
 
 /* Routines for keeping node ptrs returned by ft_find_device current */
 /* First entry not used b/c it would return 0 and be taken as NULL/error */
-static void *ft_node_add(struct ft_cxt *cxt, char *node)
+static void *ft_get_phandle(struct ft_cxt *cxt, char *node)
 {
 	unsigned int i;
 
@@ -642,7 +642,7 @@ void *ft_find_device(struct ft_cxt *cxt, const char *srch_path)
 	if (srch_path[0] != '/')
 		return NULL;
 	node = ft_find_descendent(cxt, ft_root_node(cxt), srch_path);
-	return ft_node_add(cxt, node);
+	return ft_get_phandle(cxt, node);
 }
 
 void *ft_find_descendent(struct ft_cxt *cxt, void *top, const char *srch_path)
