@@ -1453,7 +1453,6 @@ uint8_t *
 qla2x00_read_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
     uint32_t offset, uint32_t length)
 {
-	unsigned long flags;
 	uint32_t addr, midpoint;
 	uint8_t *data;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
@@ -1462,7 +1461,6 @@ qla2x00_read_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 	qla2x00_suspend_hba(ha);
 
 	/* Go with read. */
-	spin_lock_irqsave(&ha->hardware_lock, flags);
 	midpoint = ha->optrom_size / 2;
 
 	qla2x00_flash_enable(ha);
@@ -1477,7 +1475,6 @@ qla2x00_read_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 		*data = qla2x00_read_flash_byte(ha, addr);
 	}
 	qla2x00_flash_disable(ha);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	/* Resume HBA. */
 	qla2x00_resume_hba(ha);
@@ -1491,7 +1488,6 @@ qla2x00_write_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 {
 
 	int rval;
-	unsigned long flags;
 	uint8_t man_id, flash_id, sec_number, data;
 	uint16_t wd;
 	uint32_t addr, liter, sec_mask, rest_addr;
@@ -1504,7 +1500,6 @@ qla2x00_write_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 	sec_number = 0;
 
 	/* Reset ISP chip. */
-	spin_lock_irqsave(&ha->hardware_lock, flags);
 	WRT_REG_WORD(&reg->ctrl_status, CSR_ISP_SOFT_RESET);
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &wd);
 
@@ -1697,7 +1692,6 @@ update_flash:
 		}
 	} while (0);
 	qla2x00_flash_disable(ha);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	/* Resume HBA. */
 	qla2x00_resume_hba(ha);
