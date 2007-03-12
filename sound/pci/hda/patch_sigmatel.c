@@ -175,8 +175,8 @@ static hda_nid_t stac9205_mux_nids[2] = {
         0x19, 0x1a
 };
 
-static hda_nid_t stac9205_dmic_nids[3] = {
-        0x17, 0x18, 0
+static hda_nid_t stac9205_dmic_nids[2] = {
+        0x17, 0x18,
 };
 
 static hda_nid_t stac9200_pin_nids[8] = {
@@ -1931,7 +1931,7 @@ static int patch_stac922x(struct hda_codec *codec)
 
 	spec->adc_nids = stac922x_adc_nids;
 	spec->mux_nids = stac922x_mux_nids;
-	spec->num_muxes = 2;
+	spec->num_muxes = ARRAY_SIZE(stac922x_mux_nids);
 	spec->num_dmics = 0;
 
 	spec->init = stac922x_core_init;
@@ -1992,7 +1992,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	case STAC_D965_3ST:
 		spec->adc_nids = stac927x_adc_nids;
 		spec->mux_nids = stac927x_mux_nids;
-		spec->num_muxes = 3;
+		spec->num_muxes = ARRAY_SIZE(stac927x_mux_nids);
 		spec->num_dmics = 0;
 		spec->init = d965_core_init;
 		spec->mixer = stac9227_mixer;
@@ -2000,7 +2000,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	case STAC_D965_5ST:
 		spec->adc_nids = stac927x_adc_nids;
 		spec->mux_nids = stac927x_mux_nids;
-		spec->num_muxes = 3;
+		spec->num_muxes = ARRAY_SIZE(stac927x_mux_nids);
 		spec->num_dmics = 0;
 		spec->init = d965_core_init;
 		spec->mixer = stac9227_mixer;
@@ -2008,7 +2008,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	default:
 		spec->adc_nids = stac927x_adc_nids;
 		spec->mux_nids = stac927x_mux_nids;
-		spec->num_muxes = 3;
+		spec->num_muxes = ARRAY_SIZE(stac927x_mux_nids);
 		spec->num_dmics = 0;
 		spec->init = stac927x_core_init;
 		spec->mixer = stac927x_mixer;
@@ -2067,9 +2067,9 @@ static int patch_stac9205(struct hda_codec *codec)
 
 	spec->adc_nids = stac9205_adc_nids;
 	spec->mux_nids = stac9205_mux_nids;
-	spec->num_muxes = 2;
+	spec->num_muxes = ARRAY_SIZE(stac9205_mux_nids);
 	spec->dmic_nids = stac9205_dmic_nids;
-	spec->num_dmics = 2;
+	spec->num_dmics = ARRAY_SIZE(stac9205_dmic_nids);
 	spec->dmux_nid = 0x1d;
 
 	spec->init = stac9205_core_init;
