@@ -1683,7 +1683,7 @@ static int ipmr_vif_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ipmr_vif_seq_ops = {
+static const struct seq_operations ipmr_vif_seq_ops = {
 	.start = ipmr_vif_seq_start,
 	.next  = ipmr_vif_seq_next,
 	.stop  = ipmr_vif_seq_stop,
@@ -1846,7 +1846,7 @@ static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ipmr_mfc_seq_ops = {
+static const struct seq_operations ipmr_mfc_seq_ops = {
 	.start = ipmr_mfc_seq_start,
 	.next  = ipmr_mfc_seq_next,
 	.stop  = ipmr_mfc_seq_stop,

@@ -364,7 +364,7 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations rt_cache_seq_ops = {
+static const struct seq_operations rt_cache_seq_ops = {
 	.start  = rt_cache_seq_start,
 	.next   = rt_cache_seq_next,
 	.stop   = rt_cache_seq_stop,
@@ -470,7 +470,7 @@ static int rt_cpu_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations rt_cpu_seq_ops = {
+static const struct seq_operations rt_cpu_seq_ops = {
 	.start  = rt_cpu_seq_start,
 	.next   = rt_cpu_seq_next,
 	.stop   = rt_cpu_seq_stop,

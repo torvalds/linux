@@ -2393,7 +2393,7 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations neigh_stat_seq_ops = {
+static const struct seq_operations neigh_stat_seq_ops = {
 	.start	= neigh_stat_seq_start,
 	.next	= neigh_stat_seq_next,
 	.stop	= neigh_stat_seq_stop,

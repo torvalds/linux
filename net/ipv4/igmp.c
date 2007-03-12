@@ -2401,7 +2401,7 @@ static int igmp_mc_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations igmp_mc_seq_ops = {
+static const struct seq_operations igmp_mc_seq_ops = {
 	.start	=	igmp_mc_seq_start,
 	.next	=	igmp_mc_seq_next,
 	.stop	=	igmp_mc_seq_stop,
@@ -2575,7 +2575,7 @@ static int igmp_mcf_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations igmp_mcf_seq_ops = {
+static const struct seq_operations igmp_mcf_seq_ops = {
 	.start	=	igmp_mcf_seq_start,
 	.next	=	igmp_mcf_seq_next,
 	.stop	=	igmp_mcf_seq_stop,

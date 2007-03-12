@@ -2339,7 +2339,7 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations fib_trie_seq_ops = {
+static const struct seq_operations fib_trie_seq_ops = {
 	.start  = fib_trie_seq_start,
 	.next   = fib_trie_seq_next,
 	.stop   = fib_trie_seq_stop,
@@ -2460,7 +2460,7 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations fib_route_seq_ops = {
+static const struct seq_operations fib_route_seq_ops = {
 	.start  = fib_trie_seq_start,
 	.next   = fib_trie_seq_next,
 	.stop   = fib_trie_seq_stop,

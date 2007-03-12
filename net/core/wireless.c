@@ -678,7 +678,7 @@ static int wireless_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations wireless_seq_ops = {
+static const struct seq_operations wireless_seq_ops = {
 	.start = dev_seq_start,
 	.next  = dev_seq_next,
 	.stop  = dev_seq_stop,

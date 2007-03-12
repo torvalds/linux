@@ -2176,7 +2176,7 @@ static int softnet_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations dev_seq_ops = {
+static const struct seq_operations dev_seq_ops = {
 	.start = dev_seq_start,
 	.next  = dev_seq_next,
 	.stop  = dev_seq_stop,
@@ -2196,7 +2196,7 @@ static const struct file_operations dev_seq_fops = {
 	.release = seq_release,
 };
 
-static struct seq_operations softnet_seq_ops = {
+static const struct seq_operations softnet_seq_ops = {
 	.start = softnet_seq_start,
 	.next  = softnet_seq_next,
 	.stop  = softnet_seq_stop,

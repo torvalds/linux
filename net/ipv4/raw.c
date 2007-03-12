@@ -889,7 +889,7 @@ static int raw_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations raw_seq_ops = {
+static const struct seq_operations raw_seq_ops = {
 	.start = raw_seq_start,
 	.next  = raw_seq_next,
 	.stop  = raw_seq_stop,
