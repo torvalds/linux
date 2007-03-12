@@ -63,6 +63,31 @@ static void __init smsc_setup(char **cmdline_p)
 	outb_p(CONFIG_EXIT, CONFIG_PORT);
 }
 
+
+static struct resource cf_ide_resources[] = {
+	[0] = {
+		.start  = PA_MRSHPC_IO + 0x1f0,
+		.end    = PA_MRSHPC_IO + 0x1f0 + 8,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = PA_MRSHPC_IO + 0x1f0 + 0x206,
+		.end    = PA_MRSHPC_IO + 0x1f0 +8 + 0x206 + 8,
+		.flags  = IORESOURCE_MEM,
+	},
+	[2] = {
+		.start  = 7,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device cf_ide_device  = {
+	.name           = "pata_platform",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(cf_ide_resources),
+	.resource       = cf_ide_resources,
+};
+
 static unsigned char heartbeat_bit_pos[] = { 8, 9, 10, 11, 12, 13, 14, 15 };
 
 static struct resource heartbeat_resources[] = {
@@ -85,6 +110,7 @@ static struct platform_device heartbeat_device = {
 
 static struct platform_device *se_devices[] __initdata = {
 	&heartbeat_device,
+	&cf_ide_device,
 };
 
 static int __init se_devices_setup(void)
