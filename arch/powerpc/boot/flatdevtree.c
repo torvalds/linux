@@ -40,6 +40,9 @@ static void *ft_get_phandle(struct ft_cxt *cxt, char *node)
 {
 	unsigned int i;
 
+	if (!node)
+		return NULL;
+
 	for (i = 1; i < cxt->nodes_used; i++)	/* already there? */
 		if (cxt->node_tbl[i] == node)
 			return (void *)i;
