@@ -22,7 +22,10 @@
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/reboot.h>
+
+#include <asm/firmware.h>
 #include <asm/ps3.h>
+
 #include "vuart.h"
 
 MODULE_AUTHOR("Sony Corporation");
@@ -598,6 +601,9 @@ static struct ps3_vuart_port_driver ps3_sys_manager = {
 
 static int __init ps3_sys_manager_init(void)
 {
+	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
+		return -ENODEV;
+
 	return ps3_vuart_port_driver_register(&ps3_sys_manager);
 }
 
