@@ -48,7 +48,7 @@
 static int __init sh7780_pci_init(void)
 {
 	unsigned int id;
-	int ret;
+	int ret, match = 0;
 
 	pr_debug("PCI: Starting intialization.\n");
 
@@ -56,8 +56,17 @@ static int __init sh7780_pci_init(void)
 
 	/* check for SH7780/SH7780R hardware */
 	id = pci_read_reg(SH7780_PCIVID);
-	if ((id != ((SH7780_DEVICE_ID << 16) | SH7780_VENDOR_ID)) &&
-	    (id != ((SH7781_DEVICE_ID << 16) | SH7780_VENDOR_ID))) {
+	if ((id & 0xffff) == SH7780_VENDOR_ID) {
+		switch ((id >> 16) & 0xffff) {
+		case SH7780_DEVICE_ID:
+		case SH7781_DEVICE_ID:
+		case SH7785_DEVICE_ID:
+			match = 1;
+			break;
+		}
+	}
+
+	if (unlikely(!match)) {
 		printk(KERN_ERR "PCI: This is not an SH7780 (%x)\n", id);
 		return -ENODEV;
 	}
@@ -138,7 +147,7 @@ int __init sh7780_pcic_init(struct sh4_pci_address_map *map)
 	 * DMA interrupts...
 	 */
 
-#ifdef CONFIG_SH_R7780RP
+#ifdef CONFIG_SH_HIGHLANDER
 	pci_fixup_pcic();
 #endif
 

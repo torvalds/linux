@@ -1,7 +1,7 @@
 #ifndef __PCI_SH4_H
 #define __PCI_SH4_H
 
-#ifdef CONFIG_CPU_SUBTYPE_SH7780
+#if defined(CONFIG_CPU_SUBTYPE_SH7780) || defined(CONFIG_CPU_SUBTYPE_SH7785)
 #include "pci-sh7780.h"
 #else
 #include "pci-sh7751.h"

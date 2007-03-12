@@ -1,4 +1,14 @@
+source "arch/sh/drivers/dma/Kconfig"
+source "arch/sh/cchips/Kconfig"
+
 menu "Additional SuperH Device Drivers"
+
+config HEARTBEAT
+	bool "Heartbeat LED"
+	help
+	  Use the power-on LED on your machine as a load meter.  The exact
+	  behavior is platform-dependent, but normally the flash frequency is
+	  a hyperbolic function of the 5-minute load average.
 
 config PUSH_SWITCH
 	tristate "Push switch support"

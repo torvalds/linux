@@ -197,12 +197,8 @@ config SH_RTS7751R2D
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
 
-config SH_R7780RP
-	bool "R7780RP-1"
-	select CPU_SUBTYPE_SH7780
-	help
-	  Select R7780RP-1 if configuring for a Renesas Solutions
-	  HIGHLANDER board.
+config SH_HIGHLANDER
+	bool "Highlander"
 
 config SH_EDOSK7705
 	bool "EDOSK7705"
@@ -261,6 +257,10 @@ config SH_UNKNOWN
 	  This option is for the early stages of porting to a new machine.
 
 endchoice
+
+source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
+source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
+source "arch/sh/boards/renesas/r7780rp/Kconfig"
 
 source "arch/sh/mm/Kconfig"
 
@@ -412,8 +412,9 @@ config CPU_HAS_PTEA
 
 endmenu
 
-menu "Timer support"
-depends on !GENERIC_TIME
+menu "Timer and clock configuration"
+
+if !GENERIC_TIME
 
 config SH_TMU
 	bool "TMU timer support"
@@ -436,17 +437,11 @@ config SH_MTU2
 	help
 	  This enables the use of the MTU2 as the system timer.
 
-endmenu
-
-source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
-
-source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
-
-source "arch/sh/boards/renesas/r7780rp/Kconfig"
+endif
 
 config SH_TIMER_IRQ
 	int
-	default "28" if CPU_SUBTYPE_SH7780
+	default "28" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
 	default "86" if CPU_SUBTYPE_SH7619
 	default "140" if CPU_SUBTYPE_SH7206
 	default "16"
@@ -476,7 +471,8 @@ config SH_PCLK_FREQ
 	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || \
 			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
 			      CPU_SUBTYPE_SH7206
-	default "50000000" if CPU_SUBTYPE_SH7750 || CPU_SUBTYPE_SH7780
+	default "50000000" if CPU_SUBTYPE_SH7750 || CPU_SUBTYPE_SH7780 || \
+			      CPU_SUBTYPE_SH7785
 	default "60000000" if CPU_SUBTYPE_SH7751
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	help
@@ -490,6 +486,8 @@ config SH_CLK_MD
 	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
 	help
 	  MD2 - MD0 pin setting.
+
+endmenu
 
 menu "CPU Frequency scaling"
 
@@ -508,21 +506,6 @@ config SH_CPU_FREQ
 	  If unsure, say N.
 
 endmenu
-
-source "arch/sh/drivers/dma/Kconfig"
-
-source "arch/sh/cchips/Kconfig"
-
-config HEARTBEAT
-	bool "Heartbeat LED"
-	depends on SH_MPC1211 || SH_SH03 || \
-		   SOLUTION_ENGINE || \
-		   SH_RTS7751R2D || SH_SH4202_MICRODEV || SH_LANDISK || \
-		   SH_R7780RP
-	help
-	  Use the power-on LED on your machine as a load meter.  The exact
-	  behavior is platform-dependent, but normally the flash frequency is
-	  a hyperbolic function of the 5-minute load average.
 
 source "arch/sh/drivers/Kconfig"
 

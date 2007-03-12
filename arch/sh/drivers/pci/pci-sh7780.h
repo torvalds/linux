@@ -14,8 +14,9 @@
 
 /* Platform Specific Values */
 #define SH7780_VENDOR_ID	0x1912
-#define SH7780_DEVICE_ID	0x0002
 #define SH7781_DEVICE_ID	0x0001
+#define SH7780_DEVICE_ID	0x0002
+#define SH7785_DEVICE_ID	0x0007
 
 /* SH7780 Control Registers */
 #define	SH7780_PCI_VCR0		0xFE000000

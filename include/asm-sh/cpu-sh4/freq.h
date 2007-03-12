@@ -14,6 +14,10 @@
 #define FRQCR		        0xa4150000
 #elif defined(CONFIG_CPU_SUBTYPE_SH7780)
 #define	FRQCR			0xffc80000
+#elif defined(CONFIG_CPU_SUBTYPE_SH7785)
+#define FRQCR0			0xffc80000
+#define FRQCR1			0xffc80004
+#define FRQMR1			0xffc80014
 #else
 #define FRQCR			0xffc00000
 #endif

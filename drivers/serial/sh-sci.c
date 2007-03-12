@@ -62,7 +62,7 @@ struct sci_port {
 	unsigned int		type;
 
 	/* Port IRQs: ERI, RXI, TXI, BRI (optional) */
-	unsigned int		irqs[SCIx_NR_IRQS]; 
+	unsigned int		irqs[SCIx_NR_IRQS];
 
 	/* Port pin configuration */
 	void			(*init_pins)(struct uart_port *port,
@@ -351,7 +351,7 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 	} else {
 #ifdef CONFIG_CPU_SUBTYPE_SH7343
 		/* Nothing */
-#elif defined(CONFIG_CPU_SUBTYPE_SH7780)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7780) || defined(CONFIG_CPU_SUBTYPE_SH7785)
 		ctrl_outw(0x0080, SCSPTR0); /* Set RTS = 1 */
 #else
 		ctrl_outw(0x0080, SCSPTR2); /* Set RTS = 1 */
@@ -361,7 +361,9 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 }
 #endif
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7760) || defined(CONFIG_CPU_SUBTYPE_SH7780)
+#if defined(CONFIG_CPU_SUBTYPE_SH7760) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7780) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7785)
 static inline int scif_txroom(struct uart_port *port)
 {
 	return SCIF_TXROOM_MAX - (sci_in(port, SCTFDR) & 0x7f);
@@ -1368,8 +1370,18 @@ static int __devinit sci_probe(struct platform_device *dev)
 	struct plat_sci_port *p = dev->dev.platform_data;
 	int i;
 
-	for (i = 0; p && p->flags != 0 && i < SCI_NPORTS; p++, i++) {
+	for (i = 0; p && p->flags != 0; p++, i++) {
 		struct sci_port *sciport = &sci_ports[i];
+
+		/* Sanity check */
+		if (unlikely(i == SCI_NPORTS)) {
+			dev_notice(&dev->dev, "Attempting to register port "
+				   "%d when only %d are available.\n",
+				   i+1, SCI_NPORTS);
+			dev_notice(&dev->dev, "Consider bumping "
+				   "CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
+			break;
+		}
 
 		sciport->port.mapbase	= p->mapbase;
 
