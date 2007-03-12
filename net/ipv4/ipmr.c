@@ -564,7 +564,7 @@ static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 		skb_push(skb, sizeof(struct iphdr));
 		skb_reset_network_header(skb);
 		skb->h.raw = skb->data;
-		msg = (struct igmpmsg *)skb->nh.raw;
+		msg = (struct igmpmsg *)skb_network_header(skb);
 		memcpy(msg, skb_network_header(pkt), sizeof(struct iphdr));
 		msg->im_msgtype = IGMPMSG_WHOLEPKT;
 		msg->im_mbz = 0;
