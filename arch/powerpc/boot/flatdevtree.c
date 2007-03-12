@@ -654,6 +654,19 @@ void *ft_find_device(struct ft_cxt *cxt, const char *srch_path)
 	return ft_get_phandle(cxt, node);
 }
 
+void *ft_find_device_rel(struct ft_cxt *cxt, const void *top,
+                         const char *srch_path)
+{
+	char *node;
+
+	node = ft_node_ph2node(cxt, top);
+	if (node == NULL)
+		return NULL;
+
+	node = ft_find_descendent(cxt, node, srch_path);
+	return ft_get_phandle(cxt, node);
+}
+
 void *ft_find_descendent(struct ft_cxt *cxt, void *top, const char *srch_path)
 {
 	struct ft_atom atom;
