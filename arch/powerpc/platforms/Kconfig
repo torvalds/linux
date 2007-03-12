@@ -27,8 +27,6 @@ endchoice
 
 config QUICC_ENGINE
 	bool
-	depends on PPC_MPC836x || PPC_MPC832x
-	default y
 	help
 	  The QUICC Engine (QE) is a new generation of communications
 	  coprocessors on Freescale embedded CPUs (akin to CPM in older chips).
