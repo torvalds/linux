@@ -48,7 +48,7 @@ int btrfs_cow_block(struct ctree_root *root,
 	}
 	cow = alloc_free_block(root);
 	memcpy(&cow->node, &buf->node, sizeof(buf->node));
-	cow->node.header.blocknr = cow->blocknr;
+	btrfs_set_header_blocknr(&cow->node.header, cow->blocknr);
 	*cow_ret = cow;
 	btrfs_inc_ref(root, buf);
 	if (buf == root->node) {
@@ -73,7 +73,7 @@ int btrfs_cow_block(struct ctree_root *root,
  */
 static inline unsigned int leaf_data_end(struct leaf *leaf)
 {
-	unsigned int nr = leaf->header.nritems;
+	u32 nr = btrfs_header_nritems(&leaf->header);
 	if (nr == 0)
 		return sizeof(leaf->data);
 	return leaf->items[nr-1].offset;
@@ -87,7 +87,7 @@ static inline unsigned int leaf_data_end(struct leaf *leaf)
 int leaf_free_space(struct leaf *leaf)
 {
 	int data_end = leaf_data_end(leaf);
-	int nritems = leaf->header.nritems;
+	int nritems = btrfs_header_nritems(&leaf->header);
 	char *items_end = (char *)(leaf->items + nritems + 1);
 	return (char *)(leaf->data + data_end) - (char *)items_end;
 }
@@ -118,18 +118,21 @@ int check_node(struct ctree_path *path, int level)
 	struct node *parent = NULL;
 	struct node *node = &path->nodes[level]->node;
 	int parent_slot;
+	u32 nritems = btrfs_header_nritems(&node->header);
 
 	if (path->nodes[level + 1])
 		parent = &path->nodes[level + 1]->node;
 	parent_slot = path->slots[level + 1];
-	if (parent && node->header.nritems > 0) {
+	BUG_ON(nritems == 0);
+	if (parent) {
 		struct key *parent_key;
 		parent_key = &parent->keys[parent_slot];
 		BUG_ON(memcmp(parent_key, node->keys, sizeof(struct key)));
-		BUG_ON(parent->blockptrs[parent_slot] != node->header.blocknr);
+		BUG_ON(parent->blockptrs[parent_slot] !=
+		       btrfs_header_blocknr(&node->header));
 	}
-	BUG_ON(node->header.nritems > NODEPTRS_PER_BLOCK);
-	for (i = 0; i < node->header.nritems - 2; i++) {
+	BUG_ON(nritems > NODEPTRS_PER_BLOCK);
+	for (i = 0; nritems > 1 && i < nritems - 2; i++) {
 		BUG_ON(comp_keys(&node->keys[i], &node->keys[i+1]) >= 0);
 	}
 	return 0;
@@ -141,18 +144,25 @@ int check_leaf(struct ctree_path *path, int level)
 	struct leaf *leaf = &path->nodes[level]->leaf;
 	struct node *parent = NULL;
 	int parent_slot;
+	u32 nritems = btrfs_header_nritems(&leaf->header);
 
 	if (path->nodes[level + 1])
 		parent = &path->nodes[level + 1]->node;
 	parent_slot = path->slots[level + 1];
-	if (parent && leaf->header.nritems > 0) {
+	BUG_ON(leaf_free_space(leaf) < 0);
+
+	if (nritems == 0)
+		return 0;
+
+	if (parent) {
 		struct key *parent_key;
 		parent_key = &parent->keys[parent_slot];
 		BUG_ON(memcmp(parent_key, &leaf->items[0].key,
 		       sizeof(struct key)));
-		BUG_ON(parent->blockptrs[parent_slot] != leaf->header.blocknr);
+		BUG_ON(parent->blockptrs[parent_slot] !=
+		       btrfs_header_blocknr(&leaf->header));
 	}
-	for (i = 0; i < leaf->header.nritems - 2; i++) {
+	for (i = 0; nritems > 1 && i < nritems - 2; i++) {
 		BUG_ON(comp_keys(&leaf->items[i].key,
 		                 &leaf->items[i+1].key) >= 0);
 		BUG_ON(leaf->items[i].offset != leaf->items[i + 1].offset +
@@ -162,7 +172,6 @@ int check_leaf(struct ctree_path *path, int level)
 				LEAF_DATA_SIZE);
 		}
 	}
-	BUG_ON(leaf_free_space(leaf) < 0);
 	return 0;
 }
 
@@ -215,13 +224,15 @@ int generic_bin_search(char *p, int item_size, struct key *key,
  */
 int bin_search(struct node *c, struct key *key, int *slot)
 {
-	if (is_leaf(c->header.flags)) {
+	if (btrfs_is_leaf(c)) {
 		struct leaf *l = (struct leaf *)c;
 		return generic_bin_search((void *)l->items, sizeof(struct item),
-					  key, c->header.nritems, slot);
+					  key, btrfs_header_nritems(&c->header),
+					  slot);
 	} else {
 		return generic_bin_search((void *)c->keys, sizeof(struct key),
-					  key, c->header.nritems, slot);
+					  key, btrfs_header_nritems(&c->header),
+					  slot);
 	}
 	return -1;
 }
@@ -233,7 +244,7 @@ struct tree_buffer *read_node_slot(struct ctree_root *root,
 	struct node *node = &parent_buf->node;
 	if (slot < 0)
 		return NULL;
-	if (slot >= node->header.nritems)
+	if (slot >= btrfs_header_nritems(&node->header))
 		return NULL;
 	return read_tree_block(root, node->blockptrs[slot]);
 }
@@ -270,7 +281,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 		struct tree_buffer *child;
 		u64 blocknr = mid_buf->blocknr;
 
-		if (mid->header.nritems != 1)
+		if (btrfs_header_nritems(&mid->header) != 1)
 			return 0;
 
 		/* promote the child to a root */
@@ -287,7 +298,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 	}
 	parent = &parent_buf->node;
 
-	if (mid->header.nritems > NODEPTRS_PER_BLOCK / 4)
+	if (btrfs_header_nritems(&mid->header) > NODEPTRS_PER_BLOCK / 4)
 		return 0;
 
 	left_buf = read_node_slot(root, parent_buf, pslot - 1);
@@ -298,7 +309,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 		btrfs_cow_block(root, left_buf, parent_buf,
 				pslot - 1, &left_buf);
 		left = &left_buf->node;
-		orig_slot += left->header.nritems;
+		orig_slot += btrfs_header_nritems(&left->header);
 		wret = push_node_left(root, left_buf, mid_buf);
 		if (wret < 0)
 			ret = wret;
@@ -314,7 +325,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 		wret = push_node_left(root, mid_buf, right_buf);
 		if (wret < 0)
 			ret = wret;
-		if (right->header.nritems == 0) {
+		if (btrfs_header_nritems(&right->header) == 0) {
 			u64 blocknr = right_buf->blocknr;
 			tree_block_release(root, right_buf);
 			clean_tree_block(root, right_buf);
@@ -332,7 +343,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 			BUG_ON(list_empty(&parent_buf->dirty));
 		}
 	}
-	if (mid->header.nritems == 1) {
+	if (btrfs_header_nritems(&mid->header) == 1) {
 		/*
 		 * we're not allowed to leave a node with one item in the
 		 * tree during a delete.  A deletion from lower in the tree
@@ -348,7 +359,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 			ret = wret;
 		BUG_ON(wret == 1);
 	}
-	if (mid->header.nritems == 0) {
+	if (btrfs_header_nritems(&mid->header) == 0) {
 		/* we've managed to empty the middle node, drop it */
 		u64 blocknr = mid_buf->blocknr;
 		tree_block_release(root, mid_buf);
@@ -369,7 +380,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 
 	/* update the path */
 	if (left_buf) {
-		if (left->header.nritems > orig_slot) {
+		if (btrfs_header_nritems(&left->header) > orig_slot) {
 			left_buf->count++; // released below
 			path->nodes[level] = left_buf;
 			path->slots[level + 1] -= 1;
@@ -377,7 +388,7 @@ static int balance_level(struct ctree_root *root, struct ctree_path *path,
 			if (mid_buf)
 				tree_block_release(root, mid_buf);
 		} else {
-			orig_slot -= left->header.nritems;
+			orig_slot -= btrfs_header_nritems(&left->header);
 			path->slots[level] = orig_slot;
 		}
 	}
@@ -420,7 +431,7 @@ again:
 	b = root->node;
 	b->count++;
 	while (b) {
-		level = node_level(b->node.header.flags);
+		level = btrfs_header_level(&b->node.header);
 		if (cow) {
 			int wret;
 			wret = btrfs_cow_block(root, b, p->nodes[level + 1],
@@ -434,12 +445,12 @@ again:
 		if (ret)
 			return -1;
 		ret = bin_search(c, key, &slot);
-		if (!is_leaf(c->header.flags)) {
+		if (!btrfs_is_leaf(c)) {
 			if (ret && slot > 0)
 				slot -= 1;
 			p->slots[level] = slot;
-			if (ins_len > 0 &&
-			    c->header.nritems == NODEPTRS_PER_BLOCK) {
+			if (ins_len > 0 && btrfs_header_nritems(&c->header) ==
+			    NODEPTRS_PER_BLOCK) {
 				int sret = split_node(root, p, level);
 				BUG_ON(sret > 0);
 				if (sret)
@@ -456,7 +467,7 @@ again:
 					goto again;
 				c = &b->node;
 				slot = p->slots[level];
-				BUG_ON(c->header.nritems == 1);
+				BUG_ON(btrfs_header_nritems(&c->header) == 1);
 			}
 			b = read_tree_block(root, c->blockptrs[slot]);
 		} else {
@@ -524,8 +535,8 @@ static int push_node_left(struct ctree_root *root, struct tree_buffer *dst_buf,
 	int dst_nritems;
 	int ret = 0;
 
-	src_nritems = src->header.nritems;
-	dst_nritems = dst->header.nritems;
+	src_nritems = btrfs_header_nritems(&src->header);
+	dst_nritems = btrfs_header_nritems(&dst->header);
 	push_items = NODEPTRS_PER_BLOCK - dst_nritems;
 	if (push_items <= 0) {
 		return 1;
@@ -544,9 +555,8 @@ static int push_node_left(struct ctree_root *root, struct tree_buffer *dst_buf,
 		memmove(src->blockptrs, src->blockptrs + push_items,
 			(src_nritems - push_items) * sizeof(u64));
 	}
-	src->header.nritems -= push_items;
-	dst->header.nritems += push_items;
-
+	btrfs_set_header_nritems(&src->header, src_nritems - push_items);
+	btrfs_set_header_nritems(&dst->header, dst_nritems + push_items);
 	BUG_ON(list_empty(&src_buf->dirty));
 	BUG_ON(list_empty(&dst_buf->dirty));
 	return ret;
@@ -573,8 +583,8 @@ static int balance_node_right(struct ctree_root *root,
 	int dst_nritems;
 	int ret = 0;
 
-	src_nritems = src->header.nritems;
-	dst_nritems = dst->header.nritems;
+	src_nritems = btrfs_header_nritems(&src->header);
+	dst_nritems = btrfs_header_nritems(&dst->header);
 	push_items = NODEPTRS_PER_BLOCK - dst_nritems;
 	if (push_items <= 0) {
 		return 1;
@@ -596,8 +606,8 @@ static int balance_node_right(struct ctree_root *root,
 	memcpy(dst->blockptrs, src->blockptrs + src_nritems - push_items,
 		push_items * sizeof(u64));
 
-	src->header.nritems -= push_items;
-	dst->header.nritems += push_items;
+	btrfs_set_header_nritems(&src->header, src_nritems - push_items);
+	btrfs_set_header_nritems(&dst->header, dst_nritems + push_items);
 
 	BUG_ON(list_empty(&src_buf->dirty));
 	BUG_ON(list_empty(&dst_buf->dirty));
@@ -625,12 +635,13 @@ static int insert_new_root(struct ctree_root *root,
 	t = alloc_free_block(root);
 	c = &t->node;
 	memset(c, 0, sizeof(c));
-	c->header.nritems = 1;
-	c->header.flags = node_level(level);
-	c->header.blocknr = t->blocknr;
-	c->header.parentid = root->node->node.header.parentid;
+	btrfs_set_header_nritems(&c->header, 1);
+	btrfs_set_header_level(&c->header, level);
+	btrfs_set_header_blocknr(&c->header, t->blocknr);
+	btrfs_set_header_parentid(&c->header,
+	                       btrfs_header_parentid(&root->node->node.header));
 	lower = &path->nodes[level-1]->node;
-	if (is_leaf(lower->header.flags))
+	if (btrfs_is_leaf(lower))
 		lower_key = &((struct leaf *)lower)->items[0].key;
 	else
 		lower_key = lower->keys;
@@ -663,7 +674,7 @@ static int insert_ptr(struct ctree_root *root,
 
 	BUG_ON(!path->nodes[level]);
 	lower = &path->nodes[level]->node;
-	nritems = lower->header.nritems;
+	nritems = btrfs_header_nritems(&lower->header);
 	if (slot > nritems)
 		BUG();
 	if (nritems == NODEPTRS_PER_BLOCK)
@@ -676,7 +687,7 @@ static int insert_ptr(struct ctree_root *root,
 	}
 	memcpy(lower->keys + slot, key, sizeof(struct key));
 	lower->blockptrs[slot] = blocknr;
-	lower->header.nritems++;
+	btrfs_set_header_nritems(&lower->header, nritems + 1);
 	if (lower->keys[1].objectid == 0)
 			BUG();
 	BUG_ON(list_empty(&path->nodes[level]->dirty));
@@ -702,6 +713,7 @@ static int split_node(struct ctree_root *root, struct ctree_path *path,
 	int mid;
 	int ret;
 	int wret;
+	u32 c_nritems;
 
 	t = path->nodes[level];
 	c = &t->node;
@@ -711,18 +723,20 @@ static int split_node(struct ctree_root *root, struct ctree_path *path,
 		if (ret)
 			return ret;
 	}
+	c_nritems = btrfs_header_nritems(&c->header);
 	split_buffer = alloc_free_block(root);
 	split = &split_buffer->node;
-	split->header.flags = c->header.flags;
-	split->header.blocknr = split_buffer->blocknr;
-	split->header.parentid = root->node->node.header.parentid;
-	mid = (c->header.nritems + 1) / 2;
+	btrfs_set_header_flags(&split->header, btrfs_header_flags(&c->header));
+	btrfs_set_header_blocknr(&split->header, split_buffer->blocknr);
+	btrfs_set_header_parentid(&split->header,
+	                       btrfs_header_parentid(&root->node->node.header));
+	mid = (c_nritems + 1) / 2;
 	memcpy(split->keys, c->keys + mid,
-		(c->header.nritems - mid) * sizeof(struct key));
+		(c_nritems - mid) * sizeof(struct key));
 	memcpy(split->blockptrs, c->blockptrs + mid,
-		(c->header.nritems - mid) * sizeof(u64));
-	split->header.nritems = c->header.nritems - mid;
-	c->header.nritems = mid;
+		(c_nritems - mid) * sizeof(u64));
+	btrfs_set_header_nritems(&split->header, c_nritems - mid);
+	btrfs_set_header_nritems(&c->header, mid);
 	ret = 0;
 
 	BUG_ON(list_empty(&t->dirty));
@@ -781,13 +795,15 @@ static int push_leaf_right(struct ctree_root *root, struct ctree_path *path,
 	int push_space = 0;
 	int push_items = 0;
 	struct item *item;
+	u32 left_nritems;
+	u32 right_nritems;
 
 	slot = path->slots[1];
 	if (!path->nodes[1]) {
 		return 1;
 	}
 	upper = path->nodes[1];
-	if (slot >= upper->node.header.nritems - 1) {
+	if (slot >= btrfs_header_nritems(&upper->node.header) - 1) {
 		return 1;
 	}
 	right_buf = read_tree_block(root, upper->node.blockptrs[slot + 1]);
@@ -806,7 +822,8 @@ static int push_leaf_right(struct ctree_root *root, struct ctree_path *path,
 		return 1;
 	}
 
-	for (i = left->header.nritems - 1; i >= 0; i--) {
+	left_nritems = btrfs_header_nritems(&left->header);
+	for (i = left_nritems - 1; i >= 0; i--) {
 		item = left->items + i;
 		if (path->slots[0] == i)
 			push_space += data_size + sizeof(*item);
@@ -819,9 +836,10 @@ static int push_leaf_right(struct ctree_root *root, struct ctree_path *path,
 		tree_block_release(root, right_buf);
 		return 1;
 	}
+	right_nritems = btrfs_header_nritems(&right->header);
 	/* push left to right */
-	push_space = left->items[left->header.nritems - push_items].offset +
-		     left->items[left->header.nritems - push_items].size;
+	push_space = left->items[left_nritems - push_items].offset +
+		     left->items[left_nritems - push_items].size;
 	push_space -= leaf_data_end(left);
 	/* make room in the right data area */
 	memmove(right->data + leaf_data_end(right) - push_space,
@@ -832,19 +850,21 @@ static int push_leaf_right(struct ctree_root *root, struct ctree_path *path,
 		left->data + leaf_data_end(left),
 		push_space);
 	memmove(right->items + push_items, right->items,
-		right->header.nritems * sizeof(struct item));
+		right_nritems * sizeof(struct item));
 	/* copy the items from left to right */
-	memcpy(right->items, left->items + left->header.nritems - push_items,
+	memcpy(right->items, left->items + left_nritems - push_items,
 		push_items * sizeof(struct item));
 
 	/* update the item pointers */
-	right->header.nritems += push_items;
+	right_nritems += push_items;
+	btrfs_set_header_nritems(&right->header, right_nritems);
 	push_space = LEAF_DATA_SIZE;
-	for (i = 0; i < right->header.nritems; i++) {
+	for (i = 0; i < right_nritems; i++) {
 		right->items[i].offset = push_space - right->items[i].size;
 		push_space = right->items[i].offset;
 	}
-	left->header.nritems -= push_items;
+	left_nritems -= push_items;
+	btrfs_set_header_nritems(&left->header, left_nritems);
 
 	BUG_ON(list_empty(&left_buf->dirty));
 	BUG_ON(list_empty(&right_buf->dirty));
@@ -853,8 +873,8 @@ static int push_leaf_right(struct ctree_root *root, struct ctree_path *path,
 	BUG_ON(list_empty(&upper->dirty));
 
 	/* then fixup the leaf pointer in the path */
-	if (path->slots[0] >= left->header.nritems) {
-		path->slots[0] -= left->header.nritems;
+	if (path->slots[0] >= left_nritems) {
+		path->slots[0] -= left_nritems;
 		tree_block_release(root, path->nodes[0]);
 		path->nodes[0] = right_buf;
 		path->slots[1] += 1;
@@ -880,7 +900,7 @@ static int push_leaf_left(struct ctree_root *root, struct ctree_path *path,
 	int push_space = 0;
 	int push_items = 0;
 	struct item *item;
-	int old_left_nritems;
+	u32 old_left_nritems;
 	int ret = 0;
 	int wret;
 
@@ -908,7 +928,7 @@ static int push_leaf_left(struct ctree_root *root, struct ctree_path *path,
 		return 1;
 	}
 
-	for (i = 0; i < right->header.nritems; i++) {
+	for (i = 0; i < btrfs_header_nritems(&right->header); i++) {
 		item = right->items + i;
 		if (path->slots[0] == i)
 			push_space += data_size + sizeof(*item);
@@ -922,31 +942,34 @@ static int push_leaf_left(struct ctree_root *root, struct ctree_path *path,
 		return 1;
 	}
 	/* push data from right to left */
-	memcpy(left->items + left->header.nritems,
+	memcpy(left->items + btrfs_header_nritems(&left->header),
 		right->items, push_items * sizeof(struct item));
 	push_space = LEAF_DATA_SIZE - right->items[push_items -1].offset;
 	memcpy(left->data + leaf_data_end(left) - push_space,
 		right->data + right->items[push_items - 1].offset,
 		push_space);
-	old_left_nritems = left->header.nritems;
+	old_left_nritems = btrfs_header_nritems(&left->header);
 	BUG_ON(old_left_nritems < 0);
 
 	for(i = old_left_nritems; i < old_left_nritems + push_items; i++) {
 		left->items[i].offset -= LEAF_DATA_SIZE -
 			left->items[old_left_nritems -1].offset;
 	}
-	left->header.nritems += push_items;
+	btrfs_set_header_nritems(&left->header, old_left_nritems + push_items);
 
 	/* fixup right node */
 	push_space = right->items[push_items-1].offset - leaf_data_end(right);
 	memmove(right->data + LEAF_DATA_SIZE - push_space, right->data +
 		leaf_data_end(right), push_space);
 	memmove(right->items, right->items + push_items,
-		(right->header.nritems - push_items) * sizeof(struct item));
-	right->header.nritems -= push_items;
+		(btrfs_header_nritems(&right->header) - push_items) *
+		sizeof(struct item));
+	btrfs_set_header_nritems(&right->header,
+				 btrfs_header_nritems(&right->header) -
+				 push_items);
 	push_space = LEAF_DATA_SIZE;
 
-	for (i = 0; i < right->header.nritems; i++) {
+	for (i = 0; i < btrfs_header_nritems(&right->header); i++) {
 		right->items[i].offset = push_space - right->items[i].size;
 		push_space = right->items[i].offset;
 	}
@@ -983,7 +1006,7 @@ static int split_leaf(struct ctree_root *root, struct ctree_path *path,
 {
 	struct tree_buffer *l_buf;
 	struct leaf *l;
-	int nritems;
+	u32 nritems;
 	int mid;
 	int slot;
 	struct leaf *right;
@@ -1008,7 +1031,7 @@ static int split_leaf(struct ctree_root *root, struct ctree_path *path,
 			return ret;
 	}
 	slot = path->slots[0];
-	nritems = l->header.nritems;
+	nritems = btrfs_header_nritems(&l->header);
 	mid = (nritems + 1)/ 2;
 	right_buffer = alloc_free_block(root);
 	BUG_ON(!right_buffer);
@@ -1026,10 +1049,11 @@ static int split_leaf(struct ctree_root *root, struct ctree_path *path,
 			LEAF_DATA_SIZE)
 			BUG();
 	}
-	right->header.nritems = nritems - mid;
-	right->header.blocknr = right_buffer->blocknr;
-	right->header.flags = node_level(0);
-	right->header.parentid = root->node->node.header.parentid;
+	btrfs_set_header_nritems(&right->header, nritems - mid);
+	btrfs_set_header_blocknr(&right->header, right_buffer->blocknr);
+	btrfs_set_header_level(&right->header, 0);
+	btrfs_set_header_parentid(&right->header,
+	                       btrfs_header_parentid(&root->node->node.header));
 	data_copy_size = l->items[mid].offset + l->items[mid].size -
 			 leaf_data_end(l);
 	memcpy(right->items, l->items + mid,
@@ -1039,10 +1063,10 @@ static int split_leaf(struct ctree_root *root, struct ctree_path *path,
 	rt_data_off = LEAF_DATA_SIZE -
 		     (l->items[mid].offset + l->items[mid].size);
 
-	for (i = 0; i < right->header.nritems; i++)
+	for (i = 0; i < btrfs_header_nritems(&right->header); i++)
 		right->items[i].offset += rt_data_off;
 
-	l->header.nritems = mid;
+	btrfs_set_header_nritems(&l->header, mid);
 	ret = 0;
 	wret = insert_ptr(root, path, &right->items[0].key,
 			  right_buffer->blocknr, path->slots[1] + 1, 1);
@@ -1074,7 +1098,7 @@ int insert_item(struct ctree_root *root, struct key *key,
 	int slot_orig;
 	struct leaf *leaf;
 	struct tree_buffer *leaf_buf;
-	unsigned int nritems;
+	u32 nritems;
 	unsigned int data_end;
 	struct ctree_path path;
 
@@ -1094,7 +1118,7 @@ int insert_item(struct ctree_root *root, struct key *key,
 	leaf_buf = path.nodes[0];
 	leaf = &leaf_buf->leaf;
 
-	nritems = leaf->header.nritems;
+	nritems = btrfs_header_nritems(&leaf->header);
 	data_end = leaf_data_end(leaf);
 
 	if (leaf_free_space(leaf) <  sizeof(struct item) + data_size)
@@ -1128,7 +1152,7 @@ int insert_item(struct ctree_root *root, struct key *key,
 	leaf->items[slot].offset = data_end - data_size;
 	leaf->items[slot].size = data_size;
 	memcpy(leaf->data + data_end - data_size, data, data_size);
-	leaf->header.nritems += 1;
+	btrfs_set_header_nritems(&leaf->header, nritems + 1);
 
 	ret = 0;
 	if (slot == 0)
@@ -1155,12 +1179,12 @@ static int del_ptr(struct ctree_root *root, struct ctree_path *path, int level,
 {
 	struct node *node;
 	struct tree_buffer *parent = path->nodes[level];
-	int nritems;
+	u32 nritems;
 	int ret = 0;
 	int wret;
 
 	node = &parent->node;
-	nritems = node->header.nritems;
+	nritems = btrfs_header_nritems(&node->header);
 	if (slot != nritems -1) {
 		memmove(node->keys + slot, node->keys + slot + 1,
 			sizeof(struct key) * (nritems - slot - 1));
@@ -1168,11 +1192,12 @@ static int del_ptr(struct ctree_root *root, struct ctree_path *path, int level,
 			node->blockptrs + slot + 1,
 			sizeof(u64) * (nritems - slot - 1));
 	}
-	node->header.nritems--;
-	if (node->header.nritems == 0 && parent == root->node) {
-		BUG_ON(node_level(root->node->node.header.flags) != 1);
+	nritems--;
+	btrfs_set_header_nritems(&node->header, nritems);
+	if (nritems == 0 && parent == root->node) {
+		BUG_ON(btrfs_header_level(&root->node->node.header) != 1);
 		/* just turn the root into a leaf and break */
-		root->node->node.header.flags = node_level(0);
+		btrfs_set_header_level(&root->node->node.header, 0);
 	} else if (slot == 0) {
 		wret = fixup_low_keys(root, path, node->keys, level + 1);
 		if (wret)
@@ -1195,30 +1220,33 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 	int dsize;
 	int ret = 0;
 	int wret;
+	u32 nritems;
 
 	leaf_buf = path->nodes[0];
 	leaf = &leaf_buf->leaf;
 	slot = path->slots[0];
 	doff = leaf->items[slot].offset;
 	dsize = leaf->items[slot].size;
+	nritems = btrfs_header_nritems(&leaf->header);
 
-	if (slot != leaf->header.nritems - 1) {
+	if (slot != nritems - 1) {
 		int i;
 		int data_end = leaf_data_end(leaf);
 		memmove(leaf->data + data_end + dsize,
 			leaf->data + data_end,
 			doff - data_end);
-		for (i = slot + 1; i < leaf->header.nritems; i++)
+		for (i = slot + 1; i < nritems; i++)
 			leaf->items[i].offset += dsize;
 		memmove(leaf->items + slot, leaf->items + slot + 1,
 			sizeof(struct item) *
-			(leaf->header.nritems - slot - 1));
+			(nritems - slot - 1));
 	}
-	leaf->header.nritems -= 1;
+	btrfs_set_header_nritems(&leaf->header, nritems - 1);
+	nritems--;
 	/* delete the leaf if we've emptied it */
-	if (leaf->header.nritems == 0) {
+	if (nritems == 0) {
 		if (leaf_buf == root->node) {
-			leaf->header.flags = node_level(0);
+			btrfs_set_header_level(&leaf->header, 0);
 			BUG_ON(list_empty(&leaf_buf->dirty));
 		} else {
 			clean_tree_block(root, leaf_buf);
@@ -1230,7 +1258,7 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 				ret = wret;
 		}
 	} else {
-		int used = leaf_space_used(leaf, 0, leaf->header.nritems);
+		int used = leaf_space_used(leaf, 0, nritems);
 		if (slot == 0) {
 			wret = fixup_low_keys(root, path,
 						   &leaf->items[0].key, 1);
@@ -1251,12 +1279,12 @@ int del_item(struct ctree_root *root, struct ctree_path *path)
 			if (wret < 0)
 				ret = wret;
 			if (path->nodes[0] == leaf_buf &&
-			    leaf->header.nritems) {
+			    btrfs_header_nritems(&leaf->header)) {
 				wret = push_leaf_right(root, path, 1);
 				if (wret < 0)
 					ret = wret;
 			}
-			if (leaf->header.nritems == 0) {
+			if (btrfs_header_nritems(&leaf->header) == 0) {
 				u64 blocknr = leaf_buf->blocknr;
 				clean_tree_block(root, leaf_buf);
 				wret = del_ptr(root, path, 1, slot);
@@ -1292,7 +1320,7 @@ int next_leaf(struct ctree_root *root, struct ctree_path *path)
 			return 1;
 		slot = path->slots[level] + 1;
 		c = path->nodes[level];
-		if (slot >= c->node.header.nritems) {
+		if (slot >= btrfs_header_nritems(&c->node.header)) {
 			level++;
 			continue;
 		}

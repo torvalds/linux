@@ -35,12 +35,9 @@ struct header {
 	/* generation flags to be added */
 } __attribute__ ((__packed__));
 
+#define MAX_LEVEL 8
 #define NODEPTRS_PER_BLOCK ((CTREE_BLOCKSIZE - sizeof(struct header)) / \
 			    (sizeof(struct key) + sizeof(u64)))
-
-#define MAX_LEVEL 8
-#define node_level(f) ((f) & (MAX_LEVEL-1))
-#define is_leaf(f) (node_level(f) == 0)
 
 struct tree_buffer;
 
@@ -143,6 +140,64 @@ struct ctree_path {
 	struct tree_buffer *nodes[MAX_LEVEL];
 	int slots[MAX_LEVEL];
 };
+
+static inline u64 btrfs_header_blocknr(struct header *h)
+{
+	return h->blocknr;
+}
+
+static inline void btrfs_set_header_blocknr(struct header *h, u64 blocknr)
+{
+	h->blocknr = blocknr;
+}
+
+static inline u64 btrfs_header_parentid(struct header *h)
+{
+	return h->parentid;
+}
+
+static inline void btrfs_set_header_parentid(struct header *h, u64 parentid)
+{
+	h->parentid = parentid;
+}
+
+static inline u32 btrfs_header_nritems(struct header *h)
+{
+	return h->nritems;
+}
+
+static inline void btrfs_set_header_nritems(struct header *h, u32 val)
+{
+	h->nritems = val;
+}
+
+static inline u32 btrfs_header_flags(struct header *h)
+{
+	return h->flags;
+}
+
+static inline void btrfs_set_header_flags(struct header *h, u32 val)
+{
+	h->flags = val;
+}
+
+static inline int btrfs_header_level(struct header *h)
+{
+	return btrfs_header_flags(h) & (MAX_LEVEL - 1);
+}
+
+static inline void btrfs_set_header_level(struct header *h, int level)
+{
+	u32 flags;
+	BUG_ON(level > MAX_LEVEL);
+	flags = btrfs_header_flags(h) & ~(MAX_LEVEL - 1);
+	btrfs_set_header_flags(h, flags | level);
+}
+
+static inline int btrfs_is_leaf(struct node *n)
+{
+	return (btrfs_header_level(&n->header) == 0);
+}
 
 struct tree_buffer *alloc_free_block(struct ctree_root *root);
 int btrfs_inc_ref(struct ctree_root *root, struct tree_buffer *buf);

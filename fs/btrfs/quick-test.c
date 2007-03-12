@@ -71,9 +71,10 @@ int main(int ac, char **av) {
 	close_ctree(root, &super);
 	root = open_ctree("dbfile", &super);
 	printf("node %p level %d total ptrs %d free spc %lu\n", root->node,
-	        node_level(root->node->node.header.flags),
-		root->node->node.header.nritems,
-		NODEPTRS_PER_BLOCK - root->node->node.header.nritems);
+	        btrfs_header_level(&root->node->node.header),
+		btrfs_header_nritems(&root->node->node.header),
+		NODEPTRS_PER_BLOCK -
+		btrfs_header_nritems(&root->node->node.header));
 	printf("all searches good, deleting some items\n");
 	i = 0;
 	srand(55);
@@ -126,7 +127,8 @@ int main(int ac, char **av) {
 		release_path(root, &path);
 	}
 	printf("starting big long delete run\n");
-	while(root->node && root->node->node.header.nritems > 0) {
+	while(root->node &&
+	      btrfs_header_nritems(&root->node->node.header) > 0) {
 		struct leaf *leaf;
 		int slot;
 		ins.objectid = (u64)-1;
@@ -137,7 +139,7 @@ int main(int ac, char **av) {
 
 		leaf = &path.nodes[0]->leaf;
 		slot = path.slots[0];
-		if (slot != leaf->header.nritems)
+		if (slot != btrfs_header_nritems(&leaf->header))
 			BUG();
 		while(path.slots[0] > 0) {
 			path.slots[0] -= 1;

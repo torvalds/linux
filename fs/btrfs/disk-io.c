@@ -15,9 +15,10 @@ int cache_max = 10000;
 
 static int check_tree_block(struct ctree_root *root, struct tree_buffer *buf)
 {
-	if (buf->blocknr != buf->node.header.blocknr)
+	if (buf->blocknr != btrfs_header_blocknr(&buf->node.header))
 		BUG();
-	if (root->node && buf->node.header.parentid != root->node->node.header.parentid)
+	if (root->node && btrfs_header_parentid(&buf->node.header) !=
+	    btrfs_header_parentid(&root->node->node.header))
 		BUG();
 	return 0;
 }
@@ -129,7 +130,7 @@ int write_tree_block(struct ctree_root *root, struct tree_buffer *buf)
 	loff_t offset = blocknr * CTREE_BLOCKSIZE;
 	int ret;
 
-	if (buf->blocknr != buf->node.header.blocknr)
+	if (buf->blocknr != btrfs_header_blocknr(&buf->node.header))
 		BUG();
 	ret = pwrite(root->fp, &buf->node, CTREE_BLOCKSIZE, offset);
 	if (ret != CTREE_BLOCKSIZE)

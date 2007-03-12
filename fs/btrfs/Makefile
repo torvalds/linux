@@ -25,7 +25,7 @@ tester: $(objects) random-test.o
 quick-test: $(objects) quick-test.o
 	gcc $(CFLAGS) -o quick-test $(objects) quick-test.o
 
-$(objects) : $(headers)
+$(objects): $(headers)
 
 clean :
 	rm debug-tree tester *.o

@@ -1,4 +1,5 @@
 * cleanup, add more error checking, get rid of BUG_ONs
+* endian fixes
 * Make IO functions look more like the page cache
 * Fix ENOSPC handling
 * make blocksize a mkfs parameter instead of #define

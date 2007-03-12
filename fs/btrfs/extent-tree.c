@@ -79,10 +79,10 @@ int btrfs_inc_ref(struct ctree_root *root, struct tree_buffer *buf)
 
 	if (root == root->extent_root)
 		return 0;
-	if (is_leaf(buf->node.header.flags))
+	if (btrfs_is_leaf(&buf->node))
 		return 0;
 
-	for (i = 0; i < buf->node.header.nritems; i++) {
+	for (i = 0; i < btrfs_header_nritems(&buf->node.header); i++) {
 		blocknr = buf->node.blockptrs[i];
 		inc_block_ref(root, blocknr);
 	}
@@ -119,7 +119,8 @@ static int finish_current_insert(struct ctree_root *extent_root)
 	int ret;
 
 	extent_item.refs = 1;
-	extent_item.owner = extent_root->node->node.header.parentid;
+	extent_item.owner =
+		btrfs_header_parentid(&extent_root->node->node.header);
 	ins.offset = 1;
 	ins.flags = 0;
 
@@ -269,7 +270,7 @@ static int find_free_extent(struct ctree_root *orig_root, u64 num_blocks,
 	struct ctree_root * root = orig_root->extent_root;
 	int total_needed = num_blocks;
 
-	total_needed += (node_level(root->node->node.header.flags) + 1) * 3;
+	total_needed += (btrfs_header_level(&root->node->node.header) + 1) * 3;
 	if (root->last_insert.objectid > search_start)
 		search_start = root->last_insert.objectid;
 check_failed:
@@ -288,7 +289,7 @@ check_failed:
 	while (1) {
 		l = &path.nodes[0]->leaf;
 		slot = path.slots[0];
-		if (slot >= l->header.nritems) {
+		if (slot >= btrfs_header_nritems(&l->header)) {
 			ret = next_leaf(root, &path);
 			if (ret == 0)
 				continue;
@@ -404,7 +405,7 @@ struct tree_buffer *alloc_free_block(struct ctree_root *root)
 	struct tree_buffer *buf;
 
 	ret = alloc_extent(root, 1, 0, (unsigned long)-1,
-			   root->node->node.header.parentid,
+			   btrfs_header_parentid(&root->node->node.header),
 			   &ins);
 	if (ret) {
 		BUG();
@@ -429,7 +430,8 @@ int walk_down_tree(struct ctree_root *root, struct ctree_path *path, int *level)
 		goto out;
 	while(*level > 0) {
 		cur = path->nodes[*level];
-		if (path->slots[*level] >= cur->node.header.nritems)
+		if (path->slots[*level] >=
+		    btrfs_header_nritems(&cur->node.header))
 			break;
 		blocknr = cur->node.blockptrs[path->slots[*level]];
 		ret = lookup_block_ref(root, blocknr, &refs);
@@ -444,7 +446,7 @@ int walk_down_tree(struct ctree_root *root, struct ctree_path *path, int *level)
 		if (path->nodes[*level-1])
 			tree_block_release(root, path->nodes[*level-1]);
 		path->nodes[*level-1] = next;
-		*level = node_level(next->node.header.flags);
+		*level = btrfs_header_level(&next->node.header);
 		path->slots[*level] = 0;
 	}
 out:
@@ -463,7 +465,8 @@ int walk_up_tree(struct ctree_root *root, struct ctree_path *path, int *level)
 	int ret;
 	for(i = *level; i < MAX_LEVEL - 1 && path->nodes[i]; i++) {
 		slot = path->slots[i];
-		if (slot < path->nodes[i]->node.header.nritems - 1) {
+		if (slot <
+		    btrfs_header_nritems(&path->nodes[i]->node.header)- 1) {
 			path->slots[i]++;
 			*level = i;
 			return 0;
@@ -489,7 +492,7 @@ int btrfs_drop_snapshot(struct ctree_root *root, struct tree_buffer *snap)
 
 	init_path(&path);
 
-	level = node_level(snap->node.header.flags);
+	level = btrfs_header_level(&snap->node.header);
 	orig_level = level;
 	path.nodes[level] = snap;
 	path.slots[level] = 0;
@@ -509,33 +512,3 @@ int btrfs_drop_snapshot(struct ctree_root *root, struct tree_buffer *snap)
 
 	return 0;
 }
-
-
-#if 0
-int btrfs_drop_snapshot(struct ctree_root *root, struct tree_buffer *snap)
-{
-	int ret;
-	int level;
-	int refs;
-	u64 blocknr = snap->blocknr;
-
-	level = node_level(snap->node.header.flags);
-	ret = lookup_block_ref(root, snap->blocknr, &refs);
-	BUG_ON(ret);
-	if (refs == 1 && level != 0) {
-		struct node *n = &snap->node;
-		struct tree_buffer *b;
-		int i;
-		for (i = 0; i < n->header.nritems; i++) {
-			b = read_tree_block(root, n->blockptrs[i]);
-			/* FIXME, don't recurse here */
-			ret = btrfs_drop_snapshot(root, b);
-			BUG_ON(ret);
-			tree_block_release(root, b);
-		}
-	}
-	ret = free_extent(root, blocknr, 1);
-	BUG_ON(ret);
-	return 0;
-}
-#endif

@@ -34,15 +34,15 @@ int mkfs(int fd)
 
 	/* create leaves for the tree root and extent root */
 	memset(&empty_leaf, 0, sizeof(empty_leaf));
-	empty_leaf.header.parentid = 1;
-	empty_leaf.header.blocknr = 17;
+	btrfs_set_header_parentid(&empty_leaf.header, 1);
+	btrfs_set_header_blocknr(&empty_leaf.header, 17);
 	ret = pwrite(fd, &empty_leaf, sizeof(empty_leaf), 17 * CTREE_BLOCKSIZE);
 	if (ret != sizeof(empty_leaf))
 		return -1;
 
-	empty_leaf.header.parentid = 2;
-	empty_leaf.header.blocknr = 18;
-	empty_leaf.header.nritems = 3;
+	btrfs_set_header_parentid(&empty_leaf.header, 2);
+	btrfs_set_header_blocknr(&empty_leaf.header, 18);
+	btrfs_set_header_nritems(&empty_leaf.header, 3);
 
 	/* item1, reserve blocks 0-16 */
 	item.key.objectid = 0;

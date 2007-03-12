@@ -358,8 +358,8 @@ int main(int ac, char **av)
 		}
 		if (i && i % 5000 == 0) {
 			printf("open & close, root level %d nritems %d\n",
-				node_level(root->node->node.header.flags),
-				root->node->node.header.nritems);
+				btrfs_header_level(&root->node->node.header),
+				btrfs_header_nritems(&root->node->node.header));
 			close_ctree(root, &super);
 			root = open_ctree("dbfile", &super);
 		}
