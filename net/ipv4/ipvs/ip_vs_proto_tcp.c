@@ -76,8 +76,7 @@ tcp_conn_schedule(struct sk_buff *skb,
 	struct ip_vs_service *svc;
 	struct tcphdr _tcph, *th;
 
-	th = skb_header_pointer(skb, skb->nh.iph->ihl*4,
-				sizeof(_tcph), &_tcph);
+	th = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_tcph), &_tcph);
 	if (th == NULL) {
 		*verdict = NF_DROP;
 		return 0;
@@ -127,7 +126,7 @@ tcp_snat_handler(struct sk_buff **pskb,
 		 struct ip_vs_protocol *pp, struct ip_vs_conn *cp)
 {
 	struct tcphdr *tcph;
-	unsigned int tcphoff = (*pskb)->nh.iph->ihl * 4;
+	const unsigned int tcphoff = ip_hdrlen(*pskb);
 
 	/* csum_check requires unshared skb */
 	if (!ip_vs_make_skb_writable(pskb, tcphoff+sizeof(*tcph)))
@@ -175,7 +174,7 @@ tcp_dnat_handler(struct sk_buff **pskb,
 		 struct ip_vs_protocol *pp, struct ip_vs_conn *cp)
 {
 	struct tcphdr *tcph;
-	unsigned int tcphoff = (*pskb)->nh.iph->ihl * 4;
+	const unsigned int tcphoff = ip_hdrlen(*pskb);
 
 	/* csum_check requires unshared skb */
 	if (!ip_vs_make_skb_writable(pskb, tcphoff+sizeof(*tcph)))
@@ -224,7 +223,7 @@ tcp_dnat_handler(struct sk_buff **pskb,
 static int
 tcp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 {
-	unsigned int tcphoff = skb->nh.iph->ihl*4;
+	const unsigned int tcphoff = ip_hdrlen(skb);
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_NONE:
@@ -467,8 +466,7 @@ tcp_state_transition(struct ip_vs_conn *cp, int direction,
 {
 	struct tcphdr _tcph, *th;
 
-	th = skb_header_pointer(skb, skb->nh.iph->ihl*4,
-				sizeof(_tcph), &_tcph);
+	th = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_tcph), &_tcph);
 	if (th == NULL)
 		return 0;
 

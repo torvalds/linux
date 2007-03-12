@@ -4527,7 +4527,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (skb->h.th->doff > 5) {
 			tcp_opt_len = (skb->h.th->doff - 5) << 2;
 		}
-		ip_tcp_len = (skb->nh.iph->ihl << 2) + sizeof(struct tcphdr);
+		ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
 
 		skb->nh.iph->check = 0;
 		skb->nh.iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);

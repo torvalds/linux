@@ -539,7 +539,7 @@ static void ipmr_cache_resolve(struct mfc_cache *uc, struct mfc_cache *c)
 static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 {
 	struct sk_buff *skb;
-	int ihl = pkt->nh.iph->ihl<<2;
+	const int ihl = ip_hdrlen(pkt);
 	struct igmphdr *igmp;
 	struct igmpmsg *msg;
 	int ret;

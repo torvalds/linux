@@ -458,7 +458,7 @@ static unsigned int ip_conntrack_local(unsigned int hooknum,
 {
 	/* root is playing with raw sockets. */
 	if ((*pskb)->len < sizeof(struct iphdr)
-	    || (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr)) {
+	    || ip_hdrlen(*pskb) < sizeof(struct iphdr)) {
 		if (net_ratelimit())
 			printk("ipt_hook: happy cracking.\n");
 		return NF_ACCEPT;

@@ -198,9 +198,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 
 static inline int ip_local_deliver_finish(struct sk_buff *skb)
 {
-	int ihl = skb->nh.iph->ihl*4;
-
-	__skb_pull(skb, ihl);
+	__skb_pull(skb, ip_hdrlen(skb));
 
 	/* Point into the IP datagram, just past the header. */
 	skb->h.raw = skb->data;

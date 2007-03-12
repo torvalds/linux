@@ -35,6 +35,8 @@
 #include "netxen_nic_hw.h"
 #include "netxen_nic_phan_reg.h"
 
+#include <net/ip.h>
+
 /*  PCI Windowing for DDR regions.  */
 
 #define ADDR_IN_RANGE(addr, low, high)	\
@@ -371,9 +373,9 @@ void netxen_tso_check(struct netxen_adapter *adapter,
 		      struct cmd_desc_type0 *desc, struct sk_buff *skb)
 {
 	if (desc->mss) {
-		desc->total_hdr_length = sizeof(struct ethhdr) +
-		    ((skb->nh.iph)->ihl * sizeof(u32)) +
-		    ((skb->h.th)->doff * sizeof(u32));
+		desc->total_hdr_length = (sizeof(struct ethhdr) +
+					  ip_hdrlen(skb) +
+					  skb->h.th->doff * 4);
 		netxen_set_cmd_desc_opcode(desc, TX_TCP_LSO);
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (skb->nh.iph->protocol == IPPROTO_TCP) {

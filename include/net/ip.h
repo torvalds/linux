@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/in.h>
+#include <linux/skbuff.h>
 
 #include <net/inet_sock.h>
 #include <net/snmp.h>
@@ -42,6 +43,11 @@ struct inet_skb_parm
 #define IPSKB_FRAG_COMPLETE	8
 #define IPSKB_REROUTED		16
 };
+
+static inline unsigned int ip_hdrlen(const struct sk_buff *skb)
+{
+	return skb->nh.iph->ihl * 4;
+}
 
 struct ipcm_cookie
 {
@@ -74,7 +80,6 @@ struct msghdr;
 struct net_device;
 struct packet_type;
 struct rtable;
-struct sk_buff;
 struct sockaddr;
 
 extern void		ip_mc_dropsocket(struct sock *);

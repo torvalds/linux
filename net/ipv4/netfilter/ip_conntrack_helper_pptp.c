@@ -543,7 +543,7 @@ conntrack_pptp_help(struct sk_buff **pskb,
 	struct pptp_pkt_hdr _pptph, *pptph;
 	struct PptpControlHeader _ctlh, *ctlh;
 	union pptp_ctrl_union _pptpReq, *pptpReq;
-	unsigned int tcplen = (*pskb)->len - (*pskb)->nh.iph->ihl * 4;
+	unsigned int tcplen = (*pskb)->len - ip_hdrlen(*pskb);
 	unsigned int datalen, reqlen, nexthdr_off;
 	int oldsstate, oldcstate;
 	int ret;
@@ -556,7 +556,7 @@ conntrack_pptp_help(struct sk_buff **pskb,
 		return NF_ACCEPT;
 	}
 
-	nexthdr_off = (*pskb)->nh.iph->ihl*4;
+	nexthdr_off = ip_hdrlen(*pskb);
 	tcph = skb_header_pointer(*pskb, nexthdr_off, sizeof(_tcph), &_tcph);
 	BUG_ON(!tcph);
 	nexthdr_off += tcph->doff * 4;

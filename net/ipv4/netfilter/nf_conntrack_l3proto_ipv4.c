@@ -105,7 +105,7 @@ ipv4_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
 		return -NF_DROP;
 	}
 
-	*dataoff = skb_network_offset(*pskb) + (*pskb)->nh.iph->ihl * 4;
+	*dataoff = skb_network_offset(*pskb) + ip_hdrlen(*pskb);
 	*protonum = (*pskb)->nh.iph->protocol;
 
 	return NF_ACCEPT;
@@ -151,8 +151,8 @@ static unsigned int ipv4_conntrack_help(unsigned int hooknum,
 	if (!help || !help->helper)
 		return NF_ACCEPT;
 
-	return help->helper->help(pskb, (skb_network_offset(*pskb) +
-					 (*pskb)->nh.iph->ihl * 4),
+	return help->helper->help(pskb,
+				  skb_network_offset(*pskb) + ip_hdrlen(*pskb),
 				  ct, ctinfo);
 }
 
@@ -198,7 +198,7 @@ static unsigned int ipv4_conntrack_local(unsigned int hooknum,
 {
 	/* root is playing with raw sockets. */
 	if ((*pskb)->len < sizeof(struct iphdr)
-	    || (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr)) {
+	    || ip_hdrlen(*pskb) < sizeof(struct iphdr)) {
 		if (net_ratelimit())
 			printk("ipt_hook: happy cracking.\n");
 		return NF_ACCEPT;

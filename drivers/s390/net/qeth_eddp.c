@@ -473,9 +473,11 @@ qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 	QETH_DBF_TEXT(trace, 5, "eddpficx");
 	/* create our segmentation headers and copy original headers */
 	if (skb->protocol == htons(ETH_P_IP))
-		eddp = qeth_eddp_create_eddp_data(qhdr, (u8 *)skb->nh.iph,
-				skb->nh.iph->ihl*4,
-				(u8 *)skb->h.th, skb->h.th->doff*4);
+		eddp = qeth_eddp_create_eddp_data(qhdr,
+						  skb_network_header(skb),
+						  ip_hdrlen(skb),
+						  skb->h.raw,
+						  skb->h.th->doff * 4);
 	else
 		eddp = qeth_eddp_create_eddp_data(qhdr, (u8 *)skb->nh.ipv6h,
 				sizeof(struct ipv6hdr),
@@ -590,8 +592,9 @@ qeth_eddp_create_context_tcp(struct qeth_card *card, struct sk_buff *skb,
 	QETH_DBF_TEXT(trace, 5, "creddpct");
 	if (skb->protocol == htons(ETH_P_IP))
 		ctx = qeth_eddp_create_context_generic(card, skb,
-			sizeof(struct qeth_hdr) + skb->nh.iph->ihl*4 +
-			skb->h.th->doff*4);
+						       (sizeof(struct qeth_hdr) +
+						        ip_hdrlen(skb) +
+							skb->h.th->doff * 4));
 	else if (skb->protocol == htons(ETH_P_IPV6))
 		ctx = qeth_eddp_create_context_generic(card, skb,
 			sizeof(struct qeth_hdr) + sizeof(struct ipv6hdr) +

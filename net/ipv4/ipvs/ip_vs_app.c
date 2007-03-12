@@ -331,7 +331,7 @@ static inline int app_tcp_pkt_out(struct ip_vs_conn *cp, struct sk_buff **pskb,
 				  struct ip_vs_app *app)
 {
 	int diff;
-	unsigned int tcp_offset = (*pskb)->nh.iph->ihl*4;
+	const unsigned int tcp_offset = ip_hdrlen(*pskb);
 	struct tcphdr *th;
 	__u32 seq;
 
@@ -406,7 +406,7 @@ static inline int app_tcp_pkt_in(struct ip_vs_conn *cp, struct sk_buff **pskb,
 				 struct ip_vs_app *app)
 {
 	int diff;
-	unsigned int tcp_offset = (*pskb)->nh.iph->ihl*4;
+	const unsigned int tcp_offset = ip_hdrlen(*pskb);
 	struct tcphdr *th;
 	__u32 seq;
 

@@ -115,13 +115,13 @@ static int get_tpkt_data(struct sk_buff **pskb, struct ip_conntrack *ct,
 	int tpktoff;
 
 	/* Get TCP header */
-	th = skb_header_pointer(*pskb, (*pskb)->nh.iph->ihl * 4,
+	th = skb_header_pointer(*pskb, ip_hdrlen(*pskb),
 				sizeof(_tcph), &_tcph);
 	if (th == NULL)
 		return 0;
 
 	/* Get TCP data offset */
-	tcpdataoff = (*pskb)->nh.iph->ihl * 4 + th->doff * 4;
+	tcpdataoff = ip_hdrlen(*pskb) + th->doff * 4;
 
 	/* Get TCP data length */
 	tcpdatalen = (*pskb)->len - tcpdataoff;
@@ -1185,11 +1185,10 @@ static unsigned char *get_udp_data(struct sk_buff **pskb, int *datalen)
 	struct udphdr _uh, *uh;
 	int dataoff;
 
-	uh = skb_header_pointer(*pskb, (*pskb)->nh.iph->ihl * 4, sizeof(_uh),
-				&_uh);
+	uh = skb_header_pointer(*pskb, ip_hdrlen(*pskb), sizeof(_uh), &_uh);
 	if (uh == NULL)
 		return NULL;
-	dataoff = (*pskb)->nh.iph->ihl * 4 + sizeof(_uh);
+	dataoff = ip_hdrlen(*pskb) + sizeof(_uh);
 	if (dataoff >= (*pskb)->len)
 		return NULL;
 	*datalen = (*pskb)->len - dataoff;

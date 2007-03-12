@@ -32,6 +32,7 @@
 #include <linux/ethtool.h>
 #include <linux/pci.h>
 #include <linux/ip.h>
+#include <net/ip.h>
 #include <linux/tcp.h>
 #include <linux/in.h>
 #include <linux/delay.h>
@@ -1392,7 +1393,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss != 0) {
 		mss += ((skb->h.th->doff - 5) * 4);	/* TCP options */
-		mss += (skb->nh.iph->ihl * 4) + sizeof(struct tcphdr);
+		mss += ip_hdrlen(skb) + sizeof(struct tcphdr);
 		mss += ETH_HLEN;
 
 		if (mss != sky2->tx_last_mss) {

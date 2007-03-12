@@ -112,8 +112,7 @@ ip_nat_fn(unsigned int hooknum,
 		if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP) {
 			struct icmphdr _hdr, *hp;
 
-			hp = skb_header_pointer(*pskb,
-						(*pskb)->nh.iph->ihl*4,
+			hp = skb_header_pointer(*pskb, ip_hdrlen(*pskb),
 						sizeof(_hdr), &_hdr);
 			if (hp != NULL &&
 			    hp->type == ICMP_REDIRECT)
@@ -211,7 +210,7 @@ ip_nat_out(unsigned int hooknum,
 
 	/* root is playing with raw sockets. */
 	if ((*pskb)->len < sizeof(struct iphdr)
-	    || (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr))
+	    || ip_hdrlen(*pskb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
 
 	ret = ip_nat_fn(hooknum, pskb, in, out, okfn);
@@ -244,7 +243,7 @@ ip_nat_local_fn(unsigned int hooknum,
 
 	/* root is playing with raw sockets. */
 	if ((*pskb)->len < sizeof(struct iphdr)
-	    || (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr))
+	    || ip_hdrlen(*pskb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
 
 	ret = ip_nat_fn(hooknum, pskb, in, out, okfn);

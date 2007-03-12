@@ -53,7 +53,7 @@ static int tftp_help(struct sk_buff **pskb,
 	typeof(ip_nat_tftp_hook) ip_nat_tftp;
 
 	tfh = skb_header_pointer(*pskb,
-				 (*pskb)->nh.iph->ihl*4+sizeof(struct udphdr),
+				 ip_hdrlen(*pskb) + sizeof(struct udphdr),
 				 sizeof(_tftph), &_tftph);
 	if (tfh == NULL)
 		return NF_ACCEPT;

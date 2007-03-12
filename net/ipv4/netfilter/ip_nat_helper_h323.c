@@ -57,11 +57,11 @@ static int set_addr(struct sk_buff **pskb,
 		}
 
 		/* Relocate data pointer */
-		th = skb_header_pointer(*pskb, (*pskb)->nh.iph->ihl * 4,
+		th = skb_header_pointer(*pskb, ip_hdrlen(*pskb),
 					sizeof(_tcph), &_tcph);
 		if (th == NULL)
 			return -1;
-		*data = (*pskb)->data + (*pskb)->nh.iph->ihl * 4 +
+		*data = (*pskb)->data + ip_hdrlen(*pskb) +
 		    th->doff * 4 + dataoff;
 	} else {
 		if (!ip_nat_mangle_udp_packet(pskb, ct, ctinfo,
@@ -75,8 +75,8 @@ static int set_addr(struct sk_buff **pskb,
 		/* ip_nat_mangle_udp_packet uses skb_make_writable() to copy
 		 * or pull everything in a linear buffer, so we can safely
 		 * use the skb pointers now */
-		*data = (*pskb)->data + (*pskb)->nh.iph->ihl * 4 +
-		    sizeof(struct udphdr);
+		*data = ((*pskb)->data + ip_hdrlen(*pskb) +
+			 sizeof(struct udphdr));
 	}
 
 	return 0;

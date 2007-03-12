@@ -149,7 +149,7 @@ icmp_error_message(struct sk_buff *skb,
 	IP_NF_ASSERT(skb->nfct == NULL);
 
 	/* Not enough header? */
-	inside = skb_header_pointer(skb, skb->nh.iph->ihl*4, sizeof(_in), &_in);
+	inside = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_in), &_in);
 	if (inside == NULL)
 		return -NF_ACCEPT;
 
@@ -161,7 +161,7 @@ icmp_error_message(struct sk_buff *skb,
 	}
 
 	innerproto = ip_conntrack_proto_find_get(inside->ip.protocol);
-	dataoff = skb->nh.iph->ihl*4 + sizeof(inside->icmp) + inside->ip.ihl*4;
+	dataoff = ip_hdrlen(skb) + sizeof(inside->icmp) + inside->ip.ihl * 4;
 	/* Are they talking about one of our connections? */
 	if (!ip_ct_get_tuple(&inside->ip, skb, dataoff, &origtuple, innerproto)) {
 		DEBUGP("icmp_error: ! get_tuple p=%u", inside->ip.protocol);
@@ -214,7 +214,7 @@ icmp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 	struct icmphdr _ih, *icmph;
 
 	/* Not enough header? */
-	icmph = skb_header_pointer(skb, skb->nh.iph->ihl*4, sizeof(_ih), &_ih);
+	icmph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_ih), &_ih);
 	if (icmph == NULL) {
 		if (LOG_INVALID(IPPROTO_ICMP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
@@ -224,7 +224,7 @@ icmp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 
 	/* See ip_conntrack_proto_tcp.c */
 	if (ip_conntrack_checksum && hooknum == NF_IP_PRE_ROUTING &&
-	    nf_ip_checksum(skb, hooknum, skb->nh.iph->ihl * 4, 0)) {
+	    nf_ip_checksum(skb, hooknum, ip_hdrlen(skb), 0)) {
 		if (LOG_INVALID(IPPROTO_ICMP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				      "ip_ct_icmp: bad ICMP checksum ");

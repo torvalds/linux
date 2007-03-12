@@ -422,7 +422,7 @@ int ip_nat_icmp_reply_translation(struct ip_conntrack *ct,
 	} *inside;
 	struct ip_conntrack_protocol *proto;
 	struct ip_conntrack_tuple inner, target;
-	int hdrlen = (*pskb)->nh.iph->ihl * 4;
+	int hdrlen = ip_hdrlen(*pskb);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	unsigned long statusbit;
 	enum ip_nat_manip_type manip = HOOK2MANIP(hooknum);
@@ -430,7 +430,7 @@ int ip_nat_icmp_reply_translation(struct ip_conntrack *ct,
 	if (!skb_make_writable(pskb, hdrlen + sizeof(*inside)))
 		return 0;
 
-	inside = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
+	inside = (void *)(*pskb)->data + ip_hdrlen(*pskb);
 
 	/* We're actually going to mangle it beyond trivial checksum
 	   adjustment, so make sure the current checksum is correct. */
@@ -458,7 +458,7 @@ int ip_nat_icmp_reply_translation(struct ip_conntrack *ct,
 
 	/* rcu_read_lock()ed by nf_hook_slow */
 	proto = __ip_conntrack_proto_find(inside->ip.protocol);
-	if (!ip_ct_get_tuple(&inside->ip, *pskb, (*pskb)->nh.iph->ihl*4 +
+	if (!ip_ct_get_tuple(&inside->ip, *pskb, ip_hdrlen(*pskb) +
 			     sizeof(struct icmphdr) + inside->ip.ihl*4,
 			     &inner, proto))
 		return 0;
@@ -469,15 +469,14 @@ int ip_nat_icmp_reply_translation(struct ip_conntrack *ct,
 	   packet: PREROUTING (DST manip), routing produces ICMP, goes
 	   through POSTROUTING (which must correct the DST manip). */
 	if (!manip_pkt(inside->ip.protocol, pskb,
-		       (*pskb)->nh.iph->ihl*4
-		       + sizeof(inside->icmp),
+		       ip_hdrlen(*pskb) + sizeof(inside->icmp),
 		       &ct->tuplehash[!dir].tuple,
 		       !manip))
 		return 0;
 
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
 		/* Reloading "inside" here since manip_pkt inner. */
-		inside = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
+		inside = (void *)(*pskb)->data + ip_hdrlen(*pskb);
 		inside->icmp.checksum = 0;
 		inside->icmp.checksum = csum_fold(skb_checksum(*pskb, hdrlen,
 							       (*pskb)->len - hdrlen,

@@ -483,7 +483,7 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	flags = offset & ~IP_OFFSET;
 	offset &= IP_OFFSET;
 	offset <<= 3;		/* offset is in 8-byte chunks */
-	ihl = skb->nh.iph->ihl * 4;
+	ihl = ip_hdrlen(skb);
 
 	/* Determine the position of this fragment. */
 	end = offset + skb->len - ihl;
@@ -624,7 +624,7 @@ static struct sk_buff *ip_frag_reasm(struct ipq *qp, struct net_device *dev)
 	BUG_TRAP(FRAG_CB(head)->offset == 0);
 
 	/* Allocate a new buffer for the datagram. */
-	ihlen = head->nh.iph->ihl*4;
+	ihlen = ip_hdrlen(head);
 	len = ihlen + qp->len;
 
 	if (len > 65535)

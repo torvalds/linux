@@ -713,8 +713,7 @@ static inline int is_tcp_reset(const struct sk_buff *skb)
 {
 	struct tcphdr _tcph, *th;
 
-	th = skb_header_pointer(skb, skb->nh.iph->ihl * 4,
-				sizeof(_tcph), &_tcph);
+	th = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_tcph), &_tcph);
 	if (th == NULL)
 		return 0;
 	return th->rst;

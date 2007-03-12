@@ -402,7 +402,7 @@ static int sip_help(struct sk_buff **pskb,
 	typeof(ip_nat_sip_hook) ip_nat_sip;
 
 	/* No Data ? */
-	dataoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
+	dataoff = ip_hdrlen(*pskb) + sizeof(struct udphdr);
 	if (dataoff >= (*pskb)->len) {
 		DEBUGP("skb->len = %u\n", (*pskb)->len);
 		return NF_ACCEPT;

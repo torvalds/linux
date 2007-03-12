@@ -11,6 +11,7 @@
 
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <net/ip.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/tcp.h>
@@ -38,8 +39,7 @@ static inline int match_tcp(const struct sk_buff *skb,
 	/* In practice, TCP match does this, so can't fail.  But let's
 	 * be good citizens.
 	 */
-	th = skb_header_pointer(skb, skb->nh.iph->ihl * 4,
-				sizeof(_tcph), &_tcph);
+	th = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_tcph), &_tcph);
 	if (th == NULL) {
 		*hotdrop = 0;
 		return 0;

@@ -190,7 +190,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 				    (int)rep_len - (int)match_len,
 				    ct, ctinfo);
 		/* Tell TCP window tracking about seq change */
-		nf_conntrack_tcp_update(*pskb, (*pskb)->nh.iph->ihl*4,
+		nf_conntrack_tcp_update(*pskb, ip_hdrlen(*pskb),
 					ct, CTINFO2DIR(ctinfo));
 	}
 	return 1;
@@ -318,8 +318,8 @@ nf_nat_sack_adjust(struct sk_buff **pskb,
 	unsigned int dir, optoff, optend;
 	struct nf_conn_nat *nat = nfct_nat(ct);
 
-	optoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct tcphdr);
-	optend = (*pskb)->nh.iph->ihl*4 + tcph->doff*4;
+	optoff = ip_hdrlen(*pskb) + sizeof(struct tcphdr);
+	optend = ip_hdrlen(*pskb) + tcph->doff * 4;
 
 	if (!skb_make_writable(pskb, optend))
 		return 0;
@@ -371,10 +371,10 @@ nf_nat_seq_adjust(struct sk_buff **pskb,
 	this_way = &nat->info.seq[dir];
 	other_way = &nat->info.seq[!dir];
 
-	if (!skb_make_writable(pskb, (*pskb)->nh.iph->ihl*4+sizeof(*tcph)))
+	if (!skb_make_writable(pskb, ip_hdrlen(*pskb) + sizeof(*tcph)))
 		return 0;
 
-	tcph = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
+	tcph = (void *)(*pskb)->data + ip_hdrlen(*pskb);
 	if (after(ntohl(tcph->seq), this_way->correction_pos))
 		newseq = htonl(ntohl(tcph->seq) + this_way->offset_after);
 	else
@@ -399,7 +399,7 @@ nf_nat_seq_adjust(struct sk_buff **pskb,
 	if (!nf_nat_sack_adjust(pskb, tcph, ct, ctinfo))
 		return 0;
 
-	nf_conntrack_tcp_update(*pskb, (*pskb)->nh.iph->ihl*4, ct, dir);
+	nf_conntrack_tcp_update(*pskb, ip_hdrlen(*pskb), ct, dir);
 
 	return 1;
 }

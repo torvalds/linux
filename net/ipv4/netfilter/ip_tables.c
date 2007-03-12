@@ -198,7 +198,7 @@ int do_match(struct ipt_entry_match *m,
 {
 	/* Stop iteration if it doesn't match */
 	if (!m->u.kernel.match->match(skb, in, out, m->u.kernel.match, m->data,
-				      offset, skb->nh.iph->ihl*4, hotdrop))
+				      offset, ip_hdrlen(skb), hotdrop))
 		return 1;
 	else
 		return 0;

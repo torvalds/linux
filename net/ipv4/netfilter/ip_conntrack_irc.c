@@ -130,13 +130,13 @@ static int help(struct sk_buff **pskb,
 	}
 
 	/* Not a full tcp header? */
-	th = skb_header_pointer(*pskb, (*pskb)->nh.iph->ihl*4,
+	th = skb_header_pointer(*pskb, ip_hdrlen(*pskb),
 				sizeof(_tcph), &_tcph);
 	if (th == NULL)
 		return NF_ACCEPT;
 
 	/* No data? */
-	dataoff = (*pskb)->nh.iph->ihl*4 + th->doff*4;
+	dataoff = ip_hdrlen(*pskb) + th->doff * 4;
 	if (dataoff >= (*pskb)->len)
 		return NF_ACCEPT;
 

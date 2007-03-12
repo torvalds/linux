@@ -750,8 +750,7 @@ resolve_normal_ct(struct sk_buff *skb,
 
 	IP_NF_ASSERT((skb->nh.iph->frag_off & htons(IP_OFFSET)) == 0);
 
-	if (!ip_ct_get_tuple(skb->nh.iph, skb, skb->nh.iph->ihl*4,
-				&tuple,proto))
+	if (!ip_ct_get_tuple(skb->nh.iph, skb, ip_hdrlen(skb), &tuple,proto))
 		return NULL;
 
 	/* look for tuple match */

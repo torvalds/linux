@@ -771,7 +771,7 @@ void ip_conntrack_tcp_update(struct sk_buff *skb,
 			     enum ip_conntrack_dir dir)
 {
 	struct iphdr *iph = skb->nh.iph;
-	struct tcphdr *tcph = (void *)skb->nh.iph + skb->nh.iph->ihl*4;
+	struct tcphdr *tcph = (void *)skb->nh.iph + ip_hdrlen(skb);
 	__u32 end;
 #ifdef DEBUGP_VARS
 	struct ip_ct_tcp_state *sender = &conntrack->proto.tcp.seen[dir];

@@ -1263,7 +1263,7 @@ static inline void write_ip_start_end(struct ehea_swqe *swqe,
 				      const struct sk_buff *skb)
 {
 	swqe->ip_start = (u8)(((u64)skb->nh.iph) - ((u64)skb->data));
-	swqe->ip_end = (u8)(swqe->ip_start + skb->nh.iph->ihl * 4 - 1);
+	swqe->ip_end = (u8)(swqe->ip_start + ip_hdrlen(skb) - 1);
 }
 
 static inline void write_tcp_offset_end(struct ehea_swqe *swqe,
@@ -1300,7 +1300,7 @@ static void write_swqe2_TSO(struct sk_buff *skb,
 	/* copy only eth/ip/tcp headers to immediate data and
 	 * the rest of skb->data to sg1entry
 	 */
-	headersize = ETH_HLEN + (skb->nh.iph->ihl * 4) + (skb->h.th->doff * 4);
+	headersize = ETH_HLEN + ip_hdrlen(skb) + (skb->h.th->doff * 4);
 
 	skb_data_size = skb->len - skb->data_len;
 

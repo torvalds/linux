@@ -43,7 +43,6 @@ MODULE_DESCRIPTION("iptables REJECT target module");
 static void send_reset(struct sk_buff *oldskb, int hook)
 {
 	struct sk_buff *nskb;
-	struct iphdr *iph = oldskb->nh.iph;
 	struct tcphdr _otcph, *oth, *tcph;
 	__be16 tmp_port;
 	__be32 tmp_addr;
@@ -54,7 +53,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	if (oldskb->nh.iph->frag_off & htons(IP_OFFSET))
 		return;
 
-	oth = skb_header_pointer(oldskb, oldskb->nh.iph->ihl * 4,
+	oth = skb_header_pointer(oldskb, ip_hdrlen(oldskb),
 				 sizeof(_otcph), &_otcph);
 	if (oth == NULL)
 		return;
@@ -64,7 +63,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 		return;
 
 	/* Check checksum */
-	if (nf_ip_checksum(oldskb, hook, iph->ihl * 4, IPPROTO_TCP))
+	if (nf_ip_checksum(oldskb, hook, ip_hdrlen(oldskb), IPPROTO_TCP))
 		return;
 
 	/* We need a linear, writeable skb.  We also need to expand
@@ -84,7 +83,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	skb_shinfo(nskb)->gso_segs = 0;
 	skb_shinfo(nskb)->gso_type = 0;
 
-	tcph = (struct tcphdr *)((u_int32_t*)nskb->nh.iph + nskb->nh.iph->ihl);
+	tcph = (struct tcphdr *)(skb_network_header(nskb) + ip_hdrlen(nskb));
 
 	/* Swap source and dest */
 	tmp_addr = nskb->nh.iph->saddr;
@@ -96,7 +95,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 
 	/* Truncate to length (no data) */
 	tcph->doff = sizeof(struct tcphdr)/4;
-	skb_trim(nskb, nskb->nh.iph->ihl*4 + sizeof(struct tcphdr));
+	skb_trim(nskb, ip_hdrlen(nskb) + sizeof(struct tcphdr));
 	nskb->nh.iph->tot_len = htons(nskb->len);
 
 	if (tcph->ack) {
@@ -105,9 +104,9 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 		tcph->ack_seq = 0;
 	} else {
 		needs_ack = 1;
-		tcph->ack_seq = htonl(ntohl(oth->seq) + oth->syn + oth->fin
-				      + oldskb->len - oldskb->nh.iph->ihl*4
-				      - (oth->doff<<2));
+		tcph->ack_seq = htonl(ntohl(oth->seq) + oth->syn + oth->fin +
+				      oldskb->len - ip_hdrlen(oldskb) -
+				      (oth->doff << 2));
 		tcph->seq = 0;
 	}
 
@@ -149,7 +148,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 
 	/* Adjust IP checksum */
 	nskb->nh.iph->check = 0;
-	nskb->nh.iph->check = ip_fast_csum((unsigned char *)nskb->nh.iph,
+	nskb->nh.iph->check = ip_fast_csum(skb_network_header(nskb),
 					   nskb->nh.iph->ihl);
 
 	/* "Never happens" */
@@ -182,7 +181,7 @@ static unsigned int reject(struct sk_buff **pskb,
 
 	/* Our naive response construction doesn't deal with IP
 	   options, and probably shouldn't try. */
-	if ((*pskb)->nh.iph->ihl<<2 != sizeof(struct iphdr))
+	if (ip_hdrlen(*pskb) != sizeof(struct iphdr))
 		return NF_DROP;
 
 	/* WARNING: This code causes reentry within iptables.

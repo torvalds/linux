@@ -103,7 +103,7 @@ static int help(struct sk_buff **pskb,
 	ip_ct_refresh(ct, *pskb, master_timeout * HZ);
 
 	/* No data? */
-	dataoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
+	dataoff = ip_hdrlen(*pskb) + sizeof(struct udphdr);
 	if (dataoff >= (*pskb)->len) {
 		if (net_ratelimit())
 			printk("amanda_help: skblen = %u\n", (*pskb)->len);

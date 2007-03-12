@@ -40,6 +40,7 @@
 #include <linux/dma-mapping.h>
 
 #include <net/checksum.h>
+#include <net/ip.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -3909,8 +3910,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			mss |= (skb_headlen(skb) - ETH_HLEN) << 9;
 		else {
 			tcp_opt_len = ((skb->h.th->doff - 5) * 4);
-			ip_tcp_len = (skb->nh.iph->ihl * 4) +
-				     sizeof(struct tcphdr);
+			ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
 
 			skb->nh.iph->check = 0;
 			skb->nh.iph->tot_len = htons(mss + ip_tcp_len +
@@ -4064,7 +4064,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		tcp_opt_len = ((skb->h.th->doff - 5) * 4);
-		ip_tcp_len = (skb->nh.iph->ihl * 4) + sizeof(struct tcphdr);
+		ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
 
 		hdr_len = ip_tcp_len + tcp_opt_len;
 		if (unlikely((ETH_HLEN + hdr_len) > 80) &&
