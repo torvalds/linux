@@ -261,8 +261,14 @@ static int ft_make_space(struct ft_cxt *cxt, char **pp, enum ft_rgn_id rgn,
 	char *str, *next;
 	enum ft_rgn_id r;
 
-	if (!cxt->isordered && !ft_reorder(cxt, nextra))
-		return 0;
+	if (!cxt->isordered) {
+		unsigned long rgn_off = *pp - cxt->rgn[rgn].start;
+
+		if (!ft_reorder(cxt, nextra))
+			return 0;
+
+		*pp = cxt->rgn[rgn].start + rgn_off;
+	}
 	if (ft_shuffle(cxt, pp, rgn, nextra))
 		return 1;
 
