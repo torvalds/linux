@@ -820,6 +820,71 @@ int ft_get_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
 	return -1;
 }
 
+void *__ft_find_node_by_prop_value(struct ft_cxt *cxt, void *prev,
+                                   const char *propname, const char *propval,
+                                   unsigned int proplen)
+{
+	struct ft_atom atom;
+	char *p = ft_root_node(cxt);
+	char *next;
+	int past_prev = prev ? 0 : 1;
+	int depth = -1;
+
+	while ((next = ft_next(cxt, p, &atom)) != NULL) {
+		const void *data;
+		unsigned int size;
+
+		switch (atom.tag) {
+		case OF_DT_BEGIN_NODE:
+			depth++;
+
+			if (prev == p) {
+				past_prev = 1;
+				break;
+			}
+
+			if (!past_prev || depth < 1)
+				break;
+
+			data = __ft_get_prop(cxt, p, propname, &size);
+			if (!data || size != proplen)
+				break;
+			if (memcmp(data, propval, size))
+				break;
+
+			return p;
+
+		case OF_DT_END_NODE:
+			if (depth-- == 0)
+				return NULL;
+
+			break;
+		}
+
+		p = next;
+	}
+
+	return NULL;
+}
+
+void *ft_find_node_by_prop_value(struct ft_cxt *cxt, const void *prev,
+                                 const char *propname, const char *propval,
+                                 int proplen)
+{
+	void *node = NULL;
+
+	if (prev) {
+		node = ft_node_ph2node(cxt, prev);
+
+		if (!node)
+			return NULL;
+	}
+
+	node = __ft_find_node_by_prop_value(cxt, node, propname,
+	                                    propval, proplen);
+	return ft_get_phandle(cxt, node);
+}
+
 int ft_set_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
 		const void *buf, const unsigned int buflen)
 {
