@@ -569,10 +569,12 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 
 	if(host->dma_dir == DMA_FROM_DEVICE) {
 		imxmci_busy_wait_for_status(host, &stat,
-				STATUS_APPL_BUFF_FF | STATUS_DATA_TRANS_DONE,
+				STATUS_APPL_BUFF_FF | STATUS_DATA_TRANS_DONE |
+				STATUS_TIME_OUT_READ,
 				50, "imxmci_cpu_driven_data read");
 
 		while((stat & (STATUS_APPL_BUFF_FF |  STATUS_DATA_TRANS_DONE)) &&
+		      !(stat & STATUS_TIME_OUT_READ) &&
 		      (host->data_cnt < 512)) {
 
 			udelay(20);	/* required for clocks < 8MHz*/
@@ -601,6 +603,12 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 
 		if(host->dma_size & 0x1ff)
 			stat &= ~STATUS_CRC_READ_ERR;
+
+		if(stat & STATUS_TIME_OUT_READ) {
+			dev_dbg(mmc_dev(host->mmc), "imxmci_cpu_driven_data read timeout STATUS = 0x%x\n",
+				stat);
+			trans_done = -1;
+		}
 
 	} else {
 		imxmci_busy_wait_for_status(host, &stat,
@@ -708,6 +716,9 @@ static void imxmci_tasklet_fnc(unsigned long data)
 		 * stat from IRQ time so do I
 		 */
 		stat |= host->status_reg;
+
+		if(test_bit(IMXMCI_PEND_CPU_DATA_b, &host->pending_events))
+			stat &= ~STATUS_CRC_READ_ERR;
 
 		if(test_bit(IMXMCI_PEND_WAIT_RESP_b, &host->pending_events)) {
 			imxmci_busy_wait_for_status(host, &stat,

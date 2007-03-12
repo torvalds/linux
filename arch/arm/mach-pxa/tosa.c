@@ -28,6 +28,7 @@
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/system.h>
+#include <asm/arch/pxa-regs.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/udc.h>
@@ -35,8 +36,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
-
-#include <asm/arch/pxa-regs.h>
 #include <asm/arch/tosa.h>
 
 #include <asm/hardware/scoop.h>
