@@ -877,6 +877,8 @@ static int rose_accept(struct socket *sock, struct socket *newsock, int flags)
 			lock_sock(sk);
 			continue;
 		}
+		current->state = TASK_RUNNING;
+		remove_wait_queue(sk->sk_sleep, &wait);
 		return -ERESTARTSYS;
 	}
 	current->state = TASK_RUNNING;
