@@ -721,7 +721,7 @@ static int arp_process(struct sk_buff *skb)
 	if (in_dev == NULL)
 		goto out;
 
-	arp = skb->nh.arph;
+	arp = arp_hdr(skb);
 
 	switch (dev_type) {
 	default:
@@ -937,7 +937,7 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 				 (2 * sizeof(u32)))))
 		goto freeskb;
 
-	arp = skb->nh.arph;
+	arp = arp_hdr(skb);
 	if (arp->ar_hln != dev->addr_len ||
 	    dev->flags & IFF_NOARP ||
 	    skb->pkt_type == PACKET_OTHERHOST ||

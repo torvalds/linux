@@ -30,7 +30,7 @@ target(struct sk_buff **pskb,
 		*pskb = nskb;
 	}
 
-	arp = (*pskb)->nh.arph;
+	arp = arp_hdr(*pskb);
 	arpptr = skb_network_header(*pskb) + sizeof(*arp);
 	pln = arp->ar_pln;
 	hln = arp->ar_hln;

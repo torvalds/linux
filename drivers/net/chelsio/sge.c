@@ -1925,7 +1925,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if ((unlikely(!adapter->sge->espibug_skb[dev->if_port]))) {
 			if (skb->protocol == htons(ETH_P_ARP) &&
-			    skb->nh.arph->ar_op == htons(ARPOP_REQUEST)) {
+			    arp_hdr(skb)->ar_op == htons(ARPOP_REQUEST)) {
 				adapter->sge->espibug_skb[dev->if_port] = skb;
 				/* We want to re-use this skb later. We
 				 * simply bump the reference count and it

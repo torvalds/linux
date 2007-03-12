@@ -2524,7 +2524,7 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 				 (2 * sizeof(u32)))))
 		goto out_unlock;
 
-	arp = skb->nh.arph;
+	arp = arp_hdr(skb);
 	if (arp->ar_hln != dev->addr_len ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
 	    skb->pkt_type == PACKET_LOOPBACK ||

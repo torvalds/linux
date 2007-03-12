@@ -521,7 +521,7 @@ arp_mangle(unsigned int hook,
 	   const struct net_device *out,
 	   int (*okfn)(struct sk_buff *))
 {
-	struct arphdr *arp = (*pskb)->nh.arph;
+	struct arphdr *arp = arp_hdr(*pskb);
 	struct arp_payload *payload;
 	struct clusterip_config *c;
 

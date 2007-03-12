@@ -670,7 +670,7 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff **pskb,
 		(*pskb)->nh.raw += VLAN_HLEN;
 	}
 
-	if (skb->nh.arph->ar_pln != 4) {
+	if (arp_hdr(skb)->ar_pln != 4) {
 		if (IS_VLAN_ARP(skb)) {
 			skb_push(*pskb, VLAN_HLEN);
 			(*pskb)->nh.raw -= VLAN_HLEN;
