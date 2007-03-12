@@ -429,7 +429,7 @@ int ft_prop(struct ft_cxt *cxt, const char *name, const void *data,
 {
 	int off, len;
 
-	off = lookup_string(cxt, name);
+	off = map_string(cxt, name);
 	if (off == NO_STRING)
 		return -1;
 
