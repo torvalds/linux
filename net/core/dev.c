@@ -146,8 +146,8 @@
  */
 
 static DEFINE_SPINLOCK(ptype_lock);
-static struct list_head ptype_base[16];	/* 16 way hashed list */
-static struct list_head ptype_all;		/* Taps */
+static struct list_head ptype_base[16] __read_mostly;	/* 16 way hashed list */
+static struct list_head ptype_all __read_mostly;	/* Taps */
 
 #ifdef CONFIG_NET_DMA
 static struct dma_client *net_dma_client;
@@ -1533,9 +1533,9 @@ out:
 			Receiver routines
   =======================================================================*/
 
-int netdev_max_backlog = 1000;
-int netdev_budget = 300;
-int weight_p = 64;            /* old backlog weight */
+int netdev_max_backlog __read_mostly = 1000;
+int netdev_budget __read_mostly = 300;
+int weight_p __read_mostly = 64;            /* old backlog weight */
 
 DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
 
