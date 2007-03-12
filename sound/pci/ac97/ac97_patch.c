@@ -3277,16 +3277,111 @@ static int patch_vt1616(struct snd_ac97 * ac97)
 /*
  * VT1617A codec
  */
-static int patch_vt1617a(struct snd_ac97 * ac97)
+
+/*
+ * unfortunately, the vt1617a stashes the twiddlers required for
+ * nooding the i/o jacks on 2 different regs. * thameans that we cant
+ * use the easy way provided by AC97_ENUM_DOUBLE() we have to write
+ * are own funcs.
+ *
+ * NB: this is absolutely and utterly different from the vt1618. dunno
+ * about the 1616.
+ */
+
+/* copied from ac97_surround_jack_mode_info() */
+static int snd_ac97_vt1617a_smart51_info(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_info *uinfo)
 {
-	/* bring analog power consumption to normal, like WinXP driver
-	 * for EPIA SP
+	/* ordering in this list reflects vt1617a docs for Reg 20 and
+	 * 7a and Table 6 that lays out the matrix NB WRT Table6: SM51
+	 * is SM51EN *AND* it's Bit14, not Bit15 so the table is very
+	 * counter-intuitive */ 
+
+	static const char* texts[] = { "LineIn Mic1", "LineIn Mic1 Mic3",
+				       "Surr LFE/C Mic3", "LineIn LFE/C Mic3",
+				       "LineIn Mic2", "LineIn Mic2 Mic1",
+				       "Surr LFE Mic1", "Surr LFE Mic1 Mic2"};
+	return ac97_enum_text_info(kcontrol, uinfo, texts, 8);
+}
+
+static int snd_ac97_vt1617a_smart51_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	ushort usSM51, usMS;  
+
+	struct snd_ac97 *pac97;
+	
+	pac97 = snd_kcontrol_chip(kcontrol); /* grab codec handle */
+
+	/* grab our desirec bits, then mash them together in a manner
+	 * consistent with Table 6 on page 17 in the 1617a docs */
+ 
+	usSM51 = snd_ac97_read(pac97, 0x7a) >> 14;
+	usMS   = snd_ac97_read(pac97, 0x20) >> 8;
+  
+	ucontrol->value.enumerated.item[0] = (usSM51 << 1) + usMS;
+
+	return 0;
+}
+
+static int snd_ac97_vt1617a_smart51_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	ushort usSM51, usMS, usReg;  
+
+	struct snd_ac97 *pac97;
+
+	pac97 = snd_kcontrol_chip(kcontrol); /* grab codec handle */
+
+	usSM51 = ucontrol->value.enumerated.item[0] >> 1;
+	usMS   = ucontrol->value.enumerated.item[0] &  1;
+
+	/* push our values into the register - consider that things will be left
+	 * in a funky state if the write fails */
+
+	usReg = snd_ac97_read(pac97, 0x7a);
+	snd_ac97_write_cache(pac97, 0x7a, (usReg & 0x3FFF) + (usSM51 << 14));
+	usReg = snd_ac97_read(pac97, 0x20);
+	snd_ac97_write_cache(pac97, 0x20, (usReg & 0xFEFF) + (usMS   <<  8));
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new snd_ac97_controls_vt1617a[] = {
+
+	AC97_SINGLE("Center/LFE Exchange", 0x5a, 8, 1, 0),
+	/*
+	 * These are used to enable/disable surround sound on motherboards
+	 * that have 3 bidirectional analog jacks
+	 */
+	{
+		.iface         = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name          = "Smart 5.1 Select",
+		.info          = snd_ac97_vt1617a_smart51_info,
+		.get           = snd_ac97_vt1617a_smart51_get,
+		.put           = snd_ac97_vt1617a_smart51_put,
+	},
+};
+
+int patch_vt1617a(struct snd_ac97 * ac97)
+{
+	int err = 0;
+
+	/* we choose to not fail out at this point, but we tell the
+	   caller when we return */
+
+	err = patch_build_controls(ac97, &snd_ac97_controls_vt1617a[0],
+				   ARRAY_SIZE(snd_ac97_controls_vt1617a));
+
+	/* bring analog power consumption to normal by turning off the
+	 * headphone amplifier, like WinXP driver for EPIA SP
 	 */
 	snd_ac97_write_cache(ac97, 0x5c, 0x20);
 	ac97->ext_id |= AC97_EI_SPDIF;	/* force the detection of spdif */
 	ac97->rates[AC97_RATES_SPDIF] = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000;
 	ac97->build_ops = &patch_vt1616_ops;
-	return 0;
+
+	return err;
 }
 
 /*
