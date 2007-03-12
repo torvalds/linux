@@ -157,6 +157,11 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 			       "MINOR=%u", MINOR(dev->devt));
 	}
 
+	if (dev->type && dev->type->name)
+		add_uevent_var(envp, num_envp, &i,
+			       buffer, buffer_size, &length,
+			       "DEVTYPE=%s", dev->type->name);
+
 	if (dev->driver)
 		add_uevent_var(envp, num_envp, &i,
 			       buffer, buffer_size, &length,
