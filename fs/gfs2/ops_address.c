@@ -507,7 +507,9 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 		gfs2_quota_unlock(ip);
 		gfs2_alloc_put(ip);
 	}
+	unlock_page(page);
 	gfs2_glock_dq_m(1, &ip->i_gh);
+	lock_page(page);
 	gfs2_holder_uninit(&ip->i_gh);
 	return 0;
 
@@ -520,7 +522,9 @@ fail_endtrans:
 		gfs2_quota_unlock(ip);
 		gfs2_alloc_put(ip);
 	}
+	unlock_page(page);
 	gfs2_glock_dq_m(1, &ip->i_gh);
+	lock_page(page);
 	gfs2_holder_uninit(&ip->i_gh);
 fail_nounlock:
 	ClearPageUptodate(page);
