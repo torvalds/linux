@@ -370,8 +370,8 @@ config SND_SB16_CSP_FIRMWARE_IN_KERNEL
 	default y
 	help
 	  Say Y here to include the static firmware built in the kernel
-	  for SB16 CSP controller.  If you choose N here, the external
-	  firmware files from alsa-plugins pacakge are necessary.
+	  for the SB16 CSP controller.  If you choose N here, you need
+	  to install the firmware files from the alsa-firmware package.
 
 config SND_SGALAXY
 	tristate "Aztech Sound Galaxy"
@@ -417,7 +417,7 @@ config SND_WAVEFRONT_FIRMWARE_IN_KERNEL
 	default y
 	help
 	  Say Y here to include the static firmware built in the kernel
-	  for Wavefront driver.  If you choose N here, the external
-	  firmware files from alsa-plugins pacakge are necessary.
+	  for the Wavefront driver.  If you choose N here, you need to
+	  install the firmware files from the alsa-firmware package.
 
 endmenu
