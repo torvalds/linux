@@ -24,19 +24,19 @@ struct key {
 /*
  * every tree block (leaf or node) starts with this header.
  */
-struct header {
-	u64 fsid[2]; /* FS specific uuid */
-	u64 blocknr; /* which block this node is supposed to live in */
-	u64 parentid; /* objectid of the tree root */
-	u32 csum;
-	u32 ham;
-	u16 nritems;
-	u16 flags;
+struct btrfs_header {
+	__le64 fsid[2]; /* FS specific uuid */
+	__le64 blocknr; /* which block this node is supposed to live in */
+	__le64 parentid; /* objectid of the tree root */
+	__le32 csum;
+	__le32 ham;
+	__le16 nritems;
+	__le16 flags;
 	/* generation flags to be added */
 } __attribute__ ((__packed__));
 
 #define MAX_LEVEL 8
-#define NODEPTRS_PER_BLOCK ((CTREE_BLOCKSIZE - sizeof(struct header)) / \
+#define NODEPTRS_PER_BLOCK ((CTREE_BLOCKSIZE - sizeof(struct btrfs_header)) / \
 			    (sizeof(struct key) + sizeof(u64)))
 
 struct tree_buffer;
@@ -100,12 +100,12 @@ struct item {
  * The data is separate from the items to get the keys closer together
  * during searches.
  */
-#define LEAF_DATA_SIZE (CTREE_BLOCKSIZE - sizeof(struct header))
+#define LEAF_DATA_SIZE (CTREE_BLOCKSIZE - sizeof(struct btrfs_header))
 struct leaf {
-	struct header header;
+	struct btrfs_header header;
 	union {
 		struct item items[LEAF_DATA_SIZE/sizeof(struct item)];
-		u8 data[CTREE_BLOCKSIZE-sizeof(struct header)];
+		u8 data[CTREE_BLOCKSIZE-sizeof(struct btrfs_header)];
 	};
 } __attribute__ ((__packed__));
 
@@ -114,7 +114,7 @@ struct leaf {
  * other blocks
  */
 struct node {
-	struct header header;
+	struct btrfs_header header;
 	struct key keys[NODEPTRS_PER_BLOCK];
 	u64 blockptrs[NODEPTRS_PER_BLOCK];
 } __attribute__ ((__packed__));
@@ -141,54 +141,55 @@ struct ctree_path {
 	int slots[MAX_LEVEL];
 };
 
-static inline u64 btrfs_header_blocknr(struct header *h)
+static inline u64 btrfs_header_blocknr(struct btrfs_header *h)
 {
-	return h->blocknr;
+	return le64_to_cpu(h->blocknr);
 }
 
-static inline void btrfs_set_header_blocknr(struct header *h, u64 blocknr)
+static inline void btrfs_set_header_blocknr(struct btrfs_header *h, u64 blocknr)
 {
-	h->blocknr = blocknr;
+	h->blocknr = cpu_to_le64(blocknr);
 }
 
-static inline u64 btrfs_header_parentid(struct header *h)
+static inline u64 btrfs_header_parentid(struct btrfs_header *h)
 {
-	return h->parentid;
+	return le64_to_cpu(h->parentid);
 }
 
-static inline void btrfs_set_header_parentid(struct header *h, u64 parentid)
+static inline void btrfs_set_header_parentid(struct btrfs_header *h,
+					     u64 parentid)
 {
-	h->parentid = parentid;
+	h->parentid = cpu_to_le64(parentid);
 }
 
-static inline u32 btrfs_header_nritems(struct header *h)
+static inline u16 btrfs_header_nritems(struct btrfs_header *h)
 {
-	return h->nritems;
+	return le16_to_cpu(h->nritems);
 }
 
-static inline void btrfs_set_header_nritems(struct header *h, u32 val)
+static inline void btrfs_set_header_nritems(struct btrfs_header *h, u16 val)
 {
-	h->nritems = val;
+	h->nritems = cpu_to_le16(val);
 }
 
-static inline u32 btrfs_header_flags(struct header *h)
+static inline u16 btrfs_header_flags(struct btrfs_header *h)
 {
-	return h->flags;
+	return le16_to_cpu(h->flags);
 }
 
-static inline void btrfs_set_header_flags(struct header *h, u32 val)
+static inline void btrfs_set_header_flags(struct btrfs_header *h, u16 val)
 {
-	h->flags = val;
+	h->flags = cpu_to_le16(val);
 }
 
-static inline int btrfs_header_level(struct header *h)
+static inline int btrfs_header_level(struct btrfs_header *h)
 {
 	return btrfs_header_flags(h) & (MAX_LEVEL - 1);
 }
 
-static inline void btrfs_set_header_level(struct header *h, int level)
+static inline void btrfs_set_header_level(struct btrfs_header *h, int level)
 {
-	u32 flags;
+	u16 flags;
 	BUG_ON(level > MAX_LEVEL);
 	flags = btrfs_header_flags(h) & ~(MAX_LEVEL - 1);
 	btrfs_set_header_flags(h, flags | level);

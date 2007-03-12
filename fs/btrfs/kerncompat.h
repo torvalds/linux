@@ -9,10 +9,16 @@
 #define GFP_KERNEL 0
 #define __read_mostly
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#define __force
 #define PAGE_SHIFT 12
 #define ULONG_MAX       (~0UL)
 #define BUG() abort()
+#ifdef __CHECKER__
+#define __force    __attribute__((force))
+#define __bitwise__ __attribute__((bitwise))
+#else
+#define __force
+#define __bitwise__
+#endif
 
 typedef unsigned int u32;
 typedef unsigned long long u64;
@@ -67,3 +73,24 @@ static inline void __clear_bit(int bit, unsigned long *map) {
 
 #define ENOMEM 5
 #define EEXIST 6
+
+#define __CHECK_ENDIAN__
+#ifdef __CHECK_ENDIAN__
+#define __bitwise __bitwise__
+#else
+#define __bitwise
+#endif
+
+typedef u16 __bitwise __le16;
+typedef u16 __bitwise __be16;
+typedef u32 __bitwise __le32;
+typedef u32 __bitwise __be32;
+typedef u64 __bitwise __le64;
+typedef u64 __bitwise __be64;
+
+#define cpu_to_le64(x) ((__force __le64)(u64)(x))
+#define le64_to_cpu(x) ((__force u64)(__le64)(x))
+#define cpu_to_le32(x) ((__force __le32)(u32)(x))
+#define le32_to_cpu(x) ((__force u32)(__le32)(x))
+#define cpu_to_le16(x) ((__force __le16)(u16)(x))
+#define le16_to_cpu(x) ((__force u16)(__le16)(x))
