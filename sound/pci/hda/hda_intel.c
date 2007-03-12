@@ -199,7 +199,6 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 
 /* STATESTS int mask: SD2,SD1,SD0 */
 #define STATESTS_INT_MASK	0x07
-#define AZX_MAX_CODECS		3
 
 /* SD_CTL bits */
 #define SD_CTL_STREAM_RESET	0x01	/* stream reset bit */
@@ -966,6 +965,16 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
  * Codec initialization
  */
 
+static unsigned int azx_max_codecs[] __devinitdata = {
+	[AZX_DRIVER_ICH] = 3,
+	[AZX_DRIVER_ATI] = 4,
+	[AZX_DRIVER_ATIHDMI] = 4,
+	[AZX_DRIVER_VIA] = 3,		/* FIXME: correct? */
+	[AZX_DRIVER_SIS] = 3,		/* FIXME: correct? */
+	[AZX_DRIVER_ULI] = 3,		/* FIXME: correct? */
+	[AZX_DRIVER_NVIDIA] = 3,	/* FIXME: correct? */
+};
+
 static int __devinit azx_codec_create(struct azx *chip, const char *model)
 {
 	struct hda_bus_template bus_temp;
@@ -982,7 +991,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 		return err;
 
 	codecs = 0;
-	for (c = 0; c < AZX_MAX_CODECS; c++) {
+	for (c = 0; c < azx_max_codecs[chip->driver_type]; c++) {
 		if ((chip->codec_mask & (1 << c)) & probe_mask) {
 			err = snd_hda_codec_new(chip->bus, c, NULL);
 			if (err < 0)
