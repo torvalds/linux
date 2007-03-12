@@ -1933,6 +1933,11 @@ int cipso_v4_skbuff_getattr(const struct sk_buff *skb,
 						 &cipso_ptr[6],
 						 secattr);
 		break;
+	case CIPSO_V4_TAG_RANGE:
+		ret_val = cipso_v4_parsetag_rng(doi_def,
+						&cipso_ptr[6],
+						secattr);
+		break;
 	}
 
 skbuff_getattr_return:
