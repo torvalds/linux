@@ -441,15 +441,15 @@ int walk_down_tree(struct ctree_root *root, struct ctree_path *path, int *level)
 		}
 		BUG_ON(ret);
 		next = read_tree_block(root, blocknr);
-		if (path->nodes[*level-1]) {
+		if (path->nodes[*level-1])
 			tree_block_release(root, path->nodes[*level-1]);
-		}
 		path->nodes[*level-1] = next;
 		*level = node_level(next->node.header.flags);
 		path->slots[*level] = 0;
 	}
 out:
 	ret = free_extent(root, path->nodes[*level]->blocknr, 1);
+	tree_block_release(root, path->nodes[*level]);
 	path->nodes[*level] = NULL;
 	*level += 1;
 	BUG_ON(ret);
@@ -470,6 +470,8 @@ int walk_up_tree(struct ctree_root *root, struct ctree_path *path, int *level)
 		} else {
 			ret = free_extent(root,
 					  path->nodes[*level]->blocknr, 1);
+			tree_block_release(root, path->nodes[*level]);
+			path->nodes[*level] = NULL;
 			*level = i + 1;
 			BUG_ON(ret);
 		}
@@ -499,9 +501,10 @@ int btrfs_drop_snapshot(struct ctree_root *root, struct tree_buffer *snap)
 		if (ret > 0)
 			break;
 	}
-	for (i = 0; i < orig_level; i++) {
-		if (path.nodes[i])
+	for (i = 0; i <= orig_level; i++) {
+		if (path.nodes[i]) {
 			tree_block_release(root, path.nodes[i]);
+		}
 	}
 
 	return 0;

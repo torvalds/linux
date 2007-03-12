@@ -167,7 +167,7 @@ int commit_transaction(struct ctree_root *root, struct ctree_super_block *s)
 		root->node->count++;
 		ret = btrfs_drop_snapshot(root, snap);
 		BUG_ON(ret);
-		tree_block_release(root, snap);
+		// tree_block_release(root, snap);
 	}
         write_ctree_super(root, s);
 	btrfs_finish_extent_commit(root);
