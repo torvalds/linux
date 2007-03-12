@@ -928,9 +928,9 @@ alloc_new_skb:
 			 *	Find where to start putting bytes.
 			 */
 			data = skb_put(skb, fraglen);
-			skb->nh.raw = data + exthdrlen;
+			skb_set_network_header(skb, exthdrlen);
+			skb->h.raw = skb->nh.raw + fragheaderlen;
 			data += fragheaderlen;
-			skb->h.raw = data + exthdrlen;
 
 			if (fraggap) {
 				skb->csum = skb_copy_and_csum_bits(

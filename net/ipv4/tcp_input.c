@@ -3634,7 +3634,8 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 			return;
 
 		skb_set_mac_header(nskb, skb_mac_header(skb) - skb->head);
-		nskb->nh.raw = nskb->data + (skb_network_header(skb) - skb->head);
+		skb_set_network_header(nskb,
+				       skb_network_header(skb) - skb->head);
 		nskb->h.raw = nskb->data + (skb->h.raw - skb->head);
 
 		skb_reserve(nskb, header);
