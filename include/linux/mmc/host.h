@@ -16,30 +16,7 @@ struct mmc_ios {
 	unsigned int	clock;			/* clock rate */
 	unsigned short	vdd;
 
-#define	MMC_VDD_150	0
-#define	MMC_VDD_155	1
-#define	MMC_VDD_160	2
-#define	MMC_VDD_165	3
-#define	MMC_VDD_170	4
-#define	MMC_VDD_180	5
-#define	MMC_VDD_190	6
-#define	MMC_VDD_200	7
-#define	MMC_VDD_210	8
-#define	MMC_VDD_220	9
-#define	MMC_VDD_230	10
-#define	MMC_VDD_240	11
-#define	MMC_VDD_250	12
-#define	MMC_VDD_260	13
-#define	MMC_VDD_270	14
-#define	MMC_VDD_280	15
-#define	MMC_VDD_290	16
-#define	MMC_VDD_300	17
-#define	MMC_VDD_310	18
-#define	MMC_VDD_320	19
-#define	MMC_VDD_330	20
-#define	MMC_VDD_340	21
-#define	MMC_VDD_350	22
-#define	MMC_VDD_360	23
+/* vdd stores the bit number of the selected voltage range from below. */
 
 	unsigned char	bus_mode;		/* command output mode */
 

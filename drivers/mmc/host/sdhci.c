@@ -658,20 +658,17 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 
 	pwr = SDHCI_POWER_ON;
 
-	switch (power) {
-	case MMC_VDD_170:
-	case MMC_VDD_180:
-	case MMC_VDD_190:
+	switch (1 << power) {
+	case MMC_VDD_17_18:
+	case MMC_VDD_18_19:
 		pwr |= SDHCI_POWER_180;
 		break;
-	case MMC_VDD_290:
-	case MMC_VDD_300:
-	case MMC_VDD_310:
+	case MMC_VDD_29_30:
+	case MMC_VDD_30_31:
 		pwr |= SDHCI_POWER_300;
 		break;
-	case MMC_VDD_320:
-	case MMC_VDD_330:
-	case MMC_VDD_340:
+	case MMC_VDD_32_33:
+	case MMC_VDD_33_34:
 		pwr |= SDHCI_POWER_330;
 		break;
 	default:
