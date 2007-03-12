@@ -2,6 +2,7 @@
 #define __CTREE__
 
 #include "list.h"
+#include "kerncompat.h"
 
 #define CTREE_BLOCKSIZE 1024
 
@@ -14,8 +15,18 @@
  * may point to extents.
  *
  * offset is the starting byte offset for this key in the stream.
+ *
+ * btrfs_disk_key is in disk byte order.  struct btrfs_key is always
+ * in cpu native order.  Otherwise they are identical and their sizes
+ * should be the same (ie both packed)
  */
-struct key {
+struct btrfs_disk_key {
+	__le64 objectid;
+	__le32 flags;
+	__le64 offset;
+} __attribute__ ((__packed__));
+
+struct btrfs_key {
 	u64 objectid;
 	u32 flags;
 	u64 offset;
@@ -37,7 +48,7 @@ struct btrfs_header {
 
 #define MAX_LEVEL 8
 #define NODEPTRS_PER_BLOCK ((CTREE_BLOCKSIZE - sizeof(struct btrfs_header)) / \
-			    (sizeof(struct key) + sizeof(u64)))
+			    (sizeof(struct btrfs_disk_key) + sizeof(u64)))
 
 struct tree_buffer;
 
@@ -50,8 +61,8 @@ struct ctree_root {
 	struct tree_buffer *node;
 	struct tree_buffer *commit_root;
 	struct ctree_root *extent_root;
-	struct key current_insert;
-	struct key last_insert;
+	struct btrfs_key current_insert;
+	struct btrfs_key last_insert;
 	int fp;
 	struct radix_tree_root cache_radix;
 	struct radix_tree_root pinned_radix;
@@ -88,7 +99,7 @@ struct ctree_super_block {
  * the item in the leaf (relative to the start of the data area)
  */
 struct item {
-	struct key key;
+	struct btrfs_disk_key key;
 	u16 offset;
 	u16 size;
 } __attribute__ ((__packed__));
@@ -115,7 +126,7 @@ struct leaf {
  */
 struct node {
 	struct btrfs_header header;
-	struct key keys[NODEPTRS_PER_BLOCK];
+	struct btrfs_disk_key keys[NODEPTRS_PER_BLOCK];
 	u64 blockptrs[NODEPTRS_PER_BLOCK];
 } __attribute__ ((__packed__));
 
@@ -140,6 +151,55 @@ struct ctree_path {
 	struct tree_buffer *nodes[MAX_LEVEL];
 	int slots[MAX_LEVEL];
 };
+
+static inline void btrfs_disk_key_to_cpu(struct btrfs_key *cpu,
+					 struct btrfs_disk_key *disk)
+{
+	cpu->offset = le64_to_cpu(disk->offset);
+	cpu->flags = le32_to_cpu(disk->flags);
+	cpu->objectid = le64_to_cpu(disk->objectid);
+}
+
+static inline void btrfs_cpu_key_to_disk(struct btrfs_disk_key *disk,
+					 struct btrfs_key *cpu)
+{
+	disk->offset = cpu_to_le64(cpu->offset);
+	disk->flags = cpu_to_le32(cpu->flags);
+	disk->objectid = cpu_to_le64(cpu->objectid);
+}
+
+static inline u64 btrfs_key_objectid(struct btrfs_disk_key *disk)
+{
+	return le64_to_cpu(disk->objectid);
+}
+
+static inline void btrfs_set_key_objectid(struct btrfs_disk_key *disk,
+					  u64 val)
+{
+	disk->objectid = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_key_offset(struct btrfs_disk_key *disk)
+{
+	return le64_to_cpu(disk->offset);
+}
+
+static inline void btrfs_set_key_offset(struct btrfs_disk_key *disk,
+					  u64 val)
+{
+	disk->offset = cpu_to_le64(val);
+}
+
+static inline u32 btrfs_key_flags(struct btrfs_disk_key *disk)
+{
+	return le32_to_cpu(disk->flags);
+}
+
+static inline void btrfs_set_key_flags(struct btrfs_disk_key *disk,
+					  u32 val)
+{
+	disk->flags = cpu_to_le32(val);
+}
 
 static inline u64 btrfs_header_blocknr(struct btrfs_header *h)
 {
@@ -203,11 +263,13 @@ static inline int btrfs_is_leaf(struct node *n)
 struct tree_buffer *alloc_free_block(struct ctree_root *root);
 int btrfs_inc_ref(struct ctree_root *root, struct tree_buffer *buf);
 int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks);
-int search_slot(struct ctree_root *root, struct key *key, struct ctree_path *p, int ins_len, int cow);
+int search_slot(struct ctree_root *root, struct btrfs_key *key,
+		struct ctree_path *p, int ins_len, int cow);
 void release_path(struct ctree_root *root, struct ctree_path *p);
 void init_path(struct ctree_path *p);
 int del_item(struct ctree_root *root, struct ctree_path *path);
-int insert_item(struct ctree_root *root, struct key *key, void *data, int data_size);
+int insert_item(struct ctree_root *root, struct btrfs_key *key,
+		void *data, int data_size);
 int next_leaf(struct ctree_root *root, struct ctree_path *path);
 int leaf_free_space(struct leaf *leaf);
 int btrfs_drop_snapshot(struct ctree_root *root, struct tree_buffer *snap);

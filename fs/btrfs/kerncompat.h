@@ -69,8 +69,6 @@ static inline void __clear_bit(int bit, unsigned long *map) {
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
 	        (type *)( (char *)__mptr - __builtin_offsetof(type,member) );})
 
-#endif
-
 #define ENOMEM 5
 #define EEXIST 6
 
@@ -94,3 +92,4 @@ typedef u64 __bitwise __be64;
 #define le32_to_cpu(x) ((__force u32)(__le32)(x))
 #define cpu_to_le16(x) ((__force __le16)(u16)(x))
 #define le16_to_cpu(x) ((__force u16)(__le16)(x))
+#endif

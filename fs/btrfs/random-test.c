@@ -10,7 +10,8 @@
 int keep_running = 1;
 struct ctree_super_block super;
 
-static int setup_key(struct radix_tree_root *root, struct key *key, int exists)
+static int setup_key(struct radix_tree_root *root, struct btrfs_key *key,
+		     int exists)
 {
 	int num = rand();
 	unsigned long res[2];
@@ -38,7 +39,7 @@ again:
 static int ins_one(struct ctree_root *root, struct radix_tree_root *radix)
 {
 	struct ctree_path path;
-	struct key key;
+	struct btrfs_key key;
 	int ret;
 	char buf[128];
 	unsigned long oid;
@@ -63,7 +64,7 @@ error:
 static int insert_dup(struct ctree_root *root, struct radix_tree_root *radix)
 {
 	struct ctree_path path;
-	struct key key;
+	struct btrfs_key key;
 	int ret;
 	char buf[128];
 	init_path(&path);
@@ -82,7 +83,7 @@ static int insert_dup(struct ctree_root *root, struct radix_tree_root *radix)
 static int del_one(struct ctree_root *root, struct radix_tree_root *radix)
 {
 	struct ctree_path path;
-	struct key key;
+	struct btrfs_key key;
 	int ret;
 	unsigned long *ptr;
 	init_path(&path);
@@ -108,7 +109,7 @@ error:
 static int lookup_item(struct ctree_root *root, struct radix_tree_root *radix)
 {
 	struct ctree_path path;
-	struct key key;
+	struct btrfs_key key;
 	int ret;
 	init_path(&path);
 	ret = setup_key(radix, &key, 1);
@@ -127,7 +128,7 @@ error:
 static int lookup_enoent(struct ctree_root *root, struct radix_tree_root *radix)
 {
 	struct ctree_path path;
-	struct key key;
+	struct btrfs_key key;
 	int ret;
 	init_path(&path);
 	ret = setup_key(radix, &key, 0);
@@ -147,7 +148,7 @@ static int empty_tree(struct ctree_root *root, struct radix_tree_root *radix,
 		      int nr)
 {
 	struct ctree_path path;
-	struct key key;
+	struct btrfs_key key;
 	unsigned long found = 0;
 	int ret;
 	int slot;
@@ -248,7 +249,7 @@ int (*ops[])(struct ctree_root *root, struct radix_tree_root *radix) =
 static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
 {
 	struct ctree_path path;
-	struct key key;
+	struct btrfs_key key;
 	unsigned long found;
 	int ret;
 	int slot;

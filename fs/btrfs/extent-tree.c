@@ -7,7 +7,8 @@
 #include "print-tree.h"
 
 static int find_free_extent(struct ctree_root *orig_root, u64 num_blocks,
-			    u64 search_start, u64 search_end, struct key *ins);
+			    u64 search_start, u64 search_end,
+			    struct btrfs_key *ins);
 static int finish_current_insert(struct ctree_root *extent_root);
 static int run_pending(struct ctree_root *extent_root);
 
@@ -24,10 +25,10 @@ static int inc_block_ref(struct ctree_root *root, u64 blocknr)
 {
 	struct ctree_path path;
 	int ret;
-	struct key key;
+	struct btrfs_key key;
 	struct leaf *l;
 	struct extent_item *item;
-	struct key ins;
+	struct btrfs_key ins;
 
 	find_free_extent(root->extent_root, 0, 0, (u64)-1, &ins);
 	init_path(&path);
@@ -54,7 +55,7 @@ static int lookup_block_ref(struct ctree_root *root, u64 blocknr, u32 *refs)
 {
 	struct ctree_path path;
 	int ret;
-	struct key key;
+	struct btrfs_key key;
 	struct leaf *l;
 	struct extent_item *item;
 	init_path(&path);
@@ -113,7 +114,7 @@ int btrfs_finish_extent_commit(struct ctree_root *root)
 
 static int finish_current_insert(struct ctree_root *extent_root)
 {
-	struct key ins;
+	struct btrfs_key ins;
 	struct extent_item extent_item;
 	int i;
 	int ret;
@@ -140,12 +141,12 @@ static int finish_current_insert(struct ctree_root *extent_root)
 int __free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 {
 	struct ctree_path path;
-	struct key key;
+	struct btrfs_key key;
 	struct ctree_root *extent_root = root->extent_root;
 	int ret;
 	struct item *item;
 	struct extent_item *ei;
-	struct key ins;
+	struct btrfs_key ins;
 
 	key.objectid = blocknr;
 	key.flags = 0;
@@ -227,7 +228,7 @@ static int run_pending(struct ctree_root *extent_root)
  */
 int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 {
-	struct key key;
+	struct btrfs_key key;
 	struct ctree_root *extent_root = root->extent_root;
 	struct tree_buffer *t;
 	int pending_ret;
@@ -256,10 +257,11 @@ int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
  * Any available blocks before search_start are skipped.
  */
 static int find_free_extent(struct ctree_root *orig_root, u64 num_blocks,
-			    u64 search_start, u64 search_end, struct key *ins)
+			    u64 search_start, u64 search_end,
+			    struct btrfs_key *ins)
 {
 	struct ctree_path path;
-	struct key *key;
+	struct btrfs_key key;
 	int ret;
 	u64 hole_size = 0;
 	int slot = 0;
@@ -306,12 +308,12 @@ check_failed:
 			ins->offset = (u64)-1;
 			goto check_pending;
 		}
-		key = &l->items[slot].key;
-		if (key->objectid >= search_start) {
+		btrfs_disk_key_to_cpu(&key, &l->items[slot].key);
+		if (key.objectid >= search_start) {
 			if (start_found) {
 				if (last_block < search_start)
 					last_block = search_start;
-				hole_size = key->objectid - last_block;
+				hole_size = key.objectid - last_block;
 				if (hole_size > total_needed) {
 					ins->objectid = last_block;
 					ins->offset = hole_size;
@@ -320,7 +322,7 @@ check_failed:
 			}
 		}
 		start_found = 1;
-		last_block = key->objectid + key->offset;
+		last_block = key.objectid + key.offset;
 		path.slots[0]++;
 	}
 	// FIXME -ENOSPC
@@ -357,7 +359,7 @@ error:
  * returns 0 if everything worked, non-zero otherwise.
  */
 int alloc_extent(struct ctree_root *root, u64 num_blocks, u64 search_start,
-			 u64 search_end, u64 owner, struct key *ins)
+			 u64 search_end, u64 owner, struct btrfs_key *ins)
 {
 	int ret;
 	int pending_ret;
@@ -400,7 +402,7 @@ int alloc_extent(struct ctree_root *root, u64 num_blocks, u64 search_start,
  */
 struct tree_buffer *alloc_free_block(struct ctree_root *root)
 {
-	struct key ins;
+	struct btrfs_key ins;
 	int ret;
 	struct tree_buffer *buf;
 

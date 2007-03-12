@@ -13,8 +13,8 @@ int next_key(int i, int max_key) {
 }
 
 int main(int ac, char **av) {
-	struct key ins;
-	struct key last = { (u64)-1, 0, 0};
+	struct btrfs_key ins;
+	struct btrfs_key last = { (u64)-1, 0, 0};
 	char *buf;
 	int i;
 	int num;
@@ -146,7 +146,7 @@ int main(int ac, char **av) {
 			slot = path.slots[0];
 			leaf = &path.nodes[0]->leaf;
 
-			memcpy(&last, &leaf->items[slot].key, sizeof(last));
+			btrfs_disk_key_to_cpu(&last, &leaf->items[slot].key);
 			if (tree_size % 10000 == 0)
 				printf("big del %d:%d\n", tree_size, i);
 			ret = del_item(root, &path);
