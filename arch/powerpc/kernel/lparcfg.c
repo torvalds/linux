@@ -130,30 +130,31 @@ static int iseries_lparcfg_data(struct seq_file *m, void *v)
 /*
  * Methods used to fetch LPAR data when running on a pSeries platform.
  */
-/* find a better place for this function... */
 static void log_plpar_hcall_return(unsigned long rc, char *tag)
 {
-	if (rc == 0)		/* success, return */
+	switch(rc) {
+	case 0:
 		return;
-/* check for null tag ? */
-	if (rc == H_HARDWARE)
-		printk(KERN_INFO
-		       "plpar-hcall (%s) failed with hardware fault\n", tag);
-	else if (rc == H_FUNCTION)
-		printk(KERN_INFO
-		       "plpar-hcall (%s) failed; function not allowed\n", tag);
-	else if (rc == H_AUTHORITY)
-		printk(KERN_INFO
-		       "plpar-hcall (%s) failed; not authorized to this"
-		       " function\n", tag);
-	else if (rc == H_PARAMETER)
-		printk(KERN_INFO "plpar-hcall (%s) failed; Bad parameter(s)\n",
-		       tag);
-	else
-		printk(KERN_INFO
-		       "plpar-hcall (%s) failed with unexpected rc(0x%lx)\n",
-		       tag, rc);
-
+	case H_HARDWARE:
+		printk(KERN_INFO "plpar-hcall (%s) "
+				"Hardware fault\n", tag);
+		return;
+	case H_FUNCTION:
+		printk(KERN_INFO "plpar-hcall (%s) "
+				"Function not allowed\n", tag);
+		return;
+	case H_AUTHORITY:
+		printk(KERN_INFO "plpar-hcall (%s) "
+				"Not authorized to this function\n", tag);
+		return;
+	case H_PARAMETER:
+		printk(KERN_INFO "plpar-hcall (%s) "
+				"Bad parameter(s)\n",tag);
+		return;
+	default:
+		printk(KERN_INFO "plpar-hcall (%s) "
+				"Unexpected rc(0x%lx)\n", tag, rc);
+	}
 }
 
 /*
