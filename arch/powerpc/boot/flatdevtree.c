@@ -246,7 +246,7 @@ static int ft_shuffle(struct ft_cxt *cxt, char **pp, enum ft_rgn_id rgn,
 			if (rgn == FT_STRUCT)
 				ft_node_update_before(cxt, p, -nextra);
 		}
-		*p -= nextra;
+		*pp -= nextra;
 		cxt->rgn[rgn].start -= nextra;
 		cxt->rgn[rgn].size += nextra;
 		return 1;
