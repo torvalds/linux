@@ -1478,14 +1478,17 @@ typedef union {
 	uint32_t b24 : 24;
 
 	struct {
-		uint8_t d_id[3];
-		uint8_t rsvd_1;
-	} r;
-
-	struct {
+#ifdef __BIG_ENDIAN
+		uint8_t domain;
+		uint8_t area;
+		uint8_t al_pa;
+#elif __LITTLE_ENDIAN
 		uint8_t al_pa;
 		uint8_t area;
 		uint8_t domain;
+#else
+#error "__BIG_ENDIAN or __LITTLE_ENDIAN must be defined!"
+#endif
 		uint8_t rsvd_1;
 	} b;
 } port_id_t;
