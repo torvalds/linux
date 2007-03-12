@@ -2607,6 +2607,11 @@ static const char *ad1988_models[AD1988_MODEL_LAST] = {
 	[AD1988_AUTO]		= "auto",
 };
 
+static struct snd_pci_quirk ad1988_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1043, 0x81f6, "Asus M2N-SLI", AD1988_6STACK_DIG),
+	{}
+};
+
 static int patch_ad1988(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
@@ -2623,7 +2628,7 @@ static int patch_ad1988(struct hda_codec *codec)
 		snd_printk(KERN_INFO "patch_analog: AD1988A rev.2 is detected, enable workarounds\n");
 
 	board_config = snd_hda_check_board_config(codec, AD1988_MODEL_LAST,
-						  ad1988_models, NULL);
+						  ad1988_models, ad1988_cfg_tbl);
 	if (board_config < 0) {
 		printk(KERN_INFO "hda_codec: Unknown model for AD1988, trying auto-probe from BIOS...\n");
 		board_config = AD1988_AUTO;
