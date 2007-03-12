@@ -561,8 +561,10 @@ static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 		   And all this only to mangle msg->im_msgtype and
 		   to set msg->im_mbz to "mbz" :-)
 		 */
-		msg = (struct igmpmsg*)skb_push(skb, sizeof(struct iphdr));
-		skb->nh.raw = skb->h.raw = (u8*)msg;
+		skb_push(skb, sizeof(struct iphdr));
+		skb_reset_network_header(skb);
+		skb->h.raw = skb->data;
+		msg = (struct igmpmsg *)skb->nh.raw;
 		memcpy(msg, skb_network_header(pkt), sizeof(struct iphdr));
 		msg->im_msgtype = IGMPMSG_WHOLEPKT;
 		msg->im_mbz = 0;
