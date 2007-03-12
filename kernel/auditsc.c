@@ -739,28 +739,26 @@ static inline void audit_free_context(struct audit_context *context)
 void audit_log_task_context(struct audit_buffer *ab)
 {
 	char *ctx = NULL;
-	ssize_t len = 0;
+	unsigned len;
+	int error;
+	u32 sid;
 
-	len = security_getprocattr(current, "current", NULL, 0);
-	if (len < 0) {
-		if (len != -EINVAL)
+	selinux_get_task_sid(current, &sid);
+	if (!sid)
+		return;
+
+	error = selinux_sid_to_string(sid, &ctx, &len);
+	if (error) {
+		if (error != -EINVAL)
 			goto error_path;
 		return;
 	}
 
-	ctx = kmalloc(len, GFP_KERNEL);
-	if (!ctx)
-		goto error_path;
-
-	len = security_getprocattr(current, "current", ctx, len);
-	if (len < 0 )
-		goto error_path;
-
 	audit_log_format(ab, " subj=%s", ctx);
+	kfree(ctx);
 	return;
 
 error_path:
-	kfree(ctx);
 	audit_panic("error in audit_log_task_context");
 	return;
 }
