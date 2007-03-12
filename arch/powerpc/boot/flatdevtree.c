@@ -961,19 +961,26 @@ int ft_del_prop(struct ft_cxt *cxt, const void *phandle, const char *propname)
 	return -1;
 }
 
-void *ft_create_node(struct ft_cxt *cxt, const void *parent, const char *path)
+void *ft_create_node(struct ft_cxt *cxt, const void *parent, const char *name)
 {
 	struct ft_atom atom;
 	char *p, *next;
 	int depth = 0;
 
-	p = ft_root_node(cxt);
+	if (parent) {
+		p = ft_node_ph2node(cxt, parent);
+		if (!p)
+			return NULL;
+	} else {
+		p = ft_root_node(cxt);
+	}
+
 	while ((next = ft_next(cxt, p, &atom)) != NULL) {
 		switch (atom.tag) {
 		case OF_DT_BEGIN_NODE:
 			++depth;
-			if (depth == 1 && strcmp(atom.name, path) == 0)
-				/* duplicate node path, return error */
+			if (depth == 1 && strcmp(atom.name, name) == 0)
+				/* duplicate node name, return error */
 				return NULL;
 			break;
 		case OF_DT_END_NODE:
@@ -982,7 +989,7 @@ void *ft_create_node(struct ft_cxt *cxt, const void *parent, const char *path)
 				break;
 			/* end of node, insert here */
 			cxt->p = p;
-			ft_begin_node(cxt, path);
+			ft_begin_node(cxt, name);
 			ft_end_node(cxt);
 			return p;
 		}
