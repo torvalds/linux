@@ -3275,24 +3275,30 @@ static int skge_set_mac_address(struct net_device *dev, void *p)
 	struct skge_hw *hw = skge->hw;
 	unsigned port = skge->port;
 	const struct sockaddr *addr = p;
+	u16 ctrl;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	mutex_lock(&hw->phy_mutex);
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-	memcpy_toio(hw->regs + B2_MAC_1 + port*8,
-		    dev->dev_addr, ETH_ALEN);
-	memcpy_toio(hw->regs + B2_MAC_2 + port*8,
-		    dev->dev_addr, ETH_ALEN);
 
-	if (hw->chip_id == CHIP_ID_GENESIS)
-		xm_outaddr(hw, port, XM_SA, dev->dev_addr);
-	else {
-		gma_set_addr(hw, port, GM_SRC_ADDR_1L, dev->dev_addr);
-		gma_set_addr(hw, port, GM_SRC_ADDR_2L, dev->dev_addr);
+	/* disable Rx */
+	ctrl = gma_read16(hw, port, GM_GP_CTRL);
+	gma_write16(hw, port, GM_GP_CTRL, ctrl & ~GM_GPCR_RX_ENA);
+
+	memcpy_toio(hw->regs + B2_MAC_1 + port*8, dev->dev_addr, ETH_ALEN);
+	memcpy_toio(hw->regs + B2_MAC_2 + port*8, dev->dev_addr, ETH_ALEN);
+
+	if (netif_running(dev)) {
+		if (hw->chip_id == CHIP_ID_GENESIS)
+			xm_outaddr(hw, port, XM_SA, dev->dev_addr);
+		else {
+			gma_set_addr(hw, port, GM_SRC_ADDR_1L, dev->dev_addr);
+			gma_set_addr(hw, port, GM_SRC_ADDR_2L, dev->dev_addr);
+		}
 	}
-	mutex_unlock(&hw->phy_mutex);
+
+	gma_write16(hw, port, GM_GP_CTRL, ctrl);
 
 	return 0;
 }
