@@ -148,13 +148,18 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		return -EAGAIN;
 
 	for (i = 0; i < num; i++) {
-		if (msg[i].flags & (I2C_M_NO_RD_ACK|I2C_M_IGNORE_NAK|I2C_M_TEN)) {
+		if (msg[i].flags & (I2C_M_NO_RD_ACK|I2C_M_IGNORE_NAK|I2C_M_TEN) ||
+		    msg[i].len == 0) {
+			/* For a 0 byte message, I think sending the address to index 0x80|0x40
+			 * would be the correct thing to do.  However, zero byte messages are
+			 * only used for probing, and since we don't know how to get the slave's
+			 * ack, we can't probe. */
 			ret = -ENOTSUPP;
 			goto unlock;
 		}
 		/* Send START & address/RW bit */
 		if (!(msg[i].flags & I2C_M_NOSTART)) {
-			if ((ret = m9206_write(d->udev, M9206_I2C, (msg[i].addr<<1)|(msg[i].flags&I2C_M_RD?0x01:00), 0x80)) != 0)
+			if ((ret = m9206_write(d->udev, M9206_I2C, (msg[i].addr<<1)|(msg[i].flags&I2C_M_RD?0x01:0), 0x80)) != 0)
 				goto unlock;
 			/* Should check for ack here, if we knew how. */
 		}
