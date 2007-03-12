@@ -765,38 +765,53 @@ void *ft_get_parent(struct ft_cxt *cxt, const void *phandle)
 	return NULL;
 }
 
-int ft_get_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
-		void *buf, const unsigned int buflen)
+static const void *__ft_get_prop(struct ft_cxt *cxt, void *node,
+                                 const char *propname, unsigned int *len)
 {
 	struct ft_atom atom;
-	void *node;
-	char *p;
-	int depth;
-	unsigned int size;
+	int depth = 0;
 
-	node = ft_node_ph2node(cxt, phandle);
-	if (node == NULL)
-		return -1;
-
-	depth = 0;
-	p = (char *)node;
-
-	while ((p = ft_next(cxt, p, &atom)) != NULL) {
+	while ((node = ft_next(cxt, node, &atom)) != NULL) {
 		switch (atom.tag) {
 		case OF_DT_BEGIN_NODE:
 			++depth;
 			break;
+
 		case OF_DT_PROP:
-			if ((depth != 1) || strcmp(atom.name, propname))
+			if (depth != 1 || strcmp(atom.name, propname))
 				break;
-			size = min(atom.size, buflen);
-			memcpy(buf, atom.data, size);
-			return atom.size;
+
+			if (len)
+				*len = atom.size;
+
+			return atom.data;
+
 		case OF_DT_END_NODE:
 			if (--depth <= 0)
-				return -1;
+				return NULL;
 		}
 	}
+
+	return NULL;
+}
+
+int ft_get_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
+		void *buf, const unsigned int buflen)
+{
+	const void *data;
+	unsigned int size;
+
+	void *node = ft_node_ph2node(cxt, phandle);
+	if (!node)
+		return -1;
+
+	data = __ft_get_prop(cxt, node, propname, &size);
+	if (data) {
+		unsigned int clipped_size = min(size, buflen);
+		memcpy(buf, data, clipped_size);
+		return size;
+	}
+
 	return -1;
 }
 
