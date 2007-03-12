@@ -29,6 +29,11 @@
 
 #define _ALIGN(x, al)	(((x) + (al) - 1) & ~((al) - 1))
 
+static char *ft_root_node(struct ft_cxt *cxt)
+{
+	return cxt->rgn[FT_STRUCT].start;
+}
+
 /* Routines for keeping node ptrs returned by ft_find_device current */
 /* First entry not used b/c it would return 0 and be taken as NULL/error */
 static void *ft_node_add(struct ft_cxt *cxt, char *node)
@@ -590,7 +595,7 @@ int ft_add_rsvmap(struct ft_cxt *cxt, u64 physaddr, u64 size)
 
 void ft_begin_tree(struct ft_cxt *cxt)
 {
-	cxt->p = cxt->rgn[FT_STRUCT].start;
+	cxt->p = ft_root_node(cxt);
 }
 
 void ft_end_tree(struct ft_cxt *cxt)
@@ -636,7 +641,7 @@ void *ft_find_device(struct ft_cxt *cxt, const char *srch_path)
 	/* require absolute path */
 	if (srch_path[0] != '/')
 		return NULL;
-	node = ft_find_descendent(cxt, cxt->rgn[FT_STRUCT].start, srch_path);
+	node = ft_find_descendent(cxt, ft_root_node(cxt), srch_path);
 	return ft_node_add(cxt, node);
 }
 
@@ -717,7 +722,7 @@ void *ft_get_parent(struct ft_cxt *cxt, const void *phandle)
 			return cxt->genealogy[d > 0 ? d - 1 : 0];
 
 	/* have to do it the hard way... */
-	p = cxt->rgn[FT_STRUCT].start;
+	p = ft_root_node(cxt);
 	d = 0;
 	while ((p = ft_next(cxt, p, &atom)) != NULL) {
 		switch (atom.tag) {
@@ -855,7 +860,7 @@ void *ft_create_node(struct ft_cxt *cxt, const void *parent, const char *path)
 	char *p, *next;
 	int depth = 0;
 
-	p = cxt->rgn[FT_STRUCT].start;
+	p = ft_root_node(cxt);
 	while ((next = ft_next(cxt, p, &atom)) != NULL) {
 		switch (atom.tag) {
 		case OF_DT_BEGIN_NODE:
