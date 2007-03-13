@@ -725,10 +725,11 @@ static void fill_nocache(void *buf, int size, int nocache)
 static inline void snd_intel8x0_update(struct intel8x0 *chip, struct ichdev *ichdev)
 {
 	unsigned long port = ichdev->reg_offset;
+	unsigned long flags;
 	int status, civ, i, step;
 	int ack = 0;
 
-	spin_lock(&chip->reg_lock);
+	spin_lock_irqsave(&chip->reg_lock, flags);
 	status = igetbyte(chip, port + ichdev->roff_sr);
 	civ = igetbyte(chip, port + ICH_REG_OFF_CIV);
 	if (!(status & ICH_BCIS)) {
@@ -768,7 +769,7 @@ static inline void snd_intel8x0_update(struct intel8x0 *chip, struct ichdev *ich
 			ack = 1;
 		}
 	}
-	spin_unlock(&chip->reg_lock);
+	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	if (ack && ichdev->substream) {
 		snd_pcm_period_elapsed(ichdev->substream);
 	}
