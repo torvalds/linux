@@ -134,10 +134,10 @@ extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 #define thread_saved_pc(tsk)    ((tsk)->thread.cpu_context.pc)
 
 struct pt_regs;
-void show_trace(struct task_struct *task, unsigned long *stack,
-		struct pt_regs *regs);
-
 extern unsigned long get_wchan(struct task_struct *p);
+extern void show_regs_log_lvl(struct pt_regs *regs, const char *log_lvl);
+extern void show_stack_log_lvl(struct task_struct *tsk, unsigned long sp,
+			       struct pt_regs *regs, const char *log_lvl);
 
 #define KSTK_EIP(tsk)	((tsk)->thread.cpu_context.pc)
 #define KSTK_ESP(tsk)	((tsk)->thread.cpu_context.ksp)
