@@ -42,6 +42,8 @@ struct crb_addr_pair {
 	u32 data;
 };
 
+unsigned long last_schedule_time;
+
 #define NETXEN_MAX_CRB_XFORM 60
 static unsigned int crb_addr_xform[NETXEN_MAX_CRB_XFORM];
 #define NETXEN_ADDR_ERROR (0xffffffff)
@@ -404,9 +406,14 @@ static inline int do_rom_fast_write(struct netxen_adapter *adapter, int addr,
 static inline int
 do_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp)
 {
+	if (jiffies > (last_schedule_time + (8 * HZ))) {
+		last_schedule_time = jiffies;
+		schedule();
+	}
+
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ADDRESS, addr);
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 3);
-	udelay(70);		/* prevent bursting on CRB */
+	udelay(100);		/* prevent bursting on CRB */
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_INSTR_OPCODE, 0xb);
 	if (netxen_wait_rom_done(adapter)) {
@@ -415,7 +422,7 @@ do_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp)
 	}
 	/* reset abyte_cnt and dummy_byte_cnt */
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 0);
-	udelay(70);		/* prevent bursting on CRB */
+	udelay(100);		/* prevent bursting on CRB */
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
 
 	*valp = netxen_nic_reg_read(adapter, NETXEN_ROMUSB_ROM_RDATA);
