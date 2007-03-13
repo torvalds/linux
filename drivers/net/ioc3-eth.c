@@ -1422,7 +1422,7 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		csoff = ETH_HLEN + (ih->ihl << 2);
 		if (proto == IPPROTO_UDP) {
 			csoff += offsetof(struct udphdr, check);
-			skb->h.uh->check = csum;
+			udp_hdr(skb)->check = csum;
 		}
 		if (proto == IPPROTO_TCP) {
 			csoff += offsetof(struct tcphdr, check);

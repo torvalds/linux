@@ -296,7 +296,9 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	memcpy(skb->data, msg, len);
 	skb->len += len;
 
-	skb->h.uh = udph = (struct udphdr *) skb_push(skb, sizeof(*udph));
+	skb_push(skb, sizeof(*udph));
+	skb_reset_transport_header(skb);
+	udph = udp_hdr(skb);
 	udph->source = htons(np->local_port);
 	udph->dest = htons(np->remote_port);
 	udph->len = htons(udp_len);

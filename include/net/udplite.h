@@ -101,7 +101,7 @@ static inline int udplite_sender_cscov(struct udp_sock *up, struct udphdr *uh)
 
 static inline __wsum udplite_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 {
-	int cscov = udplite_sender_cscov(udp_sk(sk), skb->h.uh);
+	int cscov = udplite_sender_cscov(udp_sk(sk), udp_hdr(skb));
 	__wsum csum = 0;
 
 	skb->ip_summed = CHECKSUM_NONE;     /* no HW support for checksumming */

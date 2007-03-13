@@ -229,10 +229,10 @@ int rxrpc_connection_lookup(struct rxrpc_peer *peer,
 	_enter("%p{{%hu}},%u,%hu",
 	       peer,
 	       peer->trans->port,
-	       ntohs(pkt->h.uh->source),
+	       ntohs(udp_hdr(pkt)->source),
 	       ntohs(msg->hdr.serviceId));
 
-	x_port		= pkt->h.uh->source;
+	x_port		= udp_hdr(pkt)->source;
 	x_epoch		= msg->hdr.epoch;
 	x_clflag	= msg->hdr.flags & RXRPC_CLIENT_INITIATED;
 	x_connid	= htonl(ntohl(msg->hdr.cid) & RXRPC_CIDMASK);
