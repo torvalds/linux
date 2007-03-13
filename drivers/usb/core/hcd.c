@@ -37,6 +37,7 @@
 #include <asm/irq.h>
 #include <asm/byteorder.h>
 #include <linux/platform_device.h>
+#include <linux/workqueue.h>
 
 #include <linux/usb.h>
 
@@ -1298,14 +1299,25 @@ int hcd_bus_resume (struct usb_bus *bus)
 	return status;
 }
 
+/* Workqueue routine for root-hub remote wakeup */
+static void hcd_resume_work(struct work_struct *work)
+{
+	struct usb_hcd *hcd = container_of(work, struct usb_hcd, wakeup_work);
+	struct usb_device *udev = hcd->self.root_hub;
+
+	usb_lock_device(udev);
+	usb_external_resume_device(udev);
+	usb_unlock_device(udev);
+}
+
 /**
  * usb_hcd_resume_root_hub - called by HCD to resume its root hub 
  * @hcd: host controller for this root hub
  *
  * The USB host controller calls this function when its root hub is
  * suspended (with the remote wakeup feature enabled) and a remote
- * wakeup request is received.  It queues a request for khubd to
- * resume the root hub (that is, manage its downstream ports again).
+ * wakeup request is received.  The routine submits a workqueue request
+ * to resume the root hub (that is, manage its downstream ports again).
  */
 void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
 {
@@ -1313,7 +1325,7 @@ void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
 
 	spin_lock_irqsave (&hcd_root_hub_lock, flags);
 	if (hcd->rh_registered)
-		usb_resume_root_hub (hcd->self.root_hub);
+		queue_work(ksuspend_usb_wq, &hcd->wakeup_work);
 	spin_unlock_irqrestore (&hcd_root_hub_lock, flags);
 }
 EXPORT_SYMBOL_GPL(usb_hcd_resume_root_hub);
@@ -1502,6 +1514,9 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 	init_timer(&hcd->rh_timer);
 	hcd->rh_timer.function = rh_timer_func;
 	hcd->rh_timer.data = (unsigned long) hcd;
+#ifdef CONFIG_PM
+	INIT_WORK(&hcd->wakeup_work, hcd_resume_work);
+#endif
 
 	hcd->driver = driver;
 	hcd->product_desc = (driver->product_desc) ? driver->product_desc :
@@ -1667,6 +1682,10 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	spin_lock_irq (&hcd_root_hub_lock);
 	hcd->rh_registered = 0;
 	spin_unlock_irq (&hcd_root_hub_lock);
+
+#ifdef CONFIG_PM
+	flush_workqueue(ksuspend_usb_wq);
+#endif
 
 	mutex_lock(&usb_bus_list_lock);
 	usb_disconnect(&hcd->self.root_hub);

@@ -1424,39 +1424,77 @@ void usb_autosuspend_work(struct work_struct *work)
 
 #endif /* CONFIG_USB_SUSPEND */
 
-static int usb_suspend(struct device *dev, pm_message_t message)
+/**
+ * usb_external_suspend_device - external suspend of a USB device and its interfaces
+ * @udev: the usb_device to suspend
+ * @msg: Power Management message describing this state transition
+ *
+ * This routine handles external suspend requests: ones not generated
+ * internally by a USB driver (autosuspend) but rather coming from the user
+ * (via sysfs) or the PM core (system sleep).  The suspend will be carried
+ * out regardless of @udev's usage counter or those of its interfaces,
+ * and regardless of whether or not remote wakeup is enabled.  Of course,
+ * interface drivers still have the option of failing the suspend (if
+ * there are unsuspended children, for example).
+ *
+ * The caller must hold @udev's device lock.
+ */
+int usb_external_suspend_device(struct usb_device *udev, pm_message_t msg)
 {
 	int	status;
 
-	if (is_usb_device(dev)) {
-		struct usb_device *udev = to_usb_device(dev);
-
-		usb_pm_lock(udev);
-		udev->auto_pm = 0;
-		status = usb_suspend_both(udev, message);
-		usb_pm_unlock(udev);
-	} else
-		status = 0;
+	usb_pm_lock(udev);
+	udev->auto_pm = 0;
+	status = usb_suspend_both(udev, msg);
+	usb_pm_unlock(udev);
 	return status;
+}
+
+/**
+ * usb_external_resume_device - external resume of a USB device and its interfaces
+ * @udev: the usb_device to resume
+ *
+ * This routine handles external resume requests: ones not generated
+ * internally by a USB driver (autoresume) but rather coming from the user
+ * (via sysfs), the PM core (system resume), or the device itself (remote
+ * wakeup).  @udev's usage counter is unaffected.
+ *
+ * The caller must hold @udev's device lock.
+ */
+int usb_external_resume_device(struct usb_device *udev)
+{
+	int	status;
+
+	usb_pm_lock(udev);
+	udev->auto_pm = 0;
+	status = usb_resume_both(udev);
+	usb_pm_unlock(udev);
+
+	/* Now that the device is awake, we can start trying to autosuspend
+	 * it again. */
+	if (status == 0)
+		usb_try_autosuspend_device(udev);
+	return status;
+}
+
+static int usb_suspend(struct device *dev, pm_message_t message)
+{
+	if (!is_usb_device(dev))	/* Ignore PM for interfaces */
+		return 0;
+	return usb_external_suspend_device(to_usb_device(dev), message);
 }
 
 static int usb_resume(struct device *dev)
 {
-	int	status;
-
-	if (is_usb_device(dev)) {
-		struct usb_device *udev = to_usb_device(dev);
-
-		usb_pm_lock(udev);
-		udev->auto_pm = 0;
-		status = usb_resume_both(udev);
-		usb_pm_unlock(udev);
-
-		/* Rebind drivers that had no suspend method? */
-	} else
-		status = 0;
-	return status;
+	if (!is_usb_device(dev))	/* Ignore PM for interfaces */
+		return 0;
+	return usb_external_resume_device(to_usb_device(dev));
 }
+
+#else
+
+#define usb_suspend	NULL
+#define usb_resume	NULL
 
 #endif /* CONFIG_PM */
 
@@ -1464,8 +1502,6 @@ struct bus_type usb_bus_type = {
 	.name =		"usb",
 	.match =	usb_device_match,
 	.uevent =	usb_uevent,
-#ifdef CONFIG_PM
 	.suspend =	usb_suspend,
 	.resume =	usb_resume,
-#endif
 };
