@@ -390,7 +390,7 @@ static void sctp_v6_from_skb(union sctp_addr *addr,struct sk_buff *skb,
 	addr->v6.sin6_flowinfo = 0; /* FIXME */
 	addr->v6.sin6_scope_id = ((struct inet6_skb_parm *)skb->cb)->iif;
 
-	sh = (struct sctphdr *) skb->h.raw;
+	sh = sctp_hdr(skb);
 	if (is_saddr) {
 		*port  = sh->source;
 		from = &ipv6_hdr(skb)->saddr;
@@ -765,7 +765,7 @@ static void sctp_inet6_skb_msgname(struct sk_buff *skb, char *msgname,
 	if (msgname) {
 		sctp_inet6_msgname(msgname, addr_len);
 		sin6 = (struct sockaddr_in6 *)msgname;
-		sh = (struct sctphdr *)skb->h.raw;
+		sh = sctp_hdr(skb);
 		sin6->sin6_port = sh->source;
 
 		/* Map ipv4 address into v4-mapped-on-v6 address. */

@@ -235,7 +235,7 @@ static void sctp_v4_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 	port = &addr->v4.sin_port;
 	addr->v4.sin_family = AF_INET;
 
-	sh = (struct sctphdr *) skb->h.raw;
+	sh = sctp_hdr(skb);
 	if (is_saddr) {
 		*port  = sh->source;
 		from = &ip_hdr(skb)->saddr;
@@ -731,13 +731,11 @@ static void sctp_inet_event_msgname(struct sctp_ulpevent *event, char *msgname,
 /* Initialize and copy out a msgname from an inbound skb. */
 static void sctp_inet_skb_msgname(struct sk_buff *skb, char *msgname, int *len)
 {
-	struct sctphdr *sh;
-	struct sockaddr_in *sin;
-
 	if (msgname) {
+		struct sctphdr *sh = sctp_hdr(skb);
+		struct sockaddr_in *sin = (struct sockaddr_in *)msgname;
+
 		sctp_inet_msgname(msgname, len);
-		sin = (struct sockaddr_in *)msgname;
-		sh = (struct sctphdr *)skb->h.raw;
 		sin->sin_port = sh->source;
 		sin->sin_addr.s_addr = ip_hdr(skb)->saddr;
 	}

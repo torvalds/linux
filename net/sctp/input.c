@@ -79,14 +79,10 @@ static void sctp_add_backlog(struct sock *sk, struct sk_buff *skb);
 /* Calculate the SCTP checksum of an SCTP packet.  */
 static inline int sctp_rcv_checksum(struct sk_buff *skb)
 {
-	struct sctphdr *sh;
-	__u32 cmp, val;
 	struct sk_buff *list = skb_shinfo(skb)->frag_list;
-
-	sh = (struct sctphdr *) skb->h.raw;
-	cmp = ntohl(sh->checksum);
-
-	val = sctp_start_cksum((__u8 *)sh, skb_headlen(skb));
+	struct sctphdr *sh = sctp_hdr(skb);
+	__u32 cmp = ntohl(sh->checksum);
+	__u32 val = sctp_start_cksum((__u8 *)sh, skb_headlen(skb));
 
 	for (; list; list = list->next)
 		val = sctp_update_cksum((__u8 *)list->data, skb_headlen(list),
@@ -138,7 +134,7 @@ int sctp_rcv(struct sk_buff *skb)
 	if (skb_linearize(skb))
 		goto discard_it;
 
-	sh = (struct sctphdr *) skb->h.raw;
+	sh = sctp_hdr(skb);
 
 	/* Pull up the IP and SCTP headers. */
 	__skb_pull(skb, skb_transport_offset(skb));
@@ -905,7 +901,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct sk_buff *skb,
 	struct sctp_association *asoc;
 	union sctp_addr addr;
 	union sctp_addr *paddr = &addr;
-	struct sctphdr *sh = (struct sctphdr *) skb->h.raw;
+	struct sctphdr *sh = sctp_hdr(skb);
 	sctp_chunkhdr_t *ch;
 	union sctp_params params;
 	sctp_init_chunk_t *init;
