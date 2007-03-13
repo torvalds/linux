@@ -313,15 +313,11 @@ extern int csr1212_parse_keyval(struct csr1212_keyval *kv,
 				struct csr1212_csr_rom_cache *cache);
 extern int csr1212_parse_csr(struct csr1212_csr *csr);
 
-/* These are internal functions referenced by inline functions below. */
-extern int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv);
-extern void _csr1212_destroy_keyval(struct csr1212_keyval *kv);
-
 
 /* This function allocates a new cache which may be used for either parsing or
  * generating sub-sets of Configuration ROM images. */
-static inline struct csr1212_csr_rom_cache *csr1212_rom_cache_malloc(u32 offset,
-								     size_t size)
+static inline struct csr1212_csr_rom_cache *
+csr1212_rom_cache_malloc(u32 offset, size_t size)
 {
 	struct csr1212_csr_rom_cache *cache;
 
@@ -345,16 +341,8 @@ static inline struct csr1212_csr_rom_cache *csr1212_rom_cache_malloc(u32 offset,
 
 /* This function ensures that a keyval contains data when referencing a keyval
  * created by parsing a Configuration ROM. */
-static inline struct csr1212_keyval *csr1212_get_keyval(struct csr1212_csr *csr,
-							struct csr1212_keyval *kv)
-{
-	if (!kv)
-		return NULL;
-	if (!kv->valid)
-		if (_csr1212_read_keyval(csr, kv) != CSR1212_SUCCESS)
-			return NULL;
-	return kv;
-}
+extern struct csr1212_keyval *
+csr1212_get_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv);
 
 
 /* This function increments the reference count for a keyval should there be a
@@ -369,13 +357,7 @@ static inline void csr1212_keep_keyval(struct csr1212_keyval *kv)
  * keyval when there are no more users of the keyval.  This should be called by
  * any code that calls csr1212_keep_keyval() or any of the keyval creation
  * routines csr1212_new_*(). */
-static inline void csr1212_release_keyval(struct csr1212_keyval *kv)
-{
-	if (kv->refcnt > 1)
-		kv->refcnt--;
-	else
-		_csr1212_destroy_keyval(kv);
-}
+extern void csr1212_release_keyval(struct csr1212_keyval *kv);
 
 
 /*

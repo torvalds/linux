@@ -518,7 +518,7 @@ void csr1212_detach_keyval_from_directory(struct csr1212_keyval *dir,
  * will be destroyed as well if their respective refcnts are 0.  By means of
  * list manipulation, this routine will descend a directory structure in a
  * non-recursive manner. */
-void _csr1212_destroy_keyval(struct csr1212_keyval *kv)
+static void csr1212_destroy_keyval(struct csr1212_keyval *kv)
 {
 	struct csr1212_keyval *k, *a;
 	struct csr1212_dentry dentry;
@@ -564,6 +564,14 @@ void _csr1212_destroy_keyval(struct csr1212_keyval *kv)
 		} else if (tail != &dentry)
 			CSR1212_FREE(tail);
 	}
+}
+
+void csr1212_release_keyval(struct csr1212_keyval *kv)
+{
+	if (kv->refcnt > 1)
+		kv->refcnt--;
+	else
+		csr1212_destroy_keyval(kv);
 }
 
 void csr1212_destroy_csr(struct csr1212_csr *csr)
@@ -1251,7 +1259,8 @@ fail:
 	return ret;
 }
 
-int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
+static int
+csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 {
 	struct csr1212_cache_region *cr, *ncr, *newcr = NULL;
 	struct csr1212_keyval_img *kvi = NULL;
@@ -1412,6 +1421,17 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 	return csr1212_parse_keyval(kv, cache);
 }
 
+struct csr1212_keyval *
+csr1212_get_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
+{
+	if (!kv)
+		return NULL;
+	if (!kv->valid)
+		if (csr1212_read_keyval(csr, kv) != CSR1212_SUCCESS)
+			return NULL;
+	return kv;
+}
+
 int csr1212_parse_csr(struct csr1212_csr *csr)
 {
 	static const int mr_map[] = { 4, 64, 1024, 0 };
@@ -1443,7 +1463,7 @@ int csr1212_parse_csr(struct csr1212_csr *csr)
 	csr->root_kv->valid = 0;
 	csr->root_kv->next = csr->root_kv;
 	csr->root_kv->prev = csr->root_kv;
-	ret = _csr1212_read_keyval(csr, csr->root_kv);
+	ret = csr1212_read_keyval(csr, csr->root_kv);
 	if (ret != CSR1212_SUCCESS)
 		return ret;
 
@@ -1453,7 +1473,7 @@ int csr1212_parse_csr(struct csr1212_csr *csr)
 	     dentry; dentry = dentry->next) {
 		if (dentry->kv->key.id == CSR1212_KV_ID_EXTENDED_ROM &&
 			!dentry->kv->valid) {
-			ret = _csr1212_read_keyval(csr, dentry->kv);
+			ret = csr1212_read_keyval(csr, dentry->kv);
 			if (ret != CSR1212_SUCCESS)
 				return ret;
 		}
