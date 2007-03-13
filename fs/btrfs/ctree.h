@@ -128,7 +128,7 @@ struct leaf {
 struct node {
 	struct btrfs_header header;
 	struct btrfs_disk_key keys[NODEPTRS_PER_BLOCK];
-	u64 blockptrs[NODEPTRS_PER_BLOCK];
+	__le64 blockptrs[NODEPTRS_PER_BLOCK];
 } __attribute__ ((__packed__));
 
 /*
@@ -152,6 +152,16 @@ struct ctree_path {
 	struct tree_buffer *nodes[MAX_LEVEL];
 	int slots[MAX_LEVEL];
 };
+
+static inline u64 btrfs_node_blockptr(struct node *n, int nr)
+{
+	return le64_to_cpu(n->blockptrs[nr]);
+}
+
+static inline void btrfs_set_node_blockptr(struct node *n, int nr, u64 val)
+{
+	n->blockptrs[nr] = cpu_to_le64(val);
+}
 
 static inline u16 btrfs_item_offset(struct btrfs_item *item)
 {

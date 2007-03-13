@@ -85,7 +85,7 @@ int btrfs_inc_ref(struct ctree_root *root, struct tree_buffer *buf)
 		return 0;
 
 	for (i = 0; i < btrfs_header_nritems(&buf->node.header); i++) {
-		blocknr = buf->node.blockptrs[i];
+		blocknr = btrfs_node_blockptr(&buf->node, i);
 		inc_block_ref(root, blocknr);
 	}
 	return 0;
@@ -437,7 +437,7 @@ int walk_down_tree(struct ctree_root *root, struct ctree_path *path, int *level)
 		if (path->slots[*level] >=
 		    btrfs_header_nritems(&cur->node.header))
 			break;
-		blocknr = cur->node.blockptrs[path->slots[*level]];
+		blocknr = btrfs_node_blockptr(&cur->node, path->slots[*level]);
 		ret = lookup_block_ref(root, blocknr, &refs);
 		if (refs != 1 || *level == 1) {
 			path->slots[*level]++;

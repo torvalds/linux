@@ -54,12 +54,12 @@ void print_tree(struct ctree_root *root, struct tree_buffer *t)
 		printf("\tkey %d (%Lu %u %Lu) block %Lu\n",
 		       i,
 		       c->keys[i].objectid, c->keys[i].flags, c->keys[i].offset,
-		       c->blockptrs[i]);
+		       btrfs_node_blockptr(c, i));
 		fflush(stdout);
 	}
 	for (i = 0; i < nr; i++) {
 		struct tree_buffer *next_buf = read_tree_block(root,
-							    c->blockptrs[i]);
+						btrfs_node_blockptr(c, i));
 		struct node *next = &next_buf->node;
 		if (btrfs_is_leaf(next) &&
 		    btrfs_header_level(&c->header) != 1)
