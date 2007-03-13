@@ -1518,7 +1518,7 @@ static int azx_dev_free(struct snd_device *device)
 /*
  * white/black-listing for position_fix
  */
-static const struct snd_pci_quirk position_fix_list[] __devinitdata = {
+static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_NONE),
 	{}
 };
