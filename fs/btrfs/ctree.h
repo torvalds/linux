@@ -4,7 +4,12 @@
 #include "list.h"
 #include "kerncompat.h"
 
+#define BTRFS_MAGIC "_BtRfS_M"
 #define BTRFS_BLOCKSIZE 1024
+
+#define BTRFS_ROOT_TREE_OBJECTID 1
+#define BTRFS_EXTENT_TREE_OBJECTID 2
+#define BTRFS_FS_TREE_OBJECTID 3
 
 /*
  * the key defines the order in the tree, and so it also defines (optimal)
@@ -36,7 +41,7 @@ struct btrfs_key {
  * every tree block (leaf or node) starts with this header.
  */
 struct btrfs_header {
-	__le64 fsid[2]; /* FS specific uuid */
+	u8 fsid[16]; /* FS specific uuid */
 	__le64 blocknr; /* which block this node is supposed to live in */
 	__le64 parentid; /* objectid of the tree root */
 	__le32 csum;
@@ -52,6 +57,14 @@ struct btrfs_header {
 
 struct btrfs_buffer;
 
+struct btrfs_root_item {
+	__le64 blocknr;
+	__le32 flags;
+	__le64 block_limit;
+	__le64 blocks_used;
+	__le32 refs;
+};
+
 /*
  * in ram representation of the tree.  extent_root is used for all allocations
  * and for the extent tree extent_root root.  current_insert is used
@@ -61,6 +74,7 @@ struct btrfs_root {
 	struct btrfs_buffer *node;
 	struct btrfs_buffer *commit_root;
 	struct btrfs_root *extent_root;
+	struct btrfs_root *tree_root;
 	struct btrfs_key current_insert;
 	struct btrfs_key last_insert;
 	int fp;
@@ -69,28 +83,25 @@ struct btrfs_root {
 	struct list_head trans;
 	struct list_head cache;
 	int cache_size;
+	int ref_cows;
+	struct btrfs_root_item root_item;
+	struct btrfs_key root_key;
 };
-
-/*
- * describes a tree on disk
- */
-struct btrfs_root_info {
-	u64 fsid[2]; /* FS specific uuid */
-	u64 blocknr; /* blocknr of this block */
-	u64 objectid; /* inode number of this root */
-	u64 tree_root; /* the tree root block */
-	u32 csum;
-	u32 ham;
-	u64 snapuuid[2]; /* root specific uuid */
-} __attribute__ ((__packed__));
 
 /*
  * the super block basically lists the main trees of the FS
  * it currently lacks any block count etc etc
  */
 struct btrfs_super_block {
-	struct btrfs_root_info root_info;
-	struct btrfs_root_info extent_info;
+	u8 fsid[16];    /* FS specific uuid */
+	__le64 blocknr; /* this block number */
+	__le32 csum;
+	__le64 magic;
+	__le16 blocksize;
+	__le64 generation;
+	__le64 root;
+	__le64 total_blocks;
+	__le64 blocks_used;
 } __attribute__ ((__packed__));
 
 /*
@@ -317,6 +328,79 @@ static inline int btrfs_is_leaf(struct btrfs_node *n)
 	return (btrfs_header_level(&n->header) == 0);
 }
 
+static inline u64 btrfs_root_blocknr(struct btrfs_root_item *item)
+{
+	return le64_to_cpu(item->blocknr);
+}
+
+static inline void btrfs_set_root_blocknr(struct btrfs_root_item *item, u64 val)
+{
+	item->blocknr = cpu_to_le64(val);
+}
+
+static inline u32 btrfs_root_refs(struct btrfs_root_item *item)
+{
+	return le32_to_cpu(item->refs);
+}
+
+static inline void btrfs_set_root_refs(struct btrfs_root_item *item, u32 val)
+{
+	item->refs = cpu_to_le32(val);
+}
+
+static inline u64 btrfs_super_blocknr(struct btrfs_super_block *s)
+{
+	return le64_to_cpu(s->blocknr);
+}
+
+static inline void btrfs_set_super_blocknr(struct btrfs_super_block *s, u64 val)
+{
+	s->blocknr = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_super_root(struct btrfs_super_block *s)
+{
+	return le64_to_cpu(s->root);
+}
+
+static inline void btrfs_set_super_root(struct btrfs_super_block *s, u64 val)
+{
+	s->root = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_super_total_blocks(struct btrfs_super_block *s)
+{
+	return le64_to_cpu(s->total_blocks);
+}
+
+static inline void btrfs_set_super_total_blocks(struct btrfs_super_block *s,
+						u64 val)
+{
+	s->total_blocks = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_super_blocks_used(struct btrfs_super_block *s)
+{
+	return le64_to_cpu(s->blocks_used);
+}
+
+static inline void btrfs_set_super_blocks_used(struct btrfs_super_block *s,
+						u64 val)
+{
+	s->blocks_used = cpu_to_le64(val);
+}
+
+static inline u16 btrfs_super_blocksize(struct btrfs_super_block *s)
+{
+	return le16_to_cpu(s->blocksize);
+}
+
+static inline void btrfs_set_super_blocksize(struct btrfs_super_block *s,
+						u16 val)
+{
+	s->blocksize = cpu_to_le16(val);
+}
+
 struct btrfs_buffer *btrfs_alloc_free_block(struct btrfs_root *root);
 int btrfs_inc_ref(struct btrfs_root *root, struct btrfs_buffer *buf);
 int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks);
@@ -331,4 +415,11 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_leaf_free_space(struct btrfs_leaf *leaf);
 int btrfs_drop_snapshot(struct btrfs_root *root, struct btrfs_buffer *snap);
 int btrfs_finish_extent_commit(struct btrfs_root *root);
+int btrfs_del_root(struct btrfs_root *root, struct btrfs_key *key);
+int btrfs_insert_root(struct btrfs_root *root, struct btrfs_key *key,
+		      struct btrfs_root_item *item);
+int btrfs_update_root(struct btrfs_root *root, struct btrfs_key *key,
+		      struct btrfs_root_item *item);
+int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
+			struct btrfs_root_item *item, struct btrfs_key *key);
 #endif

@@ -82,7 +82,7 @@ int btrfs_inc_ref(struct btrfs_root *root, struct btrfs_buffer *buf)
 	u64 blocknr;
 	int i;
 
-	if (root == root->extent_root)
+	if (!root->ref_cows)
 		return 0;
 	if (btrfs_is_leaf(&buf->node))
 		return 0;
@@ -96,23 +96,22 @@ int btrfs_inc_ref(struct btrfs_root *root, struct btrfs_buffer *buf)
 
 int btrfs_finish_extent_commit(struct btrfs_root *root)
 {
-	struct btrfs_root *extent_root = root->extent_root;
 	unsigned long gang[8];
 	int ret;
 	int i;
 
 	while(1) {
-		ret = radix_tree_gang_lookup(&extent_root->pinned_radix,
+		ret = radix_tree_gang_lookup(&root->pinned_radix,
 						 (void **)gang, 0,
 						 ARRAY_SIZE(gang));
 		if (!ret)
 			break;
 		for (i = 0; i < ret; i++) {
-			radix_tree_delete(&extent_root->pinned_radix, gang[i]);
+			radix_tree_delete(&root->pinned_radix, gang[i]);
 		}
 	}
-	extent_root->last_insert.objectid = 0;
-	extent_root->last_insert.offset = 0;
+	root->last_insert.objectid = 0;
+	root->last_insert.offset = 0;
 	return 0;
 }
 
@@ -173,7 +172,7 @@ static int __free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
 	refs = btrfs_extent_refs(ei) - 1;
 	btrfs_set_extent_refs(ei, refs);
 	if (refs == 0) {
-		if (root == extent_root) {
+		if (!root->ref_cows) {
 			int err;
 			radix_tree_preload(GFP_KERNEL);
 			err = radix_tree_insert(&extent_root->pinned_radix,
@@ -513,7 +512,7 @@ static int walk_up_tree(struct btrfs_root *root, struct btrfs_path *path,
  */
 int btrfs_drop_snapshot(struct btrfs_root *root, struct btrfs_buffer *snap)
 {
-	int ret = 0;;
+	int ret = 0;
 	int wret;
 	int level;
 	struct btrfs_path path;

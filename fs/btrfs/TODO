@@ -5,6 +5,7 @@
 * make a real mkfs and superblock
 * Do checksumming
 * Define FS objects in terms of different item types
+* add inode tree
 * Add block mapping tree (simple dm layer)
 * Add simple tree locking (semaphore per tree)
 * Make allocator smarter

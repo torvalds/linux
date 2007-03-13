@@ -24,7 +24,8 @@ struct btrfs_root *open_ctree(char *filename, struct btrfs_super_block *s);
 int close_ctree(struct btrfs_root *root, struct btrfs_super_block *s);
 void btrfs_block_release(struct btrfs_root *root, struct btrfs_buffer *buf);
 int write_ctree_super(struct btrfs_root *root, struct btrfs_super_block *s);
-int mkfs(int fd);
+int mkfs(int fd, u64 num_blocks, u16 blocksize);
+
 
 #define BTRFS_SUPER_INFO_OFFSET(bs) (16 * (bs))
 

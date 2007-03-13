@@ -11,6 +11,7 @@ void btrfs_print_leaf(struct btrfs_leaf *l)
 	u32 nr = btrfs_header_nritems(&l->header);
 	struct btrfs_item *item;
 	struct btrfs_extent_item *ei;
+	struct btrfs_root_item *ri;
 	printf("leaf %Lu total ptrs %d free space %d\n",
 		btrfs_header_blocknr(&l->header), nr, btrfs_leaf_free_space(l));
 	fflush(stdout);
@@ -23,13 +24,15 @@ void btrfs_print_leaf(struct btrfs_leaf *l)
 			btrfs_key_offset(&item->key),
 			btrfs_item_offset(item),
 			btrfs_item_size(item));
-		fflush(stdout);
 		printf("\t\titem data %.*s\n", btrfs_item_size(item),
 			l->data + btrfs_item_offset(item));
 		ei = (struct btrfs_extent_item *)(l->data +
 						  btrfs_item_offset(item));
-		printf("\t\textent data refs %u owner %Lu\n", ei->refs,
-			ei->owner);
+		printf("\t\textent data refs %u owner %Lu\n",
+			btrfs_extent_refs(ei), btrfs_extent_owner(ei));
+		ri = (struct btrfs_root_item *)ei;
+		printf("\t\troot data blocknr %Lu refs %u\n",
+			btrfs_root_blocknr(ri), btrfs_root_refs(ri));
 		fflush(stdout);
 	}
 }
@@ -71,6 +74,5 @@ void btrfs_print_tree(struct btrfs_root *root, struct btrfs_buffer *t)
 		btrfs_print_tree(root, next_buf);
 		btrfs_block_release(root, next_buf);
 	}
-
 }
 
