@@ -1600,6 +1600,11 @@ static int stac92xx_init(struct hda_codec *codec)
 		for (i = 0; i < cfg->hp_outs; i++)
 			enable_pin_detect(codec, cfg->hp_pins[i],
 					  STAC_HP_EVENT);
+		/* force to enable the first line-out; the others are set up
+		 * in unsol_event
+		 */
+		stac92xx_auto_set_pinctl(codec, spec->autocfg.line_out_pins[0],
+					 AC_PINCTL_OUT_EN);
 		stac92xx_auto_init_hp_out(codec);
 		/* fake event to set up pins */
 		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
