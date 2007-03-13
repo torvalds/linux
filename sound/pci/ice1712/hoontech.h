@@ -35,7 +35,7 @@
 #define ICE1712_SUBDEVICE_STDSP24_MEDIA7_1	0x16141217	/* Hoontech ST Audio DSP24 Media 7.1 */
 #define ICE1712_SUBDEVICE_EVENT_EZ8		0x00010001	/* A dummy id for EZ8 */
 
-extern const struct snd_ice1712_card_info snd_ice1712_hoontech_cards[];
+extern struct snd_ice1712_card_info snd_ice1712_hoontech_cards[];
 
 
 /* Hoontech SoundTrack Audio DSP 24 GPIO definitions */

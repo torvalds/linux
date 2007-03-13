@@ -46,7 +46,7 @@
 #define ICE1712_SUBDEVICE_MEDIASTATION	0x694c0100
 
 /* entry point */
-extern const struct snd_ice1712_card_info snd_ice1712_delta_cards[];
+extern struct snd_ice1712_card_info snd_ice1712_delta_cards[];
 
 
 /*
