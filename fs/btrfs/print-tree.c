@@ -5,14 +5,14 @@
 #include "ctree.h"
 #include "disk-io.h"
 
-void print_leaf(struct leaf *l)
+void btrfs_print_leaf(struct btrfs_leaf *l)
 {
 	int i;
 	u32 nr = btrfs_header_nritems(&l->header);
 	struct btrfs_item *item;
-	struct extent_item *ei;
+	struct btrfs_extent_item *ei;
 	printf("leaf %Lu total ptrs %d free space %d\n",
-		btrfs_header_blocknr(&l->header), nr, leaf_free_space(l));
+		btrfs_header_blocknr(&l->header), nr, btrfs_leaf_free_space(l));
 	fflush(stdout);
 	for (i = 0 ; i < nr ; i++) {
 		item = l->items + i;
@@ -26,24 +26,25 @@ void print_leaf(struct leaf *l)
 		fflush(stdout);
 		printf("\t\titem data %.*s\n", btrfs_item_size(item),
 			l->data + btrfs_item_offset(item));
-		ei = (struct extent_item *)(l->data + btrfs_item_offset(item));
+		ei = (struct btrfs_extent_item *)(l->data +
+						  btrfs_item_offset(item));
 		printf("\t\textent data refs %u owner %Lu\n", ei->refs,
 			ei->owner);
 		fflush(stdout);
 	}
 }
-void print_tree(struct ctree_root *root, struct tree_buffer *t)
+void btrfs_print_tree(struct btrfs_root *root, struct btrfs_buffer *t)
 {
 	int i;
 	u32 nr;
-	struct node *c;
+	struct btrfs_node *c;
 
 	if (!t)
 		return;
 	c = &t->node;
 	nr = btrfs_header_nritems(&c->header);
 	if (btrfs_is_leaf(c)) {
-		print_leaf((struct leaf *)c);
+		btrfs_print_leaf((struct btrfs_leaf *)c);
 		return;
 	}
 	printf("node %Lu level %d total ptrs %d free spc %u\n", t->blocknr,
@@ -58,17 +59,17 @@ void print_tree(struct ctree_root *root, struct tree_buffer *t)
 		fflush(stdout);
 	}
 	for (i = 0; i < nr; i++) {
-		struct tree_buffer *next_buf = read_tree_block(root,
+		struct btrfs_buffer *next_buf = read_tree_block(root,
 						btrfs_node_blockptr(c, i));
-		struct node *next = &next_buf->node;
+		struct btrfs_node *next = &next_buf->node;
 		if (btrfs_is_leaf(next) &&
 		    btrfs_header_level(&c->header) != 1)
 			BUG();
 		if (btrfs_header_level(&next->header) !=
 			btrfs_header_level(&c->header) - 1)
 			BUG();
-		print_tree(root, next_buf);
-		tree_block_release(root, next_buf);
+		btrfs_print_tree(root, next_buf);
+		btrfs_block_release(root, next_buf);
 	}
 
 }

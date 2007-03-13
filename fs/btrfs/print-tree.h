@@ -1,3 +1,3 @@
 
-void print_leaf(struct leaf *l);
-void print_tree(struct ctree_root *root, struct tree_buffer *t);
+void btrfs_print_leaf(struct btrfs_leaf *l);
+void btrfs_print_tree(struct btrfs_root *root, struct btrfs_buffer *t);

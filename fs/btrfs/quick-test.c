@@ -22,9 +22,9 @@ int main(int ac, char **av) {
 	int run_size = 100000;
 	int max_key =  100000000;
 	int tree_size = 0;
-	struct ctree_path path;
-	struct ctree_super_block super;
-	struct ctree_root *root;
+	struct btrfs_path path;
+	struct btrfs_super_block super;
+	struct btrfs_root *root;
 
 	radix_tree_init();
 
@@ -40,12 +40,12 @@ int main(int ac, char **av) {
 		ins.objectid = num;
 		ins.offset = 0;
 		ins.flags = 0;
-		ret = insert_item(root, &ins, buf, strlen(buf));
+		ret = btrfs_insert_item(root, &ins, buf, strlen(buf));
 		if (!ret)
 			tree_size++;
 		free(buf);
 		if (i == run_size - 5) {
-			commit_transaction(root, &super);
+			btrfs_commit_transaction(root, &super);
 		}
 
 	}
@@ -57,16 +57,16 @@ int main(int ac, char **av) {
 	for (i = 0; i < run_size; i++) {
 		num = next_key(i, max_key);
 		ins.objectid = num;
-		init_path(&path);
+		btrfs_init_path(&path);
 		if (i % 10000 == 0)
 			fprintf(stderr, "search %d:%d\n", num, i);
-		ret = search_slot(root, &ins, &path, 0, 0);
+		ret = btrfs_search_slot(root, &ins, &path, 0, 0);
 		if (ret) {
-			print_tree(root, root->node);
+			btrfs_print_tree(root, root->node);
 			printf("unable to find %d\n", num);
 			exit(1);
 		}
-		release_path(root, &path);
+		btrfs_release_path(root, &path);
 	}
 	close_ctree(root, &super);
 	root = open_ctree("dbfile", &super);
@@ -81,17 +81,17 @@ int main(int ac, char **av) {
 	for (i = 0 ; i < run_size/4; i++) {
 		num = next_key(i, max_key);
 		ins.objectid = num;
-		init_path(&path);
-		ret = search_slot(root, &ins, &path, -1, 1);
+		btrfs_init_path(&path);
+		ret = btrfs_search_slot(root, &ins, &path, -1, 1);
 		if (!ret) {
 			if (i % 10000 == 0)
 				fprintf(stderr, "del %d:%d\n", num, i);
-			ret = del_item(root, &path);
+			ret = btrfs_del_item(root, &path);
 			if (ret != 0)
 				BUG();
 			tree_size--;
 		}
-		release_path(root, &path);
+		btrfs_release_path(root, &path);
 	}
 	close_ctree(root, &super);
 	root = open_ctree("dbfile", &super);
@@ -103,7 +103,7 @@ int main(int ac, char **av) {
 		ins.objectid = num;
 		if (i % 10000 == 0)
 			fprintf(stderr, "insert %d:%d\n", num, i);
-		ret = insert_item(root, &ins, buf, strlen(buf));
+		ret = btrfs_insert_item(root, &ins, buf, strlen(buf));
 		if (!ret)
 			tree_size++;
 		free(buf);
@@ -115,25 +115,25 @@ int main(int ac, char **av) {
 	for (i = 0; i < run_size; i++) {
 		num = next_key(i, max_key);
 		ins.objectid = num;
-		init_path(&path);
+		btrfs_init_path(&path);
 		if (i % 10000 == 0)
 			fprintf(stderr, "search %d:%d\n", num, i);
-		ret = search_slot(root, &ins, &path, 0, 0);
+		ret = btrfs_search_slot(root, &ins, &path, 0, 0);
 		if (ret) {
-			print_tree(root, root->node);
+			btrfs_print_tree(root, root->node);
 			printf("unable to find %d\n", num);
 			exit(1);
 		}
-		release_path(root, &path);
+		btrfs_release_path(root, &path);
 	}
 	printf("starting big long delete run\n");
 	while(root->node &&
 	      btrfs_header_nritems(&root->node->node.header) > 0) {
-		struct leaf *leaf;
+		struct btrfs_leaf *leaf;
 		int slot;
 		ins.objectid = (u64)-1;
-		init_path(&path);
-		ret = search_slot(root, &ins, &path, -1, 1);
+		btrfs_init_path(&path);
+		ret = btrfs_search_slot(root, &ins, &path, -1, 1);
 		if (ret == 0)
 			BUG();
 
@@ -149,26 +149,26 @@ int main(int ac, char **av) {
 			btrfs_disk_key_to_cpu(&last, &leaf->items[slot].key);
 			if (tree_size % 10000 == 0)
 				printf("big del %d:%d\n", tree_size, i);
-			ret = del_item(root, &path);
+			ret = btrfs_del_item(root, &path);
 			if (ret != 0) {
 				printf("del_item returned %d\n", ret);
 				BUG();
 			}
 			tree_size--;
 		}
-		release_path(root, &path);
+		btrfs_release_path(root, &path);
 	}
 	/*
 	printf("previous tree:\n");
-	print_tree(root, root->commit_root);
+	btrfs_print_tree(root, root->commit_root);
 	printf("map before commit\n");
-	print_tree(root->extent_root, root->extent_root->node);
+	btrfs_print_tree(root->extent_root, root->extent_root->node);
 	*/
-	commit_transaction(root, &super);
+	btrfs_commit_transaction(root, &super);
 	printf("tree size is now %d\n", tree_size);
 	printf("root %p commit root %p\n", root->node, root->commit_root);
 	printf("map tree\n");
-	print_tree(root->extent_root, root->extent_root->node);
+	btrfs_print_tree(root->extent_root, root->extent_root->node);
 	close_ctree(root, &super);
 	return 0;
 }

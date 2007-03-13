@@ -1,10 +1,10 @@
-#ifndef __CTREE__
-#define __CTREE__
+#ifndef __BTRFS__
+#define __BTRFS__
 
 #include "list.h"
 #include "kerncompat.h"
 
-#define CTREE_BLOCKSIZE 1024
+#define BTRFS_BLOCKSIZE 1024
 
 /*
  * the key defines the order in the tree, and so it also defines (optimal)
@@ -46,21 +46,21 @@ struct btrfs_header {
 	/* generation flags to be added */
 } __attribute__ ((__packed__));
 
-#define MAX_LEVEL 8
-#define NODEPTRS_PER_BLOCK ((CTREE_BLOCKSIZE - sizeof(struct btrfs_header)) / \
+#define BTRFS_MAX_LEVEL 8
+#define NODEPTRS_PER_BLOCK ((BTRFS_BLOCKSIZE - sizeof(struct btrfs_header)) / \
 			    (sizeof(struct btrfs_disk_key) + sizeof(u64)))
 
-struct tree_buffer;
+struct btrfs_buffer;
 
 /*
  * in ram representation of the tree.  extent_root is used for all allocations
  * and for the extent tree extent_root root.  current_insert is used
  * only for the extent tree.
  */
-struct ctree_root {
-	struct tree_buffer *node;
-	struct tree_buffer *commit_root;
-	struct ctree_root *extent_root;
+struct btrfs_root {
+	struct btrfs_buffer *node;
+	struct btrfs_buffer *commit_root;
+	struct btrfs_root *extent_root;
 	struct btrfs_key current_insert;
 	struct btrfs_key last_insert;
 	int fp;
@@ -74,7 +74,7 @@ struct ctree_root {
 /*
  * describes a tree on disk
  */
-struct ctree_root_info {
+struct btrfs_root_info {
 	u64 fsid[2]; /* FS specific uuid */
 	u64 blocknr; /* blocknr of this block */
 	u64 objectid; /* inode number of this root */
@@ -88,9 +88,9 @@ struct ctree_root_info {
  * the super block basically lists the main trees of the FS
  * it currently lacks any block count etc etc
  */
-struct ctree_super_block {
-	struct ctree_root_info root_info;
-	struct ctree_root_info extent_info;
+struct btrfs_super_block {
+	struct btrfs_root_info root_info;
+	struct btrfs_root_info extent_info;
 } __attribute__ ((__packed__));
 
 /*
@@ -111,13 +111,13 @@ struct btrfs_item {
  * The data is separate from the items to get the keys closer together
  * during searches.
  */
-#define LEAF_DATA_SIZE (CTREE_BLOCKSIZE - sizeof(struct btrfs_header))
-struct leaf {
+#define LEAF_DATA_SIZE (BTRFS_BLOCKSIZE - sizeof(struct btrfs_header))
+struct btrfs_leaf {
 	struct btrfs_header header;
 	union {
 		struct btrfs_item items[LEAF_DATA_SIZE/
 				        sizeof(struct btrfs_item)];
-		u8 data[CTREE_BLOCKSIZE-sizeof(struct btrfs_header)];
+		u8 data[BTRFS_BLOCKSIZE - sizeof(struct btrfs_header)];
 	};
 } __attribute__ ((__packed__));
 
@@ -125,7 +125,7 @@ struct leaf {
  * all non-leaf blocks are nodes, they hold only keys and pointers to
  * other blocks
  */
-struct node {
+struct btrfs_node {
 	struct btrfs_header header;
 	struct btrfs_disk_key keys[NODEPTRS_PER_BLOCK];
 	__le64 blockptrs[NODEPTRS_PER_BLOCK];
@@ -135,50 +135,51 @@ struct node {
  * items in the extent btree are used to record the objectid of the
  * owner of the block and the number of references
  */
-struct extent_item {
+struct btrfs_extent_item {
 	__le32 refs;
 	__le64 owner;
 } __attribute__ ((__packed__));
 
 /*
- * ctree_paths remember the path taken from the root down to the leaf.
- * level 0 is always the leaf, and nodes[1...MAX_LEVEL] will point
+ * btrfs_paths remember the path taken from the root down to the leaf.
+ * level 0 is always the leaf, and nodes[1...BTRFS_MAX_LEVEL] will point
  * to any other levels that are present.
  *
  * The slots array records the index of the item or block pointer
  * used while walking the tree.
  */
-struct ctree_path {
-	struct tree_buffer *nodes[MAX_LEVEL];
-	int slots[MAX_LEVEL];
+struct btrfs_path {
+	struct btrfs_buffer *nodes[BTRFS_MAX_LEVEL];
+	int slots[BTRFS_MAX_LEVEL];
 };
 
-static inline u64 btrfs_extent_owner(struct extent_item *ei)
+static inline u64 btrfs_extent_owner(struct btrfs_extent_item *ei)
 {
 	return le64_to_cpu(ei->owner);
 }
 
-static inline void btrfs_set_extent_owner(struct extent_item *ei, u64 val)
+static inline void btrfs_set_extent_owner(struct btrfs_extent_item *ei, u64 val)
 {
 	ei->owner = cpu_to_le64(val);
 }
 
-static inline u32 btrfs_extent_refs(struct extent_item *ei)
+static inline u32 btrfs_extent_refs(struct btrfs_extent_item *ei)
 {
 	return le32_to_cpu(ei->refs);
 }
 
-static inline void btrfs_set_extent_refs(struct extent_item *ei, u32 val)
+static inline void btrfs_set_extent_refs(struct btrfs_extent_item *ei, u32 val)
 {
 	ei->refs = cpu_to_le32(val);
 }
 
-static inline u64 btrfs_node_blockptr(struct node *n, int nr)
+static inline u64 btrfs_node_blockptr(struct btrfs_node *n, int nr)
 {
 	return le64_to_cpu(n->blockptrs[nr]);
 }
 
-static inline void btrfs_set_node_blockptr(struct node *n, int nr, u64 val)
+static inline void btrfs_set_node_blockptr(struct btrfs_node *n, int nr,
+					   u64 val)
 {
 	n->blockptrs[nr] = cpu_to_le64(val);
 }
@@ -300,34 +301,34 @@ static inline void btrfs_set_header_flags(struct btrfs_header *h, u16 val)
 
 static inline int btrfs_header_level(struct btrfs_header *h)
 {
-	return btrfs_header_flags(h) & (MAX_LEVEL - 1);
+	return btrfs_header_flags(h) & (BTRFS_MAX_LEVEL - 1);
 }
 
 static inline void btrfs_set_header_level(struct btrfs_header *h, int level)
 {
 	u16 flags;
-	BUG_ON(level > MAX_LEVEL);
-	flags = btrfs_header_flags(h) & ~(MAX_LEVEL - 1);
+	BUG_ON(level > BTRFS_MAX_LEVEL);
+	flags = btrfs_header_flags(h) & ~(BTRFS_MAX_LEVEL - 1);
 	btrfs_set_header_flags(h, flags | level);
 }
 
-static inline int btrfs_is_leaf(struct node *n)
+static inline int btrfs_is_leaf(struct btrfs_node *n)
 {
 	return (btrfs_header_level(&n->header) == 0);
 }
 
-struct tree_buffer *alloc_free_block(struct ctree_root *root);
-int btrfs_inc_ref(struct ctree_root *root, struct tree_buffer *buf);
-int free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks);
-int search_slot(struct ctree_root *root, struct btrfs_key *key,
-		struct ctree_path *p, int ins_len, int cow);
-void release_path(struct ctree_root *root, struct ctree_path *p);
-void init_path(struct ctree_path *p);
-int del_item(struct ctree_root *root, struct ctree_path *path);
-int insert_item(struct ctree_root *root, struct btrfs_key *key,
+struct btrfs_buffer *btrfs_alloc_free_block(struct btrfs_root *root);
+int btrfs_inc_ref(struct btrfs_root *root, struct btrfs_buffer *buf);
+int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks);
+int btrfs_search_slot(struct btrfs_root *root, struct btrfs_key *key,
+		struct btrfs_path *p, int ins_len, int cow);
+void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p);
+void btrfs_init_path(struct btrfs_path *p);
+int btrfs_del_item(struct btrfs_root *root, struct btrfs_path *path);
+int btrfs_insert_item(struct btrfs_root *root, struct btrfs_key *key,
 		void *data, int data_size);
-int next_leaf(struct ctree_root *root, struct ctree_path *path);
-int leaf_free_space(struct leaf *leaf);
-int btrfs_drop_snapshot(struct ctree_root *root, struct tree_buffer *snap);
-int btrfs_finish_extent_commit(struct ctree_root *root);
+int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
+int btrfs_leaf_free_space(struct btrfs_leaf *leaf);
+int btrfs_drop_snapshot(struct btrfs_root *root, struct btrfs_buffer *snap);
+int btrfs_finish_extent_commit(struct btrfs_root *root);
 #endif

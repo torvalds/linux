@@ -12,10 +12,10 @@
 
 int mkfs(int fd)
 {
-	struct ctree_root_info info[2];
-	struct leaf empty_leaf;
+	struct btrfs_root_info info[2];
+	struct btrfs_leaf empty_leaf;
 	struct btrfs_item item;
-	struct extent_item extent_item;
+	struct btrfs_extent_item extent_item;
 	int ret;
 
 	/* setup the super block area */
@@ -28,7 +28,7 @@ int mkfs(int fd)
 	info[1].objectid = 2;
 	info[1].tree_root = 18;
 	ret = pwrite(fd, info, sizeof(info),
-		     CTREE_SUPER_INFO_OFFSET(CTREE_BLOCKSIZE));
+		     BTRFS_SUPER_INFO_OFFSET(BTRFS_BLOCKSIZE));
 	if (ret != sizeof(info))
 		return -1;
 
@@ -36,7 +36,7 @@ int mkfs(int fd)
 	memset(&empty_leaf, 0, sizeof(empty_leaf));
 	btrfs_set_header_parentid(&empty_leaf.header, 1);
 	btrfs_set_header_blocknr(&empty_leaf.header, 17);
-	ret = pwrite(fd, &empty_leaf, sizeof(empty_leaf), 17 * CTREE_BLOCKSIZE);
+	ret = pwrite(fd, &empty_leaf, sizeof(empty_leaf), 17 * BTRFS_BLOCKSIZE);
 	if (ret != sizeof(empty_leaf))
 		return -1;
 
@@ -48,9 +48,9 @@ int mkfs(int fd)
 	btrfs_set_key_objectid(&item.key, 0);
 	btrfs_set_key_offset(&item.key, 17);
 	btrfs_set_key_flags(&item.key, 0);
-	btrfs_set_item_offset(&item,
-			      LEAF_DATA_SIZE - sizeof(struct extent_item));
-	btrfs_set_item_size(&item, sizeof(struct extent_item));
+	btrfs_set_item_offset(&item, LEAF_DATA_SIZE -
+			      sizeof(struct btrfs_extent_item));
+	btrfs_set_item_size(&item, sizeof(struct btrfs_extent_item));
 	btrfs_set_extent_refs(&extent_item, 1);
 	btrfs_set_extent_owner(&extent_item, 0);
 	memcpy(empty_leaf.items, &item, sizeof(item));
@@ -60,8 +60,8 @@ int mkfs(int fd)
 	/* item2, give block 17 to the root */
 	btrfs_set_key_objectid(&item.key, 17);
 	btrfs_set_key_offset(&item.key, 1);
-	btrfs_set_item_offset(&item,
-			      LEAF_DATA_SIZE - sizeof(struct extent_item) * 2);
+	btrfs_set_item_offset(&item, LEAF_DATA_SIZE -
+			      sizeof(struct btrfs_extent_item) * 2);
 	btrfs_set_extent_owner(&extent_item, 1);
 	memcpy(empty_leaf.items + 1, &item, sizeof(item));
 	memcpy(empty_leaf.data + btrfs_item_offset(&item), &extent_item,
@@ -70,13 +70,13 @@ int mkfs(int fd)
 	/* item3, give block 18 for the extent root */
 	btrfs_set_key_objectid(&item.key, 18);
 	btrfs_set_key_offset(&item.key, 1);
-	btrfs_set_item_offset(&item,
-			      LEAF_DATA_SIZE - sizeof(struct extent_item) * 3);
+	btrfs_set_item_offset(&item, LEAF_DATA_SIZE -
+			      sizeof(struct btrfs_extent_item) * 3);
 	btrfs_set_extent_owner(&extent_item, 2);
 	memcpy(empty_leaf.items + 2, &item, sizeof(item));
 	memcpy(empty_leaf.data + btrfs_item_offset(&item), &extent_item,
 		btrfs_item_size(&item));
-	ret = pwrite(fd, &empty_leaf, sizeof(empty_leaf), 18 * CTREE_BLOCKSIZE);
+	ret = pwrite(fd, &empty_leaf, sizeof(empty_leaf), 18 * BTRFS_BLOCKSIZE);
 	if (ret != sizeof(empty_leaf))
 		return -1;
 	return 0;

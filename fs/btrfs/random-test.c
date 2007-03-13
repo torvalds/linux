@@ -8,7 +8,7 @@
 #include "print-tree.h"
 
 int keep_running = 1;
-struct ctree_super_block super;
+struct btrfs_super_block super;
 
 static int setup_key(struct radix_tree_root *root, struct btrfs_key *key,
 		     int exists)
@@ -36,17 +36,17 @@ again:
 	return 0;
 }
 
-static int ins_one(struct ctree_root *root, struct radix_tree_root *radix)
+static int ins_one(struct btrfs_root *root, struct radix_tree_root *radix)
 {
-	struct ctree_path path;
+	struct btrfs_path path;
 	struct btrfs_key key;
 	int ret;
 	char buf[128];
 	unsigned long oid;
-	init_path(&path);
+	btrfs_init_path(&path);
 	ret = setup_key(radix, &key, 0);
 	sprintf(buf, "str-%Lu\n", key.objectid);
-	ret = insert_item(root, &key, buf, strlen(buf));
+	ret = btrfs_insert_item(root, &key, buf, strlen(buf));
 	if (ret)
 		goto error;
 	oid = (unsigned long)key.objectid;
@@ -61,18 +61,18 @@ error:
 	return -1;
 }
 
-static int insert_dup(struct ctree_root *root, struct radix_tree_root *radix)
+static int insert_dup(struct btrfs_root *root, struct radix_tree_root *radix)
 {
-	struct ctree_path path;
+	struct btrfs_path path;
 	struct btrfs_key key;
 	int ret;
 	char buf[128];
-	init_path(&path);
+	btrfs_init_path(&path);
 	ret = setup_key(radix, &key, 1);
 	if (ret < 0)
 		return 0;
 	sprintf(buf, "str-%Lu\n", key.objectid);
-	ret = insert_item(root, &key, buf, strlen(buf));
+	ret = btrfs_insert_item(root, &key, buf, strlen(buf));
 	if (ret != -EEXIST) {
 		printf("insert on %Lu gave us %d\n", key.objectid, ret);
 		return 1;
@@ -80,21 +80,21 @@ static int insert_dup(struct ctree_root *root, struct radix_tree_root *radix)
 	return 0;
 }
 
-static int del_one(struct ctree_root *root, struct radix_tree_root *radix)
+static int del_one(struct btrfs_root *root, struct radix_tree_root *radix)
 {
-	struct ctree_path path;
+	struct btrfs_path path;
 	struct btrfs_key key;
 	int ret;
 	unsigned long *ptr;
-	init_path(&path);
+	btrfs_init_path(&path);
 	ret = setup_key(radix, &key, 1);
 	if (ret < 0)
 		return 0;
-	ret = search_slot(root, &key, &path, -1, 1);
+	ret = btrfs_search_slot(root, &key, &path, -1, 1);
 	if (ret)
 		goto error;
-	ret = del_item(root, &path);
-	release_path(root, &path);
+	ret = btrfs_del_item(root, &path);
+	btrfs_release_path(root, &path);
 	if (ret != 0)
 		goto error;
 	ptr = radix_tree_delete(radix, key.objectid);
@@ -106,17 +106,17 @@ error:
 	return -1;
 }
 
-static int lookup_item(struct ctree_root *root, struct radix_tree_root *radix)
+static int lookup_item(struct btrfs_root *root, struct radix_tree_root *radix)
 {
-	struct ctree_path path;
+	struct btrfs_path path;
 	struct btrfs_key key;
 	int ret;
-	init_path(&path);
+	btrfs_init_path(&path);
 	ret = setup_key(radix, &key, 1);
 	if (ret < 0)
 		return 0;
-	ret = search_slot(root, &key, &path, 0, 1);
-	release_path(root, &path);
+	ret = btrfs_search_slot(root, &key, &path, 0, 1);
+	btrfs_release_path(root, &path);
 	if (ret)
 		goto error;
 	return 0;
@@ -125,17 +125,17 @@ error:
 	return -1;
 }
 
-static int lookup_enoent(struct ctree_root *root, struct radix_tree_root *radix)
+static int lookup_enoent(struct btrfs_root *root, struct radix_tree_root *radix)
 {
-	struct ctree_path path;
+	struct btrfs_path path;
 	struct btrfs_key key;
 	int ret;
-	init_path(&path);
+	btrfs_init_path(&path);
 	ret = setup_key(radix, &key, 0);
 	if (ret < 0)
 		return ret;
-	ret = search_slot(root, &key, &path, 0, 0);
-	release_path(root, &path);
+	ret = btrfs_search_slot(root, &key, &path, 0, 0);
+	btrfs_release_path(root, &path);
 	if (ret <= 0)
 		goto error;
 	return 0;
@@ -144,10 +144,10 @@ error:
 	return -1;
 }
 
-static int empty_tree(struct ctree_root *root, struct radix_tree_root *radix,
+static int empty_tree(struct btrfs_root *root, struct radix_tree_root *radix,
 		      int nr)
 {
-	struct ctree_path path;
+	struct btrfs_path path;
 	struct btrfs_key key;
 	unsigned long found = 0;
 	int ret;
@@ -159,22 +159,22 @@ static int empty_tree(struct ctree_root *root, struct radix_tree_root *radix,
 	key.flags = 0;
 	key.objectid = (unsigned long)-1;
 	while(nr-- >= 0) {
-		init_path(&path);
-		ret = search_slot(root, &key, &path, -1, 1);
+		btrfs_init_path(&path);
+		ret = btrfs_search_slot(root, &key, &path, -1, 1);
 		if (ret < 0) {
-			release_path(root, &path);
+			btrfs_release_path(root, &path);
 			return ret;
 		}
 		if (ret != 0) {
 			if (path.slots[0] == 0) {
-				release_path(root, &path);
+				btrfs_release_path(root, &path);
 				break;
 			}
 			path.slots[0] -= 1;
 		}
 		slot = path.slots[0];
 		found=btrfs_key_objectid(&path.nodes[0]->leaf.items[slot].key);
-		ret = del_item(root, &path);
+		ret = btrfs_del_item(root, &path);
 		count++;
 		if (ret) {
 			fprintf(stderr,
@@ -182,7 +182,7 @@ static int empty_tree(struct ctree_root *root, struct radix_tree_root *radix,
 				found);
 			return -1;
 		}
-		release_path(root, &path);
+		btrfs_release_path(root, &path);
 		ptr = radix_tree_delete(radix, found);
 		if (!ptr)
 			goto error;
@@ -195,7 +195,7 @@ error:
 	return -1;
 }
 
-static int fill_tree(struct ctree_root *root, struct radix_tree_root *radix,
+static int fill_tree(struct btrfs_root *root, struct radix_tree_root *radix,
 		     int count)
 {
 	int i;
@@ -207,7 +207,7 @@ static int fill_tree(struct ctree_root *root, struct radix_tree_root *radix,
 			goto out;
 		}
 		if (i % 1000 == 0) {
-			ret = commit_transaction(root, &super);
+			ret = btrfs_commit_transaction(root, &super);
 			if (ret) {
 				fprintf(stderr, "fill commit failed\n");
 				return ret;
@@ -223,7 +223,7 @@ out:
 	return ret;
 }
 
-static int bulk_op(struct ctree_root *root, struct radix_tree_root *radix)
+static int bulk_op(struct btrfs_root *root, struct radix_tree_root *radix)
 {
 	int ret;
 	int nr = rand() % 5000;
@@ -242,13 +242,13 @@ static int bulk_op(struct ctree_root *root, struct radix_tree_root *radix)
 }
 
 
-int (*ops[])(struct ctree_root *root, struct radix_tree_root *radix) =
+int (*ops[])(struct btrfs_root *root, struct radix_tree_root *radix) =
 	{ ins_one, insert_dup, del_one, lookup_item,
 	  lookup_enoent, bulk_op };
 
-static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
+static int fill_radix(struct btrfs_root *root, struct radix_tree_root *radix)
 {
-	struct ctree_path path;
+	struct btrfs_path path;
 	struct btrfs_key key;
 	unsigned long found;
 	int ret;
@@ -259,16 +259,16 @@ static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
 	key.flags = 0;
 	key.objectid = (unsigned long)-1;
 	while(1) {
-		init_path(&path);
-		ret = search_slot(root, &key, &path, 0, 0);
+		btrfs_init_path(&path);
+		ret = btrfs_search_slot(root, &key, &path, 0, 0);
 		if (ret < 0) {
-			release_path(root, &path);
+			btrfs_release_path(root, &path);
 			return ret;
 		}
 		slot = path.slots[0];
 		if (ret != 0) {
 			if (slot == 0) {
-				release_path(root, &path);
+				btrfs_release_path(root, &path);
 				break;
 			}
 			slot -= 1;
@@ -287,7 +287,7 @@ static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
 
 			radix_tree_preload_end();
 		}
-		release_path(root, &path);
+		btrfs_release_path(root, &path);
 		key.objectid = found - 1;
 		if (key.objectid > found)
 			break;
@@ -312,7 +312,7 @@ int print_usage(void)
 int main(int ac, char **av)
 {
 	RADIX_TREE(radix, GFP_KERNEL);
-	struct ctree_root *root;
+	struct btrfs_root *root;
 	int i;
 	int ret;
 	int count;
@@ -370,7 +370,7 @@ int main(int ac, char **av)
 			if (ret) {
 				fprintf(stderr, "op %d failed %d:%d\n",
 					op, i, iterations);
-				print_tree(root, root->node);
+				btrfs_print_tree(root, root->node);
 				fprintf(stderr, "op %d failed %d:%d\n",
 					op, i, iterations);
 				err = ret;
