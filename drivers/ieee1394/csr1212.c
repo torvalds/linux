@@ -34,6 +34,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/kernel.h>
 #include <linux/string.h>
 #include <asm/bug.h>
 #include <asm/byteorder.h>
@@ -113,10 +114,7 @@ static u16 csr1212_crc16(const u32 *buffer, size_t length)
 	return cpu_to_be16(crc);
 }
 
-#if 0
-/* Microsoft computes the CRC with the bytes in reverse order.  Therefore we
- * have a special version of the CRC algorithm to account for their buggy
- * software. */
+/* Microsoft computes the CRC with the bytes in reverse order. */
 static u16 csr1212_msft_crc16(const u32 *buffer, size_t length)
 {
 	int shift;
@@ -135,7 +133,6 @@ static u16 csr1212_msft_crc16(const u32 *buffer, size_t length)
 
 	return cpu_to_be16(crc);
 }
-#endif
 
 static struct csr1212_dentry *
 csr1212_find_keyval(struct csr1212_keyval *dir, struct csr1212_keyval *kv)
@@ -1096,13 +1093,11 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 			return ret;
 	}
 
-#if 0
-	/* Apparently there are too many differnt wrong implementations of the
-	 * CRC algorithm that verifying them is moot. */
+	/* Apparently there are many different wrong implementations of the CRC
+	 * algorithm.  We don't fail, we just warn. */
 	if ((csr1212_crc16(bi->data, bi->crc_length) != bi->crc) &&
 	    (csr1212_msft_crc16(bi->data, bi->crc_length) != bi->crc))
-		return -EINVAL;
-#endif
+		printk(KERN_DEBUG "IEEE 1394 device has ROM CRC error\n");
 
 	cr = CSR1212_MALLOC(sizeof(*cr));
 	if (!cr)
@@ -1207,15 +1202,11 @@ int csr1212_parse_keyval(struct csr1212_keyval *kv,
 		&cache->data[bytes_to_quads(kv->offset - cache->offset)];
 	kvi_len = be16_to_cpu(kvi->length);
 
-#if 0
-	/* Apparently there are too many differnt wrong implementations of the
-	 * CRC algorithm that verifying them is moot. */
+	/* Apparently there are many different wrong implementations of the CRC
+	 * algorithm.  We don't fail, we just warn. */
 	if ((csr1212_crc16(kvi->data, kvi_len) != kvi->crc) &&
-	    (csr1212_msft_crc16(kvi->data, kvi_len) != kvi->crc)) {
-		ret = -EINVAL;
-		goto out;
-	}
-#endif
+	    (csr1212_msft_crc16(kvi->data, kvi_len) != kvi->crc))
+		printk(KERN_DEBUG "IEEE 1394 device has ROM CRC error\n");
 
 	switch (kv->key.type) {
 	case CSR1212_KV_TYPE_DIRECTORY:
