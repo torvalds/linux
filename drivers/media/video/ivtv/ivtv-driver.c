@@ -1170,7 +1170,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	   in one place. */
 	itv->std++;		/* Force full standard initialization */
 	itv->std_out = itv->std;
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_STD, &itv->tuner_std);
 	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_FREQUENCY, &vf);
 
 	retval = ivtv_streams_setup(itv);
@@ -1182,6 +1181,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	if (itv->card->v4l2_capabilities & V4L2_CAP_VIDEO_OUTPUT) {
 		ivtv_init_mpeg_decoder(itv);
 	}
+	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_STD, &itv->tuner_std);
 
 	IVTV_DEBUG_IRQ("Masking interrupts\n");
 	/* clear interrupt mask, effectively disabling interrupts */
