@@ -70,6 +70,7 @@ static int sp_stopping = 0;
 #define MTSP_SYSCALL_GETTIME	(MTSP_SYSCALL_BASE + 7)
 #define MTSP_SYSCALL_PIPEFREQ	(MTSP_SYSCALL_BASE + 8)
 #define MTSP_SYSCALL_GETTOD	(MTSP_SYSCALL_BASE + 9)
+#define MTSP_SYSCALL_IOCTL     (MTSP_SYSCALL_BASE + 10)
 
 #define MTSP_O_RDONLY		0x0000
 #define MTSP_O_WRONLY		0x0001
@@ -110,7 +111,8 @@ struct apsp_table syscall_command_table[] = {
 	{ MTSP_SYSCALL_CLOSE, __NR_close },
 	{ MTSP_SYSCALL_READ, __NR_read },
 	{ MTSP_SYSCALL_WRITE, __NR_write },
-	{ MTSP_SYSCALL_LSEEK32, __NR_lseek }
+	{ MTSP_SYSCALL_LSEEK32, __NR_lseek },
+	{ MTSP_SYSCALL_IOCTL, __NR_ioctl }
 };
 
 static int sp_syscall(int num, int arg0, int arg1, int arg2, int arg3)
