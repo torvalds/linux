@@ -468,7 +468,7 @@ static int philips_fmd1216_tuner_sleep(struct dvb_frontend *fe)
 	struct tda1004x_state *state = fe->demodulator_priv;
 	u8 addr = state->config->tuner_address;
 	/* this message actually turns the tuner back to analog mode */
-	static u8 fmd1216_init[] = { 0x0b, 0xdc, 0x9c, 0x60 };
+	u8 fmd1216_init[] = { 0x0b, 0xdc, 0x9c, 0x60 };
 	struct i2c_msg tuner_msg = {.addr = addr,.flags = 0,.buf = fmd1216_init,.len = sizeof(fmd1216_init) };
 
 	if (fe->ops.i2c_gate_ctrl)
