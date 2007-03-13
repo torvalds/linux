@@ -858,6 +858,35 @@ static struct tda1004x_config md8800_dvbt_config = {
 	.request_firmware = philips_tda1004x_request_firmware
 };
 
+static struct tda1004x_config asus_p7131_4871_config = {
+	.demod_address = 0x08,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP01_I,
+	.if_freq       = TDA10046_FREQ_045,
+	.i2c_gate      = 0x4b,
+	.tuner_address = 0x61,
+	.tuner_config  = 2,
+	.antenna_switch= 2,
+	.request_firmware = philips_tda1004x_request_firmware
+};
+
+static struct tda1004x_config asus_p7131_dual_lna_config = {
+	.demod_address = 0x08,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP11_I,
+	.if_freq       = TDA10046_FREQ_045,
+	.i2c_gate      = 0x4b,
+	.tuner_address = 0x61,
+	.tuner_config  = 2,
+	.antenna_switch= 2,
+	.request_firmware = philips_tda1004x_request_firmware
+};
 /* ------------------------------------------------------------------
  * special case: this card uses saa713x GPIO22 for the mode switch
  */
@@ -1120,6 +1149,12 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER_S:
 		configure_tda827x_fe(dev, &philips_tiger_s_config);
+		break;
+	case SAA7134_BOARD_ASUS_P7131_4871:
+		configure_tda827x_fe(dev, &asus_p7131_4871_config);
+		break;
+	case SAA7134_BOARD_ASUSTeK_P7131_DUAL_LNA:
+		configure_tda827x_fe(dev, &asus_p7131_dual_lna_config);
 		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
