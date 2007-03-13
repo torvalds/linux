@@ -459,16 +459,6 @@ static struct request *tgt_cmd_hash_lookup(struct request_queue *q, u64 tag)
 	return rq;
 }
 
-static void scsi_tgt_build_sense(unsigned char *sense_buffer, unsigned char key,
-				 unsigned char asc, unsigned char asq)
-{
-	sense_buffer[0] = 0x70;
-	sense_buffer[2] = key;
-	sense_buffer[7] = 0xa;
-	sense_buffer[12] = asc;
-	sense_buffer[13] = asq;
-}
-
 int scsi_tgt_kspace_exec(int host_no, int result, u64 tag,
 			 unsigned long uaddr, u32 len, unsigned long sense_uaddr,
 			 u32 sense_len, u8 rw)
@@ -528,12 +518,21 @@ int scsi_tgt_kspace_exec(int host_no, int result, u64 tag,
 			 * user-space daemon bugs or OOM
 			 * TODO: we can do better for OOM.
 			 */
+			struct scsi_tgt_queuedata *qdata;
+			struct list_head *head;
+			unsigned long flags;
+
 			eprintk("cmd %p ret %d uaddr %lx len %d rw %d\n",
 				cmd, err, uaddr, len, rw);
-			cmd->result = SAM_STAT_CHECK_CONDITION;
-			memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
-			scsi_tgt_build_sense(cmd->sense_buffer,
-					     HARDWARE_ERROR, 0, 0);
+
+			qdata = shost->uspace_req_q->queuedata;
+			head = &qdata->cmd_hash[cmd_hashfn(tcmd->tag)];
+
+			spin_lock_irqsave(&qdata->cmd_hash_lock, flags);
+			list_add(&tcmd->hash_list, head);
+			spin_unlock_irqrestore(&qdata->cmd_hash_lock, flags);
+
+			goto done;
 		}
 	}
 	err = scsi_tgt_transfer_response(cmd);
