@@ -1255,9 +1255,9 @@ out:
  */
 void ip_mc_rejoin_group(struct ip_mc_list *im)
 {
+#ifdef CONFIG_IP_MULTICAST
 	struct in_device *in_dev = im->interface;
 
-#ifdef CONFIG_IP_MULTICAST
 	if (im->multiaddr == IGMP_ALL_HOSTS)
 		return;
 
