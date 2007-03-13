@@ -388,101 +388,70 @@ csr1212_new_descriptor_leaf(u8 dtype, u32 specifier_id,
 	CSR1212_DESCRIPTOR_LEAF_SET_TYPE(kv, dtype);
 	CSR1212_DESCRIPTOR_LEAF_SET_SPECIFIER_ID(kv, specifier_id);
 
-	if (data) {
+	if (data)
 		memcpy(CSR1212_DESCRIPTOR_LEAF_DATA(kv), data, data_len);
-	}
 
 	return kv;
 }
 
-#define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_WIDTH(kv, width) \
-	((kv)->value.leaf.data[1] = \
-	 ((kv)->value.leaf.data[1] & \
-	  cpu_to_be32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_MASK << \
-			CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT))) | \
-	 cpu_to_be32(((width) & CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_MASK) << \
-		     CSR1212_TEXTUAL_DESCRIPTOR_LEAF_WIDTH_SHIFT))
-
-#define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_CHAR_SET(kv, char_set) \
-	((kv)->value.leaf.data[1] = \
-	 ((kv)->value.leaf.data[1] & \
-	  cpu_to_be32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK << \
-			CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT))) | \
-	 cpu_to_be32(((char_set) & \
-		      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_MASK) << \
-		     CSR1212_TEXTUAL_DESCRIPTOR_LEAF_CHAR_SET_SHIFT))
-
-#define CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_LANGUAGE(kv, language) \
-	((kv)->value.leaf.data[1] = \
-	 ((kv)->value.leaf.data[1] & \
-	  cpu_to_be32(~(CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK))) | \
-	 cpu_to_be32(((language) & \
-		      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_LANGUAGE_MASK)))
-
-static struct csr1212_keyval *
-csr1212_new_textual_descriptor_leaf(u8 cwidth, u16 cset, u16 language,
-				    const void *data, size_t data_len)
-{
-	struct csr1212_keyval *kv;
-	char *lstr;
-
-	kv = csr1212_new_descriptor_leaf(0, 0, NULL, data_len +
-					 CSR1212_TEXTUAL_DESCRIPTOR_LEAF_OVERHEAD);
-	if (!kv)
-		return NULL;
-
-	CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_WIDTH(kv, cwidth);
-	CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_CHAR_SET(kv, cset);
-	CSR1212_TEXTUAL_DESCRIPTOR_LEAF_SET_LANGUAGE(kv, language);
-
-	lstr = (char*)CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(kv);
-
-	/* make sure last quadlet is zeroed out */
-	*((u32*)&(lstr[(data_len - 1) & ~0x3])) = 0;
-
-	/* don't copy the NUL terminator */
-	memcpy(lstr, data, data_len);
-
-	return kv;
-}
-
+/* Check if string conforms to minimal ASCII as per IEEE 1212 clause 7.4 */
 static int csr1212_check_minimal_ascii(const char *s)
 {
 	static const char minimal_ascii_table[] = {
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
-		0x00, 0x00, 0x0a, 0x00, 0x0C, 0x0D, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x20, 0x21, 0x22, 0x00, 0x00, 0x25, 0x26, 0x27,
-		0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
-		0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
-		0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
-		0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
-		0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
-		0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
-		0x58, 0x59, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x5f,
-		0x00, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
-		0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
-		0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,
-		0x78, 0x79, 0x7a, 0x00, 0x00, 0x00, 0x00, 0x00,
+					/*  1   2   4   8  16  32  64  128 */
+		128,			/* --, --, --, --, --, --, --, 07, */
+		4 + 16 + 32,		/* --, --, 0a, --, 0C, 0D, --, --, */
+		0,			/* --, --, --, --, --, --, --, --, */
+		0,			/* --, --, --, --, --, --, --, --, */
+		255 - 8 - 16,		/* 20, 21, 22, --, --, 25, 26, 27, */
+		255,			/* 28, 29, 2a, 2b, 2c, 2d, 2e, 2f, */
+		255,			/* 30, 31, 32, 33, 34, 35, 36, 37, */
+		255,			/* 38, 39, 3a, 3b, 3c, 3d, 3e, 3f, */
+		255,			/* 40, 41, 42, 43, 44, 45, 46, 47, */
+		255,			/* 48, 49, 4a, 4b, 4c, 4d, 4e, 4f, */
+		255,			/* 50, 51, 52, 53, 54, 55, 56, 57, */
+		1 + 2 + 4 + 128,	/* 58, 59, 5a, --, --, --, --, 5f, */
+		255 - 1,		/* --, 61, 62, 63, 64, 65, 66, 67, */
+		255,			/* 68, 69, 6a, 6b, 6c, 6d, 6e, 6f, */
+		255,			/* 70, 71, 72, 73, 74, 75, 76, 77, */
+		1 + 2 + 4,		/* 78, 79, 7a, --, --, --, --, --, */
 	};
+	int i, j;
+
 	for (; *s; s++) {
-		if (minimal_ascii_table[*s & 0x7F] != *s)
-			return -1; /* failed */
+		i = *s >> 3;		/*  i = *s / 8;		*/
+		j = 1 << (*s & 3);	/*  j = 1 << (*s % 8);	*/
+
+		if (i >= ARRAY_SIZE(minimal_ascii_table) ||
+		    !(minimal_ascii_table[i] & j))
+			return -EINVAL;
 	}
-	/* String conforms to minimal-ascii, as specified by IEEE 1212,
-	 * par. 7.4 */
 	return 0;
 }
 
+/* IEEE 1212 clause 7.5.4.1 textual descriptors (English, minimal ASCII) */
 struct csr1212_keyval *csr1212_new_string_descriptor_leaf(const char *s)
 {
-	/* Check if string conform to minimal_ascii format */
-	if (csr1212_check_minimal_ascii(s))
+	struct csr1212_keyval *kv;
+	u32 *text;
+	size_t str_len, quads;
+
+	if (!s || !*s || csr1212_check_minimal_ascii(s))
 		return NULL;
 
-	/* IEEE 1212, par. 7.5.4.1  Textual descriptors (minimal ASCII) */
-	return csr1212_new_textual_descriptor_leaf(0, 0, 0, s, strlen(s));
+	str_len = strlen(s);
+	quads = bytes_to_quads(str_len);
+	kv = csr1212_new_descriptor_leaf(0, 0, NULL, quads_to_bytes(quads) +
+				      CSR1212_TEXTUAL_DESCRIPTOR_LEAF_OVERHEAD);
+	if (!kv)
+		return NULL;
+
+	kv->value.leaf.data[1] = 0;	/* width, character_set, language */
+	text = CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(kv);
+	text[quads - 1] = 0;		/* padding */
+	memcpy(text, s, str_len);
+
+	return kv;
 }
 
 
