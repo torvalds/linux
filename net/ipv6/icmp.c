@@ -222,7 +222,7 @@ static int icmpv6_push_pending_frames(struct sock *sk, struct flowi *fl, struct 
 	if ((skb = skb_peek(&sk->sk_write_queue)) == NULL)
 		goto out;
 
-	icmp6h = (struct icmp6hdr*) skb->h.raw;
+	icmp6h = icmp6_hdr(skb);
 	memcpy(icmp6h, thdr, sizeof(struct icmp6hdr));
 	icmp6h->icmp6_cksum = 0;
 
@@ -476,7 +476,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *np;
 	struct in6_addr *saddr = NULL;
-	struct icmp6hdr *icmph = (struct icmp6hdr *) skb->h.raw;
+	struct icmp6hdr *icmph = icmp6_hdr(skb);
 	struct icmp6hdr tmp_hdr;
 	struct flowi fl;
 	struct icmpv6_msg msg;
@@ -651,7 +651,7 @@ static int icmpv6_rcv(struct sk_buff **pskb)
 	if (!pskb_pull(skb, sizeof(struct icmp6hdr)))
 		goto discard_it;
 
-	hdr = (struct icmp6hdr *) skb->h.raw;
+	hdr = icmp6_hdr(skb);
 
 	type = hdr->icmp6_type;
 
@@ -677,7 +677,7 @@ static int icmpv6_rcv(struct sk_buff **pskb)
 		 */
 		if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 			goto discard_it;
-		hdr = (struct icmp6hdr *) skb->h.raw;
+		hdr = icmp6_hdr(skb);
 		orig_hdr = (struct ipv6hdr *) (hdr + 1);
 		rt6_pmtu_discovery(&orig_hdr->daddr, &orig_hdr->saddr, dev,
 				   ntohl(hdr->icmp6_mtu));

@@ -209,7 +209,7 @@ void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 		     __be16 port, u32 info, u8 *payload)
 {
 	struct ipv6_pinfo *np  = inet6_sk(sk);
-	struct icmp6hdr *icmph = (struct icmp6hdr *)skb->h.raw;
+	struct icmp6hdr *icmph = icmp6_hdr(skb);
 	struct sock_exterr_skb *serr;
 
 	if (!np->recverr)

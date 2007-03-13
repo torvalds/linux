@@ -1366,7 +1366,7 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 		return;
 	}
 
-	icmph = (struct icmp6hdr *) skb->h.raw;
+	icmph = icmp6_hdr(skb);
 	target = (struct in6_addr *) (icmph + 1);
 	dest = target + 1;
 

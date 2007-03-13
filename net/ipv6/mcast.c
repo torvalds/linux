@@ -988,7 +988,7 @@ int ipv6_is_mld(struct sk_buff *skb, int nexthdr)
 	if (!pskb_may_pull(skb, sizeof(struct icmp6hdr)))
 		return 0;
 
-	pic = (struct icmp6hdr *)skb->h.raw;
+	pic = icmp6_hdr(skb);
 
 	switch (pic->icmp6_type) {
 	case ICMPV6_MGM_QUERY:
@@ -1179,7 +1179,7 @@ int igmp6_event_query(struct sk_buff *skb)
 	if (idev == NULL)
 		return 0;
 
-	hdr = (struct icmp6hdr *) skb->h.raw;
+	hdr = icmp6_hdr(skb);
 	group = (struct in6_addr *) (hdr + 1);
 	group_type = ipv6_addr_type(group);
 
@@ -1300,7 +1300,7 @@ int igmp6_event_report(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct in6_addr)))
 		return -EINVAL;
 
-	hdr = (struct icmp6hdr*) skb->h.raw;
+	hdr = icmp6_hdr(skb);
 
 	/* Drop reports with not link local source */
 	addr_type = ipv6_addr_type(&ipv6_hdr(skb)->saddr);
