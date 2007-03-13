@@ -299,6 +299,7 @@ static int receive_from_sock(struct connection *con)
 	 */
 	iov[0].iov_len = con->cb.base - cbuf_data(&con->cb);
 	iov[0].iov_base = page_address(con->rx_page) + cbuf_data(&con->cb);
+	iov[1].iov_len = 0;
 	nvec = 1;
 
 	/*
