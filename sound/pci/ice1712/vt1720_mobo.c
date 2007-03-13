@@ -56,7 +56,7 @@ static int __devinit k8x800_add_controls(struct snd_ice1712 *ice)
 
 /* EEPROM image */
 
-static const unsigned char k8x800_eeprom[] __devinitdata = {
+static unsigned char k8x800_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x01,	/* clock 256, 1ADC, 2DACs */
 	[ICE_EEP2_ACLINK]      = 0x02,	/* ACLINK, packed */
 	[ICE_EEP2_I2S]         = 0x00,	/* - */
@@ -72,7 +72,7 @@ static const unsigned char k8x800_eeprom[] __devinitdata = {
 	[ICE_EEP2_GPIO_STATE2] = 0x00,	/* - */
 };
 
-static const unsigned char sn25p_eeprom[] __devinitdata = {
+static unsigned char sn25p_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x01,	/* clock 256, 1ADC, 2DACs */
 	[ICE_EEP2_ACLINK]      = 0x02,	/* ACLINK, packed */
 	[ICE_EEP2_I2S]         = 0x00,	/* - */
@@ -90,7 +90,7 @@ static const unsigned char sn25p_eeprom[] __devinitdata = {
 
 
 /* entry point */
-const struct snd_ice1712_card_info snd_vt1720_mobo_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1720_mobo_cards[] __devinitdata = {
 	{
 		.subvendor = VT1720_SUBDEVICE_K8X800,
 		.name = "Albatron K8X800 Pro II",

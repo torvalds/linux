@@ -1411,7 +1411,7 @@ static int aureon_oversampling_put(struct snd_kcontrol *kcontrol, struct snd_ctl
  * mixers
  */
 
-static const struct snd_kcontrol_new aureon_dac_controls[] __devinitdata = {
+static struct snd_kcontrol_new aureon_dac_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -1526,7 +1526,7 @@ static const struct snd_kcontrol_new aureon_dac_controls[] __devinitdata = {
 	}
 };
 
-static const struct snd_kcontrol_new wm_controls[] __devinitdata = {
+static struct snd_kcontrol_new wm_controls[] __devinitdata = {
  	{
  		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Switch",
@@ -1592,7 +1592,7 @@ static const struct snd_kcontrol_new wm_controls[] __devinitdata = {
 	}
 };
 
-static const struct snd_kcontrol_new ac97_controls[] __devinitdata = {
+static struct snd_kcontrol_new ac97_controls[] __devinitdata = {
  	{
  		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "AC97 Playback Switch",
@@ -1697,7 +1697,7 @@ static const struct snd_kcontrol_new ac97_controls[] __devinitdata = {
  	}
 };
 
-static const struct snd_kcontrol_new universe_ac97_controls[] __devinitdata = {
+static struct snd_kcontrol_new universe_ac97_controls[] __devinitdata = {
  	{
  		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "AC97 Playback Switch",
@@ -1829,7 +1829,7 @@ static const struct snd_kcontrol_new universe_ac97_controls[] __devinitdata = {
 
 };
 
-static const struct snd_kcontrol_new cs8415_controls[] __devinitdata = {
+static struct snd_kcontrol_new cs8415_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH),
@@ -2107,7 +2107,7 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
  * hence the driver needs to sets up it properly.
  */
 
-static const unsigned char aureon51_eeprom[] __devinitdata = {
+static unsigned char aureon51_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x0a,	/* clock 512, spdif-in/ADC, 3DACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xfc,	/* vol, 96k, 24bit, 192k */
@@ -2123,7 +2123,7 @@ static const unsigned char aureon51_eeprom[] __devinitdata = {
 	[ICE_EEP2_GPIO_STATE2] = 0x00,
 };
 
-static const unsigned char aureon71_eeprom[] __devinitdata = {
+static unsigned char aureon71_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x0b,	/* clock 512, spdif-in/ADC, 4DACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xfc,	/* vol, 96k, 24bit, 192k */
@@ -2140,7 +2140,7 @@ static const unsigned char aureon71_eeprom[] __devinitdata = {
 };
 #define prodigy71_eeprom aureon71_eeprom
 
-static const unsigned char prodigy71lt_eeprom[] __devinitdata = {
+static unsigned char prodigy71lt_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x4b,	/* clock 384, spdif-in/ADC, 4DACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xfc,	/* vol, 96k, 24bit, 192k */
@@ -2158,7 +2158,7 @@ static const unsigned char prodigy71lt_eeprom[] __devinitdata = {
 #define prodigy71xt_eeprom prodigy71lt_eeprom
 
 /* entry point */
-const struct snd_ice1712_card_info snd_vt1724_aureon_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1724_aureon_cards[] __devinitdata = {
 	{
 		.subvendor = VT1724_SUBDEVICE_AUREON51_SKY,
 		.name = "Terratec Aureon 5.1-Sky",

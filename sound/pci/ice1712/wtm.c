@@ -409,7 +409,7 @@ static int stac9460_mic_sw_put(struct snd_kcontrol *kcontrol,
 /*
  * Control tabs
  */
-static const struct snd_kcontrol_new stac9640_controls[] __devinitdata = {
+static struct snd_kcontrol_new stac9640_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",

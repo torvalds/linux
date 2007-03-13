@@ -31,7 +31,7 @@
 #define VT1724_SUBDEVICE_PHASE28	0x3b154911
 
 /* entry point */
-extern const struct snd_ice1712_card_info snd_vt1724_phase_cards[];
+extern struct snd_ice1712_card_info snd_vt1724_phase_cards[];
 
 /* PHASE28 GPIO bits */
 #define PHASE28_SPI_MISO	(1 << 21)
