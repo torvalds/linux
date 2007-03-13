@@ -1034,6 +1034,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		saa7134_dmasound_init(dev);
 	}
 
+	if (TUNER_ABSENT != dev->tuner_type)
+		saa7134_i2c_call_clients(dev, TUNER_SET_STANDBY, NULL);
+
 	return 0;
 
  fail4:
