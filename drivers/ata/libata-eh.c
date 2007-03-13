@@ -1056,7 +1056,7 @@ static void ata_eh_analyze_serror(struct ata_port *ap)
 	}
 	if (serror & SERR_INTERNAL) {
 		err_mask |= AC_ERR_SYSTEM;
-		action |= ATA_EH_SOFTRESET;
+		action |= ATA_EH_HARDRESET;
 	}
 	if (serror & (SERR_PHYRDY_CHG | SERR_DEV_XCHG))
 		ata_ehi_hotplugged(&ehc->i);
