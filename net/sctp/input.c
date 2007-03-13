@@ -506,7 +506,7 @@ void sctp_err_finish(struct sock *sk, struct sctp_association *asoc)
 void sctp_v4_err(struct sk_buff *skb, __u32 info)
 {
 	struct iphdr *iph = (struct iphdr *)skb->data;
-	struct sctphdr *sh = (struct sctphdr *)(skb->data + (iph->ihl <<2));
+	const int ihlen = iph->ihl * 4;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
 	struct sock *sk;
@@ -516,7 +516,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	char *saveip, *savesctp;
 	int err;
 
-	if (skb->len < ((iph->ihl << 2) + 8)) {
+	if (skb->len < ihlen + 8) {
 		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
 		return;
 	}
@@ -525,8 +525,8 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	saveip = skb->nh.raw;
 	savesctp  = skb->h.raw;
 	skb_reset_network_header(skb);
-	skb->h.raw = (char *)sh;
-	sk = sctp_err_lookup(AF_INET, skb, sh, &asoc, &transport);
+	skb_set_transport_header(skb, ihlen);
+	sk = sctp_err_lookup(AF_INET, skb, sctp_hdr(skb), &asoc, &transport);
 	/* Put back, the original pointers. */
 	skb->nh.raw = saveip;
 	skb->h.raw = savesctp;
