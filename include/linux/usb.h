@@ -394,7 +394,7 @@ struct usb_device {
 	struct delayed_work autosuspend; /* for delayed autosuspends */
 	struct mutex pm_mutex;		/* protects PM operations */
 
-	unsigned autosuspend_delay;	/* in jiffies */
+	int autosuspend_delay;		/* in jiffies */
 
 	unsigned auto_pm:1;		/* autosuspend/resume in progress */
 	unsigned do_remote_wakeup:1;	/* remote wakeup should be enabled */

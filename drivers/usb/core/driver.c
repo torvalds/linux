@@ -970,7 +970,7 @@ static int autosuspend_check(struct usb_device *udev)
 	udev->do_remote_wakeup = device_may_wakeup(&udev->dev);
 	if (udev->pm_usage_cnt > 0)
 		return -EBUSY;
-	if (!udev->autosuspend_delay)
+	if (udev->autosuspend_delay < 0)
 		return -EPERM;
 
 	if (udev->actconfig) {

@@ -165,7 +165,7 @@ show_autosuspend(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev = to_usb_device(dev);
 
-	return sprintf(buf, "%u\n", udev->autosuspend_delay / HZ);
+	return sprintf(buf, "%d\n", udev->autosuspend_delay / HZ);
 }
 
 static ssize_t
@@ -173,17 +173,21 @@ set_autosuspend(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct usb_device *udev = to_usb_device(dev);
-	unsigned value, old;
+	int value;
 
-	if (sscanf(buf, "%u", &value) != 1 || value >= INT_MAX/HZ)
+	if (sscanf(buf, "%d", &value) != 1 || value >= INT_MAX/HZ ||
+			value <= - INT_MAX/HZ)
 		return -EINVAL;
 	value *= HZ;
 
-	old = udev->autosuspend_delay;
 	udev->autosuspend_delay = value;
-	if (value > 0 && old == 0)
+	if (value >= 0)
 		usb_try_autosuspend_device(udev);
-
+	else {
+		usb_lock_device(udev);
+		usb_external_resume_device(udev);
+		usb_unlock_device(udev);
+	}
 	return count;
 }
 
