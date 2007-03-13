@@ -197,6 +197,11 @@ static void usb_release_dev(struct device *dev)
 	kfree(udev);
 }
 
+struct device_type usb_device_type = {
+	.name =		"usb_device",
+	.release =	usb_release_dev,
+};
+
 #ifdef	CONFIG_PM
 
 static int ksuspend_usb_init(void)
@@ -247,12 +252,9 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 
 	device_initialize(&dev->dev);
 	dev->dev.bus = &usb_bus_type;
+	dev->dev.type = &usb_device_type;
 	dev->dev.dma_mask = bus->controller->dma_mask;
-	dev->dev.release = usb_release_dev;
 	dev->state = USB_STATE_ATTACHED;
-
-	/* This magic assignment distinguishes devices from interfaces */
-	dev->dev.platform_data = &usb_generic_driver;
 
 	INIT_LIST_HEAD(&dev->ep0.urb_list);
 	dev->ep0.desc.bLength = USB_DT_ENDPOINT_SIZE;
@@ -882,9 +884,9 @@ static int __init usb_init(void)
 	retval = usb_register(&usbfs_driver);
 	if (retval)
 		goto driver_register_failed;
-	retval = usbdev_init();
+	retval = usb_devio_init();
 	if (retval)
-		goto usbdevice_init_failed;
+		goto usb_devio_init_failed;
 	retval = usbfs_init();
 	if (retval)
 		goto fs_init_failed;
@@ -899,8 +901,8 @@ static int __init usb_init(void)
 hub_init_failed:
 	usbfs_cleanup();
 fs_init_failed:
-	usbdev_cleanup();
-usbdevice_init_failed:
+	usb_devio_cleanup();
+usb_devio_init_failed:
 	usb_deregister(&usbfs_driver);
 driver_register_failed:
 	usb_major_cleanup();
@@ -927,7 +929,7 @@ static void __exit usb_exit(void)
 	usb_major_cleanup();
 	usbfs_cleanup();
 	usb_deregister(&usbfs_driver);
-	usbdev_cleanup();
+	usb_devio_cleanup();
 	usb_hub_cleanup();
 	usb_host_cleanup();
 	bus_unregister(&usb_bus_type);

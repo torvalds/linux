@@ -78,15 +78,13 @@ static inline int usb_autoresume_device(struct usb_device *udev)
 
 extern struct workqueue_struct *ksuspend_usb_wq;
 extern struct bus_type usb_bus_type;
+extern struct device_type usb_device_type;
+extern struct device_type usb_if_device_type;
 extern struct usb_device_driver usb_generic_driver;
-
-/* Here's how we tell apart devices and interfaces.  Luckily there's
- * no such thing as a platform USB device, so we can steal the use
- * of the platform_data field. */
 
 static inline int is_usb_device(const struct device *dev)
 {
-	return dev->platform_data == &usb_generic_driver;
+	return dev->type == &usb_device_type;
 }
 
 /* Do the same for device drivers and interface drivers. */
@@ -122,11 +120,11 @@ extern const char *usbcore_name;
 extern struct mutex usbfs_mutex;
 extern struct usb_driver usbfs_driver;
 extern const struct file_operations usbfs_devices_fops;
-extern const struct file_operations usbfs_device_file_operations;
+extern const struct file_operations usbdev_file_operations;
 extern void usbfs_conn_disc_event(void);
 
-extern int usbdev_init(void);
-extern void usbdev_cleanup(void);
+extern int usb_devio_init(void);
+extern void usb_devio_cleanup(void);
 
 struct dev_state {
 	struct list_head list;      /* state list */

@@ -574,23 +574,10 @@ static int usb_device_match(struct device *dev, struct device_driver *drv)
 }
 
 #ifdef	CONFIG_HOTPLUG
-
-/*
- * This sends an uevent to userspace, typically helping to load driver
- * or other modules, configure the device, and more.  Drivers can provide
- * a MODULE_DEVICE_TABLE to help with module loading subtasks.
- *
- * We're called either from khubd (the typical case) or from root hub
- * (init, kapmd, modprobe, rmmod, etc), but the agents need to handle
- * delays in event delivery.  Use sysfs (and DEVPATH) to make sure the
- * device (and this configuration!) are still present.
- */
 static int usb_uevent(struct device *dev, char **envp, int num_envp,
 		      char *buffer, int buffer_size)
 {
-	struct usb_interface *intf;
 	struct usb_device *usb_dev;
-	struct usb_host_interface *alt;
 	int i = 0;
 	int length = 0;
 
@@ -600,13 +587,11 @@ static int usb_uevent(struct device *dev, char **envp, int num_envp,
 	/* driver is often null here; dev_dbg() would oops */
 	pr_debug ("usb %s: uevent\n", dev->bus_id);
 
-	if (is_usb_device(dev)) {
+	if (is_usb_device(dev))
 		usb_dev = to_usb_device(dev);
-		alt = NULL;
-	} else {
-		intf = to_usb_interface(dev);
+	else {
+		struct usb_interface *intf = to_usb_interface(dev);
 		usb_dev = interface_to_usbdev(intf);
-		alt = intf->cur_altsetting;
 	}
 
 	if (usb_dev->devnum < 0) {
@@ -621,9 +606,7 @@ static int usb_uevent(struct device *dev, char **envp, int num_envp,
 #ifdef	CONFIG_USB_DEVICEFS
 	/* If this is available, userspace programs can directly read
 	 * all the device descriptors we don't tell them about.  Or
-	 * even act as usermode drivers.
-	 *
-	 * FIXME reduce hardwired intelligence here
+	 * act as usermode drivers.
 	 */
 	if (add_uevent_var(envp, num_envp, &i,
 			   buffer, buffer_size, &length,
@@ -650,44 +633,29 @@ static int usb_uevent(struct device *dev, char **envp, int num_envp,
 			   usb_dev->descriptor.bDeviceProtocol))
 		return -ENOMEM;
 
-	if (!is_usb_device(dev)) {
-
-		if (add_uevent_var(envp, num_envp, &i,
+	if (add_uevent_var(envp, num_envp, &i,
 			   buffer, buffer_size, &length,
-			   "INTERFACE=%d/%d/%d",
-			   alt->desc.bInterfaceClass,
-			   alt->desc.bInterfaceSubClass,
-			   alt->desc.bInterfaceProtocol))
-			return -ENOMEM;
+			   "BUSNUM=%03d",
+			   usb_dev->bus->busnum))
+		return -ENOMEM;
 
-		if (add_uevent_var(envp, num_envp, &i,
+	if (add_uevent_var(envp, num_envp, &i,
 			   buffer, buffer_size, &length,
-			   "MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
-			   le16_to_cpu(usb_dev->descriptor.idVendor),
-			   le16_to_cpu(usb_dev->descriptor.idProduct),
-			   le16_to_cpu(usb_dev->descriptor.bcdDevice),
-			   usb_dev->descriptor.bDeviceClass,
-			   usb_dev->descriptor.bDeviceSubClass,
-			   usb_dev->descriptor.bDeviceProtocol,
-			   alt->desc.bInterfaceClass,
-			   alt->desc.bInterfaceSubClass,
-			   alt->desc.bInterfaceProtocol))
-			return -ENOMEM;
-	}
+			   "DEVNUM=%03d",
+			   usb_dev->devnum))
+		return -ENOMEM;
 
 	envp[i] = NULL;
-
 	return 0;
 }
 
 #else
 
 static int usb_uevent(struct device *dev, char **envp,
-			int num_envp, char *buffer, int buffer_size)
+		      int num_envp, char *buffer, int buffer_size)
 {
 	return -ENODEV;
 }
-
 #endif	/* CONFIG_HOTPLUG */
 
 /**
