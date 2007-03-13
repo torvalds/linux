@@ -108,7 +108,7 @@ static int ipv6_gso_send_check(struct sk_buff *skb)
 	rcu_read_lock();
 	ops = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
 	if (likely(ops && ops->gso_send_check)) {
-		skb->h.raw = skb->data;
+		skb_reset_transport_header(skb);
 		err = ops->gso_send_check(skb);
 	}
 	rcu_read_unlock();
@@ -144,7 +144,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
 	rcu_read_lock();
 	ops = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
 	if (likely(ops && ops->gso_segment)) {
-		skb->h.raw = skb->data;
+		skb_reset_transport_header(skb);
 		segs = ops->gso_segment(skb, features);
 	}
 	rcu_read_unlock();

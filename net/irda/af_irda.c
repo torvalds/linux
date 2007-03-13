@@ -1363,8 +1363,8 @@ static int irda_recvmsg_dgram(struct kiocb *iocb, struct socket *sock,
 	if (!skb)
 		return err;
 
-	skb->h.raw = skb->data;
-	copied     = skb->len;
+	skb_reset_transport_header(skb);
+	copied = skb->len;
 
 	if (copied > size) {
 		IRDA_DEBUG(2, "%s(), Received truncated frame (%zd < %zd)!\n",

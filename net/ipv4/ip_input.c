@@ -201,7 +201,7 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 	__skb_pull(skb, ip_hdrlen(skb));
 
 	/* Point into the IP datagram, just past the header. */
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	rcu_read_lock();
 	{

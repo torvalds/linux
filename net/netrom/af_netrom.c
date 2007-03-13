@@ -878,7 +878,7 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	if (frametype == NR_PROTOEXT &&
 	    circuit_index == NR_PROTO_IP && circuit_id == NR_PROTO_IP) {
 		skb_pull(skb, NR_NETWORK_LEN + NR_TRANSPORT_LEN);
-		skb->h.raw = skb->data;
+		skb_reset_transport_header(skb);
 
 		return nr_rx_ip(skb, dev);
 	}
@@ -904,7 +904,7 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (sk != NULL) {
-		skb->h.raw = skb->data;
+		skb_reset_transport_header(skb);
 
 		if (frametype == NR_CONNACK && skb->len == 22)
 			nr_sk(sk)->bpqext = 1;
@@ -1149,7 +1149,7 @@ static int nr_recvmsg(struct kiocb *iocb, struct socket *sock,
 		return er;
 	}
 
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	copied     = skb->len;
 
 	if (copied > size) {

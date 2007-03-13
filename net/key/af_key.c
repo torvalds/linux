@@ -3667,7 +3667,7 @@ static int pfkey_recvmsg(struct kiocb *kiocb,
 		copied = len;
 	}
 
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
 	if (err)
 		goto out_free;

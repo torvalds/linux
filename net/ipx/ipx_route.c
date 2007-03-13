@@ -204,7 +204,7 @@ int ipxrtr_route_packet(struct sock *sk, struct sockaddr_ipx *usipx,
 
 	/* Fill in IPX header */
 	skb_reset_network_header(skb);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	skb_put(skb, sizeof(struct ipxhdr));
 	ipx = ipx_hdr(skb);
 	ipx->ipx_pktsize = htons(len + sizeof(struct ipxhdr));

@@ -119,7 +119,7 @@ static void __aarp_send_query(struct aarp_entry *a)
 	/* Set up the buffer */
 	skb_reserve(skb, dev->hard_header_len + aarp_dl->header_length);
 	skb_reset_network_header(skb);
-	skb->h.raw	 = skb->data;
+	skb_reset_transport_header(skb);
 	skb_put(skb, sizeof(*eah));
 	skb->protocol    = htons(ETH_P_ATALK);
 	skb->dev	 = dev;
@@ -166,7 +166,7 @@ static void aarp_send_reply(struct net_device *dev, struct atalk_addr *us,
 	/* Set up the buffer */
 	skb_reserve(skb, dev->hard_header_len + aarp_dl->header_length);
 	skb_reset_network_header(skb);
-	skb->h.raw	 = skb->data;
+	skb_reset_transport_header(skb);
 	skb_put(skb, sizeof(*eah));
 	skb->protocol    = htons(ETH_P_ATALK);
 	skb->dev	 = dev;
@@ -217,7 +217,7 @@ static void aarp_send_probe(struct net_device *dev, struct atalk_addr *us)
 	/* Set up the buffer */
 	skb_reserve(skb, dev->hard_header_len + aarp_dl->header_length);
 	skb_reset_network_header(skb);
-	skb->h.raw	 = skb->data;
+	skb_reset_transport_header(skb);
 	skb_put(skb, sizeof(*eah));
 	skb->protocol    = htons(ETH_P_ATALK);
 	skb->dev	 = dev;

@@ -654,7 +654,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			 * before previous one went down. */
 			if (frag) {
 				frag->ip_summed = CHECKSUM_NONE;
-				frag->h.raw = frag->data;
+				skb_reset_transport_header(frag);
 				fh = (struct frag_hdr*)__skb_push(frag, sizeof(struct frag_hdr));
 				__skb_push(frag, hlen);
 				skb_reset_network_header(frag);
@@ -747,8 +747,8 @@ slow_path:
 		skb_reserve(frag, LL_RESERVED_SPACE(rt->u.dst.dev));
 		skb_put(frag, len + hlen + sizeof(struct frag_hdr));
 		skb_reset_network_header(frag);
-		fh = (struct frag_hdr*)(frag->data + hlen);
-		frag->h.raw = frag->data + hlen + sizeof(struct frag_hdr);
+		fh = (struct frag_hdr *)(skb_network_header(frag) + hlen);
+		frag->h.raw = frag->nh.raw + hlen + sizeof(struct frag_hdr);
 
 		/*
 		 *	Charge the memory for the fragment to any owner
@@ -991,7 +991,7 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 		skb_reset_network_header(skb);
 
 		/* initialize protocol header pointer */
-		skb->h.raw = skb->data + fragheaderlen;
+		skb->h.raw = skb->nh.raw + fragheaderlen;
 
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum = 0;

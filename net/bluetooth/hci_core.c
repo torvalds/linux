@@ -1074,11 +1074,11 @@ static void hci_add_acl_hdr(struct sk_buff *skb, __u16 handle, __u16 flags)
 	struct hci_acl_hdr *hdr;
 	int len = skb->len;
 
-	hdr = (struct hci_acl_hdr *) skb_push(skb, HCI_ACL_HDR_SIZE);
+	skb_push(skb, HCI_ACL_HDR_SIZE);
+	skb_reset_transport_header(skb);
+	hdr = (struct hci_acl_hdr *)skb->h.raw;
 	hdr->handle = cpu_to_le16(hci_handle_pack(handle, flags));
 	hdr->dlen   = cpu_to_le16(len);
-
-	skb->h.raw = (void *) hdr;
 }
 
 int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
@@ -1143,7 +1143,8 @@ int hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
 	hdr.handle = cpu_to_le16(conn->handle);
 	hdr.dlen   = skb->len;
 
-	skb->h.raw = skb_push(skb, HCI_SCO_HDR_SIZE);
+	skb_push(skb, HCI_SCO_HDR_SIZE);
+	skb_reset_transport_header(skb);
 	memcpy(skb->h.raw, &hdr, HCI_SCO_HDR_SIZE);
 
 	skb->dev = (void *) hdev;

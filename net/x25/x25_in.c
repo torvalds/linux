@@ -53,7 +53,7 @@ static int x25_queue_rx_frame(struct sock *sk, struct sk_buff *skb, int more)
 
 		skb_queue_tail(&x25->fragment_queue, skb);
 
-		skbn->h.raw = skbn->data;
+		skb_reset_transport_header(skbn);
 
 		skbo = skb_dequeue(&x25->fragment_queue);
 		memcpy(skb_put(skbn, skbo->len), skbo->data, skbo->len);

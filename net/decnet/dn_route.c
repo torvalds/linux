@@ -504,7 +504,7 @@ static int dn_route_rx_long(struct sk_buff *skb)
 		goto drop_it;
 
 	skb_pull(skb, 20);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	/* Destination info */
 	ptr += 2;
@@ -542,7 +542,7 @@ static int dn_route_rx_short(struct sk_buff *skb)
 		goto drop_it;
 
 	skb_pull(skb, 5);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	cb->dst = *(__le16 *)ptr;
 	ptr += 2;

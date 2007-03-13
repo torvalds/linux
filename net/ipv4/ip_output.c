@@ -500,7 +500,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 			 * before previous one went down. */
 			if (frag) {
 				frag->ip_summed = CHECKSUM_NONE;
-				frag->h.raw = frag->data;
+				skb_reset_transport_header(frag);
 				__skb_push(frag, hlen);
 				skb_reset_network_header(frag);
 				memcpy(skb_network_header(frag), iph, hlen);

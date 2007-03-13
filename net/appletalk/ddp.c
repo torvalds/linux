@@ -1275,7 +1275,7 @@ static int handle_ip_over_ddp(struct sk_buff *skb)
 	skb->protocol = htons(ETH_P_IP);
 	skb_pull(skb, 13);
 	skb->dev   = dev;
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	stats = dev->priv;
 	stats->rx_packets++;
@@ -1522,7 +1522,7 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		/* Non routable, so force a drop if we slip up later */
 		ddp->deh_len_hops = htons(skb->len + (DDP_MAXHOPS << 10));
 	}
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	return atalk_rcv(skb, dev, pt, orig_dev);
 freeit:

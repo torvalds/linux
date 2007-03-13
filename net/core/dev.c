@@ -1773,7 +1773,7 @@ int netif_receive_skb(struct sk_buff *skb)
 	__get_cpu_var(netdev_rx_stat).total++;
 
 	skb_reset_network_header(skb);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	skb->mac_len = skb->nh.raw - skb->mac.raw;
 
 	pt_prev = NULL;

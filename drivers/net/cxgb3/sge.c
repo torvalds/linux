@@ -1622,7 +1622,7 @@ static inline int rx_offload(struct t3cdev *tdev, struct sge_rspq *rq,
 	rq->offload_pkts++;
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	if (rq->polling) {
 		rx_gather[gather_idx++] = skb;

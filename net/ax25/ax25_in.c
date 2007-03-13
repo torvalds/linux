@@ -62,7 +62,7 @@ static int ax25_rx_fragment(ax25_cb *ax25, struct sk_buff *skb)
 
 					skbn->dev   = ax25->ax25_dev->dev;
 					skb_reset_network_header(skbn);
-					skbn->h.raw = skbn->data;
+					skb_reset_transport_header(skbn);
 
 					/* Copy data from the fragments */
 					while ((skbo = skb_dequeue(&ax25->frag_queue)) != NULL) {
@@ -196,7 +196,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 	 *	Process the AX.25/LAPB frame.
 	 */
 
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	if ((ax25_dev = ax25_dev_ax25dev(dev)) == NULL) {
 		kfree_skb(skb);
@@ -246,7 +246,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 		switch (skb->data[1]) {
 		case AX25_P_IP:
 			skb_pull(skb,2);		/* drop PID/CTRL */
-			skb->h.raw    = skb->data;
+			skb_reset_transport_header(skb);
 			skb_reset_network_header(skb);
 			skb->dev      = dev;
 			skb->pkt_type = PACKET_HOST;
@@ -256,7 +256,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 
 		case AX25_P_ARP:
 			skb_pull(skb,2);
-			skb->h.raw    = skb->data;
+			skb_reset_transport_header(skb);
 			skb_reset_network_header(skb);
 			skb->dev      = dev;
 			skb->pkt_type = PACKET_HOST;

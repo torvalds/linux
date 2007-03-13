@@ -79,7 +79,7 @@ static void dn_nsp_send(struct sk_buff *skb)
 	struct dst_entry *dst;
 	struct flowi fl;
 
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	scp->stamp = jiffies;
 
 	dst = sk_dst_check(sk, 0);

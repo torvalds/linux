@@ -776,7 +776,7 @@ static int sendup_buffer (struct net_device *dev)
 	/* copy ddp(s,e)hdr + contents */
 	memcpy(skb->data,(void*)ltdmabuf,len);
 
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	stats->rx_packets++;
 	stats->rx_bytes+=skb->len;
@@ -923,7 +923,7 @@ static int ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
 	cbuf.laptype = skb->data[2];
 	skb_pull(skb,3);	/* skip past LLAP header */
 	cbuf.length = skb->len;	/* this is host order */
-	skb->h.raw=skb->data;
+	skb_reset_transport_header(skb);
 
 	if(debug & DEBUG_UPPER) {
 		printk("command ");

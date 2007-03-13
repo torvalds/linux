@@ -1210,8 +1210,7 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 		}
 	}
 
-	skb->h.raw = skb->data;
-
+	skb_reset_transport_header(skb);
 	copied = skb->len;
 
 	if (copied > size) {

@@ -507,7 +507,7 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 	 */
 	skb_get(skb);
 	set_arp_failure_handler(skb, arp_failure_discard);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	len = skb->len;
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
@@ -559,7 +559,7 @@ static int send_mpa_reject(struct iwch_ep *ep, const void *pdata, u8 plen)
 	skb_get(skb);
 	skb->priority = CPL_PRIORITY_DATA;
 	set_arp_failure_handler(skb, arp_failure_discard);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
 	req->wr_lo = htonl(V_WR_TID(ep->hwtid));
@@ -610,7 +610,7 @@ static int send_mpa_reply(struct iwch_ep *ep, const void *pdata, u8 plen)
 	 */
 	skb_get(skb);
 	set_arp_failure_handler(skb, arp_failure_discard);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	len = skb->len;
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));

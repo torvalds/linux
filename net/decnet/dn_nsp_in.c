@@ -725,7 +725,7 @@ static int dn_nsp_rx_packet(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, 2))
 		goto free_out;
 
-	skb->h.raw    = skb->data;
+	skb_reset_transport_header(skb);
 	cb->nsp_flags = *ptr++;
 
 	if (decnet_debug_level & 2)

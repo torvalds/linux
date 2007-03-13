@@ -634,7 +634,7 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 	head->nh.raw += sizeof(struct frag_hdr);
 
 	skb_shinfo(head)->frag_list = head->next;
-	head->h.raw = head->data;
+	skb_reset_transport_header(head);
 	skb_push(head, head->data - skb_network_header(head));
 	atomic_sub(head->truesize, &nf_ct_frag6_mem);
 

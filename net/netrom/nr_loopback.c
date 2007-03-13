@@ -35,7 +35,7 @@ int nr_loopback_queue(struct sk_buff *skb)
 
 	if ((skbn = alloc_skb(skb->len, GFP_ATOMIC)) != NULL) {
 		memcpy(skb_put(skbn, skb->len), skb->data, skb->len);
-		skbn->h.raw = skbn->data;
+		skb_reset_transport_header(skbn);
 
 		skb_queue_tail(&loopback_queue, skbn);
 

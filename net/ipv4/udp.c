@@ -1002,7 +1002,8 @@ static int udp_encap_rcv(struct sock * sk, struct sk_buff *skb)
 	 * transport header to point to ESP.  Keep UDP on the stack
 	 * for later.
 	 */
-	skb->h.raw = __skb_pull(skb, len);
+	__skb_pull(skb, len);
+	skb_reset_transport_header(skb);
 
 	/* modify the protocol (it's ESP!) */
 	iph->protocol = IPPROTO_ESP;

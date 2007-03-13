@@ -59,7 +59,7 @@ static int xfrm6_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 	}
 	ipv6_hdr(skb)->payload_len = htons(skb->len + ihl -
 					   sizeof(struct ipv6hdr));
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	return 0;
 }
 

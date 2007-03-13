@@ -1234,7 +1234,7 @@ static int rose_recvmsg(struct kiocb *iocb, struct socket *sock,
 		*asmptr = qbit;
 	}
 
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	copied     = skb->len;
 
 	if (copied > size) {

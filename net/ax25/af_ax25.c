@@ -1631,8 +1631,8 @@ static int ax25_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (!ax25_sk(sk)->pidincl)
 		skb_pull(skb, 1);		/* Remove PID */
 
-	skb->h.raw = skb->data;
-	copied     = skb->len;
+	skb_reset_transport_header(skb);
+	copied = skb->len;
 
 	if (copied > size) {
 		copied = size;

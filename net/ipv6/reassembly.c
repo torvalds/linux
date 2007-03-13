@@ -653,7 +653,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 	head->nh.raw += sizeof(struct frag_hdr);
 
 	skb_shinfo(head)->frag_list = head->next;
-	head->h.raw = head->data;
+	skb_reset_transport_header(head);
 	skb_push(head, head->data - skb_network_header(head));
 	atomic_sub(head->truesize, &ip6_frag_mem);
 

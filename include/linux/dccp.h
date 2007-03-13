@@ -265,9 +265,9 @@ static inline struct dccp_hdr *dccp_hdr(const struct sk_buff *skb)
 
 static inline struct dccp_hdr *dccp_zeroed_hdr(struct sk_buff *skb, int headlen)
 {
-	skb->h.raw = skb_push(skb, headlen);
-	memset(skb->h.raw, 0, headlen);
-	return dccp_hdr(skb);
+	skb_push(skb, headlen);
+	skb_reset_transport_header(skb);
+	return memset(skb->h.raw, 0, headlen);
 }
 
 static inline struct dccp_hdr_ext *dccp_hdrx(const struct sk_buff *skb)

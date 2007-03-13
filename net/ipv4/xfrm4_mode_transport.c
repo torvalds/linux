@@ -52,7 +52,7 @@ static int xfrm4_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 		skb->nh.raw = skb->h.raw;
 	}
 	ip_hdr(skb)->tot_len = htons(skb->len + ihl);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	return 0;
 }
 
