@@ -1043,6 +1043,15 @@ static int split_leaf(struct btrfs_root *root, struct btrfs_path *path,
 	int ret;
 	int wret;
 
+	wret = push_leaf_left(root, path, data_size);
+	if (wret < 0)
+		return wret;
+	if (wret) {
+		wret = push_leaf_right(root, path, data_size);
+		if (wret < 0)
+			return wret;
+	}
+
 	l_buf = path->nodes[0];
 	l = &l_buf->leaf;
 

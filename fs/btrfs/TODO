@@ -1,10 +1,8 @@
 * cleanup, add more error checking, get rid of BUG_ONs
-* endian fixes
 * Make IO functions look more like the page cache
 * Fix ENOSPC handling
 * make blocksize a mkfs parameter instead of #define
 * make a real mkfs and superblock
-* Add shadowing and transactions
 * Do checksumming
 * Define FS objects in terms of different item types
 * Add block mapping tree (simple dm layer)
