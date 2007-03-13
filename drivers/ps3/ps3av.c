@@ -24,6 +24,8 @@
 #include <linux/reboot.h>
 #include <linux/kernel.h>
 #include <linux/ioctl.h>
+
+#include <asm/firmware.h>
 #include <asm/lv1call.h>
 #include <asm/ps3av.h>
 #include <asm/ps3.h>
@@ -947,7 +949,12 @@ static struct ps3_vuart_port_driver ps3av_driver = {
 
 static int ps3av_module_init(void)
 {
-	int error = ps3_vuart_port_driver_register(&ps3av_driver);
+	int error;
+
+	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
+		return -ENODEV;
+
+	error = ps3_vuart_port_driver_register(&ps3av_driver);
 	if (error) {
 		printk(KERN_ERR
 		       "%s: ps3_vuart_port_driver_register failed %d\n",

@@ -468,26 +468,6 @@ static inline void wait_purge_complete(struct spu_state *csa, struct spu *spu)
 			 MFC_CNTL_PURGE_DMA_COMPLETE);
 }
 
-static inline void save_mfc_slbs(struct spu_state *csa, struct spu *spu)
-{
-	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	int i;
-
-	/* Save, Step 29:
-	 *     If MFC_SR1[R]='1', save SLBs in CSA.
-	 */
-	if (spu_mfc_sr1_get(spu) & MFC_STATE1_RELOCATE_MASK) {
-		csa->priv2.slb_index_W = in_be64(&priv2->slb_index_W);
-		for (i = 0; i < 8; i++) {
-			out_be64(&priv2->slb_index_W, i);
-			eieio();
-			csa->slb_esid_RW[i] = in_be64(&priv2->slb_esid_RW);
-			csa->slb_vsid_RW[i] = in_be64(&priv2->slb_vsid_RW);
-			eieio();
-		}
-	}
-}
-
 static inline void setup_mfc_sr1(struct spu_state *csa, struct spu *spu)
 {
 	/* Save, Step 30:
@@ -708,20 +688,6 @@ static inline void resume_mfc_queue(struct spu_state *csa, struct spu *spu)
 	out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESUME_DMA_QUEUE);
 }
 
-static inline void invalidate_slbs(struct spu_state *csa, struct spu *spu)
-{
-	struct spu_priv2 __iomem *priv2 = spu->priv2;
-
-	/* Save, Step 45:
-	 * Restore, Step 19:
-	 *     If MFC_SR1[R]=1, write 0 to SLB_Invalidate_All.
-	 */
-	if (spu_mfc_sr1_get(spu) & MFC_STATE1_RELOCATE_MASK) {
-		out_be64(&priv2->slb_invalidate_all_W, 0UL);
-		eieio();
-	}
-}
-
 static inline void get_kernel_slb(u64 ea, u64 slb[2])
 {
 	u64 llp;
@@ -765,7 +731,7 @@ static inline void setup_mfc_slbs(struct spu_state *csa, struct spu *spu)
 	 *     MFC_SR1[R]=1 (in other words, assume that
 	 *     translation is desired by OS environment).
 	 */
-	invalidate_slbs(csa, spu);
+	spu_invalidate_slbs(spu);
 	get_kernel_slb((unsigned long)&spu_save_code[0], code_slb);
 	get_kernel_slb((unsigned long)csa->lscsa, lscsa_slb);
 	load_mfc_slb(spu, code_slb, 0);
@@ -1718,27 +1684,6 @@ static inline void check_ppuint_mb_stat(struct spu_state *csa, struct spu *spu)
 	}
 }
 
-static inline void restore_mfc_slbs(struct spu_state *csa, struct spu *spu)
-{
-	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	int i;
-
-	/* Restore, Step 68:
-	 *     If MFC_SR1[R]='1', restore SLBs from CSA.
-	 */
-	if (csa->priv1.mfc_sr1_RW & MFC_STATE1_RELOCATE_MASK) {
-		for (i = 0; i < 8; i++) {
-			out_be64(&priv2->slb_index_W, i);
-			eieio();
-			out_be64(&priv2->slb_esid_RW, csa->slb_esid_RW[i]);
-			out_be64(&priv2->slb_vsid_RW, csa->slb_vsid_RW[i]);
-			eieio();
-		}
-		out_be64(&priv2->slb_index_W, csa->priv2.slb_index_W);
-		eieio();
-	}
-}
-
 static inline void restore_mfc_sr1(struct spu_state *csa, struct spu *spu)
 {
 	/* Restore, Step 69:
@@ -1875,7 +1820,6 @@ static void save_csa(struct spu_state *prev, struct spu *spu)
 	set_mfc_tclass_id(prev, spu);	/* Step 26. */
 	purge_mfc_queue(prev, spu);	/* Step 27. */
 	wait_purge_complete(prev, spu);	/* Step 28. */
-	save_mfc_slbs(prev, spu);	/* Step 29. */
 	setup_mfc_sr1(prev, spu);	/* Step 30. */
 	save_spu_npc(prev, spu);	/* Step 31. */
 	save_spu_privcntl(prev, spu);	/* Step 32. */
@@ -1987,7 +1931,7 @@ static void harvest(struct spu_state *prev, struct spu *spu)
 	reset_spu_privcntl(prev, spu);	        /* Step 16. */
 	reset_spu_lslr(prev, spu);              /* Step 17. */
 	setup_mfc_sr1(prev, spu);	        /* Step 18. */
-	invalidate_slbs(prev, spu);	        /* Step 19. */
+	spu_invalidate_slbs(spu);        	/* Step 19. */
 	reset_ch_part1(prev, spu);	        /* Step 20. */
 	reset_ch_part2(prev, spu);	        /* Step 21. */
 	enable_interrupts(prev, spu);	        /* Step 22. */
@@ -2055,7 +1999,7 @@ static void restore_csa(struct spu_state *next, struct spu *spu)
 	restore_spu_mb(next, spu);	        /* Step 65. */
 	check_ppu_mb_stat(next, spu);	        /* Step 66. */
 	check_ppuint_mb_stat(next, spu);	/* Step 67. */
-	restore_mfc_slbs(next, spu);	        /* Step 68. */
+	spu_invalidate_slbs(spu);		/* Modified Step 68. */
 	restore_mfc_sr1(next, spu);	        /* Step 69. */
 	restore_other_spu_access(next, spu);	/* Step 70. */
 	restore_spu_runcntl(next, spu);	        /* Step 71. */

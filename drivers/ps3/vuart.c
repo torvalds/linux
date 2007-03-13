@@ -1031,7 +1031,7 @@ int __init ps3_vuart_bus_init(void)
 	pr_debug("%s:%d:\n", __func__, __LINE__);
 
 	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
-		return 0;
+		return -ENODEV;
 
 	init_MUTEX(&vuart_bus_priv.probe_mutex);
 	result = bus_register(&ps3_vuart_bus);

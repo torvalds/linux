@@ -165,6 +165,13 @@ int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
 void spu_irq_setaffinity(struct spu *spu, int cpu);
 
+extern void spu_invalidate_slbs(struct spu *spu);
+extern void spu_associate_mm(struct spu *spu, struct mm_struct *mm);
+
+/* Calls from the memory management to the SPU */
+struct mm_struct;
+extern void spu_flush_all_slbs(struct mm_struct *mm);
+
 /* system callbacks from the SPU */
 struct spu_syscall_block {
 	u64 nr_ret;
