@@ -240,7 +240,6 @@ struct sk_buff {
 		struct tcphdr	*th;
 		struct udphdr	*uh;
 		struct icmphdr	*icmph;
-		struct igmphdr	*igmph;
 		struct iphdr	*ipiph;
 		struct ipv6hdr	*ipv6h;
 		unsigned char	*raw;

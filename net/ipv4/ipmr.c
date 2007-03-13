@@ -1430,7 +1430,7 @@ int pim_rcv_v1(struct sk_buff * skb)
 	if (!pskb_may_pull(skb, sizeof(*pim) + sizeof(*encap)))
 		goto drop;
 
-	pim = (struct igmphdr*)skb->h.raw;
+	pim = igmp_hdr(skb);
 
 	if (!mroute_do_pim ||
 	    skb->len < sizeof(*pim) + sizeof(*encap) ||

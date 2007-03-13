@@ -333,8 +333,8 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 	((u8*)&pip[1])[2] = 0;
 	((u8*)&pip[1])[3] = 0;
 
-	pig =(struct igmpv3_report *)skb_put(skb, sizeof(*pig));
-	skb->h.igmph = (struct igmphdr *)pig;
+	skb->h.raw = skb_put(skb, sizeof(*pig));
+	pig = igmpv3_report_hdr(skb);
 	pig->type = IGMPV3_HOST_MEMBERSHIP_REPORT;
 	pig->resv1 = 0;
 	pig->csum = 0;
@@ -346,13 +346,13 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 static int igmpv3_sendpack(struct sk_buff *skb)
 {
 	struct iphdr *pip = ip_hdr(skb);
-	struct igmphdr *pig = skb->h.igmph;
+	struct igmphdr *pig = igmp_hdr(skb);
 	const int iplen = skb->tail - skb->nh.raw;
 	const int igmplen = skb->tail - skb->h.raw;
 
 	pip->tot_len = htons(iplen);
 	ip_send_check(pip);
-	pig->csum = ip_compute_csum(skb->h.igmph, igmplen);
+	pig->csum = ip_compute_csum(igmp_hdr(skb), igmplen);
 
 	return NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, skb, NULL, skb->dev,
 		       dst_output);
@@ -379,7 +379,7 @@ static struct sk_buff *add_grhead(struct sk_buff *skb, struct ip_mc_list *pmc,
 	pgr->grec_auxwords = 0;
 	pgr->grec_nsrcs = 0;
 	pgr->grec_mca = pmc->multiaddr;
-	pih = (struct igmpv3_report *)skb->h.igmph;
+	pih = igmpv3_report_hdr(skb);
 	pih->ngrec = htons(ntohs(pih->ngrec)+1);
 	*ppgr = pgr;
 	return skb;
@@ -412,7 +412,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 	if (!*psf_list)
 		goto empty_source;
 
-	pih = skb ? (struct igmpv3_report *)skb->h.igmph : NULL;
+	pih = skb ? igmpv3_report_hdr(skb) : NULL;
 
 	/* EX and TO_EX get a fresh packet, if needed */
 	if (truncate) {
@@ -829,8 +829,8 @@ static void igmp_heard_report(struct in_device *in_dev, __be32 group)
 static void igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 	int len)
 {
-	struct igmphdr 		*ih = skb->h.igmph;
-	struct igmpv3_query *ih3 = (struct igmpv3_query *)ih;
+	struct igmphdr 		*ih = igmp_hdr(skb);
+	struct igmpv3_query *ih3 = igmpv3_query_hdr(skb);
 	struct ip_mc_list	*im;
 	__be32			group = ih->group;
 	int			max_delay;
@@ -863,12 +863,12 @@ static void igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 		if (!pskb_may_pull(skb, sizeof(struct igmpv3_query)))
 			return;
 
-		ih3 = (struct igmpv3_query *) skb->h.raw;
+		ih3 = igmpv3_query_hdr(skb);
 		if (ih3->nsrcs) {
 			if (!pskb_may_pull(skb, sizeof(struct igmpv3_query)
 					   + ntohs(ih3->nsrcs)*sizeof(__be32)))
 				return;
-			ih3 = (struct igmpv3_query *) skb->h.raw;
+			ih3 = igmpv3_query_hdr(skb);
 		}
 
 		max_delay = IGMPV3_MRC(ih3->code)*(HZ/IGMP_TIMER_SCALE);
@@ -945,7 +945,7 @@ int igmp_rcv(struct sk_buff *skb)
 			goto drop;
 	}
 
-	ih = skb->h.igmph;
+	ih = igmp_hdr(skb);
 	switch (ih->type) {
 	case IGMP_HOST_MEMBERSHIP_QUERY:
 		igmp_heard_query(in_dev, skb, len);
