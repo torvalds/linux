@@ -392,7 +392,8 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	if (type == NULL)
 		type = "";
 
-	printk("    create device, devfn: %x, type: %s\n", devfn, type);
+	printk("    create device, devfn: %x, type: %s hostcontroller(%d)\n",
+	       devfn, type, host_controller);
 
 	dev->bus = bus;
 	dev->sysdata = node;
@@ -407,6 +408,9 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 		dev->subsystem_vendor = 0x0000;
 		dev->subsystem_device = 0x0000;
 		dev->cfg_size = 256;
+		dev->class = PCI_CLASS_BRIDGE_HOST << 8;
+		sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
+			0x00, PCI_SLOT(devfn), PCI_FUNC(devfn));
 	} else {
 		dev->vendor = of_getintprop_default(node, "vendor-id", 0xffff);
 		dev->device = of_getintprop_default(node, "device-id", 0xffff);
@@ -416,13 +420,7 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 			of_getintprop_default(node, "subsystem-id", 0);
 
 		dev->cfg_size = pci_cfg_space_size(dev);
-	}
-	sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
-		dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
-	if (host_controller) {
-		dev->class = PCI_CLASS_BRIDGE_HOST << 8;
-	} else {
 		/* We can't actually use the firmware value, we have
 		 * to read what is in the register right now.  One
 		 * reason is that in the case of IDE interfaces the
@@ -431,8 +429,12 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 		 */
 		pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
 		dev->class = class >> 8;
+
+		sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
+			dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
 	}
-	printk("    class: 0x%x\n", dev->class);
+	printk("    class: 0x%x device name: %s\n",
+	       dev->class, pci_name(dev));
 
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
