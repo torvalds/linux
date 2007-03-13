@@ -204,19 +204,7 @@ void __init arch_init_irq(void)
 		 * Note, PCI INTA is active low on the bus, but inverted
 		 * in the GIC, so to us it's active high.
 		 */
-#ifdef CONFIG_PNX8550_V2PCI
-		if (gic_int_line == (PNX8550_INT_GPIO0 - PNX8550_INT_GIC_MIN)) {
-			/* PCI INT through gpio 8, which is setup in
-			 * pnx8550_setup.c and routed to GPIO
-			 * Interrupt Level 0 (GPIO Connection 58).
-			 * Set it active low. */
-
-			PNX8550_GIC_REQ(gic_int_line) = 0x1E020000;
-		} else
-#endif
-		{
-			PNX8550_GIC_REQ(i - PNX8550_INT_GIC_MIN) = 0x1E000000;
-		}
+		PNX8550_GIC_REQ(i - PNX8550_INT_GIC_MIN) = 0x1E000000;
 
 		/* mask/priority is still 0 so we will not get any
 		 * interrupts until it is unmasked */
