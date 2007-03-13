@@ -355,7 +355,7 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 			   ipc, rt, MSG_DONTWAIT) < 0)
 		ip_flush_pending_frames(icmp_socket->sk);
 	else if ((skb = skb_peek(&icmp_socket->sk->sk_write_queue)) != NULL) {
-		struct icmphdr *icmph = skb->h.icmph;
+		struct icmphdr *icmph = icmp_hdr(skb);
 		__wsum csum = 0;
 		struct sk_buff *skb1;
 
@@ -613,7 +613,7 @@ static void icmp_unreach(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto out_err;
 
-	icmph = skb->h.icmph;
+	icmph = icmp_hdr(skb);
 	iph   = (struct iphdr *)skb->data;
 
 	if (iph->ihl < 5) /* Mangled header, drop. */
@@ -743,7 +743,7 @@ static void icmp_redirect(struct sk_buff *skb)
 
 	iph = (struct iphdr *)skb->data;
 
-	switch (skb->h.icmph->code & 7) {
+	switch (icmp_hdr(skb)->code & 7) {
 	case ICMP_REDIR_NET:
 	case ICMP_REDIR_NETTOS:
 		/*
@@ -752,7 +752,7 @@ static void icmp_redirect(struct sk_buff *skb)
 	case ICMP_REDIR_HOST:
 	case ICMP_REDIR_HOSTTOS:
 		ip_rt_redirect(ip_hdr(skb)->saddr, iph->daddr,
-			       skb->h.icmph->un.gateway,
+			       icmp_hdr(skb)->un.gateway,
 			       iph->saddr, skb->dev);
 		break;
 	}
@@ -780,7 +780,7 @@ static void icmp_echo(struct sk_buff *skb)
 	if (!sysctl_icmp_echo_ignore_all) {
 		struct icmp_bxm icmp_param;
 
-		icmp_param.data.icmph	   = *skb->h.icmph;
+		icmp_param.data.icmph	   = *icmp_hdr(skb);
 		icmp_param.data.icmph.type = ICMP_ECHOREPLY;
 		icmp_param.skb		   = skb;
 		icmp_param.offset	   = 0;
@@ -816,7 +816,7 @@ static void icmp_timestamp(struct sk_buff *skb)
 	icmp_param.data.times[2] = icmp_param.data.times[1];
 	if (skb_copy_bits(skb, 0, &icmp_param.data.times[0], 4))
 		BUG();
-	icmp_param.data.icmph	   = *skb->h.icmph;
+	icmp_param.data.icmph	   = *icmp_hdr(skb);
 	icmp_param.data.icmph.type = ICMP_TIMESTAMPREPLY;
 	icmp_param.data.icmph.code = 0;
 	icmp_param.skb		   = skb;
@@ -943,7 +943,7 @@ int icmp_rcv(struct sk_buff *skb)
 	if (!pskb_pull(skb, sizeof(struct icmphdr)))
 		goto error;
 
-	icmph = skb->h.icmph;
+	icmph = icmp_hdr(skb);
 
 	/*
 	 *	18 is the highest 'known' ICMP type. Anything else is a mystery

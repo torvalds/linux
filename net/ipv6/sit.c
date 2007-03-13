@@ -224,8 +224,8 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
    ICMP in the real Internet is absolutely infeasible.
  */
 	struct iphdr *iph = (struct iphdr*)skb->data;
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	struct ip_tunnel *t;
 	int err;
 
@@ -280,8 +280,8 @@ out:
 	struct iphdr *iph = (struct iphdr*)dp;
 	int hlen = iph->ihl<<2;
 	struct ipv6hdr *iph6;
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	int rel_type = 0;
 	int rel_code = 0;
 	int rel_info = 0;
@@ -296,14 +296,14 @@ out:
 	default:
 		return;
 	case ICMP_PARAMETERPROB:
-		if (skb->h.icmph->un.gateway < hlen)
+		if (icmp_hdr(skb)->un.gateway < hlen)
 			return;
 
 		/* So... This guy found something strange INSIDE encapsulated
 		   packet. Well, he is fool, but what can we do ?
 		 */
 		rel_type = ICMPV6_PARAMPROB;
-		rel_info = skb->h.icmph->un.gateway - hlen;
+		rel_info = icmp_hdr(skb)->un.gateway - hlen;
 		break;
 
 	case ICMP_DEST_UNREACH:

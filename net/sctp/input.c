@@ -507,8 +507,8 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 {
 	struct iphdr *iph = (struct iphdr *)skb->data;
 	struct sctphdr *sh = (struct sctphdr *)(skb->data + (iph->ihl <<2));
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	struct sock *sk;
 	struct sctp_association *asoc = NULL;
 	struct sctp_transport *transport;

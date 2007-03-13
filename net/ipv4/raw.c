@@ -132,7 +132,7 @@ static __inline__ int icmp_filter(struct sock *sk, struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct icmphdr)))
 		return 1;
 
-	type = skb->h.icmph->type;
+	type = icmp_hdr(skb)->type;
 	if (type < 32) {
 		__u32 data = raw_sk(sk)->filter.data;
 
@@ -184,8 +184,8 @@ out:
 void raw_err (struct sock *sk, struct sk_buff *skb, u32 info)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	int err = 0;
 	int harderr = 0;
 

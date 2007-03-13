@@ -82,6 +82,15 @@ struct icmphdr {
   } un;
 };
 
+#ifdef __KERNEL__
+#include <linux/skbuff.h>
+
+static inline struct icmphdr *icmp_hdr(const struct sk_buff *skb)
+{
+	return (struct icmphdr *)skb->h.raw;
+}
+#endif
+
 /*
  *	constants for (set|get)sockopt
  */

@@ -320,8 +320,8 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 	struct iphdr *iph = (struct iphdr*)skb->data;
 	__be16	     *p = (__be16*)(skb->data+(iph->ihl<<2));
 	int grehlen = (iph->ihl<<2) + 4;
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	struct ip_tunnel *t;
 	__be16 flags;
 
@@ -388,8 +388,8 @@ out:
 	struct iphdr *iph = (struct iphdr*)dp;
 	struct iphdr *eiph;
 	__be16	     *p = (__be16*)(dp+(iph->ihl<<2));
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	int rel_type = 0;
 	int rel_code = 0;
 	__be32 rel_info = 0;
@@ -422,7 +422,7 @@ out:
 	default:
 		return;
 	case ICMP_PARAMETERPROB:
-		n = ntohl(skb->h.icmph->un.gateway) >> 24;
+		n = ntohl(icmp_hdr(skb)->un.gateway) >> 24;
 		if (n < (iph->ihl<<2))
 			return;
 
@@ -442,7 +442,7 @@ out:
 			return;
 		case ICMP_FRAG_NEEDED:
 			/* And it is the only really necessary thing :-) */
-			n = ntohs(skb->h.icmph->un.frag.mtu);
+			n = ntohs(icmp_hdr(skb)->un.frag.mtu);
 			if (n < grehlen+68)
 				return;
 			n -= grehlen;

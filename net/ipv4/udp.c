@@ -330,8 +330,8 @@ void __udp4_lib_err(struct sk_buff *skb, u32 info, struct hlist_head udptable[])
 	struct inet_sock *inet;
 	struct iphdr *iph = (struct iphdr*)skb->data;
 	struct udphdr *uh = (struct udphdr*)(skb->data+(iph->ihl<<2));
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	struct sock *sk;
 	int harderr;
 	int err;

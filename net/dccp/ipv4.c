@@ -207,8 +207,8 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 							(iph->ihl << 2));
 	struct dccp_sock *dp;
 	struct inet_sock *inet;
-	const int type = skb->h.icmph->type;
-	const int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	struct sock *sk;
 	__u64 seq;
 	int err;

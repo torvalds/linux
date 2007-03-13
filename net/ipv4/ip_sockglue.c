@@ -269,12 +269,12 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 	serr = SKB_EXT_ERR(skb);
 	serr->ee.ee_errno = err;
 	serr->ee.ee_origin = SO_EE_ORIGIN_ICMP;
-	serr->ee.ee_type = skb->h.icmph->type;
-	serr->ee.ee_code = skb->h.icmph->code;
+	serr->ee.ee_type = icmp_hdr(skb)->type;
+	serr->ee.ee_code = icmp_hdr(skb)->code;
 	serr->ee.ee_pad = 0;
 	serr->ee.ee_info = info;
 	serr->ee.ee_data = 0;
-	serr->addr_offset = (u8 *)&(((struct iphdr *)(skb->h.icmph + 1))->daddr) -
+	serr->addr_offset = (u8 *)&(((struct iphdr *)(icmp_hdr(skb) + 1))->daddr) -
 				   skb_network_header(skb);
 	serr->port = port;
 

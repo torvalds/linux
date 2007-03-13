@@ -174,8 +174,8 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 	struct ip_comp_hdr *ipch = (struct ip_comp_hdr *)(skb->data+(iph->ihl<<2));
 	struct xfrm_state *x;
 
-	if (skb->h.icmph->type != ICMP_DEST_UNREACH ||
-	    skb->h.icmph->code != ICMP_FRAG_NEEDED)
+	if (icmp_hdr(skb)->type != ICMP_DEST_UNREACH ||
+	    icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
 		return;
 
 	spi = htonl(ntohs(ipch->cpi));

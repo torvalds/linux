@@ -198,8 +198,8 @@ static void ah4_err(struct sk_buff *skb, u32 info)
 	struct ip_auth_hdr *ah = (struct ip_auth_hdr*)(skb->data+(iph->ihl<<2));
 	struct xfrm_state *x;
 
-	if (skb->h.icmph->type != ICMP_DEST_UNREACH ||
-	    skb->h.icmph->code != ICMP_FRAG_NEEDED)
+	if (icmp_hdr(skb)->type != ICMP_DEST_UNREACH ||
+	    icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
 		return;
 
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, ah->spi, IPPROTO_AH, AF_INET);
