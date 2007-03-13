@@ -1425,7 +1425,6 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct sockaddr_ax25 sax;
 	struct sk_buff *skb;
 	ax25_digi dtmp, *dp;
-	unsigned char *asmptr;
 	ax25_cb *ax25;
 	size_t size;
 	int lv, err, addr_len = msg->msg_namelen;
@@ -1551,10 +1550,8 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb_reset_network_header(skb);
 
 	/* Add the PID if one is not supplied by the user in the skb */
-	if (!ax25->pidincl) {
-		asmptr  = skb_push(skb, 1);
-		*asmptr = sk->sk_protocol;
-	}
+	if (!ax25->pidincl)
+		*skb_push(skb, 1) = sk->sk_protocol;
 
 	SOCK_DEBUG(sk, "AX.25: Transmitting buffer\n");
 
@@ -1573,7 +1570,7 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto out;
 	}
 
-	asmptr = skb_push(skb, 1 + ax25_addr_size(dp));
+	skb_push(skb, 1 + ax25_addr_size(dp));
 
 	SOCK_DEBUG(sk, "Building AX.25 Header (dp=%p).\n", dp);
 
@@ -1581,17 +1578,16 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 		SOCK_DEBUG(sk, "Num digipeaters=%d\n", dp->ndigi);
 
 	/* Build an AX.25 header */
-	asmptr += (lv = ax25_addr_build(asmptr, &ax25->source_addr,
-					&sax.sax25_call, dp,
-					AX25_COMMAND, AX25_MODULUS));
+	lv = ax25_addr_build(skb->data, &ax25->source_addr, &sax.sax25_call,
+			     dp, AX25_COMMAND, AX25_MODULUS);
 
 	SOCK_DEBUG(sk, "Built header (%d bytes)\n",lv);
 
-	skb->h.raw = asmptr;
+	skb_set_transport_header(skb, lv);
 
-	SOCK_DEBUG(sk, "base=%p pos=%p\n", skb->data, asmptr);
+	SOCK_DEBUG(sk, "base=%p pos=%p\n", skb->data, skb->h.raw);
 
-	*asmptr = AX25_UI;
+	*skb->h.raw = AX25_UI;
 
 	/* Datagram frames go straight out of the door as UI */
 	ax25_queue_xmit(skb, ax25->ax25_dev->dev);

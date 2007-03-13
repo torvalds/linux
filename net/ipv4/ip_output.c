@@ -593,7 +593,7 @@ slow_path:
 		skb_reserve(skb2, ll_rs);
 		skb_put(skb2, len + hlen);
 		skb_reset_network_header(skb2);
-		skb2->h.raw = skb2->data + hlen;
+		skb2->h.raw = skb2->nh.raw + hlen;
 
 		/*
 		 *	Charge the memory for the fragment to any owner
@@ -724,7 +724,7 @@ static inline int ip_ufo_append_data(struct sock *sk,
 		skb_reset_network_header(skb);
 
 		/* initialize protocol header pointer */
-		skb->h.raw = skb->data + fragheaderlen;
+		skb->h.raw = skb->nh.raw + fragheaderlen;
 
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum = 0;
@@ -1099,8 +1099,6 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 		}
 		if (len <= 0) {
 			struct sk_buff *skb_prev;
-			char *data;
-			struct iphdr *iph;
 			int alloclen;
 
 			skb_prev = skb;
@@ -1123,16 +1121,15 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 			/*
 			 *	Find where to start putting bytes.
 			 */
-			data = skb_put(skb, fragheaderlen + fraggap);
+			skb_put(skb, fragheaderlen + fraggap);
 			skb_reset_network_header(skb);
-			iph = ip_hdr(skb);
-			data += fragheaderlen;
-			skb->h.raw = data;
+			skb->h.raw = skb->nh.raw + fragheaderlen;
 
 			if (fraggap) {
-				skb->csum = skb_copy_and_csum_bits(
-					skb_prev, maxfraglen,
-					data, fraggap, 0);
+				skb->csum = skb_copy_and_csum_bits(skb_prev,
+								   maxfraglen,
+								   skb->h.raw,
+								   fraggap, 0);
 				skb_prev->csum = csum_sub(skb_prev->csum,
 							  skb->csum);
 				pskb_trim_unique(skb_prev, maxfraglen);

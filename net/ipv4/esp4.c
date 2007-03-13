@@ -261,7 +261,8 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	iph->protocol = nexthdr[1];
 	pskb_trim(skb, skb->len - alen - padlen - 2);
-	skb->h.raw = __skb_pull(skb, sizeof(*esph) + esp->conf.ivlen) - ihl;
+	__skb_pull(skb, sizeof(*esph) + esp->conf.ivlen);
+	skb_set_transport_header(skb, -ihl);
 
 	return 0;
 

@@ -36,7 +36,7 @@ static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
 	skb->nh.raw = prevhdr - x->props.header_len;
-	skb->h.raw = skb->data + hdr_len;
+	skb_set_transport_header(skb, hdr_len);
 	memmove(skb->data, iph, hdr_len);
 	return 0;
 }

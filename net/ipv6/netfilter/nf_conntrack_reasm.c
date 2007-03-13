@@ -785,7 +785,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 		goto ret_orig;
 	}
 
-	clone->h.raw = clone->data + fhoff;
+	skb_set_transport_header(clone, fhoff);
 	hdr = ipv6_hdr(clone);
 	fhdr = (struct frag_hdr *)clone->h.raw;
 

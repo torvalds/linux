@@ -228,8 +228,8 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 		ret = nexthdr[1];
 	}
 
-	skb->h.raw = __skb_pull(skb, sizeof(*esph) + esp->conf.ivlen) - hdr_len;
-
+	__skb_pull(skb, sizeof(*esph) + esp->conf.ivlen);
+	skb_set_transport_header(skb, -hdr_len);
 out:
 	return ret;
 }
