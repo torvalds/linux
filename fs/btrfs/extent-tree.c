@@ -365,8 +365,9 @@ error:
  *
  * returns 0 if everything worked, non-zero otherwise.
  */
-int alloc_extent(struct btrfs_root *root, u64 num_blocks, u64 search_start,
-			 u64 search_end, u64 owner, struct btrfs_key *ins)
+static int alloc_extent(struct btrfs_root *root, u64 num_blocks,
+			u64 search_start, u64 search_end, u64 owner,
+			struct btrfs_key *ins)
 {
 	int ret;
 	int pending_ret;
@@ -425,7 +426,12 @@ struct btrfs_buffer *btrfs_alloc_free_block(struct btrfs_root *root)
 	return buf;
 }
 
-int walk_down_tree(struct btrfs_root *root, struct btrfs_path *path, int *level)
+/*
+ * helper function for drop_snapshot, this walks down the tree dropping ref
+ * counts as it goes.
+ */
+static int walk_down_tree(struct btrfs_root *root,
+			  struct btrfs_path *path, int *level)
 {
 	struct btrfs_buffer *next;
 	struct btrfs_buffer *cur;
@@ -437,6 +443,9 @@ int walk_down_tree(struct btrfs_root *root, struct btrfs_path *path, int *level)
 	BUG_ON(ret);
 	if (refs > 1)
 		goto out;
+	/*
+	 * walk down to the last node level and free all the leaves
+	 */
 	while(*level > 0) {
 		cur = path->nodes[*level];
 		if (path->slots[*level] >=
@@ -467,7 +476,13 @@ out:
 	return 0;
 }
 
-int walk_up_tree(struct btrfs_root *root, struct btrfs_path *path, int *level)
+/*
+ * helper for dropping snapshots.  This walks back up the tree in the path
+ * to find the first node higher up where we haven't yet gone through
+ * all the slots
+ */
+static int walk_up_tree(struct btrfs_root *root, struct btrfs_path *path,
+			int *level)
 {
 	int i;
 	int slot;
@@ -491,9 +506,15 @@ int walk_up_tree(struct btrfs_root *root, struct btrfs_path *path, int *level)
 	return 1;
 }
 
+/*
+ * drop the reference count on the tree rooted at 'snap'.  This traverses
+ * the tree freeing any blocks that have a ref count of zero after being
+ * decremented.
+ */
 int btrfs_drop_snapshot(struct btrfs_root *root, struct btrfs_buffer *snap)
 {
-	int ret;
+	int ret = 0;;
+	int wret;
 	int level;
 	struct btrfs_path path;
 	int i;
@@ -506,18 +527,22 @@ int btrfs_drop_snapshot(struct btrfs_root *root, struct btrfs_buffer *snap)
 	path.nodes[level] = snap;
 	path.slots[level] = 0;
 	while(1) {
-		ret = walk_down_tree(root, &path, &level);
-		if (ret > 0)
+		wret = walk_down_tree(root, &path, &level);
+		if (wret > 0)
 			break;
-		ret = walk_up_tree(root, &path, &level);
-		if (ret > 0)
+		if (wret < 0)
+			ret = wret;
+
+		wret = walk_up_tree(root, &path, &level);
+		if (wret > 0)
 			break;
+		if (wret < 0)
+			ret = wret;
 	}
 	for (i = 0; i <= orig_level; i++) {
 		if (path.nodes[i]) {
 			btrfs_block_release(root, path.nodes[i]);
 		}
 	}
-
-	return 0;
+	return ret;
 }

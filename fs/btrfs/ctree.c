@@ -34,7 +34,7 @@ void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 	memset(p, 0, sizeof(*p));
 }
 
-int btrfs_cow_block(struct btrfs_root *root,
+static int btrfs_cow_block(struct btrfs_root *root,
 		    struct btrfs_buffer *buf,
 		    struct btrfs_buffer *parent,
 		    int parent_slot,
@@ -96,7 +96,7 @@ int btrfs_leaf_free_space(struct btrfs_leaf *leaf)
 /*
  * compare two keys in a memcmp fashion
  */
-int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
+static int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
 {
 	struct btrfs_key k1;
 
@@ -117,7 +117,7 @@ int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
 	return 0;
 }
 
-int check_node(struct btrfs_path *path, int level)
+static int check_node(struct btrfs_path *path, int level)
 {
 	int i;
 	struct btrfs_node *parent = NULL;
@@ -146,7 +146,7 @@ int check_node(struct btrfs_path *path, int level)
 	return 0;
 }
 
-int check_leaf(struct btrfs_path *path, int level)
+static int check_leaf(struct btrfs_path *path, int level)
 {
 	int i;
 	struct btrfs_leaf *leaf = &path->nodes[level]->leaf;
@@ -186,7 +186,7 @@ int check_leaf(struct btrfs_path *path, int level)
 	return 0;
 }
 
-int check_block(struct btrfs_path *path, int level)
+static int check_block(struct btrfs_path *path, int level)
 {
 	if (level == 0)
 		return check_leaf(path, level);
@@ -202,7 +202,7 @@ int check_block(struct btrfs_path *path, int level)
  *
  * slot may point to max if the key is bigger than all of the keys
  */
-int generic_bin_search(char *p, int item_size, struct btrfs_key *key,
+static int generic_bin_search(char *p, int item_size, struct btrfs_key *key,
 		       int max, int *slot)
 {
 	int low = 0;
@@ -233,7 +233,7 @@ int generic_bin_search(char *p, int item_size, struct btrfs_key *key,
  * simple bin_search frontend that does the right thing for
  * leaves vs nodes
  */
-int bin_search(struct btrfs_node *c, struct btrfs_key *key, int *slot)
+static int bin_search(struct btrfs_node *c, struct btrfs_key *key, int *slot)
 {
 	if (btrfs_is_leaf(c)) {
 		struct btrfs_leaf *l = (struct btrfs_leaf *)c;
@@ -250,7 +250,7 @@ int bin_search(struct btrfs_node *c, struct btrfs_key *key, int *slot)
 	return -1;
 }
 
-struct btrfs_buffer *read_node_slot(struct btrfs_root *root,
+static struct btrfs_buffer *read_node_slot(struct btrfs_root *root,
 				   struct btrfs_buffer *parent_buf,
 				   int slot)
 {
