@@ -173,7 +173,7 @@ static int empty_tree(struct ctree_root *root, struct radix_tree_root *radix,
 			path.slots[0] -= 1;
 		}
 		slot = path.slots[0];
-		found = path.nodes[0]->leaf.items[slot].key.objectid;
+		found=btrfs_key_objectid(&path.nodes[0]->leaf.items[slot].key);
 		ret = del_item(root, &path);
 		count++;
 		if (ret) {
@@ -274,7 +274,8 @@ static int fill_radix(struct ctree_root *root, struct radix_tree_root *radix)
 			slot -= 1;
 		}
 		for (i = slot; i >= 0; i--) {
-			found = path.nodes[0]->leaf.items[i].key.objectid;
+			found = btrfs_key_objectid(&path.nodes[0]->
+						   leaf.items[i].key);
 			radix_tree_preload(GFP_KERNEL);
 			ret = radix_tree_insert(radix, found, (void *)found);
 			if (ret) {

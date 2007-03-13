@@ -98,10 +98,10 @@ struct ctree_super_block {
  * the key flags parameter.  offset and size tell us where to find
  * the item in the leaf (relative to the start of the data area)
  */
-struct item {
+struct btrfs_item {
 	struct btrfs_disk_key key;
-	u16 offset;
-	u16 size;
+	__le16 offset;
+	__le16 size;
 } __attribute__ ((__packed__));
 
 /*
@@ -115,7 +115,8 @@ struct item {
 struct leaf {
 	struct btrfs_header header;
 	union {
-		struct item items[LEAF_DATA_SIZE/sizeof(struct item)];
+		struct btrfs_item items[LEAF_DATA_SIZE/
+				        sizeof(struct btrfs_item)];
 		u8 data[CTREE_BLOCKSIZE-sizeof(struct btrfs_header)];
 	};
 } __attribute__ ((__packed__));
@@ -151,6 +152,31 @@ struct ctree_path {
 	struct tree_buffer *nodes[MAX_LEVEL];
 	int slots[MAX_LEVEL];
 };
+
+static inline u16 btrfs_item_offset(struct btrfs_item *item)
+{
+	return le16_to_cpu(item->offset);
+}
+
+static inline void btrfs_set_item_offset(struct btrfs_item *item, u16 val)
+{
+	item->offset = cpu_to_le16(val);
+}
+
+static inline u16 btrfs_item_end(struct btrfs_item *item)
+{
+	return le16_to_cpu(item->offset) + le16_to_cpu(item->size);
+}
+
+static inline u16 btrfs_item_size(struct btrfs_item *item)
+{
+	return le16_to_cpu(item->size);
+}
+
+static inline void btrfs_set_item_size(struct btrfs_item *item, u16 val)
+{
+	item->size = cpu_to_le16(val);
+}
 
 static inline void btrfs_disk_key_to_cpu(struct btrfs_key *cpu,
 					 struct btrfs_disk_key *disk)

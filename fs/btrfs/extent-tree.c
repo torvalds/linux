@@ -40,8 +40,8 @@ static int inc_block_ref(struct ctree_root *root, u64 blocknr)
 		BUG();
 	BUG_ON(ret != 0);
 	l = &path.nodes[0]->leaf;
-	item = (struct extent_item *)(l->data +
-				      l->items[path.slots[0]].offset);
+	item = (struct extent_item *)(l->data + btrfs_item_offset(l->items +
+								path.slots[0]));
 	item->refs++;
 
 	BUG_ON(list_empty(&path.nodes[0]->dirty));
@@ -67,7 +67,8 @@ static int lookup_block_ref(struct ctree_root *root, u64 blocknr, u32 *refs)
 		BUG();
 	l = &path.nodes[0]->leaf;
 	item = (struct extent_item *)(l->data +
-				      l->items[path.slots[0]].offset);
+				      btrfs_item_offset(l->items +
+							path.slots[0]));
 	*refs = item->refs;
 	release_path(root->extent_root, &path);
 	return 0;
@@ -144,7 +145,7 @@ int __free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 	struct btrfs_key key;
 	struct ctree_root *extent_root = root->extent_root;
 	int ret;
-	struct item *item;
+	struct btrfs_item *item;
 	struct extent_item *ei;
 	struct btrfs_key ins;
 
@@ -162,7 +163,8 @@ int __free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 		BUG();
 	}
 	item = path.nodes[0]->leaf.items + path.slots[0];
-	ei = (struct extent_item *)(path.nodes[0]->leaf.data + item->offset);
+	ei = (struct extent_item *)(path.nodes[0]->leaf.data +
+				    btrfs_item_offset(item));
 	BUG_ON(ei->refs == 0);
 	ei->refs--;
 	if (ei->refs == 0) {
