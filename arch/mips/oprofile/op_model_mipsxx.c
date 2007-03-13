@@ -74,13 +74,13 @@ static inline void w_c0_ ## r ## n(unsigned int value)			\
 
 __define_perf_accessors(perfcntr, 0, 2)
 __define_perf_accessors(perfcntr, 1, 3)
-__define_perf_accessors(perfcntr, 2, 2)
-__define_perf_accessors(perfcntr, 3, 2)
+__define_perf_accessors(perfcntr, 2, 0)
+__define_perf_accessors(perfcntr, 3, 1)
 
 __define_perf_accessors(perfctrl, 0, 2)
 __define_perf_accessors(perfctrl, 1, 3)
-__define_perf_accessors(perfctrl, 2, 2)
-__define_perf_accessors(perfctrl, 3, 2)
+__define_perf_accessors(perfctrl, 2, 0)
+__define_perf_accessors(perfctrl, 3, 1)
 
 struct op_mips_model op_model_mipsxx_ops;
 
@@ -97,7 +97,6 @@ static void mipsxx_reg_setup(struct op_counter_config *ctr)
 	int i;
 
 	/* Compute the performance counter control word.  */
-	/* For now count kernel and user mode */
 	for (i = 0; i < counters; i++) {
 		reg.control[i] = 0;
 		reg.counter[i] = 0;
@@ -234,9 +233,6 @@ static inline int n_counters(void)
 		counters = __n_counters();
 	}
 
-#ifdef CONFIG_MIPS_MT_SMP
-	counters >> 1;
-#endif
 	return counters;
 }
 
@@ -269,6 +265,10 @@ static int __init mipsxx_init(void)
 	}
 
 	reset_counters(counters);
+
+#ifdef CONFIG_MIPS_MT_SMP
+	counters >>= 1;
+#endif
 
 	op_model_mipsxx_ops.num_counters = counters;
 	switch (current_cpu_data.cputype) {
@@ -326,7 +326,11 @@ static int __init mipsxx_init(void)
 
 static void mipsxx_exit(void)
 {
-	reset_counters(op_model_mipsxx_ops.num_counters);
+	int counters = op_model_mipsxx_ops.num_counters;
+#ifdef CONFIG_MIPS_MT_SMP
+	counters <<= 1;
+#endif
+	reset_counters(counters);
 
 	perf_irq = null_perf_irq;
 }
