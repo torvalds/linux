@@ -40,6 +40,14 @@ enum tlb_config {
 	TLB_INVALID
 };
 
+#define AVR32_FEATURE_RMW	(1 << 0)
+#define AVR32_FEATURE_DSP	(1 << 1)
+#define AVR32_FEATURE_SIMD	(1 << 2)
+#define AVR32_FEATURE_OCD	(1 << 3)
+#define AVR32_FEATURE_PCTR	(1 << 4)
+#define AVR32_FEATURE_JAVA	(1 << 5)
+#define AVR32_FEATURE_FPU	(1 << 6)
+
 struct avr32_cpuinfo {
 	struct clk *clk;
 	unsigned long loops_per_jiffy;
@@ -48,6 +56,7 @@ struct avr32_cpuinfo {
 	unsigned short arch_revision;
 	unsigned short cpu_revision;
 	enum tlb_config tlb_config;
+	unsigned long features;
 
 	struct cache_info icache;
 	struct cache_info dcache;

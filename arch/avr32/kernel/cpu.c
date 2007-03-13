@@ -209,16 +209,17 @@ static const char *mmu_types[] = {
 void __init setup_processor(void)
 {
 	unsigned long config0, config1;
+	unsigned long features;
 	unsigned cpu_id, cpu_rev, arch_id, arch_rev, mmu_type;
 	unsigned tmp;
 
-	config0 = sysreg_read(CONFIG0); /* 0x0000013e; */
-	config1 = sysreg_read(CONFIG1); /* 0x01f689a2; */
-	cpu_id = config0 >> 24;
-	cpu_rev = (config0 >> 16) & 0xff;
-	arch_id = (config0 >> 13) & 0x07;
-	arch_rev = (config0 >> 10) & 0x07;
-	mmu_type = (config0 >> 7) & 0x03;
+	config0 = sysreg_read(CONFIG0);
+	config1 = sysreg_read(CONFIG1);
+	cpu_id = SYSREG_BFEXT(PROCESSORID, config0);
+	cpu_rev = SYSREG_BFEXT(PROCESSORREVISION, config0);
+	arch_id = SYSREG_BFEXT(AT, config0);
+	arch_rev = SYSREG_BFEXT(AR, config0);
+	mmu_type = SYSREG_BFEXT(MMUT, config0);
 
 	boot_cpu_data.arch_type = arch_id;
 	boot_cpu_data.cpu_type = cpu_id;
@@ -226,16 +227,16 @@ void __init setup_processor(void)
 	boot_cpu_data.cpu_revision = cpu_rev;
 	boot_cpu_data.tlb_config = mmu_type;
 
-	tmp = (config1 >> 13) & 0x07;
+	tmp = SYSREG_BFEXT(ILSZ, config1);
 	if (tmp) {
-		boot_cpu_data.icache.ways = 1 << ((config1 >> 10) & 0x07);
-		boot_cpu_data.icache.sets = 1 << ((config1 >> 16) & 0x0f);
+		boot_cpu_data.icache.ways = 1 << SYSREG_BFEXT(IASS, config1);
+		boot_cpu_data.icache.sets = 1 << SYSREG_BFEXT(ISET, config1);
 		boot_cpu_data.icache.linesz = 1 << (tmp + 1);
 	}
-	tmp = (config1 >> 3) & 0x07;
+	tmp = SYSREG_BFEXT(DLSZ, config1);
 	if (tmp) {
-		boot_cpu_data.dcache.ways = 1 << (config1 & 0x07);
-		boot_cpu_data.dcache.sets = 1 << ((config1 >> 6) & 0x0f);
+		boot_cpu_data.dcache.ways = 1 << SYSREG_BFEXT(DASS, config1);
+		boot_cpu_data.dcache.sets = 1 << SYSREG_BFEXT(DSET, config1);
 		boot_cpu_data.dcache.linesz = 1 << (tmp + 1);
 	}
 
@@ -250,16 +251,39 @@ void __init setup_processor(void)
 		cpu_names[cpu_id], cpu_id, cpu_rev,
 		arch_names[arch_id], arch_rev);
 	printk ("CPU: MMU configuration: %s\n", mmu_types[mmu_type]);
+
 	printk ("CPU: features:");
-	if (config0 & (1 << 6))
-		printk(" fpu");
-	if (config0 & (1 << 5))
-		printk(" java");
-	if (config0 & (1 << 4))
-		printk(" perfctr");
-	if (config0 & (1 << 3))
+	features = 0;
+	if (config0 & SYSREG_BIT(CONFIG0_R)) {
+		features |= AVR32_FEATURE_RMW;
+		printk(" rmw");
+	}
+	if (config0 & SYSREG_BIT(CONFIG0_D)) {
+		features |= AVR32_FEATURE_DSP;
+		printk(" dsp");
+	}
+	if (config0 & SYSREG_BIT(CONFIG0_S)) {
+		features |= AVR32_FEATURE_SIMD;
+		printk(" simd");
+	}
+	if (config0 & SYSREG_BIT(CONFIG0_O)) {
+		features |= AVR32_FEATURE_OCD;
 		printk(" ocd");
+	}
+	if (config0 & SYSREG_BIT(CONFIG0_P)) {
+		features |= AVR32_FEATURE_PCTR;
+		printk(" perfctr");
+	}
+	if (config0 & SYSREG_BIT(CONFIG0_J)) {
+		features |= AVR32_FEATURE_JAVA;
+		printk(" java");
+	}
+	if (config0 & SYSREG_BIT(CONFIG0_F)) {
+		features |= AVR32_FEATURE_FPU;
+		printk(" fpu");
+	}
 	printk("\n");
+	boot_cpu_data.features = features;
 }
 
 #ifdef CONFIG_PROC_FS
