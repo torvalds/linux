@@ -340,12 +340,34 @@ do_bus_error_read:
 do_nmi_ll:
 	sub	sp, 4
 	stmts	--sp, r0-lr
-	/* FIXME: Make sure RAR_NMI and RSR_NMI are pushed instead of *_EX */
-	rcall	save_full_context_ex
+	mfsr	r9, SYSREG_RSR_NMI
+	mfsr	r8, SYSREG_RAR_NMI
+	bfextu	r0, r9, MODE_SHIFT, 3
+	brne	2f
+
+1:	pushm	r8, r9	/* PC and SR */
 	mfsr	r12, SYSREG_ECR
 	mov	r11, sp
 	rcall	do_nmi
-	rjmp	bad_return
+	popm	r8-r9
+	mtsr	SYSREG_RAR_NMI, r8
+	tst	r0, r0
+	mtsr	SYSREG_RSR_NMI, r9
+	brne	3f
+
+	ldmts	sp++, r0-lr
+	sub	sp, -4		/* skip r12_orig */
+	rete
+
+2:	sub	r10, sp, -(FRAME_SIZE_FULL - REG_LR)
+	stdsp	sp[4], r10	/* replace saved SP */
+	rjmp	1b
+
+3:	popm	lr
+	sub	sp, -4		/* skip sp */
+	popm	r0-r12
+	sub	sp, -4		/* skip r12_orig */
+	rete
 
 handle_address_fault:
 	sub	sp, 4
