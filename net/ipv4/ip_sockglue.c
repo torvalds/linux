@@ -278,10 +278,12 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 				   skb_network_header(skb);
 	serr->port = port;
 
-	skb->h.raw = payload;
-	if (!skb_pull(skb, payload - skb->data) ||
-	    sock_queue_err_skb(sk, skb))
-		kfree_skb(skb);
+	if (skb_pull(skb, payload - skb->data) != NULL) {
+		skb_reset_transport_header(skb);
+		if (sock_queue_err_skb(sk, skb) == 0)
+			return;
+	}
+	kfree_skb(skb);
 }
 
 void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 info)
@@ -314,8 +316,8 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 inf
 	serr->addr_offset = (u8 *)&iph->daddr - skb_network_header(skb);
 	serr->port = port;
 
-	skb->h.raw = skb->tail;
 	__skb_pull(skb, skb->tail - skb->data);
+	skb_reset_transport_header(skb);
 
 	if (sock_queue_err_skb(sk, skb))
 		kfree_skb(skb);

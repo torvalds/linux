@@ -231,8 +231,8 @@ void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 				  skb_network_header(skb);
 	serr->port = port;
 
-	skb->h.raw = payload;
 	__skb_pull(skb, payload - skb->data);
+	skb_reset_transport_header(skb);
 
 	if (sock_queue_err_skb(sk, skb))
 		kfree_skb(skb);
@@ -268,8 +268,8 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi *fl, u32 info)
 	serr->addr_offset = (u8 *)&iph->daddr - skb_network_header(skb);
 	serr->port = fl->fl_ip_dport;
 
-	skb->h.raw = skb->tail;
 	__skb_pull(skb, skb->tail - skb->data);
+	skb_reset_transport_header(skb);
 
 	if (sock_queue_err_skb(sk, skb))
 		kfree_skb(skb);
