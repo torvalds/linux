@@ -1138,7 +1138,7 @@ csr1212_parse_dir_entry(struct csr1212_keyval *dir, u32 ki, u32 kv_pos)
 					  CSR1212_KV_VAL(ki));
 		if (!k) {
 			ret = -ENOMEM;
-			goto fail;
+			goto out;
 		}
 
 		k->refcnt = 0;	/* Don't keep local reference when parsing. */
@@ -1149,7 +1149,7 @@ csr1212_parse_dir_entry(struct csr1212_keyval *dir, u32 ki, u32 kv_pos)
 					   CSR1212_KV_VAL(ki));
 		if (!k) {
 			ret = -ENOMEM;
-			goto fail;
+			goto out;
 		}
 		k->refcnt = 0;	/* Don't keep local reference when parsing. */
 		break;
@@ -1162,7 +1162,7 @@ csr1212_parse_dir_entry(struct csr1212_keyval *dir, u32 ki, u32 kv_pos)
 			 * or Directories.  The Config ROM image is most likely
 			 * messed up, so we'll just abort here. */
 			ret = -EIO;
-			goto fail;
+			goto out;
 		}
 
 		k = csr1212_find_keyval_offset(dir, offset);
@@ -1177,7 +1177,7 @@ csr1212_parse_dir_entry(struct csr1212_keyval *dir, u32 ki, u32 kv_pos)
 
 		if (!k) {
 			ret = -ENOMEM;
-			goto fail;
+			goto out;
 		}
 		k->refcnt = 0;	/* Don't keep local reference when parsing. */
 		k->valid = 0;	/* Contents not read yet so it's not valid. */
@@ -1189,8 +1189,7 @@ csr1212_parse_dir_entry(struct csr1212_keyval *dir, u32 ki, u32 kv_pos)
 		dir->next = k;
 	}
 	ret = csr1212_attach_keyval_to_directory(dir, k);
-
-fail:
+out:
 	if (ret != CSR1212_SUCCESS && k != NULL)
 		free_keyval(k);
 	return ret;
@@ -1214,7 +1213,7 @@ int csr1212_parse_keyval(struct csr1212_keyval *kv,
 	if ((csr1212_crc16(kvi->data, kvi_len) != kvi->crc) &&
 	    (csr1212_msft_crc16(kvi->data, kvi_len) != kvi->crc)) {
 		ret = -EINVAL;
-		goto fail;
+		goto out;
 	}
 #endif
 
@@ -1241,7 +1240,7 @@ int csr1212_parse_keyval(struct csr1212_keyval *kv,
 			kv->value.leaf.data = CSR1212_MALLOC(size);
 			if (!kv->value.leaf.data) {
 				ret = -ENOMEM;
-				goto fail;
+				goto out;
 			}
 
 			kv->value.leaf.len = kvi_len;
@@ -1251,8 +1250,7 @@ int csr1212_parse_keyval(struct csr1212_keyval *kv,
 	}
 
 	kv->valid = 1;
-
-fail:
+out:
 	return ret;
 }
 
