@@ -544,6 +544,8 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 	unsigned long	flags;
 	char		buffer[4];	/* Any root hubs with > 31 ports? */
 
+	if (unlikely(!hcd->rh_registered))
+		return;
 	if (!hcd->uses_new_polling && !hcd->status_urb)
 		return;
 
@@ -1670,11 +1672,11 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	usb_disconnect(&hcd->self.root_hub);
 	mutex_unlock(&usb_bus_list_lock);
 
-	hcd->poll_rh = 0;
-	del_timer_sync(&hcd->rh_timer);
-
 	hcd->driver->stop(hcd);
 	hcd->state = HC_STATE_HALT;
+
+	hcd->poll_rh = 0;
+	del_timer_sync(&hcd->rh_timer);
 
 	if (hcd->irq >= 0)
 		free_irq(hcd->irq, hcd);
