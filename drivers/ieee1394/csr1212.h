@@ -224,7 +224,8 @@ struct csr1212_bus_ops {
 #define CSR1212_DESCRIPTOR_LEAF_OVERHEAD (1 * sizeof(u32))
 
 #define CSR1212_DESCRIPTOR_LEAF_TYPE(kv) \
-	(be32_to_cpu((kv)->value.leaf.data[0]) >> CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT)
+	(be32_to_cpu((kv)->value.leaf.data[0]) >> \
+	 CSR1212_DESCRIPTOR_LEAF_TYPE_SHIFT)
 #define CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID(kv) \
 	(be32_to_cpu((kv)->value.leaf.data[0]) & \
 	 CSR1212_DESCRIPTOR_LEAF_SPECIFIER_ID_MASK)
@@ -364,24 +365,22 @@ extern void csr1212_release_keyval(struct csr1212_keyval *kv);
  * This macro allows for looping over the keyval entries in a directory and it
  * ensures that keyvals from remote ConfigROMs are parsed properly.
  *
- * _csr is a struct csr1212_csr * that points to CSR associated with dir.
- * _kv is a struct csr1212_keyval * that'll point to the current keyval (loop index).
- * _dir is a struct csr1212_keyval * that points to the directory to be looped.
- * _pos is a struct csr1212_dentry * that is used internally for indexing.
+ * struct csr1212_csr *_csr points to the CSR associated with dir.
+ * struct csr1212_keyval *_kv points to the current keyval (loop index).
+ * struct csr1212_keyval *_dir points to the directory to be looped.
+ * struct csr1212_dentry *_pos is used internally for indexing.
  *
  * kv will be NULL upon exit of the loop.
  */
-#define csr1212_for_each_dir_entry(_csr, _kv, _dir, _pos)			\
-	for (csr1212_get_keyval((_csr), (_dir)),				\
-	     _pos = (_dir)->value.directory.dentries_head,			\
-	     _kv = (_pos) ? csr1212_get_keyval((_csr), _pos->kv) : NULL;	\
-	     (_kv) && (_pos);							\
-	     (_kv->associate == NULL) ?						\
-		     ((_pos = _pos->next), 					\
-		      (_kv = (_pos) ? csr1212_get_keyval((_csr), _pos->kv) :	\
-                          NULL)) :						\
+#define csr1212_for_each_dir_entry(_csr, _kv, _dir, _pos)		\
+	for (csr1212_get_keyval((_csr), (_dir)),			\
+	     _pos = (_dir)->value.directory.dentries_head,		\
+	     _kv = (_pos) ? csr1212_get_keyval((_csr), _pos->kv) : NULL;\
+	     (_kv) && (_pos);						\
+	     (_kv->associate == NULL) ?					\
+		     ((_pos = _pos->next), (_kv = (_pos) ?		\
+				csr1212_get_keyval((_csr), _pos->kv) :	\
+				NULL)) :				\
 		     (_kv = csr1212_get_keyval((_csr), _kv->associate)))
-
-
 
 #endif /* __CSR1212_H__ */
