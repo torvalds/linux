@@ -329,8 +329,8 @@ int __devinit av7110_ir_init(struct av7110 *av7110)
 	if (av_cnt >= ARRAY_SIZE(av_list))
 		return -ENOSPC;
 
-	av7110_check_ir_config(av7110, true);
 	av_list[av_cnt++] = av7110;
+	av7110_check_ir_config(av7110, true);
 
 	init_timer(&av7110->ir.keyup_timer);
 	av7110->ir.keyup_timer.function = av7110_emit_keyup;
