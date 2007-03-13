@@ -29,6 +29,7 @@ static int inc_block_ref(struct ctree_root *root, u64 blocknr)
 	struct leaf *l;
 	struct extent_item *item;
 	struct btrfs_key ins;
+	u32 refs;
 
 	find_free_extent(root->extent_root, 0, 0, (u64)-1, &ins);
 	init_path(&path);
@@ -42,7 +43,8 @@ static int inc_block_ref(struct ctree_root *root, u64 blocknr)
 	l = &path.nodes[0]->leaf;
 	item = (struct extent_item *)(l->data + btrfs_item_offset(l->items +
 								path.slots[0]));
-	item->refs++;
+	refs = btrfs_extent_refs(item);
+	btrfs_set_extent_refs(item, refs + 1);
 
 	BUG_ON(list_empty(&path.nodes[0]->dirty));
 	release_path(root->extent_root, &path);
@@ -69,7 +71,7 @@ static int lookup_block_ref(struct ctree_root *root, u64 blocknr, u32 *refs)
 	item = (struct extent_item *)(l->data +
 				      btrfs_item_offset(l->items +
 							path.slots[0]));
-	*refs = item->refs;
+	*refs = btrfs_extent_refs(item);
 	release_path(root->extent_root, &path);
 	return 0;
 }
@@ -120,9 +122,9 @@ static int finish_current_insert(struct ctree_root *extent_root)
 	int i;
 	int ret;
 
-	extent_item.refs = 1;
-	extent_item.owner =
-		btrfs_header_parentid(&extent_root->node->node.header);
+	btrfs_set_extent_refs(&extent_item, 1);
+	btrfs_set_extent_owner(&extent_item,
+		btrfs_header_parentid(&extent_root->node->node.header));
 	ins.offset = 1;
 	ins.flags = 0;
 
@@ -148,6 +150,7 @@ int __free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 	struct btrfs_item *item;
 	struct extent_item *ei;
 	struct btrfs_key ins;
+	u32 refs;
 
 	key.objectid = blocknr;
 	key.flags = 0;
@@ -166,8 +169,9 @@ int __free_extent(struct ctree_root *root, u64 blocknr, u64 num_blocks)
 	ei = (struct extent_item *)(path.nodes[0]->leaf.data +
 				    btrfs_item_offset(item));
 	BUG_ON(ei->refs == 0);
-	ei->refs--;
-	if (ei->refs == 0) {
+	refs = btrfs_extent_refs(ei) - 1;
+	btrfs_set_extent_refs(ei, refs);
+	if (refs == 0) {
 		if (root == extent_root) {
 			int err;
 			radix_tree_preload(GFP_KERNEL);
@@ -368,8 +372,8 @@ int alloc_extent(struct ctree_root *root, u64 num_blocks, u64 search_start,
 	struct ctree_root *extent_root = root->extent_root;
 	struct extent_item extent_item;
 
-	extent_item.refs = 1;
-	extent_item.owner = owner;
+	btrfs_set_extent_refs(&extent_item, 1);
+	btrfs_set_extent_owner(&extent_item, owner);
 
 	if (root == extent_root) {
 		BUG_ON(extent_root->current_insert.offset == 0);

@@ -51,8 +51,8 @@ int mkfs(int fd)
 	btrfs_set_item_offset(&item,
 			      LEAF_DATA_SIZE - sizeof(struct extent_item));
 	btrfs_set_item_size(&item, sizeof(struct extent_item));
-	extent_item.refs = 1;
-	extent_item.owner = 0;
+	btrfs_set_extent_refs(&extent_item, 1);
+	btrfs_set_extent_owner(&extent_item, 0);
 	memcpy(empty_leaf.items, &item, sizeof(item));
 	memcpy(empty_leaf.data + btrfs_item_offset(&item), &extent_item,
 		btrfs_item_size(&item));
@@ -62,7 +62,7 @@ int mkfs(int fd)
 	btrfs_set_key_offset(&item.key, 1);
 	btrfs_set_item_offset(&item,
 			      LEAF_DATA_SIZE - sizeof(struct extent_item) * 2);
-	extent_item.owner = 1;
+	btrfs_set_extent_owner(&extent_item, 1);
 	memcpy(empty_leaf.items + 1, &item, sizeof(item));
 	memcpy(empty_leaf.data + btrfs_item_offset(&item), &extent_item,
 		btrfs_item_size(&item));
@@ -72,7 +72,7 @@ int mkfs(int fd)
 	btrfs_set_key_offset(&item.key, 1);
 	btrfs_set_item_offset(&item,
 			      LEAF_DATA_SIZE - sizeof(struct extent_item) * 3);
-	extent_item.owner = 2;
+	btrfs_set_extent_owner(&extent_item, 2);
 	memcpy(empty_leaf.items + 2, &item, sizeof(item));
 	memcpy(empty_leaf.data + btrfs_item_offset(&item), &extent_item,
 		btrfs_item_size(&item));

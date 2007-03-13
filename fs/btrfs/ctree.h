@@ -136,8 +136,8 @@ struct node {
  * owner of the block and the number of references
  */
 struct extent_item {
-	u32 refs;
-	u64 owner;
+	__le32 refs;
+	__le64 owner;
 } __attribute__ ((__packed__));
 
 /*
@@ -152,6 +152,26 @@ struct ctree_path {
 	struct tree_buffer *nodes[MAX_LEVEL];
 	int slots[MAX_LEVEL];
 };
+
+static inline u64 btrfs_extent_owner(struct extent_item *ei)
+{
+	return le64_to_cpu(ei->owner);
+}
+
+static inline void btrfs_set_extent_owner(struct extent_item *ei, u64 val)
+{
+	ei->owner = cpu_to_le64(val);
+}
+
+static inline u32 btrfs_extent_refs(struct extent_item *ei)
+{
+	return le32_to_cpu(ei->refs);
+}
+
+static inline void btrfs_set_extent_refs(struct extent_item *ei, u32 val)
+{
+	ei->refs = cpu_to_le32(val);
+}
 
 static inline u64 btrfs_node_blockptr(struct node *n, int nr)
 {
