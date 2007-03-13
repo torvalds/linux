@@ -772,6 +772,7 @@ csr1212_generate_positions(struct csr1212_csr_rom_cache *cache,
 
 		default:
 			/* Should never get here */
+			WARN_ON(1);
 			break;
 		}
 
@@ -852,7 +853,8 @@ csr1212_generate_tree_subdir(struct csr1212_keyval *dir, u32 *data_buffer)
 				break;
 			default:
 				/* Should never get here */
-				break; /* GDB breakpoint */
+				WARN_ON(1);
+				break;
 			}
 
 			value |= (a->key.id & CSR1212_KV_KEY_ID_MASK) <<
@@ -889,7 +891,8 @@ static void csr1212_fill_cache(struct csr1212_csr_rom_cache *cache)
 		case CSR1212_KV_TYPE_IMMEDIATE:
 		case CSR1212_KV_TYPE_CSR_OFFSET:
 			/* Should never get here */
-			break; /* GDB breakpoint */
+			WARN_ON(1);
+			break;
 
 		case CSR1212_KV_TYPE_LEAF:
 			/* Don't copy over Extended ROM areas, they are
