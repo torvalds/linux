@@ -58,12 +58,13 @@
  *	1.34	Fix netpoll locking.  "BH rule" for NAPI is not enough with
  *		netpoll, hard_start_xmit might be called from irq context.
  *		PM support.
+ *	1.35	Fix an usage of streaming DMA API.
  */
 
 #ifdef TC35815_NAPI
-#define DRV_VERSION	"1.34-NAPI"
+#define DRV_VERSION	"1.35-NAPI"
 #else
-#define DRV_VERSION	"1.34"
+#define DRV_VERSION	"1.35"
 #endif
 static const char *version = "tc35815.c:v" DRV_VERSION "\n";
 #define MODNAME			"tc35815"
@@ -1550,6 +1551,11 @@ tc35815_rx(struct net_device *dev)
 							    PCI_DMA_FROMDEVICE);
 #endif
 				memcpy(data + offset, rxbuf, len);
+#ifdef TC35815_DMA_SYNC_ONDEMAND
+				pci_dma_sync_single_for_device(lp->pci_dev,
+							       dma, len,
+							       PCI_DMA_FROMDEVICE);
+#endif
 				offset += len;
 				cur_bd++;
 			}
