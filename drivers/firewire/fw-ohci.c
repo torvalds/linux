@@ -1233,24 +1233,6 @@ ohci_get_bus_time(struct fw_card *card)
 	return bus_time;
 }
 
-static int handle_ir_bufferfill_packet(struct context *context,
-				       struct descriptor *d,
-				       struct descriptor *last)
-{
-	struct iso_context *ctx =
-		container_of(context, struct iso_context, context);
-
-	if (d->res_count > 0)
-		return 0;
-
-	if (le16_to_cpu(last->control) & descriptor_irq_always)
-		ctx->base.callback(&ctx->base,
-				   le16_to_cpu(last->res_count),
-				   0, NULL, ctx->base.callback_data);
-
-	return 1;
-}
-
 static int handle_ir_dualbuffer_packet(struct context *context,
 				       struct descriptor *d,
 				       struct descriptor *last)
@@ -1258,19 +1240,33 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 	struct iso_context *ctx =
 		container_of(context, struct iso_context, context);
 	struct db_descriptor *db = (struct db_descriptor *) d;
+	__le32 *ir_header;
 	size_t header_length;
+	void *p, *end;
+	int i;
 
 	if (db->first_res_count > 0 && db->second_res_count > 0)
 		/* This descriptor isn't done yet, stop iteration. */
 		return 0;
 
-	header_length = db->first_req_count - db->first_res_count;
-	if (ctx->header_length + header_length <= PAGE_SIZE)
-		memcpy(ctx->header + ctx->header_length, db + 1, header_length);
-	ctx->header_length += header_length;
+	header_length = le16_to_cpu(db->first_req_count) -
+		le16_to_cpu(db->first_res_count);
+
+	i = ctx->header_length;
+	p = db + 1;
+	end = p + header_length;
+	while (p < end && i + ctx->base.header_size <= PAGE_SIZE) {
+		memcpy(ctx->header + i, p + 4, ctx->base.header_size);
+		i += ctx->base.header_size;
+		p += ctx->base.header_size + 4;
+	}
+
+	ctx->header_length = i;
 
 	if (le16_to_cpu(db->control) & descriptor_irq_always) {
-		ctx->base.callback(&ctx->base, 0,
+		ir_header = (__le32 *) (db + 1);
+		ctx->base.callback(&ctx->base,
+				   le32_to_cpu(ir_header[0]) & 0xffff,
 				   ctx->header_length, ctx->header,
 				   ctx->base.callback_data);
 		ctx->header_length = 0;
@@ -1315,12 +1311,10 @@ ohci_allocate_iso_context(struct fw_card *card, int type,
 	} else {
 		mask = &ohci->ir_context_mask;
 		list = ohci->ir_context_list;
-		if (header_size > 0)
-			callback = handle_ir_dualbuffer_packet;
-		else
-			callback = handle_ir_bufferfill_packet;
+		callback = handle_ir_dualbuffer_packet;
 	}
 
+	/* FIXME: We need a fallback for pre 1.1 OHCI. */
 	if (callback == handle_ir_dualbuffer_packet &&
 	    ohci->version < OHCI_VERSION_1_1)
 		return ERR_PTR(-EINVAL);
@@ -1367,7 +1361,7 @@ static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct fw_ohci *ohci = ctx->context.ohci;
-	u32 cycle_match = 0, mode;
+	u32 cycle_match = 0;
 	int index;
 
 	if (ctx->base.type == FW_ISO_CONTEXT_TRANSMIT) {
@@ -1382,16 +1376,14 @@ static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
 	} else {
 		index = ctx - ohci->ir_context_list;
 
-		if (ctx->base.header_size > 0)
-			mode = IR_CONTEXT_DUAL_BUFFER_MODE;
-		else
-			mode = IR_CONTEXT_BUFFER_FILL;
 		reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 1 << index);
 		reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, 1 << index);
 		reg_write(ohci, context_match(ctx->context.regs),
 			  (ctx->base.tags << 28) |
 			  (ctx->base.sync << 8) | ctx->base.channel);
-		context_run(&ctx->context, mode);
+		context_run(&ctx->context,
+			    IR_CONTEXT_DUAL_BUFFER_MODE |
+			    IR_CONTEXT_ISOCH_HEADER);
 	}
 
 	return 0;
@@ -1538,26 +1530,6 @@ ohci_queue_iso_transmit(struct fw_iso_context *base,
 }
 
 static int
-setup_wait_descriptor(struct context *ctx)
-{
-	struct descriptor *d;
-	dma_addr_t d_bus;
-
-	d = context_get_descriptors(ctx, 1, &d_bus);
-	if (d == NULL)
-		return -ENOMEM;
-
-	d->control = cpu_to_le16(descriptor_input_more |
-				 descriptor_status |
-				 descriptor_branch_always |
-				 descriptor_wait);
-
-	context_append(ctx, d, 1, 0);
-
-	return 0;
-}
-
-static int
 ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 				  struct fw_iso_packet *packet,
 				  struct fw_iso_buffer *buffer,
@@ -1569,25 +1541,39 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	struct fw_iso_packet *p;
 	dma_addr_t d_bus, page_bus;
 	u32 z, header_z, length, rest;
-	int page, offset;
+	int page, offset, packet_count, header_size;
 
 	/* FIXME: Cycle lost behavior should be configurable: lose
 	 * packet, retransmit or terminate.. */
 
-	if (packet->skip && setup_wait_descriptor(&ctx->context) < 0)
-		return -ENOMEM;
+	if (packet->skip) {
+		d = context_get_descriptors(&ctx->context, 2, &d_bus);
+		if (d == NULL)
+			return -ENOMEM;
+
+		db = (struct db_descriptor *) d;
+		db->control = cpu_to_le16(descriptor_status |
+					  descriptor_branch_always |
+					  descriptor_wait);
+		db->first_size = cpu_to_le16(ctx->base.header_size + 4);
+		context_append(&ctx->context, d, 2, 0);
+	}
 
 	p = packet;
 	z = 2;
 
+	/* The OHCI controller puts the status word in the header
+	 * buffer too, so we need 4 extra bytes per packet. */
+	packet_count = p->header_length / ctx->base.header_size;
+	header_size = packet_count * (ctx->base.header_size + 4);
+
 	/* Get header size in number of descriptors. */
-	header_z = DIV_ROUND_UP(p->header_length, sizeof *d);
+	header_z = DIV_ROUND_UP(header_size, sizeof *d);
 	page     = payload >> PAGE_SHIFT;
 	offset   = payload & ~PAGE_MASK;
 	rest     = p->payload_length;
 
 	/* FIXME: OHCI 1.0 doesn't support dual buffer receive */
-	/* FIXME: handle descriptor_wait */
 	/* FIXME: make packet-per-buffer/dual-buffer a context option */
 	while (rest > 0) {
 		d = context_get_descriptors(&ctx->context,
@@ -1598,8 +1584,8 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 		db = (struct db_descriptor *) d;
 		db->control = cpu_to_le16(descriptor_status |
 					  descriptor_branch_always);
-		db->first_size = cpu_to_le16(ctx->base.header_size);
-		db->first_req_count = cpu_to_le16(p->header_length);
+		db->first_size = cpu_to_le16(ctx->base.header_size + 4);
+		db->first_req_count = cpu_to_le16(header_size);
 		db->first_res_count = db->first_req_count;
 		db->first_buffer = cpu_to_le32(d_bus + sizeof *db);
 
@@ -1626,57 +1612,6 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 }
 
 static int
-ohci_queue_iso_receive_bufferfill(struct fw_iso_context *base,
-				  struct fw_iso_packet *packet,
-				  struct fw_iso_buffer *buffer,
-				  unsigned long payload)
-{
-	struct iso_context *ctx = container_of(base, struct iso_context, base);
-	struct descriptor *d = NULL;
-	dma_addr_t d_bus, page_bus;
-	u32 length, rest;
-	int page, offset;
-
-	page   = payload >> PAGE_SHIFT;
-	offset = payload & ~PAGE_MASK;
-	rest   = packet->payload_length;
-
-	if (packet->skip && setup_wait_descriptor(&ctx->context) < 0)
-		return -ENOMEM;
-
-	while (rest > 0) {
-		d = context_get_descriptors(&ctx->context, 1, &d_bus);
-		if (d == NULL)
-			return -ENOMEM;
-
-		d->control = cpu_to_le16(descriptor_input_more |
-					 descriptor_status |
-					 descriptor_branch_always);
-
-		if (offset + rest < PAGE_SIZE)
-			length = rest;
-		else
-			length = PAGE_SIZE - offset;
-
-		page_bus = page_private(buffer->pages[page]);
-		d->data_address = cpu_to_le32(page_bus + offset);
-		d->req_count = cpu_to_le16(length);
-		d->res_count = cpu_to_le16(length);
-
-		if (packet->interrupt && length == rest)
-			d->control |= cpu_to_le16(descriptor_irq_always);
-
-		context_append(&ctx->context, d, 1, 0);
-
-		offset = (offset + length) & ~PAGE_MASK;
-		rest -= length;
-		page++;
-	}
-
-	return 0;
-}
-
-static int
 ohci_queue_iso(struct fw_iso_context *base,
 	       struct fw_iso_packet *packet,
 	       struct fw_iso_buffer *buffer,
@@ -1686,9 +1621,6 @@ ohci_queue_iso(struct fw_iso_context *base,
 
 	if (base->type == FW_ISO_CONTEXT_TRANSMIT)
 		return ohci_queue_iso_transmit(base, packet, buffer, payload);
-	else if (base->header_size == 0)
-		return ohci_queue_iso_receive_bufferfill(base, packet,
-							 buffer, payload);
 	else if (ctx->context.ohci->version >= OHCI_VERSION_1_1)
 		return ohci_queue_iso_receive_dualbuffer(base, packet,
 							 buffer, payload);

@@ -541,20 +541,32 @@ static int ioctl_create_iso_context(struct client *client, void __user *arg)
 	if (copy_from_user(&request, arg, sizeof request))
 		return -EFAULT;
 
-	if (request.type > FW_ISO_CONTEXT_RECEIVE)
-		return -EINVAL;
-
 	if (request.channel > 63)
 		return -EINVAL;
 
-	if (request.sync > 15)
-		return -EINVAL;
+	switch (request.type) {
+	case FW_ISO_CONTEXT_RECEIVE:
+		if (request.sync > 15)
+			return -EINVAL;
 
-	if (request.tags == 0 || request.tags > 15)
-		return -EINVAL;
+		if (request.tags == 0 || request.tags > 15)
+			return -EINVAL;
 
-	if (request.speed > SCODE_3200)
+		if (request.header_size < 4 || (request.header_size & 3))
+			return -EINVAL;
+
+		break;
+
+	case FW_ISO_CONTEXT_TRANSMIT:
+		if (request.speed > SCODE_3200)
+			return -EINVAL;
+
+		break;
+
+	default:
 		return -EINVAL;
+	}
+
 
 	client->iso_context = fw_iso_context_create(client->device->card,
 						    request.type,
