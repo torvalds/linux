@@ -2169,6 +2169,14 @@ static int natsemi_poll(struct net_device *dev, int *budget)
 			       dev->name, np->intr_status,
 			       readl(ioaddr + IntrMask));
 
+		/* netdev_rx() may read IntrStatus again if the RX state
+		 * machine falls over so do it first. */
+		if (np->intr_status &
+		    (IntrRxDone | IntrRxIntr | RxStatusFIFOOver |
+		     IntrRxErr | IntrRxOverrun)) {
+			netdev_rx(dev, &work_done, work_to_do);
+		}
+
 		if (np->intr_status &
 		    (IntrTxDone | IntrTxIntr | IntrTxIdle | IntrTxErr)) {
 			spin_lock(&np->lock);
@@ -2179,12 +2187,6 @@ static int natsemi_poll(struct net_device *dev, int *budget)
 		/* Abnormal error summary/uncommon events handlers. */
 		if (np->intr_status & IntrAbnormalSummary)
 			netdev_error(dev, np->intr_status);
-
-		if (np->intr_status &
-		    (IntrRxDone | IntrRxIntr | RxStatusFIFOOver |
-		     IntrRxErr | IntrRxOverrun)) {
-			netdev_rx(dev, &work_done, work_to_do);
-		}
 
 		*budget -= work_done;
 		dev->quota -= work_done;
