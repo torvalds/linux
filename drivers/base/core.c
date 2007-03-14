@@ -477,34 +477,58 @@ static struct kobject * get_device_parent(struct device *dev,
 	return NULL;
 }
 #else
-static struct kobject * virtual_device_parent(struct device *dev)
+static struct kobject *virtual_device_parent(struct device *dev)
 {
-	if (!dev->class)
-		return ERR_PTR(-ENODEV);
+	static struct kobject *virtual_dir = NULL;
 
-	if (!dev->class->virtual_dir) {
-		static struct kobject *virtual_dir = NULL;
+	if (!virtual_dir)
+		virtual_dir = kobject_add_dir(&devices_subsys.kset.kobj, "virtual");
 
-		if (!virtual_dir)
-			virtual_dir = kobject_add_dir(&devices_subsys.kset.kobj, "virtual");
-		dev->class->virtual_dir = kobject_add_dir(virtual_dir, dev->class->name);
-	}
-
-	return dev->class->virtual_dir;
+	return virtual_dir;
 }
 
 static struct kobject * get_device_parent(struct device *dev,
 					  struct device *parent)
 {
-	/* if this is a class device, and has no parent, create one */
-	if ((dev->class) && (parent == NULL)) {
-		return virtual_device_parent(dev);
-	} else if (parent)
+	if (dev->class) {
+		struct kobject *kobj = NULL;
+		struct kobject *parent_kobj;
+		struct kobject *k;
+
+		/*
+		 * If we have no parent, we live in "virtual".
+		 * Class-devices with a bus-device as parent, live
+		 * in a class-directory to prevent namespace collisions.
+		 */
+		if (parent == NULL)
+			parent_kobj = virtual_device_parent(dev);
+		else if (parent->class)
+			return &parent->kobj;
+		else
+			parent_kobj = &parent->kobj;
+
+		/* find our class-directory at the parent and reference it */
+		spin_lock(&dev->class->class_dirs.list_lock);
+		list_for_each_entry(k, &dev->class->class_dirs.list, entry)
+			if (k->parent == parent_kobj) {
+				kobj = kobject_get(k);
+				break;
+			}
+		spin_unlock(&dev->class->class_dirs.list_lock);
+		if (kobj)
+			return kobj;
+
+		/* or create a new class-directory at the parent device */
+		return kobject_kset_add_dir(&dev->class->class_dirs,
+					    parent_kobj, dev->class->name);
+	}
+
+	if (parent)
 		return &parent->kobj;
 	return NULL;
 }
-
 #endif
+
 static int setup_parent(struct device *dev, struct device *parent)
 {
 	struct kobject *kobj;
@@ -541,7 +565,6 @@ int device_add(struct device *dev)
 	pr_debug("DEV: registering device: ID = '%s'\n", dev->bus_id);
 
 	parent = get_device(dev->parent);
-
 	error = setup_parent(dev, parent);
 	if (error)
 		goto Error;
@@ -787,6 +810,31 @@ void device_del(struct device * dev)
 		/* remove the device from the class list */
 		list_del_init(&dev->node);
 		up(&dev->class->sem);
+
+		/* If we live in a parent class-directory, unreference it */
+		if (dev->kobj.parent->kset == &dev->class->class_dirs) {
+			struct device *d;
+			int other = 0;
+
+			/*
+			 * if we are the last child of our class, delete
+			 * our class-directory at this parent
+			 */
+			down(&dev->class->sem);
+			list_for_each_entry(d, &dev->class->devices, node) {
+				if (d == dev)
+					continue;
+				if (d->kobj.parent == dev->kobj.parent) {
+					other = 1;
+					break;
+				}
+			}
+			if (!other)
+				kobject_del(dev->kobj.parent);
+
+			kobject_put(dev->kobj.parent);
+			up(&dev->class->sem);
+		}
 	}
 	device_remove_file(dev, &dev->uevent_attr);
 	device_remove_groups(dev);

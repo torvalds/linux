@@ -115,6 +115,16 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			return 0;
 		}
 
+	/* originating subsystem */
+	if (uevent_ops && uevent_ops->name)
+		subsystem = uevent_ops->name(kset, kobj);
+	else
+		subsystem = kobject_name(&kset->kobj);
+	if (!subsystem) {
+		pr_debug("unset subsytem caused the event to drop!\n");
+		return 0;
+	}
+
 	/* environment index */
 	envp = kzalloc(NUM_ENVP * sizeof (char *), GFP_KERNEL);
 	if (!envp)
@@ -133,12 +143,6 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		retval = -ENOENT;
 		goto exit;
 	}
-
-	/* originating subsystem */
-	if (uevent_ops && uevent_ops->name)
-		subsystem = uevent_ops->name(kset, kobj);
-	else
-		subsystem = kobject_name(&kset->kobj);
 
 	/* event environemnt for helper process only */
 	envp[i++] = "HOME=/";

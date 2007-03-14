@@ -488,13 +488,15 @@ static struct kobj_type dir_ktype = {
 };
 
 /**
- *	kobject_add_dir - add sub directory of object.
+ *	kobject__kset_add_dir - add sub directory of object.
+ *	@kset:		kset the directory is belongs to.
  *	@parent:	object in which a directory is created.
  *	@name:	directory name.
  *
  *	Add a plain directory object as child of given object.
  */
-struct kobject *kobject_add_dir(struct kobject *parent, const char *name)
+struct kobject *kobject_kset_add_dir(struct kset *kset,
+				     struct kobject *parent, const char *name)
 {
 	struct kobject *k;
 	int ret;
@@ -506,6 +508,7 @@ struct kobject *kobject_add_dir(struct kobject *parent, const char *name)
 	if (!k)
 		return NULL;
 
+	k->kset = kset;
 	k->parent = parent;
 	k->ktype = &dir_ktype;
 	kobject_set_name(k, name);
@@ -518,6 +521,11 @@ struct kobject *kobject_add_dir(struct kobject *parent, const char *name)
 	}
 
 	return k;
+}
+
+struct kobject *kobject_add_dir(struct kobject *parent, const char *name)
+{
+	return kobject_kset_add_dir(NULL, parent, name);
 }
 
 /**

@@ -181,9 +181,8 @@ struct class {
 	struct list_head	children;
 	struct list_head	devices;
 	struct list_head	interfaces;
+	struct kset		class_dirs;
 	struct semaphore	sem;	/* locks both the children and interfaces lists */
-
-	struct kobject		*virtual_dir;
 
 	struct class_attribute		* class_attrs;
 	struct class_device_attribute	* class_dev_attrs;
