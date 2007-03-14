@@ -1439,7 +1439,7 @@ static int rebuild_lun_table(ctlr_info_t *h, struct gendisk *del_disk)
 
 		if (return_code == IO_OK) {
 			listlength =
-				be32_to_cpu(*(__u32 *) ld_buff->LUNListLength);
+				be32_to_cpu(*(__be32 *) ld_buff->LUNListLength);
 		} else {	/* reading number of logical volumes failed */
 			printk(KERN_WARNING "cciss: report logical volume"
 			       " command failed\n");
@@ -1961,8 +1961,8 @@ cciss_read_capacity(int ctlr, int logvol, int withirq, sector_t *total_size,
 				ctlr, buf, sizeof(ReadCapdata_struct),
 					1, logvol, 0, NULL, TYPE_CMD);
 	if (return_code == IO_OK) {
-		*total_size = be32_to_cpu(*(__u32 *) buf->total_size);
-		*block_size = be32_to_cpu(*(__u32 *) buf->block_size);
+		*total_size = be32_to_cpu(*(__be32 *) buf->total_size);
+		*block_size = be32_to_cpu(*(__be32 *) buf->block_size);
 	} else {		/* read capacity command failed */
 		printk(KERN_WARNING "cciss: read capacity failed\n");
 		*total_size = 0;
@@ -1997,8 +1997,8 @@ cciss_read_capacity_16(int ctlr, int logvol, int withirq, sector_t *total_size, 
 				1, logvol, 0, NULL, TYPE_CMD);
 	}
 	if (return_code == IO_OK) {
-		*total_size = be64_to_cpu(*(__u64 *) buf->total_size);
-		*block_size = be32_to_cpu(*(__u32 *) buf->block_size);
+		*total_size = be64_to_cpu(*(__be64 *) buf->total_size);
+		*block_size = be32_to_cpu(*(__be32 *) buf->block_size);
 	} else {		/* read capacity command failed */
 		printk(KERN_WARNING "cciss: read capacity failed\n");
 		*total_size = 0;
