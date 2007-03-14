@@ -764,27 +764,18 @@ EXPORT_SYMBOL_GPL(nf_conntrack_tcp_update);
 #define	TH_ECE	0x40
 #define	TH_CWR	0x80
 
-/* table of valid flag combinations - ECE and CWR are always valid */
-static u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG) + 1] =
+/* table of valid flag combinations - PUSH, ECE and CWR are always valid */
+static u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG) + 1] =
 {
 	[TH_SYN]			= 1,
-	[TH_SYN|TH_PUSH]		= 1,
 	[TH_SYN|TH_URG]			= 1,
-	[TH_SYN|TH_PUSH|TH_URG]		= 1,
 	[TH_SYN|TH_ACK]			= 1,
-	[TH_SYN|TH_ACK|TH_PUSH]		= 1,
 	[TH_RST]			= 1,
-	[TH_RST|TH_PUSH]		= 1,
 	[TH_RST|TH_ACK]			= 1,
-	[TH_RST|TH_ACK|TH_PUSH]		= 1,
 	[TH_FIN|TH_ACK]			= 1,
-	[TH_ACK]			= 1,
-	[TH_ACK|TH_PUSH]		= 1,
-	[TH_ACK|TH_URG]			= 1,
-	[TH_ACK|TH_URG|TH_PUSH]		= 1,
-	[TH_FIN|TH_ACK|TH_PUSH]		= 1,
 	[TH_FIN|TH_ACK|TH_URG]		= 1,
-	[TH_FIN|TH_ACK|TH_URG|TH_PUSH]	= 1,
+	[TH_ACK]			= 1,
+	[TH_ACK|TH_URG]			= 1,
 };
 
 /* Protect conntrack agaist broken packets. Code taken from ipt_unclean.c.  */
@@ -831,7 +822,7 @@ static int tcp_error(struct sk_buff *skb,
 	}
 
 	/* Check TCP flags. */
-	tcpflags = (((u_int8_t *)th)[13] & ~(TH_ECE|TH_CWR));
+	tcpflags = (((u_int8_t *)th)[13] & ~(TH_ECE|TH_CWR|TH_PUSH));
 	if (!tcp_valid_flags[tcpflags]) {
 		if (LOG_INVALID(IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
