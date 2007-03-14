@@ -753,8 +753,7 @@ static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
 
 	report += offset >> 3;  /* adjust byte index */
 	offset &= 7;            /* now only need bit offset into one byte */
-	x = get_unaligned((u64 *) report);
-	x = le64_to_cpu(x);
+	x = le64_to_cpu(get_unaligned((__le64 *) report));
 	x = (x >> offset) & ((1ULL << n) - 1);  /* extract bit field */
 	return (u32) x;
 }
@@ -769,7 +768,7 @@ static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
  */
 static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u32 value)
 {
-	u64 x;
+	__le64 x;
 	u64 m = (1ULL << n) - 1;
 
 	WARN_ON(n > 32);
@@ -780,10 +779,10 @@ static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u3
 	report += offset >> 3;
 	offset &= 7;
 
-	x = get_unaligned((u64 *)report);
+	x = get_unaligned((__le64 *)report);
 	x &= cpu_to_le64(~(m << offset));
 	x |= cpu_to_le64(((u64) value) << offset);
-	put_unaligned(x, (u64 *) report);
+	put_unaligned(x, (__le64 *) report);
 }
 
 /*
