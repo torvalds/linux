@@ -35,11 +35,7 @@
 #include <net/checksum.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter/x_tables.h>
-#ifdef CONFIG_NF_NAT_NEEDED
 #include <net/netfilter/nf_nat_rule.h>
-#else
-#include <linux/netfilter_ipv4/ip_nat_rule.h>
-#endif
 #include <linux/netfilter_ipv4/ipt_SAME.h>
 
 MODULE_LICENSE("GPL");
@@ -138,17 +134,17 @@ same_target(struct sk_buff **pskb,
 		const struct xt_target *target,
 		const void *targinfo)
 {
-	struct ip_conntrack *ct;
+	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	u_int32_t tmpip, aindex;
 	__be32 new_ip;
 	const struct ipt_same_info *same = targinfo;
-	struct ip_nat_range newrange;
-	const struct ip_conntrack_tuple *t;
+	struct nf_nat_range newrange;
+	const struct nf_conntrack_tuple *t;
 
-	IP_NF_ASSERT(hooknum == NF_IP_PRE_ROUTING ||
+	NF_CT_ASSERT(hooknum == NF_IP_PRE_ROUTING ||
 			hooknum == NF_IP_POST_ROUTING);
-	ct = ip_conntrack_get(*pskb, &ctinfo);
+	ct = nf_ct_get(*pskb, &ctinfo);
 
 	t = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
 
@@ -157,17 +153,10 @@ same_target(struct sk_buff **pskb,
 	   Here we calculate the index in same->iparray which
 	   holds the ipaddress we should use */
 
-#ifdef CONFIG_NF_NAT_NEEDED
 	tmpip = ntohl(t->src.u3.ip);
 
 	if (!(same->info & IPT_SAME_NODST))
 		tmpip += ntohl(t->dst.u3.ip);
-#else
-	tmpip = ntohl(t->src.ip);
-
-	if (!(same->info & IPT_SAME_NODST))
-		tmpip += ntohl(t->dst.ip);
-#endif
 	aindex = tmpip % same->ipnum;
 
 	new_ip = htonl(same->iparray[aindex]);
@@ -178,13 +167,13 @@ same_target(struct sk_buff **pskb,
 			NIPQUAD(new_ip));
 
 	/* Transfer from original range. */
-	newrange = ((struct ip_nat_range)
+	newrange = ((struct nf_nat_range)
 		{ same->range[0].flags, new_ip, new_ip,
 		  /* FIXME: Use ports from correct range! */
 		  same->range[0].min, same->range[0].max });
 
 	/* Hand modified range to generic setup. */
-	return ip_nat_setup_info(ct, &newrange, hooknum);
+	return nf_nat_setup_info(ct, &newrange, hooknum);
 }
 
 static struct xt_target same_reg = {

@@ -12,9 +12,9 @@
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>
-#include <net/netfilter/nf_conntrack_compat.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_connbytes.h>
+#include <net/netfilter/nf_conntrack.h>
 
 #include <asm/div64.h>
 #include <asm/bitops.h>
@@ -35,13 +35,17 @@ match(const struct sk_buff *skb,
       int *hotdrop)
 {
 	const struct xt_connbytes_info *sinfo = matchinfo;
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
 	u_int64_t what = 0;	/* initialize to make gcc happy */
 	u_int64_t bytes = 0;
 	u_int64_t pkts = 0;
 	const struct ip_conntrack_counter *counters;
 
-	if (!(counters = nf_ct_get_counters(skb)))
-		return 0; /* no match */
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct)
+		return 0;
+	counters = ct->counters;
 
 	switch (sinfo->what) {
 	case XT_CONNBYTES_PKTS:

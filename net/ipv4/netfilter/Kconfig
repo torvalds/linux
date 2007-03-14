@@ -30,188 +30,6 @@ config NF_CONNTRACK_PROC_COMPAT
 
 	  If unsure, say Y.
 
-# connection tracking, helpers and protocols
-config IP_NF_CT_ACCT
-	bool "Connection tracking flow accounting"
-	depends on IP_NF_CONNTRACK
-	help
-	  If this option is enabled, the connection tracking code will
-	  keep per-flow packet and byte counters.
-
-	  Those counters can be used for flow-based accounting or the
-	  `connbytes' match.
-
-	  If unsure, say `N'.
-
-config IP_NF_CONNTRACK_MARK
-	bool  'Connection mark tracking support'
-	depends on IP_NF_CONNTRACK
-	help
-	  This option enables support for connection marks, used by the
-	  `CONNMARK' target and `connmark' match. Similar to the mark value
-	  of packets, but this mark value is kept in the conntrack session
-	  instead of the individual packets.
-	
-config IP_NF_CONNTRACK_SECMARK
-	bool  'Connection tracking security mark support'
-	depends on IP_NF_CONNTRACK && NETWORK_SECMARK
-	help
-	  This option enables security markings to be applied to
-	  connections.  Typically they are copied to connections from
-	  packets using the CONNSECMARK target and copied back from
-	  connections to packets with the same target, with the packets
-	  being originally labeled via SECMARK.
-
-	  If unsure, say 'N'.
-
-config IP_NF_CONNTRACK_EVENTS
-	bool "Connection tracking events (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && IP_NF_CONNTRACK
-	help
-	  If this option is enabled, the connection tracking code will
-	  provide a notifier chain that can be used by other kernel code
-	  to get notified about changes in the connection tracking state.
-	  
-	  IF unsure, say `N'.
-
-config IP_NF_CONNTRACK_NETLINK
-	tristate 'Connection tracking netlink interface (EXPERIMENTAL)'
-	depends on EXPERIMENTAL && IP_NF_CONNTRACK && NETFILTER_NETLINK
-	depends on IP_NF_CONNTRACK!=y || NETFILTER_NETLINK!=m
-	depends on IP_NF_NAT=n || IP_NF_NAT
-	help
-	  This option enables support for a netlink-based userspace interface
-
-
-config IP_NF_CT_PROTO_SCTP
-	tristate  'SCTP protocol connection tracking support (EXPERIMENTAL)'
-	depends on IP_NF_CONNTRACK && EXPERIMENTAL
-	help
-	  With this option enabled, the connection tracking code will
-	  be able to do state tracking on SCTP connections.
-
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
-
-config IP_NF_FTP
-	tristate "FTP protocol support"
-	depends on IP_NF_CONNTRACK
-	help
-	  Tracking FTP connections is problematic: special helpers are
-	  required for tracking them, and doing masquerading and other forms
-	  of Network Address Translation on them.
-
-	  To compile it as a module, choose M here.  If unsure, say Y.
-
-config IP_NF_IRC
-	tristate "IRC protocol support"
-	depends on IP_NF_CONNTRACK
-	---help---
-	  There is a commonly-used extension to IRC called
-	  Direct Client-to-Client Protocol (DCC).  This enables users to send
-	  files to each other, and also chat to each other without the need
-	  of a server.  DCC Sending is used anywhere you send files over IRC,
-	  and DCC Chat is most commonly used by Eggdrop bots.  If you are
-	  using NAT, this extension will enable you to send files and initiate
-	  chats.  Note that you do NOT need this extension to get files or
-	  have others initiate chats, or everything else in IRC.
-
-	  To compile it as a module, choose M here.  If unsure, say Y.
-
-config IP_NF_NETBIOS_NS
-	tristate "NetBIOS name service protocol support (EXPERIMENTAL)"
-	depends on IP_NF_CONNTRACK && EXPERIMENTAL
-	help
-	  NetBIOS name service requests are sent as broadcast messages from an
-	  unprivileged port and responded to with unicast messages to the
-	  same port. This make them hard to firewall properly because connection
-	  tracking doesn't deal with broadcasts. This helper tracks locally
-	  originating NetBIOS name service requests and the corresponding
-	  responses. It relies on correct IP address configuration, specifically
-	  netmask and broadcast address. When properly configured, the output
-	  of "ip address show" should look similar to this:
-
-	  $ ip -4 address show eth0
-	  4: eth0: <BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast qlen 1000
-	      inet 172.16.2.252/24 brd 172.16.2.255 scope global eth0
-	  
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_TFTP
-	tristate "TFTP protocol support"
-	depends on IP_NF_CONNTRACK
-	help
-	  TFTP connection tracking helper, this is required depending
-	  on how restrictive your ruleset is.
-	  If you are using a tftp client behind -j SNAT or -j MASQUERADING
-	  you will need this.
-
-	  To compile it as a module, choose M here.  If unsure, say Y.
-
-config IP_NF_AMANDA
-	tristate "Amanda backup protocol support"
-	depends on IP_NF_CONNTRACK
-	select TEXTSEARCH
-	select TEXTSEARCH_KMP
-	help
-	  If you are running the Amanda backup package <http://www.amanda.org/>
-	  on this machine or machines that will be MASQUERADED through this
-	  machine, then you may want to enable this feature.  This allows the
-	  connection tracking and natting code to allow the sub-channels that
-	  Amanda requires for communication of the backup data, messages and
-	  index.
-
-	  To compile it as a module, choose M here.  If unsure, say Y.
-
-config IP_NF_PPTP
-	tristate  'PPTP protocol support'
-	depends on IP_NF_CONNTRACK
-	help
-	  This module adds support for PPTP (Point to Point Tunnelling
-	  Protocol, RFC2637) connection tracking and NAT. 
-	
-	  If you are running PPTP sessions over a stateful firewall or NAT
-	  box, you may want to enable this feature.  
-	
-	  Please note that not all PPTP modes of operation are supported yet.
-	  For more info, read top of the file
-	  net/ipv4/netfilter/ip_conntrack_pptp.c
-	
-	  If you want to compile it as a module, say M here and read
-	  Documentation/modules.txt.  If unsure, say `N'.
-
-config IP_NF_H323
-	tristate  'H.323 protocol support (EXPERIMENTAL)'
-	depends on IP_NF_CONNTRACK && EXPERIMENTAL
-	help
-	  H.323 is a VoIP signalling protocol from ITU-T. As one of the most
-	  important VoIP protocols, it is widely used by voice hardware and
-	  software including voice gateways, IP phones, Netmeeting, OpenPhone,
-	  Gnomemeeting, etc.
-
-	  With this module you can support H.323 on a connection tracking/NAT
-	  firewall.
-
-	  This module supports RAS, Fast Start, H.245 Tunnelling, Call
-	  Forwarding, RTP/RTCP and T.120 based audio, video, fax, chat,
-	  whiteboard, file transfer, etc. For more information, please
-	  visit http://nath323.sourceforge.net/.
-
-	  If you want to compile it as a module, say 'M' here and read
-	  Documentation/modules.txt.  If unsure, say 'N'.
-
-config IP_NF_SIP
-	tristate "SIP protocol support (EXPERIMENTAL)"
-	depends on IP_NF_CONNTRACK && EXPERIMENTAL
-	help
-	  SIP is an application-layer control protocol that can establish,
-	  modify, and terminate multimedia sessions (conferences) such as
-	  Internet telephony calls. With the ip_conntrack_sip and
-	  the ip_nat_sip modules you can support the protocol on a connection
-	  tracking/NATing firewall.
-
-	  To compile it as a module, choose M here.  If unsure, say Y.
-
 config IP_NF_QUEUE
 	tristate "IP Userspace queueing via NETLINK (OBSOLETE)"
 	help
@@ -361,17 +179,6 @@ config IP_NF_TARGET_ULOG
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-# NAT + specific targets: ip_conntrack
-config IP_NF_NAT
-	tristate "Full NAT"
-	depends on IP_NF_IPTABLES && IP_NF_CONNTRACK
-	help
-	  The Full NAT option allows masquerading, port forwarding and other
-	  forms of full Network Address Port Translation.  It is controlled by
-	  the `nat' table in iptables: see the man page for iptables(8).
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 # NAT + specific targets: nf_conntrack
 config NF_NAT
 	tristate "Full NAT"
@@ -383,11 +190,6 @@ config NF_NAT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_NAT_NEEDED
-	bool
-	depends on IP_NF_NAT
-	default y
-
 config NF_NAT_NEEDED
 	bool
 	depends on NF_NAT
@@ -395,7 +197,7 @@ config NF_NAT_NEEDED
 
 config IP_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
-	depends on (NF_NAT || IP_NF_NAT)
+	depends on NF_NAT
 	help
 	  Masquerading is a special case of NAT: all outgoing connections are
 	  changed to seem to come from a particular interface's address, and
@@ -407,7 +209,7 @@ config IP_NF_TARGET_MASQUERADE
 
 config IP_NF_TARGET_REDIRECT
 	tristate "REDIRECT target support"
-	depends on (NF_NAT || IP_NF_NAT)
+	depends on NF_NAT
 	help
 	  REDIRECT is a special case of NAT: all incoming connections are
 	  mapped onto the incoming interface's address, causing the packets to
@@ -418,7 +220,7 @@ config IP_NF_TARGET_REDIRECT
 
 config IP_NF_TARGET_NETMAP
 	tristate "NETMAP target support"
-	depends on (NF_NAT || IP_NF_NAT)
+	depends on NF_NAT
 	help
 	  NETMAP is an implementation of static 1:1 NAT mapping of network
 	  addresses. It maps the network address part, while keeping the host
@@ -429,25 +231,10 @@ config IP_NF_TARGET_NETMAP
 
 config IP_NF_TARGET_SAME
 	tristate "SAME target support"
-	depends on (NF_NAT || IP_NF_NAT)
+	depends on NF_NAT
 	help
 	  This option adds a `SAME' target, which works like the standard SNAT
 	  target, but attempts to give clients the same IP for all connections.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_NAT_SNMP_BASIC
-	tristate "Basic SNMP-ALG support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && IP_NF_NAT
-	---help---
-
-	  This module implements an Application Layer Gateway (ALG) for
-	  SNMP payloads.  In conjunction with NAT, it allows a network
-	  management system to access multiple private networks with
-	  conflicting addresses.  It works by modifying IP addresses
-	  inside SNMP payloads to match IP-layer NAT mapping.
-
-	  This is the "basic" form of SNMP-ALG, as described in RFC 2962
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -477,54 +264,25 @@ config NF_NAT_PROTO_GRE
 	tristate
 	depends on NF_NAT && NF_CT_PROTO_GRE
 
-config IP_NF_NAT_FTP
-	tristate
-	depends on IP_NF_IPTABLES && IP_NF_CONNTRACK && IP_NF_NAT
-	default IP_NF_NAT && IP_NF_FTP
-
 config NF_NAT_FTP
 	tristate
 	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
 	default NF_NAT && NF_CONNTRACK_FTP
-
-config IP_NF_NAT_IRC
-	tristate
-	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
-	default IP_NF_NAT if IP_NF_IRC=y
-	default m if IP_NF_IRC=m
 
 config NF_NAT_IRC
 	tristate
 	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
 	default NF_NAT && NF_CONNTRACK_IRC
 
-config IP_NF_NAT_TFTP
-	tristate
-	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
-	default IP_NF_NAT if IP_NF_TFTP=y
-	default m if IP_NF_TFTP=m
-
 config NF_NAT_TFTP
 	tristate
 	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
 	default NF_NAT && NF_CONNTRACK_TFTP
 
-config IP_NF_NAT_AMANDA
-	tristate
-	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
-	default IP_NF_NAT if IP_NF_AMANDA=y
-	default m if IP_NF_AMANDA=m
-
 config NF_NAT_AMANDA
 	tristate
 	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
 	default NF_NAT && NF_CONNTRACK_AMANDA
-
-config IP_NF_NAT_PPTP
-	tristate
-	depends on IP_NF_NAT!=n && IP_NF_PPTP!=n
-	default IP_NF_NAT if IP_NF_PPTP=y
-	default m if IP_NF_PPTP=m
 
 config NF_NAT_PPTP
 	tristate
@@ -532,22 +290,10 @@ config NF_NAT_PPTP
 	default NF_NAT && NF_CONNTRACK_PPTP
 	select NF_NAT_PROTO_GRE
 
-config IP_NF_NAT_H323
-	tristate
-	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
-	default IP_NF_NAT if IP_NF_H323=y
-	default m if IP_NF_H323=m
-
 config NF_NAT_H323
 	tristate
 	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
 	default NF_NAT && NF_CONNTRACK_H323
-
-config IP_NF_NAT_SIP
-	tristate
-	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
-	default IP_NF_NAT if IP_NF_SIP=y
-	default m if IP_NF_SIP=m
 
 config NF_NAT_SIP
 	tristate
@@ -606,9 +352,8 @@ config IP_NF_TARGET_TTL
 config IP_NF_TARGET_CLUSTERIP
 	tristate "CLUSTERIP target support (EXPERIMENTAL)"
 	depends on IP_NF_MANGLE && EXPERIMENTAL
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK_IPV4
-	select IP_NF_CONNTRACK_MARK if IP_NF_CONNTRACK
-	select NF_CONNTRACK_MARK if NF_CONNTRACK_IPV4
+	depends on NF_CONNTRACK_IPV4
+	select NF_CONNTRACK_MARK
 	help
 	  The CLUSTERIP target allows you to build load-balancing clusters of
 	  network servers without having a dedicated load-balancing

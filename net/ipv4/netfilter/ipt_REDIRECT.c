@@ -19,11 +19,7 @@
 #include <net/checksum.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter/x_tables.h>
-#ifdef CONFIG_NF_NAT_NEEDED
 #include <net/netfilter/nf_nat_rule.h>
-#else
-#include <linux/netfilter_ipv4/ip_nat_rule.h>
-#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
@@ -43,7 +39,7 @@ redirect_check(const char *tablename,
 	       void *targinfo,
 	       unsigned int hook_mask)
 {
-	const struct ip_nat_multi_range_compat *mr = targinfo;
+	const struct nf_nat_multi_range_compat *mr = targinfo;
 
 	if (mr->range[0].flags & IP_NAT_RANGE_MAP_IPS) {
 		DEBUGP("redirect_check: bad MAP_IPS.\n");
@@ -64,17 +60,17 @@ redirect_target(struct sk_buff **pskb,
 		const struct xt_target *target,
 		const void *targinfo)
 {
-	struct ip_conntrack *ct;
+	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	__be32 newdst;
-	const struct ip_nat_multi_range_compat *mr = targinfo;
-	struct ip_nat_range newrange;
+	const struct nf_nat_multi_range_compat *mr = targinfo;
+	struct nf_nat_range newrange;
 
-	IP_NF_ASSERT(hooknum == NF_IP_PRE_ROUTING
+	NF_CT_ASSERT(hooknum == NF_IP_PRE_ROUTING
 		     || hooknum == NF_IP_LOCAL_OUT);
 
-	ct = ip_conntrack_get(*pskb, &ctinfo);
-	IP_NF_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED));
+	ct = nf_ct_get(*pskb, &ctinfo);
+	NF_CT_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED));
 
 	/* Local packets: make them go to loopback */
 	if (hooknum == NF_IP_LOCAL_OUT)
@@ -96,20 +92,20 @@ redirect_target(struct sk_buff **pskb,
 	}
 
 	/* Transfer from original range. */
-	newrange = ((struct ip_nat_range)
+	newrange = ((struct nf_nat_range)
 		{ mr->range[0].flags | IP_NAT_RANGE_MAP_IPS,
 		  newdst, newdst,
 		  mr->range[0].min, mr->range[0].max });
 
 	/* Hand modified range to generic setup. */
-	return ip_nat_setup_info(ct, &newrange, hooknum);
+	return nf_nat_setup_info(ct, &newrange, hooknum);
 }
 
 static struct xt_target redirect_reg = {
 	.name		= "REDIRECT",
 	.family		= AF_INET,
 	.target		= redirect_target,
-	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
+	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",
 	.hooks		= (1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_OUT),
 	.checkentry	= redirect_check,
