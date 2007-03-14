@@ -18,11 +18,11 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 	fflush(stdout);
 	for (i = 0 ; i < nr ; i++) {
 		item = l->items + i;
-		printf("\titem %d key (%Lu %u %Lu) itemoff %d itemsize %d\n",
+		printf("\titem %d key (%Lu %Lu %u) itemoff %d itemsize %d\n",
 			i,
 			btrfs_key_objectid(&item->key),
-			btrfs_key_flags(&item->key),
 			btrfs_key_offset(&item->key),
+			btrfs_key_flags(&item->key),
 			btrfs_item_offset(item),
 			btrfs_item_size(item));
 		printf("\t\titem data %.*s\n", btrfs_item_size(item),
@@ -55,10 +55,12 @@ void btrfs_print_tree(struct btrfs_root *root, struct btrfs_buffer *t)
 		(u32)BTRFS_NODEPTRS_PER_BLOCK(root) - nr);
 	fflush(stdout);
 	for (i = 0; i < nr; i++) {
-		printf("\tkey %d (%Lu %u %Lu) block %Lu\n",
+		printf("\tkey %d (%Lu %Lu %u) block %Lu\n",
 		       i,
-		       c->ptrs[i].key.objectid, c->ptrs[i].key.flags,
-		       c->ptrs[i].key.offset, btrfs_node_blockptr(c, i));
+		       c->ptrs[i].key.objectid,
+		       c->ptrs[i].key.offset,
+		       c->ptrs[i].key.flags,
+		       btrfs_node_blockptr(c, i));
 		fflush(stdout);
 	}
 	for (i = 0; i < nr; i++) {

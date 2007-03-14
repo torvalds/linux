@@ -26,14 +26,14 @@
  */
 struct btrfs_disk_key {
 	__le64 objectid;
-	__le32 flags;
 	__le64 offset;
+	__le32 flags;
 } __attribute__ ((__packed__));
 
 struct btrfs_key {
 	u64 objectid;
-	u32 flags;
 	u64 offset;
+	u32 flags;
 } __attribute__ ((__packed__));
 
 /*

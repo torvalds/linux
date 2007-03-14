@@ -1,7 +1,6 @@
 * cleanup, add more error checking, get rid of BUG_ONs
 * Make IO functions look more like the page cache
 * Fix ENOSPC handling
-* make blocksize a mkfs parameter instead of #define
 * make a real mkfs and superblock
 * Do checksumming
 * Define FS objects in terms of different item types
