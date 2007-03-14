@@ -1628,6 +1628,7 @@ static struct usb_serial_driver moschip7720_2port_driver = {
 	.chars_in_buffer	= mos7720_chars_in_buffer,
 	.break_ctl		= mos7720_break,
 	.read_bulk_callback	= mos7720_bulk_in_callback,
+	.read_int_callback	= mos7720_interrupt_callback,
 };
 
 static int __init moschip7720_init(void)
