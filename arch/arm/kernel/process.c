@@ -27,6 +27,7 @@
 #include <linux/cpu.h>
 #include <linux/elfcore.h>
 #include <linux/pm.h>
+#include <linux/tick.h>
 
 #include <asm/leds.h>
 #include <asm/processor.h>
@@ -159,9 +160,11 @@ void cpu_idle(void)
 		if (!idle)
 			idle = default_idle;
 		leds_event(led_idle_start);
+		tick_nohz_stop_sched_tick();
 		while (!need_resched())
 			idle();
 		leds_event(led_idle_end);
+		tick_nohz_restart_sched_tick();
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();
