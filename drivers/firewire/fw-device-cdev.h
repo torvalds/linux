@@ -113,12 +113,13 @@ struct fw_cdev_event_iso_interrupt {
 #define FW_CDEV_IOC_GET_INFO		_IO('#', 0x00)
 #define FW_CDEV_IOC_SEND_REQUEST	_IO('#', 0x01)
 #define FW_CDEV_IOC_ALLOCATE		_IO('#', 0x02)
-#define FW_CDEV_IOC_SEND_RESPONSE	_IO('#', 0x03)
-#define FW_CDEV_IOC_INITIATE_BUS_RESET	_IO('#', 0x04)
-#define FW_CDEV_IOC_CREATE_ISO_CONTEXT	_IO('#', 0x05)
-#define FW_CDEV_IOC_QUEUE_ISO		_IO('#', 0x06)
-#define FW_CDEV_IOC_START_ISO		_IO('#', 0x07)
-#define FW_CDEV_IOC_STOP_ISO		_IO('#', 0x08)
+#define FW_CDEV_IOC_DEALLOCATE		_IO('#', 0x03)
+#define FW_CDEV_IOC_SEND_RESPONSE	_IO('#', 0x04)
+#define FW_CDEV_IOC_INITIATE_BUS_RESET	_IO('#', 0x05)
+#define FW_CDEV_IOC_CREATE_ISO_CONTEXT	_IO('#', 0x06)
+#define FW_CDEV_IOC_QUEUE_ISO		_IO('#', 0x07)
+#define FW_CDEV_IOC_START_ISO		_IO('#', 0x08)
+#define FW_CDEV_IOC_STOP_ISO		_IO('#', 0x09)
 
 /* FW_CDEV_VERSION History
  *
@@ -171,6 +172,10 @@ struct fw_cdev_allocate {
 	__u64 offset;
 	__u64 closure;
 	__u32 length;
+};
+
+struct fw_cdev_deallocate {
+	__u64 offset;
 };
 
 #define FW_CDEV_LONG_RESET	0

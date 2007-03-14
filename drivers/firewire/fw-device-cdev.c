@@ -467,6 +467,32 @@ static int ioctl_allocate(struct client *client, void __user *arg)
 	return 0;
 }
 
+static int ioctl_deallocate(struct client *client, void __user *arg)
+{
+	struct fw_cdev_deallocate request;
+	struct address_handler *handler;
+	unsigned long flags;
+
+	if (copy_from_user(&request, arg, sizeof request))
+		return -EFAULT;
+
+	spin_lock_irqsave(&client->lock, flags);
+	list_for_each_entry(handler, &client->handler_list, link) {
+		if (handler->handler.offset == request.offset) {
+			list_del(&handler->link);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&client->lock, flags);
+
+	if (&handler->link == &client->handler_list)
+		return -EINVAL;
+
+	fw_core_remove_address_handler(&handler->handler);
+
+	return 0;
+}
+
 static int ioctl_send_response(struct client *client, void __user *arg)
 {
 	struct fw_cdev_send_response request;
@@ -696,6 +722,8 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 		return ioctl_send_request(client, arg);
 	case FW_CDEV_IOC_ALLOCATE:
 		return ioctl_allocate(client, arg);
+	case FW_CDEV_IOC_DEALLOCATE:
+		return ioctl_deallocate(client, arg);
 	case FW_CDEV_IOC_SEND_RESPONSE:
 		return ioctl_send_response(client, arg);
 	case FW_CDEV_IOC_INITIATE_BUS_RESET:
