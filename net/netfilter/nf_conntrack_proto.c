@@ -281,47 +281,34 @@ int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *l4proto)
 		return -EBUSY;
 
 	mutex_lock(&nf_ct_proto_mutex);
-retry:
-	if (nf_ct_protos[l4proto->l3proto]) {
-		if (nf_ct_protos[l4proto->l3proto][l4proto->l4proto]
-				!= &nf_conntrack_l4proto_generic) {
-			ret = -EBUSY;
-			goto out_unlock;
-		}
-	} else {
+	if (!nf_ct_protos[l4proto->l3proto]) {
 		/* l3proto may be loaded latter. */
 		struct nf_conntrack_l4proto **proto_array;
 		int i;
 
-		proto_array = (struct nf_conntrack_l4proto **)
-				kmalloc(MAX_NF_CT_PROTO *
-					 sizeof(struct nf_conntrack_l4proto *),
-					GFP_KERNEL);
+		proto_array = kmalloc(MAX_NF_CT_PROTO *
+				      sizeof(struct nf_conntrack_l4proto *),
+				      GFP_KERNEL);
 		if (proto_array == NULL) {
 			ret = -ENOMEM;
 			goto out_unlock;
 		}
+
 		for (i = 0; i < MAX_NF_CT_PROTO; i++)
 			proto_array[i] = &nf_conntrack_l4proto_generic;
-
-		if (nf_ct_protos[l4proto->l3proto])
-			/* bad timing, but no problem */
-			kfree(proto_array);
-		else
-			nf_ct_protos[l4proto->l3proto] = proto_array;
-
-		/*
-		 * Just once because array is never freed until unloading
-		 * nf_conntrack.ko
-		 */
-		goto retry;
+		nf_ct_protos[l4proto->l3proto] = proto_array;
+	} else if (nf_ct_protos[l4proto->l3proto][l4proto->l4proto] !=
+					&nf_conntrack_l4proto_generic) {
+		ret = -EBUSY;
+		goto out_unlock;
 	}
 
 	ret = nf_ct_l4proto_register_sysctl(l4proto);
 	if (ret < 0)
 		goto out_unlock;
 
-	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto], l4proto);
+	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto],
+			   l4proto);
 
 out_unlock:
 	mutex_unlock(&nf_ct_proto_mutex);
