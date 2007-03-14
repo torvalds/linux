@@ -1152,14 +1152,7 @@ void nf_conntrack_cleanup(void)
 	free_conntrack_hash(nf_conntrack_hash, nf_conntrack_vmalloc,
 			    nf_conntrack_htable_size);
 
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_generic);
-
-	/* free l3proto protocol tables */
-	for (i = 0; i < PF_MAX; i++)
-		if (nf_ct_protos[i]) {
-			kfree(nf_ct_protos[i]);
-			nf_ct_protos[i] = NULL;
-		}
+	nf_conntrack_proto_fini();
 }
 
 static struct list_head *alloc_hashtable(int size, int *vmalloced)
@@ -1237,7 +1230,6 @@ module_param_call(hashsize, set_hashsize, param_get_uint,
 
 int __init nf_conntrack_init(void)
 {
-	unsigned int i;
 	int ret;
 
 	/* Idea from tcp.c: use 1/16384 of memory.  On i386: 32MB
@@ -1279,15 +1271,9 @@ int __init nf_conntrack_init(void)
 		goto err_free_conntrack_slab;
 	}
 
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_generic);
+	ret = nf_conntrack_proto_init();
 	if (ret < 0)
 		goto out_free_expect_slab;
-
-	/* Don't NEED lock here, but good form anyway. */
-	write_lock_bh(&nf_conntrack_lock);
-	for (i = 0; i < AF_MAX; i++)
-		nf_ct_l3protos[i] = &nf_conntrack_l3proto_generic;
-	write_unlock_bh(&nf_conntrack_lock);
 
 	/* For use by REJECT target */
 	rcu_assign_pointer(ip_ct_attach, __nf_conntrack_attach);

@@ -294,9 +294,6 @@ int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *l4proto)
 		goto out;
 	}
 
-	if (l4proto == &nf_conntrack_l4proto_generic)
-		return nf_ct_l4proto_register_sysctl(l4proto);
-
 	mutex_lock(&nf_ct_proto_mutex);
 retry:
 	if (nf_ct_protos[l4proto->l3proto]) {
@@ -353,11 +350,6 @@ void nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 {
 	BUG_ON(l4proto->l3proto >= PF_MAX);
 
-	if (l4proto == &nf_conntrack_l4proto_generic) {
-		nf_ct_l4proto_unregister_sysctl(l4proto);
-		return;
-	}
-
 	mutex_lock(&nf_ct_proto_mutex);
 	BUG_ON(nf_ct_protos[l4proto->l3proto][l4proto->l4proto] != l4proto);
 	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto],
@@ -371,3 +363,29 @@ void nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 	nf_ct_iterate_cleanup(kill_l4proto, l4proto);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_unregister);
+
+int nf_conntrack_proto_init(void)
+{
+	unsigned int i;
+	int err;
+
+	err = nf_ct_l4proto_register_sysctl(&nf_conntrack_l4proto_generic);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < AF_MAX; i++)
+		rcu_assign_pointer(nf_ct_l3protos[i],
+				   &nf_conntrack_l3proto_generic);
+	return 0;
+}
+
+void nf_conntrack_proto_fini(void)
+{
+	unsigned int i;
+
+	nf_ct_l4proto_unregister_sysctl(&nf_conntrack_l4proto_generic);
+
+	/* free l3proto protocol tables */
+	for (i = 0; i < PF_MAX; i++)
+		kfree(nf_ct_protos[i]);
+}
