@@ -72,22 +72,10 @@ int mpc7448_hpc2_exclude_device(u_char bus, u_char devfn)
 
 static void __init mpc7448_hpc2_setup_arch(void)
 {
-	struct device_node *cpu;
 	struct device_node *np;
 	if (ppc_md.progress)
 		ppc_md.progress("mpc7448_hpc2_setup_arch():set_bridge", 0);
 
-	cpu = of_find_node_by_type(NULL, "cpu");
-	if (cpu != 0) {
-		const unsigned int *fp;
-
-		fp = of_get_property(cpu, "clock-frequency", NULL);
-		if (fp != 0)
-			loops_per_jiffy = *fp / HZ;
-		else
-			loops_per_jiffy = 50000000 / HZ;
-		of_node_put(cpu);
-	}
 	tsi108_csr_vir_base = get_vir_csrbase();
 
 	/* setup PCI host bridge */
