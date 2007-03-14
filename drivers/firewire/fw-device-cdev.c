@@ -827,8 +827,10 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 		kfree(r);
 	}
 
-	list_for_each_entry_safe(t, next_t, &client->transaction_list, link)
+	list_for_each_entry_safe(t, next_t, &client->transaction_list, link) {
 		fw_cancel_transaction(client->device->card, &t->transaction);
+		kfree(t);
+	}
 
 	/* FIXME: We should wait for the async tasklets to stop
 	 * running before freeing the memory. */
