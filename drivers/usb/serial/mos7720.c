@@ -333,6 +333,7 @@ static int mos7720_open(struct usb_serial_port *port, struct file * filp)
 	int response;
 	int port_number;
 	char data;
+	int allocated_urbs = 0;
 	int j;
 
 	serial = port->serial;
@@ -365,9 +366,15 @@ static int mos7720_open(struct usb_serial_port *port, struct file * filp)
 					       GFP_KERNEL);
 		if (!urb->transfer_buffer) {
 			err("%s-out of memory for urb buffers.", __FUNCTION__);
+			usb_free_urb(mos7720_port->write_urb_pool[j]);
+			mos7720_port->write_urb_pool[j] = NULL;
 			continue;
 		}
+		allocated_urbs++;
 	}
+
+	if (!allocated_urbs)
+		return -ENOMEM;
 
 	 /* Initialize MCS7720 -- Write Init values to corresponding Registers
 	  *
@@ -526,7 +533,7 @@ static int mos7720_chars_in_buffer(struct usb_serial_port *port)
 	}
 
 	for (i = 0; i < NUM_URBS; ++i) {
-		if (mos7720_port->write_urb_pool[i]->status == -EINPROGRESS)
+		if (mos7720_port->write_urb_pool[i] && mos7720_port->write_urb_pool[i]->status == -EINPROGRESS)
 			chars += URB_TRANSFER_BUFFER_SIZE;
 	}
 	dbg("%s - returns %d", __FUNCTION__, chars);
@@ -629,7 +636,7 @@ static int mos7720_write_room(struct usb_serial_port *port)
 	}
 
 	for (i = 0; i < NUM_URBS; ++i) {
-		if (mos7720_port->write_urb_pool[i]->status != -EINPROGRESS)
+		if (mos7720_port->write_urb_pool[i] && mos7720_port->write_urb_pool[i]->status != -EINPROGRESS)
 			room += URB_TRANSFER_BUFFER_SIZE;
 	}
 
@@ -664,7 +671,7 @@ static int mos7720_write(struct usb_serial_port *port,
 	urb = NULL;
 
 	for (i = 0; i < NUM_URBS; ++i) {
-		if (mos7720_port->write_urb_pool[i]->status != -EINPROGRESS) {
+		if (mos7720_port->write_urb_pool[i] && mos7720_port->write_urb_pool[i]->status != -EINPROGRESS) {
 			urb = mos7720_port->write_urb_pool[i];
 			dbg("URB:%d",i);
 			break;
