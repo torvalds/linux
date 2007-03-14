@@ -41,9 +41,7 @@ static int inc_block_ref(struct btrfs_root *root, u64 blocknr)
 		BUG();
 	BUG_ON(ret != 0);
 	l = &path.nodes[0]->leaf;
-	item = (struct btrfs_extent_item *)(l->data +
-					    btrfs_item_offset(l->items +
-							      path.slots[0]));
+	item = btrfs_item_ptr(l, path.slots[0], struct btrfs_extent_item);
 	refs = btrfs_extent_refs(item);
 	btrfs_set_extent_refs(item, refs + 1);
 
@@ -69,9 +67,7 @@ static int lookup_block_ref(struct btrfs_root *root, u64 blocknr, u32 *refs)
 	if (ret != 0)
 		BUG();
 	l = &path.nodes[0]->leaf;
-	item = (struct btrfs_extent_item *)(l->data +
-				      btrfs_item_offset(l->items +
-							path.slots[0]));
+	item = btrfs_item_ptr(l, path.slots[0], struct btrfs_extent_item);
 	*refs = btrfs_extent_refs(item);
 	btrfs_release_path(root->extent_root, &path);
 	return 0;

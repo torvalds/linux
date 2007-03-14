@@ -401,6 +401,10 @@ static inline void btrfs_set_super_blocksize(struct btrfs_super_block *s,
 	s->blocksize = cpu_to_le16(val);
 }
 
+/* helper function to cast into the data area of the leaf. */
+#define btrfs_item_ptr(leaf, slot, type) \
+	((type *)((leaf)->data + btrfs_item_offset((leaf)->items + (slot))))
+
 struct btrfs_buffer *btrfs_alloc_free_block(struct btrfs_root *root);
 int btrfs_inc_ref(struct btrfs_root *root, struct btrfs_buffer *buf);
 int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks);

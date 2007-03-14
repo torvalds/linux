@@ -26,11 +26,10 @@ void btrfs_print_leaf(struct btrfs_leaf *l)
 			btrfs_item_size(item));
 		printf("\t\titem data %.*s\n", btrfs_item_size(item),
 			l->data + btrfs_item_offset(item));
-		ei = (struct btrfs_extent_item *)(l->data +
-						  btrfs_item_offset(item));
+		ei = btrfs_item_ptr(l, i, struct btrfs_extent_item);
 		printf("\t\textent data refs %u owner %Lu\n",
 			btrfs_extent_refs(ei), btrfs_extent_owner(ei));
-		ri = (struct btrfs_root_item *)ei;
+		ri = btrfs_item_ptr(l, i, struct btrfs_root_item);
 		printf("\t\troot data blocknr %Lu refs %u\n",
 			btrfs_root_blocknr(ri), btrfs_root_refs(ri));
 		fflush(stdout);
