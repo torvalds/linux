@@ -873,7 +873,7 @@ qeth_realloc_headroom(struct qeth_card *card, struct sk_buff *skb, int size)
 }
 
 static inline struct sk_buff *
-qeth_pskb_unshare(struct sk_buff *skb, int pri)
+qeth_pskb_unshare(struct sk_buff *skb, gfp_t pri)
 {
         struct sk_buff *nskb;
         if (!skb_cloned(skb))
