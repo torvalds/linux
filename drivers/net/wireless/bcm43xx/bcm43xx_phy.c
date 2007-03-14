@@ -168,16 +168,16 @@ int bcm43xx_phy_connect(struct bcm43xx_private *bcm, int connect)
 
 	flags = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATEHIGH);
 	if (connect) {
-		if (!(flags & 0x00010000))
+		if (!(flags & BCM43xx_SBTMSTATEHIGH_G_PHY_AVAIL))
 			return -ENODEV;
 		flags = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATELOW);
-		flags |= (0x800 << 18);
+		flags |= BCM43xx_SBTMSTATELOW_G_MODE_ENABLE;
 		bcm43xx_write32(bcm, BCM43xx_CIR_SBTMSTATELOW, flags);
 	} else {
-		if (!(flags & 0x00020000))
+		if (!(flags & BCM43xx_SBTMSTATEHIGH_A_PHY_AVAIL))
 			return -ENODEV;
 		flags = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATELOW);
-		flags &= ~(0x800 << 18);
+		flags &= ~BCM43xx_SBTMSTATELOW_G_MODE_ENABLE;
 		bcm43xx_write32(bcm, BCM43xx_CIR_SBTMSTATELOW, flags);
 	}
 out:
