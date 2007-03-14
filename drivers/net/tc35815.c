@@ -20,45 +20,6 @@
  *
  * (C) Copyright TOSHIBA CORPORATION 2004-2005
  * All Rights Reserved.
- *
- *  Revision History:
- *	1.13	64-bit proof.
- *	1.14	Do not round-up transmit length.
- *	1.15	Define TC35815_DMA_SYNC_ONDEMAND, cleanup.
- *	1.16	Fix free_page bug introduced in 1.15
- *	1.17	Add mii/ethtool ioctl support.
- *		Remove workaround for early TX4938.  Cleanup.
- *	1.20	Kernel 2.6.
- *	1.21	Fix receive packet length (omit CRC).
- *		Call netif_carrier_on/netif_carrier_off.
- *		Add kernel/module options (speed, duplex, doforce).
- *		Do not try "force link mode" by default.
- *		Reconfigure CAM on restarting.
- *		Reset PHY on restarting.
- *		Add workaround for 100MHalf HUB.
- *	1.22	Minor fix.
- *	1.23	Minor cleanup.
- *	1.24	Remove tc35815_setup since new stype option
- *		("tc35815.speed=10", etc.) can be used for 2.6 kernel.
- *	1.25	TX4939 support.
- *	1.26	Minor cleanup.
- *	1.27	Move TX4939 PCFG.SPEEDn control code out from this driver.
- *		Cleanup init_dev_addr. (NETDEV_REGISTER event notifier
- *		can overwrite dev_addr)
- *		support ETHTOOL_GPERMADDR.
- *	1.28	Minor cleanup.
- *	1.29	support netpoll.
- *	1.30	Minor cleanup.
- *	1.31	NAPI support. (disabled by default)
- *		Use DMA_RxAlign_2 if possible.
- *		Do not use PackedBuffer.
- *		Cleanup.
- *	1.32	Fix free buffer management on non-PackedBuffer mode.
- *	1.33	Fix netpoll build.
- *	1.34	Fix netpoll locking.  "BH rule" for NAPI is not enough with
- *		netpoll, hard_start_xmit might be called from irq context.
- *		PM support.
- *	1.35	Fix an usage of streaming DMA API.
  */
 
 #ifdef TC35815_NAPI
