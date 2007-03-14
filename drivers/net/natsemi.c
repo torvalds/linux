@@ -1712,7 +1712,7 @@ static void init_registers(struct net_device *dev)
 
 	/* Enable interrupts by setting the interrupt mask. */
 	writel(DEFAULT_INTR, ioaddr + IntrMask);
-	writel(1, ioaddr + IntrEnable);
+	natsemi_irq_enable(dev);
 
 	writel(RxOn | TxOn, ioaddr + ChipCmd);
 	writel(StatsClear, ioaddr + StatsCtrl); /* Clear Stats */
@@ -3071,7 +3071,7 @@ static void enable_wol_mode(struct net_device *dev, int enable_intr)
 		 * Could be used to send a netlink message.
 		 */
 		writel(WOLPkt | LinkChange, ioaddr + IntrMask);
-		writel(1, ioaddr + IntrEnable);
+		natsemi_irq_enable(dev);
 	}
 }
 
@@ -3202,7 +3202,7 @@ static int natsemi_suspend (struct pci_dev *pdev, pm_message_t state)
 		disable_irq(dev->irq);
 		spin_lock_irq(&np->lock);
 
-		writel(0, ioaddr + IntrEnable);
+		natsemi_irq_disable(dev);
 		np->hands_off = 1;
 		natsemi_stop_rxtx(dev);
 		netif_stop_queue(dev);
