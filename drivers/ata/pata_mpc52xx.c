@@ -329,7 +329,7 @@ mpc52xx_ata_init_one(struct device *dev, struct mpc52xx_ata_priv *priv)
 	ae->dev = dev;
 	ae->irq = priv->ata_irq;
 
-	aio->cmd_addr		= 0;	/* Don't have a classic reg block */
+	aio->cmd_addr		= NULL;	/* Don't have a classic reg block */
 	aio->altstatus_addr	= &priv->ata_regs->tf_control;
 	aio->ctl_addr		= &priv->ata_regs->tf_control;
 	aio->data_addr		= &priv->ata_regs->tf_data;
