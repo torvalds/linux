@@ -738,12 +738,6 @@ static irqreturn_t sci_br_interrupt(int irq, void *ptr)
 
 	/* Handle BREAKs */
 	sci_handle_breaks(port);
-
-#ifdef CONFIG_SH_KGDB
-	/* Break into the debugger if a break is detected */
-	breakpoint();
-#endif
-
 	sci_out(port, SCxSR, SCxSR_BREAK_CLEAR(port));
 
 	return IRQ_HANDLED;
