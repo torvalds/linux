@@ -164,13 +164,11 @@ static int nf_ct_l3proto_register_sysctl(struct nf_conntrack_l3proto *l3proto)
 	int err = 0;
 
 #ifdef CONFIG_SYSCTL
-	mutex_lock(&nf_ct_proto_mutex);
 	if (l3proto->ctl_table != NULL) {
 		err = nf_ct_register_sysctl(&l3proto->ctl_table_header,
 					    l3proto->ctl_table_path,
 					    l3proto->ctl_table, NULL);
 	}
-	mutex_unlock(&nf_ct_proto_mutex);
 #endif
 	return err;
 }
@@ -178,11 +176,9 @@ static int nf_ct_l3proto_register_sysctl(struct nf_conntrack_l3proto *l3proto)
 static void nf_ct_l3proto_unregister_sysctl(struct nf_conntrack_l3proto *l3proto)
 {
 #ifdef CONFIG_SYSCTL
-	mutex_lock(&nf_ct_proto_mutex);
 	if (l3proto->ctl_table_header != NULL)
 		nf_ct_unregister_sysctl(&l3proto->ctl_table_header,
 					l3proto->ctl_table, NULL);
-	mutex_unlock(&nf_ct_proto_mutex);
 #endif
 }
 
@@ -190,27 +186,23 @@ int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto)
 {
 	int ret = 0;
 
-	if (proto->l3proto >= AF_MAX) {
-		ret = -EBUSY;
-		goto out;
-	}
+	if (proto->l3proto >= AF_MAX)
+		return -EBUSY;
 
 	mutex_lock(&nf_ct_proto_mutex);
 	if (nf_ct_l3protos[proto->l3proto] != &nf_conntrack_l3proto_generic) {
 		ret = -EBUSY;
 		goto out_unlock;
 	}
-	rcu_assign_pointer(nf_ct_l3protos[proto->l3proto], proto);
-	mutex_unlock(&nf_ct_proto_mutex);
 
 	ret = nf_ct_l3proto_register_sysctl(proto);
 	if (ret < 0)
-		nf_conntrack_l3proto_unregister(proto);
-	return ret;
+		goto out_unlock;
+
+	rcu_assign_pointer(nf_ct_l3protos[proto->l3proto], proto);
 
 out_unlock:
 	mutex_unlock(&nf_ct_proto_mutex);
-out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_register);
@@ -223,10 +215,10 @@ void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 	BUG_ON(nf_ct_l3protos[proto->l3proto] != proto);
 	rcu_assign_pointer(nf_ct_l3protos[proto->l3proto],
 			   &nf_conntrack_l3proto_generic);
-	mutex_unlock(&nf_ct_proto_mutex);
-	synchronize_rcu();
-
 	nf_ct_l3proto_unregister_sysctl(proto);
+	mutex_unlock(&nf_ct_proto_mutex);
+
+	synchronize_rcu();
 
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(kill_l3proto, proto);
@@ -238,7 +230,6 @@ static int nf_ct_l4proto_register_sysctl(struct nf_conntrack_l4proto *l4proto)
 	int err = 0;
 
 #ifdef CONFIG_SYSCTL
-	mutex_lock(&nf_ct_proto_mutex);
 	if (l4proto->ctl_table != NULL) {
 		err = nf_ct_register_sysctl(l4proto->ctl_table_header,
 					    nf_net_netfilter_sysctl_path,
@@ -260,7 +251,6 @@ static int nf_ct_l4proto_register_sysctl(struct nf_conntrack_l4proto *l4proto)
 	}
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 out:
-	mutex_unlock(&nf_ct_proto_mutex);
 #endif /* CONFIG_SYSCTL */
 	return err;
 }
@@ -268,7 +258,6 @@ out:
 static void nf_ct_l4proto_unregister_sysctl(struct nf_conntrack_l4proto *l4proto)
 {
 #ifdef CONFIG_SYSCTL
-	mutex_lock(&nf_ct_proto_mutex);
 	if (l4proto->ctl_table_header != NULL &&
 	    *l4proto->ctl_table_header != NULL)
 		nf_ct_unregister_sysctl(l4proto->ctl_table_header,
@@ -279,7 +268,6 @@ static void nf_ct_l4proto_unregister_sysctl(struct nf_conntrack_l4proto *l4proto
 		nf_ct_unregister_sysctl(&l4proto->ctl_compat_table_header,
 					l4proto->ctl_compat_table, NULL);
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
-	mutex_unlock(&nf_ct_proto_mutex);
 #endif /* CONFIG_SYSCTL */
 }
 
@@ -289,10 +277,8 @@ int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *l4proto)
 {
 	int ret = 0;
 
-	if (l4proto->l3proto >= PF_MAX) {
-		ret = -EBUSY;
-		goto out;
-	}
+	if (l4proto->l3proto >= PF_MAX)
+		return -EBUSY;
 
 	mutex_lock(&nf_ct_proto_mutex);
 retry:
@@ -331,17 +317,14 @@ retry:
 		goto retry;
 	}
 
-	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto], l4proto);
-	mutex_unlock(&nf_ct_proto_mutex);
-
 	ret = nf_ct_l4proto_register_sysctl(l4proto);
 	if (ret < 0)
-		nf_conntrack_l4proto_unregister(l4proto);
-	return ret;
+		goto out_unlock;
+
+	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto], l4proto);
 
 out_unlock:
 	mutex_unlock(&nf_ct_proto_mutex);
-out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_register);
@@ -354,10 +337,10 @@ void nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 	BUG_ON(nf_ct_protos[l4proto->l3proto][l4proto->l4proto] != l4proto);
 	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto],
 			   &nf_conntrack_l4proto_generic);
-	mutex_unlock(&nf_ct_proto_mutex);
-	synchronize_rcu();
-
 	nf_ct_l4proto_unregister_sysctl(l4proto);
+	mutex_unlock(&nf_ct_proto_mutex);
+
+	synchronize_rcu();
 
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(kill_l4proto, l4proto);
