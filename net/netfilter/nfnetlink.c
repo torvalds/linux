@@ -78,6 +78,7 @@ int nfnetlink_subsys_register(struct nfnetlink_subsystem *n)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfnetlink_subsys_register);
 
 int nfnetlink_subsys_unregister(struct nfnetlink_subsystem *n)
 {
@@ -87,6 +88,7 @@ int nfnetlink_subsys_unregister(struct nfnetlink_subsystem *n)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfnetlink_subsys_unregister);
 
 static inline struct nfnetlink_subsystem *nfnetlink_get_subsys(u_int16_t type)
 {
@@ -121,6 +123,7 @@ void __nfa_fill(struct sk_buff *skb, int attrtype, int attrlen,
 	memcpy(NFA_DATA(nfa), data, attrlen);
 	memset(NFA_DATA(nfa) + attrlen, 0, NFA_ALIGN(size) - size);
 }
+EXPORT_SYMBOL_GPL(__nfa_fill);
 
 void nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
 {
@@ -133,6 +136,7 @@ void nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
 		nfa = NFA_NEXT(nfa, len);
 	}
 }
+EXPORT_SYMBOL_GPL(nfattr_parse);
 
 /**
  * nfnetlink_check_attributes - check and parse nfnetlink attributes
@@ -194,11 +198,13 @@ int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, int echo)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(nfnetlink_send);
 
 int nfnetlink_unicast(struct sk_buff *skb, u_int32_t pid, int flags)
 {
 	return netlink_unicast(nfnl, skb, pid, flags);
 }
+EXPORT_SYMBOL_GPL(nfnetlink_unicast);
 
 /* Process one complete nfnetlink message. */
 static int nfnetlink_rcv_msg(struct sk_buff *skb,
@@ -296,10 +302,3 @@ static int __init nfnetlink_init(void)
 
 module_init(nfnetlink_init);
 module_exit(nfnetlink_exit);
-
-EXPORT_SYMBOL_GPL(nfnetlink_subsys_register);
-EXPORT_SYMBOL_GPL(nfnetlink_subsys_unregister);
-EXPORT_SYMBOL_GPL(nfnetlink_send);
-EXPORT_SYMBOL_GPL(nfnetlink_unicast);
-EXPORT_SYMBOL_GPL(nfattr_parse);
-EXPORT_SYMBOL_GPL(__nfa_fill);
