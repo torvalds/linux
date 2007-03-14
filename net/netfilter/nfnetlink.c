@@ -28,6 +28,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <net/sock.h>
+#include <net/netlink.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 
@@ -51,16 +52,28 @@ static char __initdata nfversion[] = "0.30";
 
 static struct sock *nfnl = NULL;
 static struct nfnetlink_subsystem *subsys_table[NFNL_SUBSYS_COUNT];
-DECLARE_MUTEX(nfnl_sem);
+static DEFINE_MUTEX(nfnl_mutex);
 
-void nfnl_lock(void)
+static void nfnl_lock(void)
 {
-	nfnl_shlock();
+	mutex_lock(&nfnl_mutex);
 }
 
-void nfnl_unlock(void)
+static int nfnl_trylock(void)
 {
-	nfnl_shunlock();
+	return !mutex_trylock(&nfnl_mutex);
+}
+
+static void __nfnl_unlock(void)
+{
+	mutex_unlock(&nfnl_mutex);
+}
+
+static void nfnl_unlock(void)
+{
+	mutex_unlock(&nfnl_mutex);
+	if (nfnl->sk_receive_queue.qlen)
+		nfnl->sk_data_ready(nfnl, 0);
 }
 
 int nfnetlink_subsys_register(struct nfnetlink_subsystem *n)
@@ -248,11 +261,11 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb,
 	ss = nfnetlink_get_subsys(type);
 	if (!ss) {
 #ifdef CONFIG_KMOD
-		/* don't call nfnl_shunlock, since it would reenter
+		/* don't call nfnl_unlock, since it would reenter
 		 * with further packet processing */
-		up(&nfnl_sem);
+		__nfnl_unlock();
 		request_module("nfnetlink-subsys-%d", NFNL_SUBSYS_ID(type));
-		nfnl_shlock();
+		nfnl_lock();
 		ss = nfnetlink_get_subsys(type);
 		if (!ss)
 #endif
@@ -322,7 +335,7 @@ static void nfnetlink_rcv(struct sock *sk, int len)
 	do {
 		struct sk_buff *skb;
 
-		if (nfnl_shlock_nowait())
+		if (nfnl_trylock())
 			return;
 
 		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
@@ -337,9 +350,9 @@ static void nfnetlink_rcv(struct sock *sk, int len)
 			kfree_skb(skb);
 		}
 
-		/* don't call nfnl_shunlock, since it would reenter
+		/* don't call nfnl_unlock, since it would reenter
 		 * with further packet processing */
-		up(&nfnl_sem);
+		__nfnl_unlock();
 	} while(nfnl && nfnl->sk_receive_queue.qlen);
 }
 

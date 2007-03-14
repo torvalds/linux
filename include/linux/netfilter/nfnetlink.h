@@ -129,19 +129,6 @@ extern void __nfa_fill(struct sk_buff *skb, int attrtype,
 ({ if (skb_tailroom(skb) < (int)NFA_SPACE(attrlen)) goto nfattr_failure; \
    __nfa_fill(skb, attrtype, attrlen, data); })
 
-extern struct semaphore nfnl_sem;
-
-#define nfnl_shlock()		down(&nfnl_sem)
-#define nfnl_shlock_nowait()	down_trylock(&nfnl_sem)
-
-#define nfnl_shunlock()		do { up(&nfnl_sem); \
-				     if(nfnl && nfnl->sk_receive_queue.qlen) \
-					    nfnl->sk_data_ready(nfnl, 0); \
-                        	} while(0)
-
-extern void nfnl_lock(void);
-extern void nfnl_unlock(void);
-
 extern int nfnetlink_subsys_register(struct nfnetlink_subsystem *n);
 extern int nfnetlink_subsys_unregister(struct nfnetlink_subsystem *n);
 
