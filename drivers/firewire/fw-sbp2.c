@@ -1099,6 +1099,7 @@ static int add_scsi_devices(struct fw_unit *unit)
 	if (retval < 0) {
 		fw_error("failed to add scsi host\n");
 		scsi_host_put(sd->scsi_host);
+		sd->scsi_host = NULL;
 		return retval;
 	}
 
@@ -1109,6 +1110,7 @@ static int add_scsi_devices(struct fw_unit *unit)
 		fw_error("failed to add scsi device\n");
 		scsi_remove_host(sd->scsi_host);
 		scsi_host_put(sd->scsi_host);
+		sd->scsi_host = NULL;
 		return retval;
 	}
 
