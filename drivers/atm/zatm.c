@@ -1177,7 +1177,7 @@ static void __devinit eprom_get_esi(struct atm_dev *dev)
 /*--------------------------------- entries ---------------------------------*/
 
 
-static int __init zatm_init(struct atm_dev *dev)
+static int __devinit zatm_init(struct atm_dev *dev)
 {
 	struct zatm_dev *zatm_dev;
 	struct pci_dev *pci_dev;
@@ -1256,7 +1256,7 @@ static int __init zatm_init(struct atm_dev *dev)
 }
 
 
-static int __init zatm_start(struct atm_dev *dev)
+static int __devinit zatm_start(struct atm_dev *dev)
 {
 	struct zatm_dev *zatm_dev = ZATM_DEV(dev);
 	struct pci_dev *pdev = zatm_dev->pci_dev;
