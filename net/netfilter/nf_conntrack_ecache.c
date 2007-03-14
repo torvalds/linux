@@ -91,3 +91,26 @@ void nf_ct_event_cache_flush(void)
 	}
 }
 
+int nf_conntrack_register_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&nf_conntrack_chain, nb);
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_register_notifier);
+
+int nf_conntrack_unregister_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&nf_conntrack_chain, nb);
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_unregister_notifier);
+
+int nf_conntrack_expect_register_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&nf_conntrack_expect_chain, nb);
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_expect_register_notifier);
+
+int nf_conntrack_expect_unregister_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&nf_conntrack_expect_chain, nb);
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_expect_unregister_notifier);
