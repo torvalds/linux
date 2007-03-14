@@ -417,7 +417,15 @@ struct platform_device at32_sm_device = {
 	.resource	= sm_resource,
 	.num_resources	= ARRAY_SIZE(sm_resource),
 };
-DEV_CLK(pclk, at32_sm, pbb, 0);
+static struct clk at32_sm_pclk = {
+	.name		= "pclk",
+	.dev		= &at32_sm_device.dev,
+	.parent		= &pbb_clk,
+	.mode		= pbb_clk_mode,
+	.get_rate	= pbb_clk_get_rate,
+	.users		= 1,
+	.index		= 0,
+};
 
 static struct resource intc0_resource[] = {
 	PBMEM(0xfff00400),
@@ -443,6 +451,7 @@ static struct clk hramc_clk = {
 	.mode		= hsb_clk_mode,
 	.get_rate	= hsb_clk_get_rate,
 	.users		= 1,
+	.index		= 3,
 };
 
 static struct resource smc0_resource[] = {
@@ -1079,6 +1088,9 @@ void __init at32_clock_init(void)
 	 */
 	for (i = 0; i < ARRAY_SIZE(at32_clock_list); i++) {
 		struct clk *clk = at32_clock_list[i];
+
+		if (clk->users == 0)
+			continue;
 
 		if (clk->mode == &cpu_clk_mode)
 			cpu_mask |= 1 << clk->index;

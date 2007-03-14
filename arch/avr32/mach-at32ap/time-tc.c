@@ -135,6 +135,7 @@ int avr32_hpt_init(unsigned int count)
 		pr_debug("timer: could not get clk: %ld\n", PTR_ERR(pclk));
 		goto out_error;
 	}
+	clk_enable(pclk);
 
 	regs = platform_get_resource(&at32_systc0_device, IORESOURCE_MEM, 0);
 	if (!regs) {
