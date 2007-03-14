@@ -182,7 +182,7 @@ static int __free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
 		}
 		ret = btrfs_del_item(extent_root, &path);
 		if (root != extent_root &&
-		    extent_root->last_insert.objectid < blocknr)
+		    extent_root->last_insert.objectid > blocknr)
 			extent_root->last_insert.objectid = blocknr;
 		if (ret)
 			BUG();
