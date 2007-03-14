@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <asm/gt64120.h>
 
-extern struct pci_ops gt64120_pci_ops;
+extern struct pci_ops gt64xxx_pci0_ops;
 
 static struct resource pci0_io_resource = {
 	.name  = "pci_0 io",
@@ -30,7 +30,7 @@ static struct resource pci0_mem_resource = {
 };
 
 static struct pci_controller hose_0 = {
-	.pci_ops	= &gt64120_pci_ops,
+	.pci_ops	= &gt64xxx_pci0_ops,
 	.io_resource	= &pci0_io_resource,
 	.mem_resource	= &pci0_mem_resource,
 };

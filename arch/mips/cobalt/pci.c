@@ -14,7 +14,7 @@
 
 #include <asm/gt64120.h>
 
-extern struct pci_ops gt64111_pci_ops;
+extern struct pci_ops gt64xxx_pci0_ops;
 
 static struct resource cobalt_mem_resource = {
 	.start	= GT_DEF_PCI0_MEM0_BASE,
@@ -31,7 +31,7 @@ static struct resource cobalt_io_resource = {
 };
 
 static struct pci_controller cobalt_pci_controller = {
-	.pci_ops	= &gt64111_pci_ops,
+	.pci_ops	= &gt64xxx_pci0_ops,
 	.mem_resource	= &cobalt_mem_resource,
 	.io_resource	= &cobalt_io_resource,
 	.io_offset	= 0 - GT_DEF_PCI0_IO_BASE,
