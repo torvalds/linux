@@ -59,6 +59,8 @@ struct boot_param_header
 	u32	boot_cpuid_phys;	/* Physical CPU id we're booting on */
 	/* version 3 fields below */
 	u32	dt_strings_size;	/* size of the DT strings block */
+	/* version 17 fields below */
+	u32	dt_struct_size;		/* size of the DT structure block */
 };
 
 
