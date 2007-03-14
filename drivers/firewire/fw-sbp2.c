@@ -51,6 +51,7 @@ typedef void (*scsi_done_fn_t) (struct scsi_cmnd *);
 static const char sbp2_driver_name[] = "sbp2";
 
 struct sbp2_device {
+	struct kref kref;
 	struct fw_unit *unit;
 	struct fw_address_handler address_handler;
 	struct list_head orb_list;
@@ -513,6 +514,22 @@ static int add_scsi_devices(struct fw_unit *unit);
 static void remove_scsi_devices(struct fw_unit *unit);
 static void sbp2_reconnect(struct work_struct *work);
 
+static void
+release_sbp2_device(struct kref *kref)
+{
+	struct sbp2_device *sd = container_of(kref, struct sbp2_device, kref);
+
+	sbp2_send_management_orb(sd->unit, sd->node_id, sd->generation,
+				 SBP2_LOGOUT_REQUEST, sd->login_id, NULL);
+
+	remove_scsi_devices(sd->unit);
+
+	fw_core_remove_address_handler(&sd->address_handler);
+	fw_notify("removed sbp2 unit %s\n", sd->unit->device.bus_id);
+	put_device(&sd->unit->device);
+	kfree(sd);
+}
+
 static void sbp2_login(struct work_struct *work)
 {
 	struct sbp2_device *sd =
@@ -537,6 +554,7 @@ static void sbp2_login(struct work_struct *work)
 			fw_error("failed to login to %s\n",
 				 unit->device.bus_id);
 			remove_scsi_devices(unit);
+			kref_put(&sd->kref, release_sbp2_device);
 		}
 		return;
 	}
@@ -577,6 +595,7 @@ static void sbp2_login(struct work_struct *work)
 		 * retry login on bus reset. */
 		PREPARE_DELAYED_WORK(&sd->work, sbp2_login);
 	}
+	kref_put(&sd->kref, release_sbp2_device);
 }
 
 static int sbp2_probe(struct device *dev)
@@ -595,6 +614,7 @@ static int sbp2_probe(struct device *dev)
 	unit->device.driver_data = sd;
 	sd->unit = unit;
 	INIT_LIST_HEAD(&sd->orb_list);
+	kref_init(&sd->kref);
 
 	sd->address_handler.length = 0x100;
 	sd->address_handler.address_callback = sbp2_status_write;
@@ -650,10 +670,14 @@ static int sbp2_probe(struct device *dev)
 			  unit->device.bus_id,
 			  sd->workarounds, firmware_revision, model);
 
+	get_device(&unit->device);
+
 	/* We schedule work to do the login so we can easily
-	 * reschedule retries. */
+	 * reschedule retries. Always get the ref before scheduling
+	 * work.*/
 	INIT_DELAYED_WORK(&sd->work, sbp2_login);
-	schedule_delayed_work(&sd->work, 0);
+	if (schedule_delayed_work(&sd->work, 0))
+		kref_get(&sd->kref);
 
 	return 0;
 }
@@ -663,15 +687,7 @@ static int sbp2_remove(struct device *dev)
 	struct fw_unit *unit = fw_unit(dev);
 	struct sbp2_device *sd = unit->device.driver_data;
 
-	sbp2_send_management_orb(unit, sd->node_id, sd->generation,
-				 SBP2_LOGOUT_REQUEST, sd->login_id, NULL);
-
-	remove_scsi_devices(unit);
-
-	fw_core_remove_address_handler(&sd->address_handler);
-	kfree(sd);
-
-	fw_notify("removed sbp2 unit %s\n", dev->bus_id);
+	kref_put(&sd->kref, release_sbp2_device);
 
 	return 0;
 }
@@ -710,6 +726,7 @@ static void sbp2_reconnect(struct work_struct *work)
 		  unit->device.bus_id, sd->retries);
 	sbp2_agent_reset(unit);
 	sbp2_cancel_orbs(unit);
+	kref_put(&sd->kref, release_sbp2_device);
 }
 
 static void sbp2_update(struct fw_unit *unit)
@@ -719,7 +736,8 @@ static void sbp2_update(struct fw_unit *unit)
 
 	sd->retries = 0;
 	fw_device_enable_phys_dma(device);
-	schedule_delayed_work(&sd->work, 0);
+	if (schedule_delayed_work(&sd->work, 0))
+		kref_get(&sd->kref);
 }
 
 #define SBP2_UNIT_SPEC_ID_ENTRY	0x0000609e
