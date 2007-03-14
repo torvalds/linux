@@ -3369,8 +3369,8 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio   = 0x0200000,
 		}},
 	},
-	[SAA7134_BOARD_ASUSTeK_P7131_DUAL_LNA] = {
-		.name           = "ASUSTeK P7131 Dual LNA",
+	[SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA] = {
+		.name           = "ASUSTeK P7131 Hybrid",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -4032,7 +4032,7 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x1043,
 		.subdevice    = 0x4876,
-		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_DUAL_LNA,
+		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
@@ -4204,7 +4204,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_SEDNA_PC_TV_CARDBUS:
 	case SAA7134_BOARD_FLYDVBT_LR301:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
-	case SAA7134_BOARD_ASUSTeK_P7131_DUAL_LNA:
+	case SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA:
 	case SAA7134_BOARD_FLYDVBTDUO:
 	case SAA7134_BOARD_PROTEUS_2309:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
@@ -4428,7 +4428,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
-	case SAA7134_BOARD_ASUSTeK_P7131_DUAL_LNA:
+	case SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA:
 	case SAA7134_BOARD_MEDION_MD8800_QUADRO:
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		/* this is a hybrid board, initialize to analog mode

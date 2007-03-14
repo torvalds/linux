@@ -873,7 +873,7 @@ static struct tda1004x_config asus_p7131_4871_config = {
 	.request_firmware = philips_tda1004x_request_firmware
 };
 
-static struct tda1004x_config asus_p7131_dual_lna_config = {
+static struct tda1004x_config asus_p7131_hybrid_lna_config = {
 	.demod_address = 0x08,
 	.invert        = 1,
 	.invert_oclk   = 0,
@@ -1153,8 +1153,8 @@ static int dvb_init(struct saa7134_dev *dev)
 	case SAA7134_BOARD_ASUS_P7131_4871:
 		configure_tda827x_fe(dev, &asus_p7131_4871_config);
 		break;
-	case SAA7134_BOARD_ASUSTeK_P7131_DUAL_LNA:
-		configure_tda827x_fe(dev, &asus_p7131_dual_lna_config);
+	case SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA:
+		configure_tda827x_fe(dev, &asus_p7131_hybrid_lna_config);
 		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
