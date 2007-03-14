@@ -100,55 +100,49 @@ dtlb_miss_write:
 
 	.global	tlb_miss_common
 tlb_miss_common:
-	mfsr	r0, SYSREG_PTBR
-	mfsr	r1, SYSREG_TLBEAR
+	mfsr	r0, SYSREG_TLBEAR
+	mfsr	r1, SYSREG_PTBR
 
 	/* Is it the vmalloc space? */
-	bld	r1, 31
+	bld	r0, 31
 	brcs	handle_vmalloc_miss
 
 	/* First level lookup */
 pgtbl_lookup:
-	lsr	r2, r1, PGDIR_SHIFT
-	ld.w	r0, r0[r2 << 2]
-	bld	r0, _PAGE_BIT_PRESENT
+	lsr	r2, r0, PGDIR_SHIFT
+	ld.w	r3, r1[r2 << 2]
+	bfextu	r1, r0, PAGE_SHIFT, PGDIR_SHIFT - PAGE_SHIFT
+	bld	r3, _PAGE_BIT_PRESENT
 	brcc	page_table_not_present
 
-	/* TODO: Check access rights on page table if necessary */
-
 	/* Translate to virtual address in P1. */
-	andl	r0, 0xf000
-	sbr	r0, 31
+	andl	r3, 0xf000
+	sbr	r3, 31
 
 	/* Second level lookup */
-	lsl	r1, (32 - PGDIR_SHIFT)
-	lsr	r1, (32 - PGDIR_SHIFT) + PAGE_SHIFT
-	add	r2, r0, r1 << 2
-	ld.w	r1, r2[0]
-	bld	r1, _PAGE_BIT_PRESENT
+	ld.w	r2, r3[r1 << 2]
+	mfsr	r0, SYSREG_TLBARLO
+	bld	r2, _PAGE_BIT_PRESENT
 	brcc	page_not_present
 
 	/* Mark the page as accessed */
-	sbr	r1, _PAGE_BIT_ACCESSED
-	st.w	r2[0], r1
+	sbr	r2, _PAGE_BIT_ACCESSED
+	st.w	r3[r1 << 2], r2
 
 	/* Drop software flags */
-	andl	r1, _PAGE_FLAGS_HARDWARE_MASK & 0xffff
-	mtsr	SYSREG_TLBELO, r1
+	andl	r2, _PAGE_FLAGS_HARDWARE_MASK & 0xffff
+	mtsr	SYSREG_TLBELO, r2
 
 	/* Figure out which entry we want to replace */
-	mfsr	r0, SYSREG_TLBARLO
+	mfsr	r1, SYSREG_MMUCR
 	clz	r2, r0
 	brcc	1f
-	mov	r1, -1			/* All entries have been accessed, */
-	mtsr	SYSREG_TLBARLO, r1	/* so reset TLBAR */
-	mov	r2, 0			/* and start at 0 */
-1:	mfsr	r1, SYSREG_MMUCR
-	lsl	r2, 14
-	andl	r1, 0x3fff, COH
-	or	r1, r2
-	mtsr	SYSREG_MMUCR, r1
+	mov	r3, -1			/* All entries have been accessed, */
+	mov	r2, 0			/* so start at 0 */
+	mtsr	SYSREG_TLBARLO, r3	/* and reset TLBAR */
 
+1:	bfins	r1, r2, SYSREG_DRP_OFFSET, SYSREG_DRP_SIZE
+	mtsr	SYSREG_MMUCR, r1
 	tlbw
 
 	tlbmiss_restore
@@ -156,8 +150,8 @@ pgtbl_lookup:
 
 handle_vmalloc_miss:
 	/* Simply do the lookup in init's page table */
-	mov	r0, lo(swapper_pg_dir)
-	orh	r0, hi(swapper_pg_dir)
+	mov	r1, lo(swapper_pg_dir)
+	orh	r1, hi(swapper_pg_dir)
 	rjmp	pgtbl_lookup
 
 
