@@ -130,7 +130,7 @@ struct paravirt_ops
 	void (*flush_tlb_kernel)(void);
 	void (*flush_tlb_single)(u32 addr);
 
-	void (fastcall *map_pt_hook)(int type, pte_t *va, u32 pfn);
+	void (*map_pt_hook)(int type, pte_t *va, u32 pfn);
 
 	void (*alloc_pt)(u32 pfn);
 	void (*alloc_pd)(u32 pfn);
