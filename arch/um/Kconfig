@@ -44,7 +44,7 @@ config LOCKDEP_SUPPORT
 
 config STACKTRACE_SUPPORT
 	bool
-	default y
+	default n
 
 config GENERIC_CALIBRATE_DELAY
 	bool
