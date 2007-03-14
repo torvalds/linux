@@ -30,9 +30,7 @@
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <linux/init.h>
-#include <linux/spinlock.h>
 
-#include <linux/netfilter.h>
 #include <linux/netlink.h>
 #include <linux/netfilter/nfnetlink.h>
 
