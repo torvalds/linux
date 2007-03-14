@@ -882,10 +882,10 @@ static void _stack_save(u32 *_stackptr, size_t *stackidx,
 {
 	u32 *stackptr = &(_stackptr[*stackidx]);
 
-	assert((offset & 0xF000) == 0x0000);
-	assert((id & 0xF0) == 0x00);
+	assert((offset & 0xE000) == 0x0000);
+	assert((id & 0xF8) == 0x00);
 	*stackptr = offset;
-	*stackptr |= ((u32)id) << 12;
+	*stackptr |= ((u32)id) << 13;
 	*stackptr |= ((u32)value) << 16;
 	(*stackidx)++;
 	assert(*stackidx < BCM43xx_INTERFSTACK_SIZE);
@@ -896,12 +896,12 @@ static u16 _stack_restore(u32 *stackptr,
 {
 	size_t i;
 
-	assert((offset & 0xF000) == 0x0000);
-	assert((id & 0xF0) == 0x00);
+	assert((offset & 0xE000) == 0x0000);
+	assert((id & 0xF8) == 0x00);
 	for (i = 0; i < BCM43xx_INTERFSTACK_SIZE; i++, stackptr++) {
-		if ((*stackptr & 0x00000FFF) != offset)
+		if ((*stackptr & 0x00001FFF) != offset)
 			continue;
-		if (((*stackptr & 0x0000F000) >> 12) != id)
+		if (((*stackptr & 0x00007000) >> 13) != id)
 			continue;
 		return ((*stackptr & 0xFFFF0000) >> 16);
 	}
