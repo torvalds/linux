@@ -485,12 +485,12 @@ static u8 ps3av_cnv_mclk(u32 fs)
 
 static const u32 ps3av_ns_table[][5] = {
 					/*   D1,    D2,    D3,    D4,    D5 */
-	[PS3AV_CMD_AUDIO_FS_44K-BASE]	{  6272,  6272, 17836, 17836,  8918 },
-	[PS3AV_CMD_AUDIO_FS_48K-BASE]	{  6144,  6144, 11648, 11648,  5824 },
-	[PS3AV_CMD_AUDIO_FS_88K-BASE]	{ 12544, 12544, 35672, 35672, 17836 },
-	[PS3AV_CMD_AUDIO_FS_96K-BASE]	{ 12288, 12288, 23296, 23296, 11648 },
-	[PS3AV_CMD_AUDIO_FS_176K-BASE]	{ 25088, 25088, 71344, 71344, 35672 },
-	[PS3AV_CMD_AUDIO_FS_192K-BASE]	{ 24576, 24576, 46592, 46592, 23296 }
+	[PS3AV_CMD_AUDIO_FS_44K-BASE] =	{  6272,  6272, 17836, 17836,  8918 },
+	[PS3AV_CMD_AUDIO_FS_48K-BASE] =	{  6144,  6144, 11648, 11648,  5824 },
+	[PS3AV_CMD_AUDIO_FS_88K-BASE] =	{ 12544, 12544, 35672, 35672, 17836 },
+	[PS3AV_CMD_AUDIO_FS_96K-BASE] =	{ 12288, 12288, 23296, 23296, 11648 },
+	[PS3AV_CMD_AUDIO_FS_176K-BASE] =	{ 25088, 25088, 71344, 71344, 35672 },
+	[PS3AV_CMD_AUDIO_FS_192K-BASE] =	{ 24576, 24576, 46592, 46592, 23296 }
 };
 
 static void ps3av_cnv_ns(u8 *ns, u32 fs, u32 video_vid)
@@ -543,9 +543,10 @@ static void ps3av_cnv_ns(u8 *ns, u32 fs, u32 video_vid)
 
 #undef BASE
 
-static u8 ps3av_cnv_enable(u32 source, u8 *enable)
+static u8 ps3av_cnv_enable(u32 source, const u8 *enable)
 {
-	u8 *p, ret = 0;
+	const u8 *p;
+	u8 ret = 0;
 
 	if (source == PS3AV_CMD_AUDIO_SOURCE_SPDIF) {
 		ret = 0x03;
@@ -559,9 +560,10 @@ static u8 ps3av_cnv_enable(u32 source, u8 *enable)
 	return ret;
 }
 
-static u8 ps3av_cnv_fifomap(u8 *map)
+static u8 ps3av_cnv_fifomap(const u8 *map)
 {
-	u8 *p, ret = 0;
+	const u8 *p;
+	u8 ret = 0;
 
 	p = map;
 	ret = p[0] + (p[1] << 2) + (p[2] << 4) + (p[3] << 6);
@@ -615,7 +617,7 @@ static void ps3av_cnv_info(struct ps3av_audio_info_frame *info,
 	info->pb5.lsv = mode->audio_downmix_level;
 }
 
-static void ps3av_cnv_chstat(u8 *chstat, u8 *cs_info)
+static void ps3av_cnv_chstat(u8 *chstat, const u8 *cs_info)
 {
 	memcpy(chstat, cs_info, 5);
 }
