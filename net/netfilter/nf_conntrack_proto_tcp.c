@@ -1101,11 +1101,26 @@ static int tcp_to_nfattr(struct sk_buff *skb, struct nfattr *nfa,
 			 const struct nf_conn *ct)
 {
 	struct nfattr *nest_parms;
+	struct nf_ct_tcp_flags tmp = {};
 
 	read_lock_bh(&tcp_lock);
 	nest_parms = NFA_NEST(skb, CTA_PROTOINFO_TCP);
 	NFA_PUT(skb, CTA_PROTOINFO_TCP_STATE, sizeof(u_int8_t),
 		&ct->proto.tcp.state);
+
+	NFA_PUT(skb, CTA_PROTOINFO_TCP_WSCALE_ORIGINAL, sizeof(u_int8_t),
+		&ct->proto.tcp.seen[0].td_scale);
+
+	NFA_PUT(skb, CTA_PROTOINFO_TCP_WSCALE_REPLY, sizeof(u_int8_t),
+		&ct->proto.tcp.seen[1].td_scale);
+
+	tmp.flags = ct->proto.tcp.seen[0].flags;
+	NFA_PUT(skb, CTA_PROTOINFO_TCP_FLAGS_ORIGINAL,
+		sizeof(struct nf_ct_tcp_flags), &tmp);
+
+	tmp.flags = ct->proto.tcp.seen[1].flags;
+	NFA_PUT(skb, CTA_PROTOINFO_TCP_FLAGS_REPLY,
+		sizeof(struct nf_ct_tcp_flags), &tmp);
 	read_unlock_bh(&tcp_lock);
 
 	NFA_NEST_END(skb, nest_parms);
@@ -1118,7 +1133,11 @@ nfattr_failure:
 }
 
 static const size_t cta_min_tcp[CTA_PROTOINFO_TCP_MAX] = {
-	[CTA_PROTOINFO_TCP_STATE-1]	= sizeof(u_int8_t),
+	[CTA_PROTOINFO_TCP_STATE-1]	      = sizeof(u_int8_t),
+	[CTA_PROTOINFO_TCP_WSCALE_ORIGINAL-1] = sizeof(u_int8_t),
+	[CTA_PROTOINFO_TCP_WSCALE_REPLY-1]    = sizeof(u_int8_t),
+	[CTA_PROTOINFO_TCP_FLAGS_ORIGINAL-1]  = sizeof(struct nf_ct_tcp_flags),
+	[CTA_PROTOINFO_TCP_FLAGS_REPLY-1]     = sizeof(struct nf_ct_tcp_flags)
 };
 
 static int nfattr_to_tcp(struct nfattr *cda[], struct nf_conn *ct)
@@ -1142,6 +1161,30 @@ static int nfattr_to_tcp(struct nfattr *cda[], struct nf_conn *ct)
 	write_lock_bh(&tcp_lock);
 	ct->proto.tcp.state =
 		*(u_int8_t *)NFA_DATA(tb[CTA_PROTOINFO_TCP_STATE-1]);
+
+	if (tb[CTA_PROTOINFO_TCP_FLAGS_ORIGINAL-1]) {
+		struct nf_ct_tcp_flags *attr =
+			NFA_DATA(tb[CTA_PROTOINFO_TCP_FLAGS_ORIGINAL-1]);
+		ct->proto.tcp.seen[0].flags &= ~attr->mask;
+		ct->proto.tcp.seen[0].flags |= attr->flags & attr->mask;
+	}
+
+	if (tb[CTA_PROTOINFO_TCP_FLAGS_REPLY-1]) {
+		struct nf_ct_tcp_flags *attr =
+			NFA_DATA(tb[CTA_PROTOINFO_TCP_FLAGS_REPLY-1]);
+		ct->proto.tcp.seen[1].flags &= ~attr->mask;
+		ct->proto.tcp.seen[1].flags |= attr->flags & attr->mask;
+	}
+
+	if (tb[CTA_PROTOINFO_TCP_WSCALE_ORIGINAL-1] &&
+	    tb[CTA_PROTOINFO_TCP_WSCALE_REPLY-1] &&
+	    ct->proto.tcp.seen[0].flags & IP_CT_TCP_FLAG_WINDOW_SCALE &&
+	    ct->proto.tcp.seen[1].flags & IP_CT_TCP_FLAG_WINDOW_SCALE) {
+		ct->proto.tcp.seen[0].td_scale = *(u_int8_t *)
+			NFA_DATA(tb[CTA_PROTOINFO_TCP_WSCALE_ORIGINAL-1]);
+		ct->proto.tcp.seen[1].td_scale = *(u_int8_t *)
+			NFA_DATA(tb[CTA_PROTOINFO_TCP_WSCALE_REPLY-1]);
+	}
 	write_unlock_bh(&tcp_lock);
 
 	return 0;
