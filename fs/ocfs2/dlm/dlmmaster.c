@@ -2730,14 +2730,17 @@ int dlm_empty_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 	int ret;
 	int lock_dropped = 0;
 
+	spin_lock(&res->spinlock);
 	if (res->owner != dlm->node_num) {
 		if (!__dlm_lockres_unused(res)) {
 			mlog(ML_ERROR, "%s:%.*s: this node is not master, "
 			     "trying to free this but locks remain\n",
 			     dlm->name, res->lockname.len, res->lockname.name);
 		}
+		spin_unlock(&res->spinlock);
 		goto leave;
 	}
+	spin_unlock(&res->spinlock);
 
 	/* Wheee! Migrate lockres here! Will sleep so drop spinlock. */
 	spin_unlock(&dlm->spinlock);

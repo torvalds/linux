@@ -265,8 +265,10 @@ static void dlm_run_purge_list(struct dlm_ctxt *dlm,
 		/* This may drop and reacquire the dlm spinlock if it
 		 * has to do migration. */
 		mlog(0, "calling dlm_purge_lockres!\n");
+		dlm_lockres_get(lockres);
 		if (dlm_purge_lockres(dlm, lockres))
 			BUG();
+		dlm_lockres_put(lockres);
 		mlog(0, "DONE calling dlm_purge_lockres!\n");
 
 		/* Avoid adding any scheduling latencies */

@@ -1638,17 +1638,8 @@ static void o2net_hb_node_up_cb(struct o2nm_node *node, int node_num,
 
 void o2net_unregister_hb_callbacks(void)
 {
-	int ret;
-
-	ret = o2hb_unregister_callback(&o2net_hb_up);
-	if (ret < 0)
-		mlog(ML_ERROR, "Status return %d unregistering heartbeat up "
-		     "callback!\n", ret);
-
-	ret = o2hb_unregister_callback(&o2net_hb_down);
-	if (ret < 0)
-		mlog(ML_ERROR, "Status return %d unregistering heartbeat down "
-		     "callback!\n", ret);
+	o2hb_unregister_callback(&o2net_hb_up);
+	o2hb_unregister_callback(&o2net_hb_down);
 }
 
 int o2net_register_hb_callbacks(void)
