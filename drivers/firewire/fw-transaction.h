@@ -363,8 +363,6 @@ struct fw_iso_context {
 	int type;
 	int channel;
 	int speed;
-	int sync;
-	int tags;
 	size_t header_size;
 	fw_iso_callback_t callback;
 	void *callback_data;
@@ -382,8 +380,7 @@ fw_iso_buffer_destroy(struct fw_iso_buffer *buffer, struct fw_card *card);
 
 struct fw_iso_context *
 fw_iso_context_create(struct fw_card *card, int type,
-		      int channel, int speed,
-		      int sync, int tags, size_t header_size,
+		      int channel, int speed, size_t header_size,
 		      fw_iso_callback_t callback, void *callback_data);
 
 void
@@ -396,7 +393,8 @@ fw_iso_context_queue(struct fw_iso_context *ctx,
 		     unsigned long payload);
 
 int
-fw_iso_context_start(struct fw_iso_context *ctx, int cycle);
+fw_iso_context_start(struct fw_iso_context *ctx,
+		     int cycle, int sync, int tags);
 
 int
 fw_iso_context_stop(struct fw_iso_context *ctx);
@@ -436,11 +434,12 @@ struct fw_card_driver {
 	u64 (*get_bus_time) (struct fw_card *card);
 
 	struct fw_iso_context *
-	(*allocate_iso_context)(struct fw_card *card, int sync, int tags,
+	(*allocate_iso_context)(struct fw_card *card,
 				int type, size_t header_size);
 	void (*free_iso_context)(struct fw_iso_context *ctx);
 
-	int (*start_iso)(struct fw_iso_context *ctx, s32 cycle);
+	int (*start_iso)(struct fw_iso_context *ctx,
+			 s32 cycle, u32 sync, u32 tags);
 
 	int (*queue_iso)(struct fw_iso_context *ctx,
 			 struct fw_iso_packet *packet,

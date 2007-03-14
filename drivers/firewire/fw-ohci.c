@@ -1294,8 +1294,7 @@ static int handle_it_packet(struct context *context,
 }
 
 static struct fw_iso_context *
-ohci_allocate_iso_context(struct fw_card *card, int type,
-			  int sync, int tags, size_t header_size)
+ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct iso_context *ctx, *list;
@@ -1357,7 +1356,8 @@ ohci_allocate_iso_context(struct fw_card *card, int type,
 	return ERR_PTR(retval);
 }
 
-static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
+static int ohci_start_iso(struct fw_iso_context *base,
+			  s32 cycle, u32 sync, u32 tags)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct fw_ohci *ohci = ctx->context.ohci;
@@ -1379,8 +1379,7 @@ static int ohci_start_iso(struct fw_iso_context *base, s32 cycle)
 		reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 1 << index);
 		reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, 1 << index);
 		reg_write(ohci, context_match(ctx->context.regs),
-			  (ctx->base.tags << 28) |
-			  (ctx->base.sync << 8) | ctx->base.channel);
+			  (tags << 28) | (sync << 8) | ctx->base.channel);
 		context_run(&ctx->context,
 			    IR_CONTEXT_DUAL_BUFFER_MODE |
 			    IR_CONTEXT_ISOCH_HEADER);

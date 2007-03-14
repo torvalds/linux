@@ -194,8 +194,6 @@ struct fw_cdev_create_iso_context {
 	__u32 header_size;
 	__u32 channel;
 	__u32 speed;
-	__u32 sync;
-	__u32 tags;
 };
 
 struct fw_cdev_iso_packet {
@@ -216,6 +214,8 @@ struct fw_cdev_queue_iso {
 
 struct fw_cdev_start_iso {
 	__s32 cycle;
+	__u32 sync;
+	__u32 tags;
 };
 
 #endif /* __fw_cdev_h */
