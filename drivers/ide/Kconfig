@@ -802,7 +802,7 @@ config BLK_DEV_IDEDMA_PMAC
 
 config BLK_DEV_IDE_CELLEB
 	bool "Toshiba's Cell Reference Set IDE support"
-	depends on PPC_CELLEB
+	depends on PPC_CELLEB && IDE=y
 	help
 	  This driver provides support for the built-in IDE controller on
 	  Toshiba Cell Reference Board.
