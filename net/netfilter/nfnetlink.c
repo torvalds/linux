@@ -149,16 +149,9 @@ static int
 nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 			   struct nlmsghdr *nlh, struct nfattr *cda[])
 {
-	int min_len;
+	int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
 	u_int16_t attr_count;
 	u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
-
-	if (unlikely(cb_id >= subsys->cb_count))
-		return -EINVAL;
-
-	min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
-	if (unlikely(nlh->nlmsg_len < min_len))
-		return -EINVAL;
 
 	attr_count = subsys->cb[cb_id].attr_count;
 	memset(cda, 0, sizeof(struct nfattr *) * attr_count);
