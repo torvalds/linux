@@ -138,7 +138,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 
 ======================================================================*/
 
-static int ibmtr_attach(struct pcmcia_device *link)
+static int __devinit ibmtr_attach(struct pcmcia_device *link)
 {
     ibmtr_dev_t *info;
     struct net_device *dev;
@@ -217,7 +217,7 @@ static void ibmtr_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static int ibmtr_config(struct pcmcia_device *link)
+static int __devinit ibmtr_config(struct pcmcia_device *link)
 {
     ibmtr_dev_t *info = link->priv;
     struct net_device *dev = info->dev;
