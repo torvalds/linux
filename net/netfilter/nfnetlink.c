@@ -301,59 +301,16 @@ err_inval:
 	return -1;
 }
 
-/* Process one packet of messages. */
-static inline int nfnetlink_rcv_skb(struct sk_buff *skb)
-{
-	int err;
-	struct nlmsghdr *nlh;
-
-	while (skb->len >= NLMSG_SPACE(0)) {
-		u32 rlen;
-
-		nlh = (struct nlmsghdr *)skb->data;
-		if (nlh->nlmsg_len < sizeof(struct nlmsghdr)
-		    || skb->len < nlh->nlmsg_len)
-			return 0;
-		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (rlen > skb->len)
-			rlen = skb->len;
-		if (nfnetlink_rcv_msg(skb, nlh, &err)) {
-			if (!err)
-				return -1;
-			netlink_ack(skb, nlh, err);
-		} else
-			if (nlh->nlmsg_flags & NLM_F_ACK)
-				netlink_ack(skb, nlh, 0);
-		skb_pull(skb, rlen);
-	}
-
-	return 0;
-}
-
 static void nfnetlink_rcv(struct sock *sk, int len)
 {
-	do {
-		struct sk_buff *skb;
+	unsigned int qlen = 0;
 
+	do {
 		if (nfnl_trylock())
 			return;
-
-		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
-			if (nfnetlink_rcv_skb(skb)) {
-				if (skb->len)
-					skb_queue_head(&sk->sk_receive_queue,
-						       skb);
-				else
-					kfree_skb(skb);
-				break;
-			}
-			kfree_skb(skb);
-		}
-
-		/* don't call nfnl_unlock, since it would reenter
-		 * with further packet processing */
+		netlink_run_queue(sk, &qlen, nfnetlink_rcv_msg);
 		__nfnl_unlock();
-	} while(nfnl && nfnl->sk_receive_queue.qlen);
+	} while (qlen);
 }
 
 static void __exit nfnetlink_exit(void)
