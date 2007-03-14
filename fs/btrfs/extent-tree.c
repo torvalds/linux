@@ -143,7 +143,6 @@ static int __free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
 	struct btrfs_key key;
 	struct btrfs_root *extent_root = root->extent_root;
 	int ret;
-	struct btrfs_item *item;
 	struct btrfs_extent_item *ei;
 	struct btrfs_key ins;
 	u32 refs;
@@ -161,9 +160,8 @@ static int __free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
 		printf("failed to find %Lu\n", key.objectid);
 		BUG();
 	}
-	item = path.nodes[0]->leaf.items + path.slots[0];
-	ei = (struct btrfs_extent_item *)(path.nodes[0]->leaf.data +
-				    btrfs_item_offset(item));
+	ei = btrfs_item_ptr(&path.nodes[0]->leaf, path.slots[0],
+			    struct btrfs_extent_item);
 	BUG_ON(ei->refs == 0);
 	refs = btrfs_extent_refs(ei) - 1;
 	btrfs_set_extent_refs(ei, refs);

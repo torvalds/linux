@@ -46,7 +46,8 @@ struct btrfs_buffer *alloc_tree_block(struct btrfs_root *root, u64 blocknr)
 {
 	struct btrfs_buffer *buf;
 	int ret;
-	buf = malloc(sizeof(struct btrfs_buffer));
+
+	buf = malloc(sizeof(struct btrfs_buffer) + root->blocksize);
 	if (!buf)
 		return buf;
 	allocated_blocks++;
@@ -84,7 +85,7 @@ struct btrfs_buffer *find_tree_block(struct btrfs_root *root, u64 blocknr)
 
 struct btrfs_buffer *read_tree_block(struct btrfs_root *root, u64 blocknr)
 {
-	loff_t offset = blocknr * BTRFS_BLOCKSIZE;
+	loff_t offset = blocknr * root->blocksize;
 	struct btrfs_buffer *buf;
 	int ret;
 
@@ -95,8 +96,8 @@ struct btrfs_buffer *read_tree_block(struct btrfs_root *root, u64 blocknr)
 		buf = alloc_tree_block(root, blocknr);
 		if (!buf)
 			return NULL;
-		ret = pread(root->fp, &buf->node, BTRFS_BLOCKSIZE, offset);
-		if (ret != BTRFS_BLOCKSIZE) {
+		ret = pread(root->fp, &buf->node, root->blocksize, offset);
+		if (ret != root->blocksize) {
 			free(buf);
 			return NULL;
 		}
@@ -127,13 +128,13 @@ int clean_tree_block(struct btrfs_root *root, struct btrfs_buffer *buf)
 int write_tree_block(struct btrfs_root *root, struct btrfs_buffer *buf)
 {
 	u64 blocknr = buf->blocknr;
-	loff_t offset = blocknr * BTRFS_BLOCKSIZE;
+	loff_t offset = blocknr * root->blocksize;
 	int ret;
 
 	if (buf->blocknr != btrfs_header_blocknr(&buf->node.header))
 		BUG();
-	ret = pwrite(root->fp, &buf->node, BTRFS_BLOCKSIZE, offset);
-	if (ret != BTRFS_BLOCKSIZE)
+	ret = pwrite(root->fp, &buf->node, root->blocksize, offset);
+	if (ret != root->blocksize)
 		return ret;
 	return 0;
 }
@@ -215,7 +216,8 @@ int btrfs_commit_transaction(struct btrfs_root *root,
 	return ret;
 }
 
-static int __setup_root(struct btrfs_root *root, u64 objectid, int fp)
+static int __setup_root(struct btrfs_super_block *super,
+			struct btrfs_root *root, u64 objectid, int fp)
 {
 	INIT_LIST_HEAD(&root->trans);
 	INIT_LIST_HEAD(&root->cache);
@@ -223,6 +225,8 @@ static int __setup_root(struct btrfs_root *root, u64 objectid, int fp)
 	root->fp = fp;
 	root->node = NULL;
 	root->commit_root = NULL;
+	root->blocksize = btrfs_super_blocksize(super);
+	root->ref_cows = 0;
 	memset(&root->current_insert, 0, sizeof(root->current_insert));
 	memset(&root->last_insert, 0, sizeof(root->last_insert));
 	memset(&root->root_key, 0, sizeof(root->root_key));
@@ -230,19 +234,19 @@ static int __setup_root(struct btrfs_root *root, u64 objectid, int fp)
 	return 0;
 }
 
-static int find_and_setup_root(struct btrfs_root *tree_root, u64 objectid,
-			struct btrfs_root *root, int fp)
+static int find_and_setup_root(struct btrfs_super_block *super,
+			       struct btrfs_root *tree_root, u64 objectid,
+			       struct btrfs_root *root, int fp)
 {
 	int ret;
 
-	__setup_root(root, objectid, fp);
+	__setup_root(super, root, objectid, fp);
 	ret = btrfs_find_last_root(tree_root, objectid,
 				   &root->root_item, &root->root_key);
 	BUG_ON(ret);
 
 	root->node = read_tree_block(root,
 				     btrfs_root_blocknr(&root->root_item));
-	root->ref_cows = 0;
 	BUG_ON(!root->node);
 	return 0;
 }
@@ -277,28 +281,28 @@ struct btrfs_root *open_ctree(char *filename, struct btrfs_super_block *super)
 	INIT_RADIX_TREE(&tree_root->cache_radix, GFP_KERNEL);
 
 	ret = pread(fp, super, sizeof(struct btrfs_super_block),
-		     BTRFS_SUPER_INFO_OFFSET(BTRFS_BLOCKSIZE));
+		     BTRFS_SUPER_INFO_OFFSET);
 	if (ret == 0 || btrfs_super_root(super) == 0) {
 		printf("making new FS!\n");
-		ret = mkfs(fp, 0, BTRFS_BLOCKSIZE);
+		ret = mkfs(fp, 0, 1024);
 		if (ret)
 			return NULL;
 		ret = pread(fp, super, sizeof(struct btrfs_super_block),
-			     BTRFS_SUPER_INFO_OFFSET(BTRFS_BLOCKSIZE));
+			     BTRFS_SUPER_INFO_OFFSET);
 		if (ret != sizeof(struct btrfs_super_block))
 			return NULL;
 	}
 	BUG_ON(ret < 0);
 
-	__setup_root(tree_root, BTRFS_ROOT_TREE_OBJECTID, fp);
+	__setup_root(super, tree_root, BTRFS_ROOT_TREE_OBJECTID, fp);
 	tree_root->node = read_tree_block(tree_root, btrfs_super_root(super));
 	BUG_ON(!tree_root->node);
 
-	ret = find_and_setup_root(tree_root, BTRFS_EXTENT_TREE_OBJECTID,
+	ret = find_and_setup_root(super, tree_root, BTRFS_EXTENT_TREE_OBJECTID,
 				  extent_root, fp);
 	BUG_ON(ret);
 
-	ret = find_and_setup_root(tree_root, BTRFS_FS_TREE_OBJECTID,
+	ret = find_and_setup_root(super, tree_root, BTRFS_FS_TREE_OBJECTID,
 				  root, fp);
 	BUG_ON(ret);
 
@@ -313,7 +317,7 @@ int write_ctree_super(struct btrfs_root *root, struct btrfs_super_block *s)
 	int ret;
 	btrfs_set_super_root(s, root->tree_root->node->blocknr);
 	ret = pwrite(root->fp, s, sizeof(*s),
-		     BTRFS_SUPER_INFO_OFFSET(BTRFS_BLOCKSIZE));
+		     BTRFS_SUPER_INFO_OFFSET);
 	if (ret != sizeof(*s)) {
 		fprintf(stderr, "failed to write new super block err %d\n", ret);
 		return ret;

@@ -5,7 +5,6 @@
 #include "kerncompat.h"
 
 #define BTRFS_MAGIC "_BtRfS_M"
-#define BTRFS_BLOCKSIZE 1024
 
 #define BTRFS_ROOT_TREE_OBJECTID 1
 #define BTRFS_EXTENT_TREE_OBJECTID 2
@@ -52,8 +51,11 @@ struct btrfs_header {
 } __attribute__ ((__packed__));
 
 #define BTRFS_MAX_LEVEL 8
-#define NODEPTRS_PER_BLOCK ((BTRFS_BLOCKSIZE - sizeof(struct btrfs_header)) / \
-			    (sizeof(struct btrfs_disk_key) + sizeof(u64)))
+#define BTRFS_NODEPTRS_PER_BLOCK(r) (((r)->blocksize - \
+			        sizeof(struct btrfs_header)) / \
+			       (sizeof(struct btrfs_disk_key) + sizeof(u64)))
+#define __BTRFS_LEAF_DATA_SIZE(bs) ((bs) - sizeof(struct btrfs_header))
+#define BTRFS_LEAF_DATA_SIZE(r) (__BTRFS_LEAF_DATA_SIZE(r->blocksize))
 
 struct btrfs_buffer;
 
@@ -86,6 +88,7 @@ struct btrfs_root {
 	int ref_cows;
 	struct btrfs_root_item root_item;
 	struct btrfs_key root_key;
+	u32 blocksize;
 };
 
 /*
@@ -97,7 +100,7 @@ struct btrfs_super_block {
 	__le64 blocknr; /* this block number */
 	__le32 csum;
 	__le64 magic;
-	__le16 blocksize;
+	__le32 blocksize;
 	__le64 generation;
 	__le64 root;
 	__le64 total_blocks;
@@ -111,7 +114,7 @@ struct btrfs_super_block {
  */
 struct btrfs_item {
 	struct btrfs_disk_key key;
-	__le16 offset;
+	__le32 offset;
 	__le16 size;
 } __attribute__ ((__packed__));
 
@@ -122,24 +125,23 @@ struct btrfs_item {
  * The data is separate from the items to get the keys closer together
  * during searches.
  */
-#define LEAF_DATA_SIZE (BTRFS_BLOCKSIZE - sizeof(struct btrfs_header))
 struct btrfs_leaf {
 	struct btrfs_header header;
-	union {
-		struct btrfs_item items[LEAF_DATA_SIZE/
-				        sizeof(struct btrfs_item)];
-		u8 data[BTRFS_BLOCKSIZE - sizeof(struct btrfs_header)];
-	};
+	struct btrfs_item items[];
 } __attribute__ ((__packed__));
 
 /*
  * all non-leaf blocks are nodes, they hold only keys and pointers to
  * other blocks
  */
+struct btrfs_key_ptr {
+	struct btrfs_disk_key key;
+	__le64 blockptr;
+} __attribute__ ((__packed__));
+
 struct btrfs_node {
 	struct btrfs_header header;
-	struct btrfs_disk_key keys[NODEPTRS_PER_BLOCK];
-	__le64 blockptrs[NODEPTRS_PER_BLOCK];
+	struct btrfs_key_ptr ptrs[];
 } __attribute__ ((__packed__));
 
 /*
@@ -186,28 +188,28 @@ static inline void btrfs_set_extent_refs(struct btrfs_extent_item *ei, u32 val)
 
 static inline u64 btrfs_node_blockptr(struct btrfs_node *n, int nr)
 {
-	return le64_to_cpu(n->blockptrs[nr]);
+	return le64_to_cpu(n->ptrs[nr].blockptr);
 }
 
 static inline void btrfs_set_node_blockptr(struct btrfs_node *n, int nr,
 					   u64 val)
 {
-	n->blockptrs[nr] = cpu_to_le64(val);
+	n->ptrs[nr].blockptr = cpu_to_le64(val);
 }
 
-static inline u16 btrfs_item_offset(struct btrfs_item *item)
+static inline u32 btrfs_item_offset(struct btrfs_item *item)
 {
-	return le16_to_cpu(item->offset);
+	return le32_to_cpu(item->offset);
 }
 
-static inline void btrfs_set_item_offset(struct btrfs_item *item, u16 val)
+static inline void btrfs_set_item_offset(struct btrfs_item *item, u32 val)
 {
-	item->offset = cpu_to_le16(val);
+	item->offset = cpu_to_le32(val);
 }
 
-static inline u16 btrfs_item_end(struct btrfs_item *item)
+static inline u32 btrfs_item_end(struct btrfs_item *item)
 {
-	return le16_to_cpu(item->offset) + le16_to_cpu(item->size);
+	return le32_to_cpu(item->offset) + le16_to_cpu(item->size);
 }
 
 static inline u16 btrfs_item_size(struct btrfs_item *item)
@@ -390,20 +392,26 @@ static inline void btrfs_set_super_blocks_used(struct btrfs_super_block *s,
 	s->blocks_used = cpu_to_le64(val);
 }
 
-static inline u16 btrfs_super_blocksize(struct btrfs_super_block *s)
+static inline u32 btrfs_super_blocksize(struct btrfs_super_block *s)
 {
-	return le16_to_cpu(s->blocksize);
+	return le32_to_cpu(s->blocksize);
 }
 
 static inline void btrfs_set_super_blocksize(struct btrfs_super_block *s,
-						u16 val)
+						u32 val)
 {
-	s->blocksize = cpu_to_le16(val);
+	s->blocksize = cpu_to_le32(val);
+}
+
+static inline u8 *btrfs_leaf_data(struct btrfs_leaf *l)
+{
+	return (u8 *)l->items;
 }
 
 /* helper function to cast into the data area of the leaf. */
 #define btrfs_item_ptr(leaf, slot, type) \
-	((type *)((leaf)->data + btrfs_item_offset((leaf)->items + (slot))))
+	((type *)(btrfs_leaf_data(leaf) + \
+	btrfs_item_offset((leaf)->items + (slot))))
 
 struct btrfs_buffer *btrfs_alloc_free_block(struct btrfs_root *root);
 int btrfs_inc_ref(struct btrfs_root *root, struct btrfs_buffer *buf);
@@ -416,7 +424,7 @@ int btrfs_del_item(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_insert_item(struct btrfs_root *root, struct btrfs_key *key,
 		void *data, int data_size);
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
-int btrfs_leaf_free_space(struct btrfs_leaf *leaf);
+int btrfs_leaf_free_space(struct btrfs_root *root, struct btrfs_leaf *leaf);
 int btrfs_drop_snapshot(struct btrfs_root *root, struct btrfs_buffer *snap);
 int btrfs_finish_extent_commit(struct btrfs_root *root);
 int btrfs_del_root(struct btrfs_root *root, struct btrfs_key *key);

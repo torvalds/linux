@@ -5,12 +5,12 @@
 struct btrfs_buffer {
 	u64 blocknr;
 	int count;
+	struct list_head dirty;
+	struct list_head cache;
 	union {
 		struct btrfs_node node;
 		struct btrfs_leaf leaf;
 	};
-	struct list_head dirty;
-	struct list_head cache;
 };
 
 struct btrfs_buffer *read_tree_block(struct btrfs_root *root, u64 blocknr);
@@ -24,9 +24,8 @@ struct btrfs_root *open_ctree(char *filename, struct btrfs_super_block *s);
 int close_ctree(struct btrfs_root *root, struct btrfs_super_block *s);
 void btrfs_block_release(struct btrfs_root *root, struct btrfs_buffer *buf);
 int write_ctree_super(struct btrfs_root *root, struct btrfs_super_block *s);
-int mkfs(int fd, u64 num_blocks, u16 blocksize);
+int mkfs(int fd, u64 num_blocks, u32 blocksize);
 
-
-#define BTRFS_SUPER_INFO_OFFSET(bs) (16 * (bs))
+#define BTRFS_SUPER_INFO_OFFSET (16 * 1024)
 
 #endif
