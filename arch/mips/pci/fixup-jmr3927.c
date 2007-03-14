@@ -29,7 +29,6 @@
  */
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
 
 #include <asm/jmr3927/jmr3927.h>
@@ -81,14 +80,8 @@ int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 	/* Check OnBoard Ethernet (IDSEL=A24, DevNu=13) */
 	if (dev->bus->parent == NULL &&
-	    slot == TX3927_PCIC_IDSEL_AD_TO_SLOT(24)) {
-		extern int jmr3927_ether1_irq;
-		/* check this irq line was reserved for ether1 */
-		if (jmr3927_ether1_irq != JMR3927_IRQ_ETHER0)
-			irq = JMR3927_IRQ_ETHER0;
-		else
-			irq = 0;	/* disable */
-	}
+	    slot == TX3927_PCIC_IDSEL_AD_TO_SLOT(24))
+		irq = JMR3927_IRQ_ETHER0;
 	return irq;
 }
 

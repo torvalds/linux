@@ -10,8 +10,6 @@
 #ifndef __ASM_TXX927_H
 #define __ASM_TXX927_H
 
-#ifndef __ASSEMBLY__
-
 struct txx927_tmr_reg {
 	volatile unsigned long tcr;
 	volatile unsigned long tisr;
@@ -51,9 +49,6 @@ struct txx927_pio_reg {
 	volatile unsigned long maskcpu;
 	volatile unsigned long maskext;
 };
-
-#endif /* !__ASSEMBLY__ */
-
 
 /*
  * TMR

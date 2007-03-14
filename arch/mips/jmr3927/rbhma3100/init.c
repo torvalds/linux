@@ -28,20 +28,10 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/sched.h>
-#include <linux/bootmem.h>
-
-#include <asm/addrspace.h>
 #include <asm/bootinfo.h>
-#include <asm/mipsregs.h>
 #include <asm/jmr3927/jmr3927.h>
 
-int prom_argc;
-char **prom_argv, **prom_envp;
 extern void  __init prom_init_cmdline(void);
-extern char *prom_getenv(char *envname);
-unsigned long mips_nofpu = 0;
 
 const char *get_system_type(void)
 {
@@ -52,7 +42,7 @@ const char *get_system_type(void)
 	;
 }
 
-extern void puts(unsigned char *cp);
+extern void puts(const char *cp);
 
 void __init prom_init(void)
 {
@@ -61,10 +51,6 @@ void __init prom_init(void)
 	if ((tx3927_ccfgptr->ccfg & TX3927_CCFG_TLBOFF) == 0)
 		puts("Warning: TX3927 TLB off\n");
 #endif
-	prom_argc = fw_arg0;
-	prom_argv = (char **) fw_arg1;
-	prom_envp = (char **) fw_arg2;
-
 	mips_machgroup = MACH_GROUP_TOSHIBA;
 
 #ifdef CONFIG_TOSHIBA_JMR3927
