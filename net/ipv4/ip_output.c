@@ -384,20 +384,9 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 #ifdef CONFIG_NET_SCHED
 	to->tc_index = from->tc_index;
 #endif
-#ifdef CONFIG_NETFILTER
-	/* Connection association is same as pre-frag packet */
-	nf_conntrack_put(to->nfct);
-	to->nfct = from->nfct;
-	nf_conntrack_get(to->nfct);
-	to->nfctinfo = from->nfctinfo;
+	nf_copy(to, from);
 #if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
 	to->ipvs_property = from->ipvs_property;
-#endif
-#ifdef CONFIG_BRIDGE_NETFILTER
-	nf_bridge_put(to->nf_bridge);
-	to->nf_bridge = from->nf_bridge;
-	nf_bridge_get(to->nf_bridge);
-#endif
 #endif
 	skb_copy_secmark(to, from);
 }

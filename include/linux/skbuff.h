@@ -1514,9 +1514,22 @@ static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src)
 #endif
 }
 
+static inline void nf_copy(struct sk_buff *dst, const struct sk_buff *src)
+{
+	nf_conntrack_put(dst->nfct);
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	nf_conntrack_put_reasm(dst->nfct_reasm);
+#endif
+#ifdef CONFIG_BRIDGE_NETFILTER
+	nf_bridge_put(dst->nf_bridge);
+#endif
+	__nf_copy(dst, src);
+}
+
 #else /* CONFIG_NETFILTER */
 static inline void nf_reset(struct sk_buff *skb) {}
 static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src) {}
+static inline void nf_copy(struct sk_buff *dst, const struct sk_buff *src) {}
 #endif /* CONFIG_NETFILTER */
 
 #ifdef CONFIG_NETWORK_SECMARK
