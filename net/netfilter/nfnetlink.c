@@ -151,26 +151,14 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 			   struct nlmsghdr *nlh, struct nfattr *cda[])
 {
 	int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
-	u_int16_t attr_count;
 	u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
-
-	attr_count = subsys->cb[cb_id].attr_count;
-	memset(cda, 0, sizeof(struct nfattr *) * attr_count);
+	u_int16_t attr_count = subsys->cb[cb_id].attr_count;
 
 	/* check attribute lengths. */
 	if (likely(nlh->nlmsg_len > min_len)) {
 		struct nfattr *attr = NFM_NFA(NLMSG_DATA(nlh));
 		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
-
-		while (NFA_OK(attr, attrlen)) {
-			unsigned flavor = NFA_TYPE(attr);
-			if (flavor) {
-				if (flavor > attr_count)
-					return -EINVAL;
-				cda[flavor - 1] = attr;
-			}
-			attr = NFA_NEXT(attr, attrlen);
-		}
+		nfattr_parse(cda, attr_count, attr, attrlen);
 	}
 
 	/* implicit: if nlmsg_len == min_len, we return 0, and an empty
