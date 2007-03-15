@@ -907,7 +907,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  5stack	D945 5stack + SPDIF
 	  macmini	Intel Mac Mini
 	  macbook	Intel Mac Book
-	  macbook-pro	Intel Mac Book Pro
+	  macbook-pro-v1 Intel Mac Book Pro 1st generation
+	  macbook-pro	Intel Mac Book Pro 2nd generation
 
 	STAC9202/9250/9251
 	  ref		Reference board, base config
