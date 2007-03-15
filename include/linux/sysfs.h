@@ -78,6 +78,9 @@ struct sysfs_ops {
 
 #ifdef CONFIG_SYSFS
 
+extern int sysfs_schedule_callback(struct kobject *kobj,
+		void (*func)(void *), void *data);
+
 extern int __must_check
 sysfs_create_dir(struct kobject *, struct dentry *);
 
@@ -131,6 +134,12 @@ extern void sysfs_remove_shadow_dir(struct dentry *dir);
 extern int __must_check sysfs_init(void);
 
 #else /* CONFIG_SYSFS */
+
+static inline int sysfs_schedule_callback(struct kobject *kobj,
+		void (*func)(void *), void *data)
+{
+	return -ENOSYS;
+}
 
 static inline int sysfs_create_dir(struct kobject * k, struct dentry *shadow)
 {
