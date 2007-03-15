@@ -187,10 +187,7 @@ void nmi_watchdog_default(void)
 {
 	if (nmi_watchdog != NMI_DEFAULT)
 		return;
-	if (nmi_known_cpu())
-		nmi_watchdog = NMI_LOCAL_APIC;
-	else
-		nmi_watchdog = NMI_IO_APIC;
+	nmi_watchdog = NMI_NONE;
 }
 
 static int endflag __initdata = 0;

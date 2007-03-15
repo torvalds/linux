@@ -33,7 +33,7 @@ extern int nmi_watchdog_tick (struct pt_regs * regs, unsigned reason);
 
 extern atomic_t nmi_active;
 extern unsigned int nmi_watchdog;
-#define NMI_DEFAULT     0
+#define NMI_DEFAULT     -1
 #define NMI_NONE	0
 #define NMI_IO_APIC	1
 #define NMI_LOCAL_APIC	2

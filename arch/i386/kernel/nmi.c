@@ -245,14 +245,6 @@ static int __init check_nmi_watchdog(void)
 	unsigned int *prev_nmi_count;
 	int cpu;
 
-	/* Enable NMI watchdog for newer systems.
-	   Probably safe on most older systems too, but let's be careful.
-	   IBM ThinkPads use INT10 inside SMM and that allows early NMI inside SMM
-	   which hangs the system. Disable watchdog for all thinkpads */
-	if (nmi_watchdog == NMI_DEFAULT && dmi_get_year(DMI_BIOS_DATE) >= 2004 &&
-		!dmi_name_in_vendors("ThinkPad"))
-		nmi_watchdog = NMI_LOCAL_APIC;
-
 	if ((nmi_watchdog == NMI_NONE) || (nmi_watchdog == NMI_DEFAULT))
 		return 0;
 
