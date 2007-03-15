@@ -1592,15 +1592,16 @@ static int find_best_unit(struct file *fp,
 	 */
 	if (!cpus_empty(current->cpus_allowed) &&
 	    !cpus_full(current->cpus_allowed)) {
-		int ncpus = num_online_cpus(), curcpu = -1;
+		int ncpus = num_online_cpus(), curcpu = -1, nset = 0;
 		for (i = 0; i < ncpus; i++)
 			if (cpu_isset(i, current->cpus_allowed)) {
 				ipath_cdbg(PROC, "%s[%u] affinity set for "
-					   "cpu %d\n", current->comm,
-					   current->pid, i);
+					   "cpu %d/%d\n", current->comm,
+					   current->pid, i, ncpus);
 				curcpu = i;
+				nset++;
 			}
-		if (curcpu != -1) {
+		if (curcpu != -1 && nset != ncpus) {
 			if (npresent) {
 				prefunit = curcpu / (ncpus / npresent);
 				ipath_cdbg(PROC,"%s[%u] %d chips, %d cpus, "
