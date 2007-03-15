@@ -1105,9 +1105,10 @@ static int rose_sendmsg(struct kiocb *iocb, struct socket *sock,
 	 */
 	SOCK_DEBUG(sk, "ROSE: Appending user data\n");
 
-	asmptr = skb->h.raw = skb_put(skb, len);
+	skb_reset_transport_header(skb);
+	skb_put(skb, len);
 
-	err = memcpy_fromiovec(asmptr, msg->msg_iov, len);
+	err = memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len);
 	if (err) {
 		kfree_skb(skb);
 		return err;

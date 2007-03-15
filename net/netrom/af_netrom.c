@@ -1074,6 +1074,7 @@ static int nr_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto out;
 
 	skb_reserve(skb, size - len);
+	skb_reset_transport_header(skb);
 
 	/*
 	 *	Push down the NET/ROM header
@@ -1094,14 +1095,12 @@ static int nr_sendmsg(struct kiocb *iocb, struct socket *sock,
 	/*
 	 *	Put the data on the end
 	 */
+	skb_put(skb, len);
 
-	skb->h.raw = skb_put(skb, len);
-
-	asmptr = skb->h.raw;
 	SOCK_DEBUG(sk, "NET/ROM: Appending user data\n");
 
 	/* User data follows immediately after the NET/ROM transport header */
-	if (memcpy_fromiovec(asmptr, msg->msg_iov, len)) {
+	if (memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len)) {
 		kfree_skb(skb);
 		err = -EFAULT;
 		goto out;

@@ -1274,7 +1274,6 @@ static int irda_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct irda_sock *self;
 	struct sk_buff *skb;
-	unsigned char *asmptr;
 	int err;
 
 	IRDA_DEBUG(4, "%s(), len=%zd\n", __FUNCTION__, len);
@@ -1317,9 +1316,9 @@ static int irda_sendmsg(struct kiocb *iocb, struct socket *sock,
 		return -ENOBUFS;
 
 	skb_reserve(skb, self->max_header_size + 16);
-
-	asmptr = skb->h.raw = skb_put(skb, len);
-	err = memcpy_fromiovec(asmptr, msg->msg_iov, len);
+	skb_reset_transport_header(skb);
+	skb_put(skb, len);
+	err = memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len);
 	if (err) {
 		kfree_skb(skb);
 		return err;
@@ -1530,7 +1529,6 @@ static int irda_sendmsg_dgram(struct kiocb *iocb, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct irda_sock *self;
 	struct sk_buff *skb;
-	unsigned char *asmptr;
 	int err;
 
 	IRDA_DEBUG(4, "%s(), len=%zd\n", __FUNCTION__, len);
@@ -1566,10 +1564,11 @@ static int irda_sendmsg_dgram(struct kiocb *iocb, struct socket *sock,
 		return -ENOBUFS;
 
 	skb_reserve(skb, self->max_header_size);
+	skb_reset_transport_header(skb);
 
 	IRDA_DEBUG(4, "%s(), appending user data\n", __FUNCTION__);
-	asmptr = skb->h.raw = skb_put(skb, len);
-	err = memcpy_fromiovec(asmptr, msg->msg_iov, len);
+	skb_put(skb, len);
+	err = memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len);
 	if (err) {
 		kfree_skb(skb);
 		return err;
@@ -1602,7 +1601,6 @@ static int irda_sendmsg_ultra(struct kiocb *iocb, struct socket *sock,
 	__u8 pid = 0;
 	int bound = 0;
 	struct sk_buff *skb;
-	unsigned char *asmptr;
 	int err;
 
 	IRDA_DEBUG(4, "%s(), len=%zd\n", __FUNCTION__, len);
@@ -1662,10 +1660,11 @@ static int irda_sendmsg_ultra(struct kiocb *iocb, struct socket *sock,
 		return -ENOBUFS;
 
 	skb_reserve(skb, self->max_header_size);
+	skb_reset_transport_header(skb);
 
 	IRDA_DEBUG(4, "%s(), appending user data\n", __FUNCTION__);
-	asmptr = skb->h.raw = skb_put(skb, len);
-	err = memcpy_fromiovec(asmptr, msg->msg_iov, len);
+	skb_put(skb, len);
+	err = memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len);
 	if (err) {
 		kfree_skb(skb);
 		return err;
