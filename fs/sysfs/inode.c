@@ -222,13 +222,17 @@ const unsigned char * sysfs_get_name(struct sysfs_dirent *sd)
 
 static inline void orphan_all_buffers(struct inode *node)
 {
-	struct sysfs_buffer_collection *set = node->i_private;
+	struct sysfs_buffer_collection *set;
 	struct sysfs_buffer *buf;
 
 	mutex_lock_nested(&node->i_mutex, I_MUTEX_CHILD);
-	if (node->i_private) {
-		list_for_each_entry(buf, &set->associates, associates)
+	set = node->i_private;
+	if (set) {
+		list_for_each_entry(buf, &set->associates, associates) {
+			down(&buf->sem);
 			buf->orphaned = 1;
+			up(&buf->sem);
+		}
 	}
 	mutex_unlock(&node->i_mutex);
 }
