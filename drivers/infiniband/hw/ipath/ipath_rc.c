@@ -1136,7 +1136,7 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 			goto ack_done;
 		hdrsize += 4;
 		if (unlikely(wqe->wr.opcode != IB_WR_RDMA_READ))
-			goto ack_done;
+			goto ack_op_err;
 		/*
 		 * If this is a response to a resent RDMA read, we
 		 * have to be careful to copy the data to the right
@@ -1154,12 +1154,12 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 			goto ack_done;
 		}
 		if (unlikely(wqe->wr.opcode != IB_WR_RDMA_READ))
-			goto ack_done;
+			goto ack_op_err;
 	read_middle:
 		if (unlikely(tlen != (hdrsize + pmtu + 4)))
-			goto ack_done;
+			goto ack_len_err;
 		if (unlikely(pmtu >= qp->s_rdma_read_len))
-			goto ack_done;
+			goto ack_len_err;
 
 		/* We got a response so update the timeout. */
 		spin_lock(&dev->pending_lock);
@@ -1184,12 +1184,20 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 			goto ack_done;
 		}
 		if (unlikely(wqe->wr.opcode != IB_WR_RDMA_READ))
-			goto ack_done;
+			goto ack_op_err;
+		/* Get the number of bytes the message was padded by. */
+		pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
+		/*
+		 * Check that the data size is >= 0 && <= pmtu.
+		 * Remember to account for the AETH header (4) and
+		 * ICRC (4).
+		 */
+		if (unlikely(tlen < (hdrsize + pad + 8)))
+			goto ack_len_err;
 		/*
 		 * If this is a response to a resent RDMA read, we
 		 * have to be careful to copy the data to the right
 		 * location.
-		 * XXX should check PSN and wqe opcode first.
 		 */
 		qp->s_rdma_read_len = restart_sge(&qp->s_rdma_read_sge,
 						  wqe, psn, pmtu);
@@ -1203,26 +1211,20 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 			goto ack_done;
 		}
 		if (unlikely(wqe->wr.opcode != IB_WR_RDMA_READ))
-			goto ack_done;
-	read_last:
-		/*
-		 * Get the number of bytes the message was padded by.
-		 */
+			goto ack_op_err;
+		/* Get the number of bytes the message was padded by. */
 		pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
 		/*
 		 * Check that the data size is >= 1 && <= pmtu.
 		 * Remember to account for the AETH header (4) and
 		 * ICRC (4).
 		 */
-		if (unlikely(tlen <= (hdrsize + pad + 8))) {
-			/* XXX Need to generate an error CQ entry. */
-			goto ack_done;
-		}
+		if (unlikely(tlen <= (hdrsize + pad + 8)))
+			goto ack_len_err;
+	read_last:
 		tlen -= hdrsize + pad + 8;
-		if (unlikely(tlen != qp->s_rdma_read_len)) {
-			/* XXX Need to generate an error CQ entry. */
-			goto ack_done;
-		}
+		if (unlikely(tlen != qp->s_rdma_read_len))
+			goto ack_len_err;
 		if (!header_in_data)
 			aeth = be32_to_cpu(ohdr->u.aeth);
 		else {
@@ -1236,6 +1238,29 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 
 ack_done:
 	spin_unlock_irqrestore(&qp->s_lock, flags);
+	goto bail;
+
+ack_op_err:
+	wc.status = IB_WC_LOC_QP_OP_ERR;
+	goto ack_err;
+
+ack_len_err:
+	wc.status = IB_WC_LOC_LEN_ERR;
+ack_err:
+	wc.wr_id = wqe->wr.wr_id;
+	wc.opcode = ib_ipath_wc_opcode[wqe->wr.opcode];
+	wc.vendor_err = 0;
+	wc.byte_len = 0;
+	wc.imm_data = 0;
+	wc.qp = &qp->ibqp;
+	wc.src_qp = qp->remote_qpn;
+	wc.wc_flags = 0;
+	wc.pkey_index = 0;
+	wc.slid = qp->remote_ah_attr.dlid;
+	wc.sl = qp->remote_ah_attr.sl;
+	wc.dlid_path_bits = 0;
+	wc.port_num = 0;
+	ipath_sqerror_qp(qp, &wc);
 bail:
 	return;
 }
