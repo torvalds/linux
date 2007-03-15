@@ -155,9 +155,6 @@ unsigned long tlb_context_cache = CTX_FIRST_VERSION - 1;
 #define CTX_BMAP_SLOTS (1UL << (CTX_NR_BITS - 6))
 unsigned long mmu_context_bmap[CTX_BMAP_SLOTS];
 
-/* References to special section boundaries */
-extern char  _start[], _end[];
-
 /* Initial ramdisk setup */
 extern unsigned long sparc_ramdisk_image64;
 extern unsigned int sparc_ramdisk_image;
