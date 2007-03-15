@@ -519,7 +519,7 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		break;
 
 	case IB_QPS_ERR:
-		ipath_error_qp(qp, IB_WC_GENERAL_ERR);
+		ipath_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 		break;
 
 	default:

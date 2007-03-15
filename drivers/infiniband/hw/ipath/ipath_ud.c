@@ -647,6 +647,7 @@ void ipath_ud_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		ipath_skip_sge(&qp->r_sge, sizeof(struct ib_grh));
 	ipath_copy_sge(&qp->r_sge, data,
 		       wc.byte_len - sizeof(struct ib_grh));
+	qp->r_wrid_valid = 0;
 	wc.wr_id = qp->r_wr_id;
 	wc.status = IB_WC_SUCCESS;
 	wc.opcode = IB_WC_RECV;
