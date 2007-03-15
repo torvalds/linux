@@ -43,6 +43,8 @@
 #include "ipath_kernel.h"
 #include "ipath_registers.h"
 
+static void ipath_setup_pe_setextled(struct ipath_devdata *, u64, u64);
+
 /*
  * This file contains all the chip-specific register information and
  * access functions for the QLogic InfiniPath PCI-Express chip.
@@ -407,8 +409,14 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			 * if any set that we aren't ignoring only make the
 			 * complaint once, in case it's stuck or recurring,
 			 * and we get here multiple times
+			 * Force link down, so switch knows, and
+			 * LEDs are turned off
 			 */
 			if (dd->ipath_flags & IPATH_INITTED) {
+				ipath_set_linkstate(dd, IPATH_IB_LINKDOWN);
+				ipath_setup_pe_setextled(dd,
+					INFINIPATH_IBCS_L_STATE_DOWN,
+					INFINIPATH_IBCS_LT_STATE_DISABLED);
 				ipath_dev_err(dd, "Fatal Hardware Error (freeze "
 					      "mode), no longer usable, SN %.16s\n",
 						  dd->ipath_serial);
@@ -482,7 +490,8 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 				 dd->ipath_hwerrmask);
 	}
 
-	ipath_dev_err(dd, "%s hardware error\n", msg);
+	if (*msg)
+		ipath_dev_err(dd, "%s hardware error\n", msg);
 	if (isfatal && !ipath_diag_inuse && dd->ipath_freezemsg) {
 		/*
 		 * for /sys status file ; if no trailing } is copied, we'll

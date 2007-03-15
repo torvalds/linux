@@ -43,6 +43,9 @@
 #include "ipath_kernel.h"
 #include "ipath_registers.h"
 
+static void ipath_setup_ht_setextled(struct ipath_devdata *, u64, u64);
+
+
 /*
  * This lists the InfiniPath registers, in the actual chip layout.
  * This structure should never be directly accessed.
@@ -572,9 +575,14 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		 * make the complaint once, in case it's stuck
 		 * or recurring, and we get here multiple
 		 * times.
+		 * force link down, so switch knows, and
+		 * LEDs are turned off
 		 */
-		ipath_dev_err(dd, "%s hardware error\n", msg);
 		if (dd->ipath_flags & IPATH_INITTED) {
+			ipath_set_linkstate(dd, IPATH_IB_LINKDOWN);
+			ipath_setup_ht_setextled(dd,
+				INFINIPATH_IBCS_L_STATE_DOWN,
+				INFINIPATH_IBCS_LT_STATE_DISABLED);
 			ipath_dev_err(dd, "Fatal Hardware Error (freeze "
 					  "mode), no longer usable, SN %.16s\n",
 					  dd->ipath_serial);
@@ -592,6 +600,8 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 	}
 	else
 		*msg = 0; /* recovered from all of them */
+	if (*msg)
+		ipath_dev_err(dd, "%s hardware error\n", msg);
 	if (isfatal && !ipath_diag_inuse && dd->ipath_freezemsg)
 		/*
 		 * for status file; if no trailing brace is copied,
