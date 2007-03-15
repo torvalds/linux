@@ -132,6 +132,37 @@ struct btrfs_extent_item {
 	__le64 owner;
 } __attribute__ ((__packed__));
 
+struct btrfs_inode_timespec {
+	__le32 sec;
+	__le32 nsec;
+} __attribute__ ((__packed__));
+
+/*
+ * there is no padding here on purpose.  If you want to extent the inode,
+ * make a new item type
+ */
+struct btrfs_inode_item {
+	__le64 generation;
+	__le64 size;
+	__le64 nblocks;
+	__le32 nlink;
+	__le32 uid;
+	__le32 gid;
+	__le32 mode;
+	__le32 rdev;
+	__le16 flags;
+	__le16 compat_flags;
+	struct btrfs_inode_timespec atime;
+	struct btrfs_inode_timespec ctime;
+	struct btrfs_inode_timespec mtime;
+	struct btrfs_inode_timespec otime;
+} __attribute__ ((__packed__));
+
+/* inline data is just a blob of bytes */
+struct btrfs_inline_data_item {
+	u8 data;
+} __attribute__ ((__packed__));
+
 struct btrfs_dir_item {
 	__le64 objectid;
 	__le16 flags;
@@ -170,15 +201,149 @@ struct btrfs_root {
 	u32 blocksize;
 };
 
-
 /* the lower bits in the key flags defines the item type */
 #define BTRFS_KEY_TYPE_MAX	256
 #define BTRFS_KEY_TYPE_MASK	(BTRFS_KEY_TYPE_MAX - 1)
+
+/*
+ * inode items have the data typically returned from stat and store other
+ * info about object characteristics.  There is one for every file and dir in
+ * the FS
+ */
 #define BTRFS_INODE_ITEM_KEY	1
+
+/*
+ * dir items are the name -> inode pointers in a directory.  There is one
+ * for every name in a directory.
+ */
 #define BTRFS_DIR_ITEM_KEY	2
-#define BTRFS_ROOT_ITEM_KEY	3
-#define BTRFS_EXTENT_ITEM_KEY	4
-#define BTRFS_STRING_ITEM_KEY	5
+/*
+ * inline data is file data that fits in the btree.
+ */
+#define BTRFS_INLINE_DATA_KEY	3
+/*
+ * extent data is for data that can't fit in the btree.  It points to
+ * a (hopefully) huge chunk of disk
+ */
+#define BTRFS_EXTENT_DATA_KEY	4
+/*
+ * root items point to tree roots.  There are typically in the root
+ * tree used by the super block to find all the other trees
+ */
+#define BTRFS_ROOT_ITEM_KEY	5
+/*
+ * extent items are in the extent map tree.  These record which blocks
+ * are used, and how many references there are to each block
+ */
+#define BTRFS_EXTENT_ITEM_KEY	6
+/*
+ * string items are for debugging.  They just store a short string of
+ * data in the FS
+ */
+#define BTRFS_STRING_ITEM_KEY	7
+
+static inline u64 btrfs_inode_generation(struct btrfs_inode_item *i)
+{
+	return le64_to_cpu(i->generation);
+}
+
+static inline void btrfs_set_inode_generation(struct btrfs_inode_item *i,
+					      u64 val)
+{
+	i->generation = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_inode_size(struct btrfs_inode_item *i)
+{
+	return le64_to_cpu(i->size);
+}
+
+static inline void btrfs_set_inode_size(struct btrfs_inode_item *i, u64 val)
+{
+	i->size = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_inode_nblocks(struct btrfs_inode_item *i)
+{
+	return le64_to_cpu(i->nblocks);
+}
+
+static inline void btrfs_set_inode_nblocks(struct btrfs_inode_item *i, u64 val)
+{
+	i->nblocks = cpu_to_le64(val);
+}
+
+static inline u32 btrfs_inode_nlink(struct btrfs_inode_item *i)
+{
+	return le32_to_cpu(i->nlink);
+}
+
+static inline void btrfs_set_inode_nlink(struct btrfs_inode_item *i, u32 val)
+{
+	i->nlink = cpu_to_le32(val);
+}
+
+static inline u32 btrfs_inode_uid(struct btrfs_inode_item *i)
+{
+	return le32_to_cpu(i->uid);
+}
+
+static inline void btrfs_set_inode_uid(struct btrfs_inode_item *i, u32 val)
+{
+	i->uid = cpu_to_le32(val);
+}
+
+static inline u32 btrfs_inode_gid(struct btrfs_inode_item *i)
+{
+	return le32_to_cpu(i->gid);
+}
+
+static inline void btrfs_set_inode_gid(struct btrfs_inode_item *i, u32 val)
+{
+	i->gid = cpu_to_le32(val);
+}
+
+static inline u32 btrfs_inode_mode(struct btrfs_inode_item *i)
+{
+	return le32_to_cpu(i->mode);
+}
+
+static inline void btrfs_set_inode_mode(struct btrfs_inode_item *i, u32 val)
+{
+	i->mode = cpu_to_le32(val);
+}
+
+static inline u32 btrfs_inode_rdev(struct btrfs_inode_item *i)
+{
+	return le32_to_cpu(i->rdev);
+}
+
+static inline void btrfs_set_inode_rdev(struct btrfs_inode_item *i, u32 val)
+{
+	i->rdev = cpu_to_le32(val);
+}
+
+static inline u16 btrfs_inode_flags(struct btrfs_inode_item *i)
+{
+	return le16_to_cpu(i->flags);
+}
+
+static inline void btrfs_set_inode_flags(struct btrfs_inode_item *i, u16 val)
+{
+	i->flags = cpu_to_le16(val);
+}
+
+static inline u16 btrfs_inode_compat_flags(struct btrfs_inode_item *i)
+{
+	return le16_to_cpu(i->compat_flags);
+}
+
+static inline void btrfs_set_inode_compat_flags(struct btrfs_inode_item *i,
+						u16 val)
+{
+	i->compat_flags = cpu_to_le16(val);
+}
+
 
 static inline u64 btrfs_extent_owner(struct btrfs_extent_item *ei)
 {
@@ -343,8 +508,6 @@ static inline void btrfs_set_disk_key_type(struct btrfs_disk_key *key, u32 type)
 	flags = (flags & ~((u64)BTRFS_KEY_TYPE_MASK)) | type;
 	btrfs_set_disk_key_flags(key, flags);
 }
-
-
 
 static inline u64 btrfs_header_blocknr(struct btrfs_header *h)
 {
