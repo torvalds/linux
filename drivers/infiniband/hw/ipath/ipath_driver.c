@@ -1662,6 +1662,22 @@ int ipath_set_linkstate(struct ipath_devdata *dd, u8 newstate)
 		lstate = IPATH_LINKACTIVE;
 		break;
 
+	case IPATH_IB_LINK_LOOPBACK:
+		dev_info(&dd->pcidev->dev, "Enabling IB local loopback\n");
+		dd->ipath_ibcctrl |= INFINIPATH_IBCC_LOOPBACK;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
+				 dd->ipath_ibcctrl);
+		ret = 0;
+		goto bail; // no state change to wait for
+
+	case IPATH_IB_LINK_EXTERNAL:
+		dev_info(&dd->pcidev->dev, "Disabling IB local loopback (normal)\n");
+		dd->ipath_ibcctrl &= ~INFINIPATH_IBCC_LOOPBACK;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
+				 dd->ipath_ibcctrl);
+		ret = 0;
+		goto bail; // no state change to wait for
+
 	default:
 		ipath_dbg("Invalid linkstate 0x%x requested\n", newstate);
 		ret = -EINVAL;

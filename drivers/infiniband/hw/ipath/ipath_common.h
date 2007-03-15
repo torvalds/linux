@@ -78,6 +78,8 @@
 #define IPATH_IB_LINKINIT		3
 #define IPATH_IB_LINKDOWN_SLEEP		4
 #define IPATH_IB_LINKDOWN_DISABLE	5
+#define IPATH_IB_LINK_LOOPBACK	6 /* enable local loopback */
+#define IPATH_IB_LINK_EXTERNAL	7 /* normal, disable local loopback */
 
 /*
  * stats maintained by the driver.  For now, at least, this is global
