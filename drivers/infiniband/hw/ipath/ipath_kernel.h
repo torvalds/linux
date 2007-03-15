@@ -756,8 +756,6 @@ int ipath_eeprom_write(struct ipath_devdata *, u8, const void *, int);
 /* these are used for the registers that vary with port */
 void ipath_write_kreg_port(const struct ipath_devdata *, ipath_kreg,
 			   unsigned, u64);
-u64 ipath_read_kreg64_port(const struct ipath_devdata *, ipath_kreg,
-			   unsigned);
 
 /*
  * We could have a single register get/put routine, that takes a group type,

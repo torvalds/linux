@@ -1804,29 +1804,6 @@ int ipath_set_lid(struct ipath_devdata *dd, u32 arg, u8 lmc)
 	return 0;
 }
 
-/**
- * ipath_read_kreg64_port - read a device's per-port 64-bit kernel register
- * @dd: the infinipath device
- * @regno: the register number to read
- * @port: the port containing the register
- *
- * Registers that vary with the chip implementation constants (port)
- * use this routine.
- */
-u64 ipath_read_kreg64_port(const struct ipath_devdata *dd, ipath_kreg regno,
-			   unsigned port)
-{
-	u16 where;
-
-	if (port < dd->ipath_portcnt &&
-	    (regno == dd->ipath_kregs->kr_rcvhdraddr ||
-	     regno == dd->ipath_kregs->kr_rcvhdrtailaddr))
-		where = regno + port;
-	else
-		where = -1;
-
-	return ipath_read_kreg64(dd, where);
-}
 
 /**
  * ipath_write_kreg_port - write a device's per-port 64-bit kernel register

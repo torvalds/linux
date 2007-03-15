@@ -207,8 +207,8 @@ static const struct ipath_kregs ipath_pe_kregs = {
 	.kr_ibpllcfg = IPATH_KREG_OFFSET(IBPLLCfg),
 
 	/*
-	 * These should not be used directly via ipath_read_kreg64(),
-	 * use them with ipath_read_kreg64_port()
+	 * These should not be used directly via ipath_write_kreg64(),
+	 * use them with ipath_write_kreg64_port(),
 	 */
 	.kr_rcvhdraddr = IPATH_KREG_OFFSET(RcvHdrAddr0),
 	.kr_rcvhdrtailaddr = IPATH_KREG_OFFSET(RcvHdrTailAddr0),
