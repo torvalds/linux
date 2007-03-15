@@ -462,6 +462,7 @@ netxen_nic_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		}
 		printk(KERN_INFO "%s: flash unlocked. \n", 
 			netxen_nic_driver_name);
+		last_schedule_time = jiffies;
 		ret = netxen_flash_erase_secondary(adapter);
 		if (ret != FLASH_SUCCESS) {
 			printk(KERN_ERR "%s: Flash erase failed.\n", 
