@@ -668,6 +668,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 {
 	int ret = 0, i;
 	u32 val32, kpiobufs;
+	u32 piobufs, uports;
 	u64 val;
 	struct ipath_portdata *pd = NULL; /* keep gcc4 happy */
 	gfp_t gfp_flags = GFP_USER | __GFP_COMP;
@@ -702,16 +703,17 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	 * the in memory DMA'ed copies of the registers.  This has to
 	 * be done early, before we calculate lastport, etc.
 	 */
-	val = dd->ipath_piobcnt2k + dd->ipath_piobcnt4k;
+	piobufs = dd->ipath_piobcnt2k + dd->ipath_piobcnt4k;
 	/*
 	 * calc number of pioavail registers, and save it; we have 2
 	 * bits per buffer.
 	 */
-	dd->ipath_pioavregs = ALIGN(val, sizeof(u64) * BITS_PER_BYTE / 2)
+	dd->ipath_pioavregs = ALIGN(piobufs, sizeof(u64) * BITS_PER_BYTE / 2)
 		/ (sizeof(u64) * BITS_PER_BYTE / 2);
+	uports = dd->ipath_cfgports ? dd->ipath_cfgports - 1 : 0;
 	if (ipath_kpiobufs == 0) {
 		/* not set by user (this is default) */
-		if ((dd->ipath_piobcnt2k + dd->ipath_piobcnt4k) > 128)
+		if (piobufs >= (uports * IPATH_MIN_USER_PORT_BUFCNT) + 32)
 			kpiobufs = 32;
 		else
 			kpiobufs = 16;
@@ -719,31 +721,25 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	else
 		kpiobufs = ipath_kpiobufs;
 
-	if (kpiobufs >
-	    (dd->ipath_piobcnt2k + dd->ipath_piobcnt4k -
-	     (dd->ipath_cfgports * IPATH_MIN_USER_PORT_BUFCNT))) {
-		i = dd->ipath_piobcnt2k + dd->ipath_piobcnt4k -
-			(dd->ipath_cfgports * IPATH_MIN_USER_PORT_BUFCNT);
+	if (kpiobufs + (uports * IPATH_MIN_USER_PORT_BUFCNT) > piobufs) {
+		i = (int) piobufs -
+			(int) (uports * IPATH_MIN_USER_PORT_BUFCNT);
 		if (i < 0)
 			i = 0;
-		dev_info(&dd->pcidev->dev, "Allocating %d PIO bufs for "
-			 "kernel leaves too few for %d user ports "
+		dev_info(&dd->pcidev->dev, "Allocating %d PIO bufs of "
+			 "%d for kernel leaves too few for %d user ports "
 			 "(%d each); using %u\n", kpiobufs,
-			 dd->ipath_cfgports - 1,
-			 IPATH_MIN_USER_PORT_BUFCNT, i);
+			 piobufs, uports, IPATH_MIN_USER_PORT_BUFCNT, i);
 		/*
 		 * shouldn't change ipath_kpiobufs, because could be
 		 * different for different devices...
 		 */
 		kpiobufs = i;
 	}
-	dd->ipath_lastport_piobuf =
-		dd->ipath_piobcnt2k + dd->ipath_piobcnt4k - kpiobufs;
-	dd->ipath_pbufsport = dd->ipath_cfgports > 1
-		? dd->ipath_lastport_piobuf / (dd->ipath_cfgports - 1)
-		: 0;
-	val32 = dd->ipath_lastport_piobuf -
-		(dd->ipath_pbufsport * (dd->ipath_cfgports - 1));
+	dd->ipath_lastport_piobuf = piobufs - kpiobufs;
+	dd->ipath_pbufsport =
+		uports ? dd->ipath_lastport_piobuf / uports : 0;
+	val32 = dd->ipath_lastport_piobuf - (dd->ipath_pbufsport * uports);
 	if (val32 > 0) {
 		ipath_dbg("allocating %u pbufs/port leaves %u unused, "
 			  "add to kernel\n", dd->ipath_pbufsport, val32);
@@ -754,8 +750,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	dd->ipath_lastpioindex = dd->ipath_lastport_piobuf;
 	ipath_cdbg(VERBOSE, "%d PIO bufs for kernel out of %d total %u "
 		   "each for %u user ports\n", kpiobufs,
-		   dd->ipath_piobcnt2k + dd->ipath_piobcnt4k,
-		   dd->ipath_pbufsport, dd->ipath_cfgports - 1);
+		   piobufs, dd->ipath_pbufsport, uports);
 
 	dd->ipath_f_early_init(dd);
 
