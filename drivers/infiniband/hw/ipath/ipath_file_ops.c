@@ -2047,6 +2047,17 @@ static int ipath_get_slave_info(struct ipath_portdata *pd,
 	return ret;
 }
 
+static int ipath_force_pio_avail_update(struct ipath_devdata *dd)
+{
+	u64 reg = dd->ipath_sendctrl;
+
+	clear_bit(IPATH_S_PIOBUFAVAILUPD, &reg);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, reg);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
+
+	return 0;
+}
+
 static ssize_t ipath_write(struct file *fp, const char __user *data,
 			   size_t count, loff_t *off)
 {
@@ -2106,22 +2117,30 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 		dest = &cmd.cmd.slave_mask_addr;
 		src = &ucmd->cmd.slave_mask_addr;
 		break;
+	case IPATH_CMD_PIOAVAILUPD:	// force an update of PIOAvail reg
+		copy = 0;
+		src = NULL;
+		dest = NULL;
+		break;
 	default:
 		ret = -EINVAL;
 		goto bail;
 	}
 
-	if ((count - consumed) < copy) {
-		ret = -EINVAL;
-		goto bail;
+	if (copy) {
+		if ((count - consumed) < copy) {
+			ret = -EINVAL;
+			goto bail;
+		}
+
+		if (copy_from_user(dest, src, copy)) {
+			ret = -EFAULT;
+			goto bail;
+		}
+
+		consumed += copy;
 	}
 
-	if (copy_from_user(dest, src, copy)) {
-		ret = -EFAULT;
-		goto bail;
-	}
-
-	consumed += copy;
 	pd = port_fp(fp);
 	if (!pd && cmd.type != __IPATH_CMD_USER_INIT &&
 		cmd.type != IPATH_CMD_ASSIGN_PORT) {
@@ -2171,6 +2190,9 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 		ret = ipath_get_slave_info(pd,
 					   (void __user *) (unsigned long)
 					   cmd.cmd.slave_mask_addr);
+		break;
+	case IPATH_CMD_PIOAVAILUPD:
+		ret = ipath_force_pio_avail_update(pd->port_dd);
 		break;
 	}
 

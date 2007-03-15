@@ -352,7 +352,7 @@ struct ipath_base_info {
  * may not be implemented; the user code must deal with this if it
  * cares, or it must abort after initialization reports the difference.
  */
-#define IPATH_USER_SWMINOR 4
+#define IPATH_USER_SWMINOR 5
 
 #define IPATH_USER_SWVERSION ((IPATH_USER_SWMAJOR<<16) | IPATH_USER_SWMINOR)
 
@@ -429,8 +429,11 @@ struct ipath_user_info {
 #define __IPATH_CMD_SLAVE_INFO	22	/* return info on slave processes (for old user code) */
 #define IPATH_CMD_ASSIGN_PORT	23	/* allocate HCA and port */
 #define IPATH_CMD_USER_INIT 	24	/* set up userspace */
+#define IPATH_CMD_UNUSED_1	25
+#define IPATH_CMD_UNUSED_2	26
+#define IPATH_CMD_PIOAVAILUPD	27	/* force an update of PIOAvail reg */
 
-#define IPATH_CMD_MAX		24
+#define IPATH_CMD_MAX		27
 
 struct ipath_port_info {
 	__u32 num_active;	/* number of active units */
