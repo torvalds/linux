@@ -913,33 +913,6 @@ struct ff_effect {
 #define BIT(x)	(1UL<<((x)%BITS_PER_LONG))
 #define LONG(x) ((x)/BITS_PER_LONG)
 
-#define INPUT_KEYCODE(dev, scancode) ((dev->keycodesize == 1) ? ((u8*)dev->keycode)[scancode] : \
-	((dev->keycodesize == 2) ? ((u16*)dev->keycode)[scancode] : (((u32*)dev->keycode)[scancode])))
-
-#define SET_INPUT_KEYCODE(dev, scancode, val)			\
-		({	unsigned __old;				\
-		switch (dev->keycodesize) {			\
-			case 1: {				\
-				u8 *k = (u8 *)dev->keycode;	\
-				__old = k[scancode];		\
-				k[scancode] = val;		\
-				break;				\
-			}					\
-			case 2: {				\
-				u16 *k = (u16 *)dev->keycode;	\
-				__old = k[scancode];		\
-				k[scancode] = val;		\
-				break;				\
-			}					\
-			default: {				\
-				u32 *k = (u32 *)dev->keycode;	\
-				__old = k[scancode];		\
-				k[scancode] = val;		\
-				break;				\
-			}					\
-		}						\
-		__old; })
-
 struct input_dev {
 
 	void *private;
@@ -962,6 +935,8 @@ struct input_dev {
 	unsigned int keycodemax;
 	unsigned int keycodesize;
 	void *keycode;
+	int (*setkeycode)(struct input_dev *dev, int scancode, int keycode);
+	int (*getkeycode)(struct input_dev *dev, int scancode, int *keycode);
 
 	struct ff_device *ff;
 
@@ -1104,7 +1079,7 @@ struct input_handle {
 };
 
 #define to_dev(n) container_of(n,struct input_dev,node)
-#define to_handler(n) container_of(n,struct input_handler,node);
+#define to_handler(n) container_of(n,struct input_handler,node)
 #define to_handle(n) container_of(n,struct input_handle,d_node)
 #define to_handle_h(n) container_of(n,struct input_handle,h_node)
 

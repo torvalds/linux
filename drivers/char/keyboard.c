@@ -159,65 +159,41 @@ static int sysrq_alt_use;
 static int sysrq_alt;
 
 /*
- * Translation of scancodes to keycodes. We set them on only the first attached
- * keyboard - for per-keyboard setting, /dev/input/event is more useful.
+ * Translation of scancodes to keycodes. We set them on only the first
+ * keyboard in the list that accepts the scancode and keycode.
+ * Explanation for not choosing the first attached keyboard anymore:
+ *  USB keyboards for example have two event devices: one for all "normal"
+ *  keys and one for extra function keys (like "volume up", "make coffee",
+ *  etc.). So this means that scancodes for the extra function keys won't
+ *  be valid for the first event device, but will be for the second.
  */
 int getkeycode(unsigned int scancode)
 {
-	struct list_head *node;
-	struct input_dev *dev = NULL;
+	struct input_handle *handle;
+	int keycode;
+	int error = -ENODEV;
 
-	list_for_each(node, &kbd_handler.h_list) {
-		struct input_handle *handle = to_handle_h(node);
-		if (handle->dev->keycodesize) {
-			dev = handle->dev;
-			break;
-		}
+	list_for_each_entry(handle, &kbd_handler.h_list, h_node) {
+		error = handle->dev->getkeycode(handle->dev, scancode, &keycode);
+		if (!error)
+			return keycode;
 	}
 
-	if (!dev)
-		return -ENODEV;
-
-	if (scancode >= dev->keycodemax)
-		return -EINVAL;
-
-	return INPUT_KEYCODE(dev, scancode);
+	return error;
 }
 
 int setkeycode(unsigned int scancode, unsigned int keycode)
 {
-	struct list_head *node;
-	struct input_dev *dev = NULL;
-	unsigned int i, oldkey;
+	struct input_handle *handle;
+	int error = -ENODEV;
 
-	list_for_each(node, &kbd_handler.h_list) {
-		struct input_handle *handle = to_handle_h(node);
-		if (handle->dev->keycodesize) {
-			dev = handle->dev;
+	list_for_each_entry(handle, &kbd_handler.h_list, h_node) {
+		error = handle->dev->setkeycode(handle->dev, scancode, keycode);
+		if (!error)
 			break;
-		}
 	}
 
-	if (!dev)
-		return -ENODEV;
-
-	if (scancode >= dev->keycodemax)
-		return -EINVAL;
-	if (keycode < 0 || keycode > KEY_MAX)
-		return -EINVAL;
-	if (dev->keycodesize < sizeof(keycode) && (keycode >> (dev->keycodesize * 8)))
-		return -EINVAL;
-
-	oldkey = SET_INPUT_KEYCODE(dev, scancode, keycode);
-
-	clear_bit(oldkey, dev->keybit);
-	set_bit(keycode, dev->keybit);
-
-	for (i = 0; i < dev->keycodemax; i++)
-		if (INPUT_KEYCODE(dev,i) == oldkey)
-			set_bit(oldkey, dev->keybit);
-
-	return 0;
+	return error;
 }
 
 /*
@@ -225,10 +201,9 @@ int setkeycode(unsigned int scancode, unsigned int keycode)
  */
 static void kd_nosound(unsigned long ignored)
 {
-	struct list_head *node;
+	struct input_handle *handle;
 
-	list_for_each(node, &kbd_handler.h_list) {
-		struct input_handle *handle = to_handle_h(node);
+	list_for_each_entry(handle, &kbd_handler.h_list, h_node) {
 		if (test_bit(EV_SND, handle->dev->evbit)) {
 			if (test_bit(SND_TONE, handle->dev->sndbit))
 				input_inject_event(handle, EV_SND, SND_TONE, 0);

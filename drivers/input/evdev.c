@@ -434,32 +434,21 @@ static long evdev_ioctl_handler(struct file *file, unsigned int cmd,
 		case EVIOCGKEYCODE:
 			if (get_user(t, ip))
 				return -EFAULT;
-			if (t < 0 || t >= dev->keycodemax || !dev->keycodesize)
-				return -EINVAL;
-			if (put_user(INPUT_KEYCODE(dev, t), ip + 1))
+
+			error = dev->getkeycode(dev, t, &v);
+			if (error)
+				return error;
+
+			if (put_user(v, ip + 1))
 				return -EFAULT;
+
 			return 0;
 
 		case EVIOCSKEYCODE:
-			if (get_user(t, ip))
+			if (get_user(t, ip) || get_user(v, ip + 1))
 				return -EFAULT;
-			if (t < 0 || t >= dev->keycodemax || !dev->keycodesize)
-				return -EINVAL;
-			if (get_user(v, ip + 1))
-				return -EFAULT;
-			if (v < 0 || v > KEY_MAX)
-				return -EINVAL;
-			if (dev->keycodesize < sizeof(v) && (v >> (dev->keycodesize * 8)))
-				return -EINVAL;
 
-			u = SET_INPUT_KEYCODE(dev, t, v);
-			clear_bit(u, dev->keybit);
-			set_bit(v, dev->keybit);
-			for (i = 0; i < dev->keycodemax; i++)
-				if (INPUT_KEYCODE(dev, i) == u)
-					set_bit(u, dev->keybit);
-
-			return 0;
+			return dev->setkeycode(dev, t, v);
 
 		case EVIOCSFF:
 			if (copy_from_user(&effect, p, sizeof(effect)))
