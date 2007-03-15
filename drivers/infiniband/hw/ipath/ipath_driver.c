@@ -486,7 +486,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 
 	ret = ipath_init_chip(dd, 0);	/* do the chip-specific init */
 	if (ret)
-		goto bail_iounmap;
+		goto bail_irqsetup;
 
 	ret = ipath_enable_wc(dd);
 
@@ -504,6 +504,9 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	ipath_register_ib_device(dd);
 
 	goto bail;
+
+bail_irqsetup:
+	if (pdev->irq) free_irq(pdev->irq, dd);
 
 bail_iounmap:
 	iounmap((volatile void __iomem *) dd->ipath_kregbase);
