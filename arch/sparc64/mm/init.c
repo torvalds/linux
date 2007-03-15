@@ -392,6 +392,67 @@ out:
 	put_cpu();
 }
 
+struct linux_prom_translation {
+	unsigned long virt;
+	unsigned long size;
+	unsigned long data;
+};
+
+/* Exported for kernel TLB miss handling in ktlb.S */
+struct linux_prom_translation prom_trans[512] __read_mostly;
+unsigned int prom_trans_ents __read_mostly;
+
+/*
+ * Translate PROM's mapping we capture at boot time into physical address.
+ * The second parameter is only set from prom_callback() invocations.
+ */
+static unsigned long prom_virt_to_phys(unsigned long promva)
+{
+	unsigned long mask;
+	int i;
+
+	mask = _PAGE_PADDR_4U;
+	if (tlb_type == hypervisor)
+		mask = _PAGE_PADDR_4V;
+
+	for (i = 0; i < prom_trans_ents; i++) {
+		struct linux_prom_translation *p = &prom_trans[i];
+
+		if (promva >= p->virt &&
+		    promva < (p->virt + p->size)) {
+			unsigned long base = p->data & mask;
+
+			return base + (promva & (8192 - 1));
+		}
+	}
+	return 0UL;
+}
+
+static unsigned long kvaddr_to_phys(unsigned long addr)
+{
+	pgd_t *pgdp;
+	pud_t *pudp;
+	pmd_t *pmdp;
+	pte_t *ptep;
+	unsigned long mask = _PAGE_PADDR_4U;
+
+	if (tlb_type == hypervisor)
+		mask = _PAGE_PADDR_4V;
+
+	if (addr >= PAGE_OFFSET)
+		return addr & mask;
+
+	if ((addr >= LOW_OBP_ADDRESS) && (addr < HI_OBP_ADDRESS))
+		return prom_virt_to_phys(addr);
+
+	pgdp = pgd_offset_k(addr);
+	pudp = pud_offset(pgdp, addr);
+	pmdp = pmd_offset(pudp, addr);
+	ptep = pte_offset_kernel(pmdp, addr);
+
+	return pte_val(*ptep) & mask;
+}
+
 void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 {
 	/* Cheetah and Hypervisor platform cpus have coherent I-cache. */
@@ -399,7 +460,7 @@ void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 		unsigned long kaddr;
 
 		for (kaddr = start; kaddr < end; kaddr += PAGE_SIZE)
-			__flush_icache_page(__get_phys(kaddr));
+			__flush_icache_page(kvaddr_to_phys(kaddr));
 	}
 }
 
@@ -435,16 +496,6 @@ void mmu_info(struct seq_file *m)
 #endif /* CONFIG_SMP */
 #endif /* CONFIG_DEBUG_DCFLUSH */
 }
-
-struct linux_prom_translation {
-	unsigned long virt;
-	unsigned long size;
-	unsigned long data;
-};
-
-/* Exported for kernel TLB miss handling in ktlb.S */
-struct linux_prom_translation prom_trans[512] __read_mostly;
-unsigned int prom_trans_ents __read_mostly;
 
 /* Exported for SMP bootup purposes. */
 unsigned long kern_locked_tte_data;
@@ -1873,62 +1924,6 @@ static unsigned long kern_large_tte(unsigned long paddr)
 		       _PAGE_EXEC_4V | _PAGE_W_4V);
 
 	return val | paddr;
-}
-
-/*
- * Translate PROM's mapping we capture at boot time into physical address.
- * The second parameter is only set from prom_callback() invocations.
- */
-unsigned long prom_virt_to_phys(unsigned long promva, int *error)
-{
-	unsigned long mask;
-	int i;
-
-	mask = _PAGE_PADDR_4U;
-	if (tlb_type == hypervisor)
-		mask = _PAGE_PADDR_4V;
-
-	for (i = 0; i < prom_trans_ents; i++) {
-		struct linux_prom_translation *p = &prom_trans[i];
-
-		if (promva >= p->virt &&
-		    promva < (p->virt + p->size)) {
-			unsigned long base = p->data & mask;
-
-			if (error)
-				*error = 0;
-			return base + (promva & (8192 - 1));
-		}
-	}
-	if (error)
-		*error = 1;
-	return 0UL;
-}
-
-/* XXX We should kill off this ugly thing at so me point. XXX */
-unsigned long sun4u_get_pte(unsigned long addr)
-{
-	pgd_t *pgdp;
-	pud_t *pudp;
-	pmd_t *pmdp;
-	pte_t *ptep;
-	unsigned long mask = _PAGE_PADDR_4U;
-
-	if (tlb_type == hypervisor)
-		mask = _PAGE_PADDR_4V;
-
-	if (addr >= PAGE_OFFSET)
-		return addr & mask;
-
-	if ((addr >= LOW_OBP_ADDRESS) && (addr < HI_OBP_ADDRESS))
-		return prom_virt_to_phys(addr, NULL);
-
-	pgdp = pgd_offset_k(addr);
-	pudp = pud_offset(pgdp, addr);
-	pmdp = pmd_offset(pudp, addr);
-	ptep = pte_offset_kernel(pmdp, addr);
-
-	return pte_val(*ptep) & mask;
 }
 
 /* If not locked, zap it. */
