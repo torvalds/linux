@@ -133,6 +133,12 @@ int ipath_lkey_ok(struct ipath_qp *qp, struct ipath_sge *isge,
 	 * being reversible by calling bus_to_virt().
 	 */
 	if (sge->lkey == 0) {
+		struct ipath_pd *pd = to_ipd(qp->ibqp.pd);
+
+		if (pd->user) {
+			ret = 0;
+			goto bail;
+		}
 		isge->mr = NULL;
 		isge->vaddr = (void *) sge->addr;
 		isge->length = sge->length;
@@ -206,6 +212,12 @@ int ipath_rkey_ok(struct ipath_qp *qp, struct ipath_sge_state *ss,
 	 * (see ipath_get_dma_mr and ipath_dma.c).
 	 */
 	if (rkey == 0) {
+		struct ipath_pd *pd = to_ipd(qp->ibqp.pd);
+
+		if (pd->user) {
+			ret = 0;
+			goto bail;
+		}
 		sge->mr = NULL;
 		sge->vaddr = (void *) vaddr;
 		sge->length = len;
