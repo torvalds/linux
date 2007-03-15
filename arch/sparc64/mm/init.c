@@ -421,12 +421,12 @@ void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 
 void show_mem(void)
 {
-	printk("Mem-info:\n");
+	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n",
+	printk(KERN_INFO "Free swap:       %6ldkB\n",
 	       nr_swap_pages << (PAGE_SHIFT-10));
-	printk("%ld pages of RAM\n", num_physpages);
-	printk("%lu free pages\n", nr_free_pages());
+	printk(KERN_INFO "%ld pages of RAM\n", num_physpages);
+	printk(KERN_INFO "%lu free pages\n", nr_free_pages());
 }
 
 void mmu_info(struct seq_file *m)
