@@ -536,8 +536,6 @@ static void __devexit cleanup_device(struct ipath_devdata *dd)
 {
 	int port;
 
-	ipath_shutdown_device(dd);
-
 	if (*dd->ipath_statusp & IPATH_STATUS_CHIP_PRESENT) {
 		/* can't do anything more with chip; needs re-init */
 		*dd->ipath_statusp &= ~IPATH_STATUS_CHIP_PRESENT;
@@ -633,6 +631,12 @@ static void __devexit ipath_remove_one(struct pci_dev *pdev)
 	struct ipath_devdata *dd = pci_get_drvdata(pdev);
 
 	ipath_cdbg(VERBOSE, "removing, pdev=%p, dd=%p\n", pdev, dd);
+
+	/*
+	 * disable the IB link early, to be sure no new packets arrive, which
+	 * complicates the shutdown process
+	 */
+	ipath_shutdown_device(dd);
 
 	if (dd->verbs_dev)
 		ipath_unregister_ib_device(dd->verbs_dev);
