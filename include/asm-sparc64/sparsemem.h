@@ -3,9 +3,9 @@
 
 #ifdef __KERNEL__
 
-#define SECTION_SIZE_BITS       26
-#define MAX_PHYSADDR_BITS       42
-#define MAX_PHYSMEM_BITS        42
+#define SECTION_SIZE_BITS       31
+#define MAX_PHYSADDR_BITS       41
+#define MAX_PHYSMEM_BITS        41
 
 #endif /* !(__KERNEL__) */
 
