@@ -212,7 +212,7 @@ static int debug;
 
 static int low_latency = 1;	/* tty low latency flag, on by default */
 
-static int CmdUrbs = 0;		/* Number of outstanding Command Write Urbs */
+static atomic_t CmdUrbs;		/* Number of outstanding Command Write Urbs */
 
 
 /* local function prototypes */
@@ -779,8 +779,8 @@ static void edge_bulk_out_cmd_callback (struct urb *urb)
 
 	dbg("%s", __FUNCTION__);
 
-	CmdUrbs--;
-	dbg("%s - FREE URB %p (outstanding %d)", __FUNCTION__, urb, CmdUrbs);
+	atomic_dec(&CmdUrbs);
+	dbg("%s - FREE URB %p (outstanding %d)", __FUNCTION__, urb, atomic_read(&CmdUrbs));
 
 
 	/* clean up the transfer buffer */
@@ -2317,8 +2317,8 @@ static int write_cmd_usb (struct edgeport_port *edge_port, unsigned char *buffer
 	if (!urb)
 		return -ENOMEM;
 
-	CmdUrbs++;
-	dbg("%s - ALLOCATE URB %p (outstanding %d)", __FUNCTION__, urb, CmdUrbs);
+	atomic_inc(&CmdUrbs);
+	dbg("%s - ALLOCATE URB %p (outstanding %d)", __FUNCTION__, urb, atomic_read(&CmdUrbs));
 
 	usb_fill_bulk_urb (urb, edge_serial->serial->dev, 
 		       usb_sndbulkpipe(edge_serial->serial->dev, edge_serial->bulk_out_endpoint),
@@ -2332,7 +2332,7 @@ static int write_cmd_usb (struct edgeport_port *edge_port, unsigned char *buffer
 		dev_err(&edge_port->port->dev, "%s - usb_submit_urb(write command) failed, status = %d\n", __FUNCTION__, status);
 		usb_kill_urb(urb);
 		usb_free_urb(urb);
-		CmdUrbs--;
+		atomic_dec(&CmdUrbs);
 		return status;
 	}
 
@@ -3083,6 +3083,7 @@ static int __init edgeport_init(void)
 	retval = usb_register(&io_driver);
 	if (retval) 
 		goto failed_usb_register;
+	atomic_set(&CmdUrbs, 0);
 	info(DRIVER_DESC " " DRIVER_VERSION);
 	return 0;
 
