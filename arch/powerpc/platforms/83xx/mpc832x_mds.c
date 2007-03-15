@@ -41,7 +41,6 @@
 #include <asm/qe_ic.h>
 
 #include "mpc83xx.h"
-#include "mpc832x_mds.h"
 
 #undef DEBUG
 #ifdef DEBUG
