@@ -460,22 +460,31 @@ static int aac_rx_ioremap(struct aac_dev * dev, u32 size)
 	return 0;
 }
 
-static int aac_rx_restart_adapter(struct aac_dev *dev)
+static int aac_rx_restart_adapter(struct aac_dev *dev, int bled)
 {
 	u32 var;
 
-	printk(KERN_ERR "%s%d: adapter kernel panic'd.\n",
-			dev->name, dev->id);
+	if (bled)
+		printk(KERN_ERR "%s%d: adapter kernel panic'd %x.\n",
+			dev->name, dev->id, bled);
+	else
+		bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
+		  0, 0, 0, 0, 0, 0, &var, NULL, NULL, NULL, NULL);
+	if (bled)
+		bled = aac_adapter_sync_cmd(dev, IOP_RESET,
+		  0, 0, 0, 0, 0, 0, &var, NULL, NULL, NULL, NULL);
 
-	if (aac_rx_check_health(dev) <= 0)
-		return 1;
-	if (rx_sync_cmd(dev, IOP_RESET, 0, 0, 0, 0, 0, 0,
-			&var, NULL, NULL, NULL, NULL))
-		return 1;
+	if (bled)
+		return -EINVAL;
+	if (var == 0x3803000F) { /* USE_OTHER_METHOD */
+		rx_writel(dev, MUnit.reserved2, 3);
+		msleep(5000); /* Delay 5 seconds */
+		var = 0x00000001;
+	}
 	if (var != 0x00000001)
-		 return 1;
+		return -EINVAL;
 	if (rx_readl(dev, MUnit.OMRx[0]) & KERNEL_PANIC)
-		return 1;
+		return -ENODEV;
 	return 0;
 }
 
@@ -532,9 +541,12 @@ int _aac_rx_init(struct aac_dev *dev)
 	 *	Check to see if the board panic'd while booting.
 	 */
 	status = rx_readl(dev, MUnit.OMRx[0]);
-	if (status & KERNEL_PANIC)
-		if (aac_rx_restart_adapter(dev))
+	if (status & KERNEL_PANIC) {
+		if ((status = aac_rx_check_health(dev)) <= 0)
 			goto error_iounmap;
+		if (aac_rx_restart_adapter(dev, status))
+			goto error_iounmap;
+	}
 	/*
 	 *	Check to see if the board failed any self tests.
 	 */
@@ -572,6 +584,7 @@ int _aac_rx_init(struct aac_dev *dev)
 	dev->a_ops.adapter_notify = aac_rx_notify_adapter;
 	dev->a_ops.adapter_sync_cmd = rx_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_rx_check_health;
+	dev->a_ops.adapter_restart = aac_rx_restart_adapter;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that we

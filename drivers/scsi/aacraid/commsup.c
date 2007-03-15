@@ -1035,7 +1035,6 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 static int _aac_reset_adapter(struct aac_dev *aac)
 {
 	int index, quirks;
-	u32 ret;
 	int retval;
 	struct Scsi_Host *host;
 	struct scsi_device *dev;
@@ -1059,20 +1058,10 @@ static int _aac_reset_adapter(struct aac_dev *aac)
 	 *	If a positive health, means in a known DEAD PANIC
 	 * state and the adapter could be reset to `try again'.
 	 */
-	retval = aac_adapter_check_health(aac);
-	if (retval == 0)
-		retval = aac_adapter_sync_cmd(aac, IOP_RESET_ALWAYS,
-		  0, 0, 0, 0, 0, 0, &ret, NULL, NULL, NULL, NULL);
-	if (retval)
-		retval = aac_adapter_sync_cmd(aac, IOP_RESET,
-		  0, 0, 0, 0, 0, 0, &ret, NULL, NULL, NULL, NULL);
+	retval = aac_adapter_restart(aac, aac_adapter_check_health(aac));
 
 	if (retval)
 		goto out;
-	if (ret != 0x00000001) {
-		retval = -ENODEV;
-		goto out;
-	}
 
 	/*
 	 *	Loop through the fibs, close the synchronous FIBS
