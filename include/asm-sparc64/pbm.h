@@ -78,7 +78,7 @@ struct pci_iommu {
 
 	/* CTX allocation. */
 	unsigned long ctx_lowest_free;
-	unsigned long ctx_bitmap[IOMMU_NUM_CTXS / (sizeof(unsigned long) * 8)];
+	DECLARE_BITMAP(ctx_bitmap, IOMMU_NUM_CTXS);
 
 	/* Here a PCI controller driver describes the areas of
 	 * PCI memory space where DMA to/from physical memory
