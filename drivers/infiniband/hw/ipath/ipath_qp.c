@@ -320,7 +320,8 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->remote_qpn = 0;
 	qp->qkey = 0;
 	qp->qp_access_flags = 0;
-	clear_bit(IPATH_S_BUSY, &qp->s_flags);
+	qp->s_busy = 0;
+	qp->s_flags &= ~IPATH_S_SIGNAL_REQ_WR;
 	qp->s_hdrwords = 0;
 	qp->s_psn = 0;
 	qp->r_psn = 0;
@@ -333,7 +334,6 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 		qp->r_state = IB_OPCODE_UC_SEND_LAST;
 	}
 	qp->s_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
-	qp->r_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
 	qp->r_nak_state = 0;
 	qp->r_wrid_valid = 0;
 	qp->s_rnr_timeout = 0;
@@ -344,6 +344,10 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->s_ssn = 1;
 	qp->s_lsn = 0;
 	qp->s_wait_credit = 0;
+	memset(qp->s_ack_queue, 0, sizeof(qp->s_ack_queue));
+	qp->r_head_ack_queue = 0;
+	qp->s_tail_ack_queue = 0;
+	qp->s_num_rd_atomic = 0;
 	if (qp->r_rq.wq) {
 		qp->r_rq.wq->head = 0;
 		qp->r_rq.wq->tail = 0;
@@ -503,6 +507,10 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		    attr->path_mig_state != IB_MIG_REARM)
 			goto inval;
 
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
+		if (attr->max_dest_rd_atomic > IPATH_MAX_RDMA_ATOMIC)
+			goto inval;
+
 	switch (new_state) {
 	case IB_QPS_RESET:
 		ipath_reset_qp(qp);
@@ -559,6 +567,12 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_QKEY)
 		qp->qkey = attr->qkey;
 
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
+		qp->r_max_rd_atomic = attr->max_dest_rd_atomic;
+
+	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC)
+		qp->s_max_rd_atomic = attr->max_rd_atomic;
+
 	qp->state = new_state;
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 
@@ -598,8 +612,8 @@ int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->alt_pkey_index = 0;
 	attr->en_sqd_async_notify = 0;
 	attr->sq_draining = 0;
-	attr->max_rd_atomic = 1;
-	attr->max_dest_rd_atomic = 1;
+	attr->max_rd_atomic = qp->s_max_rd_atomic;
+	attr->max_dest_rd_atomic = qp->r_max_rd_atomic;
 	attr->min_rnr_timer = qp->r_min_rnr_timer;
 	attr->port_num = 1;
 	attr->timeout = qp->timeout;
@@ -614,7 +628,7 @@ int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	init_attr->recv_cq = qp->ibqp.recv_cq;
 	init_attr->srq = qp->ibqp.srq;
 	init_attr->cap = attr->cap;
-	if (qp->s_flags & (1 << IPATH_S_SIGNAL_REQ_WR))
+	if (qp->s_flags & IPATH_S_SIGNAL_REQ_WR)
 		init_attr->sq_sig_type = IB_SIGNAL_REQ_WR;
 	else
 		init_attr->sq_sig_type = IB_SIGNAL_ALL_WR;
@@ -786,7 +800,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		qp->s_size = init_attr->cap.max_send_wr + 1;
 		qp->s_max_sge = init_attr->cap.max_send_sge;
 		if (init_attr->sq_sig_type == IB_SIGNAL_REQ_WR)
-			qp->s_flags = 1 << IPATH_S_SIGNAL_REQ_WR;
+			qp->s_flags = IPATH_S_SIGNAL_REQ_WR;
 		else
 			qp->s_flags = 0;
 		dev = to_idev(ibpd->device);

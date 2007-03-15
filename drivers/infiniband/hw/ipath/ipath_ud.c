@@ -467,7 +467,7 @@ int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 
 done:
 	/* Queue the completion status entry. */
-	if (!test_bit(IPATH_S_SIGNAL_REQ_WR, &qp->s_flags) ||
+	if (!(qp->s_flags & IPATH_S_SIGNAL_REQ_WR) ||
 	    (wr->send_flags & IB_SEND_SIGNALED)) {
 		wc.wr_id = wr->wr_id;
 		wc.status = IB_WC_SUCCESS;

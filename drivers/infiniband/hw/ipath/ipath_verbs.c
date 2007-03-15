@@ -773,7 +773,6 @@ int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,
 	/* +1 is for the qword padding of pbc */
 	plen = hdrwords + ((len + 3) >> 2) + 1;
 	if (unlikely((plen << 2) > dd->ipath_ibmaxlen)) {
-		ipath_dbg("packet len 0x%x too long, failing\n", plen);
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -980,14 +979,14 @@ static int ipath_query_device(struct ib_device *ibdev,
 	props->max_cqe = ib_ipath_max_cqes;
 	props->max_mr = dev->lk_table.max;
 	props->max_pd = ib_ipath_max_pds;
-	props->max_qp_rd_atom = 1;
-	props->max_qp_init_rd_atom = 1;
+	props->max_qp_rd_atom = IPATH_MAX_RDMA_ATOMIC;
+	props->max_qp_init_rd_atom = 255;
 	/* props->max_res_rd_atom */
 	props->max_srq = ib_ipath_max_srqs;
 	props->max_srq_wr = ib_ipath_max_srq_wrs;
 	props->max_srq_sge = ib_ipath_max_srq_sges;
 	/* props->local_ca_ack_delay */
-	props->atomic_cap = IB_ATOMIC_HCA;
+	props->atomic_cap = IB_ATOMIC_GLOB;
 	props->max_pkeys = ipath_get_npkeys(dev->dd);
 	props->max_mcast_grp = ib_ipath_max_mcast_grps;
 	props->max_mcast_qp_attach = ib_ipath_max_mcast_qp_attached;
