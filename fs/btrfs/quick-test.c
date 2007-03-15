@@ -30,6 +30,8 @@ int main(int ac, char **av) {
 
 	root = open_ctree("dbfile", &super);
 	srand(55);
+	ins.flags = 0;
+	btrfs_set_key_type(&ins, BTRFS_STRING_ITEM_KEY);
 	for (i = 0; i < run_size; i++) {
 		buf = malloc(64);
 		num = next_key(i, max_key);
@@ -39,7 +41,6 @@ int main(int ac, char **av) {
 			fprintf(stderr, "insert %d:%d\n", num, i);
 		ins.objectid = num;
 		ins.offset = 0;
-		ins.flags = 0;
 		ret = btrfs_insert_item(root, &ins, buf, strlen(buf));
 		if (!ret)
 			tree_size++;

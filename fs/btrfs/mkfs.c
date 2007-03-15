@@ -50,9 +50,10 @@ int mkfs(int fd, u64 num_blocks, u32 blocksize)
 	itemoff = __BTRFS_LEAF_DATA_SIZE(blocksize) - sizeof(root_item);
 	btrfs_set_item_offset(&item, itemoff);
 	btrfs_set_item_size(&item, sizeof(root_item));
-	btrfs_set_key_objectid(&item.key, BTRFS_EXTENT_TREE_OBJECTID);
-	btrfs_set_key_offset(&item.key, 0);
-	btrfs_set_key_flags(&item.key, 0);
+	btrfs_set_disk_key_objectid(&item.key, BTRFS_EXTENT_TREE_OBJECTID);
+	btrfs_set_disk_key_offset(&item.key, 0);
+	btrfs_set_disk_key_flags(&item.key, 0);
+	btrfs_set_disk_key_type(&item.key, BTRFS_ROOT_ITEM_KEY);
 	memcpy(empty_leaf->items, &item, sizeof(item));
 	memcpy(btrfs_leaf_data(empty_leaf) + itemoff,
 		&root_item, sizeof(root_item));
@@ -60,7 +61,7 @@ int mkfs(int fd, u64 num_blocks, u32 blocksize)
 	btrfs_set_root_blocknr(&root_item, start_block + 3);
 	itemoff = itemoff - sizeof(root_item);
 	btrfs_set_item_offset(&item, itemoff);
-	btrfs_set_key_objectid(&item.key, BTRFS_FS_TREE_OBJECTID);
+	btrfs_set_disk_key_objectid(&item.key, BTRFS_FS_TREE_OBJECTID);
 	memcpy(empty_leaf->items + 1, &item, sizeof(item));
 	memcpy(btrfs_leaf_data(empty_leaf) + itemoff,
 		&root_item, sizeof(root_item));
@@ -73,9 +74,10 @@ int mkfs(int fd, u64 num_blocks, u32 blocksize)
 	btrfs_set_header_nritems(&empty_leaf->header, 4);
 
 	/* item1, reserve blocks 0-16 */
-	btrfs_set_key_objectid(&item.key, 0);
-	btrfs_set_key_offset(&item.key, start_block + 1);
-	btrfs_set_key_flags(&item.key, 0);
+	btrfs_set_disk_key_objectid(&item.key, 0);
+	btrfs_set_disk_key_offset(&item.key, start_block + 1);
+	btrfs_set_disk_key_flags(&item.key, 0);
+	btrfs_set_disk_key_type(&item.key, BTRFS_EXTENT_ITEM_KEY);
 	itemoff = __BTRFS_LEAF_DATA_SIZE(blocksize) -
 			sizeof(struct btrfs_extent_item);
 	btrfs_set_item_offset(&item, itemoff);
@@ -87,8 +89,8 @@ int mkfs(int fd, u64 num_blocks, u32 blocksize)
 		&extent_item, btrfs_item_size(&item));
 
 	/* item2, give block 17 to the root */
-	btrfs_set_key_objectid(&item.key, start_block + 1);
-	btrfs_set_key_offset(&item.key, 1);
+	btrfs_set_disk_key_objectid(&item.key, start_block + 1);
+	btrfs_set_disk_key_offset(&item.key, 1);
 	itemoff = itemoff - sizeof(struct btrfs_extent_item);
 	btrfs_set_item_offset(&item, itemoff);
 	btrfs_set_extent_owner(&extent_item, BTRFS_ROOT_TREE_OBJECTID);
@@ -97,8 +99,8 @@ int mkfs(int fd, u64 num_blocks, u32 blocksize)
 		&extent_item, btrfs_item_size(&item));
 
 	/* item3, give block 18 to the extent root */
-	btrfs_set_key_objectid(&item.key, start_block + 2);
-	btrfs_set_key_offset(&item.key, 1);
+	btrfs_set_disk_key_objectid(&item.key, start_block + 2);
+	btrfs_set_disk_key_offset(&item.key, 1);
 	itemoff = itemoff - sizeof(struct btrfs_extent_item);
 	btrfs_set_item_offset(&item, itemoff);
 	btrfs_set_extent_owner(&extent_item, BTRFS_EXTENT_TREE_OBJECTID);
@@ -107,8 +109,8 @@ int mkfs(int fd, u64 num_blocks, u32 blocksize)
 		&extent_item, btrfs_item_size(&item));
 
 	/* item4, give block 19 to the FS root */
-	btrfs_set_key_objectid(&item.key, start_block + 3);
-	btrfs_set_key_offset(&item.key, 1);
+	btrfs_set_disk_key_objectid(&item.key, start_block + 3);
+	btrfs_set_disk_key_offset(&item.key, 1);
 	itemoff = itemoff - sizeof(struct btrfs_extent_item);
 	btrfs_set_item_offset(&item, itemoff);
 	btrfs_set_extent_owner(&extent_item, BTRFS_FS_TREE_OBJECTID);

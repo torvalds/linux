@@ -35,6 +35,7 @@ static int inc_block_ref(struct btrfs_root *root, u64 blocknr)
 	btrfs_init_path(&path);
 	key.objectid = blocknr;
 	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	key.offset = 1;
 	ret = btrfs_search_slot(root->extent_root, &key, &path, 0, 1);
 	if (ret != 0)
@@ -61,8 +62,9 @@ static int lookup_block_ref(struct btrfs_root *root, u64 blocknr, u32 *refs)
 	struct btrfs_extent_item *item;
 	btrfs_init_path(&path);
 	key.objectid = blocknr;
-	key.flags = 0;
 	key.offset = 1;
+	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	ret = btrfs_search_slot(root->extent_root, &key, &path, 0, 0);
 	if (ret != 0)
 		BUG();
@@ -123,6 +125,7 @@ static int finish_current_insert(struct btrfs_root *extent_root)
 		btrfs_header_parentid(&extent_root->node->node.header));
 	ins.offset = 1;
 	ins.flags = 0;
+	btrfs_set_key_type(&ins, BTRFS_EXTENT_ITEM_KEY);
 
 	for (i = 0; i < extent_root->current_insert.flags; i++) {
 		ins.objectid = extent_root->current_insert.objectid + i;
@@ -149,6 +152,7 @@ static int __free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
 
 	key.objectid = blocknr;
 	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	key.offset = num_blocks;
 
 	find_free_extent(root, 0, 0, (u64)-1, &ins);
@@ -228,7 +232,6 @@ static int run_pending(struct btrfs_root *extent_root)
  */
 int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
 {
-	struct btrfs_key key;
 	struct btrfs_root *extent_root = root->extent_root;
 	struct btrfs_buffer *t;
 	int pending_ret;
@@ -240,9 +243,6 @@ int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
 				   CTREE_EXTENT_PENDING_DEL);
 		return 0;
 	}
-	key.objectid = blocknr;
-	key.flags = 0;
-	key.offset = num_blocks;
 	ret = __free_extent(root, blocknr, num_blocks);
 	pending_ret = run_pending(root->extent_root);
 	return ret ? ret : pending_ret;
@@ -252,7 +252,7 @@ int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
  * walks the btree of allocated extents and find a hole of a given size.
  * The key ins is changed to record the hole:
  * ins->objectid == block start
- * ins->flags = 0
+ * ins->flags = BTRFS_EXTENT_ITEM_KEY
  * ins->offset == number of blocks
  * Any available blocks before search_start are skipped.
  */
@@ -275,11 +275,14 @@ static int find_free_extent(struct btrfs_root *orig_root, u64 num_blocks,
 	total_needed += (btrfs_header_level(&root->node->node.header) + 1) * 3;
 	if (root->last_insert.objectid > search_start)
 		search_start = root->last_insert.objectid;
+
+	ins->flags = 0;
+	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
+
 check_failed:
 	btrfs_init_path(&path);
 	ins->objectid = search_start;
 	ins->offset = 0;
-	ins->flags = 0;
 	start_found = 0;
 	ret = btrfs_search_slot(root, ins, &path, 0, 0);
 	if (ret < 0)

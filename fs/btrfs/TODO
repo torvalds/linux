@@ -8,6 +8,7 @@
 * Add block mapping tree (simple dm layer)
 * Add simple tree locking (semaphore per tree)
 * Make allocator smarter
+* Do actual block accounting
 * Port into the kernel
 * Add virtual filesystems, mountable snapshots
 * Get rid of struct ctree_path, limiting tree levels held at one time

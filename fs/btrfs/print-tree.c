@@ -12,27 +12,41 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 	struct btrfs_item *item;
 	struct btrfs_extent_item *ei;
 	struct btrfs_root_item *ri;
+	u32 type;
 	printf("leaf %Lu total ptrs %d free space %d\n",
 		btrfs_header_blocknr(&l->header), nr,
 		btrfs_leaf_free_space(root, l));
 	fflush(stdout);
 	for (i = 0 ; i < nr ; i++) {
 		item = l->items + i;
+		type = btrfs_disk_key_type(&item->key);
 		printf("\titem %d key (%Lu %Lu %u) itemoff %d itemsize %d\n",
 			i,
-			btrfs_key_objectid(&item->key),
-			btrfs_key_offset(&item->key),
-			btrfs_key_flags(&item->key),
+			btrfs_disk_key_objectid(&item->key),
+			btrfs_disk_key_offset(&item->key),
+			btrfs_disk_key_flags(&item->key),
 			btrfs_item_offset(item),
 			btrfs_item_size(item));
-		printf("\t\titem data %.*s\n", btrfs_item_size(item),
-			btrfs_leaf_data(l) + btrfs_item_offset(item));
-		ei = btrfs_item_ptr(l, i, struct btrfs_extent_item);
-		printf("\t\textent data refs %u owner %Lu\n",
-			btrfs_extent_refs(ei), btrfs_extent_owner(ei));
-		ri = btrfs_item_ptr(l, i, struct btrfs_root_item);
-		printf("\t\troot data blocknr %Lu refs %u\n",
-			btrfs_root_blocknr(ri), btrfs_root_refs(ri));
+		switch (type) {
+		case BTRFS_INODE_ITEM_KEY:
+			break;
+		case BTRFS_DIR_ITEM_KEY:
+			break;
+		case BTRFS_ROOT_ITEM_KEY:
+			ri = btrfs_item_ptr(l, i, struct btrfs_root_item);
+			printf("\t\troot data blocknr %Lu refs %u\n",
+				btrfs_root_blocknr(ri), btrfs_root_refs(ri));
+			break;
+		case BTRFS_EXTENT_ITEM_KEY:
+			ei = btrfs_item_ptr(l, i, struct btrfs_extent_item);
+			printf("\t\textent data refs %u owner %Lu\n",
+				btrfs_extent_refs(ei), btrfs_extent_owner(ei));
+			break;
+		case BTRFS_STRING_ITEM_KEY:
+			printf("\t\titem data %.*s\n", btrfs_item_size(item),
+				btrfs_leaf_data(l) + btrfs_item_offset(item));
+			break;
+		};
 		fflush(stdout);
 	}
 }

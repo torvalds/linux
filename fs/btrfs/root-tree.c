@@ -27,7 +27,7 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 	l = &path.nodes[0]->leaf;
 	BUG_ON(path.slots[0] == 0);
 	slot = path.slots[0] - 1;
-	if (btrfs_key_objectid(&l->items[slot].key) != objectid) {
+	if (btrfs_disk_key_objectid(&l->items[slot].key) != objectid) {
 		ret = 1;
 		goto out;
 	}

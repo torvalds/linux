@@ -107,13 +107,13 @@ static int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
 		return 1;
 	if (k1.objectid < k2->objectid)
 		return -1;
-	if (k1.flags > k2->flags)
-		return 1;
-	if (k1.flags < k2->flags)
-		return -1;
 	if (k1.offset > k2->offset)
 		return 1;
 	if (k1.offset < k2->offset)
+		return -1;
+	if (k1.flags > k2->flags)
+		return 1;
+	if (k1.flags < k2->flags)
 		return -1;
 	return 0;
 }
@@ -1122,8 +1122,8 @@ static int split_leaf(struct btrfs_root *root, struct btrfs_path *path,
  * Given a key and some data, insert an item into the tree.
  * This does all the path init required, making room in the tree if needed.
  */
-int btrfs_insert_item(struct btrfs_root *root, struct btrfs_key *cpu_key,
-			  void *data, int data_size)
+int btrfs_insert_empty_item(struct btrfs_root *root, struct btrfs_path *path,
+			    struct btrfs_key *cpu_key, u32 data_size)
 {
 	int ret = 0;
 	int slot;
@@ -1132,7 +1132,6 @@ int btrfs_insert_item(struct btrfs_root *root, struct btrfs_key *cpu_key,
 	struct btrfs_buffer *leaf_buf;
 	u32 nritems;
 	unsigned int data_end;
-	struct btrfs_path path;
 	struct btrfs_disk_key disk_key;
 
 	btrfs_cpu_key_to_disk(&disk_key, cpu_key);
@@ -1140,17 +1139,16 @@ int btrfs_insert_item(struct btrfs_root *root, struct btrfs_key *cpu_key,
 	/* create a root if there isn't one */
 	if (!root->node)
 		BUG();
-	btrfs_init_path(&path);
-	ret = btrfs_search_slot(root, cpu_key, &path, data_size, 1);
+	ret = btrfs_search_slot(root, cpu_key, path, data_size, 1);
 	if (ret == 0) {
-		btrfs_release_path(root, &path);
+		btrfs_release_path(root, path);
 		return -EEXIST;
 	}
 	if (ret < 0)
 		goto out;
 
-	slot_orig = path.slots[0];
-	leaf_buf = path.nodes[0];
+	slot_orig = path->slots[0];
+	leaf_buf = path->nodes[0];
 	leaf = &leaf_buf->leaf;
 
 	nritems = btrfs_header_nritems(&leaf->header);
@@ -1160,7 +1158,7 @@ int btrfs_insert_item(struct btrfs_root *root, struct btrfs_key *cpu_key,
 	    sizeof(struct btrfs_item) + data_size)
 		BUG();
 
-	slot = path.slots[0];
+	slot = path->slots[0];
 	BUG_ON(slot < 0);
 	if (slot != nritems) {
 		int i;
@@ -1186,23 +1184,42 @@ int btrfs_insert_item(struct btrfs_root *root, struct btrfs_key *cpu_key,
 		        data_end, old_data - data_end);
 		data_end = old_data;
 	}
-	/* copy the new data in */
+	/* setup the item for the new data */
 	memcpy(&leaf->items[slot].key, &disk_key,
 		sizeof(struct btrfs_disk_key));
 	btrfs_set_item_offset(leaf->items + slot, data_end - data_size);
 	btrfs_set_item_size(leaf->items + slot, data_size);
-	memcpy(btrfs_leaf_data(leaf) + data_end - data_size, data, data_size);
 	btrfs_set_header_nritems(&leaf->header, nritems + 1);
 
 	ret = 0;
 	if (slot == 0)
-		ret = fixup_low_keys(root, &path, &disk_key, 1);
+		ret = fixup_low_keys(root, path, &disk_key, 1);
 
 	BUG_ON(list_empty(&leaf_buf->dirty));
 	if (btrfs_leaf_free_space(root, leaf) < 0)
 		BUG();
-	check_leaf(root, &path, 0);
+	check_leaf(root, path, 0);
 out:
+	return ret;
+}
+
+/*
+ * Given a key and some data, insert an item into the tree.
+ * This does all the path init required, making room in the tree if needed.
+ */
+int btrfs_insert_item(struct btrfs_root *root, struct btrfs_key *cpu_key,
+			  void *data, u32 data_size)
+{
+	int ret = 0;
+	struct btrfs_path path;
+	u8 *ptr;
+
+	btrfs_init_path(&path);
+	ret = btrfs_insert_empty_item(root, &path, cpu_key, data_size);
+	if (!ret) {
+		ptr = btrfs_item_ptr(&path.nodes[0]->leaf, path.slots[0], u8);
+		memcpy(ptr, data, data_size);
+	}
 	btrfs_release_path(root, &path);
 	return ret;
 }

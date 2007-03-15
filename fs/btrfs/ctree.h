@@ -58,39 +58,6 @@ struct btrfs_header {
 #define BTRFS_LEAF_DATA_SIZE(r) (__BTRFS_LEAF_DATA_SIZE(r->blocksize))
 
 struct btrfs_buffer;
-
-struct btrfs_root_item {
-	__le64 blocknr;
-	__le32 flags;
-	__le64 block_limit;
-	__le64 blocks_used;
-	__le32 refs;
-};
-
-/*
- * in ram representation of the tree.  extent_root is used for all allocations
- * and for the extent tree extent_root root.  current_insert is used
- * only for the extent tree.
- */
-struct btrfs_root {
-	struct btrfs_buffer *node;
-	struct btrfs_buffer *commit_root;
-	struct btrfs_root *extent_root;
-	struct btrfs_root *tree_root;
-	struct btrfs_key current_insert;
-	struct btrfs_key last_insert;
-	int fp;
-	struct radix_tree_root cache_radix;
-	struct radix_tree_root pinned_radix;
-	struct list_head trans;
-	struct list_head cache;
-	int cache_size;
-	int ref_cows;
-	struct btrfs_root_item root_item;
-	struct btrfs_key root_key;
-	u32 blocksize;
-};
-
 /*
  * the super block basically lists the main trees of the FS
  * it currently lacks any block count etc etc
@@ -108,8 +75,7 @@ struct btrfs_super_block {
 } __attribute__ ((__packed__));
 
 /*
- * A leaf is full of items.  The exact type of item is defined by
- * the key flags parameter.  offset and size tell us where to find
+ * A leaf is full of items. offset and size tell us where to find
  * the item in the leaf (relative to the start of the data area)
  */
 struct btrfs_item {
@@ -145,15 +111,6 @@ struct btrfs_node {
 } __attribute__ ((__packed__));
 
 /*
- * items in the extent btree are used to record the objectid of the
- * owner of the block and the number of references
- */
-struct btrfs_extent_item {
-	__le32 refs;
-	__le64 owner;
-} __attribute__ ((__packed__));
-
-/*
  * btrfs_paths remember the path taken from the root down to the leaf.
  * level 0 is always the leaf, and nodes[1...BTRFS_MAX_LEVEL] will point
  * to any other levels that are present.
@@ -165,6 +122,94 @@ struct btrfs_path {
 	struct btrfs_buffer *nodes[BTRFS_MAX_LEVEL];
 	int slots[BTRFS_MAX_LEVEL];
 };
+
+/*
+ * items in the extent btree are used to record the objectid of the
+ * owner of the block and the number of references
+ */
+struct btrfs_extent_item {
+	__le32 refs;
+	__le64 owner;
+} __attribute__ ((__packed__));
+
+struct btrfs_dir_item {
+	__le64 objectid;
+	__le16 flags;
+	u8 type;
+} __attribute__ ((__packed__));
+
+struct btrfs_root_item {
+	__le64 blocknr;
+	__le32 flags;
+	__le64 block_limit;
+	__le64 blocks_used;
+	__le32 refs;
+};
+
+/*
+ * in ram representation of the tree.  extent_root is used for all allocations
+ * and for the extent tree extent_root root.  current_insert is used
+ * only for the extent tree.
+ */
+struct btrfs_root {
+	struct btrfs_buffer *node;
+	struct btrfs_buffer *commit_root;
+	struct btrfs_root *extent_root;
+	struct btrfs_root *tree_root;
+	struct btrfs_key current_insert;
+	struct btrfs_key last_insert;
+	int fp;
+	struct radix_tree_root cache_radix;
+	struct radix_tree_root pinned_radix;
+	struct list_head trans;
+	struct list_head cache;
+	int cache_size;
+	int ref_cows;
+	struct btrfs_root_item root_item;
+	struct btrfs_key root_key;
+	u32 blocksize;
+};
+
+
+/* the lower bits in the key flags defines the item type */
+#define BTRFS_KEY_TYPE_MAX	256
+#define BTRFS_KEY_TYPE_MASK	(BTRFS_KEY_TYPE_MAX - 1)
+#define BTRFS_INODE_ITEM_KEY	1
+#define BTRFS_DIR_ITEM_KEY	2
+#define BTRFS_ROOT_ITEM_KEY	3
+#define BTRFS_EXTENT_ITEM_KEY	4
+#define BTRFS_STRING_ITEM_KEY	5
+
+static inline u64 btrfs_dir_objectid(struct btrfs_dir_item *d)
+{
+	return le64_to_cpu(d->objectid);
+}
+
+static inline void btrfs_set_dir_objectid(struct btrfs_dir_item *d, u64 val)
+{
+	d->objectid = cpu_to_le64(val);
+}
+
+static inline u16 btrfs_dir_flags(struct btrfs_dir_item *d)
+{
+	return le16_to_cpu(d->flags);
+}
+
+static inline void btrfs_set_dir_flags(struct btrfs_dir_item *d, u16 val)
+{
+	d->flags = cpu_to_le16(val);
+}
+
+static inline u8 btrfs_dir_type(struct btrfs_dir_item *d)
+{
+	return d->type;
+}
+
+static inline void btrfs_set_dir_type(struct btrfs_dir_item *d, u8 val)
+{
+	d->type = val;
+}
+
 
 static inline u64 btrfs_extent_owner(struct btrfs_extent_item *ei)
 {
@@ -238,38 +283,64 @@ static inline void btrfs_cpu_key_to_disk(struct btrfs_disk_key *disk,
 	disk->objectid = cpu_to_le64(cpu->objectid);
 }
 
-static inline u64 btrfs_key_objectid(struct btrfs_disk_key *disk)
+static inline u64 btrfs_disk_key_objectid(struct btrfs_disk_key *disk)
 {
 	return le64_to_cpu(disk->objectid);
 }
 
-static inline void btrfs_set_key_objectid(struct btrfs_disk_key *disk,
-					  u64 val)
+static inline void btrfs_set_disk_key_objectid(struct btrfs_disk_key *disk,
+					       u64 val)
 {
 	disk->objectid = cpu_to_le64(val);
 }
 
-static inline u64 btrfs_key_offset(struct btrfs_disk_key *disk)
+static inline u64 btrfs_disk_key_offset(struct btrfs_disk_key *disk)
 {
 	return le64_to_cpu(disk->offset);
 }
 
-static inline void btrfs_set_key_offset(struct btrfs_disk_key *disk,
-					  u64 val)
+static inline void btrfs_set_disk_key_offset(struct btrfs_disk_key *disk,
+					     u64 val)
 {
 	disk->offset = cpu_to_le64(val);
 }
 
-static inline u32 btrfs_key_flags(struct btrfs_disk_key *disk)
+static inline u32 btrfs_disk_key_flags(struct btrfs_disk_key *disk)
 {
 	return le32_to_cpu(disk->flags);
 }
 
-static inline void btrfs_set_key_flags(struct btrfs_disk_key *disk,
-					  u32 val)
+static inline void btrfs_set_disk_key_flags(struct btrfs_disk_key *disk,
+					    u32 val)
 {
 	disk->flags = cpu_to_le32(val);
 }
+
+static inline u32 btrfs_key_type(struct btrfs_key *key)
+{
+	return key->flags & BTRFS_KEY_TYPE_MASK;
+}
+
+static inline u32 btrfs_disk_key_type(struct btrfs_disk_key *key)
+{
+	return le32_to_cpu(key->flags) & BTRFS_KEY_TYPE_MASK;
+}
+
+static inline void btrfs_set_key_type(struct btrfs_key *key, u32 type)
+{
+	BUG_ON(type >= BTRFS_KEY_TYPE_MAX);
+	key->flags = (key->flags & ~((u64)BTRFS_KEY_TYPE_MASK)) | type;
+}
+
+static inline void btrfs_set_disk_key_type(struct btrfs_disk_key *key, u32 type)
+{
+	u32 flags = btrfs_disk_key_flags(key);
+	BUG_ON(type >= BTRFS_KEY_TYPE_MAX);
+	flags = (flags & ~((u64)BTRFS_KEY_TYPE_MASK)) | type;
+	btrfs_set_disk_key_flags(key, flags);
+}
+
+
 
 static inline u64 btrfs_header_blocknr(struct btrfs_header *h)
 {
@@ -407,7 +478,6 @@ static inline u8 *btrfs_leaf_data(struct btrfs_leaf *l)
 {
 	return (u8 *)l->items;
 }
-
 /* helper function to cast into the data area of the leaf. */
 #define btrfs_item_ptr(leaf, slot, type) \
 	((type *)(btrfs_leaf_data(leaf) + \
@@ -422,7 +492,9 @@ void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p);
 void btrfs_init_path(struct btrfs_path *p);
 int btrfs_del_item(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_insert_item(struct btrfs_root *root, struct btrfs_key *key,
-		void *data, int data_size);
+		void *data, u32 data_size);
+int btrfs_insert_empty_item(struct btrfs_root *root, struct btrfs_path *path,
+			    struct btrfs_key *cpu_key, u32 data_size);
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_leaf_free_space(struct btrfs_root *root, struct btrfs_leaf *leaf);
 int btrfs_drop_snapshot(struct btrfs_root *root, struct btrfs_buffer *snap);

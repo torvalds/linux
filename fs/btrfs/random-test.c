@@ -18,6 +18,7 @@ static int setup_key(struct radix_tree_root *root, struct btrfs_key *key,
 	int ret;
 
 	key->flags = 0;
+	btrfs_set_key_type(key, BTRFS_STRING_ITEM_KEY);
 	key->offset = 0;
 again:
 	ret = radix_tree_gang_lookup(root, (void **)res, num, 2);
@@ -157,6 +158,7 @@ static int empty_tree(struct btrfs_root *root, struct radix_tree_root *radix,
 
 	key.offset = 0;
 	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_STRING_ITEM_KEY);
 	key.objectid = (unsigned long)-1;
 	while(nr-- >= 0) {
 		btrfs_init_path(&path);
@@ -173,7 +175,8 @@ static int empty_tree(struct btrfs_root *root, struct radix_tree_root *radix,
 			path.slots[0] -= 1;
 		}
 		slot = path.slots[0];
-		found=btrfs_key_objectid(&path.nodes[0]->leaf.items[slot].key);
+		found = btrfs_disk_key_objectid(
+					&path.nodes[0]->leaf.items[slot].key);
 		ret = btrfs_del_item(root, &path);
 		count++;
 		if (ret) {
@@ -257,6 +260,7 @@ static int fill_radix(struct btrfs_root *root, struct radix_tree_root *radix)
 
 	key.offset = 0;
 	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_STRING_ITEM_KEY);
 	key.objectid = (unsigned long)-1;
 	while(1) {
 		btrfs_init_path(&path);
@@ -274,8 +278,8 @@ static int fill_radix(struct btrfs_root *root, struct radix_tree_root *radix)
 			slot -= 1;
 		}
 		for (i = slot; i >= 0; i--) {
-			found = btrfs_key_objectid(&path.nodes[0]->
-						   leaf.items[i].key);
+			found = btrfs_disk_key_objectid(&path.nodes[0]->
+							leaf.items[i].key);
 			radix_tree_preload(GFP_KERNEL);
 			ret = radix_tree_insert(radix, found, (void *)found);
 			if (ret) {
