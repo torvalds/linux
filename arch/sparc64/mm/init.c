@@ -392,75 +392,30 @@ out:
 	put_cpu();
 }
 
-struct linux_prom_translation {
-	unsigned long virt;
-	unsigned long size;
-	unsigned long data;
-};
-
-/* Exported for kernel TLB miss handling in ktlb.S */
-struct linux_prom_translation prom_trans[512] __read_mostly;
-unsigned int prom_trans_ents __read_mostly;
-
-/*
- * Translate PROM's mapping we capture at boot time into physical address.
- * The second parameter is only set from prom_callback() invocations.
- */
-static unsigned long prom_virt_to_phys(unsigned long promva)
-{
-	unsigned long mask;
-	int i;
-
-	mask = _PAGE_PADDR_4U;
-	if (tlb_type == hypervisor)
-		mask = _PAGE_PADDR_4V;
-
-	for (i = 0; i < prom_trans_ents; i++) {
-		struct linux_prom_translation *p = &prom_trans[i];
-
-		if (promva >= p->virt &&
-		    promva < (p->virt + p->size)) {
-			unsigned long base = p->data & mask;
-
-			return base + (promva & (8192 - 1));
-		}
-	}
-	return 0UL;
-}
-
-static unsigned long kvaddr_to_phys(unsigned long addr)
-{
-	pgd_t *pgdp;
-	pud_t *pudp;
-	pmd_t *pmdp;
-	pte_t *ptep;
-	unsigned long mask = _PAGE_PADDR_4U;
-
-	if (tlb_type == hypervisor)
-		mask = _PAGE_PADDR_4V;
-
-	if (addr >= PAGE_OFFSET)
-		return addr & mask;
-
-	if ((addr >= LOW_OBP_ADDRESS) && (addr < HI_OBP_ADDRESS))
-		return prom_virt_to_phys(addr);
-
-	pgdp = pgd_offset_k(addr);
-	pudp = pud_offset(pgdp, addr);
-	pmdp = pmd_offset(pudp, addr);
-	ptep = pte_offset_kernel(pmdp, addr);
-
-	return pte_val(*ptep) & mask;
-}
-
 void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 {
 	/* Cheetah and Hypervisor platform cpus have coherent I-cache. */
 	if (tlb_type == spitfire) {
 		unsigned long kaddr;
 
-		for (kaddr = start; kaddr < end; kaddr += PAGE_SIZE)
-			__flush_icache_page(kvaddr_to_phys(kaddr));
+		/* This code only runs on Spitfire cpus so this is
+		 * why we can assume _PAGE_PADDR_4U.
+		 */
+		for (kaddr = start; kaddr < end; kaddr += PAGE_SIZE) {
+			unsigned long paddr, mask = _PAGE_PADDR_4U;
+
+			if (kaddr >= PAGE_OFFSET)
+				paddr = kaddr & mask;
+			else {
+				pgd_t *pgdp = pgd_offset_k(kaddr);
+				pud_t *pudp = pud_offset(pgdp, kaddr);
+				pmd_t *pmdp = pmd_offset(pudp, kaddr);
+				pte_t *ptep = pte_offset_kernel(pmdp, kaddr);
+
+				paddr = pte_val(*ptep) & mask;
+			}
+			__flush_icache_page(paddr);
+		}
 	}
 }
 
@@ -496,6 +451,16 @@ void mmu_info(struct seq_file *m)
 #endif /* CONFIG_SMP */
 #endif /* CONFIG_DEBUG_DCFLUSH */
 }
+
+struct linux_prom_translation {
+	unsigned long virt;
+	unsigned long size;
+	unsigned long data;
+};
+
+/* Exported for kernel TLB miss handling in ktlb.S */
+struct linux_prom_translation prom_trans[512] __read_mostly;
+unsigned int prom_trans_ents __read_mostly;
 
 /* Exported for SMP bootup purposes. */
 unsigned long kern_locked_tte_data;
