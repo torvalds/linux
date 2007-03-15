@@ -61,7 +61,7 @@ int ipath_alloc_lkey(struct ipath_lkey_table *rkt, struct ipath_mregion *mr)
 		r = (r + 1) & (rkt->max - 1);
 		if (r == n) {
 			spin_unlock_irqrestore(&rkt->lock, flags);
-			ipath_dbg(KERN_INFO "LKEY table full\n");
+			ipath_dbg("LKEY table full\n");
 			ret = 0;
 			goto bail;
 		}

@@ -1989,7 +1989,8 @@ static int __init infinipath_init(void)
 {
 	int ret;
 
-	ipath_dbg(KERN_INFO DRIVER_LOAD_MSG "%s", ib_ipath_version);
+	if (ipath_debug & __IPATH_DBG)
+		printk(KERN_INFO DRIVER_LOAD_MSG "%s", ib_ipath_version);
 
 	/*
 	 * These must be called before the driver is registered with
