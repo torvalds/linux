@@ -207,7 +207,7 @@ void ipath_get_faststats(unsigned long opaque)
 	 * don't access the chip while running diags, or memory diags can
 	 * fail
 	 */
-	if (!dd->ipath_kregbase || !(dd->ipath_flags & IPATH_PRESENT) ||
+	if (!dd->ipath_kregbase || !(dd->ipath_flags & IPATH_INITTED) ||
 	    ipath_diag_inuse)
 		/* but re-arm the timer, for diags case; won't hurt other */
 		goto done;

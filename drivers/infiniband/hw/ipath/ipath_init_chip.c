@@ -216,6 +216,20 @@ static int bringup_link(struct ipath_devdata *dd)
 	return ret;
 }
 
+static struct ipath_portdata *create_portdata0(struct ipath_devdata *dd)
+{
+	struct ipath_portdata *pd = NULL;
+
+	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+	if (pd) {
+		pd->port_dd = dd;
+		pd->port_cnt = 1;
+		/* The port 0 pkey table is used by the layer interface. */
+		pd->port_pkeys[0] = IPATH_DEFAULT_P_KEY;
+	}
+	return pd;
+}
+
 static int init_chip_first(struct ipath_devdata *dd,
 			   struct ipath_portdata **pdp)
 {
@@ -271,20 +285,16 @@ static int init_chip_first(struct ipath_devdata *dd,
 		goto done;
 	}
 
-	dd->ipath_pd[0] = kzalloc(sizeof(*pd), GFP_KERNEL);
+	pd = create_portdata0(dd);
 
-	if (!dd->ipath_pd[0]) {
+	if (!pd) {
 		ipath_dev_err(dd, "Unable to allocate portdata for port "
 			      "0, failing\n");
 		ret = -ENOMEM;
 		goto done;
 	}
-	pd = dd->ipath_pd[0];
-	pd->port_dd = dd;
-	pd->port_port = 0;
-	pd->port_cnt = 1;
-	/* The port 0 pkey table is used by the layer interface. */
-	pd->port_pkeys[0] = IPATH_DEFAULT_P_KEY;
+	dd->ipath_pd[0] = pd;
+
 	dd->ipath_rcvtidcnt =
 		ipath_read_kreg32(dd, dd->ipath_kregs->kr_rcvtidcnt);
 	dd->ipath_rcvtidbase =
@@ -838,11 +848,24 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	 * Set up the port 0 (kernel) rcvhdr q and egr TIDs.  If doing
 	 * re-init, the simplest way to handle this is to free
 	 * existing, and re-allocate.
+	 * Need to re-create rest of port 0 portdata as well.
 	 */
 	if (reinit) {
-		struct ipath_portdata *pd = dd->ipath_pd[0];
-		dd->ipath_pd[0] = NULL;
-		ipath_free_pddata(dd, pd);
+		/* Alloc and init new ipath_portdata for port0,
+		 * Then free old pd. Could lead to fragmentation, but also
+		 * makes later support for hot-swap easier.
+		 */
+		struct ipath_portdata *npd;
+		npd = create_portdata0(dd);
+		if (npd) {
+			ipath_free_pddata(dd, pd);
+			dd->ipath_pd[0] = pd = npd;
+		} else {
+			ipath_dev_err(dd, "Unable to allocate portdata for"
+				      "  port 0, failing\n");
+			ret = -ENOMEM;
+			goto done;
+		}
 	}
 	dd->ipath_f_tidtemplate(dd);
 	ret = ipath_create_rcvhdrq(dd, pd);
