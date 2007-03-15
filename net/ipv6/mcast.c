@@ -1423,8 +1423,9 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 
 	memcpy(skb_put(skb, sizeof(ra)), ra, sizeof(ra));
 
-	pmr =(struct mld2_report *)skb_put(skb, sizeof(*pmr));
-	skb->h.raw = (unsigned char *)pmr;
+	skb_set_transport_header(skb, skb->tail - skb->data);
+	skb_put(skb, sizeof(*pmr));
+	pmr = (struct mld2_report *)skb_transport_header(skb);
 	pmr->type = ICMPV6_MLD2_REPORT;
 	pmr->resv1 = 0;
 	pmr->csum = 0;

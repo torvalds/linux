@@ -492,8 +492,9 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 	ip6_nd_hdr(sk, skb, dev, src_addr, daddr, IPPROTO_ICMPV6, len);
 
-	msg = (struct nd_msg *)skb_put(skb, len);
-	skb->h.raw = (unsigned char*)msg;
+	skb_set_transport_header(skb, skb->tail - skb->data);
+	skb_put(skb, len);
+	msg = (struct nd_msg *)skb_transport_header(skb);
 
 	msg->icmph.icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT;
 	msg->icmph.icmp6_code = 0;
@@ -583,8 +584,9 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 	ip6_nd_hdr(sk, skb, dev, saddr, daddr, IPPROTO_ICMPV6, len);
 
-	msg = (struct nd_msg *)skb_put(skb, len);
-	skb->h.raw = (unsigned char*)msg;
+	skb_set_transport_header(skb, skb->tail - skb->data);
+	skb_put(skb, len);
+	msg = (struct nd_msg *)skb_transport_header(skb);
 	msg->icmph.icmp6_type = NDISC_NEIGHBOUR_SOLICITATION;
 	msg->icmph.icmp6_code = 0;
 	msg->icmph.icmp6_cksum = 0;
@@ -683,8 +685,9 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 	ip6_nd_hdr(sk, skb, dev, saddr, daddr, IPPROTO_ICMPV6, len);
 
-	hdr = (struct icmp6hdr *)skb_put(skb, len);
-	skb->h.raw = (unsigned char*)hdr;
+	skb_set_transport_header(skb, skb->tail - skb->data);
+	skb_put(skb, len);
+	hdr = icmp6_hdr(skb);
 	hdr->icmp6_type = NDISC_ROUTER_SOLICITATION;
 	hdr->icmp6_code = 0;
 	hdr->icmp6_cksum = 0;
@@ -1519,8 +1522,9 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	ip6_nd_hdr(sk, buff, dev, &saddr_buf, &ipv6_hdr(skb)->saddr,
 		   IPPROTO_ICMPV6, len);
 
-	icmph = (struct icmp6hdr *)skb_put(buff, len);
-	buff->h.raw = (unsigned char*)icmph;
+	skb_set_transport_header(buff, buff->tail - buff->data);
+	skb_put(buff, len);
+	icmph = icmp6_hdr(buff);
 
 	memset(icmph, 0, sizeof(struct icmp6hdr));
 	icmph->icmp6_type = NDISC_REDIRECT;
