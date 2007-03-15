@@ -433,25 +433,7 @@ config PPC_CHRP
 	default y
 
 source "arch/powerpc/platforms/52xx/Kconfig"
-
-config PPC_PMAC
-	bool "Apple PowerMac based machines"
-	depends on PPC_MULTIPLATFORM
-	select MPIC
-	select PPC_INDIRECT_PCI if PPC32
-	select PPC_MPC106 if PPC32
-	select PPC_NATIVE
-	default y
-
-config PPC_PMAC64
-	bool
-	depends on PPC_PMAC && POWER4
-	select MPIC
-	select U3_DART
-	select MPIC_BROKEN_U3
-	select GENERIC_TBSYNC
-	select PPC_970_NAP
-	default y
+source "arch/powerpc/platforms/powermac/Kconfig"
 
 config PPC_PREP
 	bool "PowerPC Reference Platform (PReP) based machines"
