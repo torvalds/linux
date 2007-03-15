@@ -81,11 +81,51 @@ static u32 credit_table[31] = {
 	32768			/* 1E */
 };
 
-static u32 alloc_qpn(struct ipath_qp_table *qpt)
+
+static void get_map_page(struct ipath_qp_table *qpt, struct qpn_map *map)
+{
+	unsigned long page = get_zeroed_page(GFP_KERNEL);
+	unsigned long flags;
+
+	/*
+	 * Free the page if someone raced with us installing it.
+	 */
+
+	spin_lock_irqsave(&qpt->lock, flags);
+	if (map->page)
+		free_page(page);
+	else
+		map->page = (void *)page;
+	spin_unlock_irqrestore(&qpt->lock, flags);
+}
+
+
+static int alloc_qpn(struct ipath_qp_table *qpt, enum ib_qp_type type)
 {
 	u32 i, offset, max_scan, qpn;
 	struct qpn_map *map;
-	u32 ret;
+	u32 ret = -1;
+
+	if (type == IB_QPT_SMI)
+		ret = 0;
+	else if (type == IB_QPT_GSI)
+		ret = 1;
+
+	if (ret != -1) {
+		map = &qpt->map[0];
+		if (unlikely(!map->page)) {
+			get_map_page(qpt, map);
+			if (unlikely(!map->page)) {
+				ret = -ENOMEM;
+				goto bail;
+			}
+		}
+		if (!test_and_set_bit(ret, map->page))
+			atomic_dec(&map->n_free);
+		else
+			ret = -EBUSY;
+		goto bail;
+	}
 
 	qpn = qpt->last + 1;
 	if (qpn >= QPN_MAX)
@@ -95,19 +135,7 @@ static u32 alloc_qpn(struct ipath_qp_table *qpt)
 	max_scan = qpt->nmaps - !offset;
 	for (i = 0;;) {
 		if (unlikely(!map->page)) {
-			unsigned long page = get_zeroed_page(GFP_KERNEL);
-			unsigned long flags;
-
-			/*
-			 * Free the page if someone raced with us
-			 * installing it:
-			 */
-			spin_lock_irqsave(&qpt->lock, flags);
-			if (map->page)
-				free_page(page);
-			else
-				map->page = (void *)page;
-			spin_unlock_irqrestore(&qpt->lock, flags);
+			get_map_page(qpt, map);
 			if (unlikely(!map->page))
 				break;
 		}
@@ -151,7 +179,7 @@ static u32 alloc_qpn(struct ipath_qp_table *qpt)
 		qpn = mk_qpn(qpt, map, offset);
 	}
 
-	ret = 0;
+	ret = -ENOMEM;
 
 bail:
 	return ret;
@@ -180,29 +208,19 @@ static int ipath_alloc_qpn(struct ipath_qp_table *qpt, struct ipath_qp *qp,
 			   enum ib_qp_type type)
 {
 	unsigned long flags;
-	u32 qpn;
 	int ret;
 
-	if (type == IB_QPT_SMI)
-		qpn = 0;
-	else if (type == IB_QPT_GSI)
-		qpn = 1;
-	else {
-		/* Allocate the next available QPN */
-		qpn = alloc_qpn(qpt);
-		if (qpn == 0) {
-			ret = -ENOMEM;
-			goto bail;
-		}
-	}
-	qp->ibqp.qp_num = qpn;
+	ret = alloc_qpn(qpt, type);
+	if (ret < 0)
+		goto bail;
+	qp->ibqp.qp_num = ret;
 
 	/* Add the QP to the hash table. */
 	spin_lock_irqsave(&qpt->lock, flags);
 
-	qpn %= qpt->max;
-	qp->next = qpt->table[qpn];
-	qpt->table[qpn] = qp;
+	ret %= qpt->max;
+	qp->next = qpt->table[ret];
+	qpt->table[ret] = qp;
 	atomic_inc(&qp->refcount);
 
 	spin_unlock_irqrestore(&qpt->lock, flags);
@@ -245,9 +263,7 @@ static void ipath_free_qp(struct ipath_qp_table *qpt, struct ipath_qp *qp)
 	if (!fnd)
 		return;
 
-	/* If QPN is not reserved, mark QPN free in the bitmap. */
-	if (qp->ibqp.qp_num > 1)
-		free_qpn(qpt, qp->ibqp.qp_num);
+	free_qpn(qpt, qp->ibqp.qp_num);
 
 	wait_event(qp->wait, !atomic_read(&qp->refcount));
 }
@@ -270,8 +286,7 @@ void ipath_free_all_qps(struct ipath_qp_table *qpt)
 
 		while (qp) {
 			nqp = qp->next;
-			if (qp->ibqp.qp_num > 1)
-				free_qpn(qpt, qp->ibqp.qp_num);
+			free_qpn(qpt, qp->ibqp.qp_num);
 			if (!atomic_dec_and_test(&qp->refcount) ||
 			    !ipath_destroy_qp(&qp->ibqp))
 				ipath_dbg("QP memory leak!\n");
