@@ -202,6 +202,7 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 	wq->tail = tail;
 
 	ret = 1;
+	qp->r_wrid_valid = 1;
 	if (handler) {
 		u32 n;
 
@@ -229,7 +230,6 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 		}
 	}
 	spin_unlock_irqrestore(&rq->lock, flags);
-	qp->r_wrid_valid = 1;
 
 bail:
 	return ret;
