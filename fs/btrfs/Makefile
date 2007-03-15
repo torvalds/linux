@@ -1,4 +1,3 @@
-
 CC=gcc
 CFLAGS = -g -Wall
 headers = radix-tree.h ctree.h disk-io.h kerncompat.h print-tree.h list.h
@@ -15,7 +14,7 @@ check=sparse $(CHECKFLAGS)
 	$(check) $<
 	$(CC) $(CFLAGS) -c $<
 
-all: tester debug-tree quick-test
+all: tester debug-tree quick-test dir-test
 
 debug-tree: $(objects) debug-tree.o
 	gcc $(CFLAGS) -o debug-tree $(objects) debug-tree.o
@@ -23,6 +22,8 @@ debug-tree: $(objects) debug-tree.o
 tester: $(objects) random-test.o
 	gcc $(CFLAGS) -o tester $(objects) random-test.o
 
+dir-test: $(objects) dir-test.o
+	gcc $(CFLAGS) -o dir-test $(objects) dir-test.o
 quick-test: $(objects) quick-test.o
 	gcc $(CFLAGS) -o quick-test $(objects) quick-test.o
 

@@ -18,6 +18,7 @@ int btrfs_insert_dir_item(struct btrfs_root *root, char *name, int name_len,
 
 	key.objectid = dir;
 	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
 	ret = btrfs_name_hash(name, name_len, &key.offset);
 	BUG_ON(ret);
 	btrfs_init_path(&path);
@@ -38,65 +39,40 @@ out:
 	return ret;
 }
 
-int btrfs_del_dir_item(struct btrfs_root *root, u64 dir, char *name,
-		       int name_len)
+int btrfs_lookup_dir_item(struct btrfs_root *root, struct btrfs_path *path,
+			  u64 dir, char *name, int name_len, int mod)
 {
-	int ret = 0;
-	struct btrfs_path path;
+	int ret;
 	struct btrfs_key key;
+	int ins_len = mod < 0 ? -1 : 0;
+	int cow = mod != 0;
 
 	key.objectid = dir;
 	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
 	ret = btrfs_name_hash(name, name_len, &key.offset);
 	BUG_ON(ret);
-	btrfs_init_path(&path);
-	ret = btrfs_search_slot(root, &key, &path, 0, 1);
-	if (ret)
-		goto out;
-	ret = btrfs_del_item(root, &path);
-out:
-	btrfs_release_path(root, &path);
+	ret = btrfs_search_slot(root, &key, path, ins_len, cow);
 	return ret;
 }
 
-int btrfs_lookup_dir_item(struct btrfs_root *root, u64 dir, char *name,
-			  int name_len, u64 *objectid)
+int btrfs_match_dir_item_name(struct btrfs_root *root, struct btrfs_path *path,
+			      char *name, int name_len)
 {
-	int ret = 0;
-	struct btrfs_path path;
+	struct btrfs_item *item;
 	struct btrfs_dir_item *dir_item;
 	char *name_ptr;
-	struct btrfs_key key;
 	u32 item_len;
-	struct btrfs_item *item;
-
-	key.objectid = dir;
-	key.flags = 0;
-	ret = btrfs_name_hash(name, name_len, &key.offset);
-	BUG_ON(ret);
-	btrfs_init_path(&path);
-	ret = btrfs_search_slot(root, &key, &path, 0, 0);
-	if (ret)
-		goto out;
-
-	dir_item = btrfs_item_ptr(&path.nodes[0]->leaf, path.slots[0],
-				  struct btrfs_dir_item);
-
-	item = path.nodes[0]->leaf.items + path.slots[0];
+	item = path->nodes[0]->leaf.items + path->slots[0];
 	item_len = btrfs_item_size(item);
 	if (item_len != name_len + sizeof(struct btrfs_dir_item)) {
-		BUG();
-		ret = 1;
-		goto out;
+		return 0;
 	}
+	dir_item = btrfs_item_ptr(&path->nodes[0]->leaf, path->slots[0],
+				  struct btrfs_dir_item);
 	name_ptr = (char *)(dir_item + 1);
 	if (memcmp(name_ptr, name, name_len)) {
-		BUG();
-		ret = 1;
-		goto out;
+		return 0;
 	}
-	*objectid = btrfs_dir_objectid(dir_item);
-out:
-	btrfs_release_path(root, &path);
-	return ret;
+	return 1;
 }

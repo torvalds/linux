@@ -12,7 +12,10 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 	struct btrfs_item *item;
 	struct btrfs_extent_item *ei;
 	struct btrfs_root_item *ri;
+	struct btrfs_dir_item *di;
 	u32 type;
+	u32 namelen;
+
 	printf("leaf %Lu total ptrs %d free space %d\n",
 		btrfs_header_blocknr(&l->header), nr,
 		btrfs_leaf_free_space(root, l));
@@ -31,6 +34,15 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 		case BTRFS_INODE_ITEM_KEY:
 			break;
 		case BTRFS_DIR_ITEM_KEY:
+			namelen = btrfs_item_size(l->items + i) - sizeof(*di);
+			di = btrfs_item_ptr(l, i, struct btrfs_dir_item);
+			printf("\t\tdir oid %Lu flags %u type %u\n",
+				btrfs_dir_objectid(di),
+				btrfs_dir_flags(di),
+				btrfs_dir_type(di));
+			printf("\t\tname %.*s\n",
+				namelen, (char *)(di + 1));
+
 			break;
 		case BTRFS_ROOT_ITEM_KEY:
 			ri = btrfs_item_ptr(l, i, struct btrfs_root_item);

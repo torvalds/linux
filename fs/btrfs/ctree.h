@@ -180,37 +180,6 @@ struct btrfs_root {
 #define BTRFS_EXTENT_ITEM_KEY	4
 #define BTRFS_STRING_ITEM_KEY	5
 
-static inline u64 btrfs_dir_objectid(struct btrfs_dir_item *d)
-{
-	return le64_to_cpu(d->objectid);
-}
-
-static inline void btrfs_set_dir_objectid(struct btrfs_dir_item *d, u64 val)
-{
-	d->objectid = cpu_to_le64(val);
-}
-
-static inline u16 btrfs_dir_flags(struct btrfs_dir_item *d)
-{
-	return le16_to_cpu(d->flags);
-}
-
-static inline void btrfs_set_dir_flags(struct btrfs_dir_item *d, u16 val)
-{
-	d->flags = cpu_to_le16(val);
-}
-
-static inline u8 btrfs_dir_type(struct btrfs_dir_item *d)
-{
-	return d->type;
-}
-
-static inline void btrfs_set_dir_type(struct btrfs_dir_item *d, u8 val)
-{
-	d->type = val;
-}
-
-
 static inline u64 btrfs_extent_owner(struct btrfs_extent_item *ei)
 {
 	return le64_to_cpu(ei->owner);
@@ -265,6 +234,41 @@ static inline u16 btrfs_item_size(struct btrfs_item *item)
 static inline void btrfs_set_item_size(struct btrfs_item *item, u16 val)
 {
 	item->size = cpu_to_le16(val);
+}
+
+static inline u64 btrfs_dir_objectid(struct btrfs_dir_item *d)
+{
+	return le64_to_cpu(d->objectid);
+}
+
+static inline void btrfs_set_dir_objectid(struct btrfs_dir_item *d, u64 val)
+{
+	d->objectid = cpu_to_le64(val);
+}
+
+static inline u16 btrfs_dir_flags(struct btrfs_dir_item *d)
+{
+	return le16_to_cpu(d->flags);
+}
+
+static inline void btrfs_set_dir_flags(struct btrfs_dir_item *d, u16 val)
+{
+	d->flags = cpu_to_le16(val);
+}
+
+static inline u8 btrfs_dir_type(struct btrfs_dir_item *d)
+{
+	return d->type;
+}
+
+static inline void btrfs_set_dir_type(struct btrfs_dir_item *d, u8 val)
+{
+	d->type = val;
+}
+
+static inline u32 btrfs_dir_name_len(struct btrfs_item *i)
+{
+	return btrfs_item_size(i) - sizeof(struct btrfs_dir_item);
 }
 
 static inline void btrfs_disk_key_to_cpu(struct btrfs_key *cpu,
@@ -506,4 +510,10 @@ int btrfs_update_root(struct btrfs_root *root, struct btrfs_key *key,
 		      struct btrfs_root_item *item);
 int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 			struct btrfs_root_item *item, struct btrfs_key *key);
+int btrfs_insert_dir_item(struct btrfs_root *root, char *name, int name_len,
+			  u64 dir, u64 objectid, u8 type);
+int btrfs_lookup_dir_item(struct btrfs_root *root, struct btrfs_path *path,
+			  u64 dir, char *name, int name_len, int mod);
+int btrfs_match_dir_item_name(struct btrfs_root *root, struct btrfs_path *path,
+			      char *name, int name_len);
 #endif
