@@ -187,7 +187,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	uccs->us_pram = qe_muram_addr(uccs->us_pram_offset);
 
 	/* Init Guemr register */
-	if ((ret = ucc_init_guemr((struct ucc_common *) (us_info->regs)))) {
+	if ((ret = ucc_init_guemr((struct ucc_common *) us_regs))) {
 		printk(KERN_ERR "%s: cannot init GUEMR", __FUNCTION__);
 		ucc_slow_free(uccs);
 		return ret;
@@ -195,7 +195,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 
 	/* Set UCC to slow type */
 	if ((ret = ucc_set_type(us_info->ucc_num,
-				(struct ucc_common *) (us_info->regs),
+				(struct ucc_common *) us_regs,
 				UCC_SPEED_TYPE_SLOW))) {
 		printk(KERN_ERR "%s: cannot set UCC type", __FUNCTION__);
 		ucc_slow_free(uccs);
