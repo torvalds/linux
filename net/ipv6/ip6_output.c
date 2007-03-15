@@ -263,7 +263,8 @@ int ip6_nd_hdr(struct sock *sk, struct sk_buff *skb, struct net_device *dev,
 
 	totlen = len + sizeof(struct ipv6hdr);
 
-	skb->nh.raw = skb_put(skb, sizeof(struct ipv6hdr));
+	skb_reset_network_header(skb);
+	skb_put(skb, sizeof(struct ipv6hdr));
 	hdr = ipv6_hdr(skb);
 
 	*(__be32*)hdr = htonl(0x60000000);
