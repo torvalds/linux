@@ -308,6 +308,11 @@ int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 		goto bail;
 	}
 
+	if (wr->wr.ud.ah->pd != qp->ibqp.pd) {
+		ret = -EPERM;
+		goto bail;
+	}
+
 	/* IB spec says that num_sge == 0 is OK. */
 	if (wr->num_sge > qp->s_max_sge) {
 		ret = -EINVAL;
