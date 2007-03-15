@@ -5,7 +5,7 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -178,7 +178,6 @@ struct fib *aac_fib_alloc(struct aac_dev *dev)
  *	@fibptr: fib to free up
  *
  *	Frees up a fib and places it on the appropriate queue
- *	(either free or timed out)
  */
  
 void aac_fib_free(struct fib *fibptr)
@@ -186,19 +185,15 @@ void aac_fib_free(struct fib *fibptr)
 	unsigned long flags;
 
 	spin_lock_irqsave(&fibptr->dev->fib_lock, flags);
-	if (fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT) {
+	if (unlikely(fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT))
 		aac_config.fib_timeouts++;
-		fibptr->next = fibptr->dev->timeout_fib;
-		fibptr->dev->timeout_fib = fibptr;
-	} else {
-		if (fibptr->hw_fib_va->header.XferState != 0) {
-			printk(KERN_WARNING "aac_fib_free, XferState != 0, fibptr = 0x%p, XferState = 0x%x\n",
-				 (void*)fibptr, 
-				 le32_to_cpu(fibptr->hw_fib_va->header.XferState));
-		}
-		fibptr->next = fibptr->dev->free_fib;
-		fibptr->dev->free_fib = fibptr;
-	}	
+	if (fibptr->hw_fib_va->header.XferState != 0) {
+		printk(KERN_WARNING "aac_fib_free, XferState != 0, fibptr = 0x%p, XferState = 0x%x\n",
+			 (void*)fibptr,
+			 le32_to_cpu(fibptr->hw_fib_va->header.XferState));
+	}
+	fibptr->next = fibptr->dev->free_fib;
+	fibptr->dev->free_fib = fibptr;
 	spin_unlock_irqrestore(&fibptr->dev->fib_lock, flags);
 }
 

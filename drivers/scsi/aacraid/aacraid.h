@@ -971,7 +971,6 @@ struct aac_dev
 	struct fib              *fibs;
 
 	struct fib		*free_fib;
-	struct fib		*timeout_fib;
 	spinlock_t		fib_lock;
 	
 	struct aac_queue_block *queues;

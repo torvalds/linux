@@ -5,7 +5,7 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -172,6 +172,30 @@ MODULE_PARM_DESC(acbsize, "Request a specific adapter control block (FIB) size. 
 int expose_physicals = -1;
 module_param(expose_physicals, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(expose_physicals, "Expose physical components of the arrays. -1=protect 0=off, 1=on");
+
+
+static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
+		struct fib *fibptr) {
+	struct scsi_device *device;
+
+	if (unlikely(!scsicmd || !scsicmd->scsi_done )) {
+		dprintk((KERN_WARNING "aac_valid_context: scsi command corrupt\n"))
+;
+                aac_fib_complete(fibptr);
+                aac_fib_free(fibptr);
+                return 0;
+        }
+	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
+	device = scsicmd->device;
+	if (unlikely(!device || !scsi_device_online(device))) {
+		dprintk((KERN_WARNING "aac_valid_context: scsi device corrupt\n"));
+		aac_fib_complete(fibptr);
+		aac_fib_free(fibptr);
+		return 0;
+	}
+	return 1;
+}
+
 /**
  *	aac_get_config_status	-	check the adapter configuration
  *	@common: adapter to query
@@ -342,6 +366,9 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 	scsicmd = (struct scsi_cmnd *) context;
 	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 
+	if (!aac_valid_context(scsicmd, fibptr))
+		return;
+
 	dprintk((KERN_DEBUG "get_container_name_callback[cpu %d]: t = %ld.\n", smp_processor_id(), jiffies));
 	BUG_ON(fibptr == NULL);
 
@@ -431,9 +458,14 @@ static int aac_probe_container_callback2(struct scsi_cmnd * scsicmd)
 
 static int _aac_probe_container2(void * context, struct fib * fibptr)
 {
-	struct scsi_cmnd * scsicmd = (struct scsi_cmnd *)context;
-	struct fsa_dev_info *fsa_dev_ptr = ((struct aac_dev *)(scsicmd->device->host->hostdata))->fsa_dev;
+	struct fsa_dev_info *fsa_dev_ptr;
 	int (*callback)(struct scsi_cmnd *);
+	struct scsi_cmnd * scsicmd = (struct scsi_cmnd *)context;
+
+	if (!aac_valid_context(scsicmd, fibptr))
+		return 0;
+
+	fsa_dev_ptr = ((struct aac_dev *)(scsicmd->device->host->hostdata))->fsa_dev;
 
 	scsicmd->SCp.Status = 0;
 	if (fsa_dev_ptr) {
@@ -476,6 +508,9 @@ static int _aac_probe_container1(void * context, struct fib * fibptr)
 		return _aac_probe_container2(context, fibptr);
 	scsicmd = (struct scsi_cmnd *) context;
 	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
+
+	if (!aac_valid_context(scsicmd, fibptr))
+		return 0;
 
 	aac_fib_init(fibptr);
 
@@ -1287,6 +1322,9 @@ static void io_callback(void *context, struct fib * fibptr)
 	scsicmd = (struct scsi_cmnd *) context;
 	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 
+	if (!aac_valid_context(scsicmd, fibptr))
+		return;
+
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 	cid = scmd_id(scsicmd);
 
@@ -1533,6 +1571,9 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 
 	cmd = context;
 	cmd->SCp.phase = AAC_OWNER_MIDLEVEL;
+
+	if (!aac_valid_context(cmd, fibptr))
+		return;
 
 	dprintk((KERN_DEBUG "synchronize_callback[cpu %d]: t = %ld.\n", 
 				smp_processor_id(), jiffies));
@@ -2086,6 +2127,10 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 
 	scsicmd = (struct scsi_cmnd *) context;
 	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
+
+	if (!aac_valid_context(scsicmd, fibptr))
+		return;
+
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 
 	BUG_ON(fibptr == NULL);
