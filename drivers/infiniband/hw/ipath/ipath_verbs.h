@@ -40,6 +40,7 @@
 #include <linux/interrupt.h>
 #include <linux/kref.h>
 #include <rdma/ib_pack.h>
+#include <rdma/ib_user_verbs.h>
 
 #include "ipath_layer.h"
 
@@ -188,7 +189,7 @@ struct ipath_mmap_info {
 struct ipath_cq_wc {
 	u32 head;		/* index of next entry to fill */
 	u32 tail;		/* index of next ib_poll_cq() entry */
-	struct ib_wc queue[1];	/* this is actually size ibcq.cqe + 1 */
+	struct ib_uverbs_wc queue[1]; /* this is actually size ibcq.cqe + 1 */
 };
 
 /*
