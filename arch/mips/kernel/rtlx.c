@@ -146,7 +146,7 @@ static void stopping(int vpe)
 
 int rtlx_open(int index, int can_sleep)
 {
-	volatile struct rtlx_info **p;
+	struct rtlx_info **p;
 	struct rtlx_channel *chan;
 	enum rtlx_state state;
 	int ret = 0;
@@ -179,13 +179,24 @@ int rtlx_open(int index, int can_sleep)
 			}
 		}
 
+		smp_rmb();
 		if (*p == NULL) {
 			if (can_sleep) {
-				__wait_event_interruptible(channel_wqs[index].lx_queue,
-				                           *p != NULL,
-				                           ret);
-				if (ret)
+				DEFINE_WAIT(wait);
+
+				for (;;) {
+					prepare_to_wait(&channel_wqs[index].lx_queue, &wait, TASK_INTERRUPTIBLE);
+					smp_rmb();
+					if (*p != NULL)
+						break;
+					if (!signal_pending(current)) {
+						schedule();
+						continue;
+					}
+					ret = -ERESTARTSYS;
 					goto out_fail;
+				}
+				finish_wait(&channel_wqs[index].lx_queue, &wait);
 			} else {
 				printk(" *vpe_get_shared is NULL. "
 				       "Has an SP program been loaded?\n");
