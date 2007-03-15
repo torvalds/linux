@@ -390,15 +390,23 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 
 	/* setup the chip-specific functions, as early as possible. */
 	switch (ent->device) {
-#ifdef CONFIG_HT_IRQ
 	case PCI_DEVICE_ID_INFINIPATH_HT:
+#ifdef CONFIG_HT_IRQ
 		ipath_init_iba6110_funcs(dd);
 		break;
+#else
+		ipath_dev_err(dd, "QLogic HT device 0x%x cannot work if "
+			      "CONFIG_HT_IRQ is not enabled\n", ent->device);
+		return -ENODEV;
 #endif
-#ifdef CONFIG_PCI_MSI
 	case PCI_DEVICE_ID_INFINIPATH_PE800:
+#ifdef CONFIG_PCI_MSI
 		ipath_init_iba6120_funcs(dd);
 		break;
+#else
+		ipath_dev_err(dd, "QLogic PCIE device 0x%x cannot work if "
+			      "CONFIG_PCI_MSI is not enabled\n", ent->device);
+		return -ENODEV;
 #endif
 	default:
 		ipath_dev_err(dd, "Found unknown QLogic deviceid 0x%x, "
