@@ -438,6 +438,10 @@ void ipath_ib_rcv(struct ipath_ibdev *dev, void *rhdr, void *data,
 		struct ipath_mcast *mcast;
 		struct ipath_mcast_qp *p;
 
+		if (lnh != IPATH_LRH_GRH) {
+			dev->n_pkt_drops++;
+			goto bail;
+		}
 		mcast = ipath_mcast_find(&hdr->u.l.grh.dgid);
 		if (mcast == NULL) {
 			dev->n_pkt_drops++;
@@ -445,8 +449,7 @@ void ipath_ib_rcv(struct ipath_ibdev *dev, void *rhdr, void *data,
 		}
 		dev->n_multicast_rcv++;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list)
-			ipath_qp_rcv(dev, hdr, lnh == IPATH_LRH_GRH, data,
-				     tlen, p->qp);
+			ipath_qp_rcv(dev, hdr, 1, data, tlen, p->qp);
 		/*
 		 * Notify ipath_multicast_detach() if it is waiting for us
 		 * to finish.
