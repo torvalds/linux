@@ -842,11 +842,10 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 		struct ipath_portdata *pd = dd->ipath_pd[i];
 		if (portr & (1 << i) && pd && pd->port_cnt &&
 			test_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag)) {
-			int rcbit;
 			clear_bit(IPATH_PORT_WAITING_RCV,
 				  &pd->port_flag);
-			rcbit = i + INFINIPATH_R_INTRAVAIL_SHIFT;
-			clear_bit(1UL << rcbit, &dd->ipath_rcvctrl);
+			clear_bit(i + INFINIPATH_R_INTRAVAIL_SHIFT,
+				  &dd->ipath_rcvctrl);
 			wake_up_interruptible(&pd->port_wait);
 			rcvdint = 1;
 		}
