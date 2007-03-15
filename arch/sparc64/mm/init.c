@@ -122,24 +122,19 @@ static void __init read_obp_memory(const char *property,
 				size = 0UL;
 			base = new_base;
 		}
+		if (size == 0UL) {
+			/* If it is empty, simply get rid of it.
+			 * This simplifies the logic of the other
+			 * functions that process these arrays.
+			 */
+			memmove(&regs[i], &regs[i + 1],
+				(ents - i - 1) * sizeof(regs[0]));
+			i--;
+			ents--;
+			continue;
+		}
 		regs[i].phys_addr = base;
 		regs[i].reg_size = size;
-	}
-
-	for (i = 0; i < ents; i++) {
-		if (regs[i].reg_size == 0UL) {
-			int j;
-
-			for (j = i; j < ents - 1; j++) {
-				regs[j].phys_addr =
-					regs[j+1].phys_addr;
-				regs[j].reg_size =
-					regs[j+1].reg_size;
-			}
-
-			ents--;
-			i--;
-		}
 	}
 
 	*num_ents = ents;
