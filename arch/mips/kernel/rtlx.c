@@ -306,7 +306,7 @@ static inline void copy_from(void *dst, void *src, size_t count, int user)
 
 ssize_t rtlx_read(int index, void *buff, size_t count, int user)
 {
-	size_t fl = 0L;
+	size_t lx_write, fl = 0L;
 	struct rtlx_channel *lx;
 
 	if (rtlx == NULL)
@@ -314,23 +314,26 @@ ssize_t rtlx_read(int index, void *buff, size_t count, int user)
 
 	lx = &rtlx->channel[index];
 
+	smp_rmb();
+	lx_write = lx->lx_write;
+
 	/* find out how much in total */
 	count = min(count,
-		     (size_t)(lx->lx_write + lx->buffer_size - lx->lx_read)
+		     (size_t)(lx_write + lx->buffer_size - lx->lx_read)
 		     % lx->buffer_size);
 
 	/* then how much from the read pointer onwards */
-	fl = min( count, (size_t)lx->buffer_size - lx->lx_read);
+	fl = min(count, (size_t)lx->buffer_size - lx->lx_read);
 
-	copy_to(buff, &lx->lx_buffer[lx->lx_read], fl, user);
+	copy_to(buff, lx->lx_buffer + lx->lx_read, fl, user);
 
 	/* and if there is anything left at the beginning of the buffer */
-	if ( count - fl )
-		copy_to (buff + fl, lx->lx_buffer, count - fl, user);
+	if (count - fl)
+		copy_to(buff + fl, lx->lx_buffer, count - fl, user);
 
-	/* update the index */
-	lx->lx_read += count;
-	lx->lx_read %= lx->buffer_size;
+	smp_wmb();
+	lx->lx_read = (lx->lx_read + count) % lx->buffer_size;
+	smp_wmb();
 
 	return count;
 }
@@ -338,6 +341,7 @@ ssize_t rtlx_read(int index, void *buff, size_t count, int user)
 ssize_t rtlx_write(int index, void *buffer, size_t count, int user)
 {
 	struct rtlx_channel *rt;
+	size_t rt_read;
 	size_t fl;
 
 	if (rtlx == NULL)
@@ -345,24 +349,27 @@ ssize_t rtlx_write(int index, void *buffer, size_t count, int user)
 
 	rt = &rtlx->channel[index];
 
+	smp_rmb();
+	rt_read = rt->rt_read;
+
 	/* total number of bytes to copy */
 	count = min(count,
-		    (size_t)write_spacefree(rt->rt_read, rt->rt_write,
-					    rt->buffer_size));
+		    (size_t)write_spacefree(rt_read, rt->rt_write, rt->buffer_size));
 
 	/* first bit from write pointer to the end of the buffer, or count */
 	fl = min(count, (size_t) rt->buffer_size - rt->rt_write);
 
-	copy_from (&rt->rt_buffer[rt->rt_write], buffer, fl, user);
+	copy_from(rt->rt_buffer + rt->rt_write, buffer, fl, user);
 
 	/* if there's any left copy to the beginning of the buffer */
-	if( count - fl )
-		copy_from (rt->rt_buffer, buffer + fl, count - fl, user);
+	if (count - fl)
+		copy_from(rt->rt_buffer, buffer + fl, count - fl, user);
 
-	rt->rt_write += count;
-	rt->rt_write %= rt->buffer_size;
+	smp_wmb();
+	rt->rt_write = (rt->rt_write + count) % rt->buffer_size;
+	smp_wmb();
 
-	return(count);
+	return count;
 }
 
 
