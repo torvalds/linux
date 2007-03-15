@@ -47,11 +47,15 @@ static inline int m9206_read(struct usb_device *udev, u8 request, u16 value,\
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			      request, USB_TYPE_VENDOR | USB_DIR_IN,
 			      value, index, data, size, 2000);
-	if (ret < 0)
+	if (ret < 0) {
+		printk(KERN_INFO "m920x_read = error: %d\n", ret);
 		return ret;
+	}
 
-	if (ret != size)
+	if (ret != size) {
+		deb_rc("m920x_read = no data\n");
 		return -EIO;
+	}
 
 	return 0;
 }
@@ -64,6 +68,7 @@ static inline int m9206_write(struct usb_device *udev, u8 request,
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			      request, USB_TYPE_VENDOR | USB_DIR_OUT,
 			      value, index, NULL, 0, 2000);
+
 	return ret;
 }
 
@@ -323,6 +328,7 @@ static int m9206_firmware_download(struct usb_device *udev,
 			i += size;
 		}
 		if (i != fw->size) {
+			deb_rc("bad firmware file!\n");
 			ret = -EINVAL;
 			goto done;
 		}
