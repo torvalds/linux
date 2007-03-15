@@ -895,8 +895,10 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 			wc.opcode = ib_ipath_wc_opcode[wqe->wr.opcode];
 			wc.vendor_err = 0;
 			wc.byte_len = wqe->length;
+			wc.imm_data = 0;
 			wc.qp = &qp->ibqp;
 			wc.src_qp = qp->remote_qpn;
+			wc.wc_flags = 0;
 			wc.pkey_index = 0;
 			wc.slid = qp->remote_ah_attr.dlid;
 			wc.sl = qp->remote_ah_attr.sl;

@@ -361,7 +361,7 @@ static void ipath_reset_qp(struct ipath_qp *qp)
  * @err: the receive completion error to signal if a RWQE is active
  *
  * Flushes both send and receive work queues.
- * QP s_lock should be held and interrupts disabled.
+ * The QP s_lock should be held and interrupts disabled.
  */
 
 void ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
@@ -393,6 +393,8 @@ void ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
 	wc.port_num = 0;
 	if (qp->r_wrid_valid) {
 		qp->r_wrid_valid = 0;
+		wc.wr_id = qp->r_wr_id;
+		wc.opcode = IB_WC_RECV;
 		wc.status = err;
 		ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 1);
 	}
@@ -972,7 +974,7 @@ bail:
  * @wc: the WC responsible for putting the QP in this state
  *
  * Flushes the send work queue.
- * The QP s_lock should be held.
+ * The QP s_lock should be held and interrupts disabled.
  */
 
 void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc)
@@ -998,12 +1000,12 @@ void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc)
 	wc->status = IB_WC_WR_FLUSH_ERR;
 
 	while (qp->s_last != qp->s_head) {
+		wqe = get_swqe_ptr(qp, qp->s_last);
 		wc->wr_id = wqe->wr.wr_id;
 		wc->opcode = ib_ipath_wc_opcode[wqe->wr.opcode];
 		ipath_cq_enter(to_icq(qp->ibqp.send_cq), wc, 1);
 		if (++qp->s_last >= qp->s_size)
 			qp->s_last = 0;
-		wqe = get_swqe_ptr(qp, qp->s_last);
 	}
 	qp->s_cur = qp->s_tail = qp->s_head;
 	qp->state = IB_QPS_SQE;
