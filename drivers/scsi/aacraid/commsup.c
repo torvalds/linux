@@ -513,15 +513,15 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 				}
 				udelay(5);
 			}
-		} else if (down_interruptible(&fibptr->event_wait)) {
-			spin_lock_irqsave(&fibptr->event_lock, flags);
-			if (fibptr->done == 0) {
-				fibptr->done = 2; /* Tell interrupt we aborted */
-				spin_unlock_irqrestore(&fibptr->event_lock, flags);
-				return -EINTR;
-			}
+		} else
+			(void)down_interruptible(&fibptr->event_wait);
+		spin_lock_irqsave(&fibptr->event_lock, flags);
+		if (fibptr->done == 0) {
+			fibptr->done = 2; /* Tell interrupt we aborted */
 			spin_unlock_irqrestore(&fibptr->event_lock, flags);
+			return -EINTR;
 		}
+		spin_unlock_irqrestore(&fibptr->event_lock, flags);
 		BUG_ON(fibptr->done == 0);
 			
 		if((fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT)){
@@ -1062,7 +1062,7 @@ static int _aac_reset_adapter(struct aac_dev *aac)
 	/*
 	 *	Loop through the fibs, close the synchronous FIBS
 	 */
-	for (index = 0; index < (aac->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB); index++) {
+	for (retval = 1, index = 0; index < (aac->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB); index++) {
 		struct fib *fib = &aac->fibs[index];
 		if (!(fib->hw_fib_va->header.XferState & cpu_to_le32(NoResponseExpected | Async)) &&
 		  (fib->hw_fib_va->header.XferState & cpu_to_le32(ResponseExpected))) {
@@ -1071,8 +1071,12 @@ static int _aac_reset_adapter(struct aac_dev *aac)
 			up(&fib->event_wait);
 			spin_unlock_irqrestore(&fib->event_lock, flagv);
 			schedule();
+			retval = 0;
 		}
 	}
+	/* Give some extra time for ioctls to complete. */
+	if (retval == 0)
+		ssleep(2);
 	index = aac->cardtype;
 
 	/*

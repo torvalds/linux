@@ -64,6 +64,9 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 	unsigned size;
 	int retval;
 
+	if (dev->in_reset) {
+		return -EBUSY;
+	}
 	fibptr = aac_fib_alloc(dev);
 	if(fibptr == NULL) {
 		return -ENOMEM;
@@ -469,6 +472,10 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	int i;
 
 
+	if (dev->in_reset) {
+		dprintk((KERN_DEBUG"aacraid: send raw srb -EBUSY\n"));
+		return -EBUSY;
+	}
 	if (!capable(CAP_SYS_ADMIN)){
 		dprintk((KERN_DEBUG"aacraid: No permission to send raw srb\n")); 
 		return -EPERM;
