@@ -341,10 +341,10 @@ static int m9206_firmware_download(struct usb_device *udev,
 }
 
 /* Callbacks for DVB USB */
-static int megasky_identify_state(struct usb_device *udev,
-				  struct dvb_usb_device_properties *props,
-				  struct dvb_usb_device_description **desc,
-				  int *cold)
+static int m920x_identify_state(struct usb_device *udev,
+				struct dvb_usb_device_properties *props,
+				struct dvb_usb_device_description **desc,
+				int *cold)
 {
 	struct usb_host_interface *alt;
 
@@ -463,7 +463,7 @@ static struct dvb_usb_device_properties megasky_properties = {
 
 	.size_of_priv     = sizeof(struct m9206_state),
 
-	.identify_state   = megasky_identify_state,
+	.identify_state   = m920x_identify_state,
 	.num_adapters = 1,
 	.adapter = {{
 		.caps = DVB_USB_ADAP_HAS_PID_FILTER |
