@@ -701,6 +701,8 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 #define IPATH_PORT_WAITING_RCV   2
 		/* waiting for a PIO buffer to be available */
 #define IPATH_PORT_WAITING_PIO   3
+		/* master has not finished initializing */
+#define IPATH_PORT_MASTER_UNINIT 4
 
 /* free up any allocated data at closes */
 void ipath_free_data(struct ipath_portdata *dd);

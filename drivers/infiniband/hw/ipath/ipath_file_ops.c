@@ -178,8 +178,7 @@ static int ipath_get_base_info(struct file *fp,
 
 		kinfo->spi_rcvhdr_base = ((u64) pd->subport_rcvhdr_base +
 			pd->port_rcvhdrq_size * slave) & MMAP64_MASK;
-		kinfo->spi_rcvhdr_tailaddr =
-			(u64) pd->port_rcvhdrqtailaddr_phys & MMAP64_MASK;
+		kinfo->spi_rcvhdr_tailaddr = 0;
 		kinfo->spi_rcv_egrbufs = ((u64) pd->subport_rcvegrbuf +
 			dd->ipath_rcvegrcnt * dd->ipath_rcvegrbufsize * slave) &
 			MMAP64_MASK;
@@ -1443,6 +1442,7 @@ static int init_subports(struct ipath_devdata *dd,
 	pd->port_subport_cnt = uinfo->spu_subport_cnt;
 	pd->port_subport_id = uinfo->spu_subport_id;
 	pd->active_slaves = 1;
+	set_bit(IPATH_PORT_MASTER_UNINIT, &pd->port_flag);
 	goto bail;
 
 bail_rhdr:
@@ -1764,11 +1764,17 @@ static int ipath_do_user_init(struct file *fp,
 			      const struct ipath_user_info *uinfo)
 {
 	int ret;
-	struct ipath_portdata *pd;
+	struct ipath_portdata *pd = port_fp(fp);
 	struct ipath_devdata *dd;
 	u32 head32;
 
-	pd = port_fp(fp);
+	/* Subports don't need to initialize anything since master did it. */
+	if (subport_fp(fp)) {
+		ret = wait_event_interruptible(pd->port_wait,
+			!test_bit(IPATH_PORT_MASTER_UNINIT, &pd->port_flag));
+		goto done;
+	}
+
 	dd = pd->port_dd;
 
 	if (uinfo->spu_rcvhdrsize) {
@@ -1826,6 +1832,11 @@ static int ipath_do_user_init(struct file *fp,
 			 dd->ipath_rcvctrl & ~INFINIPATH_R_TAILUPD);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
+	/* Notify any waiting slaves */
+	if (pd->port_subport_cnt) {
+		clear_bit(IPATH_PORT_MASTER_UNINIT, &pd->port_flag);
+		wake_up(&pd->port_wait);
+	}
 done:
 	return ret;
 }
