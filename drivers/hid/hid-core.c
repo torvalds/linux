@@ -26,6 +26,7 @@
 #include <asm/byteorder.h>
 #include <linux/input.h>
 #include <linux/wait.h>
+#include <linux/vmalloc.h>
 
 #include <linux/hid.h>
 #include <linux/hiddev.h>
@@ -654,12 +655,13 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 	memcpy(device->rdesc, start, size);
 	device->rsize = size;
 
-	if (!(parser = kzalloc(sizeof(struct hid_parser), GFP_KERNEL))) {
+	if (!(parser = vmalloc(sizeof(struct hid_parser)))) {
 		kfree(device->rdesc);
 		kfree(device->collection);
 		kfree(device);
 		return NULL;
 	}
+	memset(parser, 0, sizeof(struct hid_parser));
 	parser->device = device;
 
 	end = start + size;
@@ -668,7 +670,7 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 		if (item.format != HID_ITEM_FORMAT_SHORT) {
 			dbg("unexpected long global item");
 			hid_free_device(device);
-			kfree(parser);
+			vfree(parser);
 			return NULL;
 		}
 
@@ -676,7 +678,7 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 			dbg("item %u %u %u %u parsing failed\n",
 				item.format, (unsigned)item.size, (unsigned)item.type, (unsigned)item.tag);
 			hid_free_device(device);
-			kfree(parser);
+			vfree(parser);
 			return NULL;
 		}
 
@@ -684,23 +686,23 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 			if (parser->collection_stack_ptr) {
 				dbg("unbalanced collection at end of report description");
 				hid_free_device(device);
-				kfree(parser);
+				vfree(parser);
 				return NULL;
 			}
 			if (parser->local.delimiter_depth) {
 				dbg("unbalanced delimiter at end of report description");
 				hid_free_device(device);
-				kfree(parser);
+				vfree(parser);
 				return NULL;
 			}
-			kfree(parser);
+			vfree(parser);
 			return device;
 		}
 	}
 
 	dbg("item fetching failed at offset %d\n", (int)(end - start));
 	hid_free_device(device);
-	kfree(parser);
+	vfree(parser);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(hid_parse_report);
@@ -871,10 +873,6 @@ static void hid_output_field(struct hid_field *field, __u8 *data)
 	unsigned offset = field->report_offset;
 	unsigned size = field->report_size;
 	unsigned n;
-
-	/* make sure the unused bits in the last byte are zeros */
-	if (count > 0 && size > 0)
-		data[(offset+count*size-1)/8] = 0;
 
 	for (n = 0; n < count; n++) {
 		if (field->logical_minimum < 0)	/* signed values */
