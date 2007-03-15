@@ -754,9 +754,42 @@ static int ipath_wait_linkstate(struct ipath_devdata *dd, u32 state,
 	return (dd->ipath_flags & state) ? 0 : -ETIMEDOUT;
 }
 
-void ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
+/*
+ * Decode the error status into strings, deciding whether to always
+ * print * it or not depending on "normal packet errors" vs everything
+ * else.   Return 1 if "real" errors, otherwise 0 if only packet
+ * errors, so caller can decide what to print with the string.
+ */
+int ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
 {
+	int iserr = 1;
 	*buf = '\0';
+	if (err & INFINIPATH_E_PKTERRS) {
+		if (!(err & ~INFINIPATH_E_PKTERRS))
+			iserr = 0; // if only packet errors.
+		if (ipath_debug & __IPATH_ERRPKTDBG) {
+			if (err & INFINIPATH_E_REBP)
+				strlcat(buf, "EBP ", blen);
+			if (err & INFINIPATH_E_RVCRC)
+				strlcat(buf, "VCRC ", blen);
+			if (err & INFINIPATH_E_RICRC) {
+				strlcat(buf, "CRC ", blen);
+				// clear for check below, so only once
+				err &= INFINIPATH_E_RICRC;
+			}
+			if (err & INFINIPATH_E_RSHORTPKTLEN)
+				strlcat(buf, "rshortpktlen ", blen);
+			if (err & INFINIPATH_E_SDROPPEDDATAPKT)
+				strlcat(buf, "sdroppeddatapkt ", blen);
+			if (err & INFINIPATH_E_SPKTLEN)
+				strlcat(buf, "spktlen ", blen);
+		}
+		if ((err & INFINIPATH_E_RICRC) &&
+			!(err&(INFINIPATH_E_RVCRC|INFINIPATH_E_REBP)))
+			strlcat(buf, "CRC ", blen);
+		if (!iserr)
+			goto done;
+	}
 	if (err & INFINIPATH_E_RHDRLEN)
 		strlcat(buf, "rhdrlen ", blen);
 	if (err & INFINIPATH_E_RBADTID)
@@ -767,12 +800,12 @@ void ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
 		strlcat(buf, "rhdr ", blen);
 	if (err & INFINIPATH_E_RLONGPKTLEN)
 		strlcat(buf, "rlongpktlen ", blen);
-	if (err & INFINIPATH_E_RSHORTPKTLEN)
-		strlcat(buf, "rshortpktlen ", blen);
 	if (err & INFINIPATH_E_RMAXPKTLEN)
 		strlcat(buf, "rmaxpktlen ", blen);
 	if (err & INFINIPATH_E_RMINPKTLEN)
 		strlcat(buf, "rminpktlen ", blen);
+	if (err & INFINIPATH_E_SMINPKTLEN)
+		strlcat(buf, "sminpktlen ", blen);
 	if (err & INFINIPATH_E_RFORMATERR)
 		strlcat(buf, "rformaterr ", blen);
 	if (err & INFINIPATH_E_RUNSUPVL)
@@ -781,32 +814,20 @@ void ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
 		strlcat(buf, "runexpchar ", blen);
 	if (err & INFINIPATH_E_RIBFLOW)
 		strlcat(buf, "ribflow ", blen);
-	if (err & INFINIPATH_E_REBP)
-		strlcat(buf, "EBP ", blen);
 	if (err & INFINIPATH_E_SUNDERRUN)
 		strlcat(buf, "sunderrun ", blen);
 	if (err & INFINIPATH_E_SPIOARMLAUNCH)
 		strlcat(buf, "spioarmlaunch ", blen);
 	if (err & INFINIPATH_E_SUNEXPERRPKTNUM)
 		strlcat(buf, "sunexperrpktnum ", blen);
-	if (err & INFINIPATH_E_SDROPPEDDATAPKT)
-		strlcat(buf, "sdroppeddatapkt ", blen);
 	if (err & INFINIPATH_E_SDROPPEDSMPPKT)
 		strlcat(buf, "sdroppedsmppkt ", blen);
 	if (err & INFINIPATH_E_SMAXPKTLEN)
 		strlcat(buf, "smaxpktlen ", blen);
-	if (err & INFINIPATH_E_SMINPKTLEN)
-		strlcat(buf, "sminpktlen ", blen);
 	if (err & INFINIPATH_E_SUNSUPVL)
 		strlcat(buf, "sunsupVL ", blen);
-	if (err & INFINIPATH_E_SPKTLEN)
-		strlcat(buf, "spktlen ", blen);
 	if (err & INFINIPATH_E_INVALIDADDR)
 		strlcat(buf, "invalidaddr ", blen);
-	if (err & INFINIPATH_E_RICRC)
-		strlcat(buf, "CRC ", blen);
-	if (err & INFINIPATH_E_RVCRC)
-		strlcat(buf, "VCRC ", blen);
 	if (err & INFINIPATH_E_RRCVEGRFULL)
 		strlcat(buf, "rcvegrfull ", blen);
 	if (err & INFINIPATH_E_RRCVHDRFULL)
@@ -819,6 +840,8 @@ void ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
 		strlcat(buf, "hardware ", blen);
 	if (err & INFINIPATH_E_RESET)
 		strlcat(buf, "reset ", blen);
+done:
+	return iserr;
 }
 
 /**

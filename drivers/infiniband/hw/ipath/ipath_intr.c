@@ -403,10 +403,13 @@ static void handle_supp_msgs(struct ipath_devdata *dd,
 	 * happens so often we never want to count it.
 	 */
 	if (dd->ipath_lasterror & ~INFINIPATH_E_IBSTATUSCHANGED) {
-		ipath_decode_err(msg, sizeof msg, dd->ipath_lasterror &
-				 ~INFINIPATH_E_IBSTATUSCHANGED);
+		int iserr;
+		iserr = ipath_decode_err(msg, sizeof msg,
+				dd->ipath_lasterror &
+				~INFINIPATH_E_IBSTATUSCHANGED);
 		if (dd->ipath_lasterror &
-		    ~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL))
+			~(INFINIPATH_E_RRCVEGRFULL |
+			INFINIPATH_E_RRCVHDRFULL | INFINIPATH_E_PKTERRS))
 			ipath_dev_err(dd, "Suppressed %u messages for "
 				      "fast-repeating errors (%s) (%llx)\n",
 				      supp_msgs, msg,
@@ -420,8 +423,13 @@ static void handle_supp_msgs(struct ipath_devdata *dd,
 			 * them. So only complain about these at debug
 			 * level.
 			 */
-			ipath_dbg("Suppressed %u messages for %s\n",
-				  supp_msgs, msg);
+			if (iserr)
+				ipath_dbg("Suppressed %u messages for %s\n",
+					  supp_msgs, msg);
+			else
+				ipath_cdbg(ERRPKT,
+					"Suppressed %u messages for %s\n",
+					  supp_msgs, msg);
 		}
 	}
 }
@@ -462,7 +470,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 {
 	char msg[512];
 	u64 ignore_this_time = 0;
-	int i;
+	int i, iserr = 0;
 	int chkerrpkts = 0, noprint = 0;
 	unsigned supp_msgs;
 
@@ -502,6 +510,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 	}
 
 	if (supp_msgs == 250000) {
+		int s_iserr;
 		/*
 		 * It's not entirely reasonable assuming that the errors set
 		 * in the last clear period are all responsible for the
@@ -511,17 +520,17 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		dd->ipath_maskederrs |= dd->ipath_lasterror | errs;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
 				 ~dd->ipath_maskederrs);
-		ipath_decode_err(msg, sizeof msg,
+		s_iserr = ipath_decode_err(msg, sizeof msg,
 				 (dd->ipath_maskederrs & ~dd->
 				  ipath_ignorederrs));
 
 		if ((dd->ipath_maskederrs & ~dd->ipath_ignorederrs) &
-		    ~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL))
-			ipath_dev_err(dd, "Disabling error(s) %llx because "
-				      "occurring too frequently (%s)\n",
-				      (unsigned long long)
-				      (dd->ipath_maskederrs &
-				       ~dd->ipath_ignorederrs), msg);
+			~(INFINIPATH_E_RRCVEGRFULL |
+			INFINIPATH_E_RRCVHDRFULL | INFINIPATH_E_PKTERRS))
+			ipath_dev_err(dd, "Temporarily disabling "
+			    "error(s) %llx reporting; too frequent (%s)\n",
+				(unsigned long long) (dd->ipath_maskederrs &
+				~dd->ipath_ignorederrs), msg);
 		else {
 			/*
 			 * rcvegrfull and rcvhdrqfull are "normal",
@@ -530,8 +539,15 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 			 * processing them.  So only complain about
 			 * these at debug level.
 			 */
-			ipath_dbg("Disabling frequent queue full errors "
-				  "(%s)\n", msg);
+			if (s_iserr)
+				ipath_dbg("Temporarily disabling reporting "
+				    "too frequent queue full errors (%s)\n",
+				    msg);
+			else
+				ipath_cdbg(ERRPKT,
+				    "Temporarily disabling reporting too"
+				    " frequent packet errors (%s)\n",
+				    msg);
 		}
 
 		/*
@@ -589,6 +605,8 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		ipath_stats.sps_crcerrs++;
 		chkerrpkts = 1;
 	}
+	iserr = errs & ~(E_SUM_PKTERRS | INFINIPATH_E_PKTERRS);
+
 
 	/*
 	 * We don't want to print these two as they happen, or we can make
@@ -677,8 +695,13 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		*dd->ipath_statusp &= ~IPATH_STATUS_IB_CONF;
 	}
 
-	if (!noprint && *msg)
-		ipath_dev_err(dd, "%s error\n", msg);
+	if (!noprint && *msg) {
+		if (iserr)
+			ipath_dev_err(dd, "%s error\n", msg);
+		else
+			dev_info(&dd->pcidev->dev, "%s packet problems\n",
+				msg);
+	}
 	if (dd->ipath_state_wanted & dd->ipath_flags) {
 		ipath_cdbg(VERBOSE, "driver wanted state %x, iflags now %x, "
 			   "waking\n", dd->ipath_state_wanted,

@@ -57,6 +57,7 @@
 #define __IPATH_PROCDBG     0x100
 /* print mmap/nopage stuff, not using VDBG any more */
 #define __IPATH_MMDBG       0x200
+#define __IPATH_ERRPKTDBG   0x400
 #define __IPATH_USER_SEND   0x1000	/* use user mode send */
 #define __IPATH_KERNEL_SEND 0x2000	/* use kernel mode send */
 #define __IPATH_EPKTDBG     0x4000	/* print ethernet packet data */

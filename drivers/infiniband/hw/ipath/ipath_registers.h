@@ -126,6 +126,15 @@
 #define INFINIPATH_E_RESET           0x0004000000000000ULL
 #define INFINIPATH_E_HARDWARE        0x0008000000000000ULL
 
+/*
+ * this is used to print "common" packet errors only when the
+ * __IPATH_ERRPKTDBG bit is set in ipath_debug.
+ */
+#define INFINIPATH_E_PKTERRS ( INFINIPATH_E_SPKTLEN \
+		| INFINIPATH_E_SDROPPEDDATAPKT | INFINIPATH_E_RVCRC \
+		| INFINIPATH_E_RICRC | INFINIPATH_E_RSHORTPKTLEN \
+		| INFINIPATH_E_REBP )
+
 /* kr_hwerrclear, kr_hwerrmask, kr_hwerrstatus, bits */
 /* TXEMEMPARITYERR bit 0: PIObuf, 1: PIOpbc, 2: launchfifo
  * RXEMEMPARITYERR bit 0: rcvbuf, 1: lookupq, 2:  expTID, 3: eagerTID

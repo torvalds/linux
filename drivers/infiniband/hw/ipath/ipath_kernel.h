@@ -611,7 +611,7 @@ struct sk_buff *ipath_alloc_skb(struct ipath_devdata *dd, gfp_t);
 extern int ipath_diag_inuse;
 
 irqreturn_t ipath_intr(int irq, void *devid);
-void ipath_decode_err(char *buf, size_t blen, ipath_err_t err);
+int ipath_decode_err(char *buf, size_t blen, ipath_err_t err);
 #if __IPATH_INFO || __IPATH_DBG
 extern const char *ipath_ibcstatus_str[];
 #endif
