@@ -136,6 +136,10 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	/* restore CMD_RUN, framelist size, and irq threshold */
 	ehci_writel(ehci, ehci->command, &ehci->regs->command);
 
+	/* Some controller/firmware combinations need a delay during which
+	 * they set up the port statuses.  See Bugzilla #8190. */
+	mdelay(8);
+
 	/* manually resume the ports we suspended during bus_suspend() */
 	i = HCS_N_PORTS (ehci->hcs_params);
 	while (i--) {
