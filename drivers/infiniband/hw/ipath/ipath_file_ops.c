@@ -41,12 +41,6 @@
 #include "ipath_kernel.h"
 #include "ipath_common.h"
 
-/*
- * mmap64 doesn't allow all 64 bits for 32-bit applications
- * so only use the low 43 bits.
- */
-#define MMAP64_MASK	0x7FFFFFFFFFFUL
-
 static int ipath_open(struct inode *, struct file *);
 static int ipath_close(struct inode *, struct file *);
 static ssize_t ipath_write(struct file *, const char __user *, size_t,
@@ -62,6 +56,24 @@ static const struct file_operations ipath_file_ops = {
 	.poll = ipath_poll,
 	.mmap = ipath_mmap
 };
+
+/*
+ * Convert kernel virtual addresses to physical addresses so they don't
+ * potentially conflict with the chip addresses used as mmap offsets.
+ * It doesn't really matter what mmap offset we use as long as we can
+ * interpret it correctly.
+ */
+static u64 cvt_kvaddr(void *p)
+{
+	struct page *page;
+	u64 paddr = 0;
+
+	page = vmalloc_to_page(p);
+	if (page)
+		paddr = page_to_pfn(page) << PAGE_SHIFT;
+
+	return paddr;
+}
 
 static int ipath_get_base_info(struct file *fp,
 			       void __user *ubase, size_t ubase_size)
@@ -173,15 +185,14 @@ static int ipath_get_base_info(struct file *fp,
 		kinfo->spi_piocnt = dd->ipath_pbufsport / subport_cnt;
 		kinfo->spi_piobufbase = (u64) pd->port_piobufs +
 			dd->ipath_palign * kinfo->spi_piocnt * slave;
-		kinfo->__spi_uregbase = ((u64) pd->subport_uregbase +
-			PAGE_SIZE * slave) & MMAP64_MASK;
+		kinfo->__spi_uregbase = cvt_kvaddr(pd->subport_uregbase +
+			PAGE_SIZE * slave);
 
-		kinfo->spi_rcvhdr_base = ((u64) pd->subport_rcvhdr_base +
-			pd->port_rcvhdrq_size * slave) & MMAP64_MASK;
+		kinfo->spi_rcvhdr_base = cvt_kvaddr(pd->subport_rcvhdr_base +
+			pd->port_rcvhdrq_size * slave);
 		kinfo->spi_rcvhdr_tailaddr = 0;
-		kinfo->spi_rcv_egrbufs = ((u64) pd->subport_rcvegrbuf +
-			dd->ipath_rcvegrcnt * dd->ipath_rcvegrbufsize * slave) &
-			MMAP64_MASK;
+		kinfo->spi_rcv_egrbufs = cvt_kvaddr(pd->subport_rcvegrbuf +
+			dd->ipath_rcvegrcnt * dd->ipath_rcvegrbufsize * slave);
 	}
 
 	kinfo->spi_pioindex = (kinfo->spi_piobufbase - dd->ipath_piobufbase) /
@@ -199,11 +210,11 @@ static int ipath_get_base_info(struct file *fp,
 	if (master) {
 		kinfo->spi_runtime_flags |= IPATH_RUNTIME_MASTER;
 		kinfo->spi_subport_uregbase =
-			(u64) pd->subport_uregbase & MMAP64_MASK;
+			cvt_kvaddr(pd->subport_uregbase);
 		kinfo->spi_subport_rcvegrbuf =
-			(u64) pd->subport_rcvegrbuf & MMAP64_MASK;
+			cvt_kvaddr(pd->subport_rcvegrbuf);
 		kinfo->spi_subport_rcvhdr_base =
-			(u64) pd->subport_rcvhdr_base & MMAP64_MASK;
+			cvt_kvaddr(pd->subport_rcvhdr_base);
 		ipath_cdbg(PROC, "port %u flags %x %llx %llx %llx\n",
 			kinfo->spi_port, kinfo->spi_runtime_flags,
 			(unsigned long long) kinfo->spi_subport_uregbase,
@@ -1131,13 +1142,11 @@ static int mmap_kvaddr(struct vm_area_struct *vma, u64 pgaddr,
 	struct ipath_devdata *dd;
 	void *addr;
 	size_t size;
-	int ret;
+	int ret = 0;
 
 	/* If the port is not shared, all addresses should be physical */
-	if (!pd->port_subport_cnt) {
-		ret = -EINVAL;
+	if (!pd->port_subport_cnt)
 		goto bail;
-	}
 
 	dd = pd->port_dd;
 	size = pd->port_rcvegrbuf_chunks * pd->port_rcvegrbuf_size;
@@ -1149,33 +1158,28 @@ static int mmap_kvaddr(struct vm_area_struct *vma, u64 pgaddr,
 	if (subport == 0) {
 		unsigned num_slaves = pd->port_subport_cnt - 1;
 
-		if (pgaddr == ((u64) pd->subport_uregbase & MMAP64_MASK)) {
+		if (pgaddr == cvt_kvaddr(pd->subport_uregbase)) {
 			addr = pd->subport_uregbase;
 			size = PAGE_SIZE * num_slaves;
-		} else if (pgaddr == ((u64) pd->subport_rcvhdr_base &
-				      MMAP64_MASK)) {
+		} else if (pgaddr == cvt_kvaddr(pd->subport_rcvhdr_base)) {
 			addr = pd->subport_rcvhdr_base;
 			size = pd->port_rcvhdrq_size * num_slaves;
-		} else if (pgaddr == ((u64) pd->subport_rcvegrbuf &
-				      MMAP64_MASK)) {
+		} else if (pgaddr == cvt_kvaddr(pd->subport_rcvegrbuf)) {
 			addr = pd->subport_rcvegrbuf;
 			size *= num_slaves;
-		} else {
-			ret = -EINVAL;
+		} else
 			goto bail;
-		}
-	} else if (pgaddr == (((u64) pd->subport_uregbase +
-			       PAGE_SIZE * (subport - 1)) & MMAP64_MASK)) {
+	} else if (pgaddr == cvt_kvaddr(pd->subport_uregbase +
+					PAGE_SIZE * (subport - 1))) {
 		addr = pd->subport_uregbase + PAGE_SIZE * (subport - 1);
 		size = PAGE_SIZE;
-	} else if (pgaddr == (((u64) pd->subport_rcvhdr_base +
-			       pd->port_rcvhdrq_size * (subport - 1)) &
-			      MMAP64_MASK)) {
+	} else if (pgaddr == cvt_kvaddr(pd->subport_rcvhdr_base +
+				pd->port_rcvhdrq_size * (subport - 1))) {
 		addr = pd->subport_rcvhdr_base +
 			pd->port_rcvhdrq_size * (subport - 1);
 		size = pd->port_rcvhdrq_size;
-	} else if (pgaddr == (((u64) pd->subport_rcvegrbuf +
-			       size * (subport - 1)) & MMAP64_MASK)) {
+	} else if (pgaddr == cvt_kvaddr(pd->subport_rcvegrbuf +
+			       size * (subport - 1))) {
 		addr = pd->subport_rcvegrbuf + size * (subport - 1);
 		/* rcvegrbufs are read-only on the slave */
 		if (vma->vm_flags & VM_WRITE) {
@@ -1190,10 +1194,8 @@ static int mmap_kvaddr(struct vm_area_struct *vma, u64 pgaddr,
 		 * with mprotect.
 		 */
 		vma->vm_flags &= ~VM_MAYWRITE;
-	} else {
-		ret = -EINVAL;
+	} else
 		goto bail;
-	}
 	len = vma->vm_end - vma->vm_start;
 	if (len > size) {
 		ipath_cdbg(MM, "FAIL: reqlen %lx > %zx\n", len, size);
@@ -1204,7 +1206,7 @@ static int mmap_kvaddr(struct vm_area_struct *vma, u64 pgaddr,
 	vma->vm_pgoff = (unsigned long) addr >> PAGE_SHIFT;
 	vma->vm_ops = &ipath_file_vm_ops;
 	vma->vm_flags |= VM_RESERVED | VM_DONTEXPAND;
-	ret = 0;
+	ret = 1;
 
 bail:
 	return ret;
@@ -1264,8 +1266,10 @@ static int ipath_mmap(struct file *fp, struct vm_area_struct *vma)
 	 * Check for kernel virtual addresses first, anything else must
 	 * match a HW or memory address.
 	 */
-	if (pgaddr >= (1ULL<<40)) {
-		ret = mmap_kvaddr(vma, pgaddr, pd, subport_fp(fp));
+	ret = mmap_kvaddr(vma, pgaddr, pd, subport_fp(fp));
+	if (ret) {
+		if (ret > 0)
+			ret = 0;
 		goto bail;
 	}
 
@@ -1411,7 +1415,7 @@ static int init_subports(struct ipath_devdata *dd,
 	 */
 	if (uinfo->spu_subport_cnt <= 1)
 		goto bail;
-	if (uinfo->spu_subport_cnt > 4) {
+	if (uinfo->spu_subport_cnt > INFINIPATH_MAX_SUBPORT) {
 		ret = -EINVAL;
 		goto bail;
 	}
