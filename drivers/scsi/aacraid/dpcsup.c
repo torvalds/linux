@@ -73,7 +73,7 @@ unsigned int aac_response_normal(struct aac_queue * q)
 		u32 index = le32_to_cpu(entry->addr);
 		fast = index & 0x01;
 		fib = &dev->fibs[index >> 2];
-		hwfib = fib->hw_fib;
+		hwfib = fib->hw_fib_va;
 		
 		aac_consumer_free(dev, q, HostNormRespQueue);
 		/*
@@ -193,7 +193,7 @@ unsigned int aac_command_normal(struct aac_queue *q)
 		INIT_LIST_HEAD(&fib->fiblink);
 		fib->type = FSAFS_NTC_FIB_CONTEXT;
 		fib->size = sizeof(struct fib);
-		fib->hw_fib = hw_fib;
+		fib->hw_fib_va = hw_fib;
 		fib->data = hw_fib->data;
 		fib->dev = dev;
 		
@@ -259,7 +259,7 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index)
 		INIT_LIST_HEAD(&fib->fiblink);
 		fib->type = FSAFS_NTC_FIB_CONTEXT;
 		fib->size = sizeof(struct fib);
-		fib->hw_fib = hw_fib;
+		fib->hw_fib_va = hw_fib;
 		fib->data = hw_fib->data;
 		fib->dev = dev;
 	
@@ -271,7 +271,7 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index)
 	} else {
 		int fast = index & 0x01;
 		struct fib * fib = &dev->fibs[index >> 2];
-		struct hw_fib * hwfib = fib->hw_fib;
+		struct hw_fib * hwfib = fib->hw_fib_va;
 
 		/*
 		 *	Remove this fib from the Outstanding I/O queue.

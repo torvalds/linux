@@ -69,7 +69,7 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 		return -ENOMEM;
 	}
 		
-	kfib = fibptr->hw_fib;
+	kfib = fibptr->hw_fib_va;
 	/*
 	 *	First copy in the header so that we can check the size field.
 	 */
@@ -91,9 +91,9 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 			goto cleanup;
 		}
 		/* Highjack the hw_fib */
-		hw_fib = fibptr->hw_fib;
+		hw_fib = fibptr->hw_fib_va;
 		hw_fib_pa = fibptr->hw_fib_pa;
-		fibptr->hw_fib = kfib = pci_alloc_consistent(dev->pdev, size, &fibptr->hw_fib_pa);
+		fibptr->hw_fib_va = kfib = pci_alloc_consistent(dev->pdev, size, &fibptr->hw_fib_pa);
 		memset(((char *)kfib) + dev->max_fib_size, 0, size - dev->max_fib_size);
 		memcpy(kfib, hw_fib, dev->max_fib_size);
 	}
@@ -137,7 +137,7 @@ cleanup:
 	if (hw_fib) {
 		pci_free_consistent(dev->pdev, size, kfib, fibptr->hw_fib_pa);
 		fibptr->hw_fib_pa = hw_fib_pa;
-		fibptr->hw_fib = hw_fib;
+		fibptr->hw_fib_va = hw_fib;
 	}
 	if (retval != -EINTR)
 		aac_fib_free(fibptr);
@@ -282,15 +282,15 @@ return_fib:
 		fib = list_entry(entry, struct fib, fiblink);
 		fibctx->count--;
 		spin_unlock_irqrestore(&dev->fib_lock, flags);
-		if (copy_to_user(f.fib, fib->hw_fib, sizeof(struct hw_fib))) {
-			kfree(fib->hw_fib);
+		if (copy_to_user(f.fib, fib->hw_fib_va, sizeof(struct hw_fib))) {
+			kfree(fib->hw_fib_va);
 			kfree(fib);
 			return -EFAULT;
 		}	
 		/*
 		 *	Free the space occupied by this copy of the fib.
 		 */
-		kfree(fib->hw_fib);
+		kfree(fib->hw_fib_va);
 		kfree(fib);
 		status = 0;
 	} else {
@@ -340,7 +340,7 @@ int aac_close_fib_context(struct aac_dev * dev, struct aac_fib_context * fibctx)
 		/*
 		 *	Free the space occupied by this copy of the fib.
 		 */
-		kfree(fib->hw_fib);
+		kfree(fib->hw_fib_va);
 		kfree(fib);
 	}
 	/*

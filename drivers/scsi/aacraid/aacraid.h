@@ -834,7 +834,7 @@ struct fib {
 	 */
 	struct list_head	fiblink;
 	void 			*data;
-	struct hw_fib		*hw_fib;		/* Actual shared object */
+	struct hw_fib		*hw_fib_va;		/* Actual shared object */
 	dma_addr_t		hw_fib_pa;		/* physical address of hw_fib*/
 };
 
@@ -1821,7 +1821,7 @@ int aac_fib_send(u16 command, struct fib * context, unsigned long size, int prio
 int aac_consumer_get(struct aac_dev * dev, struct aac_queue * q, struct aac_entry **entry);
 void aac_consumer_free(struct aac_dev * dev, struct aac_queue * q, u32 qnum);
 int aac_fib_complete(struct fib * context);
-#define fib_data(fibctx) ((void *)(fibctx)->hw_fib->data)
+#define fib_data(fibctx) ((void *)(fibctx)->hw_fib_va->data)
 struct aac_dev *aac_init_adapter(struct aac_dev *dev);
 int aac_get_config_status(struct aac_dev *dev, int commit_flag);
 int aac_get_containers(struct aac_dev *dev);

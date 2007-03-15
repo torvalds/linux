@@ -387,7 +387,7 @@ static int aac_rx_deliver_producer(struct fib * fib)
 	unsigned long nointr = 0;
 
 	spin_lock_irqsave(q->lock, qflags);
-	aac_queue_get( dev, &Index, AdapNormCmdQueue, fib->hw_fib, 1, fib, &nointr);
+	aac_queue_get( dev, &Index, AdapNormCmdQueue, fib->hw_fib_va, 1, fib, &nointr);
 
 	q->numpending++;
 	*(q->headers.producer) = cpu_to_le32(Index + 1);
@@ -437,7 +437,7 @@ static int aac_rx_deliver_message(struct fib * fib)
 	device += sizeof(u32);
 	writel((u32)(addr >> 32), device);
 	device += sizeof(u32);
-	writel(le16_to_cpu(fib->hw_fib->header.Size), device);
+	writel(le16_to_cpu(fib->hw_fib_va->header.Size), device);
 	rx_writel(dev, MUnit.InboundQueue, Index);
 	return 0;
 }
