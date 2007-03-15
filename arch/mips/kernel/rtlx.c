@@ -54,6 +54,7 @@ static struct chan_waitqueues {
 	wait_queue_head_t rt_queue;
 	wait_queue_head_t lx_queue;
 	atomic_t in_open;
+	struct mutex mutex;
 } channel_wqs[RTLX_CHANNELS];
 
 static struct irqaction irq;
@@ -314,6 +315,7 @@ ssize_t rtlx_read(int index, void *buff, size_t count, int user)
 
 	lx = &rtlx->channel[index];
 
+	mutex_lock(&channel_wqs[index].mutex);
 	smp_rmb();
 	lx_write = lx->lx_write;
 
@@ -334,6 +336,7 @@ ssize_t rtlx_read(int index, void *buff, size_t count, int user)
 	smp_wmb();
 	lx->lx_read = (lx->lx_read + count) % lx->buffer_size;
 	smp_wmb();
+	mutex_unlock(&channel_wqs[index].mutex);
 
 	return count;
 }
@@ -349,6 +352,7 @@ ssize_t rtlx_write(int index, void *buffer, size_t count, int user)
 
 	rt = &rtlx->channel[index];
 
+	mutex_lock(&channel_wqs[index].mutex);
 	smp_rmb();
 	rt_read = rt->rt_read;
 
@@ -368,6 +372,7 @@ ssize_t rtlx_write(int index, void *buffer, size_t count, int user)
 	smp_wmb();
 	rt->rt_write = (rt->rt_write + count) % rt->buffer_size;
 	smp_wmb();
+	mutex_unlock(&channel_wqs[index].mutex);
 
 	return count;
 }
@@ -486,6 +491,7 @@ static int rtlx_module_init(void)
 		init_waitqueue_head(&channel_wqs[i].rt_queue);
 		init_waitqueue_head(&channel_wqs[i].lx_queue);
 		atomic_set(&channel_wqs[i].in_open, 0);
+		mutex_init(&channel_wqs[i].mutex);
 
 		dev = device_create(mt_class, NULL, MKDEV(major, i),
 		                    "%s%d", module_name, i);
