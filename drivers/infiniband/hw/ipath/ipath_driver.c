@@ -605,8 +605,9 @@ static void __devexit cleanup_device(struct ipath_devdata *dd)
 
 		ipath_cdbg(VERBOSE, "Free shadow page tid array at %p\n",
 			   dd->ipath_pageshadow);
-		vfree(dd->ipath_pageshadow);
+		tmpp = dd->ipath_pageshadow;
 		dd->ipath_pageshadow = NULL;
+		vfree(tmpp);
 	}
 
 	/*

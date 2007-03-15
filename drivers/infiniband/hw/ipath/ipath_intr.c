@@ -38,10 +38,39 @@
 #include "ipath_common.h"
 
 /*
+ * clear (write) a pio buffer, to clear a parity error.   This routine
+ * should only be called when in freeze mode, and the buffer should be
+ * canceled afterwards.
+ */
+static void ipath_clrpiobuf(struct ipath_devdata *dd, u32 pnum)
+{
+	u32 __iomem *pbuf;
+	u32 dwcnt; /* dword count to write */
+	if (pnum < dd->ipath_piobcnt2k) {
+		pbuf = (u32 __iomem *) (dd->ipath_pio2kbase + pnum *
+			dd->ipath_palign);
+		dwcnt = dd->ipath_piosize2k >> 2;
+	}
+	else {
+		pbuf = (u32 __iomem *) (dd->ipath_pio4kbase +
+			(pnum - dd->ipath_piobcnt2k) * dd->ipath_4kalign);
+		dwcnt = dd->ipath_piosize4k >> 2;
+	}
+	dev_info(&dd->pcidev->dev,
+		"Rewrite PIO buffer %u, to recover from parity error\n",
+		pnum);
+	*pbuf = dwcnt+1; /* no flush required, since already in freeze */
+	while(--dwcnt)
+		*pbuf++ = 0;
+}
+
+/*
  * Called when we might have an error that is specific to a particular
  * PIO buffer, and may need to cancel that buffer, so it can be re-used.
+ * If rewrite is true, and bits are set in the sendbufferror registers,
+ * we'll write to the buffer, for error recovery on parity errors.
  */
-void ipath_disarm_senderrbufs(struct ipath_devdata *dd)
+void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
 {
 	u32 piobcnt;
 	unsigned long sbuf[4];
@@ -74,8 +103,11 @@ void ipath_disarm_senderrbufs(struct ipath_devdata *dd)
 		}
 
 		for (i = 0; i < piobcnt; i++)
-			if (test_bit(i, sbuf))
+			if (test_bit(i, sbuf)) {
+				if (rewrite)
+					ipath_clrpiobuf(dd, i);
 				ipath_disarm_piobufs(dd, i, 1);
+			}
 		dd->ipath_lastcancel = jiffies+3; /* no armlaunch for a bit */
 	}
 }
@@ -114,7 +146,7 @@ static u64 handle_e_sum_errs(struct ipath_devdata *dd, ipath_err_t errs)
 {
 	u64 ignore_this_time = 0;
 
-	ipath_disarm_senderrbufs(dd);
+	ipath_disarm_senderrbufs(dd, 0);
 	if ((errs & E_SUM_LINK_PKTERRS) &&
 	    !(dd->ipath_flags & IPATH_LINKACTIVE)) {
 		/*

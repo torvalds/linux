@@ -590,7 +590,6 @@ int ipath_enable_wc(struct ipath_devdata *dd);
 void ipath_disable_wc(struct ipath_devdata *dd);
 int ipath_count_units(int *npresentp, int *nupp, u32 *maxportsp);
 void ipath_shutdown_device(struct ipath_devdata *);
-void ipath_disarm_senderrbufs(struct ipath_devdata *);
 
 struct file_operations;
 int ipath_cdev_init(int minor, char *name, const struct file_operations *fops,
@@ -713,6 +712,7 @@ void ipath_init_iba6120_funcs(struct ipath_devdata *);
 void ipath_init_iba6110_funcs(struct ipath_devdata *);
 void ipath_get_eeprom_info(struct ipath_devdata *);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
+void ipath_disarm_senderrbufs(struct ipath_devdata *, int);
 
 /*
  * number of words used for protocol header if not set by ipath_userinit();
@@ -896,6 +896,8 @@ dma_addr_t ipath_map_single(struct pci_dev *, void *, size_t, int);
 #endif
 
 extern unsigned ipath_debug; /* debugging bit mask */
+
+#define IPATH_MAX_PARITY_ATTEMPTS 10000 /* max times to try recovery */
 
 const char *ipath_get_unit_name(int unit);
 

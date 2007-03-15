@@ -321,6 +321,12 @@ static const struct ipath_hwerror_msgs ipath_6120_hwerror_msgs[] = {
 	INFINIPATH_HWE_MSG(SERDESPLLFAILED, "SerDes PLL"),
 };
 
+#define TXE_PIO_PARITY ((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF | \
+		        INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC) \
+		        << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)
+
+static int ipath_pe_txe_recover(struct ipath_devdata *);
+
 /**
  * ipath_pe_handle_hwerrors - display hardware errors.
  * @dd: the infinipath device
@@ -394,25 +400,8 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		 * occur if a processor speculative read is done to the PIO
 		 * buffer while we are sending a packet, for example.
 		 */
-		if (hwerrs & ((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
-			       INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
-			      << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)) {
-			ipath_stats.sps_txeparity++;
-			ipath_dbg("Recovering from TXE parity error (%llu), "
-			    	  "hwerrstatus=%llx\n",
-				  (unsigned long long) ipath_stats.sps_txeparity,
-				  (unsigned long long) hwerrs);
-			ipath_disarm_senderrbufs(dd);
-			hwerrs &= ~((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
-				     INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
-				    << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT);
-			if (!hwerrs) { /* else leave in freeze mode */
-				ipath_write_kreg(dd,
-						 dd->ipath_kregs->kr_control,
-						 dd->ipath_control);
-			    return;
-			}
-		}
+		if ((hwerrs & TXE_PIO_PARITY) && ipath_pe_txe_recover(dd))
+			hwerrs &= ~TXE_PIO_PARITY;
 		if (hwerrs) {
 			/*
 			 * if any set that we aren't ignoring only make the
@@ -581,6 +570,8 @@ static void ipath_pe_init_hwerrors(struct ipath_devdata *dd)
 
 	if (!(extsval & INFINIPATH_EXTS_MEMBIST_ENDTEST))
 		ipath_dev_err(dd, "MemBIST did not complete!\n");
+	if (extsval & INFINIPATH_EXTS_MEMBIST_FOUND)
+		ipath_dbg("MemBIST corrected\n");
 
 	val = ~0ULL;	/* barring bugs, all hwerrors become interrupts, */
 
@@ -1328,6 +1319,35 @@ static void ipath_pe_free_irq(struct ipath_devdata *dd)
 {
 	free_irq(dd->ipath_irq, dd);
 	dd->ipath_irq = 0;
+}
+
+/*
+ * On platforms using this chip, and not having ordered WC stores, we
+ * can get TXE parity errors due to speculative reads to the PIO buffers,
+ * and this, due to a chip bug can result in (many) false parity error
+ * reports.  So it's a debug print on those, and an info print on systems
+ * where the speculative reads don't occur.
+ * Because we can get lots of false errors, we have no upper limit
+ * on recovery attempts on those platforms.
+ */
+static int ipath_pe_txe_recover(struct ipath_devdata *dd)
+{
+	if (ipath_unordered_wc())
+		ipath_dbg("Recovering from TXE PIO parity error\n");
+	else {
+		int cnt = ++ipath_stats.sps_txeparity;
+		if (cnt >= IPATH_MAX_PARITY_ATTEMPTS)  {
+			if (cnt == IPATH_MAX_PARITY_ATTEMPTS)
+				ipath_dev_err(dd,
+					"Too many attempts to recover from "
+					"TXE parity, giving up\n");
+			return 0;
+		}
+		dev_info(&dd->pcidev->dev,
+			"Recovering from TXE PIO parity error\n");
+	}
+	ipath_disarm_senderrbufs(dd, 1);
+	return 1;
 }
 
 /**

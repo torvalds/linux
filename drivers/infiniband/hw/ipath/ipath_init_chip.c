@@ -590,6 +590,10 @@ static int init_housekeeping(struct ipath_devdata *dd,
 		goto done;
 	}
 
+
+	/* clear diagctrl register, in case diags were running and crashed */
+	ipath_write_kreg (dd, dd->ipath_kregs->kr_hwdiagctrl, 0);
+
 	/* clear the initial reset flag, in case first driver load */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errorclear,
 			 INFINIPATH_E_RESET);
