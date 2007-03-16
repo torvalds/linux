@@ -191,6 +191,8 @@ void sp_work_handle_request(void)
 	struct mtsp_syscall_generic generic;
 	struct mtsp_syscall_ret ret;
 	struct kspd_notifications *n;
+	unsigned long written;
+	mm_segment_t old_fs;
 	struct timeval tv;
 	struct timezone tz;
 	int cmd;
@@ -201,7 +203,11 @@ void sp_work_handle_request(void)
 
 	ret.retval = -1;
 
-	if (!rtlx_read(RTLX_CHANNEL_SYSIO, &sc, sizeof(struct mtsp_syscall), 0)) {
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	if (!rtlx_read(RTLX_CHANNEL_SYSIO, &sc, sizeof(struct mtsp_syscall))) {
+		set_fs(old_fs);
 		printk(KERN_ERR "Expected request but nothing to read\n");
 		return;
 	}
@@ -209,7 +215,8 @@ void sp_work_handle_request(void)
 	size = sc.size;
 
 	if (size) {
-		if (!rtlx_read(RTLX_CHANNEL_SYSIO, &generic, size, 0)) {
+		if (!rtlx_read(RTLX_CHANNEL_SYSIO, &generic, size)) {
+			set_fs(old_fs);
 			printk(KERN_ERR "Expected request but nothing to read\n");
 			return;
 		}
@@ -282,8 +289,11 @@ void sp_work_handle_request(void)
 	if (vpe_getuid(SP_VPE))
 		sp_setfsuidgid( 0, 0);
 
-	if ((rtlx_write(RTLX_CHANNEL_SYSIO, &ret, sizeof(struct mtsp_syscall_ret), 0))
-	    < sizeof(struct mtsp_syscall_ret))
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	written = rtlx_write(RTLX_CHANNEL_SYSIO, &ret, sizeof(ret));
+	set_fs(old_fs);
+	if (written < sizeof(ret))
 		printk("KSPD: sp_work_handle_request failed to send to SP\n");
 }
 
