@@ -362,7 +362,7 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE) {
 		skb_postpull_rcsum(skb, skb_network_header(skb),
-				   skb->h.raw - skb->nh.raw);
+				   skb_network_header_len(skb));
 		if (!csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 				     &ipv6_hdr(skb)->daddr,
 				     skb->len, inet->num, skb->csum))

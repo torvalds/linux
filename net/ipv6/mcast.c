@@ -1168,7 +1168,7 @@ int igmp6_event_query(struct sk_buff *skb)
 
 	/* compute payload length excluding extension headers */
 	len = ntohs(ipv6_hdr(skb)->payload_len) + sizeof(struct ipv6hdr);
-	len -= skb->h.raw - skb->nh.raw;
+	len -= skb_network_header_len(skb);
 
 	/* Drop queries with not link local source */
 	if (!(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL))

@@ -270,7 +270,7 @@ error:
 static inline void
 _decode_session6(struct sk_buff *skb, struct flowi *fl)
 {
-	u16 offset = skb->h.raw - skb->nh.raw;
+	u16 offset = skb_network_header_len(skb);
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct ipv6_opt_hdr *exthdr;
 	const unsigned char *nh = skb_network_header(skb);

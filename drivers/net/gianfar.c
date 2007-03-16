@@ -953,7 +953,7 @@ static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb)
 	 * l4os is the distance between the start of the
 	 * l3 hdr and the l4 hdr */
 	fcb->l3os = (u16)(skb_network_offset(skb) - GMAC_FCB_LEN);
-	fcb->l4os = (u16)(skb->h.raw - skb->nh.raw);
+	fcb->l4os = skb_network_header_len(skb);
 
 	fcb->flags = flags;
 }

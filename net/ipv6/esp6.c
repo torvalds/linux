@@ -147,8 +147,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	int blksize = ALIGN(crypto_blkcipher_blocksize(tfm), 4);
 	int alen = esp->auth.icv_trunc_len;
 	int elen = skb->len - sizeof(struct ipv6_esp_hdr) - esp->conf.ivlen - alen;
-
-	int hdr_len = skb->h.raw - skb->nh.raw;
+	int hdr_len = skb_network_header_len(skb);
 	int nfrags;
 	int ret = 0;
 

@@ -182,7 +182,7 @@ resubmit:
 			nf_reset(skb);
 
 			skb_postpull_rcsum(skb, skb_network_header(skb),
-					   skb->h.raw - skb->nh.raw);
+					   skb_network_header_len(skb));
 			hdr = ipv6_hdr(skb);
 			if (ipv6_addr_is_multicast(&hdr->daddr) &&
 			    !ipv6_chk_mcast_addr(skb->dev, &hdr->daddr,

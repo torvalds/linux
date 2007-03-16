@@ -1187,7 +1187,7 @@ int ip_push_pending_frames(struct sock *sk)
 	if (skb->data < skb_network_header(skb))
 		__skb_pull(skb, skb_network_offset(skb));
 	while ((tmp_skb = __skb_dequeue(&sk->sk_write_queue)) != NULL) {
-		__skb_pull(tmp_skb, skb->h.raw - skb->nh.raw);
+		__skb_pull(tmp_skb, skb_network_header_len(skb));
 		*tail_skb = tmp_skb;
 		tail_skb = &(tmp_skb->next);
 		skb->len += tmp_skb->len;

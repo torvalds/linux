@@ -679,7 +679,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 	/* Yes, and fold redundant checksum back. 8) */
 	if (head->ip_summed == CHECKSUM_COMPLETE)
 		head->csum = csum_partial(skb_network_header(head),
-					  head->h.raw - head->nh.raw,
+					  skb_network_header_len(head),
 					  head->csum);
 
 	rcu_read_lock();
@@ -715,13 +715,15 @@ static int ipv6_frag_rcv(struct sk_buff **skbp)
 	/* Jumbo payload inhibits frag. header */
 	if (hdr->payload_len==0) {
 		IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_INHDRERRORS);
-		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, skb->h.raw-skb->nh.raw);
+		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
+				  skb_network_header_len(skb));
 		return -1;
 	}
 	if (!pskb_may_pull(skb, (skb_transport_offset(skb) +
 				 sizeof(struct frag_hdr)))) {
 		IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_INHDRERRORS);
-		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, skb->h.raw-skb->nh.raw);
+		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
+				  skb_network_header_len(skb));
 		return -1;
 	}
 

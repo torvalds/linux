@@ -143,7 +143,7 @@ static int ip6_parse_tlv(struct tlvtype_proc *procs, struct sk_buff **skbp)
 	struct sk_buff *skb = *skbp;
 	struct tlvtype_proc *curr;
 	const unsigned char *nh = skb_network_header(skb);
-	int off = skb->h.raw - skb->nh.raw;
+	int off = skb_network_header_len(skb);
 	int len = (skb_transport_header(skb)[1] + 1) << 3;
 
 	if (skb_transport_offset(skb) + len > skb_headlen(skb))
@@ -297,7 +297,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 		return -1;
 	}
 
-	opt->lastopt = opt->dst1 = skb->h.raw - skb->nh.raw;
+	opt->lastopt = opt->dst1 = skb_network_header_len(skb);
 #ifdef CONFIG_IPV6_MIP6
 	dstbuf = opt->dst1;
 #endif
@@ -443,7 +443,7 @@ looped_back:
 			break;
 		}
 
-		opt->lastopt = opt->srcrt = skb->h.raw - skb->nh.raw;
+		opt->lastopt = opt->srcrt = skb_network_header_len(skb);
 		skb->h.raw += (hdr->hdrlen + 1) << 3;
 		opt->dst0 = opt->dst1;
 		opt->dst1 = 0;
@@ -738,7 +738,7 @@ int ipv6_parse_hopopts(struct sk_buff **skbp)
 
 	/*
 	 * skb_network_header(skb) is equal to skb->data, and
-	 * skb->h.raw - skb->nh.raw is always equal to
+	 * skb_network_header_len(skb) is always equal to
 	 * sizeof(struct ipv6hdr) by definition of
 	 * hop-by-hop options.
 	 */

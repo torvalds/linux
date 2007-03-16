@@ -657,7 +657,7 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 	/* Yes, and fold redundant checksum back. 8) */
 	if (head->ip_summed == CHECKSUM_COMPLETE)
 		head->csum = csum_partial(skb_network_header(head),
-					  head->h.raw - head->nh.raw,
+					  skb_network_header_len(head),
 					  head->csum);
 
 	fq->fragments = NULL;

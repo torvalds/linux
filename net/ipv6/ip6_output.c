@@ -1325,7 +1325,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	if (skb->data < skb_network_header(skb))
 		__skb_pull(skb, skb_network_offset(skb));
 	while ((tmp_skb = __skb_dequeue(&sk->sk_write_queue)) != NULL) {
-		__skb_pull(tmp_skb, skb->h.raw - skb->nh.raw);
+		__skb_pull(tmp_skb, skb_network_header_len(skb));
 		*tail_skb = tmp_skb;
 		tail_skb = &(tmp_skb->next);
 		skb->len += tmp_skb->len;
@@ -1337,7 +1337,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	}
 
 	ipv6_addr_copy(final_dst, &fl->fl6_dst);
-	__skb_pull(skb, skb->h.raw - skb->nh.raw);
+	__skb_pull(skb, skb_network_header_len(skb));
 	if (opt && opt->opt_flen)
 		ipv6_push_frag_opts(skb, opt, &proto);
 	if (opt && opt->opt_nflen)
