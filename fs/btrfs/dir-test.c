@@ -81,8 +81,7 @@ error:
 		di = btrfs_item_ptr(&path.nodes[0]->leaf, path.slots[0],
 				    struct btrfs_dir_item);
 		found = (char *)(di + 1);
-		found_len = btrfs_dir_name_len(path.nodes[0]->leaf.items +
-						path.slots[0]);
+		found_len = btrfs_dir_name_len(di);
 		btrfs_name_hash(buf, strlen(buf), &myhash);
 		btrfs_name_hash(found, found_len, &foundhash);
 		if (myhash != foundhash)
@@ -227,8 +226,7 @@ static int empty_tree(struct btrfs_root *root, struct radix_tree_root *radix,
 		slot = path.slots[0];
 		di = btrfs_item_ptr(&path.nodes[0]->leaf, slot,
 				    struct btrfs_dir_item);
-		found_len = btrfs_dir_name_len(path.nodes[0]->leaf.items +
-						slot);
+		found_len = btrfs_dir_name_len(di);
 		memcpy(buf, (char *)(di + 1), found_len);
 		BUG_ON(found_len > 128);
 		buf[found_len] = '\0';

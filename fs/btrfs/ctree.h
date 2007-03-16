@@ -26,14 +26,14 @@
  */
 struct btrfs_disk_key {
 	__le64 objectid;
-	__le64 offset;
 	__le32 flags;
+	__le64 offset;
 } __attribute__ ((__packed__));
 
 struct btrfs_key {
 	u64 objectid;
-	u64 offset;
 	u32 flags;
+	u64 offset;
 } __attribute__ ((__packed__));
 
 /*
@@ -166,6 +166,7 @@ struct btrfs_inline_data_item {
 struct btrfs_dir_item {
 	__le64 objectid;
 	__le16 flags;
+	__le16 name_len;
 	u8 type;
 } __attribute__ ((__packed__));
 
@@ -431,9 +432,14 @@ static inline void btrfs_set_dir_type(struct btrfs_dir_item *d, u8 val)
 	d->type = val;
 }
 
-static inline u32 btrfs_dir_name_len(struct btrfs_item *i)
+static inline u16 btrfs_dir_name_len(struct btrfs_dir_item *d)
 {
-	return btrfs_item_size(i) - sizeof(struct btrfs_dir_item);
+	return le16_to_cpu(d->name_len);
+}
+
+static inline void btrfs_set_dir_name_len(struct btrfs_dir_item *d, u16 val)
+{
+	d->name_len = cpu_to_le16(val);
 }
 
 static inline void btrfs_disk_key_to_cpu(struct btrfs_key *cpu,

@@ -32,6 +32,7 @@ int btrfs_insert_dir_item(struct btrfs_root *root, char *name, int name_len,
 	btrfs_set_dir_objectid(dir_item, objectid);
 	btrfs_set_dir_type(dir_item, type);
 	btrfs_set_dir_flags(dir_item, 0);
+	btrfs_set_dir_name_len(dir_item, name_len);
 	name_ptr = (char *)(dir_item + 1);
 	memcpy(name_ptr, name, name_len);
 out:
@@ -59,20 +60,15 @@ int btrfs_lookup_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 int btrfs_match_dir_item_name(struct btrfs_root *root, struct btrfs_path *path,
 			      char *name, int name_len)
 {
-	struct btrfs_item *item;
 	struct btrfs_dir_item *dir_item;
 	char *name_ptr;
-	u32 item_len;
-	item = path->nodes[0]->leaf.items + path->slots[0];
-	item_len = btrfs_item_size(item);
-	if (item_len != name_len + sizeof(struct btrfs_dir_item)) {
-		return 0;
-	}
+
 	dir_item = btrfs_item_ptr(&path->nodes[0]->leaf, path->slots[0],
 				  struct btrfs_dir_item);
-	name_ptr = (char *)(dir_item + 1);
-	if (memcmp(name_ptr, name, name_len)) {
+	if (btrfs_dir_name_len(dir_item) != name_len)
 		return 0;
-	}
+	name_ptr = (char *)(dir_item + 1);
+	if (memcmp(name_ptr, name, name_len))
+		return 0;
 	return 1;
 }

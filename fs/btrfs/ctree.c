@@ -107,13 +107,13 @@ static int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
 		return 1;
 	if (k1.objectid < k2->objectid)
 		return -1;
-	if (k1.offset > k2->offset)
-		return 1;
-	if (k1.offset < k2->offset)
-		return -1;
 	if (k1.flags > k2->flags)
 		return 1;
 	if (k1.flags < k2->flags)
+		return -1;
+	if (k1.offset > k2->offset)
+		return 1;
+	if (k1.offset < k2->offset)
 		return -1;
 	return 0;
 }
