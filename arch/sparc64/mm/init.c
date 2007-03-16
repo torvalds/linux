@@ -770,8 +770,8 @@ static unsigned long __init choose_bootmap_pfn(unsigned long start_pfn,
 	unsigned long avoid_start, avoid_end, bootmap_size;
 	int i;
 
-	bootmap_size = ((end_pfn - start_pfn) + 7) / 8;
-	bootmap_size = ALIGN(bootmap_size, sizeof(long));
+	bootmap_size = bootmem_bootmap_pages(end_pfn - start_pfn);
+	bootmap_size <<= PAGE_SHIFT;
 
 	avoid_start = avoid_end = 0;
 #ifdef CONFIG_BLK_DEV_INITRD
