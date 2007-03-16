@@ -3103,6 +3103,9 @@ TPM DEVICE DRIVER
 P:	Kylene Hall
 M:	kjhall@us.ibm.com
 W:	http://tpmdd.sourceforge.net
+P:	Marcel Selhorst
+M:	tpm@selhorst.net
+W:	http://www.prosec.rub.de/tpm/
 L:	tpmdd-devel@lists.sourceforge.net
 S:	Maintained
 
