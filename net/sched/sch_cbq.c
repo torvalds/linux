@@ -1070,7 +1070,7 @@ cbq_dequeue(struct Qdisc *sch)
 		sch->qstats.overlimits++;
 		if (q->wd_expires)
 			qdisc_watchdog_schedule(&q->watchdog,
-						q->now + q->wd_expires);
+						now + q->wd_expires);
 	}
 	return NULL;
 }
