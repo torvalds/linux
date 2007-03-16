@@ -1216,7 +1216,8 @@ static int psched_show(struct seq_file *seq, void *v)
 {
 	seq_printf(seq, "%08x %08x %08x %08x\n",
 		   (u32)NSEC_PER_USEC, (u32)PSCHED_US2NS(1),
-		   1000000, (u32)NSEC_PER_SEC/ktime_to_ns(KTIME_MONOTONIC_RES));
+		   1000000,
+		   (u32)NSEC_PER_SEC/(u32)ktime_to_ns(KTIME_MONOTONIC_RES));
 
 	return 0;
 }
