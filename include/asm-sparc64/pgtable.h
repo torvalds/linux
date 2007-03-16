@@ -777,6 +777,8 @@ extern void pgtable_cache_init(void);
 extern void sun4v_register_fault_status(void);
 extern void sun4v_ktsb_register(void);
 
+extern unsigned long cmdline_memory_size;
+
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* !(_SPARC64_PGTABLE_H) */

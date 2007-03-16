@@ -761,8 +761,6 @@ out:
 		smp_new_mmu_context_version();
 }
 
-extern unsigned long cmdline_memory_size;
-
 /* Find a free area for the bootmem map, avoiding the kernel image
  * and the initial ramdisk.
  */
